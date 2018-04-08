@@ -27,45 +27,45 @@ extern bool handle_events (void);
 extern int handle_msgpump (void);
 extern void setup_brkhandler (void);
 extern int isfullscreen (void);
-extern void toggle_fullscreen (int);
-extern bool toggle_rtg (int);
+extern void toggle_fullscreen(int monid, int);
+extern bool toggle_rtg(int monid, int);
+extern void close_rtg(int monid);
 
 extern void toggle_mousegrab (void);
-void setmouseactivexy (int x, int y, int dir);
+void setmouseactivexy(int monid, int x, int y, int dir);
 
-extern void desktop_coords (int *dw, int *dh, int *x, int *y, int *w, int *h);
-extern bool vsync_switchmode (int);
-extern frame_time_t vsync_busywait_end (int*);
-extern int vsync_busywait_do (int*, bool, bool);
-extern void vsync_busywait_start (void);
-extern double vblank_calibrate (double, bool);
-extern bool vsync_isdone (void);
+extern void desktop_coords(int monid, int *dw, int *dh, int *x, int *y, int *w, int *h);
+extern bool vsync_switchmode(int monid, int hz);
+extern void vsync_clear(void);
+extern int vsync_isdone(frame_time_t*);
 extern void doflashscreen (void);
 extern int flashscreen;
-extern void updatedisplayarea (void);
+extern void updatedisplayarea(int monid);
 extern int isvsync_chipset (void);
 extern int isvsync_rtg (void);
 extern int isvsync (void);
 
-extern void flush_line (struct vidbuffer*, int);
-extern void flush_block (struct vidbuffer*, int, int);
-extern void flush_screen (struct vidbuffer*, int, int);
-extern void flush_clear_screen (struct vidbuffer*);
-extern bool render_screen (bool);
-extern void show_screen (int);
-extern bool show_screen_maybe (bool);
+extern void flush_line(struct vidbuffer*, int);
+extern void flush_block(struct vidbuffer*, int, int);
+extern void flush_screen(struct vidbuffer*, int, int);
+extern void flush_clear_screen(struct vidbuffer*);
+extern bool render_screen(int monid, int, bool);
+extern void show_screen(int monid, int mode);
+extern bool show_screen_maybe(int monid, bool);
 
-extern int lockscr (struct vidbuffer*, bool);
-extern void unlockscr (struct vidbuffer*);
-extern bool target_graphics_buffer_update (void);
-extern double target_adjust_vblank_hz(double);
+extern int lockscr(struct vidbuffer*, bool, bool);
+extern void unlockscr(struct vidbuffer*, int, int);
+extern bool target_graphics_buffer_update(int monid);
+extern float target_adjust_vblank_hz(int monid, float);
+extern int target_get_display_scanline(int displayindex);
+extern void target_spin(int);
 
-void getgfxoffset (float *dxp, float *dyp, float *mxp, float *myp);
-double getcurrentvblankrate (void); /* todo: remove from od-win32/win32gfx.h */
+void getgfxoffset(int monid, float *dxp, float *dyp, float *mxp, float *myp);
+float target_getcurrentvblankrate(int monid);
 
 extern int debuggable (void);
 extern void LED (int);
-extern void screenshot (int,int);
+extern void screenshot(int monid, int,int);
 void refreshtitle (void);
 
 extern int bits_in_mask (unsigned long mask);
@@ -74,7 +74,7 @@ extern unsigned int doMask (int p, int bits, int shift);
 extern unsigned int doMask256 (int p, int bits, int shift);
 extern void setup_maxcol (int);
 extern void alloc_colors256 (int (*)(int, int, int, xcolnr *));
-extern void alloc_colors64k (int, int, int, int, int, int, int, int, int, int);
+extern void alloc_colors64k (int monid, int, int, int, int, int, int, int, int, int, int, bool);
 extern void alloc_colors_rgb (int rw, int gw, int bw, int rs, int gs, int bs, int aw, int as, int alpha, int byte_swap,
 			      uae_u32 *rc, uae_u32 *gc, uae_u32 *bc);
 extern void alloc_colors_picasso (int rw, int gw, int bw, int rs, int gs, int bs, int rgbfmt);
@@ -82,7 +82,7 @@ extern void setup_greydither (int bits, allocfunc_type allocfunc);
 extern void setup_greydither_maxcol (int maxcol, allocfunc_type allocfunc);
 extern void setup_dither (int bits, allocfunc_type allocfunc);
 extern void DitherLine (uae_u8 *l, uae_u16 *r4g4b4, int x, int y, uae_s16 len, int bits) ASM_SYM_FOR_FUNC("DitherLine");
-extern double getvsyncrate (double hz, int *mult);
+extern float getvsyncrate(int monid, float hz, int *mult);
 
     /* The graphics code has a choice whether it wants to use a large buffer
      * for the whole display, or only a small buffer for a single line.
@@ -140,18 +140,16 @@ struct vidbuffer
 
 	int inxoffset; /* positive if sync positioning */
 	int inyoffset;
+
+	int monitor_id;
+	int last_drawn_line;
 };
 
-extern bool isnativevidbuf (void);
+extern bool isnativevidbuf(int monid);
 extern int max_uae_width, max_uae_height;
 
 struct vidbuf_description
 {
-
-    int maxblocklines; /* Set to 0 if you want calls to flush_line after each drawn line, or the number of
-			* lines that flush_block wants to/can handle (it isn't really useful to use another
-			* value than maxline here). */
-
     struct vidbuffer drawbuffer;
 	/* output buffer when using A2024 emulation */
 	struct vidbuffer tempbuffer;
@@ -165,10 +163,21 @@ struct vidbuf_description
 	int ychange; /* how many interlaced lines in one line in buffer */
 };
 
-extern struct vidbuf_description gfxvidinfo;
+struct amigadisplay
+{
+	bool picasso_requested_on;
+	bool picasso_requested_forced_on;
+	bool picasso_on;
+	int picasso_redraw_necessary;
+	int custom_frame_redraw_necessary;
+	int frame_redraw_necessary;
+	int framecnt;
+	bool specialmonitoron;
+	int inhibit_frame;
 
-/* For ports using tui.c, this should be built by graphics_setup(). */
-extern struct bstring *video_mode_menu;
-extern void vidmode_menu_selected(int);
+	struct vidbuf_description gfxvidinfo;
+};
+
+extern struct amigadisplay adisplays[MAX_AMIGADISPLAYS];
 
 #endif /* UAE_XWIN_H */

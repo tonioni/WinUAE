@@ -14,9 +14,11 @@
 
 #include "traps.h"
 
-#define UAEMAJOR 3
-#define UAEMINOR 6
-#define UAESUBREV 1
+#define UAEMAJOR 4
+#define UAEMINOR 0
+#define UAESUBREV 0
+
+#define MAX_AMIGADISPLAYS 4
 
 typedef enum { KBD_LANG_US, KBD_LANG_DK, KBD_LANG_DE, KBD_LANG_SE, KBD_LANG_FR, KBD_LANG_IT, KBD_LANG_ES } KbdLang;
 
@@ -321,7 +323,6 @@ struct apmode
 	int gfx_backbuffers;
 	bool gfx_interlaced;
 	int gfx_refreshrate;
-	bool gfx_tearing;
 };
 
 #define MAX_LUA_STATES 16
@@ -389,6 +390,7 @@ struct rtgboardconfig
 	int rtgmem_type;
 	uae_u32 rtgmem_size;
 	int device_order;
+	int monitor_id;
 };
 #define MAX_RAM_BOARDS 4
 struct ramboard
@@ -413,6 +415,15 @@ struct expansion_params
 #define Z3MAPPING_AUTO 0
 #define Z3MAPPING_UAE 1
 #define Z3MAPPING_REAL 2
+
+struct monconfig
+{
+	struct wh gfx_size_win;
+	struct wh gfx_size_fs;
+	struct wh gfx_size;
+	struct wh gfx_size_win_xtra[6];
+	struct wh gfx_size_fs_xtra[6];
+};
 
 struct uae_prefs {
 
@@ -484,12 +495,8 @@ struct uae_prefs {
 	bool fpu_strict;
 	bool fpu_softfloat;
 
+	struct monconfig gfx_monitor[MAX_AMIGADISPLAYS];
 	int gfx_framerate, gfx_autoframerate;
-	struct wh gfx_size_win;
-	struct wh gfx_size_fs;
-	struct wh gfx_size;
-	struct wh gfx_size_win_xtra[6];
-	struct wh gfx_size_fs_xtra[6];
 	bool gfx_autoresolution_vga;
 	int gfx_autoresolution;
 	int gfx_autoresolution_delay;
@@ -516,6 +523,8 @@ struct uae_prefs {
 	bool gfx_grayscale;
 	bool lightpen_crosshair;
 	int lightpen_offset[2];
+	int gfx_display_sections;
+	int gfx_variable_sync;
 
 	struct gfx_filterdata gf[2];
 
@@ -537,6 +546,7 @@ struct uae_prefs {
 	TCHAR genlock_image_file[MAX_DPATH];
 	TCHAR genlock_video_file[MAX_DPATH];
 	int monitoremu;
+	int monitoremu_mon;
 	double chipset_refreshrate;
 	struct chipset_refresh cr[MAX_CHIPSET_REFRESH + 2];
 	int cr_selected;

@@ -17,6 +17,54 @@
 
 #define VIDEOGRAB 1
 
+const TCHAR *specialmonitorfriendlynames[] =
+{
+	_T("A2024"),
+	_T("Graffiti"),
+	_T("HAM-E"),
+	_T("HAM-E Plus"),
+	_T("Video DAC 18"),
+	_T("AVideo 12"),
+	_T("AVideo 24"),
+	_T("FireCracker 24"),
+	_T("DCTV"),
+	_T("OpalVision"),
+	_T("ColorBurst"),
+	NULL
+};
+const TCHAR *specialmonitormanufacturernames[] =
+{
+	_T("Commodore"),
+	_T("Individual Computers"),
+	_T("Black Belt Systems"),
+	_T("Black Belt Systems"),
+	_T("Newtronic"),
+	_T("Archos"),
+	_T("Archos"),
+	_T("Impulse"),
+	_T("Digital Creations"),
+	_T("Opal Technologies"),
+	_T("M.A.S.T."),
+	NULL
+};
+const TCHAR *specialmonitorconfignames[] =
+{
+	_T("none"),
+	_T("autodetect"),
+
+	_T("a2024"),
+	_T("graffiti"),
+	_T("ham_e"),
+	_T("ham_e_plus"),
+	_T("videodac18"),
+	_T("avideo12"),
+	_T("avideo24"),
+	_T("firecracker24"),
+	_T("dctv"),
+	_T("opalvision"),
+	_T("colorburst"),
+	NULL
+};
 
 static int opal_debug = 0;
 static const int opal_video_debug = 0;
@@ -257,6 +305,7 @@ static void clearmonitor(struct vidbuffer *dst)
 
 static void blank_generic(struct vidbuffer *src, struct vidbuffer *dst, int oddlines)
 {
+	struct vidbuf_description *avidinfo = &adisplays[dst->monitor_id].gfxvidinfo;
 	int y, vdbl;
 	int ystart, yend, isntsc;
 
@@ -264,7 +313,7 @@ static void blank_generic(struct vidbuffer *src, struct vidbuffer *dst, int oddl
 	if (!(currprefs.chipset_mask & CSMASK_ECS_AGNUS))
 		isntsc = currprefs.ntscmode ? 1 : 0;
 
-	vdbl = gfxvidinfo.ychange;
+	vdbl = avidinfo->ychange;
 
 	ystart = isntsc ? VBLANK_ENDLINE_NTSC : VBLANK_ENDLINE_PAL;
 	yend = isntsc ? MAXVPOS_NTSC : MAXVPOS_PAL;
@@ -477,6 +526,7 @@ static int signature_test_y = 0x93;
 
 static bool dctv(struct vidbuffer *src, struct vidbuffer *dst, bool doublelines, int oddlines)
 {
+	struct vidbuf_description *avidinfo = &adisplays[dst->monitor_id].gfxvidinfo;
 	int y, x, vdbl, hdbl;
 	int ystart, yend, isntsc;
 	int xadd;
@@ -485,8 +535,8 @@ static bool dctv(struct vidbuffer *src, struct vidbuffer *dst, bool doublelines,
 	if (!(currprefs.chipset_mask & CSMASK_ECS_AGNUS))
 		isntsc = currprefs.ntscmode ? 1 : 0;
 
-	vdbl = gfxvidinfo.ychange;
-	hdbl = gfxvidinfo.xchange;
+	vdbl = avidinfo->ychange;
+	hdbl = avidinfo->xchange;
 
 	xadd = ((1 << 1) / hdbl) * src->pixbytes;
 
@@ -722,6 +772,7 @@ STATIC_INLINE uae_u8 MAKEFCOVERLAY(uae_u8 v)
 
 static bool firecracker24(struct vidbuffer *src, struct vidbuffer *dst, bool doublelines, int oddlines)
 {
+	struct vidbuf_description *avidinfo = &adisplays[dst->monitor_id].gfxvidinfo;
 	int y, x, vdbl, hdbl;
 	int fc24_y, fc24_x, fc24_dx, fc24_xadd, fc24_xmult, fc24_xoffset;
 	int ystart, yend, isntsc;
@@ -736,8 +787,8 @@ static bool firecracker24(struct vidbuffer *src, struct vidbuffer *dst, bool dou
 	if (!(currprefs.chipset_mask & CSMASK_ECS_AGNUS))
 		isntsc = currprefs.ntscmode ? 1 : 0;
 
-	vdbl = gfxvidinfo.ychange;
-	hdbl = gfxvidinfo.xchange; // 4=lores,2=hires,1=shres
+	vdbl = avidinfo->ychange;
+	hdbl = avidinfo->xchange; // 4=lores,2=hires,1=shres
 
 	xaddfc = (1 << 1) / hdbl; // 0=lores,1=hires,2=shres
 	xadd = xaddfc * src->pixbytes;
@@ -1176,6 +1227,7 @@ static int avideo_allowed;
 
 static bool avideo(struct vidbuffer *src, struct vidbuffer *dst, bool doublelines, int oddlines, int lof)
 {
+	struct vidbuf_description *avidinfo = &adisplays[dst->monitor_id].gfxvidinfo;
 	int y, x, vdbl, hdbl;
 	int ystart, yend, isntsc;
 	int xadd, xaddpix;
@@ -1224,8 +1276,8 @@ static bool avideo(struct vidbuffer *src, struct vidbuffer *dst, bool doubleline
 	if (!(currprefs.chipset_mask & CSMASK_ECS_AGNUS))
 		isntsc = currprefs.ntscmode ? 1 : 0;
 
-	vdbl = gfxvidinfo.ychange;
-	hdbl = gfxvidinfo.xchange;
+	vdbl = avidinfo->ychange;
+	hdbl = avidinfo->xchange;
 
 	xaddpix = (1 << 1) / hdbl;
 	xadd = ((1 << 1) / hdbl) * src->pixbytes;
@@ -1500,6 +1552,7 @@ static bool do_avideo(struct vidbuffer *src, struct vidbuffer *dst)
 
 static bool videodac18(struct vidbuffer *src, struct vidbuffer *dst, bool doublelines, int oddlines)
 {
+	struct vidbuf_description *avidinfo = &adisplays[dst->monitor_id].gfxvidinfo;
 	int y, x, vdbl, hdbl;
 	int ystart, yend, isntsc;
 	int xadd, xaddpix;
@@ -1519,8 +1572,8 @@ static bool videodac18(struct vidbuffer *src, struct vidbuffer *dst, bool double
 	if (!(currprefs.chipset_mask & CSMASK_ECS_AGNUS))
 		isntsc = currprefs.ntscmode ? 1 : 0;
 
-	vdbl = gfxvidinfo.ychange;
-	hdbl = gfxvidinfo.xchange;
+	vdbl = avidinfo->ychange;
+	hdbl = avidinfo->xchange;
 
 	xaddpix = (1 << 1) / hdbl;
 	xadd = ((1 << 1) / hdbl) * src->pixbytes;
@@ -1605,6 +1658,7 @@ static const uae_u8 ham_e_magic_cookie_ham = 0x18;
 
 static bool ham_e(struct vidbuffer *src, struct vidbuffer *dst, bool doublelines, int oddlines)
 {
+	struct vidbuf_description *avidinfo = &adisplays[dst->monitor_id].gfxvidinfo;
 	int y, x, vdbl, hdbl;
 	int ystart, yend, isntsc;
 	int xadd, xaddpix;
@@ -1614,8 +1668,8 @@ static bool ham_e(struct vidbuffer *src, struct vidbuffer *dst, bool doublelines
 	if (!(currprefs.chipset_mask & CSMASK_ECS_AGNUS))
 		isntsc = currprefs.ntscmode ? 1 : 0;
 
-	vdbl = gfxvidinfo.ychange;
-	hdbl = gfxvidinfo.xchange;
+	vdbl = avidinfo->ychange;
+	hdbl = avidinfo->xchange;
 
 	xaddpix = (1 << 1) / hdbl;
 	xadd = ((1 << 1) / hdbl) * src->pixbytes;
@@ -1820,6 +1874,7 @@ static bool do_hame(struct vidbuffer *src, struct vidbuffer *dst)
 
 static bool graffiti(struct vidbuffer *src, struct vidbuffer *dst)
 {
+	struct vidbuf_description *avidinfo = &adisplays[dst->monitor_id].gfxvidinfo;
 	int y, x;
 	int ystart, yend, isntsc;
 	int xstart, xend;
@@ -1839,15 +1894,15 @@ static bool graffiti(struct vidbuffer *src, struct vidbuffer *dst)
 	if (!(currprefs.chipset_mask & CSMASK_ECS_AGNUS))
 		isntsc = currprefs.ntscmode ? 1 : 0;
 
-	dbl = gfxvidinfo.ychange == 1 ? 2 : 1;
+	dbl = avidinfo->ychange == 1 ? 2 : 1;
 
 	ystart = isntsc ? VBLANK_ENDLINE_NTSC : VBLANK_ENDLINE_PAL;
 	yend = isntsc ? MAXVPOS_NTSC : MAXVPOS_PAL;
 	if (src->yoffset >= (ystart << VRES_MAX))
 		ystart = src->yoffset >> VRES_MAX;
 
-	xadd = gfxvidinfo.xchange == 1 ? src->pixbytes * 2 : src->pixbytes;
-	xpixadd = gfxvidinfo.xchange == 1 ? 4 : 2;
+	xadd = avidinfo->xchange == 1 ? src->pixbytes * 2 : src->pixbytes;
+	xpixadd = avidinfo->xchange == 1 ? 4 : 2;
 
 	xstart = 0x1c * 2 + 1;
 	xend = 0xf0 * 2 + 1;
@@ -1856,11 +1911,11 @@ static bool graffiti(struct vidbuffer *src, struct vidbuffer *dst)
 		xend++;
 	}
 
-	srcbuf = src->bufmem + (((ystart << VRES_MAX) - src->yoffset) / gfxvidinfo.ychange) * src->rowbytes + (((xstart << RES_MAX) - src->xoffset) / gfxvidinfo.xchange) * src->pixbytes;
-	srcend = src->bufmem + (((yend << VRES_MAX) - src->yoffset) / gfxvidinfo.ychange) * src->rowbytes;
+	srcbuf = src->bufmem + (((ystart << VRES_MAX) - src->yoffset) / avidinfo->ychange) * src->rowbytes + (((xstart << RES_MAX) - src->xoffset) / avidinfo->xchange) * src->pixbytes;
+	srcend = src->bufmem + (((yend << VRES_MAX) - src->yoffset) / avidinfo->ychange) * src->rowbytes;
 	extrapix = 0;
 
-	dstbuf = dst->bufmem + (((ystart << VRES_MAX) - src->yoffset) / gfxvidinfo.ychange) * dst->rowbytes + (((xstart << RES_MAX) - src->xoffset) / gfxvidinfo.xchange) * dst->pixbytes;
+	dstbuf = dst->bufmem + (((ystart << VRES_MAX) - src->yoffset) / avidinfo->ychange) * dst->rowbytes + (((xstart << RES_MAX) - src->xoffset) / avidinfo->xchange) * dst->pixbytes;
 
 	y = 0;
 	while (srcend > srcbuf && dst->bufmemend > dstbuf) {
@@ -1951,7 +2006,7 @@ static bool graffiti(struct vidbuffer *src, struct vidbuffer *dst)
 					PRGB(dst, dstp, r, g, b);
 					dstp += dst->pixbytes;
 					
-					if (gfxvidinfo.xchange == 1 && !hires) {
+					if (avidinfo->xchange == 1 && !hires) {
 						PRGB(dst, dstp, r, g, b);
 						dstp += dst->pixbytes;
 						PRGB(dst, dstp, r, g, b);
@@ -1985,6 +2040,7 @@ static bool graffiti(struct vidbuffer *src, struct vidbuffer *dst)
 
 static bool a2024(struct vidbuffer *src, struct vidbuffer *dst)
 {
+	struct vidbuf_description *avidinfo = &adisplays[dst->monitor_id].gfxvidinfo;
 	int y;
 	uae_u8 *srcbuf, *dstbuf;
 	uae_u8 *dataline;
@@ -1996,15 +2052,15 @@ static bool a2024(struct vidbuffer *src, struct vidbuffer *dst)
 	int idline;
 	int total_width, total_height;
 	
-	dbl = gfxvidinfo.ychange == 1 ? 2 : 1;
-	doff = (128 * 2 / gfxvidinfo.xchange) * src->pixbytes;
+	dbl = avidinfo->ychange == 1 ? 2 : 1;
+	doff = (128 * 2 / avidinfo->xchange) * src->pixbytes;
 	found = false;
 
 	for (idline = 21; idline <= 29; idline += 8) {
 		if (src->yoffset > (idline << VRES_MAX))
 			continue;
 		// min 178 max 234
-		dataline = src->bufmem + (((idline << VRES_MAX) - src->yoffset) / gfxvidinfo.ychange) * src->rowbytes + (((200 << RES_MAX) - src->xoffset) / gfxvidinfo.xchange) * src->pixbytes;
+		dataline = src->bufmem + (((idline << VRES_MAX) - src->yoffset) / avidinfo->ychange) * src->rowbytes + (((200 << RES_MAX) - src->xoffset) / avidinfo->xchange) * src->pixbytes;
 
 #if 0
 		write_log (_T("%02x%02x%02x %02x%02x%02x %02x%02x%02x %02x%02x%02x\n"),
@@ -2098,10 +2154,10 @@ static bool a2024(struct vidbuffer *src, struct vidbuffer *dst)
 	}
 	total_height = panel_height * dbl;
 	
-	srcbuf = src->bufmem + (((44 << VRES_MAX) - src->yoffset) / gfxvidinfo.ychange) * src->rowbytes + (((srcxoffset << RES_MAX) - src->xoffset) / gfxvidinfo.xchange) * src->pixbytes;
-	dstbuf = dst->bufmem + py * (panel_height / gfxvidinfo.ychange) * dst->rowbytes + px * ((panel_width * 2) / gfxvidinfo.xchange) * dst->pixbytes;
+	srcbuf = src->bufmem + (((44 << VRES_MAX) - src->yoffset) / avidinfo->ychange) * src->rowbytes + (((srcxoffset << RES_MAX) - src->xoffset) / avidinfo->xchange) * src->pixbytes;
+	dstbuf = dst->bufmem + py * (panel_height / avidinfo->ychange) * dst->rowbytes + px * ((panel_width * 2) / avidinfo->xchange) * dst->pixbytes;
 
-	for (y = 0; y < (panel_height / (dbl == 1 ? 1 : 2)) / gfxvidinfo.ychange; y++) {
+	for (y = 0; y < (panel_height / (dbl == 1 ? 1 : 2)) / avidinfo->ychange; y++) {
 #if 0
 		memcpy (dstbuf, srcbuf, ((panel_width * 2) / gfxvidinfo.xchange) * dst->pixbytes);
 #else
@@ -2109,7 +2165,7 @@ static bool a2024(struct vidbuffer *src, struct vidbuffer *dst)
 		uae_u8 *dstp1 = dstbuf;
 		uae_u8 *dstp2 = dstbuf + dst->rowbytes;
 		int x;
-		for (x = 0; x < (panel_width_draw * 2) / gfxvidinfo.xchange; x++) {
+		for (x = 0; x < (panel_width_draw * 2) / avidinfo->xchange; x++) {
 			uae_u8 c1 = 0, c2 = 0;
 			if (FR(src, srcp)) // R
 				c1 |= 2;
@@ -2313,6 +2369,8 @@ end:
 
 static bool do_genlock(struct vidbuffer *src, struct vidbuffer *dst, bool doublelines, int oddlines)
 {
+	struct vidbuf_description *avidinfo = &adisplays[dst->monitor_id].gfxvidinfo;
+
 	int y, x, vdbl, hdbl;
 	int ystart, yend, isntsc;
 	int mix1 = 0, mix2 = 0;
@@ -2443,14 +2501,14 @@ skip:
 		genlock_image_file[0] = 0;
 	}
 
-	if (gfxvidinfo.ychange == 1)
+	if (avidinfo->ychange == 1)
 		vdbl = 0; // double
 	else
 		vdbl = 1; // single
 
-	if (gfxvidinfo.xchange == 1)
+	if (avidinfo->xchange == 1)
 		hdbl = 0; // shres
-	else if (gfxvidinfo.xchange == 2)
+	else if (avidinfo->xchange == 2)
 		hdbl = 1; // hires
 	else
 		hdbl = 2; // lores
@@ -2584,6 +2642,7 @@ extern uae_u8 *row_map_color_burst_buffer;
 
 static bool do_grayscale(struct vidbuffer *src, struct vidbuffer *dst, bool doublelines, int oddlines)
 {
+	struct vidbuf_description *avidinfo = &adisplays[dst->monitor_id].gfxvidinfo;
 	int y, x, vdbl;
 	int ystart, yend, isntsc;
 
@@ -2591,7 +2650,7 @@ static bool do_grayscale(struct vidbuffer *src, struct vidbuffer *dst, bool doub
 	if (!(currprefs.chipset_mask & CSMASK_ECS_AGNUS))
 		isntsc = currprefs.ntscmode ? 1 : 0;
 
-	if (gfxvidinfo.ychange == 1)
+	if (avidinfo->ychange == 1)
 		vdbl = 0;
 	else
 		vdbl = 1;
@@ -2830,6 +2889,7 @@ static void opal_pixel(struct opals *opal, uae_u8 *d, uae_u8 *d2, uae_u8 *s, uae
 
 static bool opalvision(struct vidbuffer *src, struct vidbuffer *dst, bool doublelines, int oddlines, int yline, bool isopal)
 {
+	struct vidbuf_description *avidinfo = &adisplays[dst->monitor_id].gfxvidinfo;
 	int y, x, vdbl, hdbl, hdbl_shift;
 	int isntsc;
 	int xadd, xaddpix;
@@ -2852,8 +2912,8 @@ static bool opalvision(struct vidbuffer *src, struct vidbuffer *dst, bool double
 	if (!(currprefs.chipset_mask & CSMASK_ECS_AGNUS))
 		isntsc = currprefs.ntscmode ? 1 : 0;
 
-	vdbl = gfxvidinfo.ychange;
-	hdbl = gfxvidinfo.xchange;
+	vdbl = avidinfo->ychange;
+	hdbl = avidinfo->xchange;
 
 	xaddpix = (1 << 1) / hdbl;
 	xadd = ((1 << 1) / hdbl) * src->pixbytes;
@@ -2972,7 +3032,7 @@ static bool opalvision(struct vidbuffer *src, struct vidbuffer *dst, bool double
 			uae_u8 newval = FIRGB(src, sa);
 			uae_u8 val = prev | newval;
 
-			uae_u8 *d = dstline + ((x << 1) >> hdbl_shift) * dst->pixbytes;
+			uae_u8 *d = dstline + ((x << 1) >> hdbl_shift) * dst->pixbytes + dst->pixbytes;
 			uae_u8 *d2 = d + dst->rowbytes;
 
 			uae_u8 *s = line + ((ax << 1) >> hdbl_shift) * src->pixbytes;
@@ -3421,7 +3481,7 @@ static bool opalvision(struct vidbuffer *src, struct vidbuffer *dst, bool double
 		write_log(_T("Opalvision control line detected\n"));
 	} else if (!opal->opal && monitor != MONITOREMU_COLORBURST) {
 		monitor = MONITOREMU_COLORBURST;
-		write_log(_T("Colorburst control line line detected\n"));
+		write_log(_T("Colorburst control line detected\n"));
 	}
 	dst->nativepositioning = true;
 

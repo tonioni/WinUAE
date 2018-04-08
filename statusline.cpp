@@ -19,7 +19,7 @@
 * Some code to put status information on the screen.
 */
 
-void statusline_getpos (int *x, int *y, int width, int height, int hx, int vx)
+void statusline_getpos(int monid, int *x, int *y, int width, int height, int hx, int vx)
 {
 	int total_height = TD_TOTAL_HEIGHT * vx;
 	if (currprefs.osd_pos.x >= 20000) {
@@ -56,7 +56,7 @@ static const char *numbers = { /* ugly  0123456789CHD%+-PNK */
 	"+++++++---+++-++++++++++++++----+++++++++++++++++--+++--++++++++++++++++++++-++++++-++++------------------------+++----++++++++++++++"
 };
 
-STATIC_INLINE uae_u32 ledcolor (uae_u32 c, uae_u32 *rc, uae_u32 *gc, uae_u32 *bc, uae_u32 *a)
+STATIC_INLINE uae_u32 ledcolor(uae_u32 c, uae_u32 *rc, uae_u32 *gc, uae_u32 *bc, uae_u32 *a)
 {
 	uae_u32 v = rc[(c >> 16) & 0xff] | gc[(c >> 8) & 0xff] | bc[(c >> 0) & 0xff];
 	if (a)
@@ -64,7 +64,7 @@ STATIC_INLINE uae_u32 ledcolor (uae_u32 c, uae_u32 *rc, uae_u32 *gc, uae_u32 *bc
 	return v;
 }
 
-static void write_tdnumber (uae_u8 *buf, int bpp, int x, int y, int num, uae_u32 c1, uae_u32 c2)
+static void write_tdnumber(uae_u8 *buf, int bpp, int x, int y, int num, uae_u32 c1, uae_u32 c2)
 {
 	int j;
 	const char *numptr;
@@ -79,8 +79,9 @@ static void write_tdnumber (uae_u8 *buf, int bpp, int x, int y, int num, uae_u32
 	}
 }
 
-void draw_status_line_single (uae_u8 *buf, int bpp, int y, int totalwidth, uae_u32 *rc, uae_u32 *gc, uae_u32 *bc, uae_u32 *alpha)
+void draw_status_line_single(int monid, uae_u8 *buf, int bpp, int y, int totalwidth, uae_u32 *rc, uae_u32 *gc, uae_u32 *bc, uae_u32 *alpha)
 {
+	struct amigadisplay *ad = &adisplays[monid];
 	int x_start, j, led, border;
 	uae_u32 c1, c2, cb;
 
@@ -99,7 +100,7 @@ void draw_status_line_single (uae_u8 *buf, int bpp, int y, int totalwidth, uae_u
 		xcolnr on_rgb = 0, on_rgb2 = 0, off_rgb = 0, pen_rgb = 0;
 		int half = 0;
 
-		if (!(currprefs.leds_on_screen_mask[picasso_on ? 1 : 0] & (1 << led)))
+		if (!(currprefs.leds_on_screen_mask[ad->picasso_on ? 1 : 0] & (1 << led)))
 			continue;
 
 		pen_rgb = c1;
@@ -324,7 +325,7 @@ bool has_statusline_updated(void)
 static void statusline_update_notification(void)
 {
 	statusline_had_changed = true;
-	statusline_updated();
+	statusline_updated(0);
 }
 
 void statusline_clear(void)
@@ -430,7 +431,7 @@ void statusline_vsync(void)
 	statusline_update_notification();
 }
 
-void statusline_single_erase(uae_u8 *buf, int bpp, int y, int totalwidth)
+void statusline_single_erase(int monid, uae_u8 *buf, int bpp, int y, int totalwidth)
 {
 	memset(buf, 0, bpp * totalwidth);
 }

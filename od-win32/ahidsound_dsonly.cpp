@@ -59,8 +59,6 @@ static int amigablksize;
 
 static DWORD sound_flushes2 = 0;
 
-extern HWND hAmigaWnd;
-
 static LPDIRECTSOUND lpDS2 = NULL;
 static LPDIRECTSOUNDBUFFER lpDSBprimary2 = NULL;
 static LPDIRECTSOUNDBUFFER lpDSB2 = NULL;
@@ -90,6 +88,7 @@ static struct winuae *a6;
 
 static uae_u32 REGPARAM2 emulib_ExecuteNativeCode2 (TrapContext *context)
 {
+	struct AmigaMonitor *mon = &AMonitors[0];
 	unsigned int espstore;
 	uae_u8* object_UAM = (uae_u8*) m68k_areg (regs, 0);
 	uae_u32 d1 = m68k_dreg (regs, 1);
@@ -108,7 +107,7 @@ static uae_u32 REGPARAM2 emulib_ExecuteNativeCode2 (TrapContext *context)
 	uae_u32 regs_ = (uae_u32)&regs;
 	CREATE_NATIVE_FUNC_PTR2;
 	uaevar.z3offset = (uae_u32)(get_real_address (z3fastmem_bank[0].start) - z3fastmem_bank[0].start);
-	uaevar.amigawnd = hAmigaWnd;
+	uaevar.amigawnd = mon->hAmigaWnd;
 	a6 = &uaevar;
 	if (object_UAM)  {
 		SET_NATIVE_FUNC2 (object_UAM);
@@ -311,6 +310,7 @@ void setvolume_ahi (LONG vol)
 
 static int ahi_init_sound_win32 (void)
 {
+	struct AmigaMonitor *mon = &AMonitors[0];
 	HRESULT hr;
 	DSBUFFERDESC sound_buffer;
 	DSCAPS DSCaps;
@@ -357,7 +357,7 @@ static int ahi_init_sound_win32 (void)
 		if (DSCaps.dwFlags & DSCAPS_EMULDRIVER)
 			write_log (_T("AHI: Your DirectSound Driver is emulated via WaveOut - yuck!\n"));
 	}
-	if (FAILED (IDirectSound_SetCooperativeLevel (lpDS2, hMainWnd, DSSCL_PRIORITY)))
+	if (FAILED (IDirectSound_SetCooperativeLevel (lpDS2, mon->hMainWnd, DSSCL_PRIORITY)))
 		return 0;
 	hr = IDirectSound_CreateSoundBuffer (lpDS2, &sound_buffer, &lpDSBprimary2, NULL);
 	if (FAILED (hr)) {

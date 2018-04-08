@@ -16,7 +16,9 @@
 #include "memory.h"
 #include "newcpu.h"
 #include "uae/ppc.h"
+#include "xwin.h"
 #include "x86.h"
+#include "audio.h"
 
 static const int pissoff_nojit_value = 256 * CYCLE_UNIT;
 
@@ -47,6 +49,9 @@ void events_schedule (void)
 	nextevent = currcycle + mintime;
 }
 
+extern void vsync_event_done(void);
+extern int vsync_activeheight;
+
 void do_cycles_slow (unsigned long cycles_to_add)
 {
 #ifdef WITH_X86
@@ -62,60 +67,106 @@ void do_cycles_slow (unsigned long cycles_to_add)
 	pissoff = 0;
 
 	while ((nextevent - currcycle) <= cycles_to_add) {
-		int i;
 
 		/* Keep only CPU emulation running while waiting for sync point. */
-		if (is_syncline) {
-			if (!vblank_found_chipset) {
-				if (is_syncline > 0) {
-					int rpt = read_processor_time ();
-					int v = rpt - vsyncmintime;
-					int v2 = rpt - is_syncline_end;
-					if (v > vsynctimebase || v < -vsynctimebase) {
-						v = 0;
-					}
-					if (v < 0 && v2 < 0 && event_wait) {
-
+		if (is_syncline == -1) {
+			audio_finish_pull();
+			// wait for vblank
+			int done = vsync_isdone(NULL);
+			if (!done) {
 #ifdef WITH_PPC
-						if (ppc_state) {
-							if (is_syncline == 1) {
-								uae_ppc_execute_check();
-							} else {
-								uae_ppc_execute_quick();
-							}
-						}
-#endif
-						if (currprefs.cachesize)
-							pissoff = pissoff_value;
-						else
-							pissoff = pissoff_nojit_value;
-						return;
+				if (ppc_state) {
+					if (is_syncline == 1) {
+						uae_ppc_execute_check();
+					} else {
+						uae_ppc_execute_quick();
 					}
-				} else if (is_syncline < 0) {
-					int rpt = read_processor_time ();
-					int v = rpt - is_syncline_end;
-					if (v < 0 && event_wait) {
+				}
+#endif
+				if (currprefs.cachesize)
+					pissoff = pissoff_value;
+				else
+					pissoff = pissoff_nojit_value;
+				return;
+			}
+			vsync_clear();
+			vsync_event_done();
 
+		} else if (is_syncline > 0) {
+
+			audio_finish_pull();
+			// wait for specific scanline
+			int vp = target_get_display_scanline(-1);
+			if (vp < 0 || is_syncline > vp) {
 #ifdef WITH_PPC
-						if (ppc_state) {
-							uae_ppc_execute_check();
-						}
+				if (ppc_state) {
+					uae_ppc_execute_check();
+				}
 #endif
-						if (currprefs.cachesize)
-							pissoff = pissoff_value;
-						else
-							pissoff = pissoff_nojit_value;
-						return;
+				if (currprefs.cachesize)
+					pissoff = pissoff_value;
+				else
+					pissoff = pissoff_nojit_value;
+				return;
+			}
+			vsync_event_done();
+
+		} else if (is_syncline == -10) {
+
+			// wait is_syncline_end
+			if (event_wait) {
+				int rpt = read_processor_time();
+				int v = rpt - is_syncline_end;
+				if (v < 0) {
+#ifdef WITH_PPC
+					if (ppc_state) {
+						uae_ppc_execute_check();
 					}
+#endif
+					if (currprefs.cachesize)
+						pissoff = pissoff_value;
+					else
+						pissoff = pissoff_nojit_value;
+					return;
 				}
 			}
 			is_syncline = 0;
+		
+		} else if (is_syncline < -10) {
+
+			// wait is_syncline_end/vsyncmintime
+			if (event_wait) {
+				int rpt = read_processor_time();
+				int v = rpt - vsyncmintime;
+				int v2 = rpt - is_syncline_end;
+				if (v > vsynctimebase || v < -vsynctimebase) {
+					v = 0;
+				}
+				if (v < 0 && v2 < 0) {
+#ifdef WITH_PPC
+					if (ppc_state) {
+						if (is_syncline == -11) {
+							uae_ppc_execute_check();
+						} else {
+							uae_ppc_execute_quick();
+						}
+					}
+#endif
+					if (currprefs.cachesize)
+						pissoff = pissoff_value;
+					else
+						pissoff = pissoff_nojit_value;
+					return;
+				}
+			}
+			is_syncline = 0;
+
 		}
 
 		cycles_to_add -= nextevent - currcycle;
 		currcycle = nextevent;
 
-		for (i = 0; i < ev_max; i++) {
+		for (int i = 0; i < ev_max; i++) {
 			if (eventtab[i].active && eventtab[i].evtime == currcycle) {
 				if (eventtab[i].handler == NULL) {
 					gui_message(_T("eventtab[%d].handler is null!\n"), i);

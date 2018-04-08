@@ -431,8 +431,12 @@ bool my_kbd_handler (int keyboard, int scancode, int newstate, bool alwaysreleas
 		code = AKS_QUIT;
 
 	if (scancode == DIK_F9 && specialpressed ()) {
-		if (newstate)
-			toggle_rtg (MAX_RTG_BOARDS + 1);
+		extern bool toggle_3d_debug(void);
+		if (newstate) {
+			if (!toggle_3d_debug()) {
+				toggle_rtg(0, MAX_RTG_BOARDS + 1);
+			}
+		}
 		return true;
 	}
 

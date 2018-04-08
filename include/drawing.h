@@ -84,9 +84,6 @@ STATIC_INLINE int coord_window_to_diw_x (int x)
 	return x - DIW_DDF_OFFSET;
 }
 
-extern int framecnt;
-extern int custom_frame_redraw_necessary;
-
 /* color values in two formats: 12 (OCS/ECS) or 24 (AGA) bit Amiga RGB (color_regs),
 * and the native color value; both for each Amiga hardware color register.
 *
@@ -290,7 +287,6 @@ extern int coord_native_to_amiga_y (int);
 extern int coord_native_to_amiga_x (int);
 
 extern void record_diw_line (int plfstrt, int first, int last);
-extern void hardware_line_completed (int lineno);
 
 /* Determine how to draw a scan line.  */
 enum nln_how {
@@ -311,8 +307,9 @@ enum nln_how {
 };
 
 extern void hsync_record_line_state (int lineno, enum nln_how, int changed);
-extern void vsync_handle_redraw (int long_field, int lof_changed, uae_u16, uae_u16);
+extern void vsync_handle_redraw (int long_field, int lof_changed, uae_u16, uae_u16, bool drawlines);
 extern bool vsync_handle_check (void);
+extern void draw_lines(int end, int section);
 extern void init_hardware_for_drawing_frame (void);
 extern void reset_drawing (void);
 extern void drawing_init (void);
@@ -329,8 +326,8 @@ extern void get_custom_topedge (int *x, int *y, bool max);
 extern void get_custom_raw_limits (int *pw, int *ph, int *pdx, int *pdy);
 void get_custom_mouse_limits (int *pw, int *ph, int *pdx, int *pdy, int dbl);
 extern void putpixel (uae_u8 *buf, uae_u8 *genlockbuf, int bpp, int x, xcolnr c8, int opaq);
-extern void allocvidbuffer (struct vidbuffer *buf, int width, int height, int depth);
-extern void freevidbuffer (struct vidbuffer *buf);
+extern void allocvidbuffer(int monid, struct vidbuffer *buf, int width, int height, int depth);
+extern void freevidbuffer(int monid, struct vidbuffer *buf);
 extern void check_prefs_picasso(void);
 
 /* Finally, stuff that shouldn't really be shared.  */
@@ -341,19 +338,8 @@ extern int thisframe_first_drawn_line, thisframe_last_drawn_line;
 #define IHF_QUIT_PROGRAM 1
 #define IHF_PICASSO 2
 
-extern int inhibit_frame;
-
-STATIC_INLINE void set_inhibit_frame (int bit)
-{
-	inhibit_frame |= 1 << bit;
-}
-STATIC_INLINE void clear_inhibit_frame (int bit)
-{
-	inhibit_frame &= ~(1 << bit);
-}
-STATIC_INLINE void toggle_inhibit_frame (int bit)
-{
-	inhibit_frame ^= 1 << bit;
-}
+void set_inhibit_frame(int monid, int bit);
+void clear_inhibit_frame(int monid, int bit);
+void toggle_inhibit_frame(int monid, int bit);
 
 #endif /* UAE_DRAWING_H */

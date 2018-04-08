@@ -496,7 +496,6 @@ static void close_audio_ds (struct sound_data *sd)
 	s->lpDS = 0;
 }
 
-extern HWND hMainWnd;
 extern void setvolume_ahi (LONG);
 
 void set_volume_sound_device (struct sound_data *sd, int volume, int mute)
@@ -1440,6 +1439,7 @@ error:
 
 static int open_audio_ds (struct sound_data *sd, int index)
 {
+	struct AmigaMonitor *mon = &AMonitors[0];
 	struct sound_dp *s = sd->data;
 	HRESULT hr;
 	DSBUFFERDESC sound_buffer;
@@ -1482,7 +1482,7 @@ static int open_audio_ds (struct sound_data *sd, int index)
 		return 0;
 	}
 
-	hr = IDirectSound_SetCooperativeLevel (s->lpDS, hMainWnd, DSSCL_PRIORITY);
+	hr = IDirectSound_SetCooperativeLevel (s->lpDS, mon->hMainWnd, DSSCL_PRIORITY);
 	if (FAILED (hr)) {
 		write_log (_T("DS: Can't set cooperativelevel: %s\n"), DXError (hr));
 		goto error;

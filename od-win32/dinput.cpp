@@ -412,6 +412,7 @@ static int rawinput_reg;
 
 static int doregister_rawinput (bool add)
 {
+	struct AmigaMonitor *mon = &AMonitors[0];
 	int num;
 	RAWINPUTDEVICE rid[2 + 2 + MAX_INPUT_DEVICES] = { 0 };
 
@@ -428,9 +429,9 @@ static int doregister_rawinput (bool add)
 	if (!add) {
 		rid[num].dwFlags = RIDEV_REMOVE;
 	} else {
-		if (hMainWnd) {
+		if (mon->hMainWnd) {
 			rid[num].dwFlags = RIDEV_INPUTSINK;
-			rid[num].hwndTarget = hMainWnd;
+			rid[num].hwndTarget = mon->hMainWnd;
 		}
 		rid[num].dwFlags |= (os_vista ? RIDEV_DEVNOTIFY : 0);
 	}
@@ -443,9 +444,9 @@ static int doregister_rawinput (bool add)
 		if (!add) {
 			rid[num].dwFlags = RIDEV_REMOVE;
 		} else {
-			if (hMainWnd) {
+			if (mon->hMainWnd) {
 				rid[num].dwFlags = RIDEV_INPUTSINK;
-				rid[num].hwndTarget = hMainWnd;
+				rid[num].hwndTarget = mon->hMainWnd;
 			}
 			rid[num].dwFlags |= RIDEV_NOHOTKEYS | (os_vista ? RIDEV_DEVNOTIFY : 0);
 		}
@@ -460,9 +461,9 @@ static int doregister_rawinput (bool add)
 		if (!add) {
 			rid[num].dwFlags = RIDEV_REMOVE;
 		} else {
-			if (hMainWnd) {
+			if (mon->hMainWnd) {
 				rid[num].dwFlags = RIDEV_INPUTSINK;
-				rid[num].hwndTarget = hMainWnd;
+				rid[num].hwndTarget = mon->hMainWnd;
 			}
 			rid[num].dwFlags |= (os_vista ? RIDEV_DEVNOTIFY : 0);
 		}
@@ -474,9 +475,9 @@ static int doregister_rawinput (bool add)
 		if (!add) {
 			rid[num].dwFlags = RIDEV_REMOVE;
 		} else {
-			if (hMainWnd) {
+			if (mon->hMainWnd) {
 				rid[num].dwFlags = RIDEV_INPUTSINK;
-				rid[num].hwndTarget = hMainWnd;
+				rid[num].hwndTarget = mon->hMainWnd;
 			}
 			rid[num].dwFlags |= (os_vista ? RIDEV_DEVNOTIFY : 0);
 		}
@@ -2212,9 +2213,9 @@ static void handle_rawinput_2 (RAWINPUT *raw)
 			if (did->buttons >= 3 && (rm->usButtonFlags & RI_MOUSE_MIDDLE_BUTTON_DOWN)) {
 				if (currprefs.input_mouse_untrap & MOUSEUNTRAP_MIDDLEBUTTON) {
 					if ((isfullscreen() < 0 && currprefs.win32_minimize_inactive) || isfullscreen() > 0)
-						minimizewindow ();
+						minimizewindow(0);
 					if (mouseactive)
-						setmouseactive (0);
+						setmouseactive(0, 0);
 				}
 			}
 		}
@@ -2750,12 +2751,13 @@ static int acquire (LPDIRECTINPUTDEVICE8 lpdi, TCHAR *txt)
 
 static int setcoop (struct didata *did, DWORD mode, TCHAR *txt)
 {
+	struct AmigaMonitor *mon = &AMonitors[0];
 	HRESULT hr = DI_OK;
 	HWND hwnd;
 	int test = inputdevice_istest ();
 	
 	if (!test)
-		hwnd = hMainWnd;
+		hwnd = mon->hMainWnd;
 	else
 		hwnd = hGUIWnd;
 
@@ -3556,9 +3558,9 @@ static void read_mouse (void)
 				}
 				if (!istest && isfocus () && (currprefs.input_mouse_untrap & MOUSEUNTRAP_MIDDLEBUTTON) && dimofs == DIMOFS_BUTTON2 && state) {
 					if ((isfullscreen() < 0 && currprefs.win32_minimize_inactive) || isfullscreen() > 0)
-						minimizewindow ();
+						minimizewindow(0);
 					if (mouseactive)
-						setmouseactive (0);
+						setmouseactive(0, 0);
 				}
 			}
 		} else if (hr == DIERR_INPUTLOST) {
@@ -3932,7 +3934,7 @@ static void read_kb (void)
 		IDirectInputDevice8_Poll (lpdi);
 	}
 #ifdef CATWEASEL
-	if (isfocus () || istest) {
+	if (isfocus() || istest) {
 		uae_u8 kc;
 		if (stopoutput == 0 && catweasel_read_keyboard (&kc))
 			inputdevice_do_keyboard (kc & 0x7f, kc & 0x80);

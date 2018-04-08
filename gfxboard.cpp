@@ -41,6 +41,7 @@ static bool memlogw = true;
 #include "zfile.h"
 #include "gfxboard.h"
 #include "rommgr.h"
+#include "xwin.h"
 
 #include "qemuvga/qemuuaeglue.h"
 #include "qemuvga/vga.h"
@@ -198,6 +199,7 @@ struct rtggfxboard
 {
 	bool active;
 	int rtg_index;
+	int monitor_id;
 	struct rtgboardconfig *rbc;
 	TCHAR memorybankname[40];
 	TCHAR memorybanknamenojit[40];
@@ -226,6 +228,7 @@ struct rtggfxboard
 	int vram_start_offset;
 	uae_u32 gfxboardmem_start;
 	bool monswitch_current, monswitch_new;
+	bool monswitch_keep_trying;
 	bool monswitch_reset;
 	int monswitch_delay;
 	int fullrefresh;
@@ -266,7 +269,8 @@ struct rtggfxboard
 
 static struct rtggfxboard rtggfxboards[MAX_RTG_BOARDS];
 static struct rtggfxboard *only_gfx_board;
-static int rtg_visible = -1;
+static int rtg_visible[MAX_AMIGADISPLAYS];
+static int rtg_initial[MAX_AMIGADISPLAYS];
 static int total_active_gfx_boards;
 static int vram_ram_a8;
 static DisplaySurface fakesurface;
@@ -475,24 +479,30 @@ static int GetBytesPerPixel(RGBFTYPE RGBfmt)
 
 static bool gfxboard_setmode(struct rtggfxboard *gb, struct gfxboard_mode *mode)
 {
-	picasso96_state.Width = mode->width;
-	picasso96_state.Height = mode->height;
+	struct amigadisplay *ad = &adisplays[gb->monitor_id];
+	struct picasso96_state_struct *state = &picasso96_state[gb->monitor_id];
+
+	state->Width = mode->width;
+	state->Height = mode->height;
 	int bpp = GetBytesPerPixel(mode->mode);
-	picasso96_state.BytesPerPixel = bpp;
-	picasso96_state.RGBFormat = mode->mode;
+	state->BytesPerPixel = bpp;
+	state->RGBFormat = mode->mode;
 	write_log(_T("GFXBOARD %dx%dx%d\n"), mode->width, mode->height, bpp);
-	if (!picasso_requested_on && !picasso_on)
-		picasso_requested_on = true;
-	//gfx_set_picasso_modeinfo(width, height, bpp, RGBFB_NONE);
+	if (!ad->picasso_requested_on && !ad->picasso_on) {
+		ad->picasso_requested_on = true;
+		set_config_changed();
+	}
 	return true;
 }
 
 static void gfxboard_free_slot2(struct rtggfxboard *gb)
 {
+	struct amigadisplay *ad = &adisplays[gb->monitor_id];
 	gb->active = false;
-	if (rtg_visible == gb->rtg_index) {
-		rtg_visible = -1;
-		picasso_requested_on = false;
+	if (rtg_visible[gb->monitor_id] == gb->rtg_index) {
+		rtg_visible[gb->monitor_id] = -1;
+		ad->picasso_requested_on = false;
+		set_config_changed();
 	}
 	gb->userdata = NULL;
 	gb->func = NULL;
@@ -576,6 +586,7 @@ bool gfxboard_init_board(struct autoconfig_info *aci)
 	const struct gfxboard *gfxb = &boards[aci->prefs->rtgboards[aci->devnum].rtgmem_type - GFXBOARD_HARDWARE];
 	struct rtggfxboard *gb = &rtggfxboards[aci->devnum];
 	gb->func = gfxb->func;
+	gb->monitor_id = aci->prefs->rtgboards[aci->devnum].monitor_id;
 	memset(aci->autoconfig_bytes, 0xff, sizeof aci->autoconfig_bytes);
 	if (!gb->automemory)
 		gb->automemory = xmalloc(uae_u8, GFXBOARD_AUTOCONFIG_SIZE);
@@ -636,65 +647,66 @@ static bool gfxboard_setmode_qemu(struct rtggfxboard *gb)
 		}
 	}
 	gfxboard_setmode(gb, &mode);
-	gfx_set_picasso_modeinfo(mode.mode);
+	gfx_set_picasso_modeinfo(gb->monitor_id, mode.mode);
 	gb->fullrefresh = 2;
 	gb->vga_changed = false;
 	return true;
 }
 
-static int rtg_initial;
-
-void gfxboard_rtg_disable(int index)
+void gfxboard_rtg_disable(int monid, int index)
 {
-	if (index == rtg_visible && rtg_visible >= 0) {
+	if (monid > 0)
+		return;
+	if (index == rtg_visible[monid] && rtg_visible[monid] >= 0) {
 		struct rtggfxboard *gb = &rtggfxboards[index];
-		if (rtg_visible >= 0 && gb->func) {
+		if (rtg_visible[monid] >= 0 && gb->func) {
 			gb->func->toggle(gb->userdata, 0);
 		}
-		rtg_visible = -1;
+		rtg_visible[monid] = -1;
 	}
 }
 
-bool gfxboard_rtg_enable_initial(int index)
+bool gfxboard_rtg_enable_initial(int monid, int index)
 {
-	// if some RTG already enabled, don't override
-	if (rtg_visible >= 0 || rtg_initial >= 0)
+	struct amigadisplay *ad = &adisplays[monid];
+	// if some RTG already enabled and located in monitor 0, don't override
+	if ((rtg_visible[monid] >= 0 || rtg_initial[monid] >= 0) && !monid)
 		return false;
-	if (picasso_on)
+	if (ad->picasso_on)
 		return false;
-	rtg_initial = index;
-	gfxboard_toggle(index, false);
+	rtg_initial[monid] = index;
+	gfxboard_toggle(monid, index, false);
 	// check_prefs_picasso() calls gfxboard_toggle when ready
 	return true;
 }
 
 
-int gfxboard_toggle (int index, int log)
+int gfxboard_toggle(int monid, int index, int log)
 {
 	bool initial = false;
 
-	if (rtg_visible < 0 && rtg_initial >= 0 && rtg_initial < MAX_RTG_BOARDS) {
-		index = rtg_initial;
+	if (rtg_visible[monid] < 0 && rtg_initial[monid] >= 0 && rtg_initial[monid] < MAX_RTG_BOARDS) {
+		index = rtg_initial[monid];
 		initial = true;
 	}
 
-	gfxboard_rtg_disable(rtg_visible);
+	gfxboard_rtg_disable(monid, rtg_visible[monid]);
 
-	rtg_visible = -1;
-
-	struct rtggfxboard *gb = &rtggfxboards[index];
-	if (!gb->active) 
-		goto end;
+	rtg_visible[monid] = -1;
 
 	if (index < 0)
+		goto end;
+
+	struct rtggfxboard *gb = &rtggfxboards[index];
+	if (!gb->active)
 		goto end;
 
 	if (gb->func) {
 		bool r = gb->func->toggle(gb->userdata, 1);
 		if (r) {
-			rtg_initial = MAX_RTG_BOARDS;
-			rtg_visible = gb->rtg_index;
-			if (log)
+			rtg_initial[monid] = MAX_RTG_BOARDS;
+			rtg_visible[monid] = gb->rtg_index;
+			if (log && !monid)
 				statusline_add_message(STATUSTYPE_DISPLAY, _T("RTG %d: %s"), index + 1, gb->board->name);
 			return index;
 		}
@@ -707,32 +719,33 @@ int gfxboard_toggle (int index, int log)
 	if (gb->vga_width > 16 && gb->vga_height > 16) {
 		if (!gfxboard_setmode_qemu(gb))
 			goto end;
-		rtg_initial = MAX_RTG_BOARDS;
-		rtg_visible = gb->rtg_index;
+		rtg_initial[monid] = MAX_RTG_BOARDS;
+		rtg_visible[monid] = gb->rtg_index;
 		gb->monswitch_new = true;
 		gb->monswitch_delay = 1;
-		if (log)
+		if (log && !monid)
 			statusline_add_message(STATUSTYPE_DISPLAY, _T("RTG %d: %s"), index + 1, gb->board->name);
 		return index;
 	}
 end:
 	if (initial) {
-		rtg_initial = -1;
+		rtg_initial[monid] = -1;
 		return -2;
 	}
 	return -1;
 }
 
-static bool gfxboard_checkchanged (struct rtggfxboard *gb)
+static bool gfxboard_checkchanged(struct rtggfxboard *gb)
 {
+	struct picasso96_state_struct *state = &picasso96_state[gb->monitor_id];
 	int bpp = gb->vga.vga.get_bpp (&gb->vga.vga);
 	if (bpp == 0)
 		bpp = 8;
 	if (gb->vga_width <= 16 || gb->vga_height <= 16)
 		return false;
-	if (picasso96_state.Width != gb->vga_width ||
-		picasso96_state.Height != gb->vga_height ||
-		picasso96_state.BytesPerPixel != bpp / 8)
+	if (state->Width != gb->vga_width ||
+		state->Height != gb->vga_height ||
+		state->BytesPerPixel != bpp / 8)
 		return true;
 	return false;
 }
@@ -790,54 +803,66 @@ DisplaySurface* qemu_create_displaysurface_from(int width, int height, int bpp,
 
 int surface_bits_per_pixel(DisplaySurface *s)
 {
-	if (rtg_visible < 0)
-		return 32;
 	struct rtggfxboard *gb = (struct rtggfxboard*)s->data;
+	if (rtg_visible[gb->monitor_id] < 0)
+		return 32;
 	if (s == &gb->fakesurface)
 		return 32;
-	return picasso_vidinfo.pixbytes * 8;
+	struct picasso_vidbuf_description *vidinfo = &picasso_vidinfo[gb->monitor_id];
+	return vidinfo->pixbytes * 8;
 }
 int surface_bytes_per_pixel(DisplaySurface *s)
 {
-	if (rtg_visible < 0)
-		return 4;
 	struct rtggfxboard *gb = (struct rtggfxboard*)s->data;
+	if (rtg_visible[gb->monitor_id] < 0)
+		return 4;
 	if (s == &gb->fakesurface)
 		return 4;
-	return picasso_vidinfo.pixbytes;
+	struct picasso_vidbuf_description *vidinfo = &picasso_vidinfo[gb->monitor_id];
+	return vidinfo->pixbytes;
 }
 
 int surface_stride(DisplaySurface *s)
 {
-	if (rtg_visible < 0)
-		return 0;
 	struct rtggfxboard *gb = (struct rtggfxboard*)s->data;
+	if (rtg_visible[gb->monitor_id] < 0)
+		return 0;
 	if (s == &gb->fakesurface || !gb->vga_refresh_active)
 		return 0;
 	if (gb->gfxboard_surface == NULL)
-		gb->gfxboard_surface = gfx_lock_picasso (false, false);
-	return picasso_vidinfo.rowbytes;
+		gb->gfxboard_surface = gfx_lock_picasso(gb->monitor_id, false, false);
+	struct picasso_vidbuf_description *vidinfo = &picasso_vidinfo[gb->monitor_id];
+	return vidinfo->rowbytes;
 }
 uint8_t *surface_data(DisplaySurface *s)
 {
-	if (rtg_visible < 0)
-		return NULL;
 	struct rtggfxboard *gb = (struct rtggfxboard*)s->data;
 	if (!gb)
+		return NULL;
+	if (rtg_visible[gb->monitor_id] < 0)
 		return NULL;
 	if (gb->vga_changed)
 		return NULL;
 	if (s == &gb->fakesurface || !gb->vga_refresh_active)
 		return gb->fakesurface_surface;
 	if (gb->gfxboard_surface == NULL)
-		gb->gfxboard_surface = gfx_lock_picasso (false, false);
+		gb->gfxboard_surface = gfx_lock_picasso(gb->monitor_id, false, false);
 	return gb->gfxboard_surface;
 }
 
-void gfxboard_refresh (void)
+void gfxboard_refresh(int monid)
 {
-	if (rtg_visible >= 0) {
-		rtggfxboards[rtg_visible].fullrefresh = 2;
+	if (monid > 0) {
+		for (int i = 0; i < MAX_RTG_BOARDS; i++) {
+			struct rtggfxboard *gb = &rtggfxboards[i];
+			if (gb->monitor_id == monid) {
+				gb->fullrefresh = 2;
+			}
+		}
+	} else {
+		if (rtg_visible[monid] >= 0) {
+			rtggfxboards[rtg_visible[monid]].fullrefresh = 2;
+		}
 	}
 }
 
@@ -851,27 +876,29 @@ void gfxboard_hsync_handler(void)
 	}
 }
 
-bool gfxboard_vsync_handler (bool redraw_required)
+bool gfxboard_vsync_handler(bool full_redraw_required, bool redraw_required)
 {
 	bool flushed = false;
 
 	for (int i = 0; i < MAX_RTG_BOARDS; i++) {
 		struct rtggfxboard *gb = &rtggfxboards[i];
+		struct amigadisplay *ad = &adisplays[gb->monitor_id];
+		struct picasso96_state_struct *state = &picasso96_state[gb->monitor_id];
 
 		if (gb->func) {
 
 			if (gb->userdata) {
 				struct gfxboard_mode mode = { 0 };
-				mode.redraw_required = redraw_required;
+				mode.redraw_required = full_redraw_required;
 				flushed = gb->func->vsync(gb->userdata, &mode);
 				if (mode.mode && mode.width && mode.height) {
-					if (picasso96_state.Width != mode.width ||
-						picasso96_state.Height != mode.height ||
-						picasso96_state.RGBFormat != mode.mode ||
-						!picasso_on) {
+					if (state->Width != mode.width ||
+						state->Height != mode.height ||
+						state->RGBFormat != mode.mode ||
+						!ad->picasso_on) {
 						if (mode.width && mode.height && mode.mode) {
 							gfxboard_setmode(gb, &mode);
-							gfx_set_picasso_modeinfo(mode.mode);
+							gfx_set_picasso_modeinfo(gb->monitor_id, mode.mode);
 						}
 					}
 				}
@@ -879,25 +906,42 @@ bool gfxboard_vsync_handler (bool redraw_required)
 
 		} else 	if (gb->configured_mem > 0 && gb->configured_regs > 0) {
 
+			if (gb->monswitch_keep_trying) {
+				vga_update_size(gb);
+				if (gb->vga_width > 16 || gb->vga_height > 16) {
+					gb->monswitch_keep_trying = false;
+					gb->monswitch_new = true;
+					gb->monswitch_delay = 0;
+				}
+			}
+
 			if (gb->monswitch_new != gb->monswitch_current) {
 				if (gb->monswitch_delay > 0)
 					gb->monswitch_delay--;
 				if (gb->monswitch_delay == 0) {
-					if (!gb->monswitch_new && rtg_visible == i) {
-						gfxboard_rtg_disable(i);
+					if (!gb->monswitch_new && rtg_visible[gb->monitor_id] == i) {
+						gfxboard_rtg_disable(gb->monitor_id, i);
 					}
 					gb->monswitch_current = gb->monswitch_new;
 					vga_update_size(gb);
-					write_log(_T("GFXBOARD %d ACTIVE=%d\n"), i, gb->monswitch_current);
-					if (gb->monswitch_current) {
-						if (!gfxboard_rtg_enable_initial(i)) {
-							// Nothing visible? Re-enable our display.
-							if (rtg_visible < 0) {
-								gfxboard_toggle(i, 0);
+					write_log(_T("GFXBOARD %d MONITOR=%d ACTIVE=%d\n"), i, gb->monitor_id, gb->monswitch_current);
+					if (gb->monitor_id > 0) {
+						if (gb->monswitch_new)
+							gfxboard_toggle(gb->monitor_id, i, 0);
+					} else {
+						if (gb->monswitch_current) {
+							if (!gfxboard_rtg_enable_initial(gb->monitor_id, i)) {
+								// Nothing visible? Re-enable our display.
+								if (rtg_visible[gb->monitor_id] < 0) {
+									gfxboard_toggle(gb->monitor_id, i, 0);
+								}
+							}
+						} else {
+							if (ad->picasso_requested_on) {
+								ad->picasso_requested_on = false;
+								set_config_changed();
 							}
 						}
-					} else {
-						picasso_requested_on = false;
 					}
 				}
 			} else {
@@ -918,51 +962,65 @@ bool gfxboard_vsync_handler (bool redraw_required)
 		}
 	}
 
-	if (rtg_visible < 0)
-		return flushed;
+	for (int i = 0; i < MAX_RTG_BOARDS; i++) {
+		struct rtggfxboard *gb = &rtggfxboards[i];
+		struct amigadisplay *ad = &adisplays[gb->monitor_id];
+		struct picasso96_state_struct *state = &picasso96_state[gb->monitor_id];
 
-	struct rtggfxboard *gb = &rtggfxboards[rtg_visible];
-
-	if (gb->configured_mem <= 0 || gb->configured_regs <= 0)
-		return flushed;
-
-	if (gb->monswitch_current && (gb->modechanged || gfxboard_checkchanged(gb))) {
-		gb->modechanged = false;
-		if (!gfxboard_setmode_qemu(gb)) {
-			gfxboard_rtg_disable(rtg_visible);
-			return false;
+		if (gb->monitor_id == 0) {
+			// if default monitor: show rtg_visible
+			if (rtg_visible[gb->monitor_id] < 0)
+				continue;
+			if (i != rtg_visible[gb->monitor_id])
+				continue;
 		}
-		return flushed;
-	}
 
-	if (!gb->monswitch_delay && gb->monswitch_current && picasso_on && picasso_requested_on && !gb->vga_changed) {
-		picasso_getwritewatch (rtg_visible, gb->vram_start_offset);
-		if (gb->fullrefresh)
-			gb->vga.vga.graphic_mode = -1;
-		gb->vga_refresh_active = true;
-		gb->vga.vga.hw_ops->gfx_update(&gb->vga);
-		gb->vga_refresh_active = false;
-	}
+		if (gb->configured_mem <= 0 || gb->configured_regs <= 0)
+			continue;
 
-	if (picasso_on && !gb->vga_changed) {
-		if (currprefs.leds_on_screen & STATUSLINE_RTG) {
-			if (gb->gfxboard_surface == NULL) {
-				gb->gfxboard_surface = gfx_lock_picasso (false, false);
+		if (gb->monswitch_current && (gb->modechanged || gfxboard_checkchanged(gb))) {
+			gb->modechanged = false;
+			if (!gfxboard_setmode_qemu(gb)) {
+				gfxboard_rtg_disable(gb->monitor_id, i);
+				continue;
 			}
-			if (gb->gfxboard_surface) {
-				if (!(currprefs.leds_on_screen & STATUSLINE_TARGET))
-					picasso_statusline (gb->gfxboard_surface);
-			}
+			continue;
 		}
-		if (gb->fullrefresh > 0)
-			gb->fullrefresh--;
-	}
 
-	if (gb->gfxboard_surface) {
-		flushed = true;
-		gfx_unlock_picasso (true);
+		if (!redraw_required)
+			continue;
+
+		if (!gb->monswitch_delay && gb->monswitch_current && ad->picasso_on && ad->picasso_requested_on && !gb->vga_changed) {
+			picasso_getwritewatch(i, gb->vram_start_offset);
+			if (gb->fullrefresh)
+				gb->vga.vga.graphic_mode = -1;
+			gb->vga_refresh_active = true;
+			gb->vga.vga.hw_ops->gfx_update(&gb->vga);
+			gb->vga_refresh_active = false;
+		}
+
+		if (ad->picasso_on && !gb->vga_changed) {
+			if (!gb->monitor_id) {
+				if (currprefs.leds_on_screen & STATUSLINE_RTG) {
+					if (gb->gfxboard_surface == NULL) {
+						gb->gfxboard_surface = gfx_lock_picasso(gb->monitor_id, false, false);
+					}
+					if (gb->gfxboard_surface) {
+						if (!(currprefs.leds_on_screen & STATUSLINE_TARGET))
+							picasso_statusline(gb->monitor_id, gb->gfxboard_surface);
+					}
+				}
+			}
+			if (gb->fullrefresh > 0)
+				gb->fullrefresh--;
+		}
+
+		if (gb->gfxboard_surface) {
+			flushed = true;
+			gfx_unlock_picasso(gb->monitor_id, true);
+		}
+		gb->gfxboard_surface = NULL;
 	}
-	gb->gfxboard_surface = NULL;
 
 	return flushed;
 }
@@ -974,7 +1032,7 @@ double gfxboard_get_vsync (void)
 
 void dpy_gfx_update(QemuConsole *con, int x, int y, int w, int h)
 {
-	picasso_invalidate (x, y, w, h);
+	picasso_invalidate(0, x, y, w, h);
 }
 
 void memory_region_init_alias(MemoryRegion *mr,
@@ -2237,7 +2295,6 @@ void gfxboard_free(void)
 
 void gfxboard_reset (void)
 {
-	rtg_initial = -1;
 	for (int i = 0; i < MAX_RTG_BOARDS; i++) {
 		struct rtggfxboard *gb = &rtggfxboards[i];
 		gb->rbc = &currprefs.rtgboards[gb->rtg_index];
@@ -2258,8 +2315,14 @@ void gfxboard_reset (void)
 					reset_func (reset_parm);
 			}
 		}
+		if (gb->monitor_id > 0) {
+			close_rtg(gb->monitor_id);
+		}
 	}
-	rtg_visible = -1;
+	for (int i = 0; i < MAX_AMIGADISPLAYS; i++) {
+		rtg_visible[i] = -1;
+		rtg_initial[i] = -1;
+	}
 }
 
 static uae_u32 REGPARAM2 gfxboards_lget_regs (uaecptr addr)
@@ -2601,7 +2664,7 @@ const TCHAR *gfxboard_get_name(int type)
 	if (type == GFXBOARD_UAE_Z2)
 		return _T("UAE Zorro II");
 	if (type == GFXBOARD_UAE_Z3)
-		return _T("UAE Zorro III (*)");
+		return _T("UAE Zorro III");
 	return boards[type - GFXBOARD_HARDWARE].name;
 }
 
@@ -2726,6 +2789,7 @@ static void gfxboard_init (struct autoconfig_info *aci, struct rtggfxboard *gb)
 	memset (gb->automemory, 0xff, GFXBOARD_AUTOCONFIG_SIZE);
 	struct rtgboardconfig *rbc = &p->rtgboards[gb->rtg_index];
 	gb->rbc = rbc;
+	gb->monitor_id = rbc->monitor_id;
 	if (!aci->doinit)
 		return;
 	gb->gfxmem_bank = gfxmem_banks[gb->rtg_index];
@@ -2856,6 +2920,9 @@ bool gfxboard_init_memory (struct autoconfig_info *aci)
 	aci->addrbank = &gb->gfxboard_bank_memory;
 	if (gb->rbc->rtgmem_type == GFXBOARD_VGA) {
 		aci->zorro = -1;
+		if (gb->monitor_id > 0) {
+			gb->monswitch_keep_trying = true;
+		}
 	}
 	aci->parent = aci;
 	if (!aci->doinit) {

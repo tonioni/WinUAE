@@ -215,6 +215,7 @@
 #include "savestate.h"
 #include "crc32.h"
 #include "akiko.h"
+#include "xwin.h"
 
 #define DEBUG
 #ifdef DEBUG
@@ -267,18 +268,20 @@ void check_prefs_changed_carts (int in_memory_reset);
 
 static int stored_picasso_on = -1;
 
-static void cartridge_enter (void)
+static void cartridge_enter(void)
 {
+	struct amigadisplay *ad = &adisplays[0];
 #ifdef PICASSO96
-	stored_picasso_on = picasso_requested_on;
-	picasso_requested_on = 0;
+	stored_picasso_on = ad->picasso_requested_on;
+	ad->picasso_requested_on = 0;
 #endif
 }
 static void cartridge_exit (void)
 {
+	struct amigadisplay *ad = &adisplays[0];
 #ifdef PICASSO96
 	if (stored_picasso_on > 0)
-		picasso_requested_on = 1;
+		ad->picasso_requested_on = 1;
 	stored_picasso_on = -1;
 #endif
 }

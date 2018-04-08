@@ -33,7 +33,8 @@ HRESULT DirectDraw_GetDisplayMode (void)
 
 static LPDIRECTDRAWSURFACE7 getlocksurface (void)
 {
-	if (dxdata.backbuffers > 0 && currprefs.gfx_apmode[APMODE_NATIVE].gfx_fullscreen > 0 && !WIN32GFX_IsPicassoScreen ())
+	struct AmigaMonitor *mon = &AMonitors[0];
+	if (dxdata.backbuffers > 0 && currprefs.gfx_apmode[APMODE_NATIVE].gfx_fullscreen > 0 && !WIN32GFX_IsPicassoScreen(mon))
 		return dxdata.flipping[0];
 	return dxdata.secondary;
 }
@@ -332,10 +333,11 @@ static void createstatussurface (void)
 
 HRESULT DirectDraw_CreateMainSurface (int width, int height)
 {
+	struct AmigaMonitor *mon = &AMonitors[0];
 	HRESULT ddrval;
 	DDSURFACEDESC2 desc = { 0 };
 	LPDIRECTDRAWSURFACE7 surf;
-	struct apmode *ap = WIN32GFX_IsPicassoScreen () ? &currprefs.gfx_apmode[1] : &currprefs.gfx_apmode[0];
+	struct apmode *ap = WIN32GFX_IsPicassoScreen(mon) ? &currprefs.gfx_apmode[1] : &currprefs.gfx_apmode[0];
 
 	width = (width + 7) & ~7;
 	desc.dwSize = sizeof (desc);
@@ -424,7 +426,7 @@ HRESULT DirectDraw_SetDisplayMode (int width, int height, int bits, int freq)
 		dxdata.depth == bits && dxdata.freq == freq)
 		return DD_OK;
 
-	getvsyncrate (freq, &dxdata.vblank_skip);
+	getvsyncrate(0, freq, &dxdata.vblank_skip);
 	dxdata.vblank_skip_cnt = 0;
 	ddrval = IDirectDraw7_SetDisplayMode (dxdata.maindd, width, height, bits, freq, 0);
 	if (FAILED (ddrval)) {
@@ -709,6 +711,7 @@ HRESULT DirectDraw_FlipToGDISurface (void)
 
 int DirectDraw_BlitToPrimaryScale (RECT *dstrect, RECT *srcrect)
 {
+	struct AmigaMonitor *mon = &AMonitors[0];
 	LPDIRECTDRAWSURFACE7 dst;
 	int result = 0;
 	HRESULT ddrval;
@@ -720,7 +723,7 @@ int DirectDraw_BlitToPrimaryScale (RECT *dstrect, RECT *srcrect)
 		dstrect = &dstrect2;
 		SetRect (dstrect, x, y, x + w, y + h);
 	}
-	centerdstrect (dstrect);
+	centerdstrect(mon, dstrect);
 	while (FAILED (ddrval = IDirectDrawSurface7_Blt (dst, dstrect, dxdata.secondary, srcrect, DDBLT_WAIT, NULL))) {
 		if (ddrval == DDERR_SURFACELOST) {
 			ddrval = restoresurfacex (dst, dxdata.secondary);
@@ -742,6 +745,7 @@ int DirectDraw_BlitToPrimaryScale (RECT *dstrect, RECT *srcrect)
 
 static int DirectDraw_BlitToPrimary2 (RECT *rect, int dooffset)
 {
+	struct AmigaMonitor *mon = &AMonitors[0];
 	LPDIRECTDRAWSURFACE7 dst;
 	int result = 0;
 	HRESULT ddrval;
@@ -764,7 +768,7 @@ static int DirectDraw_BlitToPrimary2 (RECT *rect, int dooffset)
 	SetRect (&srcrect, x, y, x + w, y + h);
 	SetRect (&dstrect, x, y, x + w, y + h);
 	if (rect || dooffset)
-		centerdstrect (&dstrect);
+		centerdstrect(mon, &dstrect);
 	while (FAILED(ddrval = IDirectDrawSurface7_Blt (dst, &dstrect, dxdata.secondary, &srcrect, DDBLT_WAIT, NULL))) {
 		if (ddrval == DDERR_SURFACELOST) {
 			ddrval = restoresurfacex (dst, dxdata.secondary);
@@ -909,12 +913,13 @@ void DirectDraw_FillPrimary (void)
 
 static void flip (void)
 {
+	struct AmigaMonitor *mon = &AMonitors[0];
 	int result = 0;
 	HRESULT ddrval = DD_OK;
 	DWORD flags = 0; // Why did I put DDFLIP_DONOTWAIT here?
 	int vsync = isvsync ();
 	bool novsync = false;
-	struct apmode *ap = WIN32GFX_IsPicassoScreen () ? &currprefs.gfx_apmode[1] : &currprefs.gfx_apmode[0];
+	struct apmode *ap = WIN32GFX_IsPicassoScreen(mon) ? &currprefs.gfx_apmode[1] : &currprefs.gfx_apmode[0];
 
 	if (currprefs.turbo_emulation || !ap->gfx_vflip) {
 		novsync = true;
@@ -1327,7 +1332,7 @@ bool DD_getvblankpos (int *vpos)
 
 void DD_vblank_reset (double freq)
 {
-	getvsyncrate (freq, &dxdata.vblank_skip);
+	getvsyncrate(0, freq, &dxdata.vblank_skip);
 	dxdata.vblank_skip_cnt = 0;
 	dx_check ();
 	if ((dxdata.primary == NULL && dxdata.fsmodeset > 0) || dxdata.islost || !dxdata.maindd)

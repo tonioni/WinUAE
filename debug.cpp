@@ -5294,7 +5294,7 @@ static bool debug_line (TCHAR *input)
 					debugmem_list_segment(0, addr);
 				}
 			} else if (*inptr == 'c') {
-				screenshot (1, 1);
+				screenshot(0, 1, 1);
 			} else if (*inptr == 'p') {
 				inptr++;
 				debug_sprite (&inptr);
@@ -5566,7 +5566,7 @@ static bool debug_line (TCHAR *input)
 						debug_bpl_mask = readhex (&inptr) & 0xff;
 						if (more_params (&inptr))
 							debug_bpl_mask_one = readhex (&inptr) & 0xff;
-						notice_screen_contents_lost ();
+						notice_screen_contents_lost(0);
 					}
 					console_out_f (_T("Bitplane mask: %02X (%02X)\n"), debug_bpl_mask, debug_bpl_mask_one);
 					break;
@@ -6019,7 +6019,7 @@ void debug (void)
 #endif
 	inputdevice_unacquire ();
 	pause_sound ();
-	setmouseactive (0);
+	setmouseactive(0, 0);
 	activate_console ();
 	trace_mode = 0;
 	exception_debugging = 0;
@@ -6056,7 +6056,7 @@ void debug (void)
 #ifdef WITH_PPC
 	uae_ppc_pause(0);
 #endif
-	setmouseactive (wasactive ? 2 : 0);
+	setmouseactive(0, wasactive ? 2 : 0);
 }
 
 const TCHAR *debuginfo (int mode)

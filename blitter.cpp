@@ -73,6 +73,7 @@ uae_u32 blit_masktable[BLITTER_MAX_WORDS];
 enum blitter_states bltstate;
 
 static int blit_cyclecounter, blit_waitcyclecounter;
+static uaecptr blit_waitpc;
 static int blit_maxcyclecounter, blit_slowdown, blit_totalcyclecounter;
 static int blit_startcycles, blit_misscyclecounter;
 
@@ -94,6 +95,15 @@ static int ddat1use, ddat2use;
 int blit_interrupt;
 
 static int last_blitter_hpos;
+
+static uae_u16 debug_bltcon0, debug_bltcon1;
+static uae_u32 debug_bltapt, debug_bltbpt, debug_bltcpt, debug_bltdpt;
+static uae_u16 debug_bltamod, debug_bltbmod, debug_bltcmod, debug_bltdmod;
+static uae_u32 debug_bltafwm, debug_bltalwm;
+static uae_u32 debug_bltpc;
+static int debug_bltcop;
+static uae_u16 debug_bltsizev, debug_bltsizeh;
+static uae_u16 debug_bltadat, debug_bltbdat, debug_bltcdat;
 
 #define BLITTER_STARTUP_CYCLES 2
 
@@ -307,20 +317,56 @@ STATIC_INLINE void record_dma_blit (uae_u16 reg, uae_u16 dat, uae_u32 addr, int 
 #endif
 }
 
+static void blitter_debugsave(int copper, uaecptr pc)
+{
+	debug_bltcon0 = bltcon0;
+	debug_bltcon1 = bltcon1;
+	debug_bltsizev = blt_info.vblitsize;
+	debug_bltsizeh = blt_info.hblitsize;
+	debug_bltapt = bltapt;
+	debug_bltbpt = bltbpt;
+	debug_bltcpt = bltcpt;
+	debug_bltdpt = bltdpt;
+	debug_bltadat = blt_info.bltadat;
+	debug_bltbdat = blt_info.bltbdat;
+	debug_bltcdat = blt_info.bltcdat;
+	debug_bltamod = blt_info.bltamod;
+	debug_bltbmod = blt_info.bltbmod;
+	debug_bltcmod = blt_info.bltcmod;
+	debug_bltdmod = blt_info.bltdmod;
+	debug_bltafwm = blt_info.bltafwm;
+	debug_bltalwm = blt_info.bltalwm;
+	debug_bltpc = pc;
+	debug_bltcop = copper;
+}
+
 static void blitter_dump (void)
 {
 	int chipsize = currprefs.chipmem_size;
-	write_log (_T("PT A=%08X B=%08X C=%08X D=%08X\n"), bltapt, bltbpt, bltcpt, bltdpt);
-	write_log (_T("CON0=%04X CON1=%04X DAT A=%04X B=%04X C=%04X\n"),
+	console_out_f(_T("PT A=%08X B=%08X C=%08X D=%08X\n"), bltapt, bltbpt, bltcpt, bltdpt);
+	console_out_f(_T("CON0=%04X CON1=%04X DAT A=%04X B=%04X C=%04X\n"),
 		bltcon0, bltcon1, blt_info.bltadat, blt_info.bltbdat, blt_info.bltcdat);
-	write_log (_T("AFWM=%04X ALWM=%04X MOD A=%04X B=%04X C=%04X D=%04X\n"),
+	console_out_f(_T("AFWM=%04X ALWM=%04X MOD A=%04X B=%04X C=%04X D=%04X\n"),
 		blt_info.bltafwm, blt_info.bltalwm,
 		blt_info.bltamod & 0xffff, blt_info.bltbmod & 0xffff, blt_info.bltcmod & 0xffff, blt_info.bltdmod & 0xffff);
-	write_log (_T("PC=%08X DMA=%d\n"), m68k_getpc (), dmaen (DMA_BLITTER));
+	console_out_f(_T("PC=%08X DMA=%d\n"), m68k_getpc(), dmaen (DMA_BLITTER));
 
 	if (((bltcon0 & 0x800) && bltapt >= chipsize) || ((bltcon0 & 0x400) && bltbpt >= chipsize) ||
 		((bltcon0 & 0x200) && bltcpt >= chipsize) || ((bltcon0 & 0x100) && bltdpt >= chipsize))
-		write_log (_T("PT outside of chipram\n"));
+		console_out_f(_T("PT outside of chipram\n"));
+}
+
+void blitter_debugdump(void)
+{
+	console_out(_T("Blitter registers at start:\n"));
+	console_out_f(_T("PT A=%08X B=%08X C=%08X D=%08X\n"), debug_bltapt, debug_bltbpt, debug_bltcpt, debug_bltdpt);
+	console_out_f(_T("CON0=%04X CON1=%04X DAT A=%04X B=%04X C=%04X\n"),
+		debug_bltcon0, debug_bltcon1, debug_bltadat, debug_bltbdat, debug_bltcdat);
+	console_out_f(_T("AFWM=%04X ALWM=%04X MOD A=%04X B=%04X C=%04X D=%04X\n"),
+		debug_bltafwm, debug_bltalwm, debug_bltamod, debug_bltbmod, debug_bltcmod, debug_bltdmod);
+	console_out_f(_T("COP=%d PC=%08X\n"), debug_bltcop, debug_bltpc);
+	console_out(_T("Blitter registers now:\n"));
+	blitter_dump();
 }
 
 STATIC_INLINE const int *get_ch (void)
@@ -796,7 +842,7 @@ static void decide_blitter_line (int hsync, int hpos)
 				blit_cyclecounter++;
 				blit_totalcyclecounter++;
 				if (blit_cyclecounter >= 2) {
-					blitter_done (last_blitter_hpos);
+					blitter_done(last_blitter_hpos);
 					return;
 				}
 				break;
@@ -1107,7 +1153,7 @@ static void do_startcycles (int hpos)
 					blit_faulty = -1;
 				bltstate = BLT_done;
 				blit_final = 0;
-				do_blitter (vhpos, 0);
+				do_blitter(vhpos, 0, blit_waitpc);
 				blit_startcycles = 0;
 				blit_cyclecounter = 0;
 				blit_waitcyclecounter = 0;
@@ -1515,7 +1561,7 @@ static void blitter_start_init (void)
 	}
 }
 
-static void do_blitter2 (int hpos, int copper)
+static void do_blitter2(int hpos, int copper, uaecptr pc)
 {
 	int cycles;
 	int cleanstart;
@@ -1563,6 +1609,9 @@ static void do_blitter2 (int hpos, int copper)
 		original_fill = blitfill;
 		original_line = blitline;
 	}
+
+	if (memwatch_enabled)
+		blitter_debugsave(copper, pc);
 
 	if ((log_blitter & 1) || ((log_blitter & 32) && !blitline)) {
 		blitter_dontdo = 0;
@@ -1660,10 +1709,10 @@ void blitter_check_start (void)
 	}
 }
 
-void do_blitter (int hpos, int copper)
+void do_blitter(int hpos, int copper, uaecptr pc)
 {
 	if (bltstate == BLT_done || !blitter_cycle_exact) {
-		do_blitter2 (hpos, copper);
+		do_blitter2(hpos, copper, pc);
 		return;
 	}
 	if (!dmaen (DMA_BLITTER) || !blt_info.got_cycle)
@@ -1672,6 +1721,7 @@ void do_blitter (int hpos, int copper)
 	// and we must let it finish
 	blit_startcycles = BLITTER_STARTUP_CYCLES;
 	blit_waitcyclecounter = copper;
+	blit_waitpc = pc;
 }
 
 void maybe_blit (int hpos, int hack)
@@ -1939,7 +1989,7 @@ uae_u8 *restore_blitter_new (uae_u8 *src)
 	bltstate = BLT_done;
 	if (!blitter_cycle_exact) {
 		if (state > 0)
-			do_blitter (0, 0);
+			do_blitter(0, 0, 0);
 	} else {
 		if (state == 1)
 			bltstate = BLT_init;

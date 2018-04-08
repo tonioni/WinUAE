@@ -400,7 +400,6 @@
 #define IDS_NUMSG_NO_PPC                404
 #define IDS_NUMSG_UAEBOOTROM_PCC        405
 #define IDS_AUTOSCALE_OVERSCAN_BLANK    408
-#define IDS_SCREEN_ADAPTIVE_SYNC        409
 #define IDS_NUMSG_NOMEMORY              410
 #define IDS_EXPANSION_CATEGORY          411
 #define IDS_WINUAETITLE_PAUSED          412
@@ -455,6 +454,7 @@
 #define IDC_PORT1_JOYSMODE              1030
 #define IDC_SCREENMODE_RTG2             1030
 #define IDC_PORT2_JOYS                  1031
+#define IDC_SCREENMODE_NATIVE3          1031
 #define IDC_PORT3_JOYS                  1032
 #define IDC_PARALLEL                    1033
 #define IDC_PORT0_AF                    1033
@@ -763,7 +763,7 @@
 #define IDC_OCS                         1520
 #define IDC_HDFLOPPY                    1520
 #define IDC_SETTINGSTEXT3               1520
-#define IDC_DISPLAY_TEARING             1520
+#define IDC_DISPLAY_VARSYNC             1520
 #define IDC_ECS_AGNUS                   1521
 #define IDC_ECS_DENISE                  1522
 #define IDC_ECS                         1523
@@ -1076,6 +1076,7 @@
 #define IDC_CS_KSMIRROR_E0              1716
 #define IDC_STRINGBOXEDIT               1716
 #define IDC_SOUND_OPENAL                1716
+#define IDC_MONITOREMU_MON              1716
 #define IDC_CS_CD32CD                   1717
 #define IDC_CS_CD32C2P                  1718
 #define IDC_SOUND_PORTAUDIO             1718

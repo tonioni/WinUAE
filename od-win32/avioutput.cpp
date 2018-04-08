@@ -526,6 +526,7 @@ void AVIOutput_ReleaseVideo (void)
 
 static int AVIOutput_AllocateVideo (void)
 {
+	struct AmigaMonitor *mon = &AMonitors[0];
 	avioutput_width = avioutput_height = avioutput_bits = 0;
 	aviout_width_out = aviout_height_out = 0;
 	aviout_xoffset_out = aviout_yoffset_out = 0;
@@ -533,12 +534,12 @@ static int AVIOutput_AllocateVideo (void)
 	avioutput_fps = (int)(vblank_hz + 0.5);
 	if (!avioutput_fps)
 		avioutput_fps = ispal () ? 50 : 60;
-	if (avioutput_originalsize || WIN32GFX_IsPicassoScreen ()) {
+	if (avioutput_originalsize || WIN32GFX_IsPicassoScreen(mon)) {
 		int pitch;
-		if (!WIN32GFX_IsPicassoScreen ()) {
-			getfilterbuffer (&avioutput_width, &avioutput_height, &pitch, &avioutput_bits);
+		if (!WIN32GFX_IsPicassoScreen(mon)) {
+			getfilterbuffer(0, &avioutput_width, &avioutput_height, &pitch, &avioutput_bits);
 		} else {
-			freertgbuffer (getrtgbuffer (&avioutput_width, &avioutput_height, &pitch, &avioutput_bits, NULL));
+			freertgbuffer(0, getrtgbuffer(0, &avioutput_width, &avioutput_height, &pitch, &avioutput_bits, NULL));
 		}
 		aviout_width_out = avioutput_width + 15;
 		aviout_width_out &= ~15;
@@ -547,17 +548,17 @@ static int AVIOutput_AllocateVideo (void)
 	}
 
 	if (avioutput_width == 0 || avioutput_height == 0 || avioutput_bits == 0) {
-		avioutput_width = WIN32GFX_GetWidth ();
-		avioutput_height = WIN32GFX_GetHeight ();
-		avioutput_bits = WIN32GFX_GetDepth (0);
+		avioutput_width = WIN32GFX_GetWidth(mon);
+		avioutput_height = WIN32GFX_GetHeight(mon);
+		avioutput_bits = WIN32GFX_GetDepth(mon, 0);
 	}
 
 	AVIOutput_Initialize ();
 	AVIOutput_ReleaseVideo ();
 	if (avioutput_width == 0 || avioutput_height == 0) {
-		avioutput_width = workprefs.gfx_size.width;
-		avioutput_height = workprefs.gfx_size.height;
-		avioutput_bits = WIN32GFX_GetDepth (0);
+		avioutput_width = workprefs.gfx_monitor[0].gfx_size.width;
+		avioutput_height = workprefs.gfx_monitor[0].gfx_size.height;
+		avioutput_bits = WIN32GFX_GetDepth(mon, 0);
 	}
 	if (!aviout_height_out)
 		aviout_height_out = avioutput_height;
@@ -953,7 +954,7 @@ static int getFromRenderTarget11(struct avientry *avie)
 	int w, h, pitch, bits = 32;
 	void *data;
 
-	bool got = D3D11_capture(&data, &w, &h, &pitch);
+	bool got = D3D11_capture(0, &data, &w, &h, &pitch);
 	if (got) {
 		int dpitch = ((aviout_width_out * avioutput_bits + 31) & ~31) / 8;
 		for (int y = 0; y < h; y++) {
@@ -972,7 +973,7 @@ static int getFromRenderTarget11(struct avientry *avie)
 				}
 			}
 		}
-		D3D11_capture(NULL, NULL, NULL, NULL);
+		D3D11_capture(0, NULL, NULL, NULL, NULL);
 		ok = 1;
 	}
 	return ok;
@@ -984,7 +985,7 @@ static int getFromRenderTarget(struct avientry *avie)
 	int w, h, bits;
 	HRESULT hr;
 	D3DLOCKED_RECT l;
-	LPDIRECT3DSURFACE9 s = D3D_capture(&w, &h, &bits);
+	LPDIRECT3DSURFACE9 s = D3D_capture(0, &w, &h, &bits);
 	if (s) {
 		hr = s->LockRect(&l, NULL, D3DLOCK_READONLY);
 		if (SUCCEEDED(hr)) {
@@ -1081,8 +1082,10 @@ void AVIOutput_RGBinfo (int rb, int gb, int bb, int ab, int rs, int gs, int bs, 
 #if defined (GFXFILTER)
 extern uae_u8 *bufmem_ptr;
 
-static int getFromBuffer (struct avientry *ae, int original)
+static int getFromBuffer(struct avientry *ae, int original)
 {
+	struct AmigaMonitor *mon = &AMonitors[0];
+	struct vidbuf_description *vidinfo = &adisplays[0].gfxvidinfo;
 	int x, y, w, h, d;
 	uae_u8 *src, *mem;
 	uae_u8 *dst = ae->lpVideo;
@@ -1091,21 +1094,21 @@ static int getFromBuffer (struct avientry *ae, int original)
 
 	mem = NULL;
 	dpitch = ((aviout_width_out * avioutput_bits + 31) & ~31) / 8;
-	if (original || WIN32GFX_IsPicassoScreen ()) {
-		if (!WIN32GFX_IsPicassoScreen ()) {
-			src = getfilterbuffer (&w, &h, &spitch, &d);
-			maxw = gfxvidinfo.outbuffer->outwidth;
-			maxh = gfxvidinfo.outbuffer->outheight;
+	if (original || WIN32GFX_IsPicassoScreen(mon)) {
+		if (!WIN32GFX_IsPicassoScreen(mon)) {
+			src = getfilterbuffer(0, &w, &h, &spitch, &d);
+			maxw = vidinfo->outbuffer->outwidth;
+			maxh = vidinfo->outbuffer->outheight;
 		} else {
-			src = mem = getrtgbuffer (&w, &h, &spitch, &d, NULL);
+			src = mem = getrtgbuffer(0, &w, &h, &spitch, &d, NULL);
 			maxw = w;
 			maxh = h;
 		}
 	} else {
-		spitch = gfxvidinfo.outbuffer->rowbytes;
+		spitch = vidinfo->outbuffer->rowbytes;
 		src = bufmem_ptr;
-		maxw = gfxvidinfo.outbuffer->outwidth;
-		maxh = gfxvidinfo.outbuffer->outheight;
+		maxw = vidinfo->outbuffer->outwidth;
+		maxh = vidinfo->outbuffer->outheight;
 	}
 	if (!src)
 		return 0;
@@ -1175,13 +1178,14 @@ static int getFromBuffer (struct avientry *ae, int original)
 		src += spitch;
 	}
 	if (mem)
-		freertgbuffer (mem);
+		freertgbuffer(0, mem);
 	return 1;
 }
 #endif
 
 void AVIOutput_WriteVideo (void)
 {
+	struct AmigaMonitor *mon = &AMonitors[0];
 	struct avientry *ae;
 	int v;
 
@@ -1195,12 +1199,12 @@ void AVIOutput_WriteVideo (void)
 		dorestart ();
 	waitqueuefull ();
 	ae = allocavientry_video ();
-	if (avioutput_originalsize || WIN32GFX_IsPicassoScreen ()) {
+	if (avioutput_originalsize || WIN32GFX_IsPicassoScreen(mon)) {
 		v = getFromBuffer (ae, 1);
 	} else {
-		if (D3D_isenabled() == 2) {
+		if (D3D_isenabled(0) == 2) {
 			v = getFromRenderTarget11(ae);
-		} else if (D3D_isenabled() == 1) {
+		} else if (D3D_isenabled(0) == 1) {
 			v = getFromRenderTarget(ae);
 		} else {
 			v = getFromDC (ae);
@@ -1746,7 +1750,7 @@ bool frame_drawn (void)
 	start_if_requested();
 
 	if (screenshot_multi) {
-		screenshot(1, 1);
+		screenshot(0, 1, 1);
 		if (screenshot_multi > 0)
 			screenshot_multi--;
 	}

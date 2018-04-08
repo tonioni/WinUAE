@@ -17,6 +17,7 @@
 #include "statusline.h"
 #include "newcpu.h"
 #include "gfxboard.h"
+#include "xwin.h"
 
 rectangle tms_rectangle;
 static mscreen tms_screen;
@@ -571,7 +572,7 @@ static void tms_reset(void *userdata)
 	struct a2410_struct *data = (struct a2410_struct*)userdata;
 
 	if (data->a2410_surface)
-		gfx_unlock_picasso(true);
+		gfx_unlock_picasso(0, true);
 	data->a2410_surface = NULL;
 
 	data->a2410_modechanged = false;
@@ -598,7 +599,7 @@ static void tms_free(void *userdata)
 	struct a2410_struct *data = (struct a2410_struct*)userdata;
 
 	if (data->a2410_surface)
-		gfx_unlock_picasso(true);
+		gfx_unlock_picasso(0, true);
 	data->a2410_surface = NULL;
 	if (data->a2410_gfxboard >= 0) {
 		gfxboard_free_vram(data->a2410_gfxboard);
@@ -667,15 +668,18 @@ void mscreen::configure(int width, int height, rectangle vis)
 
 static void get_a2410_surface(struct a2410_struct *data)
 {
+	int monid = currprefs.rtgboards[data->a2410_gfxboard].monitor_id;
+	struct amigadisplay *ad = &adisplays[monid];
+
 	bool gotsurf = false;
-	if (picasso_on) {
+	if (ad->picasso_on) {
 		if (data->a2410_surface == NULL) {
-			data->a2410_surface = gfx_lock_picasso(false, false);
+			data->a2410_surface = gfx_lock_picasso(monid, false, false);
 			gotsurf = true;
 		}
 		if (data->a2410_surface && gotsurf) {
 			if (!(currprefs.leds_on_screen & STATUSLINE_TARGET))
-				picasso_statusline(data->a2410_surface);
+				picasso_statusline(monid, data->a2410_surface);
 		}
 	}
 }
@@ -710,6 +714,9 @@ static bool tms_toggle(void *userdata, int mode)
 
 static void tms_vsync_handler2(struct a2410_struct *data, bool internalsync)
 {
+	int monid = currprefs.rtgboards[data->a2410_gfxboard].monitor_id;
+	struct amigadisplay *ad = &adisplays[monid];
+
 	if (!data->tms_configured)
 		return;
 
@@ -718,13 +725,13 @@ static void tms_vsync_handler2(struct a2410_struct *data, bool internalsync)
 	bool enabled = parms.enabled != 0 && data->a2410_gotmode > 0;
 
 	if (!data->a2410_visible && data->a2410_modechanged) {
-		gfxboard_rtg_enable_initial(data->a2410_gfxboard);
+		gfxboard_rtg_enable_initial(monid, data->a2410_gfxboard);
 	}
 
 	if (data->a2410_visible) {
 		if (enabled != data->a2410_enabled || data->a2410_modechanged) {
 			if (data->a2410_surface)
-				gfx_unlock_picasso(false);
+				gfx_unlock_picasso(monid, false);
 			data->a2410_surface = NULL;
 
 			if (enabled) {
@@ -732,10 +739,10 @@ static void tms_vsync_handler2(struct a2410_struct *data, bool internalsync)
 				data->fullrefresh = 2;
 			}
 			data->a2410_enabled = enabled;
-			write_log(_T("A2410 ACTIVE=%d\n"), data->a2410_enabled);
+			write_log(_T("A2410 MONITOR=%d ACTIVE=%d\n"), monid, data->a2410_enabled);
 		}
 
-		if (picasso_on) {
+		if (ad->picasso_on) {
 			if (currprefs.leds_on_screen & STATUSLINE_RTG) {
 				get_a2410_surface(data);
 			}
@@ -748,7 +755,7 @@ static void tms_vsync_handler2(struct a2410_struct *data, bool internalsync)
 		}
 
 		if (data->a2410_surface)
-			gfx_unlock_picasso(true);
+			gfx_unlock_picasso(monid, true);
 		data->a2410_surface = NULL;
 	}
 
@@ -781,7 +788,7 @@ static bool tms_vsync(void *userdata, struct gfxboard_mode *mode)
 		tms_vsync_handler2(data, false);
 
 	if (data->a2410_surface) {
-		gfx_unlock_picasso(false);
+		gfx_unlock_picasso(0, false);
 		flushed = true;
 	}
 	data->a2410_surface = NULL;
@@ -797,6 +804,10 @@ static bool tms_vsync(void *userdata, struct gfxboard_mode *mode)
 
 static void tms_hsync_handler2(struct a2410_struct *data)
 {
+	int monid = currprefs.rtgboards[data->a2410_gfxboard].monitor_id;
+	struct picasso_vidbuf_description *vidinfo = &picasso_vidinfo[monid];
+	struct amigadisplay *ad = &adisplays[monid];
+
 	if (!data->tms_configured)
 		return;
 
@@ -815,7 +826,7 @@ static void tms_hsync_handler2(struct a2410_struct *data)
 		picasso_getwritewatch(data->a2410_gfxboard, data->a2410_vram_start_offset);
 	}
 
-	if (data->a2410_modechanged || !picasso_on)
+	if (data->a2410_modechanged || !ad->picasso_on)
 		return;
 
 	if (a2410_vpos == 0 && data->fullrefresh > 0) {
@@ -846,7 +857,7 @@ static void tms_hsync_handler2(struct a2410_struct *data)
 			overlay_yoffset++;
 	}
 
-	if (overlay_yoffset >= data->a2410_height || overlay_yoffset >= picasso_vidinfo.height)
+	if (overlay_yoffset >= data->a2410_height || overlay_yoffset >= vidinfo->height)
 		return;
 
 	if (!data->fullrefresh && !data->a2410_modified[overlay_yoffset]) {
@@ -864,7 +875,7 @@ static void tms_hsync_handler2(struct a2410_struct *data)
 
 	data->a2410_modified[overlay_yoffset] = false;
 
-	dst += overlay_yoffset * picasso_vidinfo.rowbytes;
+	dst += overlay_yoffset * vidinfo->rowbytes;
 	uae_u32 *dst32 = (uae_u32*)dst;
 
 	uae_u8 *overlay0 = data->program_ram + overlayoffset * OVERLAY_WIDTH / 8;
@@ -887,7 +898,7 @@ static void tms_hsync_handler2(struct a2410_struct *data)
 	int overlay_bitcount = 0;
 	uae_u8 opix0 = 0, opix1 = 0;
 
-	for (int x = parms.heblnk; x < parms.hsblnk && xx < picasso_vidinfo.width; x += 2, xx += 2) {
+	for (int x = parms.heblnk; x < parms.hsblnk && xx < vidinfo->width; x += 2, xx += 2) {
 
 		if (a2410_vpos >= parms.veblnk && a2410_vpos < parms.vsblnk) {
 
@@ -939,7 +950,7 @@ static void tms_hsync_handler2(struct a2410_struct *data)
 		}
 	}
 
-	while (xx < picasso_vidinfo.width) {
+	while (xx < vidinfo->width) {
 		*dst32++ = 0;
 		xx++;
 	}

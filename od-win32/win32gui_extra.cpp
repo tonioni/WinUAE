@@ -7,6 +7,7 @@
 #include "sysconfig.h"
 #include "sysdeps.h"
 
+#include "options.h"
 #include "resource.h"
 #include "registry.h"
 #include "win32.h"

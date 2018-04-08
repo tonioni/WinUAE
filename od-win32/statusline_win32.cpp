@@ -23,8 +23,11 @@ static HFONT statusline_font;
 static HPALETTE statusline_palette;
 static bool statusline_was_updated;
 
-void deletestatusline(void)
+void deletestatusline(int monid)
 {
+	if (monid)
+		return;
+	struct AmigaMonitor *mon = &AMonitors[monid];
 	if (!statusline_hdc)
 		return;
 	if (!statusline_bitmap)
@@ -41,13 +44,16 @@ void deletestatusline(void)
 	statusline_palette = NULL;
 }
 
-bool createstatusline(void)
+bool createstatusline(int monid)
 {
+	struct AmigaMonitor *mon = &AMonitors[monid];
 	BITMAPINFO *bi;
 	BITMAPINFOHEADER *bih;
 	LOGPALETTE *lp;
 
-	deletestatusline();
+	if (monid)
+		return false;
+	deletestatusline(mon->monitor_id);
 	statusline_hdc = CreateCompatibleDC(NULL);
 	if (!statusline_hdc)
 		return false;
@@ -59,7 +65,7 @@ bool createstatusline(void)
 	lp->palPalEntry[3].peBlue = lp->palPalEntry[3].peGreen = lp->palPalEntry[3].peRed = 0x7f;
 	statusline_palette = CreatePalette(lp);
 	SelectPalette(statusline_hdc, statusline_palette, FALSE);
-	statusline_width = (WIN32GFX_GetWidth() + 31) & ~31;
+	statusline_width = (WIN32GFX_GetWidth(mon) + 31) & ~31;
 	bi = (BITMAPINFO*)xcalloc(uae_u8, sizeof(BITMAPINFOHEADER) + 4 * sizeof(RGBQUAD));
 	bih = &bi->bmiHeader;
 	bih->biSize = sizeof(BITMAPINFOHEADER);
@@ -76,7 +82,7 @@ bool createstatusline(void)
 	statusline_bitmap = CreateDIBSection(statusline_hdc, bi, DIB_RGB_COLORS, &statusline_bm, NULL, 0);
 	xfree(bi);
 	if (!statusline_bitmap) {
-		deletestatusline();
+		deletestatusline(mon->monitor_id);
 		return false;
 	}
 	SelectObject(statusline_hdc, statusline_bitmap);
@@ -101,22 +107,29 @@ bool createstatusline(void)
 	return true;
 }
 
-void statusline_updated(void)
+void statusline_updated(int monid)
 {
+	if (monid)
+		return;
+	struct AmigaMonitor *mon = &AMonitors[monid];
 	statusline_was_updated = true;
-	if (hStatusWnd)
-		PostMessage(hStatusWnd, SB_SETTEXT, (WPARAM)((window_led_msg_start) | SBT_OWNERDRAW), (LPARAM)_T(""));
+	if (mon->hStatusWnd)
+		PostMessage(mon->hStatusWnd, SB_SETTEXT, (WPARAM)((window_led_msg_start) | SBT_OWNERDRAW), (LPARAM)_T(""));
 }
 
-void statusline_render(uae_u8 *buf, int bpp, int pitch, int width, int height, uae_u32 *rc, uae_u32 *gc, uae_u32 *bc, uae_u32 *alpha)
+void statusline_render(int monid, uae_u8 *buf, int bpp, int pitch, int width, int height, uae_u32 *rc, uae_u32 *gc, uae_u32 *bc, uae_u32 *alpha)
 {
+	struct AmigaMonitor *mon = &AMonitors[monid];
 	uae_u32 white = rc[0xff] | gc[0xff] | bc[0xff] | (alpha ? alpha[0xff] : 0);
 	uae_u32 back = rc[0x00] | gc[0x00] | bc[0x00] | (alpha ? alpha[0xa0] : 0);
 	const TCHAR *text;
 	int y = -1, x = 10, textwidth = 0;
 	int bar_xstart;
 
-	if (currprefs.gf[WIN32GFX_IsPicassoScreen()].gfx_filter == 0 && !currprefs.gfx_api)
+	if (monid)
+		return;
+
+	if (currprefs.gf[WIN32GFX_IsPicassoScreen(mon)].gfx_filter == 0 && !currprefs.gfx_api)
 		return;
 	text = statusline_fetch();
 	//text = _T("Testing string 123!");

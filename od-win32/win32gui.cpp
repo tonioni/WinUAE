@@ -97,6 +97,7 @@
 #include "rp.h"
 #endif
 #include "ini.h"
+#include "specialmonitors.h"
 
 #define GUI_SCALE_DEFAULT 100
 #define MIN_GUI_INTERNAL_WIDTH 512
@@ -2211,22 +2212,25 @@ static bool gui_resize_allowed;
 // Internal panel max size: 396, 318
 
 static int mm = 0;
-static void m (void)
+static void m(int monid)
 {
-	write_log (_T("%d:0: %dx%d %dx%d %dx%d\n"), mm, currprefs.gfx_size.width, currprefs.gfx_size.height,
-		workprefs.gfx_size.width, workprefs.gfx_size.height, changed_prefs.gfx_size.width, changed_prefs.gfx_size.height);
-	write_log (_T("%d:1: %dx%d %dx%d %dx%d\n"), mm, currprefs.gfx_size_fs.width, currprefs.gfx_size_fs.height,
-		workprefs.gfx_size_fs.width, workprefs.gfx_size_fs.height, changed_prefs.gfx_size_fs.width, changed_prefs.gfx_size_fs.height);
+	struct monconfig *gmw = &workprefs.gfx_monitor[monid];
+	struct monconfig *gmc = &currprefs.gfx_monitor[monid];
+	struct monconfig *gmh = &changed_prefs.gfx_monitor[monid];
+	write_log (_T("%d:0: %dx%d %dx%d %dx%d\n"), mm, gmc->gfx_size.width, gmc->gfx_size.height,
+		gmw->gfx_size.width, gmw->gfx_size.height, gmh->gfx_size.width, gmh->gfx_size.height);
+	write_log (_T("%d:1: %dx%d %dx%d %dx%d\n"), mm, gmc->gfx_size_fs.width, gmc->gfx_size_fs.height,
+		gmw->gfx_size_fs.width, gmw->gfx_size_fs.height, gmh->gfx_size_fs.width, gmh->gfx_size_fs.height);
 	mm++;
 }
 
-static void flipgui (int opengui)
+static void flipgui(int opengui)
 {
-	D3D_guimode (opengui);
+	D3D_guimode(0, opengui);
 	if (opengui) {
 		DirectDraw_FlipToGDISurface();
 	} else {
-		vblank_reset(-1);
+		;// vblank_reset(-1);
 	}
 }
 
@@ -2234,6 +2238,9 @@ static int GetSettings (int all_options, HWND hwnd);
 /* if drive is -1, show the full GUI, otherwise file-requester for DF[drive] */
 void gui_display (int shortcut)
 {
+	struct AmigaMonitor *mon = &AMonitors[0];
+	struct picasso96_state_struct *state = &picasso96_state[0];
+	struct monconfig *gm = &currprefs.gfx_monitor[0];
 	static int here;
 	int w, h;
 
@@ -2250,45 +2257,45 @@ void gui_display (int shortcut)
 		inputdevice_unacquire ();
 		wait_keyrelease();
 		clearallkeys ();
-		setmouseactive (0);
+		setmouseactive(0, 0);
 	}
 
 	w = h = -1;
-	if (!WIN32GFX_IsPicassoScreen () && currprefs.gfx_apmode[0].gfx_fullscreen && (currprefs.gfx_size.width < gui_width || currprefs.gfx_size.height < gui_height)) {
-		w = currprefs.gfx_size.width;
-		h = currprefs.gfx_size.height;
+	if (!WIN32GFX_IsPicassoScreen(mon) && currprefs.gfx_apmode[0].gfx_fullscreen && (gm->gfx_size.width < gui_width || gm->gfx_size.height < gui_height)) {
+		w = gm->gfx_size.width;
+		h = gm->gfx_size.height;
 	}
-	if (WIN32GFX_IsPicassoScreen () && currprefs.gfx_apmode[1].gfx_fullscreen && (picasso96_state.Width < gui_width || picasso96_state.Height < gui_height)) {
-		w = currprefs.gfx_size.width;
-		h = currprefs.gfx_size.height;
+	if (WIN32GFX_IsPicassoScreen(mon) && currprefs.gfx_apmode[1].gfx_fullscreen && (state->Width < gui_width || state->Height < gui_height)) {
+		w = gm->gfx_size.width;
+		h = gm->gfx_size.height;
 	}
-	manual_painting_needed++; /* So that WM_PAINT will refresh the display */
+	mon->manual_painting_needed++; /* So that WM_PAINT will refresh the display */
 
 	flush_log ();
 
 	if (shortcut == -1) {
 		int ret;
-		ret = GetSettings (0, hAmigaWnd);
+		ret = GetSettings(0, mon->hAmigaWnd);
 		if (!ret) {
 			savestate_state = 0;
 		}
 	} else if (shortcut >= 0 && shortcut < 4) {
-		DiskSelection (hAmigaWnd, IDC_DF0 + shortcut, 0, &changed_prefs, NULL, NULL);
+		DiskSelection(mon->hAmigaWnd, IDC_DF0 + shortcut, 0, &changed_prefs, NULL, NULL);
 	} else if (shortcut == 5) {
-		if (DiskSelection (hAmigaWnd, IDC_DOSAVESTATE, 9, &changed_prefs, NULL, NULL))
+		if (DiskSelection(mon->hAmigaWnd, IDC_DOSAVESTATE, 9, &changed_prefs, NULL, NULL))
 			save_state (savestate_fname, _T("Description!"));
 	} else if (shortcut == 4) {
-		if (DiskSelection (hAmigaWnd, IDC_DOLOADSTATE, 10, &changed_prefs, NULL, NULL))
+		if (DiskSelection(mon->hAmigaWnd, IDC_DOLOADSTATE, 10, &changed_prefs, NULL, NULL))
 			savestate_state = STATE_DORESTORE;
 	}
-	manual_painting_needed--; /* So that WM_PAINT doesn't need to use custom refreshing */
+	mon->manual_painting_needed--; /* So that WM_PAINT doesn't need to use custom refreshing */
 	reset_sound ();
 	inputdevice_copyconfig (&changed_prefs, &currprefs);
 	inputdevice_config_change_test ();
 	clearallkeys ();
 	if (resumepaused (7)) {
 		inputdevice_acquire (TRUE);
-		setmouseactive (1);
+		setmouseactive(0, 1);
 	}
 	flipgui(0);
 	fpscounter_reset ();
@@ -2298,7 +2305,7 @@ void gui_display (int shortcut)
 	here--;
 }
 
-static void prefs_to_gui (struct uae_prefs *p)
+static void prefs_to_gui(struct uae_prefs *p)
 {
 	int st = savestate_state;
 	default_prefs(&workprefs, false, 0);
@@ -2306,12 +2313,12 @@ static void prefs_to_gui (struct uae_prefs *p)
 	/* filesys hack */
 	workprefs.mountitems = currprefs.mountitems;
 	memcpy (&workprefs.mountconfig, &currprefs.mountconfig, MOUNT_CONFIG_SIZE * sizeof (struct uaedev_config_info));
-	updatewinfsmode (&workprefs);
+	updatewinfsmode(0, &workprefs);
 	if (workprefs.statefile[0])
 		savestate_state = st;
 }
 
-static void gui_to_prefs (void)
+static void gui_to_prefs(void)
 {
 	/* Always copy our prefs to changed_prefs, ... */
 	copy_prefs(&workprefs, &changed_prefs);
@@ -2319,7 +2326,7 @@ static void gui_to_prefs (void)
 	currprefs.mountitems = changed_prefs.mountitems;
 	memcpy (&currprefs.mountconfig, &changed_prefs.mountconfig, MOUNT_CONFIG_SIZE * sizeof (struct uaedev_config_info));
 	fixup_prefs (&changed_prefs, true);
-	updatewinfsmode (&changed_prefs);
+	updatewinfsmode(0, &changed_prefs);
 }
 
 static int iscd (int n)
@@ -2357,6 +2364,7 @@ static void setfilter (int num, int *filter, const TCHAR *fname)
 
 static UINT_PTR CALLBACK ofnhook (HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 {
+	struct AmigaMonitor *mon = &AMonitors[0];
 	HWND hWnd;
 	RECT windowRect;
 	int width, height, w2, h2, x, y;
@@ -2379,8 +2387,8 @@ static UINT_PTR CALLBACK ofnhook (HWND hDlg, UINT message, WPARAM wParam, LPARAM
 	md = getdisplay (&currprefs);
 	if (!md)
 		return FALSE;
-	w2 = WIN32GFX_GetWidth ();
-	h2 = WIN32GFX_GetHeight ();
+	w2 = WIN32GFX_GetWidth(mon);
+	h2 = WIN32GFX_GetHeight(mon);
 	write_log (_T("MOVEWINDOW %dx%d %dx%d (%dx%d)\n"), md->rect.left, md->rect.top, md->rect.right, md->rect.bottom, w2, h2);
 	windowRect.left = windowRect.right = windowRect.top = windowRect.bottom = -1;
 	GetWindowRect (hWnd, &windowRect);
@@ -6287,6 +6295,7 @@ static struct amigamodels amodels[] = {
 	{ 4, IDS_QS_MODEL_CD32 }, // "CD32"
 	{ 4, IDS_QS_MODEL_CDTV }, // "CDTV"
 	{ 4, IDS_QS_MODEL_ARCADIA }, // "Arcadia"
+	{ 1, IDS_QS_MODEL_CASABLANCA },
 	{ 1, IDS_QS_MODEL_UAE }, // "Expanded UAE example configuration"
 	{ -1 }
 };
@@ -6835,8 +6844,12 @@ static void enable_for_displaydlg (HWND hDlg)
 	ew (hDlg, IDC_LM_IDOUBLED2, !workprefs.gfx_autoresolution && isdouble);
 	ew (hDlg, IDC_LM_IDOUBLED3, !workprefs.gfx_autoresolution && isdouble);
 
-	hide(hDlg, IDC_DISPLAY_TEARING, TRUE);
-	//hide(hDlg, IDC_DISPLAY_TEARING, !(workprefs.gfx_api == 2 && (can_D3D11(false) & 2)));
+	if (workprefs.gfx_apmode[0].gfx_vsyncmode == 1 || workprefs.gfx_apmode[0].gfx_vsyncmode == 2) {
+		ew(hDlg, IDC_SCREENMODE_NATIVE3, TRUE);
+	} else {
+		ew(hDlg, IDC_SCREENMODE_NATIVE3, FALSE);
+	}
+
 }
 
 static void enable_for_chipsetdlg (HWND hDlg)
@@ -6860,6 +6873,8 @@ static void enable_for_chipsetdlg (HWND hDlg)
 	ew(hDlg, IDC_GENLOCK_KEEP_ASPECT, workprefs.genlock ? TRUE : FALSE);
 	ew(hDlg, IDC_GENLOCKFILE, workprefs.genlock && (workprefs.genlock_image >= 6 || (workprefs.genlock_image >= 3 && workprefs.genlock_image < 5)) ? TRUE : FALSE);
 	ew(hDlg, IDC_GENLOCKFILESELECT, workprefs.genlock && (workprefs.genlock_image >= 6 || (workprefs.genlock_image >= 3 && workprefs.genlock_image < 5)) ? TRUE : FALSE);
+
+	ew(hDlg, IDC_MONITOREMU_MON, workprefs.monitoremu != 0);
 }
 
 static const int fakerefreshrates[] = { 50, 60, 100, 120, 0 };
@@ -7043,9 +7058,9 @@ static void update_da (HWND hDlg)
 	currprefs.gfx_contrast = workprefs.gfx_contrast;
 	currprefs.gfx_threebitcolors = workprefs.gfx_threebitcolors;
 	set_da (hDlg);
-	init_colors ();
-	init_custom ();
-	updatedisplayarea ();
+	init_colors(0);
+	init_custom();
+	updatedisplayarea(0);
 }
 
 static void handle_da (HWND hDlg)
@@ -7095,6 +7110,7 @@ static void init_display_mode (HWND hDlg)
 	int d, d2, index;
 	int i, cnt;
 	struct MultiDisplay *md = getdisplay (&workprefs);
+	struct monconfig *gm = &workprefs.gfx_monitor[0];
 
 	switch (workprefs.color_mode)
 	{
@@ -7109,7 +7125,7 @@ static void init_display_mode (HWND hDlg)
 
 	if (workprefs.gfx_apmode[0].gfx_fullscreen) {
 		d2 = d;
-		if ((index = WIN32GFX_AdjustScreenmode (md, &workprefs.gfx_size_fs.width, &workprefs.gfx_size_fs.height, &d2)) >= 0) {
+		if ((index = WIN32GFX_AdjustScreenmode (md, &gm->gfx_size_fs.width, &gm->gfx_size_fs.height, &d2)) >= 0) {
 			switch (d2)
 			{
 			case 15:
@@ -7128,15 +7144,15 @@ static void init_display_mode (HWND hDlg)
 		d = d / 8;
 	}
 
-	if (workprefs.gfx_size_fs.special == WH_NATIVE) {
+	if (gm->gfx_size_fs.special == WH_NATIVE) {
 		int cnt = (int)SendDlgItemMessage (hDlg, IDC_RESOLUTION, CB_GETCOUNT, 0, 0);
 		SendDlgItemMessage (hDlg, IDC_RESOLUTION, CB_SETCURSEL, cnt - 1, 0);
-		index = display_mode_index (workprefs.gfx_size_fs.width, workprefs.gfx_size_fs.height, d);
+		index = display_mode_index (gm->gfx_size_fs.width, gm->gfx_size_fs.height, d);
 	} else {
-		index = display_mode_index (workprefs.gfx_size_fs.width, workprefs.gfx_size_fs.height, d);
+		index = display_mode_index (gm->gfx_size_fs.width, gm->gfx_size_fs.height, d);
 		if (index >= 0)
 			SendDlgItemMessage (hDlg, IDC_RESOLUTION, CB_SETCURSEL, md->DisplayModes[index].residx, 0);
-		workprefs.gfx_size_fs.special = 0;
+		gm->gfx_size_fs.special = 0;
 	}
 	SendDlgItemMessage(hDlg, IDC_RESOLUTIONDEPTH, CB_RESETCONTENT, 0, 0);
 	cnt = 0;
@@ -7232,8 +7248,8 @@ static void values_to_displaydlg (HWND hDlg)
 
 	init_display_mode (hDlg);
 
-	SetDlgItemInt (hDlg, IDC_XSIZE, workprefs.gfx_size_win.width, FALSE);
-	SetDlgItemInt (hDlg, IDC_YSIZE, workprefs.gfx_size_win.height, FALSE);
+	SetDlgItemInt (hDlg, IDC_XSIZE, workprefs.gfx_monitor[0].gfx_size_win.width, FALSE);
+	SetDlgItemInt (hDlg, IDC_YSIZE, workprefs.gfx_monitor[0].gfx_size_win.height, FALSE);
 
 	SendDlgItemMessage(hDlg, IDC_RATE2BOX, CB_RESETCONTENT, 0, 0);
 	v = 0;
@@ -7276,6 +7292,7 @@ static void values_to_displaydlg (HWND hDlg)
 
 	SendDlgItemMessage(hDlg, IDC_SCREENMODE_NATIVE, CB_RESETCONTENT, 0, 0);
 	SendDlgItemMessage(hDlg, IDC_SCREENMODE_NATIVE2, CB_RESETCONTENT, 0, 0);
+	SendDlgItemMessage(hDlg, IDC_SCREENMODE_NATIVE3, CB_RESETCONTENT, 0, 0);
 
 	WIN32GUI_LoadUIString(IDS_SCREEN_WINDOWED, buffer, sizeof buffer / sizeof (TCHAR));
 	SendDlgItemMessage(hDlg, IDC_SCREENMODE_NATIVE, CB_ADDSTRING, 0, (LPARAM)buffer);
@@ -7294,8 +7311,11 @@ static void values_to_displaydlg (HWND hDlg)
 	SendDlgItemMessage(hDlg, IDC_SCREENMODE_NATIVE2, CB_ADDSTRING, 0, (LPARAM)buffer);
 	WIN32GUI_LoadUIString(IDS_SCREEN_VSYNC_AUTOSWITCH, buffer, sizeof buffer / sizeof(TCHAR));
 	SendDlgItemMessage(hDlg, IDC_SCREENMODE_NATIVE2, CB_ADDSTRING, 0, (LPARAM)buffer);
-	WIN32GUI_LoadUIString(IDS_SCREEN_ADAPTIVE_SYNC, buffer, sizeof buffer / sizeof(TCHAR));
-	SendDlgItemMessage(hDlg, IDC_SCREENMODE_NATIVE2, CB_ADDSTRING, 0, (LPARAM)buffer);	
+
+	for (int i = 1; i < 30; i++) {
+		_stprintf(buffer, _T("%d"), i);
+		SendDlgItemMessage(hDlg, IDC_SCREENMODE_NATIVE3, CB_ADDSTRING, 0, (LPARAM)buffer);
+	}
 
 	SendDlgItemMessage(hDlg, IDC_SCREENMODE_NATIVE, CB_SETCURSEL,
 		workprefs.gfx_apmode[0].gfx_fullscreen, 0);
@@ -7306,6 +7326,9 @@ static void values_to_displaydlg (HWND hDlg)
 		v = v + (workprefs.gfx_apmode[0].gfx_vsyncmode || !v ? 0 : 2);
 	}
 	SendDlgItemMessage(hDlg, IDC_SCREENMODE_NATIVE2, CB_SETCURSEL, v, 0);
+
+	SendDlgItemMessage(hDlg, IDC_SCREENMODE_NATIVE3, CB_SETCURSEL, workprefs.gfx_display_sections - 1, 0);
+
 
 	SendDlgItemMessage(hDlg, IDC_SCREENMODE_RTG, CB_RESETCONTENT, 0, 0);
 	SendDlgItemMessage(hDlg, IDC_SCREENMODE_RTG2, CB_RESETCONTENT, 0, 0);
@@ -7325,8 +7348,6 @@ static void values_to_displaydlg (HWND hDlg)
 	SendDlgItemMessage(hDlg, IDC_SCREENMODE_RTG2, CB_ADDSTRING, 0, (LPARAM)buffer);
 #endif
 	WIN32GUI_LoadUIString(IDS_SCREEN_VSYNC2, buffer, sizeof buffer / sizeof (TCHAR));
-	SendDlgItemMessage(hDlg, IDC_SCREENMODE_RTG2, CB_ADDSTRING, 0, (LPARAM)buffer);
-	WIN32GUI_LoadUIString(IDS_SCREEN_ADAPTIVE_SYNC, buffer, sizeof buffer / sizeof(TCHAR));
 	SendDlgItemMessage(hDlg, IDC_SCREENMODE_RTG2, CB_ADDSTRING, 0, (LPARAM)buffer);
 #if 0
 	WIN32GUI_LoadUIString(IDS_SCREEN_VSYNC2_AUTOSWITCH, buffer, sizeof buffer / sizeof (TCHAR));
@@ -7391,7 +7412,7 @@ static void values_to_displaydlg (HWND hDlg)
 	SendDlgItemMessage(hDlg, IDC_DISPLAY_BUFFERCNT, CB_ADDSTRING, 0, (LPARAM)buffer);
 	SendDlgItemMessage (hDlg, IDC_DISPLAY_BUFFERCNT, CB_SETCURSEL, workprefs.gfx_apmode[0].gfx_backbuffers, 0);
 
-	CheckDlgButton(hDlg, IDC_DISPLAY_TEARING, workprefs.gfx_apmode[0].gfx_tearing);
+	CheckDlgButton(hDlg, IDC_DISPLAY_VARSYNC, workprefs.gfx_variable_sync != 0);
 
 	init_da (hDlg);
 }
@@ -7492,8 +7513,9 @@ static void values_from_displaydlg (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 {
 	BOOL success = FALSE;
 	int i;
-	int gfx_width = workprefs.gfx_size_win.width;
-	int gfx_height = workprefs.gfx_size_win.height;
+	struct monconfig *gm = &workprefs.gfx_monitor[0];
+	int gfx_width = gm->gfx_size_win.width;
+	int gfx_height = gm->gfx_size_win.height;
 	LRESULT posn;
 	TCHAR tmp[200];
 
@@ -7552,6 +7574,10 @@ static void values_from_displaydlg (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 		workprefs.gfx_apmode[0].gfx_vsync = -1;
 		workprefs.gfx_apmode[0].gfx_vsyncmode = 0;
 	}
+
+	i = SendDlgItemMessage(hDlg, IDC_SCREENMODE_NATIVE3, CB_GETCURSEL, 0, 0);
+	if (i >= 0 && i < 100)
+		workprefs.gfx_display_sections = i + 1;
 
 	workprefs.gfx_apmode[1].gfx_fullscreen = SendDlgItemMessage (hDlg, IDC_SCREENMODE_RTG, CB_GETCURSEL, 0, 0);
 	i = SendDlgItemMessage (hDlg, IDC_SCREENMODE_RTG2, CB_GETCURSEL, 0, 0);
@@ -7631,16 +7657,16 @@ static void values_from_displaydlg (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 		SendDlgItemMessage (hDlg, IDC_FRAMERATE2, TBM_SETPOS, TRUE, (LPARAM)cr->rate);
 	}
 
-	workprefs.gfx_size_win.width = GetDlgItemInt (hDlg, IDC_XSIZE, &success, FALSE);
+	gm->gfx_size_win.width = GetDlgItemInt (hDlg, IDC_XSIZE, &success, FALSE);
 	if(!success)
-		workprefs.gfx_size_win.width = 800;
-	workprefs.gfx_size_win.height = GetDlgItemInt (hDlg, IDC_YSIZE, &success, FALSE);
+		gm->gfx_size_win.width = 800;
+	gm->gfx_size_win.height = GetDlgItemInt (hDlg, IDC_YSIZE, &success, FALSE);
 	if(!success)
-		workprefs.gfx_size_win.height = 600;
+		gm->gfx_size_win.height = 600;
 
 	workprefs.gfx_xcenter = ischecked (hDlg, IDC_XCENTER) ? 2 : 0; /* Smart centering */
 	workprefs.gfx_ycenter = ischecked (hDlg, IDC_YCENTER) ? 2 : 0; /* Smart centering */
-	workprefs.gfx_apmode[0].gfx_tearing = ischecked(hDlg, IDC_DISPLAY_TEARING);
+	workprefs.gfx_variable_sync = ischecked(hDlg, IDC_DISPLAY_VARSYNC) ? 1 : 0;
 
 	LRESULT posn1 = SendDlgItemMessage (hDlg, IDC_AUTORESOLUTIONSELECT, CB_GETCURSEL, 0, 0);
 	if (posn1 != CB_ERR) {
@@ -7666,7 +7692,7 @@ static void values_from_displaydlg (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 	if (posn1 != CB_ERR) {
 		if (posn2 == CB_ERR)
 			posn2 = 0;
-		workprefs.gfx_size_fs.special = 0;
+		workprefs.gfx_monitor[0].gfx_size_fs.special = 0;
 		for (dmode = 0; md->DisplayModes[dmode].depth >= 0; dmode++) {
 			if (md->DisplayModes[dmode].residx == posn1)
 				break;
@@ -7677,7 +7703,7 @@ static void values_from_displaydlg (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 					md->DisplayModes[dmode].res.height == md->rect.bottom - md->rect.top &&
 					md->DisplayModes[dmode].depth == gui_display_depths[posn2])
 					{
-						workprefs.gfx_size_fs.special = WH_NATIVE;
+						workprefs.gfx_monitor[0].gfx_size_fs.special = WH_NATIVE;
 						break;
 				}
 			}
@@ -7710,8 +7736,8 @@ static void values_from_displaydlg (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 			if (posn != CB_ERR)
 				workprefs.gfx_resolution = posn;
 		} else if ((LOWORD (wParam) == IDC_RESOLUTION || LOWORD(wParam) == IDC_RESOLUTIONDEPTH) && dmode >= 0) {
-			workprefs.gfx_size_fs.width  = md->DisplayModes[dmode].res.width;
-			workprefs.gfx_size_fs.height = md->DisplayModes[dmode].res.height;
+			workprefs.gfx_monitor[0].gfx_size_fs.width  = md->DisplayModes[dmode].res.width;
+			workprefs.gfx_monitor[0].gfx_size_fs.height = md->DisplayModes[dmode].res.height;
 			switch(md->DisplayModes[dmode].depth)
 			{
 			case 2:
@@ -7726,8 +7752,8 @@ static void values_from_displaydlg (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 				break;
 			}
 			/* Set the Int boxes */
-			SetDlgItemInt (hDlg, IDC_XSIZE, workprefs.gfx_size_win.width, FALSE);
-			SetDlgItemInt (hDlg, IDC_YSIZE, workprefs.gfx_size_win.height, FALSE);
+			SetDlgItemInt (hDlg, IDC_XSIZE, workprefs.gfx_monitor[0].gfx_size_win.width, FALSE);
+			SetDlgItemInt (hDlg, IDC_YSIZE, workprefs.gfx_monitor[0].gfx_size_win.height, FALSE);
 			init_display_mode (hDlg);
 			//init_frequency_combo (hDlg, dmode);
 		} else if (LOWORD (wParam) == IDC_REFRESHRATE && dmode >= 0) {
@@ -7751,7 +7777,7 @@ static void values_from_displaydlg (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 		}
 	}
 
-	updatewinfsmode (&workprefs);
+	updatewinfsmode(0, &workprefs);
 }
 
 static int hw3d_changed;
@@ -7852,6 +7878,7 @@ static void values_to_chipsetdlg (HWND hDlg)
 	CheckDlgButton(hDlg, IDC_CYCLEEXACTMEMORY, workprefs.cpu_memory_cycle_exact);
 	SendDlgItemMessage(hDlg, IDC_CS_EXT, CB_SETCURSEL, workprefs.cs_compatible, 0);
 	SendDlgItemMessage(hDlg, IDC_MONITOREMU, CB_SETCURSEL, workprefs.monitoremu, 0);
+	SendDlgItemMessage(hDlg, IDC_MONITOREMU_MON, CB_SETCURSEL, workprefs.monitoremu_mon, 0);
 	SendDlgItemMessage(hDlg, IDC_GENLOCKMODE, CB_SETCURSEL, workprefs.genlock_image, 0);
 	SendDlgItemMessage(hDlg, IDC_GENLOCKMIX, CB_SETCURSEL, workprefs.genlock_mix / 25, 0);
 	CheckDlgButton(hDlg, IDC_GENLOCK_ALPHA, workprefs.genlock_alpha);
@@ -7938,9 +7965,12 @@ static void values_from_chipsetdlg (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 		cs_compatible = nn;
 		built_in_chipset_prefs (&workprefs);
 	}
-	nn = SendDlgItemMessage (hDlg, IDC_MONITOREMU, CB_GETCURSEL, 0, 0);
+	nn = SendDlgItemMessage(hDlg, IDC_MONITOREMU, CB_GETCURSEL, 0, 0);
 	if (nn != CB_ERR)
 		workprefs.monitoremu = nn;
+	nn = SendDlgItemMessage(hDlg, IDC_MONITOREMU_MON, CB_GETCURSEL, 0, 0);
+	if (nn != CB_ERR)
+		workprefs.monitoremu_mon = nn;
 
 	nn = SendDlgItemMessage(hDlg, IDC_GENLOCKMODE, CB_GETCURSEL, 0, 0);
 	if (nn != CB_ERR && nn != workprefs.genlock_image) {
@@ -8021,17 +8051,16 @@ static INT_PTR CALLBACK ChipsetDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPAR
 		SendDlgItemMessage(hDlg, IDC_MONITOREMU, CB_ADDSTRING, 0, (LPARAM)_T("-"));
 		WIN32GUI_LoadUIString(IDS_AUTODETECT, buffer, sizeof buffer / sizeof (TCHAR));
 		SendDlgItemMessage(hDlg, IDC_MONITOREMU, CB_ADDSTRING, 0, (LPARAM)buffer);
-		SendDlgItemMessage(hDlg, IDC_MONITOREMU, CB_ADDSTRING, 0, (LPARAM)_T("A2024 (Commodore)"));
-		SendDlgItemMessage(hDlg, IDC_MONITOREMU, CB_ADDSTRING, 0, (LPARAM)_T("Graffiti (Individual Computers)"));
-		SendDlgItemMessage(hDlg, IDC_MONITOREMU, CB_ADDSTRING, 0, (LPARAM)_T("HAM-E (Black Belt Systems)"));
-		SendDlgItemMessage(hDlg, IDC_MONITOREMU, CB_ADDSTRING, 0, (LPARAM)_T("HAM-E Plus (Black Belt Systems)"));
-		SendDlgItemMessage(hDlg, IDC_MONITOREMU, CB_ADDSTRING, 0, (LPARAM)_T("Video DAC 18 (Newtronic)"));
-		SendDlgItemMessage(hDlg, IDC_MONITOREMU, CB_ADDSTRING, 0, (LPARAM)_T("AVideo 12 (Archos)"));
-		SendDlgItemMessage(hDlg, IDC_MONITOREMU, CB_ADDSTRING, 0, (LPARAM)_T("AVideo 24 (Archos)"));
-		SendDlgItemMessage(hDlg, IDC_MONITOREMU, CB_ADDSTRING, 0, (LPARAM)_T("FireCracker 24 (Impulse)"));
-		SendDlgItemMessage(hDlg, IDC_MONITOREMU, CB_ADDSTRING, 0, (LPARAM)_T("DCTV (Digital Creations)"));
-		SendDlgItemMessage(hDlg, IDC_MONITOREMU, CB_ADDSTRING, 0, (LPARAM)_T("OpalVision (Opal Technologies)"));
-		SendDlgItemMessage(hDlg, IDC_MONITOREMU, CB_ADDSTRING, 0, (LPARAM)_T("ColorBurst (M.A.S.T.)"));
+		for (int i = 0; specialmonitorfriendlynames[i]; i++) {
+			_stprintf(buffer, _T("%s (%s)"), specialmonitorfriendlynames[i], specialmonitormanufacturernames[i]);
+			SendDlgItemMessage(hDlg, IDC_MONITOREMU, CB_ADDSTRING, 0, (LPARAM)buffer);
+		}
+
+		SendDlgItemMessage(hDlg, IDC_MONITOREMU_MON, CB_RESETCONTENT, 0, 0);
+		for (int i = 0; i < MAX_AMIGAMONITORS; i++) {
+			_stprintf(buffer, _T("%d"), i + 1);
+			SendDlgItemMessage(hDlg, IDC_MONITOREMU_MON, CB_ADDSTRING, 0, (LPARAM)buffer);
+		}
 
 #ifndef	AGA
 		ew (hDlg, IDC_AGA, FALSE);
@@ -9677,7 +9706,7 @@ static void updatecpuboardsubtypes(HWND hDlg)
 #endif
 }
 
-static int rtg_index;
+static int gui_rtg_index;
 
 static void expansion2filebuttons(HWND hDlg, WPARAM wParam, TCHAR *path)
 {
@@ -9932,13 +9961,14 @@ static void enable_for_expansiondlg(HWND hDlg)
 
 	en = !!full_property_sheet;
 
-	int rtg = workprefs.rtgboards[rtg_index].rtgmem_size && full_property_sheet && workprefs.rtgboards[rtg_index].rtgmem_type < GFXBOARD_HARDWARE;
-	int rtg2 = workprefs.rtgboards[rtg_index].rtgmem_size || workprefs.rtgboards[rtg_index].rtgmem_type >= GFXBOARD_HARDWARE;
-	int rtg3 = workprefs.rtgboards[rtg_index].rtgmem_size && workprefs.rtgboards[rtg_index].rtgmem_type < GFXBOARD_HARDWARE;
-	int rtg4 = workprefs.rtgboards[rtg_index].rtgmem_type < GFXBOARD_HARDWARE;
+	int rtg = workprefs.rtgboards[gui_rtg_index].rtgmem_size && full_property_sheet && workprefs.rtgboards[gui_rtg_index].rtgmem_type < GFXBOARD_HARDWARE;
+	int rtg2 = workprefs.rtgboards[gui_rtg_index].rtgmem_size || workprefs.rtgboards[gui_rtg_index].rtgmem_type >= GFXBOARD_HARDWARE;
+	int rtg3 = workprefs.rtgboards[gui_rtg_index].rtgmem_size && workprefs.rtgboards[gui_rtg_index].rtgmem_type < GFXBOARD_HARDWARE;
+	int rtg4 = workprefs.rtgboards[gui_rtg_index].rtgmem_type < GFXBOARD_HARDWARE;
+	int rtg5 = workprefs.rtgboards[gui_rtg_index].rtgmem_size && full_property_sheet;
 
 	int rtg0 = rtg2;
-	if (rtg_index > 0) {
+	if (gui_rtg_index > 0) {
 		rtg = false;
 		rtg2 = false;
 		rtg3 = false;
@@ -9947,6 +9977,7 @@ static void enable_for_expansiondlg(HWND hDlg)
 	ew(hDlg, IDC_P96RAM, rtg0);
 	ew(hDlg, IDC_P96MEM, rtg0);
 	ew(hDlg, IDC_RTG_Z2Z3, z3);
+	ew(hDlg, IDC_MONITOREMU_MON, rtg5);
 	ew(hDlg, IDC_RTG_8BIT, rtg);
 	ew(hDlg, IDC_RTG_16BIT, rtg);
 	ew(hDlg, IDC_RTG_24BIT, rtg);
@@ -9974,7 +10005,7 @@ static void values_to_expansiondlg(HWND hDlg)
 
 	int min_mem = MIN_P96_MEM;
 	int max_mem = MAX_P96_MEM_Z3;
-	struct rtgboardconfig *rbc = &workprefs.rtgboards[rtg_index];
+	struct rtgboardconfig *rbc = &workprefs.rtgboards[gui_rtg_index];
 	if (gfxboard_get_configtype(rbc) == 2) {
 		int v = rbc->rtgmem_size;
 		max_mem = MAX_P96_MEM_Z2;
@@ -10031,7 +10062,8 @@ static void values_to_expansiondlg(HWND hDlg)
 	SetDlgItemText(hDlg, IDC_P96RAM, memsize_names[msi_gfx[mem_size]]);
 
 	SendDlgItemMessage(hDlg, IDC_RTG_Z2Z3, CB_SETCURSEL, rbc->rtgmem_size == 0 ? 0 : rbc->rtgmem_type + 1, 0);
-	SendDlgItemMessage(hDlg, IDC_RTG_NUM, CB_SETCURSEL, rtg_index, 0);
+	SendDlgItemMessage(hDlg, IDC_MONITOREMU_MON, CB_SETCURSEL, rbc->monitor_id, 0);
+	SendDlgItemMessage(hDlg, IDC_RTG_NUM, CB_SETCURSEL, gui_rtg_index, 0);
 	SendDlgItemMessage(hDlg, IDC_RTG_8BIT, CB_SETCURSEL, (workprefs.picasso96_modeflags & RGBFF_CLUT) ? 1 : 0, 0);
 	SendDlgItemMessage(hDlg, IDC_RTG_16BIT, CB_SETCURSEL,
 					   (manybits(workprefs.picasso96_modeflags, RGBFF_R5G6B5PC | RGBFF_R5G6B5PC | RGBFF_R5G6B5 | RGBFF_R5G5B5 | RGBFF_B5G6R5PC | RGBFF_B5G5R5PC)) ? 1 :
@@ -10107,6 +10139,12 @@ static INT_PTR CALLBACK ExpansionDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 			SendDlgItemMessage(hDlg, IDC_RTG_NUM, CB_ADDSTRING, 0, (LPARAM)tmp);
 		}
 
+		SendDlgItemMessage(hDlg, IDC_MONITOREMU_MON, CB_RESETCONTENT, 0, 0);
+		for (int i = 0; i < MAX_AMIGAMONITORS; i++) {
+			_stprintf(tmp, _T("%d"), i + 1);
+			SendDlgItemMessage(hDlg, IDC_MONITOREMU_MON, CB_ADDSTRING, 0, (LPARAM)tmp);
+		}
+
 		SendDlgItemMessage (hDlg, IDC_RTG_Z2Z3, CB_RESETCONTENT, 0, 0);
 		SendDlgItemMessage (hDlg, IDC_RTG_Z2Z3, CB_ADDSTRING, 0, (LPARAM)_T("-"));
 		v = 0;
@@ -10150,7 +10188,7 @@ static INT_PTR CALLBACK ExpansionDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 		SendDlgItemMessage (hDlg, IDC_RTG_32BIT, CB_ADDSTRING, 0, (LPARAM)_T("A8B8G8R8"));
 		SendDlgItemMessage (hDlg, IDC_RTG_32BIT, CB_ADDSTRING, 0, (LPARAM)_T("R8G8B8A8"));
 		SendDlgItemMessage (hDlg, IDC_RTG_32BIT, CB_ADDSTRING, 0, (LPARAM)_T("B8G8R8A8 (*)"));
-		SendDlgItemMessage (hDlg, IDC_P96MEM, TBM_SETRANGE, TRUE, MAKELONG (MIN_P96_MEM, gfxboard_get_configtype(&workprefs.rtgboards[rtg_index]) == 3 ? MAX_P96_MEM_Z3 : MAX_P96_MEM_Z2));
+		SendDlgItemMessage (hDlg, IDC_P96MEM, TBM_SETRANGE, TRUE, MAKELONG (MIN_P96_MEM, gfxboard_get_configtype(&workprefs.rtgboards[gui_rtg_index]) == 3 ? MAX_P96_MEM_Z3 : MAX_P96_MEM_Z2));
 		SendDlgItemMessage (hDlg, IDC_RTG_SCALE_ASPECTRATIO, CB_RESETCONTENT, 0, 0);
 		WIN32GUI_LoadUIString (IDS_DISABLED, tmp, sizeof tmp / sizeof (TCHAR));
 		SendDlgItemMessage (hDlg, IDC_RTG_SCALE_ASPECTRATIO, CB_ADDSTRING, 0, (LPARAM)tmp);
@@ -10178,7 +10216,7 @@ static INT_PTR CALLBACK ExpansionDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 		break;
 
 	case WM_HSCROLL:
-		workprefs.rtgboards[rtg_index].rtgmem_size = memsizes[msi_gfx[SendMessage (GetDlgItem (hDlg, IDC_P96MEM), TBM_GETPOS, 0, 0)]];
+		workprefs.rtgboards[gui_rtg_index].rtgmem_size = memsizes[msi_gfx[SendMessage (GetDlgItem (hDlg, IDC_P96MEM), TBM_GETPOS, 0, 0)]];
 		values_to_expansiondlg(hDlg);
 		enable_for_expansiondlg(hDlg);
 		break;
@@ -10242,21 +10280,28 @@ static INT_PTR CALLBACK ExpansionDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 				case IDC_RTG_NUM:
 					v = SendDlgItemMessage(hDlg, IDC_RTG_NUM, CB_GETCURSEL, 0, 0L);
 					if (v != CB_ERR) {
-						rtg_index = v;
+						gui_rtg_index = v;
 						values_to_expansiondlg(hDlg);
 						enable_for_expansiondlg(hDlg);
+					}
+					break;
+				case IDC_MONITOREMU_MON:
+					v = SendDlgItemMessage(hDlg, IDC_MONITOREMU_MON, CB_GETCURSEL, 0, 0L);
+					if (v != CB_ERR) {
+						workprefs.rtgboards[gui_rtg_index].monitor_id = v;
+						values_to_expansiondlg(hDlg);
 					}
 					break;
 				case IDC_RTG_Z2Z3:
 					v = SendDlgItemMessage (hDlg, IDC_RTG_Z2Z3, CB_GETCURSEL, 0, 0L);
 					if (v != CB_ERR) {
 						if (v == 0) {
-							workprefs.rtgboards[rtg_index].rtgmem_type = 1;
-							workprefs.rtgboards[rtg_index].rtgmem_size = 0;
+							workprefs.rtgboards[gui_rtg_index].rtgmem_type = 1;
+							workprefs.rtgboards[gui_rtg_index].rtgmem_size = 0;
 						} else {
-							workprefs.rtgboards[rtg_index].rtgmem_type = v - 1;
-							if (workprefs.rtgboards[rtg_index].rtgmem_size == 0)
-								workprefs.rtgboards[rtg_index].rtgmem_size = 4096 * 1024;
+							workprefs.rtgboards[gui_rtg_index].rtgmem_type = v - 1;
+							if (workprefs.rtgboards[gui_rtg_index].rtgmem_size == 0)
+								workprefs.rtgboards[gui_rtg_index].rtgmem_size = 4096 * 1024;
 						}
 						cfgfile_compatibility_rtg(&workprefs);
 						enable_for_expansiondlg (hDlg);
@@ -14715,8 +14760,9 @@ static int getfloppybox (HWND hDlg, int f_text, TCHAR *out, int maxlen, int type
 
 bool gui_ask_disk(int drv, TCHAR *name)
 {
+	struct AmigaMonitor *mon = &AMonitors[0];
 	_tcscpy(changed_prefs.floppyslots[drv].df, name);
-	DiskSelection (hAmigaWnd, IDC_DF0 + drv, 22, &changed_prefs, NULL, NULL);
+	DiskSelection(mon->hAmigaWnd, IDC_DF0 + drv, 22, &changed_prefs, NULL, NULL);
 	_tcscpy(name, changed_prefs.floppyslots[drv].df);
 	return true;
 }
@@ -18584,7 +18630,7 @@ static void filter_handle (HWND hDlg)
 		}
 	}
 	enable_for_hw3ddlg (hDlg);
-	updatedisplayarea ();
+	updatedisplayarea(0);
 }
 
 static INT_PTR CALLBACK hw3dDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
@@ -18688,7 +18734,7 @@ static INT_PTR CALLBACK hw3dDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 			currprefs.gf[filter_nativertg].gfx_filter_horiz_zoom_mult = workprefs.gf[filter_nativertg].gfx_filter_horiz_zoom_mult = 1.0;
 			currprefs.gf[filter_nativertg].gfx_filter_vert_zoom_mult = workprefs.gf[filter_nativertg].gfx_filter_vert_zoom_mult = 1.0;
 			values_to_hw3ddlg (hDlg);
-			updatedisplayarea ();
+			updatedisplayarea(0);
 			break;
 		case IDC_FILTERPRESETLOAD:
 		case IDC_FILTERPRESETSAVE:
@@ -18705,14 +18751,14 @@ static INT_PTR CALLBACK hw3dDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 					currprefs.gf[filter_nativertg].gfx_filter_keep_aspect = workprefs.gf[filter_nativertg].gfx_filter_keep_aspect = 0;
 				enable_for_hw3ddlg (hDlg);
 				values_to_hw3ddlg (hDlg);
-				updatedisplayarea ();
+				updatedisplayarea(0);
 			}
 		case IDC_FILTERKEEPAUTOSCALEASPECT:
 			{
 				workprefs.gf[filter_nativertg].gfx_filter_keep_autoscale_aspect = currprefs.gf[filter_nativertg].gfx_filter_keep_autoscale_aspect = ischecked (hDlg, IDC_FILTERKEEPAUTOSCALEASPECT) ? 1 : 0;
 				enable_for_hw3ddlg (hDlg);
 				values_to_hw3ddlg (hDlg);
-				updatedisplayarea ();
+				updatedisplayarea(0);
 			}
 			break;
 		default:
@@ -18770,7 +18816,7 @@ static INT_PTR CALLBACK hw3dDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 					item = SendDlgItemMessage (hDlg, IDC_FILTERSLR, CB_GETCURSEL, 0, 0L);
 					if (item != CB_ERR) {
 						currprefs.gf[filter_nativertg].gfx_filter_scanlineratio = workprefs.gf[filter_nativertg].gfx_filter_scanlineratio = scanlineindexes[item];
-						updatedisplayarea ();
+						updatedisplayarea(0);
 					}
 					break;
 				case IDC_FILTEROVERLAYTYPE:
@@ -18788,11 +18834,11 @@ static INT_PTR CALLBACK hw3dDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 					break;
 				case IDC_FILTERHZMULT:
 					currprefs.gf[filter_nativertg].gfx_filter_horiz_zoom_mult = workprefs.gf[filter_nativertg].gfx_filter_horiz_zoom_mult = getfiltermult (hDlg, IDC_FILTERHZMULT);
-					updatedisplayarea ();
+					updatedisplayarea(0);
 					break;
 				case IDC_FILTERVZMULT:
 					currprefs.gf[filter_nativertg].gfx_filter_vert_zoom_mult = workprefs.gf[filter_nativertg].gfx_filter_vert_zoom_mult = getfiltermult (hDlg, IDC_FILTERVZMULT);
-					updatedisplayarea ();
+					updatedisplayarea(0);
 					break;
 				case IDC_FILTERASPECT:
 					{
@@ -18807,7 +18853,7 @@ static INT_PTR CALLBACK hw3dDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 								v2 = getaspectratio (v - 2);
 						}
 						currprefs.gf[filter_nativertg].gfx_filter_aspect = workprefs.gf[filter_nativertg].gfx_filter_aspect = v2;
-						updatedisplayarea ();
+						updatedisplayarea(0);
 					}
 					break;
 				case IDC_FILTERASPECT2:
@@ -18815,7 +18861,7 @@ static INT_PTR CALLBACK hw3dDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 						int v = SendDlgItemMessage (hDlg, IDC_FILTERASPECT2, CB_GETCURSEL, 0, 0L);
 						if (v != CB_ERR)
 							currprefs.gf[filter_nativertg].gfx_filter_keep_aspect = workprefs.gf[filter_nativertg].gfx_filter_keep_aspect = v;
-						updatedisplayarea ();
+						updatedisplayarea(0);
 					}
 					break;
 
@@ -18893,10 +18939,10 @@ static INT_PTR CALLBACK hw3dDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 				SetDlgItemInt (hDlg, IDC_FILTERXLV, v, TRUE);
 			}
 			if (!full_property_sheet) {
-				init_colors ();
+				init_colors(0);
 				notice_new_xcolors ();
 			}
-			updatedisplayarea ();
+			updatedisplayarea(0);
 			recursive--;
 			break;
 		}
@@ -18909,7 +18955,7 @@ static INT_PTR CALLBACK hw3dDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 static void values_to_avioutputdlg (HWND hDlg)
 {
 
-	updatewinfsmode (&workprefs);
+	updatewinfsmode(0, &workprefs);
 	SetDlgItemText (hDlg, IDC_AVIOUTPUT_FILETEXT, avioutput_filename_gui);
 	CheckDlgButton (hDlg, IDC_AVIOUTPUT_FRAMELIMITER, avioutput_framelimiter ? FALSE : TRUE);
 	CheckDlgButton (hDlg, IDC_AVIOUTPUT_NOSOUNDOUTPUT, avioutput_nosoundoutput ? TRUE : FALSE);
@@ -19147,7 +19193,7 @@ static INT_PTR CALLBACK AVIOutputDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 			AVIOutput_Toggle (!avioutput_requested, false);
 			break;
 		case IDC_SCREENSHOT:
-			screenshot(1, 0);
+			screenshot(0, 1, 0);
 			break;
 		case IDC_AVIOUTPUT_AUDIO:
 			{
@@ -19734,11 +19780,11 @@ static void createTreeView (HWND hDlg)
 
 static int dialog_x_offset, dialog_y_offset;
 
-static bool dodialogmousemove (void)
+static bool dodialogmousemove(void)
 {
 	if (full_property_sheet || isfullscreen () <= 0)
 		return false;
-	if (isfullscreen () > 0 && currprefs.gfx_size_fs.width > gui_width && currprefs.gfx_size.height > gui_height)
+	if (isfullscreen () > 0 && currprefs.gfx_monitor[0].gfx_size_fs.width > gui_width && currprefs.gfx_monitor[0].gfx_size.height > gui_height)
 		return false;
 	if (currprefs.gfx_api == 2)
 		return false;
@@ -19870,6 +19916,7 @@ static bool draghit(DWORD id, POINT pt)
 
 int dragdrop (HWND hDlg, HDROP hd, struct uae_prefs *prefs, int	currentpage)
 {
+	struct AmigaMonitor *mon = &AMonitors[0];
 	int cnt, i, drv, harddrive, drvdrag, firstdrv;
 	TCHAR file[MAX_DPATH];
 	TCHAR *filepart = NULL;
@@ -19888,9 +19935,9 @@ int dragdrop (HWND hDlg, HDROP hd, struct uae_prefs *prefs, int	currentpage)
 	drv = harddrive = 0;
 	drvdrag = 0;
 	if (currentpage < 0) {
-		GetClientRect (hMainWnd, &r2);
-		if (hStatusWnd) {
-			GetClientRect (hStatusWnd, &r);
+		GetClientRect(mon->hMainWnd, &r2);
+		if (mon->hStatusWnd) {
+			GetClientRect(mon->hStatusWnd, &r);
 			if (pt.y >= r2.bottom && pt.y < r2.bottom + r.bottom) {
 				if (pt.x >= window_led_drives && pt.x < window_led_drives_end && window_led_drives > 0) {
 					drv = pt.x - window_led_drives;
@@ -20453,6 +20500,7 @@ static RECT dialog_rect;
 
 static void dialogmousemove (HWND hDlg)
 {
+	struct AmigaMonitor *mon = &AMonitors[0];
 	static int newmx, newmy;
 	RECT rc;
 	POINT pt;
@@ -20465,7 +20513,7 @@ static void dialogmousemove (HWND hDlg)
 	if (!dodialogmousemove ())
 		return;
 	pmi.cbSize = sizeof (pmi);
-	GetMonitorInfo (MonitorFromWindow (hAmigaWnd, MONITOR_DEFAULTTOPRIMARY), (LPMONITORINFO)&pmi);
+	GetMonitorInfo (MonitorFromWindow (mon->hAmigaWnd, MONITOR_DEFAULTTOPRIMARY), (LPMONITORINFO)&pmi);
 	xstart = pmi.rcMonitor.left;
 	ystart = pmi.rcMonitor.top;
 	GetCursorPos (&pt);
@@ -20654,7 +20702,7 @@ static int GetSettings (int all_options, HWND hwnd)
 					write_log(_T("GUI Fullscreen %dx%d, closing fullscreen.\n"), gui_width, gui_height);
 					hwnd = currprefs.win32_notaskbarbutton ? hHiddenWnd : NULL;
 					closed = true;
-					close_windows();
+					close_windows(&AMonitors[0]);
 				} else {
 					gui_width = w;
 					gui_height = h;
@@ -20679,9 +20727,9 @@ static int GetSettings (int all_options, HWND hwnd)
 			DragAcceptFiles(hwnd, TRUE);
 
 		fmultx = 0;
-		write_log (_T("Requested GUI size = %dx%d (%dx%d)\n"), gui_width, gui_height, workprefs.gfx_size.width, workprefs.gfx_size.height);
+		write_log (_T("Requested GUI size = %dx%d (%dx%d)\n"), gui_width, gui_height, workprefs.gfx_monitor[0].gfx_size.width, workprefs.gfx_monitor[0].gfx_size.height);
 		if (dodialogmousemove () && isfullscreen() > 0) {
-			if (gui_width >= workprefs.gfx_size.width || gui_height >= workprefs.gfx_size.height) {
+			if (gui_width >= workprefs.gfx_monitor[0].gfx_size.width || gui_height >= workprefs.gfx_monitor[0].gfx_size.height) {
 				write_log (_T("GUI larger than screen, resize disabled\n"));
 				gui_resize_allowed = false;
 			}
@@ -20876,8 +20924,6 @@ void gui_exit (void)
 #endif
 }
 
-extern HWND hStatusWnd;
-
 void check_prefs_changed_gui (void)
 {
 }
@@ -20967,6 +21013,9 @@ void gui_fps (int fps, int idle, int color)
 #define LED_STRING_WIDTH 40
 void gui_led (int led, int on, int brightness)
 {
+	int monid = 0;
+	struct AmigaMonitor *mon = &AMonitors[monid];
+	struct amigadisplay *ad = &adisplays[monid];
 	WORD type;
 	static TCHAR drive_text[NUM_LEDS * LED_STRING_WIDTH];
 	static TCHAR dfx[4][300];
@@ -20986,7 +21035,7 @@ void gui_led (int led, int on, int brightness)
 	}
 	rp_update_leds (led, on, brightness, writing);
 #endif
-	if (!hStatusWnd)
+	if (!mon->hStatusWnd)
 		return;
 	tt = NULL;
 	if (led >= LED_DF0 && led <= LED_DF3) {
@@ -21041,18 +21090,18 @@ void gui_led (int led, int on, int brightness)
 			writing = 1;
 	} else if (led == LED_FPS) {
 		double fps = (double)gui_data.fps / 10.0;
-		extern double p96vblank;
+		extern float p96vblank;
 		pos = 2;
 		ptr = drive_text + pos * LED_STRING_WIDTH;
 		if (fps > 9999.9)
 			fps = 9999.9;
 		if (fps < 1000) {
-			if (picasso_on)
+			if (ad->picasso_on)
 				_stprintf (ptr, _T("%.1f [%.1f]"), p96vblank, fps);
 			else
 				_stprintf (ptr, _T("FPS: %.1f"), fps);
 		} else {
-			if (picasso_on)
+			if (ad->picasso_on)
 				_stprintf(ptr, _T("%.0f [%.0f]"), p96vblank, fps);
 			else
 				_stprintf(ptr, _T("FPS: %.0f"), fps);
@@ -21146,9 +21195,9 @@ void gui_led (int led, int on, int brightness)
 		if (active2)
 			ptr[_tcslen (ptr) + 1] |= 16;
 		pos += window_led_joy_start;
-		PostMessage (hStatusWnd, SB_SETTEXT, (WPARAM)((pos + 1) | type), (LPARAM)ptr);
+		PostMessage(mon->hStatusWnd, SB_SETTEXT, (WPARAM)((pos + 1) | type), (LPARAM)ptr);
 		if (tt != NULL)
-			PostMessage (hStatusWnd, SB_SETTIPTEXT, (WPARAM)(pos + 1), (LPARAM)tt);
+			PostMessage(mon->hStatusWnd, SB_SETTIPTEXT, (WPARAM)(pos + 1), (LPARAM)tt);
 	}
 }
 
@@ -21158,15 +21207,16 @@ void gui_filename (int num, const TCHAR *name)
 
 static int fsdialog (HWND *hwnd, DWORD *flags)
 {
+	struct AmigaMonitor *mon = &AMonitors[0];
 	if (gui_active) {
 		*hwnd = guiDlg;
 		*flags |= MB_SETFOREGROUND;
 		return 0;
 	}
-	*hwnd = hMainWnd;
+	*hwnd = mon->hMainWnd;
 	if (isfullscreen () <= 0)
 		return 0;
-	*hwnd = hAmigaWnd;
+	*hwnd = mon->hAmigaWnd;
 	flipgui (true);
 	*flags |= MB_SETFOREGROUND;
 	*flags |= MB_TOPMOST;
@@ -21185,12 +21235,13 @@ static int fsdialog (HWND *hwnd, DWORD *flags)
 
 int gui_message_multibutton (int flags, const TCHAR *format,...)
 {
+	struct AmigaMonitor *mon = &AMonitors[0];
 	TCHAR msg[2048];
 	TCHAR szTitle[MAX_DPATH];
 	va_list parms;
 	int flipflop = 0;
 	int fullscreen = 0;
-	int focuso = isfocus ();
+	int focuso = isfocus();
 	int ret;
 	DWORD mbflags;
 	HWND hwnd;
@@ -21207,7 +21258,7 @@ int gui_message_multibutton (int flags, const TCHAR *format,...)
 	if (!gui_active) {
 		pause_sound ();
 		if (flipflop)
-			ShowWindow (hAmigaWnd, SW_MINIMIZE);
+			ShowWindow(mon->hAmigaWnd, SW_MINIMIZE);
 	}
 
 	va_start (parms, format);
@@ -21224,10 +21275,10 @@ int gui_message_multibutton (int flags, const TCHAR *format,...)
 	if (!gui_active) {
 		flipgui (false);
 		if (flipflop)
-			ShowWindow (hAmigaWnd, SW_RESTORE);
+			ShowWindow(mon->hAmigaWnd, SW_RESTORE);
 		reset_sound ();
 		resume_sound ();
-		setmouseactive (focuso > 0 ? 1 : 0);
+		setmouseactive(0, focuso > 0 ? 1 : 0);
 	}
 	if (ret == IDOK)
 		return 0;
@@ -21242,12 +21293,13 @@ int gui_message_multibutton (int flags, const TCHAR *format,...)
 
 void gui_message (const TCHAR *format,...)
 {
+	struct AmigaMonitor *mon = &AMonitors[0];
 	TCHAR msg[2048];
 	TCHAR szTitle[MAX_DPATH];
 	va_list parms;
 	int flipflop = 0;
 	int fullscreen = 0;
-	int focuso = isfocus ();
+	int focuso = isfocus();
 	DWORD flags = MB_OK;
 	HWND hwnd;
 
@@ -21264,7 +21316,7 @@ void gui_message (const TCHAR *format,...)
 	if (!gui_active) {
 		pause_sound ();
 		if (flipflop)
-			ShowWindow (hAmigaWnd, SW_MINIMIZE);
+			ShowWindow(mon->hAmigaWnd, SW_MINIMIZE);
 	}
 	if (hwnd == NULL)
 		flags |= MB_TASKMODAL;
@@ -21281,10 +21333,10 @@ void gui_message (const TCHAR *format,...)
 	if (!gui_active) {
 		flipgui (false);
 		if (flipflop)
-			ShowWindow (hAmigaWnd, SW_RESTORE);
+			ShowWindow(mon->hAmigaWnd, SW_RESTORE);
 		reset_sound ();
 		resume_sound ();
-		setmouseactive (focuso > 0 ? 1 : 0);
+		setmouseactive(0, focuso > 0 ? 1 : 0);
 	}
 }
 

@@ -5,6 +5,7 @@
 #include "options.h"
 #include "filter.h"
 #include "custom.h"
+#include "xwin.h"
 
 #include <math.h>
 
@@ -21,10 +22,11 @@ uae_s32 tylrgb[65536];
 uae_s32 tcbrgb[65536];
 uae_s32 tcrrgb[65536];
 
-void PAL_init(void)
+void PAL_init(int monid)
 {
-	int i;
-	for (i = 0; i < 4096; i++)
+	struct amigadisplay *ad = &adisplays[0];
+
+	for (int i = 0; i < 4096; i++)
 		randomtable[i] = rand() | (rand() << 15);
 	predc = &redc[1 * 256];
 	pgrec = &grec[1 * 256];
@@ -39,8 +41,8 @@ void PAL_init(void)
 		xx2 = 5;
 		xx3 = 7;
 	}
-	pal_noise_mask = (1 << (currprefs.gf[picasso_on].gfx_filter_noise * 7 / 100)) - 1;
-	scanlinelevel = 128 - currprefs.gf[picasso_on].gfx_filter_scanlines * 128 / 100;
+	pal_noise_mask = (1 << (currprefs.gf[ad->picasso_on].gfx_filter_noise * 7 / 100)) - 1;
+	scanlinelevel = 128 - currprefs.gf[ad->picasso_on].gfx_filter_scanlines * 128 / 100;
 }
 
 #if 0

@@ -175,9 +175,15 @@ struct d3dstruct
 	int ddraw_fs;
 	int ddraw_fs_attempt;
 	LPDIRECTDRAW7 ddraw;
+
+	int slicecnt;
+	int clearcnt;
+	bool debugcolors;
+	bool noclear;
+	bool cannoclear;
 };
 
-static struct d3dstruct d3ddata[1];
+static struct d3dstruct d3ddata[MAX_AMIGAMONITORS];
 
 #define NUMVERTICES 8
 #define D3DFVF_TLVERTEX D3DFVF_XYZ|D3DFVF_DIFFUSE|D3DFVF_TEX1
@@ -1337,6 +1343,10 @@ static void updateleds (struct d3dstruct *d3d)
 		}
 		done = 1;
 	}
+
+	if (d3d != d3ddata)
+		return;
+
 	hr = d3d->ledtexture->LockRect (0, &locked, NULL, D3DLOCK_DISCARD);
 	if (FAILED (hr)) {
 		write_log (_T("%d: SL LockRect failed: %s\n"), D3DHEAD, D3D_ErrorString (hr));
@@ -1345,14 +1355,14 @@ static void updateleds (struct d3dstruct *d3d)
 
 	for (int y = 0; y < TD_TOTAL_HEIGHT * d3d->statusbar_vx; y++) {
 		uae_u8 *buf = (uae_u8*)locked.pBits + y * locked.Pitch;
-		statusline_single_erase(buf, 32 / 8, y, d3d->ledwidth * d3d->statusbar_hx);
+		statusline_single_erase(d3d - d3ddata, buf, 32 / 8, y, d3d->ledwidth * d3d->statusbar_hx);
 	}
-	statusline_render((uae_u8*)locked.pBits, 32 / 8, locked.Pitch, d3d->ledwidth, d3d->ledheight, rc, gc, bc, a);
+	statusline_render(d3d - d3ddata, (uae_u8*)locked.pBits, 32 / 8, locked.Pitch, d3d->ledwidth, d3d->ledheight, rc, gc, bc, a);
 
 	int y = 0;
 	for (int yy = 0; yy < d3d->statusbar_vx * TD_TOTAL_HEIGHT; yy++) {
 		uae_u8 *buf = (uae_u8*)locked.pBits + yy * locked.Pitch;
-		draw_status_line_single (buf, 32 / 8, y, d3d->ledwidth, rc, gc, bc, a);
+		draw_status_line_single(d3d - d3ddata, buf, 32 / 8, y, d3d->ledwidth, rc, gc, bc, a);
 		if ((yy % d3d->statusbar_vx) == 0)
 			y++;
 	}
@@ -1482,6 +1492,7 @@ static int findedge (D3DLOCKED_RECT *lock, int w, int h, int dx, int dy)
 
 static int createmask2texture (struct d3dstruct *d3d, const TCHAR *filename)
 {
+	struct AmigaMonitor *mon = &AMonitors[d3d - d3ddata];
 	struct zfile *zf;
 	int size;
 	uae_u8 *buf;
@@ -1494,7 +1505,7 @@ static int createmask2texture (struct d3dstruct *d3d, const TCHAR *filename)
 		d3d->mask2texture->Release();
 	d3d->mask2texture = NULL;
 
-	if (filename[0] == 0 || WIN32GFX_IsPicassoScreen ())
+	if (filename[0] == 0 || WIN32GFX_IsPicassoScreen(mon))
 		return 0;
 
 	zf = NULL;
@@ -1767,17 +1778,19 @@ end:
 	return 0;
 }
 
-static bool xD3D_getscalerect(float *mx, float *my, float *sx, float *sy)
+static bool xD3D_getscalerect(int monid, float *mx, float *my, float *sx, float *sy)
 {
-	struct d3dstruct *d3d = &d3ddata[0];
+	struct d3dstruct *d3d = &d3ddata[monid];
+	struct vidbuf_description *vidinfo = &adisplays[monid].gfxvidinfo;
+
 	if (!d3d->mask2texture)
 		return false;
 
 	float mw = d3d->mask2rect.right - d3d->mask2rect.left;
 	float mh = d3d->mask2rect.bottom - d3d->mask2rect.top;
 
-	float mxt = (float)mw / gfxvidinfo.outbuffer->inwidth2;
-	float myt = (float)mh / gfxvidinfo.outbuffer->inheight2;
+	float mxt = (float)mw / vidinfo->outbuffer->inwidth2;
+	float myt = (float)mh / vidinfo->outbuffer->inheight2;
 
 	*mx = d3d->mask2texture_minusx / mxt;
 	*my = d3d->mask2texture_minusy / myt;
@@ -1793,23 +1806,25 @@ static bool xD3D_getscalerect(float *mx, float *my, float *sx, float *sy)
 
 static void setupscenecoords (struct d3dstruct *d3d)
 {
+	int monid = d3d - d3ddata;
+	struct vidbuf_description *vidinfo = &adisplays[monid].gfxvidinfo;
 	RECT sr, dr, zr;
 	float w, h;
 	float dw, dh;
-	static RECT sr2, dr2, zr2;
+	static RECT sr2[MAX_AMIGAMONITORS], dr2[MAX_AMIGAMONITORS], zr2[MAX_AMIGAMONITORS];
 
 	//write_log (_T("%dx%d %dx%d %dx%d\n"), tin_w, tin_h, tin_w, tin_h, window_w, window_h);
 
-	getfilterrect2 (&dr, &sr, &zr, d3d->window_w, d3d->window_h, d3d->tin_w / d3d->dmult, d3d->tin_h / d3d->dmult, d3d->dmult, d3d->tin_w, d3d->tin_h);
+	getfilterrect2 (monid, &dr, &sr, &zr, d3d->window_w, d3d->window_h, d3d->tin_w / d3d->dmult, d3d->tin_h / d3d->dmult, d3d->dmult, d3d->tin_w, d3d->tin_h);
 
-	if (memcmp (&sr, &sr2, sizeof RECT) || memcmp (&dr, &dr2, sizeof RECT) || memcmp (&zr, &zr2, sizeof RECT)) {
+	if (memcmp (&sr, &sr2[monid], sizeof RECT) || memcmp (&dr, &dr2[monid], sizeof RECT) || memcmp (&zr, &zr2[monid], sizeof RECT)) {
 		write_log (_T("POS (%d %d %d %d) - (%d %d %d %d)[%d,%d] (%d %d)\n"),
 			dr.left, dr.top, dr.right, dr.bottom, sr.left, sr.top, sr.right, sr.bottom,
 			sr.right - sr.left, sr.bottom - sr.top,
 			zr.left, zr.top);
-		sr2 = sr;
-		dr2 = dr;
-		zr2 = zr;
+		sr2[monid] = sr;
+		dr2[monid] = dr;
+		zr2[monid] = zr;
 	}
 
 	dw = dr.right - dr.left;
@@ -1838,12 +1853,12 @@ static void setupscenecoords (struct d3dstruct *d3d)
 		float xshift = -zr.left;
 		float yshift = -zr.top;
 
-		sw = dw * d3d->tin_w / gfxvidinfo.outbuffer->inwidth2;
+		sw = dw * d3d->tin_w / vidinfo->outbuffer->inwidth2;
 		sw *= mw / d3d->window_w;
 
 		tx = -0.5f + d3d->window_w / 2;
 
-		sh = dh * d3d->tin_h / gfxvidinfo.outbuffer->inheight2;
+		sh = dh * d3d->tin_h / vidinfo->outbuffer->inheight2;
 		sh *= mh / d3d->window_h;
 
 		ty = +0.5f + d3d->window_h / 2;
@@ -1897,7 +1912,8 @@ static void setupscenecoords (struct d3dstruct *d3d)
 	D3DXMatrixMultiply (&d3d->postproj, &tmpmatrix, &d3d->m_matProj_out);
 }
 
-uae_u8 *getfilterbuffer3d (struct vidbuffer *vb, int *widthp, int *heightp, int *pitch, int *depth)
+#if 0
+uae_u8 *getfilterbuffer3d(struct vidbuffer *vb, int *widthp, int *heightp, int *pitch, int *depth)
 {
 	struct d3dstruct *d3d = &d3ddata[0];
 	RECT dr, sr, zr;
@@ -1916,6 +1932,7 @@ uae_u8 *getfilterbuffer3d (struct vidbuffer *vb, int *widthp, int *heightp, int 
 	*heightp = h;
 	return p;
 }
+#endif
 
 static void createvertex (struct d3dstruct *d3d)
 {
@@ -2234,9 +2251,9 @@ static void D3D_free2 (struct d3dstruct *d3d)
 	currprefs.leds_on_screen &= ~STATUSLINE_TARGET;
 }
 
-void xD3D_free (bool immediate)
+void xD3D_free (int monid, bool immediate)
 {
-	struct d3dstruct *d3d = &d3ddata[0];
+	struct d3dstruct *d3d = &d3ddata[monid];
 	if (!fakemodewaitms || immediate) {
 		waitfakemode (d3d);
 		D3D_free2 (d3d);
@@ -2309,6 +2326,8 @@ static int getd3dadapter (IDirect3D9 *id3d)
 
 static const TCHAR *D3D_init2 (struct d3dstruct *d3d, HWND ahwnd, int w_w, int w_h, int depth, int *freq, int mmult)
 {
+	int monid = d3d - d3ddata;
+	struct amigadisplay *ad = &adisplays[monid];
 	HRESULT ret, hr;
 	static TCHAR errmsg[300] = { 0 };
 	D3DDISPLAYMODE mode = { 0 };
@@ -2319,11 +2338,11 @@ static const TCHAR *D3D_init2 (struct d3dstruct *d3d, HWND ahwnd, int w_w, int w
 	typedef HRESULT (WINAPI *LPDIRECT3DCREATE9EX)(UINT, IDirect3D9Ex**);
 	LPDIRECT3DCREATE9EX d3dexp = NULL;
 	int vsync = isvsync ();
-	struct apmode *apm = picasso_on ? &currprefs.gfx_apmode[APMODE_RTG] : &currprefs.gfx_apmode[APMODE_NATIVE];
+	struct apmode *apm = ad->picasso_on ? &currprefs.gfx_apmode[APMODE_RTG] : &currprefs.gfx_apmode[APMODE_NATIVE];
 	struct apmode ap;
 	D3DADAPTER_IDENTIFIER9 did;
 
-	filterd3didx = picasso_on;
+	filterd3didx = ad->picasso_on;
 	filterd3d = &currprefs.gf[filterd3didx];
 
 	D3D_free2 (d3d);
@@ -2377,7 +2396,7 @@ static const TCHAR *D3D_init2 (struct d3dstruct *d3d, HWND ahwnd, int w_w, int w
 		d3d->d3dex = NULL;
 		d3d->d3d = Direct3DCreate9 (D3D_SDK_VERSION);
 		if (d3d->d3d == NULL) {
-			D3D_free (true);
+			D3D_free(monid, true);
 			_tcscpy (errmsg, _T("Direct3D: failed to create D3D object"));
 			return errmsg;
 		}
@@ -2413,7 +2432,8 @@ static const TCHAR *D3D_init2 (struct d3dstruct *d3d, HWND ahwnd, int w_w, int w
 		xfree (s);
 	}
 
-	d3d->variablerefresh = ap.gfx_vsync < 0;
+	d3d->variablerefresh = false;
+	d3d->cannoclear = ap.gfx_vsyncmode != 0;
 
 	memset (&d3d->dpp, 0, sizeof (d3d->dpp));
 	d3d->dpp.Windowed = isfullscreen () <= 0;
@@ -2434,11 +2454,11 @@ static const TCHAR *D3D_init2 (struct d3dstruct *d3d, HWND ahwnd, int w_w, int w
 	d3d->vsync2 = 0;
 	int hzmult = 0;
 	if (isfullscreen () > 0) {
-		d3d->dpp.FullScreen_RefreshRateInHz = getrefreshrate (d3d->modeex.Width, d3d->modeex.Height);
+		d3d->dpp.FullScreen_RefreshRateInHz = getrefreshrate(monid, d3d->modeex.Width, d3d->modeex.Height);
 		d3d->modeex.RefreshRate = d3d->dpp.FullScreen_RefreshRateInHz;
 		if (vsync > 0) {
 			d3d->dpp.PresentationInterval = D3DPRESENT_INTERVAL_ONE;
-			getvsyncrate (d3d->dpp.FullScreen_RefreshRateInHz, &hzmult);
+			getvsyncrate(monid, d3d->dpp.FullScreen_RefreshRateInHz, &hzmult);
 			if (hzmult < 0) {
 				if (!ap.gfx_strobo) {
 					if (d3dCaps.PresentationIntervals & D3DPRESENT_INTERVAL_TWO)
@@ -2455,7 +2475,7 @@ static const TCHAR *D3D_init2 (struct d3dstruct *d3d, HWND ahwnd, int w_w, int w
 		if (mode.RefreshRate > 0) {
 			if (vsync > 0) {
 				d3d->dpp.PresentationInterval = D3DPRESENT_INTERVAL_ONE;
-				getvsyncrate(mode.RefreshRate, &hzmult);
+				getvsyncrate(monid, mode.RefreshRate, &hzmult);
 				if (hzmult < 0) {
 					if (!ap.gfx_strobo) {
 						if ((d3dCaps.PresentationIntervals & D3DPRESENT_INTERVAL_TWO) && isfullscreen() > 0)
@@ -2473,7 +2493,7 @@ static const TCHAR *D3D_init2 (struct d3dstruct *d3d, HWND ahwnd, int w_w, int w
 
 	if (vsync < 0) {
 		d3d->vsync2 = 0;
-		getvsyncrate (isfullscreen() > 0 ? d3d->dpp.FullScreen_RefreshRateInHz : mode.RefreshRate, &hzmult);
+		getvsyncrate(monid, isfullscreen() > 0 ? d3d->dpp.FullScreen_RefreshRateInHz : mode.RefreshRate, &hzmult);
 		if (hzmult > 0) {
 			d3d->vsync2 = 1;
 		} else if (hzmult < 0) {
@@ -2530,7 +2550,7 @@ static const TCHAR *D3D_init2 (struct d3dstruct *d3d, HWND ahwnd, int w_w, int w
 			write_log (_T("%s\n"), errmsg);
 			write_log (_T("%s: Retrying fullscreen with DirectDraw\n"), D3DHEAD);
 			if (ddraw_fs_hack_init (d3d)) {
-				const TCHAR *err2 = D3D_init (ahwnd, w_w, w_h, depth, freq, mmult);
+				const TCHAR *err2 = D3D_init (ahwnd, monid, w_w, w_h, depth, freq, mmult);
 				if (err2)
 					ddraw_fs_hack_free (d3d);
 				return err2;
@@ -2539,9 +2559,9 @@ static const TCHAR *D3D_init2 (struct d3dstruct *d3d, HWND ahwnd, int w_w, int w
 		if (d3d->d3d_ex && D3DEX) {
 			write_log (_T("%s\n"), errmsg);
 			D3DEX = 0;
-			return D3D_init (ahwnd, w_w, w_h, depth, freq, mmult);
+			return D3D_init(ahwnd, monid, w_w, w_h, depth, freq, mmult);
 		}
-		D3D_free (true);
+		D3D_free(monid, true);
 		return errmsg;
 	}
 
@@ -2604,7 +2624,7 @@ static const TCHAR *D3D_init2 (struct d3dstruct *d3d, HWND ahwnd, int w_w, int w
 		write_log (_T("Using non-shader version\n"));
 
 	d3d->dmultx = mmult;
-	d3d->dmult = S2X_getmult ();
+	d3d->dmult = S2X_getmult(d3d - d3ddata);
 
 	d3d->window_w = w_w;
 	d3d->window_h = w_h;
@@ -2644,7 +2664,7 @@ static const TCHAR *D3D_init2 (struct d3dstruct *d3d, HWND ahwnd, int w_w, int w
 	currprefs.leds_on_screen |= STATUSLINE_TARGET;
 
 	if (!restoredeviceobjects (d3d)) {
-		D3D_free (true);
+		D3D_free(monid, true);
 		_stprintf (errmsg, _T("%s: initialization failed."), D3DHEAD);
 		return errmsg;
 	}
@@ -2665,10 +2685,13 @@ static const TCHAR *D3D_init2 (struct d3dstruct *d3d, HWND ahwnd, int w_w, int w
 			v = 1;
 		}
 		hr = S_OK;
-		if (forcedframelatency >= 0)
-			hr = d3d->d3ddevex->SetMaximumFrameLatency (forcedframelatency);
-		else if (d3d->dpp.PresentationInterval == D3DPRESENT_INTERVAL_IMMEDIATE && (v > 1 || !vsync))
-			hr = d3d->d3ddevex->SetMaximumFrameLatency ((vsync || d3d->variablerefresh) ? (hzmult < 0 && !ap.gfx_strobo && !d3d->variablerefresh ? 2 : 1) : 0);
+		if (forcedframelatency >= 0) {
+			hr = d3d->d3ddevex->SetMaximumFrameLatency(forcedframelatency);
+		} else if (ap.gfx_vsyncmode) {
+			hr = d3d->d3ddevex->SetMaximumFrameLatency(1);
+		} else if (d3d->dpp.PresentationInterval == D3DPRESENT_INTERVAL_IMMEDIATE && (v > 1 || !vsync)) {
+			hr = d3d->d3ddevex->SetMaximumFrameLatency((vsync || d3d->variablerefresh) ? (hzmult < 0 && !ap.gfx_strobo && !d3d->variablerefresh ? 2 : 1) : 0);
+		}
 		if (FAILED (hr))
 			write_log (_T("%s: SetMaximumFrameLatency() failed: %s\n"), D3DHEAD, D3D_ErrorString (hr));
 	}
@@ -2724,9 +2747,9 @@ static void *D3D_init_start (void *p)
 	return NULL;
 }
 
-static const TCHAR *xD3D_init (HWND ahwnd, int w_w, int w_h, int depth, int *freq, int mmult)
+static const TCHAR *xD3D_init (HWND ahwnd, int monid, int w_w, int w_h, int depth, int *freq, int mmult)
 {
-	struct d3dstruct *d3d = &d3ddata[0];
+	struct d3dstruct *d3d = &d3ddata[monid];
 
 	if (!fakemodewaitms)
 		return D3D_init2 (d3d, ahwnd, w_w, w_h, depth, freq, mmult);
@@ -2750,9 +2773,9 @@ static bool alloctextures (struct d3dstruct *d3d)
 	return true;
 }
 
-static bool xD3D_alloctexture (int w, int h)
+static bool xD3D_alloctexture (int monid, int w, int h)
 {
-	struct d3dstruct *d3d = &d3ddata[0];
+	struct d3dstruct *d3d = &d3ddata[monid];
 
 	d3d->tin_w = w * d3d->dmult;
 	d3d->tin_h = h * d3d->dmult;
@@ -2895,16 +2918,16 @@ static void D3D_showframe2 (struct d3dstruct *d3d, bool dowait)
 	}
 }
 
-static void xD3D_restore (void)
+static void xD3D_restore(int monid)
 {
-	struct d3dstruct *d3d = &d3ddata[0];
+	struct d3dstruct *d3d = &d3ddata[monid];
 
 	d3d->renderdisabled = false;
 }
 
-static void xD3D_clear (void)
+static void xD3D_clear (int monid)
 {
-	struct d3dstruct *d3d = &d3ddata[0];
+	struct d3dstruct *d3d = &d3ddata[monid];
 	int i;
 	HRESULT hr;
 
@@ -2998,8 +3021,41 @@ pass2:
 	return s->lpTempTexture;
 }
 
-static void D3D_render2 (struct d3dstruct *d3d)
+static int xD3D_debug(int monid, int mode)
 {
+	struct d3dstruct *d3d = &d3ddata[monid];
+	int old = d3d->debugcolors ? 1 : 0;
+	d3d->debugcolors = (mode & 1) != 0;
+	d3d->noclear = d3d->debugcolors ? false : true;
+	d3d->clearcnt = 0;
+	return old;
+}
+
+static void clearrt(struct d3dstruct *d3d)
+{
+	HRESULT hr;
+	uae_u8 color[4] = { 0, 0, 0, 0 };
+
+	if (d3d->noclear && d3d->cannoclear) {
+		if (d3d->clearcnt > 3)
+			return;
+		d3d->clearcnt++;
+	}
+
+	if (!d3d->noclear && d3d->debugcolors && d3d->slicecnt > 0) {
+		int cnt = d3d->slicecnt - 1;
+		int v = cnt % 3;
+		if (cnt / 3 == 1)
+			color[(v + 1) % 3] = 80;
+		color[v] = 80;
+	}
+
+	hr = d3d->d3ddev->Clear(0, NULL, D3DCLEAR_TARGET, D3DCOLOR_XRGB(color[0], d3ddebug ? 0x80 : color[1], color[2]), 0, 0);
+}
+
+static void D3D_render2(struct d3dstruct *d3d, int mode)
+{
+	struct AmigaMonitor *mon = &AMonitors[d3d - d3ddata];
 	HRESULT hr;
 	LPDIRECT3DTEXTURE9 srctex = d3d->texture;
 	UINT uPasses, uPass;
@@ -3007,7 +3063,14 @@ static void D3D_render2 (struct d3dstruct *d3d)
 	if (!isd3d (d3d) || !d3d->texture)
 		return;
 
-	hr = d3d->d3ddev->Clear (0, NULL, D3DCLEAR_TARGET, D3DCOLOR_XRGB(0, d3ddebug ? 0x80 : 0, 0), 0, 0);
+	if (mode > 0)
+		d3d->slicecnt = 0;
+	else if (mode < 0)
+		d3d->slicecnt = d3d->slicecnt == 2 ? 0 : d3d->slicecnt;
+
+	clearrt(d3d);
+
+	d3d->slicecnt++;
 
 	if (FAILED (hr = d3d->d3ddev->BeginScene ())) {
 		write_log (_T("%s: BeginScene: %s\n"), D3DHEAD, D3D_ErrorString (hr));
@@ -3276,9 +3339,9 @@ static void D3D_render2 (struct d3dstruct *d3d)
 			}
 
 		}
-		if (d3d->ledtexture && (((currprefs.leds_on_screen & STATUSLINE_RTG) && WIN32GFX_IsPicassoScreen ()) || ((currprefs.leds_on_screen & STATUSLINE_CHIPSET) && !WIN32GFX_IsPicassoScreen ()))) {
+		if (d3d->ledtexture && (((currprefs.leds_on_screen & STATUSLINE_RTG) && WIN32GFX_IsPicassoScreen(mon)) || ((currprefs.leds_on_screen & STATUSLINE_CHIPSET) && !WIN32GFX_IsPicassoScreen(mon)))) {
 			int slx, sly;
-			statusline_getpos (&slx, &sly, d3d->window_w, d3d->window_h, d3d->statusbar_hx, d3d->statusbar_vx);
+			statusline_getpos(d3d - d3ddata, &slx, &sly, d3d->window_w, d3d->window_h, d3d->statusbar_hx, d3d->statusbar_vx);
 			v.x = slx;
 			v.y = sly;
 			v.z = 0;
@@ -3293,9 +3356,9 @@ static void D3D_render2 (struct d3dstruct *d3d)
 		write_log (_T("%s: EndScene() %s\n"), D3DHEAD, D3D_ErrorString (hr));
 }
 
-static bool xD3D_setcursor (int x, int y, int width, int height, bool visible, bool noscale)
+static bool xD3D_setcursor(int monid, int x, int y, int width, int height, bool visible, bool noscale)
 {
-	struct d3dstruct *d3d = &d3ddata[0];
+	struct d3dstruct *d3d = &d3ddata[monid];
 
 	if (width < 0 || height < 0)
 		return true;
@@ -3314,9 +3377,9 @@ static bool xD3D_setcursor (int x, int y, int width, int height, bool visible, b
 	return true;
 }
 
-static void xD3D_unlocktexture (void)
+static void xD3D_unlocktexture(int monid, int y_start, int y_end)
 {
-	struct d3dstruct *d3d = &d3ddata[0];
+	struct d3dstruct *d3d = &d3ddata[monid];
 	HRESULT hr;
 
 	if (!isd3d (d3d) || !d3d->texture)
@@ -3331,9 +3394,9 @@ static void xD3D_unlocktexture (void)
 	d3d->fulllocked = 0;
 }
 
-static void xD3D_flushtexture (int miny, int maxy)
+static void xD3D_flushtexture(int monid, int miny, int maxy)
 {
-	struct d3dstruct *d3d = &d3ddata[0];
+	struct d3dstruct *d3d = &d3ddata[monid];
 
 	if (d3d->fakemode || d3d->fulllocked || !d3d->texture || d3d->renderdisabled)
 		return;
@@ -3353,9 +3416,9 @@ static void xD3D_flushtexture (int miny, int maxy)
 	}
 }
 
-static uae_u8 *xD3D_locktexture (int *pitch, int *height, bool fullupdate)
+static uae_u8 *xD3D_locktexture (int monid, int *pitch, int *height, bool fullupdate)
 {
-	struct d3dstruct *d3d = &d3ddata[0];
+	struct d3dstruct *d3d = &d3ddata[monid];
 	D3DLOCKED_RECT lock;
 	HRESULT hr;
 
@@ -3385,7 +3448,7 @@ static uae_u8 *xD3D_locktexture (int *pitch, int *height, bool fullupdate)
 	d3d->locked = 1;
 	if (lock.pBits == NULL || lock.Pitch == 0) {
 		write_log (_T("%s: LockRect returned NULL texture\n"), D3DHEAD);
-		D3D_unlocktexture ();
+		D3D_unlocktexture(monid, -1, -1);
 		return NULL;
 	}
 	d3d->fulllocked = fullupdate;
@@ -3416,9 +3479,9 @@ static void flushgpu (struct d3dstruct *d3d, bool wait)
 	}
 }
 
-static bool xD3D_renderframe (bool immediate)
+static bool xD3D_renderframe(int monid, int mode, bool immediate)
 {
-	struct d3dstruct *d3d = &d3ddata[0];
+	struct d3dstruct *d3d = &d3ddata[monid];
 	static int vsync2_cnt;
 
 	d3d->frames_since_init++;
@@ -3449,15 +3512,15 @@ static bool xD3D_renderframe (bool immediate)
 			return true;
 	}
 
-	D3D_render2 (d3d);
+	D3D_render2 (d3d, mode);
 	flushgpu (d3d, immediate);
 
 	return true;
 }
 
-static void xD3D_showframe (void)
+static void xD3D_showframe (int monid)
 {
-	struct d3dstruct *d3d = &d3ddata[0];
+	struct d3dstruct *d3d = &d3ddata[monid];
 
 	if (!isd3d (d3d))
 		return;
@@ -3478,9 +3541,9 @@ static void xD3D_showframe (void)
 	}
 }
 
-static void xD3D_showframe_special (int mode)
+static void xD3D_showframe_special (int monid, int mode)
 {
-	struct d3dstruct *d3d = &d3ddata[0];
+	struct d3dstruct *d3d = &d3ddata[monid];
 
 	HRESULT hr;
 	if (!isd3d (d3d))
@@ -3494,15 +3557,15 @@ static void xD3D_showframe_special (int mode)
 	flushgpu (d3d,true);
 }
 
-static void xD3D_refresh (void)
+static void xD3D_refresh (int monid)
 {
-	struct d3dstruct *d3d = &d3ddata[0];
+	struct d3dstruct *d3d = &d3ddata[monid];
 
 	if (!isd3d (d3d))
 		return;
-	D3D_render2 (d3d);
+	D3D_render2 (d3d, true);
 	D3D_showframe2 (d3d, true);
-	D3D_render2 (d3d);
+	D3D_render2 (d3d, true);
 	D3D_showframe2 (d3d, true);
 	createscanlines (d3d, 0);
 }
@@ -3547,9 +3610,9 @@ void D3D_getpixelformat (int depth, int *rb, int *gb, int *bb, int *rs, int *gs,
 	}
 }
 
-static double xD3D_getrefreshrate (void)
+static float xD3D_getrefreshrate(int monid)
 {
-	struct d3dstruct *d3d = &d3ddata[0];
+	struct d3dstruct *d3d = &d3ddata[monid];
 	HRESULT hr;
 	D3DDISPLAYMODE dmode;
 
@@ -3562,9 +3625,9 @@ static double xD3D_getrefreshrate (void)
 	return dmode.RefreshRate;
 }
 
-static void xD3D_guimode (int guion)
+static void xD3D_guimode(int monid, int guion)
 {
-	struct d3dstruct *d3d = &d3ddata[0];
+	struct d3dstruct *d3d = &d3ddata[monid];
 	HRESULT hr;
 
 	if (guion != 0 && guion != 1)
@@ -3573,7 +3636,7 @@ static void xD3D_guimode (int guion)
 	waitfakemode (d3d);
 	if (!isd3d (d3d))
 		return;
-	D3D_render2(d3d);
+	D3D_render2(d3d, true);
 	D3D_showframe2(d3d, true);
 	hr = d3d->d3ddev->SetDialogBoxMode (guion ? TRUE : FALSE);
 	if (FAILED (hr))
@@ -3581,9 +3644,9 @@ static void xD3D_guimode (int guion)
 	d3d->guimode = guion;
 }
 
-LPDIRECT3DSURFACE9 D3D_capture(int *w, int *h, int *bits)
+LPDIRECT3DSURFACE9 D3D_capture(int monid, int *w, int *h, int *bits)
 {
-	struct d3dstruct *d3d = &d3ddata[0];
+	struct d3dstruct *d3d = &d3ddata[monid];
 	LPDIRECT3DSURFACE9 rt;
 	HRESULT hr;
 
@@ -3607,9 +3670,9 @@ LPDIRECT3DSURFACE9 D3D_capture(int *w, int *h, int *bits)
 	return d3d->screenshotsurface;
 }
 
-static HDC xD3D_getDC (HDC hdc)
+static HDC xD3D_getDC(int monid, HDC hdc)
 {
-	struct d3dstruct *d3d = &d3ddata[0];
+	struct d3dstruct *d3d = &d3ddata[monid];
 	static LPDIRECT3DSURFACE9 bb;
 	HRESULT hr;
 
@@ -3636,15 +3699,15 @@ static HDC xD3D_getDC (HDC hdc)
 	return 0;
 }
 
-static int xD3D_isenabled(void)
+static int xD3D_isenabled(int monid)
 {
-	struct d3dstruct *d3d = &d3ddata[0];
+	struct d3dstruct *d3d = &d3ddata[monid];
 	return d3d->d3d_enabled ? 1 : 0;
 }
 
-static uae_u8 *xD3D_setcursorsurface(int *pitch)
+static uae_u8 *xD3D_setcursorsurface(int monid, int *pitch)
 {
-	struct d3dstruct *d3d = &d3ddata[0];
+	struct d3dstruct *d3d = &d3ddata[monid];
 	if (pitch) {
 		D3DLOCKED_RECT locked;
 		HRESULT hr = d3d->cursorsurfaced3d->LockRect(0, &locked, NULL, 0);
@@ -3678,14 +3741,13 @@ void d3d9_select(void)
 	D3D_goodenough = xD3D_goodenough;
 	D3D_setcursor = xD3D_setcursor;
 	D3D_setcursorsurface = xD3D_setcursorsurface;
-	D3D_getvblankpos = xD3D_getvblankpos;
 	D3D_getrefreshrate = xD3D_getrefreshrate;
-	D3D_vblank_reset = xD3D_vblank_reset;
 	D3D_restore = xD3D_restore;
 	D3D_resize = NULL;
 	D3D_change = NULL;
 	D3D_getscalerect = xD3D_getscalerect;
 	D3D_run = NULL;
+	D3D_debug = xD3D_debug;
 }
 
 #endif

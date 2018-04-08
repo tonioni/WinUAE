@@ -2203,7 +2203,7 @@ static void inputdevice_update_tablet_params(void)
 	p[MH_MAXAZ + 1] = tablet_maxaz;
 }
 
-void input_mousehack_mouseoffset (uaecptr pointerprefs)
+void input_mousehack_mouseoffset(uaecptr pointerprefs)
 {
 	mouseoffset_x = (uae_s16)get_word (pointerprefs + 28);
 	mouseoffset_y = (uae_s16)get_word (pointerprefs + 30);
@@ -2211,6 +2211,10 @@ void input_mousehack_mouseoffset (uaecptr pointerprefs)
 
 static bool get_mouse_position(int *xp, int *yp, int inx, int iny)
 {
+	int monid = 0;
+	struct vidbuf_description *vidinfo = &adisplays[monid].gfxvidinfo;
+	struct amigadisplay *ad = &adisplays[monid];
+	struct picasso96_state_struct *state = &picasso96_state[monid];
 	int x, y;
 	float fdy, fdx, fmx, fmy;
 	bool ob = false;
@@ -2218,12 +2222,12 @@ static bool get_mouse_position(int *xp, int *yp, int inx, int iny)
 	x = inx;
 	y = iny;
 
-	getgfxoffset (&fdx, &fdy, &fmx, &fmy);
+	getgfxoffset(0, &fdx, &fdy, &fmx, &fmy);
 
 #ifdef PICASSO96
-	if (picasso_on) {
-		x -= picasso96_state.XOffset;
-		y -= picasso96_state.YOffset;
+	if (ad->picasso_on) {
+		x -= state->XOffset;
+		y -= state->YOffset;
 		x = (int)(x * fmx);
 		y = (int)(y * fmy);
 		x -= (int)(fdx * fmx);
@@ -2231,7 +2235,7 @@ static bool get_mouse_position(int *xp, int *yp, int inx, int iny)
 	} else
 #endif
 	{
-		if (gfxvidinfo.outbuffer == NULL) {
+		if (vidinfo->outbuffer == NULL) {
 			*xp = 0;
 			*yp = 0;
 			return false;
@@ -2243,7 +2247,7 @@ static bool get_mouse_position(int *xp, int *yp, int inx, int iny)
 		x = coord_native_to_amiga_x(x);
 		if (y >= 0)
 			y = coord_native_to_amiga_y(y) * 2;
-		if (x < 0 || y < 0 || x >= gfxvidinfo.outbuffer->outwidth || y >= gfxvidinfo.outbuffer->outheight)
+		if (x < 0 || y < 0 || x >= vidinfo->outbuffer->outwidth || y >= vidinfo->outbuffer->outheight)
 			ob = true;
 	}
 	*xp = x;
@@ -2330,10 +2334,13 @@ int inputdevice_get_lightpen_id(void)
 
 void tablet_lightpen(int tx, int ty, int tmaxx, int tmaxy, int touch, int buttonmask, bool touchmode, int devid, int lpnum)
 {
-	if (picasso_on)
+	int monid = 0;
+	struct vidbuf_description *vidinfo = &adisplays[monid].gfxvidinfo;
+	struct amigadisplay *ad = &adisplays[monid];
+	if (ad->picasso_on)
 		goto end;
 
-	if (gfxvidinfo.outbuffer == NULL)
+	if (vidinfo->outbuffer == NULL)
 		goto end;
 
 	if (touch < 0)
@@ -2346,7 +2353,7 @@ void tablet_lightpen(int tx, int ty, int tmaxx, int tmaxy, int touch, int button
 	fx = (float)tx;
 	fy = (float)ty;
 
-	desktop_coords (&dw, &dh, &ax, &ay, &aw, &ah);
+	desktop_coords (0, &dw, &dh, &ax, &ay, &aw, &ah);
 
 	if (tmaxx < 0 || tmaxy < 0) {
 		tmaxx = dw;
@@ -2373,7 +2380,7 @@ void tablet_lightpen(int tx, int ty, int tmaxx, int tmaxy, int touch, int button
 	fy -= ay;
 
 	float fdx, fdy, fmx, fmy;
-	getgfxoffset (&fdx, &fdy, &fmx, &fmy);
+	getgfxoffset(0, &fdx, &fdy, &fmx, &fmy);
 
 	int x = (int)(fx * fmx);
 	int y = (int)(fy * fmy);
@@ -2813,8 +2820,9 @@ static int mouseedge_x, mouseedge_y, mouseedge_time;
 #define MOUSEEDGE_RANGE 100
 #define MOUSEEDGE_TIME 2
 
-static int mouseedge (void)
+static int mouseedge(int monid)
 {
+	struct amigadisplay *ad = &adisplays[monid];
 	int x, y, dir;
 	uaecptr ib;
 	static int melast_x, melast_y;
@@ -2886,16 +2894,16 @@ static int mouseedge (void)
 end:
 	mouseedge_time = 0;
 	if (dir) {
-		if (!picasso_on) {
+		if (!ad->picasso_on) {
 			int aw = 0, ah = 0, dx, dy;
 			get_custom_mouse_limits (&aw, &ah, &dx, &dy, dimensioninfo_dbl);
 			x += dx;
 			y += dy;
 		}
 		if (!dmaen (DMA_SPRITE))
-			setmouseactivexy (x, y, 0);
+			setmouseactivexy(0, x, y, 0);
 		else
-			setmouseactivexy (x, y, dir);
+			setmouseactivexy(0, x, y, dir);
 	}
 	return 1;
 }
@@ -3143,7 +3151,7 @@ static void joymousecounter (int joy)
 
 static int inputread;
 
-static void inputdevice_read(bool peek)
+static void inputdevice_read(void)
 {
 //	if ((inputdevice_logging & (2 | 4)))
 //		write_log(_T("INPUTREAD\n"));
@@ -3163,11 +3171,10 @@ static void inputdevice_read(bool peek)
 
 static void maybe_read_input(void)
 {
-	if (inputread >= 0 && inputread + 10 > vpos)
+	if (inputread >= 0 && (vpos - inputread) <= maxvpos_display / 3)
 		return;
-	bool peek = inputread >= 0 && inputread + 50 > vpos;
 	inputread = vpos;
-	inputdevice_read(peek);
+	inputdevice_read();
 }
 
 static uae_u16 getjoystate (int joy)
@@ -3811,7 +3818,7 @@ int handle_custom_event (const TCHAR *custom, int append)
 	return 0;
 }
 
-void inputdevice_hsync (void)
+void inputdevice_hsync (bool forceread)
 {
 	cap_check ();
 
@@ -3879,7 +3886,7 @@ void inputdevice_hsync (void)
 
 	if (input_record && input_record != INPREC_RECORD_PLAYING) {
 		if (vpos == 0)
-			inputdevice_read(false);
+			inputdevice_read();
 	}
 	if (input_play) {
 		inprec_playdiskchange ();
@@ -3890,7 +3897,12 @@ void inputdevice_hsync (void)
 			handle_msgpump ();
 	}
 	if (!input_record && !input_play) {
-		maybe_read_input();
+		if (forceread) {
+			inputread = maxvpos + 1;
+			inputdevice_read();
+		} else {
+			maybe_read_input();
+		}
 	}
 }
 
@@ -4124,7 +4136,7 @@ static bool needcputrace (int code)
 
 void target_paste_to_keyboard(void);
 
-static bool inputdevice_handle_inputcode2 (int code, int state, const TCHAR *s)
+static bool inputdevice_handle_inputcode2(int monid, int code, int state, const TCHAR *s)
 {
 	static int swapperslot;
 	static int tracer_enable;
@@ -4257,7 +4269,7 @@ static bool inputdevice_handle_inputcode2 (int code, int state, const TCHAR *s)
 		{
 			case AKS_SCREENSHOT_FILE:
 			// stop multiscreenshot
-			screenshot(4, 1);
+			screenshot(0, 4, 1);
 			break;
 		}
 		return false;
@@ -4271,13 +4283,13 @@ static bool inputdevice_handle_inputcode2 (int code, int state, const TCHAR *s)
 		break;
 	case AKS_SCREENSHOT_FILE:
 		if (state > 1) {
-			screenshot(3, 1);
+			screenshot(0, 3, 1);
 		} else {
-			screenshot(1, 1);
+			screenshot(0, 1, 1);
 		}
 		break;
 	case AKS_SCREENSHOT_CLIPBOARD:
-		screenshot (0, 1);
+		screenshot(0, 0, 1);
 		break;
 #ifdef AVIOUTPUT
 	case AKS_VIDEORECORD:
@@ -4356,7 +4368,7 @@ static bool inputdevice_handle_inputcode2 (int code, int state, const TCHAR *s)
 		warpmode (newstate);
 		break;
 	case AKS_INHIBITSCREEN:
-		toggle_inhibit_frame (IHF_SCROLLLOCK);
+		toggle_inhibit_frame(monid, IHF_SCROLLLOCK);
 		break;
 	case AKS_STATEREWIND:
 		savestate_dorewind (-2);
@@ -4419,16 +4431,16 @@ static bool inputdevice_handle_inputcode2 (int code, int state, const TCHAR *s)
 		savestate_quick ((code - AKS_STATERESTOREQUICK) / 2, 0);
 		break;
 	case AKS_TOGGLEDEFAULTSCREEN:
-		toggle_fullscreen (-1);
+		toggle_fullscreen(0, -1);
 		break;
 	case AKS_TOGGLEWINDOWEDFULLSCREEN:
-		toggle_fullscreen (0);
+		toggle_fullscreen(0, 0);
 		break;
 	case AKS_TOGGLEFULLWINDOWFULLSCREEN:
-		toggle_fullscreen (1);
+		toggle_fullscreen(0, 1);
 		break;
 	case AKS_TOGGLEWINDOWFULLWINDOW:
-		toggle_fullscreen (2);
+		toggle_fullscreen(0, 2);
 		break;
 	case AKS_TOGGLEMOUSEGRAB:
 		toggle_mousegrab();
@@ -4525,17 +4537,17 @@ static bool inputdevice_handle_inputcode2 (int code, int state, const TCHAR *s)
 		disk_prevnext (code - AKS_DISK_NEXT0, 1);
 		break;
 	case AKS_RTG_PREV:
-		toggle_rtg(-1);
+		toggle_rtg(0, -1);
 		break;
 	case AKS_RTG_NEXT:
-		toggle_rtg(MAX_RTG_BOARDS + 1);
+		toggle_rtg(0, MAX_RTG_BOARDS + 1);
 		break;
 	case AKS_RTG_C:
 	case AKS_RTG_0:
 	case AKS_RTG_1:
 	case AKS_RTG_2:
 	case AKS_RTG_3:
-		toggle_rtg(code - AKS_RTG_C);
+		toggle_rtg(0, code - AKS_RTG_C);
 		break;
 	case AKS_VIDEOGRAB_RESTART:
 		getsetpositionvideograb(0);
@@ -4581,15 +4593,16 @@ end:
 	return false;
 }
 
-void inputdevice_handle_inputcode (void)
+void inputdevice_handle_inputcode(void)
 {
+	int monid = 0;
 	bool got = false;
 	for (int i = 0; i < MAX_PENDING_EVENTS; i++) {
 		int code = inputcode_pending[i].code;
 		int state = inputcode_pending[i].state;
 		const TCHAR *s = inputcode_pending[i].s;
 		if (code) {
-			if (!inputdevice_handle_inputcode2 (code, state, s)) {
+			if (!inputdevice_handle_inputcode2(monid, code, state, s)) {
 				xfree(inputcode_pending[i].s);
 				inputcode_pending[i].code = 0;
 			}
@@ -4597,7 +4610,7 @@ void inputdevice_handle_inputcode (void)
 		}
 	}
 	if (!got)
-		inputdevice_handle_inputcode2 (0, 0, NULL);
+		inputdevice_handle_inputcode2(monid, 0, 0, NULL);
 }
 
 
@@ -4616,8 +4629,9 @@ static uae_u64 isqual (int evt)
 	return ID_FLAG_QUALIFIER1 << (num * 2);
 }
 
-static int handle_input_event2 (int nr, int state, int max, int flags, int extra)
+static int handle_input_event2(int nr, int state, int max, int flags, int extra)
 {
+	struct vidbuf_description *vidinfo = &adisplays[0].gfxvidinfo;
 	const struct inputevent *ie;
 	int joy;
 	bool isaks = false;
@@ -4668,8 +4682,8 @@ static int handle_input_event2 (int nr, int state, int max, int flags, int extra
 			int unit = (ie->data & 1) ? 1 : 0;
 			int lpnum = ie->unit - 5;
 			if (lightpen_active <= 0) {
-				lightpen_x[0] = gfxvidinfo.outbuffer->outwidth / 2;
-				lightpen_y[0] = gfxvidinfo.outbuffer->outheight / 2;
+				lightpen_x[0] = vidinfo->outbuffer->outwidth / 2;
+				lightpen_y[0] = vidinfo->outbuffer->outheight / 2;
 				lightpen_x[1] = -1;
 				lightpen_y[1] = -1;
 			}
@@ -4729,12 +4743,12 @@ static int handle_input_event2 (int nr, int state, int max, int flags, int extra
 			}
 			if (lightpen_x[lpnum] < -10)
 				lightpen_x[lpnum] = -10;
-			if (lightpen_x[lpnum] >= gfxvidinfo.drawbuffer.inwidth + 10)
-				lightpen_x[lpnum] = gfxvidinfo.drawbuffer.inwidth + 10;
+			if (lightpen_x[lpnum] >= vidinfo->drawbuffer.inwidth + 10)
+				lightpen_x[lpnum] = vidinfo->drawbuffer.inwidth + 10;
 			if (lightpen_y[lpnum] < -10)
 				lightpen_y[lpnum] = -10;
-			if (lightpen_y[lpnum] >= gfxvidinfo.drawbuffer.inheight + 10)
-				lightpen_y[lpnum] = gfxvidinfo.drawbuffer.inheight + 10;
+			if (lightpen_y[lpnum] >= vidinfo->drawbuffer.inheight + 10)
+				lightpen_y[lpnum] = vidinfo->drawbuffer.inheight + 10;
 #if 0
 			write_log(_T("%d*%d\n"), lightpen_x[0], lightpen_y[0]);
 #endif
@@ -5075,6 +5089,7 @@ static void inputdevice_checkconfig (void)
 
 void inputdevice_vsync (void)
 {
+	int monid = 0;
 	if (inputdevice_logging & 32)
 		write_log (_T("*\n"));
 
@@ -5096,18 +5111,18 @@ void inputdevice_vsync (void)
 	if (arcadia_bios || alg_flag || cubo_enabled)
 		arcadia_vsync ();
 #endif
-	if (mouseedge ())
+	if (mouseedge(monid))
 		mouseedge_alive = 10;
 	if (mousehack_alive_cnt > 0) {
 		mousehack_alive_cnt--;
 		if (mousehack_alive_cnt == 0)
-			setmouseactive (-1);
+			setmouseactive(0, -1);
 	} else if (mousehack_alive_cnt < 0) {
 		mousehack_alive_cnt++;
 		if (mousehack_alive_cnt == 0) {
 			mousehack_alive_cnt = 100;
-			setmouseactive (0);
-			setmouseactive (1);
+			setmouseactive(0, 0);
+			setmouseactive(0, 1);
 		}
 	}
 	inputdevice_checkconfig ();
@@ -8587,7 +8602,7 @@ void inputdevice_settest (int set)
 
 int inputdevice_testread_count (void)
 {
-	inputdevice_read (false);
+	inputdevice_read();
 	if (testmode != 1) {
 		testmode = 0;
 		return -1;
@@ -8598,7 +8613,7 @@ int inputdevice_testread_count (void)
 int inputdevice_testread (int *devnum, int *wtype, int *state, bool doread)
 {
 	if (doread) {
-		inputdevice_read (false);
+		inputdevice_read();
 		if (testmode != 1) {
 			testmode = 0;
 			return -1;

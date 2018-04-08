@@ -77,8 +77,6 @@ extern uae_s32 pissoff;
 extern struct ev eventtab[ev_max];
 extern struct ev2 eventtab2[ev2_max];
 
-extern volatile bool vblank_found_chipset;
-extern volatile bool vblank_found_rtg;
 extern int hpos_offset;
 extern int maxhpos;
 

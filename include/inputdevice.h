@@ -235,8 +235,8 @@ extern void input_mousehack_mouseoffset (uaecptr pointerprefs);
 extern int mousehack_alive (void);
 extern void mousehack_wakeup(void);
 extern void mousehack_write(int reg, uae_u16 val);
-extern void setmouseactive (int);
-extern bool ismouseactive (void);
+extern void setmouseactive(int monid, int);
+extern bool ismouseactive(void);
 
 extern void setmousebuttonstateall (int mouse, uae_u32 buttonbits, uae_u32 buttonmask);
 extern void setjoybuttonstateall (int joy, uae_u32 buttonbits, uae_u32 buttonmask);
@@ -286,7 +286,7 @@ extern void JOYSET (int num, uae_u16 v);
 extern uae_u16 JOYGET (int num);
 
 extern void inputdevice_vsync (void);
-extern void inputdevice_hsync (void);
+extern void inputdevice_hsync (bool);
 extern void inputdevice_reset (void);
 
 extern void write_inputdevice_config (struct uae_prefs *p, struct zfile *f);

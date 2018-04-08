@@ -19,6 +19,7 @@
 #include "statusline.h"
 #include "rommgr.h"
 #include "framebufferboards.h"
+#include "xwin.h"
 
 typedef uae_u32(REGPARAM3 *fb_get_func)(struct fb_struct *, uaecptr) REGPARAM;
 typedef void (REGPARAM3 *fb_put_func)(struct fb_struct *, uaecptr, uae_u32) REGPARAM;
@@ -28,6 +29,7 @@ extern addrbank generic_fb_bank;
 struct fb_struct
 {
 	int devnum;
+	int monitor_id;
 	uae_u32 configured;
 	uae_u32 io_start, io_end;
 	uae_u8 data[16];
@@ -64,15 +66,16 @@ static struct fb_struct *fb_last;
 
 static bool fb_get_surface(struct fb_struct *data)
 {
+	struct amigadisplay *ad = &adisplays[data->monitor_id];
 	bool gotsurf = false;
-	if (picasso_on) {
+	if (ad->picasso_on) {
 		if (data->surface == NULL) {
-			data->surface = gfx_lock_picasso(false, false);
+			data->surface = gfx_lock_picasso(data->monitor_id, false, false);
 			gotsurf = true;
 		}
 		if (data->surface && gotsurf) {
 			if (!(currprefs.leds_on_screen & STATUSLINE_TARGET))
-				picasso_statusline(data->surface);
+				picasso_statusline(data->monitor_id, data->surface);
 		}
 	}
 	return data->surface != NULL;
@@ -81,7 +84,7 @@ static void fb_free_surface(struct fb_struct *data)
 {
 	if (!data->surface)
 		return;
-	gfx_unlock_picasso(true);
+	gfx_unlock_picasso(data->monitor_id, true);
 	data->surface = NULL;
 }
 
@@ -299,6 +302,7 @@ static void harlequin_hsync(void *userdata)
 
 static void harlequin_convert(struct fb_struct *data)
 {
+	struct picasso_vidbuf_description *vidinfo = &picasso_vidinfo[data->monitor_id];
 	bool r = (data->data[1] & 0x80) != 0;
 	bool g = (data->data[1] & 0x40) != 0;
 	bool b = (data->data[1] & 0x20) != 0;
@@ -310,12 +314,12 @@ static void harlequin_convert(struct fb_struct *data)
 		offset += data->fb_vram_size / 2;
 
 	int sy = 0;
-	int w = picasso_vidinfo.width < data->width ? picasso_vidinfo.width : data->width;
-	int h = picasso_vidinfo.height < data->height ? picasso_vidinfo.height : data->height;
+	int w = vidinfo->width < data->width ? vidinfo->width : data->width;
+	int h = vidinfo->height < data->height ? vidinfo->height : data->height;
 	for (int y = 0; y < h; y++) {
 		uae_u8 *s = data->fb + offset + laceoffset + sy * data->width * 4;
 		if (r && g && b) {
-			fb_copyrow(s, data->surface, 0, 0, data->width, 4, y);
+			fb_copyrow(data->monitor_id, s, data->surface, 0, 0, data->width, 4, y);
 		} else {
 			uae_u8 tmp[1000 * 4];
 			uae_u8 *d = tmp;
@@ -325,7 +329,7 @@ static void harlequin_convert(struct fb_struct *data)
 				d[x + 2] = b ? s[x + 2] : 0;
 				d[x + 3] = 0;
 			}
-			fb_copyrow(d, data->surface, 0, 0, data->width, 4, y);
+			fb_copyrow(data->monitor_id, d, data->surface, 0, 0, data->width, 4, y);
 		}
 		if (data->lace) {
 			laceoffset = laceoffset ? 0 : laceoffsetv;

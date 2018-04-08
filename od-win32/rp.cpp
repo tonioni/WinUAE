@@ -646,6 +646,7 @@ static int winok (void)
 
 static void fixup_size (struct uae_prefs *prefs)
 {
+	struct monconfig *gm = &prefs->gfx_monitor[0];
 	static int done;
 
 	if (done)
@@ -661,7 +662,7 @@ static void fixup_size (struct uae_prefs *prefs)
 		}
 		if (hres > max_horiz_dbl)
 			hres = max_horiz_dbl;
-		prefs->gfx_size_win.width = prefs->gfx_xcenter_size >> (RES_MAX - hres);
+		gm->gfx_size_win.width = prefs->gfx_xcenter_size >> (RES_MAX - hres);
 		prefs->gf[0].gfx_filter_autoscale = 0;
 	}
 	if (prefs->gfx_ycenter_size > 0) {
@@ -673,10 +674,10 @@ static void fixup_size (struct uae_prefs *prefs)
 		}
 		if (vres > max_vert_dbl)
 			vres = max_vert_dbl;
-		prefs->gfx_size_win.height = (prefs->gfx_ycenter_size * 2) >> (VRES_QUAD - vres);
+		gm->gfx_size_win.height = (prefs->gfx_ycenter_size * 2) >> (VRES_QUAD - vres);
 		prefs->gf[0].gfx_filter_autoscale = 0;
 	}
-	write_log(_T("-> %dx%d\n"), prefs->gfx_size_win.width, prefs->gfx_size_win.height);
+	write_log(_T("-> %dx%d\n"), gm->gfx_size_win.width, gm->gfx_size_win.height);
 }
 
 static int getmult (float mult, bool *half)
@@ -710,6 +711,8 @@ static int shift (int val, int shift)
 
 static void get_screenmode (struct RPScreenMode *sm, struct uae_prefs *p, bool getclip)
 {
+	struct AmigaMonitor *mon = &AMonitors[0];
+	struct monconfig *gm = &p->gfx_monitor[mon->monitor_id];
 	int m, cf;
 	int full = 0;
 	int hres, vres;
@@ -725,7 +728,7 @@ static void get_screenmode (struct RPScreenMode *sm, struct uae_prefs *p, bool g
 	m = RP_SCREENMODE_SCALE_1X;
 	cf = 0;
 	half = false;
-	rtg = WIN32GFX_IsPicassoScreen () != 0;
+	rtg = WIN32GFX_IsPicassoScreen(mon) != 0;
 
 	if (rtg) {
 
@@ -822,8 +825,8 @@ static void get_screenmode (struct RPScreenMode *sm, struct uae_prefs *p, bool g
 	} else if ((storeflags & RP_SCREENMODE_SCALEMASK) == RP_SCREENMODE_SCALE_TARGET) {
 		sm->dwScreenMode &= ~RP_SCREENMODE_SCALEMASK;
 		sm->dwScreenMode = RP_SCREENMODE_SCALE_TARGET;
-		sm->lTargetWidth = p->gfx_size_win.width;
-		sm->lTargetHeight = p->gfx_size_win.height;
+		sm->lTargetWidth = gm->gfx_size_win.width;
+		sm->lTargetHeight = gm->gfx_size_win.height;
 	}
 	sm->dwClipFlags = cf;
 
@@ -832,7 +835,7 @@ static void get_screenmode (struct RPScreenMode *sm, struct uae_prefs *p, bool g
 			rtg ? _T("RTG ") : _T(""),
 			totalhdbl, hres, totalvdbl, vres, full,
 			p->gfx_xcenter_pos,  p->gfx_ycenter_pos,
-			p->gfx_size_win.width, p->gfx_size_win.height,
+			gm->gfx_size_win.width, gm->gfx_size_win.height,
 			hmult, vmult, half);
 		write_log (_T("GET_RPSM: %08X %dx%d %dx%d hres=%d (%d) vres=%d (%d) disp=%d fs=%d\n"),
 			sm->dwScreenMode, sm->lClipLeft, sm->lClipTop, sm->lClipWidth, sm->lClipHeight,
@@ -842,6 +845,10 @@ static void get_screenmode (struct RPScreenMode *sm, struct uae_prefs *p, bool g
 
 static void set_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 {
+	struct AmigaMonitor *mon = &AMonitors[0];
+	struct picasso_vidbuf_description *vidinfo = &picasso_vidinfo[0];
+	struct monconfig *gm = &p->gfx_monitor[mon->monitor_id];
+	struct monconfig *gmc = &currprefs.gfx_monitor[mon->monitor_id];
 	int smm = RP_SCREENMODE_SCALE (sm->dwScreenMode);
 	int display = RP_SCREENMODE_DISPLAY (sm->dwScreenMode);
 	int fs = 0;
@@ -877,7 +884,7 @@ static void set_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 			keepaspect, stretch, forcesize, integerscale);
 	}
 
-	if (!WIN32GFX_IsPicassoScreen ()) {
+	if (!WIN32GFX_IsPicassoScreen(mon)) {
 
 		if (smm == RP_SCREENMODE_SCALE_3X) {
 
@@ -937,38 +944,38 @@ static void set_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 		p->gfx_vresolution = vres;
 
 		if (sm->lClipWidth <= 0) {
-			p->gfx_size_win.width = shift (AMIGA_WIDTH_MAX, -hdbl);
+			gm->gfx_size_win.width = shift (AMIGA_WIDTH_MAX, -hdbl);
 		} else {
 			if (hdbl > RES_MAX)
-				p->gfx_size_win.width = sm->lClipWidth << (hdbl - RES_MAX);
+				gm->gfx_size_win.width = sm->lClipWidth << (hdbl - RES_MAX);
 			else
-				p->gfx_size_win.width = sm->lClipWidth >> (RES_MAX - hdbl);
+				gm->gfx_size_win.width = sm->lClipWidth >> (RES_MAX - hdbl);
 		}
 
 		if (sm->lClipHeight <= 0) {
-			p->gfx_size_win.height = shift (AMIGA_HEIGHT_MAX, -vdbl);
+			gm->gfx_size_win.height = shift (AMIGA_HEIGHT_MAX, -vdbl);
 		} else {
 			if (vdbl > VRES_MAX)
-				p->gfx_size_win.height = sm->lClipHeight << (vdbl - VRES_MAX);
+				gm->gfx_size_win.height = sm->lClipHeight << (vdbl - VRES_MAX);
 			else
-				p->gfx_size_win.height = sm->lClipHeight >> (VRES_MAX - vdbl);
+				gm->gfx_size_win.height = sm->lClipHeight >> (VRES_MAX - vdbl);
 		}
 		if (half) {
-			p->gfx_size_win.width = p->gfx_size_win.width * 3 / 2;
-			p->gfx_size_win.height = p->gfx_size_win.height * 3 / 2;
+			gm->gfx_size_win.width = gm->gfx_size_win.width * 3 / 2;
+			gm->gfx_size_win.height = gm->gfx_size_win.height * 3 / 2;
 		}
 
 		if (forcesize) {
-			width = p->gfx_size_win.width = sm->lTargetWidth;
-			height = p->gfx_size_win.height = sm->lTargetHeight;
+			width = gm->gfx_size_win.width = sm->lTargetWidth;
+			height = gm->gfx_size_win.height = sm->lTargetHeight;
 		}
 
 		if (fs == 1) {
-			width = p->gfx_size_fs.width = p->gfx_size_win.width;
-			height = p->gfx_size_fs.height = p->gfx_size_win.height;
+			width = gm->gfx_size_fs.width = gm->gfx_size_win.width;
+			height = gm->gfx_size_fs.height = gm->gfx_size_win.height;
 		} else if (fs == 2) {
-			width = p->gfx_size_fs.width = disp->rect.right - disp->rect.left;
-			height = p->gfx_size_fs.height = disp->rect.bottom - disp->rect.top;
+			width = gm->gfx_size_fs.width = disp->rect.right - disp->rect.left;
+			height = gm->gfx_size_fs.height = disp->rect.bottom - disp->rect.top;
 		}
 	}
 
@@ -991,7 +998,7 @@ static void set_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 	}
 	p->rtg_horiz_zoom_mult = p->rtg_vert_zoom_mult = m;
 
-	if (WIN32GFX_IsPicassoScreen ()) {
+	if (WIN32GFX_IsPicassoScreen(mon)) {
 
 		int m = 1;
 		if (fs == 2) {
@@ -1007,8 +1014,8 @@ static void set_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 			}
 		}
 
-		p->gfx_size_win.width = picasso_vidinfo.width * m;
-		p->gfx_size_win.height = picasso_vidinfo.height * m;
+		gm->gfx_size_win.width = vidinfo->width * m;
+		gm->gfx_size_win.height = vidinfo->height * m;
 
 		hmult = m;
 		vmult = m;
@@ -1059,8 +1066,8 @@ static void set_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 				p->gfx_xcenter_size = -1;
 				p->gfx_ycenter_size = -1;
 				if (!forcesize) {
-					p->gfx_size_win.width = AMIGA_WIDTH_MAX << currprefs.gfx_resolution;
-					p->gfx_size_win.height = AMIGA_HEIGHT_MAX << currprefs.gfx_vresolution;;
+					gm->gfx_size_win.width = AMIGA_WIDTH_MAX << currprefs.gfx_resolution;
+					gm->gfx_size_win.height = AMIGA_HEIGHT_MAX << currprefs.gfx_vresolution;;
 				}
 			}
 
@@ -1091,15 +1098,15 @@ static void set_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 	if (log_rp & 2) {
 		write_log(_T("%dx%d %dx%d %dx%d %08x HM=%.1f VM=%.1f\n"),
 			sm->lClipLeft, sm->lClipTop, sm->lClipWidth, sm->lClipHeight, sm->lTargetWidth, sm->lTargetHeight, sm->dwClipFlags, hmult, vmult);
-		if (WIN32GFX_IsPicassoScreen ()) {
+		if (WIN32GFX_IsPicassoScreen(mon)) {
 			write_log (_T("RTG WW=%d WH=%d FW=%d FH=%d HM=%.1f VM=%.1f\n"),
-				p->gfx_size_win.width, p->gfx_size_win.height,
-				p->gfx_size_fs.width, p->gfx_size_fs.height,
+				gm->gfx_size_win.width, gm->gfx_size_win.height,
+				gm->gfx_size_fs.width, gm->gfx_size_fs.height,
 				p->rtg_horiz_zoom_mult, p->rtg_vert_zoom_mult);
 		} else {
 			write_log (_T("WW=%d (%d) WH=%d (%d) FW=%d (%d) FH=%d (%d) HM=%.1f VM=%.1f XP=%d YP=%d XS=%d YS=%d AS=%d AR=%d,%d\n"),
-				p->gfx_size_win.width, currprefs.gfx_size_win.width, p->gfx_size_win.height, currprefs.gfx_size.height,
-				p->gfx_size_fs.width, currprefs.gfx_size_fs.width, p->gfx_size_fs.height, currprefs.gfx_size_fs.height,
+				gm->gfx_size_win.width, gmc->gfx_size_win.width, gm->gfx_size_win.height, gmc->gfx_size.height,
+				gm->gfx_size_fs.width, gmc->gfx_size_fs.width, gm->gfx_size_fs.height, gmc->gfx_size_fs.height,
 				p->gf[0].gfx_filter_horiz_zoom_mult, p->gf[0].gfx_filter_vert_zoom_mult,
 				p->gfx_xcenter_pos, p->gfx_ycenter_pos,
 				p->gfx_xcenter_size, p->gfx_ycenter_size,
@@ -1107,18 +1114,18 @@ static void set_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 		}
 	}
 
-	updatewinfsmode (p);
+	updatewinfsmode(0, p);
 	hwndset = 0;
 	set_config_changed ();
 #if 0
 	write_log (_T("AFTER WW=%d (%d) WH=%d (%d) FW=%d (%d) FH=%d (%d) HM=%.1f VM=%.1f XP=%d YP=%d XS=%d YS=%d AS=%d AR=%d,%d\n"),
-		p->gfx_size_win.width, currprefs.gfx_size_win.width, p->gfx_size_win.height, currprefs.gfx_size.height,
-		p->gfx_size_fs.width, currprefs.gfx_size_fs.width, p->gfx_size_fs.height, currprefs.gfx_size_fs.height,
+		gm->gfx_size_win.width, currprefs.gfx_size_win.width, gm->gfx_size_win.height, currprefs.gfx_size.height,
+		gm->gfx_size_fs.width, currprefs.gfx_size_fs.width, gm->gfx_size_fs.height, currprefs.gfx_size_fs.height,
 		p->gf[0].gfx_filter_horiz_zoom_mult, p->gf[0].gfx_filter_vert_zoom_mult,
 		p->gfx_xcenter_pos, p->gfx_ycenter_pos,
 		p->gfx_xcenter_size, p->gfx_ycenter_size,
 		p->gf[0].gfx_filter_autoscale, p->gf[0].gfx_filter_aspect, p->gf[0].gfx_filter_keep_aspect);
-	write_log (_T("AFTER W=%d (%d) H=%d (%d)\n"), p->gfx_size.width, currprefs.gfx_size.width, p->gfx_size.height, currprefs.gfx_size.height);
+	write_log (_T("AFTER W=%d (%d) H=%d (%d)\n"), gm->gfx_size.width, currprefs.gfx_size.width, gm->gfx_size.height, currprefs.gfx_size.height);
 #endif
 }
 
@@ -1160,6 +1167,7 @@ void parse_guest_event(const TCHAR *ss)
 static LRESULT CALLBACK RPHostMsgFunction2 (UINT uMessage, WPARAM wParam, LPARAM lParam,
 	LPCVOID pData, DWORD dwDataSize, LPARAM lMsgFunctionParam)
 {
+	struct AmigaMonitor *mon = &AMonitors[0];
 	if (log_rp & 1) {
 		write_log (_T("RPFUNC(%s [%d], %08x, %08x, %08x, %d, %08x)\n"),
 		getmsg (uMessage), uMessage - WM_APP, wParam, lParam, pData, dwDataSize, lMsgFunctionParam);
@@ -1216,9 +1224,9 @@ static LRESULT CALLBACK RPHostMsgFunction2 (UINT uMessage, WPARAM wParam, LPARAM
 	case RP_IPC_TO_GUEST_MOUSECAPTURE:
 		{
 			if (wParam & RP_MOUSECAPTURE_CAPTURED)
-				setmouseactive (1);
+				setmouseactive(0, 1);
 			else
-				setmouseactive (0);
+				setmouseactive(0, 0);
 		}
 		return TRUE;
 	case RP_IPC_TO_GUEST_DEVICECONTENT:
@@ -1280,30 +1288,31 @@ static LRESULT CALLBACK RPHostMsgFunction2 (UINT uMessage, WPARAM wParam, LPARAM
 				if (rpsc->szScreenFiltered[0])
 					ok = screenshotf (rpsc->szScreenFiltered, 1, 1, 0, NULL);
 				if (rpsc->szScreenRaw[0]) {
+					struct vidbuf_description *avidinfo = &adisplays[0].gfxvidinfo;
 					struct vidbuffer vb;
-					int w = gfxvidinfo.drawbuffer.inwidth;
-					int h = gfxvidinfo.drawbuffer.inheight;
+					int w = avidinfo->drawbuffer.inwidth;
+					int h = avidinfo->drawbuffer.inheight;
 					if (!programmedmode) {
 						h = (maxvpos + lof_store - minfirstline) << currprefs.gfx_vresolution;
 					}
 					if (interlace_seen && currprefs.gfx_vresolution > 0) {
 						h -= 1 << (currprefs.gfx_vresolution - 1);
 					}
-					allocvidbuffer (&vb, w, h, gfxvidinfo.drawbuffer.pixbytes * 8);
+					allocvidbuffer (0, &vb, w, h, avidinfo->drawbuffer.pixbytes * 8);
 					set_custom_limits (-1, -1, -1, -1);
 					draw_frame (&vb);
 					ok |= screenshotf (rpsc->szScreenRaw, 1, 1, 1, &vb);
 					if (log_rp & 2)
 						write_log (_T("Rawscreenshot %dx%d\n"), w, h);
 					//ok |= screenshotf (_T("c:\\temp\\1.bmp"), 1, 1, 1, &vb);
-					freevidbuffer (&vb);
+					freevidbuffer(0, &vb);
 				}
 				screenshotmode = ossm;
 				if (log_rp & 2)
 					write_log (_T("->%d\n"), ok);
 				if (!ok)
 					return RP_SCREENCAPTURE_ERROR;
-				if (WIN32GFX_IsPicassoScreen ()) {
+				if (WIN32GFX_IsPicassoScreen(mon)) {
 					ret |= RP_GUESTSCREENFLAGS_MODE_DIGITAL;
 				} else {
 					ret |= currprefs.gfx_resolution == RES_LORES ? RP_GUESTSCREENFLAGS_HORIZONTAL_LORES : ((currprefs.gfx_resolution == RES_SUPERHIRES) ? RP_GUESTSCREENFLAGS_HORIZONTAL_SUPERHIRES : 0);
@@ -1529,12 +1538,13 @@ void rp_enumdevices (void)
 
 static void sendfeatures (void)
 {
+	struct AmigaMonitor *mon = &AMonitors[0];
 	DWORD feat;
 
 	feat = RP_FEATURE_POWERLED | RP_FEATURE_SCREEN1X | RP_FEATURE_FULLSCREEN;
 	feat |= RP_FEATURE_PAUSE | RP_FEATURE_TURBO_CPU | RP_FEATURE_TURBO_FLOPPY | RP_FEATURE_VOLUME | RP_FEATURE_SCREENCAPTURE;
 	feat |= RP_FEATURE_STATE | RP_FEATURE_DEVICEREADWRITE;
-	if (WIN32GFX_IsPicassoScreen ()) {
+	if (WIN32GFX_IsPicassoScreen(mon)) {
 		if (currprefs.gfx_api)
 			feat |= RP_FEATURE_SCREEN2X | RP_FEATURE_SCREEN3X | RP_FEATURE_SCREEN4X;
 	} else {
@@ -1547,7 +1557,7 @@ static void sendfeatures (void)
 	feat |= RP_FEATURE_INPUTDEVICE_JOYPAD;
 	feat |= RP_FEATURE_INPUTDEVICE_ANALOGSTICK;
 	feat |= RP_FEATURE_INPUTDEVICE_LIGHTPEN;
-	write_log (_T("RP_IPC_TO_HOST_FEATURES=%x %d\n"), feat, WIN32GFX_IsPicassoScreen());
+	write_log (_T("RP_IPC_TO_HOST_FEATURES=%x %d\n"), feat, WIN32GFX_IsPicassoScreen(mon));
 	RPSendMessagex (RP_IPC_TO_HOST_FEATURES, feat, 0, NULL, 0, &guestinfo, NULL);
 }
 
@@ -1556,7 +1566,7 @@ static bool ishd(int n)
 	struct uaedev_config_data *uci = &currprefs.mountconfig[n];
 	int num = -1;
 	if (uci->ci.controller_type == HD_CONTROLLER_TYPE_UAE) {
-		num = n;
+		return uci->ci.type == UAEDEV_DIR;
 	} else if (uci->ci.controller_type >= HD_CONTROLLER_TYPE_IDE_FIRST && uci->ci.controller_type <= HD_CONTROLLER_TYPE_IDE_LAST) {
 		num = uci->ci.controller_unit;
 	} else if (uci->ci.controller_type >= HD_CONTROLLER_TYPE_SCSI_FIRST && uci->ci.controller_type <= HD_CONTROLLER_TYPE_SCSI_LAST) {
@@ -1567,7 +1577,7 @@ static bool ishd(int n)
 
 void rp_fixup_options (struct uae_prefs *p)
 {
-	int i;
+	struct monconfig *gm = &p->gfx_monitor[0];
 	struct RPScreenMode sm;
 
 	if (!initialized)
@@ -1581,8 +1591,8 @@ void rp_fixup_options (struct uae_prefs *p)
 	maxjports = (rp_version * 256 + rp_revision) >= 2 * 256 + 3 ? MAX_JPORTS : 2;
 
 	write_log (_T("w=%dx%d fs=%dx%d pos=%dx%d %dx%d HV=%d,%d J=%d\n"),
-		p->gfx_size_win.width, p->gfx_size_win.height,
-		p->gfx_size_fs.width, p->gfx_size_fs.height,
+		gm->gfx_size_win.width, gm->gfx_size_win.height,
+		gm->gfx_size_fs.width, gm->gfx_size_fs.height,
 		p->gfx_xcenter_pos, p->gfx_ycenter_pos,
 		p->gfx_xcenter_size, p->gfx_ycenter_size,
 		max_horiz_dbl, max_vert_dbl, maxjports);
@@ -1607,7 +1617,7 @@ void rp_fixup_options (struct uae_prefs *p)
 
 	/* floppy drives */
 	floppy_mask = 0;
-	for (i = 0; i < 4; i++) {
+	for (int i = 0; i < 4; i++) {
 		if (p->floppyslots[i].dfxtype >= 0)
 			floppy_mask |= 1 << i;
 	}
@@ -1619,7 +1629,7 @@ void rp_fixup_options (struct uae_prefs *p)
 	gameportmask[0] = gameportmask[1] = gameportmask[2] = gameportmask[3] = 0;
 
 	int parportmask = 0;
-	for (i = 0; i < 2; i++) {
+	for (int i = 0; i < 2; i++) {
 		if (p->jports[i + 2].idc.configname[0] || p->jports[i + 2].idc.name[0] || p->jports[i + 2].idc.shortid[0])
 			parportmask |= 1 << i;
 	}
@@ -1631,26 +1641,26 @@ void rp_fixup_options (struct uae_prefs *p)
 
 	hd_mask = 0;
 	cd_mask = 0;
-	for (i = 0; i < currprefs.mountitems; i++) {
+	for (int i = 0; i < currprefs.mountitems; i++) {
 		if (ishd(i))
 			hd_mask |= 1 << i;
 	}
 	RPSendMessagex (RP_IPC_TO_HOST_DEVICES, RP_DEVICECATEGORY_HD, hd_mask, NULL, 0, &guestinfo, NULL);
 	if (hd_mask) {
-		for (i = 0; i < currprefs.mountitems; i++) {
+		for (int i = 0; i < currprefs.mountitems; i++) {
 			struct uaedev_config_data *uci = &currprefs.mountconfig[i];
 			if (ishd(i) && ((1 << i) & hd_mask))
 				rp_harddrive_image_change (i, uci->ci.readonly, uci->ci.rootdir);
 		}
 	}
 
-	for (i = 0; i < MAX_TOTAL_SCSI_DEVICES; i++) {
+	for (int i = 0; i < MAX_TOTAL_SCSI_DEVICES; i++) {
 		if (p->cdslots[i].inuse)
 			cd_mask |= 1 << i;
 	}
 	RPSendMessagex (RP_IPC_TO_HOST_DEVICES, RP_DEVICECATEGORY_CD, cd_mask, NULL, 0, &guestinfo, NULL);
 	if (cd_mask) {
-		for (i = 0; i < MAX_TOTAL_SCSI_DEVICES; i++) {
+		for (int i = 0; i < MAX_TOTAL_SCSI_DEVICES; i++) {
 			if (p->cdslots[i].inuse)
 				rp_cd_image_change (i, p->cdslots[i].name);
 		}
@@ -1659,7 +1669,7 @@ void rp_fixup_options (struct uae_prefs *p)
 	rp_update_volume (&currprefs);
 	rp_turbo_cpu (currprefs.turbo_emulation);
 	rp_turbo_floppy (currprefs.floppy_speed == 0);
-	for (i = 0; i <= 4; i++)
+	for (int i = 0; i <= 4; i++)
 		rp_update_leds (i, 0, -1, 0);
 	set_config_changed ();
 
@@ -2019,12 +2029,13 @@ static uae_u64 gett (void)
 
 void rp_vsync (void)
 {
+	struct AmigaMonitor *mon = &AMonitors[0];
 	if (!initialized)
 		return;
 	if (hwndset_delay > 0) {
 		hwndset_delay--;
 		if (hwndset_delay == 0)
-			rp_set_hwnd (hAmigaWnd);
+			rp_set_hwnd(mon->hAmigaWnd);
 	}
 
 	if (screenmode_request) {

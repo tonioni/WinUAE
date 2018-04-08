@@ -15,17 +15,17 @@
 #define GETBDM(x) (((x) - ((x / 10000) * 10000)) / 100)
 #define GETBDD(x) ((x) % 100)
 
-#define WINUAEPUBLICBETA 0
+#define WINUAEPUBLICBETA 1
 #define LANG_DLL 1
 #define LANG_DLL_FULL_VERSION_MATCH 1
 
 #if WINUAEPUBLICBETA
-#define WINUAEBETA _T("")
+#define WINUAEBETA _T("1")
 #else
 #define WINUAEBETA _T("")
 #endif
 
-#define WINUAEDATE MAKEBD(2018, 3, 4)
+#define WINUAEDATE MAKEBD(2018, 4, 8)
 
 //#define WINUAEEXTRA _T("AmiKit Preview")
 //#define WINUAEEXTRA _T("Amiga Forever Edition")
@@ -40,10 +40,7 @@
 #define IHF_WINDOWHIDDEN 6
 #define WINUAEAPPNAME _T("Arabuusimiehet.WinUAE")
 extern HMODULE hUIDLL;
-extern HWND hAmigaWnd, hMainWnd, hHiddenWnd, hGUIWnd;
-extern RECT amigawin_rect, mainwin_rect;
-extern int in_sizemove;
-extern int manual_painting_needed;
+extern HWND hHiddenWnd, hGUIWnd;
 extern int mouseactive;
 extern int minimized;
 extern int monitor_off;
@@ -67,28 +64,27 @@ void WIN32_HandleRegistryStuff (void);
 extern void setup_brkhandler (void);
 extern void remove_brkhandler (void);
 extern void disablecapture (void);
-extern int isfocus (void);
+extern int isfocus(void);
 extern void gui_restart (void);
 int timebegin (void);
 int timeend (void);
 
-extern void setmouseactive (int active);
-extern void minimizewindow (void);
-extern uae_u32 OSDEP_minimize_uae (void);
-extern void updatemouseclip (void);
-extern void updatewinrect (bool);
+extern void setmouseactive(int monid, int active);
+extern void minimizewindow(int monid);
+extern uae_u32 OSDEP_minimize_uae(void);
+extern void updatemouseclip(struct AmigaMonitor*);
+extern void updatewinrect(struct AmigaMonitor*, bool);
 
 extern bool resumepaused (int priority);
 extern bool setpaused (int priority);
-extern void unsetminimized (void);
-extern void setminimized (void);
+extern void unsetminimized (int monid);
+extern void setminimized(int monid);
 
 void finishjob (void);
-void init_colors (void);
+void init_colors(int monid);
 
 extern int pause_emulation;
 extern int sound_available;
-extern int framecnt;
 extern TCHAR VersionStr[256];
 extern TCHAR BetaStr[64];
 extern int os_admin, os_64bit, os_vista, os_win7, os_win8, os_win10, cpu_number, os_touch;
@@ -99,10 +95,7 @@ extern int gui_active;
 extern int quickstart, configurationcache, saveimageoriginalpath, relativepaths, artcache, recursiveromscan;
 
 extern HKEY hWinUAEKey;
-extern int screen_is_picasso;
 extern HINSTANCE hInst;
-extern int win_x_diff, win_y_diff;
-extern int window_extra_width, window_extra_height;
 extern int af_path_2005;
 extern TCHAR start_path_new1[MAX_DPATH], start_path_new2[MAX_DPATH];
 extern TCHAR bootlogpath[MAX_DPATH];

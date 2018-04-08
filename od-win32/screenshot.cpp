@@ -56,11 +56,12 @@ static void namesplit (TCHAR *s)
 
 static int toclipboard (BITMAPINFO *bi, void *bmp)
 {
+	struct AmigaMonitor *mon = &AMonitors[0];
 	int v = 0;
 	uae_u8 *dib = 0;
 	HANDLE hg;
 
-	if (!OpenClipboard (hMainWnd))
+	if (!OpenClipboard(mon->hMainWnd))
 		return v;
 	EmptyClipboard ();
 	hg = GlobalAlloc (GMEM_MOVEABLE | GMEM_DDESHARE, bi->bmiHeader.biSize + bi->bmiHeader.biSizeImage);
@@ -108,6 +109,7 @@ static int rgb_rb, rgb_gb, rgb_bb, rgb_rs, rgb_gs, rgb_bs, rgb_ab, rgb_as;
 
 static int screenshot_prepare (int imagemode, struct vidbuffer *vb)
 {
+	struct AmigaMonitor *mon = &AMonitors[0];
 	int width, height;
 	HGDIOBJ hgdiobj;
 	int bits;
@@ -131,8 +133,8 @@ static int screenshot_prepare (int imagemode, struct vidbuffer *vb)
 		int screenshot_width = 0, screenshot_height = 0;
 		int screenshot_xoffset = -1, screenshot_yoffset = -1;
 
-		if (WIN32GFX_IsPicassoScreen ()) {
-			src = mem = getrtgbuffer (&width, &height, &spitch, &bits, pal);
+		if (WIN32GFX_IsPicassoScreen(mon)) {
+			src = mem = getrtgbuffer(0, &width, &height, &spitch, &bits, pal);
 			needfree = true;
 			rgb_bb2 = 8;
 			rgb_gb2 = 8;
@@ -157,7 +159,7 @@ static int screenshot_prepare (int imagemode, struct vidbuffer *vb)
 			rgb_rs2 = rgb_rs;
 			rgb_as2 = rgb_as;
 		} else {
-			src = mem = getfilterbuffer (&width, &height, &spitch, &bits);
+			src = mem = getfilterbuffer(0, &width, &height, &spitch, &bits);
 			needfree = true;
 			rgb_bb2 = rgb_bb;
 			rgb_gb2 = rgb_gb;
@@ -172,10 +174,10 @@ static int screenshot_prepare (int imagemode, struct vidbuffer *vb)
 			goto donormal;
 		if (width == 0 || height == 0) {
 			if (needfree) {
-				if (WIN32GFX_IsPicassoScreen())
-					freertgbuffer(mem);
+				if (WIN32GFX_IsPicassoScreen(mon))
+					freertgbuffer(0, mem);
 				else
-					freefilterbuffer(mem);
+					freefilterbuffer(0, mem);
 			}
 			goto donormal;
 		}
@@ -192,7 +194,7 @@ static int screenshot_prepare (int imagemode, struct vidbuffer *vb)
 		screenshot_xoffset = currprefs.screenshot_xoffset;
 		screenshot_yoffset = currprefs.screenshot_yoffset;
 
-		if (!WIN32GFX_IsPicassoScreen() && screenshot_clipmode == 1) {
+		if (!WIN32GFX_IsPicassoScreen(mon) && screenshot_clipmode == 1) {
 			int cw, ch, cx, cy, crealh = 0;
 			if (get_custom_limits(&cw, &ch, &cx, &cy, &crealh)) {
 				int maxw = currprefs.screenshot_max_width << currprefs.gfx_resolution;
@@ -269,10 +271,10 @@ static int screenshot_prepare (int imagemode, struct vidbuffer *vb)
 		}
 		if (!(lpvBits = xmalloc(uae_u8, bi->bmiHeader.biSizeImage))) {
 			if (needfree) {
-				if (WIN32GFX_IsPicassoScreen())
-					freertgbuffer(mem);
+				if (WIN32GFX_IsPicassoScreen(mon))
+					freertgbuffer(0, mem);
 				else
-					freefilterbuffer(mem);
+					freefilterbuffer(0, mem);
 			}
 			goto oops;
 		}
@@ -389,22 +391,22 @@ static int screenshot_prepare (int imagemode, struct vidbuffer *vb)
 			src += spitch;
 		}
 		if (needfree) {
-			if (WIN32GFX_IsPicassoScreen())
-				freertgbuffer(mem);
+			if (WIN32GFX_IsPicassoScreen(mon))
+				freertgbuffer(0, mem);
 			else
-				freefilterbuffer(mem);
+				freefilterbuffer(0, mem);
 		}
 
 	} else {
 donormal:
 		bool d3dcaptured = false;
-		width = WIN32GFX_GetWidth ();
-		height = WIN32GFX_GetHeight ();
+		width = WIN32GFX_GetWidth(mon);
+		height = WIN32GFX_GetHeight(mon);
 
-		if (D3D_isenabled() == 2) {
+		if (D3D_isenabled(0) == 2) {
 			int w, h, pitch, bits = 32;
 			void *data;
-			bool got = D3D11_capture(&data, &w, &h, &pitch);
+			bool got = D3D11_capture(0, &data, &w, &h, &pitch);
 
 			int dpitch = (((w * depth + 31) & ~31) / 8);
 			lpvBits = xmalloc(uae_u8, dpitch * h);
@@ -441,14 +443,14 @@ donormal:
 				}
 			}
 			if (got)
-				D3D11_capture(NULL, NULL, NULL, NULL);
+				D3D11_capture(0, NULL, NULL, NULL, NULL);
 			d3dcaptured = true;
 
-		} else if (D3D_isenabled() == 1) {
+		} else if (D3D_isenabled(0) == 1) {
 			int w, h, bits;
 			HRESULT hr;
 			D3DLOCKED_RECT l;
-			LPDIRECT3DSURFACE9 s = D3D_capture(&w, &h, &bits);
+			LPDIRECT3DSURFACE9 s = D3D_capture(0, &w, &h, &bits);
 			if (s) {
 				hr = s->LockRect(&l, NULL, D3DLOCK_READONLY);
 				if (SUCCEEDED(hr)) {
@@ -831,7 +833,7 @@ oops:
 
 #include "drawing.h"
 
-void screenshot (int mode, int doprepare)
+void screenshot(int monid, int mode, int doprepare)
 {
 	if (mode == 2) {
 		screenshot_multi = 10;

@@ -541,52 +541,58 @@ struct picasso96_state_struct
     long		XYOffset;
 };
 
-extern void InitPicasso96 (void);
+extern void InitPicasso96(int monid);
 
 extern int uaegfx_card_found;
 
-extern struct picasso96_state_struct picasso96_state;
-extern uae_u16 picasso96_pixel_format;
+extern struct picasso96_state_struct picasso96_state[MAX_AMIGAMONITORS];
 
-extern void picasso_enablescreen (int on);
-extern void picasso_refresh (void);
-extern void init_hz_p96 (void);
-extern void picasso_handle_hsync (void);
-extern void picasso_handle_vsync (void);
-extern void picasso_trigger_vblank (void);
-extern void picasso_reset (void);
-extern bool picasso_is_active (void);
-extern int picasso_setwincursor (void);
-extern int picasso_palette (struct MyCLUTEntry *CLUT);
+extern void picasso_enablescreen(int monid, int on);
+extern void picasso_refresh(int monid);
+extern void init_hz_p96(int monid);
+extern void picasso_handle_hsync(void);
+extern void picasso_handle_vsync(void);
+extern void picasso_trigger_vblank(void);
+extern void picasso_reset(int monid);
+extern bool picasso_is_active(int monid);
+extern int picasso_setwincursor(int monid);
+extern int picasso_palette(int monid, struct MyCLUTEntry *CLUT);
 extern void picasso_allocatewritewatch (int index, int gfxmemsize);
 extern void picasso_getwritewatch (int index, int offset);
 extern bool picasso_is_vram_dirty (int index, uaecptr addr, int size);
-extern void picasso_statusline (uae_u8 *dst);
-extern void picasso_invalidate (int x, int y, int w, int h);
+extern void picasso_statusline (int monid, uae_u8 *dst);
+extern void picasso_invalidate(int monid, int x, int y, int w, int h);
 extern void picasso_free(void);
 
 /* This structure describes the UAE-side framebuffer for the Picasso
  * screen.  */
 struct picasso_vidbuf_description {
-    int width, height, depth;
-    int rowbytes, pixbytes, offset;
-    int extra_mem; /* nonzero if there's a second buffer that must be updated */
-    uae_u32 rgbformat;
-    uae_u32 selected_rgbformat;
-    uae_u32 clut[256];
+	int width, height, depth;
+	int rowbytes, pixbytes, offset;
+	int extra_mem; /* nonzero if there's a second buffer that must be updated */
+	uae_u32 rgbformat;
+	uae_u32 selected_rgbformat;
+	uae_u32 clut[256];
+	int picasso_convert, host_mode;
+	int ohost_mode, orgbformat;
+	int full_refresh;
+	int set_panning_called;
+	int rtg_clear_flag;
+	bool picasso_active;
+	bool picasso_changed;
+	uae_atomic picasso_state_change;
 };
 
-extern struct picasso_vidbuf_description picasso_vidinfo;
+extern struct picasso_vidbuf_description picasso_vidinfo[MAX_AMIGAMONITORS];
 
-extern void gfx_set_picasso_modeinfo (RGBFTYPE rgbfmt);
-extern void gfx_set_picasso_colors (RGBFTYPE rgbfmt);
-extern void gfx_set_picasso_baseaddr (uaecptr);
-extern void gfx_set_picasso_state (int on);
-extern uae_u8 *gfx_lock_picasso (bool, bool);
-extern void gfx_unlock_picasso (bool);
-extern int createwindowscursor (uaecptr src, int w, int h, int hiressprite, int doubledsprite, int chipset);
+extern void gfx_set_picasso_modeinfo(int monid, RGBFTYPE rgbfmt);
+extern void gfx_set_picasso_colors(int monid, RGBFTYPE rgbfmt);
+extern void gfx_set_picasso_state(int monid,int on);
+extern uae_u8 *gfx_lock_picasso(int monid, bool, bool);
+extern void gfx_unlock_picasso(int monid, bool);
+extern int createwindowscursor(int monid, uaecptr src, int w, int h, int hiressprite, int doubledsprite, int chipset);
 
-void fb_copyrow(uae_u8 *src, uae_u8 *dst, int x, int y, int width, int srcpixbytes, int dy);
+void fb_copyrow(int monid, uae_u8 *src, uae_u8 *dst, int x, int y, int width, int srcpixbytes, int dy);
 
 extern int p96refresh_active;
 

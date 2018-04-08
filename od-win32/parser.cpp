@@ -1349,10 +1349,10 @@ int flashscreen;
 void doflashscreen (void)
 {
 	flashscreen = 10;
-	init_colors ();
-	picasso_refresh ();
+	init_colors(0);
+	picasso_refresh(0);
 	reset_drawing ();
-	flush_screen (gfxvidinfo.outbuffer, 0, 0);
+	//flush_screen (gfxvidinfo.outbuffer, 0, 0);
 }
 
 void hsyncstuff (void)
@@ -1385,10 +1385,10 @@ void hsyncstuff (void)
 			if (flashscreen > 0) {
 				flashscreen--;
 				if (flashscreen == 0) {
-					init_colors ();
+					init_colors(0);
 					reset_drawing ();
-					picasso_refresh ();
-					flush_screen (gfxvidinfo.outbuffer, 0, 0);
+					picasso_refresh(0);
+					//flush_screen (gfxvidinfo.outbuffer, 0, 0);
 				}
 			}
 		}

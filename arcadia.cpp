@@ -1044,14 +1044,16 @@ static int ts_height_offset = -8;
 
 int touch_serial_write(void)
 {
+	struct vidbuf_description *avidinfo = &adisplays[0].gfxvidinfo;
+
 	if (!(cubo_settings & 0x40000))
 		return -1;
 
 	if (!touch_write_buf_offset && touch_active) {
 		if ((cubo_flag & 0x80000000) && !(cubo_flag & 0x40000000)) {
 			uae_u8 *p = touch_data_w;
-			int sw = gfxvidinfo.drawbuffer.inwidth * ts_width_mult / 1000;
-			int sh = gfxvidinfo.drawbuffer.inheight * ts_height_mult / 1000;
+			int sw = avidinfo->drawbuffer.inwidth * ts_width_mult / 1000;
+			int sh = avidinfo->drawbuffer.inheight * ts_height_mult / 1000;
 
 			int x = ((lightpen_x[0] + ts_width_offset) * 999) / sw;
 			int y = ((lightpen_y[0] + ts_height_offset) * 999) / sh;
