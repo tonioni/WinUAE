@@ -3391,7 +3391,7 @@ static void	do_info(TrapContext *ctx, Unit *unit, dpacket *packet, uaecptr info,
 		put_long_host(buf + 12, (uae_u32)numblocks); /* numblocks */
 		put_long_host(buf + 16, (uae_u32)inuse); /* inuse */
 		put_long_host(buf + 20, blocksize); /* bytesperblock */
-		put_long_host(buf + 24, dostype); /* disk type */
+		put_long_host(buf + 24, dostype == DISK_TYPE_DOS && kickstart_version >= 36 ? DISK_TYPE_DOS_FFS : dostype); /* disk type */
 		put_long_host(buf + 28, unit->volume >> 2); /* volume node */
 		put_long_host(buf + 32, (get_long(unit->volume + 28) || unit->keys) ? -1 : 0); /* inuse */
 	}
