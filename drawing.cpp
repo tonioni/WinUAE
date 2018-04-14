@@ -3712,6 +3712,12 @@ void draw_lines(int end, int section)
 	if (end < 0)
 		return;
 	end <<= linedbl;
+	if (min_ypos_for_screen > 0 && thisframe_y_adjust_real > 0) {
+		end += min_ypos_for_screen;
+		end -= thisframe_y_adjust_real;
+		if (end < 0)
+			return;
+	}
 
 	vidinfo->outbuffer = vb;
 	if (!lockscr(vb, false, vb->last_drawn_line ? false : true))
@@ -3722,12 +3728,15 @@ void draw_lines(int end, int section)
 		int line = i + thisframe_y_adjust_real;
 		int whereline = amiga2aspect_line_map[i1];
 		int wherenext = amiga2aspect_line_map[i1 + 1];
-		if (whereline >= vb->inheight)
+		if (whereline >= vb->inheight) {
+			y_end = vb->inheight - 1;
 			break;
+		}
 		if (whereline < 0)
 			continue;
-		if (y_start < 0)
+		if (y_start < 0) {
 			y_start = whereline;
+		}
 		hposblank = 0;
 		pfield_draw_line(vb, line, whereline, wherenext);
 
