@@ -725,6 +725,8 @@ void freefilterbuffer(int monid, uae_u8 *buf)
 	struct vidbuffer *vb = avidinfo->outbuffer;
 	struct uae_filter *usedfilter = mon->usedfilter;
 
+	if (!vb)
+		return;
 	if (usedfilter == NULL) {
 		unlockscr3d(vb);
 	}
@@ -740,6 +742,8 @@ uae_u8 *getfilterbuffer(int monid, int *widthp, int *heightp, int *pitch, int *d
 	*widthp = 0;
 	*heightp = 0;
 	*depth = amiga_depth;
+	if (!vb)
+		return NULL;
 	if (usedfilter == NULL) {
 		if (!lockscr3d(vb)) {
 			return NULL;
