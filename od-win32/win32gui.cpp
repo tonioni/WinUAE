@@ -18304,15 +18304,21 @@ static void values_to_hw3ddlg (HWND hDlg)
 		h = FindFirstFile (tmp, &wfd);
 		i = 0; j = 1;
 		while (h != INVALID_HANDLE_VALUE) {
-			TCHAR *ext = _tcsrchr (wfd.cFileName, '.');
+			TCHAR *fname = wfd.cFileName;
+			TCHAR *ext = _tcsrchr (fname, '.');
 			if (ext && (
 				!_tcsicmp (ext, _T(".png")) ||
 				(!_tcsicmp (ext, _T(".bmp")) && workprefs.gfx_api != 2)))
 			{
-				SendDlgItemMessage (hDlg, IDC_FILTEROVERLAY, CB_ADDSTRING, 0, (LPARAM)wfd.cFileName);
-				if (!_tcsicmp (wfd.cFileName, overlaytype == 0 ? workprefs.gf[filter_nativertg].gfx_filteroverlay : workprefs.gf[filter_nativertg].gfx_filtermask[filterstackpos]))
-					SendDlgItemMessage (hDlg, IDC_FILTEROVERLAY, CB_SETCURSEL, j, 0);
-				j++;
+				for (;;) {
+					if (!overlaytype && _tcslen(fname) > 4 + 1 + 3 && !_tcsnicmp(fname + _tcslen(fname) - (4 + 1 + 3), _T("_led"), 4))
+						break;
+					SendDlgItemMessage(hDlg, IDC_FILTEROVERLAY, CB_ADDSTRING, 0, (LPARAM)fname);
+					if (!_tcsicmp(wfd.cFileName, overlaytype == 0 ? workprefs.gf[filter_nativertg].gfx_filteroverlay : workprefs.gf[filter_nativertg].gfx_filtermask[filterstackpos]))
+						SendDlgItemMessage(hDlg, IDC_FILTEROVERLAY, CB_SETCURSEL, j, 0);
+					j++;
+					break;
+				}
 
 			}
 			if (!FindNextFile (h, &wfd)) {
@@ -21029,6 +21035,8 @@ void gui_led (int led, int on, int brightness)
 #ifdef LOGITECHLCD
 	lcd_update (led, on);
 #endif
+	if (D3D_led)
+		D3D_led(led, on, brightness);
 #ifdef RETROPLATFORM
 	if (led >= LED_DF0 && led <= LED_DF3 && !gui_data.drive_disabled[led - LED_DF0]) {
 		rp_floppy_track (led - LED_DF0, gui_data.drive_track[led - LED_DF0]);

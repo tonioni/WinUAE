@@ -31,6 +31,7 @@
 #include "hq2x_d3d.h"
 #include "zfile.h"
 #include "uae.h"
+#include "gui.h"
 #include "threaddep\thread.h"
 
 extern int D3DEX, shaderon, d3ddebug;
@@ -47,6 +48,32 @@ static int filterd3didx;
 
 static bool showoverlay = true;
 int fakemodewaitms;
+
+static int leds[LED_MAX];
+
+static const TCHAR *overlayleds[] = {
+	_T("power"),
+	_T("df0"),
+	_T("df1"),
+	_T("df2"),
+	_T("df3"),
+	_T("hd"),
+	_T("cd"),
+	_T("md"),
+	_T("net"),
+	NULL
+};
+static const int ledtypes[] = {
+	LED_POWER,
+	LED_DF0,
+	LED_DF1,
+	LED_DF2,
+	LED_DF3,
+	LED_HD,
+	LED_CD,
+	LED_MD,
+	LED_NET
+}; 
 
 #define MAX_PASSES 2
 
@@ -116,7 +143,9 @@ struct d3dstruct
 	IDirect3DDevice9 *d3ddev;
 	IDirect3DDevice9Ex *d3ddevex;
 	D3DSURFACE_DESC dsdbb;
-	LPDIRECT3DTEXTURE9 texture, sltexture, ledtexture, mask2texture, blanktexture;
+	LPDIRECT3DTEXTURE9 texture, sltexture, ledtexture, blanktexture;
+	LPDIRECT3DTEXTURE9 mask2texture, mask2textureleds[9];
+	int mask2textureledoffsets[9 * 2];
 	IDirect3DQuery9 *query;
 	float mask2texture_w, mask2texture_h, mask2texture_ww, mask2texture_wh;
 	float mask2texture_wwx, mask2texture_hhx, mask2texture_minusx, mask2texture_minusy;
@@ -1500,10 +1529,16 @@ static int createmask2texture (struct d3dstruct *d3d, const TCHAR *filename)
 	HRESULT hr;
 	D3DXIMAGE_INFO dinfo;
 	TCHAR tmp[MAX_DPATH];
+	TCHAR filepath[MAX_DPATH];
 
 	if (d3d->mask2texture)
 		d3d->mask2texture->Release();
 	d3d->mask2texture = NULL;
+	for (int i = 0; overlayleds[i]; i++) {
+		if (d3d->mask2textureleds[i])
+			d3d->mask2textureleds[i]->Release();
+		d3d->mask2textureleds[i] = NULL;
+	}
 
 	if (filename[0] == 0 || WIN32GFX_IsPicassoScreen(mon))
 		return 0;
@@ -1537,6 +1572,7 @@ static int createmask2texture (struct d3dstruct *d3d, const TCHAR *filename)
 			}
 			_tcscpy (tmp2, s);
 			_stprintf (s, _T("_%dx%d%s"), d3d->window_w, d3d->window_h, tmp2);
+			_tcscpy(filepath, tmp3);
 			zf = zfile_fopen (tmp3, _T("rb"), ZFD_NORMAL);
 			if (zf)
 				break;
@@ -1550,11 +1586,13 @@ static int createmask2texture (struct d3dstruct *d3d, const TCHAR *filename)
 				ax = 4, ay = 3;
 			if (ax > 0 && ay > 0) {
 				_stprintf (s, _T("_%dx%d%s"), ax, ay, tmp2);
+				_tcscpy(filepath, tmp3);
 				zf = zfile_fopen (tmp3, _T("rb"), ZFD_NORMAL);
 				if (zf)
 					break;
 			}
 		}
+		_tcscpy(filepath, tmp3);
 		zf = zfile_fopen (tmp, _T("rb"), ZFD_NORMAL);
 		if (zf)
 			break;
@@ -2087,6 +2125,11 @@ static void invalidatedeviceobjects (struct d3dstruct *d3d)
 	if (d3d->mask2texture) {
 		d3d->mask2texture->Release ();
 		d3d->mask2texture = NULL;
+	}
+	for (int i = 0; overlayleds[i]; i++) {
+		if (d3d->mask2textureleds[i])
+			d3d->mask2textureleds[i]->Release();
+		d3d->mask2textureleds[i] = NULL;
 	}
 	if (d3d->blanktexture) {
 		d3d->blanktexture->Release ();
@@ -3748,6 +3791,7 @@ void d3d9_select(void)
 	D3D_getscalerect = xD3D_getscalerect;
 	D3D_run = NULL;
 	D3D_debug = xD3D_debug;
+	D3D_led = NULL;
 }
 
 #endif

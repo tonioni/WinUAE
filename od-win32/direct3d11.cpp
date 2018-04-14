@@ -24,6 +24,7 @@ using Microsoft::WRL::ComPtr;
 #include "zfile.h"
 #include "statusline.h"
 #include "hq2x_d3d.h"
+#include "gui.h"
 
 #include "d3dx.h"
 
@@ -62,11 +63,37 @@ void (*D3D_change)(int, int);
 bool(*D3D_getscalerect)(int, float *mx, float *my, float *sx, float *sy);
 void(*D3D_run)(int);
 int(*D3D_debug)(int, int);
+void(*D3D_led)(int, int, int);
 
 static HMODULE hd3d11, hdxgi, hd3dcompiler, dwmapi;
 
 static struct gfx_filterdata *filterd3d;
 static int filterd3didx;
+static int leds[LED_MAX];
+
+static const TCHAR *overlayleds[] = {
+	_T("power"),
+	_T("df0"),
+	_T("df1"),
+	_T("df2"),
+	_T("df3"),
+	_T("hd"),
+	_T("cd"),
+	_T("md"),
+	_T("net"),
+	NULL
+};
+static const int ledtypes[] = {
+	LED_POWER,
+	LED_DF0,
+	LED_DF1,
+	LED_DF2,
+	LED_DF3,
+	LED_HD,
+	LED_CD,
+	LED_MD,
+	LED_NET
+};
 
 #define SHADERTYPE_BEFORE 1
 #define SHADERTYPE_AFTER 2
@@ -151,8 +178,8 @@ struct d3d11sprite
 	ID3D11Buffer *vertexbuffer, *indexbuffer;
 	ID3D11Buffer *matrixbuffer;
 	int width, height;
-	int x, y;
-	int outwidth, outheight;
+	float x, y;
+	float outwidth, outheight;
 	bool enabled;
 	bool alpha;
 	bool bilinear;
@@ -236,6 +263,8 @@ struct d3d11struct
 	struct d3d11sprite osd;
 	struct d3d11sprite hwsprite;
 	struct d3d11sprite mask2texture;
+	struct d3d11sprite mask2textureleds[9];
+	int mask2textureledoffsets[9 * 2];
 	struct d3d11sprite blanksprite;
 
 	float mask2texture_w, mask2texture_h, mask2texture_ww, mask2texture_wh;
@@ -1495,6 +1524,7 @@ static void updateleds(struct d3d11struct *d3d)
 	D3D11_MAPPED_SUBRESOURCE map;
 	static uae_u32 rc[256], gc[256], bc[256], a[256];
 	static int done;
+	int osdx, osdy;
 
 	if (!done) {
 		for (int i = 0; i < 256; i++) {
@@ -1509,7 +1539,9 @@ static void updateleds(struct d3d11struct *d3d)
 	if (!d3d->osd.texture || d3d != d3d11data)
 		return;
 
-	statusline_getpos(d3d - d3d11data, &d3d->osd.x, &d3d->osd.y, d3d->m_screenWidth, d3d->m_screenHeight, d3d->statusbar_hx, d3d->statusbar_vx);
+	statusline_getpos(d3d - d3d11data, &osdx, &osdy, d3d->m_screenWidth, d3d->m_screenHeight, d3d->statusbar_hx, d3d->statusbar_vx);
+	d3d->osd.x = osdx;
+	d3d->osd.y = osdy;
 
 	hr = d3d->m_deviceContext->Map(d3d->osd.texture, 0, D3D11_MAP_WRITE_DISCARD, 0, &map);
 	if (FAILED(hr)) {
@@ -1676,6 +1708,9 @@ static void FreeTextures(struct d3d11struct *d3d)
 	freesprite(&d3d->osd);
 	freesprite(&d3d->hwsprite);
 	freesprite(&d3d->mask2texture);
+	for (int i = 0; overlayleds[i]; i++) {
+		freesprite(&d3d->mask2textureleds[i]);
+	}
 	freesprite(&d3d->blanksprite);
 
 	for (int i = 0; i < MAX_SHADERS; i++) {
@@ -1751,7 +1786,7 @@ static bool InitializeBuffers(struct d3d11struct *d3d, ID3D11Buffer **vertexBuff
 	return true;
 }
 
-static void setsprite(struct d3d11struct *d3d, struct d3d11sprite *s, int x, int y)
+static void setsprite(struct d3d11struct *d3d, struct d3d11sprite *s, float x, float y)
 {
 	s->x = x;
 	s->y = y;
@@ -2272,6 +2307,78 @@ static int findedge(struct uae_image *img, int w, int h, int dx, int dy)
 	return y;
 }
 
+static void narrowimg(struct uae_image *img, int *xop, int *yop, const TCHAR *name)
+{
+	int x1, x2, y1, y2;
+
+	for (y1 = 0; y1 < img->height; y1++) {
+		bool tline = true;
+		for (int x = 0; x < img->width; x++) {
+			uae_u8 *p = img->data + y1 * img->pitch + x * 4;
+			if (p[3] != 0x00)
+				tline = false;
+		}
+		if (!tline)
+			break;
+	}
+
+	for (y2 = img->height - 1; y2 >= y1; y2--) {
+		bool tline = true;
+		for (int x = 0; x < img->width; x++) {
+			uae_u8 *p = img->data + y2 * img->pitch + x * 4;
+			if (p[3] != 0x00)
+				tline = false;
+		}
+		if (!tline)
+			break;
+	}
+
+	for (x1 = 0; x1 < img->width; x1++) {
+		bool tline = true;
+		for (int y = y1; y <= y2; y++) {
+			uae_u8 *p = img->data + y * img->pitch + x1 * 4;
+			if (p[3] != 0x00)
+				tline = false;
+		}
+		if (!tline)
+			break;
+	}
+
+	for (x2 = img->width - 1; x2 >= x1; x2--) {
+		bool tline = true;
+		for (int y = y1; y <= y2; y++) {
+			uae_u8 *p = img->data + y * img->pitch + x2 * 4;
+			if (p[3] != 0x00)
+				tline = false;
+		}
+		if (!tline)
+			break;
+	}
+
+	int w = x2 - x1 + 1;
+	int h = y2 - y1 + 1;
+	int pitch = w * 4;
+
+	*xop = x1;
+	*yop = y1;
+
+	uae_u8 *d = xcalloc(uae_u8, img->width * img->height * 4);
+	for (int y = 0; y < h; y++) {
+		uae_u8 *dp = d + y * pitch;
+		uae_u8 *sp = img->data + (y + y1) * img->pitch + x1 * 4;
+		memcpy(dp, sp, w * 4);
+	}
+
+	write_log(_T("Overlay LED: '%s' %d*%d -> %d*%d (%d*%d - %d*%d)\n"), name, img->width, img->height, w, h, x1, y1, x2, y2);
+
+	xfree(img->data);
+	img->width = w;
+	img->height = h;
+	img->pitch = pitch;
+	img->data = d;
+
+}
+
 static int createmask2texture(struct d3d11struct *d3d, const TCHAR *filename)
 {
 	struct AmigaMonitor *mon = &AMonitors[d3d - d3d11data];
@@ -2279,8 +2386,12 @@ static int createmask2texture(struct d3d11struct *d3d, const TCHAR *filename)
 	TCHAR tmp[MAX_DPATH];
 	ID3D11Texture2D *tx = NULL;
 	HRESULT hr;
+	TCHAR filepath[MAX_DPATH];
 
 	freesprite(&d3d->mask2texture);
+	for (int i = 0; overlayleds[i]; i++) {
+		freesprite(&d3d->mask2textureleds[i]);
+	}
 	freesprite(&d3d->blanksprite);
 
 	if (filename[0] == 0 || WIN32GFX_IsPicassoScreen(mon))
@@ -2315,6 +2426,7 @@ static int createmask2texture(struct d3d11struct *d3d, const TCHAR *filename)
 			}
 			_tcscpy(tmp2, s);
 			_stprintf(s, _T("_%dx%d%s"), d3d->m_screenWidth, d3d->m_screenHeight, tmp2);
+			_tcscpy(filepath, tmp3);
 			zf = zfile_fopen(tmp3, _T("rb"), ZFD_NORMAL);
 			if (zf)
 				break;
@@ -2328,11 +2440,13 @@ static int createmask2texture(struct d3d11struct *d3d, const TCHAR *filename)
 				ax = 4, ay = 3;
 			if (ax > 0 && ay > 0) {
 				_stprintf(s, _T("_%dx%d%s"), ax, ay, tmp2);
+				_tcscpy(filepath, tmp3);
 				zf = zfile_fopen(tmp3, _T("rb"), ZFD_NORMAL);
 				if (zf)
 					break;
 			}
 		}
+		_tcscpy(filepath, tmp);
 		zf = zfile_fopen(tmp, _T("rb"), ZFD_NORMAL);
 		if (zf)
 			break;
@@ -2424,14 +2538,53 @@ static int createmask2texture(struct d3d11struct *d3d, const TCHAR *filename)
 
 	d3d->mask2texture_hhx = d3d->mask2texture_h * ymult;
 
-	write_log(_T("Overlay '%s' %.0f*%.0f (%d*%d - %d*%d) (%d*%d)\n"),
+	write_log(_T("Overlay: '%s' %.0f*%.0f (%d*%d - %d*%d) (%d*%d)\n"),
 		tmp, d3d->mask2texture_w, d3d->mask2texture_h,
 		d3d->mask2rect.left, d3d->mask2rect.top, d3d->mask2rect.right, d3d->mask2rect.bottom,
 		d3d->mask2rect.right - d3d->mask2rect.left, d3d->mask2rect.bottom - d3d->mask2rect.top);
 
-	free_uae_image(&img);
 	d3d->mask2texture.enabled = true;
 	d3d->mask2texture.bilinear = true;
+
+	for (int i = 0; overlayleds[i]; i++) {
+		if (!overlayleds[i][0])
+			continue;
+		TCHAR tmp1[MAX_DPATH];
+		_tcscpy(tmp1, filepath);
+		_tcscpy(tmp1 + _tcslen(tmp1) - 4, _T("_"));
+		_tcscpy(tmp1 + _tcslen(tmp1), overlayleds[i]);
+		_tcscat(tmp1, _T("_led"));
+		_tcscat(tmp1, filepath + _tcslen(filepath) - 4);
+		zf = zfile_fopen(tmp1, _T("rb"), ZFD_NORMAL);
+		if (zf) {
+			struct uae_image ledimg;
+			if (load_png_image(zf, &ledimg)) {
+				if (ledimg.width == img.width && ledimg.height == img.height) {
+					narrowimg(&ledimg, &d3d->mask2textureledoffsets[i * 2 + 0], &d3d->mask2textureledoffsets[i * 2 + 1], tmp1);				
+					if (allocsprite(d3d, &d3d->mask2textureleds[i], ledimg.width, ledimg.height, true)) {
+						D3D11_MAPPED_SUBRESOURCE map;
+						hr = d3d->m_deviceContext->Map(d3d->mask2textureleds[i].texture, 0, D3D11_MAP_WRITE_DISCARD, 0, &map);
+						if (SUCCEEDED(hr)) {
+							for (int j = 0; j < ledimg.height; j++) {
+								memcpy((uae_u8*)map.pData + j * map.RowPitch, ledimg.data + j * ledimg.pitch, ledimg.width * 4);
+							}
+							d3d->m_deviceContext->Unmap(d3d->mask2textureleds[i].texture, 0);
+						}
+						d3d->mask2textureleds[i].enabled = true;
+						d3d->mask2textureleds[i].bilinear = true;
+					}
+				} else {
+					write_log(_T("Overlay led '%s' size mismatch.\n"), tmp1);
+				}
+				free_uae_image(&ledimg);
+			} else {
+				write_log(_T("Overlay led '%s' load failed.\n"), tmp1);
+			}
+			zfile_fclose(zf);
+		}
+	}
+
+	free_uae_image(&img);
 
 	return 1;
 end:
@@ -3571,6 +3724,10 @@ static void xD3D11_free(int monid, bool immediate)
 	changed_prefs.leds_on_screen &= ~STATUSLINE_TARGET;
 	currprefs.leds_on_screen &= ~STATUSLINE_TARGET;
 
+	for (int i = 0; i < LED_MAX; i++) {
+		leds[i] = 0;
+	}
+
 	write_log(_T("D3D11 free end\n"));
 }
 
@@ -3687,7 +3844,7 @@ static void TextureShaderClass_RenderShader(struct d3d11struct *d3d)
 
 static void RenderSprite(struct d3d11struct *d3d, struct d3d11sprite *spr)
 {
-	int left, top, right, bottom;
+	float left, top, right, bottom;
 
 	if (!spr->enabled)
 		return;
@@ -3738,8 +3895,8 @@ static void RenderSprite(struct d3d11struct *d3d, struct d3d11sprite *spr)
 
 static void setspritescaling(struct d3d11sprite *spr, float w, float h)
 {
-	spr->outwidth = w * spr->width;
-	spr->outheight = h * spr->height;
+	spr->outwidth = (int)(w * spr->width + 0.5);
+	spr->outheight = (int)(h * spr->height + 0.5);
 }
 
 static void renderoverlay(struct d3d11struct *d3d)
@@ -3777,6 +3934,18 @@ static void renderoverlay(struct d3d11struct *d3d)
 	setsprite(d3d, spr, d3d->mask2texture_offsetw, 0);
 	RenderSprite(d3d, spr);
 
+	for (int i = 0; overlayleds[i]; i++) {
+		bool led = leds[ledtypes[i]] != 0;
+		if (led) {
+			struct d3d11sprite *sprled = &d3d->mask2textureleds[i];
+			setspritescaling(sprled, d3d->mask2texture_multx, d3d->mask2texture_multy);
+			setsprite(d3d, sprled,
+				d3d->mask2texture_offsetw + d3d->mask2textureledoffsets[i * 2 + 0] * d3d->mask2texture_multx,
+				d3d->mask2textureledoffsets[i * 2 + 1] * d3d->mask2texture_multy);
+			RenderSprite(d3d, sprled);
+		}
+	}
+
 	if (d3d->mask2texture_offsetw > 0) {
 		struct d3d11sprite *bspr = &d3d->blanksprite;
 		setsprite(d3d, bspr, 0, 0);
@@ -3784,6 +3953,12 @@ static void renderoverlay(struct d3d11struct *d3d)
 		setsprite(d3d, bspr, d3d->mask2texture_offsetw + d3d->mask2texture_ww, 0);
 		RenderSprite(d3d, bspr);
 	}
+}
+
+static void xD3D11_led(int led, int on, int brightness)
+{
+	struct d3d11struct *d3d = &d3d11data[0];
+	leds[led] = on;
 }
 
 static int xD3D11_debug(int monid, int mode)
@@ -4689,6 +4864,7 @@ void d3d11_select(void)
 	D3D_getscalerect = xD3D11_getscalerect;
 	D3D_run = xD3D11_run;
 	D3D_debug = xD3D11_debug;
+	D3D_led = xD3D11_led;
 }
 
 void d3d_select(struct uae_prefs *p)
