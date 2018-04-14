@@ -441,6 +441,20 @@ int sleep_millis_amiga(int ms)
 	return ret;
 }
 
+bool quit_ok()
+{
+	if (isfullscreen() > 0)
+		return true;
+	if (!currprefs.win32_warn_exit)
+		return true;
+	if (quit_program == -UAE_QUIT)
+		return true;
+	TCHAR temp[MAX_DPATH];
+	WIN32GUI_LoadUIString(IDS_QUIT_WARNING, temp, MAX_DPATH);
+	int ret = gui_message_multibutton(1, temp);
+	return ret == 1;
+}
+
 static void setcursor(struct AmigaMonitor *mon, int oldx, int oldy)
 {
 	int dx = (mon->amigawinclip_rect.left - mon->amigawin_rect.left) + (mon->amigawinclip_rect.right - mon->amigawinclip_rect.left) / 2;
@@ -1944,7 +1958,8 @@ static LRESULT CALLBACK AmigaWindowProc(HWND hWnd, UINT message, WPARAM wParam, 
 		return 0;
 
 	case WM_CLOSE:
-		uae_quit();
+		if (quit_ok())
+			uae_quit();
 		return 0;
 
 	case WM_WINDOWPOSCHANGED:
@@ -2172,12 +2187,16 @@ static LRESULT CALLBACK AmigaWindowProc(HWND hWnd, UINT message, WPARAM wParam, 
 		{
 			LRESULT lr;
 
-#ifdef RETROPLATFORM
 			if ((wParam & 0xfff0) == SC_CLOSE) {
+#ifdef RETROPLATFORM
 				if (rp_close())
 					return 0;
-			}
 #endif
+
+				if (!quit_ok())
+					return 0;
+				uae_quit();
+			}
 			lr = DefWindowProc(hWnd, message, wParam, lParam);
 			switch (wParam & 0xfff0)
 			{
@@ -2187,7 +2206,6 @@ static LRESULT CALLBACK AmigaWindowProc(HWND hWnd, UINT message, WPARAM wParam, 
 			case SC_RESTORE:
 				break;
 			case SC_CLOSE:
-				uae_quit();
 				break;
 			}
 			return lr;
@@ -4074,6 +4092,7 @@ void target_save_options (struct zfile *f, struct uae_prefs *p)
 	cfgfile_target_dwrite_bool(f, _T("filesystem_mangle_reserved_names"), p->win32_filesystem_mangle_reserved_names);
 	cfgfile_target_dwrite_bool(f, _T("right_control_is_right_win"), p->right_control_is_right_win_key);
 	cfgfile_target_dwrite_bool(f, _T("windows_shutdown_notification"), p->win32_shutdown_notification);
+	cfgfile_target_dwrite_bool(f, _T("warn_exit"), p->win32_warn_exit);
 
 	cfgfile_target_dwrite(f, _T("extraframewait"), _T("%d"), extraframewait);
 	cfgfile_target_dwrite(f, _T("extraframewait_us"), _T("%d"), extraframewait2);
@@ -4196,6 +4215,7 @@ int target_parse_option (struct uae_prefs *p, const TCHAR *option, const TCHAR *
 		|| cfgfile_yesno(option, value, _T("filesystem_mangle_reserved_names"), &p->win32_filesystem_mangle_reserved_names)
 		|| cfgfile_yesno(option, value, _T("right_control_is_right_win"), &p->right_control_is_right_win_key)
 		|| cfgfile_yesno(option, value, _T("windows_shutdown_notification"), &p->win32_shutdown_notification)
+		|| cfgfile_yesno(option, value, _T("warn_exit"), &p->win32_warn_exit)
 		|| cfgfile_intval(option, value, _T("extraframewait"), &extraframewait, 1)
 		|| cfgfile_intval(option, value, _T("extraframewait_us"), &extraframewait2, 1)
 		|| cfgfile_intval(option, value, _T("framelatency"), &forcedframelatency, 1)

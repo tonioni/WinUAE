@@ -2141,8 +2141,9 @@ END
 
 STRINGTABLE
 BEGIN
-    IDS_MISCLISTITEMS4      "Windows shutdown/logoff notification\n"
+    IDS_MISCLISTITEMS4      "Windows shutdown/logoff notification\nWarn when attempting to close window\n"
     IDS_SHUTDOWN_NOTIFICATION "Emulation session active"
+    IDS_QUIT_WARNING        "Are you sure you want to quit WinUAE?"
 END
 
 STRINGTABLE

@@ -566,6 +566,8 @@ static int keyhack (int scancode, int pressed, int num)
 			if (rp_close ())
 				return -1;
 #endif
+			if (!quit_ok())
+				return -1;
 			uae_quit ();
 			return -1;
 		}

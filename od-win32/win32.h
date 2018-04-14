@@ -66,6 +66,7 @@ extern void remove_brkhandler (void);
 extern void disablecapture (void);
 extern int isfocus(void);
 extern void gui_restart (void);
+extern bool quit_ok(void);
 int timebegin (void);
 int timeend (void);
 
