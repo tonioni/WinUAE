@@ -170,15 +170,17 @@ static uae_u8 *scrlinebuf;
 static struct MultiDisplay *getdisplay2(struct uae_prefs *p, int index)
 {
 	struct AmigaMonitor *mon = &AMonitors[0];
-	int max;
+	static int max;
 	int display = index < 0 ? p->gfx_apmode[mon->screen_is_picasso ? APMODE_RTG : APMODE_NATIVE].gfx_display - 1 : index;
 
-	max = 0;
-	while (Displays[max].monitorname)
-		max++;
-	if (max == 0) {
-		gui_message (_T("no display adapters! Exiting"));
-		exit (0);
+	if (!max || (max > 0 && Displays[max].monitorname != NULL)) {
+		max = 0;
+		while (Displays[max].monitorname)
+			max++;
+		if (max == 0) {
+			gui_message(_T("no display adapters! Exiting"));
+			exit(0);
+		}
 	}
 	if (index >= 0 && display >= max)
 		return NULL;
@@ -190,7 +192,7 @@ static struct MultiDisplay *getdisplay2(struct uae_prefs *p, int index)
 }
 struct MultiDisplay *getdisplay (struct uae_prefs *p)
 {
-	return getdisplay2 (p, -1);
+	return getdisplay2(p, -1);
 }
 
 void desktop_coords(int monid, int *dw, int *dh, int *ax, int *ay, int *aw, int *ah)
@@ -334,17 +336,24 @@ static D3DKMTWAITFORVERTICALBLANKEVENT pD3DKMTWaitForVerticalBlankEvent;
 int target_get_display_scanline(int displayindex)
 {
 	if (!pD3DKMTGetScanLine)
-		return -2;
+		return -10;
 	D3DKMT_GETSCANLINE sl = { 0 };
 	struct MultiDisplay *md = displayindex < 0 ? getdisplay(&currprefs) : &Displays[displayindex];
+	if (!md->HasAdapterData)
+		return -11;
 	sl.VidPnSourceId = md->VidPnSourceId;
 	sl.hAdapter = md->AdapterHandle;
-	if (pD3DKMTGetScanLine(&sl) == STATUS_SUCCESS) {
+	NTSTATUS status = pD3DKMTGetScanLine(&sl);
+	if (status == STATUS_SUCCESS) {
 		if (sl.InVerticalBlank)
 			return -1;
 		return sl.ScanLine;
+	} else {
+		if ((int)status > 0)
+			return -(int)status;
+		return status;
 	}
-	return -2;
+	return -12;
 }
 
 typedef LONG(CALLBACK* QUERYDISPLAYCONFIG)(UINT32, UINT32*, DISPLAYCONFIG_PATH_INFO*, UINT32*, DISPLAYCONFIG_MODE_INFO*, DISPLAYCONFIG_TOPOLOGY_ID*);
@@ -446,8 +455,6 @@ static void display_param_init(struct AmigaMonitor *mon)
 	struct amigadisplay *ad = &adisplays[mon->monitor_id];
 	struct apmode *ap = ad->picasso_on ? &currprefs.gfx_apmode[1] : &currprefs.gfx_apmode[0];
 
-	wait_vblank_display = getdisplay(&currprefs);
-
 	vsync_activeheight = mon->currentmode.current_height;
 	vsync_totalheight = vsync_activeheight * 1125 / 1080;
 	vsync_vblank = 0;
@@ -460,7 +467,12 @@ static void display_param_init(struct AmigaMonitor *mon)
 		vsync_activeheight = mon->currentmode.current_height;
 	}
 
-	if (ap->gfx_vsyncmode && pD3DKMTWaitForVerticalBlankEvent) {
+	wait_vblank_display = getdisplay(&currprefs);
+	if (!wait_vblank_display || !wait_vblank_display->HasAdapterData) {
+		write_log(_T("Selected display mode does not have adapter data!\n"));
+	}
+
+	if (ap->gfx_vsyncmode && pD3DKMTWaitForVerticalBlankEvent && wait_vblank_display->HasAdapterData) {
 		waitvblankevent = CreateEvent(NULL, FALSE, FALSE, NULL);
 		waitvblankthread_mode = 1;
 		unsigned int th;
@@ -1026,10 +1038,12 @@ static bool enumeratedisplays2 (bool selectall)
 				if (hdc != NULL) {
 					D3DKMT_OPENADAPTERFROMHDC OpenAdapterData = { 0 };
 					OpenAdapterData.hDc = hdc;
-					if (pD3DKMTOpenAdapterFromHdc(&OpenAdapterData) == STATUS_SUCCESS) {
+					NTSTATUS status = pD3DKMTOpenAdapterFromHdc(&OpenAdapterData);
+					if (status == STATUS_SUCCESS) {
 						md->AdapterLuid = OpenAdapterData.AdapterLuid;
 						md->VidPnSourceId = OpenAdapterData.VidPnSourceId;
 						md->AdapterHandle = OpenAdapterData.hAdapter;
+						md->HasAdapterData = true;
 					}
 					DeleteDC(hdc);
 				}
@@ -2891,7 +2905,8 @@ bool vsync_switchmode(int monid, int hz)
 void vsync_clear(void)
 {
 	vsync_active = false;
-	ResetEvent(waitvblankevent);
+	if (waitvblankevent)
+		ResetEvent(waitvblankevent);
 }
 
 int vsync_isdone(frame_time_t *dt)

@@ -125,6 +125,7 @@ int uaelib_debug;
 int pissoff_value = 15000 * CYCLE_UNIT;
 unsigned int fpucontrol;
 int extraframewait, extraframewait2;
+int busywait;
 
 extern FILE *debugfile;
 extern int console_logging;
@@ -250,21 +251,35 @@ void target_calibrate_spin(void)
 	spincount = 0;
 	if (!ap->gfx_vsyncmode)
 		return;
+	if (busywait) {
+		write_log(_T("target_calibrate_spin() skipped\n"));
+		return;
+	}
+	write_log(_T("target_calibrate_spin() start\n"));
 	spincount = 0x800000000000;
 	for (int i = 0; i < 50; i++) {
 		for (;;) {
 			vp = target_get_display_scanline(-1);
+			if (vp <= -10)
+				goto fail;
 			if (vp >= 1 && vp < vsync_activeheight - 10)
 				break;
 		}
+		int vp3 = target_get_display_scanline(-1);
 		for (;;) {
 			int vp2 = target_get_display_scanline(-1);
+			if (vp2 <= -10)
+				goto fail;
 			if (vp2 == vp + 1)
 				break;
+			if (vp2 != vp)
+				goto trynext;
 		}
 		uae_u64 v1 = __rdtsc();
 		for (;;) {
 			int vp2 = target_get_display_scanline(-1);
+			if (vp2 <= -10)
+				goto fail;
 			if (vp2 == vp + 2) {
 				uae_u64 sc = __rdtsc() - v1;
 				if (spincount > sc)
@@ -273,6 +288,7 @@ void target_calibrate_spin(void)
 			if (vp2 != vp + 1)
 				break;
 		}
+trynext:;
 	}
 	if (spincount == 0x800000000000) {
 		write_log(_T("Spincount calculation error, spinloop not used.\n"), spincount);
@@ -280,6 +296,10 @@ void target_calibrate_spin(void)
 	} else {
 		write_log(_T("Spincount = %llu\n"), spincount);
 	}
+	return;
+fail:
+	write_log(_T("Scanline read failed: %d!\n"), vp);
+	spincount = 0;
 }
 
 int timeend (void)
@@ -442,7 +462,7 @@ int sleep_millis_amiga(int ms)
 	return ret;
 }
 
-bool quit_ok()
+bool quit_ok(void)
 {
 	if (isfullscreen() > 0)
 		return true;
@@ -3860,19 +3880,22 @@ void target_fixup_options (struct uae_prefs *p)
 	}
 	
 	struct MultiDisplay *md = getdisplay (p);
-	for (int i = 0; i < MAX_AMIGADISPLAYS; i++) {
-		if (p->gfx_monitor[i].gfx_size_fs.special == WH_NATIVE) {
+	for (int j = 0; j < MAX_AMIGADISPLAYS; j++) {
+		if (p->gfx_monitor[j].gfx_size_fs.special == WH_NATIVE) {
 			int i;
 			for (i = 0; md->DisplayModes[i].depth >= 0; i++) {
 				if (md->DisplayModes[i].res.width == md->rect.right - md->rect.left &&
 					md->DisplayModes[i].res.height == md->rect.bottom - md->rect.top) {
-					p->gfx_monitor[i].gfx_size_fs.width = md->DisplayModes[i].res.width;
-					p->gfx_monitor[i].gfx_size_fs.height = md->DisplayModes[i].res.height;
+					p->gfx_monitor[j].gfx_size_fs.width = md->DisplayModes[i].res.width;
+					p->gfx_monitor[j].gfx_size_fs.height = md->DisplayModes[i].res.height;
+					write_log(_T("Native resolution: %dx%d\n"), p->gfx_monitor[j].gfx_size_fs.width, p->gfx_monitor[j].gfx_size_fs.height);
 					break;
 				}
 			}
-			if (md->DisplayModes[i].depth < 0)
-				p->gfx_monitor[i].gfx_size_fs.special = 0;
+			if (md->DisplayModes[i].depth < 0) {
+				p->gfx_monitor[j].gfx_size_fs.special = 0;
+				write_log(_T("Native resolution not found.\n"));
+			}
 		}
 	}
 	/* switch from 32 to 16 or vice versa if mode does not exist */
@@ -6203,6 +6226,10 @@ static int parseargs(const TCHAR *argx, const TCHAR *np, const TCHAR *np2)
 	}
 	if (!_tcscmp(arg, _T("rawextadf"))) {
 		floppy_writemode = -1;
+		return 1;
+	}
+	if (!_tcscmp(arg, _T("busywait"))) {
+		busywait = 1;
 		return 1;
 	}
 

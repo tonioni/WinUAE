@@ -8225,6 +8225,13 @@ STATIC_INLINE bool is_last_line (void)
 
 // low latency vsync
 
+static bool sync_timeout_check(frame_time_t max)
+{
+	frame_time_t rpt = read_processor_time();
+	return (int)rpt - (int)max <= 0;
+}
+
+extern int busywait;
 static void scanlinesleep(int currline, int nextline)
 {
 	if (currline < 0)
@@ -8237,16 +8244,20 @@ static void scanlinesleep(int currline, int nextline)
 		target_spin(nextline - currline - 1);
 		return;
 	}
+	if (busywait)
+		return;
 	cpu_sleep_millis(1);
 }
 
 static bool linesync_beam_single(void)
 {
+	frame_time_t maxtime = read_processor_time() + 2 * vsynctimebase;
+
 	is_syncline = 0;
 	maybe_process_pull_audio();
 	if (is_last_line()) {
 		do_render_slice(-1, 0);
-		while (!currprefs.turbo_emulation) {
+		while (!currprefs.turbo_emulation && sync_timeout_check(maxtime)) {
 			maybe_process_pull_audio();
 			target_spin(0);
 			int vp = target_get_display_scanline(-1);
@@ -8254,14 +8265,14 @@ static bool linesync_beam_single(void)
 				break;
 		}
 		vsync_clear();
-		while (!currprefs.turbo_emulation) {
+		while (!currprefs.turbo_emulation && sync_timeout_check(maxtime)) {
 			maybe_process_pull_audio();
 			int vp = target_get_display_scanline(-1);
 			if (vp >= vsync_activeheight - 1 || vp < 0)
 				break;
 			scanlinesleep(vp, vsync_activeheight - 1);
 		}
-		while (!currprefs.turbo_emulation) {
+		while (!currprefs.turbo_emulation && sync_timeout_check(maxtime)) {
 			maybe_process_pull_audio();
 			target_spin(0);
 			int vp = target_get_display_scanline(-1);
@@ -8284,6 +8295,7 @@ static bool linesync_beam_multi_dual(void)
 	static int display_slice_lines;
 	static int display_slices;
 	static bool display_rendered;
+	frame_time_t maxtime = read_processor_time() + 2 * vsynctimebase;
 	bool input_read_done = false;
 	bool was_syncline = is_syncline != 0;
 
@@ -8314,7 +8326,7 @@ static bool linesync_beam_multi_dual(void)
 				display_rendered = true;
 			}
 			if (!currprefs.turbo_emulation) {
-				while (!currprefs.turbo_emulation) {
+				while (!currprefs.turbo_emulation && sync_timeout_check(maxtime)) {
 					frame_time_t rpt = read_processor_time();
 					if ((int)rpt - (int)vsyncmintime >= 0 || (int)rpt - (int)vsyncmintime < -vsynctimebase * 2) {
 						vsyncmintime = rpt + vsynctimebase;
@@ -8335,7 +8347,7 @@ static bool linesync_beam_multi_dual(void)
 					do_render_slice(0, display_slice_cnt);
 					display_rendered = true;
 				}
-				for (;;) {
+				while(sync_timeout_check(maxtime)) {
 					int vp = target_get_display_scanline(-1);
 					if (vp == -1) {
 						maybe_process_pull_audio();
@@ -8378,7 +8390,6 @@ static bool linesync_beam_multi_dual(void)
 	return input_read_done;
 }
 
-
 static bool linesync_beam_multi(void)
 {
 	static int vsyncnextscanline;
@@ -8388,6 +8399,7 @@ static bool linesync_beam_multi(void)
 	static int display_slice_lines;
 	static int display_slices;
 	static bool display_rendered;
+	frame_time_t maxtime = read_processor_time() + 2 * vsynctimebase;
 	bool input_read_done = false;
 	bool was_syncline = is_syncline != 0;
 
@@ -8417,7 +8429,18 @@ static bool linesync_beam_multi(void)
 			do_render_slice(0, display_slice_cnt);
 			display_rendered = true;
 		}
-		while (!currprefs.turbo_emulation) {
+		// if 2 slices: make sure we are out of vblank.
+		if (display_slices <= 2) {
+			while (!currprefs.turbo_emulation && sync_timeout_check(maxtime)) {
+				int vp = target_get_display_scanline(-1);
+				if (vp != -1)
+					break;
+				maybe_process_pull_audio();
+				target_spin(0);
+			}
+			vsync_clear();
+		}
+		while (!currprefs.turbo_emulation && sync_timeout_check(maxtime)) {
 			int vp = target_get_display_scanline(-1);
 			if (vp < 0 || vp >= vsyncnextscanline)
 				break;
@@ -8443,7 +8466,7 @@ static bool linesync_beam_multi(void)
 				do_render_slice(1, display_slice_cnt);
 				display_rendered = true;
 
-				for (;;) {
+				for(;;) {
 					frame_time_t rpt = read_processor_time();
 					if ((int)rpt - (int)vsyncmintime >= 0 || (int)rpt - (int)vsyncmintime < -2 * vsynctimebase)
 						break;
@@ -8451,15 +8474,6 @@ static bool linesync_beam_multi(void)
 					target_spin(0);
 				}
 				vsyncmintime = read_processor_time() + vsynctimebase;
-
-				while (!currprefs.turbo_emulation) {
-					maybe_process_pull_audio();
-					int vp = target_get_display_scanline(-1);
-					if (vp < 0)
-						break;
-					scanlinesleep(vp, vsync_activeheight - 1);
-				}
-
 				do_display_slice();
 				display_rendered = false;
 				input_read_done = true;
@@ -8472,7 +8486,7 @@ static bool linesync_beam_multi(void)
 						display_rendered = true;
 					}
 
-					for (;;) {
+					while (sync_timeout_check(maxtime)) {
 						int vp = target_get_display_scanline(-1);
 						maybe_process_pull_audio();
 						if (vp < 0 || vp < vsync_activeheight / 2 || vp >= vsync_activeheight - 1)
@@ -8499,7 +8513,7 @@ static bool linesync_beam_multi(void)
 					do_render_slice(0, display_slice_cnt);
 					display_rendered = true;
 				}
-				for(;;) {
+				while (sync_timeout_check(maxtime)) {
 					int vp = target_get_display_scanline(-1);
 					if (vp == -1) {
 						maybe_process_pull_audio();
@@ -8534,7 +8548,7 @@ void vsync_event_done(void)
 	if (currprefs.gfx_display_sections <= 1) {
 		linesync_beam_single();
 	} else {
-		if (vsync_hblank >= 85 && currprefs.gfx_variable_sync)
+		if (vsync_hblank >= 85 && !currprefs.gfx_variable_sync)
 			linesync_beam_multi_dual();
 		else
 			linesync_beam_multi();

@@ -82,6 +82,7 @@ struct MultiDisplay {
 	LUID AdapterLuid;
 	UINT VidPnSourceId;
 	UINT AdapterHandle;
+	bool HasAdapterData;
 };
 extern struct MultiDisplay Displays[MAX_DISPLAYS + 1];
 
