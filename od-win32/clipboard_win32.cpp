@@ -951,7 +951,7 @@ int amiga_clipboard_want_data(TrapContext *ctx)
 void clipboard_active(HWND hwnd, int active)
 {
 	clipactive = active;
-	if (!initialized)
+	if (!initialized || !hwnd)
 		return;
 	if (clipactive && clipboard_change) {
 		clipboard_read(NULL, hwnd, false);

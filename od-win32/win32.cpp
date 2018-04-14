@@ -158,6 +158,7 @@ static int start_data = 0;
 static void *tablet;
 HCURSOR normalcursor;
 static HWND hwndNextViewer;
+static bool clipboard_initialized;
 HANDLE AVTask;
 static int all_events_disabled;
 static int mainthreadid;
@@ -1942,13 +1943,15 @@ static LRESULT CALLBACK AmigaWindowProc(HWND hWnd, UINT message, WPARAM wParam, 
 #endif
 		DragAcceptFiles(hWnd, TRUE);
 		normalcursor = LoadCursor(NULL, IDC_ARROW);
-		if (mon->monitor_id == 0 && !hwndNextViewer) {
+		if (!clipboard_initialized) {
+			clipboard_initialized = true;
 			hwndNextViewer = SetClipboardViewer(hWnd);
 			clipboard_init(hWnd);
 		}
 		return 0;
 
 	case WM_DESTROY:
+		clipboard_initialized = false;
 		if (device_change_timer)
 			KillTimer(hWnd, 4);
 		device_change_timer = 0;
@@ -2258,7 +2261,7 @@ static LRESULT CALLBACK AmigaWindowProc(HWND hWnd, UINT message, WPARAM wParam, 
 	break;
 
 	case WM_CHANGECBCHAIN:
-		if (mon->monitor_id == 0 && hwndNextViewer) {
+		if (clipboard_initialized) {
 			if ((HWND)wParam == hwndNextViewer)
 				hwndNextViewer = (HWND)lParam;
 			else if (hwndNextViewer != NULL)
@@ -2267,7 +2270,7 @@ static LRESULT CALLBACK AmigaWindowProc(HWND hWnd, UINT message, WPARAM wParam, 
 		}
 		break;
 	case WM_DRAWCLIPBOARD:
-		if (mon->monitor_id == 0 && hwndNextViewer) {
+		if (clipboard_initialized) {
 			clipboard_changed(hWnd);
 			SendMessage(hwndNextViewer, message, wParam, lParam);
 			return 0;
