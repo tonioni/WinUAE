@@ -807,7 +807,9 @@ static void setpc (const char *format, ...)
 	_vsnprintf (buffer, 1000 - 1, format, parms);
 	va_end (parms);
 
-	if (using_mmu || using_prefetch || using_prefetch_020)
+	if (using_mmu)
+		printf("\tm68k_setpci(%s);\n", buffer);
+	else if (using_prefetch || using_prefetch_020)
 		printf ("\tm68k_setpci_j(%s);\n", buffer);
 	else
 		printf ("\tm68k_setpc_j(%s);\n", buffer);
