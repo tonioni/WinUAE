@@ -5,6 +5,342 @@ JIT Direct current rules are less complex now. It automatically switches off onl
   Note that in 64-bit version RTG VRAM must be inside of reserved natmem space. (Outside = error message and return back to GUI)
 
 
+Beta 2:
+
+- New low latency vsync tweaks and updates.
+- If low latency vsync polling takes longer than 2 vblanks, exit immediately to prevent total hang if scanline reads return unexpected and weird values.
+- Display panel "native" resolution returned non-existing mode which got fixed to smallest supported resolution.
+- Fixed clipboard sharing.
+- Fixed graphics corruption (black lines/tearing) in new low latency mode with Vertical centering enabled.
+- Added overlay led support. Led overlays must have same resolution as main overlay file, fully transparent color except location of led. Name must be <original name>_x_led.png where x = power,df0,df1,df2,df3,hd,cd,md,net (md = flash/eeprom access, for example cd32 nvram) Currently D3D11 only.
+- MMU emulation works again (at least 68030 was broken)
+- If low latency vsync and DSOUND: switch to WASAPI. New low latency vsync needs "pull" mode audio driver.
+- Added new misc panel option, asks for confirmation when trying to close emulation window using close button or ALT+F4/CTRL+F11.
+- Fixed Output panel crash if capture before filtering was set.
+
+Beta 1:
+
+Multi virtual Amiga monitor support:
+------------------------------------
+
+Enables multiple virtual Amiga monitors. Amiga monitor = single WinUAE window.
+
+Default mode is unchanged, highest priority Amiga display output appear in single WinUAE window, switches automatically or manually (END+F9).
+
+Optionally any video port display adapter or any RTG board can be disconnected from default monitor and connected to other monitor. (Monitor 1 to 4 select box in GUI, 1 = default). Only one signal source can be connected to non-default monitors. Only default monitor support on the fly switching/END+F9 manual switching.
+
+Native (chipset) video output is always connected to first (default) monitor.
+
+Each active monitor (WinUAE window) content is refreshed in real-time.
+
+Limitations and other information:
+
+- Windowed mode only (later full-window with single virtual monitor to physical monitor mapping)
+- Fullscreen is not supported and won't be supported.
+- Direct 3D 9/11 mode only. DirectDraw won't be supported.
+- GUI options adjusts all monitors. If native/video port: native filter and all other native related settings are in use for all windows in native/video port mode, if RTG: GUI RTG settings are used for all monitors in RTG mode.
+- Non-default monitors are always opened next to default monitor. Positions are not stored.
+- It does not matter which window has focus/captured mouse. All windows listen for input normally.
+- Non-default windows don't have status bar or OSD and only have name of monitor in title bar.
+- Video port device's window opens immediately at startup, RTG board's window open when board's output is enabled with valid display configuration for the first time.
+
+--
+
+Lagless Vsync
+-------------
+
+Implemented lagless vsync mode (https://www.blurbusters.com/blur-busters-lagless-raster-follower-algorithm-for-emulator-developers/)
+Replaces old low latency vsync mode.
+
+What does it do? It reduces input latency from usual 20ms-40ms+ to less than 5ms! (or even less)
+
+Current limitations:
+
+- Does not support black frame insertion or frame doubling = use only standard 50Hz or 60Hz modes. (or up to 85Hz or so )
+- Native mode only. Cycle-exact/approximate/fastest possible/JIT supported.
+- Fullscreen only.
+- Amiga display to monitor position mapping must be border to border vertically (or close enough) or you may see tearing lines.
+- Does not gain anything from G-Sync.
+
+Current features:
+
+- Input is read after each slice.
+- Default is 4 slices (adjustable in GUI) which makes max input latency about 6ms. (Assuming quality "gaming grade" USB input devices that use <=1ms USB rate.)
+- Because output is shader based, outputting each slice requires full render pass each time. It technically means same as rendering screen 4 times the frame rate. (for example 50Hz output requires rendering 200 frames) -> don't enable any extra shaders unless you have powerful GPU. Most likely requires GPU with on-board RAM (discrete GPU) because this mode increases VRAM bandwidth requirements heavily. Or reduce resolution.
+- END+F9 toggles debug colors when in low latency vsync mode (In normal modes END+F9 changes screens). When debug colors are disabled, useless screen clearing before each slice rendering is also disabled.
+
+This method passes my standard Pinball Dreams input latency test. Ball/flipper response feels wrong even with 1 frame of input latency.
+
+--
+
+New debugger features:
+----------------------
+
+Main discussion thread: http://eab.abime.net/showthread.php?t=91321
+
+Ability to load any Amiga executable to special debugger RAM:
+
+- Static location, custom loader: program is always loaded in same addresses.
+- Each hunk is separated with (later configurable) 32k space to detect possible out of bounds accesses.
+- Program's memory allocations are also allocated from debugger RAM, with mungwall-like out of bounds access detection.
+- Program's stack is also moved to debug RAM.
+- Out of bounds detection is real-time and byte-based, detects both reads and writes. Detects also reads from uninitialized memory (read before write).
+
+
+Note that stack does not have unitialized memory read detection because dos does not always write to all addresses in stack frames it allocates (for example when it creates dos packet structures) which causes too many false positives.
+
+If debug ram is not manually configured and uaedbg is run, 256M of memory is automatically allocated if $70000000 to $f0000000 has at least one free 256M block. It can be manually configured by adding following lines to config file:
+
+debugmem_start=<address>
+debugmem_size=<size in megabytes> Must be power of 2.
+
+Amiga-side debugger command (may become built-in later):
+
+uaedbg <program to debug> <program parameters>
+
+uaedbg loads the program, relocates it to debug memory region, moves stack to debug memory region, breaks to debugger with PC pointing to first instruction of program. Hooks also AllocMem() and FreeMem() and if current task is same as uaedbg task, memory allocation is done from debug ram. (This needs to handle programs that create new tasks, later..)
+
+If program includes symbols (HUNK_SYMBOL), they are also loaded and shown in disassembler when current address matches or instruction's effect address matches symbol's address.
+
+Segment 1: 000003e9 70008000-700122ef
+__stext:
+70008008 [000000] 23c8 7002 3cfc           MOVE.L A0,$70023cfc [00000000] ___commandline
+7000800E [000006] 23c0 7002 3cf0           MOVE.L D0,$70023cf0 [00000000] ___commandlen
+
+If program includes GCC stab (-g) debugging information in HUNK_DEBUG, it is loaded and parsed, including source files. Disassembly will automatically list matched source files. Automatically converts internal source file paths from cygwin (/cygdrive/drive/path) and wsl (/mnt/drive/path) paths to native paths.
+
+
+70008172 [00016A] 48e7 3f3e                MOVEM.L D2-D7/A2-A6,-(A7)
+70008176 [00016E] 2478 0004                MOVEA.L $0004 [08000810],A2
+
+  240   SysBase =  *((struct ExecBase **)4);
+  241
+  242   /* init globaldata */
+
+7000817A [000172] 2c4a                     MOVEA.L A2,A6
+
+  243   g = AllocMem(sizeof(struct globaldata), MEMF_CLEAR);
+
+7000817C [000174] 203c 0000 09d0           MOVE.L #$000009d0,D0
+70008182 [00017A] 7201                     MOVE.L #$01,D1
+70008184 [00017C] 4841                     SWAP.W D1
+70008186 [00017E] 4eae ff3a                JSR (A6, -$00c6) == $00f9f4ec
+
+Debugging information also contains variable type data, register and local stack parameter data but it is not yet parsed or used.
+
+Debugger also resolves final address when it notices JSR x(PC) + JMP <final address> instruction combination:
+
+70008252 [00024A] 4eba 05f4                JSR (PC,$05f4) == $70008848 == $70015718  _FixStartupPacket
+
+vs old non-resolved final address:
+
+70008252 [00024A] 4eba 05f4                JSR (PC,$05f4) == $70008848
+
+Chip RAM "zero page" (0 to $400) is now watched (like Enforcer). All writes break to debugger immediately, long read from 4 is allowed, if vbr is 0: long aligned exception vector reads are allowed. All other reads break immediately.
+
+Non-existing RAM/IO read or write also breaks to debugger immediately.
+
+LVO symbol support:
+
+if amiga.lib (from Amiga NDK) is in plugins/debugger, it is scanned for LVO symbols.
+if plugins/debugger/fd contains one or more *.fd files, they are parsed and added to LVO symbol list.
+
+When disassembling jsr -$xx(a6) instructions will include name of library and LVO if a6 and -$xx matches. 
+
+LVOs are resolved like this (See also TL command):
+
+70008034 [00002C] 4eae feda                JSR (A6, -$0126) == $080006ea exec/FindTask == $00f8272a
+
+If LVO jump table points to other known segment (not debugged program's segment), segment information is also shown.
+
+Stack frame tracking:
+
+Tracks debugged program JSR/BSR/RTS instructions.
+
+70008052 -> 700080a0 SP=7003c0f8 [000098] Segment 1: 000003e9 70008000-700122ef
+70008052 [00004A] 614c                     BSR.B #$4c == $700080a0
+70008054 [00004C] 2f39 7002 3d00           MOVE.L $70023d00 [00000000] ___env,-(A7) [700080b8]
+
+700080b6 -> 700121ac SP=7003c0f4 [00A1A4] Segment 1: 000003e9 70008000-700122ef ___initlibraries
+700080B6 [0000AE] 4e90                     JSR (A0) ___initlibraries
+700080B8 [0000B0] b584                     EOR.L D2,D4
+
+700121d6 -> 080005e8 SP=7003c09c
+700121D6 [00A1CE] 4eae fdd8                JSR (A6, -$0228) == $080005e8 exec/OpenLibrary == $00fbf246
+700121DA [00A1D2] 2680                     MOVE.L D0,(A3) [00000000] _DOSBase
+
+00fbf24e -> 080182b8 SP=7003c078
+00FBF24E 4ead 0038                JSR (A5, $0038) == $080182b8
+00FBF252 2400                     MOVE.L D0,D2
+
+PC before JSR/BSR, PC after JSR/BSR instruction, Stack pointer before JSR/BSR.
+Segment offset and segment details new PC points to debugged program.
+SR is also listed if supervisor mode stack frame.
+Disassembly of branch instruction + following instruction.
+
+Other new debugger features:
+
+- Early boot segtracker-like feature for loadable libraries and others, enable in misc panel.
+- if opcode 0x4afc (official invalid instruction) is executed when debugger is active: trigger breakpoint, don't generate illegal instruction exception.
+
+New debugger commands:
+
+- tr = break when PC points to any allocated debug memory
+- tl = break when PC matches next source line, step to next source line.
+- seg = list loaded program's segments.
+- segs = list all segtracker loaded segments.
+- u = inhibit current debugmem break to debugger method. (ua = inhibit all, uc = clear all)
+- TL = scan and match library bases (exec library, device and resource lists) with loaded amiga.lib/*.fd symbols. Automatically done when starting debug mem debugging session.
+- rs = show tracked stack frame.
+- rss = show tracked supervisor stack frame.
+- ts = break when tracked stack frame count decreases. (=tracked stack frame matched executed RTS) 
+- tsp = break when tracked stack frame count decreases or increases. (RTS/BSR/JSR).
+- tse/tsd = enable/disable full stack frame tracking. Can be used when no debugmem debugging is active.
+
+ts/tsp stores current supervisor mode and only breaks to debugger if stack frame operation has same supervisor mode.
+
+All debugger commands that take address or register value also support symbol names. (for example "d __stext")
+"library/lvo" is also resolved if library was found when scanned with TL. (for example "d exec/wait" disassembles Wait())
+
+Notes:
+
+- Don't mention anything about GUI. Proper source level debugger may require it but I am not yet sure if it really can be done or is worth the trouble..
+- Console debugger must be in use. (If GUI mode: enter xx command to switch)
+- If executable has chip ram hunks, whole address space is made chip ram compatible and then hunk is loaded to debug ram.
+- Very unoptimal data structures, most also have static sizes. Odd errors and crashes can happen..
+- JIT must be off.
+- 32-bit addressing must be enabled.
+- KS 2.0+ only.
+
+TODO:
+
+- Does other popular compilers also generate useful HUNK_DEBUG data?
+- Suggestions needed! (But don't mention GUI!)
+
+--
+
+
+
+Lagless Vsync:
+
+Implemented lagless vsync mode (https://www.blurbusters.com/blur-busters-lagless-raster-follower-algorithm-for-emulator-developers/)
+Replaces old low latency vsync mode.
+
+What does it do? It reduces input latency from usual 20ms-40ms+ to less than 5ms! (or even less)
+
+Current limitations:
+
+- Does not support black frame insertion or frame doubling = use only standard 50Hz or 60Hz modes. (or up to 85Hz or so )
+- Native mode only. Cycle-exact/approximate/fastest possible/JIT supported.
+- Direct3D 9 and 11 only.
+- Fullscreen only.
+- Amiga display to monitor position mapping must be border to border vertically (or close enough) or you may see tearing lines.
+- Does not gain anything from G-Sync.
+
+Current features:
+
+- Input is read after each slice.
+- Default is 4 slices (adjustable in GUI) which makes max input latency about 6ms. (Assuming quality "gaming grade" USB input devices that use <=1ms USB rate.)
+- Because output is shader based, outputting each slice requires full render pass each time. It technically means same as rendering screen 4 times the frame rate. (for example 50Hz output requires rendering 200 frames) -> don't enable any extra shaders unless you have powerful GPU. Most likely requires GPU with on-board RAM (discrete GPU) because this mode increases VRAM bandwidth requirements heavily. Or reduce resolution.
+- END+F9 toggles debug colors when in low latency vsync mode (In normal modes END+F9 changes screens). When debug colors are disabled, useless screen clearing before each slice rendering is also disabled.
+
+--
+
+Multi virtual Amiga monitor support:
+
+Enables multiple virtual Amiga monitors. Amiga monitor = single WinUAE window.
+
+Default mode is unchanged, highest priority Amiga display output appear in single WinUAE window, switches automatically or manually (END+F9).
+
+Optionally any video port display adapter or any RTG board can be disconnected from default monitor and connected to other monitor. (Monitor 1 to 4 select box in GUI, 1 = default). Only one signal source can be connected to non-default monitors. Only default monitor support on the fly switching/END+F9 manual switching.
+
+Native (chipset) video output is always connected to first (default) monitor.
+
+Each active monitor (WinUAE window) content is refreshed in real-time.
+
+Limitations and other information:
+
+- Windowed mode only (later full-window with single virtual monitor to physical monitor mapping)
+- Fullscreen is not supported and won't be supported.
+- Direct 3D 9/11 mode only. DirectDraw won't be supported.
+- GUI options adjusts all monitors. If native/video port: native filter and all other native related settings are in use for all windows in native/video port mode, if RTG: GUI RTG settings are used for all monitors in RTG mode.
+- Non-default monitors are always opened next to default monitor. Positions are not stored.
+- It does not matter which window has focus/captured mouse. All windows listen for input normally.
+- Non-default windows don't have status bar or OSD and only have name of monitor in title bar.
+- Video port device's window opens immediately at startup, RTG board's window open when board's output is enabled with valid display configuration for the first time.
+
+--
+
+New debugger features:
+
+http://eab.abime.net/showthread.php?t=91321
+
+--
+
+Minimal Macrosystem Casablanca "emulation"
+
+Supports Casablanca ROM images, none of Casablanca special IO address spaces supported. It is has very unknown custom hardware.
+
+If you want to help with debugging/reverse-engineering Casablanca internals using emulation:
+
+- Set correct ROM, either original 2x512k 1:1 ROM images (ROM scanner supported) or 1x1024M manually merged and byteswapped. (Don't ask me, they contain KS modules, in scrambled format.) If rom starts with "00 00 00 00 00 00 00 18 44 52 42 52 00 01 00 06 ........DRBR...." = correct merged and byteswapped image.
+
+- CPU must be set to 68060 (MMU bus error handler assumes PC always points to faulting instruction, 68040 documentation says it isn't guaranteed)
+- MMU emulation must be enabled.
+- Chipset extra must be set to Casablanca.
+- Other chipset options don't matter.
+- RAM must be set manually: Select Z3 Fast #1, set size (32M/64M), tick "Manual configuration", set Address range start = 40000000. (End address is set automatically). Casablanca RAM uses Z3 space but does not use autoconfig.
+- Log window should be enabled.
+
+It "works" if you see lots of casablanca io access log messages, including MMU enable message. (MMU: TC=109dc enabled=0 page8k=0 PC=00000106). Finally it gets in infinite loop with exec partially initialized.
+
+Because ROM is descrambled and copied to RAM by boot code and MMU is used to remap it to usual $f80000 region, also "zero page" is remapped, you need to enable UAE debugger mmu mapping support (for example "mmu 1" = use current MMU tables to translate user space addresses, 5 = super space) or you most likely get random garbage when using debugger commands.
+
+--
+
+Other Changes
+
+- Directory harddrives now use uaehf.device as a fake device driver (instead of non-existing uae.device), SysInfo does not anymore crash in Drives page when selecting directory harddrive. (SysInfo bug: it does not check for device driver open failure) HD_SCSICMD is also partially supported in this situation, mainly identification commands that don't access the drive, like READ CAPACITY and INQUIRY. Unsupported commands return Incompatible Medium Installed ($05/$30 00) error.
+- Partition hardfiles also support above HD_SCSICMD SCSI commands.
+- Don't show loaded config file ".uae" extension in GUI title.
+- GUI title didn't show loaded config file if it was loaded from command line or via doubleclicking config file.
+- MSVC code analyzer warnings fixed (uninitialized variables, buffer size checks).
+- ROM is slow -option only changed $e0-$e8 ROM space timing (wrong end address)
+- Toccata recording used wrong interrupt bit.
+- Fixed WD33C93 based SCSI controller and no SCSI devices: boot hang (3.6.1)
+- If CD was changed and system was reset during change delay, drive become empty and new CD was never inserted.
+- DKB RapidFire and SpitFire use same boot rom. Renamed to RapidFire/SpitFire. Only difference seems to be RAM expansion.
+- Added Xetec FastTrak, CSA Magnum 40, GVP A1230 Series II, Hardital TQM and MacroSystem Falcon 040 (without SCSI).
+- Real harddrive imager attempts to automatically temporarily dismount source drive first.
+- Directory filesystem harddrive block size is dynamic adjustment now starts from smaller disk size to also fix WB free space calculation overflow.
+- Disk swapper config file data is restored from statefile.
+- If memwatch point is watching for blitter accesses, blitter registers at start of blit and current register are output when breakpoint is hit.
+
+Xetec FastTrak:
+- 5380 based SCSI controller, byte wide fake DMA, uses MOVEP.L.
+- "bootdisk.device" "bootdisk 1.42  (22 Mar 1990)" "Xetec FastTrak Autoboot"
+
+CSA Magnum 40:
+- A2000 68040 accelerator.
+- 53C710 based SCSI, true DMA.
+- ROM is loader only, SCSI driver is installed to RDB LSEG blocks by the installer.
+
+GVP A1230 Series II:
+- A1200 68030 accelerator.
+- Usual GVP WD33C93 + 24-bit GVP DMA chip combination, with 2 extra external DMA bits to support up to 32M of RAM.
+- ROM v5.0 gvpscsi.device.
+- Clock not emulated. (DS1994 1-wire clock)
+
+Hardital TQM:
+- A1200 68030 accelerator.
+- ROM only adds RAM to system.
+- Possibly clone of DKB 1230. Nearly identical ROM contents with "DKB1230" string in "hidden" nybble based data!
+
+MacroSystem Falcon 040
+- A1200 68040 accelerator.
+- Only non-SCSI boot ROM currently available, adds only RAM to system. Uses MOVEP, not 68060 compatible.
+
+
 3.6.1
 
 - 3200b15 "Support DSKLEN writes while disk DMA is active" didn't check if new DSKLEN write had write bit set. Fixes Amax II disk formatting.
@@ -6458,7 +6794,7 @@ Beta 3:
 
 - TD_WRITE64, TD_FORMAT64, NSCMD_TD_WRITE64 and NSCMD_TD_FORMAT64 io_Actual was always zero
 - b1 CIA update broke CIA interrupts partially (keyboard problems etc..)
-- MIDI input buffer length command line parameter, -midiinbuffer 12345
+- MIDI input buffer length command line parameter, -midiinbuffer §12345
 - AROS ROM updated, should work better again, previous one was quite broken
 
 Beta 2:

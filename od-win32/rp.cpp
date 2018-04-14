@@ -1566,7 +1566,9 @@ static bool ishd(int n)
 	struct uaedev_config_data *uci = &currprefs.mountconfig[n];
 	int num = -1;
 	if (uci->ci.controller_type == HD_CONTROLLER_TYPE_UAE) {
-		return uci->ci.type == UAEDEV_DIR;
+		if (uci->ci.type == UAEDEV_DIR)
+			return true;
+		num = uci->ci.controller_unit;
 	} else if (uci->ci.controller_type >= HD_CONTROLLER_TYPE_IDE_FIRST && uci->ci.controller_type <= HD_CONTROLLER_TYPE_IDE_LAST) {
 		num = uci->ci.controller_unit;
 	} else if (uci->ci.controller_type >= HD_CONTROLLER_TYPE_SCSI_FIRST && uci->ci.controller_type <= HD_CONTROLLER_TYPE_SCSI_LAST) {
@@ -1641,13 +1643,13 @@ void rp_fixup_options (struct uae_prefs *p)
 
 	hd_mask = 0;
 	cd_mask = 0;
-	for (int i = 0; i < currprefs.mountitems; i++) {
+	for (int i = 0; i < currprefs.mountitems && i < 32; i++) {
 		if (ishd(i))
 			hd_mask |= 1 << i;
 	}
 	RPSendMessagex (RP_IPC_TO_HOST_DEVICES, RP_DEVICECATEGORY_HD, hd_mask, NULL, 0, &guestinfo, NULL);
 	if (hd_mask) {
-		for (int i = 0; i < currprefs.mountitems; i++) {
+		for (int i = 0; i < currprefs.mountitems && i < 32; i++) {
 			struct uaedev_config_data *uci = &currprefs.mountconfig[i];
 			if (ishd(i) && ((1 << i) & hd_mask))
 				rp_harddrive_image_change (i, uci->ci.readonly, uci->ci.rootdir);

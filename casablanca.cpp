@@ -7,6 +7,36 @@
 #include "newcpu.h"
 #include "casablanca.h"
 
+/*
+
+	53C710 (SCSI)
+	Base: 0x04000000
+	IRQ: 4
+	INTREQ: 7 (AUD0)
+
+	DracoMotion
+	Base: 0x20000000
+	IRQ: 3
+	INTREQ: 4 (COPER)
+	Size: 128k
+	Autoconfig: 83 17 30 00 47 54 00 00 00 00 00 00 00 00 00 00 (18260/23)
+
+	Mouse
+	Base: 0x02400BE3
+	IRQ: 4
+	INTREQ: 9 (AUD2)
+
+	Serial
+	Base: 0x02400FE3
+	IRQ: 4
+	INTREQ: 10 (AUD3)
+
+	Floppy:
+	Base: 0x02400003
+	IRQ: 5
+	INTREQ: 11 (RBF)
+*/
+
 static uae_u32 REGPARAM2 casa_lget(uaecptr addr)
 {
 	write_log(_T("casa_lget %08x %08x\n"), addr, M68K_GETPC);
