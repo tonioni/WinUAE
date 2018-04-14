@@ -3904,6 +3904,12 @@ void target_fixup_options (struct uae_prefs *p)
 		}
 
 	}
+	if ((p->gfx_apmode[0].gfx_vsyncmode || p->gfx_apmode[1].gfx_vsyncmode) ) {
+		if (p->produce_sound && sound_devices[p->win32_soundcard]->type == SOUND_DEVICE_DS) {
+			p->win32_soundcard = 0;
+		}
+	}
+
 	d3d_select(p);
 }
 
