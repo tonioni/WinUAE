@@ -95,7 +95,7 @@ struct romdata *getromdatabypath (const TCHAR *path)
 	return NULL;
 }
 
-#define NEXT_ROM_ID 232
+#define NEXT_ROM_ID 235
 
 #define ALTROM(id,grp,num,size,flags,crc32,a,b,c,d,e) \
 { _T("X"), 0, 0, 0, 0, 0, size, id, 0, 0, flags, (grp << 16) | num, 0, NULL, crc32, a, b, c, d, e },
@@ -194,6 +194,8 @@ static struct romdata roms[] = {
 	0x2ec384e3,0x47f9ee6d, 0x0f8ac5a6,0x5c6eddc3,0x0bcd47c8,0x574d8725 },
 	ALTROMPN(231, 1, 1, 524288, ROMTYPE_EVEN, _T("74095 00 717 02 01 U4"), 0x1bdcd18c, 0xabc7b734,0x1f8df24d,0xd4f1d062,0xfc0f7680,0x4d1053b9)
 	ALTROMPN(231, 1, 2, 524288, ROMTYPE_ODD , _T("74095 00 717 02 02 U5"), 0x6ccb0431, 0xa2a43444,0xbeda38be,0x1fa5cabe,0x75fc4def,0x063bcd7a)
+	{ _T("DraCo Boot ROM v1.3"), 1, 3, 1, 3, _T("DRACO\0"), 131072, 234, 2 | 4, 0, ROMTYPE_EXTCDTV, 0, 0, NULL,
+	0x0e9c5899,0x82151324,0x01207554,0x60c8a068,0x4793ec18,0x3f744d74 },
 
 	{ _T("CD32 KS ROM v3.1"), 3, 1, 40, 60, _T("CD32\0"), 524288, 18, 1, 0, ROMTYPE_KICKCD32, 0, 0, NULL,
 	0x1e62d4a5, 0x3525BE88,0x87F79B59,0x29E017B4,0x2380A79E,0xDFEE542D },
@@ -458,8 +460,12 @@ static struct romdata roms[] = {
 
 	{ _T("Preferred Technologies Nexus"), 1, 0, 1, 0, _T("PTNEXUS\0"), 8192, 139, 0, 0, ROMTYPE_PTNEXUS, 0, 0, NULL,
 	0xf495879a, 0xa3bd0202, 0xe14aa5b6, 0x49d3ce88, 0x22975950, 0x6500dbc2, NULL, NULL },
-	{ _T("ICD AdSCSI 2000"), 1, 6, 1, 6, _T("ADSCSI\0"), 32768, 133, 0, 0, ROMTYPE_ADSCSI, 0, 0, NULL,
+	{ _T("ICD AdSCSI 2000 v1.6 (icddisk v1.0)"), 1, 6, 1, 6, _T("ADSCSI\0"), 32768, 133, 0, 0, ROMTYPE_ADSCSI, 0, 0, NULL,
 	0x7dba3e1f, 0x1e05f284, 0xd59a1e5d, 0x4e4de44e, 0x6f075175, 0x625cd6c0, NULL, NULL },
+	{ _T("ICD AdSCSI 2000 v2.? (icddisk v33.0)"), 0, 0, 0, 0, _T("ADSCSI\0"), 32768, 232, 0, 0, ROMTYPE_ADSCSI, 0, 0, NULL,
+	0x3184ec04, 0xf8ab84b0, 0x4853404f, 0x840085ce, 0x5fe992e3, 0x5dc443da, NULL, NULL },
+	{ _T("ICD AdSCSI 2000 v2.2 (icddisk v34.0)"), 2, 2, 2, 2, _T("ADSCSI\0"), 32768, 233, 0, 0, ROMTYPE_ADSCSI, 0, 0, NULL,
+	0x6881cd2f, 0x482fab24, 0xdf39446b, 0xa8662c7e, 0x67f11854, 0x895a46d9, NULL, NULL },
 	{ _T("Archos ADD-500"), 1, 21, 1, 21, _T("ADD\0"), 16384, 132, 0, 0, ROMTYPE_ADD500, 0, 0, NULL,
 	0x3f4e4a74, 0x9ed96fc0,0xd6381dc3,0x3192b0af,0xdfae4b74,0x576c3a69, NULL, NULL },
 	{ _T("Protar A500HD"), 1, 193, 1, 193, _T("PROTAR\0"), 32768, 131, 0, 0, ROMTYPE_PROTAR, 0, 0, NULL,
