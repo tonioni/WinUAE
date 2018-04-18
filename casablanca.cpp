@@ -39,21 +39,42 @@
 
 static uae_u32 REGPARAM2 casa_lget(uaecptr addr)
 {
-	write_log(_T("casa_lget %08x %08x\n"), addr, M68K_GETPC);
+	static int max = 100;
+	if (max < 0) {
+		write_log(_T("casa_lget %08x %08x\n"), addr, M68K_GETPC);
+		max--;
+	}
+
 	return 0;
 }
 static uae_u32 REGPARAM2 casa_wget(uaecptr addr)
 {
-	write_log(_T("casa_wget %08x %08x\n"), addr, M68K_GETPC);
+	static int max = 100;
+	if (max >= 0) {
+		write_log(_T("casa_wget %08x %08x\n"), addr, M68K_GETPC);
+		max--;
+	}
+
 	return 0;
 }
 
 static uae_u32 REGPARAM2 casa_bget(uaecptr addr)
 {
 	uae_u8 v = 0;
-	write_log(_T("casa_bget %08x %08x\n"), addr, M68K_GETPC);
 
+	static int max = 100;
+	if (max >= 0) {
+		write_log(_T("casa_bget %08x %08x\n"), addr, M68K_GETPC);
+		max--;
+	}
+
+
+	// casa
 	if (addr == 0x020007c3)
+		v = 4;
+
+	// draco
+	if (addr == 0x02000009)
 		v = 4;
 
 	return v;
@@ -61,15 +82,30 @@ static uae_u32 REGPARAM2 casa_bget(uaecptr addr)
 
 static void REGPARAM2 casa_lput(uaecptr addr, uae_u32 l)
 {
+	static int max = 100;
+	if (max < 0)
+		return;
+	max--;
+
 	write_log(_T("casa_lput %08x %08x %08x\n"), addr, l, M68K_GETPC);
 }
 static void REGPARAM2 casa_wput(uaecptr addr, uae_u32 w)
 {
+	static int max = 100;
+	if (max < 0)
+		return;
+	max--;
+
 	write_log(_T("casa_wput %08x %04x %08x\n"), addr, w & 0xffff, M68K_GETPC);
 }
 
 static void REGPARAM2 casa_bput(uaecptr addr, uae_u32 b)
 {
+	static int max = 100;
+	if (max < 0)
+		return;
+	max--;
+
 	write_log(_T("casa_bput %08x %02x %08x\n"), addr, b & 0xff, M68K_GETPC);
 }
 
@@ -87,4 +123,6 @@ void casablanca_map_overlay(void)
 	map_banks(&kickmem_bank, 524288 >> 16, 524288 >> 16, 0);
 	map_banks(&extendedkickmem_bank, 0 >> 16, 524288 >> 16, 0);
 	map_banks(&casa_ram_bank, 0x02000000 >> 16, 0x01000000 >> 16, 0);
+	// at least draco has rom here
+	map_banks(&kickmem_bank, 0x02c00000 >> 16, 524288 >> 16, 0);
 }
