@@ -7573,6 +7573,31 @@ void m68k_disasm_2 (TCHAR *buf, int bufsize, uaecptr pc, uaecptr *nextpc, int cn
 				TCHAR *p = instrname + _tcslen(instrname);
 				_stprintf(p, _T(",(A%d)"), opcode & 7);
 			}
+		} else if (lookup->mnemo == i_MOVE16) {
+			TCHAR *p = instrname + _tcslen(instrname);
+			if (opcode & 0x20) {
+				_stprintf(p, _T("(A%d)+,(A%d)+"), opcode & 7, (extra >> 12) & 7);
+				pc += 2;
+			} else {
+				uae_u32 addr = get_long_debug(pc + 2);
+				int ay = opcode & 7;
+				pc += 4;
+				switch ((opcode >> 3) & 3)
+				{
+				case 0:
+					_stprintf(p, _T("(A%d)+,$%08x"), ay, addr);
+					break;
+				case 1:
+					_stprintf(p, _T("$%08x,(A%d)+"), addr, ay);
+					break;
+				case 2:
+					_stprintf(p, _T("(A%d),$%08x"), ay, addr);
+					break;
+				case 3:
+					_stprintf(p, _T("$%08x,(A%d)"), addr, ay);
+					break;
+				}
+			}
 		} else if (lookup->mnemo == i_FPP) {
 			TCHAR *p;
 			int ins = extra & 0x3f;
