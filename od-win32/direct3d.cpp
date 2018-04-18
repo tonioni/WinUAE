@@ -3764,6 +3764,25 @@ static uae_u8 *xD3D_setcursorsurface(int monid, int *pitch)
 	}
 }
 
+bool xD3D_getscanline(int *scanline, bool *invblank)
+{
+	struct d3dstruct *d3d = &d3ddata[0];
+	HRESULT hr;
+	D3DRASTER_STATUS rt;
+
+	if (!isd3d(d3d))
+		return false;
+	if (d3d->d3dswapchain)
+		hr = d3d->d3dswapchain->GetRasterStatus(&rt);
+	else
+		hr = d3d->d3ddev->GetRasterStatus(0, &rt);
+	if (FAILED(hr))
+		return false;
+	*scanline = rt.ScanLine;
+	*invblank = rt.InVBlank != FALSE;
+	return true;
+}
+
 void d3d9_select(void)
 {
 	D3D_free = xD3D_free;
@@ -3792,6 +3811,7 @@ void d3d9_select(void)
 	D3D_run = NULL;
 	D3D_debug = xD3D_debug;
 	D3D_led = NULL;
+	D3D_getscanline = xD3D_getscanline;
 }
 
 #endif

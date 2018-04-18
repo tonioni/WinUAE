@@ -36,6 +36,7 @@ extern void target_run (void);
 extern void target_quit (void);
 extern void target_restart (void);
 extern void target_getdate(int *y, int *m, int *d);
+extern void target_cpu_speed(void);
 extern bool get_plugin_path (TCHAR *out, int size, const TCHAR *path);
 extern void stripslashes (TCHAR *p);
 extern void fixtrailing (TCHAR *p);

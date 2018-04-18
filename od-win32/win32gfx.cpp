@@ -335,25 +335,35 @@ static D3DKMTWAITFORVERTICALBLANKEVENT pD3DKMTWaitForVerticalBlankEvent;
 
 int target_get_display_scanline(int displayindex)
 {
-	if (!pD3DKMTGetScanLine)
-		return -10;
-	D3DKMT_GETSCANLINE sl = { 0 };
-	struct MultiDisplay *md = displayindex < 0 ? getdisplay(&currprefs) : &Displays[displayindex];
-	if (!md->HasAdapterData)
-		return -11;
-	sl.VidPnSourceId = md->VidPnSourceId;
-	sl.hAdapter = md->AdapterHandle;
-	NTSTATUS status = pD3DKMTGetScanLine(&sl);
-	if (status == STATUS_SUCCESS) {
-		if (sl.InVerticalBlank)
-			return -1;
-		return sl.ScanLine;
-	} else {
-		if ((int)status > 0)
-			return -(int)status;
-		return status;
+	if (pD3DKMTGetScanLine) {
+		D3DKMT_GETSCANLINE sl = { 0 };
+		struct MultiDisplay *md = displayindex < 0 ? getdisplay(&currprefs) : &Displays[displayindex];
+		if (!md->HasAdapterData)
+			return -11;
+		sl.VidPnSourceId = md->VidPnSourceId;
+		sl.hAdapter = md->AdapterHandle;
+		NTSTATUS status = pD3DKMTGetScanLine(&sl);
+		if (status == STATUS_SUCCESS) {
+			if (sl.InVerticalBlank)
+				return -1;
+			return sl.ScanLine;
+		} else {
+			if ((int)status > 0)
+				return -(int)status;
+			return status;
+		}
+		return -12;
+	} else if (D3D_getscanline) {
+		int scanline;
+		bool invblank;
+		if (D3D_getscanline(&scanline, &invblank)) {
+			if (invblank)
+				return -1;
+			return scanline;
+		}
+		return -14;
 	}
-	return -12;
+	return -13;
 }
 
 typedef LONG(CALLBACK* QUERYDISPLAYCONFIG)(UINT32, UINT32*, DISPLAYCONFIG_PATH_INFO*, UINT32*, DISPLAYCONFIG_MODE_INFO*, DISPLAYCONFIG_TOPOLOGY_ID*);
@@ -449,6 +459,44 @@ static unsigned int __stdcall waitvblankthread(void *dummy)
 	return 0;
 }
 
+static void display_vblank_thread_kill(void)
+{
+	if (waitvblankthread_mode == 2) {
+		waitvblankthread_mode = 0;
+		while (waitvblankthread_mode != -1) {
+			Sleep(10);
+		}
+		waitvblankthread_mode = 0;
+		CloseHandle(waitvblankevent);
+		waitvblankevent = NULL;
+	}
+	wait_vblank_display = NULL;
+}
+
+static void display_vblank_thread(struct AmigaMonitor *mon)
+{
+	struct amigadisplay *ad = &adisplays[mon->monitor_id];
+	struct apmode *ap = ad->picasso_on ? &currprefs.gfx_apmode[1] : &currprefs.gfx_apmode[0];
+
+	if (currprefs.m68k_speed >= 0) {
+		display_vblank_thread_kill();
+		return;
+	}
+	// It seems some Windows 7 drivers hang if D3DKMTWaitForVerticalBlankEvent()
+	// and D3DKMTGetScanLine() is used simultaneously.
+	if (os_win8 && ap->gfx_vsyncmode && pD3DKMTWaitForVerticalBlankEvent && wait_vblank_display->HasAdapterData) {
+		waitvblankevent = CreateEvent(NULL, FALSE, FALSE, NULL);
+		waitvblankthread_mode = 1;
+		unsigned int th;
+		_beginthreadex(NULL, 0, waitvblankthread, 0, 0, &th);
+	}
+}
+
+void target_cpu_speed(void)
+{
+	display_vblank_thread(&AMonitors[0]);
+}
+
 extern void target_calibrate_spin(void);
 static void display_param_init(struct AmigaMonitor *mon)
 {
@@ -471,29 +519,9 @@ static void display_param_init(struct AmigaMonitor *mon)
 	if (!wait_vblank_display || !wait_vblank_display->HasAdapterData) {
 		write_log(_T("Selected display mode does not have adapter data!\n"));
 	}
-
-	if (ap->gfx_vsyncmode && pD3DKMTWaitForVerticalBlankEvent && wait_vblank_display->HasAdapterData) {
-		waitvblankevent = CreateEvent(NULL, FALSE, FALSE, NULL);
-		waitvblankthread_mode = 1;
-		unsigned int th;
-		_beginthreadex(NULL, 0, waitvblankthread, 0, 0, &th);
-	}
 	Sleep(10);
 	target_calibrate_spin();
-}
-
-static void display_param_free(void)
-{
-	if (waitvblankthread_mode == 2) {
-		waitvblankthread_mode = 0;
-		while (waitvblankthread_mode != -1) {
-			Sleep(10);
-		}
-		waitvblankthread_mode = 0;
-		CloseHandle(waitvblankevent);
-		waitvblankevent = NULL;
-	}
-	wait_vblank_display = NULL;
+	display_vblank_thread(mon);
 }
 
 const TCHAR *target_get_display_name (int num, bool friendlyname)
@@ -1815,7 +1843,7 @@ static void close_hwnds(struct AmigaMonitor *mon)
 {
 	mon->screen_is_initialized = 0;
 	if (!mon->monitor_id) {
-		display_param_free();
+		display_vblank_thread_kill();
 #ifdef AVIOUTPUT
 		AVIOutput_Restart();
 #endif

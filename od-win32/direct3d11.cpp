@@ -64,6 +64,7 @@ bool(*D3D_getscalerect)(int, float *mx, float *my, float *sx, float *sy);
 void(*D3D_run)(int);
 int(*D3D_debug)(int, int);
 void(*D3D_led)(int, int, int);
+bool(*D3D_getscanline)(int*, bool*);
 
 static HMODULE hd3d11, hdxgi, hd3dcompiler, dwmapi;
 
@@ -4865,6 +4866,7 @@ void d3d11_select(void)
 	D3D_run = xD3D11_run;
 	D3D_debug = xD3D11_debug;
 	D3D_led = xD3D11_led;
+	D3D_getscanline = NULL;
 }
 
 void d3d_select(struct uae_prefs *p)

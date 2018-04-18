@@ -25,6 +25,7 @@ extern bool(*D3D_getscalerect)(int, float *mx, float *my, float *sx, float *sy);
 extern void(*D3D_run)(int);
 extern int(*D3D_debug)(int, int);
 extern void(*D3D_led)(int, int, int);
+extern bool(*D3D_getscanline)(int*, bool*);
 
 extern LPDIRECT3DSURFACE9 D3D_capture(int, int*,int*,int*);
 extern bool D3D11_capture(int, void**,int*, int*,int*);

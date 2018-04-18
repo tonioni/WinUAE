@@ -1923,6 +1923,7 @@ static void build_cpufunctbl (void)
 	write_log(_T("\n"));
 
 	set_cpu_caches (true);
+	target_cpu_speed();
 }
 
 #define CYCLES_DIV 8192
@@ -6441,6 +6442,7 @@ void m68k_go (int may_quit)
 				currprefs.m68k_speed = changed_prefs.m68k_speed;
 				currprefs.m68k_speed_throttle = changed_prefs.m68k_speed_throttle;
 				update_68k_cycles();
+				target_cpu_speed();
 			}
 			cpu_prefs_changed_flag = 0;
 		}

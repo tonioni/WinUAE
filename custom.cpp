@@ -143,7 +143,7 @@ static bool lof_lace;
 static bool bplcon0_interlace_seen;
 static int scandoubled_line;
 static bool vsync_rendered, frame_rendered, frame_shown;
-static float vsynctimeperline;
+static int vsynctimeperline;
 static int frameskiptime;
 static bool genlockhtoggle;
 static bool genlockvtoggle;
@@ -4346,7 +4346,7 @@ void compute_framesync(void)
 
 	compute_vsynctime ();
 
-	hblank_hz = (double)(currprefs.ntscmode ? CHIPSET_CLOCK_NTSC : CHIPSET_CLOCK_PAL) / (maxhpos + (islinetoggle() ? 0.5 : 0));
+	hblank_hz = (currprefs.ntscmode ? CHIPSET_CLOCK_NTSC : CHIPSET_CLOCK_PAL) / (maxhpos + (islinetoggle() ? 0.5 : 0));
 
 	write_log (_T("%s mode%s%s V=%.4fHz H=%0.4fHz (%dx%d+%d) IDX=%d (%s) D=%d RTG=%d/%d\n"),
 		isntsc ? _T("NTSC") : _T("PAL"),
@@ -7476,7 +7476,7 @@ static bool framewait (void)
 			vsynctimeperline = 1;
 
 		if (0 || (log_vsync & 2)) {
-			write_log (_T("%06d %.2f/%06d %03d%%\n"), t, vsynctimeperline, vsynctimebase, t * 100 / vsynctimebase);
+			write_log (_T("%06d %06d/%06d %03d%%\n"), t, vsynctimeperline, vsynctimebase, t * 100 / vsynctimebase);
 		}
 
 		frame_shown = true;
@@ -7538,7 +7538,7 @@ static bool framewait (void)
 		vsyncmaxtime = curr_time + max;
 
 		if (0)
-			write_log (_T("%06d:%06d/%06d\n"), adjust, vsynctimeperline, vstb);
+			write_log (_T("%06d:%06d/%06d %d %d\n"), adjust, vsynctimeperline, vstb, max, maxvpos_display);
 	
 	} else {
 
@@ -8225,10 +8225,16 @@ STATIC_INLINE bool is_last_line (void)
 
 // low latency vsync
 
+#define LLV_DEBUG 0
+
 static bool sync_timeout_check(frame_time_t max)
 {
+#if LLV_DEBUG
+	return true;
+#else
 	frame_time_t rpt = read_processor_time();
 	return (int)rpt - (int)max <= 0;
+#endif
 }
 
 extern int busywait;
@@ -8240,13 +8246,19 @@ static void scanlinesleep(int currline, int nextline)
 		return;
 	int diff = vsync_hblank / (nextline - currline);
 	int us = 1000000 / diff;
-	if (us < 2100) { // less than 2ms
+	if (us < 1300) { // spin if less than 1.3ms
 		target_spin(nextline - currline - 1);
 		return;
 	}
 	if (busywait)
 		return;
 	cpu_sleep_millis(1);
+}
+
+static void linesync_first_last_line(int *first, int *last)
+{
+	*first = minfirstline;
+	*last = maxvpos_display;
 }
 
 static bool linesync_beam_single(void)
@@ -8300,14 +8312,17 @@ static bool linesync_beam_multi_dual(void)
 	bool was_syncline = is_syncline != 0;
 
 	is_syncline = 0;
-	if (vpos == 0 && !was_syncline) {
+	if (vpos == 0) {
+		int firstline, lastline;
+		linesync_first_last_line(&firstline, &lastline);
+
 		display_slices = currprefs.gfx_display_sections;
 		if (display_slices <= 0)
 			display_slices = 1;
 		display_slice_cnt = 0;
 		vsyncnextscanline = vsync_activeheight / display_slices + 1;
-		display_slice_lines = (maxvpos_display - minfirstline) / display_slices + 1;
-		nextwaitvpos = minfirstline + display_slice_lines;
+		display_slice_lines = (lastline - firstline) / display_slices + 1;
+		nextwaitvpos = firstline + display_slice_lines;
 		if (display_slices <= 1)
 			nextwaitvpos = maxvpos_display + 1;
 		if (display_slices <= 2 && vsyncnextscanline > vsync_activeheight * 2 / 3)
@@ -8316,6 +8331,9 @@ static bool linesync_beam_multi_dual(void)
 		frame_rendered = true;
 		frame_shown = true;
 	}
+
+	if (!display_slices)
+		return false;
 
 	if (vpos >= nextwaitvpos || is_last_line()) {
 
@@ -8405,16 +8423,19 @@ static bool linesync_beam_multi(void)
 
 	is_syncline = 0;
 	if (vpos == 0 && !was_syncline) {
+		int firstline, lastline;
+		linesync_first_last_line(&firstline, &lastline);
+
 		display_slices = currprefs.gfx_display_sections;
 		if (!display_slices)
 			display_slices = 1;
 		display_slice_cnt = 0;
 		vsyncnextscanline = vsync_activeheight / display_slices + 1;
 		vsyncnextscanline_add = vsync_activeheight / display_slices;
-		display_slice_lines = (maxvpos_display - minfirstline) / display_slices + 1;
-		nextwaitvpos = minfirstline + display_slice_lines + display_slice_lines / 2;
+		display_slice_lines = (lastline - firstline) / display_slices + 1;
+		nextwaitvpos = firstline + display_slice_lines + display_slice_lines / 2;
 		if (display_slices <= 1)
-			nextwaitvpos = maxvpos_display + 1;
+			nextwaitvpos = lastline + 1;
 		if (display_slices <= 2 && vsyncnextscanline > vsync_activeheight * 2 / 3)
 			vsyncnextscanline = vsync_activeheight * 2 / 3;
 
@@ -8422,6 +8443,9 @@ static bool linesync_beam_multi(void)
 		frame_rendered = true;
 		frame_shown = true;
 	}
+
+	if (!display_slices)
+		return false;
 
 	if (is_last_line()) {
 
@@ -8450,11 +8474,17 @@ static bool linesync_beam_multi(void)
 				return 0;
 			}
 			scanlinesleep(vp, vsyncnextscanline);
+#if LLV_DEBUG
+			write_log(_T("1:%d:%d:%d:%d."), vpos, vp, nextwaitvpos, vsyncnextscanline);
+#endif
 		}
 		do_display_slice();
 		input_read_done = true;
 		display_slice_cnt = -1;
 		display_rendered = false;
+#if LLV_DEBUG
+		write_log("\n");
+#endif
 
 	} else if (vpos >= nextwaitvpos) {
 
@@ -8496,6 +8526,9 @@ static bool linesync_beam_multi(void)
 							return 0;
 						}
 						target_spin(0);
+#if LLV_DEBUG
+						write_log(_T("2:%d:%d:%d:%d."), vpos, vp, nextwaitvpos, vsyncnextscanline);
+#endif
 					}
 					do_display_slice();
 					display_rendered = false;
@@ -8518,6 +8551,9 @@ static bool linesync_beam_multi(void)
 					if (vp == -1) {
 						maybe_process_pull_audio();
 						target_spin(0);
+#if LLV_DEBUG
+						write_log(_T("3:%d:%d:%d:%d."), vpos, vp, nextwaitvpos, vsyncnextscanline);
+#endif
 						continue;
 					}
 					if (vp < 0 || vp >= vsyncnextscanline)
@@ -8528,6 +8564,9 @@ static bool linesync_beam_multi(void)
 						return 0;
 					}
 					scanlinesleep(vp, vsyncnextscanline);
+#if LLV_DEBUG
+					write_log(_T("4:%d:%d:%d:%d."), vpos, vp, nextwaitvpos, vsyncnextscanline);
+#endif
 				}
 				do_display_slice();
 				input_read_done = true;
@@ -8538,7 +8577,11 @@ static bool linesync_beam_multi(void)
 		}
 		nextwaitvpos += display_slice_lines;
 		display_slice_cnt++;
+#if LLV_DEBUG
+		write_log("\n");
+#endif
 	}
+
 	return input_read_done;
 }
 
