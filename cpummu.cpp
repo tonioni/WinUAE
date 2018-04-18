@@ -1503,7 +1503,7 @@ uae_u16 REGPARAM2 mmu_set_tc(uae_u16 tc)
 
 	mmu_flush_atc_all(true);
 
-	write_log(_T("%d MMU: TC=%04x enabled=%d page8k=%d PC=%08x\n"), tc, currprefs.mmu_model, regs.mmu_enabled, mmu_pagesize_8k, m68k_getpc());
+	write_log(_T("%d MMU: TC=%04x enabled=%d page8k=%d PC=%08x\n"), currprefs.mmu_model, tc, regs.mmu_enabled, mmu_pagesize_8k, m68k_getpc());
 	return tc;
 }
 
