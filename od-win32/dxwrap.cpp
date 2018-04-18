@@ -1207,7 +1207,7 @@ int DirectDraw_Start (void)
 
 	guid = NULL;
 	if (isfullscreen ()) {
-		MultiDisplay *md = getdisplay (&currprefs);
+		MultiDisplay *md = getdisplay(&currprefs, 0);
 		int disp = md - Displays;
 		if (disp < 0)
 			disp = 0;

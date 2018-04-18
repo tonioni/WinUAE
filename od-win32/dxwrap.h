@@ -104,6 +104,7 @@ struct AmigaMonitor {
 	int monitor_id;
 	HWND hAmigaWnd;
 	HWND hMainWnd;
+	struct MultiDisplay *md;
 
 	RECT amigawin_rect, mainwin_rect;
 	RECT amigawinclip_rect;

@@ -245,34 +245,34 @@ static int ddraw_fs_hack_init (struct d3dstruct *d3d)
 	HRESULT hr;
 	struct MultiDisplay *md;
 
-	ddraw_fs_hack_free (d3d);
-	DirectDraw_get_GUIDs ();
-	md = getdisplay (&currprefs);
+	ddraw_fs_hack_free(d3d);
+	DirectDraw_get_GUIDs();
+	md = getdisplay(&currprefs, 0);
 	if (!md)
 		return 0;
-	hr = DirectDrawCreateEx (md->primary ? NULL : &md->ddguid, (LPVOID*)&d3d->ddraw, IID_IDirectDraw7, NULL);
+	hr = DirectDrawCreateEx(md->primary ? NULL : &md->ddguid, (LPVOID*)&d3d->ddraw, IID_IDirectDraw7, NULL);
 	if (FAILED (hr)) {
 		write_log (_T("DirectDrawCreateEx failed, %s\n"), DXError (hr));
 		return 0;
 	}
 	d3d->ddraw_fs = 1;
-	hr = d3d->ddraw->SetCooperativeLevel (d3d->d3dhwnd, DDSCL_ALLOWREBOOT | DDSCL_EXCLUSIVE | DDSCL_FULLSCREEN);
+	hr = d3d->ddraw->SetCooperativeLevel(d3d->d3dhwnd, DDSCL_ALLOWREBOOT | DDSCL_EXCLUSIVE | DDSCL_FULLSCREEN);
 	if (FAILED (hr)) {
 		write_log (_T("IDirectDraw7_SetCooperativeLevel SET: %s\n"), DXError (hr));
 		ddraw_fs_hack_free (d3d);
 		return 0;
 	}
-	hr = d3d->ddraw->SetDisplayMode (d3d->dpp.BackBufferWidth, d3d->dpp.BackBufferHeight, d3d->t_depth, d3d->dpp.FullScreen_RefreshRateInHz, 0);
+	hr = d3d->ddraw->SetDisplayMode(d3d->dpp.BackBufferWidth, d3d->dpp.BackBufferHeight, d3d->t_depth, d3d->dpp.FullScreen_RefreshRateInHz, 0);
 	if (FAILED (hr)) {
 		write_log (_T("1:IDirectDraw7_SetDisplayMode: %s\n"), DXError (hr));
 		if (d3d->dpp.FullScreen_RefreshRateInHz && isvsync_chipset () < 0) {
-			hr = d3d->ddraw->SetDisplayMode (d3d->dpp.BackBufferWidth, d3d->dpp.BackBufferHeight, d3d->t_depth, 0, 0);
+			hr = d3d->ddraw->SetDisplayMode(d3d->dpp.BackBufferWidth, d3d->dpp.BackBufferHeight, d3d->t_depth, 0, 0);
 			if (FAILED (hr))
 				write_log (_T("2:IDirectDraw7_SetDisplayMode: %s\n"), DXError (hr));
 		}
 		if (FAILED (hr)) {
 			write_log (_T("IDirectDraw7_SetDisplayMode: %s\n"), DXError (hr));
-			ddraw_fs_hack_free (d3d);
+			ddraw_fs_hack_free(d3d);
 			return 0;
 		}
 	}
@@ -1641,7 +1641,7 @@ static int createmask2texture (struct d3dstruct *d3d, const TCHAR *filename)
 	d3d->mask2texture_offsetw = 0;
 
 	if (isfullscreen () > 0) {
-		struct MultiDisplay *md = getdisplay (&currprefs);
+		struct MultiDisplay *md = getdisplay(&currprefs, mon->monitor_id);
 		float deskw = md->rect.right - md->rect.left;
 		float deskh = md->rect.bottom - md->rect.top;
 		//deskw = 800; deskh = 600;
@@ -2351,7 +2351,7 @@ static void xD3D_vblank_reset (double freq)
 
 static int getd3dadapter (IDirect3D9 *id3d)
 {
-	struct MultiDisplay *md = getdisplay (&currprefs);
+	struct MultiDisplay *md = getdisplay(&currprefs, 0);
 	int num = id3d->GetAdapterCount ();
 	HMONITOR winmon;
 	POINT pt;

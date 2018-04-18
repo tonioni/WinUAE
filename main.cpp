@@ -416,9 +416,9 @@ void fixup_prefs (struct uae_prefs *p, bool userconfig)
 				rbc->monitor_id = 0;
 				error_log(_T("Multi virtual monitor support requires Direct3D mode."));
 			}
-			if (isfullscreen() != 0) {
+			if (isfullscreen() > 0) {
 				rbc->monitor_id = 0;
-				error_log(_T("Multi virtual monitor support requires windowed mode."));
+				error_log(_T("Multi virtual monitor support is not available in fullscreen mode."));
 			}
 		}
 		if (rbc->rtgmem_size > max_z3fastmem && rbc->rtgmem_type == GFXBOARD_UAE_Z3) {

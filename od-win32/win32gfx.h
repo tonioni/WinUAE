@@ -42,6 +42,6 @@ extern void unlockscr3d(struct vidbuffer *vb);
 void DX_Fill(struct AmigaMonitor*, int dstx, int dsty, int width, int height, uae_u32 color);
 void DX_Blit(int x, int y, int w, int h);
 void centerdstrect(struct AmigaMonitor*, RECT *);
-struct MultiDisplay *getdisplay (struct uae_prefs *p);
+struct MultiDisplay *getdisplay(struct uae_prefs *p, int monid);
 extern int getrefreshrate(int monid, int width, int height);
 #endif

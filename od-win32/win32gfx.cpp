@@ -190,15 +190,18 @@ static struct MultiDisplay *getdisplay2(struct uae_prefs *p, int index)
 		display = 0;
 	return &Displays[display];
 }
-struct MultiDisplay *getdisplay (struct uae_prefs *p)
+struct MultiDisplay *getdisplay(struct uae_prefs *p, int monid)
 {
+	struct AmigaMonitor *mon = &AMonitors[monid];
+	if (monid > 0 && mon->md)
+		return mon->md;
 	return getdisplay2(p, -1);
 }
 
 void desktop_coords(int monid, int *dw, int *dh, int *ax, int *ay, int *aw, int *ah)
 {
 	struct AmigaMonitor *mon = &AMonitors[monid];
-	struct MultiDisplay *md = getdisplay (&currprefs);
+	struct MultiDisplay *md = getdisplay(&currprefs, monid);
 
 	*dw = md->rect.right - md->rect.left;
 	*dh = md->rect.bottom - md->rect.top;
@@ -337,7 +340,7 @@ int target_get_display_scanline(int displayindex)
 {
 	if (pD3DKMTGetScanLine) {
 		D3DKMT_GETSCANLINE sl = { 0 };
-		struct MultiDisplay *md = displayindex < 0 ? getdisplay(&currprefs) : &Displays[displayindex];
+		struct MultiDisplay *md = displayindex < 0 ? getdisplay(&currprefs, 0) : &Displays[displayindex];
 		if (!md->HasAdapterData)
 			return -11;
 		sl.VidPnSourceId = md->VidPnSourceId;
@@ -383,7 +386,7 @@ static bool get_display_vblank_params(int displayindex, int *activeheightp, int 
 		pDisplayConfigGetDeviceInfo = (DISPLAYCONFIGGETDEVICEINFO)GetProcAddress(GetModuleHandle(_T("user32.dll")), "DisplayConfigGetDeviceInfo");
 	if (!pQueryDisplayConfig || !pGetDisplayConfigBufferSizes || !pDisplayConfigGetDeviceInfo)
 		return false;
-	struct MultiDisplay *md = displayindex < 0 ? getdisplay (&currprefs) : &Displays[displayindex];
+	struct MultiDisplay *md = displayindex < 0 ? getdisplay(&currprefs, 0) : &Displays[displayindex];
 	UINT32 pathCount, modeCount;
 	bool ret = false;
 	if (pGetDisplayConfigBufferSizes(QDC_ONLY_ACTIVE_PATHS, &pathCount, &modeCount) == ERROR_SUCCESS) {
@@ -515,7 +518,7 @@ static void display_param_init(struct AmigaMonitor *mon)
 		vsync_activeheight = mon->currentmode.current_height;
 	}
 
-	wait_vblank_display = getdisplay(&currprefs);
+	wait_vblank_display = getdisplay(&currprefs, mon->monitor_id);
 	if (!wait_vblank_display || !wait_vblank_display->HasAdapterData) {
 		write_log(_T("Selected display mode does not have adapter data!\n"));
 	}
@@ -528,7 +531,7 @@ const TCHAR *target_get_display_name (int num, bool friendlyname)
 {
 	if (num <= 0)
 		return NULL;
-	struct MultiDisplay *md = getdisplay2 (NULL, num - 1);
+	struct MultiDisplay *md = getdisplay2(NULL, num - 1);
 	if (!md)
 		return NULL;
 	if (friendlyname)
@@ -619,7 +622,7 @@ int getrefreshrate(int monid, int width, int height)
 	if (ap->gfx_refreshrate <= 0)
 		return 0;
 	
-	struct MultiDisplay *md = getdisplay (&currprefs);
+	struct MultiDisplay *md = getdisplay(&currprefs, monid);
 	for (int i = 0; md->DisplayModes[i].depth >= 0; i++) {
 		struct PicassoResolution *pr = &md->DisplayModes[i];
 		if (pr->res.width == width && pr->res.height == height) {
@@ -1817,7 +1820,7 @@ static void closeblankwindows (void)
 }
 static void createblankwindows (void)
 {
-	struct MultiDisplay *mdx = getdisplay (&currprefs);
+	struct MultiDisplay *mdx = getdisplay(&currprefs, 0);
 	int i;
 
 	if (!currprefs.win32_blankmonitors)
@@ -1913,7 +1916,7 @@ static void updatemodes(struct AmigaMonitor *mon)
 	if (flags & DM_SWSCALE)
 		mon->currentmode.fullfill = 1;
 	if (flags & DM_W_FULLSCREEN) {
-		RECT rc = getdisplay (&currprefs)->rect;
+		RECT rc = getdisplay(&currprefs, mon->monitor_id)->rect;
 		mon->currentmode.native_width = rc.right - rc.left;
 		mon->currentmode.native_height = rc.bottom - rc.top;
 		mon->currentmode.current_width = mon->currentmode.native_width;
@@ -2840,7 +2843,7 @@ bool vsync_switchmode(int monid, int hz)
 	int w = mon->currentmode.native_width;
 	int h = mon->currentmode.native_height;
 	int d = mon->currentmode.native_depth / 8;
-	struct MultiDisplay *md = getdisplay (&currprefs);
+	struct MultiDisplay *md = getdisplay(&currprefs, monid);
 	struct PicassoResolution *found;
 	int newh, i, cnt;
 	bool preferdouble = 0, preferlace = 0;
@@ -3365,7 +3368,7 @@ static int getbestmode(struct AmigaMonitor *mon, int nextbest)
 	int index = -1;
 
 	for(;;) {
-		md = getdisplay2 (&currprefs, index);
+		md = getdisplay2(&currprefs, index);
 		if (!md)
 			return 0;
 		ratio = mon->currentmode.native_width > mon->currentmode.native_height ? 1 : 0;
@@ -3507,8 +3510,32 @@ static int create_windows_2(struct AmigaMonitor *mon)
 	int cyborder = GetSystemMetrics (SM_CYFRAME);
 	int gap = 0;
 	int x, y, w, h;
-	struct MultiDisplay *md = getdisplay (&currprefs);
+	struct MultiDisplay *md;
 	int sbheight;
+
+	md = getdisplay(&currprefs, mon->monitor_id);
+	if (mon->monitor_id && fsw) {
+		struct MultiDisplay *md2 = NULL;
+		int idx = 0;
+		for (;;) {
+			md2 = getdisplay2(&currprefs, idx);
+			if (md2 == md)
+				break;
+			if (!md2)
+				break;
+			idx++;
+		}
+		for (int i = 0; i <= mon->monitor_id; i++) {
+			md2 = getdisplay2(&currprefs, idx);
+			if (!md2)
+				idx = 0;
+			else
+				idx++;
+		}
+		if (md2)
+			md = md2;
+	}
+	mon->md = md;
 
 	sbheight = currprefs.win32_statusbar ? getstatuswindowheight(mon->monitor_id) : 0;
 
@@ -3877,7 +3904,7 @@ retry:
 		tmp_depth = mon->currentmode.current_depth;
 
 		if (mon->currentmode.flags & DM_W_FULLSCREEN) {
-			RECT rc = getdisplay (&currprefs)->rect;
+			RECT rc = getdisplay(&currprefs, mon->monitor_id)->rect;
 			mon->currentmode.native_width = rc.right - rc.left;
 			mon->currentmode.native_height = rc.bottom - rc.top;
 		}
@@ -4162,7 +4189,7 @@ void updatewinfsmode(int monid, struct uae_prefs *p)
 	} else {
 		p->gfx_monitor[monid].gfx_size = p->gfx_monitor[monid].gfx_size_win;
 	}
-	md = getdisplay (p);
+	md = getdisplay(p, monid);
 	set_config_changed ();
 }
 

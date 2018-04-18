@@ -64,10 +64,10 @@ void getfilteroffset(int monid, float *dx, float *dy, float *mx, float *my)
 	*my = filterymult;
 }
 
-static void getinit (void)
+static void getinit(int monid)
 {
-	if (isfullscreen ()) {
-		struct MultiDisplay *md = getdisplay (&currprefs);
+	if (isfullscreen()) {
+		struct MultiDisplay *md = getdisplay(&currprefs, monid);
 
 		deskw = md->rect.right - md->rect.left;
 		deskh = md->rect.bottom - md->rect.top;
@@ -262,7 +262,7 @@ void getfilterrect2(int monid, RECT *sr, RECT *dr, RECT *zr, int dst_width, int 
 
 	fpux_save (&fpuv);
 
-	getinit ();
+	getinit(monid);
 	aws = aw * scale;
 	ahs = ah * scale;
 	//write_log (_T("%d %d %d\n"), dst_width, temp_width, aws);

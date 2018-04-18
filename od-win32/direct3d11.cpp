@@ -2496,7 +2496,7 @@ static int createmask2texture(struct d3d11struct *d3d, const TCHAR *filename)
 	d3d->mask2texture_offsetw = 0;
 
 	if (isfs(d3d) > 0) {
-		struct MultiDisplay *md = getdisplay(&currprefs);
+		struct MultiDisplay *md = getdisplay(&currprefs, mon->monitor_id);
 		float deskw = md->rect.right - md->rect.left;
 		float deskh = md->rect.bottom - md->rect.top;
 		//deskw = 800; deskh = 600;
@@ -3127,12 +3127,15 @@ static void do_present(struct d3d11struct *d3d, int black)
 			syncinterval = 0;
 	}
 	if (currprefs.turbo_emulation) {
-		presentFlags |= DXGI_PRESENT_DO_NOT_WAIT;
+		if (os_win8)
+			presentFlags |= DXGI_PRESENT_DO_NOT_WAIT;
 		syncinterval = 0;
 	}
 	d3d->syncinterval = syncinterval;
 
 	hr = d3d->m_swapChain->Present(syncinterval, presentFlags);
+	if (FAILED(hr))
+		write_log(_T("%08x\n"), hr);
 	if (currprefs.turbo_emulation && hr == DXGI_ERROR_WAS_STILL_DRAWING)
 		hr = S_OK;
 	if (FAILED(hr) && hr != DXGI_STATUS_OCCLUDED) {
@@ -3209,7 +3212,7 @@ static int xxD3D11_init2(HWND ahwnd, int monid, int w_w, int w_h, int t_w, int t
 	d3d->scrformat = DXGI_FORMAT_B8G8R8A8_UNORM;
 	d3d->dmultx = mmult;
 
-	struct MultiDisplay *md = getdisplay(&currprefs);
+	struct MultiDisplay *md = getdisplay(&currprefs, monid);
 	POINT pt;
 	pt.x = (md->rect.right - md->rect.left) / 2 + md->rect.left;
 	pt.y = (md->rect.bottom - md->rect.top) / 2 + md->rect.top;

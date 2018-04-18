@@ -2384,7 +2384,7 @@ static UINT_PTR CALLBACK ofnhook (HWND hDlg, UINT message, WPARAM wParam, LPARAM
 	}
 	write_log (_T("OFNHOOK POST\n"));
 	hWnd = GetParent (hDlg);
-	md = getdisplay (&currprefs);
+	md = getdisplay(&currprefs, mon->monitor_id);
 	if (!md)
 		return FALSE;
 	w2 = WIN32GFX_GetWidth(mon);
@@ -6891,7 +6891,7 @@ static void init_frequency_combo (HWND hDlg, int dmode)
 	int i, j, freq;
 	TCHAR hz[20], hz2[20], txt[100];
 	LRESULT index;
-	struct MultiDisplay *md = getdisplay (&workprefs);
+	struct MultiDisplay *md = getdisplay(&workprefs, 0);
 
 	i = 0; index = 0;
 	while (dmode >= 0 && (freq = md->DisplayModes[dmode].refresh[i]) > 0 && index < MAX_REFRESH_RATES) {
@@ -6969,7 +6969,7 @@ static void init_frequency_combo (HWND hDlg, int dmode)
 static int display_mode_index (uae_u32 x, uae_u32 y, uae_u32 d)
 {
 	int i, j;
-	struct MultiDisplay *md = getdisplay (&workprefs);
+	struct MultiDisplay *md = getdisplay(&workprefs, 0);
 
 	j = 0;
 	for (i = 0; md->DisplayModes[i].depth >= 0; i++) {
@@ -7110,7 +7110,7 @@ static void init_display_mode (HWND hDlg)
 {
 	int d, d2, index;
 	int i, cnt;
-	struct MultiDisplay *md = getdisplay (&workprefs);
+	struct MultiDisplay *md = getdisplay(&workprefs, 0);
 	struct monconfig *gm = &workprefs.gfx_monitor[0];
 
 	switch (workprefs.color_mode)
@@ -7422,7 +7422,7 @@ static void init_resolution_combo (HWND hDlg)
 {
 	int i, idx;
 	TCHAR tmp[MAX_DPATH];
-	struct MultiDisplay *md = getdisplay (&workprefs);
+	struct MultiDisplay *md = getdisplay(&workprefs, 0);
 
 	idx = -1;
 	SendDlgItemMessage(hDlg, IDC_RESOLUTION, CB_RESETCONTENT, 0, 0);
@@ -7687,7 +7687,7 @@ static void values_from_displaydlg (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 
 	int dmode = -1;
 	bool native = false;
-	struct MultiDisplay *md = getdisplay (&workprefs);
+	struct MultiDisplay *md = getdisplay(&workprefs, 0);
 	posn1 = SendDlgItemMessage (hDlg, IDC_RESOLUTION, CB_GETCURSEL, 0, 0);
 	LRESULT posn2 = SendDlgItemMessage (hDlg, IDC_RESOLUTIONDEPTH, CB_GETCURSEL, 0, 0);
 	if (posn1 != CB_ERR) {
@@ -19789,13 +19789,14 @@ static int dialog_x_offset, dialog_y_offset;
 
 static bool dodialogmousemove(void)
 {
+	int monid = 0;
 	if (full_property_sheet || isfullscreen () <= 0)
 		return false;
-	if (isfullscreen () > 0 && currprefs.gfx_monitor[0].gfx_size_fs.width > gui_width && currprefs.gfx_monitor[0].gfx_size.height > gui_height)
+	if (isfullscreen () > 0 && currprefs.gfx_monitor[monid].gfx_size_fs.width > gui_width && currprefs.gfx_monitor[monid].gfx_size.height > gui_height)
 		return false;
 	if (currprefs.gfx_api == 2)
 		return false;
-	struct MultiDisplay *mdc = getdisplay (&currprefs);
+	struct MultiDisplay *mdc = getdisplay(&currprefs, monid);
 	for (int i = 0; Displays[i].monitorid; i++) {
 		struct MultiDisplay *md = &Displays[i];
 		if (md->rect.right - md->rect.left >= 800 && md->rect.bottom - md->rect.top >= 600 && md != mdc)
@@ -19809,7 +19810,7 @@ static void centerWindow (HWND hDlg)
 	RECT rc, rcDlg, rcOwner;
 	int x = 0, y = 0;
 	POINT pt1, pt2;
-	struct MultiDisplay *mdc = getdisplay (&currprefs);
+	struct MultiDisplay *mdc = getdisplay(&currprefs, 0);
 
 	HWND owner = GetParent (hDlg);
 	if (owner == NULL)
@@ -20699,7 +20700,7 @@ static int GetSettings (int all_options, HWND hwnd)
 			gui_width = GetSystemMetrics(SM_CXSCREEN);
 			gui_height = GetSystemMetrics(SM_CYSCREEN);
 			if (isfullscreen() > 0) {
-				struct MultiDisplay *md = getdisplay (&currprefs);
+				struct MultiDisplay *md = getdisplay(&currprefs, 0);
 				int w = md->rect.right - md->rect.left;
 				int h = md->rect.bottom - md->rect.top;
 				write_log(_T("GUI Fullscreen, screen size %dx%d (%dx%d)\n"), w, h, start_gui_width, start_gui_height);

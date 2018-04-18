@@ -3879,7 +3879,7 @@ void target_fixup_options (struct uae_prefs *p)
 		nojoy = true;
 	}
 	
-	struct MultiDisplay *md = getdisplay (p);
+	struct MultiDisplay *md = getdisplay(p, 0);
 	for (int j = 0; j < MAX_AMIGADISPLAYS; j++) {
 		if (p->gfx_monitor[j].gfx_size_fs.special == WH_NATIVE) {
 			int i;

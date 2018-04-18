@@ -874,7 +874,7 @@ static void set_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 			fs = 1;
 	}
 	p->gf[0].gfx_filter_autoscale = AUTOSCALE_CENTER;
-	disp = getdisplay (p);
+	disp = getdisplay(p, 0);
 
 	if (log_rp & 2) {
 		write_log (_T("SET_RPSM: %08X %dx%d %dx%d hres=%d vres=%d disp=%d fs=%d smm=%d\n"),
