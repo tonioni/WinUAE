@@ -1139,7 +1139,13 @@ struct hardfiledata *get_hardfile_data_controller(int nr)
 	for (int i = 0; i < MAX_FILESYSTEM_UNITS; i++) {
 		if (uip[i].open == 0)
 			continue;
-		if (uip[i].hf.ci.controller_unit == nr)
+		if (uip[i].hf.ci.controller_unit == nr && uip[i].hf.ci.type != UAEDEV_DIR)
+			return &uip[i].hf;
+	}
+	for (int i = 0; i < MAX_FILESYSTEM_UNITS; i++) {
+		if (uip[i].open == 0)
+			continue;
+		if (uip[i].hf.ci.controller_unit == nr && uip[i].hf.ci.type == UAEDEV_DIR)
 			return &uip[i].hf;
 	}
 	return NULL;
