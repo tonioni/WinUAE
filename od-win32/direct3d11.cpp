@@ -3115,8 +3115,9 @@ static void do_present(struct d3d11struct *d3d, int black)
 
 	int vsync = isvsync();
 	UINT syncinterval = d3d->vblankintervals;
-	if (d3d->m_tearingSupport && (d3d->swapChainDesc.Flags & DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING)) {
-		if (1 || apm->gfx_vsyncmode || d3d - d3d11data > 0 || currprefs.turbo_emulation) {
+	// only if no vsync or low latency vsync
+	if (d3d->m_tearingSupport && (d3d->swapChainDesc.Flags & DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING) && (!vsync || apm->gfx_vsyncmode)) {
+		if (apm->gfx_vsyncmode || d3d - d3d11data > 0 || currprefs.turbo_emulation) {
 			presentFlags |= DXGI_PRESENT_ALLOW_TEARING;
 			syncinterval = 0;
 		}
@@ -3127,6 +3128,10 @@ static void do_present(struct d3d11struct *d3d, int black)
 			syncinterval = 0;
 	}
 	if (currprefs.turbo_emulation) {
+		static int skip;
+		if (--skip > 0)
+			return;
+		skip = 10;
 		if (os_win8)
 			presentFlags |= DXGI_PRESENT_DO_NOT_WAIT;
 		syncinterval = 0;
@@ -3134,8 +3139,6 @@ static void do_present(struct d3d11struct *d3d, int black)
 	d3d->syncinterval = syncinterval;
 
 	hr = d3d->m_swapChain->Present(syncinterval, presentFlags);
-	if (FAILED(hr))
-		write_log(_T("%08x\n"), hr);
 	if (currprefs.turbo_emulation && hr == DXGI_ERROR_WAS_STILL_DRAWING)
 		hr = S_OK;
 	if (FAILED(hr) && hr != DXGI_STATUS_OCCLUDED) {

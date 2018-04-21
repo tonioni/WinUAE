@@ -216,6 +216,11 @@ static int guijoybutton[MAX_JPORTS];
 static int guijoyaxis[MAX_JPORTS][4];
 static bool guijoychange;
 
+typedef NTSTATUS(CALLBACK* NTDELAYEXECUTION)(BOOL, PLARGE_INTEGER);
+typedef NTSTATUS(CALLBACK* ZWSETTIMERRESOLUTION)(ULONG, BOOLEAN, PULONG);
+static NTDELAYEXECUTION pNtDelayExecution;
+static ZWSETTIMERRESOLUTION pZwSetTimerResolution;
+
 #if TOUCH_SUPPORT
 typedef BOOL (CALLBACK* REGISTERTOUCHWINDOW)(HWND, ULONG);
 typedef BOOL (CALLBACK* GETTOUCHINPUTINFO)(HTOUCHINPUT, UINT, PTOUCHINPUT, int);
@@ -224,6 +229,50 @@ typedef BOOL (CALLBACK* CLOSETOUCHINPUTHANDLE)(HTOUCHINPUT);
 static GETTOUCHINPUTINFO pGetTouchInputInfo;
 static CLOSETOUCHINPUTHANDLE pCloseTouchInputHandle;
 #endif
+
+static ULONG ActualTimerResolution;
+
+void target_sleep_nanos(int nanos)
+{
+	static bool init;
+	if (!init) {
+		pNtDelayExecution = (NTDELAYEXECUTION)GetProcAddress(GetModuleHandle(_T("ntdll.dll")), "NtDelayExecution");
+		pZwSetTimerResolution = (ZWSETTIMERRESOLUTION)GetProcAddress(GetModuleHandle(_T("ntdll.dll")), "ZwSetTimerResolution");
+		if (pZwSetTimerResolution) {
+			// 0.5ms
+			NTSTATUS status = pZwSetTimerResolution((500 * 1000) / 100, TRUE, &ActualTimerResolution);
+			if (!status) {
+				LARGE_INTEGER interval;
+				interval.QuadPart = -(int)ActualTimerResolution;
+				status = pNtDelayExecution(false, &interval);
+				if (!status) {
+					write_log(_T("Using NtDelayExecution. ActualTimerResolution=%u\n"), ActualTimerResolution);
+				} else {
+					write_log(_T("NtDelayExecution returned %08x\n"), status);
+					pNtDelayExecution = NULL;
+					pZwSetTimerResolution = NULL;
+				}
+			} else {
+				write_log(_T("NtDelayExecution not available\n"));
+				pNtDelayExecution = NULL;
+				pZwSetTimerResolution = NULL;
+			}
+		}
+		init = true;
+	}
+	if (pNtDelayExecution) {
+		LARGE_INTEGER interval;
+		int start = read_processor_time();
+		nanos *= 10;
+		if (nanos < ActualTimerResolution)
+			nanos = ActualTimerResolution;
+		interval.QuadPart = -nanos;
+		pNtDelayExecution(false, &interval);
+		idletime += read_processor_time() - start;
+	} else {
+		sleep_millis_main(1);
+	}
+}
 
 static uae_u64 spincount;
 

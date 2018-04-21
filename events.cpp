@@ -70,9 +70,37 @@ void do_cycles_slow (unsigned long cycles_to_add)
 
 		/* Keep only CPU emulation running while waiting for sync point. */
 		if (is_syncline == -1) {
-			audio_finish_pull();
+
 			// wait for vblank
+			audio_finish_pull();
 			int done = vsync_isdone(NULL);
+			if (!done) {
+#ifdef WITH_PPC
+				if (ppc_state) {
+					if (is_syncline == 1) {
+						uae_ppc_execute_check();
+					} else {
+						uae_ppc_execute_quick();
+					}
+				}
+#endif
+				if (currprefs.cachesize)
+					pissoff = pissoff_value;
+				else
+					pissoff = pissoff_nojit_value;
+				return;
+			}
+			vsync_clear();
+			vsync_event_done();
+
+		} else if (is_syncline == -2) {
+
+			// wait for vblank or early vblank
+			audio_finish_pull();
+			int done = vsync_isdone(NULL);
+			int vp = target_get_display_scanline(-1);
+			if (vp < 0 || vp >= is_syncline_end)
+				done = true;
 			if (!done) {
 #ifdef WITH_PPC
 				if (ppc_state) {

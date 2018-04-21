@@ -485,7 +485,9 @@ static void display_vblank_thread(struct AmigaMonitor *mon)
 		display_vblank_thread_kill();
 		return;
 	}
-	// It seems some Windows 7 drivers hang if D3DKMTWaitForVerticalBlankEvent()
+	if (waitvblankthread_mode > 0)
+		return;
+	// It seems some Windows 7 drivers stall if D3DKMTWaitForVerticalBlankEvent()
 	// and D3DKMTGetScanLine() is used simultaneously.
 	if (os_win8 && ap->gfx_vsyncmode && pD3DKMTWaitForVerticalBlankEvent && wait_vblank_display->HasAdapterData) {
 		waitvblankevent = CreateEvent(NULL, FALSE, FALSE, NULL);

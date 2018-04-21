@@ -7487,11 +7487,9 @@ static bool framewait (void)
 		if (!vblank_hz_state)
 			return status != 0;
 
-		if (vs < 0) {
-			frame_shown = true;
-			status = 1;
-			return status != 0;
-		}
+		frame_shown = true;
+		status = 1;
+		return status != 0;
 	}
 
 	status = 1;
@@ -8252,7 +8250,10 @@ static void scanlinesleep(int currline, int nextline)
 	}
 	if (busywait)
 		return;
-	cpu_sleep_millis(1);
+	if (currprefs.m68k_speed < 0)
+		sleep_millis_main(1);
+	else
+		target_sleep_nanos(500);
 }
 
 static void linesync_first_last_line(int *first, int *last)
@@ -8343,20 +8344,18 @@ static bool linesync_beam_multi_dual(void)
 				do_render_slice(1, display_slice_cnt);
 				display_rendered = true;
 			}
-			if (!currprefs.turbo_emulation) {
-				while (!currprefs.turbo_emulation && sync_timeout_check(maxtime)) {
-					frame_time_t rpt = read_processor_time();
-					if ((int)rpt - (int)vsyncmintime >= 0 || (int)rpt - (int)vsyncmintime < -vsynctimebase * 2) {
-						vsyncmintime = rpt + vsynctimebase;
-						break;
-					}
-					maybe_process_pull_audio();
-					target_spin(0);
+			while (!currprefs.turbo_emulation && sync_timeout_check(maxtime)) {
+				frame_time_t rpt = read_processor_time();
+				if ((int)rpt - (int)vsyncmintime >= 0 || (int)rpt - (int)vsyncmintime < -vsynctimebase * 2) {
+					vsyncmintime = rpt + vsynctimebase;
+					break;
 				}
-				do_display_slice();
-				display_rendered = false;
-				input_read_done = true;
+				maybe_process_pull_audio();
+				target_spin(0);
 			}
+			do_display_slice();
+			display_rendered = false;
+			input_read_done = true;
 
 		} else {
 
@@ -8408,7 +8407,7 @@ static bool linesync_beam_multi_dual(void)
 	return input_read_done;
 }
 
-static bool linesync_beam_multi(void)
+static bool linesync_beam_multi_single(void)
 {
 	static int vsyncnextscanline;
 	static int vsyncnextscanline_add;
@@ -8464,6 +8463,7 @@ static bool linesync_beam_multi(void)
 			}
 			vsync_clear();
 		}
+
 		while (!currprefs.turbo_emulation && sync_timeout_check(maxtime)) {
 			int vp = target_get_display_scanline(-1);
 			if (vp < 0 || vp >= vsyncnextscanline)
@@ -8488,25 +8488,38 @@ static bool linesync_beam_multi(void)
 
 	} else if (vpos >= nextwaitvpos) {
 
+		// topmost/first slice?
 		if (display_slice_cnt == 0) {
-			// topmost slice
 
 			if (currprefs.gfx_variable_sync) {
 
-				do_render_slice(1, display_slice_cnt);
-				display_rendered = true;
+				if (!currprefs.turbo_emulation) {
+					if (!was_syncline) {
+						do_render_slice(1, display_slice_cnt);
+						display_rendered = true;
+					}
 
-				for(;;) {
-					frame_time_t rpt = read_processor_time();
-					if ((int)rpt - (int)vsyncmintime >= 0 || (int)rpt - (int)vsyncmintime < -2 * vsynctimebase)
-						break;
-					maybe_process_pull_audio();
-					target_spin(0);
+					frame_time_t rpt;
+					for(;;) {
+						rpt = read_processor_time();
+						if ((int)rpt - (int)vsyncmintime >= 0 || (int)rpt - (int)vsyncmintime < -2 * vsynctimebase)
+							break;
+						maybe_process_pull_audio();
+						if (currprefs.m68k_speed < 0 && !was_syncline) {
+							is_syncline = -1;
+							return 0;
+						}
+						target_spin(0);
+					}
+					do_display_slice();
+					if ((int)rpt - (int)vsyncmintime < vsynctimebase && (int)rpt - (int)vsyncmintime > -vsynctimebase) {
+						vsyncmintime += vsynctimebase;
+					} else {
+						vsyncmintime = rpt + vsynctimebase;
+					}
+					display_rendered = false;
+					input_read_done = true;
 				}
-				vsyncmintime = read_processor_time() + vsynctimebase;
-				do_display_slice();
-				display_rendered = false;
-				input_read_done = true;
 
 			} else {
 
@@ -8516,13 +8529,16 @@ static bool linesync_beam_multi(void)
 						display_rendered = true;
 					}
 
+					// flip slightly early because flip regularly gets delayed if done during vblank
+					int lastflipline = vsync_activeheight - vsyncnextscanline_add / 3;
 					while (sync_timeout_check(maxtime)) {
 						int vp = target_get_display_scanline(-1);
 						maybe_process_pull_audio();
-						if (vp < 0 || vp < vsync_activeheight / 2 || vp >= vsync_activeheight - 1)
+						if (vp < vsync_activeheight / 2 || vp >= lastflipline)
 							break;
 						if (currprefs.m68k_speed < 0 && !was_syncline) {
-							is_syncline = -1;
+							is_syncline_end = lastflipline;
+							is_syncline = -2;
 							return 0;
 						}
 						target_spin(0);
@@ -8533,6 +8549,21 @@ static bool linesync_beam_multi(void)
 					do_display_slice();
 					display_rendered = false;
 					input_read_done = true;
+
+#if 1
+					// if flipped before vblank, wait for vblank
+					while (sync_timeout_check(maxtime)) {
+						int vp = target_get_display_scanline(-1);
+						if (vp < vsync_activeheight / 2)
+							break;
+						if (currprefs.m68k_speed < 0 && !was_syncline) {
+							is_syncline = -1;
+							return 0;
+						}
+						maybe_process_pull_audio();
+						target_spin(0);
+					}
+#endif
 				}
 
 			}
@@ -8548,7 +8579,8 @@ static bool linesync_beam_multi(void)
 				}
 				while (sync_timeout_check(maxtime)) {
 					int vp = target_get_display_scanline(-1);
-					if (vp == -1) {
+					// We are still in vblank and second slice? Poll until vblank ends.
+					if (display_slice_cnt == 1 && vp == -1) {
 						maybe_process_pull_audio();
 						target_spin(0);
 #if LLV_DEBUG
@@ -8591,10 +8623,10 @@ void vsync_event_done(void)
 	if (currprefs.gfx_display_sections <= 1) {
 		linesync_beam_single();
 	} else {
-		if (vsync_hblank >= 85 && !currprefs.gfx_variable_sync)
+		if (vsync_vblank >= 85 && !currprefs.gfx_variable_sync)
 			linesync_beam_multi_dual();
 		else
-			linesync_beam_multi();
+			linesync_beam_multi_single();
 	}
 }
 
@@ -8749,10 +8781,10 @@ static void hsync_handler_post (bool onvsync)
 		if (currprefs.gfx_display_sections <= 1) {
 			input_read_done = linesync_beam_single();
 		} else {
-			if (vsync_hblank >= 85 && currprefs.gfx_variable_sync)
+			if (vsync_vblank >= 85 && !currprefs.gfx_variable_sync)
 				input_read_done = linesync_beam_multi_dual();
 			else
-				input_read_done = linesync_beam_multi();
+				input_read_done = linesync_beam_multi_single();
 		}
 
 	} else if (!currprefs.cpu_thread && !cpu_sleepmode && currprefs.m68k_speed < 0 && !currprefs.cpu_memory_cycle_exact) {
@@ -10249,7 +10281,7 @@ uae_u8 *restore_custom_extra (uae_u8 *src)
 	//currprefs.a4091rom.enabled = changed_prefs.a4091rom.enabled = RBB;
 	RBB;
 	RBB;
-	currprefs.cs_cdtvscsi = changed_prefs.cs_cdtvscsi = RBB;
+	RBB;
 
 	currprefs.cs_pcmcia = changed_prefs.cs_pcmcia = RBB;
 	currprefs.cs_ciaatod = changed_prefs.cs_ciaatod = RB;
@@ -10309,7 +10341,7 @@ uae_u8 *save_custom_extra (int *len, uae_u8 *dstptr)
 
 	SB (is_board_enabled(&currprefs, ROMTYPE_A2091, 0) ? 1 : 0);
 	SB (is_board_enabled(&currprefs, ROMTYPE_A4091, 0) ? 1 : 0);
-	SB (currprefs.cs_cdtvscsi ? 1 : 0);
+	SB (0);
 
 	SB (currprefs.cs_pcmcia ? 1 : 0);
 	SB (currprefs.cs_ciaatod);
