@@ -614,7 +614,6 @@ struct uae_prefs {
 	int cs_agnusrev;
 	int cs_deniserev;
 	int cs_mbdmac;
-	bool cs_cdtvscsi;
 	bool cs_cdtvcr;
 	bool cs_df0idhw;
 	bool cs_slowmemisfast;

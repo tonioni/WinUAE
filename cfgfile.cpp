@@ -5098,7 +5098,6 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 		|| cfgfile_yesno(option, value, _T("cdtv-cr"), &p->cs_cdtvcr)
 		|| cfgfile_yesno(option, value, _T("cdtvram"), &p->cs_cdtvram)
 		|| cfgfile_yesno(option, value, _T("a1000ram"), &p->cs_a1000ram)
-		|| cfgfile_yesno(option, value, _T("scsi_cdtv"), &p->cs_cdtvscsi)
 		|| cfgfile_yesno(option, value, _T("cia_overlay"), &p->cs_ciaoverlay)
 		|| cfgfile_yesno(option, value, _T("bogomem_fast"), &p->cs_slowmemisfast)
 		|| cfgfile_yesno(option, value, _T("ksmirror_e0"), &p->cs_ksmirror_e0)
@@ -5253,6 +5252,12 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 		return 1;
 	}
 	if (cfgfile_readramboard(option, value, _T("z3mem"), &p->z3fastmem[0])) {
+		return 1;
+	}
+
+	if (cfgfile_yesno(option, value, _T("scsi_cdtv"), &tmpval)) {
+		if (tmpval)
+			addbcromtype(p, ROMTYPE_CDTVSCSI, true, NULL, 0);
 		return 1;
 	}
 
@@ -5736,7 +5741,6 @@ void cfgfile_compatibility_romtype(struct uae_prefs *p)
 	}
 
 	addbcromtype(p, ROMTYPE_CDTVDMAC, p->cs_cdtvcd && !p->cs_cdtvcr, NULL, 0);
-	addbcromtype(p, ROMTYPE_CDTVSCSI, p->cs_cdtvscsi, NULL, 0);
 
 	addbcromtype(p, ROMTYPE_CDTVCR, p->cs_cdtvcr, NULL, 0);
 
@@ -8438,7 +8442,7 @@ int built_in_chipset_prefs (struct uae_prefs *p)
 
 	p->cs_a1000ram = 0;
 	p->cs_cd32c2p = p->cs_cd32cd = p->cs_cd32nvram = 0;
-	p->cs_cdtvcd = p->cs_cdtvram = p->cs_cdtvscsi = p->cs_cdtvcr = 0;
+	p->cs_cdtvcd = p->cs_cdtvram = p->cs_cdtvcr = 0;
 	p->cs_cdtvcard = 0;
 	p->cs_fatgaryrev = -1;
 	p->cs_ide = 0;

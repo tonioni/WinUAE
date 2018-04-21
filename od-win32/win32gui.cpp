@@ -8186,7 +8186,6 @@ static void values_to_chipsetdlg2 (HWND hDlg)
 	CheckDlgButton(hDlg, IDC_CS_DENISE, workprefs.cs_deniserev >= 0);
 	CheckDlgButton(hDlg, IDC_CS_DMAC, workprefs.cs_mbdmac & 1);
 	CheckDlgButton(hDlg, IDC_CS_DMAC2, workprefs.cs_mbdmac & 2);
-	CheckDlgButton(hDlg, IDC_CS_CDTVSCSI, workprefs.cs_cdtvscsi);
 	CheckDlgButton(hDlg, IDC_CS_PCMCIA, workprefs.cs_pcmcia);
 	CheckDlgButton(hDlg, IDC_CS_SLOWISFAST, workprefs.cs_slowmemisfast);
 	CheckDlgButton(hDlg, IDC_CS_CIATODBUG, workprefs.cs_ciatodbug);
@@ -8278,7 +8277,6 @@ static void values_from_chipsetdlg2 (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 	workprefs.cs_fatgaryrev = ischecked (hDlg, IDC_CS_FATGARY) ? 0x00 : -1;
 	workprefs.cs_mbdmac = ischecked (hDlg, IDC_CS_DMAC) ? 1 : 0;
 	workprefs.cs_mbdmac |= ischecked (hDlg, IDC_CS_DMAC2) ? 2 : 0;
-	workprefs.cs_cdtvscsi = ischecked (hDlg, IDC_CS_CDTVSCSI) ? 1 : 0;
 	workprefs.cs_pcmcia = ischecked (hDlg, IDC_CS_PCMCIA) ? 1 : 0;
 	workprefs.cs_slowmemisfast = ischecked (hDlg, IDC_CS_SLOWISFAST) ? 1 : 0;
 	workprefs.cs_z3autoconfig = ischecked (hDlg, IDC_CS_Z3AUTOCONFIG) ? 1 : 0;
@@ -8351,7 +8349,6 @@ static void enable_for_chipsetdlg2 (HWND hDlg)
 	ew(hDlg, IDC_CS_IDE2, e);
 	ew(hDlg, IDC_CS_DMAC, e);
 	ew(hDlg, IDC_CS_DMAC2, e);
-	ew(hDlg, IDC_CS_CDTVSCSI, e);
 	ew(hDlg, IDC_CS_PCMCIA, e);
 	ew(hDlg, IDC_CS_SLOWISFAST, e);
 	ew(hDlg, IDC_CS_CD32CD, e);
@@ -13362,7 +13359,6 @@ static INT_PTR CALLBACK CDDriveSettingsProc (HWND hDlg, UINT msg, WPARAM wParam,
 		if (current_cddlg.ci.controller_type == HD_CONTROLLER_TYPE_UAE)
 			current_cddlg.ci.controller_type = (is_board_enabled(&workprefs, ROMTYPE_A2091, 0) ||
 				is_board_enabled(&workprefs, ROMTYPE_GVPS2, 0) || is_board_enabled(&workprefs, ROMTYPE_A4091, 0) ||
-			workprefs.cs_cdtvscsi ||
 			(workprefs.cs_mbdmac & 3)) ? HD_CONTROLLER_TYPE_SCSI_AUTO : HD_CONTROLLER_TYPE_IDE_AUTO;
 		inithdcontroller(hDlg, current_cddlg.ci.controller_type, current_cddlg.ci.controller_type_unit, UAEDEV_CD, current_cddlg.ci.rootdir[0] != 0);
 		SendDlgItemMessage(hDlg, IDC_HDF_CONTROLLER_UNIT, CB_SETCURSEL, current_cddlg.ci.controller_type != HD_CONTROLLER_TYPE_PCMCIA ? current_cddlg.ci.controller_unit : current_cddlg.ci.controller_type_unit, 0);
