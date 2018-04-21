@@ -104,7 +104,6 @@ struct sound_dp
 	int wasapiexclusive;
 	int sndbuf;
 	int wasapigoodsize;
-	
 	int pullmode;
 	HANDLE pullevent, pullevent2;
 	uae_u8 *pullbuffer;
@@ -1031,6 +1030,97 @@ static int open_audio_xaudio2 (struct sound_data *sd, int index)
 }
 #endif
 
+class UAEIMMNotificationClient : public IMMNotificationClient
+{
+	LONG _cRef;
+	struct sound_data *s;
+	TCHAR current[MAX_DPATH];
+public:
+	UAEIMMNotificationClient(struct sound_data *s) : _cRef(1)
+	{
+		this->s = s;
+		current[0] = 0;
+	}
+	~UAEIMMNotificationClient()
+	{
+	}
+	ULONG STDMETHODCALLTYPE AddRef()
+	{
+		return InterlockedIncrement(&_cRef);
+	}
+	ULONG STDMETHODCALLTYPE Release()
+	{
+		ULONG ulRef = InterlockedDecrement(&_cRef);
+		if (!ulRef) {
+			delete this;
+		}
+		return ulRef;
+	}
+	HRESULT STDMETHODCALLTYPE QueryInterface(
+		REFIID riid, VOID **ppvInterface)
+	{
+		if (IID_IUnknown == riid) {
+			AddRef();
+			*ppvInterface = (IUnknown*)this;
+		} else if (__uuidof(IMMNotificationClient) == riid) {
+			AddRef();
+			*ppvInterface = (IMMNotificationClient*)this;
+		} else {
+			*ppvInterface = NULL;
+			return E_NOINTERFACE;
+		}
+		return S_OK;
+	}
+	HRESULT STDMETHODCALLTYPE OnDefaultDeviceChanged(EDataFlow flow, ERole role, LPCWSTR pwstrDeviceId)
+	{
+		if (flow != eRender)
+			return S_OK;
+		if (flow != eConsole && flow != eMultimedia)
+			return S_OK;
+		if (s->devicetype != SOUND_DEVICE_WASAPI)
+			return S_OK;
+		if (s->index < 0)
+			return S_OK;
+		// default wasapi device selected?
+		if (sound_devices[s->index]->alname != NULL)
+			return S_OK;
+		if (!_tcscmp(current, pwstrDeviceId))
+			return S_OK;
+		_tcscpy(current, pwstrDeviceId);
+		write_log(_T("OnDefaultDeviceChanged '%s'\n"), current);
+		s->reset = true;
+		return S_OK;
+	}
+	HRESULT STDMETHODCALLTYPE OnDeviceAdded(LPCWSTR pwstrDeviceId)
+	{
+		return S_OK;
+	};
+	HRESULT STDMETHODCALLTYPE OnDeviceRemoved(LPCWSTR pwstrDeviceId)
+	{
+		return S_OK;
+	}
+	HRESULT STDMETHODCALLTYPE OnDeviceStateChanged(LPCWSTR pwstrDeviceId, DWORD dwNewState)
+	{
+		return S_OK;
+	}
+	HRESULT STDMETHODCALLTYPE OnPropertyValueChanged(LPCWSTR pwstrDeviceId, const PROPERTYKEY key)
+	{
+		return S_OK;
+	}
+};
+
+static void add_wasapi_notification(struct sound_data *sd, IMMDeviceEnumerator *pEnumerator)
+{
+	static bool notificationcallback;
+	if (notificationcallback)
+		return;
+	UAEIMMNotificationClient *imm = new UAEIMMNotificationClient(sd);
+	HRESULT hr = pEnumerator->RegisterEndpointNotificationCallback(imm);
+	notificationcallback = true;
+	if (FAILED(hr))
+		write_log(_T("RegisterEndpointNotificationCallback failed %08x\n"), hr);
+}
+
 static void close_audio_wasapi (struct sound_data *sd)
 {
 	struct sound_dp *s = sd->data;
@@ -1417,6 +1507,8 @@ retry:
 		s->pullmode ? _T("Pull") : _T("Push"),
 		sd->channels, sd->freq, sd->sndbufsize / sd->samplesize, s->bufferFrameCount);
 
+	add_wasapi_notification(sd, s->pEnumerator);
+
 	CoTaskMemFree (pwfx);
 	CoTaskMemFree (pwfx_saved);
 	CoTaskMemFree (name);
@@ -1599,6 +1691,7 @@ int open_sound_device (struct sound_data *sd, int index, int bufsize, int freq, 
 	sd->freq = freq;
 	sd->channels = channels;
 	sd->paused = 1;
+	sd->index = index;
 	if (type == SOUND_DEVICE_AL)
 		ret = open_audio_al (sd, index);
 	else if (type == SOUND_DEVICE_DS)
@@ -1632,6 +1725,7 @@ void close_sound_device (struct sound_data *sd)
 #endif
 	xfree (sd->data);
 	sd->data = NULL;
+	sd->index = -1;
 }
 void pause_sound_device (struct sound_data *sd)
 {

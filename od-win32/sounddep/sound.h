@@ -47,6 +47,7 @@ struct sound_data
 	int sndbufframes;
 	int softvolume;
 	struct sound_dp *data;
+	int index;
 	bool reset;
 };
 
