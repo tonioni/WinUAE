@@ -1,9 +1,32 @@
 
-JIT Direct current rules are less complex now. It automatically switches off only in following situations:
-  - Accelerator mirrored maprom address space is not JIT Direct compatible. (CyberStorm, Blizzards etc)
-  - RTG VRAM is outside of reserved natmem space. Workaround: Move RTG in earlier position using Hardware info GUI panel.
-  Note that in 64-bit version RTG VRAM must be inside of reserved natmem space. (Outside = error message and return back to GUI)
+Beta 4:
 
+- Show only every 10th frame in D3D11 warp mode. For some reason Present() blocks if rate is higher than current max monitor refresh rate, not even DXGI_PRESENT_ALLOW_TEARING or DXGI_PRESENT_DO_NOT_WAIT help.
+- Normal windowed D3D11 vsync mode should work correctly again.
+- Default WASAPI audio device now follows Windows default audio device if default gets changed and emulation is already running.
+- Renamed new low latency vsync to official "Lagless VSYNC (Beamraced)".
+- Flip first slice early, before vblank (Early flip won't cause tearing as long as it happens during last slice). This should fix tearing in topmost slice when flip gets delayed (which for some unknown reason seems to regularly happen if flipping is done during vblank). This change makes last debug color bar shorter which is normal.
+- Use NtDelayExecution and ZwSetTimerResolution (if available) for sub 1ms delays in non-fastest possible CPU low latency vsync modes.
+- Replaced FastLane ROM with full 32k dump.
+- Emulated (partially) C-Ltd Kronos.
+- Removed CDTV SCSI from Advanced Chipset. It is optional hardware module and should be only in Expansion panel. Old CDTV SCSI configured config files are still supported but this and future versions won't write old CDTV SCSI config file entry to config file anymore.
+
+C-Ltd Kronos:
+- 5380 based SCSI controller with buffer RAM.
+- Boot ROM added ("CLtd RomBoot 3.4, Copyright 1989, Wayne E. Miller")
+- Boot ROM is only small driver loader from drive's custom partition table.
+- SCSI settings are stored in 256 bit 93C06 serial EEPROM. EEPROM is emulated but data is static (boot enabled, SCSI ID=7)
+- Install disk is MIA: Emulation is not yet complete, for example buffer RAM/fake DMA is not emulated.
+
+Beta 3:
+
+- New low latency vsync should now work under Windows XP, D3D9 only.
+- Added ICD AdSCSI ROM with icddisk.device v33.0 (unknown ROM version, most likely v2.0 or v2.1) and v34.0 (v2.2 ROM version)
+- Added MacroSystem DraCo v1.3 Boot ROM. Set it as extended ROM, A3000 KS 3.1 as normal ROM. (Boots and hangs like Casablanca)
+- Fixed MOVE16 debugger disassembly.
+- Fixed HDF/directory harddrive unit number conflict (if directory was between HDFs in harddrives list) introduced in b1.
+- Fixed randomly occurring timing issue. Reported refresh rate suddenly increased and it looked like warp mode was activated.
+- Full-window mode is now supported in virtual multi monitor mode. Native mode window opens on selected monitor, next virtual monitor opens on following real monitor and so on (or on top of existing window if not enough real monitors)
 
 Beta 2:
 

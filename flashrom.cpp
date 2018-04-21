@@ -53,11 +53,15 @@ void eeprom93xx_write(void *eepromp, int eecs, int eesk, int eedi)
 	uint16_t address = eeprom->address;
 	uint8_t command = eeprom->command;
 
-	//write_log("CS=%u SK=%u DI=%u DO=%u, tick = %u\n", eecs, eesk, eedi, eedo, tick);
+#if EEPROM_LOG
+	write_log("CS=%u SK=%u DI=%u DO=%u, tick = %u\n", eecs, eesk, eedi, eedo, tick);
+#endif
 
 	if (!eeprom->eecs && eecs) {
 		/* Start chip select cycle. */
-		//write_log("Cycle start, waiting for 1st start bit (0)\n");
+#if EEPROM_LOG
+		write_log("Cycle start, waiting for 1st start bit (0)\n");
+#endif
 		tick = 0;
 		command = 0x0;
 		address = 0x0;
@@ -97,11 +101,15 @@ void eeprom93xx_write(void *eepromp, int eecs, int eesk, int eedi)
 		if (tick == 0) {
 			/* Wait for 1st start bit. */
 			if (eedi == 0) {
-				//write_log("Got correct 1st start bit, waiting for 2nd start bit (1)\n");
+#if EEPROM_LOG
+				write_log("Got correct 1st start bit, waiting for 2nd start bit (1)\n");
+#endif
 				tick++;
 			}
 			else {
-				//write_log("wrong 1st start bit (is 1, should be 0)\n");
+#if EEPROM_LOG
+				write_log("wrong 1st start bit (is 1, should be 0)\n");
+#endif
 				tick = 2;
 				//~ assert(!"wrong start bit");
 			}
@@ -109,11 +117,16 @@ void eeprom93xx_write(void *eepromp, int eecs, int eesk, int eedi)
 		else if (tick == 1) {
 			/* Wait for 2nd start bit. */
 			if (eedi != 0) {
-				//write_log("Got correct 2nd start bit, getting command + address\n");
+#if EEPROM_LOG
+				write_log("Got correct 2nd start bit, getting command + address\n");
+#endif
 				tick++;
 			}
 			else {
-				;//write_log("1st start bit is longer than needed\n");
+#if EEPROM_LOG
+
+				write_log("1st start bit is longer than needed\n");
+#endif
 			}
 		}
 		else if (tick < 2 + 2) {
@@ -129,7 +142,9 @@ void eeprom93xx_write(void *eepromp, int eecs, int eesk, int eedi)
 			tick++;
 			address = ((address << 1) | eedi);
 			if (tick == 2 + 2 + eeprom->addrbits) {
-				//write_log("%s command, address = 0x%02x (value 0x%04x)\n", opstring[command], address, eeprom->contents[address]);
+#if EEPROM_LOG
+				write_log("%s command, address = 0x%02x (value 0x%04x)\n", opstring[command], address, eeprom->contents[address]);
+#endif
 				if (command == 2) {
 					eedo = 0;
 				}
@@ -138,17 +153,25 @@ void eeprom93xx_write(void *eepromp, int eecs, int eesk, int eedi)
 					/* Command code in upper 2 bits of address. */
 					switch (address >> (eeprom->addrbits - 2)) {
 					case 0:
-						//write_log("write disable command\n");
+#if EEPROM_LOG
+						write_log("write disable command\n");
+#endif
 						eeprom->writeable = 0;
 						break;
 					case 1:
-						//write_log("write all command\n");
+#if EEPROM_LOG
+						write_log("write all command\n");
+#endif
 						break;
 					case 2:
-						//write_log("erase all command\n");
+#if EEPROM_LOG
+						write_log("erase all command\n");
+#endif
 						break;
 					case 3:
-						//write_log("write enable command\n");
+#if EEPROM_LOG
+						write_log("write enable command\n");
+#endif
 						eeprom->writeable = 1;
 						break;
 					}
@@ -170,7 +193,9 @@ void eeprom93xx_write(void *eepromp, int eecs, int eesk, int eedi)
 			eeprom->data += eedi;
 		}
 		else {
-			;//write_log("additional unneeded tick, not processed\n");
+#if EEPROM_LOG
+			write_log("additional unneeded tick, not processed\n");
+#endif
 		}
 	}
 	/* Save status of EEPROM. */
@@ -186,7 +211,9 @@ uae_u16 eeprom93xx_read(void *eepromp)
 {
 	eeprom93xx_eeprom_t *eeprom = (eeprom93xx_eeprom_t*)eepromp;
 	/* Return status of pin DO (0 or 1). */
-	//write_log("CS=%u DO=%u\n", eeprom->eecs, eeprom->eedo);
+#if EEPROM_LOG
+	write_log("CS=%u DO=%u\n", eeprom->eecs, eeprom->eedo);
+#endif
 	return eeprom->eedo;
 }
 

@@ -372,7 +372,7 @@ void df(uae_u8 b, int len)
 
 uae_u8 dbg (uaecptr addr)
 {
-	addr -= rtarea_base;
+	addr &= 0xffff;
 	return rtarea_bank.baseaddr[addr];
 }
 

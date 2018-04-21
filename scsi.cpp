@@ -2321,7 +2321,7 @@ static void omti_bput(struct soft_scsi *scsi, int reg, uae_u8 v)
 	omti_check_state(scsi);
 }
 
-static int suprareg(struct soft_scsi *ncr, uaecptr addr, bool write)
+static int supra_reg(struct soft_scsi *ncr, uaecptr addr, bool write)
 {
 	int reg = (addr & 0x0f) >> 1;
 	if ((addr & 0x20) && ncr->subtype == 0) {
@@ -2333,7 +2333,7 @@ static int suprareg(struct soft_scsi *ncr, uaecptr addr, bool write)
 	return reg;
 }
 
-static int stardrivereg(struct soft_scsi *ncr, uaecptr addr)
+static int stardrive_reg(struct soft_scsi *ncr, uaecptr addr)
 {
 	if ((addr & 0x0191) == 0x191) {
 		// "dma" data in/out register
@@ -2345,7 +2345,7 @@ static int stardrivereg(struct soft_scsi *ncr, uaecptr addr)
 	return reg;
 }
 
-static int cltdreg(struct soft_scsi *ncr, uaecptr addr)
+static int cltd_reg(struct soft_scsi *ncr, uaecptr addr)
 {
 	if (!(addr & 1)) {
 		return -1;
@@ -2354,7 +2354,7 @@ static int cltdreg(struct soft_scsi *ncr, uaecptr addr)
 	return reg;
 }
 
-static int protarreg(struct soft_scsi *ncr, uaecptr addr)
+static int protar_reg(struct soft_scsi *ncr, uaecptr addr)
 {
 	int reg = -1;
 	if ((addr & 0x24) == 0x20) {
@@ -2366,7 +2366,7 @@ static int protarreg(struct soft_scsi *ncr, uaecptr addr)
 	return reg;
 }
 
-static int add500reg(struct soft_scsi *ncr, uaecptr addr)
+static int add500_reg(struct soft_scsi *ncr, uaecptr addr)
 {
 	int reg = -1;
 	if ((addr & 0x8048) == 0x8000) {
@@ -2377,7 +2377,7 @@ static int add500reg(struct soft_scsi *ncr, uaecptr addr)
 	return reg;
 }
 
-static int adscsireg(struct soft_scsi *ncr, uaecptr addr, bool write)
+static int adscsi_reg(struct soft_scsi *ncr, uaecptr addr, bool write)
 {
 	int reg = -1;
 	if ((addr == 0x38 || addr == 0x39) && !write) {
@@ -2390,7 +2390,7 @@ static int adscsireg(struct soft_scsi *ncr, uaecptr addr, bool write)
 	return reg;
 }
 
-static int ptnexusreg(struct soft_scsi *ncr, uaecptr addr)
+static int ptnexus_reg(struct soft_scsi *ncr, uaecptr addr)
 {
 	int reg = -1;
 	if ((addr & 0x8ff0) == 0) {
@@ -2573,7 +2573,7 @@ static int dataflyerplus_reg(uaecptr addr)
 }
 
 // this is clone of trumpcardpro!
-static int addhardreg(uaecptr addr)
+static int addhard_reg(uaecptr addr)
 {
 	if (addr & 1)
 		return -1;
@@ -2588,7 +2588,7 @@ static int addhardreg(uaecptr addr)
 	return addr;
 }
 
-static int emplantreg(uaecptr addr)
+static int emplant_reg(uaecptr addr)
 {
 	if (addr & 1)
 		return -1;
@@ -2601,7 +2601,7 @@ static int emplantreg(uaecptr addr)
 	return addr;
 }
 
-static int malibureg(uaecptr addr)
+static int malibu_reg(uaecptr addr)
 {
 	if ((addr & 0xc000) == 0x8000)
 		return 8; // long read port
@@ -2794,7 +2794,7 @@ static uae_u32 ncr80_bget2(struct soft_scsi *ncr, uaecptr addr, int size)
 		if ((addr & 0xc000) == 0x4000) {
 			v = ncr->rom[addr & 0x3fff];
 		} else {
-			reg = malibureg(addr);
+			reg = malibu_reg(addr);
 			if (reg >= 0) {
 				v = ncr5380_bget(ncr, reg);
 			}
@@ -2805,7 +2805,7 @@ static uae_u32 ncr80_bget2(struct soft_scsi *ncr, uaecptr addr, int size)
 		if (addr & 0x8000) {
 			v = ncr->rom[addr & 0x7fff];
 		} else {
-			reg = addhardreg(addr);
+			reg = addhard_reg(addr);
 			if (reg >= 0) {
 				if (reg == 8 && !ncr->dma_active) {
 					v = 0;
@@ -2820,7 +2820,7 @@ static uae_u32 ncr80_bget2(struct soft_scsi *ncr, uaecptr addr, int size)
 		if ((addr & 0xf000) >= 0xc000) {
 			v = ncr->rom[addr & 0x3fff];
 		} else {
-			reg = emplantreg(addr);
+			reg = emplant_reg(addr);
 			if (reg == 8 && !ncr->dma_active)
 				reg = -1;
 			if (reg >= 0) {
@@ -2888,7 +2888,7 @@ static uae_u32 ncr80_bget2(struct soft_scsi *ncr, uaecptr addr, int size)
 		if (addresstype == 1) {
 			v = ncr->rom[addr & 0x7fff];
 		} else if (addresstype == 0) {
-			reg = suprareg(ncr, addr, false);
+			reg = supra_reg(ncr, addr, false);
 			if (reg >= 0)
 				v = ncr5380_bget(ncr, reg);
 		}
@@ -2944,7 +2944,7 @@ static uae_u32 ncr80_bget2(struct soft_scsi *ncr, uaecptr addr, int size)
 		if (addr < sizeof ncr->acmemory) {
 			v = ncr->acmemory[addr];
 		} else {
-			reg = stardrivereg(ncr, addr);
+			reg = stardrive_reg(ncr, addr);
 			if (reg >= 0) {
 				v = ncr5380_bget(ncr, reg);
 			} else if (addr == 0x104) {
@@ -2961,7 +2961,7 @@ static uae_u32 ncr80_bget2(struct soft_scsi *ncr, uaecptr addr, int size)
 		if (!ncr->configured && addr < sizeof ncr->acmemory) {
 			v = ncr->acmemory[addr];
 		} else {
-			reg = cltdreg(ncr, addr);
+			reg = cltd_reg(ncr, addr);
 			if (reg >= 0)
 				v = ncr5380_bget(ncr, reg);
 		}
@@ -2974,7 +2974,7 @@ static uae_u32 ncr80_bget2(struct soft_scsi *ncr, uaecptr addr, int size)
 		} else if (addr & 0x8000) {
 			v = ncr->rom[addr & 16383];
 		} else {
-			reg = ptnexusreg(ncr, addr);
+			reg = ptnexus_reg(ncr, addr);
 			if (reg >= 0) {
 				v = ncr5380_bget(ncr, reg);
 			} else if (addr == 0x11) {
@@ -3049,7 +3049,7 @@ static uae_u32 ncr80_bget2(struct soft_scsi *ncr, uaecptr addr, int size)
 			if (!ncr->configured) {
 				v = ncr->acmemory[addr];
 			} else {
-				reg = protarreg(ncr, addr);
+				reg = protar_reg(ncr, addr);
 				if (reg >= 0) {
 					v = ncr5380_bget(ncr, reg);
 				}
@@ -3082,7 +3082,7 @@ static uae_u32 ncr80_bget2(struct soft_scsi *ncr, uaecptr addr, int size)
 				v = ncr->databuffer[0] >> 8;
 				ncr->databuffer[0] <<= 8;
 			} else {
-				reg = add500reg(ncr, addr);
+				reg = add500_reg(ncr, addr);
 				if (reg >= 0) {
 					v = ncr5380_bget(ncr, reg);
 				} else if ((addr & 0x8049) == 0x8009) {
@@ -3100,7 +3100,7 @@ static uae_u32 ncr80_bget2(struct soft_scsi *ncr, uaecptr addr, int size)
 
 		struct raw_scsi *rs = &ncr->rscsi;
 		if (ncr->configured)
-			reg = adscsireg(ncr, addr, false);
+			reg = adscsi_reg(ncr, addr, false);
 		if (reg >= 0) {
 			v = ncr5380_bget(ncr, reg);
 		} else {
@@ -3349,7 +3349,7 @@ static uae_u32 ncr80_bget2(struct soft_scsi *ncr, uaecptr addr, int size)
 	}
 
 #if NCR5380_DEBUG > 1
-	if (1 || origaddr < 0x8000)
+	if (0 || origaddr < 0x8000)
 		write_log(_T("GET %08x %02x %d %08x %d\n"), origaddr, v, reg, M68K_GETPC, regs.intmask);
 #endif
 
@@ -3366,14 +3366,14 @@ static void ncr80_bput2(struct soft_scsi *ncr, uaecptr addr, uae_u32 val, int si
 
 	if (ncr->type == NCR5380_MALIBU) {
 
-		reg = malibureg(addr);
+		reg = malibu_reg(addr);
 		if (reg >= 0) {
 			ncr5380_bput(ncr, reg, val);
 		}
 
 	} else if (ncr->type == NCR5380_ADDHARD) {
 
-		reg = addhardreg(addr);
+		reg = addhard_reg(addr);
 		if (reg >= 0) {
 			if (reg == 8 && !ncr->dma_active) {
 				;
@@ -3384,7 +3384,7 @@ static void ncr80_bput2(struct soft_scsi *ncr, uaecptr addr, uae_u32 val, int si
 
 	} else if (ncr->type == NCR5380_EMPLANT) {
 
-		reg = emplantreg(addr);
+		reg = emplant_reg(addr);
 		if (reg == 8 && !ncr->dma_active)
 			reg = -1;
 		if (reg >= 0) {
@@ -3437,7 +3437,7 @@ static void ncr80_bput2(struct soft_scsi *ncr, uaecptr addr, uae_u32 val, int si
 				addresstype = 0;
 		}
 		if (addresstype == 0) {
-			reg = suprareg(ncr, addr, true);
+			reg = supra_reg(ncr, addr, true);
 			if (reg >= 0)
 				ncr5380_bput(ncr, reg, val);
 		}
@@ -3467,14 +3467,14 @@ static void ncr80_bput2(struct soft_scsi *ncr, uaecptr addr, uae_u32 val, int si
 
 	} else if (ncr->type == NCR5380_STARDRIVE) {
 
-		reg = stardrivereg(ncr, addr);
+		reg = stardrive_reg(ncr, addr);
 		if (reg >= 0)
 			ncr5380_bput(ncr, reg, val);
 
 	} else if (ncr->type == NCR5380_CLTD) {
 
 		if (ncr->configured) {
-			reg = cltdreg(ncr, addr);
+			reg = cltd_reg(ncr, addr);
 			if (reg >= 0)
 				ncr5380_bput(ncr, reg, val);
 		}
@@ -3482,7 +3482,7 @@ static void ncr80_bput2(struct soft_scsi *ncr, uaecptr addr, uae_u32 val, int si
 	} else if (ncr->type == NCR5380_PTNEXUS) {
 
 		if (ncr->configured) {
-			reg = ptnexusreg(ncr, addr);
+			reg = ptnexus_reg(ncr, addr);
 			if (reg >= 0) {
 				ncr5380_bput(ncr, reg, val);
 			} else if (addr == 0x11) {
@@ -3526,7 +3526,7 @@ static void ncr80_bput2(struct soft_scsi *ncr, uaecptr addr, uae_u32 val, int si
 
 	} else if (ncr->type == NCR5380_PROTAR) {
 
-		reg = protarreg(ncr, addr);
+		reg = protar_reg(ncr, addr);
 		if (reg >= 0)
 			ncr5380_bput(ncr, reg, val);
 
@@ -3536,7 +3536,7 @@ static void ncr80_bput2(struct soft_scsi *ncr, uaecptr addr, uae_u32 val, int si
 			struct raw_scsi *rs = &ncr->rscsi;
 			ncr->databuffer_empty = true;
 		} else {
-			reg = add500reg(ncr, addr);
+			reg = add500_reg(ncr, addr);
 			if (reg >= 0) {
 				ncr5380_bput(ncr, reg, val);
 			}
@@ -3545,7 +3545,7 @@ static void ncr80_bput2(struct soft_scsi *ncr, uaecptr addr, uae_u32 val, int si
 	} else if (ncr->type == NCR5380_ADSCSI) {
 
 		if (ncr->configured)
-			reg = adscsireg(ncr, addr, true);
+			reg = adscsi_reg(ncr, addr, true);
 		if (reg >= 0) {
 			ncr5380_bput(ncr, reg, val);
 		}
