@@ -95,7 +95,7 @@ struct romdata *getromdatabypath (const TCHAR *path)
 	return NULL;
 }
 
-#define NEXT_ROM_ID 235
+#define NEXT_ROM_ID 236
 
 #define ALTROM(id,grp,num,size,flags,crc32,a,b,c,d,e) \
 { _T("X"), 0, 0, 0, 0, 0, size, id, 0, 0, flags, (grp << 16) | num, 0, NULL, crc32, a, b, c, d, e },
@@ -382,8 +382,8 @@ static struct romdata roms[] = {
 	0xfd2c772f, 0x1411c248, 0x72f7cb8d, 0xecbe4744, 0xf0b8d12a, 0x1aaaad44, NULL, _T("blizzard_scsi_kit_iv.rom") },
 	{ _T("Blizzard SCSI Kit IV"), 8, 5, 8, 5, _T("BSCSIIV\0"), 32768, 94, 0, 0, ROMTYPE_BLIZKIT4, 0, 0, NULL,
 	0xf53a0fca, 0xefe17ca5,0x88c44a7f,0x0f8c62be,0x20f23278,0xcfe06727, NULL, _T("blizzard_scsi_kit_iv.rom") },
-	{ _T("Fastlane"), 8, 5, 8, 5, _T("FASTLANE\0"), 20788, 102, 0, 0, ROMTYPE_FASTLANE, 0, 0, NULL,
-	0xe4f485a5, 0x20bf7de5,0x05e45d0a,0xc411cfd2,0x806d0fd8,0xe46276de, NULL, _T("fastlanez3.rom") },
+	{ _T("Fastlane"), 8, 5, 8, 5, _T("FASTLANE\0"), 32768, 102, 0, 0, ROMTYPE_FASTLANE, 0, 0, NULL,
+	0x00447765, 0x2644e7cb,0xba5cc54e,0x880b4b42,0x49fd1dd1,0x2eb4a3bc, NULL, _T("fastlanez3.rom") },
 	{ _T("Oktagon 2008"), 6, 12, 6, 12, _T("OKTAGON\0"), 32768, 103, 0, 0, ROMTYPE_OKTAGON, 0, 0, NULL,
 	0xbb0d2f6a, 0x56c441fa,0x37d19339,0x3081b2e8,0xceae823b,0xc7e97e49, NULL, _T("oktagon2008.rom") },
 	{ _T("Warp Engine A4000"), 0, 0, 0, 0, _T("WARPENGINE\0WARPENGINEA4000\0"), 32768, 93, 0, 0, ROMTYPE_CB_WENGINE, 0, 0, NULL,
