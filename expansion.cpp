@@ -5142,16 +5142,15 @@ const struct expansionromtype expansionroms[] = {
 		NULL, 0,
 		false, EXPANSIONTYPE_SASI | EXPANSIONTYPE_SCSI
 	},
-#if 0
 	{
 		_T("kronos"), _T("Kronos"), _T("C-Ltd"),
-		NULL, kronos_init, kronos_add_scsi_unit, ROMTYPE_KRONOS, 0, 0, 2, false,
+		NULL, kronos_init, NULL, kronos_add_scsi_unit, ROMTYPE_KRONOS, 0, 0, BOARD_AUTOCONFIG_Z2, false,
 		NULL, 0,
 		false, EXPANSIONTYPE_SCSI,
-		0, 0, 0,
-		{ 0xd1, 4, 0x00, 0x00, 0x03, 0xec, 0x00, 0x00, 0x00, 0x00, 0x80, 0x00 },
+		0, 0, 0, false, NULL,
+		false, 0, NULL,
+		{ 0xd1, 0x04, 0x40, 0x00, 0x08, 0x02, 0x00, 0x00, 0x00, 0x00, 0x80, 0x00 },
 	},
-#endif
 	{
 		_T("hda506"), _T("HDA-506"), _T("Spirit Technology"),
 		NULL, hda506_init, NULL, hda506_add_scsi_unit, ROMTYPE_HDA506 | ROMTYPE_NOT, 0, 0, BOARD_AUTOCONFIG_Z2, true,

@@ -578,6 +578,8 @@ static struct romdata roms[] = {
 	ALTROMPN(224, 1, 2, 8192, ROMTYPE_EVEN | ROMTYPE_8BIT, NULL, 0x20c2cbb6, 0xb83d7406, 0x6c335a77, 0x0acb30d6, 0xff79a00f, 0x629a6953)
 	{ _T("Xetec FastTrak"), 1, 42, 1, 42, _T("FASTTRACK\0"), 32768, 227, 0, 0, ROMTYPE_FASTTRAK, 0, 0, NULL,
 	0xc5ae45d4, 0x8d682bc1,0x72bd2d35,0x4ba2db5c,0x9f6745a4,0x8937782c, NULL, NULL },
+	{ _T("C-Ltd Kronos"), 1, 0, 1, 0, _T("KRONOS\0"), 8192, 235, 0, 0, ROMTYPE_KRONOS, 0, 0, NULL,
+	0x9366d357, 0x7113add0,0x4c782ed7,0xa56a74ba,0x3378d55c,0x5605eaf6, NULL, NULL },
 
 	{ _T("CyberStorm MK I 68040"), 0, 0, 0, 0, _T("CSMKI\0"), 32768, 95, 0, 0, ROMTYPE_CB_CSMK1, 0, 0, NULL,
 	  0, 0, 0, 0, 0, 0, NULL, _T("cyberstormmk1_040.rom") },

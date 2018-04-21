@@ -24,6 +24,7 @@
 #include "gayle.h"
 #include "cia.h"
 #include "devices.h"
+#include "flashrom.h"
 
 #define SCSI_EMU_DEBUG 0
 #define RAW_SCSI_DEBUG 0
@@ -848,6 +849,7 @@ struct soft_scsi
 	int databuffer_size;
 	int db_read_index;
 	int db_write_index;
+	void *eeprom;
 
 	// sasi
 	bool active_select;
@@ -871,6 +873,7 @@ static void soft_scsi_free_unit(struct soft_scsi *s)
 		free_scsi (rs->device[j]);
 		rs->device[j] = NULL;
 	}
+	eeprom93xx_free(s->eeprom);
 	xfree(s->databufferptr);
 	xfree(s->rom);
 	if (s->self_ptr)
@@ -2632,6 +2635,16 @@ static int fasttrak_reg(struct soft_scsi *ncr, uaecptr addr)
 	return -1;
 }
 
+static int kronos_reg(uaecptr addr)
+{
+	if (addr >= 0x10)
+		return -1;
+	if (!(addr & 1))
+		return -1;
+	addr >>= 1;
+	return addr & 7;
+}
+
 static uae_u8 read_684xx_dma(struct soft_scsi *ncr, uaecptr addr)
 {
 	uae_u8 val = 0;
@@ -3112,8 +3125,13 @@ static uae_u32 ncr80_bget2(struct soft_scsi *ncr, uaecptr addr, int size)
 		if (addr < sizeof ncr->acmemory)
 			v = ncr->acmemory[addr];
 		if (ncr->configured) {
-			if (addr == 0x40 || addr == 0x41) {
+			reg = kronos_reg(addr);
+			if (reg >= 0) {
+				v = ncr5380_bget(ncr, reg);
+			} else if (addr == 0x40) {
 				v = 0;
+				if (eeprom93xx_read(ncr->eeprom))
+					v |= 1 << 6;
 			}
 		}
 		if (addr & 0x8000) {
@@ -3534,8 +3552,11 @@ static void ncr80_bput2(struct soft_scsi *ncr, uaecptr addr, uae_u32 val, int si
 
 	} else if (ncr->type == NCR5380_KRONOS) {
 
-		if (addr == 0x60 || addr == 0x61) {
-			;
+		reg = kronos_reg(addr);
+		if (reg >= 0) {
+			ncr5380_bput(ncr, reg, val);
+		} else if (addr == 0x60) {
+			eeprom93xx_write(ncr->eeprom, (val & 0x40) != 0, (val & 0x10) != 0, (val & 0x20) != 0);
 		}
 
 	} else if (ncr->type == NCR5380_ROCHARD) {
@@ -4188,8 +4209,16 @@ void add500_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfi
 	generic_soft_scsi_add(ch, ci, rc, NCR5380_ADD500, 65536, 32768, ROMTYPE_ADD500);
 }
 
+static uae_u8 kronos_eeprom[32] =
+{
+	0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0x00, 7 << 5, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+};
+
 bool kronos_init(struct autoconfig_info *aci)
 {
+	const struct expansionromtype *ert = get_device_expansion_rom(ROMTYPE_KRONOS);
+	aci->autoconfigp = ert->autoconfig;
 	if (!aci->doinit)
 		return true;
 
@@ -4199,6 +4228,21 @@ bool kronos_init(struct autoconfig_info *aci)
 
 	scsi->databuffer_size = 1024;
 	scsi->databufferptr = xcalloc(uae_u8, scsi->databuffer_size);
+
+	uae_u16 sum = 0, xor = 0;
+	for (int i = 0; i < 16 - 2; i++) {
+		uae_u16 v = (kronos_eeprom[i * 2 + 0] << 8) | (kronos_eeprom[i * 2 + 1]);
+		sum += v;
+		xor ^= v;
+	}
+	sum = 0 - sum;
+	kronos_eeprom[14 * 2 + 0] = sum >> 8;
+	kronos_eeprom[14 * 2 + 1] = (uae_u8)sum;
+	xor ^= sum;
+	kronos_eeprom[15 * 2 + 0] = xor >> 8;
+	kronos_eeprom[15 * 2 + 1] = (uae_u8)xor;
+
+	scsi->eeprom = eeprom93xx_new(kronos_eeprom, 16, NULL);
 
 	load_rom_rc(aci->rc, ROMTYPE_KRONOS, 4096, 0, scsi->rom, 32768, LOADROM_EVENONLY_ODDONE | LOADROM_FILL);
 	aci->addrbank = scsi->bank;
