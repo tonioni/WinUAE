@@ -1389,20 +1389,24 @@ static void WriteCIAA (uae_u16 addr, uae_u8 val, uae_u32 *flags)
 		ciaaprb = val;
 		dongle_cia_write (0, reg, ciaadrb, val);
 #ifdef PARALLEL_PORT
-		if (isprinter() > 0) {
-			doprinter (val);
-			cia_parallelack ();
-		} else if (isprinter() < 0) {
-			parallel_direct_write_data (val, ciaadrb);
-			cia_parallelack ();
-#ifdef ARCADIA
-		} else if (arcadia_bios) {
-			arcadia_parport (1, ciaaprb, ciaadrb);
-#endif
-		} else if (parallel_port_scsi) {
-			parallel_port_scsi_write(0, ciaaprb, ciaadrb);
+		if (isprinter()) {
+			if (isprinter() > 0) {
+				doprinter(val);
+				cia_parallelack();
+			} else if (isprinter() < 0) {
+				parallel_direct_write_data(val, ciaadrb);
+				cia_parallelack();
+			}
 		}
 #endif
+#ifdef ARCADIA
+		if (!isprinter() && arcadia_bios) {
+			arcadia_parport(1, ciaaprb, ciaadrb);
+		}
+#endif
+		if (!isprinter() && parallel_port_scsi) {
+			parallel_port_scsi_write(0, ciaaprb, ciaadrb);
+		}
 		break;
 	case 2:
 #if DONGLE_DEBUG > 0
