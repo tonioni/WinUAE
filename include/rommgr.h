@@ -172,6 +172,7 @@ extern int decode_cloanto_rom_do (uae_u8 *mem, int size, int real_size);
 #define ROMTYPE_ELSATHD		0x00100071
 #define ROMTYPE_ALF3		0x00100072
 #define ROMTYPE_FASTTRAK	0x00100073
+#define ROMTYPE_CDTVSRAM	0x00100074
 
 #define ROMTYPE_NOT			0x00800000
 #define ROMTYPE_QUAD		0x01000000
@@ -270,7 +271,6 @@ void clear_device_rom(struct uae_prefs *p, int romtype, int devnum, bool deleteD
 struct boardromconfig *get_boardromconfig(struct uae_prefs *p, int romtype, int *index);
 bool is_board_enabled(struct uae_prefs *p, int romtype, int devnum);
 void board_prefs_changed(int romtype, int devnum);
-void check_board_prefs_changed(void);
 
 #define LOADROM_FILL 1
 #define LOADROM_EVENONLY 2

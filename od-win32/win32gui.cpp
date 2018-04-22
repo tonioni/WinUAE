@@ -8178,7 +8178,6 @@ static void values_to_chipsetdlg2 (HWND hDlg)
 	CheckDlgButton(hDlg, IDC_CS_CDTVCD, workprefs.cs_cdtvcd);
 	CheckDlgButton(hDlg, IDC_CS_CDTVCR, workprefs.cs_cdtvcr);
 	CheckDlgButton(hDlg, IDC_CS_CDTVRAM, workprefs.cs_cdtvram);
-	CheckDlgButton(hDlg, IDC_CS_CDTVRAMEXP, workprefs.cs_cdtvcard);
 	CheckDlgButton(hDlg, IDC_CS_A1000RAM, workprefs.cs_a1000ram);
 	CheckDlgButton(hDlg, IDC_CS_RAMSEY, workprefs.cs_ramseyrev >= 0);
 	CheckDlgButton(hDlg, IDC_CS_FATGARY, workprefs.cs_fatgaryrev >= 0);
@@ -8271,7 +8270,6 @@ static void values_from_chipsetdlg2 (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 	workprefs.cs_cdtvcd = ischecked (hDlg, IDC_CS_CDTVCD);
 	workprefs.cs_cdtvcr = ischecked (hDlg, IDC_CS_CDTVCR);
 	workprefs.cs_cdtvram = ischecked (hDlg, IDC_CS_CDTVRAM);
-	workprefs.cs_cdtvcard = ischecked (hDlg, IDC_CS_CDTVRAMEXP) ? 64 : 0;
 	workprefs.cs_a1000ram = ischecked (hDlg, IDC_CS_A1000RAM);
 	workprefs.cs_ramseyrev = ischecked (hDlg, IDC_CS_RAMSEY) ? 0x0f : -1;
 	workprefs.cs_fatgaryrev = ischecked (hDlg, IDC_CS_FATGARY) ? 0x00 : -1;
@@ -8357,7 +8355,6 @@ static void enable_for_chipsetdlg2 (HWND hDlg)
 	ew(hDlg, IDC_CS_CDTVCD, e);
 	ew(hDlg, IDC_CS_CDTVCR, e);
 	ew(hDlg, IDC_CS_CDTVRAM, e);
-	ew(hDlg, IDC_CS_CDTVRAMEXP, e);
 	ew(hDlg, IDC_CS_RESETWARNING, e);
 	ew(hDlg, IDC_CS_CIATODBUG, e);
 	ew(hDlg, IDC_CS_NOEHB, e);

@@ -10316,7 +10316,7 @@ uae_u8 *restore_custom_extra (uae_u8 *src)
 	currprefs.cs_cd32nvram = changed_prefs.cs_cd32nvram = RBB;
 	currprefs.cs_cdtvcd = changed_prefs.cs_cdtvcd = RBB;
 	currprefs.cs_cdtvram = changed_prefs.cs_cdtvram = RBB;
-	currprefs.cs_cdtvcard = changed_prefs.cs_cdtvcard = RB;
+	RB;
 
 	currprefs.cs_df0idhw = changed_prefs.cs_df0idhw = RBB;
 	currprefs.cs_dipagnus = changed_prefs.cs_dipagnus = RBB;
@@ -10376,7 +10376,7 @@ uae_u8 *save_custom_extra (int *len, uae_u8 *dstptr)
 	SB (currprefs.cs_cd32nvram);
 	SB (currprefs.cs_cdtvcd ? 1 : 0);
 	SB (currprefs.cs_cdtvram ? 1 : 0);
-	SB (currprefs.cs_cdtvcard);
+	SB (0);
 
 	SB (currprefs.cs_df0idhw ? 1 : 0);
 	SB (currprefs.cs_dipagnus ? 1 : 0);

@@ -4657,7 +4657,16 @@ static const struct expansionboardsettings alf3_settings[] = {
 		NULL
 	}
 };
-
+static const struct expansionboardsettings cdtvsram_settings[] = {
+	{
+		_T("SRAM size\0") _T("64k\0") _T("128k\0") _T("256k\0"),
+		_T("sram\0") _T("64k\0") _T("128k\0") _T("256k\0"),
+		true
+	},
+	{
+		NULL
+	}
+};
 
 
 const struct expansionromtype expansionroms[] = {
@@ -5443,6 +5452,14 @@ const struct expansionromtype expansionroms[] = {
 		NULL, cdtvscsi_init, NULL, cdtv_add_scsi_unit, ROMTYPE_CDTVSCSI | ROMTYPE_NOT, 0, 0, BOARD_NONAUTOCONFIG_AFTER_Z2, true,
 		NULL, 0,
 		false, EXPANSIONTYPE_INTERNAL | EXPANSIONTYPE_SCSI
+	},
+	{
+		_T("cdtvsram"), _T("CDTV SRAM"), _T("Commodore"),
+		NULL, cdtvsram_init, NULL, NULL, ROMTYPE_CDTVSRAM | ROMTYPE_NOT, 0, 0, BOARD_NONAUTOCONFIG_BEFORE, true,
+		NULL, 0,
+		false, EXPANSIONTYPE_INTERNAL,
+		0, 0, 0, false, NULL,
+		false, 0, cdtvsram_settings
 	},
 	{
 		_T("cdtvcr"), _T("CDTV-CR"), _T("Commodore"),

@@ -32,6 +32,7 @@
 #include "savestate.h"
 #include "scsi.h"
 #include "devices.h"
+#include "rommgr.h"
 
 /* DMAC CNTR bits. */
 #define CNTR_TCEN               (1<<7)
@@ -1534,10 +1535,12 @@ addrbank dmac_bank = {
 #define CDTV_NVRAM_SIZE 32768
 static uae_u8 cdtv_battram[CDTV_NVRAM_SIZE];
 
-void cdtv_loadcardmem (uae_u8 *p, int size)
+static void cdtv_loadcardmem (uae_u8 *p, int size)
 {
 	struct zfile *f;
 
+	if (!size)
+		return;
 	memset (p, 0, size);
 	f = zfile_fopen (currprefs.flashfile, _T("rb"), ZFD_NORMAL);
 	if (!f)
@@ -1547,10 +1550,12 @@ void cdtv_loadcardmem (uae_u8 *p, int size)
 	zfile_fclose (f);
 }
 
-void cdtv_savecardmem (uae_u8 *p, int size)
+static void cdtv_savecardmem (uae_u8 *p, int size)
 {
 	struct zfile *f;
 
+	if (!size)
+		return;
 	f = zfile_fopen (currprefs.flashfile, _T("rb+"), ZFD_NORMAL);
 	if (!f)
 		return;
@@ -1611,6 +1616,18 @@ uae_u8 cdtv_battram_read (int addr)
 	return v;
 }
 
+/* CDTV expension memory card memory */
+
+MEMORY_FUNCTIONS(cardmem);
+
+static addrbank cardmem_bank = {
+	cardmem_lget, cardmem_wget, cardmem_bget,
+	cardmem_lput, cardmem_wput, cardmem_bput,
+	cardmem_xlate, cardmem_check, NULL, _T("rom_e0"), _T("CDTV memory card"),
+	cardmem_lget, cardmem_wget,
+	ABFLAG_RAM, 0, 0
+};
+
 void cdtv_free (void)
 {
 	if (thread_alive > 0) {
@@ -1624,10 +1641,20 @@ void cdtv_free (void)
 	}
 	thread_alive = 0;
 	close_unit ();
+	if (cardmem_bank.baseaddr) {
+		cdtv_savecardmem(cardmem_bank.baseaddr, cardmem_bank.allocated_size);
+		mapped_free(&cardmem_bank);
+		cardmem_bank.baseaddr = NULL;
+	}
 	configured = 0;
 }
 
-bool cdtv_init (struct autoconfig_info *aci)
+bool cdtvsram_init(struct autoconfig_info *aci)
+{
+	return true;
+}
+
+bool cdtv_init(struct autoconfig_info *aci)
 {
 	memset(dmacmemory, 0xff, sizeof dmacmemory);
 	ew(0x00, 0xc0 | 0x01);
@@ -1675,6 +1702,29 @@ bool cdtv_init (struct autoconfig_info *aci)
 		sbcp = 0;
 		cdtvscsi = 0;
 	}
+
+	int cardsize = 0;
+	if (is_board_enabled(aci->prefs, ROMTYPE_CDTVSRAM, 0)) {
+		struct romconfig *rc = get_device_romconfig(aci->prefs, ROMTYPE_CDTVSRAM, 0);
+		cardsize = 64 << (rc->device_settings & 3);
+	}
+	if (cardmem_bank.reserved_size != cardsize * 1024) {
+		mapped_free(&cardmem_bank);
+		cardmem_bank.baseaddr = NULL;
+
+		cardmem_bank.reserved_size = cardsize * 1024;
+		cardmem_bank.mask = cardmem_bank.reserved_size - 1;
+		cardmem_bank.start = 0xe00000;
+		if (cardmem_bank.reserved_size) {
+			if (!mapped_malloc(&cardmem_bank)) {
+				write_log(_T("Out of memory for cardmem.\n"));
+				cardmem_bank.reserved_size = 0;
+			}
+		}
+		cdtv_loadcardmem(cardmem_bank.baseaddr, cardmem_bank.reserved_size);
+	}
+	if (cardmem_bank.baseaddr)
+		map_banks(&cardmem_bank, cardmem_bank.start >> 16, cardmem_bank.allocated_size >> 16, 0);
 
 	cdtv_battram_reset ();
 	open_unit ();

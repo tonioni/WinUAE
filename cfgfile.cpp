@@ -325,6 +325,7 @@ static const TCHAR *obsolete[] = {
 	_T("gfx_filter_vert_zoom"),_T("gfx_filter_horiz_zoom"),
 	_T("gfx_filter_vert_zoom_mult"), _T("gfx_filter_horiz_zoom_mult"),
 	_T("gfx_filter_vert_offset"), _T("gfx_filter_horiz_offset"),
+	_T("gfx_tearing"), _T("gfx_tearing_rtg"),
 	
 	// created by some buggy beta
 	_T("uaehf0%s,%s"),
@@ -2176,7 +2177,6 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	cfgfile_dwrite_bool(f, _T("cdtvcd"), p->cs_cdtvcd);
 	cfgfile_dwrite_bool(f, _T("cdtv-cr"), p->cs_cdtvcr);
 	cfgfile_dwrite_bool(f, _T("cdtvram"), p->cs_cdtvram);
-	cfgfile_dwrite(f, _T("cdtvramcard"), _T("%d"), p->cs_cdtvcard);
 	cfgfile_dwrite_bool(f, _T("a1000ram"), p->cs_a1000ram);
 	cfgfile_dwrite(f, _T("fatgary"), _T("%d"), p->cs_fatgaryrev);
 	cfgfile_dwrite(f, _T("ramsey"), _T("%d"), p->cs_ramseyrev);
@@ -5033,6 +5033,7 @@ static void addbcromtypenet(struct uae_prefs *p, int romtype, const TCHAR *netna
 static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCHAR *value)
 {
 	int tmpval, dummyint, i;
+	uae_u32 utmpval;
 	bool dummybool;
 	TCHAR tmpbuf[CONFIG_BLEN];
 
@@ -5159,7 +5160,6 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 		|| cfgfile_intval(option, value, _T("serial_stopbits"), &p->serial_stopbits, 1)
 		|| cfgfile_intval(option, value, _T("cpu060_revision"), &p->cpu060_revision, 1)
 		|| cfgfile_intval(option, value, _T("fpu_revision"), &p->fpu_revision, 1)
-		|| cfgfile_intval(option, value, _T("cdtvramcard"), &p->cs_cdtvcard, 1)
 		|| cfgfile_intval(option, value, _T("fatgary"), &p->cs_fatgaryrev, 1)
 		|| cfgfile_intval(option, value, _T("ramsey"), &p->cs_ramseyrev, 1)
 		|| cfgfile_doubleval(option, value, _T("chipset_refreshrate"), &p->chipset_refreshrate)
@@ -5252,6 +5252,12 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 		return 1;
 	}
 	if (cfgfile_readramboard(option, value, _T("z3mem"), &p->z3fastmem[0])) {
+		return 1;
+	}
+
+	if (cfgfile_intval(option, value, _T("cdtvramcard"), &utmpval, 1)) {
+		if (utmpval)
+			addbcromtype(p, ROMTYPE_CDTVSRAM, true, NULL, 0);
 		return 1;
 	}
 
@@ -7450,7 +7456,6 @@ void default_prefs (struct uae_prefs *p, bool reset, int type)
 	p->cs_cd32c2p = p->cs_cd32cd = p->cs_cd32nvram = p->cs_cd32fmv = false;
 	p->cs_cd32nvram_size = 1024;
 	p->cs_cdtvcd = p->cs_cdtvram = false;
-	p->cs_cdtvcard = 0;
 	p->cs_pcmcia = 0;
 	p->cs_ksmirror_e0 = 1;
 	p->cs_ksmirror_a8 = 0;
@@ -7731,7 +7736,7 @@ static void buildin_default_prefs (struct uae_prefs *p)
 	p->cs_deniserev = -1;
 	p->cs_mbdmac = 0;
 	p->cs_cd32c2p = p->cs_cd32cd = p->cs_cd32nvram = p->cs_cd32fmv = false;
-	p->cs_cdtvcd = p->cs_cdtvram = p->cs_cdtvcard = false;
+	p->cs_cdtvcd = p->cs_cdtvram = false;
 	p->cs_ide = 0;
 	p->cs_pcmcia = 0;
 	p->cs_ksmirror_e0 = 1;
@@ -8035,8 +8040,9 @@ static int bip_cdtv (struct uae_prefs *p, int config, int compa, int romcheck)
 	p->chipmem_size = 0x100000;
 	p->chipset_mask = CSMASK_ECS_AGNUS;
 	p->cs_cdtvcd = p->cs_cdtvram = 1;
-	if (config > 0)
-		p->cs_cdtvcard = 64;
+	if (config > 0) {
+		addbcromtype(p, ROMTYPE_CDTVSRAM, true, NULL, 0);
+	}
 	p->cs_rtc = 1;
 	p->nr_floppies = 0;
 	p->floppyslots[0].dfxtype = DRV_NONE;
@@ -8443,7 +8449,6 @@ int built_in_chipset_prefs (struct uae_prefs *p)
 	p->cs_a1000ram = 0;
 	p->cs_cd32c2p = p->cs_cd32cd = p->cs_cd32nvram = 0;
 	p->cs_cdtvcd = p->cs_cdtvram = p->cs_cdtvcr = 0;
-	p->cs_cdtvcard = 0;
 	p->cs_fatgaryrev = -1;
 	p->cs_ide = 0;
 	p->cs_ramseyrev = -1;

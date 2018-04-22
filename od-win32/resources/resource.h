@@ -1094,7 +1094,6 @@
 #define IDC_CS_DMAC                     1727
 #define IDC_CS_RTCADJUST                1728
 #define IDC_CS_FATGARYREV               1729
-#define IDC_CS_CDTVRAMEXP               1730
 #define IDC_CS_RTC1                     1731
 #define IDC_CS_RTC2                     1732
 #define IDC_CS_RTC3                     1733

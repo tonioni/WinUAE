@@ -605,7 +605,6 @@ struct uae_prefs {
 	int cs_cd32nvram_size;
 	bool cs_cdtvcd;
 	bool cs_cdtvram;
-	int cs_cdtvcard;
 	int cs_ide;
 	bool cs_pcmcia;
 	bool cs_a1000ram;
