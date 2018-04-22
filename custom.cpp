@@ -9071,6 +9071,14 @@ void custom_prepare (void)
 	hsync_handler_post (true);
 }
 
+void custom_cpuchange(void)
+{
+	// both values needs to be same but also different
+	// after CPU mode changes
+	intreq_internal = intreq | 0x8000;
+	intena_internal = intena | 0x8000;
+}
+
 void custom_reset (bool hardreset, bool keyboardreset)
 {
 	if (hardreset)

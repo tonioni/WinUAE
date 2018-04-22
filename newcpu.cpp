@@ -6433,6 +6433,7 @@ void m68k_go (int may_quit)
 				uaecptr pc = m68k_getpc();
 				prefs_changed_cpu();
 				fpu_modechange();
+				custom_cpuchange();
 				build_cpufunctbl();
 				m68k_setpc_normal(pc);
 				fill_prefetch();
