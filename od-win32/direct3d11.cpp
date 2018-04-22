@@ -71,6 +71,11 @@ static HMODULE hd3d11, hdxgi, hd3dcompiler, dwmapi;
 static struct gfx_filterdata *filterd3d;
 static int filterd3didx;
 static int leds[LED_MAX];
+static int debugcolors;
+static bool cannoclear;
+static bool noclear;
+static int clearcnt;
+static int slicecnt;
 
 static const TCHAR *overlayleds[] = {
 	_T("power"),
@@ -292,12 +297,6 @@ struct d3d11struct
 	struct shaderdata11 shaders[MAX_SHADERS];
 	ID3DX11EffectTechnique *technique;
 	ID3DX11EffectPass *effectpass;
-
-	bool debugcolors;
-	bool cannoclear;
-	bool noclear;
-	int clearcnt;
-	int slicecnt;
 
 #ifndef NDEBUG
 	ID3D11InfoQueue *m_debugInfoQueue;
@@ -3152,7 +3151,7 @@ static void do_present(struct d3d11struct *d3d, int black)
 		}
 		write_log(_T("D3D11 Present %08x\n"), hr);
 	}
-	d3d->slicecnt++;
+	slicecnt++;
 }
 
 static float xD3D_getrefreshrate(int monid)
@@ -3520,10 +3519,9 @@ static int xxD3D11_init2(HWND ahwnd, int monid, int w_w, int w_h, int t_w, int t
 	}
 
 	d3d->vblankintervals = 1;
-	d3d->debugcolors = false;
-	d3d->cannoclear = false;
+	cannoclear = false;
 	if (apm->gfx_vsyncmode) {
-		d3d->cannoclear = true;
+		cannoclear = true;
 		d3d->vblankintervals = 0;
 	}
 
@@ -3579,7 +3577,7 @@ static int xxD3D11_init2(HWND ahwnd, int monid, int w_w, int w_h, int t_w, int t
 
 	d3d->invalidmode = false;
 	d3d->fsmode = 0;
-	d3d->clearcnt = 0;
+	clearcnt = 0;
 
 	write_log(_T("D3D11 %d %08x %08x\n"), d3d->swapChainDesc.BufferCount, d3d->swapChainDesc.Flags, d3d->swapChainDesc.Format);
 
@@ -3976,10 +3974,10 @@ static void xD3D11_led(int led, int on, int brightness)
 static int xD3D11_debug(int monid, int mode)
 {
 	struct d3d11struct *d3d = &d3d11data[monid];
-	int old = d3d->debugcolors ? 1 : 0;
-	d3d->debugcolors = (mode & 1) != 0;
-	d3d->noclear = d3d->debugcolors ? false : true;
-	d3d->clearcnt = 0;
+	int old = debugcolors ? 1 : 0;
+	debugcolors = (mode & 1) != 0;
+	noclear = debugcolors ? false : true;
+	clearcnt = 0;
 	return old;
 }
 
@@ -3992,14 +3990,14 @@ static void clearrt(struct d3d11struct *d3d)
 	color[2] = 0;
 	color[3] = 0;
 
-	if (d3d->noclear && d3d->cannoclear) {
-		if (d3d->clearcnt > 3)
+	if (noclear && cannoclear) {
+		if (clearcnt > 3)
 			return;
-		d3d->clearcnt++;
+		clearcnt++;
 	}
 
-	if (!d3d->noclear && d3d->debugcolors && d3d->slicecnt > 0) {
-		int cnt = d3d->slicecnt - 1;
+	if (!noclear && debugcolors && slicecnt > 0) {
+		int cnt = slicecnt - 1;
 		int v = cnt % 3;
 		if (cnt / 3 == 1)
 			color[(v + 1) % 3] = 0.3;
@@ -4315,9 +4313,9 @@ static bool xD3D11_renderframe(int monid, int mode, bool immediate)
 	d3d->frames_since_init++;
 
 	if (mode > 0 && (mode & 2))
-		d3d->slicecnt = 0;
+		slicecnt = 0;
 	else if (mode < 0)
-		d3d->slicecnt = d3d->slicecnt == 2 ? 0 : d3d->slicecnt;
+		slicecnt = slicecnt == 2 ? 0 : slicecnt;
 
 	if (!d3d->m_swapChain)
 		return false;
@@ -4388,7 +4386,7 @@ static void xD3D11_clear(int monid)
 	// Clear the back buffer.
 	d3d->m_deviceContext->ClearRenderTargetView(d3d->m_renderTargetView, color);
 	d3d->m_deviceContext->Flush();
-	d3d->clearcnt = 0;
+	clearcnt = 0;
 }
 
 
@@ -4417,7 +4415,7 @@ static void xD3D11_refresh(int monid)
 	if (xD3D11_renderframe(monid, true, true)) {
 		xD3D11_showframe(monid);
 	}
-	d3d->clearcnt = 0;
+	clearcnt = 0;
 }
 
 
@@ -4600,7 +4598,7 @@ static int xD3D11_goodenough(void)
 static void xD3D11_change(int monid, int temp)
 {
 	struct d3d11struct *d3d = &d3d11data[monid];
-	d3d->clearcnt = 0;
+	clearcnt = 0;
 }
 
 static void resizemode(struct d3d11struct *d3d)

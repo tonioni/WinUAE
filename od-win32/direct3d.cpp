@@ -47,6 +47,12 @@ static struct gfx_filterdata *filterd3d;
 static int filterd3didx;
 
 static bool showoverlay = true;
+static int slicecnt;
+static int clearcnt;
+static bool debugcolors;
+static bool noclear;
+static bool cannoclear;
+
 int fakemodewaitms;
 
 static int leds[LED_MAX];
@@ -204,12 +210,6 @@ struct d3dstruct
 	int ddraw_fs;
 	int ddraw_fs_attempt;
 	LPDIRECTDRAW7 ddraw;
-
-	int slicecnt;
-	int clearcnt;
-	bool debugcolors;
-	bool noclear;
-	bool cannoclear;
 };
 
 static struct d3dstruct d3ddata[MAX_AMIGAMONITORS];
@@ -2718,7 +2718,7 @@ static const TCHAR *D3D_init2 (struct d3dstruct *d3d, HWND ahwnd, int w_w, int w
 	}
 
 	d3d->variablerefresh = false;
-	d3d->cannoclear = ap.gfx_vsyncmode != 0;
+	cannoclear = ap.gfx_vsyncmode != 0;
 
 	memset (&d3d->dpp, 0, sizeof (d3d->dpp));
 	d3d->dpp.Windowed = isfullscreen () <= 0;
@@ -3315,10 +3315,10 @@ static void xD3D_led(int led, int on, int brightness)
 static int xD3D_debug(int monid, int mode)
 {
 	struct d3dstruct *d3d = &d3ddata[monid];
-	int old = d3d->debugcolors ? 1 : 0;
-	d3d->debugcolors = (mode & 1) != 0;
-	d3d->noclear = d3d->debugcolors ? false : true;
-	d3d->clearcnt = 0;
+	int old = debugcolors ? 1 : 0;
+	debugcolors = (mode & 1) != 0;
+	noclear = debugcolors ? false : true;
+	clearcnt = 0;
 	return old;
 }
 
@@ -3327,14 +3327,14 @@ static void clearrt(struct d3dstruct *d3d)
 	HRESULT hr;
 	uae_u8 color[4] = { 0, 0, 0, 0 };
 
-	if (d3d->noclear && d3d->cannoclear) {
-		if (d3d->clearcnt > 3)
+	if (noclear && cannoclear) {
+		if (clearcnt > 3)
 			return;
-		d3d->clearcnt++;
+		clearcnt++;
 	}
 
-	if (!d3d->noclear && d3d->debugcolors && d3d->slicecnt > 0) {
-		int cnt = d3d->slicecnt - 1;
+	if (!noclear && debugcolors && slicecnt > 0) {
+		int cnt = slicecnt - 1;
 		int v = cnt % 3;
 		if (cnt / 3 == 1)
 			color[(v + 1) % 3] = 80;
@@ -3357,13 +3357,13 @@ static void D3D_render2(struct d3dstruct *d3d, int mode)
 	bool normalrender = mode < 0 || (mode & 1);
 
 	if (mode > 0 && (mode & 2))
-		d3d->slicecnt = 0;
+		slicecnt = 0;
 	else if (mode < 0)
-		d3d->slicecnt = d3d->slicecnt == 2 ? 0 : d3d->slicecnt;
+		slicecnt = slicecnt == 2 ? 0 : slicecnt;
 
 	clearrt(d3d);
 
-	d3d->slicecnt++;
+	slicecnt++;
 
 	if (FAILED (hr = d3d->d3ddev->BeginScene ())) {
 		write_log (_T("%s: BeginScene: %s\n"), D3DHEAD, D3D_ErrorString (hr));

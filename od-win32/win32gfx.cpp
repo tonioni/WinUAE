@@ -4095,10 +4095,6 @@ retry:
 	if (isfullscreen () != 0)
 		setmouseactive(mon->monitor_id, -1);
 
-	if (D3D_debug) {
-		D3D_debug(0, beamracer_debug);
-	}
-
 	return 1;
 
 oops:
