@@ -8264,8 +8264,12 @@ static void scanlinesleep(int currline, int nextline)
 
 static void linesync_first_last_line(int *first, int *last)
 {
+	int x, y, w, h;
 	*first = minfirstline;
 	*last = maxvpos_display;
+	get_custom_raw_limits(&w, &h, &x, &y);
+	if (y > 0)
+		*first += y;
 }
 
 static bool linesync_beam_single(void)
