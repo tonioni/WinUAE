@@ -1,4 +1,18 @@
 
+Beta 5:
+
+- Single scan line off by one fix in lagless vsync, frames+ mode now works correctly without static horizontal lines.
+- Single slice lagless vsync had blank display (b4)
+- Automatic scaling and some other scaling modes had very strange corrupted display in lagless vsync mode. Some small tearing is still possible if scaling is large enough.
+- END+F9 lagless vsync debug mode now also adds small flickering markers that show where Amiga-side slices are positioned (Optimally they should be in the middle of large color bars). Switching screen modes does not anymore automatically disable debug colors.
+- Reduced amount of data copied in lagless vsync if null filter or d3d shader is enabled.
+- Overlay leds (b2) are now also supported in D3D9 mode.
+- BPLCON1 delay logic fix when single scanline had at least one odd plane delay not equaling even plane delay and then one or more odd == even delays. (Very rare situation)
+- Debugger fa command didn't find anything.
+- Disassembler crashed if it disassembled FMOVECR instruction and statefile was loaded without enabled FPU.
+- Switching from non-cycle exact to cycle exact mode stopped interrupts if only single INTENA interrupt was enabled.
+- Moved CDTV SRAM from Advanced chipset to Expansions and added size selection.
+
 Beta 4:
 
 - Show only every 10th frame in D3D11 warp mode. For some reason Present() blocks if rate is higher than current max monitor refresh rate, not even DXGI_PRESENT_ALLOW_TEARING or DXGI_PRESENT_DO_NOT_WAIT help.
