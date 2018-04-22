@@ -3948,11 +3948,13 @@ static void renderoverlay(struct d3d11struct *d3d)
 		bool led = leds[ledtypes[i]] != 0;
 		if (led) {
 			struct d3d11sprite *sprled = &d3d->mask2textureleds[i];
-			setspritescaling(sprled, d3d->mask2texture_multx, d3d->mask2texture_multy);
-			setsprite(d3d, sprled,
-				d3d->mask2texture_offsetw + d3d->mask2textureledoffsets[i * 2 + 0] * d3d->mask2texture_multx,
-				d3d->mask2textureledoffsets[i * 2 + 1] * d3d->mask2texture_multy);
-			RenderSprite(d3d, sprled);
+			if (sprled) {
+				setspritescaling(sprled, d3d->mask2texture_multx, d3d->mask2texture_multy);
+				setsprite(d3d, sprled,
+					d3d->mask2texture_offsetw + d3d->mask2textureledoffsets[i * 2 + 0] * d3d->mask2texture_multx,
+					d3d->mask2textureledoffsets[i * 2 + 1] * d3d->mask2texture_multy);
+				RenderSprite(d3d, sprled);
+			}
 		}
 	}
 

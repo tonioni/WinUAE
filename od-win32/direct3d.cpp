@@ -1492,18 +1492,138 @@ static void createscanlines (struct d3dstruct *d3d, int force)
 	d3d->sltexture->UnlockRect (0);
 }
 
-static int findedge (D3DLOCKED_RECT *lock, int w, int h, int dx, int dy)
+#include "png.h"
+
+struct uae_image
+{
+	uae_u8 *data;
+	int width, height, pitch;
+};
+
+struct png_cb
+{
+	uae_u8 *ptr;
+	int size;
+};
+
+static void __cdecl readcallback(png_structp png_ptr, png_bytep out, png_size_t count)
+{
+	png_voidp io_ptr = png_get_io_ptr(png_ptr);
+
+	if (!io_ptr)
+		return;
+	struct png_cb *cb = (struct png_cb*)io_ptr;
+	if (count > cb->size)
+		count = cb->size;
+	memcpy(out, cb->ptr, count);
+	cb->ptr += count;
+	cb->size -= count;
+}
+
+static bool load_png_image(struct zfile *zf, struct uae_image *img)
+{
+	extern unsigned char test_card_png[];
+	extern unsigned int test_card_png_len;
+	uae_u8 *b = test_card_png;
+	uae_u8 *bfree = NULL;
+	png_structp png_ptr;
+	png_infop info_ptr;
+	png_uint_32 width, height;
+	int depth, color_type;
+	struct png_cb cb;
+	png_bytepp row_pp;
+	png_size_t cols;
+	bool ok = false;
+
+	memset(img, 0, sizeof(struct uae_image));
+	int size;
+	uae_u8 *bb = zfile_getdata(zf, 0, -1, &size);
+	if (!bb)
+		goto end;
+	b = bb;
+	bfree = bb;
+
+	if (!png_check_sig(b, 8))
+		goto end;
+
+	png_ptr = png_create_read_struct(PNG_LIBPNG_VER_STRING, 0, 0, 0);
+	if (!png_ptr)
+		goto end;
+	info_ptr = png_create_info_struct(png_ptr);
+	if (!info_ptr) {
+		png_destroy_read_struct(&png_ptr, 0, 0);
+		goto end;
+	}
+	cb.ptr = b;
+	cb.size = size;
+	png_set_read_fn(png_ptr, &cb, readcallback);
+
+	png_read_info(png_ptr, info_ptr);
+
+	png_get_IHDR(png_ptr, info_ptr, &width, &height, &depth, &color_type, 0, 0, 0);
+
+	if (color_type == PNG_COLOR_TYPE_PALETTE)
+		png_set_expand(png_ptr);
+	if (color_type == PNG_COLOR_TYPE_GRAY && depth < 8)
+		png_set_expand(png_ptr);
+
+	if (depth > 8)
+		png_set_strip_16(png_ptr);
+	if (depth < 8)
+		png_set_packing(png_ptr);
+	if (!(color_type & PNG_COLOR_MASK_ALPHA))
+		png_set_add_alpha(png_ptr, 0xff, PNG_FILLER_AFTER);
+
+	png_set_bgr(png_ptr);
+
+	cols = png_get_rowbytes(png_ptr, info_ptr);
+
+	img->pitch = width * 4;
+	img->width = width;
+	img->height = height;
+
+	row_pp = new png_bytep[height];
+
+	img->data = xcalloc(uae_u8, width * height * 4);
+
+	for (int i = 0; i < height; i++) {
+		row_pp[i] = (png_bytep)&img->data[i * img->pitch];
+	}
+
+	png_read_image(png_ptr, row_pp);
+	png_read_end(png_ptr, info_ptr);
+
+	png_destroy_read_struct(&png_ptr, &info_ptr, 0);
+
+	delete[] row_pp;
+
+	ok = true;
+end:
+	xfree(bfree);
+
+	return ok;
+}
+
+static void free_uae_image(struct uae_image *img)
+{
+	if (!img)
+		return;
+	xfree(img->data);
+	img->data = NULL;
+}
+
+static int findedge(struct uae_image *img, int w, int h, int dx, int dy)
 {
 	int x = w / 2;
 	int y = h / 2;
-	
+
 	if (dx != 0)
 		x = dx < 0 ? 0 : w - 1;
 	if (dy != 0)
 		y = dy < 0 ? 0 : h - 1;
-	
+
 	for (;;) {
-		uae_u32 *p = (uae_u32*)((uae_u8*)lock->pBits + y * lock->Pitch + x * 4);
+		uae_u32 *p = (uae_u32*)(img->data + y * img->pitch + x * 4);
 		int alpha = (*p) >> 24;
 		if (alpha != 255)
 			break;
@@ -1519,17 +1639,88 @@ static int findedge (D3DLOCKED_RECT *lock, int w, int h, int dx, int dy)
 	return y;
 }
 
+static void narrowimg(struct uae_image *img, int *xop, int *yop, const TCHAR *name)
+{
+	int x1, x2, y1, y2;
+
+	for (y1 = 0; y1 < img->height; y1++) {
+		bool tline = true;
+		for (int x = 0; x < img->width; x++) {
+			uae_u8 *p = img->data + y1 * img->pitch + x * 4;
+			if (p[3] != 0x00)
+				tline = false;
+		}
+		if (!tline)
+			break;
+	}
+
+	for (y2 = img->height - 1; y2 >= y1; y2--) {
+		bool tline = true;
+		for (int x = 0; x < img->width; x++) {
+			uae_u8 *p = img->data + y2 * img->pitch + x * 4;
+			if (p[3] != 0x00)
+				tline = false;
+		}
+		if (!tline)
+			break;
+	}
+
+	for (x1 = 0; x1 < img->width; x1++) {
+		bool tline = true;
+		for (int y = y1; y <= y2; y++) {
+			uae_u8 *p = img->data + y * img->pitch + x1 * 4;
+			if (p[3] != 0x00)
+				tline = false;
+		}
+		if (!tline)
+			break;
+	}
+
+	for (x2 = img->width - 1; x2 >= x1; x2--) {
+		bool tline = true;
+		for (int y = y1; y <= y2; y++) {
+			uae_u8 *p = img->data + y * img->pitch + x2 * 4;
+			if (p[3] != 0x00)
+				tline = false;
+		}
+		if (!tline)
+			break;
+	}
+
+	int w = x2 - x1 + 1;
+	int h = y2 - y1 + 1;
+	int pitch = w * 4;
+
+	*xop = x1;
+	*yop = y1;
+
+	uae_u8 *d = xcalloc(uae_u8, img->width * img->height * 4);
+	for (int y = 0; y < h; y++) {
+		uae_u8 *dp = d + y * pitch;
+		uae_u8 *sp = img->data + (y + y1) * img->pitch + x1 * 4;
+		memcpy(dp, sp, w * 4);
+	}
+
+	write_log(_T("Overlay LED: '%s' %d*%d -> %d*%d (%d*%d - %d*%d)\n"), name, img->width, img->height, w, h, x1, y1, x2, y2);
+
+	xfree(img->data);
+	img->width = w;
+	img->height = h;
+	img->pitch = pitch;
+	img->data = d;
+}
+
+
 static int createmask2texture (struct d3dstruct *d3d, const TCHAR *filename)
 {
 	struct AmigaMonitor *mon = &AMonitors[d3d - d3ddata];
 	struct zfile *zf;
 	int size;
-	uae_u8 *buf;
 	LPDIRECT3DTEXTURE9 tx;
 	HRESULT hr;
-	D3DXIMAGE_INFO dinfo;
 	TCHAR tmp[MAX_DPATH];
 	TCHAR filepath[MAX_DPATH];
+	D3DLOCKED_RECT locked;
 
 	if (d3d->mask2texture)
 		d3d->mask2texture->Release();
@@ -1592,7 +1783,7 @@ static int createmask2texture (struct d3dstruct *d3d, const TCHAR *filename)
 					break;
 			}
 		}
-		_tcscpy(filepath, tmp3);
+		_tcscpy(filepath, tmp);
 		zf = zfile_fopen (tmp, _T("rb"), ZFD_NORMAL);
 		if (zf)
 			break;
@@ -1601,34 +1792,37 @@ static int createmask2texture (struct d3dstruct *d3d, const TCHAR *filename)
 		write_log (_T("%s: couldn't open overlay '%s'\n"), D3DHEAD, filename);
 		return 0;
 	}
-	size = zfile_size (zf);
-	buf = xmalloc (uae_u8, size);
-	zfile_fread (buf, size, 1, zf);
-	zfile_fclose (zf);
-	hr = D3DXCreateTextureFromFileInMemoryEx (d3d->d3ddev, buf, size,
-		 D3DX_DEFAULT_NONPOW2, D3DX_DEFAULT_NONPOW2, 1, D3DUSAGE_DYNAMIC, D3DFMT_A8R8G8B8,
-		 D3DPOOL_DEFAULT, D3DX_FILTER_NONE, D3DX_FILTER_NONE, 0, &dinfo, NULL, &tx);
-	xfree (buf);
-	if (FAILED (hr)) {
-		write_log (_T("%s: overlay texture load failed: %s\n"), D3DHEAD, D3D_ErrorString (hr));
+	struct uae_image img;
+	if (!load_png_image(zf, &img)) {
+		write_log(_T("Overlay texture '%s' load failed.\n"), filename);
 		goto end;
 	}
-	d3d->mask2texture_w = dinfo.Width;
-	d3d->mask2texture_h = dinfo.Height;
-	d3d->mask2texture = tx;
-	d3d->mask2rect.left = 0;
-	d3d->mask2rect.top = 0;
-	d3d->mask2rect.right = d3d->mask2texture_w;
-	d3d->mask2rect.bottom = d3d->mask2texture_h;
 
-	D3DLOCKED_RECT lock;
-	if (SUCCEEDED (hr = d3d->mask2texture->LockRect (0, &lock, NULL, 0))) {
-		d3d->mask2rect.left = findedge (&lock, d3d->mask2texture_w, d3d->mask2texture_h, -1, 0);
-		d3d->mask2rect.right = findedge (&lock, d3d->mask2texture_w, d3d->mask2texture_h, 1, 0);
-		d3d->mask2rect.top = findedge (&lock, d3d->mask2texture_w, d3d->mask2texture_h, 0, -1);
-		d3d->mask2rect.bottom = findedge (&lock, d3d->mask2texture_w, d3d->mask2texture_h, 0, 1);
-		d3d->mask2texture->UnlockRect (0);
+	tx = createtext(d3d, img.width, img.height, D3DFMT_A8R8G8B8);
+	if (!tx) {
+		write_log(_T("%s: overlay texture load failed.\n"), D3DHEAD);
+		goto end;
 	}
+
+	d3d->mask2texture_w = img.width;
+	d3d->mask2texture_h = img.height;
+	d3d->mask2texture = tx;
+
+	hr = tx->LockRect(0, &locked, NULL, 0);
+	if (FAILED(hr)) {
+		write_log(_T("%s: Overlay LockRect failed: %s\n"), D3DHEAD, D3D_ErrorString(hr));
+		goto end;
+	}
+	for (int i = 0; i < img.height; i++) {
+		memcpy((uae_u8*)locked.pBits + i * locked.Pitch, img.data + i * img.pitch, img.width * 4);
+	}
+	tx->UnlockRect(0);
+
+	d3d->mask2rect.left = findedge(&img, d3d->mask2texture_w, d3d->mask2texture_h, -1, 0);
+	d3d->mask2rect.right = findedge(&img, d3d->mask2texture_w, d3d->mask2texture_h, 1, 0);
+	d3d->mask2rect.top = findedge(&img, d3d->mask2texture_w, d3d->mask2texture_h, 0, -1);
+	d3d->mask2rect.bottom = findedge(&img, d3d->mask2texture_w, d3d->mask2texture_h, 0, 1);
+
 	if (d3d->mask2rect.left >= d3d->mask2texture_w / 2 || d3d->mask2rect.top >= d3d->mask2texture_h / 2 ||
 		d3d->mask2rect.right <= d3d->mask2texture_w / 2 || d3d->mask2rect.bottom <= d3d->mask2texture_h / 2) {
 		d3d->mask2rect.left = 0;
@@ -1689,10 +1883,52 @@ static int createmask2texture (struct d3dstruct *d3d, const TCHAR *filename)
 		d3d->mask2rect.left, d3d->mask2rect.top, d3d->mask2rect.right, d3d->mask2rect.bottom,
 		d3d->mask2rect.right - d3d->mask2rect.left, d3d->mask2rect.bottom - d3d->mask2rect.top);
 
+	for (int i = 0; overlayleds[i]; i++) {
+		if (!overlayleds[i][0])
+			continue;
+		TCHAR tmp1[MAX_DPATH];
+		_tcscpy(tmp1, filepath);
+		_tcscpy(tmp1 + _tcslen(tmp1) - 4, _T("_"));
+		_tcscpy(tmp1 + _tcslen(tmp1), overlayleds[i]);
+		_tcscat(tmp1, _T("_led"));
+		_tcscat(tmp1, filepath + _tcslen(filepath) - 4);
+		zf = zfile_fopen(tmp1, _T("rb"), ZFD_NORMAL);
+		if (zf) {
+			struct uae_image ledimg;
+			if (load_png_image(zf, &ledimg)) {
+				if (ledimg.width == img.width && ledimg.height == img.height) {
+					narrowimg(&ledimg, &d3d->mask2textureledoffsets[i * 2 + 0], &d3d->mask2textureledoffsets[i * 2 + 1], tmp1);
+					d3d->mask2textureleds[i] = createtext(d3d, ledimg.width, ledimg.height, D3DFMT_A8R8G8B8);
+					if (d3d->mask2textureleds[i]) {
+						hr = d3d->mask2textureleds[i]->LockRect(0, &locked, NULL, 0);
+						if (SUCCEEDED(hr)) {
+							for (int j = 0; j < ledimg.height; j++) {
+								memcpy((uae_u8*)locked.pBits + j * locked.Pitch, ledimg.data + j * ledimg.pitch, ledimg.width * 4);
+							}
+							d3d->mask2textureleds[i]->UnlockRect(0);
+						}
+					}
+				} else {
+					write_log(_T("Overlay led '%s' size mismatch.\n"), tmp1);
+				}
+				free_uae_image(&ledimg);
+			} else {
+				write_log(_T("Overlay led '%s' load failed.\n"), tmp1);
+			}
+			zfile_fclose(zf);
+		}
+	}
+
+	free_uae_image(&img);
+
 	return 1;
 end:
+	free_uae_image(&img);
 	if (tx)
 		tx->Release ();
+	if (d3d->blanktexture)
+		d3d->blanktexture->Release();
+	d3d->blanktexture = NULL;
 	return 0;
 }
 
@@ -2293,6 +2529,9 @@ static void D3D_free2 (struct d3dstruct *d3d)
 	d3d->resetcount = 0;
 	d3d->devicelost = 0;
 	d3d->renderdisabled = false;
+	for (int i = 0; i < LED_MAX; i++) {
+		leds[i] = 0;
+	}
 	changed_prefs.leds_on_screen &= ~STATUSLINE_TARGET;
 	currprefs.leds_on_screen &= ~STATUSLINE_TARGET;
 }
@@ -3067,6 +3306,12 @@ pass2:
 	return s->lpTempTexture;
 }
 
+static void xD3D_led(int led, int on, int brightness)
+{
+	struct d3dstruct *d3d = &d3ddata[0];
+	leds[led] = on;
+}
+
 static int xD3D_debug(int monid, int mode)
 {
 	struct d3dstruct *d3d = &d3ddata[monid];
@@ -3279,31 +3524,31 @@ static void D3D_render2(struct d3dstruct *d3d, int mode)
 
 		if (d3d->sprite && d3d->sltexture) {
 			D3DXVECTOR3 v;
-			d3d->sprite->Begin (D3DXSPRITE_ALPHABLEND);
+			d3d->sprite->Begin(D3DXSPRITE_ALPHABLEND);
 			v.x = v.y = v.z = 0;
-			d3d->sprite->Draw (d3d->sltexture, NULL, NULL, &v, 0xffffffff);
-			d3d->sprite->End ();
+			d3d->sprite->Draw(d3d->sltexture, NULL, NULL, &v, 0xffffffff);
+			d3d->sprite->End();
 		}
 	}
 
 	if (d3d->sprite && ((d3d->ledtexture) || (d3d->mask2texture) || (d3d->cursorsurfaced3d && d3d->cursor_v))) {
 		D3DXVECTOR3 v;
-		d3d->sprite->Begin (D3DXSPRITE_ALPHABLEND);
+		d3d->sprite->Begin(D3DXSPRITE_ALPHABLEND);
 		if (d3d->cursorsurfaced3d && d3d->cursor_v) {
 			D3DXMATRIXA16 t;
 
 			if (d3d->cursor_scale)
-				MatrixScaling (&t, ((float)(d3d->window_w) / (d3d->tout_w + 2 * d3d->cursor_offset2_x)), ((float)(d3d->window_h) / (d3d->tout_h + 2 * d3d->cursor_offset2_y)), 0);
+				MatrixScaling(&t, ((float)(d3d->window_w) / (d3d->tout_w + 2 * d3d->cursor_offset2_x)), ((float)(d3d->window_h) / (d3d->tout_h + 2 * d3d->cursor_offset2_y)), 0);
 			else
-				MatrixScaling (&t, 1.0f, 1.0f, 0);
+				MatrixScaling(&t, 1.0f, 1.0f, 0);
 			v.x = d3d->cursor_x + d3d->cursor_offset2_x;
 			v.y = d3d->cursor_y + d3d->cursor_offset2_y;
 			v.z = 0;
-			d3d->sprite->SetTransform (&t);
-			d3d->sprite->Draw (d3d->cursorsurfaced3d, NULL, NULL, &v, 0xffffffff);
-			MatrixScaling (&t, 1, 1, 0);
-			d3d->sprite->Flush ();
-			d3d->sprite->SetTransform (&t);
+			d3d->sprite->SetTransform(&t);
+			d3d->sprite->Draw(d3d->cursorsurfaced3d, NULL, NULL, &v, 0xffffffff);
+			MatrixScaling(&t, 1, 1, 0);
+			d3d->sprite->Flush();
+			d3d->sprite->SetTransform(&t);
 		}
 		if (d3d->mask2texture) {
 			D3DXMATRIXA16 t;
@@ -3360,12 +3605,23 @@ static void D3D_render2(struct d3dstruct *d3d, int mode)
 			r.right = d3d->mask2texture_w;
 			r.bottom = d3d->mask2texture_h;
 			if (showoverlay) {
-				d3d->sprite->SetTransform (&t);
-				d3d->sprite->Draw (d3d->mask2texture, &r, NULL, &v, 0xffffffff);
-				d3d->sprite->Flush ();
+				d3d->sprite->SetTransform(&t);
+				d3d->sprite->Draw(d3d->mask2texture, &r, NULL, &v, 0xffffffff);
+				d3d->sprite->Flush();
+				for (int i = 0; overlayleds[i]; i++) {
+					bool led = leds[ledtypes[i]] != 0;
+					if (led && d3d->mask2textureleds[i]) {
+						v.x = d3d->mask2texture_offsetw / w + d3d->mask2textureledoffsets[i * 2 + 0];
+						v.y = d3d->mask2textureledoffsets[i * 2 + 1];
+						v.z = 0;
+						d3d->sprite->Draw(d3d->mask2textureleds[i], NULL, NULL, &v, 0xffffffff);
+						d3d->sprite->Flush();
+					}
+				}
 			}
-			MatrixScaling (&t, 1, 1, 0);
-			d3d->sprite->SetTransform (&t);
+
+			MatrixScaling(&t, 1, 1, 0);
+			d3d->sprite->SetTransform(&t);
 
 			if (d3d->mask2texture_offsetw > 0) {
 				v.x = 0;
@@ -3382,7 +3638,7 @@ static void D3D_render2(struct d3dstruct *d3d, int mode)
 					r.top = 0;
 					r.right = d3d->window_w - (d3d->mask2texture_offsetw + d3d->mask2texture_ww) + 1;
 					r.bottom = d3d->window_h;
-					d3d->sprite->Draw (d3d->blanktexture, &r, NULL, &v, 0xffffffff);
+					d3d->sprite->Draw(d3d->blanktexture, &r, NULL, &v, 0xffffffff);
 				}
 			}
 
@@ -3393,13 +3649,13 @@ static void D3D_render2(struct d3dstruct *d3d, int mode)
 			v.x = slx;
 			v.y = sly;
 			v.z = 0;
-			d3d->sprite->Draw (d3d->ledtexture, NULL, NULL, &v, 0xffffffff);
+			d3d->sprite->Draw(d3d->ledtexture, NULL, NULL, &v, 0xffffffff);
 		}
-		d3d->sprite->End ();
+		d3d->sprite->End();
 	}
 #endif
 
-	hr = d3d->d3ddev->EndScene ();
+	hr = d3d->d3ddev->EndScene();
 	if (FAILED (hr))
 		write_log (_T("%s: EndScene() %s\n"), D3DHEAD, D3D_ErrorString (hr));
 }
@@ -3815,7 +4071,7 @@ void d3d9_select(void)
 	D3D_getscalerect = xD3D_getscalerect;
 	D3D_run = NULL;
 	D3D_debug = xD3D_debug;
-	D3D_led = NULL;
+	D3D_led = xD3D_led;
 	D3D_getscanline = xD3D_getscanline;
 }
 
