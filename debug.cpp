@@ -5069,7 +5069,7 @@ static void find_ea (TCHAR **inptr)
 			dea = 0xffffffff;
 			m68k_disasm_ea (addr, NULL, 1, &sea, &dea, 0xffffffff);
 			if (ea == sea || ea == dea) {
-				m68k_disasm (addr, NULL, 1, 0xffffffff);
+				m68k_disasm (addr, NULL, 0xffffffff, 1);
 				hits++;
 				if (hits > 100) {
 					console_out_f (_T("Too many hits. End addr = %08X\n"), addr);

@@ -7410,7 +7410,7 @@ void m68k_disasm_2 (TCHAR *buf, int bufsize, uaecptr pc, uaecptr *nextpc, int cn
 	if (!table68k)
 		return;
 	while (cnt-- > 0) {
-		TCHAR instrname[100], *ccpt;
+		TCHAR instrname[256], *ccpt;
 		TCHAR segout[256], segname[256];
 		int i;
 		uae_u32 opcode;
@@ -8259,6 +8259,8 @@ static void fill_prefetch_quick (void)
 
 void restore_cpu_finish (void)
 {
+	if (!currprefs.fpu_model)
+		fpu_reset();
 	init_m68k ();
 	m68k_setpc_normal (regs.pc);
 	doint ();
