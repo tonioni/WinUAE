@@ -232,7 +232,7 @@ static CLOSETOUCHINPUTHANDLE pCloseTouchInputHandle;
 
 static ULONG ActualTimerResolution;
 
-void target_sleep_nanos(int nanos)
+int target_sleep_nanos(int nanos)
 {
 	static bool init;
 	if (!init) {
@@ -261,6 +261,8 @@ void target_sleep_nanos(int nanos)
 		init = true;
 	}
 	if (pNtDelayExecution) {
+		if (nanos < 0)
+			return 800;
 		LARGE_INTEGER interval;
 		int start = read_processor_time();
 		nanos *= 10;
@@ -270,8 +272,11 @@ void target_sleep_nanos(int nanos)
 		pNtDelayExecution(false, &interval);
 		idletime += read_processor_time() - start;
 	} else {
+		if (nanos < 0)
+			return 1300;
 		sleep_millis_main(1);
 	}
+	return 0;
 }
 
 static uae_u64 spincount;

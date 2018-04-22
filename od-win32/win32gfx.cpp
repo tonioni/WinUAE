@@ -102,6 +102,7 @@ int vsync_modechangetimeout = 10;
 
 int vsync_activeheight, vsync_totalheight;
 float vsync_vblank, vsync_hblank;
+bool beamracer_debug;
 
 int reopen(struct AmigaMonitor *, int, bool);
 
@@ -4094,6 +4095,10 @@ retry:
 	if (isfullscreen () != 0)
 		setmouseactive(mon->monitor_id, -1);
 
+	if (D3D_debug) {
+		D3D_debug(0, beamracer_debug);
+	}
+
 	return 1;
 
 oops:
@@ -4198,10 +4203,11 @@ void updatewinfsmode(int monid, struct uae_prefs *p)
 bool toggle_3d_debug(void)
 {
 	if (isvsync_chipset() < 0) {
+		beamracer_debug = !beamracer_debug;
 		if (D3D_debug) {
-			int d = D3D_debug(0, 0);
-			D3D_debug(0, d ? 0 : 1);
+			D3D_debug(0, beamracer_debug);
 		}
+		reset_drawing();
 		return true;
 	}
 	return false;

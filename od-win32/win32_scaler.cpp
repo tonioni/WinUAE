@@ -1126,13 +1126,23 @@ void S2X_render(int monid, int y_start, int y_end)
 	} else { /* null */
 
 		if (amiga_depth == dst_depth) {
-			uae_u8 *d = dptr, *s = sptr;
-			int y;
 			int w = aw * dst_depth / 8;
-			for (y = 0; y < ah && d + w <= enddptr; y++) {
-				memcpy (d, s, w);
-				s += vb->rowbytes;
-				d += pitch;
+			if (y_start < 0) {
+				uae_u8 *d = dptr;
+				uae_u8 *s = sptr;
+				for (int y = 0; y < ah && d + w <= enddptr; y++) {
+					memcpy(d, s, w);
+					s += vb->rowbytes;
+					d += pitch;
+				}
+			} else {
+				uae_u8 *d = dptr + y_start * pitch;
+				uae_u8 *s = sptr + y_start * vb->rowbytes;
+				for (int y = y_start; y < ah && y < y_end && d + w <= enddptr; y++) {
+					memcpy(d, s, w);
+					s += vb->rowbytes;
+					d += pitch;
+				}
 			}
 		}
 		ok = 1;

@@ -3700,6 +3700,8 @@ static void draw_frame_extras(struct vidbuffer *vb, int y_start, int y_end)
 		refresh_indicator_update(vb);
 }
 
+extern bool beamracer_debug;
+
 void draw_lines(int end, int section)
 {
 	int monid = 0;
@@ -3707,6 +3709,11 @@ void draw_lines(int end, int section)
 	struct vidbuffer *vb = &vidinfo->drawbuffer;
 	int y_start = -1;
 	int y_end = -1;
+
+	static bool section_toggle;
+
+	if (section == 0)
+		section_toggle = !section_toggle;
 
 	end -= minfirstline;
 	if (end < 0)
@@ -3718,6 +3725,8 @@ void draw_lines(int end, int section)
 		if (end < 0)
 			return;
 	}
+
+	int section_color_cnt = 4;
 
 	vidinfo->outbuffer = vb;
 	if (!lockscr(vb, false, vb->last_drawn_line ? false : true))
@@ -3740,12 +3749,20 @@ void draw_lines(int end, int section)
 		hposblank = 0;
 		pfield_draw_line(vb, line, whereline, wherenext);
 
-#if 0
-		static const int section_colors[] = { 0x777, 0xf00, 0x0f0, 0x00f };
-		int color = section_colors[section & 3];
-		xlinebuffer = row_map[whereline];
-		for (int x = 0; x < 4; x++) {
-			putpixel(xlinebuffer, NULL, vidinfo->drawbuffer.pixbytes, x, xcolors[color], 1);
+#if 1
+		if (beamracer_debug) {
+			if (vb->last_drawn_line == end - 4) {
+				section_color_cnt = 4;
+			}
+			if (section_color_cnt > 0) {
+				section_color_cnt--;
+				static const int section_colors[] = { 0x777, 0xf00, 0x0f0, 0x00f };
+				int color = section_toggle ? section_colors[section & 3] : 0;
+				xlinebuffer = row_map[whereline];
+				for (int x = 0; x < 4; x++) {
+					putpixel(xlinebuffer, NULL, vidinfo->drawbuffer.pixbytes, x, xcolors[color], 1);
+				}
+			}
 		}
 #endif
 
@@ -3883,7 +3900,7 @@ static void finish_drawing_frame(bool drawlines)
 		}
 		if (multimon && locked) {
 			unlockscr(out, -1, -1);
-			render_screen(out->monitor_id, 0, true);
+			render_screen(out->monitor_id, 1, true);
 			show_screen(out->monitor_id, 0);
 		}
 	}
@@ -4232,7 +4249,7 @@ void freevidbuffer(int monid, struct vidbuffer *buf)
 	memset (buf, 0, sizeof (struct vidbuffer));
 }
 
-void reset_drawing (void)
+void reset_drawing(void)
 {
 	int monid = 0;
 	struct amigadisplay *ad = &adisplays[monid];

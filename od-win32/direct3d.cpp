@@ -1842,7 +1842,7 @@ static bool xD3D_getscalerect(int monid, float *mx, float *my, float *sx, float 
 	return true;
 }
 
-static void setupscenecoords (struct d3dstruct *d3d)
+static void setupscenecoords (struct d3dstruct *d3d, bool normalrender)
 {
 	int monid = d3d - d3ddata;
 	struct vidbuf_description *vidinfo = &adisplays[monid].gfxvidinfo;
@@ -1850,6 +1850,9 @@ static void setupscenecoords (struct d3dstruct *d3d)
 	float w, h;
 	float dw, dh;
 	static RECT sr2[MAX_AMIGAMONITORS], dr2[MAX_AMIGAMONITORS], zr2[MAX_AMIGAMONITORS];
+
+	if (!normalrender)
+		return;
 
 	//write_log (_T("%dx%d %dx%d %dx%d\n"), tin_w, tin_h, tin_w, tin_h, window_w, window_h);
 
@@ -3106,7 +3109,9 @@ static void D3D_render2(struct d3dstruct *d3d, int mode)
 	if (!isd3d (d3d) || !d3d->texture)
 		return;
 
-	if (mode > 0)
+	bool normalrender = mode < 0 || (mode & 1);
+
+	if (mode > 0 && (mode & 2))
 		d3d->slicecnt = 0;
 	else if (mode < 0)
 		d3d->slicecnt = d3d->slicecnt == 2 ? 0 : d3d->slicecnt;
@@ -3161,7 +3166,7 @@ static void D3D_render2(struct d3dstruct *d3d, int mode)
 				masktexture = s->masktexture;
 		}
 
-		setupscenecoords (d3d);
+		setupscenecoords(d3d, normalrender);
 		hr = d3d->d3ddev->SetTransform (D3DTS_PROJECTION, &d3d->m_matProj);
 		hr = d3d->d3ddev->SetTransform (D3DTS_VIEW, &d3d->m_matView);
 		hr = d3d->d3ddev->SetTransform (D3DTS_WORLD, &d3d->m_matWorld);
@@ -3260,7 +3265,7 @@ static void D3D_render2(struct d3dstruct *d3d, int mode)
 	} else {
 
 		// non-shader version
-		setupscenecoords (d3d);
+		setupscenecoords (d3d, normalrender);
 		hr = d3d->d3ddev->SetTransform (D3DTS_PROJECTION, &d3d->m_matProj);
 		hr = d3d->d3ddev->SetTransform (D3DTS_VIEW, &d3d->m_matView);
 		hr = d3d->d3ddev->SetTransform (D3DTS_WORLD, &d3d->m_matWorld);

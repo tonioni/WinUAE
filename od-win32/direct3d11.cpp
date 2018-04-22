@@ -1460,9 +1460,12 @@ static bool UpdateBuffers(struct d3d11struct *d3d)
 	return true;
 }
 
-static void setupscenecoords(struct d3d11struct *d3d)
+static void setupscenecoords(struct d3d11struct *d3d, bool normalrender)
 {
 	RECT sr, dr, zr;
+
+	if (!normalrender)
+		return;
 
 	getfilterrect2(d3d - d3d11data, &dr, &sr, &zr, d3d->m_screenWidth, d3d->m_screenHeight, d3d->m_bitmapWidth / d3d->dmult, d3d->m_bitmapHeight / d3d->dmult, d3d->dmult, d3d->m_bitmapWidth, d3d->m_bitmapHeight);
 
@@ -4151,11 +4154,11 @@ static void CameraClass_Render(struct d3d11struct *d3d)
 	xD3DXMatrixLookAtLH(&d3d->m_viewMatrix, &position, &lookAt, &up);
 }
 
-static bool GraphicsClass_Render(struct d3d11struct *d3d, float rotation)
+static bool GraphicsClass_Render(struct d3d11struct *d3d, float rotation, bool normalrender)
 {
 	bool result;
 
-	setupscenecoords(d3d);
+	setupscenecoords(d3d, normalrender);
 
 	// Generate the view matrix based on the camera's position.
 	CameraClass_Render(d3d);
@@ -4309,7 +4312,7 @@ static bool xD3D11_renderframe(int monid, int mode, bool immediate)
 
 	d3d->frames_since_init++;
 
-	if (mode > 0)
+	if (mode > 0 && (mode & 2))
 		d3d->slicecnt = 0;
 	else if (mode < 0)
 		d3d->slicecnt = d3d->slicecnt == 2 ? 0 : d3d->slicecnt;
@@ -4331,7 +4334,7 @@ static bool xD3D11_renderframe(int monid, int mode, bool immediate)
 	if (d3d->delayedfs || !d3d->texture2d || !d3d->d3dinit_done)
 		return false;
 
-	GraphicsClass_Render(d3d, 0);
+	GraphicsClass_Render(d3d, 0, mode < 0 || (mode & 1));
 
 	if (d3d->filenotificationhandle != NULL) {
 		bool notify = false;
@@ -4508,7 +4511,7 @@ static bool xD3D11_alloctexture(int monid, int w, int h)
 		d3d->delayedrestore = true;
 	}
 
-	setupscenecoords(d3d);
+	setupscenecoords(d3d, true);
 
 	changed_prefs.leds_on_screen |= STATUSLINE_TARGET;
 	currprefs.leds_on_screen |= STATUSLINE_TARGET;
