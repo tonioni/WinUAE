@@ -477,7 +477,7 @@ extern bool use_long_double;
 #endif
 
 #ifndef STATIC_INLINE
-#if __GNUC__ - 1 > 1 && __GNUC_MINOR__ - 1 >= 0
+#if __GNUC__ - 1 > 2 || (__GNUC__ - 1 == 2 && __GNUC_MINOR__ - 1 >= 0)
 #define STATIC_INLINE static __inline__ __attribute__ ((always_inline))
 #define NOINLINE __attribute__ ((noinline))
 #define NORETURN __attribute__ ((noreturn))
