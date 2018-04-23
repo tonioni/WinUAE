@@ -95,7 +95,7 @@ struct romdata *getromdatabypath (const TCHAR *path)
 	return NULL;
 }
 
-#define NEXT_ROM_ID 236
+#define NEXT_ROM_ID 237
 
 #define ALTROM(id,grp,num,size,flags,crc32,a,b,c,d,e) \
 { _T("X"), 0, 0, 0, 0, 0, size, id, 0, 0, flags, (grp << 16) | num, 0, NULL, crc32, a, b, c, d, e },
@@ -451,6 +451,8 @@ static struct romdata roms[] = {
 	0xb2dae8c4, 0xcdfe2d96, 0xe44d4f8d, 0x3833a5e8, 0xb6c832fd, 0xc7b341a9, NULL, NULL },
 	{ _T("M-Tec E-Matrix 530"), 0, 0, 0, 0, _T("EMATRIX530\0"), 65536, 144, 0, 0, ROMTYPE_CB_EMATRIX, 0, 0, NULL,
 	0x3942d827, 0x5aaf118f, 0x61fc3083, 0x1435b87c, 0x8bdab6a4, 0x59b4ee22, NULL, NULL },
+	{ _T("Typhoon MK2"), 0, 0, 0, 0, _T("TYPHOON2\0"), 65536, 236, 0, 0, ROMTYPE_CB_TYPHOON2, 0, 0, NULL,
+	0xf5edf7e2, 0xf62bab24, 0xeaa91a16, 0x07d838af, 0x7b5fef4d, 0x05c58edc, NULL, NULL },
 	{ _T("SX32 Pro"), 0, 0, 0, 0, _T("SX32PRO\0"), 65536, 160, 0, 0, ROMTYPE_CB_SX32PRO, 0, 0, NULL,
 	0xbfd68a88, 0x84a50880, 0x76917549, 0xadf33b16, 0x8a869adb, 0x9e5a6fac, NULL, NULL },
 	{ _T("IVS Vector 4.14"), 4, 14, 4, 14, _T("VECTOR030\0"), 65536, 166, 0, 0, ROMTYPE_CB_VECTOR, 0, 0, NULL,

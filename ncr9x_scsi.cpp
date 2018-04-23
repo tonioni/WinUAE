@@ -166,6 +166,7 @@ static struct ncr9x_state *ncr_masoboshi_scsi[MAX_DUPLICATE_EXPANSION_BOARDS];
 static struct ncr9x_state *ncr_dkb1200_scsi;
 static struct ncr9x_state *ncr_ematrix530_scsi;
 static struct ncr9x_state *ncr_multievolution_scsi;
+static struct ncr9x_state *ncr_typhoon2_scsi;
 static struct ncr9x_state *ncr_golemfast_scsi[MAX_DUPLICATE_EXPANSION_BOARDS];
 static struct ncr9x_state *ncr_scram5394_scsi[MAX_DUPLICATE_EXPANSION_BOARDS];
 static struct ncr9x_state *ncr_rapidfire_scsi[MAX_DUPLICATE_EXPANSION_BOARDS];
@@ -1067,7 +1068,7 @@ static void ncr9x_io_bput3(struct ncr9x_state *ncr, uaecptr addr, uae_u32 val, i
 			write_log(_T("DKB IO %08X PUT %02x %08x\n"), addr, val & 0xff, M68K_GETPC);
 			return;
 		}
-	} else if (ISCPUBOARD(BOARD_MTEC, BOARD_MTEC_SUB_EMATRIX530)) {
+	} else if (ISCPUBOARD(BOARD_MTEC, BOARD_MTEC_SUB_EMATRIX530) || ISCPUBOARD(BOARD_DCE, BOARD_DCE_SUB_TYPHOON2)) {
 		if ((addr & 0xf000) >= 0xe000) {
 			if ((addr & 0x3ff) <= 7) {
 				if (ncr->fakedma_data_offset < ncr->fakedma_data_size) {
@@ -1405,7 +1406,7 @@ static uae_u32 ncr9x_io_bget3(struct ncr9x_state *ncr, uaecptr addr, int *reg)
 			write_log(_T("DKB IO GET %08x %08x\n"), addr, M68K_GETPC);
 			return 0;
 		}
-	} else if (ISCPUBOARD(BOARD_MTEC, BOARD_MTEC_SUB_EMATRIX530)) {
+	} else if (ISCPUBOARD(BOARD_MTEC, BOARD_MTEC_SUB_EMATRIX530) || ISCPUBOARD(BOARD_DCE, BOARD_DCE_SUB_TYPHOON2)) {
 		if ((addr & 0xf000) >= 0xe000) {
 			if ((addr & 0x3ff) <= 7) {
 				if (ncr->fakedma_data_offset >= ncr->fakedma_data_size) {
@@ -2052,41 +2053,59 @@ bool ncr_dkb_autoconfig_init(struct autoconfig_info *aci)
 	return true;
 }
 
-bool ncr_ematrix_autoconfig_init(struct autoconfig_info *aci)
+bool typhoon2scsi_init(struct autoconfig_info *aci)
 {
-	struct zfile *z = read_device_from_romconfig(aci->rc, ROMTYPE_CB_EMATRIX);
 	uae_u8 *rom = xcalloc(uae_u8, 65536);
-	if (z) {
-		int i;
-		memset(rom, 0xff, 65536);
-
-		zfile_fseek(z, 32768, SEEK_SET);
-		for (i = 0; i < (sizeof aci->autoconfig_raw) / 2; i++) {
-			uae_u8 b;
-			zfile_fread(&b, 1, 1, z);
-			aci->autoconfig_raw[i * 2] = b;
-		}
-		for (;;) {
-			uae_u8 b;
-			if (!zfile_fread(&b, 1, 1, z))
-				break;
-			rom[i * 2] = b;
-			i++;
-		}
-		zfile_fclose(z);
-	}
-
+	load_rom_rc(aci->rc, ROMTYPE_CB_TYPHOON2, 32768, 32768, rom, 65536, LOADROM_EVENONLY_ODDONE);
+	memcpy(aci->autoconfig_raw, aci->rc->autoboot_disabled ? rom + 256 : rom, 128);
 	if (!aci->doinit) {
 		xfree(rom);
 		return true;
 	}
 
 	struct ncr9x_state *ncr = getscsi(aci->rc);
-	if (!ncr)
+	if (!ncr) {
+		xfree(rom);
 		return false;
+	}
 
 	xfree(ncr->rom);
-	ncr->rom = NULL;
+	ncr->rom = rom;
+
+	ncr->enabled = true;
+	memcpy(ncr->acmemory, aci->autoconfig_raw, sizeof aci->autoconfig_raw);
+	ncr->rom_start = 0;
+	ncr->rom_offset = 0;
+	ncr->rom_end = 0x8000;
+	ncr->io_start = 0x8000;
+	ncr->io_end = 0x10000;
+	ncr->bank = &ncr9x_bank_generic;
+	ncr->board_mask = 65535;
+
+	ncr9x_reset_board(ncr);
+
+	aci->addrbank = ncr->bank;
+	return true;
+}
+
+bool ncr_ematrix_autoconfig_init(struct autoconfig_info *aci)
+{
+	uae_u8 *rom = xcalloc(uae_u8, 65536);
+	load_rom_rc(aci->rc, ROMTYPE_CB_EMATRIX, 32768, 32768, rom, 65536, LOADROM_EVENONLY_ODDONE);
+	memcpy(aci->autoconfig_raw, aci->rc->autoboot_disabled ? rom + 256 : rom, 128);
+	if (!aci->doinit) {
+		xfree(rom);
+		return true;
+	}
+
+	struct ncr9x_state *ncr = getscsi(aci->rc);
+	if (!ncr) {
+		xfree(rom);
+		return false;
+	}
+
+	xfree(ncr->rom);
+	ncr->rom = rom;
 
 	ncr->enabled = true;
 	memcpy(ncr->acmemory, aci->autoconfig_raw, sizeof aci->autoconfig_raw);
@@ -2350,6 +2369,13 @@ void rapidfire_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romco
 	ncr9x_add_scsi_unit(&ncr_rapidfire_scsi[ci->controller_type_unit], ch, ci, rc);
 	ncr9x_esp_scsi_init(ncr_rapidfire_scsi[ci->controller_type_unit], fake_dma_read, fake_dma_write, set_irq2, 0);
 	esp_dma_enable(ncr_rapidfire_scsi[ci->controller_type_unit]->devobject.lsistate, 1);
+}
+
+void typhoon2scsi_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc)
+{
+	ncr9x_add_scsi_unit(&ncr_typhoon2_scsi, ch, ci, rc);
+	ncr9x_esp_scsi_init(ncr_typhoon2_scsi, fake_dma_read_ematrix, fake_dma_write_ematrix, set_irq2, 0);
+	esp_dma_enable(ncr_typhoon2_scsi->devobject.lsistate, 1);
 }
 
 #endif

@@ -6034,6 +6034,16 @@ static const struct cpuboardsubtype dceboard_sub[] = {
 		64 * 1024 * 1024
 	},
 	{
+		_T("Typhoon MK2"),
+		_T("typhoon2"),
+		ROMTYPE_CB_TYPHOON2, 0,
+		typhoon2scsi_add_scsi_unit, EXPANSIONTYPE_SCSI,
+		BOARD_MEMORY_CUSTOM_32,
+		128 * 1024 * 1024,
+		0,
+		typhoon2scsi_init, NULL, BOARD_AUTOCONFIG_Z2, 1
+	},
+	{
 		NULL
 	}
 };

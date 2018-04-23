@@ -55,6 +55,8 @@ void blizzardppc_irq_setonly(int id, int level);
 #define BOARD_COMMODORE_SUB_A26x0 0
 
 #define BOARD_DCE 3
+#define BOARD_DCE_SUB_SX32PRO 0
+#define BOARD_DCE_SUB_TYPHOON2 1
 
 #define BOARD_DKB 4
 #define BOARD_DKB_SUB_12x0 0
