@@ -1,4 +1,19 @@
 
+Beta 6:
+
+- Added DCE Typhoon MK2 (A1200 accelerator). ROM is almost identical to E-Matrix 530/1230. Identical SCSI driver, slightly modified RAM detection code.
+- Fixed E-Matrix RAM selection.
+- Fixed crash in lagless vsync mode if CPU speed was on the fly changed.
+- Fixed directory harddrive uaehf.device bugs.
+- Added optional extended precision (80 bit) host FPU mode. (Probably becomes default and replaces old when/if this gets good enough)
+
+Extended precision FPU mode:
+- Fully JIT FPU compatible.
+- 32-bit and 64-bit compatible.
+- Uses short assembly routines to directly execute x86 FPU instructions. (MSVC does not support long double)
+- Basic floating point operations, square root, sin and cos are currently natively supported. Others use normal double precision C-library routines.
+- Not yet fully working. Testing needed.
+
 Beta 5:
 
 - Single scan line off by one fix in lagless vsync, frames+ mode now works correctly without static horizontal lines.

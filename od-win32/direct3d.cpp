@@ -1373,7 +1373,7 @@ static void updateleds (struct d3dstruct *d3d)
 		done = 1;
 	}
 
-	if (d3d != d3ddata)
+	if (d3d != &d3ddata[0])
 		return;
 
 	hr = d3d->ledtexture->LockRect (0, &locked, NULL, D3DLOCK_DISCARD);
