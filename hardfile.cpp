@@ -144,6 +144,8 @@ static void getchs2 (struct hardfiledata *hfd, int *cyl, int *cylsec, int *head,
 		*tracksec = hfd->ci.sectors;
 		*cylsec = (*head) * (*tracksec);
 		*cyl = (unsigned int)(hfd->virtsize / hfd->ci.blocksize) / ((*tracksec) * (*head));
+		if (*cyl == 0)
+			*cyl = (unsigned int)hfd->ci.max_lba / ((*tracksec) * (*head));
 		return;
 	}
 	/* no, lets guess something.. */
@@ -158,6 +160,8 @@ static void getchs2 (struct hardfiledata *hfd, int *cyl, int *cylsec, int *head,
 	else
 		heads = 255;
 	*cyl = (unsigned int)(hfd->virtsize / hfd->ci.blocksize) / (sectors * heads);
+	if (*cyl == 0)
+		*cyl = (unsigned int)hfd->ci.max_lba / (sectors * heads);
 	*cylsec = sectors * heads;
 	*tracksec = sectors;
 	*head = heads;
@@ -2251,6 +2255,8 @@ static int handle_scsi (TrapContext *ctx, uae_u8 *iobuf, uaecptr request, struct
 	scsi_log (_T("\n"));
 
 	if (safeonly && !scsi_cmd_is_safe(sd->cmd[0])) {
+		sd->reply_len = 0;
+		sd->data_len = 0;
 		sd->status = 2;
 		sd->sense_len = 18;
 		sd->sense[0] = 0x70;
@@ -2563,6 +2569,8 @@ static uae_u32 hardfile_do_io (TrapContext *ctx, struct hardfiledata *hfd, struc
 	case CMD_READ:
 		if (nodisk (hfd))
 			goto no_disk;
+		if (vdisk(hfpd))
+			goto v_disk;
 		offset = get_long_host(iobuf + 44);
 		len = get_long_host(iobuf + 36); /* io_Length */
 		if (offset & bmask) {
@@ -2573,24 +2581,14 @@ static uae_u32 hardfile_do_io (TrapContext *ctx, struct hardfiledata *hfd, struc
 			unaligned (cmd, offset, len, hfd->ci.blocksize);
 			goto bad_len;
 		}
-		if (vdisk(hfpd)) {
-			for (int i = 0; i < len; i++) {
-				put_byte(dataptr + i, 0);
-			}
-			if (offset == 0) {
-				put_long(dataptr, 0x444f5301);
-			}
-			actual = len;
-		} else {
-			if (len + offset > hfd->virtsize) {
-				outofbounds(cmd, offset, len, hfd->virtsize);
-				goto bad_len;
-			}
-			if (isbadblock(hfd, offset, len)) {
-				goto bad_block;
-			}
-			actual = (uae_u32)cmd_read(ctx, hfd, dataptr, offset, len);
+		if (len + offset > hfd->virtsize) {
+			outofbounds(cmd, offset, len, hfd->virtsize);
+			goto bad_len;
 		}
+		if (isbadblock(hfd, offset, len)) {
+			goto bad_block;
+		}
+		actual = (uae_u32)cmd_read(ctx, hfd, dataptr, offset, len);
 		break;
 
 #if HDF_SUPPORT_TD64
@@ -2731,6 +2729,8 @@ static uae_u32 hardfile_do_io (TrapContext *ctx, struct hardfiledata *hfd, struc
 			getchsx (hfd, &cyl, &cylsec, &head, &tracksec);
 			trap_put_long(ctx, dataptr + 0, hfd->ci.blocksize);
 			size = hfd->virtsize / hfd->ci.blocksize;
+			if (!size)
+				size = hfd->ci.max_lba;
 			if (size > 0x00ffffffff)
 				size = 0xffffffff;
 			trap_put_long(ctx, dataptr + 4, (uae_u32)size);
@@ -2799,7 +2799,7 @@ static uae_u32 hardfile_do_io (TrapContext *ctx, struct hardfiledata *hfd, struc
 #if HDF_SUPPORT_DS
 	case HD_SCSICMD: /* SCSI */
 		if (vdisk(hfpd)) {
-			error = handle_scsi(ctx, iobuf, request, hfd, hfpd->sd, false);
+			error = handle_scsi(ctx, iobuf, request, hfd, hfpd->sd, true);
 		} else if (HDF_SUPPORT_DS_PARTITION || enable_ds_partition_hdf || (!hfd->ci.sectors && !hfd->ci.surfaces && !hfd->ci.reserved)) {
 			error = handle_scsi(ctx, iobuf, request, hfd, hfpd->sd, false);
 		} else { /* we don't want users trashing their "partition" hardfiles with hdtoolbox */
@@ -3021,7 +3021,7 @@ void hardfile_install (void)
 	uae_sem_init (&change_sem, 0, 1);
 
 	ROM_hardfile_resname = ds (currprefs.uaescsidevmode == 1 ? _T("scsi.device") : _T("uaehf.device"));
-	ROM_hardfile_resid = ds (_T("UAE hardfile.device 0.4"));
+	ROM_hardfile_resid = ds (_T("UAE hardfile.device 0.6"));
 
 	nscmd_cmd = here ();
 	dw (NSCMD_DEVICEQUERY);

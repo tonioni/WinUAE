@@ -595,7 +595,7 @@ void uci_set_defaults (struct uaedev_config_info *uci, bool rdb)
 	uci->device_emu_unit = -1;
 }
 
-static void get_usedblocks(struct fs_usage *fsu, bool fs, int *pblocksize, uae_s64 *pnumblocks, uae_s64 *pinuse)
+static void get_usedblocks(struct fs_usage *fsu, bool fs, int *pblocksize, uae_s64 *pnumblocks, uae_s64 *pinuse, bool reduce)
 {
 	uae_s64 numblocks = 0, inuse;
 	int blocksize = *pblocksize;
@@ -608,14 +608,18 @@ static void get_usedblocks(struct fs_usage *fsu, bool fs, int *pblocksize, uae_s
 			fsu->avail *= 1024;
 		}
 	}
-	while (blocksize < 32768 || numblocks == 0) {
+	if (reduce) {
+		while (blocksize < 32768 || numblocks == 0) {
+			numblocks = fsu->total / blocksize;
+			if (numblocks <= 10)
+				numblocks = 10;
+			// Value that does not overflow when multiplied by 100 (uses 128 to keep it simple)
+			if (numblocks < 0x02000000)
+				break;
+			blocksize *= 2;
+		}
+	} else {
 		numblocks = fsu->total / blocksize;
-		if (numblocks <= 10)
-			numblocks = 10;
-		// Value that does not overflow when multiplied by 100 (uses 128 to keep it simple)
-		if (numblocks < 0x02000000)
-			break;
-		blocksize *= 2;
 	}
 	inuse = (numblocks * blocksize - fsu->avail) / blocksize;
 	if (inuse > numblocks)
@@ -628,7 +632,7 @@ static void get_usedblocks(struct fs_usage *fsu, bool fs, int *pblocksize, uae_s
 		*pblocksize = blocksize;
 }
 
-static bool get_blocks(const TCHAR *rootdir, int unit, int flags, int *pblocksize, uae_s64 *pnumblocks, uae_s64 *pinuse)
+static bool get_blocks(const TCHAR *rootdir, int unit, int flags, int *pblocksize, uae_s64 *pnumblocks, uae_s64 *pinuse, bool reduce)
 {
 	struct fs_usage fsu;
 	int ret;
@@ -645,7 +649,7 @@ static bool get_blocks(const TCHAR *rootdir, int unit, int flags, int *pblocksiz
 	}
 	if (ret)
 		return false;
-	get_usedblocks(&fsu, fs, &blocksize, pnumblocks, pinuse);
+	get_usedblocks(&fsu, fs, &blocksize, pnumblocks, pinuse, reduce);
 	if (pblocksize)
 		*pblocksize = blocksize;
 	return ret == 0;
@@ -749,7 +753,7 @@ static int set_filesys_unit_1 (int nr, struct uaedev_config_info *ci)
 		_tcscpy(ui->hf.product_rev, vsp);
 		xfree(vs);
 		ui->hf.ci.unit_feature_level = HD_LEVEL_SCSI_2;
-		if (get_blocks(c.rootdir, nr, flags, &ui->hf.ci.blocksize, &numblocks, NULL))
+		if (get_blocks(c.rootdir, nr, flags, &ui->hf.ci.blocksize, &numblocks, NULL, false))
 			ui->hf.ci.max_lba = numblocks > 0xffffffff ? 0xffffffff : numblocks;
 		else
 			ui->hf.ci.max_lba = 0x00ffffff;
@@ -3392,7 +3396,7 @@ static void	do_info(TrapContext *ctx, Unit *unit, dpacket *packet, uaecptr info,
 		put_long_host(buf + 28, 0);
 	} else {
 		uae_s64 numblocks, inuse;
-		get_usedblocks(&fsu, fs, &blocksize, &numblocks, &inuse);
+		get_usedblocks(&fsu, fs, &blocksize, &numblocks, &inuse, true);
 		//write_log(_T("total %lld avail %lld Blocks %lld Inuse %lld blocksize %d\n"), fsu.total, fsu.avail, numblocks, inuse, blocksize);
 		put_long_host(buf + 12, (uae_u32)numblocks); /* numblocks */
 		put_long_host(buf + 16, (uae_u32)inuse); /* inuse */
