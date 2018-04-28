@@ -470,6 +470,7 @@ extern void logging_init (void);
 extern FILE *log_open (const TCHAR *name, int append, int bootlog, TCHAR*);
 extern void log_close (FILE *f);
 
+extern bool use_long_double;
 
 #ifndef O_BINARY
 #define O_BINARY 0

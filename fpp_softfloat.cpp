@@ -514,7 +514,7 @@ static void to_native(fptype *fp, fpdata *fpd)
 		return;
 	}
 	if (fp_is_nan(fpd)) {
-#if USE_LONG_DOUBLE
+#ifdef USE_LONG_DOUBLE
 		*fp = sqrtl(-1);
 #else
 		*fp = sqrt(-1);
@@ -523,7 +523,7 @@ static void to_native(fptype *fp, fpdata *fpd)
 	}
 	if (fp_is_infinity(fpd)) {
 		double zero = 0.0;
-#if USE_LONG_DOUBLE
+#ifdef USE_LONG_DOUBLE
 		*fp = fp_is_neg(fpd) ? logl(0.0) : (1.0 / zero);
 #else
 		*fp = fp_is_neg(fpd) ? log(0.0) : (1.0 / zero);
@@ -534,7 +534,7 @@ static void to_native(fptype *fp, fpdata *fpd)
 	frac = (fptype)fpd->fpx.low / (fptype)(twoto32 * 2147483648.0);
 	if (fp_is_neg(fpd))
 		frac = -frac;
-#if USE_LONG_DOUBLE
+#ifdef USE_LONG_DOUBLE
 	*fp = ldexpl (frac, expon - 16383);
 #else
 	*fp = ldexp (frac, expon - 16383);
@@ -568,7 +568,7 @@ static void from_native(fptype fp, fpdata *fpd)
 	if (fp < 0.0)
 		fp = -fp;
 	
-#if USE_LONG_DOUBLE
+#ifdef USE_LONG_DOUBLE
 	 frac = frexpl (fp, &expon);
 #else
 	 frac = frexp (fp, &expon);
@@ -738,9 +738,6 @@ void fp_init_softfloat(void)
 	fpp_get_status = fp_get_status;
 	fpp_clear_status = fp_clear_status;
 	fpp_set_mode = fp_set_mode;
-
-	fpp_from_native = from_native;
-	fpp_to_native = to_native;
 
 	fpp_to_int = to_int;
 	fpp_from_int = from_int;

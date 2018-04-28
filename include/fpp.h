@@ -17,12 +17,18 @@
 #define FPSR_INEX1      0x00000100
 
 extern void fp_init_native(void);
+#ifdef MSVC_LONG_DOUBLE
+extern void fp_init_native_80(void);
+#endif
 extern void fp_init_softfloat(void);
 extern void fpsr_set_exception(uae_u32 exception);
 extern void fpu_modechange(void);
 
 #if defined(CPU_i386) || defined(CPU_x86_64)
 extern void init_fpucw_x87(void);
+#ifdef MSVC_LONG_DOUBLE
+extern void init_fpucw_x87_80(void);
+#endif
 #endif
 
 typedef void (*FPP_ABQS)(fpdata*, fpdata*, uae_u64*, uae_u8*);
@@ -71,9 +77,6 @@ extern FPP_IS fpp_is_unnormal;
 extern FPP_GET_STATUS fpp_get_status;
 extern FPP_CLEAR_STATUS fpp_clear_status;
 extern FPP_SET_MODE fpp_set_mode;
-
-extern FPP_FROM_NATIVE fpp_from_native;
-extern FPP_TO_NATIVE fpp_to_native;
 
 extern FPP_TO_INT fpp_to_int;
 extern FPP_FROM_INT fpp_from_int;

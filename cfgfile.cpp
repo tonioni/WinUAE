@@ -2367,7 +2367,10 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	cfgfile_dwrite_bool (f, _T("fpu_no_unimplemented"), p->fpu_no_unimplemented);
 	cfgfile_dwrite_bool (f, _T("cpu_no_unimplemented"), p->int_no_unimplemented);
 	cfgfile_write_bool (f, _T("fpu_strict"), p->fpu_strict);
-	cfgfile_dwrite_bool (f, _T("fpu_softfloat"), p->fpu_softfloat);
+	cfgfile_dwrite_bool (f, _T("fpu_softfloat"), p->fpu_mode > 0);
+#ifdef MSVC_LONG_DOUBLE
+	cfgfile_dwrite_bool(f, _T("fpu_msvc_long_double"), p->fpu_mode < 0);
+#endif
 
 	cfgfile_write_bool (f, _T("rtg_nocustom"), p->picasso96_nocustom);
 	cfgfile_write (f, _T("rtg_modes"), _T("0x%x"), p->picasso96_modeflags);
@@ -5140,7 +5143,6 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 		|| cfgfile_yesno (option, value, _T("serial_hardware_ctsrts"), &p->serial_hwctsrts)
 		|| cfgfile_yesno (option, value, _T("serial_direct"), &p->serial_direct)
 		|| cfgfile_yesno (option, value, _T("fpu_strict"), &p->fpu_strict)
-		|| cfgfile_yesno (option, value, _T("fpu_softfloat"), &p->fpu_softfloat)
 		|| cfgfile_yesno (option, value, _T("comp_nf"), &p->compnf)
 		|| cfgfile_yesno (option, value, _T("comp_constjump"), &p->comp_constjump)
 #ifdef USE_JIT_FPU
@@ -5240,6 +5242,19 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 		|| cfgfile_string(option, value, _T ("pci_devices"), p->pci_devices, sizeof p->pci_devices / sizeof(TCHAR))
 		|| cfgfile_string (option, value, _T("ghostscript_parameters"), p->ghostscript_parameters, sizeof p->ghostscript_parameters / sizeof (TCHAR)))
 		return 1;
+
+	if (cfgfile_yesno(option, value, _T("fpu_softfloat"), &dummybool)) {
+		if (dummybool)
+			p->fpu_mode = 1;
+		return 1;
+	}
+#ifdef MSVC_LONG_DOUBLE
+	if (cfgfile_yesno(option, value, _T("fpu_msvc_long_double"), &dummybool)) {
+		if (dummybool)
+			p->fpu_mode = -1;
+		return 1;
+	}
+#endif
 
 	if (cfgfile_string(option, value, _T("uaeboard_options"), tmpbuf, sizeof tmpbuf / sizeof(TCHAR))) {
 		TCHAR *s = cfgfile_option_get(value, _T("order"));
@@ -7528,7 +7543,7 @@ void default_prefs (struct uae_prefs *p, bool reset, int type)
 	p->fpu_no_unimplemented = false;
 	p->int_no_unimplemented = false;
 	p->fpu_strict = 0;
-	p->fpu_softfloat = 0;
+	p->fpu_mode = 0;
 	p->m68k_speed = 0;
 	p->cpu_compatible = 1;
 	p->address_space_24 = 1;

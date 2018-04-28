@@ -2195,11 +2195,11 @@ static void bt_l_ri_noclobber(RR4 r, IMM i)
 static  void f_tomem(int r)
 {
 	if (live.fate[r].status==DIRTY) {
-#if defined(USE_LONG_DOUBLE)
-		raw_fmov_ext_mr((uintptr)live.fate[r].mem,live.fate[r].realreg);
-#else
-		raw_fmov_mr((uintptr)live.fate[r].mem,live.fate[r].realreg);
-#endif
+		if (use_long_double) {
+			raw_fmov_ext_mr((uintptr)live.fate[r].mem, live.fate[r].realreg);
+		} else {
+			raw_fmov_mr((uintptr)live.fate[r].mem, live.fate[r].realreg);
+		}
 		live.fate[r].status=CLEAN;
 	}
 }
@@ -2207,11 +2207,11 @@ static  void f_tomem(int r)
 static  void f_tomem_drop(int r)
 {
 	if (live.fate[r].status==DIRTY) {
-#if defined(USE_LONG_DOUBLE)
-		raw_fmov_ext_mr_drop((uintptr)live.fate[r].mem,live.fate[r].realreg);
-#else
-		raw_fmov_mr_drop((uintptr)live.fate[r].mem,live.fate[r].realreg);
-#endif
+		if (use_long_double) {
+			raw_fmov_ext_mr_drop((uintptr)live.fate[r].mem, live.fate[r].realreg);
+		} else {
+			raw_fmov_mr_drop((uintptr)live.fate[r].mem, live.fate[r].realreg);
+		}
 		live.fate[r].status=INMEM;
 	}
 }
@@ -2315,11 +2315,11 @@ static  int f_alloc_reg(int r, int willclobber)
 
 	if (!willclobber) {
 		if (live.fate[r].status!=UNDEF) {
-#if defined(USE_LONG_DOUBLE)
-			raw_fmov_ext_rm(bestreg,(uintptr)live.fate[r].mem);
-#else
-			raw_fmov_rm(bestreg,(uintptr)live.fate[r].mem);
-#endif
+			if (use_long_double) {
+				raw_fmov_ext_rm(bestreg, (uintptr)live.fate[r].mem);
+			} else {
+				raw_fmov_rm(bestreg, (uintptr)live.fate[r].mem);
+			}
 		}
 		live.fate[r].status=CLEAN;
 	}

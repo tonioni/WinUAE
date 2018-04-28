@@ -35,6 +35,13 @@
 
 #include "softfloat/softfloat.h"
 
+// global variable for JIT FPU
+#ifdef USE_LONG_DOUBLE
+bool use_long_double = true;
+#else
+bool use_long_double = false;
+#endif
+
 FPP_PRINT fpp_print;
 
 FPP_IS fpp_is_snan;
@@ -346,7 +353,7 @@ STATIC_INLINE bool fp_is_dyadic(uae_u16 extra)
 static bool fp_exception_pending(bool pre)
 {
 	// first check for pending arithmetic exceptions
-	if (currprefs.fpu_softfloat) {
+	if (currprefs.fpu_mode > 0) {
 		if (regs.fp_exp_pend) {
 			if (warned > 0) {
 				write_log (_T("FPU ARITHMETIC EXCEPTION (%d)\n"), regs.fp_exp_pend);
@@ -405,7 +412,7 @@ static uae_u32 fpsr_get_vector(uae_u32 exception)
 
 static void fpsr_check_arithmetic_exception(uae_u32 mask, fpdata *src, uae_u32 opcode, uae_u16 extra, uae_u32 ea)
 {
-	if (!currprefs.fpu_softfloat)
+	if (currprefs.fpu_mode <= 0)
 		return;
 
 	bool nonmaskable;
@@ -427,7 +434,7 @@ static void fpsr_check_arithmetic_exception(uae_u32 mask, fpdata *src, uae_u32 o
 #endif	
 		}
 
-		if (!currprefs.fpu_softfloat) {
+		if (currprefs.fpu_mode <= 0) {
 			// log message and exit
 			regs.fp_exp_pend = 0;
 			return;
@@ -588,7 +595,7 @@ static uae_u32 fpsr_make_status(void)
 	if (regs.fpsr & (FPSR_OVFL | FPSR_INEX2 | FPSR_INEX1))
 		regs.fpsr |= FPSR_AE_INEX; // INEX = INEX1 || INEX2 || OVFL
 	
-	if (!currprefs.fpu_softfloat)
+	if (currprefs.fpu_mode <= 0)
 		return 0;
 
 	// return exceptions that interrupt calculation
@@ -607,7 +614,7 @@ static int fpsr_set_bsun(void)
 	if (regs.fpcr & FPSR_BSUN) {
 		// logging only so far
 		write_log (_T("FPU exception: BSUN! (FPSR: %08x, FPCR: %04x)\n"), regs.fpsr, regs.fpcr);
-		if (currprefs.fpu_softfloat) {
+		if (currprefs.fpu_mode > 0) {
 			regs.fp_exp_pend = fpsr_get_vector(FPSR_BSUN);
 			fp_exception_pending(true);
 			return 1;
@@ -1218,7 +1225,7 @@ static void fpu_null (void)
 // 68040/060 does not support denormals
 static bool normalize_or_fault_if_no_denormal_support(uae_u16 opcode, uae_u16 extra, uaecptr ea, uaecptr oldpc, fpdata *src)
 {
-	if (!currprefs.fpu_softfloat)
+	if (currprefs.fpu_mode <= 0)
 		return false;
 	if (fpp_is_unnormal(src) || fpp_is_denormal(src)) {
 		if (currprefs.cpu_model >= 68040 && currprefs.fpu_model && currprefs.fpu_no_unimplemented) {
@@ -1236,7 +1243,7 @@ static bool normalize_or_fault_if_no_denormal_support(uae_u16 opcode, uae_u16 ex
 }
 static bool normalize_or_fault_if_no_denormal_support_dst(uae_u16 opcode, uae_u16 extra, uaecptr ea, uaecptr oldpc, fpdata *dst, fpdata *src)
 {
-	if (!currprefs.fpu_softfloat)
+	if (currprefs.fpu_mode <= 0)
 		return false;
 	if (fpp_is_unnormal(dst) || fpp_is_denormal(dst)) {
 		if (currprefs.cpu_model >= 68040 && currprefs.fpu_model && currprefs.fpu_no_unimplemented) {
@@ -1266,7 +1273,7 @@ static bool fault_if_no_packed_support(uae_u16 opcode, uae_u16 extra, uaecptr ea
 // 68040 does not support move to integer format
 static bool fault_if_68040_integer_nonmaskable(uae_u16 opcode, uae_u16 extra, uaecptr ea, uaecptr oldpc, fpdata *src)
 {
-	if (currprefs.cpu_model == 68040 && currprefs.fpu_model && currprefs.fpu_softfloat) {
+	if (currprefs.cpu_model == 68040 && currprefs.fpu_model && currprefs.fpu_mode > 0) {
 		fpsr_make_status();
 		if (regs.fpsr & (FPSR_SNAN | FPSR_OPERR)) {
 			fpsr_check_arithmetic_exception(FPSR_SNAN | FPSR_OPERR, src, opcode, extra, ea);
@@ -3055,8 +3062,13 @@ static void fpuop_arithmetic2 (uae_u32 opcode, uae_u16 extra)
 	fpu_noinst (opcode, pc);
 }
 
+static bool plop;
+
 void fpuop_arithmetic (uae_u32 opcode, uae_u16 extra)
 {
+	if (plop)
+		write_log(_T("%04x %04x %08x\n"), opcode, extra, M68K_GETPC);
+
 	regs.fpu_state = 1;
 	regs.fp_exception = false;
 	fpu_mmu_fixup = false;
@@ -3070,16 +3082,25 @@ void fpu_modechange(void)
 {
 	uae_u32 temp_ext[8][3];
 
-	if (currprefs.fpu_softfloat == changed_prefs.fpu_softfloat)
+	if (currprefs.fpu_mode == changed_prefs.fpu_mode)
 		return;
-	currprefs.fpu_softfloat = changed_prefs.fpu_softfloat;
+	currprefs.fpu_mode = changed_prefs.fpu_mode;
 
+	set_cpu_caches(true);
 	for (int i = 0; i < 8; i++) {
 		fpp_from_exten_fmovem(&regs.fp[i], &temp_ext[i][0], &temp_ext[i][1], &temp_ext[i][2]);
 	}
-	if (currprefs.fpu_softfloat) {
+	if (currprefs.fpu_mode > 0) {
 		fp_init_softfloat();
+#ifdef MSVC_LONG_DOUBLE
+	} else if (currprefs.fpu_mode < 0) {
+		use_long_double = true;
+		fp_init_native_80();
+#endif
 	} else {
+#ifdef MSVC_LONG_DOUBLE
+		use_long_double = false;
+#endif
 		fp_init_native();
 	}
 	for (int i = 0; i < 8; i++) {
@@ -3105,14 +3126,25 @@ static void fpu_test(void)
 
 void fpu_reset (void)
 {
-	if (currprefs.fpu_softfloat) {
+	if (currprefs.fpu_mode > 0) {
 		fp_init_softfloat();
+#ifdef MSVC_LONG_DOUBLE
+	} else if (currprefs.fpu_mode < 0) {
+		use_long_double = true;
+		fp_init_native_80();
+#endif
 	} else {
+#ifdef MSVC_LONG_DOUBLE
+		use_long_double = false;
+#endif
 		fp_init_native();
 	}
 
 #if defined(CPU_i386) || defined(CPU_x86_64)
 	init_fpucw_x87();
+#ifdef MSVC_LONG_DOUBLE
+	init_fpucw_x87_80();
+#endif
 #endif
 
 	regs.fpiar = 0;

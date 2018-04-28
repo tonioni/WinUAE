@@ -92,10 +92,8 @@ typedef uae_u8 flagtype;
 
 #ifdef USE_LONG_DOUBLE
 typedef long double fptype;
-#define LDPTR tbyte ptr
 #else
 typedef double fptype;
-#define LDPTR qword ptr
 #endif
 #endif
 
@@ -143,10 +141,25 @@ struct mmufixup
 };
 extern struct mmufixup mmufixup[2];
 
+#ifdef MSVC_LONG_DOUBLE
+typedef struct {
+	uae_u64 m;
+	uae_u16 e;
+	uae_u16 dummy;
+} fprawtype;
+#endif
+
 typedef struct
 {
 	floatx80 fpx;
+#ifdef MSVC_LONG_DOUBLE
+	union {
+		fptype fp;
+		fprawtype rfp;
+	};
+#else
 	fptype fp;
+#endif
 } fpdata;
 
 struct regstruct

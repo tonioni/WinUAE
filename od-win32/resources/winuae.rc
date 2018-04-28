@@ -279,9 +279,9 @@ BEGIN
     CONTROL         "68882",IDC_FPU2,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,8,249,87,10
     CONTROL         "CPU internal",IDC_FPU3,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,8,262,93,10
     CONTROL         "More compatible [] More compatible but slower FPU emulation.",IDC_COMPATIBLE_FPU,
-                    "Button",BS_AUTOCHECKBOX | BS_LEFT | WS_GROUP | WS_TABSTOP,8,276,117,10
+                    "Button",BS_AUTOCHECKBOX | BS_LEFT | WS_GROUP | WS_TABSTOP,8,275,117,10
     CONTROL         "Unimplemented FPU emu [] Emulate FPU unimplemented instructions",IDC_FPU_UNIMPLEMENTED,
-                    "Button",BS_AUTOCHECKBOX | BS_LEFT | WS_GROUP | WS_TABSTOP,8,289,116,10
+                    "Button",BS_AUTOCHECKBOX | BS_LEFT | WS_GROUP | WS_TABSTOP,8,287,116,10
     GROUPBOX        "CPU Emulation Speed",IDC_STATIC,136,1,258,97
     CONTROL         "Fastest possible",IDC_CS_HOST,"Button",BS_AUTORADIOBUTTON | BS_LEFT | WS_GROUP | WS_TABSTOP,143,19,195,10
     CONTROL         "Approximate A500/A1200 or cycle-exact",IDC_CS_68000,
@@ -314,10 +314,10 @@ BEGIN
     CONTROL         "Direct",IDC_TRUST0,"Button",BS_AUTORADIOBUTTON | WS_GROUP | WS_TABSTOP,143,299,72,10
     CONTROL         "Indirect",IDC_TRUST1,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,221,299,72,10
     CONTROL         "No flags",IDC_NOFLAGS,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,299,299,68,11
-    CONTROL         "Softfloat FPU emulation",IDC_FPU_SOFTFLOAT,"Button",BS_AUTOCHECKBOX | BS_LEFT | WS_GROUP | WS_TABSTOP,8,302,115,10
     GROUPBOX        "MMU",IDC_STATIC,2,168,129,42,BS_LEFT
     CONTROL         "Data cache emulation [] 68030, 040 and 060 optional data cache emulation. Requires More compatible option.",IDC_CPUDATACACHE,
                     "Button",BS_AUTOCHECKBOX | BS_LEFT | WS_GROUP | WS_TABSTOP,8,123,119,12
+    COMBOBOX        IDC_FPU_MODE,7,299,112,75,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
 END
 
 IDD_FLOPPY DIALOGEX 0, 0, 396, 261

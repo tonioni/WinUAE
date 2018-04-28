@@ -11604,33 +11604,33 @@ static void enable_for_cpudlg (HWND hDlg)
 #endif
 	enable = jitenable && workprefs.cachesize;
 
-	ew (hDlg, IDC_TRUST0, enable);
-	ew (hDlg, IDC_TRUST1, enable);
-	ew (hDlg, IDC_HARDFLUSH, enable);
-	ew (hDlg, IDC_CONSTJUMP, enable);
-	ew (hDlg, IDC_JITFPU, enable);
-	ew (hDlg, IDC_NOFLAGS, enable);
-	ew (hDlg, IDC_CS_CACHE_TEXT, enable);
-	ew (hDlg, IDC_CACHE, enable);
-	ew (hDlg, IDC_JITENABLE, jitenable);
-	ew (hDlg, IDC_COMPATIBLE, !workprefs.cpu_memory_cycle_exact && !(workprefs.cachesize && workprefs.cpu_model >= 68040));
-	ew (hDlg, IDC_COMPATIBLE_FPU, workprefs.fpu_model > 0);
-	ew (hDlg, IDC_FPU_UNIMPLEMENTED, workprefs.fpu_model && !workprefs.cachesize);
-	ew (hDlg, IDC_FPU_SOFTFLOAT, workprefs.fpu_model && (!workprefs.compfpu || !workprefs.cachesize));
-	ew (hDlg, IDC_CPU_UNIMPLEMENTED, workprefs.cpu_model == 68060 && !workprefs.cachesize);
+	ew(hDlg, IDC_FPU_MODE, workprefs.fpu_model != 0);
+	ew(hDlg, IDC_TRUST0, enable);
+	ew(hDlg, IDC_TRUST1, enable);
+	ew(hDlg, IDC_HARDFLUSH, enable);
+	ew(hDlg, IDC_CONSTJUMP, enable);
+	ew(hDlg, IDC_JITFPU, enable);
+	ew(hDlg, IDC_NOFLAGS, enable);
+	ew(hDlg, IDC_CS_CACHE_TEXT, enable);
+	ew(hDlg, IDC_CACHE, enable);
+	ew(hDlg, IDC_JITENABLE, jitenable);
+	ew(hDlg, IDC_COMPATIBLE, !workprefs.cpu_memory_cycle_exact && !(workprefs.cachesize && workprefs.cpu_model >= 68040));
+	ew(hDlg, IDC_COMPATIBLE_FPU, workprefs.fpu_model > 0);
+	ew(hDlg, IDC_FPU_UNIMPLEMENTED, workprefs.fpu_model && !workprefs.cachesize);
+	ew(hDlg, IDC_CPU_UNIMPLEMENTED, workprefs.cpu_model == 68060 && !workprefs.cachesize);
 #if 0
-	ew (hDlg, IDC_CPU_MULTIPLIER, workprefs.cpu_cycle_exact);
+	ew(hDlg, IDC_CPU_MULTIPLIER, workprefs.cpu_cycle_exact);
 #endif
-	ew (hDlg, IDC_CPU_FREQUENCY, workprefs.cpu_cycle_exact && workprefs.m68k_speed >= 0);
-	ew (hDlg, IDC_CPU_FREQUENCY2, workprefs.cpu_cycle_exact && !workprefs.cpu_clock_multiplier && workprefs.m68k_speed >= 0);
+	ew(hDlg, IDC_CPU_FREQUENCY, workprefs.cpu_cycle_exact && workprefs.m68k_speed >= 0);
+	ew(hDlg, IDC_CPU_FREQUENCY2, workprefs.cpu_cycle_exact && !workprefs.cpu_clock_multiplier && workprefs.m68k_speed >= 0);
 
-	ew (hDlg, IDC_FPU1, workprefs.cpu_model < 68040 && (workprefs.cpu_model >= 68020 || !workprefs.cpu_compatible));
-	ew (hDlg, IDC_FPU2, workprefs.cpu_model < 68040 && (workprefs.cpu_model >= 68020 || !workprefs.cpu_compatible));
-	ew (hDlg, IDC_FPU3, workprefs.cpu_model >= 68040);
-	ew (hDlg, IDC_MMUENABLEEC, workprefs.cpu_model >= 68030 && workprefs.cachesize == 0);
-	ew (hDlg, IDC_MMUENABLE, workprefs.cpu_model >= 68030 && workprefs.cachesize == 0);
-	ew (hDlg, IDC_CPUDATACACHE, workprefs.cpu_model >= 68030 && workprefs.cachesize == 0 && workprefs.cpu_compatible);
-	ew (hDlg, IDC_CPU_PPC, workprefs.cpu_model >= 68040 && (workprefs.ppc_mode == 1 || (workprefs.ppc_mode == 0 && !is_ppc_cpu(&workprefs))));
+	ew(hDlg, IDC_FPU1, workprefs.cpu_model < 68040 && (workprefs.cpu_model >= 68020 || !workprefs.cpu_compatible));
+	ew(hDlg, IDC_FPU2, workprefs.cpu_model < 68040 && (workprefs.cpu_model >= 68020 || !workprefs.cpu_compatible));
+	ew(hDlg, IDC_FPU3, workprefs.cpu_model >= 68040);
+	ew(hDlg, IDC_MMUENABLEEC, workprefs.cpu_model >= 68030 && workprefs.cachesize == 0);
+	ew(hDlg, IDC_MMUENABLE, workprefs.cpu_model >= 68030 && workprefs.cachesize == 0);
+	ew(hDlg, IDC_CPUDATACACHE, workprefs.cpu_model >= 68030 && workprefs.cachesize == 0 && workprefs.cpu_compatible);
+	ew(hDlg, IDC_CPU_PPC, workprefs.cpu_model >= 68040 && (workprefs.ppc_mode == 1 || (workprefs.ppc_mode == 0 && !is_ppc_cpu(&workprefs))));
 
 	SendDlgItemMessage(hDlg, IDC_SPEED, TBM_SETRANGE, TRUE, workprefs.m68k_speed < 0 || (workprefs.cpu_memory_cycle_exact && !workprefs.cpu_cycle_exact) ? MAKELONG(-9, 0) : MAKELONG(-9, 50));
 	SendDlgItemMessage(hDlg, IDC_SPEED, TBM_SETPAGESIZE, 0, 1);
@@ -11666,7 +11666,7 @@ static void values_to_cpudlg (HWND hDlg)
 	CheckDlgButton (hDlg, IDC_CPUDATACACHE, workprefs.cpu_data_cache);
 	CheckDlgButton (hDlg, IDC_COMPATIBLE_FPU, workprefs.fpu_strict);
 	CheckDlgButton (hDlg, IDC_FPU_UNIMPLEMENTED, !workprefs.fpu_no_unimplemented || workprefs.cachesize);
-	CheckDlgButton (hDlg, IDC_FPU_SOFTFLOAT, workprefs.fpu_softfloat);
+	SendDlgItemMessage(hDlg, IDC_FPU_MODE, CB_SETCURSEL, workprefs.fpu_mode < 0 ? 1 : (workprefs.fpu_mode > 0 ? 2 : 0), 0);
 	CheckDlgButton (hDlg, IDC_CPU_UNIMPLEMENTED, !workprefs.int_no_unimplemented || workprefs.cachesize);
 	SendDlgItemMessage (hDlg, IDC_CPUIDLE, TBM_SETPOS, TRUE, workprefs.cpu_idle == 0 ? 0 : 12 - workprefs.cpu_idle / 15);
 	SendDlgItemMessage (hDlg, IDC_PPC_CPUIDLE, TBM_SETPOS, TRUE, workprefs.ppc_cpu_idle);
@@ -11726,7 +11726,6 @@ static void values_from_cpudlg (HWND hDlg)
 	workprefs.cpu_compatible = workprefs.cpu_memory_cycle_exact | (ischecked (hDlg, IDC_COMPATIBLE) ? 1 : 0);
 	workprefs.fpu_strict = ischecked (hDlg, IDC_COMPATIBLE_FPU) ? 1 : 0;
 	workprefs.fpu_no_unimplemented = ischecked (hDlg, IDC_FPU_UNIMPLEMENTED) ? 0 : 1;
-	workprefs.fpu_softfloat = ischecked (hDlg, IDC_FPU_SOFTFLOAT) ? 1 : 0;
 	workprefs.int_no_unimplemented = ischecked (hDlg, IDC_CPU_UNIMPLEMENTED) ? 0 : 1;
 	workprefs.address_space_24 = ischecked (hDlg, IDC_COMPATIBLE24) ? 1 : 0;
 	workprefs.m68k_speed = ischecked (hDlg, IDC_CS_HOST) ? -1 : 0;
@@ -11734,6 +11733,13 @@ static void values_from_cpudlg (HWND hDlg)
 	if (workprefs.m68k_speed_throttle > 0 && workprefs.m68k_speed < 0)
 		workprefs.m68k_speed_throttle = 0;
 	workprefs.x86_speed_throttle = SendMessage(GetDlgItem(hDlg, IDC_SPEED_x86), TBM_GETPOS, 0, 0) * 100;
+	idx = SendDlgItemMessage(hDlg, IDC_FPU_MODE, CB_GETCURSEL, 0, 0);
+	if (idx == 0)
+		workprefs.fpu_mode = 0;
+	if (idx == 1)
+		workprefs.fpu_mode = -1;
+	if (idx == 2)
+		workprefs.fpu_mode = 1;
 
 	newcpu = ischecked (hDlg, IDC_CPU0) ? 68000
 		: ischecked (hDlg, IDC_CPU1) ? 68010
@@ -11832,7 +11838,7 @@ static void values_from_cpudlg (HWND hDlg)
 		workprefs.comptrustword = trust_prev;
 		workprefs.comptrustlong = trust_prev;
 		workprefs.comptrustnaddr = trust_prev;
-		if (workprefs.fpu_softfloat) {
+		if (workprefs.fpu_mode > 0) {
 			workprefs.compfpu = false;
 			setchecked(hDlg, IDC_JITFPU, false);
 		}
@@ -11840,9 +11846,9 @@ static void values_from_cpudlg (HWND hDlg)
 	if (!workprefs.cachesize) {
 		setchecked (hDlg, IDC_JITENABLE, false);
 	}
-	if (workprefs.cachesize && workprefs.compfpu && workprefs.fpu_softfloat) {
-		workprefs.fpu_softfloat = false;
-		setchecked(hDlg, IDC_FPU_SOFTFLOAT, false);
+	if (workprefs.cachesize && workprefs.compfpu && workprefs.fpu_mode > 0) {
+		workprefs.fpu_mode = 0;
+		SendDlgItemMessage(hDlg, IDC_FPU_MODE, CB_SETCURSEL, 0, 0);
 	}
 	if (oldcache == 0 && workprefs.cachesize > 0) {
 		canbang = 1;
@@ -11917,6 +11923,11 @@ static INT_PTR CALLBACK CPUDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 		SendDlgItemMessage (hDlg, IDC_CPU_FREQUENCY, CB_ADDSTRING, 0, (LPARAM)_T("4x (A1200)"));
 		SendDlgItemMessage (hDlg, IDC_CPU_FREQUENCY, CB_ADDSTRING, 0, (LPARAM)_T("8x"));
 		SendDlgItemMessage (hDlg, IDC_CPU_FREQUENCY, CB_ADDSTRING, 0, (LPARAM)_T("Custom"));
+
+		SendDlgItemMessage(hDlg, IDC_FPU_MODE, CB_RESETCONTENT, 0, 0);
+		SendDlgItemMessage(hDlg, IDC_FPU_MODE, CB_ADDSTRING, 0, (LPARAM)_T("Host (64-bit)"));
+		SendDlgItemMessage(hDlg, IDC_FPU_MODE, CB_ADDSTRING, 0, (LPARAM)_T("Host (80-bit)"));
+		SendDlgItemMessage(hDlg, IDC_FPU_MODE, CB_ADDSTRING, 0, (LPARAM)_T("Softfloat (80-bit)"));
 
 		idx = 4;
 		if (workprefs.cpu_clock_multiplier >= 1 << 8) {

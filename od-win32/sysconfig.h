@@ -14,6 +14,7 @@
 #define GFXFILTER
 #define X86_MSVC_ASSEMBLY
 #define OPTIMIZED_FLAGS
+#define MSVC_LONG_DOUBLE
 #ifndef __i386__
 #define __i386__
 #endif

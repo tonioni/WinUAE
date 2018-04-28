@@ -889,6 +889,9 @@
     <ClCompile Include="..\..\casablanca.cpp">
       <Filter>common</Filter>
     </ClCompile>
+    <ClCompile Include="..\fpp_native_msvc_80bit.cpp">
+      <Filter>win32</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\resources\35floppy.ico">
@@ -1022,5 +1025,9 @@
     <FxCompile Include="..\shaders\PixelShaderMask.hlsl">
       <Filter>win32\Shaders</Filter>
     </FxCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <Object Include="..\fpux86_80.obj" />
+    <Object Include="..\fpux64_80.obj" />
   </ItemGroup>
 </Project>

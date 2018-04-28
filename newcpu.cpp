@@ -1878,7 +1878,7 @@ static void build_cpufunctbl (void)
 
 	write_log(_T("CPU=%d, FPU=%d%s, MMU=%d, JIT%s=%d."),
 		currprefs.cpu_model,
-		currprefs.fpu_model, currprefs.fpu_model ? (currprefs.fpu_softfloat ? _T(" (softfloat)") : _T(" (host)")) : _T(""),
+		currprefs.fpu_model, currprefs.fpu_model ? (currprefs.fpu_mode > 0 ? _T(" (softfloat)") : (currprefs.fpu_mode < 0 ? _T(" (host 80b)") : _T(" (host 64b)"))) : _T(""),
 		currprefs.mmu_model,
 		currprefs.cachesize ? (currprefs.compfpu ? _T("=CPU/FPU") : _T("=CPU")) : _T(""),
 		currprefs.cachesize);
@@ -2054,7 +2054,7 @@ static int check_prefs_changed_cpu2(void)
 		|| currprefs.cpu_compatible != changed_prefs.cpu_compatible
 		|| currprefs.cpu_cycle_exact != changed_prefs.cpu_cycle_exact
 		|| currprefs.cpu_memory_cycle_exact != changed_prefs.cpu_memory_cycle_exact
-		|| currprefs.fpu_softfloat != changed_prefs.fpu_softfloat) {
+		|| currprefs.fpu_mode != changed_prefs.fpu_mode) {
 			cpu_prefs_changed_flag |= 1;
 	}
 	if (changed

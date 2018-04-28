@@ -493,7 +493,7 @@ struct uae_prefs {
 	bool comp_constjump;
 	int cachesize;
 	bool fpu_strict;
-	bool fpu_softfloat;
+	int fpu_mode;
 
 	struct monconfig gfx_monitor[MAX_AMIGADISPLAYS];
 	int gfx_framerate, gfx_autoframerate;
