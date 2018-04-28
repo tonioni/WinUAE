@@ -7704,7 +7704,7 @@ void m68k_disasm_2 (TCHAR *buf, int bufsize, uaecptr pc, uaecptr *nextpc, int cn
 					}
 				}
 				// show target address if JSR x(pc) + JMP xxxx combination
-				if (opcode == 0x4eba && seaddr2 && instrname) { // JSR x(pc)
+				if (opcode == 0x4eba && seaddr2 && instrname[0]) { // JSR x(pc)
 					resolve_if_jmp(instrname, seaddr2);
 				}
 			}
@@ -7760,7 +7760,7 @@ void m68k_disasm_2 (TCHAR *buf, int bufsize, uaecptr pc, uaecptr *nextpc, int cn
 					memcpy(symbolpos, segout, _tcslen(segout) * sizeof(TCHAR));
 					bufsize -= _tcslen(segout);
 					buf += _tcslen(segout);
-					symbolpos += _tclen(segout);
+					symbolpos += _tcslen(segout);
 				}
 			}
 		}
