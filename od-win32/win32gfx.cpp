@@ -4162,6 +4162,8 @@ void updatedisplayarea(int monid)
 	struct amigadisplay *ad = &adisplays[monid];
 	if (!mon->screen_is_initialized)
 		return;
+	if (mon->screen_is_picasso)
+		return;
 	if (dx_islost ())
 		return;
 #if defined (GFXFILTER)
