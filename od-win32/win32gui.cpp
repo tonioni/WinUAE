@@ -2250,7 +2250,7 @@ void gui_display (int shortcut)
 	gui_active++;
 
 	if (isfullscreen() > 0 && currprefs.gfx_api != 1)
-		screenshot_prepare();
+		screenshot_prepare(getfocusedmonitor());
 	flipgui(1);
 
 	if (setpaused (7)) {
@@ -19204,7 +19204,7 @@ static INT_PTR CALLBACK AVIOutputDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 			AVIOutput_Toggle (!avioutput_requested, false);
 			break;
 		case IDC_SCREENSHOT:
-			screenshot(0, 1, 0);
+			screenshot(-1, 1, 0);
 			break;
 		case IDC_AVIOUTPUT_AUDIO:
 			{

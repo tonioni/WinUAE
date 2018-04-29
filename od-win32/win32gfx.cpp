@@ -4348,24 +4348,24 @@ void toggle_fullscreen(int monid, int mode)
 	updatewinfsmode(monid, &changed_prefs);
 }
 
-HDC gethdc(void)
+HDC gethdc(int monid)
 {
 	HDC hdc = 0;
 
 #ifdef D3D
 	if (D3D_isenabled(0))
-		return D3D_getDC(0, 0);
+		return D3D_getDC(monid, 0);
 #endif
 	if(FAILED(DirectDraw_GetDC(&hdc)))
 		hdc = 0;
 	return hdc;
 }
 
-void releasehdc (HDC hdc)
+void releasehdc(int monid, HDC hdc)
 {
 #ifdef D3D
 	if (D3D_isenabled(0)) {
-		D3D_getDC(0, hdc);
+		D3D_getDC(monid, hdc);
 		return;
 	}
 #endif

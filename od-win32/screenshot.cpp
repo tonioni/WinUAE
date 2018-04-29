@@ -82,16 +82,17 @@ static int toclipboard (BITMAPINFO *bi, void *bmp)
 }
 
 static HDC surface_dc, offscreen_dc;
+static int surface_dc_monid;
 static BITMAPINFO *bi; // bitmap info
 static LPVOID lpvBits = NULL; // pointer to bitmap bits array
 static HBITMAP offscreen_bitmap;
 static int screenshot_prepared;
 static int screenshot_multi_start;
 
-void screenshot_free (void)
+void screenshot_free(void)
 {
 	if (surface_dc)
-		releasehdc (surface_dc);
+		releasehdc(surface_dc_monid, surface_dc);
 	surface_dc = NULL;
 	if(offscreen_dc)
 		DeleteDC(offscreen_dc);
@@ -107,9 +108,9 @@ void screenshot_free (void)
 
 static int rgb_rb, rgb_gb, rgb_bb, rgb_rs, rgb_gs, rgb_bs, rgb_ab, rgb_as;
 
-static int screenshot_prepare (int imagemode, struct vidbuffer *vb)
+static int screenshot_prepare(int monid, int imagemode, struct vidbuffer *vb)
 {
-	struct AmigaMonitor *mon = &AMonitors[0];
+	struct AmigaMonitor *mon = &AMonitors[monid];
 	int width, height;
 	HGDIOBJ hgdiobj;
 	int bits;
@@ -134,7 +135,7 @@ static int screenshot_prepare (int imagemode, struct vidbuffer *vb)
 		int screenshot_xoffset = -1, screenshot_yoffset = -1;
 
 		if (WIN32GFX_IsPicassoScreen(mon)) {
-			src = mem = getrtgbuffer(0, &width, &height, &spitch, &bits, pal);
+			src = mem = getrtgbuffer(monid, &width, &height, &spitch, &bits, pal);
 			needfree = true;
 			rgb_bb2 = 8;
 			rgb_gb2 = 8;
@@ -159,7 +160,7 @@ static int screenshot_prepare (int imagemode, struct vidbuffer *vb)
 			rgb_rs2 = rgb_rs;
 			rgb_as2 = rgb_as;
 		} else {
-			src = mem = getfilterbuffer(0, &width, &height, &spitch, &bits);
+			src = mem = getfilterbuffer(monid, &width, &height, &spitch, &bits);
 			needfree = true;
 			rgb_bb2 = rgb_bb;
 			rgb_gb2 = rgb_gb;
@@ -272,9 +273,9 @@ static int screenshot_prepare (int imagemode, struct vidbuffer *vb)
 		if (!(lpvBits = xmalloc(uae_u8, bi->bmiHeader.biSizeImage))) {
 			if (needfree) {
 				if (WIN32GFX_IsPicassoScreen(mon))
-					freertgbuffer(0, mem);
+					freertgbuffer(monid, mem);
 				else
-					freefilterbuffer(0, mem);
+					freefilterbuffer(monid, mem);
 			}
 			goto oops;
 		}
@@ -392,9 +393,9 @@ static int screenshot_prepare (int imagemode, struct vidbuffer *vb)
 		}
 		if (needfree) {
 			if (WIN32GFX_IsPicassoScreen(mon))
-				freertgbuffer(0, mem);
+				freertgbuffer(monid, mem);
 			else
-				freefilterbuffer(0, mem);
+				freefilterbuffer(monid, mem);
 		}
 
 	} else {
@@ -406,7 +407,7 @@ donormal:
 		if (D3D_isenabled(0) == 2) {
 			int w, h, pitch, bits = 32;
 			void *data;
-			bool got = D3D11_capture(0, &data, &w, &h, &pitch);
+			bool got = D3D11_capture(monid, &data, &w, &h, &pitch);
 
 			int dpitch = (((w * depth + 31) & ~31) / 8);
 			lpvBits = xmalloc(uae_u8, dpitch * h);
@@ -443,14 +444,14 @@ donormal:
 				}
 			}
 			if (got)
-				D3D11_capture(0, NULL, NULL, NULL, NULL);
+				D3D11_capture(monid, NULL, NULL, NULL, NULL);
 			d3dcaptured = true;
 
 		} else if (D3D_isenabled(0) == 1) {
 			int w, h, bits;
 			HRESULT hr;
 			D3DLOCKED_RECT l;
-			LPDIRECT3DSURFACE9 s = D3D_capture(0, &w, &h, &bits);
+			LPDIRECT3DSURFACE9 s = D3D_capture(monid, &w, &h, &bits);
 			if (s) {
 				hr = s->LockRect(&l, NULL, D3DLOCK_READONLY);
 				if (SUCCEEDED(hr)) {
@@ -517,7 +518,8 @@ donormal:
 
 		}
 		if (!d3dcaptured) {
-			surface_dc = gethdc ();
+			surface_dc = gethdc(monid);
+			surface_dc_monid = monid;
 			if (surface_dc == NULL)
 				goto oops;
 
@@ -560,7 +562,7 @@ donormal:
 			if (!GetDIBits (offscreen_dc, offscreen_bitmap, 0, bi->bmiHeader.biHeight, lpvBits, bi, DIB_RGB_COLORS))
 				goto oops; // GetDIBits FAILED
 
-			releasehdc (surface_dc);
+			releasehdc(monid, surface_dc);
 			surface_dc = NULL;
 		}
 
@@ -575,17 +577,17 @@ oops:
 	return 0;
 }
 
-int screenshot_prepare (struct vidbuffer *vb)
+static int screenshot_prepare(int monid, struct vidbuffer *vb)
 {
-	return screenshot_prepare (1, vb);
+	return screenshot_prepare(monid, 1, vb);
 }
-int screenshot_prepare (int imagemode)
+int screenshot_prepare(int monid, int imagemode)
 {
-	return screenshot_prepare (imagemode, NULL);
+	return screenshot_prepare(monid, imagemode, NULL);
 }
-int screenshot_prepare (void)
+int screenshot_prepare(int monid)
 {
-	return screenshot_prepare (-1);
+	return screenshot_prepare(monid, -1);
 }
 
 void Screenshot_RGBinfo (int rb, int gb, int bb, int ab, int rs, int gs, int bs, int as)
@@ -698,7 +700,7 @@ static int dirnumber = 1;
 /*
 Captures the Amiga display (DirectDraw, D3D or OpenGL) surface and saves it to file as a 24bit bitmap.
 */
-int screenshotf (const TCHAR *spath, int mode, int doprepare, int imagemode, struct vidbuffer *vb)
+int screenshotf(int monid, const TCHAR *spath, int mode, int doprepare, int imagemode, struct vidbuffer *vb)
 {
 	static int recursive;
 	FILE *fp = NULL;
@@ -716,10 +718,10 @@ int screenshotf (const TCHAR *spath, int mode, int doprepare, int imagemode, str
 	recursive++;
 
 	if (vb) {
-		if (!screenshot_prepare (vb))
+		if (!screenshot_prepare(monid, vb))
 			goto oops;
 	} else if (!screenshot_prepared || doprepare) {	
-		if (!screenshot_prepare (imagemode))
+		if (!screenshot_prepare(monid, imagemode))
 			goto oops;
 	}
 
@@ -835,6 +837,10 @@ oops:
 
 void screenshot(int monid, int mode, int doprepare)
 {
+	if (monid < 0) {
+		monid = getfocusedmonitor();
+	}
+
 	if (mode == 2) {
 		screenshot_multi = 10;
 		screenshot_prepare_multi();
@@ -845,7 +851,7 @@ void screenshot(int monid, int mode, int doprepare)
 		screenshot_multi = 0;
 		filenumber = 0;
 	} else {
-		screenshotf(NULL, mode, doprepare, -1, NULL);
+		screenshotf(monid, NULL, mode, doprepare, -1, NULL);
 	}
 
 #if 0

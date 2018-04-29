@@ -28,13 +28,13 @@ extern int window_led_hd, window_led_hd_end;
 extern int window_led_joys, window_led_joys_end, window_led_joy_start;
 extern int window_led_msg, window_led_msg_end, window_led_msg_start;
 
-extern HDC gethdc (void);
-extern void releasehdc (HDC hdc);
+extern HDC gethdc(int monid);
+extern void releasehdc(int monid, HDC hdc);
 extern void close_windows(struct AmigaMonitor*);
 extern void updatewinfsmode(int monid, struct uae_prefs *p);
-extern int is3dmode (void);
-extern void gfx_lock (void);
-extern void gfx_unlock (void);
+extern int is3dmode(void);
+extern void gfx_lock(void);
+extern void gfx_unlock(void);
 
 extern bool lockscr3d(struct vidbuffer *vb);
 extern void unlockscr3d(struct vidbuffer *vb);

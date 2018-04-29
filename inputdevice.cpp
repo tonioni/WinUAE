@@ -4269,7 +4269,7 @@ static bool inputdevice_handle_inputcode2(int monid, int code, int state, const 
 		{
 			case AKS_SCREENSHOT_FILE:
 			// stop multiscreenshot
-			screenshot(0, 4, 1);
+			screenshot(-1, 4, 1);
 			break;
 		}
 		return false;
@@ -4283,13 +4283,13 @@ static bool inputdevice_handle_inputcode2(int monid, int code, int state, const 
 		break;
 	case AKS_SCREENSHOT_FILE:
 		if (state > 1) {
-			screenshot(0, 3, 1);
+			screenshot(-1, 3, 1);
 		} else {
-			screenshot(0, 1, 1);
+			screenshot(-1, 1, 1);
 		}
 		break;
 	case AKS_SCREENSHOT_CLIPBOARD:
-		screenshot(0, 0, 1);
+		screenshot(-1, 0, 1);
 		break;
 #ifdef AVIOUTPUT
 	case AKS_VIDEORECORD:

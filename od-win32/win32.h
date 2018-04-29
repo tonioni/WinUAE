@@ -80,6 +80,7 @@ extern bool resumepaused (int priority);
 extern bool setpaused (int priority);
 extern void unsetminimized (int monid);
 extern void setminimized(int monid);
+extern int getfocusedmonitor(void);
 
 void finishjob (void);
 void init_colors(int monid);
@@ -153,8 +154,8 @@ void associate_file_extensions (void);
 HMODULE WIN32_LoadLibrary (const TCHAR *);
 int isdllversion (const TCHAR *name, int version, int revision, int subver, int subrev);
 
-extern int screenshot_prepare (void);
-extern int screenshot_prepare (int);
+extern int screenshot_prepare(int);
+extern int screenshot_prepare(int, int);
 extern void screenshot_free(void);
 extern void screenshot_reset(void);
 

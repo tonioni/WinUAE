@@ -938,6 +938,14 @@ void target_inputdevice_acquire(void)
 	tablet = open_tablet(mon->hAmigaWnd);
 }
 
+int getfocusedmonitor(void)
+{
+	if (focus > 0) {
+		return focus - 1;
+	}
+	return 0;
+}
+
 static void setmouseactive2(struct AmigaMonitor *mon, int active, bool allowpause)
 {
 #ifdef RETROPLATFORM

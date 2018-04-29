@@ -93,6 +93,7 @@ struct avientry {
 	uae_u8 *lpAudio;
 	int sndsize;
 	int expectedsize;
+	int monid;
 };
 
 #define AVIENTRY_MAX 10
@@ -1035,7 +1036,7 @@ static int getFromRenderTarget(struct avientry *avie)
 	return ok;
 }
 
-static int getFromDC (struct avientry *avie)
+static int getFromDC(struct avientry *avie)
 {
 	HDC hdc;
 	HBITMAP hbitmap = NULL;
@@ -1043,25 +1044,25 @@ static int getFromDC (struct avientry *avie)
 	HDC hdcMem = NULL;
 	int ok = 1;
 
-	hdc = gethdc ();
+	hdc = gethdc(avie->monid);
 	if (!hdc)
 		return 0;
 	// create a memory device context compatible with the application's current screen
-	hdcMem = CreateCompatibleDC (hdc);
-	hbitmap = CreateCompatibleBitmap (hdc, avioutput_width, avioutput_height);
-	hbitmapOld = (HBITMAP)SelectObject (hdcMem, hbitmap);
+	hdcMem = CreateCompatibleDC(hdc);
+	hbitmap = CreateCompatibleBitmap(hdc, avioutput_width, avioutput_height);
+	hbitmapOld = (HBITMAP)SelectObject(hdcMem, hbitmap);
 	// probably not the best idea to use slow GDI functions for this,
 	// locking the surfaces and copying them by hand would be more efficient perhaps
 	// draw centered in frame
-	BitBlt (hdcMem, 0, 0, avioutput_width, avioutput_height, hdc, 0, 0, SRCCOPY);
-	SelectObject (hdcMem, hbitmapOld);
-	if (GetDIBits (hdc, hbitmap, 0, avioutput_height, avie->lpVideo, (LPBITMAPINFO)lpbi, DIB_RGB_COLORS) == 0) {
-		gui_message (_T("GetDIBits() FAILED (%X)\n"), GetLastError ());
+	BitBlt(hdcMem, 0, 0, avioutput_width, avioutput_height, hdc, 0, 0, SRCCOPY);
+	SelectObject(hdcMem, hbitmapOld);
+	if (GetDIBits(hdc, hbitmap, 0, avioutput_height, avie->lpVideo, (LPBITMAPINFO)lpbi, DIB_RGB_COLORS) == 0) {
+		gui_message(_T("GetDIBits() FAILED (%X)\n"), GetLastError());
 		ok = 0;
 	}
-	DeleteObject (hbitmap);
-	DeleteDC (hdcMem);
-	releasehdc (hdc);
+	DeleteObject(hbitmap);
+	DeleteDC(hdcMem);
+	releasehdc(avie->monid, hdc);
 	return ok;
 }
 
@@ -1750,7 +1751,7 @@ bool frame_drawn (void)
 	start_if_requested();
 
 	if (screenshot_multi) {
-		screenshot(0, 1, 1);
+		screenshot(-1, 1, 1);
 		if (screenshot_multi > 0)
 			screenshot_multi--;
 	}

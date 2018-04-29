@@ -1275,7 +1275,7 @@ static LRESULT CALLBACK RPHostMsgFunction2 (UINT uMessage, WPARAM wParam, LPARAM
 		}
 	case RP_IPC_TO_GUEST_SCREENCAPTURE:
 		{
-			extern int screenshotf (const TCHAR *spath, int mode, int doprepare, int imagemode, struct vidbuffer *vb);
+			extern int screenshotf(int monid, const TCHAR *spath, int mode, int doprepare, int imagemode, struct vidbuffer *vb);
 			extern int screenshotmode;
 			struct RPScreenCapture *rpsc = (struct RPScreenCapture*)pData;
 			if (rpsc->szScreenFiltered[0] || rpsc->szScreenRaw[0]) {
@@ -1286,7 +1286,7 @@ static LRESULT CALLBACK RPHostMsgFunction2 (UINT uMessage, WPARAM wParam, LPARAM
 				if (log_rp & 2)
 					write_log (_T("'%s' '%s'\n"), rpsc->szScreenFiltered, rpsc->szScreenRaw);
 				if (rpsc->szScreenFiltered[0])
-					ok = screenshotf (rpsc->szScreenFiltered, 1, 1, 0, NULL);
+					ok = screenshotf(0, rpsc->szScreenFiltered, 1, 1, 0, NULL);
 				if (rpsc->szScreenRaw[0]) {
 					struct vidbuf_description *avidinfo = &adisplays[0].gfxvidinfo;
 					struct vidbuffer vb;
@@ -1301,7 +1301,7 @@ static LRESULT CALLBACK RPHostMsgFunction2 (UINT uMessage, WPARAM wParam, LPARAM
 					allocvidbuffer (0, &vb, w, h, avidinfo->drawbuffer.pixbytes * 8);
 					set_custom_limits (-1, -1, -1, -1);
 					draw_frame (&vb);
-					ok |= screenshotf (rpsc->szScreenRaw, 1, 1, 1, &vb);
+					ok |= screenshotf(0, rpsc->szScreenRaw, 1, 1, 1, &vb);
 					if (log_rp & 2)
 						write_log (_T("Rawscreenshot %dx%d\n"), w, h);
 					//ok |= screenshotf (_T("c:\\temp\\1.bmp"), 1, 1, 1, &vb);
