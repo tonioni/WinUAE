@@ -614,23 +614,21 @@ static void do_fillrect_frame_buffer(struct RenderInfo *ri, int X, int Y, int Wi
 {
 	int cols;
 	uae_u8 *dst;
-	int lines;
 	int bpr = ri->BytesPerRow;
 
-	dst = ri->Memory + X * Bpp + Y * ri->BytesPerRow;
+	dst = ri->Memory + X * Bpp + Y * bpr;
 	endianswap (&Pen, Bpp);
 	switch (Bpp)
 	{
 	case 1:
-		for (lines = 0; lines < Height; lines++, dst += bpr) {
+		for (int lines = 0; lines < Height; lines++, dst += bpr) {
 			memset (dst, Pen, Width);
 		}
 	break;
 	case 2:
 	{
-		uae_u32 * p;
 		Pen |= Pen << 16;
-		for (lines = 0; lines < Height; lines++, dst += bpr) {
+		for (int lines = 0; lines < Height; lines++, dst += bpr) {
 			uae_u32 *p = (uae_u32*)dst;
 			for (cols = 0; cols < (Width & ~15); cols += 16) {
 				*p++ = Pen;
@@ -642,9 +640,9 @@ static void do_fillrect_frame_buffer(struct RenderInfo *ri, int X, int Y, int Wi
 				*p++ = Pen;
 				*p++ = Pen;
 			}
-			while (cols < Width / 2) {
+			while (cols < (Width & ~1)) {
 				*p++ = Pen;
-				cols++;
+				cols += 2;
 			}
 			if (Width & 1) {
 				((uae_u16*)p)[0] = Pen;
@@ -654,11 +652,11 @@ static void do_fillrect_frame_buffer(struct RenderInfo *ri, int X, int Y, int Wi
 	break;
 	case 3:
 	{
-		uae_u16 Pen1 = Pen >> 8; // RG
-		uae_u16 Pen2 = (Pen << 8) | (Pen >> 16); // BR
-		uae_u16 Pen3 = Pen & 0xffff; // GB
+		uae_u16 Pen1 = Pen & 0xffff;
+		uae_u16 Pen2 = (Pen << 8) | ((Pen >> 16) & 0xff);
+		uae_u16 Pen3 = Pen >> 8;
 		bool same = (Pen & 0xff) == ((Pen >> 8) & 0xff) && (Pen & 0xff) == ((Pen >> 16) & 0xff);
-		for (lines = 0; lines < Height; lines++, dst += bpr) {
+		for (int lines = 0; lines < Height; lines++, dst += bpr) {
 			uae_u16 *p = (uae_u16*)dst;
 			if (same) {
 				memset(p, Pen & 0xff, Width * 3);
@@ -690,7 +688,7 @@ static void do_fillrect_frame_buffer(struct RenderInfo *ri, int X, int Y, int Wi
 	break;
 	case 4:
 	{
-		for (lines = 0; lines < Height; lines++, dst += bpr) {
+		for (int lines = 0; lines < Height; lines++, dst += bpr) {
 			uae_u32 *p = (uae_u32*)dst;
 			for (cols = 0; cols < (Width & ~7); cols += 8) {
 				*p++ = Pen;
