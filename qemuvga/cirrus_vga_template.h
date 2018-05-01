@@ -37,18 +37,25 @@ static void glue(vga_draw_cursor_line_, DEPTH)(uint8_t *d1,
                                                int poffset, int w,
                                                unsigned int color0,
                                                unsigned int color1,
+                                               unsigned int xdoubled,
                                                unsigned int color_xor)
 {
     const uint8_t *plane0, *plane1;
-    int x, b0, b1;
+    int x, x2, b0, b1;
     uint8_t *d;
-
+	int xcount;
+	
     d = d1;
     plane0 = src1;
     plane1 = src1 + poffset;
-    for (x = 0; x < w; x++) {
-        b0 = (plane0[x >> 3] >> (7 - (x & 7))) & 1;
-        b1 = (plane1[x >> 3] >> (7 - (x & 7))) & 1;
+	xcount = 0;
+    for (x = 0, x2 = 0; x < w; x++) {
+        b0 = (plane0[x2 >> 3] >> (7 - (x2 & 7))) & 1;
+        b1 = (plane1[x2 >> 3] >> (7 - (x2 & 7))) & 1;
+		if (xcount++ == xdoubled) {
+			x2++;
+			xcount = 0;
+		}
 #if DEPTH == 8
         switch (b0 | (b1 << 1)) {
         case 0:

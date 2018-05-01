@@ -139,6 +139,7 @@ typedef struct VGACommonState {
     int graphic_mode;
     uint8_t shift_control;
     uint8_t double_scan;
+	uint8_t double_scan2;
     uint32_t line_offset;
     uint32_t line_compare;
     uint32_t start_addr;

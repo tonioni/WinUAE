@@ -1148,11 +1148,20 @@ static void cirrus_get_resolution(VGACommonState *s, int *pwidth, int *pheight)
         ((s->cr[0x07] & 0x40) << 3);
     height = (height + 1);
     /* interlace support */
-    if (s->cr[0x1a] & 0x01)
-        height *= 2;
-	/* multiply vertical registers by two. TW. */
-	if (s->cr[0x17] & 0x04)
+	if (s->cr[0x1a] & 0x01) {
 		height *= 2;
+	}
+	/* multiply vertical registers by two. TW. */
+	if (s->cr[0x17] & 0x04) {
+		height *= 2;
+	}
+	/* keep aspect if CGX doublescan mode */
+	if (s->graphic_mode == 1 && cirrus_get_bpp(s) >= 8 && height * 3 / 4 >= width) {
+		width *= 2;
+		s->double_scan2 = 1;
+	} else {
+		s->double_scan2 = 0;
+	}
 
 	*pwidth = width;
     *pheight = height;
@@ -2284,6 +2293,7 @@ static void cirrus_cursor_draw_line(VGACommonState *s1, uint8_t *d1, int scr_y)
     unsigned int color0, color1;
     const uint8_t *palette, *src;
     uint32_t content;
+	int doublescan2 = s1->double_scan2;
 
     if (!(s->vga.sr[0x12] & CIRRUS_CURSOR_SHOW))
         return;
@@ -2318,10 +2328,10 @@ static void cirrus_cursor_draw_line(VGACommonState *s1, uint8_t *d1, int scr_y)
         return;
     w = h;
 
-    x1 = s->hw_cursor_x;
+    x1 = s->hw_cursor_x << doublescan2;
     if (x1 >= s->vga.last_scr_width)
         return;
-    x2 = s->hw_cursor_x + w;
+    x2 = x1 + (w << doublescan2);
     if (x2 > s->vga.last_scr_width)
         x2 = s->vga.last_scr_width;
     w = x2 - x1;
@@ -2338,16 +2348,16 @@ static void cirrus_cursor_draw_line(VGACommonState *s1, uint8_t *d1, int scr_y)
     default:
         break;
     case 8:
-        vga_draw_cursor_line_8(d1, src, poffset, w, color0, color1, 0xff);
+        vga_draw_cursor_line_8(d1, src, poffset, w, color0, color1, doublescan2, 0xff);
         break;
     case 15:
-        vga_draw_cursor_line_16(d1, src, poffset, w, color0, color1, 0x7fff);
+        vga_draw_cursor_line_16(d1, src, poffset, w, color0, color1, doublescan2, 0x7fff);
         break;
     case 16:
-        vga_draw_cursor_line_16(d1, src, poffset, w, color0, color1, 0xffff);
+        vga_draw_cursor_line_16(d1, src, poffset, w, color0, color1, doublescan2, 0xffff);
         break;
-    case 32:
-        vga_draw_cursor_line_32(d1, src, poffset, w, color0, color1, 0xffffff);
+    case 32: 
+        vga_draw_cursor_line_32(d1, src, poffset, w, color0, color1, doublescan2, 0xffffff);
         break;
     }
 }

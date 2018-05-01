@@ -1519,11 +1519,15 @@ enum {
     VGA_DRAW_LINE4D2,
     VGA_DRAW_LINE8D2,
     VGA_DRAW_LINE8,
-    VGA_DRAW_LINE15,
-    VGA_DRAW_LINE16,
-    VGA_DRAW_LINE24,
-    VGA_DRAW_LINE32,
-    VGA_DRAW_LINE_NB,
+	VGA_DRAW_LINE15,
+	VGA_DRAW_LINE15X2,
+	VGA_DRAW_LINE16,
+	VGA_DRAW_LINE16X2,
+	VGA_DRAW_LINE24,
+	VGA_DRAW_LINE24X2,
+	VGA_DRAW_LINE32,
+	VGA_DRAW_LINE32X2,
+	VGA_DRAW_LINE_NB,
 };
 
 static vga_draw_line_func * const vga_draw_line_table[NB_DEPTHS * VGA_DRAW_LINE_NB] = {
@@ -1575,37 +1579,69 @@ static vga_draw_line_func * const vga_draw_line_table[NB_DEPTHS * VGA_DRAW_LINE_
     vga_draw_line8_16,
     vga_draw_line8_16,
 
-    vga_draw_line15_8,
-    vga_draw_line15_15,
-    vga_draw_line15_16,
-    vga_draw_line15_32,
-    vga_draw_line15_32bgr,
-    vga_draw_line15_15bgr,
-    vga_draw_line15_16bgr,
+	vga_draw_line15_8,
+	vga_draw_line15_15,
+	vga_draw_line15_16,
+	vga_draw_line15_32,
+	vga_draw_line15_32bgr,
+	vga_draw_line15_15bgr,
+	vga_draw_line15_16bgr,
 
-    vga_draw_line16_8,
-    vga_draw_line16_15,
-    vga_draw_line16_16,
-    vga_draw_line16_32,
-    vga_draw_line16_32bgr,
-    vga_draw_line16_15bgr,
-    vga_draw_line16_16bgr,
+	vga_draw_line15x2_8,
+	vga_draw_line15x2_15,
+	vga_draw_line15x2_16,
+	vga_draw_line15x2_32,
+	vga_draw_line15x2_32bgr,
+	vga_draw_line15x2_15bgr,
+	vga_draw_line15x2_16bgr,
 
-    vga_draw_line24_8,
-    vga_draw_line24_15,
-    vga_draw_line24_16,
-    vga_draw_line24_32,
-    vga_draw_line24_32bgr,
-    vga_draw_line24_15bgr,
-    vga_draw_line24_16bgr,
+	vga_draw_line16_8,
+	vga_draw_line16_15,
+	vga_draw_line16_16,
+	vga_draw_line16_32,
+	vga_draw_line16_32bgr,
+	vga_draw_line16_15bgr,
+	vga_draw_line16_16bgr,
 
-    vga_draw_line32_8,
-    vga_draw_line32_15,
-    vga_draw_line32_16,
-    vga_draw_line32_32,
-    vga_draw_line32_32bgr,
-    vga_draw_line32_15bgr,
-    vga_draw_line32_16bgr,
+	vga_draw_line16x2_8,
+	vga_draw_line16x2_15,
+	vga_draw_line16x2_16,
+	vga_draw_line16x2_32,
+	vga_draw_line16x2_32bgr,
+	vga_draw_line16x2_15bgr,
+	vga_draw_line16x2_16bgr,
+
+	vga_draw_line24_8,
+	vga_draw_line24_15,
+	vga_draw_line24_16,
+	vga_draw_line24_32,
+	vga_draw_line24_32bgr,
+	vga_draw_line24_15bgr,
+	vga_draw_line24_16bgr,
+
+	vga_draw_line24x2_8,
+	vga_draw_line24x2_15,
+	vga_draw_line24x2_16,
+	vga_draw_line24x2_32,
+	vga_draw_line24x2_32bgr,
+	vga_draw_line24x2_15bgr,
+	vga_draw_line24x2_16bgr,
+
+	vga_draw_line32_8,
+	vga_draw_line32_15,
+	vga_draw_line32_16,
+	vga_draw_line32_32,
+	vga_draw_line32_32bgr,
+	vga_draw_line32_15bgr,
+	vga_draw_line32_16bgr,
+
+	vga_draw_line32x2_8,
+    vga_draw_line32x2_15,
+    vga_draw_line32x2_16,
+    vga_draw_line32x2_32,
+    vga_draw_line32x2_32bgr,
+    vga_draw_line32x2_15bgr,
+    vga_draw_line32x2_16bgr,
 };
 
 static int vga_get_bpp(VGACommonState *s)
@@ -1788,24 +1824,24 @@ static void vga_draw_graphic(VGACommonState *s, int full_update)
             break;
         case 8:
             full_update |= update_palette256(s);
-            v = VGA_DRAW_LINE8;
+            v = s->double_scan2 ? VGA_DRAW_LINE8D2 : VGA_DRAW_LINE8;
             bits = 8;
             break;
         case 15:
-            v = VGA_DRAW_LINE15;
-            bits = 16;
+			v = s->double_scan2 ? VGA_DRAW_LINE15X2 : VGA_DRAW_LINE15;
+			bits = 16;
             break;
         case 16:
-            v = VGA_DRAW_LINE16;
-            bits = 16;
+			v = s->double_scan2 ? VGA_DRAW_LINE16X2 : VGA_DRAW_LINE16;
+			bits = 16;
             break;
         case 24:
-            v = VGA_DRAW_LINE24;
-            bits = 24;
+			v = s->double_scan2 ? VGA_DRAW_LINE24X2 : VGA_DRAW_LINE24;
+			bits = 24;
             break;
         case 32:
-            v = VGA_DRAW_LINE32;
-            bits = 32;
+			v = s->double_scan2 ? VGA_DRAW_LINE32X2 : VGA_DRAW_LINE32;
+			bits = 32;
             break;
         }
     }
