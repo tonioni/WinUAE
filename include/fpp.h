@@ -23,6 +23,7 @@ extern void fp_init_native_80(void);
 extern void fp_init_softfloat(void);
 extern void fpsr_set_exception(uae_u32 exception);
 extern void fpu_modechange(void);
+extern void fpu_clearstatus(void);
 
 #if defined(CPU_i386) || defined(CPU_x86_64)
 extern void init_fpucw_x87(void);
@@ -30,6 +31,14 @@ extern void init_fpucw_x87(void);
 extern void init_fpucw_x87_80(void);
 #endif
 #endif
+
+#define PREC_NORMAL 0
+#define PREC_FLOAT 1
+#define PREC_DOUBLE 2
+#define PREC_EXTENDED 3
+
+#define FPU_FEATURE_EXCEPTIONS 1
+#define FPU_FEATURE_DENORMALS 2
 
 typedef void (*FPP_ABQS)(fpdata*, fpdata*, uae_u64*, uae_u8*);
 typedef void (*FPP_AB)(fpdata*, fpdata*);
@@ -40,6 +49,7 @@ typedef bool (*FPP_IS)(fpdata*);
 typedef void (*FPP_SET_MODE)(uae_u32);
 typedef void (*FPP_GET_STATUS)(uae_u32*);
 typedef void (*FPP_CLEAR_STATUS)(void);
+typedef uae_u32 (*FPP_SUPPORT_FLAGS)(void);
 
 typedef void (*FPP_FROM_NATIVE)(fptype, fpdata*);
 typedef void (*FPP_TO_NATIVE)(fptype*, fpdata*);
@@ -65,8 +75,9 @@ typedef void (*FPP_DENORMALIZE)(fpdata*,int);
 
 extern FPP_PRINT fpp_print;
 
-extern FPP_IS fpp_is_snan;
 extern FPP_IS fpp_unset_snan;
+extern FPP_IS fpp_is_init;
+extern FPP_IS fpp_is_snan;
 extern FPP_IS fpp_is_nan;
 extern FPP_IS fpp_is_infinity;
 extern FPP_IS fpp_is_zero;
@@ -77,6 +88,7 @@ extern FPP_IS fpp_is_unnormal;
 extern FPP_GET_STATUS fpp_get_status;
 extern FPP_CLEAR_STATUS fpp_clear_status;
 extern FPP_SET_MODE fpp_set_mode;
+extern FPP_SUPPORT_FLAGS fpp_get_support_flags;
 
 extern FPP_TO_INT fpp_to_int;
 extern FPP_FROM_INT fpp_from_int;

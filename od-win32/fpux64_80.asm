@@ -20,8 +20,12 @@ global xfp_neg
 global xfp_add
 global xfp_sub
 global xfp_sqrt
+
 global xfp_sin
 global xfp_cos
+global xfp_tan
+global xfp_atan
+
 global xfp_get_status
 global xfp_clear_status
 
@@ -171,5 +175,17 @@ xfp_cos:
 xfp_sin:
 	loadfp1
 	fsin
+	storefp
+	ret
+
+xfp_tan:
+	loadfp1
+	fptan
+	storefp
+	ret
+
+xfp_atan:
+	loadfp1
+	fpatan
 	storefp
 	ret
