@@ -243,4 +243,11 @@ extern void getsyncregisters(uae_u16 *phsstrt, uae_u16 *phsstop, uae_u16 *pvsstr
 int is_bitplane_dma (int hpos);
 void custom_cpuchange(void);
 
+struct custom_store
+{
+	uae_u16 value;
+	uae_u32 pc;
+};
+extern struct custom_store custom_storage[256];
+
 #endif /* UAE_CUSTOM_H */

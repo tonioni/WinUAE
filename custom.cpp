@@ -415,6 +415,8 @@ static bool ddfstop_matched;
 static int bitplane_overrun, bitplane_overrun_hpos;
 static int bitplane_overrun_fetch_cycle, bitplane_overrun_cycle_diagram_shift;
 
+struct custom_store custom_storage[256];
+
 enum plfstate
 {
 	plf_idle,
@@ -9102,6 +9104,7 @@ void custom_reset (bool hardreset, bool keyboardreset)
 	lightpen_x[1] = -1;
 	lightpen_y[1] = -1;
 	nr_armed = 0;
+	memset(custom_storage, 0, sizeof(custom_storage));
 
 	if (!savestate_state) {
 		cia_hsync = 0;
@@ -9581,12 +9584,15 @@ static int REGPARAM2 custom_wput_1 (int hpos, uaecptr addr, uae_u32 value, int n
 {
 	addr &= 0x1FE;
 	value &= 0xffff;
+	custom_storage[addr >> 1].value = (uae_u16)value;
+	custom_storage[addr >> 1].pc = copper_access ? cop_state.ip | 1 : M68K_GETPC;
 #ifdef ACTION_REPLAY
 #ifdef ACTION_REPLAY_COMMON
-	ar_custom[addr+0]=(uae_u8)(value>>8);
-	ar_custom[addr+1]=(uae_u8)(value);
+	ar_custom[addr + 0]=(uae_u8)(value >> 8);
+	ar_custom[addr + 1]=(uae_u8)(value);
 #endif
 #endif
+
 	switch (addr) {
 	case 0x00E: CLXDAT (); break;
 

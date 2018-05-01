@@ -162,7 +162,7 @@ static const TCHAR help[] = {
 	_T("  fo <num> <reg> <oper> <val> [<mask> <val2>] Conditional register breakpoint.\n")
 	_T("   reg=Dx,Ax,PC,USP,ISP,VBR,SR. oper:!=,==,<,>,>=,<=,-,!- (-=val to val2 range).\n")
 	_T("  f <addr1> <addr2>     Step forward until <addr1> <= PC <= <addr2>.\n")
-	_T("  e                     Dump contents of all custom registers, ea = AGA colors.\n")
+	_T("  e[x]                  Dump contents of all custom registers, ea = AGA colors.\n")
 	_T("  i [<addr>]            Dump contents of interrupt and trap vectors.\n")
 	_T("  il [<mask>]           Exception breakpoint.\n")
 	_T("  o <0-2|addr> [<lines>]View memory as Copper instructions.\n")
@@ -1186,11 +1186,14 @@ static void dumpmem (uaecptr addr, uaecptr *nxmem, int lines)
 	*nxmem = addr;
 }
 
-static void dump_custom_regs (int aga)
+static void dump_custom_regs(bool aga, bool ext)
 {
-	int len, i, j, end;
+	int len, end;
 	uae_u8 *p1, *p2, *p3, *p4;
+	TCHAR extra1[256], extra2[256];
 
+	extra1[0] = 0;
+	extra2[0] = 0;
 	if (aga) {
 		dump_aga_custom();
 		return;
@@ -1198,7 +1201,7 @@ static void dump_custom_regs (int aga)
 
 	p1 = p2 = save_custom (&len, 0, 1);
 	p1 += 4; // skip chipset type
-	for (i = 0; i < 4; i++) {
+	for (int i = 0; i < 4; i++) {
 		p4 = p1 + 0xa0 + i * 16;
 		p3 = save_audio (i, &len, 0);
 		p4[0] = p3[12];
@@ -1220,19 +1223,26 @@ static void dump_custom_regs (int aga)
 		end++;
 	end++;
 	end /= 2;
-	for (i = 0; i < end; i++) {
+	for (int i = 0; i < end; i++) {
 		uae_u16 v1, v2;
 		int addr1, addr2;
-		j = end + i;
+		int j = end + i;
 		addr1 = custd[i].adr & 0x1ff;
 		addr2 = custd[j].adr & 0x1ff;
 		v1 = (p1[addr1 + 0] << 8) | p1[addr1 + 1];
 		v2 = (p1[addr2 + 0] << 8) | p1[addr2 + 1];
-		console_out_f (_T("%03X %s\t%04X\t%03X %s\t%04X\n"),
-			addr1, custd[i].name, v1,
-			addr2, custd[j].name, v2);
+		if (ext) {
+			struct custom_store *cs;
+			cs = &custom_storage[addr1 >> 1];
+			_stprintf(extra1, _T("\t%04X %08X %s"), cs->value, cs->pc & ~1, (cs->pc & 1) ? _T("COP") : _T("CPU"));
+			cs = &custom_storage[addr2 >> 1];
+			_stprintf(extra2, _T("\t%04X %08X %s"), cs->value, cs->pc & ~1, (cs->pc & 1) ? _T("COP") : _T("CPU"));
+		}
+		console_out_f (_T("%03X %s\t%04X%s\t%03X %s\t%04X%s\n"),
+			addr1, custd[i].name, v1, extra1,
+			addr2, custd[j].name, v2, extra2);
 	}
-	free (p2);
+	xfree(p2);
 }
 
 static void dump_vectors (uaecptr addr)
@@ -5256,7 +5266,15 @@ static bool debug_line (TCHAR *input)
 			}
 			break;
 		}
-		case 'e': dump_custom_regs (tolower(*inptr) == 'a'); break;
+		case 'e':
+		{
+			bool aga = tolower(*inptr) == 'a';
+			if (aga)
+				next_char(&inptr);
+			bool ext = tolower(*inptr) == 'x';
+			dump_custom_regs(aga, ext);
+		}
+		break;
 		case 'r':
 		{
 			if (*inptr == 'c') {
@@ -5294,7 +5312,7 @@ static bool debug_line (TCHAR *input)
 					debugmem_list_segment(0, addr);
 				}
 			} else if (*inptr == 'c') {
-				screenshot(0, 1, 1);
+				screenshot(-1, 1, 1);
 			} else if (*inptr == 'p') {
 				inptr++;
 				debug_sprite (&inptr);
