@@ -4054,7 +4054,7 @@ void compute_vsynctime (void)
 	if (fabs (currprefs.chipset_refreshrate) > 0.1) {
 		syncadjust = currprefs.chipset_refreshrate / vblank_hz_nom;
 		vblank_hz = currprefs.chipset_refreshrate;
-		if (isvsync_chipset ()) {
+		if (isvsync_chipset() && !currprefs.gfx_variable_sync) {
 			int mult = 0;
 			if (getvsyncrate(0, vblank_hz, &mult) != vblank_hz) {
 				vblank_hz = getvsyncrate(0, vblank_hz, &vblank_hz_mult);
@@ -4217,20 +4217,22 @@ void compute_framesync(void)
 		double v = -1;
 		if (!ad->picasso_on && !ad->picasso_requested_on) {
 			if (isvsync_chipset ()) {
-				if (cr->index == CHIPSET_REFRESH_PAL || cr->index == CHIPSET_REFRESH_NTSC) {
-					if ((fabs (vblank_hz - 50) < 1 || fabs (vblank_hz - 60) < 1 || fabs (vblank_hz - 100) < 1 || fabs (vblank_hz - 120) < 1) && currprefs.gfx_apmode[0].gfx_vsync == 2 && currprefs.gfx_apmode[0].gfx_fullscreen > 0) {
-						vsync_switchmode(0, (int)vblank_hz);
+				if (!currprefs.gfx_variable_sync) {
+					if (cr->index == CHIPSET_REFRESH_PAL || cr->index == CHIPSET_REFRESH_NTSC) {
+						if ((fabs(vblank_hz - 50) < 1 || fabs(vblank_hz - 60) < 1 || fabs(vblank_hz - 100) < 1 || fabs(vblank_hz - 120) < 1) && currprefs.gfx_apmode[0].gfx_vsync == 2 && currprefs.gfx_apmode[0].gfx_fullscreen > 0) {
+							vsync_switchmode(0, (int)vblank_hz);
+						}
 					}
-				}
-				if (isvsync_chipset () < 0) {
+					if (isvsync_chipset() < 0) {
 
-					double v2;
-					v2 = target_getcurrentvblankrate(0);
-					if (!cr->locked)
-						v = v2;
-				} else if (isvsync_chipset () > 0) {
-					if (currprefs.gfx_apmode[0].gfx_refreshrate)
-						v = abs (currprefs.gfx_apmode[0].gfx_refreshrate);
+						double v2;
+						v2 = target_getcurrentvblankrate(0);
+						if (!cr->locked)
+							v = v2;
+					} else if (isvsync_chipset() > 0) {
+						if (currprefs.gfx_apmode[0].gfx_refreshrate)
+							v = abs(currprefs.gfx_apmode[0].gfx_refreshrate);
+					}
 				}
 			} else {
 				if (cr->locked == false) {
@@ -8463,7 +8465,7 @@ static bool linesync_beam_multi_single(void)
 			display_rendered = true;
 		}
 		// if 2 slices: make sure we are out of vblank.
-		if (display_slices <= 2) {
+		if (display_slices <= 2 && !currprefs.gfx_variable_sync) {
 			while (!currprefs.turbo_emulation && sync_timeout_check(maxtime)) {
 				int vp = target_get_display_scanline(-1);
 				if (vp != -1)
@@ -8501,15 +8503,29 @@ static bool linesync_beam_multi_single(void)
 		// topmost/first slice?
 		if (display_slice_cnt == 0) {
 
+			// variable sync: use read_processor_time() for vblank timing
 			if (currprefs.gfx_variable_sync) {
 
 				if (!currprefs.turbo_emulation) {
+
+					frame_time_t rpt;
+					for (;;) {
+						rpt = read_processor_time();
+						if ((int)rpt - (int)(vsyncmintime - vsynctimebase / 2) >= 0 || (int)rpt - (int)vsyncmintime < -2 * vsynctimebase)
+							break;
+						maybe_process_pull_audio();
+						if (currprefs.m68k_speed < 0 && !was_syncline) {
+							is_syncline = -1;
+							return 0;
+						}
+						target_spin(0);
+					}
+
 					if (!was_syncline) {
 						do_render_slice(2, display_slice_cnt, vpos - 1);
 						display_rendered = true;
 					}
 
-					frame_time_t rpt;
 					for(;;) {
 						rpt = read_processor_time();
 						if ((int)rpt - (int)vsyncmintime >= 0 || (int)rpt - (int)vsyncmintime < -2 * vsynctimebase)
@@ -8521,18 +8537,19 @@ static bool linesync_beam_multi_single(void)
 						}
 						target_spin(0);
 					}
-					do_display_slice();
 					if ((int)rpt - (int)vsyncmintime < vsynctimebase && (int)rpt - (int)vsyncmintime > -vsynctimebase) {
 						vsyncmintime += vsynctimebase;
 					} else {
 						vsyncmintime = rpt + vsynctimebase;
 					}
+					do_display_slice();
 					display_rendered = false;
 					input_read_done = true;
 				}
 
 			} else {
 
+				// non-variable: poll vblank
 				if (!currprefs.turbo_emulation) {
 					if (!was_syncline) {
 						do_render_slice(2, display_slice_cnt, vpos - 1);

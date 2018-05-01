@@ -4678,7 +4678,7 @@ static void xD3D11_guimode(int monid, int guion)
 	write_log(_T("fs guimode end\n"));
 }
 
-static int xD3D_isenabled(int monid)
+static int xD3D11_isenabled(int monid)
 {
 	struct d3d11struct *d3d = &d3d11data[monid];
 	return d3d->m_device != NULL ? 2 : 0;
@@ -4862,7 +4862,7 @@ void d3d11_select(void)
 	D3D_showframe_special = NULL;
 	D3D_guimode = xD3D11_guimode;
 	D3D_getDC = xD3D_getDC;
-	D3D_isenabled = xD3D_isenabled;
+	D3D_isenabled = xD3D11_isenabled;
 	D3D_clear = xD3D11_clear;
 	D3D_canshaders = xD3D11_canshaders;
 	D3D_goodenough = xD3D11_goodenough;

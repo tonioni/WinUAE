@@ -805,6 +805,8 @@ static void statusline(int monid)
 
 void S2X_configure(int monid, int rb, int gb, int bb, int rs, int gs, int bs)
 {
+	if (monid)
+		return;
 	Init_2xSaI(rb, gb, bb, rs, gs, bs);
 	hq_init(rb, gb, bb, rs, gs, bs);
 	PAL_init(monid);
@@ -813,6 +815,8 @@ void S2X_configure(int monid, int rb, int gb, int bb, int rs, int gs, int bs)
 
 void S2X_reset(int monid)
 {
+	if (monid)
+		return;
 	if (!inited)
 		return;
 	S2X_init(monid, dst_width2, dst_height2, amiga_depth2);
@@ -820,6 +824,9 @@ void S2X_reset(int monid)
 
 void S2X_free(int monid)
 {
+	if (monid)
+		return;
+
 	changed_prefs.leds_on_screen &= ~STATUSLINE_TARGET;
 	currprefs.leds_on_screen &= ~STATUSLINE_TARGET;
 
@@ -839,6 +846,9 @@ void S2X_free(int monid)
 
 bool S2X_init(int monid, int dw, int dh, int dd)
 {
+	if (monid)
+		return false;
+
 	struct vidbuf_description *avidinfo = &adisplays[monid].gfxvidinfo;
 	struct amigadisplay *ad = &adisplays[monid];
 	struct vidbuffer *vb = avidinfo->outbuffer;
@@ -955,6 +965,8 @@ bool S2X_init(int monid, int dw, int dh, int dd)
 
 void S2X_render(int monid, int y_start, int y_end)
 {
+	if (monid)
+		return;
 	struct AmigaMonitor *mon = &AMonitors[monid];
 	struct amigadisplay *ad = &adisplays[monid];
 	struct uae_filter *usedfilter = mon->usedfilter;
@@ -1177,12 +1189,16 @@ end:
 
 void S2X_refresh(int monid)
 {
+	if (monid)
+		return;
 	DirectDraw_ClearSurface(NULL);
 	S2X_render(monid, -1, -1);
 }
 
 int S2X_getmult(int monid)
 {
+	if (monid)
+		return 1;
 	struct AmigaMonitor *mon = &AMonitors[monid];
 	struct uae_filter *usedfilter = mon->usedfilter;
 	if (!usedfilter)
