@@ -1159,8 +1159,7 @@ static void picasso_handle_vsync2(struct AmigaMonitor *mon)
 
 	if (thisisvsync) {
 		rendered = rtg_render();
-		if (mon->monitor_id == 0)
-			frame_drawn();
+		frame_drawn(mon->monitor_id);
 	}
 
 	if (uaegfx) {

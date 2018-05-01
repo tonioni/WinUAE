@@ -60,6 +60,7 @@ static int frame_skip;
 static uae_u64 total_avi_size;
 static int partcnt;
 static int first_frame;
+static int aviout_monid;
 
 int avioutput_audio, avioutput_video, avioutput_enabled, avioutput_requested;
 static int videoallocated;
@@ -93,7 +94,6 @@ struct avientry {
 	uae_u8 *lpAudio;
 	int sndsize;
 	int expectedsize;
-	int monid;
 };
 
 #define AVIENTRY_MAX 10
@@ -181,7 +181,7 @@ static struct avientry *allocavientry_audio (uae_u8 *snd, int size, int expected
 	return ae;
 }
 
-static struct avientry *allocavientry_video (void)
+static struct avientry *allocavientry_video(void)
 {
 	struct avientry *ae = xcalloc (struct avientry, 1); 
 	ae->lpbi = (LPBITMAPINFOHEADER)xmalloc (uae_u8, lpbisize ());
@@ -527,7 +527,7 @@ void AVIOutput_ReleaseVideo (void)
 
 static int AVIOutput_AllocateVideo (void)
 {
-	struct AmigaMonitor *mon = &AMonitors[0];
+	struct AmigaMonitor *mon = &AMonitors[aviout_monid];
 	avioutput_width = avioutput_height = avioutput_bits = 0;
 	aviout_width_out = aviout_height_out = 0;
 	aviout_xoffset_out = aviout_yoffset_out = 0;
@@ -955,7 +955,7 @@ static int getFromRenderTarget11(struct avientry *avie)
 	int w, h, pitch, bits = 32;
 	void *data;
 
-	bool got = D3D11_capture(0, &data, &w, &h, &pitch);
+	bool got = D3D11_capture(aviout_monid, &data, &w, &h, &pitch);
 	if (got) {
 		int dpitch = ((aviout_width_out * avioutput_bits + 31) & ~31) / 8;
 		for (int y = 0; y < h; y++) {
@@ -974,7 +974,7 @@ static int getFromRenderTarget11(struct avientry *avie)
 				}
 			}
 		}
-		D3D11_capture(0, NULL, NULL, NULL, NULL);
+		D3D11_capture(aviout_monid, NULL, NULL, NULL, NULL);
 		ok = 1;
 	}
 	return ok;
@@ -986,7 +986,7 @@ static int getFromRenderTarget(struct avientry *avie)
 	int w, h, bits;
 	HRESULT hr;
 	D3DLOCKED_RECT l;
-	LPDIRECT3DSURFACE9 s = D3D_capture(0, &w, &h, &bits);
+	LPDIRECT3DSURFACE9 s = D3D_capture(aviout_monid, &w, &h, &bits);
 	if (s) {
 		hr = s->LockRect(&l, NULL, D3DLOCK_READONLY);
 		if (SUCCEEDED(hr)) {
@@ -1044,7 +1044,7 @@ static int getFromDC(struct avientry *avie)
 	HDC hdcMem = NULL;
 	int ok = 1;
 
-	hdc = gethdc(avie->monid);
+	hdc = gethdc(aviout_monid);
 	if (!hdc)
 		return 0;
 	// create a memory device context compatible with the application's current screen
@@ -1062,7 +1062,7 @@ static int getFromDC(struct avientry *avie)
 	}
 	DeleteObject(hbitmap);
 	DeleteDC(hdcMem);
-	releasehdc(avie->monid, hdc);
+	releasehdc(aviout_monid, hdc);
 	return ok;
 }
 
@@ -1085,8 +1085,8 @@ extern uae_u8 *bufmem_ptr;
 
 static int getFromBuffer(struct avientry *ae, int original)
 {
-	struct AmigaMonitor *mon = &AMonitors[0];
-	struct vidbuf_description *vidinfo = &adisplays[0].gfxvidinfo;
+	struct AmigaMonitor *mon = &AMonitors[aviout_monid];
+	struct vidbuf_description *vidinfo = &adisplays[aviout_monid].gfxvidinfo;
 	int x, y, w, h, d;
 	uae_u8 *src, *mem;
 	uae_u8 *dst = ae->lpVideo;
@@ -1097,11 +1097,11 @@ static int getFromBuffer(struct avientry *ae, int original)
 	dpitch = ((aviout_width_out * avioutput_bits + 31) & ~31) / 8;
 	if (original || WIN32GFX_IsPicassoScreen(mon)) {
 		if (!WIN32GFX_IsPicassoScreen(mon)) {
-			src = getfilterbuffer(0, &w, &h, &spitch, &d);
+			src = getfilterbuffer(aviout_monid, &w, &h, &spitch, &d);
 			maxw = vidinfo->outbuffer->outwidth;
 			maxh = vidinfo->outbuffer->outheight;
 		} else {
-			src = mem = getrtgbuffer(0, &w, &h, &spitch, &d, NULL);
+			src = mem = getrtgbuffer(aviout_monid, &w, &h, &spitch, &d, NULL);
 			maxw = w;
 			maxh = h;
 		}
@@ -1179,14 +1179,14 @@ static int getFromBuffer(struct avientry *ae, int original)
 		src += spitch;
 	}
 	if (mem)
-		freertgbuffer(0, mem);
+		freertgbuffer(aviout_monid, mem);
 	return 1;
 }
 #endif
 
-void AVIOutput_WriteVideo (void)
+static void AVIOutput_WriteVideo(void)
 {
-	struct AmigaMonitor *mon = &AMonitors[0];
+	struct AmigaMonitor *mon = &AMonitors[aviout_monid];
 	struct avientry *ae;
 	int v;
 
@@ -1199,7 +1199,7 @@ void AVIOutput_WriteVideo (void)
 	if (avioutput_needs_restart)
 		dorestart ();
 	waitqueuefull ();
-	ae = allocavientry_video ();
+	ae = allocavientry_video();
 	if (avioutput_originalsize || WIN32GFX_IsPicassoScreen(mon)) {
 		v = getFromBuffer (ae, 1);
 	} else {
@@ -1386,6 +1386,8 @@ static void AVIOutput_Begin2(bool fullstart, bool immediate)
 	if (!avioutput_requested)
 		return;
 
+	aviout_monid = getfocusedmonitor();
+
 	if (avioutput_audio == AVIAUDIO_WAV) {
 		ext1 = _T(".wav"); ext2 = _T(".avi");
 	} else {
@@ -1480,7 +1482,7 @@ static void AVIOutput_Begin2(bool fullstart, bool immediate)
 	}
 
 	if (avioutput_video) {
-		ae = allocavientry_video ();
+		ae = allocavientry_video();
 		if (!AVIOutput_AllocateVideo ())
 			goto error;
 
@@ -1546,7 +1548,7 @@ static void AVIOutput_Begin2(bool fullstart, bool immediate)
 	avientryindex = -1;
 	alive = -1;
 	uae_start_thread (_T("aviworker"), AVIOutput_worker, NULL, NULL);
-	write_log (_T("AVIOutput enabled: video=%d audio=%d path='%s'\n"), avioutput_video, avioutput_audio, avioutput_filename_inuse);
+	write_log (_T("AVIOutput enabled: monitor=%d video=%d audio=%d path='%s'\n"), aviout_monid, avioutput_video, avioutput_audio, avioutput_filename_inuse);
 	return;
 
 error:
@@ -1743,15 +1745,17 @@ bool AVIOutput_WriteAudio(uae_u8 *sndbuffer, int sndbufsize)
 	return true;
 }
 
-bool frame_drawn (void)
+bool frame_drawn(int monid)
 {
+	if (monid != aviout_monid)
+		return false;
 	if (!can_record())
 		return false;
 
 	start_if_requested();
 
 	if (screenshot_multi) {
-		screenshot(-1, 1, 1);
+		screenshot(monid, 1, 1);
 		if (screenshot_multi > 0)
 			screenshot_multi--;
 	}
@@ -1807,7 +1811,7 @@ bool frame_drawn (void)
 	if (!avioutput_video)
 		return false;
 
-	AVIOutput_WriteVideo ();
+	AVIOutput_WriteVideo();
 	return true;
 }
 

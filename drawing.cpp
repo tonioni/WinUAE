@@ -4031,7 +4031,7 @@ void vsync_handle_redraw(int long_field, int lof_changed, uae_u16 bplcon0p, uae_
 			finish_drawing_frame(drawlines);
 #ifdef AVIOUTPUT
 			if (!ad->picasso_on) {
-				frame_drawn();
+				frame_drawn(monid);
 			}
 #endif
 		}
