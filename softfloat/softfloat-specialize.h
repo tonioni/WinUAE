@@ -307,7 +307,8 @@ static inline floatx80 commonNaNToFloatx80(commonNaNT a, float_status *status)
     z.low = LIT64( 0x4000000000000000 ) | ( a.high>>1 );
 #else
     z.low = LIT64( 0xC000000000000000 ) | ( a.high>>1 );
-#endif    z.high = ( ( (int16_t) a.sign )<<15 ) | 0x7FFF;
+#endif
+    z.high = ( ( (int16_t) a.sign )<<15 ) | 0x7FFF;
     return z;
 }
 
