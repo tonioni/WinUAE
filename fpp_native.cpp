@@ -384,7 +384,11 @@ static void fp_to_exten(fpdata *fpd, uae_u32 wrd1, uae_u32 wrd2, uae_u32 wrd3)
 	floatx80 fx80;
 	fx80.high = wrd1 >> 16;
 	fx80.low = (((uae_u64)wrd2) << 32) | wrd3;
+	fs.float_exception_flags = 0;
 	float64 f = floatx80_to_float64(fx80, &fs);
+	// overflow -> infinity
+	if (fs.float_exception_flags & float_flag_overflow)
+		f = 0x7ff0000000000000 | (f & 0x8000000000000000);
 	fp_to_double(fpd, f >> 32, (uae_u32)f);
 #else
     double frac;
@@ -1064,17 +1068,17 @@ static void fp_from_pack (fpdata *src, uae_u32 *wrd, int kfactor)
 	fptype fp;
 
 	fp_is_init(src);
-   if (fp_is_nan(src)) {
-        // copy bit by bit, handle signaling nan
-        fpp_from_exten(src, &wrd[0], &wrd[1], &wrd[2]);
-        return;
-    }
-    if (fp_is_infinity(src)) {
-        // extended exponent and all 0 packed fraction
-        fpp_from_exten(src, &wrd[0], &wrd[1], &wrd[2]);
-        wrd[1] = wrd[2] = 0;
-        return;
-    }
+	if (fp_is_nan(src)) {
+		// copy bit by bit, handle signaling nan
+		fpp_from_exten(src, &wrd[0], &wrd[1], &wrd[2]);
+		return;
+	}
+	if (fp_is_infinity(src)) {
+		// extended exponent and all 0 packed fraction
+		fpp_from_exten(src, &wrd[0], &wrd[1], &wrd[2]);
+		wrd[1] = wrd[2] = 0;
+		return;
+	}
 
 	wrd[0] = wrd[1] = wrd[2] = 0;
 
