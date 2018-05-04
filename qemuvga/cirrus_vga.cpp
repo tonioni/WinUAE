@@ -1156,7 +1156,7 @@ static void cirrus_get_resolution(VGACommonState *s, int *pwidth, int *pheight)
 		height *= 2;
 	}
 	/* keep aspect if CGX doublescan mode */
-	if (s->graphic_mode == 1 && cirrus_get_bpp(s) >= 8 && height * 3 / 4 >= width) {
+	if (s->graphic_mode == 1 && cirrus_get_bpp(s) >= 8 && height * 9 / 10 >= width) {
 		width *= 2;
 		s->double_scan2 = 1;
 	} else {

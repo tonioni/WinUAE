@@ -379,7 +379,7 @@ static void glue(vga_draw_line15x2_, PIXEL_NAME)(VGACommonState *s1, uint8_t *d,
 	int w;
 	uint32_t v, r, g, b;
 
-	w = width;
+	w = width / 2;
 	do {
 		v = lduw_raw((void *)s);
 		r = (v >> 7) & 0xf8;
@@ -425,7 +425,7 @@ static void glue(vga_draw_line16x2_, PIXEL_NAME)(VGACommonState *s1, uint8_t *d,
 	int w;
 	uint32_t v, r, g, b;
 
-	w = width;
+	w = width / 2;
 	do {
 		v = lduw_raw((void *)s);
 		r = (v >> 8) & 0xf8;
@@ -472,7 +472,7 @@ static void glue(vga_draw_line24x2_, PIXEL_NAME)(VGACommonState *s1, uint8_t *d,
 	int w;
 	uint32_t r, g, b;
 
-	w = width;
+	w = width / 2;
 	do {
 #if defined(TARGET_WORDS_BIGENDIAN)
 		r = s[0];
@@ -483,7 +483,9 @@ static void glue(vga_draw_line24x2_, PIXEL_NAME)(VGACommonState *s1, uint8_t *d,
 		g = s[1];
 		r = s[2];
 #endif
-		((PIXEL_TYPE *)d)[0] = ((PIXEL_TYPE *)d)[1] = glue(rgb_to_pixel, PIXEL_NAME)(r, g, b);
+		PIXEL_TYPE v = glue(rgb_to_pixel, PIXEL_NAME)(r, g, b);
+		((PIXEL_TYPE *)d)[0] = v;
+		((PIXEL_TYPE *)(d + BPP))[0] = v;
 		s += 3;
 		d += BPP * 2;
 	} while (--w != 0);
@@ -528,7 +530,7 @@ static void glue(vga_draw_line32x2_, PIXEL_NAME)(VGACommonState *s1, uint8_t *d,
 	int w;
 	uint32_t r, g, b;
 
-	w = width;
+	w = width / 2;
 	do {
 #if defined(TARGET_WORDS_BIGENDIAN)
 		r = s[1];
