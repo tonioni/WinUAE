@@ -346,7 +346,7 @@ xfp_lognp1:
 	ret
 
 
-_xfp_asin:
+xfp_asin:
 	loadfp1
 	fmul st0,st0
 	fld1
@@ -358,7 +358,7 @@ _xfp_asin:
 	storefp
 	ret
 
-_xfp_acos:
+xfp_acos:
 	loadfp1
 	fmul st0,st0
 	fld1
@@ -372,7 +372,7 @@ _xfp_acos:
 	storefp
 	ret
 
-_xfp_atanh:
+xfp_atanh:
 	loadfp1
 	fld1
 	fadd st1,st0
@@ -389,7 +389,7 @@ _xfp_atanh:
 	storefp
 	ret
 
-_xfp_sinh:
+xfp_sinh:
 	loadfp1
 	fldl2e
 	fmul st0,st1
@@ -420,7 +420,7 @@ _xfp_sinh:
 	storefp
 	ret
 
-_xfp_cosh:
+xfp_cosh:
 	loadfp1
 	fldl2e
 	fmul st0,st1
@@ -451,7 +451,7 @@ _xfp_cosh:
 	storefp
 	ret
 
-_xfp_tanh:
+xfp_tanh:
 	loadfp1
 	fldl2e
 	fmul st0,st1

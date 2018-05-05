@@ -1,4 +1,33 @@
 
+
+Beta 8:
+
+- CL horizontal doubling used wrong width size, fixed buffer overflow (b7).
+- CL horizontal doubling multiplier changed to 9/10. Old value missed 320*200 resolution.
+- 64-bit host FPU FMOVECR constants that didn't fit in double were clamped to max when they should have been set to infinity.
+- All logarithmic and trigonometric functions now use assembly code from existing JIT functions in new 80-bit host FPU mode. This should be feature complete now.
+- Multithreaded RTG now only does color conversion/copy in separate thread, present() is done in main thread because of possible thread safety problems.
+- Added quite pointless power led switches off/dims misc panel option. Affects OSD power led and D3D led overlay power led brightness.
+
+Beta 7:
+
+- Added debugger 'ex' command: 'e' command with extended data: last value written and PC of CPU or Copper when value was written.
+- UAEGFX RTG 15/16/24-bit graphics corruption fixed (b1).
+- If multimonitor mode and aviout/screenshot: capture/record from window that has focus.
+- Added horizontal doubling to Cirrus Logic emulation, enabled if screen height * 0.75 >= width. Keeps aspect ratio if CGX doublescan graphics mode is configured.
+- Native screen OSD was drawn twice in some multimonitor configurations, also could have caused crashes or some other weird behavior.
+
+Extended precision host FPU mode updates:
+
+- Some FPU instructions used wrong precision.
+- Supports divbyzero, underflow, overflow and inexact2 status bits and exceptions. Only in non-JIT FPU mode. (and no software really cares)
+- FCMP uses softfloat comparison code if more compatible is enabled (FCMP can't be directly mapped to host FPU), if not, it uses simple and quick test. (Difference: infinities, nans etc.. special cases only work in more compatible mode. No normal programs care, as usual)
+- Uses softfloat routines for rarely used functions (most trigometric, fexpman, fscale etc). Previously: extended to double conversion -> c-library math function ->  double to extended conversion. Which probably wasn't noticeably faster.
+
+I think this is good compromise between speed and accuracy, commonly used operations use native code (that native FPU supports directly, x86 FPU does not directly support all operations that 6888x supports), complex and rarely used operations use softfloat code.
+
+NOTE: Host FPU extended precision FPU emulation is now enabled by default and always overrides config file saved 64-bit mode. If something works strangely, load your config, change FPU mode to 64-bit/softfloat and try again: if it fixes the problem -> report the problem immediately.
+
 Beta 6:
 
 - Added DCE Typhoon MK2 (A1200 accelerator). ROM is almost identical to E-Matrix 530/1230. Identical SCSI driver, slightly modified RAM detection code.

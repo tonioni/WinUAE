@@ -2978,7 +2978,7 @@ LENDFUNC(NONE,NONE,2,raw_fatan_rr,(FW d, FR s))
 	emit_byte(0xde);
 	emit_byte(0xf9);    /* fdivp (1+x)/(1-x) */
 	emit_byte(0xd9);
-	emit_byte(0xed);    /* fldl2e logN(2) */
+	emit_byte(0xed);    /* fldln2 logN(2) */
 	emit_byte(0xd9);
 	emit_byte(0xc9);    /* fxch swap logN(2) with (1+x)/(1-x) */
 	emit_byte(0xd9);

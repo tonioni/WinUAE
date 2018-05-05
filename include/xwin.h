@@ -174,6 +174,7 @@ struct amigadisplay
 	int framecnt;
 	bool specialmonitoron;
 	int inhibit_frame;
+	bool pending_render;
 
 	struct vidbuf_description gfxvidinfo;
 };

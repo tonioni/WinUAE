@@ -175,12 +175,7 @@ void fixup_prefs_dimensions (struct uae_prefs *prefs)
 		struct apmode *ap = &prefs->gfx_apmode[i];
 		ap->gfx_vflip = 0;
 		ap->gfx_strobo = false;
-		if (ap->gfx_vsync < 0) {
-			// adaptive sync
-			ap->gfx_vsyncmode = 0;
-			ap->gfx_vflip = 1;
-			ap->gfx_strobo = prefs->lightboost_strobo;
-		} else if (ap->gfx_vsync > 0) {
+		if (ap->gfx_vsync) {
 			if (ap->gfx_vsyncmode) {
 				ap->gfx_backbuffers = 1;
 				ap->gfx_strobo = false;

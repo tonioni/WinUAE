@@ -126,6 +126,7 @@ int pissoff_value = 15000 * CYCLE_UNIT;
 unsigned int fpucontrol;
 int extraframewait, extraframewait2;
 int busywait;
+static int noNtDelayExecution;
 
 extern FILE *debugfile;
 extern int console_logging;
@@ -235,7 +236,7 @@ static ULONG ActualTimerResolution;
 int target_sleep_nanos(int nanos)
 {
 	static bool init;
-	if (!init) {
+	if (!init && !noNtDelayExecution) {
 		pNtDelayExecution = (NTDELAYEXECUTION)GetProcAddress(GetModuleHandle(_T("ntdll.dll")), "NtDelayExecution");
 		pZwSetTimerResolution = (ZWSETTIMERRESOLUTION)GetProcAddress(GetModuleHandle(_T("ntdll.dll")), "ZwSetTimerResolution");
 		if (pZwSetTimerResolution) {
@@ -6294,7 +6295,10 @@ static int parseargs(const TCHAR *argx, const TCHAR *np, const TCHAR *np2)
 		busywait = 1;
 		return 1;
 	}
-
+	if (!_tcscmp(arg, _T("nontdelayexecution"))) {
+		noNtDelayExecution = 1;
+		return 1;
+	}
 	if (!np)
 		return 0;
 
