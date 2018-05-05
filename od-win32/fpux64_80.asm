@@ -1,4 +1,6 @@
 
+; 64-bit assembly functions for native 80-bit FPU emulation
+
 global xfp_int
 global xfp_mov
 global xfp_fldcw
@@ -21,10 +23,30 @@ global xfp_add
 global xfp_sub
 global xfp_sqrt
 
+global xfp_rem
+global xfp_rem1
+global xfp_getexp
+global xfp_getman
+global xfp_scale
+global xfp_twotox
+global xfp_etox
+global xfp_etoxm1
+global xfp_tentox
+global xfp_log2
+global xfp_log10
+global xfp_logn
+global xfp_lognp1
+
 global xfp_sin
 global xfp_cos
 global xfp_tan
 global xfp_atan
+global xfp_asin
+global xfp_acos
+global xfp_atanh
+global xfp_sinh
+global xfp_cosh
+global xfp_tanh
 
 global xfp_get_status
 global xfp_clear_status
@@ -34,6 +56,10 @@ section .text
 bits 64
 
 %macro loadfp1 0
+	fld tword[rdx]
+%endmacro
+
+%macro reloadfp1 0
 	fld tword[rdx]
 %endmacro
 
@@ -181,11 +207,282 @@ xfp_sin:
 xfp_tan:
 	loadfp1
 	fptan
+	fstp st0
 	storefp
 	ret
 
 xfp_atan:
 	loadfp1
+	fld1
 	fpatan
 	storefp
 	ret
+
+
+xfp_rem:
+	loadfp2
+	fprem
+	fstp st1
+	storefp
+	ret
+
+xfp_rem1:
+	loadfp2
+	fprem1
+	fstp st1	
+	storefp
+	ret
+
+xfp_getexp:
+	loadfp1
+	fxtract
+	fstp st0
+	storefp
+	ret
+
+xfp_getman:
+	loadfp1
+	fxtract
+	fstp st1
+	storefp
+	ret
+
+xfp_scale:
+	loadfp2
+	fxch
+	fscale
+	fstp st1
+	storefp
+	ret
+
+xfp_twotox:
+	loadfp1
+	frndint
+	reloadfp1
+	fsub st0,st1
+	f2xm1
+	fadd dword[one]
+	fscale
+	fstp st1
+	storefp
+	ret
+
+xfp_etox:
+	loadfp1
+	fldl2e
+	fmul st0,st1
+	fst st1
+	frndint
+	fxch
+	fsub st0,st1
+	f2xm1
+	fadd dword[one]
+	fscale
+	fstp st1
+	storefp
+	ret
+
+xfp_etoxm1:
+	loadfp1
+	fldl2e
+	fmul st0,st1
+	fst st1
+	frndint
+	fxch
+	fsub st0,st1
+	f2xm1
+	fadd dword[one]
+	fscale
+	fstp st1
+	fsub dword[one]
+	storefp
+	ret
+
+xfp_tentox:
+	loadfp1
+	fldl2t
+	fmul st0,st1
+	fst st1
+	frndint
+	fxch
+	fsub st0,st1
+	f2xm1
+	fadd dword[one]
+	fscale
+	fstp st1
+	storefp
+	ret
+
+xfp_log2:
+	loadfp1
+	fld1
+	fxch
+	fyl2x
+	storefp
+	ret
+
+xfp_log10:
+	loadfp1
+	fldlg2
+	fxch
+	fyl2x
+	storefp
+	ret
+
+xfp_logn:
+	loadfp1
+	fldln2
+	fxch
+	fyl2x
+	storefp
+	ret
+
+xfp_lognp1:
+	loadfp1
+	fldln2
+	fxch
+	fyl2xp1
+	storefp
+	ret
+
+
+_xfp_asin:
+	loadfp1
+	fmul st0,st0
+	fld1
+	fsubrp
+	fsqrt
+	reloadfp1
+	fxch
+	fpatan
+	storefp
+	ret
+
+_xfp_acos:
+	loadfp1
+	fmul st0,st0
+	fld1
+	fsubrp
+	fsqrt
+	reloadfp1
+	fxch
+	fpatan
+	fld tword[pihalf]
+	fsubrp
+	storefp
+	ret
+
+_xfp_atanh:
+	loadfp1
+	fld1
+	fadd st1,st0
+	fsub st0,st2
+	fdivp
+	fldln2
+	fxch
+	fyl2x
+	fld1
+	fchs
+	fxch
+	fscale
+	fstp st1
+	storefp
+	ret
+
+_xfp_sinh:
+	loadfp1
+	fldl2e
+	fmul st0,st1
+	fst st1
+	fchs
+	fld st0
+	frndint
+	fxch
+	fsub st0,st1
+	f2xm1
+	fadd dword[one]
+	fscale
+	fxch st2
+	fst st1
+	frndint
+	fxch
+	fsub st0,st1
+	f2xm1
+	fadd dword[one]
+	fscale
+	fstp st1
+	fsubrp
+	fld1
+	fchs
+	fxch
+	fscale
+	fstp st1
+	storefp
+	ret
+
+_xfp_cosh:
+	loadfp1
+	fldl2e
+	fmul st0,st1
+	fst st1
+	fchs
+	fld st0
+	frndint
+	fxch
+	fsub st0,st1
+	f2xm1
+	fadd dword[one]
+	fscale
+	fxch st2
+	fst st1
+	frndint
+	fxch
+	fsub st0,st1
+	f2xm1
+	fadd dword[one]
+	fscale
+	fstp st1
+	faddp
+	fld1
+	fchs
+	fxch
+	fscale
+	fstp st1
+	storefp
+	ret
+
+_xfp_tanh:
+	loadfp1
+	fldl2e
+	fmul st0,st1
+	fst st1
+	fchs
+	fld st0
+	frndint
+	fxch
+	fsub st0,st1
+	f2xm1
+	fadd dword[one]
+	fscale
+	fxch st2
+	fst st1
+	frndint
+	fxch
+	fsub st0,st1
+	f2xm1
+	fadd dword[one]
+	fscale
+	fst st1
+	fadd st0,st2
+	fxch st2
+	fsubp
+	fdivrp
+	storefp
+	ret
+
+align 4
+
+one:
+	dd 1.0
+pihalf:
+	dd 0x2168c234,0xc90fdaa2,0x00003fff

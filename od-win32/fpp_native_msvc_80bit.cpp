@@ -41,6 +41,26 @@ extern "C"
 	extern void _cdecl xfp_cos(void*, void*);
 	extern void _cdecl xfp_tan(void*, void*);
 	extern void _cdecl xfp_atan(void*, void*);
+	extern void _cdecl xfp_asin(void*, void*);
+	extern void _cdecl xfp_acos(void*, void*);
+	extern void _cdecl xfp_atanh(void*, void*);
+	extern void _cdecl xfp_sinh(void*, void*);
+	extern void _cdecl xfp_cosh(void*, void*);
+	extern void _cdecl xfp_tanh(void*, void*);
+
+	extern void _cdecl xfp_rem(void*, void*);
+	extern void _cdecl xfp_rem1(void*, void*);
+	extern void _cdecl xfp_getexp(void*, void*);
+	extern void _cdecl xfp_getman(void*, void*);
+	extern void _cdecl xfp_scale(void*, void*);
+	extern void _cdecl xfp_twotox(void*, void*);
+	extern void _cdecl xfp_etox(void*, void*);
+	extern void _cdecl xfp_etoxm1(void*, void*);
+	extern void _cdecl xfp_tentox(void*, void*);
+	extern void _cdecl xfp_log2(void*, void*);
+	extern void _cdecl xfp_log10(void*, void*);
+	extern void _cdecl xfp_logn(void*, void*);
+	extern void _cdecl xfp_lognp1(void*, void*);
 
 	extern void _cdecl xfp_to_single(void*, uae_u32*);
 	extern void _cdecl xfp_from_single(void*, uae_u32*);
@@ -202,65 +222,6 @@ static void fp_set_mode_native(uae_u32 mode_control)
 	fpu_mode_control = mode_control;
 }
 
-
-static bool xfp_changed;
-static bool native_changed;
-static uint8_t xfp_swprec;
-
-static void xfp_resetprec(void)
-{
-	if (xfp_changed) {
-		xfp_fldcw(&fpx_mode);
-		set_floatx80_rounding_precision(xfp_swprec, &fs);
-		xfp_changed = false;
-	}
-}
-
-static void xfp_setprec(int prec)
-{
-	// normal, float, double, extended
-	static const uae_u16 prectable[] = { 0, 0 << 8, 2 << 8, 3 << 8 };
-	static const uint8_t sfprectable[] = { 32, 64, 0 };
-	if (prec == PREC_NORMAL)
-		return;
-	uae_u16 v = fpx_mode;
-	// clear precision fields
-	v &= ~(3 << 8);
-	v |= prectable[prec];
-	if (v != fpx_mode) {
-		xfp_fldcw(&v);
-		xfp_swprec = fs.floatx80_rounding_precision;
-		set_floatx80_rounding_precision(sfprectable[prec], &fs);
-		xfp_changed = true;
-	} else {
-		xfp_changed = false;
-	}
-}
-
-// Must use default precision/rounding mode when calling C-library math functions.
-static void fp_normal_prec(void)
-{
-	if ((fpu_mode_control & FPCR_ROUNDING_PRECISION) != FPCR_PRECISION_DOUBLE || (fpu_mode_control & FPCR_ROUNDING_MODE) != FPCR_ROUND_NEAR) {
-		fp_set_mode_native(FPCR_PRECISION_DOUBLE | FPCR_ROUND_NEAR);
-		native_changed = true;
-	} else {
-		native_changed = false;
-	}
-}
-
-static void fp_reset_normal_prec(void)
-{
-	if (native_changed) {
-		fp_set_mode_native(temp_prec);
-		xfp_fldcw(&fpx_mode);
-	}
-}
-
-static uae_u32 fp_get_support_flags(void)
-{
-	return FPU_FEATURE_EXCEPTIONS;
-}
-
 static void fp_get_status(uae_u32 *status)
 {
 	uae_u16 st = xfp_get_status();
@@ -301,6 +262,126 @@ static void xfp_from_softfloat(fpdata *fpd)
 {
 	fpd->rfp.e = fpd->fpx.high;
 	fpd->rfp.m = fpd->fpx.low;
+}
+
+/* Functions for rounding */
+
+// round to float with extended precision exponent
+static void fp_round32(fpdata *fpd)
+{
+	xfp_to_softfloat(fpd);
+	fpd->fpx = floatx80_round32(fpd->fpx, &fs);
+	xfp_from_softfloat(fpd);
+}
+
+// round to double with extended precision exponent
+static void fp_round64(fpdata *fpd)
+{
+	xfp_to_softfloat(fpd);
+	fpd->fpx = floatx80_round64(fpd->fpx, &fs);
+	xfp_from_softfloat(fpd);
+}
+
+// round to float
+static void fp_round_single(fpdata *fpd)
+{
+	xfp_round_single(&fpd->rfp, &fpd->rfp);
+}
+
+// round to double
+static void fp_round_double(fpdata *fpd)
+{
+	xfp_round_double(&fpd->rfp, &fpd->rfp);
+}
+
+
+static bool xfp_changed;
+static bool native_changed;
+static uint8_t xfp_swprec;
+
+static void xfp_resetprec(void)
+{
+	if (xfp_changed) {
+		xfp_fldcw(&fpx_mode);
+		set_floatx80_rounding_precision(xfp_swprec, &fs);
+		xfp_changed = false;
+	}
+}
+
+static void xfp_setprec(int prec)
+{
+	// normal, float, double, extended
+	static const uae_u16 prectable[] = { 0, 0 << 8, 2 << 8, 3 << 8 };
+	static const uint8_t sfprectable[] = { 32, 64, 0 };
+	if (prec == PREC_NORMAL)
+		return;
+	uae_u16 v = fpx_mode;
+	// clear precision fields
+	v &= ~(3 << 8);
+	v |= prectable[prec];
+	if (v != fpx_mode) {
+		xfp_fldcw(&v);
+		xfp_swprec = fs.floatx80_rounding_precision;
+		set_floatx80_rounding_precision(sfprectable[prec], &fs);
+		xfp_changed = true;
+	} else {
+		xfp_changed = false;
+	}
+}
+
+static void xfp_resetnormal(fpdata *fp)
+{
+	if (xfp_changed) {
+		xfp_fldcw(&fpx_mode);
+		set_floatx80_rounding_precision(xfp_swprec, &fs);
+		xfp_changed = false;
+	}
+	xfp_clear_status();
+	if (!currprefs.fpu_strict)
+		return;
+	if (fs.floatx80_rounding_precision == 32)
+		fp_round_single(fp);
+	else if (fs.floatx80_rounding_precision == 64)
+		fp_round_double(fp);
+}
+
+static void xfp_setnormal(void)
+{
+	uae_u16 v = fpx_mode;
+	v |= 3 << 8; // extended
+	v &= ~(10 << 3); // round nearest
+	if (v != fpx_mode) {
+		xfp_fldcw(&v);
+		xfp_swprec = fs.floatx80_rounding_precision;
+		set_floatx80_rounding_precision(80, &fs);
+		xfp_changed = true;
+	} else {
+		xfp_changed = false;
+	}
+}
+
+// Must use default precision/rounding mode when calling C-library math functions.
+static void fp_normal_prec(void)
+{
+	if ((fpu_mode_control & FPCR_ROUNDING_PRECISION) != FPCR_PRECISION_DOUBLE || (fpu_mode_control & FPCR_ROUNDING_MODE) != FPCR_ROUND_NEAR) {
+		fp_set_mode_native(FPCR_PRECISION_DOUBLE | FPCR_ROUND_NEAR);
+		native_changed = true;
+	} else {
+		native_changed = false;
+	}
+}
+
+static void fp_reset_normal_prec(void)
+{
+	if (native_changed) {
+		fp_set_mode_native(temp_prec);
+		xfp_fldcw(&fpx_mode);
+	}
+}
+
+static uae_u32 fp_get_support_flags(void)
+{
+	return FPU_FEATURE_EXCEPTIONS;
 }
 
 /* Functions for detecting float type */
@@ -422,36 +503,6 @@ static void fp_from_int(fpdata *fpd, uae_s32 src)
 	xfp_from_int(&fpd->rfp, &src);
 }
 
-/* Functions for rounding */
-
-// round to float with extended precision exponent
-static void fp_round32(fpdata *fpd)
-{
-	xfp_to_softfloat(fpd);
-	fpd->fpx = floatx80_round32(fpd->fpx, &fs);
-	xfp_from_softfloat(fpd);
-}
-
-// round to double with extended precision exponent
-static void fp_round64(fpdata *fpd)
-{
-	xfp_to_softfloat(fpd);
-	fpd->fpx = floatx80_round64(fpd->fpx, &fs);
-	xfp_from_softfloat(fpd);
-}
-
-// round to float
-static void fp_round_single(fpdata *fpd)
-{
-	xfp_round_single(&fpd->rfp, &fpd->rfp);
-}
-
-// round to double
-static void fp_round_double(fpdata *fpd)
-{
-	xfp_round_double(&fpd->rfp, &fpd->rfp);
-}
-
 static const TCHAR *fp_print(fpdata *fpd, int mode)
 {
 	static TCHAR fsout[32];
@@ -485,22 +536,6 @@ static const TCHAR *fp_print(fpdata *fpd, int mode)
 	return fsout;
 }
 
-static void fp_round_prec(fpdata *fpd, int prec)
-{
-	if (prec == 64) {
-		fp_round_double(fpd);
-	} else if (prec == 32) {
-		fp_round_single(fpd);
-	}
-}
-
-static void fp_round(fpdata *fpd)
-{
-	if (!currprefs.fpu_strict)
-		return;
-	fp_round_prec(fpd, fpu_prec);
-}
-
 /* Arithmetic functions */
 
 static void fp_move(fpdata *a, fpdata *b, int prec)
@@ -517,15 +552,11 @@ static void fp_int(fpdata *a, fpdata *b)
 
 static void fp_getexp(fpdata *a, fpdata *b)
 {
-	xfp_to_softfloat(b);
-	a->fpx = floatx80_getexp(b->fpx, &fs);
-	xfp_from_softfloat(a);
+	xfp_getexp(&a->rfp, &b->rfp);
 }
 static void fp_getman(fpdata *a, fpdata *b)
 {
-	xfp_to_softfloat(b);
-	a->fpx = floatx80_getman(b->fpx, &fs);
-	xfp_from_softfloat(a);
+	xfp_getman(&a->rfp, &b->rfp);
 }
 static void fp_div(fpdata *a, fpdata *b, int prec)
 {
@@ -535,57 +566,48 @@ static void fp_div(fpdata *a, fpdata *b, int prec)
 }
 static void fp_mod(fpdata *a, fpdata *b, uae_u64 *q, uae_u8 *s)
 {
-	xfp_to_softfloat(a);
-	xfp_to_softfloat(b);
-	a->fpx = floatx80_mod(a->fpx, b->fpx, q, s, &fs);
-	xfp_from_softfloat(a);
+	xfp_rem(&a->rfp, &b->rfp);
 }
 
 static void fp_rem(fpdata *a, fpdata *b, uae_u64 *q, uae_u8 *s)
 {
-	xfp_to_softfloat(a);
-	xfp_to_softfloat(b);
-	a->fpx = floatx80_rem(a->fpx, b->fpx, q, s, &fs);
-	xfp_from_softfloat(a);
+	xfp_rem1(&a->rfp, &b->rfp);
 }
 
 static void fp_scale(fpdata *a, fpdata *b)
 {
-	xfp_to_softfloat(a);
-	xfp_to_softfloat(b);
-	a->fpx = floatx80_scale(a->fpx, b->fpx, &fs);
-	xfp_from_softfloat(a);
+	xfp_scale(&a->rfp, &b->rfp);
 }
 
 static void fp_sinh(fpdata *a, fpdata *b)
 {
-	xfp_to_softfloat(b);
-	a->fpx = floatx80_sinh(b->fpx, &fs);
-	xfp_from_softfloat(a);
+	xfp_setnormal();
+	xfp_sinh(&a->rfp, &b->rfp);
+	xfp_resetnormal(a);
 }
 static void fp_lognp1(fpdata *a, fpdata *b)
 {
-	xfp_to_softfloat(b);
-	a->fpx = floatx80_lognp1(b->fpx, &fs);
-	xfp_from_softfloat(a);
+	xfp_setnormal();
+	xfp_lognp1(&a->rfp, &b->rfp);
+	xfp_resetnormal(a);
 }
 static void fp_etoxm1(fpdata *a, fpdata *b)
 {
-	xfp_to_softfloat(b);
-	a->fpx = floatx80_etoxm1(b->fpx, &fs);
-	xfp_from_softfloat(a);
+	xfp_setnormal();
+	xfp_etoxm1(&a->rfp, &b->rfp);
+	xfp_resetnormal(a);
 }
 static void fp_tanh(fpdata *a, fpdata *b)
 {
-	xfp_to_softfloat(b);
-	a->fpx = floatx80_tanh(b->fpx, &fs);
-	xfp_from_softfloat(a);
+	xfp_setnormal();
+	xfp_tanh(&a->rfp, &b->rfp);
+	xfp_resetnormal(a);
 }
 static void fp_asin(fpdata *a, fpdata *b)
 {
-	xfp_to_softfloat(b);
-	a->fpx = floatx80_asin(b->fpx, &fs);
-	xfp_from_softfloat(a);
+	xfp_setnormal();
+	xfp_asin(&a->rfp, &b->rfp);
+	xfp_resetnormal(a);
 }
 static void fp_atanh(fpdata *a, fpdata *b)
 {
@@ -595,51 +617,51 @@ static void fp_atanh(fpdata *a, fpdata *b)
 }
 static void fp_etox(fpdata *a, fpdata *b)
 {
-	xfp_to_softfloat(b);
-	a->fpx = floatx80_etox(b->fpx, &fs);
-	xfp_from_softfloat(a);
+	xfp_setnormal();
+	xfp_etox(&a->rfp, &b->rfp);
+	xfp_resetnormal(a);
 }
 static void fp_twotox(fpdata *a, fpdata *b)
 {
-	xfp_to_softfloat(b);
-	a->fpx = floatx80_twotox(b->fpx, &fs);
-	xfp_from_softfloat(a);
+	xfp_setnormal();
+	xfp_twotox(&a->rfp, &b->rfp);
+	xfp_resetnormal(a);
 }
 static void fp_tentox(fpdata *a, fpdata *b)
 {
-	xfp_to_softfloat(b);
-	a->fpx = floatx80_tentox(b->fpx, &fs);
-	xfp_from_softfloat(a);
+	xfp_setnormal();
+	xfp_tentox(&a->rfp, &b->rfp);
+	xfp_resetnormal(a);
 }
 static void fp_logn(fpdata *a, fpdata *b)
 {
-	xfp_to_softfloat(b);
-	a->fpx = floatx80_logn(b->fpx, &fs);
-	xfp_from_softfloat(a);
+	xfp_setnormal();
+	xfp_logn(&a->rfp, &b->rfp);
+	xfp_resetnormal(a);
 }
 static void fp_log10(fpdata *a, fpdata *b)
 {
-	xfp_to_softfloat(b);
-	a->fpx = floatx80_log10(b->fpx, &fs);
-	xfp_from_softfloat(a);
+	xfp_setnormal();
+	xfp_log10(&a->rfp, &b->rfp);
+	xfp_resetnormal(a);
 }
 static void fp_log2(fpdata *a, fpdata *b)
 {
-	xfp_to_softfloat(b);
-	a->fpx = floatx80_log2(b->fpx, &fs);
-	xfp_from_softfloat(a);
+	xfp_setnormal();
+	xfp_log2(&a->rfp, &b->rfp);
+	xfp_resetnormal(a);
 }
 static void fp_cosh(fpdata *a, fpdata *b)
 {
-	xfp_to_softfloat(b);
-	a->fpx = floatx80_cosh(b->fpx, &fs);
-	xfp_from_softfloat(a);
+	xfp_setnormal();
+	xfp_cosh(&a->rfp, &b->rfp);
+	xfp_resetnormal(a);
 }
 static void fp_acos(fpdata *a, fpdata *b)
 {
-	xfp_to_softfloat(b);
-	a->fpx = floatx80_acos(b->fpx, &fs);
-	xfp_from_softfloat(a);
+	xfp_setnormal();
+	xfp_acos(&a->rfp, &b->rfp);
+	xfp_resetnormal(a);
 }
 
 static void fp_intrz(fpdata *a, fpdata *b)
@@ -714,10 +736,10 @@ static void fp_sglmul(fpdata *a, fpdata *b)
 	b->rfp.m &= 0xFFFFFF0000000000;
 	xfp_mul(&a->rfp, &b->rfp);
 	fpdata fpx = *a;
+	xfp_resetprec();
 	fp_round32(a);
 	if (fpx.rfp.m != a->rfp.m)
 		fp_status |= FPSR_INEX2;
-	xfp_resetprec();
 }
 static void fp_sgldiv(fpdata *a, fpdata *b)
 {
