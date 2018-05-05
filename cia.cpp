@@ -898,13 +898,15 @@ static void led_vsync (void)
 		v = 255;
 	if (v < 0)
 		v = 0;
+	if (currprefs.power_led_dim && v < 96)
+		v = 96;
 	if (v > 255)
 		v = 255;
 	gui_data.powerled_brightness = v;
 	led_cycles_on = 0;
 	led_cycles_off = 0;
 	if (led_old_brightness != gui_data.powerled_brightness) {
-		gui_data.powerled = gui_data.powerled_brightness > 127;
+		gui_data.powerled = gui_data.powerled_brightness > 96;
 		gui_led (LED_POWER, gui_data.powerled, gui_data.powerled_brightness);
 		led_filter_audio ();
 	}

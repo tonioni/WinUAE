@@ -553,6 +553,7 @@ struct uae_prefs {
 	int collision_level;
 	int leds_on_screen;
 	int leds_on_screen_mask[2];
+	bool power_led_dim;
 	struct wh osd_pos;
 	int keyboard_leds[3];
 	bool keyboard_leds_in_use;

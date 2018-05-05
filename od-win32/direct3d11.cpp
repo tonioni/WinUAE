@@ -269,7 +269,7 @@ struct d3d11struct
 	struct d3d11sprite osd;
 	struct d3d11sprite hwsprite;
 	struct d3d11sprite mask2texture;
-	struct d3d11sprite mask2textureleds[9];
+	struct d3d11sprite mask2textureleds[9], mask2textureled_power_dim;
 	int mask2textureledoffsets[9 * 2];
 	struct d3d11sprite blanksprite;
 
@@ -1714,6 +1714,7 @@ static void FreeTextures(struct d3d11struct *d3d)
 	for (int i = 0; overlayleds[i]; i++) {
 		freesprite(&d3d->mask2textureleds[i]);
 	}
+	freesprite(&d3d->mask2textureled_power_dim);
 	freesprite(&d3d->blanksprite);
 
 	for (int i = 0; i < MAX_SHADERS; i++) {
@@ -2382,6 +2383,11 @@ static void narrowimg(struct uae_image *img, int *xop, int *yop, const TCHAR *na
 
 }
 
+static uae_u8 dimming(uae_u8 v)
+{
+	return v / 3;
+}
+
 static int createmask2texture(struct d3d11struct *d3d, const TCHAR *filename)
 {
 	struct AmigaMonitor *mon = &AMonitors[d3d - d3d11data];
@@ -2395,6 +2401,7 @@ static int createmask2texture(struct d3d11struct *d3d, const TCHAR *filename)
 	for (int i = 0; overlayleds[i]; i++) {
 		freesprite(&d3d->mask2textureleds[i]);
 	}
+	freesprite(&d3d->mask2textureled_power_dim);
 	freesprite(&d3d->blanksprite);
 
 	if (filename[0] == 0 || WIN32GFX_IsPicassoScreen(mon))
@@ -2563,7 +2570,7 @@ static int createmask2texture(struct d3d11struct *d3d, const TCHAR *filename)
 			struct uae_image ledimg;
 			if (load_png_image(zf, &ledimg)) {
 				if (ledimg.width == img.width && ledimg.height == img.height) {
-					narrowimg(&ledimg, &d3d->mask2textureledoffsets[i * 2 + 0], &d3d->mask2textureledoffsets[i * 2 + 1], tmp1);				
+					narrowimg(&ledimg, &d3d->mask2textureledoffsets[i * 2 + 0], &d3d->mask2textureledoffsets[i * 2 + 1], tmp1);
 					if (allocsprite(d3d, &d3d->mask2textureleds[i], ledimg.width, ledimg.height, true)) {
 						D3D11_MAPPED_SUBRESOURCE map;
 						hr = d3d->m_deviceContext->Map(d3d->mask2textureleds[i].texture, 0, D3D11_MAP_WRITE_DISCARD, 0, &map);
@@ -2575,6 +2582,28 @@ static int createmask2texture(struct d3d11struct *d3d, const TCHAR *filename)
 						}
 						d3d->mask2textureleds[i].enabled = true;
 						d3d->mask2textureleds[i].bilinear = true;
+						if (ledtypes[i] == LED_POWER) {
+							if (allocsprite(d3d, &d3d->mask2textureled_power_dim, ledimg.width, ledimg.height, true)) {
+								hr = d3d->m_deviceContext->Map(d3d->mask2textureled_power_dim.texture, 0, D3D11_MAP_WRITE_DISCARD, 0, &map);
+								if (SUCCEEDED(hr)) {
+									for (int j = 0; j < ledimg.height; j++) {
+										uae_u8 *pd = (uae_u8*)map.pData + j * map.RowPitch;
+										uae_u8 *ps = ledimg.data + j * ledimg.pitch;
+										for (int k = 0; k < ledimg.width; k++) {
+											pd[0] = dimming(ps[0]);
+											pd[1] = dimming(ps[1]);
+											pd[2] = dimming(ps[2]);
+											pd[3] = ps[3];
+											pd += 4;
+											ps += 4;
+										}
+									}
+									d3d->m_deviceContext->Unmap(d3d->mask2textureled_power_dim.texture, 0);
+								}
+								d3d->mask2textureled_power_dim.enabled = true;
+								d3d->mask2textureled_power_dim.bilinear = true;
+							}
+						}
 					}
 				} else {
 					write_log(_T("Overlay led '%s' size mismatch.\n"), tmp1);
@@ -3518,11 +3547,13 @@ static int xxD3D11_init2(HWND ahwnd, int monid, int w_w, int w_h, int t_w, int t
 		d3d->swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
 	}
 
-	d3d->vblankintervals = 1;
+	d3d->vblankintervals = 0;
+	if (!monid && apm->gfx_backbuffers > 2 && !isvsync())
+		d3d->vblankintervals = 1;
 	cannoclear = false;
+
 	if (apm->gfx_vsyncmode) {
 		cannoclear = true;
-		d3d->vblankintervals = 0;
 	}
 
 	d3d->swapChainDesc.AlphaMode = DXGI_ALPHA_MODE_UNSPECIFIED;
@@ -3532,30 +3563,29 @@ static int xxD3D11_init2(HWND ahwnd, int monid, int w_w, int w_h, int t_w, int t
 	d3d->swapChainDesc.Scaling = (d3d->swapChainDesc.SwapEffect == DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL || d3d->swapChainDesc.SwapEffect == DXGI_SWAP_EFFECT_FLIP_DISCARD) ? DXGI_SCALING_NONE : DXGI_SCALING_STRETCH;
 
 	d3d->blackscreen = false;
-	if (!apm->gfx_backbuffers) {
-		int hzmult = 0;
-		getvsyncrate(monid, *freq, &hzmult);
-		if (hzmult < 0) {
-			if (!apm->gfx_strobo) {
-				if (isfullscreen() > 0) {
-					d3d->vblankintervals++;
+	if (!monid) {
+		if (!apm->gfx_backbuffers) {
+			int hzmult = 0;
+			getvsyncrate(monid, *freq, &hzmult);
+			if (hzmult < 0) {
+				if (!apm->gfx_strobo) {
+					if (isfullscreen() > 0) {
+						d3d->vblankintervals++;
+					}
+				} else {
+					d3d->blackscreen = true;
 				}
-			} else {
-				d3d->blackscreen = true;
 			}
 		}
-	}
-	int vsync = isvsync();
-	if (vsync > 0 && !apm->gfx_vsyncmode) {
-		int hzmult;
-		getvsyncrate(monid, hz, &hzmult);
-		if (hzmult > 0) {
-			d3d->vblankintervals = hzmult + (d3d->blackscreen ? 0 : 1);
+		int vsync = isvsync();
+		if (vsync > 0 && !apm->gfx_vsyncmode) {
+			d3d->vblankintervals = 1;
+			int hzmult;
+			getvsyncrate(monid, hz, &hzmult);
+			if (hzmult > 0) {
+				d3d->vblankintervals = hzmult + (d3d->blackscreen ? 0 : 1);
+			}
 		}
-	}
-
-	if (monid) {
-		d3d->vblankintervals = 0;
 	}
 
 	// Create the swap chain, Direct3D device, and Direct3D device context.
@@ -3944,8 +3974,10 @@ static void renderoverlay(struct d3d11struct *d3d)
 
 	for (int i = 0; overlayleds[i]; i++) {
 		bool led = leds[ledtypes[i]] != 0;
-		if (led) {
+		if (led || (ledtypes[i] == LED_POWER && currprefs.power_led_dim)) {
 			struct d3d11sprite *sprled = &d3d->mask2textureleds[i];
+			if (!led && ledtypes[i] == LED_POWER && currprefs.power_led_dim)
+				sprled = &d3d->mask2textureled_power_dim;
 			if (sprled) {
 				setspritescaling(sprled, d3d->mask2texture_multx, d3d->mask2texture_multy);
 				setsprite(d3d, sprled,

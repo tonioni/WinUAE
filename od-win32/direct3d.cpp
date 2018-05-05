@@ -150,7 +150,7 @@ struct d3dstruct
 	IDirect3DDevice9Ex *d3ddevex;
 	D3DSURFACE_DESC dsdbb;
 	LPDIRECT3DTEXTURE9 texture, sltexture, ledtexture, blanktexture;
-	LPDIRECT3DTEXTURE9 mask2texture, mask2textureleds[9];
+	LPDIRECT3DTEXTURE9 mask2texture, mask2textureleds[9], mask2textureled_power_dim;
 	int mask2textureledoffsets[9 * 2];
 	IDirect3DQuery9 *query;
 	float mask2texture_w, mask2texture_h, mask2texture_ww, mask2texture_wh;
@@ -1710,6 +1710,10 @@ static void narrowimg(struct uae_image *img, int *xop, int *yop, const TCHAR *na
 	img->data = d;
 }
 
+static uae_u8 dimming(uae_u8 v)
+{
+	return v / 3;
+}
 
 static int createmask2texture (struct d3dstruct *d3d, const TCHAR *filename)
 {
@@ -1730,6 +1734,9 @@ static int createmask2texture (struct d3dstruct *d3d, const TCHAR *filename)
 			d3d->mask2textureleds[i]->Release();
 		d3d->mask2textureleds[i] = NULL;
 	}
+	if (d3d->mask2textureled_power_dim)
+		d3d->mask2textureled_power_dim->Release();
+	d3d->mask2textureled_power_dim = NULL;
 
 	if (filename[0] == 0 || WIN32GFX_IsPicassoScreen(mon))
 		return 0;
@@ -1906,6 +1913,27 @@ static int createmask2texture (struct d3dstruct *d3d, const TCHAR *filename)
 								memcpy((uae_u8*)locked.pBits + j * locked.Pitch, ledimg.data + j * ledimg.pitch, ledimg.width * 4);
 							}
 							d3d->mask2textureleds[i]->UnlockRect(0);
+						}
+					}
+					if (ledtypes[i] == LED_POWER) {
+						d3d->mask2textureled_power_dim = createtext(d3d, ledimg.width, ledimg.height, D3DFMT_A8R8G8B8);
+						if (d3d->mask2textureled_power_dim) {
+							hr = d3d->mask2textureled_power_dim->LockRect(0, &locked, NULL, 0);
+							if (SUCCEEDED(hr)) {
+								for (int j = 0; j < ledimg.height; j++) {
+									uae_u8 *pd = (uae_u8*)locked.pBits + j * locked.Pitch;
+									uae_u8 *ps = ledimg.data + j * ledimg.pitch;
+									for (int k = 0; k < ledimg.width; k++) {
+										pd[0] = dimming(ps[0]);
+										pd[1] = dimming(ps[1]);
+										pd[2] = dimming(ps[2]);
+										pd[3] = ps[3];
+										pd += 4;
+										ps += 4;
+									}
+								}
+								d3d->mask2textureled_power_dim->UnlockRect(0);
+							}
 						}
 					}
 				} else {
@@ -2370,6 +2398,10 @@ static void invalidatedeviceobjects (struct d3dstruct *d3d)
 			d3d->mask2textureleds[i]->Release();
 		d3d->mask2textureleds[i] = NULL;
 	}
+	if (d3d->mask2textureled_power_dim) {
+		d3d->mask2textureled_power_dim->Release();
+		d3d->mask2textureled_power_dim = NULL;
+	}
 	if (d3d->blanktexture) {
 		d3d->blanktexture->Release ();
 		d3d->blanktexture = NULL;
@@ -2728,7 +2760,7 @@ static const TCHAR *D3D_init2 (struct d3dstruct *d3d, HWND ahwnd, int w_w, int w
 	d3d->dpp.Flags = D3DPRESENTFLAG_LOCKABLE_BACKBUFFER;
 	d3d->dpp.BackBufferWidth = w_w;
 	d3d->dpp.BackBufferHeight = w_h;
-	d3d->dpp.PresentationInterval = d3d->variablerefresh ? D3DPRESENT_INTERVAL_DEFAULT : (!ap.gfx_vflip ? D3DPRESENT_INTERVAL_IMMEDIATE : D3DPRESENT_INTERVAL_ONE);
+	d3d->dpp.PresentationInterval = d3d->variablerefresh ? D3DPRESENT_INTERVAL_DEFAULT : ((!ap.gfx_vflip || monid) ? D3DPRESENT_INTERVAL_IMMEDIATE : D3DPRESENT_INTERVAL_ONE);
 
 	d3d->modeex.Width = w_w;
 	d3d->modeex.Height = w_h;
@@ -3610,12 +3642,17 @@ static void D3D_render2(struct d3dstruct *d3d, int mode)
 				d3d->sprite->Flush();
 				for (int i = 0; overlayleds[i]; i++) {
 					bool led = leds[ledtypes[i]] != 0;
-					if (led && d3d->mask2textureleds[i]) {
-						v.x = d3d->mask2texture_offsetw / w + d3d->mask2textureledoffsets[i * 2 + 0];
-						v.y = d3d->mask2textureledoffsets[i * 2 + 1];
-						v.z = 0;
-						d3d->sprite->Draw(d3d->mask2textureleds[i], NULL, NULL, &v, 0xffffffff);
-						d3d->sprite->Flush();
+					if (led || (ledtypes[i] == LED_POWER && currprefs.power_led_dim)) {
+						LPDIRECT3DTEXTURE9 spr = d3d->mask2textureleds[i];
+						if (!led && ledtypes[i] == LED_POWER && currprefs.power_led_dim)
+							spr = d3d->mask2textureled_power_dim;
+						if (spr) {
+							v.x = d3d->mask2texture_offsetw / w + d3d->mask2textureledoffsets[i * 2 + 0];
+							v.y = d3d->mask2textureledoffsets[i * 2 + 1];
+							v.z = 0;
+							d3d->sprite->Draw(spr, NULL, NULL, &v, 0xffffffff);
+							d3d->sprite->Flush();
+						}
 					}
 				}
 			}

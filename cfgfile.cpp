@@ -2064,6 +2064,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	write_leds(f, _T("show_leds_enabled"), p->leds_on_screen_mask[0]);
 	write_leds(f, _T("show_leds_enabled_rtg"), p->leds_on_screen_mask[1]);
 	cfgfile_dwrite_bool(f, _T("show_refresh_indicator"), p->refresh_indicator);
+	cfgfile_dwrite_bool(f, _T("power_led_dim"), p->power_led_dim);
 
 	if (p->osd_pos.y || p->osd_pos.x) {
 		cfgfile_dwrite (f, _T("osd_position"), _T("%.1f%s:%.1f%s"),
@@ -3108,6 +3109,7 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 		|| cfgfile_yesno(option, value, _T("show_refresh_indicator"), &p->refresh_indicator)
 		|| cfgfile_yesno(option, value, _T("warp"), &p->turbo_emulation)
 		|| cfgfile_yesno(option, value, _T("headless"), &p->headless)
+		|| cfgfile_yesno(option, value, _T("power_led_dim"), &p->power_led_dim)
 		|| cfgfile_yesno(option, value, _T("clipboard_sharing"), &p->clipboard_sharing)
 		|| cfgfile_yesno(option, value, _T("native_code"), &p->native_code)
 		|| cfgfile_yesno(option, value, _T("tablet_library"), &p->tablet_library)
