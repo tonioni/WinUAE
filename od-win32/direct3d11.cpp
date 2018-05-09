@@ -68,6 +68,8 @@ bool(*D3D_getscanline)(int*, bool*);
 
 static HMODULE hd3d11, hdxgi, hd3dcompiler, dwmapi;
 
+static int d3d11_feature_level;
+
 static struct gfx_filterdata *filterd3d;
 static int filterd3didx;
 static int leds[LED_MAX];
@@ -222,7 +224,6 @@ struct d3d11struct
 	int m_bitmapWidth, m_bitmapHeight;
 	int m_bitmapWidth2, m_bitmapHeight2;
 	int m_bitmapWidthX, m_bitmapHeightX;
-	int feature_level;
 	int index_buffer_bytes;
 	float m_positionX, m_positionY, m_positionZ;
 	float m_rotationX, m_rotationY, m_rotationZ;
@@ -1730,7 +1731,7 @@ static bool InitializeBuffers(struct d3d11struct *d3d, ID3D11Buffer **vertexBuff
 	VertexType vertices[VERTEXCOUNT];
 	uae_u32 indices[INDEXCOUNT];
 
-	d3d->index_buffer_bytes = d3d->feature_level >= D3D10_FEATURE_LEVEL_9_2 ? sizeof(uae_u32) : sizeof(uae_u16);
+	d3d->index_buffer_bytes = d3d11_feature_level >= D3D10_FEATURE_LEVEL_9_2 ? sizeof(uae_u32) : sizeof(uae_u16);
 
 	// Initialize vertex array to zeros at first.
 	memset(vertices, 0, (sizeof(VertexType) * VERTEXCOUNT));
@@ -2904,7 +2905,7 @@ static bool initd3d(struct d3d11struct *d3d)
 	rasterDesc.CullMode = D3D11_CULL_NONE;
 	rasterDesc.DepthBias = 0;
 	rasterDesc.DepthBiasClamp = 0.0f;
-	rasterDesc.DepthClipEnable = d3d->feature_level < D3D10_FEATURE_LEVEL_10_0 ? true : false;
+	rasterDesc.DepthClipEnable = d3d11_feature_level < D3D10_FEATURE_LEVEL_10_0 ? true : false;
 	rasterDesc.FillMode = D3D11_FILL_SOLID;
 	rasterDesc.FrontCounterClockwise = false;
 	rasterDesc.MultisampleEnable = false;
@@ -3211,6 +3212,7 @@ static int xxD3D11_init2(HWND ahwnd, int monid, int w_w, int w_h, int t_w, int t
 	struct apmode *apm = ad->picasso_on ? &currprefs.gfx_apmode[APMODE_RTG] : &currprefs.gfx_apmode[APMODE_NATIVE];
 
 	HRESULT result;
+	int ret = 0;
 	ComPtr<IDXGIFactory2> factory2;
 	ComPtr<IDXGIFactory4> factory4;
 	ComPtr<IDXGIFactory5> factory5;
@@ -3484,7 +3486,7 @@ static int xxD3D11_init2(HWND ahwnd, int monid, int w_w, int w_h, int t_w, int t
 	}
 	write_log(_T("D3D11CreateDevice succeeded with level %d.%d. %s.\n"), outlevel >> 12, (outlevel >> 8) & 15,
 		currprefs.gfx_api_options ? _T("Software WARP driver") : _T("Hardware accelerated"));
-	d3d->feature_level = outlevel;
+	d3d11_feature_level = outlevel;
 
 	UINT flags = 0;
 	result = d3d->m_device->CheckFormatSupport(d3d->texformat, &flags);
@@ -3615,8 +3617,18 @@ static int xxD3D11_init2(HWND ahwnd, int monid, int w_w, int w_h, int t_w, int t
 		D3D_resize(monid, 1);
 	D3D_resize(monid, 0);
 
+	ret = 1;
+
+	if (d3d11_feature_level < D3D10_FEATURE_LEVEL_10_0) {
+		if (!CreateTexture(d3d)) {
+			write_log(_T("D3D11 texture creation test failed\n"));
+			ret = 0;
+		}
+		FreeTextures(d3d);
+	}
+
 	write_log(_T("D3D11 init end\n"));
-	return 1;
+	return ret;
 }
 
 static void freed3d(struct d3d11struct *d3d)
