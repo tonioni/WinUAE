@@ -150,6 +150,7 @@ static struct ScreenResolution alphacolour = { 640, 480 };
 uae_u32 p96_rgbx16[65536];
 uae_u32 p96rc[256], p96gc[256], p96bc[256];
 
+static int newcursor_x, newcursor_y;
 static int cursorwidth, cursorheight, cursorok;
 static uae_u8 *cursordata;
 static uae_u32 cursorrgb[4], cursorrgbn[4];
@@ -754,8 +755,6 @@ static void disablemouse (void)
 	D3D_setcursor(0, 0, 0, 0, 0, false, true);
 }
 
-static int newcursor_x, newcursor_y;
-
 static void mouseupdate(struct AmigaMonitor *mon)
 {
 	struct picasso96_state_struct *state = &picasso96_state[mon->monitor_id];
@@ -819,6 +818,8 @@ static void rtg_render(void)
 	struct picasso_vidbuf_description *vidinfo = &picasso_vidinfo[monid];
 	struct amigadisplay *ad = &adisplays[monid];
 
+	if (D3D_restore)
+		D3D_restore(monid, true);
 	if (doskip () && p96skipmode == 0) {
 		;
 	} else {
@@ -1152,6 +1153,8 @@ static void picasso_handle_vsync2(struct AmigaMonitor *mon)
 		return;
 
 	if (uaegfx && uaegfx_active)
+		if (setupcursor_needed)
+			setupcursor();
 		mouseupdate(mon);
 
 	if (thisisvsync) {
@@ -1160,8 +1163,6 @@ static void picasso_handle_vsync2(struct AmigaMonitor *mon)
 	}
 
 	if (uaegfx) {
-		if (setupcursor_needed && uaegfx_active)
-			setupcursor();
 		if (thisisvsync)
 			picasso_trigger_vblank();
 	}
@@ -1603,8 +1604,10 @@ static uae_u32 REGPARAM2 picasso_SetSpritePosition (TrapContext *ctx)
 	struct picasso96_state_struct *state = &picasso96_state[currprefs.rtgboards[0].monitor_id];
 	uaecptr bi = trap_get_areg(ctx, 0);
 	boardinfo = bi;
-	newcursor_x = (uae_s16)trap_get_word(ctx, bi + PSSO_BoardInfo_MouseX) - state->XOffset;
-	newcursor_y = (uae_s16)trap_get_word(ctx, bi + PSSO_BoardInfo_MouseY) - state->YOffset;
+	int x = (uae_s16)trap_get_word(ctx, bi + PSSO_BoardInfo_MouseX) - state->XOffset;
+	int y = (uae_s16)trap_get_word(ctx, bi + PSSO_BoardInfo_MouseY) - state->YOffset;
+	newcursor_x = x;
+	newcursor_y = y;
 	if (!hwsprite)
 		return 0;
 	return 1;
@@ -4660,8 +4663,10 @@ static void picasso_flushpixels(int index, uae_u8 *src, int off, bool render)
 		}
 	}
 
-	if (dst)
+	if (dst || render) {
 		gfx_unlock_picasso(monid, render);
+	}
+
 	if (dst && gwwcnt) {
 		vidinfo->full_refresh = 0;
 	}
