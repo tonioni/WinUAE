@@ -25,6 +25,7 @@ using Microsoft::WRL::ComPtr;
 #include "statusline.h"
 #include "hq2x_d3d.h"
 #include "gui.h"
+#include "gfxboard.h"
 
 #include "d3dx.h"
 
@@ -57,7 +58,7 @@ int (*D3D_goodenough)(void);
 bool (*D3D_setcursor)(int, int x, int y, int width, int height, bool visible, bool noscale);
 uae_u8* (*D3D_setcursorsurface)(int, int *pitch);
 float (*D3D_getrefreshrate)(int);
-void(*D3D_restore)(int);
+void(*D3D_restore)(int, bool);
 void(*D3D_resize)(int, int);
 void (*D3D_change)(int, int);
 bool(*D3D_getscalerect)(int, float *mx, float *my, float *sx, float *sy);
@@ -4503,6 +4504,7 @@ static void D3D11_resize_do(struct d3d11struct *d3d)
 
 	resizemode(d3d);
 	notice_screen_contents_lost(d3d - d3d11data);
+	gfxboard_refresh(d3d - d3d11data);
 
 	write_log(_T("D3D11 resize exit\n"));
 }
@@ -4621,8 +4623,10 @@ static void xD3D11_flushtexture(int monid, int miny, int maxy)
 	struct d3d11struct *d3d = &d3d11data[monid];
 }
 
-static void xD3D11_restore(int monid)
+static void xD3D11_restore(int monid, bool checkonly)
 {
+	struct d3d11struct *d3d = &d3d11data[monid];
+	recheck(d3d);
 }
 
 static void xD3D11_vblank_reset(double freq)
@@ -4718,6 +4722,7 @@ static void xD3D11_guimode(int monid, int guion)
 	} else if (guion == 0) {
 		d3d->delayedfs = 1;
 		notice_screen_contents_lost(monid);
+		gfxboard_refresh(monid);
 	}
 	write_log(_T("fs guimode end\n"));
 }

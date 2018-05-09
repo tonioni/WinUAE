@@ -852,16 +852,24 @@ uint8_t *surface_data(DisplaySurface *s)
 
 void gfxboard_refresh(int monid)
 {
-	if (monid > 0) {
+	if (monid >= 0) {
 		for (int i = 0; i < MAX_RTG_BOARDS; i++) {
-			struct rtggfxboard *gb = &rtggfxboards[i];
-			if (gb->monitor_id == monid) {
-				gb->fullrefresh = 2;
+			struct rtgboardconfig *rbc = &currprefs.rtgboards[i];
+			if (rbc->monitor_id == monid && rbc->rtgmem_size) {
+				if (rbc->rtgmem_type >= GFXBOARD_HARDWARE) {
+					struct rtggfxboard *gb = &rtggfxboards[i];
+					gb->fullrefresh = 2;
+				} else {
+					picasso_refresh(monid);
+				}
 			}
 		}
 	} else {
-		if (rtg_visible[monid] >= 0) {
-			rtggfxboards[rtg_visible[monid]].fullrefresh = 2;
+		for (int i = 0; i < MAX_RTG_BOARDS; i++) {
+			struct rtgboardconfig *rbc = &currprefs.rtgboards[i];
+			if (rbc->rtgmem_size) {
+				gfxboard_refresh(rbc->monitor_id);
+			}
 		}
 	}
 }

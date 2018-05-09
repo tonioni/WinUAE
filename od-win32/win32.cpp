@@ -1835,7 +1835,7 @@ static LRESULT CALLBACK AmigaWindowProc(HWND hWnd, UINT message, WPARAM wParam, 
 			ignorelbutton = true;
 		break;
 	case WM_ACTIVATEAPP:
-		D3D_restore(0);
+		D3D_restore(0, false);
 		//write_log(_T("WM_ACTIVATEAPP %08x\n"), wParam);
 		if (!wParam && isfullscreen() > 0 && D3D_resize && !gui_active) {
 			write_log(_T("WM_ACTIVATEAPP inactive %p\n"), hWnd);

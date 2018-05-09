@@ -997,6 +997,8 @@ void S2X_render(int monid, int y_start, int y_end)
 	bufmem_ptr = sptr;
 
 	if (d3d) {
+		if (D3D_restore)
+			D3D_restore(monid, true);
 		surfstart = D3D_locktexture(monid, &pitch, &surf_height, true);
 		if (surfstart == NULL)
 			return;

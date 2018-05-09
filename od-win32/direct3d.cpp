@@ -3235,10 +3235,11 @@ static void D3D_showframe2 (struct d3dstruct *d3d, bool dowait)
 	}
 }
 
-static void xD3D_restore(int monid)
+static void xD3D_restore(int monid, bool checkonly)
 {
 	struct d3dstruct *d3d = &d3ddata[monid];
-
+	if (checkonly)
+		return;
 	d3d->renderdisabled = false;
 }
 
