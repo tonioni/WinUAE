@@ -1,4 +1,12 @@
 
+Beta 9:
+
+- D3D11 mode screen was not fully refreshed when returning back to fullscreen RTG mode with ALT-TAB/GUI exit
+- Inserting or removing USB device with very long internal device name caused a crash.
+- Inserting USB device may have also logged some other already connected device as newly inserted.
+- Fixed JIT FPU FETOXM1.
+- If D3D11 mode with level 9.x hardware: test in init phase if main texture creation succeeds, fallback to D3D9 if it fails. It may unexpectedly fail with some old and broken drivers. Previously it would have caused blank screen.
+- RTG screen was not updated if only hardware mouse cursor moved and RTG OSD was not enabled or multithreaded RTG was not enabled. (b8)
 
 Beta 8:
 

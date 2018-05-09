@@ -4569,7 +4569,7 @@ static uae_u8 *xD3D11_locktexture(int monid, int *pitch, int *height, bool fullu
 {
 	struct d3d11struct *d3d = &d3d11data[monid];
 
-	recheck(d3d);
+	// texture allocation must not cause side-effects
 
 	if (d3d->invalidmode || !d3d->texture2d)
 		return NULL;
@@ -4810,6 +4810,8 @@ static bool xD3D_setcursor(int monid, int x, int y, int width, int height, bool 
 {
 	struct d3d11struct *d3d = &d3d11data[monid];
 
+	//write_log(_T("setcursor %d %dx%d %dx%d %d %d\n"), monid, x, y, width, height, visible, noscale);
+
 	if (width < 0 || height < 0)
 		return true;
 
@@ -4823,6 +4825,8 @@ static bool xD3D_setcursor(int monid, int x, int y, int width, int height, bool 
 		d3d->cursor_offset2_x = d3d->cursor_offset2_y = 0;
 	}
 
+	//write_log(_T("%.1fx%.1f %dx%d\n"), d3d->cursor_x, d3d->cursor_y, d3d->cursor_offset2_x, d3d->cursor_offset2_y);
+
 	float multx = 1.0;
 	float multy = 1.0;
 	if (d3d->cursor_scale) {
@@ -4833,6 +4837,8 @@ static bool xD3D_setcursor(int monid, int x, int y, int width, int height, bool 
 
 	d3d->hwsprite.x = d3d->cursor_x * multx + d3d->cursor_offset2_x * multx;
 	d3d->hwsprite.y = d3d->cursor_y * multy + d3d->cursor_offset2_y * multy;
+
+	//write_log(_T("-> %.1fx%.1f %.1f %.1f\n"), d3d->hwsprite.x, d3d->hwsprite.y, multx, multy);
 
 	d3d->cursor_scale = !noscale;
 	d3d->cursor_v = visible;
