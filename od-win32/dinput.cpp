@@ -1794,7 +1794,10 @@ static bool initialize_rawinput (void)
 			write_log (_T("%p %p [%04X/%04X] %s: "), h, hhid, did->vid, did->pid, type == RIM_TYPEHID ? _T("hid") : (type == RIM_TYPEMOUSE ? _T("mouse") : _T("keyboard")));
 			did->sortname = my_strdup (buf1);
 			write_log (_T("'%s'\n"), buf1);
+
 			did->configname = my_strdup (buf1);
+			if (_tcslen(did->configname) >= MAX_JPORT_CONFIG)
+				did->configname[MAX_JPORT_CONFIG - 1] = 0;
 
 			if (type == RIM_TYPEMOUSE) {
 				PRID_DEVICE_INFO_MOUSE rdim = &rdi->mouse;

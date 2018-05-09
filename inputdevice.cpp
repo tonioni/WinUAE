@@ -6767,8 +6767,10 @@ static void compatibility_copy (struct uae_prefs *prefs, bool gameports)
 					joymodes[i] = JSEM_MODE_JOYSTICK_ANALOG;
 					break;
 				}
-				_tcsncpy (prefs->jports[i].idc.name, idev[IDTYPE_MOUSE].get_friendlyname (joy), MAX_JPORTNAME - 1);
-				_tcsncpy (prefs->jports[i].idc.configname, idev[IDTYPE_MOUSE].get_uniquename (joy), MAX_JPORTNAME - 1);
+				_tcsncpy (prefs->jports[i].idc.name, idev[IDTYPE_MOUSE].get_friendlyname (joy), MAX_JPORT_NAME - 1);
+				_tcsncpy (prefs->jports[i].idc.configname, idev[IDTYPE_MOUSE].get_uniquename (joy), MAX_JPORT_CONFIG - 1);
+				prefs->jports[i].idc.name[MAX_JPORT_NAME - 1] = 0;
+				prefs->jports[i].idc.configname[MAX_JPORT_CONFIG - 1] = 0;
 			}
 		}
 	}
@@ -6818,8 +6820,10 @@ static void compatibility_copy (struct uae_prefs *prefs, bool gameports)
 					break;
 
 				}
-				_tcsncpy (prefs->jports[i].idc.name, idev[IDTYPE_JOYSTICK].get_friendlyname (joy), MAX_JPORTNAME - 1);
-				_tcsncpy (prefs->jports[i].idc.configname, idev[IDTYPE_JOYSTICK].get_uniquename (joy), MAX_JPORTNAME - 1);
+				_tcsncpy(prefs->jports[i].idc.name, idev[IDTYPE_JOYSTICK].get_friendlyname (joy), MAX_JPORT_NAME - 1);
+				_tcsncpy(prefs->jports[i].idc.configname, idev[IDTYPE_JOYSTICK].get_uniquename (joy), MAX_JPORT_CONFIG - 1);
+				prefs->jports[i].idc.name[MAX_JPORT_NAME - 1] = 0;
+				prefs->jports[i].idc.configname[MAX_JPORT_CONFIG - 1] = 0;
 				used[joy] = 1;
 			}
 		}
@@ -6918,8 +6922,10 @@ static void compatibility_copy (struct uae_prefs *prefs, bool gameports)
 				if (gameports)
 					cleardev (joysticks, joy);
 				input_get_default_joystick (joysticks, joy, i, af, 0, !gameports, false);
-				_tcsncpy (prefs->jports[i].idc.name, idev[IDTYPE_JOYSTICK].get_friendlyname (joy), MAX_JPORTNAME - 1);
-				_tcsncpy (prefs->jports[i].idc.configname, idev[IDTYPE_JOYSTICK].get_uniquename (joy), MAX_JPORTNAME - 1);
+				_tcsncpy (prefs->jports[i].idc.name, idev[IDTYPE_JOYSTICK].get_friendlyname (joy), MAX_JPORT_NAME - 1);
+				_tcsncpy (prefs->jports[i].idc.configname, idev[IDTYPE_JOYSTICK].get_uniquename (joy), MAX_JPORT_CONFIG - 1);
+				prefs->jports[i].idc.name[MAX_JPORT_NAME - 1] = 0;
+				prefs->jports[i].idc.configname[MAX_JPORT_CONFIG - 1] = 0;
 				used[joy] = 1;
 				joymodes[i] = JSEM_MODE_JOYSTICK;
 			}
@@ -7347,19 +7353,21 @@ bool inputdevice_devicechange (struct uae_prefs *prefs)
 	matchdevices (prefs, &idev[IDTYPE_JOYSTICK], joysticks, prefs->input_device_match_mask);
 	matchdevices (prefs, &idev[IDTYPE_KEYBOARD], keyboards, INPUT_MATCH_ALL);
 
+	write_log(_T("Checking for inserted/removed devices..\n"));
+
 	// find out which one was removed or inserted
 	for (int j = 0; j <= IDTYPE_KEYBOARD; j++) {
 		struct inputdevice_functions *inf = &idev[j];
 		int num = inf->get_num();
-		bool df[MAX_INPUT_DEVICES];
+		bool df[MAX_INPUT_DEVICES] = { 0 };
 		for (i = 0; i < MAX_INPUT_DEVICES; i++) {
 			TCHAR *fn2 = devcfg[i][j].name;
 			TCHAR *un2 = devcfg[i][j].configname;
-			df[i] = false;
 			if (fn2[0] && un2[0]) {
 				for (int k = 0; k < num; k++) {
 					TCHAR *un = inf->get_uniquename(k);
 					TCHAR *fn = inf->get_friendlyname(k);
+					// device not removed or inserted
 					if (!_tcscmp(fn2, fn) && !_tcscmp(un2, un)) {
 						devcfg[i][j].name[0] = 0;
 						devcfg[i][j].configname[0] = 0;
@@ -7374,7 +7382,9 @@ bool inputdevice_devicechange (struct uae_prefs *prefs)
 				inputdevice_store_unplugged_port(prefs, &devcfg[i][j]);
 				changed = true;
 			}
-			if (i < num && df[i] == false) {
+		}
+		for (i = 0; i < num; i++) {
+			if (df[i] == false) {
 				struct inputdevconfig idc;
 				_tcscpy(idc.configname, inf->get_uniquename(i));
 				_tcscpy(idc.name, inf->get_friendlyname(i));
@@ -7400,6 +7410,7 @@ bool inputdevice_devicechange (struct uae_prefs *prefs)
 		freejport(prefs, i);
 		fixedports[i] = false;
 	}
+
 	for (i = 0; i < MAX_JPORTS; i++) {
 		bool found = true;
 		if (jportscustom[i] >= 0) {
@@ -7425,6 +7436,8 @@ bool inputdevice_devicechange (struct uae_prefs *prefs)
 		xfree (jports_configname[i]);
 		inputdevice_validate_jports(prefs, i, fixedports);
 	}
+
+	write_log(_T("Input remapping done. Changed=%d.\n"), changed);
 
 	if (!changed)
 		return false;
@@ -9016,16 +9029,18 @@ static bool fixjport (struct jport *port, int add, bool always)
 		port->idc.configname[0] = 0;
 		port->idc.name[0] = 0;
 		if (vv >= JSEM_JOYS && vv < JSEM_MICE) {
-			_tcscpy(port->idc.name, inputdevice_get_device_name (IDTYPE_JOYSTICK, vv - JSEM_JOYS));
-			_tcscpy(port->idc.configname, inputdevice_get_device_unique_name (IDTYPE_JOYSTICK, vv - JSEM_JOYS));
+			_tcsncpy(port->idc.name, inputdevice_get_device_name (IDTYPE_JOYSTICK, vv - JSEM_JOYS), MAX_JPORT_NAME - 1);
+			_tcsncpy(port->idc.configname, inputdevice_get_device_unique_name (IDTYPE_JOYSTICK, vv - JSEM_JOYS), MAX_JPORT_CONFIG - 1);
 		} else if (vv >= JSEM_MICE && vv < JSEM_END) {
-			_tcscpy(port->idc.name, inputdevice_get_device_name (IDTYPE_MOUSE, vv - JSEM_MICE));
-			_tcscpy(port->idc.configname, inputdevice_get_device_unique_name (IDTYPE_MOUSE, vv - JSEM_MICE));
+			_tcsncpy(port->idc.name, inputdevice_get_device_name (IDTYPE_MOUSE, vv - JSEM_MICE), MAX_JPORT_NAME - 1);
+			_tcsncpy(port->idc.configname, inputdevice_get_device_unique_name (IDTYPE_MOUSE, vv - JSEM_MICE), MAX_JPORT_CONFIG - 1);
 		} else if (vv >= JSEM_KBDLAYOUT && vv < JSEM_CUSTOM) {
 			_stprintf(port->idc.shortid, _T("kbd%d"), vv - JSEM_KBDLAYOUT + 1);
 		} else if (vv >= JSEM_CUSTOM && vv < JSEM_JOYS) {
 			_stprintf(port->idc.shortid, _T("custom%d"), vv - JSEM_CUSTOM);
 		}
+		port->idc.name[MAX_JPORT_NAME - 1] = 0;
+		port->idc.configname[MAX_JPORT_CONFIG - 1] = 0;
 		wasinvalid = true;
 #if 0
 		write_log(_T("fixjport %d %d %d (%s)\n"), port->id, vv, add, port->name);

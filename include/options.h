@@ -77,13 +77,14 @@ struct uae_input_device {
 #define MAX_JPORTS_CUSTOM 6
 #define MAX_JPORTS 4
 #define NORMAL_JPORTS 2
-#define MAX_JPORTNAME 128
+#define MAX_JPORT_NAME 128
+#define MAX_JPORT_CONFIG 256
 struct jport_custom {
 	TCHAR custom[MAX_DPATH];
 };
 struct inputdevconfig {
-	TCHAR name[MAX_JPORTNAME];
-	TCHAR configname[MAX_JPORTNAME];
+	TCHAR name[MAX_JPORT_NAME];
+	TCHAR configname[MAX_JPORT_CONFIG];
 	TCHAR shortid[16];
 };
 struct jport {
