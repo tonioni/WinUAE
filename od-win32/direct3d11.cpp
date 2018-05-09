@@ -2387,7 +2387,7 @@ static void narrowimg(struct uae_image *img, int *xop, int *yop, const TCHAR *na
 
 static uae_u8 dimming(uae_u8 v)
 {
-	return v / 3;
+	return v / 2;
 }
 
 static int createmask2texture(struct d3d11struct *d3d, const TCHAR *filename)
