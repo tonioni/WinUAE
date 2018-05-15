@@ -210,11 +210,6 @@
 #define IDS_AVIOUTPUT_NOCODEC           218
 #define IDS_DISK_IMAGENAME              219
 #define IDS_DISK_DRIVENAME              220
-#define IDS_UNSUPPORTEDSCREENMODE       222
-#define IDS_UNSUPPORTEDSCREENMODE_1     223
-#define IDS_UNSUPPORTEDSCREENMODE_2     224
-#define IDS_UNSUPPORTEDSCREENMODE_3     225
-#define IDS_UNSUPPORTEDSCREENMODE_4     226
 #define IDS_FLOPPYTYPE35DD              227
 #define IDS_FLOPPYTYPE35HD              228
 #define IDS_FLOPPYTYPE525SD             229
@@ -409,6 +404,8 @@
 #define IDS_MISCLISTITEMS4              416
 #define IDS_SHUTDOWN_NOTIFICATION       417
 #define IDS_QUIT_WARNING                418
+#define IDS_UNMAPPED_ADDRESS            419
+#define IDS_GENLOCK_OPTIONS             420
 #define IDS_QS_MODELS                   1000
 #define IDS_QS_MODEL_A500               1001
 #define IDS_QS_MODEL_A500P              1002
@@ -422,7 +419,7 @@
 #define IDS_QS_MODEL_A3000              1010
 #define IDS_QS_MODEL_A4000              1011
 #define IDS_QS_MODEL_A4000T             1012
-#define IDS_QS_MODEL_CASABLANCA         1013
+#define IDS_QS_MODEL_MACROSYSTEM        1013
 #define IDC_RESOLUTION                  1021
 #define IDC_SERIAL                      1022
 #define IDC_REFRESHRATE                 1022
@@ -766,6 +763,8 @@
 #define IDC_SETTINGSTEXT3               1520
 #define IDC_DISPLAY_VARSYNC             1520
 #define IDC_ECS_AGNUS                   1521
+#define IDC_DISPLAY_VARSYNC2            1521
+#define IDC_DISPLAY_RESIZE              1521
 #define IDC_ECS_DENISE                  1522
 #define IDC_ECS                         1523
 #define IDC_AGA                         1524

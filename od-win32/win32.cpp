@@ -2438,7 +2438,7 @@ static int canstretch(struct AmigaMonitor *mon)
 			return 0;
 		return 1;
 	} else {
-		if (currprefs.win32_rtgallowscaling || currprefs.gf[1].gfx_filter_autoscale)
+		if (currprefs.win32_rtgallowscaling || currprefs.gf[APMODE_RTG].gfx_filter_autoscale)
 			return 1;
 	}
 	return 0;

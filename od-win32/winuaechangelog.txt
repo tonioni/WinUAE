@@ -1,4 +1,19 @@
 
+
+Beta 10:
+
+- Full-window mode captured mouse (and moved it to center of screen) even when window didn't have focus.
+- Removed single buffer display option, it was only useful when using old low latency vsync mode.
+- Help button now asks for opening online help version if help file is not installed. (not finished yet)
+- Added windowed mode resize enable/disable option. Default is enabled.
+- Added D3D11 standard vsync black frame insertion support. (100Hz/120Hz)
+- Action Replay II/III statefile support improved. (For example AR state was invalid when loading AR statefile when AR was already active)
+- On the fly switching between fastest possible <> non-fastest possible CPU modes in lagless vsync caused hang in certain situations.
+- Debugger: show number of cycles used when tracing (t, z, breakpoints). Only shown if max 2 frames since last debugger activation. (TODO: should also count number of memory accesses and no-wait state minimum cycle count)
+- Removed forgotten, useless and obsolete "The selected screen mode can't be displayed in a window, because.." check.
+- 68030 MMU PLOAD R variant (R/W bit=1) caused f-line exception.
+- Clear both ping-pong buffers when pausing/unpausing WASAPI exclusive sound mode.
+
 Beta 9:
 
 - D3D11 mode screen was not fully refreshed when returning back to fullscreen RTG mode with ALT-TAB/GUI exit

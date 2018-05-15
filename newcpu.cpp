@@ -4219,6 +4219,7 @@ static bool mmu_op30fake_pflush (uaecptr pc, uae_u32 opcode, uae_u16 next, uaecp
 	switch (flushmode)
 	{
 	case 0x00:
+	case 0x02:
 		return mmu_op30fake_pload(pc, opcode, next, extra);
 	case 0x18:
 		if (mmu_op30_invea(opcode))

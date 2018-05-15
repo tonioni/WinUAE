@@ -20,12 +20,12 @@
 #define LANG_DLL_FULL_VERSION_MATCH 1
 
 #if WINUAEPUBLICBETA
-#define WINUAEBETA _T("9")
+#define WINUAEBETA _T("10")
 #else
 #define WINUAEBETA _T("")
 #endif
 
-#define WINUAEDATE MAKEBD(2018, 5, 9)
+#define WINUAEDATE MAKEBD(2018, 5, 15)
 
 //#define WINUAEEXTRA _T("AmiKit Preview")
 //#define WINUAEEXTRA _T("Amiga Forever Edition")
@@ -219,5 +219,7 @@ void associate_file_extensions (void);
 #define PATHPREFIX _T("\\\\?\\")
 DWORD GetFileAttributesSafe (const TCHAR *name);
 BOOL SetFileAttributesSafe (const TCHAR *name, DWORD attr);
+
+void HtmlHelp(HWND a, LPCWSTR b, UINT c, const TCHAR *d);
 
 #endif
