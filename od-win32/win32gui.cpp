@@ -6297,7 +6297,7 @@ static struct amigamodels amodels[] = {
 	{ 4, IDS_QS_MODEL_CD32 }, // "CD32"
 	{ 4, IDS_QS_MODEL_CDTV }, // "CDTV"
 	{ 4, IDS_QS_MODEL_ARCADIA }, // "Arcadia"
-	{ 1, IDS_QS_MODEL_CASABLANCA },
+	{ 1, IDS_QS_MODEL_MACROSYSTEM },
 	{ 1, IDS_QS_MODEL_UAE }, // "Expanded UAE example configuration"
 	{ -1 }
 };

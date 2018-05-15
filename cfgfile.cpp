@@ -178,7 +178,7 @@ static const TCHAR *ksmirrortype[] = { _T("none"), _T("e0"), _T("a8+e0"), 0 };
 static const TCHAR *cscompa[] = {
 	_T("-"), _T("Generic"), _T("CDTV"), _T("CDTV-CR"), _T("CD32"), _T("A500"), _T("A500+"), _T("A600"),
 	_T("A1000"), _T("A1200"), _T("A2000"), _T("A3000"), _T("A3000T"), _T("A4000"), _T("A4000T"),
-	_T("Velvet"), _T("Casablanca"),
+	_T("Velvet"), _T("Casablanca"), _T("DraCo"),
 	NULL
 };
 static const TCHAR *qsmodes[] = {
@@ -8641,6 +8641,8 @@ int built_in_chipset_prefs (struct uae_prefs *p)
 		p->cs_unmapped_space = 1;
 		break;
 	case CP_CASABLANCA:
+		break;
+	case CP_DRACO:
 		break;
 	}
 	if (p->cpu_model >= 68040)
