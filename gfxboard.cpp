@@ -653,6 +653,20 @@ static bool gfxboard_setmode_qemu(struct rtggfxboard *gb)
 	return true;
 }
 
+bool gfxboard_set(int monid, bool rtg)
+{
+	bool r;
+	struct amigadisplay *ad = &adisplays[monid];
+	r = ad->picasso_on;
+	if (rtg) {
+		ad->picasso_requested_on = 1;
+	} else {
+		ad->picasso_requested_on = 0;
+	}
+	set_config_changed();
+	return r;
+}
+
 void gfxboard_rtg_disable(int monid, int index)
 {
 	if (monid > 0)

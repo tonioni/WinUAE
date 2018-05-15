@@ -216,6 +216,7 @@
 #include "crc32.h"
 #include "akiko.h"
 #include "xwin.h"
+#include "gfxboard.h"
 
 #define DEBUG
 #ifdef DEBUG
@@ -270,20 +271,13 @@ static int stored_picasso_on = -1;
 
 static void cartridge_enter(void)
 {
-	struct amigadisplay *ad = &adisplays[0];
-#ifdef PICASSO96
-	stored_picasso_on = ad->picasso_requested_on;
-	ad->picasso_requested_on = 0;
-#endif
+	stored_picasso_on = gfxboard_set(0, false) ? 1 : 0;
 }
 static void cartridge_exit (void)
 {
-	struct amigadisplay *ad = &adisplays[0];
-#ifdef PICASSO96
 	if (stored_picasso_on > 0)
-		ad->picasso_requested_on = 1;
+		gfxboard_set(0, true);
 	stored_picasso_on = -1;
-#endif
 }
 
 static uae_u32 REGPARAM2 hrtmem3_bget (uaecptr addr)
@@ -1086,6 +1080,7 @@ void check_prefs_changed_carts (int in_memory_reset)
 
 void action_replay_reset (bool hardreset, bool keyboardreset)
 {
+	stored_picasso_on = -1;
 	ar_mapped = -1;
 	if (hrtmemory) {
 		if (isrestore ()) {

@@ -31,6 +31,7 @@ extern void gfxboard_free_slot(int);
 extern bool gfxboard_rtg_enable_initial(int monid, int);
 extern void gfxboard_rtg_disable(int monid, int);
 extern bool gfxboard_init_board(struct autoconfig_info*);
+extern bool gfxboard_set(int monid, bool rtg);
 
 extern struct gfxboard_func a2410_func;
 extern struct gfxboard_func harlequin_func;
