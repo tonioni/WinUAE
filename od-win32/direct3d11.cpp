@@ -3160,6 +3160,7 @@ static void do_present(struct d3d11struct *d3d, int black)
 		if (apm->gfx_backbuffers == 0 || (presentFlags & DXGI_PRESENT_ALLOW_TEARING) || (apm->gfx_vflip == 0 && isfs(d3d) <= 0) || (isfs(d3d) > 0 && apm->gfx_vsyncmode))
 			syncinterval = 0;
 	}
+	d3d->syncinterval = syncinterval;
 	if (currprefs.turbo_emulation) {
 		static int skip;
 		if (--skip > 0)
@@ -3169,8 +3170,6 @@ static void do_present(struct d3d11struct *d3d, int black)
 			presentFlags |= DXGI_PRESENT_DO_NOT_WAIT;
 		syncinterval = 0;
 	}
-	d3d->syncinterval = syncinterval;
-
 	hr = d3d->m_swapChain->Present(syncinterval, presentFlags);
 	if (currprefs.turbo_emulation && hr == DXGI_ERROR_WAS_STILL_DRAWING)
 		hr = S_OK;
@@ -3513,17 +3512,6 @@ static int xxD3D11_init2(HWND ahwnd, int monid, int w_w, int w_h, int t_w, int t
 	d3d->m_device->QueryInterface(IID_ID3D11Debug, (void**)&d3d->m_debug);
 #endif
 
-	ComPtr<IDXGIDevice1> dxgiDevice;
-	result = d3d->m_device->QueryInterface(__uuidof(IDXGIDevice1), &dxgiDevice);
-	if (FAILED(result)) {
-		write_log(_T("QueryInterface IDXGIDevice1 %08x\n"), result);
-	} else {
-		result = dxgiDevice->SetMaximumFrameLatency(apm->gfx_backbuffers == 0 ? 1 : 2);
-		if (FAILED(result)) {
-			write_log(_T("IDXGIDevice1 SetMaximumFrameLatency %08x\n"), result);
-		}
-	}
-
 	// Initialize the swap chain description.
 	ZeroMemory(&d3d->swapChainDesc, sizeof(d3d->swapChainDesc));
 
@@ -3567,35 +3555,50 @@ static int xxD3D11_init2(HWND ahwnd, int monid, int w_w, int w_h, int t_w, int t
 
 	d3d->blackscreen = false;
 	if (!monid) {
-		if (!apm->gfx_backbuffers) {
-			int hzmult = 0;
-			getvsyncrate(monid, *freq, &hzmult);
-			if (hzmult < 0) {
-				if (!apm->gfx_strobo) {
-					if (isfullscreen() > 0) {
-						d3d->vblankintervals++;
-					}
-				} else {
-					d3d->blackscreen = true;
-				}
+		int hzmult = 0;
+		getvsyncrate(monid, *freq, &hzmult);
+		if (hzmult < 0) {
+			if (!apm->gfx_strobo) {
+				d3d->vblankintervals = 2;
+			} else {
+				d3d->vblankintervals = 1;
+				d3d->blackscreen = true;
 			}
 		}
 		int vsync = isvsync();
 		if (vsync > 0 && !apm->gfx_vsyncmode) {
+			if (apm->gfx_strobo)
+				d3d->blackscreen = true;
 			d3d->vblankintervals = 1;
 			int hzmult;
 			getvsyncrate(monid, hz, &hzmult);
-			if (hzmult > 0) {
-				d3d->vblankintervals = hzmult + (d3d->blackscreen ? 0 : 1);
+			if (hzmult < 0) {
+				d3d->vblankintervals = 1 + (-hzmult) - (d3d->blackscreen ? 1 : 0);
 			}
 		}
 	}
+	if (d3d->swapChainDesc.SwapEffect == DXGI_SWAP_EFFECT_FLIP_DISCARD && d3d->vblankintervals > 0)
+		d3d->swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL;
 
 	// Create the swap chain, Direct3D device, and Direct3D device context.
-	result = factory2->CreateSwapChainForHwnd(d3d->m_device, ahwnd, &d3d->swapChainDesc, isfs(d3d) > 0 ? &d3d->fsSwapChainDesc : NULL, NULL, &d3d->m_swapChain);
+	result = factory2->CreateSwapChainForHwnd(d3d->m_device, ahwnd, &d3d->swapChainDesc, isfs(d3d) != 0 ? &d3d->fsSwapChainDesc : NULL, NULL, &d3d->m_swapChain);
 	if (FAILED(result)) {
 		write_log(_T("IDXGIFactory2 CreateSwapChainForHwnd %08x\n"), result);
 		return 0;
+	}
+
+	ComPtr<IDXGIDevice1> dxgiDevice;
+	result = d3d->m_device->QueryInterface(__uuidof(IDXGIDevice1), &dxgiDevice);
+	if (FAILED(result)) {
+		write_log(_T("QueryInterface IDXGIDevice1 %08x\n"), result);
+	} else {
+		int f = apm->gfx_backbuffers <= 1 ? 1 : 2;
+		if (d3d->blackscreen)
+			f++;
+		result = dxgiDevice->SetMaximumFrameLatency(f);
+		if (FAILED(result)) {
+			write_log(_T("IDXGIDevice1 SetMaximumFrameLatency %08x\n"), result);
+		}
 	}
 
 	IDXGIFactory1 *pFactory = NULL;
@@ -3608,11 +3611,18 @@ static int xxD3D11_init2(HWND ahwnd, int monid, int w_w, int w_h, int t_w, int t
 		pFactory->Release();
 	}
 
+	result = d3d->m_swapChain->GetDesc1(&d3d->swapChainDesc);
+	if (FAILED(result)) {
+		write_log(_T("IDXGIFactory2 GetDesc1 %08x\n"), result);
+	}
+
 	d3d->invalidmode = false;
 	d3d->fsmode = 0;
 	clearcnt = 0;
 
-	write_log(_T("D3D11 %d %08x %08x\n"), d3d->swapChainDesc.BufferCount, d3d->swapChainDesc.Flags, d3d->swapChainDesc.Format);
+	write_log(_T("D3D11 Buffers=%d Flags=%08x Format=%08x Scaling=%d SwapEffect=%d VBI=%d\n"),
+		d3d->swapChainDesc.BufferCount, d3d->swapChainDesc.Flags, d3d->swapChainDesc.Format,
+		d3d->swapChainDesc.Scaling, d3d->swapChainDesc.SwapEffect, d3d->vblankintervals);
 
 	if (isfs(d3d) > 0)
 		D3D_resize(monid, 1);
@@ -3862,6 +3872,8 @@ static void EndScene(struct d3d11struct *d3d)
 	SetEvent(flipevent);
 #endif
 	do_present(d3d, 0);
+	if (d3d->blackscreen)
+		do_present(d3d, 1);
 }
 
 static void TextureShaderClass_RenderShader(struct d3d11struct *d3d)
