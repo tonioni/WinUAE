@@ -3885,8 +3885,6 @@ static int oldtex_w, oldtex_h, oldtex_rtg;
 
 static BOOL doInit(struct AmigaMonitor *mon)
 {
-	int fs_warning = -1;
-	TCHAR tmpstr[300];
 	int tmp_depth;
 	int ret = 0;
 
@@ -3920,13 +3918,14 @@ retry:
 		if (!(mon->currentmode.flags & (DM_D3D)) && DirectDraw_GetCurrentDepth () == mon->currentmode.current_depth) {
 			updatemodes(mon);
 		}
-
+#if 0
+		TCHAR tmpstr[300];
+		int fs_warning = -1;
 		if (!rp_isactive () && (mon->currentmode.current_width > GetSystemMetrics(SM_CXVIRTUALSCREEN) ||
 			mon->currentmode.current_height > GetSystemMetrics(SM_CYVIRTUALSCREEN))) {
 				if (!console_logging)
 					fs_warning = IDS_UNSUPPORTEDSCREENMODE_3;
 		}
-
 		if (fs_warning >= 0 && isfullscreen () <= 0) {
 			TCHAR szMessage[MAX_DPATH], szMessage2[MAX_DPATH];
 			WIN32GUI_LoadUIString(IDS_UNSUPPORTEDSCREENMODE, szMessage, MAX_DPATH);
@@ -3947,6 +3946,7 @@ retry:
 			ret = -2;
 			goto oops;
 		}
+#endif
 		if (!create_windows(mon))
 			goto oops;
 #ifdef PICASSO96
