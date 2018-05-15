@@ -2304,6 +2304,7 @@ int check_prefs_changed_gfx (void)
 
 	c |= currprefs.gfx_display_sections != changed_prefs.gfx_display_sections ? (512) : 0;
 	c |= currprefs.gfx_variable_sync != changed_prefs.gfx_variable_sync ? 1 : 0;
+	c |= currprefs.gfx_windowed_resize != changed_prefs.gfx_windowed_resize ? 1 : 0;
 
 	c |= currprefs.gfx_apmode[APMODE_NATIVE].gfx_display != changed_prefs.gfx_apmode[APMODE_NATIVE].gfx_display ? (2|4|8) : 0;
 	c |= currprefs.gfx_apmode[APMODE_RTG].gfx_display != changed_prefs.gfx_apmode[APMODE_RTG].gfx_display ? (2|4|8) : 0;
@@ -2404,6 +2405,7 @@ int check_prefs_changed_gfx (void)
 
 		currprefs.gfx_display_sections = changed_prefs.gfx_display_sections;
 		currprefs.gfx_variable_sync = changed_prefs.gfx_variable_sync;
+		currprefs.gfx_windowed_resize = changed_prefs.gfx_windowed_resize;
 
 		currprefs.gfx_apmode[APMODE_NATIVE].gfx_display = changed_prefs.gfx_apmode[APMODE_NATIVE].gfx_display;
 		currprefs.gfx_apmode[APMODE_RTG].gfx_display = changed_prefs.gfx_apmode[APMODE_RTG].gfx_display;
