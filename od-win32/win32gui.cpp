@@ -8021,17 +8021,18 @@ static void setgenlock(HWND hDlg)
 static INT_PTR CALLBACK ChipsetDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
 	static int recursive = 0;
-	TCHAR buffer[MAX_DPATH];
+	TCHAR buffer[MAX_DPATH], tmp[MAX_DPATH];
 
 	switch (msg) {
 	case WM_INITDIALOG:
-		scaleresource_setfont (hDlg);
+	{
+		scaleresource_setfont(hDlg);
 		pages[CHIPSET_ID] = hDlg;
 		currentpage = CHIPSET_ID;
 
 		SendDlgItemMessage(hDlg, IDC_CS_EXT, CB_RESETCONTENT, 0, 0);
 		SendDlgItemMessage(hDlg, IDC_CS_EXT, CB_ADDSTRING, 0, (LPARAM)_T("Custom"));
-		WIN32GUI_LoadUIString(IDS_GENERIC, buffer, sizeof buffer / sizeof (TCHAR));
+		WIN32GUI_LoadUIString(IDS_GENERIC, buffer, sizeof buffer / sizeof(TCHAR));
 		SendDlgItemMessage(hDlg, IDC_CS_EXT, CB_ADDSTRING, 0, (LPARAM)buffer);
 		SendDlgItemMessage(hDlg, IDC_CS_EXT, CB_ADDSTRING, 0, (LPARAM)_T("CDTV"));
 		SendDlgItemMessage(hDlg, IDC_CS_EXT, CB_ADDSTRING, 0, (LPARAM)_T("CDTV-CR"));
@@ -8048,18 +8049,21 @@ static INT_PTR CALLBACK ChipsetDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPAR
 		SendDlgItemMessage(hDlg, IDC_CS_EXT, CB_ADDSTRING, 0, (LPARAM)_T("A4000T"));
 		SendDlgItemMessage(hDlg, IDC_CS_EXT, CB_ADDSTRING, 0, (LPARAM)_T("Velvet"));
 		SendDlgItemMessage(hDlg, IDC_CS_EXT, CB_ADDSTRING, 0, (LPARAM)_T("Casablanca"));
+		SendDlgItemMessage(hDlg, IDC_CS_EXT, CB_ADDSTRING, 0, (LPARAM)_T("DraCo"));
 
 		SendDlgItemMessage(hDlg, IDC_GENLOCKMODE, CB_RESETCONTENT, 0, 0);
 		SendDlgItemMessage(hDlg, IDC_GENLOCKMODE, CB_ADDSTRING, 0, (LPARAM)_T("-"));
-		SendDlgItemMessage(hDlg, IDC_GENLOCKMODE, CB_ADDSTRING, 0, (LPARAM)_T("Noise (built-in)"));
-		SendDlgItemMessage(hDlg, IDC_GENLOCKMODE, CB_ADDSTRING, 0, (LPARAM)_T("Test card (built-in)"));
-		SendDlgItemMessage(hDlg, IDC_GENLOCKMODE, CB_ADDSTRING, 0, (LPARAM)_T("Image file (png)"));
-		SendDlgItemMessage(hDlg, IDC_GENLOCKMODE, CB_ADDSTRING, 0, (LPARAM)_T("Video file"));
-		SendDlgItemMessage(hDlg, IDC_GENLOCKMODE, CB_ADDSTRING, 0, (LPARAM)_T("Capture device"));
-		SendDlgItemMessage(hDlg, IDC_GENLOCKMODE, CB_ADDSTRING, 0, (LPARAM)_T("American Laser Games LaserDisc Player"));
-		SendDlgItemMessage(hDlg, IDC_GENLOCKMODE, CB_ADDSTRING, 0, (LPARAM)_T("Sony LaserDisc Player"));
-		SendDlgItemMessage(hDlg, IDC_GENLOCKMODE, CB_ADDSTRING, 0, (LPARAM)_T("Pioneer LaserDisc Player"));
-
+		WIN32GUI_LoadUIString(IDS_GENLOCK_OPTIONS, tmp, sizeof tmp / sizeof(TCHAR));
+		TCHAR *p1 = tmp;
+		for (;;) {
+			TCHAR *p2 = _tcschr(p1, '\n');
+			if (p2 && _tcslen(p2) > 0) {
+				*p2++ = 0;
+				SendDlgItemMessage(hDlg, IDC_GENLOCKMODE, CB_ADDSTRING, 0, (LPARAM)p1);
+				p1 = p2;
+			} else
+				break;
+		}
 		SendDlgItemMessage(hDlg, IDC_GENLOCKMIX, CB_RESETCONTENT, 0, 0);
 		for (int i = 0; i <= 10; i++) {
 			_stprintf(buffer, _T("%d%%"), (10 - i) * 10);
@@ -8068,7 +8072,7 @@ static INT_PTR CALLBACK ChipsetDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPAR
 
 		SendDlgItemMessage(hDlg, IDC_MONITOREMU, CB_RESETCONTENT, 0, 0);
 		SendDlgItemMessage(hDlg, IDC_MONITOREMU, CB_ADDSTRING, 0, (LPARAM)_T("-"));
-		WIN32GUI_LoadUIString(IDS_AUTODETECT, buffer, sizeof buffer / sizeof (TCHAR));
+		WIN32GUI_LoadUIString(IDS_AUTODETECT, buffer, sizeof buffer / sizeof(TCHAR));
 		SendDlgItemMessage(hDlg, IDC_MONITOREMU, CB_ADDSTRING, 0, (LPARAM)buffer);
 		for (int i = 0; specialmonitorfriendlynames[i]; i++) {
 			_stprintf(buffer, _T("%s (%s)"), specialmonitorfriendlynames[i], specialmonitormanufacturernames[i]);
@@ -8082,10 +8086,11 @@ static INT_PTR CALLBACK ChipsetDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPAR
 		}
 
 #ifndef	AGA
-		ew (hDlg, IDC_AGA, FALSE);
+		ew(hDlg, IDC_AGA, FALSE);
 #endif
 
 		setgenlock(hDlg);
+	}
 
 	case WM_USER:
 		recursive++;
@@ -8403,17 +8408,28 @@ static void enable_for_chipsetdlg2 (HWND hDlg)
 static INT_PTR CALLBACK ChipsetDlgProc2 (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
 	static int recursive = 0;
+	TCHAR tmp[MAX_DPATH];
 
 	switch (msg) {
 	case WM_INITDIALOG:
-		scaleresource_setfont (hDlg);
+	{
+		scaleresource_setfont(hDlg);
 		pages[CHIPSET2_ID] = hDlg;
 		currentpage = CHIPSET2_ID;
 		cs_compatible = workprefs.cs_compatible;
 		SendDlgItemMessage(hDlg, IDC_CS_UNMAPPED, CB_RESETCONTENT, 0, 0L);
-		SendDlgItemMessage(hDlg, IDC_CS_UNMAPPED, CB_ADDSTRING, 0, (LPARAM)_T("Floating"));
-		SendDlgItemMessage(hDlg, IDC_CS_UNMAPPED, CB_ADDSTRING, 0, (LPARAM)_T("All zeros"));
-		SendDlgItemMessage(hDlg, IDC_CS_UNMAPPED, CB_ADDSTRING, 0, (LPARAM)_T("All ones"));
+		WIN32GUI_LoadUIString(IDS_UNMAPPED_ADDRESS, tmp, sizeof tmp / sizeof(TCHAR));
+		TCHAR *p1 = tmp;
+		for (;;) {
+			TCHAR *p2 = _tcschr(p1, '\n');
+			if (p2 && _tcslen(p2) > 0) {
+				*p2++ = 0;
+				SendDlgItemMessage(hDlg, IDC_CS_UNMAPPED, CB_ADDSTRING, 0, (LPARAM)p1);
+				p1 = p2;
+			} else
+				break;
+		}
+	}
 	case WM_USER:
 		recursive++;
 		values_to_chipsetdlg2 (hDlg);
@@ -20372,8 +20388,8 @@ static INT_PTR CALLBACK DialogProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 				exit_gui (1);
 				return TRUE;
 			case IDHELP:
-				if (pHtmlHelp && ppage[currentpage].help)
-					HtmlHelp (NULL, help_file, HH_DISPLAY_TOPIC, ppage[currentpage].help);
+				if ((pHtmlHelp && ppage[currentpage].help) || !pHtmlHelp)
+					HtmlHelp(NULL, help_file, HH_DISPLAY_TOPIC, ppage[currentpage].help);
 				return TRUE;
 			case IDOK:
 				updatePanel (-1, 0);
