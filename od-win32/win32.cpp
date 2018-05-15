@@ -1115,7 +1115,7 @@ static void winuae_active(struct AmigaMonitor *mon, HWND hwnd, int minimized)
 	getcapslock ();
 	wait_keyrelease ();
 	inputdevice_acquire (TRUE);
-	if (isfullscreen () != 0 && !gui_active)
+	if (isfullscreen () > 0 && !gui_active)
 		setmouseactive(mon->monitor_id, 1);
 #ifdef LOGITECHLCD
 	if (!minimized)
@@ -2432,6 +2432,8 @@ static int canstretch(struct AmigaMonitor *mon)
 	if (isfullscreen () != 0)
 		return 0;
 	if (!WIN32GFX_IsPicassoScreen(mon)) {
+		if (!currprefs.gfx_windowed_resize)
+			return 0;
 		if (currprefs.gf[APMODE_NATIVE].gfx_filter_autoscale == AUTOSCALE_RESIZE)
 			return 0;
 		return 1;
