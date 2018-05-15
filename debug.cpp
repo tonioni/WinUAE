@@ -75,6 +75,12 @@ static int debug_mmu_mode;
 static bool break_if_enforcer;
 static uaecptr debug_pc;
 
+static int trace_cycles;
+static int last_hpos1, last_hpos2;
+static int last_vpos1, last_vpos2;
+static int last_frame = -1;
+static uae_u32 last_cycles1, last_cycles2;
+
 static uaecptr processptr;
 static uae_char *processname;
 
@@ -82,6 +88,14 @@ static uaecptr debug_copper_pc;
 
 extern int audio_channel_mask;
 extern int inputdevice_logging;
+
+static void debug_cycles(void)
+{
+	trace_cycles = 1;
+	last_cycles2 = get_cycles();
+	last_vpos2 = vpos;
+	last_hpos2 = current_hpos();
+}
 
 void deactivate_debugger (void)
 {
@@ -106,6 +120,7 @@ void activate_debugger (void)
 	trace_mode = 0;
 	if (debugger_active)
 		return;
+	debug_cycles();
 	debugger_active = 1;
 	set_special (SPCFLAG_BRK);
 	debugging = 1;
@@ -126,6 +141,7 @@ bool debug_enforcer(void)
 	activate_debugger();
 	return true;
 }
+
 
 int firsthist = 0;
 int lasthist = 0;
@@ -3003,6 +3019,7 @@ static int memwatch_func (uaecptr addr, int rwi, int size, uae_u32 *valp, uae_u3
 		memwatch_triggered = i + 1;
 		debugging = 1;
 		debug_pc = mwhit.pc;
+		debug_cycles();
 		set_special (SPCFLAG_BRK);
 		return 1;
 	}
@@ -5408,6 +5425,7 @@ static bool debug_line (TCHAR *input)
 			break;
 		case 't':
 			no_trace_exceptions = 0;
+			debug_cycles();
 			if (*inptr == 't') {
 				no_trace_exceptions = 1;
 				inptr++;
@@ -5456,6 +5474,7 @@ static bool debug_line (TCHAR *input)
 			trace_mode = TRACE_MATCH_PC;
 			trace_param1 = nextpc;
 			exception_debugging = 1;
+			debug_cycles();
 			return true;
 
 		case 'f':
@@ -5473,8 +5492,10 @@ static bool debug_line (TCHAR *input)
 				break_if_enforcer = break_if_enforcer ? false : true;
 				console_out_f(_T("Break when enforcer hit: %s\n"), break_if_enforcer ? _T("enabled") : _T("disabled"));
 			} else {
-				if (instruction_breakpoint (&inptr))
+				if (instruction_breakpoint(&inptr)) {
+					debug_cycles();
 					return true;
+				}
 			}
 			break;
 
@@ -6015,6 +6036,7 @@ void debug (void)
 			}
 			if (bp > 0)
 				console_out_f(_T("Breakpoint %d triggered.\n"), bp - 1);
+			debug_cycles();
 		}
 	} else {
 		console_out_f (_T("Memwatch %d: break at %08X.%c %c%c%c %08X PC=%08X "), memwatch_triggered - 1, mwhit.addr,
@@ -6050,6 +6072,18 @@ void debug (void)
 	}
 #endif
 	debugmem_disable();
+
+	if (trace_cycles && last_frame >= 0) {
+		if (last_frame + 2 >= timeframes) {
+			console_out_f(_T("Cycles: %d Chip, %d CPU. (V=%d H=%d -> V=%d H=%d)\n"),
+				(last_cycles2 - last_cycles1) / CYCLE_UNIT,
+				(last_cycles2 - last_cycles1) / cpucycleunit,
+				last_vpos1, last_hpos1,
+				last_vpos2, last_hpos2);
+		}
+	}
+	trace_cycles = 0;
+
 	debug_1 ();
 	debugmem_enable();
 	if (!debug_rewind && !currprefs.cachesize
@@ -6075,6 +6109,11 @@ void debug (void)
 	uae_ppc_pause(0);
 #endif
 	setmouseactive(0, wasactive ? 2 : 0);
+
+	last_cycles1 = get_cycles();
+	last_vpos1 = vpos;
+	last_hpos1 = current_hpos();
+	last_frame = timeframes;
 }
 
 const TCHAR *debuginfo (int mode)
