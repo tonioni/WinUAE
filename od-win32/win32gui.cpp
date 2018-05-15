@@ -130,14 +130,27 @@ static int qs_request_reset;
 static int qs_override;
 int gui_active, gui_left;
 
-extern HWND (WINAPI *pHtmlHelp)(HWND, LPCWSTR, UINT, LPDWORD);
-
 #undef HtmlHelp
 #ifndef HH_DISPLAY_TOPIC
 #define HH_DISPLAY_TOPIC 0
 #endif
-#define HtmlHelp(a,b,c,d) if(pHtmlHelp) (*pHtmlHelp)(a,b,c,(LPDWORD)d); else \
-{ TCHAR szMessage[MAX_DPATH]; WIN32GUI_LoadUIString (IDS_NOHELP, szMessage, MAX_DPATH); gui_message (szMessage); }
+
+extern HWND(WINAPI *pHtmlHelp)(HWND, LPCWSTR, UINT, LPDWORD);
+
+void HtmlHelp(HWND a, LPCWSTR b, UINT c, const TCHAR *d)
+{
+	if (pHtmlHelp) {
+		(*pHtmlHelp)(a, b, c, (LPDWORD)d);
+	} else {
+		if (gui_message_multibutton(1, _T("Help file is not installed locally, do you want to open online version? (http://www.winuae.net/help/)")) == 1) {
+			if ((int)ShellExecute(NULL, _T("open"), _T("http://www.winuae.net/help/"), NULL, NULL, SW_SHOWNORMAL) <= 32) {
+				TCHAR szMessage[MAX_DPATH];
+				WIN32GUI_LoadUIString(IDS_NOHELP, szMessage, MAX_DPATH);
+				gui_message(szMessage);
+			}
+		}
+	}
+}
 
 extern TCHAR help_file[MAX_DPATH];
 
@@ -19636,7 +19649,7 @@ static HWND updatePanel (int id, UINT action)
 	ShowWindow (GetDlgItem (hDlg, IDC_PANEL_FRAME_OUTER), !fullpanel ? SW_SHOW : SW_HIDE);
 	ShowWindow (GetDlgItem (hDlg, IDC_PANELTREE), !fullpanel ? SW_SHOW : SW_HIDE);
 	ShowWindow (panelDlg, SW_SHOW);
-	ew (hDlg, IDHELP, pHtmlHelp && ppage[currentpage].help ? TRUE : FALSE);
+	ew (hDlg, IDHELP, (pHtmlHelp && ppage[currentpage].help) || !pHtmlHelp ? TRUE : FALSE);
 
 	ToolTipHWND = CreateWindowEx (WS_EX_TOPMOST,
 		TOOLTIPS_CLASS, NULL,

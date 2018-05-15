@@ -147,7 +147,7 @@ int max_uae_height;
 
 HINSTANCE hInst = NULL;
 HMODULE hUIDLL = NULL;
-HWND (WINAPI *pHtmlHelp)(HWND, LPCWSTR, UINT, LPDWORD) = NULL;
+HWND (WINAPI *pHtmlHelp)(HWND, LPCWSTR, UINT, LPDWORD);
 HWND hHiddenWnd, hGUIWnd;
 #if KBHOOK
 static HHOOK hhook;
@@ -2814,8 +2814,7 @@ static LRESULT CALLBACK HiddenWindowProc (HWND hWnd, UINT message, WPARAM wParam
 			inputdevice_add_inputcode (AKS_ENTERGUI, 1, NULL);
 			break;
 		case ID_ST_HELP:
-			if (pHtmlHelp)
-				pHtmlHelp (NULL, help_file, 0, NULL);
+			HtmlHelp (NULL, help_file, 0, NULL);
 			break;
 		case ID_ST_QUIT:
 			uae_quit ();
