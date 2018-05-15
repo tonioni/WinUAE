@@ -216,6 +216,7 @@ extern uae_u8 *restore_action_replay (uae_u8 *);
 extern uae_u8 *save_action_replay (int *, uae_u8 *);
 extern uae_u8 *restore_hrtmon (uae_u8 *);
 extern uae_u8 *save_hrtmon (int *, uae_u8 *);
+extern void restore_ar_finish (void);
 
 extern void savestate_initsave (const TCHAR *filename, int docompress, int nodialogs, bool save);
 extern int save_state (const TCHAR *filename, const TCHAR *description);

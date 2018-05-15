@@ -771,6 +771,9 @@ void savestate_restore_finish (void)
 	restore_a2065_finish ();
 #endif
 	restore_cia_finish ();
+#ifdef ACTION_REPLAY
+	restore_ar_finish();
+#endif
 	restore_debug_memwatch_finish ();
 	savestate_state = 0;
 	init_hz_normal();
