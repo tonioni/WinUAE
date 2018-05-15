@@ -300,8 +300,13 @@ static void clearbuffer_ds (struct sound_data *sd)
 
 static void clearbuffer (struct sound_data *sd)
 {
-	if (sd->devicetype == SOUND_DEVICE_DS)
-		clearbuffer_ds (sd);
+	struct sound_dp *s = sd->data;
+	if (sd->devicetype == SOUND_DEVICE_DS) {
+		clearbuffer_ds(sd);
+	}
+	if (s->pullbuffer) {
+		memset(s->pullbuffer, 0, s->pullbuffermaxlen);
+	}
 }
 
 #if USE_XAUDIO
@@ -369,12 +374,17 @@ static void resume_audio_wasapi (struct sound_data *sd)
 	BYTE *pData;
 	int framecnt;
 
+	clearbuffer(sd);
 	hr = s->pAudioClient->Reset ();
 	wasapi_check_state(sd, hr);
 	if (FAILED (hr)) {
 		write_log (_T("WASAPI: Reset() %08X\n"), hr);
 	}
-	framecnt = s->wasapigoodsize;
+	if (s->wasapiexclusive) {
+		framecnt = s->pullbuffermaxlen / sd->samplesize;
+	} else {
+		framecnt = s->wasapigoodsize;
+	}
 	hr = s->pRenderClient->GetBuffer (framecnt, &pData);
 	wasapi_check_state(sd, hr);
 	if (FAILED (hr)) {
@@ -390,6 +400,12 @@ static void resume_audio_wasapi (struct sound_data *sd)
 	wasapi_check_state(sd, hr);
 	if (FAILED (hr)) {
 		write_log (_T("WASAPI: Start() %08X\n"), hr);
+	}
+	if (s->wasapiexclusive) {
+		hr = s->pRenderClient->GetBuffer(framecnt, &pData);
+		if (SUCCEEDED(hr)) {
+			hr = s->pRenderClient->ReleaseBuffer(framecnt, AUDCLNT_BUFFERFLAGS_SILENT);
+		}
 	}
 	s->wasapiframes = 0;
 	s->sndbuf = 0;
@@ -430,6 +446,7 @@ static void resume_audio_pa (struct sound_data *sd)
 	struct sound_dp *s = sd->data;
 	s->pawriteoffset = 0;
 	s->pareadoffset = 0;
+	clearbuffer(sd);
 	PaError err = Pa_StartStream (s->pastream);
 	if (err != paNoError)
 		write_log (_T("PASOUND: Pa_StartStream() error %d (%s)\n"), err, Pa_GetErrorText (err));
@@ -725,6 +742,9 @@ static void close_audio_pa (struct sound_data *sd)
 		CloseHandle(s->pullevent2);
 	s->pullevent2 = NULL;
 	s->pastream = NULL;
+	xfree(s->pullbuffer);
+	s->pullbuffer = NULL;
+	s->pullbufferlen = 0;
 }
 
 static int open_audio_pa (struct sound_data *sd, int index)
@@ -1137,6 +1157,13 @@ static void close_audio_wasapi (struct sound_data *sd)
 		s->pDevice->Release ();
 	if (s->pEnumerator)
 		s->pEnumerator->Release ();
+	if (s->pullevent) {
+		CloseHandle(s->pullevent);
+		s->pullevent = NULL;
+	}
+	xfree(s->pullbuffer);
+	s->pullbuffer = NULL;
+	s->pullbufferlen = 0;
 }
 
 static int open_audio_wasapi (struct sound_data *sd, int index, int exclusive)
@@ -1520,12 +1547,6 @@ error:
 	CoTaskMemFree (pwfx_saved);
 	CoTaskMemFree (name);
 	close_audio_wasapi (sd);
-	if (s->pullevent) {
-		CloseHandle(s->pullevent);
-		s->pullevent = NULL;
-	}
-	xfree(s->pullbuffer);
-	s->pullbuffer = NULL;
 	return 0;
 }
 
