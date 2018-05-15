@@ -34,6 +34,17 @@ frame_time_t vsyncmintime, vsyncmaxtime, vsyncwaittime;
 int vsynctimebase;
 int event2_count;
 
+static void events_fast(void)
+{
+	cycles_do_special();
+}
+
+void events_reset_syncline(void)
+{
+	is_syncline = 0;
+	events_fast();
+}
+
 void events_schedule (void)
 {
 	int i;
@@ -58,20 +69,24 @@ static bool event_check_vsync(void)
 	if (is_syncline == -1) {
 
 		if (!isvsync_chipset()) {
-			is_syncline = 0;
+			events_reset_syncline();
 			return false;
 		}
 		// wait for vblank
 		audio_finish_pull();
 		int done = vsync_isdone(NULL);
+		if (done == -2) {
+			// if no vsync thread
+			int vp = target_get_display_scanline(-1);
+			if (vp < is_syncline_end)
+				done = 1;
+			else if (vp > is_syncline_end)
+				is_syncline_end = vp;
+		}
 		if (!done) {
 #ifdef WITH_PPC
 			if (ppc_state) {
-				if (is_syncline == 1) {
-					uae_ppc_execute_check();
-				} else {
-					uae_ppc_execute_quick();
-				}
+				uae_ppc_execute_quick();
 			}
 #endif
 			if (currprefs.cachesize)
@@ -86,23 +101,21 @@ static bool event_check_vsync(void)
 	} else if (is_syncline == -2) {
 
 		if (!isvsync_chipset()) {
-			is_syncline = 0;
+			events_reset_syncline();
 			return false;
 		}
 		// wait for vblank or early vblank
 		audio_finish_pull();
 		int done = vsync_isdone(NULL);
+		if (done == -2)
+			done = 0;
 		int vp = target_get_display_scanline(-1);
 		if (vp < 0 || vp >= is_syncline_end)
-			done = true;
+			done = 1;
 		if (!done) {
 #ifdef WITH_PPC
 			if (ppc_state) {
-				if (is_syncline == 1) {
-					uae_ppc_execute_check();
-				} else {
-					uae_ppc_execute_quick();
-				}
+				uae_ppc_execute_quick();
 			}
 #endif
 			if (currprefs.cachesize)
@@ -117,7 +130,7 @@ static bool event_check_vsync(void)
 	} else if (is_syncline > 0) {
 
 		if (!isvsync_chipset()) {
-			is_syncline = 0;
+			events_reset_syncline();
 			return false;
 		}
 		audio_finish_pull();
@@ -156,7 +169,7 @@ static bool event_check_vsync(void)
 				return true;
 			}
 		}
-		is_syncline = 0;
+		events_reset_syncline();
 
 	} else if (is_syncline < -10) {
 
@@ -185,7 +198,7 @@ static bool event_check_vsync(void)
 				return true;
 			}
 		}
-		is_syncline = 0;
+		events_reset_syncline();
 	}
 	return false;
 }

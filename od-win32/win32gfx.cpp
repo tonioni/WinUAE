@@ -474,7 +474,6 @@ static void display_vblank_thread_kill(void)
 		CloseHandle(waitvblankevent);
 		waitvblankevent = NULL;
 	}
-	wait_vblank_display = NULL;
 }
 
 static void display_vblank_thread(struct AmigaMonitor *mon)
@@ -2947,6 +2946,8 @@ int vsync_isdone(frame_time_t *dt)
 {
 	if (isvsync() == 0)
 		return -1;
+	if (waitvblankthread_mode <= 0)
+		return -2;
 	if (dt)
 		*dt = wait_vblank_timestamp;
 	return vsync_active ? 1 : 0;
