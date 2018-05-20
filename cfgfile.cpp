@@ -2065,7 +2065,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	write_leds(f, _T("show_leds_enabled"), p->leds_on_screen_mask[0]);
 	write_leds(f, _T("show_leds_enabled_rtg"), p->leds_on_screen_mask[1]);
 	cfgfile_dwrite_bool(f, _T("show_refresh_indicator"), p->refresh_indicator);
-	cfgfile_dwrite_bool(f, _T("power_led_dim"), p->power_led_dim);
+	cfgfile_dwrite(f, _T("power_led_dim"), _T("%d"), p->power_led_dim);
 
 	if (p->osd_pos.y || p->osd_pos.x) {
 		cfgfile_dwrite (f, _T("osd_position"), _T("%.1f%s:%.1f%s"),
@@ -3027,7 +3027,8 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 		|| cfgfile_intval (option, value, _T("sound_stereo_mixing_delay"), &p->sound_mixed_stereo_delay, 1)
 		|| cfgfile_intval (option, value, _T("sampler_frequency"), &p->sampler_freq, 1)
 		|| cfgfile_intval (option, value, _T("sampler_buffer"), &p->sampler_buffer, 1)
-		|| cfgfile_intval (option, value, _T("warp_limit"), &p->turbo_emulation_limit, 1)
+		|| cfgfile_intval(option, value, _T("warp_limit"), &p->turbo_emulation_limit, 1)
+		|| cfgfile_intval(option, value, _T("power_led_dim"), &p->power_led_dim, 1)
 
 		|| cfgfile_intval(option, value, _T("gfx_frame_slices"), &p->gfx_display_sections, 1)
 		|| cfgfile_intval(option, value, _T("gfx_framerate"), &p->gfx_framerate, 1)
@@ -3111,7 +3112,6 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 		|| cfgfile_yesno(option, value, _T("show_refresh_indicator"), &p->refresh_indicator)
 		|| cfgfile_yesno(option, value, _T("warp"), &p->turbo_emulation)
 		|| cfgfile_yesno(option, value, _T("headless"), &p->headless)
-		|| cfgfile_yesno(option, value, _T("power_led_dim"), &p->power_led_dim)
 		|| cfgfile_yesno(option, value, _T("clipboard_sharing"), &p->clipboard_sharing)
 		|| cfgfile_yesno(option, value, _T("native_code"), &p->native_code)
 		|| cfgfile_yesno(option, value, _T("tablet_library"), &p->tablet_library)

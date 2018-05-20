@@ -898,8 +898,8 @@ static void led_vsync (void)
 		v = 255;
 	if (v < 0)
 		v = 0;
-	if (currprefs.power_led_dim && v < 96)
-		v = 96;
+	if (currprefs.power_led_dim && v < currprefs.power_led_dim)
+		v = currprefs.power_led_dim;
 	if (v > 255)
 		v = 255;
 	gui_data.powerled_brightness = v;
