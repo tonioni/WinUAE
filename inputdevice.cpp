@@ -4482,15 +4482,19 @@ static bool inputdevice_handle_inputcode2(int monid, int code, int state, const 
 	case AKS_DECREASEREFRESHRATE:
 	case AKS_INCREASEREFRESHRATE:
 		{
-			int dir = code == AKS_INCREASEREFRESHRATE ? 5 : -5;
-			if (currprefs.chipset_refreshrate == 0)
-				currprefs.chipset_refreshrate = currprefs.ntscmode ? 60 : 50;
-			changed_prefs.chipset_refreshrate = currprefs.chipset_refreshrate + dir;
-			if (changed_prefs.chipset_refreshrate < 10.0)
-				changed_prefs.chipset_refreshrate = 10.0;
-			if (changed_prefs.chipset_refreshrate > 900.0)
-				changed_prefs.chipset_refreshrate = 900.0;
-			set_config_changed ();
+			struct chipset_refresh *cr = get_chipset_refresh(&changed_prefs);
+			if (cr) {
+				int dir = code == AKS_INCREASEREFRESHRATE ? 5 : -5;
+				if (cr->rate == 0)
+					cr->rate = currprefs.ntscmode ? 60 : 50;
+				cr->locked = true;
+				cr->rate += dir;
+				if (cr->rate < 10)
+					cr->rate = 10;
+				if (cr->rate > 900)
+					cr->rate = 900;
+				set_config_changed();
+			}
 		}
 		break;
 	case AKS_DISKSWAPPER_NEXT:

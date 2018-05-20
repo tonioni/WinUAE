@@ -4157,19 +4157,19 @@ static void checklacecount (bool lace)
 }
 #endif
 
-struct chipset_refresh *get_chipset_refresh (void)
+struct chipset_refresh *get_chipset_refresh(struct uae_prefs *p)
 {
 	struct amigadisplay *ad = &adisplays[0];
 	int islace = interlace_seen ? 1 : 0;
 	int isntsc = (beamcon0 & 0x20) ? 0 : 1;
 	int custom = (beamcon0 & 0x80) ? 1 : 0;
 
-	if (!(currprefs.chipset_mask & CSMASK_ECS_AGNUS))
+	if (!(p->chipset_mask & CSMASK_ECS_AGNUS))
 		isntsc = currprefs.ntscmode ? 1 : 0;
 
 	int def = -1;
 	for (int i = 0; i < MAX_CHIPSET_REFRESH_TOTAL; i++) {
-		struct chipset_refresh *cr = &currprefs.cr[i];
+		struct chipset_refresh *cr = &p->cr[i];
 		if (cr->defaultdata)
 			def = i;
 		if (cr->inuse) {
@@ -4185,13 +4185,13 @@ struct chipset_refresh *get_chipset_refresh (void)
 		}
 	}
 	if (def >= 0)
-		return &currprefs.cr[def];
+		return &p->cr[def];
 	return NULL;
 }
 
 static bool changed_chipset_refresh (void)
 {
-	return stored_chipset_refresh != get_chipset_refresh ();
+	return stored_chipset_refresh != get_chipset_refresh(&currprefs);
 }
 
 void compute_framesync(void)
@@ -4212,7 +4212,7 @@ void compute_framesync(void)
 
 	vblank_hz = target_adjust_vblank_hz(0, vblank_hz);
 
-	struct chipset_refresh *cr = get_chipset_refresh ();
+	struct chipset_refresh *cr = get_chipset_refresh(&currprefs);
 	while (cr) {
 		double v = -1;
 		if (!ad->picasso_on && !ad->picasso_requested_on) {

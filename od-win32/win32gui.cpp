@@ -7268,7 +7268,7 @@ static void values_to_displaydlg (HWND hDlg)
 
 	SendDlgItemMessage(hDlg, IDC_RATE2BOX, CB_RESETCONTENT, 0, 0);
 	v = 0;
-	struct chipset_refresh *selectcr = full_property_sheet ? (workprefs.ntscmode ? &workprefs.cr[CHIPSET_REFRESH_NTSC] : &workprefs.cr[CHIPSET_REFRESH_PAL]) : get_chipset_refresh () ;
+	struct chipset_refresh *selectcr = full_property_sheet ? (workprefs.ntscmode ? &workprefs.cr[CHIPSET_REFRESH_NTSC] : &workprefs.cr[CHIPSET_REFRESH_PAL]) : get_chipset_refresh (&workprefs) ;
 	for (int i = 0; i < MAX_CHIPSET_REFRESH_TOTAL; i++) {
 		struct chipset_refresh *cr = &workprefs.cr[i];
 		if (cr->rate > 0) {
