@@ -670,7 +670,7 @@ bool resumepaused(int priority)
 	resumesoundpaused ();
 	if (pausemouseactive) {
 		pausemouseactive = 0;
-		setmouseactive(mon->monitor_id, -1);
+		setmouseactive(mon->monitor_id, isfullscreen() > 0 ? 1 : -1);
 	}
 	pause_emulation = 0;
 	setsystime ();
@@ -2914,8 +2914,11 @@ bool handle_events (void)
 			TranslateMessage (&msg);
 			DispatchMessage (&msg);
 		}
-		if (D3D_run)
-			D3D_run(0);
+		if (D3D_run) {
+			if (D3D_run(0)) {
+				full_redraw_all();
+			}
+		}
 		inputdevicefunc_keyboard.read ();
 		inputdevicefunc_mouse.read ();
 		inputdevicefunc_joystick.read ();
@@ -2955,8 +2958,10 @@ bool handle_events (void)
 			cnt2 = 5;
 		}
 	}
-	if (D3D_run)
-		D3D_run(0);
+	if (D3D_run) {
+		if (D3D_run(0))
+			full_redraw_all();
+	}
 	return pause_emulation != 0;
 }
 

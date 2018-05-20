@@ -570,9 +570,10 @@ static addrbank tms_bank = {
 static void tms_reset(void *userdata)
 {
 	struct a2410_struct *data = (struct a2410_struct*)userdata;
+	int monid = currprefs.rtgboards[data->a2410_gfxboard].monitor_id;
 
 	if (data->a2410_surface)
-		gfx_unlock_picasso(0, true);
+		gfx_unlock_picasso(monid, true);
 	data->a2410_surface = NULL;
 
 	data->a2410_modechanged = false;
@@ -597,9 +598,10 @@ static void tms_configured(void *userdata, uae_u32 address)
 static void tms_free(void *userdata)
 {
 	struct a2410_struct *data = (struct a2410_struct*)userdata;
+	int monid = currprefs.rtgboards[data->a2410_gfxboard].monitor_id;
 
 	if (data->a2410_surface)
-		gfx_unlock_picasso(0, true);
+		gfx_unlock_picasso(monid, true);
 	data->a2410_surface = NULL;
 	if (data->a2410_gfxboard >= 0) {
 		gfxboard_free_vram(data->a2410_gfxboard);
@@ -753,10 +755,10 @@ static void tms_vsync_handler2(struct a2410_struct *data, bool internalsync)
 				}
 			}
 		}
-
-		if (data->a2410_surface)
-			gfx_unlock_picasso(monid, true);
-		data->a2410_surface = NULL;
+		if (data->a2410_surface) {
+			data->a2410_surface = NULL;
+			gfx_unlock_picasso(monid, false);
+		}
 	}
 
 	data->a2410_interlace = -data->a2410_interlace;
@@ -782,16 +784,14 @@ static void a2410_rethink(struct a2410_struct *data)
 static bool tms_vsync(void *userdata, struct gfxboard_mode *mode)
 {
 	struct a2410_struct *data = (struct a2410_struct*)userdata;
+	int monid = currprefs.rtgboards[data->a2410_gfxboard].monitor_id;
 
 	bool flushed = false;
 	if (!data->a2410_enabled)
 		tms_vsync_handler2(data, false);
 
-	if (data->a2410_surface) {
-		gfx_unlock_picasso(0, false);
-		flushed = true;
-	}
 	data->a2410_surface = NULL;
+	gfx_unlock_picasso(monid, true);
 
 	if (data->a2410_visible) {
 		mode->width = data->a2410_width;

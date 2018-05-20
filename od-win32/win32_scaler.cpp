@@ -999,7 +999,7 @@ void S2X_render(int monid, int y_start, int y_end)
 	if (d3d) {
 		if (D3D_restore)
 			D3D_restore(monid, true);
-		surfstart = D3D_locktexture(monid, &pitch, &surf_height, true);
+		surfstart = D3D_locktexture(monid, &pitch, &surf_height, y_start < 0);
 		if (surfstart == NULL)
 			return;
 	} else {

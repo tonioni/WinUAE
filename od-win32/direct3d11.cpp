@@ -62,7 +62,7 @@ void(*D3D_restore)(int, bool);
 void(*D3D_resize)(int, int);
 void (*D3D_change)(int, int);
 bool(*D3D_getscalerect)(int, float *mx, float *my, float *sx, float *sy);
-void(*D3D_run)(int);
+bool(*D3D_run)(int);
 int(*D3D_debug)(int, int);
 void(*D3D_led)(int, int, int);
 bool(*D3D_getscanline)(int*, bool*);
@@ -3554,7 +3554,8 @@ static int xxD3D11_init2(HWND ahwnd, int monid, int w_w, int w_h, int t_w, int t
 	d3d->swapChainDesc.Scaling = (d3d->swapChainDesc.SwapEffect == DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL || d3d->swapChainDesc.SwapEffect == DXGI_SWAP_EFFECT_FLIP_DISCARD) ? DXGI_SCALING_NONE : DXGI_SCALING_STRETCH;
 
 	d3d->blackscreen = false;
-	if (!monid) {
+	if (!monid && isvsync()) {
+		int vsync = isvsync();
 		int hzmult = 0;
 		getvsyncrate(monid, *freq, &hzmult);
 		if (hzmult < 0) {
@@ -3565,7 +3566,6 @@ static int xxD3D11_init2(HWND ahwnd, int monid, int w_w, int w_h, int t_w, int t
 				d3d->blackscreen = true;
 			}
 		}
-		int vsync = isvsync();
 		if (vsync > 0 && !apm->gfx_vsyncmode) {
 			if (apm->gfx_strobo)
 				d3d->blackscreen = true;
@@ -4476,14 +4476,14 @@ static void xD3D11_refresh(int monid)
 }
 
 
-static void D3D11_resize_do(struct d3d11struct *d3d)
+static bool D3D11_resize_do(struct d3d11struct *d3d)
 {
 	HRESULT hr;
 
 	if (!d3d->fsresizedo)
-		return;
+		return false;
 	if (!d3d->m_swapChain)
-		return;
+		return false;
 
 	d3d->fsresizedo = false;
 
@@ -4515,30 +4515,31 @@ static void D3D11_resize_do(struct d3d11struct *d3d)
 	}
 
 	resizemode(d3d);
-	notice_screen_contents_lost(d3d - d3d11data);
-	gfxboard_refresh(d3d - d3d11data);
 
 	write_log(_T("D3D11 resize exit\n"));
+	return true;
 }
 
 
-static void recheck(struct d3d11struct *d3d)
+static bool recheck(struct d3d11struct *d3d)
 {
+	bool r = false;
 	if (xD3D11_quit(d3d))
-		return;
-	D3D11_resize_do(d3d);
+		return r;
+	r = D3D11_resize_do(d3d);
 	if (d3d->resizeretry) {
 		resizemode(d3d);
-		return;
+		return r;
 	}
 	if (!d3d->delayedfs)
-		return;
+		return r;
 	xD3D11_free(d3d - d3d11data, true);
 	d3d->delayedfs = 0;
 	ShowWindow(d3d->ahwnd, SW_SHOWNORMAL);
 	int freq = 0;
 	if (!xxD3D11_init2(d3d->ahwnd, d3d - d3d11data, d3d->m_screenWidth, d3d->m_screenHeight, d3d->m_bitmapWidth2, d3d->m_bitmapHeight2, 32, &freq, d3d->dmultx))
 		d3d->invalidmode = true;
+	return false;
 }
 
 static bool xD3D11_alloctexture(int monid, int w, int h)
@@ -4733,8 +4734,6 @@ static void xD3D11_guimode(int monid, int guion)
 		ShowWindow(d3d->ahwnd, SW_HIDE);
 	} else if (guion == 0) {
 		d3d->delayedfs = 1;
-		notice_screen_contents_lost(monid);
-		gfxboard_refresh(monid);
 	}
 	write_log(_T("fs guimode end\n"));
 }
@@ -4903,13 +4902,15 @@ static bool xD3D11_getscalerect(int monid, float *mx, float *my, float *sx, floa
 	return true;
 }
 
-static void xD3D11_run(int monid)
+static bool xD3D11_run(int monid)
 {
 	struct d3d11struct *d3d = &d3d11data[monid];
 
 	if (xD3D11_quit(d3d))
-		return;
-	D3D11_resize_do(d3d);
+		return false;
+	if (recheck(d3d))
+		return true;
+	return D3D11_resize_do(d3d);
 }
 
 void d3d11_select(void)

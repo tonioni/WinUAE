@@ -2243,7 +2243,7 @@ static void flipgui(int opengui)
 	if (opengui) {
 		DirectDraw_FlipToGDISurface();
 	} else {
-		;// vblank_reset(-1);
+		full_redraw_all();
 	}
 }
 

@@ -8,7 +8,7 @@ extern bool gfxboard_init_memory_p4_z2(struct autoconfig_info*);
 extern bool gfxboard_init_registers(struct autoconfig_info*);
 extern void gfxboard_free (void);
 extern void gfxboard_reset (void);
-extern bool gfxboard_vsync_handler (bool, bool);
+extern void gfxboard_vsync_handler (bool, bool);
 extern void gfxboard_hsync_handler(void);
 extern int gfxboard_get_configtype (struct rtgboardconfig*);
 extern bool gfxboard_is_registers (struct rtgboardconfig*);

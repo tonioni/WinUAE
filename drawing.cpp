@@ -51,6 +51,7 @@ happening, all ports should restrict window widths to be multiples of 16 pixels.
 #include "cd32_fmv.h"
 #include "specialmonitors.h"
 #include "devices.h"
+#include "gfxboard.h"
 
 #define BG_COLOR_DEBUG 0
 //#define XLINECHECK
@@ -3987,12 +3988,25 @@ void check_prefs_picasso(void)
 #endif
 }
 
-void redraw_frame (void)
+void redraw_frame(void)
 {
 	last_drawn_line = 0;
 	first_drawn_line = 32767;
 	finish_drawing_frame(true);
 	//flush_screen (vidinfo->inbuffer, 0, 0);
+}
+
+void full_redraw_all(void)
+{
+	int monid = 0;
+	struct amigadisplay *ad = &adisplays[monid];
+	notice_screen_contents_lost(monid);
+	gfxboard_refresh(monid);
+	if (!ad->picasso_on) {
+		redraw_frame();
+	}
+	render_screen(0, 1, true);
+	show_screen(0, 0);
 }
 
 bool vsync_handle_check (void)

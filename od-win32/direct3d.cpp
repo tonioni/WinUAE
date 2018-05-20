@@ -3719,23 +3719,6 @@ static bool xD3D_setcursor(int monid, int x, int y, int width, int height, bool 
 	return true;
 }
 
-static void xD3D_unlocktexture(int monid, int y_start, int y_end)
-{
-	struct d3dstruct *d3d = &d3ddata[monid];
-	HRESULT hr;
-
-	if (!isd3d (d3d) || !d3d->texture)
-		return;
-
-	if (d3d->locked) {
-		if (currprefs.leds_on_screen & (STATUSLINE_CHIPSET | STATUSLINE_RTG))
-			updateleds (d3d);
-		hr = d3d->texture->UnlockRect (0);
-	}
-	d3d->locked = 0;
-	d3d->fulllocked = 0;
-}
-
 static void xD3D_flushtexture(int monid, int miny, int maxy)
 {
 	struct d3dstruct *d3d = &d3ddata[monid];
@@ -3756,6 +3739,25 @@ static void xD3D_flushtexture(int monid, int miny, int maxy)
 			//write_log (_T("%d %d\n"), r.top, r.bottom);
 		}
 	}
+}
+
+static void xD3D_unlocktexture(int monid, int y_start, int y_end)
+{
+	struct d3dstruct *d3d = &d3ddata[monid];
+	HRESULT hr;
+
+	if (!isd3d(d3d) || !d3d->texture)
+		return;
+
+	if (d3d->locked) {
+		if (currprefs.leds_on_screen & (STATUSLINE_CHIPSET | STATUSLINE_RTG))
+			updateleds(d3d);
+		hr = d3d->texture->UnlockRect(0);
+		if (y_start >= 0)
+			xD3D_flushtexture(monid, y_start, y_end);
+	}
+	d3d->locked = 0;
+	d3d->fulllocked = 0;
 }
 
 static uae_u8 *xD3D_locktexture (int monid, int *pitch, int *height, bool fullupdate)
@@ -4063,7 +4065,7 @@ static uae_u8 *xD3D_setcursorsurface(int monid, int *pitch)
 	}
 }
 
-bool xD3D_getscanline(int *scanline, bool *invblank)
+static bool xD3D_getscanline(int *scanline, bool *invblank)
 {
 	struct d3dstruct *d3d = &d3ddata[0];
 	HRESULT hr;
@@ -4080,6 +4082,12 @@ bool xD3D_getscanline(int *scanline, bool *invblank)
 	*scanline = rt.ScanLine;
 	*invblank = rt.InVBlank != FALSE;
 	return true;
+}
+
+static bool xD3D_run(int monid)
+{
+	struct d3dstruct *d3d = &d3ddata[monid];
+	return false;
 }
 
 void d3d9_select(void)
@@ -4107,7 +4115,7 @@ void d3d9_select(void)
 	D3D_resize = NULL;
 	D3D_change = NULL;
 	D3D_getscalerect = xD3D_getscalerect;
-	D3D_run = NULL;
+	D3D_run = xD3D_run;
 	D3D_debug = xD3D_debug;
 	D3D_led = xD3D_led;
 	D3D_getscanline = xD3D_getscanline;

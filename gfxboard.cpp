@@ -898,10 +898,8 @@ void gfxboard_hsync_handler(void)
 	}
 }
 
-bool gfxboard_vsync_handler(bool full_redraw_required, bool redraw_required)
+void gfxboard_vsync_handler(bool full_redraw_required, bool redraw_required)
 {
-	bool flushed = false;
-
 	for (int i = 0; i < MAX_RTG_BOARDS; i++) {
 		struct rtggfxboard *gb = &rtggfxboards[i];
 		struct amigadisplay *ad = &adisplays[gb->monitor_id];
@@ -912,7 +910,7 @@ bool gfxboard_vsync_handler(bool full_redraw_required, bool redraw_required)
 			if (gb->userdata) {
 				struct gfxboard_mode mode = { 0 };
 				mode.redraw_required = full_redraw_required;
-				flushed = gb->func->vsync(gb->userdata, &mode);
+				gb->func->vsync(gb->userdata, &mode);
 				if (mode.mode && mode.width && mode.height) {
 					if (state->Width != mode.width ||
 						state->Height != mode.height ||
@@ -1036,15 +1034,9 @@ bool gfxboard_vsync_handler(bool full_redraw_required, bool redraw_required)
 			if (gb->fullrefresh > 0)
 				gb->fullrefresh--;
 		}
-
-		if (gb->gfxboard_surface) {
-			flushed = true;
-			gfx_unlock_picasso(gb->monitor_id, true);
-		}
+		gfx_unlock_picasso(gb->monitor_id, true);
 		gb->gfxboard_surface = NULL;
 	}
-
-	return flushed;
 }
 
 double gfxboard_get_vsync (void)
