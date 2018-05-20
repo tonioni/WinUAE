@@ -124,12 +124,20 @@ uae_u8 need_to_preserve[]={1,1,1,1,0,1,1,1};
 
 STATIC_INLINE uae_u16 swap16(uae_u16 x)
 {
+#ifdef _MSC_VER
+	return _byteswap_ushort(x);
+#else
 	return ((x&0xff00)>>8)|((x&0x00ff)<<8);
+#endif
 }
 
 STATIC_INLINE uae_u32 swap32(uae_u32 x)
 {
+#ifdef _MSC_VER
+	return _byteswap_ulong(x);
+#else
 	return ((x&0xff00)<<8)|((x&0x00ff)<<24)|((x&0xff0000)>>8)|((x&0xff000000)>>24);
+#endif
 }
 
 STATIC_INLINE int isbyte(uae_s32 x)

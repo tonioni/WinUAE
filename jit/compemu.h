@@ -32,6 +32,7 @@
 #ifndef COMPEMU_H
 #define COMPEMU_H
 
+#include "sysconfig.h"
 #include "newcpu.h"
 
 #ifdef UAE
@@ -65,8 +66,10 @@ extern uae_u32 start_pc;
 struct blockinfo_t;
 
 struct cpu_history {
-  uae_u16* location;
-  uae_u8  specmem;
+	uae_u16* location;
+#ifdef UAE
+	uae_u8  specmem;
+#endif
 };
 
 union cacheline {
@@ -127,12 +130,21 @@ union cacheline {
 			  for jump targets */
 
 #define INDIVIDUAL_INST 0
+#ifdef WINUAE_ARANYM
+#define FLAG_X    0x0010
+#define FLAG_N    0x0008
+#define FLAG_Z    0x0004
+#define FLAG_V    0x0002
+#define FLAG_C    0x0001
+#else
 #define FLAG_C    0x0010
 #define FLAG_V    0x0008
 #define FLAG_Z    0x0004
 #define FLAG_N    0x0002
 #define FLAG_X    0x0001
+#endif
 #define FLAG_CZNV (FLAG_C | FLAG_Z | FLAG_N | FLAG_V)
+#define FLAG_ALL  (FLAG_C | FLAG_Z | FLAG_N | FLAG_V | FLAG_X)
 #define FLAG_ZNV  (FLAG_Z | FLAG_N | FLAG_V)
 
 #define KILLTHERAT 1  /* Set to 1 to avoid some partial_rat_stalls */
@@ -151,6 +163,11 @@ union cacheline {
 
 /* Functions exposed to newcpu, or to what was moved from newcpu.c to
  * compemu_support.c */
+#ifdef WINUAE_ARANYM
+extern void compiler_init(void);
+extern void compiler_exit(void);
+extern bool compiler_use_jit(void);
+#endif
 extern void init_comp(void);
 extern void flush(int save_regs);
 extern void small_flush(int save_regs);
@@ -162,8 +179,12 @@ extern void set_cache_state(int enabled);
 extern int get_cache_state(void);
 extern uae_u32 get_jitted_size(void);
 #ifdef JIT
+#ifdef WINUAE_ARANYM
+extern void (*flush_icache)(int n);
+#else
 extern void flush_icache(int n);
 extern void flush_icache_hard(int n);
+#endif
 #endif
 extern void alloc_cache(void);
 extern int check_for_cache_miss(void);
@@ -391,7 +412,9 @@ typedef struct blockinfo_t {
     cpuop_func* direct_pen;
     cpuop_func* direct_pcc;
 
+#ifdef UAE
     uae_u8* nexthandler;
+#endif
     uae_u8* pc_p;
 
     uae_u32 c1;
@@ -500,22 +523,28 @@ void jit_abort(const TCHAR *format, ...);
 
 #else
 
+#ifdef WINUAE_ARANYM
+#define jit_log(format, ...) D(bug(format, ##__VA_ARGS__))
+#define jit_log2(format, ...) D2(bug(format, ##__VA_ARGS__))
+void jit_abort(const char *format,...) __attribute__((format(printf, 1, 2))) __attribute__((__noreturn__));
+#else
 #define jit_abort(...) abort()
 #define jit_log panicbug
 #define jit_log2(...)
-
 #endif
 
+#endif /* UAE */
+
 #ifdef CPU_64_BIT
-static inline uae_u32 check_uae_p32(uae_u64 address, const char *file, int line)
+static inline uae_u32 check_uae_p32(uintptr address, const char *file, int line)
 {
 	if (address > (uintptr_t) 0xffffffff) {
 		jit_abort("JIT: 64-bit pointer (0x%llx) at %s:%d (fatal)",
-			address, file, line);
+			(unsigned long long)address, file, line);
 	}
 	return (uae_u32) address;
 }
-#define uae_p32(x) (check_uae_p32((uae_u64)(x), __FILE__, __LINE__))
+#define uae_p32(x) (check_uae_p32((uintptr)(x), __FILE__, __LINE__))
 #else
 #define uae_p32(x) ((uae_u32)(x))
 #endif

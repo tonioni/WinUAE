@@ -439,7 +439,6 @@ static int handle_access(uintptr_t fault_addr, CONTEXT_T context)
 	write_log(_T("JIT: Create jump to %p\n"), veccode);
 	write_log(_T("JIT: Handled one access!\n"));
 #endif
-	segvcount++;
 
 	target = veccode;
 	if (dir == SIG_READ) {

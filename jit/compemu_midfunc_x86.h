@@ -204,6 +204,7 @@ DECLARE_MIDFUNC(fmov_0(FW r));
 DECLARE_MIDFUNC(fmov_rm(FW r, MEMR m));
 DECLARE_MIDFUNC(fmov_mr(MEMW m, FR r));
 DECLARE_MIDFUNC(fmovi_rm(FW r, MEMR m));
+DECLARE_MIDFUNC(fmovi_mr(MEMW m, FR r));
 DECLARE_MIDFUNC(fmovi_mrb(MEMW m, FR r, double *bounds));
 DECLARE_MIDFUNC(fmovs_rm(FW r, MEMR m));
 DECLARE_MIDFUNC(fmovs_mr(MEMW m, FR r));

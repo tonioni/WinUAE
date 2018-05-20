@@ -30,13 +30,13 @@
  */
 
 /* This should eventually end up in machdep/, but for now, x86 is the
-only target, and it's easier this way... */
+   only target, and it's easier this way... */
 
 #include "flags_x86.h"
 
 /*************************************************************************
-* Some basic information about the the target CPU                       *
-*************************************************************************/
+ * Some basic information about the the target CPU                       *
+ *************************************************************************/
 
 #define R1 RR1
 #define R2 RR2
@@ -106,14 +106,23 @@ only target, and it's easier this way... */
 #endif
 
 #if defined(CPU_x86_64)
-uae_s8 always_used[] = { 4, 12, -1 };
+#ifdef UAE
+/* Register R12 (and ESP) cannot be used with simple [r/m + disp32] addressing,
+ * since r/m bits 100 implies SIB byte. Simplest fix is to not use these
+ * registers. Also note that these registers are listed in the freescratch
+ * function as well. */
+uae_s8 always_used[] = { ESP_INDEX, R12_INDEX, -1 };
+#else
+uae_s8 always_used[] = { ESP_INDEX, -1 };
+#endif
 uae_s8 can_byte[]={0,1,2,3,5,6,7,8,9,10,11,12,13,14,15,-1};
 uae_s8 can_word[]={0,1,2,3,5,6,7,8,9,10,11,12,13,14,15,-1};
 #else
-uae_s8 always_used[] = { 4, -1 };
+uae_s8 always_used[] = { ESP_INDEX, -1 };
 uae_s8 can_byte[]={0,1,2,3,-1};
 uae_s8 can_word[]={0,1,2,3,5,6,7,-1};
 #endif
+static bool		have_lahf_lm		= true;		// target has LAHF supported in long mode ?
 
 #if USE_OPTIMIZED_CALLS
 /* Make sure interpretive core does not use cpuopti */
@@ -220,7 +229,7 @@ static inline void x86_64_addr32(void)
 #endif
 }
 
-static inline void x86_64_rex(bool w, uae_u32 *r, uae_u32 *x, uae_u32 *b)
+static inline void x86_64_rex(bool /* w */, uae_u32 * /* r */, uae_u32 * /* x */, uae_u32 *b)
 {
 #ifdef CPU_x86_64
 	int rex_byte = 0x40;
@@ -231,6 +240,8 @@ static inline void x86_64_rex(bool w, uae_u32 *r, uae_u32 *x, uae_u32 *b)
 	if (rex_byte != 0x40) {
 		emit_byte(rex_byte);
 	}
+#else
+	UNUSED(b);
 #endif
 }
 
@@ -1305,8 +1316,8 @@ const bool optimize_imm8	= true;
 const bool optimize_shift_once	= true;
 
 /*************************************************************************
-* Actual encoding of the instructions on the target CPU                 *
-*************************************************************************/
+ * Actual encoding of the instructions on the target CPU                 *
+ *************************************************************************/
 
 static inline int isaccum(int r)
 {
@@ -1592,9 +1603,9 @@ LENDFUNC(WRITE,NONE,2,raw_ror_w_ri,(RW2 r, IMM i))
 // gb-- used for making an fpcr value in compemu_fpp.cpp
 LOWFUNC(WRITE,READ,2,raw_or_l_rm,(RW4 d, MEMR s))
 {
-    emit_byte(0x0b);
-    emit_byte(0x05+8*d);
-    emit_long(s);
+	emit_byte(0x0b);
+	emit_byte(0x05+8*d);
+	emit_long(s);
 }
 LENDFUNC(WRITE,READ,2,raw_or_l_rm,(RW4 d, MEMR s))
 
@@ -1912,10 +1923,10 @@ LENDFUNC(NONE,NONE,2,raw_mul_64_32,(RW4 d, RW4 s))
 
 LOWFUNC(NONE,NONE,2,raw_mul_32_32,(RW4 d, R4 s))
 {
-    abort(); /* %^$&%^$%#^ x86! */
-    emit_byte(0x0f);
-    emit_byte(0xaf);
-    emit_byte(0xc0+8*d+s);
+	jit_abort("unsupported MUL"); /* %^$&%^$%#^ x86! */
+	emit_byte(0x0f);
+	emit_byte(0xaf);
+	emit_byte(0xc0+8*d+s);
 }
 LENDFUNC(NONE,NONE,2,raw_mul_32_32,(RW4 d, R4 s))
 
@@ -1976,7 +1987,7 @@ LOWFUNC(NONE,READ,4,raw_mov_w_rrm_indexed,(W2 d, R4 baser, R4 index, IMM factor)
 	emit_byte(baser+8*index+0x40*fi);
 	if (isebp)
 		emit_byte(0x00);
-	}
+}
 LENDFUNC(NONE,READ,4,raw_mov_w_rrm_indexed,(W2 d, R4 baser, R4 index, IMM factor))
 
 LOWFUNC(NONE,READ,4,raw_mov_b_rrm_indexed,(W1 d, R4 baser, R4 index, IMM factor))
@@ -2075,11 +2086,11 @@ LOWFUNC(NONE,WRITE,5,raw_mov_l_bmrr_indexed,(IMM base, R4 baser, R4 index, IMM f
 	int fi;
 
 	switch(factor) {
-	case 1: fi=0; break;
-	case 2: fi=1; break;
-	case 4: fi=2; break;
-	case 8: fi=3; break;
-	default: abort();
+		case 1: fi=0; break;
+		case 2: fi=1; break;
+		case 4: fi=2; break;
+		case 8: fi=3; break;
+		default: abort();
 	}
 
 	emit_byte(0x89);
@@ -2094,11 +2105,11 @@ LOWFUNC(NONE,WRITE,5,raw_mov_w_bmrr_indexed,(IMM base, R4 baser, R4 index, IMM f
 	int fi;
 
 	switch(factor) {
-	case 1: fi=0; break;
-	case 2: fi=1; break;
-	case 4: fi=2; break;
-	case 8: fi=3; break;
-	default: abort();
+		case 1: fi=0; break;
+		case 2: fi=1; break;
+		case 4: fi=2; break;
+		case 8: fi=3; break;
+		default: abort();
 	}
 
 	emit_byte(0x66);
@@ -2114,18 +2125,18 @@ LOWFUNC(NONE,WRITE,5,raw_mov_b_bmrr_indexed,(IMM base, R4 baser, R4 index, IMM f
 	int fi;
 
 	switch(factor) {
-	case 1: fi=0; break;
-	case 2: fi=1; break;
-	case 4: fi=2; break;
-	case 8: fi=3; break;
-	default: abort();
+		case 1: fi=0; break;
+		case 2: fi=1; break;
+		case 4: fi=2; break;
+		case 8: fi=3; break;
+		default: abort();
 	}
 
 	emit_byte(0x88);
 	emit_byte(0x84+8*s);
 	emit_byte(baser+8*index+0x40*fi);
 	emit_long(base);
-	}
+}
 LENDFUNC(NONE,WRITE,5,raw_mov_b_bmrr_indexed,(IMM base, R4 baser, R4 index, IMM factor, R1 s))
 
 LOWFUNC(NONE,READ,5,raw_mov_l_brrm_indexed,(W4 d, IMM base, R4 baser, R4 index, IMM factor))
@@ -2133,11 +2144,11 @@ LOWFUNC(NONE,READ,5,raw_mov_l_brrm_indexed,(W4 d, IMM base, R4 baser, R4 index, 
 	int fi;
 
 	switch(factor) {
-	case 1: fi=0; break;
-	case 2: fi=1; break;
-	case 4: fi=2; break;
-	case 8: fi=3; break;
-	default: abort();
+		case 1: fi=0; break;
+		case 2: fi=1; break;
+		case 4: fi=2; break;
+		case 8: fi=3; break;
+		default: abort();
 	}
 
 	emit_byte(0x8b);
@@ -2152,11 +2163,11 @@ LOWFUNC(NONE,READ,5,raw_mov_w_brrm_indexed,(W2 d, IMM base, R4 baser, R4 index, 
 	int fi;
 
 	switch(factor) {
-	case 1: fi=0; break;
-	case 2: fi=1; break;
-	case 4: fi=2; break;
-	case 8: fi=3; break;
-	default: abort();
+		case 1: fi=0; break;
+		case 2: fi=1; break;
+		case 4: fi=2; break;
+		case 8: fi=3; break;
+		default: abort();
 	}
 
 	emit_byte(0x66);
@@ -2172,11 +2183,11 @@ LOWFUNC(NONE,READ,5,raw_mov_b_brrm_indexed,(W1 d, IMM base, R4 baser, R4 index, 
 	int fi;
 
 	switch(factor) {
-	case 1: fi=0; break;
-	case 2: fi=1; break;
-	case 4: fi=2; break;
-	case 8: fi=3; break;
-	default: abort();
+		case 1: fi=0; break;
+		case 2: fi=1; break;
+		case 4: fi=2; break;
+		case 8: fi=3; break;
+		default: abort();
 	}
 
 	emit_byte(0x8a);
@@ -2190,13 +2201,12 @@ LOWFUNC(NONE,READ,4,raw_mov_l_rm_indexed,(W4 d, IMM base, R4 index, IMM factor))
 {
 	int fi;
 	switch(factor) {
-	case 1: fi=0; break;
-	case 2: fi=1; break;
-	case 4: fi=2; break;
-	case 8: fi=3; break;
-	default: 
-		fprintf(stderr,"Bad factor %d in mov_l_rm_indexed!\n",factor);
-		abort();
+		case 1: fi=0; break;
+		case 2: fi=1; break;
+		case 4: fi=2; break;
+		case 8: fi=3; break;
+		default: 
+		jit_abort("Bad factor %d in mov_l_rm_indexed!",factor);
 	}
 	emit_byte(0x8b);
 	emit_byte(0x04+8*d);
@@ -2209,13 +2219,12 @@ LOWFUNC(NONE,READ,5,raw_cmov_l_rm_indexed,(W4 d, IMM base, R4 index, IMM factor,
 {
 	int fi;
 	switch(factor) {
-	case 1: fi=0; break;
-	case 2: fi=1; break;
-	case 4: fi=2; break;
-	case 8: fi=3; break;
-	default: 
-		fprintf(stderr,"Bad factor %d in mov_l_rm_indexed!\n",factor);
-		abort();
+		case 1: fi=0; break;
+		case 2: fi=1; break;
+		case 4: fi=2; break;
+		case 8: fi=3; break;
+		default: 
+		jit_abort("Bad factor %d in mov_l_rm_indexed!",factor);
 	}
 	if (have_cmov) {
 		emit_byte(0x0f);
@@ -2387,11 +2396,11 @@ LOWFUNC(NONE,NONE,5,raw_lea_l_brr_indexed,(W4 d, R4 s, R4 index, IMM factor, IMM
 	int fi;
   
 	switch(factor) {
-	case 1: fi=0; break;
-	case 2: fi=1; break;
-	case 4: fi=2; break;
-	case 8: fi=3; break;
-	default: abort();
+		case 1: fi=0; break;
+		case 2: fi=1; break;
+		case 4: fi=2; break;
+		case 8: fi=3; break;
+		default: abort();
 	}
 
 	if (optimize_imm8 && isbyte(offset)) {
@@ -2415,11 +2424,11 @@ LOWFUNC(NONE,NONE,4,raw_lea_l_rr_indexed,(W4 d, R4 s, R4 index, IMM factor))
 	int fi;
   
 	switch(factor) {
-	case 1: fi=0; break;
-	case 2: fi=1; break;
-	case 4: fi=2; break;
-	case 8: fi=3; break;
-	default: abort();
+		case 1: fi=0; break;
+		case 2: fi=1; break;
+		case 4: fi=2; break;
+		case 8: fi=3; break;
+		default: abort();
 	}
 
 	emit_byte(0x8d);
@@ -2637,9 +2646,9 @@ LENDFUNC(WRITE,NONE,2,raw_test_b_rr,(R1 d, R1 s))
 
 LOWFUNC(WRITE,NONE,2,raw_xor_l_ri,(RW4 d, IMM i))
 {
-    emit_byte(0x81);
-    emit_byte(0xf0+d);
-    emit_long(i);
+	emit_byte(0x81);
+	emit_byte(0xf0+d);
+	emit_long(i);
 }
 LENDFUNC(WRITE,NONE,2,raw_xor_l_ri,(RW4 d, IMM i))
 
@@ -2717,8 +2726,8 @@ LOWFUNC(WRITE,NONE,2,raw_or_l_ri,(RW4 d, IMM i))
 		else {
 			emit_byte(0x81);
 			emit_byte(0xc8+d);
-	}
-	emit_long(i);
+		}
+		emit_long(i);
 	}
 }
 LENDFUNC(WRITE,NONE,2,raw_or_l_ri,(RW4 d, IMM i))
@@ -2951,10 +2960,10 @@ LENDFUNC(WRITE,NONE,2,raw_cmp_w,(R2 d, R2 s))
 
 LOWFUNC(WRITE,READ,2,raw_cmp_b_mi,(MEMR d, IMM s))
 {
-    emit_byte(0x80);
-    emit_byte(0x3d);
-    emit_long(d);
-    emit_byte(s);
+	emit_byte(0x80);
+	emit_byte(0x3d);
+	emit_long(d);
+	emit_byte(s);
 }
 LENDFUNC(WRITE,READ,2,raw_cmp_l_mi,(MEMR d, IMM s))
 
@@ -2979,19 +2988,19 @@ LENDFUNC(WRITE,NONE,2,raw_cmp_b,(R1 d, R1 s))
 
 LOWFUNC(WRITE,READ,4,raw_cmp_l_rm_indexed,(R4 d, IMM offset, R4 index, IMM factor))
 {
-    int fi;
-    
-    switch(factor) {
-     case 1: fi=0; break;
-     case 2: fi=1; break;
-     case 4: fi=2; break;
-     case 8: fi=3; break;
-     default: abort();
-    }
-    emit_byte(0x39);
-    emit_byte(0x04+8*d);
-    emit_byte(5+8*index+0x40*fi);
-    emit_long(offset);
+	int fi;
+
+	switch(factor) {
+		case 1: fi=0; break;
+		case 2: fi=1; break;
+		case 4: fi=2; break;
+		case 8: fi=3; break;
+		default: abort();
+	}
+	emit_byte(0x39);
+	emit_byte(0x04+8*d);
+	emit_byte(5+8*index+0x40*fi);
+	emit_long(offset);
 }
 LENDFUNC(WRITE,READ,4,raw_cmp_l_rm_indexed,(R4 d, IMM offset, R4 index, IMM factor))
 
@@ -3098,7 +3107,7 @@ static inline void x86_fadd_m(MEMR s)
 static inline void raw_call_r(R4 r)
 {
 #if USE_NEW_RTASM
-    CALLsr(r);
+	CALLsr(r);
 #else
 	emit_byte(0xff);
 	emit_byte(0xd0+r);
@@ -3246,7 +3255,7 @@ static inline void raw_ret(void)
 	emit_byte(0xc3);
 }
 
-static inline void raw_nop(void)
+static inline void raw_emit_nop(void)
 {
 	emit_byte(0x90);
 }
@@ -3268,11 +3277,11 @@ static inline void raw_emit_nop_filler(int nbytes)
 
   for (i = 0; i < remains; i++) {
 	  emit_block(prefixes, len);
-	  raw_nop();
+	  raw_emit_nop();
   }
   for (; i < nnops; i++) {
 	  emit_block(prefixes, len - 1);
-	  raw_nop();
+	  raw_emit_nop();
   }
 #else
   /* Source: GNU Binutils 2.12.90.0.15 */
@@ -3280,50 +3289,50 @@ static inline void raw_emit_nop_filler(int nbytes)
      Note: Don't try to assemble the instructions in the comments.
      0L and 0w are not legal.  */
   static const uae_u8 f32_1[] =
-    {0x90};									/* nop					*/
+	{0x90}; 								/* nop					*/
   static const uae_u8 f32_2[] =
-    {0x89,0xf6};							/* movl %esi,%esi		*/
+	{0x89,0xf6};							/* movl %esi,%esi		*/
   static const uae_u8 f32_3[] =
-    {0x8d,0x76,0x00};						/* leal 0(%esi),%esi	*/
+	{0x8d,0x76,0x00};						/* leal 0(%esi),%esi	*/
   static const uae_u8 f32_4[] =
-    {0x8d,0x74,0x26,0x00};					/* leal 0(%esi,1),%esi	*/
+	{0x8d,0x74,0x26,0x00};					/* leal 0(%esi,1),%esi	*/
   static const uae_u8 f32_5[] =
-    {0x90,									/* nop					*/
-     0x8d,0x74,0x26,0x00};					/* leal 0(%esi,1),%esi	*/
+	{0x90,									/* nop					*/
+	 0x8d,0x74,0x26,0x00};					/* leal 0(%esi,1),%esi	*/
   static const uae_u8 f32_6[] =
-    {0x8d,0xb6,0x00,0x00,0x00,0x00};		/* leal 0L(%esi),%esi	*/
+	{0x8d,0xb6,0x00,0x00,0x00,0x00};		/* leal 0L(%esi),%esi	*/
   static const uae_u8 f32_7[] =
-    {0x8d,0xb4,0x26,0x00,0x00,0x00,0x00};	/* leal 0L(%esi,1),%esi */
+	{0x8d,0xb4,0x26,0x00,0x00,0x00,0x00};	/* leal 0L(%esi,1),%esi */
   static const uae_u8 f32_8[] =
-    {0x90,									/* nop					*/
-     0x8d,0xb4,0x26,0x00,0x00,0x00,0x00};	/* leal 0L(%esi,1),%esi */
+	{0x90,									/* nop					*/
+	 0x8d,0xb4,0x26,0x00,0x00,0x00,0x00};	/* leal 0L(%esi,1),%esi */
   static const uae_u8 f32_9[] =
-    {0x89,0xf6,								/* movl %esi,%esi		*/
-     0x8d,0xbc,0x27,0x00,0x00,0x00,0x00};	/* leal 0L(%edi,1),%edi */
+	{0x89,0xf6, 							/* movl %esi,%esi		*/
+	 0x8d,0xbc,0x27,0x00,0x00,0x00,0x00};	/* leal 0L(%edi,1),%edi */
   static const uae_u8 f32_10[] =
-    {0x8d,0x76,0x00,						/* leal 0(%esi),%esi	*/
-     0x8d,0xbc,0x27,0x00,0x00,0x00,0x00};	/* leal 0L(%edi,1),%edi */
+	{0x8d,0x76,0x00,						/* leal 0(%esi),%esi	*/
+	 0x8d,0xbc,0x27,0x00,0x00,0x00,0x00};	/* leal 0L(%edi,1),%edi */
   static const uae_u8 f32_11[] =
-    {0x8d,0x74,0x26,0x00,					/* leal 0(%esi,1),%esi	*/
-     0x8d,0xbc,0x27,0x00,0x00,0x00,0x00};	/* leal 0L(%edi,1),%edi */
+	{0x8d,0x74,0x26,0x00,					/* leal 0(%esi,1),%esi	*/
+	 0x8d,0xbc,0x27,0x00,0x00,0x00,0x00};	/* leal 0L(%edi,1),%edi */
   static const uae_u8 f32_12[] =
-    {0x8d,0xb6,0x00,0x00,0x00,0x00,			/* leal 0L(%esi),%esi	*/
-     0x8d,0xbf,0x00,0x00,0x00,0x00};		/* leal 0L(%edi),%edi	*/
+	{0x8d,0xb6,0x00,0x00,0x00,0x00, 		/* leal 0L(%esi),%esi	*/
+	 0x8d,0xbf,0x00,0x00,0x00,0x00};		/* leal 0L(%edi),%edi	*/
   static const uae_u8 f32_13[] =
-    {0x8d,0xb6,0x00,0x00,0x00,0x00,			/* leal 0L(%esi),%esi	*/
-     0x8d,0xbc,0x27,0x00,0x00,0x00,0x00};	/* leal 0L(%edi,1),%edi */
+	{0x8d,0xb6,0x00,0x00,0x00,0x00, 		/* leal 0L(%esi),%esi	*/
+	 0x8d,0xbc,0x27,0x00,0x00,0x00,0x00};	/* leal 0L(%edi,1),%edi */
   static const uae_u8 f32_14[] =
-    {0x8d,0xb4,0x26,0x00,0x00,0x00,0x00,	/* leal 0L(%esi,1),%esi */
-     0x8d,0xbc,0x27,0x00,0x00,0x00,0x00};	/* leal 0L(%edi,1),%edi */
+	{0x8d,0xb4,0x26,0x00,0x00,0x00,0x00,	/* leal 0L(%esi,1),%esi */
+	 0x8d,0xbc,0x27,0x00,0x00,0x00,0x00};	/* leal 0L(%edi,1),%edi */
   static const uae_u8 f32_15[] =
-    {0xeb,0x0d,0x90,0x90,0x90,0x90,0x90,	/* jmp .+15; lotsa nops	*/
-     0x90,0x90,0x90,0x90,0x90,0x90,0x90,0x90};
+	{0xeb,0x0d,0x90,0x90,0x90,0x90,0x90,	/* jmp .+15; lotsa nops */
+	 0x90,0x90,0x90,0x90,0x90,0x90,0x90,0x90};
   static const uae_u8 f32_16[] =
-    {0xeb,0x0d,0x90,0x90,0x90,0x90,0x90,	/* jmp .+15; lotsa nops	*/
-     0x90,0x90,0x90,0x90,0x90,0x90,0x90,0x90,0x90};
+	{0xeb,0x0d,0x90,0x90,0x90,0x90,0x90,	/* jmp .+15; lotsa nops */
+	 0x90,0x90,0x90,0x90,0x90,0x90,0x90,0x90,0x90};
   static const uae_u8 *const f32_patt[] = {
-    f32_1, f32_2, f32_3, f32_4, f32_5, f32_6, f32_7, f32_8,
-    f32_9, f32_10, f32_11, f32_12, f32_13, f32_14, f32_15
+	f32_1, f32_2, f32_3, f32_4, f32_5, f32_6, f32_7, f32_8,
+	f32_9, f32_10, f32_11, f32_12, f32_13, f32_14, f32_15
   };
 
   int nloops = nbytes / 16;
@@ -3338,8 +3347,8 @@ static inline void raw_emit_nop_filler(int nbytes)
 
 
 /*************************************************************************
-* Flag handling, to and fro UAE flag register                           *
-*************************************************************************/
+ * Flag handling, to and fro UAE flag register                           *
+ *************************************************************************/
 
 static inline void raw_flags_evicted(int r)
 {
@@ -3378,13 +3387,13 @@ static inline void raw_reg_to_flags_FLAGREG(int r)
 #define FLAG_NREG3_FLAGREG 0  /* Set to -1 if any register will do */
 static __inline__ void raw_flags_set_zero_FLAGREG(int s, int tmp)
 {
-    raw_mov_l_rr(tmp,s);
-    raw_lahf(s); /* flags into ah */
-    raw_and_l_ri(s,0xffffbfff);
-    raw_and_l_ri(tmp,0x00004000);
-    raw_xor_l_ri(tmp,0x00004000);
-    raw_or_l(s,tmp);
-    raw_sahf(s);
+	raw_mov_l_rr(tmp,s);
+	raw_lahf(s); /* flags into ah */
+	raw_and_l_ri(s,0xffffbfff);
+	raw_and_l_ri(tmp,0x00004000);
+	raw_xor_l_ri(tmp,0x00004000);
+	raw_or_l(s,tmp);
+	raw_sahf(s);
 }
 
 static inline void raw_flags_init_FLAGREG(void) { }
@@ -3408,15 +3417,15 @@ static inline void raw_reg_to_flags_FLAGSTK(int r)
 #define FLAG_NREG3_FLAGSTK -1  /* Set to -1 if any register will do */
 static inline void raw_flags_set_zero_FLAGSTK(int s, int tmp)
 {
-    raw_mov_l_rr(tmp,s);
-    raw_pushfl();
-    raw_pop_l_r(s);
-    raw_and_l_ri(s,0xffffffbf);
-    raw_and_l_ri(tmp,0x00000040);
-    raw_xor_l_ri(tmp,0x00000040);
-    raw_or_l(s,tmp);
-    raw_push_l_r(s);
-    raw_popfl();
+	raw_mov_l_rr(tmp,s);
+	raw_pushfl();
+	raw_pop_l_r(s);
+	raw_and_l_ri(s,0xffffffbf);
+	raw_and_l_ri(tmp,0x00000040);
+	raw_xor_l_ri(tmp,0x00000040);
+	raw_or_l(s,tmp);
+	raw_push_l_r(s);
+	raw_popfl();
 }
 
 static inline void raw_flags_init_FLAGSTK(void) { }
@@ -3430,10 +3439,10 @@ static inline void raw_flags_to_reg_FLAGGEN(int r)
 {
 	if (have_lahf_lm) {
 		// NOTE: the interpreter uses the normal EFLAGS layout
-		//   pushf/popf CF(0) ZF( 6) SF( 7) OF(11)
-		//   sahf/lahf  CF(8) ZF(14) SF(15) OF( 0)
+		//  pushf/popf CF(0) ZF( 6) SF( 7) OF(11)
+		//  sahf/lahf  CF(8) ZF(14) SF(15) OF( 0)
 		assert(r == 0);
-		raw_setcc(r,0);					/* V flag in AL */
+		raw_setcc(r,0); 				/* V flag in AL */
 		raw_lea_l_r_scaled(0,0,8);		/* move it to its EFLAGS location */
 		raw_mov_b_mr(((uintptr)live.state[FLAGTMP].mem)+1,0);
 		raw_lahf(0);					/* most flags in AH */
@@ -3501,7 +3510,7 @@ static inline void raw_flags_init_FLAGGEN(void)
 #define raw_flags_set_zero		FLAG_GLUE(raw_flags_set_zero)
 
 /* Apparently, there are enough instructions between flag store and
-flag reload to avoid the partial memory stall */
+   flag reload to avoid the partial memory stall */
 static inline void raw_load_flagreg(uae_u32 target, uae_u32 r)
 {
 #if 1
@@ -3573,14 +3582,16 @@ static inline void raw_pop_preserved_regs(void) {
 #include "exception_handler.cpp"
 #endif
 
+#ifdef UAE
 static
+#endif
 void compiler_status() {
 	jit_log("compiled code starts at %p, current at %p (size 0x%x)", compiled_code, current_compile_p, (unsigned int)(current_compile_p - compiled_code));
 }
 
 /*************************************************************************
-* Checking for CPU features                                             *
-*************************************************************************/
+ * Checking for CPU features                                             *
+ *************************************************************************/
 
 struct cpuinfo_x86 {
 	uae_u8	x86;			// CPU family
@@ -3591,7 +3602,7 @@ struct cpuinfo_x86 {
 	uae_u8	x86_model;
 	uae_u8	x86_mask;
 	bool	x86_has_xmm2;
-	int	cpuid_level;    // Maximum supported CPUID level, -1=no CPUID
+	int		cpuid_level;	// Maximum supported CPUID level, -1=no CPUID
 	char	x86_vendor_id[16];
 	uintptr	x86_clflush_size;
 };
@@ -3600,19 +3611,19 @@ struct cpuinfo_x86 cpuinfo;
 enum {
 	X86_VENDOR_INTEL		= 0,
 	X86_VENDOR_CYRIX		= 1,
-	X86_VENDOR_AMD		= 2,
-	X86_VENDOR_UMC		= 3,
+	X86_VENDOR_AMD			= 2,
+	X86_VENDOR_UMC			= 3,
 	X86_VENDOR_NEXGEN		= 4,
-	X86_VENDOR_CENTAUR	= 5,
-	X86_VENDOR_RISE		= 6,
+	X86_VENDOR_CENTAUR		= 5,
+	X86_VENDOR_RISE			= 6,
 	X86_VENDOR_TRANSMETA	= 7,
-	X86_VENDOR_NSC		= 8,
-	X86_VENDOR_UNKNOWN	= 0xff
+	X86_VENDOR_NSC			= 8,
+	X86_VENDOR_UNKNOWN		= 0xff
 };
 
 enum {
-	X86_PROCESSOR_I386,                       /* 80386 */
-	X86_PROCESSOR_I486,                       /* 80486DX, 80486SX, 80486DX[24] */
+	X86_PROCESSOR_I386,						/* 80386 */
+	X86_PROCESSOR_I486,						/* 80486DX, 80486SX, 80486DX[24] */
 	X86_PROCESSOR_PENTIUM,
 	X86_PROCESSOR_PENTIUMPRO,
 	X86_PROCESSOR_K6,
@@ -3622,6 +3633,7 @@ enum {
 	X86_PROCESSOR_max
 };
 
+#if defined(UAE) || (defined(DEBUG) && DEBUG)
 static const char * x86_processor_string_table[X86_PROCESSOR_max] = {
 	"80386",
 	"80486",
@@ -3632,6 +3644,7 @@ static const char * x86_processor_string_table[X86_PROCESSOR_max] = {
 	"Pentium4",
 	"x86-64"
 };
+#endif
 
 static struct ptt {
 	const int align_loop;
@@ -3651,8 +3664,7 @@ x86_alignments[X86_PROCESSOR_max] = {
 	{ 16,  7, 16,  7, 16 }
 };
 
-static void
-	x86_get_cpu_vendor(struct cpuinfo_x86 *c)
+static void x86_get_cpu_vendor(struct cpuinfo_x86 *c)
 {
 	char *v = c->x86_vendor_id;
 
@@ -3672,8 +3684,7 @@ static void
 		c->x86_vendor = X86_VENDOR_NEXGEN;
 	else if (!strcmp(v, "RiseRiseRise"))
 		c->x86_vendor = X86_VENDOR_RISE;
-	else if (!strcmp(v, "GenuineTMx86") ||
-		!strcmp(v, "TransmetaCPU"))
+	else if (!strcmp(v, "GenuineTMx86") || !strcmp(v, "TransmetaCPU"))
 		c->x86_vendor = X86_VENDOR_TRANSMETA;
 	else
 		c->x86_vendor = X86_VENDOR_UNKNOWN;
@@ -3726,7 +3737,7 @@ static void cpuid_count(uae_u32 op, uae_u32 count, uae_u32 *eax, uae_u32 *ebx, u
 	*ebx = cpuinfo[1];
 	*ecx = cpuinfo[2];
 	*edx = cpuinfo[3];
-	}
+}
 #endif
 
 static void
@@ -3735,8 +3746,7 @@ cpuid(uae_u32 op, uae_u32 *eax, uae_u32 *ebx, uae_u32 *ecx, uae_u32 *edx)
 	cpuid_count(op, 0, eax, ebx, ecx, edx);
 }
 
-static void
-raw_init_cpu(void)
+static void raw_init_cpu(void)
 {
 	struct cpuinfo_x86 *c = &cpuinfo;
 	uae_u32 dummy;
@@ -3843,7 +3853,9 @@ raw_init_cpu(void)
 		jit_log("  Mask    : %d", c->x86_mask);
 		jit_log("  Vendor  : %s [%d]", c->x86_vendor_id, c->x86_vendor);
 		if (c->x86_brand_id)
+		{
 			jit_log("  BrandID : %02x", c->x86_brand_id);
+		}
 	}
 
 	/* Have CMOV support? */
@@ -3861,8 +3873,8 @@ raw_init_cpu(void)
 	have_rat_stall = true; //(c->x86_vendor == X86_VENDOR_INTEL);
 #if 0
 	/* It appears that partial register writes are a bad idea even on
-	AMD K7 cores, even though they are not supposed to have the
-	dreaded rat stall. Why? Anyway, that's why we lie about it ;-) */
+	   AMD K7 cores, even though they are not supposed to have the
+	   dreaded rat stall. Why? Anyway, that's why we lie about it ;-) */
 	if (c->x86_processor == X86_PROCESSOR_ATHLON)
 		have_rat_stall = true;
 #endif
@@ -3873,14 +3885,14 @@ raw_init_cpu(void)
 		align_jumps = x86_alignments[c->x86_processor].align_jump;
 	}
 
-	jit_log("Max CPUID level=%d Processor is %s [%s]",
+	jit_log("<JIT compiler> : Max CPUID level=%d Processor is %s [%s]",
 			c->cpuid_level, c->x86_vendor_id,
 			x86_processor_string_table[c->x86_processor]);
 
 	raw_flags_init();
 }
 
-#if 0
+#ifndef UAE
 static void __attribute_noinline__ prevent_redzone_use(void) {}
 
 static bool target_check_bsf(void)
@@ -3904,18 +3916,21 @@ static bool target_check_bsf(void)
 						if (ZF != tmp || SF != g_SF || OF != g_OF || CF != g_CF)
 							mismatch = true;
 					}
-				}}}}
+				}
+			}
+		}
+	}
 	if (mismatch)
 	{
-		jit_log("Target CPU defines all flags on BSF instruction");
+		jit_log("<JIT compiler> : Target CPU defines all flags on BSF instruction");
 	}
 	return !mismatch;
 }
 #endif
 
 /*************************************************************************
-* FPU stuff                                                             *
-*************************************************************************/
+ * FPU stuff                                                             *
+ *************************************************************************/
 
 
 static inline void raw_fp_init(void)
@@ -3931,8 +3946,8 @@ static inline void raw_fp_cleanup_drop(void)
 {
 #if 0
 	/* using FINIT instead of popping all the entries.
-	Seems to have side effects --- there is display corruption in
-	Quake when this is used */
+	   Seems to have side effects --- there is display corruption in
+	   Quake when this is used */
 	if (live.tos>1) {
 		emit_byte(0x9b);
 		emit_byte(0xdb);
@@ -3981,26 +3996,25 @@ static inline void make_tos(int r)
 
 static inline void make_tos2(int r, int r2)
 {
-    int q;
+	int q;
 
-    make_tos(r2); /* Put the reg that's supposed to end up in position2
-		     on top */
+	make_tos(r2); /* Put the reg that's supposed to end up in position2 on top */
 
-    if (live.spos[r]<0) { /* Register not yet on stack */
-	make_tos(r); /* This will extend the stack */
-	return;
-    }
-    /* Register is on stack */
-    emit_byte(0xd9);
-    emit_byte(0xc9); /* Move r2 into position 2 */
+	if (live.spos[r]<0) { /* Register not yet on stack */
+		make_tos(r); /* This will extend the stack */
+		return;
+	}
+	/* Register is on stack */
+	emit_byte(0xd9);
+	emit_byte(0xc9); /* Move r2 into position 2 */
 
-    q=live.onstack[live.tos-1];
-    live.onstack[live.tos]=q;
-    live.spos[q]=live.tos;
-    live.onstack[live.tos-1]=r2;
-    live.spos[r2]=live.tos-1;
+	q=live.onstack[live.tos-1];
+	live.onstack[live.tos]=q;
+	live.spos[q]=live.tos;
+	live.onstack[live.tos-1]=r2;
+	live.spos[r2]=live.tos-1;
 
-    make_tos(r); /* And r into 1 */
+	make_tos(r); /* And r into 1 */
 }
 
 static inline int stackpos(int r)
@@ -4034,8 +4048,7 @@ static inline void tos_make(int r)
 		return;
 	}
 	emit_byte(0xdd);
-	emit_byte(0xd8+(live.tos+1)-live.spos[r]);  /* store top of stack in reg,
-						       and pop it*/
+	emit_byte(0xd8+(live.tos+1)-live.spos[r]);  /* store top of stack in reg, and pop it*/
 }
 
 /* FP helper functions */
@@ -4043,7 +4056,7 @@ static inline void tos_make(int r)
 #define DEFINE_OP(NAME, GEN)			\
 static inline void raw_##NAME(uint32 m)		\
 {						\
-    GEN(m, X86_NOREG, X86_NOREG, 1);		\
+	GEN(m, X86_NOREG, X86_NOREG, 1);		\
 }
 DEFINE_OP(fstl,  FSTLm);
 DEFINE_OP(fstpl, FSTPLm);
@@ -4059,9 +4072,9 @@ DEFINE_OP(fistpl, FISTPLm);
 #define DEFINE_OP(NAME, OP1, OP2)		\
 static inline void raw_##NAME(uint32 m)		\
 {						\
-    emit_byte(OP1);				\
-    emit_byte(OP2);				\
-    emit_long(m);				\
+	emit_byte(OP1); 			\
+	emit_byte(OP2); 			\
+	emit_long(m);				\
 }
 DEFINE_OP(fstl,  0xdd, 0x15);
 DEFINE_OP(fstpl, 0xdd, 0x1d);
@@ -4165,11 +4178,10 @@ LOWFUNC(NONE,WRITE,2,raw_fmov_ext_mr,(MEMW m, FR r))
 {
 	int rs;
 
-	/* Stupid x87 can't write a long double to mem without popping the
-	stack! */
+	/* Stupid x87 can't write a long double to mem without popping the stack! */
 	usereg(r);
 	rs=stackpos(r);
-	emit_byte(0xd9);     /* Get a copy to the top of stack */
+	emit_byte(0xd9);	/* Get a copy to the top of stack */
 	emit_byte(0xc0+rs);
 
 	raw_fstpt(m);	/* store and pop it */
@@ -4281,12 +4293,12 @@ LOWFUNC(NONE,NONE,2,raw_fsqrt_rr,(FW d, FR s))
 		emit_byte(0xc0+ds); /* duplicate source */
 		emit_byte(0xd9);
 		emit_byte(0xfa); /* take square root */
-		tos_make(d);        /* store to destination */
+		tos_make(d); 	 /* store to destination */
 	}
 	else {
 		make_tos(d);
 		emit_byte(0xd9);
-		emit_byte(0xfa);    /* take square root */
+		emit_byte(0xfa); /* take square root */
 	}
 }
 LENDFUNC(NONE,NONE,2,raw_fsqrt_rr,(FW d, FR s))
@@ -4302,7 +4314,7 @@ LOWFUNC(NONE,NONE,2,raw_fabs_rr,(FW d, FR s))
 		emit_byte(0xc0+ds); /* duplicate source */
 		emit_byte(0xd9);
 		emit_byte(0xe1); /* take fabs */
-		tos_make(d);        /* store to destination */
+		tos_make(d); 	 /* store to destination */
 	}
 	else {
 		make_tos(d);
@@ -4323,7 +4335,7 @@ LOWFUNC(NONE,NONE,2,raw_frndint_rr,(FW d, FR s))
 		emit_byte(0xc0+ds); /* duplicate source */
 		emit_byte(0xd9);
 		emit_byte(0xfc); /* take frndint */
-		tos_make(d);        /* store to destination */
+		tos_make(d); 	 /* store to destination */
 	}
 	else {
 		make_tos(d);
@@ -4343,13 +4355,13 @@ LOWFUNC(NONE,NONE,2,raw_fcos_rr,(FW d, FR s))
 		emit_byte(0xd9);
 		emit_byte(0xc0+ds); /* duplicate source */
 		emit_byte(0xd9);
-		emit_byte(0xff);    /* take cos */
-		tos_make(d);        /* store to destination */
+		emit_byte(0xff); 	/* take cos */
+		tos_make(d); 		/* store to destination */
 	}
 	else {
 		make_tos(d);
 		emit_byte(0xd9);
-		emit_byte(0xff);    /* take cos */
+		emit_byte(0xff); 	/* take cos */
 	}
 }
 LENDFUNC(NONE,NONE,2,raw_fcos_rr,(FW d, FR s))
@@ -4359,12 +4371,13 @@ LOWFUNC(NONE,NONE,2,raw_fsin_rr,(FW d, FR s))
 	int ds;
 
 	if (d!=s) {
+		usereg(s);
 		ds=stackpos(s);
 		emit_byte(0xd9);
 		emit_byte(0xc0+ds); /* fld x */
 		emit_byte(0xd9);
-		emit_byte(0xfe);    /* fsin sin(x) */
-		tos_make(d);        /* store to destination */
+		emit_byte(0xfe); 	/* fsin sin(x) */
+		tos_make(d); 		/* store to destination */
 	}
 	else {
 		make_tos(d);
@@ -4380,6 +4393,7 @@ LOWFUNC(NONE,NONE,2,raw_ftwotox_rr,(FW d, FR s))
 {
 	int ds;
 
+	usereg(s);
 	ds=stackpos(s);
 	emit_byte(0xd9);
 	emit_byte(0xc0+ds); /* fld x */
@@ -4597,8 +4611,7 @@ LOWFUNC(NONE,NONE,2,raw_frem_rr,(FRW d, FR s))
 	ds=stackpos(s);
 
 	if (ds!=1) {
-		printf("Failed horribly in raw_frem_rr! ds is %d\n",ds);
-		abort();
+		jit_abort("Failed horribly in raw_frem_rr! ds is %d",ds);
 	}
 	emit_byte(0xd9);
 	emit_byte(0xf8); /* take rem from dest by source */
@@ -4616,8 +4629,7 @@ LOWFUNC(NONE,NONE,2,raw_frem1_rr,(FRW d, FR s))
 	ds=stackpos(s);
 
 	if (ds!=1) {
-		printf("Failed horribly in raw_frem1_rr! ds is %d\n",ds);
-		abort();
+		jit_abort("Failed horribly in raw_frem1_rr! ds is %d",ds);
 	}
 	emit_byte(0xd9);
 	emit_byte(0xf5); /* take rem1 from dest by source */
