@@ -17,25 +17,19 @@ struct flag_struct {
 
 extern struct flag_struct regflags;
 
-/*
- * The bits in the cznv field in the above structure are assigned to
- * allow the easy mirroring of the x86 condition flags. (For example,
- * from the AX register - the x86 overflow flag can be copied to AL
- * with a setto %AL instr and the other flags copied to AH with an
- * lahf instr).
- *
- * The 68k CZNV flags are thus assinged in cznv as:
- *
- * <--AL-->  <--AH-->
- * 76543210  FEDCBA98 --------- ---------
- * xxxxxxxV  NZxxxxxC xxxxxxxxx xxxxxxxxx
- */
-
+#if 1
 #define FLAGBIT_N	15
 #define FLAGBIT_Z	14
 #define FLAGBIT_C	8
 #define FLAGBIT_V	0
 #define FLAGBIT_X	8
+#else
+#define FLAGBIT_N	7
+#define FLAGBIT_Z	6
+#define FLAGBIT_C	0
+#define FLAGBIT_V	11
+#define FLAGBIT_X	0
+#endif
 
 #define FLAGVAL_N	(1 << FLAGBIT_N)
 #define FLAGVAL_Z 	(1 << FLAGBIT_Z)
@@ -62,33 +56,4 @@ extern struct flag_struct regflags;
 
 #define COPY_CARRY() (regflags.x = regflags.cznv)
 
-
-/*
- * Test CCR condition
- */
-STATIC_INLINE int cctrue (int cc)
-{
-    uae_u32 cznv = regflags.cznv;
-
-    switch (cc) {
-	case 0:  return 1;								/*				T  */
-	case 1:  return 0;								/*				F  */
-	case 2:  return (cznv & (FLAGVAL_C | FLAGVAL_Z)) == 0;				/* !CFLG && !ZFLG		HI */
-	case 3:  return (cznv & (FLAGVAL_C | FLAGVAL_Z)) != 0;				/*  CFLG || ZFLG		LS */
-	case 4:  return (cznv & FLAGVAL_C) == 0;					/* !CFLG			CC */
-	case 5:  return (cznv & FLAGVAL_C) != 0;					/*  CFLG			CS */
-	case 6:  return (cznv & FLAGVAL_Z) == 0;					/* !ZFLG			NE */
-	case 7:  return (cznv & FLAGVAL_Z) != 0;					/*  ZFLG			EQ */
-	case 8:  return (cznv & FLAGVAL_V) == 0;					/* !VFLG			VC */
-	case 9:  return (cznv & FLAGVAL_V) != 0;					/*  VFLG			VS */
-	case 10: return (cznv & FLAGVAL_N) == 0;					/* !NFLG			PL */
-	case 11: return (cznv & FLAGVAL_N) != 0;					/*  NFLG			MI */
-	case 12: return (((cznv << (FLAGBIT_N - FLAGBIT_V)) ^ cznv) & FLAGVAL_N) == 0;	/*  NFLG == VFLG		GE */
-	case 13: return (((cznv << (FLAGBIT_N - FLAGBIT_V)) ^ cznv) & FLAGVAL_N) != 0;	/*  NFLG != VFLG		LT */
-	case 14: cznv &= (FLAGVAL_N | FLAGVAL_Z | FLAGVAL_V);				/* ZFLG && (NFLG == VFLG)	GT */
-		 return (((cznv << (FLAGBIT_N - FLAGBIT_V)) ^ cznv) & (FLAGVAL_N | FLAGVAL_Z)) == 0;
-	case 15: cznv &= (FLAGVAL_N | FLAGVAL_Z | FLAGVAL_V);				/* ZFLG && (NFLG != VFLG)	LE */
-		 return (((cznv << (FLAGBIT_N - FLAGBIT_V)) ^ cznv) & (FLAGVAL_N | FLAGVAL_Z)) != 0;
-    }
-    return 0;
-}
+extern int cctrue(int cc);
