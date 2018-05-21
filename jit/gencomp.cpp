@@ -1282,13 +1282,13 @@ genflags (flagtypes type, wordsizes size, const char *value, const char *src, co
 		break;
 	    }
 	    comprintf("\tlive_flags();\n");
-	    comprintf("\tif (needed_flags&FLAG_Z) {\n"
-		      "\tcmov_l_rr(zero,one,%d);\n"
-		      "\tset_zero(zero, one);\n" /* No longer need one */
-		      "\tlive_flags();\n"
-		      "\t}\n",NATIVE_CC_NE);
+	    comprintf("\tif (needed_flags&FLAG_Z) {\n");
+	    comprintf("\tcmov_l_rr(zero,one,%d);\n", NATIVE_CC_NE);
+	    comprintf("\tset_zero(zero, one);\n"); /* No longer need one */
+	    comprintf("\tlive_flags();\n");
+	    comprintf("\t}\n");
 	    comprintf("\tend_needflags();\n");
-	    duplicate_carry();
+		duplicate_carry();
 	    comprintf("if (!(needed_flags & FLAG_CZNV)) dont_care_flags();\n");
 	    return;
 	}

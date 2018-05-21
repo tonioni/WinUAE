@@ -3389,10 +3389,12 @@ static __inline__ void raw_flags_set_zero_FLAGREG(int s, int tmp)
 {
 	raw_mov_l_rr(tmp,s);
 	raw_lahf(s); /* flags into ah */
+	SETOr(X86_AL); /* V flag into al */
 	raw_and_l_ri(s,0xffffbfff);
 	raw_and_l_ri(tmp,0x00004000);
 	raw_xor_l_ri(tmp,0x00004000);
 	raw_or_l(s,tmp);
+	raw_cmp_b_ri(X86_AL,-127); /* set V */
 	raw_sahf(s);
 }
 
