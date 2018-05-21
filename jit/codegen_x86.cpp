@@ -4672,10 +4672,16 @@ LOWFUNC(NONE,NONE,2,raw_fetoxM1_rr,(FW d, FR s))
 	emit_byte(0xe1);    /* fsub x*log2(e) - int(x*log2(e))  */
 	emit_byte(0xd9);
 	emit_byte(0xf0);    /* f2xm1 (2^frac(x))-1 */
+	emit_byte(0xd8);
+	emit_byte(0x05);
+	emit_long((uae_u32)&one);  /* fadd (2^frac(x))-1 + 1 */
 	emit_byte(0xd9);
-	emit_byte(0xfd);    /* fscale ((2^frac(x))-1)*2^int(x*log2(e)) */
+	emit_byte(0xfd);    /* fscale ((2^frac(x)))*2^int(x*log2(e)) */
 	emit_byte(0xdd);
 	emit_byte(0xd9);    /* fstp copy & pop */
+	emit_byte(0xd8);
+	emit_byte(0x25);
+	emit_long((uae_u32)&one);  /* fsub 1 */
 	if (s!=d)
 		tos_make(d);    /* store y=(e^x)-1 */
 }
@@ -5059,7 +5065,7 @@ LOWFUNC(NONE,NONE,2,raw_fatanh_rr,(FW d, FR s))
 	emit_byte(0xde);
 	emit_byte(0xf9);    /* fdivp (1+x)/(1-x) */
 	emit_byte(0xd9);
-	emit_byte(0xed);    /* fldl2e logN(2) */
+	emit_byte(0xed);    /* fldln2 logN(2) */
 	emit_byte(0xd9);
 	emit_byte(0xc9);    /* fxch swap logN(2) with (1+x)/(1-x) */
 	emit_byte(0xd9);
