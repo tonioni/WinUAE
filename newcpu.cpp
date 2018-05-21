@@ -10590,7 +10590,7 @@ uae_u32 get_long_cache_040(uaecptr addr)
 		v =  read_dcache040(addr + 0, 0, dcache_bget) << 24;
 		v |= read_dcache040(addr + 1, 1, dcache_wget) <<  8;
 		v |= read_dcache040(addr + 3, 0, dcache_bget) <<  0;
-	} else if (offset == 14) {
+	} else /* if (offset == 14) */ {
 		v =  read_dcache040(addr + 0, 1, dcache_wget) << 16;
 		v |= read_dcache040(addr + 2, 1, dcache_wget) <<  0;
 	}
