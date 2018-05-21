@@ -2283,7 +2283,7 @@ static uaecptr ShowEA (void *f, uaecptr pc, uae_u16 opcode, int reg, amodes mode
 		break;
 	case Ad16:
 		{
-			TCHAR offtxt[80];
+			TCHAR offtxt[8];
 			disp16 = get_iword_debug (pc); pc += 2;
 			if (disp16 < 0)
 				_stprintf (offtxt, _T("-$%04x"), -disp16);
