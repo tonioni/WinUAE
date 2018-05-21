@@ -1,5 +1,16 @@
 
 
+Beta 11:
+
+- D3D11 fullscreen mode after alt-tab/gui was not restored properly if emulation was in paused state.
+- D3D9 lagless vsync partial updates (introduced in b5) used incorrect (full, D3DLOCK_DISCARD) texture update mode.
+- Decrease/increase emulation speed input events didn't do anything.
+- Power led dim config option is now integer (0 = fully off, 1 to 100 = brightness level)
+- Hardware emulated graphics boards didn't update properly without enabled OSD led (uaegfx was already fixed in b9)
+- A2410 didn't support multiple monitor mode.
+- Merged Aranym JIT updates.
+- Fixed old (since the beginning?) JIT bug: many instructions always cleared V-flag (ADDX, SUBX, NEGX, BTST/BCHG/BCLR/BSET, possibly others). Fix by Thorsten Otto.
+
 Beta 10:
 
 - Full-window mode captured mouse (and moved it to center of screen) even when window didn't have focus.
@@ -10,6 +21,7 @@ Beta 10:
 - Action Replay II/III statefile support improved. (For example AR state was invalid when loading AR statefile when AR was already active)
 - On the fly switching between fastest possible <> non-fastest possible CPU modes in lagless vsync caused hang in certain situations.
 - Debugger: show number of cycles used when tracing (t, z, breakpoints). Only shown if max 2 frames since last debugger activation. (TODO: should also count number of memory accesses and no-wait state minimum cycle count)
+- Freezer cartridge automatic RTG switch on/off wasn't reliable.
 - Removed forgotten, useless and obsolete "The selected screen mode can't be displayed in a window, because.." check.
 - 68030 MMU PLOAD R variant (R/W bit=1) caused f-line exception.
 - Clear both ping-pong buffers when pausing/unpausing WASAPI exclusive sound mode.

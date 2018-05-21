@@ -892,6 +892,9 @@
     <ClCompile Include="..\fpp_native_msvc_80bit.cpp">
       <Filter>win32</Filter>
     </ClCompile>
+    <ClCompile Include="..\machdep\m68k.cpp">
+      <Filter>common</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\resources\35floppy.ico">

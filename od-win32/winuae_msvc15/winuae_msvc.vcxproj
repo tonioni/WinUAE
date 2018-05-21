@@ -980,6 +980,7 @@
     <ClCompile Include="..\ioport.cpp" />
     <ClCompile Include="..\keyboard_win32.cpp" />
     <ClCompile Include="..\lcd.cpp" />
+    <ClCompile Include="..\machdep\m68k.cpp" />
     <ClCompile Include="..\midi.cpp" />
     <ClCompile Include="..\mman.cpp" />
     <ClCompile Include="..\mp3decoder.cpp" />
