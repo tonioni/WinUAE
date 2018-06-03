@@ -4000,6 +4000,9 @@ void full_redraw_all(void)
 {
 	int monid = 0;
 	struct amigadisplay *ad = &adisplays[monid];
+	struct vidbuf_description *vidinfo = &adisplays[monid].gfxvidinfo;
+	if (!vidinfo->drawbuffer.height_allocated || !amiga2aspect_line_map)
+		return;
 	notice_screen_contents_lost(monid);
 	gfxboard_refresh(monid);
 	if (!ad->picasso_on) {
