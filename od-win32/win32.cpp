@@ -754,7 +754,7 @@ static void setcursorshape(int monid)
 	}
 }
 
-static void releasecapture(void)
+void releasecapture(void)
 {
 	//write_log(_T("releasecapture %d\n"), showcursor);
 #if 0

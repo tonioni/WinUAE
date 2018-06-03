@@ -1847,6 +1847,7 @@ static void createblankwindows (void)
 static void close_hwnds(struct AmigaMonitor *mon)
 {
 	mon->screen_is_initialized = 0;
+	releasecapture();
 	if (!mon->monitor_id) {
 		display_vblank_thread_kill();
 #ifdef AVIOUTPUT
