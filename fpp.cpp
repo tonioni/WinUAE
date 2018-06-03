@@ -665,7 +665,12 @@ uae_u32 fpp_get_fpsr (void)
 			regs.fpsr |= FPSR_CC_N;
 	}
 #endif
-	return regs.fpsr;
+	return regs.fpsr & 0x0ffffff8;
+}
+
+static uae_u32 fpp_get_fpcr(void)
+{
+	return regs.fpcr & (currprefs.fpu_model == 68040 ? 0xffff : 0xfff0);
 }
 
 static void fpp_set_fpcr (uae_u32 val)
@@ -2825,9 +2830,9 @@ static void fpuop_arithmetic2 (uae_u32 opcode, uae_u16 extra)
 					return;
 				if (extra & 0x2000) {
 					if (extra & 0x1000)
-						m68k_dreg (regs, opcode & 7) = regs.fpcr & 0xffff;
+						m68k_dreg (regs, opcode & 7) = fpp_get_fpcr();
 					if (extra & 0x0800)
-						m68k_dreg (regs, opcode & 7) = fpp_get_fpsr ();
+						m68k_dreg (regs, opcode & 7) = fpp_get_fpsr();
 					if (extra & 0x0400)
 						m68k_dreg (regs, opcode & 7) = regs.fpiar;
 				} else {
@@ -2843,9 +2848,9 @@ static void fpuop_arithmetic2 (uae_u32 opcode, uae_u16 extra)
 					return;
 				if (extra & 0x2000) {
 					if (extra & 0x1000)
-						m68k_areg (regs, opcode & 7) = regs.fpcr & 0xffff;
+						m68k_areg (regs, opcode & 7) = fpp_get_fpcr();
 					if (extra & 0x0800)
-						m68k_areg (regs, opcode & 7) = fpp_get_fpsr ();
+						m68k_areg (regs, opcode & 7) = fpp_get_fpsr();
 					if (extra & 0x0400)
 						m68k_areg (regs, opcode & 7) = regs.fpiar;
 				} else {
@@ -2908,15 +2913,15 @@ static void fpuop_arithmetic2 (uae_u32 opcode, uae_u16 extra)
 				}
 				ad -= incr;
 				if (extra & 0x1000) {
-					x_cp_put_long (ad, regs.fpcr & 0xffff);
+					x_cp_put_long(ad, fpp_get_fpcr());
 					ad += 4;
 				}
 				if (extra & 0x0800) {
-					x_cp_put_long (ad, fpp_get_fpsr ());
+					x_cp_put_long(ad, fpp_get_fpsr());
 					ad += 4;
 				}
 				if (extra & 0x0400) {
-					x_cp_put_long (ad, regs.fpiar);
+					x_cp_put_long(ad, regs.fpiar);
 					ad += 4;
 				}
 				ad -= incr;
