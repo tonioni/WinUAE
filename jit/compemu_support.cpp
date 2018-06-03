@@ -224,7 +224,7 @@ static clock_t emul_end_time	= 0;
 #endif
 
 #ifdef PROFILE_UNTRANSLATED_INSNS
-static const int untranslated_top_ten = 20;
+static const int untranslated_top_ten = 50;
 static uae_u32 raw_cputbl_count[65536] = { 0, };
 static uae_u16 opcode_nums[65536];
 
@@ -2744,7 +2744,7 @@ void compiler_exit(void)
 		opcode_nums[i] = i;
 		untranslated_count += raw_cputbl_count[i];
 	}
-	jit_log("Sorting out untranslated instructions count...");
+	bug("Sorting out untranslated instructions count...");
 	qsort(opcode_nums, 65536, sizeof(uae_u16), untranslated_compfn);
 	jit_log("Rank  Opc      Count Name");
 	for (int i = 0; i < untranslated_top_ten; i++) {
@@ -2756,7 +2756,7 @@ void compiler_exit(void)
 		dp = table68k + opcode_nums[i];
 		for (lookup = lookuptab; lookup->mnemo != (instrmnem)dp->mnemo; lookup++)
 			;
-		jit_log("%03d: %04x %10u %s", i, opcode_nums[i], count, lookup->name);
+		bug("%03d: %04x %10u %s", i, opcode_nums[i], count, lookup->name);
 	}
 #endif
 

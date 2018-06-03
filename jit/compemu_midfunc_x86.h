@@ -185,6 +185,7 @@ DECLARE_MIDFUNC(xor_b(RW1 d, RR1 s));
 DECLARE_MIDFUNC(live_flags(void));
 DECLARE_MIDFUNC(dont_care_flags(void));
 DECLARE_MIDFUNC(duplicate_carry(void));
+DECLARE_MIDFUNC(setcc_for_cntzero(RR4 d));
 DECLARE_MIDFUNC(restore_carry(void));
 DECLARE_MIDFUNC(start_needflags(void));
 DECLARE_MIDFUNC(end_needflags(void));

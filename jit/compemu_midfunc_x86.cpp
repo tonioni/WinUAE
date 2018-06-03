@@ -119,6 +119,34 @@ MIDFUNC(0,duplicate_carry,(void))
 }
 MENDFUNC(0,duplicate_carry,(void))
 
+MIDFUNC(0, setcc_for_cntzero, (RR4))
+{
+	uae_u8 * branchadd;
+
+	evict(FLAGX);
+	make_flags_live_internal();
+
+	raw_pushfl();
+	/*
+	 * shift count can only be in CL register; see shrl_b_rr
+	 */
+	raw_test_b_rr(X86_CL, X86_CL);
+	/* if zero, leave X unaffected; carry flag will already be cleared */
+	raw_jz_b_oponly();
+	branchadd = get_target();
+	skip_byte();
+	raw_popfl();
+	raw_pushfl();
+#ifdef UAE
+	COMPCALL(setcc_m)((uintptr)live.state[FLAGX].mem + 1, NATIVE_CC_CS);
+#else
+	COMPCALL(setcc_m)((uintptr)live.state[FLAGX].mem, NATIVE_CC_CS);
+#endif
+	log_vwrite(FLAGX);
+	*branchadd = (uintptr)get_target() - ((uintptr)branchadd + 1);
+	raw_popfl();
+}
+
 MIDFUNC(0,restore_carry,(void))
 {
 	if (!have_rat_stall) { /* Not a P6 core, i.e. no partial stalls */
