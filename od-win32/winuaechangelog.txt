@@ -1,5 +1,16 @@
 
 
+Beta 12:
+
+- Don't allow lagless vsync in normal windowed mode.
+- Hide lagless vsync slice count in GUI if lagless vsync is not selected.
+- Fixed crash if screen mode open failed and error dialog was shown. (b11)
+- D3D11 fullscreen mode opened in primary monitor if selected non-default monitor was connected to another GPU.
+- New debugger didn't load 3.1 (and probably older) amiga.lib files.
+- Added debugger_options config entry, currently only supported sub entry is pathprefix=x where x is string that gets appended to stabs source file paths.
+- Try harder to find working path for stabs source files and when working path combination is found, remember it instead of enumerating all possible variants every time source file is loaded.
+- uaedbg now breaks to debugger when debugged application causes unhandled exception via tc_TrapCode.
+
 Beta 11:
 
 - D3D11 fullscreen mode after alt-tab/gui was not restored properly if emulation was in paused state.

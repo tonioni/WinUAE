@@ -179,8 +179,13 @@ void fixup_prefs_dimensions (struct uae_prefs *prefs)
 		ap->gfx_strobo = false;
 		if (ap->gfx_vsync) {
 			if (ap->gfx_vsyncmode) {
-				ap->gfx_backbuffers = 1;
-				ap->gfx_strobo = false;
+				if (ap->gfx_fullscreen != 0) {
+					ap->gfx_backbuffers = 1;
+					ap->gfx_strobo = false;
+				} else {
+					ap->gfx_vsyncmode = 0;
+					ap->gfx_vsync = 0;
+				}
 			} else {
 				// legacy vsync: always wait for flip
 				ap->gfx_vflip = -1;

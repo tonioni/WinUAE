@@ -3084,7 +3084,15 @@ static void decide_line (int hpos)
 						nextstate = plf_passed_stop;
 					}
 					if (bpl_dma_off_when_active) {
-						nextstate = plf_passed_stop_act;
+#if 0
+						if ((bitplane_maybe_start_hpos < hstart && bitplane_maybe_start_hpos >= 0) && (currprefs.chipset_mask & CSMASK_AGA)) {
+							nextstate = plf_passed_stop2;
+						} else {
+#endif
+							nextstate = plf_passed_stop_act;
+#if 0
+						}
+#endif
 						bpl_dma_off_when_active = 0;
 					}
 				}
@@ -8276,6 +8284,7 @@ static void linesync_first_last_line(int *first, int *last)
 	get_custom_raw_limits(&w, &h, &x, &y);
 	if (y > 0)
 		*first += y;
+	//write_log(_T("y=%d h=%d mfl=%d maxvpos=%d\n"), y, h, minfirstline, maxvpos_display);
 }
 
 static int vsyncnextscanline;

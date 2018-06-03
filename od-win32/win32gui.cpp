@@ -2240,6 +2240,8 @@ static void m(int monid)
 static void flipgui(int opengui)
 {
 	D3D_guimode(0, opengui);
+	if (full_property_sheet)
+		return;
 	if (opengui) {
 		DirectDraw_FlipToGDISurface();
 	} else {
@@ -6860,9 +6862,11 @@ static void enable_for_displaydlg (HWND hDlg)
 	ew (hDlg, IDC_LM_IDOUBLED3, !workprefs.gfx_autoresolution && isdouble);
 
 	if (workprefs.gfx_apmode[0].gfx_vsyncmode == 1 || workprefs.gfx_apmode[0].gfx_vsyncmode == 2) {
+		hide(hDlg, IDC_SCREENMODE_NATIVE3, FALSE);
 		ew(hDlg, IDC_SCREENMODE_NATIVE3, TRUE);
 	} else {
 		ew(hDlg, IDC_SCREENMODE_NATIVE3, FALSE);
+		hide(hDlg, IDC_SCREENMODE_NATIVE3, TRUE);
 	}
 
 }
@@ -7254,6 +7258,8 @@ static void display_fromselect (int val, int *fs, int *vsync, int p96)
 }
 #endif
 
+#define MAX_GUI_DISPLAY_SECTIONS 30
+
 static void values_to_displaydlg (HWND hDlg)
 {
 	TCHAR buffer[MAX_DPATH];
@@ -7327,22 +7333,23 @@ static void values_to_displaydlg (HWND hDlg)
 	WIN32GUI_LoadUIString(IDS_SCREEN_VSYNC_AUTOSWITCH, buffer, sizeof buffer / sizeof(TCHAR));
 	SendDlgItemMessage(hDlg, IDC_SCREENMODE_NATIVE2, CB_ADDSTRING, 0, (LPARAM)buffer);
 
-	for (int i = 1; i < 30; i++) {
+	for (int i = 1; i < MAX_GUI_DISPLAY_SECTIONS; i++) {
 		_stprintf(buffer, _T("%d"), i);
 		SendDlgItemMessage(hDlg, IDC_SCREENMODE_NATIVE3, CB_ADDSTRING, 0, (LPARAM)buffer);
 	}
 
-	SendDlgItemMessage(hDlg, IDC_SCREENMODE_NATIVE, CB_SETCURSEL,
-		workprefs.gfx_apmode[0].gfx_fullscreen, 0);
+	SendDlgItemMessage(hDlg, IDC_SCREENMODE_NATIVE, CB_SETCURSEL, workprefs.gfx_apmode[0].gfx_fullscreen, 0);
 	v = workprefs.gfx_apmode[0].gfx_vsync;
 	if (v < 0)
 		v = 5;
 	else if (v > 0) {
 		v = v + (workprefs.gfx_apmode[0].gfx_vsyncmode || !v ? 0 : 2);
 	}
+
 	SendDlgItemMessage(hDlg, IDC_SCREENMODE_NATIVE2, CB_SETCURSEL, v, 0);
 
-	SendDlgItemMessage(hDlg, IDC_SCREENMODE_NATIVE3, CB_SETCURSEL, workprefs.gfx_display_sections - 1, 0);
+	if (workprefs.gfx_display_sections - 1 < MAX_GUI_DISPLAY_SECTIONS)
+		SendDlgItemMessage(hDlg, IDC_SCREENMODE_NATIVE3, CB_SETCURSEL, workprefs.gfx_display_sections - 1, 0);
 
 
 	SendDlgItemMessage(hDlg, IDC_SCREENMODE_RTG, CB_RESETCONTENT, 0, 0);
@@ -7845,7 +7852,7 @@ static INT_PTR CALLBACK DisplayDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPAR
 		handle_da (hDlg);
 		values_from_displaydlg (hDlg, msg, wParam, lParam);
 		enable_for_displaydlg (hDlg);
-		if (LOWORD (wParam) == IDC_RATE2ENABLE) {
+		if (LOWORD (wParam) == IDC_RATE2ENABLE || LOWORD(wParam) == IDC_SCREENMODE_NATIVE3 || LOWORD(wParam) == IDC_SCREENMODE_NATIVE2 || LOWORD(wParam) == IDC_SCREENMODE_NATIVE) {
 			values_to_displaydlg (hDlg);
 		}
 		recursive--;
