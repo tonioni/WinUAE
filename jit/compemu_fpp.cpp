@@ -132,14 +132,19 @@ STATIC_INLINE int comp_fp_get (uae_u32 opcode, uae_u16 extra, int treg)
 			}
 			case 2: /* (d16,PC) */
 			{
-				uae_u32 address = start_pc + ((uae_char*) comp_pc_p - (uae_char*) start_pc_p) +
-					m68k_pc_offset;
+				uae_u32 address = start_pc + ((uae_char*) comp_pc_p - (uae_char*) start_pc_p) + m68k_pc_offset;
 				uae_s32 PC16off = (uae_s32) (uae_s16) comp_get_iword ((m68k_pc_offset += 2) - 2);
 				mov_l_ri (S1, address + PC16off);
 				break;
 			}
 			case 3: /* (d8,PC,Xn) or (bd,PC,Xn) or ([bd,PC,Xn],od) or ([bd,PC],Xn,od) */
-			return -1; /* rarely used, fallback to non-JIT */
+			{
+				uae_u32 address = start_pc + ((uae_char*)comp_pc_p - (uae_char*)start_pc_p) + m68k_pc_offset;
+				uae_u32 dp = comp_get_iword((m68k_pc_offset += 2) - 2);
+				mov_l_ri(S3, address);
+				calc_disp_ea_020(S3, dp, S1, S2);
+				break;
+			}
 			case 4: /* # < data >; Constants should be converted just once by the JIT */
 			m68k_pc_offset += sz2[size];
 			switch (size) {
