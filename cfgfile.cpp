@@ -443,24 +443,24 @@ static TCHAR *cfgfile_option_find_it(const TCHAR *s, const TCHAR *option, bool c
 			if (checkequals && tmpp2) {
 				if (tmpp2[0] == '"') {
 					TCHAR *n = cfgfile_unescape_min(tmpp2);
-					_tcscpy(tmpp2, n);
-					xfree(n);
-					return tmpp2;
+					return n;
 				}
-				return tmpp2;
+				return my_strdup(tmpp2);
 			}
-			return p;
+			return my_strdup(p);
 		}
 		p = tmpp;
 	}
 }
 
-static bool cfgfile_option_find(const TCHAR *s, const TCHAR *option)
+bool cfgfile_option_find(const TCHAR *s, const TCHAR *option)
 {
-	return cfgfile_option_find_it(s, option, false) != NULL;
+	TCHAR *ss = cfgfile_option_find_it(s, option, false);
+	xfree(ss);
+	return ss != NULL;
 }
 
-static TCHAR *cfgfile_option_get(const TCHAR *s, const TCHAR *option)
+TCHAR *cfgfile_option_get(const TCHAR *s, const TCHAR *option)
 {
 	return cfgfile_option_find_it(s, option, true);
 }
@@ -1223,10 +1223,11 @@ static int cfgfile_read_rom_settings(const struct expansionboardsettings *ebs, c
 		const struct expansionboardsettings *eb = &ebs[i];
 		bitcnt += eb->bitshift;
 		if (eb->type == EXPANSIONBOARD_STRING) {
-			const TCHAR *p = cfgfile_option_get(buf, eb->configname);
+			TCHAR *p = cfgfile_option_get(buf, eb->configname);
 			if (p) {
 				_tcscpy(ct, p);
 				ct += _tcslen(ct);
+				xfree(p);
 			}
 			*ct++ = 0;
 		} else if (eb->type == EXPANSIONBOARD_MULTI) {
@@ -1463,15 +1464,19 @@ static bool cfgfile_readramboard(const TCHAR *option, const TCHAR *value, const 
 			s = cfgfile_option_get(value, _T("order"));
 			if (s)
 				rb->device_order = _tstol(s);
+			xfree(s);
 			s = cfgfile_option_get(value, _T("mid"));
 			if (s)
 				rb->manufacturer = (uae_u16)_tstol(s);
+			xfree(s);
 			s = cfgfile_option_get(value, _T("pid"));
 			if (s)
 				rb->product = (uae_u8)_tstol(s);
+			xfree(s);
 			s = cfgfile_option_get(value, _T("no_reset_unmap"));
 			if (s)
 				rb->no_reset_unmap = true;
+			xfree(s);
 			s = cfgfile_option_get(value, _T("data"));
 			if (s && _tcslen(s) >= 3 * 16 - 1) {
 				rb->autoconfig_inuse = true;
@@ -1484,6 +1489,7 @@ static bool cfgfile_readramboard(const TCHAR *option, const TCHAR *value, const 
 					rb->autoconfig[i] = (uae_u8)_tcstol(s2, &endptr, 16);
 				}
 			}
+			xfree(s);
 			s1 = cfgfile_option_get(value, _T("start"));
 			s2 = cfgfile_option_get(value, _T("end"));
 			if (s1 && s2) {
@@ -1495,12 +1501,15 @@ static bool cfgfile_readramboard(const TCHAR *option, const TCHAR *value, const 
 					rb->autoconfig_inuse = false;
 				}
 			}
+			xfree(s1);
+			xfree(s2);
 			s1 = cfgfile_option_get(value, _T("write_address"));
 			if (s1) {
 				TCHAR *endptr;
 				rb->write_address = _tcstol(s1, &endptr, 16);
 			}
-			
+			xfree(s1);
+
 			return true;
 		}
 	}
@@ -3146,7 +3155,7 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 		|| cfgfile_strval(option, value, _T("gfx_api"), &p->gfx_api, filterapi, 0)
 		|| cfgfile_strval(option, value, _T("gfx_api_options"), &p->gfx_api_options, filterapiopts, 0)
 		|| cfgfile_strval(option, value, _T("gfx_atari_palette_fix"), &p->gfx_threebitcolors, threebitcolors, 0)
-		|| cfgfile_strval (option, value, _T("magic_mousecursor"), &p->input_magic_mouse_cursor, magiccursors, 0)
+		|| cfgfile_strval(option, value, _T("magic_mousecursor"), &p->input_magic_mouse_cursor, magiccursors, 0)
 		|| cfgfile_strval (option, value, _T("absolute_mouse"), &p->input_tablet, abspointers, 0))
 		return 1;
 
@@ -4641,6 +4650,7 @@ static int cfgfile_parse_newfilesys (struct uae_prefs *p, int nr, int type, TCHA
 			TCHAR *pflags;
 			if ((pflags = cfgfile_option_get(tmpp2, _T("flags")))) {
 				getintval(&pflags, &uci.unit_special_flags, 0);
+				xfree(pflags);
 			}
 
 			if (cfgfile_option_find(tmpp2, _T("lock")))
@@ -4946,6 +4956,7 @@ static bool cfgfile_read_board_rom(struct uae_prefs *p, const TCHAR *option, con
 					if (p) {
 						brc->device_order = _tstol(p);
 					}
+					xfree(p);
 					if (ert->settings) {
 						brc->roms[idx].device_settings = cfgfile_read_rom_settings(ert->settings, buf2, brc->roms[idx].configtext);
 					}
@@ -4953,6 +4964,7 @@ static bool cfgfile_read_board_rom(struct uae_prefs *p, const TCHAR *option, con
 						p = cfgfile_option_get(buf2, _T("id"));
 						if (p) {
 							brc->roms[idx].device_id = _tstol(p);
+							xfree(p);
 						}
 					}
 					if (ert->subtypes) {
@@ -4973,10 +4985,12 @@ static bool cfgfile_read_board_rom(struct uae_prefs *p, const TCHAR *option, con
 					p = cfgfile_option_get(buf2, _T("mid"));
 					if (p) {
 						brc->roms[idx].manufacturer = _tstol(p);
+						xfree(p);
 					}
 					p = cfgfile_option_get(buf2, _T("pid"));
 					if (p) {
 						brc->roms[idx].product = _tstol(p);
+						xfree(p);
 					}
 					p = cfgfile_option_get(buf2, _T("data"));
 					if (p && _tcslen(p) >= 3 * 16 - 1) {
@@ -4989,6 +5003,7 @@ static bool cfgfile_read_board_rom(struct uae_prefs *p, const TCHAR *option, con
 							brc->roms[idx].autoconfig[i] = (uae_u8)_tcstol(s2, &endptr, 16);
 						}
 					}
+					xfree(p);
 				}
 				return true;
 			}
@@ -5266,6 +5281,7 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 		TCHAR *s = cfgfile_option_get(value, _T("order"));
 		if (s)
 			p->uaeboard_order = _tstol(s);
+		xfree(s);
 		return 1;
 	}
 
@@ -5370,10 +5386,12 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 			TCHAR *s = cfgfile_option_get(value, _T("order"));
 			if (s) {
 				rbc->device_order = _tstol(s);
+				xfree(s);
 			}
 			s = cfgfile_option_get(value, _T("monitor"));
 			if (s) {
 				rbc->monitor_id = _tstol(s);
+				xfree(s);
 			}
 			return 1;
 		}
