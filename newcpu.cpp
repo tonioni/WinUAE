@@ -6808,6 +6808,8 @@ static int asm_isareg(const TCHAR *s)
 {
 	if (s[0] == 'A' && s[1] >= '0' && s[1] <= '7')
 		return s[1] - '0';
+	if (s[0] == 'S' && s[1] == 'P')
+		return 7;
 	return -1;
 }
 static int asm_ispc(const TCHAR *s)
