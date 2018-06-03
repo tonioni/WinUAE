@@ -3283,34 +3283,57 @@ static int xxD3D11_init2(HWND ahwnd, int monid, int w_w, int w_h, int t_w, int t
 	}
 
 	// Use the factory to create an adapter for the primary graphics interface (video card).
-	result = factory2->EnumAdapters1(0, &adapter);
-	if (FAILED(result))
-	{
-		write_log(_T("IDXGIFactory2 EnumAdapters1 %08x\n"), result);
-		return 0;
-	}
-	result = adapter->GetDesc1(&adesc);
-
 	UINT adapterNum = 0;
 	bool outputFound = false;
-	adapterOutput = NULL;
-	// Enumerate the monitor
-	while (adapter->EnumOutputs(adapterNum, &adapterOutput) != DXGI_ERROR_NOT_FOUND) {
-		result = adapterOutput->GetDesc(&odesc);
-		if (SUCCEEDED(result)) {
-			if (odesc.Monitor == winmon || !_tcscmp(odesc.DeviceName, md->adapterid)) {
-				outputFound = true;
-				break;
-			}
-		}
-		adapterOutput->Release();
+	for (;;) {
 		adapterOutput = NULL;
+		result = factory2->EnumAdapters1(adapterNum, &adapter);
+		if (FAILED(result))
+		{
+			if (adapterNum > 0)
+				break;
+			write_log(_T("IDXGIFactory2 EnumAdapters1 %08x\n"), result);
+			return 0;
+		}
+		result = adapter->GetDesc1(&adesc);
+
+		UINT adapterOutNum = 0;
+		// Enumerate the monitor
+		for(;;) {
+			result = adapter->EnumOutputs(adapterOutNum, &adapterOutput);
+			if (FAILED(result))
+				break;
+			result = adapterOutput->GetDesc(&odesc);
+			if (SUCCEEDED(result)) {
+				if (odesc.Monitor == winmon || !_tcscmp(odesc.DeviceName, md->adapterid)) {
+					outputFound = true;
+					break;
+				}
+			}
+			adapterOutput->Release();
+			adapterOutput = NULL;
+			adapterOutNum++;
+		}
+		if (outputFound)
+			break;
+		adapter->Release();
+		adapter = NULL;
 		adapterNum++;
 	}
 	if (!outputFound) {
+		if (adapter)
+			adapter->Release();
+		adapter = NULL;
+		result = factory2->EnumAdapters1(0, &adapter);
+		if (FAILED(result)) {
+			write_log(_T("EnumAdapters1 Default %08x\n"), result);
+			return 0;
+		}
 		result = adapter->EnumOutputs(0, &adapterOutput);
 		if (FAILED(result)) {
-			write_log(_T("EnumOutputs %08x\n"), result);
+			adapter->Release();
+			adapter = NULL;
+			write_log(_T("EnumOutputs Default %08x\n"), result);
 			return 0;
 		}
 	}
@@ -4449,7 +4472,7 @@ static void xD3D11_clear(int monid)
 
 static bool xD3D11_quit(struct d3d11struct *d3d)
 {
-	if (quit_program != -UAE_QUIT)
+	if (quit_program != -UAE_QUIT && quit_program != UAE_QUIT)
 		return false;
 	if (d3d->m_swapChain && (!d3d->invalidmode || d3d->fsmode > 0)) {
 		d3d->m_swapChain->SetFullscreenState(FALSE, NULL);
@@ -4705,7 +4728,7 @@ static void xD3D11_resize(int monid, int activate)
 	if (d3d->guimode && isfullscreen() > 0)
 		return;
 
-	if (quit_program == -UAE_QUIT)
+	if (quit_program == -UAE_QUIT || quit_program == UAE_QUIT)
 		return;
 
 	if (activate) {
