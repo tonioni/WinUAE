@@ -134,6 +134,14 @@ void activate_debugger_new(void)
 	debug_pc = M68K_GETPC;
 }
 
+void activate_debugger_new_pc(uaecptr pc, int len)
+{
+	activate_debugger();
+	trace_mode = TRACE_RANGE_PC;
+	trace_param1 = pc;
+	trace_param2 = pc + len;
+}
+
 bool debug_enforcer(void)
 {
 	if (!break_if_enforcer)

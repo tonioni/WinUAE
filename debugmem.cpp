@@ -241,6 +241,15 @@ bool debugmem_break(int type)
 	return true;
 }
 
+static bool debugmem_break_pc(int type, uaecptr pc, int len)
+{
+	if (inhibit_break & (1 << type))
+		return false;
+	last_break = type;
+	activate_debugger_new_pc(pc, len);
+	return true;
+}
+
 bool debugmem_inhibit_break(int mode)
 {
 	if (mode < 0) {
@@ -880,14 +889,14 @@ static struct debugmemallocs *debugmem_allocate(uae_u32 size, uae_u32 flags, uae
 		memset(dm2->state, ((flags & DEBUGMEM_INITIALIZED) ? DEBUGMEM_INITIALIZED : 0) | DEBUGMEM_INUSE, PAGE_SIZE);
 		uae_u8 filler = (flags & DEBUGMEM_INITIALIZED) ? 0x00 : 0x99;
 		memset(debugmem_bank.baseaddr + (offset + startoffset + j) * PAGE_SIZE, filler, PAGE_SIZE);
-		if (j == (size + PAGE_SIZE - 1) / PAGE_SIZE - 1) {
-			if (size & PAGE_SIZE_MASK) {
-				dm2->unused_end = PAGE_SIZE - (size & PAGE_SIZE_MASK);
-				dm2->flags |= DEBUGMEM_PARTIAL;
-				memset(dm2->state + (PAGE_SIZE - dm2->unused_end), 0, dm2->unused_end);
-				memset(debugmem_bank.baseaddr + (offset + startoffset + j) * PAGE_SIZE + (PAGE_SIZE - dm2->unused_end), 0x97, dm2->unused_end);
-			}
-		}
+if (j == (size + PAGE_SIZE - 1) / PAGE_SIZE - 1) {
+	if (size & PAGE_SIZE_MASK) {
+		dm2->unused_end = PAGE_SIZE - (size & PAGE_SIZE_MASK);
+		dm2->flags |= DEBUGMEM_PARTIAL;
+		memset(dm2->state + (PAGE_SIZE - dm2->unused_end), 0, dm2->unused_end);
+		memset(debugmem_bank.baseaddr + (offset + startoffset + j) * PAGE_SIZE + (PAGE_SIZE - dm2->unused_end), 0x97, dm2->unused_end);
+	}
+}
 	}
 	debugmemptr = offset * PAGE_SIZE + extrasize + ((size + PAGE_SIZE - 1) & ~PAGE_SIZE_MASK);
 	return dm;
@@ -946,7 +955,7 @@ uaecptr debugmem_allocmem(int mode, uae_u32 size, uae_u32 flags, uae_u32 caller)
 
 uae_u32 debugmem_freemem(int mode, uaecptr addr, uae_u32 size, uae_u32 caller)
 {
-	if (!debugmem_bank.baseaddr || addr < debugmem_bank.start)
+	if (!debugmem_bank.baseaddr || addr < debugmem_bank.start || addr >= debugmem_bank.start + debugmem_bank.allocated_size)
 		return 0;
 	if (mode > 0) {
 		addr -= 4;
@@ -957,6 +966,28 @@ uae_u32 debugmem_freemem(int mode, uaecptr addr, uae_u32 size, uae_u32 caller)
 		console_out_f(_T("ID=%d: %s(%08x,%d) %08x - %08x PC=%08x\n"), id, mode ? _T("FreeVec") : _T("AllocMem"), addr, size, addr, addr + size - 1, caller);
 	}
 	return 1;
+}
+
+void debugmem_trap(uaecptr stack)
+{
+	uae_u32 code = get_long(stack);
+	uae_u16 sr = get_word(stack + 4);
+	uae_u32 pc = get_long(stack + 6);
+	int format = 0;
+	console_out_f(_T("Trap #%d: SR=%04x PC=%08x"), code, sr, pc);
+	if (currprefs.cpu_model > 68000) {
+		uae_u16 sff = get_word(stack + 10);
+		console_out_f(_T(" Format=%04x"), sff);
+		format = sff >> 12;
+		if (format > 0) {
+			uae_u32 addr = get_word(stack + 12);
+			console_out_f(_T(" Address=%08x"), addr);
+		}
+	}
+	console_out_f(_T("\n"));
+	// always return back to faulted instruction
+	put_long(stack + 6, regs.instruction_pc_user_exception);
+	debugmem_break_pc(13, regs.instruction_pc_user_exception, 2);
 }
 
 static struct debugmemallocs *debugmem_reserve(uaecptr addr, uae_u32 size, uae_u32 parentid)
@@ -1103,8 +1134,12 @@ static struct stab *findstab(uae_u8 type, int *idxp)
 static void parse_stabs(void)
 {
 	TCHAR *path = NULL;
+	TCHAR *pathprefix = NULL;
 	struct stab *s;
 	int idx;
+	static int pmindex;
+
+	pathprefix = cfgfile_option_get(currprefs.debugging_options, _T("pathprefix"));
 
 	idx = 0;
 	for (;;) {
@@ -1122,25 +1157,61 @@ static void parse_stabs(void)
 		if (!s)
 			break;
 		if (s->type == N_SO && s->string && s->string[_tcslen(s->string) - 1] != '/') {
-			struct debugcodefile *cf = loadcodefile(NULL, s->string);
-			if (!cf) {
-				cf = loadcodefile(path, s->string);
-				if (!cf) {
+			int pm = pmindex;
+			struct debugcodefile *cf = NULL;
+			for (int pmi = 0; pmi <= 5; pmi++, pm++) {
+				TCHAR path2[MAX_DPATH];
+				TCHAR *f = NULL, *p = NULL;
+				if (pm > 5)
+					pm = 0;
+				if (pm == 5) {
+					// wsl path
 					if (!_tcsnicmp(path, _T("/mnt/"), 5)) {
 						TCHAR path2[MAX_DPATH];
 						_stprintf(path2, _T("%c:/%s"), path[5], path + 7);
-						cf = loadcodefile(path2, s->string);
-					} else if (!_tcsnicmp(path, _T("/cygdrive/"), 10)) {
+						f = s->string;
+						p = path2;
+					}
+				} else if (pm == 4) {
+					// cygwin path
+					if (!_tcsnicmp(path, _T("/cygdrive/"), 10)) {
 						TCHAR path2[MAX_DPATH];
 						_stprintf(path2, _T("%c:/%s"), path[10], path + 12);
-						cf = loadcodefile(path2, s->string);
+						f = s->string;
+						p = path2;
 					}
-					if (!cf) {
-						console_out_f(_T("Failed to load '%s'\n"), s->string);
-						continue;
+				} else if (pm == 3) {
+					// pathprefix + path + file
+					if (pathprefix) {
+						_stprintf(path2, _T("%s%s"), pathprefix, path);
+						f = s->string;
+						p = path2;
 					}
+				} else if (pm == 2) {
+					// pathprefix + file
+					if (pathprefix) {
+						_stprintf(path2, _T("%s%s"), pathprefix, s->string);
+						f = path2;
+					}
+				} else if (pm == 1) {
+					// path + file
+					f = s->string;
+					p = path;
+				} else {
+					// file
+					f = s->string;
+				}
+				if (f) {
+					cf = loadcodefile(p, f);
+					if (cf)
+						break;
 				}
 			}
+			if (!cf) {
+				console_out_f(_T("Failed to load '%s'\n"), s->string);
+				continue;
+			}
+			pmindex = pm;
 			int linecnt = 0;
 			struct debugsymbol *last_func = NULL;
 			while (idx < stabscount) {
@@ -1272,6 +1343,7 @@ static void parse_stabs(void)
 
 	}
 	*/
+	xfree(pathprefix);
 }
 
 uaecptr debugmem_reloc(uaecptr exeaddress, uae_u32 len, uaecptr task, uae_u32 *stack)
@@ -1883,6 +1955,17 @@ static bool debugger_load_library(const TCHAR *name)
 				len = gl(p) * 4;
 				p += 4;
 				p += len;
+			}
+			break;
+			case 0x3f0: // HUNK_SYMBOL
+			{
+				for (;;) {
+					int size = gl(p);
+					p += 4;
+					if (!size)
+						break;
+					p += 4 * size + 4;
+				}
 			}
 			break;
 			default:

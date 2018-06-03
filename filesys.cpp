@@ -8973,8 +8973,12 @@ static uae_u32 REGPARAM2 mousehack_done (TrapContext *ctx)
 	} else if (mode == 209) {
 		// called if segtrack was enabled
 		return 0;
+	} else if (mode == 210) {
+		// debug trapcode
+		debugmem_trap(trap_get_areg(ctx, 0));
 	} else if (mode == 299) {
 		return debugmem_exit();
+
 	} else {
 		write_log (_T("Unknown mousehack hook %d\n"), mode);
 	}

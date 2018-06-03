@@ -171,6 +171,7 @@ struct regstruct
 	uae_u8 *pc_oldp;
 	uae_u16 opcode;
 	uae_u32 instruction_pc;
+	uae_u32 instruction_pc_user_exception;
 
 	uae_u16 irc, ir, db;
 	volatile uae_atomic spcflags;

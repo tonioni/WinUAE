@@ -1617,6 +1617,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	cfgfile_write_str (f, _T("use_gui"), guimode1[p->start_gui]);
 	cfgfile_write_bool (f, _T("use_debugger"), p->start_debugger);
 	cfgfile_write_multichoice(f, _T("debugging_features"), debugfeatures, p->debugging_features);
+	cfgfile_dwrite_str(f, _T("debugging_options"), p->debugging_options);
 
 	cfgfile_write_rom (f, &p->path_rom, p->romfile, _T("kickstart_rom_file"));
 	cfgfile_write_rom (f, &p->path_rom, p->romextfile, _T("kickstart_ext_rom_file"));
@@ -3087,6 +3088,7 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 		|| cfgfile_pathext (option, value, _T("floppy1soundext"), p->floppyslots[1].dfxclickexternal, sizeof p->floppyslots[1].dfxclickexternal / sizeof (TCHAR))
 		|| cfgfile_pathext (option, value, _T("floppy2soundext"), p->floppyslots[2].dfxclickexternal, sizeof p->floppyslots[2].dfxclickexternal / sizeof (TCHAR))
 		|| cfgfile_pathext (option, value, _T("floppy3soundext"), p->floppyslots[3].dfxclickexternal, sizeof p->floppyslots[3].dfxclickexternal / sizeof (TCHAR))
+		|| cfgfile_string(option, value, _T("debugging_options"), p->debugging_options, sizeof p->debugging_options / sizeof(TCHAR))
 		|| cfgfile_string (option, value, _T("config_window_title"), p->config_window_title, sizeof p->config_window_title / sizeof (TCHAR))
 		|| cfgfile_string (option, value, _T("config_info"), p->info, sizeof p->info / sizeof (TCHAR))
 		|| cfgfile_string (option, value, _T("config_description"), p->description, sizeof p->description / sizeof (TCHAR)))

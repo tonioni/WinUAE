@@ -32,6 +32,7 @@ extern void debug (void);
 extern void debugger_change (int mode);
 extern void activate_debugger(void);
 extern void activate_debugger_new(void);
+extern void activate_debugger_new_pc(uaecptr pc, int len);
 extern void deactivate_debugger (void);
 extern int notinrom (void);
 extern const TCHAR *debuginfo (int);
