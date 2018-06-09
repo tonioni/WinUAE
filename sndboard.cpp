@@ -1404,6 +1404,8 @@ static void codec_start(void)
 static void codec_stop(void)
 {
 	struct toccata_data *data = &toccata[0];
+	if (!data->toccata_active)
+		return;
 	write_log(_T("TOCCATA stop\n"));
 	data->toccata_active = 0;
 	sndboard_free_capture();
@@ -1793,25 +1795,25 @@ bool sndboard_init(struct autoconfig_info *aci)
 	return true;
 }
 
-void sndboard_free(void)
-{
-	struct toccata_data *data = &toccata[0];
-	data->enabled = false;
-	data->toccata_irq = 0;
-	data->rc = NULL;
-	sndboard_rethink();
-	mapped_free(&toccata_bank);
-}
-
 void sndboard_reset(void)
 {
 	struct toccata_data *data = &toccata[0];
 	data->ch_sample[0] = 0;
 	data->ch_sample[1] = 0;
-	audio_enable_stream(false, data->streamid, 0, NULL);
+	codec_stop();
+	data->toccata_irq = 0;
+	if (data->streamid > 0)
+		audio_enable_stream(false, data->streamid, 0, NULL);
 	data->streamid = 0;
 	sndboard_rethink();
 	mapped_free(&toccata_bank);
+}
+
+void sndboard_free(void)
+{
+	sndboard_reset();
+	struct toccata_data *data = &toccata[0];
+	data->rc = NULL;
 }
 
 struct fm801_data
