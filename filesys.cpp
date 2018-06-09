@@ -334,7 +334,7 @@ int get_filesys_unitconfig (struct uae_prefs *p, int index, struct mountedinfo *
 		ui = &uitmp;
 		if (uci->ci.type == UAEDEV_DIR) {
 			mi->ismounted = 1;
-			if (uci->ci.rootdir && _tcslen (uci->ci.rootdir) == 0)
+			if (uci->ci.rootdir[0] == 0)
 				return FILESYS_VIRTUAL;
 			if (my_existsfile (uci->ci.rootdir)) {
 				mi->ismedia = 1;
@@ -2234,7 +2234,7 @@ int hardfile_media_change (struct hardfiledata *hfd, struct uaedev_config_info *
 			if (hfd->delayedci.rootdir[0]) {
 				hfd->reinsertdelay = 50;
 				hfd->isreinsert = true;
-				write_log (_T("HARDFILE: delayed insert %d: '%s'\n"), hfd->unitnum, ci->rootdir ? ci->rootdir : _T("<none>"));
+				write_log (_T("HARDFILE: delayed insert %d: '%s'\n"), hfd->unitnum, ci->rootdir[0] ? ci->rootdir : _T("<none>"));
 				return 0;
 			} else {
 				return 1;
@@ -2254,7 +2254,7 @@ int hardfile_media_change (struct hardfiledata *hfd, struct uaedev_config_info *
 		if (hfd && !hfd->drive_empty) {
 			hfd->reinsertdelay = 50;
 			hfd->isreinsert = false;
-			write_log (_T("HARDFILE: delayed eject %d: '%s'\n"), hfd->unitnum, hfd->ci.rootdir ? hfd->ci.rootdir : _T("<none>"));
+			write_log (_T("HARDFILE: delayed eject %d: '%s'\n"), hfd->unitnum, hfd->ci.rootdir[0] ? hfd->ci.rootdir : _T("<none>"));
 			return 0;
 		}
 		if (!hfd) {
