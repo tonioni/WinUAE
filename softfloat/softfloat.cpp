@@ -3291,8 +3291,10 @@ floatx80 floatx80_abs(floatx80 a, float_status *status)
     aSig = extractFloatx80Frac(a);
     aExp = extractFloatx80Exp(a);
     
-    if ( aExp == 0x7FFF && (uint64_t) ( aSig<<1 ) ) {
-        return propagateFloatx80NaNOneArg( a, status );
+    if ( aExp == 0x7FFF ) {
+        if ( (uint64_t) ( aSig<<1 ) )
+            return propagateFloatx80NaNOneArg( a, status );
+        return packFloatx80( 0, 0x7FFF, floatx80_default_infinity_low );
     }
     
     if ( aExp == 0 ) {
@@ -3321,13 +3323,15 @@ floatx80 floatx80_neg(floatx80 a, float_status *status)
     aExp = extractFloatx80Exp(a);
     aSign = extractFloatx80Sign(a);
     
-    if ( aExp == 0x7FFF && (uint64_t) ( aSig<<1 ) ) {
-        return propagateFloatx80NaNOneArg( a, status );
+    if ( aExp == 0x7FFF ) {
+        if ( (uint64_t) ( aSig<<1 ) )
+            return propagateFloatx80NaNOneArg( a, status );
+        return packFloatx80 ( !aSign, 0x7FFF, floatx80_default_infinity_low );
     }
     
-    aSign = !aSign;
-    
-    if ( aExp == 0 ) {
+	aSign = !aSign;
+
+	if ( aExp == 0 ) {
         if ( aSig == 0 ) return packFloatx80( aSign, 0, 0 );
         normalizeFloatx80Subnormal( aSig, &aExp, &aSig );
     }
