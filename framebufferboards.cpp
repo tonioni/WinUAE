@@ -74,7 +74,7 @@ static bool fb_get_surface(struct fb_struct *data)
 			gotsurf = true;
 		}
 		if (data->surface && gotsurf) {
-			if (!(currprefs.leds_on_screen & STATUSLINE_TARGET))
+			if (softstatusline())
 				picasso_statusline(data->monitor_id, data->surface);
 		}
 	}

@@ -3674,7 +3674,7 @@ static void draw_frame2(struct vidbuffer *vbin, struct vidbuffer *vbout)
 
 static void draw_frame_extras(struct vidbuffer *vb, int y_start, int y_end)
 {
-	if (currprefs.leds_on_screen && ((currprefs.leds_on_screen & STATUSLINE_CHIPSET) && !(currprefs.leds_on_screen & STATUSLINE_TARGET))) {
+	if ((currprefs.leds_on_screen & STATUSLINE_CHIPSET) && softstatusline()) {
 		int slx, sly;
 		statusline_getpos(vb->monitor_id, &slx, &sly, vb->outwidth, vb->outheight, 1, 1);
 		statusbar_y1 = sly + min_ypos_for_screen - 1;
@@ -3992,8 +3992,11 @@ void redraw_frame(void)
 {
 	last_drawn_line = 0;
 	first_drawn_line = 32767;
+	// do not do full refresh if lagless mode
+	// because last line would appear as bright line
+	if (isvsync_chipset() < 0)
+		return;
 	finish_drawing_frame(true);
-	//flush_screen (vidinfo->inbuffer, 0, 0);
 }
 
 void full_redraw_all(void)

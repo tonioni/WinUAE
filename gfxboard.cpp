@@ -1026,7 +1026,7 @@ void gfxboard_vsync_handler(bool full_redraw_required, bool redraw_required)
 						gb->gfxboard_surface = gfx_lock_picasso(gb->monitor_id, false, false);
 					}
 					if (gb->gfxboard_surface) {
-						if (!(currprefs.leds_on_screen & STATUSLINE_TARGET))
+						if (softstatusline())
 							picasso_statusline(gb->monitor_id, gb->gfxboard_surface);
 					}
 				}

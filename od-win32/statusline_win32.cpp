@@ -23,6 +23,13 @@ static HFONT statusline_font;
 static HPALETTE statusline_palette;
 static bool statusline_was_updated;
 
+bool softstatusline(void)
+{
+	if (currprefs.gfx_api > 0)
+		return false;
+	return (currprefs.leds_on_screen & STATUSLINE_TARGET) == 0;
+}
+
 void deletestatusline(int monid)
 {
 	if (monid)

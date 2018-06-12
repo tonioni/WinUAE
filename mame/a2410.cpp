@@ -680,7 +680,7 @@ static void get_a2410_surface(struct a2410_struct *data)
 			gotsurf = true;
 		}
 		if (data->a2410_surface && gotsurf) {
-			if (!(currprefs.leds_on_screen & STATUSLINE_TARGET))
+			if (softstatusline())
 				picasso_statusline(monid, data->a2410_surface);
 		}
 	}

@@ -4647,7 +4647,7 @@ static void picasso_flushpixels(int index, uae_u8 *src, int off, bool render)
 			dst = gfx_lock_picasso(monid, false, false);
 		}
 		if (dst) {
-			if (!(currprefs.leds_on_screen & STATUSLINE_TARGET)) {
+			if (softstatusline()) {
 				picasso_statusline(monid, dst);
 			}
 			maxy = vidinfo->height;
