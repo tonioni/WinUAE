@@ -369,16 +369,17 @@ static void create_virtual_rdb (struct hardfiledata *hfd)
 {
 	uae_u8 *rdb, *part, *denv, *fs;
 	int blocksize = hfd->ci.blocksize;
+	int bs = blocksize;
 	int minblocksize = blocksize >= 512 ? 512 : blocksize;
 	int cyl = hfd->ci.surfaces * hfd->ci.sectors;
-	int cyls = (262144 + (cyl * blocksize) - 1) / (cyl * blocksize);
-	int size = cyl * cyls * blocksize;
+	int cyls = (262144 + (cyl * bs) - 1) / (cyl * bs);
+	int size = cyl * cyls * bs;
 	int idx = 0;
 	uae_u8 *filesys = NULL;
 	int filesyslen = 0;
 	uae_u32 fsver = 0;
 
-	write_log(_T("Creating virtual RDB\n"));
+	write_log(_T("Creating virtual RDB (RDB size=%d (%d blocks). H=%d S=%d)\n"), size, size / bs, hfd->ci.surfaces, hfd->ci.sectors);
 
 	if (hfd->ci.filesys[0]) {
 		struct zfile *f = NULL;
@@ -415,7 +416,7 @@ static void create_virtual_rdb (struct hardfiledata *hfd)
 	pl(rdb, 13, -1); // reserved
 	pl(rdb, 14, -1); // reserved
 	pl(rdb, 15, -1); // reserved
-	pl(rdb, 16, hfd->ci.highcyl);
+	pl(rdb, 16, hfd->ci.highcyl + cyls - 1);
 	pl(rdb, 17, hfd->ci.sectors);
 	pl(rdb, 18, hfd->ci.surfaces);
 	pl(rdb, 19, hfd->ci.interleave);
@@ -434,7 +435,7 @@ static void create_virtual_rdb (struct hardfiledata *hfd)
 	pl(rdb, 32, 0); // rdbblockslo
 	pl(rdb, 33, cyl * cyls); // rdbblockshi
 	pl(rdb, 34, cyls); // locyl
-	pl(rdb, 35, hfd->ci.highcyl + cyls); // hicyl
+	pl(rdb, 35, hfd->ci.highcyl + cyls - 1); // hicyl
 	pl(rdb, 36, cyl); // cylblocks
 	pl(rdb, 37, 0); // autopark
 	pl(rdb, 38, 2); // highrdskblock
@@ -462,7 +463,7 @@ static void create_virtual_rdb (struct hardfiledata *hfd)
 	pl(denv, 1, 512 / 4);
 	pl(denv, 2, 0); // secorg
 	pl(denv, 3, hfd->ci.surfaces);
-	pl(denv, 4, hfd->ci.blocksize / 512);
+	pl(denv, 4, 1);
 	pl(denv, 5, hfd->ci.sectors);
 	pl(denv, 6, hfd->ci.reserved);
 	pl(denv, 7, 0); // prealloc
