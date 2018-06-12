@@ -2308,11 +2308,11 @@ void gui_display (int shortcut)
 	inputdevice_copyconfig (&changed_prefs, &currprefs);
 	inputdevice_config_change_test ();
 	clearallkeys ();
+	flipgui(0);
 	if (resumepaused (7)) {
 		inputdevice_acquire (TRUE);
 		setmouseactive(0, 1);
 	}
-	flipgui(0);
 	fpscounter_reset ();
 	screenshot_free ();
 	write_disk_history ();
