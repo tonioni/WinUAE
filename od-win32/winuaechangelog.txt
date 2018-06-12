@@ -1,4 +1,15 @@
 
+Beta 13:
+
+- Toccata sound was not fully closed when reset/reset and caused crash if new config was loaded and started.
+- Returning back to D3D11 fullscreen from GUI didn't automatically recapture mouse. (b12)
+- Debugger f <start> <end> was broken.
+- Corrupted OSD graphics (if OSD was enabled) and extra dark/bright line was drawn at the bottom of display in lagless D3D11 fullscreen mode after exiting GUI.
+- Second to last line was not drawn in lagless mode. Very last line is invisible by design.
+- FMOVE and FMOVEM to memory didn't check if destination addressing mode was invalid (PC relative) and didn't generate F-line.
+- FMOVE to control register didn't check if more than 1 control register bit was set which is also invalid and should generate F-line.
+- FMOVEM to (An)+ and from -(An) are invalid.
+- Softfloat FABS and FNEG didn't handle infinity correctly.
 
 Beta 12:
 

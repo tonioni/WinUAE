@@ -4323,6 +4323,12 @@ static bool parse_geo (const TCHAR *tname, struct uaedev_config_info *uci, struc
 			} else {
 				v = _tstol (val);
 			}
+			if (!_tcsicmp (key, _T("psurfaces")))
+				uci->pheads = v;
+			if (!_tcsicmp (key, _T("psectorspertrack")) || !_tcsicmp (key, _T("pblockspertrack")))
+				uci->psecs = v;
+			if (!_tcsicmp (key, _T("pcyls")))
+				uci->pcyls = v;
 			if (!_tcsicmp (key, _T("surfaces")))
 				uci->surfaces = v;
 			if (!_tcsicmp (key, _T("sectorspertrack")) || !_tcsicmp (key, _T("blockspertrack")))
@@ -4333,7 +4339,7 @@ static bool parse_geo (const TCHAR *tname, struct uaedev_config_info *uci, struc
 				uci->reserved = v;
 			if (!_tcsicmp (key, _T("lowcyl")))
 				uci->lowcyl = v;
-			if (!_tcsicmp (key, _T("highcyl")) || !_tcsicmp (key, _T("cyl")))
+			if (!_tcsicmp (key, _T("highcyl")) || !_tcsicmp (key, _T("cyl")) || !_tcsicmp (key, _T("cyls")))
 				uci->highcyl = v;
 			if (!_tcsicmp (key, _T("blocksize")) || !_tcsicmp (key, _T("sectorsize")))
 				uci->blocksize = v;

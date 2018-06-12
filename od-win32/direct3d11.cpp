@@ -246,6 +246,7 @@ struct d3d11struct
 	DXGI_FORMAT texformat;
 	DXGI_FORMAT intformat;
 	bool m_tearingSupport;
+	int texdepth;
 	int dmult, dmultx;
 	int xoffset, yoffset;
 	float xmult, ymult;
@@ -1856,6 +1857,21 @@ err:
 	return false;
 }
 
+#if 0
+static void erasetexture(struct d3d11struct *d3d)
+{
+	int pitch;
+	uae_u8 *p = D3D_locktexture(d3d - &d3d11data[0], &pitch, NULL, true);
+	if (p) {
+		for (int i = 0; i < d3d->m_bitmapHeight; i++) {
+			memset(p, 255, d3d->m_bitmapWidth * d3d->texdepth / 8);
+			p += pitch;
+		}
+		D3D_unlocktexture(d3d - &d3d11data[0], -1, -1);
+	}
+}
+#endif
+
 static bool CreateTexture(struct d3d11struct *d3d)
 {
 	D3D11_TEXTURE2D_DESC desc;
@@ -3246,6 +3262,7 @@ static int xxD3D11_init2(HWND ahwnd, int monid, int w_w, int w_h, int t_w, int t
 	d3d->texformat = depth == 32 ? DXGI_FORMAT_B8G8R8A8_UNORM : DXGI_FORMAT_B5G6R5_UNORM;
 	d3d->intformat = DXGI_FORMAT_B8G8R8A8_UNORM; // _SRGB;
 	d3d->scrformat = DXGI_FORMAT_B8G8R8A8_UNORM;
+	d3d->texdepth = depth;
 	d3d->dmultx = mmult;
 
 	struct MultiDisplay *md = getdisplay(&currprefs, monid);

@@ -1011,6 +1011,8 @@ static void setmouseactive2(struct AmigaMonitor *mon, int active, bool allowpaus
 	if (mouseactive > 0)
 		focus = mon->monitor_id + 1;
 
+	//write_log(_T("setcapture %d %d %d\n"), mouseactive, focus, showcursor);
+
 	if (mouseactive) {
 		if (focus) {
 			if (!showcursor) {
