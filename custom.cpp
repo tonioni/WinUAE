@@ -8300,7 +8300,7 @@ static bool linesync_beam_single(void)
 	frame_time_t maxtime = read_processor_time() + 2 * vsynctimebase;
 
 	if (is_last_line()) {
-		do_render_slice(-1, 0, vpos - 1);
+		do_render_slice(-1, 0, vpos);
 		while (!currprefs.turbo_emulation && sync_timeout_check(maxtime)) {
 			maybe_process_pull_audio();
 			target_spin(0);
@@ -8365,7 +8365,7 @@ static bool linesync_beam_multi_dual(void)
 		if (display_slice_cnt == 0) {
 
 			if (!was_syncline) {
-				do_render_slice(is_last_line() ? 1 : 2, display_slice_cnt, vpos - 1);
+				do_render_slice(is_last_line() ? 1 : 2, display_slice_cnt, vpos);
 				display_rendered = true;
 			}
 			while (!currprefs.turbo_emulation && sync_timeout_check(maxtime)) {
@@ -8467,7 +8467,7 @@ static bool linesync_beam_vrr(void)
 	if (is_last_line()) {
 
 		if (!was_syncline && !display_rendered) {
-			do_render_slice(1, display_slice_cnt, vpos - 1);
+			do_render_slice(1, display_slice_cnt, vpos);
 			display_rendered = true;
 		}
 
@@ -8625,7 +8625,7 @@ static bool linesync_beam_multi_single(void)
 	if (is_last_line()) {
 
 		if (!was_syncline && !display_rendered) {
-			do_render_slice(1, display_slice_cnt, vpos - 1);
+			do_render_slice(1, display_slice_cnt, vpos);
 			display_rendered = true;
 		}
 		// if 2 slices: make sure we are out of vblank.
