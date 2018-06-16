@@ -573,8 +573,8 @@ void fixup_prefs (struct uae_prefs *p, bool userconfig)
 		p->comptrustnaddr = 1;
 		err = 1;
 	}
-	if (p->cachesize < 0 || p->cachesize > 16384) {
-		error_log (_T("Bad value for cachesize parameter: value must be within 0..16384."));
+	if (p->cachesize < 0 || p->cachesize > MAX_JIT_CACHE || (p->cachesize > 0 && p->cachesize < MIN_JIT_CACHE)) {
+		error_log (_T("Bad value for cachesize parameter: value must zero or within %d..%d."), MIN_JIT_CACHE, MAX_JIT_CACHE);
 		p->cachesize = 0;
 		err = 1;
 	}

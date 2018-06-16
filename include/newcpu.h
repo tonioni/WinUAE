@@ -66,6 +66,7 @@ struct cputbl {
 };
 
 #ifdef JIT
+#define MIN_JIT_CACHE 128
 #define MAX_JIT_CACHE 16384
 typedef uae_u32 REGPARAM3 compop_func (uae_u32) REGPARAM;
 
