@@ -375,7 +375,7 @@ static int add_async_request(struct devstruct *dev, uae_u8 *iobuf, uaecptr reque
 	int i;
 
 	if (log_scsi)
-		write_log (_T("async request %08x (%d) added\n"), request, type);
+		write_log (_T("async request %08x (%d) %p added\n"), request, type, iobuf);
 	i = 0;
 	while (i < MAX_ASYNC_REQUESTS) {
 		if (dev->d_request[i] == request) {
@@ -1082,11 +1082,12 @@ static uae_u32 REGPARAM2 dev_beginio(TrapContext *ctx)
 	put_byte_host(iobuf + 31, 0);
 	canquick = dev_canquick (dev, iobuf, request);
 	if (((flags & 1) && canquick) || (canquick < 0)) {
-		dev_do_io(ctx, dev, iobuf, request);
+		bool async = dev_do_io(ctx, dev, iobuf, request) != 0;
 		uae_u8 v = get_byte_host(iobuf + 31);
 		trap_put_bytes(ctx, iobuf + 8, request + 8, 48 - 8);
-		xfree(iobuf);
-		if (!(flags & 1))
+		if (!async)
+			xfree(iobuf);
+		if (!(flags & 1) && !async)
 			uae_ReplyMsg (request);
 		return v;
 	} else {
