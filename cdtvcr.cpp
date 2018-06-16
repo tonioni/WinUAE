@@ -457,6 +457,7 @@ static void cdtvcr_play_track(uae_u32 track_start, uae_u32 track_end)
 		if (track_start == s->track) {
 			start_found++;
 			start = s->paddress;
+			end = toc.toc[toc.last_track_offset].paddress;
 		}
 		if (track_end == s->track) {
 			end = s->paddress;

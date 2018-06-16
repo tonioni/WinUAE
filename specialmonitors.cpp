@@ -1890,6 +1890,7 @@ static bool graffiti(struct vidbuffer *src, struct vidbuffer *dst)
 
 	command = true;
 	found = false;
+	hires = false;
 	isntsc = (beamcon0 & 0x20) ? 0 : 1;
 	if (!(currprefs.chipset_mask & CSMASK_ECS_AGNUS))
 		isntsc = currprefs.ntscmode ? 1 : 0;

@@ -2224,7 +2224,7 @@ static int hdf_seek (struct hardfiledata *hfd, uae_u64 offset)
 static void poscheck (struct hardfiledata *hfd, int len)
 {
 	DWORD err;
-	uae_s64 pos;
+	uae_s64 pos = -1;
 
 	if (hfd->handle_valid == HDF_HANDLE_WIN32_NORMAL) {
 		LARGE_INTEGER fppos;
@@ -3341,7 +3341,7 @@ TCHAR *hdf_getnameharddrive (int index, int flags, int *sectorsize, int *dangero
 static int hmc (struct hardfiledata *hfd)
 {
 	uae_u8 *buf = xmalloc (uae_u8, hfd->ci.blocksize);
-	DWORD ret, got, err, status;
+	DWORD ret = 0, got, err = 0, status = 0;
 	int first = 1;
 
 	while (hfd->handle_valid) {

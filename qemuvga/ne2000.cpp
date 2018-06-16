@@ -1607,7 +1607,8 @@ static int toariadne2(struct ne2000_s *ne, uaecptr addr, uae_u32 *vp, int size, 
 			}
 		} else if ((addr & 0x8101) == 0x0100) {
 			// mac rom
-			*vp = ncs.ne2000state->c.macaddr.a[(addr >> 1) & 7];
+			int macoffset = (addr >> 1) & 7;
+			*vp = macoffset < 6 ? ncs.ne2000state->c.macaddr.a[macoffset] : 0;
 		} else if ((addr & 0x8101) == 0x0001) {
 			// io
 			addr &= (15 << 1);
@@ -1642,7 +1643,8 @@ static int toariadne2(struct ne2000_s *ne, uaecptr addr, uae_u32 *vp, int size, 
 			}
 		} else if ((addr & 0xffe1) == 0xffc0) {
 			// mac rom
-			*vp = ncs.ne2000state->c.macaddr.a[(addr >> 1) & 7];
+			int macoffset = (addr >> 1) & 7;
+			*vp = macoffset < 6 ? ncs.ne2000state->c.macaddr.a[macoffset] : 0;
 		} else if ((addr & 0xffe1) == 0xffe1) {
 			// io
 			addr &= (15 << 1);

@@ -2297,7 +2297,7 @@ static unsigned int thread_get2 (void *indexp)
 				uae_u32 proto;
 				uae_u32 type;
 				char *proto_rp = 0;
-				struct servent *serv;
+				struct servent *serv = NULL;
 
 				nameport = args->args2;
 				proto = args->args3;
@@ -2311,9 +2311,10 @@ static unsigned int thread_get2 (void *indexp)
 				if (type) {
 					serv = getservbyport(nameport, proto_rp);
 				} else {
-					if (addr_valid (_T("thread_get4"), nameport, 1))
-						name_rp = (char*)get_real_address (nameport);
-					serv = getservbyname(name_rp, proto_rp);
+					if (addr_valid(_T("thread_get4"), nameport, 1)) {
+						name_rp = (char*)get_real_address(nameport);
+						serv = getservbyname(name_rp, proto_rp);
+					}
 				}
 				if (bsd->threadGetargs_inuse[index] != GET_STATE_CANCEL) {
 					// No CTRL-C Signal

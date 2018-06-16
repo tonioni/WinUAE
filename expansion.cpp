@@ -245,8 +245,8 @@ static bool ks11orolder(void)
 */
 
 /* Autoconfig address space at 0xE80000 */
-static uae_u8 expamem[65536];
-static uae_u8 expamem_write_space[65536];
+static uae_u8 expamem[65536 + 4];
+static uae_u8 expamem_write_space[65536 + 4];
 #define AUTOMATIC_AUTOCONFIG_MAX_ADDRESS 0x80
 static int expamem_autoconfig_mode;
 static addrbank*(*expamem_map)(struct autoconfig_info*);

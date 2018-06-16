@@ -1568,7 +1568,7 @@ static int open_audio_ds (struct sound_data *sd, int index)
 	DSBUFFERDESC sound_buffer;
 	DSCAPS DSCaps;
 	WAVEFORMATEXTENSIBLE wavfmt;
-	LPDIRECTSOUNDBUFFER pdsb;
+	LPDIRECTSOUNDBUFFER pdsb = NULL;
 	int freq = sd->freq;
 	int ch = sd->channels;
 	int round, i;
