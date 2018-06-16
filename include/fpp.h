@@ -84,6 +84,7 @@ extern FPP_IS fpp_is_zero;
 extern FPP_IS fpp_is_neg;
 extern FPP_IS fpp_is_denormal;
 extern FPP_IS fpp_is_unnormal;
+extern FPP_A fpp_fix_infinity;
 
 extern FPP_GET_STATUS fpp_get_status;
 extern FPP_CLEAR_STATUS fpp_clear_status;

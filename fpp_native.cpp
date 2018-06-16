@@ -1283,6 +1283,7 @@ void fp_init_native(void)
 	fpp_is_neg = fp_is_neg;
 	fpp_is_denormal = fp_is_denormal;
 	fpp_is_unnormal = fp_is_unnormal;
+	fpp_fix_infinity = NULL;
 
 	fpp_get_status = fp_get_status;
 	fpp_clear_status = fp_clear_status;

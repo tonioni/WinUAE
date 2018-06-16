@@ -56,6 +56,7 @@ FPP_IS fpp_is_zero;
 FPP_IS fpp_is_neg;
 FPP_IS fpp_is_denormal;
 FPP_IS fpp_is_unnormal;
+FPP_A fpp_fix_infinity;
 
 FPP_GET_STATUS fpp_get_status;
 FPP_CLEAR_STATUS fpp_clear_status;
@@ -1305,6 +1306,18 @@ static bool fault_if_68040_integer_nonmaskable(uae_u16 opcode, uae_u16 extra, ua
 	return false;
 }
 
+#if 0
+// 68040/060 automatically converts infinity
+static void check_and_fix_infinity(fpdata *value)
+{
+	if (fpp_fix_infinity && (currprefs.fpu_model == 68040 || currprefs.fpu_model == 68060)) {
+		if (fpp_is_infinity(value)) {
+			fpp_fix_infinity(value);
+		}
+	}
+}
+#endif
+
 static int get_fp_value (uae_u32 opcode, uae_u16 extra, fpdata *src, uaecptr oldpc, uae_u32 *adp)
 {
 	int size, mode, reg;
@@ -1318,6 +1331,9 @@ static int get_fp_value (uae_u32 opcode, uae_u16 extra, fpdata *src, uaecptr old
 		if (fault_if_no_fpu (opcode, extra, 0, oldpc))
 			return -1;
 		*src = regs.fp[(extra >> 10) & 7];
+#if 0
+		check_and_fix_infinity(src);
+#endif
 		normalize_or_fault_if_no_denormal_support(opcode, extra, 0, oldpc, src);
 		return 1;
 	}
@@ -3095,6 +3111,10 @@ static void fpuop_arithmetic2 (uae_u32 opcode, uae_u16 extra)
 			}
 
 			v = fp_arithmetic(&src, &dst, extra);
+
+#if 0
+			check_and_fix_infinity(&dst);
+#endif
 
 			fpsr_check_arithmetic_exception(0, &src, opcode, extra, ad);
 

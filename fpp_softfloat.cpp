@@ -167,6 +167,10 @@ static bool fp_is_infinity(fpdata *fpd)
 {
 	return floatx80_is_infinity(fpd->fpx) != 0;
 }
+static void fp_fix_infinity(fpdata *fpd)
+{
+	fpd->fpx.low = 0;
+}
 static bool fp_is_zero(fpdata *fpd)
 {
 	return floatx80_is_zero(fpd->fpx) != 0;
@@ -746,6 +750,7 @@ void fp_init_softfloat(void)
 	fpp_is_neg = fp_is_neg;
 	fpp_is_denormal = fp_is_denormal;
 	fpp_is_unnormal = fp_is_unnormal;
+	fpp_fix_infinity = fp_fix_infinity;
 
 	fpp_get_status = fp_get_status;
 	fpp_clear_status = fp_clear_status;
