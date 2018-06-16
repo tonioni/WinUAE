@@ -336,13 +336,12 @@ typedef uae_s8 sample8_t;
 
 STATIC_INLINE int FINISH_DATA (int data, int bits, int ch)
 {
-	if (bits == 16) {
-		return data;
-	} else if (bits - 16 > 0) {
-		data >>=  bits - 16;
-	} else {
+	if (bits < 16) {
 		int shift = 16 - bits;
 		data <<= shift;
+	} else {
+		int shift = bits - 16;
+		data >>= shift;
 	}
 	data = data * sound_paula_volume[ch] / 32768;
 	return data;
