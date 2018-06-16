@@ -530,7 +530,7 @@ struct scsi_data *scsi_alloc_hd(int id, struct hd_hardfiledata *hfd, int uae_uni
 	sd->id = id;
 	sd->nativescsiunit = -1;
 	sd->cd_emu_unit = -1;
-	sd->blocksize = hfd->hfd.ci.blocksize;
+	sd->blocksize = hfd->hfd.virtual_rdb ? 512 : hfd->hfd.ci.blocksize;
 	sd->device_type = UAEDEV_HDF;
 	sd->uae_unitnum = uae_unitnum;
 	allocscsibuf(sd);

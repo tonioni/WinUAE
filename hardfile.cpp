@@ -365,21 +365,23 @@ static uae_u32 get_filesys_version(uae_u8 *fs, int size)
 	return (ver << 16) | rev;
 }
 
+// hardware block size is always 256 or 512
+// filesystem block size can be 256, 512 or larger
 static void create_virtual_rdb (struct hardfiledata *hfd)
 {
 	uae_u8 *rdb, *part, *denv, *fs;
-	int blocksize = hfd->ci.blocksize;
-	int bs = blocksize;
-	int minblocksize = blocksize >= 512 ? 512 : blocksize;
+	int fsblocksize = hfd->ci.blocksize;
+	int hardblocksize = fsblocksize >= 512 ? 512 : 256;
 	int cyl = hfd->ci.surfaces * hfd->ci.sectors;
-	int cyls = (262144 + (cyl * bs) - 1) / (cyl * bs);
-	int size = cyl * cyls * bs;
+	int cyls = (262144 + (cyl * fsblocksize) - 1) / (cyl * fsblocksize);
+	int size = cyl * cyls * fsblocksize;
 	int idx = 0;
 	uae_u8 *filesys = NULL;
 	int filesyslen = 0;
 	uae_u32 fsver = 0;
 
-	write_log(_T("Creating virtual RDB (RDB size=%d (%d blocks). H=%d S=%d)\n"), size, size / bs, hfd->ci.surfaces, hfd->ci.sectors);
+	write_log(_T("Creating virtual RDB (RDB size=%d, %d blocks). H=%d S=%d HBS=%d FSBS=%d)\n"),
+		size, size / hardblocksize, hfd->ci.surfaces, hfd->ci.sectors, hardblocksize, fsblocksize);
 
 	if (hfd->ci.filesys[0]) {
 		struct zfile *f = NULL;
@@ -404,7 +406,7 @@ static void create_virtual_rdb (struct hardfiledata *hfd)
 	pl(rdb, 1, 256 / 4);
 	pl(rdb, 2, 0); // chksum
 	pl(rdb, 3, 7); // hostid
-	pl(rdb, 4, blocksize); // blockbytes
+	pl(rdb, 4, hardblocksize); // blockbytes
 	pl(rdb, 5, 0); // flags
 	pl(rdb, 6, -1); // badblock
 	pl(rdb, 7, idx + 1); // part
@@ -446,7 +448,7 @@ static void create_virtual_rdb (struct hardfiledata *hfd)
 	rdb_crc (rdb);
 	idx++;
 
-	part = rdb + blocksize * idx;
+	part = rdb + hardblocksize * idx;
 	pl(part, 0, 0x50415254); // "PART"
 	pl(part, 1, 256 / 4);
 	pl(part, 2, 0); // chksum
@@ -460,7 +462,7 @@ static void create_virtual_rdb (struct hardfiledata *hfd)
 	ua_copy ((char*)part + 9 * 4 + 1, 30, hfd->ci.devname);
 	denv = part + 128;
 	pl(denv, 0, 16);
-	pl(denv, 1, 512 / 4);
+	pl(denv, 1, fsblocksize / 4);
 	pl(denv, 2, 0); // secorg
 	pl(denv, 3, hfd->ci.surfaces);
 	pl(denv, 4, 1);
@@ -480,7 +482,7 @@ static void create_virtual_rdb (struct hardfiledata *hfd)
 	idx++;
 
 	if (filesys) {
-		fs = rdb + blocksize * idx;
+		fs = rdb + hardblocksize * idx;
 		pl(fs, 0, 0x46534844); // "FSHD"
 		pl(fs, 1, 256 / 4);
 		pl(fs, 2, 0); // chksum
@@ -499,12 +501,12 @@ static void create_virtual_rdb (struct hardfiledata *hfd)
 
 		int offset = 0;
 		for (;;) {
-			uae_u8 *lseg = rdb + blocksize * idx;
-			int lsegdatasize = minblocksize - 5 * 4;
-			if (lseg + blocksize > rdb + size)
+			uae_u8 *lseg = rdb + hardblocksize * idx;
+			int lsegdatasize = hardblocksize - 5 * 4;
+			if (lseg + hardblocksize > rdb + size)
 				break;
 			pl(lseg, 0, 0x4c534547); // "LSEG"
-			pl(lseg, 1, minblocksize / 4);
+			pl(lseg, 1, hardblocksize / 4);
 			pl(lseg, 2, 0); // chksum
 			pl(lseg, 3, 7); // hostid
 			int v = filesyslen - offset;

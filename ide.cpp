@@ -1656,7 +1656,7 @@ struct ide_hdf *add_ide_unit (struct ide_hdf **idetable, int max, int ch, struct
 			return NULL;
 
 		ide->max_multiple_mode = 128;
-		ide->blocksize = ide->hdhfd.hfd.ci.blocksize;
+		ide->blocksize = ide->hdhfd.hfd.virtual_rdb ? 512 : ide->hdhfd.hfd.ci.blocksize;
 		ide->max_lba = ide->hdhfd.size / ide->blocksize;
 		ide->lba48 = (ide->hdhfd.hfd.ci.unit_special_flags & 1) || ide->hdhfd.size >= 128 * (uae_u64)0x40000000 ? 1 : 0;
 		ide->lba = true;
