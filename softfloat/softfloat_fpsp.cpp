@@ -1003,7 +1003,7 @@ floatx80 floatx80_log10(floatx80 a, float_status *status)
 	aSign = extractFloatx80Sign(a);
 	
 	if (aExp == 0x7FFF) {
-		if ((uint64_t) (aSig<<1)) propagateFloatx80NaNOneArg(a, status);
+		if ((uint64_t) (aSig<<1)) return propagateFloatx80NaNOneArg(a, status);
 		if (aSign == 0)
 			return packFloatx80(0, 0x7FFF, floatx80_default_infinity_low);
 	}
@@ -1051,7 +1051,7 @@ floatx80 floatx80_log2(floatx80 a, float_status *status)
 	aSign = extractFloatx80Sign(a);
 	
 	if (aExp == 0x7FFF) {
-		if ((uint64_t) (aSig<<1)) propagateFloatx80NaNOneArg(a, status);
+		if ((uint64_t) (aSig<<1)) return propagateFloatx80NaNOneArg(a, status);
 		if (aSign == 0)
 			return packFloatx80(0, 0x7FFF, floatx80_default_infinity_low);
 	}
@@ -1109,7 +1109,7 @@ floatx80 floatx80_logn(floatx80 a, float_status *status)
 	aSign = extractFloatx80Sign(a);
 	
 	if (aExp == 0x7FFF) {
-		if ((uint64_t) (aSig<<1)) propagateFloatx80NaNOneArg(a, status);
+		if ((uint64_t) (aSig<<1)) return propagateFloatx80NaNOneArg(a, status);
 		if (aSign == 0)
 			return packFloatx80(0, 0x7FFF, floatx80_default_infinity_low);
 	}
@@ -1244,7 +1244,7 @@ floatx80 floatx80_lognp1(floatx80 a, float_status *status)
 	aSign = extractFloatx80Sign(a);
 	
 	if (aExp == 0x7FFF) {
-		if ((uint64_t) (aSig<<1)) propagateFloatx80NaNOneArg(a, status);
+		if ((uint64_t) (aSig<<1)) return propagateFloatx80NaNOneArg(a, status);
 		if (aSign) {
 			float_raise(float_flag_invalid, status);
 			a.low = floatx80_default_nan_low;
