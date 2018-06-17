@@ -1690,18 +1690,27 @@ static void freeshaderdata(struct shaderdata11 *s)
 	FreeShaderTex(&s->lpWorkTexture1);
 	FreeShaderTex(&s->lpWorkTexture2);
 	FreeShaderTex(&s->lpTempTexture);
-	if (s->lpHq2xLookupTexture)
+	if (s->lpHq2xLookupTexture) {
 		s->lpHq2xLookupTexture->Release();
-	if (s->lpHq2xLookupTexturerv)
+		s->lpHq2xLookupTexture = NULL;
+	}
+	if (s->lpHq2xLookupTexturerv) {
 		s->lpHq2xLookupTexturerv->Release();
+		s->lpHq2xLookupTexturerv = NULL;
+	}
 	for (int j = 0; j < MAX_TECHNIQUE_LAYOUTS; j++) {
 		if (s->layouts[j])
 			s->layouts[j]->Release();
+		s->layouts[j] = NULL;
 	}
-	if (s->vertexBuffer)
+	if (s->vertexBuffer) {
 		s->vertexBuffer->Release();
-	if (s->indexBuffer)
+		s->vertexBuffer = NULL;
+	}
+	if (s->indexBuffer) {
 		s->indexBuffer->Release();
+		s->indexBuffer = NULL;
+	}
 	memset(s, 0, sizeof(struct shaderdata11));
 }
 
@@ -3627,17 +3636,20 @@ static int xxD3D11_init2(HWND ahwnd, int monid, int w_w, int w_h, int t_w, int t
 		return 0;
 	}
 
-	ComPtr<IDXGIDevice1> dxgiDevice;
-	result = d3d->m_device->QueryInterface(__uuidof(IDXGIDevice1), &dxgiDevice);
-	if (FAILED(result)) {
-		write_log(_T("QueryInterface IDXGIDevice1 %08x\n"), result);
-	} else {
-		int f = apm->gfx_backbuffers <= 1 ? 1 : 2;
-		if (d3d->blackscreen)
-			f++;
-		result = dxgiDevice->SetMaximumFrameLatency(f);
+	{
+		ComPtr<IDXGIDevice1> dxgiDevice;
+		result = d3d->m_device->QueryInterface(__uuidof(IDXGIDevice1), &dxgiDevice);
 		if (FAILED(result)) {
-			write_log(_T("IDXGIDevice1 SetMaximumFrameLatency %08x\n"), result);
+			write_log(_T("QueryInterface IDXGIDevice1 %08x\n"), result);
+		}
+		else {
+			int f = apm->gfx_backbuffers <= 1 ? 1 : 2;
+			if (d3d->blackscreen)
+				f++;
+			result = dxgiDevice->SetMaximumFrameLatency(f);
+			if (FAILED(result)) {
+				write_log(_T("IDXGIDevice1 SetMaximumFrameLatency %08x\n"), result);
+			}
 		}
 	}
 
@@ -3669,14 +3681,6 @@ static int xxD3D11_init2(HWND ahwnd, int monid, int w_w, int w_h, int t_w, int t
 	D3D_resize(monid, 0);
 
 	ret = 1;
-
-	if (d3d11_feature_level < D3D10_FEATURE_LEVEL_10_0) {
-		if (!CreateTexture(d3d)) {
-			write_log(_T("D3D11 texture creation test failed\n"));
-			ret = 0;
-		}
-		FreeTextures(d3d);
-	}
 
 	write_log(_T("D3D11 init end\n"));
 	return ret;

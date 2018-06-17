@@ -1,4 +1,14 @@
 
+
+Beta 14:
+
+- Virtual RDB (generated when partition hardfile is mounted in non-UAE controller) now also supports >512 block size partitions.
+- Some more code analyzer fixes.
+- Paula audio volume GUI volume setting was ignored if audio mode was mono.
+- Restrict minimum allowed JIT cache size to 128. (Previously too small unsupported size was allowed)
+- Fixed uaescsi.device reset memory corruption if CD filesystem uses TD_ADDCHANGEINT.
+- Logarithmic softfloat functions returned infinity when source value was nan.
+
 Beta 13:
 
 - Toccata sound was not fully closed when reset/reset and caused crash if new config was loaded and started.

@@ -3128,13 +3128,8 @@ static void fpuop_arithmetic2 (uae_u32 opcode, uae_u16 extra)
 	fpu_noinst (opcode, pc);
 }
 
-static bool plop;
-
 void fpuop_arithmetic (uae_u32 opcode, uae_u16 extra)
 {
-	if (plop)
-		write_log(_T("%04x %04x %08x\n"), opcode, extra, M68K_GETPC);
-
 	regs.fpu_state = 1;
 	regs.fp_exception = false;
 	fpu_mmu_fixup = false;
