@@ -303,12 +303,13 @@ static bool ischs(uae_u8 *identity)
 }
 
 #define CA "Commodore\0Amiga\0"
-static bool do_scsi_read10_chs(HANDLE handle, uae_u32 lba, int c, int h, int s, uae_u8 *data, int cnt, bool log);
+static bool do_scsi_read10_chs(HANDLE handle, uae_u32 lba, int c, int h, int s, uae_u8 *data, int cnt, int *flags, bool log);
 static int safetycheck (HANDLE h, const TCHAR *name, uae_u64 offset, uae_u8 *buf, int blocksize, uae_u8 *identity)
 {
 	uae_u64 origoffset = offset;
 	int i, j, blocks = 63, empty = 1;
 	DWORD outlen;
+	int specialaccessmode = 0;
 
 	for (j = 0; j < blocks; j++) {
 		memset(buf, 0xaa, blocksize);
@@ -316,7 +317,7 @@ static int safetycheck (HANDLE h, const TCHAR *name, uae_u64 offset, uae_u8 *buf
 		if (ischs(identity)) {
 			int cc, hh, ss;
 			tochs(identity, j * 512, &cc, &hh, &ss);
-			if (!do_scsi_read10_chs(h, -1, cc, hh, ss, buf, 1, false)) {
+			if (!do_scsi_read10_chs(h, -1, cc, hh, ss, buf, 1, &specialaccessmode, false)) {
 				write_log(_T("hd ignored, do_scsi_read10_chs failed\n"));
 				return 1;
 			}
@@ -753,7 +754,40 @@ static TCHAR *parse_identity(uae_u8 *data, struct ini_data *ini, TCHAR *s)
 
 void gui_infotextbox(HWND hDlg, const TCHAR *text);
 
-static bool hd_get_meta_ata(HWND hDlg, HANDLE h, bool atapi, uae_u8 *datap)
+static bool hd_read_ata(HANDLE h, uae_u8 *ideregs, uae_u8 *datap, int length)
+{
+	DWORD r, size;
+	uae_u8 *b;
+	ATA_PASS_THROUGH_EX *ata;
+
+	size = sizeof(ATA_PASS_THROUGH_EX) + length;
+	b = xcalloc(uae_u8, size);
+	ata = (ATA_PASS_THROUGH_EX*)b;
+	uae_u8 *data = b + sizeof(ATA_PASS_THROUGH_EX);
+	ata->Length = sizeof(ATA_PASS_THROUGH_EX);
+	ata->DataTransferLength = length;
+	ata->TimeOutValue = 10;
+	ata->AtaFlags = ATA_FLAGS_DRDY_REQUIRED | ATA_FLAGS_DATA_IN;
+	IDEREGS* ir = (IDEREGS*)ata->CurrentTaskFile;
+	ir->bFeaturesReg = ideregs[1];
+	ir->bSectorCountReg = ideregs[2];
+	ir->bSectorNumberReg = ideregs[3];
+	ir->bCylLowReg = ideregs[4];
+	ir->bCylHighReg = ideregs[5];
+	ir->bDriveHeadReg = ideregs[6];
+	ir->bCommandReg = ideregs[7];
+	ata->DataBufferOffset = data - b;
+	if (!DeviceIoControl(h, IOCTL_ATA_PASS_THROUGH, b, size, b, size, &r, NULL)) {
+		write_log(_T("IOCTL_ATA_PASS_THROUGH_DIRECT READ failed %08x\n"), GetLastError());
+		return false;
+	}
+	write_log(_T("IOCTL_ATA_PASS_THROUGH_DIRECT READ succeeded\n"));
+	memcpy(datap, data, length);
+	xfree(b);
+	return true;
+}
+
+static bool hd_get_meta_ata(HANDLE h, bool atapi, uae_u8 *datap)
 {
 	DWORD r, size;
 	uae_u8 *b;
@@ -1028,7 +1062,7 @@ static bool readidentity(HANDLE h, struct uae_driveinfo *udi, struct hardfiledat
 		if (udi->BusType == BusTypeUsb) {
 			ret = hd_get_meta_hack(NULL, h, data, NULL, udi);
 		} else if (udi->BusType == BusTypeAta || udi->BusType == BusTypeSata || udi->BusType == BusTypeAtapi) {
-			ret = hd_get_meta_ata(NULL, h, udi->BusType == BusTypeAtapi, data);
+			ret = hd_get_meta_ata(h, udi->BusType == BusTypeAtapi, data);
 		}
 	}
 
@@ -1049,9 +1083,11 @@ end:
 	return ret;
 }
 
-static bool do_scsi_read10_chs(HANDLE handle, uae_u32 lba, int c, int h, int s, uae_u8 *data, int cnt, bool log)
+static bool do_scsi_read10_chs(HANDLE handle, uae_u32 lba, int c, int h, int s, uae_u8 *data, int cnt, int *pflags, bool log)
 {
-	uae_u8 cmd[10] = { 0 };
+	uae_u8 cmd[10];
+	bool r;
+	int flags = *pflags;
 
 #if 0
 	cmd[0] = 0x28;
@@ -1062,7 +1098,30 @@ static bool do_scsi_read10_chs(HANDLE handle, uae_u32 lba, int c, int h, int s, 
 	cmd[8] = 1;
 	do_scsi_in(handle, cmd, 10, data, 512);
 #endif
+	memset(data, 0, sizeof(cmd));
+
+	if (!flags) {
+		// use direct ATA to read if direct ATA identity read succeeded
+		if (hd_get_meta_ata(handle, false, data)) {
+			flags = 2;
+		}
+	}
+
+	if (flags == 2) {
+		memset(cmd, 0, sizeof(cmd));
+		cmd[2] = cnt;
+		cmd[3] = s;
+		cmd[4] = c;
+		cmd[5] = c >> 8;
+		cmd[6] = 0xa0 | (h & 15);
+		cmd[7] = 0x20; // read sectors
+		r = hd_read_ata(handle, cmd, data, cnt * 512);
+		if (r)
+			goto done;
+	}
+	
 	memset(data, 0, 512 * cnt);
+	memset(cmd, 0, sizeof(cmd));
 
 	cmd[0] = 0x28;
 	if (lba != 0xffffffff) {
@@ -1077,7 +1136,10 @@ static bool do_scsi_read10_chs(HANDLE handle, uae_u32 lba, int c, int h, int s, 
 		cmd[5] = s;
 	}
 	cmd[8] = cnt;
-	bool r = do_scsi_in(handle, cmd, 10, data, 512 * cnt, false) > 0;
+	
+	r = do_scsi_in(handle, cmd, 10, data, 512 * cnt, false) > 0;
+
+done:
 	if (r && log) {
 		int s = 32;
 		int o = 0;
@@ -1094,6 +1156,9 @@ static bool do_scsi_read10_chs(HANDLE handle, uae_u32 lba, int c, int h, int s, 
 			o += s;
 		}
 	}
+
+	*pflags = flags;
+
 	return r;
 }
 
@@ -1509,13 +1574,13 @@ void hd_get_meta(HWND hDlg, int idx, TCHAR *geometryfile)
 		}
 	} else if (udi->BusType == BusTypeAta || udi->BusType == BusTypeSata || udi->BusType == BusTypeAtapi) {
 		write_log(_T("ATA passthrough\n"));
-		if (!hd_get_meta_ata(hDlg, h, udi->BusType == BusTypeAtapi, data)) {
+		if (!hd_get_meta_ata(h, udi->BusType == BusTypeAtapi, data)) {
 			write_log(_T("ATA Passthrough failed\n"));
 			_tcscpy(tptr, _T("\r\nATA Passthrough error."));
 			goto doout;
 		}
 	} else {
-		_stprintf(tptr, _T("Unsupported bus type %02x\n"), udi->BusType);
+		_stprintf(tptr, _T("Unsupported bus type 0x%02x\n"), udi->BusType);
 		goto doout;
 	}
 
@@ -2425,7 +2490,7 @@ int hdf_read_target (struct hardfiledata *hfd, void *buffer, uae_u64 offset, int
 		while (len > 0) {
 			int c, h, s;
 			tochs(hfd->identity, offset, &c, &h, &s);
-			do_scsi_read10_chs(hfd->handle->h, -1, c, h, s, (uae_u8*)buffer, 1, false);
+			do_scsi_read10_chs(hfd->handle->h, -1, c, h, s, (uae_u8*)buffer, 1, &hfd->specialaccessmode, false);
 			len -= 512;
 		}
 		return len2;
@@ -3494,6 +3559,7 @@ int harddrive_to_hdf (HWND hDlg, struct uae_prefs *p, int idx)
 	DWORD erc = 0;
 	int cyls = 0, heads = 0, secs = 0;
 	int cyl = 0, head = 0;
+	int specialaccessmode = 0;
 
 	cache = VirtualAlloc (NULL, COPY_CACHE_SIZE, MEM_COMMIT, PAGE_READWRITE);
 	if (!cache)
@@ -3601,7 +3667,7 @@ int harddrive_to_hdf (HWND hDlg, struct uae_prefs *p, int idx)
 			}
 		}
 		if (chsmode) {
-			do_scsi_read10_chs(h, -1, cyl, head, 1, (uae_u8*)cache, secs, false);
+			do_scsi_read10_chs(h, -1, cyl, head, 1, (uae_u8*)cache, secs, &specialaccessmode, false);
 			get = 512 * secs;
 			got = 512 * secs;
 			head++;

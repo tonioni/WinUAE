@@ -78,6 +78,7 @@ struct hardfiledata {
 	bool unit_stopped;
 
 	struct ini_data *geometry;
+	int specialaccessmode;
 };
 
 #define HFD_FLAGS_REALDRIVE 1
