@@ -221,6 +221,7 @@ typedef struct float_status {
     flag flush_inputs_to_zero;
     flag default_nan_mode;
     flag snan_bit_is_one;
+    uint32_t fpu_model;
 } float_status;
 
 /*----------------------------------------------------------------------------

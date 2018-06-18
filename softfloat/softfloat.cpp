@@ -3362,8 +3362,12 @@ floatx80 floatx80_cmp( floatx80 a, floatx80 b, float_status *status )
     
     if ( ( aExp == 0x7FFF && (uint64_t) ( aSig<<1 ) ) ||
          ( bExp == 0x7FFF && (uint64_t) ( bSig<<1 ) ) ) {
-        return propagateFloatx80NaN( packFloatx80( 0, aExp, aSig ),
-                                     packFloatx80( 0, bExp, bSig ), status );
+		// 68040 FCMP -NaN return N flag set
+		if (status->fpu_model == 68040)
+	        return propagateFloatx80NaN( packFloatx80( aSign, aExp, aSig ),
+                                     packFloatx80( bSign, bExp, bSig ), status );
+		return propagateFloatx80NaN(packFloatx80(0, aExp, aSig),
+			packFloatx80(0, bExp, bSig), status);
 	}
     
     if ( bExp < aExp ) return packFloatx80( aSign, 0x3FFF, LIT64( 0x8000000000000000 ) );
