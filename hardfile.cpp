@@ -1954,11 +1954,11 @@ int scsi_hd_emulate (struct hardfiledata *hfd, struct hd_hardfiledata *hdhfd, ua
 		{
 			int pmi = cmdbuf[8] & 1;
 			uae_u32 lba = (cmdbuf[2] << 24) | (cmdbuf[3] << 16) | (cmdbuf[4] << 8) | cmdbuf[5];
-			uae_u32 blocks;
+			uae_u64 blocks;
 			int cyl, head, tracksec;
 			if (nodisk (hfd))
 				goto nodisk;
-			blocks = (uae_u32)(hfd->virtsize / hfd->ci.blocksize);
+			blocks = hfd->virtsize / hfd->ci.blocksize;
 			if (hfd->ci.max_lba)
 				blocks = hfd->ci.max_lba;
 			if (hdhfd) {
@@ -1979,7 +1979,7 @@ int scsi_hd_emulate (struct hardfiledata *hfd, struct hd_hardfiledata *hdhfd, ua
 					lba = blocks;
 				blocks = lba;
 			}
-			wl (r, blocks - 1);
+			wl (r, (uae_u32)(blocks <= 0x100000000 ? blocks - 1 : 0xffffffff));
 			wl (r + 4, hfd->ci.blocksize);
 			scsi_len = lr = 8;
 		}
