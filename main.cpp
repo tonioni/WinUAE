@@ -305,6 +305,28 @@ void fixup_cpu (struct uae_prefs *p)
 		p->fpu_mode = 0;
 	}
 
+	if (p->comptrustbyte < 0 || p->comptrustbyte > 3) {
+		error_log(_T("Bad value for comptrustbyte parameter: value must be within 0..2."));
+		p->comptrustbyte = 1;
+	}
+	if (p->comptrustword < 0 || p->comptrustword > 3) {
+		error_log(_T("Bad value for comptrustword parameter: value must be within 0..2."));
+		p->comptrustword = 1;
+	}
+	if (p->comptrustlong < 0 || p->comptrustlong > 3) {
+		error_log(_T("Bad value for comptrustlong parameter: value must be within 0..2."));
+		p->comptrustlong = 1;
+	}
+	if (p->comptrustnaddr < 0 || p->comptrustnaddr > 3) {
+		error_log(_T("Bad value for comptrustnaddr parameter: value must be within 0..2."));
+		p->comptrustnaddr = 1;
+	}
+	if (p->cachesize < 0 || p->cachesize > MAX_JIT_CACHE || (p->cachesize > 0 && p->cachesize < MIN_JIT_CACHE)) {
+		error_log(_T("JIT Bad value for cachesize parameter: value must zero or within %d..%d."), MIN_JIT_CACHE, MAX_JIT_CACHE);
+		p->cachesize = 0;
+	}
+
+
 #if 0
 	if (p->cpu_cycle_exact && p->m68k_speed < 0 && currprefs.cpu_model <= 68020)
 		p->m68k_speed = 0;
@@ -553,31 +575,7 @@ void fixup_prefs (struct uae_prefs *p, bool userconfig)
 		p->produce_sound = 0;
 		err = 1;
 	}
-	if (p->comptrustbyte < 0 || p->comptrustbyte > 3) {
-		error_log (_T("Bad value for comptrustbyte parameter: value must be within 0..2."));
-		p->comptrustbyte = 1;
-		err = 1;
-	}
-	if (p->comptrustword < 0 || p->comptrustword > 3) {
-		error_log (_T("Bad value for comptrustword parameter: value must be within 0..2."));
-		p->comptrustword = 1;
-		err = 1;
-	}
-	if (p->comptrustlong < 0 || p->comptrustlong > 3) {
-		error_log (_T("Bad value for comptrustlong parameter: value must be within 0..2."));
-		p->comptrustlong = 1;
-		err = 1;
-	}
-	if (p->comptrustnaddr < 0 || p->comptrustnaddr > 3) {
-		error_log (_T("Bad value for comptrustnaddr parameter: value must be within 0..2."));
-		p->comptrustnaddr = 1;
-		err = 1;
-	}
-	if (p->cachesize < 0 || p->cachesize > MAX_JIT_CACHE || (p->cachesize > 0 && p->cachesize < MIN_JIT_CACHE)) {
-		error_log (_T("Bad value for cachesize parameter: value must zero or within %d..%d."), MIN_JIT_CACHE, MAX_JIT_CACHE);
-		p->cachesize = 0;
-		err = 1;
-	}
+
 	if ((p->z3fastmem[0].size || p->z3fastmem[1].size || p->z3fastmem[2].size || p->z3fastmem[3].size || p->z3chipmem_size) && p->address_space_24) {
 		error_log (_T("Z3 fast memory can't be used if address space is 24-bit."));
 		p->z3fastmem[0].size = 0;
