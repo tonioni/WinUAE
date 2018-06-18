@@ -393,10 +393,12 @@ static void create_virtual_rdb (struct hardfiledata *hfd)
 			if (filesyslen & 3) {
 				xfree(filesys);
 				filesys = NULL;
+				filesyslen = 0;
 			}
 		}
-
 	}
+
+	int filesysblocks = (filesyslen + hardblocksize - 5 * 4 - 1) / (hardblocksize - 5 * 4);
 
 	rdb = xcalloc (uae_u8, size);
 	hfd->virtual_rdb = rdb;
@@ -420,7 +422,7 @@ static void create_virtual_rdb (struct hardfiledata *hfd)
 	pl(rdb, 15, -1); // reserved
 	pl(rdb, 16, hfd->ci.highcyl + cyls - 1);
 	pl(rdb, 17, hfd->ci.sectors);
-	pl(rdb, 18, hfd->ci.surfaces);
+	pl(rdb, 18, hfd->ci.surfaces * fsblocksize / hardblocksize);
 	pl(rdb, 19, hfd->ci.interleave);
 	pl(rdb, 20, 0); // park
 	pl(rdb, 21, -1); // res
@@ -435,12 +437,12 @@ static void create_virtual_rdb (struct hardfiledata *hfd)
 	pl(rdb, 30, -1); // res
 	pl(rdb, 31, -1); // res
 	pl(rdb, 32, 0); // rdbblockslo
-	pl(rdb, 33, cyl * cyls); // rdbblockshi
+	pl(rdb, 33, cyl * cyls  * fsblocksize / hardblocksize - 1); // rdbblockshi
 	pl(rdb, 34, cyls); // locyl
 	pl(rdb, 35, hfd->ci.highcyl + cyls - 1); // hicyl
-	pl(rdb, 36, cyl); // cylblocks
+	pl(rdb, 36, cyl  * fsblocksize / hardblocksize); // cylblocks
 	pl(rdb, 37, 0); // autopark
-	pl(rdb, 38, 2); // highrdskblock
+	pl(rdb, 38, (1 + 1 + (filesysblocks ? 2 + filesysblocks : 0) - 1)); // highrdskblock
 	pl(rdb, 39, -1); // res
 	ua_copy ((char*)rdb + 40 * 4, 8, hfd->vendor_id);
 	ua_copy ((char*)rdb + 42 * 4, 16, hfd->product_id);
