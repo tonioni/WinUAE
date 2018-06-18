@@ -99,14 +99,14 @@ static struct hardfileprivdata hardfpd[MAX_FILESYSTEM_UNITS];
 
 static uae_u32 nscmd_cmd;
 
-static void wl (uae_u8 *p, int v)
+static void wl (uae_u8 *p, uae_u32 v)
 {
 	p[0] = v >> 24;
 	p[1] = v >> 16;
 	p[2] = v >> 8;
 	p[3] = v;
 }
-static void ww (uae_u8 *p, int v)
+static void ww (uae_u8 *p, uae_u16 v)
 {
 	p[0] = v >> 8;
 	p[1] = v;

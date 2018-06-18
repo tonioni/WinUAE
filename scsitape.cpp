@@ -36,7 +36,7 @@ static int rl (uae_u8 *p)
 {
 	return (p[0] << 24) | (p[1] << 16) | (p[2] << 8) | (p[3]);
 }
-static void wl (uae_u8 *p, int v)
+static void wl (uae_u8 *p, uae_u32 v)
 {
 	p[0] = v >> 24;
 	p[1] = v >> 16;

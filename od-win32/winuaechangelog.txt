@@ -1,5 +1,11 @@
 
 
+Beta 15:
+
+- JIT cache size limit was in wrong validation routine, was ignored by on the fly changes (for example uae-configuration).
+- Harddrive imager now also supports native (mainboard/expansion board) IDE connected CHS-only drives.
+- Softfloat: 68040 only FPU undocumented feature emulated, FCMP with either (or both) parameters NaN with sign bit set: N-flag gets set.
+
 Beta 14:
 
 - Virtual RDB (generated when partition hardfile is mounted in non-UAE controller) now also supports >512 block size partitions.
