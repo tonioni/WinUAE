@@ -1,5 +1,9 @@
 
 
+Beta 16:
+
+- Unminimizing didn't refresh display in certain situations.
+
 Beta 15:
 
 - JIT cache size limit was in wrong validation routine, was ignored by on the fly changes (for example uae-configuration).
