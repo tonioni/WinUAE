@@ -4002,17 +4002,24 @@ void redraw_frame(void)
 void full_redraw_all(void)
 {
 	int monid = 0;
+	bool redraw = false;
 	struct amigadisplay *ad = &adisplays[monid];
 	struct vidbuf_description *vidinfo = &adisplays[monid].gfxvidinfo;
-	if (!vidinfo->drawbuffer.height_allocated || !amiga2aspect_line_map)
-		return;
-	notice_screen_contents_lost(monid);
-	gfxboard_refresh(monid);
-	if (!ad->picasso_on) {
-		redraw_frame();
+	if (vidinfo->drawbuffer.height_allocated && amiga2aspect_line_map) {
+		notice_screen_contents_lost(monid);
+		if (!ad->picasso_on) {
+			redraw_frame();
+			redraw = true;
+		}
 	}
-	render_screen(0, 1, true);
-	show_screen(0, 0);
+	if (ad->picasso_on) {
+		gfxboard_refresh(monid);
+		redraw = true;
+	}
+	if (redraw) {
+		render_screen(0, 1, true);
+		show_screen(0, 0);
+	}
 }
 
 bool vsync_handle_check (void)

@@ -711,6 +711,8 @@ void unsetminimized(int monid)
 {
 	if (minimized < 0)
 		WIN32GFX_DisplayChangeRequested(2);
+	else if (minimized > 0)
+		full_redraw_all();
 	minimized = 0;
 	clear_inhibit_frame(monid, IHF_WINDOWHIDDEN);
 }
