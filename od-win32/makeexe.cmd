@@ -11,7 +11,7 @@ copy d:\amiga\winuae64.exe /y
 zip -9 WinUAE%1_x64.zip winuae64.exe
 zip -9 WinUAE%1_translation WinUAE_default.dll
 copy WinUAE%1_x64.zip d:\amiga
-copy WinUAE%1_translation d:\amiga
+copy WinUAE%1_translation.zip d:\amiga
 del translation.txt
 del *.zip
 cd ..
