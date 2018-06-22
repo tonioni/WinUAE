@@ -70,6 +70,14 @@ section .text
 	fld tword[ecx]
 %endmacro
 
+%macro loadfp2swap 0
+	mov eax,[esp+4]
+	mov ecx,[esp+8]
+	fld tword[ecx]
+	fld tword[eax]
+%endmacro
+
+
 %macro storefp 0
 	fstp tword[eax]
 %endmacro
@@ -241,14 +249,14 @@ _xfp_atan:
 	ret
 
 _xfp_rem:
-	loadfp2
+	loadfp2swap
 	fprem
 	fstp st1
 	storefp
 	ret
 
 _xfp_rem1:
-	loadfp2
+	loadfp2swap
 	fprem1
 	fstp st1	
 	storefp
@@ -269,8 +277,7 @@ _xfp_getman:
 	ret
 
 _xfp_scale:
-	loadfp2
-	fxch
+	loadfp2swap
 	fscale
 	fstp st1
 	storefp

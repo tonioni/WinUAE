@@ -68,6 +68,11 @@ bits 64
 	fld tword[rdx]
 %endmacro
 
+%macro loadfp2swap 0
+	fld tword[rdx]
+	fld tword[rcx]
+%endmacro
+
 %macro storefp 0
 	fstp tword[rcx]
 %endmacro
@@ -220,14 +225,14 @@ xfp_atan:
 
 
 xfp_rem:
-	loadfp2
+	loadfp2swap
 	fprem
 	fstp st1
 	storefp
 	ret
 
 xfp_rem1:
-	loadfp2
+	loadfp2swap
 	fprem1
 	fstp st1	
 	storefp
@@ -248,8 +253,7 @@ xfp_getman:
 	ret
 
 xfp_scale:
-	loadfp2
-	fxch
+	loadfp2swap
 	fscale
 	fstp st1
 	storefp
