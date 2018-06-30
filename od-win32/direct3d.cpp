@@ -4054,6 +4054,8 @@ static uae_u8 *xD3D_setcursorsurface(int monid, int *pitch)
 	struct d3dstruct *d3d = &d3ddata[monid];
 	if (pitch) {
 		D3DLOCKED_RECT locked;
+		if (!d3d->cursorsurfaced3d)
+			return NULL;
 		HRESULT hr = d3d->cursorsurfaced3d->LockRect(0, &locked, NULL, 0);
 		if (FAILED(hr))
 			return NULL;
