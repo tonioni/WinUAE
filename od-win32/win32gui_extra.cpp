@@ -805,6 +805,10 @@ static bool open_box_art_window(void)
 			GetClientRect(boxarthwnd, &r);
 			boxart_window_width = r.right - r.left;
 			boxart_window_height = r.bottom - r.top;
+
+			HMENU menu = GetSystemMenu(boxarthwnd, FALSE);
+			InsertMenu(menu, -1, MF_BYPOSITION | MF_SEPARATOR, 0, _T(""));
+			InsertMenu(menu, -1, MF_BYPOSITION, 1, _T("Open Game Folder"));
 		}
 	} else {
 		move_box_art_window();
@@ -1127,6 +1131,12 @@ LRESULT CALLBACK BoxArtWindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM
 			r->bottom = r2.bottom;
 		}
 		return FALSE;
+		case WM_SYSCOMMAND:
+		if (wParam == 1) {
+			ShellExecute(NULL, _T("explore"), image_path, NULL, NULL, SW_SHOWNORMAL);
+			return FALSE;
+		}
+		break;
 	}
 	return DefWindowProc(hWnd, message, wParam, lParam);
 }
