@@ -3607,7 +3607,7 @@ static int xxD3D11_init2(HWND ahwnd, int monid, int w_w, int w_h, int t_w, int t
 		int vsync = isvsync();
 		int hzmult = 0;
 		getvsyncrate(monid, *freq, &hzmult);
-		if (hzmult < 0) {
+		if (hzmult < 0 && !currprefs.gfx_variable_sync) {
 			if (!apm->gfx_strobo) {
 				d3d->vblankintervals = 2;
 			} else {
