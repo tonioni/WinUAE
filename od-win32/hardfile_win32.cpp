@@ -2264,6 +2264,8 @@ static int hdf_seek (struct hardfiledata *hfd, uae_u64 offset)
 	}
 	if (hfd->physsize) {
 		if (offset >= hfd->physsize - hfd->virtual_size) {
+			if (hfd->virtual_rdb)
+				return -1;
 			gui_message (_T("hd: tried to seek out of bounds! (%I64X >= %I64X - %I64X)\n"), offset, hfd->physsize, hfd->virtual_size);
 			abort ();
 		}
@@ -2456,7 +2458,8 @@ static int hdf_read_2 (struct hardfiledata *hfd, void *buffer, uae_u64 offset, i
 	hfd->cache_offset = offset;
 	if (offset + CACHE_SIZE > hfd->offset + (hfd->physsize - hfd->virtual_size))
 		hfd->cache_offset = hfd->offset + (hfd->physsize - hfd->virtual_size) - CACHE_SIZE;
-	hdf_seek (hfd, hfd->cache_offset);
+	if (hdf_seek(hfd, hfd->cache_offset))
+		return 0;
 	poscheck (hfd, CACHE_SIZE);
 	if (hfd->handle_valid == HDF_HANDLE_WIN32_NORMAL) {
 		ReadFile(hfd->handle->h, hfd->cache, CACHE_SIZE, &outlen, NULL);
@@ -2501,7 +2504,8 @@ int hdf_read_target (struct hardfiledata *hfd, void *buffer, uae_u64 offset, int
 		DWORD ret;
 		if (hfd->physsize < CACHE_SIZE) {
 			hfd->cache_valid = 0;
-			hdf_seek (hfd, offset);
+			if (hdf_seek(hfd, offset))
+				return got;
 			if (hfd->physsize)
 				poscheck (hfd, len);
 			if (hfd->handle_valid == HDF_HANDLE_WIN32_NORMAL) {
@@ -2537,7 +2541,8 @@ static int hdf_write_2 (struct hardfiledata *hfd, void *buffer, uae_u64 offset, 
 		return 0;
 
 	hfd->cache_valid = 0;
-	hdf_seek (hfd, offset);
+	if (hdf_seek(hfd, offset))
+		return 0;
 	poscheck (hfd, len);
 	memcpy (hfd->cache, buffer, len);
 	if (hfd->handle_valid == HDF_HANDLE_WIN32_NORMAL) {
