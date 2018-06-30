@@ -3495,6 +3495,11 @@ void fullpath (TCHAR *path, int size)
 {
 	if (path[0] == 0 || (path[0] == '\\' && path[1] == '\\') || path[0] == ':')
 		return;
+	// has one or more environment variables? do nothing.
+	if (_tcschr(path, '%'))
+		return;
+	if (_tcslen(path) >= 2 && path[_tcslen(path) - 1] == '.')
+		return;
 	/* <drive letter>: is supposed to mean same as <drive letter>:\ */
 	if (_istalpha (path[0]) && path[1] == ':' && path[2] == 0)
 		_tcscat (path, _T("\\"));

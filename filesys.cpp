@@ -326,28 +326,30 @@ int get_filesys_unitconfig (struct uae_prefs *p, int index, struct mountedinfo *
 	UnitInfo *ui = getuip (p, index);
 	struct uaedev_config_data *uci = &p->mountconfig[index];
 	UnitInfo uitmp;
+	TCHAR filepath[MAX_DPATH];
 
 	memset (mi, 0, sizeof (struct mountedinfo));
 	memset (&uitmp, 0, sizeof uitmp);
-	_tcscpy (mi->rootdir, uci->ci.rootdir);
+	cfgfile_resolve_path_out(uci->ci.rootdir, filepath, MAX_DPATH, PATH_DIR);
+	_tcscpy(mi->rootdir, filepath);
 	if (!ui) {
 		ui = &uitmp;
 		if (uci->ci.type == UAEDEV_DIR) {
 			mi->ismounted = 1;
-			if (uci->ci.rootdir[0] == 0)
+			if (filepath[0] == 0)
 				return FILESYS_VIRTUAL;
-			if (my_existsfile (uci->ci.rootdir)) {
+			if (my_existsfile (filepath)) {
 				mi->ismedia = 1;
 				return FILESYS_VIRTUAL;
 			}
-			if (my_getvolumeinfo (uci->ci.rootdir) < 0)
+			if (my_getvolumeinfo (filepath) < 0)
 				return -1;
 			mi->ismedia = true;
 			return FILESYS_VIRTUAL;
 		} else if (uci->ci.type == UAEDEV_HDF) {
 			ui->hf.ci.readonly = true;
 			ui->hf.ci.blocksize = uci->ci.blocksize;
-			int err = hdf_open (&ui->hf, uci->ci.rootdir);
+			int err = hdf_open (&ui->hf, filepath);
 			if (err <= 0) {
 				mi->ismedia = false;
 				mi->ismounted = true;
@@ -403,7 +405,7 @@ int get_filesys_unitconfig (struct uae_prefs *p, int index, struct mountedinfo *
 		} else {
 			struct scsi_data_tape *tape;
 			unitnum = 0;
-			tape = tape_alloc (unitnum, uci->ci.rootdir, uci->ci.readonly);
+			tape = tape_alloc (unitnum, filepath, uci->ci.readonly);
 			if (tape) {
 				if (tape_get_info (unitnum, &di)) {
 					mi->ismedia = di.media_inserted != 0;
@@ -495,11 +497,14 @@ TCHAR *filesys_createvolname (const TCHAR *volname, const TCHAR *rootdir, struct
 	TCHAR *nvol = NULL;
 	int i, archivehd;
 	TCHAR *p = NULL;
+	TCHAR path[MAX_DPATH];
+
+	cfgfile_resolve_path_out(rootdir, path, MAX_DPATH, PATH_DIR);
 
 	archivehd = -1;
-	if (my_existsfile (rootdir))
+	if (my_existsfile (path))
 		archivehd = 1;
-	else if (my_existsdir (rootdir))
+	else if (my_existsdir (path))
 		archivehd = 0;
 
 	if (zv && zv->volumename && _tcslen(zv->volumename) > 0) {
@@ -508,8 +513,8 @@ TCHAR *filesys_createvolname (const TCHAR *volname, const TCHAR *rootdir, struct
 		return nvol;
 	}
 
-	if ((!volname || _tcslen (volname) == 0) && rootdir && archivehd >= 0) {
-		p = my_strdup (rootdir);
+	if ((!volname || _tcslen (volname) == 0) && path && archivehd >= 0) {
+		p = my_strdup (path);
 		for (i = _tcslen (p) - 1; i >= 0; i--) {
 			TCHAR c = p[i];
 			if (c == ':' || c == '/' || c == '\\') {
@@ -518,7 +523,7 @@ TCHAR *filesys_createvolname (const TCHAR *volname, const TCHAR *rootdir, struct
 				if (!_tcscmp (p + i, _T(":\\"))) {
 					xfree (p);
 					p = xmalloc (TCHAR, 10);
-					p[0] = rootdir[0];
+					p[0] = path[0];
 					p[1] = 0;
 					i = 0;
 				} else {
@@ -655,7 +660,7 @@ static bool get_blocks(const TCHAR *rootdir, int unit, int flags, int *pblocksiz
 	return ret == 0;
 }
 
-static int set_filesys_unit_1 (int nr, struct uaedev_config_info *ci)
+static int set_filesys_unit_1 (int nr, struct uaedev_config_info *ci, bool custom)
 {
 	UnitInfo *ui;
 	int i;
@@ -686,7 +691,9 @@ static int set_filesys_unit_1 (int nr, struct uaedev_config_info *ci)
 		return nr;
 	}
 
-	my_resolvesoftlink (c.rootdir, MAX_DPATH);
+	if (!custom)
+		cfgfile_resolve_path(c.rootdir, MAX_DPATH, PATH_DIR);
+
 	iscd = nr >= cd_unit_offset && nr < cd_unit_offset + cd_unit_number;
 
 	for (i = 0; i < MAX_FILESYSTEM_UNITS; i++) {
@@ -827,22 +834,22 @@ err:
 	return -1;
 }
 
-static int set_filesys_unit (int nr, struct uaedev_config_info *ci)
+static int set_filesys_unit (int nr, struct uaedev_config_info *ci, bool custom)
 {
 	int ret;
 
-	ret = set_filesys_unit_1 (nr, ci);
+	ret = set_filesys_unit_1 (nr, ci, custom);
 	return ret;
 }
 
-static int add_filesys_unit (struct uaedev_config_info *ci)
+static int add_filesys_unit (struct uaedev_config_info *ci, bool custom)
 {
 	int nr;
 
 	if (nr_units () >= MAX_FILESYSTEM_UNITS)
 		return -1;
 
-	nr = set_filesys_unit_1 (-1, ci);
+	nr = set_filesys_unit_1 (-1, ci, custom);
 #ifdef RETROPLATFORM
 	if (nr >= 0) {
 		UnitInfo *ui = &mountinfo.ui[nr];
@@ -1018,7 +1025,7 @@ static void initialize_mountinfo (void)
 			struct uaedev_config_info ci;
 			memcpy (&ci, &uci->ci, sizeof (struct uaedev_config_info));
 			ci.flags = MYVOLUMEINFO_REUSABLE;
-			int idx = set_filesys_unit_1 (-1, &ci);
+			int idx = set_filesys_unit_1 (-1, &ci, false);
 			allocuci (&currprefs, nr, idx);
 		}
 	}
@@ -1038,7 +1045,7 @@ static void initialize_mountinfo (void)
 				ci.sectors = 1;
 				ci.surfaces = 1;
 				ci.blocksize = 2048;
-				int idx = set_filesys_unit_1 (i + cd_unit_offset, &ci);
+				int idx = set_filesys_unit_1 (i + cd_unit_offset, &ci, true);
 				allocuci (&currprefs, nr, idx);
 				nr++;
 			}
@@ -1053,7 +1060,7 @@ static void initialize_mountinfo (void)
 				memcpy (&ci, &uci->ci, sizeof (struct uaedev_config_info));
 				int unitnum = scsi_add_tape (&uci->ci);
 				if (unitnum >= 0) {
-					int idx = set_filesys_unit_1 (-1, &ci);
+					int idx = set_filesys_unit_1 (-1, &ci, false);
 					allocuci (&currprefs, nr, idx, unitnum);
 				}
 			}
@@ -2199,7 +2206,7 @@ int filesys_media_change (const TCHAR *rootdir, int inserted, struct uaedev_conf
 		_tcscpy (ci.volname, volptr);
 		_tcscpy (ci.rootdir, rootdir);
 		ci.flags = MYVOLUMEINFO_REUSABLE;
-		nr = add_filesys_unit (&ci);
+		nr = add_filesys_unit (&ci, true);
 		if (nr < 0)
 			return 0;
 		if (inserted > 1)
@@ -4069,7 +4076,7 @@ static void get_fileinfo(TrapContext *ctx, Unit *unit, dpacket *packet, uaecptr 
 	uae_u8 *buf;
 	uae_u8 buf_array[260] = { 0 };
 
-	if (trap_is_indirect() || !valid_address(info, (sizeof buf_array) - 36)) {
+	if (trap_is_indirect() || !valid_address(info, (sizeof buf_array) - 36) || !real_address_allowed()) {
 		buf = buf_array;
 	} else {
 		buf = get_real_address(info);
@@ -5360,7 +5367,7 @@ static void	action_read(TrapContext *ctx, Unit *unit, dpacket *packet)
 			return;
 		}
 
-		if (trap_is_indirect()) {
+		if (trap_is_indirect() || !real_address_allowed()) {
 
 			uae_u8 buf[RTAREA_TRAP_DATA_EXTRA_SIZE];
 			actual = 0;
@@ -5441,7 +5448,7 @@ static void action_write(TrapContext *ctx, Unit *unit, dpacket *packet)
 			return;
 		}
 
-		if (trap_is_indirect()) {
+		if (trap_is_indirect() || !real_address_allowed()) {
 
 			uae_u8 buf[RTAREA_TRAP_DATA_EXTRA_SIZE];
 			actual = 0;
@@ -9892,7 +9899,7 @@ uae_u8 *restore_filesys (uae_u8 *src)
 	_tcscpy (ci->volname, volname ? volname : _T(""));
 	_tcscpy (ci->filesys, filesysdir);
 
-	if (set_filesys_unit (devno, ci) < 0) {
+	if (set_filesys_unit (devno, ci, false) < 0) {
 			write_log (_T("filesys '%s' failed to restore\n"), rootdir);
 			goto end;
 	}

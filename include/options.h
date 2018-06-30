@@ -30,6 +30,16 @@ struct multipath {
 	TCHAR path[MAX_PATHS][PATH_MAX];
 };
 
+#define PATH_FLOPPY 0
+#define PATH_CD 1
+#define PATH_DIR 2
+#define PATH_HDF 3
+#define PATH_FS 4
+#define PATH_TAPE 5
+#define PATH_GENLOCK_IMAGE 6
+#define PATH_GENLOCK_VIDEO 7
+#define PATH_GEO 8
+
 struct strlist {
 	struct strlist *next;
 	TCHAR *option, *value;
@@ -900,6 +910,8 @@ extern int target_cfgfile_load (struct uae_prefs *, const TCHAR *filename, int t
 extern void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type);
 extern int target_get_display (const TCHAR*);
 extern const TCHAR *target_get_display_name (int, bool);
+extern void cfgfile_resolve_path_out(const TCHAR *path, TCHAR *out, int size, int type);
+extern void cfgfile_resolve_path(TCHAR *path, int size, int type);
 
 extern struct uae_prefs *cfgfile_open(const TCHAR *filename, int *type);
 extern void cfgfile_close(struct uae_prefs *p);

@@ -215,7 +215,7 @@ void filesys_addexternals (void)
 			ci.readonly = !rw;
 			ci.bootpri = -20 - drvnum;
 			//write_log (_T("Drive type %d: '%s' '%s'\n"), drivetype, volumepath, volumename);
-			add_filesys_unit (&ci);
+			add_filesys_unit (&ci, true);
 			drvnum++;
 		} /* if drivemask */
 		dwDriveMask >>= 1;

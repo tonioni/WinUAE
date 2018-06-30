@@ -613,6 +613,7 @@ int hdf_open (struct hardfiledata *hfd, const TCHAR *pname)
 	int ret;
 	uae_u8 tmp[512], tmp2[512];
 	uae_u32 v;
+	TCHAR filepath[MAX_DPATH];
 
 	if ((!pname || pname[0] == 0) && hfd->ci.rootdir[0] == 0)
 		return 0;
@@ -623,9 +624,10 @@ int hdf_open (struct hardfiledata *hfd, const TCHAR *pname)
 	hfd->virtual_rdb = NULL;
 	if (!pname)
 		pname = hfd->ci.rootdir;
+	cfgfile_resolve_path_out(pname, filepath, MAX_DPATH, PATH_HDF);
 #ifdef WITH_CHD
 	TCHAR nametmp[MAX_DPATH];
-	_tcscpy (nametmp, pname);
+	_tcscpy (nametmp, filepath);
 	TCHAR *ext = _tcsrchr (nametmp, '.');
 	if (ext && !_tcsicmp (ext, _T(".chd"))) {
 		bool chd_readonly = false;
@@ -664,12 +666,12 @@ int hdf_open (struct hardfiledata *hfd, const TCHAR *pname)
 				hfd->ci.readonly = true;
 			hfd->virtsize = cf->logical_bytes();
 			hfd->handle_valid = -1;
-			write_log(_T("CHD '%s' mounted as %s, %s.\n"), pname, chdf ? _T("HD") : _T("OTHER"), hfd->ci.readonly ? _T("read only") : _T("read/write"));
+			write_log(_T("CHD '%s' mounted as %s, %s.\n"), filepath, chdf ? _T("HD") : _T("OTHER"), hfd->ci.readonly ? _T("read only") : _T("read/write"));
 			return 1;
 		}
 	}
 #endif
-	ret = hdf_open_target (hfd, pname);
+	ret = hdf_open_target (hfd, filepath);
 	if (ret <= 0)
 		return ret;
 	if (hdf_read_target (hfd, tmp, 0, 512) != 512)
