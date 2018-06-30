@@ -2784,8 +2784,10 @@ static uae_u32 REGPARAM2 picasso_SetColorArray (TrapContext *ctx)
 	uaecptr clut = boardinfo + PSSO_BoardInfo_CLUT;
 	if (start > 256 || count > 256 || start + count > 256)
 		return 0;
+	lockrtg();
 	if (updateclut(ctx, clut, start, count))
 		vidinfo->full_refresh = 1;
+	unlockrtg();
 	P96TRACE_SETUP((_T("SetColorArray(%d,%d)\n"), start, count));
 	return 1;
 }
