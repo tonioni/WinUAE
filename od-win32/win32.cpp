@@ -958,6 +958,7 @@ static void setmouseactive2(struct AmigaMonitor *mon, int active, bool allowpaus
 #endif
 
 	//write_log (_T("setmouseactive %d->%d showcursor=%d focus=%d recap=%d\n"), mouseactive, active, showcursor, focus, recapture);
+
 	if (active == 0)
 		releasecapture ();
 	if (mouseactive == active && active >= 0)
@@ -1017,6 +1018,8 @@ static void setmouseactive2(struct AmigaMonitor *mon, int active, bool allowpaus
 
 	if (mouseactive) {
 		if (focus) {
+			if (GetActiveWindow() != mon->hMainWnd && GetActiveWindow() != mon->hAmigaWnd)
+				SetActiveWindow(mon->hMainWnd);
 			if (!showcursor) {
 				//write_log(_T("setcapture\n"));
 #if MOUSECLIP_HIDE
@@ -1083,7 +1086,8 @@ static void winuae_active(struct AmigaMonitor *mon, HWND hwnd, int minimized)
 {
 	struct threadpriorities *pri;
 
-	//write_log (_T("winuae_active(%d)\n"), minimized);
+	//write_log (_T("winuae_active(%p,%d)\n"), hwnd, minimized);
+
 	monitor_off = 0;
 	/* without this returning from hibernate-mode causes wrong timing
 	*/
@@ -1222,7 +1226,8 @@ static void winuae_inactive(struct AmigaMonitor *mon, HWND hWnd, int minimized)
 void minimizewindow(int monid)
 {
 	struct AmigaMonitor *mon = &AMonitors[monid];
-	ShowWindow (mon->hMainWnd, SW_MINIMIZE);
+	if (mon->screen_is_initialized)
+		ShowWindow (mon->hMainWnd, SW_MINIMIZE);
 }
 
 void enablecapture(int monid)
@@ -1848,7 +1853,7 @@ static LRESULT CALLBACK AmigaWindowProc(HWND hWnd, UINT message, WPARAM wParam, 
 			write_log(_T("WM_ACTIVATEAPP active %p\n"), hWnd);
 			D3D_resize(0, 1);
 		}
-		if (!wParam && isfullscreen() <= 0 && currprefs.win32_minimize_inactive) {
+		if (!wParam && isfullscreen() <= 0 && currprefs.win32_minimize_inactive && !gui_active) {
 			minimizewindow(mon->monitor_id);
 		}
 #ifdef RETROPLATFORM
@@ -6903,31 +6908,45 @@ static void savedump (MINIDUMPWRITEDUMP dump, HANDLE f, struct _EXCEPTION_POINTE
 {
 	MINIDUMP_EXCEPTION_INFORMATION exinfo;
 	MINIDUMP_USER_STREAM_INFORMATION musi, *musip;
-	MINIDUMP_USER_STREAM mus[2], *musp;
+	MINIDUMP_USER_STREAM mus[3], *musp;
 	uae_u8 *log;
-	int loglen;
+	int len;
 
 	musip = NULL;
-	loglen = 30000;
-	log = save_log (TRUE, &loglen);
+	musi.UserStreamArray = mus;
+	musi.UserStreamCount = 0;
+
+	len = 30000;
+	log = save_log (TRUE, &len);
 	if (log) {
-		musi.UserStreamArray = mus;
-		musi.UserStreamCount = 1;
-		musp = &mus[0];
-		musp->Type = LastReservedStream + 1;
+		musp = &mus[musi.UserStreamCount];
+		musi.UserStreamCount++;
+		musp->Type = LastReservedStream + musi.UserStreamCount;
 		musp->Buffer = log;
-		musp->BufferSize = loglen;
-		musip = &musi;
-		loglen = 30000;
-		log = save_log (FALSE, &loglen);
+		musp->BufferSize = len;
+		len = 30000;
+		log = save_log (FALSE, &len);
 		if (log) {
+			musp = &mus[musi.UserStreamCount];
 			musi.UserStreamCount++;
-			musp = &mus[1];
-			musp->Type = LastReservedStream + 2;
+			musp->Type = LastReservedStream + musi.UserStreamCount;
 			musp->Buffer = log;
-			musp->BufferSize = loglen;
+			musp->BufferSize = len;
 		}
 	}
+
+	const TCHAR *config = cfgfile_getconfigdata(&len);
+	if (config && len > 0) {
+		musp = &mus[musi.UserStreamCount];
+		musi.UserStreamCount++;
+		musp->Type = LastReservedStream + musi.UserStreamCount;
+		musp->Buffer = (void*)config;
+		musp->BufferSize = len;
+	}
+
+	if (musi.UserStreamCount > 0)
+		musip = &musi;
+
 	exinfo.ThreadId = GetCurrentThreadId ();
 	exinfo.ExceptionPointers = pExceptionPointers;
 	exinfo.ClientPointers = 0;
@@ -7006,9 +7025,7 @@ static void create_dump (struct _EXCEPTION_POINTERS *pExceptionPointers)
 						_stprintf (msg, _T("Crash detected. MiniDump saved as:\n%s\n"), path3);
 						MessageBox (NULL, msg, _T("Crash"), MB_OK | MB_ICONWARNING | MB_TASKMODAL | MB_SETFOREGROUND);
 					}
-					HANDLE h = GetCurrentProcess();
-					TerminateProcess(h, 0);
-					WaitForSingleObject(h, INFINITE);
+					ExitProcess(0);
 				}
 			}
 			all_events_disabled = 0;
