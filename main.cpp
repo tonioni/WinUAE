@@ -746,6 +746,7 @@ void fixup_prefs (struct uae_prefs *p, bool userconfig)
 	blkdev_fix_prefs (p);
 	inputdevice_fix_prefs(p, userconfig);
 	target_fixup_options (p);
+	cfgfile_createconfigstore(p);
 }
 
 int quit_program = 0;

@@ -592,7 +592,7 @@ static TCHAR *getnextentry (const TCHAR **valuep, const TCHAR separator)
 static TCHAR *cfgfile_subst_path2 (const TCHAR *path, const TCHAR *subst, const TCHAR *file)
 {
 	/* @@@ use strcasecmp for some targets.  */
-	if (_tcslen (path) > 0 && _tcsncmp (file, path, _tcslen (path)) == 0) {
+	if (path != NULL && subst != NULL && _tcslen (path) > 0 && _tcsncmp (file, path, _tcslen (path)) == 0) {
 		int l;
 		TCHAR *p2, *p = xmalloc (TCHAR, _tcslen (file) + _tcslen (subst) + 2);
 		_tcscpy (p, subst);
@@ -674,6 +674,7 @@ static TCHAR *cfgfile_put_multipath (struct multipath *mp, const TCHAR *s)
 	}
 	return my_strdup (s);
 }
+
 
 static TCHAR *cfgfile_subst_path_load (const TCHAR *path, struct multipath *mp, const TCHAR *file, bool dir)
 {
@@ -975,6 +976,39 @@ static void cfgfile_adjust_path(TCHAR *path, int maxsz, struct multipath *mp)
 	}
 	xfree(s);
 }
+
+void cfgfile_resolve_path_out(const TCHAR *path, TCHAR *out, int size, int type)
+{
+	struct uae_prefs *p = &currprefs;
+	TCHAR *s = NULL;
+	switch (type)
+	{
+	case PATH_DIR:
+		s = cfgfile_subst_path_load(UNEXPANDED, &p->path_hardfile, path, true);
+		break;
+	case PATH_HDF:
+		s = cfgfile_subst_path_load(UNEXPANDED, &p->path_hardfile, path, true);
+		break;
+	case PATH_FLOPPY:
+		_tcscpy(out, path);
+		cfgfile_adjust_path(out, MAX_DPATH, &p->path_floppy);
+		break;
+	default:
+		s = cfgfile_subst_path(NULL, NULL, path);
+		break;
+	}
+	if (s) {
+		_tcscpy(out, s);
+		xfree(s);
+	}
+	my_resolvesoftlink(out, size);
+}
+
+void cfgfile_resolve_path(TCHAR *path, int size, int type)
+{
+	cfgfile_resolve_path_out(path, path, size, type);
+}
+
 
 static void write_filesys_config (struct uae_prefs *p, struct zfile *f)
 {
@@ -4702,8 +4736,10 @@ empty_fs:
 			memmove (uci.rootdir, uci.rootdir + 2, (_tcslen (uci.rootdir + 2) + 1) * sizeof (TCHAR));
 			uci.rootdir[0] = ':';
 		}
+#if 0
 		str = cfgfile_subst_path_load (UNEXPANDED, &p->path_hardfile, uci.rootdir, false);
 		_tcscpy (uci.rootdir, str);
+#endif
 	}
 	if (uci.geometry[0]) {
 		parse_geo(uci.geometry, &uci, NULL, false, true);
@@ -5279,6 +5315,8 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 	if (cfgfile_yesno(option, value, _T("fpu_msvc_long_double"), &dummybool)) {
 		if (dummybool)
 			p->fpu_mode = -1;
+		else if (p->fpu_mode < 0)
+			p->fpu_mode = 0;
 		return 1;
 	}
 #endif
@@ -5816,7 +5854,6 @@ void cfgfile_compatibility_romtype(struct uae_prefs *p)
 	romtype_restricted(p, restricted_pci);
 }
 
-static bool createconfigstore (struct uae_prefs*);
 static int getconfigstoreline (const TCHAR *option, TCHAR *value);
 
 static void calcformula (struct uae_prefs *prefs, TCHAR *in)
@@ -5830,7 +5867,7 @@ static void calcformula (struct uae_prefs *prefs, TCHAR *in)
 	if (_tcslen (in) < 2 || in[0] != '[' || in[_tcslen (in) - 1] != ']')
 		return;
 	if (!configstore || updatestore)
-		createconfigstore (prefs);
+		cfgfile_createconfigstore (prefs);
 	updatestore = false;
 	if (!configstore)
 		return;
@@ -6096,6 +6133,14 @@ static void subst (TCHAR *p, TCHAR *f, int n)
 	free (str);
 }
 
+const TCHAR *cfgfile_getconfigdata(int *len)
+{
+	*len = -1;
+	if (!configstore)
+		return NULL;
+	return (TCHAR*)zfile_get_data_pointer(configstore, len);
+}
+
 static int getconfigstoreline (const TCHAR *option, TCHAR *value)
 {
 	TCHAR tmp[CONFIG_BLEN * 2], tmp2[CONFIG_BLEN * 2];
@@ -6113,7 +6158,7 @@ static int getconfigstoreline (const TCHAR *option, TCHAR *value)
 	}
 }
 
-static bool createconfigstore (struct uae_prefs *p)
+bool cfgfile_createconfigstore(struct uae_prefs *p)
 {
 	uae_u8 zeros[4] = { 0 };
 	zfile_fclose (configstore);
@@ -6981,7 +7026,7 @@ int cfgfile_searchconfig(const TCHAR *in, int index, TCHAR *out, int outsize)
 	*out = 0;
 
 	if (!configstore)
-		createconfigstore(&currprefs);
+		cfgfile_createconfigstore(&currprefs);
 	if (!configstore)
 		return 20;
 
@@ -7090,7 +7135,7 @@ uae_u32 cfgfile_modify (uae_u32 index, const TCHAR *parms, uae_u32 size, TCHAR *
 	argv = cmdlineparser (parms, argc, UAELIB_MAX_PARSE);
 
 	if (argv <= 1 && index == 0xffffffff) {
-		createconfigstore (&currprefs);
+		cfgfile_createconfigstore (&currprefs);
 		xfree (configsearch);
 		configsearch = NULL;
 		if (!configstore) {

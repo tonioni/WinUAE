@@ -938,6 +938,8 @@ extern void fixup_cpu (struct uae_prefs *prefs);
 extern void cfgfile_compatibility_romtype(struct uae_prefs *p);
 extern void cfgfile_compatibility_rtg(struct uae_prefs *p);
 extern bool cfgfile_detect_art(struct uae_prefs *p, TCHAR *path);
+extern const TCHAR *cfgfile_getconfigdata(int *len);
+extern bool cfgfile_createconfigstore(struct uae_prefs *p);
 
 extern void check_prefs_changed_custom (void);
 extern void check_prefs_changed_cpu (void);
