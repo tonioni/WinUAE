@@ -1863,6 +1863,11 @@ static uae_u32 heartbeat;
 static int heartbeat_count;
 static int heartbeat_task;
 
+bool filesys_heartbeat(void)
+{
+	return heartbeat_count > 0;
+}
+
 // This uses filesystem process to reduce resource usage
 void setsystime (void)
 {

@@ -7,12 +7,14 @@
 
 #include <windows.h>
 
+#include "options.h"
 #include "traps.h"
 #include "clipboard_win32.h"
 #include "clipboard.h"
 #include "keybuf.h"
+#include "memory.h"
+#include "autoconf.h"
 
-#include "options.h"
 #include "threaddep/thread.h"
 #include "memory.h"
 #include "native2amiga_api.h"
@@ -65,6 +67,8 @@ static void debugwrite (TrapContext *ctx, const TCHAR *name, uaecptr p, int size
 
 static uae_u32 to_amiga_start_cb(TrapContext *ctx, void *ud)
 {
+	if (!filesys_heartbeat())
+		return 0;
 	if (trap_get_long(ctx, clipboard_data) != 0)
 		return 0;
 	if (clipboard_debug) {
@@ -751,6 +755,8 @@ static void clipboard_read(TrapContext *ctx, HWND hwnd, bool keyboardinject)
 #if DEBUG_CLIP > 0
 	write_log (_T("clipboard: read windows clipboard\n"));
 #endif
+	if (!filesys_heartbeat())
+		return;
 	if (!OpenClipboard (hwnd))
 		return;
 	f = 0;
@@ -983,6 +989,8 @@ static uae_u32 clipboard_vsync_cb(TrapContext *ctx, void *ud)
 void clipboard_vsync(void)
 {
 	if (!signaling || !clipboard_data)
+		return;
+	if (!filesys_heartbeat())
 		return;
 	vdelay--;
 	if (vdelay > 0)

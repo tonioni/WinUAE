@@ -132,6 +132,7 @@ extern void filesys_start_threads (void);
 extern void filesys_flush_cache (void);
 extern void filesys_free_handles (void);
 extern void filesys_vsync (void);
+extern bool filesys_heartbeat(void);
 
 extern void filesys_install (void);
 extern void filesys_install_code (void);
