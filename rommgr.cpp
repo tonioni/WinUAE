@@ -95,7 +95,7 @@ struct romdata *getromdatabypath (const TCHAR *path)
 	return NULL;
 }
 
-#define NEXT_ROM_ID 238
+#define NEXT_ROM_ID 240
 
 #define ALTROM(id,grp,num,size,flags,crc32,a,b,c,d,e) \
 { _T("X"), 0, 0, 0, 0, 0, size, id, 0, 0, flags, (grp << 16) | num, 0, NULL, crc32, a, b, c, d, e },
@@ -512,8 +512,11 @@ static struct romdata roms[] = {
 	0x5dcddce0, 0xd7396422,0x0bd96364,0x3101d00f,0x5fe94c60,0x58fe7578, NULL, NULL },
 	ALTROMPN(222, 1, 1, 8192, ROMTYPE_ODD  | ROMTYPE_8BIT, NULL, 0x532ea912, 0x06b4aa28, 0xd80be728, 0x6c641590, 0x40706d7d, 0x8c323523)
 	ALTROMPN(222, 1, 2, 8192, ROMTYPE_EVEN | ROMTYPE_8BIT, NULL, 0x968f24eb, 0xcfb3e234, 0xd44517c4, 0x3cd3cec2, 0xbb6ec27a, 0xaaedd220)
+
 	{ _T("GVP Series I/II v3.15"), 3, 15, 3, 15, _T("GVPII\0GVPI\0"), 16384, 111, 0, 0, ROMTYPE_GVPS12, 0, 0, NULL,
 	0xf99c6f11, 0x77098a9e,0x35acaef2,0x11a546f0,0xc564cdac,0xf52836c4, NULL, NULL },
+	{ _T("GVP Series I/II v3.7"), 3, 7, 3, 7, _T("GVPII\0GVPI\0"), 16384, 238, 0, 0, ROMTYPE_GVPS12, 0, 0, NULL,
+	0xe136b9c4, 0xabcc0b52,0xa99dba6f,0xc2eb8428,0x63c7c805,0xb7f4d770, NULL, NULL },
 	{ _T("GVP Series II v4.15"), 4, 15, 4, 15, _T("GVPII\0"), 16384, 109, 0, 0, ROMTYPE_GVPS2, 0, 0, NULL,
 	0xf89f44d6, 0xbf10c12c,0xc72dd040,0x549ea17c,0x24947633,0xe3773297, NULL, NULL },
 	{ _T("GVP Series II Guru ROM"), 6, 14, 6, 14, _T("GVPII\0"), 32768, 110, 0, 0, ROMTYPE_GVPS2, 0, 0, NULL,
