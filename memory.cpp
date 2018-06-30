@@ -136,6 +136,13 @@ __inline__ void byteput (uaecptr addr, uae_u32 b)
 }
 #endif
 
+extern bool debugmem_initialized;
+
+bool real_address_allowed(void)
+{
+	return debugmem_initialized == false;
+}
+
 int addr_valid (const TCHAR *txt, uaecptr addr, uae_u32 len)
 {
 	addrbank *ab = &get_mem_bank(addr);

@@ -1093,7 +1093,7 @@ void trap_put_bytes(TrapContext *ctx, const void *haddrp, uaecptr addr, int cnt)
 			cnt -= max;
 		}
 	} else {
-		if (valid_address(addr, cnt)) {
+		if (real_address_allowed() && valid_address(addr, cnt)) {
 			memcpy(get_real_address(addr), haddr, cnt);
 		} else {
 			for (int i = 0; i < cnt; i++) {
@@ -1118,7 +1118,7 @@ void trap_get_bytes(TrapContext *ctx, void *haddrp, uaecptr addr, int cnt)
 			cnt -= max;
 		}
 	} else {
-		if (valid_address(addr, cnt)) {
+		if (real_address_allowed() && valid_address(addr, cnt)) {
 			memcpy(haddr, get_real_address(addr), cnt);
 		} else {
 			for (int i = 0; i < cnt; i++) {

@@ -695,6 +695,8 @@ STATIC_INLINE void put_pointer (uaecptr addr, void *v)
 # endif
 #endif
 
+bool real_address_allowed(void);
+
 STATIC_INLINE uae_u8 *get_real_address (uaecptr addr)
 {
 	return get_mem_bank (addr).xlateaddr(addr);

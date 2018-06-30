@@ -1278,7 +1278,7 @@ static uae_u64 cmd_read(TrapContext *ctx, struct hardfiledata *hfd, uaecptr data
 {
 	if (!len)
 		return 0;
-	if (!ctx) {
+	if (!ctx && real_address_allowed()) {
 		addrbank *bank_data = &get_mem_bank (dataptr);
 		if (!bank_data || !bank_data->check (dataptr, len))
 			return 0;
@@ -1311,7 +1311,7 @@ static uae_u64 cmd_write(TrapContext *ctx, struct hardfiledata *hfd, uaecptr dat
 {
 	if (!len)
 		return 0;
-	if (!ctx) {
+	if (!ctx && real_address_allowed()) {
 		addrbank *bank_data = &get_mem_bank (dataptr);
 		if (!bank_data || !bank_data->check (dataptr, len))
 			return 0;

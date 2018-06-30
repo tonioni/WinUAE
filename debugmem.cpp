@@ -47,7 +47,7 @@ static mem_put_func debugmem_func_lput;
 static mem_put_func debugmem_func_wput;
 static mem_put_func debugmem_func_bput;
 static xlate_func debugmem_func_xlate;
-static bool debugmem_initialized;
+bool debugmem_initialized;
 static bool debug_waiting;
 static uaecptr debug_task;
 static uae_u8 *exec_thistask;
