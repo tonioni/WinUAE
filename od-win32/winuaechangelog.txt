@@ -1,4 +1,31 @@
 
+Beta 1:
+
+4.0.0 bugs fixed:
+
+- 80-bit native FPU mode FREM and FMOD had parameters swapped in x86 code.
+- 64-bit FPU mode config mode was not loaded from config file.
+- "Minimize when focus is lost" could cause crashes.
+
+Older bugs:
+
+- "Minimize when focus is lost" incorrectly activated when switching modes in some situations. (same as above)
+- If CPU panel select menu was active and then some other panel was selected: JIT got switched off.
+- Don't abort with "tried to seek out of bounds" message when HDF/HD has virtual RDB and writing to too large offset.
+- When inserting previously connected USB device, previous device type (Gamepad, CD32 pad etc) and autofire type (if any) was not restored.
+- Do not copy data to Amiga side clipboard buffer if filesystem heartbeat signal is missing (=Some program took over the system), clipboard data can overwrite other program's data.
+- Directory filesystem/UAE HDF uses indirect mode if new debugger is active. (Indirect is needed for debugger to detect memory reads and writes)
+- "Minimize when focus is lost" minimized main emulation window when GUI was open and main window lost focus.
+- RTG Multithread mode display refreshing was unreliable in palette modes when palette changed.
+
+Other:
+
+- Resolve hardfile/directory path environmental variables only when needed, loading and saving config now keeps original unresolved variables.
+- Save also config file to crash dump file.
+- QuikPak XP board emulation, not yet fully implemented.
+- Added GVP v3.7, Blizzard 2060 v7.25 and QuikPak v2.1 to ROM scanner.
+
+
 4.0.0
 
 Beta 16:

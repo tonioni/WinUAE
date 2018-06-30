@@ -2245,6 +2245,8 @@ static void flipgui(int opengui)
 	if (opengui) {
 		DirectDraw_FlipToGDISurface();
 	} else {
+		if (uae_quit)
+			return;
 		full_redraw_all();
 	}
 }
@@ -6868,7 +6870,9 @@ static void enable_for_displaydlg (HWND hDlg)
 		ew(hDlg, IDC_SCREENMODE_NATIVE3, FALSE);
 		hide(hDlg, IDC_SCREENMODE_NATIVE3, TRUE);
 	}
-
+#ifdef WINUAEPUBLICBETA
+	hide(hDlg, IDC_DISPLAY_VARSYNC, FALSE);
+#endif
 }
 
 static void enable_for_chipsetdlg (HWND hDlg)
@@ -11857,7 +11861,8 @@ static void values_from_cpudlg (HWND hDlg)
 #ifdef JIT
 	oldcache = workprefs.cachesize;
 	jitena = (ischecked (hDlg, IDC_JITENABLE) ? 1 : 0) && !workprefs.address_space_24 && workprefs.cpu_model >= 68020;
-	workprefs.cachesize = 1024 << SendMessage (GetDlgItem (hDlg, IDC_CACHE), TBM_GETPOS, 0, 0);
+	idx = SendMessage (GetDlgItem (hDlg, IDC_CACHE), TBM_GETPOS, 0, 0);
+	workprefs.cachesize = 1024 << idx;
 	if (workprefs.cachesize <= 1024)
 		workprefs.cachesize = 0;
 	else
@@ -12014,19 +12019,23 @@ static INT_PTR CALLBACK CPUDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 	case WM_COMMAND:
 		if (recursive > 0)
 			break;
-		recursive++;
-		values_from_cpudlg (hDlg);
-		enable_for_cpudlg (hDlg);
-		values_to_cpudlg (hDlg);
-		recursive--;
+		if (currentpage == CPU_ID) {
+			recursive++;
+			values_from_cpudlg(hDlg);
+			enable_for_cpudlg(hDlg);
+			values_to_cpudlg(hDlg);
+			recursive--;
+		}
 		break;
 
 	case WM_HSCROLL:
-		recursive++;
-		values_from_cpudlg (hDlg);
-		enable_for_cpudlg ( hDlg);
-		values_to_cpudlg (hDlg);
-		recursive--;
+		if (currentpage == CPU_ID) {
+			recursive++;
+			values_from_cpudlg(hDlg);
+			enable_for_cpudlg(hDlg);
+			values_to_cpudlg(hDlg);
+			recursive--;
+		}
 		break;
 	}
 	return FALSE;
