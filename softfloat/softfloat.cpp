@@ -3418,7 +3418,7 @@ floatx80 floatx80_move( floatx80 a, float_status *status )
     }
     if ( aExp == 0 ) {
         if ( aSig == 0 ) return a;
-        normalizeRoundAndPackFloatx80( status->floatx80_rounding_precision, aSign, aExp, aSig, 0, status );
+        return normalizeRoundAndPackFloatx80( status->floatx80_rounding_precision, aSign, aExp, aSig, 0, status );
     }
     return roundAndPackFloatx80( status->floatx80_rounding_precision, aSign, aExp, aSig, 0, status );
 }
