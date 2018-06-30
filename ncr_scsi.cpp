@@ -11,7 +11,7 @@
 
 #ifdef NCR
 
-#define NCR_DEBUG 10
+#define NCR_DEBUG 0
 
 #include "options.h"
 #include "uae.h"
@@ -528,7 +528,7 @@ uae_u32 cpuboard_ncr720_io_bget(uaecptr addr)
 {
 	struct ncr_state *ncr = ncr_cpuboard;
 	addr &= IO_MASK;
-	return lsi_mmio_read(ncr_cpuboard, beswap(addr), 1);
+	return lsi_mmio_read(ncr->devobject.lsistate, beswap(addr), 1);
 }
 
 static bool isncrboard(struct ncr_state *ncr, struct ncr_state **ncrb)
