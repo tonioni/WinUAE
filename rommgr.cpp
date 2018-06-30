@@ -95,7 +95,7 @@ struct romdata *getromdatabypath (const TCHAR *path)
 	return NULL;
 }
 
-#define NEXT_ROM_ID 237
+#define NEXT_ROM_ID 238
 
 #define ALTROM(id,grp,num,size,flags,crc32,a,b,c,d,e) \
 { _T("X"), 0, 0, 0, 0, 0, size, id, 0, 0, flags, (grp << 16) | num, 0, NULL, crc32, a, b, c, d, e },
@@ -369,6 +369,10 @@ static struct romdata roms[] = {
 	{ _T("Blizzard 1240/1260"), 0, 0, 0, 0, _T("B1240\0B1260\0"), 32768, 90, 0, 0, ROMTYPE_CB_BLIZ1260, 0, 0, NULL,
 	0xf88ae0f1, 0xf69aca4b,0xb13e3389,0x04676f0c,0x8616f8db,0x074c313d },
 
+	{ _T("Blizzard 2060 v7.25"), 7, 25, 7, 25, _T("B2060\0"), 65536, 237, 0, 0, ROMTYPE_CB_BLIZ2060, 0, 0, NULL,
+	0x17c8dcbe, 0xa39a6d23, 0x2cb9a81b, 0x5f3694d3, 0x68873782, 0x5ad581bc },
+	ALTROMPN(237, 1, 1, 32768, ROMTYPE_ODD  | ROMTYPE_8BIT, NULL, 0xb97efdeb, 0xb615eaec, 0x4687c2de, 0x40b74b5f, 0xd6215e30, 0xe9f32187)
+	ALTROMPN(237, 1, 2, 32768, ROMTYPE_EVEN | ROMTYPE_8BIT, NULL, 0x2822156f, 0x46f520b0, 0x5a014b63, 0x207c5337, 0x3cd76fef, 0x994d7e37)
 	{ _T("Blizzard 2060 v8.2"), 8, 2, 8, 2, _T("B2060\0"), 65536, 168, 0, 0, ROMTYPE_CB_BLIZ2060, 0, 0, NULL,
 	0x2f42af81, 0x003577b8, 0x4e1f2e59, 0x3add6c9f, 0xfd65a7b4, 0x2abaa933 },
 	ALTROMPN(168, 1, 1, 32768, ROMTYPE_ODD  | ROMTYPE_8BIT, NULL, 0xb5892212, 0x7282a8ca, 0xf7ab194d, 0x16e1d05a, 0x582f0ebf, 0x1046b3d0)
