@@ -468,11 +468,11 @@ struct stored_jport
 	bool defaultports;
 	uae_u32 age;
 };
-static struct stored_jport stored_jports[MAX_JPORTS][8];
+static struct stored_jport stored_jports[MAX_JPORTS][MAX_STORED_JPORTS];
 static uae_u32 stored_jport_cnt;
 
 // return port where idc was previously plugged if any and forgot it.
-static int inputdevice_get_unplugged_device(struct inputdevconfig *idc)
+static int inputdevice_get_unplugged_device(struct inputdevconfig *idc, struct stored_jport **sjp)
 {
 	for (int portnum = 0; portnum < MAX_JPORTS; portnum++) {
 		for (int i = 0; i < MAX_STORED_JPORTS; i++) {
@@ -480,6 +480,7 @@ static int inputdevice_get_unplugged_device(struct inputdevconfig *idc)
 			if (jp->inuse && jp->jp.id == JPORT_UNPLUGGED) {
 				if (!_tcscmp(idc->name, jp->jp.idc.name) && !_tcscmp(idc->configname, jp->jp.idc.configname)) {
 					jp->inuse = false;
+					*sjp = jp;
 					return portnum;
 				}
 			}
@@ -617,6 +618,8 @@ static void inputdevice_store_unplugged_port(struct uae_prefs *p, struct inputde
 		struct jport *jp = &p->jports[i];
 		if (!_tcscmp(jp->idc.name, idc->name) && !_tcscmp(jp->idc.configname, idc->configname)) {
 			write_log(_T("On the fly unplugged stored, port %d '%s' (%s)\n"), i, jpt.idc.name, jpt.idc.configname);
+			jpt.mode = jp->mode;
+			jpt.autofire = jp->autofire;
 			inputdevice_store_used_device(&jpt, i, false);
 		}
 	}
@@ -7390,11 +7393,12 @@ bool inputdevice_devicechange (struct uae_prefs *prefs)
 		for (i = 0; i < num; i++) {
 			if (df[i] == false) {
 				struct inputdevconfig idc;
+				struct stored_jport *sjp;
 				_tcscpy(idc.configname, inf->get_uniquename(i));
 				_tcscpy(idc.name, inf->get_friendlyname(i));
 				write_log(_T("INSERTED: %s (%s)\n"), idc.name, idc.configname);
 				changed = true;
-				int portnum = inputdevice_get_unplugged_device(&idc);
+				int portnum = inputdevice_get_unplugged_device(&idc, &sjp);
 				if (portnum >= 0) {
 					write_log(_T("Inserting to port %d\n"), portnum);
 					jportscustom[i] = -1;
@@ -7402,6 +7406,8 @@ bool inputdevice_devicechange (struct uae_prefs *prefs)
 					xfree(jports_configname[portnum]);
 					jports_name[portnum] = my_strdup(idc.name);
 					jports_configname[portnum] = my_strdup(idc.configname);
+					jportaf[portnum] = sjp->jp.autofire;
+					jportsmode[portnum] = sjp->jp.mode;
 				} else {
 					write_log(_T("Not inserted to any port\n"));
 				}
