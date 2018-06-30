@@ -5626,6 +5626,14 @@ static const struct cpuboardsubtype gvpboard_sub[] = {
 		2017, 9, 0, false
 	},
 	{
+		_T("QuikPak XP"),
+		_T("quikpakxp"),
+		ROMTYPE_CB_QUIKPAK, 0,
+		quikpak_add_scsi_unit, EXPANSIONTYPE_SCSI,
+		BOARD_MEMORY_HIGHMEM,
+		64 * 1024 * 1024,
+	},
+	{
 		NULL
 	}
 };

@@ -11,7 +11,7 @@
 
 #ifdef NCR
 
-#define NCR_DEBUG 1
+#define NCR_DEBUG 10
 
 #include "options.h"
 #include "uae.h"
@@ -195,6 +195,8 @@ void ncr_rethink(void)
 void pci_set_irq(PCIDevice *pci_dev, int level)
 {
 	struct ncr_state *ncr = (struct ncr_state*)pci_dev;
+	if (!ncr)
+		return;
 	ncr->irq = level != 0;
 	ncr->irq_func(ncr->id, ncr->irq);
 }
@@ -289,6 +291,8 @@ int pci_dma_rw(PCIDevice *dev, dma_addr_t addr, void *buf, dma_addr_t len, DMADi
 void pci710_set_irq(PCIDevice *pci_dev, int level)
 {
 	struct ncr_state *ncr = (struct ncr_state*)pci_dev;
+	if (!ncr)
+		return;
 	ncr->irq = level != 0;
 	ncr->irq_func(ncr->id, ncr->irq);
 }
@@ -443,6 +447,13 @@ void cpuboard_ncr710_io_bput(uaecptr addr, uae_u32 v)
 	ncr710_io_bput(ncr_cpuboard, addr, v);
 }
 
+void cpuboard_ncr720_io_bput(uaecptr addr, uae_u32 v)
+{
+	struct ncr_state *ncr = ncr_cpuboard;
+	addr &= IO_MASK;
+	lsi_mmio_write(ncr->devobject.lsistate, beswap(addr), v, 1);
+}
+
 static void ncr_bput2 (struct ncr_state *ncr, uaecptr addr, uae_u32 val)
 {
 	uae_u32 v = val;
@@ -511,6 +522,13 @@ static uae_u32 ncr710_io_bget(struct ncr_state *ncr, uaecptr addr)
 uae_u32 cpuboard_ncr710_io_bget(uaecptr addr)
 {
 	return ncr710_io_bget(ncr_cpuboard, addr);
+}
+
+uae_u32 cpuboard_ncr720_io_bget(uaecptr addr)
+{
+	struct ncr_state *ncr = ncr_cpuboard;
+	addr &= IO_MASK;
+	return lsi_mmio_read(ncr_cpuboard, beswap(addr), 1);
 }
 
 static bool isncrboard(struct ncr_state *ncr, struct ncr_state **ncrb)
@@ -1136,6 +1154,12 @@ void tekmagic_add_scsi_unit (int ch, struct uaedev_config_info *ci, struct romco
 {
 	ncr_add_scsi_unit(&ncr_cpuboard, ch, ci, rc, false);
 }
+
+void quikpak_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc)
+{
+	ncr_add_scsi_unit(&ncr_cpuboard, ch, ci, rc, true);
+}
+
 
 void a4091_add_scsi_unit (int ch, struct uaedev_config_info *ci, struct romconfig *rc)
 {

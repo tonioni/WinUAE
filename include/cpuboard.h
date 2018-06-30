@@ -69,6 +69,7 @@ void blizzardppc_irq_setonly(int id, int level);
 #define BOARD_GVP_SUB_GFORCE030 3
 #define BOARD_GVP_SUB_TEKMAGIC 4
 #define BOARD_GVP_SUB_A1230SII 5
+#define BOARD_GVP_SUB_QUIKPAK 6
 
 #define BOARD_KUPKE 6
 

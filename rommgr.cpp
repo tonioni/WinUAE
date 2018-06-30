@@ -463,6 +463,8 @@ static struct romdata roms[] = {
 	0x3befa0c0, 0x4414673c, 0xa52f78a0, 0xae656824, 0xfd08b54f, 0xa1de237c, NULL, NULL },
 	ALTROMPN(166, 1, 1, 32768, ROMTYPE_ODD  | ROMTYPE_8BIT, NULL, 0xb64e3bbf, 0xd6f4fc81, 0x38325a78, 0x74ff1c15, 0x7c93f1a2, 0x444904ae)
 	ALTROMPN(166, 1, 2, 32768, ROMTYPE_EVEN | ROMTYPE_8BIT, NULL, 0x541b5988, 0x3546517b, 0x57cecd2f, 0x9fbfcd0c, 0xf26fdbbf, 0xfb009e3e)
+	{ _T("QuikPak 4060 XP"), 2, 1, 2, 1, _T("QUIKPAK\0"), 32768, 239, 0, 0, ROMTYPE_CB_QUIKPAK, 0, 0, NULL,
+	0x3a8eb518, 0x902dd0ba, 0x56c2afd0, 0xbb425bf5, 0x264fbc62, 0x90ad2c4e, NULL, NULL },
 
 	{ _T("Preferred Technologies Nexus"), 1, 0, 1, 0, _T("PTNEXUS\0"), 8192, 139, 0, 0, ROMTYPE_PTNEXUS, 0, 0, NULL,
 	0xf495879a, 0xa3bd0202, 0xe14aa5b6, 0x49d3ce88, 0x22975950, 0x6500dbc2, NULL, NULL },
