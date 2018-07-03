@@ -71,6 +71,7 @@ struct uae_driveinfo {
 	uae_u16 usb_vid, usb_pid;
 	int devicetype;
 	bool scsi_direct_fail;
+	bool chsdetected;
 
 };
 
@@ -304,7 +305,7 @@ static bool ischs(uae_u8 *identity)
 
 #define CA "Commodore\0Amiga\0"
 static bool do_scsi_read10_chs(HANDLE handle, uae_u32 lba, int c, int h, int s, uae_u8 *data, int cnt, int *flags, bool log);
-static int safetycheck (HANDLE h, const TCHAR *name, uae_u64 offset, uae_u8 *buf, int blocksize, uae_u8 *identity)
+static int safetycheck (HANDLE h, const TCHAR *name, uae_u64 offset, uae_u8 *buf, int blocksize, uae_u8 *identity, bool canchs)
 {
 	uae_u64 origoffset = offset;
 	int i, j, blocks = 63, empty = 1;
@@ -314,7 +315,7 @@ static int safetycheck (HANDLE h, const TCHAR *name, uae_u64 offset, uae_u8 *buf
 	for (j = 0; j < blocks; j++) {
 		memset(buf, 0xaa, blocksize);
 
-		if (ischs(identity)) {
+		if (ischs(identity) && canchs) {
 			int cc, hh, ss;
 			tochs(identity, j * 512, &cc, &hh, &ss);
 			if (!do_scsi_read10_chs(h, -1, cc, hh, ss, buf, 1, &specialaccessmode, false)) {
@@ -1776,6 +1777,7 @@ static bool getdeviceinfo (HANDLE hDevice, struct uae_driveinfo *udi)
 			udi->readonly = 1;
 	}
 	gli_ok = true;
+	gli.Length.QuadPart = 0;
 	if (!DeviceIoControl (hDevice, IOCTL_DISK_GET_LENGTH_INFO, NULL, 0, (void*)&gli, sizeof (gli), &returnedLength, NULL)) {
 		gli_ok = false;
 		write_log (_T("IOCTL_DISK_GET_LENGTH_INFO failed with error code %d.\n"), GetLastError());
@@ -1783,7 +1785,7 @@ static bool getdeviceinfo (HANDLE hDevice, struct uae_driveinfo *udi)
 		write_log (_T("IOCTL_DISK_GET_LENGTH_INFO returned size: %I64d (0x%I64x)\n"), gli.Length.QuadPart, gli.Length.QuadPart);
 	}
 
-	if (ischs(udi->identity)) {
+	if (ischs(udi->identity) && gli.Length.QuadPart == 0) {
 		int c, h, s;
 		tochs(udi->identity, -1, &c, &h, &s);
 		gli.Length.QuadPart = udi->size = c * h * s * 512;
@@ -1996,6 +1998,7 @@ int hdf_open_target (struct hardfiledata *hfd, const TCHAR *pname)
 				udi = &uae_drives[drvnum];
 		}
 		if (udi != NULL) {
+			bool chs = udi->chsdetected;
 			hfd->flags = HFD_FLAGS_REALDRIVE;
 			if (udi) {
 				if (udi->nomedia)
@@ -2004,8 +2007,6 @@ int hdf_open_target (struct hardfiledata *hfd, const TCHAR *pname)
 					hfd->ci.readonly = 1;
 			}
 			readidentity(INVALID_HANDLE_VALUE, udi, hfd);
-
-			bool chs = ischs(udi->identity);
 
 			flags = FILE_ATTRIBUTE_NORMAL | FILE_FLAG_RANDOM_ACCESS;
 			h = CreateFile (udi->device_path,
@@ -2043,7 +2044,7 @@ int hdf_open_target (struct hardfiledata *hfd, const TCHAR *pname)
 			if (udi->partitiondrive)
 				hfd->flags |= HFD_FLAGS_REALDRIVEPARTITION;
 			if (hfd->offset == 0 && !hfd->drive_empty) {
-				int sf = safetycheck (hfd->handle->h, udi->device_path, 0, hfd->cache, hfd->ci.blocksize, hfd->identity);
+				int sf = safetycheck (hfd->handle->h, udi->device_path, 0, hfd->cache, hfd->ci.blocksize, hfd->identity, udi->chsdetected);
 				if (sf > 0)
 					goto end;
 				if (sf == 0 && !hfd->ci.readonly && harddrive_dangerous != 0x1234dead) {
@@ -2082,7 +2083,7 @@ int hdf_open_target (struct hardfiledata *hfd, const TCHAR *pname)
 
 			hfd->handle_valid = HDF_HANDLE_WIN32_NORMAL;
 			
-			if (ischs(hfd->identity)) {
+			if (chs) {
 				hfd->handle_valid = HDF_HANDLE_WIN32_CHS;
 				hfd->ci.chs = true;
 				tochs(hfd->identity, -1, &hfd->ci.pcyls, &hfd->ci.pheads, &hfd->ci.psecs);
@@ -2991,6 +2992,7 @@ static BOOL GetDevicePropertyFromName(const TCHAR *DevicePath, DWORD Index, DWOR
 	}
 
 	gli_ok = 1;
+	gli.Length.QuadPart = 0;
 	if (!DeviceIoControl (hDevice, IOCTL_DISK_GET_LENGTH_INFO, NULL, 0, (void*)&gli, sizeof (gli), &returnedLength, NULL)) {
 		gli_ok = 0;
 		write_log (_T("IOCTL_DISK_GET_LENGTH_INFO failed with error code %d.\n"), GetLastError());
@@ -3031,13 +3033,14 @@ static BOOL GetDevicePropertyFromName(const TCHAR *DevicePath, DWORD Index, DWOR
 	if (gli_ok && gli.Length.QuadPart)
 		udi->size = gli.Length.QuadPart;
 
-	if (ischs(udi->identity)) {
+	if (ischs(udi->identity) && gli.Length.QuadPart == 0) {
 		int c, h, s;
 		tochs(udi->identity, -1, &c, &h, &s);
 		udi->size = c * h * s * 512;
 		udi->cylinders = c;
 		udi->heads = h;
 		udi->sectors = s;
+		udi->chsdetected = true;
 	}
 
 	write_log (_T("device size %I64d (0x%I64x) bytes\n"), udi->size, udi->size);
@@ -3098,7 +3101,7 @@ static BOOL GetDevicePropertyFromName(const TCHAR *DevicePath, DWORD Index, DWOR
 		}
 	}
 	if (udi->offset == 0 && udi->size) {
-		udi->dangerous = safetycheck (hDevice, udi->device_path, 0, buffer, dg.BytesPerSector, udi->identity);
+		udi->dangerous = safetycheck (hDevice, udi->device_path, 0, buffer, dg.BytesPerSector, udi->identity, udi->chsdetected);
 		if (udi->dangerous > 0)
 			goto end;
 	}
