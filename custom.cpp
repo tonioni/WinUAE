@@ -8260,11 +8260,13 @@ static void scanlinesleep(int currline, int nextline)
 		return;
 	if (currline >= nextline)
 		return;
-	int diff = vsync_hblank / (nextline - currline);
-	int us = 1000000 / diff;
-	if (us < target_sleep_nanos(-1)) { // spin if less than minimum sleep time
-		target_spin(nextline - currline - 1);
-		return;
+	if (vsync_hblank) {
+		int diff = vsync_hblank / (nextline - currline);
+		int us = 1000000 / diff;
+		if (us < target_sleep_nanos(-1)) { // spin if less than minimum sleep time
+			target_spin(nextline - currline - 1);
+			return;
+		}
 	}
 	if (busywait) {
 		target_spin(1);
