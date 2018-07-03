@@ -382,9 +382,9 @@ static struct romdata roms[] = {
 	ALTROMPN(92, 1, 1, 32768, ROMTYPE_ODD  | ROMTYPE_8BIT, NULL, 0xa6023f20, 0xdfb048d6, 0xbdc03587, 0x241e8121, 0x26aba603, 0xd69b0238)
 	ALTROMPN(92, 1, 2, 32768, ROMTYPE_EVEN | ROMTYPE_8BIT, NULL, 0x9635a9cd, 0x47578b27, 0xc4ba6e54, 0x891930dd, 0xcb4b6a45, 0x5d6b31b2)
 
-	{ _T("Blizzard SCSI Kit III"), 1, 139, 1, 139, _T("BSCSIIII\0"), 65536, 167, 0, 0, ROMTYPE_BLIZKIT3, 0, 0, NULL,
-	0xfd2c772f, 0x1411c248, 0x72f7cb8d, 0xecbe4744, 0xf0b8d12a, 0x1aaaad44, NULL, _T("blizzard_scsi_kit_iv.rom") },
-	{ _T("Blizzard SCSI Kit IV"), 8, 5, 8, 5, _T("BSCSIIV\0"), 32768, 94, 0, 0, ROMTYPE_BLIZKIT4, 0, 0, NULL,
+	{ _T("Blizzard SCSI Kit III"), 1, 139, 1, 139, _T("BSCSIII\0"), 65536, 167, 0, 0, ROMTYPE_BLIZKIT3, 0, 0, NULL,
+	0xfd2c772f, 0x1411c248, 0x72f7cb8d, 0xecbe4744, 0xf0b8d12a, 0x1aaaad44, NULL, NULL },
+	{ _T("Blizzard SCSI Kit IV"), 8, 5, 8, 5, _T("BSCSIV\0"), 32768, 94, 0, 0, ROMTYPE_BLIZKIT4, 0, 0, NULL,
 	0xf53a0fca, 0xefe17ca5,0x88c44a7f,0x0f8c62be,0x20f23278,0xcfe06727, NULL, _T("blizzard_scsi_kit_iv.rom") },
 	{ _T("Fastlane"), 8, 5, 8, 5, _T("FASTLANE\0"), 32768, 102, 0, 0, ROMTYPE_FASTLANE, 0, 0, NULL,
 	0x00447765, 0x2644e7cb,0xba5cc54e,0x880b4b42,0x49fd1dd1,0x2eb4a3bc, NULL, _T("fastlanez3.rom") },

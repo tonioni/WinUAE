@@ -7037,7 +7037,7 @@ static void create_dump (struct _EXCEPTION_POINTERS *pExceptionPointers)
 
 LONG WINAPI WIN32_ExceptionFilter (struct _EXCEPTION_POINTERS * pExceptionPointers, DWORD ec)
 {
-	write_log (_T("EVALEXCEPTION!\n"));
+	write_log (_T("EVALEXCEPTION %08x!\n"), ec);
 	create_dump  (pExceptionPointers);
 	return EXCEPTION_CONTINUE_SEARCH;
 }

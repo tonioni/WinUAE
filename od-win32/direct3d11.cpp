@@ -3370,6 +3370,7 @@ static int xxD3D11_init2(HWND ahwnd, int monid, int w_w, int w_h, int t_w, int t
 	result = adapterOutput->QueryInterface(__uuidof(IDXGIOutput1), &adapterOutput1);
 	if (FAILED(result)) {
 		write_log(_T("IDXGIOutput QueryInterface %08x\n"), result);
+		return 0;
 	}
 
 	// Get the number of modes that fit the display format for the adapter output (monitor).
