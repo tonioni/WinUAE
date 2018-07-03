@@ -4999,7 +4999,7 @@ LOWFUNC(NONE,NONE,2,raw_fasin_rr,(FW d, FR s))
 }
 LENDFUNC(NONE,NONE,2,raw_fasin_rr,(FW d, FR s))
 
-static uae_u32 pihalf[] = {0x2168c234, 0xc90fdaa2, 0x3fff}; // LSB=0 to get acos(1)=0
+static uae_u32 pihalf[] = {0x2168c235, 0xc90fdaa2, 0x3fff};
 
 LOWFUNC(NONE,NONE,2,raw_facos_rr,(FW d, FR s))
 {

@@ -345,11 +345,24 @@ static void xfp_resetnormal(fpdata *fp)
 		fp_round_double(fp);
 }
 
+// precision bits 8,9
+//
+// 24-bit: 00
+// 32-bit: 10
+// 64-bit: 11
+
+// rounding bits 10,11
+//
+// nearest even: 00
+// down toward infinity: 01
+// up toward infinity 10
+// toward zero: 11
+
 static void xfp_setnormal(void)
 {
 	uae_u16 v = fpx_mode;
 	v |= 3 << 8; // extended
-	v &= ~(10 << 3); // round nearest
+	v &= ~(3 << 10); // round nearest
 	if (v != fpx_mode) {
 		xfp_fldcw(&v);
 		xfp_swprec = fs.floatx80_rounding_precision;

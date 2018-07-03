@@ -489,4 +489,4 @@ align 4
 one:
 	dd 1.0
 pihalf:
-	dd 0x2168c234,0xc90fdaa2,0x00003fff
+	dd 0x2168c235,0xc90fdaa2,0x00003fff
