@@ -715,7 +715,7 @@ static bool cdda_play2 (struct dev_info_ioctl *ciw, int *outpos)
 	}
 
 end:
-
+	*outpos = cdda_pos;
 	if (mode) {
 		ioctl_next_cd_audio_buffer_callback(-1);
 		if (restart)
