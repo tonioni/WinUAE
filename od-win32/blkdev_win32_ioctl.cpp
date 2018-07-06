@@ -529,8 +529,13 @@ static bool cdda_play2 (struct dev_info_ioctl *ciw, int *outpos)
 	while (ciw->cdda_play > 0) {
 
 		if (mode) {
-			while (cda_bufon[bufnum] && ciw->cdda_play > 0)
+			while (cda_bufon[bufnum] && ciw->cdda_play > 0) {
+				if (cd_audio_mode_changed) {
+					restart = true;
+					goto end;
+				}
 				sleep_millis(10);
+			}
 		} else {
 			cda->wait(bufnum);
 		}
@@ -702,8 +707,10 @@ static bool cdda_play2 (struct dev_info_ioctl *ciw, int *outpos)
 			}
 		}
 
-		while (ciw->cdda_paused && ciw->cdda_play == oldplay)
-			sleep_millis(10);
+		if (cda_bufon[0] == 0 && cda_bufon[1] == 0) {
+			while (ciw->cdda_paused && ciw->cdda_play == oldplay)
+				sleep_millis(10);
+		}
 
 		if (cd_audio_mode_changed) {
 			restart = true;
