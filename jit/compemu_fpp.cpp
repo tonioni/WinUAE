@@ -1186,18 +1186,16 @@ void comp_fpp_opp (uae_u32 opcode, uae_u16 extra)
 			fneg_rr (dreg, sreg);
 			break;
 			case 0x1c: /* FACOS */
-#if 0 && USE_X86_FPUCW
-			if ((regs.fpcr & 0x30) != 0x10) { /* use round to zero */
-				mov_l_ri (S1, (regs.fpcr & 0xC0) | 0x10);
-				fldcw_m_indexed (S1, uae_p32(x86_fpucw));
-				facos_rr (dreg, sreg);
-				mov_l_rm (S1, uae_p32(&regs.fpcr));
-				and_l_ri (S1, 0xf0); /* restore control word */
-				fldcw_m_indexed (S1, uae_p32(x86_fpucw));
-				break;
-			}
-#endif
+#if USE_X86_FPUCW
+			mov_l_ri (S1, (regs.fpcr & 0xC0) | 0x00);
+			fldcw_m_indexed (S1, uae_p32(x86_fpucw));
 			facos_rr (dreg, sreg);
+			mov_l_rm (S1, uae_p32(&regs.fpcr));
+			and_l_ri (S1, 0xf0); /* restore control word */
+			fldcw_m_indexed (S1, uae_p32(x86_fpucw));
+#else
+			facos_rr (dreg, sreg);
+#endif
 			break;
 			case 0x1d: /* FCOS */
 			fcos_rr (dreg, sreg);
