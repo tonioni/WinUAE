@@ -1,4 +1,23 @@
 
+
+Beta 3:
+
+- If CD audio playing from real/virtual CD (not directly mounted image) was restarted because of config change, playback always started from beginning (or possibly failed to restart).
+- 68060 FPU disable behavior change (68060 accelerator boards have "$f0" ROM to disable FPU because exec does not understand 68060 FPU and will crash if enabled), FPU is not anymore automatically disabled at hard reset if any emulated accelerator board is configured (matches now real world), if no accelerator board: if UAE boot ROM is at $f00000 ("old" mode), it disables FPU (just like real accelerator board do), if UAE Boot ROM is any other address: ("new" mode), m68k RESET instruction will disable FPU. Previously 68060 config got stuck in reboot loop because of not-disabled FPU if system was software reset.
+- D3D9/11 vsync modes (lagless and standard) will now support 100/120Hz with optional black frame insertion.
+- Always check interrupts immediately after MOVE to SR instruction (except if JIT enabled). Previously it was delayed until following instruction if fast 68020+ mode.
+
+Beta 2:
+
+- QuikPak SCSI working. (Has same bug as tekscsi2.device 1.0: does not load RDB custom filesystems)
+- 80-bit FACOS fix. Also removed old unneeded JIT FACOS workaround.
+- If drive identity is read and it is CHS-only, don't enable CHS-only mode unless host OS also returns zero drive size. Some (old) Windows IDE drivers do support CHS-only drives. (3.6.0)
+- Added checks to prevent crashes when running in lagless vsync under wine. (DISPLAYCONFIG_VIDEO_SIGNAL_INFO and IDXGIOutput1 not implemented)
+
+QuikPak 4060:
+- Very similar in high level compared to TekMagic, main difference is SCSI chip, 53C720 (was 53C710 in TekMagic).
+- "tekscsi2.device (tekscsi2 2.1 (17.7.97) ©1997 Asimware Innovations Inc.)". Apparently v2.2 also exists.
+
 Beta 1:
 
 4.0.0 bugs fixed:

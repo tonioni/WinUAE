@@ -333,7 +333,7 @@ static int safetycheck (HANDLE h, const TCHAR *name, uae_u64 offset, uae_u8 *buf
 			}
 			ReadFile(h, buf, blocksize, &outlen, NULL);
 			if (outlen != blocksize) {
-				write_log(_T("hd ignored, read error %d!\n"), GetLastError());
+				write_log(_T("hd ignored (out=%d bs=%d), read error %d!\n"), outlen, blocksize, GetLastError());
 				return 2;
 			}
 		}
@@ -973,9 +973,10 @@ static bool hd_get_meta_hack(HWND hDlg, HANDLE h, uae_u8 *data, uae_u8 *inq, str
 
 void ata_byteswapidentity(uae_u8 *d);
 
-static const uae_u16 blacklist[]
+static const uae_u16 blacklist[] =
 {
-	0x14cd, 0x125c,
+	0x14cd, 0xffff,
+	0x0aec, 0xffff,
 	0, 0
 };
 
@@ -996,8 +997,13 @@ static bool readidentity(HANDLE h, struct uae_driveinfo *udi, struct hardfiledat
 		return false;
 	if (udi->usb_vid) {
 		for (int i = 0; blacklist[i]; i += 2) {
-			if (udi->usb_vid == blacklist[i] && udi->usb_pid == blacklist[i + 1])
-				return false;
+			if (udi->usb_vid == blacklist[i]) {
+				if (udi->usb_pid == blacklist[i + 1] || blacklist[i + 1] == 0xffff) {
+					udi->scsi_direct_fail = true;
+					write_log(_T("VID=%04x PID=%04x blacklisted\n"), udi->usb_vid, udi->usb_pid);
+					return false;
+				}
+			}
 		}
 	}
 
