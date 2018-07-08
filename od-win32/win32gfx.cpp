@@ -513,6 +513,8 @@ static void display_param_init(struct AmigaMonitor *mon)
 	vsync_vblank = 0;
 	vsync_hblank = 0;
 	get_display_vblank_params(-1, &vsync_activeheight, &vsync_totalheight, &vsync_vblank, &vsync_hblank);
+	if (vsync_vblank <= 0)
+		vsync_vblank = mon->currentmode.freq;
 	// GPU scaled mode?
 	if (vsync_activeheight > mon->currentmode.current_height) {
 		float m = (float)vsync_activeheight / mon->currentmode.current_height;
@@ -1439,10 +1441,19 @@ void show_screen(int monid, int mode)
 	struct amigadisplay *ad = &adisplays[monid];
 	strobo_active = false;
 	strobo_active2 = false;
+	struct apmode *ap = ad->picasso_on ? &currprefs.gfx_apmode[1] : &currprefs.gfx_apmode[0];
+
 	gfx_lock();
-	if (mode == 2) {
-		if ((mon->currentmode.flags & DM_D3D) && D3D_showframe_special) {
-			D3D_showframe_special(0, 1);
+	if (mode == 2 || mode == 3 || mode == 4) {
+		if ((mon->currentmode.flags & DM_D3D) && D3D_showframe_special && ap->gfx_strobo) {
+			if (mode == 4) {
+				// erase + render
+				D3D_showframe_special(0, 2);
+				D3D_showframe_special(0, 1);
+			} else {
+				// erase or render
+				D3D_showframe_special(0, mode == 3 ? 2 : 1);
+			}
 		}
 		gfx_unlock();
 		return;
@@ -1452,7 +1463,7 @@ void show_screen(int monid, int mode)
 		return;
 	}
 	if (mon->currentmode.flags & DM_D3D) {
-		struct apmode *ap = ad->picasso_on ? &currprefs.gfx_apmode[1] : &currprefs.gfx_apmode[0];
+#if 0
 		if (ap->gfx_vsync < 0 && ap->gfx_strobo && currprefs.gfx_api < 2) {
 			float vblank = vblank_hz;
 			if (WIN32GFX_IsPicassoScreen(mon)) {
@@ -1481,6 +1492,7 @@ void show_screen(int monid, int mode)
 				timeSetEvent(waitms, 0, blackinsertion_cb, NULL, TIME_ONESHOT | TIME_CALLBACK_FUNCTION);
 			}
 		}
+#endif
 		D3D_showframe(monid);
 		if (monid == 0)
 			strobo_active2 = true;

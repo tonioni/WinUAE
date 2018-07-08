@@ -262,7 +262,6 @@ struct d3d11struct
 	bool blackscreen;
 	int framecount;
 	UINT syncinterval;
-	bool flipped;
 	float vblank;
 	DWM_FRAME_COUNT lastframe;
 	int frames_since_init;
@@ -3154,22 +3153,23 @@ static bool device_error(struct d3d11struct *d3d)
 	return false;
 }
 
-static void do_present(struct d3d11struct *d3d, int black)
+static void do_black(struct d3d11struct *d3d)
+{
+	float color[4];
+	color[0] = 0;
+	color[1] = 0;
+	color[2] = 0;
+	color[3] = 0;
+	// Clear the back buffer.
+	d3d->m_deviceContext->ClearRenderTargetView(d3d->m_renderTargetView, color);
+}
+
+static void do_present(struct d3d11struct *d3d)
 {
 	struct amigadisplay *ad = &adisplays[d3d - d3d11data];
 	struct apmode *apm = ad->picasso_on ? &currprefs.gfx_apmode[APMODE_RTG] : &currprefs.gfx_apmode[APMODE_NATIVE];
 	HRESULT hr;
 	UINT presentFlags = 0;
-
-	if (black) {
-		float color[4];
-		color[0] = 0;
-		color[1] = 0;
-		color[2] = 0;
-		color[3] = 0;
-		// Clear the back buffer.
-		d3d->m_deviceContext->ClearRenderTargetView(d3d->m_renderTargetView, color);
-	}
 
 	int vsync = isvsync();
 	UINT syncinterval = d3d->vblankintervals;
@@ -3180,7 +3180,6 @@ static void do_present(struct d3d11struct *d3d, int black)
 			syncinterval = 0;
 		}
 	}
-	d3d->flipped = true;
 	if (!vsync) {
 		if (apm->gfx_backbuffers == 0 || (presentFlags & DXGI_PRESENT_ALLOW_TEARING) || (apm->gfx_vflip == 0 && isfs(d3d) <= 0) || (isfs(d3d) > 0 && apm->gfx_vsyncmode))
 			syncinterval = 0;
@@ -3195,6 +3194,7 @@ static void do_present(struct d3d11struct *d3d, int black)
 			presentFlags |= DXGI_PRESENT_DO_NOT_WAIT;
 		syncinterval = 0;
 	}
+
 	hr = d3d->m_swapChain->Present(syncinterval, presentFlags);
 	if (currprefs.turbo_emulation && hr == DXGI_ERROR_WAS_STILL_DRAWING)
 		hr = S_OK;
@@ -3583,6 +3583,12 @@ static int xxD3D11_init2(HWND ahwnd, int monid, int w_w, int w_h, int t_w, int t
 	if (d3d->swapChainDesc.BufferCount < 2)
 		d3d->swapChainDesc.BufferCount = 2;
 
+	if (d3d->swapChainDesc.BufferCount > 2 && isfullscreen() <= 0 && !apm->gfx_vsync) {
+		write_log(_T("Switch from triple buffer to double buffer (%d).\n"), apm->gfx_vflip);
+		d3d->swapChainDesc.BufferCount = 2;
+		apm->gfx_vflip = 0;
+	}
+
 	d3d->swapChainDesc.SwapEffect = os_win8 ? (os_win10 ? DXGI_SWAP_EFFECT_FLIP_DISCARD : DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL) : DXGI_SWAP_EFFECT_SEQUENTIAL;
 	if (apm->gfx_vsyncmode && isfs(d3d) > 0 && !os_win10) {
 		d3d->swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
@@ -3608,7 +3614,7 @@ static int xxD3D11_init2(HWND ahwnd, int monid, int w_w, int w_h, int t_w, int t
 		int vsync = isvsync();
 		int hzmult = 0;
 		getvsyncrate(monid, *freq, &hzmult);
-		if (hzmult < 0 && !currprefs.gfx_variable_sync) {
+		if (hzmult < 0 && !currprefs.gfx_variable_sync && apm->gfx_vsyncmode == 0) {
 			if (!apm->gfx_strobo) {
 				d3d->vblankintervals = 2;
 			} else {
@@ -3916,9 +3922,7 @@ static void EndScene(struct d3d11struct *d3d)
 	}
 	SetEvent(flipevent);
 #endif
-	do_present(d3d, 0);
-	if (d3d->blackscreen)
-		do_present(d3d, 1);
+	do_present(d3d);
 }
 
 static void TextureShaderClass_RenderShader(struct d3d11struct *d3d)
@@ -4457,6 +4461,20 @@ static bool xD3D11_renderframe(int monid, int mode, bool immediate)
 	return true;
 }
 
+static void xD3D11_showframe_special(int monid, int mode)
+{
+	struct d3d11struct *d3d = &d3d11data[monid];
+
+	if (d3d->invalidmode || d3d->delayedfs || !d3d->texture2d || !d3d->d3dinit_done)
+		return;
+	if (!d3d->m_swapChain)
+		return;
+	if (mode == 1)
+		do_present(d3d);
+	if (mode == 2)
+		do_black(d3d);
+}
+
 static void xD3D11_showframe(int monid)
 {
 	struct d3d11struct *d3d = &d3d11data[monid];
@@ -4972,7 +4990,7 @@ void d3d11_select(void)
 	D3D_flushtexture = xD3D11_flushtexture;
 
 	D3D_showframe = xD3D11_showframe;
-	D3D_showframe_special = NULL;
+	D3D_showframe_special = xD3D11_showframe_special;
 	D3D_guimode = xD3D11_guimode;
 	D3D_getDC = xD3D_getDC;
 	D3D_isenabled = xD3D11_isenabled;

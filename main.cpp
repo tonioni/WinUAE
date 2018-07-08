@@ -181,7 +181,7 @@ void fixup_prefs_dimensions (struct uae_prefs *prefs)
 			if (ap->gfx_vsyncmode) {
 				if (ap->gfx_fullscreen != 0) {
 					ap->gfx_backbuffers = 1;
-					ap->gfx_strobo = false;
+					ap->gfx_strobo = prefs->lightboost_strobo;
 				} else {
 					ap->gfx_vsyncmode = 0;
 					ap->gfx_vsync = 0;

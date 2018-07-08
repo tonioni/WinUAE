@@ -3896,9 +3896,13 @@ static void xD3D_showframe_special (int monid, int mode)
 		return;
 	if (pause_emulation)
 		return;
-	hr = d3d->d3ddev->Clear (0, NULL, D3DCLEAR_TARGET, D3DCOLOR_XRGB(0, d3ddebug ? 0x80 : 0, 0), 0, 0);
-	D3D_showframe2 (d3d, true);
-	flushgpu (d3d,true);
+	if (mode == 2) {
+		hr = d3d->d3ddev->Clear(0, NULL, D3DCLEAR_TARGET, D3DCOLOR_XRGB(0, d3ddebug ? 0x80 : 0, 0), 0, 0);
+	}
+	if (mode == 1) {
+		D3D_showframe2(d3d, true);
+	}
+	flushgpu(d3d, true);
 }
 
 static void xD3D_refresh (int monid)
