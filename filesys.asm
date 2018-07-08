@@ -28,6 +28,7 @@
 ; 2015.09.28 KS 1.2 boot hack improved, 1.1 and older BCPL-only DOS support.
 ; 2016.01.14 'Indirect' boot ROM trap support.
 ; 2018.03.22 Segment tracking
+; 2018.07.08 68060 FPU disable
 
 AllocMem = -198
 FreeMem = -210
@@ -89,19 +90,20 @@ our_seglist:
 	dc.l 0 									; 8 /* NextSeg */
 start:
 	bra.s startjmp
-	dc.w 12						;0 12
+	dc.w 13						;  0 12
 startjmp:
 	bra.w filesys_mainloop		;  1 16
-	dc.l make_dev-start				;  2 20
+	dc.l make_dev-start			;  2 20
 	dc.l filesys_init-start		;  3 24
-	dc.l moverom-start				;  4 28
-	dc.l bootcode-start				;  5 32
+	dc.l moverom-start			;  4 28
+	dc.l bootcode-start			;  5 32
 	dc.l setup_exter-start		;  6 36
 	dc.l bcplwrapper-start		;  7 40
-	dc.l afterdos-start				;  8 44
-	dc.l hwtrap_install-start ;  9 48
+	dc.l afterdos-start			;  8 44
+	dc.l hwtrap_install-start	;  9 48
 	dc.l hwtrap_entry-start 	; 10 52
-	dc.l keymaphack-start			; 11 56
+	dc.l keymaphack-start		; 11 56
+	dc.l fpu060disable-start	; 12 60
 
 bootcode:
 	lea.l doslibname(pc),a1
@@ -111,6 +113,12 @@ bootcode:
 	move.l d0,a0
 	jsr (a0)
 	rts
+
+fpu060disable:
+	movec pcr,d0
+	bset #1,d0
+	movec d0,pcr
+	jmp (a5)
 
 ; BCPL filehandler segment entry point
 ; for KS 1.1 and older.

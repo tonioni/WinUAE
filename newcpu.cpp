@@ -3860,8 +3860,10 @@ static void m68k_reset2(bool hardreset)
 	if (currprefs.cpu_model == 68060) {
 		regs.pcr = currprefs.fpu_model == 68060 ? MC68060_PCR : MC68EC060_PCR;
 		regs.pcr |= (currprefs.cpu060_revision & 0xff) << 8;
-		if (currprefs.fpu_model == 0 || kickstart_rom)
-			regs.pcr |= 2; /* disable FPU */
+		if (currprefs.fpu_model == 0 || (currprefs.cpuboard_type == 0 && rtarea_base != 0xf00000)) {
+			/* disable FPU if no accelerator board and no $f0 ROM */
+			regs.pcr |= 2;
+		}
 	}
 //	regs.ce020memcycles = 0;
 	regs.ce020startcycle = regs.ce020endcycle = 0;
@@ -8760,6 +8762,10 @@ void cpureset (void)
 	uae_u16 ins;
 	addrbank *ab;
 
+	if (currprefs.cpu_model == 68060 && currprefs.cpuboard_type == 0 && rtarea_base != 0xf00000) {
+		// disable FPU at reset if no accelerator board and no $f0 ROM.
+		regs.pcr |= 2;
+	}
 	m68k_reset_delay = currprefs.reset_delay;
 	set_special(SPCFLAG_CHECK);
 	send_internalevent(INTERNALEVENT_CPURESET);

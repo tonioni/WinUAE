@@ -1868,6 +1868,31 @@ void create_ks12_boot(void)
 }
 #endif
 
+// 68060 FPU disable ROM code
+void create_68060_nofpu(void)
+{
+	uaecptr code = here();
+	if ((code & 0xffff0000) != 0x00f00000)
+		return;
+	if (dbg(0xf00000) != 0 || dbg(0xf00001) != 0) {
+		org(0xf00000);
+		dw(0x0000);
+		org(code);
+	}
+	if (currprefs.cpu_model != 68060)
+		return;
+	if (currprefs.fpu_model == 0)
+		return;
+	uae_u32 ptr = filesys_get_entry(12);
+	if (ptr - 0xf00004 > 128 || ptr < 0xf00004)
+		return;
+	// first two words of UAE Boot ROM are normally unused
+	org(0xf00000);
+	dw(0x1111);
+	dw(0x6000 + (ptr - 0xf00004)); // bra.b
+	org(code);
+}
+
 static bool expamem_init_filesys(struct autoconfig_info *aci)
 {
 	struct uae_prefs *p = aci->prefs;
