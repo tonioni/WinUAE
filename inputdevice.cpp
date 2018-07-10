@@ -1479,7 +1479,7 @@ void read_inputdevice_config (struct uae_prefs *pr, const TCHAR *option, TCHAR *
 	if (!strcasecmp (p, _T("autoswitch")))
 		pr->input_autoswitch = _tstol (value);
 	if (!strcasecmp (p, _T("keyboard_type"))) {
-		cfgfile_strval (option, value, NULL, &pr->input_keyboard_type, kbtypes, 0);
+		cfgfile_strval (p, value, p, &pr->input_keyboard_type, kbtypes, 0);
 		keyboard_default = keyboard_default_table[pr->input_keyboard_type];
 		inputdevice_default_kb_all (pr);
 	}
