@@ -1,5 +1,12 @@
 
 
+Beta 4:
+
+- Floppy, CD, Tape, HDF geometry, HDF filesystem, disk swapper, RTC and flash rom file paths also support b1 resolve environmental variables update. (b1 update had issues requiring partial rewrite so it was good idea to update all other paths too. Excluding special paths like ROM paths.)
+- Previously only some SCSI controllers flashed CD led when emulating CD drive.
+
+Short description about path handling change: Previously any path was always converted to either full absolute or relative path with possible environmental variables resolved when config was loaded or path was typed/selected from dialog. When config was saved, old path (possibly containing environmental variables) was lost. Now paths are loaded unmodified from config file and only converted when needed. "Normal" path strings (no environmental variables) are still automatically converted to absolute/relative when saving config.
+
 Beta 3:
 
 - If CD audio playing from real/virtual CD (not directly mounted image) was restarted because of config change, playback always started from beginning (or possibly failed to restart).

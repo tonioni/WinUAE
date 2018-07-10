@@ -2152,17 +2152,16 @@ static void handle_rawinput_2 (RAWINPUT *raw, LPARAM lParam)
 		OutputDebugString(xx);
 #endif
 
-
-		if (num == num_mouse)
-			return;
-
 		USHORT usButtonFlags = rm->usButtonFlags;
 
 #ifdef RETROPLATFORM
-		if (isfocus() > 0 && usButtonFlags) {
+		if (usButtonFlags) {
 			usButtonFlags = rp_rawbuttons(lParam, usButtonFlags);
 		}
 #endif
+
+		if (num == num_mouse)
+			return;
 
 		if (isfocus () > 0 || istest) {
 			static int lastx[MAX_INPUT_DEVICES], lasty[MAX_INPUT_DEVICES];
