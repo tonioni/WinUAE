@@ -1130,9 +1130,6 @@ static void ide_do_command (struct ide_hdf *ide, uae_u8 cmd)
 
 	if (ide->atapi) {
 
-		if (ide->scsi->device_type == UAEDEV_CD) {
-			gui_flicker_led(LED_CD, ide->uae_unitnum, 1);
-		}
 		ide->atapi_drdy = true;
 		if (cmd == 0x00) { /* nop */
 			ide_interrupt (ide);

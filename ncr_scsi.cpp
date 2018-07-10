@@ -233,9 +233,6 @@ int32_t scsi_req_enqueue(SCSIRequest *req)
 {
 	struct scsi_data *sd = (struct scsi_data*)req->dev->handle;
 
-	if (sd->device_type == UAEDEV_CD)
-		gui_flicker_led (LED_CD, sd->uae_unitnum, 1);
-
 	sd->data_len = 0;
 	scsi_start_transfer(sd);
 	scsi_emulate_analyze(sd);
@@ -328,9 +325,6 @@ SCSIRequest *scsi710_req_new(SCSIDevice *d, uint32_t tag, uint32_t lun, uint8_t 
 int32_t scsi710_req_enqueue(SCSIRequest *req)
 {
 	struct scsi_data *sd = (struct scsi_data*)req->dev->handle;
-
-	if (sd->device_type == UAEDEV_CD)
-		gui_flicker_led (LED_CD, sd->uae_unitnum, 1);
 
 	sd->data_len = 0;
 	scsi_start_transfer (sd);

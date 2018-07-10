@@ -673,9 +673,6 @@ int32_t scsiesp_req_enqueue(SCSIRequest *req)
 {
 	struct scsi_data *sd = (struct scsi_data*)req->dev->handle;
 
-	if (sd->device_type == UAEDEV_CD)
-		gui_flicker_led (LED_CD, sd->uae_unitnum, 1);
-
 	sd->data_len = 0;
 	scsi_start_transfer(sd);
 	scsi_emulate_analyze(sd);

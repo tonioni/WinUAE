@@ -25,6 +25,7 @@
 #include "cia.h"
 #include "devices.h"
 #include "flashrom.h"
+#include "gui.h"
 
 #define SCSI_EMU_DEBUG 0
 #define RAW_SCSI_DEBUG 0
@@ -416,6 +417,8 @@ void scsi_emulate_cmd(struct scsi_data *sd)
 				copyreply(sd);
 			}
 		}
+		gui_flicker_led(LED_CD, sd->uae_unitnum, 1);
+
 
 	} else if (sd->device_type == UAEDEV_HDF && sd->nativescsiunit < 0) {
 

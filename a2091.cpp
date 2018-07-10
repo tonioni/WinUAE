@@ -1620,8 +1620,6 @@ void wdscsi_put (struct wd_chip_state *wd, struct wd_state *wds, uae_u8 d)
 		} else {
 			wd_execute(wds, wds->scsis[wd->wdregs[WD_DESTINATION_ID] & 7], 0, d);
 		}
-		if (wd->scsi && wd->scsi->cd_emu_unit >= 0)
-			gui_flicker_led (LED_CD, wd->scsi->id, 1);
 	}
 	incsasr (wd, 1);
 }
