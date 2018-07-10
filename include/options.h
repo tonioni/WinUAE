@@ -40,6 +40,7 @@ struct multipath {
 #define PATH_GENLOCK_IMAGE 6
 #define PATH_GENLOCK_VIDEO 7
 #define PATH_GEO 8
+#define PATH_ROM 9
 
 struct strlist {
 	struct strlist *next;

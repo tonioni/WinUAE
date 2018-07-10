@@ -3386,10 +3386,12 @@ bool x86_bridge_init(struct autoconfig_info *aci, uae_u32 romtype, int type)
 		TIMER_Init(dosbox_sec);
 		FPU_Init(dosbox_sec);
 		if (xb->type >= TYPE_2286) {
+			TCHAR path[MAX_DPATH];
+			cfgfile_resolve_path_out(currprefs.flashfile, path, MAX_DPATH, PATH_ROM);
 			xb->cmossize = xb->type == TYPE_2386 ? 192 : 64;
-			xb->cmosfile = zfile_fopen(currprefs.flashfile, _T("rb+"), ZFD_NORMAL);
+			xb->cmosfile = zfile_fopen(path, _T("rb+"), ZFD_NORMAL);
 			if (!xb->cmosfile) {
-				xb->cmosfile = zfile_fopen(currprefs.flashfile, _T("wb"));
+				xb->cmosfile = zfile_fopen(path, _T("wb"));
 			}
 			memset(xb->cmosregs, 0, sizeof xb->cmosregs);
 			if (xb->cmosfile) {

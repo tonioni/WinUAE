@@ -2173,7 +2173,9 @@ static void write_battclock (void)
 {
 	if (!currprefs.rtcfile[0] || currprefs.cs_rtc == 0)
 		return;
-	struct zfile *f = zfile_fopen (currprefs.rtcfile, _T("wb"));
+	TCHAR path[MAX_DPATH];
+	cfgfile_resolve_path_out(currprefs.rtcfile, path, MAX_DPATH, PATH_ROM);
+	struct zfile *f = zfile_fopen (path, _T("wb"));
 	if (f) {
 		struct tm *ct;
 		time_t t = time (0);
@@ -2228,7 +2230,9 @@ void rtc_hardreset (void)
 		rtc_ricoh.delayed_write = 0;
 	}
 	if (currprefs.rtcfile[0]) {
-		struct zfile *f = zfile_fopen (currprefs.rtcfile, _T("rb"));
+		TCHAR path[MAX_DPATH];
+		cfgfile_resolve_path_out(currprefs.rtcfile, path, MAX_DPATH, PATH_ROM);
+		struct zfile *f = zfile_fopen (path, _T("rb"));
 		if (f) {
 			uae_u8 empty[13];
 			zfile_fread (empty, 13, 1, f);

@@ -86,9 +86,11 @@ static void nvram_read (void)
 	if (is_board_enabled(&currprefs, ROMTYPE_CUBO, 0)) {
 		cubo_nvram = cd32_nvram + currprefs.cs_cd32nvram_size;
 	}
-	cd32_flashfile = zfile_fopen (currprefs.flashfile, _T("rb+"), ZFD_NORMAL);
+	TCHAR path[MAX_DPATH];
+	cfgfile_resolve_path_out(currprefs.flashfile, path, MAX_DPATH, PATH_ROM);
+	cd32_flashfile = zfile_fopen (path, _T("rb+"), ZFD_NORMAL);
 	if (!cd32_flashfile)
-		cd32_flashfile = zfile_fopen (currprefs.flashfile, _T("wb"), 0);
+		cd32_flashfile = zfile_fopen (path, _T("wb"), 0);
 	if (cd32_flashfile) {
 		int size = zfile_fread(cd32_nvram, 1, currprefs.cs_cd32nvram_size, cd32_flashfile);
 		if (size == currprefs.cs_cd32nvram_size && maxlen > currprefs.cs_cd32nvram_size)

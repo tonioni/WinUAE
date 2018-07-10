@@ -102,6 +102,7 @@ static int cd_led;
 static volatile int subcodebufferoffset, subcodebufferoffsetw;
 static uae_u8 subcodebufferinuse[MAX_SUBCODEBUFFER];
 static uae_u8 subcodebuffer[MAX_SUBCODEBUFFER * SUB_CHANNEL_SIZE];
+static TCHAR flashfilepath[MAX_DPATH];
 
 static void cdtvcr_battram_reset (void)
 {
@@ -109,9 +110,10 @@ static void cdtvcr_battram_reset (void)
 	int v;
 
 	memset (cdtvcr_ram, 0, CDTVCR_RAM_SIZE);
-	f = zfile_fopen (currprefs.flashfile, _T("rb+"), ZFD_NORMAL);
+	cfgfile_resolve_path_out(currprefs.flashfile, flashfilepath, MAX_DPATH, PATH_ROM);
+	f = zfile_fopen (flashfilepath, _T("rb+"), ZFD_NORMAL);
 	if (!f) {
-		f = zfile_fopen (currprefs.flashfile, _T("wb"), 0);
+		f = zfile_fopen (flashfilepath, _T("wb"), 0);
 		if (f) {
 			zfile_fwrite (cdtvcr_ram, CDTVCR_RAM_SIZE, 1, f);
 			zfile_fclose (f);
@@ -135,7 +137,7 @@ static void cdtvcr_battram_write (int addr, int v)
 	if (cdtvcr_ram[offset] == v)
 		return;
 	cdtvcr_ram[offset] = v;
-	f = zfile_fopen (currprefs.flashfile, _T("rb+"), ZFD_NORMAL);
+	f = zfile_fopen (flashfilepath, _T("rb+"), ZFD_NORMAL);
 	if (!f)
 		return;
 	zfile_fseek (f, offset, SEEK_SET);

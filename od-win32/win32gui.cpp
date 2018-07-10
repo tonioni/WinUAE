@@ -2150,6 +2150,7 @@ void target_multipath_modified(struct uae_prefs *p)
 	memcpy(&currprefs.path_hardfile, &p->path_hardfile, sizeof(struct multipath));
 	memcpy(&currprefs.path_floppy, &p->path_floppy, sizeof(struct multipath));
 	memcpy(&currprefs.path_cd, &p->path_cd, sizeof(struct multipath));
+	memcpy(&currprefs.path_rom, &p->path_rom, sizeof(struct multipath));
 }
 
 int target_cfgfile_load (struct uae_prefs *p, const TCHAR *filename, int type, int isdefault)
@@ -2200,10 +2201,6 @@ int target_cfgfile_load (struct uae_prefs *p, const TCHAR *filename, int type, i
 	ct2 = 0;
 	regqueryint (NULL, _T("ConfigFile_NoAuto"), &ct2);
 	v = cfgfile_load (p, fname, &type2, ct2, isdefault ? 0 : 1);
-	if (p == &workprefs) {
-		memcpy(&currprefs.path_hardfile, &p->path_hardfile, sizeof(struct multipath));
-		memcpy(&currprefs.path_floppy, &p->path_floppy, sizeof(struct multipath));
-	}
 	if (!v)
 		return v;
 	if (type > 0)
@@ -3093,11 +3090,9 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
 			break;
 		case IDC_FLASHFILE:
 			_tcscpy (workprefs.flashfile, full_path);
-			fullpath (workprefs.flashfile, MAX_DPATH);
 			break;
 		case IDC_RTCFILE:
 			_tcscpy (workprefs.rtcfile, full_path);
-			fullpath (workprefs.rtcfile, MAX_DPATH);
 			break;
 		case IDC_CARTFILE:
 			_tcscpy (workprefs.cartfile, full_path);

@@ -992,6 +992,9 @@ void cfgfile_resolve_path_out(const TCHAR *path, TCHAR *out, int size, int type)
 	case PATH_CD:
 		s = cfgfile_subst_path_load(UNEXPANDED, &p->path_cd, path, false);
 		break;
+	case PATH_ROM:
+		s = cfgfile_subst_path_load(UNEXPANDED, &p->path_rom, path, false);
+		break;
 	case PATH_FLOPPY:
 		_tcscpy(out, path);
 		cfgfile_adjust_path(out, MAX_DPATH, &p->path_floppy);
@@ -1679,9 +1682,9 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 		cfgfile_write_board_rom(p, f, &p->path_rom, &p->expansionboard[i]);
 	}
 
-	cfgfile_write_path (f, &p->path_rom, _T("flash_file"), p->flashfile);
+	cfgfile_write_str(f, _T("flash_file"), p->flashfile);
 	cfgfile_write_path (f, &p->path_rom, _T("cart_file"), p->cartfile);
-	cfgfile_write_path (f, &p->path_rom, _T("rtc_file"), p->rtcfile);
+	cfgfile_write_str(f, _T("rtc_file"), p->rtcfile);
 	if (p->cartident[0])
 		cfgfile_write_str (f, _T("cart"), p->cartident);
 	cfgfile_dwrite_path (f, &p->path_rom, _T("picassoiv_rom_file"), p->picassoivromfile);
@@ -5280,9 +5283,9 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 		|| cfgfile_path (option, value, _T("kickstart_ext_rom_file2"), p->romextfile2, sizeof p->romextfile2 / sizeof (TCHAR), &p->path_rom)
 		|| cfgfile_rom(option, value, _T("kickstart_rom_file_id"), p->romfile, sizeof p->romfile / sizeof(TCHAR))
 		|| cfgfile_rom (option, value, _T("kickstart_ext_rom_file_id"), p->romextfile, sizeof p->romextfile / sizeof (TCHAR))
-		|| cfgfile_path (option, value, _T("flash_file"), p->flashfile, sizeof p->flashfile / sizeof (TCHAR), &p->path_rom)
+		|| cfgfile_string(option, value, _T("flash_file"), p->flashfile, sizeof p->flashfile / sizeof (TCHAR))
 		|| cfgfile_path (option, value, _T("cart_file"), p->cartfile, sizeof p->cartfile / sizeof (TCHAR), &p->path_rom)
-		|| cfgfile_path (option, value, _T("rtc_file"), p->rtcfile, sizeof p->rtcfile / sizeof (TCHAR), &p->path_rom)
+		|| cfgfile_string(option, value, _T("rtc_file"), p->rtcfile, sizeof p->rtcfile / sizeof (TCHAR))
 		|| cfgfile_path(option, value, _T("picassoiv_rom_file"), p->picassoivromfile, sizeof p->picassoivromfile / sizeof(TCHAR), &p->path_rom)
 		|| cfgfile_string(option, value, _T("genlock_image"), p->genlock_image_file, sizeof p->genlock_image_file / sizeof(TCHAR))
 		|| cfgfile_string(option, value, _T("genlock_video"), p->genlock_video_file, sizeof p->genlock_video_file / sizeof(TCHAR))
