@@ -2106,7 +2106,7 @@ static void initialize_windowsmouse (void)
 
 static uae_u8 rawkeystate[256];
 static int rawprevkey;
-static void handle_rawinput_2 (RAWINPUT *raw)
+static void handle_rawinput_2 (RAWINPUT *raw, LPARAM lParam)
 {
 	int i, num;
 	struct didata *did;
@@ -2156,12 +2156,20 @@ static void handle_rawinput_2 (RAWINPUT *raw)
 		if (num == num_mouse)
 			return;
 
+		USHORT usButtonFlags = rm->usButtonFlags;
+
+#ifdef RETROPLATFORM
+		if (isfocus() > 0 && usButtonFlags) {
+			usButtonFlags = rp_rawbuttons(lParam, usButtonFlags);
+		}
+#endif
+
 		if (isfocus () > 0 || istest) {
 			static int lastx[MAX_INPUT_DEVICES], lasty[MAX_INPUT_DEVICES];
 			static int lastmbr[MAX_INPUT_DEVICES];
 			for (i = 0; i < (5 > did->buttons ? did->buttons : 5); i++) {
-				if (rm->usButtonFlags & (3 << (i * 2))) {
-					int state = (rm->usButtonFlags & (1 << (i * 2))) ? 1 : 0;
+				if (usButtonFlags & (3 << (i * 2))) {
+					int state = (usButtonFlags & (1 << (i * 2))) ? 1 : 0;
 					if (!istest && i == 2 && (currprefs.input_mouse_untrap & MOUSEUNTRAP_MIDDLEBUTTON))
 						continue;
 					setmousebuttonstate (num, i, state);
@@ -2215,7 +2223,7 @@ static void handle_rawinput_2 (RAWINPUT *raw)
 			}
 		}
 		if (isfocus () && !istest) {
-			if (did->buttons >= 3 && (rm->usButtonFlags & RI_MOUSE_MIDDLE_BUTTON_DOWN)) {
+			if (did->buttons >= 3 && (usButtonFlags & RI_MOUSE_MIDDLE_BUTTON_DOWN)) {
 				if (currprefs.input_mouse_untrap & MOUSEUNTRAP_MIDDLEBUTTON) {
 					if ((isfullscreen() < 0 && currprefs.win32_minimize_inactive) || isfullscreen() > 0)
 						minimizewindow(0);
@@ -2720,7 +2728,7 @@ void handle_rawinput (LPARAM lParam)
 			if (GetRawInputData ((HRAWINPUT)lParam, RID_INPUT, lpb, &dwSize, sizeof (RAWINPUTHEADER)) == dwSize) {
 				raw = (RAWINPUT*)lpb;
 				if (!isguiactive() || (inputdevice_istest() && isguiactive())) {
-					handle_rawinput_2 (raw);
+					handle_rawinput_2 (raw, lParam);
 				}
 				DefRawInputProc (&raw, 1, sizeof (RAWINPUTHEADER));
 			} else {

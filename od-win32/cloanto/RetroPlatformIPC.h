@@ -9,7 +9,7 @@
          : Software Foundation.
  Authors : os, m
  Created : 2007-08-27 13:55:49
- Updated : 2017-09-10 12:13:00
+ Updated : 2018-07-08 10:54:00
  Comment : RetroPlatform Player interprocess communication include file
  *****************************************************************************/
 
@@ -18,9 +18,9 @@
 
 #include <windows.h>
 
-#define RETROPLATFORM_API_VER       "7.2"
+#define RETROPLATFORM_API_VER       "7.3"
 #define RETROPLATFORM_API_VER_MAJOR  7
-#define RETROPLATFORM_API_VER_MINOR  2
+#define RETROPLATFORM_API_VER_MINOR  3
 
 #define RPIPC_HostWndClass   "RetroPlatformHost%s"
 #define RPIPC_GuestWndClass  "RetroPlatformGuest%d"
@@ -62,6 +62,8 @@
 #define RP_IPC_TO_HOST_PRIVATE_TYPECLIPDONE (WM_APP + 32) // introduced in RetroPlatform API 7.2
 #define RP_IPC_TO_HOST_PRIVATE_KEYEVENT     (WM_APP + 33) // introduced in RetroPlatform API 7.2
 #define RP_IPC_TO_HOST_PRIVATE_GUESTEVENT   (WM_APP + 34) // introduced in RetroPlatform API 7.2
+#define RP_IPC_TO_HOST_PRIVATE_KEYREMINDER  (WM_APP + 35) // introduced in RetroPlatform API 7.2
+#define RP_IPC_TO_HOST_RAWINPUT_EVENT       (WM_APP + 36) // introduced in RetroPlatform API 7.3
 
 // ****************************************************************************
 //  Host-to-Guest Messages
@@ -92,6 +94,7 @@
 #define	RP_IPC_TO_GUEST_PRIVATE_CANESCAPE    (WM_APP + 226) // introduced in RetroPlatform API 7.2
 #define	RP_IPC_TO_GUEST_PRIVATE_LOGGING      (WM_APP + 227) // introduced in RetroPlatform API 7.2
 #define	RP_IPC_TO_GUEST_PRIVATE_INPUTDEVICES (WM_APP + 228) // introduced in RetroPlatform API 7.2
+#define RP_IPC_TO_GUEST_PRIVATE_KEYREMINDER  (WM_APP + 229) // introduced in RetroPlatform API 7.2
 
 // ****************************************************************************
 //  Message Data Structures and Defines
@@ -126,6 +129,7 @@
 #define RP_FEATURE_MEMORY_BASIC   		    0x02000000 // Memory I/O basic features: Read, Write
 #define RP_FEATURE_MEMORY_ADVANCED		    0x04000000 // Memory I/O advanced features: Watch, Find, Alert, Freeze, Lock, Unlock, Off (must set both flags if full set is supported!)
 #define RP_FEATURE_SCREENCAPTURE   			0x08000000 // new screen capture functionality is available (see RP_IPC_TO_GUEST_SCREENCAPTURE message)
+#define RP_FEATURE_RAWINPUT_EVENT			0x10000000 // RawInput mouse buttons events are forwarded via RP_IPC_TO_HOST_RAWINPUT_EVENT messages
 
 typedef struct RPScreenMode
 {

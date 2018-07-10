@@ -1557,6 +1557,7 @@ static void sendfeatures (void)
 	feat |= RP_FEATURE_INPUTDEVICE_JOYPAD;
 	feat |= RP_FEATURE_INPUTDEVICE_ANALOGSTICK;
 	feat |= RP_FEATURE_INPUTDEVICE_LIGHTPEN;
+	feat |= RP_FEATURE_RAWINPUT_EVENT;
 	write_log (_T("RP_IPC_TO_HOST_FEATURES=%x %d\n"), feat, WIN32GFX_IsPicassoScreen(mon));
 	RPSendMessagex (RP_IPC_TO_HOST_FEATURES, feat, 0, NULL, 0, &guestinfo, NULL);
 }
@@ -2096,6 +2097,16 @@ int rp_checkesc (int scancode, int pressed, int num)
 end:
 	esctime = 0;
 	return 0;
+}
+
+USHORT rp_rawbuttons(LPARAM lParam, USHORT usButtonFlags)
+{
+	LRESULT lr;
+	if (!initialized)
+		return usButtonFlags;
+	if (RPSendMessage(RP_IPC_TO_HOST_RAWINPUT_EVENT, 0, lParam, NULL, 0, &guestinfo, &lr))
+		usButtonFlags = (USHORT)lr;
+	return usButtonFlags;
 }
 
 int rp_isactive (void)
