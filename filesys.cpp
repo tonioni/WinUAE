@@ -330,11 +330,12 @@ int get_filesys_unitconfig (struct uae_prefs *p, int index, struct mountedinfo *
 
 	memset (mi, 0, sizeof (struct mountedinfo));
 	memset (&uitmp, 0, sizeof uitmp);
-	cfgfile_resolve_path_out(uci->ci.rootdir, filepath, MAX_DPATH, PATH_DIR);
-	_tcscpy(mi->rootdir, filepath);
+	_tcscpy(mi->rootdir, uci->ci.rootdir);
 	if (!ui) {
 		ui = &uitmp;
 		if (uci->ci.type == UAEDEV_DIR) {
+			cfgfile_resolve_path_out(uci->ci.rootdir, filepath, MAX_DPATH, PATH_DIR);
+			_tcscpy(mi->rootdir, filepath);
 			mi->ismounted = 1;
 			if (filepath[0] == 0)
 				return FILESYS_VIRTUAL;
@@ -347,6 +348,8 @@ int get_filesys_unitconfig (struct uae_prefs *p, int index, struct mountedinfo *
 			mi->ismedia = true;
 			return FILESYS_VIRTUAL;
 		} else if (uci->ci.type == UAEDEV_HDF) {
+			cfgfile_resolve_path_out(uci->ci.rootdir, filepath, MAX_DPATH, PATH_HDF);
+			_tcscpy(mi->rootdir, filepath);
 			ui->hf.ci.readonly = true;
 			ui->hf.ci.blocksize = uci->ci.blocksize;
 			int err = hdf_open (&ui->hf, filepath);
@@ -366,6 +369,8 @@ int get_filesys_unitconfig (struct uae_prefs *p, int index, struct mountedinfo *
 				mi->ismedia = 0;
 			hdf_close (&ui->hf);
 		} else if (uci->ci.type == UAEDEV_CD) {
+			cfgfile_resolve_path_out(uci->ci.rootdir, filepath, MAX_DPATH, PATH_CD);
+			_tcscpy(mi->rootdir, filepath);
 			struct device_info di;
 			ui->hf.ci.readonly = true;
 			ui->hf.ci.blocksize = uci->ci.blocksize;
@@ -392,6 +397,8 @@ int get_filesys_unitconfig (struct uae_prefs *p, int index, struct mountedinfo *
 		}
 	}
 	if (uci->ci.type == UAEDEV_TAPE) {
+		cfgfile_resolve_path_out(uci->ci.rootdir, filepath, MAX_DPATH, PATH_TAPE);
+		_tcscpy(mi->rootdir, filepath);
 		struct device_info di;
 		int unitnum = getuindex (p, index);
 		mi->size = -1;
@@ -691,10 +698,10 @@ static int set_filesys_unit_1 (int nr, struct uaedev_config_info *ci, bool custo
 		return nr;
 	}
 
-	if (!custom)
-		cfgfile_resolve_path(c.rootdir, MAX_DPATH, PATH_DIR);
-
 	iscd = nr >= cd_unit_offset && nr < cd_unit_offset + cd_unit_number;
+
+	if (!custom)
+		cfgfile_resolve_path(c.rootdir, MAX_DPATH, iscd ? PATH_CD : (ci->volname[0] ? PATH_DIR : PATH_HDF));
 
 	for (i = 0; i < MAX_FILESYSTEM_UNITS; i++) {
 		if (nr == i || !mountinfo.ui[i].open || mountinfo.ui[i].rootdir == NULL || is_hardfile (i) == FILESYS_CD)
@@ -8634,7 +8641,7 @@ static int dofakefilesys (TrapContext *ctx, UnitInfo *uip, uaecptr parmpacket, s
 
 	tmp[0] = 0;
 	if (uip->filesysdir && _tcslen (uip->filesysdir) > 0) {
-		_tcscpy (tmp, uip->filesysdir);
+		cfgfile_resolve_path_out(uip->filesysdir, tmp, MAX_DPATH, PATH_HDF);
 	} else if ((dostype & 0xffffff00) == DISK_TYPE_DOS) {
 		_tcscpy (tmp, currprefs.romfile);
 		int i = _tcslen (tmp);

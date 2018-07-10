@@ -2143,6 +2143,15 @@ static struct ConfigStruct *getconfigstorefrompath (TCHAR *path, TCHAR *out, int
 	return 0;
 }
 
+void target_multipath_modified(struct uae_prefs *p)
+{
+	if (p != &workprefs)
+		return;
+	memcpy(&currprefs.path_hardfile, &p->path_hardfile, sizeof(struct multipath));
+	memcpy(&currprefs.path_floppy, &p->path_floppy, sizeof(struct multipath));
+	memcpy(&currprefs.path_cd, &p->path_cd, sizeof(struct multipath));
+}
+
 int target_cfgfile_load (struct uae_prefs *p, const TCHAR *filename, int type, int isdefault)
 {
 	int v, i, type2;
@@ -2191,6 +2200,10 @@ int target_cfgfile_load (struct uae_prefs *p, const TCHAR *filename, int type, i
 	ct2 = 0;
 	regqueryint (NULL, _T("ConfigFile_NoAuto"), &ct2);
 	v = cfgfile_load (p, fname, &type2, ct2, isdefault ? 0 : 1);
+	if (p == &workprefs) {
+		memcpy(&currprefs.path_hardfile, &p->path_hardfile, sizeof(struct multipath));
+		memcpy(&currprefs.path_floppy, &p->path_floppy, sizeof(struct multipath));
+	}
 	if (!v)
 		return v;
 	if (type > 0)
@@ -2245,7 +2258,7 @@ static void flipgui(int opengui)
 	if (opengui) {
 		DirectDraw_FlipToGDISurface();
 	} else {
-		if (uae_quit)
+		if (quit_program)
 			return;
 		full_redraw_all();
 	}
@@ -2476,14 +2489,15 @@ void gui_infotextbox(HWND hDlg, const TCHAR *text)
 static void infofloppy (HWND hDlg, int n)
 {
 	struct diskinfo di;
-	TCHAR tmp2[MAX_DPATH];
+	TCHAR tmp2[MAX_DPATH], tmp1[MAX_DPATH];
 	TCHAR text[20000];
 
 	DISK_examine_image (&workprefs, n, &di);
+	DISK_validate_filename(&workprefs, workprefs.floppyslots[n].df, tmp1, 0, NULL, NULL, NULL);
 
 	_stprintf (tmp2,
 		_T("'%s'\r\nDisk readable: %s\r\nCRC32: %08X\r\nBoot block checksum valid: %s\r\nBoot block type: %s\r\n"),
-		workprefs.floppyslots[n].df,
+		tmp1,
 		di.unreadable ? _T("No") : _T("Yes"),
 		di.crc32,
 		di.bb_crc_valid ? _T("Yes") : _T("No"),
@@ -14742,7 +14756,7 @@ static void addfloppytype (HWND hDlg, int n)
 		CheckDlgButton (hDlg, f_wp, chk);
 	if (f_info >= 0)
 		ew (hDlg, f_info, text[0] != 0);
-	chk = !showcd && state && DISK_validate_filename (&workprefs, text, 0, NULL, NULL, NULL) ? TRUE : FALSE;
+	chk = !showcd && state && DISK_validate_filename (&workprefs, text, NULL, 0, NULL, NULL, NULL) ? TRUE : FALSE;
 	if (f_wp >= 0) {
 		ew (hDlg, f_wp, chk && !workprefs.floppy_read_only);
 		if (f_wptext >= 0)

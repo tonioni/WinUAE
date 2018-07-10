@@ -385,7 +385,9 @@ static void create_virtual_rdb (struct hardfiledata *hfd)
 
 	if (hfd->ci.filesys[0]) {
 		struct zfile *f = NULL;
-		filesys = zfile_load_file(hfd->ci.filesys, &filesyslen);
+		TCHAR fspath[MAX_DPATH];
+		cfgfile_resolve_path_out(hfd->ci.filesys, fspath, MAX_DPATH, PATH_HDF);
+		filesys = zfile_load_file(fspath, &filesyslen);
 		if (filesys) {
 			fsver = get_filesys_version(filesys, filesyslen);
 			if (fsver == 0xffffffff)

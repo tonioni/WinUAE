@@ -987,7 +987,10 @@ void cfgfile_resolve_path_out(const TCHAR *path, TCHAR *out, int size, int type)
 		s = cfgfile_subst_path_load(UNEXPANDED, &p->path_hardfile, path, true);
 		break;
 	case PATH_HDF:
-		s = cfgfile_subst_path_load(UNEXPANDED, &p->path_hardfile, path, true);
+		s = cfgfile_subst_path_load(UNEXPANDED, &p->path_hardfile, path, false);
+		break;
+	case PATH_CD:
+		s = cfgfile_subst_path_load(UNEXPANDED, &p->path_cd, path, false);
 		break;
 	case PATH_FLOPPY:
 		_tcscpy(out, path);
@@ -1084,7 +1087,6 @@ static void write_filesys_config (struct uae_prefs *p, struct zfile *f)
 		} else if (ci->type == UAEDEV_HDF || ci->type == UAEDEV_CD || ci->type == UAEDEV_TAPE) {
 			TCHAR filesyspath[MAX_DPATH];
 			_tcscpy(filesyspath, ci->filesys);
-			cfgfile_adjust_path(filesyspath, MAX_DPATH, NULL);
 			TCHAR *sfilesys = cfgfile_escape_min(filesyspath);
 			TCHAR *sgeometry = cfgfile_escape(ci->geometry, NULL, true);
 			_stprintf (tmp, _T("%s,%s:%s,%d,%d,%d,%d,%d,%s,%s"),
@@ -1691,7 +1693,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	p->nr_floppies = 4;
 	for (i = 0; i < 4; i++) {
 		_stprintf (tmp, _T("floppy%d"), i);
-		cfgfile_write_path (f, &p->path_floppy, tmp, p->floppyslots[i].df);
+		cfgfile_write_str(f, tmp, p->floppyslots[i].df);
 		_stprintf (tmp, _T("floppy%dwp"), i);
 		cfgfile_dwrite_bool (f, tmp, p->floppyslots[i].forcedwriteprotect);
 		_stprintf (tmp, _T("floppy%dtype"), i);
@@ -1714,7 +1716,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	for (i = 0; i < MAX_SPARE_DRIVES; i++) {
 		if (p->dfxlist[i][0]) {
 			_stprintf (tmp, _T("diskimage%d"), i);
-			cfgfile_dwrite_path (f, &p->path_floppy, tmp, p->dfxlist[i]);
+			cfgfile_dwrite_str(f, tmp, p->dfxlist[i]);
 		}
 	}
 
@@ -1722,9 +1724,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 		if (p->cdslots[i].name[0] || p->cdslots[i].inuse) {
 			TCHAR tmp2[MAX_DPATH];
 			_stprintf (tmp, _T("cdimage%d"), i);
-			TCHAR *s = cfgfile_put_multipath (&p->path_cd, p->cdslots[i].name);
-			_tcscpy (tmp2, s);
-			xfree (s);
+			_tcscpy (tmp2, p->cdslots[i].name);
 			if (p->cdslots[i].type != SCSI_UNIT_DEFAULT || _tcschr (p->cdslots[i].name, ',') || p->cdslots[i].delayed) {
 				_tcscat (tmp2, _T(","));
 				if (p->cdslots[i].delayed) {
@@ -2716,27 +2716,19 @@ static int cfgfile_path (const TCHAR *option, const TCHAR *value, const TCHAR *n
 	return cfgfile_path (option, value, name, location, maxsz, NULL);
 }
 
-static int cfgfile_pathext(const TCHAR *option, const TCHAR *value, const TCHAR *name, TCHAR *location, int maxsz)
-{
-	if (!cfgfile_string(option, value, name, location, maxsz))
-		return 0;
-	if (_tcschr(value, '/') || _tcschr(value, '\\') || _tcschr(value, ':'))
-		return cfgfile_path(option, value, name, location, maxsz, NULL);
-	return 1;
-}
-
-static int cfgfile_multipath (const TCHAR *option, const TCHAR *value, const TCHAR *name, struct multipath *mp)
+static int cfgfile_multipath (const TCHAR *option, const TCHAR *value, const TCHAR *name, struct multipath *mp, struct uae_prefs *p)
 {
 	TCHAR tmploc[MAX_DPATH];
-	if (!cfgfile_string (option, value, name, tmploc, 256))
+	if (!cfgfile_string (option, value, name, tmploc, PATH_MAX))
 		return 0;
 	for (int i = 0; i < MAX_PATHS; i++) {
 		if (mp->path[i][0] == 0 || (i == 0 && (!_tcscmp (mp->path[i], _T(".\\")) || !_tcscmp (mp->path[i], _T("./"))))) {
 			TCHAR *s = target_expand_environment (tmploc, NULL, 0);
-			_tcsncpy (mp->path[i], s, 256 - 1);
-			mp->path[i][256 - 1] = 0;
+			_tcsncpy (mp->path[i], s, PATH_MAX - 1);
+			mp->path[i][PATH_MAX - 1] = 0;
 			fixtrailing (mp->path[i]);
 			xfree (s);
+			target_multipath_modified(p);
 			return 1;
 		}
 	}
@@ -2934,10 +2926,10 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 		*tmpp = '\0';
 		if (_tcscmp (section, TARGET_NAME) == 0) {
 			/* We special case the various path options here.  */
-			if (cfgfile_multipath (option, value, _T("rom_path"), &p->path_rom)
-				|| cfgfile_multipath (option, value, _T("floppy_path"), &p->path_floppy)
-				|| cfgfile_multipath (option, value, _T("cd_path"), &p->path_cd)
-				|| cfgfile_multipath (option, value, _T("hardfile_path"), &p->path_hardfile))
+			if (cfgfile_multipath (option, value, _T("rom_path"), &p->path_rom, p)
+				|| cfgfile_multipath (option, value, _T("floppy_path"), &p->path_floppy, p)
+				|| cfgfile_multipath (option, value, _T("cd_path"), &p->path_cd, p)
+				|| cfgfile_multipath (option, value, _T("hardfile_path"), &p->path_hardfile, p))
 				return 1;
 			return target_parse_option (p, option, value);
 		}
@@ -2946,11 +2938,7 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 
 	for (i = 0; i < MAX_SPARE_DRIVES; i++) {
 		_stprintf (tmpbuf, _T("diskimage%d"), i);
-		if (cfgfile_path (option, value, tmpbuf, p->dfxlist[i], sizeof p->dfxlist[i] / sizeof (TCHAR), &p->path_floppy)) {
-#if 0
-			if (i < 4 && !p->df[i][0])
-				_tcscpy (p->df[i], p->dfxlist[i]);
-#endif
+		if (cfgfile_string(option, value, tmpbuf, p->dfxlist[i], sizeof p->dfxlist[i] / sizeof(TCHAR))) {
 			return 1;
 		}
 	}
@@ -3008,9 +2996,7 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 					cfgfile_intval (option, next, tmp, &unitnum, 1);
 				}
 				if (_tcslen (value) > 0) {
-					TCHAR *s = cfgfile_get_multipath (&p->path_cd, NULL, value, false);
-					_tcsncpy (p->cdslots[i].name, s, sizeof p->cdslots[i].name / sizeof (TCHAR));
-					xfree (s);
+					_tcsncpy (p->cdslots[i].name, value, sizeof p->cdslots[i].name / sizeof (TCHAR));
 				}
 				p->cdslots[i].name[sizeof p->cdslots[i].name - 1] = 0;
 				p->cdslots[i].inuse = true;
@@ -3127,14 +3113,14 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 		|| cfgfile_intval (option, value, _T("floppy_channel_mask"), &p->dfxclickchannelmask, 1))
 		return 1;
 
-	if (cfgfile_pathext (option, value, _T("floppy0soundext"), p->floppyslots[0].dfxclickexternal, sizeof p->floppyslots[0].dfxclickexternal / sizeof (TCHAR))
-		|| cfgfile_pathext (option, value, _T("floppy1soundext"), p->floppyslots[1].dfxclickexternal, sizeof p->floppyslots[1].dfxclickexternal / sizeof (TCHAR))
-		|| cfgfile_pathext (option, value, _T("floppy2soundext"), p->floppyslots[2].dfxclickexternal, sizeof p->floppyslots[2].dfxclickexternal / sizeof (TCHAR))
-		|| cfgfile_pathext (option, value, _T("floppy3soundext"), p->floppyslots[3].dfxclickexternal, sizeof p->floppyslots[3].dfxclickexternal / sizeof (TCHAR))
+	if (cfgfile_string(option, value, _T("floppy0soundext"), p->floppyslots[0].dfxclickexternal, sizeof p->floppyslots[0].dfxclickexternal / sizeof (TCHAR))
+		|| cfgfile_string(option, value, _T("floppy1soundext"), p->floppyslots[1].dfxclickexternal, sizeof p->floppyslots[1].dfxclickexternal / sizeof (TCHAR))
+		|| cfgfile_string(option, value, _T("floppy2soundext"), p->floppyslots[2].dfxclickexternal, sizeof p->floppyslots[2].dfxclickexternal / sizeof (TCHAR))
+		|| cfgfile_string(option, value, _T("floppy3soundext"), p->floppyslots[3].dfxclickexternal, sizeof p->floppyslots[3].dfxclickexternal / sizeof (TCHAR))
 		|| cfgfile_string(option, value, _T("debugging_options"), p->debugging_options, sizeof p->debugging_options / sizeof(TCHAR))
-		|| cfgfile_string (option, value, _T("config_window_title"), p->config_window_title, sizeof p->config_window_title / sizeof (TCHAR))
-		|| cfgfile_string (option, value, _T("config_info"), p->info, sizeof p->info / sizeof (TCHAR))
-		|| cfgfile_string (option, value, _T("config_description"), p->description, sizeof p->description / sizeof (TCHAR)))
+		|| cfgfile_string(option, value, _T("config_window_title"), p->config_window_title, sizeof p->config_window_title / sizeof (TCHAR))
+		|| cfgfile_string(option, value, _T("config_info"), p->info, sizeof p->info / sizeof (TCHAR))
+		|| cfgfile_string(option, value, _T("config_description"), p->description, sizeof p->description / sizeof (TCHAR)))
 		return 1;
 
 	if (cfgfile_yesno(option, value, _T("use_debugger"), &p->start_debugger)
@@ -4305,8 +4291,10 @@ static bool parse_geo (const TCHAR *tname, struct uaedev_config_info *uci, struc
 	TCHAR tmp[200], section[200];
 	struct ini_data *ini;
 	bool ret = false;
+	TCHAR tgname[MAX_DPATH];
 
-	ini = ini_load(tname);
+	cfgfile_resolve_path_out(tname, tgname, MAX_DPATH, PATH_HDF);
+	ini = ini_load(tgname);
 	if (!ini)
 		return ret;
 
@@ -4336,7 +4324,7 @@ static bool parse_geo (const TCHAR *tname, struct uaedev_config_info *uci, struc
 
 	if (found) {
 		ret = true;
-		write_log(_T("Geometry file '%s' section '%s' found\n"), tname, section);
+		write_log(_T("Geometry file '%s' section '%s' found\n"), tgname, section);
 		if (addgeom) {
 			_tcscpy(uci->geometry, tname);
 		}
@@ -4736,10 +4724,6 @@ empty_fs:
 			memmove (uci.rootdir, uci.rootdir + 2, (_tcslen (uci.rootdir + 2) + 1) * sizeof (TCHAR));
 			uci.rootdir[0] = ':';
 		}
-#if 0
-		str = cfgfile_subst_path_load (UNEXPANDED, &p->path_hardfile, uci.rootdir, false);
-		_tcscpy (uci.rootdir, str);
-#endif
 	}
 	if (uci.geometry[0]) {
 		parse_geo(uci.geometry, &uci, NULL, false, true);
@@ -5519,7 +5503,7 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 
 	for (i = 0; i < 4; i++) {
 		_stprintf (tmpbuf, _T("floppy%d"), i);
-		if (cfgfile_path (option, value, tmpbuf, p->floppyslots[i].df, sizeof p->floppyslots[i].df / sizeof (TCHAR), &p->path_floppy))
+		if (cfgfile_string(option, value, tmpbuf, p->floppyslots[i].df, sizeof p->floppyslots[i].df / sizeof(TCHAR)))
 			return 1;
 	}
 
@@ -6272,14 +6256,17 @@ static int cfgfile_load_2 (struct uae_prefs *p, const TCHAR *filename, bool real
 				cfgfile_path (line1b, line2b, _T("config_all_path"), p->config_all_path, sizeof p->config_all_path / sizeof(TCHAR));
 				cfgfile_string (line1b, line2b, _T("config_window_title"), p->config_window_title, sizeof p->config_window_title / sizeof (TCHAR));
 				// boxart checks
-				cfgfile_path(line1b, line2b, _T("floppy0"), p->floppyslots[0].df, sizeof p->floppyslots[0].df / sizeof(TCHAR));
+				cfgfile_string(line1b, line2b, _T("floppy0"), p->floppyslots[0].df, sizeof p->floppyslots[0].df / sizeof(TCHAR));
+				cfgfile_resolve_path(p->floppyslots[0].df, MAX_DPATH, PATH_FLOPPY);
 				TCHAR tmp[MAX_DPATH];
 				if (!p->mountitems && (cfgfile_string(line1b, line2b, _T("hardfile2"), tmp, sizeof tmp / sizeof(TCHAR)) || cfgfile_string(line1b, line2b, _T("filesystem2"), tmp, sizeof tmp / sizeof(TCHAR)))) {
 					const TCHAR *s = _tcschr(tmp, ':');
 					if (s) {
+						bool isvsys = false;
 						if (!_tcscmp(line1b, _T("filesystem2"))) {
 							s++;
 							s = _tcschr(s, ':');
+							isvsys = true;
 						}
 						if (s) {
 							s++;
@@ -6292,7 +6279,7 @@ static int cfgfile_load_2 (struct uae_prefs *p, const TCHAR *filename, bool real
 							if (se) {
 								tmp[se - tmp] = 0;
 								_tcscpy(p->mountconfig[0].ci.rootdir, s);
-								cfgfile_adjust_path(p->mountconfig[0].ci.rootdir, MAX_DPATH, NULL);
+								cfgfile_resolve_path(p->mountconfig[0].ci.rootdir, MAX_DPATH, isvsys ? PATH_DIR : PATH_HDF);
 								p->mountitems = 1;
 							}
 						}
@@ -6310,8 +6297,8 @@ static int cfgfile_load_2 (struct uae_prefs *p, const TCHAR *filename, bool real
 						if (se)
 							tmp[se - tmp] = 0;
 					}
-					cfgfile_adjust_path(s, MAX_DPATH, NULL);
 					_tcscpy(p->cdslots[0].name, s);
+					cfgfile_resolve_path(p->cdslots[0].name, MAX_DPATH, PATH_CD);
 					p->cdslots[0].inuse = 1;
 				}
 			}
@@ -6330,8 +6317,6 @@ static int cfgfile_load_2 (struct uae_prefs *p, const TCHAR *filename, bool real
 		cfgfile_parse_line (p, line, 0);
 	}
 
-	for (i = 0; i < 4; i++)
-		subst (p->path_floppy.path[0], p->floppyslots[i].df, sizeof p->floppyslots[i].df / sizeof (TCHAR));
 	subst (p->path_rom.path[0], p->romfile, sizeof p->romfile / sizeof (TCHAR));
 	subst (p->path_rom.path[0], p->romextfile, sizeof p->romextfile / sizeof (TCHAR));
 	subst (p->path_rom.path[0], p->romextfile2, sizeof p->romextfile2 / sizeof (TCHAR));
@@ -6494,14 +6479,6 @@ bool cfgfile_detect_art(struct uae_prefs *p, TCHAR *path)
 	if (p->cdslots[0].inuse && cfgfile_detect_art_path(p->cdslots[0].name, path))
 		return true;
 	return false;
-}
-
-int cfgfile_configuration_change (int v)
-{
-	static int mode;
-	if (v >= 0)
-		mode = v;
-	return mode;
 }
 
 void cfgfile_show_usage (void)
@@ -7281,7 +7258,7 @@ uae_u8 *restore_configuration (uae_u8 *src)
 				for (int i = 0; i < MAX_SPARE_DRIVES; i++) {
 					_stprintf(tmp, _T("diskimage%d"), i);
 					if (!_tcscmp(option, tmp)) {
-						cfgfile_path(option, value, tmp, p->dfxlist[i], sizeof p->dfxlist[i] / sizeof(TCHAR), &p->path_floppy);
+						cfgfile_string(option, value, tmp, p->dfxlist[i], sizeof p->dfxlist[i] / sizeof(TCHAR));
 						break;
 					}
 				}

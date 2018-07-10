@@ -416,8 +416,10 @@ static void cd_statusline_label(int unitnum)
 {
 	TCHAR *p = currprefs.cdslots[unitnum].name;
 	if (p[0]) {
+		TCHAR name[MAX_DPATH];
 		struct device_info di;
-		const TCHAR *fname = my_getfilepart(p);
+		cfgfile_resolve_path_out(p, name, sizeof(name) / sizeof(TCHAR), PATH_CD);
+		const TCHAR *fname = my_getfilepart(name);
 		if (sys_command_info(unitnum, &di, 0) && di.volume_id[0])
 			statusline_add_message(STATUSTYPE_CD, _T("CD%d: [%s] %s"), unitnum, di.volume_id, fname);
 		else

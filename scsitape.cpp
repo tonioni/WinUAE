@@ -61,9 +61,11 @@ void tape_free (struct scsi_data_tape *tape)
 static void tape_init (int unit, struct scsi_data_tape *tape, const TCHAR *tape_directory, bool readonly)
 {
 	TCHAR path[MAX_DPATH];
+	TCHAR tape_dir_path[MAX_DPATH];
 
 	memset (tape, 0, sizeof (struct scsi_data_tape));
-	_tcscpy (tape->tape_dir, tape_directory);
+	cfgfile_resolve_path_out(tape_directory, tape_dir_path, MAX_DPATH, PATH_TAPE);
+	_tcscpy(tape->tape_dir, tape_dir_path);
 	path[0] = 0;
 
 	tape->blocksize = 512;
@@ -82,7 +84,7 @@ static void tape_init (int unit, struct scsi_data_tape *tape, const TCHAR *tape_
 			if (my_existsdir(tape->tape_dir)) {
 				tape->realdir = true;
 			} else {
-				_tcscpy(tape->tape_dir, tape_directory);
+				_tcscpy(tape->tape_dir, tape_dir_path);
 				zfile_fclose(tape->index);
 				tape->index = NULL;
 			}
@@ -95,7 +97,7 @@ static void tape_init (int unit, struct scsi_data_tape *tape, const TCHAR *tape_
 	}
 
 	if (!tape->index) {
-		_tcscpy(path, tape_directory);
+		_tcscpy(path, tape_dir_path);
 		_tcscat(path, FSDB_DIR_SEPARATOR_S);
 		_tcscat(path, TAPE_INDEX);
 		tape->index = zfile_fopen(path, _T("rb"), ZFD_NORMAL);

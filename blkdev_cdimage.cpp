@@ -98,7 +98,8 @@ struct cdunit {
 	int cdda_delay, cdda_delay_frames;
 	bool thread_active;
 
-	TCHAR imgname[MAX_DPATH];
+	TCHAR imgname_in[MAX_DPATH];
+	TCHAR imgname_out[MAX_DPATH];
 	uae_sem_t sub_sem;
 	struct device_info di;
 #ifdef WITH_CHD
@@ -2173,7 +2174,7 @@ static struct device_info *info_device (int unitnum, struct device_info *di, int
 	di->sectorspertrack = (int)(cdu->cdsize / di->bytespersector);
 	if (ismedia (unitnum, 1)) {
 		di->media_inserted = 1;
-		_tcscpy (di->mediapath, cdu->imgname);
+		_tcscpy (di->mediapath, cdu->imgname_out);
 		di->audio_playing = cdu->cdda_play > 0;
 	}
 	memset (&di->toc, 0, sizeof (struct cd_toc_head));
@@ -2228,9 +2229,12 @@ static int open_device (int unitnum, const TCHAR *ident, int flags)
 
 	if (!cdu->open) {
 		uae_sem_init (&cdu->sub_sem, 0, 1);
-		cdu->imgname[0] = 0;
-		if (ident)
-			_tcscpy (cdu->imgname, ident);
+		cdu->imgname_out[0] = 0;
+		cdu->imgname_in[0] = 0;
+		if (ident) {
+			_tcscpy(cdu->imgname_in, ident);
+			cfgfile_resolve_path_out(cdu->imgname_in, cdu->imgname_out, MAX_DPATH, PATH_CD);
+		}
 		parse_image (cdu, ident);
 		cdu->open = true;
 		cdu->enabled = true;
@@ -2244,7 +2248,7 @@ static int open_device (int unitnum, const TCHAR *ident, int flags)
 		}
 		ret = 1;
 	}
-	blkdev_cd_change (unitnum, cdu->imgname);
+	blkdev_cd_change (unitnum, cdu->imgname_in);
 	return ret;
 }
 
@@ -2266,7 +2270,7 @@ static void close_device (int unitnum)
 		unload_image (cdu);
 		uae_sem_destroy (&cdu->sub_sem);
 	}
-	blkdev_cd_change (unitnum, cdu->imgname);
+	blkdev_cd_change (unitnum, cdu->imgname_in);
 }
 
 static void close_bus (void)

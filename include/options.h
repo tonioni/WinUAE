@@ -30,6 +30,7 @@ struct multipath {
 	TCHAR path[MAX_PATHS][PATH_MAX];
 };
 
+#define PATH_NONE -1
 #define PATH_FLOPPY 0
 #define PATH_CD 1
 #define PATH_DIR 2
@@ -910,6 +911,7 @@ extern int target_cfgfile_load (struct uae_prefs *, const TCHAR *filename, int t
 extern void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type);
 extern int target_get_display (const TCHAR*);
 extern const TCHAR *target_get_display_name (int, bool);
+extern void target_multipath_modified(struct uae_prefs *);
 extern void cfgfile_resolve_path_out(const TCHAR *path, TCHAR *out, int size, int type);
 extern void cfgfile_resolve_path(TCHAR *path, int size, int type);
 
@@ -931,7 +933,6 @@ extern int built_in_prefs (struct uae_prefs *p, int model, int config, int compa
 extern int built_in_chipset_prefs (struct uae_prefs *p);
 extern int built_in_cpuboard_prefs(struct uae_prefs *p);
 extern int cmdlineparser (const TCHAR *s, TCHAR *outp[], int max);
-extern int cfgfile_configuration_change (int);
 extern void fixup_prefs_dimensions (struct uae_prefs *prefs);
 extern void fixup_prefs (struct uae_prefs *prefs, bool userconfig);
 extern void fixup_cpu (struct uae_prefs *prefs);

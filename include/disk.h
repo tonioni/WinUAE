@@ -69,7 +69,7 @@ extern void disk_insert (int num, const TCHAR *name);
 extern void disk_insert (int num, const TCHAR *name, bool forcedwriteprotect);
 extern void disk_insert_force (int num, const TCHAR *name, bool forcedwriteprotect);
 extern void DISK_vsync (void);
-extern int DISK_validate_filename (struct uae_prefs *p, const TCHAR *fname, int leave_open, bool *wrprot, uae_u32 *crc32, struct zfile **zf);
+extern int DISK_validate_filename (struct uae_prefs *p, const TCHAR *fname, TCHAR *outfname, int leave_open, bool *wrprot, uae_u32 *crc32, struct zfile **zf);
 extern void DISK_handler (uae_u32);
 extern void DISK_update (int hpos);
 extern void DISK_update_adkcon (int hpos, uae_u16 v);

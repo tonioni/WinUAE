@@ -2346,7 +2346,6 @@ int check_prefs_changed_gfx (void)
 		int keepfsmode = 
 			currprefs.gfx_apmode[0].gfx_fullscreen == changed_prefs.gfx_apmode[0].gfx_fullscreen && 
 			currprefs.gfx_apmode[1].gfx_fullscreen == changed_prefs.gfx_apmode[1].gfx_fullscreen;
-		cfgfile_configuration_change (1);
 
 		currprefs.gfx_autoresolution = changed_prefs.gfx_autoresolution;
 		currprefs.gfx_autoresolution_vga = changed_prefs.gfx_autoresolution_vga;
