@@ -3090,9 +3090,11 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
 			break;
 		case IDC_FLASHFILE:
 			_tcscpy (workprefs.flashfile, full_path);
+			fullpath(workprefs.flashfile, MAX_DPATH);
 			break;
 		case IDC_RTCFILE:
 			_tcscpy (workprefs.rtcfile, full_path);
+			fullpath(workprefs.rtcfile, MAX_DPATH);
 			break;
 		case IDC_CARTFILE:
 			_tcscpy (workprefs.cartfile, full_path);

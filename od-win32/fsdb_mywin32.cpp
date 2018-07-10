@@ -1005,8 +1005,6 @@ bool my_createshortcut(const TCHAR *source, const TCHAR *target, const TCHAR *de
 
 bool my_resolvesoftlink(TCHAR *linkfile, int size)
 {
-	TCHAR tmp[MAX_DPATH];
-
 	int v = my_resolvessymboliclink2(linkfile, size);
 	if (v > 0)
 		return true;
@@ -1014,10 +1012,6 @@ bool my_resolvesoftlink(TCHAR *linkfile, int size)
 		return false;
 	if (my_resolveshortcut(linkfile,size))
 		return true;
-	if (size > 0) {
-		_tcscpy (tmp, linkfile);
-		my_canonicalize_path (tmp, linkfile, size);
-	}
 	return false;
 }
 
