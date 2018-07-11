@@ -36,6 +36,7 @@
 #include <ks.h>
 #include <ksmedia.h>
 #include <Audioclient.h>
+#include <audiopolicy.h>
 #include <Mmdeviceapi.h>
 #include <Functiondiscoverykeys_devpkey.h>
 #include <al.h>
@@ -47,6 +48,7 @@
 #include "sounddep/sound.h"
 
 #define USE_XAUDIO 0
+#define WASAPI_SESSION_NOTIFICATION 0
 
 struct sound_dp
 {
@@ -97,6 +99,11 @@ struct sound_dp
 	IAudioRenderClient *pRenderClient;
 	ISimpleAudioVolume *pAudioVolume;
 	IMMDeviceEnumerator *pEnumerator;
+#if WASAPI_SESSION_NOTIFICATION
+	IAudioSessionManager *pManager;
+	IAudioSessionControl *pControl;
+	void *sessionotificationobject;
+#endif
 	IAudioClock *pAudioClock;
 	UINT64 wasapiclock;
 	UINT32 bufferFrameCount;
@@ -1139,30 +1146,135 @@ public:
 	}
 };
 
-static void add_wasapi_notification(struct sound_data *sd, IMMDeviceEnumerator *pEnumerator)
+static void add_wasapi_endpointnotification(struct sound_data *sd)
 {
+	struct sound_dp *s = sd->data;
 	static bool notificationcallback;
 	if (notificationcallback)
 		return;
 	UAEIMMNotificationClient *imm = new UAEIMMNotificationClient(sd);
-	HRESULT hr = pEnumerator->RegisterEndpointNotificationCallback(imm);
+	HRESULT hr = s->pEnumerator->RegisterEndpointNotificationCallback(imm);
 	notificationcallback = true;
 	if (FAILED(hr))
 		write_log(_T("RegisterEndpointNotificationCallback failed %08x\n"), hr);
 }
 
-static void close_audio_wasapi (struct sound_data *sd)
+#if WASAPI_SESSION_NOTIFICATION
+
+class UAEAudioSessionControl : public IAudioSessionEvents
+{
+	LONG _cRef;
+	struct sound_data *s;
+public:
+	UAEAudioSessionControl(struct sound_data *s) : _cRef(1)
+	{
+		this->s = s;
+	}
+	~UAEAudioSessionControl()
+	{
+	}
+	ULONG STDMETHODCALLTYPE AddRef()
+	{
+		return InterlockedIncrement(&_cRef);
+	}
+	ULONG STDMETHODCALLTYPE Release()
+	{
+		ULONG ulRef = InterlockedDecrement(&_cRef);
+		if (!ulRef) {
+			delete this;
+		}
+		return ulRef;
+	}
+	HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, VOID **ppvInterface)
+	{
+		if (IID_IUnknown == riid) {
+			AddRef();
+			*ppvInterface = (IUnknown*)this;
+		}
+		else if (__uuidof(IAudioSessionEvents) == riid) {
+			AddRef();
+			*ppvInterface = (IAudioSessionEvents*)this;
+		}
+		else {
+			*ppvInterface = NULL;
+			return E_NOINTERFACE;
+		}
+		return S_OK;
+	}
+	HRESULT STDMETHODCALLTYPE OnDisplayNameChanged(LPCWSTR NewDisplayName, LPCGUID EventContext)
+	{
+		return S_OK;
+	}
+	HRESULT STDMETHODCALLTYPE OnIconPathChanged(PCWSTR NewIconPath, LPCGUID EventContext)
+	{
+		return S_OK;
+	}
+	HRESULT STDMETHODCALLTYPE OnSimpleVolumeChanged(float NewVolume, BOOL NewMute, LPCGUID EventContext)
+	{
+		return S_OK;
+	}
+	HRESULT STDMETHODCALLTYPE OnChannelVolumeChanged(DWORD ChannelCount, float NewChannelVolumeArray[], DWORD ChangedChannel, LPCGUID EventContext)
+	{
+		return S_OK;
+	}
+	HRESULT STDMETHODCALLTYPE OnGroupingParamChanged(LPCGUID NewGroupingParam, LPCGUID EventContext)
+	{
+		return S_OK;
+	}
+	HRESULT STDMETHODCALLTYPE OnStateChanged(AudioSessionState NewState)
+	{
+		write_log(_T("WASAPI OnStateChanged %08x\n"), NewState);
+		return S_OK;
+	}
+	HRESULT STDMETHODCALLTYPE OnSessionDisconnected(AudioSessionDisconnectReason DisconnectReason)
+	{
+		write_log(_T("WASAPI OnSessionDisconnected %08x\n"), DisconnectReason);
+		return S_OK;
+	}
+};
+
+static void add_wasapi_sessionnotification(struct sound_data *sd)
+{
+	struct sound_dp *s = sd->data;
+	UAEAudioSessionControl *asc = new UAEAudioSessionControl(sd);
+	s->sessionotificationobject = NULL;
+	if (s->pControl) {
+		HRESULT hr = s->pControl->RegisterAudioSessionNotification(asc);
+		if (FAILED(hr)) {
+			write_log(_T("RegisterAudioSessionNotification failed %08x\n"), hr);
+			delete asc;
+		} else {
+			write_log(_T("RegisterAudioSessionNotification\n"));
+			s->sessionotificationobject = asc;
+		}
+	}
+}
+
+#endif
+
+static void close_audio_wasapi(struct sound_data *sd)
 {
 	struct sound_dp *s = sd->data;
 
 	if (s->pRenderClient)
-		s->pRenderClient->Release ();
+		s->pRenderClient->Release();
 	if (s->pAudioVolume)
-		s->pAudioVolume->Release ();
+		s->pAudioVolume->Release();
 	if (s->pAudioClock)
-		s->pAudioClock->Release ();
+		s->pAudioClock->Release();
 	if (s->pAudioClient)
-		s->pAudioClient->Release ();
+		s->pAudioClient->Release();
+#if WASAPI_SESSION_NOTIFICATION
+	if (s->pControl) {
+		if (s->sessionotificationobject) {
+			s->pControl->UnregisterAudioSessionNotification((UAEAudioSessionControl*)s->sessionotificationobject);
+			delete s->sessionotificationobject;
+		}
+		s->pControl->Release();
+	}
+	if (s->pManager)
+		s->pManager->Release();
+#endif
 	if (s->pDevice)
 		s->pDevice->Release ();
 	if (s->pEnumerator)
@@ -1232,10 +1344,21 @@ retry:
 		s->AudioClientVersion = 1;
 		hr = s->pDevice->Activate (__uuidof(IAudioClient), CLSCTX_ALL, NULL, (void**)&s->pAudioClient);
 		if (FAILED (hr)) {
-			write_log (_T("WASAPI: Activate() %08X\n"), hr);
+			write_log (_T("WASAPI: Activate(IAudioClient) %08X\n"), hr);
 			goto error;
 		}
 	}
+
+#if WASAPI_SESSION_NOTIFICATION
+	hr = s->pDevice->Activate(__uuidof(IAudioSessionManager), CLSCTX_ALL, NULL, (void**)&s->pManager);
+	if (FAILED(hr)) {
+		write_log(_T("WASAPI: Activate(IAudioSessionManager) %08X\n"), hr);
+	} else {
+		hr = s->pManager->GetAudioSessionControl(NULL, 0, &s->pControl);
+		if (FAILED(hr))
+			write_log(_T("WASAPI: GetAudioSessionControl() %08X\n"), hr);
+	}
+#endif
 
 	hr = s->pAudioClient->GetMixFormat (&pwfx);
 	if (FAILED (hr)) {
@@ -1544,7 +1667,10 @@ retry:
 		s->pullmode ? _T("Pull") : _T("Push"),
 		sd->channels, sd->freq, sd->sndbufsize / sd->samplesize, s->bufferFrameCount);
 
-	add_wasapi_notification(sd, s->pEnumerator);
+	add_wasapi_endpointnotification(sd);
+#if WASAPI_SESSION_NOTIFICATION
+	add_wasapi_sessionnotification(sd);
+#endif
 
 	CoTaskMemFree (pwfx);
 	CoTaskMemFree (pwfx_saved);
