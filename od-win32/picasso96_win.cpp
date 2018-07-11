@@ -4686,9 +4686,11 @@ static void *render_thread(void *v)
 		struct amigadisplay *ad = &adisplays[monid];
 		if (ad->picasso_on && ad->picasso_requested_on) {
 			lockrtg();
-			struct picasso96_state_struct *state = &picasso96_state[monid];
-			picasso_flushpixels(idx, gfxmem_banks[idx]->start + natmem_offset, state->XYOffset - gfxmem_banks[idx]->start, false);
-			ad->pending_render = true;
+			if (ad->picasso_requested_on) {
+				struct picasso96_state_struct *state = &picasso96_state[monid];
+				picasso_flushpixels(idx, gfxmem_banks[idx]->start + natmem_offset, state->XYOffset - gfxmem_banks[idx]->start, false);
+				ad->pending_render = true;
+			}
 			unlockrtg();
 		}
 	}
@@ -5091,6 +5093,8 @@ void picasso_reset(int monid)
 		}
 	}
 
+	lockrtg();
+
 	rtg_index = -1;
 	if (savestate_state != STATE_RESTORE) {
 		uaegfx_base = 0;
@@ -5101,9 +5105,17 @@ void picasso_reset(int monid)
 		resetpalette(state);
 		InitPicasso96(monid);
 	}
+
 	if (is_uaegfx_active() && currprefs.rtgboards[0].monitor_id > 0) {
 		close_rtg(currprefs.rtgboards[0].monitor_id);
 	}
+
+	for (int i = 0; i < MAX_AMIGADISPLAYS; i++) {
+		struct amigadisplay *ad = &adisplays[i];
+		ad->picasso_requested_on = false;
+	}
+
+	unlockrtg();
 }
 
 void uaegfx_install_code (uaecptr start)

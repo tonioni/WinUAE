@@ -165,7 +165,7 @@ struct vidbuf_description
 
 struct amigadisplay
 {
-	bool picasso_requested_on;
+	volatile bool picasso_requested_on;
 	bool picasso_requested_forced_on;
 	bool picasso_on;
 	int picasso_redraw_necessary;
