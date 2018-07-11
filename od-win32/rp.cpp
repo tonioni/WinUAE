@@ -522,6 +522,8 @@ static int port_insert (int inputmap_port, int devicetype, DWORD flags, const TC
 	if (devicetype == RP_INPUTDEVICE_JOYSTICK || devicetype == RP_INPUTDEVICE_GAMEPAD || devicetype == RP_INPUTDEVICE_JOYPAD) {
 		if (inputmap_port >= 0 && inputmap_port < 4) {
 			dacttype[inputmap_port] = devicetype;
+			inputdevice_compa_clear(&changed_prefs, inputmap_port);
+			inputdevice_joyport_config(&changed_prefs, _T("none"), NULL, inputmap_port, 0, 0, true);
 			return 1;
 		}
 		return 0;

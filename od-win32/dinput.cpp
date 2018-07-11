@@ -2155,7 +2155,7 @@ static void handle_rawinput_2 (RAWINPUT *raw, LPARAM lParam)
 		USHORT usButtonFlags = rm->usButtonFlags;
 
 #ifdef RETROPLATFORM
-		if (usButtonFlags) {
+		if (usButtonFlags && isfocus() != 0) {
 			usButtonFlags = rp_rawbuttons(lParam, usButtonFlags);
 		}
 #endif
