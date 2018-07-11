@@ -13597,6 +13597,12 @@ static INT_PTR CALLBACK HardfileSettingsProc (HWND hDlg, UINT msg, WPARAM wParam
 					addhistorymenu(hDlg, current_hfdlg.ci.rootdir, IDC_PATH_NAME, HISTORY_HDF, false);
 				}
 				break;
+			case IDC_PATH_FILESYS:
+				getcomboboxtext(hDlg, IDC_PATH_FILESYS, current_hfdlg.ci.filesys, sizeof current_hfdlg.ci.filesys / sizeof(TCHAR));
+				if (HIWORD(wParam) == CBN_KILLFOCUS) {
+					addhistorymenu(hDlg, current_hfdlg.ci.filesys, IDC_PATH_FILESYS, HISTORY_FS, false);
+				}
+				break;
 			}
 		}
 
@@ -13619,33 +13625,27 @@ static INT_PTR CALLBACK HardfileSettingsProc (HWND hDlg, UINT msg, WPARAM wParam
 				}
 				break;
 			case IDC_HDF_CONTROLLER_UNIT:
-				posn = SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER_UNIT, CB_GETCURSEL, 0, 0);
+				posn = SendDlgItemMessage(hDlg, IDC_HDF_CONTROLLER_UNIT, CB_GETCURSEL, 0, 0);
 				if (posn != CB_ERR) {
 					if (current_hfdlg.ci.controller_type == HD_CONTROLLER_TYPE_PCMCIA)
 						current_hfdlg.ci.controller_type_unit = posn;
 					else
 						current_hfdlg.ci.controller_unit = posn;
-					sethardfile (hDlg);
+					sethardfile(hDlg);
 				}
 				break;
 			case IDC_HDF_CONTROLLER_TYPE:
-				posn = SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER_TYPE, CB_GETCURSEL, 0, 0);
+				posn = SendDlgItemMessage(hDlg, IDC_HDF_CONTROLLER_TYPE, CB_GETCURSEL, 0, 0);
 				if (posn != CB_ERR) {
 					current_hfdlg.ci.controller_media_type = posn;
 					sethardfile(hDlg);
 				}
 				break;
 			case IDC_HDF_FEATURE_LEVEL:
-				posn = SendDlgItemMessage (hDlg, IDC_HDF_FEATURE_LEVEL, CB_GETCURSEL, 0, 0);
+				posn = SendDlgItemMessage(hDlg, IDC_HDF_FEATURE_LEVEL, CB_GETCURSEL, 0, 0);
 				if (posn != CB_ERR) {
 					current_hfdlg.ci.unit_feature_level = posn;
 					sethardfile(hDlg);
-				}
-				break;
-			case IDC_PATH_FILESYS:
-				getcomboboxtext(hDlg, IDC_PATH_FILESYS, current_hfdlg.ci.filesys, sizeof  current_hfdlg.ci.filesys / sizeof(TCHAR));
-				if (HIWORD (wParam) == CBN_KILLFOCUS) {
-					addhistorymenu(hDlg, current_hfdlg.ci.filesys, IDC_PATH_FILESYS, HISTORY_FS, false);
 				}
 				break;
 			}
