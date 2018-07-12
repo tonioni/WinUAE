@@ -1,4 +1,14 @@
 
+Beta 5:
+
+- input.keyboard_type was always read as Amiga keyboard. If PC layout was set as default, keyboard layout was read incorrectly from config file.
+- Amiga reset during RTG rendering in RTG multithread mode could have caused a crash.
+- Modified Filesys path in hardfile dialog was not saved if dialog was exited with return key.
+- Don't attempt to resolve symbolic links or shortcuts when saving config file paths. (b4)
+- Only attempt to resolve symbolic links when directory filesystem accesses it (to simulate Amiga side link), not when opening disk images, hardfiles etc..
+- Fixed clipboard sharing (b1 update broke it)
+- Delay clipboard data transfer when screen mode changes to prevent situation where mode changed because of program taking over the system. (Emulator can't easily detect between all kinds of Amiga-side triggered native<>RTG mode changes or if it is user switching modes/alt-tabbing which triggers clipboard data transfer check)
+- Added Harddrives and Disk Swapper drag'n'drop workaround that fixes corrupted graphics during drag operation. (ListView_CreateDragImage seems to been broken since Vista or so..)
 
 Beta 4:
 
