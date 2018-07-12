@@ -1874,12 +1874,12 @@ int filesys_eject(int nr)
 }
 
 static uae_u32 heartbeat;
-static int heartbeat_count;
+static int heartbeat_count, heartbeat_count_cont;
 static int heartbeat_task;
 
 bool filesys_heartbeat(void)
 {
-	return heartbeat_count > 0;
+	return heartbeat_count_cont > 0;
 }
 
 // This uses filesystem process to reduce resource usage
@@ -9044,9 +9044,12 @@ void filesys_vsync (void)
 	if (heartbeat == get_long_host(rtarea_bank.baseaddr + RTAREA_HEARTBEAT)) {
 		if (heartbeat_count > 0)
 			heartbeat_count--;
+		if (heartbeat_count_cont > 0)
+			heartbeat_count_cont--;
 		return;
 	}
 	heartbeat = get_long_host(rtarea_bank.baseaddr + RTAREA_HEARTBEAT);
+	heartbeat_count_cont = 10;
 	cia_heartbeat ();
 
 	for (u = units; u; u = u->next) {

@@ -500,3 +500,8 @@ void devices_unpause(void)
 	pausevideograb(0);
 	ethernet_pause(0);
 }
+
+void devices_unsafeperiod(void)
+{
+	clipboard_unsafeperiod();
+}

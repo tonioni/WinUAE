@@ -61,6 +61,7 @@
 #include "rp.h"
 #endif
 #include "statusline.h"
+#include "devices.h"
 
 #define DM_DX_FULLSCREEN 1
 #define DM_W_FULLSCREEN 2
@@ -4287,6 +4288,7 @@ bool toggle_rtg (int monid, int mode)
 				gfxboard_toggle(r->monitor_id, -1, -1);
 				if (mode < -1)
 					return true;
+				devices_unsafeperiod();
 				gfxboard_rtg_disable(monid, old_index);
 				// can always switch from RTG to custom
 				if (ad->picasso_requested_on && ad->picasso_on) {
@@ -4360,6 +4362,7 @@ void toggle_fullscreen(int monid, int mode)
 		v = GFX_WINDOW;
 	}
 	*p = v;
+	devices_unsafeperiod();
 	updatewinfsmode(monid, &changed_prefs);
 }
 

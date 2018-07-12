@@ -3954,6 +3954,8 @@ void check_prefs_picasso(void)
 
 		if (ad->picasso_requested_on == ad->picasso_on && !ad->picasso_requested_forced_on)
 			continue;
+		 
+		devices_unsafeperiod();
 
 		if (!ad->picasso_requested_on && monid > 0) {
 			ad->picasso_requested_on = ad->picasso_on;

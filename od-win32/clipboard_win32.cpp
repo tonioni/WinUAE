@@ -26,9 +26,11 @@ int clipboard_debug;
 static HWND chwnd;
 static HDC hdc;
 static uaecptr clipboard_data;
-static int vdelay, signaling, initialized;
+static int vdelay, vdelay2;
+static int signaling, initialized;
 static uae_u8 *to_amiga;
 static uae_u32 to_amiga_size;
+static int to_amiga_phase;
 static int clipopen;
 static int clipactive;
 static int clipboard_change;
@@ -67,8 +69,6 @@ static void debugwrite (TrapContext *ctx, const TCHAR *name, uaecptr p, int size
 
 static uae_u32 to_amiga_start_cb(TrapContext *ctx, void *ud)
 {
-	if (!filesys_heartbeat())
-		return 0;
 	if (trap_get_long(ctx, clipboard_data) != 0)
 		return 0;
 	if (clipboard_debug) {
@@ -79,20 +79,18 @@ static uae_u32 to_amiga_start_cb(TrapContext *ctx, void *ud)
 #endif
 	trap_put_long(ctx, clipboard_data, to_amiga_size);
 	uae_Signal(trap_get_long(ctx, clipboard_data + 8), 1 << 13);
+	to_amiga_phase = 2;
 	return 1;
 }
 
 static void to_amiga_start(TrapContext *ctx)
 {
+	to_amiga_phase = 0;
 	if (!initialized)
 		return;
 	if (!clipboard_data)
 		return;
-	if (!ctx) {
-		trap_callback(to_amiga_start_cb, NULL);
-	} else {
-		to_amiga_start_cb(ctx, NULL);
-	}
+	to_amiga_phase = 1;
 }
 
 static uae_char *pctoamiga (const uae_char *txt)
@@ -988,21 +986,35 @@ static uae_u32 clipboard_vsync_cb(TrapContext *ctx, void *ud)
 
 void clipboard_vsync(void)
 {
-	if (!signaling || !clipboard_data)
-		return;
 	if (!filesys_heartbeat())
 		return;
-	vdelay--;
-	if (vdelay > 0)
+	if (!clipboard_data)
 		return;
-	trap_callback(clipboard_vsync_cb, NULL);
-	vdelay = 50;
+
+	if (signaling) {
+		vdelay--;
+		if (vdelay > 0)
+			return;
+
+		trap_callback(clipboard_vsync_cb, NULL);
+		vdelay = 50;
+	}
+
+	if (vdelay2 > 0) {
+		vdelay2--;
+		//write_log(_T("vdelay2 = %d\n"), vdelay2);
+	}
+
+	if (to_amiga_phase == 1 && vdelay2 <= 0) {
+		trap_callback(to_amiga_start_cb, NULL);
+	}
+
 }
 
 void clipboard_reset(void)
 {
 	write_log (_T("clipboard: reset (%08x)\n"), clipboard_data);
-	vdelay = 100;
+	clipboard_unsafeperiod();
 	clipboard_free_delayed ();
 	clipboard_data = 0;
 	signaling = 0;
@@ -1010,6 +1022,7 @@ void clipboard_reset(void)
 	xfree (to_amiga);
 	to_amiga = NULL;
 	to_amiga_size = 0;
+	to_amiga_phase = 0;
 	clip_disabled = false;
 	ReleaseDC (chwnd, hdc);
 }
@@ -1023,4 +1036,12 @@ void clipboard_init (HWND hwnd)
 void target_paste_to_keyboard(void)
 {
 	clipboard_read(NULL, chwnd, true);
+}
+
+// force 2 second delay before accepting new data
+void clipboard_unsafeperiod(void)
+{
+	vdelay2 = 100;
+	if (vdelay < 60)
+		vdelay = 60;
 }

@@ -17,6 +17,7 @@ void devices_restore_start(void);
 void device_check_config(void);
 void devices_pause(void);
 void devices_unpause(void);
+void devices_unsafeperiod(void);
 
 #define IRQ_SOURCE_PCI 0
 #define IRQ_SOURCE_SOUND 1
