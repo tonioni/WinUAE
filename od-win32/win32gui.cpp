@@ -1218,30 +1218,104 @@ static TCHAR *favoritepopup (HWND hwnd)
 
 /* base Drag'n'Drop code borrowed from http://www.codeproject.com/listctrl/jianghong.asp */
 
+// NOTE (TW):
+// ListView_CreateDragImage has been broken at least since Windows Vista?
+
 static int bDragging = 0;
 static HIMAGELIST hDragImageList;
+static int DragHeight;
 static int drag_start (HWND hWnd, HWND hListView, LPARAM lParam)
 {
-	POINT p, pt;
-	int bFirst, iPos, iHeight;
-	HIMAGELIST hOneImageList, hTempImageList;
-	IMAGEINFO imf;
+	POINT pt;
+	int bFirst, iPos;
+	POINT offset;
 
-	// You can set your customized cursor here
-	p.x = 8;
-	p.y = 8;
+	offset.x = 0;
+	offset.y = 0;
+	pt = ((NM_LISTVIEW*)((LPNMHDR)lParam))->ptAction;
+	ClientToScreen(hListView, &pt);
+
 	// Ok, now we create a drag-image for all selected items
 	bFirst = TRUE;
 	iPos = ListView_GetNextItem(hListView, -1, LVNI_SELECTED);
 	while (iPos != -1) {
 		if (bFirst) {
-			// For the first selected item,
-			// we simply create a single-line drag image
-			hDragImageList = ListView_CreateDragImage(hListView, iPos, &p);
-			ImageList_GetImageInfo(hDragImageList, 0, &imf);
-			iHeight = imf.rcImage.bottom;
+			int width, height;
+			RECT rc2;
+			GetClientRect(hListView, &rc2);
+
+			if (!os_vista) {
+
+				IMAGEINFO imf;
+				POINT p;
+				// For the first selected item,
+				// we simply create a single-line drag image
+				hDragImageList = ListView_CreateDragImage(hListView, iPos, &p);
+				ImageList_GetImageInfo(hDragImageList, 0, &imf);
+				width = imf.rcImage.right;
+				height = imf.rcImage.bottom;
+
+			} else {
+
+				// ListView_CreateDragImage replacement hack follows..
+				RECT rc;
+				// Get Rectangle of selected ListView Item
+				ListView_GetItemRect(hListView, iPos, &rc, LVIR_BOUNDS);
+				if (rc.left < 0)
+					rc.left = 0;
+				if (rc.bottom < 0)
+					rc.bottom = 0;
+				width = rc.right - rc.left;
+				height = rc.bottom - rc.top;
+				if (width <= 0 || height <= 0)
+					return 0;
+				// Image becomes blank bar if visible part
+				// is smaller than complete width of item.
+				if (width > rc2.right - rc2.left)
+					width = rc2.right - rc2.left;
+				if (height > rc2.bottom - rc2.top)
+					height = rc2.bottom - rc2.top;
+
+				// Create HBITMAP of selected ListView Item
+				HDC hDC = GetDC(hListView);
+				if (hDC) {
+					HDC hMemDC = CreateCompatibleDC(hDC);
+					if (hMemDC) {
+
+						HBITMAP hBMP = CreateCompatibleBitmap(hDC, width, height);
+						if (hBMP) {
+							HGDIOBJ o = SelectObject(hMemDC, hBMP);
+							BitBlt(hMemDC, 0, 0, width, height, hDC, rc.left, rc.top, SRCCOPY);
+							SelectObject(hMemDC, o);
+						}
+
+						// Create ImageList, add HBITMAP to ImageList.
+						hDragImageList = ImageList_Create(width, height, ILC_COLOR24, 1, 1);
+						if (hBMP && hDragImageList) {
+							ImageList_Add(hDragImageList, hBMP, NULL);
+							DeleteObject(hBMP);
+						}
+
+						DeleteDC(hMemDC);
+					}
+					ReleaseDC(hListView, hDC);
+				}
+			}
+
+			offset.x = rc2.left;
+			offset.y = rc2.top;
+			ClientToScreen(hListView, &offset);
+				
+			offset.x = pt.x - offset.x;
+			offset.y = height;
+			DragHeight = height;
+
 			bFirst = FALSE;
+
 		} else {
+#if 0
+			IMAGEINFO imf;
+			HIMAGELIST hOneImageList, hTempImageList;
 			// For the rest selected items,
 			// we create a single-line drag image, then
 			// append it to the bottom of the complete drag image
@@ -1252,15 +1326,16 @@ static int drag_start (HWND hWnd, HWND hListView, LPARAM lParam)
 			hDragImageList = hTempImageList;
 			ImageList_GetImageInfo(hDragImageList, 0, &imf);
 			iHeight = imf.rcImage.bottom;
+#endif
 		}
 		iPos = ListView_GetNextItem(hListView, iPos, LVNI_SELECTED);
 	}
 
-	// Now we can initialize then start the drag action
-	ImageList_BeginDrag(hDragImageList, 0, 0, 0);
+	if (!hDragImageList)
+		return 0;
 
-	pt = ((NM_LISTVIEW*) ((LPNMHDR)lParam))->ptAction;
-	ClientToScreen(hListView, &pt);
+	// Now we can initialize then start the drag action
+	ImageList_BeginDrag(hDragImageList, 0, offset.x, offset.y);
 
 	ImageList_DragEnter(NULL, pt.x, pt.y);
 
@@ -1291,6 +1366,7 @@ static int drag_end (HWND hWnd, HWND hListView, LPARAM lParam, int **draggeditem
 	// Determine the dropped item
 	lvhti.pt.x = LOWORD(lParam);
 	lvhti.pt.y = HIWORD(lParam);
+	lvhti.pt.y -= DragHeight / 2;
 	ClientToScreen(hWnd, &lvhti.pt);
 	ScreenToClient(hListView, &lvhti.pt);
 	ListView_HitTest(hListView, &lvhti);
@@ -2014,6 +2090,8 @@ int scan_roms (HWND hDlg, int show)
 		return 0;
 	recursive++;
 
+	ret = 0;
+
 	regdeletetree (NULL, _T("DetectedROMs"));
 	fkey = regcreatetree (NULL, _T("DetectedROMs"));
 	if (fkey == NULL)
@@ -2029,7 +2107,6 @@ int scan_roms (HWND hDlg, int show)
 	}
 
 	cnt = 0;
-	ret = 0;
 	for (i = 0; i < MAX_ROM_PATHS; i++)
 		paths[i] = NULL;
 	scan_rom_hook (NULL, 0);
