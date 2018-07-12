@@ -242,7 +242,7 @@ void audio_sampleripper (int mode)
 			if (!name[0])
 				underline[0] = 0;
 			if (type >= 0)
-				cfgfile_resolve_path(name, sizeof(name) / sizeof(TCHAR), type);
+				cfgfile_resolve_path_load(name, sizeof(name) / sizeof(TCHAR), type);
 			namesplit (name);
 			_tcscpy (extension, _T("wav"));
 			_stprintf (filename, _T("%s%s%s%03d.%s"), path, name, underline, cnt, extension);

@@ -334,7 +334,7 @@ int get_filesys_unitconfig (struct uae_prefs *p, int index, struct mountedinfo *
 	if (!ui) {
 		ui = &uitmp;
 		if (uci->ci.type == UAEDEV_DIR) {
-			cfgfile_resolve_path_out(uci->ci.rootdir, filepath, MAX_DPATH, PATH_DIR);
+			cfgfile_resolve_path_out_load(uci->ci.rootdir, filepath, MAX_DPATH, PATH_DIR);
 			_tcscpy(mi->rootdir, filepath);
 			mi->ismounted = 1;
 			if (filepath[0] == 0)
@@ -348,7 +348,7 @@ int get_filesys_unitconfig (struct uae_prefs *p, int index, struct mountedinfo *
 			mi->ismedia = true;
 			return FILESYS_VIRTUAL;
 		} else if (uci->ci.type == UAEDEV_HDF) {
-			cfgfile_resolve_path_out(uci->ci.rootdir, filepath, MAX_DPATH, PATH_HDF);
+			cfgfile_resolve_path_out_load(uci->ci.rootdir, filepath, MAX_DPATH, PATH_HDF);
 			_tcscpy(mi->rootdir, filepath);
 			ui->hf.ci.readonly = true;
 			ui->hf.ci.blocksize = uci->ci.blocksize;
@@ -369,7 +369,7 @@ int get_filesys_unitconfig (struct uae_prefs *p, int index, struct mountedinfo *
 				mi->ismedia = 0;
 			hdf_close (&ui->hf);
 		} else if (uci->ci.type == UAEDEV_CD) {
-			cfgfile_resolve_path_out(uci->ci.rootdir, filepath, MAX_DPATH, PATH_CD);
+			cfgfile_resolve_path_out_load(uci->ci.rootdir, filepath, MAX_DPATH, PATH_CD);
 			_tcscpy(mi->rootdir, filepath);
 			struct device_info di;
 			ui->hf.ci.readonly = true;
@@ -397,7 +397,7 @@ int get_filesys_unitconfig (struct uae_prefs *p, int index, struct mountedinfo *
 		}
 	}
 	if (uci->ci.type == UAEDEV_TAPE) {
-		cfgfile_resolve_path_out(uci->ci.rootdir, filepath, MAX_DPATH, PATH_TAPE);
+		cfgfile_resolve_path_out_load(uci->ci.rootdir, filepath, MAX_DPATH, PATH_TAPE);
 		_tcscpy(mi->rootdir, filepath);
 		struct device_info di;
 		int unitnum = getuindex (p, index);
@@ -506,7 +506,7 @@ TCHAR *filesys_createvolname (const TCHAR *volname, const TCHAR *rootdir, struct
 	TCHAR *p = NULL;
 	TCHAR path[MAX_DPATH];
 
-	cfgfile_resolve_path_out(rootdir, path, MAX_DPATH, PATH_DIR);
+	cfgfile_resolve_path_out_load(rootdir, path, MAX_DPATH, PATH_DIR);
 
 	archivehd = -1;
 	if (my_existsfile (path))
@@ -701,7 +701,7 @@ static int set_filesys_unit_1 (int nr, struct uaedev_config_info *ci, bool custo
 	iscd = nr >= cd_unit_offset && nr < cd_unit_offset + cd_unit_number;
 
 	if (!custom)
-		cfgfile_resolve_path(c.rootdir, MAX_DPATH, iscd ? PATH_CD : (ci->volname[0] ? PATH_DIR : PATH_HDF));
+		cfgfile_resolve_path_load(c.rootdir, MAX_DPATH, iscd ? PATH_CD : (ci->volname[0] ? PATH_DIR : PATH_HDF));
 
 	for (i = 0; i < MAX_FILESYSTEM_UNITS; i++) {
 		if (nr == i || !mountinfo.ui[i].open || mountinfo.ui[i].rootdir == NULL || is_hardfile (i) == FILESYS_CD)
@@ -2747,7 +2747,7 @@ static int fill_file_attrs (Unit *u, a_inode *base, a_inode *c)
 static int test_softlink (a_inode *aino)
 {
 	int err;
-	if (aino->softlink && my_resolvesoftlink (aino->nname, -1))
+	if (aino->softlink && my_resolvesoftlink (aino->nname, -1, false))
 		err = ERROR_IS_SOFT_LINK;
 	else
 		err = ERROR_OBJECT_NOT_AROUND;
@@ -3915,7 +3915,7 @@ static void action_read_link(TrapContext *ctx, Unit *unit, dpacket *packet)
 	}
 	_tcscpy (tmp, a->nname);
 	write_log (_T("Resolving softlink '%s'\n"), tmp);
-	if (!my_resolvesoftlink (tmp, sizeof tmp / sizeof (TCHAR))) {
+	if (!my_resolvesoftlink (tmp, sizeof tmp / sizeof (TCHAR), false)) {
 		xfree(extrapath);
 		PUT_PCK_RES1 (packet, DOS_FALSE);
 		//  not sure what to return
@@ -8641,7 +8641,7 @@ static int dofakefilesys (TrapContext *ctx, UnitInfo *uip, uaecptr parmpacket, s
 
 	tmp[0] = 0;
 	if (uip->filesysdir && _tcslen (uip->filesysdir) > 0) {
-		cfgfile_resolve_path_out(uip->filesysdir, tmp, MAX_DPATH, PATH_HDF);
+		cfgfile_resolve_path_out_load(uip->filesysdir, tmp, MAX_DPATH, PATH_HDF);
 	} else if ((dostype & 0xffffff00) == DISK_TYPE_DOS) {
 		_tcscpy (tmp, currprefs.romfile);
 		int i = _tcslen (tmp);

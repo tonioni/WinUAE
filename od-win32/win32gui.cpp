@@ -20059,7 +20059,7 @@ int dragdrop (HWND hDlg, HDROP hd, struct uae_prefs *prefs, int	currentpage)
 		int mask;
 
 		DragQueryFile (hd, i, file, sizeof (file) / sizeof (TCHAR));
-		my_resolvesoftlink (file, sizeof file / sizeof (TCHAR));
+		my_resolvesoftlink (file, sizeof file / sizeof (TCHAR), true);
 		filepart = _tcsrchr (file, '/');
 		if (!filepart)
 			filepart = _tcsrchr (file, '\\');

@@ -110,7 +110,7 @@ static void cdtvcr_battram_reset (void)
 	int v;
 
 	memset (cdtvcr_ram, 0, CDTVCR_RAM_SIZE);
-	cfgfile_resolve_path_out(currprefs.flashfile, flashfilepath, MAX_DPATH, PATH_ROM);
+	cfgfile_resolve_path_out_load(currprefs.flashfile, flashfilepath, MAX_DPATH, PATH_ROM);
 	f = zfile_fopen (flashfilepath, _T("rb+"), ZFD_NORMAL);
 	if (!f) {
 		f = zfile_fopen (flashfilepath, _T("wb"), 0);

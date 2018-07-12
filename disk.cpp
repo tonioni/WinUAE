@@ -770,7 +770,7 @@ int DISK_validate_filename (struct uae_prefs *p, const TCHAR *fname_in, TCHAR *o
 	if (wrprot)
 		*wrprot = p->floppy_read_only ? 1 : 0;
 
-	cfgfile_resolve_path_out(fname_in, outname, MAX_DPATH, PATH_FLOPPY);
+	cfgfile_resolve_path_out_load(fname_in, outname, MAX_DPATH, PATH_FLOPPY);
 	if (outfname)
 		_tcscpy(outfname, outname);
 

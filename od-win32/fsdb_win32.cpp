@@ -435,7 +435,7 @@ int fsdb_fill_file_attrs (a_inode *base, a_inode *aino)
 		if (ext && !_tcsicmp (ext, _T(".lnk"))) {
 			TCHAR tmp[MAX_DPATH];
 			_tcscpy (tmp, aino->nname);
-			if (my_resolvesoftlink (tmp, sizeof tmp / sizeof (TCHAR))) {
+			if (my_resolvesoftlink (tmp, sizeof tmp / sizeof (TCHAR), false)) {
 				//write_log (_T("2 '%s'\n"), aino->nname);
 				ext = _tcsrchr (aino->aname, '.');
 				if (ext && !_tcsicmp (ext, _T(".lnk")))

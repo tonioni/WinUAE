@@ -386,7 +386,7 @@ static void create_virtual_rdb (struct hardfiledata *hfd)
 	if (hfd->ci.filesys[0]) {
 		struct zfile *f = NULL;
 		TCHAR fspath[MAX_DPATH];
-		cfgfile_resolve_path_out(hfd->ci.filesys, fspath, MAX_DPATH, PATH_HDF);
+		cfgfile_resolve_path_out_load(hfd->ci.filesys, fspath, MAX_DPATH, PATH_HDF);
 		filesys = zfile_load_file(fspath, &filesyslen);
 		if (filesys) {
 			fsver = get_filesys_version(filesys, filesyslen);
@@ -626,7 +626,7 @@ int hdf_open (struct hardfiledata *hfd, const TCHAR *pname)
 	hfd->virtual_rdb = NULL;
 	if (!pname)
 		pname = hfd->ci.rootdir;
-	cfgfile_resolve_path_out(pname, filepath, MAX_DPATH, PATH_HDF);
+	cfgfile_resolve_path_out_load(pname, filepath, MAX_DPATH, PATH_HDF);
 #ifdef WITH_CHD
 	TCHAR nametmp[MAX_DPATH];
 	_tcscpy (nametmp, filepath);

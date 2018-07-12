@@ -64,7 +64,7 @@ static void tape_init (int unit, struct scsi_data_tape *tape, const TCHAR *tape_
 	TCHAR tape_dir_path[MAX_DPATH];
 
 	memset (tape, 0, sizeof (struct scsi_data_tape));
-	cfgfile_resolve_path_out(tape_directory, tape_dir_path, MAX_DPATH, PATH_TAPE);
+	cfgfile_resolve_path_out_load(tape_directory, tape_dir_path, MAX_DPATH, PATH_TAPE);
 	_tcscpy(tape->tape_dir, tape_dir_path);
 	path[0] = 0;
 

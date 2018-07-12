@@ -450,7 +450,7 @@ int is_arcadia_rom (const TCHAR *path)
 static void nvram_write (void)
 {
 	TCHAR path[MAX_DPATH];
-	cfgfile_resolve_path_out(currprefs.flashfile, path, MAX_DPATH, PATH_ROM);
+	cfgfile_resolve_path_out_load(currprefs.flashfile, path, MAX_DPATH, PATH_ROM);
 	struct zfile *f = zfile_fopen (path, _T("rb+"), ZFD_NORMAL);
 	if (!f) {
 		f = zfile_fopen (path, _T("wb"), 0);
@@ -466,7 +466,7 @@ static void nvram_read (void)
 	struct zfile *f;
 
 	TCHAR path[MAX_DPATH];
-	cfgfile_resolve_path_out(currprefs.flashfile, path, MAX_DPATH, PATH_ROM);
+	cfgfile_resolve_path_out_load(currprefs.flashfile, path, MAX_DPATH, PATH_ROM);
 	f = zfile_fopen (path, _T("rb"), ZFD_NORMAL);
 	memset (arbmemory + nvram_offset, 0, NVRAM_SIZE);
 	if (!f)
@@ -600,7 +600,7 @@ static int algmemory_initialized;
 static void alg_nvram_write (void)
 {
 	TCHAR path[MAX_DPATH];
-	cfgfile_resolve_path_out(currprefs.flashfile, path, MAX_DPATH, PATH_ROM);
+	cfgfile_resolve_path_out_load(currprefs.flashfile, path, MAX_DPATH, PATH_ROM);
 	struct zfile *f = zfile_fopen (path, _T("rb+"), ZFD_NORMAL);
 	if (!f) {
 		f = zfile_fopen (path, _T("wb"), 0);
@@ -616,7 +616,7 @@ static void alg_nvram_read (void)
 	struct zfile *f;
 
 	TCHAR path[MAX_DPATH];
-	cfgfile_resolve_path_out(currprefs.flashfile, path, MAX_DPATH, PATH_ROM);
+	cfgfile_resolve_path_out_load(currprefs.flashfile, path, MAX_DPATH, PATH_ROM);
 	f = zfile_fopen (path, _T("rb"), ZFD_NORMAL);
 	memset (algmemory, 0, ALG_NVRAM_SIZE);
 	if (!f)

@@ -87,7 +87,7 @@ static void nvram_read (void)
 		cubo_nvram = cd32_nvram + currprefs.cs_cd32nvram_size;
 	}
 	TCHAR path[MAX_DPATH];
-	cfgfile_resolve_path_out(currprefs.flashfile, path, MAX_DPATH, PATH_ROM);
+	cfgfile_resolve_path_out_load(currprefs.flashfile, path, MAX_DPATH, PATH_ROM);
 	cd32_flashfile = zfile_fopen (path, _T("rb+"), ZFD_NORMAL);
 	if (!cd32_flashfile)
 		cd32_flashfile = zfile_fopen (path, _T("wb"), 0);

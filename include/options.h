@@ -913,8 +913,10 @@ extern void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type
 extern int target_get_display (const TCHAR*);
 extern const TCHAR *target_get_display_name (int, bool);
 extern void target_multipath_modified(struct uae_prefs *);
-extern void cfgfile_resolve_path_out(const TCHAR *path, TCHAR *out, int size, int type);
-extern void cfgfile_resolve_path(TCHAR *path, int size, int type);
+extern void cfgfile_resolve_path_out_load(const TCHAR *path, TCHAR *out, int size, int type);
+extern void cfgfile_resolve_path_load(TCHAR *path, int size, int type);
+extern void cfgfile_resolve_path_out_save(const TCHAR *path, TCHAR *out, int size, int type);
+extern void cfgfile_resolve_path_save(TCHAR *path, int size, int type);
 
 extern struct uae_prefs *cfgfile_open(const TCHAR *filename, int *type);
 extern void cfgfile_close(struct uae_prefs *p);

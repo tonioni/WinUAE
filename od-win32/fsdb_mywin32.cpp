@@ -1003,13 +1003,15 @@ bool my_createshortcut(const TCHAR *source, const TCHAR *target, const TCHAR *de
 }
 
 
-bool my_resolvesoftlink(TCHAR *linkfile, int size)
+bool my_resolvesoftlink(TCHAR *linkfile, int size, bool linkonly)
 {
-	int v = my_resolvessymboliclink2(linkfile, size);
-	if (v > 0)
-		return true;
-	if (v == 0)
-		return false;
+	if (!linkonly) {
+		int v = my_resolvessymboliclink2(linkfile, size);
+		if (v > 0)
+			return true;
+		if (v == 0)
+			return false;
+	}
 	if (my_resolveshortcut(linkfile,size))
 		return true;
 	return false;

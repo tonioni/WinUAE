@@ -2233,7 +2233,7 @@ static int open_device (int unitnum, const TCHAR *ident, int flags)
 		cdu->imgname_in[0] = 0;
 		if (ident) {
 			_tcscpy(cdu->imgname_in, ident);
-			cfgfile_resolve_path_out(cdu->imgname_in, cdu->imgname_out, MAX_DPATH, PATH_CD);
+			cfgfile_resolve_path_out_load(cdu->imgname_in, cdu->imgname_out, MAX_DPATH, PATH_CD);
 		}
 		parse_image (cdu, ident);
 		cdu->open = true;
