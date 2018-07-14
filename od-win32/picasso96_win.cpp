@@ -5300,11 +5300,21 @@ void picasso_free(void)
 	}
 }
 
+static uae_u32 p96_restored_flags;
+
 void restore_p96_finish (void)
 {
+	struct amigadisplay *ad = &adisplays[0];
+	struct picasso96_state_struct *state = &picasso96_state[0];
+	struct picasso_vidbuf_description *vidinfo = &picasso_vidinfo[0];
+
 	init_alloc (NULL, 0);
-	if (uaegfx_rom && boardinfo)
+	if (uaegfx_rom && boardinfo) {
 		inituaegfxfuncs(NULL, uaegfx_rom, boardinfo);
+		ad->picasso_requested_on = !!(p96_restored_flags & 1);
+		vidinfo->picasso_active = ad->picasso_requested_on;
+		set_config_changed();
+	}
 #if 0
 	if (picasso_requested_on) {
 		picasso_on = true;
@@ -5327,12 +5337,9 @@ uae_u8 *restore_p96 (uae_u8 *src)
 	if (restore_u32 () != 2)
 		return src;
 	InitPicasso96(0);
-	flags = restore_u32 ();
-	ad->picasso_requested_on = !!(flags & 1);
+	p96_restored_flags = flags = restore_u32 ();
 	hwsprite = !!(flags & 8);
 	cursorvisible = !!(flags & 16);
-	state->SwitchState = ad->picasso_requested_on;
-	ad->picasso_on = 0;
 	init_picasso_screen_called = 0;
 	set_gc_called = !!(flags & 2);
 	vidinfo->set_panning_called = !!(flags & 4);
