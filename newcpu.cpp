@@ -4690,6 +4690,8 @@ void doint (void)
 
 static int do_specialties (int cycles)
 {
+	bool stopped_debug = false;
+
 	if (regs.spcflags & SPCFLAG_MODE_CHANGE)
 		return 1;
 	
@@ -4888,13 +4890,23 @@ static int do_specialties (int cycles)
 		set_special (SPCFLAG_INT);
 	}
 
-	if (regs.spcflags & SPCFLAG_BRK) {
+	if ((regs.spcflags & SPCFLAG_BRK) || stopped_debug) {
 		unset_special(SPCFLAG_BRK);
 #ifdef DEBUGGER
+		if (stopped_debug && !regs.stopped) {
+			debugger_active = 1;
+			stopped_debug = false;
+		}
 		if (debugging) {
-			debug();
-			if (regs.stopped)
+			if (!stopped_debug)
+				debug();
+			if (regs.stopped) {
+				stopped_debug = true;
+				if (debugging) {
+					debugger_active = 0;
+				}
 				goto isstopped;
+			}
 		}
 #endif
 	}
