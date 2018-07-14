@@ -1,4 +1,10 @@
 
+Beta 6:
+
+- Statefiles now include full relative and absolute path (disks, harddrives etc), now supports restoring statefile paths correctly even if relative path mode changed between save and restore. Old versions ignore new fields, old statefiles work like previously.
+- When tracing ('t' debugger command) STOP instruction in debugger, break first when STOP is executed (like previously), next trace waits until STOP instruction exits. Previously STOP activated debugger immediately again.
+- Picasso96 statefile restore didn't restore screen state fully. (4.x bug)
+
 Beta 5:
 
 - input.keyboard_type was always read as Amiga keyboard. If PC layout was set as default, keyboard layout was read incorrectly from config file.

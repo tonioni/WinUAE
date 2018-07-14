@@ -1020,6 +1020,9 @@ static bool a2065_config (struct autoconfig_info *aci)
 {
 	uae_u8 maco[3];
 
+	if (!aci)
+		return false;
+
 	if (aci->postinit) {
 		configured = expamem_board_pointer >> 16;
 		return true;

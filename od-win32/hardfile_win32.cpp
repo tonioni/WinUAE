@@ -3681,9 +3681,18 @@ int harddrive_to_hdf (HWND hDlg, struct uae_prefs *p, int idx)
 			}
 		}
 		if (chsmode) {
-			do_scsi_read10_chs(h, -1, cyl, head, 1, (uae_u8*)cache, secs, &specialaccessmode, false);
-			get = 512 * secs;
-			got = 512 * secs;
+			int readsize = secs;
+			int seccnt = 0;
+			uae_u8 *p = (uae_u8*)cache;
+			while (seccnt < secs) {
+				if (seccnt + readsize > secs)
+					readsize = secs - seccnt;
+				do_scsi_read10_chs(h, -1, cyl, head, seccnt + 1, p, readsize, &specialaccessmode, false);
+				get = 512 * readsize;
+				got = 512 * readsize;
+				p += 512 * readsize;
+				seccnt += readsize;
+			}
 			head++;
 			if (head >= heads) {
 				head = 0;

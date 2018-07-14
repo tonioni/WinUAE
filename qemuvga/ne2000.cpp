@@ -1884,7 +1884,7 @@ static addrbank ariadne2_bank = {
 	ariadne2_lget, ariadne2_wget, ariadne2_bget,
 	ariadne2_lput, ariadne2_wput, ariadne2_bput,
 	default_xlate, default_check, NULL, _T("*"), _T("NE2000"),
-	ariadne2_wget, ariadne2_lget,
+	ariadne2_lget, ariadne2_wget,
 	ABFLAG_IO | ABFLAG_PPCIOSPACE, S_READ, S_WRITE
 };
 
