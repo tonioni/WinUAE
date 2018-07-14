@@ -2329,8 +2329,8 @@ uae_u8 *save_cd (int num, int *len)
 		return NULL;
 	if (!currprefs.cs_cd32cd && !currprefs.cs_cdtvcd && !currprefs.scsi)
 		return NULL;
-	dstbak = dst = xmalloc (uae_u8, 4 + 256 + 4 + 4);
-	save_u32 (4 | 8);
+	dstbak = dst = xmalloc (uae_u8, 4 + MAX_DPATH + 4 + 4 + 4 + 2 * MAX_DPATH);
+	save_u32 (4 | 8 | 16);
 	save_path (currprefs.cdslots[num].name, SAVESTATE_PATH_CD);
 	save_u32 (currprefs.cdslots[num].type);
 	save_u32 (0);
@@ -2339,6 +2339,7 @@ uae_u8 *save_cd (int num, int *len)
 	for (int i = 0; i < SUBQ_SIZE; i++)
 		save_u8 (st->play_qcode[i]);
 	save_u32 (st->play_end_pos);
+	save_path_full(currprefs.cdslots[num].name, SAVESTATE_PATH_CD);
 	*len = dst - dstbak;
 	return dstbak;
 }
@@ -2355,20 +2356,25 @@ uae_u8 *restore_cd (int num, uae_u8 *src)
 	s = restore_path (SAVESTATE_PATH_CD);
 	int type = restore_u32 ();
 	restore_u32 ();
-	if (flags & 4) {
-		if (currprefs.cdslots[num].name[0] == 0 || zfile_exists (s)) {
-			_tcscpy (changed_prefs.cdslots[num].name, s);
-			_tcscpy (currprefs.cdslots[num].name, s);
-		}
-		changed_prefs.cdslots[num].type = currprefs.cdslots[num].type = type;
-		changed_prefs.cdslots[num].temporary = currprefs.cdslots[num].temporary = true;
-	}
 	if (flags & 8) {
 		restore_u32 ();
 		for (int i = 0; i < SUBQ_SIZE; i++)
 			st->play_qcode[i] = restore_u8 ();
 		st->play_end_pos = restore_u32 ();
 	}
+	if (flags & 16) {
+		xfree(s);
+		s = restore_path_full();
+	}
+	if (flags & 4) {
+		if (currprefs.cdslots[num].name[0] == 0 || zfile_exists(s)) {
+			_tcscpy(changed_prefs.cdslots[num].name, s);
+			_tcscpy(currprefs.cdslots[num].name, s);
+		}
+		changed_prefs.cdslots[num].type = currprefs.cdslots[num].type = type;
+		changed_prefs.cdslots[num].temporary = currprefs.cdslots[num].temporary = true;
+	}
+	xfree(s);
 	return src;
 }
 

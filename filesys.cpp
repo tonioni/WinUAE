@@ -9798,6 +9798,9 @@ static uae_u8 *save_filesys_virtual (UnitInfo *ui, uae_u8 *dst)
 	return dst;
 }
 
+
+static TCHAR *new_filesys_root_path, *new_filesys_fs_path;
+
 uae_u8 *save_filesys_common (int *len)
 {
 	uae_u8 *dstbak, *dst;
@@ -9821,7 +9824,43 @@ uae_u8 *restore_filesys_common (uae_u8 *src)
 	filesys_reset2 ();
 	a_uniq = restore_u64 ();
 	key_uniq = restore_u64 ();
+
+	xfree(new_filesys_root_path);
+	xfree(new_filesys_fs_path);
+	new_filesys_root_path = NULL;
+	new_filesys_fs_path = NULL;
 	return src;
+}
+
+uae_u8 *save_filesys_paths(int num, int *len)
+{
+	uae_u8 *dstbak, *dst;
+	UnitInfo *ui;
+	int type = is_hardfile(num);
+	int ptype;
+
+	ui = &mountinfo.ui[num];
+	if (ui->open <= 0)
+		return NULL;
+	dstbak = dst = xmalloc(uae_u8, 4 + 4 + 2 + 2 * 2 * MAX_DPATH);
+
+	if (type == FILESYS_VIRTUAL || type == FILESYS_CD)
+		ptype = SAVESTATE_PATH_VDIR;
+	else if (type == FILESYS_HARDFILE || type == FILESYS_HARDFILE_RDB)
+		ptype = SAVESTATE_PATH_HDF;
+	else if (type == FILESYS_HARDDRIVE)
+		ptype = SAVESTATE_PATH_HD;
+	else
+		ptype = SAVESTATE_PATH;
+
+	save_u32(0);
+	save_u32(ui->devno);
+	save_u16(type);
+	save_path_full(ui->rootdir, ptype);
+	save_path_full(ui->filesysdir, SAVESTATE_PATH);
+
+	*len = dst - dstbak;
+	return dstbak;
 }
 
 uae_u8 *save_filesys (int num, int *len)
@@ -9829,6 +9868,7 @@ uae_u8 *save_filesys (int num, int *len)
 	uae_u8 *dstbak, *dst;
 	UnitInfo *ui;
 	int type = is_hardfile (num);
+	int ptype;
 
 	ui = &mountinfo.ui[num];
 	if (ui->open <= 0)
@@ -9842,13 +9882,14 @@ uae_u8 *save_filesys (int num, int *len)
 	save_u32 (ui->devno);
 	save_u16 (type);
 	if (type == FILESYS_VIRTUAL || type == FILESYS_CD)
-		save_path (ui->rootdir, SAVESTATE_PATH_VDIR);
+		ptype = SAVESTATE_PATH_VDIR;
 	else if (type == FILESYS_HARDFILE || type == FILESYS_HARDFILE_RDB)
-		save_path (ui->rootdir, SAVESTATE_PATH_HDF);
+		ptype = SAVESTATE_PATH_HDF;
 	else if (type == FILESYS_HARDDRIVE)
-		save_path (ui->rootdir, SAVESTATE_PATH_HD);
+		ptype = SAVESTATE_PATH_HD;
 	else
-		save_path (ui->rootdir, SAVESTATE_PATH);
+		ptype = SAVESTATE_PATH;
+	save_path(ui->rootdir, ptype);
 	save_string (ui->devname);
 	save_string (ui->volname);
 	save_path (ui->filesysdir, SAVESTATE_PATH);
@@ -9864,6 +9905,16 @@ uae_u8 *save_filesys (int num, int *len)
 	return dstbak;
 }
 
+uae_u8 *restore_filesys_paths(uae_u8 *src)
+{
+	restore_u32();
+	restore_u32();
+	restore_u16();
+	new_filesys_root_path = restore_path_full();
+	new_filesys_fs_path = restore_path_full();
+	return src;
+}
+
 uae_u8 *restore_filesys (uae_u8 *src)
 {
 	int type, devno;
@@ -9872,8 +9923,8 @@ uae_u8 *restore_filesys (uae_u8 *src)
 	uae_u32 startup;
 	struct uaedev_config_info *ci;
 
-	if (restore_u32 () != 2)
-		return src;
+	if (restore_u32() != 2)
+		goto end2;
 	devno = restore_u32 ();
 	ui = &mountinfo.ui[devno];
 	ci = &ui->hf.ci;
@@ -9900,6 +9951,18 @@ uae_u8 *restore_filesys (uae_u8 *src)
 	ci->readonly = restore_u8 () != 0;
 	startup = restore_u32 ();
 	filesys_configdev = restore_u32 ();
+
+	if (new_filesys_root_path) {
+		xfree(rootdir);
+		rootdir = new_filesys_root_path;
+		new_filesys_root_path = NULL;
+	}
+	if (new_filesys_fs_path) {
+		xfree(filesysdir);
+		filesysdir = new_filesys_fs_path;
+		new_filesys_fs_path = NULL;
+	}
+
 	if (type == FILESYS_HARDFILE || type == FILESYS_HARDFILE_RDB) {
 		src = restore_filesys_hardfile (ui, src);
 		xfree (volname);
@@ -9911,19 +9974,25 @@ uae_u8 *restore_filesys (uae_u8 *src)
 	_tcscpy (ci->filesys, filesysdir);
 
 	if (set_filesys_unit (devno, ci, false) < 0) {
-			write_log (_T("filesys '%s' failed to restore\n"), rootdir);
-			goto end;
+		write_log (_T("filesys '%s' failed to restore\n"), rootdir);
+		goto end;
 	}
 	ui->devno = devno;
 	ui->startup = startup;
 	if (type == FILESYS_VIRTUAL || type == FILESYS_CD)
 		src = restore_filesys_virtual (ui, src, devno);
+
 	write_log (_T("'%s' restored\n"), rootdir);
 end:
 	xfree (rootdir);
 	xfree (devname);
 	xfree (volname);
 	xfree (filesysdir);
+end2:
+	xfree(new_filesys_root_path);
+	xfree(new_filesys_fs_path);
+	new_filesys_root_path = NULL;
+	new_filesys_fs_path = NULL;
 	return src;
 }
 

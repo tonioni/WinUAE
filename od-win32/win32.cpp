@@ -3496,7 +3496,7 @@ void fixtrailing (TCHAR *p)
 	_tcscat(p, _T("\\"));
 }
 // convert path to absolute or relative
-void fullpath (TCHAR *path, int size)
+void fullpath(TCHAR *path, int size, bool userelative)
 {
 	if (path[0] == 0 || (path[0] == '\\' && path[1] == '\\') || path[0] == ':')
 		return;
@@ -3508,7 +3508,7 @@ void fullpath (TCHAR *path, int size)
 	/* <drive letter>: is supposed to mean same as <drive letter>:\ */
 	if (_istalpha (path[0]) && path[1] == ':' && path[2] == 0)
 		_tcscat (path, _T("\\"));
-	if (relativepaths) {
+	if (userelative) {
 		TCHAR tmp1[MAX_DPATH], tmp2[MAX_DPATH];
 		tmp1[0] = 0;
 		GetCurrentDirectory (sizeof tmp1 / sizeof (TCHAR), tmp1);
@@ -3551,6 +3551,16 @@ done:;
 		DWORD err = GetFullPathName (tmp, size, path, NULL);
 	}
 }
+void fullpath(TCHAR *path, int size)
+{
+	fullpath(path, size, relativepaths);
+}
+
+bool target_isrelativemode(void)
+{
+	return relativepaths != 0;
+}
+
 void getpathpart (TCHAR *outpath, int size, const TCHAR *inpath)
 {
 	_tcscpy (outpath, inpath);

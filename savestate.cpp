@@ -201,6 +201,17 @@ void save_path_func (uae_u8 **dstp, const TCHAR *from, int type)
 {
 	save_string_func (dstp, from);
 }
+void save_path_full_func(uae_u8 **dstp, const TCHAR *spath, int type)
+{
+	TCHAR path[MAX_DPATH];
+	save_u32_func(dstp, type);
+	_tcscpy(path, spath ? spath : _T(""));
+	fullpath(path, MAX_DPATH, false);
+	save_string_func(dstp, path);
+	_tcscpy(path, spath ? spath : _T(""));
+	fullpath(path, MAX_DPATH, true);
+	save_string_func(dstp, path);
+}
 
 uae_u32 restore_u32_func (uae_u8 **dstp)
 {
@@ -262,31 +273,30 @@ static bool state_path_exists(const TCHAR *path, int type)
 	return my_existsfile(path);
 }
 
-TCHAR *restore_path_func (uae_u8 **dstp, int type)
+static TCHAR *state_resolve_path(TCHAR *s, int type, bool newmode)
 {
 	TCHAR *newpath;
-	TCHAR *s;
 	TCHAR tmp[MAX_DPATH], tmp2[MAX_DPATH];
 
-	s = restore_string_func (dstp);
 	if (s[0] == 0)
 		return s;
-	if (zfile_exists (s))
+	if (!newmode && state_path_exists(s, type))
 		return s;
 	if (type == SAVESTATE_PATH_HD)
 		return s;
-#if 0
-	_tcscpy(tmp, s);
-	fullpath(tmp, sizeof(tmp) / sizeof(TCHAR));
-	if (state_path_exists(tmp, type)) {
-		xfree(s);
-		return my_strdup(tmp);
-	}
-#endif
-	getfilepart (tmp, sizeof tmp / sizeof (TCHAR), s);
-	if (state_path_exists(tmp, type)) {
-		xfree (s);
-		return my_strdup (tmp);
+	if (newmode) {
+		_tcscpy(tmp, s);
+		fullpath(tmp, sizeof(tmp) / sizeof(TCHAR));
+		if (state_path_exists(tmp, type)) {
+			xfree(s);
+			return my_strdup(tmp);
+		}
+	} else {
+		getfilepart(tmp, sizeof tmp / sizeof(TCHAR), s);
+		if (state_path_exists(tmp, type)) {
+			xfree(s);
+			return my_strdup(tmp);
+		}
 	}
 	for (int i = 0; i < MAX_PATHS; i++) {
 		newpath = NULL;
@@ -315,6 +325,43 @@ TCHAR *restore_path_func (uae_u8 **dstp, int type)
 	}
 	return s;
 }
+
+TCHAR *restore_path_func(uae_u8 **dstp, int type)
+{
+	TCHAR *s = restore_string_func(dstp);
+	return state_resolve_path(s, type, false);
+}
+
+TCHAR *restore_path_full_func(uae_u8 **dstp)
+{
+	int type = restore_u32_func(dstp);
+	TCHAR *a = restore_string_func(dstp);
+	TCHAR *r = restore_string_func(dstp);
+	if (target_isrelativemode()) {
+		xfree(a);
+		return state_resolve_path(r, type, true);
+	} else {
+		TCHAR tmp[MAX_DPATH];
+		_tcscpy(tmp, a);
+		fullpath(tmp, sizeof(tmp) / sizeof(TCHAR));
+		if (state_path_exists(tmp, type)) {
+			xfree(r);
+			xfree(a);
+			return my_strdup(tmp);
+		}
+		_tcscpy(tmp, r);
+		fullpath(tmp, sizeof(tmp) / sizeof(TCHAR));
+		if (state_path_exists(tmp, type)) {
+			xfree(r);
+			xfree(a);
+			return my_strdup(tmp);
+		}
+		xfree(r);
+		return state_resolve_path(a, type, true);
+	}
+	return NULL;
+}
+
 
 /* read and write IFF-style hunks */
 
@@ -691,10 +738,12 @@ void restore_state (const TCHAR *filename)
 			end = restore_hrtmon (chunk);
 #endif
 #ifdef FILESYS
-		else if (!_tcscmp (name, _T("FSYS")))
-			end = restore_filesys (chunk);
-		else if (!_tcscmp (name, _T("FSYC")))
-			end = restore_filesys_common (chunk);
+		else if (!_tcscmp(name, _T("FSYP")))
+			end = restore_filesys_paths(chunk);
+		else if (!_tcscmp(name, _T("FSYS")))
+			end = restore_filesys(chunk);
+		else if (!_tcscmp(name, _T("FSYC")))
+			end = restore_filesys_common(chunk);
 #endif
 #ifdef CD32
 		else if (!_tcscmp (name, _T("CD32")))
@@ -1053,10 +1102,15 @@ static int save_state_internal (struct zfile *f, const TCHAR *description, int c
 	if (dst) {
 		save_chunk (f, dst, len, _T("FSYC"), 0);
 		for (i = 0; i < nr_units (); i++) {
-			dst = save_filesys (i, &len);
+			dst = save_filesys_paths(i, &len);
 			if (dst) {
-				save_chunk (f, dst, len, _T("FSYS"), 0);
-				xfree (dst);
+				save_chunk(f, dst, len, _T("FSYP"), 0);
+				xfree(dst);
+			}
+			dst = save_filesys(i, &len);
+			if (dst) {
+				save_chunk(f, dst, len, _T("FSYS"), 0);
+				xfree(dst);
 			}
 		}
 	}
