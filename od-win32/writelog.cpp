@@ -482,7 +482,7 @@ void console_flush (void)
 
 static int lfdetected = 1;
 
-static TCHAR *writets (void)
+TCHAR *write_log_get_ts(void)
 {
 	struct tm *t;
 	struct _timeb tb;
@@ -657,7 +657,7 @@ void write_log (const TCHAR *format, ...)
 	bufp[bufsize - 1] = 0;
 	if (!_tcsncmp (bufp, _T("write "), 6))
 		bufsize--;
-	ts = writets ();
+	ts = write_log_get_ts();
 	if (bufp[0] == '*')
 		count++;
 	if (SHOW_CONSOLE || console_logging) {

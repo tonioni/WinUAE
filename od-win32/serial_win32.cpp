@@ -178,6 +178,7 @@ static int serdatr_last_got;
 int serdev;
 int seriallog = 0, log_sercon = 0;
 int serial_enet;
+static bool seriallog_lf;
 extern int consoleopen;
 
 void serial_open (void);
@@ -227,7 +228,8 @@ void SERPER (uae_u16 w)
 #endif
 	if (log_sercon) {
 		serial_period_hsyncs = 1;
-		seriallog = 1;
+		seriallog = log_sercon;
+		seriallog_lf = true;
 		write_logx(_T("\n"));
 	}
 
@@ -481,7 +483,16 @@ static void serdatcopy(void)
 
 	if (seriallog > 0 || (consoleopen && seriallog < 0)) {
 		gotlogwrite = true;
-		write_logx(_T("%c"), docharlog(serdatshift_masked));
+		if (seriallog_lf && seriallog > 1) {
+			TCHAR *ts = write_log_get_ts();
+			if (ts)
+				write_logx(_T("%s:"), ts);
+			seriallog_lf = false;
+		}
+		TCHAR ch = docharlog(serdatshift_masked);
+		write_logx(_T("%c"), ch);
+		if (ch == 10)
+			seriallog_lf = true;
 	}
 
 	if (serper == 372) {
