@@ -904,21 +904,31 @@ static bool iswindowfocus(struct AmigaMonitor *mon)
 	HWND fw = GetForegroundWindow ();
 	HWND w1 = mon->hAmigaWnd;
 	HWND w2 = mon->hMainWnd;
-	HWND w3 = NULL;
-#ifdef RETROPLATFORM
-	if (rp_isactive ())
-		w3 = rp_getparent ();
-#endif
+
 	if (f != w1 && f != w2)
 		donotfocus = true;
-	if (w3 != NULL && f == w3)
-		donotfocus = false;
-#if 0
+
+	
+	//write_log(_T("f=%p fw=%p w1=%p w2=%p\n"), f, fw, w1, w2);
+
 #ifdef RETROPLATFORM
-	if (rp_isactive () && isfullscreen () == 0)
-		donotfocus = false;
+	if (rp_isactive()) {
+		HWND hGuestParent = rp_getparent();
+		DWORD dwHostProcessId;
+		GetWindowThreadProcessId(hGuestParent, &dwHostProcessId);
+		if (fw) {
+			DWORD dwForegroundProcessId = 0;
+			GetWindowThreadProcessId(fw, &dwForegroundProcessId);
+
+			//write_log(_T("dwForegroundProcessId=%p dwHostProcessId=%p\n"), dwForegroundProcessId, dwHostProcessId);
+
+			if (dwForegroundProcessId == dwHostProcessId) {
+				donotfocus = false;
+			}
+		}
+	}
 #endif
-#endif
+
 	if (isfullscreen () > 0)
 		donotfocus = false;
 	return donotfocus == false;

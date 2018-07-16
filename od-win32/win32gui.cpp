@@ -6958,7 +6958,7 @@ static void enable_for_displaydlg (HWND hDlg)
 		ew(hDlg, IDC_SCREENMODE_NATIVE3, FALSE);
 		hide(hDlg, IDC_SCREENMODE_NATIVE3, TRUE);
 	}
-#ifdef WINUAEPUBLICBETA
+#if WINUAEPUBLICBETA
 	hide(hDlg, IDC_DISPLAY_VARSYNC, FALSE);
 #endif
 }
