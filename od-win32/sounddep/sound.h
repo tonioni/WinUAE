@@ -49,6 +49,9 @@ struct sound_data
 	struct sound_dp *data;
 	int index;
 	bool reset;
+	int resetcnt;
+	int resetframe;
+	int resetframecnt;
 };
 
 

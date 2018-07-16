@@ -355,11 +355,18 @@ static void resume_audio_xaudio2 (struct sound_data *sd)
 }
 #endif
 
+static void set_reset(struct sound_data *sd)
+{
+	sd->reset = true;
+	sd->resetcnt = 10;
+	sd->resetframecnt = 0;
+}
+
 static void wasapi_check_state(struct sound_data *sd, HRESULT hr)
 {
 	// 0x26 = AUDCLNT_E_RESOURCES_INVALIDATED
 	if (hr == AUDCLNT_E_DEVICE_INVALIDATED || hr == AUDCLNT_E_OUT_OF_ORDER || hr == AUDCLNT_E_CPUUSAGE_EXCEEDED || hr == AUDCLNT_E_BUFFER_ERROR || hr == AUDCLNT_ERR(0x026)) {
-		sd->reset = true;
+		set_reset(sd);
 	}
 }
 
@@ -1119,7 +1126,7 @@ public:
 			return S_OK;
 		_tcscpy(current, pwstrDeviceId);
 		write_log(_T("WASAPI OnDefaultDeviceChanged '%s'\n"), current);
-		s->reset = true;
+		set_reset(s);
 		return S_OK;
 	}
 	HRESULT STDMETHODCALLTYPE OnDeviceAdded(LPCWSTR pwstrDeviceId)
@@ -2313,7 +2320,7 @@ static void finish_sound_buffer_wasapi_push(struct sound_data *sd, uae_u16 *sndb
 		if (oldpadding == numFramesPadding) {
 			if (stuck-- < 0) {
 				write_log (_T("WASAPI: sound stuck %d %d %d !?\n"), s->bufferFrameCount, numFramesPadding, sd->sndbufframes);
-				sd->reset = true;
+				set_reset(sd);
 				return;
 			}
 		}
@@ -2733,21 +2740,37 @@ bool audio_finish_pull(void)
 
 static void handle_reset(void)
 {
+	if (sdp->resetframe == timeframes)
+		return;
+	sdp->resetframe = timeframes;
+	sdp->resetframecnt--;
+	if (sdp->resetframecnt > 0)
+		return;
+	sdp->resetframecnt = 20;
+
 	sdp->reset = false;
 	if (!reopen_sound() || sdp->reset) {
-		write_log(_T("Reopen sound failed. Retrying with default device.\n"));
-		close_sound();
-		int type = sound_devices[currprefs.win32_soundcard]->type;
-		int max = enumerate_sound_devices();
-		for (int i = 0; i < max; i++) {
-			if (sound_devices[i]->alname == NULL && sound_devices[i]->type == type) {
-				currprefs.win32_soundcard = changed_prefs.win32_soundcard = i;
-				if (open_sound())
-					return;
-				break;
+		if (sdp->resetcnt <= 0) {
+			write_log(_T("Reopen sound failed. Retrying with default device.\n"));
+			close_sound();
+			int type = sound_devices[currprefs.win32_soundcard]->type;
+			int max = enumerate_sound_devices();
+			for (int i = 0; i < max; i++) {
+				if (sound_devices[i]->alname == NULL && sound_devices[i]->type == type) {
+					currprefs.win32_soundcard = changed_prefs.win32_soundcard = i;
+					if (open_sound())
+						return;
+					break;
+				}
 			}
+			currprefs.produce_sound = changed_prefs.produce_sound = 1;
+		} else {
+			write_log(_T("Retrying sound.. %d..\n"), sdp->resetcnt);
+			sdp->resetcnt--;
+			sdp->reset = true;
 		}
-		currprefs.produce_sound = changed_prefs.produce_sound = 1;
+	} else {
+		resume_sound_device(sdp);
 	}
 }
 
