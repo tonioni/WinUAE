@@ -213,7 +213,7 @@ uae_u8 **row_map_genlock;
 uae_u8 *row_map_color_burst_buffer;
 
 /* line_draw_funcs: pfield_do_linetoscr, pfield_do_fill_line, decode_ham */
-typedef void (*line_draw_func)(int, int, bool);
+typedef void (*line_draw_func)(int, int, int);
 
 #define LINE_UNDECIDED 1
 #define LINE_DECIDED 2
@@ -826,6 +826,8 @@ STATIC_INLINE int get_shdelay_add(void)
 {
 	if (bplres == RES_SUPERHIRES)
 		return 0;
+	if (currprefs.chipset_hr)
+		return 0;
 	int add = bpldelay_sh;
 	add >>= RES_MAX - currprefs.gfx_resolution;
 	return add;
@@ -839,6 +841,7 @@ STATIC_INLINE int get_shdelay_add(void)
 where do we start drawing the playfield, where do we start drawing the right border.
 All of these are forced into the visible window (VISIBLE_LEFT_BORDER .. VISIBLE_RIGHT_BORDER).
 PLAYFIELD_START and PLAYFIELD_END are in window coordinates.  */
+static int playfield_start_pre;
 static int playfield_start, playfield_end;
 static int real_playfield_start, real_playfield_end;
 static int sprite_playfield_start;
@@ -851,7 +854,7 @@ static int src_pixel;
 /* How many pixels in window coordinates which are to the left of the left border.  */
 static int unpainted;
 
-STATIC_INLINE xcolnr getbgc (bool blank)
+STATIC_INLINE xcolnr getbgc (int blank)
 {
 #if BG_COLOR_DEBUG
 	if (blank)
@@ -867,7 +870,7 @@ STATIC_INLINE xcolnr getbgc (bool blank)
 	//return colors_for_drawing.acolors[0];
 	return xcolors[0xf0f];
 #endif
-	return (blank || hposblank || ce_is_borderblank(colors_for_drawing.extra)) ? 0 : colors_for_drawing.acolors[0];
+	return (blank >= 0 && (blank > 0 || hposblank || ce_is_borderblank(colors_for_drawing.extra))) ? 0 : colors_for_drawing.acolors[0];
 }
 
 
@@ -998,6 +1001,12 @@ static void pfield_init_linetoscr (bool border)
 	}
 #endif
 
+	// AGA borderblank starts horizontally 1 hires pixel before bitplanes start, leaving 1 hires background color gap
+	playfield_start_pre = playfield_start;
+	if (currprefs.chipset_hr && (currprefs.chipset_mask & CSMASK_AGA) && currprefs.gfx_resolution > 0) {
+		playfield_start_pre -= 2;
+	}
+
 	unpainted = visible_left_border < playfield_start ? 0 : visible_left_border - playfield_start;
 	unpainted = res_shift_from_window (unpainted);
 
@@ -1113,7 +1122,7 @@ STATIC_INLINE uae_u32 merge_2pixel32 (uae_u32 p1, uae_u32 p2)
 	return v;
 }
 
-STATIC_INLINE void fill_line_16 (uae_u8 *buf, int start, int stop, bool blank)
+STATIC_INLINE void fill_line_16 (uae_u8 *buf, int start, int stop, int blank)
 {
 	uae_u16 *b = (uae_u16 *)buf;
 	unsigned int i;
@@ -1135,7 +1144,7 @@ STATIC_INLINE void fill_line_16 (uae_u8 *buf, int start, int stop, bool blank)
 		b[stop] = (uae_u16)col;
 }
 
-STATIC_INLINE void fill_line_32 (uae_u8 *buf, int start, int stop, bool blank)
+STATIC_INLINE void fill_line_32 (uae_u8 *buf, int start, int stop, int blank)
 {
 	uae_u32 *b = (uae_u32 *)buf;
 	unsigned int i;
@@ -1144,7 +1153,7 @@ STATIC_INLINE void fill_line_32 (uae_u8 *buf, int start, int stop, bool blank)
 		b[i] = col;
 }
 
-static void pfield_do_fill_line (int start, int stop, bool blank)
+static void pfield_do_fill_line (int start, int stop, int blank)
 {
 	struct vidbuf_description *vidinfo = &adisplays[0].gfxvidinfo;
 	if (stop <= start)
@@ -1176,7 +1185,7 @@ static void fill_line2 (int startpos, int len)
 	nrem = nints & 7;
 	nints &= ~7;
 	start = (int *)(((uae_u8*)xlinebuffer) + (startpos << shift));
-	val = getbgc (false);
+	val = getbgc(0);
 	for (; nints > 0; nints -= 8, start += 8) {
 		*start = val;
 		*(start+1) = val;
@@ -1705,11 +1714,11 @@ static call_linetoscr pfield_do_linetoscr_normal;
 static call_linetoscr pfield_do_linetoscr_sprite;
 static call_linetoscr pfield_do_linetoscr_spriteonly;
 
-static void pfield_do_linetoscr(int start, int stop, bool blank)
+static void pfield_do_linetoscr(int start, int stop, int blank)
 {
 	src_pixel = pfield_do_linetoscr_normal(src_pixel, start, stop);
 }
-static void pfield_do_linetoscr_spr(int start, int stop, bool blank)
+static void pfield_do_linetoscr_spr(int start, int stop, int blank)
 {
 	src_pixel = pfield_do_linetoscr_sprite(src_pixel, start, stop);
 }
@@ -2013,7 +2022,7 @@ static void pfield_set_linetoscr (void)
 }
 
 // left or right AGA border sprite
-static void pfield_do_linetoscr_bordersprite_aga (int start, int stop, bool blank)
+static void pfield_do_linetoscr_bordersprite_aga (int start, int stop, int blank)
 {
 	if (blank) {
 		pfield_do_fill_line (start, stop, blank);
@@ -2022,7 +2031,7 @@ static void pfield_do_linetoscr_bordersprite_aga (int start, int stop, bool blan
 	pfield_do_linetoscr_spriteonly(src_pixel, start, stop);
 }
 
-static void dummy_worker (int start, int stop, bool blank)
+static void dummy_worker (int start, int stop, int blank)
 {
 }
 
@@ -2096,7 +2105,7 @@ static void init_ham_decoding (void)
 	}
 }
 
-static void decode_ham (int pix, int stoppos, bool blank)
+static void decode_ham (int pix, int stoppos, int blank)
 {
 	int todraw_amiga = res_shift_from_window (stoppos - pix);
 	int hdp = ham_decode_pixel;
@@ -2701,7 +2710,10 @@ static void pfield_expand_dp_bplconx (int regno, int v)
 	{
 	case 0x100: // BPLCON0
 		dp_for_drawing->bplcon0 = v;
-		dp_for_drawing->bplres = GET_RES_DENISE (v);
+		if (currprefs.chipset_hr)
+			dp_for_drawing->bplres = currprefs.gfx_resolution;
+		else
+			dp_for_drawing->bplres = GET_RES_DENISE (v);
 		dp_for_drawing->nr_planes = GET_PLANES (v);
 		dp_for_drawing->ham_seen = isham (v);
 		break;
@@ -2789,15 +2801,30 @@ static void do_color_changes (line_draw_func worker_border, line_draw_func worke
 		// left hblank (left edge to hblank end)
 		if (nextpos_in_range > lastpos && lastpos < hblank_left_start) {
 			int t = nextpos_in_range <= hblank_left_start ? nextpos_in_range : hblank_left_start;
-			(*worker_border) (lastpos, t, true);
+			(*worker_border) (lastpos, t, 1);
 			lastpos = t;
 		}
 
-		// left border (hblank end to playfield start)
-		if (nextpos_in_range > lastpos && lastpos < playfield_start) {
-			int t = nextpos_in_range <= playfield_start ? nextpos_in_range : playfield_start;
-			(*worker_border) (lastpos, t, false);
-			lastpos = t;
+		if (playfield_start_pre >= playfield_start || !ce_is_borderblank(colors_for_drawing.extra)) {
+			// normal left border (hblank end to playfield start)
+			if (nextpos_in_range > lastpos && lastpos < playfield_start) {
+				int t = nextpos_in_range <= playfield_start ? nextpos_in_range : playfield_start;
+				(*worker_border) (lastpos, t, 0);
+				lastpos = t;
+			}
+		} else {
+			// borderblank left border (hblank end to playfield_start_pre)
+			if (nextpos_in_range > lastpos && lastpos < playfield_start_pre) {
+				int t = nextpos_in_range <= playfield_start_pre ? nextpos_in_range : playfield_start_pre;
+				(*worker_border) (lastpos, t, 0);
+				lastpos = t;
+			}
+			// AGA "buggy" borderblank, real background color visible.
+			if (nextpos_in_range > lastpos && lastpos < playfield_start) {
+				int t = nextpos_in_range <= playfield_start ? nextpos_in_range : playfield_start;
+				(*worker_border) (lastpos, t, -1);
+				lastpos = t;
+			}
 		}
 
 		// playfield
@@ -2808,20 +2835,20 @@ static void do_color_changes (line_draw_func worker_border, line_draw_func worke
 			if (bplxor && may_require_hard_way && worker_pfield != pfield_do_linetoscr_bordersprite_aga)
 				playfield_hard_way(worker_pfield, lastpos, t);
 			else
-				(*worker_pfield) (lastpos, t, false);
+				(*worker_pfield) (lastpos, t, 0);
 			lastpos = t;
 		}
 
 		// right border (playfield end to hblank start)
 		if (nextpos_in_range > lastpos && lastpos >= playfield_end) {
 			int t = nextpos_in_range <= hblank_right_stop ? nextpos_in_range : hblank_right_stop;
-			(*worker_border) (lastpos, t, false);
+			(*worker_border) (lastpos, t, 0);
 			lastpos = t;
 		}
 
 		// right hblank (hblank start to right edge, hblank start may be earlier than playfield end)
 		if (nextpos_in_range > hblank_right_stop) {
-			(*worker_border) (hblank_right_stop, nextpos_in_range, true);
+			(*worker_border) (hblank_right_stop, nextpos_in_range, 1);
 			lastpos = nextpos_in_range;
 		}
 
@@ -2855,7 +2882,7 @@ static void do_color_changes (line_draw_func worker_border, line_draw_func worke
 		// outside of visible area
 		// Just overwrite with black. Above code needs to run because of custom registers,
 		// not worth the trouble for separate code path just for max 10 lines or so
-		(*worker_border) (visible_left_border, visible_left_border + vidinfo->drawbuffer.inwidth, true);
+		(*worker_border) (visible_left_border, visible_left_border + vidinfo->drawbuffer.inwidth, 1);
 	}
 #endif
 	if (hsync_shift_hack > 0) {
@@ -3082,6 +3109,7 @@ static void pfield_draw_line (struct vidbuffer *vb, int lineno, int gfx_ypos, in
 
 			playfield_start = visible_right_border;
 			playfield_end = visible_right_border;
+			playfield_start_pre = playfield_start;
 			do_color_changes (pfield_do_fill_line, pfield_do_fill_line, lineno);
 
 		}
