@@ -3685,9 +3685,12 @@ int harddrive_to_hdf (HWND hDlg, struct uae_prefs *p, int idx)
 			int seccnt = 0;
 			uae_u8 *p = (uae_u8*)cache;
 			while (seccnt < secs) {
+				int extrablock = 1;
 				if (seccnt + readsize > secs)
 					readsize = secs - seccnt;
-				do_scsi_read10_chs(h, -1, cyl, head, seccnt + 1, p, readsize, &specialaccessmode, false);
+				if (head == heads - 1 && cyl == cyls - 1)
+					extrablock = 0;
+				do_scsi_read10_chs(h, -1, cyl, head, seccnt + extrablock, p, readsize, &specialaccessmode, false);
 				get = 512 * readsize;
 				got = 512 * readsize;
 				p += 512 * readsize;
