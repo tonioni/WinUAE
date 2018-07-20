@@ -551,6 +551,7 @@ struct uae_prefs {
 	int waiting_blits;
 	double blitter_speed_throttle;
 	unsigned int chipset_mask;
+	bool chipset_hr;
 	bool keyboard_connected;
 	bool ntscmode;
 	bool genlock;

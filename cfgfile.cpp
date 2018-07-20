@@ -2175,6 +2175,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 		cfgfile_write (f, _T("chipset"), _T("ocs"));
 	if (p->chipset_refreshrate > 0)
 		cfgfile_write (f, _T("chipset_refreshrate"), _T("%f"), p->chipset_refreshrate);
+	cfgfile_dwrite_bool(f, _T("chipset_subpixel"), p->chipset_hr);
 
 	for (int i = 0; i < MAX_CHIPSET_REFRESH_TOTAL; i++) {
 		struct chipset_refresh *cr = &p->cr[i];
@@ -5576,6 +5577,10 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 		return 1;
 	}
 
+	if (cfgfile_yesno(option, value, _T("chipset_subpixel"), &p->chipset_hr)) {
+		return 1;
+	}
+
 	if (cfgfile_string (option, value, _T("mmu_model"), tmpbuf, sizeof tmpbuf / sizeof (TCHAR))) {
 		TCHAR *s =_tcsstr(tmpbuf, _T("ec"));
 		if (s) {
@@ -7649,6 +7654,7 @@ void default_prefs (struct uae_prefs *p, bool reset, int type)
 	p->cpu_memory_cycle_exact = 0;
 	p->blitter_cycle_exact = 0;
 	p->chipset_mask = CSMASK_ECS_AGNUS;
+	p->chipset_hr = false;
 	p->genlock = 0;
 	p->genlock_image = 0;
 	p->genlock_mix = 0;

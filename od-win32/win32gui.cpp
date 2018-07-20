@@ -7991,6 +7991,7 @@ static void values_to_chipsetdlg (HWND hDlg)
 	CheckDlgButton(hDlg, IDC_BLITIMM, workprefs.immediate_blits);
 	CheckDlgButton(hDlg, IDC_BLITWAIT, workprefs.waiting_blits);
 	CheckDlgButton(hDlg, IDC_KEYBOARD_CONNECTED, workprefs.keyboard_connected);
+	CheckDlgButton(hDlg, IDC_SUBPIXEL, workprefs.chipset_hr);
 	CheckRadioButton(hDlg, IDC_COLLISION0, IDC_COLLISION3, IDC_COLLISION0 + workprefs.collision_level);
 	CheckDlgButton(hDlg, IDC_CYCLEEXACT, workprefs.cpu_cycle_exact);
 	CheckDlgButton(hDlg, IDC_CYCLEEXACTMEMORY, workprefs.cpu_memory_cycle_exact);
@@ -8018,7 +8019,7 @@ static void values_from_chipsetdlg (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 
 	workprefs.immediate_blits = ischecked (hDlg, IDC_BLITIMM);
 	workprefs.waiting_blits = ischecked (hDlg, IDC_BLITWAIT) ? 1 : 0;
-
+	workprefs.chipset_hr = ischecked(hDlg, IDC_SUBPIXEL);
 	workprefs.keyboard_connected = ischecked(hDlg, IDC_KEYBOARD_CONNECTED) ? 1 : 0;
 
 	n2 = ischecked (hDlg, IDC_CYCLEEXACTMEMORY);

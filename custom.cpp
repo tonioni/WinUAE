@@ -56,10 +56,9 @@
 #define MAX_SPRITES 8
 #define SPEEDUP 1
 #define AUTOSCALE_SPRITES 1
+#define ALL_SUBPIXEL 1
 
 #define SPRBORDER 0
-
-static int high_res_mode = 0;
 
 extern uae_u16 serper;
 
@@ -279,6 +278,7 @@ static struct color_entry current_colors;
 unsigned int bplcon0;
 static unsigned int bplcon1, bplcon2, bplcon3, bplcon4;
 static unsigned int bplcon0d, bplcon0dd, bplcon0_res, bplcon0_planes, bplcon0_planes_limit;
+static unsigned int bplcon0_res_hr;
 static unsigned int diwstrt, diwstop, diwhigh;
 static int diwhigh_written;
 static unsigned int ddfstrt, ddfstop;
@@ -715,6 +715,7 @@ static void decide_diw (int hpos)
 }
 
 static int fetchmode, fetchmode_size, fetchmode_mask, fetchmode_bytes, fetchmode_fmode;
+static int fetchmode_size_hr, fetchmode_mask_hr;
 static int real_bitplane_number[3][3][9];
 
 /* Disable bitplane DMA if planes > available DMA slots. This is needed
@@ -993,7 +994,8 @@ static void estimate_last_fetch_cycle (int hpos)
 }
 
 static uae_u32 outword[MAX_PLANES];
-static int out_nbits, out_offs;
+static uae_u64 outword64[MAX_PLANES];
+static int out_nbits, out_offs, out_subpix[2];
 static uae_u16 todisplay[MAX_PLANES], todisplay2[MAX_PLANES];
 static uae_u16 fetched[MAX_PLANES];
 static bool todisplay_fetched[2];
@@ -1003,7 +1005,7 @@ static uae_u64 fetched_aga[MAX_PLANES];
 #endif
 
 /* Expansions from bplcon0/bplcon1.  */
-static int toscr_res, toscr_res2p, toscr_res_mult;
+static int toscr_res, toscr_res2p, toscr_res_mult, toscr_res_mult_mask;
 static int toscr_nr_planes, toscr_nr_planes2, toscr_nr_planes_agnus, toscr_nr_planes_shifter;
 static int fetchwidth;
 static int toscr_delay[2], toscr_delay_adjusted[2], toscr_delay_sh[2];
@@ -1053,11 +1055,21 @@ STATIC_INLINE void compute_delay_offset (void)
 static void record_color_change2 (int hpos, int regno, uae_u32 value)
 {
 	int pos = (hpos * 2) * 4;
-	if (regno == 0x1000 + 0x10c) {
-		pos += 4; // BPLCON4 change needs 1 lores pixel delay
-		if (value & 0xff00)
-			thisline_decision.xor_seen = true;
+
+	// AGA has extra hires pixel delay in color changes
+	if (currprefs.chipset_mask & CSMASK_AGA) {
+		if (currprefs.chipset_hr)
+			pos += 2;
+		if (regno == 0x1000 + 0x10c) {
+			// BPLCON4 change adds another extra hires pixel delay
+			pos += 2;
+			if (!currprefs.chipset_hr)
+				pos += 2;
+			if (value & 0xff00)
+				thisline_decision.xor_seen = true;
+		}
 	}
+
 	curr_color_changes[next_color_change].linepos = pos;
 	curr_color_changes[next_color_change].regno = regno;
 	curr_color_changes[next_color_change].value = value;
@@ -1131,10 +1143,17 @@ static void compute_toscr_delay (int bplcon1)
 	int shdelay2 = (bplcon1 >> 12) & 3;
 	int delaymask = fetchmode_mask >> toscr_res;
 
-	toscr_delay[0] = (delay1 & delaymask) << toscr_res;
-	toscr_delay[0] |= shdelay1 >> (RES_MAX - toscr_res);
-	toscr_delay[1] = (delay2 & delaymask) << toscr_res;
-	toscr_delay[1] |= shdelay2 >> (RES_MAX - toscr_res);
+	if (currprefs.chipset_hr) {
+		toscr_delay[0] = ((delay1 & delaymask) << 2) | shdelay1;
+		toscr_delay[0] >>= (RES_MAX - currprefs.gfx_resolution);
+		toscr_delay[1] = ((delay2 & delaymask) << 2) | shdelay2;
+		toscr_delay[1] >>= (RES_MAX - currprefs.gfx_resolution);
+	} else {
+		toscr_delay[0] = (delay1 & delaymask) << toscr_res;
+		toscr_delay[0] |= shdelay1 >> (RES_MAX - toscr_res);
+		toscr_delay[1] = (delay2 & delaymask) << toscr_res;
+		toscr_delay[1] |= shdelay2 >> (RES_MAX - toscr_res);
+	}
 
 #if SPEEDUP
 	/* SPEEDUP code still needs this hack */
@@ -1151,19 +1170,37 @@ static void compute_toscr_delay (int bplcon1)
 static void set_delay_lastcycle (void)
 {
 	if (HARD_DDF_LIMITS_DISABLED) {
-		delay_lastcycle[0] = (256 * 2) << bplcon0_res;
-		delay_lastcycle[1] = (256 * 2) << bplcon0_res;
+		delay_lastcycle[0] = (256 * 2) << bplcon0_res_hr;
+		delay_lastcycle[1] = (256 * 2) << bplcon0_res_hr;
 	} else {
-		delay_lastcycle[0] = ((maxhpos + 1) * 2 + 0) << bplcon0_res;
+		delay_lastcycle[0] = ((maxhpos + 1) * 2 + 0) << bplcon0_res_hr;
 		delay_lastcycle[1] = delay_lastcycle[0];
 		if (islinetoggle ())
 			delay_lastcycle[1]++;
 	}
 }
 
+static int output_res(int res)
+{
+	if (currprefs.chipset_hr && res < currprefs.gfx_resolution)
+		return currprefs.gfx_resolution;
+	return res;
+}
+
 static int bpldmasetuphpos, bpldmasetuphpos_diff;
 static int bpldmasetupphase;
 static void update_toscr_planes (int fm);
+
+static void setup_fmodes_hr(void)
+{
+	bplcon0_res_hr = bplcon0_res;
+	if (currprefs.chipset_hr) {
+		if (bplcon0_res_hr < currprefs.gfx_resolution)
+			bplcon0_res_hr = currprefs.gfx_resolution;
+	}
+}
+
+
 /* set currently active Agnus bitplane DMA sequence */
 static void setup_fmodes (int hpos)
 {
@@ -1182,6 +1219,8 @@ static void setup_fmodes (int hpos)
 	}
 	badmode = GET_RES_AGNUS (bplcon0) != GET_RES_DENISE (bplcon0);
 	bplcon0_res = GET_RES_AGNUS (bplcon0);
+	setup_fmodes_hr();
+
 	bplcon0_planes = GET_PLANES (bplcon0);
 	bplcon0_planes_limit = GET_PLANES_LIMIT (bplcon0);
 	fetchunit = fetchunits[fetchmode * 4 + bplcon0_res];
@@ -1200,7 +1239,7 @@ static void setup_fmodes (int hpos)
 	compute_toscr_delay (bplcon1);
 
 	if (thisline_decision.plfleft < 0) {
-		thisline_decision.bplres = bplcon0_res;
+		thisline_decision.bplres = output_res(bplcon0_res);
 		thisline_decision.bplcon0 = bplcon0;
 		thisline_decision.nr_planes = bplcon0_planes;
 	}
@@ -1380,7 +1419,7 @@ static void fetch (int nr, int fm, bool modulo, int hpos)
 		switch (fm)
 		{
 		case 0:
-			fetched[nr] = chipmem_wget_indirect (p);
+			fetched[nr] = fetched_aga[nr] = chipmem_wget_indirect (p);
 			last_custom_value1 = fetched[nr];
 			break;
 #ifdef AGA
@@ -1451,20 +1490,45 @@ STATIC_INLINE void toscr_3_ecs (int oddeven, int step, int nbits)
 
 #ifdef AGA
 
-STATIC_INLINE void toscr_3_aga (int oddeven, int step, int nbits, int fm)
+STATIC_INLINE void toscr_3_aga (int oddeven, int step, int nbits, int fm_size)
 {
-	int i;
 	uae_u32 mask = 0xFFFF >> (16 - nbits);
-	int shift = fetchmode_size - nbits;
+	int shift = fm_size - nbits;
 
-	for (i = oddeven; i < thisline_decision.nr_planes; i += step) {
+	for (int i = oddeven; i < thisline_decision.nr_planes; i += step) {
 		outword[i] <<= nbits;
 	}
 
-	for (i = oddeven; i < toscr_nr_planes2; i += step) {
+	for (int i = oddeven; i < toscr_nr_planes2; i += step) {
 		outword[i] |= (todisplay2_aga[i] >> shift) & mask;
 		todisplay2_aga[i] <<= nbits;
 	}
+}
+
+// very, very slow and unoptimized..
+
+STATIC_INLINE void toscr_3_aga_hr(int oddeven, int step, int nbits, int fm_size_minusone)
+{
+	int i;
+
+	for (i = oddeven; i < toscr_nr_planes2; i += step) {
+		int subpix = out_subpix[oddeven];
+		for (int j = 0; j < nbits; j++) {
+			uae_u32 bit = (todisplay2_aga[i] >> fm_size_minusone) & 1;
+			outword64[i] <<= 1;
+			outword64[i] |= bit;
+			subpix++;
+			subpix &= toscr_res_mult_mask;
+			if (subpix == 0) {
+				todisplay2_aga[i] <<= 1;
+			}
+		}
+	}
+	while (i < thisline_decision.nr_planes) {
+		outword64[i] <<= nbits;
+		i += step;
+	}
+	out_subpix[oddeven] += nbits;
 }
 
 #endif
@@ -1472,37 +1536,70 @@ STATIC_INLINE void toscr_3_aga (int oddeven, int step, int nbits, int fm)
 static void toscr_2_0 (int nbits) { toscr_3_ecs (0, 1, nbits); }
 static void toscr_2_0_oe (int oddeven, int step, int nbits) { toscr_3_ecs (oddeven, step, nbits); }
 #ifdef AGA
-static void toscr_2_1 (int nbits) { toscr_3_aga (0, 1, nbits, 1); }
-static void toscr_2_1_oe (int oddeven, int step, int nbits) { toscr_3_aga (oddeven, step, nbits, 1); }
-static void toscr_2_2 (int nbits) { toscr_3_aga (0, 1, nbits, 2); }
-static void toscr_2_2_oe (int oddeven, int step, int nbits) { toscr_3_aga (oddeven, step, nbits, 2); }
+static void toscr_2_1(int nbits) { toscr_3_aga(0, 1, nbits, 32); }
+static void toscr_2_1_oe(int oddeven, int step, int nbits) { toscr_3_aga(oddeven, step, nbits, 32); }
+static void toscr_2_2(int nbits) { toscr_3_aga(0, 1, nbits, 64); }
+static void toscr_2_2_oe(int oddeven, int step, int nbits) { toscr_3_aga(oddeven, step, nbits, 64); }
+
+static void toscr_2_0_hr(int nbits) { toscr_3_aga_hr(0, 1, nbits, 16 - 1); }
+static void toscr_2_0_hr_oe(int oddeven, int step, int nbits) { toscr_3_aga_hr(oddeven, step, nbits, 16 - 1); }
+static void toscr_2_1_hr(int nbits) { toscr_3_aga_hr(0, 1, nbits, 32 - 1); }
+static void toscr_2_1_hr_oe(int oddeven, int step, int nbits) { toscr_3_aga_hr(oddeven, step, nbits, 32 - 1); }
+static void toscr_2_2_hr(int nbits) { toscr_3_aga_hr(0, 1, nbits, 64 - 1); }
+static void toscr_2_2_hr_oe(int oddeven, int step, int nbits) { toscr_3_aga_hr(oddeven, step, nbits, 64 - 1); }
 #endif
 
-static void do_tosrc (int oddeven, int step, int nbits, int fm)
+static void do_tosrc(int oddeven, int step, int nbits, int fm)
 {
 	switch (fm) {
 	case 0:
 		if (step == 2)
-			toscr_2_0_oe (oddeven, step, nbits);
+			toscr_2_0_oe(oddeven, step, nbits);
 		else
-			toscr_2_0 (nbits);
+			toscr_2_0(nbits);
 		break;
 #ifdef AGA
 	case 1:
 		if (step == 2)
-			toscr_2_1_oe (oddeven, step, nbits);
+			toscr_2_1_oe(oddeven, step, nbits);
 		else
-			toscr_2_1 (nbits);
+			toscr_2_1(nbits);
 		break;
 	case 2:
 		if (step == 2)
-			toscr_2_2_oe (oddeven, step, nbits);
+			toscr_2_2_oe(oddeven, step, nbits);
 		else
-			toscr_2_2 (nbits);
+			toscr_2_2(nbits);
 		break;
 #endif
 	}
 }
+
+#ifdef AGA
+static void do_tosrc_hr(int oddeven, int step, int nbits, int fm)
+{
+	switch (fm) {
+	case 0:
+		if (step == 2)
+			toscr_2_0_hr_oe(oddeven, step, nbits);
+		else
+			toscr_2_0_hr(nbits);
+		break;
+	case 1:
+		if (step == 2)
+			toscr_2_1_hr_oe(oddeven, step, nbits);
+		else
+			toscr_2_1_hr(nbits);
+		break;
+	case 2:
+		if (step == 2)
+			toscr_2_2_hr_oe(oddeven, step, nbits);
+		else
+			toscr_2_2_hr(nbits);
+		break;
+	}
+}
+#endif
 
 STATIC_INLINE void do_delays_3_ecs (int nbits)
 {
@@ -1531,7 +1628,7 @@ STATIC_INLINE void do_delays_3_ecs (int nbits)
 			delay += fetchmode_size;
 		int diff = delay - delaypos;
 		int nbits2 = nbits;
-		if (nbits2 > diff) {
+		if (nbits2 >= diff) {
 			do_tosrc (oddeven, 2, diff, 0);
 			nbits2 -= diff;
 			if (todisplay_fetched[oddeven]) {
@@ -1554,7 +1651,7 @@ STATIC_INLINE void do_delays_fast_3_ecs (int nbits)
 		delay += fetchmode_size;
 	int diff = delay - delaypos;
 	int nbits2 = nbits;
-	if (nbits2 > diff) {
+	if (nbits2 >= diff) {
 		do_tosrc (0, 1, diff, 0);
 		nbits2 -= diff;
 		if (todisplay_fetched[0]) {
@@ -1577,7 +1674,7 @@ STATIC_INLINE void do_delays_3_aga (int nbits, int fm)
 			delay += fetchmode_size;
 		int diff = delay - delaypos;
 		int nbits2 = nbits;
-		if (nbits2 > diff) {
+		if (nbits2 >= diff) {
 			do_tosrc (oddeven, 2, diff, fm);
 			nbits2 -= diff;
 			if (todisplay_fetched[oddeven]) {
@@ -1587,7 +1684,7 @@ STATIC_INLINE void do_delays_3_aga (int nbits, int fm)
 			}
 		}
 		if (nbits2)
-			do_tosrc (oddeven, 2, nbits2, fm);
+			do_tosrc(oddeven, 2, nbits2, fm);
 	}
 }
 
@@ -1599,7 +1696,7 @@ STATIC_INLINE void do_delays_fast_3_aga (int nbits, int fm)
 		delay += fetchmode_size;
 	int diff = delay - delaypos;
 	int nbits2 = nbits;
-	if (nbits2 > diff) {
+	if (nbits2 >= diff) {
 		do_tosrc (0, 1, diff, fm);
 		nbits2 -= diff;
 		if (todisplay_fetched[0]) {
@@ -1609,19 +1706,129 @@ STATIC_INLINE void do_delays_fast_3_aga (int nbits, int fm)
 			todisplay_fetched[1] = false;
 		}
 	}
-	if (nbits2)
-		do_tosrc (0, 1, nbits2, fm);
+	if (nbits2) {
+		do_tosrc(0, 1, nbits2, fm);
+	}
 }
 
-static void do_delays_2_0 (int nbits) { do_delays_3_ecs (nbits); }
-#ifdef AGA
-static void do_delays_2_1 (int nbits) { do_delays_3_aga (nbits, 1); }
-static void do_delays_2_2 (int nbits) { do_delays_3_aga (nbits, 2); }
+#if 0
+
+STATIC_INLINE void do_delays_3_aga_hr(int nbits, int fm)
+{
+	int delaypos = delay_cycles & fetchmode_mask_hr;
+	for (int oddeven = 0; oddeven < 2; oddeven++) {
+		int delay = toscr_delay[oddeven];
+		if (delay <= delaypos)
+			delay += fetchmode_size_hr;
+		if (delaypos + nbits >= delay && delaypos < delay) {
+			int nbits2 = delay - delaypos;
+			do_tosrc_hr(oddeven, 2, nbits2, fm);
+			if (todisplay_fetched[oddeven]) {
+				for (int i = oddeven; i < toscr_nr_planes_shifter; i += 2)
+					todisplay2_aga[i] = todisplay_aga[i];
+				todisplay_fetched[oddeven] = false;
+			}
+			out_subpix[oddeven] = 0;
+			do_tosrc_hr(oddeven, 2, nbits - nbits2, fm);
+		} else {
+			do_tosrc_hr(oddeven, 2, nbits, fm);
+		}
+	}
+}
+
+STATIC_INLINE void do_delays_fast_3_aga_hr(int nbits, int fm)
+{
+	int delaypos = delay_cycles & fetchmode_mask_hr;
+	int delay = toscr_delay[0];
+	if (delay <= delaypos)
+		delay += fetchmode_size_hr;
+	if (delaypos + nbits >= delay && delaypos < delay) {
+		int nbits2 = delay - delaypos;
+		do_tosrc_hr(0, 1, nbits2, fm);
+		if (todisplay_fetched[0]) {
+			for (int i = 0; i < toscr_nr_planes_shifter; i++)
+				todisplay2_aga[i] = todisplay_aga[i];
+			todisplay_fetched[0] = false;
+			todisplay_fetched[1] = false;
+		}
+		out_subpix[0] = 0;
+		do_tosrc_hr(0, 1, nbits - nbits2, fm);
+	}
+	else {
+		do_tosrc_hr(0, 1, nbits, fm);
+	}
+}
+
+#else
+
+STATIC_INLINE void do_delays_3_aga_hr(int nbits, int fm)
+{
+	int delaypos = delay_cycles & fetchmode_mask_hr;
+	for (int oddeven = 0; oddeven < 2; oddeven++) {
+		int delay = toscr_delay[oddeven];
+		if (delaypos > delay)
+			delay += fetchmode_size_hr;
+		int diff = delay - delaypos;
+		int nbits2 = nbits;
+		if (nbits2 >= diff) {
+			do_tosrc_hr(oddeven, 2, diff, fm);
+			nbits2 -= diff;
+			if (todisplay_fetched[oddeven]) {
+				for (int i = oddeven; i < toscr_nr_planes_shifter; i += 2)
+					todisplay2_aga[i] = todisplay_aga[i];
+				todisplay_fetched[oddeven] = false;
+				out_subpix[oddeven] = 0;
+			}
+		}
+		if (nbits2)
+			do_tosrc_hr(oddeven, 2, nbits2, fm);
+	}
+}
+
+STATIC_INLINE void do_delays_fast_3_aga_hr(int nbits, int fm)
+{
+	int delaypos = delay_cycles & fetchmode_mask_hr;
+	int delay = toscr_delay[0];
+	if (delaypos > delay)
+		delay += fetchmode_size_hr;
+	int diff = delay - delaypos;
+	int nbits2 = nbits;
+	if (nbits2 >= diff) {
+		do_tosrc_hr(0, 1, diff, fm);
+		nbits2 -= diff;
+		if (todisplay_fetched[0]) {
+			for (int i = 0; i < toscr_nr_planes_shifter; i++)
+				todisplay2_aga[i] = todisplay_aga[i];
+			todisplay_fetched[0] = false;
+			todisplay_fetched[1] = false;
+			out_subpix[0] = 0;
+			out_subpix[1] = 0;
+		}
+	}
+	if (nbits2) {
+		do_tosrc_hr(0, 1, nbits2, fm);
+	}
+}
+
 #endif
-static void do_delays_fast_2_0 (int nbits) { do_delays_fast_3_ecs (nbits); }
+
+static void do_delays_2_0(int nbits) { do_delays_3_ecs(nbits); }
 #ifdef AGA
-static void do_delays_fast_2_1 (int nbits) { do_delays_fast_3_aga (nbits, 1); }
-static void do_delays_fast_2_2 (int nbits) { do_delays_fast_3_aga (nbits, 2); }
+static void do_delays_2_1(int nbits) { do_delays_3_aga(nbits, 1); }
+static void do_delays_2_2(int nbits) { do_delays_3_aga(nbits, 2); }
+
+static void do_delays_2_0_hr(int nbits) { do_delays_3_aga_hr(nbits, 0); }
+static void do_delays_2_1_hr(int nbits) { do_delays_3_aga_hr(nbits, 1); }
+static void do_delays_2_2_hr(int nbits) { do_delays_3_aga_hr(nbits, 2); }
+static void do_delays_fast_2_0_hr(int nbits) { do_delays_fast_3_aga_hr(nbits, 0); }
+static void do_delays_fast_2_1_hr(int nbits) { do_delays_fast_3_aga_hr(nbits, 1); }
+static void do_delays_fast_2_2_hr(int nbits) { do_delays_fast_3_aga_hr(nbits, 2); }
+#endif
+
+static void do_delays_fast_2_0(int nbits) { do_delays_fast_3_ecs(nbits); }
+#ifdef AGA
+static void do_delays_fast_2_1(int nbits) { do_delays_fast_3_aga(nbits, 1); }
+static void do_delays_fast_2_2(int nbits) { do_delays_fast_3_aga(nbits, 2); }
 #endif
 
 
@@ -1661,6 +1868,38 @@ static void do_delays_fast (int nbits, int fm)
 	}
 }
 
+#ifdef AGA
+static void do_delays_hr(int nbits, int fm)
+{
+	switch (fm) {
+	case 0:
+		do_delays_2_0_hr(nbits);
+		break;
+	case 1:
+		do_delays_2_1_hr(nbits);
+		break;
+	case 2:
+		do_delays_2_2_hr(nbits);
+		break;
+	}
+}
+
+static void do_delays_fast_hr(int nbits, int fm)
+{
+	switch (fm) {
+	case 0:
+		do_delays_fast_2_0_hr(nbits);
+		break;
+	case 1:
+		do_delays_fast_2_1_hr(nbits);
+		break;
+	case 2:
+		do_delays_fast_2_2_hr(nbits);
+		break;
+	}
+}
+#endif
+
 static void toscr_right_edge (int nbits, int fm)
 {
 	// Emulate hpos counter (delay_cycles) reseting at the end of scanline.
@@ -1685,6 +1924,32 @@ static void toscr_right_edge (int nbits, int fm)
 		delay_cycles += nbits2;
 	}
 }
+
+static void toscr_right_edge_hr(int nbits, int fm)
+{
+	// Emulate hpos counter (delay_cycles) reseting at the end of scanline.
+	// (Result is ugly shift in graphics in far right overscan)
+	int diff = delay_lastcycle[lol] - delay_cycles;
+	int nbits2 = nbits;
+	if (nbits2 >= diff) {
+		do_delays_hr(diff, fm);
+		nbits2 -= diff;
+		delay_cycles = 0;
+		if (hpos_is_zero_bplcon1_hack >= 0) {
+			compute_toscr_delay(hpos_is_zero_bplcon1_hack);
+			hpos_is_zero_bplcon1_hack = -1;
+		}
+		toscr_delay[0] -= 2 << toscr_res_mult;
+		toscr_delay[0] &= fetchmode_mask_hr;
+		toscr_delay[1] -= 2 << toscr_res_mult;
+		toscr_delay[1] &= fetchmode_mask_hr;
+	}
+	if (nbits2) {
+		do_delays_hr(nbits2, fm);
+		delay_cycles += nbits2;
+	}
+}
+
 
 static void toscr_1 (int nbits, int fm)
 {
@@ -1721,41 +1986,51 @@ static void toscr_1 (int nbits, int fm)
 	}
 }
 
-static void toscr_1_hires (int nbits_nres, int fm)
+static void toscr_1_hr(int nbits, int fm)
 {
-	int maxnbits = 16 >> toscr_res_mult;
-	while (nbits_nres >= 0) {
-		int nbits = nbits_nres >= maxnbits ? maxnbits : nbits_nres;
-		if (delay_cycles + nbits >= delay_lastcycle[lol]) {
-			toscr_right_edge(nbits, fm);
-		} else {
-			do_delays(nbits, fm);
-			delay_cycles += nbits;
-		}
+	if (delay_cycles + nbits >= delay_lastcycle[lol]) {
+		toscr_right_edge_hr(nbits, fm);
+	} else if (!toscr_scanline_complex_bplcon1 && toscr_delay[0] == toscr_delay[1]) {
+		do_delays_fast_hr(nbits, fm);
+		delay_cycles += nbits;
+	} else {
+		do_delays_hr(nbits, fm);
+		delay_cycles += nbits;
+		toscr_scanline_complex_bplcon1 = true;
+	}
 
-		out_nbits += nbits;
-		if (out_nbits == 32) {
-			int i;
-			uae_u8 *dataptr = line_data[next_lineno] + out_offs * 4;
-			for (i = 0; i < thisline_decision.nr_planes; i++) {
-				uae_u32 *dataptr32 = (uae_u32 *)dataptr;
-				if (*dataptr32 != outword[i]) {
-					thisline_changed = 1;
-					*dataptr32 = outword[i];
-				}
-				outword[i] = 0;
-				dataptr += MAX_WORDS_PER_LINE * 2;
+	out_nbits += nbits;
+	if (out_nbits == 64) {
+		uae_u8 *dataptr = line_data[next_lineno] + out_offs * 4;
+		for (int i = 0; i < thisline_decision.nr_planes; i++) {
+			uae_u64 *dataptr64 = (uae_u64 *)dataptr;
+			uae_u64 v = (outword64[i] >> 32) | (outword64[i] << 32);
+			if (*dataptr64 != v) {
+				thisline_changed = 1;
+				*dataptr64 = v;
 			}
-			out_offs++;
-			out_nbits = 0;
+			outword64[i] = 0;
+			dataptr += MAX_WORDS_PER_LINE * 2;
 		}
-		nbits_nres -= nbits;
+		out_offs += 2;
+		out_nbits = 0;
 	}
 }
 
-static void toscr_fm0 (int);
-static void toscr_fm1 (int);
-static void toscr_fm2 (int);
+static void toscr_1_select(int nbits, int fm)
+{
+	if (currprefs.chipset_hr)
+		toscr_1_hr(nbits, fm);
+	else
+		toscr_1(nbits, fm);
+}
+
+static void toscr_fm0(int);
+static void toscr_fm1(int);
+static void toscr_fm2(int);
+static void toscr_hr_fm0(int);
+static void toscr_hr_fm1(int);
+static void toscr_hr_fm2(int);
 
 STATIC_INLINE void toscr (int nbits, int fm)
 {
@@ -1767,6 +2042,18 @@ STATIC_INLINE void toscr (int nbits, int fm)
 #endif
 	}
 }
+
+STATIC_INLINE void toscr_hr(int nbits, int fm)
+{
+	switch (fm) {
+	case 0: toscr_hr_fm0(nbits); break;
+#ifdef AGA
+	case 1: toscr_hr_fm1(nbits); break;
+	case 2: toscr_hr_fm2(nbits); break;
+#endif
+	}
+}
+
 
 STATIC_INLINE void toscr_0 (int nbits, int fm)
 {
@@ -1785,11 +2072,27 @@ STATIC_INLINE void toscr_0 (int nbits, int fm)
 	toscr_1 (nbits, fm);
 }
 
-static void toscr_fm0 (int nbits) { toscr_0 (nbits, 0); }
-static void toscr_fm1 (int nbits) { toscr_0 (nbits, 1); }
-static void toscr_fm2 (int nbits) { toscr_0 (nbits, 2); }
+STATIC_INLINE void toscr_0_hr(int nbits, int fm)
+{
+	nbits <<= toscr_res_mult;
+	while (nbits > 0) {
+		int n = 64 - out_nbits;
+		if (n > nbits)
+			n = nbits;
+		toscr_1_hr(n, fm);
+		nbits -= n;
+	}
+}
 
-static int flush_plane_data (int fm)
+static void toscr_fm0(int nbits) { toscr_0(nbits, 0); }
+static void toscr_fm1(int nbits) { toscr_0(nbits, 1); }
+static void toscr_fm2(int nbits) { toscr_0(nbits, 2); }
+
+static void toscr_hr_fm0(int nbits) { toscr_0_hr(nbits, 0); }
+static void toscr_hr_fm1(int nbits) { toscr_0_hr(nbits, 1); }
+static void toscr_hr_fm2(int nbits) { toscr_0_hr(nbits, 2); }
+
+static int flush_plane_data_n(int fm)
 {
 	int i = 0;
 
@@ -1819,10 +2122,55 @@ static int flush_plane_data (int fm)
 	return i >> (1 + toscr_res);
 }
 
+static int flush_plane_data_hr(int fm)
+{
+	int i = 0;
+
+	while (out_nbits) {
+		int m = 64 - out_nbits;
+		if (m > 16)
+			m = 16;
+		toscr_1_hr(m, fm);
+		i += m;
+	}
+
+	i += 32;
+	toscr_1_hr(16, fm);
+	toscr_1_hr(16, fm);
+	i += 32;
+	toscr_1_hr(16, fm);
+	toscr_1_hr(16, fm);
+
+	if (fm == 2) {
+		/* flush AGA full 64-bit shift register + possible data in todisplay */
+		i += 32;
+		toscr_1_hr(16, fm);
+		toscr_1_hr(16, fm);
+		i += 32;
+		toscr_1_hr(16, fm);
+		toscr_1_hr(16, fm);
+	}
+
+	return i >> (1 + toscr_res);
+}
+
+static int flush_plane_data(int fm)
+{
+	if (currprefs.chipset_hr)
+		return flush_plane_data_hr(fm);
+	else
+		return flush_plane_data_n(fm);
+
+}
+
 STATIC_INLINE void flush_display (int fm)
 {
-	if (toscr_nbits > 0 && thisline_decision.plfleft >= 0)
-		toscr (toscr_nbits, fm);
+	if (toscr_nbits > 0 && thisline_decision.plfleft >= 0) {
+		if (currprefs.chipset_hr)
+			toscr_hr(toscr_nbits, fm);
+		else
+			toscr(toscr_nbits, fm);
+	}
 	toscr_nbits = 0;
 }
 
@@ -1830,6 +2178,8 @@ static void record_color_change(int hpos, int regno, unsigned long value);
 
 static void hack_shres_delay(int hpos)
 {
+	if (currprefs.chipset_hr)
+		return;
 	if (!(currprefs.chipset_mask & CSMASK_AGA) && !toscr_delay_sh[0] && !toscr_delay_sh[1])
 		return;
 	int o0 = toscr_delay_sh[0];
@@ -1864,11 +2214,11 @@ static void update_denise_shifter_planes (int hpos)
 	if (np < toscr_nr_planes_shifter && hpos > thisline_decision.plfright && thisline_decision.plfright && (todisplay_fetched[0] || todisplay_fetched[1])) {
 		int diff = (hpos - thisline_decision.plfright) << (1 + toscr_res);
 		while (diff >= 16) {
-			toscr_1 (16, fetchmode);
+			toscr_1_select(16, fetchmode);
 			diff -= 16;
 		}
 		if (diff)
-			toscr_1 (diff, fetchmode);
+			toscr_1_select(diff, fetchmode);
 		thisline_decision.plfright += hpos - thisline_decision.plfright;
 	}
 	// FIXME: Samplers / Back In 90 vs Disposable Hero title screen in fast modes
@@ -1887,13 +2237,23 @@ static void update_denise (int hpos)
 	if (res != toscr_res)
 		flush_display (fetchmode);
 	toscr_res = GET_RES_DENISE (bplcon0d);
-	toscr_res2p = 2 << toscr_res;
-	if (high_res_mode && toscr_res < currprefs.gfx_resolution) {
-		toscr_res_mult = currprefs.gfx_resolution - toscr_res;
+	if (currprefs.chipset_hr) {
+		if (toscr_res < currprefs.gfx_resolution) {
+			toscr_res_mult = currprefs.gfx_resolution - toscr_res;
+		} else {
+			toscr_res_mult = 0;
+		}
+		toscr_res_mult_mask = (1 << toscr_res_mult) - 1;
+		int v = fetchmode_size >> toscr_res;
+		v <<= 2;
+		v >>= RES_MAX - currprefs.gfx_resolution;
+		fetchmode_size_hr = v;
+		fetchmode_mask_hr = fetchmode_size_hr - 1;
 	} else {
 		toscr_res_mult = 0;
 	}
-	delay_cycles = (hpos * 2) << toscr_res;
+	toscr_res2p = 2 << toscr_res;
+	delay_cycles = (hpos * 2) << (toscr_res + toscr_res_mult);
 	if (bplcon0dd != bplcon0d) {
 		record_color_change2 (hpos, 0x100 + 0x1000, bplcon0d);
 		bplcon0dd = bplcon0d;
@@ -1921,7 +2281,7 @@ static void beginning_of_plane_block (int hpos, int fm)
 {
 	int i;
 
-	if (fm == 0)
+	if (fm == 0 && (!currprefs.chipset_hr || !ALL_SUBPIXEL))
 		for (i = 0; i < MAX_PLANES; i++) {
 			todisplay[i] = fetched[i];
 		}
@@ -2312,10 +2672,12 @@ static void finish_last_fetch (int pos, int fm, bool reallylast)
 
 static void reset_bpl_vars(void)
 {
+	out_subpix[0] = 0;
+	out_subpix[1] = 0;
 	out_nbits = 0;
 	out_offs = 0;
 	toscr_nbits = 0;
-	thisline_decision.bplres = bplcon0_res;
+	thisline_decision.bplres = output_res(bplcon0_res);
 }
 
 /* check special case where last fetch wraps to next line
@@ -2729,7 +3091,7 @@ static void update_fetch (int until, int fm)
 	/* Unrolled version of the for loop below.  */
 	if (plf_state == plf_active && !line_cyclebased && dma
 		&& (fetch_cycle & fetchstart_mask) == (fm_maxplane & fetchstart_mask)
-		&& !badmode
+		&& !badmode && !currprefs.chipset_hr
 #ifdef DEBUGGER
 		&& !debug_dma
 #endif
@@ -2913,11 +3275,11 @@ static void start_bpl_dma (int hstart)
 		// Render all missing pixels, use toscr because previous data may
 		// still be in buffers.
 		while (diff >= 16) {
-			toscr_1 (16, fetchmode);
+			toscr_1_select(16, fetchmode);
 			diff -= 16;
 		}
 		if (diff)
-			toscr_1 (diff, fetchmode);
+			toscr_1_select(diff, fetchmode);
 
 		fetch_cycle = 0;
 		cycle_diagram_shift = hstart;
@@ -3839,7 +4201,7 @@ static void finish_decisions(void)
 		}
 		thisline_decision.plfright = thisline_decision.plfleft;
 		thisline_decision.plflinelen = 0;
-		thisline_decision.bplres = RES_LORES;
+		thisline_decision.bplres = output_res(RES_LORES);
 	}
 
 	/* Large DIWSTOP values can cause the stop position never to be
@@ -3924,7 +4286,7 @@ static void reset_decisions (void)
 		return;
 
 	toscr_nr_planes = toscr_nr_planes2 = 0;
-	thisline_decision.bplres = bplcon0_res;
+	thisline_decision.bplres = output_res(bplcon0_res);
 	thisline_decision.nr_planes = 0;
 	bpl1dat_written = false;
 	bpl1dat_written_at_least_once = false;
@@ -3997,13 +4359,14 @@ static void reset_decisions (void)
 		}
 	}
 
-	memset (outword, 0, sizeof outword);
+	memset(outword, 0, sizeof outword);
+	memset(outword64, 0, sizeof outword64);
 	// fetched[] must not be cleared (Sony VX-90 / Royal Amiga Force)
 	todisplay_fetched[0] = todisplay_fetched[1] = false;
 	memset (todisplay, 0, sizeof todisplay);
 	memset (todisplay2, 0, sizeof todisplay2);
 #ifdef AGA
-	if (currprefs.chipset_mask & CSMASK_AGA) {
+	if ((currprefs.chipset_mask & CSMASK_AGA) || ALL_SUBPIXEL) {
 		memset (todisplay_aga, 0, sizeof todisplay_aga);
 		memset (todisplay2_aga, 0, sizeof todisplay2_aga);
 	}
@@ -4674,6 +5037,9 @@ void init_custom (void)
 	reset_drawing();
 	init_hz_normal();
 	calcdiw();
+	setup_fmodes_hr();
+	set_delay_lastcycle();
+	compute_toscr_delay(bplcon1);
 }
 
 static int timehack_alive = 0;
@@ -10784,6 +11150,12 @@ void check_prefs_changed_custom (void)
 			}
 			init_custom ();
 	}
+
+	if (currprefs.chipset_hr != changed_prefs.chipset_hr) {
+		currprefs.chipset_hr = changed_prefs.chipset_hr;
+		init_custom();
+	}
+
 #ifdef GFXFILTER
 	struct gfx_filterdata *fd = &currprefs.gf[0];
 	struct gfx_filterdata *fdcp = &changed_prefs.gf[0];
