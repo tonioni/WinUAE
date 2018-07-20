@@ -1317,7 +1317,7 @@ void decide_blitter (int hpos)
 void decide_blitter (int hpos) { }
 #endif
 
-static void blitter_force_finish (void)
+static void blitter_force_finish(bool state)
 {
 	uae_u16 odmacon;
 	if (bltstate == BLT_done)
@@ -1328,7 +1328,8 @@ static void blitter_force_finish (void)
 		*/
 		odmacon = dmacon;
 		dmacon |= DMA_MASTER | DMA_BLITTER;
-		write_log (_T("forcing blitter finish\n"));
+		if (state)
+			write_log (_T("forcing blitter finish\n"));
 		if (blitter_cycle_exact && !immediate_blits) {
 			int rounds = 10000;
 			while (bltstate != BLT_done && rounds > 0) {
@@ -1806,7 +1807,7 @@ int blitnasty (void)
 	if (!dmaen (DMA_BLITTER))
 		return 0;
 	if (blitter_cycle_exact) {
-		blitter_force_finish ();
+		blitter_force_finish(false);
 		return -1;
 	}
 	if (blit_last_cycle >= blit_diag[0] && blit_dmacount == blit_diag[0])
@@ -1905,7 +1906,7 @@ uae_u8 *save_blitter (int *len, uae_u8 *dstptr)
 	if (bltstate != BLT_done && bltstate != BLT_init) {
 		write_log (_T("blitter is active, forcing immediate finish\n"));
 		/* blitter is active just now but we don't have blitter state support yet */
-		blitter_force_finish ();
+		blitter_force_finish(true);
 		forced = 2;
 	}
 	if (dstptr)
