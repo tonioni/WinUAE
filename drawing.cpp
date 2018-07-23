@@ -69,7 +69,7 @@ typedef enum
 
 extern int sprite_buffer_res;
 static int lores_factor;
-int lores_shift;
+int lores_shift, shres_shift;
 
 static void pfield_set_linetoscr(void);
 
@@ -79,8 +79,10 @@ static void lores_set(int lores)
 {
 	int old = lores_shift;
 	lores_shift = lores;
-	if (lores_shift != old)
+	if (lores_shift != old) {
+		shres_shift = RES_MAX - lores;
 		pfield_set_linetoscr();
+	}
 }
 
 static void lores_reset (void)
@@ -629,8 +631,8 @@ int get_custom_limits (int *pw, int *ph, int *pdx, int *pdy, int *prealh)
 	ddflastword_total = coord_hw_to_window_x (ddflastword_total * 2 + DIW_DDF_OFFSET);
 
 	if (doublescan <= 0 && !programmedmode) {
-		int min = coord_diw_to_window_x (92);
-		int max = coord_diw_to_window_x (460);
+		int min = coord_diw_lores_to_window_x (92);
+		int max = coord_diw_lores_to_window_x (460);
 		if (diwfirstword_total < min)
 			diwfirstword_total = min;
 		if (diwlastword_total > max)
@@ -841,7 +843,7 @@ STATIC_INLINE int get_shdelay_add(void)
 where do we start drawing the playfield, where do we start drawing the right border.
 All of these are forced into the visible window (VISIBLE_LEFT_BORDER .. VISIBLE_RIGHT_BORDER).
 PLAYFIELD_START and PLAYFIELD_END are in window coordinates.  */
-static int playfield_start_pre;
+static int playfield_start_pre, playfield_end_pre;
 static int playfield_start, playfield_end;
 static int real_playfield_start, real_playfield_end;
 static int sprite_playfield_start;
@@ -1001,10 +1003,12 @@ static void pfield_init_linetoscr (bool border)
 	}
 #endif
 
-	// AGA borderblank starts horizontally 1 hires pixel before bitplanes start, leaving 1 hires background color gap
+	// AGA borderblank starts horizontally 1 hires pixel before bitplanes start, leaving 1 hires pixel background color gap
 	playfield_start_pre = playfield_start;
-	if (currprefs.chipset_hr && (currprefs.chipset_mask & CSMASK_AGA) && currprefs.gfx_resolution > 0) {
-		playfield_start_pre -= 2;
+	playfield_end_pre = playfield_end;
+	if (currprefs.chipset_hr && (currprefs.chipset_mask & CSMASK_AGA) && bplres > 0) {
+		playfield_start_pre -= bplres;
+		playfield_end_pre -= bplres;
 	}
 
 	unpainted = visible_left_border < playfield_start ? 0 : visible_left_border - playfield_start;
@@ -2805,42 +2809,65 @@ static void do_color_changes (line_draw_func worker_border, line_draw_func worke
 			lastpos = t;
 		}
 
+		// normal
 		if (playfield_start_pre >= playfield_start || !ce_is_borderblank(colors_for_drawing.extra)) {
+
 			// normal left border (hblank end to playfield start)
 			if (nextpos_in_range > lastpos && lastpos < playfield_start) {
 				int t = nextpos_in_range <= playfield_start ? nextpos_in_range : playfield_start;
 				(*worker_border) (lastpos, t, 0);
 				lastpos = t;
 			}
+
+			// playfield
+			if (nextpos_in_range > lastpos && lastpos >= playfield_start && lastpos < playfield_end) {
+				int t = nextpos_in_range <= playfield_end ? nextpos_in_range : playfield_end;
+				if ((plf2pri >= 5 || plf1pri >= 5) && !(currprefs.chipset_mask & CSMASK_AGA))
+					weird_bitplane_fix(lastpos, t);
+				if (bplxor && may_require_hard_way && worker_pfield != pfield_do_linetoscr_bordersprite_aga)
+					playfield_hard_way(worker_pfield, lastpos, t);
+				else
+					(*worker_pfield) (lastpos, t, 0);
+				lastpos = t;
+			}
+
 		} else {
+			// special AGA borderblank 1 hires pixel delay
+
 			// borderblank left border (hblank end to playfield_start_pre)
 			if (nextpos_in_range > lastpos && lastpos < playfield_start_pre) {
 				int t = nextpos_in_range <= playfield_start_pre ? nextpos_in_range : playfield_start_pre;
 				(*worker_border) (lastpos, t, 0);
 				lastpos = t;
 			}
-			// AGA "buggy" borderblank, real background color visible.
+			// AGA "buggy" borderblank, real background color visible, single hires pixel wide.
 			if (nextpos_in_range > lastpos && lastpos < playfield_start) {
 				int t = nextpos_in_range <= playfield_start ? nextpos_in_range : playfield_start;
 				(*worker_border) (lastpos, t, -1);
 				lastpos = t;
 			}
-		}
 
-		// playfield
-		if (nextpos_in_range > lastpos && lastpos >= playfield_start && lastpos < playfield_end) {
-			int t = nextpos_in_range <= playfield_end ? nextpos_in_range : playfield_end;
-			if ((plf2pri >= 5 || plf1pri >= 5) && !(currprefs.chipset_mask & CSMASK_AGA))
-				weird_bitplane_fix (lastpos, t);
-			if (bplxor && may_require_hard_way && worker_pfield != pfield_do_linetoscr_bordersprite_aga)
-				playfield_hard_way(worker_pfield, lastpos, t);
-			else
-				(*worker_pfield) (lastpos, t, 0);
-			lastpos = t;
+			// playfield with last hires pixel not drawn.
+			if (nextpos_in_range > lastpos && lastpos >= playfield_start && lastpos < playfield_end_pre) {
+				int t = nextpos_in_range <= playfield_end_pre ? nextpos_in_range : playfield_end_pre;
+				if (bplxor && may_require_hard_way && worker_pfield != pfield_do_linetoscr_bordersprite_aga)
+					playfield_hard_way(worker_pfield, lastpos, t);
+				else
+					(*worker_pfield) (lastpos, t, 0);
+				lastpos = t;
+			}
+
+			// last 1 hires pixel of playfield blanked
+			if (nextpos_in_range > lastpos && lastpos >= playfield_end_pre && lastpos < playfield_end) {
+				int t = nextpos_in_range <= playfield_end ? nextpos_in_range : playfield_end;
+				(*worker_border) (lastpos, t, 0);
+				lastpos = t;
+			}
+
 		}
 
 		// right border (playfield end to hblank start)
-		if (nextpos_in_range > lastpos && lastpos >= playfield_end) {
+		if (nextpos_in_range > lastpos && lastpos >= playfield_end_pre) {
 			int t = nextpos_in_range <= hblank_right_stop ? nextpos_in_range : hblank_right_stop;
 			(*worker_border) (lastpos, t, 0);
 			lastpos = t;
@@ -3110,6 +3137,7 @@ static void pfield_draw_line (struct vidbuffer *vb, int lineno, int gfx_ypos, in
 			playfield_start = visible_right_border;
 			playfield_end = visible_right_border;
 			playfield_start_pre = playfield_start;
+			playfield_end_pre = playfield_end;
 			do_color_changes (pfield_do_fill_line, pfield_do_fill_line, lineno);
 
 		}

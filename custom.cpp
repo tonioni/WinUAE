@@ -2126,29 +2126,19 @@ static int flush_plane_data_hr(int fm)
 {
 	int i = 0;
 
-	while (out_nbits) {
+	if (out_nbits) {
 		int m = 64 - out_nbits;
-		if (m > 16)
-			m = 16;
 		toscr_1_hr(m, fm);
 		i += m;
 	}
 
-	i += 32;
-	toscr_1_hr(16, fm);
-	toscr_1_hr(16, fm);
-	i += 32;
-	toscr_1_hr(16, fm);
-	toscr_1_hr(16, fm);
+	i += 64;
+	toscr_1_hr(64, fm);
 
 	if (fm == 2) {
 		/* flush AGA full 64-bit shift register + possible data in todisplay */
-		i += 32;
-		toscr_1_hr(16, fm);
-		toscr_1_hr(16, fm);
-		i += 32;
-		toscr_1_hr(16, fm);
-		toscr_1_hr(16, fm);
+		i += 64;
+		toscr_1_hr(64, fm);
 	}
 
 	return i >> (1 + toscr_res);
@@ -4980,12 +4970,12 @@ void init_hz_normal (void)
 
 static void calcdiw (void)
 {
-	int hstrt = diwstrt & 0xFF;
-	int hstop = diwstop & 0xFF;
+	int hstrt = (diwstrt & 0xFF) << 2;
+	int hstop = (diwstop & 0xFF) << 2;
 	int vstrt = diwstrt >> 8;
 	int vstop = diwstop >> 8;
 
-	// vertical in ECS Agnus
+	// ECS Agnus/AGA: DIWHIGH vertical high bits.
 	if (diwhigh_written && (currprefs.chipset_mask & CSMASK_ECS_AGNUS)) {
 		vstrt |= (diwhigh & 7) << 8;
 		vstop |= ((diwhigh >> 8) & 7) << 8;
@@ -4993,19 +4983,24 @@ static void calcdiw (void)
 		if ((vstop & 0x80) == 0)
 			vstop |= 0x100;
 	}
-	// horizontal in ECS Denise
+	// ECS Denise/AGA: horizontal DIWHIGH high bit.
 	if (diwhigh_written && (currprefs.chipset_mask & CSMASK_ECS_DENISE)) {
-		hstrt |= ((diwhigh >> 5) & 1) << 8;
-		hstop |= ((diwhigh >> 13) & 1) << 8;
+		hstrt |= ((diwhigh >> 5) & 1) << (8 + 2);
+		hstop |= ((diwhigh >> 13) & 1) << (8 + 2);
 	} else {
-		hstop += 0x100;
+		hstop |= 0x100 << 2;
+	}
+	// AGA only: horizontal DIWHIGH hires/shres bits.
+	if (currprefs.chipset_hr && diwhigh_written && (currprefs.chipset_mask & CSMASK_AGA)) {
+		hstrt |= (diwhigh >> 3) & 3;
+		hstop |= (diwhigh >> 11) & 3;
 	}
 
-	diw_hstrt = hstrt;
-	diw_hstop = hstop;
+	diw_hstrt = hstrt >> 2;
+	diw_hstop = hstop >> 2;
 
-	diwfirstword = coord_diw_to_window_x (hstrt);
-	diwlastword = coord_diw_to_window_x (hstop);
+	diwfirstword = coord_diw_shres_to_window_x(hstrt);
+	diwlastword = coord_diw_shres_to_window_x(hstop);
 	
 	if (diwfirstword >= diwlastword) {
 		diwfirstword = min_diwlastword;
@@ -9571,13 +9566,13 @@ static void hsync_handler_post (bool onvsync)
 		if (vpos >= first_planes_vpos && vpos <= last_planes_vpos) {
 			if (diwlastword > diwlastword_total) {
 				diwlastword_total = diwlastword;
-				if (diwlastword_total > coord_diw_to_window_x (hsyncstartpos * 2))
-					diwlastword_total = coord_diw_to_window_x (hsyncstartpos * 2);
+				if (diwlastword_total > coord_diw_lores_to_window_x(hsyncstartpos * 2))
+					diwlastword_total = coord_diw_lores_to_window_x(hsyncstartpos * 2);
 			}
 			if (diwfirstword < diwfirstword_total) {
 				diwfirstword_total = diwfirstword;
-				if (diwfirstword_total < coord_diw_to_window_x (hsyncendpos * 2))
-					diwfirstword_total = coord_diw_to_window_x (hsyncendpos * 2);
+				if (diwfirstword_total < coord_diw_lores_to_window_x(hsyncendpos * 2))
+					diwfirstword_total = coord_diw_lores_to_window_x(hsyncendpos * 2);
 				firstword_bplcon1 = bplcon1;
 			}
 		}

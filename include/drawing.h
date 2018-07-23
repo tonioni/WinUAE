@@ -36,11 +36,13 @@
 /* According to the HRM, pixel data spends a couple of cycles somewhere in the chips
 before it appears on-screen. (TW: display emulation now does this automatically)  */
 #define DIW_DDF_OFFSET 1
+#define DIW_DDF_OFFSET_SHRES (DIW_DDF_OFFSET << 2)
 /* this many cycles starting from hpos=0 are visible on right border */
 #define HBLANK_OFFSET 9
 /* We ignore that many lores pixels at the start of the display. These are
 * invisible anyway due to hardware DDF limits. */
 #define DISPLAY_LEFT_SHIFT 0x38
+#define DISPLAY_LEFT_SHIFT_SHRES (DISPLAY_LEFT_SHIFT << 2)
 #endif
 
 #define PIXEL_XPOS(HPOS) (((HPOS)*2 - DISPLAY_LEFT_SHIFT + DIW_DDF_OFFSET - 1) << lores_shift)
@@ -48,7 +50,7 @@ before it appears on-screen. (TW: display emulation now does this automatically)
 #define min_diwlastword (0)
 #define max_diwlastword (PIXEL_XPOS(0x1d4 >> 1))
 
-extern int lores_shift, interlace_seen;
+extern int lores_shift, shres_shift, interlace_seen;
 extern bool aga_mode, direct_rgb;
 extern int visible_left_border, visible_right_border;
 extern int detected_screen_resolution;
@@ -73,9 +75,14 @@ STATIC_INLINE int coord_window_to_hw_x (int x)
 	return x + DISPLAY_LEFT_SHIFT;
 }
 
-STATIC_INLINE int coord_diw_to_window_x (int x)
+STATIC_INLINE int coord_diw_lores_to_window_x(int x)
 {
 	return (x - DISPLAY_LEFT_SHIFT + DIW_DDF_OFFSET - 1) << lores_shift;
+}
+
+STATIC_INLINE int coord_diw_shres_to_window_x (int x)
+{
+	return (x - DISPLAY_LEFT_SHIFT_SHRES + DIW_DDF_OFFSET_SHRES - (1 << 2)) >> shres_shift;
 }
 
 STATIC_INLINE int coord_window_to_diw_x (int x)
