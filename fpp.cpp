@@ -431,9 +431,10 @@ static void fpsr_check_arithmetic_exception(uae_u32 mask, fpdata *src, uae_u32 o
 	uae_u32 exception;
 	// Any exception status bit and matching exception enable bits set?
 	exception = regs.fpsr & regs.fpcr & 0xff00;
-	// Add 68040/68060 nonmaskable exceptions
-	if (currprefs.cpu_model >= 68040 && currprefs.fpu_model)
+	// Add 68040/68060 nonmaskable exceptions. Only if no unimplemented instruction emulation.
+	if (currprefs.cpu_model >= 68040 && currprefs.fpu_model && currprefs.fpu_no_unimplemented) {
 		exception |= regs.fpsr & (FPSR_OVFL | FPSR_UNFL | mask);
+	}
 
 	if (exception) {
 		regs.fp_exp_pend = fpsr_get_vector(exception);
@@ -614,7 +615,7 @@ static uae_u32 fpsr_make_status(void)
 
 	// return exceptions that interrupt calculation
 	exception = regs.fpsr & regs.fpcr & (FPSR_SNAN | FPSR_OPERR | FPSR_DZ);
-	if (currprefs.cpu_model >= 68040 && currprefs.fpu_model)
+	if (currprefs.cpu_model >= 68040 && currprefs.fpu_model && currprefs.fpu_no_unimplemented)
 		exception |= regs.fpsr & (FPSR_OVFL | FPSR_UNFL);
 
 	return exception;
@@ -1000,7 +1001,7 @@ static void fp_unimp_datatype(uae_u16 opcode, uae_u16 extra, uae_u32 ea, uaecptr
 	}
 	if (warned > 0) {
 		write_log (_T("FPU unimplemented datatype (%s): OP=%04X-%04X SRC=%08X-%08X-%08X EA=%08X PC=%08X\n"),
-			packed ? "packed" : "denormal", opcode, extra,
+			packed ? _T("packed") : _T("denormal"), opcode, extra,
 			packed ? fsave_data.fpt[2] : fsave_data.et[0], fsave_data.et[1], fsave_data.et[2], ea, oldpc);
 #if EXCEPTION_FPP == 0
 		warned--;
@@ -1306,18 +1307,6 @@ static bool fault_if_68040_integer_nonmaskable(uae_u16 opcode, uae_u16 extra, ua
 	return false;
 }
 
-#if 0
-// 68040/060 automatically converts infinity
-static void check_and_fix_infinity(fpdata *value)
-{
-	if (fpp_fix_infinity && (currprefs.fpu_model == 68040 || currprefs.fpu_model == 68060)) {
-		if (fpp_is_infinity(value)) {
-			fpp_fix_infinity(value);
-		}
-	}
-}
-#endif
-
 static int get_fp_value (uae_u32 opcode, uae_u16 extra, fpdata *src, uaecptr oldpc, uae_u32 *adp)
 {
 	int size, mode, reg;
@@ -1331,9 +1320,6 @@ static int get_fp_value (uae_u32 opcode, uae_u16 extra, fpdata *src, uaecptr old
 		if (fault_if_no_fpu (opcode, extra, 0, oldpc))
 			return -1;
 		*src = regs.fp[(extra >> 10) & 7];
-#if 0
-		check_and_fix_infinity(src);
-#endif
 		normalize_or_fault_if_no_denormal_support(opcode, extra, 0, oldpc, src);
 		return 1;
 	}
@@ -3112,10 +3098,6 @@ static void fpuop_arithmetic2 (uae_u32 opcode, uae_u16 extra)
 
 			v = fp_arithmetic(&src, &dst, extra);
 
-#if 0
-			check_and_fix_infinity(&dst);
-#endif
-
 			fpsr_check_arithmetic_exception(0, &src, opcode, extra, ad);
 
 			if (v)
@@ -3163,7 +3145,7 @@ void fpu_modechange(void)
 		fpp_from_exten_fmovem(&regs.fp[i], &temp_ext[i][0], &temp_ext[i][1], &temp_ext[i][2]);
 	}
 	if (currprefs.fpu_mode > 0) {
-		fp_init_softfloat();
+		fp_init_softfloat(currprefs.fpu_model);
 #ifdef MSVC_LONG_DOUBLE
 		use_long_double = false;
 	} else if (currprefs.fpu_mode < 0) {
@@ -3201,7 +3183,7 @@ static void fpu_test(void)
 void fpu_reset (void)
 {
 	if (currprefs.fpu_mode > 0) {
-		fp_init_softfloat();
+		fp_init_softfloat(currprefs.fpu_model);
 #ifdef MSVC_LONG_DOUBLE
 		use_long_double = false;
 	} else if (currprefs.fpu_mode < 0) {

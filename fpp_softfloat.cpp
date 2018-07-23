@@ -733,15 +733,15 @@ static void fp_from_pack(fpdata *fp, uae_u32 *wrd, int kfactor)
 	}
 }
 
-void fp_init_softfloat(void)
+void fp_init_softfloat(int fpu_model)
 {
-	float_status fsx = { 0 };
-
-	fsx.fpu_model = currprefs.fpu_model;
-	fs.fpu_model = currprefs.fpu_model;
-
-	set_floatx80_rounding_precision(80, &fsx);
-	set_float_rounding_mode(float_round_to_zero, &fsx);
+	if (fpu_model == 68040) {
+		set_special_flags(cmp_signed_nan, &fs);
+	} else if (fpu_model == 68060) {
+		set_special_flags(infinity_clear_intbit, &fs);
+	} else {
+		set_special_flags(addsub_swap_inf, &fs);
+	}
 
 	fpp_print = fp_print;
 	fpp_unset_snan = fp_unset_snan;

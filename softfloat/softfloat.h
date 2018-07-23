@@ -221,7 +221,7 @@ typedef struct float_status {
     flag flush_inputs_to_zero;
     flag default_nan_mode;
     flag snan_bit_is_one;
-    uint32_t fpu_model;
+	flag floatx80_special_flags;
 } float_status;
 
 /*----------------------------------------------------------------------------
@@ -296,6 +296,30 @@ static inline flag get_flush_inputs_to_zero(float_status *status)
 static inline flag get_default_nan_mode(float_status *status)
 {
     return status->default_nan_mode;
+}
+
+/*----------------------------------------------------------------------------
+| Special flags for indicating some unique behavior is required.
+*----------------------------------------------------------------------------*/
+enum {
+	cmp_signed_nan = 0x01, addsub_swap_inf = 0x02, infinity_clear_intbit = 0x04
+};
+
+static inline void set_special_flags(uint8_t flags, float_status *status)
+{
+	status->floatx80_special_flags = flags;
+}
+static inline int8_t fcmp_signed_nan(float_status *status)
+{
+	return status->floatx80_special_flags & cmp_signed_nan;
+}
+static inline int8_t faddsub_swap_inf(float_status *status)
+{
+	return status->floatx80_special_flags & addsub_swap_inf;
+}
+static inline int8_t inf_clear_intbit(float_status *status)
+{
+	return status->floatx80_special_flags & infinity_clear_intbit;
 }
 
 /*----------------------------------------------------------------------------
