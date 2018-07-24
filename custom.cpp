@@ -1005,7 +1005,7 @@ static uae_u64 fetched_aga[MAX_PLANES];
 #endif
 
 /* Expansions from bplcon0/bplcon1.  */
-static int toscr_res, toscr_res2p, toscr_res_mult, toscr_res_mult_mask;
+static int toscr_res, toscr_res_hr, toscr_res2p, toscr_res_mult, toscr_res_mult_mask;
 static int toscr_nr_planes, toscr_nr_planes2, toscr_nr_planes_agnus, toscr_nr_planes_shifter;
 static int fetchwidth;
 static int toscr_delay[2], toscr_delay_adjusted[2], toscr_delay_sh[2];
@@ -1145,9 +1145,9 @@ static void compute_toscr_delay (int bplcon1)
 
 	if (currprefs.chipset_hr) {
 		toscr_delay[0] = ((delay1 & delaymask) << 2) | shdelay1;
-		toscr_delay[0] >>= (RES_MAX - currprefs.gfx_resolution);
+		toscr_delay[0] >>= RES_MAX - toscr_res_hr;
 		toscr_delay[1] = ((delay2 & delaymask) << 2) | shdelay2;
-		toscr_delay[1] >>= (RES_MAX - currprefs.gfx_resolution);
+		toscr_delay[1] >>= RES_MAX - toscr_res_hr;
 	} else {
 		toscr_delay[0] = (delay1 & delaymask) << toscr_res;
 		toscr_delay[0] |= shdelay1 >> (RES_MAX - toscr_res);
@@ -2125,6 +2125,7 @@ static int flush_plane_data_n(int fm)
 static int flush_plane_data_hr(int fm)
 {
 	int i = 0;
+	int max = fm == 2 ? 128 : 64;
 
 	if (out_nbits) {
 		int m = 64 - out_nbits;
@@ -2132,16 +2133,16 @@ static int flush_plane_data_hr(int fm)
 		i += m;
 	}
 
-	i += 64;
-	toscr_1_hr(64, fm);
-
-	if (fm == 2) {
-		/* flush AGA full 64-bit shift register + possible data in todisplay */
+	while (i < max) {
 		i += 64;
-		toscr_1_hr(64, fm);
+		if (i > max) {
+			toscr_1_hr(max - i, fm);
+		} else {
+			toscr_1_hr(64, fm);
+		}
 	}
 
-	return i >> (1 + toscr_res);
+	return i >> (1 + toscr_res_hr);
 }
 
 static int flush_plane_data(int fm)
@@ -2228,16 +2229,16 @@ static void update_denise (int hpos)
 		flush_display (fetchmode);
 	toscr_res = GET_RES_DENISE (bplcon0d);
 	if (currprefs.chipset_hr) {
+		fetchmode_size_hr = fetchmode_size;
+		toscr_res_hr = toscr_res;
 		if (toscr_res < currprefs.gfx_resolution) {
 			toscr_res_mult = currprefs.gfx_resolution - toscr_res;
+			toscr_res_hr = currprefs.gfx_resolution;
+			fetchmode_size_hr <<= currprefs.gfx_resolution - toscr_res;
 		} else {
 			toscr_res_mult = 0;
 		}
 		toscr_res_mult_mask = (1 << toscr_res_mult) - 1;
-		int v = fetchmode_size >> toscr_res;
-		v <<= 2;
-		v >>= RES_MAX - currprefs.gfx_resolution;
-		fetchmode_size_hr = v;
 		fetchmode_mask_hr = fetchmode_size_hr - 1;
 	} else {
 		toscr_res_mult = 0;

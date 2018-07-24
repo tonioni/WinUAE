@@ -2714,12 +2714,11 @@ static void pfield_expand_dp_bplconx (int regno, int v)
 	{
 	case 0x100: // BPLCON0
 		dp_for_drawing->bplcon0 = v;
-		if (currprefs.chipset_hr)
-			dp_for_drawing->bplres = currprefs.gfx_resolution;
-		else
-			dp_for_drawing->bplres = GET_RES_DENISE (v);
+		dp_for_drawing->bplres = GET_RES_DENISE (v);
 		dp_for_drawing->nr_planes = GET_PLANES (v);
 		dp_for_drawing->ham_seen = isham (v);
+		if (currprefs.chipset_hr && dp_for_drawing->bplres < currprefs.gfx_resolution)
+			dp_for_drawing->bplres = currprefs.gfx_resolution;
 		break;
 	case 0x104: // BPLCON2
 		dp_for_drawing->bplcon2 = v;
