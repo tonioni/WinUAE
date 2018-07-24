@@ -702,7 +702,7 @@ static void decide_diw (int hpos)
 				thisline_decision.diwfirstword = diwfirstword < 0 ? min_diwlastword : diwfirstword;
 			hdiwstate = DIW_waiting_stop;
 		}
-		if (((hpos >= maxhpos && HARD_DDF_LIMITS_DISABLED) || (lhdiw >= diw_hstop && last_hdiw < diw_hstop)) && hdiwstate == DIW_waiting_stop) {
+		if ((lhdiw >= diw_hstop && last_hdiw < diw_hstop) && hdiwstate == DIW_waiting_stop) {
 			if (thisline_decision.diwlastword < 0)
 				thisline_decision.diwlastword = diwlastword < 0 ? 0 : diwlastword;
 			hdiwstate = DIW_waiting_start;
