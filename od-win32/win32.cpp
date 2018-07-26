@@ -1133,7 +1133,7 @@ static void winuae_active(struct AmigaMonitor *mon, HWND hwnd, int minimized)
 	getcapslock ();
 	wait_keyrelease ();
 	inputdevice_acquire (TRUE);
-	if (isfullscreen () > 0 && !gui_active)
+	if ((isfullscreen () > 0 || currprefs.win32_capture_always) && !gui_active)
 		setmouseactive(mon->monitor_id, 1);
 #ifdef LOGITECHLCD
 	if (!minimized)
@@ -4056,6 +4056,7 @@ void target_default_options (struct uae_prefs *p, int type)
 		p->win32_soundcard = 0;
 		p->win32_samplersoundcard = -1;
 		p->win32_minimize_inactive = 0;
+		p->win32_capture_always = false;
 		p->win32_start_minimized = false;
 		p->win32_start_uncaptured = false;
 		p->win32_active_capture_priority = 1;
@@ -4150,19 +4151,20 @@ void target_save_options (struct zfile *f, struct uae_prefs *p)
 #if 0
 	cfgfile_target_dwrite (f, _T("active_not_captured_priority"), _T("%d"), priorities[p->win32_active_nocapture_priority].value);
 #endif
-	cfgfile_target_dwrite_bool (f, _T("active_not_captured_nosound"), p->win32_active_nocapture_nosound);
-	cfgfile_target_dwrite_bool (f, _T("active_not_captured_pause"), p->win32_active_nocapture_pause);
-	cfgfile_target_dwrite (f, _T("inactive_priority"), _T("%d"), priorities[p->win32_inactive_priority].value);
-	cfgfile_target_dwrite_bool (f, _T("inactive_nosound"), p->win32_inactive_nosound);
+	cfgfile_target_dwrite_bool(f, _T("active_not_captured_nosound"), p->win32_active_nocapture_nosound);
+	cfgfile_target_dwrite_bool(f, _T("active_not_captured_pause"), p->win32_active_nocapture_pause);
+	cfgfile_target_dwrite(f, _T("inactive_priority"), _T("%d"), priorities[p->win32_inactive_priority].value);
+	cfgfile_target_dwrite_bool(f, _T("inactive_nosound"), p->win32_inactive_nosound);
 	cfgfile_target_dwrite_bool(f, _T("inactive_pause"), p->win32_inactive_pause);
 	cfgfile_target_dwrite(f, _T("inactive_input"), _T("%d"), p->win32_inactive_input);
 	cfgfile_target_dwrite(f, _T("iconified_priority"), _T("%d"), priorities[p->win32_iconified_priority].value);
-	cfgfile_target_dwrite_bool (f, _T("iconified_nosound"), p->win32_iconified_nosound);
+	cfgfile_target_dwrite_bool(f, _T("iconified_nosound"), p->win32_iconified_nosound);
 	cfgfile_target_dwrite_bool(f, _T("iconified_pause"), p->win32_iconified_pause);
 	cfgfile_target_dwrite(f, _T("iconified_input"), _T("%d"), p->win32_iconified_input);
 	cfgfile_target_dwrite_bool(f, _T("inactive_iconify"), p->win32_minimize_inactive);
-	cfgfile_target_dwrite_bool (f, _T("start_iconified"), p->win32_start_minimized);
-	cfgfile_target_dwrite_bool (f, _T("start_not_captured"), p->win32_start_uncaptured);
+	cfgfile_target_dwrite_bool(f, _T("active_capture_automatically"), p->win32_capture_always);
+	cfgfile_target_dwrite_bool(f, _T("start_iconified"), p->win32_start_minimized);
+	cfgfile_target_dwrite_bool(f, _T("start_not_captured"), p->win32_start_uncaptured);
 
 	cfgfile_target_dwrite_bool (f, _T("ctrl_f11_is_quit"), p->win32_ctrl_F11_is_quit);
 
@@ -4530,12 +4532,17 @@ int target_parse_option (struct uae_prefs *p, const TCHAR *option, const TCHAR *
 		p->win32_active_nocapture_nosound = false;
 		return 1;
 	}
+
 #if 0
 	if (cfgfile_intval (option, value, _T("active_not_captured_priority"), &v, 1)) {
 		p->win32_active_nocapture_priority = fetchpri (v, 1);
 		return 1;
 	}
 #endif
+
+	if (cfgfile_yesno(option, value, _T("active_capture_automatically"), &p->win32_capture_always))
+		return 1;
+
 	if (cfgfile_intval (option, value, _T("inactive_priority"), &v, 1)) {
 		p->win32_inactive_priority = fetchpri (v, 1);
 		return 1;

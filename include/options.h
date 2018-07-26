@@ -771,6 +771,7 @@ struct uae_prefs {
 	bool win32_main_alwaysontop;
 	bool win32_powersavedisabled;
 	bool win32_minimize_inactive;
+	bool win32_capture_always;
 	int win32_statusbar;
 	bool win32_start_minimized;
 	bool win32_start_uncaptured;
