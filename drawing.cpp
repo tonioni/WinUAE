@@ -876,8 +876,9 @@ STATIC_INLINE xcolnr getbgc (int blank)
 }
 
 
-static void set_res_shift(int shift)
+static void set_res_shift(void)
 {
+	int shift = lores_shift - bplres;
 	int old = res_shift;
 	res_shift = shift;
 	if (res_shift != old)
@@ -907,9 +908,11 @@ static void pfield_init_linetoscr (bool border)
 
 	// Blerkenwiegel/Scoopex workaround
 	native_ddf_left2 = native_ddf_left;
+
 	if (native_ddf_left < 0)
 		native_ddf_left = 0;
-
+	if (native_ddf_right > MAX_PIXELS_PER_LINE)
+		native_ddf_right = MAX_PIXELS_PER_LINE;
 	if (native_ddf_right < native_ddf_left)
 		native_ddf_right = native_ddf_left;
 
@@ -920,7 +923,7 @@ static void pfield_init_linetoscr (bool border)
 	if (linetoscr_diw_end < linetoscr_diw_start)
 		linetoscr_diw_end = linetoscr_diw_start;
 
-	set_res_shift(lores_shift - bplres);
+	set_res_shift();
 
 	playfield_start = linetoscr_diw_start;
 	playfield_end = linetoscr_diw_end;
@@ -1038,8 +1041,8 @@ static void pfield_init_linetoscr (bool border)
 	ddf_left -= DISPLAY_LEFT_SHIFT;
 	if (ddf_left < 0)
 		ddf_left = 0;
-	pixels_offset = MAX_PIXELS_PER_LINE - (ddf_left << bplres);
 	ddf_left <<= bplres;
+	pixels_offset = MAX_PIXELS_PER_LINE - ddf_left;
 
 	leftborderhidden = playfield_start - native_ddf_left2;
 	if (hblank_left_start > playfield_start)
@@ -1741,8 +1744,8 @@ static int pfield_do_linetoscr_normal_shdelay(int spix, int dpix, int dpix_end)
 	int add = get_shdelay_add();
 	int add2 = add * vidinfo->drawbuffer.pixbytes;
 	if (add) {
-		// Clear skipped pixel(s).
-		pfield_do_linetoscr_shdelay_sprite(spix, dpix, dpix + add);
+		// Fill skipped pixel(s).
+		pfield_do_linetoscr_shdelay_sprite(spix - 1, dpix, dpix + add);
 	}
 	xlinebuffer += add2;
 	int out = pfield_do_linetoscr_shdelay_normal(spix, dpix, dpix_end);
@@ -1768,7 +1771,7 @@ static int pfield_do_linetoscr_sprite_shdelay(int spix, int dpix, int dpix_end)
 	int add = get_shdelay_add();
 	int add2 = add * vidinfo->drawbuffer.pixbytes;
 	if (add) {
-		pfield_do_linetoscr_shdelay_sprite(out, dpix, dpix + add);
+		pfield_do_linetoscr_shdelay_sprite(out - 1, dpix, dpix + add);
 	}
 	sprite_shdelay = add;
 	spritepixels += add;
@@ -2735,7 +2738,7 @@ static void pfield_expand_dp_bplconx (int regno, int v)
 #endif
 	}
 	pfield_expand_dp_bplcon ();
-	set_res_shift(lores_shift - bplres);
+	set_res_shift();
 }
 
 static int drawing_color_matches;

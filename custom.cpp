@@ -1170,10 +1170,10 @@ static void compute_toscr_delay (int bplcon1)
 static void set_delay_lastcycle (void)
 {
 	if (HARD_DDF_LIMITS_DISABLED) {
-		delay_lastcycle[0] = (256 * 2) << bplcon0_res_hr;
-		delay_lastcycle[1] = (256 * 2) << bplcon0_res_hr;
+		delay_lastcycle[0] = (256 * 2) << (toscr_res + toscr_res_mult);
+		delay_lastcycle[1] = (256 * 2) << (toscr_res + toscr_res_mult);
 	} else {
-		delay_lastcycle[0] = ((maxhpos + 1) * 2 + 0) << bplcon0_res_hr;
+		delay_lastcycle[0] = ((maxhpos + 1) * 2 + 0) << (toscr_res + toscr_res_mult);
 		delay_lastcycle[1] = delay_lastcycle[0];
 		if (islinetoggle ())
 			delay_lastcycle[1]++;
@@ -1927,12 +1927,13 @@ static void toscr_right_edge (int nbits, int fm)
 
 static void toscr_right_edge_hr(int nbits, int fm)
 {
-	// Emulate hpos counter (delay_cycles) reseting at the end of scanline.
-	// (Result is ugly shift in graphics in far right overscan)
 	int diff = delay_lastcycle[lol] - delay_cycles;
 	int nbits2 = nbits;
 	if (nbits2 >= diff) {
-		do_delays_hr(diff, fm);
+		if (toscr_scanline_complex_bplcon1)
+			do_delays_hr(diff, fm);
+		else
+			do_delays_fast_hr(diff, fm);
 		nbits2 -= diff;
 		delay_cycles = 0;
 		if (hpos_is_zero_bplcon1_hack >= 0) {
@@ -1945,7 +1946,10 @@ static void toscr_right_edge_hr(int nbits, int fm)
 		toscr_delay[1] &= fetchmode_mask_hr;
 	}
 	if (nbits2) {
-		do_delays_hr(nbits2, fm);
+		if (toscr_scanline_complex_bplcon1)
+			do_delays_hr(nbits2, fm);
+		else
+			do_delays_fast_hr(nbits2, fm);
 		delay_cycles += nbits2;
 	}
 }
@@ -2098,25 +2102,25 @@ static int flush_plane_data_n(int fm)
 
 	if (out_nbits <= 16) {
 		i += 16;
-		toscr_1 (16, fm);
+		toscr_1(16, fm);
 	}
 	if (out_nbits != 0) {
 		i += 32 - out_nbits;
-		toscr_1 (32 - out_nbits, fm);
+		toscr_1(32 - out_nbits, fm);
 	}
 
 	i += 32;
-	toscr_1 (16, fm);
-	toscr_1 (16, fm);
+	toscr_1(16, fm);
+	toscr_1(16, fm);
 
 	if (fm == 2) {
 		/* flush AGA full 64-bit shift register + possible data in todisplay */
 		i += 32;
-		toscr_1 (16, fm);
-		toscr_1 (16, fm);
+		toscr_1(16, fm);
+		toscr_1(16, fm);
 		i += 32;
-		toscr_1 (16, fm);
-		toscr_1 (16, fm);
+		toscr_1(16, fm);
+		toscr_1(16, fm);
 	}
 
 	return i >> (1 + toscr_res);
@@ -2125,23 +2129,26 @@ static int flush_plane_data_n(int fm)
 static int flush_plane_data_hr(int fm)
 {
 	int i = 0;
-	int max = fm == 2 ? 128 : 64;
 
-	if (out_nbits) {
-		int m = 64 - out_nbits;
-		toscr_1_hr(m, fm);
-		i += m;
+	if (out_nbits <= 32) {
+		i += 32;
+		toscr_1_hr(32, fm);
+	}
+	if (out_nbits != 0) {
+		i += 64 - out_nbits;
+		toscr_1_hr(64 - out_nbits, fm);
 	}
 
-	while (i < max) {
-		i += 64;
-		if (i > max) {
-			toscr_1_hr(max - i, fm);
-		} else {
-			toscr_1_hr(64, fm);
-		}
+	int toshift = 32 << fm;
+	while (i < toshift) {
+		int n = toshift - i;
+		if (n > 32)
+			n = 32;
+		toscr_1_hr(n, fm);
+		i += n;
 	}
 
+	// return in color clocks (1 cck = 2 lores pixels)
 	return i >> (1 + toscr_res_hr);
 }
 
@@ -2222,12 +2229,12 @@ static void update_denise_shifter_planes (int hpos)
 	}
 }
 
-static void update_denise (int hpos)
+static void update_denise_vars(void)
 {
-	int res = GET_RES_DENISE (bplcon0d);
+	int res = GET_RES_DENISE(bplcon0d);
 	if (res != toscr_res)
-		flush_display (fetchmode);
-	toscr_res = GET_RES_DENISE (bplcon0d);
+		flush_display(fetchmode);
+	toscr_res = GET_RES_DENISE(bplcon0d);
 	if (currprefs.chipset_hr) {
 		fetchmode_size_hr = fetchmode_size;
 		toscr_res_hr = toscr_res;
@@ -2244,6 +2251,11 @@ static void update_denise (int hpos)
 		toscr_res_mult = 0;
 	}
 	toscr_res2p = 2 << toscr_res;
+}
+
+static void update_denise(int hpos)
+{
+	update_denise_vars();
 	delay_cycles = (hpos * 2) << (toscr_res + toscr_res_mult);
 	if (bplcon0dd != bplcon0d) {
 		record_color_change2 (hpos, 0x100 + 0x1000, bplcon0d);
@@ -4992,7 +5004,7 @@ static void calcdiw (void)
 		hstop |= 0x100 << 2;
 	}
 	// AGA only: horizontal DIWHIGH hires/shres bits.
-	if (currprefs.chipset_hr && diwhigh_written && (currprefs.chipset_mask & CSMASK_AGA)) {
+	if (diwhigh_written && (currprefs.chipset_mask & CSMASK_AGA)) {
 		hstrt |= (diwhigh >> 3) & 3;
 		hstop |= (diwhigh >> 11) & 3;
 	}
@@ -5034,8 +5046,9 @@ void init_custom (void)
 	init_hz_normal();
 	calcdiw();
 	setup_fmodes_hr();
-	set_delay_lastcycle();
+	update_denise_vars();
 	compute_toscr_delay(bplcon1);
+	set_delay_lastcycle();
 }
 
 static int timehack_alive = 0;
