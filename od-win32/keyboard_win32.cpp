@@ -427,8 +427,12 @@ bool my_kbd_handler (int keyboard, int scancode, int newstate, bool alwaysreleas
 	}
 #endif
 
-	if (amode && scancode == DIK_F11 && currprefs.win32_ctrl_F11_is_quit && ctrlpressed ())
-		code = AKS_QUIT;
+	if (amode && scancode == DIK_F11 && currprefs.win32_ctrl_F11_is_quit && ctrlpressed()) {
+		if (!quit_ok())
+			return true;
+		uae_quit();
+		return true;
+	}
 
 	if (scancode == DIK_F9 && specialpressed ()) {
 		extern bool toggle_3d_debug(void);
