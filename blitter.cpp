@@ -2020,7 +2020,8 @@ uae_u8 *save_blitter_new (int *len, uae_u8 *dstptr)
 
 	if (bltstate != BLT_done) {
 		write_log (_T("BLITTER active while saving state\n"));
-		blitter_dump ();
+		if (log_blitter)
+			blitter_dump ();
 	}
 
 	save_u32 (blit_first_cycle);
