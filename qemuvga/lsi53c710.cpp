@@ -1716,7 +1716,7 @@ static uint8_t lsi_reg_readb2(LSIState710 *s, int offset)
 	case 0x21: /* ISTAT */
 		return s->istat;
 	case 0x22: /* CTEST8 */
-		return (s->ctest8 | (2 << 4)) & ~0x08; // clear CLF
+		return (s->ctest8 | (2 << 4)) & ~0x04; // clear CLF
 	case 0x23: /* LCRC */
 		return s->lcrc;
     CASE_GET_REG24(dbc, 0x24)
