@@ -334,10 +334,13 @@ static void esp_dma_done(ESPState *s)
     s->rregs[ESP_RSTAT] |= STAT_TC;
     s->rregs[ESP_RINTR] = INTR_BS;
     s->rregs[ESP_RSEQ] = 0;
-    s->rregs[ESP_TCLO] = 0;
-    s->rregs[ESP_TCMID] = 0;
-    s->rregs[ESP_TCHI] = 0;
-    esp_raise_irq(s);
+
+	s->dma_counter -= s->dma_len;
+    s->rregs[ESP_TCLO] = s->dma_counter;
+    s->rregs[ESP_TCMID] = s->dma_counter >> 8;
+    s->rregs[ESP_TCHI] = s->dma_counter >> 16;
+    
+	esp_raise_irq(s);
 }
 
 static int esp_do_dma(ESPState *s)
