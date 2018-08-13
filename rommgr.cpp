@@ -95,7 +95,7 @@ struct romdata *getromdatabypath (const TCHAR *path)
 	return NULL;
 }
 
-#define NEXT_ROM_ID 241
+#define NEXT_ROM_ID 242
 
 #define ALTROM(id,grp,num,size,flags,crc32,a,b,c,d,e) \
 { _T("X"), 0, 0, 0, 0, 0, size, id, 0, 0, flags, (grp << 16) | num, 0, NULL, crc32, a, b, c, d, e },
@@ -350,7 +350,7 @@ static struct romdata roms[] = {
 	{ _T("A4091 v40.4"), 40, 4, 40, 4, _T("A4091\0"), 32768, 240, 0, 0, ROMTYPE_A4091, 0, 0, NULL,
 	0x9ba7e7dc, 0x18985b7e,0xc95239da,0x21a242a4,0xfc42f134,0x96434534 },
 	{ _T("A4091 v40.9"), 40, 9, 40, 9, _T("A4091\0"), 32768, 57, 0, 0, ROMTYPE_A4091, 0, 0, NULL,
-	0x00000000, 0, 0, 0, 0, 0 },
+	0x7e12a120, 0xa411d572,0x6801dc44,0x3d41428f,0x382ae3d5,0x6f44ef27 },
 	{ _T("A4091 v40.13"), 40, 13, 40, 13, _T("A4091\0"), 32768, 58, 0, 0, ROMTYPE_A4091, 0, 0, _T("391592-02"),
 	0x54cb9e85, 0x3CE66919,0xF6FD6797,0x4923A12D,0x91B730F1,0xFFB4A7BA },
 
