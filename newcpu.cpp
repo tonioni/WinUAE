@@ -6723,7 +6723,7 @@ static void addmovemreg (TCHAR *out, int *prevreg, int *lastreg, int *first, int
 	*prevreg = reg;
 }
 
-static void movemout (TCHAR *out, uae_u16 mask, int mode, int fpmode)
+static bool movemout (TCHAR *out, uae_u16 mask, int mode, int fpmode, bool dst)
 {
 	unsigned int dmask, amask;
 	int prevreg = -1, lastreg = -1, first = 1;
@@ -6754,6 +6754,9 @@ static void movemout (TCHAR *out, uae_u16 mask, int mode, int fpmode)
 			}
 		}
 	}
+	bool dataout = dmask != 0 || amask != 0;
+	if (dst && dataout)
+		_tcscat(out, _T(","));
 	if (fpmode) {
 		while (dmask) { addmovemreg(out, &prevreg, &lastreg, &first, movem_index1[dmask] + (fpmode == 2 ? 24 : 16), fpmode); dmask = movem_next[dmask]; }
 	} else {
@@ -6761,6 +6764,7 @@ static void movemout (TCHAR *out, uae_u16 mask, int mode, int fpmode)
 		while (amask) { addmovemreg (out, &prevreg, &lastreg, &first, movem_index1[amask] + 8, fpmode); amask = movem_next[amask]; }
 	}
 	addmovemreg(out, &prevreg, &lastreg, &first, -1, fpmode);
+	return dataout;
 }
 
 static void disasm_size (TCHAR *instrname, struct instr *dp)
@@ -7530,13 +7534,12 @@ void m68k_disasm_2 (TCHAR *buf, int bufsize, uaecptr pc, uaecptr *nextpc, int cn
 			uae_u16 mask = extra;
 			pc += 2;
 			pc = ShowEA (0, pc, opcode, dp->dreg, dp->dmode, dp->size, instrname, deaddr, safemode);
-			_tcscat (instrname, _T(","));
-			movemout (instrname, mask, dp->dmode, 0);
+			movemout (instrname, mask, dp->dmode, 0, true);
 		} else if (lookup->mnemo == i_MVMLE) {
 			uae_u16 mask = extra;
 			pc += 2;
-			movemout(instrname, mask, dp->dmode, 0);
-			_tcscat(instrname, _T(","));
+			if (movemout(instrname, mask, dp->dmode, 0, false))
+				_tcscat(instrname, _T(","));
 			pc = ShowEA(0, pc, opcode, dp->dreg, dp->dmode, dp->size, instrname, deaddr, safemode);
 		} else if (lookup->mnemo == i_DIVL || lookup->mnemo == i_MULL) {
 			TCHAR *p;
@@ -7663,17 +7666,16 @@ void m68k_disasm_2 (TCHAR *buf, int bufsize, uaecptr pc, uaecptr *nextpc, int cn
 					if (mode & 1)
 						_stprintf(instrname, _T("D%d"), dreg);
 					else
-						movemout(instrname, regmask, dp->dmode, fpmode);
+						movemout(instrname, regmask, dp->dmode, fpmode, false);
 					_tcscat(instrname, _T(","));
 					pc = ShowEA(0, pc, opcode, dp->dreg, dp->dmode, dp->size, instrname, deaddr, safemode);
 				} else {
 					pc = ShowEA(0, pc, opcode, dp->dreg, dp->dmode, dp->size, instrname, deaddr, safemode);
-					_tcscat(instrname, _T(","));
 					p = instrname + _tcslen(instrname);
 					if (mode & 1)
-						_stprintf(p, _T("D%d"), dreg);
+						_stprintf(p, _T(",D%d"), dreg);
 					else
-						movemout(p, regmask, dp->dmode, fpmode);
+						movemout(p, regmask, dp->dmode, fpmode, true);
 				}
 			} else {
 				if (fpuopcodes[ins])
