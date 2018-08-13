@@ -6010,6 +6010,17 @@ static const struct cpuboardsubtype csa_sub[] = {
 		magnum40_settings, NULL
 	},
 	{
+		_T("Twelve Gauge"),
+		_T("twelvegauge"),
+		ROMTYPE_CB_12GAUGE, 0,
+		twelvegauge_add_scsi_unit, EXPANSIONTYPE_SCSI,
+		BOARD_MEMORY_CUSTOM_32,
+		32 * 1024 * 1024,
+		0,
+		twelvegauge_init, NULL, BOARD_AUTOCONFIG_Z2, 1,
+		NULL, NULL
+	},
+	{
 		NULL
 	}
 };

@@ -72,7 +72,8 @@
 #define NCR5380_EVESHAMREF 38
 #define OMTI_PROFEX 39
 #define NCR5380_FASTTRAK 40
-#define NCR_LAST 41
+#define NCR5380_12GAUGE 41
+#define NCR_LAST 42
 
 extern int log_scsiemu;
 
@@ -857,6 +858,10 @@ struct soft_scsi
 	// sasi
 	bool active_select;
 	bool wait_select;
+
+	// 12 Gauge needs this (Driver has buggy BSY test)
+	bool busy_delayed_hack;
+	int busy_delayed_hack_cnt;
 };
 
 
@@ -1839,6 +1844,7 @@ uae_u8 ncr5380_bget(struct soft_scsi *scsi, int reg)
 		break;
 		case 4:
 		{
+			uae_u8 oldv = v;
 			uae_u8 t = raw_scsi_get_signal_phase(r);
 			v = 0;
 			if (t & SCSI_IO_BUSY)
@@ -1851,6 +1857,15 @@ uae_u8 ncr5380_bget(struct soft_scsi *scsi, int reg)
 				v |= r->bus_phase << 2;
 			if (scsi->regs[1] & 0x80)
 				v |= 0x80;
+
+			scsi->regs[reg] = v;
+			if (scsi->busy_delayed_hack && !(v & (1 << 6)) && (oldv & (1 << 6))) {
+				scsi->busy_delayed_hack_cnt = 2;
+			}
+			if (scsi->busy_delayed_hack_cnt > 0) {
+				scsi->busy_delayed_hack_cnt--;
+				v |= 1 << 6;
+			}
 		}
 		break;
 		case 5:
@@ -2648,6 +2663,17 @@ static int kronos_reg(uaecptr addr)
 	return addr & 7;
 }
 
+static int twelvegauge_reg(struct soft_scsi *ncr, uaecptr addr)
+{
+	if (addr & 0x8000)
+		return -1;
+	if (!(addr & 0x2000))
+		return -1;
+	if (addr & 0x100)
+		return 8;
+	return (addr >> 4) & 7;
+}
+
 static uae_u8 read_684xx_dma(struct soft_scsi *ncr, uaecptr addr)
 {
 	uae_u8 val = 0;
@@ -3349,6 +3375,15 @@ static uae_u32 ncr80_bget2(struct soft_scsi *ncr, uaecptr addr, int size)
 			v = ncr->rom[addr & 0x7fff];
 		}
 
+	} else if (ncr->type == NCR5380_12GAUGE) {
+
+		reg = twelvegauge_reg(ncr, addr);
+		if (reg >= 0) {
+			v = ncr5380_bget(ncr, reg);
+	} else {
+			v = ncr->rom[addr & 0x7fff];
+		}
+
 	}
 
 #if NCR5380_DEBUG > 1
@@ -3742,6 +3777,12 @@ static void ncr80_bput2(struct soft_scsi *ncr, uaecptr addr, uae_u32 val, int si
 	} else if (ncr->type == NCR5380_FASTTRAK) {
 
 		reg = fasttrak_reg(ncr, addr);
+		if (reg >= 0)
+			ncr5380_bput(ncr, reg, val);
+
+	} else if (ncr->type == NCR5380_12GAUGE) {
+
+		reg = twelvegauge_reg(ncr, addr);
 		if (reg >= 0)
 			ncr5380_bput(ncr, reg, val);
 	}
@@ -4797,6 +4838,34 @@ bool phoenixboard_init(struct autoconfig_info *aci)
 void phoenixboard_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc)
 {
 	generic_soft_scsi_add(ch, ci, rc, NCR5380_PHOENIXBOARD, 65536, 32768, ROMTYPE_PHOENIXB);
+}
+
+void twelvegauge_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc)
+{
+	generic_soft_scsi_add(ch, ci, rc, NCR5380_12GAUGE, 65536, 65536, ROMTYPE_CB_12GAUGE);
+}
+
+bool twelvegauge_init(struct autoconfig_info *aci)
+{
+	const struct expansionromtype *ert = get_device_expansion_rom(ROMTYPE_CB_12GAUGE);
+	if (!aci->doinit) {
+		load_rom_rc(aci->rc, ROMTYPE_CB_12GAUGE, 32768, 0, aci->autoconfig_raw, 128, 0);
+		return true;
+	}
+
+	struct soft_scsi *scsi = getscsi(aci->rc);
+	if (!scsi)
+		return false;
+
+	scsi->intena = true;
+	scsi->busy_delayed_hack = true;
+
+	load_rom_rc(aci->rc, ROMTYPE_CB_12GAUGE, 32768, 0, scsi->rom, 32768, 0);
+	memcpy(scsi->acmemory, scsi->rom, sizeof scsi->acmemory);
+
+	aci->addrbank = scsi->bank;
+
+	return true;
 }
 
 void ivsvector_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc)

@@ -38,6 +38,7 @@
 
 // ROM expansion board diagrom call
 // 00F83B7C 3.1 A4000
+// 00F83B7C 3.0 A1200
 // 00F83C96 3.1 A1200
 // 00FC4E28 1.3
 
@@ -334,6 +335,10 @@ static bool is_sx32pro(struct uae_prefs *p)
 static bool is_ivsvector(struct uae_prefs *p)
 {
 	return ISCPUBOARDP(p, BOARD_IVS, BOARD_IVS_SUB_VECTOR);
+}
+static bool is_12gauge(struct uae_prefs *p)
+{
+	return ISCPUBOARDP(p, BOARD_CSA, BOARD_CSA_SUB_12GAUGE);
 }
 static bool is_magnum40(struct uae_prefs *p)
 {
@@ -1549,6 +1554,10 @@ void cpuboard_map(void)
 	if (is_magnum40(&currprefs)) {
 		map_banks(&blizzardio_bank, 0x0c0c0000 >> 16, 0x10000 >> 16, 0);
 	}
+	if (is_12gauge(&currprefs)) {
+		map_banks(&cpuboardmem1_bank, cpuboardmem1_bank.start >> 16, 0x01000000 >> 16, (cpuboard_size / 2) >> 16);
+		map_banks(&cpuboardmem2_bank, cpuboardmem2_bank.start >> 16, 0x01000000 >> 16, (cpuboard_size / 2) >> 16);
+	}
 
 	if (is_blizzard1230mk2(&currprefs) || is_blizzard1230mk3(&currprefs)) {
 		map_banks(&blizzardram_bank, blizzardram_bank.start >> 16, cpuboard_size >> 16, 0);
@@ -2041,7 +2050,25 @@ static void cpuboard_init_2(void)
 		cpuboardmem2_bank.mask = cpuboard_size - 1;
 		mapped_malloc(&cpuboardmem2_bank);
 
+	} else if (is_12gauge(&currprefs)) {
+
+		cpuboardmem1_bank.start = 0x08000000;
+		cpuboardmem1_bank.reserved_size = cpuboard_size / 2;
+		cpuboardmem1_bank.mask = cpuboardmem1_bank.reserved_size - 1;
+
+		cpuboardmem2_bank.start = 0x09000000;
+		cpuboardmem2_bank.reserved_size = cpuboard_size / 2;
+		cpuboardmem2_bank.mask = cpuboardmem2_bank.reserved_size - 1;
+
+		if (cpuboard_size) {
+			cpuboardmem1_bank.label = _T("*");
+			mapped_malloc(&cpuboardmem1_bank);
+			cpuboardmem2_bank.label = _T("*");
+			mapped_malloc(&cpuboardmem2_bank);
+		}
+
 	}
+
 
 	if (!cpuboardmem1_bank.baseaddr)
 		cpuboardmem1_bank.reserved_size = 0;
@@ -2239,6 +2266,33 @@ bool cpuboard_io_special(int addr, uae_u32 *val, int size, bool write)
 	return false;
 }
 
+bool cpuboard_fc_check(uaecptr addr, uae_u32 *v, int size, bool write)
+{
+	if (!currprefs.cpuboard_type)
+		return false;
+
+	if (is_12gauge(&currprefs)) {
+		if ((addr == 0xc0000 || addr == 0xc0001) && size == 0) {
+			uae_u8 val = 0;
+			if (!write) {
+				if (addr == 0xc0000)
+					val = 0x00;
+				if (addr == 0xc0001)
+					val = 0x40; // bit 6 set = scsi driver at base+$c000  (0 = $8000000)
+				*v = val;
+			}
+			if (write)
+				write_log(_T("12GAUGE W %08x = %02x\n"), addr, (*v) & 0xff);
+			else
+				write_log(_T("12GAUGE R %08x = %02x\n"), addr, (*v) & 0xff);
+			return true;
+		}
+		return false;
+	}
+
+	return false;
+}
+
 static void fixserial(struct uae_prefs *p, uae_u8 *rom, int size)
 {
 	uae_u8 value1 = rom[16];
@@ -2415,6 +2469,9 @@ bool cpuboard_autoconfig_init(struct autoconfig_info *aci)
 		case BOARD_CSA:
 		switch(p->cpuboard_subtype)
 		{
+		case BOARD_CSA_SUB_12GAUGE:
+			aci->addrbank = &expamem_null;
+			return true;
 		case BOARD_CSA_SUB_MAGNUM40:
 			aci->addrbank = &expamem_null;
 			return true;

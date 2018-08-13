@@ -176,6 +176,9 @@ uae_u8 ivsvector_scsi_bget(uaecptr addr);
 void ivsvector_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
 bool ivsvector_init(struct autoconfig_info *aci);
 
+void twelvegauge_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
+bool twelvegauge_init(struct autoconfig_info *aci);
+
 void soft_scsi_free(void);
 void soft_scsi_reset(void);
 

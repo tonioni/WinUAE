@@ -615,6 +615,13 @@ extern uae_u32 next_ilong_cache040(void);
 extern uae_u32 get_word_icache040(uaecptr addr);
 extern uae_u32 get_long_icache040(uaecptr addr);
 
+extern uae_u32 sfc_nommu_get_byte(uaecptr);
+extern uae_u32 sfc_nommu_get_word(uaecptr);
+extern uae_u32 sfc_nommu_get_long(uaecptr);
+extern void dfc_nommu_put_byte(uaecptr, uae_u32);
+extern void dfc_nommu_put_word(uaecptr, uae_u32);
+extern void dfc_nommu_put_long(uaecptr, uae_u32);
+
 extern void (*x_do_cycles)(unsigned long);
 extern void (*x_do_cycles_pre)(unsigned long);
 extern void (*x_do_cycles_post)(unsigned long, uae_u32);
@@ -794,5 +801,8 @@ void cpu_semaphore_get(void);
 void cpu_semaphore_release(void);
 bool execute_other_cpu(int until);
 void execute_other_cpu_single(void);
+
+uae_u32 process_cpu_indirect_memory_read(uae_u32 addr, int size);
+void process_cpu_indirect_memory_write(uae_u32 addr, uae_u32 data, int size);
 
 #endif /* UAE_NEWCPU_H */

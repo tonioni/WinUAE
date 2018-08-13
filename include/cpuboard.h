@@ -105,6 +105,7 @@ void blizzardppc_irq_setonly(int id, int level);
 
 #define BOARD_CSA 14
 #define BOARD_CSA_SUB_MAGNUM40 0
+#define BOARD_CSA_SUB_12GAUGE 1
 
 #define BOARD_HARDITAL 15
 #define BOARD_HARDITAL_SUB_TQM 0

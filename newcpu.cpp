@@ -10916,3 +10916,42 @@ void fill_prefetch (void)
 		regs.irc = x_get_word (pc + 2);
 	}
 }
+
+extern bool cpuboard_fc_check(uaecptr addr, uae_u32 *v, int size, bool write);
+
+uae_u32 sfc_nommu_get_byte(uaecptr addr)
+{
+	uae_u32 v;
+	if (!cpuboard_fc_check(addr, &v, 0, false))
+		v = x_get_byte(addr);
+	return v;
+}
+uae_u32 sfc_nommu_get_word(uaecptr addr)
+{
+	uae_u32 v;
+	if (!cpuboard_fc_check(addr, &v, 1, false))
+		v = x_get_word(addr);
+	return v;
+}
+uae_u32 sfc_nommu_get_long(uaecptr addr)
+{
+	uae_u32 v;
+	if (!cpuboard_fc_check(addr, &v, 2, false))
+		v = x_get_long(addr);
+	return v;
+}
+void dfc_nommu_put_byte(uaecptr addr, uae_u32 v)
+{
+	if (!cpuboard_fc_check(addr, &v, 0, true))
+		x_put_byte(addr, v);
+}
+void dfc_nommu_put_word(uaecptr addr, uae_u32 v)
+{
+	if (!cpuboard_fc_check(addr, &v, 1, true))
+		x_put_word(addr, v);
+}
+void dfc_nommu_put_long(uaecptr addr, uae_u32 v)
+{
+	if (!cpuboard_fc_check(addr, &v, 2, true))
+		x_put_long(addr, v);
+}

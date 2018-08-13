@@ -1656,6 +1656,9 @@ static void genamode2x (amodes mode, const char *reg, wordsizes size, const char
 		irc2ir (true);
 
 	if (getv == 1) {
+		const char *srcbx = !(flags & GF_FC) ? srcb : "sfc_nommu_get_byte";
+		const char *srcwx = !(flags & GF_FC) ? srcw : "sfc_nommu_get_word";
+		const char *srclx = !(flags & GF_FC) ? srcl : "sfc_nommu_get_long";
 		start_brace ();
 		if (using_mmu) {
 			if (flags & GF_FC) {
@@ -1675,21 +1678,21 @@ static void genamode2x (amodes mode, const char *reg, wordsizes size, const char
 			}
 		} else if (using_ce020 || using_prefetch_020) {
 			switch (size) {
-			case sz_byte: insn_n_cycles += 4; printf ("\tuae_s8 %s = %s (%sa);\n", name, srcb, name); count_read++; break;
-			case sz_word: insn_n_cycles += 4; printf ("\tuae_s16 %s = %s (%sa);\n", name, srcw, name); count_read++; break;
-			case sz_long: insn_n_cycles += 8; printf ("\tuae_s32 %s = %s (%sa);\n", name, srcl, name); count_read += 2; break;
+			case sz_byte: insn_n_cycles += 4; printf ("\tuae_s8 %s = %s (%sa);\n", name, srcbx, name); count_read++; break;
+			case sz_word: insn_n_cycles += 4; printf ("\tuae_s16 %s = %s (%sa);\n", name, srcwx, name); count_read++; break;
+			case sz_long: insn_n_cycles += 8; printf ("\tuae_s32 %s = %s (%sa);\n", name, srclx, name); count_read += 2; break;
 			default: term ();
 			}
 		} else if (using_ce || using_prefetch) {
 			switch (size) {
-			case sz_byte: insn_n_cycles += 4; printf ("\tuae_s8 %s = %s (%sa);\n", name, srcb, name); count_read++; break;
-			case sz_word: insn_n_cycles += 4; printf ("\tuae_s16 %s = %s (%sa);\n", name, srcw, name); count_read++; break;
+			case sz_byte: insn_n_cycles += 4; printf ("\tuae_s8 %s = %s (%sa);\n", name, srcbx, name); count_read++; break;
+			case sz_word: insn_n_cycles += 4; printf ("\tuae_s16 %s = %s (%sa);\n", name, srcwx, name); count_read++; break;
 			case sz_long: {
 				insn_n_cycles += 8;
 				if ((flags & GF_REVERSE) && mode == Apdi)
-					printf("\tuae_s32 %s = %s (%sa + 2); %s |= %s (%sa) << 16;\n", name, srcw, name, name, srcw, name);
+					printf("\tuae_s32 %s = %s (%sa + 2); %s |= %s (%sa) << 16;\n", name, srcwx, name, name, srcw, name);
 				else
-					printf("\tuae_s32 %s = %s (%sa) << 16; %s |= %s (%sa + 2);\n", name, srcw, name, name, srcw, name);
+					printf("\tuae_s32 %s = %s (%sa) << 16; %s |= %s (%sa + 2);\n", name, srcwx, name, name, srcw, name);
 				count_read += 2;
 				break;
 			}
@@ -1697,9 +1700,9 @@ static void genamode2x (amodes mode, const char *reg, wordsizes size, const char
 			}
 		} else {
 			switch (size) {
-			case sz_byte: insn_n_cycles += 4; printf ("\tuae_s8 %s = %s (%sa);\n", name, srcb, name); count_read++; break;
-			case sz_word: insn_n_cycles += 4; printf ("\tuae_s16 %s = %s (%sa);\n", name, srcw, name); count_read++; break;
-			case sz_long: insn_n_cycles += 8; printf ("\tuae_s32 %s = %s (%sa);\n", name, srcl, name); count_read += 2; break;
+			case sz_byte: insn_n_cycles += 4; printf ("\tuae_s8 %s = %s (%sa);\n", name, srcbx, name); count_read++; break;
+			case sz_word: insn_n_cycles += 4; printf ("\tuae_s16 %s = %s (%sa);\n", name, srcwx, name); count_read++; break;
+			case sz_long: insn_n_cycles += 8; printf ("\tuae_s32 %s = %s (%sa);\n", name, srclx, name); count_read += 2; break;
 			default: term ();
 			}
 		}
@@ -1870,6 +1873,10 @@ static void genastore_2 (const char *from, amodes mode, const char *reg, wordsiz
 	case absl:
 	case PC16:
 	case PC8r:
+	{
+		const char *dstbx = !(flags & GF_FC) ? dstb : "dfc_nommu_put_byte";
+		const char *dstwx = !(flags & GF_FC) ? dstw : "dfc_nommu_put_word";
+		const char *dstlx = !(flags & GF_FC) ? dstl : "dfc_nommu_put_long";
 		if (!(flags & GF_NOFAULTPC))
 			gen_set_fault_pc ();
 		if (using_mmu) {
@@ -1905,19 +1912,19 @@ static void genastore_2 (const char *from, amodes mode, const char *reg, wordsiz
 		} else if (using_ce020 || using_prefetch_020) {
 			switch (size) {
 			case sz_byte:
-				printf ("\t%s (%sa, %s);\n", dstb, to, from);
+				printf ("\t%s (%sa, %s);\n", dstbx, to, from);
 				count_write++;
 				break;
 			case sz_word:
 				if (cpu_level < 2 && (mode == PC16 || mode == PC8r))
 					term ();
-				printf ("\t%s (%sa, %s);\n", dstw, to, from);
+				printf ("\t%s (%sa, %s);\n", dstwx, to, from);
 				count_write++;
 				break;
 			case sz_long:
 				if (cpu_level < 2 && (mode == PC16 || mode == PC8r))
 					term ();
-				printf ("\t%s (%sa, %s);\n", dstl, to, from);
+				printf ("\t%s (%sa, %s);\n", dstlx, to, from);
 				count_write += 2;
 				break;
 			default:
@@ -1958,14 +1965,14 @@ static void genastore_2 (const char *from, amodes mode, const char *reg, wordsiz
 			switch (size) {
 			case sz_byte:
 				insn_n_cycles += 4;
-				printf ("\t%s (%sa, %s);\n", dstb, to, from);
+				printf ("\t%s (%sa, %s);\n", dstbx, to, from);
 				count_write++;
 				break;
 			case sz_word:
 				insn_n_cycles += 4;
 				if (cpu_level < 2 && (mode == PC16 || mode == PC8r))
 					term ();
-				printf ("\t%s (%sa, %s);\n", dstw, to, from);
+				printf ("\t%s (%sa, %s);\n", dstwx, to, from);
 				count_write++;
 				break;
 			case sz_long:
@@ -1973,9 +1980,9 @@ static void genastore_2 (const char *from, amodes mode, const char *reg, wordsiz
 				if (cpu_level < 2 && (mode == PC16 || mode == PC8r))
 					term ();
 				if (store_dir)
-					printf ("\t%s (%sa + 2, %s); %s (%sa, %s >> 16);\n", dstw, to, from, dstw, to, from);
+					printf ("\t%s (%sa + 2, %s); %s (%sa, %s >> 16);\n", dstwx, to, from, dstwx, to, from);
 				else
-					printf ("\t%s (%sa, %s >> 16); %s (%sa + 2, %s);\n", dstw, to, from, dstw, to, from);
+					printf ("\t%s (%sa, %s >> 16); %s (%sa + 2, %s);\n", dstwx, to, from, dstwx, to, from);
 				count_write += 2;
 				break;
 			default:
@@ -2007,6 +2014,7 @@ static void genastore_2 (const char *from, amodes mode, const char *reg, wordsiz
 			}
 		}
 		break;
+	}
 	case imm:
 	case imm0:
 	case imm1:

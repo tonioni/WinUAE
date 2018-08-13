@@ -405,6 +405,8 @@ static struct romdata roms[] = {
 	ALTROMPN(225, 1, 2, 8192, ROMTYPE_EVEN | ROMTYPE_8BIT, NULL, 0x7989684f, 0x9dc4d885, 0x242bf7eb, 0xe75a01b2, 0x483c9e3c, 0x8013896b)
 	{ _T("CSA Magnum 040"), 0, 0, 0, 0, _T("MAGNUM040\0"), 65536, 226, 0, 0, ROMTYPE_CB_MAGNUM40, 0, 0, NULL,
 	0xb94e805b, 0x4c1859ba,0x7ea2cedb,0xf5251bed,0xfbb76e6c,0x0617300e },
+	{ _T("CSA Twelve Gauge"), 0, 0, 0, 0, _T("12GAUGE\0"), 32768, 241, 0, 0, ROMTYPE_CB_12GAUGE, 0, 0, NULL,
+	0x2a74074d, 0xc1f29093,0x491339cd,0xdc81f994,0x0f0965df,0xa3a193f2 },
 	{ _T("Hardital TQM"), 0, 0, 0, 0, _T("TQM\0"), 32768, 228, 0, 0, ROMTYPE_CB_TQM, 0, 0, NULL,
 	0x3bc9b90c, 0x24fa6ab8, 0x5ca64ae6, 0x43851a85, 0xa473ff0c, 0x5a48f272, NULL, NULL },
 	{ _T("MacroSystem Falcon 040 (No SCSI)"), 0, 0, 0, 0, _T("FALCON040\0"), 131072, 229, 0, 0, ROMTYPE_CB_FALCON40, 0, 0, NULL,
