@@ -2893,54 +2893,55 @@ struct addrbank_thread {
 
 #define MAX_THREAD_BANKS 200
 static addrbank_thread *thread_banks[MAX_THREAD_BANKS];
-static addrbank *thread_mem_banks[MEMORY_BANKS];
+addrbank *thread_mem_banks[MEMORY_BANKS];
 static int thread_banks_used;
 
 static void REGPARAM2 threadcpu_lput(uaecptr addr, uae_u32 l)
 {
-	cpu_semaphore_get();
-	thread_mem_banks[bankindex(addr)]->lput(addr, l);
-	cpu_semaphore_release();
-}
+	//write_log(_T("LPUT %08x %08x %08x\n"), addr, l, M68K_GETPC);
 
+	process_cpu_indirect_memory_write(addr, l, 2);
+}
 static void REGPARAM2 threadcpu_wput(uaecptr addr, uae_u32 w)
 {
-	cpu_semaphore_get();
-	thread_mem_banks[bankindex(addr)]->wput(addr, w);
-	cpu_semaphore_release();
-}
+	//write_log(_T("WPUT %08x %08x %08x\n"), addr, w, M68K_GETPC);
 
+	process_cpu_indirect_memory_write(addr, w, 1);
+}
 static void REGPARAM2 threadcpu_bput(uaecptr addr, uae_u32 b)
 {
-	cpu_semaphore_get();
-	thread_mem_banks[bankindex(addr)]->bput(addr, b);
-	cpu_semaphore_release();
+	//write_log(_T("BPUT %08x %08x %08x\n"), addr, b, M68K_GETPC);
+
+	process_cpu_indirect_memory_write(addr, b, 0);
 }
 static uae_u32 REGPARAM2 threadcpu_lget(uaecptr addr)
 {
-	cpu_semaphore_get();
-	uae_u32 v = thread_mem_banks[bankindex(addr)]->lget(addr);
-	cpu_semaphore_release();
+	uae_u32 v = process_cpu_indirect_memory_read(addr, 2);
+
+	//write_log(_T("LGET %08x %08x %08x\n"), addr, v, M68K_GETPC);
+
 	return v;
 }
 static uae_u32 REGPARAM2 threadcpu_wget(uaecptr addr)
 {
-	cpu_semaphore_get();
-	uae_u32 v = thread_mem_banks[bankindex(addr)]->wget(addr);
-	cpu_semaphore_release();
+	uae_u32 v = process_cpu_indirect_memory_read(addr, 1);
+
+	//write_log(_T("WGET %08x %08x %08x\n"), addr, v, M68K_GETPC);
+
 	return v;
 }
 uae_u32 REGPARAM2 threadcpu_bget(uaecptr addr)
 {
-	cpu_semaphore_get();
-	uae_u32 v = thread_mem_banks[bankindex(addr)]->bget(addr);
-	cpu_semaphore_release();
+	uae_u32 v = process_cpu_indirect_memory_read(addr, 0);
+
+	//write_log(_T("BGET %08x %08x %08x\n"), addr, v, M68K_GETPC);
+
 	return v;
 }
 
 static addrbank *get_bank_cpu_thread(addrbank *bank)
 {
-	if (bank->flags & ABFLAG_THREADSAFE)
+	if ((bank->flags & ABFLAG_THREADSAFE) && !(bank->flags & ABFLAG_IO))
 		return bank;
 	if (bank == &dummy_bank)
 		return bank;
@@ -2957,6 +2958,8 @@ static addrbank *get_bank_cpu_thread(addrbank *bank)
 	at->orig = bank;
 	memcpy(&at->ab, bank, sizeof addrbank);
 	addrbank *tb = &at->ab;
+	tb->jit_read_flag = S_READ;
+	tb->jit_write_flag = S_WRITE;
 	tb->lget = threadcpu_lget;
 	tb->wget = threadcpu_wget;
 	tb->bget = threadcpu_bget;
@@ -2975,6 +2978,8 @@ static void map_banks2 (addrbank *bank, int start, int size, int realsize, int q
 	uae_u32 realstart = start;
 	addrbank *orig_bank = NULL;
 
+	bank->flags |= ABFLAG_MAPPED;
+
 #ifdef WITH_THREADED_CPU
 	if (currprefs.cpu_thread) {
 		addrbank *b = bank;
@@ -2987,7 +2992,6 @@ static void map_banks2 (addrbank *bank, int start, int size, int realsize, int q
 	if (quick <= 0)
 		old = debug_bankchange (-1);
 	flush_icache_hard (3); /* Sure don't want to keep any old mappings around! */
-	bank->flags |= ABFLAG_MAPPED;
 #ifdef NATMEM_OFFSET
 	if (!quick)
 		delete_shmmaps (start << 16, size << 16);

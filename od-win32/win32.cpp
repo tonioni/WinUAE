@@ -507,13 +507,7 @@ int sleep_millis (int ms)
 
 int sleep_millis_amiga(int ms)
 {
-#ifdef WITH_THREADED_CPU
-	cpu_semaphore_release();
-#endif
 	int ret = sleep_millis_main(ms);
-#ifdef WITH_THREADED_CPU
-	cpu_semaphore_get();
-#endif
 	return ret;
 }
 

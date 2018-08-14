@@ -11,6 +11,7 @@ extern int uae_start_thread(const TCHAR *name, void *(*f)(void *), void *arg, ua
 extern int uae_start_thread_fast(void *(*f)(void *), void *arg, uae_thread_id *thread);
 extern void uae_end_thread(uae_thread_id *thread);
 extern void uae_set_thread_priority(uae_thread_id *, int);
+extern uae_thread_id uae_thread_get_id(void);
 
 #include "commpipe.h"
 

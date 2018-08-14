@@ -797,8 +797,6 @@ extern bool can_cpu_tracer (void);
 #define CPU_HALT_SSP_IN_NON_EXISTING_ADDRESS 10
 #define CPU_HALT_INVALID_START_ADDRESS 11
 
-void cpu_semaphore_get(void);
-void cpu_semaphore_release(void);
 bool execute_other_cpu(int until);
 void execute_other_cpu_single(void);
 
