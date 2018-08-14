@@ -3182,6 +3182,7 @@ static void fpu_test(void)
 
 void fpu_reset (void)
 {
+	currprefs.fpu_mode = changed_prefs.fpu_mode;
 	if (currprefs.fpu_mode > 0) {
 		fp_init_softfloat(currprefs.fpu_model);
 #ifdef MSVC_LONG_DOUBLE
