@@ -544,13 +544,14 @@ static void setcursor(struct AmigaMonitor *mon, int oldx, int oldy)
 		return;
 	}
 #if MOUSECLIP_LOG
-	write_log (_T("%dx%d %dx%d %dx%d %dx%d (%dx%d %dx%d)\n"),
+	write_log (_T("mon=%d %dx%d %dx%d %dx%d %dx%d (%dx%d %dx%d)\n"),
+		mon->monitor_id,
 		dx, dy,
-		mouseposx, mouseposy,
+		mon->mouseposx, mon->mouseposy,
 		oldx, oldy,
-		oldx + amigawinclip_rect.left, oldy + amigawinclip_rect.top,
-		amigawinclip_rect.left, amigawinclip_rect.top,
-		amigawinclip_rect.right, amigawinclip_rect.bottom);
+		oldx + mon->amigawinclip_rect.left, oldy + mon->amigawinclip_rect.top,
+		mon->amigawinclip_rect.left, mon->amigawinclip_rect.top,
+		mon->amigawinclip_rect.right, mon->amigawinclip_rect.bottom);
 #endif
 	if (oldx >= 30000 || oldy >= 30000 || oldx <= -30000 || oldy <= -30000) {
 		oldx = oldy = 0;
@@ -560,19 +561,19 @@ static void setcursor(struct AmigaMonitor *mon, int oldx, int oldy)
 	}
 	mon->mouseposx = mon->mouseposy = 0;
 	if (oldx < 0 || oldy < 0 || oldx > mon->amigawin_rect.right - mon->amigawin_rect.left || oldy > mon->amigawin_rect.bottom - mon->amigawin_rect.top) {
-		write_log (_T("Mouse out of range: %dx%d (%dx%d %dx%d)\n"), oldx, oldy,
+		write_log (_T("Mouse out of range: mon=%d %dx%d (%dx%d %dx%d)\n"), mon->monitor_id, oldx, oldy,
 			mon->amigawin_rect.left, mon->amigawin_rect.top, mon->amigawin_rect.right, mon->amigawin_rect.bottom);
 		return;
 	}
 	int cx = (mon->amigawinclip_rect.right - mon->amigawinclip_rect.left) / 2 + mon->amigawin_rect.left + (mon->amigawinclip_rect.left - mon->amigawin_rect.left);
 	int cy = (mon->amigawinclip_rect.bottom - mon->amigawinclip_rect.top) / 2 + mon->amigawin_rect.top + (mon->amigawinclip_rect.top - mon->amigawin_rect.top);
 #if MOUSECLIP_LOG
-	write_log (_T("SetCursorPos(%d,%d)\n"), cx, cy);
+	write_log (_T("SetCursorPos(%d,%d) mon=%d\n"), cx, cy, mon->monitor_id);
 #endif
 	SetCursorPos (cx, cy);
 }
 
-static int showcursor;
+static int mon_cursorclipped;
 
 extern TCHAR config_filename[256];
 
@@ -750,7 +751,7 @@ static void setcursorshape(int monid)
 	}
 }
 
-void releasecapture(void)
+void releasecapture(struct AmigaMonitor *mon)
 {
 	//write_log(_T("releasecapture %d\n"), showcursor);
 #if 0
@@ -759,17 +760,17 @@ void releasecapture(void)
 	GetCursorInfo(&pci);
 	write_log(_T("PCI %08x %p %d %d\n"), pci.flags, pci.hCursor, pci.ptScreenPos.x, pci.ptScreenPos.y);
 #endif
-	if (!showcursor)
+	if (!mon_cursorclipped)
 		return;
 	ClipCursor(NULL);
 	ReleaseCapture();
 	ShowCursor(TRUE);
-	showcursor = 0;
+	mon_cursorclipped = 0;
 }
 
 void updatemouseclip(struct AmigaMonitor *mon)
 {
-	if (showcursor) {
+	if (mon_cursorclipped) {
 		mon->amigawinclip_rect = mon->amigawin_rect;
 		if (!isfullscreen()) {
 			int idx = 0;
@@ -841,11 +842,13 @@ void updatemouseclip(struct AmigaMonitor *mon)
 			if (mon->amigawinclip_rect.right <= mon->amigawinclip_rect.left + 7 || mon->amigawinclip_rect.bottom <= mon->amigawinclip_rect.top + 7)
 				mon->amigawinclip_rect = mon->amigawin_rect;
 		}
+		if (mon_cursorclipped == mon->monitor_id + 1) {
 #if MOUSECLIP_LOG
-		write_log (_T("CLIP %dx%d %dx%d %d\n"), amigawin_rect.left, amigawin_rect.top, amigawin_rect.right, amigawin_rect.bottom, isfullscreen ());
+			write_log(_T("CLIP mon=%d %dx%d %dx%d %d\n"), mon->monitor_id, mon->amigawin_rect.left, mon->amigawin_rect.top, mon->amigawin_rect.right, mon->amigawin_rect.bottom, isfullscreen());
 #endif
-		if (!ClipCursor (&mon->amigawinclip_rect))
-			write_log(_T("ClipCursor error %d\n"), GetLastError());
+			if (!ClipCursor(&mon->amigawinclip_rect))
+				write_log(_T("ClipCursor error %d\n"), GetLastError());
+		}
 	}
 }
 
@@ -857,7 +860,7 @@ void updatewinrect(struct AmigaMonitor *mon, bool allowfullscreen)
 	GetWindowRect(mon->hAmigaWnd, &mon->amigawin_rect);
 	GetWindowRect(mon->hAmigaWnd, &mon->amigawinclip_rect);
 #if MOUSECLIP_LOG
-	write_log (_T("GetWindowRect %dx%d %dx%d %d\n"), amigawin_rect.left, amigawin_rect.top, amigawin_rect.right, amigawin_rect.bottom, f);
+	write_log (_T("GetWindowRect mon=%d %dx%d %dx%d %d\n"), mon->monitor_id, mon->amigawin_rect.left, mon->amigawin_rect.top, mon->amigawin_rect.right, mon->amigawin_rect.bottom, f);
 #endif
 	if (f == 0 && mon->monitor_id == 0) {
 		changed_prefs.gfx_monitor[mon->monitor_id].gfx_size_win.x = mon->amigawin_rect.left;
@@ -964,7 +967,7 @@ static void setmouseactive2(struct AmigaMonitor *mon, int active, bool allowpaus
 	//write_log (_T("setmouseactive %d->%d showcursor=%d focus=%d recap=%d\n"), mouseactive, active, showcursor, focus, recapture);
 
 	if (active == 0)
-		releasecapture ();
+		releasecapture (mon);
 	if (mouseactive == active && active >= 0)
 		return;
 
@@ -985,7 +988,7 @@ static void setmouseactive2(struct AmigaMonitor *mon, int active, bool allowpaus
 
 	mon->mouseposx = mon->mouseposy = 0;
 	//write_log (_T("setmouseactive(%d)\n"), active);
-	releasecapture ();
+	releasecapture (mon);
 	recapture = 0;
 
 	if (isfullscreen () <= 0 && (currprefs.input_mouse_untrap & MOUSEUNTRAP_MAGIC) && currprefs.input_tablet > 0) {
@@ -1018,20 +1021,20 @@ static void setmouseactive2(struct AmigaMonitor *mon, int active, bool allowpaus
 	if (mouseactive > 0)
 		focus = mon->monitor_id + 1;
 
-	//write_log(_T("setcapture %d %d %d\n"), mouseactive, focus, showcursor);
+	//write_log(_T("setcapture %d %d %d\n"), mouseactive, focus, mon_cursorclipped);
 
 	if (mouseactive) {
 		if (focus) {
 			if (GetActiveWindow() != mon->hMainWnd && GetActiveWindow() != mon->hAmigaWnd)
 				SetActiveWindow(mon->hMainWnd);
-			if (!showcursor) {
+			if (!mon_cursorclipped) {
 				//write_log(_T("setcapture\n"));
 #if MOUSECLIP_HIDE
 				ShowCursor (FALSE);
 #endif
 				SetCapture (mon->hAmigaWnd);
 				updatewinrect(mon, false);
-				showcursor = mon->monitor_id + 1;
+				mon_cursorclipped = mon->monitor_id + 1;
 				updatemouseclip(mon);
 			}
 			setcursor(mon, -30000, -30000);
@@ -2111,7 +2114,7 @@ static LRESULT CALLBACK AmigaWindowProc(HWND hWnd, UINT message, WPARAM wParam, 
 		return 0;
 #endif
 
-		//write_log (_T("%d %d %d %d %d %d %dx%d %dx%d\n"), wm, mouseactive, focus, showcursor, recapture, isfullscreen (), mx, my, mouseposx, mouseposy);
+		//write_log (_T("%d %d %d %d %d %d %dx%d %dx%d\n"), wm, mouseactive, focus, mon_cursorclipped, recapture, isfullscreen (), mx, my, mouseposx, mouseposy);
 		mx -= mon->mouseposx;
 		my -= mon->mouseposy;
 
@@ -2145,7 +2148,7 @@ static LRESULT CALLBACK AmigaWindowProc(HWND hWnd, UINT message, WPARAM wParam, 
 			setmousestate(0, 0, mx, 1);
 			setmousestate(0, 1, my, 1);
 		}
-		if (showcursor || mouseactive)
+		if (mon_cursorclipped || mouseactive)
 			setcursor(mon, LOWORD(lParam), HIWORD(lParam));
 		return 0;
 	}

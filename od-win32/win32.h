@@ -55,7 +55,7 @@ extern bool my_kbd_handler (int, int, int, bool);
 extern void clearallkeys (void);
 extern int getcapslock (void);
 
-void releasecapture (void);
+void releasecapture (struct AmigaMonitor*);
 int WIN32_RegisterClasses (void);
 int WIN32_InitHtmlHelp (void);
 int WIN32_InitLibraries (void);
