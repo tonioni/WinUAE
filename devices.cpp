@@ -114,7 +114,6 @@ void devices_reset(int hardreset)
 	compemu_reset ();
 #endif
 #ifdef AUTOCONFIG
-	expamem_reset ();
 	rtarea_reset();
 #endif
 #ifdef DRIVESOUND

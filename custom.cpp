@@ -9894,6 +9894,12 @@ void custom_reset (bool hardreset, bool keyboardreset)
 	setup_fmodes (0);
 	shdelay_disabled = false;
 
+	// must be after audio reset
+	// this inits first autoconfig board
+#ifdef AUTOCONFIG
+	expamem_reset();
+#endif
+
 #ifdef ACTION_REPLAY
 	/* Doing this here ensures we can use the 'reset' command from within AR */
 	action_replay_reset (hardreset, keyboardreset);
