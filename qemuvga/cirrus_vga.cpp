@@ -178,7 +178,7 @@ static void check_blit(int32_t addr, uint32_t mask, int pitch, int width, int *h
 {
 	int h = *height;
 	int32_t off;
-	if (!h || !width)
+	if (!h || !width || (!addr && !mask))
 		return;
 	addr &= mask;
 	off = addr + pitch * (h - 1);
