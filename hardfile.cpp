@@ -1282,10 +1282,12 @@ static uae_u64 cmd_read(TrapContext *ctx, struct hardfiledata *hfd, uaecptr data
 		return 0;
 	if (!ctx && real_address_allowed()) {
 		addrbank *bank_data = &get_mem_bank (dataptr);
-		if (!bank_data || !bank_data->check (dataptr, len))
+		if (!bank_data)
 			return 0;
-		uae_u8 *buffer = bank_data->xlateaddr(dataptr);
-		return cmd_readx(hfd, buffer, offset, len);
+		if (bank_data->check(dataptr, len)) {
+			uae_u8 *buffer = bank_data->xlateaddr(dataptr);
+			return cmd_readx(hfd, buffer, offset, len);
+		}
 	}
 	int total = 0;
 	while (len > 0) {
@@ -1315,10 +1317,12 @@ static uae_u64 cmd_write(TrapContext *ctx, struct hardfiledata *hfd, uaecptr dat
 		return 0;
 	if (!ctx && real_address_allowed()) {
 		addrbank *bank_data = &get_mem_bank (dataptr);
-		if (!bank_data || !bank_data->check (dataptr, len))
+		if (!bank_data)
 			return 0;
-		uae_u8 *buffer = bank_data->xlateaddr(dataptr);
-		return cmd_writex(hfd, buffer, offset, len);
+		if (bank_data->check(dataptr, len)) {
+			uae_u8 *buffer = bank_data->xlateaddr(dataptr);
+			return cmd_writex(hfd, buffer, offset, len);
+		}
 	}
 	int total = 0;
 	while (len > 0) {
