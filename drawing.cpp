@@ -3944,6 +3944,7 @@ static void finish_drawing_frame(bool drawlines)
 				setnativeposition(out);
 			out->tempbufferinuse = true;
 			if (!ad->specialmonitoron) {
+				need_genlock_data = specialmonitor_need_genlock();
 				ad->specialmonitoron = true;
 				compute_framesync();
 				pfield_set_linetoscr();
