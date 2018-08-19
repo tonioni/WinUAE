@@ -4888,8 +4888,10 @@ static int do_specialties (int cycles)
 		unset_special(SPCFLAG_BRK);
 #ifdef DEBUGGER
 		if (stopped_debug && !regs.stopped) {
-			debugger_active = 1;
-			stopped_debug = false;
+			if (debugging) {
+				debugger_active = 1;
+				stopped_debug = false;
+			}
 		}
 		if (debugging) {
 			if (!stopped_debug)
