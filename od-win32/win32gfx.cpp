@@ -2605,6 +2605,7 @@ int check_prefs_changed_gfx (void)
 		currprefs.win32_iconified_pause != changed_prefs.win32_iconified_pause ||
 		currprefs.win32_iconified_input != changed_prefs.win32_iconified_input ||
 		currprefs.win32_ctrl_F11_is_quit != changed_prefs.win32_ctrl_F11_is_quit ||
+		currprefs.win32_shutdown_notification != changed_prefs.win32_shutdown_notification ||
 		currprefs.win32_warn_exit != changed_prefs.win32_warn_exit ||
 		currprefs.right_control_is_right_win_key != changed_prefs.right_control_is_right_win_key)
 	{
@@ -2626,6 +2627,7 @@ int check_prefs_changed_gfx (void)
 		currprefs.win32_iconified_pause = changed_prefs.win32_iconified_pause;
 		currprefs.win32_iconified_input = changed_prefs.win32_iconified_input;
 		currprefs.win32_ctrl_F11_is_quit = changed_prefs.win32_ctrl_F11_is_quit;
+		currprefs.win32_shutdown_notification = changed_prefs.win32_shutdown_notification;
 		currprefs.win32_warn_exit = changed_prefs.win32_warn_exit;
 		currprefs.right_control_is_right_win_key = changed_prefs.right_control_is_right_win_key;
 		inputdevice_unacquire ();
