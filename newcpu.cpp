@@ -6245,8 +6245,8 @@ static void m68k_run_2p (void)
 					cpu_cycles = 4 * CYCLE_UNIT * cycles_mult;
 					cpu_cycles /= CYCLES_DIV;
 					cpu_cycles -= CYCLE_UNIT;
-					if (cpu_cycles < 0)
-						cpu_cycles = 0;
+					if (cpu_cycles <= 0)
+						cpu_cycles = cpucycleunit;
 
 				} else {
 
