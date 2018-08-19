@@ -66,7 +66,6 @@ static void *console_thread (void *v)
 		TCHAR wc = console_getch ();
 		char c[2];
 
-		write_log (_T("*"));
 		c[0] = 0;
 		c[1] = 0;
 		ua_copy (c, 1, &wc);

@@ -118,8 +118,10 @@ void activate_debugger (void)
 
 	debug_pc = 0xffffffff;
 	trace_mode = 0;
-	if (debugger_active)
+	if (debugger_active) {
+		write_log(_T("Debugger already active!?\n"));
 		return;
+	}
 	debug_cycles();
 	debugger_active = 1;
 	set_special (SPCFLAG_BRK);

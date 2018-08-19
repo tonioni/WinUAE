@@ -965,8 +965,6 @@ bool S2X_init(int monid, int dw, int dh, int dd)
 
 void S2X_render(int monid, int y_start, int y_end)
 {
-	if (monid)
-		return;
 	struct AmigaMonitor *mon = &AMonitors[monid];
 	struct amigadisplay *ad = &adisplays[monid];
 	struct uae_filter *usedfilter = mon->usedfilter;
