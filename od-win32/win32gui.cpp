@@ -668,6 +668,7 @@ static const TCHAR *historytypes[] =
 	_T("GenlockImageMRUList"),
 	_T("GenlockVideoMRUList"),
 	_T("GeometryMRUList")
+	_T("StatefileMRUList")
 };
 static int regread;
 
@@ -710,6 +711,7 @@ void write_disk_history (void)
 	write_disk_history2(HISTORY_GENLOCK_IMAGE);
 	write_disk_history2(HISTORY_GENLOCK_VIDEO);
 	write_disk_history2(HISTORY_GEO);
+	write_disk_history2(HISTORY_STATEFILE);
 }
 
 void reset_disk_history (void)
@@ -726,6 +728,7 @@ void reset_disk_history (void)
 		DISK_history_add(NULL, i, HISTORY_GENLOCK_IMAGE, 0);
 		DISK_history_add(NULL, i, HISTORY_GENLOCK_VIDEO, 0);
 		DISK_history_add(NULL, i, HISTORY_GEO, 0);
+		DISK_history_add(NULL, i, HISTORY_STATEFILE, 0);
 	}
 	rrold = regread;
 	regread = (1 << HISTORY_MAX) - 1;
@@ -11432,6 +11435,7 @@ static INT_PTR MiscDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 		values_to_miscdlg (hDlg);
 		enable_for_miscdlg (hDlg);
 		setstatefilename (hDlg);
+		addhistorymenu(hDlg, NULL, IDC_STATENAME, HISTORY_STATEFILE, true);
 		recursive--;
 		return TRUE;
 
@@ -11502,6 +11506,16 @@ static INT_PTR MiscDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 			if (HIWORD (wParam) == CBN_SELENDOK || HIWORD (wParam) == CBN_KILLFOCUS || HIWORD (wParam) == CBN_EDITCHANGE)  {
 				switch (LOWORD (wParam))
 				{
+				case IDC_STATENAME:
+					if (getcomboboxtext(hDlg, IDC_STATENAME, savestate_fname, sizeof savestate_fname / sizeof(TCHAR))) {
+						if (savestate_fname[0]) {
+							parsefilepath(savestate_fname, sizeof savestate_fname / sizeof(TCHAR));
+							savestate_state = STATE_DORESTORE;
+							_tcscpy(workprefs.statefile, savestate_fname);
+							setstatefilename(hDlg);
+						}
+					}
+					break;
 				case IDC_KBLED1:
 					misc_getkbled (hDlg, IDC_KBLED1, 0);
 					break;
@@ -14607,7 +14621,8 @@ static void addhistorymenu(HWND hDlg, const TCHAR *text, int f_text, int type, b
 	if (f_text < 0)
 		return;
 	SendDlgItemMessage (hDlg, f_text, CB_RESETCONTENT, 0, 0);
-	SendDlgItemMessage (hDlg, f_text, WM_SETTEXT, 0, (LPARAM)text);
+	if (text)
+		SendDlgItemMessage (hDlg, f_text, WM_SETTEXT, 0, (LPARAM)text);
 	fkey = read_disk_history (type);
 	if (fkey == NULL)
 		return;
@@ -14646,7 +14661,7 @@ static void addhistorymenu(HWND hDlg, const TCHAR *text, int f_text, int type, b
 		}
 		if (f_text >= 0)
 			SendDlgItemMessage (hDlg, f_text, CB_ADDSTRING, 0, (LPARAM)tmpname);
-		if (!_tcscmp (text, s))
+		if (text && !_tcscmp (text, s))
 			curidx = i - 1;
 	}
 	if (f_text >= 0 && curidx >= 0)
