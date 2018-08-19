@@ -234,6 +234,7 @@ void qemu_register_reset(QEMUResetHandler *func, void *opaque);
 #define CIRRUS_ID_CLGD5426  (0x24<<2)
 #define CIRRUS_ID_CLGD5424  (0x25<<2)
 #define CIRRUS_ID_CLGD5428  (0x26<<2)
+#define CIRRUS_ID_CLGD5429  (0x27<<2)
 #define CIRRUS_ID_CLGD5430  (0x28<<2)
 #define CIRRUS_ID_CLGD5434  (0x2A<<2)
 #define CIRRUS_ID_CLGD5436  (0x2B<<2)
@@ -301,11 +302,12 @@ struct CirrusVGAState {
     int device_id;
     int bustype;
 	int valid_memory_config;
+	bool x86vga;
 };
 
 void cirrus_init_common(CirrusVGAState * s, int device_id, int is_pci,
                                MemoryRegion *system_memory,
-                               MemoryRegion *system_io, int vramlimit);
+                               MemoryRegion *system_io, int vramlimit, bool x86vga);
 
 struct DeviceState
 {

@@ -742,6 +742,10 @@ void fixup_prefs (struct uae_prefs *p, bool userconfig)
 	if (p->tod_hack && p->cs_ciaatod == 0)
 		p->cs_ciaatod = p->ntscmode ? 2 : 1;
 
+	// PCem does not support max speed.
+	if (p->x86_speed_throttle < 0)
+		p->x86_speed_throttle = 0;
+
 	built_in_chipset_prefs (p);
 	blkdev_fix_prefs (p);
 	inputdevice_fix_prefs(p, userconfig);

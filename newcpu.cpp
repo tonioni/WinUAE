@@ -4466,27 +4466,6 @@ void safe_interrupt_set(int num, int id, bool i6)
 	}
 }
 
-void execute_other_cpu_single(void)
-{
-#ifdef WITH_X86
-	if (!x86_turbo_on)
-		return;
-	x86_bridge_execute_until(0);
-#endif
-}
-
-bool execute_other_cpu(int until)
-{
-#ifdef WITH_X86
-	if (!x86_turbo_on)
-		return false;
-	if (!until)
-		until++;
-	x86_bridge_execute_until(until);
-#endif
-	return true;
-}
-
 int cpu_sleep_millis(int ms)
 {
 	int ret = 0;
@@ -4496,11 +4475,11 @@ int cpu_sleep_millis(int ms)
 		uae_ppc_spinlock_release();
 #endif
 #ifdef WITH_X86
-	if (x86_turbo_on) {
-		execute_other_cpu(read_processor_time() + vsynctimebase / 20);
-	} else {
+//	if (x86_turbo_on) {
+//		execute_other_cpu(read_processor_time() + vsynctimebase / 20);
+//	} else {
 		ret = sleep_millis_main(ms);
-	}
+//	}
 #endif
 #ifdef WITH_PPC
 	if (state)

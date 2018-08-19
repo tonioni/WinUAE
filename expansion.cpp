@@ -4044,12 +4044,30 @@ static const struct expansionboardsettings bridge_settings[] = {
 	}
 };
 
+static const struct expansionboardsettings x86vga_settings[] = {
+	{
+		_T("Chipset\0") _T("CL-GD5426\0") _T("CL-GD5429\0"),
+		_T("chipset\0") _T("cl-gd5426\0") _T("cl-gd5429\0"),
+		true
+	},
+	{
+		NULL
+	}
+};
+
+
 static const struct expansionboardsettings x86at286_bridge_settings[] = {
+	{
+		// 13
+		_T("PC Speaker emulation"),
+		_T("speaker"),
+		false, false, 13
+	},
 	{
 		// 14
 		_T("Default video\0") _T("Monochrome\0") _T("Color\0"),
 		_T("video\0") _T("mono\0") _T("color\0"),
-		true, false, 14
+		true
 	},
 	{
 		// 15
@@ -4062,20 +4080,10 @@ static const struct expansionboardsettings x86at286_bridge_settings[] = {
 		_T("memory\0") _T("1M\0") _T("2M\0") _T("4M\0") _T("8M\0") _T("16M\0"),
 		true, false, 0
 	},
-	{	// 19 - 20
-		_T("CPU core\0") _T("DOSBox simple\0") _T("DOSBox normal\0") _T("DOSBox full\0") _T("DOSBox auto\0"),
-		_T("cpu\0") _T("dbsimple\0") _T("dbnormal\0") _T("dbfull\0") _T("dbauto\0"),
-		true, false, 0
-	},
-	{	// 22
-		_T("FPU"),
-		_T("fpu"),
-		false, false, 1
-	},
-	{	// 23 - 25
-		_T("CPU Arch\0") _T("auto\0") _T("386\0") _T("386_prefetch\0") _T("386_slow\0") _T("486_slow\0") _T("486_prefetch\0") _T("pentium_slow\0"), 
-		_T("cpuarch\0") _T("auto\0") _T("386\0") _T("386_prefetch\0") _T("386_slow\0") _T("486_slow\0") _T("486_prefetch\0") _T("pentium_slow\0"),
-		true, false, 0
+	{
+		_T("Emulator config\0"),
+		_T("config\0"),
+		2, false, 0
 	},
 	{
 		NULL
@@ -4084,36 +4092,33 @@ static const struct expansionboardsettings x86at286_bridge_settings[] = {
 
 static const struct expansionboardsettings x86at386_bridge_settings[] = {
 	{
+		// 13
+		_T("PC Speaker emulation"),
+		_T("speaker"),
+		false, false, 13
+	},
+	{
 		// 15
 		_T("Keyboard lock"),
 		_T("keylock"),
-		false, false, 15
+		false, false, 15 - 14
 	},
 	{	// 16 - 18
 		_T("Memory\0") _T("1M\0") _T("2M\0") _T("4M\0") _T("8M\0") _T("16M\0") _T("32M\0") _T("64M\0"),
 		_T("memory\0") _T("1M\0") _T("2M\0") _T("4M\0") _T("8M\0") _T("16M\0") _T("32M\0") _T("64M\0"),
 		true, false, 0
 	},
-	{	// 19 - 20
-		_T("CPU core\0") _T("DOSBox simple\0") _T("DOSBox normal\0") _T("DOSBox full\0") _T("DOSBox auto\0"),
-		_T("cpu\0") _T("dbsimple\0") _T("dbnormal\0") _T("dbfull\0") _T("dbauto\0"),
-		true, false, 0
-	},
-	{	// 22
-		_T("FPU"),
-		_T("fpu"),
-		false, false, 1
-	},
-	{	// 23 - 25
-		_T("CPU Arch\0") _T("auto\0") _T("386\0") _T("386_prefetch\0") _T("386_slow\0") _T("486_slow\0") _T("486_prefetch\0") _T("pentium_slow\0"),
-		_T("cpuarch\0") _T("auto\0") _T("386\0") _T("386_prefetch\0") _T("386_slow\0") _T("486_slow\0") _T("486_prefetch\0") _T("pentium_slow\0"),
-		true, false, 0
+	{
+		_T("Emulator config\0"),
+		_T("config\0"),
+		2, false, 0
 	},
 	{
 		NULL
 	}
 };
 
+// A2088/A2088T
 static const struct expansionboardsettings x86_bridge_settings[] = {
 	{
 		// 2-3
@@ -4127,19 +4132,16 @@ static const struct expansionboardsettings x86_bridge_settings[] = {
 		_T("video\0") _T("mono\0") _T("color40\0") _T("color80\0") _T("none\0"),
 		true, false, 0
 	},
-	{	// 19 - 21
-		_T("CPU core\0") _T("Fake86\0") _T("DOSBox simple\0") _T("DOSBox normal\0") _T("DOSBox full\0") _T("DOSBox auto\0"),
-		_T("cpu\0") _T("fake86\0") _T("dbsimple\0") _T("dbnormal\0") _T("dbfull\0") _T("dbauto\0"),
-		true, false, 19 - 6
+	{
+		// 13
+		_T("PC Speaker emulation"),
+		_T("speaker"),
+		false, false, 13 - 6
 	},
-	{	// 22
-		_T("FPU (DOSBox CPU only)"),
-		_T("fpu")
-	},
-	{	// 23 - 25
-		_T("CPU Arch (DOSBox CPU only)\0") _T("auto") _T("386\0") _T("386_prefetch\0") _T("386_slow\0") _T("486_slow\0") _T("486_prefetch\0") _T("pentium_slow\0"),
-		_T("cpuarch\0") _T("auto") _T("386\0") _T("386_prefetch\0") _T("386_slow\0") _T("486_slow\0") _T("486_prefetch\0") _T("pentium_slow\0"),
-		true, false, 0
+	{
+		_T("Emulator config\0"),
+		_T("config\0"),
+		2, false, 0
 	},
 	{
 		NULL
@@ -4196,19 +4198,15 @@ static const struct expansionboardsettings x86_bridge_sidecar_settings[] = {
 		_T("Disable parallel port emulation (J11)"),
 		_T("parport_card")
 	},
-	{	// 19 - 21
-		_T("CPU core\0") _T("Fake86\0") _T("DOSBox simple\0") _T("DOSBox normal\0") _T("DOSBox full\0") _T("DOSBox auto\0"),
-		_T("cpu\0") _T("fake86\0") _T("dbsimple\0") _T("dbnormal\0") _T("dbfull\0") _T("dbauto\0"),
-		true, false, 19 - 13
+	{
+		// 13
+		_T("PC Speaker emulation"),
+		_T("speaker")
 	},
-	{	// 22
-		_T("FPU (DOSBox CPU only)"),
-		_T("fpu")
-	},
-	{	// 23 - 25
-		_T("CPU Arch (DOSBox CPU only)\0") _T("auto") _T("386\0") _T("386_prefetch\0") _T("386_slow\0") _T("486_slow\0") _T("486_prefetch\0") _T("pentium_slow\0"),
-		_T("cpuarch\0") _T("auto") _T("386\0") _T("386_prefetch\0") _T("386_slow\0") _T("486_slow\0") _T("486_prefetch\0") _T("pentium_slow\0"),
-		true, false, 0
+	{
+		_T("Emulator config\0"),
+		_T("config\0"),
+		2, false, 0
 	},
 	{
 		NULL
@@ -4338,6 +4336,53 @@ static const struct expansionboardsettings cubo_settings[] = {
 		_T("PIC configuration (AB:KEY)\0"),
 		_T("pic\0"),
 		2, false, 0
+	},
+	{
+		NULL
+	}
+};
+
+static struct expansionboardsettings x86_mouse_settings[] = {
+	{
+		_T("Amiga port\0") _T("1\0") _T("2\0"),
+		_T("port\0") _T("1\0") _T("2\0"),
+		true
+	},
+	{
+		_T("Mouse type\0") _T("Serial (COM1)\0") _T("PS/2 (2-Button)\0") _T("PS/2 (Intellimouse)"),
+		_T("type\0") _T("serial\0") _T("ps2\0") _T("im\0"),
+		true, false, 1
+	},
+	{
+		NULL
+	}
+};
+
+static struct expansionboardsettings sb_isa_settings[] = {
+	{
+		_T("Model\0") _T("Sound Blaster v1.0\0") _T("Sound Blaster v1.5\0") _T("Sound Blaster v2.0\0") _T("Sound Blaster Pro v1\0") _T("Sound Blaster Pro v2\0") _T("Sound Blaster 16\0"),
+		_T("model\0") _T("SB1\0") _T("SB15\0") _T("SB2\0") _T("SBP1\0") _T("SBP2\0") _T("SB16\0"),
+		true, false, 
+	},
+	{
+		_T("IO\0") _T("210\0") _T("220 (*)\0") _T("230\0") _T("240\0") _T("250\0") _T("260\0") _T("270\0") _T("280\0"),
+		_T("io\0") _T("210\0") _T("220\0") _T("230\0") _T("240\0") _T("250\0") _T("260\0") _T("270\0") _T("280\0"),
+		true, false,
+	},
+	{
+		_T("IRQ (SB16: not used)\0") _T("2\0") _T("3\0") _T("5\0") _T("7 (*)\0") _T("10 (SB Pro)\0"),
+		_T("irq\0") _T("irq2\0") _T("irq3\0") _T("irq5\0") _T("irq7\0") _T("irq10\0"),
+		true, false,
+	},
+	{
+		_T("DMA (SB16: not used)\0") _T("1 (*)\0") _T("3\0"),
+		_T("dma\0") _T("dma1\0") _T("dma3\0"),
+		true, false,
+	},
+	{
+		_T("OPL EMU (SB Pro v2+)\0") _T("DBOPL\0") _T("NukedOPL\0"),
+		_T("opl_emu\0") _T("dbopl\0") _T("nukedopl\0"),
+		true, false, 0
 	},
 	{
 		NULL
@@ -5205,24 +5250,9 @@ const struct expansionromtype expansionroms[] = {
 		_T("amax"), _T("AMAX ROM dongle"), _T("ReadySoft"),
 		NULL, NULL, NULL, NULL, ROMTYPE_AMAX | ROMTYPE_NONE, 0, 0, 0, false
 	},
-
-#if 0
-	{
-		_T("x86_xt_hd"), _T("x86 XT"), _T("x86"),
-		NULL, x86_xt_hd_init, NULL, x86_add_xt_hd_unit, ROMTYPE_X86_HD | ROMTYPE_NONE, 0, 0, BOARD_NONAUTOCONFIG_AFTER_Z2, true,
-		NULL, 0,
-		false, EXPANSIONTYPE_CUSTOM | EXPANSIONTYPE_SCSI
-	},
-#endif
 	{
 		_T("x86athdprimary"), _T("AT IDE Primary"), _T("x86"),
 		NULL, x86_at_hd_init_1, NULL, x86_add_at_hd_unit_1, ROMTYPE_X86_AT_HD1 | ROMTYPE_NOT, 0, 0, BOARD_NONAUTOCONFIG_AFTER_Z2, true,
-		NULL, 0,
-		false, EXPANSIONTYPE_IDE
-	},
-	{
-		_T("x86athdsecondary"), _T("AT IDE Secondary"), _T("x86"),
-		NULL, x86_at_hd_init_2, NULL, x86_add_at_hd_unit_2, ROMTYPE_X86_AT_HD2 | ROMTYPE_NOT, 0, 0, BOARD_NONAUTOCONFIG_AFTER_Z2, true,
 		NULL, 0,
 		false, EXPANSIONTYPE_IDE
 	},
@@ -5289,7 +5319,9 @@ const struct expansionromtype expansionroms[] = {
 		_T("x86vga"), _T("x86 VGA"), _T("x86"),
 		NULL, NULL, NULL, NULL, ROMTYPE_x86_VGA | ROMTYPE_NONE, 0, 0, BOARD_IGNORE, true,
 		NULL, 0,
-		false, EXPANSIONTYPE_RTG
+		false, EXPANSIONTYPE_RTG,
+		0, 0, 0, false, NULL,
+		false, 0, x86vga_settings
 	},
 	{
 		_T("harlequin"), _T("Harlequin"), _T("ACS"),
@@ -5341,6 +5373,16 @@ const struct expansionromtype expansionroms[] = {
 		false, 0, NULL,
 		{ 0x80, 2, 0x10, 0x00, 6502 >> 8, 6502 & 255, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 }
 	},
+	{
+		_T("sb_isa"), _T("SoundBlaster ISA (Creative)"), NULL,
+		NULL, isa_expansion_init, NULL, NULL, ROMTYPE_SBISA | ROMTYPE_NOT, 0, 0, BOARD_NONAUTOCONFIG_BEFORE, true,
+		NULL, 0,
+		false, EXPANSIONTYPE_SOUND,
+		0, 0, 0, false, NULL,
+		false, 0, sb_isa_settings
+	},
+
+
 #if 0
 	{
 		_T("pmx"), _T("pmx"), NULL,
@@ -5539,6 +5581,14 @@ const struct expansionromtype expansionroms[] = {
 		false, EXPANSIONTYPE_CUSTOM,
 		0, 0, 0, false, NULL,
 		false, 0, cubo_settings,
+	},
+	{
+		_T("x86_mouse"), _T("x86 Bridgeboard mouse"), NULL,
+		NULL, isa_expansion_init, NULL, NULL, ROMTYPE_X86MOUSE | ROMTYPE_NOT, 0, 0, BOARD_NONAUTOCONFIG_BEFORE, true,
+		NULL, 0,
+		false, EXPANSIONTYPE_CUSTOM,
+		0, 0, 0, false, NULL,
+		false, 0, x86_mouse_settings
 	},
 
 

@@ -718,49 +718,7 @@
     <ClCompile Include="..\..\mame\a2410.cpp">
       <Filter>mame</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\dosbox\core_normal.cpp">
-      <Filter>x86</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\dosbox\cpu.cpp">
-      <Filter>x86</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\dosbox\flags.cpp">
-      <Filter>x86</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\dosbox\paging.cpp">
-      <Filter>x86</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\dosbox\core_full.cpp">
-      <Filter>x86</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\dosbox\core_simple.cpp">
-      <Filter>x86</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\dosbox\modrm.cpp">
-      <Filter>x86</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\dosbox\cmos.cpp">
-      <Filter>x86</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\dosbox\keyboard.cpp">
-      <Filter>x86</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\dosbox\db_memory.cpp">
-      <Filter>x86</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\x86.cpp">
-      <Filter>x86</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\dosbox\pic.cpp">
-      <Filter>x86</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\dosbox\fpu.cpp">
-      <Filter>x86</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\dosbox\timer.cpp">
-      <Filter>x86</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\fake86_cpu.cpp">
       <Filter>x86</Filter>
     </ClCompile>
     <ClCompile Include="..\..\vm.cpp">
@@ -894,6 +852,90 @@
     </ClCompile>
     <ClCompile Include="..\machdep\m68k.cpp">
       <Filter>common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\pcem\386.cpp">
+      <Filter>x86</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\pcem\808x.cpp">
+      <Filter>x86</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\pcem\cpu.cpp">
+      <Filter>x86</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\pcem\keyboard.cpp">
+      <Filter>x86</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\pcem\keyboard_at.cpp">
+      <Filter>x86</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\pcem\mem.cpp">
+      <Filter>x86</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\pcem\pcemglue.cpp">
+      <Filter>x86</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\pcem\pcemnvr.cpp">
+      <Filter>x86</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\pcem\pcemrtc.cpp">
+      <Filter>x86</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\pcem\pic.cpp">
+      <Filter>x86</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\pcem\pit.cpp">
+      <Filter>x86</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\pcem\timer.cpp">
+      <Filter>x86</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\pcem\x86seg.cpp">
+      <Filter>x86</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\pcem\x87.cpp">
+      <Filter>x86</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\pcem\sound_speaker.cpp">
+      <Filter>x86</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\pcem\dma.cpp">
+      <Filter>x86</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\pcem\sound_sb.cpp">
+      <Filter>x86</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\pcem\sound_sb_dsp.cpp">
+      <Filter>x86</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\pcem\sound_opl.cpp">
+      <Filter>x86</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\pcem\sound_dbopl.cpp">
+      <Filter>x86</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\pcem\dosbox\dbopl.cpp">
+      <Filter>x86</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\pcem\dosbox\nukedopl.cpp">
+      <Filter>x86</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\pcem\sound_cms.cpp">
+      <Filter>x86</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\pcem\sound_mpu401_uart.cpp">
+      <Filter>x86</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\pcem\mouse_serial.cpp">
+      <Filter>x86</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\pcem\serial.cpp">
+      <Filter>x86</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\pcem\386_dynarec.cpp">
+      <Filter>x86</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\pcem\mouse_ps2.cpp">
+      <Filter>x86</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

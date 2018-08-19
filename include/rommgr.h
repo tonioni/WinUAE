@@ -176,6 +176,8 @@ extern int decode_cloanto_rom_do (uae_u8 *mem, int size, int real_size);
 #define ROMTYPE_ALF3		0x00100072
 #define ROMTYPE_FASTTRAK	0x00100073
 #define ROMTYPE_CDTVSRAM	0x00100074
+#define ROMTYPE_SBISA		0x00100075
+#define ROMTYPE_X86MOUSE	0x00100076
 
 #define ROMTYPE_NOT			0x00800000
 #define ROMTYPE_QUAD		0x01000000

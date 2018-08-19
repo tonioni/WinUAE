@@ -40,6 +40,8 @@ extern void vga_io_put(int board, int portnum, uae_u8 v);
 extern uae_u8 vga_io_get(int board, int portnum);
 extern void vga_ram_put(int board, int offset, uae_u8 v);
 extern uae_u8 vga_ram_get(int board, int offset);
+extern void vgalfb_ram_put(int board, int offset, uae_u8 v);
+extern uae_u8 vgalfb_ram_get(int board, int offset);
 
 void gfxboard_get_a8_vram(int index);
 void gfxboard_free_vram(int index);

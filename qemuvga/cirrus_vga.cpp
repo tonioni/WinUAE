@@ -1219,7 +1219,7 @@ static void cirrus_valid_memory_config(CirrusVGAState *s)
 		// Amiga CyberGraphX uses this to detect memory size
 		// by writing long and then reading it back, if SRF[7]
 		// set and test value reads correct: memory size = 2M.
-		if (s->vga.vram_size_mb == 2 && !(s->vga.sr[0xf] & 0x80))
+		if (!s->x86vga && s->vga.vram_size_mb == 2 && !(s->vga.sr[0xf] & 0x80))
 			s->valid_memory_config = 0;
 	} else if (s->device_id >= CIRRUS_ID_CLGD5434) {
 		// SRF[7] must be set for 4M VRAM size
@@ -1360,7 +1360,8 @@ static void cirrus_vga_write_sr(CirrusVGAState * s, uint32_t val)
 	cirrus_valid_memory_config(s);
 	break;		
 	case 0x07:			// Extended Sequencer Mode
-    cirrus_update_memory_access(s);
+	s->vga.sr[s->vga.sr_index] = val;
+	cirrus_update_memory_access(s);
     case 0x08:			// EEPROM Control
     case 0x09:			// Scratch Register 0
     case 0x0a:			// Scratch Register 1
@@ -2533,11 +2534,15 @@ static void unmap_linear_vram(CirrusVGAState *s)
 }
 
 /* Compute the memory access functions */
+extern void x86_map_lfb(int);
 static void cirrus_update_memory_access(CirrusVGAState *s)
 {
     unsigned mode;
 
-    memory_region_transaction_begin();
+	if (s->x86vga)
+		x86_map_lfb(s->vga.sr[7] >> 4);
+
+	memory_region_transaction_begin();
     if ((s->vga.sr[0x17] & 0x44) == 0x44) {
         goto generic_io;
     } else if (s->cirrus_srcptr != s->cirrus_srcptr_end) {
@@ -2942,7 +2947,7 @@ static const MemoryRegionOps cirrus_vga_io_ops = {
 
 void cirrus_init_common(CirrusVGAState * s, int device_id, int is_pci,
                                MemoryRegion *system_memory,
-                               MemoryRegion *system_io, int vramlimit)
+                               MemoryRegion *system_io, int vramlimit, bool x86vga)
 {
     int i;
     static int inited;
@@ -3030,6 +3035,8 @@ void cirrus_init_common(CirrusVGAState * s, int device_id, int is_pci,
     /* XXX: s->vga.vram_size must be a power of two */
     s->cirrus_addr_mask = s->real_vram_size - 1;
     s->linear_mmio_mask = s->real_vram_size - 256;
+
+	s->x86vga = x86vga;
 
     s->vga.get_bpp = cirrus_get_bpp;
     s->vga.get_offsets = cirrus_get_offsets;

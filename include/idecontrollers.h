@@ -67,8 +67,6 @@ void x86_ide_hd_put(int portnum, uae_u16 v, int);
 uae_u16 x86_ide_hd_get(int portnum, int);
 bool x86_at_hd_init_1(struct autoconfig_info *aci);
 void x86_add_at_hd_unit_1(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
-bool x86_at_hd_init_2(struct autoconfig_info *aci);
-void x86_add_at_hd_unit_2(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
 bool x86_at_hd_init_xt(struct autoconfig_info *aci);
 void x86_add_at_hd_unit_xt(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
 

@@ -613,8 +613,9 @@ static void drive_settype_id (drive *drv)
 		drv->drive_id = DRIVE_ID_525SD;
 		break;
 	case DRV_NONE:
-	case DRV_PC_ONLY_40:
-	case DRV_PC_ONLY_80:
+	case DRV_PC_525_ONLY_40:
+	case DRV_PC_525_40_80:
+	case DRV_PC_35_ONLY_80:
 		drv->drive_id = DRIVE_ID_NONE;
 		break;
 	}
@@ -688,7 +689,8 @@ static void setamax (void)
 
 static bool ispcbridgedrive(int num)
 {
-	return currprefs.floppyslots[num].dfxtype == DRV_PC_ONLY_40  || currprefs.floppyslots[num].dfxtype == DRV_PC_ONLY_80;
+	int type = currprefs.floppyslots[num].dfxtype;
+	return type == DRV_PC_525_ONLY_40 || type == DRV_PC_35_ONLY_80 || type == DRV_PC_525_40_80;
 }
 
 static void reset_drive (int num)
@@ -1287,32 +1289,35 @@ static int drive_insert (drive * drv, struct uae_prefs *p, int dnum, const TCHAR
 		size == 9 * 82 * 1 * 512 || size == 18 * 82 * 1 * 512 || size == 10 * 82 * 1 * 512 || size == 20 * 82 * 1 * 512)) {
 			/* PC formatted image */
 			int side, sd;
+			int dfxtype = p->floppyslots[dnum].dfxtype;
 
 			drv->num_secs = 9;
 			drv->ddhd = 1;
 			sd = 0;
 
-			bool can40 = p->floppyslots[dnum].dfxtype == DRV_525_DD || p->floppyslots[dnum].dfxtype == DRV_PC_ONLY_40;
-
+			bool can40 = dfxtype == DRV_525_DD || dfxtype == DRV_PC_525_ONLY_40 || dfxtype == DRV_PC_525_40_80;
+			bool can80 = dfxtype == DRV_35_HD || dfxtype == DRV_PC_35_ONLY_80 || dfxtype == DRV_PC_525_40_80;
+			bool drv525 = dfxtype == DRV_525_DD || dfxtype == DRV_PC_525_ONLY_40 || dfxtype == DRV_PC_525_40_80;
+	
 			for (side = 2; side > 0; side--) {
-				if (drv->hard_num_cyls >= 80 && !can40) {
+				if (drv->hard_num_cyls >= 80 && can80) {
 					if (       size ==  9 * 80 * side * 512 || size ==  9 * 81 * side * 512 || size ==  9 * 82 * side * 512) {
 						drv->num_secs = 9;
 						drv->ddhd = 1;
 						break;
-					} else if (size == 18 * 80 * side * 512 || size == 18 * 81 * side * 512 || size == 18 * 82 * side * 512) {
+					} else if (!drv525 && (size == 18 * 80 * side * 512 || size == 18 * 81 * side * 512 || size == 18 * 82 * side * 512)) {
 						drv->num_secs = 18;
 						drv->ddhd = 2;
 						break;
-					} else if (size == 10 * 80 * side * 512 || size == 10 * 81 * side * 512 || size == 10 * 82 * side * 512) {
+					} else if (!drv525 && (size == 10 * 80 * side * 512 || size == 10 * 81 * side * 512 || size == 10 * 82 * side * 512)) {
 						drv->num_secs = 10;
 						drv->ddhd = 1;
 						break;
-					} else if (size == 20 * 80 * side * 512 || size == 20 * 81 * side * 512 || size == 20 * 82 * side * 512) {
+					} else if (!drv525 && (size == 20 * 80 * side * 512 || size == 20 * 81 * side * 512 || size == 20 * 82 * side * 512)) {
 						drv->num_secs = 20;
 						drv->ddhd = 2;
 						break;
-					} else if (size == 21 * 80 * side * 512 || size == 21 * 81 * side * 512 || size == 21 * 82 * side * 512) {
+					} else if (!drv525 && (size == 21 * 80 * side * 512 || size == 21 * 81 * side * 512 || size == 21 * 82 * side * 512)) {
 						drv->num_secs = 21;
 						drv->ddhd = 2;
 						break;
@@ -2574,7 +2579,7 @@ bool disk_creatediskfile (struct uae_prefs *p, const TCHAR *name, int type, driv
 		tracks = 2 * 80;
 	file_size = 880 * 1024;
 	sectors = 11;
-	if (adftype == DRV_PC_ONLY_40 || adftype == DRV_PC_ONLY_80) {
+	if (adftype == DRV_PC_525_ONLY_40 || adftype == DRV_PC_35_ONLY_80 || adftype == DRV_PC_525_40_80) {
 		file_size = 720 * 1024;
 		sectors = 9;
 	}
@@ -2586,7 +2591,10 @@ bool disk_creatediskfile (struct uae_prefs *p, const TCHAR *name, int type, driv
 		file_size *= 2;
 		track_len *= 2;
 		ddhd = 2;
-	} else if (adftype == DRV_PC_ONLY_40) {
+		if (adftype == DRV_PC_525_40_80) {
+			file_size = 15 * 512 * 80 * 2;
+		}
+	} else if (adftype == DRV_PC_525_ONLY_40) {
 		file_size /= 2;
 		tracks /= 2;
 	}
@@ -4917,11 +4925,16 @@ bool disk_reserved_getinfo(int num, struct floppy_reserved *fr)
 		}
 		fr->cyl = drv->cyl;
 		fr->cyls = drv->num_tracks / 2;
-		fr->drive_cyls = currprefs.floppyslots[idx].dfxtype == DRV_PC_ONLY_40 ? 40 : 80;
+		fr->drive_cyls = currprefs.floppyslots[idx].dfxtype == DRV_PC_525_ONLY_40 ? 40 : 80;
 		fr->secs = drv->num_secs;
 		fr->heads = drv->num_heads;
 		fr->disk_changed = drv->dskchange || fr->img == NULL;
-		if (currprefs.floppyslots[idx].dfxtype == DRV_PC_ONLY_80) {
+		if (currprefs.floppyslots[idx].dfxtype == DRV_PC_35_ONLY_80) {
+			if (drv->num_secs > 14)
+				fr->rate = FLOPPY_RATE_500K; // 1.2M/1.4M
+			else
+				fr->rate = FLOPPY_RATE_250K; // 720K
+		} else if (currprefs.floppyslots[idx].dfxtype == DRV_PC_525_40_80) {
 			if (fr->cyls < 80) {
 				if (drv->num_secs < 9)
 					fr->rate = FLOPPY_RATE_250K; // 320k in 80 track drive
@@ -4931,7 +4944,7 @@ bool disk_reserved_getinfo(int num, struct floppy_reserved *fr)
 				if (drv->num_secs > 14)
 					fr->rate = FLOPPY_RATE_500K; // 1.2M/1.4M
 				else
-					fr->rate = FLOPPY_RATE_250K; // 720K
+					fr->rate = FLOPPY_RATE_300K; // 720K
 			}
 		} else {
 			if (drv->num_secs < 9)

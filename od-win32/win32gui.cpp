@@ -2695,14 +2695,14 @@ static void getcreatefloppytype(HWND hDlg, drive_type *atype, int *hd)
 		*atype = DRV_35_HD;
 		break;
 	case 2:
-		*atype = DRV_PC_ONLY_80;
+		*atype = DRV_PC_35_ONLY_80;
 		break;
 	case 3:
-		*atype = DRV_PC_ONLY_80;
+		*atype = DRV_PC_35_ONLY_80;
 		*hd = 1;
 		break;
 	case 4:
-		*atype = DRV_PC_ONLY_40;
+		*atype = DRV_PC_525_ONLY_40;
 		break;
 	}
 }
@@ -11783,8 +11783,8 @@ static void enable_for_cpudlg (HWND hDlg)
 
 	SendDlgItemMessage(hDlg, IDC_SPEED, TBM_SETRANGE, TRUE, workprefs.m68k_speed < 0 || (workprefs.cpu_memory_cycle_exact && !workprefs.cpu_cycle_exact) ? MAKELONG(-9, 0) : MAKELONG(-9, 50));
 	SendDlgItemMessage(hDlg, IDC_SPEED, TBM_SETPAGESIZE, 0, 1);
-	SendDlgItemMessage(hDlg, IDC_SPEED_x86, TBM_SETRANGE, TRUE, MAKELONG(-1, 100));
-	SendDlgItemMessage(hDlg, IDC_SPEED_x86, TBM_SETPAGESIZE, 0, 1);
+	SendDlgItemMessage(hDlg, IDC_SPEED_x86, TBM_SETRANGE, TRUE, MAKELONG(0, 1000));
+	SendDlgItemMessage(hDlg, IDC_SPEED_x86, TBM_SETPAGESIZE, 0, 10);
 }
 
 static double getcpufreq (int m)
@@ -11801,14 +11801,12 @@ static void values_to_cpudlg (HWND hDlg)
 	int cpu;
 
 	SendDlgItemMessage(hDlg, IDC_SPEED_x86, TBM_SETPOS, TRUE, (int)(workprefs.x86_speed_throttle / 100));
-	if (workprefs.x86_speed_throttle < 0)
-		_tcscpy(buffer, _T("Max"));
-	else
-		_stprintf(buffer, _T("%+d%%"), (int)(workprefs.x86_speed_throttle / 10));
+	_stprintf(buffer, _T("%+d%%"), (int)(workprefs.x86_speed_throttle / 10));
 	SetDlgItemText(hDlg, IDC_CPUTEXT_x86, buffer);
 
 	SendDlgItemMessage (hDlg, IDC_SPEED, TBM_SETPOS, TRUE, (int)(workprefs.m68k_speed_throttle / 100));
 	_stprintf (buffer, _T("%+d%%"), (int)(workprefs.m68k_speed_throttle / 10));
+
 	SetDlgItemText (hDlg, IDC_CPUTEXT, buffer);
 	CheckDlgButton (hDlg, IDC_COMPATIBLE, workprefs.cpu_compatible);
 	CheckDlgButton (hDlg, IDC_COMPATIBLE24, workprefs.address_space_24);
@@ -14729,7 +14727,7 @@ static void addcdtype (HWND hDlg, int id)
 
 static int fromdfxtype(int dfx)
 {
-	if (dfx == 6)
+	if (dfx == 7)
 		dfx = 3;
 	else if (dfx >= 3)
 		dfx++;
@@ -14741,10 +14739,19 @@ static int todfxtype(int val)
 {
 	val--;
 	if (val == 3)
-		val = 6;
+		val = 7;
 	else if (val > 3)
 		val--;
 	return val;
+}
+
+static int swapdrives(int v)
+{
+	if (v == 7)
+		v = 8;
+	else if (v == 8)
+		v = 7;
+	return v;
 }
 
 static void addfloppytype (HWND hDlg, int n)
@@ -14810,8 +14817,9 @@ static void addfloppytype (HWND hDlg, int n)
 		state = FALSE;
 	else
 		state = TRUE;
-	if (f_type >= 0)
-		SendDlgItemMessage (hDlg, f_type, CB_SETCURSEL, nn, 0);
+	if (f_type >= 0) {
+		SendDlgItemMessage(hDlg, f_type, CB_SETCURSEL, swapdrives(nn), 0);
+	}
 	if (f_si >= 0) {
 		TCHAR *path = DISK_get_saveimagepath(text, -2);
 		ShowWindow (GetDlgItem(hDlg, f_si), !showcd && zfile_exists (path) ? SW_SHOW : SW_HIDE);
@@ -14832,7 +14840,7 @@ static void addfloppytype (HWND hDlg, int n)
 		CheckDlgButton (hDlg, f_enable, state ? BST_CHECKED : BST_UNCHECKED);
 		TCHAR tmp[10];
 		tmp[0] = 0;
-		if (n < 2 || ((nn - 1 != 5) && (nn  - 1 != 6))) {
+		if (n < 2 || ((nn - 1 != 5) && (nn  - 1 != 6) && ( nn - 1 != 7))) {
 			if (!showcd || n != 1)
 				_stprintf(tmp, _T("DF%d:"), n);
 		} else {
@@ -14859,6 +14867,8 @@ static void getfloppytype (HWND hDlg, int n)
 {
 	int f_type = floppybuttons[n][3];
 	LRESULT val = SendDlgItemMessage (hDlg, f_type, CB_GETCURSEL, 0, 0L);
+
+	val = swapdrives(val);
 
 	if (val != CB_ERR && workprefs.floppyslots[n].dfxtype != todfxtype(val)) {
 		workprefs.floppyslots[n].dfxtype = todfxtype(val);
@@ -15078,8 +15088,9 @@ static INT_PTR CALLBACK FloppyDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARA
 				SendDlgItemMessage (hDlg, f_type, CB_ADDSTRING, 0, (LPARAM)_T("5.25\" (80)"));
 				SendDlgItemMessage (hDlg, f_type, CB_ADDSTRING, 0, (LPARAM)ft35ddescom);
 				if (i >= 2) {
-					SendDlgItemMessage(hDlg, f_type, CB_ADDSTRING, 0, (LPARAM)_T("PC Bridge (40)"));
-					SendDlgItemMessage(hDlg, f_type, CB_ADDSTRING, 0, (LPARAM)_T("PC Bridge (80)"));
+					SendDlgItemMessage(hDlg, f_type, CB_ADDSTRING, 0, (LPARAM)_T("Bridge 5.25\" 40"));
+					SendDlgItemMessage(hDlg, f_type, CB_ADDSTRING, 0, (LPARAM)_T("Bridge 5.25\" 80"));
+					SendDlgItemMessage(hDlg, f_type, CB_ADDSTRING, 0, (LPARAM)_T("Bridge 3.5\"  80"));
 				}
 			}
 			setmultiautocomplete (hDlg, df0texts);

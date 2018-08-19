@@ -181,7 +181,7 @@ static const struct gfxboard boards[] =
 	{
 		_T("x86 bridgeboard VGA"), _T("x86"), _T("VGA"),
 		0, 0, 0,
-		0x00000000, 0x00100000, 0x00100000, 0x00000000, CIRRUS_ID_CLGD5426, 0, 0, false,
+		0x00000000, 0x00100000, 0x00200000, 0x00000000, CIRRUS_ID_CLGD5426, 0, 0, false,
 		ROMTYPE_x86_VGA
 	},
 	{
@@ -243,6 +243,7 @@ struct rtggfxboard
 	int vga_width, vga_height;
 	bool vga_refresh_active;
 	bool vga_changed;
+	int device_settings;
 
 	uae_u32 vgaioregionptr, vgavramregionptr, vgabank0regionptr, vgabank1regionptr;
 
@@ -392,9 +393,19 @@ static void init_board (struct rtggfxboard *gb)
 {
 	struct rtgboardconfig *rbc = gb->rbc;
 	int vramsize = gb->board->vrammax;
+	int chiptype = gb->board->chiptype;
+
+	if (gb->board->romtype == ROMTYPE_x86_VGA) {
+		struct romconfig *rc = get_device_romconfig(&currprefs, gb->board->romtype, 0);
+		chiptype = CIRRUS_ID_CLGD5426;
+		if (rc && rc->device_settings == 1) {
+			chiptype = CIRRUS_ID_CLGD5429;
+		}
+	}
 
 	gb->active = true;
 	gb->vga_width = 0;
+	gb->vga_height = 0;
 	mapped_free(gb->gfxmem_bank);
 	gb->vram_start_offset = 0;
 	if (ISP4() && !gb->p4z2) { // JIT direct compatibility hack
@@ -412,8 +423,12 @@ static void init_board (struct rtggfxboard *gb)
 		gb->gfxmem_bank->label = _T("*");
 		mapped_malloc(gb->gfxmem_bank);
 	} else {
-		gb->gfxmem_bank->label = _T("ram_a8");
+		gb->gfxmem_bank->label = _T("*");
 		gb->vram_back = xmalloc(uae_u8, vramsize);
+		if (&get_mem_bank(0x800000) == &dummy_bank)
+			gb->gfxmem_bank->start = 0x800000;
+		else
+			gb->gfxmem_bank->start = 0xa00000;
 		gfxboard_get_a8_vram(gb->rbc->rtg_index);
 	}
 	gb->vram = gb->gfxmem_bank->baseaddr;
@@ -445,7 +460,7 @@ static void init_board (struct rtggfxboard *gb)
 	gb->fakesurface.data = gb;
 	vga_common_init(&gb->vga.vga);
 	gb->vga.vga.con = (void*)gb;
-	cirrus_init_common(&gb->vga, gb->board->chiptype, 0,  NULL, NULL, gb->board->manufacturer == 0);
+	cirrus_init_common(&gb->vga, chiptype, 0,  NULL, NULL, gb->board->manufacturer == 0, gb->board->romtype == ROMTYPE_x86_VGA);
 	picasso_allocatewritewatch(gb->rbc->rtg_index, gb->rbc->rtgmem_size);
 }
 
@@ -928,7 +943,7 @@ void gfxboard_vsync_handler(bool full_redraw_required, bool redraw_required)
 
 			if (gb->monswitch_keep_trying) {
 				vga_update_size(gb);
-				if (gb->vga_width > 16 || gb->vga_height > 16) {
+				if (gb->vga_width > 16 && gb->vga_height > 16) {
 					gb->monswitch_keep_trying = false;
 					gb->monswitch_new = true;
 					gb->monswitch_delay = 0;
@@ -1284,6 +1299,20 @@ uae_u8 vga_ram_get(int board, int offset)
 		return 0xff;
 	offset -= 0xa0000;
 	return gb->vgalowram->read(&gb->vga, offset, 1);
+}
+void vgalfb_ram_put(int board, int offset, uae_u8 v)
+{
+	struct rtggfxboard *gb = &rtggfxboards[board];
+	if (!gb->vgaram)
+		return;
+	gb->vgaram->write(&gb->vga, offset, v, 1);
+}
+uae_u8 vgalfb_ram_get(int board, int offset)
+{
+	struct rtggfxboard *gb = &rtggfxboards[board];
+	if (!gb->vgaram)
+		return 0xff;
+	return gb->vgaram->read(&gb->vga, offset, 1);
 }
 
 void *memory_region_get_ram_ptr(MemoryRegion *mr)

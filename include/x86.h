@@ -13,13 +13,13 @@ void x86_bridge_reset(void);
 void x86_bridge_free(void);
 void x86_bridge_rethink(void);
 void x86_bridge_sync_change(void);
+void x86_update_sound(double);
+void x86_mouse(int port, int x, int y, int z, int b);
 
 #define X86_STATE_INACTIVE 0
 #define X86_STATE_STOP 1
 #define X86_STATE_ACTIVE 2
 
 int is_x86_cpu(struct uae_prefs*);
-void x86_bridge_execute_until(int until);
-extern bool x86_turbo_on;
 
 #endif /* UAE_X86_H */

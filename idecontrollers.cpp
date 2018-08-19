@@ -253,11 +253,10 @@ void idecontroller_rethink(void)
 {
 	bool irq = false;
 	for (int i = 0; ide_boards[i]; i++) {
-		if (ide_boards[i] == x86_at_ide_board[0] || ide_boards[i] == x86_at_ide_board[1]) {
+		if (ide_boards[i] == x86_at_ide_board[0]) {
 			bool x86irq = ide_rethink(ide_boards[i], true);
 			if (x86irq) {
-				//write_log(_T("x86 IDE IRQ\n"));
-				x86_doirq(ide_boards[i] == x86_at_ide_board[0] ? 14 : 15);
+				x86_doirq(14);
 			}
 		} else {
 			if (ide_rethink(ide_boards[i], false))
@@ -2376,10 +2375,6 @@ bool x86_at_hd_init_1(struct autoconfig_info *aci)
 {
 	return x86_at_hd_init(aci, 0);
 }
-bool x86_at_hd_init_2(struct autoconfig_info *aci)
-{
-	return x86_at_hd_init(aci, 0);
-}
 bool x86_at_hd_init_xt(struct autoconfig_info *aci)
 {
 	return x86_at_hd_init(aci, 1);
@@ -2389,13 +2384,9 @@ void x86_add_at_hd_unit_1(int ch, struct uaedev_config_info *ci, struct romconfi
 {
 	add_ide_standard_unit(ch, ci, rc, &x86_at_ide_board[0], x86_AT_IDE + 0, false, false, 2);
 }
-void x86_add_at_hd_unit_2(int ch, struct uaedev_config_info *ci, struct romconfig *rc)
-{
-	add_ide_standard_unit(ch, ci, rc, &x86_at_ide_board[1], x86_AT_IDE + 1, false, false, 2);
-}
 void x86_add_at_hd_unit_xt(int ch, struct uaedev_config_info *ci, struct romconfig *rc)
 {
-	add_ide_standard_unit(ch, ci, rc, &x86_at_ide_board[2], x86_AT_IDE + 2, false, false, 2);
+	add_ide_standard_unit(ch, ci, rc, &x86_at_ide_board[1], x86_AT_IDE + 1, false, false, 2);
 }
 
 static int x86_ide_reg(int portnum, int *unit)
@@ -2444,10 +2435,6 @@ void x86_ide_hd_put(int portnum, uae_u16 v, int size)
 	if (regnum >= 0) {
 		struct ide_board *board = x86_at_ide_board[unit];
 		if (board) {
-#if 0
-			if (regnum == 0 || regnum == 8)
-				write_log(_T("WRITE %04x = %04x %d\n"), portnum, v, size);
-#endif
 			if (size == 0) {
 				if (get_ide_is_8bit(board)) {
 					v = get_ide_reg_8bitdata(board, regnum);
@@ -2494,10 +2481,6 @@ uae_u16 x86_ide_hd_get(int portnum, int size)
 				v = get_ide_reg(board, regnum);
 				v = (v >> 8) | (v << 8);
 			}
-#if 0
-			if (regnum == 0 || regnum == 8)
-				write_log(_T("READ %04x = %04x %d\n"), portnum, v, size);
-#endif
 		}
 	}
 	return v;
