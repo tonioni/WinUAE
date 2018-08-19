@@ -338,7 +338,7 @@ typedef NTSTATUS(CALLBACK* D3DKMTWAITFORVERTICALBLANKEVENT)(const D3DKMT_WAITFOR
 static D3DKMTWAITFORVERTICALBLANKEVENT pD3DKMTWaitForVerticalBlankEvent;
 #define STATUS_SUCCESS ((NTSTATUS)0)
 
-int target_get_display_scanline(int displayindex)
+static int target_get_display_scanline2(int displayindex)
 {
 	if (pD3DKMTGetScanLine) {
 		D3DKMT_GETSCANLINE sl = { 0 };
@@ -369,6 +369,24 @@ int target_get_display_scanline(int displayindex)
 		return -14;
 	}
 	return -13;
+}
+
+extern uae_u64 spincount;;
+int target_get_display_scanline(int displayindex)
+{
+	static uae_u64 lastrdtsc;
+	static int lastvpos;
+	if (spincount == 0 || currprefs.m68k_speed >= 0) {
+		lastrdtsc = 0;
+		lastvpos = target_get_display_scanline2(displayindex);
+		return lastvpos;
+	}
+	uae_u64 v = __rdtsc();
+	if (lastrdtsc > v)
+		return lastvpos;
+	lastvpos = target_get_display_scanline2(displayindex);
+	lastrdtsc = __rdtsc() + spincount * 4;
+	return lastvpos;
 }
 
 typedef LONG(CALLBACK* QUERYDISPLAYCONFIG)(UINT32, UINT32*, DISPLAYCONFIG_PATH_INFO*, UINT32*, DISPLAYCONFIG_MODE_INFO*, DISPLAYCONFIG_TOPOLOGY_ID*);

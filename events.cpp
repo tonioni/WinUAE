@@ -30,7 +30,8 @@ long cycles_to_hsync_event;
 unsigned long start_cycles;
 bool event_wait;
 
-frame_time_t vsyncmintime, vsyncmaxtime, vsyncwaittime;
+frame_time_t vsyncmintime, vsyncmintimepre;
+frame_time_t vsyncmaxtime, vsyncwaittime;
 int vsynctimebase;
 int event2_count;
 
@@ -127,6 +128,29 @@ static bool event_check_vsync(void)
 		vsync_clear();
 		vsync_event_done();
 
+	} else if (is_syncline == -3) {
+		if (!isvsync_chipset()) {
+			events_reset_syncline();
+			return false;
+		}
+		// not vblank
+		audio_finish_pull();
+		int vp = target_get_display_scanline(-1);
+		if (vp <= 0) {
+#ifdef WITH_PPC
+			if (ppc_state) {
+				uae_ppc_execute_quick();
+			}
+#endif
+			if (currprefs.cachesize)
+				pissoff = pissoff_value;
+			else
+				pissoff = pissoff_nojit_value;
+			return true;
+		}
+		vsync_clear();
+		vsync_event_done();
+
 	} else if (is_syncline > 0) {
 
 		if (!isvsync_chipset()) {
@@ -137,6 +161,30 @@ static bool event_check_vsync(void)
 		// wait for specific scanline
 		int vp = target_get_display_scanline(-1);
 		if (vp < 0 || is_syncline > vp) {
+#ifdef WITH_PPC
+			if (ppc_state) {
+				uae_ppc_execute_check();
+			}
+#endif
+			if (currprefs.cachesize)
+				pissoff = pissoff_value;
+			else
+				pissoff = pissoff_nojit_value;
+			return true;
+		}
+		vsync_event_done();
+
+	}
+	else if (is_syncline <= -100) {
+
+		if (!isvsync_chipset()) {
+			events_reset_syncline();
+			return false;
+		}
+		audio_finish_pull();
+		// wait for specific scanline
+		int vp = target_get_display_scanline(-1);
+		if (vp < 0 || vp >= (-(is_syncline + 100))) {
 #ifdef WITH_PPC
 			if (ppc_state) {
 				uae_ppc_execute_check();
@@ -206,16 +254,22 @@ static bool event_check_vsync(void)
 void do_cycles_slow (unsigned long cycles_to_add)
 {
 #ifdef WITH_X86
+#if 0
 	if (x86_turbo_on) {
 		execute_other_cpu_single();
 	}
 #endif
+#endif
 
-	if ((pissoff -= cycles_to_add) >= 0)
-		return;
+	if (!currprefs.cpu_thread) {
+		if ((pissoff -= cycles_to_add) >= 0)
+			return;
 
-	cycles_to_add = -pissoff;
-	pissoff = 0;
+		cycles_to_add = -pissoff;
+		pissoff = 0;
+	} else {
+		pissoff = 0x40000000;
+	}
 
 	while ((nextevent - currcycle) <= cycles_to_add) {
 

@@ -280,7 +280,7 @@ int target_sleep_nanos(int nanos)
 	return 0;
 }
 
-static uae_u64 spincount;
+uae_u64 spincount;
 
 void target_spin(int total)
 {
@@ -302,7 +302,9 @@ void target_calibrate_spin(void)
 	struct amigadisplay *ad = &adisplays[0];
 	struct apmode *ap = ad->picasso_on ? &currprefs.gfx_apmode[1] : &currprefs.gfx_apmode[0];
 	int vp;
+	uae_u64 sc;
 
+	sc = 0;
 	spincount = 0;
 	if (!ap->gfx_vsyncmode)
 		return;
@@ -311,7 +313,7 @@ void target_calibrate_spin(void)
 		return;
 	}
 	write_log(_T("target_calibrate_spin() start\n"));
-	spincount = 0x800000000000;
+	sc = 0x800000000000;
 	for (int i = 0; i < 50; i++) {
 		for (;;) {
 			vp = target_get_display_scanline(-1);
@@ -337,19 +339,20 @@ void target_calibrate_spin(void)
 				goto fail;
 			if (vp2 == vp + 2) {
 				uae_u64 sc = __rdtsc() - v1;
-				if (spincount > sc)
-					spincount = sc;
+				if (sc > sc)
+					sc = sc;
 			}
 			if (vp2 != vp + 1)
 				break;
 		}
 trynext:;
 	}
-	if (spincount == 0x800000000000) {
-		write_log(_T("Spincount calculation error, spinloop not used.\n"), spincount);
+	if (sc == 0x800000000000) {
+		write_log(_T("Spincount calculation error, spinloop not used.\n"), sc);
 		spincount = 0;
 	} else {
-		write_log(_T("Spincount = %llu\n"), spincount);
+		spincount = sc;
+		write_log(_T("Spincount = %llu\n"), sc);
 	}
 	return;
 fail:

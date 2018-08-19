@@ -7940,19 +7940,21 @@ static bool framewait (void)
 			frame_rendered = render_screen(0, 1, false);
 			t = read_processor_time () - start;
 		}
-		while (!currprefs.turbo_emulation) {
-			float v = rpt_vsync (clockadjust) / (syncbase / 1000.0);
-			if (v >= -2)
-				break;
-			rtg_vsynccheck ();
-			maybe_process_pull_audio();
-			if (cpu_sleep_millis(1) < 0)
-				break;
-		}
-		while (rpt_vsync (clockadjust) < 0) {
-			rtg_vsynccheck ();
-			if (audio_is_pull_event())
-				break;
+		if (!currprefs.cpu_thread) {
+			while (!currprefs.turbo_emulation) {
+				float v = rpt_vsync(clockadjust) / (syncbase / 1000.0);
+				if (v >= -2)
+					break;
+				rtg_vsynccheck();
+				maybe_process_pull_audio();
+				if (cpu_sleep_millis(1) < 0)
+					break;
+			}
+			while (rpt_vsync(clockadjust) < 0) {
+				rtg_vsynccheck();
+				if (audio_is_pull_event())
+					break;
+			}
 		}
 		idletime += read_processor_time() - start;
 		curr_time = read_processor_time ();
@@ -8671,9 +8673,11 @@ static int display_slice_cnt;
 static int display_slice_lines;
 static int display_slices;
 static bool display_rendered;
+static int vsyncnextstep;
 
 static bool linesync_beam_single_dual(void)
 {
+	bool was_syncline = is_syncline != 0;
 	frame_time_t maxtime = read_processor_time() + 2 * vsynctimebase;
 	int vp;
 
@@ -8732,35 +8736,58 @@ static bool linesync_beam_single_dual(void)
 
 static bool linesync_beam_single_single(void)
 {
+	bool was_syncline = is_syncline != 0;
 	frame_time_t maxtime = read_processor_time() + 2 * vsynctimebase;
 	int vp;
 
 	if (is_last_line()) {
-		do_render_slice(-1, 0, vpos);
-		while (!currprefs.turbo_emulation && sync_timeout_check(maxtime)) {
-			maybe_process_pull_audio();
-			target_spin(0);
-			vp = target_get_display_scanline(-1);
-			if (vp >= 0)
-				break;
+		if (vsyncnextstep != 1) {
+			vsyncnextstep = 1;
+			do_render_slice(-1, 0, vpos);
+			while (!currprefs.turbo_emulation && sync_timeout_check(maxtime)) {
+				maybe_process_pull_audio();
+				vp = target_get_display_scanline(-1);
+				if (vp >= 0)
+					break;
+				if (currprefs.m68k_speed < 0 && !was_syncline) {
+					is_syncline = -3;
+					return 0;
+				}
+				target_spin(0);
+			}
 		}
-		vsync_clear();
-		while (!currprefs.turbo_emulation && sync_timeout_check(maxtime)) {
-			maybe_process_pull_audio();
-			vp = target_get_display_scanline(-1);
-			if (vp >= vsync_activeheight - 1 || vp < 0)
-				break;
-			scanlinesleep(vp, vsync_activeheight - 1);
+		if (vsyncnextstep != 2) {
+			vsyncnextstep = 2;
+			vsync_clear();
+			while (!currprefs.turbo_emulation && sync_timeout_check(maxtime)) {
+				maybe_process_pull_audio();
+				vp = target_get_display_scanline(-1);
+				if (vp >= vsync_activeheight - 1 || vp < 0)
+					break;
+				if (currprefs.m68k_speed < 0 && !was_syncline) {
+					is_syncline = -2;
+					is_syncline_end = vsync_activeheight - 1;
+					return 0;
+				}
+				scanlinesleep(vp, vsync_activeheight - 1);
+			}
 		}
-		frame_rendered = true;
-		frame_shown = true;
-		do_display_slice();
-		while (vp >= vsync_activeheight / 2 && !currprefs.turbo_emulation && sync_timeout_check(maxtime)) {
-			maybe_process_pull_audio();
-			target_spin(0);
-			vp = target_get_display_scanline(-1);
-			if (vp < vsync_activeheight / 2)
-				break;
+		if (vsyncnextstep != 3) {
+			vsyncnextstep = 3;
+			do_display_slice();
+			frame_rendered = true;
+			frame_shown = true;
+			while (!currprefs.turbo_emulation && sync_timeout_check(maxtime)) {
+				maybe_process_pull_audio();
+				vp = target_get_display_scanline(-1);
+				if (vp < vsync_activeheight / 2)
+					break;
+				if (currprefs.m68k_speed < 0 && !was_syncline) {
+					is_syncline = -(100 + vsync_activeheight / 2);
+					return 0;
+				}
+				target_spin(0);
+			}
 		}
 		return true;
 	}
@@ -8941,6 +8968,10 @@ static bool linesync_beam_multi_single(void)
 				if (vp != -1)
 					break;
 				maybe_process_pull_audio();
+				if (currprefs.m68k_speed < 0 && !was_syncline) {
+					is_syncline = -3;
+					return 0;
+				}
 				target_spin(0);
 			}
 			vsync_clear();
@@ -9031,6 +9062,11 @@ static bool linesync_beam_multi_single(void)
 					// We are still in vblank and second slice? Poll until vblank ends.
 					if (display_slice_cnt == 1 && vp == -1) {
 						maybe_process_pull_audio();
+						if (currprefs.m68k_speed < 0 && !was_syncline) {
+							is_syncline = -3;
+							return 0;
+						}
+
 						target_spin(0);
 #if LLV_DEBUG
 						write_log(_T("3:%d:%d:%d:%d."), vpos, vp, nextwaitvpos, vsyncnextscanline);
@@ -9391,7 +9427,11 @@ static void hsync_handler_post (bool onvsync)
 #endif
 	bool input_read_done = false;
 
-	if (isvsync_chipset() < 0) {
+	if (currprefs.cpu_thread) {
+
+		maybe_process_pull_audio();
+
+	} else if (isvsync_chipset() < 0) {
 
 		if (currprefs.gfx_display_sections <= 1) {
 			if (vsync_vblank >= 85)
@@ -9420,10 +9460,10 @@ static void hsync_handler_post (bool onvsync)
 				frame_time_t rpt = read_processor_time ();
 				while (vsync_isdone(NULL) <= 0 && (int)vsyncmintime - (int)(rpt + vsynctimebase / 10) > 0 && (int)vsyncmintime - (int)rpt < vsynctimebase) {
 					maybe_process_pull_audio();
-					if (!execute_other_cpu(rpt + vsynctimebase / 10)) {
+//					if (!execute_other_cpu(rpt + vsynctimebase / 10)) {
 						if (cpu_sleep_millis(1) < 0)
 							break;
-					}
+//					}
 					rpt = read_processor_time ();
 				}
 			} else if (currprefs.m68k_speed_throttle) {
@@ -9497,10 +9537,10 @@ static void hsync_handler_post (bool onvsync)
 				// sleep if more than 2ms "free" time
 				while (vsync_isdone(NULL) <= 0 && (int)vsyncmintime - (int)(rpt + vsynctimebase / 10) > 0 && (int)vsyncmintime - (int)rpt < vsynctimebase) {
 					maybe_process_pull_audio();
-					if (!execute_other_cpu(rpt + vsynctimebase / 10)) {
+//					if (!execute_other_cpu(rpt + vsynctimebase / 10)) {
 						if (cpu_sleep_millis(1) < 0)
 							break;
-					}
+//					}
 					rpt = read_processor_time();
 				}
 			}
@@ -9646,6 +9686,7 @@ static void hsync_handler (void)
 	bool vs = is_custom_vsync ();
 	hsync_handler_pre (vs);
 	if (vs) {
+		vsyncmintimepre = read_processor_time();
 		vsync_handler_pre ();
 		if (savestate_check ()) {
 			uae_reset (0, 0);
