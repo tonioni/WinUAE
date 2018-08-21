@@ -4401,8 +4401,13 @@ static struct expansionboardsettings ne2k_isa_settings[] = {
 		true, false, 0
 	},
 	{
+		_T("MAC (xx:xx:xx:xx:xx:xx)\0"),
+		_T("mac\0"),
+		2, false, 0
+	},
+	{
 		NULL, NULL,
-		true, false, 4
+		true, false, 16 - (4 + 3)
 	},
 	{
 		NULL

@@ -119,6 +119,10 @@ extern void pci_write_dma(struct pci_board_state *pcibs, uaecptr addr, uae_u8*, 
 extern void pci_read_dma(struct pci_board_state *pcibs, uaecptr addr, uae_u8*, int size);
 
 extern const struct pci_board ne2000_pci_board;
+extern const struct pci_board ne2000_pci_board_x86;
+extern const struct pci_board ne2000_pci_board_pcmcia;
+extern const struct pci_board ne2000_pci_board;
+
 extern const struct pci_board es1370_pci_board;
 extern const struct pci_board fm801_pci_board;
 extern const struct pci_board fm801_pci_board_func1;

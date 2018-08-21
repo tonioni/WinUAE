@@ -1500,7 +1500,7 @@ static int initpcmcia (const TCHAR *path, int readonly, int type, int reset, str
 
 	} else if (type == PCMCIA_NE2000) {
 
-		ne2000 = &ne2000_pci_board;
+		ne2000 = &ne2000_pci_board_pcmcia;
 		ne2000_board_state = xcalloc(pci_board_state, 1);
 		ne2000_board_state->irq_callback = ne2000_pcmcia_irq_callback;
 		if (!ne2000->init(ne2000_board_state, NULL)) {

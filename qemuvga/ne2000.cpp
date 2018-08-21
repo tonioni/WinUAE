@@ -1336,6 +1336,16 @@ static bool ne2000_init(struct pci_board_state *pcibs, struct autoconfig_info *a
 	return ne2000_init_2(pcibs, ROMTYPE_NE2KPCI, aci && aci->rc ? aci->rc->configtext : NULL);
 }
 
+static bool ne2000_init_pcmcia(struct pci_board_state *pcibs, struct autoconfig_info *aci)
+{
+	return ne2000_init_2(pcibs, ROMTYPE_NE2KPCMCIA, aci && aci->rc ? aci->rc->configtext : NULL);
+}
+
+static bool ne2000_init_x86(struct pci_board_state *pcibs, struct autoconfig_info *aci)
+{
+	return ne2000_init_2(pcibs, ROMTYPE_NE2KISA, aci && aci->rc ? aci->rc->configtext : NULL);
+}
+
 static const struct pci_config ne2000_pci_config =
 {
 	0x10ec, 0x8029, 0, 0, 0, 0x020000, 0, 0x10ec, 0x8029, 1, 0, 0, { 0x20 | 1, 0, 0, 0, 0, 0, 0 }
@@ -1345,6 +1355,37 @@ const struct pci_board ne2000_pci_board =
 {
 	_T("RTL8029"),
 	&ne2000_pci_config, ne2000_init, ne2000_free, ne2000_reset, ne2000_hsync_handler,
+	{
+		{ ne2000_lget, ne2000_wget, ne2000_bget, ne2000_lput, ne2000_wput, ne2000_bput },
+		{ NULL },
+		{ NULL },
+		{ NULL },
+		{ NULL },
+		{ NULL },
+		{ NULL },
+	}
+};
+
+const struct pci_board ne2000_pci_board_pcmcia =
+{
+	_T("RTL8029"),
+	&ne2000_pci_config, ne2000_init_pcmcia, ne2000_free, ne2000_reset, ne2000_hsync_handler,
+	{
+		{ ne2000_lget, ne2000_wget, ne2000_bget, ne2000_lput, ne2000_wput, ne2000_bput },
+		{ NULL },
+		{ NULL },
+		{ NULL },
+		{ NULL },
+		{ NULL },
+		{ NULL },
+	}
+};
+
+
+const struct pci_board ne2000_pci_board_x86 =
+{
+	_T("RTL8029"),
+	&ne2000_pci_config, ne2000_init_x86, ne2000_free, ne2000_reset, ne2000_hsync_handler,
 	{
 		{ ne2000_lget, ne2000_wget, ne2000_bget, ne2000_lput, ne2000_wput, ne2000_bput },
 		{ NULL },

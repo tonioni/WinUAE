@@ -3356,7 +3356,7 @@ static void x86_ne2000(struct x86_bridge *xb)
 		return;
 	struct romconfig *rc = get_device_romconfig(&currprefs, ROMTYPE_NE2KISA, 0);
 	if (rc) {
-		xb->ne2000_isa = &ne2000_pci_board;
+		xb->ne2000_isa = &ne2000_pci_board_x86;
 		xb->ne2000_isa_board_state = xcalloc(pci_board_state, 1);
 		xb->ne2000_isa_board_state->irq_callback = ne2000_isa_irq_callback;
 		switch (rc->device_settings & 7)
@@ -3423,8 +3423,7 @@ static void x86_ne2000(struct x86_bridge *xb)
 		aci.rc = rc;
 		if (xb->ne2000_isa->init(xb->ne2000_isa_board_state, &aci)) {
 			write_log(_T("NE2000 ISA configured, IO=%3X, IRQ=%d\n"), xb->ne2000_io, xb->ne2000_irq);
-		}
-		else {
+		} else {
 			xb->ne2000_isa = NULL;
 			xfree(xb->ne2000_isa_board_state);
 			xb->ne2000_isa_board_state = NULL;
