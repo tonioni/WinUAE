@@ -1,4 +1,72 @@
 
+
+Beta 2:
+
+- NE2000 PCMCIA and NE2000 bridgeboard didn't support custom MAC and network mode selection (slirp with open ports or pcap mode).
+- XT IDE fixed (b1). Also XT IDE previously generated useless Amiga-side interrupts.
+- If config had KS ROM path/file that didn't exist, path was replaced with useless <original path>../system/rom/kick.rom path.
+- Bridgeboard CPU speed adjustment setting (CPU panel) is now activated when BIOS does first video register write. Early BIOS diagnostics tests can fail if CPU is too fast.
+- Bridgeboard CGA graphics mode without VGA board had corrupted graphics, special graphics mode memory access was not implemented.
+- Added AccessX/Acetec 500 IDE emulation.
+
+AccessX 500:
+
+- Usual simple PIO IDE controller.
+- ROM has address and data lines swapped (probably to make PCB design simpler, I don't think it was meant for protection because ROM is visible in Amiga address space)
+- Uses interrupt level 6. This is first emulated IDE controller that didn't use level 2!
+- "harddisk1.device (AccessX Device Driver 41.30)"
+- v2.1 ROM added, in scrambled and descrambled format. Both are supported.
+- Supports custom filesystems.
+
+
+Beta 1:
+
+- Full sub pixel accurate display emulation. AGA hires/shres BPLCON1 resolution is now fully supported, in all modes. Option in Chipset panel, not enabled by default. It is rarely needed and requires much more CPU power.
+- Previously unemulated DIWHIGH H0/H1 AGA-only bits emulated. Does not require subpixel emulation mode.
+- Emulated AGA borderblank undocumented feature: borderblank activates and deactivates horizontally 1 hires pixel later than on OCS/ECS. Only emulated if subpixel mode is enabled.
+- Simple subpixel emulation mode (which only works if both odd and even playfield have same shift value) hires/shres resolution left border may have had wider than normal pixels in first visible pixel column.
+- Added second fire button keys to built-in keyboard layout info strings.
+- 68020 + memory cycle exact hung the emulator in some very tiny loops.
+- Some programs caused continuous flood of "blitter is active, forcing immediate finish" log messages.
+- Softfloat mode 68040/68060 nonmaskable FPU exceptions should be also disabled if Unimplemented FPU emu is ticked. It confuses 68040/68060.library FPU emulation.
+- Blitter statesave with blitter active: log window opened and listed few lines of blitter debug information.
+- CTRL+F11 quit ignored new "Warn when attempting to close window" option.
+- Added new misc option which captures mouse immediately when windowed/full-window winuae window is activated.
+- Added A4091 v40.4 and v40.9 to ROM scanner. v40.4 is most likely pre-release/beta version (but was dumped from working card), has serial debug logging and device name is "ncr.device", not "scsi.device".
+- Fixed typo in NCR53C710 emulation (wrong bit), fixes A4091 v40.4 ROM boot hang.
+- uaehf.device HD_SCSICMD didn't set scsi_SenseActual. Also set io_Actual=30 (=sizeof(struct SCSICmd))
+- Allow also read commands (previously only metadata commands like INQUIRY were allowed) when accessing partition HDF via uaehf.device HD_SCSICMD.
+- 53F94 emulation zeroed DMA transfer register at the end of transfer but it should be decreased by number of actually DMA transferred bytes (transfer won't necessarily complete fully). Fixes Blizzard 53F94 based SCSI controllers returning too large HD_SCSICMD scsi_Actual value after executing SCSI command that can return less than requested number of bytes.
+- Fixed multimonitor mode mouse losing mouse capture at startup or mouse becoming unusable when first multimonitor window opened. Mainly x86 bridgeboard VGA related.
+- Display port adapters that needed genlock data didn't work correctly since 4.0.0.
+- Display port adapters didn't work in multimonitor mode. (I think they did work in some early 4.0.0 beta but got broken before final)
+- "Warn when attempting to close window" option now works on the fly.
+- Added CSA Twelwe Gauge emulation (partial, jumpers not yet supported)
+- Added history list to statefile path string box.
+
+PC Bridgeboard emulation rewrite:
+
+- Replaced DOSBox and Fake86 x86 emulators with PCem emulator core. CPU, interrupt controllers (PIC), timers (PIT), DMA controller and IO and memory mapping. PCem emulates specific PC models in hardware level, DOSbox emulates sort of "generic" PC with generic BIOS which required too many hacks and had compatibility problems.
+- DOS extenders, Windows 3.x enhanced mode and Windows 95 confirmed working.
+- Floppy controller is still using my own implementation.
+- (S)VGA, XTIDE, NE2000 expansions supported like previously.
+- Added CL-GD542x linear frame buffer support.
+- Optional CL-GD5429 SVGA chipset. 2M VRAM support and blitter which may be useful under Windows. Previous 5426 is still the default.
+- A2386SX VLSI chipset memory mapping features implemented (ROM shadowing, EMS pages).
+- CPU panel x86 speed setting supported. "Max" option is gone because PCem emulates specific CPU frequency rate.
+- FPU is not available, PCem does not seem to have FPU emulation, at least for pre-486 CPUs.
+- Bridgeboard shared IO regions are now dynamically changed, same with mono/color vs VGA IO regions. Affects A2088+ only. Sidecar uses jumpers.
+- PC Speaker (enable in bridgeboard settings) and Sound Blaster (various models) emulation added from PCem. Note that SB expansion GUI configuration does not do any SB model specific filtering.
+- PC compatible mouse emulation, under Expansion/Custom expansions. Simple config: select which Amiga port gets routed to emulated ISA serial card. Serial (COM1), PS/2 and PS/2 Intellimouse supported. Last two aren't really possible in real world but it was easy to support in emulation (and may not work in emulation either). Implemented because bridgeboard AMOUSE is not Windows 95 compatible.
+- Removed AT IDE Secondary, A2286 and A2386SX BIOS only supports primary IDE.
+
+CSA Twelwe Gauge:
+- A1200 68030 accelerator.
+- v1.0 ROM (does newer ones exist?) is not KS 3.1 compatible. (KS 3.1 adds $08000000 RAM automatically, then CSA boot ROM does the same..)
+- 5380 based PIO SCSI controller.
+- "CSA Twelve Gauge(TM)/CSA1250(TM);P/N 22162A1000;Date: 93.JUN.25;Computer System Associates, Inc. (C)1993. All Rights Reserved"
+
+
 4.0.1
 
 Beta 6:
