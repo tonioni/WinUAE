@@ -139,7 +139,7 @@ uint32_t oldds, oldss, olddslimit, oldsslimit, olddslimitw, oldsslimitw;
 int pci_burst_time, pci_nonburst_time;
 int optype;
 uint32_t oxpc;
-char *logs_path;
+char logs_path[512];
 uint32_t ealimit, ealimitw;
 
 uint32_t x87_pc_off, x87_op_off;

@@ -180,6 +180,7 @@ struct x86_bridge
 	void *mouse_base;
 	int mouse_type;
 	int mouse_port;
+	bool video_initialized;
 
 	struct scamp_shadow shadows[16];
 	mem_mapping_t ems[0x24];
@@ -1418,6 +1419,23 @@ static uae_u8 infloppy(struct x86_bridge *xb, int portnum)
 	return v;
 }
 
+static void set_cpu_turbo(struct x86_bridge *xb)
+{
+	cpu_set((int)currprefs.x86_speed_throttle);
+	cpu_update_waitstates();
+	cpu_set_turbo(0);
+	cpu_set_turbo(1);
+}
+
+static void set_initial_cpu_turbo(struct x86_bridge *xb)
+{
+	xb->video_initialized = true;
+	if (currprefs.x86_speed_throttle) {
+		write_log(_T("Video initialized, activating x86 CPU turbo.\n"));
+		set_cpu_turbo(xb);
+	}
+}
+
 static void set_pc_address_access(struct x86_bridge *xb, uaecptr addr)
 {
 	if (addr >= 0xb0000 && addr < 0xb2000) {
@@ -1453,12 +1471,18 @@ static void set_pc_io_access(struct x86_bridge *xb, uaecptr portnum, bool write)
 	}
 
 	if (write && (portnum == 0x3b1 || portnum == 0x3b3 || portnum == 0x3b5 || portnum == 0x3b7 || portnum == 0x3b8)) {
+		if (!xb->video_initialized) {
+			set_initial_cpu_turbo(xb);
+		}
 		// mono crt data register
 		if (mode_register & 8) {
 			xb->delayed_interrupt |= 1 << 2;
 		}
 	} else if (write && (portnum == 0x3d1 || portnum == 0x3d3 || portnum == 0x3d5 || portnum == 0x3d7 || portnum == 0x3d8 || portnum == 0x3d9 || portnum == 0x3dd)) {
 			// color crt data register
+		if (!xb->video_initialized) {
+			set_initial_cpu_turbo(xb);
+		}
 		if (mode_register & 16) {
 			xb->delayed_interrupt |= 1 << 3;
 		}
@@ -2722,6 +2746,25 @@ static struct x86_bridge *get_x86_bridge(uaecptr addr)
 	return bridges[0];
 }
 
+static void cga_gfx_read(struct x86_bridge *xb, uaecptr a_addr, uae_u8 *addr, uae_u8 *plane0p, uae_u8 *plane1p)
+{
+	uae_u16 w;
+
+	if (a_addr & 1)
+		w = (addr[-1] << 8) | addr[0];
+	else
+		w = (addr[0] << 8) | addr[1];
+
+	uae_u8 plane1 = (((w >> 14) & 1) << 7) | (((w >> 12) & 1) << 6) | (((w >> 10) & 1) << 5) | (((w >> 8) & 1) << 4);
+	plane1 |= (((w >> 6) & 1) << 3) | (((w >> 4) & 1) << 2) | (((w >> 2) & 1) << 1) | (((w >> 0) & 1) << 0);
+
+	uae_u8 plane0 = (((w >> 15) & 1) << 7) | (((w >> 13) & 1) << 6) | (((w >> 11) & 1) << 5) | (((w >> 9) & 1) << 4);
+	plane0 |= (((w >> 7) & 1) << 3) | (((w >> 5) & 1) << 2) | (((w >> 3) & 1) << 1) | (((w >> 1) & 1) << 0);
+
+	*plane0p = plane0;
+	*plane1p = plane1;
+}
+
 static uae_u32 REGPARAM2 x86_bridge_wget(uaecptr addr)
 {
 	uae_u16 v = 0;
@@ -2731,15 +2774,31 @@ static uae_u32 REGPARAM2 x86_bridge_wget(uaecptr addr)
 		return v;
 	int mode;
 	uaecptr a = get_x86_address(xb, addr, &mode, &base);
-	if (mode == ACCESS_MODE_WORD) {
+
+	switch (mode)
+	{
+		case -1:
+		break;
+		case ACCESS_MODE_WORD:
 		v = (base[1] << 8) | (base[0] << 0);
-	} else if (mode == ACCESS_MODE_GFX) {
-		write_log(_T("ACCESS_MODE_GFX\n"));
-	} else if (mode == ACCESS_MODE_IO) {
+		break;
+		case ACCESS_MODE_GFX:
+		{
+			uae_u8 plane0, plane1;
+			cga_gfx_read(xb, a, base, &plane0, &plane1);
+			if (a & 1)
+				v = (plane1 << 8) | plane0;
+			else
+				v = (plane0 << 8) | plane1;
+		}
+		break;
+		case ACCESS_MODE_IO:
 		v = x86_bridge_get_io(xb, a);
 		v |= x86_bridge_get_io(xb, a + 1) << 8;
-	} else if (mode >= 0) {
+		break;
+		default:
 		v = (base[1] << 0) | (base[0] << 8);
+		break;
 	}
 #if X86_DEBUG_BRIDGE > 1
 	write_log(_T("x86_bridge_wget %08x (%08x,%d)=%04x PC=%08x\n"), addr - xb->baseaddress, a, mode, v, M68K_GETPC);
@@ -2753,6 +2812,7 @@ static uae_u32 REGPARAM2 x86_bridge_lget(uaecptr addr)
 	v |= x86_bridge_wget(addr + 2);
 	return v;
 }
+
 static uae_u32 REGPARAM2 x86_bridge_bget(uaecptr addr)
 {
 	uae_u8 v = 0;
@@ -2768,12 +2828,29 @@ static uae_u32 REGPARAM2 x86_bridge_bget(uaecptr addr)
 	}
 	int mode;
 	uaecptr a = get_x86_address(xb, addr, &mode, &base);
-	if (mode == ACCESS_MODE_WORD) {
+	switch(mode)
+	{
+		case -1:
+		break;
+		case ACCESS_MODE_WORD:
 		v = base[(a ^ 1) & 1];
-	} else if (mode == ACCESS_MODE_IO) {
+		break;
+		case ACCESS_MODE_IO:
 		v = x86_bridge_get_io(xb, a);
-	} else if (mode >= 0) {
+		break;
+		case ACCESS_MODE_GFX:
+		{
+			uae_u8 plane0, plane1;
+			cga_gfx_read(xb, a, base, &plane0, &plane1);
+			if (a & 1)
+				v = plane1;
+			else
+				v = plane0;
+		}
+		break;
+		default:
 		v = base[0];
+		break;
 	}
 #if X86_DEBUG_BRIDGE > 1
 	write_log(_T("x86_bridge_bget %08x (%08x,%d)=%02x PC=%08x\n"), addr - xb->baseaddress, a, mode, v, M68K_GETPC);
@@ -2797,18 +2874,26 @@ static void REGPARAM2 x86_bridge_wput(uaecptr addr, uae_u32 b)
 	if (a >= 0x100000 || mode < 0)
 		return;
 
-	if (mode == ACCESS_MODE_IO) {
-		uae_u16 v = b;
-		x86_bridge_put_io(xb, a, v & 0xff);
-		x86_bridge_put_io(xb, a + 1, v >> 8);
-	} else if (mode == ACCESS_MODE_WORD) {
+	switch (mode)
+	{
+		case -1:
+		break;
+		case ACCESS_MODE_IO:
+		x86_bridge_put_io(xb, a + 0, b & 0xff);
+		x86_bridge_put_io(xb, a + 1, (b >> 8) & 0xff);
+		break;
+		case ACCESS_MODE_WORD:
 		base[0] = b;
 		base[1] = b >> 8;
-	} else if (mode == ACCESS_MODE_GFX) {
-		write_log(_T("ACCESS_MODE_GFX\n"));
-	} else {
+		break;
+		case ACCESS_MODE_GFX:
+		// does not seem to be used
+		//write_log(_T("ACCESS_MODE_GFX %08x %04x\n"), addr, b & 0xffff);
+		break;
+		default:
 		base[1] = b;
 		base[0] = b >> 8;
+		break;
 	}
 }
 static void REGPARAM2 x86_bridge_lput(uaecptr addr, uae_u32 b)
@@ -2849,12 +2934,23 @@ static void REGPARAM2 x86_bridge_bput(uaecptr addr, uae_u32 b)
 	write_log(_T("x86_bridge_bput %08x (%08x,%d) %02x PC=%08x\n"), addr - xb->baseaddress, a, mode, b & 0xff, M68K_GETPC);
 #endif
 
-	if (mode == ACCESS_MODE_IO) {
+	switch(mode)
+	{
+		case -1:
+		break;
+		case ACCESS_MODE_IO:
 		x86_bridge_put_io(xb, a, b);
-	} else if (mode == ACCESS_MODE_WORD) {
+		break;
+		case ACCESS_MODE_WORD:
 		base[(a ^ 1) & 1] = b;
-	} else {
+		break;
+		case ACCESS_MODE_GFX:
+		// does not seem to be used
+		//write_log(_T("ACCESS_MODE_GFX %08x %02x\n"), addr, b & 0xff);
+		break;
+		default:
 		base[0] = b;
+		break;
 	}
 }
 
@@ -3165,7 +3261,7 @@ void x86_bridge_hsync(void)
 
 	if (currprefs.x86_speed_throttle != changed_prefs.x86_speed_throttle) {
 		currprefs.x86_speed_throttle = changed_prefs.x86_speed_throttle;
-		cpu_set((int)currprefs.x86_speed_throttle);
+		set_cpu_turbo(xb);
 	}
 }
 
@@ -3188,6 +3284,7 @@ static void bridge_reset(struct x86_bridge *xb)
 	xb->amiga_irq = false;
 	xb->pc_irq3a = xb->pc_irq3b = xb->pc_irq7 = false;
 	xb->mode_register = -1;
+	xb->video_initialized = false;
 	x86_cpu_active = false;
 	memset(xb->amiga_io, 0, 0x50000);
 	memset(xb->io_ports, 0, 0x10000);
@@ -3644,7 +3741,7 @@ bool x86_bridge_init(struct autoconfig_info *aci, uae_u32 romtype, int type)
 		}
 	}
 
-	cpu_set((int)currprefs.x86_speed_throttle);
+	cpu_set(0);
 	if (xb->type >= TYPE_2286) {
 		mem_size = (1024 * 1024) << ((xb->settings >> 16) & 7);
 	} else {
