@@ -253,9 +253,9 @@ void idecontroller_rethink(void)
 {
 	bool irq = false;
 	for (int i = 0; ide_boards[i]; i++) {
-		if (ide_boards[i] == x86_at_ide_board[0]) {
+		if (ide_boards[i] == x86_at_ide_board[0] || ide_boards[i] == x86_at_ide_board[1]) {
 			bool x86irq = ide_rethink(ide_boards[i], true);
-			if (x86irq) {
+			if (x86irq && ide_boards[i] == x86_at_ide_board[0]) {
 				x86_doirq(14);
 			}
 		} else {
@@ -2399,16 +2399,8 @@ static int x86_ide_reg(int portnum, int *unit)
 		*unit = 0;
 		return 6 | IDE_SECONDARY;
 	}
-	if (portnum >= 0x170 && portnum < 0x178) {
-		*unit = 1;
-		return portnum & 7;
-	}
-	if (portnum == 0x376) {
-		*unit = 1;
-		return 6 | IDE_SECONDARY;
-	}
 	if (portnum >= 0x300 && portnum < 0x310) {
-		*unit = 2;
+		*unit = 1;
 		if (portnum < 0x308)
 			return portnum & 7;
 		if (portnum == 0x308)
