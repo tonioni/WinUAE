@@ -46,6 +46,7 @@ struct ide_board
 	bool irq;
 	bool intena;
 	bool enabled;
+	bool intlev6;
 	int state;
 	uae_u8 state2[8];
 	int type;

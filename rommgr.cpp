@@ -95,7 +95,7 @@ struct romdata *getromdatabypath (const TCHAR *path)
 	return NULL;
 }
 
-#define NEXT_ROM_ID 242
+#define NEXT_ROM_ID 244
 
 #define ALTROM(id,grp,num,size,flags,crc32,a,b,c,d,e) \
 { _T("X"), 0, 0, 0, 0, 0, size, id, 0, 0, flags, (grp << 16) | num, 0, NULL, crc32, a, b, c, d, e },
@@ -596,6 +596,10 @@ static struct romdata roms[] = {
 	0xc5ae45d4, 0x8d682bc1,0x72bd2d35,0x4ba2db5c,0x9f6745a4,0x8937782c, NULL, NULL },
 	{ _T("C-Ltd Kronos"), 1, 0, 1, 0, _T("KRONOS\0"), 8192, 235, 0, 0, ROMTYPE_KRONOS, 0, 0, NULL,
 	0x9366d357, 0x7113add0,0x4c782ed7,0xa56a74ba,0x3378d55c,0x5605eaf6, NULL, NULL },
+	{ _T("AccessX 500 v2.1"), 2, 1, 2, 1, _T("ACCESSX\0"), 32768, 242, 0, 0, ROMTYPE_ACCESSX, 0, 0, NULL,
+	0x039a14a7, 0x1a710b94, 0xcc1bd217, 0xb0c310af, 0x4b0f6d0a, 0x1125b05a, NULL, NULL },
+	{ _T("AccessX 500 v2.1 (descrambled)"), 2, 1, 2, 1, _T("ACCESSX\0"), 32768, 243, 0, 0, ROMTYPE_ACCESSX, 0, 0, NULL,
+	0x415a5cae, 0x15c8c15f, 0x3700e867, 0xd1dbe2ee, 0xcbb7c7cd, 0x245555fa, NULL, NULL },
 
 	{ _T("CyberStorm MK I 68040"), 0, 0, 0, 0, _T("CSMKI\0"), 32768, 95, 0, 0, ROMTYPE_CB_CSMK1, 0, 0, NULL,
 	  0, 0, 0, 0, 0, 0, NULL, _T("cyberstormmk1_040.rom") },

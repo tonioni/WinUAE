@@ -4815,6 +4815,12 @@ const struct expansionromtype expansionroms[] = {
 		false, EXPANSIONTYPE_SCSI
 	},
 	{
+		_T("accessx500"), _T("AccessX 500"), _T("Breitfeld Computersysteme"),
+		NULL, accessx_init, NULL, accessx_add_ide_unit, ROMTYPE_ACCESSX, 0, 0, BOARD_AUTOCONFIG_Z2, false,
+		NULL, 0,
+		true, EXPANSIONTYPE_IDE
+	},
+	{
 		_T("oktagon2008"), _T("Oktagon 2008"), _T("BSC/Alfa Data"),
 		NULL, ncr_oktagon_autoconfig_init, NULL, oktagon_add_scsi_unit, ROMTYPE_OKTAGON, 0, 0, BOARD_AUTOCONFIG_Z2, false,
 		NULL, 0,
