@@ -667,7 +667,7 @@ static const TCHAR *historytypes[] =
 	_T("TapeImageMRUList"),
 	_T("GenlockImageMRUList"),
 	_T("GenlockVideoMRUList"),
-	_T("GeometryMRUList")
+	_T("GeometryMRUList"),
 	_T("StatefileMRUList")
 };
 static int regread;
