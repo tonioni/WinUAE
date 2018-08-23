@@ -4818,7 +4818,9 @@ const struct expansionromtype expansionroms[] = {
 		_T("accessx500"), _T("AccessX 500"), _T("Breitfeld Computersysteme"),
 		NULL, accessx_init, NULL, accessx_add_ide_unit, ROMTYPE_ACCESSX, 0, 0, BOARD_AUTOCONFIG_Z2, false,
 		NULL, 0,
-		true, EXPANSIONTYPE_IDE
+		true, EXPANSIONTYPE_IDE,
+		0, 0, 0, true, NULL,
+		false, 2
 	},
 	{
 		_T("oktagon2008"), _T("Oktagon 2008"), _T("BSC/Alfa Data"),

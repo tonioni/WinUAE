@@ -51,8 +51,8 @@
 #define ATEAM_IDE (DATAFLYERPLUS_IDE + MAX_DUPLICATE_EXPANSION_BOARDS)
 #define FASTATA4K_IDE (ATEAM_IDE + MAX_DUPLICATE_EXPANSION_BOARDS)
 #define ELSATHD_IDE (FASTATA4K_IDE + 2 * MAX_DUPLICATE_EXPANSION_BOARDS)
-#define ACCESSX_IDE (ELSATHD_IDE + 2 * MAX_DUPLICATE_EXPANSION_BOARDS)
-#define TOTAL_IDE (ACCESSX_IDE + MAX_DUPLICATE_EXPANSION_BOARDS)
+#define ACCESSX_IDE (ELSATHD_IDE + MAX_DUPLICATE_EXPANSION_BOARDS)
+#define TOTAL_IDE (ACCESSX_IDE + 2 * MAX_DUPLICATE_EXPANSION_BOARDS)
 
 #define ALF_ROM_OFFSET 0x0100
 #define GVP_IDE_ROM_OFFSET 0x8000
@@ -559,19 +559,19 @@ static int get_fastata4k_reg(uaecptr addr, struct ide_board *board, int *portnum
 	return addr;
 }
 
-static int get_accessx_reg(uaecptr addr, struct ide_board *board)
+static int get_accessx_reg(uaecptr addr, struct ide_board *board, int *portnum)
 {
+	*portnum = 0;
 	if (!(addr & 0x8000))
 		return -1;
 	if ((addr & 1))
 		return -1;
-	if (addr & 0x400) {
-		int reg = (addr >> 6) & 7;
-		if (addr & 0x200)
-			reg |= IDE_SECONDARY;
-		return reg;
-	}
-	return -1;
+	if (addr & 0x400)
+		*portnum = 1;
+	int reg = (addr >> 6) & 7;
+	if (addr & 0x200)
+		reg |= IDE_SECONDARY;
+	return reg;
 }
 
 static int getidenum(struct ide_board *board, struct ide_board **arr)
@@ -881,9 +881,11 @@ static uae_u32 ide_read_byte(struct ide_board *board, uaecptr addr)
 
 	} else if (board->type == ACCESSX_IDE) {
 
-		int reg = get_accessx_reg(addr, board);
+		int portnum;
+		int reg = get_accessx_reg(addr, board, &portnum);
 		if (reg >= 0) {
-			v = get_ide_reg(board, reg);
+			if (board->ide[portnum])
+				v = get_ide_reg_multi(board, reg, portnum, 1);
 		} else if (board->rom && !(addr & 0x8000)) {
 			int offset = addr & 0x7fff;
 			v = board->rom[offset];
@@ -1132,11 +1134,10 @@ static uae_u32 ide_read_word(struct ide_board *board, uaecptr addr)
 
 		} else if (board->type == ACCESSX_IDE) {
 
-			int reg = get_accessx_reg(addr, board);
+			int portnum;
+			int reg = get_accessx_reg(addr, board, &portnum);
 			if (reg == 0) {
-				v = get_ide_reg_multi(board, IDE_DATA, 0, 1);
-			} else if (reg > 0) {
-				v = get_ide_reg(board, reg);
+				v = get_ide_reg_multi(board, IDE_DATA, portnum, 1);
 			} else if (board->rom && !(addr & 0x8000)) {
 				int offset = addr & 0x7fff;
 				v = board->rom[(offset + 0) & board->rom_mask];
@@ -1401,9 +1402,10 @@ static void ide_write_byte(struct ide_board *board, uaecptr addr, uae_u8 v)
 
 		} else if (board->type == ACCESSX_IDE) {
 
-			int reg = get_accessx_reg(addr, board);
-			if (reg >= 0) {
-				put_ide_reg(board, reg, v);
+			int portnum;
+			int reg = get_accessx_reg(addr, board, &portnum);
+			if (board->ide[portnum]) {
+				put_ide_reg_multi(board, reg, v, portnum, 1);
 			}
 
 		}
@@ -1577,11 +1579,10 @@ static void ide_write_word(struct ide_board *board, uaecptr addr, uae_u16 v)
 
 		} else if (board->type == ACCESSX_IDE) {
 
-			int reg = get_accessx_reg(addr, board);
+			int portnum;
+			int reg = get_accessx_reg(addr, board, &portnum);
 			if (!reg) {
-				put_ide_reg_multi(board, IDE_DATA, v, 0, 1);
-			} else if (reg > 0) {
-				put_ide_reg(board, reg, v & 0xff);
+				put_ide_reg_multi(board, IDE_DATA, v, portnum, 1);
 			}
 		}
 	}
@@ -2471,7 +2472,7 @@ bool accessx_init(struct autoconfig_info *aci)
 
 void accessx_add_ide_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc)
 {
-	add_ide_standard_unit(ch, ci, rc, accessx_board, ACCESSX_IDE, false, false, 2);
+	add_ide_standard_unit(ch, ci, rc, accessx_board, ACCESSX_IDE, false, false, 4);
 }
 
 extern void x86_xt_ide_bios(struct zfile*, struct romconfig*);
