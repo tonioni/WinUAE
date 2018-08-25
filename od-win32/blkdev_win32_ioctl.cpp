@@ -505,7 +505,7 @@ void ioctl_next_cd_audio_buffer_callback(int bufnum)
 
 static bool cdda_play2 (struct dev_info_ioctl *ciw, int *outpos)
 {
-	int cdda_pos;
+	int cdda_pos = ciw->cdda_start;
 	int bufnum;
 	int buffered;
 	int i;
