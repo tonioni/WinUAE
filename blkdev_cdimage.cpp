@@ -162,12 +162,15 @@ static int do_read (struct cdunit *cdu, struct cdtoc *t, uae_u8 *data, int secto
 		{
 			case 2352:
 			type = CD_TRACK_MODE1_RAW;
+			offset = 0;
 			break;
 			case 2336:
 			type = CD_TRACK_MODE2;
+			offset = 0;
 			break;
 			case 2048:
 			type = CD_TRACK_MODE1;
+			offset = 0;
 			break;
 		}
 		if (audio && size == 2352)
