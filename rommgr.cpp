@@ -95,7 +95,7 @@ struct romdata *getromdatabypath (const TCHAR *path)
 	return NULL;
 }
 
-#define NEXT_ROM_ID 244
+#define NEXT_ROM_ID 245
 
 #define ALTROM(id,grp,num,size,flags,crc32,a,b,c,d,e) \
 { _T("X"), 0, 0, 0, 0, 0, size, id, 0, 0, flags, (grp << 16) | num, 0, NULL, crc32, a, b, c, d, e },
@@ -546,6 +546,10 @@ static struct romdata roms[] = {
 	0xd13a2c89, 0xf9e38c4b,0xf5c6499d,0x486946ba,0x7b7636b8,0x0845265b, NULL, NULL },
 	ALTROMPN(156, 1, 1, 32768, ROMTYPE_ODD  | ROMTYPE_8BIT, NULL, 0x339b3549, 0x74de857b, 0x42f9a8e0, 0xc1f3c29e, 0x06982622, 0x853d08fe)
 	ALTROMPN(156, 1, 2, 32768, ROMTYPE_EVEN | ROMTYPE_8BIT, NULL, 0x3aca5d1f, 0x786f2197, 0xc614be91, 0xae7e87da, 0xb42c3290, 0xd7997763)
+	{ _T("Multi Evolution 500/2000 v3.4"), 3, 4, 3, 4, _T("MULTIEVOLUTION\0"), 65536, 244, 0, 0, ROMTYPE_MEVOLUTION, 0, 0, NULL,
+	0x99516e5d, 0x036bd049,0xb661996b,0x1b4ab621,0x16bfaf73,0xb12a2202, NULL, NULL },
+	ALTROMPN(244, 1, 1, 32768, ROMTYPE_ODD  | ROMTYPE_8BIT, NULL, 0x9b3018e2, 0x55af3abd, 0x74a8c4f9, 0x5ac8cf22, 0xf306fb3a, 0x78a551e3)
+	ALTROMPN(244, 1, 2, 32768, ROMTYPE_EVEN | ROMTYPE_8BIT, NULL, 0x5bf01c8c, 0xdd13e047, 0xd3d4b8fa, 0x149b784c, 0x788647ff, 0x11b22979)
 	{ _T("Kupke Golem v4.2"), 4, 2, 4, 2, _T("GOLEMFAST\0"), 16384, 157, 0, 0, ROMTYPE_GOLEMFAST, 0, 0, NULL,
 	0x5e94ee56, 0xf83dae55, 0x49f9b735, 0x52d5c6e0, 0x41da4c6c, 0x995a7f47, NULL, NULL },
 	ALTROMPN(157, 1, 1, 8192, ROMTYPE_ODD  | ROMTYPE_8BIT, NULL, 0xec13fda0, 0x6af1447c, 0x4363c46d, 0x05697458, 0x01daa30c, 0x03c01c9f)
