@@ -1479,7 +1479,7 @@ static void set_pc_io_access(struct x86_bridge *xb, uaecptr portnum, bool write)
 			xb->delayed_interrupt |= 1 << 2;
 		}
 	} else if (write && (portnum == 0x3d1 || portnum == 0x3d3 || portnum == 0x3d5 || portnum == 0x3d7 || portnum == 0x3d8 || portnum == 0x3d9 || portnum == 0x3dd)) {
-			// color crt data register
+		// color crt data register
 		if (!xb->video_initialized) {
 			set_initial_cpu_turbo(xb);
 		}
@@ -3107,7 +3107,7 @@ void x86_bridge_reset(void)
 			zfile_fwrite(nvrram, 1, xb->cmossize, xb->cmosfile);
 		}
 		if (xb->audstream) {
-			audio_enable_stream(false, xb->audstream, 0, NULL);
+			audio_enable_stream(false, xb->audstream, 0, NULL, NULL);
 		}
 		zfile_fclose(xb->cmosfile);
 		xfree(xb->amiga_io);
@@ -3172,7 +3172,7 @@ static void x86_cpu_execute(int cycs)
 	check_floppy_delay();
 }
 
-static bool audio_state_sndboard_x86(int streamid)
+static bool audio_state_sndboard_x86(int streamid, void *param)
 {
 	static int smp[2] = { 0, 0 };
 	struct x86_bridge *xb = bridges[0];
@@ -3242,7 +3242,7 @@ void x86_bridge_hsync(void)
 			write_log(_T("x86 sound init\n"));
 			xb->audeventtime = x86_base_event_clock * CYCLE_UNIT / currprefs.sound_freq + 1;
 			timer_add(sound_poll, &sound_poll_time, TIMER_ALWAYS_ENABLED, NULL);
-			xb->audstream = audio_enable_stream(true, -1, 2, audio_state_sndboard_x86);
+			xb->audstream = audio_enable_stream(true, -1, 2, audio_state_sndboard_x86, NULL);
 		}
 	}
 

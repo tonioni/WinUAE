@@ -228,6 +228,7 @@ static bool audio_mode;
 static uae_sem_t play_sem;
 static volatile bool fmv_bufon[2];
 static double fmv_syncadjust;
+static struct cd_audio_state cas;
 
 struct cl450_videoram
 {
@@ -394,7 +395,7 @@ static void l64111_setvolume(void)
 	write_log(_T("L64111 mute %d\n"), volume ? 0 : 1);
 	if (cda) {
 		if (audio_mode) {
-			audio_cda_volume(volume, volume);
+			audio_cda_volume(&cas, volume, volume);
 		} else {
 			cda->setvolume(volume, volume);
 		}
@@ -1373,19 +1374,19 @@ void cd32_fmv_set_sync(double svpos, double adjust)
 	fmv_syncadjust = adjust;
 }
 
-static void fmv_next_cd_audio_buffer_callback(int bufnum)
+static void fmv_next_cd_audio_buffer_callback(int bufnum, void *param)
 {
 	uae_sem_wait(&play_sem);
 	if (bufnum >= 0) {
 		fmv_bufon[bufnum] = 0;
 		bufnum = 1 - bufnum;
 		if (fmv_bufon[bufnum])
-			audio_cda_new_buffer((uae_s16*)cda->buffers[bufnum], PCM_SECTORS * KJMP2_SAMPLES_PER_FRAME, bufnum, fmv_next_cd_audio_buffer_callback);
+			audio_cda_new_buffer(&cas, (uae_s16*)cda->buffers[bufnum], PCM_SECTORS * KJMP2_SAMPLES_PER_FRAME, bufnum, fmv_next_cd_audio_buffer_callback, param);
 		else
 			bufnum = -1;
 	}
 	if (bufnum < 0) {
-		audio_cda_new_buffer(NULL, 0, -1, NULL);
+		audio_cda_new_buffer(&cas, NULL, 0, -1, NULL, NULL);
 	}
 	uae_sem_post(&play_sem);
 }
@@ -1403,14 +1404,17 @@ static void cd32_fmv_audio_handler(void)
 	if (!fmv_ram_bank.baseaddr)
 		return;
 
-	if (cd_audio_mode_changed) {
+	if (cd_audio_mode_changed || (cl450_play && !cda)) {
 		cd_audio_mode_changed = false;
 		if (cl450_play) {
 			if (audio_mode) {
-				audio_cda_new_buffer(NULL, -1, -1, NULL);
+				audio_cda_new_buffer(&cas, NULL, -1, -1, NULL, NULL);
 			}
 			audio_mode = currprefs.sound_cdaudio;
 			fmv_bufon[0] = fmv_bufon[1] = 0;
+			delete cda;
+			cda = new cda_audio(PCM_SECTORS, KJMP2_SAMPLES_PER_FRAME * 4, 44100, audio_mode != 0);
+			l64111_setvolume();
 		}
 	}
 
@@ -1458,7 +1462,7 @@ static void cd32_fmv_audio_handler(void)
 	if (audio_mode) {
 		if (!play0 && !play1) {
 			fmv_bufon[bufnum] = 1;
-			fmv_next_cd_audio_buffer_callback(1 - bufnum);
+			fmv_next_cd_audio_buffer_callback(1 - bufnum, NULL);
 		}
 		fmv_bufon[bufnum] = 1;
 	} else {
@@ -1538,7 +1542,7 @@ void cd32_fmv_free(void)
 	videoram = NULL;
 	if (cda) {
 		if (audio_mode) {
-			fmv_next_cd_audio_buffer_callback(-1);
+			fmv_next_cd_audio_buffer_callback(-1, NULL);
 		} else {
 			cda->wait(0);
 			cda->wait(1);
@@ -1589,16 +1593,12 @@ addrbank *cd32_fmv_init (struct autoconfig_info *aci)
 	mapped_malloc(&fmv_ram_bank);
 	if (!pcmaudio)
 		pcmaudio = xcalloc(struct fmv_pcmaudio, L64111_CHANNEL_BUFFERS);
-
 	kjmp2_init(&mp2);
-	if (!cda) {
-		cda = new cda_audio(PCM_SECTORS, KJMP2_SAMPLES_PER_FRAME * 4, 44100);
-		l64111_setvolume();
-	}
 	if (!mpeg_decoder) {
 		mpeg_decoder = mpeg2_init();
 		mpeg_info = mpeg2_info(mpeg_decoder);
 	}
+	memset(&cas, 0, sizeof(cas));
 	fmv_bank.mask = fmv_board_size - 1;
 	map_banks(&fmv_rom_bank, (fmv_start + ROM_BASE) >> 16, fmv_rom_size >> 16, 0);
 	map_banks(&fmv_ram_bank, (fmv_start + RAM_BASE) >> 16, fmv_ram_size >> 16, 0);

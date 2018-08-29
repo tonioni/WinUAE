@@ -26,34 +26,34 @@
 
 cda_audio::~cda_audio()
 {
-	wait (0);
-	wait (1);
-#if CDADS
-	if (dsnotify)
-		dsnotify->Release();
-	if (dsbuf)
-		dsbuf->Release();
-	if (ds)
-		ds->Release();
-	if (notifyevent[0])
-		CloseHandle (notifyevent[0]);
-	if (notifyevent[1])
-		CloseHandle (notifyevent[1]);
-#else
 	if (active) {
+		wait(0);
+		wait(1);
+#if CDADS
+		if (dsnotify)
+			dsnotify->Release();
+		if (dsbuf)
+			dsbuf->Release();
+		if (ds)
+			ds->Release();
+		if (notifyevent[0])
+			CloseHandle(notifyevent[0]);
+		if (notifyevent[1])
+			CloseHandle(notifyevent[1]);
+#else
 		for (int i = 0; i < 2; i++)
-			waveOutUnprepareHeader  (wavehandle, &whdr[i], sizeof (WAVEHDR));
-	}
-	if (wavehandle != NULL)
-		waveOutClose (wavehandle);
+			waveOutUnprepareHeader(wavehandle, &whdr[i], sizeof(WAVEHDR));
+		if (wavehandle != NULL)
+			waveOutClose(wavehandle);
 #endif
+	}
 	for (int i = 0; i < 2; i++) {
 		xfree (buffers[i]);
 		buffers[i] = NULL;
 	}
 }
 
-cda_audio::cda_audio(int num_sectors, int sectorsize, int samplerate)
+cda_audio::cda_audio(int num_sectors, int sectorsize, int samplerate, bool internalmode)
 {
 	active = false;
 	playing = false;
@@ -64,6 +64,10 @@ cda_audio::cda_audio(int num_sectors, int sectorsize, int samplerate)
 	for (int i = 0; i < 2; i++) {
 		buffers[i] = xcalloc (uae_u8, num_sectors * ((bufsize + 4095) & ~4095));
 	}
+	this->num_sectors = num_sectors;
+
+	if (internalmode)
+		return;
 
 	WAVEFORMATEX wav;
 	memset (&wav, 0, sizeof (WAVEFORMATEX));
@@ -151,7 +155,6 @@ cda_audio::cda_audio(int num_sectors, int sectorsize, int samplerate)
 		write_log (_T("IMAGE CDDA: wave open %d\n"), mmr);
 		return;
 	}
-	this->num_sectors = num_sectors;
 	for (int i = 0; i < 2; i++) {
 		memset (&whdr[i], 0, sizeof(WAVEHDR));
 		whdr[i].dwBufferLength = sectorsize * num_sectors;

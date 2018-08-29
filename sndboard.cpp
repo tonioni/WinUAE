@@ -219,7 +219,7 @@ static struct uaesndboard_data uaesndboard[MAX_DUPLICATE_SOUND_BOARDS];
 
 #define STREAM_STRUCT_SIZE 40
 
-static bool audio_state_sndboard_uae(int streamid);
+static bool audio_state_sndboard_uae(int streamid, void *params);
 
 extern addrbank uaesndboard_ram_bank;
 MEMORY_FUNCTIONS(uaesndboard_ram);
@@ -311,7 +311,7 @@ static void uaesndboard_stop(struct uaesndboard_data *data, struct uaesndboard_s
 		return;
 	s->play = 0;
 	data->streammask &= ~(1 << (s - data->stream));
-	audio_enable_stream(false, s->streamid, 0, NULL);
+	audio_enable_stream(false, s->streamid, 0, NULL, NULL);
 	s->streamid = 0;
 	data->streamcnt--;
 }
@@ -330,7 +330,7 @@ static void uaesndboard_start(struct uaesndboard_data *data, struct uaesndboard_
 		s->sample[i] = 0;
 	}
 	uaesnd_setfreq(s);
-	s->streamid = audio_enable_stream(true, -1, MAX_UAE_CHANNELS, audio_state_sndboard_uae);
+	s->streamid = audio_enable_stream(true, -1, MAX_UAE_CHANNELS, audio_state_sndboard_uae, NULL);
 	if (!s->streamid) {
 		uaesndboard_stop(data, s);
 	}
@@ -511,7 +511,7 @@ static void uaesnd_streammask(struct uaesndboard_data *data, uae_u32 m)
 	}
 }
 
-static bool audio_state_sndboard_uae(int streamid)
+static bool audio_state_sndboard_uae(int streamid, void *params)
 {
 	struct uaesndboard_data *data = &uaesndboard[0];
 	struct uaesndboard_stream *s = NULL;
@@ -1010,7 +1010,7 @@ void uaesndboard_reset(void)
 		if (data->enabled) {
 			for (int i = 0; i < MAX_UAE_STREAMS; i++) {
 				if (data->stream[i].streamid) {
-					audio_enable_stream(false, data->stream[i].streamid, 0, NULL);
+					audio_enable_stream(false, data->stream[i].streamid, 0, NULL, NULL);
 					memset(&data->stream[i], 0, sizeof(struct uaesndboard_stream));
 				}
 			}
@@ -1270,7 +1270,7 @@ static void process_fifo(void)
 		data->fifo_half |= STATUS_FIFO_PLAY;
 }
 
-static bool audio_state_sndboard_toccata(int streamid)
+static bool audio_state_sndboard_toccata(int streamid, void *params)
 {
 	struct toccata_data *data = &toccata[0];
 	if (!toccata[0].toccata_active)
@@ -1393,7 +1393,7 @@ static void codec_start(void)
 	data->record_event_counter = 0;
 
 	if (data->toccata_active & STATUS_FIFO_PLAY) {
-		data->streamid = audio_enable_stream(true, -1, 2, audio_state_sndboard_toccata);
+		data->streamid = audio_enable_stream(true, -1, 2, audio_state_sndboard_toccata, NULL);
 	}
 	if (data->toccata_active & STATUS_FIFO_RECORD) {
 		capture_buffer = xcalloc(uae_u8, capture_buffer_size);
@@ -1409,7 +1409,7 @@ static void codec_stop(void)
 	write_log(_T("TOCCATA stop\n"));
 	data->toccata_active = 0;
 	sndboard_free_capture();
-	audio_enable_stream(false, data->streamid, 0, NULL);
+	audio_enable_stream(false, data->streamid, 0, NULL, NULL);
 	data->streamid = 0;
 	xfree(capture_buffer);
 	capture_buffer = NULL;
@@ -1803,7 +1803,7 @@ void sndboard_reset(void)
 	codec_stop();
 	data->toccata_irq = 0;
 	if (data->streamid > 0)
-		audio_enable_stream(false, data->streamid, 0, NULL);
+		audio_enable_stream(false, data->streamid, 0, NULL, NULL);
 	data->streamid = 0;
 	sndboard_rethink();
 	mapped_free(&toccata_bank);
@@ -1856,7 +1856,7 @@ static void fm801_stop(struct fm801_data *data)
 {
 	write_log(_T("FM801 STOP\n"));
 	data->play_on = false;
-	audio_enable_stream(false, data->streamid, 0, NULL);
+	audio_enable_stream(false, data->streamid, 0, NULL, NULL);
 	data->streamid = 0;
 }
 
@@ -1879,7 +1879,7 @@ static void fm801_interrupt(struct fm801_data *data)
 	}
 }
 
-static bool audio_state_sndboard_fm801(int streamid)
+static bool audio_state_sndboard_fm801(int streamid, void *params)
 {
 	struct fm801_data *data = &fm801;
 
@@ -1957,7 +1957,7 @@ static void fm801_play(struct fm801_data *data)
 
 	write_log(_T("FM801 PLAY: freq=%d ch=%d bits=%d\n"), data->freq, data->ch, data->bits);
 
-	data->streamid = audio_enable_stream(true, -1, data->ch, audio_state_sndboard_fm801);
+	data->streamid = audio_enable_stream(true, -1, data->ch, audio_state_sndboard_fm801, NULL);
 }
 
 static void fm801_pause(struct fm801_data *data, bool pause)
@@ -2223,7 +2223,7 @@ const struct pci_board solo1_pci_board =
 
 static SWVoiceOut *qemu_voice_out;
 
-static bool audio_state_sndboard_qemu(int streamid)
+static bool audio_state_sndboard_qemu(int streamid, void *params)
 {
 	SWVoiceOut *out = qemu_voice_out;
 
@@ -2299,10 +2299,10 @@ void AUD_set_active_out(SWVoiceOut *sw, int on)
 	sw->samplebuf_index = 0;
 	sw->samplebuf_total = 0;
 	calculate_volume_qemu();
-	audio_enable_stream(false, sw->streamid, 2, NULL);
+	audio_enable_stream(false, sw->streamid, 2, NULL, NULL);
 	sw->streamid = 0;
 	if (on) {
-		sw->streamid = audio_enable_stream(true, -1, 2, audio_state_sndboard_qemu);
+		sw->streamid = audio_enable_stream(true, -1, 2, audio_state_sndboard_qemu, NULL);
 	}
 }
 void AUD_set_active_in(SWVoiceIn *sw, int on)
@@ -2316,7 +2316,7 @@ void AUD_close_out(QEMUSoundCard *card, SWVoiceOut *sw)
 {
 	qemu_voice_out = NULL;
 	if (sw) {
-		audio_enable_stream(false, sw->streamid, 0, NULL);
+		audio_enable_stream(false, sw->streamid, 0, NULL, NULL);
 		sw->streamid = 0;
 		xfree(sw);
 	}
