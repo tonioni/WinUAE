@@ -90,10 +90,12 @@ static void lores_reset (void)
 	lores_factor = currprefs.gfx_resolution ? 2 : 1;
 	lores_set(currprefs.gfx_resolution);
 	if (doublescan > 0) {
-		if (lores_shift < 2)
-			lores_shift++;
+		int ls = lores_shift;
+		if (ls < 2) {
+			ls++;
+		}
 		lores_factor = 2;
-		lores_set(lores_shift);
+		lores_set(ls);
 	}
 	sprite_buffer_res = currprefs.gfx_resolution;
 	if (doublescan > 0 && sprite_buffer_res < RES_SUPERHIRES)

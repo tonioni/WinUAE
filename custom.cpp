@@ -9618,13 +9618,15 @@ static void hsync_handler_post (bool onvsync)
 	}
 	if (diw_change == 0) {
 		if (vpos >= first_planes_vpos && vpos <= last_planes_vpos) {
-			if (diwlastword > diwlastword_total) {
-				diwlastword_total = diwlastword;
+			int diwlastword_lores = diwlastword;
+			int diwfirstword_lores = diwfirstword;
+			if (diwlastword_lores > diwlastword_total) {
+				diwlastword_total = diwlastword_lores;
 				if (diwlastword_total > coord_diw_lores_to_window_x(hsyncstartpos * 2))
 					diwlastword_total = coord_diw_lores_to_window_x(hsyncstartpos * 2);
 			}
-			if (diwfirstword < diwfirstword_total) {
-				diwfirstword_total = diwfirstword;
+			if (diwfirstword_lores < diwfirstword_total) {
+				diwfirstword_total = diwfirstword_lores;
 				if (diwfirstword_total < coord_diw_lores_to_window_x(hsyncendpos * 2))
 					diwfirstword_total = coord_diw_lores_to_window_x(hsyncendpos * 2);
 				firstword_bplcon1 = bplcon1;
