@@ -1,5 +1,14 @@
 
 
+Beta 3:
+
+- Some CHD CD files returned incorrect data.
+- AccessX second IDE port support added.
+- Added v3.4 Multi Evolution ROM (Later Off Limits variant with different boot screen). Note that Off Limits variant has Fast RAM SIMM sockets which are not autoconfig and will crash the system if system has another Z2 board (even if Multi Evolution board has no RAM). Boot ROM RAM detection does not check if RAM for example is located in CPU socket installed accelerator.
+- CD audio handling improved, now each unit has own state variables. Multiple CD drives can now play CD audio simultaneously without corrupting each others state.
+- Fixed crash if more than 1 non-Paula audio stream was active. (emulated sound cards, also CD audio if "include" option ticked)
+- Fixed corrupted doublescan modes (b1)
+
 Beta 2:
 
 - NE2000 PCMCIA and NE2000 bridgeboard didn't support custom MAC and network mode selection (slirp with open ports or pcap mode).
@@ -17,7 +26,6 @@ AccessX 500:
 - "harddisk1.device (AccessX Device Driver 41.30)"
 - v2.1 ROM added, in scrambled and descrambled format. Both are supported.
 - Supports custom filesystems.
-
 
 Beta 1:
 
