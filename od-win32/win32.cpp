@@ -121,6 +121,7 @@ extern int forcedframelatency;
 int log_scsi;
 int log_net;
 int log_vsync, debug_vsync_min_delay, debug_vsync_forced_delay;
+static int log_winmouse;
 int uaelib_debug;
 int pissoff_value = 15000 * CYCLE_UNIT;
 unsigned int fpucontrol;
@@ -1878,8 +1879,11 @@ static LRESULT CALLBACK AmigaWindowProc(HWND hWnd, UINT message, WPARAM wParam, 
 		return 0;
 
 	case WM_LBUTTONUP:
-		if (dinput_winmouse() >= 0 && isfocus())
+		if (dinput_winmouse() >= 0 && isfocus()) {
+			if (log_winmouse)
+				write_log(_T("WM_LBUTTONUP\n"));
 			setmousebuttonstate(dinput_winmouse(), 0, 0);
+		}
 		return 0;
 	case WM_LBUTTONDOWN:
 	case WM_LBUTTONDBLCLK:
@@ -1897,20 +1901,30 @@ static LRESULT CALLBACK AmigaWindowProc(HWND hWnd, UINT message, WPARAM wParam, 
 			if (!pause_emulation || currprefs.win32_active_nocapture_pause)
 				setmouseactive(mon->monitor_id, (message == WM_LBUTTONDBLCLK || isfullscreen() > 0) ? 2 : 1);
 		} else if (dinput_winmouse() >= 0 && isfocus()) {
+			if (log_winmouse)
+				write_log(_T("WM_LBUTTONDOWN\n"));
 			setmousebuttonstate(dinput_winmouse(), 0, 1);
 		}
 		return 0;
 	case WM_RBUTTONUP:
-		if (dinput_winmouse() >= 0 && isfocus())
+		if (dinput_winmouse() >= 0 && isfocus()) {
+			if (log_winmouse)
+				write_log(_T("WM_RBUTTONUP\n"));
 			setmousebuttonstate(dinput_winmouse(), 1, 0);
+		}
 		return 0;
 	case WM_RBUTTONDOWN:
 	case WM_RBUTTONDBLCLK:
-		if (dinput_winmouse() >= 0 && isfocus() > 0)
+		if (dinput_winmouse() >= 0 && isfocus() > 0) {
+			if (log_winmouse)
+				write_log(_T("WM_RBUTTONDOWN\n"));
 			setmousebuttonstate(dinput_winmouse(), 1, 1);
+		}
 		return 0;
 	case WM_MBUTTONUP:
 		if (!(currprefs.input_mouse_untrap & MOUSEUNTRAP_MIDDLEBUTTON)) {
+			if (log_winmouse)
+				write_log(_T("WM_MBUTTONUP\n"));
 			if (dinput_winmouse() >= 0 && isfocus())
 				setmousebuttonstate(dinput_winmouse(), 2, 0);
 		}
@@ -1920,12 +1934,17 @@ static LRESULT CALLBACK AmigaWindowProc(HWND hWnd, UINT message, WPARAM wParam, 
 		if (currprefs.input_mouse_untrap & MOUSEUNTRAP_MIDDLEBUTTON) {
 			activationtoggle(mon->monitor_id, true);
 		} else {
-			if (dinput_winmouse() >= 0 && isfocus() > 0)
+			if (dinput_winmouse() >= 0 && isfocus() > 0) {
+				if (log_winmouse)
+					write_log(_T("WM_MBUTTONDOWN\n"));
 				setmousebuttonstate(dinput_winmouse(), 2, 1);
+			}
 		}
 		return 0;
 	case WM_XBUTTONUP:
 		if (dinput_winmouse() >= 0 && isfocus()) {
+			if (log_winmouse)
+				write_log(_T("WM_XBUTTONUP %08x\n"), wParam);
 			handleXbutton(wParam, 0);
 			return TRUE;
 		}
@@ -1933,6 +1952,8 @@ static LRESULT CALLBACK AmigaWindowProc(HWND hWnd, UINT message, WPARAM wParam, 
 	case WM_XBUTTONDOWN:
 	case WM_XBUTTONDBLCLK:
 		if (dinput_winmouse() >= 0 && isfocus() > 0) {
+			if (log_winmouse)
+				write_log(_T("WM_XBUTTONDOWN %08x\n"), wParam);
 			handleXbutton(wParam, 1);
 			return TRUE;
 		}
@@ -1940,6 +1961,8 @@ static LRESULT CALLBACK AmigaWindowProc(HWND hWnd, UINT message, WPARAM wParam, 
 	case WM_MOUSEWHEEL:
 		if (dinput_winmouse() >= 0 && isfocus() > 0) {
 			int val = ((short)HIWORD(wParam));
+			if (log_winmouse)
+				write_log(_T("WM_MOUSEWHEEL %08x\n"), wParam);
 			setmousestate(dinput_winmouse(), 2, val, 0);
 			if (val < 0)
 				setmousebuttonstate(dinput_winmouse(), dinput_wheelbuttonstart() + 0, -1);
@@ -1951,6 +1974,8 @@ static LRESULT CALLBACK AmigaWindowProc(HWND hWnd, UINT message, WPARAM wParam, 
 	case WM_MOUSEHWHEEL:
 		if (dinput_winmouse() >= 0 && isfocus() > 0) {
 			int val = ((short)HIWORD(wParam));
+			if (log_winmouse)
+				write_log(_T("WM_MOUSEHWHEEL %08x\n"), wParam);
 			setmousestate(dinput_winmouse(), 3, val, 0);
 			if (val < 0)
 				setmousebuttonstate(dinput_winmouse(), dinput_wheelbuttonstart() + 2, -1);
@@ -2117,7 +2142,9 @@ static LRESULT CALLBACK AmigaWindowProc(HWND hWnd, UINT message, WPARAM wParam, 
 		return 0;
 #endif
 
-		//write_log (_T("%d %d %d %d %d %d %dx%d %dx%d\n"), wm, mouseactive, focus, mon_cursorclipped, recapture, isfullscreen (), mx, my, mouseposx, mouseposy);
+		if (log_winmouse)
+			write_log (_T("WM_MOUSEMOVE MON=%d NUM=%d ACT=%d FOCUS=%d CLIP=%d CAP=%d FS=%d %dx%d %dx%d\n"),
+				mon->monitor_id, wm, mouseactive, focus, mon_cursorclipped, recapture, isfullscreen (), mx, my, mon->mouseposx, mon->mouseposy);
 		mx -= mon->mouseposx;
 		my -= mon->mouseposy;
 
@@ -6157,6 +6184,10 @@ static int parseargs(const TCHAR *argx, const TCHAR *np, const TCHAR *np2)
 	}
 	if (!_tcscmp(arg, _T("rawkeyboard"))) {
 		// obsolete
+		return 1;
+	}
+	if (!_tcscmp(arg, _T("winmouselog"))) {
+		log_winmouse = 1;
 		return 1;
 	}
 	if (!_tcscmp(arg, _T("directsound"))) {
