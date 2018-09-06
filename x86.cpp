@@ -100,6 +100,7 @@ static int x86_vga_board;
 int x86_cmos_bank;
 
 static uae_u8 *xtiderom;
+static uae_u8 *rt1000rom;
 
 int GAMEBLASTER = 1;
 int sound_pos_global;
@@ -241,7 +242,7 @@ static void reset_x86_cpu(struct x86_bridge *xb)
 	reset_cpu();
 	// reset x86 hd controllers
 	x86_ide_hd_put(-1, 0, 0);
-	x86_xt_hd_bput(-1, 0);
+	x86_rt1000_bput(-1, 0);
 }
 
 uint8_t x86_get_jumpers(void)
@@ -2192,14 +2193,6 @@ void portout(uint16_t portnum, uint8_t v)
 		x86_ide_hd_put(portnum, v, 0);
 		break;
 
-		// xt hd
-		case 0x320:
-		case 0x321:
-		case 0x322:
-		case 0x323:
-		x86_xt_hd_bput(portnum, v);
-		break;
-
 		// universal xt bios
 		case 0x300:
 		case 0x301:
@@ -2583,14 +2576,6 @@ uint8_t portin(uint16_t portnum)
 		case 0x1f7:
 		case 0x3f6:
 		v = x86_ide_hd_get(portnum, 0);
-		break;
-
-		// xt hd
-		case 0x320:
-		case 0x321:
-		case 0x322:
-		case 0x323:
-		v = x86_xt_hd_bget(portnum);
 		break;
 
 		// universal xt bios
@@ -3055,6 +3040,98 @@ static void vgalfb_writel(uint32_t addr, uint32_t val, void *priv)
 	vgalfb_ram_put(x86_vga_board, addr + 3, val >> 24);
 }
 
+static int to53c400reg(uint32_t addr, bool rw)
+{
+	//write_log(_T("%c %08x\n"), rw ? 'W' : 'R', addr);
+	// Scratchpad RAM
+	if (addr >= 0x3800 && addr <= 0x387f)
+		return (addr & 0x3f) | 0x200;
+	// 53C80 registers
+	if (addr >= 0x3880 && addr <= 0x38ff)
+		return addr & 7;
+	// Data port
+	if (addr >= 0x3900 && addr <= 0x397f)
+		return 0x80;
+	// 53C400 registers
+	if (addr >= 0x3980 && addr <= 0x39ff) {
+		int reg = addr & 3;
+		if (reg >= 2)
+			return -1;
+		return reg | 0x100;
+	}
+	return -1;
+}
+
+static uint8_t mem_read_romext3(uint32_t addr, void *priv)
+{
+	uae_u8 v = 0xff;
+	addr &= 0x3fff;
+	if (addr < 0x2000) {
+		v = rt1000rom[addr];
+	} else if (addr >= 0x3a00) {
+		write_log(_T("mem_read_romext3 %08x\n"), addr);
+	} else if (addr >= 0x3800) {
+		int reg = to53c400reg(addr, false);
+		if (reg >= 0)
+			v = x86_rt1000_bget(reg);
+	}
+	return v;
+}
+static uint16_t mem_read_romextw3(uint32_t addr, void *priv)
+{
+	uae_u16 v = 0xffff;
+	addr &= 0x3fff;
+	if (addr < 0x2000) {
+		v =  *(uint16_t *)&rt1000rom[addr & 0x1fff];
+	} else if (addr >= 0x3a00) {
+		write_log(_T("mem_read_romext3 %08x\n"), addr);
+	} else if (addr >= 0x3800) {
+		int reg = to53c400reg(addr + 0, false);
+		v = 0;
+		if (reg >= 0)
+			v = x86_rt1000_bget(reg);
+		reg = to53c400reg(addr + 1, false);
+		if (reg >= 0)
+			v |= x86_rt1000_bget(reg) << 8;
+	}
+	return v;
+}
+static uint32_t mem_read_romextl3(uint32_t addr, void *priv)
+{
+	return *(uint32_t *)&rt1000rom[addr & 0x3fff];
+}
+static void mem_write_romext3(uint32_t addr, uint8_t val, void *priv)
+{
+	addr &= 0x3fff;
+	if (addr >= 0x3a00) {
+		write_log(_T("mem_write_romext3 %08x %02x\n"), addr, val);
+	} else if (addr >= 0x3800) {
+		int reg = to53c400reg(addr, true);
+		if (reg >= 0)
+			x86_rt1000_bput(reg, val);
+	}
+}
+static void mem_write_romextw3(uint32_t addr, uint16_t val, void *priv)
+{
+	addr &= 0x3fff;
+	if (addr >= 0x3a00) {
+		write_log(_T("mem_write_romextw3 %08x %04x\n"), addr, val);
+	} else if (addr >= 0x3800) {
+		int reg = to53c400reg(addr + 0, true);
+		if (reg >= 0)
+			x86_rt1000_bput(reg, val);
+		reg = to53c400reg(addr + 1, true);
+		if (reg >= 0)
+			x86_rt1000_bput(reg, val >> 8);
+	} else {
+		write_log(_T("mem_write_romextw3 %08x %04x\n"), addr, val);
+	}
+}
+static void mem_write_romextl3(uint32_t addr, uint32_t val, void *priv)
+{
+
+}
+
 static uint8_t mem_read_romext2(uint32_t addr, void *priv)
 {
 	return xtiderom[addr & 0x3fff];
@@ -3116,6 +3193,8 @@ void x86_bridge_reset(void)
 		rom = NULL;
 		xfree(xtiderom);
 		xtiderom = NULL;
+		xfree(rt1000rom);
+		rt1000rom = NULL;
 		xfree(xb->mouse_base);
 		xfree(xb->cms_base);
 		xfree(xb->sb_base);
@@ -3343,6 +3422,18 @@ static void ne2000_isa_irq_callback(struct pci_board_state *pcibs, bool irq)
 		x86_doirq(xb->ne2000_irq);
 	else
 		x86_clearirq(xb->ne2000_irq);
+}
+
+void x86_rt1000_bios(struct zfile *z, struct romconfig *rc)
+{
+	struct x86_bridge *xb = bridges[0];
+	uae_u32 addr = 0;
+	if (!xb || !z)
+		return;
+	addr = (rc->device_settings & 7) * 0x4000 + 0xc8000;
+	rt1000rom = xcalloc(uae_u8, 0x2000 + 1);
+	zfile_fread(rt1000rom, 1, 0x2000, z);
+	mem_mapping_add(&bios_mapping[6], addr, 0x4000, mem_read_romext3, mem_read_romextw3, mem_read_romextl3, mem_write_romext3, mem_write_romextw3, mem_write_romextl3, rt1000rom, MEM_MAPPING_EXTERNAL | MEM_MAPPING_ROM, 0);
 }
 
 void x86_xt_ide_bios(struct zfile *z, struct romconfig *rc)

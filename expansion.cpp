@@ -4225,7 +4225,7 @@ static const struct expansionboardsettings toccata_soundcard_settings[] = {
 
 static const struct expansionboardsettings x86_athdxt_settings[] = {
 	{
-		_T("ROM Address\0") _T("0xCC000\0") _T("0xDC000\0") _T("0xEC000\0"),
+		_T("ROM address\0") _T("0xCC000\0") _T("0xDC000\0") _T("0xEC000\0"),
 		_T("baseaddress\0") _T("0xcc000\0") _T("0xdc000\0") _T("0xec000\0"),
 		true
 	},
@@ -4234,6 +4234,16 @@ static const struct expansionboardsettings x86_athdxt_settings[] = {
 	}
 };
 
+static const struct expansionboardsettings x86_rt1000_settings[] = {
+	{
+		_T("Base address\0") _T("0xC8000\0") _T("0xCC000\0") _T("0xD0000\0") _T("0xD4000\0") _T("0xD8000\0") _T("0xDC000 (*)\0") _T("0xE0000\0") _T("0xE4000\0"),
+		_T("baseaddress\0") _T("0xc8000\0") _T("0xcc000\0") _T("0xd0000\0") _T("0xd4000\0") _T("0xd8000\0") _T("0xdc000\0") _T("0xe0000\0") _T("0xe4000\0"),
+		true
+	},
+	{
+		NULL
+	}
+};
 
 static const struct expansionboardsettings harlequin_settings[] = {
 	{
@@ -5276,6 +5286,15 @@ const struct expansionromtype expansionroms[] = {
 		false, EXPANSIONTYPE_IDE,
 		0, 0, 0, false, NULL,
 		false, 0, x86_athdxt_settings
+	},
+	{
+		_T("x86rt1000"), _T("Rancho RT1000"), _T("x86"),
+		NULL, x86_rt1000_init, NULL, x86_rt1000_add_unit, ROMTYPE_X86_RT1000, 0, 0, BOARD_NONAUTOCONFIG_AFTER_Z2, true,
+		NULL, 0,
+		false, EXPANSIONTYPE_SCSI,
+		0, 0, 0, false, NULL,
+		false, 0, x86_rt1000_settings
+
 	},
 
 	/* PC Bridgeboards */

@@ -31,6 +31,7 @@
 #define RAW_SCSI_DEBUG 0
 #define NCR5380_DEBUG 0
 #define NCR5380_DEBUG_IRQ 0
+#define NCR53400_DEBUG 0
 
 #define NCR5380_SUPRA 1
 #define NONCR_GOLEM 2
@@ -55,7 +56,7 @@
 #define OMTI_PROMIGOS 21
 #define OMTI_SYSTEM2000 22
 #define OMTI_ADAPTER 23
-#define OMTI_X86 24
+#define NCR5380_X86_RT1000 24
 #define NCR5380_PHOENIXBOARD 25
 #define NCR5380_TRUMPCARDPRO 26
 #define NCR5380_IVSVECTOR 27 // nearly identical to trumpcard pro
@@ -809,8 +810,10 @@ struct raw_scsi
 struct soft_scsi
 {
 	uae_u8 regs[32];
-	uae_u8 regs_400[2];
+	uae_u16 regs_400[2];
+	uae_u8 scratch_400[64];
 	int c400_count;
+	bool c400;
 	uae_u8 aic_reg;
 	struct raw_scsi rscsi;
 	bool irq;
@@ -1059,6 +1062,7 @@ static void raw_scsi_reset_bus(struct soft_scsi *scsi)
 #if RAW_SCSI_DEBUG
 	write_log(_T("SCSI BUS reset\n"));
 #endif
+	raw_scsi_reset(r);
 	for (int i = 0; i < 8; i++) {
 		scsi_emulate_reset_device(r->device[i]);
 	}
@@ -1278,6 +1282,11 @@ static void raw_scsi_write_data(struct raw_scsi *rs, uae_u8 data)
 			} else if (sd->direction <= 0) {
 				scsi_emulate_cmd(sd);
 				scsi_start_transfer(sd);
+#if RAW_SCSI_DEBUG
+				if (sd->status) {
+					write_log(_T("raw_scsi: status = %d len = %d\n"), sd->status, sd->data_len);
+				}
+#endif
 				if (!sd->status && sd->data_len > 0) {
 #if RAW_SCSI_DEBUG
 					write_log(_T("raw_scsi: data in %d bytes waiting\n"), sd->data_len);
@@ -1769,7 +1778,8 @@ void x86_doirq(uint8_t irqnum);
 void ncr80_rethink(void)
 {
 	for (int i = 0; soft_scsi_devices[i]; i++) {
-		if (soft_scsi_devices[i]->irq && soft_scsi_devices[i]->intena) {
+		struct soft_scsi *s = soft_scsi_devices[i];
+		if (s->irq && s->intena && ((s->c400 && (s->regs_400[0] & 0x10) && !s->c400_count) || !s->c400)) {
 			if (soft_scsi_devices[i] == x86_hd_data) {
 				x86_doirq(5);
 			} else {
@@ -1822,14 +1832,16 @@ static void ncr5380_check_phase(struct soft_scsi *scsi)
 	}
 }
 
-static void ncr5380_reset(struct soft_scsi *scsi)
+static void ncr5380_reset(struct soft_scsi *scsi, bool busreset)
 {
 	struct raw_scsi *r = &scsi->rscsi;
 
 	memset(scsi->regs, 0, sizeof scsi->regs);
-	raw_scsi_reset_bus(scsi);
-	scsi->regs[1] = 0x80;
-	ncr5380_set_irq(scsi);
+	if (busreset) {
+		raw_scsi_reset_bus(scsi);
+		scsi->regs[1] = 0x80;
+		ncr5380_set_irq(scsi);
+	}
 }
 
 uae_u8 ncr5380_bget(struct soft_scsi *scsi, int reg)
@@ -1955,7 +1967,7 @@ void ncr5380_bput(struct soft_scsi *scsi, int reg, uae_u8 v)
 					raw_scsi_set_ack(r, (v & (1 << 4)) != 0);
 			}
 			if (v & 0x80) { // RST
-				ncr5380_reset(scsi);
+				ncr5380_reset(scsi, true);
 			}
 		}
 		break;
@@ -2031,10 +2043,11 @@ static void ncr53400_dmacount(struct soft_scsi *scsi)
 	if (scsi->c400_count == 128) {
 		scsi->c400_count = 0;
 		scsi->regs_400[1]--;
-		if (scsi->regs_400[1] == 0) {
-			scsi->regs[5] &= ~0x40; // dma request
-			ncr5380_check_phase(scsi);
-		}
+		scsi->regs_400[1] &= 0xff;
+		ncr5380_check_phase(scsi);
+		scsi->regs[5] |= 0x80; // end of dma
+		scsi->regs[3] |= 0x80; // last byte sent
+		ncr5380_set_irq(scsi);
 	}
 }
 
@@ -2042,16 +2055,26 @@ static uae_u8 ncr53400_bget(struct soft_scsi *scsi, int reg)
 {
 	struct raw_scsi *rs = &scsi->rscsi;
 	uae_u8 v = 0;
-	uae_u8 csr = scsi->regs_400[0];
+	uae_u8 csr = (uae_u8)scsi->regs_400[0];
 
 	if (ncr53400_5380(scsi) && reg < 8) {
 		v = ncr5380_bget(scsi, reg);
-		//write_log(_T("53C80 REG GET %02x -> %02x\n"), reg, v);
+#if NCR53400_DEBUG
+		static uae_u8 lastreg, lastval;
+		if (lastreg != reg || lastval != v) {
+			write_log(_T("53C80 REG GET %02x -> %02x\n"), reg, v);
+			lastreg = reg;
+			lastval = v;
+		}
+#endif
 		return v;
 	}
 	if (reg & 0x80) {
 		v = raw_scsi_get_data(rs, true);
 		ncr53400_dmacount(scsi);
+#if NCR53400_DEBUG
+		write_log(_T("53C400 DATA GET %02x %d\n"), v, scsi->c400_count);
+#endif
 	} else if (reg & 0x100) {
 		switch (reg) {
 			case 0x100:
@@ -2066,10 +2089,14 @@ static uae_u8 ncr53400_bget(struct soft_scsi *scsi, int reg)
 					v |= 0x01;
 				break;
 			case 0x101:
-				v = scsi->regs_400[1];
+				v = (uae_u8)scsi->regs_400[1];
 				break;
 		}
-		//write_log(_T("53C400 REG GET %02x -> %02x\n"), reg, v);
+#if NCR53400_DEBUG
+		write_log(_T("53C400 REG GET %02x -> %02x\n"), reg, v);
+#endif
+	} else if (reg & 0x200) {
+		v = scsi->scratch_400[reg & 0x3f];
 	}
 	ncr5380_check_phase(scsi);
 	return v;
@@ -2078,32 +2105,43 @@ static uae_u8 ncr53400_bget(struct soft_scsi *scsi, int reg)
 static void ncr53400_bput(struct soft_scsi *scsi, int reg, uae_u8 v)
 {
 	struct raw_scsi *rs = &scsi->rscsi;
-	uae_u8 csr = scsi->regs_400[0];
+	uae_u8 csr = (uae_u8)scsi->regs_400[0];
 
 	if (ncr53400_5380(scsi) && reg < 8) {
 		ncr5380_bput(scsi, reg, v);
-		//write_log(_T("53C80 REG PUT %02x -> %02x\n"), reg, v);
+#if NCR53400_DEBUG
+		write_log(_T("53C80 REG PUT %02x -> %02x\n"), reg, v);
+#endif
 		return;
 	}
 	if (reg & 0x80) {
 		raw_scsi_put_data(rs, v, true);
 		ncr53400_dmacount(scsi);
+#if NCR53400_DEBUG
+		write_log(_T("53C400 DATA PUT %02x %d\n"), v, scsi->c400_count);
+#endif
 	} else if (reg & 0x100) {
 		switch (reg) {
 			case 0x100:
 				scsi->regs_400[0] = v;
 				if (v & 0x80) {
-					ncr5380_reset(scsi);
+					// 53C400 reset does not reset 53C80
 					scsi->regs_400[0] = 0x80;
 					scsi->regs_400[1] = 0;
 				}
 				break;
 			case 0x101:
 				scsi->regs_400[1] = v;
+				if (v == 0)
+					scsi->regs_400[1] = 256;
 				scsi->c400_count = 0;
 				break;
 		}
-		//write_log(_T("53C400 REG PUT %02x -> %02x\n"), reg, v);
+#if NCR53400_DEBUG
+		write_log(_T("53C400 REG PUT %02x -> %02x\n"), reg, v);
+#endif
+	} else if (reg & 0x200) {
+		scsi->scratch_400[reg & 0x3f] = v;
 	}
 	ncr5380_check_phase(scsi);
 }
@@ -3793,32 +3831,6 @@ static void ncr80_bput2(struct soft_scsi *ncr, uaecptr addr, uae_u32 val, int si
 #endif
 }
 
-// x86 bridge hd
-void x86_xt_hd_bput(int portnum, uae_u8 v)
-{
-	struct soft_scsi *scsi = x86_hd_data;
-	write_log(_T("X86 HD PUT %04x = %02x\n"), portnum, v);
-	if (!scsi)
-		return;
-	if (portnum < 0) {
-		struct raw_scsi *rs = &scsi->rscsi;
-		raw_scsi_busfree(rs);
-		scsi->chip_state = 0;
-		return;
-	}
-	omti_bput(scsi, v & 3, v);
-}
-uae_u8 x86_xt_hd_bget(int portnum)
-{
-	uae_u8 v = 0xff;
-	struct soft_scsi *scsi = x86_hd_data;
-	write_log(_T("X86 HD GET %04x\n"), portnum);
-	if (!scsi)
-		return v;
-	v = omti_bget(scsi, v & 3);
-	return v;
-}
-
 // mainhattan paradox scsi
 uae_u8 parallel_port_scsi_read(int reg, uae_u8 data, uae_u8 dir)
 {
@@ -4352,6 +4364,7 @@ bool rochard_scsi_init(struct romconfig *rc, uaecptr baseaddress)
 {
 	struct soft_scsi *scsi = getscsi(rc);
 	scsi->configured = true;
+	scsi->c400 = true;
 	scsi->dma_controller = true;
 	scsi->baseaddress = baseaddress;
 	return scsi != NULL;
@@ -4792,29 +4805,6 @@ void omtiadapter_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconf
 	generic_soft_scsi_add(ch, ci, rc, OMTI_ADAPTER, 65536, 0, ROMTYPE_OMTIADAPTER);
 }
 
-extern void x86_xt_ide_bios(struct zfile*, struct romconfig *rc);
-bool x86_xt_hd_init(struct autoconfig_info *aci)
-{
-	if (!aci->doinit)
-		return true;
-
-	struct soft_scsi *scsi = getscsi(aci->rc);
-
-	if (!scsi)
-		return false;
-	struct zfile *f = read_device_from_romconfig(aci->rc, 0);
-	x86_xt_ide_bios(f, aci->rc);
-	zfile_fclose(f);
-	scsi->configured = 1;
-	x86_hd_data = scsi;
-	return true;
-}
-
-void x86_add_xt_hd_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc)
-{
-	generic_soft_scsi_add(ch, ci, rc, OMTI_X86, 0, 0, ROMTYPE_X86_HD);
-}
-
 bool phoenixboard_init(struct autoconfig_info *aci)
 {
 	if (!aci->doinit) {
@@ -5181,7 +5171,6 @@ void profex_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfi
 	}
 }
 
-
 bool fasttrak_init(struct autoconfig_info *aci)
 {
 	if (!aci->doinit) {
@@ -5202,4 +5191,57 @@ bool fasttrak_init(struct autoconfig_info *aci)
 void fasttrak_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc)
 {
 	generic_soft_scsi_add(ch, ci, rc, NCR5380_FASTTRAK, 65536, 65536, ROMTYPE_FASTTRAK);
+}
+
+// x86 bridge scsi rancho rt1000
+void x86_rt1000_bput(int portnum, uae_u8 v)
+{
+	struct soft_scsi *scsi = x86_hd_data;
+	if (!scsi)
+		return;
+	if (portnum < 0) {
+		struct raw_scsi *rs = &scsi->rscsi;
+		raw_scsi_busfree(rs);
+		scsi->chip_state = 0;
+		return;
+	}
+	ncr53400_bput(scsi, portnum, v);
+}
+uae_u8 x86_rt1000_bget(int portnum)
+{
+	uae_u8 v = 0xff;
+	struct soft_scsi *scsi = x86_hd_data;
+	if (!scsi)
+		return v;
+	v = ncr53400_bget(scsi, portnum);
+	return v;
+}
+
+extern void x86_rt1000_bios(struct zfile*, struct romconfig *rc);
+bool x86_rt1000_init(struct autoconfig_info *aci)
+{
+	static const int parent[] = { ROMTYPE_A1060, ROMTYPE_A2088, ROMTYPE_A2088T, ROMTYPE_A2286, ROMTYPE_A2386, 0 };
+	aci->parent_romtype = parent;
+	if (!aci->doinit)
+		return true;
+
+	struct soft_scsi *scsi = getscsi(aci->rc);
+
+	if (!scsi)
+		return false;
+	struct zfile *f = read_device_from_romconfig(aci->rc, 0);
+	if (f) {
+		x86_rt1000_bios(f, aci->rc);
+		zfile_fclose(f);
+	}
+	scsi->configured = 1;
+	scsi->dma_controller = true;
+	scsi->c400 = true;
+	x86_hd_data = scsi;
+	return true;
+}
+
+void x86_rt1000_add_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc)
+{
+	generic_soft_scsi_add(ch, ci, rc, NCR5380_X86_RT1000, 0, 0, ROMTYPE_X86_RT1000);
 }

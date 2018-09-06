@@ -107,7 +107,7 @@ extern int decode_cloanto_rom_do (uae_u8 *mem, int size, int real_size);
 #define ROMTYPE_A2286		0x0010002d
 #define ROMTYPE_A2386		0x0010002e
 #define ROMTYPE_OMTIADAPTER	0x0010002f
-#define ROMTYPE_X86_HD		0x00100030
+#define ROMTYPE_X86_RT1000	0x00100030
 #define ROMTYPE_X86_AT_HD1	0x00100031
 #define ROMTYPE_X86_AT_HD2	0x00100032
 #define ROMTYPE_X86_XT_IDE	0x00100033

@@ -302,9 +302,9 @@ void fasttrak_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romcon
 uae_u8 idescsi_scsi_get(uaecptr addr);
 void idescsi_scsi_put(uaecptr addr, uae_u8 v);
 
-void x86_xt_hd_bput(int, uae_u8);
-uae_u8 x86_xt_hd_bget(int);
-bool x86_xt_hd_init(struct autoconfig_info *aci);
-void x86_add_xt_hd_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
+void x86_rt1000_bput(int, uae_u8);
+uae_u8 x86_rt1000_bget(int);
+bool x86_rt1000_init(struct autoconfig_info *aci);
+void x86_rt1000_add_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
 
 #endif /* UAE_SCSI_H */
