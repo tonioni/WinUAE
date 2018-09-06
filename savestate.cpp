@@ -785,6 +785,8 @@ void restore_state (const TCHAR *filename)
 			end = restore_expansion_info(chunk);
 		else if (!_tcsncmp (name, _T("DMWP"), 4))
 			end = restore_debug_memwatch (chunk);
+		else if (!_tcsncmp(name, _T("PIC0"), 4))
+			end = chunk + len;
 
 		else if (!_tcscmp (name, _T("CONF")))
 			end = restore_configuration (chunk);
@@ -1140,6 +1142,12 @@ static int save_state_internal (struct zfile *f, const TCHAR *description, int c
 	dst = save_debug_memwatch (&len, NULL);
 	if (dst) {
 		save_chunk (f, dst, len, _T("DMWP"), 0);
+		xfree(dst);
+	}
+
+	dst = save_screenshot(0, &len);
+	if (dst) {
+		save_chunk(f, dst, len, _T("PIC0"), 0);
 		xfree(dst);
 	}
 

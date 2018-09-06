@@ -20,6 +20,7 @@
 #include "xwin.h"
 #include "drawing.h"
 #include "fsdb.h"
+#include "zfile.h"
 
 #include "png.h"
 
@@ -108,7 +109,7 @@ void screenshot_free(void)
 
 static int rgb_rb, rgb_gb, rgb_bb, rgb_rs, rgb_gs, rgb_bs, rgb_ab, rgb_as;
 
-static int screenshot_prepare(int monid, int imagemode, struct vidbuffer *vb)
+static int screenshot_prepare(int monid, int imagemode, struct vidbuffer *vb, bool standard)
 {
 	struct AmigaMonitor *mon = &AMonitors[monid];
 	int width, height;
@@ -118,8 +119,13 @@ static int screenshot_prepare(int monid, int imagemode, struct vidbuffer *vb)
 
 	screenshot_free ();
 
-	regqueryint(NULL, _T("Screenshot_Original"), &screenshot_originalsize);
-	regqueryint(NULL, _T("Screenshot_ClipMode"), &screenshot_clipmode);
+	if (!standard) {
+		regqueryint(NULL, _T("Screenshot_Original"), &screenshot_originalsize);
+		regqueryint(NULL, _T("Screenshot_ClipMode"), &screenshot_clipmode);
+	} else {
+		screenshot_originalsize = 1;
+		screenshot_clipmode = 0;
+	}
 	if (imagemode < 0)
 		imagemode = screenshot_originalsize;
 
@@ -183,17 +189,21 @@ static int screenshot_prepare(int monid, int imagemode, struct vidbuffer *vb)
 			goto donormal;
 		}
 
-		int screenshot_xmult = currprefs.screenshot_xmult + 1;
-		int screenshot_ymult = currprefs.screenshot_ymult + 1;
+		int screenshot_xmult = 1;
+		int screenshot_ymult = 1;
 
 		screenshot_width = width;
 		screenshot_height = height;
-		if (currprefs.screenshot_width > 0)
-			screenshot_width = currprefs.screenshot_width;
-		if (currprefs.screenshot_height > 0)
-			screenshot_height = currprefs.screenshot_height;
-		screenshot_xoffset = currprefs.screenshot_xoffset;
-		screenshot_yoffset = currprefs.screenshot_yoffset;
+		if (!standard) {
+			screenshot_xmult = currprefs.screenshot_xmult + 1;
+			screenshot_ymult = currprefs.screenshot_ymult + 1;
+			if (currprefs.screenshot_width > 0)
+				screenshot_width = currprefs.screenshot_width;
+			if (currprefs.screenshot_height > 0)
+				screenshot_height = currprefs.screenshot_height;
+			screenshot_xoffset = currprefs.screenshot_xoffset;
+			screenshot_yoffset = currprefs.screenshot_yoffset;
+		}
 
 		if (!WIN32GFX_IsPicassoScreen(mon) && screenshot_clipmode == 1) {
 			int cw, ch, cx, cy, crealh = 0;
@@ -238,8 +248,8 @@ static int screenshot_prepare(int monid, int imagemode, struct vidbuffer *vb)
 		if (screenshot_ymult < 1)
 			screenshot_ymult = 1;
 
-		int maxw_output = currprefs.screenshot_output_width;
-		int maxh_output = currprefs.screenshot_output_height;
+		int maxw_output = standard ? 0 : currprefs.screenshot_output_width;
+		int maxh_output = standard ? 0 : currprefs.screenshot_output_height;
 		while (maxw_output > screenshot_width * screenshot_xmult && screenshot_xmult < 8) {
 			screenshot_xmult++;
 		}
@@ -579,11 +589,11 @@ oops:
 
 static int screenshot_prepare(int monid, struct vidbuffer *vb)
 {
-	return screenshot_prepare(monid, 1, vb);
+	return screenshot_prepare(monid, 1, vb, false);
 }
 int screenshot_prepare(int monid, int imagemode)
 {
-	return screenshot_prepare(monid, imagemode, NULL);
+	return screenshot_prepare(monid, imagemode, NULL, false);
 }
 int screenshot_prepare(int monid)
 {
@@ -665,6 +675,72 @@ static int savepng(FILE *fp, bool alpha)
 	xfree (row_pointers);
 	return 0;
 }
+
+static void __cdecl write_data_fn(png_structp p, png_bytep data, png_size_t len)
+{
+	struct zfile *zf = (struct zfile*)png_get_io_ptr(p);
+	zfile_fwrite(data, 1, len, zf);
+}
+static void __cdecl output_flush_fn(png_structp p)
+{
+}
+
+static struct zfile *savepngzfile(bool alpha)
+{
+	png_structp png_ptr;
+	png_infop info_ptr;
+	png_bytep *row_pointers;
+	int h = bi->bmiHeader.biHeight;
+	int w = bi->bmiHeader.biWidth;
+	int d = bi->bmiHeader.biBitCount;
+	png_color pngpal[256];
+	int i;
+	struct zfile *zf;
+
+	png_ptr = png_create_write_struct(PNG_LIBPNG_VER_STRING, pngtest_blah, pngtest_blah, pngtest_blah);
+	if (!png_ptr)
+		return NULL;
+	info_ptr = png_create_info_struct(png_ptr);
+	if (!info_ptr) {
+		png_destroy_write_struct(&png_ptr, NULL);
+		return NULL;
+	}
+	if (setjmp(png_jmpbuf(png_ptr))) {
+		png_destroy_write_struct(&png_ptr, &info_ptr);
+		return NULL;
+	}
+
+	zf = zfile_fopen_empty(NULL, _T("screenshot"));
+	if (!zf) {
+		png_destroy_write_struct(&png_ptr, &info_ptr);
+		return NULL;
+	}
+
+	png_set_write_fn(png_ptr, zf, write_data_fn, output_flush_fn);
+	png_set_filter(png_ptr, 0, PNG_FILTER_NONE);
+	png_set_IHDR(png_ptr, info_ptr,
+		w, h, 8, d <= 8 ? PNG_COLOR_TYPE_PALETTE : (alpha ? PNG_COLOR_TYPE_RGB_ALPHA : PNG_COLOR_TYPE_RGB),
+		PNG_INTERLACE_NONE, PNG_COMPRESSION_TYPE_DEFAULT, PNG_FILTER_TYPE_DEFAULT);
+	if (d <= 8) {
+		for (i = 0; i < (1 << d); i++) {
+			pngpal[i].red = bi->bmiColors[i].rgbRed;
+			pngpal[i].green = bi->bmiColors[i].rgbGreen;
+			pngpal[i].blue = bi->bmiColors[i].rgbBlue;
+		}
+		png_set_PLTE(png_ptr, info_ptr, pngpal, 1 << d);
+	}
+	row_pointers = xmalloc(png_bytep, h);
+	for (i = 0; i < h; i++) {
+		int j = h - i - 1;
+		row_pointers[i] = (uae_u8*)lpvBits + j * (((w * (d <= 8 ? 8 : (alpha ? 32 : 24)) + 31) & ~31) / 8);
+	}
+	png_set_rows(png_ptr, info_ptr, row_pointers);
+	png_write_png(png_ptr, info_ptr, PNG_TRANSFORM_BGR, NULL);
+	png_destroy_write_struct(&png_ptr, &info_ptr);
+	xfree(row_pointers);
+	return zf;
+}
+
 #endif
 
 static int savebmp (FILE *fp, bool alpha)
@@ -853,26 +929,41 @@ void screenshot(int monid, int mode, int doprepare)
 	} else {
 		screenshotf(monid, NULL, mode, doprepare, -1, NULL);
 	}
-
-#if 0
-	struct vidbuffer vb;
-	int w = gfxvidinfo.drawbuffer.inwidth;
-	int h = gfxvidinfo.drawbuffer.inheight;
-	if (!programmedmode) {
-		h = (maxvpos + lof_store - minfirstline) << currprefs.gfx_vresolution;
-	}
-	if (interlace_seen && currprefs.gfx_vresolution > 0)
-		h -= 1 << (currprefs.gfx_vresolution - 1);
-	allocvidbuffer (&vb, w, h, gfxvidinfo.drawbuffer.pixbytes * 8);
-	set_custom_limits (-1, -1, -1, -1);
-	draw_frame (&vb);
-	screenshotmode = 0;
-	screenshotf (_T("c:\\temp\\1.bmp"), 1, 1, 1, &vb);
-	freevidbuffer (&vb);
-#endif
 }
 
 void screenshot_reset(void)
 {
 	screenshot_free();
+}
+
+uae_u8 *save_screenshot(int monid, int *len)
+{
+#if 0
+	struct amigadisplay *ad = &adisplays[monid];
+	if (ad->picasso_on)
+		return NULL;
+	struct vidbuf_description *avidinfo = &adisplays[monid].gfxvidinfo;
+	struct vidbuffer vb;
+	int w = avidinfo->drawbuffer.inwidth;
+	int h = avidinfo->drawbuffer.inheight;
+	if (!programmedmode) {
+		h = (maxvpos + lof_store - minfirstline) << currprefs.gfx_vresolution;
+	}
+	if (interlace_seen && currprefs.gfx_vresolution > 0) {
+		h -= 1 << (currprefs.gfx_vresolution - 1);
+	}
+	if (w > 0 && h > 0) {
+		allocvidbuffer(monid, &vb, w, h, avidinfo->drawbuffer.pixbytes * 8);
+		set_custom_limits(-1, -1, -1, -1);
+		draw_frame(&vb);
+		if (screenshot_prepare(monid, -1, &vb, true)) {
+			struct zfile *zf = savepngzfile(false);
+			uae_u8 *data = zfile_getdata(zf, 0, -1, len);
+			zfile_fclose(zf);
+			screenshot_free();
+			return data;
+		}
+	}
+#endif
+	return NULL;
 }
