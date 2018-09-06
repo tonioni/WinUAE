@@ -18294,7 +18294,7 @@ static void setfiltermult (HWND hDlg)
 	setfiltermult2 (hDlg, IDC_FILTERVZMULT, workprefs.gf[filter_nativertg].gfx_filter_vert_zoom_mult);
 }
 
-static void values_to_hw3ddlg (HWND hDlg)
+static void values_to_hw3ddlg (HWND hDlg, bool initdialog)
 {
 	TCHAR txt[100], tmp[100];
 	int i, j, fltnum;
@@ -18411,8 +18411,6 @@ static void values_to_hw3ddlg (HWND hDlg)
 	SendDlgItemMessage (hDlg, IDC_FILTERVO, TBM_SETRANGE, TRUE, MAKELONG (yrange1, yrange2));
 	SendDlgItemMessage (hDlg, IDC_FILTERVO, TBM_SETPAGESIZE, 0, 1);
 
-	SendDlgItemMessage (hDlg, IDC_FILTEROVERLAY, CB_RESETCONTENT, 0, 0L);
-
 	SendDlgItemMessage (hDlg, IDC_FILTER_NATIVERTG, CB_SETCURSEL, filter_nativertg, 0);
 
 	SendDlgItemMessage (hDlg, IDC_FILTERMODE, CB_RESETCONTENT, 0, 0L);
@@ -18464,48 +18462,54 @@ static void values_to_hw3ddlg (HWND hDlg)
 				fltnum = UAE_FILTER_NULL;
 		}
 	}
-	int overlaytype = SendDlgItemMessage (hDlg, IDC_FILTEROVERLAYTYPE, CB_GETCURSEL, 0, 0L);
 	if (workprefs.gfx_api) {
-		WIN32GUI_LoadUIString (IDS_NONE, tmp, MAX_DPATH);
-		SendDlgItemMessage (hDlg, IDC_FILTEROVERLAY, CB_ADDSTRING, 0, (LPARAM)tmp);
-		SendDlgItemMessage (hDlg, IDC_FILTEROVERLAY, CB_SETCURSEL, 0, 0);
-		HANDLE h;
-		WIN32_FIND_DATA wfd;
-		TCHAR tmp[MAX_DPATH];
-		get_plugin_path (tmp, sizeof tmp / sizeof (TCHAR), overlaytype == 0 ? _T("overlays") : _T("masks"));
-		_tcscat (tmp, _T("*.*"));
-		h = FindFirstFile (tmp, &wfd);
-		i = 0; j = 1;
-		while (h != INVALID_HANDLE_VALUE) {
-			TCHAR *fname = wfd.cFileName;
-			TCHAR *ext = _tcsrchr (fname, '.');
-			if (ext && (
-				!_tcsicmp (ext, _T(".png")) ||
-				(!_tcsicmp (ext, _T(".bmp")) && workprefs.gfx_api != 2)))
-			{
-				for (;;) {
-					if (!overlaytype && _tcslen(fname) > 4 + 1 + 3 && !_tcsnicmp(fname + _tcslen(fname) - (4 + 1 + 3), _T("_led"), 4))
-						break;
-					SendDlgItemMessage(hDlg, IDC_FILTEROVERLAY, CB_ADDSTRING, 0, (LPARAM)fname);
-					if (!_tcsicmp(wfd.cFileName, overlaytype == 0 ? workprefs.gf[filter_nativertg].gfx_filteroverlay : workprefs.gf[filter_nativertg].gfx_filtermask[filterstackpos]))
-						SendDlgItemMessage(hDlg, IDC_FILTEROVERLAY, CB_SETCURSEL, j, 0);
-					j++;
-					break;
-				}
-
-			}
-			if (!FindNextFile (h, &wfd)) {
-				FindClose (h);
-				h = INVALID_HANDLE_VALUE;
-			}
-		}
-		if (D3D_goodenough() < 1 && overlaytype) {
+		static int old_overlaytype = -1;
+		int overlaytype = SendDlgItemMessage(hDlg, IDC_FILTEROVERLAYTYPE, CB_GETCURSEL, 0, 0L);
+		if (overlaytype != old_overlaytype || initdialog) {
+			WIN32GUI_LoadUIString(IDS_NONE, tmp, MAX_DPATH);
+			SendDlgItemMessage(hDlg, IDC_FILTEROVERLAY, CB_RESETCONTENT, 0, 0L);
+			SendDlgItemMessage(hDlg, IDC_FILTEROVERLAY, CB_ADDSTRING, 0, (LPARAM)tmp);
 			SendDlgItemMessage(hDlg, IDC_FILTEROVERLAY, CB_SETCURSEL, 0, 0);
-			ew(hDlg, IDC_FILTEROVERLAY, FALSE);
-		} else {
-			ew(hDlg, IDC_FILTEROVERLAY, TRUE);
+			HANDLE h;
+			WIN32_FIND_DATA wfd;
+			TCHAR tmp[MAX_DPATH];
+			get_plugin_path(tmp, sizeof tmp / sizeof(TCHAR), overlaytype == 0 ? _T("overlays") : _T("masks"));
+			_tcscat(tmp, _T("*.*"));
+			h = FindFirstFile(tmp, &wfd);
+			i = 0; j = 1;
+			while (h != INVALID_HANDLE_VALUE) {
+				TCHAR *fname = wfd.cFileName;
+				TCHAR *ext = _tcsrchr(fname, '.');
+				if (ext && (
+					!_tcsicmp(ext, _T(".png")) ||
+					(!_tcsicmp(ext, _T(".bmp")) && workprefs.gfx_api != 2)))
+				{
+					for (;;) {
+						if (!overlaytype && _tcslen(fname) > 4 + 1 + 3 && !_tcsnicmp(fname + _tcslen(fname) - (4 + 1 + 3), _T("_led"), 4))
+							break;
+						SendDlgItemMessage(hDlg, IDC_FILTEROVERLAY, CB_ADDSTRING, 0, (LPARAM)fname);
+						if (!_tcsicmp(wfd.cFileName, overlaytype == 0 ? workprefs.gf[filter_nativertg].gfx_filteroverlay : workprefs.gf[filter_nativertg].gfx_filtermask[filterstackpos]))
+							SendDlgItemMessage(hDlg, IDC_FILTEROVERLAY, CB_SETCURSEL, j, 0);
+						j++;
+						break;
+					}
+
+				}
+				if (!FindNextFile(h, &wfd)) {
+					FindClose(h);
+					h = INVALID_HANDLE_VALUE;
+				}
+			}
+			if (D3D_goodenough() < 1 && overlaytype) {
+				SendDlgItemMessage(hDlg, IDC_FILTEROVERLAY, CB_SETCURSEL, 0, 0);
+				ew(hDlg, IDC_FILTEROVERLAY, FALSE);
+			} else {
+				ew(hDlg, IDC_FILTEROVERLAY, TRUE);
+			}
+			old_overlaytype = overlaytype;
 		}
 	} else {
+		SendDlgItemMessage(hDlg, IDC_FILTEROVERLAY, CB_RESETCONTENT, 0, 0L);
 		WIN32GUI_LoadUIString (IDS_FILTER_NOOVERLAYS, tmp, MAX_DPATH);
 		SendDlgItemMessage (hDlg, IDC_FILTEROVERLAY, CB_ADDSTRING, 0, (LPARAM)tmp);
 		SendDlgItemMessage (hDlg, IDC_FILTEROVERLAY, CB_SETCURSEL, 0, 0);
@@ -18714,12 +18718,12 @@ static void filter_preset (HWND hDlg, WPARAM wParam)
 				goto end;
 		}
 		regsetstr (fkey, tmp1, tmp2);
-		values_to_hw3ddlg (hDlg);
+		values_to_hw3ddlg (hDlg, false);
 	}
 	if (ok) {
 		if (wParam == IDC_FILTERPRESETDELETE && userfilter) {
 			regdelete (fkey, tmp1);
-			values_to_hw3ddlg (hDlg);
+			values_to_hw3ddlg (hDlg, false);
 		} else if (wParam == IDC_FILTERPRESETLOAD) {
 			TCHAR *s = tmp2;
 			TCHAR *t;
@@ -18751,7 +18755,7 @@ end:
 	regclosetree (fkey);
 	enable_for_hw3ddlg (hDlg);
 	if (load) {
-		values_to_hw3ddlg (hDlg);
+		values_to_hw3ddlg (hDlg, false);
 		SendMessage (hDlg, WM_HSCROLL, 0, 0);
 	}
 }
@@ -18782,7 +18786,7 @@ static void filter_handle (HWND hDlg)
 				workprefs.gf[filter_nativertg].gfx_filter = uaefilters[item].type;
 			}
 			if (of != workprefs.gf[filter_nativertg].gfx_filter || off != workprefs.gf[filter_nativertg].gfx_filter_filtermode) {
-				values_to_hw3ddlg (hDlg);
+				values_to_hw3ddlg (hDlg, false);
 				hw3d_changed = 1;
 			}
 		}
@@ -18890,14 +18894,18 @@ static INT_PTR CALLBACK hw3dDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 		}
 		SendDlgItemMessage (hDlg, IDC_FILTEROVERLAYTYPE, CB_SETCURSEL, filteroverlaypos, 0);
 
+		recursive++;
 		enable_for_hw3ddlg (hDlg);
+		values_to_hw3ddlg(hDlg, true);
+		recursive--;
+		break;
 
 	case WM_USER:
 		if(recursive > 0)
 			break;
 		recursive++;
 		enable_for_hw3ddlg (hDlg);
-		values_to_hw3ddlg (hDlg);
+		values_to_hw3ddlg (hDlg, false);
 		recursive--;
 		return TRUE;
 	case WM_COMMAND:
@@ -18913,7 +18921,7 @@ static INT_PTR CALLBACK hw3dDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 			currprefs.gf[filter_nativertg].gfx_filter_vert_offset = workprefs.gf[filter_nativertg].gfx_filter_vert_offset = 0;
 			currprefs.gf[filter_nativertg].gfx_filter_horiz_zoom_mult = workprefs.gf[filter_nativertg].gfx_filter_horiz_zoom_mult = 1.0;
 			currprefs.gf[filter_nativertg].gfx_filter_vert_zoom_mult = workprefs.gf[filter_nativertg].gfx_filter_vert_zoom_mult = 1.0;
-			values_to_hw3ddlg (hDlg);
+			values_to_hw3ddlg (hDlg, false);
 			updatedisplayarea(0);
 			break;
 		case IDC_FILTERPRESETLOAD:
@@ -18930,14 +18938,14 @@ static INT_PTR CALLBACK hw3dDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 				else
 					currprefs.gf[filter_nativertg].gfx_filter_keep_aspect = workprefs.gf[filter_nativertg].gfx_filter_keep_aspect = 0;
 				enable_for_hw3ddlg (hDlg);
-				values_to_hw3ddlg (hDlg);
+				values_to_hw3ddlg (hDlg, false);
 				updatedisplayarea(0);
 			}
 		case IDC_FILTERKEEPAUTOSCALEASPECT:
 			{
 				workprefs.gf[filter_nativertg].gfx_filter_keep_autoscale_aspect = currprefs.gf[filter_nativertg].gfx_filter_keep_autoscale_aspect = ischecked (hDlg, IDC_FILTERKEEPAUTOSCALEASPECT) ? 1 : 0;
 				enable_for_hw3ddlg (hDlg);
-				values_to_hw3ddlg (hDlg);
+				values_to_hw3ddlg (hDlg, false);
 				updatedisplayarea(0);
 			}
 			break;
@@ -18949,7 +18957,7 @@ static INT_PTR CALLBACK hw3dDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 					item = SendDlgItemMessage (hDlg, IDC_FILTER_NATIVERTG, CB_GETCURSEL, 0, 0L);
 					if (item != CB_ERR) {
 						filter_nativertg = item;
-						values_to_hw3ddlg (hDlg);
+						values_to_hw3ddlg (hDlg, false);
 						enable_for_hw3ddlg (hDlg);
 					}
 					break;
@@ -18962,7 +18970,7 @@ static INT_PTR CALLBACK hw3dDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 							filterstackpos = 2 * MAX_FILTERSHADERS;
 						else
 							filterstackpos = item - 1;
-						values_to_hw3ddlg (hDlg);
+						values_to_hw3ddlg (hDlg, false);
 						enable_for_hw3ddlg (hDlg);
 					}
 					break;
@@ -18970,7 +18978,7 @@ static INT_PTR CALLBACK hw3dDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 					item = SendDlgItemMessage (hDlg, IDC_FILTERINTEGER, CB_GETCURSEL, 0, 0L);
 					if (item != CB_ERR) {
 						workprefs.gf[filter_nativertg].gfx_filter_integerscalelimit = item;
-						values_to_hw3ddlg (hDlg);
+						values_to_hw3ddlg (hDlg, false);
 						enable_for_hw3ddlg (hDlg);
 					}
 					break;
@@ -18982,12 +18990,12 @@ static INT_PTR CALLBACK hw3dDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 						workprefs.gf[filter_nativertg].gfx_filter_autoscale = item;
 						if (workprefs.gf[filter_nativertg].gfx_filter_autoscale && workprefs.gf[filter_nativertg].gfx_filter == 0 && !workprefs.gfx_api)
 							workprefs.gf[filter_nativertg].gfx_filter = 1; // NULL
-						values_to_hw3ddlg (hDlg);
+						values_to_hw3ddlg (hDlg, false);
 						enable_for_hw3ddlg (hDlg);
 					}
 					break;
 				case IDC_FILTERXTRA:
-					values_to_hw3ddlg (hDlg);
+					values_to_hw3ddlg (hDlg, false);
 					break;
 				case IDC_FILTERPRESETS:
 					filter_preset (hDlg, LOWORD (wParam));
@@ -19003,14 +19011,14 @@ static INT_PTR CALLBACK hw3dDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 					item = SendDlgItemMessage (hDlg, IDC_FILTEROVERLAYTYPE, CB_GETCURSEL, 0, 0L);
 					if (item != CB_ERR) {
 						filteroverlaypos = item;
-						values_to_hw3ddlg (hDlg);
+						values_to_hw3ddlg (hDlg, true);
 					}
 					break;
 				case IDC_FILTERMODE:
 				case IDC_FILTERFILTER:
 				case IDC_FILTEROVERLAY:
 					filter_handle (hDlg);
-					values_to_hw3ddlg (hDlg);
+					values_to_hw3ddlg (hDlg, false);
 					break;
 				case IDC_FILTERHZMULT:
 					currprefs.gf[filter_nativertg].gfx_filter_horiz_zoom_mult = workprefs.gf[filter_nativertg].gfx_filter_horiz_zoom_mult = getfiltermult (hDlg, IDC_FILTERHZMULT);
