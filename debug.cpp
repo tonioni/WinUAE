@@ -53,6 +53,7 @@
 #define TRACE_MATCH_INS 3
 #define TRACE_RANGE_PC 4
 #define TRACE_SKIP_LINE 5
+#define TRACE_RAM_PC 6
 #define TRACE_CHECKONLY 10
 
 static int trace_mode;
@@ -4590,7 +4591,7 @@ int instruction_breakpoint (TCHAR **c)
 			return 0;
 		}
 	}
-	trace_mode = TRACE_CHECKONLY;
+	trace_mode = TRACE_RAM_PC;
 	return 1;
 }
 
@@ -5982,6 +5983,16 @@ void debug (void)
 			if (trace_mode) {
 				if (trace_mode == TRACE_MATCH_PC && trace_param1 == pc)
 					bp = -1;
+				if (trace_mode == TRACE_RAM_PC) {
+					addrbank *ab = &get_mem_bank(pc);
+					if (ab->flags & ABFLAG_RAM) {
+						uae_u16 ins = get_word_debug(pc);
+						// skip JMP xxxxxx (LVOs)
+						if (ins != 0x4ef9) {
+							bp = -1;
+						}
+					}
+				}
 				if ((processptr || processname) && notinrom()) {
 					uaecptr execbase = get_long_debug (4);
 					uaecptr activetask = get_long_debug (execbase + 276);
