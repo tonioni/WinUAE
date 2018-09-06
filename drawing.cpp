@@ -79,7 +79,7 @@ static void lores_set(int lores)
 {
 	int old = lores_shift;
 	lores_shift = lores;
-	if (lores_shift != old) {
+	if (lores_shift != old || shres_shift != RES_MAX - lores) {
 		shres_shift = RES_MAX - lores;
 		pfield_set_linetoscr();
 	}
@@ -858,8 +858,10 @@ static int unpainted;
 STATIC_INLINE xcolnr getbgc (int blank)
 {
 #if BG_COLOR_DEBUG
-	if (blank)
+	if (blank > 0)
 		return xcolors[0x088];
+	else if (blank < 0)
+		return xcolors[0x0f8];
 	else if (hposblank == 1)
 		return xcolors[0xf00];
 	else if (hposblank == 2)
