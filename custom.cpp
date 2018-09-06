@@ -275,13 +275,14 @@ static int dbplptl_on[8], dbplpth_on[8], dbplptl_on2, dbplpth_on2;
 static int bitplane_line_crossing;
 
 static struct color_entry current_colors;
-unsigned int bplcon0;
-static unsigned int bplcon1, bplcon2, bplcon3, bplcon4;
-static unsigned int bplcon0d, bplcon0dd, bplcon0_res, bplcon0_planes, bplcon0_planes_limit;
-static unsigned int bplcon0_res_hr;
-static unsigned int diwstrt, diwstop, diwhigh;
+uae_u16 bplcon0;
+static uae_u16 bplcon1, bplcon2, bplcon3, bplcon4;
+static int bplcon0d, bplcon0d_old;
+static uae_u32 bplcon0_res, bplcon0_planes, bplcon0_planes_limit;
+static int bplcon0_res_hr;
+static int diwstrt, diwstop, diwhigh;
 static int diwhigh_written;
-static unsigned int ddfstrt, ddfstop;
+static int ddfstrt, ddfstop;
 static int line_cyclebased, badmode, diw_change;
 static int bplcon1_fetch;
 static int hpos_is_zero_bplcon1_hack = -1;
@@ -1005,7 +1006,8 @@ static uae_u64 fetched_aga[MAX_PLANES];
 #endif
 
 /* Expansions from bplcon0/bplcon1.  */
-static int toscr_res, toscr_res_hr, toscr_res2p, toscr_res_mult, toscr_res_mult_mask;
+static int toscr_res2p, toscr_res_mult, toscr_res_mult_mask;
+static int toscr_res, toscr_res_hr, toscr_res_old;
 static int toscr_nr_planes, toscr_nr_planes2, toscr_nr_planes_agnus, toscr_nr_planes_shifter;
 static int fetchwidth;
 static int toscr_delay[2], toscr_delay_adjusted[2], toscr_delay_sh[2];
@@ -1219,6 +1221,7 @@ static void setup_fmodes (int hpos)
 	}
 	badmode = GET_RES_AGNUS (bplcon0) != GET_RES_DENISE (bplcon0);
 	bplcon0_res = GET_RES_AGNUS (bplcon0);
+	toscr_res_old = -1;
 	setup_fmodes_hr();
 
 	bplcon0_planes = GET_PLANES (bplcon0);
@@ -1235,7 +1238,6 @@ static void setup_fmodes (int hpos)
 	fetchmode_bytes = 2 << fetchmode;
 	fetchmode_mask = fetchmode_size - 1;
 	fetchmode_fmode = fmode;
-	set_delay_lastcycle ();
 	compute_toscr_delay (bplcon1);
 
 	if (thisline_decision.plfleft < 0) {
@@ -2232,9 +2234,12 @@ static void update_denise_shifter_planes (int hpos)
 static void update_denise_vars(void)
 {
 	int res = GET_RES_DENISE(bplcon0d);
-	if (res != toscr_res)
-		flush_display(fetchmode);
-	toscr_res = GET_RES_DENISE(bplcon0d);
+	if (res == toscr_res_old)
+		return;
+	flush_display(fetchmode);
+	toscr_res = res;
+	toscr_res_old = res;
+	set_delay_lastcycle();
 	if (currprefs.chipset_hr) {
 		fetchmode_size_hr = fetchmode_size;
 		toscr_res_hr = toscr_res;
@@ -2247,6 +2252,7 @@ static void update_denise_vars(void)
 		}
 		toscr_res_mult_mask = (1 << toscr_res_mult) - 1;
 		fetchmode_mask_hr = fetchmode_size_hr - 1;
+		set_delay_lastcycle();
 	} else {
 		toscr_res_mult = 0;
 	}
@@ -2257,19 +2263,19 @@ static void update_denise(int hpos)
 {
 	update_denise_vars();
 	delay_cycles = (hpos * 2) << (toscr_res + toscr_res_mult);
-	if (bplcon0dd != bplcon0d) {
-		record_color_change2 (hpos, 0x100 + 0x1000, bplcon0d);
-		bplcon0dd = bplcon0d;
+	if (bplcon0d_old != bplcon0d) {
+		bplcon0d_old = bplcon0d;
+		record_color_change2(hpos, 0x100 + 0x1000, bplcon0d);
+		toscr_nr_planes = GET_PLANES(bplcon0d);
+		if (isocs7planes()) {
+			if (toscr_nr_planes2 < 6)
+				toscr_nr_planes2 = 6;
+		} else {
+			toscr_nr_planes2 = toscr_nr_planes;
+		}
+		toscr_nr_planes_shifter = toscr_nr_planes2;
+		hack_shres_delay(hpos);
 	}
-	toscr_nr_planes = GET_PLANES (bplcon0d);
-	if (isocs7planes ()) {
-		if (toscr_nr_planes2 < 6)
-			toscr_nr_planes2 = 6;
-	} else {
-		toscr_nr_planes2 = toscr_nr_planes;
-	}
-	toscr_nr_planes_shifter = toscr_nr_planes2;
-	hack_shres_delay(hpos);
 }
 
 STATIC_INLINE void fetch_start (int hpos)
@@ -2989,10 +2995,12 @@ STATIC_INLINE int one_fetch_cycle_0 (int pos, int dma, int fm)
 		bplcon1_written = false;
 	}
 
+#if 0
 	if (toscr_nbits > 16) {
 		uae_abort (_T("toscr_nbits > 16 (%d)"), toscr_nbits);
 		toscr_nbits = 0;
 	}
+#endif
 
 	if (toscr_nbits == 16)
 		flush_display (fm);
@@ -4363,7 +4371,6 @@ static void reset_decisions (void)
 	}
 
 	memset(outword, 0, sizeof outword);
-	memset(outword64, 0, sizeof outword64);
 	// fetched[] must not be cleared (Sony VX-90 / Royal Amiga Force)
 	todisplay_fetched[0] = todisplay_fetched[1] = false;
 	memset (todisplay, 0, sizeof todisplay);
@@ -4372,6 +4379,7 @@ static void reset_decisions (void)
 	if ((currprefs.chipset_mask & CSMASK_AGA) || ALL_SUBPIXEL) {
 		memset (todisplay_aga, 0, sizeof todisplay_aga);
 		memset (todisplay2_aga, 0, sizeof todisplay2_aga);
+		memset(outword64, 0, sizeof outword64);
 	}
 	aga_plf_passed_stop2 = 0;
 #endif
@@ -4411,6 +4419,8 @@ static void reset_decisions (void)
 #ifdef AGA
 	thisline_decision.bplcon4 = bplcon4;
 #endif
+	bplcon0d_old = -1;
+	toscr_res_old = -1;
 	scanlinecount++;
 }
 
@@ -5916,7 +5926,7 @@ static void BPLCON0_Denise (int hpos, uae_u16 v, bool immediate)
 	if (bplcon0d == v && !immediate)
 		return;
 
-	bplcon0dd = -1;
+	bplcon0d_old = -1;
 	// fake unused 0x0080 bit as an EHB bit (see below)
 	if (isehb (bplcon0d, bplcon2))
 		v |= 0x80;
