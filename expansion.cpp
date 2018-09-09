@@ -5289,7 +5289,7 @@ const struct expansionromtype expansionroms[] = {
 	},
 	{
 		_T("x86rt1000"), _T("Rancho RT1000"), _T("x86"),
-		NULL, x86_rt1000_init, NULL, x86_rt1000_add_unit, ROMTYPE_X86_RT1000, 0, 0, BOARD_NONAUTOCONFIG_AFTER_Z2, true,
+		NULL, x86_rt1000_init, NULL, x86_rt1000_add_unit, ROMTYPE_X86_RT1000 | ROMTYPE_NONE, 0, 0, BOARD_NONAUTOCONFIG_AFTER_Z2, true,
 		NULL, 0,
 		false, EXPANSIONTYPE_SCSI,
 		0, 0, 0, false, NULL,
