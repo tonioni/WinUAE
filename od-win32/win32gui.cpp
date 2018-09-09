@@ -5719,10 +5719,10 @@ static LRESULT CALLBACK listviewtempproc(HWND hWnd, UINT iMessage, WPARAM wParam
 static struct ConfigStruct *refreshconfiglist(HWND hDlg, struct ConfigStruct *config)
 {
 	HWND lv = GetDlgItem(hDlg, IDC_CONFIGTREE);
-	originallistviewtempproc = (WNDPROC)GetWindowLongPtr(lv, GWL_WNDPROC);
-	SetWindowLongPtr(lv, GWL_WNDPROC, (LONG_PTR)listviewtempproc);
+	originallistviewtempproc = (WNDPROC)GetWindowLongPtr(lv, GWLP_WNDPROC);
+	SetWindowLongPtr(lv, GWLP_WNDPROC, (LONG_PTR)listviewtempproc);
 	struct ConfigStruct *cs = initloadsave(hDlg, config, false);
-	SetWindowLongPtr(lv, GWL_WNDPROC, (LONG_PTR)originallistviewtempproc);
+	SetWindowLongPtr(lv, GWLP_WNDPROC, (LONG_PTR)originallistviewtempproc);
 	return cs;
 }
 

@@ -1,5 +1,18 @@
 
 
+Beta 4:
+
+- Horizontal mid-screen resolution changes (Disposable Hero title screen, Runaway / AD 2000 second disk first part) broke when subpixel support was added.
+- Filter GUI masks/overlay selection menu was unnecessarily cleared and filled each time option was changed.
+- 53C80 SCSI bus reset didn't disconnect active SCSI devices.
+- 53C400 compatibility fixes (RT1000B)
+- Added x86 bridgeboard compatible 8-bit SCSI adapter: Rancho Technology RT1000B.
+- Fixed stuck keys/mouse not getting captured if ALT-TAB was pressed and while keeping ALT pressed, TAB was used to select WinUAE window again.
+- Added quick search text box to Configurations panel. Searches from config file name, description and new tags config entry (config_tags=<tag1,tag2,..>).
+- Added quick directory select to Configurations panel. Filters by directory or category. Category is new config entry (config_category=<category name>).
+- Moved Link and autoload options under Advanced information. Added Category and Tags fields.
+- Ignore Huawei mobile USB sticks that have fake CD mode, they hang if SPTI SCSI read is attempted.
+
 Beta 3:
 
 - Some CHD CD files returned incorrect data.

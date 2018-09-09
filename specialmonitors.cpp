@@ -72,7 +72,7 @@ static const int opal_video_debug = 0;
 static bool automatic;
 static int monitor;
 
-extern unsigned int bplcon0;
+extern uae_u16 bplcon0;
 extern uae_u8 **row_map_genlock;
 
 static uae_u8 graffiti_palette[256 * 4];

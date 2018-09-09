@@ -1043,6 +1043,7 @@ static void setmouseactive2(struct AmigaMonitor *mon, int active, bool allowpaus
 			}
 			setcursor(mon, -30000, -30000);
 		}
+		wait_keyrelease();
 		inputdevice_acquire(TRUE);
 		setpriority (&priorities[currprefs.win32_active_capture_priority]);
 		if (currprefs.win32_active_nocapture_pause) {
@@ -1891,7 +1892,8 @@ static LRESULT CALLBACK AmigaWindowProc(HWND hWnd, UINT message, WPARAM wParam, 
 			// borderless = do not capture with single-click
 			if (ignorelbutton) {
 				ignorelbutton = 0;
-				return 0;
+				if (currprefs.win32_borderless)
+					return 0;
 			}
 			if (message == WM_LBUTTONDOWN && isfullscreen() == 0 && currprefs.win32_borderless && !rp_isactive()) {
 				// full-window drag
