@@ -1654,7 +1654,11 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	TCHAR tmp[MAX_DPATH];
 	int i;
 
-	cfgfile_write_str (f, _T("config_description"), p->description);
+	cfgfile_write_str(f, _T("config_description"), p->description);
+	if (p->category[0])
+		cfgfile_write_str(f, _T("config_category"), p->category);
+	if (p->tags[0])
+		cfgfile_write_str(f, _T("config_tags"), p->tags);
 	cfgfile_write_bool (f, _T("config_hardware"), type & CONFIG_TYPE_HARDWARE);
 	cfgfile_write_bool (f, _T("config_host"), !!(type & CONFIG_TYPE_HOST));
 	if (p->info[0])
@@ -3166,7 +3170,9 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 		|| cfgfile_string(option, value, _T("debugging_options"), p->debugging_options, sizeof p->debugging_options / sizeof(TCHAR))
 		|| cfgfile_string(option, value, _T("config_window_title"), p->config_window_title, sizeof p->config_window_title / sizeof (TCHAR))
 		|| cfgfile_string(option, value, _T("config_info"), p->info, sizeof p->info / sizeof (TCHAR))
-		|| cfgfile_string(option, value, _T("config_description"), p->description, sizeof p->description / sizeof (TCHAR)))
+		|| cfgfile_string(option, value, _T("config_description"), p->description, sizeof p->description / sizeof(TCHAR))
+		|| cfgfile_string(option, value, _T("config_category"), p->category, sizeof p->category / sizeof(TCHAR))
+		|| cfgfile_string(option, value, _T("config_tags"), p->tags, sizeof p->tags / sizeof(TCHAR)))
 		return 1;
 
 	if (cfgfile_yesno(option, value, _T("use_debugger"), &p->start_debugger)
@@ -6300,7 +6306,9 @@ static int cfgfile_load_2 (struct uae_prefs *p, const TCHAR *filename, bool real
 				cfgfile_parse_separated_line (p, line1b, line2b, askedtype);
 			} else {
 				// metadata
-				cfgfile_string (line1b, line2b, _T("config_description"), p->description, sizeof p->description / sizeof (TCHAR));
+				cfgfile_string(line1b, line2b, _T("config_description"), p->description, sizeof p->description / sizeof(TCHAR));
+				cfgfile_string(line1b, line2b, _T("config_category"), p->category, sizeof p->category / sizeof(TCHAR));
+				cfgfile_string(line1b, line2b, _T("config_tags"), p->tags, sizeof p->tags / sizeof(TCHAR));
 				cfgfile_path (line1b, line2b, _T("config_hardware_path"), p->config_hardware_path, sizeof p->config_hardware_path / sizeof (TCHAR));
 				cfgfile_path (line1b, line2b, _T("config_host_path"), p->config_host_path, sizeof p->config_host_path / sizeof(TCHAR));
 				cfgfile_path (line1b, line2b, _T("config_all_path"), p->config_all_path, sizeof p->config_all_path / sizeof(TCHAR));
@@ -6470,7 +6478,7 @@ void cfgfile_close(struct uae_prefs *p)
 	xfree(p);
 }
 
-int cfgfile_get_description (struct uae_prefs *p, const TCHAR *filename, TCHAR *description, TCHAR *hostlink, TCHAR *hardwarelink, int *type)
+int cfgfile_get_description (struct uae_prefs *p, const TCHAR *filename, TCHAR *description, TCHAR *category, TCHAR *tags, TCHAR *hostlink, TCHAR *hardwarelink, int *type)
 {
 	bool alloc = false;
 
@@ -6485,7 +6493,11 @@ int cfgfile_get_description (struct uae_prefs *p, const TCHAR *filename, TCHAR *
 	if (!p)
 		return 0;
 	if (description)
-		_tcscpy (description, p->description);
+		_tcscpy(description, p->description);
+	if (category)
+		_tcscpy(category, p->category);
+	if (tags)
+		_tcscpy(tags, p->tags);
 	if (hostlink)
 		_tcscpy (hostlink, p->config_host_path);
 	if (hardwarelink)

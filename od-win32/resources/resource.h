@@ -699,6 +699,7 @@
 #define IDC_EDITNAME                    1405
 #define IDC_SCSIROMID                   1405
 #define IDC_EDITDESCRIPTION             1406
+#define IDC_CONFIGSEARCH                1407
 #define IDC_QUICKSAVE                   1408
 #define IDC_QUICKLOAD                   1409
 #define IDC_EXIT                        1410
@@ -800,6 +801,7 @@
 #define IDC_VIEWINFO                    1568
 #define IDC_SETINFO                     1569
 #define IDC_FLOPPYSLIDER                1570
+#define IDC_CONFIGSEARCHCLEAR           1570
 #define IDC_FLOPPYSLIDERTEXT            1571
 #define IDC_FLOPPYSPEED                 1572
 #define IDC_FLOPPYSPD                   1572
@@ -1042,6 +1044,7 @@
 #define IDC_CONFIGLINK                  1694
 #define IDC_FILTERVZV                   1695
 #define IDC_PS_PARAMS                   1695
+#define IDC_CONFIGFOLDER                1695
 #define IDC_FILTERHZV                   1696
 #define IDC_HF_TYPE                     1696
 #define IDC_PRINTERAUTOFLUSH            1697
@@ -1293,7 +1296,9 @@
 #define IDC_CS_UNMAPPED                 1858
 #define IDC_CHS_CYLINDERS               1859
 #define IDC_CHS_HEADS                   1860
+#define IDC_CONFIGCATEGORY              1860
 #define IDC_CHS_SECTORS                 1861
+#define IDC_CONFIGTAGS                  1861
 #define ID__FLOPPYDRIVES                40004
 #define ID_FLOPPYDRIVES_DF0             40005
 #define ID_ST_CONFIGURATION             40010
@@ -1345,7 +1350,7 @@
 #define _APS_3D_CONTROLS                     1
 #define _APS_NEXT_RESOURCE_VALUE        407
 #define _APS_NEXT_COMMAND_VALUE         40050
-#define _APS_NEXT_CONTROL_VALUE         1860
+#define _APS_NEXT_CONTROL_VALUE         1861
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

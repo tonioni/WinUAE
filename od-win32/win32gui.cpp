@@ -157,6 +157,8 @@ extern TCHAR help_file[MAX_DPATH];
 extern int mouseactive;
 
 TCHAR config_filename[256] = _T("");
+static TCHAR config_folder[MAX_DPATH];
+static TCHAR config_search[MAX_DPATH];
 static TCHAR stored_path[MAX_DPATH];
 static int gui_size_changed;
 static int filterstackpos = 2 * MAX_FILTERSHADERS;
@@ -2193,17 +2195,27 @@ struct ConfigStruct {
 	TCHAR HardwareLink[MAX_DPATH];
 	TCHAR Description[CFG_DESCRIPTION_LENGTH];
 	TCHAR Artpath[MAX_DPATH];
+	TCHAR Category[CFG_DESCRIPTION_LENGTH];
+	TCHAR Tags[CFG_DESCRIPTION_LENGTH];
 	int Type, Directory;
 	struct ConfigStruct *Parent, *Child;
 	int host, hardware;
 	HTREEITEM item;
 	FILETIME t;
 };
+struct CategoryStruct
+{
+	TCHAR category[CFG_DESCRIPTION_LENGTH];
+};
 
 static const TCHAR *configreg[] = { _T("ConfigFile"), _T("ConfigFileHardware"), _T("ConfigFileHost") };
+static const TCHAR *configregfolder[] = { _T("ConfigFileFolder"), _T("ConfigFileHardwareFolder"), _T("ConfigFileHostFolder") };
+static const TCHAR *configregsearch[] = { _T("ConfigFileSearch"), _T("ConfigFileHardwareSearch"), _T("ConfigFileHostSearch") };
 static const TCHAR *configreg2[] = { _T(""), _T("ConfigFileHardware_Auto"), _T("ConfigFileHost_Auto") };
 static struct ConfigStruct **configstore;
 static int configstoresize, configstoreallocated, configtype, configtypepanel;
+static struct CategoryStruct **categorystore;
+static int categorystoresize, categorystoreallocated;
 
 static struct ConfigStruct *getconfigstorefrompath (TCHAR *path, TCHAR *out, int type)
 {
@@ -2254,7 +2266,7 @@ int target_cfgfile_load (struct uae_prefs *p, const TCHAR *filename, int type, i
 		qs_override = 1;
 	if (type < 0) {
 		type = 0;
-		cfgfile_get_description(NULL, fname, NULL, NULL, NULL, &type);
+		cfgfile_get_description(NULL, fname, NULL, NULL, NULL, NULL, NULL, &type);
 		if (!isdefault) {
 			const TCHAR *p = _tcsrchr(fname, '\\');
 			if (!p)
@@ -3152,7 +3164,6 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
 			} else {
 				SetDlgItemText (hDlg, IDC_EDITDESCRIPTION, workprefs.description);
 				SetDlgItemText (hDlg, IDC_EDITNAME, full_path);
-				SetDlgItemText (hDlg, IDC_CONFIGLINK, workprefs.config_host_path);
 			}
 			break;
 		case IDC_SAVE:
@@ -3464,12 +3475,56 @@ struct ConfigStruct *AllocConfigStruct (void)
 
 static void FreeConfigStore (void)
 {
-	int i;
-	for (i = 0; i < configstoresize; i++)
-		FreeConfigStruct (configstore[i]);
-	xfree (configstore);
-	configstore = 0;
+	for (int i = 0; i < configstoresize; i++) {
+		FreeConfigStruct(configstore[i]);
+	}
+	xfree(configstore);
 	configstoresize = configstoreallocated = 0;
+	configstore = 0;
+
+	for (int i = 0; i < categorystoresize; i++) {
+		xfree(categorystore[i]);
+	}
+	xfree(categorystore);
+	categorystoresize = 0;
+	categorystore = 0;
+}
+
+static void sortcategories(void)
+{
+	for (int i = 0; i < categorystoresize; i++) {
+		for (int j = i + 1; j < categorystoresize; j++) {
+			struct CategoryStruct *s1 = categorystore[i];
+			struct CategoryStruct *s2 = categorystore[j];
+			if (_tcsicmp(s1->category, s2->category) > 0) {
+				struct CategoryStruct *s = categorystore[i];
+				categorystore[i] = categorystore[j];
+				categorystore[j] = s;
+			}
+		}
+	}
+}
+
+static void addtocategories(const TCHAR *category)
+{
+	if (!category[0])
+		return;
+	bool found = false;
+	for (int j = 0; j < categorystoresize; j++) {
+		struct CategoryStruct *s = categorystore[j];
+		if (!_tcsicmp(category, s->category)) {
+			found = true;
+			break;
+		}
+	}
+	if (!found) {
+		if (categorystore == NULL || categorystoresize == categorystoreallocated) {
+			categorystoreallocated += 100;
+			categorystore = xrealloc(struct CategoryStruct*, categorystore, categorystoreallocated);
+		}
+		struct CategoryStruct *s = categorystore[categorystoresize++] = xcalloc(struct CategoryStruct, 1);
+		_tcscpy(s->category, category);
+	}
 }
 
 static void getconfigcache (TCHAR *dst, const TCHAR *path)
@@ -3633,7 +3688,7 @@ static struct ConfigStruct *readconfigcache (const TCHAR *path)
 		cs = AllocConfigStruct ();
 		if (configstore == NULL || configstoreallocated == configstoresize) {
 			configstoreallocated += 100;
-			configstore = xrealloc (struct ConfigStruct*, configstore, configstoreallocated);
+			configstore = xrealloc(struct ConfigStruct*, configstore, configstoreallocated);
 		}
 		configstore[configstoresize++] = cs;
 		if (!first)
@@ -3700,6 +3755,15 @@ static struct ConfigStruct *readconfigcache (const TCHAR *path)
 				fgetsx(cs->Artpath, zcache);
 				lines--;
 			}
+			if (lines > 0) {
+				fgetsx(cs->Category, zcache);
+				addtocategories(cs->Category);
+				lines--;
+			}
+			if (lines > 0) {
+				fgetsx(cs->Tags, zcache);
+				lines--;
+			}
 		}
 
 		setconfighosthard (cs);
@@ -3716,6 +3780,7 @@ static struct ConfigStruct *readconfigcache (const TCHAR *path)
 	}
 
 end:
+
 	if (!feof (zcache))
 		err = 1;
 	fclose (zcache);
@@ -3769,6 +3834,10 @@ static void writeconfigcacheentry (FILE *zcache, const TCHAR *relpath, struct Co
 		fwrite (&lf, 1, sizeof (TCHAR), zcache);
 		fwrite(cs->Artpath, _tcslen(cs->Artpath), sizeof(TCHAR), zcache);
 		fwrite(&lf, 1, sizeof(TCHAR), zcache);
+		fwrite(cs->Category, _tcslen(cs->Category), sizeof(TCHAR), zcache);
+		fwrite(&lf, 1, sizeof(TCHAR), zcache);
+		fwrite(cs->Tags, _tcslen(cs->Tags), sizeof(TCHAR), zcache);
+		fwrite(&lf, 1, sizeof(TCHAR), zcache);
 	}
 
 	fwrite (el, _tcslen (el), sizeof (TCHAR), zcache);
@@ -3811,7 +3880,7 @@ static void writeconfigcache (const TCHAR *path)
 	fwrite (&lf, 1, sizeof (TCHAR), zcache);
 	ul.HighPart = t.dwHighDateTime;
 	ul.LowPart = t.dwLowDateTime;
-	_stprintf (path2, _T("3\n4\n8\n%I64u\n;\n"), ul.QuadPart);
+	_stprintf (path2, _T("3\n4\n10\n%I64u\n;\n"), ul.QuadPart);
 	fwrite (path2, _tcslen (path2), sizeof (TCHAR), zcache);
 	GetFullPathName (path, sizeof path2 / sizeof (TCHAR), path2, NULL);
 	for (int i = 0; i < configstoresize; i++) {
@@ -3855,6 +3924,7 @@ static struct ConfigStruct *GetConfigs (struct ConfigStruct *configparent, int u
 			flushconfigcache (cachepath);
 		}
 		first = readconfigcache (path);
+		sortcategories();
 		if (first)
 			return first; 
 	}
@@ -3908,11 +3978,12 @@ static struct ConfigStruct *GetConfigs (struct ConfigStruct *configparent, int u
 					config->Artpath[0] = 0;
 					struct uae_prefs *p = cfgfile_open(path3, &config->Type);
 					if (p) {
-						cfgfile_get_description(p, NULL, config->Description, config->HostLink, config->HardwareLink, NULL);
+						cfgfile_get_description(p, NULL, config->Description, config->Category, config->Tags, config->HostLink, config->HardwareLink, NULL);
 						_tcscpy(config->Name, find_data.cFileName);
 						if (artcache) {
 							cfgfile_detect_art(p, config->Artpath);
 						}
+						addtocategories(config->Category);
 						cfgfile_close(p);
 						ok = 1;
 					}
@@ -3931,7 +4002,7 @@ static struct ConfigStruct *GetConfigs (struct ConfigStruct *configparent, int u
 			config->Parent = configparent;
 			if (configstore == NULL || configstoreallocated == configstoresize) {
 				configstoreallocated += 100;
-				configstore = xrealloc (struct ConfigStruct*, configstore, configstoreallocated);
+				configstore = xrealloc(struct ConfigStruct*, configstore, configstoreallocated);
 			}
 			configstore[configstoresize++] = config;
 			if (first == NULL)
@@ -3944,6 +4015,8 @@ static struct ConfigStruct *GetConfigs (struct ConfigStruct *configparent, int u
 	}
 	if (*level == 0 && CONFIGCACHE)
 		writeconfigcache (path);
+
+	sortcategories();
 	return first;
 }
 
@@ -5189,6 +5262,53 @@ static int listview_entry_from_click (HWND list, int *column)
 	return -1;
 }
 
+static void getconfigfolderregistry(void)
+{
+	int cfsize;
+	config_folder[0] = 0;
+	cfsize = sizeof(config_folder) / sizeof(TCHAR);
+	regquerystr(NULL, configregfolder[configtypepanel], config_folder, &cfsize);
+	config_search[0] = 0;
+	cfsize = sizeof(config_search) / sizeof(TCHAR);
+	regquerystr(NULL, configregsearch[configtypepanel], config_search, &cfsize);
+}
+
+static void ConfigToRegistry(struct ConfigStruct *config, int type)
+{
+	if (config) {
+		TCHAR path[MAX_DPATH];
+		_tcscpy(path, config->Path);
+		_tcsncat(path, config->Name, MAX_DPATH - _tcslen(path));
+		regsetstr(NULL, configreg[type], path);
+	}
+	regsetstr(NULL, configregfolder[type], config_folder);
+	regsetstr(NULL, configregsearch[type], config_search);
+}
+static void ConfigToRegistry2(DWORD ct, int type, DWORD noauto)
+{
+	if (type > 0)
+		regsetint(NULL, configreg2[type], ct);
+	if (noauto == 0 || noauto == 1)
+		regsetint(NULL, _T("ConfigFile_NoAuto"), noauto);
+}
+
+static void checkautoload(HWND	hDlg, struct ConfigStruct *config)
+{
+	int ct = 0;
+
+	if (configtypepanel > 0)
+		regqueryint(NULL, configreg2[configtypepanel], &ct);
+	if (!config || config->Directory) {
+		ct = 0;
+		ConfigToRegistry2(ct, configtypepanel, -1);
+	}
+	CheckDlgButton(hDlg, IDC_CONFIGAUTO, ct ? BST_CHECKED : BST_UNCHECKED);
+	ew(hDlg, IDC_CONFIGAUTO, configtypepanel > 0 && config && !config->Directory ? TRUE : FALSE);
+	regqueryint(NULL, _T("ConfigFile_NoAuto"), &ct);
+	CheckDlgButton(hDlg, IDC_CONFIGNOLINK, ct ? BST_CHECKED : BST_UNCHECKED);
+}
+
+static struct ConfigStruct *InfoSettingsProcConfig;
 static INT_PTR CALLBACK InfoSettingsProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
 	static int recursive = 0;
@@ -5196,34 +5316,105 @@ static INT_PTR CALLBACK InfoSettingsProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 	switch (msg)
 	{
 	case WM_INITDIALOG:
+	{
 		recursive++;
-		SetDlgItemText (hDlg, IDC_PATH_NAME, workprefs.info);
+		SendDlgItemMessage(hDlg, IDC_CONFIGLINK, CB_RESETCONTENT, 0, 0L);
+		SendDlgItemMessage(hDlg, IDC_CONFIGLINK, CB_ADDSTRING, 0, (LPARAM)_T(""));
+		int idx1 = 1;
+		int idx2 = 0;
+		for (int j = 0; j < 2; j++) {
+			for (int i = 0; i < configstoresize; i++) {
+				struct ConfigStruct *cs = configstore[i];
+				if ((j == 0 && cs->Type == CONFIG_TYPE_HOST) || (j == 1 && cs->Type == CONFIG_TYPE_HARDWARE)) {
+					TCHAR tmp2[MAX_DPATH];
+					_tcscpy(tmp2, cs->Path);
+					_tcsncat(tmp2, cs->Name, MAX_DPATH - _tcslen(tmp2));
+					SendDlgItemMessage(hDlg, IDC_CONFIGLINK, CB_ADDSTRING, 0, (LPARAM)tmp2);
+					TCHAR *p1 = workprefs.config_host_path;
+					if (_tcslen(p1) > _tcslen(tmp2)) {
+						p1 += _tcslen(p1) - _tcslen(tmp2);
+					}
+					TCHAR *p2 = workprefs.config_host_path;
+					if (_tcslen(p2) > _tcslen(tmp2)) {
+						p2 += _tcslen(p2) - _tcslen(tmp2);
+					}
+					if (!_tcsicmp(tmp2, p1) || !_tcsicmp(tmp2, p2))
+						idx2 = idx1;
+					idx1++;
+				}
+			}
+		}
+		SendDlgItemMessage(hDlg, IDC_CONFIGLINK, CB_SETCURSEL, idx2, 0);
+		checkautoload(hDlg, InfoSettingsProcConfig);
+		EnableWindow(GetDlgItem(hDlg, IDC_CONFIGAUTO), configtypepanel > 0);
+		EnableWindow(GetDlgItem(hDlg, IDC_CONFIGLINK), configtypepanel == 0);
+		EnableWindow(GetDlgItem(hDlg, IDC_CONFIGNOLINK), configtypepanel == 0);
+		SetDlgItemText(hDlg, IDC_PATH_NAME, workprefs.info);
+		SetDlgItemText(hDlg, IDC_CONFIGCATEGORY, workprefs.category);
+		SetDlgItemText(hDlg, IDC_CONFIGTAGS, workprefs.tags);
 		recursive--;
 		return TRUE;
+	}
 
 	case WM_COMMAND:
 		if (recursive)
 			break;
 		recursive++;
 
-		switch(wParam)
+		switch (LOWORD(wParam))
 		{
-		case IDC_SELECTOR:
-			DiskSelection (hDlg, IDC_PATH_NAME, 8, &workprefs, NULL, NULL);
+			case IDC_SELECTOR:
+			DiskSelection(hDlg, IDC_PATH_NAME, 8, &workprefs, NULL, NULL);
 			break;
-		case IDOK:
-			EndDialog (hDlg, 1);
+			case IDOK:
+			EndDialog(hDlg, 1);
 			break;
-		case IDCANCEL:
-			EndDialog (hDlg, 0);
+			case IDCANCEL:
+			EndDialog(hDlg, 0);
+			break;
+			case IDC_CONFIGAUTO:
+			if (configtypepanel > 0) {
+				int ct = ischecked(hDlg, IDC_CONFIGAUTO) ? 1 : 0;
+				ConfigToRegistry2(ct, configtypepanel, -1);
+			}
+			break;
+			case IDC_CONFIGNOLINK:
+			if (configtypepanel == 0) {
+				int ct = ischecked(hDlg, IDC_CONFIGNOLINK) ? 1 : 0;
+				ConfigToRegistry2(-1, -1, ct);
+			}
+			break;
+			case IDC_CONFIGLINK:
+			if (HIWORD(wParam) == CBN_SELCHANGE || HIWORD(wParam) == CBN_KILLFOCUS) {
+				TCHAR tmp[MAX_DPATH];
+				tmp[0] = 0;
+				getcbn(hDlg, IDC_CONFIGLINK, tmp, sizeof(tmp) / sizeof(TCHAR));
+				_tcscpy(workprefs.config_host_path, tmp);
+			}
 			break;
 		}
 
 		GetDlgItemText(hDlg, IDC_PATH_NAME, workprefs.info, sizeof workprefs.info / sizeof(TCHAR));
+		GetDlgItemText(hDlg, IDC_CONFIGCATEGORY, workprefs.category, sizeof workprefs.category / sizeof(TCHAR));
+		GetDlgItemText(hDlg, IDC_CONFIGTAGS, workprefs.tags, sizeof workprefs.tags / sizeof(TCHAR));
 		recursive--;
 		break;
 	}
 	return FALSE;
+}
+
+static int addConfigFolder(HWND hDlg, const TCHAR *s, bool directory)
+{
+	TCHAR tmp[MAX_DPATH];
+	if (directory) {
+		_tcscpy(tmp, s);
+	} else {
+		_stprintf(tmp, _T("[%s]"), s);
+	}
+	int idx = SendDlgItemMessage(hDlg, IDC_CONFIGFOLDER, CB_ADDSTRING, 0, (LPARAM)tmp);
+	if (!_tcscmp(tmp, config_folder))
+		SendDlgItemMessage(hDlg, IDC_CONFIGFOLDER, CB_SETCURSEL, idx, 0);
+	return idx;
 }
 
 static HTREEITEM AddConfigNode (HWND hDlg, struct ConfigStruct *config, const TCHAR *name, const TCHAR *desc, const TCHAR *path, int isdir, int expand, HTREEITEM parent)
@@ -5267,6 +5458,64 @@ static HTREEITEM AddConfigNode (HWND hDlg, struct ConfigStruct *config, const TC
 	return TreeView_InsertItem (TVhDlg, &is);
 }
 
+static bool configsearchmatch(const TCHAR *str, int searchlen)
+{
+	if (!str[0])
+		return false;
+	int strlen = _tcslen(str);
+	if (strlen >= searchlen) {
+		for (int i = 0; i <= strlen - searchlen; i++) {
+			if (!_tcsnicmp(config_search, str + i, searchlen)) {
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
+static bool configsearch(struct ConfigStruct *config)
+{
+	int searchlen = _tcslen(config_search);
+	for (int j = 0; j < 3; j++) {
+		TCHAR *str = NULL;
+		switch (j)
+		{
+			case 0:
+			str = config->Name;
+			if (configsearchmatch(str, searchlen))
+				return true;
+			break;
+			case 1:
+			str = config->Description;
+			if (configsearchmatch(str, searchlen))
+				return true;
+			break;
+			case 2:
+			{
+				TCHAR tag[CFG_DESCRIPTION_LENGTH + 1] = { 0 };
+				if (config->Tags[0]) {
+					_tcscpy(tag, config->Tags);
+					TCHAR *p = tag;
+					for (;;) {
+						TCHAR *p2 = p;
+						while (*p2 != ',' && *p2 != ' ' && *p2 != 0)
+							p2++;
+						*p2++ = 0;
+						if (configsearchmatch(p, searchlen))
+							return true;
+						if (*p2 == 0)
+							break;
+						p = p2;
+					}
+				}
+
+			}
+			break;
+		}
+	}
+	return false;
+}
+
 static int LoadConfigTreeView (HWND hDlg, int idx, HTREEITEM parent)
 {
 	struct ConfigStruct *cparent, *config;
@@ -5294,26 +5543,66 @@ static int LoadConfigTreeView (HWND hDlg, int idx, HTREEITEM parent)
 			continue;
 		}
 		if (config->Parent == cparent) {
-			if (config->Directory) {
-				HTREEITEM par = AddConfigNode (hDlg, config, config->Name, NULL, config->Path, 1, config->hardware || config->host, parent);
-				int idx2 = 0;
-				for (;;) {
-					if (configstore[idx2] == config->Child) {
-						config->item = par;
-						if (LoadConfigTreeView (hDlg, idx2, par) == 0) {
-							if (!config->hardware && !config->host && !config->Directory)
-								TreeView_DeleteItem (GetDlgItem(hDlg, IDC_CONFIGTREE), par);
-						}
-						break;
-					}
-					idx2++;
-					if (idx2 >= configstoresize)
-						break;
+			bool visible = false;
+			int cfgflen = _tcslen(config_folder);
+			if (config_folder[0] == 0) {
+				visible = true;
+			} else if (config_folder[0] == '[' && config_folder[cfgflen - 1] == ']') {
+				visible = false;
+				if (cfgflen - 2 == _tcslen(config->Category) && !_tcsnicmp(config->Category, config_folder + 1, cfgflen - 2)) {
+					visible = true;
 				}
-			} else if (!config->Directory) {
-				if (((config->Type == 0 || config->Type == 3) && configtype == 0) || (config->Type == configtype)) {
-					config->item = AddConfigNode (hDlg, config, config->Name, config->Description, config->Path, 0, 0, parent);
-					cnt++;
+			} else if (!_tcsncmp(config_folder, config->Path, _tcslen(config_folder))) {
+				visible = true;
+			}
+			if (config_search[0] && visible && !config->Directory) {
+				visible = configsearch(config);
+			}
+			if (visible) {
+				if (config->Directory) {
+					int stridx = -1;
+					bool expand = config->hardware || config->host;
+					if (config_folder[0]) {
+						expand = true;
+					}
+					stridx = addConfigFolder(hDlg, config->Path, true);
+					HTREEITEM par = AddConfigNode(hDlg, config, config->Name, NULL, config->Path, 1, expand, parent);
+					int idx2 = 0;
+					for (;;) {
+						if (configstore[idx2] == config->Child) {
+							config->item = par;
+							if (LoadConfigTreeView(hDlg, idx2, par) == 0) {
+								if (!config->hardware && !config->host && !config->Directory) {
+									TreeView_DeleteItem(GetDlgItem(hDlg, IDC_CONFIGTREE), par);
+									if (stridx >= 0)
+										SendDlgItemMessage(hDlg, IDC_CONFIGFOLDER, CB_DELETESTRING, stridx, 0);
+								}
+							}
+							break;
+						}
+						idx2++;
+						if (idx2 >= configstoresize)
+							break;
+					}
+				} else if (!config->Directory) {
+					if (((config->Type == 0 || config->Type == 3) && configtype == 0) || (config->Type == configtype)) {
+						config->item = AddConfigNode(hDlg, config, config->Name, config->Description, config->Path, 0, 0, parent);
+						cnt++;
+					}
+				}
+			} else {
+				if (config->Directory) {
+					addConfigFolder(hDlg, config->Path, true);
+					int idx2 = 0;
+					for (;;) {
+						if (configstore[idx2] == config->Child) {
+							LoadConfigTreeView(hDlg, idx2, parent);
+							break;
+						}
+						idx2++;
+						if (idx2 >= configstoresize)
+							break;
+					}
 				}
 			}
 		}
@@ -5324,8 +5613,6 @@ static int LoadConfigTreeView (HWND hDlg, int idx, HTREEITEM parent)
 
 static void InitializeConfig (HWND hDlg, struct ConfigStruct *config)
 {
-	int i, j, idx1, idx2;
-
 	if (config == NULL) {
 		SetDlgItemText (hDlg, IDC_EDITNAME, _T(""));
 		SetDlgItemText (hDlg, IDC_EDITDESCRIPTION, _T(""));
@@ -5333,25 +5620,6 @@ static void InitializeConfig (HWND hDlg, struct ConfigStruct *config)
 		SetDlgItemText (hDlg, IDC_EDITNAME, config->Name);
 		SetDlgItemText (hDlg, IDC_EDITDESCRIPTION, config->Description);
 	}
-	SendDlgItemMessage (hDlg, IDC_CONFIGLINK, CB_RESETCONTENT, 0, 0L);
-	SendDlgItemMessage (hDlg, IDC_CONFIGLINK, CB_ADDSTRING, 0, (LPARAM)_T(""));
-	idx1 = 1;
-	idx2 = 0;
-	for (j = 0; j < 2; j++) {
-		for (i = 0; i < configstoresize; i++) {
-			struct ConfigStruct *cs = configstore[i];
-			if ((j == 0 && cs->Type == CONFIG_TYPE_HOST) || (j == 1 && cs->Type == CONFIG_TYPE_HARDWARE)) {
-				TCHAR tmp2[MAX_DPATH];
-				_tcscpy (tmp2, configstore[i]->Path);
-				_tcsncat (tmp2, configstore[i]->Name, MAX_DPATH - _tcslen(tmp2));
-				SendDlgItemMessage (hDlg, IDC_CONFIGLINK, CB_ADDSTRING, 0, (LPARAM)tmp2);
-				if (config && (!_tcsicmp (tmp2, config->HardwareLink) || !_tcsicmp (tmp2, config->HostLink)))
-					idx2 = idx1;
-				idx1++;
-			}
-		}
-	}
-	SendDlgItemMessage (hDlg, IDC_CONFIGLINK, CB_SETCURSEL, idx2, 0);
 	show_box_art(config && config->Artpath[0] ? config->Artpath : NULL);
 }
 
@@ -5381,44 +5649,18 @@ static HTREEITEM InitializeConfigTreeView (HWND hDlg)
 		ImageList_AddIcon (himl, icon);
 		TreeView_SetImageList (TVhDlg, himl, TVSIL_NORMAL);
 	}
+	SendDlgItemMessage(hDlg, IDC_CONFIGFOLDER, CB_RESETCONTENT, 0, 0L);
+	SendDlgItemMessage(hDlg, IDC_CONFIGFOLDER, CB_ADDSTRING, 0, (LPARAM)_T(""));
+	for (int i = 0; i < categorystoresize; i++) {
+		struct CategoryStruct *c = categorystore[i];
+		addConfigFolder(hDlg, c->category, false);
+	}
 	DeleteConfigTree (hDlg);
 	GetConfigPath (path, NULL, FALSE);
 	parent = AddConfigNode (hDlg, NULL, path, NULL, NULL, 0, 1, NULL);
 	LoadConfigTreeView (hDlg, -1, parent);
+	ew(hDlg, IDC_CONFIGFOLDER, SendDlgItemMessage(hDlg, IDC_CONFIGFOLDER, CB_GETCOUNT, 0, 0L) > 1);
 	return parent;
-}
-
-static void ConfigToRegistry (struct ConfigStruct *config, int type)
-{
-	if (config) {
-		TCHAR path[MAX_DPATH];
-		_tcscpy (path, config->Path);
-		_tcsncat (path, config->Name, MAX_DPATH - _tcslen(path));
-		regsetstr (NULL, configreg[type], path);
-	}
-}
-static void ConfigToRegistry2 (DWORD ct, int type, DWORD noauto)
-{
-	if (type > 0)
-		regsetint (NULL, configreg2[type], ct);
-	if (noauto == 0 || noauto == 1)
-		regsetint (NULL, _T("ConfigFile_NoAuto"), noauto);
-}
-
-static void checkautoload (HWND	hDlg, struct ConfigStruct *config)
-{
-	int ct = 0;
-
-	if (configtypepanel > 0)
-		regqueryint (NULL, configreg2[configtypepanel], &ct);
-	if (!config || config->Directory) {
-		ct = 0;
-		ConfigToRegistry2 (ct, configtypepanel, -1);
-	}
-	CheckDlgButton (hDlg, IDC_CONFIGAUTO, ct ? BST_CHECKED : BST_UNCHECKED);
-	ew (hDlg, IDC_CONFIGAUTO, configtypepanel > 0 && config && !config->Directory ? TRUE : FALSE);
-	regqueryint (NULL, _T("ConfigFile_NoAuto"), &ct);
-	CheckDlgButton(hDlg, IDC_CONFIGNOLINK, ct ? BST_CHECKED : BST_UNCHECKED);
 }
 
 static struct ConfigStruct *fixloadconfig (HWND hDlg, struct ConfigStruct *config)
@@ -5444,12 +5686,10 @@ static struct ConfigStruct *initloadsave (HWND hDlg, struct ConfigStruct *config
 {
 	HTREEITEM root;
 	TCHAR name_buf[MAX_DPATH];
-	int dwRFPsize = sizeof (name_buf) / sizeof (TCHAR);
+	int dwRFPsize = sizeof(name_buf) / sizeof(TCHAR);
 	TCHAR path[MAX_DPATH];
 
 	EnableWindow (GetDlgItem (hDlg, IDC_VIEWINFO), workprefs.info[0]);
-	SetDlgItemText (hDlg, IDC_EDITPATH, _T(""));
-	SetDlgItemText (hDlg, IDC_EDITDESCRIPTION, workprefs.description);
 	root = InitializeConfigTreeView (hDlg);
 	if (regquerystr (NULL, configreg[configtypepanel], name_buf, &dwRFPsize)) {
 		if (init) {
@@ -5459,24 +5699,73 @@ static struct ConfigStruct *initloadsave (HWND hDlg, struct ConfigStruct *config
 		struct ConfigStruct *config2 = getconfigstorefrompath (name_buf, path, configtypepanel);
 		if (config2)
 			config = config2;
-		checkautoload (hDlg, config);
 	}
 	config = fixloadconfig (hDlg, config);
 	if (config && config->item)
 		TreeView_SelectItem (GetDlgItem(hDlg, IDC_CONFIGTREE), config->item);
 	else
 		TreeView_SelectItem (GetDlgItem(hDlg, IDC_CONFIGTREE), root);
-	EnableWindow (GetDlgItem(hDlg, IDC_CONFIGAUTO), configtypepanel > 0);
-	EnableWindow (GetDlgItem(hDlg, IDC_CONFIGLINK), configtypepanel == 0);
-	EnableWindow (GetDlgItem(hDlg, IDC_CONFIGNOLINK), configtypepanel == 0);
 	return config;
+}
+
+static WNDPROC originallistviewtempproc;
+static LRESULT CALLBACK listviewtempproc(HWND hWnd, UINT iMessage, WPARAM wParam, LPARAM lParam)
+{
+	if (wParam == WM_PAINT)
+		return 0;
+	return CallWindowProc(originallistviewtempproc, hWnd, iMessage, wParam, lParam);
+}
+
+static struct ConfigStruct *refreshconfiglist(HWND hDlg, struct ConfigStruct *config)
+{
+	HWND lv = GetDlgItem(hDlg, IDC_CONFIGTREE);
+	originallistviewtempproc = (WNDPROC)GetWindowLongPtr(lv, GWL_WNDPROC);
+	SetWindowLongPtr(lv, GWL_WNDPROC, (LONG_PTR)listviewtempproc);
+	struct ConfigStruct *cs = initloadsave(hDlg, config, false);
+	SetWindowLongPtr(lv, GWL_WNDPROC, (LONG_PTR)originallistviewtempproc);
+	return cs;
 }
 
 static void loadsavecommands (HWND hDlg, WPARAM wParam, struct ConfigStruct **configp, TCHAR **pcfgfile, TCHAR *newpath)
 {
 	struct ConfigStruct *config = *configp;
+
+	if (HIWORD(wParam) == CBN_SELCHANGE) {
+		switch (LOWORD(wParam))
+		{
+			case IDC_CONFIGFOLDER:
+			{
+				int idx = SendDlgItemMessage(hDlg, IDC_CONFIGFOLDER, CB_GETCURSEL, 0, 0L);
+				if (idx >= 0) {
+					SendDlgItemMessage(hDlg, IDC_CONFIGFOLDER, CB_GETLBTEXT, (WPARAM)idx, (LPARAM)config_folder);
+					if (_tcslen(config_folder) > 0 && config_folder[_tcslen(config_folder) - 1] != ']' && config_folder[_tcslen(config_folder) - 1] != '\\')
+						_tcscat(config_folder, _T("\\"));
+					ConfigToRegistry(config, configtypepanel);
+					config = refreshconfiglist(hDlg, config);
+				}
+				break;
+			}
+		}
+	}
+	if (HIWORD(wParam) == EN_CHANGE) {
+		switch (LOWORD(wParam))
+		{
+			case IDC_CONFIGSEARCH:
+			{
+				GetDlgItemText(hDlg, IDC_CONFIGSEARCH, config_search, MAX_DPATH);
+				config = refreshconfiglist(hDlg, config);
+				break;
+			}
+		}
+	}
+
 	switch (LOWORD (wParam))
 	{
+	case IDC_CONFIGSEARCHCLEAR:
+		config_search[0] = 0;
+		SetDlgItemText(hDlg, IDC_CONFIGSEARCH, _T(""));
+		config = refreshconfiglist(hDlg, config);
+		break;
 	case IDC_SAVE:
 		if (HandleConfiguration (hDlg, CONFIG_SAVE_FULL, config, newpath)) {
 			DeleteConfigTree (hDlg);
@@ -5540,28 +5829,9 @@ static void loadsavecommands (HWND hDlg, WPARAM wParam, struct ConfigStruct **co
 		}
 		break;
 	case IDC_SETINFO:
+		InfoSettingsProcConfig = config;
 		if (CustomDialogBox(IDD_SETINFO, hDlg, InfoSettingsProc))
 			EnableWindow( GetDlgItem( hDlg, IDC_VIEWINFO ), workprefs.info[0] );
-		break;
-	case IDC_CONFIGAUTO:
-		if (configtypepanel > 0) {
-			int ct = ischecked (hDlg, IDC_CONFIGAUTO) ? 1 : 0;
-			ConfigToRegistry2 (ct, configtypepanel, -1);
-		}
-		break;
-	case IDC_CONFIGNOLINK:
-		if (configtypepanel == 0) {
-			int ct = ischecked (hDlg, IDC_CONFIGNOLINK) ? 1 : 0;
-			ConfigToRegistry2 (-1, -1, ct);
-		}
-		break;
-	case IDC_CONFIGLINK:
-		if (HIWORD (wParam) == CBN_SELCHANGE || HIWORD (wParam) == CBN_KILLFOCUS)  {
-			TCHAR tmp[MAX_DPATH];
-			tmp[0] = 0;
-			getcbn(hDlg, IDC_CONFIGLINK, tmp, sizeof(tmp) / sizeof (TCHAR));
-			_tcscpy (workprefs.config_host_path, tmp);
-		}
 		break;
 	}
 	*configp = config;
@@ -5576,19 +5846,29 @@ static INT_PTR CALLBACK LoadSaveDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPA
 	switch (msg)
 	{
 	case WM_INITDIALOG:
+	{
 		recursive++;
-		scaleresource_setfont (hDlg);
+		scaleresource_setfont(hDlg);
 		if (!configstore) {
-			DeleteConfigTree (hDlg);
-			CreateConfigStore (NULL, FALSE);
+			DeleteConfigTree(hDlg);
+			CreateConfigStore(NULL, FALSE);
 			config = NULL;
 		}
+		getconfigfolderregistry();
 		pages[LOADSAVE_ID] = hDlg;
 		currentpage = LOADSAVE_ID;
-		config = initloadsave (hDlg, config, firstautoloadconfig);
+		SetDlgItemText(hDlg, IDC_EDITPATH, _T(""));
+		SetDlgItemText(hDlg, IDC_EDITDESCRIPTION, workprefs.description);
+		SetDlgItemText(hDlg, IDC_CONFIGSEARCH, config_search);
+		config = initloadsave(hDlg, config, firstautoloadconfig);
 		firstautoloadconfig = false;
 		recursive--;
 		return TRUE;
+	}
+
+	case WM_DESTROY:
+	ConfigToRegistry(NULL, configtypepanel);
+	break;
 
 	case WM_USER + 1:
 		if (config) {
@@ -20500,6 +20780,7 @@ static INT_PTR CALLBACK DialogProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 					cf = (int)(tv->itemNew.lParam >> 16);
 					if (cp != currentpage || cf != configtype) {
 						configtypepanel = configtype = cf;
+						getconfigfolderregistry();
 						updatePanel (cp, tv->action);
 					}
 					return TRUE;
