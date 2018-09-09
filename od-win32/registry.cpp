@@ -134,8 +134,8 @@ int regquerystr (UAEREG *root, const TCHAR *name, TCHAR *str, int *size)
 		int ret = 0;
 		TCHAR *tmp = NULL;
 		if (ini_getstring(inidata, gs(root), name, &tmp)) {
-			if (_tcslen(tmp) > *size)
-				tmp[*size] = 0;
+			if (_tcslen(tmp) >= *size)
+				tmp[(*size) - 1] = 0;
 			_tcscpy (str, tmp);
 			*size = _tcslen(str);
 			ret = 1;
@@ -163,10 +163,10 @@ int regenumstr (UAEREG *root, int idx, TCHAR *name, int *nsize, TCHAR *str, int 
 		int ret = ini_getsectionstring(inidata, gs(root), idx, &name2, &str2);
 		if (ret) {
 			if (_tcslen(name2) >= *nsize) {
-				name2[*nsize] = 0;
+				name2[(*nsize) - 1] = 0;
 			}
 			if (_tcslen(str2) >= *size) {
-				str2[*size] = 0;
+				str2[(*size) - 1] = 0;
 			}
 			_tcscpy(name, name2);
 			_tcscpy(str, str2);
