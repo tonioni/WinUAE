@@ -152,11 +152,12 @@ static int doscsi (struct dev_info_spti *di, int unitnum, SCSI_PASS_THROUGH_DIRE
 #define MODE_SELECT_10 0x55
 #define MODE_SENSE_10  0x5A
 
-static int execscsicmd (struct dev_info_spti *di, int unitnum, uae_u8 *data, int len, uae_u8 *inbuf, int inlen)
+static int execscsicmd (struct dev_info_spti *di, int unitnum, uae_u8 *data, int len, uae_u8 *inbuf, int inlen, int timeout, int *errp)
 {
 	SCSI_PASS_THROUGH_DIRECT_WITH_BUFFER swb;
 	DWORD status;
-	int err, dolen;
+	int err = 0;
+	int dolen;
 
 	uae_sem_wait (&scgp_sem);
 	memset (&swb, 0, sizeof (swb));
@@ -170,13 +171,15 @@ static int execscsicmd (struct dev_info_spti *di, int unitnum, uae_u8 *data, int
 	} else {
 		swb.spt.DataIn = SCSI_IOCTL_DATA_OUT;
 	}
-	swb.spt.TimeOutValue = 80 * 60;
+	swb.spt.TimeOutValue = timeout < 0 ? 80 * 60 : (timeout == 0 ? 5 : timeout);
 	swb.spt.SenseInfoOffset = offsetof(SCSI_PASS_THROUGH_DIRECT_WITH_BUFFER, SenseBuf);
 	swb.spt.SenseInfoLength = 32;
 	memcpy (swb.spt.Cdb, data, len);
 	status = doscsi (di, unitnum, &swb, &err);
 	uae_sem_post (&scgp_sem);
 	dolen = swb.spt.DataTransferLength;
+	if (errp)
+		*errp = err;
 	if (!status)
 		return -1;
 	return dolen;
@@ -264,7 +267,7 @@ static uae_u8 *execscsicmd_out (int unitnum, uae_u8 *data, int len)
 	struct dev_info_spti *di = unitisopen (unitnum);
 	if (!di)
 		return 0;
-	int v = execscsicmd (di, unitnum, data, len, 0, 0);
+	int v = execscsicmd (di, unitnum, data, len, 0, 0, -1, NULL);
 	if (v < 0)
 		return 0;
 	return data;
@@ -275,7 +278,7 @@ static uae_u8 *execscsicmd_in (int unitnum, uae_u8 *data, int len, int *outlen)
 	struct dev_info_spti *di = unitisopen (unitnum);
 	if (!di)
 		return 0;
-	int v = execscsicmd (di, unitnum, data, len, di->scsibuf, DEVICE_SCSI_BUFSIZE);
+	int v = execscsicmd (di, unitnum, data, len, di->scsibuf, DEVICE_SCSI_BUFSIZE, -1, NULL);
 	if (v < 0)
 		return 0;
 	if (v == 0)
@@ -285,9 +288,9 @@ static uae_u8 *execscsicmd_in (int unitnum, uae_u8 *data, int len, int *outlen)
 	return di->scsibuf;
 }
 
-static uae_u8 *execscsicmd_in_internal (struct dev_info_spti *di, int unitnum, uae_u8 *data, int len, int *outlen)
+static uae_u8 *execscsicmd_in_internal (struct dev_info_spti *di, int unitnum, uae_u8 *data, int len, int *outlen, int timeout)
 {
-	int v = execscsicmd (di, unitnum, data, len, di->scsibuf, DEVICE_SCSI_BUFSIZE);
+	int v = execscsicmd (di, unitnum, data, len, di->scsibuf, DEVICE_SCSI_BUFSIZE, timeout, NULL);
 	if (v < 0)
 		return 0;
 	if (v == 0)
@@ -367,7 +370,7 @@ static int mediacheck (struct dev_info_spti *di, int unitnum)
 	uae_u8 cmd [6] = { 0,0,0,0,0,0 }; /* TEST UNIT READY */
 	if (di->open == false)
 		return -1;
-	int v = execscsicmd (di, unitnum, cmd, sizeof cmd, 0, 0);
+	int v = execscsicmd (di, unitnum, cmd, sizeof cmd, 0, 0, 0, NULL);
 	return v >= 0 ? 1 : 0;
 }
 
@@ -385,7 +388,7 @@ static int mediacheck_full (struct dev_info_spti *di, int unitnum, struct device
 	if (di->open == false)
 		return 0;
 	outlen = 32;
-	p = execscsicmd_in_internal (di, unitnum, cmd1, sizeof cmd1, &outlen);
+	p = execscsicmd_in_internal (di, unitnum, cmd1, sizeof cmd1, &outlen, 0);
 	if (p && outlen >= 8) {
 		dinfo->bytespersector = (p[4] << 24) | (p[5] << 16) | (p[6] << 8) | p[7];
 		dinfo->sectorspertrack = ((p[0] << 24) | (p[1] << 16) | (p[2] << 8) | p[3]) + 1;
@@ -395,7 +398,7 @@ static int mediacheck_full (struct dev_info_spti *di, int unitnum, struct device
 	if (di->type == INQ_DASD) {
 		uae_u8 cmd2[10] = { 0x5a,0x08,0,0,0,0,0,0,0xf0,0 }; /* MODE SENSE */
 		outlen = 32;
-		p = execscsicmd_in_internal (di, unitnum, cmd2, sizeof cmd2, &outlen);
+		p = execscsicmd_in_internal (di, unitnum, cmd2, sizeof cmd2, &outlen, 0);
 		if (p && outlen >= 4) {
 			dinfo->write_protected = (p[3] & 0x80) ? 1 : 0;
 		}
@@ -451,7 +454,7 @@ static int inquiry (struct dev_info_spti *di, int unitnum, uae_u8 *inquirydata)
 	uae_u8 cmd[6] = { 0x12,0,0,0,36,0 }; /* INQUIRY */
 	uae_u8 out[INQUIRY_SIZE] = { 0 };
 	int outlen = sizeof (out);
-	uae_u8 *p = execscsicmd_in_internal (di, unitnum, cmd, sizeof (cmd), &outlen);
+	uae_u8 *p = execscsicmd_in_internal (di, unitnum, cmd, sizeof (cmd), &outlen, 0);
 	int inqlen = 0;
 
 	di->isatapi = 0;
@@ -508,8 +511,17 @@ static int open_scsi_device2 (struct dev_info_spti *di, int unitnum)
 	if (h == INVALID_HANDLE_VALUE) {
 		write_log (_T("SPTI: failed to open unit %d err=%d ('%s')\n"), unitnum, GetLastError (), dev);
 	} else {
+		int err = 0;
 		uae_u8 inqdata[INQUIRY_SIZE + 1] = { 0 };
 		checkcapabilities (di);
+		execscsicmd(di, unitnum, inqdata, 6, NULL, 0, 0, &err);
+		if (err) {
+			write_log(_T("SPTI: TUR failed unit %d, err=%d ('%s':%d:%d:%d:%d)\n"), unitnum, err, dev,
+				di->bus, di->path, di->target, di->lun);
+			close_scsi_device2(di);
+			xfree(dev);
+			return 0;
+		}
 		if (!inquiry (di, unitnum, inqdata)) {
 			write_log (_T("SPTI: inquiry failed unit %d ('%s':%d:%d:%d:%d)\n"), unitnum, dev,
 				di->bus, di->path, di->target, di->lun);
@@ -520,6 +532,13 @@ static int open_scsi_device2 (struct dev_info_spti *di, int unitnum)
 		inqdata[INQUIRY_SIZE] = 0;
 		di->name = my_strdup_ansi ((char*)inqdata + 8);
 		if (di->type == INQ_ROMD) {
+			// This fake CD device hangs if it sees SCSI read command.
+			if (!memcmp(inqdata + 8, "HUAWEI  Mass Storage    ", 8 + 16)) {
+				write_log(_T("SPTI: '%s' ignored.\n"), di->name);
+				close_scsi_device2(di);
+				xfree(dev);
+				return 0;
+			}
 			di->mediainserted = mediacheck (di, unitnum);
 			write_log (_T("SPTI: unit %d (%c:\\) opened [%s], %s, '%s'\n"),
 				unitnum, di->drvletter ? di->drvletter : '*',
