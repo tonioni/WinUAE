@@ -1781,7 +1781,7 @@ void ncr80_rethink(void)
 		struct soft_scsi *s = soft_scsi_devices[i];
 		if (s->irq && s->intena && ((s->c400 && (s->regs_400[0] & 0x10) && !s->c400_count) || !s->c400)) {
 			if (soft_scsi_devices[i] == x86_hd_data) {
-				x86_doirq(5);
+				;// x86_doirq(5);
 			} else {
 				safe_interrupt_set(IRQ_SOURCE_SCSI, i, soft_scsi_devices[i]->level6);
 			}
