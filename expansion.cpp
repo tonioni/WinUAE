@@ -1477,6 +1477,40 @@ static bool expamem_init_uaeboard(struct autoconfig_info *aci)
 	return true;
 }
 
+static void REGPARAM2 empty_put(uaecptr addr, uae_u32 value)
+{
+}
+
+static void initramboard(addrbank *ab, struct ramboard *rb)
+{
+	if (!ab->baseaddr)
+		return;
+	if (rb->loadfile[0]) {
+		struct zfile *zf = zfile_fopen(rb->loadfile, _T("rb"));
+		if (zf) {
+			int size = rb->filesize;
+			if (!size) {
+				size = ab->allocated_size;
+			} else if (rb->loadoffset + size > ab->allocated_size)
+				size = ab->allocated_size - rb->loadoffset;
+			if (size > 0) {
+				int total = zfile_fread(ab->baseaddr + rb->loadoffset, 1, size, zf);
+				write_log(_T("Expansion file '%s': load %u bytes, offset %u, start addr %08x\n"),
+					rb->loadfile, total, rb->loadoffset, ab->start + rb->loadoffset);
+			}
+			zfile_fclose(zf);
+		} else {
+			write_log(_T("Couldn't open expansion file '%s'\n"), rb->loadfile);
+		}
+	}
+	if (rb->readonly) {
+		ab->lput = empty_put;
+		ab->wput = empty_put;
+		ab->bput = empty_put;
+		ab->jit_write_flag = 0;
+	}
+}
+
 /*
 *  Z3fastmem Memory
 */
@@ -1536,14 +1570,16 @@ addrbank z3chipmem_bank = {
 
 static addrbank *expamem_map_fastcard(struct autoconfig_info *aci)
 {
+	int devnum = aci->devnum;
 	uae_u32 start = ((expamem_hi | (expamem_lo >> 4)) << 16);
-	addrbank *ab = &fastmem_bank[aci->devnum];
+	addrbank *ab = &fastmem_bank[devnum];
 	if (start == 0x00ff0000)
 		return ab;
 	uae_u32 size = ab->allocated_size;
 	ab->start = start;
 	if (ab->start && size) {
 		map_banks_z2(ab, ab->start >> 16, size >> 16);
+		initramboard(ab, &currprefs.fastmem[devnum]);
 	}
 	return ab;
 }
@@ -1987,8 +2023,10 @@ static addrbank *expamem_map_z3fastmem (struct autoconfig_info *aci)
 	uaecptr z3fs = expamem_board_pointer;
 	uae_u32 size = currprefs.z3fastmem[devnum].size;
 
-	if (ab->allocated_size)
+	if (ab->allocated_size) {
 		map_banks_z3(ab, z3fs >> 16, size >> 16);
+		initramboard(ab, &currprefs.z3fastmem[devnum]);
+	}
 	return ab;
 }
 
@@ -3701,6 +3739,7 @@ void expansion_map(void)
 			} else if (rb->no_reset_unmap && rb->start_address) {
 				map_banks(&fastmem_bank[i], rb->start_address >> 16, rb->size >> 16, 0);
 			}
+			initramboard(&fastmem_bank[i], rb);
 		}
 		rb = &currprefs.z3fastmem[i];
 		if (rb->size) {
@@ -3709,6 +3748,7 @@ void expansion_map(void)
 			} else if (rb->no_reset_unmap && rb->start_address) {
 				map_banks(&z3fastmem_bank[i], rb->start_address >> 16, rb->size >> 16, 0);
 			}
+			initramboard(&z3fastmem_bank[i], rb);
 		}
 	}
 	if (currprefs.z3chipmem_size) {

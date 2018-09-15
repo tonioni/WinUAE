@@ -420,6 +420,10 @@ struct ramboard
 	uae_u32 start_address;
 	uae_u32 end_address;
 	uae_u32 write_address;
+	bool readonly;
+	uae_u32 loadoffset;
+	uae_u32 fileoffset, filesize;
+	TCHAR loadfile[MAX_DPATH];
 };
 struct expansion_params
 {

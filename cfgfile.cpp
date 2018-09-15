@@ -1435,6 +1435,7 @@ static void cfgfile_write_board_rom(struct uae_prefs *prefs, struct zfile *f, st
 	if (!ert)
 		return;
 	for (int i = 0; i < MAX_BOARD_ROMS; i++) {
+		struct romconfig *rc = &br->roms[i];
 		if (br->device_num == 0)
 			_tcscpy(name, ert->name);
 		else
@@ -1442,18 +1443,18 @@ static void cfgfile_write_board_rom(struct uae_prefs *prefs, struct zfile *f, st
 		if (i == 0 || _tcslen(br->roms[i].romfile)) {
 			_stprintf(buf, _T("%s%s_rom_file"), name, i ? _T("_ext") : _T(""));
 			cfgfile_write_rom (f, mp, br->roms[i].romfile, buf);
-			if (br->roms[i].romident[0]) {
+			if (rc->romident[0]) {
 				_stprintf(buf, _T("%s%s_rom"), name, i ? _T("_ext") : _T(""));
-				cfgfile_dwrite_str (f, buf, br->roms[i].romident);
+				cfgfile_dwrite_str (f, buf, rc->romident);
 			}
-			if (br->roms[i].autoboot_disabled || ert->subtypes || ert->settings || ert->id_jumper || br->device_order > 0 || is_custom_romboard(br)) {
+			if (rc->autoboot_disabled || ert->subtypes || ert->settings || ert->id_jumper || br->device_order > 0 || is_custom_romboard(br)) {
 				TCHAR buf2[256], *p;
 				buf2[0] = 0;
 				p = buf2;
 				_stprintf(buf, _T("%s%s_rom_options"), name, i ? _T("_ext") : _T(""));
 				if (ert->subtypes) {
 					const struct expansionsubromtype *srt = ert->subtypes;
-					int k = br->roms[i].subtype;
+					int k = rc->subtype;
 					while (k && srt[1].name) {
 						srt++;
 						k--;
@@ -1466,30 +1467,30 @@ static void cfgfile_write_board_rom(struct uae_prefs *prefs, struct zfile *f, st
 					TCHAR *p2 = buf2 + _tcslen(buf2);
 					_stprintf(p2, _T("order=%d"), br->device_order);
 				}
-				if (br->roms[i].autoboot_disabled) {
+				if (rc->autoboot_disabled) {
 					if (buf2[0])
 						_tcscat(buf2, _T(","));
 					_tcscat(buf2, _T("autoboot_disabled=true"));
 				}
 				if (ert->id_jumper) {
 					TCHAR tmp[256];
-					_stprintf(tmp, _T("id=%d"), br->roms[i].device_id);
+					_stprintf(tmp, _T("id=%d"), rc->device_id);
 					if (buf2[0])
 						_tcscat(buf2, _T(","));
 					_tcscat(buf2, tmp);
 				}
-				if ((br->roms[i].device_settings || br->roms[i].configtext[0]) && ert->settings) {
-					cfgfile_write_rom_settings(ert->settings, buf2, br->roms[i].device_settings, br->roms[i].configtext);
+				if ((rc->device_settings || rc->configtext[0]) && ert->settings) {
+					cfgfile_write_rom_settings(ert->settings, buf2, rc->device_settings, rc->configtext);
 				}
 				if (is_custom_romboard(br)) {
-					if (br->roms[i].manufacturer) {
+					if (rc->manufacturer) {
 						if (buf2[0])
 							_tcscat(buf2, _T(","));
 						TCHAR *p2 = buf2 + _tcslen(buf2);
-						_stprintf(p2, _T("mid=%u,pid=%u"), br->roms[i].manufacturer, br->roms[i].product);
+						_stprintf(p2, _T("mid=%u,pid=%u"), rc->manufacturer, rc->product);
 					}
-					if (br->roms[i].autoconfig[0]) {
-						uae_u8 *ac = br->roms[i].autoconfig;
+					if (rc->autoconfig[0]) {
+						uae_u8 *ac = rc->autoconfig;
 						if (buf2[0])
 							_tcscat(buf2, _T(","));
 						TCHAR *p2 = buf2 + _tcslen(buf2);
@@ -1502,9 +1503,9 @@ static void cfgfile_write_board_rom(struct uae_prefs *prefs, struct zfile *f, st
 					cfgfile_dwrite_str (f, buf, buf2);
 			}
 
-			if (br->roms[i].board_ram_size) {
+			if (rc->board_ram_size) {
 				_stprintf(buf, _T("%s%s_mem_size"), name, i ? _T("_ext") : _T(""));
-				cfgfile_write(f, buf, _T("%d"), br->roms[i].board_ram_size / 0x40000);
+				cfgfile_write(f, buf, _T("%d"), rc->board_ram_size / 0x40000);
 			}
 		}
 	}
@@ -1541,6 +1542,7 @@ static bool cfgfile_readramboard(const TCHAR *option, const TCHAR *value, const 
 		else
 			_stprintf(tmp1, _T("%s_options"), name);
 		if (!_tcsicmp(option, tmp1)) {
+			TCHAR *endptr;
 			TCHAR *s, *s1, *s2;
 			s = cfgfile_option_get(value, _T("order"));
 			if (s)
@@ -1574,7 +1576,6 @@ static bool cfgfile_readramboard(const TCHAR *option, const TCHAR *value, const 
 			s1 = cfgfile_option_get(value, _T("start"));
 			s2 = cfgfile_option_get(value, _T("end"));
 			if (s1 && s2) {
-				TCHAR *endptr;
 				rb->start_address = _tcstol(s1, &endptr, 16);
 				rb->end_address = _tcstol(s2, &endptr, 16);
 				if (rb->start_address && rb->end_address > rb->start_address) {
@@ -1590,7 +1591,29 @@ static bool cfgfile_readramboard(const TCHAR *option, const TCHAR *value, const 
 				rb->write_address = _tcstol(s1, &endptr, 16);
 			}
 			xfree(s1);
-
+			s1 = cfgfile_option_get(value, _T("file"));
+			if (s1) {
+				TCHAR *p = cfgfile_unescape(s1, NULL);
+				_tcscpy(rb->loadfile, p);
+				xfree(p);
+			}
+			xfree(s1);
+			s1 = cfgfile_option_get(value, _T("offset"));
+			if (s1) {
+				rb->loadoffset = _tcstol(s1, &endptr, 16);
+			}
+			xfree(s1);
+			s1 = cfgfile_option_get(value, _T("fileoffset"));
+			if (s1) {
+				rb->fileoffset = _tcstol(s1, &endptr, 16);
+			}
+			xfree(s1);
+			s1 = cfgfile_option_get(value, _T("filesize"));
+			if (s1) {
+				rb->filesize = _tcstol(s1, &endptr, 16);
+			}
+			xfree(s1);
+			rb->readonly = cfgfile_option_find(value, _T("read-only"));
 			return true;
 		}
 	}
@@ -1642,6 +1665,18 @@ static void cfgfile_writeramboard(struct uae_prefs *prefs, struct zfile *f, cons
 	if (rb->write_address) {
 		_stprintf(p, _T(",write_address=%08x"), rb->write_address);
 		p += _tcslen(p);
+	}
+	if (rb->loadfile[0]) {
+		if (tmp2[0])
+			_tcscat(p, _T(","));
+		TCHAR *path = cfgfile_escape(rb->loadfile, NULL, true);
+		_stprintf(p, _T("offset=%u,fileoffset=%u,filesize=%u,file=%s"), rb->loadoffset, rb->fileoffset, rb->filesize, path);
+		xfree(path);
+	}
+	if (rb->readonly) {
+		if (tmp2[0])
+			_tcscat(p, _T(","));
+		_tcscat(p, _T("readonly"));
 	}
 	if (tmp2[0]) {
 		cfgfile_write(f, tmp1, tmp2);
