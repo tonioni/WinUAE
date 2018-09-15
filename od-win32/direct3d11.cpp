@@ -246,7 +246,6 @@ struct d3d11struct
 	DXGI_FORMAT texformat;
 	DXGI_FORMAT intformat;
 	bool m_tearingSupport;
-	int texdepth;
 	int dmult, dmultx;
 	int xoffset, yoffset;
 	float xmult, ymult;
@@ -1915,7 +1914,7 @@ static bool CreateTexture(struct d3d11struct *d3d)
 	desc.Height = d3d->m_bitmapHeight;
 	desc.MipLevels = 1;
 	desc.ArraySize = 1;
-	desc.Format = d3d->scrformat;
+	desc.Format = d3d->texformat;
 	desc.SampleDesc.Count = 1;
 	desc.SampleDesc.Quality = 0;
 	desc.Usage = D3D11_USAGE_STAGING;
@@ -1931,7 +1930,7 @@ static bool CreateTexture(struct d3d11struct *d3d)
 	srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
 	srvDesc.Texture2D.MostDetailedMip = 0;
 	srvDesc.Texture2D.MipLevels = desc.MipLevels;
-	srvDesc.Format = d3d->scrformat;
+	srvDesc.Format = d3d->texformat;
 
 	hr = d3d->m_device->CreateShaderResourceView(d3d->texture2d, &srvDesc, &d3d->texture2drv);
 	if (FAILED(hr)) {
@@ -3257,7 +3256,7 @@ static int xxD3D11_init2(HWND ahwnd, int monid, int w_w, int w_h, int t_w, int t
 	d3d->delayedfs = 0;
 	d3d->device_errors = 0;
 
-	if (depth != 32 && depth != 16)
+	if (depth != 32)
 		return 0;
 
 	if (!can_D3D11(false))
@@ -3268,10 +3267,9 @@ static int xxD3D11_init2(HWND ahwnd, int monid, int w_w, int w_h, int t_w, int t
 	d3d->m_screenWidth = w_w;
 	d3d->m_screenHeight = w_h;
 	d3d->ahwnd = ahwnd;
-	d3d->texformat = depth == 32 ? DXGI_FORMAT_B8G8R8A8_UNORM : DXGI_FORMAT_B5G6R5_UNORM;
+	d3d->texformat = DXGI_FORMAT_B8G8R8A8_UNORM;
 	d3d->intformat = DXGI_FORMAT_B8G8R8A8_UNORM; // _SRGB;
 	d3d->scrformat = DXGI_FORMAT_B8G8R8A8_UNORM;
-	d3d->texdepth = depth;
 	d3d->dmultx = mmult;
 
 	struct MultiDisplay *md = getdisplay(&currprefs, monid);

@@ -1920,6 +1920,14 @@ static void close_hwnds(struct AmigaMonitor *mon)
 	}
 }
 
+static bool canmatchdepth(void)
+{
+	if (!currprefs.win32_rtgmatchdepth)
+		return false;
+	if (currprefs.gfx_api >= 2)
+		return false;
+	return true;
+}
 
 static void updatemodes(struct AmigaMonitor *mon)
 {
@@ -1999,7 +2007,7 @@ static void update_gfxparams(struct AmigaMonitor *mon)
 #else
 	mon->currentmode.current_depth = currprefs.color_mode < 5 ? 16 : 32;
 #endif
-	if (mon->screen_is_picasso && currprefs.win32_rtgmatchdepth && isfullscreen () > 0) {
+	if (mon->screen_is_picasso && canmatchdepth() && isfullscreen () > 0) {
 		int pbits = state->BytesPerPixel * 8;
 		if (pbits <= 8) {
 			if (mon->currentmode.current_depth == 32)
@@ -2024,7 +2032,7 @@ static void update_gfxparams(struct AmigaMonitor *mon)
 			if (!mon->scalepicasso && currprefs.win32_rtgscaleaspectratio)
 				mon->scalepicasso = -1;
 		} else if (isfullscreen () > 0) {
-			if (!currprefs.win32_rtgmatchdepth) { // can't scale to different color depth
+			if (!canmatchdepth()) { // can't scale to different color depth
 				if (mon->currentmode.native_width > state->Width && mon->currentmode.native_height > state->Height) {
 					if (currprefs.gf[1].gfx_filter_autoscale)
 						mon->scalepicasso = 1;
@@ -2999,10 +3007,10 @@ static int modeswitchneeded(struct AmigaMonitor *mon, struct winuae_currentmode 
 	if (isfullscreen () > 0) {
 		/* fullscreen to fullscreen */
 		if (mon->screen_is_picasso) {
-			if (state->BytesPerPixel > 1 && state->BytesPerPixel * 8 != wc->current_depth && currprefs.win32_rtgmatchdepth)
+			if (state->BytesPerPixel > 1 && state->BytesPerPixel * 8 != wc->current_depth && canmatchdepth())
 				return -1;
 			if (state->Width < wc->current_width && state->Height < wc->current_height) {
-				if ((currprefs.gf[1].gfx_filter_autoscale == 1 || (currprefs.gf[1].gfx_filter_autoscale == 2 && currprefs.win32_rtgallowscaling)) && !currprefs.win32_rtgmatchdepth)
+				if ((currprefs.gf[1].gfx_filter_autoscale == 1 || (currprefs.gf[1].gfx_filter_autoscale == 2 && currprefs.win32_rtgallowscaling)) && !canmatchdepth())
 					return 0;
 			}
 			if (state->Width != wc->current_width ||
@@ -3012,7 +3020,7 @@ static int modeswitchneeded(struct AmigaMonitor *mon, struct winuae_currentmode 
 				state->Height == wc->current_height) {
 					if (state->BytesPerPixel * 8 == wc->current_depth || state->BytesPerPixel == 1)
 						return 0;
-					if (!currprefs.win32_rtgmatchdepth)
+					if (!canmatchdepth())
 						return 0;
 			}
 			return 1;
