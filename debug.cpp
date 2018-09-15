@@ -1135,10 +1135,9 @@ static uaecptr nextaddr (uaecptr addr, uaecptr last, uaecptr *end)
 {
 	static uaecptr old;
 	int next = last;
-	if (last && 0) {
-		if (addr >= last)
-			return 0xffffffff;
-		return addr + 1;
+	if (last && addr >= last) {
+		old = 0xffffffff;
+		return 0xffffffff;
 	}
 	if (addr == 0xffffffff) {
 		if (end)
@@ -5090,7 +5089,7 @@ end:
 static void find_ea (TCHAR **inptr)
 {
 	uae_u32 ea, sea, dea;
-	uaecptr addr, end;
+	uaecptr addr, end, end2;
 	int hits = 0;
 
 	addr = 0;
@@ -5102,8 +5101,9 @@ static void find_ea (TCHAR **inptr)
 			end = readhex (inptr);
 	}
 	console_out_f (_T("Searching from %08X to %08X\n"), addr, end);
-	while((addr = nextaddr (addr, end, &end)) != 0xffffffff) {
-		if ((addr & 1) == 0 && addr + 6 <= end) {
+	end2 = 0;
+	while((addr = nextaddr (addr, end, &end2)) != 0xffffffff) {
+		if ((addr & 1) == 0 && addr + 6 <= end2) {
 			sea = 0xffffffff;
 			dea = 0xffffffff;
 			m68k_disasm_ea (addr, NULL, 1, &sea, &dea, 0xffffffff);
