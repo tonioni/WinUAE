@@ -15,6 +15,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <windows.h>
+#include <windowsx.h>
 #include <winspool.h>
 #include <winuser.h>
 #include <mmsystem.h>
@@ -157,6 +158,7 @@ extern TCHAR help_file[MAX_DPATH];
 extern int mouseactive;
 
 TCHAR config_filename[256] = _T("");
+static TCHAR config_pathfilename[MAX_DPATH];
 static TCHAR config_folder[MAX_DPATH];
 static TCHAR config_search[MAX_DPATH];
 static TCHAR stored_path[MAX_DPATH];
@@ -670,7 +672,8 @@ static const TCHAR *historytypes[] =
 	_T("GenlockImageMRUList"),
 	_T("GenlockVideoMRUList"),
 	_T("GeometryMRUList"),
-	_T("StatefileMRUList")
+	_T("StatefileMRUList"),
+	_T("ConfigfileMRUList")
 };
 static int regread;
 
@@ -714,6 +717,7 @@ void write_disk_history (void)
 	write_disk_history2(HISTORY_GENLOCK_VIDEO);
 	write_disk_history2(HISTORY_GEO);
 	write_disk_history2(HISTORY_STATEFILE);
+	write_disk_history2(HISTORY_CONFIGFILE);
 }
 
 void reset_disk_history (void)
@@ -731,6 +735,7 @@ void reset_disk_history (void)
 		DISK_history_add(NULL, i, HISTORY_GENLOCK_VIDEO, 0);
 		DISK_history_add(NULL, i, HISTORY_GEO, 0);
 		DISK_history_add(NULL, i, HISTORY_STATEFILE, 0);
+		DISK_history_add(NULL, i, HISTORY_CONFIGFILE, 0);
 	}
 	rrold = regread;
 	regread = (1 << HISTORY_MAX) - 1;
@@ -4048,41 +4053,60 @@ static TCHAR *HandleConfiguration (HWND hDlg, int flag, struct ConfigStruct *con
 	TCHAR path[MAX_DPATH];
 	static TCHAR full_path[MAX_DPATH];
 	int ok = 1;
+	bool absolutepath = false;
 
 	full_path[0] = 0;
 	name[0] = 0;
 	desc[0] = 0;
+	config_pathfilename[0] = 0;
 	GetDlgItemText (hDlg, IDC_EDITNAME, name, MAX_DPATH);
+	if ((name[0] == '\\' && name[1] == '\\') || (_istalpha(name[0]) && name[1] == ':'))
+		absolutepath = true;
 	_tcscpy (config_filename, name);
 	if (flag == CONFIG_SAVE_FULL || flag == CONFIG_SAVE) {
 		if (_tcslen (name) < 4 || strcasecmp (name + _tcslen (name) - 4, _T(".uae"))) {
 			_tcscat (name, _T(".uae"));
 			SetDlgItemText (hDlg, IDC_EDITNAME, name);
 		}
-		if (config)
+		if (config && !absolutepath)
 			_tcscpy (config->Name, name);
 	}
 	GetDlgItemText (hDlg, IDC_EDITDESCRIPTION, desc, MAX_DPATH);
 	if (config) {
 		_tcscpy (path, config->Fullpath);
+		_tcscat(config_pathfilename, config->Path);
+		_tcscat(config_pathfilename, config->Name);
+		_tcsncat(path, name, MAX_DPATH - _tcslen(path));
 	} else {
-		fetch_configurationpath (path, sizeof (path) / sizeof (TCHAR));
+		if (absolutepath) {
+			_tcscpy(path, name);
+		} else {
+			fetch_configurationpath(path, sizeof(path) / sizeof(TCHAR));
+			_tcsncat(path, name, MAX_DPATH - _tcslen(path));
+		}
+		TCHAR fname[MAX_DPATH];
+		getfilepart(fname, sizeof fname / sizeof(TCHAR), name);
+		SetDlgItemText(hDlg, IDC_EDITNAME, fname);
 	}
-	_tcsncat (path, name, MAX_DPATH - _tcslen(path));
 	_tcscpy (full_path, path);
+	if (!config_pathfilename[0]) {
+		_tcscat(config_pathfilename, full_path);
+	}
 	switch (flag)
 	{
 	case CONFIG_SAVE_FULL:
 		ok = DiskSelection(hDlg, IDC_SAVE, 5, &workprefs, NULL, newpath);
 		GetDlgItemText (hDlg, IDC_EDITNAME, name, MAX_DPATH);
-		_tcscpy (config_filename, name);
+		_tcscpy(config_filename, name);
+		_tcscpy(config_pathfilename, name);
 		break;
 
 	case CONFIG_LOAD_FULL:
 		if ((ok = DiskSelection(hDlg, IDC_LOAD, 4, &workprefs, NULL, newpath))) {
 			EnableWindow(GetDlgItem (hDlg, IDC_VIEWINFO), workprefs.info[0]);
 			GetDlgItemText (hDlg, IDC_EDITNAME, name, MAX_DPATH);
-			_tcscpy (config_filename, name);
+			_tcscpy(config_filename, name);
+			_tcscpy(config_pathfilename, name);
 		}
 		break;
 
@@ -4123,9 +4147,11 @@ static TCHAR *HandleConfiguration (HWND hDlg, int flag, struct ConfigStruct *con
 		} else {
 			TCHAR szMessage[MAX_DPATH];
 			TCHAR szTitle[MAX_DPATH];
+			TCHAR msg[MAX_DPATH];
 			WIN32GUI_LoadUIString (IDS_DELETECONFIGCONFIRMATION, szMessage, MAX_DPATH);
 			WIN32GUI_LoadUIString (IDS_DELETECONFIGTITLE, szTitle, MAX_DPATH );
-			if (MessageBox (hDlg, szMessage, szTitle,
+			_stprintf(msg, szMessage, name);
+			if (MessageBox (hDlg, msg, szTitle,
 				MB_YESNO | MB_ICONWARNING | MB_APPLMODAL | MB_SETFOREGROUND) == IDYES) {
 					cfgfile_backup (path);
 					DeleteFile (path);
@@ -4135,6 +4161,7 @@ static TCHAR *HandleConfiguration (HWND hDlg, int flag, struct ConfigStruct *con
 				ok = 0;
 			}
 		}
+		config_pathfilename[0] = 0;
 		break;
 	}
 
@@ -4623,6 +4650,8 @@ void InitializeListView (HWND hDlg)
 	int listview_column_width[HARDDISK_COLUMNS];
 	DWORD extraflags = 0;
 	int listpadding;
+
+	SetWindowRedraw(hDlg, FALSE);
 
 	if (cachedlist) {
 		if (lv_old_type >= 0) {
@@ -5173,6 +5202,9 @@ void InitializeListView (HWND hDlg)
 		}
 #endif
 	}
+	SetWindowRedraw(hDlg, TRUE);
+	RedrawWindow(hDlg, NULL, NULL, RDW_ERASE | RDW_FRAME | RDW_INVALIDATE | RDW_ALLCHILDREN);
+
 	if (result != -1) {
 		if (GetWindowRect (list, &rect)) {
 			ScreenToClient (hDlg, (LPPOINT)&rect);
@@ -5613,11 +5645,10 @@ static int LoadConfigTreeView (HWND hDlg, int idx, HTREEITEM parent)
 
 static void InitializeConfig (HWND hDlg, struct ConfigStruct *config)
 {
+	addhistorymenu(hDlg, config == NULL ? _T("") : config->Name, IDC_EDITNAME, HISTORY_CONFIGFILE, false);
 	if (config == NULL) {
-		SetDlgItemText (hDlg, IDC_EDITNAME, _T(""));
 		SetDlgItemText (hDlg, IDC_EDITDESCRIPTION, _T(""));
 	} else {
-		SetDlgItemText (hDlg, IDC_EDITNAME, config->Name);
 		SetDlgItemText (hDlg, IDC_EDITDESCRIPTION, config->Description);
 	}
 	show_box_art(config && config->Artpath[0] ? config->Artpath : NULL);
@@ -5689,6 +5720,9 @@ static struct ConfigStruct *initloadsave (HWND hDlg, struct ConfigStruct *config
 	int dwRFPsize = sizeof(name_buf) / sizeof(TCHAR);
 	TCHAR path[MAX_DPATH];
 
+	HWND lv = GetDlgItem(hDlg, IDC_CONFIGTREE);
+	SetWindowRedraw(lv, FALSE);
+
 	EnableWindow (GetDlgItem (hDlg, IDC_VIEWINFO), workprefs.info[0]);
 	root = InitializeConfigTreeView (hDlg);
 	if (regquerystr (NULL, configreg[configtypepanel], name_buf, &dwRFPsize)) {
@@ -5701,28 +5735,21 @@ static struct ConfigStruct *initloadsave (HWND hDlg, struct ConfigStruct *config
 			config = config2;
 	}
 	config = fixloadconfig (hDlg, config);
+
+	SetWindowRedraw(lv, TRUE);
+	RedrawWindow(lv, NULL, NULL, RDW_ERASE | RDW_FRAME | RDW_INVALIDATE | RDW_ALLCHILDREN);
+
 	if (config && config->item)
 		TreeView_SelectItem (GetDlgItem(hDlg, IDC_CONFIGTREE), config->item);
 	else
 		TreeView_SelectItem (GetDlgItem(hDlg, IDC_CONFIGTREE), root);
-	return config;
-}
 
-static WNDPROC originallistviewtempproc;
-static LRESULT CALLBACK listviewtempproc(HWND hWnd, UINT iMessage, WPARAM wParam, LPARAM lParam)
-{
-	if (wParam == WM_PAINT)
-		return 0;
-	return CallWindowProc(originallistviewtempproc, hWnd, iMessage, wParam, lParam);
+	return config;
 }
 
 static struct ConfigStruct *refreshconfiglist(HWND hDlg, struct ConfigStruct *config)
 {
-	HWND lv = GetDlgItem(hDlg, IDC_CONFIGTREE);
-	originallistviewtempproc = (WNDPROC)GetWindowLongPtr(lv, GWLP_WNDPROC);
-	SetWindowLongPtr(lv, GWLP_WNDPROC, (LONG_PTR)listviewtempproc);
 	struct ConfigStruct *cs = initloadsave(hDlg, config, false);
-	SetWindowLongPtr(lv, GWLP_WNDPROC, (LONG_PTR)originallistviewtempproc);
 	return cs;
 }
 
@@ -5745,6 +5772,25 @@ static void loadsavecommands (HWND hDlg, WPARAM wParam, struct ConfigStruct **co
 				}
 				break;
 			}
+			case IDC_EDITNAME:
+			{
+				TCHAR cfg[MAX_DPATH];
+				if (getcomboboxtext(hDlg, IDC_EDITNAME, cfg, sizeof cfg / sizeof(TCHAR))) {
+					config = NULL;
+					for (int i = 0; i < configstoresize; i++) {
+						struct ConfigStruct *cs = configstore[i];
+						TCHAR path[MAX_DPATH];
+						_tcscpy(path, cs->Path);
+						_tcscat(path, cs->Name);
+						if (!_tcsicmp(path, cfg)) {
+							config = cs;
+							TreeView_SelectItem(GetDlgItem(hDlg, IDC_CONFIGTREE), cs->item);
+							break;
+						}
+					}
+				}
+			}
+			break;
 		}
 	}
 	if (HIWORD(wParam) == EN_CHANGE) {
@@ -5762,9 +5808,12 @@ static void loadsavecommands (HWND hDlg, WPARAM wParam, struct ConfigStruct **co
 	switch (LOWORD (wParam))
 	{
 	case IDC_CONFIGSEARCHCLEAR:
-		config_search[0] = 0;
-		SetDlgItemText(hDlg, IDC_CONFIGSEARCH, _T(""));
-		config = refreshconfiglist(hDlg, config);
+		if (config_search[0]) {
+			config_search[0] = 0;
+			SetDlgItemText(hDlg, IDC_CONFIGSEARCH, _T(""));
+			ConfigToRegistry(config, configtypepanel);
+			config = refreshconfiglist(hDlg, config);
+		}
 		break;
 	case IDC_SAVE:
 		if (HandleConfiguration (hDlg, CONFIG_SAVE_FULL, config, newpath)) {
@@ -20073,15 +20122,13 @@ static HWND updatePanel (int id, UINT action)
 	h = r3c.bottom - r3c.top + 1;
 	pw = r1w.right - r1w.left + 1;
 	ph = r1w.bottom - r1w.top + 1;
-	SetWindowPos (panelDlg, HWND_TOP, 0, 0, 0, 0,
-		SWP_NOSIZE | SWP_NOOWNERZORDER);
+	SetWindowPos (panelDlg, HWND_TOP, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOOWNERZORDER);
 	GetWindowRect (panelDlg, &r3w);
 	GetClientRect (panelDlg, &r3c);
 	x -= r3w.left - r2w.left - 1;
 	y -= r3w.top - r2w.top - 1;
 	if (!fullpanel) {
-		SetWindowPos (panelDlg, HWND_TOP, x + (pw - w) / 2, y + (ph - h) / 2, 0, 0,
-			SWP_NOSIZE | SWP_NOOWNERZORDER);
+		SetWindowPos (panelDlg, HWND_TOP, x + (pw - w) / 2, y + (ph - h) / 2, 0, 0, SWP_NOSIZE | SWP_NOOWNERZORDER);
 	}
 
 	ShowWindow (GetDlgItem (hDlg, IDC_PANEL_FRAME), SW_HIDE);
@@ -20202,7 +20249,9 @@ static void createTreeView (HWND hDlg)
 		icon = LoadIcon (hInst, MAKEINTRESOURCE (IDI_ROOT));
 		ImageList_AddIcon (himl, icon);
 	}
+
 	TVhDlg = GetDlgItem (hDlg, IDC_PANELTREE);
+	SetWindowRedraw(TVhDlg, FALSE);
 	TreeView_SetImageList (TVhDlg, himl, TVSIL_NORMAL);
 
 	p = root = CreateFolderNode (TVhDlg, IDS_TREEVIEW_SETTINGS, NULL, ABOUT_ID, 0, NULL);
@@ -20238,12 +20287,16 @@ static void createTreeView (HWND hDlg)
 	CN (MISC1_ID, _T("misc"));
 	CN (MISC2_ID, _T("misc2"));
 
+	SetWindowRedraw(TVhDlg, TRUE);
+	RedrawWindow(TVhDlg, NULL, NULL, RDW_ERASE | RDW_FRAME | RDW_INVALIDATE | RDW_ALLCHILDREN);
+
 	if (configtypepanel == 1)
 		TreeView_SelectItem (TVhDlg, p1);
 	else if (configtypepanel == 2)
 		TreeView_SelectItem (TVhDlg, p2);
 	else
 		TreeView_SelectItem (TVhDlg, ppage[currentpage].tv);
+
 }
 
 static int dialog_x_offset, dialog_y_offset;
@@ -21342,10 +21395,14 @@ gui_exit:
 	}
 
 	hGUIWnd = NULL;
-	if (quit_program)
+	if (quit_program) {
 		psresult = -2;
-	else if (qs_request_reset && quickstart)
-		uae_reset (qs_request_reset == 2 ? 1 : 0, 1);
+	} else if (qs_request_reset && quickstart) {
+		uae_reset(qs_request_reset == 2 ? 1 : 0, 1);
+	}
+	if (psresult > 0 && config_pathfilename[0]) {
+		DISK_history_add(config_pathfilename, -1, HISTORY_CONFIGFILE, false);
+	}
 
 	if (closed) {
 		graphics_init(false);

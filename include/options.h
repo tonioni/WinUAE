@@ -451,6 +451,7 @@ struct uae_prefs {
 	TCHAR config_hardware_path[MAX_DPATH];
 	TCHAR config_host_path[MAX_DPATH];
 	TCHAR config_all_path[MAX_DPATH];
+	TCHAR config_path[MAX_DPATH];
 	TCHAR config_window_title[256];
 
 	bool illegal_mem;
