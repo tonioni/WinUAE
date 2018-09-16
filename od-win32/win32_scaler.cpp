@@ -125,7 +125,7 @@ static void getmanualpos(int monid, int *cxp, int *cyp, int *cwp, int *chp)
 	} else {
 		cw = v;
 	}
-	cw >>=  (RES_MAX - currprefs.gfx_resolution);
+	cw >>= (RES_MAX - currprefs.gfx_resolution);
 
 	v = currprefs.gfx_ycenter_size;
 	if (v <= 0) {

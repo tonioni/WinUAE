@@ -1,5 +1,16 @@
 
 
+Beta 5:
+
+- Search clear ("X" button) didn't store new empty search filter to registry/ini.
+- Delete config file confirmation message includes also name of config file.
+- Added history list to config file name edit box. New item is only added when emulation is started.
+- Reduced config file list redraw flickering when searching/filtering.
+- Always force 32-bit if Direct3D 11 mode. 16-bit does not seem to be fully supported, screenmode may open but then some later allocation can fail, making recovery difficult (because you can't easily find out if the problem was 16-bit or something else). RTG "Match color depth" option is now also ignored in D3D11 mode.
+- Added support for loading file contents to Z2/Z3 RAM boards (autoconfig or manually configured). Append offset=<RAM byte offset>,fileoffset=<file byte offset>,filesize=<bytes to load>,file=<path to file> to fastmemx_options line. Append readonly to make it ROM. Path must be escaped (\ = \\).
+- Moved all x86 bridgeboard-only expansions under new category "x86 bridgeboard expansions".
+- CD image mounting used original path, when it should have used resolved path (win32.cd_path, environmental variables, etc..) (401b4)
+
 Beta 4:
 
 - Horizontal mid-screen resolution changes (Disposable Hero title screen, Runaway / AD 2000 second disk first part) broke when subpixel support was added.
