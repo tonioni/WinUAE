@@ -2239,8 +2239,8 @@ static int open_device (int unitnum, const TCHAR *ident, int flags)
 		if (ident) {
 			_tcscpy(cdu->imgname_in, ident);
 			cfgfile_resolve_path_out_load(cdu->imgname_in, cdu->imgname_out, MAX_DPATH, PATH_CD);
+			parse_image(cdu, cdu->imgname_out);
 		}
-		parse_image (cdu, ident);
 		cdu->open = true;
 		cdu->enabled = true;
 		cdu->cdda_volume[0] = 0x7fff;
