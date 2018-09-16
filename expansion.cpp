@@ -5314,24 +5314,24 @@ const struct expansionromtype expansionroms[] = {
 		NULL, NULL, NULL, NULL, ROMTYPE_AMAX | ROMTYPE_NONE, 0, 0, 0, false
 	},
 	{
-		_T("x86athdprimary"), _T("AT IDE Primary"), _T("x86"),
+		_T("x86athdprimary"), _T("AT IDE Primary"), NULL,
 		NULL, x86_at_hd_init_1, NULL, x86_add_at_hd_unit_1, ROMTYPE_X86_AT_HD1 | ROMTYPE_NOT, 0, 0, BOARD_NONAUTOCONFIG_AFTER_Z2, true,
 		NULL, 0,
-		false, EXPANSIONTYPE_IDE
+		false, EXPANSIONTYPE_X86_EXPANSION
 	},
 	{
-		_T("x86athdxt"), _T("XTIDE Universal BIOS HD"), _T("x86"),
+		_T("x86athdxt"), _T("XTIDE Universal BIOS HD"), NULL,
 		NULL, x86_at_hd_init_xt, NULL, x86_add_at_hd_unit_xt, ROMTYPE_X86_XT_IDE | ROMTYPE_NONE, 0, 0, BOARD_NONAUTOCONFIG_AFTER_Z2, true,
 		NULL, 0,
-		false, EXPANSIONTYPE_IDE,
+		false, EXPANSIONTYPE_X86_EXPANSION,
 		0, 0, 0, false, NULL,
 		false, 0, x86_athdxt_settings
 	},
 	{
-		_T("x86rt1000"), _T("Rancho RT1000"), _T("x86"),
+		_T("x86rt1000"), _T("Rancho RT1000"), NULL,
 		NULL, x86_rt1000_init, NULL, x86_rt1000_add_unit, ROMTYPE_X86_RT1000 | ROMTYPE_NONE, 0, 0, BOARD_NONAUTOCONFIG_AFTER_Z2, true,
 		NULL, 0,
-		false, EXPANSIONTYPE_SCSI,
+		false, EXPANSIONTYPE_X86_EXPANSION,
 		0, 0, 0, false, NULL,
 		false, 0, x86_rt1000_settings
 
@@ -5388,10 +5388,10 @@ const struct expansionromtype expansionroms[] = {
 		false, EXPANSIONTYPE_RTG
 	},
 	{
-		_T("x86vga"), _T("x86 VGA"), _T("x86"),
+		_T("x86vga"), _T("x86 VGA"), NULL,
 		NULL, NULL, NULL, NULL, ROMTYPE_x86_VGA | ROMTYPE_NONE, 0, 0, BOARD_IGNORE, true,
 		NULL, 0,
-		false, EXPANSIONTYPE_RTG,
+		false, EXPANSIONTYPE_X86_EXPANSION,
 		0, 0, 0, false, NULL,
 		false, 0, x86vga_settings
 	},
@@ -5658,7 +5658,7 @@ const struct expansionromtype expansionroms[] = {
 		_T("x86_mouse"), _T("x86 Bridgeboard mouse"), NULL,
 		NULL, isa_expansion_init, NULL, NULL, ROMTYPE_X86MOUSE | ROMTYPE_NOT, 0, 0, BOARD_NONAUTOCONFIG_BEFORE, true,
 		NULL, 0,
-		false, EXPANSIONTYPE_CUSTOM,
+		false, EXPANSIONTYPE_X86_EXPANSION,
 		0, 0, 0, false, NULL,
 		false, 0, x86_mouse_settings
 	},

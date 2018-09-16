@@ -2159,7 +2159,7 @@ BEGIN
                             "PPC native OS booted with incompatible UAE boot ROM enabled.\nSelect ROM panel ""New UAE (128k, ROM, Indirect)"" option\nor disable all UAE expansions.\n"
     IDS_AUTOSCALE_OVERSCAN_BLANK "Overscan blanking"
     IDS_NUMSG_NOMEMORY      "Out of memory or too much Z3 autoconfig space configured.\nIf 64-bit, make sure RTG board is first in board list."
-    IDS_EXPANSION_CATEGORY  "Built-in expansions\nSCSI controllers\nIDE controllers\nSASI controllers\nCustom controllers\nPCI bridgeboards\nx86 bridgeboards\nGraphics boards\nSound cards\nNetwork adapters\nDisk controllers"
+    IDS_EXPANSION_CATEGORY  "Built-in expansions\nSCSI controllers\nIDE controllers\nSASI controllers\nCustom controllers\nPCI bridgeboards\nx86 bridgeboards\nGraphics boards\nSound cards\nNetwork adapters\nDisk controllers\nx86 bridgeboard expansions"
     IDS_WINUAETITLE_PAUSED  "[Paused]"
     IDS_MOUSE_UNTRAP_MODE   "None (Alt-Tab)\nMiddle button\nMagic mouse\nBoth\n"
     IDS_TABLET_MODE         "-\nTablet emulation\n"
