@@ -4607,9 +4607,11 @@ uae_u8 *save_disk2 (int num, int *len, uae_u8 *dstptr)
 	int size = 0;
 	if (drv->motoroff == 0 && drv->buffered_side >= 0 && drv->tracklen > 0) {
 		m = 1;
-		if (drv->tracktiming[0])
-			m |= 2;
 		size += ((drv->tracklen + 15) * 2) / 8;
+		if (drv->tracktiming[0]) {
+			m |= 2;
+			size *= 2;
+		}
 	}
 	if (!m)
 		return NULL;
@@ -4626,9 +4628,9 @@ uae_u8 *save_disk2 (int num, int *len, uae_u8 *dstptr)
 	save_u32 (drv->skipoffset);
 	save_u32 (drv->indexoffset);
 	for (int j = 0; j < (drv->tracklen + 15) / 16; j++) {
-		save_u16 (drv->bigmfmbuf[j]);
+		save_u16(drv->bigmfmbuf[j]);
 		if (drv->tracktiming[0])
-			save_u16 (drv->tracktiming[j]);
+			save_u16(drv->tracktiming[j]);
 	}
 	save_u16 (drv->revolutions);
 
