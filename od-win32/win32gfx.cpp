@@ -4201,15 +4201,13 @@ bool target_graphics_buffer_update(int monid)
 	return true;
 }
 
-void updatedisplayarea(int monid)
+static void updatedisplayarea2(int monid)
 {
 	struct AmigaMonitor *mon = &AMonitors[monid];
 	struct amigadisplay *ad = &adisplays[monid];
 	if (!mon->screen_is_initialized)
 		return;
-	if (mon->screen_is_picasso)
-		return;
-	if (dx_islost ())
+	if (dx_islost())
 		return;
 #if defined (GFXFILTER)
 	if (mon->currentmode.flags & DM_D3D) {
@@ -4225,8 +4223,20 @@ void updatedisplayarea(int monid)
 					S2X_refresh(monid);
 			}
 #endif
-			DirectDraw_Flip (0);
+			DirectDraw_Flip(0);
 		}
+}
+
+void updatedisplayarea(int monid)
+{
+	if (monid >= 0) {
+		updatedisplayarea2(monid);
+	} else {
+		for (int i = 0; i < MAX_AMIGAMONITORS; i++) {
+			updatedisplayarea2(i);
+		}
+	}
+
 }
 
 void updatewinfsmode(int monid, struct uae_prefs *p)

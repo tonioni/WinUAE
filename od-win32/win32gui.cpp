@@ -4651,8 +4651,6 @@ void InitializeListView (HWND hDlg)
 	DWORD extraflags = 0;
 	int listpadding;
 
-	SetWindowRedraw(hDlg, FALSE);
-
 	if (cachedlist) {
 		if (lv_old_type >= 0) {
 			lv_oldidx[lv_old_type] = ListView_GetTopIndex (cachedlist);
@@ -4740,6 +4738,8 @@ void InitializeListView (HWND hDlg)
 		list = GetDlgItem (hDlg, IDC_CDLIST);
 
 	}
+
+	SetWindowRedraw(list, FALSE);
 
 	scalaresource_listview_font_info(&listpadding);
 	listpadding *= 2;
@@ -5202,8 +5202,6 @@ void InitializeListView (HWND hDlg)
 		}
 #endif
 	}
-	SetWindowRedraw(hDlg, TRUE);
-	RedrawWindow(hDlg, NULL, NULL, RDW_ERASE | RDW_FRAME | RDW_INVALIDATE | RDW_ALLCHILDREN);
 
 	if (result != -1) {
 		if (GetWindowRect (list, &rect)) {
@@ -5235,6 +5233,8 @@ void InitializeListView (HWND hDlg)
 	}
 	lv_old_type = lv_type;
 
+	SetWindowRedraw(list, TRUE);
+	RedrawWindow(list, NULL, NULL, RDW_ERASE | RDW_FRAME | RDW_INVALIDATE | RDW_ALLCHILDREN);
 }
 
 static int listview_find_selected (HWND list)
@@ -7504,7 +7504,7 @@ static void update_da (HWND hDlg)
 	set_da (hDlg);
 	init_colors(0);
 	init_custom();
-	updatedisplayarea(0);
+	updatedisplayarea(-1);
 }
 
 static void handle_da (HWND hDlg)
@@ -9714,6 +9714,8 @@ static void init_expansion2(HWND hDlg, bool init)
 			if (!(expansionroms[i].deviceflags & scsiromselectedmask[scsiromselectedcatnum]))
 				continue;
 			if (scsiromselectedcatnum == 0 && (expansionroms[i].deviceflags & (EXPANSIONTYPE_SASI | EXPANSIONTYPE_CUSTOM)))
+				continue;
+			if ((expansionroms[i].deviceflags & EXPANSIONTYPE_X86_EXPANSION) && scsiromselectedmask[scsiromselectedcatnum] != EXPANSIONTYPE_X86_EXPANSION)
 				continue;
 			int cnt = 0;
 			for (int j = 0; j < MAX_DUPLICATE_EXPANSION_BOARDS; j++) {
@@ -13390,7 +13392,7 @@ static void addhdcontroller(HWND hDlg, const struct expansionromtype *erc, int *
 {
 	TCHAR name[MAX_DPATH];
 	name[0] = 0;
-	if (_tcsicmp(erc->friendlymanufacturer, erc->friendlyname)) {
+	if (erc->friendlymanufacturer && _tcsicmp(erc->friendlymanufacturer, erc->friendlyname)) {
 		_tcscat(name, erc->friendlymanufacturer);
 		_tcscat(name, _T(" "));
 	}
@@ -19143,7 +19145,7 @@ static void filter_handle (HWND hDlg)
 		}
 	}
 	enable_for_hw3ddlg (hDlg);
-	updatedisplayarea(0);
+	updatedisplayarea(-1);
 }
 
 static INT_PTR CALLBACK hw3dDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
@@ -19251,7 +19253,7 @@ static INT_PTR CALLBACK hw3dDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 			currprefs.gf[filter_nativertg].gfx_filter_horiz_zoom_mult = workprefs.gf[filter_nativertg].gfx_filter_horiz_zoom_mult = 1.0;
 			currprefs.gf[filter_nativertg].gfx_filter_vert_zoom_mult = workprefs.gf[filter_nativertg].gfx_filter_vert_zoom_mult = 1.0;
 			values_to_hw3ddlg (hDlg, false);
-			updatedisplayarea(0);
+			updatedisplayarea(-1);
 			break;
 		case IDC_FILTERPRESETLOAD:
 		case IDC_FILTERPRESETSAVE:
@@ -19268,14 +19270,14 @@ static INT_PTR CALLBACK hw3dDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 					currprefs.gf[filter_nativertg].gfx_filter_keep_aspect = workprefs.gf[filter_nativertg].gfx_filter_keep_aspect = 0;
 				enable_for_hw3ddlg (hDlg);
 				values_to_hw3ddlg (hDlg, false);
-				updatedisplayarea(0);
+				updatedisplayarea(-1);
 			}
 		case IDC_FILTERKEEPAUTOSCALEASPECT:
 			{
 				workprefs.gf[filter_nativertg].gfx_filter_keep_autoscale_aspect = currprefs.gf[filter_nativertg].gfx_filter_keep_autoscale_aspect = ischecked (hDlg, IDC_FILTERKEEPAUTOSCALEASPECT) ? 1 : 0;
 				enable_for_hw3ddlg (hDlg);
 				values_to_hw3ddlg (hDlg, false);
-				updatedisplayarea(0);
+				updatedisplayarea(-1);
 			}
 			break;
 		default:
@@ -19333,7 +19335,7 @@ static INT_PTR CALLBACK hw3dDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 					item = SendDlgItemMessage (hDlg, IDC_FILTERSLR, CB_GETCURSEL, 0, 0L);
 					if (item != CB_ERR) {
 						currprefs.gf[filter_nativertg].gfx_filter_scanlineratio = workprefs.gf[filter_nativertg].gfx_filter_scanlineratio = scanlineindexes[item];
-						updatedisplayarea(0);
+						updatedisplayarea(-1);
 					}
 					break;
 				case IDC_FILTEROVERLAYTYPE:
@@ -19351,11 +19353,11 @@ static INT_PTR CALLBACK hw3dDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 					break;
 				case IDC_FILTERHZMULT:
 					currprefs.gf[filter_nativertg].gfx_filter_horiz_zoom_mult = workprefs.gf[filter_nativertg].gfx_filter_horiz_zoom_mult = getfiltermult (hDlg, IDC_FILTERHZMULT);
-					updatedisplayarea(0);
+					updatedisplayarea(-1);
 					break;
 				case IDC_FILTERVZMULT:
 					currprefs.gf[filter_nativertg].gfx_filter_vert_zoom_mult = workprefs.gf[filter_nativertg].gfx_filter_vert_zoom_mult = getfiltermult (hDlg, IDC_FILTERVZMULT);
-					updatedisplayarea(0);
+					updatedisplayarea(-1);
 					break;
 				case IDC_FILTERASPECT:
 					{
@@ -19370,7 +19372,7 @@ static INT_PTR CALLBACK hw3dDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 								v2 = getaspectratio (v - 2);
 						}
 						currprefs.gf[filter_nativertg].gfx_filter_aspect = workprefs.gf[filter_nativertg].gfx_filter_aspect = v2;
-						updatedisplayarea(0);
+						updatedisplayarea(-1);
 					}
 					break;
 				case IDC_FILTERASPECT2:
@@ -19378,7 +19380,7 @@ static INT_PTR CALLBACK hw3dDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 						int v = SendDlgItemMessage (hDlg, IDC_FILTERASPECT2, CB_GETCURSEL, 0, 0L);
 						if (v != CB_ERR)
 							currprefs.gf[filter_nativertg].gfx_filter_keep_aspect = workprefs.gf[filter_nativertg].gfx_filter_keep_aspect = v;
-						updatedisplayarea(0);
+						updatedisplayarea(-1);
 					}
 					break;
 
@@ -19459,7 +19461,7 @@ static INT_PTR CALLBACK hw3dDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 				init_colors(0);
 				notice_new_xcolors ();
 			}
-			updatedisplayarea(0);
+			updatedisplayarea(-1);
 			recursive--;
 			break;
 		}

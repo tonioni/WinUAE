@@ -203,15 +203,15 @@ extern addrbank gfxmem_bank;
 extern addrbank *gfxmem_banks[MAX_RTG_BOARDS];
 extern int rtg_index;
 
-static void lockrtg(void)
+void lockrtg(void)
 {
-	if (currprefs.rtg_multithread)
+	if (currprefs.rtg_multithread && render_pipe)
 		EnterCriticalSection(&render_cs);
 }
 
-static void unlockrtg(void)
+void unlockrtg(void)
 {
-	if (currprefs.rtg_multithread)
+	if (currprefs.rtg_multithread && render_pipe)
 		LeaveCriticalSection(&render_cs);
 }
 
@@ -4456,6 +4456,8 @@ uae_u8 *getrtgbuffer(int monid, int *widthp, int *heightp, int *pitch, int *dept
 	width = state->VirtualWidth;
 	height = state->VirtualHeight;
 	pixbytes = state->BytesPerPixel == 1 && palette ? 1 : 4;
+	if (!width || !height || !pixbytes)
+		return NULL;
 
 	dst = xmalloc (uae_u8, width * height * pixbytes);
 	if (!dst)
@@ -4489,7 +4491,6 @@ uae_u8 *getrtgbuffer(int monid, int *widthp, int *heightp, int *pitch, int *dept
 	*heightp = height;
 	*pitch = width * pixbytes;
 	*depth = pixbytes * 8;
-
 
 	return dst;
 }

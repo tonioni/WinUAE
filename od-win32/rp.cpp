@@ -1757,7 +1757,7 @@ void rp_harddrive_image_change (int num, bool readonly, const TCHAR *name)
 }
 void rp_cd_image_change (int num, const TCHAR *name)
 {
-	rp_device_change (RP_DEVICECATEGORY_CD, num, 0, 0, name);
+	rp_device_change (RP_DEVICECATEGORY_CD, num, 0, true, name);
 }
 
 void rp_floppy_device_enable (int num, bool enabled)

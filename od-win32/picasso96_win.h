@@ -592,6 +592,9 @@ extern uae_u8 *gfx_lock_picasso(int monid, bool, bool);
 extern void gfx_unlock_picasso(int monid, bool);
 extern int createwindowscursor(int monid, uaecptr src, int w, int h, int hiressprite, int doubledsprite, int chipset);
 
+void lockrtg(void);
+void unlockrtg(void);
+
 void fb_copyrow(int monid, uae_u8 *src, uae_u8 *dst, int x, int y, int width, int srcpixbytes, int dy);
 
 extern int p96refresh_active;

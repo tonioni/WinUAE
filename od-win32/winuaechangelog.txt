@@ -1,5 +1,18 @@
 
 
+Beta 6:
+
+- Video recording from hardware emulated graphics boards recorded only black screen.
+- Screenshot from hardware emulated graphics boards always captured visible output even if capture before filtering was ticked.
+- Filter panel (D3D) scanlines work now properly in multimonitor mode. (Previously native/RTG selection was ignored)
+- Taking screenshot/recording when in multithreaded RTG mode was not thread safe.
+- x86 bridgeboard category move broke SCSI and IDE x86 expansions. Sound Blaster and NIC was not moved.
+- x86 bridgeboard virtual serial mouse connected serial port was not reset at reboot.
+- A2386SX bridgeboard chipset EMS banking emulation was not complete, chipset native EMS driver complained about invalid hardware.
+- Creating state file when disk access was active and disk image included timing information (for example ipf) caused buffer overflow.
+- Autoload checkbox was hidden under string field in Advanced information panel.
+- Added untested MSBSYNC disk synchronization mode support.
+
 Beta 5:
 
 - Search clear ("X" button) didn't store new empty search filter to registry/ini.

@@ -2253,7 +2253,7 @@ static int open_device (int unitnum, const TCHAR *ident, int flags)
 		}
 		ret = 1;
 	}
-	blkdev_cd_change (unitnum, cdu->imgname_in);
+	blkdev_cd_change (unitnum, cdu->imgname_out);
 	return ret;
 }
 
@@ -2275,7 +2275,7 @@ static void close_device (int unitnum)
 		unload_image (cdu);
 		uae_sem_destroy (&cdu->sub_sem);
 	}
-	blkdev_cd_change (unitnum, cdu->imgname_in);
+	blkdev_cd_change (unitnum, cdu->imgname_out);
 }
 
 static void close_bus (void)
