@@ -542,17 +542,23 @@ static int AVIOutput_AllocateVideo (void)
 		} else {
 			freertgbuffer(0, getrtgbuffer(0, &avioutput_width, &avioutput_height, &pitch, &avioutput_bits, NULL));
 		}
-		aviout_width_out = avioutput_width + 15;
-		aviout_width_out &= ~15;
-		aviout_height_out = avioutput_height + 1;
-		aviout_height_out &= ~1;
 	}
 
 	if (avioutput_width == 0 || avioutput_height == 0 || avioutput_bits == 0) {
 		avioutput_width = WIN32GFX_GetWidth(mon);
 		avioutput_height = WIN32GFX_GetHeight(mon);
 		avioutput_bits = WIN32GFX_GetDepth(mon, 0);
+		if (WIN32GFX_IsPicassoScreen(mon) && avioutput_originalsize) {
+			struct picasso96_state_struct *state = &picasso96_state[aviout_monid];
+			avioutput_width = state->Width;
+			avioutput_height = state->Height;
+		}
 	}
+
+	aviout_width_out = avioutput_width + 15;
+	aviout_width_out &= ~15;
+	aviout_height_out = avioutput_height + 1;
+	aviout_height_out &= ~1;
 
 	AVIOutput_Initialize ();
 	AVIOutput_ReleaseVideo ();
@@ -949,19 +955,19 @@ static void AVIOuput_WAVWriteAudio (uae_u8 *sndbuffer, int sndbufsize)
 	fwrite (sndbuffer, 1, sndbufsize, wavfile);
 }
 
-static int getFromRenderTarget11(struct avientry *avie)
+static int getFromRenderTarget11(struct avientry *avie, bool renderTarget)
 {
 	int ok = 0;
 	int w, h, pitch, bits = 32;
 	void *data;
 
-	bool got = D3D11_capture(aviout_monid, &data, &w, &h, &pitch);
+	bool got = D3D11_capture(aviout_monid, &data, &w, &h, &pitch, renderTarget);
 	if (got) {
 		int dpitch = ((aviout_width_out * avioutput_bits + 31) & ~31) / 8;
-		for (int y = 0; y < h; y++) {
-			uae_u8 *d = (uae_u8*)avie->lpVideo + (h - y - 1) * dpitch;
+		for (int y = 0; y < h && y < aviout_height_out; y++) {
+			uae_u8 *d = (uae_u8*)avie->lpVideo + (aviout_height_out - y - 1) * dpitch;
 			uae_u32 *s = (uae_u32*)((uae_u8*)data + y * pitch);
-			for (int x = 0; x < w; x++) {
+			for (int x = 0; x < w && x < aviout_width_out; x++) {
 				uae_u32 v = *s++;
 				d[0] = v >> 0;
 				d[1] = v >> 8;
@@ -974,28 +980,28 @@ static int getFromRenderTarget11(struct avientry *avie)
 				}
 			}
 		}
-		D3D11_capture(aviout_monid, NULL, NULL, NULL, NULL);
+		D3D11_capture(aviout_monid, NULL, NULL, NULL, NULL, renderTarget);
 		ok = 1;
 	}
 	return ok;
 }
 
-static int getFromRenderTarget(struct avientry *avie)
+static int getFromRenderTarget(struct avientry *avie, bool renderTarget)
 {
 	int ok = 0;
 	int w, h, bits;
 	HRESULT hr;
 	D3DLOCKED_RECT l;
-	LPDIRECT3DSURFACE9 s = D3D_capture(aviout_monid, &w, &h, &bits);
+	LPDIRECT3DSURFACE9 s = D3D_capture(aviout_monid, &w, &h, &bits, renderTarget);
 	if (s) {
 		hr = s->LockRect(&l, NULL, D3DLOCK_READONLY);
 		if (SUCCEEDED(hr)) {
 			int dpitch = ((aviout_width_out * avioutput_bits + 31) & ~31) / 8;
 			if (bits == 32) {
-				for (int y = 0; y < h; y++) {
-					uae_u8 *d = (uae_u8*)avie->lpVideo + (h - y - 1) * dpitch;
+				for (int y = 0; y < h && y < aviout_height_out; y++) {
+					uae_u8 *d = (uae_u8*)avie->lpVideo + (aviout_height_out - y - 1) * dpitch;
 					uae_u32 *s = (uae_u32*)((uae_u8*)l.pBits + y * l.Pitch);
-					for (int x = 0; x < w; x++) {
+					for (int x = 0; x < w && x < aviout_width_out; x++) {
 						uae_u32 v = *s++;
 						d[0] = v >> 0;
 						d[1] = v >> 8;
@@ -1009,10 +1015,10 @@ static int getFromRenderTarget(struct avientry *avie)
 					}
 				}
 			} else if (bits == 16 || bits == 15) {
-				for (int y = 0; y < h; y++) {
-					uae_u8 *d = (uae_u8*)avie->lpVideo + (h - y - 1) * dpitch;
+				for (int y = 0; y < h && y < aviout_height_out; y++) {
+					uae_u8 *d = (uae_u8*)avie->lpVideo + (aviout_height_out - y - 1) * dpitch;
 					uae_u16 *s = (uae_u16*)((uae_u8*)l.pBits + y * l.Pitch);
-					for (int x = 0; x < w; x++) {
+					for (int x = 0; x < w && x < aviout_width_out; x++) {
 						uae_u16 v = s[x];
 						uae_u16 v2 = v;
 						if (bits == 16) {
@@ -1200,17 +1206,26 @@ static void AVIOutput_WriteVideo(void)
 		dorestart ();
 	waitqueuefull ();
 	ae = allocavientry_video();
+	lockrtg();
 	if (avioutput_originalsize || WIN32GFX_IsPicassoScreen(mon)) {
 		v = getFromBuffer (ae, 1);
+		if (!v) {
+			if (D3D_isenabled(0) == 2) {
+				v = getFromRenderTarget11(ae, false);
+			} else if (D3D_isenabled(0) == 1) {
+				v = getFromRenderTarget(ae, false);
+			}
+		}
 	} else {
 		if (D3D_isenabled(0) == 2) {
-			v = getFromRenderTarget11(ae);
+			v = getFromRenderTarget11(ae, true);
 		} else if (D3D_isenabled(0) == 1) {
-			v = getFromRenderTarget(ae);
+			v = getFromRenderTarget(ae, true);
 		} else {
 			v = getFromDC (ae);
 		}
 	}
+	unlockrtg();
 	if (v)
 		queueavientry (ae);
 	else

@@ -43,8 +43,6 @@ int forcedframelatency = -1;
 #include "direct3d.h"
 
 static TCHAR *D3DHEAD = _T("-");
-static struct gfx_filterdata *filterd3d;
-static int filterd3didx;
 
 static bool showoverlay = true;
 static int slicecnt;
@@ -194,6 +192,10 @@ struct d3dstruct
 	double cursor_x, cursor_y;
 	bool cursor_v, cursor_scale;
 	int statusbar_vx, statusbar_hx;
+
+	struct gfx_filterdata *filterd3d;
+	int filterd3didx;
+	int scanline_osl1, scanline_osl2, scanline_osl3;
 
 	D3DXHANDLE postSourceTextureHandle;
 	D3DXHANDLE postMaskTextureHandle;
@@ -1428,33 +1430,34 @@ static void createscanlines (struct d3dstruct *d3d, int force)
 {
 	HRESULT hr;
 	D3DLOCKED_RECT locked;
-	static int osl1, osl2, osl3;
 	int sl4, sl42;
 	int l1, l2;
 	int x, y, yy;
 	uae_u8 *sld, *p;
 	int bpp;
 
-	if (osl1 == filterd3d->gfx_filter_scanlines && osl3 == filterd3d->gfx_filter_scanlinelevel && osl2 == filterd3d->gfx_filter_scanlineratio && !force)
+	if (d3d->scanline_osl1 == d3d->filterd3d->gfx_filter_scanlines &&
+		d3d->scanline_osl3 == d3d->filterd3d->gfx_filter_scanlinelevel &&
+		d3d->scanline_osl2 == d3d->filterd3d->gfx_filter_scanlineratio && !force)
 		return;
 	bpp = d3d->t_depth < 32 ? 2 : 4;
-	osl1 = filterd3d->gfx_filter_scanlines;
-	osl3 = filterd3d->gfx_filter_scanlinelevel;
-	osl2 = filterd3d->gfx_filter_scanlineratio;
-	sl4 = filterd3d->gfx_filter_scanlines * 16 / 100;
-	sl42 = filterd3d->gfx_filter_scanlinelevel * 16 / 100;
+	d3d->scanline_osl1 = d3d->filterd3d->gfx_filter_scanlines;
+	d3d->scanline_osl3 = d3d->filterd3d->gfx_filter_scanlinelevel;
+	d3d->scanline_osl2 = d3d->filterd3d->gfx_filter_scanlineratio;
+	sl4 = d3d->filterd3d->gfx_filter_scanlines * 16 / 100;
+	sl42 = d3d->filterd3d->gfx_filter_scanlinelevel * 16 / 100;
 	if (sl4 > 15)
 		sl4 = 15;
 	if (sl42 > 15)
 		sl42 = 15;
-	l1 = (filterd3d->gfx_filter_scanlineratio >> 0) & 15;
-	l2 = (filterd3d->gfx_filter_scanlineratio >> 4) & 15;
+	l1 = (d3d->filterd3d->gfx_filter_scanlineratio >> 0) & 15;
+	l2 = (d3d->filterd3d->gfx_filter_scanlineratio >> 4) & 15;
 
 	if (l1 + l2 <= 0)
 		return;
 
 	if (!d3d->sltexture) {
-		if (osl1 == 0 && osl3 == 0)
+		if (d3d->scanline_osl1 == 0 && d3d->scanline_osl3 == 0)
 			return;
 		if (!createsltexture (d3d))
 			return;
@@ -1719,7 +1722,6 @@ static int createmask2texture (struct d3dstruct *d3d, const TCHAR *filename)
 {
 	struct AmigaMonitor *mon = &AMonitors[d3d - d3ddata];
 	struct zfile *zf;
-	int size;
 	LPDIRECT3DTEXTURE9 tx;
 	HRESULT hr;
 	TCHAR tmp[MAX_DPATH];
@@ -2464,51 +2466,51 @@ static int restoredeviceobjects (struct d3dstruct *d3d)
 			break;
 		}
 		for (int i = 0; i < MAX_FILTERSHADERS; i++) {
-			if (filterd3d->gfx_filtershader[i][0]) {
+			if (d3d->filterd3d->gfx_filtershader[i][0]) {
 				struct shaderdata *s = allocshaderslot (d3d, SHADERTYPE_BEFORE);
-				if (!psEffect_LoadEffect (d3d, filterd3d->gfx_filtershader[i], true, s, i)) {
-					filterd3d->gfx_filtershader[i][0] = changed_prefs.gf[filterd3didx].gfx_filtershader[i][0] = 0;
+				if (!psEffect_LoadEffect (d3d, d3d->filterd3d->gfx_filtershader[i], true, s, i)) {
+					d3d->filterd3d->gfx_filtershader[i][0] = changed_prefs.gf[d3d->filterd3didx].gfx_filtershader[i][0] = 0;
 					break;
 				}
 			}
-			if (filterd3d->gfx_filtermask[i][0]) {
+			if (d3d->filterd3d->gfx_filtermask[i][0]) {
 				struct shaderdata *s = allocshaderslot (d3d, SHADERTYPE_MASK_BEFORE);
-				createmasktexture (d3d, filterd3d->gfx_filtermask[i], s);
+				createmasktexture (d3d, d3d->filterd3d->gfx_filtermask[i], s);
 			}
 		}
-		if (filterd3d->gfx_filtershader[2 * MAX_FILTERSHADERS][0]) {
+		if (d3d->filterd3d->gfx_filtershader[2 * MAX_FILTERSHADERS][0]) {
 			struct shaderdata *s = allocshaderslot (d3d, SHADERTYPE_MIDDLE);
-			if (!psEffect_LoadEffect (d3d, filterd3d->gfx_filtershader[2 * MAX_FILTERSHADERS], true, s, 2 * MAX_FILTERSHADERS)) {
-				filterd3d->gfx_filtershader[2 * MAX_FILTERSHADERS][0] = changed_prefs.gf[filterd3didx].gfx_filtershader[2 * MAX_FILTERSHADERS][0] = 0;
+			if (!psEffect_LoadEffect (d3d, d3d->filterd3d->gfx_filtershader[2 * MAX_FILTERSHADERS], true, s, 2 * MAX_FILTERSHADERS)) {
+				d3d->filterd3d->gfx_filtershader[2 * MAX_FILTERSHADERS][0] = changed_prefs.gf[d3d->filterd3didx].gfx_filtershader[2 * MAX_FILTERSHADERS][0] = 0;
 			}
 		}
-		if (filterd3d->gfx_filtermask[2 * MAX_FILTERSHADERS][0]) {
+		if (d3d->filterd3d->gfx_filtermask[2 * MAX_FILTERSHADERS][0]) {
 			struct shaderdata *s = allocshaderslot (d3d, SHADERTYPE_MASK_AFTER);
-			createmasktexture (d3d, filterd3d->gfx_filtermask[2 * MAX_FILTERSHADERS], s);
+			createmasktexture (d3d, d3d->filterd3d->gfx_filtermask[2 * MAX_FILTERSHADERS], s);
 		}
 		for (int i = 0; i < MAX_FILTERSHADERS; i++) {
-			if (filterd3d->gfx_filtershader[i + MAX_FILTERSHADERS][0]) {
+			if (d3d->filterd3d->gfx_filtershader[i + MAX_FILTERSHADERS][0]) {
 				struct shaderdata *s = allocshaderslot (d3d, SHADERTYPE_AFTER);
-				if (!psEffect_LoadEffect (d3d, filterd3d->gfx_filtershader[i + MAX_FILTERSHADERS], true, s, i + MAX_FILTERSHADERS)) {
-					filterd3d->gfx_filtershader[i + MAX_FILTERSHADERS][0] = changed_prefs.gf[filterd3didx].gfx_filtershader[i + MAX_FILTERSHADERS][0] = 0;
+				if (!psEffect_LoadEffect (d3d, d3d->filterd3d->gfx_filtershader[i + MAX_FILTERSHADERS], true, s, i + MAX_FILTERSHADERS)) {
+					d3d->filterd3d->gfx_filtershader[i + MAX_FILTERSHADERS][0] = changed_prefs.gf[d3d->filterd3didx].gfx_filtershader[i + MAX_FILTERSHADERS][0] = 0;
 					break;
 				}
 			}
-			if (filterd3d->gfx_filtermask[i + MAX_FILTERSHADERS][0]) {
+			if (d3d->filterd3d->gfx_filtermask[i + MAX_FILTERSHADERS][0]) {
 				struct shaderdata *s = allocshaderslot (d3d, SHADERTYPE_MASK_AFTER);
-				createmasktexture (d3d, filterd3d->gfx_filtermask[i + MAX_FILTERSHADERS], s);
+				createmasktexture (d3d, d3d->filterd3d->gfx_filtermask[i + MAX_FILTERSHADERS], s);
 			}
 		}
 		break;
 	}
-	if (filterd3d->gfx_filter_scanlines > 0) {
+	if (d3d->filterd3d->gfx_filter_scanlines > 0) {
 		createsltexture(d3d);
 		createscanlines(d3d, 1);
 	}
 	if (wasshader && !shaderon)
 		write_log (_T("Falling back to non-shader mode\n"));
 
-	createmask2texture (d3d, filterd3d->gfx_filteroverlay);
+	createmask2texture (d3d, d3d->filterd3d->gfx_filteroverlay);
 
 	createledtexture (d3d);
 
@@ -2659,8 +2661,8 @@ static const TCHAR *D3D_init2 (struct d3dstruct *d3d, HWND ahwnd, int w_w, int w
 	struct apmode ap;
 	D3DADAPTER_IDENTIFIER9 did;
 
-	filterd3didx = ad->picasso_on;
-	filterd3d = &currprefs.gf[filterd3didx];
+	d3d->filterd3didx = ad->picasso_on;
+	d3d->filterd3d = &currprefs.gf[d3d->filterd3didx];
 
 	D3D_free2 (d3d);
 	if (!currprefs.gfx_api) {
@@ -2956,11 +2958,11 @@ static const TCHAR *D3D_init2 (struct d3dstruct *d3d, HWND ahwnd, int w_w, int w
 
 	d3d->required_sl_texture_w = w_w;
 	d3d->required_sl_texture_h = w_h;
-	if (filterd3d->gfx_filter_scanlines > 0 && (d3d->max_texture_w < w_w || d3d->max_texture_h < w_h)) {
+	if (d3d->filterd3d->gfx_filter_scanlines > 0 && (d3d->max_texture_w < w_w || d3d->max_texture_h < w_h)) {
 		gui_message (_T("%s: %d * %d or bigger texture support required for scanlines (max is only %d * %d)\n"),
 			D3DHEAD, _T("Scanlines disabled."),
 			d3d->required_sl_texture_w, d3d->required_sl_texture_h, d3d->max_texture_w, d3d->max_texture_h);
-		changed_prefs.gf[filterd3didx].gfx_filter_scanlines = filterd3d->gfx_filter_scanlines = 0;
+		changed_prefs.gf[d3d->filterd3didx].gfx_filter_scanlines = d3d->filterd3d->gfx_filter_scanlines = 0;
 	}
 
 	switch (depth)
@@ -3015,7 +3017,7 @@ static const TCHAR *D3D_init2 (struct d3dstruct *d3d, HWND ahwnd, int w_w, int w
 
 	hr = d3d->d3ddev->CreateOffscreenPlainSurface(w_w, w_h, d3d->tformat, D3DPOOL_SYSTEMMEM, &d3d->screenshotsurface, NULL);
 	if (FAILED(hr)) {
-		write_log(_T("%s: CreateOffscreenPlainSurface failed: %s\n"), D3DHEAD, D3D_ErrorString(hr));
+		write_log(_T("%s: CreateOffscreenPlainSurface RT failed: %s\n"), D3DHEAD, D3D_ErrorString(hr));
 	}
 
 	return 0;
@@ -3475,7 +3477,7 @@ static void D3D_render2(struct d3dstruct *d3d, int mode)
 			if (FAILED (hr = postEffect->SetTechnique (d3d->postTechniquePlain)))
 				write_log (_T("%s: SetTechnique(postTechniquePlain) failed: %s\n"), D3DHEAD, D3D_ErrorString (hr));
 		}
-		hr = postEffect->SetInt (d3d->postFilterMode, filterd3d->gfx_filter_bilinear ? D3DTEXF_LINEAR : D3DTEXF_POINT);
+		hr = postEffect->SetInt (d3d->postFilterMode, d3d->filterd3d->gfx_filter_bilinear ? D3DTEXF_LINEAR : D3DTEXF_POINT);
 
 		if (FAILED (hr = postEffect->SetTexture (d3d->postSourceTextureHandle, srctex)))
 			write_log (_T("%s: SetTexture(srctex) failed: %s\n"), D3DHEAD, D3D_ErrorString (hr));
@@ -3549,7 +3551,7 @@ static void D3D_render2(struct d3dstruct *d3d, int mode)
 		hr = d3d->d3ddev->SetTransform (D3DTS_WORLD, &d3d->m_matWorld);
 		hr = d3d->d3ddev->SetTexture (0, srctex);
 		hr = d3d->d3ddev->DrawPrimitive (D3DPT_TRIANGLESTRIP, 0, 2);
-		int bl = filterd3d->gfx_filter_bilinear ? D3DTEXF_LINEAR : D3DTEXF_POINT;
+		int bl = d3d->filterd3d->gfx_filter_bilinear ? D3DTEXF_LINEAR : D3DTEXF_POINT;
 		hr = d3d->d3ddev->SetSamplerState(0, D3DSAMP_MINFILTER, bl);
 		hr = d3d->d3ddev->SetSamplerState(0, D3DSAMP_MAGFILTER, bl);
 		hr = d3d->d3ddev->SetSamplerState(0, D3DSAMP_ADDRESSU, D3DTADDRESS_CLAMP);
@@ -3612,20 +3614,20 @@ static void D3D_render2(struct d3dstruct *d3d, int mode)
 			MatrixScaling (&t, w, h, 0);
 
 			v.x = 0;
-			if (filterd3d->gfx_filteroverlay_pos.x == -1)
+			if (d3d->filterd3d->gfx_filteroverlay_pos.x == -1)
 				v.x = (d3d->window_w - (d3d->mask2texture_w * w)) / 2;
-			else if (filterd3d->gfx_filteroverlay_pos.x > -24000)
-				v.x = filterd3d->gfx_filteroverlay_pos.x;
+			else if (d3d->filterd3d->gfx_filteroverlay_pos.x > -24000)
+				v.x = d3d->filterd3d->gfx_filteroverlay_pos.x;
 			else
-				v.x = (d3d->window_w - (d3d->mask2texture_w * w)) / 2 + (-filterd3d->gfx_filteroverlay_pos.x - 30100) * d3d->window_w / 100.0;
+				v.x = (d3d->window_w - (d3d->mask2texture_w * w)) / 2 + (-d3d->filterd3d->gfx_filteroverlay_pos.x - 30100) * d3d->window_w / 100.0;
 
 			v.y = 0;
-			if (filterd3d->gfx_filteroverlay_pos.y == -1)
+			if (d3d->filterd3d->gfx_filteroverlay_pos.y == -1)
 				v.y = (d3d->window_h - (d3d->mask2texture_h * h)) / 2;
-			else if (filterd3d->gfx_filteroverlay_pos.y > -24000)
-				v.y = filterd3d->gfx_filteroverlay_pos.y;
+			else if (d3d->filterd3d->gfx_filteroverlay_pos.y > -24000)
+				v.y = d3d->filterd3d->gfx_filteroverlay_pos.y;
 			else
-				v.y = (d3d->window_h - (d3d->mask2texture_h * h)) / 2 + (-filterd3d->gfx_filteroverlay_pos.y - 30100) * d3d->window_h / 100.0;
+				v.y = (d3d->window_h - (d3d->mask2texture_h * h)) / 2 + (-d3d->filterd3d->gfx_filteroverlay_pos.y - 30100) * d3d->window_h / 100.0;
 
 			v.x /= w;
 			v.y /= h;
@@ -3992,30 +3994,40 @@ static void xD3D_guimode(int monid, int guion)
 	d3d->guimode = guion;
 }
 
-LPDIRECT3DSURFACE9 D3D_capture(int monid, int *w, int *h, int *bits)
+LPDIRECT3DSURFACE9 D3D_capture(int monid, int *w, int *h, int *bits, bool rendertarget)
 {
 	struct d3dstruct *d3d = &d3ddata[monid];
-	LPDIRECT3DSURFACE9 rt;
 	HRESULT hr;
+	LPDIRECT3DSURFACE9 ret = NULL;
 
 	waitfakemode(d3d);
 	if (!isd3d(d3d))
 		return NULL;
-	hr = d3d->d3ddev->GetRenderTarget(0, &rt);
-	if (FAILED(hr)) {
-		write_log(_T("%s: GetRenderTarget() failed: %s\n"), D3DHEAD, D3D_ErrorString(hr));
-		return NULL;
-	}
-	hr = d3d->d3ddev->GetRenderTargetData(rt, d3d->screenshotsurface);
-	rt->Release();
-	if (FAILED(hr)) {
-		write_log(_T("%s: GetRenderTargetData() failed: %s\n"), D3DHEAD, D3D_ErrorString(hr));
-		return NULL;
+	if (rendertarget) {
+		LPDIRECT3DSURFACE9 rt;
+		hr = d3d->d3ddev->GetRenderTarget(0, &rt);
+		if (FAILED(hr)) {
+			write_log(_T("%s: D3D_capture() GetRenderTarget() failed: %s\n"), D3DHEAD, D3D_ErrorString(hr));
+			return NULL;
+		}
+		hr = d3d->d3ddev->GetRenderTargetData(rt, d3d->screenshotsurface);
+		rt->Release();
+		if (FAILED(hr)) {
+			write_log(_T("%s: D3D_capture() GetRenderTargetData() failed: %s\n"), D3DHEAD, D3D_ErrorString(hr));
+			return NULL;
+		}
+		ret = d3d->screenshotsurface;
+	} else {
+		hr = d3d->texture->GetSurfaceLevel(0, &ret);
+		if (FAILED(hr)) {
+			write_log(_T("%s: D3D_capture() GetSurfaceLevel() failed: %s\n"), D3DHEAD, D3D_ErrorString(hr));
+			return NULL;
+		}
 	}
 	*w = d3d->window_w;
 	*h = d3d->window_h;
 	*bits = d3d->t_depth;
-	return d3d->screenshotsurface;
+	return ret;
 }
 
 static HDC xD3D_getDC(int monid, HDC hdc)

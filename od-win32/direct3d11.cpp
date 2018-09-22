@@ -71,8 +71,6 @@ static HMODULE hd3d11, hdxgi, hd3dcompiler, dwmapi;
 
 static int d3d11_feature_level;
 
-static struct gfx_filterdata *filterd3d;
-static int filterd3didx;
 static int leds[LED_MAX];
 static int debugcolors;
 static bool cannoclear;
@@ -232,7 +230,7 @@ struct d3d11struct
 	ID3D11ShaderResourceView *sltexturerv;
 	ID3D11Texture2D *texture2d, *texture2dstaging;
 	ID3D11Texture2D *sltexture;
-	ID3D11Texture2D *screenshottexture;
+	ID3D11Texture2D *screenshottexturert, *screenshottexturetx;
 	ID3D11VertexShader *m_vertexShader;
 	ID3D11PixelShader *m_pixelShader, *m_pixelShaderSL, *m_pixelShaderMask;
 	ID3D11SamplerState *m_sampleState_point_clamp, *m_sampleState_linear_clamp;
@@ -294,6 +292,10 @@ struct d3d11struct
 	int cursor_offset_x, cursor_offset_y, cursor_offset2_x, cursor_offset2_y;
 	float cursor_x, cursor_y;
 	bool cursor_v, cursor_scale;
+
+	struct gfx_filterdata *filterd3d;
+	int filterd3didx;
+	int scanline_osl1, scanline_osl2, scanline_osl3;
 
 	struct shaderdata11 shaders[MAX_SHADERS];
 	ID3DX11EffectTechnique *technique;
@@ -1716,7 +1718,8 @@ static void FreeTextures(struct d3d11struct *d3d)
 {
 	FreeTexture2D(&d3d->texture2d, &d3d->texture2drv);
 	FreeTexture2D(&d3d->texture2dstaging, NULL);
-	FreeTexture2D(&d3d->screenshottexture, NULL);
+	FreeTexture2D(&d3d->screenshottexturetx, NULL);
+	FreeTexture2D(&d3d->screenshottexturert, NULL);
 
 	freesprite(&d3d->osd);
 	freesprite(&d3d->hwsprite);
@@ -1927,6 +1930,14 @@ static bool CreateTexture(struct d3d11struct *d3d)
 		return false;
 	}
 
+	desc.Width = d3d->m_screenWidth;
+	desc.Height = d3d->m_screenHeight;
+	desc.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
+	hr = d3d->m_device->CreateTexture2D(&desc, nullptr, &d3d->screenshottexturetx);
+	if (FAILED(hr)) {
+		write_log(_T("CreateTexture2D (screenshot tx) failed: %08x\n"), hr);
+	}
+
 	srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
 	srvDesc.Texture2D.MostDetailedMip = 0;
 	srvDesc.Texture2D.MipLevels = desc.MipLevels;
@@ -1947,9 +1958,9 @@ static bool CreateTexture(struct d3d11struct *d3d)
 		desc.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
 		desc.Usage = D3D11_USAGE_STAGING;
 
-		hr = d3d->m_device->CreateTexture2D(&desc, nullptr, &d3d->screenshottexture);
+		hr = d3d->m_device->CreateTexture2D(&desc, nullptr, &d3d->screenshottexturert);
 		if (FAILED(hr)) {
-			write_log(_T("CreateTexture2D (screenshot) failed: %08x\n"), hr);
+			write_log(_T("CreateTexture2D (screenshot rt) failed: %08x\n"), hr);
 		}
 		pSurface->Release();
 	}
@@ -2130,33 +2141,34 @@ static void createscanlines(struct d3d11struct *d3d, int force)
 {
 	HRESULT hr;
 	D3D11_MAPPED_SUBRESOURCE map;
-	static int osl1, osl2, osl3;
 	int sl4, sl42;
 	int l1, l2;
 	int x, y, yy;
 	uae_u8 *sld, *p;
 	int bpp;
 
-	if (osl1 == filterd3d->gfx_filter_scanlines && osl3 == filterd3d->gfx_filter_scanlinelevel && osl2 == filterd3d->gfx_filter_scanlineratio && !force)
+	if (d3d->scanline_osl1 == d3d->filterd3d->gfx_filter_scanlines &&
+		d3d->scanline_osl3 == d3d->filterd3d->gfx_filter_scanlinelevel &&
+		d3d->scanline_osl2 == d3d->filterd3d->gfx_filter_scanlineratio && !force)
 		return;
 	bpp = 4;
-	osl1 = filterd3d->gfx_filter_scanlines;
-	osl3 = filterd3d->gfx_filter_scanlinelevel;
-	osl2 = filterd3d->gfx_filter_scanlineratio;
-	sl4 = filterd3d->gfx_filter_scanlines * 16 / 100;
-	sl42 = filterd3d->gfx_filter_scanlinelevel * 16 / 100;
+	d3d->scanline_osl1 = d3d->filterd3d->gfx_filter_scanlines;
+	d3d->scanline_osl3 = d3d->filterd3d->gfx_filter_scanlinelevel;
+	d3d->scanline_osl2 = d3d->filterd3d->gfx_filter_scanlineratio;
+	sl4 = d3d->filterd3d->gfx_filter_scanlines * 16 / 100;
+	sl42 = d3d->filterd3d->gfx_filter_scanlinelevel * 16 / 100;
 	if (sl4 > 15)
 		sl4 = 15;
 	if (sl42 > 15)
 		sl42 = 15;
-	l1 = (filterd3d->gfx_filter_scanlineratio >> 0) & 15;
-	l2 = (filterd3d->gfx_filter_scanlineratio >> 4) & 15;
+	l1 = (d3d->filterd3d->gfx_filter_scanlineratio >> 0) & 15;
+	l2 = (d3d->filterd3d->gfx_filter_scanlineratio >> 4) & 15;
 
 	if (l1 + l2 <= 0)
 		return;
 
 	if (!d3d->sltexture) {
-		if (osl1 == 0 && osl3 == 0)
+		if (d3d->scanline_osl1 == 0 && d3d->scanline_osl3 == 0)
 			return;
 		if (!createsltexture(d3d))
 			return;
@@ -3250,8 +3262,8 @@ static int xxD3D11_init2(HWND ahwnd, int monid, int w_w, int w_h, int t_w, int t
 
 	write_log(_T("D3D11 init start. (%d*%d) (%d*%d) RTG=%d Depth=%d.\n"), w_w, w_h, t_w, t_h, ad->picasso_on, depth);
 
-	filterd3didx = ad->picasso_on;
-	filterd3d = &currprefs.gf[filterd3didx];
+	d3d->filterd3didx = ad->picasso_on;
+	d3d->filterd3d = &currprefs.gf[d3d->filterd3didx];
 
 	d3d->delayedfs = 0;
 	d3d->device_errors = 0;
@@ -3945,8 +3957,8 @@ static void TextureShaderClass_RenderShader(struct d3d11struct *d3d)
 	}
 
 	// Set the sampler state in the pixel shader.
-	d3d->m_deviceContext->PSSetSamplers(0, 1, filterd3d->gfx_filter_bilinear ? &d3d->m_sampleState_linear_clamp : &d3d->m_sampleState_point_clamp);
-	d3d->m_deviceContext->PSSetSamplers(1, 1, filterd3d->gfx_filter_bilinear ? &d3d->m_sampleState_linear_wrap : &d3d->m_sampleState_point_wrap);
+	d3d->m_deviceContext->PSSetSamplers(0, 1, d3d->filterd3d->gfx_filter_bilinear ? &d3d->m_sampleState_linear_clamp : &d3d->m_sampleState_point_clamp);
+	d3d->m_deviceContext->PSSetSamplers(1, 1, d3d->filterd3d->gfx_filter_bilinear ? &d3d->m_sampleState_linear_wrap : &d3d->m_sampleState_point_wrap);
 
 	// Render the triangle.
 	d3d->m_deviceContext->DrawIndexed(INDEXCOUNT, 0, 0);
@@ -4290,46 +4302,46 @@ static struct shaderdata11 *allocshaderslot(struct d3d11struct *d3d, int type)
 static bool restore(struct d3d11struct *d3d)
 {
 	for (int i = 0; i < MAX_FILTERSHADERS; i++) {
-		if (filterd3d->gfx_filtershader[i][0]) {
+		if (d3d->filterd3d->gfx_filtershader[i][0]) {
 			struct shaderdata11 *s = allocshaderslot(d3d, SHADERTYPE_BEFORE);
-			if (!psEffect_LoadEffect(d3d, filterd3d->gfx_filtershader[i], s, i)) {
+			if (!psEffect_LoadEffect(d3d, d3d->filterd3d->gfx_filtershader[i], s, i)) {
 				freeshaderdata(s);
-				filterd3d->gfx_filtershader[i][0] = changed_prefs.gf[filterd3didx].gfx_filtershader[i][0] = 0;
+				d3d->filterd3d->gfx_filtershader[i][0] = changed_prefs.gf[d3d->filterd3didx].gfx_filtershader[i][0] = 0;
 				break;
 			}
 		}
-		if (filterd3d->gfx_filtermask[i][0]) {
+		if (d3d->filterd3d->gfx_filtermask[i][0]) {
 			struct shaderdata11 *s = allocshaderslot(d3d, SHADERTYPE_MASK_BEFORE);
-			if (!createmasktexture(d3d, filterd3d->gfx_filtermask[i], s)) {
+			if (!createmasktexture(d3d, d3d->filterd3d->gfx_filtermask[i], s)) {
 				freeshaderdata(s);
 			}
 		}
 	}
-	if (filterd3d->gfx_filtershader[2 * MAX_FILTERSHADERS][0]) {
+	if (d3d->filterd3d->gfx_filtershader[2 * MAX_FILTERSHADERS][0]) {
 		struct shaderdata11 *s = allocshaderslot(d3d, SHADERTYPE_MIDDLE);
-		if (!psEffect_LoadEffect(d3d, filterd3d->gfx_filtershader[2 * MAX_FILTERSHADERS], s, 2 * MAX_FILTERSHADERS)) {
+		if (!psEffect_LoadEffect(d3d, d3d->filterd3d->gfx_filtershader[2 * MAX_FILTERSHADERS], s, 2 * MAX_FILTERSHADERS)) {
 			freeshaderdata(s);
-			filterd3d->gfx_filtershader[2 * MAX_FILTERSHADERS][0] = changed_prefs.gf[filterd3didx].gfx_filtershader[2 * MAX_FILTERSHADERS][0] = 0;
+			d3d->filterd3d->gfx_filtershader[2 * MAX_FILTERSHADERS][0] = changed_prefs.gf[d3d->filterd3didx].gfx_filtershader[2 * MAX_FILTERSHADERS][0] = 0;
 		}
 	}
-	if (filterd3d->gfx_filtermask[2 * MAX_FILTERSHADERS][0]) {
+	if (d3d->filterd3d->gfx_filtermask[2 * MAX_FILTERSHADERS][0]) {
 		struct shaderdata11 *s = allocshaderslot(d3d, SHADERTYPE_MASK_AFTER);
-		if (!createmasktexture(d3d, filterd3d->gfx_filtermask[2 * MAX_FILTERSHADERS], s)) {
+		if (!createmasktexture(d3d, d3d->filterd3d->gfx_filtermask[2 * MAX_FILTERSHADERS], s)) {
 			freeshaderdata(s);
 		}
 	}
 	for (int i = 0; i < MAX_FILTERSHADERS; i++) {
-		if (filterd3d->gfx_filtershader[i + MAX_FILTERSHADERS][0]) {
+		if (d3d->filterd3d->gfx_filtershader[i + MAX_FILTERSHADERS][0]) {
 			struct shaderdata11 *s = allocshaderslot(d3d, SHADERTYPE_AFTER);
-			if (!psEffect_LoadEffect(d3d, filterd3d->gfx_filtershader[i + MAX_FILTERSHADERS], s, i + MAX_FILTERSHADERS)) {
+			if (!psEffect_LoadEffect(d3d, d3d->filterd3d->gfx_filtershader[i + MAX_FILTERSHADERS], s, i + MAX_FILTERSHADERS)) {
 				freeshaderdata(s);
-				filterd3d->gfx_filtershader[i + MAX_FILTERSHADERS][0] = changed_prefs.gf[filterd3didx].gfx_filtershader[i + MAX_FILTERSHADERS][0] = 0;
+				d3d->filterd3d->gfx_filtershader[i + MAX_FILTERSHADERS][0] = changed_prefs.gf[d3d->filterd3didx].gfx_filtershader[i + MAX_FILTERSHADERS][0] = 0;
 				break;
 			}
 		}
-		if (filterd3d->gfx_filtermask[i + MAX_FILTERSHADERS][0]) {
+		if (d3d->filterd3d->gfx_filtermask[i + MAX_FILTERSHADERS][0]) {
 			struct shaderdata11 *s = allocshaderslot(d3d, SHADERTYPE_MASK_AFTER);
-			if (!createmasktexture(d3d, filterd3d->gfx_filtermask[i + MAX_FILTERSHADERS], s)) {
+			if (!createmasktexture(d3d, d3d->filterd3d->gfx_filtermask[i + MAX_FILTERSHADERS], s)) {
 				freeshaderdata(s);
 			}
 		}
@@ -4337,7 +4349,7 @@ static bool restore(struct d3d11struct *d3d)
 
 
 	createscanlines(d3d, 1);
-	createmask2texture(d3d, filterd3d->gfx_filteroverlay);
+	createmask2texture(d3d, d3d->filterd3d->gfx_filteroverlay);
 
 	int w = d3d->m_bitmapWidth;
 	int h = d3d->m_bitmapHeight;
@@ -4841,31 +4853,40 @@ static HDC xD3D_getDC(int monid, HDC hdc)
 	}
 }
 
-bool D3D11_capture(int monid, void **data, int *w, int *h, int *pitch)
+bool D3D11_capture(int monid, void **data, int *w, int *h, int *pitch, bool rendertarget)
 {
 	struct d3d11struct *d3d = &d3d11data[monid];
 	HRESULT hr;
+	ID3D11Texture2D *screenshottexture = rendertarget ? d3d->screenshottexturert : d3d->screenshottexturetx;
 
-	if (!d3d->screenshottexture)
+	if (!screenshottexture)
 		return false;
 
 	if (!w || !h) {
-		d3d->m_deviceContext->Unmap(d3d->screenshottexture, 0);
+		d3d->m_deviceContext->Unmap(screenshottexture, 0);
 		return true;
 	} else {
 		D3D11_MAPPED_SUBRESOURCE map;
 		ID3D11Resource* pSurface = NULL;
-		d3d->m_renderTargetView->GetResource(&pSurface);
+		ID3D11Resource* pSurfaceRelease = NULL;
+		if (rendertarget) {
+			d3d->m_renderTargetView->GetResource(&pSurface);
+			pSurfaceRelease = pSurface;
+		} else {
+			pSurface = d3d->texture2dstaging;
+		}
 		if (pSurface) {
-			d3d->m_deviceContext->CopyResource(d3d->screenshottexture, pSurface);
 			D3D11_TEXTURE2D_DESC desc;
-			d3d->screenshottexture->GetDesc(&desc);
-			hr = d3d->m_deviceContext->Map(d3d->screenshottexture, 0, D3D11_MAP_READ, 0, &map);
+			d3d->m_deviceContext->CopyResource(screenshottexture, pSurface);
+			screenshottexture->GetDesc(&desc);
+			hr = d3d->m_deviceContext->Map(screenshottexture, 0, D3D11_MAP_READ, 0, &map);
 			if (FAILED(hr)) {
 				write_log(_T("Screenshot DeviceContext->Map() failed %08x\n"), hr);
 				return false;
 			}
-			pSurface->Release();
+			if (pSurfaceRelease) {
+				pSurfaceRelease->Release();
+			}
 			*data = map.pData;
 			*pitch = map.RowPitch;
 			*w = desc.Width;

@@ -21,6 +21,7 @@
 #include "drawing.h"
 #include "fsdb.h"
 #include "zfile.h"
+#include "picasso96_win.h"
 
 #include "png.h"
 
@@ -116,6 +117,9 @@ static int screenshot_prepare(int monid, int imagemode, struct vidbuffer *vb, bo
 	HGDIOBJ hgdiobj;
 	int bits;
 	int depth = usealpha() ? 32 : 24;
+	bool renderTarget = true;
+
+	lockrtg();
 
 	screenshot_free ();
 
@@ -177,8 +181,11 @@ static int screenshot_prepare(int monid, int imagemode, struct vidbuffer *vb, bo
 			rgb_rs2 = rgb_rs;
 			rgb_as2 = rgb_as;
 		}
-		if (src == NULL)
+		if (src == NULL) {
+			if (WIN32GFX_IsPicassoScreen(mon))
+				renderTarget = false;
 			goto donormal;
+		}
 		if (width == 0 || height == 0) {
 			if (needfree) {
 				if (WIN32GFX_IsPicassoScreen(mon))
@@ -413,19 +420,23 @@ donormal:
 		bool d3dcaptured = false;
 		width = WIN32GFX_GetWidth(mon);
 		height = WIN32GFX_GetHeight(mon);
-
+		if (!renderTarget && WIN32GFX_IsPicassoScreen(mon)) {
+			struct picasso96_state_struct *state = &picasso96_state[monid];
+			width = state->Width;
+			height = state->Height;
+		}
 		if (D3D_isenabled(0) == 2) {
 			int w, h, pitch, bits = 32;
 			void *data;
-			bool got = D3D11_capture(monid, &data, &w, &h, &pitch);
+			bool got = D3D11_capture(monid, &data, &w, &h, &pitch, renderTarget);
 
-			int dpitch = (((w * depth + 31) & ~31) / 8);
-			lpvBits = xmalloc(uae_u8, dpitch * h);
+			int dpitch = (((width * depth + 31) & ~31) / 8);
+			lpvBits = xmalloc(uae_u8, dpitch * height);
 
 			ZeroMemory(bi, sizeof(bi));
 			bi->bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
-			bi->bmiHeader.biWidth = w;
-			bi->bmiHeader.biHeight = h;
+			bi->bmiHeader.biWidth = width;
+			bi->bmiHeader.biHeight = height;
 			bi->bmiHeader.biPlanes = 1;
 			bi->bmiHeader.biBitCount = depth;
 			bi->bmiHeader.biCompression = BI_RGB;
@@ -436,10 +447,10 @@ donormal:
 			bi->bmiHeader.biClrImportant = 0;
 
 			if (got && lpvBits) {
-				for (int y = 0; y < h; y++) {
-					uae_u8 *d = (uae_u8*)lpvBits + (h - y - 1) * dpitch;
+				for (int y = 0; y < h && y < height; y++) {
+					uae_u8 *d = (uae_u8*)lpvBits + (height - y - 1) * dpitch;
 					uae_u32 *s = (uae_u32*)((uae_u8*)data + y * pitch);
-					for (int x = 0; x < w; x++) {
+					for (int x = 0; x < w && x < width; x++) {
 						uae_u32 v = *s++;
 						d[0] = v >> 0;
 						d[1] = v >> 8;
@@ -454,24 +465,24 @@ donormal:
 				}
 			}
 			if (got)
-				D3D11_capture(monid, NULL, NULL, NULL, NULL);
+				D3D11_capture(monid, NULL, NULL, NULL, NULL, renderTarget);
 			d3dcaptured = true;
 
 		} else if (D3D_isenabled(0) == 1) {
 			int w, h, bits;
 			HRESULT hr;
 			D3DLOCKED_RECT l;
-			LPDIRECT3DSURFACE9 s = D3D_capture(monid, &w, &h, &bits);
+			LPDIRECT3DSURFACE9 s = D3D_capture(monid, &w, &h, &bits, renderTarget);
 			if (s) {
 				hr = s->LockRect(&l, NULL, D3DLOCK_READONLY);
 				if (SUCCEEDED(hr)) {
-					int dpitch = (((w * depth + 31) & ~31) / 8);
-					lpvBits = xmalloc(uae_u8, dpitch * h); 
+					int dpitch = (((width * depth + 31) & ~31) / 8);
+					lpvBits = xmalloc(uae_u8, dpitch * height); 
 
 					ZeroMemory(bi, sizeof(bi));
 					bi->bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
-					bi->bmiHeader.biWidth = w;
-					bi->bmiHeader.biHeight = h;
+					bi->bmiHeader.biWidth = width;
+					bi->bmiHeader.biHeight = height;
 					bi->bmiHeader.biPlanes = 1;
 					bi->bmiHeader.biBitCount = depth;
 					bi->bmiHeader.biCompression = BI_RGB;
@@ -483,10 +494,10 @@ donormal:
 
 					if (lpvBits) {
 						if (bits == 32) {
-							for (int y = 0; y < h; y++) {
-								uae_u8 *d = (uae_u8*)lpvBits + (h - y - 1) * dpitch;
+							for (int y = 0; y < h && y < height; y++) {
+								uae_u8 *d = (uae_u8*)lpvBits + (height - y - 1) * dpitch;
 								uae_u32 *s = (uae_u32*)((uae_u8*)l.pBits + y * l.Pitch);
-								for (int x = 0; x < w; x++) {
+								for (int x = 0; x < w && x < width; x++) {
 									uae_u32 v = *s++;
 									d[0] = v >> 0;
 									d[1] = v >> 8;
@@ -500,10 +511,10 @@ donormal:
 								}
 							}
 						} else if (bits == 16 || bits == 15) {
-							for (int y = 0; y < h; y++) {
-								uae_u8 *d = (uae_u8*)lpvBits + (h - y - 1) * dpitch;
+							for (int y = 0; y < h && y < height; y++) {
+								uae_u8 *d = (uae_u8*)lpvBits + (height - y - 1) * dpitch;
 								uae_u16 *s = (uae_u16*)((uae_u8*)l.pBits + y * l.Pitch);
-								for (int x = 0; x < w; x++) {
+								for (int x = 0; x < w && x < width; x++) {
 									uae_u16 v = s[x];
 									uae_u16 v2 = v;
 									if (bits == 16) {
@@ -579,11 +590,13 @@ donormal:
 		if (!lpvBits)
 			goto oops;
 	}
+	unlockrtg();
 	screenshot_prepared = TRUE;
 	return 1;
 
 oops:
 	screenshot_free ();
+	unlockrtg();
 	return 0;
 }
 
