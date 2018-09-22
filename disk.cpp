@@ -3531,6 +3531,10 @@ static int doreaddma (void)
 			} else {
 				DSKDAT (word);
 				dsklength--;
+#if 0
+				if (dsklength < 1 && (adkcon & 0x200))
+					activate_debugger();
+#endif
 			}
 		}
 		return 1;
@@ -3574,7 +3578,7 @@ static void wordsync_detected(bool startup)
 			dma_enable = 1;
 		INTREQ(0x8000 | 0x1000);
 	}
-	if (adkcon & 0x0400) {
+	if (adkcon & 0x0400) { // WORDSYNC
 		bitoffset = 15;
 	}
 }
@@ -3600,8 +3604,11 @@ static void disk_doupdate_read (drive * drv, int floppybits)
 	mfmbuf[7] = 0x4444;
 	*/
 	while (floppybits >= drv->trackspeed) {
+		bool skipbit = false;
+
 		if (drv->tracktiming[0])
 			updatetrackspeed (drv, drv->mfmpos);
+
 		word <<= 1;
 
 		if (!drive_empty (drv)) {
@@ -3610,6 +3617,7 @@ static void disk_doupdate_read (drive * drv, int floppybits)
 			else
 				word |= getonebit (drv->bigmfmbuf, drv->mfmpos);
 		}
+
 		//write_log (_T("%08X bo=%d so=%d mfmpos=%d dma=%d\n"), (word & 0xffffff), bitoffset, syncoffset, drv->mfmpos, dma_enable);
 		if (doreaddma () < 0) {
 			word >>= 1;
@@ -3646,16 +3654,35 @@ static void disk_doupdate_read (drive * drv, int floppybits)
 				}
 			}
 		}
-		if ((bitoffset & 7) == 7) {
+
+		// MSBSYNC
+		if (adkcon & 0x200) {
+			if ((word & 0x0001) == 0 && bitoffset == 0) {
+				word = 0;
+				skipbit = true;
+			}
+			if ((word & 0x0001) == 0 && bitoffset == 8) {
+				word >>= 1;
+				skipbit = true;
+			}
+		}
+
+		if (!skipbit && (bitoffset & 7) == 7) {
 			dskbytr_val = word & 0xff;
 			dskbytr_val |= 0x8000;
 		}
-		if (word == dsksync)
-			wordsync_detected(false);
-		bitoffset++;
-		bitoffset &= 15;
-		floppybits -= drv->trackspeed;
 
+		// WORDSYNC
+		if (!(adkcon & 0x200) && word == dsksync) {
+			wordsync_detected(false);
+		}
+
+		if (!skipbit) {
+			bitoffset++;
+			bitoffset &= 15;
+		}
+
+		floppybits -= drv->trackspeed;
 	}
 }
 
