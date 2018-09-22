@@ -19,6 +19,7 @@
 #define X86_IO_PORT_DEBUG 0
 #define X86_DEBUG_SPECIAL_IO 0
 #define FLOPPY_DEBUG 0
+#define EMS_DEBUG 1
 
 #define DEBUG_DMA 0
 #define DEBUG_PIT 0
@@ -229,20 +230,13 @@ static void reset_cpu(void)
 	struct x86_bridge *xb = bridges[0];
 
 	resetx86();
-
-//	CPU_ShutDown(dosbox_sec);
-//	CPU_Init(dosbox_sec, xb->dosbox_cpu, xb->dosbox_cpu_arch);
-//	CPU_JMP(false, 0xffff, 0, 0);
 }
 
+static void reset_x86_hardware(struct x86_bridge *xb);
 static void reset_x86_cpu(struct x86_bridge *xb)
 {
 	write_log(_T("x86 CPU reset\n"));
-
 	reset_cpu();
-	// reset x86 hd controllers
-	x86_ide_hd_put(-1, 0, 0);
-	x86_rt1000_bput(-1, 0);
 }
 
 uint8_t x86_get_jumpers(void)
@@ -390,6 +384,7 @@ static uae_u8 x86_bridge_put_io(struct x86_bridge *xb, uaecptr addr, uae_u8 v)
 		case IO_CONTROL_REGISTER:
 		if (!(v & 0x4)) {
 			xb->x86_reset = true;
+			reset_x86_hardware(xb);
 		}
 		if (!(v & 1))
 			v |= 2;
@@ -1532,29 +1527,38 @@ static uae_u8 get0x3da(struct x86_bridge *xb)
 }
 
 
+#define EMS_BANK 0x4000
+#define EMS_MASK 0x3fff
+
 static uint8_t mem_read_emsb(uint32_t addr, void *priv)
 {
-	return ram[addr];
+	uint8_t *p = (uint8_t*)priv;
+	return p[addr & EMS_MASK];
 }
 static uint16_t mem_read_emsw(uint32_t addr, void *priv)
 {
-	return ((uint16_t*)&ram[addr])[0];
+	uint8_t *p = (uint8_t*)priv;
+	return ((uint16_t*)&p[addr & EMS_MASK])[0];
 }
 static uint32_t mem_read_emsl(uint32_t addr, void *priv)
 {
-	return ((uint32_t*)&ram[addr])[0];
+	uint8_t *p = (uint8_t*)priv;
+	return ((uint32_t*)&p[addr & EMS_MASK])[0];
 }
 static void mem_write_emsb(uint32_t addr, uint8_t val, void *priv)
 {
-	ram[addr] = val;
+	uint8_t *p = (uint8_t*)priv;
+	p[addr & EMS_MASK] = val;
 }
 static void mem_write_emsw(uint32_t addr, uint16_t val, void *priv)
 {
-	((uint16_t*)&ram[addr])[0] = val;
+	uint8_t *p = (uint8_t*)priv;
+	((uint16_t*)&p[addr & EMS_MASK])[0] = val;
 }
 static void mem_write_emsl(uint32_t addr, uint32_t val, void *priv)
 {
-	((uint32_t*)&ram[addr])[0] = val;
+	uint8_t *p = (uint8_t*)priv;
+	((uint32_t*)&p[addr & EMS_MASK])[0] = val;
 }
 
 static uint8_t mem_read_shadowb(uint32_t addr, void *priv)
@@ -1589,7 +1593,7 @@ static void mem_write_shadowl(uint32_t addr, uint32_t val, void *priv)
 }
 
 static const uae_u32 shadow_bases[] = { 0xa0000, 0xc0000, 0xd0000, 0xe0000 };
-static const uae_u32 shadow_sizes[] = { 0x8000, 0x4000, 0x4000, 0x8000 };
+static const uae_u32 shadow_sizes[] = { 0x08000, 0x04000, 0x04000, 0x08000 };
 
 static void vlsi_set_mapping(struct x86_bridge *xb)
 {
@@ -1625,25 +1629,35 @@ static void vlsi_set_ems(struct x86_bridge *xb, bool all)
 		uae_u32 baseaddr;
 		uae_u32 emsaddr;
 		if (i >= 0x0c) {
-			baseaddr = 0x40000 + (i - 0x0c) * 0x4000;
+			baseaddr = 0x40000 + (i - 0x0c) * EMS_BANK;
 		} else {
 			bool emsmap = ((xb->vlsi_regs[0x0b] >> 4) & 1) != 0;
 			if (emsmap) {
 				if (i < 0x04)
-					baseaddr = 0xa0000 + (i - 0) * 0x4000;
+					baseaddr = 0xa0000 + (i - 0) * EMS_BANK;
 				else if (i < 0x08)
-					baseaddr = 0xd0000 + (i - 4) * 0x4000;
+					baseaddr = 0xd0000 + (i - 4) * EMS_BANK;
 				else
-					baseaddr = 0xb0000 + (i - 8) * 0x4000;
+					baseaddr = 0xb0000 + (i - 8) * EMS_BANK;
 			} else {
-				baseaddr = 0xc0000 + i * 0x4000;
+				baseaddr = 0xc0000 + i * EMS_BANK;
 			}
 		}
 		emsaddr = xb->vlsi_regs_ems[i] << 14;
 		if (((i < 0x0c && (emsenablebits & (1 << i))) || (i >= 0x0c && emsbackfillenable)) && emsenable) {
-			mem_mapping_set_addr(m, baseaddr, 0x4000);
-			mem_mapping_set_exec(m, ram + emsaddr);
+			uae_u8 *paddr = ram + emsaddr;
+#if EMS_DEBUG
+			if (!m->enable || m->base != baseaddr || m->exec != paddr)
+				write_log(_T("EMS %06x = %08x (%p)\n"), baseaddr, emsaddr, paddr);
+#endif
+			mem_mapping_set_p(m, paddr);
+			mem_mapping_set_addr(m, baseaddr, EMS_BANK);
+			mem_mapping_set_exec(m, paddr);
 		}	else {
+#if EMS_DEBUG
+			if (m->enable)
+				write_log(_T("EMS %06x = -\n"), baseaddr);
+#endif
 			mem_mapping_disable(m);
 		}
 	}
@@ -1708,8 +1722,8 @@ static void vlsi_init_mapping(struct x86_bridge *xb)
 	}
 	// EMS
 	for (int i = 0x0; i < 0xc; i++) {
-		uae_u32 addr = 0xa0000 + i * 0x4000;
-		mem_mapping_add(&xb->ems[i], addr, 0x4000,
+		uae_u32 addr = 0xa0000 + i * EMS_BANK;
+		mem_mapping_add(&xb->ems[i], addr, EMS_BANK,
 			mem_read_emsb, mem_read_emsw, mem_read_emsl,
 			mem_write_emsb, mem_write_emsw, mem_write_emsl,
 			ram + addr, MEM_READ_INTERNAL | MEM_WRITE_INTERNAL, NULL);
@@ -1717,8 +1731,8 @@ static void vlsi_init_mapping(struct x86_bridge *xb)
 	}
 	// EMS backfill
 	for (int i = 0x0c; i < 0x24; i++) {
-		uae_u32 addr = 0x40000 + i * 0x4000;
-		mem_mapping_add(&xb->ems[i], addr, 0x4000,
+		uae_u32 addr = 0x40000 + i * EMS_BANK;
+		mem_mapping_add(&xb->ems[i], addr, EMS_BANK,
 			mem_read_emsb, mem_read_emsw, mem_read_emsl,
 			mem_write_emsb, mem_write_emsw, mem_write_emsl,
 			ram + addr, MEM_READ_INTERNAL | MEM_WRITE_INTERNAL, NULL);
@@ -1727,6 +1741,14 @@ static void vlsi_init_mapping(struct x86_bridge *xb)
 	xb->vlsi_regs[2] = 0xff;
 	xb->sltptr = 0xff;
 }
+
+static void vlsi_reset(struct x86_bridge *xb)
+{
+	memset(xb->vlsi_regs, 0, sizeof xb->vlsi_regs);
+	vlsi_set_ems(xb, true);
+	vlsi_set_mapping(xb);
+}
+
 
 static void vlsi_reg_out(struct x86_bridge *xb, int reg, uae_u8 v)
 {
@@ -1752,7 +1774,9 @@ static void vlsi_reg_out(struct x86_bridge *xb, int reg, uae_u8 v)
 
 		case 0x0b: // ENSEN1
 		case 0x0c: // ENSEN2
+#if EMS_DEBUG
 		write_log(_T("ENSEN%d = %02x\n"), reg == 0x0b ? 1 : 2, v);
+#endif
 		vlsi_set_ems(xb, true);
 		vlsi_set_mapping(xb);
 		break;
@@ -1818,7 +1842,9 @@ static void vlsi_out(struct x86_bridge *xb, int portnum, uae_u8 v)
 		case 0xeb:
 		xb->vlsi_regs_ems[xb->scamp_idx1 & 0x3f] &= 0x00ff;
 		xb->vlsi_regs_ems[xb->scamp_idx1 & 0x3f] |= v << 8;
-		write_log(_T("EMS %d = %04x\n"), xb->vlsi_regs_ems[xb->scamp_idx1 & 0x3f]);
+#if EMS_DEBUG
+		write_log(_T("EMS %02d = %04x\n"), xb->scamp_idx1, xb->vlsi_regs_ems[xb->scamp_idx1 & 0x3f]);
+#endif
 		vlsi_set_ems(xb, false);
 		vlsi_set_mapping(xb);
 		vlsi_autoinc(xb);
@@ -2144,6 +2170,7 @@ void portout(uint16_t portnum, uint8_t v)
 		// A2386SX only
 		case 0xe8:
 		case 0xea:
+		case 0xeb:
 		case 0xec:
 		case 0xed:
 		case 0xee:
@@ -2474,6 +2501,7 @@ uint8_t portin(uint16_t portnum)
 		// A2386SX only
 		case 0xe8:
 		case 0xea:
+		case 0xeb:
 		case 0xec:
 		case 0xed:
 		case 0xee:
@@ -3676,12 +3704,14 @@ void *mouse_serial_init();
 void *mouse_ps2_init();
 void *mouse_intellimouse_init();
 void serial1_init(uint16_t addr, int irq);
+void serial_reset();
 
 static void set_mouse(struct x86_bridge *xb)
 {
 	if (!is_board_enabled(&currprefs, ROMTYPE_X86MOUSE, 0))
 		return;
 	struct romconfig *rc = get_device_romconfig(&currprefs, ROMTYPE_X86MOUSE, 0);
+	ps2_mouse_supported = false;
 	if (rc) {
 		xb->mouse_port = (rc->device_settings & 3) + 1;
 		xb->mouse_type = (rc->device_settings >> 2) & 3;
@@ -3689,8 +3719,8 @@ static void set_mouse(struct x86_bridge *xb)
 		{
 			case 0:
 			default:
-			ps2_mouse_supported = false;
 			serial1_init(0x3f8, 4);
+			serial_reset();
 			xb->mouse_base = mouse_serial_init();
 			break;
 			case 1:
@@ -3969,6 +3999,24 @@ bool x86_bridge_init(struct autoconfig_info *aci, uae_u32 romtype, int type)
 	aci->addrbank = xb->bank;
 	return true;
 }
+
+static void reset_x86_hardware(struct x86_bridge *xb)
+{
+	x86_ide_hd_put(-1, 0, 0);
+	x86_rt1000_bput(-1, 0);
+
+#if 0
+	if (xb->type >= TYPE_2386) {
+		vlsi_reset(xb);
+	}
+#endif
+	if (xb->ne2000_isa) {
+		xb->ne2000_isa->reset(xb->ne2000_isa_board_state);
+	}
+
+	serial_reset();
+}
+
 
 void x86_map_lfb(int v)
 {

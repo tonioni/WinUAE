@@ -5317,13 +5317,13 @@ const struct expansionromtype expansionroms[] = {
 		_T("x86athdprimary"), _T("AT IDE Primary"), NULL,
 		NULL, x86_at_hd_init_1, NULL, x86_add_at_hd_unit_1, ROMTYPE_X86_AT_HD1 | ROMTYPE_NOT, 0, 0, BOARD_NONAUTOCONFIG_AFTER_Z2, true,
 		NULL, 0,
-		false, EXPANSIONTYPE_X86_EXPANSION
+		false, EXPANSIONTYPE_X86_EXPANSION | EXPANSIONTYPE_IDE,
 	},
 	{
 		_T("x86athdxt"), _T("XTIDE Universal BIOS HD"), NULL,
 		NULL, x86_at_hd_init_xt, NULL, x86_add_at_hd_unit_xt, ROMTYPE_X86_XT_IDE | ROMTYPE_NONE, 0, 0, BOARD_NONAUTOCONFIG_AFTER_Z2, true,
 		NULL, 0,
-		false, EXPANSIONTYPE_X86_EXPANSION,
+		false, EXPANSIONTYPE_X86_EXPANSION | EXPANSIONTYPE_IDE,
 		0, 0, 0, false, NULL,
 		false, 0, x86_athdxt_settings
 	},
@@ -5331,7 +5331,7 @@ const struct expansionromtype expansionroms[] = {
 		_T("x86rt1000"), _T("Rancho RT1000"), NULL,
 		NULL, x86_rt1000_init, NULL, x86_rt1000_add_unit, ROMTYPE_X86_RT1000 | ROMTYPE_NONE, 0, 0, BOARD_NONAUTOCONFIG_AFTER_Z2, true,
 		NULL, 0,
-		false, EXPANSIONTYPE_X86_EXPANSION,
+		false, EXPANSIONTYPE_X86_EXPANSION | EXPANSIONTYPE_SCSI,
 		0, 0, 0, false, NULL,
 		false, 0, x86_rt1000_settings
 
@@ -5449,7 +5449,7 @@ const struct expansionromtype expansionroms[] = {
 		_T("sb_isa"), _T("SoundBlaster ISA (Creative)"), NULL,
 		NULL, isa_expansion_init, NULL, NULL, ROMTYPE_SBISA | ROMTYPE_NOT, 0, 0, BOARD_NONAUTOCONFIG_BEFORE, true,
 		NULL, 0,
-		false, EXPANSIONTYPE_SOUND,
+		false, EXPANSIONTYPE_X86_EXPANSION | EXPANSIONTYPE_SOUND,
 		0, 0, 0, false, NULL,
 		false, 0, sb_isa_settings
 	},
@@ -5560,7 +5560,7 @@ const struct expansionromtype expansionroms[] = {
 		_T("ne2000_isa"), _T("RTL8019 ISA (NE2000 compatible)"), NULL,
 		NULL, isa_expansion_init, NULL, NULL, ROMTYPE_NE2KISA | ROMTYPE_NOT, 0, 0, BOARD_NONAUTOCONFIG_BEFORE, true,
 		NULL, 0,
-		false, EXPANSIONTYPE_NET,
+		false, EXPANSIONTYPE_NET | EXPANSIONTYPE_X86_EXPANSION,
 		0, 0, 0, false, NULL,
 		false, 0, ne2k_isa_settings
 	},
