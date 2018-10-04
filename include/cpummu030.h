@@ -44,13 +44,6 @@ bool mmu_op30_pmove (uaecptr pc, uae_u32 opcode, uae_u16 next, uaecptr extra);
 bool mmu_op30_ptest (uaecptr pc, uae_u32 opcode, uae_u16 next, uaecptr extra);
 bool mmu_op30_pflush (uaecptr pc, uae_u32 opcode, uae_u16 next, uaecptr extra);
 
-uae_u32 mmu_op30_helper_get_fc(uae_u16 next);
-
-void mmu030_ptest_atc_search(uaecptr logical_addr, uae_u32 fc, bool write);
-uae_u32 mmu030_ptest_table_search(uaecptr extra, uae_u32 fc, bool write, int level);
-uae_u32 mmu030_table_search(uaecptr addr, uae_u32 fc, bool write, int level);
-
-
 typedef struct {
     uae_u32 addr_base;
     uae_u32 addr_mask;
@@ -58,7 +51,6 @@ typedef struct {
     uae_u32 fc_mask;
 } TT_info;
 
-TT_info mmu030_decode_tt(uae_u32 TT);
 bool mmu030_decode_tc(uae_u32 TC, bool);
 bool mmu030_decode_rp(uae_u64 RP);
 

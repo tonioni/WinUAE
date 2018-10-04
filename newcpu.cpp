@@ -4064,7 +4064,7 @@ static bool mmu_op30_invea(uae_u32 opcode)
 	int rreg = opcode & 7;
 
 	// Dn, An, (An)+, -(An), immediate and PC-relative not allowed
-	if (eamode == 0 || eamode == 1 || eamode == 3 || eamode == 4 || eamode == 6 || (eamode == 7 && rreg > 1))
+	if (eamode == 0 || eamode == 1 || eamode == 3 || eamode == 4 || (eamode == 7 && rreg > 1))
 		return true;
 	return false;
 }
