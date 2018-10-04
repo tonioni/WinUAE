@@ -2151,7 +2151,7 @@ END
 STRINGTABLE
 BEGIN
     IDS_FILTER_PAL_EXTRA    "Brightness\nContrast\nSaturation\nGamma\nScanlines\nBlurriness\nNoise\n"
-    IDS_FILTER_3D_EXTRA     "Point/Bilinear\nScanline opacity\nScanline level\n"
+    IDS_FILTER_3D_EXTRA     "Point/Bilinear\nScanline opacity\nScanline level\nScanline offset\n"
     IDS_ALWAYS_ON           "Always on"
     IDS_DISPLAY_ATTRIBUTES  "Brightness\nContrast\nGamma\nGamma [R]\nGamma [G]\nGamma [B]\nDark palette fix"
     IDS_NUMSG_NO_PPC        "PPC CPU was started but PPC CPU emulation core plugin was not found. Download available from http://www.winuae.net/"

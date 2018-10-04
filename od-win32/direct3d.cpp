@@ -195,7 +195,7 @@ struct d3dstruct
 
 	struct gfx_filterdata *filterd3d;
 	int filterd3didx;
-	int scanline_osl1, scanline_osl2, scanline_osl3;
+	int scanline_osl1, scanline_osl2, scanline_osl3, scanline_osl4;
 
 	D3DXHANDLE postSourceTextureHandle;
 	D3DXHANDLE postMaskTextureHandle;
@@ -1438,12 +1438,15 @@ static void createscanlines (struct d3dstruct *d3d, int force)
 
 	if (d3d->scanline_osl1 == d3d->filterd3d->gfx_filter_scanlines &&
 		d3d->scanline_osl3 == d3d->filterd3d->gfx_filter_scanlinelevel &&
-		d3d->scanline_osl2 == d3d->filterd3d->gfx_filter_scanlineratio && !force)
+		d3d->scanline_osl2 == d3d->filterd3d->gfx_filter_scanlineratio &&
+		d3d->scanline_osl4 == d3d->filterd3d->gfx_filter_scanlineoffset &&
+		!force)
 		return;
 	bpp = d3d->t_depth < 32 ? 2 : 4;
 	d3d->scanline_osl1 = d3d->filterd3d->gfx_filter_scanlines;
 	d3d->scanline_osl3 = d3d->filterd3d->gfx_filter_scanlinelevel;
 	d3d->scanline_osl2 = d3d->filterd3d->gfx_filter_scanlineratio;
+	d3d->scanline_osl4 = d3d->filterd3d->gfx_filter_scanlineoffset;
 	sl4 = d3d->filterd3d->gfx_filter_scanlines * 16 / 100;
 	sl42 = d3d->filterd3d->gfx_filter_scanlinelevel * 16 / 100;
 	if (sl4 > 15)
@@ -1469,13 +1472,15 @@ static void createscanlines (struct d3dstruct *d3d, int force)
 		return;
 	}
 	sld = (uae_u8*)locked.pBits;
-	for (y = 0; y < d3d->required_sl_texture_h; y++)
-		memset (sld + y * locked.Pitch, 0, d3d->required_sl_texture_w * bpp);
-	for (y = 1; y < d3d->required_sl_texture_h; y += l1 + l2) {
+	for (y = 0; y < d3d->required_sl_texture_h; y++) {
+		memset(sld + y * locked.Pitch, 0, d3d->required_sl_texture_w * bpp);
+	}
+	for (y = 0; y < d3d->required_sl_texture_h; y += l1 + l2) {
+		int y2 = y + (d3d->filterd3d->gfx_filter_scanlineoffset % (l1 + 1));
 		for (yy = 0; yy < l2 && y + yy < d3d->required_sl_texture_h; yy++) {
 			for (x = 0; x < d3d->required_sl_texture_w; x++) {
 				uae_u8 sll = sl42;
-				p = &sld[(y + yy) * locked.Pitch + (x * bpp)];
+				p = &sld[(y + y2) * locked.Pitch + (x * bpp)];
 				if (bpp < 4) {
 					/* 16-bit, A4R4G4B4 */
 					p[1] = (sl4 << 4) | (sll << 0);

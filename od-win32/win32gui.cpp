@@ -18517,6 +18517,7 @@ static struct filterxtra filter_3d_extra[] =
 	_T("Point/Bilinear"), &workprefs.gf[0].gfx_filter_bilinear, &workprefs.gf[1].gfx_filter_bilinear, &currprefs.gf[0].gfx_filter_bilinear, &currprefs.gf[1].gfx_filter_bilinear, 0, 1, 1,
 	_T("Scanline opacity"), &workprefs.gf[0].gfx_filter_scanlines, &workprefs.gf[1].gfx_filter_scanlines, &currprefs.gf[0].gfx_filter_scanlines, &currprefs.gf[1].gfx_filter_scanlines, 0, 100, 10,
 	_T("Scanline level"), &workprefs.gf[0].gfx_filter_scanlinelevel, &workprefs.gf[1].gfx_filter_scanlinelevel, &currprefs.gf[0].gfx_filter_scanlinelevel, &currprefs.gf[1].gfx_filter_scanlinelevel, 0, 100, 10,
+	_T("Scanline offset"), &workprefs.gf[0].gfx_filter_scanlineoffset, &workprefs.gf[1].gfx_filter_scanlineoffset, &currprefs.gf[0].gfx_filter_scanlineoffset, &currprefs.gf[1].gfx_filter_scanlineoffset, 0, 3, 1,
 	NULL
 };
 static int dummy_in, dummy_out;

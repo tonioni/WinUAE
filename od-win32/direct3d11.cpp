@@ -295,7 +295,7 @@ struct d3d11struct
 
 	struct gfx_filterdata *filterd3d;
 	int filterd3didx;
-	int scanline_osl1, scanline_osl2, scanline_osl3;
+	int scanline_osl1, scanline_osl2, scanline_osl3, scanline_osl4;
 
 	struct shaderdata11 shaders[MAX_SHADERS];
 	ID3DX11EffectTechnique *technique;
@@ -2149,12 +2149,15 @@ static void createscanlines(struct d3d11struct *d3d, int force)
 
 	if (d3d->scanline_osl1 == d3d->filterd3d->gfx_filter_scanlines &&
 		d3d->scanline_osl3 == d3d->filterd3d->gfx_filter_scanlinelevel &&
-		d3d->scanline_osl2 == d3d->filterd3d->gfx_filter_scanlineratio && !force)
+		d3d->scanline_osl2 == d3d->filterd3d->gfx_filter_scanlineratio &&
+		d3d->scanline_osl4 == d3d->filterd3d->gfx_filter_scanlineoffset &&
+		!force)
 		return;
 	bpp = 4;
 	d3d->scanline_osl1 = d3d->filterd3d->gfx_filter_scanlines;
 	d3d->scanline_osl3 = d3d->filterd3d->gfx_filter_scanlinelevel;
 	d3d->scanline_osl2 = d3d->filterd3d->gfx_filter_scanlineratio;
+	d3d->scanline_osl4 = d3d->filterd3d->gfx_filter_scanlineoffset;
 	sl4 = d3d->filterd3d->gfx_filter_scanlines * 16 / 100;
 	sl42 = d3d->filterd3d->gfx_filter_scanlinelevel * 16 / 100;
 	if (sl4 > 15)
@@ -2180,13 +2183,15 @@ static void createscanlines(struct d3d11struct *d3d, int force)
 		return;
 	}
 	sld = (uae_u8*)map.pData;
-	for (y = 0; y < d3d->m_screenHeight; y++)
+	for (y = 0; y < d3d->m_screenHeight; y++) {
 		memset(sld + y * map.RowPitch, 0, d3d->m_screenWidth * bpp);
-	for (y = 1; y < d3d->m_screenHeight; y += l1 + l2) {
+	}
+	for (y = 0; y < d3d->m_screenHeight; y += l1 + l2) {
+		int y2 = y + (d3d->filterd3d->gfx_filter_scanlineoffset % (l1 + 1));
 		for (yy = 0; yy < l2 && y + yy < d3d->m_screenHeight; yy++) {
 			for (x = 0; x < d3d->m_screenWidth; x++) {
 				uae_u8 sll = sl42;
-				p = &sld[(y + yy) * map.RowPitch + (x * bpp)];
+				p = &sld[(y2 + yy) * map.RowPitch + (x * bpp)];
 				/* 32-bit, A8R8G8B8 */
 				uae_u8 sll4 = sl4 | (sl4 << 4);
 				uae_u8 sll2 = sll | (sll << 4);

@@ -353,6 +353,7 @@ struct gfx_filterdata
 	int gfx_filter_scanlines;
 	int gfx_filter_scanlineratio;
 	int gfx_filter_scanlinelevel;
+	int gfx_filter_scanlineoffset;
 	float gfx_filter_horiz_zoom, gfx_filter_vert_zoom;
 	float gfx_filter_horiz_zoom_mult, gfx_filter_vert_zoom_mult;
 	float gfx_filter_horiz_offset, gfx_filter_vert_offset;
