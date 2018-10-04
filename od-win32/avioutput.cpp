@@ -1207,7 +1207,7 @@ static void AVIOutput_WriteVideo(void)
 	waitqueuefull ();
 	ae = allocavientry_video();
 	lockrtg();
-	if (avioutput_originalsize || WIN32GFX_IsPicassoScreen(mon)) {
+	if (avioutput_originalsize) {
 		v = getFromBuffer (ae, 1);
 		if (!v) {
 			if (D3D_isenabled(0) == 2) {
