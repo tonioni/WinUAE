@@ -562,11 +562,20 @@ static int get_floppy_speed (void)
 	return m;
 }
 
-static int get_floppy_speed2 (drive *drv)
+static int get_floppy_speed_from_image(drive *drv)
 {
-	int m = get_floppy_speed () * drv->tracklen / (2 * 8 * FLOPPY_WRITE_LEN * drv->ddhd);
+	int l, m;
+	
+	l = drv->tracklen;
+	m = get_floppy_speed () * l / (2 * 8 * FLOPPY_WRITE_LEN * drv->ddhd);
+
+	// 4us track?
+	if (l < (FLOPPY_WRITE_LEN_PAL * 8) * 4 / 6)
+		m *= 2;
+
 	if (m <= 0)
 		m = 1;
+
 	return m;
 }
 
@@ -2048,7 +2057,7 @@ static void drive_fill_bigbuf (drive * drv, int force)
 		memset (drv->bigmfmbuf, 0, FLOPPY_WRITE_LEN * 2 * drv->ddhd);
 	}
 
-	drv->trackspeed = get_floppy_speed2 (drv);
+	drv->trackspeed = get_floppy_speed_from_image(drv);
 	updatemfmpos (drv);
 }
 
@@ -3270,7 +3279,7 @@ static void fetchnextrevolution (drive *drv)
 {
 	if (drv->revolution_check)
 		return;
-	drv->trackspeed = get_floppy_speed2 (drv);
+	drv->trackspeed = get_floppy_speed_from_image(drv);
 #if REVOLUTION_DEBUG
 	if (1 || drv->mfmpos != 0) {
 		write_log (_T("REVOLUTION: DMA=%d %d %d/%d %d %d %d\n"), dskdmaen, drv->trackspeed, drv->mfmpos, drv->tracklen, drv->indexoffset, drv->floppybitcounter);
@@ -3414,7 +3423,7 @@ static void updatetrackspeed (drive *drv, int mfmpos)
 {
 	if (dskdmaen < DSKDMA_WRITE) {
 		int t = drv->tracktiming[mfmpos / 8];
-		int ts = get_floppy_speed2 (drv) * t / 1000;
+		int ts = get_floppy_speed_from_image(drv) * t / 1000;
 		if (ts < 700 || ts > 3000) {
 			static int warned;
 			warned++;
