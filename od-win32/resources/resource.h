@@ -822,6 +822,7 @@
 #define IDC_SOUNDDRIVEVOLUME2           1581
 #define IDC_CS_CACHE_TEXT               1582
 #define IDC_SOUNDVOLUMEEXT2             1582
+#define IDC_JITCRASH                    1582
 #define IDC_CS_CACHE_TEXT2              1583
 #define IDC_SOUNDDRIVEVOLUMEX           1583
 #define IDC_COLLISIONS                  1584

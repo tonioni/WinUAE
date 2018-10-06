@@ -1886,6 +1886,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 #ifdef USE_JIT_FPU
 	cfgfile_write_bool (f, _T("compfpu"), p->compfpu);
 #endif
+	cfgfile_write_bool(f, _T("comp_catchdetect"), p->comp_catchfault);
 	cfgfile_write (f, _T("cachesize"), _T("%d"), p->cachesize);
 
 	for (i = 0; i < MAX_JPORTS; i++) {
@@ -5281,6 +5282,7 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 		|| cfgfile_yesno (option, value, _T("fpu_strict"), &p->fpu_strict)
 		|| cfgfile_yesno (option, value, _T("comp_nf"), &p->compnf)
 		|| cfgfile_yesno (option, value, _T("comp_constjump"), &p->comp_constjump)
+		|| cfgfile_yesno(option, value, _T("comp_catchfault"), &p->comp_catchfault)
 #ifdef USE_JIT_FPU
 		|| cfgfile_yesno (option, value, _T("compfpu"), &p->compfpu)
 #endif
@@ -7548,6 +7550,7 @@ void default_prefs (struct uae_prefs *p, bool reset, int type)
 #else
 	p->compfpu = 0;
 #endif
+	p->comp_catchfault = true;
 	p->cachesize = 0;
 
 	p->gfx_framerate = 1;

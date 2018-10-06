@@ -12090,6 +12090,7 @@ static void enable_for_cpudlg (HWND hDlg)
 	ew(hDlg, IDC_HARDFLUSH, enable);
 	ew(hDlg, IDC_CONSTJUMP, enable);
 	ew(hDlg, IDC_JITFPU, enable);
+	ew(hDlg, IDC_JITCRASH, enable);
 	ew(hDlg, IDC_NOFLAGS, enable);
 	ew(hDlg, IDC_CS_CACHE_TEXT, enable);
 	ew(hDlg, IDC_CACHE, enable);
@@ -12172,11 +12173,12 @@ static void values_to_cpudlg (HWND hDlg)
 	_stprintf (buffer, _T("%d MB"), workprefs.cachesize / 1024 );
 	SetDlgItemText (hDlg, IDC_CACHETEXT, buffer);
 
-	CheckDlgButton (hDlg, IDC_NOFLAGS, workprefs.compnf);
-	CheckDlgButton (hDlg, IDC_JITFPU, workprefs.compfpu);
-	CheckDlgButton (hDlg, IDC_HARDFLUSH, workprefs.comp_hardflush);
-	CheckDlgButton (hDlg, IDC_CONSTJUMP, workprefs.comp_constjump);
-	CheckDlgButton (hDlg, IDC_JITENABLE, workprefs.cachesize > 0);
+	CheckDlgButton(hDlg, IDC_JITCRASH, workprefs.comp_catchfault);
+	CheckDlgButton(hDlg, IDC_NOFLAGS, workprefs.compnf);
+	CheckDlgButton(hDlg, IDC_JITFPU, workprefs.compfpu);
+	CheckDlgButton(hDlg, IDC_HARDFLUSH, workprefs.comp_hardflush);
+	CheckDlgButton(hDlg, IDC_CONSTJUMP, workprefs.comp_constjump);
+	CheckDlgButton(hDlg, IDC_JITENABLE, workprefs.cachesize > 0);
 	bool mmu = ((workprefs.cpu_model == 68060 && workprefs.mmu_model == 68060) ||
 		(workprefs.cpu_model == 68040 && workprefs.mmu_model == 68040) ||
 		(workprefs.cpu_model == 68030 && workprefs.mmu_model == 68030)) &&
@@ -12286,10 +12288,11 @@ static void values_from_cpudlg (HWND hDlg)
 	workprefs.comptrustlong = newtrust;
 	workprefs.comptrustnaddr= newtrust;
 
-	workprefs.compnf            = ischecked (hDlg, IDC_NOFLAGS);
-	workprefs.compfpu           = ischecked (hDlg, IDC_JITFPU);
-	workprefs.comp_hardflush    = ischecked (hDlg, IDC_HARDFLUSH);
-	workprefs.comp_constjump    = ischecked (hDlg, IDC_CONSTJUMP);
+	workprefs.comp_catchfault   = ischecked(hDlg, IDC_JITCRASH);
+	workprefs.compnf            = ischecked(hDlg, IDC_NOFLAGS);
+	workprefs.compfpu           = ischecked(hDlg, IDC_JITFPU);
+	workprefs.comp_hardflush    = ischecked(hDlg, IDC_HARDFLUSH);
+	workprefs.comp_constjump    = ischecked(hDlg, IDC_CONSTJUMP);
 
 #ifdef JIT
 	oldcache = workprefs.cachesize;

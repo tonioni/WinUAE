@@ -3654,18 +3654,27 @@ kludge_me_do:
 // address = format $2 stack frame address field
 static void ExceptionX (int nr, uaecptr address)
 {
+	uaecptr pc = m68k_getpc();
 	regs.exception = nr;
 	if (cpu_tracer) {
 		cputrace.state = nr;
 	}
 	if (!regs.s) {
-		regs.instruction_pc_user_exception = m68k_getpc();
+		regs.instruction_pc_user_exception = pc;
 	}
 
 #ifdef JIT
 	if (currprefs.cachesize)
-		regs.instruction_pc = address == -1 ? m68k_getpc () : address;
+		regs.instruction_pc = address == -1 ? pc : address;
 #endif
+
+	if (debug_illegal && !in_rom(pc)) {
+		if (nr <= 63 && (debug_illegal_mask & ((uae_u64)1 << nr))) {
+			write_log(_T("Exception %d breakpoint\n"), nr);
+			activate_debugger();
+		}
+	}
+
 #ifdef CPUEMU_13
 	if (currprefs.cpu_cycle_exact && currprefs.cpu_model <= 68010)
 		Exception_ce000 (nr);
@@ -3680,12 +3689,6 @@ static void ExceptionX (int nr, uaecptr address)
 			Exception_normal (nr);
 		}
 
-	if (debug_illegal && !in_rom (M68K_GETPC)) {
-		if (nr <= 63 && (debug_illegal_mask & ((uae_u64)1 << nr))) {
-			write_log (_T("Exception %d breakpoint\n"), nr);
-			activate_debugger ();
-		}
-	}
 	regs.exception = 0;
 	if (cpu_tracer) {
 		cputrace.state = 0;
@@ -5595,15 +5598,35 @@ static void m68k_run_jit(void)
 #endif
 
 	for (;;) {
-		((compiled_handler*)(pushall_call_handler))();
-		/* Whenever we return from that, we should check spcflags */
-		check_uae_int_request();
-		if (regs.spcflags) {
-			if (do_specialties (0)) {
-				return;
+#ifdef USE_STRUCTURED_EXCEPTION_HANDLING
+		__try {
+#endif
+			for (;;) {
+				((compiled_handler*)(pushall_call_handler))();
+				/* Whenever we return from that, we should check spcflags */
+				check_uae_int_request();
+				if (regs.spcflags) {
+					if (do_specialties(0)) {
+						return;
+					}
+				}
 			}
+
+#ifdef USE_STRUCTURED_EXCEPTION_HANDLING
+		} __except (EvalException(GetExceptionInformation())) {
+			// Something very bad happened, generate fake bus error exception
+			// Either emulation continues normally or crashes.
+			// Without this it would have crashed in any case..
+			uaecptr pc = M68K_GETPC;
+			write_log(_T("Unhandled JIT exception! PC=%08x\n"), pc);
+			if (pc & 1)
+				Exception(3);
+			else
+				Exception(2);
 		}
+#endif
 	}
+
 }
 #endif /* JIT */
 
@@ -8826,6 +8849,16 @@ void exception3b (uae_u32 opcode, uaecptr addr, bool w, bool i, uaecptr pc)
 	exception3f (opcode, addr, w, i, false, pc, true);
 }
 
+void exception2_setup(uaecptr addr, bool read, int size, uae_u32 fc)
+{
+	last_addr_for_exception_3 = m68k_getpc() + bus_error_offset;
+	last_fault_for_exception_3 = addr;
+	last_writeaccess_for_exception_3 = read == 0;
+	last_instructionaccess_for_exception_3 = (fc & 1) == 0;
+	last_op_for_exception_3 = regs.opcode;
+	last_notinstruction_for_exception_3 = exception_in_exception != 0;
+}
+
 void exception2 (uaecptr addr, bool read, int size, uae_u32 fc)
 {
 	if (currprefs.mmu_model) {
@@ -8836,12 +8869,7 @@ void exception2 (uaecptr addr, bool read, int size, uae_u32 fc)
 			mmu_bus_error (addr, 0, fc, read == false, size, 0, true);
 		}
 	} else {
-		last_addr_for_exception_3 = m68k_getpc() + bus_error_offset;
-		last_fault_for_exception_3 = addr;
-		last_writeaccess_for_exception_3 = read == 0;
-		last_instructionaccess_for_exception_3 = (fc & 1) == 0;
-		last_op_for_exception_3 = regs.opcode;
-		last_notinstruction_for_exception_3 = exception_in_exception != 0;
+		exception2_setup(addr, read, size, fc);
 		THROW(2);
 	}
 }
