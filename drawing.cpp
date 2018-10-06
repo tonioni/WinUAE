@@ -149,8 +149,9 @@ static uae_u32 clxtab[256];
 xcolnr xcolors[4096];
 
 struct spritepixelsbuf {
-	uae_u8 attach;
+	bool attach;
 	uae_u8 stdata;
+	uae_u16 stfmdata;
 	uae_u16 data;
 };
 static struct spritepixelsbuf spritepixels_buffer[MAX_PIXELS_PER_LINE];
@@ -194,8 +195,7 @@ uae_u16 *spixels;
 uae_u16 spixels[2 * MAX_SPR_PIXELS];
 #endif
 
-/* Eight bits for every pixel.  */
-union sps_union spixstate;
+struct sprite_stb spixstate;
 
 static uae_u32 ham_linebuf[MAX_PIXELS_PER_LINE * 2];
 static uae_u8 *real_bplpt[8];
@@ -274,6 +274,7 @@ static bool ecs_genlock_features_active;
 static uae_u8 ecs_genlock_features_mask;
 static bool ecs_genlock_features_colorkey;
 static int hsync_shift_hack;
+static bool sprite_smaller_than_64;
 
 uae_sem_t gui_sem;
 
@@ -1283,6 +1284,13 @@ static uae_u8 render_sprites (int pos, int dualpf, uae_u8 apixel, int aga)
 	int *shift_lookup = dualpf ? (bpldualpfpri ? dblpf_ms2 : dblpf_ms1) : dblpf_ms;
 	int maskshift, plfmask;
 
+	// If 64 pixel wide sprite and FMODE gets lowered when sprite's
+	// first 32 pixels are being drawn: matching pixel(s) in second
+	// 32 pixel part gets blanked.
+	if (aga && spb->stfmdata && sprite_smaller_than_64) {
+		spb[32 << currprefs.gfx_resolution].data &= ~spb->stfmdata;
+	}
+
 	// shdelay hack, above &spritepixels[pos] is correct. 
 	pos += sprite_shdelay;
 	/* The value in the shift lookup table is _half_ the shift count we
@@ -2240,13 +2248,15 @@ that many of the if statements will go away completely after inlining.  */
 STATIC_INLINE void draw_sprites_1 (struct sprite_entry *e, int dualpf, int has_attach)
 {
 	uae_u16 *buf = spixels + e->first_pixel;
-	uae_u8 *stbuf = spixstate.bytes + e->first_pixel;
+	uae_u8 *stbuf = spixstate.stb + e->first_pixel;
+	uae_u16 *stfmbuf = spixstate.stbfm + e->first_pixel;
 	int spr_pos, pos;
 	int epos = e->pos;
 	int emax = e->max;
 
 	buf -= epos;
 	stbuf -= epos;
+	stfmbuf -= epos;
 
 	spr_pos = epos + ((DIW_DDF_OFFSET - DISPLAY_LEFT_SHIFT) << sprite_buffer_res);
 
@@ -2257,6 +2267,7 @@ STATIC_INLINE void draw_sprites_1 (struct sprite_entry *e, int dualpf, int has_a
 		if (spr_pos >= 0 && spr_pos < MAX_PIXELS_PER_LINE) {
 			spritepixels[spr_pos].data = buf[pos];
 			spritepixels[spr_pos].stdata = stbuf[pos];
+			spritepixels[spr_pos].stfmdata = stfmbuf[pos];
 			spritepixels[spr_pos].attach = has_attach;
 		}
 	}
@@ -2777,6 +2788,7 @@ static void pfield_expand_dp_bplcon (void)
 		bpldelay_sh = sh;
 		pfield_mode_changed = true;
 	}
+	sprite_smaller_than_64 = (dp_for_drawing->fmode & 0x0c) != 0x0c;
 #endif
 	ecs_genlock_features_active = (currprefs.chipset_mask & CSMASK_ECS_DENISE) && ((dp_for_drawing->bplcon2 & 0x0c00) || ce_is_borderntrans(colors_for_drawing.extra)) ? 1 : 0;
 	if (ecs_genlock_features_active) {
@@ -2842,6 +2854,9 @@ static void pfield_expand_dp_bplconx (int regno, int v)
 #ifdef AGA
 	case 0x10c: // BPLCON4
 		dp_for_drawing->bplcon4 = v;
+		break;
+	case 0x1fc: // FMODE
+		dp_for_drawing->fmode = v;
 		break;
 #endif
 	}
@@ -3137,6 +3152,7 @@ static void pfield_draw_line (struct vidbuffer *vb, int lineno, int gfx_ypos, in
 			uae_u16 b2 = dp_for_drawing->bplcon2;
 			uae_u16 b3 = dp_for_drawing->bplcon3;
 			uae_u16 b4 = dp_for_drawing->bplcon4;
+			uae_u16 fm = dp_for_drawing->fmode;
 			init_ham_decoding ();
 			do_color_changes (dummy_worker, decode_ham, lineno);
 			if (have_color_changes) {
@@ -3146,6 +3162,7 @@ static void pfield_draw_line (struct vidbuffer *vb, int lineno, int gfx_ypos, in
 				dp_for_drawing->bplcon2 = b2;
 				dp_for_drawing->bplcon3 = b3;
 				dp_for_drawing->bplcon4 = b4;
+				dp_for_drawing->fmode = fm;
 				pfield_expand_dp_bplcon ();
 			}
 			hposblank = ohposblank;
