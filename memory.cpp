@@ -2973,6 +2973,19 @@ static addrbank *get_bank_cpu_thread(addrbank *bank)
 }
 #endif
 
+static void set_memory_cacheable(int bnr, addrbank *bank)
+{
+	uae_u8 cc = bank->flags >> ABFLAG_CACHE_SHIFT;
+	if (!currprefs.mmu_model) {
+		// if no MMU emulation, make sure chip RAM is not data cacheable
+		if (bank->flags & ABFLAG_CHIPRAM) {
+			cc &= ~(CACHE_ENABLE_DATA | CACHE_ENABLE_DATA_BURST);
+		}
+	}
+	ce_cachable[bnr] = cc;
+}
+
+
 static void map_banks2 (addrbank *bank, int start, int size, int realsize, int quick)
 {
 	int bnr, old;
@@ -3020,7 +3033,7 @@ static void map_banks2 (addrbank *bank, int start, int size, int realsize, int q
 #endif
 			}
 			put_mem_bank (bnr << 16, bank, realstart << 16);
-			ce_cachable[bnr] = bank->flags >> ABFLAG_CACHE_SHIFT;
+			set_memory_cacheable(bnr, bank);
 #ifdef WITH_THREADED_CPU
 			if (currprefs.cpu_thread) {
 				if (orig_bank)
@@ -3052,7 +3065,7 @@ static void map_banks2 (addrbank *bank, int start, int size, int realsize, int q
 #endif
 			}
 			put_mem_bank ((bnr + hioffs) << 16, bank, realstart << 16);
-			ce_cachable[bnr + hioffs] = bank->flags >> ABFLAG_CACHE_SHIFT;
+			set_memory_cacheable(bnr + hioffs, bank);
 #ifdef WITH_THREADED_CPU
 			if (currprefs.cpu_thread) {
 				if (orig_bank)
