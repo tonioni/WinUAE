@@ -2836,6 +2836,8 @@ static int mouseedge(int monid)
 		return 0;
 	if (magicmouse_ibase == 0xffffffff)
 		return 0;
+	if (joybutton[0] || joybutton[1])
+		return 0;
 	dir = 0;
 	if (!mouseedge_time) {
 		isnonzero = 0;
