@@ -2,14 +2,14 @@
  Name    : RetroPlatformIPC.h
  Project : RetroPlatform Player
  Support : http://www.retroplatform.com
- Legal   : Copyright 2007-2017 Cloanto Corporation - All rights reserved. This
+ Legal   : Copyright 2007-2018 Cloanto Corporation - All rights reserved. This
          : file is multi-licensed under the terms of the Mozilla Public License
          : version 2.0 as published by Mozilla Corporation and the GNU General
          : Public License, version 2 or later, as published by the Free
          : Software Foundation.
  Authors : os, m
  Created : 2007-08-27 13:55:49
- Updated : 2018-07-08 10:54:00
+ Updated : 2018-10-04 16:26:12
  Comment : RetroPlatform Player interprocess communication include file
  *****************************************************************************/
 
@@ -18,9 +18,9 @@
 
 #include <windows.h>
 
-#define RETROPLATFORM_API_VER       "7.3"
+#define RETROPLATFORM_API_VER       "7.5"
 #define RETROPLATFORM_API_VER_MAJOR  7
-#define RETROPLATFORM_API_VER_MINOR  3
+#define RETROPLATFORM_API_VER_MINOR  5
 
 #define RPIPC_HostWndClass   "RetroPlatformHost%s"
 #define RPIPC_GuestWndClass  "RetroPlatformGuest%d"
@@ -64,6 +64,7 @@
 #define RP_IPC_TO_HOST_PRIVATE_GUESTEVENT   (WM_APP + 34) // introduced in RetroPlatform API 7.2
 #define RP_IPC_TO_HOST_PRIVATE_KEYREMINDER  (WM_APP + 35) // introduced in RetroPlatform API 7.2
 #define RP_IPC_TO_HOST_RAWINPUT_EVENT       (WM_APP + 36) // introduced in RetroPlatform API 7.3
+#define RP_IPC_TO_HOST_PRIVATE_CLOSEKBDWIN  (WM_APP + 37) // introduced in RetroPlatform API 7.4
 
 // ****************************************************************************
 //  Host-to-Guest Messages
@@ -95,6 +96,8 @@
 #define	RP_IPC_TO_GUEST_PRIVATE_LOGGING      (WM_APP + 227) // introduced in RetroPlatform API 7.2
 #define	RP_IPC_TO_GUEST_PRIVATE_INPUTDEVICES (WM_APP + 228) // introduced in RetroPlatform API 7.2
 #define RP_IPC_TO_GUEST_PRIVATE_KEYREMINDER  (WM_APP + 229) // introduced in RetroPlatform API 7.2
+#define RP_IPC_TO_GUEST_PRIVATE_KEYBOARDWINDOW (WM_APP + 230) // introduced in RetroPlatform API 7.4
+#define RP_IPC_TO_GUEST_SCREENOVERLAY        (WM_APP + 231) // introduced in RetroPlatform API 7.5
 
 // ****************************************************************************
 //  Message Data Structures and Defines
@@ -493,6 +496,23 @@ typedef struct RPScreenCapture
 #define PRIVATETYPECLIP_FAILED		1
 #define PRIVATETYPECLIP_SUCCEDED	2
 #define PRIVATETYPECLIP_INPROGRESS	3 // a RP_IPC_TO_HOST_PRIVATE_TYPECLIPDONE will be sent when done
+
+
+// RPScreenOverlay (used by RP_IPC_TO_GUEST_SCREENOVERLAY)
+
+typedef struct RPScreenOverlay
+{
+	DWORD dwIndex;	 // overlay index
+	LONG  lLeft;	 // horizontal offset from screen left edge
+	LONG  lTop;	     // vertical offset from screen top edge
+	LONG  lWidth;	 // image width (if set to 0, clears a previously set overlay)
+	LONG  lHeight;	 // image height (if set to 0, clears a previously set overlay)
+	DWORD dwFormat;  // pixel format (see RPSOPF_* defines below)
+	BYTE  btData[1]; // image data
+} RPSCREENOVERLAY;
+
+// RPSCREENOVERLAY dwFormat
+#define RPSOPF_32BIT_BGRA  0 // 4 bytes per pixel (blue, green, red, alpha)
 
 // Legacy Compatibility
 #ifndef RP_NO_LEGACY

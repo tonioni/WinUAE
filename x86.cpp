@@ -19,7 +19,7 @@
 #define X86_IO_PORT_DEBUG 0
 #define X86_DEBUG_SPECIAL_IO 0
 #define FLOPPY_DEBUG 0
-#define EMS_DEBUG 1
+#define EMS_DEBUG 0
 
 #define DEBUG_DMA 0
 #define DEBUG_PIT 0

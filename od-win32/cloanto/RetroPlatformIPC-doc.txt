@@ -4,12 +4,12 @@
  Client  : Cloanto Corporation
  Support : http://www.retroplatform.com
  Legal   : CONFIDENTIAL TRADE SECRET PROPERTY OF CLOANTO CORPORATION
-         : Copyright © Cloanto Corporation 2007-2017.
+         : Copyright © Cloanto Corporation 2007-2018.
          : All rights reserved, except where licensed,
          : assigned or transferred by contract.
  Authors : os, m
  Created : 2007-08-23 10:08:25
- Updated : 2017-09-10 12:13:00
+ Updated : 2018-10-04 16:40:44
  Comment : Reference for RetroPlatformIPC.h (RP Player interprocess communication include file)
  *****************************************************************************/
 
@@ -19,14 +19,6 @@
 ****************************************************************************
  Guest-to-Host Messages
 ****************************************************************************
-
-Message:
-   RP_IPC_TO_HOST_REGISTER
-Description:
-   this is a private message and is automatically sent
-   by the RPInitializeGuest() function
-   to register the caller as a RetroPlatform guest
-
 
 Notes about startup:
 >>>
@@ -219,7 +211,10 @@ Description:
    or to notify the host about the status of a joystick (multiple buttons);
    device LED indicators (e.g. the disk activity ones, not the joystick ones)
    can also be "blinked", i.e. the host will turn the
-   LED on and then off again after the specified amount of time
+   LED on and then off again after the specified amount of time;
+   being a low-priority notification with no response from the host,
+   it is advised that guests send RP_IPC_TO_HOST_DEVICEACTIVITY
+   using the RPPostMessage() function, instead of the RPSendMessage() function
 Data sent:
    WPARAM = device category (RP_DEVICE_* value) and device number
             combined with the MAKEWORD macro;
@@ -465,28 +460,6 @@ Response:
    
    
 Message:
-   RP_IPC_TO_HOST_PREPROCESSKEY
-Description:
-   message sent by the keyboard handling functions;
-   guests are not supposed to send it directly
-Data sent:
-   -
-Response:
-   -
-
-
-Message:
-   RP_IPC_TO_HOST_PROCESSKEY
-Description:
-   message sent by the keyboard handling functions;
-   guests are not supposed to send it directly
-Data sent:
-   -
-Response:
-   -
-
-
-Message:
    RP_IPC_TO_HOST_KEYBOARDLAYOUT
 Description:
    the guest sends this message to notify the host
@@ -498,11 +471,38 @@ Response:
    none
 
 
+Message:
+   RP_IPC_TO_HOST_RAWINPUT_EVENT
+Description:
+   this message is sent to forward to the host
+   the RawInput mouse buttons events received by the guest
+   (forwarding should be done only when the guest window is focused
+   and even when the emulation is paused);
+   events are forwarded when the header.dwType field
+   of the RAWINPUT structure is RIM_TYPEMOUSE,
+   and when data.mouse.usButtonFlags is different from 0;
+   the value returned as response must be used
+   instead of the original data.mouse.usButtonFlags value
+   (i.e. the guest should ignore the event when 0 is returned,
+   or consider a different button pressed/released,
+   when the returned value differs from data.mouse.usButtonFlags);
+   NOTE: guests that forward events via RP_IPC_TO_HOST_RAWINPUT_EVENT
+   must set the RP_FEATURE_RAWINPUT_EVENT flag
+   in the startup RP_IPC_TO_HOST_FEATURES message
+Data sent:
+   LPARAM = the LPARAM received with the WM_INPUT message
+Response:
+   RawInput RI_MOUSE_BUTTON_* flags or 0
+
+
 Messages:
+	RP_IPC_TO_HOST_PRIVATE_REGISTER
 	RP_IPC_TO_HOST_PRIVATE_SHAREDEVENT
 	RP_IPC_TO_HOST_PRIVATE_TYPECLIPDONE
 	RP_IPC_TO_HOST_PRIVATE_KEYEVENT
 	RP_IPC_TO_HOST_PRIVATE_GUESTEVENT
+	RP_IPC_TO_HOST_PRIVATE_KEYPROMPT
+	RP_IPC_TO_HOST_PRIVATE_CLOSEKBDWIN
 Description:
    these are private messages, sent by code in RPGuest.dll
 
@@ -810,6 +810,23 @@ Response:
    LRESULT = 1 if the guest acknowledged the command or 0 otherwise
 
 
+Message:
+   RP_IPC_TO_GUEST_SCREENOVERLAY
+Description:
+   This message sets or clears a screen overlay (an image that the guest
+   renders on top of the emulated system screen).
+   Multiple screen overlays can be set and simultaneously displayed
+   on the screen (see the dwIndex field of the RPSCREENOVERLAY structure).
+   When the lWidth and lHeight fields of the RPSCREENOVERLAY structure
+   are set to a non-zero value, an overlay is defined or updated;
+   if the two fields are set to 0, the overlay specified
+   by the dwIndex field is removed from screen
+Data sent:
+   pData = a RPSCREENOVERLAY structure containing overlay information and image data
+Response:
+   LRESULT = 1, if the guest successfully executed the command, or 0 otherwise
+
+
 Messages:
 	RP_IPC_TO_GUEST_PRIVATE_STARTUP
 	RP_IPC_TO_GUEST_PRIVATE_TYPECLIP
@@ -817,6 +834,8 @@ Messages:
 	RP_IPC_TO_GUEST_PRIVATE_CANESCAPE
 	RP_IPC_TO_GUEST_PRIVATE_LOGGING
 	RP_IPC_TO_GUEST_PRIVATE_INPUTDEVICES
+	RP_IPC_TO_GUEST_PRIVATE_NOKEYPROMPT
+	RP_IPC_TO_GUEST_PRIVATE_KEYBOARDWINDOW
 Description:
    these are private messages, received by code in RPGuest.dll;
    they never reach the message function in guest code

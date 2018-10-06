@@ -34,6 +34,7 @@
 #include "gui.h"
 #include "keyboard.h"
 #include "rp.h"
+#include "direct3d.h"
 
 static int initialized;
 static RPGUESTINFO guestinfo;
@@ -134,6 +135,7 @@ static const TCHAR *getmsg (int msg)
 	case RP_IPC_TO_GUEST_GUESTAPIVERSION : return _T("RP_IPC_TO_GUEST_GUESTAPIVERSION");
 	case RP_IPC_TO_GUEST_SHOWOPTIONS: return _T("RP_IPC_TO_GUEST_SHOWOPTIONS");
 	case RP_IPC_TO_GUEST_DEVICEACTIVITY: return _T("RP_IPC_TO_GUEST_DEVICEACTIVITY");
+	case RP_IPC_TO_GUEST_SCREENOVERLAY: return _T("RP_IPC_TO_GUEST_SCREENOVERLAY");
 	default: return _T("UNKNOWN");
 	}
 }
@@ -1166,12 +1168,29 @@ void parse_guest_event(const TCHAR *ss)
 	xfree(s);
 }
 
+static int screenoverlay(LPCVOID pData)
+{
+	struct RPScreenOverlay *rpo = (struct RPScreenOverlay*)pData;
+	struct extoverlay eo = { 0 };
+	if (!D3D_extoverlay)
+		return 0;
+	if (rpo->dwFormat != RPSOPF_32BIT_BGRA)
+		return 0;
+	eo.idx = rpo->dwIndex;
+	eo.xpos = rpo->lLeft;
+	eo.ypos = rpo->lTop;
+	eo.width = rpo->lWidth;
+	eo.height = rpo->lHeight;
+	eo.data = rpo->btData;
+	return D3D_extoverlay(&eo) ? 1 : 0;
+}
+
 static LRESULT CALLBACK RPHostMsgFunction2 (UINT uMessage, WPARAM wParam, LPARAM lParam,
 	LPCVOID pData, DWORD dwDataSize, LPARAM lMsgFunctionParam)
 {
 	struct AmigaMonitor *mon = &AMonitors[0];
 	if (log_rp & 1) {
-		write_log (_T("RPFUNC(%s [%d], %08x, %08x, %08x, %d, %08x)\n"),
+		write_log (_T("RPFUNC(%s [%d], %08x, %08x, %p, %d, %08x)\n"),
 		getmsg (uMessage), uMessage - WM_APP, wParam, lParam, pData, dwDataSize, lMsgFunctionParam);
 		if (uMessage == RP_IPC_TO_GUEST_DEVICECONTENT) {
 			struct RPDeviceContent *dc = (struct RPDeviceContent*)pData;
@@ -1386,6 +1405,8 @@ static LRESULT CALLBACK RPHostMsgFunction2 (UINT uMessage, WPARAM wParam, LPARAM
 		return 1;
 	case RP_IPC_TO_GUEST_DEVICEACTIVITY:
 		return deviceactivity(wParam, lParam);
+	case RP_IPC_TO_GUEST_SCREENOVERLAY:
+		return screenoverlay(pData);
 	}
 	return FALSE;
 }

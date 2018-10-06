@@ -205,7 +205,7 @@ static const TCHAR help[] = {
 	_T("  W <addr> 'string'     Write into Amiga memory.\n")
 	_T("  Wf <addr> <endaddr> <bytes or string like above>, fill memory.\n")
 	_T("  Wc <addr> <endaddr> <destaddr>, copy memory.\n")
-	_T("  w <num> <address> <length> <R/W/I/F/C> [<value>[.x]] (read/write/opcode/freeze/mustchange).\n")
+	_T("  w <num> <address> <length> <R/W/I> <F/C> [<value>[.x]] (read/write/opcode) (freeze/mustchange).\n")
 	_T("                        Add/remove memory watchpoints.\n")
 	_T("  wd [<0-1>]            Enable illegal access logger. 1 = enable break.\n")
 	_T("  L <file> <addr> [<n>] Load a block of Amiga memory.\n")

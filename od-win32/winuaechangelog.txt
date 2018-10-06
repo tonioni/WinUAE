@@ -1,5 +1,19 @@
 
 
+
+Beta 7:
+
+- If disk image's track size is less than 66% of nominal 2us track, assume it is using 4us (GCR) bit rate.
+- Added option that catches JIT crashes that happen when already translated code jumps to non-existing memory causing interpretetive emulation to access non-existing RAM (for example JSR (An) was already translated but due to program bug, later call contains garbage in An) Logs a message and then generates fake exception 2 (if PC was even) or 3 (if PC was odd). This is not fully safe option because it is practically impossible (without slowing down JIT which would be against the point of JIT) to detect if crash is due to bad CPU PC or address registers or due to real bug causing access fault that now gets catched and not causing crash..
+- Recording from hardware emulated RTG board always recorded internal resolution.
+- Emulated undocumented AGA 64 pixel wide sprite feature: if sprite FMODE is lowered when sprite's first 32 pixels are being drawn, matching part in last 32 pixels will get zeroed.
+- AGA sprite's width is decided and stored when SPRxDATx is written to, if sprite FMODE is changed after SPRxDATx write, sprite width won't change on screen except in above 64 pixel wide special case. (Previously used current FMODE value)
+- Added vertical offset option to D3D scanlines.
+- 68030 MMU rejected PTEST/PMOVE with EA mode 6 and generated F-line exception.
+- 68030 MMU PTEST levels 1-7 does not check TTRs.
+- If 68030/040/060 config has data cache emulation enabled but MMU emulation is not enabled: force chip ram as non-data cacheable.
+- Magic mouse uncapture (uncapture when moving against window edges) now only uncaptures if no buttons are pressed.
+
 Beta 6:
 
 - Video recording from hardware emulated graphics boards recorded only black screen.
