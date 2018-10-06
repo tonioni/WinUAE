@@ -1,4 +1,13 @@
 
+#define EXTOVERLAYS 4
+struct extoverlay
+{
+	int idx;
+	int width, height;
+	int xpos, ypos;
+	uae_u8 *data;
+};
+
 extern void(*D3D_free)(int, bool immediate);
 extern const TCHAR* (*D3D_init)(HWND ahwnd, int, int w_w, int h_h, int depth, int *freq, int mmult);
 extern bool(*D3D_alloctexture)(int, int, int);
@@ -26,6 +35,7 @@ extern bool(*D3D_run)(int);
 extern int(*D3D_debug)(int, int);
 extern void(*D3D_led)(int, int, int);
 extern bool(*D3D_getscanline)(int*, bool*);
+extern bool(*D3D_extoverlay)(struct extoverlay*);
 
 extern LPDIRECT3DSURFACE9 D3D_capture(int, int*,int*,int*,bool);
 extern bool D3D11_capture(int, void**,int*, int*,int*,bool);

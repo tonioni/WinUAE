@@ -66,6 +66,7 @@ bool(*D3D_run)(int);
 int(*D3D_debug)(int, int);
 void(*D3D_led)(int, int, int);
 bool(*D3D_getscanline)(int*, bool*);
+bool(*D3D_extoverlay)(struct extoverlay*);
 
 static HMODULE hd3d11, hdxgi, hd3dcompiler, dwmapi;
 
@@ -271,6 +272,8 @@ struct d3d11struct
 	struct d3d11sprite mask2textureleds[9], mask2textureled_power_dim;
 	int mask2textureledoffsets[9 * 2];
 	struct d3d11sprite blanksprite;
+
+	struct d3d11sprite extoverlays[EXTOVERLAYS];
 
 	float mask2texture_w, mask2texture_h, mask2texture_ww, mask2texture_wh;
 	float mask2texture_wwx, mask2texture_hhx, mask2texture_minusx, mask2texture_minusy;
@@ -1729,6 +1732,9 @@ static void FreeTextures(struct d3d11struct *d3d)
 	}
 	freesprite(&d3d->mask2textureled_power_dim);
 	freesprite(&d3d->blanksprite);
+	for (int i = 0; i < EXTOVERLAYS; i++) {
+		freesprite(&d3d->extoverlays[i]);
+	}
 
 	for (int i = 0; i < MAX_SHADERS; i++) {
 		freeshaderdata(&d3d->shaders[i]);
@@ -2188,7 +2194,7 @@ static void createscanlines(struct d3d11struct *d3d, int force)
 	}
 	for (y = 0; y < d3d->m_screenHeight; y += l1 + l2) {
 		int y2 = y + (d3d->filterd3d->gfx_filter_scanlineoffset % (l1 + 1));
-		for (yy = 0; yy < l2 && y + yy < d3d->m_screenHeight; yy++) {
+		for (yy = 0; yy < l2 && y2 + yy < d3d->m_screenHeight; yy++) {
 			for (x = 0; x < d3d->m_screenWidth; x++) {
 				uae_u8 sll = sl42;
 				p = &sld[(y2 + yy) * map.RowPitch + (x * bpp)];
@@ -4232,6 +4238,11 @@ static bool TextureShaderClass_Render(struct d3d11struct *d3d)
 
 	RenderSprite(d3d, &d3d->osd);
 
+	for (int i = 0; i < EXTOVERLAYS; i++) {
+		if (d3d->extoverlays[i].enabled)
+			RenderSprite(d3d, &d3d->extoverlays[i]);
+	}
+
 	return true;
 }
 
@@ -5000,6 +5011,43 @@ static bool xD3D11_run(int monid)
 	return D3D11_resize_do(d3d);
 }
 
+static bool xD3D11_extoverlay(struct extoverlay *ext)
+{
+	struct d3d11struct *d3d = &d3d11data[0];
+	D3D11_MAPPED_SUBRESOURCE map;
+	HRESULT hr;
+
+	if (ext->idx >= EXTOVERLAYS)
+		return false;
+
+	write_log(_T("extoverlay %d: x=%d y=%d %d*%d\n"), ext->idx, ext->xpos, ext->ypos, ext->width, ext->height);
+
+	struct d3d11sprite *s = &d3d->extoverlays[ext->idx];
+
+	freesprite(s);
+	if (!allocsprite(d3d, &d3d->extoverlays[ext->idx], ext->width, ext->height, true))
+		return false;
+
+	s->enabled = true;
+	s->x = ext->xpos;
+	s->y = ext->ypos;
+
+	hr = d3d->m_deviceContext->Map(s->texture, 0, D3D11_MAP_WRITE_DISCARD, 0, &map);
+	if (FAILED(hr)) {
+		write_log(_T("extoverlay Map failed %08x\n"), hr);
+		freesprite(s);
+		return false;
+	}
+
+	for (int y = 0; y < s->height; y++) {
+		memcpy((uae_u8*)map.pData + y * map.RowPitch, ext->data + y * ext->width * 4, ext->width * 4);
+	}
+
+	d3d->m_deviceContext->Unmap(s->texture, 0);
+
+	return true;
+}
+
 void d3d11_select(void)
 {
 	D3D_free = xD3D11_free;
@@ -5031,6 +5079,7 @@ void d3d11_select(void)
 	D3D_debug = xD3D11_debug;
 	D3D_led = xD3D11_led;
 	D3D_getscanline = NULL;
+	D3D_extoverlay = xD3D11_extoverlay;
 }
 
 void d3d_select(struct uae_prefs *p)

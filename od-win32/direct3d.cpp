@@ -1477,10 +1477,10 @@ static void createscanlines (struct d3dstruct *d3d, int force)
 	}
 	for (y = 0; y < d3d->required_sl_texture_h; y += l1 + l2) {
 		int y2 = y + (d3d->filterd3d->gfx_filter_scanlineoffset % (l1 + 1));
-		for (yy = 0; yy < l2 && y + yy < d3d->required_sl_texture_h; yy++) {
+		for (yy = 0; yy < l2 && y2 + yy < d3d->required_sl_texture_h; yy++) {
 			for (x = 0; x < d3d->required_sl_texture_w; x++) {
 				uae_u8 sll = sl42;
-				p = &sld[(y + y2) * locked.Pitch + (x * bpp)];
+				p = &sld[(y2 + yy) * locked.Pitch + (x * bpp)];
 				if (bpp < 4) {
 					/* 16-bit, A4R4G4B4 */
 					p[1] = (sl4 << 4) | (sll << 0);
