@@ -11,6 +11,7 @@
 #define __USE_ISOC9X  /* We might be able to pick up a NaN */
 
 #define FPU_TEST 0
+#define FPU_LOG 0
 
 #include <math.h>
 #include <float.h>
@@ -1856,12 +1857,12 @@ void fpuop_dbcc (uae_u32 opcode, uae_u16 extra)
 
 	if (fp_exception_pending(true))
 		return;
-
 	regs.fp_exception = false;
-#if DEBUG_FPP
-	if (!isinrom ())
-		write_log (_T("fdbcc_opp at %08x\n"), m68k_getpc ());
+
+#if FPU_LOG
+	write_log(_T("FDBcc %04x %04x %08x\n"), opcode, extra, M68K_GETPC);
 #endif
+
 	if (fault_if_no_6888x (opcode, extra, pc - 4))
 		return;
 
@@ -1895,11 +1896,10 @@ void fpuop_scc (uae_u32 opcode, uae_u16 extra)
 
 	if (fp_exception_pending(true))
 		return;
-
 	regs.fp_exception = false;
-#if DEBUG_FPP
-	if (!isinrom ())
-		write_log (_T("fscc_opp at %08x\n"), m68k_getpc ());
+
+#if FPU_LOG
+	write_log(_T("FScc %04x %04x %08x\n"), opcode, extra, M68K_GETPC);
 #endif
 
 	if (fault_if_no_6888x (opcode, extra, pc))
@@ -1935,12 +1935,12 @@ void fpuop_trapcc (uae_u32 opcode, uaecptr oldpc, uae_u16 extra)
 
 	if (fp_exception_pending(true))
 		return;
-
 	regs.fp_exception = false;
-#if DEBUG_FPP
-	if (!isinrom ())
-		write_log (_T("ftrapcc_opp at %08x\n"), m68k_getpc ());
+
+#if FPU_LOG
+	write_log(_T("FTRAPcc %04x %04x %08x\n"), opcode, extra, M68K_GETPC);
 #endif
+
 	if (fault_if_no_fpu_u (opcode, extra, 0, oldpc))
 		return;
 
@@ -1962,12 +1962,12 @@ void fpuop_bcc (uae_u32 opcode, uaecptr oldpc, uae_u32 extra)
 
 	if (fp_exception_pending(true))
 		return;
-
 	regs.fp_exception = false;
-#if DEBUG_FPP
-	if (!isinrom ())
-		write_log (_T("fbcc_opp at %08x\n"), m68k_getpc ());
+
+#if FPU_LOG
+	write_log(_T("FBcc %04x %04x %08x\n"), opcode, extra, M68K_GETPC);
 #endif
+
 	if (fault_if_no_fpu (opcode, extra, 0, oldpc - 2))
 		return;
 
@@ -1994,11 +1994,13 @@ void fpuop_save (uae_u32 opcode)
 	uaecptr pc = m68k_getpc () - 2;
 	int i;
 
-	regs.fp_exception = false;
-#if DEBUG_FPP
-	if (!isinrom ())
-		write_log (_T("fsave_opp at %08x\n"), m68k_getpc ());
+
+#if FPU_LOG
+	if (!isinrom())
+		write_log(_T("FSAVE %04x %08x\n"), opcode, M68K_GETPC);
 #endif
+
+	regs.fp_exception = false;
 
 	if (fault_if_no_6888x (opcode, 0, pc))
 		return;
@@ -2245,9 +2247,9 @@ void fpuop_restore (uae_u32 opcode)
 
 	regs.fp_exception = false;
 
-#if DEBUG_FPP
-	if (!isinrom ())
-		write_log (_T("frestore_opp at %08x\n"), m68k_getpc ());
+#if FPU_LOG
+	if (!isinrom())
+		write_log (_T("FRESTORE %04x %08x\n"), opcode, M68K_GETPC);
 #endif
 
 	if (fault_if_no_6888x (opcode, 0, pc))
@@ -3115,6 +3117,9 @@ void fpuop_arithmetic (uae_u32 opcode, uae_u16 extra)
 	regs.fpu_state = 1;
 	regs.fp_exception = false;
 	fpu_mmu_fixup = false;
+#if FPU_LOG
+	write_log(_T("FPUOP %04x %04x PC=%08x\n"), opcode, extra, M68K_GETPC);
+#endif
 	fpuop_arithmetic2 (opcode, extra);
 	if (fpu_mmu_fixup) {
 		mmufixup[0].reg = -1;
