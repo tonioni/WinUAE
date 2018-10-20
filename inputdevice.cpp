@@ -72,8 +72,10 @@
 // 01 = host events
 // 02 = joystick
 // 04 = cia buttons
-// 16 = potgo
+// 16 = potgo r/w
 // 32 = vsync
+// 128 = potgo write
+// 256 = cia buttons write
 
 int inputdevice_logging = 0;
 extern int tablet_log;
@@ -3514,7 +3516,7 @@ void handle_cd32_joystick_cia (uae_u8 pra, uae_u8 dra)
 	int i;
 
 	maybe_read_input();
-	if (inputdevice_logging & 4) {
+	if (inputdevice_logging & (4 | 256)) {
 		write_log (_T("BFE001 W: %02X:%02X %x\n"), dra, pra, M68K_GETPC);
 	}
 	cap_check ();
@@ -3528,7 +3530,7 @@ void handle_cd32_joystick_cia (uae_u8 pra, uae_u8 dra)
 					cd32_shifter[i]--;
 					if (cd32_shifter[i] < 0)
 						cd32_shifter[i] = 0;
-					if (inputdevice_logging & 4)
+					if (inputdevice_logging & (4 | 256))
 						write_log (_T("CD32 %d shift: %d %08x\n"), i, cd32_shifter[i], M68K_GETPC);
 				}
 			}
@@ -3931,7 +3933,7 @@ void inputdevice_hsync (bool forceread)
 static uae_u16 POTDAT (int joy)
 {
 	uae_u16 v = (pot_dat[joy][1] << 8) | pot_dat[joy][0];
-	if (inputdevice_logging & 16)
+	if (inputdevice_logging & (16 | 128))
 		write_log (_T("POTDAT%d: %04X %08X\n"), joy, v, M68K_GETPC);
 	return v;
 }
@@ -3956,7 +3958,7 @@ void POTGO (uae_u16 v)
 {
 	int i, j;
 
-	if (inputdevice_logging & 16)
+	if (inputdevice_logging & (16 | 128))
 		write_log (_T("POTGO_W: %04X %08X\n"), v, M68K_GETPC);
 #if DONGLE_DEBUG
 	if (notinrom ())
