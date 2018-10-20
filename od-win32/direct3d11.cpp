@@ -4558,8 +4558,10 @@ static void xD3D11_refresh(int monid)
 		return;
 
 	createscanlines(d3d, 0);
-	if (xD3D11_renderframe(monid, true, true)) {
-		xD3D11_showframe(monid);
+	for (int i = 0; i < 2; i++) {
+		if (xD3D11_renderframe(monid, true, true)) {
+			xD3D11_showframe(monid);
+		}
 	}
 	clearcnt = 0;
 }
@@ -5020,12 +5022,25 @@ static bool xD3D11_extoverlay(struct extoverlay *ext)
 	if (ext->idx >= EXTOVERLAYS)
 		return false;
 
-	write_log(_T("extoverlay %d: x=%d y=%d %d*%d\n"), ext->idx, ext->xpos, ext->ypos, ext->width, ext->height);
+	write_log(_T("extoverlay %d: x=%d y=%d %d*%d data=%p\n"), ext->idx, ext->xpos, ext->ypos, ext->width, ext->height, ext->data);
 
 	struct d3d11sprite *s = &d3d->extoverlays[ext->idx];
 
+	if (!s->enabled && (ext->width <= 0 || ext->height <= 0))
+		return false;
+
+	if (!ext->data && s->enabled && (ext->width == 0 || ext->height == 0)) {
+		s->x = ext->xpos;
+		s->y = ext->ypos;
+		return true;
+	}
+
 	freesprite(s);
-	if (!allocsprite(d3d, &d3d->extoverlays[ext->idx], ext->width, ext->height, true))
+
+	if (ext->width <= 0 || ext->height <= 0)
+		return true;
+
+	if (!allocsprite(d3d, s, ext->width, ext->height, true))
 		return false;
 
 	s->enabled = true;

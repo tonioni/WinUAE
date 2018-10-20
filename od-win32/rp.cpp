@@ -63,6 +63,8 @@ static DWORD storeflags;
 static int screenmode_request;
 static HWND guestwindow;
 static int hwndset_delay;
+static int sendmouseevents;
+static int mouseevent_x, mouseevent_y, mouseevent_buttons;
 
 static int cando (void)
 {
@@ -114,6 +116,8 @@ static const TCHAR *getmsg (int msg)
 	case RP_IPC_TO_HOST_HOSTVERSION: return _T("RP_IPC_TO_HOST_HOSTVERSION");
 	case RP_IPC_TO_HOST_INPUTDEVICE: return _T("RP_IPC_TO_HOST_INPUTDEVICE");
 	case RP_IPC_TO_HOST_KEYBOARDLAYOUT: return _T("RP_IPC_TO_HOST_KEYBOARDLAYOUT");
+	case RP_IPC_TO_HOST_MOUSEMOVE: return _T("RP_IPC_TO_HOST_MOUSEMOVE");
+	case RP_IPC_TO_HOST_MOUSEBUTTON: return _T("RP_IPC_TO_HOST_MOUSEBUTTON");
 
 	case RP_IPC_TO_GUEST_CLOSE: return _T("RP_IPC_TO_GUEST_CLOSE");
 	case RP_IPC_TO_GUEST_SCREENMODE: return _T("RP_IPC_TO_GUEST_SCREENMODE");
@@ -136,6 +140,9 @@ static const TCHAR *getmsg (int msg)
 	case RP_IPC_TO_GUEST_SHOWOPTIONS: return _T("RP_IPC_TO_GUEST_SHOWOPTIONS");
 	case RP_IPC_TO_GUEST_DEVICEACTIVITY: return _T("RP_IPC_TO_GUEST_DEVICEACTIVITY");
 	case RP_IPC_TO_GUEST_SCREENOVERLAY: return _T("RP_IPC_TO_GUEST_SCREENOVERLAY");
+	case RP_IPC_TO_GUEST_DELETESCREENOVERLAY: return _T("RP_IPC_TO_GUEST_DELETESCREENOVERLAY");
+	case RP_IPC_TO_GUEST_MOVESCREENOVERLAY: return _T("RP_IPC_TO_GUEST_MOVESCREENOVERLAY");
+	case RP_IPC_TO_GUEST_SENDMOUSEEVENTS: return _T("RP_IPC_TO_GUEST_SENDMOUSEEVENTS");
 	default: return _T("UNKNOWN");
 	}
 }
@@ -1168,6 +1175,36 @@ void parse_guest_event(const TCHAR *ss)
 	xfree(s);
 }
 
+static int movescreenoverlay(WPARAM wParam, LPARAM lParam)
+{
+	struct extoverlay eo = { 0 };
+	if (!D3D_extoverlay)
+		return 0;
+	eo.idx = wParam;
+	eo.xpos = LOWORD(lParam);
+	eo.ypos = HIWORD(lParam);
+	int ret = D3D_extoverlay(&eo);
+	if (pause_emulation) {
+		D3D_refresh(0);
+	}
+	return ret;
+}
+
+static int deletescreenoverlay(WPARAM wParam)
+{
+	struct extoverlay eo = { 0 };
+	if (!D3D_extoverlay)
+		return 0;
+	eo.idx = wParam;
+	eo.width = -1;
+	eo.height = -1;
+	int ret = D3D_extoverlay(&eo);
+	if (pause_emulation) {
+		D3D_refresh(0);
+	}
+	return ret;
+}
+
 static int screenoverlay(LPCVOID pData)
 {
 	struct RPScreenOverlay *rpo = (struct RPScreenOverlay*)pData;
@@ -1182,7 +1219,11 @@ static int screenoverlay(LPCVOID pData)
 	eo.width = rpo->lWidth;
 	eo.height = rpo->lHeight;
 	eo.data = rpo->btData;
-	return D3D_extoverlay(&eo) ? 1 : 0;
+	int ret = D3D_extoverlay(&eo);
+	if (pause_emulation) {
+		D3D_refresh(0);
+	}
+	return ret;
 }
 
 static LRESULT CALLBACK RPHostMsgFunction2 (UINT uMessage, WPARAM wParam, LPARAM lParam,
@@ -1407,6 +1448,18 @@ static LRESULT CALLBACK RPHostMsgFunction2 (UINT uMessage, WPARAM wParam, LPARAM
 		return deviceactivity(wParam, lParam);
 	case RP_IPC_TO_GUEST_SCREENOVERLAY:
 		return screenoverlay(pData);
+	case RP_IPC_TO_GUEST_DELETESCREENOVERLAY:
+		return deletescreenoverlay(wParam);
+	case RP_IPC_TO_GUEST_MOVESCREENOVERLAY:
+		return movescreenoverlay(wParam, lParam);
+	case RP_IPC_TO_GUEST_SENDMOUSEEVENTS:
+		sendmouseevents = wParam;
+		if (sendmouseevents) {
+			LRESULT lr = NULL;
+			LPARAM lp = MAKELONG(mouseevent_x, mouseevent_y);
+			RPSendMessage(RP_IPC_TO_HOST_MOUSEMOVE, 0, lp, NULL, 0, &guestinfo, &lr);
+		}
+		return 1;
 	}
 	return FALSE;
 }
@@ -1566,7 +1619,7 @@ static void sendfeatures (void)
 
 	feat = RP_FEATURE_POWERLED | RP_FEATURE_SCREEN1X | RP_FEATURE_FULLSCREEN;
 	feat |= RP_FEATURE_PAUSE | RP_FEATURE_TURBO_CPU | RP_FEATURE_TURBO_FLOPPY | RP_FEATURE_VOLUME | RP_FEATURE_SCREENCAPTURE;
-	feat |= RP_FEATURE_STATE | RP_FEATURE_DEVICEREADWRITE;
+	feat |= RP_FEATURE_STATE | RP_FEATURE_DEVICEREADWRITE | RP_FEATURE_SCREENOVERLAY;
 	if (WIN32GFX_IsPicassoScreen(mon)) {
 		if (currprefs.gfx_api)
 			feat |= RP_FEATURE_SCREEN2X | RP_FEATURE_SCREEN3X | RP_FEATURE_SCREEN4X;
@@ -1612,6 +1665,9 @@ void rp_fixup_options (struct uae_prefs *p)
 	write_log (_T("rp_fixup_options(escapekey=%d,escapeholdtime=%d,screenmode=%d,inputmode=%d)\n"),
 		rp_rpescapekey, rp_rpescapeholdtime, rp_screenmode, rp_inputmode);
 
+	sendmouseevents = 0;
+	mouseevent_x = mouseevent_y = 0;
+	mouseevent_buttons = 0;
 	max_horiz_dbl = currprefs.gfx_max_horizontal;
 	max_vert_dbl = currprefs.gfx_max_vertical;
 	maxjports = (rp_version * 256 + rp_revision) >= 2 * 256 + 3 ? MAX_JPORTS : 2;
@@ -2130,6 +2186,31 @@ USHORT rp_rawbuttons(LPARAM lParam, USHORT usButtonFlags)
 	if (RPSendMessage(RP_IPC_TO_HOST_RAWINPUT_EVENT, 0, lParam, NULL, 0, &guestinfo, &lr))
 		usButtonFlags = (USHORT)lr;
 	return usButtonFlags;
+}
+
+bool rp_mouseevent(int x, int y, int buttons, int buttonmask)
+{
+	if (!sendmouseevents) {
+		if (x > -30000 && y > -30000) {
+			mouseevent_x = x;
+			mouseevent_y = y;
+		}
+		return false;
+	}
+	LRESULT lr;
+	if (x > -30000 && y > -30000 && (x != mouseevent_x || y != mouseevent_y)) {
+		LPARAM lParam = MAKELONG(x, y);
+		RPSendMessage(RP_IPC_TO_HOST_MOUSEMOVE, 0, lParam, NULL, 0, &guestinfo, &lr);
+		mouseevent_x = x;
+		mouseevent_y = y;
+	}
+	if (buttons >= 0 && (buttons & buttonmask) != (mouseevent_buttons & buttonmask)) {
+		LPARAM lParam = MAKELONG(mouseevent_x, mouseevent_y);
+		mouseevent_buttons &= ~buttonmask;
+		mouseevent_buttons |= buttons & buttonmask;
+		RPSendMessage(RP_IPC_TO_HOST_MOUSEBUTTON, mouseevent_buttons, lParam, NULL, 0, &guestinfo, &lr);
+	}
+	return true;
 }
 
 int rp_isactive (void)

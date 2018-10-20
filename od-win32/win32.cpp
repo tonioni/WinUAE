@@ -1880,6 +1880,7 @@ static LRESULT CALLBACK AmigaWindowProc(HWND hWnd, UINT message, WPARAM wParam, 
 		return 0;
 
 	case WM_LBUTTONUP:
+		rp_mouseevent(-32768, -32768, 0, 1);
 		if (dinput_winmouse() >= 0 && isfocus()) {
 			if (log_winmouse)
 				write_log(_T("WM_LBUTTONUP\n"));
@@ -1888,6 +1889,7 @@ static LRESULT CALLBACK AmigaWindowProc(HWND hWnd, UINT message, WPARAM wParam, 
 		return 0;
 	case WM_LBUTTONDOWN:
 	case WM_LBUTTONDBLCLK:
+		rp_mouseevent(-32768, -32768, 1, 1);
 		if (!mouseactive && !gui_active && (!mousehack_alive() || currprefs.input_tablet != TABLET_MOUSEHACK || (currprefs.input_tablet == TABLET_MOUSEHACK && !(currprefs.input_mouse_untrap & MOUSEUNTRAP_MAGIC)) || isfullscreen() > 0)) {
 			// borderless = do not capture with single-click
 			if (ignorelbutton) {
@@ -1909,6 +1911,7 @@ static LRESULT CALLBACK AmigaWindowProc(HWND hWnd, UINT message, WPARAM wParam, 
 		}
 		return 0;
 	case WM_RBUTTONUP:
+		rp_mouseevent(-32768, -32768, 0, 2);
 		if (dinput_winmouse() >= 0 && isfocus()) {
 			if (log_winmouse)
 				write_log(_T("WM_RBUTTONUP\n"));
@@ -1917,6 +1920,7 @@ static LRESULT CALLBACK AmigaWindowProc(HWND hWnd, UINT message, WPARAM wParam, 
 		return 0;
 	case WM_RBUTTONDOWN:
 	case WM_RBUTTONDBLCLK:
+		rp_mouseevent(-32768, -32768, 2, 2);
 		if (dinput_winmouse() >= 0 && isfocus() > 0) {
 			if (log_winmouse)
 				write_log(_T("WM_RBUTTONDOWN\n"));
@@ -1924,6 +1928,7 @@ static LRESULT CALLBACK AmigaWindowProc(HWND hWnd, UINT message, WPARAM wParam, 
 		}
 		return 0;
 	case WM_MBUTTONUP:
+		rp_mouseevent(-32768, -32768, 0, 4);
 		if (!(currprefs.input_mouse_untrap & MOUSEUNTRAP_MIDDLEBUTTON)) {
 			if (log_winmouse)
 				write_log(_T("WM_MBUTTONUP\n"));
@@ -1933,6 +1938,7 @@ static LRESULT CALLBACK AmigaWindowProc(HWND hWnd, UINT message, WPARAM wParam, 
 		return 0;
 	case WM_MBUTTONDOWN:
 	case WM_MBUTTONDBLCLK:
+		rp_mouseevent(-32768, -32768, 4, 4);
 		if (currprefs.input_mouse_untrap & MOUSEUNTRAP_MIDDLEBUTTON) {
 			activationtoggle(mon->monitor_id, true);
 		} else {
@@ -2147,6 +2153,10 @@ static LRESULT CALLBACK AmigaWindowProc(HWND hWnd, UINT message, WPARAM wParam, 
 		if (log_winmouse)
 			write_log (_T("WM_MOUSEMOVE MON=%d NUM=%d ACT=%d FOCUS=%d CLIP=%d CAP=%d FS=%d %dx%d %dx%d\n"),
 				mon->monitor_id, wm, mouseactive, focus, mon_cursorclipped, recapture, isfullscreen (), mx, my, mon->mouseposx, mon->mouseposy);
+
+		if (rp_mouseevent(mx, my, -1, -1))
+			return 0;
+
 		mx -= mon->mouseposx;
 		my -= mon->mouseposy;
 

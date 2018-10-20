@@ -20,6 +20,7 @@ extern void rp_rtg_switch (void);
 extern void rp_screenmode_changed (void);
 extern void rp_keymap(TrapContext*, uaecptr, uae_u32);
 extern USHORT rp_rawbuttons(LPARAM lParam, USHORT usButtonFlags);
+extern bool rp_mouseevent(int x, int y, int buttons, int buttonmask);
 
 extern TCHAR *rp_param;
 extern int rp_rpescapekey;

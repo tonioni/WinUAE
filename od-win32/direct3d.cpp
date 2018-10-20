@@ -128,6 +128,12 @@ struct shaderdata
 	D3DXHANDLE framecounterHandle;
 };
 
+struct d3d9overlay
+{
+	int x, y;
+	LPDIRECT3DTEXTURE9 tex;
+};
+
 #define MAX_SHADERS (2 * MAX_FILTERSHADERS + 2)
 #define SHADER_POST 0
 
@@ -155,6 +161,7 @@ struct d3dstruct
 	float mask2texture_wwx, mask2texture_hhx, mask2texture_minusx, mask2texture_minusy;
 	float mask2texture_multx, mask2texture_multy, mask2texture_offsetw;
 	LPDIRECT3DTEXTURE9 cursorsurfaced3d;
+	struct d3d9overlay extoverlays[EXTOVERLAYS];
 	IDirect3DVertexBuffer9 *vertexBuffer;
 	ID3DXSprite *sprite;
 	HWND d3dhwnd;
@@ -2417,6 +2424,13 @@ static void invalidatedeviceobjects (struct d3dstruct *d3d)
 		d3d->cursorsurfaced3d->Release ();
 		d3d->cursorsurfaced3d = NULL;
 	}
+	for (int i = 0; i < EXTOVERLAYS; i++) {
+		struct d3d9overlay *o = &d3d->extoverlays[i];
+		if (o->tex) {
+			o->tex->Release();
+			o->tex = NULL;
+		}
+	}
 	for (int i = 0; i < MAX_SHADERS; i++) {
 		if (d3d->shaders[i].pEffect) {
 			d3d->shaders[i].pEffect->Release ();
@@ -3696,6 +3710,15 @@ static void D3D_render2(struct d3dstruct *d3d, int mode)
 			v.z = 0;
 			d3d->sprite->Draw(d3d->ledtexture, NULL, NULL, &v, 0xffffffff);
 		}
+		for (int i = 0; i < EXTOVERLAYS; i++) {
+			struct d3d9overlay *o = &d3d->extoverlays[i];
+			if (o->tex) {
+				v.x = o->x;
+				v.y = o->y;
+				v.z = 0;
+				d3d->sprite->Draw(o->tex, NULL, NULL, &v, 0xffffffff);
+			}
+		}
 		d3d->sprite->End();
 	}
 #endif
@@ -3918,11 +3941,11 @@ static void xD3D_refresh (int monid)
 
 	if (!isd3d (d3d))
 		return;
-	D3D_render2 (d3d, true);
-	D3D_showframe2 (d3d, true);
-	D3D_render2 (d3d, true);
-	D3D_showframe2 (d3d, true);
-	createscanlines (d3d, 0);
+	createscanlines(d3d, 0);
+	for (int i = 0; i < 2; i++) {
+		D3D_render2(d3d, true);
+		D3D_showframe2(d3d, true);
+	}
 }
 
 void D3D_getpixelformat (int depth, int *rb, int *gb, int *bb, int *rs, int *gs, int *bs, int *ab, int *as, int *a)
@@ -4113,6 +4136,59 @@ static bool xD3D_run(int monid)
 	return false;
 }
 
+static bool xD3D_extoverlay(struct extoverlay *ext)
+{
+	struct d3dstruct *d3d = &d3ddata[0];
+	D3DLOCKED_RECT locked;
+	HRESULT hr;
+
+	if (ext->idx >= EXTOVERLAYS)
+		return false;
+
+	write_log(_T("extoverlay %d: x=%d y=%d %d*%d\n"), ext->idx, ext->xpos, ext->ypos, ext->width, ext->height);
+
+	struct d3d9overlay *s = &d3d->extoverlays[ext->idx];
+
+	if (!s->tex && (ext->width <= 0 || ext->height <= 0))
+		return false;
+
+	if (!ext->data && s->tex && (ext->width == 0 || ext->height == 0)) {
+		s->x = ext->xpos;
+		s->y = ext->ypos;
+		return true;
+	}
+
+	if (s->tex) {
+		s->tex->Release();
+		s->tex = NULL;
+	}
+
+	if (ext->width <= 0 || ext->height <= 0)
+		return true;
+
+	s->tex = createtext(d3d, ext->width, ext->height, D3DFMT_A8R8G8B8);
+
+	if (!s->tex)
+		return false;
+
+	s->x = ext->xpos;
+	s->y = ext->ypos;
+
+	hr = s->tex->LockRect(0, &locked, NULL, 0);
+	if (FAILED(hr)) {
+		write_log(_T("extoverlay LockRect failed %08x\n"), hr);
+		s->tex->Release();
+		s->tex = NULL;
+		return false;
+	}
+	for (int y = 0; y < ext->height; y++) {
+		memcpy((uae_u8*)locked.pBits + y * locked.Pitch, ext->data + y * ext->width * 4, ext->width * 4);
+	}
+	s->tex->UnlockRect(0);
+
+	return true;
+}
+
 void d3d9_select(void)
 {
 	D3D_free = xD3D_free;
@@ -4142,6 +4218,7 @@ void d3d9_select(void)
 	D3D_debug = xD3D_debug;
 	D3D_led = xD3D_led;
 	D3D_getscanline = xD3D_getscanline;
+	D3D_extoverlay = xD3D_extoverlay;
 }
 
 #endif

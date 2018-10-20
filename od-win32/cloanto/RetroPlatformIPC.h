@@ -9,7 +9,7 @@
          : Software Foundation.
  Authors : os, m
  Created : 2007-08-27 13:55:49
- Updated : 2018-10-04 16:26:12
+ Updated : 2018-10-19 15:58:12
  Comment : RetroPlatform Player interprocess communication include file
  *****************************************************************************/
 
@@ -65,6 +65,9 @@
 #define RP_IPC_TO_HOST_PRIVATE_KEYREMINDER  (WM_APP + 35) // introduced in RetroPlatform API 7.2
 #define RP_IPC_TO_HOST_RAWINPUT_EVENT       (WM_APP + 36) // introduced in RetroPlatform API 7.3
 #define RP_IPC_TO_HOST_PRIVATE_CLOSEKBDWIN  (WM_APP + 37) // introduced in RetroPlatform API 7.4
+#define RP_IPC_TO_HOST_MOUSEMOVE            (WM_APP + 38) // introduced in RetroPlatform API 7.5
+#define RP_IPC_TO_HOST_MOUSEBUTTON          (WM_APP + 39) // introduced in RetroPlatform API 7.5
+#define RP_IPC_TO_HOST_PRIVATE_MENUEVENT    (WM_APP + 40) // introduced in RetroPlatform API 7.5
 
 // ****************************************************************************
 //  Host-to-Guest Messages
@@ -98,6 +101,10 @@
 #define RP_IPC_TO_GUEST_PRIVATE_KEYREMINDER  (WM_APP + 229) // introduced in RetroPlatform API 7.2
 #define RP_IPC_TO_GUEST_PRIVATE_KEYBOARDWINDOW (WM_APP + 230) // introduced in RetroPlatform API 7.4
 #define RP_IPC_TO_GUEST_SCREENOVERLAY        (WM_APP + 231) // introduced in RetroPlatform API 7.5
+#define RP_IPC_TO_GUEST_MOVESCREENOVERLAY    (WM_APP + 232) // introduced in RetroPlatform API 7.5
+#define RP_IPC_TO_GUEST_DELETESCREENOVERLAY  (WM_APP + 233) // introduced in RetroPlatform API 7.5
+#define RP_IPC_TO_GUEST_SENDMOUSEEVENTS      (WM_APP + 234) // introduced in RetroPlatform API 7.5
+#define RP_IPC_TO_GUEST_PRIVATE_MENUMODE     (WM_APP + 235) // introduced in RetroPlatform API 7.5
 
 // ****************************************************************************
 //  Message Data Structures and Defines
@@ -133,6 +140,7 @@
 #define RP_FEATURE_MEMORY_ADVANCED		    0x04000000 // Memory I/O advanced features: Watch, Find, Alert, Freeze, Lock, Unlock, Off (must set both flags if full set is supported!)
 #define RP_FEATURE_SCREENCAPTURE   			0x08000000 // new screen capture functionality is available (see RP_IPC_TO_GUEST_SCREENCAPTURE message)
 #define RP_FEATURE_RAWINPUT_EVENT			0x10000000 // RawInput mouse buttons events are forwarded via RP_IPC_TO_HOST_RAWINPUT_EVENT messages
+#define RP_FEATURE_SCREENOVERLAY			0x20000000 // supports screen overlays
 
 typedef struct RPScreenMode
 {
@@ -513,6 +521,16 @@ typedef struct RPScreenOverlay
 
 // RPSCREENOVERLAY dwFormat
 #define RPSOPF_32BIT_BGRA  0 // 4 bytes per pixel (blue, green, red, alpha)
+
+
+// RP_IPC_TO_HOST_PRIVATE_MENUEVENT wParam
+#define RP_MENU_EVENT_RIGHT		1
+#define RP_MENU_EVENT_LEFT		2
+#define RP_MENU_EVENT_DOWN		3
+#define RP_MENU_EVENT_UP		4
+#define RP_MENU_EVENT_SELECT	5	
+#define RP_MENU_EVENT_BACK		6
+
 
 // Legacy Compatibility
 #ifndef RP_NO_LEGACY

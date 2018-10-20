@@ -9,7 +9,7 @@
          : assigned or transferred by contract.
  Authors : os, m
  Created : 2007-08-23 10:08:25
- Updated : 2018-10-04 16:40:44
+ Updated : 2018-10-19 16:01:23
  Comment : Reference for RetroPlatformIPC.h (RP Player interprocess communication include file)
  *****************************************************************************/
 
@@ -495,6 +495,36 @@ Response:
    RawInput RI_MOUSE_BUTTON_* flags or 0
 
 
+Message:
+   RP_IPC_TO_HOST_MOUSEMOVE
+Description:
+   the guest sends this message to forward mouse move events;
+   mouse events forwarding is off by default and is enabled
+   by the RP_IPC_TO_GUEST_SENDMOUSEEVENTS message;
+   the screen coordinate range is the same used for screen overlays
+   (e.g. lLeft and lTop fields of the RPSCREENOVERLAY structure)
+Data sent:
+   LPARAM = screen coordinates combined with the MAKELONG macro (i.e. MAKELONG(x,y))
+Response:
+   none
+
+
+Message:
+   RP_IPC_TO_HOST_MOUSEBUTTON
+Description:
+   the guest sends this message to forward mouse button events;
+   mouse events forwarding is off by default and is enabled
+   by the RP_IPC_TO_GUEST_SENDMOUSEEVENTS message;
+   the screen coordinate range is the same used for screen overlays
+   (e.g. lLeft and lTop fields of the RPSCREENOVERLAY structure)
+Data sent:
+   WPARAM = mouse buttons state
+            (bit 0 = left button state, bit 1 = right button state, ...)
+   LPARAM = screen coordinates combined with the MAKELONG macro (i.e. MAKELONG(x,y))
+Response:
+   none
+
+
 Messages:
 	RP_IPC_TO_HOST_PRIVATE_REGISTER
 	RP_IPC_TO_HOST_PRIVATE_SHAREDEVENT
@@ -503,6 +533,7 @@ Messages:
 	RP_IPC_TO_HOST_PRIVATE_GUESTEVENT
 	RP_IPC_TO_HOST_PRIVATE_KEYPROMPT
 	RP_IPC_TO_HOST_PRIVATE_CLOSEKBDWIN
+	RP_IPC_TO_HOST_PRIVATE_MENUEVENT
 Description:
    these are private messages, sent by code in RPGuest.dll
 
@@ -813,18 +844,51 @@ Response:
 Message:
    RP_IPC_TO_GUEST_SCREENOVERLAY
 Description:
-   This message sets or clears a screen overlay (an image that the guest
+   This message creates a screen overlay (an image that the guest
    renders on top of the emulated system screen).
    Multiple screen overlays can be set and simultaneously displayed
    on the screen (see the dwIndex field of the RPSCREENOVERLAY structure).
-   When the lWidth and lHeight fields of the RPSCREENOVERLAY structure
-   are set to a non-zero value, an overlay is defined or updated;
-   if the two fields are set to 0, the overlay specified
-   by the dwIndex field is removed from screen
+   NOTE: guests that support screen overlays must set the
+   RP_FEATURE_SCREENOVERLAY flag in the startup RP_IPC_TO_HOST_FEATURES message.
 Data sent:
    pData = a RPSCREENOVERLAY structure containing overlay information and image data
 Response:
    LRESULT = 1, if the guest successfully executed the command, or 0 otherwise
+
+
+Message:
+   RP_IPC_TO_GUEST_MOVESCREENOVERLAY
+Description:
+   This message moves a previously defined screen overlay to a specified position.
+Data sent:
+	WPARAM = screen overlay index
+	LPARAM = screen coordinates combined with the MAKELONG macro (i.e. MAKELONG(x,y))
+Response:
+   LRESULT = 1, if the guest successfully executed the command, or 0 otherwise
+
+
+Message:
+   RP_IPC_TO_GUEST_DELETESCREENOVERLAY
+Description:
+   This message deletes a previously defined screen overlay.
+Data sent:
+	WPARAM = screen overlay index
+Response:
+   LRESULT = 1, if the guest successfully executed the command, or 0 otherwise
+
+
+Message:
+   RP_IPC_TO_GUEST_SENDMOUSEEVENTS
+Description:
+   The host sends this message to ask the guest to enable/disable
+   mouse events forwarding; this is typically done when the emulation is paused
+   and the host wnats to handle mouse navigation of screen overlays;
+   see RP_IPC_TO_HOST_MOUSEMOVE and RP_IPC_TO_HOST_MOUSEBUTTON
+   for additional information.
+Data sent:
+	WPARAM = set to 1 to enable mouse events forwarding, or 0 to disable it
+Response:
+   LRESULT = 1 if the guest acknowledged the command or 0 otherwise
 
 
 Messages:
@@ -836,6 +900,7 @@ Messages:
 	RP_IPC_TO_GUEST_PRIVATE_INPUTDEVICES
 	RP_IPC_TO_GUEST_PRIVATE_NOKEYPROMPT
 	RP_IPC_TO_GUEST_PRIVATE_KEYBOARDWINDOW
+	RP_IPC_TO_GUEST_PRIVATE_MENUMODE
 Description:
    these are private messages, received by code in RPGuest.dll;
    they never reach the message function in guest code
