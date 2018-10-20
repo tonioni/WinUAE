@@ -2548,7 +2548,7 @@ struct breakpoint_node bpnodes[BREAKPOINT_TOTAL];
 static addrbank **debug_mem_banks;
 static addrbank *debug_mem_area;
 struct memwatch_node mwnodes[MEMWATCH_TOTAL];
-static int mwnodes_cnt;
+static int mwnodes_start, mwnodes_end;
 static struct memwatch_node mwhit;
 
 #define MUNGWALL_SLOTS 16
@@ -2906,7 +2906,7 @@ static int memwatch_func (uaecptr addr, int rwi, int size, uae_u32 *valp, uae_u3
 	addr = munge24 (addr);
 	if (smc_table && (rwi >= 2))
 		smc_detector (addr, rwi, size, valp);
-	for (i = 0; i < mwnodes_cnt; i++) {
+	for (i = mwnodes_start; i <= mwnodes_end; i++) {
 		struct memwatch_node *m = &mwnodes[i];
 		uaecptr addr2 = m->addr;
 		uaecptr addr3 = addr2 + m->size;
@@ -3331,13 +3331,17 @@ static void memwatch_remap (uaecptr addr)
 static void memwatch_setup (void)
 {
 	memwatch_reset ();
-	mwnodes_cnt = 0;
+	mwnodes_start = MEMWATCH_TOTAL - 1;
+	mwnodes_end = 0;
 	for (int i = 0; i < MEMWATCH_TOTAL; i++) {
 		struct memwatch_node *m = &mwnodes[i];
 		uae_u32 size = 0;
 		if (!m->size)
 			continue;
-		mwnodes_cnt++;
+		if (mwnodes_start > i)
+			mwnodes_start = i;
+		if (mwnodes_end < i)
+			mwnodes_end = i;
 		while (size < m->size) {
 			memwatch_remap (m->addr + size);
 			size += 65536;
