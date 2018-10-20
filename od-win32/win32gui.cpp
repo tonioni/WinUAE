@@ -12800,8 +12800,8 @@ static void values_from_sounddlg (HWND hDlg)
 	}
 	if (workprefs.sound_freq < 8000)
 		workprefs.sound_freq = 8000;
-	if (workprefs.sound_freq > 192000)
-		workprefs.sound_freq = 192000;
+	if (workprefs.sound_freq > 768000)
+		workprefs.sound_freq = 768000;
 
 	workprefs.produce_sound = (ischecked (hDlg, IDC_SOUND0) ? 0
 		: ischecked (hDlg, IDC_SOUND1) ? 1 : 3);
