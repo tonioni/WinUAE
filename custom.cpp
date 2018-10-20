@@ -186,6 +186,7 @@ uae_u16 intena, intreq;
 uae_u16 dmacon;
 uae_u16 adkcon; /* used by audio code */
 uae_u32 last_custom_value1;
+uae_u16 last_custom_value2;
 
 static uae_u32 cop1lc, cop2lc, copcon;
 
@@ -1006,6 +1007,7 @@ static bool todisplay_fetched[2];
 #ifdef AGA
 static uae_u64 todisplay_aga[MAX_PLANES], todisplay2_aga[MAX_PLANES];
 static uae_u64 fetched_aga[MAX_PLANES];
+static uae_u32 fetched_aga_spr[MAX_PLANES];
 #endif
 
 /* Expansions from bplcon0/bplcon1.  */
@@ -1424,8 +1426,26 @@ static void fetch (int nr, int fm, bool modulo, int hpos)
 		switch (fm)
 		{
 		case 0:
-			fetched[nr] = fetched_aga[nr] = chipmem_wget_indirect (p);
-			last_custom_value1 = fetched[nr];
+			{
+				uae_u16 v;
+				if (aga_mode) {
+					// AGA always does 32-bit fetches, this is needed
+					// to emulate 64 pixel wide sprite side-effects.
+					uae_u32 vv = chipmem_lget_indirect(p & ~3);
+					if (p & 2) {
+						v = (uae_u16)vv;
+						fetched_aga_spr[nr] = (v << 16) | v;
+					} else {
+						v = vv >> 16;
+						fetched_aga_spr[nr] = vv;
+					}
+				} else {
+					v = chipmem_wget_indirect(p);
+				}
+				fetched_aga[nr] = fetched[nr] = v;
+				last_custom_value1 = v;
+				last_custom_value2 = (uae_u16)last_custom_value1;
+			}
 			break;
 #ifdef AGA
 		case 1:
@@ -1441,6 +1461,7 @@ static void fetch (int nr, int fm, bool modulo, int hpos)
 				fetched_aga[nr] = chipmem_lget_indirect(pm);
 			}
 			last_custom_value1 = (uae_u32)fetched_aga[nr];
+			last_custom_value2 = (uae_u16)last_custom_value1;
 			fetched[nr] = (uae_u16)fetched_aga[nr];
 			break;
 		}
@@ -1466,6 +1487,7 @@ static void fetch (int nr, int fm, bool modulo, int hpos)
 				fetched_aga[nr] |= chipmem_lget_indirect(pm2);
 			}
 			last_custom_value1 = (uae_u32)fetched_aga[nr];
+			last_custom_value2 = (uae_u16)last_custom_value1;
 			fetched[nr] = (uae_u16)fetched_aga[nr];
 			break;
 		}
@@ -2139,10 +2161,16 @@ static int flush_plane_data_hr(int fm)
 		i += 32;
 		toscr_1_hr(32, fm);
 	}
+
 	if (out_nbits != 0) {
 		i += 64 - out_nbits;
 		toscr_1_hr(64 - out_nbits, fm);
 	}
+
+	toscr_1_hr(32, fm);
+	i += 32;
+	toscr_1_hr(32, fm);
+	i += 32;
 
 	int toshift = 32 << fm;
 	while (i < toshift) {
@@ -6147,6 +6175,10 @@ static void DIWSTRT (int hpos, uae_u16 v)
 {
 	if (diwstrt == v && ! diwhigh_written)
 		return;
+	// if hpos matches previous hstart: it gets ignored.
+	if (diw_hstrt >= hpos * 2 - 2 && diw_hstrt <= hpos * 2 + 2) {
+		diw_hstrt = max_diwlastword;
+	}
 	decide_diw (hpos);
 	decide_line (hpos);
 	diwhigh_written = 0;
@@ -6158,6 +6190,9 @@ static void DIWSTOP (int hpos, uae_u16 v)
 {
 	if (diwstop == v && ! diwhigh_written)
 		return;
+	if (diw_hstop >= hpos * 2 - 2 && diw_hstop <= hpos * 2 + 2) {
+		diw_hstop = min_diwlastword;
+	}
 	decide_diw (hpos);
 	decide_line (hpos);
 	diwhigh_written = 0;
@@ -6543,10 +6578,12 @@ static void SPRxDATA_1(uae_u16 v, int num, int hpos)
 	struct sprite *s = &spr[num];
 	s->data[0] = v;
 #ifdef AGA
-	s->data[1] = v;
-	s->data[2] = v;
-	s->data[3] = v;
-	s->width = sprite_width;
+	if (aga_mode) {
+		s->data[1] = v;
+		s->data[2] = v;
+		s->data[3] = v;
+		s->width = sprite_width;
+	}
 #endif
 	spr_arm (num, 1);
 #if SPRITE_DEBUG >= 256
@@ -6561,10 +6598,12 @@ static void SPRxDATB_1(uae_u16 v, int num, int hpos)
 	struct sprite *s = &spr[num];
 	s->datb[0] = v;
 #ifdef AGA
-	s->datb[1] = v;
-	s->datb[2] = v;
-	s->datb[3] = v;
-	s->width = sprite_width;
+	if (aga_mode) {
+		s->datb[1] = v;
+		s->datb[2] = v;
+		s->datb[3] = v;
+		s->width = sprite_width;
+	}
 #endif
 #if SPRITE_DEBUG >= 256
 	if (vpos >= SPRITE_DEBUG_MINY && vpos <= SPRITE_DEBUG_MAXY && (SPRITE_DEBUG & (1 << num))) {
@@ -6572,6 +6611,16 @@ static void SPRxDATB_1(uae_u16 v, int num, int hpos)
 			vpos, hpos, num, v, spr[num].pt, spr[num].dmastate, spr[num].armed, M68K_GETPC);
 	}
 #endif
+}
+
+// Undocumented AGA feature: if sprite is 64 pixel wide, SPRxDATx is written and next
+// cycle is DMA fetch: sprite's first 32 pixels get replaced with bitplane data.
+static void sprite_get_bpl_data(int hpos, struct sprite *s, uae_u16 *dat)
+{
+	int nr = is_bitplane_dma_inline(hpos + 1);
+	uae_u32 v = (fmode & 3) ? fetched_aga[nr] : fetched_aga_spr[nr];
+	dat[0] = v >> 16;
+	dat[1] = (uae_u16)v;
 }
 
 /*
@@ -6591,13 +6640,33 @@ static void SPRxDATB_1(uae_u16 v, int num, int hpos)
 
 static void SPRxDATA (int hpos, uae_u16 v, int num)
 {
+	struct sprite *s = &spr[num];
 	decide_sprites(-1, hpos, true, false);
 	SPRxDATA_1(v, num, hpos);
+	// if 32 (16-bit double CAS only) or 64 pixel wide sprite and SPRxDATx write:
+	// - first 16 pixel part: previous chipset bus data
+	// - following 16 pixel parts: written data
+	if (fmode & 8) {
+		if ((fmode & 4) && is_bitplane_dma_inline(hpos - 1)) {
+			sprite_get_bpl_data(hpos, s, &s->data[0]);
+		} else {
+			s->data[0] = last_custom_value2;
+		}
+	}
 }
 static void SPRxDATB (int hpos, uae_u16 v, int num)
 {
+	struct sprite *s = &spr[num];
 	decide_sprites(-1, hpos, true, false);
 	SPRxDATB_1(v, num, hpos);
+	// See above
+	if (fmode & 8) {
+		if ((fmode & 4) && is_bitplane_dma_inline(hpos - 1)) {
+			sprite_get_bpl_data(hpos, s, &s->datb[0]);
+		} else {
+			s->datb[0] = last_custom_value2;
+		}
+	}
 }
 
 static void SPRxCTL (int hpos, uae_u16 v, int num)
@@ -7096,7 +7165,7 @@ static void update_copper (int until_hpos)
 			if (copper_cant_read (old_hpos, 1))
 				continue;
 			cop_state.state = COP_read1;
-			cop_state.i1 = last_custom_value1 = chipmem_wget_indirect (cop_state.ip);
+			cop_state.i1 = last_custom_value1 = last_custom_value2 = chipmem_wget_indirect (cop_state.ip);
 			alloc_cycle (old_hpos, CYCLE_COPPER);
 #ifdef DEBUGGER
 			if (debug_dma)
@@ -7110,7 +7179,7 @@ static void update_copper (int until_hpos)
 		case COP_read1:
 			if (copper_cant_read (old_hpos, 1))
 				continue;
-			cop_state.i1 = last_custom_value1 = chipmem_wget_indirect (cop_state.ip);
+			cop_state.i1 = last_custom_value1 = last_custom_value2 = chipmem_wget_indirect (cop_state.ip);
 			alloc_cycle (old_hpos, CYCLE_COPPER);
 #ifdef DEBUGGER
 			if (debug_dma)
@@ -7125,7 +7194,7 @@ static void update_copper (int until_hpos)
 		case COP_read2:
 			if (copper_cant_read (old_hpos, 1))
 				continue;
-			cop_state.i2 = last_custom_value1 = chipmem_wget_indirect (cop_state.ip);
+			cop_state.i2 = chipmem_wget_indirect (cop_state.ip);
 			alloc_cycle (old_hpos, CYCLE_COPPER);
 			cop_state.ip += 2;
 			cop_state.saved_i1 = cop_state.i1;
@@ -7190,6 +7259,7 @@ static void update_copper (int until_hpos)
 #endif
 				cop_state.ignore_next = 0;
 			}
+			last_custom_value1 = last_custom_value2 = cop_state.i2;
 			check_copper_stop();
 			break;
 
@@ -8451,7 +8521,7 @@ static void dmal_emu (uae_u32 v)
 		if (memwatch_enabled)
 			debug_wgetpeekdma_chipram(pt, dat, MW_MASK_AUDIO_0 << nr, 0xaa + nr * 16);
 #endif
-		last_custom_value1 = dat;
+		last_custom_value1 = last_custom_value2 = dat;
 		AUDxDAT (nr, dat, pt);
 	} else {
 		uae_u16 dat = 0;
@@ -8462,7 +8532,7 @@ static void dmal_emu (uae_u32 v)
 			// write to disk
 			if (disk_fifostatus () <= 0) {
 				dat = chipmem_wget_indirect (pt);
-				last_custom_value1 = dat;
+				last_custom_value1 = last_custom_value2 = dat;
 				DSKDAT (dat);
 			}
 		} else {
@@ -10726,7 +10796,7 @@ uae_u8 *restore_custom (uae_u8 *src)
 	if (i & 0x8000)
 		currprefs.ntscmode = changed_prefs.ntscmode = i & 1;
 	fmode = fmode_saved = RW; /* 1FC FMODE */
-	last_custom_value1 = RW;/* 1FE ? */
+	last_custom_value1 = last_custom_value2 = RW;/* 1FE ? */
 
 	current_colors.extra = 0;
 	if (isbrdblank (-1, bplcon0, bplcon3))
