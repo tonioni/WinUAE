@@ -11,6 +11,136 @@
 *
 */
 
+/*
+	B80000-B80003: C0CACAFE (Read-only identifier)
+
+	B80004.L: INTREQ (RO)
+	B80008.L: INTENA (R/W)
+
+	 31 = Subcode interrupt (One subcode buffer filled and B0018.B has changed)
+	 30 = Drive has received all command bytes and executed the command
+	 29 = Drive has status data pending
+	 28 = Drive command DMA transmit complete
+	 27 = Drive status DMA receive complete
+	 26 = Drive data DMA complete
+	 25 = DMA overflow (lost data)?
+
+	 INTREQ is read-only, each interrupt has different method to clear the interrupt.
+
+	B80010.L: DMA data base address (R/W. Must be 64k aligned)
+
+	B80014.L: Command/Status/Subcode DMA base. (R/W. Must be 1024 byte aligned)
+
+	 Base + 0x000: 256 byte circular command DMA buffer. (Memory to drive)
+	 Base + 0x100: Subcode DMA buffer (Doublebuffered, 2x128 byte buffers)
+	 Base + 0x200: 256 byte circular status DMA buffer. (Drive to memory)
+
+	B00018.B READ = Subcode DMA offset (ROM only checks if non-zero: second buffer in use)
+	B00018.B WRITE = Clear subcode interrupt (bit 31)
+
+	B0001D.B READ = Transmit DMA circular buffer current position.
+	B0001D.B WRITE = Transmit DMA circular buffer end position.
+
+	 If written value is different than current: transmit DMA starts and sends command bytes to drive until value matches end position.
+	 Clears also transmit interrupt (bit 30)
+	
+	B0001E.B READ = Receive DMA circular buffer current position.
+	B0001F.B WRITE = Receive DMA circular buffer end position.
+
+	 If written value is different than current: receive DMA fills DMA buffer if drive has response data remaining, until value matches end position.
+	 Clears also Receive interrupt (bit 29)
+
+	B80020.W WRITE = DMA transfer block enable
+	
+	 Each bit marks position in DMA data address.
+	 Bit 0 = DMA base address + 0
+	 Bit 1 = DMA base address + 0x1000
+	 ..
+	 Bit 14 = DMA base address + 0xe000
+	 Bit 15 = DMA base address + 0xf000
+
+	 All one bit blocks (CD sectors) are transferred one by one. Bit 15 is always checked and processed first, then 14 and so on..
+	 Interrupt is generated after each transferred block (bit 1 to 0 transition)
+
+	 Writing to this register also clears INTREQ bit 28.
+
+	 Structure of each block:
+
+	 0-2: zeroed
+	 3: low 5 bits of sector number
+	 4 to 2352: 2348 bytes raw sector data (with first 4 bytes skipped)
+	 0xc00: 146 bytes of CD error correction data?
+	 The rest is unused(?).
+
+	B80020.R READ = Read current DMA transfer status.
+
+	B80024.L: CONFIG (R/W)
+
+	 31 = Subcode DMA enable
+	 30 = Command write (to CD) DMA enable
+	 29 = Status read (from CD) DMA enable
+	 28 = Memory access mode?
+	 27 = Data transfer DMA enable
+	 26 = CD interface enable?
+	 25 = CD data mode?
+	 24 = CD data mode?
+	 23 = Akiko internal CIA faked vsync rate (0=50Hz,1=60Hz)
+	 00-22 = unused
+
+	B80028.B WRITE = PIO write (If CONFIG bit 30 off)
+	B80028.B READ = PIO read (If CONFIG bit 29 off)
+
+	B80030.L NVRAM I2C
+
+	B80038.L C2P
+
+	Commands:
+
+	1 = STOP
+
+	 Size: 1 byte
+	 Returns status response
+
+	2 = PAUSE
+
+	 Size: 1 byte
+	 Returns status response
+
+	3 = UNPAUSE
+
+	 Size: 1 byte
+	 Returns status response
+	
+	4 = PLAY/READ
+
+	 Size: 12 bytes
+	 Response: 2 bytes
+
+	5 = LED (2 bytes)
+
+	 Size: 2 bytes. Bit 7 set in second byte = response wanted.
+	 Response: no response or 2 bytes. Second byte non-zero: led is currently lit.
+
+	6 = SUBCODE
+
+	 Size: 1 byte
+	 Response: 15 bytes
+
+	7 = INFO
+
+	 Size: 1 byte
+	 Response: 20 bytes (status and firmware version)
+
+	Common status response: 2 bytes
+	Status second byte bit 7 = Error, bit 3 = Playing, bit 0 = Door closed.
+
+	First byte of command is combined 4 bit counter and command code.
+	Command response's first byte is same as command.
+	Counter byte can be used to match command with response.
+	Command and response bytes have checksum byte appended.
+
+*/
+
 #include "sysconfig.h"
 #include "sysdeps.h"
 
@@ -34,6 +164,7 @@
 
 #define AKIKO_DEBUG_IO 1
 #define AKIKO_DEBUG_IO_CMD 1
+#define AKIKO_DEBUG_IRQ 1
 
 int log_cd32 = 0;
 
@@ -345,6 +476,9 @@ static void checkint (void)
 {
 	if (cdrom_intreq & cdrom_intena) {
 		irq ();
+#if AKIKO_DEBUG_IRQ
+		write_log(_T("CD32: Akiko INT %08x\n"), cdrom_intreq & cdrom_intena);
+#endif
 #if AKIKO_DEBUG_IO
 		if (log_cd32 > 1)
 			write_log(_T("CD32: Akiko INT %08x\n"), cdrom_intreq & cdrom_intena);
@@ -1517,12 +1651,20 @@ static uae_u32 akiko_bget2 (uaecptr addr, int msg)
 		case 0x06:
 		case 0x07:
 			v = akiko_get_long (cdrom_intreq, addr - 0x04);
+#if AKIKO_DEBUG_IRQ
+			if (addr == 0x07)
+				write_log(_T("AKIKO INTREQ R %08x PC=%08x\n"), cdrom_intreq, M68K_GETPC);
+#endif
 			break;
 		case 0x08:
 		case 0x09:
 		case 0x0a:
 		case 0x0b:
 			v = akiko_get_long(cdrom_intena, addr - 0x08);
+#if AKIKO_DEBUG_IRQ
+			if (addr == 0x0b)
+				write_log(_T("AKIKO INTENA R %08x PC=%08x\n"), cdrom_intena, M68K_GETPC);
+#endif
 			break;
 		case 0x0c:
 		case 0x0d:
@@ -1697,6 +1839,10 @@ static void akiko_bput2 (uaecptr addr, uae_u32 v, int msg)
 	case 0x0a:
 	case 0x0b:
 		akiko_put_long (&cdrom_intena, addr - 0x08, v);
+#if AKIKO_DEBUG_IRQ
+		if (addr == 0x0b)
+			write_log(_T("AKIKO INTENA W %08x PC=%08x\n"), cdrom_intena, M68K_GETPC);
+#endif
 		cdrom_intena &= 0xff000000;
 		break;
 	case 0x10:
