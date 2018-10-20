@@ -2147,6 +2147,7 @@ void fpuop_save (uae_u32 opcode)
 			if (incr < 0)
 				ad -= frame_size;
 			adp = ad;
+			mmu030_state[1] |= MMU030_STATEFLAG1_SKIP_INS;
 			if(mmu030_state[0] == i) {
 				x_put_long(ad, frame_id); // frame id
 				mmu030_state[0]++;
@@ -2236,6 +2237,15 @@ void fpuop_save (uae_u32 opcode)
 
 static bool fp_arithmetic(fpdata *src, fpdata *dst, int extra);
 
+static uae_u32 mmu030_get(uaecptr ad)
+{
+	uae_u32 v;
+	ACCESS_CHECK_GET;
+	v = x_get_long(ad);
+	ACCESS_EXIT_GET;
+	return v;
+}
+
 void fpuop_restore (uae_u32 opcode)
 {
 	int fpu_version;
@@ -2269,7 +2279,11 @@ void fpuop_restore (uae_u32 opcode)
 
 	// FRESTORE does not support predecrement
 
-	d = x_get_long (ad);
+	if (currprefs.mmu_model == 68030) {
+		d = mmu030_get(ad);
+	} else {
+		d = x_get_long(ad);
+	}
 
 	frame_version = (d >> 24) & 0xff;
 
@@ -2409,20 +2423,40 @@ retry:
 			regs.fpu_state = 1;
 
 			if (frame_size == 0x18 || frame_size == 0x38) { // idle
-				fsave_data.ccr = x_get_long (ad);
-				ad += 4;
-				// 68882 internal registers (32 bytes, unused)
-				ad += frame_size - 24;
-				fsave_data.eo[0] = x_get_long (ad);
-				ad += 4;
-				fsave_data.eo[1] = x_get_long (ad);
-				ad += 4;
-				fsave_data.eo[2] = x_get_long (ad);
-				ad += 4;
-				// operand register (unused)
-				ad += 4;
-				biu_flags = x_get_long (ad);
-				ad += 4;
+
+				if (currprefs.mmu_model) {
+					fsave_data.ccr = mmu030_get(ad);
+					ad += 4;
+					// 68882 internal registers (32 bytes, unused)
+					ad += frame_size - 24;
+					fsave_data.eo[0] = mmu030_get(ad);
+					ad += 4;
+					fsave_data.eo[1] = mmu030_get(ad);
+					ad += 4;
+					fsave_data.eo[2] = mmu030_get(ad);
+					ad += 4;
+					// operand register (unused)
+					ad += 4;
+					biu_flags = mmu030_get(ad);
+					ad += 4;
+
+				} else {
+
+					fsave_data.ccr = x_get_long(ad);
+					ad += 4;
+					// 68882 internal registers (32 bytes, unused)
+					ad += frame_size - 24;
+					fsave_data.eo[0] = x_get_long(ad);
+					ad += 4;
+					fsave_data.eo[1] = x_get_long(ad);
+					ad += 4;
+					fsave_data.eo[2] = x_get_long(ad);
+					ad += 4;
+					// operand register (unused)
+					ad += 4;
+					biu_flags = x_get_long(ad);
+					ad += 4;
+				}
 				
 				if ((biu_flags & 0x08000000) == 0x00000000) {
 					regs.fpu_exp_state = 2;
@@ -2481,8 +2515,7 @@ static uaecptr fmovem2mem (uaecptr ad, uae_u32 list, int incr, int regdir)
 					if (mmu030_state[0] == idx * 3 + i) {
 						if (mmu030_state[1] & MMU030_STATEFLAG1_MOVEM2) {
 							mmu030_state[1] &= ~MMU030_STATEFLAG1_MOVEM2;
-						}
-						else {
+						} else {
 							mmu030_data_buffer = wrd[i];
 							x_put_long(ad + i * 4, wrd[i]);
 						}
