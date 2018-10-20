@@ -630,9 +630,8 @@ static void get_usedblocks(struct fs_usage *fsu, bool fs, int *pblocksize, uae_s
 				break;
 			blocksize *= 2;
 		}
-	} else {
-		numblocks = fsu->total / blocksize;
 	}
+	numblocks = fsu->total / blocksize;
 	inuse = (numblocks * blocksize - fsu->avail) / blocksize;
 	if (inuse > numblocks)
 		inuse = numblocks;
