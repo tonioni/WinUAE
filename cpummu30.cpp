@@ -1774,7 +1774,7 @@ static uaecptr mmu030_put_atc(uaecptr addr, int l, uae_u32 fc, uae_u32 size) {
 #endif
     
 	if (mmu030.atc[l].physical.bus_error || mmu030.atc[l].physical.write_protect) {
-        mmu030_page_fault(addr, false, MMU030_SSW_SIZE_B, fc);
+        mmu030_page_fault(addr, false, size, fc);
         return 0;
     }
 
@@ -2524,9 +2524,12 @@ void m68k_do_rte_mmu030 (uaecptr a7)
 {
 	// Restore access error exception state
 
-	uae_u16 format = get_word_mmu030 (a7 + 6);
+	uae_u16 format = get_word_mmu030(a7 + 6);
 	uae_u16 frame = format >> 12;
-	uae_u16 ssw = get_word_mmu030 (a7 + 10);
+	uae_u16 ssw = get_word_mmu030(a7 + 10);
+	uae_u16 sr = get_word_mmu030(a7);
+	uae_u32 pc = get_long_mmu030(a7 + 2);
+	uae_u32 fault_addr = get_long_mmu030(a7 + 16);
 
 	// Fetch last word, real CPU does it to allow OS bus handler to map
 	// the page if frame crosses pages and following page is not resident.
@@ -2536,9 +2539,9 @@ void m68k_do_rte_mmu030 (uaecptr a7)
 		get_word_mmu030(a7 + 32 - 2);
 
 	// Internal register, misc flags
-	uae_u32 ps = get_long_mmu030c(a7 + 0x28);
+	uae_u32 ps = get_long_mmu030(a7 + 0x28);
 	// Internal register, our opcode storage area
-	uae_u32 oc = get_long_mmu030c (a7 + 0x14);
+	uae_u32 oc = get_long_mmu030(a7 + 0x14);
 	mmu030_opcode = (ps & 0x80000000) ? -1 : (oc & 0xffff);
 	// Misc state data
 	mmu030_state[0] = get_word_mmu030 (a7 + 0x30);
@@ -2592,7 +2595,72 @@ void m68k_do_rte_mmu030 (uaecptr a7)
 				write_log (_T("Software fixed stage B! opcode = %04X, opword = %04x\n"), mmu030_opcode, stageb);
 			}
 		}
-		m68k_areg (regs, 7) += 92;
+
+		m68k_areg(regs, 7) += 92;
+		regs.sr = sr;
+		MakeFromSR_T0();
+		if (pc & 1) {
+			exception3i(0x4E73, pc);
+			return;
+		}
+		m68k_setpci(pc);
+
+		if (ssw & MMU030_SSW_DF) {
+			// retry faulted access
+			uaecptr addr = fault_addr;
+			bool read = (ssw & MMU030_SSW_RW) != 0;
+			int size = (ssw & MMU030_SSW_SIZE_B) ? 1 : ((ssw & MMU030_SSW_SIZE_W) ? 2 : 4);
+			int fc = ssw & 7;
+			
+			if (read) {
+				uae_u32 val = 0;
+				switch (size)
+				{
+					case 1:
+					val = mmu030_get_byte(addr, fc);
+					break;
+					case 2:
+					val = mmu030_get_word(addr, fc);
+					break;
+					case 4:
+					val = mmu030_get_long(addr, fc);
+					break;
+				}
+				if (mmu030_state[1] & MMU030_STATEFLAG1_MOVEM1) {
+					mmu030_data_buffer = val;
+					mmu030_state[1] |= MMU030_STATEFLAG1_MOVEM2;
+				} else if (mmu030_state[1] & MMU030_STATEFLAG1_SKIP_INS) {
+					mmu030_state[0]++;
+				} else {
+					mmu030_ad[idxsize].val = val;
+					mmu030_ad[idxsize].done = true;
+					mmu030_ad[idxsize + 1].done = false;
+				}
+			} else {
+				uae_u32 val = mmu030_ad[idxsize].val;
+				switch (size)
+				{
+					case 1:
+					mmu030_put_byte(addr, val, fc);
+					break;
+					case 2:
+					mmu030_put_word(addr, val, fc);
+					break;
+					case 4:
+					mmu030_put_long(addr, val, fc);
+					break;
+				}
+				if (mmu030_state[1] & MMU030_STATEFLAG1_MOVEM1) {
+					mmu030_state[1] |= MMU030_STATEFLAG1_MOVEM2;
+				} else if (mmu030_state[1] & MMU030_STATEFLAG1_SKIP_INS) {
+					mmu030_state[0]++;
+				} else {
+					mmu030_ad[idxsize].done = true;
+					mmu030_ad[idxsize + 1].done = false;
+				}
+			}
+		}
+
 	} else {
 		m68k_areg (regs, 7) += 32;
 	}
@@ -2788,6 +2856,7 @@ void m68k_do_rte_mmu030c (uaecptr a7)
 	uae_u16 ssw = get_word_mmu030c (a7 + 10);
 	uae_u16 sr = get_word_mmu030c (a7);
 	uae_u32 pc = get_long_mmu030c (a7 + 2);
+	uae_u32 fault_addr = get_long_mmu030c(a7 + 16);
 
 	// Fetch last word, real CPU does it to allow OS bus handler to map
 	// the page if frame crosses pages and following page is not resident.
@@ -2865,7 +2934,6 @@ void m68k_do_rte_mmu030c (uaecptr a7)
 		}
 
 		m68k_areg (regs, 7) += 92;
-
 		regs.sr = sr;
 		MakeFromSR_T0();
 		if (pc & 1) {
@@ -2885,6 +2953,61 @@ void m68k_do_rte_mmu030c (uaecptr a7)
 				// Previous branch instruction finished successfully but its pipeline refill
 				// step caused the exception, retry the refill, do not retry branch instruction.
 				fill_prefetch_030_ntx();
+			}
+		}
+
+		if (ssw & MMU030_SSW_DF) {
+			// retry faulted access
+			uaecptr addr = fault_addr;
+			bool read = (ssw & MMU030_SSW_RW) != 0;
+			int size = (ssw & MMU030_SSW_SIZE_B) ? 1 : ((ssw & MMU030_SSW_SIZE_W) ? 2 : 4);
+			int fc = ssw & 7;
+			if (read) {
+				uae_u32 val = 0;
+				switch (size)
+				{
+					case 1:
+					val = read_dcache030_bget(addr, fc);
+					break;
+					case 2:
+					val = read_dcache030_wget(addr, fc);
+					break;
+					case 4:
+					val = read_dcache030_lget(addr, fc);
+					break;
+				}
+				if (mmu030_state[1] & MMU030_STATEFLAG1_MOVEM1) {
+					mmu030_data_buffer = val;
+					mmu030_state[1] |= MMU030_STATEFLAG1_MOVEM2;
+				} else if (mmu030_state[1] & MMU030_STATEFLAG1_SKIP_INS) {
+					mmu030_state[0]++;
+				} else {
+					mmu030_ad[idxsize].val = val;
+					mmu030_ad[idxsize].done = true;
+					mmu030_ad[idxsize + 1].done = false;
+				}
+			} else {
+				uae_u32 val = mmu030_ad[idxsize].val;
+				switch (size)
+				{
+					case 1:
+					write_dcache030_bput(addr, val, fc);
+					break;
+					case 2:
+					write_dcache030_wput(addr, val, fc);
+					break;
+					case 4:
+					write_dcache030_lput(addr, val, fc);
+					break;
+				}
+				if (mmu030_state[1] & MMU030_STATEFLAG1_MOVEM1) {
+					mmu030_state[1] |= MMU030_STATEFLAG1_MOVEM2;
+				} else if (mmu030_state[1] & MMU030_STATEFLAG1_SKIP_INS) {
+					mmu030_state[0]++;
+				} else {
+					mmu030_ad[idxsize].done = true;
+					mmu030_ad[idxsize + 1].done = false;
+				}
 			}
 		}
 
