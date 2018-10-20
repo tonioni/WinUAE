@@ -1,5 +1,15 @@
 
 
+Beta 8:
+
+- Another undocumented AGA 32 (only if FMODE bit 3 is set) and 64 pixel wide sprite feature emulated: when writing to SPRxDATx, first 16 pixels of sprite equals previous data in chip bus. Remaining 16 pixel "parts" contain written data duplicated. Unless SPRxDATx write is immediately after bitplane DMA fetch, then first 32 pixels of sprite gets replaced with previously fetched bitplane data, last 32 pixels are duplicated SPRxDATx written value. If normal 32 pixel wide mode (FMODE bit 2 set): both first and last 16 pixels contain written data.
+- Subpixel mode didn't always flush all buffered pixels at the end of scanline.
+- When DIWSTRT or DIWSTOP is accessed neither old or new value can match comparisons during the access cycle. (Fixes Bograts and Penguins small graphics glitch in top left corner)
+- Very large directory filesystem harddrives (>3T or so) returned halved disk used and free values.
+- 68030 MMU data fault handling update: SSW register FC mode bits must be used for data access retry cycle. Exception handler may have modified it. (So far only one program does it, Memwatch debugging tool for Atari ST and later models..)
+- In some situations 68030 MMU access fault size stored to stack frame was byte even when actual fault size was word or long size.
+- 68030 MMU mode FPU FRESTORE didn't handle possible access fault retries when reading stack frame.
+- Above MMU updates break Amix boot, this gets fixed in next beta because I couldn't find the problem quickly enough and there must be better test cases than Amix..
 
 Beta 7:
 
