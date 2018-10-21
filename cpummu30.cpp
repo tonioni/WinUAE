@@ -2538,6 +2538,8 @@ void m68k_do_rte_mmu030 (uaecptr a7)
 	else
 		get_word_mmu030(a7 + 32 - 2);
 
+	// Movem write data
+	uae_u32 mdata = get_long_mmu030(a7 + 0x18);
 	// Internal register, misc flags
 	uae_u32 ps = get_long_mmu030(a7 + 0x28);
 	// Internal register, our opcode storage area
@@ -2596,6 +2598,8 @@ void m68k_do_rte_mmu030 (uaecptr a7)
 			}
 		}
 
+		// Retried data access is the only memory access that can be done after this.
+
 		m68k_areg(regs, 7) += 92;
 		regs.sr = sr;
 		MakeFromSR_T0();
@@ -2637,7 +2641,11 @@ void m68k_do_rte_mmu030 (uaecptr a7)
 					mmu030_ad[idxsize + 1].done = false;
 				}
 			} else {
-				uae_u32 val = mmu030_ad[idxsize].val;
+				uae_u32 val;
+				if (mmu030_state[1] & MMU030_STATEFLAG1_MOVEM1)
+					val = mdata;
+				else
+					val = mmu030_ad[idxsize].val;
 				switch (size)
 				{
 					case 1:
@@ -2865,6 +2873,8 @@ void m68k_do_rte_mmu030c (uaecptr a7)
 	else
 		get_word_mmu030c(a7 + 32 - 2);
 
+	// Movem write data
+	uae_u32 mdata = get_long_mmu030c(a7 + 0x18);
 	// Internal register, misc flags
 	uae_u32 ps = get_long_mmu030c(a7 + 0x28);
 	// Internal register, our opcode storage area
@@ -2933,6 +2943,8 @@ void m68k_do_rte_mmu030c (uaecptr a7)
 			write_log (_T("Software fixed stage C! opcode = %04x\n"), regs.prefetch020[1]);
 		}
 
+		// Retried data access is the only memory access that can be done after this.
+
 		m68k_areg (regs, 7) += 92;
 		regs.sr = sr;
 		MakeFromSR_T0();
@@ -2962,6 +2974,7 @@ void m68k_do_rte_mmu030c (uaecptr a7)
 			bool read = (ssw & MMU030_SSW_RW) != 0;
 			int size = (ssw & MMU030_SSW_SIZE_B) ? 1 : ((ssw & MMU030_SSW_SIZE_W) ? 2 : 4);
 			int fc = ssw & 7;
+
 			if (read) {
 				uae_u32 val = 0;
 				switch (size)
@@ -2987,7 +3000,11 @@ void m68k_do_rte_mmu030c (uaecptr a7)
 					mmu030_ad[idxsize + 1].done = false;
 				}
 			} else {
-				uae_u32 val = mmu030_ad[idxsize].val;
+				uae_u32 val;
+				if (mmu030_state[1] & MMU030_STATEFLAG1_MOVEM1)
+					val = mdata;
+				else
+					val = mmu030_ad[idxsize].val;
 				switch (size)
 				{
 					case 1:
