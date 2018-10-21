@@ -885,12 +885,12 @@ static void fpu_format_error (void)
 	}
 	regs.s = 1;
 	m68k_areg (regs, 7) -= 2;
-	x_put_long (m68k_areg (regs, 7), 0x0000 + 14 * 4);
+	x_cp_put_long (m68k_areg (regs, 7), 0x0000 + 14 * 4);
 	m68k_areg (regs, 7) -= 4;
-	x_put_long (m68k_areg (regs, 7), m68k_getpc ());
+	x_cp_put_long (m68k_areg (regs, 7), m68k_getpc ());
 	m68k_areg (regs, 7) -= 2;
-	x_put_long (m68k_areg (regs, 7), regs.sr);
-	newpc = x_get_long (regs.vbr + 14 * 4);
+	x_cp_put_long (m68k_areg (regs, 7), regs.sr);
+	newpc = x_cp_get_long (regs.vbr + 14 * 4);
 	m68k_setpc (newpc);
 #ifdef JIT
 	set_special (SPCFLAG_END_COMPILE);
@@ -2034,11 +2034,11 @@ void fpuop_save (uae_u32 opcode)
 		if (incr < 0)
 			ad -= frame_size;
 		adp = ad;
-		x_put_long (ad, (fsave_data.eo[0] & 0xffff0000) | frame_id);
+		x_cp_put_long (ad, (fsave_data.eo[0] & 0xffff0000) | frame_id);
 		ad += 4;
-		x_put_long (ad, fsave_data.eo[1]);
+		x_cp_put_long (ad, fsave_data.eo[1]);
 		ad += 4;
-		x_put_long (ad, fsave_data.eo[2]);
+		x_cp_put_long (ad, fsave_data.eo[2]);
 		ad += 4;
 
 	} else if (currprefs.fpu_model == 68040) {
@@ -2049,7 +2049,7 @@ void fpuop_save (uae_u32 opcode)
 			if (incr < 0)
 				ad -= 4;
 			adp = ad;
-			x_put_long (ad, frame_id);
+			x_cp_put_long (ad, frame_id);
 			ad += 4;
 		} else {
 			/* 44 (rev $40) and 52 (rev $41) byte 68040 unimplemented instruction frame */
@@ -2072,60 +2072,60 @@ void fpuop_save (uae_u32 opcode)
 			if (incr < 0)
 				ad -= frame_size;
 			adp = ad;
-			x_put_long (ad, frame_id);
+			x_cp_put_long (ad, frame_id);
 			ad += 4;
 			if (regs.fpu_exp_state == 2) {
 				/* BUSY frame */
-				x_put_long(ad, 0);
+				x_cp_put_long(ad, 0);
 				ad += 4;
-				x_put_long(ad, 0); // CU_SAVEPC (Software shouldn't care)
+				x_cp_put_long(ad, 0); // CU_SAVEPC (Software shouldn't care)
 				ad += 4;
-				x_put_long(ad, 0);
+				x_cp_put_long(ad, 0);
 				ad += 4;
-				x_put_long(ad, 0);
+				x_cp_put_long(ad, 0);
 				ad += 4;
-				x_put_long(ad, 0);
+				x_cp_put_long(ad, 0);
 				ad += 4;
-				x_put_long(ad, fsave_data.wbt[0]); // WBTS/WBTE
+				x_cp_put_long(ad, fsave_data.wbt[0]); // WBTS/WBTE
 				ad += 4;
-				x_put_long(ad, fsave_data.wbt[1]); // WBTM
+				x_cp_put_long(ad, fsave_data.wbt[1]); // WBTM
 				ad += 4;
-				x_put_long(ad, fsave_data.wbt[2]); // WBTM
+				x_cp_put_long(ad, fsave_data.wbt[2]); // WBTM
 				ad += 4;
-				x_put_long(ad, 0);
+				x_cp_put_long(ad, 0);
 				ad += 4;
-				x_put_long(ad, fsave_data.fpiarcu); // FPIARCU (same as FPU PC or something else?)
+				x_cp_put_long(ad, fsave_data.fpiarcu); // FPIARCU (same as FPU PC or something else?)
 				ad += 4;
-				x_put_long(ad, 0);
+				x_cp_put_long(ad, 0);
 				ad += 4;
-				x_put_long(ad, 0);
+				x_cp_put_long(ad, 0);
 				ad += 4;
 			}
 			if (fpu_version >= 0x41 || regs.fpu_exp_state == 2) {
-				x_put_long(ad, fsave_data.cmdreg3b << 16); // CMDREG3B
+				x_cp_put_long(ad, fsave_data.cmdreg3b << 16); // CMDREG3B
 				ad += 4;
-				x_put_long (ad, 0);
+				x_cp_put_long (ad, 0);
 				ad += 4;
 			}
-			x_put_long (ad, (fsave_data.stag << 29) | (fsave_data.wbtm66 << 26) | (fsave_data.grs << 23)); // STAG
+			x_cp_put_long (ad, (fsave_data.stag << 29) | (fsave_data.wbtm66 << 26) | (fsave_data.grs << 23)); // STAG
 			ad += 4;
-			x_put_long (ad, fsave_data.cmdreg1b << 16); // CMDREG1B
+			x_cp_put_long (ad, fsave_data.cmdreg1b << 16); // CMDREG1B
 			ad += 4;
-			x_put_long (ad, (fsave_data.dtag << 29) | (fsave_data.wbte15 << 20)); // DTAG
+			x_cp_put_long (ad, (fsave_data.dtag << 29) | (fsave_data.wbte15 << 20)); // DTAG
 			ad += 4;
-			x_put_long (ad, (fsave_data.e1 << 26) | (fsave_data.e3 << 25) | (fsave_data.t << 20));
+			x_cp_put_long (ad, (fsave_data.e1 << 26) | (fsave_data.e3 << 25) | (fsave_data.t << 20));
 			ad += 4;
-			x_put_long(ad, fsave_data.fpt[0]); // FPTS/FPTE
+			x_cp_put_long(ad, fsave_data.fpt[0]); // FPTS/FPTE
 			ad += 4;
-			x_put_long(ad, fsave_data.fpt[1]); // FPTM
+			x_cp_put_long(ad, fsave_data.fpt[1]); // FPTM
 			ad += 4;
-			x_put_long(ad, fsave_data.fpt[2]); // FPTM
+			x_cp_put_long(ad, fsave_data.fpt[2]); // FPTM
 			ad += 4;
-			x_put_long(ad, fsave_data.et[0]); // ETS/ETE
+			x_cp_put_long(ad, fsave_data.et[0]); // ETS/ETE
 			ad += 4;
-			x_put_long(ad, fsave_data.et[1]); // ETM
+			x_cp_put_long(ad, fsave_data.et[1]); // ETM
 			ad += 4;
-			x_put_long(ad, fsave_data.et[2]); // ETM
+			x_cp_put_long(ad, fsave_data.et[2]); // ETM
 			ad += 4;
 		}
 	} else { /* 68881/68882 */
@@ -2149,14 +2149,14 @@ void fpuop_save (uae_u32 opcode)
 			adp = ad;
 			mmu030_state[1] |= MMU030_STATEFLAG1_SKIP_INS;
 			if(mmu030_state[0] == i) {
-				x_put_long(ad, frame_id); // frame id
+				x_cp_put_long(ad, frame_id); // frame id
 				mmu030_state[0]++;
 			}
 			ad += 4;
 			i++;
 			if (regs.fpu_state != 0) { // idle frame
 				if(mmu030_state[0] == i) {
-					x_put_long(ad, fsave_data.ccr); // command/condition register
+					x_cp_put_long(ad, fsave_data.ccr); // command/condition register
 					mmu030_state[0]++;
 				}
 				ad += 4;
@@ -2164,7 +2164,7 @@ void fpuop_save (uae_u32 opcode)
 				if (currprefs.fpu_model == 68882) {
 					while (i <= 9) {
 						if (mmu030_state[0] == i) {
-							x_put_long(ad, 0x00000000); // internal
+							x_cp_put_long(ad, 0x00000000); // internal
 							mmu030_state[0]++;
 						}
 						ad += 4;
@@ -2172,31 +2172,31 @@ void fpuop_save (uae_u32 opcode)
 					}
 				}
 				if (mmu030_state[0] == i) {
-					x_put_long (ad, fsave_data.eo[0]); // exceptional operand lo
+					x_cp_put_long (ad, fsave_data.eo[0]); // exceptional operand lo
 					mmu030_state[0]++;
 				}
 				ad += 4;
 				i++;
 				if (mmu030_state[0] == i) {
-					x_put_long (ad, fsave_data.eo[1]); // exceptional operand mid
+					x_cp_put_long (ad, fsave_data.eo[1]); // exceptional operand mid
 					mmu030_state[0]++;
 				}
 				ad += 4;
 				i++;
 				if (mmu030_state[0] == i) {
-					x_put_long (ad, fsave_data.eo[2]); // exceptional operand hi
+					x_cp_put_long (ad, fsave_data.eo[2]); // exceptional operand hi
 					mmu030_state[0]++;
 				}
 				ad += 4;
 				i++;
 				if (mmu030_state[0] == i) {
-					x_put_long(ad, 0x00000000); // operand register
+					x_cp_put_long(ad, 0x00000000); // operand register
 					mmu030_state[0]++;
 				}
 				ad += 4;
 				i++;
 				if (mmu030_state[0] == i) {
-					x_put_long(ad, biu_flags); // biu flags
+					x_cp_put_long(ad, biu_flags); // biu flags
 					mmu030_state[0]++;
 				}
 				ad += 4;
@@ -2205,26 +2205,26 @@ void fpuop_save (uae_u32 opcode)
 			if (incr < 0)
 				ad -= frame_size;
 			adp = ad;
-			x_put_long(ad, frame_id); // frame id
+			x_cp_put_long(ad, frame_id); // frame id
 			ad += 4;
 			if (regs.fpu_state != 0) { // idle frame
-				x_put_long(ad, fsave_data.ccr); // command/condition register
+				x_cp_put_long(ad, fsave_data.ccr); // command/condition register
 				ad += 4;
 				if(currprefs.fpu_model == 68882) {
 					for(i = 0; i < 32; i += 4) {
-						x_put_long(ad, 0x00000000); // internal
+						x_cp_put_long(ad, 0x00000000); // internal
 						ad += 4;
 					}
 				}
-				x_put_long(ad, fsave_data.eo[0]); // exceptional operand hi
+				x_cp_put_long(ad, fsave_data.eo[0]); // exceptional operand hi
 				ad += 4;
-				x_put_long(ad, fsave_data.eo[1]); // exceptional operand mid
+				x_cp_put_long(ad, fsave_data.eo[1]); // exceptional operand mid
 				ad += 4;
-				x_put_long(ad, fsave_data.eo[2]); // exceptional operand lo
+				x_cp_put_long(ad, fsave_data.eo[2]); // exceptional operand lo
 				ad += 4;
-				x_put_long(ad, 0x00000000); // operand register
+				x_cp_put_long(ad, 0x00000000); // operand register
 				ad += 4;
-				x_put_long(ad, biu_flags); // biu flags
+				x_cp_put_long(ad, biu_flags); // biu flags
 				ad += 4;
 			}
 		}
@@ -2236,15 +2236,6 @@ void fpuop_save (uae_u32 opcode)
 }
 
 static bool fp_arithmetic(fpdata *src, fpdata *dst, int extra);
-
-static uae_u32 mmu030_get(uaecptr ad)
-{
-	uae_u32 v;
-	ACCESS_CHECK_GET;
-	v = x_get_long(ad);
-	ACCESS_EXIT_GET;
-	return v;
-}
 
 void fpuop_restore (uae_u32 opcode)
 {
@@ -2279,11 +2270,7 @@ void fpuop_restore (uae_u32 opcode)
 
 	// FRESTORE does not support predecrement
 
-	if (currprefs.mmu_model == 68030) {
-		d = mmu030_get(ad);
-	} else {
-		d = x_get_long(ad);
-	}
+	d = x_cp_get_long(ad);
 
 	frame_version = (d >> 24) & 0xff;
 
@@ -2295,9 +2282,9 @@ retry:
 		uae_u32 v = d & 0x7;
 		fsave_data.eo[0] = d & 0xffff0000;
 
-		fsave_data.eo[1] = x_get_long (ad);
+		fsave_data.eo[1] = x_cp_get_long(ad);
 		ad += 4;
-		fsave_data.eo[2] = x_get_long (ad);
+		fsave_data.eo[2] = x_cp_get_long(ad);
 		ad += 4;
 
 		if (ff == 0x60) {
@@ -2329,32 +2316,32 @@ retry:
 				uae_u32 tmp, v, opclass, cmdreg1b, fpte15, et15, cusavepc;
 
 				ad += 0x4; // offset to CU_SAVEPC field
-				tmp = x_get_long (ad);
+				tmp = x_cp_get_long(ad);
 				cusavepc = tmp >> 24;
 				ad += 0x20; // offset to FPIARCU field
-				regs.fpiar = x_get_long (ad);
+				regs.fpiar = x_cp_get_long(ad);
 				ad += 0x14; // offset to ET15 field
-				tmp = x_get_long (ad);
+				tmp = x_cp_get_long(ad);
 				et15 = (tmp & 0x10000000) >> 28;
 				ad += 0x4; // offset to CMDREG1B field
-				fsave_data.cmdreg1b = x_get_long (ad);
+				fsave_data.cmdreg1b = x_cp_get_long(ad);
 				fsave_data.cmdreg1b >>= 16;
 				cmdreg1b = fsave_data.cmdreg1b;
 				ad += 0x4; // offset to FPTE15 field
-				tmp = x_get_long (ad);
+				tmp = x_cp_get_long(ad);
 				fpte15 = (tmp & 0x10000000) >> 28;
 				ad += 0x8; // offset to FPTE field
-				fsave_data.fpt[0] = x_get_long (ad);
+				fsave_data.fpt[0] = x_cp_get_long(ad);
 				ad += 0x4;
-				fsave_data.fpt[1] = x_get_long (ad);
+				fsave_data.fpt[1] = x_cp_get_long(ad);
 				ad += 0x4;
-				fsave_data.fpt[2] = x_get_long (ad);
+				fsave_data.fpt[2] = x_cp_get_long(ad);
 				ad += 0x4; // offset to ET field
-				fsave_data.et[0] = x_get_long (ad);
+				fsave_data.et[0] = x_cp_get_long(ad);
 				ad += 0x4;
-				fsave_data.et[1] = x_get_long (ad);
+				fsave_data.et[1] = x_cp_get_long(ad);
 				ad += 0x4;
-				fsave_data.et[2] = x_get_long (ad);
+				fsave_data.et[2] = x_cp_get_long(ad);
 				ad += 0x4;
 				
 				opclass = (cmdreg1b >> 13) & 0x7; // just to be sure
@@ -2424,39 +2411,20 @@ retry:
 
 			if (frame_size == 0x18 || frame_size == 0x38) { // idle
 
-				if (currprefs.mmu_model) {
-					fsave_data.ccr = mmu030_get(ad);
-					ad += 4;
-					// 68882 internal registers (32 bytes, unused)
-					ad += frame_size - 24;
-					fsave_data.eo[0] = mmu030_get(ad);
-					ad += 4;
-					fsave_data.eo[1] = mmu030_get(ad);
-					ad += 4;
-					fsave_data.eo[2] = mmu030_get(ad);
-					ad += 4;
-					// operand register (unused)
-					ad += 4;
-					biu_flags = mmu030_get(ad);
-					ad += 4;
-
-				} else {
-
-					fsave_data.ccr = x_get_long(ad);
-					ad += 4;
-					// 68882 internal registers (32 bytes, unused)
-					ad += frame_size - 24;
-					fsave_data.eo[0] = x_get_long(ad);
-					ad += 4;
-					fsave_data.eo[1] = x_get_long(ad);
-					ad += 4;
-					fsave_data.eo[2] = x_get_long(ad);
-					ad += 4;
-					// operand register (unused)
-					ad += 4;
-					biu_flags = x_get_long(ad);
-					ad += 4;
-				}
+				fsave_data.ccr = x_cp_get_long(ad);
+				ad += 4;
+				// 68882 internal registers (32 bytes, unused)
+				ad += frame_size - 24;
+				fsave_data.eo[0] = x_cp_get_long(ad);
+				ad += 4;
+				fsave_data.eo[1] = x_cp_get_long(ad);
+				ad += 4;
+				fsave_data.eo[2] = x_cp_get_long(ad);
+				ad += 4;
+				// operand register (unused)
+				ad += 4;
+				biu_flags = x_cp_get_long(ad);
+				ad += 4;
 				
 				if ((biu_flags & 0x08000000) == 0x00000000) {
 					regs.fpu_exp_state = 2;
@@ -2517,7 +2485,7 @@ static uaecptr fmovem2mem (uaecptr ad, uae_u32 list, int incr, int regdir)
 							mmu030_state[1] &= ~MMU030_STATEFLAG1_MOVEM2;
 						} else {
 							mmu030_data_buffer = wrd[i];
-							x_put_long(ad + i * 4, wrd[i]);
+							x_cp_put_long(ad + i * 4, wrd[i]);
 						}
 						mmu030_state[0]++;
 					}
@@ -2539,9 +2507,9 @@ static uaecptr fmovem2mem (uaecptr ad, uae_u32 list, int incr, int regdir)
 				fpp_from_exten_fmovem(&regs.fp[reg], &wrd1, &wrd2, &wrd3);
 				if (incr < 0)
 					ad -= 3 * 4;
-				x_put_long(ad + 0, wrd1);
-				x_put_long(ad + 4, wrd2);
-				x_put_long(ad + 8, wrd3);
+				x_cp_put_long(ad + 0, wrd1);
+				x_cp_put_long(ad + 4, wrd2);
+				x_cp_put_long(ad + 8, wrd3);
 				if (incr > 0)
 					ad += 3 * 4;
 			}
@@ -2577,7 +2545,7 @@ static uaecptr fmovem2fpp (uaecptr ad, uae_u32 list, int incr, int regdir)
 							mmu030_state[1] &= ~MMU030_STATEFLAG1_MOVEM2;
 							wrd[i] = mmu030_data_buffer;
 						} else {
-							wrd[i] = x_get_long (ad + i * 4);
+							wrd[i] = x_cp_get_long (ad + i * 4);
 						}
 						// save first two entries if 2nd or 3rd get_long() faults.
 						if (i == 0 || i == 1)
@@ -2603,9 +2571,9 @@ static uaecptr fmovem2fpp (uaecptr ad, uae_u32 list, int incr, int regdir)
 			if (list & 0x80) {
 				if (incr < 0)
 					ad -= 3 * 4;
-				wrd1 = x_get_long (ad + 0);
-				wrd2 = x_get_long (ad + 4);
-				wrd3 = x_get_long (ad + 8);
+				wrd1 = x_cp_get_long (ad + 0);
+				wrd2 = x_cp_get_long (ad + 4);
+				wrd3 = x_cp_get_long (ad + 8);
 				if (incr > 0)
 					ad += 3 * 4;
 				fpp_to_exten (&regs.fp[reg], wrd1, wrd2, wrd3);
