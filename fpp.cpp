@@ -2143,62 +2143,27 @@ void fpuop_save (uae_u32 opcode)
 			frame_size = 4;
 
 		if (currprefs.mmu_model) {
-			i = 0;
 			if (incr < 0)
 				ad -= frame_size;
 			adp = ad;
-			mmu030_state[1] |= MMU030_STATEFLAG1_SKIP_INS;
-			if(mmu030_state[0] == i) {
-				x_cp_put_long(ad, frame_id); // frame id
-				mmu030_state[0]++;
-			}
+			x_cp_put_long(ad, frame_id); // frame id
 			ad += 4;
-			i++;
 			if (regs.fpu_state != 0) { // idle frame
-				if(mmu030_state[0] == i) {
-					x_cp_put_long(ad, fsave_data.ccr); // command/condition register
-					mmu030_state[0]++;
-				}
+				x_cp_put_long(ad, fsave_data.ccr); // command/condition register
 				ad += 4;
-				i++;
 				if (currprefs.fpu_model == 68882) {
-					while (i <= 9) {
-						if (mmu030_state[0] == i) {
-							x_cp_put_long(ad, 0x00000000); // internal
-							mmu030_state[0]++;
-						}
-						ad += 4;
-						i++;
-					}
+					// don't write unused fields to save MMU state space.
+					ad += 8 * 4;
 				}
-				if (mmu030_state[0] == i) {
-					x_cp_put_long (ad, fsave_data.eo[0]); // exceptional operand lo
-					mmu030_state[0]++;
-				}
+				x_cp_put_long(ad, fsave_data.eo[0]); // exceptional operand lo
 				ad += 4;
-				i++;
-				if (mmu030_state[0] == i) {
-					x_cp_put_long (ad, fsave_data.eo[1]); // exceptional operand mid
-					mmu030_state[0]++;
-				}
+				x_cp_put_long(ad, fsave_data.eo[1]); // exceptional operand mid
 				ad += 4;
-				i++;
-				if (mmu030_state[0] == i) {
-					x_cp_put_long (ad, fsave_data.eo[2]); // exceptional operand hi
-					mmu030_state[0]++;
-				}
+				x_cp_put_long(ad, fsave_data.eo[2]); // exceptional operand hi
 				ad += 4;
-				i++;
-				if (mmu030_state[0] == i) {
-					x_cp_put_long(ad, 0x00000000); // operand register
-					mmu030_state[0]++;
-				}
+				x_cp_put_long(ad, 0x00000000); // operand register
 				ad += 4;
-				i++;
-				if (mmu030_state[0] == i) {
-					x_cp_put_long(ad, biu_flags); // biu flags
-					mmu030_state[0]++;
-				}
+				x_cp_put_long(ad, biu_flags); // biu flags
 				ad += 4;
 			}
 		} else {
@@ -2485,7 +2450,7 @@ static uaecptr fmovem2mem (uaecptr ad, uae_u32 list, int incr, int regdir)
 							mmu030_state[1] &= ~MMU030_STATEFLAG1_MOVEM2;
 						} else {
 							mmu030_data_buffer = wrd[i];
-							x_cp_put_long(ad + i * 4, wrd[i]);
+							x_put_long(ad + i * 4, wrd[i]);
 						}
 						mmu030_state[0]++;
 					}
@@ -2545,7 +2510,7 @@ static uaecptr fmovem2fpp (uaecptr ad, uae_u32 list, int incr, int regdir)
 							mmu030_state[1] &= ~MMU030_STATEFLAG1_MOVEM2;
 							wrd[i] = mmu030_data_buffer;
 						} else {
-							wrd[i] = x_cp_get_long (ad + i * 4);
+							wrd[i] = x_get_long (ad + i * 4);
 						}
 						// save first two entries if 2nd or 3rd get_long() faults.
 						if (i == 0 || i == 1)
