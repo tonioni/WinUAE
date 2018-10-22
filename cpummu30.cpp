@@ -2272,9 +2272,8 @@ uae_u8 uae_mmu030_check_fc(uaecptr addr, bool write, uae_u32 size)
 }
 
 /* Locked RMW is rarely used */
-uae_u32 uae_mmu030_get_lrmw(uaecptr addr, int size)
+uae_u32 uae_mmu030_get_lrmw_fcx(uaecptr addr, int size, int fc)
 {
-    uae_u32 fc = (regs.s ? 4 : 0) | 1;
 	if (size == sz_byte) {
 		return mmu030_get_generic(addr, fc, size, MMU030_SSW_RM | MMU030_SSW_SIZE_B);
 	} else if (size == sz_word) {
@@ -2289,9 +2288,14 @@ uae_u32 uae_mmu030_get_lrmw(uaecptr addr, int size)
 			return mmu030_get_generic(addr, fc, size, MMU030_SSW_RM | MMU030_SSW_SIZE_L);
 	}
 }
-void uae_mmu030_put_lrmw(uaecptr addr, uae_u32 val, int size)
+uae_u32 uae_mmu030_get_lrmw(uaecptr addr, int size)
 {
-    uae_u32 fc = (regs.s ? 4 : 0) | 1;
+	uae_u32 fc = (regs.s ? 4 : 0) | 1;
+	return uae_mmu030_get_lrmw_fcx(addr, size, fc);
+}
+
+void uae_mmu030_put_lrmw_fcx(uaecptr addr, uae_u32 val, int size, int fc)
+{
 	if (size == sz_byte) {
 		mmu030_put_generic(addr, val, fc, size, MMU030_SSW_RM | MMU030_SSW_SIZE_B);
 	} else if (size == sz_word) {
@@ -2306,6 +2310,12 @@ void uae_mmu030_put_lrmw(uaecptr addr, uae_u32 val, int size)
 			mmu030_put_generic(addr, val, fc, size, MMU030_SSW_RM | MMU030_SSW_SIZE_L);
 	}
 }
+void uae_mmu030_put_lrmw(uaecptr addr, uae_u32 val, int size)
+{
+	uae_u32 fc = (regs.s ? 4 : 0) | 1;
+	uae_mmu030_put_lrmw_fcx(addr, val, size, fc);
+}
+
 uae_u16 REGPARAM2 mmu030_get_word_unaligned(uaecptr addr, uae_u32 fc, int flags)
 {
 	uae_u16 res;
@@ -2609,36 +2619,49 @@ void m68k_do_rte_mmu030 (uaecptr a7)
 		}
 		m68k_setpci(pc);
 
+#if MMUDEBUG
+		if (mmu030_state[1] & MMU030_STATEFLAG1_MOVEM1) {
+			if (mmu030_state[1] & MMU030_STATEFLAG1_MOVEM2) {
+				write_log(_T("68030 MMU MOVEM %04x retry but MMU030_STATEFLAG1_MOVEM2 was already set!?\n"));
+			}
+		} else {
+			if (mmu030_ad[idxsize].done) {
+				write_log(_T("68030 MMU ins %04x retry but it was already marked as done!?\n"));
+			}
+		}
+#endif
+
 		if (ssw & MMU030_SSW_DF) {
 			// retry faulted access
 			uaecptr addr = fault_addr;
 			bool read = (ssw & MMU030_SSW_RW) != 0;
-			int size = (ssw & MMU030_SSW_SIZE_B) ? 1 : ((ssw & MMU030_SSW_SIZE_W) ? 2 : 4);
+			int size = (ssw & MMU030_SSW_SIZE_B) ? sz_byte : ((ssw & MMU030_SSW_SIZE_W) ? sz_word : sz_long);
 			int fc = ssw & 7;
 			
 			if (read) {
 				uae_u32 val = 0;
-				switch (size)
-				{
-					case 1:
-					val = mmu030_get_byte(addr, fc);
-					break;
-					case 2:
-					val = mmu030_get_word(addr, fc);
-					break;
-					case 4:
-					val = mmu030_get_long(addr, fc);
-					break;
+				if (ssw & MMU030_SSW_RM) {
+					val = uae_mmu030_get_lrmw_fcx(addr, size, fc);
+				} else {
+					switch (size)
+					{
+						case sz_byte:
+						val = uae_mmu030_get_byte_fcx(addr, fc);
+						break;
+						case sz_word:
+						val = uae_mmu030_get_word_fcx(addr, fc);
+						break;
+						case sz_long:
+						val = uae_mmu030_get_long_fcx(addr, fc);
+						break;
+					}
 				}
 				if (mmu030_state[1] & MMU030_STATEFLAG1_MOVEM1) {
 					mmu030_data_buffer = val;
 					mmu030_state[1] |= MMU030_STATEFLAG1_MOVEM2;
-				} else if (mmu030_state[1] & MMU030_STATEFLAG1_SKIP_INS) {
-					mmu030_state[0]++;
 				} else {
 					mmu030_ad[idxsize].val = val;
 					mmu030_ad[idxsize].done = true;
-					mmu030_ad[idxsize + 1].done = false;
 				}
 			} else {
 				uae_u32 val;
@@ -2646,25 +2669,26 @@ void m68k_do_rte_mmu030 (uaecptr a7)
 					val = mdata;
 				else
 					val = mmu030_ad[idxsize].val;
-				switch (size)
-				{
-					case 1:
-					mmu030_put_byte(addr, val, fc);
-					break;
-					case 2:
-					mmu030_put_word(addr, val, fc);
-					break;
-					case 4:
-					mmu030_put_long(addr, val, fc);
-					break;
+				if (ssw & MMU030_SSW_RM) {
+					uae_mmu030_put_lrmw_fcx(addr, val, size, fc);
+				} else {
+					switch (size)
+					{
+						case sz_byte:
+						uae_mmu030_put_byte_fcx(addr, val, fc);
+						break;
+						case sz_word:
+						uae_mmu030_put_word_fcx(addr, val, fc);
+						break;
+						case sz_long:
+						uae_mmu030_put_long_fcx(addr, val, fc);
+						break;
+					}
 				}
 				if (mmu030_state[1] & MMU030_STATEFLAG1_MOVEM1) {
 					mmu030_state[1] |= MMU030_STATEFLAG1_MOVEM2;
-				} else if (mmu030_state[1] & MMU030_STATEFLAG1_SKIP_INS) {
-					mmu030_state[0]++;
 				} else {
 					mmu030_ad[idxsize].done = true;
-					mmu030_ad[idxsize + 1].done = false;
 				}
 			}
 		}
@@ -2972,28 +2996,26 @@ void m68k_do_rte_mmu030c (uaecptr a7)
 			// retry faulted access
 			uaecptr addr = fault_addr;
 			bool read = (ssw & MMU030_SSW_RW) != 0;
-			int size = (ssw & MMU030_SSW_SIZE_B) ? 1 : ((ssw & MMU030_SSW_SIZE_W) ? 2 : 4);
+			int size = (ssw & MMU030_SSW_SIZE_B) ? sz_byte : ((ssw & MMU030_SSW_SIZE_W) ? sz_word : sz_long);
 			int fc = ssw & 7;
 
 			if (read) {
 				uae_u32 val = 0;
 				switch (size)
 				{
-					case 1:
+					case sz_byte:
 					val = read_dcache030_bget(addr, fc);
 					break;
-					case 2:
+					case sz_word:
 					val = read_dcache030_wget(addr, fc);
 					break;
-					case 4:
+					case sz_long:
 					val = read_dcache030_lget(addr, fc);
 					break;
 				}
 				if (mmu030_state[1] & MMU030_STATEFLAG1_MOVEM1) {
 					mmu030_data_buffer = val;
 					mmu030_state[1] |= MMU030_STATEFLAG1_MOVEM2;
-				} else if (mmu030_state[1] & MMU030_STATEFLAG1_SKIP_INS) {
-					mmu030_state[0]++;
 				} else {
 					mmu030_ad[idxsize].val = val;
 					mmu030_ad[idxsize].done = true;
@@ -3007,20 +3029,18 @@ void m68k_do_rte_mmu030c (uaecptr a7)
 					val = mmu030_ad[idxsize].val;
 				switch (size)
 				{
-					case 1:
+					case sz_byte:
 					write_dcache030_bput(addr, val, fc);
 					break;
-					case 2:
+					case sz_word:
 					write_dcache030_wput(addr, val, fc);
 					break;
-					case 4:
+					case sz_long:
 					write_dcache030_lput(addr, val, fc);
 					break;
 				}
 				if (mmu030_state[1] & MMU030_STATEFLAG1_MOVEM1) {
 					mmu030_state[1] |= MMU030_STATEFLAG1_MOVEM2;
-				} else if (mmu030_state[1] & MMU030_STATEFLAG1_SKIP_INS) {
-					mmu030_state[0]++;
 				} else {
 					mmu030_ad[idxsize].done = true;
 					mmu030_ad[idxsize + 1].done = false;

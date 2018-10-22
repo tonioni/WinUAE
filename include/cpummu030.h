@@ -25,7 +25,6 @@ extern uae_u32 mmu030_disp_store[2];
 extern uae_u32 mmu030_fmovem_store[2];
 extern uae_u8 mmu030_cache_state, mmu030_cache_state_default;
 
-#define MMU030_STATEFLAG1_SKIP_INS 0x1000
 #define MMU030_STATEFLAG1_FMOVEM 0x2000
 #define MMU030_STATEFLAG1_MOVEM1 0x4000
 #define MMU030_STATEFLAG1_MOVEM2 0x8000
@@ -70,7 +69,9 @@ uae_u32 mmu030_get_ilong(uaecptr addr, uae_u32 fc);
 uae_u16 mmu030_get_iword(uaecptr addr, uae_u32 fc);
 
 uae_u32 uae_mmu030_get_lrmw(uaecptr addr, int size);
+uae_u32 uae_mmu030_get_lrmw_fcx(uaecptr addr, int size, int fc);
 void uae_mmu030_put_lrmw(uaecptr addr, uae_u32 val, int size);
+void uae_mmu030_put_lrmw_fcx(uaecptr addr, uae_u32 val, int size, int fc);
 
 void mmu030_put_generic(uaecptr addr, uae_u32 val, uae_u32 fc, int size, int flags);
 uae_u32 mmu030_get_generic(uaecptr addr, uae_u32 fc, int size, int flags);
@@ -211,6 +212,42 @@ static ALWAYS_INLINE void uae_mmu030_put_byte_fc(uaecptr addr, uae_u32 val)
 	mmu030_put_byte(addr, val, regs.fc030);
 }
 uae_u8 uae_mmu030_check_fc(uaecptr addr, bool write, uae_u32 size);
+
+static ALWAYS_INLINE uae_u32 uae_mmu030_get_long_fcx(uaecptr addr, int fc)
+{
+	if (unlikely(is_unaligned(addr, 4)))
+		return mmu030_get_long_unaligned(addr, fc, 0);
+	return mmu030_get_long(addr, fc);
+}
+static ALWAYS_INLINE uae_u32 uae_mmu030_get_word_fcx(uaecptr addr, int fc)
+{
+	if (unlikely(is_unaligned(addr, 2)))
+		return mmu030_get_word_unaligned(addr, fc, 0);
+	return mmu030_get_word(addr, fc);
+}
+static ALWAYS_INLINE uae_u32 uae_mmu030_get_byte_fcx(uaecptr addr, int fc)
+{
+	return mmu030_get_byte(addr, fc);
+}
+static ALWAYS_INLINE void uae_mmu030_put_long_fcx(uaecptr addr, uae_u32 val, int fc)
+{
+	if (unlikely(is_unaligned(addr, 4)))
+		mmu030_put_long_unaligned(addr, val, fc, 0);
+	else
+		mmu030_put_long(addr, val, fc);
+}
+static ALWAYS_INLINE void uae_mmu030_put_word_fcx(uaecptr addr, uae_u32 val, int fc)
+{
+	if (unlikely(is_unaligned(addr, 2)))
+		mmu030_put_word_unaligned(addr, val, fc, 0);
+	else
+		mmu030_put_word(addr, val, fc);
+}
+static ALWAYS_INLINE void uae_mmu030_put_byte_fcx(uaecptr addr, uae_u32 val, int fc)
+{
+	mmu030_put_byte(addr, val, fc);
+}
+
 
 #define ACCESS_CHECK_PUT \
 	if (!mmu030_ad[mmu030_idx].done) { \
