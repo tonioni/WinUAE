@@ -595,7 +595,9 @@ extern uae_u32 read_dcache030_mmu_bget(uaecptr);
 extern uae_u32 read_dcache030_mmu_wget(uaecptr);
 extern uae_u32 read_dcache030_mmu_lget(uaecptr);
 extern void write_dcache030_lrmw_mmu(uaecptr, uae_u32, uae_u32);
+extern void write_dcache030_lrmw_mmu_fcx(uaecptr, uae_u32, uae_u32, int);
 extern uae_u32 read_dcache030_lrmw_mmu(uaecptr, uae_u32);
+extern uae_u32 read_dcache030_lrmw_mmu_fcx(uaecptr, uae_u32, int);
 
 extern void check_t0_trace(void);
 extern uae_u32 get_word_icache030(uaecptr addr);

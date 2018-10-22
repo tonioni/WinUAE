@@ -3001,17 +3001,21 @@ void m68k_do_rte_mmu030c (uaecptr a7)
 
 			if (read) {
 				uae_u32 val = 0;
-				switch (size)
-				{
-					case sz_byte:
-					val = read_dcache030_bget(addr, fc);
-					break;
-					case sz_word:
-					val = read_dcache030_wget(addr, fc);
-					break;
-					case sz_long:
-					val = read_dcache030_lget(addr, fc);
-					break;
+				if (ssw & MMU030_SSW_RM) {
+					val = read_dcache030_lrmw_mmu_fcx(addr, size, fc);
+				} else {
+					switch (size)
+					{
+						case sz_byte:
+						val = read_dcache030_bget(addr, fc);
+						break;
+						case sz_word:
+						val = read_dcache030_wget(addr, fc);
+						break;
+						case sz_long:
+						val = read_dcache030_lget(addr, fc);
+						break;
+					}
 				}
 				if (mmu030_state[1] & MMU030_STATEFLAG1_MOVEM1) {
 					mmu030_data_buffer = val;
@@ -3027,17 +3031,21 @@ void m68k_do_rte_mmu030c (uaecptr a7)
 					val = mdata;
 				else
 					val = mmu030_ad[idxsize].val;
-				switch (size)
-				{
-					case sz_byte:
-					write_dcache030_bput(addr, val, fc);
-					break;
-					case sz_word:
-					write_dcache030_wput(addr, val, fc);
-					break;
-					case sz_long:
-					write_dcache030_lput(addr, val, fc);
-					break;
+				if (ssw & MMU030_SSW_RM) {
+					write_dcache030_lrmw_mmu_fcx(addr, val, size, fc);
+				} else {
+					switch (size)
+					{
+						case sz_byte:
+						write_dcache030_bput(addr, val, fc);
+						break;
+						case sz_word:
+						write_dcache030_wput(addr, val, fc);
+						break;
+						case sz_long:
+						write_dcache030_lput(addr, val, fc);
+						break;
+					}
 				}
 				if (mmu030_state[1] & MMU030_STATEFLAG1_MOVEM1) {
 					mmu030_state[1] |= MMU030_STATEFLAG1_MOVEM2;
