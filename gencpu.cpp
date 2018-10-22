@@ -5292,7 +5292,8 @@ bccl_not68020:
 			printf ("\tm68k_areg (regs, srcreg) -= areg_byteinc[srcreg];\n");
 			printf ("\tval = (uae_u16)(%s (m68k_areg (regs, srcreg)) & 0xff);\n", srcb);
 			printf ("\tm68k_areg (regs, srcreg) -= areg_byteinc[srcreg];\n");
-			printf ("\tval = (val | ((uae_u16)(%s (m68k_areg (regs, srcreg)) & 0xff) << 8)) + %s;\n", srcb, gen_nextiword (0));
+			printf ("\tval = val | ((uae_u16)(%s (m68k_areg (regs, srcreg)) & 0xff) << 8);\n", srcb);
+			printf ("\tval += %s;\n", gen_nextiword(0));
 			addmmufixup ("dstreg");
 			printf ("\tm68k_areg (regs, dstreg) -= areg_byteinc[dstreg];\n");
 			gen_set_fault_pc ();
@@ -5302,7 +5303,8 @@ bccl_not68020:
 	case i_UNPK:
 		if (curi->smode == Dreg) {
 			printf ("\tuae_u16 val = m68k_dreg (regs, srcreg);\n");
-			printf ("\tval = (((val << 4) & 0xf00) | (val & 0xf)) + %s;\n", gen_nextiword (0));
+			printf ("\tval = ((val << 4) & 0xf00) | (val & 0xf);\n");
+			printf ("\tval += %s;\n", gen_nextiword(0));
 			printf ("\tm68k_dreg (regs, dstreg) = (m68k_dreg (regs, dstreg) & 0xffff0000) | (val & 0xffff);\n");
 		} else {
 			printf ("\tuae_u16 val;\n");
