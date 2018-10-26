@@ -95,7 +95,7 @@ struct romdata *getromdatabypath (const TCHAR *path)
 	return NULL;
 }
 
-#define NEXT_ROM_ID 245
+#define NEXT_ROM_ID 246
 
 #define ALTROM(id,grp,num,size,flags,crc32,a,b,c,d,e) \
 { _T("X"), 0, 0, 0, 0, 0, size, id, 0, 0, flags, (grp << 16) | num, 0, NULL, crc32, a, b, c, d, e },
@@ -542,6 +542,10 @@ static struct romdata roms[] = {
 	ALTROMPN(146, 1, 2, 8192, ROMTYPE_EVEN | ROMTYPE_8BIT, NULL, 0xc88843cb, 0x3d7eb1b6, 0x8139b81b, 0x0665684c, 0x536ab3d0, 0x52a5dd9d)
 	{ _T("Apollo 500/2000"), 0, 0, 0, 0, _T("APOLLOHD\0"), 16384, 145, 0, 0, ROMTYPE_APOLLOHD, 0, 0, NULL,
 	0x931bad25, 0x24b4ee4c,0x129c7a93,0xf83ad570,0x66afd80c,0x4179f39c, NULL, NULL },
+	{ _T("Multi Evolution 500/2000 v2.2"), 2, 2, 2, 2, _T("MULTIEVOLUTION\0"), 65536, 245, 0, 0, ROMTYPE_MEVOLUTION, 0, 0, NULL,
+	0x8fbe3fc5, 0x367ad3a3,0x7d1c9d61,0xe92915d3,0xb8121402,0x372b6aa1, NULL, NULL },
+	ALTROMPN(245, 1, 1, 32768, ROMTYPE_ODD  | ROMTYPE_8BIT, NULL, 0xa81522e9, 0x162d1fe7, 0x173848fa, 0x45d93872, 0xb1a9ab8f, 0x16f2b166)
+	ALTROMPN(245, 1, 2, 32768, ROMTYPE_EVEN | ROMTYPE_8BIT, NULL, 0x55c7c65a, 0x3dfaca7f, 0x9a6c0b0d, 0x2689bdc1, 0x313bbef7, 0xb164cad8)
 	{ _T("Multi Evolution 500/2000 v3.0"), 3, 0, 3, 0, _T("MULTIEVOLUTION\0"), 65536, 156, 0, 0, ROMTYPE_MEVOLUTION, 0, 0, NULL,
 	0xd13a2c89, 0xf9e38c4b,0xf5c6499d,0x486946ba,0x7b7636b8,0x0845265b, NULL, NULL },
 	ALTROMPN(156, 1, 1, 32768, ROMTYPE_ODD  | ROMTYPE_8BIT, NULL, 0x339b3549, 0x74de857b, 0x42f9a8e0, 0xc1f3c29e, 0x06982622, 0x853d08fe)
