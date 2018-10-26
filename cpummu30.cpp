@@ -2630,8 +2630,13 @@ void m68k_do_rte_mmu030 (uaecptr a7)
 			}
 		}
 #endif
+		if ((ssw & MMU030_SSW_DF) && (ssw & MMU030_SSW_RM)) {
 
-		if (ssw & MMU030_SSW_DF) {
+			// Locked-Read-Modify-Write restarts whole instruction.
+			mmu030_ad[0].done = false;
+
+		} else if (ssw & MMU030_SSW_DF) {
+
 			// retry faulted access
 			uaecptr addr = fault_addr;
 			bool read = (ssw & MMU030_SSW_RW) != 0;
@@ -2640,21 +2645,17 @@ void m68k_do_rte_mmu030 (uaecptr a7)
 			
 			if (read) {
 				uae_u32 val = 0;
-				if (ssw & MMU030_SSW_RM) {
-					val = uae_mmu030_get_lrmw_fcx(addr, size, fc);
-				} else {
-					switch (size)
-					{
-						case sz_byte:
-						val = uae_mmu030_get_byte_fcx(addr, fc);
-						break;
-						case sz_word:
-						val = uae_mmu030_get_word_fcx(addr, fc);
-						break;
-						case sz_long:
-						val = uae_mmu030_get_long_fcx(addr, fc);
-						break;
-					}
+				switch (size)
+				{
+					case sz_byte:
+					val = uae_mmu030_get_byte_fcx(addr, fc);
+					break;
+					case sz_word:
+					val = uae_mmu030_get_word_fcx(addr, fc);
+					break;
+					case sz_long:
+					val = uae_mmu030_get_long_fcx(addr, fc);
+					break;
 				}
 				if (mmu030_state[1] & MMU030_STATEFLAG1_MOVEM1) {
 					mmu030_data_buffer = val;
@@ -2669,21 +2670,17 @@ void m68k_do_rte_mmu030 (uaecptr a7)
 					val = mdata;
 				else
 					val = mmu030_ad[idxsize].val;
-				if (ssw & MMU030_SSW_RM) {
-					uae_mmu030_put_lrmw_fcx(addr, val, size, fc);
-				} else {
-					switch (size)
-					{
-						case sz_byte:
-						uae_mmu030_put_byte_fcx(addr, val, fc);
-						break;
-						case sz_word:
-						uae_mmu030_put_word_fcx(addr, val, fc);
-						break;
-						case sz_long:
-						uae_mmu030_put_long_fcx(addr, val, fc);
-						break;
-					}
+				switch (size)
+				{
+					case sz_byte:
+					uae_mmu030_put_byte_fcx(addr, val, fc);
+					break;
+					case sz_word:
+					uae_mmu030_put_word_fcx(addr, val, fc);
+					break;
+					case sz_long:
+					uae_mmu030_put_long_fcx(addr, val, fc);
+					break;
 				}
 				if (mmu030_state[1] & MMU030_STATEFLAG1_MOVEM1) {
 					mmu030_state[1] |= MMU030_STATEFLAG1_MOVEM2;
@@ -2691,6 +2688,7 @@ void m68k_do_rte_mmu030 (uaecptr a7)
 					mmu030_ad[idxsize].done = true;
 				}
 			}
+
 		}
 
 	} else {
