@@ -6161,7 +6161,15 @@ static void BPLxDAT (int hpos, int num, uae_u16 v)
 	}
 	flush_display (fetchmode);
 	fetched[num] = v;
-	fetched_aga[num] = v;
+	if ((fmode & 3) == 3) {
+		fetched_aga[num] = ((uae_u64)last_custom_value2 << 48) | ((uae_u64)v << 32) | (v << 16) | v;
+	} else if ((fmode & 3) == 2) {
+		fetched_aga[num] = (last_custom_value2 << 16) | v;
+	} else if ((fmode & 3) == 1) {
+		fetched_aga[num] = (v << 16) | v;
+	} else {
+		fetched_aga[num] = v;
+	}
 	if (num == 0 && hpos >= 8) {
 		bpl1dat_written = true;
 		bpl1dat_written_at_least_once = true;
