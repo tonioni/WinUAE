@@ -1880,77 +1880,83 @@ static LRESULT CALLBACK AmigaWindowProc(HWND hWnd, UINT message, WPARAM wParam, 
 		return 0;
 
 	case WM_LBUTTONUP:
-		rp_mouseevent(-32768, -32768, 0, 1);
-		if (dinput_winmouse() >= 0 && isfocus()) {
-			if (log_winmouse)
-				write_log(_T("WM_LBUTTONUP\n"));
-			setmousebuttonstate(dinput_winmouse(), 0, 0);
+		if (!rp_mouseevent(-32768, -32768, 0, 1)) {
+			if (dinput_winmouse() >= 0 && isfocus()) {
+				if (log_winmouse)
+					write_log(_T("WM_LBUTTONUP\n"));
+				setmousebuttonstate(dinput_winmouse(), 0, 0);
+			}
 		}
 		return 0;
 	case WM_LBUTTONDOWN:
 	case WM_LBUTTONDBLCLK:
-		rp_mouseevent(-32768, -32768, 1, 1);
-		if (!mouseactive && !gui_active && (!mousehack_alive() || currprefs.input_tablet != TABLET_MOUSEHACK || (currprefs.input_tablet == TABLET_MOUSEHACK && !(currprefs.input_mouse_untrap & MOUSEUNTRAP_MAGIC)) || isfullscreen() > 0)) {
-			// borderless = do not capture with single-click
-			if (ignorelbutton) {
-				ignorelbutton = 0;
-				if (currprefs.win32_borderless)
+		if (!rp_mouseevent(-32768, -32768, 1, 1)) {
+			if (!mouseactive && !gui_active && (!mousehack_alive() || currprefs.input_tablet != TABLET_MOUSEHACK || (currprefs.input_tablet == TABLET_MOUSEHACK && !(currprefs.input_mouse_untrap & MOUSEUNTRAP_MAGIC)) || isfullscreen() > 0)) {
+				// borderless = do not capture with single-click
+				if (ignorelbutton) {
+					ignorelbutton = 0;
+					if (currprefs.win32_borderless)
+						return 0;
+				}
+				if (message == WM_LBUTTONDOWN && isfullscreen() == 0 && currprefs.win32_borderless && !rp_isactive()) {
+					// full-window drag
+					SendMessage(mon->hAmigaWnd, WM_NCLBUTTONDOWN, HTCAPTION, 0);
 					return 0;
+				}
+				if (!pause_emulation || currprefs.win32_active_nocapture_pause)
+					setmouseactive(mon->monitor_id, (message == WM_LBUTTONDBLCLK || isfullscreen() > 0) ? 2 : 1);
+			} else if (dinput_winmouse() >= 0 && isfocus()) {
+				if (log_winmouse)
+					write_log(_T("WM_LBUTTONDOWN\n"));
+				setmousebuttonstate(dinput_winmouse(), 0, 1);
 			}
-			if (message == WM_LBUTTONDOWN && isfullscreen() == 0 && currprefs.win32_borderless && !rp_isactive()) {
-				// full-window drag
-				SendMessage(mon->hAmigaWnd, WM_NCLBUTTONDOWN, HTCAPTION, 0);
-				return 0;
-			}
-			if (!pause_emulation || currprefs.win32_active_nocapture_pause)
-				setmouseactive(mon->monitor_id, (message == WM_LBUTTONDBLCLK || isfullscreen() > 0) ? 2 : 1);
-		} else if (dinput_winmouse() >= 0 && isfocus()) {
-			if (log_winmouse)
-				write_log(_T("WM_LBUTTONDOWN\n"));
-			setmousebuttonstate(dinput_winmouse(), 0, 1);
 		}
 		return 0;
 	case WM_RBUTTONUP:
-		rp_mouseevent(-32768, -32768, 0, 2);
-		if (dinput_winmouse() >= 0 && isfocus()) {
-			if (log_winmouse)
-				write_log(_T("WM_RBUTTONUP\n"));
-			setmousebuttonstate(dinput_winmouse(), 1, 0);
+		if (!rp_mouseevent(-32768, -32768, 0, 2)) {
+			if (dinput_winmouse() >= 0 && isfocus()) {
+				if (log_winmouse)
+					write_log(_T("WM_RBUTTONUP\n"));
+				setmousebuttonstate(dinput_winmouse(), 1, 0);
+			}
 		}
 		return 0;
 	case WM_RBUTTONDOWN:
 	case WM_RBUTTONDBLCLK:
-		rp_mouseevent(-32768, -32768, 2, 2);
-		if (dinput_winmouse() >= 0 && isfocus() > 0) {
-			if (log_winmouse)
-				write_log(_T("WM_RBUTTONDOWN\n"));
-			setmousebuttonstate(dinput_winmouse(), 1, 1);
+		if (!rp_mouseevent(-32768, -32768, 2, 2)) {
+			if (dinput_winmouse() >= 0 && isfocus() > 0) {
+				if (log_winmouse)
+					write_log(_T("WM_RBUTTONDOWN\n"));
+				setmousebuttonstate(dinput_winmouse(), 1, 1);
+			}
 		}
 		return 0;
 	case WM_MBUTTONUP:
-		rp_mouseevent(-32768, -32768, 0, 4);
-		if (!(currprefs.input_mouse_untrap & MOUSEUNTRAP_MIDDLEBUTTON)) {
-			if (log_winmouse)
-				write_log(_T("WM_MBUTTONUP\n"));
-			if (dinput_winmouse() >= 0 && isfocus())
-				setmousebuttonstate(dinput_winmouse(), 2, 0);
+		if (!rp_mouseevent(-32768, -32768, 0, 4)) {
+			if (!(currprefs.input_mouse_untrap & MOUSEUNTRAP_MIDDLEBUTTON)) {
+				if (log_winmouse)
+					write_log(_T("WM_MBUTTONUP\n"));
+				if (dinput_winmouse() >= 0 && isfocus())
+					setmousebuttonstate(dinput_winmouse(), 2, 0);
+			}
 		}
 		return 0;
 	case WM_MBUTTONDOWN:
 	case WM_MBUTTONDBLCLK:
-		rp_mouseevent(-32768, -32768, 4, 4);
-		if (currprefs.input_mouse_untrap & MOUSEUNTRAP_MIDDLEBUTTON) {
-			activationtoggle(mon->monitor_id, true);
-		} else {
-			if (dinput_winmouse() >= 0 && isfocus() > 0) {
-				if (log_winmouse)
-					write_log(_T("WM_MBUTTONDOWN\n"));
-				setmousebuttonstate(dinput_winmouse(), 2, 1);
+		if (!rp_mouseevent(-32768, -32768, 4, 4)) {
+			if (currprefs.input_mouse_untrap & MOUSEUNTRAP_MIDDLEBUTTON) {
+				activationtoggle(mon->monitor_id, true);
+			} else {
+				if (dinput_winmouse() >= 0 && isfocus() > 0) {
+					if (log_winmouse)
+						write_log(_T("WM_MBUTTONDOWN\n"));
+					setmousebuttonstate(dinput_winmouse(), 2, 1);
+				}
 			}
 		}
 		return 0;
 	case WM_XBUTTONUP:
-		if (dinput_winmouse() >= 0 && isfocus()) {
+		if (!rp_ismouseevent() && dinput_winmouse() >= 0 && isfocus()) {
 			if (log_winmouse)
 				write_log(_T("WM_XBUTTONUP %08x\n"), wParam);
 			handleXbutton(wParam, 0);
@@ -1959,7 +1965,7 @@ static LRESULT CALLBACK AmigaWindowProc(HWND hWnd, UINT message, WPARAM wParam, 
 		return 0;
 	case WM_XBUTTONDOWN:
 	case WM_XBUTTONDBLCLK:
-		if (dinput_winmouse() >= 0 && isfocus() > 0) {
+		if (!rp_ismouseevent() && dinput_winmouse() >= 0 && isfocus() > 0) {
 			if (log_winmouse)
 				write_log(_T("WM_XBUTTONDOWN %08x\n"), wParam);
 			handleXbutton(wParam, 1);
@@ -1967,7 +1973,7 @@ static LRESULT CALLBACK AmigaWindowProc(HWND hWnd, UINT message, WPARAM wParam, 
 		}
 		return 0;
 	case WM_MOUSEWHEEL:
-		if (dinput_winmouse() >= 0 && isfocus() > 0) {
+		if (!rp_ismouseevent() && dinput_winmouse() >= 0 && isfocus() > 0) {
 			int val = ((short)HIWORD(wParam));
 			if (log_winmouse)
 				write_log(_T("WM_MOUSEWHEEL %08x\n"), wParam);
@@ -1980,7 +1986,7 @@ static LRESULT CALLBACK AmigaWindowProc(HWND hWnd, UINT message, WPARAM wParam, 
 		}
 		return 0;
 	case WM_MOUSEHWHEEL:
-		if (dinput_winmouse() >= 0 && isfocus() > 0) {
+		if (!rp_ismouseevent() && dinput_winmouse() >= 0 && isfocus() > 0) {
 			int val = ((short)HIWORD(wParam));
 			if (log_winmouse)
 				write_log(_T("WM_MOUSEHWHEEL %08x\n"), wParam);

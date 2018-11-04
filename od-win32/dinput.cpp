@@ -2162,6 +2162,8 @@ static void handle_rawinput_2 (RAWINPUT *raw, LPARAM lParam)
 
 		if (num == num_mouse)
 			return;
+		if (rp_ismouseevent())
+			return;
 
 		if (isfocus () > 0 || istest) {
 			static int lastx[MAX_INPUT_DEVICES], lasty[MAX_INPUT_DEVICES];

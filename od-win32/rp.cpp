@@ -1619,7 +1619,9 @@ static void sendfeatures (void)
 
 	feat = RP_FEATURE_POWERLED | RP_FEATURE_SCREEN1X | RP_FEATURE_FULLSCREEN;
 	feat |= RP_FEATURE_PAUSE | RP_FEATURE_TURBO_CPU | RP_FEATURE_TURBO_FLOPPY | RP_FEATURE_VOLUME | RP_FEATURE_SCREENCAPTURE;
-	feat |= RP_FEATURE_STATE | RP_FEATURE_DEVICEREADWRITE | RP_FEATURE_SCREENOVERLAY;
+	feat |= RP_FEATURE_STATE | RP_FEATURE_DEVICEREADWRITE;
+	if (currprefs.gfx_api)
+		feat |= RP_FEATURE_SCREENOVERLAY;
 	if (WIN32GFX_IsPicassoScreen(mon)) {
 		if (currprefs.gfx_api)
 			feat |= RP_FEATURE_SCREEN2X | RP_FEATURE_SCREEN3X | RP_FEATURE_SCREEN4X;
@@ -2188,8 +2190,55 @@ USHORT rp_rawbuttons(LPARAM lParam, USHORT usButtonFlags)
 	return usButtonFlags;
 }
 
+bool rp_ismouseevent(void)
+{
+	return sendmouseevents != 0;
+}
+
 bool rp_mouseevent(int x, int y, int buttons, int buttonmask)
 {
+#if 0
+	uae_u8 *data;
+	static int ovl_idx = 10;
+	static int ovl_add;
+	if (buttons > 0 && (buttons & 1)) {
+		data = xcalloc(uae_u8, 10 * 10 * 4);
+		for (int i = 0; i < 10 * 10; i++) {
+			data[i * 4 + 0] = 0xff;
+			data[i * 4 + 1] = 0xff;
+			data[i * 4 + 2] = 0x00;
+			data[i * 4 + 3] = 0xff;
+		}
+
+		struct extoverlay eo = { 0 };
+		eo.idx = ovl_idx;
+		eo.xpos = 100 + ovl_idx * 50;
+		eo.ypos = 100;
+		eo.width = 10;
+		eo.height = 10;
+		eo.data = data;
+		int ret = D3D_extoverlay(&eo);
+		ovl_idx--;
+	}
+	if (buttons > 0 && (buttons & 2)) {
+		struct extoverlay eo = { 0 };
+		ovl_idx++;
+		eo.idx = ovl_idx;
+		eo.width = -1;
+		eo.height = -1;
+		int ret = D3D_extoverlay(&eo);
+	}
+
+	for (int i = 0; i < ovl_idx; i++) {
+		struct extoverlay eo = { 0 };
+		eo.idx = i;
+		eo.xpos = 100 + i * 50;
+		eo.ypos = 100 + ovl_add * (i + 1);
+		int ret = D3D_extoverlay(&eo);
+	}
+	ovl_add++;
+#endif
+
 	if (!sendmouseevents) {
 		if (x > -30000 && y > -30000) {
 			mouseevent_x = x;

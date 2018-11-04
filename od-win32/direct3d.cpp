@@ -130,6 +130,8 @@ struct shaderdata
 
 struct d3d9overlay
 {
+	struct d3d9overlay *next;
+	int id;
 	int x, y;
 	LPDIRECT3DTEXTURE9 tex;
 };
@@ -161,7 +163,7 @@ struct d3dstruct
 	float mask2texture_wwx, mask2texture_hhx, mask2texture_minusx, mask2texture_minusy;
 	float mask2texture_multx, mask2texture_multy, mask2texture_offsetw;
 	LPDIRECT3DTEXTURE9 cursorsurfaced3d;
-	struct d3d9overlay extoverlays[EXTOVERLAYS];
+	struct d3d9overlay *extoverlays;
 	IDirect3DVertexBuffer9 *vertexBuffer;
 	ID3DXSprite *sprite;
 	HWND d3dhwnd;
@@ -2424,13 +2426,15 @@ static void invalidatedeviceobjects (struct d3dstruct *d3d)
 		d3d->cursorsurfaced3d->Release ();
 		d3d->cursorsurfaced3d = NULL;
 	}
-	for (int i = 0; i < EXTOVERLAYS; i++) {
-		struct d3d9overlay *o = &d3d->extoverlays[i];
-		if (o->tex) {
-			o->tex->Release();
-			o->tex = NULL;
-		}
+	struct d3d9overlay *ov = d3d->extoverlays;
+	while (ov) {
+		struct d3d9overlay *next = ov->next;
+		if (ov->tex)
+			ov->tex->Release();
+		xfree(ov);
+		ov = next;
 	}
+	d3d->extoverlays = NULL;
 	for (int i = 0; i < MAX_SHADERS; i++) {
 		if (d3d->shaders[i].pEffect) {
 			d3d->shaders[i].pEffect->Release ();
@@ -3710,14 +3714,15 @@ static void D3D_render2(struct d3dstruct *d3d, int mode)
 			v.z = 0;
 			d3d->sprite->Draw(d3d->ledtexture, NULL, NULL, &v, 0xffffffff);
 		}
-		for (int i = 0; i < EXTOVERLAYS; i++) {
-			struct d3d9overlay *o = &d3d->extoverlays[i];
-			if (o->tex) {
-				v.x = o->x;
-				v.y = o->y;
+		struct d3d9overlay *ov = d3d->extoverlays;
+		while (ov) {
+			if (ov->tex) {
+				v.x = ov->x;
+				v.y = ov->y;
 				v.z = 0;
-				d3d->sprite->Draw(o->tex, NULL, NULL, &v, 0xffffffff);
+				d3d->sprite->Draw(ov->tex, NULL, NULL, &v, 0xffffffff);
 			}
+			ov = ov->next;
 		}
 		d3d->sprite->End();
 	}
@@ -4139,52 +4144,86 @@ static bool xD3D_run(int monid)
 static bool xD3D_extoverlay(struct extoverlay *ext)
 {
 	struct d3dstruct *d3d = &d3ddata[0];
+	struct d3d9overlay *ov, *ovprev, *ov2;
+	LPDIRECT3DTEXTURE9 s;
 	D3DLOCKED_RECT locked;
 	HRESULT hr;
 
-	if (ext->idx >= EXTOVERLAYS)
+	s = NULL;
+	ov = d3d->extoverlays;
+	ovprev = NULL;
+	while (ov) {
+		if (ov->id == ext->idx) {
+			s = ov->tex;
+			break;
+		}
+		ovprev = ov;
+		ov = ov->next;
+	}
+
+	write_log(_T("extoverlay %d: x=%d y=%d %d*%d data=%p ovl=%p\n"), ext->idx, ext->xpos, ext->ypos, ext->width, ext->height, ext->data, ov);
+
+	if (!s && (ext->width <= 0 || ext->height <= 0))
 		return false;
 
-	write_log(_T("extoverlay %d: x=%d y=%d %d*%d\n"), ext->idx, ext->xpos, ext->ypos, ext->width, ext->height);
-
-	struct d3d9overlay *s = &d3d->extoverlays[ext->idx];
-
-	if (!s->tex && (ext->width <= 0 || ext->height <= 0))
-		return false;
-
-	if (!ext->data && s->tex && (ext->width == 0 || ext->height == 0)) {
-		s->x = ext->xpos;
-		s->y = ext->ypos;
+	if (!ext->data && s && (ext->width == 0 || ext->height == 0)) {
+		ov->x = ext->xpos;
+		ov->y = ext->ypos;
 		return true;
 	}
 
-	if (s->tex) {
-		s->tex->Release();
-		s->tex = NULL;
+	if (ov && s) {
+		if (ovprev) {
+			ovprev->next = ov->next;
+		} else {
+			d3d->extoverlays = ov->next;
+		}
+		s->Release();
+		xfree(ov);
+		if (ext->width <= 0 || ext->height <= 0)
+			return true;
 	}
 
 	if (ext->width <= 0 || ext->height <= 0)
-		return true;
-
-	s->tex = createtext(d3d, ext->width, ext->height, D3DFMT_A8R8G8B8);
-
-	if (!s->tex)
 		return false;
 
-	s->x = ext->xpos;
-	s->y = ext->ypos;
-
-	hr = s->tex->LockRect(0, &locked, NULL, 0);
-	if (FAILED(hr)) {
-		write_log(_T("extoverlay LockRect failed %08x\n"), hr);
-		s->tex->Release();
-		s->tex = NULL;
+	ov = xcalloc(d3d9overlay, 1);
+	s = createtext(d3d, ext->width, ext->height, D3DFMT_A8R8G8B8);
+	if (!s) {
+		xfree(ov);
 		return false;
 	}
-	for (int y = 0; y < ext->height; y++) {
-		memcpy((uae_u8*)locked.pBits + y * locked.Pitch, ext->data + y * ext->width * 4, ext->width * 4);
+
+	ov->tex = s;
+	ov->id = ext->idx;
+
+	ov2 = d3d->extoverlays;
+	ovprev = NULL;
+	for (;;) {
+		if (ov2 == NULL || ov2->id >= ov->id) {
+			if (ov2 == d3d->extoverlays) {
+				d3d->extoverlays = ov;
+				ov->next = ov2;
+			} else {
+				ov->next = ovprev->next;
+				ovprev->next = ov;
+			}
+			break;
+		}
+		ovprev = ov2;
+		ov2 = ov2->next;
 	}
-	s->tex->UnlockRect(0);
+
+	ov->x = ext->xpos;
+	ov->y = ext->ypos;
+
+	hr = s->LockRect(0, &locked, NULL, 0);
+	if (SUCCEEDED(hr)) {
+		for (int y = 0; y < ext->height; y++) {
+			memcpy((uae_u8*)locked.pBits + y * locked.Pitch, ext->data + y * ext->width * 4, ext->width * 4);
+		}
+		s->UnlockRect(0);
+	}
 
 	return true;
 }

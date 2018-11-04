@@ -1,5 +1,4 @@
 
-#define EXTOVERLAYS 4
 struct extoverlay
 {
 	int idx;

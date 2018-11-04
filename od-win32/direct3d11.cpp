@@ -193,6 +193,13 @@ struct d3d11sprite
 	bool bilinear;
 };
 
+struct d3doverlay
+{
+	struct d3doverlay *next;
+	int id;
+	struct d3d11sprite s;
+};
+
 struct d3d11struct
 {
 	IDXGISwapChain1 *m_swapChain;
@@ -273,7 +280,7 @@ struct d3d11struct
 	int mask2textureledoffsets[9 * 2];
 	struct d3d11sprite blanksprite;
 
-	struct d3d11sprite extoverlays[EXTOVERLAYS];
+	struct d3doverlay *extoverlays;
 
 	float mask2texture_w, mask2texture_h, mask2texture_ww, mask2texture_wh;
 	float mask2texture_wwx, mask2texture_hhx, mask2texture_minusx, mask2texture_minusy;
@@ -1657,6 +1664,8 @@ static void FreeTexture2D(ID3D11Texture2D **t, ID3D11ShaderResourceView **v)
 
 static void freesprite(struct d3d11sprite *s)
 {
+	if (!s)
+		return;
 	FreeTexture2D(&s->texture, &s->texturerv);
 
 	if (s->pixelshader)
@@ -1732,10 +1741,14 @@ static void FreeTextures(struct d3d11struct *d3d)
 	}
 	freesprite(&d3d->mask2textureled_power_dim);
 	freesprite(&d3d->blanksprite);
-	for (int i = 0; i < EXTOVERLAYS; i++) {
-		freesprite(&d3d->extoverlays[i]);
+	struct d3doverlay *ov = d3d->extoverlays;
+	while (ov) {
+		struct d3doverlay *next = ov->next;
+		freesprite(&ov->s);
+		xfree(ov);
+		ov = next;
 	}
-
+	d3d->extoverlays = NULL;
 	for (int i = 0; i < MAX_SHADERS; i++) {
 		freeshaderdata(&d3d->shaders[i]);
 	}
@@ -4238,9 +4251,10 @@ static bool TextureShaderClass_Render(struct d3d11struct *d3d)
 
 	RenderSprite(d3d, &d3d->osd);
 
-	for (int i = 0; i < EXTOVERLAYS; i++) {
-		if (d3d->extoverlays[i].enabled)
-			RenderSprite(d3d, &d3d->extoverlays[i]);
+	struct d3doverlay *ov = d3d->extoverlays;
+	while (ov) {
+		RenderSprite(d3d, &ov->s);
+		ov = ov->next;
 	}
 
 	return true;
@@ -5016,49 +5030,87 @@ static bool xD3D11_run(int monid)
 static bool xD3D11_extoverlay(struct extoverlay *ext)
 {
 	struct d3d11struct *d3d = &d3d11data[0];
+	struct d3doverlay *ov, *ovprev, *ov2;
+	struct d3d11sprite *s;
 	D3D11_MAPPED_SUBRESOURCE map;
 	HRESULT hr;
 
-	if (ext->idx >= EXTOVERLAYS)
+	s = NULL;
+	ov = d3d->extoverlays;
+	ovprev = NULL;
+	while (ov) {
+		if (ov->id == ext->idx) {
+			s = &ov->s;
+			break;
+		}
+		ovprev = ov;
+		ov = ov->next;
+	}
+
+	write_log(_T("extoverlay %d: x=%d y=%d %d*%d data=%p ovl=%p\n"), ext->idx, ext->xpos, ext->ypos, ext->width, ext->height, ext->data, ov);
+
+	if (!s && (ext->width <= 0 || ext->height <= 0))
 		return false;
 
-	write_log(_T("extoverlay %d: x=%d y=%d %d*%d data=%p\n"), ext->idx, ext->xpos, ext->ypos, ext->width, ext->height, ext->data);
-
-	struct d3d11sprite *s = &d3d->extoverlays[ext->idx];
-
-	if (!s->enabled && (ext->width <= 0 || ext->height <= 0))
-		return false;
-
-	if (!ext->data && s->enabled && (ext->width == 0 || ext->height == 0)) {
+	if (!ext->data && s && (ext->width == 0 || ext->height == 0)) {
 		s->x = ext->xpos;
 		s->y = ext->ypos;
 		return true;
 	}
 
-	freesprite(s);
+	if (ov && s) {
+		if (ovprev) {
+			ovprev->next = ov->next;
+		} else {
+			d3d->extoverlays = ov->next;
+		}
+		freesprite(s);
+		xfree(ov);
+		if (ext->width <= 0 || ext->height <= 0)
+			return true;
+	}
 
 	if (ext->width <= 0 || ext->height <= 0)
-		return true;
-
-	if (!allocsprite(d3d, s, ext->width, ext->height, true))
 		return false;
+
+	ov = xcalloc(d3doverlay, 1);
+	s = &ov->s;
+
+	if (!allocsprite(d3d, s, ext->width, ext->height, true)) {
+		xfree(ov);
+		return false;
+	}
+
+	ov->id = ext->idx;
+
+	ov2 = d3d->extoverlays;
+	ovprev = NULL;
+	for(;;) {
+		if (ov2 == NULL || ov2->id >= ov->id) {
+			if (ov2 == d3d->extoverlays) {
+				d3d->extoverlays = ov;
+				ov->next = ov2;
+			} else {
+				ov->next = ovprev->next;
+				ovprev->next = ov;
+			}
+			break;
+		}
+		ovprev = ov2;
+		ov2 = ov2->next;
+	}
 
 	s->enabled = true;
 	s->x = ext->xpos;
 	s->y = ext->ypos;
 
 	hr = d3d->m_deviceContext->Map(s->texture, 0, D3D11_MAP_WRITE_DISCARD, 0, &map);
-	if (FAILED(hr)) {
-		write_log(_T("extoverlay Map failed %08x\n"), hr);
-		freesprite(s);
-		return false;
+	if (SUCCEEDED(hr)) {
+		for (int y = 0; y < s->height; y++) {
+			memcpy((uae_u8*)map.pData + y * map.RowPitch, ext->data + y * ext->width * 4, ext->width * 4);
+		}
+		d3d->m_deviceContext->Unmap(s->texture, 0);
 	}
-
-	for (int y = 0; y < s->height; y++) {
-		memcpy((uae_u8*)map.pData + y * map.RowPitch, ext->data + y * ext->width * 4, ext->width * 4);
-	}
-
-	d3d->m_deviceContext->Unmap(s->texture, 0);
 
 	return true;
 }
