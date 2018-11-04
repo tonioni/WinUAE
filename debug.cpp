@@ -2891,8 +2891,10 @@ static void mungwall_memwatch(uaecptr addr, int rwi, int size, uae_u32 valp)
 
 static int memwatch_func (uaecptr addr, int rwi, int size, uae_u32 *valp, uae_u32 accessmask, uae_u32 reg)
 {
-	int i, brk;
 	uae_u32 val = *valp;
+
+	if (debugging)
+		return 1;
 
 	if (mungwall)
 		mungwall_memwatch(addr, rwi, size, val);
@@ -2904,17 +2906,19 @@ static int memwatch_func (uaecptr addr, int rwi, int size, uae_u32 *valp, uae_u3
 		memwatch_heatmap (addr, rwi, size, accessmask);
 
 	addr = munge24 (addr);
+
 	if (smc_table && (rwi >= 2))
 		smc_detector (addr, rwi, size, valp);
-	for (i = mwnodes_start; i <= mwnodes_end; i++) {
+
+	for (int i = mwnodes_start; i <= mwnodes_end; i++) {
 		struct memwatch_node *m = &mwnodes[i];
 		uaecptr addr2 = m->addr;
 		uaecptr addr3 = addr2 + m->size;
 		int rwi2 = m->rwi;
 		uae_u32 oldval = 0;
 		int isoldval = 0;
+		int brk = 0;
 
-		brk = 0;
 		if (m->size == 0)
 			continue;
 		if (!(rwi & rwi2))
