@@ -683,7 +683,7 @@ STATIC_INLINE int get_equ_vblank_endline (void)
 /* Called to determine the state of the horizontal display window state
 * machine at the current position. It might have changed since we last
 * checked.  */
-static void decide_diw (int hpos)
+static void decide_diw(int hpos)
 {
 	/* Last hpos = hpos + 0.5, eg. normal PAL end hpos is 227.5 * 2 = 455
 	   OCS Denise: 9 bit hdiw counter does not reset during lines 0 to 9
@@ -692,7 +692,7 @@ static void decide_diw (int hpos)
 	*/
 
 	int hdiw = hpos >= maxhpos ? maxhpos * 2 + 1 : hpos * 2 + 2;
-	if (!(currprefs.chipset_mask & CSMASK_ECS_DENISE) && vpos <= get_equ_vblank_endline ())
+	if (!(currprefs.chipset_mask & CSMASK_ECS_DENISE) && vpos <= get_equ_vblank_endline())
 		hdiw = diw_hcounter;
 	/* always mask, bad programs may have set maxhpos = 256 */
 	hdiw &= 511;
@@ -718,16 +718,17 @@ static void decide_diw (int hpos)
 	last_hdiw = hdiw;
 }
 
-static int fetchmode, fetchmode_size, fetchmode_mask, fetchmode_bytes, fetchmode_fmode;
+static int fetchmode, fetchmode_size, fetchmode_mask, fetchmode_bytes;
+static int fetchmode_fmode_bpl, fetchmode_fmode_spr;
 static int fetchmode_size_hr, fetchmode_mask_hr;
 static int real_bitplane_number[3][3][9];
 
 /* Disable bitplane DMA if planes > available DMA slots. This is needed
 e.g. by the Sanity WOC demo (at the "Party Effect").  */
-STATIC_INLINE int GET_PLANES_LIMIT (uae_u16 bc0)
+STATIC_INLINE int GET_PLANES_LIMIT(uae_u16 bc0)
 {
-	int res = GET_RES_AGNUS (bc0);
-	int planes = GET_PLANES (bc0);
+	int res = GET_RES_AGNUS(bc0);
+	int planes = GET_PLANES(bc0);
 	return real_bitplane_number[fetchmode][res][planes];
 }
 
@@ -741,7 +742,7 @@ static void reset_dbplh(int hpos, int num)
 	}
 }
 
-static void reset_dbplh_all (int hpos)
+static void reset_dbplh_all(int hpos)
 {
 	if (dbplpth_on2) {
 		for (int num = 0; num < MAX_PLANES; num++) {
@@ -751,7 +752,7 @@ static void reset_dbplh_all (int hpos)
 	}
 }
 
-static void reset_dbpll (int hpos, int num)
+static void reset_dbpll(int hpos, int num)
 {
 	if (dbplptl_on[num] && hpos >= dbplptl_on[num]) {
 		bplpt[num] = (bplpt[num] & 0xffff0000) | dbplptl[num];
@@ -760,7 +761,7 @@ static void reset_dbpll (int hpos, int num)
 	}
 }
 
-static void reset_dbpll_all (int hpos)
+static void reset_dbpll_all(int hpos)
 {
 	if (dbplptl_on2) {
 		for (int num = 0; num < MAX_PLANES; num++) {
@@ -771,7 +772,7 @@ static void reset_dbpll_all (int hpos)
 }
 #endif
 
-static void reset_moddelays (void)
+static void reset_moddelays(void)
 {
 	if (dbpl1mod_on > 0) {
 		bpl1mod = dbpl1mod;
@@ -781,6 +782,26 @@ static void reset_moddelays (void)
 		bpl2mod = dbpl2mod;
 		dbpl2mod_on = 0;
 	}
+}
+
+static void add_mod(int nr, int mod)
+{
+#ifdef AGA
+	if (fetchmode_fmode_bpl == 1 || fetchmode_fmode_bpl == 2) {
+		// FMODE=1/2, unaligned bpl and modulo: bit 1 carry is ignored.
+		if ((bplpt[nr] & 2) && (mod & 2)) {
+			mod -= 4;
+		}
+	} else if (fetchmode_fmode_bpl == 3) {
+		// FMODE=3, unaligned bpl and modulo: bit 2 carry is ignored.
+		if ((bplpt[nr] & (4 | 2)) + (mod & (4 | 2)) >= 8) {
+			mod -= 8;
+		}
+	}
+#endif
+
+	bplpt[nr] += mod;
+	bplptx[nr] += mod;
 }
 
 static void add_modulo (int hpos, int nr)
@@ -804,8 +825,7 @@ static void add_modulo (int hpos, int nr)
 		mod = bpl2mod;
 	else
 		mod = bpl1mod;
-	bplpt[nr] += mod;
-	bplptx[nr] += mod;
+	add_mod(nr, mod);
 	reset_moddelays ();
 #if 0
 	reset_dbpll_all (-1);
@@ -832,15 +852,15 @@ static void add_modulos (void)
 
 	switch (bplcon0_planes_limit) {
 #ifdef AGA
-	case 8: bplpt[7] += m2; bplptx[7] += m2;
-	case 7: bplpt[6] += m1; bplptx[6] += m1;
+	case 8: add_mod(7, m2);
+	case 7: add_mod(6, m1);
 #endif
-	case 6: bplpt[5] += m2; bplptx[5] += m2;
-	case 5: bplpt[4] += m1; bplptx[4] += m1;
-	case 4: bplpt[3] += m2; bplptx[3] += m2;
-	case 3: bplpt[2] += m1; bplptx[2] += m1;
-	case 2: bplpt[1] += m2; bplptx[1] += m2;
-	case 1: bplpt[0] += m1; bplptx[0] += m1;
+	case 6: add_mod(5, m2);
+	case 5: add_mod(4, m1);
+	case 4: add_mod(3, m2);
+	case 3: add_mod(2, m1);
+	case 2: add_mod(1, m2);
+	case 1: add_mod(0, m1);
 	}
 }
 
@@ -1242,7 +1262,8 @@ static void setup_fmodes (int hpos)
 	fetchmode_size = 16 << fetchmode;
 	fetchmode_bytes = 2 << fetchmode;
 	fetchmode_mask = fetchmode_size - 1;
-	fetchmode_fmode = fmode;
+	fetchmode_fmode_bpl = fmode & 3;
+	fetchmode_fmode_spr = (fmode >> 2) & 3;
 	compute_toscr_delay (bplcon1);
 
 	if (thisline_decision.plfleft < 0) {
@@ -1426,27 +1447,27 @@ static void fetch (int nr, int fm, bool modulo, int hpos)
 		switch (fm)
 		{
 		case 0:
-			{
-				uae_u16 v;
-				if (aga_mode) {
-					// AGA always does 32-bit fetches, this is needed
-					// to emulate 64 pixel wide sprite side-effects.
-					uae_u32 vv = chipmem_lget_indirect(p & ~3);
-					if (p & 2) {
-						v = (uae_u16)vv;
-						fetched_aga_spr[nr] = (v << 16) | v;
-					} else {
-						v = vv >> 16;
-						fetched_aga_spr[nr] = vv;
-					}
+		{
+			uae_u16 v;
+			if (aga_mode) {
+				// AGA always does 32-bit fetches, this is needed
+				// to emulate 64 pixel wide sprite side-effects.
+				uae_u32 vv = chipmem_lget_indirect(p & ~3);
+				if (p & 2) {
+					v = (uae_u16)vv;
+					fetched_aga_spr[nr] = (v << 16) | v;
 				} else {
-					v = chipmem_wget_indirect(p);
+					v = vv >> 16;
+					fetched_aga_spr[nr] = vv;
 				}
-				fetched_aga[nr] = fetched[nr] = v;
-				last_custom_value1 = v;
-				last_custom_value2 = (uae_u16)last_custom_value1;
+			} else {
+				v = chipmem_wget_indirect(p);
 			}
+			fetched_aga[nr] = fetched[nr] = v;
+			last_custom_value1 = v;
+			last_custom_value2 = (uae_u16)last_custom_value1;
 			break;
+		}
 #ifdef AGA
 		case 1:
 		{
@@ -1454,7 +1475,7 @@ static void fetch (int nr, int fm, bool modulo, int hpos)
 			if (p & 2) {
 				fetched_aga[nr] = chipmem_lget_indirect(pm) & 0x0000ffff;
 				fetched_aga[nr] |= fetched_aga[nr] << 16;
-			} else if (fetchmode_fmode & 2) { // optimized (fetchmode_fmode & 3) == 2
+			} else if (fetchmode_fmode_bpl & 2) { // optimized (fetchmode_fmode & 3) == 2
 				fetched_aga[nr] = chipmem_lget_indirect(pm) & 0xffff0000;
 				fetched_aga[nr] |= fetched_aga[nr] >> 16;
 			} else {
@@ -2459,7 +2480,7 @@ STATIC_INLINE void long_fetch_32 (int plane, int nwords, int weird_number_of_bit
 			if (unaligned) {
 				fetchval &= 0x0000ffff;
 				fetchval |= fetchval << 16;
-			} else if (fetchmode_fmode & 2) {
+			} else if (fetchmode_fmode_bpl & 2) {
 				fetchval &= 0xffff0000;
 				fetchval |= fetchval >> 16;
 			}
@@ -7565,7 +7586,7 @@ static void sprite_fetch_full(struct sprite *s, int hpos, int cycle, int mode, u
 		if (s->pt & 2) {
 			data321 &= 0x0000ffff;
 			data321 |= data321 << 16;
-		} else if (fetchmode_fmode & 8) {
+		} else if (fetchmode_fmode_spr & 2) {
 			data321 &= 0xffff0000;
 			data321 |= data321 >> 16;
 		}
