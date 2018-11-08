@@ -9616,6 +9616,7 @@ static void fill_icache030 (uae_u32 addr)
 		regs.cacheholdingaddr020 = 0xffffffff;
 		regs.cacheholdingdata020 = 0xffffffff;
 		end_020_cycle_prefetch(false);
+		STOPTRY;
 		return;
 	} ENDTRY
 

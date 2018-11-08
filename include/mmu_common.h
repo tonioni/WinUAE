@@ -21,6 +21,7 @@ struct m68k_exception {
 #define THROW(n) throw m68k_exception(n)
 #define THROW_AGAIN(var) throw
 #define ENDTRY
+#define STOPTRY
 #else
 /* we are in plain C, just use a stack of long jumps */
 #include <setjmp.h>
@@ -30,6 +31,7 @@ extern int     __exvalue;
                   if (__exvalue==0) { __pushtry(&__exbuf);
 #define CATCH(x)  __poptry(); } else {m68k_exception x=__exvalue; 
 #define ENDTRY    __poptry();}
+#define STOPTRY   __poptry()
 #define THROW(x) if (__is_catched()) {longjmp(__exbuf,x);}
 #define THROW_AGAIN(var) if (__is_catched()) longjmp(*__poptry(),__exvalue)
 #define SAVE_EXCEPTION
