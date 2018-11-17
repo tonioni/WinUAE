@@ -9965,10 +9965,6 @@ void custom_reset (bool hardreset, bool keyboardreset)
 		CLXCON (0);
 		CLXCON2 (0);
 		setup_fmodes (0);
-		sprite_width = GET_SPRITEWIDTH (fmode);
-		for (int i = 0; i < MAX_SPRITES; i++) {
-			spr[i].width = sprite_width;
-		}
 		beamcon0 = new_beamcon0 = currprefs.ntscmode ? 0x00 : 0x20;
 		bltstate = BLT_done;
 		blit_interrupt = 1;
@@ -10087,8 +10083,12 @@ void custom_reset (bool hardreset, bool keyboardreset)
 			_T("OCS"), currprefs.ntscmode ? _T("NTSC") : _T("PAL"));
 		write_log (_T("State restored\n"));
 	}
+
 	sprres = expand_sprres (bplcon0, bplcon3);
 	sprite_width = GET_SPRITEWIDTH (fmode);
+	for (int i = 0; i < MAX_SPRITES; i++) {
+		spr[i].width = sprite_width;
+	}
 	setup_fmodes (0);
 	shdelay_disabled = false;
 
