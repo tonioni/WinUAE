@@ -128,9 +128,10 @@ static void ICR (uae_u32 data)
 	safe_interrupt_set(IRQ_SOURCE_CIA, 0, (data & 0x2000) != 0);
 }
 
-static void ICRA (uae_u32 data)
+static void ICRA (uae_u32 dummy)
 {
-	ciaaicr |= 0x40;
+	if (ciaaicr & 0x80)
+		ciaaicr |= 0x40;
 #if 1
 	if (currprefs.cpu_memory_cycle_exact && !(ciaaicr & 0x20) && (cia_interrupt_disabled & 1)) {
 		cia_interrupt_delay |= 1;
@@ -144,9 +145,10 @@ static void ICRA (uae_u32 data)
 	ICR (0x0008);
 }
 
-static void ICRB (uae_u32 data)
+static void ICRB (uae_u32 dummy)
 {
-	ciabicr |= 0x40;
+	if (ciabicr & 0x80)
+		ciabicr |= 0x40;
 #if 1
 	if (currprefs.cpu_memory_cycle_exact && !(ciabicr & 0x20) && (cia_interrupt_disabled & 2)) {
 		cia_interrupt_delay |= 2;
@@ -176,7 +178,7 @@ static void RethinkICRA (void)
 			if (currprefs.cpu_memory_cycle_exact) {
 				event2_newevent_xx (-1, DIV10 + 2 * CYCLE_UNIT + CYCLE_UNIT / 2, 0, ICRA);
 			} else {
-				ICRA (0x0008);
+				ICRA (0);
 			}
 		}
 	}
@@ -1415,6 +1417,7 @@ static void WriteCIAA (uae_u16 addr, uae_u8 val, uae_u32 *flags)
 		if (notinrom ())
 			write_log (_T("BFE201 W %02X %s\n"), val, debuginfo(0));
 #endif
+		write_log(_T("BFE201 W %02X %s\n"), val, debuginfo(0));
 		ciaadra = val;
 		dongle_cia_write (0, reg, ciaapra, val);
 		bfe001_change ();
