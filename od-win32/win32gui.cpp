@@ -20454,6 +20454,7 @@ int dragdrop (HWND hDlg, HDROP hd, struct uae_prefs *prefs, int	currentpage)
 	int ret = 0;
 	DWORD flags;
 	TCHAR *dragrompath = NULL;
+	int corner = -1;
 
 	DragQueryPoint (hd, &pt);
 	pt.y += GetSystemMetrics (SM_CYMENU) + GetSystemMetrics (SM_CYBORDER);
@@ -20473,11 +20474,26 @@ int dragdrop (HWND hDlg, HDROP hd, struct uae_prefs *prefs, int	currentpage)
 					drvdrag = 1;
 					if (drv < 0 || drv > 3)
 						drv = 0;
+					corner = -2;
 				}
 				if (pt.x >= window_led_hd && pt.x < window_led_hd_end && window_led_hd > 0) {
 					harddrive = 1;
+					corner = -2;
 				}
 			}
+		}
+		if (corner == -1) {
+			int div = 10;
+			if (pt.y < r2.bottom / div && pt.x < r2.right / div)
+				corner = 0;
+			if (pt.y < r2.bottom / div && pt.x >= r2.right - r2.right / div)
+				corner = 1;
+			if (pt.y >= r2.bottom - r2.bottom / div && pt.x < r2.right / div)
+				corner = 2;
+			if (pt.y >= r2.bottom - r2.bottom / div && pt.x >= r2.right - r2.right / div)
+				corner = 3;
+			if (corner >= 0)
+				drv = corner;
 		}
 	} else if (currentpage == FLOPPY_ID || currentpage == QUICKSTART_ID) {
 		for (i = 0; i < 4; i++) {
