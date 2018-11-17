@@ -1417,7 +1417,6 @@ static void WriteCIAA (uae_u16 addr, uae_u8 val, uae_u32 *flags)
 		if (notinrom ())
 			write_log (_T("BFE201 W %02X %s\n"), val, debuginfo(0));
 #endif
-		write_log(_T("BFE201 W %02X %s\n"), val, debuginfo(0));
 		ciaadra = val;
 		dongle_cia_write (0, reg, ciaapra, val);
 		bfe001_change ();

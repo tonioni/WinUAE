@@ -3947,7 +3947,7 @@ static void xD3D_refresh (int monid)
 	if (!isd3d (d3d))
 		return;
 	createscanlines(d3d, 0);
-	for (int i = 0; i < 2; i++) {
+	for (int i = 0; i < 3; i++) {
 		D3D_render2(d3d, true);
 		D3D_showframe2(d3d, true);
 	}

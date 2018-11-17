@@ -2894,7 +2894,7 @@ static int memwatch_func (uaecptr addr, int rwi, int size, uae_u32 *valp, uae_u3
 {
 	uae_u32 val = *valp;
 
-	if (debugging)
+	if (debugging > 0)
 		return 1;
 
 	if (mungwall)

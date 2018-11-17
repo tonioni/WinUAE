@@ -2806,7 +2806,7 @@ static int cfgfile_path (const TCHAR *option, const TCHAR *value, const TCHAR *n
 static int cfgfile_multipath (const TCHAR *option, const TCHAR *value, const TCHAR *name, struct multipath *mp, struct uae_prefs *p)
 {
 	TCHAR tmploc[MAX_DPATH];
-	if (!cfgfile_string (option, value, name, tmploc, PATH_MAX))
+	if (!cfgfile_string (option, value, name, tmploc, MAX_DPATH))
 		return 0;
 	for (int i = 0; i < MAX_PATHS; i++) {
 		if (mp->path[i][0] == 0 || (i == 0 && (!_tcscmp (mp->path[i], _T(".\\")) || !_tcscmp (mp->path[i], _T("./"))))) {

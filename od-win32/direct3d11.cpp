@@ -4572,7 +4572,7 @@ static void xD3D11_refresh(int monid)
 		return;
 
 	createscanlines(d3d, 0);
-	for (int i = 0; i < 2; i++) {
+	for (int i = 0; i < 3; i++) {
 		if (xD3D11_renderframe(monid, true, true)) {
 			xD3D11_showframe(monid);
 		}

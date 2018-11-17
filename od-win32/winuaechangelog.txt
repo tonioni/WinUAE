@@ -1,5 +1,24 @@
 
 
+Beta 10:
+
+- Fixed invisible sprites after statefile load (at least when not in AGA mode). (b8).
+- Reading CIA interrupt register exactly when CIA interrupt is going to activate may have caused stuck PORTS interrupt until CIAxICR was read again, which would also return unexpectedly no interrupts active in this situation.
+- 68020+ more compatible state files didn't restore CPU mid-instruction properly, caused restore Amiga side crash if state was created during mid-instruction that has side-effects (like -(an) or (an)+ addressing mode) (introduced in 4.0 betas)
+- 64-bit version didn't support rar unpacking without archiveaccess.dll, probably because 64-bit unrar.dll didn't exist when it was implemented.
+- Window corners are now drag'n'drop hot spots for different floppy drives. (top/left=0, top/right=1, bottom/left=2, bottom/right=3).
+- 68030 MMU MOVEM <ea>,<regs> access fault retry was unreliable in some situations.
+
+Beta 9:
+
+- UNPACK and PACK instructions (very rarely used) had code like "v = read_from_address(x) + read_from_address(y)" which has undefined function call execution order in C.
+- 68030 MMU MOVEM to memory access fault retry special case fixed (b8). Amix boots normally again.
+- 68030 MMU unaligned data access retries always used aligned access. (b8)
+- AGA 32/64-pixel FMODE BPLxDAT writes are also now emulated accurately. Behavior is same as sprites, FMODE=3: first 16 pixels are last bus data, remaining 48 pixels are duplicate of written data. FMODE=2: first 16 pixels bus data, last 16 pixels written data. FMODE=1: written data duplicated. (Last bus data is first word of copper MOVE to BPLxDAT if copper was used to write to BPLxDAT). Writing to BPLxDAT when FMODE=3 and then lowering FMODE disables last 32 pixels (like sprites do) but this is not yet emulated.
+- Yet another undocumented AGA bitplane special case. When FMODE=1/2 and modulo is added, bit 1 carry is ignored, for example 0x102 + 0x12 = 0x110. FMODE=3: same except bit 2 carry is ignored. This can only happen if bitplane pointer and/or modulo is "unaligned", not integer divisible by fetch size. Quite useless feature because unaligned bitplane pointers will always result in corrupted display. But at least (corrupted) display is now 100% accurate.
+- Debugger memwatch points detected also debugger read or write accesses.
+- Multi Evolution v2.2 ROM added. Does not seem to be RDB compatible, probably only v3.0+ are RDB compatible.
+
 Beta 8:
 
 - Another undocumented AGA 32 (only if FMODE bit 3 is set) and 64 pixel wide sprite feature emulated: when writing to SPRxDATx, first 16 pixels of sprite equals previous data in chip bus. Remaining 16 pixel "parts" contain written data duplicated. Unless SPRxDATx write is immediately after bitplane DMA fetch, then first 32 pixels of sprite gets replaced with previously fetched bitplane data, last 32 pixels are duplicated SPRxDATx written value. If normal 32 pixel wide mode (FMODE bit 2 set): both first and last 16 pixels contain written data.
