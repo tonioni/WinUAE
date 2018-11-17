@@ -2492,10 +2492,6 @@ static uaecptr fmovem2fpp (uaecptr ad, uae_u32 list, int incr, int regdir)
 		uae_u32 wrd[3];
 		int idx = 0;
 		mmu030_state[1] |= MMU030_STATEFLAG1_MOVEM1 | MMU030_STATEFLAG1_FMOVEM;
-		if (mmu030_state[1] & MMU030_STATEFLAG1_MOVEM2)
-			ad = mmu030_ad[mmu030_idx].val;
-		else
-			mmu030_ad[mmu030_idx].val = ad;
 		for (int r = 0; r < 8; r++) {
 			if (regdir < 0)
 				reg = 7 - r;

@@ -588,6 +588,20 @@ STATIC_INLINE uae_u32 next_ilong_mmu030 (void)
 	return v;
 }
 
+STATIC_INLINE uae_u32 state_store_mmu030(uae_u32 v)
+{
+	if (mmu030_ad[mmu030_idx].done) {
+		v = mmu030_ad[mmu030_idx].val;
+		mmu030_idx++;
+	} else {
+		mmu030_ad[mmu030_idx].val = v;
+		mmu030_ad[mmu030_idx].done = true;
+		mmu030_idx++;
+		mmu030_ad[mmu030_idx].done = false;
+	}
+	return v;
+}
+
 extern void m68k_do_rts_mmu030 (void);
 extern void m68k_do_rte_mmu030 (uaecptr a7);
 extern void flush_mmu030 (uaecptr, int);

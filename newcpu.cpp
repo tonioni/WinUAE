@@ -3190,7 +3190,7 @@ static void Exception_build_stack_frame (uae_u32 oldpc, uae_u32 currpc, uae_u32 
 			x_put_long (m68k_areg (regs, 7), mmu030_disp_store[0]);
 			m68k_areg (regs, 7) -= 4;
 			 // Data output buffer = value that was going to be written
-			x_put_long (m68k_areg (regs, 7), (mmu030_state[1] & MMU030_STATEFLAG1_MOVEM1) ? mmu030_data_buffer : mmu030_ad[mmu030_idx].val);
+			x_put_long (m68k_areg (regs, 7), mmu030_data_buffer);
 			m68k_areg (regs, 7) -= 4;
 			x_put_long (m68k_areg (regs, 7), (mmu030_opcode & 0xffff) | (regs.prefetch020[0] << 16));  // Internal register (opcode storage)
 			m68k_areg (regs, 7) -= 4;

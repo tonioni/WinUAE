@@ -108,7 +108,7 @@ typedef  int m68k_exception;
 
 #define ALWAYS_INLINE __inline
 
-// take care of 2 kinds of alignement, bus size and page
+// take care of 2 kinds of alignment, bus size and page
 #if 1
 static ALWAYS_INLINE bool is_unaligned(uaecptr addr, int size)
 {

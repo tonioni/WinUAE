@@ -2178,10 +2178,8 @@ static void movem_mmu030 (const char *code, int size, bool put, bool aipi, bool 
 	printf ("\tint movem_cnt = 0;\n");
 	if (!put) {
 		printf ("\tuae_u32 val;\n");
-		printf ("\tif (mmu030_state[1] & MMU030_STATEFLAG1_MOVEM2)\n");
-		printf ("\t\tsrca = mmu030_ad[mmu030_idx].val;\n");
-		printf ("\telse\n");
-		printf ("\t\tmmu030_ad[mmu030_idx].val = srca;\n");
+		// Store original EA because MOVEM from memory may modify same register
+		printf ("\tsrca = state_store_mmu030(srca);\n");
 	}
 	for (int i = 0; i < 2; i++) {
 		char reg;
