@@ -8534,6 +8534,12 @@ uae_u8 *restore_cpu_trace (uae_u8 *src)
 				cputrace.prefetch020_valid[3] = false;
 			}
 			if (v & 16) {
+				if ((v & 32) && !(v & 8)) {
+					restore_u32();
+					restore_u32();
+					restore_u32();
+					restore_u32();
+				}
 				for (int i = 0; i < CPU_PIPELINE_MAX; i++) {
 					cputrace.prefetch020_valid[i] = restore_u8() != 0;
 				}
@@ -8553,7 +8559,7 @@ uae_u8 *restore_cpu_trace (uae_u8 *src)
 			if (v & 4)
 				cpu_tracer = -1;
 			// old format?
-			if ((v & (4 | 8)) != (4 | 8))
+			if ((v & (4 | 8)) != (4 | 8) && (v & (32 | 16 | 8 | 4)) != (32 | 16 | 4))
 				cpu_tracer = 0;
 		} else {
 			cpu_tracer = -1;
