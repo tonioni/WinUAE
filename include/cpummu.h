@@ -698,7 +698,7 @@ static ALWAYS_INLINE uae_u32 uae_mmu040_get_ilong(uaecptr addr)
 	result |= uae_mmu040_getc_iword(addr + 2);
 	return result;
 #else
-	if (unlikely(is_unaligned(addr, 4)))
+	if (unlikely(is_unaligned_page(addr, 4)))
 		return mmu_get_ilong_unaligned(addr);
 	return mmu_get_ilong(addr, sz_long);
 #endif
@@ -714,13 +714,13 @@ static ALWAYS_INLINE uae_u16 uae_mmu040_get_ibyte(uaecptr addr)
 }
 static ALWAYS_INLINE uae_u32 uae_mmu040_get_long(uaecptr addr)
 {
-	if (unlikely(is_unaligned(addr, 4)))
+	if (unlikely(is_unaligned_page(addr, 4)))
 		return mmu_get_long_unaligned(addr, true);
 	return mmu_get_long(addr, true, sz_long);
 }
 static ALWAYS_INLINE uae_u16 uae_mmu040_get_word(uaecptr addr)
 {
-	if (unlikely(is_unaligned(addr, 2)))
+	if (unlikely(is_unaligned_page(addr, 2)))
 		return mmu_get_word_unaligned(addr, true);
 	return mmu_get_word(addr, true, sz_word);
 }
@@ -731,7 +731,7 @@ static ALWAYS_INLINE uae_u8 uae_mmu040_get_byte(uaecptr addr)
 
 static ALWAYS_INLINE void uae_mmu040_put_word(uaecptr addr, uae_u16 val)
 {
-	if (unlikely(is_unaligned(addr, 2)))
+	if (unlikely(is_unaligned_page(addr, 2)))
 		mmu_put_word_unaligned(addr, val, true);
 	else
 		mmu_put_word(addr, val, true, sz_word);
@@ -742,7 +742,7 @@ static ALWAYS_INLINE void uae_mmu040_put_byte(uaecptr addr, uae_u8 val)
 }
 static ALWAYS_INLINE void uae_mmu040_put_long(uaecptr addr, uae_u32 val)
 {
-	if (unlikely(is_unaligned(addr, 4)))
+	if (unlikely(is_unaligned_page(addr, 4)))
 		mmu_put_long_unaligned(addr, val, true);
 	else
 		mmu_put_long(addr, val, true, sz_long);
@@ -751,7 +751,7 @@ static ALWAYS_INLINE void uae_mmu040_put_long(uaecptr addr, uae_u32 val)
 
 static ALWAYS_INLINE uae_u32 uae_mmu060_get_ilong(uaecptr addr)
 {
-	if (unlikely(is_unaligned(addr, 4)))
+	if (unlikely(is_unaligned_page(addr, 4)))
 		return mmu_get_ilong_unaligned(addr);
 	return mmu_get_ilong(addr, sz_long);
 }
@@ -765,13 +765,13 @@ static ALWAYS_INLINE uae_u16 uae_mmu060_get_ibyte(uaecptr addr)
 }
 static ALWAYS_INLINE uae_u32 uae_mmu060_get_long(uaecptr addr)
 {
-	if (unlikely(is_unaligned(addr, 4)))
+	if (unlikely(is_unaligned_page(addr, 4)))
 		return mmu_get_long_unaligned(addr, true);
 	return mmu_get_long(addr, true, sz_long);
 }
 static ALWAYS_INLINE uae_u16 uae_mmu060_get_word(uaecptr addr)
 {
-	if (unlikely(is_unaligned(addr, 2)))
+	if (unlikely(is_unaligned_page(addr, 2)))
 		return mmu_get_word_unaligned(addr, true);
 	return mmu_get_word(addr, true, sz_word);
 }
@@ -787,14 +787,14 @@ static ALWAYS_INLINE void uae_mmu_get_move16(uaecptr addr, uae_u32 *val)
 
 static ALWAYS_INLINE void uae_mmu060_put_long(uaecptr addr, uae_u32 val)
 {
-	if (unlikely(is_unaligned(addr, 4)))
+	if (unlikely(is_unaligned_page(addr, 4)))
 		mmu_put_long_unaligned(addr, val, true);
 	else
 		mmu_put_long(addr, val, true, sz_long);
 }
 static ALWAYS_INLINE void uae_mmu060_put_word(uaecptr addr, uae_u16 val)
 {
-	if (unlikely(is_unaligned(addr, 2)))
+	if (unlikely(is_unaligned_page(addr, 2)))
 		mmu_put_word_unaligned(addr, val, true);
 	else
 		mmu_put_word(addr, val, true, sz_word);

@@ -2194,10 +2194,10 @@ static void movem_mmu030 (const char *code, int size, bool put, bool aipi, bool 
 		printf ("\t\t\tif (mmu030_state[1] & MMU030_STATEFLAG1_MOVEM2) {\n");
 		printf ("\t\t\t\tmmu030_state[1] &= ~MMU030_STATEFLAG1_MOVEM2;\n");
 		if (!put)
-			printf ("\t\t\t\tval = %smmu030_data_buffer;\n", size == 2 ? "(uae_s32)(uae_s16)" : "");
+			printf ("\t\t\t\tval = %smmu030_data_buffer_out;\n", size == 2 ? "(uae_s32)(uae_s16)" : "");
 		printf ("\t\t\t} else {\n");
 		if (put)
-			printf ("\t\t\t\t%s, (mmu030_data_buffer = m68k_%creg (regs, %s[%cmask])));\n", code, reg, index, reg);
+			printf ("\t\t\t\t%s, (mmu030_data_buffer_out = m68k_%creg (regs, %s[%cmask])));\n", code, reg, index, reg);
 		else
 			printf ("\t\t\t\tval = %s;\n", code);
 		printf ("\t\t\t}\n");

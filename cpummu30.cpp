@@ -66,11 +66,11 @@ int mmu030_fake_prefetch;
 uaecptr mmu030_fake_prefetch_addr;
 
 uae_u16 mmu030_state[3];
-uae_u32 mmu030_data_buffer;
+uae_u32 mmu030_data_buffer_out;
 uae_u32 mmu030_disp_store[2];
 uae_u32 mmu030_fmovem_store[2];
 uae_u8 mmu030_cache_state;
-struct mmu030_access mmu030_ad[MAX_MMU030_ACCESS];
+struct mmu030_access mmu030_ad[MAX_MMU030_ACCESS + 1];
 
 static void mmu030_ptest_atc_search(uaecptr logical_addr, uae_u32 fc, bool write);
 static uae_u32 mmu030_table_search(uaecptr addr, uae_u32 fc, bool write, int level);
@@ -1700,6 +1700,38 @@ static void mmu030_ptest_atc_search(uaecptr logical_addr, uae_u32 fc, bool write
 #define ATC030_PHYS_CI  0x04000000
 #define ATC030_PHYS_BE  0x08000000
 
+#if MMUDEBUG
+static void dump_opcode(uae_u16 opcode)
+{
+	struct mnemolookup *lookup;
+	struct instr *dp;
+	char size = '_';
+
+	dp = table68k + opcode;
+	if (dp->mnemo == i_ILLG) {
+		opcode = 0x4AFC;
+		dp = table68k + opcode;
+	}
+	for (lookup = lookuptab; lookup->mnemo != dp->mnemo; lookup++);
+
+	if (!dp->unsized) {
+		switch (dp->size)
+		{
+		case sz_byte:
+		size = 'B';
+		break;
+		case sz_word:
+		size = 'W';
+		break;
+		case sz_long:
+		size = 'L';
+		break;
+		}
+	}
+	write_log(_T("%04x %s.%c"), opcode, lookup->name, size);
+}
+#endif
+
 void mmu030_page_fault(uaecptr addr, bool read, int flags, uae_u32 fc)
 {
 	if (flags < 0) {
@@ -1728,10 +1760,22 @@ void mmu030_page_fault(uaecptr addr, bool read, int flags, uae_u32 fc)
 	regs.mmu_ssw |= fc;
     bBusErrorReadWrite = read; 
 	mm030_stageb_address = addr;
+
 #if MMUDEBUG
-	write_log(_T("MMU: page fault (logical addr=%08X SSW=%04x read=%d size=%d fc=%d pc=%08x ob=%08x ins=%04X)\n"),
+	write_log(_T("MMU: la=%08X SSW=%04x read=%d size=%d fc=%d pc=%08x ob=%08x "),
 		addr, regs.mmu_ssw, read, (flags & MMU030_SSW_SIZE_B) ? 1 : (flags & MMU030_SSW_SIZE_W) ? 2 : 4, fc,
-		regs.instruction_pc, (mmu030_state[1] & MMU030_STATEFLAG1_MOVEM1) ? mmu030_data_buffer : mmu030_ad[mmu030_idx].val, mmu030_opcode & 0xffff);
+		regs.instruction_pc, mmu030_data_buffer_out, mmu030_opcode & 0xffff);
+	dump_opcode(mmu030_opcode & 0xffff);
+	write_log(_T("\n"));
+#endif
+
+#if 0
+	if (addr == 0xBFE201)
+		write_log("!");
+	if (mmu030_state[1] & MMU030_STATEFLAG1_SUBACCESS0)
+		write_log("!");
+	if (mmu030_state[1] & MMU030_STATEFLAG1_MOVEM1)
+		write_log("!");
 #endif
 
 	THROW(2);
@@ -2277,12 +2321,12 @@ uae_u32 uae_mmu030_get_lrmw_fcx(uaecptr addr, int size, int fc)
 	if (size == sz_byte) {
 		return mmu030_get_generic(addr, fc, size, MMU030_SSW_RM | MMU030_SSW_SIZE_B);
 	} else if (size == sz_word) {
-		if (unlikely(is_unaligned(addr, 2)))
+		if (unlikely(is_unaligned_bus(addr, 2)))
 			return mmu030_get_word_unaligned(addr, fc, MMU030_SSW_RM);
 		else
 			return mmu030_get_generic(addr, fc, size, MMU030_SSW_RM | MMU030_SSW_SIZE_W);
 	} else {
-		if (unlikely(is_unaligned(addr, 4)))
+		if (unlikely(is_unaligned_bus(addr, 4)))
 			return mmu030_get_long_unaligned(addr, fc, MMU030_SSW_RM);
 		else
 			return mmu030_get_generic(addr, fc, size, MMU030_SSW_RM | MMU030_SSW_SIZE_L);
@@ -2299,12 +2343,12 @@ void uae_mmu030_put_lrmw_fcx(uaecptr addr, uae_u32 val, int size, int fc)
 	if (size == sz_byte) {
 		mmu030_put_generic(addr, val, fc, size, MMU030_SSW_RM | MMU030_SSW_SIZE_B);
 	} else if (size == sz_word) {
-		if (unlikely(is_unaligned(addr, 2)))
+		if (unlikely(is_unaligned_bus(addr, 2)))
 			mmu030_put_word_unaligned(addr, val, fc, MMU030_SSW_RM);
 		else
 			mmu030_put_generic(addr, val, fc, size, MMU030_SSW_RM | MMU030_SSW_SIZE_W);
 	} else {
-		if (unlikely(is_unaligned(addr, 4)))
+		if (unlikely(is_unaligned_bus(addr, 4)))
 			mmu030_put_long_unaligned(addr, val, fc, MMU030_SSW_RM);
 		else
 			mmu030_put_generic(addr, val, fc, size, MMU030_SSW_RM | MMU030_SSW_SIZE_L);
@@ -2316,29 +2360,10 @@ void uae_mmu030_put_lrmw(uaecptr addr, uae_u32 val, int size)
 	uae_mmu030_put_lrmw_fcx(addr, val, size, fc);
 }
 
-uae_u16 REGPARAM2 mmu030_get_word_unaligned(uaecptr addr, uae_u32 fc, int flags)
-{
-	uae_u16 res;
-    
-	flags |= MMU030_SSW_SIZE_W;
-	res = (uae_u16)mmu030_get_generic(addr, fc, sz_byte, flags) << 8;
-	SAVE_EXCEPTION;
-	TRY(prb) {
-		res |= mmu030_get_generic(addr + 1, fc, sz_byte, flags);
-		RESTORE_EXCEPTION;
-	}
-	CATCH(prb) {
-		RESTORE_EXCEPTION;
-		THROW_AGAIN(prb);
-	} ENDTRY
-	return res;
-}
-
 uae_u32 REGPARAM2 mmu030_get_ilong_unaligned(uaecptr addr, uae_u32 fc, int flags)
 {
 	uae_u32 res;
 
-	flags |= MMU030_SSW_SIZE_L;
 	res = (uae_u32)mmu030_get_iword(addr, fc) << 16;
 	SAVE_EXCEPTION;
 	TRY(prb) {
@@ -2352,77 +2377,79 @@ uae_u32 REGPARAM2 mmu030_get_ilong_unaligned(uaecptr addr, uae_u32 fc, int flags
 	return res;
 }
 
+static void unalign_init(bool l, bool l2)
+{
+	if (l2)
+		mmu030_state[1] |= MMU030_STATEFLAG1_SUBACCESSX;
+	if (l)
+		mmu030_state[1] |= MMU030_STATEFLAG1_SUBACCESSL;
+	mmu030_state[1] |= MMU030_STATEFLAG1_SUBACCESS0;
+}
+static void unalign_set(int state)
+{
+	mmu030_state[1] |= (1 << state) << (MMU030_STATEFLAG1_SUBACCESS_SHIFT + 1);
+}
+static void unalign_clear(void)
+{
+	mmu030_state[1] &= ~(MMU030_STATEFLAG1_SUBACCESSL | MMU030_STATEFLAG1_SUBACCESSX |
+		MMU030_STATEFLAG1_SUBACCESS0 | MMU030_STATEFLAG1_SUBACCESS1 | MMU030_STATEFLAG1_SUBACCESS2 | MMU030_STATEFLAG1_SUBACCESS3);
+}
+
+uae_u16 REGPARAM2 mmu030_get_word_unaligned(uaecptr addr, uae_u32 fc, int flags)
+{
+	unalign_init(false, false);
+	mmu030_data_buffer_out = (uae_u16)mmu030_get_generic(addr, fc, sz_byte, flags | MMU030_SSW_SIZE_W) << 8;
+	unalign_set(0);
+	mmu030_data_buffer_out |= mmu030_get_generic(addr + 1, fc, sz_byte, flags | MMU030_SSW_SIZE_B);
+	unalign_clear();
+	return mmu030_data_buffer_out;
+}
+
 uae_u32 REGPARAM2 mmu030_get_long_unaligned(uaecptr addr, uae_u32 fc, int flags)
 {
-	uae_u32 res;
-    
-	flags |= MMU030_SSW_SIZE_L;
 	if (likely(!(addr & 1))) {
-		res = (uae_u32)mmu030_get_generic(addr, fc, sz_word, flags) << 16;
-		SAVE_EXCEPTION;
-		TRY(prb) {
-			res |= mmu030_get_generic(addr + 2, fc, sz_word, flags);
-			RESTORE_EXCEPTION;
-		}
-		CATCH(prb) {
-			RESTORE_EXCEPTION;
-			THROW_AGAIN(prb);
-		} ENDTRY
+		unalign_init(true, false);
+		mmu030_data_buffer_out = (uae_u32)mmu030_get_generic(addr, fc, sz_word, flags | MMU030_SSW_SIZE_L) << 16;
+		unalign_set(0);
+		mmu030_data_buffer_out |= mmu030_get_generic(addr + 2, fc, sz_word, flags | MMU030_SSW_SIZE_W);
 	} else {
-		res = (uae_u32)mmu030_get_generic(addr, fc, sz_byte, flags) << 8;
-		SAVE_EXCEPTION;
-		TRY(prb) {
-			res = (res | mmu030_get_generic(addr + 1, fc, sz_byte, flags)) << 8;
-			res = (res | mmu030_get_generic(addr + 2, fc, sz_byte, flags)) << 8;
-			res |= mmu030_get_generic(addr + 3, fc, sz_byte, flags);
-			RESTORE_EXCEPTION;
-		}
-		CATCH(prb) {
-			RESTORE_EXCEPTION;
-			THROW_AGAIN(prb);
-		} ENDTRY
+		unalign_init(true, true);
+		mmu030_data_buffer_out = (uae_u32)mmu030_get_generic(addr, fc, sz_byte, flags | MMU030_SSW_SIZE_L) << 24;
+		unalign_set(0);
+		mmu030_data_buffer_out |= mmu030_get_generic(addr + 1, fc, sz_word, flags | MMU030_SSW_SIZE_W) << 8;
+		unalign_set(1);
+		mmu030_data_buffer_out |= mmu030_get_generic(addr + 3, fc, sz_byte, flags | MMU030_SSW_SIZE_B);
 	}
-	return res;
+	unalign_clear();
+	return mmu030_data_buffer_out;
 }
 
 
 void REGPARAM2 mmu030_put_long_unaligned(uaecptr addr, uae_u32 val, uae_u32 fc, int flags)
 {
-	flags |= MMU030_SSW_SIZE_L;
-	SAVE_EXCEPTION;
-	TRY(prb) {
-		if (likely(!(addr & 1))) {
-			mmu030_put_generic(addr, val >> 16, fc, sz_word, flags);
-			mmu030_put_generic(addr + 2, val, fc, sz_word, flags);
-		} else {
-			mmu030_put_generic(addr, val >> 24, fc, sz_byte, flags);
-			mmu030_put_generic(addr + 1, val >> 16, fc, sz_byte, flags);
-			mmu030_put_generic(addr + 2, val >> 8, fc, sz_byte, flags);
-			mmu030_put_generic(addr + 3, val, fc, sz_byte, flags);
-		}
-		RESTORE_EXCEPTION;
+	if (likely(!(addr & 1))) {
+		unalign_init(true, false);
+		mmu030_put_generic(addr, val >> 16, fc, sz_word, flags | MMU030_SSW_SIZE_L);
+		unalign_set(0);
+		mmu030_put_generic(addr + 2, val, fc, sz_word, flags | MMU030_SSW_SIZE_W);
+	} else {
+		unalign_init(true, true);
+		mmu030_put_generic(addr, val >> 24, fc, sz_byte, flags | MMU030_SSW_SIZE_L);
+		unalign_set(0);
+		mmu030_put_generic(addr + 1, val >> 8, fc, sz_word, flags | MMU030_SSW_SIZE_W);
+		unalign_set(1);
+		mmu030_put_generic(addr + 3, val, fc, sz_byte, flags | MMU030_SSW_SIZE_B);
 	}
-	CATCH(prb) {
-		RESTORE_EXCEPTION;
-		regs.wb3_data = val;
-		THROW_AGAIN(prb);
-	} ENDTRY
+	unalign_clear();
 }
 
 void REGPARAM2 mmu030_put_word_unaligned(uaecptr addr, uae_u16 val, uae_u32 fc, int flags)
 {
-	flags |= MMU030_SSW_SIZE_W;
-	SAVE_EXCEPTION;
-	TRY(prb) {
-		mmu030_put_generic(addr, val >> 8, fc, sz_byte, flags);
-		mmu030_put_generic(addr + 1, val, fc, sz_byte, flags);
-		RESTORE_EXCEPTION;
-	}
-	CATCH(prb) {
-		RESTORE_EXCEPTION;
-		regs.wb3_data = val;
-		THROW_AGAIN(prb);
-	} ENDTRY
+	unalign_init(false, false);
+	mmu030_put_generic(addr, val >> 8, fc, sz_byte, flags | MMU030_SSW_SIZE_W);
+	unalign_set(0);
+	mmu030_put_generic(addr + 1, val, fc, sz_byte, flags | MMU030_SSW_SIZE_B);
+	unalign_clear();
 }
 
 
@@ -2530,39 +2557,130 @@ void mmu030_set_funcs(void)
 	}
 }
 
-static void dump_opcode(uae_u16 opcode)
+#define unalign_done(f) \
+	st |= f; \
+	mmu030_state[1] = st;
+
+static void mmu030_unaligned_read_continue(uaecptr addr, int fc)
 {
-	struct mnemolookup *lookup;
-	struct instr *dp;
-	char size = '_';
+	uae_u32 st = mmu030_state[1];
 
-	dp = table68k + opcode;
-	if (dp->mnemo == i_ILLG) {
-		opcode = 0x4AFC;
-		dp = table68k + opcode;
-	}
-	for (lookup = lookuptab; lookup->mnemo != dp->mnemo; lookup++);
+#if MMUDEBUG
+	write_log(_T("unaligned_read_continue: %08x %d %08x %08x\n"), addr, fc, mmu030_data_buffer_out, st);
+#endif
 
-	if (!dp->unsized) {
-		switch (dp->size)
-		{
-		case sz_byte:
-		size = 'B';
-		break;
-		case sz_word:
-		size = 'W';
-		break;
-		case sz_long:
-		size = 'L';
-		break;
+	if (st & MMU030_STATEFLAG1_SUBACCESSL) {
+		if (st & MMU030_STATEFLAG1_SUBACCESSX) {
+			// odd long access: byte + word + byte
+			if (!(st & MMU030_STATEFLAG1_SUBACCESS1)) {
+				mmu030_data_buffer_out &= 0x00ffffff;
+				mmu030_data_buffer_out |= mmu030_get_generic(addr, fc, sz_byte, MMU030_SSW_SIZE_L) << 24;
+				unalign_done(MMU030_STATEFLAG1_SUBACCESS1);
+				addr++;
+			}
+			if (!(st & MMU030_STATEFLAG1_SUBACCESS2)) {
+				mmu030_data_buffer_out &= 0xff0000ff;
+				mmu030_data_buffer_out |= mmu030_get_generic(addr, fc, sz_word, MMU030_SSW_SIZE_W) << 8;
+				unalign_done(MMU030_STATEFLAG1_SUBACCESS2);
+				addr += 2;
+			}
+			if (!(st & MMU030_STATEFLAG1_SUBACCESS3)) {
+				mmu030_data_buffer_out &= 0xffffff00;
+				mmu030_data_buffer_out |= mmu030_get_generic(addr, fc, sz_byte, MMU030_SSW_SIZE_B) << 0;
+				unalign_done(MMU030_STATEFLAG1_SUBACCESS3);
+			}
+		} else {
+			// even but unaligned long access: word + word
+			if (!(st & MMU030_STATEFLAG1_SUBACCESS1)) {
+				mmu030_data_buffer_out &= 0x0000ffff;
+				mmu030_data_buffer_out |= mmu030_get_generic(addr, fc, sz_word, MMU030_SSW_SIZE_L) << 16;
+				unalign_done(MMU030_STATEFLAG1_SUBACCESS1);
+				addr += 2;
+			}
+			if (!(st & MMU030_STATEFLAG1_SUBACCESS2)) {
+				mmu030_data_buffer_out &= 0xffff0000;
+				mmu030_data_buffer_out |= mmu030_get_generic(addr, fc, sz_word, MMU030_SSW_SIZE_W) << 0;
+				unalign_done(MMU030_STATEFLAG1_SUBACCESS2);
+			}
+		}
+	} else {
+		// odd word access: byte + byte
+		if (!(st & MMU030_STATEFLAG1_SUBACCESS1)) {
+			mmu030_data_buffer_out &= 0x00ff;
+			mmu030_data_buffer_out |= mmu030_get_generic(addr, fc, sz_byte, MMU030_SSW_SIZE_W) << 8;
+			unalign_done(MMU030_STATEFLAG1_SUBACCESS1);
+			addr++;
+		}
+		if (!(st & MMU030_STATEFLAG1_SUBACCESS2)) {
+			mmu030_data_buffer_out &= 0xff00;
+			mmu030_data_buffer_out |= mmu030_get_generic(addr, fc, sz_byte, MMU030_SSW_SIZE_B) << 0;
+			unalign_done(MMU030_STATEFLAG1_SUBACCESS2);
 		}
 	}
-	write_log(_T("%04x %s.%c\n"), opcode, lookup->name, size);
+
+#if MMUDEBUG
+	write_log(_T("unaligned_read_continue_end: %08x %d %08x %08x\n"), addr, fc, mmu030_data_buffer_out, st);
+#endif
+}
+
+static void mmu030_unaligned_write_continue(uaecptr addr, int fc)
+{
+	uae_u32 st = mmu030_state[1];
+
+#if MMUDEBUG
+	write_log(_T("unaligned_write_continue: %08x %d %08x %08x\n"), addr, fc, mmu030_data_buffer_out, st);
+#endif
+
+	if (st & MMU030_STATEFLAG1_SUBACCESSL) {
+		// odd long access: byte + word + byte
+		if (st & MMU030_STATEFLAG1_SUBACCESSX) {
+			if (!(st & MMU030_STATEFLAG1_SUBACCESS1)) {
+				mmu030_put_generic(addr, mmu030_data_buffer_out >> 24, fc, sz_byte, MMU030_SSW_SIZE_L);
+				unalign_done(MMU030_STATEFLAG1_SUBACCESS1);
+				addr++;
+			}
+			if (!(st & MMU030_STATEFLAG1_SUBACCESS2)) {
+				mmu030_put_generic(addr, mmu030_data_buffer_out >> 8, fc, sz_word, MMU030_SSW_SIZE_W);
+				unalign_done(MMU030_STATEFLAG1_SUBACCESS2);
+				addr += 2;
+			}
+			if (!(st & MMU030_STATEFLAG1_SUBACCESS3)) {
+				mmu030_put_generic(addr, mmu030_data_buffer_out >> 0, fc, sz_byte, MMU030_SSW_SIZE_B);
+				unalign_done(MMU030_STATEFLAG1_SUBACCESS3);
+			}
+		} else {
+			// even but unaligned long access: word + word
+			if (!(st & MMU030_STATEFLAG1_SUBACCESS1)) {
+				mmu030_put_generic(addr, mmu030_data_buffer_out >> 16, fc, sz_word, MMU030_SSW_SIZE_L);
+				unalign_done(MMU030_STATEFLAG1_SUBACCESS1);
+				addr += 2;
+			}
+			if (!(st & MMU030_STATEFLAG1_SUBACCESS2)) {
+				mmu030_put_generic(addr, mmu030_data_buffer_out >> 0, fc, sz_word, MMU030_SSW_SIZE_W);
+				unalign_done(MMU030_STATEFLAG1_SUBACCESS2);
+			}
+		}
+	} else {
+		// odd word access: byte + byte
+		if (!(st & MMU030_STATEFLAG1_SUBACCESS1)) {
+			mmu030_put_generic(addr, mmu030_data_buffer_out >> 8, fc, sz_byte, MMU030_SSW_SIZE_W);
+			unalign_done(MMU030_STATEFLAG1_SUBACCESS1);
+			addr++;
+		}
+		if (!(st & MMU030_STATEFLAG1_SUBACCESS2)) {
+			mmu030_put_generic(addr, mmu030_data_buffer_out >> 0, fc, sz_byte, MMU030_SSW_SIZE_B);
+			unalign_done(MMU030_STATEFLAG1_SUBACCESS2);
+		}
+	}
+
+#if MMUDEBUG
+	write_log(_T("unaligned_write_continue_end: %08x %d %08x %08x\n"), addr, fc, mmu030_data_buffer_out, st);
+#endif
 }
 
 void m68k_do_rte_mmu030 (uaecptr a7)
 {
-	struct mmu030_access mmu030_ad_v[MAX_MMU030_ACCESS];
+	struct mmu030_access mmu030_ad_v[MAX_MMU030_ACCESS + 1];
 
 	// Restore access error exception state
 
@@ -2583,14 +2701,14 @@ void m68k_do_rte_mmu030 (uaecptr a7)
 	// Internal register, our opcode storage area
 	uae_u32 oc = get_long_mmu030(a7 + 0x14);
 	// Movem write data
-	uae_u32 mdata = get_long_mmu030(a7 + 0x18);
+	uae_u32 mmu030_data_buffer_out_v = get_long_mmu030(a7 + 0x18);
 	// get_disp_ea_020
 	uae_u32 mmu030_disp_store_0 = get_long_mmu030(a7 + 0x1c);
 	uae_u32 mmu030_disp_store_1 = get_long_mmu030(a7 + 0x1c + 4);
 	// Internal register, misc flags
 	uae_u32 ps = get_long_mmu030(a7 + 0x28);
 	// Data buffer
-	uae_u32 mmu030_data_buffer_v = get_long_mmu030(a7 + 0x2c);;
+	uae_u32 mmu030_data_buffer_in_v = get_long_mmu030(a7 + 0x2c);;
 
 	uae_u32 mmu030_opcode_v = (ps & 0x80000000) ? -1 : (oc & 0xffff);
 	// Misc state data
@@ -2620,6 +2738,7 @@ void m68k_do_rte_mmu030 (uaecptr a7)
 		// did we have data fault but DF bit cleared?
 		if (ssw & (MMU030_SSW_DF << 1) && !(ssw & MMU030_SSW_DF)) {
 			// DF not set: mark access as done
+			mmu030_data_buffer_out_v = mmu030_data_buffer_in_v;
 			if (ssw & MMU030_SSW_RM) {
 				// Read-Modify-Write: whole instruction is considered done
 				write_log (_T("Read-Modify-Write and DF bit cleared! PC=%08x\n"), regs.instruction_pc);
@@ -2631,20 +2750,20 @@ void m68k_do_rte_mmu030 (uaecptr a7)
 				mmu030_ad_v[idxsize].done = true;
 				if (ssw & MMU030_SSW_RW) {
 					// Read and no DF: use value in data input buffer
-					mmu030_ad_v[idxsize].val = mmu030_data_buffer_v;
+					mmu030_ad_v[idxsize].val = mmu030_data_buffer_in_v;
 				}
 			}
 		}
 		// did we have ins fault and RB bit cleared?
 		if ((ssw & MMU030_SSW_FB) && !(ssw & MMU030_SSW_RB)) {
 			uae_u16 stageb = get_word_mmu030 (a7 + 0x0e);
-			if (mmu030_opcode == -1) {
+			if (mmu030_opcode_v == -1) {
 				mmu030_opcode_stageb = stageb;
 				write_log (_T("Software fixed stage B! opcode = %04x\n"), stageb);
 			} else {
 				mmu030_ad_v[idxsize].done = true;
 				mmu030_ad_v[idxsize].val = stageb;
-				write_log (_T("Software fixed stage B! opcode = %04X, opword = %04x\n"), mmu030_opcode, stageb);
+				write_log (_T("Software fixed stage B! opcode = %04X, opword = %04x\n"), mmu030_opcode_v, stageb);
 			}
 		}
 
@@ -2659,7 +2778,7 @@ void m68k_do_rte_mmu030 (uaecptr a7)
 		mmu030_disp_store[1] = mmu030_disp_store_1;
 		mmu030_fmovem_store[0] = mmu030_fmovem_store_0;
 		mmu030_fmovem_store[1] = mmu030_fmovem_store_1;
-		mmu030_data_buffer = mmu030_data_buffer_v;
+		mmu030_data_buffer_out = mmu030_data_buffer_out_v;
 		mmu030_idx = idxsize;
 		for (int i = 0; i <= mmu030_idx + 1; i++) {
 			mmu030_ad[i].done = mmu030_ad_v[i].done;
@@ -2675,17 +2794,6 @@ void m68k_do_rte_mmu030 (uaecptr a7)
 		}
 		m68k_setpci(pc);
 
-#if MMUDEBUG
-		if (mmu030_state[1] & MMU030_STATEFLAG1_MOVEM1) {
-			if (mmu030_state[1] & MMU030_STATEFLAG1_MOVEM2) {
-				write_log(_T("68030 MMU MOVEM %04x retry but MMU030_STATEFLAG1_MOVEM2 was already set!?\n"));
-			}
-		} else {
-			if (mmu030_ad[idxsize].done) {
-				write_log(_T("68030 MMU ins %04x retry but it was already marked as done!?\n"));
-			}
-		}
-#endif
 		if ((ssw & MMU030_SSW_DF) && (ssw & MMU030_SSW_RM)) {
 
 			// Locked-Read-Modify-Write restarts whole instruction.
@@ -2699,49 +2807,64 @@ void m68k_do_rte_mmu030 (uaecptr a7)
 			int size = (ssw & MMU030_SSW_SIZE_B) ? sz_byte : ((ssw & MMU030_SSW_SIZE_W) ? sz_word : sz_long);
 			int fc = ssw & MMU030_SSW_FC_MASK;
 			
+#if MMU030_DEBUG
+			if (mmu030_state[1] & MMU030_STATEFLAG1_MOVEM1) {
+				if (mmu030_state[1] & MMU030_STATEFLAG1_MOVEM2) {
+					write_log(_T("68030 MMU MOVEM %04x retry but MMU030_STATEFLAG1_MOVEM2 was already set!?\n"));
+				}
+			}
+			if (mmu030_ad[idxsize].done) {
+				write_log(_T("68030 MMU ins %04x retry but it was already marked as done!?\n"));
+			}
+#endif
+
 #if 0
 			write_log(_T("%08x %08x %08x %08x %08x %d %d %d "), mmu030_state[1], mmu030_state[2], mmu030_disp_store[0], mmu030_disp_store[1], addr, read, size, fc);
 			dump_opcode(mmu030_opcode);
 #endif
 
 			if (read) {
-				uae_u32 val = 0;
-				switch (size)
-				{
-					case sz_byte:
-					val = uae_mmu030_get_byte_fcx(addr, fc);
-					break;
-					case sz_word:
-					val = uae_mmu030_get_word_fcx(addr, fc);
-					break;
-					case sz_long:
-					val = uae_mmu030_get_long_fcx(addr, fc);
-					break;
+				if (!(mmu030_state[1] & MMU030_STATEFLAG1_MOVEM1)) {
+					mmu030_data_buffer_out = mmu030_ad[idxsize].val;
+				}
+				if (mmu030_state[1] & MMU030_STATEFLAG1_SUBACCESS0) {
+					mmu030_unaligned_read_continue(addr, fc);
+				} else {
+					switch (size)
+					{
+						case sz_byte:
+						mmu030_data_buffer_out = uae_mmu030_get_byte_fcx(addr, fc);
+						break;
+						case sz_word:
+						mmu030_data_buffer_out = uae_mmu030_get_word_fcx(addr, fc);
+						break;
+						case sz_long:
+						mmu030_data_buffer_out = uae_mmu030_get_long_fcx(addr, fc);
+						break;
+					}
 				}
 				if (mmu030_state[1] & MMU030_STATEFLAG1_MOVEM1) {
-					mmu030_data_buffer = val;
 					mmu030_state[1] |= MMU030_STATEFLAG1_MOVEM2;
 				} else {
-					mmu030_ad[idxsize].val = val;
+					mmu030_ad[idxsize].val = mmu030_data_buffer_out;
 					mmu030_ad[idxsize].done = true;
 				}
 			} else {
-				uae_u32 val;
-				if (mmu030_state[1] & MMU030_STATEFLAG1_MOVEM1)
-					val = mdata;
-				else
-					val = mmu030_ad[idxsize].val;
-				switch (size)
-				{
-					case sz_byte:
-					uae_mmu030_put_byte_fcx(addr, val, fc);
-					break;
-					case sz_word:
-					uae_mmu030_put_word_fcx(addr, val, fc);
-					break;
-					case sz_long:
-					uae_mmu030_put_long_fcx(addr, val, fc);
-					break;
+				if (mmu030_state[1] & MMU030_STATEFLAG1_SUBACCESS0) {
+					mmu030_unaligned_write_continue(addr, fc);
+				} else {
+					switch (size)
+					{
+						case sz_byte:
+						uae_mmu030_put_byte_fcx(addr, mmu030_data_buffer_out, fc);
+						break;
+						case sz_word:
+						uae_mmu030_put_word_fcx(addr, mmu030_data_buffer_out, fc);
+						break;
+						case sz_long:
+						uae_mmu030_put_long_fcx(addr, mmu030_data_buffer_out, fc);
+						break;
+					}
 				}
 				if (mmu030_state[1] & MMU030_STATEFLAG1_MOVEM1) {
 					mmu030_state[1] |= MMU030_STATEFLAG1_MOVEM2;
@@ -2751,6 +2874,12 @@ void m68k_do_rte_mmu030 (uaecptr a7)
 			}
 
 		}
+
+#if MMU030_DEBUG
+		if (mmu030_idx >= MAX_MMU030_ACCESS) {
+			write_log(_T("mmu030_idx (RTE) out of bounds! %d >= %d\n"), mmu030_idx, MAX_MMU030_ACCESS);
+		}
+#endif
 
 	} else {
 		m68k_areg (regs, 7) += 32;
@@ -2940,7 +3069,7 @@ uae_u32 REGPARAM2 get_disp_ea_020_mmu030c (uae_u32 base, int idx)
 
 void m68k_do_rte_mmu030c (uaecptr a7)
 {
-	struct mmu030_access mmu030_ad_v[MAX_MMU030_ACCESS];
+	struct mmu030_access mmu030_ad_v[MAX_MMU030_ACCESS + 1];
 
 	// Restore access error exception state
 
@@ -2962,14 +3091,14 @@ void m68k_do_rte_mmu030c (uaecptr a7)
 	// Internal register, our opcode storage area
 	uae_u32 oc = get_long_mmu030c(a7 + 0x14);
 	// Movem write data
-	uae_u32 mdata = get_long_mmu030c(a7 + 0x18);
+	uae_u32 mmu030_data_buffer_out_v = get_long_mmu030c(a7 + 0x18);
 	// get_disp_ea_020
 	uae_u32 mmu030_disp_store_0 = get_long_mmu030c(a7 + 0x1c);
 	uae_u32 mmu030_disp_store_1 = get_long_mmu030c(a7 + 0x1c + 4);
 	// Internal register, misc flags
 	uae_u32 ps = get_long_mmu030c(a7 + 0x28);
 	// Data buffer
-	uae_u32 mmu030_data_buffer_v = get_long_mmu030c(a7 + 0x2c);;
+	uae_u32 mmu030_data_buffer_in_v = get_long_mmu030c(a7 + 0x2c);;
 
 	uae_u32 mmu030_opcode_v = (ps & 0x80000000) ? -1 : (oc & 0xffff);
 	// Misc state data
@@ -2994,9 +3123,11 @@ void m68k_do_rte_mmu030c (uaecptr a7)
 			mmu030_ad_v[i].val = get_long_mmu030c(a7 + 0x5c - (i + 1) * 4);
 		}
 		mmu030_ad_v[idxsize + 1].done = false;
+
 		// did we have data fault but DF bit cleared?
 		if (ssw & (MMU030_SSW_DF << 1) && !(ssw & MMU030_SSW_DF)) {
 			// DF not set: mark access as done
+			mmu030_data_buffer_out_v = mmu030_data_buffer_in_v;
 			if (ssw & MMU030_SSW_RM) {
 				// Read-Modify-Write: whole instruction is considered done
 				write_log (_T("Read-Modify-Write and DF bit cleared! PC=%08x\n"), regs.instruction_pc);
@@ -3005,10 +3136,10 @@ void m68k_do_rte_mmu030c (uaecptr a7)
 				// if movem, skip next move
 				mmu030_state_1 |= MMU030_STATEFLAG1_MOVEM2;
 			} else {
-				mmu030_ad[idxsize].done = true;
+				mmu030_ad_v[idxsize].done = true;
 				if (ssw & MMU030_SSW_RW) {
 					// Read and no DF: use value in data input buffer
-					mmu030_ad[idxsize].val = mmu030_data_buffer;
+					mmu030_ad_v[idxsize].val = mmu030_data_buffer_in_v;
 				}
 			}
 		}
@@ -3036,6 +3167,7 @@ void m68k_do_rte_mmu030c (uaecptr a7)
 			write_log (_T("Software fixed stage C! opcode = %04x\n"), regs.prefetch020[1]);
 		}
 
+		// restore global state variables
 		mmu030_opcode = mmu030_opcode_v;
 		mmu030_state[0] = mmu030_state_0;
 		mmu030_state[1] = mmu030_state_1;
@@ -3044,13 +3176,12 @@ void m68k_do_rte_mmu030c (uaecptr a7)
 		mmu030_disp_store[1] = mmu030_disp_store_1;
 		mmu030_fmovem_store[0] = mmu030_fmovem_store_0;
 		mmu030_fmovem_store[1] = mmu030_fmovem_store_1;
-		mmu030_data_buffer = mmu030_data_buffer_v;
+		mmu030_data_buffer_out = mmu030_data_buffer_out_v;
 		mmu030_idx = idxsize;
-		for (int i = 0; i < mmu030_idx + 1; i++) {
+		for (int i = 0; i <= mmu030_idx + 1; i++) {
 			mmu030_ad[i].done = mmu030_ad_v[i].done;
 			mmu030_ad[i].val = mmu030_ad_v[i].val;
 		}
-		mmu030_ad[mmu030_idx + 1].done = false;
 
 		m68k_areg (regs, 7) += 92;
 		regs.sr = sr;
@@ -3061,6 +3192,17 @@ void m68k_do_rte_mmu030c (uaecptr a7)
 		}
 		m68k_setpci (pc);
 
+#if MMU030_DEBUG
+		if (mmu030_state[1] & MMU030_STATEFLAG1_MOVEM1) {
+			if (mmu030_state[1] & MMU030_STATEFLAG1_MOVEM2) {
+				write_log(_T("68030 MMU MOVEM %04x retry but MMU030_STATEFLAG1_MOVEM2 was already set!?\n"));
+			}
+		} else {
+			if (mmu030_ad[idxsize].done) {
+				write_log(_T("68030 MMU ins %04x retry but it was already marked as done!?\n"));
+			}
+		}
+#endif
 		if (!(ssw & (MMU030_SSW_DF << 1))) {
 			if (!regs.prefetch020_valid[0] && regs.prefetch020_valid[2]) {
 				// Prefetch was software fixed, continue pipeline refill
@@ -3075,7 +3217,12 @@ void m68k_do_rte_mmu030c (uaecptr a7)
 			}
 		}
 
-		if (ssw & MMU030_SSW_DF) {
+		if ((ssw & MMU030_SSW_DF) && (ssw & MMU030_SSW_RM)) {
+
+			// Locked-Read-Modify-Write restarts whole instruction.
+			mmu030_ad[0].done = false;
+
+		} else if (ssw & MMU030_SSW_DF) {
 			// retry faulted access
 			uaecptr addr = fault_addr;
 			bool read = (ssw & MMU030_SSW_RW) != 0;
@@ -3083,50 +3230,45 @@ void m68k_do_rte_mmu030c (uaecptr a7)
 			int fc = ssw & 7;
 
 			if (read) {
-				uae_u32 val = 0;
-				if (ssw & MMU030_SSW_RM) {
-					val = read_dcache030_lrmw_mmu_fcx(addr, size, fc);
+				if (!(mmu030_state[1] & MMU030_STATEFLAG1_MOVEM1)) {
+					mmu030_data_buffer_out = mmu030_ad[idxsize].val;
+				}
+				if (mmu030_state[1] & MMU030_STATEFLAG1_SUBACCESS0) {
+					mmu030_unaligned_read_continue(addr, fc);
 				} else {
 					switch (size)
 					{
 						case sz_byte:
-						val = read_dcache030_bget(addr, fc);
+						mmu030_data_buffer_out = read_dcache030_bget(addr, fc);
 						break;
 						case sz_word:
-						val = read_dcache030_wget(addr, fc);
+						mmu030_data_buffer_out = read_dcache030_wget(addr, fc);
 						break;
 						case sz_long:
-						val = read_dcache030_lget(addr, fc);
+						mmu030_data_buffer_out = read_dcache030_lget(addr, fc);
 						break;
 					}
 				}
 				if (mmu030_state[1] & MMU030_STATEFLAG1_MOVEM1) {
-					mmu030_data_buffer = val;
 					mmu030_state[1] |= MMU030_STATEFLAG1_MOVEM2;
 				} else {
-					mmu030_ad[idxsize].val = val;
+					mmu030_ad[idxsize].val = mmu030_data_buffer_out;
 					mmu030_ad[idxsize].done = true;
-					mmu030_ad[idxsize + 1].done = false;
 				}
 			} else {
-				uae_u32 val;
-				if (mmu030_state[1] & MMU030_STATEFLAG1_MOVEM1)
-					val = mdata;
-				else
-					val = mmu030_ad[idxsize].val;
-				if (ssw & MMU030_SSW_RM) {
-					write_dcache030_lrmw_mmu_fcx(addr, val, size, fc);
+				if (mmu030_state[1] & MMU030_STATEFLAG1_SUBACCESS0) {
+					mmu030_unaligned_write_continue(addr, fc);
 				} else {
 					switch (size)
 					{
 						case sz_byte:
-						write_dcache030_bput(addr, val, fc);
+						write_dcache030_bput(addr, mmu030_data_buffer_out, fc);
 						break;
 						case sz_word:
-						write_dcache030_wput(addr, val, fc);
+						write_dcache030_wput(addr, mmu030_data_buffer_out, fc);
 						break;
 						case sz_long:
-						write_dcache030_lput(addr, val, fc);
+						write_dcache030_lput(addr, mmu030_data_buffer_out, fc);
 						break;
 					}
 				}
@@ -3134,7 +3276,6 @@ void m68k_do_rte_mmu030c (uaecptr a7)
 					mmu030_state[1] |= MMU030_STATEFLAG1_MOVEM2;
 				} else {
 					mmu030_ad[idxsize].done = true;
-					mmu030_ad[idxsize + 1].done = false;
 				}
 			}
 		}

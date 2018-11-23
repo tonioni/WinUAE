@@ -1369,12 +1369,12 @@ static void set_x_funcs (void)
 			} else {
 				icache_fetch = uae_mmu030_get_ilong;
 			}
-			dcache_lput = uae_mmu030_put_long;
-			dcache_wput = uae_mmu030_put_word;
-			dcache_bput = uae_mmu030_put_byte;
-			dcache_lget = uae_mmu030_get_long;
-			dcache_wget = uae_mmu030_get_word;
-			dcache_bget = uae_mmu030_get_byte;
+			dcache_lput = uae_mmu030_put_long_fc;
+			dcache_wput = uae_mmu030_put_word_fc;
+			dcache_bput = uae_mmu030_put_byte_fc;
+			dcache_lget = uae_mmu030_get_long_fc;
+			dcache_wget = uae_mmu030_get_word_fc;
+			dcache_bget = uae_mmu030_get_byte_fc;
 			if (currprefs.cpu_data_cache) {
 				read_data_030_bget = read_dcache030_mmu_bget;
 				read_data_030_wget = read_dcache030_mmu_wget;
@@ -1382,12 +1382,6 @@ static void set_x_funcs (void)
 				write_data_030_bput = write_dcache030_mmu_bput;
 				write_data_030_wput = write_dcache030_mmu_wput;
 				write_data_030_lput = write_dcache030_mmu_lput;
-				dcache_lput = uae_mmu030_put_long_fc;
-				dcache_wput = uae_mmu030_put_word_fc;
-				dcache_bput = uae_mmu030_put_byte_fc;
-				dcache_lget = uae_mmu030_get_long_fc;
-				dcache_wget = uae_mmu030_get_word_fc;
-				dcache_bget = uae_mmu030_get_byte_fc;
 				dcache_check = uae_mmu030_check_fc;
 			} else {
 				read_data_030_bget = uae_mmu030_get_byte;
@@ -3136,18 +3130,28 @@ static void Exception_build_stack_frame (uae_u32 oldpc, uae_u32 currpc, uae_u32 
 			// our PC always points at start of instruction but A frame assumes
 			// it is + 2 and handling this properly is not easy.
 			// Store state information to internal register space
+#if MMU030_DEBUG
+			if (mmu030_idx >= MAX_MMU030_ACCESS) {
+				write_log(_T("mmu030_idx out of bounds! %d >= %d\n"), mmu030_idx, MAX_MMU030_ACCESS);
+			}
+#endif
 			for (i = 0; i < mmu030_idx + 1; i++) {
 				m68k_areg (regs, 7) -= 4;
 				x_put_long (m68k_areg (regs, 7), mmu030_ad[i].val);
 			}
-			while (i < 9) {
+			while (i < MAX_MMU030_ACCESS) {
 				uae_u32 v = 0;
 				m68k_areg (regs, 7) -= 4;
 				// mmu030_idx is always small enough if instruction is FMOVEM.
 				if (mmu030_state[1] & MMU030_STATEFLAG1_FMOVEM) {
-					if (i == 7)
+#if MMU030_DEBUG
+					if (mmu030_idx >= MAX_MMU030_ACCESS - 2) {
+						write_log(_T("mmu030_idx (FMOVEM) out of bounds! %d >= %d\n"), mmu030_idx, MAX_MMU030_ACCESS - 2);
+					}
+#endif
+					if (i == MAX_MMU030_ACCESS - 2)
 						v = mmu030_fmovem_store[0];
-					else if (i == 8)
+					else if (i == MAX_MMU030_ACCESS - 1)
 						v = mmu030_fmovem_store[1];
 				}
 				x_put_long (m68k_areg (regs, 7), v);
@@ -3189,8 +3193,8 @@ static void Exception_build_stack_frame (uae_u32 oldpc, uae_u32 currpc, uae_u32 
 			m68k_areg (regs, 7) -= 4;
 			x_put_long (m68k_areg (regs, 7), mmu030_disp_store[0]);
 			m68k_areg (regs, 7) -= 4;
-			 // Data output buffer = value that was going to be written
-			x_put_long (m68k_areg (regs, 7), mmu030_data_buffer);
+			// Data output buffer = value that was going to be written
+			x_put_long (m68k_areg (regs, 7), mmu030_data_buffer_out);
 			m68k_areg (regs, 7) -= 4;
 			x_put_long (m68k_areg (regs, 7), (mmu030_opcode & 0xffff) | (regs.prefetch020[0] << 16));  // Internal register (opcode storage)
 			m68k_areg (regs, 7) -= 4;
@@ -3292,7 +3296,7 @@ static void Exception_mmu030 (int nr, uaecptr oldpc)
     } else if (nr == 3) {
 		regs.mmu_fault_addr = last_fault_for_exception_3;
 		mmu030_state[0] = mmu030_state[1] = 0;
-		mmu030_data_buffer = 0;
+		mmu030_data_buffer_out = 0;
         Exception_build_stack_frame (last_fault_for_exception_3, currpc, MMU030_SSW_RW | MMU030_SSW_SIZE_W | (regs.s ? 6 : 2), nr,  0xA);
 	} else {
 		Exception_build_stack_frame_common(oldpc, currpc, regs.mmu_ssw, nr);

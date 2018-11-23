@@ -2449,7 +2449,7 @@ static uaecptr fmovem2mem (uaecptr ad, uae_u32 list, int incr, int regdir)
 						if (mmu030_state[1] & MMU030_STATEFLAG1_MOVEM2) {
 							mmu030_state[1] &= ~MMU030_STATEFLAG1_MOVEM2;
 						} else {
-							mmu030_data_buffer = wrd[i];
+							mmu030_data_buffer_out = wrd[i];
 							x_put_long(ad + i * 4, wrd[i]);
 						}
 						mmu030_state[0]++;
@@ -2504,7 +2504,7 @@ static uaecptr fmovem2fpp (uaecptr ad, uae_u32 list, int incr, int regdir)
 					if (mmu030_state[0] == idx * 3 + i) {
 						if (mmu030_state[1] & MMU030_STATEFLAG1_MOVEM2) {
 							mmu030_state[1] &= ~MMU030_STATEFLAG1_MOVEM2;
-							wrd[i] = mmu030_data_buffer;
+							wrd[i] = mmu030_data_buffer_out;
 						} else {
 							wrd[i] = x_get_long (ad + i * 4);
 						}
