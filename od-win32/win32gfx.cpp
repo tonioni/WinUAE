@@ -590,16 +590,12 @@ void getgfxoffset(int monid, float *dxp, float *dyp, float *mxp, float *myp)
 	float dx, dy;
 
 	getfilteroffset(monid, &dx, &dy, mxp, myp);
-	*dxp = dx;
-	*dyp = dy;
 	if (ad->picasso_on) {
 		dx = picasso_offset_x;
 		dy = picasso_offset_y;
 		*mxp = picasso_offset_mx;
 		*myp = picasso_offset_my;
 	}
-	*dxp = dx;
-	*dyp = dy;
 	if (mon->currentmode.flags & DM_W_FULLSCREEN) {
 		if (mon->scalepicasso && mon->screen_is_picasso)
 			return;

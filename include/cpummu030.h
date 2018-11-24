@@ -1,7 +1,7 @@
 #ifndef UAE_CPUMMU030_H
 #define UAE_CPUMMU030_H
 
-#define MMU030_DEBUG 1
+#define MMU030_DEBUG 0
 
 #include "uae/types.h"
 

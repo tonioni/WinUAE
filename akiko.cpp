@@ -164,7 +164,7 @@
 
 #define AKIKO_DEBUG_IO 1
 #define AKIKO_DEBUG_IO_CMD 1
-#define AKIKO_DEBUG_IRQ 1
+#define AKIKO_DEBUG_IRQ 0
 
 int log_cd32 = 0;
 
