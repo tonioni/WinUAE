@@ -1709,8 +1709,7 @@ static void dump_opcode(uae_u16 opcode)
 
 	dp = table68k + opcode;
 	if (dp->mnemo == i_ILLG) {
-		opcode = 0x4AFC;
-		dp = table68k + opcode;
+		dp = table68k + 0x4AFC;
 	}
 	for (lookup = lookuptab; lookup->mnemo != dp->mnemo; lookup++);
 
@@ -1749,7 +1748,9 @@ void mmu030_page_fault(uaecptr addr, bool read, int flags, uae_u32 fc)
 			} else if (regs.prefetch020_valid[2] != 1) {
 				regs.mmu_ssw = MMU030_SSW_FB | MMU030_SSW_RB;
 			} else {
-				write_log(_T("mmu030_page_fault without invalid prefetch!\n"));
+				// This happens when CPU prefetches from page
+				// end - 4 and both pages are originally invalid.
+				regs.mmu_ssw = MMU030_SSW_FC | MMU030_SSW_RC;
 			}
 		} else {
 			regs.mmu_ssw = MMU030_SSW_FB | MMU030_SSW_RB;
