@@ -919,10 +919,10 @@ static int checkvaltype (TCHAR **cp, uae_u32 *val, int *size, TCHAR def)
 	if (!gotop) {
 		if (*size == 0) {
 			uae_s32 v = (uae_s32)(*val);
-			if (v > 255 || v < -127) {
-				*size = 2;
-			} else if (v > 65535 || v < -32767) {
+			if (v > 65535 || v < -32767) {
 				*size = 4;
+			} else if (v > 255 || v < -127) {
+				*size = 2;
 			} else {
 				*size = 1;
 			}

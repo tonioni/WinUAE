@@ -2242,14 +2242,146 @@ skip:
 	}
 }
 
-static uaecptr ShowEA (void *f, uaecptr pc, uae_u16 opcode, int reg, amodes mode, wordsizes size, TCHAR *buf, uae_u32 *eaddr, int safemode)
+static uaecptr ShowEA_disp(uaecptr *pcp, uaecptr base, TCHAR *buffer, const TCHAR *name)
 {
+	uaecptr addr;
 	uae_u16 dp;
-	uae_s8 disp8;
-	uae_s16 disp16;
 	int r;
 	uae_u32 dispreg;
+	uaecptr pc = *pcp;
+	TCHAR mult[20];
+
+	dp = get_iword_debug(pc);
+	pc += 2;
+
+	r = (dp & 0x7000) >> 12; // REGISTER
+
+	dispreg = dp & 0x8000 ? m68k_areg(regs, r) : m68k_dreg(regs, r);
+	if (!(dp & 0x800)) { // W/L
+		dispreg = (uae_s32)(uae_s16)(dispreg);
+	}
+
+	if (currprefs.cpu_model >= 68020) {
+		dispreg <<= (dp >> 9) & 3; // SCALE
+	}
+
+	int m = 1 << ((dp >> 9) & 3);
+	mult[0] = 0;
+	if (m > 1) {
+		_stprintf(mult, _T("*%d"), m);
+	}
+
+	buffer[0] = 0;
+	if ((dp & 0x100) && currprefs.cpu_model >= 68020) {
+		TCHAR dr[20];
+		// Full format extension (68020+)
+		uae_s32 outer = 0, disp = 0;
+		if (dp & 0x80) { // BS (base register suppress)
+			base = 0;
+			name = NULL;
+		}
+		_stprintf(dr, _T("%c%d.%c"), dp & 0x8000 ? 'A' : 'D', (int)r, dp & 0x800 ? 'L' : 'W');
+		if (dp & 0x40) {
+			dispreg = 0;
+			dr[0] = 0;
+		}
+
+		_tcscpy(buffer, _T("("));
+		TCHAR *p = buffer + _tcslen(buffer);
+
+		if (dp & 3) {
+			_stprintf(p, _T("["));
+			p += _tcslen(p);
+		}
+
+		if ((dp & 0x30) == 0x20) { // BD SIZE = 2 (WORD)
+			disp = (uae_s32)(uae_s16)get_iword_debug(pc);
+			_stprintf(p, _T("$%04x,"), (uae_s16)disp);
+			p += _tcslen(p);
+			pc += 2;
+			base += disp;
+		} else if ((dp & 0x30) == 0x30) { // BD SIZE = 3 (LONG)
+			disp = get_ilong_debug(pc);
+			_stprintf(p, _T("$%08x,"), disp);
+			p += _tcslen(p);
+			pc += 4;
+			base += disp;
+		}
+
+		if ((dp & 0x04) == 0x00 && name) {
+			_stprintf(p, _T("%s,"), name);
+			p += _tcslen(p);
+		}
+
+		if (dr[0] && (dp & 0x04) == 0) {
+			_stprintf(p, _T("%s%s,"), dr, mult);
+			p += _tcslen(p);
+		}
+
+		if (dp & 3) {
+			if (p[-1] == ',')
+				p--;
+			_stprintf(p, _T("],"));
+			p += _tcslen(p);
+		}
+
+		if (dr[0] && (dp & 0x04) != 0) {
+			_stprintf(p, _T("%s%s,"), dr, mult);
+			p += _tcslen(p);
+		}
+
+		if ((dp & 0x03) == 0x02) {
+			outer = (uae_s32)(uae_s16)get_iword_debug(pc);
+			_stprintf(p, _T("$%04x,"), (uae_s16)outer);
+			p += _tcslen(p);
+			pc += 2;
+		} else 	if ((dp & 0x03) == 0x03) {
+			outer = get_ilong_debug(pc);
+			_stprintf(p, _T("$%08x,"), outer);
+			p += _tcslen(p);
+			pc += 4;
+		}
+
+		if (p[-1] == ',')
+			p--;
+		_stprintf(p, _T(")"));
+		p += _tcslen(p);
+
+		if ((dp & 0x4) == 0)
+			base += dispreg;
+		if (dp & 0x3)
+			base = get_long_debug(base);
+		if (dp & 0x4)
+			base += dispreg;
+
+		addr = base + outer;
+
+		_stprintf(p, _T(" == $%08x"), addr);
+		p += _tcslen(p);
+
+	} else {
+		// Brief format extension
+		TCHAR regstr[20];
+		uae_s8 disp8 = dp & 0xFF;
+
+		mult[0] = 0;
+		regstr[0] = 0;
+		_stprintf(regstr, _T(",%c%d.%c"), dp & 0x8000 ? 'A' : 'D', (int)r, dp & 0x800 ? 'L' : 'W');
+		addr = base + (uae_s32)((uae_s8)disp8) + dispreg;
+		_stprintf(buffer, _T("(%s%s%s,$%02x) == $%08x"), name, regstr, mult, disp8, addr);
+		if (dp & 0x100) {
+			_tcscat(buffer, _T(" (68020+)"));
+		}
+	}
+
+	*pcp = pc;
+	return addr;
+}
+
+static uaecptr ShowEA (void *f, uaecptr pc, uae_u16 opcode, int reg, amodes mode, wordsizes size, TCHAR *buf, uae_u32 *eaddr, int safemode)
+{
 	uaecptr addr = pc;
+	uae_s16 disp16;
 	uae_s32 offset = 0;
 	TCHAR buffer[80];
 
@@ -2284,48 +2416,17 @@ static uaecptr ShowEA (void *f, uaecptr pc, uae_u16 opcode, int reg, amodes mode
 			else
 				_stprintf (offtxt, _T("$%04x"), disp16);
 			addr = m68k_areg (regs, reg) + disp16;
-			_stprintf (buffer, _T("(A%d, %s) == $%08x"), reg, offtxt, addr);
+			_stprintf (buffer, _T("(A%d,%s) == $%08x"), reg, offtxt, addr);
 			showea_val(buffer, opcode, addr, size);
 		}
 		break;
 	case Ad8r:
-		dp = get_iword_debug (pc); pc += 2;
-		disp8 = dp & 0xFF;
-		r = (dp & 0x7000) >> 12;
-		dispreg = dp & 0x8000 ? m68k_areg (regs, r) : m68k_dreg (regs, r);
-		if (!(dp & 0x800)) dispreg = (uae_s32)(uae_s16)(dispreg);
-		dispreg <<= (dp >> 9) & 3;
-
-		if (dp & 0x100) {
-			uae_s32 outer = 0, disp = 0;
-			uae_s32 base = m68k_areg (regs, reg);
+		{
 			TCHAR name[10];
-			_stprintf (name, _T("A%d, "), reg);
-			if (dp & 0x80) { base = 0; name[0] = 0; }
-			if (dp & 0x40) dispreg = 0;
-			if ((dp & 0x30) == 0x20) { disp = (uae_s32)(uae_s16)get_iword_debug (pc); pc += 2; }
-			if ((dp & 0x30) == 0x30) { disp = get_ilong_debug (pc); pc += 4; }
-			base += disp;
-
-			if ((dp & 0x3) == 0x2) { outer = (uae_s32)(uae_s16)get_iword_debug (pc); pc += 2; }
-			if ((dp & 0x3) == 0x3) { outer = get_ilong_debug (pc); pc += 4; }
-
-			if (!(dp & 4)) base += dispreg;
-			if ((dp & 3) && !safemode) base = get_ilong_debug (base);
-			if (dp & 4) base += dispreg;
-
-			addr = base + outer;
-			_stprintf (buffer, _T("(%s%c%d.%c*%d+%d)+%d == $%08x"), name,
-				dp & 0x8000 ? 'A' : 'D', (int)r, dp & 0x800 ? 'L' : 'W',
-				1 << ((dp >> 9) & 3),
-				disp, outer, addr);
-		} else {
-			addr = m68k_areg (regs, reg) + (uae_s32)((uae_s8)disp8) + dispreg;
-			_stprintf (buffer, _T("(A%d, %c%d.%c*%d, $%02x) == $%08x"), reg,
-				dp & 0x8000 ? 'A' : 'D', (int)r, dp & 0x800 ? 'L' : 'W',
-				1 << ((dp >> 9) & 3), disp8, addr);
+			_stprintf(name, _T("A%d"), reg);
+			addr = ShowEA_disp(&pc, m68k_areg(regs, reg), buffer, name);
+			showea_val(buffer, opcode, addr, size);
 		}
-		showea_val(buffer, opcode, addr, size);
 		break;
 	case PC16:
 		disp16 = get_iword_debug (pc); pc += 2;
@@ -2334,43 +2435,10 @@ static uaecptr ShowEA (void *f, uaecptr pc, uae_u16 opcode, int reg, amodes mode
 		showea_val(buffer, opcode, addr, size);
 		break;
 	case PC8r:
-		dp = get_iword_debug (pc); pc += 2;
-		disp8 = dp & 0xFF;
-		r = (dp & 0x7000) >> 12;
-		dispreg = dp & 0x8000 ? m68k_areg (regs, r) : m68k_dreg (regs, r);
-		if (!(dp & 0x800)) dispreg = (uae_s32)(uae_s16)(dispreg);
-		dispreg <<= (dp >> 9) & 3;
-
-		if (dp & 0x100) {
-			uae_s32 outer = 0, disp = 0;
-			uae_s32 base = addr;
-			TCHAR name[10];
-			_stprintf (name, _T("PC, "));
-			if (dp & 0x80) { base = 0; name[0] = 0; }
-			if (dp & 0x40) dispreg = 0;
-			if ((dp & 0x30) == 0x20) { disp = (uae_s32)(uae_s16)get_iword_debug (pc); pc += 2; }
-			if ((dp & 0x30) == 0x30) { disp = get_ilong_debug (pc); pc += 4; }
-			base += disp;
-
-			if ((dp & 0x3) == 0x2) { outer = (uae_s32)(uae_s16)get_iword_debug (pc); pc += 2; }
-			if ((dp & 0x3) == 0x3) { outer = get_ilong_debug (pc); pc += 4; }
-
-			if (!(dp & 4)) base += dispreg;
-			if ((dp & 3) && !safemode) base = get_ilong_debug (base);
-			if (dp & 4) base += dispreg;
-
-			addr = base + outer;
-			_stprintf (buffer, _T("(%s%c%d.%c*%d+%d)+%d == $%08x"), name,
-				dp & 0x8000 ? 'A' : 'D', (int)r, dp & 0x800 ? 'L' : 'W',
-				1 << ((dp >> 9) & 3),
-				disp, outer, addr);
-		} else {
-			addr += (uae_s32)((uae_s8)disp8) + dispreg;
-			_stprintf (buffer, _T("(PC, %c%d.%c*%d, $%02x) == $%08x"), dp & 0x8000 ? 'A' : 'D',
-				(int)r, dp & 0x800 ? 'L' : 'W',  1 << ((dp >> 9) & 3),
-				disp8, addr);
+		{
+			addr = ShowEA_disp(&pc, addr, buffer, _T("PC"));
+			showea_val(buffer, opcode, addr, size);
 		}
-		showea_val(buffer, opcode, addr, size);
 		break;
 	case absw:
 		addr = (uae_s32)(uae_s16)get_iword_debug (pc);
@@ -7349,7 +7417,9 @@ int m68k_asm(TCHAR *sline, uae_u16 *out, uaecptr pc)
 		}
 	}
 
-	if (ins[_tcslen(ins) - 1] == 'Q') {
+	bool fp = ins[0] == 'F';
+
+	if (ins[_tcslen(ins) - 1] == 'Q' && _tcslen(ins) > 3 && !fp) {
 		quick = 1;
 		ins[_tcslen(ins) - 1] = 0;
 	}
@@ -7361,7 +7431,6 @@ int m68k_asm(TCHAR *sline, uae_u16 *out, uaecptr pc)
 	}
 	if (!lookup->name) {
 		// Check cc variants
-		bool fp = ins[0] == 'F';
 		for (lookup = lookuptab; lookup->name; lookup++) {
 			const TCHAR *ccp = _tcsstr(lookup->name, _T("cc"));
 			if (ccp) {
@@ -7375,11 +7444,13 @@ int m68k_asm(TCHAR *sline, uae_u16 *out, uaecptr pc)
 					if (!_tcscmp(tmp, ins)) {
 						_tcscpy(ins, lookup->name);
 						cc = i;
-						// Bcc.B uses same encoding mode as MOVEQ
+						if (lookup->mnemo == i_DBcc || lookup->mnemo == i_Bcc) {
+							// Bcc.B uses same encoding mode as MOVEQ
+							immrelpc = true;
+						}
 						if (size == 0) {
 							quick = 2;
 						}
-						immrelpc = true;
 						break;
 					}
 				}
@@ -7865,10 +7936,18 @@ void m68k_disasm_2 (TCHAR *buf, int bufsize, uaecptr pc, uaecptr *nextpc, int cn
 					buf = buf_out(buf, &bufsize, _T(" == $%08x (F)"), addr2);
 				}
 			} else {
-				if (cctrue (dp->cc)) {
-					buf = buf_out (buf, &bufsize, _T(" == $%08x (T)"), addr2);
+				if (dp->mnemo == i_Bcc || dp->mnemo == i_DBcc) {
+					if (cctrue(dp->cc)) {
+						buf = buf_out(buf, &bufsize, _T(" == $%08x (T)"), addr2);
+					} else {
+						buf = buf_out(buf, &bufsize, _T(" == $%08x (F)"), addr2);
+					}
 				} else {
-					buf = buf_out (buf, &bufsize, _T(" == $%08x (F)"), addr2);
+					if (cctrue(dp->cc)) {
+						buf = buf_out(buf, &bufsize, _T(" (T)"));
+					} else {
+						buf = buf_out(buf, &bufsize, _T(" (F)"));
+					}
 				}
 			}
 		} else if ((opcode & 0xff00) == 0x6100) { /* BSR */

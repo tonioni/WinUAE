@@ -35,7 +35,7 @@ struct mnemolookup lookuptab[] = {
 	{ i_NEG, _T("NEG"), NULL, 1 },
 	{ i_NEGX, _T("NEGX"), NULL, 1 },
 	{ i_NBCD, _T("NBCD"), NULL, 0 },
-	{ i_CLR, _T("CLR"), NULL, 0 },
+	{ i_CLR, _T("CLR"), NULL, 1 },
 	{ i_NOT, _T("NOT"), NULL, 1 },
 	{ i_TST, _T("TST"), NULL, 1 },
 	{ i_BTST, _T("BTST"), NULL, 1 },
