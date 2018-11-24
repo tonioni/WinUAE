@@ -3193,17 +3193,6 @@ void m68k_do_rte_mmu030c (uaecptr a7)
 		}
 		m68k_setpci (pc);
 
-#if MMU030_DEBUG
-		if (mmu030_state[1] & MMU030_STATEFLAG1_MOVEM1) {
-			if (mmu030_state[1] & MMU030_STATEFLAG1_MOVEM2) {
-				write_log(_T("68030 MMU MOVEM %04x retry but MMU030_STATEFLAG1_MOVEM2 was already set!?\n"));
-			}
-		} else {
-			if (mmu030_ad[idxsize].done) {
-				write_log(_T("68030 MMU ins %04x retry but it was already marked as done!?\n"));
-			}
-		}
-#endif
 		if (!(ssw & (MMU030_SSW_DF << 1))) {
 			if (!regs.prefetch020_valid[0] && regs.prefetch020_valid[2]) {
 				// Prefetch was software fixed, continue pipeline refill
@@ -3230,6 +3219,17 @@ void m68k_do_rte_mmu030c (uaecptr a7)
 			int size = (ssw & MMU030_SSW_SIZE_B) ? sz_byte : ((ssw & MMU030_SSW_SIZE_W) ? sz_word : sz_long);
 			int fc = ssw & 7;
 
+#if MMU030_DEBUG
+			if (mmu030_state[1] & MMU030_STATEFLAG1_MOVEM1) {
+				if (mmu030_state[1] & MMU030_STATEFLAG1_MOVEM2) {
+					write_log(_T("68030 MMU MOVEM %04x retry but MMU030_STATEFLAG1_MOVEM2 was already set!?\n"));
+				}
+			} else {
+				if (mmu030_ad[idxsize].done) {
+					write_log(_T("68030 MMU ins %04x retry but it was already marked as done!?\n"));
+				}
+			}
+#endif
 			if (read) {
 				if (!(mmu030_state[1] & MMU030_STATEFLAG1_MOVEM1)) {
 					mmu030_data_buffer_out = mmu030_ad[idxsize].val;
@@ -3240,13 +3240,13 @@ void m68k_do_rte_mmu030c (uaecptr a7)
 					switch (size)
 					{
 						case sz_byte:
-						mmu030_data_buffer_out = read_dcache030_bget(addr, fc);
+						mmu030_data_buffer_out = read_data_030_fc_bget(addr, fc);
 						break;
 						case sz_word:
-						mmu030_data_buffer_out = read_dcache030_wget(addr, fc);
+						mmu030_data_buffer_out = read_data_030_fc_wget(addr, fc);
 						break;
 						case sz_long:
-						mmu030_data_buffer_out = read_dcache030_lget(addr, fc);
+						mmu030_data_buffer_out = read_data_030_fc_lget(addr, fc);
 						break;
 					}
 				}
@@ -3263,13 +3263,13 @@ void m68k_do_rte_mmu030c (uaecptr a7)
 					switch (size)
 					{
 						case sz_byte:
-						write_dcache030_bput(addr, mmu030_data_buffer_out, fc);
+						write_data_030_fc_bput(addr, mmu030_data_buffer_out, fc);
 						break;
 						case sz_word:
-						write_dcache030_wput(addr, mmu030_data_buffer_out, fc);
+						write_data_030_fc_wput(addr, mmu030_data_buffer_out, fc);
 						break;
 						case sz_long:
-						write_dcache030_lput(addr, mmu030_data_buffer_out, fc);
+						write_data_030_fc_lput(addr, mmu030_data_buffer_out, fc);
 						break;
 					}
 				}
