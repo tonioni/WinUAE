@@ -236,12 +236,12 @@ static int do_raw_scsi (struct dev_info_ioctl *ciw, int unitnum, uae_u8 *cmd, in
 		return 0;
 	memset (&swb, 0, sizeof (swb));
 	memcpy (swb.spt.Cdb, cmd, cmdlen);
+	memset(data, 0, datalen > 2352 + SUB_CHANNEL_SIZE ? 2352 + SUB_CHANNEL_SIZE : datalen);
 	swb.spt.Length = sizeof (SCSI_PASS_THROUGH);
 	swb.spt.CdbLength = cmdlen;
 	swb.spt.DataIn = SCSI_IOCTL_DATA_IN;
-	swb.spt.DataTransferLength = IOCTL_DATA_BUFFER;
+	swb.spt.DataTransferLength = datalen;
 	swb.spt.DataBuffer = p;
-	memset (p, 0, IOCTL_DATA_BUFFER);
 	swb.spt.TimeOutValue = 80 * 60;
 	swb.spt.SenseInfoOffset = offsetof(SCSI_PASS_THROUGH_DIRECT_WITH_BUFFER, SenseBuf);
 	swb.spt.SenseInfoLength = 32;
@@ -302,6 +302,8 @@ static int spti_read (struct dev_info_ioctl *ciw, int unitnum, uae_u8 *data, int
 	uae_u8 cmd[12] = { 0xbe, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0 };
 	int tlen = sectorsize;
 
+	write_log(_T("spti_read %d %d %d\n"), unitnum, sector, sectorsize);
+
 	if (sectorsize == 2048 || sectorsize == 2336 || sectorsize == 2328) {
 		cmd[9] |= 1 << 4; // userdata
 	} else if (sectorsize >= 2352) {
@@ -322,7 +324,7 @@ static int spti_read (struct dev_info_ioctl *ciw, int unitnum, uae_u8 *data, int
 	if (unitnum >= 0)
 		gui_flicker_led (LED_CD, unitnum, LED_CD_ACTIVE);
 	int len = sizeof cmd;
-	return do_raw_scsi (ciw, unitnum,  cmd, len, data, tlen);
+	return do_raw_scsi (ciw, unitnum, cmd, len, data, tlen);
 }
 
 extern void encode_l2 (uae_u8 *p, int address);
