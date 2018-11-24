@@ -2562,7 +2562,9 @@ void mmu030_set_funcs(void)
 	st |= f; \
 	mmu030_state[1] = st;
 
-static void mmu030_unaligned_read_continue(uaecptr addr, int fc)
+typedef uae_u32(*unaligned_read_func)(uaecptr addr, uae_u32 fc, int size, int flags);
+
+static void mmu030_unaligned_read_continue(uaecptr addr, int fc, unaligned_read_func func)
 {
 	uae_u32 st = mmu030_state[1];
 
@@ -2575,32 +2577,32 @@ static void mmu030_unaligned_read_continue(uaecptr addr, int fc)
 			// odd long access: byte + word + byte
 			if (!(st & MMU030_STATEFLAG1_SUBACCESS1)) {
 				mmu030_data_buffer_out &= 0x00ffffff;
-				mmu030_data_buffer_out |= mmu030_get_generic(addr, fc, sz_byte, MMU030_SSW_SIZE_L) << 24;
+				mmu030_data_buffer_out |= func(addr, fc, sz_byte, MMU030_SSW_SIZE_L) << 24;
 				unalign_done(MMU030_STATEFLAG1_SUBACCESS1);
 				addr++;
 			}
 			if (!(st & MMU030_STATEFLAG1_SUBACCESS2)) {
 				mmu030_data_buffer_out &= 0xff0000ff;
-				mmu030_data_buffer_out |= mmu030_get_generic(addr, fc, sz_word, MMU030_SSW_SIZE_W) << 8;
+				mmu030_data_buffer_out |= func(addr, fc, sz_word, MMU030_SSW_SIZE_W) << 8;
 				unalign_done(MMU030_STATEFLAG1_SUBACCESS2);
 				addr += 2;
 			}
 			if (!(st & MMU030_STATEFLAG1_SUBACCESS3)) {
 				mmu030_data_buffer_out &= 0xffffff00;
-				mmu030_data_buffer_out |= mmu030_get_generic(addr, fc, sz_byte, MMU030_SSW_SIZE_B) << 0;
+				mmu030_data_buffer_out |= func(addr, fc, sz_byte, MMU030_SSW_SIZE_B) << 0;
 				unalign_done(MMU030_STATEFLAG1_SUBACCESS3);
 			}
 		} else {
 			// even but unaligned long access: word + word
 			if (!(st & MMU030_STATEFLAG1_SUBACCESS1)) {
 				mmu030_data_buffer_out &= 0x0000ffff;
-				mmu030_data_buffer_out |= mmu030_get_generic(addr, fc, sz_word, MMU030_SSW_SIZE_L) << 16;
+				mmu030_data_buffer_out |= func(addr, fc, sz_word, MMU030_SSW_SIZE_L) << 16;
 				unalign_done(MMU030_STATEFLAG1_SUBACCESS1);
 				addr += 2;
 			}
 			if (!(st & MMU030_STATEFLAG1_SUBACCESS2)) {
 				mmu030_data_buffer_out &= 0xffff0000;
-				mmu030_data_buffer_out |= mmu030_get_generic(addr, fc, sz_word, MMU030_SSW_SIZE_W) << 0;
+				mmu030_data_buffer_out |= func(addr, fc, sz_word, MMU030_SSW_SIZE_W) << 0;
 				unalign_done(MMU030_STATEFLAG1_SUBACCESS2);
 			}
 		}
@@ -2608,13 +2610,13 @@ static void mmu030_unaligned_read_continue(uaecptr addr, int fc)
 		// odd word access: byte + byte
 		if (!(st & MMU030_STATEFLAG1_SUBACCESS1)) {
 			mmu030_data_buffer_out &= 0x00ff;
-			mmu030_data_buffer_out |= mmu030_get_generic(addr, fc, sz_byte, MMU030_SSW_SIZE_W) << 8;
+			mmu030_data_buffer_out |= func(addr, fc, sz_byte, MMU030_SSW_SIZE_W) << 8;
 			unalign_done(MMU030_STATEFLAG1_SUBACCESS1);
 			addr++;
 		}
 		if (!(st & MMU030_STATEFLAG1_SUBACCESS2)) {
 			mmu030_data_buffer_out &= 0xff00;
-			mmu030_data_buffer_out |= mmu030_get_generic(addr, fc, sz_byte, MMU030_SSW_SIZE_B) << 0;
+			mmu030_data_buffer_out |= func(addr, fc, sz_byte, MMU030_SSW_SIZE_B) << 0;
 			unalign_done(MMU030_STATEFLAG1_SUBACCESS2);
 		}
 	}
@@ -2624,7 +2626,9 @@ static void mmu030_unaligned_read_continue(uaecptr addr, int fc)
 #endif
 }
 
-static void mmu030_unaligned_write_continue(uaecptr addr, int fc)
+typedef void (*unaligned_write_func)(uaecptr addr, uae_u32 val, uae_u32 fc, int size, int flags);
+
+static void mmu030_unaligned_write_continue(uaecptr addr, int fc, unaligned_write_func func)
 {
 	uae_u32 st = mmu030_state[1];
 
@@ -2636,40 +2640,40 @@ static void mmu030_unaligned_write_continue(uaecptr addr, int fc)
 		// odd long access: byte + word + byte
 		if (st & MMU030_STATEFLAG1_SUBACCESSX) {
 			if (!(st & MMU030_STATEFLAG1_SUBACCESS1)) {
-				mmu030_put_generic(addr, mmu030_data_buffer_out >> 24, fc, sz_byte, MMU030_SSW_SIZE_L);
+				func(addr, mmu030_data_buffer_out >> 24, fc, sz_byte, MMU030_SSW_SIZE_L);
 				unalign_done(MMU030_STATEFLAG1_SUBACCESS1);
 				addr++;
 			}
 			if (!(st & MMU030_STATEFLAG1_SUBACCESS2)) {
-				mmu030_put_generic(addr, mmu030_data_buffer_out >> 8, fc, sz_word, MMU030_SSW_SIZE_W);
+				func(addr, mmu030_data_buffer_out >> 8, fc, sz_word, MMU030_SSW_SIZE_W);
 				unalign_done(MMU030_STATEFLAG1_SUBACCESS2);
 				addr += 2;
 			}
 			if (!(st & MMU030_STATEFLAG1_SUBACCESS3)) {
-				mmu030_put_generic(addr, mmu030_data_buffer_out >> 0, fc, sz_byte, MMU030_SSW_SIZE_B);
+				func(addr, mmu030_data_buffer_out >> 0, fc, sz_byte, MMU030_SSW_SIZE_B);
 				unalign_done(MMU030_STATEFLAG1_SUBACCESS3);
 			}
 		} else {
 			// even but unaligned long access: word + word
 			if (!(st & MMU030_STATEFLAG1_SUBACCESS1)) {
-				mmu030_put_generic(addr, mmu030_data_buffer_out >> 16, fc, sz_word, MMU030_SSW_SIZE_L);
+				func(addr, mmu030_data_buffer_out >> 16, fc, sz_word, MMU030_SSW_SIZE_L);
 				unalign_done(MMU030_STATEFLAG1_SUBACCESS1);
 				addr += 2;
 			}
 			if (!(st & MMU030_STATEFLAG1_SUBACCESS2)) {
-				mmu030_put_generic(addr, mmu030_data_buffer_out >> 0, fc, sz_word, MMU030_SSW_SIZE_W);
+				func(addr, mmu030_data_buffer_out >> 0, fc, sz_word, MMU030_SSW_SIZE_W);
 				unalign_done(MMU030_STATEFLAG1_SUBACCESS2);
 			}
 		}
 	} else {
 		// odd word access: byte + byte
 		if (!(st & MMU030_STATEFLAG1_SUBACCESS1)) {
-			mmu030_put_generic(addr, mmu030_data_buffer_out >> 8, fc, sz_byte, MMU030_SSW_SIZE_W);
+			func(addr, mmu030_data_buffer_out >> 8, fc, sz_byte, MMU030_SSW_SIZE_W);
 			unalign_done(MMU030_STATEFLAG1_SUBACCESS1);
 			addr++;
 		}
 		if (!(st & MMU030_STATEFLAG1_SUBACCESS2)) {
-			mmu030_put_generic(addr, mmu030_data_buffer_out >> 0, fc, sz_byte, MMU030_SSW_SIZE_B);
+			func(addr, mmu030_data_buffer_out >> 0, fc, sz_byte, MMU030_SSW_SIZE_B);
 			unalign_done(MMU030_STATEFLAG1_SUBACCESS2);
 		}
 	}
@@ -2829,7 +2833,7 @@ void m68k_do_rte_mmu030 (uaecptr a7)
 					mmu030_data_buffer_out = mmu030_ad[idxsize].val;
 				}
 				if (mmu030_state[1] & MMU030_STATEFLAG1_SUBACCESS0) {
-					mmu030_unaligned_read_continue(addr, fc);
+					mmu030_unaligned_read_continue(addr, fc, mmu030_get_generic);
 				} else {
 					switch (size)
 					{
@@ -2852,7 +2856,7 @@ void m68k_do_rte_mmu030 (uaecptr a7)
 				}
 			} else {
 				if (mmu030_state[1] & MMU030_STATEFLAG1_SUBACCESS0) {
-					mmu030_unaligned_write_continue(addr, fc);
+					mmu030_unaligned_write_continue(addr, fc, mmu030_put_generic);
 				} else {
 					switch (size)
 					{
@@ -3235,7 +3239,7 @@ void m68k_do_rte_mmu030c (uaecptr a7)
 					mmu030_data_buffer_out = mmu030_ad[idxsize].val;
 				}
 				if (mmu030_state[1] & MMU030_STATEFLAG1_SUBACCESS0) {
-					mmu030_unaligned_read_continue(addr, fc);
+					mmu030_unaligned_read_continue(addr, fc, read_dcache030_retry);
 				} else {
 					switch (size)
 					{
@@ -3258,7 +3262,7 @@ void m68k_do_rte_mmu030c (uaecptr a7)
 				}
 			} else {
 				if (mmu030_state[1] & MMU030_STATEFLAG1_SUBACCESS0) {
-					mmu030_unaligned_write_continue(addr, fc);
+					mmu030_unaligned_write_continue(addr, fc, write_dcache030_retry);
 				} else {
 					switch (size)
 					{
