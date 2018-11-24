@@ -2815,11 +2815,11 @@ void m68k_do_rte_mmu030 (uaecptr a7)
 #if MMU030_DEBUG
 			if (mmu030_state[1] & MMU030_STATEFLAG1_MOVEM1) {
 				if (mmu030_state[1] & MMU030_STATEFLAG1_MOVEM2) {
-					write_log(_T("68030 MMU MOVEM %04x retry but MMU030_STATEFLAG1_MOVEM2 was already set!?\n"));
+					write_log(_T("68030 MMU MOVEM %04x retry but MMU030_STATEFLAG1_MOVEM2 was already set!?\n"), mmu030_opcode);
 				}
 			}
 			if (mmu030_ad[idxsize].done) {
-				write_log(_T("68030 MMU ins %04x retry but it was already marked as done!?\n"));
+				write_log(_T("68030 MMU ins %04x retry but it was already marked as done!?\n"), mmu030_opcode);
 			}
 #endif
 
@@ -3226,11 +3226,11 @@ void m68k_do_rte_mmu030c (uaecptr a7)
 #if MMU030_DEBUG
 			if (mmu030_state[1] & MMU030_STATEFLAG1_MOVEM1) {
 				if (mmu030_state[1] & MMU030_STATEFLAG1_MOVEM2) {
-					write_log(_T("68030 MMU MOVEM %04x retry but MMU030_STATEFLAG1_MOVEM2 was already set!?\n"));
+					write_log(_T("68030 MMU MOVEM %04x retry but MMU030_STATEFLAG1_MOVEM2 was already set!?\n"), mmu030_opcode);
 				}
 			} else {
 				if (mmu030_ad[idxsize].done) {
-					write_log(_T("68030 MMU ins %04x retry but it was already marked as done!?\n"));
+					write_log(_T("68030 MMU ins %04x retry but it was already marked as done!?\n"), mmu030_opcode);
 				}
 			}
 #endif

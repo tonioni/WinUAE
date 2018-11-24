@@ -9893,7 +9893,7 @@ static uae_u32 read_dcache030_debug(uaecptr addr, uae_u32 size, uae_u32 fc, bool
 	return out;
 }
 
-static bool read_dache030_2(uaecptr addr, uae_u32 size, uae_u32 *valp)
+static bool read_dcache030_2(uaecptr addr, uae_u32 size, uae_u32 *valp)
 {
 	// data cache enabled?
 	if (!(regs.cacr & 0x100))
@@ -9971,12 +9971,12 @@ static bool read_dache030_2(uaecptr addr, uae_u32 size, uae_u32 *valp)
 	return true;
 }
 
-uae_u32 read_dcache030 (uaecptr addr, uae_u32 size, uae_u32 fc)
+static uae_u32 read_dcache030 (uaecptr addr, uae_u32 size, uae_u32 fc)
 {
 	uae_u32 val;
 	regs.fc030 = fc;
 
-	if (!read_dache030_2(addr, size, &val)) {
+	if (!read_dcache030_2(addr, size, &val)) {
 		// read from memory, data cache is disabled or inhibited.
 		if (size == 2)
 			return dcache_lget(addr);
@@ -9994,7 +9994,7 @@ uae_u32 read_dcache030_retry(uaecptr addr, uae_u32 fc, int size, int flags)
 	uae_u32 val;
 	regs.fc030 = fc;
 
-	if (!read_dache030_2(addr, size, &val)) {
+	if (!read_dcache030_2(addr, size, &val)) {
 		return mmu030_get_generic(addr, fc, size, flags);
 	}
 	return val;
