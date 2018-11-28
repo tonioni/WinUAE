@@ -2569,7 +2569,7 @@ static void mmu030_unaligned_read_continue(uaecptr addr, int fc, unaligned_read_
 	uae_u32 st = mmu030_state[1];
 
 #if MMUDEBUG
-	write_log(_T("unaligned_read_continue: %08x %d %08x %08x\n"), addr, fc, mmu030_data_buffer_out, st);
+	write_log(_T("unaligned_read_continue_s: %08x %d %08x %08x\n"), addr, fc, mmu030_data_buffer_out, st);
 #endif
 
 	if (st & MMU030_STATEFLAG1_SUBACCESSL) {
@@ -2578,12 +2578,18 @@ static void mmu030_unaligned_read_continue(uaecptr addr, int fc, unaligned_read_
 			if (!(st & MMU030_STATEFLAG1_SUBACCESS1)) {
 				mmu030_data_buffer_out &= 0x00ffffff;
 				mmu030_data_buffer_out |= func(addr, fc, sz_byte, MMU030_SSW_SIZE_L) << 24;
+#if MMUDEBUG
+				write_log(_T("unaligned_read_continue_0: %08x %d %08x %08x\n"), addr, fc, mmu030_data_buffer_out, st);
+#endif
 				unalign_done(MMU030_STATEFLAG1_SUBACCESS1);
 				addr++;
 			}
 			if (!(st & MMU030_STATEFLAG1_SUBACCESS2)) {
 				mmu030_data_buffer_out &= 0xff0000ff;
 				mmu030_data_buffer_out |= func(addr, fc, sz_word, MMU030_SSW_SIZE_W) << 8;
+#if MMUDEBUG
+				write_log(_T("unaligned_read_continue_1: %08x %d %08x %08x\n"), addr, fc, mmu030_data_buffer_out, st);
+#endif
 				unalign_done(MMU030_STATEFLAG1_SUBACCESS2);
 				addr += 2;
 			}
@@ -2591,12 +2597,16 @@ static void mmu030_unaligned_read_continue(uaecptr addr, int fc, unaligned_read_
 				mmu030_data_buffer_out &= 0xffffff00;
 				mmu030_data_buffer_out |= func(addr, fc, sz_byte, MMU030_SSW_SIZE_B) << 0;
 				unalign_done(MMU030_STATEFLAG1_SUBACCESS3);
+				addr++;
 			}
 		} else {
 			// even but unaligned long access: word + word
 			if (!(st & MMU030_STATEFLAG1_SUBACCESS1)) {
 				mmu030_data_buffer_out &= 0x0000ffff;
 				mmu030_data_buffer_out |= func(addr, fc, sz_word, MMU030_SSW_SIZE_L) << 16;
+#if MMUDEBUG
+				write_log(_T("unaligned_read_continue_0: %08x %d %08x %08x\n"), addr, fc, mmu030_data_buffer_out, st);
+#endif
 				unalign_done(MMU030_STATEFLAG1_SUBACCESS1);
 				addr += 2;
 			}
@@ -2604,6 +2614,7 @@ static void mmu030_unaligned_read_continue(uaecptr addr, int fc, unaligned_read_
 				mmu030_data_buffer_out &= 0xffff0000;
 				mmu030_data_buffer_out |= func(addr, fc, sz_word, MMU030_SSW_SIZE_W) << 0;
 				unalign_done(MMU030_STATEFLAG1_SUBACCESS2);
+				addr += 2;
 			}
 		}
 	} else {
@@ -2611,6 +2622,9 @@ static void mmu030_unaligned_read_continue(uaecptr addr, int fc, unaligned_read_
 		if (!(st & MMU030_STATEFLAG1_SUBACCESS1)) {
 			mmu030_data_buffer_out &= 0x00ff;
 			mmu030_data_buffer_out |= func(addr, fc, sz_byte, MMU030_SSW_SIZE_W) << 8;
+#if MMUDEBUG
+			write_log(_T("unaligned_read_continue_0: %08x %d %08x %08x\n"), addr, fc, mmu030_data_buffer_out, st);
+#endif
 			unalign_done(MMU030_STATEFLAG1_SUBACCESS1);
 			addr++;
 		}
@@ -2618,11 +2632,12 @@ static void mmu030_unaligned_read_continue(uaecptr addr, int fc, unaligned_read_
 			mmu030_data_buffer_out &= 0xff00;
 			mmu030_data_buffer_out |= func(addr, fc, sz_byte, MMU030_SSW_SIZE_B) << 0;
 			unalign_done(MMU030_STATEFLAG1_SUBACCESS2);
+			addr++;
 		}
 	}
 
 #if MMUDEBUG
-	write_log(_T("unaligned_read_continue_end: %08x %d %08x %08x\n"), addr, fc, mmu030_data_buffer_out, st);
+	write_log(_T("unaligned_read_continue_e: %08x %d %08x %08x\n"), addr, fc, mmu030_data_buffer_out, st);
 #endif
 }
 
@@ -2633,7 +2648,7 @@ static void mmu030_unaligned_write_continue(uaecptr addr, int fc, unaligned_writ
 	uae_u32 st = mmu030_state[1];
 
 #if MMUDEBUG
-	write_log(_T("unaligned_write_continue: %08x %d %08x %08x\n"), addr, fc, mmu030_data_buffer_out, st);
+	write_log(_T("unaligned_write_continue_s: %08x %d %08x %08x\n"), addr, fc, mmu030_data_buffer_out, st);
 #endif
 
 	if (st & MMU030_STATEFLAG1_SUBACCESSL) {
@@ -2641,45 +2656,63 @@ static void mmu030_unaligned_write_continue(uaecptr addr, int fc, unaligned_writ
 		if (st & MMU030_STATEFLAG1_SUBACCESSX) {
 			if (!(st & MMU030_STATEFLAG1_SUBACCESS1)) {
 				func(addr, mmu030_data_buffer_out >> 24, fc, sz_byte, MMU030_SSW_SIZE_L);
+#if MMUDEBUG
+				write_log(_T("unaligned_write_continue_0: %08x %d %08x %08x\n"), addr, fc, mmu030_data_buffer_out, st);
+#endif
 				unalign_done(MMU030_STATEFLAG1_SUBACCESS1);
 				addr++;
 			}
 			if (!(st & MMU030_STATEFLAG1_SUBACCESS2)) {
 				func(addr, mmu030_data_buffer_out >> 8, fc, sz_word, MMU030_SSW_SIZE_W);
+#if MMUDEBUG
+				write_log(_T("unaligned_write_continue_1: %08x %d %08x %08x\n"), addr, fc, mmu030_data_buffer_out, st);
+#endif
 				unalign_done(MMU030_STATEFLAG1_SUBACCESS2);
 				addr += 2;
 			}
 			if (!(st & MMU030_STATEFLAG1_SUBACCESS3)) {
 				func(addr, mmu030_data_buffer_out >> 0, fc, sz_byte, MMU030_SSW_SIZE_B);
+#if MMUDEBUG
+				write_log(_T("unaligned_write_continue_2: %08x %d %08x %08x\n"), addr, fc, mmu030_data_buffer_out, st);
+#endif
 				unalign_done(MMU030_STATEFLAG1_SUBACCESS3);
+				addr++;
 			}
 		} else {
 			// even but unaligned long access: word + word
 			if (!(st & MMU030_STATEFLAG1_SUBACCESS1)) {
 				func(addr, mmu030_data_buffer_out >> 16, fc, sz_word, MMU030_SSW_SIZE_L);
+#if MMUDEBUG
+				write_log(_T("unaligned_write_continue_0: %08x %d %08x %08x\n"), addr, fc, mmu030_data_buffer_out, st);
+#endif
 				unalign_done(MMU030_STATEFLAG1_SUBACCESS1);
 				addr += 2;
 			}
 			if (!(st & MMU030_STATEFLAG1_SUBACCESS2)) {
 				func(addr, mmu030_data_buffer_out >> 0, fc, sz_word, MMU030_SSW_SIZE_W);
 				unalign_done(MMU030_STATEFLAG1_SUBACCESS2);
+				addr += 2;
 			}
 		}
 	} else {
 		// odd word access: byte + byte
 		if (!(st & MMU030_STATEFLAG1_SUBACCESS1)) {
 			func(addr, mmu030_data_buffer_out >> 8, fc, sz_byte, MMU030_SSW_SIZE_W);
+#if MMUDEBUG
+			write_log(_T("unaligned_write_continue_0: %08x %d %08x %08x\n"), addr, fc, mmu030_data_buffer_out, st);
+#endif
 			unalign_done(MMU030_STATEFLAG1_SUBACCESS1);
 			addr++;
 		}
 		if (!(st & MMU030_STATEFLAG1_SUBACCESS2)) {
 			func(addr, mmu030_data_buffer_out >> 0, fc, sz_byte, MMU030_SSW_SIZE_B);
 			unalign_done(MMU030_STATEFLAG1_SUBACCESS2);
+			addr++;
 		}
 	}
 
 #if MMUDEBUG
-	write_log(_T("unaligned_write_continue_end: %08x %d %08x %08x\n"), addr, fc, mmu030_data_buffer_out, st);
+	write_log(_T("unaligned_write_continue_e: %08x %d %08x %08x\n"), addr, fc, mmu030_data_buffer_out, st);
 #endif
 }
 
