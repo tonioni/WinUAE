@@ -2425,7 +2425,6 @@ uae_u32 REGPARAM2 mmu030_get_long_unaligned(uaecptr addr, uae_u32 fc, int flags)
 	return mmu030_data_buffer_out;
 }
 
-
 void REGPARAM2 mmu030_put_long_unaligned(uaecptr addr, uae_u32 val, uae_u32 fc, int flags)
 {
 	if (likely(!(addr & 1))) {
@@ -2483,31 +2482,6 @@ uaecptr mmu030_translate(uaecptr addr, bool super, bool data, bool write)
         mmu030_table_search(addr, fc, false, 0);
         return mmu030_get_addr_atc(addr, mmu030_logical_is_in_atc(addr,fc,write), fc, write);
     }
-}
-
-static uae_u32 get_dcache_byte(uaecptr addr)
-{
-	return read_dcache030_bget(addr, (regs.s ? 4 : 0) | 1);
-}
-static uae_u32 get_dcache_word(uaecptr addr)
-{
-	return read_dcache030_wget(addr, (regs.s ? 4 : 0) | 1);
-}
-static uae_u32 get_dcache_long(uaecptr addr)
-{
-	return read_dcache030_lget(addr, (regs.s ? 4 : 0) | 1);
-}
-static void put_dcache_byte(uaecptr addr, uae_u32 v)
-{
-	write_dcache030_bput(addr, v, (regs.s ? 4 : 0) | 1);
-}
-static void put_dcache_word(uaecptr addr, uae_u32 v)
-{
-	write_dcache030_wput(addr, v, (regs.s ? 4 : 0) | 1);
-}
-static void put_dcache_long(uaecptr addr, uae_u32 v)
-{
-	write_dcache030_lput(addr, v, (regs.s ? 4 : 0) | 1);
 }
 
 /* MMU Reset */

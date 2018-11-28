@@ -658,14 +658,6 @@ STATIC_INLINE void put_byte_jit(uaecptr addr, uae_u32 l)
 	bank->bput(addr, l);
 }
 
-extern void put_long_slow (uaecptr addr, uae_u32 v);
-extern void put_word_slow (uaecptr addr, uae_u32 v);
-extern void put_byte_slow (uaecptr addr, uae_u32 v);
-extern uae_u32 get_long_slow (uaecptr addr);
-extern uae_u32 get_word_slow (uaecptr addr);
-extern uae_u32 get_byte_slow (uaecptr addr);
-
-
 /*
 * Store host pointer v at addr
 */
