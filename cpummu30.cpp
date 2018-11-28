@@ -2829,9 +2829,6 @@ void m68k_do_rte_mmu030 (uaecptr a7)
 #endif
 
 			if (read) {
-				if (!(mmu030_state[1] & MMU030_STATEFLAG1_MOVEM1)) {
-					mmu030_data_buffer_out = mmu030_ad[idxsize].val;
-				}
 				if (mmu030_state[1] & MMU030_STATEFLAG1_SUBACCESS0) {
 					mmu030_unaligned_read_continue(addr, fc, mmu030_get_generic);
 				} else {
@@ -3235,9 +3232,6 @@ void m68k_do_rte_mmu030c (uaecptr a7)
 			}
 #endif
 			if (read) {
-				if (!(mmu030_state[1] & MMU030_STATEFLAG1_MOVEM1)) {
-					mmu030_data_buffer_out = mmu030_ad[idxsize].val;
-				}
 				if (mmu030_state[1] & MMU030_STATEFLAG1_SUBACCESS0) {
 					mmu030_unaligned_read_continue(addr, fc, read_dcache030_retry);
 				} else {
