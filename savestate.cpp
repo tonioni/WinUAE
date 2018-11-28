@@ -291,6 +291,7 @@ static TCHAR *state_resolve_path(TCHAR *s, int type, bool newmode)
 			xfree(s);
 			return my_strdup(tmp);
 		}
+		getfilepart(tmp, sizeof tmp / sizeof(TCHAR), s);
 	} else {
 		getfilepart(tmp, sizeof tmp / sizeof(TCHAR), s);
 		if (state_path_exists(tmp, type)) {
