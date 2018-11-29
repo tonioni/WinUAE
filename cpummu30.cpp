@@ -1905,7 +1905,7 @@ static uaecptr mmu030_put_atc_generic(uaecptr addr, int l, uae_u32 fc, int flags
 	return physical_addr + page_index;
 }
 
-uae_u32 mmu030_get_atc_generic(uaecptr addr, int l, uae_u32 fc, int flags, bool checkwrite) {
+static uae_u32 mmu030_get_atc_generic(uaecptr addr, int l, uae_u32 fc, int flags, bool checkwrite) {
     uae_u32 page_index = addr & mmu030.translation.page.mask;
     uae_u32 addr_mask = mmu030.translation.page.imask;
     uae_u32 physical_addr = mmu030.atc[l].physical.addr & addr_mask;

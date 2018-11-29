@@ -262,7 +262,7 @@ static ALWAYS_INLINE void uae_mmu030_put_byte_fcx(uaecptr addr, uae_u32 val, int
 #define ACCESS_CHECK_PUT \
 	if (!mmu030_ad[mmu030_idx].done) { \
 		mmu030_data_buffer_out = v; \
-	} else if (mmu030_ad[mmu030_idx].done) { \
+	} else { \
 		mmu030_idx++; \
 		return; \
 	}
