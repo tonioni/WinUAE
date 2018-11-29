@@ -1759,6 +1759,8 @@ void mmu030_page_fault(uaecptr addr, bool read, int flags, uae_u32 fc)
 	regs.mmu_ssw |= read ? MMU030_SSW_RW : 0;
 	regs.mmu_ssw |= flags;
 	regs.mmu_ssw |= fc;
+	// store in wb3_data because stack frame creation may modify data buffer.
+	regs.wb3_data = mmu030_data_buffer_out;
     bBusErrorReadWrite = read; 
 	mm030_stageb_address = addr;
 
@@ -2830,7 +2832,7 @@ void m68k_do_rte_mmu030 (uaecptr a7)
 			}
 #endif
 
-#if 0
+#if MMU030_DEBUG
 			write_log(_T("%08x %08x %08x %08x %08x %d %d %d %08x %08x\n"),
 				mmu030_state[1], mmu030_state[2], mmu030_disp_store[0], mmu030_disp_store[1],
 				addr, read, size, fc, mmu030_data_buffer_out, mmu030_ad[idxsize].val);
@@ -2860,8 +2862,6 @@ void m68k_do_rte_mmu030 (uaecptr a7)
 					mmu030_ad[idxsize].done = true;
 				}
 			} else {
-				// NeXTstep 1.0a modifies DOB and it must be ignored.
-				mmu030_data_buffer_out = mmu030_ad[mmu030_idx].val;
 				if (mmu030_state[1] & MMU030_STATEFLAG1_SUBACCESS0) {
 					mmu030_unaligned_write_continue(addr, fc, mmu030_put_generic);
 				} else {

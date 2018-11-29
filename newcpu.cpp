@@ -3204,8 +3204,7 @@ static void Exception_build_stack_frame (uae_u32 oldpc, uae_u32 currpc, uae_u32 
 			}
 #endif
 			if (!(ssw & MMU030_SSW_RW)) {
-				// NeXTstep 1.0a modifies DOB so store value in storage too.
-				mmu030_ad[mmu030_idx].val = mmu030_data_buffer_out;
+				mmu030_ad[mmu030_idx].val = regs.wb3_data;
 			}
 			for (i = 0; i < mmu030_idx + 1; i++) {
 				m68k_areg (regs, 7) -= 4;
@@ -3266,7 +3265,7 @@ static void Exception_build_stack_frame (uae_u32 oldpc, uae_u32 currpc, uae_u32 
 			x_put_long (m68k_areg (regs, 7), mmu030_disp_store[0]);
 			m68k_areg (regs, 7) -= 4;
 			// Data output buffer = value that was going to be written
-			x_put_long (m68k_areg (regs, 7), mmu030_data_buffer_out);
+			x_put_long (m68k_areg (regs, 7), regs.wb3_data);
 			m68k_areg (regs, 7) -= 4;
 			x_put_long (m68k_areg (regs, 7), (mmu030_opcode & 0xffff) | (regs.prefetch020[0] << 16));  // Internal register (opcode storage)
 			m68k_areg (regs, 7) -= 4;
