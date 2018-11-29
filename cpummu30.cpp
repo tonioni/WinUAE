@@ -2712,7 +2712,7 @@ void m68k_do_rte_mmu030 (uaecptr a7)
 
 	// Internal register, our opcode storage area
 	uae_u32 oc = get_long_mmu030(a7 + 0x14);
-	// Movem write data
+	// Data output buffer
 	uae_u32 mmu030_data_buffer_out_v = get_long_mmu030(a7 + 0x18);
 	// get_disp_ea_020
 	uae_u32 mmu030_disp_store_0 = get_long_mmu030(a7 + 0x1c);
@@ -2831,8 +2831,9 @@ void m68k_do_rte_mmu030 (uaecptr a7)
 #endif
 
 #if 0
-			write_log(_T("%08x %08x %08x %08x %08x %d %d %d "), mmu030_state[1], mmu030_state[2], mmu030_disp_store[0], mmu030_disp_store[1], addr, read, size, fc);
-			dump_opcode(mmu030_opcode);
+			write_log(_T("%08x %08x %08x %08x %08x %d %d %d %08x %08x\n"),
+				mmu030_state[1], mmu030_state[2], mmu030_disp_store[0], mmu030_disp_store[1],
+				addr, read, size, fc, mmu030_data_buffer_out, mmu030_ad[idxsize].val);
 #endif
 
 			if (read) {
@@ -2859,6 +2860,8 @@ void m68k_do_rte_mmu030 (uaecptr a7)
 					mmu030_ad[idxsize].done = true;
 				}
 			} else {
+				// NeXTstep 1.0a modifies DOB and it must be ignored.
+				mmu030_data_buffer_out = mmu030_ad[mmu030_idx].val;
 				if (mmu030_state[1] & MMU030_STATEFLAG1_SUBACCESS0) {
 					mmu030_unaligned_write_continue(addr, fc, mmu030_put_generic);
 				} else {
@@ -3099,7 +3102,7 @@ void m68k_do_rte_mmu030c (uaecptr a7)
 
 	// Internal register, our opcode storage area
 	uae_u32 oc = get_long_mmu030c(a7 + 0x14);
-	// Movem write data
+	// Data output buffer
 	uae_u32 mmu030_data_buffer_out_v = get_long_mmu030c(a7 + 0x18);
 	// get_disp_ea_020
 	uae_u32 mmu030_disp_store_0 = get_long_mmu030c(a7 + 0x1c);

@@ -3203,6 +3203,10 @@ static void Exception_build_stack_frame (uae_u32 oldpc, uae_u32 currpc, uae_u32 
 				write_log(_T("mmu030_idx out of bounds! %d >= %d\n"), mmu030_idx, MAX_MMU030_ACCESS);
 			}
 #endif
+			if (!(ssw & MMU030_SSW_RW)) {
+				// NeXTstep 1.0a modifies DOB so store value in storage too.
+				mmu030_ad[mmu030_idx].val = mmu030_data_buffer_out;
+			}
 			for (i = 0; i < mmu030_idx + 1; i++) {
 				m68k_areg (regs, 7) -= 4;
 				x_put_long (m68k_areg (regs, 7), mmu030_ad[i].val);
