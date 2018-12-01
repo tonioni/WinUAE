@@ -630,9 +630,14 @@ static void desc_put_long(uaecptr addr, uae_u32 v)
 static uae_u32 mmu_fill_atc(uaecptr addr, bool super, uae_u32 tag, bool write, struct mmu_atc_line *l, uae_u32 *status060)
 {
     uae_u32 desc, desc_addr, wp;
-	uae_u32 status = 0;
+    uae_u32 status = 0;
     int i;
+	int old_s;
     
+    // Always use supervisor mode to access descriptors
+    old_s = regs.s;
+    regs.s = 1;
+
     wp = 0;
     desc = super ? regs.srp : regs.urp;
     
@@ -758,8 +763,11 @@ fail:
 #if MMUDEBUG > 0
         write_log(_T("MMU: bus error during table search.\n"));
 #endif
-    } ENDTRY
-    
+    } ENDTRY;
+
+    // Restore original supervisor state
+    regs.s = old_s;
+
 #if MMUDEBUG > 2
     write_log(_T("translate: %x,%u,%u -> %x\n"), addr, super, write, desc);
 #endif

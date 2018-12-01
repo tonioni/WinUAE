@@ -1028,6 +1028,20 @@ static void mmu030_atc_handle_history_bit(int entry_num) {
 	}
 }
 
+static void desc_put_long(uaecptr addr, uae_u32 v)
+{
+	x_phys_put_long(addr, v);
+}
+static uae_u32 desc_get_long(uaecptr addr)
+{
+	return x_phys_get_long(addr);
+}
+static void desc_get_quad(uaecptr addr, uae_u32 *descr)
+{
+	descr[0] = x_phys_get_long(addr);
+	descr[1] = x_phys_get_long(addr + 4);
+}
+
 /* Descriptors */
 
 #define DESCR_TYPE_MASK         0x00000003
@@ -1188,38 +1202,42 @@ static void mmu030_atc_handle_history_bit(int entry_num) {
  * for PTEST (levels 1 to 7). Using level 0 creates an ATC entry. */
 
 static uae_u32 mmu030_table_search(uaecptr addr, uae_u32 fc, bool write, int level) {
-        /* During table walk up to 7 different descriptors are used:
-         * root pointer, descriptors fetched from function code lookup table,
-         * tables A, B, C and D and one indirect descriptor */
-        uae_u32 descr[2];
-        uae_u32 descr_type;
-        uaecptr descr_addr[7];
-        uaecptr table_addr = 0;
-        uaecptr page_addr = 0;
-        uaecptr indirect_addr = 0;
-        uae_u32 table_index = 0;
-        uae_u32 limit = 0;
-        uae_u32 unused_fields_mask = 0;
-        bool super = (fc&4) ? true : false;
-        bool super_violation = false;
-        bool write_protected = false;
-        uae_u8 cache_inhibit = CACHE_ENABLE_ALL;
-        bool descr_modified = false;
+    /* During table walk up to 7 different descriptors are used:
+     * root pointer, descriptors fetched from function code lookup table,
+     * tables A, B, C and D and one indirect descriptor */
+    uae_u32 descr[2];
+    uae_u32 descr_type;
+    uaecptr descr_addr[7];
+    uaecptr table_addr = 0;
+    uaecptr page_addr = 0;
+    uaecptr indirect_addr = 0;
+    uae_u32 table_index = 0;
+    uae_u32 limit = 0;
+    uae_u32 unused_fields_mask = 0;
+    bool super = (fc&4) ? true : false;
+    bool super_violation = false;
+    bool write_protected = false;
+    uae_u8 cache_inhibit = CACHE_ENABLE_ALL;
+    bool descr_modified = false;
         
-        mmu030.status = 0; /* Reset status */
+    mmu030.status = 0; /* Reset status */
         
-        /* Initial values for condition variables.
-         * Note: Root pointer is long descriptor. */
-        int t = 0;
-        int addr_position = 1;
-        int next_size = 0;
-        int descr_size = 8;
-        int descr_num = 0;
-        bool early_termination = false;
-        
-        int i;
+    /* Initial values for condition variables.
+     * Note: Root pointer is long descriptor. */
+    int t = 0;
+    int addr_position = 1;
+    int next_size = 0;
+    int descr_size = 8;
+    int descr_num = 0;
+    bool early_termination = false;
+    int old_s;
+    int i;
     
-    TRY(prb) {
+	// Always use supervisor mode to access descriptors
+    old_s = regs.s;
+    regs.s = 1;
+
+	TRY(prb) {
         /* Use super user root pointer if enabled in TC register and access is in
          * super user mode, else use cpu root pointer. */
         if ((tc_030&TC_ENABLE_SUPERVISOR) && super) {
@@ -1278,13 +1296,12 @@ static uae_u32 mmu030_table_search(uaecptr addr, uae_u32 fc, bool write, int lev
             descr_addr[descr_num] = table_addr+(table_index*next_size);
             
             if (next_size==4) {
-                descr[0] = phys_get_long(descr_addr[descr_num]);
+                descr[0] = desc_get_long(descr_addr[descr_num]);
 #if MMU030_REG_DBG_MSG
                 write_log(_T("Next descriptor: %08X\n"),descr[0]);
 #endif
             } else {
-                descr[0] = phys_get_long(descr_addr[descr_num]);
-                descr[1] = phys_get_long(descr_addr[descr_num]+4);
+				desc_get_quad(descr_addr[descr_num], descr);
 #if MMU030_REG_DBG_MSG
                 write_log(_T("Next descriptor: %08X%08X\n"),descr[0],descr[1]);
 #endif
@@ -1330,7 +1347,7 @@ static uae_u32 mmu030_table_search(uaecptr addr, uae_u32 fc, bool write, int lev
                 /* Set the updated bit */
                 if (!level && !(descr[0]&DESCR_U) && !super_violation) {
                     descr[0] |= DESCR_U;
-                    phys_put_long(descr_addr[descr_num], descr[0]);
+                    desc_put_long(descr_addr[descr_num], descr[0]);
                 }
                 
                 /* Update status bits */
@@ -1375,13 +1392,12 @@ static uae_u32 mmu030_table_search(uaecptr addr, uae_u32 fc, bool write, int lev
             descr_addr[descr_num] = table_addr+(table_index*next_size);
             
             if (next_size==4) {
-                descr[0] = phys_get_long(descr_addr[descr_num]);
+                descr[0] = desc_get_long(descr_addr[descr_num]);
 #if MMU030_REG_DBG_MSG
                 write_log(_T("Next descriptor: %08X\n"),descr[0]);
 #endif
             } else {
-                descr[0] = phys_get_long(descr_addr[descr_num]);
-                descr[1] = phys_get_long(descr_addr[descr_num]+4);
+				desc_get_quad(descr_addr[descr_num], descr);
 #if MMU030_REG_DBG_MSG
                 write_log(_T("Next descriptor: %08X%08X\n"),descr[0],descr[1]);
 #endif
@@ -1436,13 +1452,12 @@ static uae_u32 mmu030_table_search(uaecptr addr, uae_u32 fc, bool write, int lev
         descr_addr[descr_num] = indirect_addr;
         
         if (next_size==4) {
-            descr[0] = phys_get_long(descr_addr[descr_num]);
+            descr[0] = desc_get_long(descr_addr[descr_num]);
 #if MMU030_REG_DBG_MSG
             write_log(_T("descr = %08X\n"),descr[0]);
 #endif
 		} else {
-            descr[0] = phys_get_long(descr_addr[descr_num]);
-            descr[1] = phys_get_long(descr_addr[descr_num]+4);
+			desc_get_quad(descr_addr[descr_num], descr);
 #if MMU030_REG_DBG_MSG
             write_log(_T("descr = %08X%08X"),descr[0],descr[1]);
 #endif
@@ -1481,7 +1496,7 @@ static uae_u32 mmu030_table_search(uaecptr addr, uae_u32 fc, bool write, int lev
                 }
                 /* write modified descriptor if necessary */
                 if (descr_modified) {
-                    phys_put_long(descr_addr[descr_num], descr[0]);
+                    desc_put_long(descr_addr[descr_num], descr[0]);
                 }
             }
             
@@ -1553,8 +1568,11 @@ static uae_u32 mmu030_table_search(uaecptr addr, uae_u32 fc, bool write, int lev
         mmu030.status |= (MMUSR_BUS_ERROR|MMUSR_INVALID);
         write_log(_T("MMU: Bus error while %s descriptor!\n"),
                   bBusErrorReadWrite?_T("reading"):_T("writing"));
-    } ENDTRY
-    
+    } ENDTRY;
+
+    // Restore original supervisor state
+    regs.s = old_s;
+
     /* check if we have to handle ptest */
     if (level) {
         /* Note: wp, m and sv bits are undefined if the invalid bit is set */
