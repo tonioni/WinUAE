@@ -1241,10 +1241,8 @@ static int getmsglen(uae_u8 *msgp, int len)
 	uae_u8 msg = msgp[0];
 	if (msg == 0 || (msg >= 0x02 && msg <= 0x1f) ||msg >= 0x80)
 		return 1;
-	if (msg >= 0x02 && msg <= 0x1f)
-		return 2;
 	if (msg >= 0x20 && msg <= 0x2f)
-		return 3;
+		return 2;
 	// extended message, at least 3 bytes
 	if (len < 2)
 		return 3;
