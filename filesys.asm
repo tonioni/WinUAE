@@ -2215,6 +2215,8 @@ getgfxlimits:
 	sub.l a2,a2
 	sub.l a3,a3
 	sub.l a4,a4
+	moveq #-1,d1
+	moveq #-1,d2
 	moveq #0,d4
 
 	move.l MH_FOO_GFXBASE(a5),a6
@@ -2241,7 +2243,7 @@ getgfxlimits:
 	move.w 100(a0),d4
 	move.l MH_FOO_GFXBASE(a5),a6
 
-  ; Text Overscan area needed
+	; Text Overscan area needed
 	sub.l a0,a0
 	lea MH_FOO_DIMS(a5),a1
 	moveq #0,d0
@@ -2258,10 +2260,13 @@ getgfxlimits:
 	move.l 54(a2),d2
 .end
 
+	move.l a4,d0
+	beq.s .novp
 	move.l 28(a4),d0
-	cmp.w MH_FOO_MOFFSET(a5),d4
-	bne.s .dosend
 	cmp.l MH_FOO_VPXY(a5),d0
+	bne.s .dosend
+.novp
+	cmp.w MH_FOO_MOFFSET(a5),d4
 	bne.s .dosend
 	cmp.l MH_FOO_DIMS_X(a5),d1
 	bne.s .dosend
@@ -2274,12 +2279,13 @@ getgfxlimits:
 	move.w d4,MH_FOO_MOFFSET(a5)
 
 	; This only for doublescan properties bit..
+	move.l d3,d2
+	beq.s .nomntr
 	sub.l a0,a0
 	lea MH_FOO_DISP(a5),a1
 	moveq #0,d0
 	move.w #88,d0
 	move.l #DTAG_DISP,d1
-	move.l d3,d2
 	jsr -$2f4(a6) ;GetDisplayInfoData
 	tst.l d0
 	bmi.s .nomntr

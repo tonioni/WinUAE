@@ -605,20 +605,21 @@ void getfilterrect2(int monid, RECT *sr, RECT *dr, RECT *zr, int dst_width, int 
 			if (get_aspect(monid, &dstratio, &srcratio, &xmult, &ymult, doautoaspect, autoaspectratio)) {
 				diff = diffx - diffx * xmult;
 				sizeoffset(dr, zr, diff, 0);
-				filteroffsetx += diff / 2;
+				filteroffsetx += -diff / 2;
 
 				diff = diffy - diffy * ymult;
 				sizeoffset(dr, zr, 0, diff);
-				filteroffsety += diff / 2;
+				filteroffsety += -diff / 2;
 			}
 
 			OffsetRect (zr, (int)(-filter_horiz_offset * aws), 0);
 			OffsetRect (zr, 0, (int)(-filter_vert_offset * ahs));
 
 			diff = dr->right - dr->left;
-			filterxmult = diff / ((float)dst_width * scale);
+			filterxmult = ((float)dst_width * scale) / diff;
 			diff = dr->bottom - dr->top;
-			filterymult = diff / ((float)dst_height * scale);
+			filterymult = ((float)dst_height * scale) / diff;
+
 			goto end;
 		}
 
@@ -692,8 +693,8 @@ cont:
 
 	filterxmult = xmult;
 	filterymult = ymult;
-	filteroffsetx += (dst_width - aw / filterxmult) / 2;
-	filteroffsety += (dst_height - ah / filterymult) / 2;
+	filteroffsetx += (dst_width - aw * filterxmult) / 2;
+	filteroffsety += (dst_height - ah * filterymult) / 2;
 
 end:
 

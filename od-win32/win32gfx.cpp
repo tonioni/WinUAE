@@ -587,27 +587,36 @@ void getgfxoffset(int monid, float *dxp, float *dyp, float *mxp, float *myp)
 	struct AmigaMonitor *mon = &AMonitors[monid];
 	struct amigadisplay *ad = &adisplays[monid];
 	struct uae_filter *usedfilter = mon->usedfilter;
-	float dx, dy;
+	float dx, dy, mx, my;
 
-	getfilteroffset(monid, &dx, &dy, mxp, myp);
+	getfilteroffset(monid, &dx, &dy, &mx, &my);
 	if (ad->picasso_on) {
-		dx = picasso_offset_x;
-		dy = picasso_offset_y;
-		*mxp = picasso_offset_mx;
-		*myp = picasso_offset_my;
+		dx = picasso_offset_x * picasso_offset_mx;
+		dy = picasso_offset_y * picasso_offset_my;
+		mx = picasso_offset_mx;
+		my = picasso_offset_my;
 	}
+
+	//write_log(_T("%.2fx%.2f %.2fx%.2f\n"), dx, dy, mx, my);
+
 	if (mon->currentmode.flags & DM_W_FULLSCREEN) {
-		if (mon->scalepicasso && mon->screen_is_picasso)
-			return;
-		if (usedfilter && !mon->screen_is_picasso)
-			return;
-		if (mon->currentmode.fullfill && (mon->currentmode.current_width > mon->currentmode.native_width || mon->currentmode.current_height > mon->currentmode.native_height))
-			return;
-		dx += (mon->currentmode.native_width - mon->currentmode.current_width) / 2;
-		dy += (mon->currentmode.native_height - mon->currentmode.current_height) / 2;
+		for (;;) {
+			if (mon->scalepicasso && mon->screen_is_picasso)
+				break;
+			if (usedfilter && !mon->screen_is_picasso)
+				break;
+			if (mon->currentmode.fullfill && (mon->currentmode.current_width > mon->currentmode.native_width || mon->currentmode.current_height > mon->currentmode.native_height))
+				break;
+			dx += (mon->currentmode.native_width - mon->currentmode.current_width) / 2;
+			dy += (mon->currentmode.native_height - mon->currentmode.current_height) / 2;
+			break;
+		}
 	}
+
 	*dxp = dx;
 	*dyp = dy;
+	*mxp = 1.0 / mx;
+	*myp = 1.0 / my;
 }
 
 void DX_Fill(struct AmigaMonitor *mon, int dstx, int dsty, int width, int height, uae_u32 color)
@@ -1707,6 +1716,8 @@ void getrtgfilterrect2(int monid, RECT *sr, RECT *dr, RECT *zr, int dst_width, i
 	if (!srcwidth || !srcheight)
 		return;
 
+	float mx = (float)mon->currentmode.native_width / srcwidth;
+	float my = (float)mon->currentmode.native_height / srcheight;
 	if (mon->scalepicasso == RTG_MODE_INTEGER_SCALE) {
 		int divx = mon->currentmode.native_width / srcwidth;
 		int divy = mon->currentmode.native_height / srcheight;
@@ -1716,12 +1727,14 @@ void getrtgfilterrect2(int monid, RECT *sr, RECT *dr, RECT *zr, int dst_width, i
 		SetRect (dr, 0, 0, mon->currentmode.native_width / mul, mon->currentmode.native_height / mul);
 		//picasso_offset_x = -(state->Width - xx) / 2;
 		//picasso_offset_y = -(mon->currentmode.native_height - srcheight) / 2;
+		mx = my = 1.0;
 	} else if (mon->scalepicasso == RTG_MODE_CENTER) {
 		int xx = (mon->currentmode.native_width - srcwidth) / 2;
 		int yy = (mon->currentmode.native_height - srcheight) / 2;
 		picasso_offset_x = -xx;
 		picasso_offset_y = -yy;
 		SetRect (dr, 0, 0, mon->currentmode.native_width, mon->currentmode.native_height);
+		mx = my = 1.0;
 	} else {
 		if (currprefs.win32_rtgscaleaspectratio < 0) {
 			// automatic
@@ -1750,8 +1763,8 @@ void getrtgfilterrect2(int monid, RECT *sr, RECT *dr, RECT *zr, int dst_width, i
 	}
 
 	OffsetRect (zr, picasso_offset_x, picasso_offset_y);
-	picasso_offset_mx = (float)srcwidth / (dr->right - dr->left);
-	picasso_offset_my = (float)srcheight / (dr->bottom - dr->top);
+	picasso_offset_mx = (float)srcwidth * mx / (dr->right - dr->left);
+	picasso_offset_my = (float)srcheight * my / (dr->bottom - dr->top);
 }
 
 static uae_u8 *gfx_lock_picasso2(int monid, bool fullupdate)
