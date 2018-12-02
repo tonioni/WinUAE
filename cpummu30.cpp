@@ -1777,8 +1777,9 @@ void mmu030_page_fault(uaecptr addr, bool read, int flags, uae_u32 fc)
 	regs.mmu_ssw |= read ? MMU030_SSW_RW : 0;
 	regs.mmu_ssw |= flags;
 	regs.mmu_ssw |= fc;
-	// store in wb3_data because stack frame creation may modify data buffer.
+	// temporary store in 68040+ variables because stack frame creation may modify them.
 	regs.wb3_data = mmu030_data_buffer_out;
+	regs.wb2_address = mmu030_state[1];
     bBusErrorReadWrite = read; 
 	mm030_stageb_address = addr;
 
