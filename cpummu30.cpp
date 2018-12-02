@@ -2634,6 +2634,7 @@ static void mmu030_unaligned_read_continue(uaecptr addr, int fc, unaligned_read_
 #if MMUDEBUG
 	write_log(_T("unaligned_read_continue_e: %08x %d %08x %08x\n"), addr, fc, mmu030_data_buffer_out, st);
 #endif
+	unalign_clear();
 }
 
 typedef void (*unaligned_write_func)(uaecptr addr, uae_u32 val, uae_u32 fc, int size, int flags);
@@ -2709,6 +2710,7 @@ static void mmu030_unaligned_write_continue(uaecptr addr, int fc, unaligned_writ
 #if MMUDEBUG
 	write_log(_T("unaligned_write_continue_e: %08x %d %08x %08x\n"), addr, fc, mmu030_data_buffer_out, st);
 #endif
+	unalign_clear();
 }
 
 void m68k_do_rte_mmu030 (uaecptr a7)
@@ -2786,6 +2788,7 @@ void m68k_do_rte_mmu030 (uaecptr a7)
 					mmu030_ad_v[idxsize].val = mmu030_data_buffer_in_v;
 				}
 			}
+			unalign_clear();
 		}
 		// did we have ins fault and RB bit cleared?
 		if ((ssw & MMU030_SSW_FB) && !(ssw & MMU030_SSW_RB)) {
@@ -3173,6 +3176,7 @@ void m68k_do_rte_mmu030c (uaecptr a7)
 					mmu030_ad_v[idxsize].val = mmu030_data_buffer_in_v;
 				}
 			}
+			unalign_clear();
 		}
 
 		// Retried data access is the only memory access that can be done after this.
