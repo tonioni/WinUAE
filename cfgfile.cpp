@@ -3405,7 +3405,7 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 	}
 
 	if (_tcscmp (option, _T("gfx_linemode")) == 0) {
-		int v;
+		int v = 0;
 		p->gfx_vresolution = VRES_DOUBLE;
 		p->gfx_pscanlines = 0;
 		p->gfx_iscanlines = 0;

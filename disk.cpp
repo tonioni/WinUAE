@@ -4551,7 +4551,7 @@ uae_u8 *restore_disk (int num,uae_u8 *src)
 	if (s && s[0])
 		write_log(_T("-> '%s'\n"), s);
 	_tcscpy(old, currprefs.floppyslots[num].df);
-	_tcsncpy(changed_prefs.floppyslots[num].df, s, 255);
+	_tcsncpy(changed_prefs.floppyslots[num].df, s, MAX_DPATH);
 	xfree(s);
 
 	newis = changed_prefs.floppyslots[num].df[0] ? 1 : 0;

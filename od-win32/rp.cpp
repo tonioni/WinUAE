@@ -951,6 +951,9 @@ static void set_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 				vres = max_vert_dbl;
 			}
 		}
+		if (hres == RES_LORES && vres > VRES_NONDOUBLE)
+			vres = VRES_NONDOUBLE;
+
 		p->gfx_resolution = hres;
 		p->gfx_vresolution = vres;
 

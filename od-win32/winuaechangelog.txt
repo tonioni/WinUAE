@@ -1,10 +1,28 @@
 
+Beta 12:
+
+- If tablet.library was ticked and config was loaded to system without tablet, it was not possible to untick it.
+- If original path stored in statefile is not valid anymore, fix attempts (testing if it exists in current dir etc..) may have returned non-existing path in certain situations even if valid path was available.
+- More 68030 MMU bus error retry fixes. (Remaining Previous NextOS crashes fixed)
+- MMU's internal table read/write accesses should be always done in supervisor mode. (Not much effect on Amiga but other platforms usually have memory regions that are supervisor only)
+- Magic mouse Windows cursor to Amiga mouse sync fixed. (Broken long time ago, still not fully working in every filter combination)
+- When config file rom path pointed to non-existing file, autodetect of rom path is attempted. If last autodetect phase detected it, rom path was not updated.
+
+Beta 11:
+
+- Debugger assembler didn't assemble Scc and TRAPcc. CLR didn't show memory contents if EA was not register.
+- Debugger disassembler does not create useless output anymore when disassembling 68020+ addressing modes. If CPU is <68020 but full extension bit is set: disassemble as 68000 but append "(68020+)" to output.
+- SPTI mode CD read buffer overflow fix. (Probably only when playing CD audio)
+- 68030 MMU + more compatible bus error handling was very broken. (MMU updates in previous betas broke it)
+- 68030 MMU bus error exception/unaligned access emulation partial rewrite. Odd long access uses byte+word+byte access sequence (not 4xbyte). MOVEM and normal data accesses use same data buffer variable now, confusing special cases removed. Unaligned accesses that cross MMU page boundary retries are now compatible with new retry logic (b8).
+- 68030 MMU + prefetch mode fix when prefetch crossed MMU pages and neither page was mapped as valid. (Amix illegal instruction error in early boot)
+- 68030 MMU + prefetch + data cache mode fixed. (also broke in b8)
 
 Beta 10:
 
 - Fixed invisible sprites after statefile load (at least when not in AGA mode). (b8).
 - Reading CIA interrupt register exactly when CIA interrupt is going to activate may have caused stuck PORTS interrupt until CIAxICR was read again, which would also return unexpectedly no interrupts active in this situation.
-- 68020+ more compatible state files didn't restore CPU mid-instruction properly, caused restore Amiga side crash if state was created during mid-instruction that has side-effects (like -(an) or (an)+ addressing mode) (introduced in 4.0 betas)
+- 68020+ more compatible state files didn't restore CPU mid-instruction properly, caused restored Amiga side crash if state was created during mid-instruction that has side-effects (like -(an) or (an)+ addressing mode) (introduced in 4.0 betas)
 - 64-bit version didn't support rar unpacking without archiveaccess.dll, probably because 64-bit unrar.dll didn't exist when it was implemented.
 - Window corners are now drag'n'drop hot spots for different floppy drives. (top/left=0, top/right=1, bottom/left=2, bottom/right=3).
 - 68030 MMU MOVEM <ea>,<regs> access fault retry was unreliable in some situations.

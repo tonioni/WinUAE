@@ -16035,6 +16035,8 @@ static void updatejoyport (HWND hDlg, int changedport)
 	SendDlgItemMessage (hDlg, IDC_PORT_TABLET_CURSOR, CB_SETCURSEL, workprefs.input_magic_mouse_cursor, 0);
 	CheckDlgButton (hDlg, IDC_PORT_TABLET, workprefs.input_tablet > 0);
 	SendDlgItemMessage(hDlg, IDC_PORT_TABLET_MODE, CB_SETCURSEL, workprefs.input_tablet == TABLET_REAL ? 1 : 0, 0);
+	if (!is_tablet())
+		workprefs.tablet_library = false;
 	CheckDlgButton (hDlg, IDC_PORT_TABLET_LIBRARY, workprefs.tablet_library);
 	CheckDlgButton (hDlg, IDC_PORT_AUTOSWITCH, workprefs.input_autoswitch);
 
