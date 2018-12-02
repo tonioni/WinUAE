@@ -1999,7 +1999,7 @@ struct zfile *read_rom_name (const TCHAR *filename)
 	return f;
 }
 
-struct zfile *read_rom_name_guess (const TCHAR *filename)
+struct zfile *read_rom_name_guess (const TCHAR *filename, TCHAR *out)
 {
 	int i, j;
 	struct zfile *f;
@@ -2026,6 +2026,7 @@ struct zfile *read_rom_name_guess (const TCHAR *filename)
 			f = read_rom (rd);
 			if (f) {
 				write_log (_T("ROM %s not found, using %s\n"), filename, rl[i].path);
+				_tcscpy(out, rl[i].path);
 				return f;
 			}
 		}

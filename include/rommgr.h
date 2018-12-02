@@ -258,7 +258,7 @@ extern void descramble_nordicpro (uae_u8*, int, int);
 extern int kickstart_checksum (uae_u8 *mem, int size);
 extern int decode_rom (uae_u8 *mem, int size, int mode, int real_size);
 extern struct zfile *rom_fopen (const TCHAR *name, const TCHAR *mode, int mask);
-extern struct zfile *read_rom_name_guess (const TCHAR *filename);
+extern struct zfile *read_rom_name_guess (const TCHAR *filename, TCHAR *out);
 extern void addkeydir (const TCHAR *path);
 extern void addkeyfile (const TCHAR *path);
 extern int romlist_count (void);

@@ -1689,8 +1689,9 @@ static struct zfile *get_kickstart_filehandle(struct uae_prefs *p)
 					if (f == NULL) {
 						_stprintf(tmprom2, _T("%s../System/rom/kick.rom"), start_path_data);
 						f = rom_fopen(tmprom2, _T("rb"), ZFD_NORMAL);
-						if (f == NULL)
-							f = read_rom_name_guess(tmprom);
+						if (f == NULL) {
+							f = read_rom_name_guess(tmprom, tmprom2);
+						}
 					}
 				}
 			}
