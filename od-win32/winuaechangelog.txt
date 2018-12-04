@@ -1,4 +1,9 @@
 
+
+- Hardware emulated graphics board interrupt was not emulated when gfxboard mode was not (yet) active and refresh mode was not "chipset". (For example Picasso96 + PicassoII+ or PicassoIV hang when switching to gfxboard mode)
+- cdimageX config entries didn't support ejecting CD using uae-configuration. Now empty string ejects the CD. String "empty" and dot also equals empty.
+- floppyX config entries also supports dot as empty drive.
+
 Beta 12:
 
 - If tablet.library was ticked and config was loaded to system without tablet, it was not possible to untick it.

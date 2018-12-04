@@ -65,6 +65,7 @@ static HWND guestwindow;
 static int hwndset_delay;
 static int sendmouseevents;
 static int mouseevent_x, mouseevent_y, mouseevent_buttons;
+static uae_u64 delayed_refresh;
 
 static int cando (void)
 {
@@ -75,6 +76,20 @@ static int cando (void)
 static int isrecursive (void)
 {
 	return recursive_device;
+}
+
+static uae_u64 gett(void)
+{
+	SYSTEMTIME st;
+	FILETIME ft;
+	ULARGE_INTEGER li;
+
+	GetSystemTime(&st);
+	if (!SystemTimeToFileTime(&st, &ft))
+		return 0;
+	li.LowPart = ft.dwLowDateTime;
+	li.HighPart = ft.dwHighDateTime;
+	return li.QuadPart / 10000;
 }
 
 static void outhex (const uae_u8 *s)
@@ -1187,8 +1202,9 @@ static int movescreenoverlay(WPARAM wParam, LPARAM lParam)
 	eo.xpos = LOWORD(lParam);
 	eo.ypos = HIWORD(lParam);
 	int ret = D3D_extoverlay(&eo);
-	if (pause_emulation) {
+	if (pause_emulation && D3D_refresh) {
 		D3D_refresh(0);
+		delayed_refresh = 0;
 	}
 	return ret;
 }
@@ -1198,14 +1214,11 @@ static int deletescreenoverlay(WPARAM wParam)
 	struct extoverlay eo = { 0 };
 	if (!D3D_extoverlay)
 		return 0;
+	delayed_refresh = gett();
 	eo.idx = wParam;
 	eo.width = -1;
 	eo.height = -1;
-	int ret = D3D_extoverlay(&eo);
-	if (pause_emulation) {
-		D3D_refresh(0);
-	}
-	return ret;
+	return D3D_extoverlay(&eo);
 }
 
 static int screenoverlay(LPCVOID pData)
@@ -1216,17 +1229,14 @@ static int screenoverlay(LPCVOID pData)
 		return 0;
 	if (rpo->dwFormat != RPSOPF_32BIT_BGRA)
 		return 0;
+	delayed_refresh = gett();
 	eo.idx = rpo->dwIndex;
 	eo.xpos = rpo->lLeft;
 	eo.ypos = rpo->lTop;
 	eo.width = rpo->lWidth;
 	eo.height = rpo->lHeight;
 	eo.data = rpo->btData;
-	int ret = D3D_extoverlay(&eo);
-	if (pause_emulation) {
-		D3D_refresh(0);
-	}
-	return ret;
+	return D3D_extoverlay(&eo);
 }
 
 static LRESULT CALLBACK RPHostMsgFunction2 (UINT uMessage, WPARAM wParam, LPARAM lParam,
@@ -1401,6 +1411,7 @@ static LRESULT CALLBACK RPHostMsgFunction2 (UINT uMessage, WPARAM wParam, LPARAM
 				save_state (s, _T("AmigaForever"));
 				ret = 1;
 			} else {
+				write_log(_T("RP_IPC_TO_GUEST_SAVESTATE unsupported emulation state\n"));
 				//savestate_initsave (s, 1, TRUE);
 				//ret = -1;
 			}
@@ -1458,9 +1469,8 @@ static LRESULT CALLBACK RPHostMsgFunction2 (UINT uMessage, WPARAM wParam, LPARAM
 	case RP_IPC_TO_GUEST_SENDMOUSEEVENTS:
 		sendmouseevents = wParam;
 		if (sendmouseevents) {
-			LRESULT lr = NULL;
 			LPARAM lp = MAKELONG(mouseevent_x, mouseevent_y);
-			RPSendMessage(RP_IPC_TO_HOST_MOUSEMOVE, 0, lp, NULL, 0, &guestinfo, &lr);
+			RPPostMessagex(RP_IPC_TO_HOST_MOUSEMOVE, 0, lp, &guestinfo);
 		}
 		return 1;
 	}
@@ -2100,25 +2110,19 @@ void rp_rtg_switch (void)
 static uae_u64 esctime;
 static int releasetime, releasenum;
 
-static uae_u64 gett (void)
-{
-	SYSTEMTIME st;
-	FILETIME ft;
-	ULARGE_INTEGER li;
-
-	GetSystemTime (&st);
-	if (!SystemTimeToFileTime (&st, &ft))
-		return 0;
-	li.LowPart = ft.dwLowDateTime;
-	li.HighPart = ft.dwHighDateTime;
-	return li.QuadPart / 10000;
-}
-
-void rp_vsync (void)
+void rp_vsync(void)
 {
 	struct AmigaMonitor *mon = &AMonitors[0];
 	if (!initialized)
 		return;
+	if (delayed_refresh) {
+		if (gett() >= delayed_refresh + 50) {
+			if (pause_emulation && D3D_refresh) {
+				D3D_refresh(0);
+			}
+			delayed_refresh = 0;
+		}
+	}
 	if (hwndset_delay > 0) {
 		hwndset_delay--;
 		if (hwndset_delay == 0)
@@ -2249,10 +2253,9 @@ bool rp_mouseevent(int x, int y, int buttons, int buttonmask)
 		}
 		return false;
 	}
-	LRESULT lr;
 	if (x > -30000 && y > -30000 && (x != mouseevent_x || y != mouseevent_y)) {
 		LPARAM lParam = MAKELONG(x, y);
-		RPSendMessage(RP_IPC_TO_HOST_MOUSEMOVE, 0, lParam, NULL, 0, &guestinfo, &lr);
+		RPPostMessagex(RP_IPC_TO_HOST_MOUSEMOVE, 0, lParam, &guestinfo);
 		mouseevent_x = x;
 		mouseevent_y = y;
 	}
@@ -2260,7 +2263,7 @@ bool rp_mouseevent(int x, int y, int buttons, int buttonmask)
 		LPARAM lParam = MAKELONG(mouseevent_x, mouseevent_y);
 		mouseevent_buttons &= ~buttonmask;
 		mouseevent_buttons |= buttons & buttonmask;
-		RPSendMessage(RP_IPC_TO_HOST_MOUSEBUTTON, mouseevent_buttons, lParam, NULL, 0, &guestinfo, &lr);
+		RPPostMessagex(RP_IPC_TO_HOST_MOUSEBUTTON, mouseevent_buttons, lParam, &guestinfo);
 	}
 	return true;
 }
