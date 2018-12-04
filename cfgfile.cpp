@@ -3082,6 +3082,10 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 						*next2++ = 0;
 					cfgfile_intval (option, next, tmp, &unitnum, 1);
 				}
+				if (value[0] == 0 || !_tcsicmp(value, _T("empty")) || !_tcscmp(value, _T("."))) {
+					value[0] = 0;
+					p->cdslots[i].name[0] = 0;
+				}
 				if (_tcslen (value) > 0) {
 					_tcsncpy (p->cdslots[i].name, value, sizeof p->cdslots[i].name / sizeof (TCHAR));
 				}
@@ -5594,8 +5598,11 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 
 	for (i = 0; i < 4; i++) {
 		_stprintf (tmpbuf, _T("floppy%d"), i);
-		if (cfgfile_string(option, value, tmpbuf, p->floppyslots[i].df, sizeof p->floppyslots[i].df / sizeof(TCHAR)))
+		if (cfgfile_string(option, value, tmpbuf, p->floppyslots[i].df, sizeof p->floppyslots[i].df / sizeof(TCHAR))) {
+			if (!_tcscmp(p->floppyslots[i].df, _T(".")))
+				p->floppyslots[i].df[0] = 0;
 			return 1;
+		}
 	}
 
 	if (cfgfile_intval (option, value, _T("chipmem_size"), &dummyint, 1)) {
