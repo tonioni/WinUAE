@@ -1242,6 +1242,7 @@ void picasso_handle_hsync(void)
 				}
 				picasso_trigger_vblank();
 			}
+			gfxboard_vsync_handler(false, false);
 		} else {
 			picasso_handle_vsync2(mon);
 		}
