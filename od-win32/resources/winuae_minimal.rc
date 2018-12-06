@@ -301,24 +301,25 @@ BEGIN
                     "Button",BS_AUTOCHECKBOX | BS_LEFT | WS_GROUP | WS_TABSTOP,145,161,236,10
     RTEXT           "Stopped M68K CPU idle mode",IDC_STATIC,180,183,121,9
     CONTROL         "",IDC_PPC_CPUIDLE,"msctls_trackbar32",TBS_AUTOTICKS | TBS_TOP | WS_TABSTOP,308,177,69,21
-    GROUPBOX        "x86 Bridgeboard CPU options",IDC_STATIC,136,202,258,42
+    GROUPBOX        "x86 Bridgeboard CPU options",IDC_STATIC,136,202,258,38
     RTEXT           "CPU Speed",IDC_STATIC,147,221,55,9,SS_CENTERIMAGE
     EDITTEXT        IDC_CPUTEXT_x86,224,220,39,12,ES_CENTER | ES_READONLY
     CONTROL         "",IDC_SPEED_x86,"msctls_trackbar32",TBS_AUTOTICKS | TBS_TOP | WS_TABSTOP,278,215,108,20
-    GROUPBOX        "Advanced JIT Settings",IDC_STATIC,136,245,258,70
-    RTEXT           "Cache size:",IDC_STATIC,143,261,66,10,SS_CENTERIMAGE
-    CONTROL         "Slider1",IDC_CACHE,"msctls_trackbar32",TBS_AUTOTICKS | TBS_TOP | WS_TABSTOP,212,255,115,20
-    EDITTEXT        IDC_CACHETEXT,331,260,30,12,ES_CENTER | ES_READONLY
-    CONTROL         "FPU support",IDC_JITFPU,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,143,281,71,11
-    CONTROL         "Constant jump",IDC_CONSTJUMP,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,221,281,71,11
-    CONTROL         "Hard flush",IDC_HARDFLUSH,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,299,281,84,11
-    CONTROL         "Direct",IDC_TRUST0,"Button",BS_AUTORADIOBUTTON | WS_GROUP | WS_TABSTOP,143,299,72,10
-    CONTROL         "Indirect",IDC_TRUST1,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,221,299,72,10
-    CONTROL         "No flags",IDC_NOFLAGS,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,299,299,68,11
+    GROUPBOX        "Advanced JIT Settings",IDC_STATIC,136,241,258,74
+    RTEXT           "Cache size:",IDC_STATIC,143,260,66,10,SS_CENTERIMAGE
+    CONTROL         "Slider1",IDC_CACHE,"msctls_trackbar32",TBS_AUTOTICKS | TBS_TOP | WS_TABSTOP,212,250,115,20
+    EDITTEXT        IDC_CACHETEXT,331,255,30,12,ES_CENTER | ES_READONLY
+    CONTROL         "FPU support",IDC_JITFPU,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,143,273,71,11
+    CONTROL         "Constant jump",IDC_CONSTJUMP,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,221,273,71,11
+    CONTROL         "Hard flush",IDC_HARDFLUSH,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,299,273,84,11
+    CONTROL         "Direct",IDC_TRUST0,"Button",BS_AUTORADIOBUTTON | WS_GROUP | WS_TABSTOP,143,288,72,10
+    CONTROL         "Indirect",IDC_TRUST1,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,221,288,72,10
+    CONTROL         "No flags",IDC_NOFLAGS,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,299,288,68,11
     GROUPBOX        "MMU",IDC_STATIC,2,168,129,42,BS_LEFT
     CONTROL         "Data cache emulation [] 68030, 040 and 060 optional data cache emulation. Requires More compatible option.",IDC_CPUDATACACHE,
                     "Button",BS_AUTOCHECKBOX | BS_LEFT | WS_GROUP | WS_TABSTOP,8,123,119,12
     COMBOBOX        IDC_FPU_MODE,7,299,112,75,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    CONTROL         "Catch unexpected exceptions",IDC_JITCRASH,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,143,300,115,11
 END
 
 IDD_FLOPPY DIALOGEX 0, 0, 396, 261
@@ -466,19 +467,20 @@ IDD_LOADSAVE DIALOGEX 0, 0, 396, 318
 STYLE DS_LOCALEDIT | DS_SETFONT | DS_3DLOOK | DS_CONTROL | WS_CHILD
 FONT 8, "MS Sans Serif", 0, 0, 0x1
 BEGIN
-    CONTROL         "",IDC_CONFIGTREE,"SysTreeView32",TVS_HASLINES | TVS_DISABLEDRAGDROP | TVS_SHOWSELALWAYS | TVS_TRACKSELECT | WS_BORDER | WS_HSCROLL | WS_TABSTOP,1,5,393,227,WS_EX_CLIENTEDGE
-    RTEXT           "Name:",IDC_STATIC,4,241,47,8,SS_CENTERIMAGE
-    EDITTEXT        IDC_EDITNAME,55,239,230,13,ES_AUTOHSCROLL
-    RTEXT           "Description:",IDC_STATIC,1,262,50,8,SS_CENTERIMAGE
-    EDITTEXT        IDC_EDITDESCRIPTION,55,260,230,13,ES_AUTOHSCROLL
-    RTEXT           "Link:",IDC_STATIC,4,284,47,8,SS_CENTERIMAGE
-    COMBOBOX        IDC_CONFIGLINK,55,282,168,150,CBS_DROPDOWN | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
-    CONTROL         "Ignore link",IDC_CONFIGNOLINK,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,228,283,58,12
-    EDITTEXT        IDC_EDITPATH,289,238,49,15,ES_AUTOHSCROLL | WS_DISABLED
-    CONTROL         "Autoload",IDC_CONFIGAUTO,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,343,240,51,12
-    GROUPBOX        "Additional Information",IDC_STATIC,289,256,105,38,BS_LEFT
-    PUSHBUTTON      "View",IDC_VIEWINFO,297,272,41,15
-    PUSHBUTTON      "Set",IDC_SETINFO,348,272,41,15
+    CONTROL         "",IDC_CONFIGTREE,"SysTreeView32",TVS_HASLINES | TVS_DISABLEDRAGDROP | TVS_SHOWSELALWAYS | TVS_TRACKSELECT | WS_BORDER | WS_HSCROLL | WS_TABSTOP,1,2,393,236,WS_EX_CLIENTEDGE
+    RTEXT           "Search:",IDC_STATIC,7,245,44,8,SS_CENTERIMAGE
+    EDITTEXT        IDC_CONFIGSEARCH,55,243,90,13,ES_AUTOHSCROLL
+    PUSHBUTTON      "X",IDC_CONFIGSEARCHCLEAR,149,243,15,14
+    RTEXT           "Filter:",IDC_STATIC,172,245,39,8,SS_CENTERIMAGE
+    COMBOBOX        IDC_CONFIGFOLDER,216,243,177,150,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    RTEXT           "Name:",IDC_STATIC,4,265,47,8,SS_CENTERIMAGE
+    COMBOBOX        IDC_EDITNAME,55,264,175,75,CBS_DROPDOWN | CBS_AUTOHSCROLL | WS_VSCROLL | WS_TABSTOP
+    EDITTEXT        IDC_EDITPATH,236,263,49,15,ES_AUTOHSCROLL | WS_DISABLED
+    RTEXT           "Description:",IDC_STATIC,1,286,50,8,SS_CENTERIMAGE
+    EDITTEXT        IDC_EDITDESCRIPTION,55,284,230,13,ES_AUTOHSCROLL
+    GROUPBOX        "Additional Information",IDC_STATIC,289,260,105,38,BS_LEFT
+    PUSHBUTTON      "View",IDC_VIEWINFO,297,276,41,15
+    PUSHBUTTON      "Set",IDC_SETINFO,348,276,41,15
     PUSHBUTTON      "Load",IDC_QUICKLOAD,1,301,60,15
     PUSHBUTTON      "Save",IDC_QUICKSAVE,65,301,60,15
     PUSHBUTTON      "Load From...",IDC_LOAD,162,301,60,15
@@ -615,7 +617,6 @@ BEGIN
     CONTROL         "Resizeable GUI",IDC_GUI_RESIZE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,273,211,114,11
     CONTROL         "Fullscreen GUI",IDC_GUI_FULLSCREEN,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,273,224,114,11
     GROUPBOX        "State Files",IDC_STATIC,1,242,393,38
-    EDITTEXT        IDC_STATENAME,8,257,231,13,ES_AUTOHSCROLL | ES_READONLY | NOT WS_TABSTOP
     CONTROL         "",IDC_STATECLEAR,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,244,261,9,10
     PUSHBUTTON      "Load state...",IDC_DOLOADSTATE,257,257,65,14
     PUSHBUTTON      "Save state...",IDC_DOSAVESTATE,325,257,65,14
@@ -624,6 +625,7 @@ BEGIN
     COMBOBOX        IDC_KBLED2,97,295,64,65,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
     COMBOBOX        IDC_KBLED3,184,295,64,65,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
     CONTROL         "USB mode",IDC_KBLED_USB,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,264,296,64,11
+    COMBOBOX        IDC_STATENAME,5,258,232,75,CBS_DROPDOWN | CBS_AUTOHSCROLL | WS_VSCROLL | WS_TABSTOP
 END
 
 IDD_HARDFILE DIALOGEX 0, 0, 397, 290
@@ -703,16 +705,24 @@ BEGIN
     PUSHBUTTON      "Eject",IDC_FS_SELECT_EJECT,258,90,62,15
 END
 
-IDD_SETINFO DIALOGEX 0, 0, 396, 85
+IDD_SETINFO DIALOGEX 0, 0, 397, 132
 STYLE DS_LOCALEDIT | DS_SETFONT | DS_MODALFRAME | DS_SETFOREGROUND | DS_3DLOOK | DS_CENTER | DS_CENTERMOUSE | WS_POPUP | WS_VISIBLE | WS_CAPTION | WS_SYSMENU
 CAPTION "Additional Information Settings"
 FONT 8, "MS Sans Serif", 0, 0, 0x0
 BEGIN
-    RTEXT           "Path:",-1,5,20,36,15,SS_CENTERIMAGE
-    EDITTEXT        IDC_PATH_NAME,46,20,324,15,ES_AUTOHSCROLL
-    PUSHBUTTON      "...",IDC_SELECTOR,376,20,10,15
-    PUSHBUTTON      "OK",IDOK,146,57,48,15
-    PUSHBUTTON      "Cancel",IDCANCEL,201,57,48,15
+    RTEXT           "Path:",IDC_STATIC,5,15,36,15,SS_CENTERIMAGE
+    EDITTEXT        IDC_PATH_NAME,46,15,324,15,ES_AUTOHSCROLL
+    PUSHBUTTON      "...",IDC_SELECTOR,376,15,10,15
+    RTEXT           "Link:",IDC_STATIC,6,37,33,8,SS_CENTERIMAGE
+    COMBOBOX        IDC_CONFIGLINK,46,35,250,150,CBS_DROPDOWN | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
+    RTEXT           "Category:",IDC_STATIC,6,58,33,8,SS_CENTERIMAGE
+    EDITTEXT        IDC_CONFIGCATEGORY,46,54,249,15,ES_AUTOHSCROLL
+    RTEXT           "Tags:",IDC_STATIC,6,76,33,8,SS_CENTERIMAGE
+    EDITTEXT        IDC_CONFIGTAGS,46,74,249,15,ES_AUTOHSCROLL
+    CONTROL         "Ignore link",IDC_CONFIGNOLINK,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,305,37,58,12
+    CONTROL         "Autoload",IDC_CONFIGAUTO,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,305,56,51,12
+    PUSHBUTTON      "OK",IDOK,146,102,48,15
+    PUSHBUTTON      "Cancel",IDCANCEL,201,102,48,15
 END
 
 IDD_CHIPSET DIALOGEX 0, 0, 396, 287
@@ -741,9 +751,9 @@ BEGIN
     GROUPBOX        "Options",IDC_STATIC,221,0,173,137
     CONTROL         "Keyboard connected",IDC_KEYBOARD_CONNECTED,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,234,15,150,10
     CONTROL         "Immediate Blitter [] Faster but less compatible blitter emulation.",IDC_BLITIMM,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,234,47,150,10
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,234,42,150,10
     CONTROL         "Wait for Blitter [] Compatibility hack for programs that don't wait for the blitter correctly, causing graphics corruption if CPU is too fast.",IDC_BLITWAIT,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,234,60,150,10
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,234,55,150,10
     LTEXT           "Monitor:",IDC_STATIC,240,119,68,15,SS_CENTERIMAGE,WS_EX_RIGHT
     COMBOBOX        IDC_MONITOREMU,237,103,147,65,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
     GROUPBOX        "Collision Level",IDC_STATIC,1,141,393,48
@@ -767,6 +777,7 @@ BEGIN
     CONTROL         "Keep aspect ratio",IDC_GENLOCK_KEEP_ASPECT,"Button",BS_AUTOCHECKBOX | BS_LEFT | WS_GROUP | WS_TABSTOP,13,242,214,10
     COMBOBOX        IDC_MONITOREMU_MON,319,121,65,65,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
     LTEXT           "Video port display hardware:",IDC_STATIC,241,85,117,15,SS_CENTERIMAGE
+    CONTROL         "Subpixel display emulation",IDC_SUBPIXEL,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,234,28,150,10
 END
 
 IDD_CHIPSET2 DIALOGEX 0, 0, 396, 317
@@ -1375,8 +1386,8 @@ END
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 4,0,0,0
- PRODUCTVERSION 4,0,0,0
+ FILEVERSION 4,1,0,0
+ PRODUCTVERSION 4,1,0,0
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -1392,12 +1403,12 @@ BEGIN
         BLOCK "040904b0"
         BEGIN
             VALUE "FileDescription", "WinUAE"
-            VALUE "FileVersion", "4.0.0.0"
+            VALUE "FileVersion", "4.1.0.0"
             VALUE "InternalName", "WinUAE"
             VALUE "LegalCopyright", "© 1996-2018 under the GNU Public License (GPL)"
             VALUE "OriginalFilename", "WinUAE.exe"
             VALUE "ProductName", "WinUAE"
-            VALUE "ProductVersion", "4.0.0.0"
+            VALUE "ProductVersion", "4.1.0.0"
         END
     END
     BLOCK "VarFileInfo"
@@ -1494,7 +1505,6 @@ BEGIN
     END
 END
 
-
 /////////////////////////////////////////////////////////////////////////////
 //
 // DESIGNINFO
@@ -1578,6 +1588,7 @@ BEGIN
 
     IDD_SETINFO, DIALOG
     BEGIN
+        RIGHTMARGIN, 396
     END
 
     IDD_CHIPSET, DIALOG
@@ -1865,7 +1876,7 @@ BEGIN
     IDS_MUSTSELECTCONFIGFORDELETE 
                             "You must select a configuration or enter a name before selecting Delete...\n"
     IDS_DELETECONFIGCONFIRMATION 
-                            "Are you sure you want to Delete this configuration?\n"
+                            "Are you sure you want to Delete configuration '%s'?\n"
     IDS_DELETECONFIGTITLE   "Confirm Delete"
     IDS_MUSTSELECTPATH      "You must select a path!"
     IDS_SETTINGSERROR       "Settings error"
@@ -1935,7 +1946,7 @@ BEGIN
     IDS_SOUND_4CHANNEL      "4 Channels"
     IDS_HF_FS_CUSTOM        "Custom"
     IDS_SELECTFS            "Select file system handler (FFS, PFS, SFS, etc.)"
-    IDS_KEYJOY              "Keyboard Layout A (Numeric keypad, 0 and 5 = Fire)\nKeyboard Layout B (Cursor keys, Right CTRL and ALT = Fire)\nKeyboard Layout C (W=Up S=Down A=Left D=Right, Left ALT = Fire)"
+    IDS_KEYJOY              "Keyboard Layout A (Numeric keypad, 0 and 5 = Fire, Decimal/DEL = 2nd Fire)\nKeyboard Layout B (Cursor keys, Right CTRL and ALT = Fire, Right SHIFT = 2nd Fire)\nKeyboard Layout C (W=Up S=Down A=Left D=Right, Left ALT = Fire, Left SHIFT = 2nd Fire)"
     IDS_STATEFILE_UNCOMPRESSED "Uncompressed"
     IDS_STATEFILE_RAMDUMP   "RAM dump"
     IDS_STATEFILE_WAVE      "Wave audio dump"
@@ -2106,7 +2117,7 @@ END
 
 STRINGTABLE
 BEGIN
-    IDS_MISCLISTITEMS4      "Windows shutdown/logoff notification\nWarn when attempting to close window\nPower led dims when audio filter is disabled\n"
+    IDS_MISCLISTITEMS4      "Windows shutdown/logoff notification\nWarn when attempting to close window\nPower led dims when audio filter is disabled\nAutomatically capture mouse when window is activated\n"
     IDS_SHUTDOWN_NOTIFICATION "Emulation session active"
     IDS_QUIT_WARNING        "Are you sure you want to quit WinUAE?"
     IDS_UNMAPPED_ADDRESS    "Floating\nAll zeros\nAll ones\n"
@@ -2116,7 +2127,7 @@ END
 STRINGTABLE
 BEGIN
     IDS_FILTER_PAL_EXTRA    "Brightness\nContrast\nSaturation\nGamma\nScanlines\nBlurriness\nNoise\n"
-    IDS_FILTER_3D_EXTRA     "Point/Bilinear\nScanline opacity\nScanline level\n"
+    IDS_FILTER_3D_EXTRA     "Point/Bilinear\nScanline opacity\nScanline level\nScanline offset\n"
     IDS_ALWAYS_ON           "Always on"
     IDS_DISPLAY_ATTRIBUTES  "Brightness\nContrast\nGamma\nGamma [R]\nGamma [G]\nGamma [B]\nDark palette fix"
     IDS_NUMSG_NO_PPC        "PPC CPU was started but PPC CPU emulation core plugin was not found. Download available from http://www.winuae.net/"
@@ -2124,7 +2135,7 @@ BEGIN
                             "PPC native OS booted with incompatible UAE boot ROM enabled.\nSelect ROM panel ""New UAE (128k, ROM, Indirect)"" option\nor disable all UAE expansions.\n"
     IDS_AUTOSCALE_OVERSCAN_BLANK "Overscan blanking"
     IDS_NUMSG_NOMEMORY      "Out of memory or too much Z3 autoconfig space configured.\nIf 64-bit, make sure RTG board is first in board list."
-    IDS_EXPANSION_CATEGORY  "Built-in expansions\nSCSI controllers\nIDE controllers\nSASI controllers\nCustom controllers\nPCI bridgeboards\nx86 bridgeboards\nGraphics boards\nSound cards\nNetwork adapters\nDisk controllers"
+    IDS_EXPANSION_CATEGORY  "Built-in expansions\nSCSI controllers\nIDE controllers\nSASI controllers\nCustom controllers\nPCI bridgeboards\nx86 Bridgeboards\nGraphics boards\nSound cards\nNetwork adapters\nDisk controllers\nx86 bridgeboard expansions"
     IDS_WINUAETITLE_PAUSED  "[Paused]"
     IDS_MOUSE_UNTRAP_MODE   "None (Alt-Tab)\nMiddle button\nMagic mouse\nBoth\n"
     IDS_TABLET_MODE         "-\nTablet emulation\n"

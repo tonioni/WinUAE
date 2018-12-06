@@ -1840,16 +1840,37 @@ void rp_input_change (int num)
 }
 void rp_disk_image_change (int num, const TCHAR *name, bool writeprotected)
 {
-	rp_device_change (RP_DEVICECATEGORY_FLOPPY, num, 0, writeprotected == false, name);
+	if (!cando())
+		return;
+	TCHAR tmp[MAX_DPATH], *p = NULL;
+	if (name && name[0]) {
+		cfgfile_resolve_path_out_load(name, tmp, MAX_DPATH, PATH_FLOPPY);
+		p = tmp;
+	}
+	rp_device_change (RP_DEVICECATEGORY_FLOPPY, num, 0, writeprotected == false, p);
 	rp_device_writeprotect (RP_DEVICECATEGORY_FLOPPY, num, writeprotected);
 }
 void rp_harddrive_image_change (int num, bool readonly, const TCHAR *name)
 {
-	rp_device_change (RP_DEVICECATEGORY_HD, num, 0, readonly, name);
+	if (!cando())
+		return;
+	TCHAR tmp[MAX_DPATH], *p = NULL;
+	if (name && name[0]) {
+		cfgfile_resolve_path_out_load(name, tmp, MAX_DPATH, PATH_HDF);
+		p = tmp;
+	}
+	rp_device_change (RP_DEVICECATEGORY_HD, num, 0, readonly, p);
 }
 void rp_cd_image_change (int num, const TCHAR *name)
 {
-	rp_device_change (RP_DEVICECATEGORY_CD, num, 0, true, name);
+	if (!cando())
+		return;
+	TCHAR tmp[MAX_DPATH], *p = NULL;
+	if (name && name[0]) {
+		cfgfile_resolve_path_out_load(name, tmp, MAX_DPATH, PATH_CD);
+		p = tmp;
+	}
+	rp_device_change (RP_DEVICECATEGORY_CD, num, 0, true, p);
 }
 
 void rp_floppy_device_enable (int num, bool enabled)
