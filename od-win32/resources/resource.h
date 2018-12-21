@@ -611,6 +611,7 @@
 #define IDC_GUI_LISTFONT                1290
 #define IDC_INFO2                       1290
 #define IDC_INFO3                       1291
+#define IDC_GUI_LVDEFAULT               1291
 #define IDC_PORT0_JOYSC                 1302
 #define IDC_PORT0_KBDA                  1303
 #define IDC_PORT0_KBDB                  1304

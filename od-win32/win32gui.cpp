@@ -4282,6 +4282,14 @@ static void getqualifiername (TCHAR *p, uae_u64 mask)
 	}
 }
 
+static int input_get_lv_index(HWND list, int index)
+{
+	LVFINDINFO plvfi = { 0 };
+	plvfi.flags = LVFI_PARAM;
+	plvfi.lParam = index;
+	return ListView_FindItem(list, -1, &plvfi);
+}
+
 static void set_lventry_input (HWND list, int index)
 {
 	int i, sub, port;
@@ -4289,6 +4297,7 @@ static void set_lventry_input (HWND list, int index)
 	TCHAR custom[MAX_DPATH];
 	TCHAR af[32], toggle[32], invert[32];
 	uae_u64 flags;
+	int itemindex = input_get_lv_index(list, index);
 
 	inputdevice_get_mapping (input_selected_device, index, &flags, &port, name, custom, input_selected_sub_num);
 	if (flags & IDEV_MAPPED_AUTOFIRE_SET) {
@@ -4332,10 +4341,10 @@ static void set_lventry_input (HWND list, int index)
 		_tcscat (name, _T(")"));
 	}
 	
-	ListView_SetItemText (list, index, 1, custom[0] ? custom : name);
-	ListView_SetItemText (list, index, 2, af);
-	ListView_SetItemText (list, index, 3, toggle);
-	ListView_SetItemText (list, index, 4, invert);
+	ListView_SetItemText (list, itemindex, 1, custom[0] ? custom : name);
+	ListView_SetItemText (list, itemindex, 2, af);
+	ListView_SetItemText (list, itemindex, 3, toggle);
+	ListView_SetItemText (list, itemindex, 4, invert);
 	_tcscpy (name, _T("-"));	
 	if (flags & IDEV_MAPPED_QUALIFIER_MASK) {
 		TCHAR *p;
@@ -4350,14 +4359,14 @@ static void set_lventry_input (HWND list, int index)
 			}
 		}
 	}
-	ListView_SetItemText (list, index, 5, name);
+	ListView_SetItemText (list, itemindex, 5, name);
 	sub = 0;
 	for (i = 0; i < MAX_INPUT_SUB_EVENT; i++) {
 		if (inputdevice_get_mapping (input_selected_device, index, &flags, NULL, name, custom, i) || custom[0])
 			sub++;
 	}
 	_stprintf (name, _T("%d"), sub);
-	ListView_SetItemText (list, index, 6, name);
+	ListView_SetItemText (list, itemindex, 6, name);
 }
 
 static void update_listview_input (HWND hDlg)
@@ -4365,8 +4374,9 @@ static void update_listview_input (HWND hDlg)
 	int i;
 	if (!input_total_devices)
 		return;
-	for (i = 0; i < inputdevice_get_widget_num (input_selected_device); i++)
-		set_lventry_input (GetDlgItem (hDlg, IDC_INPUTLIST), i);
+	for (i = 0; i < inputdevice_get_widget_num(input_selected_device); i++) {
+		set_lventry_input(GetDlgItem(hDlg, IDC_INPUTLIST), i);
+	}
 }
 
 static int inputmap_port = -1, inputmap_port_remap = -1;
@@ -4629,8 +4639,232 @@ static void harddisktype (TCHAR *s, struct uaedev_config_info *ci)
 	}
 }
 
+#define MAX_LISTVIEW_COLUMNS 16
+static int listview_id;
+static int listview_type;
+static int listview_columns;
+static int listview_sortdir, listview_sortcolumn;
+static int listview_column_widths[MAX_LISTVIEW_COLUMNS];
 
-void InitializeListView (HWND hDlg)
+struct lvsort
+{
+	TCHAR **names;
+	int max;
+	int sortcolumn;
+	int sortdir;
+};
+
+static int CALLBACK lvsortcompare(LPARAM lParam1, LPARAM lParam2, LPARAM lParamSort)
+{
+	struct lvsort *lvs = (struct lvsort*)lParamSort;
+	if (lParam1 >= lvs->max || lParam2 >= lvs->max)
+		return -1;
+	TCHAR *s1, *s2;
+	if (lvs->sortdir) {
+		s2 = lvs->names[lParam1];
+		s1 = lvs->names[lParam2];
+	} else {
+		s1 = lvs->names[lParam1];
+		s2 = lvs->names[lParam2];
+
+	}
+	return _tcsicmp(s1, s2);
+}
+
+static void SortListView(HWND list, int sortcolumn, int dir)
+{
+	int cnt;
+	struct lvsort lvs;
+	TCHAR **names;
+	TCHAR buf[256];
+
+	cnt = ListView_GetItemCount(list);
+	names = xmalloc(TCHAR*, cnt);
+	for (int i = 0; i < cnt; i++) {
+		LVITEM item = { 0 };
+		item.iItem = i;
+		item.iSubItem = sortcolumn;
+		item.mask = LVIF_TEXT;
+		item.pszText = buf;
+		item.cchTextMax = sizeof(buf) / sizeof(TCHAR);
+		ListView_GetItem(list, &item);
+		names[i] = my_strdup(item.pszText);
+	}
+	lvs.sortcolumn = sortcolumn;
+	lvs.max = cnt;
+	lvs.sortdir = dir;
+	lvs.names = names;
+	ListView_SortItemsEx(list, lvsortcompare, &lvs);
+	for (int i = 0; i < cnt; i++) {
+		xfree(names[i]);
+	}
+	xfree(names);
+	ListView_SetSelectedColumn(list, sortcolumn);
+}
+
+static void SaveListView(HWND hDlg, bool force)
+{
+	HWND list;
+	TCHAR name[200];
+	TCHAR data[256];
+	int columns[100];
+	int sortcolumn;
+	UAEREG *fkey;
+
+	if (listview_id <= 0)
+		return;
+	list = GetDlgItem(hDlg, listview_id);
+	if (!list)
+		return;
+	fkey = regcreatetree(NULL, _T("ListViews"));
+	if (!fkey)
+		return;
+	_stprintf(name, _T("LV_%d"), listview_type);
+	if (!force) {
+		bool modified = false;
+		for (int i = 0; i < listview_num_columns; i++) {
+			int w = ListView_GetColumnWidth(list, i);
+			if (listview_column_widths[i] != w) {
+				modified = true;
+			}
+		}
+		if (!regexists(fkey, name) && !modified)
+			return;
+	}
+	_tcscpy(data, _T("1,"));
+	ListView_GetColumnOrderArray(list, listview_columns, columns);
+	sortcolumn = ListView_GetSelectedColumn(list);
+	for (int i = 0; i < listview_columns; i++) {
+		int w = ListView_GetColumnWidth(list, i);
+		if (i > 0)
+			_tcscat(data, _T(","));
+		_stprintf(data + _tcslen(data), _T("%d:%d"), columns[i], w);
+		if (sortcolumn == columns[i]) {
+			_tcscat(data, listview_sortdir ? _T(":D") : _T(":A"));
+		}
+	}
+	regsetstr(fkey, name, data);
+
+	regclosetree(fkey);
+}
+
+static bool LoadListView(HWND list)
+{
+	TCHAR name[200];
+	TCHAR data[256];
+	int columns[100], columnorders[100];
+	int size;
+	UAEREG *fkey;
+	bool err = true;
+	int sortindex = 0;
+
+	listview_sortcolumn = -1;
+
+	fkey = regcreatetree(NULL, _T("ListViews"));
+	if (!fkey)
+		return false;
+
+	_stprintf(name, _T("LV_%d"), listview_type);
+	size = sizeof(data) / sizeof(TCHAR) - 1;
+	if (regquerystr(fkey, name, data, &size)) {
+		_tcscat(data, _T(","));
+		TCHAR *p1 = data;
+		int idx = -1;
+		for (;;) {
+			TCHAR *p2 = _tcschr(p1, ',');
+			if (!p2) {
+				if (idx == listview_columns)
+					err = false;
+				break;
+			}
+			*p2++ = 0;
+			int v = _tstol(p1);
+			if (idx < 0) {
+				if (v != 1) {
+					break;
+				}
+			} else {
+				TCHAR *p3 = _tcschr(p1, ':');
+				if (!p3)
+					break;
+				*p3++ = 0;
+				if (v < 0 || v >= listview_columns)
+					break;
+				int w = _tstol(p3);
+				if (w < 1 || w >= 4096)
+					break;
+				columnorders[idx] = v;
+				columns[idx] = w;
+				p3 = _tcschr(p3, ':');
+				if (p3) {
+					p3++;
+					if (*p3 == 'A') {
+						sortindex = 1 + v;
+					} else if (*p3 == 'D') {
+						sortindex = -1 - v;
+					}
+				}
+			}
+			idx++;
+			if (idx > listview_columns) {
+				break;
+			}
+			p1 = p2;
+		}
+		if (!err) {
+			for (int i = 0; i < listview_columns; i++) {
+				ListView_SetColumnWidth(list, i, columns[i]);
+			}
+			if (columnorders) {
+				ListView_SetColumnOrderArray(list, listview_columns, columnorders);
+			}
+			if (sortindex && listview_sortdir >= 0) {
+				SortListView(list, abs(sortindex) - 1, sortindex < 0);
+				listview_sortdir = sortindex < 0;
+			}
+		}
+	}
+	regclosetree(fkey);
+	return !err;
+}
+
+static void ColumnClickListView(HWND hDlg, NM_LISTVIEW *lv)
+{
+	LPNMLISTVIEW pnmv = (LPNMLISTVIEW)lv;
+	HWND list = pnmv->hdr.hwndFrom;
+	int column = pnmv->iSubItem;
+	int sortcolumn = ListView_GetSelectedColumn(list);
+
+	if (sortcolumn < 0 || sortcolumn != listview_sortcolumn || listview_sortdir < 0) {
+		listview_sortdir = 0;
+	} else {
+		listview_sortdir++;
+	}
+	listview_sortcolumn = column;
+	if (listview_sortdir > 1) {
+		listview_sortdir = -1;
+		ListView_SetSelectedColumn(list, -1);
+		InitializeListView(hDlg);
+	} else {
+		SortListView(list, column, listview_sortdir);
+		SaveListView(hDlg, true);
+	}
+}
+
+static void ResetListViews(void)
+{
+	UAEREG *fkey = regcreatetree(NULL, _T("ListViews"));
+	if (!fkey)
+		return;
+	for (int i = 0; i < LV_MAX; i++) {
+		TCHAR name[256];
+		_stprintf(name, _T("LV_%d"), i);
+		regdelete(fkey, name);
+	}
+	regclosetree(fkey);
+}
+
+static void InitializeListView (HWND hDlg)
 {
 	int lv_type;
 	HWND list;
@@ -4660,6 +4894,7 @@ void InitializeListView (HWND hDlg)
 	}
 
 	if (hDlg == pages[BOARD_ID]) {
+		listview_id = IDC_BOARDLIST;
 		listview_num_columns = BOARD_COLUMNS;;
 		lv_type = LV_BOARD;
 		_tcscpy(column_heading[0], _T("Type"));
@@ -4667,10 +4902,10 @@ void InitializeListView (HWND hDlg)
 		_tcscpy(column_heading[2], _T("Start"));
 		_tcscpy(column_heading[3], _T("Size"));
 		_tcscpy(column_heading[4], _T("ID"));
-		list = GetDlgItem(hDlg, IDC_BOARDLIST);
 
 	} else if (hDlg == pages[HARDDISK_ID]) {
 
+		listview_id = IDC_VOLUMELIST;
 		listview_num_columns = HARDDISK_COLUMNS;
 		lv_type = LV_HARDDISK;
 		_tcscpy (column_heading[0], _T("*"));
@@ -4681,10 +4916,10 @@ void InitializeListView (HWND hDlg)
 		WIN32GUI_LoadUIString (IDS_BLOCKSIZE, column_heading[5], MAX_COLUMN_HEADING_WIDTH);
 		WIN32GUI_LoadUIString (IDS_HFDSIZE, column_heading[6], MAX_COLUMN_HEADING_WIDTH);
 		WIN32GUI_LoadUIString (IDS_BOOTPRI, column_heading[7], MAX_COLUMN_HEADING_WIDTH);
-		list = GetDlgItem (hDlg, IDC_VOLUMELIST);
 
 	} else if (hDlg == pages[INPUT_ID]) {
 
+		listview_id = IDC_INPUTLIST;
 		listview_num_columns = INPUT_COLUMNS;
 		lv_type = LV_INPUT;
 		WIN32GUI_LoadUIString (IDS_INPUTHOSTWIDGET, column_heading[0], MAX_COLUMN_HEADING_WIDTH);
@@ -4694,56 +4929,59 @@ void InitializeListView (HWND hDlg)
 		_tcscpy (column_heading[4], _T("Invert"));
 		WIN32GUI_LoadUIString (IDS_INPUTQUALIFIER, column_heading[5], MAX_COLUMN_HEADING_WIDTH);
 		_tcscpy (column_heading[6], _T("#"));
-		list = GetDlgItem (hDlg, IDC_INPUTLIST);
 
 	} else if (hDlg == pages[INPUTMAP_ID]) {
 
+		listview_id = IDC_INPUTMAPLIST;
 		listview_num_columns = INPUTMAP_COLUMNS;
 		lv_type = LV_INPUTMAP;
 		column_heading[0][0] = 0;
-		list = GetDlgItem (hDlg, IDC_INPUTMAPLIST);
 
 	} else if (hDlg == pages[MISC2_ID]) {
 
+		listview_id = IDC_ASSOCIATELIST;
 		listview_num_columns = MISC2_COLUMNS;
 		lv_type = LV_MISC2;
 		_tcscpy (column_heading[0], _T("Extension"));
 		_tcscpy (column_heading[1], _T(""));
-		list = GetDlgItem (hDlg, IDC_ASSOCIATELIST);
 
 	} else if (hDlg == pages[MISC1_ID]) {
 
+		listview_id = IDC_MISCLIST;
 		listview_num_columns = MISC1_COLUMNS;
 		lv_type = LV_MISC1;
 		column_heading[0][0] = 0;
-		list = GetDlgItem (hDlg, IDC_MISCLIST);
 		extraflags = LVS_EX_CHECKBOXES;
 
 	} else if (hDlg == pages[DISK_ID]) {
 
+		listview_id = IDC_DISK;
 		listview_num_columns = DISK_COLUMNS;
 		lv_type = LV_DISK;
 		_tcscpy (column_heading[0], _T("#"));
 		WIN32GUI_LoadUIString (IDS_DISK_IMAGENAME, column_heading[1], MAX_COLUMN_HEADING_WIDTH);
 		WIN32GUI_LoadUIString (IDS_DISK_DRIVENAME, column_heading[2], MAX_COLUMN_HEADING_WIDTH);
-		list = GetDlgItem (hDlg, IDC_DISK);
 
 	} else {
 		// CD dialog
+		listview_id = IDC_CDLIST;
 		listview_num_columns = CD_COLUMNS;
 		lv_type = LV_CD;
 		_tcscpy (column_heading[0], _T("*"));
 		WIN32GUI_LoadUIString (IDS_DEVICE, column_heading[1], MAX_COLUMN_HEADING_WIDTH);
 		WIN32GUI_LoadUIString (IDS_PATH, column_heading[2], MAX_COLUMN_HEADING_WIDTH);
-		list = GetDlgItem (hDlg, IDC_CDLIST);
 
 	}
+
+	list = GetDlgItem(hDlg, listview_id);
+	listview_type = lv_type;
+	listview_columns = listview_num_columns;
 
 	SetWindowRedraw(list, FALSE);
 
 	scalaresource_listview_font_info(&listpadding);
 	listpadding *= 2;
-	int flags = LVS_EX_DOUBLEBUFFER | extraflags;
+	int flags = LVS_EX_DOUBLEBUFFER | extraflags | LVS_EX_HEADERDRAGDROP;
 	if (lv_type != LV_MISC1)
 		flags |= LVS_EX_ONECLICKACTIVATE | LVS_EX_UNDERLINEHOT | LVS_EX_FULLROWSELECT;
 	ListView_SetExtendedListViewStyleEx (list, flags , flags);
@@ -4875,7 +5113,7 @@ void InitializeListView (HWND hDlg)
 			inputdevice_get_widget_type (input_selected_device, i, name, true);
 			lvstruct.mask     = LVIF_TEXT | LVIF_PARAM;
 			lvstruct.pszText  = name;
-			lvstruct.lParam   = 0;
+			lvstruct.lParam   = i;
 			lvstruct.iItem    = i;
 			lvstruct.iSubItem = 0;
 			result = ListView_InsertItem (list, &lvstruct);
@@ -5204,9 +5442,10 @@ void InitializeListView (HWND hDlg)
 	}
 
 	if (result != -1) {
-		if (GetWindowRect (list, &rect)) {
-			ScreenToClient (hDlg, (LPPOINT)&rect);
-			ScreenToClient (hDlg, (LPPOINT)&rect.right);
+
+		if (GetWindowRect(list, &rect)) {
+			ScreenToClient(hDlg, (LPPOINT)&rect);
+			ScreenToClient(hDlg, (LPPOINT)&rect.right);
 			if (listview_num_columns == 2) {
 				if ((temp = rect.right - rect.left - listview_column_width[0] - 30) > listview_column_width[1])
 					listview_column_width[1] = temp;
@@ -5214,12 +5453,20 @@ void InitializeListView (HWND hDlg)
 				listview_column_width[0] = rect.right - rect.left - 30;
 			}
 		}
-		// Adjust our column widths so that we can see the contents...
-		for(i = 0; i < listview_num_columns; i++) {
-			int w = ListView_GetColumnWidth (list, i);
-			if (w < listview_column_width[i])
-				ListView_SetColumnWidth (list, i, listview_column_width[i]);
+
+		for (i = 0; i < listview_num_columns; i++) {
+			listview_column_widths[i] = listview_column_width[i];
 		}
+
+		if (!LoadListView(list)) {
+			// Adjust our column widths so that we can see the contents...
+			for (i = 0; i < listview_num_columns; i++) {
+				int w = ListView_GetColumnWidth(list, i);
+				if (w < listview_column_width[i])
+					ListView_SetColumnWidth(list, i, listview_column_width[i]);
+			}
+		}
+
 		// Redraw the items in the list...
 		items = ListView_GetItemCount (list);
 		ListView_RedrawItems (list, 0, items);
@@ -5237,18 +5484,26 @@ void InitializeListView (HWND hDlg)
 	RedrawWindow(list, NULL, NULL, RDW_ERASE | RDW_FRAME | RDW_INVALIDATE | RDW_ALLCHILDREN);
 }
 
-static int listview_find_selected (HWND list)
+static int listview_find_selected(HWND list, bool paramIndex)
 {
 	int i, items;
 	items = ListView_GetItemCount (list);
 	for (i = 0; i < items; i++) {
-		if (ListView_GetItemState (list, i, LVIS_SELECTED) == LVIS_SELECTED)
+		if (ListView_GetItemState(list, i, LVIS_SELECTED) == LVIS_SELECTED) {
+			if (paramIndex) {
+				LVITEM pitem = { 0 };
+				pitem.mask = LVIF_PARAM;
+				pitem.iItem = i;
+				ListView_GetItem(list, &pitem);
+				return pitem.lParam;
+			}
 			return i;
+		}
 	}
 	return -1;
 }
 
-static int listview_entry_from_click (HWND list, int *column)
+static int listview_entry_from_click (HWND list, int *column, bool paramIndex)
 {
 	POINT point;
 	POINTS p;
@@ -5272,19 +5527,26 @@ static int listview_entry_from_click (HWND list, int *column)
 		if (ListView_GetItemRect (list, entry, &rect, LVIR_BOUNDS)) {
 			if (PtInRect (&rect, point)) {
 				POINT ppt;
-				int i, x;
+				int x;
 				UINT flag = LVIS_SELECTED | LVIS_FOCUSED;
 
 				ListView_GetItemPosition (list, entry, &ppt);
 				x = ppt.x;
 				ListView_SetItemState (list, entry, flag, flag);
-				for (i = 0; i < listview_num_columns && column; i++) {
+				for (int i = 0; i < listview_num_columns && column; i++) {
 					int cw = ListView_GetColumnWidth (list, i);
 					if (x < point.x && x + cw > point.x) {
 						*column = i;
 						break;
 					}
 					x += cw;
+				}
+				if (paramIndex) {
+					LVITEM pitem = { 0 };
+					pitem.mask = LVIF_PARAM;
+					pitem.iItem = entry;
+					ListView_GetItem(list, &pitem);
+					return pitem.lParam;
 				}
 				return entry;
 			}
@@ -10971,7 +11233,7 @@ static INT_PTR CALLBACK BoardsDlgProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 					int column;
 					NM_LISTVIEW *nmlistview = (NM_LISTVIEW *)lParam;
 					HWND list = nmlistview->hdr.hwndFrom;
-					int entry = listview_entry_from_click(list, &column);
+					int entry = listview_entry_from_click(list, &column, false);
 					if (entry >= 0) {
 						selected = entry;
 						BoardsEnable(hDlg, selected);
@@ -11805,7 +12067,7 @@ static INT_PTR MiscDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 			NM_LISTVIEW *nmlistview = (NM_LISTVIEW *)lParam;
 			list = nmlistview->hdr.hwndFrom;
 			if (nmlistview->hdr.code == NM_DBLCLK) {
-				entry = listview_entry_from_click (list, &col);
+				entry = listview_entry_from_click (list, &col, false);
 				exts[entry].enabled = exts[entry].enabled ? 0 : 1;
 				associate_file_extensions ();
 				InitializeListView (hDlg);
@@ -11910,6 +12172,9 @@ static INT_PTR MiscDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 
 		switch(wParam)
 		{
+		case IDC_GUI_LVDEFAULT:
+			ResetListViews();
+			break;
 		case IDC_GUI_DEFAULT:
 			scaleresource_setdefaults ();
 			v = SendDlgItemMessage (hDlg, IDC_GUI_SIZE, CB_GETCURSEL, 0, 0L);
@@ -14526,7 +14791,7 @@ static void new_harddrive (HWND hDlg, int entry)
 
 static void harddisk_remove (HWND hDlg)
 {
-	int entry = listview_find_selected (GetDlgItem (hDlg, IDC_VOLUMELIST));
+	int entry = listview_find_selected (GetDlgItem (hDlg, IDC_VOLUMELIST), false);
 	if (entry < 0)
 		return;
 	kill_filesys_unitconfig (&workprefs, entry);
@@ -14534,7 +14799,7 @@ static void harddisk_remove (HWND hDlg)
 
 static void harddisk_move (HWND hDlg, int up)
 {
-	int entry = listview_find_selected (GetDlgItem (hDlg, IDC_VOLUMELIST));
+	int entry = listview_find_selected (GetDlgItem (hDlg, IDC_VOLUMELIST), false);
 	if (entry < 0)
 		return;
 	move_filesys_unitconfig (&workprefs, entry, up ? entry - 1 : entry + 1);
@@ -14542,7 +14807,7 @@ static void harddisk_move (HWND hDlg, int up)
 
 static void harddisk_edit (HWND hDlg)
 {
-	int entry = listview_find_selected (GetDlgItem (hDlg, IDC_VOLUMELIST));
+	int entry = listview_find_selected (GetDlgItem (hDlg, IDC_VOLUMELIST), false);
 	int type;
 	struct uaedev_config_data *uci;
 	struct mountedinfo mi;
@@ -14747,7 +15012,7 @@ static void harddiskdlg_volume_notify (HWND hDlg, NM_LISTVIEW *nmlistview)
 		dblclick = 1;
 		/* fall through */
 	case NM_CLICK:
-		entry = listview_entry_from_click (list, 0);
+		entry = listview_entry_from_click (list, 0, false);
 		if (entry >= 0)
 		{
 			if(dblclick)
@@ -14757,6 +15022,9 @@ static void harddiskdlg_volume_notify (HWND hDlg, NM_LISTVIEW *nmlistview)
 			// Hilite the current selected item
 			ListView_SetItemState (cachedlist, clicked_entry, LVIS_SELECTED, LVIS_SELECTED);
 		}
+		break;
+	case LVN_COLUMNCLICK:
+		ColumnClickListView(hDlg, nmlistview);
 		break;
 	}
 }
@@ -15923,7 +16191,7 @@ static INT_PTR CALLBACK SwapperDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPAR
 				if (nmlistview->hdr.code == NM_RCLICK || nmlistview->hdr.code == NM_RDBLCLK)
 					button = 2;
 			case NM_CLICK:
-				entry = listview_entry_from_click (list, &col);
+				entry = listview_entry_from_click (list, &col, false);
 				if (entry >= 0) {
 					if (col == 2) {
 						if (button) {
@@ -17760,7 +18028,7 @@ static INT_PTR CALLBACK RemapSpecialsProc(HWND hDlg, UINT msg, WPARAM wParam, LP
 		case NM_RCLICK:
 		case NM_CLICK:
 		{
-			entry = listview_entry_from_click(list, &column);
+			entry = listview_entry_from_click(list, &column, false);
 			if (entry >= 0 && inputmap_selected >= 0) {
 				if (inputmap_handle(NULL, -1, -1, NULL, NULL, -1, NULL, inputmap_selected,
 					remapcustoms[entry].flags, IDEV_MAPPED_AUTOFIRE_SET | IDEV_MAPPED_TOGGLE | IDEV_MAPPED_INVERTTOGGLE, NULL)) {
@@ -18158,7 +18426,7 @@ static INT_PTR CALLBACK QualifierProc (HWND hDlg, UINT msg, WPARAM wParam, LPARA
 			{
 			case NM_RCLICK:
 			case NM_CLICK:
-				entry = listview_entry_from_click (list, &column);
+				entry = listview_entry_from_click (list, &column, false);
 				if (entry >= 0) {
 					uae_u64 mask = IDEV_MAPPED_QUALIFIER1 << (entry * 2);
 					evt = inputdevice_get_mapping (input_selected_device, input_selected_widget,
@@ -18394,7 +18662,7 @@ static INT_PTR CALLBACK InputDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 				dblclick = 1;
 				/* fall-through */
 			case NM_CLICK:
-				entry = listview_entry_from_click (list, &column);
+				entry = listview_entry_from_click (list, &column, true);
 				if (entry >= 0) {
 					int oldentry = input_selected_widget;
 					input_selected_widget = entry;
@@ -18423,6 +18691,10 @@ static INT_PTR CALLBACK InputDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 					doinputcustom (hDlg, 0);
 				update_listview_input (hDlg);
 				init_inputdlg_2 (hDlg);
+				break;
+			case LVN_COLUMNCLICK:
+				ColumnClickListView(hDlg, nmlistview);
+				break;
 			}
 		}
 	}
@@ -20053,6 +20325,9 @@ static HWND updatePanel (int id, UINT action)
 	int w, h, x , y, i, pw, ph;
 	int fullpanel;
 	struct newresource *tres;
+
+	SaveListView(panelDlg, false);
+	listview_id = 0;
 
 	if (!hDlg)
 		return NULL;
