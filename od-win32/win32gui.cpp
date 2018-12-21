@@ -11387,9 +11387,9 @@ static INT_PTR CALLBACK MemoryDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARA
 					if (fastram_select_ramboard) {
 						TCHAR *endptr;
 						GetDlgItemText(hDlg, IDC_RAM_ADDRESS, tmp, sizeof tmp / sizeof(TCHAR));
-						fastram_select_ramboard->start_address = _tcstol(tmp, &endptr, 16);
+						fastram_select_ramboard->start_address = _tcstoul(tmp, &endptr, 16);
 						GetDlgItemText(hDlg, IDC_RAM_ADDRESS2, tmp, sizeof tmp / sizeof(TCHAR));
-						fastram_select_ramboard->end_address = _tcstol(tmp, &endptr, 16);
+						fastram_select_ramboard->end_address = _tcstoul(tmp, &endptr, 16);
 						setfastram_selectmenu(hDlg, HIWORD(wParam) == EN_KILLFOCUS ? 0 : 3);
 					}
 					break;
