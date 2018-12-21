@@ -2319,6 +2319,9 @@ static LRESULT CALLBACK AmigaWindowProc(HWND hWnd, UINT message, WPARAM wParam, 
 #endif
 	return TRUE;
 
+	case WM_MENUCHAR:
+		return MNC_CLOSE << 16;
+
 	case WM_SYSCOMMAND:
 		switch (wParam & 0xfff0) // Check System Calls
 		{
@@ -2571,6 +2574,7 @@ static LRESULT CALLBACK MainWindowProc (HWND hWnd, UINT message, WPARAM wParam, 
 	case WM_ACTIVATEAPP:
 	case WM_DROPFILES:
 	case WM_ACTIVATE:
+	case WM_MENUCHAR:
 	case WM_SYSCOMMAND:
 	case WM_KEYUP:
 	case WM_SYSKEYUP:
