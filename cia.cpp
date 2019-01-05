@@ -100,6 +100,7 @@ static unsigned int ciaapra, ciaaprb, ciaadra, ciaadrb, ciaasdr, ciaasdr_cnt;
 static unsigned int ciabprb, ciabdra, ciabdrb, ciabsdr, ciabsdr_cnt;
 static int div10;
 static int kbstate, kblostsynccnt;
+static unsigned long kbhandshakestart;
 static uae_u8 kbcode;
 
 static uae_u8 serbits;
@@ -1526,8 +1527,20 @@ static void WriteCIAA (uae_u16 addr, uae_u8 val, uae_u32 *flags)
 			if (m68k_getpc() >= 0xf00000 && m68k_getpc() < 0xf80000)
 				check_keyboard();
 		}
-		if ((val & 0x40) == 0 && (ciaacra & 0x40) != 0) {
+		if ((val & 0x40) != 0 && (ciaacra & 0x40) == 0) {
+			// handshake start
+			if (kblostsynccnt > 0 && currprefs.cs_kbhandshake) {
+				kbhandshakestart = get_cycles();
+			}
+		} else if ((val & 0x40) == 0 && (ciaacra & 0x40) != 0) {
+			// handshake end
 			/* todo: check if low to high or high to low only */
+			if (kblostsynccnt > 0 && currprefs.cs_kbhandshake) {
+				int len = (int)get_cycles() - (int)kbhandshakestart;
+				if (len < currprefs.cs_kbhandshake * CYCLE_UNIT) {
+					write_log(_T("Keyboard handshake pulse length %d < %d (CCKs)\n"), len / CYCLE_UNIT, currprefs.cs_kbhandshake);
+				}
+			}
 			kblostsynccnt = 0;
 #if KB_DEBUG
 			write_log (_T("KB_ACK %02x->%02x %08x\n"), ciaacra, val, M68K_GETPC);
