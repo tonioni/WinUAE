@@ -608,6 +608,10 @@ static struct romdata roms[] = {
 	0x039a14a7, 0x1a710b94, 0xcc1bd217, 0xb0c310af, 0x4b0f6d0a, 0x1125b05a, NULL, NULL },
 	{ _T("AccessX 500 v2.1 (descrambled)"), 2, 1, 2, 1, _T("ACCESSX\0"), 32768, 243, 0, 0, ROMTYPE_ACCESSX, 0, 0, NULL,
 	0x415a5cae, 0x15c8c15f, 0x3700e867, 0xd1dbe2ee, 0xcbb7c7cd, 0x245555fa, NULL, NULL },
+	{ _T("Pacific Peripherals Overdrive v1.5"), 1, 5, 1, 5, _T("OVERDRIVE\0"), 8192, 246, 0, 0, ROMTYPE_OVERDRIVE, 0, 0, NULL,
+	0x086e2716b, 0x075b50cb,0x166e00ac,0x4016ef7f,0x02532e86,0xe73b7711, NULL, NULL },
+	{ _T("Pacific Peripherals Overdrive v2.0"), 2, 0, 2, 0, _T("OVERDRIVE\0"), 8192, 247, 0, 0, ROMTYPE_OVERDRIVE, 0, 0, NULL,
+	0xebe42aa6, 0xdff761c2,0x429d0d26,0x2151d831,0x12746f83,0x3b8d36f0, NULL, NULL },
 
 	{ _T("CyberStorm MK I 68040"), 0, 0, 0, 0, _T("CSMKI\0"), 32768, 95, 0, 0, ROMTYPE_CB_CSMK1, 0, 0, NULL,
 	  0, 0, 0, 0, 0, 0, NULL, _T("cyberstormmk1_040.rom") },

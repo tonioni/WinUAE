@@ -5159,6 +5159,15 @@ const struct expansionromtype expansionroms[] = {
 		{ 0xc1, 1, 0x00, 0x00, 0x07, 0xf4, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 }
 	},
 	{
+		_T("pacificoverdrive"), _T("Overdrive"), _T("Pacific Peripherals/IVS"),
+		NULL, overdrive_init, NULL, overdrive_add_scsi_unit, ROMTYPE_OVERDRIVE, 0, 0, BOARD_AUTOCONFIG_Z2, true,
+		NULL, 0,
+		true, EXPANSIONTYPE_SCSI,
+		0, 0, 0, false, NULL,
+		false, 0, NULL,
+		{ 0xd1, 16, 0x00, 0x00, 0x08, 0x40, 0x00, 0x00, 0x00, 0x00, 0x80, 0x00 }
+	},
+	{
 		_T("fastlane"), _T("Fastlane"), _T("Phase 5"),
 		NULL, ncr_fastlane_autoconfig_init, NULL, fastlane_add_scsi_unit, ROMTYPE_FASTLANE, 0, 0, BOARD_AUTOCONFIG_Z3, false,
 		NULL, 0,

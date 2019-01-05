@@ -179,6 +179,7 @@ extern int decode_cloanto_rom_do (uae_u8 *mem, int size, int real_size);
 #define ROMTYPE_SBISA		0x00100075
 #define ROMTYPE_X86MOUSE	0x00100076
 #define ROMTYPE_ACCESSX		0x00100077
+#define ROMTYPE_OVERDRIVE	0x00100078
 
 #define ROMTYPE_NOT			0x00800000
 #define ROMTYPE_QUAD		0x01000000

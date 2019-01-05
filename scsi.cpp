@@ -74,7 +74,8 @@
 #define OMTI_PROFEX 39
 #define NCR5380_FASTTRAK 40
 #define NCR5380_12GAUGE 41
-#define NCR_LAST 42
+#define NCR5380_OVERDRIVE 42
+#define NCR_LAST 43
 
 extern int log_scsiemu;
 
@@ -1492,6 +1493,22 @@ static void xebec_do_dma(struct soft_scsi *ncr)
 	}
 }
 
+static void overdrive_do_dma(struct soft_scsi *ncr)
+{
+	struct raw_scsi *rs = &ncr->rscsi;
+	while ((rs->bus_phase == SCSI_SIGNAL_PHASE_DATA_OUT || rs->bus_phase == SCSI_SIGNAL_PHASE_DATA_IN) && ncr->dmac_length > 0) {
+		if (rs->bus_phase == SCSI_SIGNAL_PHASE_DATA_IN) {
+			x_put_byte(ncr->dmac_address, ncr5380_bget(ncr, 8));
+			ncr->dmac_address++;
+			ncr->dmac_length--;
+		} else if (rs->bus_phase == SCSI_SIGNAL_PHASE_DATA_OUT) {
+			ncr5380_bput(ncr, 8, x_get_byte(ncr->dmac_address));
+			ncr->dmac_address++;
+			ncr->dmac_length--;
+		}
+	}
+}
+
 
 static void dma_check(struct soft_scsi *ncr)
 {
@@ -1517,6 +1534,12 @@ static void dma_check(struct soft_scsi *ncr)
 		if (ncr->type == NONCR_HARDFRAME) {
 
 			hardframe_do_dma(ncr);
+
+		}
+
+		if (ncr->type == NCR5380_OVERDRIVE) {
+
+			overdrive_do_dma(ncr);
 
 		}
 
@@ -2710,6 +2733,21 @@ static int twelvegauge_reg(struct soft_scsi *ncr, uaecptr addr)
 	return (addr >> 4) & 7;
 }
 
+static int overdrive_reg(struct soft_scsi *ncr, uaecptr addr)
+{
+	if (addr & 0x8000)
+		return -1;
+	if ((addr & 0x7000) == 0x4000)
+		return 0x100 + (addr & 0x3f);
+	if (addr & 1)
+		return -1;
+	if ((addr & 0x7000) == 0x2000)
+		return (addr >> 1) & 7;
+	if ((addr & 0x7000) == 0x6000)
+		return 8;
+	return -1;
+}
+
 static uae_u8 read_684xx_dma(struct soft_scsi *ncr, uaecptr addr)
 {
 	uae_u8 val = 0;
@@ -2744,6 +2782,7 @@ static void write_684xx_dma(struct soft_scsi *ncr, uaecptr addr, uae_u8 val)
 		break;
 		case 7:
 		ncr->dmac_active = (val & 0x80) != 0;
+		dma_check(ncr);
 		break;
 		case 10: // MTCR
 		ncr->dmac_length &= 0x000000ff;
@@ -3416,8 +3455,20 @@ static uae_u32 ncr80_bget2(struct soft_scsi *ncr, uaecptr addr, int size)
 		reg = twelvegauge_reg(ncr, addr);
 		if (reg >= 0) {
 			v = ncr5380_bget(ncr, reg);
-	} else {
+		} else {
 			v = ncr->rom[addr & 0x7fff];
+		}
+
+	} else if (ncr->type == NCR5380_OVERDRIVE) {
+
+		reg = overdrive_reg(ncr, addr);
+		if (reg >= 0) {
+			if (reg >= 0x100)
+				v = read_684xx_dma(ncr, reg);
+			else
+				v = ncr5380_bget(ncr, reg);
+		} else {
+			v = ncr->rom[addr & 0x3fff];
 		}
 
 	}
@@ -3821,6 +3872,16 @@ static void ncr80_bput2(struct soft_scsi *ncr, uaecptr addr, uae_u32 val, int si
 		reg = twelvegauge_reg(ncr, addr);
 		if (reg >= 0)
 			ncr5380_bput(ncr, reg, val);
+
+	} else if (ncr->type == NCR5380_OVERDRIVE) {
+
+		reg = overdrive_reg(ncr, addr);
+		if (reg >= 0) {
+			if (reg >= 0x100)
+				write_684xx_dma(ncr, reg, val);
+			else
+				ncr5380_bput(ncr, reg, val);
+		}
 	}
 
 #if NCR5380_DEBUG > 1
@@ -5189,6 +5250,38 @@ bool fasttrak_init(struct autoconfig_info *aci)
 void fasttrak_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc)
 {
 	generic_soft_scsi_add(ch, ci, rc, NCR5380_FASTTRAK, 65536, 65536, ROMTYPE_FASTTRAK);
+}
+
+bool overdrive_init(struct autoconfig_info *aci)
+{
+	const struct expansionromtype *ert = get_device_expansion_rom(ROMTYPE_OVERDRIVE);
+	if (!aci->doinit) {
+		aci->autoconfigp = ert->autoconfig;
+		return true;
+	}
+
+	struct soft_scsi *scsi = getscsi(aci->rc);
+	if (!scsi)
+		return false;
+
+	load_rom_rc(aci->rc, ROMTYPE_OVERDRIVE, 8192, 0, scsi->rom, 32768, LOADROM_EVENONLY_ODDONE);
+	for (int i = 0; i < 16; i++) {
+		uae_u8 b = ert->autoconfig[i];
+		if (aci->rc->autoboot_disabled) {
+			if (i == 0)
+				b = 0xc1;
+			if (i == 10)
+				b = 0;
+		}
+		ew(scsi, i * 4, b);
+	}
+	aci->addrbank = scsi->bank;
+	return true;
+}
+
+void overdrive_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc)
+{
+	generic_soft_scsi_add(ch, ci, rc, NCR5380_OVERDRIVE, 65536, 32768, ROMTYPE_OVERDRIVE);
 }
 
 // x86 bridge scsi rancho rt1000
