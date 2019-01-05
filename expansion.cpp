@@ -997,28 +997,28 @@ addrbank fastmem_bank[MAX_RAM_BOARDS] =
 		fastmem0_lput, fastmem0_wput, fastmem0_bput,
 		fastmem0_xlate, fastmem0_check, NULL, _T("*"), _T("Fast memory"),
 		fastmem0_lget, fastmem0_wget,
-		ABFLAG_RAM | ABFLAG_THREADSAFE | ABFLAG_CACHE_ENABLE_ALL, 0, 0
+		ABFLAG_RAM | ABFLAG_THREADSAFE | ABFLAG_CACHE_ENABLE_ALL | ABFLAG_DIRECTACCESS, 0, 0
 	},
 	{
 		fastmem1_lget, fastmem1_wget, fastmem1_bget,
 		fastmem1_lput, fastmem1_wput, fastmem1_bput,
 		fastmem1_xlate, fastmem1_check, NULL, _T("*"), _T("Fast memory 2"),
 		fastmem1_lget, fastmem1_wget,
-		ABFLAG_RAM | ABFLAG_THREADSAFE | ABFLAG_CACHE_ENABLE_ALL, 0, 0
+		ABFLAG_RAM | ABFLAG_THREADSAFE | ABFLAG_CACHE_ENABLE_ALL | ABFLAG_DIRECTACCESS, 0, 0
 	},
 	{
 		fastmem2_lget, fastmem2_wget, fastmem2_bget,
 		fastmem2_lput, fastmem2_wput, fastmem2_bput,
 		fastmem2_xlate, fastmem2_check, NULL, _T("*"), _T("Fast memory 3"),
 		fastmem2_lget, fastmem2_wget,
-		ABFLAG_RAM | ABFLAG_THREADSAFE | ABFLAG_CACHE_ENABLE_ALL, 0, 0
+		ABFLAG_RAM | ABFLAG_THREADSAFE | ABFLAG_CACHE_ENABLE_ALL | ABFLAG_DIRECTACCESS, 0, 0
 	},
 	{
 		fastmem3_lget, fastmem3_wget, fastmem3_bget,
 		fastmem3_lput, fastmem3_wput, fastmem3_bput,
 		fastmem3_xlate, fastmem3_check, NULL, _T("*"), _T("Fast memory 4"),
 		fastmem3_lget, fastmem3_wget,
-		ABFLAG_RAM | ABFLAG_THREADSAFE | ABFLAG_CACHE_ENABLE_ALL, 0, 0
+		ABFLAG_RAM | ABFLAG_THREADSAFE | ABFLAG_CACHE_ENABLE_ALL | ABFLAG_DIRECTACCESS, 0, 0
 	}
 };
 
@@ -1527,28 +1527,28 @@ addrbank z3fastmem_bank[MAX_RAM_BOARDS] =
 		z3fastmem0_lput, z3fastmem0_wput, z3fastmem0_bput,
 		z3fastmem0_xlate, z3fastmem0_check, NULL, _T("*"), _T("Zorro III Fast RAM"),
 		z3fastmem0_lget, z3fastmem0_wget,
-		ABFLAG_RAM | ABFLAG_THREADSAFE | ABFLAG_CACHE_ENABLE_ALL, 0, 0
+		ABFLAG_RAM | ABFLAG_THREADSAFE | ABFLAG_CACHE_ENABLE_ALL | ABFLAG_DIRECTACCESS, 0, 0
 	},
 	{
 		z3fastmem1_lget, z3fastmem1_wget, z3fastmem1_bget,
 		z3fastmem1_lput, z3fastmem1_wput, z3fastmem1_bput,
 		z3fastmem1_xlate, z3fastmem1_check, NULL, _T("*"), _T("Zorro III Fast RAM #2"),
 		z3fastmem1_lget, z3fastmem1_wget,
-		ABFLAG_RAM | ABFLAG_THREADSAFE | ABFLAG_CACHE_ENABLE_ALL, 0, 0
+		ABFLAG_RAM | ABFLAG_THREADSAFE | ABFLAG_CACHE_ENABLE_ALL | ABFLAG_DIRECTACCESS, 0, 0
 	},
 	{
 		z3fastmem2_lget, z3fastmem2_wget, z3fastmem2_bget,
 		z3fastmem2_lput, z3fastmem2_wput, z3fastmem2_bput,
 		z3fastmem2_xlate, z3fastmem2_check, NULL, _T("*"), _T("Zorro III Fast RAM #3"),
 		z3fastmem2_lget, z3fastmem2_wget,
-		ABFLAG_RAM | ABFLAG_THREADSAFE | ABFLAG_CACHE_ENABLE_ALL, 0, 0
+		ABFLAG_RAM | ABFLAG_THREADSAFE | ABFLAG_CACHE_ENABLE_ALL | ABFLAG_DIRECTACCESS, 0, 0
 	},
 	{
 		z3fastmem3_lget, z3fastmem3_wget, z3fastmem3_bget,
 		z3fastmem3_lput, z3fastmem3_wput, z3fastmem3_bput,
 		z3fastmem3_xlate, z3fastmem3_check, NULL, _T("*"), _T("Zorro III Fast RAM #4"),
 		z3fastmem3_lget, z3fastmem3_wget,
-		ABFLAG_RAM | ABFLAG_THREADSAFE | ABFLAG_CACHE_ENABLE_ALL, 0, 0
+		ABFLAG_RAM | ABFLAG_THREADSAFE | ABFLAG_CACHE_ENABLE_ALL | ABFLAG_DIRECTACCESS, 0, 0
 	}
 };
 

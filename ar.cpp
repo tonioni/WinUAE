@@ -558,7 +558,7 @@ STATIC_INLINE int ar3a (uaecptr addr, uae_u8 b, int writing)
 					ar_wait_pop = 0;
 					/* We get (SP+2) here, as the first word on the stack is the status register. */
 					/* We want the following long, which is the return program counter. */
-					wait_for_pc = longget (m68k_areg (regs, 7) + 2); /* Get (SP+2) */
+					wait_for_pc = get_long(m68k_areg (regs, 7) + 2); /* Get (SP+2) */
 					set_special (SPCFLAG_ACTION_REPLAY);
 
 					uaecptr pc = m68k_getpc ();

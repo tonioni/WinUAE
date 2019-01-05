@@ -120,27 +120,27 @@ static ALWAYS_INLINE bool is_unaligned_bus(uaecptr addr, int size)
 
 static ALWAYS_INLINE void phys_put_long(uaecptr addr, uae_u32 l)
 {
-    longput(addr, l);
+    put_long(addr, l);
 }
 static ALWAYS_INLINE void phys_put_word(uaecptr addr, uae_u32 w)
 {
-    wordput(addr, w);
+    put_word(addr, w);
 }
 static ALWAYS_INLINE void phys_put_byte(uaecptr addr, uae_u32 b)
 {
-    byteput(addr, b);
+    put_byte(addr, b);
 }
 static ALWAYS_INLINE uae_u32 phys_get_long(uaecptr addr)
 {
-    return longget (addr);
+    return get_long(addr);
 }
 static ALWAYS_INLINE uae_u32 phys_get_word(uaecptr addr)
 {
-    return wordget (addr);
+    return get_word(addr);
 }
 static ALWAYS_INLINE uae_u32 phys_get_byte(uaecptr addr)
 {
-    return byteget (addr);
+    return get_byte(addr);
 }
 
 extern uae_u32(*x_phys_get_iword)(uaecptr);

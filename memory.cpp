@@ -1229,7 +1229,7 @@ addrbank a3000lmem_bank = {
 	a3000lmem_lput, a3000lmem_wput, a3000lmem_bput,
 	a3000lmem_xlate, a3000lmem_check, NULL, _T("ramsey_low"), _T("RAMSEY memory (low)"),
 	a3000lmem_lget, a3000lmem_wget,
-	ABFLAG_RAM | ABFLAG_THREADSAFE | ABFLAG_CACHE_ENABLE_ALL, 0, 0
+	ABFLAG_RAM | ABFLAG_THREADSAFE | ABFLAG_CACHE_ENABLE_ALL | ABFLAG_DIRECTACCESS, 0, 0
 };
 
 addrbank a3000hmem_bank = {
@@ -1237,7 +1237,7 @@ addrbank a3000hmem_bank = {
 	a3000hmem_lput, a3000hmem_wput, a3000hmem_bput,
 	a3000hmem_xlate, a3000hmem_check, NULL, _T("ramsey_high"), _T("RAMSEY memory (high)"),
 	a3000hmem_lget, a3000hmem_wget,
-	ABFLAG_RAM | ABFLAG_THREADSAFE | ABFLAG_CACHE_ENABLE_ALL, 0, 0
+	ABFLAG_RAM | ABFLAG_THREADSAFE | ABFLAG_CACHE_ENABLE_ALL | ABFLAG_DIRECTACCESS, 0, 0
 };
 
 addrbank kickmem_bank = {
@@ -1245,7 +1245,7 @@ addrbank kickmem_bank = {
 	kickmem_lput, kickmem_wput, kickmem_bput,
 	kickmem_xlate, kickmem_check, NULL, _T("kick"), _T("Kickstart ROM"),
 	kickmem_lget, kickmem_wget,
-	ABFLAG_ROM | ABFLAG_THREADSAFE | ABFLAG_CACHE_ENABLE_ALL, 0, S_WRITE
+	ABFLAG_ROM | ABFLAG_THREADSAFE | ABFLAG_CACHE_ENABLE_ALL | ABFLAG_DIRECTACCESS, 0, S_WRITE
 };
 
 addrbank kickram_bank = {
@@ -1261,14 +1261,14 @@ addrbank extendedkickmem_bank = {
 	extendedkickmem_lput, extendedkickmem_wput, extendedkickmem_bput,
 	extendedkickmem_xlate, extendedkickmem_check, NULL, NULL, _T("Extended Kickstart ROM"),
 	extendedkickmem_lget, extendedkickmem_wget,
-	ABFLAG_ROM | ABFLAG_THREADSAFE | ABFLAG_CACHE_ENABLE_ALL, 0, S_WRITE
+	ABFLAG_ROM | ABFLAG_THREADSAFE | ABFLAG_CACHE_ENABLE_ALL | ABFLAG_DIRECTACCESS, 0, S_WRITE
 };
 addrbank extendedkickmem2_bank = {
 	extendedkickmem2_lget, extendedkickmem2_wget, extendedkickmem2_bget,
 	extendedkickmem2_lput, extendedkickmem2_wput, extendedkickmem2_bput,
 	extendedkickmem2_xlate, extendedkickmem2_check, NULL, _T("rom_a8"), _T("Extended 2nd Kickstart ROM"),
 	extendedkickmem2_lget, extendedkickmem2_wget,
-	ABFLAG_ROM | ABFLAG_THREADSAFE | ABFLAG_CACHE_ENABLE_ALL, 0, S_WRITE
+	ABFLAG_ROM | ABFLAG_THREADSAFE | ABFLAG_CACHE_ENABLE_ALL | ABFLAG_DIRECTACCESS, 0, S_WRITE
 };
 addrbank fakeuaebootrom_bank = {
 	fakeuaebootrom_lget, fakeuaebootrom_wget, mem25bit_bget,
@@ -1286,14 +1286,14 @@ addrbank custmem1_bank = {
 	custmem1_lput, custmem1_wput, custmem1_bput,
 	custmem1_xlate, custmem1_check, NULL, _T("custmem1"), _T("Non-autoconfig RAM #1"),
 	custmem1_lget, custmem1_wget,
-	ABFLAG_RAM | ABFLAG_THREADSAFE | ABFLAG_CACHE_ENABLE_ALL, 0, 0
+	ABFLAG_RAM | ABFLAG_THREADSAFE | ABFLAG_CACHE_ENABLE_ALL | ABFLAG_DIRECTACCESS, 0, 0
 };
 addrbank custmem2_bank = {
 	custmem2_lget, custmem2_wget, custmem2_bget,
 	custmem2_lput, custmem2_wput, custmem2_bput,
 	custmem2_xlate, custmem2_check, NULL, _T("custmem2"), _T("Non-autoconfig RAM #2"),
 	custmem2_lget, custmem2_wget,
-	ABFLAG_RAM | ABFLAG_THREADSAFE | ABFLAG_CACHE_ENABLE_ALL, 0, 0
+	ABFLAG_RAM | ABFLAG_THREADSAFE | ABFLAG_CACHE_ENABLE_ALL | ABFLAG_DIRECTACCESS, 0, 0
 };
 
 #define fkickmem_size ROM_SIZE_512
@@ -1924,6 +1924,15 @@ static void add_shmmaps (uae_u32 start, addrbank *what)
 
 #define MAPPED_MALLOC_DEBUG 0
 
+static void set_direct_memory(addrbank *ab)
+{
+	if (!(ab->flags & ABFLAG_DIRECTACCESS))
+		return;
+	ab->baseaddr_direct_r = ab->baseaddr;
+	if (!(ab->flags & ABFLAG_ROM))
+		ab->baseaddr_direct_w = ab->baseaddr;
+}
+
 bool mapped_malloc (addrbank *ab)
 {
 	int id;
@@ -1936,6 +1945,8 @@ bool mapped_malloc (addrbank *ab)
 		write_log(_T("mapped_malloc with memory bank '%s' already allocated!?\n"), ab->name);
 	}
 	ab->allocated_size = 0;
+	ab->baseaddr_direct_r = NULL;
+	ab->baseaddr_direct_w = NULL;
 	ab->flags &= ~ABFLAG_MAPPED;
 
 	if (ab->label && ab->label[0] == '*') {
@@ -1951,6 +1962,7 @@ bool mapped_malloc (addrbank *ab)
 		start = md.start;
 	}
 	ab->startmask = start;
+	ab->startaccessmask = start & ab->mask;
 	if (!md.directsupport || (ab->flags & ABFLAG_ALLOCINDIRECT)) {
 		if (!(ab->flags & ABFLAG_ALLOCINDIRECT)) {
 			if (canbang) {
@@ -1972,6 +1984,7 @@ bool mapped_malloc (addrbank *ab)
 			put_long_host(ab->baseaddr + ab->reserved_size, 0x4afc4afc);
 			ab->allocated_size = ab->reserved_size;
 		}
+		set_direct_memory(ab);
 #if MAPPED_MALLOC_DEBUG
 		write_log(_T("mapped_malloc nodirect %s %p\n"), ab->name, ab->baseaddr);
 #endif
@@ -2015,6 +2028,7 @@ bool mapped_malloc (addrbank *ab)
 			ab->allocated_size = ab->reserved_size;
 		}
 		ab->flags |= ABFLAG_DIRECTMAP;
+		set_direct_memory(ab);
 #if MAPPED_MALLOC_DEBUG
 		write_log(_T("mapped_malloc direct %s %p\n"), ab->name, ab->baseaddr);
 #endif
@@ -2026,6 +2040,7 @@ bool mapped_malloc (addrbank *ab)
 	recurse++;
 	mapped_malloc (ab);
 	recurse--;
+	set_direct_memory(ab);
 #if MAPPED_MALLOC_DEBUG
 	write_log(_T("mapped_malloc indirect %s %p\n"), ab->name, ab->baseaddr);
 #endif
@@ -3393,15 +3408,15 @@ uae_u8 *save_rom (int first, int *len, uae_u8 *dstptr)
 			path = currprefs.romfile;
 			/* 256KB or 512KB ROM? */
 			for (i = 0; i < mem_size / 2 - 4; i++) {
-				if (longget (i + mem_start) != longget (i + mem_start + mem_size / 2))
+				if (get_long(i + mem_start) != get_long(i + mem_start + mem_size / 2))
 					break;
 			}
 			if (i == mem_size / 2 - 4) {
 				mem_size /= 2;
 				mem_start += ROM_SIZE_256;
 			}
-			version = longget (mem_start + 12); /* version+revision */
-			_stprintf (tmpname, _T("Kickstart %d.%d"), wordget (mem_start + 12), wordget (mem_start + 14));
+			version = get_long(mem_start + 12); /* version+revision */
+			_stprintf (tmpname, _T("Kickstart %d.%d"), get_word(mem_start + 12), get_word(mem_start + 14));
 			break;
 		case 1: /* Extended ROM */
 			if (!extendedkickmem_type)
@@ -3410,9 +3425,9 @@ uae_u8 *save_rom (int first, int *len, uae_u8 *dstptr)
 			mem_real_start = extendedkickmem_bank.baseaddr;
 			mem_size = extendedkickmem_bank.allocated_size;
 			path = currprefs.romextfile;
-			version = longget (mem_start + 12); /* version+revision */
+			version = get_long(mem_start + 12); /* version+revision */
 			if (version == 0xffffffff)
-				version = longget (mem_start + 16);
+				version = get_long(mem_start + 16);
 			_stprintf (tmpname, _T("Extended"));
 			break;
 		default:
@@ -3435,7 +3450,7 @@ uae_u8 *save_rom (int first, int *len, uae_u8 *dstptr)
 	save_string (path);
 	if (saverom) {
 		for (i = 0; i < mem_size; i++)
-			*dst++ = byteget (mem_start + i);
+			*dst++ = get_byte(mem_start + i);
 	}
 	*len = dst - dstbak;
 	return dstbak;
@@ -3499,3 +3514,131 @@ uaecptr strcpyha_safe (uaecptr dst, const uae_char *src)
 	return res;
 }
 
+uae_u32 memory_get_longi(uaecptr addr)
+{
+	addrbank *ab = &get_mem_bank(addr);
+	if (!ab->baseaddr_direct_r) {
+		return call_mem_get_func(ab->lgeti, addr);
+	} else {
+		uae_u8 *m;
+		addr -= ab->startaccessmask;
+		addr &= ab->mask;
+		m = ab->baseaddr_direct_r + addr;
+		return do_get_mem_long((uae_u32 *)m);
+	}
+}
+uae_u32 memory_get_wordi(uaecptr addr)
+{
+	addrbank *ab = &get_mem_bank(addr);
+	if (!ab->baseaddr_direct_r) {
+		return call_mem_get_func(ab->wgeti, addr);
+	} else {
+		uae_u8 *m;
+		addr -= ab->startaccessmask;
+		addr &= ab->mask;
+		m = ab->baseaddr_direct_r + addr;
+		return do_get_mem_word((uae_u16*)m);
+	}
+}
+uae_u32 memory_get_long(uaecptr addr)
+{
+	addrbank *ab = &get_mem_bank(addr);
+	if (!ab->baseaddr_direct_r) {
+		return call_mem_get_func(ab->lget, addr);
+	} else {
+		uae_u8 *m;
+		addr -= ab->startaccessmask;
+		addr &= ab->mask;
+		m = ab->baseaddr_direct_r + addr;
+		return do_get_mem_long((uae_u32*)m);
+	}
+}
+uae_u32 memory_get_word(uaecptr addr)
+{
+	addrbank *ab = &get_mem_bank(addr);
+	if (!ab->baseaddr_direct_r) {
+		return call_mem_get_func(ab->wget, addr);
+	} else {
+		uae_u8 *m;
+		addr -= ab->startaccessmask;
+		addr &= ab->mask;
+		m = ab->baseaddr_direct_r + addr;
+		return do_get_mem_word((uae_u16*)m);
+	}
+}
+uae_u32 memory_get_byte(uaecptr addr)
+{
+	addrbank *ab = &get_mem_bank(addr);
+	if (!ab->baseaddr_direct_r) {
+		return call_mem_get_func(ab->bget, addr);
+	} else {
+		uae_u8 *m;
+		addr -= ab->startaccessmask;
+		addr &= ab->mask;
+		m = ab->baseaddr_direct_r + addr;
+		return *m;
+	}
+}
+
+void memory_put_long(uaecptr addr, uae_u32 v)
+{
+	addrbank *ab = &get_mem_bank(addr);
+	if (!ab->baseaddr_direct_w) {
+		call_mem_put_func(ab->lput, addr, v);
+	} else {
+		uae_u8 *m;
+		addr -= ab->startaccessmask;
+		addr &= ab->mask;
+		m = ab->baseaddr_direct_w + addr;
+		do_put_mem_long((uae_u32*)m, v);
+	}
+}
+void memory_put_word(uaecptr addr, uae_u32 v)
+{
+	addrbank *ab = &get_mem_bank(addr);
+	if (!ab->baseaddr_direct_w) {
+		call_mem_put_func(ab->wput, addr, v);
+	} else {
+		uae_u8 *m;
+		addr -= ab->startaccessmask;
+		addr &= ab->mask;
+		m = ab->baseaddr_direct_w + addr;
+		do_put_mem_word((uae_u16*)m, v);
+	}
+}
+void memory_put_byte(uaecptr addr, uae_u32 v)
+{
+	addrbank *ab = &get_mem_bank(addr);
+	if (!ab->baseaddr_direct_w) {
+		call_mem_put_func(ab->bput, addr, v);
+	} else {
+		uae_u8 *m;
+		addr -= ab->startaccessmask;
+		addr &= ab->mask;
+		m = ab->baseaddr_direct_w + addr;
+		*m = (uae_u8)v;
+	}
+}
+
+uae_u8 *memory_get_real_address(uaecptr addr)
+{
+	addrbank *ab = &get_mem_bank(addr);
+	if (!ab->baseaddr_direct_r) {
+		return get_mem_bank(addr).xlateaddr(addr);
+	} else {
+		addr -= ab->startaccessmask;
+		addr &= ab->mask;
+		return ab->baseaddr_direct_r + addr;
+	}
+}
+
+int memory_valid_address(uaecptr addr, uae_u32 size)
+{
+	addrbank *ab = &get_mem_bank(addr);
+	if (!ab->baseaddr_direct_r) {
+		return get_mem_bank(addr).check(addr, size);
+	}
+	addr -= ab->startaccessmask;
+	addr &= ab->mask;
+	return addr + size <= ab->allocated_size;
+}
