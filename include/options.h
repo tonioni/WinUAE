@@ -501,6 +501,7 @@ struct uae_prefs {
 	bool sound_stereo_swap_ahi;
 	bool sound_auto;
 	bool sound_cdaudio;
+	bool sound_volcnt;
 
 	int sampler_freq;
 	int sampler_buffer;

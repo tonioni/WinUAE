@@ -86,12 +86,14 @@ typedef struct {
 struct audio_channel_data2
 {
 	int current_sample, last_sample;
+	uae_u8 new_sample;
 	int sample_accum, sample_accum_time;
 	int sinc_output_state;
 	sinc_queue_t sinc_queue[SINC_QUEUE_LENGTH];
 	int sinc_queue_time;
 	int sinc_queue_head;
-	int vol;
+	int audvol;
+	int mixvol;
 	unsigned int adk_mask;
 };
 struct audio_stream_data
@@ -102,6 +104,11 @@ struct audio_stream_data
 	SOUND_STREAM_CALLBACK cb;
 	void *cb_data;
 };
+
+#define FIR_WIDTH 512
+#define VOLCNT_BUFFER_SIZE 4096
+union sIntFlt { uae_u32 U32; float F32; };
+static float firmem[2 * FIR_WIDTH + 1];
 
 struct audio_channel_data
 {
@@ -117,6 +124,7 @@ struct audio_channel_data
 	int state;
 	int per;
 	int len, wlen;
+	int volcnt;
 	uae_u16 dat, dat2;
 	struct audio_channel_data2 data;
 #if TEST_AUDIO > 0
@@ -129,6 +137,8 @@ struct audio_channel_data
 	bool ptx_written;
 	bool ptx_tofetch;
 	int dmaofftime_active;
+	int volcntbufcnt;
+	float volcntbuf[VOLCNT_BUFFER_SIZE];
 };
 
 static int audio_extra_streams[AUDIO_CHANNEL_STREAMS];
@@ -336,9 +346,10 @@ int sound_paula_volume[2];
 
 static unsigned long last_cycles;
 static float next_sample_evtime;
+static int previous_volcnt_update;
 
 typedef uae_s8 sample8_t;
-#define DO_CHANNEL_1(v, c) do { (v) *= audio_channel[c].data.vol; } while (0)
+#define DO_CHANNEL_1(v, c) do { (v) *= audio_channel[c].data.mixvol; } while (0)
 #define SBASEVAL16(logn) ((logn) == 1 ? SOUND16_BASE_VAL >> 1 : SOUND16_BASE_VAL)
 
 STATIC_INLINE int FINISH_DATA (int data, int bits, int ch)
@@ -362,6 +373,31 @@ static int saved_ptr, saved_ptr2;
 
 static int mixed_on, mixed_stereo_size, mixed_mul1, mixed_mul2;
 static int led_filter_forced, sound_use_filter, sound_use_filter_sinc, led_filter_on;
+
+#define PAULARATE 3740000
+static float Sinc(float x)
+{
+	return x ? sinf(x) / x : 1;
+}
+static float Hamming(float x)
+{
+	float pi = 4 * atanf(1);
+	float v;
+	if (x > -1 && x < 1)
+		v = cosf(x * pi / 2);
+	else
+		v = 0;
+	return v * v;
+}
+static void makefir(void)
+{
+	float pi = 4 * atanf(1);
+	float *FIRTable = firmem + FIR_WIDTH;
+	float yscale = float(currprefs.sound_freq) / float(PAULARATE);
+	float xscale = pi * yscale;
+	for (int i = -FIR_WIDTH; i <= FIR_WIDTH; i++)
+		FIRTable[i] = yscale * Sinc(float(i) * xscale) * Hamming(float(i) / float(FIR_WIDTH - 1));
+}
 
 /* denormals are very small floating point numbers that force FPUs into slow
 mode. All lowpass filters using floats are suspectible to denormals unless
@@ -525,7 +561,7 @@ static void anti_prehandler (unsigned long best_evtime)
 	/* Handle accumulator antialiasiation */
 	for (i = 0; audio_data[i]; i++) {
 		acd = audio_data[i];
-		output = (acd->current_sample * acd->vol) & acd->adk_mask;
+		output = (acd->current_sample * acd->mixvol) & acd->adk_mask;
 		acd->sample_accum += output * best_evtime;
 		acd->sample_accum_time += best_evtime;
 	}
@@ -549,7 +585,7 @@ static void sinc_prehandler_paula (unsigned long best_evtime)
 
 	for (i = 0; i < AUDIO_CHANNELS_PAULA; i++)  {
 		acd = audio_data[i];
-		int vol = acd->vol;
+		int vol = acd->mixvol;
 		output = (acd->current_sample * vol) & acd->adk_mask;
 
 		/* if output state changes, record the state change and also
@@ -1260,6 +1296,9 @@ static void zerostate (int nr)
 	cdp->intreq2 = 0;
 	cdp->dmaenstore = false;
 	cdp->dmaofftime_active = 0;
+	cdp->volcnt = 0;
+	cdp->volcntbufcnt = 0;
+	memset(cdp->volcntbuf, 0, sizeof(cdp->volcntbuf));
 #if TEST_AUDIO > 0
 	cdp->have_dat = false;
 #endif
@@ -1349,7 +1388,9 @@ static void update_volume(int nr, uae_u16 v)
 	v &= 127;
 	if (v > 64)
 		v = 64;
-	cdp->data.vol = v;
+	cdp->data.audvol = v;
+	if (!currprefs.sound_volcnt)
+		cdp->data.mixvol = v;
 }
 
 uae_u16 audio_dmal (void)
@@ -1404,8 +1445,12 @@ static void newsample (int nr, sample8_t sample)
 #endif
 	if (!(audio_channel_mask & (1 << nr)))
 		sample = 0;
-	cdp->data.last_sample = cdp->data.current_sample;
-	cdp->data.current_sample = sample;
+	if (currprefs.sound_volcnt) {
+		cdp->data.new_sample = sample;
+	} else {
+		cdp->data.last_sample = cdp->data.current_sample;
+		cdp->data.current_sample = sample;
+	}
 }
 
 STATIC_INLINE void setdr (int nr)
@@ -1467,7 +1512,7 @@ static void loaddat (int nr)
 	loaddat (nr, false);
 }
 
-STATIC_INLINE void loadper (int nr)
+static void loadper (int nr)
 {
 	struct audio_channel_data *cdp = audio_channel + nr;
 
@@ -1605,6 +1650,7 @@ static void audio_state_channel2 (int nr, bool perfin)
 		loadper (nr);
 		cdp->pbufldl = true;
 		cdp->intreq2 = 0;
+		cdp->volcnt = 0;
 		audio_state_channel2 (nr, false);
 		break;
 	case 2:
@@ -1722,7 +1768,7 @@ void audio_reset (void)
 			cdp = &audio_channel[i];
 			memset (cdp, 0, sizeof *audio_channel);
 			cdp->per = PERIOD_MAX - 1;
-			cdp->data.vol = 0;
+			cdp->data.mixvol = 0;
 			cdp->evtime = MAX_EV;
 		}
 		for (i = 0; i < AUDIO_CHANNEL_STREAMS; i++) {
@@ -1745,6 +1791,7 @@ static int sound_prefs_changed (void)
 		|| changed_prefs.sound_stereo != currprefs.sound_stereo
 		|| changed_prefs.sound_maxbsiz != currprefs.sound_maxbsiz
 		|| changed_prefs.sound_freq != currprefs.sound_freq
+		|| changed_prefs.sound_volcnt != currprefs.sound_volcnt
 		|| changed_prefs.sound_auto != currprefs.sound_auto)
 		return 1;
 
@@ -1818,7 +1865,6 @@ static void set_extra_prehandler(void)
 	}
 }
 
-
 void set_audio (void)
 {
 	int old_mixed_size = mixed_stereo_size;
@@ -1835,6 +1881,7 @@ void set_audio (void)
 	currprefs.sound_auto = changed_prefs.sound_auto;
 	currprefs.sound_freq = changed_prefs.sound_freq;
 	currprefs.sound_maxbsiz = changed_prefs.sound_maxbsiz;
+	currprefs.sound_volcnt = changed_prefs.sound_volcnt;
 
 	currprefs.sound_stereo_separation = changed_prefs.sound_stereo_separation;
 	currprefs.sound_mixed_stereo_delay = changed_prefs.sound_mixed_stereo_delay;
@@ -1904,6 +1951,8 @@ void set_audio (void)
 	memset (sound_filter_state, 0, sizeof sound_filter_state);
 	led_filter_audio ();
 
+	makefir();
+
 	/* Select the right interpolation method.  */
 	if (sample_handler == sample16_handler
 		|| sample_handler == sample16i_crux_handler
@@ -1946,7 +1995,13 @@ void set_audio (void)
 		sample_prehandler = anti_prehandler;
 	}
 	for (int i = 0; i < AUDIO_CHANNELS_PAULA; i++) {
-		audio_data[i] = &audio_channel[i].data;
+		struct audio_channel_data *cdp = audio_channel + i;
+		audio_data[i] = &cdp->data;
+		if (currprefs.sound_volcnt) {
+			cdp->data.mixvol = 1;
+		} else {
+			cdp->data.mixvol = cdp->data.audvol;
+		}
 	}
 	audio_total_extra_streams = 0;
 	for (int i = 0; i < AUDIO_CHANNEL_STREAMS; i++) {
@@ -1964,6 +2019,54 @@ void set_audio (void)
 	}
 	set_config_changed ();
 	cd_audio_mode_changed = true;
+}
+
+static void update_audio_volcnt(int cycles, float evtime, bool nextsmp)
+{
+	if (cycles) {
+		for (int i = 0; i < AUDIO_CHANNELS_PAULA; i++) {
+			struct audio_channel_data *cdp = audio_channel + i;
+			sIntFlt v;
+			v.U32 = ((cdp->data.new_sample ^ 0x80) << 15) | 0x40000000;
+			v.F32 -= 3.0;
+			int cycs = cycles;
+			while (cycs > 0) {
+				if (cdp->volcnt < cdp->data.audvol) {
+					cdp->volcntbuf[cdp->volcntbufcnt] = v.F32;
+				} else {
+					cdp->volcntbuf[cdp->volcntbufcnt] = 0;
+				}
+				cdp->volcntbufcnt++;
+				cdp->volcntbufcnt &= (VOLCNT_BUFFER_SIZE - 1);
+				cdp->volcnt++;
+				cdp->volcnt &= 63;
+				cycs -= CYCLE_UNIT;
+			}
+		}
+	}
+	if (!nextsmp)
+		return;
+	float frac = evtime - (int)evtime;
+	for (int i = 0; i < AUDIO_CHANNELS_PAULA; i++) {
+		struct audio_channel_data *cdp = audio_channel + i;
+		float out0 = 0, out1 = 0;
+		int offs = (cdp->volcntbufcnt - FIR_WIDTH - 1) & (VOLCNT_BUFFER_SIZE - 1);
+		float v = cdp->volcntbuf[offs];
+		for (int j = 1; j < 2 * FIR_WIDTH - 1; j++) {
+			float w = firmem[j];
+			out0 += v * w;
+			offs++;
+			offs &= (VOLCNT_BUFFER_SIZE - 1);
+			v = cdp->volcntbuf[offs];
+			out1 += v * w;
+		}
+		float out = out0 + frac * (out1 - out0);
+		out *= 8192;
+
+		cdp->data.last_sample = cdp->data.current_sample;
+		cdp->data.current_sample = out;
+	}
+	(*sample_handler) ();
 }
 
 void update_audio (void)
@@ -1997,6 +2100,7 @@ void update_audio (void)
 
 		/* next_sample_evtime >= 0 so floor() behaves as expected */
 		rounded = floorf (next_sample_evtime);
+		float nevtime = next_sample_evtime;
 		if ((next_sample_evtime - rounded) >= 0.5)
 			rounded++;
 
@@ -2028,34 +2132,43 @@ void update_audio (void)
 		n_cycles -= best_evtime;
 
 		if (currprefs.produce_sound > 1) {
-			/* Test if new sample needs to be outputted */
-			if (rounded == best_evtime) {
-				/* Before the following addition, next_sample_evtime is in range [-0.5, 0.5) */
-				next_sample_evtime += scaled_sample_evtime;
-#if SOUNDSTUFF > 1
-				next_sample_evtime -= extrasamples * 15;
-				doublesample = 0;
-				if (--samplecounter <= 0) {
-					samplecounter = currprefs.sound_freq / 1000;
-					if (extrasamples > 0) {
-						outputsample = 1;
-						doublesample = 1;
-						extrasamples--;
-					} else if (extrasamples < 0) {
-						outputsample = 0;
-						doublesample = 0;
-						extrasamples++;
-					}
+			if (currprefs.sound_volcnt) {
+				bool nextsmp = false;
+				if (rounded == best_evtime) {
+					next_sample_evtime += scaled_sample_evtime;
+					nextsmp = true;
 				}
-#endif
-				(*sample_handler) ();
+				update_audio_volcnt(best_evtime, nevtime, nextsmp);
+			} else {
+				/* Test if new sample needs to be outputted */
+				if (rounded == best_evtime) {
+					/* Before the following addition, next_sample_evtime is in range [-0.5, 0.5) */
+					next_sample_evtime += scaled_sample_evtime;
 #if SOUNDSTUFF > 1
-				if (outputsample == 0)
-					outputsample = -1;
-				else if (outputsample < 0)
-					outputsample = 1;
+					next_sample_evtime -= extrasamples * 15;
+					doublesample = 0;
+					if (--samplecounter <= 0) {
+						samplecounter = currprefs.sound_freq / 1000;
+						if (extrasamples > 0) {
+							outputsample = 1;
+							doublesample = 1;
+							extrasamples--;
+						} else if (extrasamples < 0) {
+							outputsample = 0;
+							doublesample = 0;
+							extrasamples++;
+						}
+					}
+#endif
+					(*sample_handler) ();
+#if SOUNDSTUFF > 1
+					if (outputsample == 0)
+						outputsample = -1;
+					else if (outputsample < 0)
+						outputsample = 1;
 #endif
 
+				}
 			}
 		}
 
@@ -2096,6 +2209,7 @@ void audio_hsync (void)
 			audio_deactivate ();
 	}
 	update_audio ();
+	previous_volcnt_update = 0;
 }
 
 void AUDxDAT (int nr, uae_u16 v, uaecptr addr)
@@ -2346,7 +2460,7 @@ uae_u8 *restore_audio (int nr, uae_u8 *src)
 
 	zerostate (nr);
 	acd->state = restore_u8 ();
-	acd->data.vol = restore_u8 ();
+	acd->data.audvol = restore_u8 ();
 	acd->intreq2 = restore_u8 () ? true : false;
 	uae_u8 flags = restore_u8 ();
 	acd->dr = acd->dsr = false;
@@ -2367,6 +2481,10 @@ uae_u8 *restore_audio (int nr, uae_u8 *src)
 	else
 		acd->drhpos = 1;
 	acd->dmaenstore = (dmacon & DMA_MASTER) && (dmacon & (1 << nr));
+	if (currprefs.sound_volcnt)
+		acd->data.mixvol = 1;
+	else
+		acd->data.mixvol = acd->data.audvol;
 	return src;
 }
 
@@ -2380,7 +2498,7 @@ uae_u8 *save_audio (int nr, int *len, uae_u8 *dstptr)
 	else
 		dstbak = dst = xmalloc (uae_u8, 100);
 	save_u8 (acd->state);
-	save_u8 (acd->data.vol);
+	save_u8 (acd->data.audvol);
 	save_u8 (acd->intreq2);
 	save_u8 ((acd->dr ? 1 : 0) | (acd->dsr ? 2 : 0) | 0x80);
 	save_u16 (acd->len);
@@ -2439,7 +2557,7 @@ int audio_enable_stream(bool enable, int streamid, int ch, SOUND_STREAM_CALLBACK
 		for (int i = 0; i < ch; i++) {
 			struct audio_channel_data2 *acd = &asd->data[i];
 			acd->adk_mask = 0xffffffff;
-			acd->vol = 1;
+			acd->mixvol = 1;
 		}
 		audio_activate();
 	}
