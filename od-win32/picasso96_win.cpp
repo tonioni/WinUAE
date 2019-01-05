@@ -30,7 +30,6 @@
 *   programs started from a Picasso workbench.
 */
 
-
 #include "sysconfig.h"
 #include "sysdeps.h"
 
@@ -41,6 +40,7 @@
 #define MULTIDISPLAY 0
 #define WINCURSOR 1
 #define NEWTRAP 1
+#define OVERLAY 1
 
 #define USE_HARDWARESPRITE 1
 #define P96TRACING_ENABLED 0
@@ -131,6 +131,11 @@ static CRITICAL_SECTION render_cs;
 #endif
 #define P96TRACE2(x) do { write_log x; } while(0)
 
+#define TAG_DONE   (0L)		/* terminates array of TagItems. ti_Data unused */
+#define TAG_IGNORE (1L)		/* ignore this item, not end of array */
+#define TAG_MORE   (2L)		/* ti_Data is pointer to another array of TagItems */
+#define TAG_SKIP   (3L)		/* skip this and the next ti_Data items */
+
 static uae_u8 all_ones_bitmap, all_zeros_bitmap; /* yuk */
 
 struct picasso96_state_struct picasso96_state[MAX_AMIGAMONITORS];
@@ -161,6 +166,19 @@ static int wincursor_shown;
 static uaecptr boardinfo, ABI_interrupt;
 static int interrupt_enabled;
 float p96vblank;
+
+static int overlay_src_width, overlay_src_height;
+static uae_u32 overlay_format, overlay_color;
+static uae_u32 overlay_modeformat, overlay_modeinfo;
+static int overlay_x, overlay_y;
+static int overlay_w, overlay_h;
+static int overlay_pix;
+static uaecptr overlay_bitmap, overlay_vram;
+static int overlay_vram_offset;
+static int overlay_active;
+static int overlay_convert;
+static int overlay_occlusion;
+static uae_u32 *p96_rgbx16_ovl;
 
 static int uaegfx_old, uaegfx_active;
 static uae_u32 reserved_gfxmem;
@@ -866,6 +884,8 @@ enum {
 	RGBFB_B5G6R5PC_32,
 	RGBFB_B5G5R5PC_32,
 	RGBFB_CLUT_RGBFB_32,
+	RGBFB_Y4U2V2_32,
+	RGBFB_Y4U1V1_32,
 
 	/* DEST = RGBFB_R5G6B5PC,16 */
 	RGBFB_A8R8G8B8_16,
@@ -881,6 +901,8 @@ enum {
 	RGBFB_B5G6R5PC_16,
 	RGBFB_B5G5R5PC_16,
 	RGBFB_CLUT_RGBFB_16,
+	RGBFB_Y4U2V2_16,
+	RGBFB_Y4U1V1_16,
 
 	/* DEST = RGBFB_CLUT,8 */
 	RGBFB_CLUT_8
@@ -976,6 +998,20 @@ static int getconvert(int rgbformat, int pixbytes)
 		else if (d == 4)
 			v = RGBFB_R8G8B8A8_32;
 		break;
+
+	case RGBFB_Y4U2V2:
+		if (d == 4)
+			v = RGBFB_Y4U2V2_32;
+		else
+			v = RGBFB_Y4U2V2_16;
+		break;
+	case RGBFB_Y4U1V1:
+		if (d == 4)
+			v = RGBFB_Y4U1V1_32;
+		else
+			v = RGBFB_Y4U1V1_16;
+		break;
+
 	}
 	return v;
 }
@@ -2541,6 +2577,9 @@ static void inituaegfx(TrapContext *ctx, uaecptr ABI)
 		write_log (_T("P96: BIF_INDISPLAYCHAIN force-enabled!\n"));
 		flags |= BIF_INDISPLAYCHAIN;
 	}
+#if OVERLAY
+	flags |= BIF_VIDEOWINDOW;
+#endif
 	trap_put_long(ctx, ABI + PSSO_BoardInfo_Flags, flags);
 	if (debug_rtg_blitter != 3)
 		write_log (_T("P96: Blitter mode = %x!\n"), debug_rtg_blitter);
@@ -4148,7 +4187,7 @@ void picasso_statusline(int monid, uae_u8 *dst)
 	}
 }
 
-static void copyrow (int monid, uae_u8 *src, uae_u8 *dst, int x, int y, int width, int srcbytesperrow, int srcpixbytes, int dy, int dstbytesperrow, int dstpixbytes, bool direct, int convert_mode)
+static void copyrow (int monid, uae_u8 *src, uae_u8 *dst, int x, int y, int width, int srcbytesperrow, int srcpixbytes, int dx, int dy, int dstbytesperrow, int dstpixbytes, bool direct, int convert_mode, uae_u32 *p96_rgbx16p)
 {
 	struct picasso_vidbuf_description *vidinfo = &picasso_vidinfo[monid];
 	uae_u8 *src2 = src + y * srcbytesperrow;
@@ -4172,7 +4211,7 @@ static void copyrow (int monid, uae_u8 *src, uae_u8 *dst, int x, int y, int widt
 			case RGBFB_B8G8R8A8_32:
 			case RGBFB_R5G6B5PC_16:
 #endif
-				memcpy (dst2 + x * dstpix, src2 + x * srcpix, width * dstpix);
+				memcpy (dst2 + dx * dstpix, src2 + x * srcpix, width * dstpix);
 			return;
 		}
 	} else {
@@ -4185,7 +4224,7 @@ static void copyrow (int monid, uae_u8 *src, uae_u8 *dst, int x, int y, int widt
 			case RGBFB_B8G8R8A8_32:
 			case RGBFB_R5G6B5PC_16:
 #endif
-				memcpy (dst2 + x * dstpix, src2 + x * srcpix, width * dstpix);
+				memcpy (dst2 + dx * dstpix, src2 + x * srcpix, width * dstpix);
 			return;
 		}
 	}
@@ -4197,34 +4236,39 @@ static void copyrow (int monid, uae_u8 *src, uae_u8 *dst, int x, int y, int widt
 		/* 24bit->32bit */
 	case RGBFB_R8G8B8_32:
 		while (x < endx) {
-			((uae_u32*)dst2)[x] = (src2[x * 3 + 0] << 16) | (src2[x * 3 + 1] << 8) | (src2[x * 3 + 2] << 0);
+			((uae_u32*)dst2)[dx] = (src2[x * 3 + 0] << 16) | (src2[x * 3 + 1] << 8) | (src2[x * 3 + 2] << 0);
 			x++;
+			dx++;
 		}
 		break;
 	case RGBFB_B8G8R8_32:
 		while (x < endx) {
-			((uae_u32*)dst2)[x] = ((uae_u32*)(src2 + x * 3))[0] & 0x00ffffff;
+			((uae_u32*)dst2)[dx] = ((uae_u32*)(src2 + x * 3))[0] & 0x00ffffff;
 			x++;
+			dx++;
 		}
 		break;
 
 		/* 32bit->32bit */
 	case RGBFB_R8G8B8A8_32:
 		while (x < endx) {
-			((uae_u32*)dst2)[x] = (src2[x * 4 + 0] << 16) | (src2[x * 4 + 1] << 8) | (src2[x * 4 + 2] << 0);
+			((uae_u32*)dst2)[dx] = (src2[x * 4 + 0] << 16) | (src2[x * 4 + 1] << 8) | (src2[x * 4 + 2] << 0);
 			x++;
+			dx++;
 		}
 		break;
 	case RGBFB_A8R8G8B8_32:
 		while (x < endx) {
-			((uae_u32*)dst2)[x] = (src2[x * 4 + 1] << 16) | (src2[x * 4 + 2] << 8) | (src2[x * 4 + 3] << 0);
+			((uae_u32*)dst2)[dx] = (src2[x * 4 + 1] << 16) | (src2[x * 4 + 2] << 8) | (src2[x * 4 + 3] << 0);
 			x++;
+			dx++;
 		}
 		break;
 	case RGBFB_A8B8G8R8_32:
 		while (x < endx) {
-			((uae_u32*)dst2)[x] = ((uae_u32*)src2)[x] >> 8;
+			((uae_u32*)dst2)[dx] = ((uae_u32*)src2)[x] >> 8;
 			x++;
+			dx++;
 		}
 		break;
 
@@ -4237,22 +4281,28 @@ static void copyrow (int monid, uae_u8 *src, uae_u8 *dst, int x, int y, int widt
 	case RGBFB_B5G5R5PC_32:
 		{
 			while ((x & 3) && x < endx) {
-				((uae_u32*)dst2)[x] = p96_rgbx16[((uae_u16*)src2)[x]];
+				((uae_u32*)dst2)[dx] = p96_rgbx16p[((uae_u16*)src2)[x]];
 				x++;
+				dx++;
 			}
 			while (x < endx4) {
-				((uae_u32*)dst2)[x] = p96_rgbx16[((uae_u16*)src2)[x]];
+				((uae_u32*)dst2)[dx] = p96_rgbx16p[((uae_u16*)src2)[x]];
 				x++;
-				((uae_u32*)dst2)[x] = p96_rgbx16[((uae_u16*)src2)[x]];
+				dx++;
+				((uae_u32*)dst2)[dx] = p96_rgbx16p[((uae_u16*)src2)[x]];
 				x++;
-				((uae_u32*)dst2)[x] = p96_rgbx16[((uae_u16*)src2)[x]];
+				dx++;
+				((uae_u32*)dst2)[dx] = p96_rgbx16p[((uae_u16*)src2)[x]];
 				x++;
-				((uae_u32*)dst2)[x] = p96_rgbx16[((uae_u16*)src2)[x]];
+				dx++;
+				((uae_u32*)dst2)[dx] = p96_rgbx16p[((uae_u16*)src2)[x]];
 				x++;
+				dx++;
 			}
 			while (x < endx) {
-				((uae_u32*)dst2)[x] = p96_rgbx16[((uae_u16*)src2)[x]];
+				((uae_u32*)dst2)[dx] = p96_rgbx16p[((uae_u16*)src2)[x]];
 				x++;
+				dx++;
 			}
 		}
 		break;
@@ -4266,22 +4316,28 @@ static void copyrow (int monid, uae_u8 *src, uae_u8 *dst, int x, int y, int widt
 	case RGBFB_R5G6B5PC_16:
 	{
 			while ((x & 3) && x < endx) {
-				((uae_u16*)dst2)[x] = (uae_u16)p96_rgbx16[((uae_u16*)src2)[x]];
+				((uae_u16*)dst2)[dx] = (uae_u16)p96_rgbx16p[((uae_u16*)src2)[x]];
 				x++;
+				dx++;
 			}
 			while (x < endx4) {
-				((uae_u16*)dst2)[x] = (uae_u16)p96_rgbx16[((uae_u16*)src2)[x]];
+				((uae_u16*)dst2)[dx] = (uae_u16)p96_rgbx16p[((uae_u16*)src2)[x]];
 				x++;
-				((uae_u16*)dst2)[x] = (uae_u16)p96_rgbx16[((uae_u16*)src2)[x]];
+				dx++;
+				((uae_u16*)dst2)[dx] = (uae_u16)p96_rgbx16p[((uae_u16*)src2)[x]];
 				x++;
-				((uae_u16*)dst2)[x] = (uae_u16)p96_rgbx16[((uae_u16*)src2)[x]];
+				dx++;
+				((uae_u16*)dst2)[dx] = (uae_u16)p96_rgbx16p[((uae_u16*)src2)[x]];
 				x++;
-				((uae_u16*)dst2)[x] = (uae_u16)p96_rgbx16[((uae_u16*)src2)[x]];
+				dx++;
+				((uae_u16*)dst2)[dx] = (uae_u16)p96_rgbx16p[((uae_u16*)src2)[x]];
 				x++;
+				dx++;
 			}
 			while (x < endx) {
-				((uae_u16*)dst2)[x] = (uae_u16)p96_rgbx16[((uae_u16*)src2)[x]];
+				((uae_u16*)dst2)[dx] = (uae_u16)p96_rgbx16p[((uae_u16*)src2)[x]];
 				x++;
+				dx++;
 			}
 		}
 		break;
@@ -4293,16 +4349,18 @@ static void copyrow (int monid, uae_u8 *src, uae_u8 *dst, int x, int y, int widt
 			r = src2[x * 3 + 0];
 			g = src2[x * 3 + 1];
 			b = src2[x * 3 + 2];
-			((uae_u16*)dst2)[x] = p96_rgbx16[(((r >> 3) & 0x1f) << 11) | (((g >> 2) & 0x3f) << 5) | (((b >> 3) & 0x1f) << 0)];
+			((uae_u16*)dst2)[dx] = p96_rgbx16p[(((r >> 3) & 0x1f) << 11) | (((g >> 2) & 0x3f) << 5) | (((b >> 3) & 0x1f) << 0)];
 			x++;
+			dx++;
 		}
 		break;
 	case RGBFB_B8G8R8_16:
 		while (x < endx) {
 			uae_u32 v;
 			v = ((uae_u32*)(&src2[x * 3]))[0] >> 8;
-			((uae_u16*)dst2)[x] = p96_rgbx16[(((v >> (8 + 3)) & 0x1f) << 11) | (((v >> (0 + 2)) & 0x3f) << 5) | (((v >> (16 + 3)) & 0x1f) << 0)];
+			((uae_u16*)dst2)[dx] = p96_rgbx16p[(((v >> (8 + 3)) & 0x1f) << 11) | (((v >> (0 + 2)) & 0x3f) << 5) | (((v >> (16 + 3)) & 0x1f) << 0)];
 			x++;
+			dx++;
 		}
 		break;
 
@@ -4311,32 +4369,36 @@ static void copyrow (int monid, uae_u8 *src, uae_u8 *dst, int x, int y, int widt
 		while (x < endx) {
 			uae_u32 v;
 			v = ((uae_u32*)src2)[x];
-			((uae_u16*)dst2)[x] = p96_rgbx16[(((v >> (0 + 3)) & 0x1f) << 11) | (((v >> (8 + 2)) & 0x3f) << 5) | (((v >> (16 + 3)) & 0x1f) << 0)];
+			((uae_u16*)dst2)[dx] = p96_rgbx16p[(((v >> (0 + 3)) & 0x1f) << 11) | (((v >> (8 + 2)) & 0x3f) << 5) | (((v >> (16 + 3)) & 0x1f) << 0)];
 			x++;
+			dx++;
 		}
 		break;
 	case RGBFB_A8R8G8B8_16:
 		while (x < endx) {
 			uae_u32 v;
 			v = ((uae_u32*)src2)[x];
-			((uae_u16*)dst2)[x] = p96_rgbx16[(((v >> (8 + 3)) & 0x1f) << 11) | (((v >> (16 + 2)) & 0x3f) << 5) | (((v >> (24 + 3)) & 0x1f) << 0)];
+			((uae_u16*)dst2)[dx] = p96_rgbx16p[(((v >> (8 + 3)) & 0x1f) << 11) | (((v >> (16 + 2)) & 0x3f) << 5) | (((v >> (24 + 3)) & 0x1f) << 0)];
 			x++;
+			dx++;
 		}
 		break;
 	case RGBFB_A8B8G8R8_16:
 		while (x < endx) {
 			uae_u32 v;
 			v = ((uae_u32*)src2)[x];
-			((uae_u16*)dst2)[x] = p96_rgbx16[(((v >> (24 + 3)) & 0x1f) << 11) | (((v >> (16 + 2)) & 0x3f) << 5) | (((v >> (8 + 3)) & 0x1f) << 0)];
+			((uae_u16*)dst2)[dx] = p96_rgbx16p[(((v >> (24 + 3)) & 0x1f) << 11) | (((v >> (16 + 2)) & 0x3f) << 5) | (((v >> (8 + 3)) & 0x1f) << 0)];
 			x++;
+			dx++;
 		}
 		break;
 	case RGBFB_B8G8R8A8_16:
 		while (x < endx) {
 			uae_u32 v;
 			v = ((uae_u32*)src2)[x];
-			((uae_u16*)dst2)[x] = p96_rgbx16[(((v >> (16 + 3)) & 0x1f) << 11) | (((v >> (8 + 2)) & 0x3f) << 5) | (((v >> (0 + 3)) & 0x1f) << 0)];
+			((uae_u16*)dst2)[dx] = p96_rgbx16p[(((v >> (16 + 3)) & 0x1f) << 11) | (((v >> (8 + 2)) & 0x3f) << 5) | (((v >> (0 + 3)) & 0x1f) << 0)];
 			x++;
+			dx++;
 		}
 		break;
 
@@ -4344,22 +4406,28 @@ static void copyrow (int monid, uae_u8 *src, uae_u8 *dst, int x, int y, int widt
 	case RGBFB_CLUT_RGBFB_32:
 		{
 			while ((x & 3) && x < endx) {
-				((uae_u32*)dst2)[x] = vidinfo->clut[src2[x]];
+				((uae_u32*)dst2)[dx] = vidinfo->clut[src2[x]];
 				x++;
+				dx++;
 			}
 			while (x < endx4) {
-				((uae_u32*)dst2)[x] = vidinfo->clut[src2[x]];
+				((uae_u32*)dst2)[dx] = vidinfo->clut[src2[x]];
 				x++;
-				((uae_u32*)dst2)[x] = vidinfo->clut[src2[x]];
+				dx++;
+				((uae_u32*)dst2)[dx] = vidinfo->clut[src2[x]];
 				x++;
-				((uae_u32*)dst2)[x] = vidinfo->clut[src2[x]];
+				dx++;
+				((uae_u32*)dst2)[dx] = vidinfo->clut[src2[x]];
 				x++;
-				((uae_u32*)dst2)[x] = vidinfo->clut[src2[x]];
+				dx++;
+				((uae_u32*)dst2)[dx] = vidinfo->clut[src2[x]];
 				x++;
+				dx++;
 			}
 			while (x < endx) {
-				((uae_u32*)dst2)[x] = vidinfo->clut[src2[x]];
+				((uae_u32*)dst2)[dx] = vidinfo->clut[src2[x]];
 				x++;
+				dx++;
 			}
 		}
 		break;
@@ -4368,33 +4436,237 @@ static void copyrow (int monid, uae_u8 *src, uae_u8 *dst, int x, int y, int widt
 	case RGBFB_CLUT_RGBFB_16:
 		{
 			while ((x & 3) && x < endx) {
-				((uae_u16*)dst2)[x] = vidinfo->clut[src2[x]];
+				((uae_u16*)dst2)[dx] = vidinfo->clut[src2[x]];
 				x++;
+				dx++;
 			}
 			while (x < endx4) {
-				((uae_u16*)dst2)[x] = vidinfo->clut[src2[x]];
+				((uae_u16*)dst2)[dx] = vidinfo->clut[src2[x]];
 				x++;
-				((uae_u16*)dst2)[x] = vidinfo->clut[src2[x]];
+				dx++;
+				((uae_u16*)dst2)[dx] = vidinfo->clut[src2[x]];
 				x++;
-				((uae_u16*)dst2)[x] = vidinfo->clut[src2[x]];
+				dx++;
+				((uae_u16*)dst2)[dx] = vidinfo->clut[src2[x]];
 				x++;
-				((uae_u16*)dst2)[x] = vidinfo->clut[src2[x]];
+				dx++;
+				((uae_u16*)dst2)[dx] = vidinfo->clut[src2[x]];
 				x++;
+				dx++;
 			}
 			while (x < endx) {
-				((uae_u16*)dst2)[x] = vidinfo->clut[src2[x]];
+				((uae_u16*)dst2)[dx] = vidinfo->clut[src2[x]];
 				x++;
+				dx++;
 			}
 		}
 		break;
 	}
 }
 
+
+static void copyrow_scale(int monid, uae_u8 *src, uae_u8 *src_screen, uae_u8 *dst,
+	int sx, int sy, int sxadd, int width, int srcbytesperrow, int srcpixbytes,
+	int screenbytesperrow, int screenpixbytes,
+	int dx, int dy, int dstbytesperrow, int dstpixbytes,
+	bool ck, uae_u32 colorkey,
+	int convert_mode, uae_u32 *p96_rgbx16p)
+{
+	struct picasso_vidbuf_description *vidinfo = &picasso_vidinfo[monid];
+	uae_u8 *src2 = src + sy * srcbytesperrow;
+	uae_u8 *dst2 = dst + dy * dstbytesperrow;
+	uae_u8 *srcs = src_screen + dy * screenbytesperrow;
+	int endx = (sx + width) << 8, endx4;
+	int dstpix = dstpixbytes;
+	int srcpix = srcpixbytes;
+	int x;
+
+	endx4 = endx & ~(3 << 8);
+
+	switch (convert_mode)
+	{
+		/* 24bit->32bit */
+		case RGBFB_R8G8B8_32:
+			while (sx < endx) {
+				x = sx >> 8;
+				sx += sxadd;
+				if (!ck || colorkey == ((uae_u32*)srcs)[dx])
+					((uae_u32*)dst2)[dx] = (src2[x * 3 + 0] << 16) | (src2[x * 3 + 1] << 8) | (src2[x * 3 + 2] << 0);
+				dx++;
+			}
+			break;
+		case RGBFB_B8G8R8_32:
+			while (sx < endx) {
+				x = sx >> 8;
+				sx += sxadd;
+				if (!ck || colorkey == ((uae_u32*)srcs)[dx])
+					((uae_u32*)dst2)[dx] = ((uae_u32*)(src2 + x * 3))[0] & 0x00ffffff;
+				dx++;
+			}
+			break;
+
+		/* 32bit->32bit */
+		case RGBFB_R8G8B8A8_32:
+			while (sx < endx) {
+				x = sx >> 8;
+				sx += sxadd;
+				if (!ck || colorkey == ((uae_u32*)srcs)[dx])
+					((uae_u32*)dst2)[dx] = (src2[x * 4 + 0] << 16) | (src2[x * 4 + 1] << 8) | (src2[x * 4 + 2] << 0);
+				dx++;
+			}
+			break;
+		case RGBFB_A8R8G8B8_32:
+			while (sx < endx) {
+				x = sx >> 8;
+				sx += sxadd;
+				if (!ck || colorkey == ((uae_u32*)srcs)[dx])
+					((uae_u32*)dst2)[dx] = (src2[x * 4 + 1] << 16) | (src2[x * 4 + 2] << 8) | (src2[x * 4 + 3] << 0);
+				dx++;
+			}
+			break;
+		case RGBFB_A8B8G8R8_32:
+			while (sx < endx) {
+				x = sx >> 8;
+				sx += sxadd;
+				if (!ck || colorkey == ((uae_u32*)srcs)[dx])
+					((uae_u32*)dst2)[dx] = ((uae_u32*)src2)[x] >> 8;
+				dx++;
+			}
+			break;
+
+		/* 15/16bit->32bit */
+		case RGBFB_R5G6B5PC_32:
+		case RGBFB_R5G5B5PC_32:
+		case RGBFB_R5G6B5_32:
+		case RGBFB_R5G5B5_32:
+		case RGBFB_B5G6R5PC_32:
+		case RGBFB_B5G5R5PC_32:
+
+		case RGBFB_Y4U1V1_32:
+		case RGBFB_Y4U2V2_32:
+		{
+			while ((sx & (3 << 8)) && sx < endx) {
+				x = sx >> 8;
+				sx += sxadd;
+				if (!ck || colorkey == ((uae_u32*)srcs)[dx])
+					((uae_u32*)dst2)[dx] = p96_rgbx16p[((uae_u16*)src2)[x]];
+				dx++;
+			}
+			while (sx < endx4) {
+				x = sx >> 8;
+				sx += sxadd;
+				if (!ck || colorkey == ((uae_u32*)srcs)[dx])
+					((uae_u32*)dst2)[dx] = p96_rgbx16p[((uae_u16*)src2)[x]];
+				dx++;
+				x = sx >> 8;
+				sx += sxadd;
+				if (!ck || colorkey == ((uae_u32*)srcs)[dx])
+					((uae_u32*)dst2)[dx] = p96_rgbx16p[((uae_u16*)src2)[x]];
+				dx++;
+				x = sx >> 8;
+				sx += sxadd;
+				if (!ck || colorkey == ((uae_u32*)srcs)[dx])
+					((uae_u32*)dst2)[dx] = p96_rgbx16p[((uae_u16*)src2)[x]];
+				dx++;
+				x = sx >> 8;
+				sx += sxadd;
+				if (!ck || colorkey == ((uae_u32*)srcs)[dx])
+					((uae_u32*)dst2)[dx] = p96_rgbx16p[((uae_u16*)src2)[x]];
+				dx++;
+			}
+			while (sx < endx) {
+				x = sx >> 8;
+				sx += sxadd;
+				if (!ck || colorkey == ((uae_u32*)srcs)[dx])
+					((uae_u32*)dst2)[dx] = p96_rgbx16p[((uae_u16*)src2)[x]];
+				dx++;
+			}
+		}
+		break;
+
+		/* 16/15bit->16bit */
+		case RGBFB_R5G5B5PC_16:
+		case RGBFB_R5G6B5_16:
+		case RGBFB_R5G5B5_16:
+		case RGBFB_B5G5R5PC_16:
+		case RGBFB_B5G6R5PC_16:
+		case RGBFB_R5G6B5PC_16:
+
+		case RGBFB_Y4U1V1_16:
+		case RGBFB_Y4U2V2_16:
+		{
+			while ((sx & (3 << 8)) && sx < endx) {
+				x = sx >> 8;
+				sx += sxadd;
+				if (!ck || colorkey == ((uae_u16*)srcs)[dx])
+					((uae_u16*)dst2)[dx] = (uae_u16)p96_rgbx16p[((uae_u16*)src2)[x]];
+				dx++;
+			}
+			while (sx < endx4) {
+				x = sx >> 8;
+				sx += sxadd;
+				if (!ck || colorkey == ((uae_u16*)srcs)[dx])
+					((uae_u16*)dst2)[dx] = (uae_u16)p96_rgbx16p[((uae_u16*)src2)[x]];
+				dx++;
+				x = sx >> 8;
+				sx += sxadd;
+				if (!ck || colorkey == ((uae_u16*)srcs)[dx])
+					((uae_u16*)dst2)[dx] = (uae_u16)p96_rgbx16p[((uae_u16*)src2)[x]];
+				dx++;
+				x = sx >> 8;
+				sx += sxadd;
+				if (!ck || colorkey == ((uae_u16*)srcs)[dx])
+					((uae_u16*)dst2)[dx] = (uae_u16)p96_rgbx16p[((uae_u16*)src2)[x]];
+				dx++;
+				x = sx >> 8;
+				sx += sxadd;
+				if (!ck || colorkey == ((uae_u16*)srcs)[dx])
+					((uae_u16*)dst2)[dx] = (uae_u16)p96_rgbx16p[((uae_u16*)src2)[x]];
+				dx++;
+			}
+			while (sx < endx) {
+				x = sx >> 8;
+				sx += sxadd;
+				if (!ck || colorkey == ((uae_u16*)srcs)[dx])
+					((uae_u16*)dst2)[dx] = (uae_u16)p96_rgbx16p[((uae_u16*)src2)[x]];
+				dx++;
+			}
+		}
+		break;
+	}
+}
+
+
+static void picasso_flushoverlay(int index, uae_u8 *src, int scr_offset, uae_u8 *dst)
+{
+	int monid = currprefs.rtgboards[index].monitor_id;
+	struct picasso96_state_struct *state = &picasso96_state[monid];
+	struct picasso_vidbuf_description *vidinfo = &picasso_vidinfo[monid];
+
+	uae_u8 *s = src + overlay_vram_offset;
+	uae_u8 *ss = src + scr_offset;
+	int mx = overlay_src_width * 256 / overlay_w;
+	int my = overlay_src_height * 256 / overlay_h;
+	int y = 0;
+	for (int dy = 0; dy < overlay_h; dy++) {
+		copyrow_scale(monid, s, ss, dst,
+			0, (y >> 8), mx, overlay_src_width, overlay_src_width * overlay_pix, overlay_pix,
+			state->BytesPerRow, state->BytesPerPixel,
+			overlay_x, overlay_y + dy, vidinfo->rowbytes, vidinfo->pixbytes,
+			overlay_occlusion != 0, overlay_color,
+			overlay_convert, p96_rgbx16_ovl);
+		y += my;
+	}
+	vidinfo->full_refresh = 1;
+}
+
 void fb_copyrow(int monid, uae_u8 *src, uae_u8 *dst, int x, int y, int width, int srcpixbytes, int dy)
 {
 	struct picasso_vidbuf_description *vidinfo = &picasso_vidinfo[monid];
 	struct picasso96_state_struct *state = &picasso96_state[monid];
-	copyrow(monid, src, dst, x, y, width, 0, srcpixbytes, dy, picasso_vidinfo[monid].rowbytes, picasso_vidinfo[monid].pixbytes, state->RGBFormat == vidinfo->host_mode, vidinfo->picasso_convert);
+	copyrow(monid, src, dst, x, y, width, 0, srcpixbytes,
+		x, dy, picasso_vidinfo[monid].rowbytes, picasso_vidinfo[monid].pixbytes,
+		state->RGBFormat == vidinfo->host_mode, vidinfo->picasso_convert, p96_rgbx16);
 }
 
 static void copyallinvert(int monid, uae_u8 *src, uae_u8 *dst, int pwidth, int pheight, int srcbytesperrow, int srcpixbytes, int dstbytesperrow, int dstpixbytes, bool direct, int mode_convert)
@@ -4414,7 +4686,7 @@ static void copyallinvert(int monid, uae_u8 *src, uae_u8 *dst, int pwidth, int p
 		for (y = 0; y < pheight; y++) {
 			for (x = 0; x < w; x++)
 				src2[x] ^= 0xff;
-			copyrow(monid, src, dst, 0, y, pwidth, srcbytesperrow, srcpixbytes, y, dstbytesperrow, dstpixbytes, direct, mode_convert);
+			copyrow(monid, src, dst, 0, y, pwidth, srcbytesperrow, srcpixbytes, 0, y, dstbytesperrow, dstpixbytes, direct, mode_convert, p96_rgbx16);
 			for (x = 0; x < w; x++)
 				src2[x] ^= 0xff;
 			src2 += srcbytesperrow;
@@ -4436,7 +4708,7 @@ static void copyall (int monid, uae_u8 *src, uae_u8 *dst, int pwidth, int pheigh
 		}
 	} else {
 		for (y = 0; y < pheight; y++)
-			copyrow (monid, src, dst, 0, y, pwidth, srcbytesperrow, srcpixbytes, y, dstbytesperrow, dstpixbytes, direct, mode_convert);
+			copyrow (monid, src, dst, 0, y, pwidth, srcbytesperrow, srcpixbytes, 0, y, dstbytesperrow, dstpixbytes, direct, mode_convert, p96_rgbx16);
 	}
 }
 
@@ -4465,7 +4737,7 @@ uae_u8 *getrtgbuffer(int monid, int *widthp, int *heightp, int *pitch, int *dept
 		return NULL;
 	hmode = pixbytes == 1 ? RGBFB_CLUT : RGBFB_B8G8R8A8;
 	convert = getconvert (state->RGBFormat, pixbytes);
-	alloc_colors_picasso(8, 8, 8, 16, 8, 0, state->RGBFormat);
+	alloc_colors_picasso(8, 8, 8, 16, 8, 0, state->RGBFormat, p96_rgbx16);
 
 	if (pixbytes > 1 && hmode != convert) {
 		copyall (monid, src + off, dst, width, height, state->BytesPerRow, state->BytesPerPixel, width * pixbytes, pixbytes, false, convert);
@@ -4614,8 +4886,8 @@ static void picasso_flushpixels(int index, uae_u8 *src, int off, bool render)
 					if (x < pwidth) {
 						copyrow(monid, src + off, dst, x, y, pwidth - x,
 							state->BytesPerRow, state->BytesPerPixel,
-							y, vidinfo->rowbytes, vidinfo->pixbytes,
-							state->RGBFormat == vidinfo->host_mode, vidinfo->picasso_convert);
+							x, y, vidinfo->rowbytes, vidinfo->pixbytes,
+							state->RGBFormat == vidinfo->host_mode, vidinfo->picasso_convert, p96_rgbx16);
 						flushlines++;
 					}
 					w = (gwwpagesize[index] - (state->BytesPerRow - x * state->BytesPerPixel)) / state->BytesPerPixel;
@@ -4626,8 +4898,8 @@ static void picasso_flushpixels(int index, uae_u8 *src, int off, bool render)
 						int maxw = w > pwidth ? pwidth : w;
 						copyrow(monid, src + off, dst, 0, y, maxw,
 							state->BytesPerRow, state->BytesPerPixel,
-							y, vidinfo->rowbytes, vidinfo->pixbytes,
-							state->RGBFormat == vidinfo->host_mode, vidinfo->picasso_convert);
+							0, y, vidinfo->rowbytes, vidinfo->pixbytes,
+							state->RGBFormat == vidinfo->host_mode, vidinfo->picasso_convert, p96_rgbx16);
 						w -= maxw;
 						y++;
 						flushlines++;
@@ -4640,6 +4912,14 @@ static void picasso_flushpixels(int index, uae_u8 *src, int off, bool render)
 
 		}
 		break;
+	}
+
+	if (!index && overlay_vram && overlay_active) {
+		if (dst == NULL) {
+			dst = gfx_lock_picasso(monid, false, false);
+		}
+		if (dst)
+			picasso_flushoverlay(index, src, off, dst);
 	}
 
 	if (0 && flushlines) {
@@ -4707,7 +4987,7 @@ addrbank gfxmem_bank = {
 	gfxmem_lput, gfxmem_wput, gfxmem_bput,
 	gfxmem_xlate, gfxmem_check, NULL, NULL, _T("RTG RAM"),
 	dummy_lgeti, dummy_wgeti,
-	ABFLAG_RAM | ABFLAG_RTG, 0, 0
+	ABFLAG_RAM | ABFLAG_RTG | ABFLAG_DIRECTACCESS, 0, 0
 };
 extern addrbank gfxmem2_bank;
 MEMORY_FUNCTIONS(gfxmem2);
@@ -4716,7 +4996,7 @@ addrbank gfxmem2_bank = {
 	gfxmem2_lput, gfxmem2_wput, gfxmem2_bput,
 	gfxmem2_xlate, gfxmem2_check, NULL, NULL, _T("RTG RAM #2"),
 	dummy_lgeti, dummy_wgeti,
-	ABFLAG_RAM | ABFLAG_RTG, 0, 0
+	ABFLAG_RAM | ABFLAG_RTG | ABFLAG_DIRECTACCESS, 0, 0
 };
 extern addrbank gfxmem3_bank;
 MEMORY_FUNCTIONS(gfxmem3);
@@ -4725,7 +5005,7 @@ addrbank gfxmem3_bank = {
 	gfxmem3_lput, gfxmem3_wput, gfxmem3_bput,
 	gfxmem3_xlate, gfxmem3_check, NULL, NULL, _T("RTG RAM #3"),
 	dummy_lgeti, dummy_wgeti,
-	ABFLAG_RAM | ABFLAG_RTG, 0, 0
+	ABFLAG_RAM | ABFLAG_RTG | ABFLAG_DIRECTACCESS, 0, 0
 };
 extern addrbank gfxmem4_bank;
 MEMORY_FUNCTIONS(gfxmem4);
@@ -4734,7 +5014,7 @@ addrbank gfxmem4_bank = {
 	gfxmem4_lput, gfxmem4_wput, gfxmem4_bput,
 	gfxmem4_xlate, gfxmem4_check, NULL, NULL, _T("RTG RAM #4"),
 	dummy_lgeti, dummy_wgeti,
-	ABFLAG_RAM | ABFLAG_RTG, 0, 0
+	ABFLAG_RAM | ABFLAG_RTG | ABFLAG_DIRECTACCESS, 0, 0
 };
 addrbank *gfxmem_banks[MAX_RTG_BOARDS];
 
@@ -4844,6 +5124,240 @@ static uae_u32 REGPARAM2 picasso_SetMemoryMode(TrapContext *ctx)
 	return 0;
 }
 
+#if OVERLAY
+
+#define OVERLAY_COOKIE 0x12345678
+
+static uaecptr gettag(TrapContext *ctx, uaecptr p, uae_u32 *tagp, uae_u32 *valp)
+{
+	for (;;) {
+		uae_u32 tag = trap_get_long(ctx, p);
+		uae_u32 val = trap_get_long(ctx, p + 4);
+		if (tag == TAG_DONE)
+			return 0;
+		if (tag == TAG_IGNORE) {
+			p += 8;
+			continue;
+		}
+		if (tag == TAG_SKIP) {
+			p += val * 8;
+			continue;
+		}
+		if (tag == TAG_MORE) {
+			p = val;
+			continue;
+		}
+		*tagp = tag;
+		*valp = val;
+		return p + 8;
+	}
+}
+static void settag(TrapContext *ctx, uaecptr p, uae_u32 v)
+{
+	uaecptr addr = trap_get_long(ctx, p - 8 + 4);
+	trap_put_long(ctx, addr, v);
+}
+
+static void overlaygettag(uae_u32 tag, uae_u32 val)
+{
+	switch (tag)
+	{
+	case FA_Active:
+		overlay_active = val;
+		break;
+	case FA_Occlusion:
+		overlay_occlusion = val;
+		break;
+	case FA_Left:
+		overlay_x = val;
+		break;
+	case FA_Top:
+		overlay_y = val;
+		break;
+	case FA_Width:
+		overlay_w = val;
+		break;
+	case FA_Height:
+		overlay_h = val;
+		break;
+	case FA_SourceWidth:
+		overlay_src_width = val;
+		break;
+	case FA_SourceHeight:
+		overlay_src_height = val;
+		break;
+	case FA_Format:
+		overlay_format = val;
+		break;
+	case FA_ModeFormat:
+		overlay_modeformat = val;
+		break;
+	case FA_ModeInfo:
+		overlay_modeinfo = val;
+		break;
+	case FA_Color:
+		overlay_color = val;
+		endianswap(&overlay_color, picasso_vidinfo[0].pixbytes);
+		break;
+	}
+}
+
+static void overlaysettag(TrapContext *ctx, uaecptr p, uae_u32 tag, uae_u32 val)
+{
+	switch (tag)
+	{
+	case FA_MinWidth:
+	case FA_MinHeight:
+		settag(ctx, p, 16);
+		break;
+	case FA_MaxWidth:
+	case FA_MaxHeight:
+		settag(ctx, p, 4096);
+		break;
+	case FA_BitMap:
+		settag(ctx, p, overlay_bitmap);
+		break;
+	}
+}
+
+static uae_u32 REGPARAM2 picasso_SetFeatureAttrs(TrapContext *ctx)
+{
+	struct picasso_vidbuf_description *vidinfo = &picasso_vidinfo[0];
+	uaecptr bi = trap_get_areg(ctx, 0);
+	uaecptr featuredata = trap_get_areg(ctx, 1);
+	uaecptr tagp = trap_get_areg(ctx, 2);
+	uae_u32 type = trap_get_dreg(ctx, 0);
+
+	for (;;) {
+		uae_u32 tag, val;
+		tagp = gettag(ctx, tagp, &tag, &val);
+		if (!tagp)
+			break;
+		write_log(_T("picasso_SetFeatureAttrs %08x tag %08x (%d) %08x\n"), tagp - 8, tag, tag & 0x7fffffff, val);
+		overlaygettag(tag, val);
+	}
+	write_log(_T("RTG Overlay: X=%d Y=%d W=%d H=%d Act=%d SrcW=%d SrcH=%d BPP=%d VRAM=%08x\n"),
+		overlay_x, overlay_y, overlay_w, overlay_h,
+		overlay_active, overlay_src_width, overlay_src_height,
+		overlay_pix, overlay_vram);
+	vidinfo->full_refresh = 1;
+	return 0;
+}
+
+static uae_u32 REGPARAM2 picasso_GetFeatureAttrs(TrapContext *ctx)
+{
+	uaecptr bi = trap_get_areg(ctx, 0);
+	uaecptr featuredata = trap_get_areg(ctx, 1);
+	uaecptr tagp = trap_get_areg(ctx, 2);
+	uae_u32 type = trap_get_dreg(ctx, 0);
+
+	for (;;) {
+		uae_u32 tag, val;
+		tagp = gettag(ctx, tagp, &tag, &val);
+		if (!tagp)
+			break;
+		write_log(_T("picasso_GetFeatureAttrs %08x tag %08x (%d) %08x\n"), tagp - 8, tag, tag & 0x7fffffff, val);
+		overlaysettag(ctx, tagp, tag, val);
+	}
+	return 0;
+}
+
+// undocumented tags from picassoiv driver..
+static const uae_u32 ovltags[] = {
+	0x80000003, 1,
+	0x80000004, 1,
+	0x80000005, 1,
+	0x80000008, 0,
+	0x80000009, 0,
+	0x80000010, 0,
+	0x80000006, 0,
+	0x8000000c, 0,
+	0x8000000d, 0,
+	0x8000000e, 0,
+	0x8000000f, 0,
+	0,0
+};
+
+static uae_u32 REGPARAM2 picasso_CreateFeature(TrapContext *ctx)
+{
+	struct picasso_vidbuf_description *vidinfo = &picasso_vidinfo[0];
+	uaecptr bi = trap_get_areg(ctx, 0);
+	uae_u32 type = trap_get_dreg(ctx, 0);
+	uaecptr tagp = trap_get_areg(ctx, 1);
+
+	write_log(_T("picasso_CreateFeature type %d\n"), type);
+	if (type != 4)
+		return 0;
+	if (overlay_vram)
+		return 0;
+	overlay_src_width = -1;
+	overlay_src_height = -1;
+	overlay_format = 0;
+	for (;;) {
+		uae_u32 tag, val;
+		tagp = gettag(ctx, tagp, &tag, &val);
+		if (!tagp)
+			break;
+		write_log(_T("picasso_CreateFeature tag %08x (%d) %08x\n"), tag, tag & 0x7fffffff, val);
+		overlaygettag(tag, val);
+	}
+	if (overlay_src_width <= 0 || overlay_src_height <= 0 || overlay_format <= 0)
+		return 0;
+	overlay_pix = GetBytesPerPixel(overlay_format);
+	uaecptr tagmem = uae_AllocMem(ctx, 13 * 8, 65536, trap_get_long(ctx, 4));
+	if (!tagmem)
+		return 0;
+	uaecptr func = trap_get_long(ctx, bi + PSSO_BoardInfo_AllocBitMap);
+	trap_put_long(ctx, tagmem + 0, 0x80000002);
+	trap_put_long(ctx, tagmem + 4, overlay_format);
+	for (int i = 0; ovltags[i]; i += 2) {
+		trap_put_long(ctx, tagmem + 8 + i * 4 + 0, ovltags[i + 0]);
+		trap_put_long(ctx, tagmem + 8 + i * 4 + 4, ovltags[i + 1]);
+	}
+	trap_call_add_areg(ctx, 0, bi);
+	trap_call_add_dreg(ctx, 0, overlay_src_width);
+	trap_call_add_dreg(ctx, 1, overlay_src_height);
+	trap_call_add_areg(ctx, 1, tagmem);
+	overlay_bitmap = trap_call_func(ctx, func);
+	uae_FreeMem(ctx, tagmem, 13 * 8, trap_get_long(ctx, 4));
+	if (!overlay_bitmap)
+		return 0;
+	// probably should use GetBitMapAttr() but tags are not documented..
+	overlay_vram = trap_get_long(ctx, overlay_bitmap + 8);
+	overlay_vram_offset = overlay_vram - gfxmem_banks[0]->start;
+	overlay_convert = getconvert(overlay_format, picasso_vidinfo[0].pixbytes);
+	if (!p96_rgbx16_ovl)
+		p96_rgbx16_ovl = xcalloc(uae_u32, 65536);
+	alloc_colors_picasso(8, 8, 8, 16, 8, 0, overlay_format, p96_rgbx16_ovl);
+	write_log(_T("picasso_CreateFeature overlay bitmap %08x, vram %08x\n"), overlay_bitmap, overlay_vram);
+	vidinfo->full_refresh = 1;
+	return OVERLAY_COOKIE;
+}
+
+static uae_u32 REGPARAM2 picasso_DeleteFeature(TrapContext *ctx)
+{
+	uaecptr bi = trap_get_areg(ctx, 0);
+	uae_u32 type = trap_get_dreg(ctx, 0);
+	uaecptr featuredata = trap_get_areg(ctx, 1);
+
+	write_log(_T("picasso_DeleteFeature type %d data %08x\n"), type, featuredata);
+	if (type != 4)
+		return 0;
+	if (featuredata != OVERLAY_COOKIE)
+		return 0;
+	uaecptr func = trap_get_long(ctx, bi + PSSO_BoardInfo_FreeBitMap);
+	trap_call_add_areg(ctx, 0, bi);
+	trap_call_add_areg(ctx, 1, overlay_bitmap);
+	trap_call_add_areg(ctx, 2, 0);
+	trap_call_func(ctx, func);
+	overlay_bitmap = 0;
+	overlay_vram = 0;
+	overlay_active = 0;
+	return 1;
+}
+
+#endif
+
 #define PUTABI(func) \
 	if (ABI) \
 		trap_put_long(ctx, ABI + func, here ()); \
@@ -4863,6 +5377,11 @@ static uae_u32 REGPARAM2 picasso_SetMemoryMode(TrapContext *ctx)
 #define RTGCALL2(func,call) \
 	PUTABI (func); \
 	calltrap (deftrap (call)); \
+	dw (RTS);
+
+#define RTGCALL2X(func,call) \
+	PUTABI (func); \
+	calltrap (deftrap2 (call, TRAPFLAG_EXTRA_STACK, NULL)); \
 	dw (RTS);
 
 #define RTGCALLDEFAULT(func,funcdef) \
@@ -5068,6 +5587,13 @@ static void inituaegfxfuncs(TrapContext *ctx, uaecptr start, uaecptr ABI)
 	RTGCALLDEFAULT(PSSO_BoardInfo_ScrollPlanar, PSSO_BoardInfo_ScrollPlanarDefault);
 	RTGCALLDEFAULT(PSSO_BoardInfo_UpdatePlanar, PSSO_BoardInfo_UpdatePlanarDefault);
 	RTGCALLDEFAULT(PSSO_BoardInfo_DrawLine, PSSO_BoardInfo_DrawLineDefault);
+
+#if OVERLAY
+	RTGCALL2(PSSO_BoardInfo_GetFeatureAttrs, picasso_GetFeatureAttrs);
+	RTGCALL2(PSSO_BoardInfo_SetFeatureAttrs, picasso_SetFeatureAttrs);
+	RTGCALL2X(PSSO_BoardInfo_CreateFeature, picasso_CreateFeature);
+	RTGCALL2X(PSSO_BoardInfo_DeleteFeature, picasso_DeleteFeature);
+#endif
 
 #endif
 

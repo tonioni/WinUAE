@@ -3153,7 +3153,7 @@ void gfx_set_picasso_modeinfo(int monid, RGBFTYPE rgbfmt)
 
 void gfx_set_picasso_colors(int monid, RGBFTYPE rgbfmt)
 {
-	alloc_colors_picasso(red_bits, green_bits, blue_bits, red_shift, green_shift, blue_shift, rgbfmt);
+	alloc_colors_picasso(red_bits, green_bits, blue_bits, red_shift, green_shift, blue_shift, rgbfmt, p96_rgbx16);
 }
 
 static void gfxmode_reset(int monid)

@@ -234,7 +234,7 @@ static uae_u32 lowbits (int v, int shift, int lsize)
 	return v;
 }
 
-void alloc_colors_picasso (int rw, int gw, int bw, int rs, int gs, int bs, int rgbfmt)
+void alloc_colors_picasso (int rw, int gw, int bw, int rs, int gs, int bs, int rgbfmt, uae_u32 *rgbx16)
 {
 #ifdef PICASSO96
 	int byte_swap = 0;
@@ -303,7 +303,7 @@ void alloc_colors_picasso (int rw, int gw, int bw, int rs, int gs, int bs, int r
 	byte_swap = !byte_swap;
 #endif
 
-	memset (p96_rgbx16, 0, sizeof p96_rgbx16);
+	memset (rgbx16, 0, 65536 * sizeof(uae_u32));
 
 	if (red_bits) {
 		int lrbits = 8 - red_bits;
@@ -321,7 +321,7 @@ void alloc_colors_picasso (int rw, int gw, int bw, int rs, int gs, int bs, int r
 			c = doMask(r, rw, rs) | doMask(g, gw, gs) | doMask(b, bw, bs);
 			if (bpp <= 16)
 				c *= 0x00010001;
-			p96_rgbx16[i] = c;
+			rgbx16[i] = c;
 		}
 	}
 #endif

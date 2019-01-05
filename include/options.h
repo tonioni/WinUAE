@@ -658,6 +658,7 @@ struct uae_prefs {
 	int cs_unmapped_space;
 	int cs_hacks;
 	int cs_ciatype[2];
+	int cs_kbhandshake;
 
 	struct boardromconfig expansionboard[MAX_EXPANSION_BOARDS];
 

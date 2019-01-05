@@ -302,6 +302,32 @@ struct Line {
 #define PSSO_BitMapExtra_CompanionMaster 50
 #define PSSO_BitMapExtra_Last            54
 
+#ifndef TAG_USER
+#define TAG_USER 0x80000000
+#endif
+#define	FA_Restore			(TAG_USER+0)
+#define	FA_Onboard			(TAG_USER+1)
+#define	FA_Active			(TAG_USER+2)
+#define	FA_Left				(TAG_USER+3)
+#define	FA_Top				(TAG_USER+4)
+#define	FA_Width			(TAG_USER+5)
+#define	FA_Height			(TAG_USER+6)
+#define	FA_Format			(TAG_USER+7)
+#define	FA_Color			(TAG_USER+8)
+#define	FA_Occlusion		(TAG_USER+9)
+#define	FA_SourceWidth		(TAG_USER+10)
+#define	FA_SourceHeight		(TAG_USER+11)
+#define	FA_MinWidth			(TAG_USER+12)
+#define	FA_MinHeight		(TAG_USER+13)
+#define	FA_MaxWidth			(TAG_USER+14)
+#define	FA_MaxHeight		(TAG_USER+15)
+#define	FA_Interlace		(TAG_USER+16)
+#define	FA_PAL				(TAG_USER+17)
+#define	FA_BitMap			(TAG_USER+18)
+#define	FA_Brightness		(TAG_USER+19)
+#define	FA_ModeInfo			(TAG_USER+20)
+#define	FA_ModeFormat		(TAG_USER+21)
+
 #define PSSO_BoardInfo_RegisterBase		    0
 #define PSSO_BoardInfo_MemoryBase		    PSSO_BoardInfo_RegisterBase + 4
 #define PSSO_BoardInfo_MemoryIOBase		    PSSO_BoardInfo_MemoryBase + 4
