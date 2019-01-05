@@ -45,6 +45,7 @@ extern void fullpath(TCHAR *path, int size);
 extern void fullpath(TCHAR *path, int size, bool userelative);
 extern void getpathpart (TCHAR *outpath, int size, const TCHAR *inpath);
 extern void getfilepart (TCHAR *out, int size, const TCHAR *path);
+extern bool samepath(const TCHAR *p1, const TCHAR *p2);
 extern bool target_isrelativemode(void);
 extern uae_u32 getlocaltime (void);
 extern bool isguiactive(void);

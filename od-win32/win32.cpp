@@ -3554,6 +3554,13 @@ void fixtrailing (TCHAR *p)
 		return;
 	_tcscat(p, _T("\\"));
 }
+static void fixdriveletter(TCHAR *path)
+{
+	if (_istalpha(path[0]) && path[1] == ':' && path[2] == '\\' && path[3] == '.' && path[4] == 0)
+		path[3] = 0;
+	if (_istalpha(path[0]) && path[1] == ':' && path[2] == '\\' && path[3] == '.' && path[4] == '.' && path[5] == 0)
+		path[3] = 0;
+}
 // convert path to absolute or relative
 void fullpath(TCHAR *path, int size, bool userelative)
 {
@@ -3610,9 +3617,23 @@ done:;
 		DWORD err = GetFullPathName (tmp, size, path, NULL);
 	}
 }
+
 void fullpath(TCHAR *path, int size)
 {
 	fullpath(path, size, relativepaths);
+}
+bool samepath(const TCHAR *p1, const TCHAR *p2)
+{
+	if (!_tcsicmp(p1, p2))
+		return true;
+	TCHAR path1[MAX_DPATH], path2[MAX_DPATH];
+	_tcscpy(path1, p1);
+	_tcscpy(path2, p2);
+	fixdriveletter(path1);
+	fixdriveletter(path2);
+	if (!_tcsicmp(path1, path2))
+		return true;
+	return false;
 }
 
 bool target_isrelativemode(void)
