@@ -300,6 +300,10 @@ static bool is_a2630(struct uae_prefs *p)
 {
 	return ISCPUBOARDP(p, BOARD_COMMODORE, BOARD_COMMODORE_SUB_A26x0);
 }
+static bool is_harms_3kp(struct uae_prefs *p)
+{
+	return ISCPUBOARDP(p, BOARD_HARMS, BOARD_HARMS_SUB_3KPRO);
+}
 static bool is_dkb_12x0(struct uae_prefs *p)
 {
 	return ISCPUBOARDP(p, BOARD_DKB, BOARD_DKB_SUB_12x0);
@@ -1841,6 +1845,17 @@ static void cpuboard_init_2(void)
 		blizzardea_bank.mask = blizzardea_bank.reserved_size - 1;
 		mapped_malloc(&blizzardea_bank);
 
+	} else if (is_harms_3kp(&currprefs)) {
+
+		blizzardf0_bank.start = 0x00f00000;
+		blizzardf0_bank.reserved_size = 65536;
+		blizzardf0_bank.mask = blizzardf0_bank.reserved_size - 1;
+		mapped_malloc(&blizzardf0_bank);
+
+		blizzardea_bank.reserved_size = 65536;
+		blizzardea_bank.mask = blizzardea_bank.reserved_size - 1;
+		mapped_malloc(&blizzardea_bank);
+
 	} else if (is_dkb_12x0(&currprefs)) {
 
 		blizzardram_bank.start = 0x10000000;
@@ -2090,7 +2105,7 @@ void cpuboard_init(void)
 
 void cpuboard_overlay_override(void)
 {
-	if (is_a2630(&currprefs)) {
+	if (is_a2630(&currprefs) || is_harms_3kp(&currprefs)) {
 		if (!(a2630_io & 2))
 			map_banks(&blizzardf0_bank, 0xf80000 >> 16, f0rom_size >> 16, 0);
 		if (mem25bit_bank.allocated_size)
@@ -2223,10 +2238,13 @@ bool cpuboard_io_special(int addr, uae_u32 *val, int size, bool write)
 	addr &= 65535;
 	if (write) {
 		uae_u16 w = *val;
-		if (is_a2630(&currprefs)) {
+		if (is_a2630(&currprefs) || is_harms_3kp(&currprefs)) {
 			if ((addr == 0x0040 && size == 2) || (addr == 0x0041 && size == 1)) {
 				write_log(_T("A2630 write %04x s=%d PC=%08x\n"), w, size, M68K_GETPC);
 				a2630_io = w;
+				if (is_harms_3kp(&currprefs)) {
+					w |= 2;
+				}
 				// bit 0: unmap 0x000000
 				// bit 1: unmap 0xf80000
 				if (w & 2) {
@@ -2253,7 +2271,7 @@ bool cpuboard_io_special(int addr, uae_u32 *val, int size, bool write)
 		}
 		return false;
 	} else {
-		if (is_a2630(&currprefs)) {
+		if (is_a2630(&currprefs) || is_harms_3kp(&currprefs)) {
 			// osmode (j304)
 			if (addr == 0x0c && (a2630_io & 4) == 0) {
 				(*val) |= 0x80;
@@ -2423,6 +2441,15 @@ bool cpuboard_autoconfig_init(struct autoconfig_info *aci)
 		{
 			case BOARD_COMMODORE_SUB_A26x0:
 			romtype = ROMTYPE_CB_A26x0;
+			break;
+		}
+		break;
+
+		case BOARD_HARMS:
+		switch(p->cpuboard_subtype)
+		{
+			case BOARD_HARMS_SUB_3KPRO:
+			romtype = ROMTYPE_CB_HARMS3KP;
 			break;
 		}
 		break;
@@ -2710,6 +2737,13 @@ bool cpuboard_autoconfig_init(struct autoconfig_info *aci)
 		autoconf_stop = true;
 		aci->start = 0xf00000;
 		aci->size = f0rom_size;
+	} else if (is_harms_3kp(p)) {
+		f0rom_size = 65536;
+		zfile_fread(blizzardf0_bank.baseaddr, 1, f0rom_size, autoconfig_rom);
+		autoconf = false;
+		autoconf_stop = true;
+		aci->start = 0xf00000;
+		aci->size = f0rom_size;
 	} else if (is_kupke(p)) {
 		earom_size = 65536;
 		for (int i = 0; i < 8192; i++) {
@@ -2921,6 +2955,14 @@ bool cpuboard_autoconfig_init(struct autoconfig_info *aci)
 				map_banks(&blizzardf0_bank, 0xf80000 >> 16, f0rom_size >> 16, 0);
 			if (!(a2630_io & 1))
 				map_banks(&blizzardf0_bank, 0x000000 >> 16, f0rom_size >> 16, 0);
+		} else if (is_harms_3kp(p)) {
+			if (!(a2630_io & 2)) {
+				map_banks(&blizzardf0_bank, 0xf80000 >> 16, f0rom_size >> 16, 0);
+				map_banks(&blizzardf0_bank, 0xf70000 >> 16, f0rom_size >> 16, 0);
+			}
+			if (!(a2630_io & 1)) {
+				map_banks(&blizzardf0_bank, 0x000000 >> 16, f0rom_size >> 16, 0);
+			}
 		} else if (is_fusionforty(p)) {
 			map_banks(&blizzardf0_bank, 0x00f40000 >> 16, f0rom_size >> 16, 0);
 			map_banks(&blizzardf0_bank, 0x05000000 >> 16, f0rom_size >> 16, 0);

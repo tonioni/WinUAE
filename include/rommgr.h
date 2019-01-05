@@ -50,6 +50,7 @@ extern int decode_cloanto_rom_do (uae_u8 *mem, int size, int real_size);
 #define ROMTYPE_CB_TYPHOON2	0x0004001d
 #define ROMTYPE_CB_QUIKPAK	0x0004001e
 #define ROMTYPE_CB_12GAUGE	0x0004001f
+#define ROMTYPE_CB_HARMS3KP	0x00040020
 
 #define ROMTYPE_FREEZER		0x00080000
 #define ROMTYPE_AR			0x00080001

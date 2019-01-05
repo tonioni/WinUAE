@@ -95,7 +95,7 @@ struct romdata *getromdatabypath (const TCHAR *path)
 	return NULL;
 }
 
-#define NEXT_ROM_ID 246
+#define NEXT_ROM_ID 249
 
 #define ALTROM(id,grp,num,size,flags,crc32,a,b,c,d,e) \
 { _T("X"), 0, 0, 0, 0, 0, size, id, 0, 0, flags, (grp << 16) | num, 0, NULL, crc32, a, b, c, d, e },
@@ -413,6 +413,10 @@ static struct romdata roms[] = {
 	0xa2ba67d1, 0x2015685f, 0xaadfbaf6, 0x8b19b07e, 0x5f4e888f, 0x738b99d7, NULL, NULL },
 	{ _T("GVP A1230 Turbo+ Series II"), 0, 0, 0, 0, _T("A1230SII\0"), 16384, 230, 0, 0, ROMTYPE_CB_A1230S2, 0, 0, NULL,
 	0x96bd351f, 0xb7648daf, 0x52d0732d, 0x897548f3, 0x29ebf624, 0x101474d5, NULL, NULL },
+	{ _T("Harms 3000 Professional"), 0, 0, 0, 00, _T("HARMS3000PRO\0"), 65536, 248, 0, 0, ROMTYPE_CB_HARMS3KP, 0, 0, NULL,
+	0x80da32b5,0x0a3ded88,0x20a24238,0xd3e43baf,0x7163226c,0x861e2d88, NULL, NULL },
+	ALTROMPN(248, 1, 1, 32768, ROMTYPE_ODD  | ROMTYPE_8BIT, NULL, 0xc22c5ee5, 0xc211f305, 0xacb2ce10, 0x32b1b296, 0xc5780dde, 0x78dba814)
+	ALTROMPN(248, 1, 2, 32768, ROMTYPE_EVEN | ROMTYPE_8BIT, NULL, 0xe1062444, 0x7c0dd74f, 0x2bc0a94d, 0xd85aa85f, 0x771b8658, 0x697533cd)
 
 	{ _T("A2620/A2630 -07"), 0, 0, 0, 0, _T("A2620\0A2630\0"), 65536, 105, 0, 0, ROMTYPE_CB_A26x0, 0, 0, _T("390282-07/390283-07"),
 	0x169d80e9, 0x41f518cb,0x41c1dc1f,0xcc636383,0x20676af5,0x4969010c, NULL, NULL },
