@@ -1553,6 +1553,8 @@ cirrus_vga_write_gr(CirrusVGAState * s, unsigned reg_index, int reg_value)
 	cirrus_update_bank_ptr(s, 1);
         cirrus_update_memory_access(s);
 	break;
+	case 0x0C:			// Colorkey
+	case 0x0D:			// Colorkey
     case 0x10:			// BGCOLOR 0x0000ff00
     case 0x11:			// FGCOLOR 0x0000ff00
     case 0x12:			// BGCOLOR 0x00ff0000
@@ -1567,7 +1569,7 @@ cirrus_vga_write_gr(CirrusVGAState * s, unsigned reg_index, int reg_value)
     case 0x29:			// BLT DEST ADDR 0x00ff00
     case 0x2c:			// BLT SRC ADDR 0x0000ff
     case 0x2d:			// BLT SRC ADDR 0x00ff00
-    case 0x2f:                  // BLT WRITEMASK
+    case 0x2f:			// BLT WRITEMASK
     case 0x32:			// RASTER OP
     case 0x33:			// BLT MODEEXT
     case 0x34:			// BLT TRANSPARENT COLOR 0x00ff
@@ -1641,12 +1643,12 @@ cirrus_vga_write_gr(CirrusVGAState * s, unsigned reg_index, int reg_value)
 
 static int cirrus_vga_read_cr(CirrusVGAState * s, unsigned reg_index)
 {
-#if 0
-	if (reg_index >= 0x31) {
+	if ((reg_index >= 0x31 && reg_index < 0x3f) || reg_index >= 0x50) {
+#ifdef DEBUG_CIRRUS
 		write_log ("READ  CR%02X = %02X\n", reg_index, s->vga.cr[s->vga.cr_index]);
+#endif
 		return s->vga.cr[s->vga.cr_index];
 	}
-#endif
 	switch (reg_index) {
     case 0x00:			// Standard VGA
     case 0x01:			// Standard VGA

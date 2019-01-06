@@ -639,6 +639,7 @@ static void vga_update_size(struct rtggfxboard *gb)
 {
 	// this forces qemu_console_resize() call
 	gb->vga.vga.graphic_mode = -1;
+	gb->vga.vga.monid = gb->monitor_id;
 	gb->vga.vga.hw_ops->gfx_update(&gb->vga);
 }
 

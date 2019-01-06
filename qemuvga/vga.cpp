@@ -1711,7 +1711,7 @@ static void vga_draw_graphic(VGACommonState *s, int full_update)
     int width, height, shift_control, line_offset, bwidth, bits;
     ram_addr_t page0, page1, page_min, page_max;
     int disp_width, multi_scan, multi_run;
-    uint8_t *d;
+    uint8_t *d, *d2;
     uint32_t v, addr1, addr;
     vga_draw_line_func *vga_draw_line;
 #if defined(HOST_WORDS_BIGENDIAN) == defined(TARGET_WORDS_BIGENDIAN)
@@ -1867,7 +1867,8 @@ static void vga_draw_graphic(VGACommonState *s, int full_update)
     d = surface_data(surface);
 	if (!d)
 		return;
-    linesize = surface_stride(surface);
+	d2 = d;
+	linesize = surface_stride(surface);
     y1 = 0;
     for(y = 0; y < height; y++) {
         addr = addr1;
@@ -1926,6 +1927,100 @@ static void vga_draw_graphic(VGACommonState *s, int full_update)
             addr1 = 0;
         d += linesize;
     }
+
+	// video window (overlay)
+	if ((s->cr[0x3e] & 1) && bits >= 8) {
+
+		void copyrow_scale(int monid, uint8_t *src, uint8_t *src_screen, uint8_t *dst,
+			int sx, int sy, int sxadd, int width, int srcbytesperrow, int srcpixbytes,
+			int screenbytesperrow, int screenpixbytes,
+			int dx, int dy, int dstbytesperrow, int dstpixbytes,
+			bool ck, uint32_t colorkey,
+			int convert_mode, uint32_t *p96_rgbx16p);
+		void alloc_colors_picasso(int rw, int gw, int bw, int rs, int gs, int bs, int rgbfmt, uint32_t *rgbx16);
+		int getconvert(int rgbformat, int pixbytes);
+
+		int outbpp = surface_bits_per_pixel(surface) / 8;
+		if (!s->cirrus_rgbx16) {
+			s->cirrus_rgbx16 = (uint32_t*)malloc(65536 * 4);
+		}
+		int ovl_format = 5;
+		if (s->old_ovl_format != ovl_format) {
+			alloc_colors_picasso(8, 8, 8, 16, 8, 0, ovl_format, s->cirrus_rgbx16);
+			s->old_ovl_format = ovl_format;
+		}
+
+		uint32_t gfxbpp = bits;
+		uint32_t vptr = ((s->cr[0x3c] & 15) << 18) | (s->cr[0x3b] << 10) | (s->cr[0x3a] << 2) | ((s->cr[0x5d] >> 2) & 3);
+		uint32_t bytesperrow = (((s->cr[0x3c] >> 5) & 1) << 11) | (s->cr[0x3d] << 3);
+		uint32_t r1sz = s->cr[0x33] | (((s->cr[0x36] >> 0) & 3) << 8);
+		uint32_t r1adjust = s->cr[0x5d] & 3;
+		uint32_t r2sz = s->cr[0x34] | (((s->cr[0x36] >> 2) & 3) << 8);
+		uint32_t r2adjust = (s->cr[0x5d] >> 4) & 3;
+		uint32_t r2dsz = s->cr[0x35] | (((s->cr[0x36] >> 4) & 3) << 8);
+		uint32_t wvs = s->cr[0x37] | (((s->cr[0x39] >> 0) & 3) << 8);
+		uint32_t wve = s->cr[0x38] | (((s->cr[0x39] >> 2) & 3) << 8);
+		uint32_t format = (s->cr[0x3e] >> 1) & 7;
+		bool occlusion = ((s->cr[0x3e] >> 7) & 1) != 0 && bits < 24;
+		uint32_t region1size = 32 * r1sz / gfxbpp + (r1adjust * 8 / gfxbpp);
+		uint32_t region2size = 32 * r2sz / gfxbpp + (r2adjust * 8 / gfxbpp);
+		uint32_t hzoom = s->cr[0x31];
+		uint32_t vzoom = s->cr[0x32];
+		uint32_t colorkey = 0;
+
+		int keymode = (s->cr[0x1d] >> 3) & 7;
+		// mask and chroma key ignored.
+		if (keymode == 0) {
+			colorkey = s->gr[0x0c];
+		} else if (keymode == 1) {
+			colorkey = s->gr[0x0c] | (s->gr[0x0d] << 8);
+		} else {
+			occlusion = false;
+		}
+
+		int overlaybpp = 2;
+		int overlay_width = overlaybpp * r2dsz;
+		int vertical_height = wve - wvs + 1;
+		int convert = getconvert(5, outbpp);
+
+		if (!hzoom)
+			hzoom = 256;
+		if (!vzoom)
+			vzoom = 256;
+
+		int y = 0;
+		for (int oy = 0; oy < vertical_height; oy++) {
+			if (vptr + (y >> 8) * bytesperrow > s->vram_size)
+				break;
+			if (s->start_addr * 4 + wvs * line_offset > s->vram_size)
+				break;
+			if (d2 + wvs * linesize > s->vram_ptr + s->vram_size)
+				break;
+			copyrow_scale(s->monid, s->vram_ptr + vptr, s->vram_ptr + s->start_addr * 4, d2,
+				0, y >> 8, hzoom, overlay_width, bytesperrow, overlaybpp,
+				line_offset, bits / 8,
+				region1size, wvs, linesize, outbpp,
+				occlusion, colorkey,
+				convert, s->cirrus_rgbx16);
+			wvs++;
+			y += vzoom;
+		}
+
+		s->last_width = -1;
+		s->old_overlay = 1;
+
+		if (y_start < 0 || y_start > wvs)
+			y_start = wvs;
+		if (y < wve)
+			y = wve + 1;
+
+	} else if (s->old_overlay) {
+
+		s->old_overlay = 0;
+		s->last_width = -1;
+
+	}
+
     if (y_start >= 0) {
         /* flush to display */
         dpy_gfx_update(s->con, 0, y_start,

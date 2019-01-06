@@ -170,6 +170,11 @@ typedef struct VGACommonState {
     vga_update_retrace_info_fn update_retrace_info;
     union vga_retrace retrace_info;
     uint8_t is_vbe_vmstate;
+
+	uint32_t *cirrus_rgbx16;
+	int monid;
+	int old_ovl_format;
+	int old_overlay;
 } VGACommonState;
 
 STATIC_INLINE int c6_to_8(int v)
