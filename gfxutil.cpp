@@ -268,6 +268,8 @@ void alloc_colors_picasso (int rw, int gw, int bw, int rs, int gs, int bs, int r
 		blue_shift = 0;
 		byte_swap = 1;
 		break;
+	case RGBFB_Y4U2V2:
+	case RGBFB_Y4U1V1:
 	case RGBFB_R5G5B5:
 		red_bits = green_bits = blue_bits = 5;
 		red_shift = 10;

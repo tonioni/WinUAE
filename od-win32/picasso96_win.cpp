@@ -4464,8 +4464,31 @@ static void copyrow (int monid, uae_u8 *src, uae_u8 *dst, int x, int y, int widt
 	}
 }
 
+static uae_u16 yuvtorgb(uae_u8 yx, uae_u8 ux, uae_u8 vx)
+{
+	int y = yx - 16;
+	int u = ux - 128;
+	int v = vx - 128;
+	int r = (298 * y + 409 * v + 128) >> (8 + 3);
+	int g = (298 * y - 100 * u - 208 * v + 128) >> (8 + 3);
+	int b = (298 * y + 516 * u + 128) >> (8 + 3);
+	if (r < 0)
+		r = 0;
+	if (r > 31)
+		r = 31;
+	if (g < 0)
+		g = 0;
+	if (g > 31)
+		g = 31;
+	if (b < 0)
+		b = 0;
+	if (b > 31)
+		b = 31;
+	return (r << 10) | (g << 5) | b;
+}
 
-#define CKCHECK if (!ck || (screenpixbytes == 4 && colorkey == ((uae_u32*)srcs)[dx]) \
+#define CKCHECK if (!ck \
+	|| (screenpixbytes == 4 && colorkey == ((uae_u32*)srcs)[dx]) \
 	|| (screenpixbytes == 2 && (uae_u16)colorkey == ((uae_u16*)srcs)[dx]) \
 	|| (screenpixbytes == 1 && (uae_u8)colorkey == ((uae_u8*)srcs)[dx]) \
 	|| (screenpixbytes == 3 && ckbytes[0] == srcs[dx * 3 + 0] && ckbytes[1] == srcs[dx * 3 + 1] && ckbytes[2] == srcs[dx * 3 + 2]))
@@ -4473,7 +4496,7 @@ static void copyrow (int monid, uae_u8 *src, uae_u8 *dst, int x, int y, int widt
 void copyrow_scale(int monid, uae_u8 *src, uae_u8 *src_screen, uae_u8 *dst,
 	int sx, int sy, int sxadd, int width, int srcbytesperrow, int srcpixbytes,
 	int screenbytesperrow, int screenpixbytes,
-	int dx, int dy, int dstbytesperrow, int dstpixbytes,
+	int dx, int dy, int dstwidth, int dstheight, int dstbytesperrow, int dstpixbytes,
 	bool ck, uae_u32 colorkey,
 	int convert_mode, uae_u32 *p96_rgbx16p)
 {
@@ -4481,26 +4504,42 @@ void copyrow_scale(int monid, uae_u8 *src, uae_u8 *src_screen, uae_u8 *dst,
 	uae_u8 *src2 = src + sy * srcbytesperrow;
 	uae_u8 *dst2 = dst + dy * dstbytesperrow;
 	uae_u8 *srcs = src_screen + dy * screenbytesperrow;
-	int endx = (sx + width) << 8, endx4;
+	int endx, endx4;
 	int dstpix = dstpixbytes;
 	int srcpix = srcpixbytes;
 	int x;
 	uae_u8 ckbytes[3];
 
+	if (dx < 0 || dx >= dstwidth)
+		return;
+	if (dy < 0 || dy >= dstheight)
+		return;
+
+	if (dx + (width * 256) / sxadd > dstwidth) {
+		width = ((dstwidth - dx) * sxadd) / 256;
+		if (width <= 0)
+			return;
+	}
+
+	endx = (sx + width) << 8;
+
 	switch (convert_mode)
 	{
 		case RGBFB_Y4U2V2_32:
 		case RGBFB_Y4U2V2_16:
-		case RGBFB_Y4U1V1_32:
-		case RGBFB_Y4U1V1_16:
 		endx /= 2;
 		break;
+		case RGBFB_Y4U1V1_32:
+		case RGBFB_Y4U1V1_16:
+		endx /= 4;
+		break;
 	}
+
+	endx4 = endx & ~(3 << 8);
+
 	ckbytes[0] = colorkey >> 16;
 	ckbytes[1] = colorkey >> 8;
 	ckbytes[2] = colorkey >> 0;
-
-	endx4 = endx & ~(3 << 8);
 
 	switch (convert_mode)
 	{
@@ -4605,12 +4644,22 @@ void copyrow_scale(int monid, uae_u8 *src, uae_u8 *src_screen, uae_u8 *dst,
 			while (sx < endx) {
 				x = sx >> 8;
 				sx += sxadd;
-				uae_u32 v = p96_rgbx16p[((uae_u16*)src2)[x]];
+				uae_u32 val = ((uae_u32*)src2)[x];
+				uae_u8 y0 = val >> 8;
+				uae_u8 y1 = val >> 24;
+				uae_u8 u = val >> 0;
+				uae_u8 v = val >> 16;
 				CKCHECK
-					((uae_u32*)dst2)[dx + 0] = v;
+				{
+					uae_u16 out = yuvtorgb(y0, u, v);
+					((uae_u32*)dst2)[dx + 0] = p96_rgbx16p[out];
+				}
 				dx++;
 				CKCHECK
-					((uae_u32*)dst2)[dx + 1] = v;
+				{
+					uae_u16 out = yuvtorgb(y1, u, v);
+					((uae_u32*)dst2)[dx + 1] = p96_rgbx16p[out];
+				}
 				dx++;
 			}
 		}
@@ -4621,12 +4670,36 @@ void copyrow_scale(int monid, uae_u8 *src, uae_u8 *src_screen, uae_u8 *dst,
 			while (sx < endx) {
 				x = sx >> 8;
 				sx += sxadd;
-				uae_u32 v = p96_rgbx16p[((uae_u16*)src2)[x]];
+				uae_u32 val = ((uae_u32*)src2)[x];
+				uae_u8 y0 = ((val >> 12) & 31) * 8;
+				uae_u8 y1 = ((val >> 17) & 31) * 8;
+				uae_u8 y2 = ((val >> 22) & 31) * 8;
+				uae_u8 y3 = ((val >> 27) & 31) * 8;
+				uae_s8 u = ((val >> 0) & 63) * 4;
+				uae_s8 v = ((val >> 6) & 63) * 4;
 				CKCHECK
-					((uae_u32*)dst2)[dx + 0] = v;
+				{
+					uae_u16 out = yuvtorgb(y0, u, v);
+					((uae_u32*)dst2)[dx + 0] = p96_rgbx16p[out];
+				}
 				dx++;
 				CKCHECK
-					((uae_u32*)dst2)[dx + 1] = v;
+				{
+					uae_u16 out = yuvtorgb(y1, u, v);
+					((uae_u32*)dst2)[dx + 1] = p96_rgbx16p[out];
+				}
+				dx++;
+				CKCHECK
+				{
+					uae_u16 out = yuvtorgb(y2, u, v);
+					((uae_u32*)dst2)[dx + 2] = p96_rgbx16p[out];
+				}
+				dx++;
+				CKCHECK
+				{
+					uae_u16 out = yuvtorgb(y3, u, v);
+					((uae_u32*)dst2)[dx + 3] = p96_rgbx16p[out];
+				}
 				dx++;
 			}
 		}
@@ -4679,17 +4752,111 @@ void copyrow_scale(int monid, uae_u8 *src, uae_u8 *src_screen, uae_u8 *dst,
 		}
 		break;
 
+		/* 8bit->16bit */
+		case RGBFB_CLUT_RGBFB_16:
+		{
+			while ((sx & (3 << 8)) && sx < endx) {
+				x = sx >> 8;
+				sx += sxadd;
+				CKCHECK
+					((uae_u16*)dst2)[dx] = vidinfo->clut[src2[x]];
+				dx++;
+			}
+			while (sx < endx4) {
+				x = sx >> 8;
+				sx += sxadd;
+				CKCHECK
+					((uae_u16*)dst2)[dx] = vidinfo->clut[src2[x]];
+				dx++;
+				x = sx >> 8;
+				sx += sxadd;
+				CKCHECK
+					((uae_u16*)dst2)[dx] = vidinfo->clut[src2[x]];
+				dx++;
+				x = sx >> 8;
+				sx += sxadd;
+				CKCHECK
+					((uae_u16*)dst2)[dx] = vidinfo->clut[src2[x]];
+				dx++;
+				x = sx >> 8;
+				sx += sxadd;
+				CKCHECK
+					((uae_u16*)dst2)[dx] = vidinfo->clut[src2[x]];
+				dx++;
+			}
+			while (sx < endx) {
+				x = sx >> 8;
+				sx += sxadd;
+				CKCHECK
+					((uae_u16*)dst2)[dx] = vidinfo->clut[src2[x]];
+				dx++;
+			}
+		}
+		break;
+
+		/* 8bit->32bit */
+		case RGBFB_CLUT_RGBFB_32:
+		{
+			while ((sx & (3 << 8)) && sx < endx) {
+				x = sx >> 8;
+				sx += sxadd;
+				CKCHECK
+					((uae_u32*)dst2)[dx] = vidinfo->clut[src2[x]];
+				dx++;
+			}
+			while (sx < endx4) {
+				x = sx >> 8;
+				sx += sxadd;
+				CKCHECK
+					((uae_u32*)dst2)[dx] = vidinfo->clut[src2[x]];
+				dx++;
+				x = sx >> 8;
+				sx += sxadd;
+				CKCHECK
+					((uae_u32*)dst2)[dx] = vidinfo->clut[src2[x]];
+				dx++;
+				x = sx >> 8;
+				sx += sxadd;
+				CKCHECK
+					((uae_u32*)dst2)[dx] = vidinfo->clut[src2[x]];
+				dx++;
+				x = sx >> 8;
+				sx += sxadd;
+				CKCHECK
+					((uae_u32*)dst2)[dx] = vidinfo->clut[src2[x]];
+				dx++;
+			}
+			while (sx < endx) {
+				x = sx >> 8;
+				sx += sxadd;
+				CKCHECK
+					((uae_u32*)dst2)[dx] = vidinfo->clut[src2[x]];
+				dx++;
+			}
+		}
+		break;
+
 		case RGBFB_Y4U2V2_16:
 		{
 			while (sx < endx) {
 				x = sx >> 8;
 				sx += sxadd;
-				uae_u16 v = p96_rgbx16p[((uae_u16*)src2)[x]];
+				uae_u32 val = ((uae_u32*)src2)[x];
+				uae_u8 y0 = val >> 8;
+				uae_u8 y1 = val >> 24;
+				uae_u8 u = val >> 0;
+				uae_u8 v = val >> 16;
 				CKCHECK
-				((uae_u16*)dst2)[dx + 0] = v;
+				{
+					uae_u16 out = yuvtorgb(y0, u, v);
+				((uae_u16*)dst2)[dx + 0] = p96_rgbx16p[out];
+				}
 				dx++;
 				CKCHECK
-				((uae_u16*)dst2)[dx + 1] = v;
+				{
+					uae_u16 out = yuvtorgb(y1, u, v);
+				((uae_u16*)dst2)[dx + 1] = p96_rgbx16p[out];
+				}
 				dx++;
 			}
 		}
@@ -4700,12 +4867,36 @@ void copyrow_scale(int monid, uae_u8 *src, uae_u8 *src_screen, uae_u8 *dst,
 			while (sx < endx) {
 				x = sx >> 8;
 				sx += sxadd;
-				uae_u16 v = p96_rgbx16p[((uae_u16*)src2)[x]];
+				uae_u32 val = ((uae_u32*)src2)[x];
+				uae_u8 y0 = ((val >> 12) & 31) * 8;
+				uae_u8 y1 = ((val >> 17) & 31) * 8;
+				uae_u8 y2 = ((val >> 22) & 31) * 8;
+				uae_u8 y3 = ((val >> 27) & 31) * 8;
+				uae_s8 u = ((val >> 0) & 63) * 4;
+				uae_s8 v = ((val >> 6) & 63) * 4;
 				CKCHECK
-				((uae_u16*)dst2)[dx + 0] = v;
+				{
+					uae_u16 out = yuvtorgb(y0, u, v);
+					((uae_u16*)dst2)[dx + 0] = p96_rgbx16p[out];
+				}
 				dx++;
 				CKCHECK
-				((uae_u16*)dst2)[dx + 1] = v;
+				{
+					uae_u16 out = yuvtorgb(y1, u, v);
+					((uae_u16*)dst2)[dx + 1] = p96_rgbx16p[out];
+				}
+				dx++;
+				CKCHECK
+				{
+					uae_u16 out = yuvtorgb(y2, u, v);
+					((uae_u16*)dst2)[dx + 2] = p96_rgbx16p[out];
+				}
+				dx++;
+				CKCHECK
+				{
+					uae_u16 out = yuvtorgb(y3, u, v);
+					((uae_u16*)dst2)[dx + 3] = p96_rgbx16p[out];
+				}
 				dx++;
 			}
 		}
@@ -4714,12 +4905,16 @@ void copyrow_scale(int monid, uae_u8 *src, uae_u8 *src_screen, uae_u8 *dst,
 	}
 }
 
-
 static void picasso_flushoverlay(int index, uae_u8 *src, int scr_offset, uae_u8 *dst)
 {
 	int monid = currprefs.rtgboards[index].monitor_id;
 	struct picasso96_state_struct *state = &picasso96_state[monid];
 	struct picasso_vidbuf_description *vidinfo = &picasso_vidinfo[monid];
+
+	if (overlay_w <= 0)
+		return;
+	if (overlay_h <= 0)
+		return;
 
 	uae_u8 *vram_end = src + gfxmem_banks[0]->allocated_size;
 	uae_u8 *s = src + overlay_vram_offset;
@@ -4727,6 +4922,7 @@ static void picasso_flushoverlay(int index, uae_u8 *src, int scr_offset, uae_u8 
 	int mx = overlay_src_width * 256 / overlay_w;
 	int my = overlay_src_height * 256 / overlay_h;
 	int y = 0;
+
 	for (int dy = 0; dy < overlay_h; dy++) {
 		if (s + (y >> 8) * overlay_src_width * overlay_pix > vram_end)
 			break;
@@ -4737,7 +4933,7 @@ static void picasso_flushoverlay(int index, uae_u8 *src, int scr_offset, uae_u8 
 		copyrow_scale(monid, s, ss, dst,
 			0, (y >> 8), mx, overlay_src_width, overlay_src_width * overlay_pix, overlay_pix,
 			state->BytesPerRow, state->BytesPerPixel,
-			overlay_x, overlay_y + dy, vidinfo->rowbytes, vidinfo->pixbytes,
+			overlay_x, overlay_y + dy, vidinfo->width, vidinfo->height, vidinfo->rowbytes, vidinfo->pixbytes,
 			overlay_occlusion != 0, overlay_color,
 			overlay_convert, p96_rgbx16_ovl);
 		y += my;
@@ -5371,7 +5567,7 @@ static uae_u32 REGPARAM2 picasso_CreateFeature(TrapContext *ctx)
 	uaecptr tagp = trap_get_areg(ctx, 1);
 
 	write_log(_T("picasso_CreateFeature type %d\n"), type);
-	if (type != 4)
+	if (type != SFT_MEMORYWINDOW)
 		return 0;
 	if (overlay_vram)
 		return 0;
@@ -5386,7 +5582,11 @@ static uae_u32 REGPARAM2 picasso_CreateFeature(TrapContext *ctx)
 		write_log(_T("picasso_CreateFeature tag %08x (%d) %08x\n"), tag, tag & 0x7fffffff, val);
 		overlaygettag(tag, val);
 	}
-	if (overlay_src_width <= 0 || overlay_src_height <= 0 || overlay_format <= 0)
+	if (overlay_src_width < 16 || overlay_src_height < 16)
+		return 0;
+	if (overlay_src_width > vidinfo->width || overlay_src_height > vidinfo->height)
+		return 0;
+	if (overlay_format <= RGBFB_CLUT || overlay_format >= RGBFB_MaxFormats)
 		return 0;
 	overlay_pix = GetBytesPerPixel(overlay_format);
 	uaecptr tagmem = uae_AllocMem(ctx, 13 * 8, 65536, trap_get_long(ctx, 4));
@@ -5426,9 +5626,11 @@ static uae_u32 REGPARAM2 picasso_DeleteFeature(TrapContext *ctx)
 	uaecptr featuredata = trap_get_areg(ctx, 1);
 
 	write_log(_T("picasso_DeleteFeature type %d data %08x\n"), type, featuredata);
-	if (type != 4)
+	if (type != SFT_MEMORYWINDOW)
 		return 0;
 	if (featuredata != OVERLAY_COOKIE)
+		return 0;
+	if (!overlay_bitmap)
 		return 0;
 	uaecptr func = trap_get_long(ctx, bi + PSSO_BoardInfo_FreeBitMap);
 	trap_call_add_areg(ctx, 0, bi);

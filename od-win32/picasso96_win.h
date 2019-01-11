@@ -302,6 +302,10 @@ struct Line {
 #define PSSO_BitMapExtra_CompanionMaster 50
 #define PSSO_BitMapExtra_Last            54
 
+enum {
+	SFT_INVALID, SFT_FLICKERFIXER, SFT_VIDEOCAPTURE, SFT_VIDEOWINDOW, SFT_MEMORYWINDOW
+};
+
 #ifndef TAG_USER
 #define TAG_USER 0x80000000
 #endif

@@ -1934,7 +1934,7 @@ static void vga_draw_graphic(VGACommonState *s, int full_update)
 		void copyrow_scale(int monid, uint8_t *src, uint8_t *src_screen, uint8_t *dst,
 			int sx, int sy, int sxadd, int width, int srcbytesperrow, int srcpixbytes,
 			int screenbytesperrow, int screenpixbytes,
-			int dx, int dy, int dstbytesperrow, int dstpixbytes,
+			int dx, int dy, int dstwidth, int dstheight, int dstbytesperrow, int dstpixbytes,
 			bool ck, uint32_t colorkey,
 			int convert_mode, uint32_t *p96_rgbx16p);
 		void alloc_colors_picasso(int rw, int gw, int bw, int rs, int gs, int bs, int rgbfmt, uint32_t *rgbx16);
@@ -1999,7 +1999,7 @@ static void vga_draw_graphic(VGACommonState *s, int full_update)
 			copyrow_scale(s->monid, s->vram_ptr + vptr, s->vram_ptr + s->start_addr * 4, d2,
 				0, y >> 8, hzoom, overlay_width, bytesperrow, overlaybpp,
 				line_offset, bits / 8,
-				region1size, wvs, linesize, outbpp,
+				region1size, wvs, width, height, linesize, outbpp,
 				occlusion, colorkey,
 				convert, s->cirrus_rgbx16);
 			wvs++;
