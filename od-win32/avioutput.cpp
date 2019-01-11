@@ -61,6 +61,7 @@ static uae_u64 total_avi_size;
 static int partcnt;
 static int first_frame;
 static int aviout_monid;
+static int fps_in_use;
 
 int avioutput_audio, avioutput_video, avioutput_enabled, avioutput_requested;
 static int videoallocated;
@@ -68,7 +69,7 @@ static int videoallocated;
 static int aviout_width_out, aviout_height_out;
 static int aviout_xoffset_out, aviout_yoffset_out;
 int avioutput_width, avioutput_height, avioutput_bits;
-int avioutput_fps = VBLANK_HZ_PAL;
+static int avioutput_fps = VBLANK_HZ_PAL;
 int avioutput_framelimiter = 0, avioutput_nosoundoutput = 0;
 int avioutput_nosoundsync = 1, avioutput_originalsize = 0;
 int avioutput_split_files = 1;
@@ -1267,8 +1268,8 @@ static int AVIOutput_AVIWriteVideo_Thread (struct avientry *ae)
 
 	}
 
-	if ((frame_count % (avioutput_fps * 10)) == 0)
-		write_log (_T("AVIOutput: %d frames, (%d fps)\n"), frame_count, avioutput_fps);
+	if ((frame_count % (fps_in_use * 10)) == 0)
+		write_log (_T("AVIOutput: %d frames, (%d fps)\n"), frame_count, fps_in_use);
 	return 1;
 
 error:
@@ -1494,6 +1495,7 @@ static void AVIOutput_Begin2(bool fullstart, bool immediate)
 			gui_message (_T("acmStreamOpen() FAILED (%X)\n"), err);
 			goto error;
 		}
+		audio_validated = true;
 	}
 
 	if (avioutput_video) {
@@ -1562,6 +1564,7 @@ static void AVIOutput_Begin2(bool fullstart, bool immediate)
 	init_comm_pipe (&queuefull, 20, 1);
 	avientryindex = -1;
 	alive = -1;
+	fps_in_use = avioutput_fps;
 	uae_start_thread (_T("aviworker"), AVIOutput_worker, NULL, NULL);
 	write_log (_T("AVIOutput enabled: monitor=%d video=%d audio=%d path='%s'\n"), aviout_monid, avioutput_video, avioutput_audio, avioutput_filename_inuse);
 	return;
@@ -1797,7 +1800,7 @@ bool frame_drawn(int monid)
 			bytesperframe = wfxSrc.Format.nChannels * 2;
 			StreamSizeAudioGot += avi_sndbuffered / bytesperframe;
 			unsigned int lastexpected = (unsigned int)StreamSizeAudioExpected;
-			StreamSizeAudioExpected += ((double)wfxSrc.Format.nSamplesPerSec) / avioutput_fps;
+			StreamSizeAudioExpected += ((double)wfxSrc.Format.nSamplesPerSec) / fps_in_use;
 			if (avioutput_video) {
 				int idiff = StreamSizeAudioGot - StreamSizeAudioExpected;
 				if ((timeframes % 5) == 0)

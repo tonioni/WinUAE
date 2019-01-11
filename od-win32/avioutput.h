@@ -9,7 +9,6 @@
 extern int avioutput_video, avioutput_audio, avioutput_enabled, avioutput_requested;
 
 extern int avioutput_width, avioutput_height, avioutput_bits;
-extern int avioutput_fps;
 extern int avioutput_framelimiter, avioutput_nosoundoutput;
 extern int avioutput_nosoundsync, avioutput_originalsize;
 extern int screenshot_originalsize;
