@@ -427,7 +427,7 @@ int reginitializeinit (TCHAR **pppath)
 
 	inimode = 1;
 	inipath = my_strdup (fpath);
-	inidata = ini_load(inipath);
+	inidata = ini_load(inipath, true);
 	if (!regexists (NULL, _T("Version")))
 		goto fail;
 	return 1;

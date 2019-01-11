@@ -4391,7 +4391,7 @@ static bool parse_geo (const TCHAR *tname, struct uaedev_config_info *uci, struc
 	TCHAR tgname[MAX_DPATH];
 
 	cfgfile_resolve_path_out_load(tname, tgname, MAX_DPATH, PATH_HDF);
-	ini = ini_load(tgname);
+	ini = ini_load(tgname, true);
 	if (!ini)
 		return ret;
 

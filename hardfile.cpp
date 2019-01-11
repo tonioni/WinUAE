@@ -741,7 +741,7 @@ int hdf_open (struct hardfiledata *hfd)
 	if (!v)
 		return v;
 	get_hd_geometry(&hfd->ci);
-	hfd->geometry = ini_load(hfd->ci.geometry);
+	hfd->geometry = ini_load(hfd->ci.geometry, true);
 	return v;
 }
 
