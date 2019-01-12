@@ -685,6 +685,7 @@ struct uae_prefs {
 	TCHAR quitstatefile[MAX_DPATH];
 	TCHAR statefile[MAX_DPATH];
 	TCHAR inprecfile[MAX_DPATH];
+	TCHAR trainerfile[MAX_DPATH];
 	bool inprec_autoplay;
 	bool refresh_indicator;
 

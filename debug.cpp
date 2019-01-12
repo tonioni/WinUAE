@@ -47,6 +47,8 @@
 #include "drawing.h"
 #include "devices.h"
 #include "blitter.h"
+#include "ini.h"
+#include "readcpu.h"
 
 #define TRACE_SKIP_INS 1
 #define TRACE_MATCH_PC 2
@@ -896,7 +898,8 @@ static int checkvaltype (TCHAR **cp, uae_u32 *val, int *size, TCHAR def)
 	double out;
 
 	form[0] = 0;
-	*size = 0;
+	if (size)
+		*size = 0;
 	p = form;
 	for (;;) {
 		uae_u32 v;
@@ -908,7 +911,8 @@ static int checkvaltype (TCHAR **cp, uae_u32 *val, int *size, TCHAR def)
 		p += _tcslen (p);
 		if (peekchar (cp) == '.') {
 			readchar (cp);
-			*size = readsize (v, cp);
+			if (size)
+				*size = readsize (v, cp);
 		}
 		if (!isoperator (cp))
 			break;
@@ -917,7 +921,7 @@ static int checkvaltype (TCHAR **cp, uae_u32 *val, int *size, TCHAR def)
 		*p = 0;
 	}
 	if (!gotop) {
-		if (*size == 0) {
+		if (size && *size == 0) {
 			uae_s32 v = (uae_s32)(*val);
 			if (v > 65535 || v < -32767) {
 				*size = 4;
@@ -931,7 +935,7 @@ static int checkvaltype (TCHAR **cp, uae_u32 *val, int *size, TCHAR def)
 	}
 	if (calc (form, &out)) {
 		*val = (uae_u32)out;
-		if (*size == 0) {
+		if (size && *size == 0) {
 			uae_s32 v = (uae_s32)(*val);
 			if (v > 255 || v < -127) {
 				*size = 2;
@@ -2947,6 +2951,11 @@ static int memwatch_func (uaecptr addr, int rwi, int size, uae_u32 *valp, uae_u3
 			isoldval = 1;
 		}
 
+		if (m->pc != 0xffffff) {
+			if (m->pc != regs.instruction_pc)
+				continue;
+		}
+
 		if (!m->frozen && m->val_enabled) {
 			int trigger = 0;
 			uae_u32 mask = m->size == 4 ? 0xffffffff : (1 << (m->size * 8)) - 1;
@@ -3022,7 +3031,6 @@ static int memwatch_func (uaecptr addr, int rwi, int size, uae_u32 *valp, uae_u3
 		}
 		//	if (!notinrom ())
 		//	    return 1;
-		mwhit.pc = M68K_GETPC;
 		mwhit.addr = addr;
 		mwhit.rwi = rwi;
 		mwhit.size = size;
@@ -3033,7 +3041,7 @@ static int memwatch_func (uaecptr addr, int rwi, int size, uae_u32 *valp, uae_u3
 			mwhit.val = val;
 		memwatch_triggered = i + 1;
 		debugging = 1;
-		debug_pc = mwhit.pc;
+		debug_pc = M68K_GETPC;
 		debug_cycles();
 		set_special (SPCFLAG_BRK);
 		return 1;
@@ -3382,6 +3390,10 @@ static void initialize_memwatch (int mode)
 	debug_mem_banks = xcalloc (addrbank*, membank_total);
 	debug_mem_area = xcalloc (addrbank, membank_total);
 	membank_stores = xcalloc (struct membank_store, MEMWATCH_STORE_SLOTS);
+	for (int i = 0; i < MEMWATCH_TOTAL; i++) {
+		struct memwatch_node *m = &mwnodes[i];
+		m->pc = 0xffffffff;
+	}
 #if 0
 	int i, j, as;
 	addrbank *a1, *a2, *oa;
@@ -3483,7 +3495,9 @@ void memwatch_dump2 (TCHAR *buf, int bufsize, int num)
 			if (mwn->modval_written)
 				buf = buf_out (buf, &bufsize, _T(" =M"));
 			if (mwn->mustchange)
-				buf = buf_out (buf, &bufsize, _T(" C"));
+				buf = buf_out(buf, &bufsize, _T(" C"));
+			if (mwn->pc != 0xffffffff)
+				buf = buf_out(buf, &bufsize, _T(" PC=%08x"), mwn->pc);
 			for (int j = 0; memwatch_access_masks[j].mask; j++) {
 				uae_u32 mask = memwatch_access_masks[j].mask;
 				if ((mwn->access_mask & mask) == mask && (usedmask & mask) == 0) {
@@ -3609,7 +3623,7 @@ static void memwatch (TCHAR **c)
 			ignore_ws (c);
 			if (more_params(c)) {
 				for (;;) {
-					TCHAR ncc = peek_next_char(c);
+					TCHAR ncc = _totupper(peek_next_char(c));
 					TCHAR nc = _totupper (next_char (c));
 					if (mwn->rwi == 7)
 						mwn->rwi = 0;
@@ -3623,6 +3637,10 @@ static void memwatch (TCHAR **c)
 						mwn->rwi |= 1;
 					if (ncc == ' ')
 						break;
+					if (nc == 'P' && ncc == 'C') {
+						next_char(c);
+						mwn->pc = readhex(c, NULL);
+					}
 					if (!more_params(c))
 						break;
 				}
@@ -6538,4 +6556,466 @@ void debug_parser (const TCHAR *cmd, TCHAR *out, uae_u32 outsize)
 	debug_line (input);
 	setconsolemode (NULL, 0);
 	xfree (input);
+}
+
+/*
+
+trainer file is .ini file with following one or more [patch] sections.
+Each [patch] section describes single trainer option.
+
+After [patch] section must come at least one patch descriptor.
+
+[patch]
+name=name
+enable=true/false
+
+; patch descriptor
+data=200e46802d400026200cxx02 ; this is comment
+offset=2
+access=write
+setvalue=<value>
+type=nop/freeze/set/setonce
+
+; patch descriptor
+data=11223344556677889900
+offset=10
+replacedata=4e71
+replaceoffset=4
+
+; next patch section
+[patch]
+
+
+name: name of the option (appears in GUI in the future)
+enable: true = automatically enabled at startup. (false=manually activated using key shortcut etc.., will be implemented later)
+
+data: match data, when emulated CPU executes first opcode of this data and following words also match: match is detected. x = anything.
+offset: word offset from beginning of "data" that points to memory read/write instruction that you want to "patch". Default=0.
+access: read=read access, write=write access. Default: write if instruction does both memory read and write, read if read-only.
+
+setvalue: value to write if type is set or setonce.
+type=nop: found instruction's write does nothing. This instruction only. Other instruction(s) modifying same memory location are not skipped.
+type=freeze: found instruction's memory read always returns value in memory. Write does nothing.
+type=set: found instruction's memory read always returns "setvalue" contents. Write works normally.
+type=setonce: "setvalue" contents are written to memory when patch is detected.
+
+replacedata: data to be copied over data + replaceoffset. x masking is also supported. Memory is modified.
+replaceoffset: word offset from data.
+
+---
+
+Internally it uses debugger memory watch points to modify/freeze memory contents. No memory or code is modified.
+Only type=setonce and replacedata modifies memory.
+
+When CPU emulator current to be executed instruction's matches contents of data[offset], other words of data are also checked.
+If all words match: instruction's effective address(es) are calculated and matching (read/write) EA is stored. Matching part
+of patch is now done.
+
+Reason for this complexity is to enable single patch to work even if game is relocatable or it uses different memory
+locations depending on hardware config.
+
+If type=nop/freeze/set: debugger memwatch point is set that handles faking of read/write access.
+If type=setonce: "setvalue" contents gets written to detected effective address.
+If replacedata is set: copy code.
+
+Detection phase may cause increased CPU load, this may get optimized more but it shouldn't be (too) noticeable in basic
+A500 or A1200 modes.
+
+*/
+
+#define TRAINER_NOP 0
+#define TRAINER_FREEZE 1
+#define TRAINER_SET 2
+#define TRAINER_SETONCE 3
+
+struct trainerpatch
+{
+	TCHAR *name;
+	uae_u16 *data;
+	uae_u16 *maskdata;
+	uae_u16 *replacedata;
+	uae_u16 *replacemaskdata;
+	uae_u16 *replacedata_original;
+	uae_u16 first;
+	int length;
+	int offset;
+	int access;
+	int replacelength;
+	int replaceoffset;
+	uaecptr addr;
+	uaecptr varaddr;
+	int varsize;
+	uae_u32 oldval;
+	int patchtype;
+	int setvalue;
+	int memwatchindex;
+	bool enabledatstart;
+	bool enabled;
+};
+
+static struct trainerpatch **tpptr;
+static int tpptrcnt;
+bool debug_opcode_watch;
+
+uaecptr ShowEA(void *f, uaecptr pc, uae_u16 opcode, int reg, amodes mode, wordsizes size, TCHAR *buf, uae_u32 *eaddr, int safemode);
+
+static int debug_trainer_get_ea(struct trainerpatch *tp, uaecptr pc, uae_u16 opcode, uaecptr *addr)
+{
+	struct instr *dp = table68k + opcode;
+	uae_u32 sea = 0, dea = 0;
+	uaecptr spc = 0, dpc = 0;
+	uaecptr pc2 = pc + 2;
+	if (dp->suse) {
+		spc = pc2;
+		pc2 = ShowEA(NULL, pc2, opcode, dp->sreg, dp->smode, dp->size, NULL, &sea, 1);
+		if (sea == spc)
+			spc = 0xffffffff;
+	}
+	if (dp->duse) {
+		dpc = pc2;
+		pc2 = ShowEA(NULL, pc2, opcode, dp->dreg, dp->dmode, dp->size, NULL, &dea, 1);
+		if (dea == dpc)
+			dpc = 0xffffffff;
+	}
+	if (dea && dpc != 0xffffffff && tp->access == 1) {
+		*addr = dea;
+		return 1 << dp->size;
+	}
+	if (sea && spc != 0xffffffff && tp->access == 0) {
+		*addr = sea;
+		return 1 << dp->size;
+	}
+	if (dea && tp->access > 1) {
+		*addr = dea;
+		return 1 << dp->size;
+	}
+	if (sea && tp->access > 1) {
+		*addr = sea;
+		return 1 << dp->size;
+	}
+	return 0;
+}
+
+static void debug_trainer_enable(struct trainerpatch *tp, bool enable)
+{
+	if (tp->enabled == enable)
+		return;
+
+	if (tp->replacedata) {
+		if (enable) {
+			bool first = false;
+			if (!tp->replacedata_original) {
+				tp->replacedata_original = xcalloc(uae_u16, tp->replacelength);
+				first = true;
+			}
+			for (int j = 0; j < tp->replacelength; j++) {
+				uae_u16 v = tp->replacedata[j];
+				uae_u16 m = tp->replacemaskdata[j];
+				uaecptr addr = (tp->addr - tp->offset * 2) + j * 2 + tp->replaceoffset * 2;
+				if (m == 0xffff) {
+					x_put_word(addr, v);
+				} else {
+					uae_u16 vo = x_get_word(addr);
+					x_put_word(addr, (vo & ~m) | (v & m));
+					if (first)
+						tp->replacedata_original[j] = vo;
+				}
+			}
+		} else if (tp->replacedata_original) {
+			for (int j = 0; j < tp->replacelength; j++) {
+				uae_u16 m = tp->replacemaskdata[j];
+				uaecptr addr = (tp->addr - tp->offset * 2) + j * 2 + tp->replaceoffset * 2;
+				if (m != 0xffff) {
+					x_put_word(addr, tp->replacedata_original[j]);
+				}
+			}
+		}
+	}
+
+	if (tp->patchtype == TRAINER_SETONCE && tp->varaddr != 0xffffffff) {
+		uae_u32 v = enable ? tp->setvalue : tp->oldval;
+		switch (tp->varsize)
+		{
+		case 1:
+			x_put_byte(tp->varaddr, tp->setvalue);
+			break;
+		case 2:
+			x_put_word(tp->varaddr, tp->setvalue);
+			break;
+		case 4:
+			x_put_long(tp->varaddr, tp->setvalue);
+			break;
+		}
+	}
+
+	if ((tp->patchtype == TRAINER_NOP || tp->patchtype == TRAINER_FREEZE || tp->patchtype == TRAINER_SET) && tp->varaddr != 0xffffffff) {
+		struct memwatch_node *mwn;
+		if (!memwatch_enabled)
+			initialize_memwatch(0);
+		if (enable) {
+			int i;
+			for (i = MEMWATCH_TOTAL - 1; i >= 0; i--) {
+				mwn = &mwnodes[i];
+				if (!mwn->size)
+					break;
+			}
+			if (i < 0) {
+				write_log(_T("Trainer out of free memwatchpoints ('%s' %08x\n).\n"), tp->name, tp->addr);
+			} else {
+				mwn->addr = tp->varaddr;
+				mwn->size = tp->varsize;
+				mwn->rwi = 1 | 2;
+				mwn->access_mask = MW_MASK_CPU_D_R | MW_MASK_CPU_D_W;
+				mwn->reg = 0xffffffff;
+				mwn->pc = tp->patchtype == TRAINER_NOP ? tp->addr : 0xffffffff;
+				mwn->frozen = tp->patchtype == TRAINER_FREEZE;
+				mwn->modval_written = 0;
+				mwn->val_enabled = 0;
+				mwn->val_mask = 0xffffffff;
+				mwn->val = 0;
+				if (tp->patchtype == TRAINER_SET) {
+					mwn->val_enabled = 1;
+					mwn->val = tp->setvalue;
+				}
+				memwatch_setup();
+				TCHAR buf[256];
+				memwatch_dump2(buf, sizeof(buf) / sizeof(TCHAR), i);
+				write_log(_T("%s"), buf);
+			}
+		} else {
+			mwn = &mwnodes[tp->memwatchindex];
+			mwn->size = 0;
+			memwatch_setup();
+		}
+	}
+
+	write_log(_T("Trainer '%s' %s (addr=%08x)\n"), tp->name, enable ? _T("enabled") : _T("disabled"), tp->addr);
+	tp->enabled = enable;
+}
+
+void debug_trainer_match(void)
+{
+	uaecptr pc = m68k_getpc();
+	uae_u16 opcode = x_get_word(pc);
+	for (int i = 0; i < tpptrcnt; i++) {
+		struct trainerpatch *tp = tpptr[i];
+		if (tp->first != opcode)
+			continue;
+		if (tp->addr)
+			continue;
+		int j;
+		for (j = 0; j < tp->length; j++) {
+			uae_u16 d = x_get_word(pc + (j - tp->offset) * 2);
+			if ((d & tp->maskdata[j]) != tp->data[j])
+				break;
+		}
+		if (j < tp->length)
+			continue;
+		tp->first = 0xffff;
+		tp->addr = pc;
+		tp->varsize = -1;
+		tp->varaddr = 0xffffffff;
+		tp->oldval = 0xffffffff;
+		if (tp->access >= 0) {
+			tp->varsize = debug_trainer_get_ea(tp, pc, opcode, &tp->varaddr);
+			switch (tp->varsize)
+			{
+			case 1:
+				tp->oldval = x_get_byte(tp->varaddr);
+				break;
+			case 2:
+				tp->oldval = x_get_word(tp->varaddr);
+				break;
+			case 4:
+				tp->oldval = x_get_long(tp->varaddr);
+				break;
+			}
+		}
+		write_log(_T("Patch %d match at %08x. Addr %08x, size %d, val %08x\n"), i, pc, tp->varaddr, tp->varsize, tp->oldval);
+
+		if (tp->enabledatstart)
+			debug_trainer_enable(tp, true);
+
+		// all detected?
+		for (j = 0; j < tpptrcnt; j++) {
+			struct trainerpatch *tp = tpptr[j];
+			if (!tp->addr)
+				break;
+		}
+		if (j == tpptrcnt)
+			debug_opcode_watch = false;
+	}
+}
+
+static int parsetrainerdata(const TCHAR *data, uae_u16 *outdata, uae_u16 *outmask)
+{
+	int len = _tcslen(data);
+	uae_u16 v = 0, vm = 0;
+	int j = 0;
+	for (int i = 0; i < len; ) {
+		TCHAR c1 = _totupper(data[i + 0]);
+		TCHAR c2 = _totupper(data[i + 1]);
+		if (c1 > 0 && c1 <= ' ') {
+			i++;
+			continue;
+		}
+		if (i + 1 >= len)
+			return 0;
+
+		vm <<= 8;
+		vm |= 0xff;
+		if (c1 == 'X' || c1 == '?')
+			vm &= 0x0f;
+		if (c2 == 'X' || c2 == '?')
+			vm &= 0xf0;
+
+		if (c1 >= 'A')
+			c1 -= 'A' - 10;
+		else if (c1 >= '0')
+			c1 -= '0';
+		if (c2 >= 'A')
+			c2 -= 'A' - 10;
+		else if (c2 >= '0')
+			c2 -= '0';
+
+		v <<= 8;
+		if (c1 >= 0 && c1 < 16)
+			v |= c1 << 4;
+		if (c2 >= 0 && c2 < 16)
+			v |= c2;
+
+		if (i & 2) {
+			outdata[j] = v;
+			outmask[j] = vm;
+			j++;
+		}
+
+		i += 2;
+	}
+	return j;
+}
+
+void debug_init_trainer(const TCHAR *file)
+{
+	TCHAR *data;
+	TCHAR section[256];
+	int cnt = 1;
+
+	struct ini_data *ini = ini_load(file, false);
+	if (!ini)
+		return;
+
+	write_log(_T("Loaded '%s'\n"), file);
+
+	_tcscpy(section, _T("patch"));
+
+	for (;;) {
+		struct ini_context ictx;
+		ini_initcontext(ini, &ictx);
+
+		for (;;) {
+			TCHAR *name = NULL;
+
+			ini_getstring_multi(ini, section, _T("name"), &name, &ictx);
+
+			if (!ini_getstring_multi(ini, section, _T("data"), &data, &ictx))
+				break;
+			ini_setcurrentasstart(ini, &ictx);
+			ini_setlast(ini, section, _T("data"), &ictx);
+
+			TCHAR *p = _tcschr(data, ';');
+			if (p)
+				*p = 0;
+			my_trim(data);
+
+			struct trainerpatch *tp = xcalloc(struct trainerpatch, 1);
+
+			int datalen = (_tcslen(data) + 3) / 4;
+			tp->data = xcalloc(uae_u16, datalen);
+			tp->maskdata = xcalloc(uae_u16, datalen);
+			tp->length = parsetrainerdata(data, tp->data, tp->maskdata);
+			xfree(data);
+			data = NULL;
+
+			ini_getval_multi(ini, section, _T("offset"), &tp->offset, &ictx);
+			if (tp->offset < 0 || tp->offset >= tp->length)
+				tp->offset = 0;
+
+			if (ini_getstring_multi(ini, section, _T("replacedata"), &data, &ictx)) {
+				int replacedatalen = (_tcslen(data) + 3) / 4;
+				tp->replacedata = xcalloc(uae_u16, replacedatalen);
+				tp->replacemaskdata = xcalloc(uae_u16, replacedatalen);
+				tp->replacelength = parsetrainerdata(data, tp->replacedata, tp->replacemaskdata);
+				xfree(data);
+				data = NULL;
+				ini_getval_multi(ini, section, _T("replaceoffset"), &tp->offset, &ictx);
+				if (tp->replaceoffset < 0 || tp->replaceoffset >= tp->length)
+					tp->replaceoffset = 0;
+				tp->access = -1;
+			}
+
+			tp->access = 2;
+			if (ini_getstring_multi(ini, section, _T("access"), &tp->data, &ictx)) {
+				if (!_tcsicmp(data, _T("read")))
+					tp->access = 0;
+				else if (!_tcsicmp(data, _T("write")))
+					tp->access = 1;
+			}
+
+			if (ini_getstring_multi(ini, section, _T("enable"), &data, &ictx)) {
+				if (!_tcsicmp(data, _T("true")))
+					tp->enabledatstart = true;
+			}
+
+			if (ini_getstring_multi(ini, section, _T("type"), &data, &ictx)) {
+				if (!_tcsicmp(data, _T("freeze")))
+					tp->patchtype = TRAINER_FREEZE;
+				else if (!_tcsicmp(data, _T("nop")))
+					tp->patchtype = TRAINER_NOP;
+				else if (!_tcsicmp(data, _T("set")))
+					tp->patchtype = TRAINER_SET;
+				else if (!_tcsicmp(data, _T("setonce")))
+					tp->patchtype = TRAINER_SETONCE;
+				xfree(data);
+			}
+
+			if (ini_getstring_multi(ini, section, _T("setvalue"), &data, &ictx)) {
+				TCHAR *endptr;
+				if (data[0] == '$') {
+					tp->setvalue = _tcstol(data + 1, &endptr, 16);
+				} else if (_tcslen(data) > 2 && data[0] == '0' && _totupper(data[1]) == 'x') {
+					tp->setvalue = _tcstol(data + 2, &endptr, 16);
+				} else {
+					tp->setvalue = _tcstol(data, &endptr, 10);
+				}
+				xfree(data);
+			}
+
+			tp->first = tp->data[tp->offset];
+			tp->name = name;
+
+			if (tpptrcnt)
+				tpptr = xrealloc(struct trainerpatch*, tpptr, tpptrcnt + 1);
+			else
+				tpptr = xcalloc(struct trainerpatch*, tpptrcnt + 1);
+			tpptr[tpptrcnt++] = tp;
+
+			write_log(_T("%d: '%s' parsed and enabled\n"), cnt, tp->name ? tp->name : _T("<no name>"));
+			cnt++;
+
+			ini_setlastasstart(ini, &ictx);
+		}
+err:
+		xfree(data);
+
+		if (!ini_nextsection(ini, section))
+			break;
+
+	}
+
+end:
+	if (tpptrcnt > 0)
+		debug_opcode_watch = true;
+
+	ini_free(ini);
 }

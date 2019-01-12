@@ -17,6 +17,7 @@
 #include "zfile.h"
 #include "uae.h"
 #include "fsdb.h"
+#include "rommgr.h"
 
 #define N_GSYM 0x20
 #define N_FUN 0x24
@@ -106,7 +107,7 @@ struct stabtype
 
 struct debugcodefile
 {
-	const TCHAR *name;
+	const TCHAR *name, *path;
 	int length;
 	uae_u8 *data;
 	int lines;
@@ -142,7 +143,7 @@ struct debugsymbol
 	void *data;
 };
 static struct debugsymbol **symbols;
-static int symbolcnt;
+static int symbolcnt, symbolindex;
 
 struct libname
 {
@@ -229,8 +230,22 @@ struct debugsegtracker
 	uaecptr resident;
 };
 static struct debugsegtracker **dsegt;
-static int segtrackermax;
+static int segtrackermax, segtrackerindex;
 static uae_u32 inhibit_break, last_break;
+
+static uae_u8 *lebx(uae_u8 *p, uae_u32 *v)
+{
+	uae_u32 val = 0;
+	for (;;) {
+		uae_u8 b = *p++;
+		val |= b & 0x7f;
+		if (!(b & 0x80))
+			break;
+		val <<= 7;
+	}
+	*v = val;
+	return p;
+}
 
 bool debugmem_break(int type)
 {
@@ -1032,13 +1047,13 @@ static uae_u32 gl(uae_u8 *p)
 	return (p[0] << 24) | (p[1] << 16) | (p[2] << 8) | (p[3]);
 }
 
-static struct debugcodefile *loadcodefile(const TCHAR *path, const TCHAR *name)
+static bool loadcodefiledata(struct debugcodefile *cf)
 {
 	TCHAR fpath[MAX_DPATH];
 	fpath[0] = 0;
-	if (path)
-		_tcscat(fpath, path);
-	_tcscat(fpath, name);
+	if (cf->path)
+		_tcscat(fpath, cf->path);
+	_tcscat(fpath, cf->name);
 	struct zfile *zf = zfile_fopen(fpath, _T("rb"));
 	if (!zf) {
 		console_out_f(_T("Couldn't open source file '%s'\n"), fpath);
@@ -1055,12 +1070,6 @@ static struct debugcodefile *loadcodefile(const TCHAR *path, const TCHAR *name)
 	memcpy(data, data2, length);
 	xfree(data2);
 	zfile_fclose(zf);
-	struct debugcodefile *cf = codefiles[codefilecnt];
-	if (!cf) {
-		cf = codefiles[codefilecnt] = xcalloc(struct debugcodefile, 1);
-	}
-	codefilecnt++;
-	cf->name = my_strdup(name);
 	cf->data = data;
 	cf->length = length;
 	cf->lines = 1;
@@ -1089,7 +1098,40 @@ static struct debugcodefile *loadcodefile(const TCHAR *path, const TCHAR *name)
 				s[len - 1] = 0;
 		}
 	}
-	console_out_f(_T("Loaded source file '%s', %d bytes, %d lines\n"), fpath, cf->length, cf->lines);
+}
+
+static struct debugcodefile *preallocatecodefile(const TCHAR *path, const TCHAR *name)
+{
+	struct debugcodefile *cf = codefiles[codefilecnt];
+	if (!cf) {
+		cf = codefiles[codefilecnt] = xcalloc(struct debugcodefile, 1);
+	}
+	codefilecnt++;
+	cf->name = my_strdup(name);
+	cf->path = my_strdup(path);
+	return cf;
+}
+
+static void freecodefile(struct debugcodefile *cf)
+{
+	for (int i = 0; i < codefilecnt; i++) {
+		struct debugcodefile *c = codefiles[i];
+		if (c == cf) {
+			xfree(codefiles[i]);
+			codefiles[i] = NULL;
+		}
+	}
+}
+
+static struct debugcodefile *loadcodefile(const TCHAR *path, const TCHAR *name)
+{
+	struct debugcodefile *cf = preallocatecodefile(path, name);
+	if (!loadcodefiledata(cf)) {
+		freecodefile(cf);
+		cf = NULL;
+	} else {
+		console_out_f(_T("Loaded source file '%s' '%s', %d bytes, %d lines\n"), cf->path, cf->name, cf->length, cf->lines);
+	}
 	return cf;
 }
 
@@ -1109,7 +1151,7 @@ static struct debugsymbol *issymbol(const TCHAR *name)
 {
 	for (int i = 0; i < symbolcnt; i++) {
 		struct debugsymbol *ds = symbols[i];
-		if (!_tcsicmp(ds->name, name)) {
+		if (ds->allocid && !_tcsicmp(ds->name, name)) {
 			return ds;
 		}
 	}
@@ -1346,6 +1388,172 @@ static void parse_stabs(void)
 	xfree(pathprefix);
 }
 
+static uae_u32 getrombase(int size)
+{
+	if (size > 524288 * 3)
+		return 0;
+	if (size > 524288 * 2) {
+		return 0xa00000;
+	} else if (size > 524288 * 1) {
+		return 0xa80000;
+	} else {
+		return 0xf80000;
+	}
+}
+
+static void addsimplesymbol(const TCHAR *name, uae_u32 v, int type, int flags, int segmentid, int segmentnum)
+{
+	if (!symbols)
+		return;
+
+	for (int i = 0; i < symbolcnt; i++) {
+		struct debugsymbol *ds = symbols[i];
+		if (ds->segment == segmentid && !_tcscmp(name, ds->name))
+			return;
+	}
+	//write_log(_T("ELF Section %d, symbol %s=%08x\n"), segmentnum, name, v);
+	int rnd = 0;
+	for (;;) {
+		if (symbolindex >= MAX_DEBUGSYMS) {
+			symbolindex = 0;
+			rnd++;
+			if (rnd > 1)
+				return;
+		} else {
+			symbolindex++;
+		}
+		struct debugsymbol *ds = symbols[symbolindex];
+		if (ds->allocid == 0) {
+			ds->allocid = -1;
+			ds->name = my_strdup(name);
+			ds->value = v;
+			ds->type = type;
+			ds->flags = flags;
+			ds->segment = segmentid;
+			if (symbolindex >= symbolcnt)
+				symbolcnt = symbolindex + 1;
+			return;
+		}
+	}
+}
+
+static uae_u8 *loadhunkfile(uae_u8 *file, int filelen, uae_u32 seglist, int segmentid, int *outsizep, bool rommode)
+{
+	uae_u8 *p = file;
+	uae_u8 *out = NULL;
+
+	if (gl(p) != 0x3f3) {
+		return NULL;
+	}
+	p += 4;
+	if (gl(p) != 0) {
+		return 0;
+	}
+	p += 4;
+	int hunktotal = gl(p);
+	int first = gl(p + 4);
+	int last = gl(p + 8);
+	if (hunktotal > 1000 || (last - first + 1) > 1000) {
+		return 0;
+	}
+	if (first > last) {
+		return 0;
+	}
+	p += 12;
+	uae_u32 *hunklens = xcalloc(uae_u32, last + 1);
+	uae_u32 *hunkoffsets = xcalloc(uae_u32, last + 1);
+	int totalsize = 0;
+	for (int i = first; i <= last; i++) {
+		uae_u32 len = gl(p);
+		p += 4;
+		if ((len & 0xc0000000) == 0xc0000000) {
+			p += 4;
+		}
+		len &= ~(0x80000000 | 0x40000000);
+		hunklens[i] = len * 4;
+		hunkoffsets[i] = totalsize;
+		totalsize += hunklens[i];
+	}
+	uae_u32 relocate_base = getrombase(totalsize);
+	int outsize = 0;
+	int hunkindex = -1;
+	for (;;) {
+		uae_u32 hunktype = gl(p) & ~0xc0000000;
+		if (hunktype == 0x3e9 || hunktype == 0x3ea || hunktype == 0x3eb) {
+			uae_u32 hunklen = gl(p + 4) * 4;
+			p += 8;
+			hunkindex++;
+			if (!out)
+				out = xcalloc(uae_u8, outsize + hunklens[hunkindex]);
+			else
+				out = xrealloc(uae_u8, out, outsize + hunklens[hunkindex]);
+			memset(out + outsize, 0, hunklens[hunkindex]);
+			if (hunktype != 0x3eb) {
+				memcpy(out + outsize, p, hunklen);
+				p += hunklen;
+			}
+			outsize += hunklens[hunkindex];
+
+			if (gl(p) == 0x3ec) { // reloc
+
+				p += 4;
+				for (;;) {
+					int reloccnt = gl(p);
+					p += 4;
+					if (!reloccnt)
+						break;
+					int relochunk = gl(p);
+					p += 4;
+					if (relochunk > last) {
+						return 0;
+					}
+					uaecptr hunkptr = hunkoffsets[relochunk] + relocate_base;
+					uae_u8 *currenthunk = out + hunkoffsets[relochunk];
+					for (int j = 0; j < reloccnt; j++) {
+						uae_u32 reloc = gl(p);
+						p += 4;
+						if (reloc >= outsize - 3) {
+							return 0;
+						}
+						put_long_host(currenthunk + reloc, get_long_host(currenthunk + reloc) + hunkptr);
+					}
+				}
+			}
+			continue;
+		}
+
+		if (hunktype == 0x3f0) { // symbol
+			int symcnt = 0;
+			p += 4;
+			for (;;) {
+				int size = gl(p);
+				p += 4;
+				if (!size)
+					break;
+				if (hunkindex >= 0) {
+					p += 4 * size;
+					addsimplesymbol(au((char*)p), gl(p) + hunkoffsets[hunkindex] + 8 + relocate_base, 0, SYMBOL_GLOBAL, hunkindex, -1);
+					p += 4;
+				} else {
+					p += 4 * size + 4;
+				}
+			}
+		} else if (hunktype == 0x3f2) {
+
+			p += 4;
+
+		} else {
+
+			break;
+
+		}
+	}
+	xfree(hunkoffsets);
+	xfree(hunklens);
+	*outsizep = outsize;
+	return out;
+}
+
 uaecptr debugmem_reloc(uaecptr exeaddress, uae_u32 len, uaecptr task, uae_u32 *stack)
 {
 	uae_u8 *p = get_real_address(exeaddress);
@@ -1354,7 +1562,7 @@ uaecptr debugmem_reloc(uaecptr exeaddress, uae_u32 len, uaecptr task, uae_u32 *s
 	uae_u32 lens[1000], memtypes[1000];
 	uae_u32 parentid = 0;
 
-	debugmem_init();
+	debugmem_init(true);
 	if (!debugmem_initialized)
 		return 0;
 
@@ -1987,40 +2195,584 @@ bool debugger_load_libraries(void)
 	return true;
 }
 
+struct elfheader
+{
+	uae_u8 ident[16];
+	uae_u16 type;
+	uae_u16 machine;
+	uae_u32 version;
+	uae_u32 entry;
+	uae_u32 phoff;
+	uae_u32 shoff;
+	uae_u32 flags;
+	uae_u16 ehsize;
+	uae_u16 phentsize;
+	uae_u16 phnum;
+	uae_u16 shentsize;
+	uae_u16 shnum;
+	uae_u16 shstrndx;
+};
+struct sheader
+{
+	uae_u32 name;
+	uae_u32 type;
+	uae_u32 flags;
+	uae_u32 addr;
+	uae_u32 offset;
+	uae_u32 size;
+	uae_u32 link;
+	uae_u32 info;
+	uae_u32 addralign;
+	uae_u32 entsize;
+};
+struct symbol
+{
+	uae_u32 name;
+	uae_u32 value;
+	uae_u32 size;
+	uae_u8 info;
+	uae_u8 other;
+	uae_u16 shindex;
+};
+struct rel
+{
+	uae_u32 offset;
+	uae_u32 info;
+	uae_u32 addend;
+};
+struct debuglineheader
+{
+	uae_u16 length[2];
+	uae_u16 version;
+	uae_u16 header_length[2];
+	uae_u8 min_instruction_length;
+	uae_u8 default_is_stmt;
+	uae_s8 line_base;
+	uae_u8 line_range;
+	uae_u8 opcode_base;
+	uae_u8 std_opcode_lengths[12];
+};
 
-void debugmem_addsegs(TrapContext *ctx, uaecptr seg, uaecptr name, uae_u32 lock)
+#define SHT_PROGBITS       1
+#define SHT_SYMTAB         2
+#define SHT_STRTAB         3
+#define SHT_RELA           4
+#define SHT_NOBITS         8
+#define SHT_REL            9
+#define SHT_SYMTAB_SHNDX   18
+
+#define SHN_UNDEF       0
+#define SHN_LORESERVE   0xff00
+#define SHN_ABS         0xfff1
+#define SHN_COMMON      0xfff2
+#define SHN_XINDEX      0xffff
+
+#define R_68K_NONE      0
+#define R_68K_32        1
+#define R_68K_16        2
+#define R_68K_8         3
+#define R_68K_PC32      4
+#define R_68K_PC16      5
+#define R_68K_PC8       6
+
+#define SHF_ALLOC       (1 << 1)
+
+static void wswp(uae_u16 *v)
+{
+	*v = (*v >> 8) | (*v << 8);
+}
+static void lswp(uae_u32 *v)
+{
+	*v = (*v >> 24) | ((*v >> 8) & 0x0000ff00) | ((*v << 8) & 0x00ff0000) | (*v << 24);
+}
+static void lwswp(uae_u16 *vp)
+{
+	uae_u32 v = (vp[1] << 16) | vp[0];
+	v = (v >> 24) | ((v >> 8) & 0x0000ff00) | ((v << 8) & 0x00ff0000) | (v << 24);
+	vp[1] = v >> 16;
+	vp[0] = v;
+}
+
+static void swap_lineheader(struct debuglineheader *d, struct debuglineheader *s)
+{
+	memcpy(d, s, sizeof(struct debuglineheader));
+	lwswp(d->length);
+	lwswp(d->header_length);
+}
+
+static void swap_header(struct sheader *d, struct sheader *s)
+{
+	memcpy(d, s, sizeof(struct sheader));
+	lswp(&d->name);
+	lswp(&d->type);
+	lswp(&d->flags);
+	lswp(&d->addr);
+	lswp(&d->offset);
+	lswp(&d->size);
+	lswp(&d->link);
+	lswp(&d->info);
+	lswp(&d->addralign);
+	lswp(&d->entsize);
+}
+static void swap_symbol(struct symbol *d, struct symbol *s)
+{
+	memcpy(d, s, sizeof(struct symbol));
+	lswp(&d->name);
+	wswp(&d->shindex);
+	lswp(&d->value);
+	lswp(&d->size);
+}
+static void swap_rel(struct rel *d, struct rel *s)
+{
+	memcpy(d, s, sizeof(struct rel));
+	lswp(&d->addend);
+	lswp(&d->info);
+	lswp(&d->offset);
+}
+
+static int loadelf(uae_u8 *file, int filelen, uae_u8 **outp, int outsize, uae_u32 addr, struct sheader *sh)
+{
+	int size = sh->size;
+	uae_u8 *out = *outp;
+	if (!out)
+		out = xcalloc(uae_u8, outsize + size);
+	else
+		out = xrealloc(uae_u8, out, outsize + size);
+	memcpy(out + outsize, file + sh->offset, size);
+	outsize += size;
+	*outp = out;
+	return outsize;
+}
+
+static uae_u8 *loadelffile(uae_u8 *file, int filelen, uae_u32 seglist, int segmentid, int *outsizep, bool rommode)
+{
+	uae_u8 *outp = NULL;
+	uae_u8 *outptr = NULL;
+	int outsize;
+	bool relocate = rommode;
+	uae_u32 relocate_base = 0;
+
+	struct elfheader *eh = (struct elfheader*)file;
+	uae_u8 *p = file + sizeof(struct elfheader);
+
+	wswp(&eh->type);
+	wswp(&eh->machine);
+	wswp(&eh->ehsize);
+	wswp(&eh->phentsize);
+	wswp(&eh->phnum);
+	wswp(&eh->shentsize);
+	wswp(&eh->shnum);
+	wswp(&eh->shstrndx);
+	lswp(&eh->version);
+	lswp(&eh->flags);
+	lswp(&eh->entry);
+	lswp(&eh->phoff);
+	lswp(&eh->shoff);
+
+	uae_u32 shnum = eh->shnum;
+	if (shnum == 0) {
+		if (eh->shoff == 0)
+			return NULL;
+		struct sheader *sh = (struct sheader*)p;
+		shnum = sh->size;
+		if (shnum == 0)
+			return NULL;
+		p += sizeof(struct sheader);
+	}
+
+	uae_u8 *strtab = NULL, *strtabsym = NULL;
+	struct sheader *symtab_shndx = NULL, *linesheader = NULL;
+	struct debuglineheader lineheader;
+	struct symbol *symtab = NULL;
+	uae_u8 *debuginfo = NULL;
+	int debuginfo_size;
+	int symtab_num = 0;
+	for (int i = 0; i < shnum; i++) {
+		struct sheader *shp = (struct sheader*)(file + i * sizeof(sheader) + eh->shoff);
+		struct sheader sh;
+		swap_header(&sh, shp);
+		if (sh.type == SHT_STRTAB) {
+			if (!strtab && i != eh->shstrndx) {
+				strtab = file + sh.offset;
+			}
+			if (!strtabsym && i == eh->shstrndx) {
+				strtabsym = file + sh.offset;
+			}
+		} else if (sh.type == SHT_SYMTAB_SHNDX) {
+			if (!symtab_shndx)
+				symtab_shndx = (struct sheader*)(file + sh.offset);
+		} else if (sh.type == SHT_SYMTAB) {
+			if (!symtab) {
+				symtab = (struct symbol*)(file + sh.offset);
+				symtab_num = sh.size / sh.entsize;
+			}
+		}
+	}
+	for (int i = 0; i < shnum; i++) {
+		struct sheader *shp = (struct sheader*)(file + i * sizeof(sheader) + eh->shoff);
+		struct sheader sh;
+		swap_header(&sh, shp);
+		uae_char *name = (uae_char*)(strtabsym + sh.name);
+		if (sh.type == SHT_PROGBITS && !strcmp(name, ".debug_line")) {
+			swap_lineheader(&lineheader, (struct debuglineheader*)(file + sh.offset));
+			linesheader = shp;
+		} else if (sh.type == SHT_PROGBITS && !strcmp(name, ".debug_info")) {
+			debuginfo = file + sh.offset;
+			debuginfo_size = sh.size;
+		}
+	}
+
+	struct sheader *shp_first = (struct sheader*)(file + eh->shoff);
+	int section = -1;
+	uae_u32 seg = seglist * 4;
+	uae_u32 nextseg = 0;
+
+	uae_u32 *sectionoffsets = xcalloc(uae_u32, shnum);
+	uae_u32 *sectionbases = xcalloc(uae_u32, shnum);
+	outsize = 0;
+	for (int i = 0; i < shnum; i++) {
+		struct sheader *shp = (struct sheader*)&shp_first[i];
+		struct sheader sh;
+		swap_header(&sh, shp);
+		sectionoffsets[i] = 0xffffffff;
+		sectionbases[i] = 0xffffffff;
+		uae_char *namep = (uae_char*)(strtab + sh.name);
+		TCHAR *n = au(namep);
+		write_log(_T("ELF section %d: type=%08x flags=%08x size=%08x ('%s')\n"), i, sh.type, sh.flags, sh.size, n);
+		xfree(n);
+		if (sh.type == SHT_PROGBITS) {
+			if ((sh.flags & SHF_ALLOC) && sh.size) {
+				write_log(_T(" - load data. Offset %08x\n"), outsize);
+				sectionoffsets[i] = outsize;
+				if (relocate)
+					sectionbases[i] = outsize;
+				outsize += sh.size;
+			}
+		} else if (sh.type == SHT_NOBITS) {
+			if (sh.size) {
+				sectionbases[i] = sh.addr;
+			}
+		}
+	}
+
+	if (rommode) {
+		relocate_base = getrombase(outsize);
+		if (!relocate_base)
+			goto end;
+		for (int i = 0; i < shnum; i++) {
+			if (sectionoffsets[i] != 0xffffffff)
+				sectionbases[i] += relocate_base;
+		}
+	}
+
+	for (int i = 0; i < symtab_num; i++) {
+		struct symbol sym;
+		swap_symbol(&sym, &symtab[i]);
+		if (!sym.name)
+			continue;
+		int sflags, stype;
+		uae_u8 type = sym.info & 15;
+		uae_u8 bind = sym.info >> 4;
+		if (type == 1) {
+			stype = 0;
+		} else if (type == 2) {
+			stype = SYMBOLTYPE_FUNC;
+		} else {
+			continue;
+		}
+		if (bind == 0) {
+			sflags = SYMBOL_LOCAL;
+		} else if (bind == 1) {
+			sflags = SYMBOL_GLOBAL;
+		} else {
+			continue;
+		}
+		if (sym.shindex == SHN_ABS) {
+			uae_char *namep = (uae_char*)(strtabsym + sym.name);
+			TCHAR *name = au(namep);
+			addsimplesymbol(name, sym.value, stype, sflags, segmentid, sym.shindex);
+			xfree(name);
+		} else if (sym.shindex < shnum && sectionoffsets[i] != 0xffffffff) {
+			uae_char *namep = (uae_char*)(strtabsym + sym.name);
+			TCHAR *name = au(namep);
+			uae_u32 v = sym.value + sectionbases[sym.shindex];
+			addsimplesymbol(name, v, stype, sflags, segmentid, sym.shindex);
+			xfree(name);
+		}
+	}
+
+	outsize = 0;
+	outptr = NULL;
+	for (int i = 0; i < shnum; i++) {
+		struct sheader *shp = (struct sheader*)&shp_first[i];
+		struct sheader sh;
+		swap_header(&sh, shp);
+
+		if (nextseg) {
+			seg = nextseg;
+			nextseg = 0;
+		}
+
+		sectionoffsets[i] = outsize;
+
+		if (sh.type == SHT_NOBITS) {
+			outptr = NULL;
+			if ((sh.flags & SHF_ALLOC) && sh.size) {
+				section++;
+				if (seg)
+					nextseg = get_long(seg) * 4;
+			}
+			continue;
+		}
+
+		if (sh.type == SHT_PROGBITS) {
+			outptr = NULL;
+			if ((sh.flags & SHF_ALLOC) && sh.size) {
+				section++;
+				if (seg)
+					nextseg = get_long(seg) * 4;
+				if (relocate) {
+					int newoutsize = loadelf(file, filelen, &outp, outsize, relocate_base, &sh);
+					outptr = outp + outsize;
+					outsize = newoutsize;
+					*outsizep = outsize;
+				}
+			}
+			continue;
+		}
+
+
+
+		if (sh.type != SHT_RELA)
+			continue;
+
+		struct sheader *shsymtabp = &shp_first[sh.link];
+		struct sheader shsymtab;
+		swap_header(&shsymtab, shsymtabp);
+
+		struct sheader *torelocp = &shp_first[sh.info];
+		struct sheader toreloc;
+		swap_header(&toreloc, torelocp);
+
+		struct symbol *symtabp = (struct symbol *)(file + shsymtab.offset);
+		struct symbol symtab;
+		swap_symbol(&symtab, symtabp);
+
+		int numrel = sh.size / sh.entsize;
+
+		for (int j = 0; j < numrel; j++) {
+
+			struct rel *relp = (struct rel*)(file + sh.offset + j * sizeof(rel));
+			struct rel rel;
+			swap_rel(&rel, relp);
+
+			struct symbol *symp = &symtabp[rel.info >> 8];
+			struct symbol sym;
+			swap_symbol(&sym, symp);
+
+			uae_u32 shindex;
+			uae_u32 addr;
+			uae_u32 s;
+			uae_u32 relocaddr;
+
+			relocaddr = rel.offset;
+
+			if (sym.shindex != SHN_XINDEX) {
+				shindex = sym.shindex;
+			} else {
+				if (symtab_shndx == NULL)
+					return NULL;
+				shindex = ((uae_u32*)(file + symtab_shndx->offset))[rel.info >> 8];
+			}
+			uae_char *namep = (uae_char*)(file + gl((uae_u8*)(&shp_first[shsymtab.link].offset)) + sym.name);
+			bool doreloc = false;
+			TCHAR *name = au(namep);
+			switch (shindex)
+			{
+				case SHN_COMMON:
+				{
+					write_log(_T("ELF Common symbol '%s'"), name);
+					break;
+				}
+				case SHN_ABS:
+				{
+					s = sym.value;
+					doreloc = true;
+					break;
+				}
+				case SHN_UNDEF:
+				{
+					if ((rel.info & 0xff) != 0) {
+						write_log(_T("ELF Undefined symbol '%s'\n"), name);
+					}
+				}
+				default:
+				{
+					if (sectionbases[shindex] == 0xffffffff) {
+						s = 0;
+					} else {
+						s = sectionbases[shindex] + sym.value;
+						doreloc = true;
+					}
+					break;
+				}
+			}
+			if (doreloc) {
+				bool has = false;
+				switch (rel.info & 0xff)
+				{
+				case R_68K_32:
+					addr = s + rel.addend;
+					if (outptr) {
+						outptr[relocaddr + 0] = (uae_u8)(addr >> 24);
+						outptr[relocaddr + 1] = (uae_u8)(addr >> 16);
+						outptr[relocaddr + 2] = (uae_u8)(addr >> 8);
+						outptr[relocaddr + 3] = (uae_u8)(addr >> 0);
+					}
+					has = true;
+					break;
+				case R_68K_16:
+					addr = s + rel.addend;
+					if (outptr) {
+						outptr[relocaddr + 0] = (uae_u8)(addr >> 8);
+						outptr[relocaddr + 1] = (uae_u8)(addr >> 0);
+					}
+					has = true;
+					break;
+				case R_68K_8:
+					addr = s + rel.addend;
+					if (outptr) {
+						outptr[relocaddr] = (uae_u8)addr;
+					}
+					has = true;
+					break;
+				case R_68K_PC32:
+					addr = s + rel.addend - (sectionbases[shindex] + relocaddr);
+					if (outptr) {
+						outptr[relocaddr + 0] = (uae_u8)(addr >> 24);
+						outptr[relocaddr + 1] = (uae_u8)(addr >> 16);
+						outptr[relocaddr + 2] = (uae_u8)(addr >> 8);
+						outptr[relocaddr + 3] = (uae_u8)(addr >> 0);
+					}
+					has = true;
+					break;
+				case R_68K_PC16:
+					addr = s + rel.addend - (sectionbases[shindex] + relocaddr);
+					if (outptr) {
+						outptr[relocaddr + 0] = (uae_u8)(addr >> 8);
+						outptr[relocaddr + 1] = (uae_u8)(addr >> 0);
+					}
+					has = true;
+					break;
+				case R_68K_PC8:
+					addr = s + rel.addend - (sectionbases[shindex] + relocaddr);
+					if (outptr) {
+						outptr[relocaddr] = (uae_u8)addr;
+					}
+					has = true;
+					break;
+				case R_68K_NONE:
+				default:
+					break;
+				}
+				if (has) {
+					if (seg)
+						addr += seg + 4;
+					addsimplesymbol(name, addr, 0, SYMBOL_GLOBAL, segmentid, i);
+				}
+			}
+			xfree(name);
+		}
+		outptr = NULL;
+	}
+#if 0
+	if (debuginfo) {
+		uae_u8 *p = debuginfo;
+		while (debuginfo_size > 0) {
+			uae_u8 *start = p;
+			uae_u32 length = gl(p);
+			p += 4;
+			uae_u8 *end = p + length;
+			p += 2;
+			uae_u32 abbrev_offset = gl(p);
+			p += 4;
+			uae_u8 ptr_size = *p++;
+			while (p < end) {
+				uae_u8 abbrevnum = *p++;
+				switch (abbrevnum)
+				{
+					case 1:
+					{
+						p += 4; // producer
+						p++; //language
+						uae_char *namep = (uae_char*)start + gl(p);
+						p += 4;
+						uae_u32 low_pc = gl(p);
+						p += 4;
+						uae_u32 high_pc = gl(p);
+						p += 4;
+						p += 4;
+						break;
+					}
+					case 2:
+					{
+						p += 4 + 1 + 1 + 4;
+						break;
+					}
+					case 3:
+					{
+						p += 1 + 1 + 4;
+						break;
+					}
+				}
+			}
+			debuginfo_size -= length;
+		}
+	}
+#endif
+
+end:
+	xfree(sectionoffsets);
+	xfree(sectionbases);
+	return outp;
+}
+
+void debugmem_addsegs(TrapContext *ctx, uaecptr seg, uaecptr name, uae_u32 lock, bool residentonly)
 {
 	uae_u8 *file = NULL;
-	int filelen;
-	bool hasfile = false;
+	uae_u8 *symfile = NULL;
+	int filelen, symfilelen;
+	bool elffile = false, elfsymfile = false;
 	int fileoffset = 0;
 	int segmentid;
 
 	if (!debugmem_initialized)
-		debugmem_init();
+		debugmem_init(true);
 	if (!seg || !debugmem_initialized)
 		return;
 	seg *= 4;
 	uaecptr seg2 = seg;
 	uaecptr resident = 0;
-	while (seg) {
-		uaecptr next = get_long(seg) * 4;
-		uaecptr len = get_long(seg - 4) * 4;
-		for (int i = 0; i < len - 26; i += 2) {
-			uae_u16 w = get_word(seg + 4 + i);
-			if (w == 0x4afc) {
-				uae_u32 l = get_long(seg + 4 + i + 2);
-				if (l == seg + 4 + i) {
-					resident = seg + 4 + i;
-					seg = 0;
-					break;
+	if (residentonly) {
+		while (seg) {
+			uaecptr next = get_long(seg) * 4;
+			uaecptr len = get_long(seg - 4) * 4;
+			for (int i = 0; i < len - 26; i += 2) {
+				uae_u16 w = get_word(seg + 4 + i);
+				if (w == 0x4afc) {
+					uae_u32 l = get_long(seg + 4 + i + 2);
+					if (l == seg + 4 + i) {
+						resident = seg + 4 + i;
+						seg = 0;
+						break;
+					}
 				}
 			}
+			seg = next;
 		}
-		seg = next;
+		if (!resident)
+			return;
 	}
-	if (!resident)
-		return;
 	console_out_f(_T("Adding segment %08x, Resident %08x.\n"), seg2, resident);
 	struct debugsegtracker *sg = NULL;
 	for (segmentid = 0; segmentid < MAX_DEBUGSEGS; segmentid++) {
@@ -2040,28 +2792,59 @@ void debugmem_addsegs(TrapContext *ctx, uaecptr seg, uaecptr name, uae_u32 lock)
 		nativepath[0] = 0;
 		strcpyah_safe(aname, name, sizeof aname);
 		sg->name = au(aname);
-		if (lock && !get_native_path(ctx, lock, nativepath)) {
-			struct zfile *zf = zfile_fopen(nativepath, _T("rb"));
-			if (zf) {
-				file = zfile_getdata(zf, 0, -1, &filelen);
-				zfile_fclose(zf);
-
+		if (!lock) {
+			_tcscpy(nativepath, currprefs.mountconfig[0].ci.rootdir);
+			_tcscat(nativepath, sg->name);
+		} else {
+			get_native_path(ctx, lock, nativepath);
+		}
+		struct zfile *zf = zfile_fopen(nativepath, _T("rb"));
+		if (zf) {
+			file = zfile_getdata(zf, 0, -1, &filelen);
+			zfile_fclose(zf);
+		}
+		_tcscat(nativepath, _T(".dbg"));
+		zf = zfile_fopen(nativepath, _T("rb"));
+		if (zf) {
+			symfile = zfile_getdata(zf, 0, -1, &symfilelen);
+			zfile_fclose(zf);
+		}
+		if (file) {
+			uae_u32 v = gl(file);
+			if (v == 0x7f454c46) {
+				// elf
+				elffile = true;
+			} else if (v == 0x000003f3) {
+				// hunk
+				if (gl(file + 4) == 0x0) {
+					int hunks = gl(file + 8);
+					fileoffset = 5 * 4 + hunks * 4;
+				}
+			} else {
+				xfree(file);
+				file = NULL;
 			}
-			while (file) {
-				if (gl(file) != 0x03f3)
-					break;
-				if (gl(file + 4) != 0x0)
-					break;
-				int hunks = gl(file + 8);
-				hasfile = true;
-				fileoffset = 5 * 4 + hunks * 4;
-				break;
+		}
+		if (symfile) {
+			uae_u32 v = gl(symfile);
+			if (v == 0x7f454c46) {
+				elfsymfile = true;
+			} else {
+				xfree(symfile);
+				symfile = NULL;
 			}
 		}
 		console_out_f(_T("Name '%s', native path '%s'\n"), sg->name, nativepath[0] ? nativepath : _T("<n/a>"));
 	} else {
 		sg->name = my_strdup(_T("<unknown>"));
 	}
+
+	if (elfsymfile) {
+		loadelffile(symfile, symfilelen, seg, segmentid, NULL, false);
+	} else if (elffile) {
+		loadelffile(file, filelen, seg, segmentid, NULL, false);
+	}
+
 	int parentid = 0;
 	int cnt = 1;
 	seg = seg2;
@@ -2074,7 +2857,7 @@ void debugmem_addsegs(TrapContext *ctx, uaecptr seg, uaecptr name, uae_u32 lock)
 			parentid = dm->id;
 			dm->parentid = dm->id;
 		}
-		if (hasfile) {
+		if (file && !elffile) {
 			dm->idtype = gl(&file[fileoffset]);
 			fileoffset += 4;
 			int hunklen = gl(&file[fileoffset]);
@@ -2154,7 +2937,9 @@ void debugmem_remsegs(uaecptr seg)
 		}
 		seg = next;
 	}
-	console_out_f(_T("Freeing segment %08x...\n"), seg);
+
+	console_out_f(_T("Freeing segment %08x...\n"), seg2);
+
 	struct debugmemallocs *nextavail = NULL;
 	for (int i = 0; i < MAX_DEBUGMEMALLOCS; i++) {
 		struct debugmemallocs *alloc = allocs[i];
@@ -2164,6 +2949,7 @@ void debugmem_remsegs(uaecptr seg)
 			nextavail = alloc;
 		}
 	}
+
 	struct debugsegtracker *sg = NULL;
 	for (int i = 0; i < MAX_DEBUGSEGS; i++) {
 		if (dsegt[i]->allocid == parentid) {
@@ -2173,6 +2959,14 @@ void debugmem_remsegs(uaecptr seg)
 			break;
 		}
 	}
+
+	for (int i = 0; i < symbolcnt; i++) {
+		struct debugsymbol *ds = symbols[i];
+		if (ds->segment == parentid) {
+			ds->allocid = 0;
+		}
+	}
+
 	if (!sg) {
 		return;
 	}
@@ -2195,53 +2989,174 @@ static void allocate_stackframebuffers(void)
 	stackframecntsuper = 0;
 }
 
-void debugmem_init(void)
+#if 0
+void debugmem_add_seglist(TrapContext *ctx, uaecptr segList, uaecptr aname)
 {
-	debug_waiting = false;
-	if (!debugmem_bank.baseaddr) {
-		int size = 0x10000000;
-		for (uae_u32 mem = 0x70000000; mem < 0xf0000000; mem += size) {
-			if (get_mem_bank_real(mem) == &dummy_bank && get_mem_bank_real(mem + size - 65536) == &dummy_bank) {
-				debugmem_bank.reserved_size = size;
-				debugmem_bank.mask = debugmem_bank.reserved_size - 1;
-				debugmem_bank.start = mem;
-				if (!mapped_malloc(&debugmem_bank)) {
-					console_out_f(_T("Failed to automatically allocate debugmem (mapped_malloc)!\n"));
-					return;
-				}
-				map_banks(&debugmem_bank, debugmem_bank.start >> 16, debugmem_bank.allocated_size >> 16, 0);
-				console_out_f(_T("Automatically allocated debugmem location: %08x - %08x %08x\n"),
-					debugmem_bank.start, debugmem_bank.start + debugmem_bank.allocated_size - 1, debugmem_bank.allocated_size);
-				break;
-			}
+	int rnd = 0;
+	if (!debugmem_initialized) {
+		debugmem_init(false);
+	}
+	for (;;) {
+		if (segtrackerindex >= MAX_DEBUGSEGS) {
+			segtrackerindex = 0;
+			rnd++;
+			if (rnd > 1)
+				return;
+		} else {
+			segtrackerindex++;
 		}
-		if (!debugmem_bank.baseaddr) {
-			console_out_f(_T("Failed to automatically allocate debugmem (no space)!\n"));
+		struct debugsegtracker *st = dsegt[segtrackermax];
+		if (!st->allocid) {
+			uae_char name[256];
+			strcpyah_safe(name, aname, sizeof name);
+			st->name = au(name);
+			st->resident = mod;
+			st->allocid = segtrackerindex;
+			if (segtrackerindex > segtrackermax)
+				segtrackermax = segtrackerindex;
 			return;
 		}
 	}
-	memset(debugmem_bank.baseaddr, 0xa5, debugmem_bank.allocated_size);
-	if (!debugmem_func_lgeti) {
+}
+void debugmem_rem_seglist(TrapContext *ctx, uaecptr segList)
+{
+	for (int i = 0; i < segtrackermax; i++) {
+		struct debugsegtracker *st = dsegt[i];
+		if (st->resident == mod) {
+			for (int j = 0; j < MAX_DEBUGMEMALLOCS; j++) {
+				struct debugmemallocs *dm = allocs[j];
+				if (dm->parentid == st->allocid) {
+					dm->id = 0;
+					if (segtrackerindex >= j)
+						segtrackerindex = j - 1;
+				}
+			}
+		}
+	}
+}
 
-		debugmem_func_lgeti = debugmem_bank.lgeti;
-		debugmem_func_wgeti = debugmem_bank.wgeti;
-		debugmem_func_lget = debugmem_bank.lget;
-		debugmem_func_wget = debugmem_bank.wget;
-		debugmem_func_bget = debugmem_bank.bget;
-		debugmem_func_lput = debugmem_bank.lput;
-		debugmem_func_wput = debugmem_bank.wput;
-		debugmem_func_bput = debugmem_bank.bput;
-		debugmem_func_xlate = debugmem_bank.xlateaddr;
+void debugmem_add_segment(uaecptr mod, uae_u32 num, uae_u32 type, uaecptr start, uae_u32 size)
+{
+	struct debugsegtracker *st = NULL;
+	for (int i = 0; i < segtrackermax; i++) {
+		if (dsegt[i]->resident == mod) {
+			st = dsegt[i];
+			break;
+		}
+	}
+	if (!st)
+		return;
+	struct debugmemallocs *dm = getallocblock();
+	if (!dm)
+		return;
+	dm->parentid = st->allocid;
+	dm->internalid = num;
+	dm->type = type;
+	dm->start = start;
+	dm->size = size;
+}
+void debugmem_rem_segment(uaecptr mod, uaecptr start)
+{
+	struct debugsegtracker *st = NULL;
+	for (int i = 0; i < segtrackermax; i++) {
+		if (dsegt[i]->resident == mod) {
+			st = dsegt[i];
+			break;
+		}
+	}
+	if (!st)
+		return;
+	for (int j = 0; j < MAX_DEBUGMEMALLOCS; j++) {
+		struct debugmemallocs *dm = allocs[j];
+		if (start >= dm->start && start < dm->start + dm->size) {
+			dm->id = 0;
+			for (int j = 0; j < MAX_DEBUGSYMS; j++) {
+				struct debugsymbol *ds = symbols[j];
+				if (ds->allocid && dm->start <= ds->value && dm->start + dm->size >= ds->value) {
+					ds->allocid = 0;
+				}
+			}
+			symbolindex = 0;
+		}
+	}
+}
+void debugmem_add_symbol(uae_u32 value, uaecptr aname)
+{
+	int rnd = 0;
+	for (;;) {
+		if (symbolindex >= MAX_DEBUGSYMS) {
+			symbolindex = 0;
+			rnd++;
+			if (rnd > 1)
+				return;
+		} else {
+			symbolindex++;
+		}
+		struct debugsymbol *ds = symbols[symbolindex];
+		if (ds->allocid == 0) {
+			uae_char name[256];
+			strcpyah_safe(name, aname, sizeof name);
+			ds->allocid = symbolindex;
+			ds->value = value;
+			ds->name = au(name);
+			ds->type = SYMBOL_GLOBAL;
+			if (symbolindex > symbolcnt)
+				symbolcnt = symbolindex;
+			return;
+		}
+	}
+}
+#endif
 
-		debugmem_bank.lgeti = debugmem_lgeti;
-		debugmem_bank.wgeti = debugmem_wgeti;
-		debugmem_bank.lget = debugmem_lget;
-		debugmem_bank.wget = debugmem_wget;
-		debugmem_bank.bget = debugmem_bget;
-		debugmem_bank.lput = debugmem_lput;
-		debugmem_bank.wput = debugmem_wput;
-		debugmem_bank.bput = debugmem_bput;
-		debugmem_bank.xlateaddr = debugmem_xlate;
+void debugmem_init(bool initmem)
+{
+	debug_waiting = false;
+	if (initmem) {
+		if (!debugmem_bank.baseaddr) {
+			int size = 0x10000000;
+			for (uae_u32 mem = 0x70000000; mem < 0xf0000000; mem += size) {
+				if (get_mem_bank_real(mem) == &dummy_bank && get_mem_bank_real(mem + size - 65536) == &dummy_bank) {
+					debugmem_bank.reserved_size = size;
+					debugmem_bank.mask = debugmem_bank.reserved_size - 1;
+					debugmem_bank.start = mem;
+					if (!mapped_malloc(&debugmem_bank)) {
+						console_out_f(_T("Failed to automatically allocate debugmem (mapped_malloc)!\n"));
+						return;
+					}
+					map_banks(&debugmem_bank, debugmem_bank.start >> 16, debugmem_bank.allocated_size >> 16, 0);
+					console_out_f(_T("Automatically allocated debugmem location: %08x - %08x %08x\n"),
+						debugmem_bank.start, debugmem_bank.start + debugmem_bank.allocated_size - 1, debugmem_bank.allocated_size);
+					break;
+				}
+			}
+			if (!debugmem_bank.baseaddr) {
+				console_out_f(_T("Failed to automatically allocate debugmem (no space)!\n"));
+				return;
+			}
+		}
+		memset(debugmem_bank.baseaddr, 0xa5, debugmem_bank.allocated_size);
+		if (!debugmem_func_lgeti) {
+
+			debugmem_func_lgeti = debugmem_bank.lgeti;
+			debugmem_func_wgeti = debugmem_bank.wgeti;
+			debugmem_func_lget = debugmem_bank.lget;
+			debugmem_func_wget = debugmem_bank.wget;
+			debugmem_func_bget = debugmem_bank.bget;
+			debugmem_func_lput = debugmem_bank.lput;
+			debugmem_func_wput = debugmem_bank.wput;
+			debugmem_func_bput = debugmem_bank.bput;
+			debugmem_func_xlate = debugmem_bank.xlateaddr;
+
+			debugmem_bank.lgeti = debugmem_lgeti;
+			debugmem_bank.wgeti = debugmem_wgeti;
+			debugmem_bank.lget = debugmem_lget;
+			debugmem_bank.wget = debugmem_wget;
+			debugmem_bank.bget = debugmem_bget;
+			debugmem_bank.lput = debugmem_lput;
+			debugmem_bank.wput = debugmem_wput;
+			debugmem_bank.bput = debugmem_bput;
+			debugmem_bank.xlateaddr = debugmem_xlate;
+		}
 	}
 	alloccnt = 0;
 	if (!allocs) {
@@ -2320,8 +3235,10 @@ void debugmem_init(void)
 	linemapsize = 0;
 	codefilecnt = 0;
 	symbolcnt = 0;
+	symbolindex = 0;
 	executable_last_segment = 0;
 	segtrackermax = 0;
+	segtrackerindex = 0;
 	debugmem_initialized = true;
 	debugmem_chiplimit = 0x400;
 	debugstack_word_state = 0;
@@ -2416,14 +3333,14 @@ bool debugmem_get_symbol_value(const TCHAR *name, uae_u32 *valp)
 	}
 	for (int i = 0; i < symbolcnt; i++) {
 		struct debugsymbol *ds = symbols[i];
-		if (!_tcscmp(ds->name, name)) {
+		if (ds->allocid && !_tcscmp(ds->name, name)) {
 			*valp = ds->value;
 			return true;
 		}
 	}
 	for (int i = 0; i < symbolcnt; i++) {
 		struct debugsymbol *ds = symbols[i];
-		if (!_tcsicmp(ds->name, name)) {
+		if (ds->allocid && !_tcsicmp(ds->name, name)) {
 			*valp = ds->value;
 			return true;
 		}
@@ -2438,7 +3355,7 @@ int debugmem_get_symbol(uaecptr addr, TCHAR *out, int maxsize)
 	int found = 0;
 	for (int i = 0; i < symbolcnt; i++) {
 		struct debugsymbol *ds = symbols[i];
-		if (ds->value == addr) {
+		if (ds->allocid && ds->value == addr) {
 			if (out) {
 				TCHAR txt[256];
 				_tcscpy(txt, ds->name);
@@ -2531,7 +3448,10 @@ int debugmem_get_sourceline(uaecptr addr, TCHAR *out, int maxsize)
 				break;
 			}
 			struct debugcodefile *cf = lm->file;
-			if (cf->lineptr[line] && cf->lineptr[line][0]) {
+			if (!cf->data) {
+				loadcodefiledata(cf);
+			}
+			if (cf->data && cf->lineptr[line] && cf->lineptr[line][0]) {
 				if (last_codefile != cf) {
 					TCHAR txt[256];
 					last_codefile = cf;
@@ -2768,4 +3688,53 @@ bool debugmem_illg(uae_u16 opcode)
 		return false;
 	debugmem_break(12);
 	return true;
+}
+
+static const uae_u8 romend[20] = {
+	0x00, 0x08, 0x00, 0x00,
+	0x00, 0x18, 0x00, 0x19, 0x00, 0x1a, 0x00, 0x1b, 0x00, 0x1c, 0x00, 0x1d, 0x00, 0x1e, 0x00, 0x1f
+};
+
+struct zfile *read_executable_rom(struct zfile *z, int size, int maxblocks)
+{
+	int len, outlen;
+	uae_u8 *out;
+	uae_u8 *file = zfile_getdata(z, 0, -1, &len);
+	if (!file)
+		return NULL;
+	if (!debugmem_initialized)
+		debugmem_init(false);
+	if (!debugmem_initialized)
+		return NULL;
+	uae_u8 header[8] = { 0 };
+	zfile_fseek(z, 0, SEEK_SET);
+	zfile_fread(header, 1, sizeof(header), z);
+	zfile_fseek(z, 0, SEEK_SET);
+	if (header[0] == 0x7f)
+		out = loadelffile(file, len, 0, -1, &outlen, true);
+	else
+		out = loadhunkfile(file, len, 0, -1, &outlen, true);
+	if (out) {
+		if (outlen > size * maxblocks) {
+			write_log(_T("read_executable_rom '%s' size %d larger than max %d\n"), zfile_getname(z), outlen, size);
+			xfree(out);
+			return NULL;
+		}
+		int romsize = ((outlen + size - 1) / size) * size;
+		uae_u8 *temp = xcalloc(uae_u8, romsize);
+		memcpy(temp, out, outlen);
+		if (outlen < romsize && romsize == 524288) {
+			if (outlen < size - 16) {
+				memcpy(temp + size - 20, romend, sizeof(romend));
+			}
+			kickstart_fix_checksum(temp, size);
+		}
+		struct zfile *zo = zfile_fopen_empty(NULL, zfile_getname(z), romsize);
+		zfile_fwrite(temp, 1, romsize, zo);
+		zfile_fseek(zo, 0, SEEK_SET);
+		write_log(_T("read_executable_rom loaded '%s' size %d -> %d\n"), zfile_getname(z), outlen, romsize);
+		return zo;
+	}
+	xfree(file);
+	return NULL;
 }

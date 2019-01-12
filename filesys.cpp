@@ -8965,10 +8965,11 @@ static uae_u32 REGPARAM2 mousehack_done (TrapContext *ctx)
 		debugmem_break(8);
 		return 1;
 	} else if (mode == 202) {
-		// a0 = segment, a1 = name, d2 = lock
-		debugmem_addsegs(ctx, trap_get_areg(ctx, 0), trap_get_areg(ctx, 1), trap_get_dreg(ctx, 2));
+		// a0 = seglist, a1 = name, d2 = lock
+		debugmem_addsegs(ctx, trap_get_areg(ctx, 0), trap_get_areg(ctx, 1), trap_get_dreg(ctx, 2), true);
 		return 1;
 	} else if (mode == 203) {
+		// a0 = seglist
 		debugmem_remsegs(trap_get_areg(ctx, 0));
 		return 1;
 	} else if (mode == 204 || mode == 206) {
@@ -8994,6 +8995,14 @@ static uae_u32 REGPARAM2 mousehack_done (TrapContext *ctx)
 	} else if (mode == 210) {
 		// debug trapcode
 		debugmem_trap(trap_get_areg(ctx, 0));
+	} else if (mode == 212) {
+		// a0 = seglist, a1 = name, d2 = lock
+		debugmem_addsegs(ctx, trap_get_areg(ctx, 0), trap_get_areg(ctx, 1), trap_get_dreg(ctx, 2), false);
+		return 1;
+	} else if (mode == 213) {
+		// a0 = seglist
+		debugmem_remsegs(trap_get_areg(ctx, 0));
+		return 1;
 	} else if (mode == 299) {
 		return debugmem_exit();
 

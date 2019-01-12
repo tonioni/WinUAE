@@ -60,6 +60,10 @@ extern int debug_write_memory_8 (uaecptr addr, uae_u8 v);
 extern bool debug_enforcer(void);
 extern int debug_safe_addr(uaecptr addr, int size);
 
+extern void debug_init_trainer(const TCHAR*);
+extern void debug_trainer_match(void);
+extern bool debug_opcode_watch;
+
 #define BREAKPOINT_TOTAL 20
 #define BREAKPOINT_REG_Dx 0
 #define BREAKPOINT_REG_Ax 8

@@ -1829,6 +1829,9 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 		}
 	}
 
+	if (p->trainerfile[0])
+		cfgfile_write_str(f, _T("trainerfile"), p->trainerfile);
+
 	if (p->statefile[0])
 		cfgfile_write_str (f, _T("statefile"), p->statefile);
 	if (p->quitstatefile[0])
@@ -3751,6 +3754,9 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 		p->jports[3].nokeyboardoverride = !vb;
 		return 1;
 	}
+
+	if (cfgfile_path(option, value, _T("trainerfile"), p->trainerfile, sizeof p->trainerfile / sizeof(TCHAR)))
+		return 1;
 
 	if (cfgfile_path (option, value, _T("statefile_quit"), p->quitstatefile, sizeof p->quitstatefile / sizeof (TCHAR)))
 		return 1;
