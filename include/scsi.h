@@ -259,6 +259,9 @@ void omtiadapter_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconf
 bool phoenixboard_init(struct autoconfig_info *aci);
 void phoenixboard_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
 
+bool trumpcard_init(struct autoconfig_info*);
+void trumpcard_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
+
 bool trumpcardpro_init(struct autoconfig_info*);
 void trumpcardpro_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
 

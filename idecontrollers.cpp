@@ -52,7 +52,8 @@
 #define FASTATA4K_IDE (ATEAM_IDE + MAX_DUPLICATE_EXPANSION_BOARDS)
 #define ELSATHD_IDE (FASTATA4K_IDE + 2 * MAX_DUPLICATE_EXPANSION_BOARDS)
 #define ACCESSX_IDE (ELSATHD_IDE + MAX_DUPLICATE_EXPANSION_BOARDS)
-#define TOTAL_IDE (ACCESSX_IDE + 2 * MAX_DUPLICATE_EXPANSION_BOARDS)
+#define IVST500AT_IDE (ACCESSX_IDE + 2 * MAX_DUPLICATE_EXPANSION_BOARDS)
+#define TOTAL_IDE (IVST500AT_IDE + MAX_DUPLICATE_EXPANSION_BOARDS)
 
 #define ALF_ROM_OFFSET 0x0100
 #define GVP_IDE_ROM_OFFSET 0x8000
@@ -110,6 +111,7 @@ static struct ide_board *arriba_board[MAX_DUPLICATE_EXPANSION_BOARDS];
 static struct ide_board *fastata4k_board[MAX_DUPLICATE_EXPANSION_BOARDS];
 static struct ide_board *elsathd_board[MAX_DUPLICATE_EXPANSION_BOARDS];
 static struct ide_board *accessx_board[MAX_DUPLICATE_EXPANSION_BOARDS];
+static struct ide_board *ivst500at_board[MAX_DUPLICATE_EXPANSION_BOARDS];
 
 static struct ide_hdf *idecontroller_drive[TOTAL_IDE * 2];
 static struct ide_thread_state idecontroller_its;
@@ -574,6 +576,19 @@ static int get_accessx_reg(uaecptr addr, struct ide_board *board, int *portnum)
 	return reg;
 }
 
+static int get_ivst500at_reg(uaecptr addr, struct ide_board *board, int *portnum)
+{
+	*portnum = 0;
+	if (addr & 0x8000)
+		return -1;
+	if (!(addr & 1))
+		return -1;
+	int reg = (addr >> 2) & 7;
+	if (addr & 0x2000)
+		reg |= IDE_SECONDARY;
+	return reg;
+}
+
 static int getidenum(struct ide_board *board, struct ide_board **arr)
 {
 	for (int i = 0; i < MAX_DUPLICATE_EXPANSION_BOARDS; i++) {
@@ -591,7 +606,7 @@ static uae_u32 ide_read_byte(struct ide_board *board, uaecptr addr)
 	addr &= board->mask;
 
 #if DEBUG_IDE
-	if (0 || (addr & 0x8000))
+	if (0 || !(addr & 0x8000))
 		write_log(_T("IDE IO BYTE READ %08x %08x\n"), addr, M68K_GETPC);
 #endif
 	
@@ -891,6 +906,18 @@ static uae_u32 ide_read_byte(struct ide_board *board, uaecptr addr)
 			v = board->rom[offset];
 		}
 
+	} else if (board->type == IVST500AT_IDE) {
+
+		int portnum;
+		int reg = get_ivst500at_reg(addr, board, &portnum);
+		if (reg >= 0) {
+			if (board->ide[portnum])
+				v = get_ide_reg_multi(board, reg, portnum, 1);
+		} else if (board->rom && (addr & 0x8000)) {
+			int offset = addr & 0x7fff;
+			v = board->rom[offset];
+		}
+
 	}
 
 	return v;
@@ -1144,12 +1171,26 @@ static uae_u32 ide_read_word(struct ide_board *board, uaecptr addr)
 				v <<= 8;
 				v |= board->rom[(offset + 1) & board->rom_mask];
 			}
+
+		} else if (board->type == IVST500AT_IDE) {
+
+			int portnum;
+			int reg = get_ivst500at_reg(addr, board, &portnum);
+			if (reg == 0 || addr == 0 || addr == 2) {
+				v = get_ide_reg_multi(board, IDE_DATA, portnum, 1);
+			} else if (board->rom && (addr & 0x8000)) {
+				int offset = addr & 0x7fff;
+				v = board->rom[(offset + 0) & board->rom_mask];
+				v <<= 8;
+				v |= board->rom[(offset + 1) & board->rom_mask];
+			}
+
 		}
 
 	}
 
 #if DEBUG_IDE
-	if (0 || (addr & 0x8000))
+	if (0 || !(addr & 0x8000))
 		write_log(_T("IDE IO WORD READ %08x %04x %08x\n"), addr, v, M68K_GETPC);
 #endif
 
@@ -1162,7 +1203,7 @@ static void ide_write_byte(struct ide_board *board, uaecptr addr, uae_u8 v)
 	addr &= board->mask;
 
 #if DEBUG_IDE
-	if (0 || (addr & 0x8000))
+	if (0 || !(addr & 0x8000))
 		write_log(_T("IDE IO BYTE WRITE %08x=%02x %08x\n"), addr, v, M68K_GETPC);
 #endif
 
@@ -1408,6 +1449,14 @@ static void ide_write_byte(struct ide_board *board, uaecptr addr, uae_u8 v)
 				put_ide_reg_multi(board, reg, v, portnum, 1);
 			}
 
+		} else if (board->type == IVST500AT_IDE) {
+
+			int portnum;
+			int reg = get_ivst500at_reg(addr, board, &portnum);
+			if (board->ide[portnum]) {
+				put_ide_reg_multi(board, reg, v, portnum, 1);
+			}
+
 		}
 
 	}
@@ -1418,7 +1467,7 @@ static void ide_write_word(struct ide_board *board, uaecptr addr, uae_u16 v)
 	addr &= board->mask;
 
 #if DEBUG_IDE
-	if (0 || (addr & 0x8000))
+	if (0 || !(addr & 0x8000))
 		write_log(_T("IDE IO WORD WRITE %08x=%04x %08x\n"), addr, v, M68K_GETPC);
 #endif
 
@@ -1582,6 +1631,14 @@ static void ide_write_word(struct ide_board *board, uaecptr addr, uae_u16 v)
 			int portnum;
 			int reg = get_accessx_reg(addr, board, &portnum);
 			if (!reg) {
+				put_ide_reg_multi(board, IDE_DATA, v, portnum, 1);
+			}
+
+		} else if (board->type == IVST500AT_IDE) {
+
+			int portnum;
+			int reg = get_ivst500at_reg(addr, board, &portnum);
+			if (!reg || addr == 0 || addr == 2) {
 				put_ide_reg_multi(board, IDE_DATA, v, portnum, 1);
 			}
 		}
@@ -2473,6 +2530,41 @@ bool accessx_init(struct autoconfig_info *aci)
 void accessx_add_ide_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc)
 {
 	add_ide_standard_unit(ch, ci, rc, accessx_board, ACCESSX_IDE, false, false, 4);
+}
+
+bool trumpcard500at_init(struct autoconfig_info *aci)
+{
+	const struct expansionromtype *ert = get_device_expansion_rom(ROMTYPE_IVST500AT);
+	if (!aci->doinit) {
+		aci->autoconfigp = ert->autoconfig;
+		return true;
+	}
+
+	struct ide_board *ide = getide(aci);
+
+	ide->bank = &ide_bank_generic;
+	ide->mask = 65536 - 1;
+	ide->rom_size = 32768;
+	ide->rom_mask = 32768 - 1;
+	ide->keepautoconfig = false;
+
+	ide->rom = xcalloc(uae_u8, 32768);
+	load_rom_rc(aci->rc, ROMTYPE_IVST500AT, 16384, 0, ide->rom, 32768, LOADROM_EVENONLY_ODDONE);
+
+	for (int i = 0; i < 16; i++) {
+		uae_u8 b = ert->autoconfig[i];
+		if (i == 0 && aci->rc->autoboot_disabled)
+			b &= ~0x10;
+		ew(ide, i * 4, b);
+	}
+
+	aci->addrbank = ide->bank;
+	return true;
+}
+
+void trumpcard500at_add_ide_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc)
+{
+	add_ide_standard_unit(ch, ci, rc, ivst500at_board, IVST500AT_IDE, true, false, 2);
 }
 
 extern void x86_xt_ide_bios(struct zfile*, struct romconfig*);

@@ -75,7 +75,8 @@
 #define NCR5380_FASTTRAK 40
 #define NCR5380_12GAUGE 41
 #define NCR5380_OVERDRIVE 42
-#define NCR_LAST 43
+#define NCR5380_TRUMPCARD 43
+#define NCR_LAST 44
 
 extern int log_scsiemu;
 
@@ -839,6 +840,7 @@ struct soft_scsi
 	bool dma_started;
 	bool dma_controller;
 	bool dma_drq;
+	bool dma_autodack;
 	struct romconfig *rc;
 	struct soft_scsi **self_ptr;
 
@@ -1915,7 +1917,10 @@ uae_u8 ncr5380_bget(struct soft_scsi *scsi, int reg)
 			}
 			if (scsi->dma_drq || (scsi->dma_active && !scsi->dma_controller && r->bus_phase == (scsi->regs[3] & 7))) {
 				scsi->dma_drq = true;
-				v |= 1 << 6;
+				if (scsi->dma_autodack && r->bus_phase != (scsi->regs[3] & 7))
+					scsi->dma_drq = false;
+				if (scsi->dma_drq)
+					v |= 1 << 6;
 			}
 			if (scsi->regs[2] & 4) {
 				// monitor busy
@@ -3392,7 +3397,7 @@ static uae_u32 ncr80_bget2(struct soft_scsi *ncr, uaecptr addr, int size)
 				v = ncr5380_bget(ncr, reg);
 		}
 
-	} else if (ncr->type == NCR5380_TRUMPCARDPRO || ncr->type == NCR5380_IVSVECTOR) {
+	} else if (ncr->type == NCR5380_TRUMPCARDPRO || ncr->type == NCR5380_IVSVECTOR || ncr->type == NCR5380_TRUMPCARD) {
 
 		reg = trumpcardpro_reg(ncr, addr, ncr->type == NCR5380_IVSVECTOR);
 		if (reg >= 0) {
@@ -3401,7 +3406,7 @@ static uae_u32 ncr80_bget2(struct soft_scsi *ncr, uaecptr addr, int size)
 			} else {
 				v = ncr5380_bget(ncr, reg);
 			}
-		} else if ((addr & 0x8000) && ncr->type == NCR5380_TRUMPCARDPRO) {
+		} else if ((addr & 0x8000) && ncr->type != NCR5380_IVSVECTOR) {
 			if (!ncr->rc->autoboot_disabled)
 				v = ncr->rom[addr & 0x7fff];
 		} else if (addr == 0x100 && ncr->type == NCR5380_IVSVECTOR) {
@@ -3418,15 +3423,14 @@ static uae_u32 ncr80_bget2(struct soft_scsi *ncr, uaecptr addr, int size)
 			v ^= 0xff & ~0x40;
 		} else if (addr > 0x100 && ncr->type == NCR5380_IVSVECTOR) {
 			v = ncr->rom[addr];
-		} else if ((addr & 0xe0) == 0xc0) {
+		} else if ((addr & 0xe0) == 0xc0 && ncr->type != NCR5380_TRUMPCARD) {
 			struct raw_scsi *rs = &ncr->rscsi;
 			uae_u8 t = raw_scsi_get_signal_phase(rs);
 			v = ncr->irq && ncr->intena ? 4 : 0;
 			// actually this is buffer empty/full
 			v |= (t & SCSI_IO_DIRECTION) ? 2 : 0;
 			v |= ((ncr->rc->device_id ^ 7) & 7) << 3;
-
-		} else if ((addr & 0xe0) == 0xa0) {
+		} else if ((addr & 0xe0) == 0xa0 && ncr->type != NCR5380_TRUMPCARD) {
 			// long data port
 			if (ncr->dma_active)
 				v = ncr5380_bget(ncr, 8);
@@ -3827,7 +3831,7 @@ static void ncr80_bput2(struct soft_scsi *ncr, uaecptr addr, uae_u32 val, int si
 		if (reg >= 0)
 			ncr5380_bput(ncr, reg, val);
 
-	} else if (ncr->type == NCR5380_TRUMPCARDPRO || ncr->type == NCR5380_IVSVECTOR) {
+	} else if (ncr->type == NCR5380_TRUMPCARDPRO || ncr->type == NCR5380_IVSVECTOR || ncr->type == NCR5380_TRUMPCARD) {
 
 		reg = trumpcardpro_reg(ncr, addr, ncr->type == NCR5380_IVSVECTOR);
 		if (reg >= 0) {
@@ -3849,7 +3853,7 @@ static void ncr80_bput2(struct soft_scsi *ncr, uaecptr addr, uae_u32 val, int si
 					cpu_fallback(1);
 				}
 			}
-		} else if ((addr & 0xe0) == 0xa0) {
+		} else if ((addr & 0xe0) == 0xa0 && ncr->type != NCR5380_TRUMPCARD) {
 			// word data port
 			if (ncr->dma_active)
 				ncr5380_bput(ncr, 8, val);
@@ -4417,6 +4421,35 @@ bool trumpcardpro_init(struct autoconfig_info *aci)
 void trumpcardpro_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc)
 {
 	generic_soft_scsi_add(ch, ci, rc, NCR5380_TRUMPCARDPRO, 65536, 32768, NCR5380_TRUMPCARDPRO);
+}
+
+bool trumpcard_init(struct autoconfig_info *aci)
+{
+	const struct expansionromtype *ert = get_device_expansion_rom(ROMTYPE_IVSTC);
+	aci->autoconfigp = ert->autoconfig;
+	if (!aci->doinit)
+		return true;
+
+	struct soft_scsi *scsi = getscsi(aci->rc);
+	if (!scsi)
+		return false;
+
+	scsi->intena = true;
+	scsi->dma_autodack = true;
+
+	load_rom_rc(aci->rc, ROMTYPE_IVSTC, 16384, 0, scsi->rom, 32768, LOADROM_EVENONLY_ODDONE | LOADROM_FILL);
+
+	for (int i = 0; i < 16; i++) {
+		uae_u8 b = ert->autoconfig[i];
+		ew(scsi, i * 4, b);
+	}
+	aci->addrbank = scsi->bank;
+	return true;
+}
+
+void trumpcard_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc)
+{
+	generic_soft_scsi_add(ch, ci, rc, NCR5380_TRUMPCARD, 65536, 32768, NCR5380_TRUMPCARD);
 }
 
 bool rochard_scsi_init(struct romconfig *rc, uaecptr baseaddress)

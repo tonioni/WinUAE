@@ -2381,6 +2381,51 @@ struct boardromconfig *get_boardromconfig(struct uae_prefs *p, int romtype, int 
 	return NULL;
 }
 
+static struct zfile *parse_trumpcard_driver(struct zfile *z)
+{
+	int size;
+	uae_u8 *d = zfile_getdata(z, 0x24, -1, &size);
+	if (!d)
+		return z;
+	struct zfile *zd = zfile_fopen_empty(NULL, zfile_getname(z), 16384);
+	int i, out;
+	out = 0;
+	for (i = 0; i < size - 4; i++) {
+		if (d[i] == 0x4e && d[i + 1] == 0x71 && d[i + 2] == 0x4e && d[i + 3] == 0x71)
+			break;
+		uae_u8 v;
+		v = (d[i] & 0xf0) | 0x0f;
+		zfile_fwrite(&v, 1, 1, zd);
+		v = (d[i] << 4) | 0x0f;
+		zfile_fwrite(&v, 1, 1, zd);
+		out += 2;
+	}
+	int datastart = i;
+	for (; i < size - 4; i += 2) {
+		if (d[i] == 0x66 && d[i + 1] == 0x66 && d[i + 2] == 0x99 && d[i + 3] == 0x99) {
+			zfile_fwrite(&d[datastart], i - datastart + 4, 1, zd);
+			out += i - datastart + 4;
+			break;
+		}
+	}
+	uae_u8 zero = 0;
+	while (out & 15) {
+		zfile_fwrite(&zero, 1, 1, zd);
+		out++;
+	}
+	for (i = 0; i < 16; i++)  {
+		zfile_fwrite(&zero, 1, 1, zd);
+		out++;
+	}
+	zero = 0xff;
+	while (out < 16384) {
+		zfile_fwrite(&zero, 1, 1, zd);
+		out++;
+	}
+	xfree(d);
+	return zd;
+}
+
 bool load_rom_rc(struct romconfig *rc, uae_u32 romtype, int maxfilesize, int fileoffset, uae_u8 *rom, int maxromsize, int flags)
 {
 	if (flags & LOADROM_ONEFILL)
@@ -2390,6 +2435,10 @@ bool load_rom_rc(struct romconfig *rc, uae_u32 romtype, int maxfilesize, int fil
 	struct zfile *f = read_device_from_romconfig(rc, romtype);
 	if (!f)
 		return false;
+	TCHAR *ext = _tcsrchr(zfile_getname(f), '.');
+	if ((romtype == ROMTYPE_IVSTPRO || romtype == ROMTYPE_IVSTC || romtype == ROMTYPE_IVST500AT) && ext && !_tcsicmp(ext, _T(".driver"))) {
+		f = parse_trumpcard_driver(f);
+	}
 	zfile_fseek(f, fileoffset, SEEK_SET);
 	int cnt = 0;
 	int pos = 0;

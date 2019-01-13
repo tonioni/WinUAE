@@ -5047,6 +5047,15 @@ const struct expansionromtype expansionroms[] = {
 		{ 0xd1, 0x00, 0x00, 0x00, 0x12, 0x12, 0x00, 0x00, 0x00, 0x00, 0x10, 0x00 },
 	},
 	{
+		_T("trumpcard"), _T("Trumpcard"), _T("IVS"),
+		NULL, trumpcard_init, NULL, trumpcard_add_scsi_unit, ROMTYPE_IVSTC, 0, 0, BOARD_AUTOCONFIG_Z2, false,
+		NULL, 0,
+		true, EXPANSIONTYPE_SCSI,
+		2112, 4, 0, false, NULL,
+		true, 0, NULL,
+		{  0xd1, 0x30, 0x00, 0x00, 0x08, 0x40, 0x00, 0x00, 0x00, 0x00, 0x80, 0x00 },
+	},
+	{
 		_T("trumpcardpro"), _T("Grand Slam"), _T("IVS"),
 		NULL, trumpcardpro_init, NULL, trumpcardpro_add_scsi_unit, ROMTYPE_IVSTPRO, 0, 0, BOARD_AUTOCONFIG_Z2, false,
 		NULL, 0,
@@ -5054,6 +5063,15 @@ const struct expansionromtype expansionroms[] = {
 		2112, 4, 0, false, NULL,
 		true, 0, NULL,
 		{  0xd1, 0x34, 0x00, 0x00, 0x08, 0x40, 0x00, 0x00, 0x00, 0x00, 0x80, 0x00 },
+	},
+	{
+		_T("trumpcardat"), _T("Trumpcard 500AT"), _T("IVS"),
+		NULL, trumpcard500at_init, NULL, trumpcard500at_add_ide_unit, ROMTYPE_IVST500AT, 0, 0, BOARD_AUTOCONFIG_Z2, false,
+		NULL, 0,
+		true, EXPANSIONTYPE_IDE,
+		2112, 4, 0, false, NULL,
+		true, 0, NULL,
+		{ 0xd1, 0x31, 0x00, 0x00, 0x08, 0x40, 0x00, 0x00, 0x00, 0x00, 0x80, 0x00 },
 	},
 	{
 		_T("kommos"), _T("Kommos A500/A2000 SCSI"), _T("Jürgen Kommos"),
