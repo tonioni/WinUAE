@@ -2914,6 +2914,9 @@ void m68k_do_rte_mmu030 (uaecptr a7)
 				} else {
 					mmu030_ad[idxsize].done = true;
 				}
+				if (mmu030_state[1] & MMU030_STATEFLAG1_LASTWRITE) {
+					mmu030_retry = false;
+				}
 			}
 
 		}
@@ -3317,6 +3320,10 @@ void m68k_do_rte_mmu030c (uaecptr a7)
 					mmu030_state[1] |= MMU030_STATEFLAG1_MOVEM2;
 				} else {
 					mmu030_ad[idxsize].done = true;
+				}
+				if (mmu030_state[1] & MMU030_STATEFLAG1_LASTWRITE) {
+					mmu030_retry = false;
+					fill_prefetch_030_ntx();
 				}
 			}
 		}

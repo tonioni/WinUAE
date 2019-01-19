@@ -872,15 +872,28 @@ static void clearmmufixup (int cnt)
 	}
 }
 
-static void gen_set_fault_pc (void)
+static bool is_gen_set_fault_pc(void)
 {
-	if (using_mmu != 68040)
-		return;
-	sync_m68k_pc ();
-	printf ("\tregs.instruction_pc = %s;\n", getpc);
-	printf ("\tmmu_restart = false;\n");
-	m68k_pc_offset = 0;
-	clearmmufixup (0);
+	return using_mmu == 68040 || using_mmu == 68030;
+}
+
+static void gen_set_fault_pc (bool multi)
+{
+	int m68k_pc_total_old = m68k_pc_total;
+	if (using_mmu == 68040) {
+		sync_m68k_pc();
+		printf("\tregs.instruction_pc = %s;\n", getpc);
+		printf("\tmmu_restart = false;\n");
+		m68k_pc_offset = 0;
+		clearmmufixup(0);
+	} else if (using_mmu == 68030) {
+		sync_m68k_pc();
+		printf("\tregs.instruction_pc = %s;\n", getpc);
+		printf("\tmmu030_state[1] |= MMU030_STATEFLAG1_LASTWRITE;\n");
+		m68k_pc_offset = 0;
+	}
+	if (multi)
+		m68k_pc_total = m68k_pc_total_old;
 }
 
 static void syncmovepc (int getv, int flags)
@@ -1878,7 +1891,7 @@ static void genastore_2 (const char *from, amodes mode, const char *reg, wordsiz
 		const char *dstwx = !(flags & GF_FC) ? dstw : "dfc_nommu_put_word";
 		const char *dstlx = !(flags & GF_FC) ? dstl : "dfc_nommu_put_long";
 		if (!(flags & GF_NOFAULTPC))
-			gen_set_fault_pc ();
+			gen_set_fault_pc (false);
 		if (using_mmu) {
 			switch (size) {
 			case sz_byte:
@@ -2166,6 +2179,7 @@ static void movem_mmu030 (const char *code, int size, bool put, bool aipi, bool 
 {
 	const char *index;
 	int dphase;
+	int old_m68k_pc_offset = m68k_pc_offset;
 
 	if (apdi) {
 		dphase = 1;
@@ -2173,6 +2187,9 @@ static void movem_mmu030 (const char *code, int size, bool put, bool aipi, bool 
 	} else {
 		dphase = 0;
 		index = "movem_index1";
+	}
+	if (put) {
+		printf("\tint prefetch = 0;\n");
 	}
 	printf ("\tmmu030_state[1] |= MMU030_STATEFLAG1_MOVEM1;\n");
 	printf ("\tint movem_cnt = 0;\n");
@@ -2188,6 +2205,7 @@ static void movem_mmu030 (const char *code, int size, bool put, bool aipi, bool 
 		else
 			reg = 'a';
 		printf ("\twhile (%cmask) {\n", reg);
+		printf("\t\tuae_u16 nextmask = movem_next[%cmask];\n", reg);
 		if (apdi)
 			printf ("\t\tsrca -= %d;\n", size);
 		printf ("\t\tif (mmu030_state[0] == movem_cnt) {\n");
@@ -2196,10 +2214,25 @@ static void movem_mmu030 (const char *code, int size, bool put, bool aipi, bool 
 		if (!put)
 			printf ("\t\t\t\tval = %smmu030_data_buffer_out;\n", size == 2 ? "(uae_s32)(uae_s16)" : "");
 		printf ("\t\t\t} else {\n");
-		if (put)
-			printf ("\t\t\t\t%s, (mmu030_data_buffer_out = m68k_%creg (regs, %s[%cmask])));\n", code, reg, index, reg);
-		else
-			printf ("\t\t\t\tval = %s;\n", code);
+		if (put) {
+			printf("\t\t\t\tmmu030_data_buffer_out = m68k_%creg(regs, %s[%cmask]);\n", reg, index, reg);
+			// last write?
+			if (dphase == i)
+				printf("\t\t\t\tif(!amask && !nextmask) {\n");
+			else
+				printf("\t\t\t\tif(!dmask && !nextmask) {\n");
+			get_prefetch_020();
+			gen_set_fault_pc(true);
+			printf("\t\t\t\t\tmmu030_state[1] &= ~MMU030_STATEFLAG1_MOVEM1;\n");
+			m68k_pc_offset = old_m68k_pc_offset;
+			printf("\t\t\t\t\tprefetch = 1;\n");
+			if (aipi || apdi)
+				printf("\tm68k_areg (regs, dstreg) = srca;\n");
+			printf("\t\t\t\t}\n");
+			printf("\t\t\t\t%s, mmu030_data_buffer_out);\n", code);
+		} else {
+			printf("\t\t\t\tval = %s;\n", code);
+		}
 		printf ("\t\t\t}\n");
 		if (!put) {
 			printf ("\t\t\tm68k_%creg (regs, %s[%cmask]) = val;\n", reg, index, reg);
@@ -2209,11 +2242,21 @@ static void movem_mmu030 (const char *code, int size, bool put, bool aipi, bool 
 		if (!apdi)
 			printf ("\t\tsrca += %d;\n", size);
 		printf ("\t\tmovem_cnt++;\n");
-		printf ("\t\t%cmask = movem_next[%cmask];\n", reg, reg);
+		printf ("\t\t%cmask = nextmask;\n", reg);
 		printf ("\t}\n");
 	}
 	if (aipi || apdi)
 		printf ("\tm68k_areg (regs, dstreg) = srca;\n");
+	if (put) {
+		// if both masks are zero
+		printf("\tif(prefetch == 0) {\n");
+		if (using_prefetch_020) {
+			get_prefetch_020();
+		}
+		sync_m68k_pc();
+		printf("\t}\n");
+		m68k_pc_offset = 0;
+	}
 }
 
 static void genmovemel (uae_u16 opcode)
@@ -2327,12 +2370,15 @@ static void genmovemle (uae_u16 opcode)
 			printf ("\tuae_u16 amask = mask & 0xff, dmask = (mask >> 8) & 0xff;\n");
 		else
 			printf ("\tuae_u16 dmask = mask & 0xff, amask = (mask >> 8) & 0xff;\n");
-		if (using_mmu == 68030)
-			movem_mmu030 (putcode, size, true, false, table68k[opcode].dmode == Apdi);
-		else if (using_mmu == 68060)
-			movem_mmu060 (putcode, size, true, false, table68k[opcode].dmode == Apdi);
-		else if (using_mmu == 68040)
-			movem_mmu040 (putcode, size, true, false, table68k[opcode].dmode == Apdi, opcode);
+		if (using_mmu == 68030) {
+			movem_mmu030(putcode, size, true, false, table68k[opcode].dmode == Apdi);
+			count_ncycles++;
+			return;
+		} else if (using_mmu == 68060) {
+			movem_mmu060(putcode, size, true, false, table68k[opcode].dmode == Apdi);
+		} else if (using_mmu == 68040) {
+			movem_mmu040(putcode, size, true, false, table68k[opcode].dmode == Apdi, opcode);
+		}
 	} else {
 		if (table68k[opcode].dmode == Apdi) {
 			printf ("\tuae_u16 amask = mask & 0xff, dmask = (mask >> 8) & 0xff;\n");
@@ -3822,7 +3868,7 @@ static void gen_opcode (unsigned int opcode)
 		break;
 	case i_TRAP:
 		genamode (curi, curi->smode, "srcreg", curi->size, "src", 1, 0, 0);
-		gen_set_fault_pc ();
+		gen_set_fault_pc (false);
 		sync_m68k_pc ();
 		printf ("\tException_cpu(src + 32);\n");
 		did_prefetch = 1;
@@ -5050,7 +5096,7 @@ bccl_not68020:
 			printf ("\tint ru = (src >> 6) & 7;\n");
 			printf ("\tint rc = src & 7;\n");
 			genflags (flag_cmp, curi->size, "newv", "m68k_dreg (regs, rc)", "dst");
-			gen_set_fault_pc ();
+			gen_set_fault_pc (false);
 			printf ("\tif (GET_ZFLG ()) ");
 			old_brace_level = n_braces;
 			start_brace ();
@@ -5129,8 +5175,12 @@ bccl_not68020:
 				start_brace ();
 				printf ("\tuae_u32 src = regs.regs[(extra >> 12) & 15];\n");
 				genamode (curi, curi->dmode, "dstreg", curi->size, "dst", 2, 0, 0);
+				tail_ce020_done = false;
+				returntail(false);
+				did_prefetch = 0;
 				genastore_fc ("src", curi->dmode, "dstreg", curi->size, "dst");
-				pop_braces (old_brace_level);
+				sync_m68k_pc();
+				pop_braces(old_brace_level);
 				m68k_pc_offset = old_m68k_pc_offset;
 			}
 			printf ("else");
@@ -5147,12 +5197,11 @@ bccl_not68020:
 				printf ("\t} else {\n");
 				genastore ("src", Dreg, "(extra >> 12) & 7", curi->size, "");
 				printf ("\t}\n");
-				if (using_mmu == 68040)
-					sync_m68k_pc ();
+				sync_m68k_pc();
+				tail_ce020_done = false;
+				returntail(false);
 				pop_braces (old_brace_level);
 			}
-			tail_ce020_done	= false;
-			returntail (false);
 		}
 		break;
 	case i_BKPT:		/* only needed for hardware emulators */
@@ -5294,7 +5343,7 @@ bccl_not68020:
 			printf ("\tval += %s;\n", gen_nextiword(0));
 			addmmufixup ("dstreg");
 			printf ("\tm68k_areg (regs, dstreg) -= areg_byteinc[dstreg];\n");
-			gen_set_fault_pc ();
+			gen_set_fault_pc (false);
 			printf ("\t%s (m68k_areg (regs, dstreg),((val >> 4) & 0xf0) | (val & 0xf));\n", dstb);
 		}
 		break;
@@ -5319,7 +5368,7 @@ bccl_not68020:
 				printf ("\tm68k_areg (regs, dstreg) -= areg_byteinc[dstreg];\n");
 				printf ("\t%s (m68k_areg (regs, dstreg),val);\n", dstb);
 				printf ("\tm68k_areg (regs, dstreg) -= areg_byteinc[dstreg];\n");
-				gen_set_fault_pc ();
+				gen_set_fault_pc (false);
 				printf ("\t%s (m68k_areg (regs, dstreg),val >> 8);\n", dstb);
 			}
 		}
@@ -5859,24 +5908,27 @@ static void generate_one_opcode (int rp, const char *extra)
 		printf ("}");
 		printf("\n");
 	}
-	printf ("\n");
-	if (i68000)
-		printf("#endif\n");
-	opcode_next_clev[rp] = next_cpu_level;
-	opcode_last_postfix[rp] = postfix;
-
 	if ((opcode & 0xf000) == 0xf000)
 		m68k_pc_total = -1;
-	cputbltmp[opcode].length = m68k_pc_total;
 
+	cputbltmp[opcode].length = m68k_pc_total;
 	cputbltmp[opcode].disp020[0] = 0;
 	if (genamode8r_offset[0] > 0)
 		cputbltmp[opcode].disp020[0] = m68k_pc_total - genamode8r_offset[0] + 2;
 	cputbltmp[opcode].disp020[1] = 0;
 	if (genamode8r_offset[1] > 0)
 		cputbltmp[opcode].disp020[1] = m68k_pc_total - genamode8r_offset[1] + 2;
-
 	cputbltmp[opcode].branch = branch_inst;
+
+	if (m68k_pc_total > 0)
+		printf("/* %d %d,%d %c */\n",
+			m68k_pc_total, cputbltmp[opcode].disp020[0], cputbltmp[opcode].disp020[1], cputbltmp[opcode].branch ? 'B' : ' ');
+
+	printf("\n");
+	if (i68000)
+		printf("#endif\n");
+	opcode_next_clev[rp] = next_cpu_level;
+	opcode_last_postfix[rp] = postfix;
 
 	if (generate_stbl) {
 		char *name = ua (lookuptab[idx].name);

@@ -6002,16 +6002,16 @@ insretry:
 				// TODO: this should create shorter A-frame
 				mmufixup[0].reg = -1;
 				mmufixup[1].reg = -1;
-			} else {
+			} else if (!(mmu030_state[1] & MMU030_STATEFLAG1_LASTWRITE)) {
 				regflags.cznv = f.cznv;
 				regflags.x = f.x;
 
 				if (mmufixup[0].reg >= 0) {
-					m68k_areg (regs, mmufixup[0].reg) = mmufixup[0].value;
+					m68k_areg(regs, mmufixup[0].reg) = mmufixup[0].value;
 					mmufixup[0].reg = -1;
 				}
 				if (mmufixup[1].reg >= 0) {
-					m68k_areg (regs, mmufixup[1].reg) = mmufixup[1].value;
+					m68k_areg(regs, mmufixup[1].reg) = mmufixup[1].value;
 					mmufixup[1].reg = -1;
 				}
 			}
