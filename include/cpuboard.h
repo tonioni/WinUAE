@@ -110,4 +110,7 @@ void blizzardppc_irq_setonly(int id, int level);
 #define BOARD_HARDITAL 15
 #define BOARD_HARDITAL_SUB_TQM 0
 
+#define BOARD_HARMS 16
+#define BOARD_HARMS_SUB_3KPRO 0
+
 #endif /* UAE_CPUBOARD_H */
