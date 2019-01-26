@@ -4118,12 +4118,12 @@ retry:
 				}
 				changed_prefs.gfx_api = currprefs.gfx_api = 1;
 				d3d_select(&currprefs);
-				error_log(_T("Direct3D11 failed to initialize, falling back to Direct3D9."));
+				error_log(_T("Direct3D11 failed to initialize ('%s'), falling back to Direct3D9."), err);
 				err = D3D_init(mon->hAmigaWnd, mon->monitor_id, mon->currentmode.native_width, mon->currentmode.native_height, mon->currentmode.current_depth, &mon->currentmode.freq, mon->screen_is_picasso ? 1 : currprefs.gf[ad->picasso_on].gfx_filter_filtermode + 1);
 			}
 			if (err) {
 				D3D_free(0, true);
-				error_log(_T("Direct3D9 failed to initialize, falling back to DirectDraw."));
+				error_log(_T("Direct3D9 failed to initialize ('%s'), falling back to DirectDraw."), err);
 				changed_prefs.gfx_api = currprefs.gfx_api = 0;
 				changed_prefs.gf[ad->picasso_on].gfx_filter = currprefs.gf[ad->picasso_on].gfx_filter = 1;
 				mon->currentmode.current_depth = mon->currentmode.native_depth;
