@@ -2286,7 +2286,7 @@ static void NOINLINE draw_sprites_normal_dp_at (struct sprite_entry *e) { draw_s
 
 #ifdef AGA
 /* not very optimized */
-STATIC_INLINE void draw_sprites_aga (struct sprite_entry *e, int aga)
+STATIC_INLINE void draw_sprites_aga (struct sprite_entry *e)
 {
 	draw_sprites_1 (e, bpldualpf, e->has_attached);
 }
@@ -3181,7 +3181,7 @@ static void pfield_draw_line (struct vidbuffer *vb, int lineno, int gfx_ypos, in
 			for (i = 0; i < dip_for_drawing->nr_sprites; i++) {
 #ifdef AGA
 				if (currprefs.chipset_mask & CSMASK_AGA)
-					draw_sprites_aga (curr_sprite_entries + dip_for_drawing->first_sprite_entry + i, 1);
+					draw_sprites_aga (curr_sprite_entries + dip_for_drawing->first_sprite_entry + i);
 				else
 #endif
 					draw_sprites_ecs (curr_sprite_entries + dip_for_drawing->first_sprite_entry + i);
@@ -3253,7 +3253,7 @@ static void pfield_draw_line (struct vidbuffer *vb, int lineno, int gfx_ypos, in
 		if (dosprites) {
 
 			for (int i = 0; i < dip_for_drawing->nr_sprites; i++)
-				draw_sprites_aga (curr_sprite_entries + dip_for_drawing->first_sprite_entry + i, 1);
+				draw_sprites_aga (curr_sprite_entries + dip_for_drawing->first_sprite_entry + i);
 			do_color_changes (pfield_do_linetoscr_bordersprite_aga, pfield_do_linetoscr_bordersprite_aga, lineno);
 #else
 		if (0) {
