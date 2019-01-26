@@ -3626,11 +3626,17 @@ static bool isbrdblank (int hpos, uae_u16 bplcon0, uae_u16 bplcon3)
 	return brdblank;
 }
 
+
+static bool brdspractive(void)
+{
+	return (bplcon3 & 2) && (bplcon0 & 1);
+}
+
 static bool issprbrd (int hpos, uae_u16 bplcon0, uae_u16 bplcon3)
 {
 	bool brdsprt;
 #ifdef AGA
-	brdsprt = (currprefs.chipset_mask & CSMASK_AGA) && (bplcon0 & 1) && (bplcon3 & 0x02);
+	brdsprt = (currprefs.chipset_mask & CSMASK_AGA) && brdspractive();
 #else
 	brdsprt = false;
 #endif
@@ -3877,7 +3883,7 @@ static void record_sprite_1 (int sprxp, uae_u16 *buf, uae_u32 datab, int num, in
 		unsigned int col = 0;
 		unsigned coltmp = 0;
 
-		if ((sprxp >= sprite_minx && sprxp < sprite_maxx) || (bplcon3 & 2))
+		if ((sprxp >= sprite_minx && sprxp < sprite_maxx) || brdspractive())
 			col = (datab & 3) << (2 * num);
 #if 0
 		if (sprxp == sprite_minx || sprxp == sprite_maxx - 1)
@@ -4089,16 +4095,15 @@ static void calcsprite (void)
 	}
 }
 
-static void decide_sprites(int spnr, int hpos, bool usepointx, bool quick)
+static void decide_sprites(int hpos, bool usepointx, bool quick)
 {
 	int nrs[MAX_SPRITES * 2], posns[MAX_SPRITES * 2];
 	int count, i;
 	int point;
 	int sscanmask = 0x100 << sprite_buffer_res;
 	int gotdata = 0;
-	int startnr = 0, endnr = MAX_SPRITES - 1;
 
-	if (thisline_decision.plfleft < 0 && !(bplcon3 & 2))
+	if (thisline_decision.plfleft < 0 && !brdspractive() && !quick)
 		return;
 
 	// let sprite shift register empty completely
@@ -4110,10 +4115,6 @@ static void decide_sprites(int spnr, int hpos, bool usepointx, bool quick)
 	if (nodraw () || hpos < 0x14 || nr_armed == 0 || point == last_sprite_point)
 		return;
 
-	if (spnr >= 0) {
-		startnr = spnr;
-		endnr = spnr;
-	}
 	if (!quick) {
 		decide_diw (hpos);
 		decide_line (hpos);
@@ -4121,7 +4122,7 @@ static void decide_sprites(int spnr, int hpos, bool usepointx, bool quick)
 	}
 
 	count = 0;
-	for (i = startnr; i <= endnr; i++) {
+	for (i = 0; i < MAX_SPRITES; i++) {
 		struct sprite *s = &spr[i];
 		int xpos = spr[i].xpos;
 		int sprxp = (fmode & 0x8000) ? (xpos & ~sscanmask) : xpos;
@@ -4165,7 +4166,7 @@ static void decide_sprites(int spnr, int hpos, bool usepointx, bool quick)
 		record_sprite (next_lineno, nr, posns[i], s->data, s->datb, s->ctl);
 		/* get left and right sprite edge if brdsprt enabled */
 #if AUTOSCALE_SPRITES
-		if (dmaen (DMA_SPRITE) && (bplcon0 & 1) && (bplcon3 & 0x02) && !(bplcon3 & 0x20) && nr > 0) {
+		if (dmaen (DMA_SPRITE) && brdspractive() && !(bplcon3 & 0x20) && nr > 0) {
 			int j, jj;
 			for (j = 0, jj = 0; j < sprite_width; j+= 16, jj++) {
 				int nx = fromspritexdiw (posns[i] + j);
@@ -4196,9 +4197,9 @@ static void decide_sprites(int spnr, int hpos, bool usepointx, bool quick)
 	}
 #endif
 }
-static void decide_sprites(int spnr, int hpos)
+static void decide_sprites(int hpos)
 {
-	decide_sprites(spnr, hpos, false, false);
+	decide_sprites(hpos, false, false);
 }
 static void maybe_decide_sprites(int spnr, int hpos)
 {
@@ -4207,7 +4208,7 @@ static void maybe_decide_sprites(int spnr, int hpos)
 		return;
 	if (!s->data && !s->datb)
 		return;
-	decide_sprites(spnr, hpos, true, true);
+	decide_sprites(hpos, true, true);
 }
 
 static int sprites_differ (struct draw_info *dip, struct draw_info *dip_old)
@@ -4311,7 +4312,7 @@ static void finish_decisions(void)
 	if (thisline_decision.plfleft >= 0 && thisline_decision.nr_planes > 0)
 		record_diw_line (thisline_decision.plfleft, diwfirstword, diwlastword);
 
-	decide_sprites(-1, hpos + 1);
+	decide_sprites(hpos + 1);
 
 	dip->last_sprite_entry = next_sprite_entry;
 	dip->last_color_change = next_color_change;
@@ -5915,6 +5916,7 @@ void set_picasso_hack_rate (int hz)
 	if (p96refresh_active > 0) {
 		new_beamcon0 |= 0x80;
 	}
+	varsync_changed = true;
 }
 #endif
 
@@ -6016,7 +6018,7 @@ static void BPLCON0_Denise (int hpos, uae_u16 v, bool immediate)
 
 #ifdef ECS_DENISE
 	if (currprefs.chipset_mask & CSMASK_ECS_DENISE) {
-		decide_sprites(-1, hpos);
+		decide_sprites(hpos);
 		sprres = expand_sprres (v, bplcon3);
 	}
 #endif
@@ -6116,7 +6118,7 @@ static void BPLCON3(int hpos, uae_u16 v)
 	if (bplcon3 == v)
 		return;
 	decide_line (hpos);
-	decide_sprites(-1, hpos);
+	decide_sprites(hpos);
 	bplcon3 = v;
 	sprres = expand_sprres (bplcon0, bplcon3);
 	record_register_change (hpos, 0x106, v);
@@ -6670,7 +6672,7 @@ static void sprite_get_bpl_data(int hpos, struct sprite *s, uae_u16 *dat)
 static void SPRxDATA (int hpos, uae_u16 v, int num)
 {
 	struct sprite *s = &spr[num];
-	decide_sprites(-1, hpos, true, false);
+	decide_sprites(hpos, true, false);
 	SPRxDATA_1(v, num, hpos);
 	// if 32 (16-bit double CAS only) or 64 pixel wide sprite and SPRxDATx write:
 	// - first 16 pixel part: previous chipset bus data
@@ -6686,7 +6688,7 @@ static void SPRxDATA (int hpos, uae_u16 v, int num)
 static void SPRxDATB (int hpos, uae_u16 v, int num)
 {
 	struct sprite *s = &spr[num];
-	decide_sprites(-1, hpos, true, false);
+	decide_sprites(hpos, true, false);
 	SPRxDATB_1(v, num, hpos);
 	// See above
 	if (fmode & 8) {
@@ -6706,7 +6708,7 @@ static void SPRxCTL (int hpos, uae_u16 v, int num)
 	}
 #endif
 
-	decide_sprites(-1, hpos);
+	decide_sprites(hpos);
 	SPRxCTL_1(v, num, hpos);
 }
 static void SPRxPOS (int hpos, uae_u16 v, int num)
@@ -6718,7 +6720,7 @@ static void SPRxPOS (int hpos, uae_u16 v, int num)
 		write_log(_T("%d:%d:SPR%dPOSC %06X\n"), vpos, hpos, num, s->pt);
 	}
 #endif
-	decide_sprites(-1, hpos);
+	decide_sprites(hpos);
 	oldvpos = s->vstart;
 	SPRxPOS_1(v, num, hpos);
 	// Superfrog flashing intro bees fix.
@@ -6732,7 +6734,7 @@ static void SPRxPOS (int hpos, uae_u16 v, int num)
 
 static void SPRxPTH (int hpos, uae_u16 v, int num)
 {
-	decide_sprites(-1, hpos);
+	decide_sprites(hpos);
 	if (hpos - 1 != spr[num].ptxhpos) {
 		spr[num].pt &= 0xffff;
 		spr[num].pt |= (uae_u32)v << 16;
@@ -6745,7 +6747,7 @@ static void SPRxPTH (int hpos, uae_u16 v, int num)
 }
 static void SPRxPTL (int hpos, uae_u16 v, int num)
 {
-	decide_sprites(-1, hpos);
+	decide_sprites(hpos);
 	if (hpos - 1 != spr[num].ptxhpos) {
 		spr[num].pt &= ~0xffff;
 		spr[num].pt |= v & ~1;
