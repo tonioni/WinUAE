@@ -183,6 +183,7 @@ extern int decode_cloanto_rom_do (uae_u8 *mem, int size, int real_size);
 #define ROMTYPE_OVERDRIVE	0x00100078
 #define ROMTYPE_IVSTC		0x00100079
 #define ROMTYPE_IVST500AT	0x0010007a
+#define ROMTYPE_TRIFECTA	0x0010007b
 
 #define ROMTYPE_NOT			0x00800000
 #define ROMTYPE_QUAD		0x01000000

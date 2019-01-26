@@ -3997,6 +3997,21 @@ static const struct expansionsubromtype rochard_sub[] = {
 		NULL
 	}
 };
+static const struct expansionsubromtype trifecta_sub[] = {
+	{
+		_T("EC"), _T("ec"), 0, // IDE-only
+		2071, 32, 0, false,
+		{ 0 }
+	},
+	{
+		_T("LX"), _T("lx"), 0, // IDE+SCSI
+		2071, 32, 0, false,
+		{ 0 }
+	},
+	{
+		NULL
+	}
+};
 static const struct expansionsubromtype supra_sub[] = {
 	{
 		_T("A500 ByteSync/XP"), _T("bytesync"), ROMTYPE_NONE | ROMTYPE_SUPRA,
@@ -5036,6 +5051,14 @@ const struct expansionromtype expansionroms[] = {
 		false, EXPANSIONTYPE_SCSI,
 		2071, 4, 0, false, NULL,
 		true, 0, adscsi2000_settings
+	},
+	{
+		_T("trifecta"), _T("Trifecta"), _T("ICD"),
+		NULL, trifecta_init, NULL, trifecta_add_idescsi_unit, ROMTYPE_TRIFECTA | ROMTYPE_NONE, 0, 0, BOARD_AUTOCONFIG_Z2, false,
+		trifecta_sub, 0,
+		false, EXPANSIONTYPE_SCSI | EXPANSIONTYPE_IDE,
+		2071, 32, 0, false, NULL,
+		true, 0, NULL,
 	},
 	{
 		_T("buddha"), _T("Buddha"), _T("Individual Computers"),

@@ -24,6 +24,9 @@ bool apollo_init_cpu(struct autoconfig_info *aci);
 void masoboshi_add_idescsi_unit (int ch, struct uaedev_config_info *ci, struct romconfig *rc);
 bool masoboshi_init(struct autoconfig_info *aci);
 
+void trifecta_add_idescsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
+bool trifecta_init(struct autoconfig_info *aci);
+
 void adide_add_ide_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
 bool adide_init(struct autoconfig_info *aci);
 

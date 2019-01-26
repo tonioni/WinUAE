@@ -659,7 +659,8 @@ static uint64_t esp_reg_read2(void *opaque, uint32_t saddr)
 					}
 				} else {
 					s->rregs[ESP_FIFO] = s->ti_buf[s->ti_rptr++];
-					esp_raise_irq(s);
+					if (s->pio_on)
+						esp_raise_irq(s);
 				}
 			}
 			if (s->ti_size == 0) {
@@ -670,7 +671,7 @@ static uint64_t esp_reg_read2(void *opaque, uint32_t saddr)
 			}
 		}
 #if	ESPLOG
-		write_log("<FIFO %02x %d %d %d\n", s->rregs[ESP_FIFO], s->pio_on, s->ti_size, s->ti_rptr);
+		write_log("<-FIFO %02x %d %d %d\n", s->rregs[ESP_FIFO], s->pio_on, s->ti_size, s->ti_rptr);
 #endif		
 		break;
     case ESP_RINTR:
@@ -768,6 +769,8 @@ void esp_reg_write(void *opaque, uint32_t saddr, uint64_t val)
     case ESP_TCMID:
     case ESP_TCHI:
         s->rregs[ESP_RSTAT] &= ~STAT_TC;
+		if (!(s->wregs[ESP_CFG2] & 0x40))
+			val = 0;
         break;
     case ESP_FIFO:
 #if	ESPLOG
@@ -837,15 +840,21 @@ void esp_reg_write(void *opaque, uint32_t saddr, uint64_t val)
             s->rregs[ESP_RINTR] = INTR_DC;
             s->rregs[ESP_RSEQ] = 0;
             //s->rregs[ESP_RFLAGS] = 0;
-			// Masoboshi driver expects phase=0!
-			s->rregs[ESP_RSTAT] &= ~7;
+			// Features enable
+			if (!(s->wregs[ESP_CFG2] & 0x40)) {
+				// Masoboshi driver expects phase=0!
+				s->rregs[ESP_RSTAT] &= ~7;
+			}
             esp_raise_irq(s);
             break;
         case CMD_PAD:
             s->rregs[ESP_RSTAT] = STAT_TC;
             s->rregs[ESP_RINTR] = INTR_FC;
             s->rregs[ESP_RSEQ] = 0;
-            break;
+			if (s->current_req) {
+				scsiesp_req_continue(s->current_req);
+			}
+			break;
         case CMD_SATN:
             break;
         case CMD_RSTATN:

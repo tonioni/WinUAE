@@ -170,6 +170,7 @@ static struct ncr9x_state *ncr_typhoon2_scsi;
 static struct ncr9x_state *ncr_golemfast_scsi[MAX_DUPLICATE_EXPANSION_BOARDS];
 static struct ncr9x_state *ncr_scram5394_scsi[MAX_DUPLICATE_EXPANSION_BOARDS];
 static struct ncr9x_state *ncr_rapidfire_scsi[MAX_DUPLICATE_EXPANSION_BOARDS];
+static struct ncr9x_state *ncr_trifecta_scsi[MAX_DUPLICATE_EXPANSION_BOARDS];
 
 static struct ncr9x_state *ncr_units[MAX_NCR9X_UNITS + 1];
 
@@ -325,6 +326,24 @@ static void set_irq2_masoboshi(struct ncr9x_state *ncr)
 			devices_rethink_all(ncr9x_rethink);
 #if NCR_DEBUG > 1
 			write_log(_T("MASOBOSHI IRQ\n"));
+#endif
+		} else {
+			ncr->boardirq = false;
+		}
+	} else {
+		ncr->boardirq = false;
+	}
+}
+
+static void set_irq2_trifecta(struct ncr9x_state *ncr)
+{
+	if (ncr->chipirq) {
+		ncr->boardirqlatch = true;
+		if (ncr->intena) {
+			ncr->boardirq = true;
+			devices_rethink_all(ncr9x_rethink);
+#if NCR_DEBUG > 1
+			write_log(_T("TRIFECTA IRQ\n"));
 #endif
 		} else {
 			ncr->boardirq = false;
@@ -495,6 +514,51 @@ static int masoboshi_dma_write(void *opaque, uint8_t *buf, int len)
 		}
 		return 0;
 	}
+}
+
+/* Trifecta is true DMA only to/from its onboard Fast RAM expansion */
+
+static int trifecta_dma_read(void *opaque, uint8_t *buf, int len)
+{
+	struct ncr9x_state *ncr = (struct ncr9x_state*)opaque;
+	if (ncr->dma_on) {
+		write_log(_T("Trifecta DMA from %08x, %d bytes\n"), ncr->dma_ptr, len);
+		m68k_cancel_idle();
+		while (len > 0) {
+			uae_u16 v = get_word(ncr->dma_ptr & ~1);
+			*buf++ = v >> 8;
+			len--;
+			if (len > 0) {
+				*buf++ = v;
+				len--;
+			}
+			ncr->dma_ptr += 2;
+		}
+		return -1;
+	}
+	return 0;
+}
+static int trifecta_dma_write(void *opaque, uint8_t *buf, int len)
+{
+	struct ncr9x_state *ncr = (struct ncr9x_state*)opaque;
+	if (ncr->dma_on) {
+		write_log(_T("Trifecta DMA to %08x, %d bytes\n"), ncr->dma_ptr, len);
+		m68k_cancel_idle();
+		while (len > 0) {
+			uae_u16 v;
+			v = *buf++;
+			len--;
+			v <<= 8;
+			if (len > 0) {
+				v |= *buf++;
+				len--;
+			}
+			put_word(ncr->dma_ptr & ~1, v);
+			ncr->dma_ptr += 2;
+		}
+		return -1;
+	}
+	return 0;
 }
 
 
@@ -861,6 +925,37 @@ static void ncr9x_io_bput3(struct ncr9x_state *ncr, uaecptr addr, uae_u32 val, i
 		}
 		if (addr == MASOBOSHI_ESP_ADDR + 3 * 2 && val == 0x02)
 			ncr->states[0] |= 0x80;
+		reg_shift = 1;
+		addr &= 0x3f;
+
+	} else if (isncr(ncr, ncr_trifecta_scsi)) {
+
+		if (addr == 0x400) {
+			ncr->intena = (val & 8) != 0;
+			ncr->dma_on = (val & 4) != 0;
+			esp_dma_enable(ncr->devobject.lsistate, ncr->dma_on);
+			ncr->states[0] = val;
+			ncr->dma_cnt = 0;
+			if (ncr->dma_on) {
+				write_log(_T("Trifecta DMA %08x %c\n"), ncr->dma_ptr, (val & 1) ? 'R' : 'W');
+			}
+		} else if (addr == 0x402) {
+			ncr->dma_ptr &= 0xffff00;
+			ncr->dma_ptr |= val;
+		} else if (addr == 0x404) {
+			ncr->dma_ptr &= 0xff00ff;
+			ncr->dma_ptr |= val << 8;
+		} else if (addr == 0x406) {
+			ncr->dma_ptr &= 0x00ffff;
+			ncr->dma_ptr |= val << 16;
+		}
+
+		if (addr >= 0x200)
+			return;
+
+		if (!(addr & 1))
+			return;
+
 		reg_shift = 1;
 		addr &= 0x3f;
 
@@ -1244,6 +1339,17 @@ static uae_u32 ncr9x_io_bget3(struct ncr9x_state *ncr, uaecptr addr, int *reg)
 #endif
 			return v;
 		}
+		reg_shift = 1;
+		addr &= 0x3f;
+
+	} else if (isncr(ncr, ncr_trifecta_scsi)) {
+
+		if (addr >= 0x200)
+			return v;
+
+		if (!(addr & 1))
+			return v;
+
 		reg_shift = 1;
 		addr &= 0x3f;
 
@@ -1727,6 +1833,15 @@ void masoboshi_ncr9x_scsi_put(uaecptr addr, uae_u32 v, int devnum)
 	ncr9x_io_bput(ncr_masoboshi_scsi[devnum], addr, v);
 }
 
+uae_u32 trifecta_ncr9x_scsi_get(uaecptr addr, int devnum)
+{
+	return ncr9x_io_bget(ncr_trifecta_scsi[devnum], addr);
+}
+void trifecta_ncr9x_scsi_put(uaecptr addr, uae_u32 v, int devnum)
+{
+	ncr9x_io_bput(ncr_trifecta_scsi[devnum], addr, v);
+}
+
 uae_u32 golemfast_ncr9x_scsi_get(uaecptr addr, int devnum)
 {
 	return ncr9x_io_bget(ncr_golemfast_scsi[devnum], addr);
@@ -2133,6 +2248,20 @@ void ncr_masoboshi_autoconfig_init(struct romconfig *rc, uaecptr baseaddress)
 	ncr9x_reset_board(ncr);
 }
 
+void ncr_trifecta_autoconfig_init(struct romconfig *rc, uaecptr baseaddress)
+{
+	struct ncr9x_state *ncr = getscsi(rc);
+
+	if (!ncr)
+		return;
+
+	ncr->enabled = true;
+	ncr->baseaddress = baseaddress;
+
+	ncr9x_reset_board(ncr);
+}
+
+
 bool ncr_scram5394_init(struct autoconfig_info *aci)
 {
 	const struct expansionromtype *ert = get_device_expansion_rom(ROMTYPE_SCRAM5394);
@@ -2331,6 +2460,12 @@ void masoboshi_add_scsi_unit (int ch, struct uaedev_config_info *ci, struct romc
 {
 	ncr9x_add_scsi_unit(&ncr_masoboshi_scsi[ci->controller_type_unit], ch, ci, rc);
 	ncr9x_esp_scsi_init(ncr_masoboshi_scsi[ci->controller_type_unit], masoboshi_dma_read, masoboshi_dma_write, set_irq2_masoboshi, 0);
+}
+
+void trifecta_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc)
+{
+	ncr9x_add_scsi_unit(&ncr_trifecta_scsi[ci->controller_type_unit], ch, ci, rc);
+	ncr9x_esp_scsi_init(ncr_trifecta_scsi[ci->controller_type_unit], trifecta_dma_read, trifecta_dma_write, set_irq2_trifecta, 0);
 }
 
 void ematrix_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc)

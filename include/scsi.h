@@ -213,6 +213,9 @@ void kronos_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfi
 bool adscsi_init(struct autoconfig_info *aci);
 void adscsi_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
 
+bool trifecta_init(struct autoconfig_info *aci);
+void trifecta_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
+
 void rochard_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
 bool rochard_scsi_init(struct romconfig *rc, uaecptr baseaddress);
 

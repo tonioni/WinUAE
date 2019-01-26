@@ -53,7 +53,8 @@
 #define ELSATHD_IDE (FASTATA4K_IDE + 2 * MAX_DUPLICATE_EXPANSION_BOARDS)
 #define ACCESSX_IDE (ELSATHD_IDE + MAX_DUPLICATE_EXPANSION_BOARDS)
 #define IVST500AT_IDE (ACCESSX_IDE + 2 * MAX_DUPLICATE_EXPANSION_BOARDS)
-#define TOTAL_IDE (IVST500AT_IDE + MAX_DUPLICATE_EXPANSION_BOARDS)
+#define TRIFECTA_IDE (IVST500AT_IDE + MAX_DUPLICATE_EXPANSION_BOARDS)
+#define TOTAL_IDE (TRIFECTA_IDE + MAX_DUPLICATE_EXPANSION_BOARDS)
 
 #define ALF_ROM_OFFSET 0x0100
 #define GVP_IDE_ROM_OFFSET 0x8000
@@ -63,6 +64,9 @@
 #define MASOBOSHI_ROM_OFFSET_END 0xf000
 #define MASOBOSHI_SCSI_OFFSET 0xf800
 #define MASOBOSHI_SCSI_OFFSET_END 0xfc00
+
+#define TRIFECTA_SCSI_OFFSET 0x0000
+#define TRIFECTA_SCSI_OFFSET_END 0x0100
 
 /* masoboshi:
 
@@ -112,6 +116,7 @@ static struct ide_board *fastata4k_board[MAX_DUPLICATE_EXPANSION_BOARDS];
 static struct ide_board *elsathd_board[MAX_DUPLICATE_EXPANSION_BOARDS];
 static struct ide_board *accessx_board[MAX_DUPLICATE_EXPANSION_BOARDS];
 static struct ide_board *ivst500at_board[MAX_DUPLICATE_EXPANSION_BOARDS];
+static struct ide_board *trifecta_board[MAX_DUPLICATE_EXPANSION_BOARDS];
 
 static struct ide_hdf *idecontroller_drive[TOTAL_IDE * 2];
 static struct ide_thread_state idecontroller_its;
@@ -454,6 +459,17 @@ static void masoboshi_ide_dma(struct ide_board *board)
 	board->state2[0] |= 0x80;
 }
 
+static int get_trifecta_reg(uaecptr addr, struct ide_board *board)
+{
+	int reg;
+	if (!(addr & 0x800))
+		return -1;
+	reg = (addr >> 6) & 7;
+	if (addr & 0x200)
+		reg |= IDE_SECONDARY;
+	return reg;
+}
+
 static int get_adide_reg(uaecptr addr, struct ide_board *board)
 {
 	int reg;
@@ -713,6 +729,35 @@ static uae_u32 ide_read_byte(struct ide_board *board, uaecptr addr)
 		if (!rom)
 			write_log(_T("MASOBOSHI BYTE GET %08x %02x %d %08x\n"), addr, v, regnum, M68K_GETPC);
 #endif
+
+	} else if (board->type == TRIFECTA_IDE) {
+
+		if (addr & 1) {
+			int regnum = get_trifecta_reg(addr, board);
+			if (regnum >= 0) {
+				v = get_ide_reg(board, regnum);
+			}
+		}
+		if (addr >= TRIFECTA_SCSI_OFFSET && addr < TRIFECTA_SCSI_OFFSET_END) {
+			if (board->subtype)
+				v = trifecta_ncr9x_scsi_get(oaddr, getidenum(board, trifecta_board));
+			else
+				v = 0xff;
+		}
+		if (addr == 0x401) {
+			if (board->subtype)
+				v = (board->aci->rc->device_id ^ 7) & 7; // inverted SCSI ID
+			else
+				v = 0xff;
+		} else if (addr & 0x8000) {
+			if (board->rom)
+				v = board->rom[addr & board->rom_mask];
+		}
+		if (addr >= 0x400 && addr <= 0x7ff) {
+			write_log(_T("trifecta get %08x\n"), addr);
+		}
+
+
 	} else if (board->type == APOLLO_IDE) {
 
 		if (addr >= APOLLO_ROM_OFFSET) {
@@ -1035,6 +1080,23 @@ static uae_u32 ide_read_word(struct ide_board *board, uaecptr addr)
 				}
 			}
 
+		} else if (board->type == TRIFECTA_IDE) {
+
+			if (addr & 0x8000) {
+				if (board->rom) {
+					v = board->rom[addr & board->rom_mask] << 8;
+					v |= board->rom[(addr + 1) & board->rom_mask];
+				}
+			} else {
+				int regnum = get_trifecta_reg(addr, board);
+				if (regnum == IDE_DATA) {
+					v = get_ide_reg(board, IDE_DATA);
+				} else {
+					v = ide_read_byte(board, addr) << 8;
+					v |= ide_read_byte(board, addr + 1);
+				}
+			}
+
 		} else if (board->type == APOLLO_IDE) {
 
 			if ((addr & 0xc000) == 0x4000) {
@@ -1222,6 +1284,8 @@ static void ide_write_byte(struct ide_board *board, uaecptr addr, uae_u8 v)
 					ncr_golemfast_autoconfig_init(board->original_rc, board->baseaddress);
 				} else if (board->type == DATAFLYERPLUS_IDE) {
 					dataflyerplus_scsi_init(board->original_rc, board->baseaddress);
+				} else if (board->type == TRIFECTA_IDE) {
+					ncr_trifecta_autoconfig_init(board->original_rc, board->baseaddress);
 				}
 				expamem_next(ab, NULL);
 			}
@@ -1334,6 +1398,22 @@ static void ide_write_byte(struct ide_board *board, uaecptr addr, uae_u8 v)
 				}
 			}
 
+		} else if (board->type == TRIFECTA_IDE) {
+
+			if (addr & 1) {
+				int regnum = get_trifecta_reg(addr, board);
+				if (regnum >= 0) {
+					put_ide_reg(board, regnum, v);
+				}
+			}
+			if (addr >= TRIFECTA_SCSI_OFFSET && addr < TRIFECTA_SCSI_OFFSET_END) {
+				if (board->subtype)
+					trifecta_ncr9x_scsi_put(oaddr, v, getidenum(board, trifecta_board));
+			}
+			if (addr >= 0x400 && addr <= 0x407) {
+				trifecta_ncr9x_scsi_put(oaddr, v, getidenum(board, trifecta_board));
+			}
+			
 		} else if (board->type == APOLLO_IDE) {
 
 			if ((addr & 0xc000) == 0x4000) {
@@ -1524,7 +1604,16 @@ static void ide_write_word(struct ide_board *board, uaecptr addr, uae_u16 v)
 #if DEBUG_IDE_MASOBOSHI
 			write_log(_T("MASOBOSHI IO WORD WRITE %08x %04x %08x\n"), addr, v, M68K_GETPC);
 #endif
-	
+		} else if (board->type == TRIFECTA_IDE) {
+
+			int regnum = get_trifecta_reg(addr, board);
+			if (regnum == IDE_DATA) {
+				put_ide_reg(board, IDE_DATA, v);
+			} else {
+				ide_write_byte(board, addr, v >> 8);
+				ide_write_byte(board, addr + 1, v);
+			}
+
 		} else if (board->type == APOLLO_IDE) {
 
 			if ((addr & 0xc000) == 0x4000) {
@@ -2060,6 +2149,64 @@ void masoboshi_add_idescsi_unit (int ch, struct uaedev_config_info *ci, struct r
 			masoboshi_add_scsi_unit(ch, ci, rc);
 	}
 }
+
+static const uae_u8 trifecta_autoconfig[16] = { 0xc1, 0x23, 0x00, 0x00, 0x08, 0x17, 0x00, 0x00, 0x00, 0x00, 0x80, 0x00 };
+
+bool trifecta_init(struct autoconfig_info *aci)
+{
+	int rom_size = 65536;
+	uae_u8 *rom = xcalloc(uae_u8, rom_size);
+	memset(rom, 0xff, rom_size);
+
+	if (!aci->doinit) {
+		aci->autoconfigp = trifecta_autoconfig;
+		return true;
+	}
+
+	struct ide_board *ide = getide(aci);
+
+	if (!ide)
+		return false;
+
+	ide->configured = 0;
+	ide->bank = &ide_bank_generic;
+	ide->type = TRIFECTA_IDE;
+	ide->rom_size = rom_size;
+	ide->rom_mask = ide->mask = rom_size - 1;
+	ide->rom = rom;
+	ide->subtype = aci->rc->subtype;
+	ide->keepautoconfig = false;
+	ide->intena = true;
+
+	load_rom_rc(aci->rc, ROMTYPE_TRIFECTA, 32768, 0, rom, 65536, LOADROM_EVENONLY_ODDONE | LOADROM_FILL);
+
+	for (int i = 0; i < 16; i++) {
+		uae_u8 b = trifecta_autoconfig[i];
+		ew(ide, i * 4, b);
+	}
+
+	aci->addrbank = ide->bank;
+	return true;
+}
+
+static void trifecta_add_ide_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc)
+{
+	add_ide_standard_unit(ch, ci, rc, trifecta_board, TRIFECTA_IDE, true, false, 2);
+}
+
+void trifecta_add_idescsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc)
+{
+	if (ch < 0) {
+		trifecta_add_ide_unit(ch, ci, rc);
+		trifecta_add_scsi_unit(ch, ci, rc);
+	} else {
+		if (ci->controller_type < HD_CONTROLLER_TYPE_SCSI_FIRST)
+			trifecta_add_ide_unit(ch, ci, rc);
+		else
+			trifecta_add_scsi_unit(ch, ci, rc);
+	}
+}
+
 
 static const uae_u8 adide_autoconfig[16] = { 0xd1, 0x02, 0x00, 0x00, 0x08, 0x17, 0x00, 0x00, 0x00, 0x00, ADIDE_ROM_OFFSET >> 8, ADIDE_ROM_OFFSET & 0xff };
 
