@@ -378,6 +378,8 @@ int coord_native_to_amiga_x (int x)
 
 int coord_native_to_amiga_y (int y)
 {
+	if (!native2amiga_line_map)
+		return -1;
 	return native2amiga_line_map[y] + thisframe_y_adjust - minfirstline;
 }
 
