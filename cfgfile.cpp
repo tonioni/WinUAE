@@ -7113,6 +7113,7 @@ int cfgfile_searchconfig(const TCHAR *in, int index, TCHAR *out, int outsize)
 	int joker = 0;
 	uae_u32 err = 0;
 	bool configsearchfound = false;
+	int index2 = index;
 
 	if (in[inlen - 1] == '*') {
 		joker = 1;
@@ -7140,7 +7141,7 @@ int cfgfile_searchconfig(const TCHAR *in, int index, TCHAR *out, int outsize)
 
 		if (zfile_fread (&b, 1, 1, configstore) != 1) {
 			err = 10;
-			if (configsearchfound)
+			if (configsearchfound || index2 > 0)
 				err = 0;
 			goto end;
 		}
@@ -7148,7 +7149,7 @@ int cfgfile_searchconfig(const TCHAR *in, int index, TCHAR *out, int outsize)
 			j = sizeof (tmp) / sizeof (TCHAR) - 1;
 		if (b == 0) {
 			err = 10;
-			if (configsearchfound)
+			if (configsearchfound || index2 > 0)
 				err = 0;
 			goto end;
 		}
@@ -7204,7 +7205,7 @@ uae_u32 cfgfile_modify (uae_u32 index, const TCHAR *parms, uae_u32 size, TCHAR *
 			goto end;
 		}
 		if (configsearch) {
-			err = cfgfile_searchconfig(configsearch, index,  out, outsize);
+			err = cfgfile_searchconfig(configsearch, index, out, outsize);
 			goto end;
 		}
 		err = 0xffffffff;
