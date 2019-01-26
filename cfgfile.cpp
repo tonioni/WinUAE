@@ -606,6 +606,10 @@ static TCHAR *cfgfile_subst_path2 (const TCHAR *path, const TCHAR *subst, const 
 		_tcscat (p, file + l);
 		p2 = target_expand_environment (p, NULL, 0);
 		xfree (p);
+		if (p2 && p2[0] == '$') {
+			xfree(p2);
+			return NULL;
+		}
 		return p2;
 	}
 	return NULL;
