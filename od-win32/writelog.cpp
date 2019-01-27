@@ -160,7 +160,7 @@ static void openconsole (void)
 		if (debugger_type < 0) {
 			regqueryint (NULL, _T("DebuggerType"), &debugger_type);
 			if (debugger_type <= 0)
-				debugger_type = 2;
+				debugger_type = 1;
 			openconsole();
 			return;
 		}
