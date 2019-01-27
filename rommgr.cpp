@@ -1982,23 +1982,23 @@ struct zfile *read_rom_name (const TCHAR *filename)
 	f = rom_fopen2(filename, _T("rb"), ZFD_NORMAL);
 	if (f) {
 		uae_u8 tmp[11] = { 0 };
-		zfile_fread (tmp, sizeof tmp, 1, f);
-		if (!memcmp (tmp, "AMIROMTYPE1", sizeof tmp)) {
+		zfile_fread(tmp, sizeof tmp, 1, f);
+		if (!memcmp(tmp, "AMIROMTYPE1", sizeof tmp)) {
 			struct zfile *df;
 			int size;
 			uae_u8 *buf;
-			addkeydir (filename);
-			zfile_fseek (f, 0, SEEK_END);
-			size = zfile_ftell (f) - sizeof tmp;
-			zfile_fseek (f, sizeof tmp, SEEK_SET);
-			buf = xmalloc (uae_u8, size);
-			zfile_fread (buf, size, 1, f);
-			df = zfile_fopen_empty (f, _T("tmp.rom"), size);
-			decode_cloanto_rom_do (buf, size, size);
-			zfile_fwrite (buf, size, 1, df);
-			zfile_fclose (f);
-			xfree (buf);
-			zfile_fseek (df, 0, SEEK_SET);
+			addkeydir(filename);
+			zfile_fseek(f, 0, SEEK_END);
+			size = zfile_ftell(f) - sizeof tmp;
+			zfile_fseek(f, sizeof tmp, SEEK_SET);
+			buf = xmalloc(uae_u8, size);
+			zfile_fread(buf, size, 1, f);
+			df = zfile_fopen_empty(f, _T("tmp.rom"), size);
+			decode_cloanto_rom_do(buf, size, size);
+			zfile_fwrite(buf, size, 1, df);
+			zfile_fclose(f);
+			xfree(buf);
+			zfile_fseek(df, 0, SEEK_SET);
 			f = df;
 		} else {
 			zfile_fseek (f, -((int)sizeof tmp), SEEK_CUR);

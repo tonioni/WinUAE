@@ -693,6 +693,8 @@
 #define IDC_LOAD                        1401
 #define IDC_RTCCHOOSER                  1401
 #define IDC_SCSIROMCHOOSER              1402
+#define IDC_FLASHCHOOSER2               1402
+#define IDC_CUSTOMROMCHOOSER            1402
 #define IDC_DELETE                      1403
 #define IDC_CPUBOARDROMCHOOSER          1403
 #define IDC_CONFIGLIST                  1404
@@ -1069,6 +1071,8 @@
 #define IDC_FILTERKEEPAUTOSCALEASPECT   1710
 #define IDC_SOUND_CDPAULAMIX            1710
 #define IDC_CS_CIAA_TOD1                1711
+#define IDC_SOUND_CDPAULAMIX2           1711
+#define IDC_SOUND_VOLCNT                1711
 #define IDC_CS_CIAA_TOD2                1712
 #define IDC_CS_EXT                      1712
 #define IDC_CS_CIAA_TOD3                1713
@@ -1301,6 +1305,10 @@
 #define IDC_CONFIGCATEGORY              1860
 #define IDC_CHS_SECTORS                 1861
 #define IDC_CONFIGTAGS                  1861
+#define IDC_CUSTOMROMSELECT             1861
+#define IDC_ROM_ADDRESS                 1862
+#define IDC_ROM_ADDRESS2                1863
+#define IDC_CUSTOMROMFILE               1864
 #define ID__FLOPPYDRIVES                40004
 #define ID_FLOPPYDRIVES_DF0             40005
 #define ID_ST_CONFIGURATION             40010
@@ -1352,7 +1360,7 @@
 #define _APS_3D_CONTROLS                     1
 #define _APS_NEXT_RESOURCE_VALUE        407
 #define _APS_NEXT_COMMAND_VALUE         40050
-#define _APS_NEXT_CONTROL_VALUE         1861
+#define _APS_NEXT_CONTROL_VALUE         1864
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

@@ -3,10 +3,10 @@
 #include "winres.h"
 #include "resource.h"
 /////////////////////////////////////////////////////////////////////////////
-// English resources
+// English (United Kingdom) resources
 
-#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_ENU)
-LANGUAGE LANG_ENGLISH, SUBLANG_NEUTRAL
+#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_ENG)
+LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_UK
 #pragma code_page(1252)
 
 /////////////////////////////////////////////////////////////////////////////
@@ -113,12 +113,12 @@ BEGIN
     PUSHBUTTON      "Move down",IDC_BOARDS_DOWN,203,241,78,14
 END
 
-IDD_KICKSTART DIALOGEX 0, 0, 396, 259
+IDD_KICKSTART DIALOGEX 0, 0, 396, 305
 STYLE DS_LOCALEDIT | DS_SETFONT | DS_3DLOOK | DS_CONTROL | WS_CHILD
 EXSTYLE WS_EX_CONTEXTHELP
 FONT 8, "MS Sans Serif", 0, 0, 0x1
 BEGIN
-    GROUPBOX        "System ROM Settings",IDC_STATIC,1,0,394,91
+    GROUPBOX        "System ROM Settings",IDC_STATIC,1,0,394,89
     LTEXT           "Main ROM file:",IDC_ROMTEXT,14,13,263,10
     COMBOBOX        IDC_ROMFILE,12,25,361,75,CBS_DROPDOWN | CBS_AUTOHSCROLL | CBS_SORT | WS_VSCROLL | WS_TABSTOP
     PUSHBUTTON      "...",IDC_KICKCHOOSER,376,25,10,15
@@ -126,22 +126,29 @@ BEGIN
     COMBOBOX        IDC_ROMFILE2,12,54,361,75,CBS_DROPDOWN | CBS_AUTOHSCROLL | CBS_SORT | WS_VSCROLL | WS_TABSTOP
     PUSHBUTTON      "...",IDC_ROMCHOOSER2,376,55,10,15
     CONTROL         "MapROM emulation [] Creates a BlizKick-compatible memory area.",IDC_MAPROM,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,87,73,104,12
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,87,72,104,12
     CONTROL         "ShapeShifter support [] Patches the system ROM for ShapeShifter compatibility.",IDC_KICKSHIFTER,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,195,73,106,13
-    GROUPBOX        "Miscellaneous",IDC_STATIC,0,96,395,109
-    LTEXT           "Cartridge ROM file:",IDC_FLASHTEXT2,12,111,265,10
-    COMBOBOX        IDC_CARTFILE,12,124,361,75,CBS_DROPDOWN | CBS_AUTOHSCROLL | CBS_SORT | WS_VSCROLL | WS_TABSTOP
-    PUSHBUTTON      "...",IDC_CARTCHOOSER,376,123,10,15
-    LTEXT           "Flash RAM or A2286/A2386SX BIOS CMOS RAM file:",IDC_FLASHTEXT,12,141,265,10
-    EDITTEXT        IDC_FLASHFILE,12,153,361,12,ES_AUTOHSCROLL
-    PUSHBUTTON      "...",IDC_FLASHCHOOSER,376,151,10,15
-    LTEXT           "Real Time Clock file",IDC_STATIC,12,167,313,15,SS_CENTERIMAGE
-    EDITTEXT        IDC_RTCFILE,12,183,361,12,ES_AUTOHSCROLL
-    PUSHBUTTON      "...",IDC_RTCCHOOSER,376,181,10,15
-    GROUPBOX        "Advanced UAE expansion board/Boot ROM Settings",IDC_STATIC,0,209,395,48
-    COMBOBOX        IDC_UAEBOARD_TYPE,96,228,155,75,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
-    RTEXT           "Board type:",IDC_STATIC,20,227,67,15,SS_CENTERIMAGE
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,195,72,106,13
+    GROUPBOX        "Miscellaneous",IDC_STATIC,0,157,395,109
+    LTEXT           "Cartridge ROM file:",IDC_FLASHTEXT2,12,172,265,10
+    COMBOBOX        IDC_CARTFILE,12,185,361,75,CBS_DROPDOWN | CBS_AUTOHSCROLL | CBS_SORT | WS_VSCROLL | WS_TABSTOP
+    PUSHBUTTON      "...",IDC_CARTCHOOSER,376,185,10,15
+    LTEXT           "Flash RAM or A2286/A2386SX BIOS CMOS RAM file:",IDC_FLASHTEXT,12,202,265,10
+    EDITTEXT        IDC_FLASHFILE,12,214,361,12,ES_AUTOHSCROLL
+    PUSHBUTTON      "...",IDC_FLASHCHOOSER,376,213,10,15
+    LTEXT           "Real Time Clock file",IDC_STATIC,12,228,313,15,SS_CENTERIMAGE
+    EDITTEXT        IDC_RTCFILE,12,244,361,12,ES_AUTOHSCROLL
+    PUSHBUTTON      "...",IDC_RTCCHOOSER,376,243,10,15
+    GROUPBOX        "Advanced UAE expansion board/Boot ROM Settings",IDC_STATIC,0,269,395,36
+    COMBOBOX        IDC_UAEBOARD_TYPE,96,284,155,75,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    RTEXT           "Board type:",IDC_STATIC,20,282,67,15,SS_CENTERIMAGE
+    RTEXT           "Address range",IDC_STATIC,158,110,54,15,SS_CENTERIMAGE
+    EDITTEXT        IDC_ROM_ADDRESS,219,110,79,13,ES_AUTOHSCROLL
+    EDITTEXT        IDC_ROM_ADDRESS2,306,110,79,13,ES_AUTOHSCROLL
+    COMBOBOX        IDC_CUSTOMROMSELECT,12,110,135,75,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    GROUPBOX        "Advanced Custom ROM Settings",IDC_STATIC,0,93,394,59
+    EDITTEXT        IDC_CUSTOMROMFILE,12,130,361,12,ES_AUTOHSCROLL
+    PUSHBUTTON      "...",IDC_CUSTOMROMCHOOSER,376,127,10,15
 END
 
 IDD_DISPLAY DIALOGEX 0, 0, 396, 311
@@ -418,10 +425,10 @@ BEGIN
     COMBOBOX        IDC_SOUNDCARDLIST,1,1,393,50,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
     GROUPBOX        "Sound Emulation",IDC_SOUNDSETTINGS,1,19,132,112
     CONTROL         "Disabled",IDC_SOUND0,"Button",BS_AUTORADIOBUTTON | WS_GROUP | WS_TABSTOP,13,35,108,10
-    CONTROL         "Disabled, but emulated",IDC_SOUND1,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,13,53,107,10
-    CONTROL         "Enabled",IDC_SOUND2,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,13,71,108,10
-    CONTROL         "Automatic switching",IDC_SOUND_AUTO,"Button",BS_AUTOCHECKBOX | BS_LEFT | WS_GROUP | WS_TABSTOP,13,92,108,10
-    CONTROL         "Include CD and FMV audio",IDC_SOUND_CDPAULAMIX,"Button",BS_AUTOCHECKBOX | BS_LEFT | WS_GROUP | WS_TABSTOP,13,108,108,10
+    CONTROL         "Disabled, but emulated",IDC_SOUND1,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,13,49,107,10
+    CONTROL         "Enabled",IDC_SOUND2,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,13,63,108,10
+    CONTROL         "Automatic switching",IDC_SOUND_AUTO,"Button",BS_AUTOCHECKBOX | BS_LEFT | WS_GROUP | WS_TABSTOP,13,81,108,10
+    CONTROL         "Include CD and FMV audio",IDC_SOUND_CDPAULAMIX,"Button",BS_AUTOCHECKBOX | BS_LEFT | WS_GROUP | WS_TABSTOP,13,94,108,10
     GROUPBOX        "Volume",IDC_STATIC,139,19,255,69
     RTEXT           "Master",IDC_STATIC,160,38,51,10,SS_CENTERIMAGE
     CONTROL         "",IDC_SOUNDVOLUME,"msctls_trackbar32",TBS_AUTOTICKS | TBS_TOP | WS_TABSTOP,215,32,105,20
@@ -461,6 +468,7 @@ BEGIN
     CONTROL         "WASAPI",IDC_SOUND_WASAPI,"Button",BS_AUTOCHECKBOX | BS_LEFT | WS_GROUP | WS_TABSTOP,292,248,98,10
     CONTROL         "OpenAL",IDC_SOUND_OPENAL,"Button",BS_AUTOCHECKBOX | BS_LEFT | WS_GROUP | WS_TABSTOP,292,262,98,10
     CONTROL         "PortAudio",IDC_SOUND_PORTAUDIO,"Button",BS_AUTOCHECKBOX | BS_LEFT | WS_GROUP | WS_TABSTOP,292,276,98,10
+    CONTROL         "Volume Counter mode",IDC_SOUND_VOLCNT,"Button",BS_AUTOCHECKBOX | BS_LEFT | WS_GROUP | WS_TABSTOP,13,114,108,10
 END
 
 IDD_LOADSAVE DIALOGEX 0, 0, 396, 318
@@ -1386,8 +1394,8 @@ END
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 4,1,0,0
- PRODUCTVERSION 4,1,0,0
+ FILEVERSION 4,2,0,0
+ PRODUCTVERSION 4,2,0,0
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -1403,12 +1411,12 @@ BEGIN
         BLOCK "040904b0"
         BEGIN
             VALUE "FileDescription", "WinUAE"
-            VALUE "FileVersion", "4.1.0.0"
+            VALUE "FileVersion", "4.2.0.0"
             VALUE "InternalName", "WinUAE"
-            VALUE "LegalCopyright", "© 1996-2018 under the GNU Public License (GPL)"
+            VALUE "LegalCopyright", "© 1996-2019 under the GNU Public License (GPL)"
             VALUE "OriginalFilename", "WinUAE.exe"
             VALUE "ProductName", "WinUAE"
-            VALUE "ProductVersion", "4.1.0.0"
+            VALUE "ProductVersion", "4.2.0.0"
         END
     END
     BLOCK "VarFileInfo"
@@ -1544,7 +1552,7 @@ BEGIN
 
     IDD_KICKSTART, DIALOG
     BEGIN
-        BOTTOMMARGIN, 258
+        BOTTOMMARGIN, 304
     END
 
     IDD_DISPLAY, DIALOG
@@ -2166,7 +2174,7 @@ BEGIN
     IDS_TABLET_MODE         "-\nTablet emulation\n"
 END
 
-#endif    // English resources
+#endif    // English (United Kingdom) resources
 /////////////////////////////////////////////////////////////////////////////
 
 

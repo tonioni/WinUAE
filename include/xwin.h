@@ -64,7 +64,6 @@ void getgfxoffset(int monid, float *dxp, float *dyp, float *mxp, float *myp);
 float target_getcurrentvblankrate(int monid);
 
 extern int debuggable (void);
-extern void LED (int);
 extern void screenshot(int monid, int,int);
 void refreshtitle (void);
 
@@ -72,16 +71,10 @@ extern int bits_in_mask (unsigned long mask);
 extern int mask_shift (unsigned long mask);
 extern unsigned int doMask (int p, int bits, int shift);
 extern unsigned int doMask256 (int p, int bits, int shift);
-extern void setup_maxcol (int);
-extern void alloc_colors256 (int (*)(int, int, int, xcolnr *));
 extern void alloc_colors64k (int monid, int, int, int, int, int, int, int, int, int, int, bool);
 extern void alloc_colors_rgb (int rw, int gw, int bw, int rs, int gs, int bs, int aw, int as, int alpha, int byte_swap,
 			      uae_u32 *rc, uae_u32 *gc, uae_u32 *bc);
 extern void alloc_colors_picasso (int rw, int gw, int bw, int rs, int gs, int bs, int rgbfmt, uae_u32 *rgbx16);
-extern void setup_greydither (int bits, allocfunc_type allocfunc);
-extern void setup_greydither_maxcol (int maxcol, allocfunc_type allocfunc);
-extern void setup_dither (int bits, allocfunc_type allocfunc);
-extern void DitherLine (uae_u8 *l, uae_u16 *r4g4b4, int x, int y, uae_s16 len, int bits) ASM_SYM_FOR_FUNC("DitherLine");
 extern float getvsyncrate(int monid, float hz, int *mult);
 
     /* The graphics code has a choice whether it wants to use a large buffer

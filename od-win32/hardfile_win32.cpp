@@ -1767,6 +1767,16 @@ static bool getdeviceinfo (HANDLE hDevice, struct uae_driveinfo *udi)
 	}
 	readidentity(INVALID_HANDLE_VALUE, udi, NULL);
 
+	gli_ok = true;
+	gli.Length.QuadPart = 0;
+	if (!DeviceIoControl(hDevice, IOCTL_DISK_GET_LENGTH_INFO, NULL, 0, (void*)& gli, sizeof(gli), &returnedLength, NULL)) {
+		gli_ok = false;
+		write_log(_T("IOCTL_DISK_GET_LENGTH_INFO failed with error code %d.\n"), GetLastError());
+	}
+	else {
+		write_log(_T("IOCTL_DISK_GET_LENGTH_INFO returned size: %I64d (0x%I64x)\n"), gli.Length.QuadPart, gli.Length.QuadPart);
+	}
+
 	if (!DeviceIoControl (hDevice, IOCTL_DISK_GET_DRIVE_GEOMETRY, NULL, 0, (void*)&dg, sizeof (dg), &returnedLength, NULL)) {
 		DWORD err = GetLastError();
 		if (isnomediaerr (err)) {
@@ -1781,14 +1791,6 @@ static bool getdeviceinfo (HANDLE hDevice, struct uae_driveinfo *udi)
 		DWORD err = GetLastError ();
 		if (err == ERROR_WRITE_PROTECT)
 			udi->readonly = 1;
-	}
-	gli_ok = true;
-	gli.Length.QuadPart = 0;
-	if (!DeviceIoControl (hDevice, IOCTL_DISK_GET_LENGTH_INFO, NULL, 0, (void*)&gli, sizeof (gli), &returnedLength, NULL)) {
-		gli_ok = false;
-		write_log (_T("IOCTL_DISK_GET_LENGTH_INFO failed with error code %d.\n"), GetLastError());
-	} else {
-		write_log (_T("IOCTL_DISK_GET_LENGTH_INFO returned size: %I64d (0x%I64x)\n"), gli.Length.QuadPart, gli.Length.QuadPart);
 	}
 
 	if (ischs(udi->identity) && gli.Length.QuadPart == 0) {
