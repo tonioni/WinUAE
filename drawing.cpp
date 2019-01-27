@@ -504,16 +504,16 @@ void get_custom_raw_limits (int *pw, int *ph, int *pdx, int *pdy)
 
 void check_custom_limits(void)
 {
+	struct gfx_filterdata *fd = &currprefs.gf[0];
 	int vls = visible_left_start;
 	int vrs = visible_right_stop;
 	int vts = visible_top_start;
 	int vbs = visible_bottom_stop;
 
-	struct gfx_filterdata *fd = &currprefs.gf[0];
-	int left = fd->gfx_filter_left_border >> (RES_MAX - currprefs.gfx_resolution);
-	int right = fd->gfx_filter_right_border >> (RES_MAX - currprefs.gfx_resolution);
-	int top = fd->gfx_filter_top_border;
-	int bottom = fd->gfx_filter_bottom_border;
+	int left = fd->gfx_filter_left_border < 0 ? 0 : fd->gfx_filter_left_border >> (RES_MAX - currprefs.gfx_resolution);
+	int right = fd->gfx_filter_right_border < 0 ? 0 : fd->gfx_filter_right_border >> (RES_MAX - currprefs.gfx_resolution);
+	int top = fd->gfx_filter_top_border < 0 ? 0 : fd->gfx_filter_top_border;
+	int bottom = fd->gfx_filter_bottom_border < 0 ? 0 : fd->gfx_filter_bottom_border;
 
 	if (left > visible_left_start)
 		visible_left_start = left;
@@ -530,10 +530,20 @@ void check_custom_limits(void)
 
 void set_custom_limits (int w, int h, int dx, int dy)
 {
+	struct gfx_filterdata *fd = &currprefs.gf[0];
 	int vls = visible_left_start;
 	int vrs = visible_right_stop;
 	int vts = visible_top_start;
 	int vbs = visible_bottom_stop;
+
+	if (fd->gfx_filter_left_border == 0) {
+		w = 0;
+		dx = 0;
+	}
+	if (fd->gfx_filter_top_border == 0) {
+		h = 0;
+		dy = 0;
+	}
 
 	if (specialmonitor_uses_control_lines()) {
 		w = -1;

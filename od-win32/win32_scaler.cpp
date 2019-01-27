@@ -379,11 +379,14 @@ void getfilterrect2(int monid, RECT *sr, RECT *dr, RECT *zr, int dst_width, int 
 
 				if (scalemode == AUTOSCALE_INTEGER_AUTOSCALE) {
 					ok = get_custom_limits (&cw, &ch, &cx, &cy, &crealh) != 0;
-					if (ok)
-						store_custom_limits (cw, ch, cx, cy);
+					if (ok) {
+						set_custom_limits(cw, ch, cx, cy);
+						store_custom_limits(cw, ch, cx, cy);
+					}
 				}
 				if (scalemode == AUTOSCALE_INTEGER || ok == false) {
 					getmanualpos(monid, &cx, &cy, &cw, &ch);
+					set_custom_limits(cw, ch, cx, cy);
 					store_custom_limits(cw, ch, cx, cy);
 				}
 
@@ -454,8 +457,11 @@ void getfilterrect2(int monid, RECT *sr, RECT *dr, RECT *zr, int dst_width, int 
 		} else if (scalemode == AUTOSCALE_CENTER || scalemode == AUTOSCALE_RESIZE) {
 
 			cv = get_custom_limits (&cw, &ch, &cx, &cy, &crealh);
-			if (cv)
-				store_custom_limits (cw, ch, cx, cy);
+			if (cv) {
+				set_custom_limits(cw, ch, cx, cy);
+				store_custom_limits(cw, ch, cx, cy);
+				scl = true;
+			}
 
 		} else {
 
@@ -469,7 +475,7 @@ void getfilterrect2(int monid, RECT *sr, RECT *dr, RECT *zr, int dst_width, int 
 		}
 
 		if (!scl) {
-			set_custom_limits (-1, -1, -1, -1);
+			set_custom_limits (0, 0, 0, 0);
 		}
 	
 		if (!autoaspect_done) {

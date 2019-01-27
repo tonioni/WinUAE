@@ -899,6 +899,8 @@ static void set_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 		else
 			fs = 1;
 	}
+	p->gf[0].gfx_filter_left_border = 0;
+	p->gf[0].gfx_filter_top_border = 0;
 	p->gf[0].gfx_filter_autoscale = AUTOSCALE_CENTER;
 	disp = getdisplay(p, 0);
 
@@ -1055,19 +1057,21 @@ static void set_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 			hmult = vmult = 0;
 		} else if (integerscale) {
 			hmult = vmult = 1;
-			p->gf[0].gfx_filter_autoscale = AUTOSCALE_INTEGER;
 			p->gf[0].gfx_filter_integerscalelimit = 0;
 			if (sm->dwClipFlags & RP_CLIPFLAGS_AUTOCLIP) {
+				p->gf[0].gfx_filter_autoscale = AUTOSCALE_INTEGER_AUTOSCALE;
 				p->gfx_xcenter_pos = -1;
 				p->gfx_ycenter_pos = -1;
 				p->gfx_xcenter_size = -1;
 				p->gfx_ycenter_size = -1;
 			} else {
+				p->gf[0].gfx_filter_autoscale = AUTOSCALE_INTEGER;
 				if (sm->lClipWidth > 0)
 					p->gfx_xcenter_size = sm->lClipWidth;
 				if (sm->lClipHeight > 0)
 					p->gfx_ycenter_size = sm->lClipHeight;
 			}
+			
 		}
 
 		if (keepaspect) {
@@ -1121,6 +1125,11 @@ static void set_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 			p->gf[0].gfx_filter_scanlines = 8;
 			p->gf[0].gfx_filter_scanlinelevel = 8;
 			p->gf[0].gfx_filter_scanlineratio = (1 << 4) | 1;
+		}
+
+		if (sm->dwClipFlags & RP_CLIPFLAGS_AUTOCLIP) {
+			p->gf[0].gfx_filter_left_border = -1;
+			p->gf[0].gfx_filter_top_border = -1;
 		}
 	}
 
@@ -1374,7 +1383,7 @@ static LRESULT CALLBACK RPHostMsgFunction2 (UINT uMessage, WPARAM wParam, LPARAM
 						h -= 1 << (currprefs.gfx_vresolution - 1);
 					}
 					allocvidbuffer (0, &vb, w, h, avidinfo->drawbuffer.pixbytes * 8);
-					set_custom_limits (-1, -1, -1, -1);
+					set_custom_limits(0, 0, 0, 0);
 					draw_frame (&vb);
 					ok |= screenshotf(0, rpsc->szScreenRaw, 1, 1, 1, &vb);
 					if (log_rp & 2)
@@ -1779,16 +1788,18 @@ static void rp_device_writeprotect (int dev, int num, bool writeprotected)
 		return;
 	if (rp_version * 256 + rp_revision < 2 * 256 + 3)
 		return;
+	if (log_rp & 1)
+		write_log(_T("RP_IPC_TO_HOST_DEVICEREADWRITE %d %d %d\n"), dev, num, writeprotected);
 	RPSendMessagex (RP_IPC_TO_HOST_DEVICEREADWRITE, MAKEWORD(dev, num), writeprotected ? RP_DEVICE_READONLY : RP_DEVICE_READWRITE, NULL, 0, &guestinfo, NULL);
 }
 
-static void rp_device_change (int dev, int num, int mode, bool readonly, const TCHAR *content)
+static void rp_device_change (int dev, int num, int mode, bool readonly, const TCHAR *content, bool preventrecursive)
 {
 	struct RPDeviceContent dc = { 0 };
 
 	if (!cando ())
 		return;
-	if (recursive_device)
+	if (preventrecursive && recursive_device)
 		return;
 	dc.btDeviceCategory = dev;
 	dc.btDeviceNumber = num;
@@ -1797,8 +1808,8 @@ static void rp_device_change (int dev, int num, int mode, bool readonly, const T
 	if (content)
 		_tcscpy (dc.szContent, content);
 	if (log_rp & 1)
-		write_log (_T("RP_IPC_TO_HOST_DEVICECONTENT cat=%d num=%d type=%d '%s'\n"),
-		dc.btDeviceCategory, dc.btDeviceNumber, dc.dwInputDevice, dc.szContent);
+		write_log (_T("RP_IPC_TO_HOST_DEVICECONTENT cat=%d num=%d type=%d flags=%x '%s'\n"),
+		dc.btDeviceCategory, dc.btDeviceNumber, dc.dwInputDevice, dc.dwFlags, dc.szContent);
 	RPSendMessagex (RP_IPC_TO_HOST_DEVICECONTENT, 0, 0, &dc, sizeof(struct RPDeviceContent), &guestinfo, NULL);
 }
 
@@ -1833,9 +1844,9 @@ void rp_input_change (int num)
 	if (log_rp & 1)
 		write_log(_T("PORT%d: '%s':%d\n"), num, name, mode);
 	if (num >= 2) {
-		rp_device_change (RP_DEVICECATEGORY_MULTITAPPORT, num - 2, mode, true, name);
+		rp_device_change (RP_DEVICECATEGORY_MULTITAPPORT, num - 2, mode, true, name, true);
 	} else {
-		rp_device_change (RP_DEVICECATEGORY_INPUTPORT, num, mode, true, name);
+		rp_device_change (RP_DEVICECATEGORY_INPUTPORT, num, mode, true, name, true);
 	}
 }
 void rp_disk_image_change (int num, const TCHAR *name, bool writeprotected)
@@ -1847,7 +1858,7 @@ void rp_disk_image_change (int num, const TCHAR *name, bool writeprotected)
 		cfgfile_resolve_path_out_load(name, tmp, MAX_DPATH, PATH_FLOPPY);
 		p = tmp;
 	}
-	rp_device_change (RP_DEVICECATEGORY_FLOPPY, num, 0, writeprotected == false, p);
+	rp_device_change (RP_DEVICECATEGORY_FLOPPY, num, 0, writeprotected, p, false);
 	rp_device_writeprotect (RP_DEVICECATEGORY_FLOPPY, num, writeprotected);
 }
 void rp_harddrive_image_change (int num, bool readonly, const TCHAR *name)
@@ -1859,7 +1870,7 @@ void rp_harddrive_image_change (int num, bool readonly, const TCHAR *name)
 		cfgfile_resolve_path_out_load(name, tmp, MAX_DPATH, PATH_HDF);
 		p = tmp;
 	}
-	rp_device_change (RP_DEVICECATEGORY_HD, num, 0, readonly, p);
+	rp_device_change (RP_DEVICECATEGORY_HD, num, 0, readonly, p, false);
 }
 void rp_cd_image_change (int num, const TCHAR *name)
 {
@@ -1870,7 +1881,7 @@ void rp_cd_image_change (int num, const TCHAR *name)
 		cfgfile_resolve_path_out_load(name, tmp, MAX_DPATH, PATH_CD);
 		p = tmp;
 	}
-	rp_device_change (RP_DEVICECATEGORY_CD, num, 0, true, p);
+	rp_device_change (RP_DEVICECATEGORY_CD, num, 0, true, p, false);
 }
 
 void rp_floppy_device_enable (int num, bool enabled)
@@ -2130,12 +2141,25 @@ void rp_rtg_switch (void)
 
 static uae_u64 esctime;
 static int releasetime, releasenum;
+static int rp_prev_w, rp_prev_h, rp_prev_x, rp_prev_y;
 
 void rp_vsync(void)
 {
 	struct AmigaMonitor *mon = &AMonitors[0];
 	if (!initialized)
 		return;
+	if (!hwndset_delay && !delayed_refresh && !screenmode_request && isfullscreen()) {
+		int w, h, x, y;
+		get_custom_raw_limits(&w, &h, &x, &y);
+		if (x != rp_prev_x || y != rp_prev_y ||
+			w != rp_prev_w || h != rp_prev_h) {
+			screenmode_request = 6;
+			rp_prev_x = x;
+			rp_prev_y = y;
+			rp_prev_w = w;
+			rp_prev_h = h;
+		}
+	}
 	if (delayed_refresh) {
 		if (gett() >= delayed_refresh + 50) {
 			if (pause_emulation && D3D_refresh) {
