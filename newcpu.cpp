@@ -2364,7 +2364,6 @@ static uaecptr ShowEA_disp(uaecptr *pcp, uaecptr base, TCHAR *buffer, const TCHA
 		TCHAR regstr[20];
 		uae_s8 disp8 = dp & 0xFF;
 
-		mult[0] = 0;
 		regstr[0] = 0;
 		_stprintf(regstr, _T(",%c%d.%c"), dp & 0x8000 ? 'A' : 'D', (int)r, dp & 0x800 ? 'L' : 'W');
 		addr = base + (uae_s32)((uae_s8)disp8) + dispreg;
