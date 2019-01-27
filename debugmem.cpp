@@ -70,7 +70,7 @@ bool debugmem_trace;
 #define MAX_DEBUGSEGS 1000
 #define MAX_DEBUGSYMS 10000
 #define MAX_STACKVARS 10000
-#define MAX_DEBUGCODEFILES 1000
+#define MAX_DEBUGCODEFILES 10000
 #define MAX_STACKFRAMES 100
 
 
@@ -114,6 +114,8 @@ struct debugcodefile
 	uae_u8 **lineptr;
 	struct stabtype *stabtypes;
 	int stabtypecount;
+	uae_u32 start_pc;
+	uae_u32 end_pc;
 };
 static struct debugcodefile **codefiles;
 static int codefilecnt;
@@ -1046,6 +1048,10 @@ static uae_u32 gl(uae_u8 *p)
 {
 	return (p[0] << 24) | (p[1] << 16) | (p[2] << 8) | (p[3]);
 }
+static uae_u16 gw(uae_u8 *p)
+{
+	return (p[0] << 8) | (p[1]);
+}
 
 static bool loadcodefiledata(struct debugcodefile *cf)
 {
@@ -1098,6 +1104,7 @@ static bool loadcodefiledata(struct debugcodefile *cf)
 				s[len - 1] = 0;
 		}
 	}
+	return true;
 }
 
 static struct debugcodefile *preallocatecodefile(const TCHAR *path, const TCHAR *name)
@@ -1108,7 +1115,8 @@ static struct debugcodefile *preallocatecodefile(const TCHAR *path, const TCHAR 
 	}
 	codefilecnt++;
 	cf->name = my_strdup(name);
-	cf->path = my_strdup(path);
+	if (path)
+		cf->path = my_strdup(path);
 	return cf;
 }
 
@@ -2385,7 +2393,11 @@ static uae_u8 *loadelffile(uae_u8 *file, int filelen, uae_u32 seglist, int segme
 	struct debuglineheader lineheader;
 	struct symbol *symtab = NULL;
 	uae_u8 *debuginfo = NULL;
+	uae_u8 *debugstr = NULL;
+	uae_u8 *debugabbrev = NULL;
 	int debuginfo_size;
+	int debugstr_size;
+	int debugabbrev_size;
 	int symtab_num = 0;
 	for (int i = 0; i < shnum; i++) {
 		struct sheader *shp = (struct sheader*)(file + i * sizeof(sheader) + eh->shoff);
@@ -2419,6 +2431,12 @@ static uae_u8 *loadelffile(uae_u8 *file, int filelen, uae_u32 seglist, int segme
 		} else if (sh.type == SHT_PROGBITS && !strcmp(name, ".debug_info")) {
 			debuginfo = file + sh.offset;
 			debuginfo_size = sh.size;
+		} else if (sh.type == SHT_PROGBITS && !strcmp(name, ".debug_str")) {
+			debugstr = file + sh.offset;
+			debugstr_size = sh.size;
+		} else if (sh.type == SHT_PROGBITS && !strcmp(name, ".debug_abbrev")) {
+			debugabbrev = file + sh.offset;
+			debugabbrev_size = sh.size;
 		}
 	}
 
@@ -2436,7 +2454,7 @@ static uae_u8 *loadelffile(uae_u8 *file, int filelen, uae_u32 seglist, int segme
 		swap_header(&sh, shp);
 		sectionoffsets[i] = 0xffffffff;
 		sectionbases[i] = 0xffffffff;
-		uae_char *namep = (uae_char*)(strtab + sh.name);
+		uae_char *namep = (uae_char*)(strtabsym + sh.name);
 		TCHAR *n = au(namep);
 		write_log(_T("ELF section %d: type=%08x flags=%08x size=%08x ('%s')\n"), i, sh.type, sh.flags, sh.size, n);
 		xfree(n);
@@ -2492,7 +2510,7 @@ static uae_u8 *loadelffile(uae_u8 *file, int filelen, uae_u32 seglist, int segme
 			TCHAR *name = au(namep);
 			addsimplesymbol(name, sym.value, stype, sflags, segmentid, sym.shindex);
 			xfree(name);
-		} else if (sym.shindex < shnum && sectionoffsets[i] != 0xffffffff) {
+		} else if (sym.shindex < shnum && sectionoffsets[sym.shindex] != 0xffffffff) {
 			uae_char *namep = (uae_char*)(strtabsym + sym.name);
 			TCHAR *name = au(namep);
 			uae_u32 v = sym.value + sectionbases[sym.shindex];
@@ -2685,6 +2703,7 @@ static uae_u8 *loadelffile(uae_u8 *file, int filelen, uae_u32 seglist, int segme
 		}
 		outptr = NULL;
 	}
+
 #if 0
 	if (debuginfo) {
 		uae_u8 *p = debuginfo;
@@ -2693,25 +2712,97 @@ static uae_u8 *loadelffile(uae_u8 *file, int filelen, uae_u32 seglist, int segme
 			uae_u32 length = gl(p);
 			p += 4;
 			uae_u8 *end = p + length;
+			uae_u16 version = gw(p);
 			p += 2;
 			uae_u32 abbrev_offset = gl(p);
+			uae_u8 *abbrev = debugabbrev + abbrev_offset;
 			p += 4;
 			uae_u8 ptr_size = *p++;
 			while (p < end) {
 				uae_u8 abbrevnum = *p++;
-				switch (abbrevnum)
+				uae_u8 *ap = abbrev;
+				uae_u8 tag = 0;
+				for (;;) {
+					uae_u8 anum = *ap;
+					if (anum == abbrevnum)
+						break;
+					ap++;
+					ap++;
+					ap++;
+					for (;;) {
+						uae_u16 v = gw(ap);
+						ap += 2;
+						if (!v)
+							break;
+					}
+				}
+				tag = *ap++;
+				ap++; // haschildren
+				for (;;) {
+					uae_u8 name = *ap++;
+					uae_u8 type = *ap++;
+					uae_u32 v;
+					if (!name && !type)
+						break;
+					switch (type)
+					{
+					case 0x8: // string
+						for (;;) {
+							if (*ap++ == 0)
+								break;
+						}
+						break;
+					case 0x18: // exprloc
+						ap = lebx(ap, &v);
+						ap += v;
+						break;
+					}
+
+				}
+#if 0
+
+  				switch (abbrevnum)
 				{
 					case 1:
 					{
-						p += 4; // producer
-						p++; //language
-						uae_char *namep = (uae_char*)start + gl(p);
-						p += 4;
-						uae_u32 low_pc = gl(p);
-						p += 4;
-						uae_u32 high_pc = gl(p);
-						p += 4;
-						p += 4;
+						if (version == 2) {
+							uae_u32 stmt_list = gl(p);
+							p += 4;
+							uae_u32 low_pc = gl(p);
+							p += 4;
+							uae_u32 high_pc = gl(p);
+							p += 4;
+							uae_char *namep = (uae_char*)p;
+							p += strlen((char*)p) + 1;
+							uae_char *comp_dirp = (uae_char*)p;
+							p += strlen((char*)p) + 1;
+							p += strlen((char*)p) + 1; // producer
+							uae_u16 language = gw(p);
+							p += 2;
+							TCHAR *name = au(namep);
+							struct debugcodefile *cf = preallocatecodefile(NULL, name);
+							cf->start_pc = low_pc;
+							cf->end_pc = low_pc + high_pc;
+							xfree(name);
+						} else if (version >= 3) {
+							uae_char *producerp = (uae_char*)debugstr + gl(p);
+							p += 4;
+							uae_u8 language = p[0];
+							p += 1;
+							uae_char *namep = (uae_char*)debugstr + gl(p);
+							p += 4;
+							uae_u32 low_pc = gl(p);
+							p += 4;
+							uae_u32 high_pc = gl(p);
+							p += 4;
+							uae_u32 stmt_list = gl(p);
+							p += 4;
+							TCHAR *name = au(namep);
+							struct debugcodefile *cf = preallocatecodefile(NULL, name);
+							cf->start_pc = low_pc;
+							cf->end_pc = low_pc + high_pc;
+							xfree(name);
+						}
 						break;
 					}
 					case 2:
@@ -2725,8 +2816,11 @@ static uae_u8 *loadelffile(uae_u8 *file, int filelen, uae_u32 seglist, int segme
 						break;
 					}
 				}
+#endif
+				break;
 			}
 			debuginfo_size -= length;
+			p = start + length + 4;
 		}
 	}
 #endif
@@ -3413,13 +3507,28 @@ struct debugcodefile *last_codefile;
 
 int debugmem_get_sourceline(uaecptr addr, TCHAR *out, int maxsize)
 {
+	if (out)
+		out[0] = 0;
+
+	if (!executable_last_segment && codefilecnt) {
+#if 0
+		for (int i = 0; i < codefilecnt; i++) {
+			struct debugcodefile *cf = codefiles[i];
+			if (cf && addr >= cf->start_pc && addr < cf->end_pc) {
+				_stprintf(out, _T("Source file: %s\n"), cf->name);
+				return -1;
+			}
+		}
+#endif
+		return -1;
+	}
+
 	if (addr < debugmem_bank.start)
 		return -1;
 	addr -= debugmem_bank.start;
 	if (addr >= debugmem_bank.allocated_size)
 		return -1;
-	if (out)
-		out[0] = 0;
+
 	for (int i = 1; i <= executable_last_segment; i++) {
 		struct debugmemallocs *alloc = allocs[i];
 		if (addr >= alloc->start && addr < alloc->start + alloc->size) {

@@ -207,7 +207,7 @@ static const TCHAR help[] = {
 	_T("  W <addr> 'string'     Write into Amiga memory.\n")
 	_T("  Wf <addr> <endaddr> <bytes or string like above>, fill memory.\n")
 	_T("  Wc <addr> <endaddr> <destaddr>, copy memory.\n")
-	_T("  w <num> <address> <length> <R/W/I> <F/C> [<value>[.x]] (read/write/opcode) (freeze/mustchange).\n")
+	_T("  w <num> <address> <length> <R/W/I> <F/C/L/N> [<value>[.x]] (read/write/opcode) (freeze/mustchange/logonly/nobreak).\n")
 	_T("                        Add/remove memory watchpoints.\n")
 	_T("  wd [<0-1>]            Enable illegal access logger. 1 = enable break.\n")
 	_T("  L <file> <addr> [<n>] Load a block of Amiga memory.\n")
@@ -2834,6 +2834,8 @@ uae_u8 *save_debug_memwatch (int *len, uae_u8 *dstptr)
 		save_u32 (m->pc);
 		save_u32 (m->access_mask);
 		save_u32 (m->reg);
+		save_u8(m->nobreak);
+		save_u8(m->reportonly);
 		save_store_size ();
 	}
 	*len = dst - dstbak;
@@ -2863,6 +2865,8 @@ uae_u8 *restore_debug_memwatch (uae_u8 *src)
 		m->pc = restore_u32 ();
 		m->access_mask = restore_u32();
 		m->reg = restore_u32();
+		m->nobreak = restore_u8();
+		m->reportonly = restore_u8();
 		restore_store_size ();
 	}
 	return src;
@@ -2891,6 +2895,21 @@ static void mungwall_memwatch(uaecptr addr, int rwi, int size, uae_u32 valp)
 		if (addr + size > mwd->start[i] && addr < mwd->end[i]) {
 
 		}
+	}
+}
+
+static void memwatch_hit_msg(int mw)
+{
+	console_out_f(_T("Memwatch %d: break at %08X.%c %c%c%c %08X PC=%08X "), mw, mwhit.addr,
+		mwhit.size == 1 ? 'B' : (mwhit.size == 2 ? 'W' : 'L'),
+		(mwhit.rwi & 1) ? 'R' : ' ', (mwhit.rwi & 2) ? 'W' : ' ', (mwhit.rwi & 4) ? 'I' : ' ',
+		mwhit.val, mwhit.pc);
+	for (int i = 0; memwatch_access_masks[i].mask; i++) {
+		if (mwhit.access_mask == memwatch_access_masks[i].mask)
+			console_out_f(_T("%s (%03x)\n"), memwatch_access_masks[i].name, mwhit.reg);
+	}
+	if (mwhit.access_mask & (MW_MASK_BLITTER_A | MW_MASK_BLITTER_B | MW_MASK_BLITTER_C | MW_MASK_BLITTER_D_N | MW_MASK_BLITTER_D_L | MW_MASK_BLITTER_D_F)) {
+		blitter_debugdump();
 	}
 }
 
@@ -2951,7 +2970,7 @@ static int memwatch_func (uaecptr addr, int rwi, int size, uae_u32 *valp, uae_u3
 			isoldval = 1;
 		}
 
-		if (m->pc != 0xffffff) {
+		if (m->pc != 0xffffffff) {
 			if (m->pc != regs.instruction_pc)
 				continue;
 		}
@@ -3040,10 +3059,15 @@ static int memwatch_func (uaecptr addr, int rwi, int size, uae_u32 *valp, uae_u3
 		if (mwhit.rwi & 2)
 			mwhit.val = val;
 		memwatch_triggered = i + 1;
-		debugging = 1;
-		debug_pc = M68K_GETPC;
-		debug_cycles();
-		set_special (SPCFLAG_BRK);
+		if (m->reportonly) {
+			memwatch_hit_msg(memwatch_triggered - 1);
+		}
+		if (!m->nobreak && !m->reportonly) {
+			debugging = 1;
+			debug_pc = M68K_GETPC;
+			debug_cycles();
+			set_special(SPCFLAG_BRK);
+		}
 		return 1;
 	}
 	return 1;
@@ -3498,6 +3522,10 @@ void memwatch_dump2 (TCHAR *buf, int bufsize, int num)
 				buf = buf_out(buf, &bufsize, _T(" C"));
 			if (mwn->pc != 0xffffffff)
 				buf = buf_out(buf, &bufsize, _T(" PC=%08x"), mwn->pc);
+			if (mwn->reportonly)
+				buf = buf_out(buf, &bufsize, _T(" L"));
+			if (mwn->nobreak)
+				buf = buf_out(buf, &bufsize, _T(" N"));
 			for (int j = 0; memwatch_access_masks[j].mask; j++) {
 				uae_u32 mask = memwatch_access_masks[j].mask;
 				if ((mwn->access_mask & mask) == mask && (usedmask & mask) == 0) {
@@ -3641,6 +3669,10 @@ static void memwatch (TCHAR **c)
 						next_char(c);
 						mwn->pc = readhex(c, NULL);
 					}
+					if (ncc == 'L')
+						mwn->reportonly = true;
+					if (ncc == 'N')
+						mwn->nobreak = true;
 					if (!more_params(c))
 						break;
 				}
@@ -5903,11 +5935,9 @@ static void debug_1 (void)
 
 static void addhistory (void)
 {
-	uae_u32 pc = m68k_getpc ();
-	//    if (!notinrom())
-	//	return;
+	uae_u32 pc = currprefs.cpu_model >= 68020 && currprefs.cpu_compatible ? regs.instruction_pc : m68k_getpc();
 	history[lasthist].regs = regs;
-	history[lasthist].regs.pc = m68k_getpc ();
+	history[lasthist].regs.pc = pc;
 	history[lasthist].vpos = vpos;
 	history[lasthist].hpos = current_hpos();
 	history[lasthist].fp = timeframes;
@@ -5923,7 +5953,6 @@ static void debug_continue(void)
 {
 	set_special (SPCFLAG_BRK);
 }
-
 
 void debug (void)
 {
@@ -6088,18 +6117,8 @@ void debug (void)
 			debug_cycles();
 		}
 	} else {
-		console_out_f (_T("Memwatch %d: break at %08X.%c %c%c%c %08X PC=%08X "), memwatch_triggered - 1, mwhit.addr,
-			mwhit.size == 1 ? 'B' : (mwhit.size == 2 ? 'W' : 'L'),
-			(mwhit.rwi & 1) ? 'R' : ' ', (mwhit.rwi & 2) ? 'W' : ' ', (mwhit.rwi & 4) ? 'I' : ' ',
-			mwhit.val, mwhit.pc);
-		for (i = 0; memwatch_access_masks[i].mask; i++) {
-			if (mwhit.access_mask == memwatch_access_masks[i].mask)
-				console_out_f (_T("%s (%03x)\n"), memwatch_access_masks[i].name, mwhit.reg);
-		}
+		memwatch_hit_msg(memwatch_triggered - 1);
 		memwatch_triggered = 0;
-		if (mwhit.access_mask & (MW_MASK_BLITTER_A | MW_MASK_BLITTER_B | MW_MASK_BLITTER_C | MW_MASK_BLITTER_D_N | MW_MASK_BLITTER_D_L | MW_MASK_BLITTER_D_F)) {
-			blitter_debugdump();
-		}
 	}
 
 	wasactive = ismouseactive ();
@@ -6768,7 +6787,7 @@ static void debug_trainer_enable(struct trainerpatch *tp, bool enable)
 				mwn->access_mask = MW_MASK_CPU_D_R | MW_MASK_CPU_D_W;
 				mwn->reg = 0xffffffff;
 				mwn->pc = tp->patchtype == TRAINER_NOP ? tp->addr : 0xffffffff;
-				mwn->frozen = tp->patchtype == TRAINER_FREEZE;
+				mwn->frozen = tp->patchtype == TRAINER_FREEZE || tp->patchtype == TRAINER_NOP;
 				mwn->modval_written = 0;
 				mwn->val_enabled = 0;
 				mwn->val_mask = 0xffffffff;
@@ -6777,6 +6796,7 @@ static void debug_trainer_enable(struct trainerpatch *tp, bool enable)
 					mwn->val_enabled = 1;
 					mwn->val = tp->setvalue;
 				}
+				mwn->nobreak = true;
 				memwatch_setup();
 				TCHAR buf[256];
 				memwatch_dump2(buf, sizeof(buf) / sizeof(TCHAR), i);
@@ -6897,7 +6917,6 @@ static int parsetrainerdata(const TCHAR *data, uae_u16 *outdata, uae_u16 *outmas
 
 void debug_init_trainer(const TCHAR *file)
 {
-	TCHAR *data;
 	TCHAR section[256];
 	int cnt = 1;
 
@@ -6915,6 +6934,7 @@ void debug_init_trainer(const TCHAR *file)
 
 		for (;;) {
 			TCHAR *name = NULL;
+			TCHAR *data;
 
 			ini_getstring_multi(ini, section, _T("name"), &name, &ictx);
 
@@ -6935,7 +6955,6 @@ void debug_init_trainer(const TCHAR *file)
 			tp->maskdata = xcalloc(uae_u16, datalen);
 			tp->length = parsetrainerdata(data, tp->data, tp->maskdata);
 			xfree(data);
-			data = NULL;
 
 			ini_getval_multi(ini, section, _T("offset"), &tp->offset, &ictx);
 			if (tp->offset < 0 || tp->offset >= tp->length)
@@ -6946,25 +6965,20 @@ void debug_init_trainer(const TCHAR *file)
 				tp->replacedata = xcalloc(uae_u16, replacedatalen);
 				tp->replacemaskdata = xcalloc(uae_u16, replacedatalen);
 				tp->replacelength = parsetrainerdata(data, tp->replacedata, tp->replacemaskdata);
-				xfree(data);
-				data = NULL;
 				ini_getval_multi(ini, section, _T("replaceoffset"), &tp->offset, &ictx);
 				if (tp->replaceoffset < 0 || tp->replaceoffset >= tp->length)
 					tp->replaceoffset = 0;
 				tp->access = -1;
+				xfree(data);
 			}
 
 			tp->access = 2;
-			if (ini_getstring_multi(ini, section, _T("access"), &tp->data, &ictx)) {
+			if (ini_getstring_multi(ini, section, _T("access"), &data, &ictx)) {
 				if (!_tcsicmp(data, _T("read")))
 					tp->access = 0;
 				else if (!_tcsicmp(data, _T("write")))
 					tp->access = 1;
-			}
-
-			if (ini_getstring_multi(ini, section, _T("enable"), &data, &ictx)) {
-				if (!_tcsicmp(data, _T("true")))
-					tp->enabledatstart = true;
+				xfree(data);
 			}
 
 			if (ini_getstring_multi(ini, section, _T("type"), &data, &ictx)) {
@@ -6991,6 +7005,12 @@ void debug_init_trainer(const TCHAR *file)
 				xfree(data);
 			}
 
+			if (ini_getstring(ini, section, _T("enable"), &data)) {
+				if (!_tcsicmp(data, _T("true")))
+					tp->enabledatstart = true;
+				xfree(data);
+			}
+
 			tp->first = tp->data[tp->offset];
 			tp->name = name;
 
@@ -7005,8 +7025,6 @@ void debug_init_trainer(const TCHAR *file)
 
 			ini_setlastasstart(ini, &ictx);
 		}
-err:
-		xfree(data);
 
 		if (!ini_nextsection(ini, section))
 			break;
