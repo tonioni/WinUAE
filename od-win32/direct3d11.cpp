@@ -3,6 +3,7 @@
 #include "resource.h"
 
 #include <DXGI1_5.h>
+#include <dxgi1_6.h>
 #include <d3d11.h>
 #include <D3Dcompiler.h>
 
@@ -3400,15 +3401,29 @@ static int xxD3D11_init2(HWND ahwnd, int monid, int w_w, int w_h, int t_w, int t
 
 	d3d->outputAdapter = adapterOutput;
 
-	ComPtr<IDXGIOutput1> adapterOutput1;
-	result = adapterOutput->QueryInterface(__uuidof(IDXGIOutput1), &adapterOutput1);
+	ComPtr<IDXGIOutput1> adapterOutputx;
+	ComPtr<IDXGIOutput6> adapterOutput6;
+	result = adapterOutput->QueryInterface(__uuidof(IDXGIOutput6), &adapterOutput6);
 	if (FAILED(result)) {
-		write_log(_T("IDXGIOutput QueryInterface %08x\n"), result);
-		return 0;
+		write_log(_T("IDXGIOutput6 QueryInterface %08x\n"), result);
+		ComPtr<IDXGIOutput1> adapterOutput1;
+		result = adapterOutput->QueryInterface(__uuidof(IDXGIOutput1), &adapterOutput1);
+		if (FAILED(result)) {
+			write_log(_T("IDXGIOutput QueryInterface %08x\n"), result);
+			return 0;
+		}
+		adapterOutputx = adapterOutput1;
+	} else {
+		DXGI_OUTPUT_DESC1 desc1;
+		result = adapterOutput6->GetDesc1(&desc1);
+		if (SUCCEEDED(result)) {
+			write_log(_T("Monitor Rotation=%d BPC=%d ColorSpace=%d\n"), desc1.Rotation, desc1.BitsPerColor, desc1.ColorSpace);
+		}
+		adapterOutputx = adapterOutput6;
 	}
 
 	// Get the number of modes that fit the display format for the adapter output (monitor).
-	result = adapterOutput1->GetDisplayModeList1(d3d->scrformat, DXGI_ENUM_MODES_INTERLACED, &numModes, NULL);
+	result = adapterOutputx->GetDisplayModeList1(d3d->scrformat, DXGI_ENUM_MODES_INTERLACED, &numModes, NULL);
 	if (FAILED(result))
 	{
 		write_log(_T("IDXGIOutput1 GetDisplayModeList1 %08x\n"), result);
@@ -3424,7 +3439,7 @@ static int xxD3D11_init2(HWND ahwnd, int monid, int w_w, int w_h, int t_w, int t
 	}
 
 	// Now fill the display mode list structures.
-	result = adapterOutput1->GetDisplayModeList1(d3d->scrformat, DXGI_ENUM_MODES_INTERLACED, &numModes, displayModeList);
+	result = adapterOutputx->GetDisplayModeList1(d3d->scrformat, DXGI_ENUM_MODES_INTERLACED, &numModes, displayModeList);
 	if (FAILED(result))
 	{
 		write_log(_T("IDXGIAdapter1 GetDesc %08x\n"), result);
@@ -3503,7 +3518,7 @@ static int xxD3D11_init2(HWND ahwnd, int monid, int w_w, int w_h, int t_w, int t
 		md1.Height = w_h;
 		md1.Scaling = DXGI_MODE_SCALING_UNSPECIFIED;
 		md1.ScanlineOrdering = apm->gfx_interlaced ? DXGI_MODE_SCANLINE_ORDER_UPPER_FIELD_FIRST : DXGI_MODE_SCANLINE_ORDER_PROGRESSIVE;
-		result = adapterOutput1->FindClosestMatchingMode1(&md1, &md2, NULL);
+		result = adapterOutputx->FindClosestMatchingMode1(&md1, &md2, NULL);
 		if (FAILED(result)) {
 			write_log(_T("FindClosestMatchingMode1 %08x\n"), result);
 		} else {
