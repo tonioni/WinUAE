@@ -436,6 +436,7 @@ extern addrbank extendedkickmem_bank;
 extern addrbank extendedkickmem2_bank;
 extern addrbank custmem1_bank;
 extern addrbank custmem2_bank;
+extern addrbank romboardmem_bank[MAX_ROM_BOARDS];
 
 extern void rtarea_init(void);
 extern void rtarea_free(void);

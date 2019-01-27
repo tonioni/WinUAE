@@ -1515,6 +1515,59 @@ static void cfgfile_write_board_rom(struct uae_prefs *prefs, struct zfile *f, st
 	}
 }
 
+static bool cfgfile_readromboard(const TCHAR *option, const TCHAR *value, struct romboard *rbp)
+{
+	TCHAR tmp1[MAX_DPATH];
+	int v;
+	for (int i = 0; i < MAX_ROM_BOARDS; i++) {
+		struct romboard *rb = &rbp[i];
+		if (i > 0)
+			_stprintf(tmp1, _T("romboard%d_options"), i + 1);
+		else
+			_tcscpy(tmp1, _T("romboard_options"));
+		if (!_tcsicmp(option, tmp1)) {
+			TCHAR *endptr;
+			TCHAR *s, *s1, *s2;
+			s1 = cfgfile_option_get(value, _T("start"));
+			s2 = cfgfile_option_get(value, _T("end"));
+			rb->size = 0;
+			if (s1 && s2) {
+				rb->start_address = _tcstol(s1, &endptr, 16);
+				rb->end_address = _tcstol(s2, &endptr, 16);
+				if (rb->end_address && rb->end_address > rb->start_address) {
+					rb->size = (rb->end_address - rb->start_address + 65535) & ~65535;
+				}
+			}
+			xfree(s1);
+			xfree(s2);
+			s1 = cfgfile_option_get(value, _T("file"));
+			if (s1) {
+				TCHAR *p = cfgfile_unescape(s1, NULL);
+				_tcscpy(rb->lf.loadfile, p);
+				xfree(p);
+			}
+			xfree(s1);
+			s1 = cfgfile_option_get(value, _T("offset"));
+			if (s1) {
+				rb->lf.loadoffset = _tcstol(s1, &endptr, 16);
+			}
+			xfree(s1);
+			s1 = cfgfile_option_get(value, _T("fileoffset"));
+			if (s1) {
+				rb->lf.fileoffset = _tcstol(s1, &endptr, 16);
+			}
+			xfree(s1);
+			s1 = cfgfile_option_get(value, _T("filesize"));
+			if (s1) {
+				rb->lf.filesize = _tcstol(s1, &endptr, 16);
+			}
+			xfree(s1);
+			return true;
+		}
+	}
+	return false;
+}
+
 static bool cfgfile_readramboard(const TCHAR *option, const TCHAR *value, const TCHAR *name, struct ramboard *rbp)
 {
 	TCHAR tmp1[MAX_DPATH];
@@ -1598,23 +1651,23 @@ static bool cfgfile_readramboard(const TCHAR *option, const TCHAR *value, const 
 			s1 = cfgfile_option_get(value, _T("file"));
 			if (s1) {
 				TCHAR *p = cfgfile_unescape(s1, NULL);
-				_tcscpy(rb->loadfile, p);
+				_tcscpy(rb->lf.loadfile, p);
 				xfree(p);
 			}
 			xfree(s1);
 			s1 = cfgfile_option_get(value, _T("offset"));
 			if (s1) {
-				rb->loadoffset = _tcstol(s1, &endptr, 16);
+				rb->lf.loadoffset = _tcstol(s1, &endptr, 16);
 			}
 			xfree(s1);
 			s1 = cfgfile_option_get(value, _T("fileoffset"));
 			if (s1) {
-				rb->fileoffset = _tcstol(s1, &endptr, 16);
+				rb->lf.fileoffset = _tcstol(s1, &endptr, 16);
 			}
 			xfree(s1);
 			s1 = cfgfile_option_get(value, _T("filesize"));
 			if (s1) {
-				rb->filesize = _tcstol(s1, &endptr, 16);
+				rb->lf.filesize = _tcstol(s1, &endptr, 16);
 			}
 			xfree(s1);
 			rb->readonly = cfgfile_option_find(value, _T("read-only"));
@@ -1622,6 +1675,35 @@ static bool cfgfile_readramboard(const TCHAR *option, const TCHAR *value, const 
 		}
 	}
 	return false;
+}
+
+static void cfgfile_writeromboard(struct uae_prefs *prefs, struct zfile *f, int num, struct romboard *rb)
+{
+	TCHAR tmp1[MAX_DPATH], tmp2[MAX_DPATH];
+	if (!rb->end_address)
+		return;
+	if (num > 0)
+		_stprintf(tmp1, _T("romboard%d_options"), num + 1);
+	else
+		_tcscpy(tmp1, _T("romboard_options"));
+	tmp2[0] = 0;
+	TCHAR *p = tmp2;
+	_stprintf(p, _T("start=%08x,end=%08x"), rb->start_address, rb->end_address);
+	p += _tcslen(p);
+	if (rb->lf.loadfile[0]) {
+		_tcscat(p, _T(","));
+		p += _tcslen(p);
+		TCHAR *path = cfgfile_escape(rb->lf.loadfile, NULL, true);
+		if (rb->lf.loadoffset || rb->lf.fileoffset || rb->lf.filesize) {
+			_stprintf(p, _T("offset=%u,fileoffset=%u,filesize=%u,"), rb->lf.loadoffset, rb->lf.fileoffset, rb->lf.filesize);
+			p += _tcslen(p);
+		}
+		_stprintf(p, _T("file=%s"), path);
+		xfree(path);
+	}
+	if (tmp2[0]) {
+		cfgfile_write(f, tmp1, tmp2);
+	}
 }
 
 static void cfgfile_writeramboard(struct uae_prefs *prefs, struct zfile *f, const TCHAR *name, int num, struct ramboard *rb)
@@ -1670,11 +1752,13 @@ static void cfgfile_writeramboard(struct uae_prefs *prefs, struct zfile *f, cons
 		_stprintf(p, _T(",write_address=%08x"), rb->write_address);
 		p += _tcslen(p);
 	}
-	if (rb->loadfile[0]) {
-		if (tmp2[0])
+	if (rb->lf.loadfile[0]) {
+		if (tmp2[0]) {
 			_tcscat(p, _T(","));
-		TCHAR *path = cfgfile_escape(rb->loadfile, NULL, true);
-		_stprintf(p, _T("offset=%u,fileoffset=%u,filesize=%u,file=%s"), rb->loadoffset, rb->fileoffset, rb->filesize, path);
+			p += _tcslen(p);
+		}
+		TCHAR *path = cfgfile_escape(rb->lf.loadfile, NULL, true);
+		_stprintf(p, _T("offset=%u,fileoffset=%u,filesize=%u,file=%s"), rb->lf.loadoffset, rb->lf.fileoffset, rb->lf.filesize, path);
 		xfree(path);
 	}
 	if (rb->readonly) {
@@ -1762,6 +1846,10 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 		cfgfile_dwrite_str (f, _T("kickstart_rom"), p->romident);
 	if (p->romextident[0])
 		cfgfile_write_str (f, _T("kickstart_ext_rom="), p->romextident);
+
+	for (int i = 0; i < MAX_ROM_BOARDS; i++) {
+		cfgfile_writeromboard(p, f, i, &p->romboards[i]);
+	}
 
 	for (int i = 0; i < MAX_EXPANSION_BOARDS; i++) {
 		cfgfile_write_board_rom(p, f, &p->path_rom, &p->expansionboard[i]);
@@ -5419,6 +5507,10 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 		if (s)
 			p->uaeboard_order = _tstol(s);
 		xfree(s);
+		return 1;
+	}
+
+	if (cfgfile_readromboard(option, value, &p->romboards[0])) {
 		return 1;
 	}
 

@@ -407,6 +407,20 @@ struct rtgboardconfig
 	int device_order;
 	int monitor_id;
 };
+struct boardloadfile
+{
+	uae_u32 loadoffset;
+	uae_u32 fileoffset, filesize;
+	TCHAR loadfile[MAX_DPATH];
+};
+#define MAX_ROM_BOARDS 4
+struct romboard
+{
+	uae_u32 size;
+	uae_u32 start_address;
+	uae_u32 end_address;
+	struct boardloadfile lf;
+};
 #define MAX_RAM_BOARDS 4
 struct ramboard
 {
@@ -422,9 +436,7 @@ struct ramboard
 	uae_u32 end_address;
 	uae_u32 write_address;
 	bool readonly;
-	uae_u32 loadoffset;
-	uae_u32 fileoffset, filesize;
-	TCHAR loadfile[MAX_DPATH];
+	struct boardloadfile lf;
 };
 struct expansion_params
 {
@@ -718,6 +730,7 @@ struct uae_prefs {
 	uae_u32 z3autoconfig_start;
 	struct ramboard z3fastmem[MAX_RAM_BOARDS];
 	struct ramboard fastmem[MAX_RAM_BOARDS];
+	struct romboard romboards[MAX_ROM_BOARDS];
 	uae_u32 z3chipmem_size;
 	uae_u32 z3chipmem_start;
 	uae_u32 chipmem_size;

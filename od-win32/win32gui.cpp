@@ -3184,6 +3184,25 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
 			_tcscpy (workprefs.romextfile, full_path);
 			fullpath (workprefs.romextfile, MAX_DPATH);
 			break;
+		case IDC_CUSTOMROMFILE:
+		{
+			int v = SendDlgItemMessage(hDlg, IDC_CUSTOMROMSELECT, CB_GETCURSEL, 0, 0);
+			if (v >= 0 && v < MAX_ROM_BOARDS) {
+				struct romboard *rb = &workprefs.romboards[v];
+				_tcscpy(rb->lf.loadfile, full_path);
+				fullpath(rb->lf.loadfile, MAX_DPATH);
+				if (rb->start_address) {
+					struct zfile *zf = zfile_fopen(rb->lf.loadfile, _T("rb"));
+					if (zf) {
+						rb->end_address = rb->start_address + zfile_size(zf);
+						rb->end_address = ((rb->end_address + 65535) & ~65535) - 1;
+						rb->size = rb->end_address - rb->start_address + 1;
+						zfile_fclose(zf);
+					}
+				}
+			}
+			break;
+		}
 		case IDC_FLASHFILE:
 			_tcscpy (workprefs.flashfile, full_path);
 			fullpath(workprefs.flashfile, MAX_DPATH);
@@ -11471,19 +11490,20 @@ static INT_PTR CALLBACK MemoryDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARA
 	return FALSE;
 }
 
-static void values_to_kickstartdlg (HWND hDlg)
+static int customromselectnum;
+static void values_to_kickstartdlg(HWND hDlg)
 {
 	UAEREG *fkey;
 
-	fkey = regcreatetree (NULL, _T("DetectedROMs"));
+	fkey = regcreatetree(NULL, _T("DetectedROMs"));
 
 	load_keyring(&workprefs, NULL);
 
-	addromfiles (fkey, hDlg, IDC_ROMFILE, workprefs.romfile,
+	addromfiles(fkey, hDlg, IDC_ROMFILE, workprefs.romfile,
 		ROMTYPE_KICK | ROMTYPE_KICKCD32, 0);
-	addromfiles (fkey, hDlg, IDC_ROMFILE2, workprefs.romextfile,
+	addromfiles(fkey, hDlg, IDC_ROMFILE2, workprefs.romextfile,
 		ROMTYPE_EXTCD32 | ROMTYPE_EXTCDTV | ROMTYPE_ARCADIABIOS | ROMTYPE_ALG, 0);
-	addromfiles (fkey, hDlg, IDC_CARTFILE, workprefs.cartfile,
+	addromfiles(fkey, hDlg, IDC_CARTFILE, workprefs.cartfile,
 		ROMTYPE_FREEZER | ROMTYPE_ARCADIAGAME | ROMTYPE_CD32CART, 0);
 
 	regclosetree(fkey);
@@ -11495,8 +11515,42 @@ static void values_to_kickstartdlg (HWND hDlg)
 
 	if (workprefs.boot_rom == 1) {
 		SendDlgItemMessage(hDlg, IDC_UAEBOARD_TYPE, CB_SETCURSEL, 0, 0);
-	} else {
+	}
+	else {
 		SendDlgItemMessage(hDlg, IDC_UAEBOARD_TYPE, CB_SETCURSEL, workprefs.uaeboard + 1, 0);
+	}
+}
+
+static void values_to_kickstartdlg2(HWND hDlg)
+{
+	int v = SendDlgItemMessage(hDlg, IDC_CUSTOMROMSELECT, CB_GETCURSEL, 0, 0);
+	if (v >= 0 && v < MAX_ROM_BOARDS) {
+		customromselectnum = v;
+	}
+	SendDlgItemMessage(hDlg, IDC_CUSTOMROMSELECT, CB_RESETCONTENT, 0, 0);
+	for (int i = 0; i < MAX_ROM_BOARDS; i++) {
+		TCHAR tmp[MAX_DPATH];
+		struct romboard *rb = &workprefs.romboards[i];
+		_stprintf(tmp, _T("ROM #%d"), i + 1);
+		if (rb->size)
+			_stprintf(tmp + _tcslen(tmp), _T(" %08x - %08x"), rb->start_address, rb->end_address - 1);
+		SendDlgItemMessage(hDlg, IDC_CUSTOMROMSELECT, CB_ADDSTRING, 0, (LPARAM)tmp);
+	}
+	if (customromselectnum >= 0 && customromselectnum < MAX_ROM_BOARDS) {
+		struct romboard *rb = &workprefs.romboards[customromselectnum];
+		TCHAR tmp[100];
+		_stprintf(tmp, _T("%08x"), rb->start_address);
+		if (!rb->end_address && !rb->start_address) {
+			tmp[0] = 0;
+		}
+		SetDlgItemText(hDlg, IDC_ROM_ADDRESS, tmp);
+		_stprintf(tmp, _T("%08x"), rb->end_address);
+		if (!rb->end_address && !rb->start_address) {
+			tmp[0] = 0;
+		}
+		SetDlgItemText(hDlg, IDC_ROM_ADDRESS2, tmp);
+		SetDlgItemText(hDlg, IDC_CUSTOMROMFILE, rb->lf.loadfile);
+		SendDlgItemMessage(hDlg, IDC_CUSTOMROMSELECT, CB_SETCURSEL, customromselectnum, 0);
 	}
 }
 
@@ -11514,6 +11568,26 @@ static void values_from_kickstartdlg(HWND hDlg)
 	} else {
 		workprefs.uaeboard = 0;
 		workprefs.boot_rom = 1; // disabled
+	}
+}
+
+static void values_from_kickstartdlg2(HWND hDlg)
+{
+	int v = SendDlgItemMessage(hDlg, IDC_CUSTOMROMSELECT, CB_GETCURSEL, 0, 0);
+	if (v >= 0 && v < MAX_ROM_BOARDS) {
+		struct romboard *rb = &workprefs.romboards[v];
+		TCHAR tmp[100];
+		TCHAR *endptr;
+		GetDlgItemText(hDlg, IDC_ROM_ADDRESS, tmp, sizeof tmp / sizeof(TCHAR));
+		rb->start_address =_tcstoul(tmp, &endptr, 16);
+		rb->start_address &= ~65535;
+		GetDlgItemText(hDlg, IDC_ROM_ADDRESS2, tmp, sizeof tmp / sizeof(TCHAR));
+		rb->end_address = _tcstoul(tmp, &endptr, 16);
+		rb->end_address = ((rb->end_address - 1) & ~65535) | 0xffff;
+		rb->size = 0;
+		if (rb->end_address > rb->start_address) {
+			rb->size = (rb->end_address - rb->start_address + 65535) & ~65535;
+		}
 	}
 }
 
@@ -11555,23 +11629,27 @@ static void kickstartfilebuttons (HWND hDlg, WPARAM wParam, TCHAR *path)
 	{
 	case IDC_KICKCHOOSER:
 		DiskSelection(hDlg, IDC_ROMFILE, 6, &workprefs, NULL, path);
-		values_to_kickstartdlg (hDlg);
+		values_to_kickstartdlg(hDlg);
 		break;
 	case IDC_ROMCHOOSER2:
 		DiskSelection(hDlg, IDC_ROMFILE2, 6, &workprefs, NULL, path);
-		values_to_kickstartdlg (hDlg);
+		values_to_kickstartdlg(hDlg);
+		break;
+	case IDC_CUSTOMROMCHOOSER:
+		DiskSelection(hDlg, IDC_CUSTOMROMFILE, 6, &workprefs, NULL, path);
+		values_to_kickstartdlg2(hDlg);
 		break;
 	case IDC_FLASHCHOOSER:
 		DiskSelection(hDlg, IDC_FLASHFILE, 11, &workprefs, NULL, path);
-		values_to_kickstartdlg (hDlg);
+		values_to_kickstartdlg(hDlg);
 		break;
 	case IDC_RTCCHOOSER:
 		DiskSelection(hDlg, IDC_RTCFILE, 19, &workprefs, NULL, path);
-		values_to_kickstartdlg (hDlg);
+		values_to_kickstartdlg(hDlg);
 		break;
 	case IDC_CARTCHOOSER:
 		DiskSelection(hDlg, IDC_CARTFILE, 6, &workprefs, NULL, path);
-		values_to_kickstartdlg (hDlg);
+		values_to_kickstartdlg(hDlg);
 		break;
 	}
 }
@@ -11590,7 +11668,8 @@ static INT_PTR CALLBACK KickstartDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 			pages[KICKSTART_ID] = hDlg;
 			currentpage = KICKSTART_ID;
 			init_kickstart (hDlg);
-			values_to_kickstartdlg (hDlg);
+			values_to_kickstartdlg(hDlg);
+			values_to_kickstartdlg2(hDlg);
 			setmultiautocomplete (hDlg, ids);
 			setac (hDlg, IDC_FLASHFILE);
 			setac (hDlg, IDC_RTCFILE);
@@ -11617,14 +11696,25 @@ static INT_PTR CALLBACK KickstartDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 		if (recursive > 0)
 			break;
 		recursive++;
-		if (HIWORD (wParam) == CBN_SELCHANGE || HIWORD (wParam) == CBN_KILLFOCUS)  {
-			switch (LOWORD (wParam))
+		if (HIWORD(wParam) == CBN_SELCHANGE || HIWORD(wParam) == CBN_KILLFOCUS) {
+			switch (LOWORD(wParam))
 			{
 			case IDC_ROMFILE:
 			case IDC_ROMFILE2:
 			case IDC_CARTFILE:
 			case IDC_UAEBOARD_TYPE:
-				values_from_kickstartdlg (hDlg);
+				values_from_kickstartdlg(hDlg);
+				break;
+			case IDC_CUSTOMROMSELECT:
+				values_to_kickstartdlg2(hDlg);
+				break;
+			}
+		} else if (HIWORD(wParam) == EN_CHANGE || HIWORD(wParam) == EN_KILLFOCUS) {
+			switch (LOWORD(wParam))
+			{
+			case IDC_ROM_ADDRESS:
+			case IDC_ROM_ADDRESS2:
+				values_from_kickstartdlg2(hDlg);
 				break;
 			}
 		}
@@ -12989,7 +13079,8 @@ static void values_to_sounddlg (HWND hDlg)
 	CheckRadioButton (hDlg, IDC_SOUND0, IDC_SOUND2, which_button);
 
 	CheckDlgButton (hDlg, IDC_SOUND_AUTO, workprefs.sound_auto);
-	CheckDlgButton (hDlg, IDC_SOUND_CDPAULAMIX, workprefs.sound_cdaudio);
+	CheckDlgButton(hDlg, IDC_SOUND_CDPAULAMIX, workprefs.sound_cdaudio);
+	CheckDlgButton(hDlg, IDC_SOUND_VOLCNT, workprefs.sound_volcnt);
 
 	if (workprefs.sound_maxbsiz < SOUND_BUFFER_MULTIPLIER)
 		workprefs.sound_maxbsiz = 0;
@@ -13072,7 +13163,8 @@ static void values_from_sounddlg (HWND hDlg)
 		: ischecked (hDlg, IDC_SOUND1) ? 1 : 3);
 
 	workprefs.sound_auto = ischecked (hDlg, IDC_SOUND_AUTO);
-	workprefs.sound_cdaudio = ischecked (hDlg, IDC_SOUND_CDPAULAMIX);
+	workprefs.sound_cdaudio = ischecked(hDlg, IDC_SOUND_CDPAULAMIX);
+	workprefs.sound_volcnt = ischecked(hDlg, IDC_SOUND_VOLCNT);
 
 	idx = SendDlgItemMessage (hDlg, IDC_SOUNDSTEREO, CB_GETCURSEL, 0, 0);
 	if (idx != CB_ERR)
