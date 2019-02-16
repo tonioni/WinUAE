@@ -41,7 +41,7 @@ using Microsoft::WRL::ComPtr;
 #include <Dwmapi.h>
 
 void (*D3D_free)(int, bool immediate);
-const TCHAR* (*D3D_init)(HWND ahwnd, int, int w_w, int h_h, int depth, int *freq, int mmult);
+const TCHAR* (*D3D_init)(HWND ahwnd, int, int w_w, int h_h, int depth, int *freq, int mmulth, int mmultv);
 bool (*D3D_alloctexture)(int, int, int);
 void(*D3D_refresh)(int);
 bool(*D3D_renderframe)(int, int,bool);
@@ -161,6 +161,7 @@ struct shaderdata11
 	ID3DX11EffectVectorVariable *m_InputDimsEffectHandle;
 	ID3DX11EffectVectorVariable *m_TargetDimsEffectHandle;
 	ID3DX11EffectVectorVariable *m_TexelSizeEffectHandle;
+	ID3DX11EffectVectorVariable *m_ScaleEffectHandle;
 	// Texture Handles
 	ID3DX11EffectShaderResourceVariable *m_SourceTextureEffectHandle;
 	ID3DX11EffectShaderResourceVariable *m_WorkingTexture1EffectHandle;
@@ -253,7 +254,7 @@ struct d3d11struct
 	DXGI_FORMAT texformat;
 	DXGI_FORMAT intformat;
 	bool m_tearingSupport;
-	int dmult, dmultx;
+	int dmult, dmultxh, dmultxv;
 	int xoffset, yoffset;
 	float xmult, ymult;
 	DXGI_SWAP_CHAIN_DESC1 swapChainDesc;
@@ -489,6 +490,8 @@ static bool psEffect_ParseParameters(struct d3d11struct *d3d, ID3DX11Effect *eff
 				s->m_TargetDimsEffectHandle = hParam->AsVector();
 			else if (strcmpi(ParamDesc.Semantic, "texelsize") == 0)
 				s->m_TexelSizeEffectHandle = hParam->AsVector();
+			else if (strcmpi(ParamDesc.Semantic, "sourcescale") == 0)
+				s->m_ScaleEffectHandle = hParam->AsVector();
 
 			if (strcmpi(ParamDesc.Semantic, "SCALING") == 0)
 				s->m_scale = hParam->AsScalar();
@@ -1075,8 +1078,8 @@ static bool psEffect_LoadEffect(struct d3d11struct *d3d, const TCHAR *shaderfile
 	allocfxdata(d3d, s);
 	createfxvertices(d3d, s);
 
-	s->viewport.Width = (float)d3d->m_screenWidth * d3d->dmultx;
-	s->viewport.Height = (float)d3d->m_screenHeight * d3d->dmultx;
+	s->viewport.Width = (float)d3d->m_screenWidth * d3d->dmultxh;
+	s->viewport.Height = (float)d3d->m_screenHeight * d3d->dmultxv;
 	s->viewport.MinDepth = 0.0f;
 	s->viewport.MaxDepth = 1.0f;
 	s->viewport.TopLeftX = 0.0f;
@@ -1226,6 +1229,13 @@ static int psEffect_SetTextures(ID3D11Texture2D *lpSourceTex, ID3D11ShaderResour
 	}
 	if (s->m_TexelSizeEffectHandle) {
 		s->m_TexelSizeEffectHandle->SetFloatVector((float*)&fTexelSize);
+	}
+	if (s->m_ScaleEffectHandle) {
+		D3DXVECTOR4 fScale;
+		fScale.x = 1 << currprefs.gfx_resolution;
+		fScale.y = 1 << currprefs.gfx_vresolution;
+		fScale.w = fScale.z = 1;
+		s->m_ScaleEffectHandle->SetFloatVector((float*)&fScale);
 	}
 	if (s->framecounterHandle) {
 		s->framecounterHandle->SetFloat((float)timeframes);
@@ -2067,12 +2077,12 @@ static bool createextratextures(struct d3d11struct *d3d, int ow, int oh, int win
 
 	int zw, zh;
 
-	if (ow > win_w * d3d->dmultx && oh > win_h * d3d->dmultx) {
+	if (ow > win_w * d3d->dmultxh && oh > win_h * d3d->dmultxv) {
 		zw = ow;
 		zh = oh;
 	} else {
-		zw = win_w * d3d->dmultx;
-		zh = win_h * d3d->dmultx;
+		zw = win_w * d3d->dmultxh;
+		zh = win_h * d3d->dmultxv;
 	}
 	for (int i = 0; i < MAX_SHADERS; i++) {
 		struct shaderdata11 *s = &d3d->shaders[i];
@@ -3266,7 +3276,7 @@ static float xD3D_getrefreshrate(int monid)
 	return d3d->vblank;
 }
 
-static int xxD3D11_init2(HWND ahwnd, int monid, int w_w, int w_h, int t_w, int t_h, int depth, int *freq, int mmult)
+static int xxD3D11_init2(HWND ahwnd, int monid, int w_w, int w_h, int t_w, int t_h, int depth, int *freq, int mmulth, int mmultv)
 {
 	struct d3d11struct *d3d = &d3d11data[monid];
 	struct amigadisplay *ad = &adisplays[monid];
@@ -3307,7 +3317,8 @@ static int xxD3D11_init2(HWND ahwnd, int monid, int w_w, int w_h, int t_w, int t
 	d3d->texformat = DXGI_FORMAT_B8G8R8A8_UNORM;
 	d3d->intformat = DXGI_FORMAT_B8G8R8A8_UNORM; // _SRGB;
 	d3d->scrformat = DXGI_FORMAT_B8G8R8A8_UNORM;
-	d3d->dmultx = mmult;
+	d3d->dmultxh = mmulth;
+	d3d->dmultxv = mmultv;
 
 	struct MultiDisplay *md = getdisplay(&currprefs, monid);
 	POINT pt;
@@ -3892,16 +3903,16 @@ static void xD3D11_free(int monid, bool immediate)
 	write_log(_T("D3D11 free end\n"));
 }
 
-static int xxD3D11_init(HWND ahwnd, int monid, int w_w, int w_h, int depth, int *freq, int mmult)
+static int xxD3D11_init(HWND ahwnd, int monid, int w_w, int w_h, int depth, int *freq, int mmulth, int mmultv)
 {
-	return xxD3D11_init2(ahwnd, monid, w_w, w_h, w_w, w_h, depth, freq, mmult);
+	return xxD3D11_init2(ahwnd, monid, w_w, w_h, w_w, w_h, depth, freq, mmulth, mmultv);
 }
 
-static const TCHAR *xD3D11_init(HWND ahwnd, int monid, int w_w, int w_h, int depth, int *freq, int mmult)
+static const TCHAR *xD3D11_init(HWND ahwnd, int monid, int w_w, int w_h, int depth, int *freq, int mmulth, int mmultv)
 {
 	if (!can_D3D11(false))
 		return _T("D3D11 FAILED TO INIT");
-	int v = xxD3D11_init(ahwnd, monid, w_w, w_h, depth, freq, mmult);
+	int v = xxD3D11_init(ahwnd, monid, w_w, w_h, depth, freq, mmulth, mmultv);
 	if (v > 0)
 		return NULL;
 	xD3D11_free(monid, true);
@@ -4657,7 +4668,7 @@ static bool recheck(struct d3d11struct *d3d)
 	d3d->delayedfs = 0;
 	ShowWindow(d3d->ahwnd, SW_SHOWNORMAL);
 	int freq = 0;
-	if (!xxD3D11_init2(d3d->ahwnd, d3d - d3d11data, d3d->m_screenWidth, d3d->m_screenHeight, d3d->m_bitmapWidth2, d3d->m_bitmapHeight2, 32, &freq, d3d->dmultx))
+	if (!xxD3D11_init2(d3d->ahwnd, d3d - d3d11data, d3d->m_screenWidth, d3d->m_screenHeight, d3d->m_bitmapWidth2, d3d->m_bitmapHeight2, 32, &freq, d3d->dmultxh, d3d->dmultxv))
 		d3d->invalidmode = true;
 	return false;
 }
@@ -4676,8 +4687,8 @@ static bool xD3D11_alloctexture(int monid, int w, int h)
 	d3d->m_bitmapWidth2 = d3d->m_bitmapWidth;
 	d3d->m_bitmapHeight2 = d3d->m_bitmapHeight;
 	d3d->dmult = S2X_getmult(monid);
-	d3d->m_bitmapWidthX = d3d->m_bitmapWidth * d3d->dmultx;
-	d3d->m_bitmapHeightX = d3d->m_bitmapHeight * d3d->dmultx;
+	d3d->m_bitmapWidthX = d3d->m_bitmapWidth * d3d->dmultxh;
+	d3d->m_bitmapHeightX = d3d->m_bitmapHeight * d3d->dmultxv;
 
 	v = CreateTexture(d3d);
 	if (!v)

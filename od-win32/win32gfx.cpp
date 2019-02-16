@@ -2306,7 +2306,8 @@ int check_prefs_changed_gfx (void)
 		c |= gf->gfx_filter_horiz_zoom_mult != gfc->gfx_filter_horiz_zoom_mult ? (1) : 0;
 		c |= gf->gfx_filter_vert_zoom_mult != gfc->gfx_filter_vert_zoom_mult ? (1) : 0;
 
-		c |= gf->gfx_filter_filtermode != gfc->gfx_filter_filtermode ? (2|8) : 0;
+		c |= gf->gfx_filter_filtermodeh != gfc->gfx_filter_filtermodeh ? (2 | 8) : 0;
+		c |= gf->gfx_filter_filtermodev != gfc->gfx_filter_filtermodev ? (2 | 8) : 0;
 		c |= gf->gfx_filter_bilinear != gfc->gfx_filter_bilinear ? (2|8|16) : 0;
 		c |= gf->gfx_filter_noise != gfc->gfx_filter_noise ? (1) : 0;
 		c |= gf->gfx_filter_blur != gfc->gfx_filter_blur ? (1) : 0;
@@ -4107,8 +4108,14 @@ retry:
 	S2X_free(mon->monitor_id);
 	oldtex_w = oldtex_h = -1;
 	if (mon->currentmode.flags & DM_D3D) {
-		const TCHAR *err = D3D_init (mon->hAmigaWnd, mon->monitor_id, mon->currentmode.native_width, mon->currentmode.native_height, mon->currentmode.current_depth, &mon->currentmode.freq, mon->screen_is_picasso ? 1 : currprefs.gf[ad->picasso_on].gfx_filter_filtermode + 1);
-		if (err) {
+		int fmh = mon->screen_is_picasso ? 1 : currprefs.gf[ad->picasso_on].gfx_filter_filtermodeh + 1;
+		int fmv = mon->screen_is_picasso ? 1 : currprefs.gf[ad->picasso_on].gfx_filter_filtermodev + 1 - 1;
+		if (currprefs.gf[ad->picasso_on].gfx_filter_filtermodev == 0) {
+			fmv = fmh;
+		}
+		const TCHAR *err = D3D_init(mon->hAmigaWnd, mon->monitor_id, mon->currentmode.native_width, mon->currentmode.native_height,
+			mon->currentmode.current_depth, &mon->currentmode.freq, fmh, fmv);
+			if (err) {
 			if (currprefs.gfx_api == 2) {
 				D3D_free(0, true);
 				if (err[0] == 0 && currprefs.color_mode != 5) {
@@ -4119,7 +4126,8 @@ retry:
 				changed_prefs.gfx_api = currprefs.gfx_api = 1;
 				d3d_select(&currprefs);
 				error_log(_T("Direct3D11 failed to initialize ('%s'), falling back to Direct3D9."), err);
-				err = D3D_init(mon->hAmigaWnd, mon->monitor_id, mon->currentmode.native_width, mon->currentmode.native_height, mon->currentmode.current_depth, &mon->currentmode.freq, mon->screen_is_picasso ? 1 : currprefs.gf[ad->picasso_on].gfx_filter_filtermode + 1);
+				err = D3D_init(mon->hAmigaWnd, mon->monitor_id, mon->currentmode.native_width, mon->currentmode.native_height,
+					mon->currentmode.current_depth, &mon->currentmode.freq, fmh, fmv);
 			}
 			if (err) {
 				D3D_free(0, true);

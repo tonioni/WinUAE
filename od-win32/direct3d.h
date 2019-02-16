@@ -8,7 +8,7 @@ struct extoverlay
 };
 
 extern void(*D3D_free)(int, bool immediate);
-extern const TCHAR* (*D3D_init)(HWND ahwnd, int, int w_w, int h_h, int depth, int *freq, int mmult);
+extern const TCHAR* (*D3D_init)(HWND ahwnd, int, int w_w, int h_h, int depth, int *freq, int mmulth, int mmultv);
 extern bool(*D3D_alloctexture)(int, int, int);
 extern void(*D3D_refresh)(int);
 extern bool(*D3D_renderframe)(int, int,bool);

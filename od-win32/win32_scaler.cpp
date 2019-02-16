@@ -915,11 +915,14 @@ bool S2X_init(int monid, int dw, int dh, int dd)
 	amiga_depth = vb->pixbytes * 8;
 
 	if (d3d) {
-		int m = currprefs.gf[ad->picasso_on].gfx_filter_filtermode + 1;
-		if (m < scale)
-			m = scale;
-		temp_width = dst_width * m;
-		temp_height = dst_height * m;
+		int mh = currprefs.gf[ad->picasso_on].gfx_filter_filtermodeh + 1;
+		if (mh < scale)
+			mh = scale;
+		temp_width = dst_width * mh;
+		int mv = currprefs.gf[ad->picasso_on].gfx_filter_filtermodev + 1;
+		if (mv < scale)
+			mv = scale;
+		temp_height = dst_height * mv;
 	} else {
 		temp_width = dst_width * 2;
 		temp_height = dst_height * 2;

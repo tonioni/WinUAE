@@ -169,6 +169,7 @@ static const TCHAR *horizmode[] = { _T("vertical"), _T("lores"), _T("hires"), _T
 static const TCHAR *vertmode[] = { _T("horizontal"), _T("single"), _T("double"), _T("quadruple"), 0 };
 #ifdef GFXFILTER
 static const TCHAR *filtermode2[] = { _T("1x"), _T("2x"), _T("3x"), _T("4x"), 0 };
+static const TCHAR *filtermode2v[] = { _T("-"), _T("1x"), _T("2x"), _T("3x"), _T("4x"), 0 };
 #endif
 static const TCHAR *cartsmode[] = { _T("none"), _T("hrtmon"), 0 };
 static const TCHAR *idemode[] = { _T("none"), _T("a600/a1200"), _T("a4000"), 0 };
@@ -2210,7 +2211,8 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 				}
 			}
 		}
-		cfgfile_dwrite_str (f, _T("gfx_filter_mode"), ext, filtermode2[gf->gfx_filter_filtermode]);
+		cfgfile_dwrite_str(f, _T("gfx_filter_mode"), ext, filtermode2[gf->gfx_filter_filtermodeh]);
+		cfgfile_dwrite_str(f, _T("gfx_filter_mode2"), ext, filtermode2v[gf->gfx_filter_filtermodev]);
 		cfgfile_dwrite_ext (f, _T("gfx_filter_vert_zoomf"), ext, _T("%f"), gf->gfx_filter_vert_zoom);
 		cfgfile_dwrite_ext (f, _T("gfx_filter_horiz_zoomf"), ext, _T("%f"), gf->gfx_filter_horiz_zoom);
 		cfgfile_dwrite_ext (f, _T("gfx_filter_vert_zoom_multf"), ext, _T("%f"), gf->gfx_filter_vert_zoom_mult);
@@ -3712,12 +3714,20 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 			}
 			return 1;
 		}
-		if (j == 0 && _tcscmp (option, _T("gfx_filter_mode")) == 0) {
-			cfgfile_strval (option, value, _T("gfx_filter_mode"), &gf->gfx_filter_filtermode, filtermode2, 0);
+		if (j == 0 && _tcscmp(option, _T("gfx_filter_mode")) == 0) {
+			cfgfile_strval(option, value, _T("gfx_filter_mode"), &gf->gfx_filter_filtermodeh, filtermode2, 0);
 			return 1;
 		}
-		if (j == 1 && _tcscmp (option, _T("gfx_filter_mode_rtg")) == 0) {
-			cfgfile_strval (option, value, _T("gfx_filter_mode_rtg"), &gf->gfx_filter_filtermode, filtermode2, 0);
+		if (j == 1 && _tcscmp(option, _T("gfx_filter_mode_rtg")) == 0) {
+			cfgfile_strval(option, value, _T("gfx_filter_mode_rtg"), &gf->gfx_filter_filtermodeh, filtermode2, 0);
+			return 1;
+		}
+		if (j == 0 && _tcscmp(option, _T("gfx_filter_mode2")) == 0) {
+			cfgfile_strval(option, value, _T("gfx_filter_mode2"), &gf->gfx_filter_filtermodev, filtermode2v, 0);
+			return 1;
+		}
+		if (j == 1 && _tcscmp(option, _T("gfx_filter_mode2_rtg")) == 0) {
+			cfgfile_strval(option, value, _T("gfx_filter_mode2_rtg"), &gf->gfx_filter_filtermodev, filtermode2v, 0);
 			return 1;
 		}
 
@@ -7766,7 +7776,8 @@ void default_prefs (struct uae_prefs *p, bool reset, int type)
 		f->gfx_filter_horiz_zoom_mult = 1.0;
 		f->gfx_filter_vert_zoom_mult = 1.0;
 		f->gfx_filter_bilinear = 0;
-		f->gfx_filter_filtermode = 0;
+		f->gfx_filter_filtermodeh = 0;
+		f->gfx_filter_filtermodev = 0;
 		f->gfx_filter_keep_aspect = 0;
 		f->gfx_filter_autoscale = AUTOSCALE_STATIC_AUTO;
 		f->gfx_filter_keep_autoscale_aspect = false;

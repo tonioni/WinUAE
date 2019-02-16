@@ -117,6 +117,7 @@ struct shaderdata
 	D3DXHANDLE m_InputDimsEffectHandle;
 	D3DXHANDLE m_TargetDimsEffectHandle;
 	D3DXHANDLE m_TexelSizeEffectHandle;
+	D3DXHANDLE m_ScaleEffectHandle;
 	D3DXHANDLE m_SourceTextureEffectHandle;
 	D3DXHANDLE m_WorkingTexture1EffectHandle;
 	D3DXHANDLE m_WorkingTexture2EffectHandle;
@@ -194,7 +195,7 @@ struct d3dstruct
 	int ledwidth, ledheight;
 	int max_texture_w, max_texture_h;
 	int tin_w, tin_h, tout_w, tout_h, window_h, window_w;
-	int t_depth, dmult, dmultx;
+	int t_depth, dmult, dmultxh, dmultxv;
 	int required_sl_texture_w, required_sl_texture_h;
 	int vsync2, guimode, maxscanline, variablerefresh;
 	int resetcount;
@@ -469,6 +470,8 @@ static int psEffect_ParseParameters (struct d3dstruct *d3d, LPD3DXEFFECTCOMPILER
 					s->m_TargetDimsEffectHandle = hParam;
 				else if (strcmpi(ParamDesc.Semantic, "texelsize") == 0)
 					s->m_TexelSizeEffectHandle = hParam;
+				else if (strcmpi(ParamDesc.Semantic, "sourcescale") == 0)
+					s->m_ScaleEffectHandle = hParam;
 			} else if(ParamDesc.Class == D3DXPC_SCALAR && ParamDesc.Type == D3DXPT_FLOAT) {
 				if(strcmpi(ParamDesc.Semantic, "SCALING") == 0)
 					hr = effect->GetFloat(hParam, &d3d->m_scale);
@@ -1147,6 +1150,17 @@ static int psEffect_SetTextures (LPDIRECT3DTEXTURE9 lpSource, struct shaderdata 
 			return 0;
 		}
 	}
+	if (s->m_ScaleEffectHandle) {
+		D3DXVECTOR4 fScale;
+		fScale.x = 1 << currprefs.gfx_resolution;
+		fScale.y = 1 << currprefs.gfx_vresolution;
+		fScale.w = fScale.z = 1;
+		hr = s->pEffect->SetVector(s->m_ScaleEffectHandle, &fScale);
+		if (FAILED(hr)) {
+			write_log(_T("%s: SetTextures:SetVector:Scale %s\n"), D3DHEAD, D3D_ErrorString(hr));
+			return 0;
+		}
+	}
 	if (s->framecounterHandle)
 		s->pEffect->SetFloat(s->framecounterHandle, timeframes);
 
@@ -1317,12 +1331,12 @@ static int createtexture (struct d3dstruct *d3d, int ow, int oh, int win_w, int 
 
 	int zw, zh;
 
-	if (ow > win_w * d3d->dmultx && oh > win_h * d3d->dmultx) {
+	if (ow > win_w * d3d->dmultxh && oh > win_h * d3d->dmultxv) {
 		zw = ow;
 		zh = oh;
 	} else {
-		zw = win_w * d3d->dmultx;
-		zh = win_h * d3d->dmultx;
+		zw = win_w * d3d->dmultxh;
+		zh = win_h * d3d->dmultxv;
 	}
 	for (int i = 0; i < MAX_SHADERS; i++) {
 		if (d3d->shaders[i].type == SHADERTYPE_BEFORE || d3d->shaders[i].type == SHADERTYPE_AFTER || d3d->shaders[i].type == SHADERTYPE_MIDDLE) {
@@ -2666,7 +2680,7 @@ static int getd3dadapter (IDirect3D9 *id3d)
 	return D3DADAPTER_DEFAULT;
 }
 
-static const TCHAR *D3D_init2 (struct d3dstruct *d3d, HWND ahwnd, int w_w, int w_h, int depth, int *freq, int mmult)
+static const TCHAR *D3D_init2 (struct d3dstruct *d3d, HWND ahwnd, int w_w, int w_h, int depth, int *freq, int mmulth, int mmultv)
 {
 	int monid = d3d - d3ddata;
 	struct amigadisplay *ad = &adisplays[monid];
@@ -2892,7 +2906,7 @@ static const TCHAR *D3D_init2 (struct d3dstruct *d3d, HWND ahwnd, int w_w, int w
 			write_log (_T("%s\n"), errmsg);
 			write_log (_T("%s: Retrying fullscreen with DirectDraw\n"), D3DHEAD);
 			if (ddraw_fs_hack_init (d3d)) {
-				const TCHAR *err2 = D3D_init (ahwnd, monid, w_w, w_h, depth, freq, mmult);
+				const TCHAR *err2 = D3D_init (ahwnd, monid, w_w, w_h, depth, freq, mmulth, mmultv);
 				if (err2)
 					ddraw_fs_hack_free (d3d);
 				return err2;
@@ -2901,7 +2915,7 @@ static const TCHAR *D3D_init2 (struct d3dstruct *d3d, HWND ahwnd, int w_w, int w
 		if (d3d->d3d_ex && D3DEX) {
 			write_log (_T("%s\n"), errmsg);
 			D3DEX = 0;
-			return D3D_init(ahwnd, monid, w_w, w_h, depth, freq, mmult);
+			return D3D_init(ahwnd, monid, w_w, w_h, depth, freq, mmulth, mmultv);
 		}
 		D3D_free(monid, true);
 		return errmsg;
@@ -2965,7 +2979,8 @@ static const TCHAR *D3D_init2 (struct d3dstruct *d3d, HWND ahwnd, int w_w, int w
 	if (!shaderon)
 		write_log (_T("Using non-shader version\n"));
 
-	d3d->dmultx = mmult;
+	d3d->dmultxh = mmulth;
+	d3d->dmultxv = mmultv;
 	d3d->dmult = S2X_getmult(d3d - d3ddata);
 
 	d3d->window_w = w_w;
@@ -2976,8 +2991,10 @@ static const TCHAR *D3D_init2 (struct d3dstruct *d3d, HWND ahwnd, int w_w, int w
 			D3DHEAD, w_w, w_h, d3d->max_texture_w, d3d->max_texture_h);
 		return errmsg;
 	}
-	while (d3d->dmultx > 1 && (w_w * d3d->dmultx > d3d->max_texture_w || w_h * d3d->dmultx > d3d->max_texture_h))
-		d3d->dmultx--;
+	while (d3d->dmultxh > 1 && w_w * d3d->dmultxh > d3d->max_texture_w)
+		d3d->dmultxh--;
+	while (d3d->dmultxv > 1 && w_h * d3d->dmultxv > d3d->max_texture_h)
+		d3d->dmultxv--;
 
 	d3d->required_sl_texture_w = w_w;
 	d3d->required_sl_texture_h = w_h;
@@ -3052,7 +3069,7 @@ struct d3d_initargs
 	int w;
 	int h;
 	int depth;
-	int mmult;
+	int mmulth, mmultv;
 	int *freq;
 };
 static struct d3d_initargs d3dargs;
@@ -3068,7 +3085,7 @@ static void *D3D_init_start (void *p)
 	D3D_free2 (d3d);
 	sleep_millis (1000);
 	write_log (_T("Threaded D3D_init() start (init)\n"));
-	const TCHAR *t = D3D_init2 (d3d, d3dargs.hwnd, d3dargs.w, d3dargs.h,d3dargs.depth, d3dargs.freq, d3dargs.mmult);
+	const TCHAR *t = D3D_init2 (d3d, d3dargs.hwnd, d3dargs.w, d3dargs.h,d3dargs.depth, d3dargs.freq, d3dargs.mmulth, d3dargs.mmultv);
 	if (t) {
 		gui_message (_T("Threaded D3D_init() returned error '%s'\n"), t);
 	}
@@ -3089,18 +3106,19 @@ static void *D3D_init_start (void *p)
 	return NULL;
 }
 
-static const TCHAR *xD3D_init (HWND ahwnd, int monid, int w_w, int w_h, int depth, int *freq, int mmult)
+static const TCHAR *xD3D_init (HWND ahwnd, int monid, int w_w, int w_h, int depth, int *freq, int mmulth, int mmultv)
 {
 	struct d3dstruct *d3d = &d3ddata[monid];
 
 	if (!fakemodewaitms)
-		return D3D_init2 (d3d, ahwnd, w_w, w_h, depth, freq, mmult);
+		return D3D_init2 (d3d, ahwnd, w_w, w_h, depth, freq, mmulth, mmultv);
 	d3d->fakemode = true;
 	d3dargs.hwnd = ahwnd;
 	d3dargs.w = w_w;
 	d3dargs.h = w_h;
 	d3dargs.depth = depth;
-	d3dargs.mmult = mmult;
+	d3dargs.mmulth = mmulth;
+	d3dargs.mmultv = mmultv;
 	d3dargs.freq = freq;
 	uae_start_thread_fast (D3D_init_start, NULL, &d3d->fakemodetid);
 	return NULL;
@@ -3122,8 +3140,8 @@ static bool xD3D_alloctexture (int monid, int w, int h)
 	d3d->tin_w = w * d3d->dmult;
 	d3d->tin_h = h * d3d->dmult;
 
-	d3d->tout_w = d3d->tin_w * d3d->dmultx;
-	d3d->tout_h = d3d->tin_h * d3d->dmultx;
+	d3d->tout_w = d3d->tin_w * d3d->dmultxh;
+	d3d->tout_h = d3d->tin_h * d3d->dmultxv;
 
 	if (d3d->fakemode)
 		return false;

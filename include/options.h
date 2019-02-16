@@ -359,7 +359,7 @@ struct gfx_filterdata
 	float gfx_filter_horiz_offset, gfx_filter_vert_offset;
 	int gfx_filter_left_border, gfx_filter_right_border;
 	int gfx_filter_top_border, gfx_filter_bottom_border;
-	int gfx_filter_filtermode;
+	int gfx_filter_filtermodeh, gfx_filter_filtermodev;
 	int gfx_filter_bilinear;
 	int gfx_filter_noise, gfx_filter_blur;
 	int gfx_filter_saturation, gfx_filter_luminance, gfx_filter_contrast;
