@@ -1748,6 +1748,44 @@ static void processtouch(struct AmigaMonitor *mon, HWND hwnd, WPARAM wParam, LPA
 }
 #endif
 
+static void resizing(struct AmigaMonitor *mon, int mode, RECT *r)
+{
+	int nw = (r->right - r->left) + mon->ratio_adjust_x;
+	int nh = (r->bottom - r->top) + mon->ratio_adjust_y;
+
+	if (!mon->ratio_sizing || !mon->ratio_width || !mon->ratio_height)
+		return;
+
+	if (mode == WMSZ_BOTTOM || mode == WMSZ_TOP) {
+		int w = nh * mon->ratio_width / mon->ratio_height;
+		r->right = r->left + w - mon->ratio_adjust_x;
+	} else if (mode == WMSZ_LEFT || mode == WMSZ_RIGHT) {
+		int h = nw * mon->ratio_height / mon->ratio_width;
+		r->bottom = r->top + h - mon->ratio_adjust_y;
+	} else if (mode == WMSZ_BOTTOMRIGHT || mode == WMSZ_BOTTOMLEFT || mode == WMSZ_TOPLEFT || mode == WMSZ_TOPRIGHT) {
+		int w = r->right - r->left;
+		int h = r->bottom - r->top;
+		if (nw * mon->ratio_height > nh * mon->ratio_width) {
+			h = nw * mon->ratio_height / mon->ratio_width;
+		} else {
+			w = nh * mon->ratio_width / mon->ratio_height;
+		}
+		if (mode == WMSZ_BOTTOMRIGHT) {
+			r->bottom = r->top + h;
+			r->right = r->left + w;
+		} else if (mode == WMSZ_BOTTOMLEFT) {
+			r->bottom = r->top + h;
+			r->left = r->right - w;
+		} else if (mode == WMSZ_TOPLEFT) {
+			r->top = r->bottom - h;
+			r->left = r->right - w;
+		} else if (mode == WMSZ_TOPRIGHT) {
+			r->top = r->bottom - h;
+			r->right = r->left + w;
+		}
+	}
+}
+
 #define MSGDEBUG 1
 
 static LRESULT CALLBACK AmigaWindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
@@ -1839,6 +1877,9 @@ static LRESULT CALLBACK AmigaWindowProc(HWND hWnd, UINT message, WPARAM wParam, 
 			winuae_inactive(mon, hWnd, minimized);
 		}
 		return 0;
+	case WM_SIZING:
+		resizing(mon, wParam, (RECT*)lParam);
+		return TRUE;
 	case WM_ACTIVATE:
 		//write_log(_T("WM_ACTIVATE %p %x\n"), hWnd, wParam);
 		if (LOWORD(wParam) == WA_INACTIVE) {
@@ -2644,6 +2685,11 @@ static LRESULT CALLBACK MainWindowProc (HWND hWnd, UINT message, WPARAM wParam, 
 
 	case WM_ENTERSIZEMOVE:
 		mon->in_sizemove++;
+		mon->ratio_width = mon->amigawin_rect.right - mon->amigawinclip_rect.left;
+		mon->ratio_height = mon->amigawin_rect.bottom - mon->amigawinclip_rect.top;
+		mon->ratio_adjust_x = mon->ratio_width - (mon->mainwin_rect.right - mon->mainwin_rect.left);
+		mon->ratio_adjust_y = mon->ratio_height - (mon->mainwin_rect.bottom - mon->mainwin_rect.top);
+		mon->ratio_sizing = (GetAsyncKeyState(VK_CONTROL) & 0x8000) != 0;
 		break;
 
 	case WM_EXITSIZEMOVE:
