@@ -1900,6 +1900,29 @@ static void cia_wait_post (int cianummask, uae_u32 value)
 	}
 }
 
+static void validate_cia(uaecptr addr, int write, uae_u8 val)
+{
+	bool err = false;
+	if (((addr >> 12) & 3) == 0 || ((addr >> 12) & 3) == 3)
+		err = true;
+	if (((addr & 0xf00) >> 8) == 11)
+		err = true;
+	int mask = addr & 0xf000;
+	if (mask != 0xe000 && mask != 0xd000)
+		err = true;
+	if (mask == 0xe000 && (addr & 1) == 0)
+		err = true;
+	if (mask == 0xd000 && (addr & 1) != 0)
+		err = true;
+	if (err) {
+		if (write) {
+			write_log(_T("Invalid CIA write %08x = %02x PC=%08x\n"), addr, val, M68K_GETPC);
+		} else {
+			write_log(_T("Invalid CIA read %08x PC=%08x\n"), addr, M68K_GETPC);
+		}
+	}
+}
+
 // Gayle or Fat Gary does not enable CIA /CS lines if both CIAs are selected
 // Old Gary based Amigas enable both CIAs in this situation
 
@@ -1959,6 +1982,10 @@ static uae_u32 REGPARAM2 cia_bget (uaecptr addr)
 	if (!isgaylenocia (addr))
 		return dummy_get(addr, 1, false, 0);
 
+	if (memwatch_access_validator) {
+		validate_cia(addr, 0, 0);
+	}
+
 	switch (cia_chipselect(addr))
 	{
 	case 0:
@@ -2016,6 +2043,10 @@ static uae_u32 REGPARAM2 cia_wget (uaecptr addr)
 
 	if (!isgaylenocia (addr))
 		return dummy_get_safe(addr, 2, false, 0);
+
+	if (memwatch_access_validator) {
+		write_log(_T("CIA word read %08x PC=%08x\n"), addr, M68K_GETPC);
+	}
 
 	switch (cia_chipselect(addr))
 	{
@@ -2090,6 +2121,10 @@ static void REGPARAM2 cia_bput (uaecptr addr, uae_u32 value)
 	if (!isgaylenocia (addr))
 		return;
 
+	if (memwatch_access_validator) {
+		validate_cia(addr, 1, value);
+	}
+
 	int cs = cia_chipselect(addr);
 
 	if (!issinglecia () || (cs & 3) != 0) {
@@ -2123,6 +2158,10 @@ static void REGPARAM2 cia_wput (uaecptr addr, uae_u32 value)
 
 	if (!isgaylenocia (addr))
 		return;
+
+	if (memwatch_access_validator) {
+		write_log(_T("CIA word write %08x = %04x PC=%08x\n"), addr, value & 0xffff, M68K_GETPC);
+	}
 
 	int cs = cia_chipselect(addr);
 

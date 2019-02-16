@@ -54,15 +54,18 @@ extern void mmu_disasm (uaecptr pc, int lines);
 extern int debug_read_memory_16 (uaecptr addr);
 extern int debug_peek_memory_16 (uaecptr addr);
 extern int debug_read_memory_8 (uaecptr addr);
-extern int debug_peek_memory_8 (uaecptr addr);
 extern int debug_write_memory_16 (uaecptr addr, uae_u16 v);
 extern int debug_write_memory_8 (uaecptr addr, uae_u8 v);
 extern bool debug_enforcer(void);
 extern int debug_safe_addr(uaecptr addr, int size);
+extern void debug_invalid_reg(int reg, int size, uae_u16 val);
+extern void debug_check_reg(uae_u32 addr, int write, uae_u16 v);
+extern int memwatch_access_validator;
 
 extern void debug_init_trainer(const TCHAR*);
 extern void debug_trainer_match(void);
 extern bool debug_opcode_watch;
+extern bool debug_trainer_event(int evt, int state);
 
 #define BREAKPOINT_TOTAL 20
 #define BREAKPOINT_REG_Dx 0
@@ -160,8 +163,8 @@ extern struct memwatch_node mwnodes[MEMWATCH_TOTAL];
 
 extern void memwatch_dump2 (TCHAR *buf, int bufsize, int num);
 
-uae_u16 debug_wgetpeekdma_chipram (uaecptr addr, uae_u32 v, uae_u32 mask, int reg);
-uae_u16 debug_wputpeekdma_chipram (uaecptr addr, uae_u32 v, uae_u32 mask, int reg);
+uae_u16 debug_wgetpeekdma_chipram (uaecptr addr, uae_u32 v, uae_u32 mask, int reg, int ptrreg);
+uae_u16 debug_wputpeekdma_chipram (uaecptr addr, uae_u32 v, uae_u32 mask, int reg, int ptrreg);
 uae_u16 debug_wputpeekdma_chipset (uaecptr addr, uae_u32 v, uae_u32 mask, int reg);
 void debug_lgetpeek (uaecptr addr, uae_u32 v);
 void debug_wgetpeek (uaecptr addr, uae_u32 v);

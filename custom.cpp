@@ -360,6 +360,7 @@ struct copper {
 	int vcmp, hcmp;
 
 	int strobe; /* COPJMP1 / COPJMP2 accessed */
+	int last_strobe;
 	int moveaddr, movedata, movedelay;
 };
 
@@ -1442,7 +1443,7 @@ static void fetch (int nr, int fm, bool modulo, int hpos)
 		if (debug_dma)
 			record_dma (0x110 + nr * 2, chipmem_wget_indirect (p), p, hpos, vpos, DMARECORD_BITPLANE, nr);
 		if (memwatch_enabled)
-			debug_wgetpeekdma_chipram(p, chipmem_wget_indirect (p), MW_MASK_BPL_0 << nr, 0x110 + nr * 2);
+			debug_wgetpeekdma_chipram(p, chipmem_wget_indirect (p), MW_MASK_BPL_0 << nr, 0x110 + nr * 2, 0xe0 + nr * 4);
 #endif
 		switch (fm)
 		{
@@ -5545,6 +5546,7 @@ static void COPJMP (int num, int vblank)
 	cop_state.hpos = current_hpos () & ~1;
 	copper_enabled_thisline = 0;
 	cop_state.strobe = num;
+	cop_state.last_strobe = num;
 
 	if (nocustom ()) {
 		immediate_copper (num);
@@ -7124,7 +7126,7 @@ static void update_copper (int until_hpos)
 			if (debug_dma)
 				record_dma (0x8c, chipmem_wget_indirect (cop_state.ip), cop_state.ip, old_hpos, vpos, DMARECORD_COPPER, 0);
 			if (memwatch_enabled)
-				debug_wgetpeekdma_chipram(cop_state.ip, chipmem_wget_indirect (cop_state.ip), MW_MASK_COPPER, 0x8c);
+				debug_wgetpeekdma_chipram(cop_state.ip, chipmem_wget_indirect (cop_state.ip), MW_MASK_COPPER, 0x8c, cop_state.last_strobe == 2 ? 0x84 : 0x80);
 #endif
 			if (old_hpos == maxhpos - 2) {
 				// if COP_strobe_delay2 would cross scanlines (positioned immediately
@@ -7150,7 +7152,7 @@ static void update_copper (int until_hpos)
 				if (debug_dma)
 					record_dma (0x1fe, chipmem_wget_indirect (cop_state.ip), cop_state.ip, old_hpos, vpos, DMARECORD_COPPER, 0);
 				if (memwatch_enabled)
-					debug_wgetpeekdma_chipram(cop_state.ip, chipmem_wget_indirect (cop_state.ip), MW_MASK_COPPER, 0x1fe);
+					debug_wgetpeekdma_chipram(cop_state.ip, chipmem_wget_indirect (cop_state.ip), MW_MASK_COPPER, 0x1fe, 0x1fe);
 #endif
 			}
 			cop_state.state = COP_read1;
@@ -7179,7 +7181,7 @@ static void update_copper (int until_hpos)
 			if (debug_dma)
 				record_dma (0x1fe, chipmem_wget_indirect (cop_state.ip), cop_state.ip, old_hpos, vpos, DMARECORD_COPPER, 2);
 			if (memwatch_enabled)
-				debug_wgetpeekdma_chipram(cop_state.ip, chipmem_wget_indirect (cop_state.ip), MW_MASK_COPPER, 0x1fe);
+				debug_wgetpeekdma_chipram(cop_state.ip, chipmem_wget_indirect (cop_state.ip), MW_MASK_COPPER, 0x1fe, 0x1fe);
 #endif
 			cop_state.state = COP_read1;
 			// Next cycle finally reads from new pointer
@@ -7202,7 +7204,7 @@ static void update_copper (int until_hpos)
 			if (debug_dma)
 				record_dma (0x1fe, cop_state.i1, cop_state.ip, old_hpos, vpos, DMARECORD_COPPER, 2);
 			if (memwatch_enabled)
-				debug_wgetpeekdma_chipram(cop_state.ip, cop_state.i1, MW_MASK_COPPER, 0x1fe);
+				debug_wgetpeekdma_chipram(cop_state.ip, cop_state.i1, MW_MASK_COPPER, 0x1fe, 0x1fe);
 #endif
 			cop_state.ip = cop1lc;
 			break;
@@ -7216,7 +7218,7 @@ static void update_copper (int until_hpos)
 			if (debug_dma)
 				record_dma (0x8c, cop_state.i1, cop_state.ip, old_hpos, vpos, DMARECORD_COPPER, 0);
 			if (memwatch_enabled)
-				debug_wgetpeekdma_chipram(cop_state.ip, cop_state.i1, MW_MASK_COPPER, 0x8c);
+				debug_wgetpeekdma_chipram(cop_state.ip, cop_state.i1, MW_MASK_COPPER, 0x8c, cop_state.last_strobe == 2 ? 0x84 : 0x80);
 #endif
 			cop_state.ip += 2;
 			cop_state.state = COP_read2;
@@ -7242,7 +7244,7 @@ static void update_copper (int until_hpos)
 				if (debug_dma)
 					record_dma (0x8c, cop_state.i2, cop_state.ip - 2, old_hpos, vpos, DMARECORD_COPPER, (cop_state.i1 & 1) ? 1 : 0);
 				if (memwatch_enabled)
-					debug_wgetpeekdma_chipram(cop_state.ip - 2, cop_state.i2, MW_MASK_COPPER, 0x8c);
+					debug_wgetpeekdma_chipram(cop_state.ip - 2, cop_state.i2, MW_MASK_COPPER, 0x8c, cop_state.last_strobe == 2 ? 0x84 : 0x80);
 #endif
 			} else { // MOVE
 #ifdef DEBUGGER
@@ -7255,7 +7257,7 @@ static void update_copper (int until_hpos)
 				if (debug_dma)
 					record_dma (reg, data, cop_state.ip - 2, old_hpos, vpos, DMARECORD_COPPER, 0);
 				if (memwatch_enabled)
-					debug_wgetpeekdma_chipram(cop_state.ip - 2, data, MW_MASK_COPPER, reg);
+					debug_wgetpeekdma_chipram(cop_state.ip - 2, data, MW_MASK_COPPER, 0x8c, cop_state.last_strobe == 2 ? 0x84 : 0x80);
 #endif
 				test_copper_dangerous (reg);
 				if (! copper_enabled_thisline)
@@ -7266,9 +7268,11 @@ static void update_copper (int until_hpos)
 
 				if (reg == 0x88) {
 					cop_state.strobe = 1;
+					cop_state.last_strobe = 1;
 					cop_state.state = COP_strobe_delay1;
 				} else if (reg == 0x8a) {
 					cop_state.strobe = 2;
+					cop_state.last_strobe = 2;
 					cop_state.state = COP_strobe_delay1;
 				} else {
 #if 0
@@ -7540,7 +7544,7 @@ static uae_u16 sprite_fetch(struct sprite *s, uaecptr pt, bool dma, int hpos, in
 		if (debug_dma)
 			record_dma (num * 8 + 0x140 + mode * 4 + cycle * 2, data, pt, hpos, vpos, DMARECORD_SPRITE, num);
 		if (memwatch_enabled)
-			debug_wgetpeekdma_chipram(pt, data, MW_MASK_SPR_0 << num, num * 8 + 0x140 + mode * 4 + cycle * 2);
+			debug_wgetpeekdma_chipram(pt, data, MW_MASK_SPR_0 << num, num * 8 + 0x140 + mode * 4 + cycle * 2, num * 4 + 0x120);
 #endif
 	}
 	return data;
@@ -8551,7 +8555,7 @@ static void dmal_emu (uae_u32 v)
 		if (debug_dma)
 			record_dma (0xaa + nr * 16, dat, pt, hpos, vpos, DMARECORD_AUDIO, nr);
 		if (memwatch_enabled)
-			debug_wgetpeekdma_chipram(pt, dat, MW_MASK_AUDIO_0 << nr, 0xaa + nr * 16);
+			debug_wgetpeekdma_chipram(pt, dat, MW_MASK_AUDIO_0 << nr, 0xaa + nr * 16, 0xa0 + nr * 16);
 #endif
 		last_custom_value1 = last_custom_value2 = dat;
 		AUDxDAT (nr, dat, pt);
@@ -8578,7 +8582,7 @@ static void dmal_emu (uae_u32 v)
 		if (debug_dma)
 			record_dma (w ? 0x26 : 0x08, dat, pt, hpos, vpos, DMARECORD_DISK, v / 2);
 		if (memwatch_enabled)
-			debug_wgetpeekdma_chipram(pt, dat, MW_MASK_DISK, w ? 0x26 : 0x08);
+			debug_wgetpeekdma_chipram(pt, dat, MW_MASK_DISK, w ? 0x26 : 0x08, 0x20);
 #endif
 	}
 }
@@ -10238,10 +10242,14 @@ static uae_u32 REGPARAM2 custom_wget_1(int hpos, uaecptr addr, int noput, bool i
 {
 	uae_u16 v;
 	int missing;
-	addr &= 0xfff;
 #if CUSTOM_DEBUG > 2
 	write_log (_T("%d:%d:wget: %04X=%04X pc=%p\n"), current_hpos(), vpos, addr, addr & 0x1fe, m68k_getpc ());
 #endif
+	if (memwatch_access_validator)
+		debug_check_reg(addr, 0, 0);
+
+	addr &= 0xfff;
+
 	switch (addr & 0x1fe) {
 	case 0x002: v = DMACONR (hpos); break;
 	case 0x004: v = VPOSR (); break;
@@ -10372,6 +10380,7 @@ static uae_u32 REGPARAM2 custom_wget (uaecptr addr)
 	if ((addr & 0xffff) < 0x8000 && currprefs.cs_fatgaryrev >= 0)
 		return dummy_get(addr, 2, false, 0);
 	if (addr & 1) {
+		debug_invalid_reg(addr, 2, 0);
 		/* think about move.w $dff005,d0.. (68020+ only) */
 		addr &= ~1;
 		v = custom_wget2 (addr, false) << 8;
@@ -10386,6 +10395,7 @@ static uae_u32 REGPARAM2 custom_bget (uaecptr addr)
 	uae_u32 v;
 	if ((addr & 0xffff) < 0x8000 && currprefs.cs_fatgaryrev >= 0)
 		return dummy_get(addr, 1, false, 0);
+	debug_invalid_reg(addr, 1, 0);
 	v = custom_wget2 (addr & ~1, true);
 	v >>= (addr & 1 ? 0 : 8);
 	return v;
@@ -10399,6 +10409,7 @@ static uae_u32 REGPARAM2 custom_lget (uaecptr addr)
 }
 static int REGPARAM2 custom_wput_1 (int hpos, uaecptr addr, uae_u32 value, int noget)
 {
+	uaecptr oaddr = addr;
 	addr &= 0x1FE;
 	value &= 0xffff;
 	custom_storage[addr >> 1].value = (uae_u16)value;
@@ -10409,6 +10420,8 @@ static int REGPARAM2 custom_wput_1 (int hpos, uaecptr addr, uae_u32 value, int n
 	ar_custom[addr + 1]=(uae_u8)(value);
 #endif
 #endif
+	if (memwatch_access_validator)
+		debug_check_reg(oaddr, 1, value);
 
 	switch (addr) {
 	case 0x00E: CLXDAT (); break;
@@ -10472,7 +10485,7 @@ static int REGPARAM2 custom_wput_1 (int hpos, uaecptr addr, uae_u32 value, int n
 	case 0x09C: INTREQ (value); break;
 	case 0x09E: ADKCON (hpos, value); break;
 
-	case 0x0A0: AUDxLCH (0, value); break;
+	case 0x0A0: AUDxLCH(0, value); break;
 	case 0x0A2: AUDxLCL (0, value); break;
 	case 0x0A4: AUDxLEN (0, value); break;
 	case 0x0A6: AUDxPER (0, value); break;
@@ -10625,6 +10638,7 @@ static void REGPARAM2 custom_wput (uaecptr addr, uae_u32 value)
 #endif
 	sync_copper_with_cpu (hpos, 1);
 	if (addr & 1) {
+		debug_invalid_reg(addr, -2, value);
 		addr &= ~1;
 		custom_wput_1 (hpos, addr, (value >> 8) | (value & 0xff00), 0);
 		custom_wput_1 (hpos, addr + 2, (value << 8) | (value & 0x00ff), 0);
@@ -10641,6 +10655,7 @@ static void REGPARAM2 custom_bput (uaecptr addr, uae_u32 value)
 		dummy_put(addr, 1, value);
 		return;
 	}
+	debug_invalid_reg(addr, -1, value);
 	if (currprefs.chipset_mask & CSMASK_AGA) {
 		if (addr & 1) {
 			rval = value & 0xff;

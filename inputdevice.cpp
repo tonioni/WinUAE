@@ -206,6 +206,20 @@ static int isdevice (struct uae_input_device *id)
 
 static void check_enable(int ei);
 
+int inputdevice_geteventid(const TCHAR *s)
+{
+	for (int i = 1; events[i].name; i++) {
+		const struct inputevent *ie = &events[i];
+		if (!_tcscmp(ie->confname, s))
+			return i;
+	}
+	for (int i = 0; akss[i].name; i++) {
+		if (!_tcscmp(s, akss[i].name))
+			return i + AKS_FIRST;
+	}
+	return 0;
+}
+
 int inputdevice_uaelib (const TCHAR *s, const TCHAR *parm)
 {
 	//write_log(_T("%s: %s\n"), s, parm);
@@ -4683,6 +4697,14 @@ static int handle_input_event2(int nr, int state, int max, int flags, int extra)
 		return 0; // qualifiers do nothing
 	if (ie->unit == 0 && ie->data >= AKS_FIRST) {
 		isaks = true;
+	}
+
+	if (isaks) {
+		if (debug_trainer_event(ie->data, state))
+			return 0;
+	} else {
+		if (debug_trainer_event(nr, state))
+			return 0;
 	}
 
 	if (!isaks) {

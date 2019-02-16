@@ -240,7 +240,7 @@ static void dummylog (int rw, uaecptr addr, int size, uae_u32 val, int ins)
 		return;
 	if (debugmem_extinvalidmem(addr, val, rw ? size : -size))
 		return;
-	if (illegal_count >= MAX_ILG && MAX_ILG > 0)
+	if ((illegal_count >= MAX_ILG && MAX_ILG > 0) && !memwatch_access_validator)
 		return;
 	if (MAX_ILG >= 0)
 		illegal_count++;

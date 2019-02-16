@@ -65,6 +65,7 @@ static uae_u32 trace_param2;
 int debugger_active;
 static int debug_rewind;
 static int memwatch_triggered;
+int memwatch_access_validator;
 int memwatch_enabled;
 int debugging;
 int exception_debugging;
@@ -1249,17 +1250,29 @@ static void dump_custom_regs(bool aga, bool ext)
 		p4[11] = p3[11];
 		free (p3);
 	}
-	end = 0;
-	while (custd[end].name)
-		end++;
-	end++;
-	end /= 2;
-	for (int i = 0; i < end; i++) {
+	int total = 0;
+	int i = 0;
+	while (custd[i].name) {
+		if (!(custd[i].special & CD_NONE))
+			total++;
+		i++;
+	}
+	int cnt1 = 0;
+	int cnt2 = 0;
+	i = 0;
+	while (i < total / 2 + 1) {
+		for (;;) {
+			cnt2++;
+			if (!(custd[cnt2].special & CD_NONE))
+				break;
+		}
+		i++;
+	}
+	for (int i = 0; i < total / 2 + 1; i++) {
 		uae_u16 v1, v2;
 		int addr1, addr2;
-		int j = end + i;
-		addr1 = custd[i].adr & 0x1ff;
-		addr2 = custd[j].adr & 0x1ff;
+		addr1 = custd[cnt1].adr & 0x1ff;
+		addr2 = custd[cnt2].adr & 0x1ff;
 		v1 = (p1[addr1 + 0] << 8) | p1[addr1 + 1];
 		v2 = (p1[addr2 + 0] << 8) | p1[addr2 + 1];
 		if (ext) {
@@ -1270,8 +1283,18 @@ static void dump_custom_regs(bool aga, bool ext)
 			_stprintf(extra2, _T("\t%04X %08X %s"), cs->value, cs->pc & ~1, (cs->pc & 1) ? _T("COP") : _T("CPU"));
 		}
 		console_out_f (_T("%03X %s\t%04X%s\t%03X %s\t%04X%s\n"),
-			addr1, custd[i].name, v1, extra1,
-			addr2, custd[j].name, v2, extra2);
+			addr1, custd[cnt1].name, v1, extra1,
+			addr2, custd[cnt2].name, v2, extra2);
+		for (;;) {
+			cnt1++;
+			if (!(custd[cnt1].special & CD_NONE))
+				break;
+		}
+		for (;;) {
+			cnt2++;
+			if (!(custd[cnt2].special & CD_NONE))
+				break;
+		}
 	}
 	xfree(p2);
 }
@@ -1889,6 +1912,7 @@ struct dma_rec *record_dma (uae_u16 reg, uae_u16 dat, uae_u32 addr, int hpos, in
 		dma_record_frame[0] = -1;
 		dma_record_frame[1] = -1;
 	}
+
 	if (hpos >= NR_DMA_REC_HPOS || vpos >= NR_DMA_REC_VPOS)
 		return NULL;
 
@@ -2605,7 +2629,7 @@ static void illg_init (void)
 
 	i = 0;
 	while (custd[i].name) {
-		int rw = custd[i].rw;
+		int rw = (custd[i].special & CD_WO) ? 2 : 1;
 		illgdebug[custd[i].adr] = rw;
 		illgdebug[custd[i].adr + 1] = rw;
 		i++;
@@ -2882,6 +2906,105 @@ void restore_debug_memwatch_finish (void)
 			return;
 		}
 	}
+}
+
+void debug_check_reg(uae_u32 addr, int write, uae_u16 v)
+{
+	if (!memwatch_access_validator)
+		return;
+	int reg = addr & 0x1ff;
+	const struct customData *cd = &custd[reg >> 1];
+
+	if (((addr & 0xfe00) != 0xf000 && (addr & 0xffff0000) != 0) || ((addr & 0xffff0000) != 0 && (addr & 0xffff0000) != 0x00df0000) || (addr & 0x0600)) {
+		write_log(_T("Mirror custom register %08x (%s) %s access. PC=%08x\n"), addr, cd->name, write ? _T("write") : _T("read"), M68K_GETPC);
+	}
+
+	int spc = cd->special;
+	if ((spc & CD_AGA) && !(currprefs.chipset_mask & CSMASK_AGA))
+		spc |= CD_NONE;
+	if ((spc & CD_ECS_DENISE) && !(currprefs.chipset_mask & CSMASK_ECS_DENISE))
+		spc |= CD_NONE;
+	if ((spc & CD_ECS_AGNUS) && !(currprefs.chipset_mask & CSMASK_ECS_AGNUS))
+		spc |= CD_NONE;
+	if (spc & CD_NONE) {
+		write_log(_T("Non-existing custom register %04x (%s) %s access. PC=%08x\n"), reg, cd->name, write ? _T("write") : _T("read"), M68K_GETPC);
+		return;
+	}
+
+	if (spc & CD_COLOR) {
+		if (currprefs.chipset_mask & CSMASK_AGA)
+			return;
+	}
+
+	if (write & !(spc & CD_WO)) {
+		write_log(_T("Write access to read-only custom register %04x (%s). PC=%08x\n"), reg, cd->name, M68K_GETPC);
+		return;
+	} else if (!write && (spc & CD_WO)) {
+		write_log(_T("Read access from write-only custom register %04x (%s). PC=%08x\n"), reg, cd->name, M68K_GETPC);
+		return;
+	}
+
+	if (write && cd->mask[2]) {
+		int idx = (currprefs.chipset_mask & CSMASK_AGA) ? 2 : (currprefs.chipset_mask & CSMASK_ECS_AGNUS) ? 1 : 0;
+		uae_u16 mask = cd->mask[idx];
+		if (v & ~mask) {
+			write_log(_T("Unuset bits set %04x when writing custom register %04x (%s) PC=%08x\n"), v & ~mask, reg, cd->name, M68K_GETPC);
+		}
+	}
+
+	if (spc & CD_DMA_PTR) {
+		uae_u32 addr = (custom_storage[((reg & ~2) >> 1)].value << 16) | custom_storage[((reg | 2) >> 1)].value;
+		if (currprefs.z3chipmem_size) {
+			if (addr >= currprefs.z3chipmem_start && addr < currprefs.z3chipmem_start + currprefs.z3chipmem_size)
+				return;
+		}
+		if(addr >= currprefs.chipmem_size)
+			write_log(_T("DMA pointer %04x (%s) set to invalid value %08x %s=%08x\n"), reg, cd->name, addr,
+				custom_storage[reg >> 1].pc & 1 ? _T("COP") : _T("PC"), custom_storage[reg >> 1].pc);
+	}
+}
+
+void debug_invalid_reg(int reg, int size, uae_u16 v)
+{
+	if (!memwatch_access_validator)
+		return;
+	reg &= 0x1ff;
+	if (size == 1) {
+		if (reg == 2) // DMACONR low byte
+			return;
+		if (reg == 6) // VPOS
+			return;
+	}
+	const struct customData *cd = &custd[reg >> 1];
+	if (size == -2 && (reg & 1)) {
+		write_log(_T("Unaligned word write to register %04x (%s) val %04x PC=%08x\n"), reg, cd->name, v, M68K_GETPC);
+	} else if (size == -1) {
+		write_log(_T("Byte write to register %04x (%s) val %02x PC=%08x\n"), reg, cd->name, v & 0xff, M68K_GETPC);
+	} else if (size == 2 && (reg & 1)) {
+		write_log(_T("Unaligned word read from register %04x (%s) PC=%08x\n"), reg, cd->name, M68K_GETPC);
+	} else if (size == 1) {
+		write_log(_T("Byte read from register %04x (%s) PC=%08x\n"), reg, cd->name, M68K_GETPC);
+	}
+}
+
+static void is_valid_dma(int reg, int ptrreg, uaecptr addr)
+{
+	if (!memwatch_access_validator)
+		return;
+	if (reg == 0x1fe) // refresh
+		return;
+	if (currprefs.z3chipmem_size) {
+		if (addr >= currprefs.z3chipmem_start && addr < currprefs.z3chipmem_start + currprefs.z3chipmem_size)
+			return;
+	}
+	if (!(addr & ~(currprefs.chipmem_size - 1)))
+		return;
+	const struct customData *cdreg = &custd[reg >> 1];
+	const struct customData *cdptr = &custd[ptrreg >> 1];
+	write_log(_T("DMA DAT %04x (%s), PT %04x (%s) accessed invalid memory %08x. Init: %08x, PC/COP=%08x\n"),
+		reg, cdreg->name, ptrreg, cdptr->name, addr,
+		(custom_storage[ptrreg >> 1].value << 16) | (custom_storage[(ptrreg >> 1) + 1].value),
+		custom_storage[ptrreg >> 1].pc);
 }
 
 static void mungwall_memwatch(uaecptr addr, int rwi, int size, uae_u32 valp)
@@ -3210,10 +3333,11 @@ uae_u16 debug_wputpeekdma_chipset (uaecptr addr, uae_u32 v, uae_u32 mask, int re
 	memwatch_func (addr, 2, 2, &v, mask, reg);
 	return v;
 }
-uae_u16 debug_wputpeekdma_chipram (uaecptr addr, uae_u32 v, uae_u32 mask, int reg)
+uae_u16 debug_wputpeekdma_chipram (uaecptr addr, uae_u32 v, uae_u32 mask, int reg, int ptrreg)
 {
 	if (!memwatch_enabled)
 		return v;
+	is_valid_dma(reg, ptrreg, addr);
 	if (debug_mem_banks[addr >> 16] == NULL)
 		return v;
 	if (!currprefs.z3chipmem_size)
@@ -3221,11 +3345,12 @@ uae_u16 debug_wputpeekdma_chipram (uaecptr addr, uae_u32 v, uae_u32 mask, int re
 	memwatch_func (addr & chipmem_bank.mask, 2, 2, &v, mask, reg);
 	return v;
 }
-uae_u16 debug_wgetpeekdma_chipram (uaecptr addr, uae_u32 v, uae_u32 mask, int reg)
+uae_u16 debug_wgetpeekdma_chipram (uaecptr addr, uae_u32 v, uae_u32 mask, int reg, int ptrreg)
 {
 	uae_u32 vv = v;
 	if (!memwatch_enabled)
 		return v;
+	is_valid_dma(reg, ptrreg, addr);
 	if (debug_mem_banks[addr >> 16] == NULL)
 		return v;
 	if (!currprefs.z3chipmem_size)
@@ -3561,6 +3686,7 @@ static void memwatch (TCHAR **c)
 	if (!memwatch_enabled) {
 		initialize_memwatch (0);
 		console_out (_T("Memwatch breakpoints enabled\n"));
+		memwatch_access_validator = 0;
 	}
 
 	cp = *c;
@@ -3575,6 +3701,12 @@ static void memwatch (TCHAR **c)
 		console_out (_T("Memwatch breakpoints disabled\n"));
 		return;
 	}
+	if (nc == 'l') {
+		memwatch_access_validator = !memwatch_access_validator;
+		console_out_f(_T("Memwatch DMA validator %s\n"), memwatch_access_validator ? _T("enabled") : _T("disabled"));
+		return;
+	}
+
 	if (nc == 'd') {
 		if (illgdebug) {
 			ignore_ws (c);
@@ -6587,6 +6719,7 @@ After [patch] section must come at least one patch descriptor.
 [patch]
 name=name
 enable=true/false
+event=KEY_F1
 
 ; patch descriptor
 data=200e46802d400026200cxx02 ; this is comment
@@ -6607,6 +6740,7 @@ replaceoffset=4
 
 name: name of the option (appears in GUI in the future)
 enable: true = automatically enabled at startup. (false=manually activated using key shortcut etc.., will be implemented later)
+event: inputevents.def event name
 
 data: match data, when emulated CPU executes first opcode of this data and following words also match: match is detected. x = anything.
 offset: word offset from beginning of "data" that points to memory read/write instruction that you want to "patch". Default=0.
@@ -6667,6 +6801,8 @@ struct trainerpatch
 	uae_u32 oldval;
 	int patchtype;
 	int setvalue;
+	int *events;
+	int eventcount;
 	int memwatchindex;
 	bool enabledatstart;
 	bool enabled;
@@ -7011,6 +7147,44 @@ void debug_init_trainer(const TCHAR *file)
 				xfree(data);
 			}
 
+			if (ini_getstring(ini, section, _T("event"), &data)) {
+				TCHAR *s = data;
+				_tcscat(s, _T(","));
+				while (*s) {
+					bool end = false;
+					while (*s == ' ')
+						s++;
+					TCHAR *se = _tcschr(s, ',');
+					if (se) {
+						*se = 0;
+					} else {
+						end = true;
+					}
+					TCHAR *se2 = se - 1;
+					while (se2 > s) {
+						if (*se2 != ' ')
+							break;
+						*se2 = 0;
+						se2--;
+					}
+					int evt = inputdevice_geteventid(s);
+					if (evt > 0) {
+						if (tp->events) {
+							tp->events = xrealloc(int, tp->events, tp->eventcount + 1);
+						} else {
+							tp->events = xmalloc(int, 1);
+						}
+						tp->events[tp->eventcount++] = evt;
+					} else {
+						write_log(_T("Unknown event '%s'\n"), s);
+					}
+					if (end)
+						break;
+					s = se + 1;
+				}
+				xfree(data);
+			}
+
 			tp->first = tp->data[tp->offset];
 			tp->name = name;
 
@@ -7036,4 +7210,23 @@ end:
 		debug_opcode_watch = true;
 
 	ini_free(ini);
+}
+
+bool debug_trainer_event(int evt, int state)
+{
+	for (int i = 0; i < tpptrcnt; i++) {
+		struct trainerpatch *tp = tpptr[i];
+		for (int j = 0; j < tp->eventcount; j++) {
+			if (tp->events[j] <= 0)
+				continue;
+			if (tp->events[j] == evt) {
+				if (!state)
+					return true;
+				write_log(_T("Trainer %d ('%s') -> %s\n"), i, tp->name, tp->enabled ? _T("off") : _T("on"));
+				debug_trainer_enable(tp, !tp->enabled);
+				return true;
+			}
+		}
+	}
+	return false;
 }
