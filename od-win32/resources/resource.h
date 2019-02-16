@@ -909,7 +909,7 @@
 #define IDC_FILTERSLR                   1625
 #define IDC_FILTERHZMULT                1626
 #define IDC_FILTERMODE                  1627
-#define IDC_FILTERFILTER                1628
+#define IDC_FILTERFILTERH               1628
 #define IDC_FILTERDEFAULT               1629
 #define IDC_FILTERXTRA                  1630
 #define IDC_INPUTDEADZONE               1630
@@ -936,6 +936,7 @@
 #define IDC_VOLUME_BOOTPRI              1638
 #define IDC_FILTEROVERLAYTYPE           1638
 #define IDC_KBLED1                      1639
+#define IDC_FILTERFILTERV               1639
 #define IDC_KBLED2                      1640
 #define IDC_SOUNDFILTER                 1640
 #define IDC_KBLED3                      1641

@@ -1,4 +1,83 @@
 
+
+Beta 2:
+
+- Adjusted CDTV CD drive read/play startup delays. Fixes Town without no name speech audiotrack play stopping too early.
+- Window resizing keeps current window aspect ratio if left or right CTRL is pressed when resize operation starts.
+- Separated Filter panel internal texture size multiplier to vertical ands horizontal. Vertical "-" = same as horizontal.
+- Magic mouse mode and some other Windows program is active and mouse gets moved over WinUAE window: don't activate window automatically. It can cause side-effect where other program is still getting keyboard input.
+- Simply uaegfx overlay rendering optimization, if both RTG and overlay bitmap does not change during frame: don't force full redraw.
+- Fixed AGA HAM graphics corruption if same scan line had BPLCON4 non-zero, border sprites enabled and at least one sprite visible in left border and HAM bitplane active.
+- Added global memwatch l option, enables invalid access logger:
+  - Custom registers: unaligned, byte (except $dff002 and $dff006), mirror addresses and non-existing registers.
+  - Custom registers: detect if any unused bit is written as one to registers like BPLCONx.
+  - Custom registers: detect if any DMA pointer write access sets invalid address (outside of chip ram address space)
+  - Detect if any chipset DMA tries to access non-chip RAM memory (checked before address is masked with size of chip ram).
+  - CIA registers: detect invalid accesses, word accesses, unused register 11, mirror CIA address.
+  - Anything else needed?
+
+Beta 1:
+
+- Bypass indirect memory access function calls (xget()/xput()) and access the memory directly if memory is normal RAM without side-effects (Real fast RAM). Should improve performance slightly in fastest possible non-jit or jit indirect modes.
+- GUI listviews column order is now adjustable. Column order and width is stored in registry/ini. Adjustments are reset to defaults if number of columns changes in the future, manual reset to default button in Misc panel.
+- Reject all Alt+<some key> windows system menu key shortcuts because invalid shortcuts may generate annoying beep sounds in magic mouse mode.
+- Manual configured RAM address text box didn't support addresses larger than $7fffffff.
+- Map >256k extended ROM images to $f00000 (not $e00000) if it begins with $1111 identifier.
+- KS ROM selection now support hunk and m68k elf executables. Automatically relocated at startup and symbols, if embedded with executable, are loaded to debugger. Image must be rommable but can have multiple sections. Checksum, size field and interrupt vector offsets are automatically appended if final relocated ROM image is smaller than 512k. If final image is larger than 512k, it gets mapped at $a80000-$b7ffff and $f80000 only contains header and vector offsets. This was mainly implemented to make aros m68k ROM debugging less annoying but it probably can be useful for any custom rom development. Source level debugging may be implemented later, DWARF debugging information documentation is not very useful for implementing parser..
+- Added keyboard_handshake=<v> config file entry. If handshake time period (in CCKs, not milliseconds) was less than v, message gets logged.
+- Added memwatch point PC parameter, only detect hit if PC equals start of address of instruction that generated the memory access. For trainer internal use.
+- Added log (L) only memory watch breakpoint mode, log only hits, don't break to debugger.
+- Accelerator board CPU fallback (to mainboard CPU mode) was broken.
+- "Add PC drives at startup" enabled and same drive root directory also mounted manually: drive was mounted twice (4.1.0 bug, earlier versions skipped duplicates)
+- Added uaegfx Picasso96 overlay/PIP support.
+- Added Cirrus Logic SVGA chip overlay/PIP hardware emulation (Picasso IV)
+- AVI recording with non-standard refresh rate was reset to default if GUI was entered and exited during recording. Affected recorded audio pitch and sync.
+- bsdsocket.library emulation SBTC_RELEASESTRPTR ("release string" = name + version string) was not implemented.
+- Fixed sprite x-position before DMA slot(s) (left overscan) emulation bug that caused some partially hidden sprites to completely disappear depending on order of x-coordinates. (3.5)
+- 68030 MMU and instruction ending to memory write that causes bus error: bus error exception stacked PC points to following instruction.
+- 68020+ prefetch mode debugger H history command returned wrong instruction addresses.
+- uae-configuration returned return code 10 even when matching config entry was found.
+- Debugger disassembler didn't show scale factor if effective address mode was brief extension format. (broke when 68020+ addressing modes were fixed)
+- Added custom ROM selection, 4 slots with manually configurable start and end addresses. Start and end are restricted to 64k boundaries.
+
+- Added Pacific Peripherals Overdrive SCSI controller emulation and 2 ROM versions.
+- Added Harms 3000 Professional 68030 accelerator board which is almost identical to A26x0 but ROM remapping seems to be slightly different.
+- Added IVS Trumpcard (non-pro) emulation.
+- Added IVS Trumpcard 500AT emulation.
+- Trumpcard driver disk devs/*.driver files contain embedded raw boot rom image. If added as Trumpcard/Pro/500AT ROM image file, it will be automatically loaded as ROM image.
+- Added ICD Trifecta emulation.
+
+ Overlay/PIP support:
+- All Picasso96 RGB and YUV formats supported. (CL hardware supported modes: RGB565, RGB555, YUV422, YUV411. Few weird non-Picasso96 compatible modes are not implemented.)
+- Color keying supported (CL hardware limit: 24-bit mode does not support color keying)
+- Cirrus Logic hardware supported color key masking (8-bit color key and 8-bit mask, only available in 8-bit modes) is not implemented.
+- Cirrus Logic hardware supported chroma key not implemented (Mainly designed for video capturing).
+- Scaling supported, uses basic linear scaling.
+- Pure software rendering, don't try to open too large video windows.
+
+Pacific Peripherals Overdrive:
+- Possibly first ever A2000 HD controller.
+- 5380 based SCSI controller.
+- 68440 DMA controller, CPU polls DMA complete register. (SupraDrive 2000 DMA which uses same DMA controller also CPU polls)
+- RDB compatible, mostly, for some reason it assumes partition device names are C-strings, not BSTRs which makes device names look quite interesting in AmigaOS. v2.0 supports custom filesystems.
+- Both known ROM versions have "SCSI 1.3 (14 Aug 1988)" version string but overdrive.device versions are 1.5 and 2.0.
+
+IVS Trumpcard:
+- 5380 based SCSI controller, byte wide fake DMA.
+- Functionally same as Trumpcard Pro except Pro-only long/word wide fake DMA data ports and SCSI ID/status register are not implemented.
+
+IVS Trumpcard 500AT:
+- Usual basic PIO IDE controller.
+
+ICD Trifecta:
+- SCSI and IDE controller (LX), IDE only (EC). Don't select EC, at least 4.2 install disk driver seems to assume SCSI chip is always installed.
+- SCSI is DMA capable, FAS216 SCSI controller, Xilinx FPGA based DMA controller.
+- IDE is PIO only, uses large MOVEM copy loop.
+- Boot ROM is still MIA, tested only with install disk driver.
+
+
+4.1.0
+
 Beta 13:
 
 - Hardware emulated graphics board interrupt was not emulated when gfxboard mode was not (yet) active and refresh mode was not "chipset". (For example Picasso96 + PicassoII+ or PicassoIV hang when switching to gfxboard mode)

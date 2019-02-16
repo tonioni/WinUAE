@@ -179,7 +179,6 @@ COLORREF g_dwBackgroundColor;
 int pause_emulation;
 
 static int sound_closed;
-static int recapture;
 static int focus;
 static int mouseinside;
 int mouseactive;
@@ -968,7 +967,7 @@ static void setmouseactive2(struct AmigaMonitor *mon, int active, bool allowpaus
 	bool isrp = false;
 #endif
 
-	//write_log (_T("setmouseactive %d->%d showcursor=%d focus=%d recap=%d\n"), mouseactive, active, showcursor, focus, recapture);
+	//write_log (_T("setmouseactive %d->%d showcursor=%d focus=%d\n"), mouseactive, active, showcursor, focus);
 
 	if (active == 0)
 		releasecapture (mon);
@@ -993,7 +992,6 @@ static void setmouseactive2(struct AmigaMonitor *mon, int active, bool allowpaus
 	mon->mouseposx = mon->mouseposy = 0;
 	//write_log (_T("setmouseactive(%d)\n"), active);
 	releasecapture (mon);
-	recapture = 0;
 
 	if (isfullscreen () <= 0 && (currprefs.input_mouse_untrap & MOUSEUNTRAP_MAGIC) && currprefs.input_tablet > 0) {
 		if (mousehack_alive ())
@@ -1246,6 +1244,7 @@ void enablecapture(int monid)
 {
 	if (pause_emulation > 2)
 		return;
+	//write_log(_T("enablecapture\n"));
 	setmouseactive(monid, 1);
 	if (sound_closed < 0) {
 		resumesoundpaused();
@@ -1258,6 +1257,7 @@ void enablecapture(int monid)
 
 void disablecapture(void)
 {
+	//write_log(_T("disablecapture\n"));
 	setmouseactive(0, 0);
 	focus = 0;
 	if (currprefs.win32_active_nocapture_pause && sound_closed == 0) {
@@ -1358,8 +1358,6 @@ void setmouseactivexy(int monid, int x, int y, int dir)
 	if (mouseactive) {
 		disablecapture ();
 		SetCursorPos (x, y);
-		if (dir)
-			recapture = 1;
 	}
 }
 
@@ -1852,6 +1850,7 @@ static LRESULT CALLBACK AmigaWindowProc(HWND hWnd, UINT message, WPARAM wParam, 
 	{
 
 	case WM_SETFOCUS:
+		//write_log(_T("WM_SETFOCUS\n"));
 		winuae_active(mon, hWnd, minimized);
 		unsetminimized(mon->monitor_id);
 		dx_check();
@@ -2170,8 +2169,14 @@ static LRESULT CALLBACK AmigaWindowProc(HWND hWnd, UINT message, WPARAM wParam, 
 		break;
 	}
 
+	case WM_KILLFOCUS:
+		//write_log(_T("killfocus\n"));
+		focus = 0;
+		return 0;
+
 	case WM_MOUSELEAVE:
 		mouseinside = false;
+		//write_log(_T("mouseoutside\n"));
 		return 0;
 
 	case WM_MOUSEMOVE:
@@ -2180,6 +2185,7 @@ static LRESULT CALLBACK AmigaWindowProc(HWND hWnd, UINT message, WPARAM wParam, 
 
 		monitor_off = 0;
 		if (!mouseinside) {
+			//write_log(_T("mouseinside\n"));
 			TRACKMOUSEEVENT tme = { 0 };
 			mouseinside = true;
 			tme.cbSize = sizeof tme;
@@ -2191,15 +2197,9 @@ static LRESULT CALLBACK AmigaWindowProc(HWND hWnd, UINT message, WPARAM wParam, 
 		mx = (signed short)LOWORD(lParam);
 		my = (signed short)HIWORD(lParam);
 
-#if 0
-		setmousestate(0, 0, mx, 1);
-		setmousestate(0, 1, my, 1);
-		return 0;
-#endif
-
 		if (log_winmouse)
-			write_log (_T("WM_MOUSEMOVE MON=%d NUM=%d ACT=%d FOCUS=%d CLIP=%d CAP=%d FS=%d %dx%d %dx%d\n"),
-				mon->monitor_id, wm, mouseactive, focus, mon_cursorclipped, recapture, isfullscreen (), mx, my, mon->mouseposx, mon->mouseposy);
+			write_log (_T("WM_MOUSEMOVE MON=%d NUM=%d ACT=%d FOCUS=%d CLIP=%d FS=%d %dx%d %dx%d\n"),
+				mon->monitor_id, wm, mouseactive, focus, mon_cursorclipped, isfullscreen (), mx, my, mon->mouseposx, mon->mouseposy);
 
 		if (rp_mouseevent(mx, my, -1, -1))
 			return 0;
@@ -2207,10 +2207,6 @@ static LRESULT CALLBACK AmigaWindowProc(HWND hWnd, UINT message, WPARAM wParam, 
 		mx -= mon->mouseposx;
 		my -= mon->mouseposy;
 
-		if (recapture && isfullscreen() <= 0) {
-			enablecapture(mon->monitor_id);
-			return 0;
-		}
 		if (wm < 0 && (istablet || currprefs.input_tablet >= TABLET_MOUSEHACK)) {
 			/* absolute */
 			setmousestate(0, 0, mx, 1);
@@ -6431,7 +6427,7 @@ static int parseargs(const TCHAR *argx, const TCHAR *np, const TCHAR *np2)
 		int temp;
 		inipath = getdefaultini(&temp);
 		createbootlog = false;
-		return 2;
+		return 1;
 	}
 	if (!_tcscmp(arg, _T("bootlog"))) {
 		createbootlog = true;

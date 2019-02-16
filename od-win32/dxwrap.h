@@ -114,6 +114,9 @@ struct AmigaMonitor {
 	int mouseposx, mouseposy;
 	int windowmouse_max_w;
 	int windowmouse_max_h;
+	int ratio_width, ratio_height;
+	int ratio_adjust_x, ratio_adjust_y;
+	bool ratio_sizing;
 	int prevsbheight;
 	bool render_ok, wait_render;
 

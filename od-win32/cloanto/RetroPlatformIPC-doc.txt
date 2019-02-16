@@ -4,12 +4,12 @@
  Client  : Cloanto Corporation
  Support : http://www.retroplatform.com
  Legal   : CONFIDENTIAL TRADE SECRET PROPERTY OF CLOANTO CORPORATION
-         : Copyright © Cloanto Corporation 2007-2018.
+         : Copyright © Cloanto Corporation 2007-2019.
          : All rights reserved, except where licensed,
          : assigned or transferred by contract.
  Authors : os, m
  Created : 2007-08-23 10:08:25
- Updated : 2018-10-19 16:01:23
+ Updated : 2019-01-27 10:56:32
  Comment : Reference for RetroPlatformIPC.h (RP Player interprocess communication include file)
  *****************************************************************************/
 
@@ -501,6 +501,8 @@ Description:
    the guest sends this message to forward mouse move events;
    mouse events forwarding is off by default and is enabled
    by the RP_IPC_TO_GUEST_SENDMOUSEEVENTS message;
+   when mouse events are forwarded to the host,
+   they are not used by the emulated system;
    the screen coordinate range is the same used for screen overlays
    (e.g. lLeft and lTop fields of the RPSCREENOVERLAY structure)
 Data sent:
@@ -515,6 +517,8 @@ Description:
    the guest sends this message to forward mouse button events;
    mouse events forwarding is off by default and is enabled
    by the RP_IPC_TO_GUEST_SENDMOUSEEVENTS message;
+   when mouse events are forwarded to the host,
+   they are not used by the emulated system;
    the screen coordinate range is the same used for screen overlays
    (e.g. lLeft and lTop fields of the RPSCREENOVERLAY structure)
 Data sent:
@@ -601,7 +605,8 @@ Message:
 Description:
    the RP_IPC_TO_GUEST_PAUSE message sets the guest into pause mode
    or resumes the guest from pause mode;
-   note: when paused, the guest should release the mouse (if captured);
+   note: when paused, the guest should release the mouse (if captured) and,
+   in fullwindow mode, the Windows mouse cursor should be made visible;
    during pause mode, the mouse should never be captured
 Data sent:
    WPARAM = non-zero to set the guest into pause mode
@@ -846,8 +851,10 @@ Message:
 Description:
    This message creates a screen overlay (an image that the guest
    renders on top of the emulated system screen).
-   Multiple screen overlays can be set and simultaneously displayed
-   on the screen (see the dwIndex field of the RPSCREENOVERLAY structure).
+   Multiple screen overlays can be simultaneously displayed on the screen,
+   and the dwIndex field of the RPSCREENOVERLAY structure determines
+   their priority (overlays with higher index are displayed
+   in front of overlays with lower index);
    NOTE: guests that support screen overlays must set the
    RP_FEATURE_SCREENOVERLAY flag in the startup RP_IPC_TO_HOST_FEATURES message.
 Data sent:
@@ -861,8 +868,8 @@ Message:
 Description:
    This message moves a previously defined screen overlay to a specified position.
 Data sent:
-	WPARAM = screen overlay index
-	LPARAM = screen coordinates combined with the MAKELONG macro (i.e. MAKELONG(x,y))
+   WPARAM = screen overlay index
+   LPARAM = screen coordinates combined with the MAKELONG macro (i.e. MAKELONG(x,y))
 Response:
    LRESULT = 1, if the guest successfully executed the command, or 0 otherwise
 
@@ -872,7 +879,7 @@ Message:
 Description:
    This message deletes a previously defined screen overlay.
 Data sent:
-	WPARAM = screen overlay index
+   WPARAM = screen overlay index
 Response:
    LRESULT = 1, if the guest successfully executed the command, or 0 otherwise
 
@@ -886,7 +893,20 @@ Description:
    see RP_IPC_TO_HOST_MOUSEMOVE and RP_IPC_TO_HOST_MOUSEBUTTON
    for additional information.
 Data sent:
-	WPARAM = set to 1 to enable mouse events forwarding, or 0 to disable it
+   WPARAM = set to 1 to enable mouse events forwarding, or 0 to disable it
+Response:
+   LRESULT = 1 if the guest acknowledged the command or 0 otherwise
+
+
+Message:
+   RP_IPC_TO_GUEST_SHOWDEBUGGER
+Description:
+   This message is used to ask the guest to open its debugger dialog.
+   If the dialog pauses the emulation, the guest should send a RP_IPC_TO_HOST_PAUSE message
+   to notify the host about that (and when the emulation is resumed,
+   at dialog-close time, a new RP_IPC_TO_HOST_PAUSE notifications should be sent).
+Data sent:
+   None
 Response:
    LRESULT = 1 if the guest acknowledged the command or 0 otherwise
 
@@ -901,6 +921,7 @@ Messages:
 	RP_IPC_TO_GUEST_PRIVATE_NOKEYPROMPT
 	RP_IPC_TO_GUEST_PRIVATE_KEYBOARDWINDOW
 	RP_IPC_TO_GUEST_PRIVATE_MENUMODE
+	RP_IPC_TO_GUEST_PRIVATE_SETFRGWINDOW
 Description:
    these are private messages, received by code in RPGuest.dll;
    they never reach the message function in guest code

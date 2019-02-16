@@ -35,6 +35,7 @@
 #include "keyboard.h"
 #include "rp.h"
 #include "direct3d.h"
+#include "debug.h"
 
 static int initialized;
 static RPGUESTINFO guestinfo;
@@ -158,6 +159,7 @@ static const TCHAR *getmsg (int msg)
 	case RP_IPC_TO_GUEST_DELETESCREENOVERLAY: return _T("RP_IPC_TO_GUEST_DELETESCREENOVERLAY");
 	case RP_IPC_TO_GUEST_MOVESCREENOVERLAY: return _T("RP_IPC_TO_GUEST_MOVESCREENOVERLAY");
 	case RP_IPC_TO_GUEST_SENDMOUSEEVENTS: return _T("RP_IPC_TO_GUEST_SENDMOUSEEVENTS");
+	case RP_IPC_TO_GUEST_SHOWDEBUGGER: return _T("RP_IPC_TO_GUEST_SHOWDEBUGGER");
 	default: return _T("UNKNOWN");
 	}
 }
@@ -1462,7 +1464,7 @@ static LRESULT CALLBACK RPHostMsgFunction2 (UINT uMessage, WPARAM wParam, LPARAM
 		}
 	case RP_IPC_TO_GUEST_GUESTAPIVERSION:
 		{
-			return MAKELONG(7, 1);
+			return MAKELONG(7, 6);
 		}
 	case RP_IPC_TO_GUEST_SHOWOPTIONS:
 		inputdevice_add_inputcode (AKS_ENTERGUI, 1, NULL);
@@ -1481,6 +1483,9 @@ static LRESULT CALLBACK RPHostMsgFunction2 (UINT uMessage, WPARAM wParam, LPARAM
 			LPARAM lp = MAKELONG(mouseevent_x, mouseevent_y);
 			RPPostMessagex(RP_IPC_TO_HOST_MOUSEMOVE, 0, lp, &guestinfo);
 		}
+		return 1;
+	case RP_IPC_TO_GUEST_SHOWDEBUGGER:
+		activate_debugger();
 		return 1;
 	}
 	return FALSE;

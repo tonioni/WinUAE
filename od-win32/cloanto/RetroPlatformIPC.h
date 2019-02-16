@@ -2,14 +2,14 @@
  Name    : RetroPlatformIPC.h
  Project : RetroPlatform Player
  Support : http://www.retroplatform.com
- Legal   : Copyright 2007-2018 Cloanto Corporation - All rights reserved. This
+ Legal   : Copyright 2007-2019 Cloanto Corporation - All rights reserved. This
          : file is multi-licensed under the terms of the Mozilla Public License
          : version 2.0 as published by Mozilla Corporation and the GNU General
          : Public License, version 2 or later, as published by the Free
          : Software Foundation.
  Authors : os, m
  Created : 2007-08-27 13:55:49
- Updated : 2018-10-19 15:58:12
+ Updated : 2019-01-27 10:47:18
  Comment : RetroPlatform Player interprocess communication include file
  *****************************************************************************/
 
@@ -18,9 +18,9 @@
 
 #include <windows.h>
 
-#define RETROPLATFORM_API_VER       "7.5"
+#define RETROPLATFORM_API_VER       "7.6"
 #define RETROPLATFORM_API_VER_MAJOR  7
-#define RETROPLATFORM_API_VER_MINOR  5
+#define RETROPLATFORM_API_VER_MINOR  6
 
 #define RPIPC_HostWndClass   "RetroPlatformHost%s"
 #define RPIPC_GuestWndClass  "RetroPlatformGuest%d"
@@ -105,6 +105,8 @@
 #define RP_IPC_TO_GUEST_DELETESCREENOVERLAY  (WM_APP + 233) // introduced in RetroPlatform API 7.5
 #define RP_IPC_TO_GUEST_SENDMOUSEEVENTS      (WM_APP + 234) // introduced in RetroPlatform API 7.5
 #define RP_IPC_TO_GUEST_PRIVATE_MENUMODE     (WM_APP + 235) // introduced in RetroPlatform API 7.5
+#define RP_IPC_TO_GUEST_PRIVATE_SETFRGWINDOW (WM_APP + 236) // introduced in RetroPlatform API 7.5
+#define	RP_IPC_TO_GUEST_SHOWDEBUGGER         (WM_APP + 237) // introduced in RetroPlatform API 7.6
 
 // ****************************************************************************
 //  Message Data Structures and Defines
@@ -200,8 +202,8 @@ typedef struct RPScreenMode
 //
 // Integer vs. subpixel scaling, and stretching with or without original ratio
 //
-// By default, the guest is only expected to be able to scale (resize) the window by an integer number of times, e.g. 1X, 2X, 3X, etc., as indicated in RP_FEATURE_SCREEN...
-// This means that when going to fullscreen mode (RP_SCREENMODE_SCALE_MAX) or to a window mode with lTargetWidth and lTargetHeight set (RP_SCREENMODE_SCALE_TARGET), the content will be an integer number of times the original, and surrounded by black bars if necessary. Integer scaling is thus the default behavior, and it can be modified by setting RP_SCREENMODE_SCALING_SUBPIXEL and RP_SCREENMODE_SCALING_STRETCH.
+// By default, the guest is only expected to be able to scale (resize, units being guest to host pixels) the emulated screen by an integer number of times, e.g. 1X, 2X, 3X, etc., as indicated in RP_FEATURE_SCREEN...
+// This means that when going to fullscreen mode (RP_SCREENMODE_SCALE_MAX) or to a window mode with lTargetWidth and lTargetHeight set (RP_SCREENMODE_SCALE_TARGET), the content will be an integer number of times the original number of pixels, and surrounded by black bars if necessary. Integer scaling is thus the default behavior, and it can be modified by setting RP_SCREENMODE_SCALING_SUBPIXEL and RP_SCREENMODE_SCALING_STRETCH.
 //
 // In a known-size target (e.g. fullscreen), unless RP_SCREENMODE_SCALING_SUBPIXEL or RP_SCREENMODE_SCALING_STRETCH are set, there may be up to four black bars to fill any unused space.
 //
@@ -258,7 +260,8 @@ typedef struct RPScreenMode
 //
 // If the user wants to adjust clipping, or for automated grabs and calculations, it is possible to set RP_CLIPFLAGS_NOCLIP, which will widen the window to the maximum (within lTargetWidth+lTargetHeight/fullscreen constraints).
 //
-// Whenever the guest sets or changes the "container" window size or scaling factor (initially, or due to a command it receives, or due to Amiga-sourced changes), it sends an RPScreenMode update to the host.
+// Both in fullscreen and in window mode, whenever the guest sets or changes the net window size or the scaling factor (initially, or due to a command it receives, or due to Amiga-sourced changes), it sends an RPScreenMode update to the host. This is useful also in fullscreen mode, as it allows to display the appropriate scaling options to return in window mode.
+
 //
 // In window mode, if no lTargetWidth and lTargetHeight are set, when the host asks for a change in clipping (net content size), the host window size will be adjusted taking into account the current integer multiplication factor.
 //
