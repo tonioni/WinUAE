@@ -2742,35 +2742,58 @@ void m68k_do_rte_mmu030 (uaecptr a7)
 	else
 		get_word_mmu030(a7 + 32 - 2);
 
-	// Internal register, our opcode storage area
-	uae_u32 oc = get_long_mmu030(a7 + 0x14);
-	// Data output buffer
-	uae_u32 mmu030_data_buffer_out_v = get_long_mmu030(a7 + 0x18);
-	// get_disp_ea_020
-	uae_u32 mmu030_disp_store_0 = get_long_mmu030(a7 + 0x1c);
-	uae_u32 mmu030_disp_store_1 = get_long_mmu030(a7 + 0x1c + 4);
-	// Internal register, misc flags
-	uae_u32 ps = get_long_mmu030(a7 + 0x28);
-	// Data buffer
-	uae_u32 mmu030_data_buffer_in_v = get_long_mmu030(a7 + 0x2c);;
-
-	uae_u32 mmu030_opcode_v = (ps & 0x80000000) ? -1U : (oc & 0xffff);
-	// Misc state data
-	uae_u32 mmu030_state_0 = get_word_mmu030(a7 + 0x30);
-	uae_u32 mmu030_state_1 = get_word_mmu030(a7 + 0x32);
-	uae_u32 mmu030_state_2 = get_word_mmu030(a7 + 0x34);
-
-	uae_u32 mmu030_fmovem_store_0 = 0;
-	uae_u32 mmu030_fmovem_store_1 = 0;
-	if (mmu030_state[1] & MMU030_STATEFLAG1_FMOVEM) {
-		mmu030_fmovem_store_0 = get_long_mmu030(a7 + 0x5c - (7 + 1) * 4);
-		mmu030_fmovem_store_1 = get_long_mmu030(a7 + 0x5c - (8 + 1) * 4);
-	}
-
 	// Rerun "mmu030_opcode" using restored state.
 	mmu030_retry = true;
 
-	if (frame == 0xb) {
+	if (frame == 0xa) {
+
+		// A-frame only in non-prefetch mode and only when
+		// instruction's first word fetch caused access fault.
+		// mmu030_opcode_v is always -1 here.
+		if ((ssw & MMU030_SSW_FB) && !(ssw & MMU030_SSW_RB)) {
+			uae_u16 stageb = get_word_mmu030(a7 + 0x0e);
+			mmu030_opcode_stageb = stageb;
+			write_log(_T("Software fixed stage B! opcode = %04x\n"), stageb);
+		}
+		mmu030_opcode = -1;
+
+		m68k_areg(regs, 7) += 32;
+		regs.sr = sr;
+		MakeFromSR_T0();
+		if (pc & 1) {
+			exception3i(0x4E73, pc);
+			return;
+		}
+		m68k_setpci(pc);
+
+
+	} else if (frame == 0xb) {
+
+		// get_disp_ea_020
+		uae_u32 mmu030_disp_store_0 = get_long_mmu030(a7 + 0x1c);
+		uae_u32 mmu030_disp_store_1 = get_long_mmu030(a7 + 0x1c + 4);
+		// Internal register, misc flags
+		uae_u32 ps = get_long_mmu030(a7 + 0x28);
+		// Data buffer
+		uae_u32 mmu030_data_buffer_in_v = get_long_mmu030(a7 + 0x2c);;
+		// Misc state data
+		uae_u32 mmu030_state_0 = get_word_mmu030(a7 + 0x30);
+		uae_u32 mmu030_state_1 = get_word_mmu030(a7 + 0x32);
+		uae_u32 mmu030_state_2 = get_word_mmu030(a7 + 0x34);
+
+		// Internal register, our opcode storage area
+		uae_u32 oc = get_long_mmu030(a7 + 0x14);
+		// Data output buffer
+		uae_u32 mmu030_data_buffer_out_v = get_long_mmu030(a7 + 0x18);
+
+		uae_u32 mmu030_opcode_v = (ps & 0x80000000) ? -1U : (oc & 0xffff);
+
+		uae_u32 mmu030_fmovem_store_0 = 0;
+		uae_u32 mmu030_fmovem_store_1 = 0;
+		if (mmu030_state[1] & MMU030_STATEFLAG1_FMOVEM) {
+			mmu030_fmovem_store_0 = get_long_mmu030(a7 + 0x5c - (7 + 1) * 4);
+			mmu030_fmovem_store_1 = get_long_mmu030(a7 + 0x5c - (8 + 1) * 4);
+		}
 
 		uae_u16 idxsize = get_word_mmu030 (a7 + 0x36);
 		for (int i = 0; i < idxsize + 1; i++) {
@@ -2928,8 +2951,6 @@ void m68k_do_rte_mmu030 (uaecptr a7)
 		}
 #endif
 
-	} else {
-		m68k_areg (regs, 7) += 32;
 	}
 }
 
@@ -3331,6 +3352,16 @@ void m68k_do_rte_mmu030c (uaecptr a7)
 		}
 
 	} else {
+
 		m68k_areg (regs, 7) += 32;
+
+		regs.sr = sr;
+		MakeFromSR_T0();
+		if (pc & 1) {
+			exception3i(0x4E73, pc);
+			return;
+		}
+		m68k_setpci(pc);
+
 	}
 }

@@ -4025,10 +4025,10 @@ static void gen_opcode (unsigned int opcode)
 				printf ("\t\telse if (frame == 0x9) { m68k_areg (regs, 7) += offset + 12; break; }\n");
 				if (using_mmu == 68030) {
 					if (using_prefetch_020) {
-						printf ("\t\telse if (frame == 0xa) { m68k_do_rte_mmu030c (a); break; }\n");
+						printf ("\t\telse if (frame == 0xa) { m68k_do_rte_mmu030c (a); goto %s; }\n", endlabelstr);
 					    printf ("\t\telse if (frame == 0xb) { m68k_do_rte_mmu030c (a); goto %s; }\n", endlabelstr);
 					} else {
-						printf ("\t\telse if (frame == 0xa) { m68k_do_rte_mmu030 (a); break; }\n");
+						printf ("\t\telse if (frame == 0xa) { m68k_do_rte_mmu030 (a); goto %s; }\n", endlabelstr);
 					    printf ("\t\telse if (frame == 0xb) { m68k_do_rte_mmu030 (a); goto %s; }\n", endlabelstr);
 					}
 				} else {
