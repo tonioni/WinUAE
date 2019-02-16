@@ -262,9 +262,9 @@ static void subfunc (uae_u8 *data, int cnt)
 static int statusfunc (int status, int playpos)
 {
 	if (status == -1)
-		return 500;
+		return 150;
 	if (status == -2)
-		return 75;
+		return 20;
 	if (cd_audio_status != status) {
 		if (status == AUDIO_STATUS_PLAY_COMPLETE || status == AUDIO_STATUS_PLAY_ERROR) {
 			cd_audio_finished = 1;
