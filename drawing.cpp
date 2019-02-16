@@ -2136,7 +2136,6 @@ static void init_ham_decoding (void)
 static void decode_ham (int pix, int stoppos, int blank)
 {
 	int todraw_amiga = res_shift_from_window (stoppos - pix);
-	int hdp = ham_decode_pixel;
 
 	if (!bplham) {
 		while (todraw_amiga-- > 0) {
@@ -2906,16 +2905,20 @@ static void playfield_hard_way(line_draw_func worker_pfield, int first, int last
 		int next = last < real_playfield_start ? last : real_playfield_start;
 		int diff = next - first;
 		pfield_do_linetoscr_bordersprite_aga(first, next, false);
-		if (res_shift >= 0)
-			diff >>= res_shift;
-		else
-			diff <<= res_shift;
-		src_pixel += diff;
+		diff = res_shift_from_window(diff);
 		first = next;
+		src_pixel += diff;
+		ham_decode_pixel += diff;
+		(*worker_pfield)(first, last < real_playfield_end ? last : real_playfield_end, false);
+		if (last > real_playfield_end)
+			pfield_do_linetoscr_bordersprite_aga(real_playfield_end, last, false);
+		src_pixel -= diff;
+		ham_decode_pixel -= diff;
+	} else {
+		(*worker_pfield)(first, last < real_playfield_end ? last : real_playfield_end, false);
+		if (last > real_playfield_end)
+			pfield_do_linetoscr_bordersprite_aga(real_playfield_end, last, false);
 	}
-	(*worker_pfield)(first, last < real_playfield_end ? last : real_playfield_end, false);
-	if (last > real_playfield_end)
-		pfield_do_linetoscr_bordersprite_aga(real_playfield_end, last, false);
 }
 
 static void do_color_changes (line_draw_func worker_border, line_draw_func worker_pfield, int vp)
