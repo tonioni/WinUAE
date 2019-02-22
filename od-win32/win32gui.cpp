@@ -19685,7 +19685,7 @@ static INT_PTR CALLBACK hw3dDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 							filterstackpos = 2 * MAX_FILTERSHADERS;
 						else
 							filterstackpos = item - 1;
-						values_to_hw3ddlg (hDlg, false);
+						values_to_hw3ddlg (hDlg, true);
 						enable_for_hw3ddlg (hDlg);
 					}
 					break;
