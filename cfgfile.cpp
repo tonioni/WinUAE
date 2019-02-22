@@ -7782,6 +7782,8 @@ void default_prefs (struct uae_prefs *p, bool reset, int type)
 		f->gfx_filter_autoscale = AUTOSCALE_STATIC_AUTO;
 		f->gfx_filter_keep_autoscale_aspect = false;
 		f->gfx_filteroverlay_overscan = 0;
+		f->gfx_filter_left_border = -1;
+		f->gfx_filter_top_border = -1;
 	}
 
 	p->rtg_horiz_zoom_mult = 1.0;
