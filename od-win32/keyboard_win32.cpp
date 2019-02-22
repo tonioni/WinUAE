@@ -453,7 +453,7 @@ bool my_kbd_handler (int keyboard, int scancode, int newstate, bool alwaysreleas
 		if (currprefs.win32_guikey >= 0x100) {
 			if (scancode_new == DIK_F12)
 				return true;
-		} else if (currprefs.win32_guikey >= 0) {
+		} else if (currprefs.win32_guikey > 0) {
 			if (scancode_new == defaultguikey && currprefs.win32_guikey != scancode_new) {
 				scancode = 0;
 				if (specialpressed () && ctrlpressed() && shiftpressed() && altpressed ())
@@ -462,7 +462,7 @@ bool my_kbd_handler (int keyboard, int scancode, int newstate, bool alwaysreleas
 				inputdevice_add_inputcode (AKS_ENTERGUI, 1, NULL);
 				scancode = 0;
 			}
-		} else if (!specialpressed () && !ctrlpressed() && !shiftpressed() && !altpressed () && scancode_new == defaultguikey) {
+		} else if (currprefs.win32_guikey != 0 && !specialpressed () && !ctrlpressed() && !shiftpressed() && !altpressed () && scancode_new == defaultguikey) {
 			inputdevice_add_inputcode (AKS_ENTERGUI, 1, NULL);
 			scancode = 0;
 		}

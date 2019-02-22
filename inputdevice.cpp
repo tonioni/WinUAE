@@ -4688,8 +4688,10 @@ static int handle_input_event2(int nr, int state, int max, int flags, int extra)
 
 #ifdef _WIN32
 	// ignore normal GUI event if forced gui key is in use
-	if (currprefs.win32_guikey >= 0 && nr == INPUTEVENT_SPC_ENTERGUI)
-		return 0;
+	if (nr == INPUTEVENT_SPC_ENTERGUI) {
+		if (currprefs.win32_guikey > 0)
+			return 0;
+	}
 #endif
 
 	ie = &events[nr];
