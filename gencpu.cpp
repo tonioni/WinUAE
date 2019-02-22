@@ -5171,6 +5171,7 @@ bccl_not68020:
 			printf ("\tif (extra & 0x800)\n");
 			{
 				int old_m68k_pc_offset = m68k_pc_offset;
+				int old_m68k_pc_total = m68k_pc_total;
 				old_brace_level = n_braces;
 				start_brace ();
 				printf ("\tuae_u32 src = regs.regs[(extra >> 12) & 15];\n");
@@ -5182,6 +5183,7 @@ bccl_not68020:
 				sync_m68k_pc();
 				pop_braces(old_brace_level);
 				m68k_pc_offset = old_m68k_pc_offset;
+				m68k_pc_total = old_m68k_pc_total;
 			}
 			printf ("else");
 			{
