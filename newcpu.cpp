@@ -2281,7 +2281,7 @@ static uaecptr ShowEA_disp(uaecptr *pcp, uaecptr base, TCHAR *buffer, const TCHA
 			name = NULL;
 		}
 		_stprintf(dr, _T("%c%d.%c"), dp & 0x8000 ? 'A' : 'D', (int)r, dp & 0x800 ? 'L' : 'W');
-		if (dp & 0x40) {
+		if (dp & 0x40) { // IS (index suppress)
 			dispreg = 0;
 			dr[0] = 0;
 		}
@@ -2308,15 +2308,19 @@ static uaecptr ShowEA_disp(uaecptr *pcp, uaecptr base, TCHAR *buffer, const TCHA
 			base += disp;
 		}
 
-		if ((dp & 0x04) == 0x00 && name) {
+		if (dp & 3) {
+			if (name) {
 				_stprintf(p, _T("%s,"), name);
 				p += _tcslen(p);
 			}
+		}
 
-		if (dr[0] && (dp & 0x04) == 0) {
+		if (!(dp & 0x04)) {
+			if (dr[0]) {
 				_stprintf(p, _T("%s%s,"), dr, mult);
 				p += _tcslen(p);
 			}
+		}
 
 		if (dp & 3) {
 			if (p[-1] == ',')
@@ -2325,10 +2329,12 @@ static uaecptr ShowEA_disp(uaecptr *pcp, uaecptr base, TCHAR *buffer, const TCHA
 			p += _tcslen(p);
 		}
 
-		if (dr[0] && (dp & 0x04) != 0) {
+		if ((dp & 0x04)) {
+			if (dr[0]) {
 				_stprintf(p, _T("%s%s,"), dr, mult);
 				p += _tcslen(p);
 			}
+		}
 
 		if ((dp & 0x03) == 0x02) {
 			outer = (uae_s32)(uae_s16)get_iword_debug(pc);
