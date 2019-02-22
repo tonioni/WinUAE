@@ -4073,6 +4073,7 @@ static void finish_drawing_frame(bool drawlines)
 
 	draw_frame_extras(vb, -1, -1);
 
+	// video port adapters
 	if (currprefs.monitoremu) {
 		struct vidbuf_description *outvi = &adisplays[currprefs.monitoremu_mon].gfxvidinfo;
 		struct vidbuffer *out = &outvi->drawbuffer;
@@ -4119,20 +4120,13 @@ static void finish_drawing_frame(bool drawlines)
 		}
 	}
 
-	if (!currprefs.monitoremu && vidinfo->tempbuffer.bufmem_allocated && ((!bplcolorburst_field && currprefs.cs_color_burst) || (currprefs.gfx_grayscale))) {
-		setspecialmonitorpos(&vidinfo->tempbuffer);
-		emulate_grayscale(vb, &vidinfo->tempbuffer);
-		vb = vidinfo->outbuffer = &vidinfo->tempbuffer;
-		if (vb->nativepositioning)
-			setnativeposition(vb);
-		vidinfo->drawbuffer.tempbufferinuse = true;
-	}
-
+	// genlock
 	if (currprefs.genlock_image && !currprefs.monitoremu && !currprefs.cs_color_burst && vidinfo->tempbuffer.bufmem_allocated && currprefs.genlock) {
 		setspecialmonitorpos(&vidinfo->tempbuffer);
 		if (init_genlock_data != specialmonitor_need_genlock()) {
 			need_genlock_data = init_genlock_data = specialmonitor_need_genlock();
 			init_row_map();
+			pfield_set_linetoscr();
 		}
 		emulate_genlock(vb, &vidinfo->tempbuffer);
 		vb = vidinfo->outbuffer = &vidinfo->tempbuffer;
@@ -4141,6 +4135,7 @@ static void finish_drawing_frame(bool drawlines)
 		vidinfo->drawbuffer.tempbufferinuse = true;
 	}
 
+	// cd32 fmv
 	if (!currprefs.monitoremu && vidinfo->tempbuffer.bufmem_allocated && currprefs.cs_cd32fmv) {
 		if (cd32_fmv_active) {
 			cd32_fmv_genlock(vb, &vidinfo->tempbuffer);
@@ -4150,6 +4145,16 @@ static void finish_drawing_frame(bool drawlines)
 		} else {
 			vidinfo->drawbuffer.tempbufferinuse = false;
 		}
+	}
+
+	// grayscale
+	if (!currprefs.monitoremu && vidinfo->tempbuffer.bufmem_allocated && ((!bplcolorburst_field && currprefs.cs_color_burst) || (currprefs.gfx_grayscale))) {
+		setspecialmonitorpos(&vidinfo->tempbuffer);
+		emulate_grayscale(vb, &vidinfo->tempbuffer);
+		vb = vidinfo->outbuffer = &vidinfo->tempbuffer;
+		if (vb->nativepositioning)
+			setnativeposition(vb);
+		vidinfo->drawbuffer.tempbufferinuse = true;
 	}
 
 	unlockscr(vb, -1, -1);

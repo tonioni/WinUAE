@@ -724,14 +724,20 @@ static bool do_dctv(struct vidbuffer *src, struct vidbuffer *dst)
 	if (interlace_seen) {
 		if (currprefs.gfx_iscanlines) {
 			v = dctv(src, dst, false, lof_store ? 0 : 1);
-			if (v && currprefs.gfx_iscanlines > 1)
+			if (v && currprefs.gfx_iscanlines >= 2)
 				blank_generic(src, dst, lof_store ? 1 : 0);
 		} else {
 			v = dctv(src, dst, false, 0);
 			v |= dctv(src, dst, false, 1);
 		}
 	} else {
-		v = dctv(src, dst, true, 0);
+		if (currprefs.gfx_pscanlines) {
+			v = dctv(src, dst, false, lof_store ? 0 : 1);
+			if (v && currprefs.gfx_pscanlines >= 2)
+				dctv(src, dst, false, lof_store ? 1 : 0);
+		} else {
+			v = dctv(src, dst, true, 0);
+		}
 	}
 	return v;
 }
@@ -1206,14 +1212,20 @@ static bool do_firecracker24(struct vidbuffer *src, struct vidbuffer *dst)
 	if (interlace_seen) {
 		if (currprefs.gfx_iscanlines) {
 			v = firecracker24(src, dst, false, lof_store ? 0 : 1);
-			if (v && currprefs.gfx_iscanlines > 1)
+			if (v && currprefs.gfx_iscanlines >= 2)
 				blank_generic(src, dst, lof_store ? 1 : 0);
 		} else {
 			v = firecracker24(src, dst, false, 0);
 			v |= firecracker24(src, dst, false, 1);
 		}
 	} else {
-		v = firecracker24(src, dst, true, 0);
+		if (currprefs.gfx_pscanlines) {
+			v = firecracker24(src, dst, false, lof_store ? 0 : 1);
+			if (v && currprefs.gfx_pscanlines >= 2)
+				firecracker24(src, dst, false, lof_store ? 1 : 0);
+		} else {
+			v = firecracker24(src, dst, true, 0);
+		}
 	}
 	return v;
 }
@@ -1537,18 +1549,23 @@ static bool do_avideo(struct vidbuffer *src, struct vidbuffer *dst)
 	if (interlace_seen) {
 		if (currprefs.gfx_iscanlines) {
 			v = avideo(src, dst, false, lof, lof);
-			if (v && currprefs.gfx_iscanlines > 1)
+			if (v && currprefs.gfx_iscanlines >= 2)
 				blank_generic(src, dst, !lof);
 		} else {
 			v = avideo(src, dst, false, 0, 0);
 			v |= avideo(src, dst, false, 1, 1);
 		}
 	} else {
-		v = avideo(src, dst, true, 0, lof);
+		if (currprefs.gfx_pscanlines) {
+			v = avideo(src, dst, false, lof_store ? 0 : 1, lof);
+			if (v && currprefs.gfx_pscanlines >= 2)
+				avideo(src, dst, false, lof_store ? 1 : 0, lof);
+		} else {
+			v = avideo(src, dst, true, 0, lof);
+		}
 	}
 	return v;
 }
-
 
 static bool videodac18(struct vidbuffer *src, struct vidbuffer *dst, bool doublelines, int oddlines)
 {
@@ -1640,14 +1657,20 @@ static bool do_videodac18(struct vidbuffer *src, struct vidbuffer *dst)
 	if (interlace_seen) {
 		if (currprefs.gfx_iscanlines) {
 			v = videodac18(src, dst, false, lof_store ? 0 : 1);
-			if (v && currprefs.gfx_iscanlines > 1)
+			if (v && currprefs.gfx_iscanlines >= 2)
 				blank_generic(src, dst, lof_store ? 1 : 0);
 		} else {
 			v = videodac18(src, dst, false, 0);
 			v |= videodac18(src, dst, false, 1);
 		}
 	} else {
-		v = videodac18(src, dst, true, 0);
+		if (currprefs.gfx_pscanlines) {
+			v = videodac18(src, dst, false, lof_store ? 0 : 1);
+			if (v && currprefs.gfx_pscanlines >= 2)
+				videodac18(src, dst, false, lof_store ? 1 : 0);
+		} else {
+			v = videodac18(src, dst, true, 0);
+		}
 	}
 	return v;
 }
@@ -1860,14 +1883,20 @@ static bool do_hame(struct vidbuffer *src, struct vidbuffer *dst)
 	if (interlace_seen) {
 		if (currprefs.gfx_iscanlines) {
 			v = ham_e(src, dst, false, lof_store ? 0 : 1);
-			if (v && currprefs.gfx_iscanlines > 1)
+			if (v && currprefs.gfx_iscanlines >= 1)
 				blank_generic(src, dst, lof_store ? 1 : 0);
 		} else {
 			v = ham_e(src, dst, false, 0);
 			v |= ham_e(src, dst, false, 1);
 		}
 	} else {
-		v = ham_e(src, dst, true, 0);
+		if (currprefs.gfx_pscanlines) {
+			v = ham_e(src, dst, false, lof_store ? 0 : 1);
+			if (v && currprefs.gfx_pscanlines >= 2)
+				ham_e(src, dst, false, lof_store ? 1 : 0);
+		} else {
+			v = ham_e(src, dst, true, 0);
+		}
 	}
 	return v;
 }
@@ -2630,8 +2659,8 @@ bool emulate_genlock(struct vidbuffer *src, struct vidbuffer *dst)
 	} else {
 		if (currprefs.gfx_pscanlines) {
 			v = do_genlock(src, dst, false, lof_store ? 0 : 1);
-			if (v && currprefs.gfx_pscanlines > 1)
-				blank_generic(src, dst, lof_store ? 1 : 0);
+			if (v && currprefs.gfx_pscanlines >= 2)
+				do_genlock(src, dst, false, lof_store ? 1 : 0);
 		} else {
 			v = do_genlock(src, dst, true, 0);
 		}
@@ -2702,7 +2731,7 @@ bool emulate_grayscale(struct vidbuffer *src, struct vidbuffer *dst)
 	if (interlace_seen) {
 		if (currprefs.gfx_iscanlines) {
 			v = do_grayscale(src, dst, false, lof_store ? 0 : 1);
-			if (v && currprefs.gfx_iscanlines > 1)
+			if (v && currprefs.gfx_iscanlines >= 2)
 				blank_generic(src, dst, lof_store ? 1 : 0);
 		} else {
 			v = do_grayscale(src, dst, false, 0);
@@ -2711,8 +2740,8 @@ bool emulate_grayscale(struct vidbuffer *src, struct vidbuffer *dst)
 	} else {
 		if (currprefs.gfx_pscanlines) {
 			v = do_grayscale(src, dst, false, lof_store ? 0 : 1);
-			if (v && currprefs.gfx_pscanlines > 1)
-				blank_generic(src, dst, lof_store ? 1 : 0);
+			if (v && currprefs.gfx_pscanlines >= 2)
+				do_grayscale(src, dst, false, lof_store ? 1 : 0);
 		} else {
 			v = do_grayscale(src, dst, true, 0);
 		}
@@ -3495,18 +3524,23 @@ static bool do_opalvision(struct vidbuffer *src, struct vidbuffer *dst, int line
 	if (interlace_seen) {
 		if (currprefs.gfx_iscanlines) {
 			v = opalvision(src, dst, false, lof_store ? 0 : 1, line, opal);
-			if (v && currprefs.gfx_iscanlines > 1)
+			if (v && currprefs.gfx_iscanlines >= 1)
 				blank_generic(src, dst, lof_store ? 1 : 0);
 		} else {
 			v = opalvision(src, dst, false, 0, line, opal);
 			v |= opalvision(src, dst, false, 1, line, opal);
 		}
 	} else {
-		v = opalvision(src, dst, true, 0, line, opal);
+		if (currprefs.gfx_pscanlines) {
+			v = opalvision(src, dst, false, lof_store ? 0 : 1, line, opal);
+			if (v && currprefs.gfx_pscanlines >= 2)
+				opalvision(src, dst, false, lof_store ? 1 : 0, line, opal);
+		} else {
+			v = opalvision(src, dst, true, 0, line, opal);
+		}
 	}
 	return v;
 }
-
 
 static bool emulate_specialmonitors2(struct vidbuffer *src, struct vidbuffer *dst, int line)
 {
