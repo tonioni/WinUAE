@@ -2328,14 +2328,28 @@ static void clear_bitplane_border_aga (void)
 	if (shift < 0) {
 		shift = -shift;
 		len = (real_playfield_start - playfield_start) << shift;
-		memset (pixdata.apixels + pixels_offset + (playfield_start << shift), v, len);
+		int offset = playfield_start << shift;
+		memset (pixdata.apixels + pixels_offset + offset, v, len);
+		if (bplham)
+			memset(ham_linebuf + pixels_offset + offset, v, len * sizeof(uae_u32));
+
 		len = (playfield_end - real_playfield_end) << shift;
-		memset (pixdata.apixels + pixels_offset + (real_playfield_end << shift), v, len);
+		offset = real_playfield_end << shift;
+		memset (pixdata.apixels + pixels_offset + offset, v, len);
+		if (bplham)
+			memset(ham_linebuf + pixels_offset + offset, v, len * sizeof(uae_u32));
 	} else {
 		len = (real_playfield_start - playfield_start) >> shift;
-		memset (pixdata.apixels + pixels_offset + (playfield_start >> shift), v, len);
+		int offset = playfield_start >> shift;
+		memset (pixdata.apixels + pixels_offset + offset, v, len);
+		if (bplham)
+			memset(ham_linebuf + pixels_offset + offset, v, len * sizeof(uae_u32));
+
 		len = (playfield_end - real_playfield_end) >> shift;
-		memset (pixdata.apixels + pixels_offset + (real_playfield_end >> shift), v, len);
+		offset = real_playfield_end >> shift;
+		memset (pixdata.apixels + pixels_offset + offset, v, len);
+		if (bplham)
+			memset(ham_linebuf + pixels_offset + offset, v, len * sizeof(uae_u32));
 	}
 }
 #endif
