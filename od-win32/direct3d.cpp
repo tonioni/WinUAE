@@ -84,8 +84,9 @@ static const int ledtypes[] = {
 #define SHADERTYPE_BEFORE 1
 #define SHADERTYPE_AFTER 2
 #define SHADERTYPE_MIDDLE 3
-#define SHADERTYPE_MASK_BEFORE 3
-#define SHADERTYPE_MASK_AFTER 4
+#define SHADERTYPE_MASK_BEFORE 4
+#define SHADERTYPE_MASK_AFTER 5
+#define SHADERTYPE_MASK_MIDDLE 6
 #define SHADERTYPE_POST 10
 
 struct shaderdata
@@ -2522,7 +2523,7 @@ static int restoredeviceobjects (struct d3dstruct *d3d)
 			}
 		}
 		if (d3d->filterd3d->gfx_filtermask[2 * MAX_FILTERSHADERS][0]) {
-			struct shaderdata *s = allocshaderslot (d3d, SHADERTYPE_MASK_AFTER);
+			struct shaderdata *s = allocshaderslot (d3d, SHADERTYPE_MASK_MIDDLE);
 			createmasktexture (d3d, d3d->filterd3d->gfx_filtermask[2 * MAX_FILTERSHADERS], s);
 		}
 		for (int i = 0; i < MAX_FILTERSHADERS; i++) {
@@ -3483,7 +3484,7 @@ static void D3D_render2(struct d3dstruct *d3d, int mode)
 			struct shaderdata *s = &d3d->shaders[i];
 			if (s->type == SHADERTYPE_AFTER)
 				after = i;
-			if (s->masktexture)
+			if (s->type == SHADERTYPE_MASK_MIDDLE && s->masktexture)
 				masktexture = s->masktexture;
 		}
 

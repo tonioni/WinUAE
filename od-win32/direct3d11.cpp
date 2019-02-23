@@ -107,8 +107,9 @@ static const int ledtypes[] = {
 #define SHADERTYPE_BEFORE 1
 #define SHADERTYPE_AFTER 2
 #define SHADERTYPE_MIDDLE 3
-#define SHADERTYPE_MASK_BEFORE 3
-#define SHADERTYPE_MASK_AFTER 4
+#define SHADERTYPE_MASK_BEFORE 4
+#define SHADERTYPE_MASK_AFTER 5
+#define SHADERTYPE_MASK_MIDDLE 6
 #define SHADERTYPE_POST 10
 
 struct shadertex
@@ -1504,6 +1505,7 @@ static void setupscenecoords(struct d3d11struct *d3d, bool normalrender)
 			d3d->m_screenWidth, d3d->m_screenHeight,
 			d3d->m_bitmapWidth, d3d->m_bitmapHeight);
 	}
+
 	d3d->sr2 = sr;
 	d3d->dr2 = dr;
 	d3d->zr2 = zr;
@@ -3994,7 +3996,7 @@ static void TextureShaderClass_RenderShader(struct d3d11struct *d3d)
 	d3d->m_deviceContext->VSSetShader(d3d->m_vertexShader, NULL, 0);
 	bool mask = false;
 	for (int i = 0; i < MAX_SHADERS; i++) {
-		if (d3d->shaders[i].type == SHADERTYPE_MASK_AFTER && d3d->shaders[i].masktexturerv) {
+		if (d3d->shaders[i].type == SHADERTYPE_MASK_MIDDLE && d3d->shaders[i].masktexturerv) {
 			mask = true;
 		}
 	}
@@ -4214,7 +4216,7 @@ static bool renderframe(struct d3d11struct *d3d)
 	int after = -1;
 	for (int i = 0; i < MAX_SHADERS; i++) {
 		struct shaderdata11 *s = &d3d->shaders[i];
-		if (s->type == SHADERTYPE_MASK_AFTER && s->masktexturerv) {
+		if (s->type == SHADERTYPE_MASK_MIDDLE && s->masktexturerv) {
 			d3d->m_deviceContext->PSSetShaderResources(1, 1, &s->masktexturerv);
 			mask = true;
 		}
@@ -4381,7 +4383,7 @@ static bool restore(struct d3d11struct *d3d)
 		}
 	}
 	if (d3d->filterd3d->gfx_filtermask[2 * MAX_FILTERSHADERS][0]) {
-		struct shaderdata11 *s = allocshaderslot(d3d, SHADERTYPE_MASK_AFTER);
+		struct shaderdata11 *s = allocshaderslot(d3d, SHADERTYPE_MASK_MIDDLE);
 		if (!createmasktexture(d3d, d3d->filterd3d->gfx_filtermask[2 * MAX_FILTERSHADERS], s)) {
 			freeshaderdata(s);
 		}
