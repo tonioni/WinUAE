@@ -4574,7 +4574,7 @@ uae_u8 *restore_disk (int num,uae_u8 *src)
 		} else if (newis) {
 			drive_insert (floppy + num, &currprefs, num, changed_prefs.floppyslots[num].df, false, false);
 			if (drive_empty (floppy + num)) {
-				if (newis && old[0]) {
+				if (newis && zfile_exists(old)) {
 					_tcscpy (changed_prefs.floppyslots[num].df, old);
 					drive_insert (floppy + num, &currprefs, num, changed_prefs.floppyslots[num].df, false, false);
 					if (drive_empty (floppy + num))
