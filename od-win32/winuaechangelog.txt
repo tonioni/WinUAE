@@ -1,5 +1,19 @@
 
 
+- If win32.guikey is set to zero, disable F12 special handling. Normally if win32.guikey equals valid keycode, F12 can't open GUI, even if F12 in Input panel is configured to open GUI. (Another historic reason..)
+- Genlock mode didn't always enable fully (was emulated but transparency was not visible).
+- HAM + border sprites visible in border areas: in some situations bitplane data was incorrectly visible in borders.
+- Filter border "blanking" was not working (b1).
+- Selected filter panel mask/overlay was not updated when filter position (-4..0..4) was modified. (410b4)
+- Many video port adapters (which includes grayscale mode and genlock) didn't support all doubling modes.
+- Genlock and CD32FMV output was in color even if grayscale mode was enabled.
+- 68030 MMU emulation now also creates short bus error frames. They are created when bus error is caused by write and write was instruction's last memory access. For some reason documentation mentions that some instruction prefetch faults also generate short frame but it seems to be incorrect.
+- 68020/030 MOVES in instruction pipeline emulation (prefetch/more compatible) mode had wrong instruction length.
+- 68020 full format extension disassembler fix, some addressing modes didn't print address register ([] instead of [an])
+- Added IVS Trumpcard (non-Pro) v4.9 ROM.
+- uaedbg ELF executable support. Not much different compared to HUNK support except ELF SHF_WRITE and SHF_EXECINSTR section flags are used to detect invalid writes or instruction fetches from non-code sections. uaedbg changed, old version is not compatible anymore. Separate debug files used in AROS are not yet parsed. 
+- do not try to validate or canonicalize UNC network paths to reduce unnecessary delays at startup.
+
 Beta 2:
 
 - Adjusted CDTV CD drive read/play startup delays. Fixes Town without no name speech audiotrack play stopping too early.
