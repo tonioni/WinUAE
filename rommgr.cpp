@@ -95,7 +95,7 @@ struct romdata *getromdatabypath (const TCHAR *path)
 	return NULL;
 }
 
-#define NEXT_ROM_ID 249
+#define NEXT_ROM_ID 250
 
 #define ALTROM(id,grp,num,size,flags,crc32,a,b,c,d,e) \
 { _T("X"), 0, 0, 0, 0, 0, size, id, 0, 0, flags, (grp << 16) | num, 0, NULL, crc32, a, b, c, d, e },
@@ -566,6 +566,8 @@ static struct romdata roms[] = {
 	0x1f672e4b, 0xb20d50b8, 0x31ec9823, 0xfa732fc6, 0x522ecc6a, 0xae36ec33, NULL, NULL },
 	{ _T("IVS GrandSlam/Trumpcard Pro v4.9"), 4, 9, 4, 9, _T("IVSPRO\0"), 16384, 161, 0, 0, ROMTYPE_IVSTPRO, 0, 0, NULL,
 	0x4a15f224, 0x29500b47, 0x289e84ac, 0x575e3c7d, 0x82199b45, 0x605d8fc9, NULL, NULL },
+	{ _T("IVS Trumpcard v4.9"), 4, 9, 4, 9, _T("IVSTC\0"), 16384, 249, 0, 0, ROMTYPE_IVSTC, 0, 0, NULL,
+	0x5282febc, 0x9d69a534, 0x60529d66, 0x13b64723, 0xb0c8dfa5, 0x80274048, NULL, NULL },
 	{ _T("Expansion Systems Dataflyer+ v1.5"), 1, 5, 1, 5, _T("DATAFLYERPLUS\0"), 32768, 170, 0, 0, ROMTYPE_DATAFLYER, 0, 0, NULL,
 	0x00888f19, 0x54b73354, 0xb3592691, 0x59a80909, 0x0bdb67df, 0x8ac22aa9, NULL, NULL },
 	{ _T("Expansion Systems Dataflyer+ v1.7"), 1, 7, 1, 7, _T("DATAFLYERPLUS\0"), 32768, 171, 0, 0, ROMTYPE_DATAFLYER, 0, 0, NULL,
