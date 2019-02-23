@@ -1,5 +1,5 @@
 
-uaecptr debugmem_reloc(uaecptr exeaddress, uae_u32 len, uaecptr task, uae_u32 *stack);
+uaecptr debugmem_reloc(uaecptr exeaddress, uae_u32 len, uaecptr dbgaddress, uae_u32 dbglen, uaecptr task, uae_u32 *stack);
 void debugmem_init(bool);
 uaecptr debugmem_allocmem(int mode, uae_u32 size, uae_u32 flags, uae_u32 caller);
 uae_u32 debugmem_freemem(int mode, uaecptr addr, uae_u32 size, uae_u32 caller);

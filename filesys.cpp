@@ -8956,9 +8956,17 @@ static uae_u32 REGPARAM2 mousehack_done (TrapContext *ctx)
 		trap_put_long(ctx, trap_get_areg(ctx, 7) + 4 * 4, ret);
 	} else if (mode == 200) {
 		uae_u32 v;
-		// a0 = data, d0 = length, a1 = task, d2 = stack size (in), stack ptr (out)
-		uae_u32 stack = trap_get_dreg(ctx, 2);
-		v = debugmem_reloc(trap_get_areg(ctx, 0), trap_get_dreg(ctx, 0), trap_get_areg(ctx, 1), &stack);
+		// a0 = data, d0 = length, a1 = task, d3 = stack size (in), stack ptr (out)
+		// a2 = debugdata, d2 = debuglength
+		// d4 = flags
+		if ((trap_get_dreg(ctx, 4) & 3) != 1) {
+			write_log(_T("unsupported uaedbg version\n"));
+			return 0;
+		}
+		uae_u32 stack = trap_get_dreg(ctx, 3);
+		v = debugmem_reloc(trap_get_areg(ctx, 0), trap_get_dreg(ctx, 0),
+			trap_get_areg(ctx, 2), trap_get_dreg(ctx, 2),
+			trap_get_areg(ctx, 1), &stack);
 		trap_set_dreg(ctx, 2, stack);
 		return v;
 	} else if (mode == 201) {
