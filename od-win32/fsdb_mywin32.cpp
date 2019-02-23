@@ -780,7 +780,13 @@ void my_canonicalize_path(const TCHAR *path, TCHAR *out, int size)
 
 	// don't attempt to validate and canonicalize invalid or fake paths
 	if (path[0] == ':' || path[0] == 0 || _tcscmp(path, _T("\\")) == 0 || _tcscmp(path, _T("/")) == 0) {
-		_tcsncpy (out, path, size);
+		_tcsncpy(out, path, size);
+		out[size - 1] = 0;
+		return;
+	}
+	// skip network paths, prevent common few seconds delay.
+	if (path[0] == '\\' && path[1] == '\\') {
+		_tcsncpy(out, path, size);
 		out[size - 1] = 0;
 		return;
 	}
