@@ -5998,7 +5998,8 @@ static void BPLCON0_Denise (int hpos, uae_u16 v, bool immediate)
 		v &= ~0x00F1;
 	else if (! (currprefs.chipset_mask & CSMASK_AGA))
 		v &= ~0x00B0;
-	v &= ~(0x0200 | 0x0100 | 0x0080 | 0x0020);
+
+	v &= ~((currprefs.cs_color_burst ? 0x0000 : 0x0200) | 0x0100 | 0x0080 | 0x0020);
 #if SPRBORDER
 	v |= 1;
 #endif

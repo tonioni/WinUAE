@@ -2634,7 +2634,7 @@ void init_row_map(void)
 	struct vidbuf_description *vidinfo = &adisplays[0].gfxvidinfo;
 	static uae_u8 *oldbufmem;
 	static int oldheight, oldpitch;
-	static bool oldgenlock;
+	static bool oldgenlock, oldburst;
 	int i, j;
 
 	if (vidinfo->drawbuffer.height_allocated > max_uae_height) {
@@ -2649,7 +2649,8 @@ void init_row_map(void)
 	if (oldbufmem && oldbufmem == vidinfo->drawbuffer.bufmem &&
 		oldheight == vidinfo->drawbuffer.height_allocated &&
 		oldpitch == vidinfo->drawbuffer.rowbytes &&
-		oldgenlock == init_genlock_data)
+		oldgenlock == init_genlock_data &&
+		oldburst == (row_map_color_burst_buffer ? 1 : 0))
 		return;
 	xfree(row_map_genlock_buffer);
 	row_map_genlock_buffer = NULL;
@@ -2678,6 +2679,7 @@ void init_row_map(void)
 	oldheight = vidinfo->drawbuffer.height_allocated;
 	oldpitch = vidinfo->drawbuffer.rowbytes;
 	oldgenlock = init_genlock_data;
+	oldburst = row_map_color_burst_buffer ? 1 : 0;
 }
 
 static void init_aspect_maps(void)
@@ -4121,7 +4123,7 @@ static void finish_drawing_frame(bool drawlines)
 	}
 
 	// genlock
-	if (currprefs.genlock_image && !currprefs.monitoremu && !currprefs.cs_color_burst && vidinfo->tempbuffer.bufmem_allocated && currprefs.genlock) {
+	if (currprefs.genlock_image && currprefs.genlock && !currprefs.monitoremu && vidinfo->tempbuffer.bufmem_allocated) {
 		setspecialmonitorpos(&vidinfo->tempbuffer);
 		if (init_genlock_data != specialmonitor_need_genlock()) {
 			need_genlock_data = init_genlock_data = specialmonitor_need_genlock();
@@ -4148,7 +4150,8 @@ static void finish_drawing_frame(bool drawlines)
 	}
 
 	// grayscale
-	if (!currprefs.monitoremu && vidinfo->tempbuffer.bufmem_allocated && ((!bplcolorburst_field && currprefs.cs_color_burst) || (currprefs.gfx_grayscale))) {
+	if (!currprefs.monitoremu && vidinfo->tempbuffer.bufmem_allocated &&
+		((!currprefs.genlock && (!bplcolorburst_field && currprefs.cs_color_burst)) || currprefs.gfx_grayscale)) {
 		setspecialmonitorpos(&vidinfo->tempbuffer);
 		emulate_grayscale(vb, &vidinfo->tempbuffer);
 		vb = vidinfo->outbuffer = &vidinfo->tempbuffer;
