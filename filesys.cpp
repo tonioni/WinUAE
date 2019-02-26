@@ -8747,13 +8747,17 @@ static int dofakefilesys (TrapContext *ctx, UnitInfo *uip, uaecptr parmpacket, s
 /* Fill in per-unit fields of a parampacket */
 static uae_u32 REGPARAM2 filesys_dev_storeinfo (TrapContext *ctx)
 {
-	UnitInfo *uip = mountinfo.ui;
 	int no = trap_get_dreg(ctx, 6) & 0x7fffffff;
 	int unit_no = no & 65535;
 	int sub_no = no >> 16;
-	int iscd = (trap_get_dreg(ctx, 6) & 0x80000000) != 0 || uip[unit_no].unit_type == UNIT_CDFS;
 	int type;
+
+	if (unit_no >= MAX_FILESYSTEM_UNITS)
+		return -2;
+
+	UnitInfo *uip = mountinfo.ui;
 	uaecptr parmpacket = trap_get_areg(ctx, 0);
+	int iscd = (trap_get_dreg(ctx, 6) & 0x80000000) != 0 || uip[unit_no].unit_type == UNIT_CDFS;
 	struct uaedev_config_info *ci = &uip[unit_no].hf.ci;
 
 	uip[unit_no].parmpacket = parmpacket;
