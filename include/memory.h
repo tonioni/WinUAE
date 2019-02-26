@@ -554,40 +554,40 @@ STATIC_INLINE uae_u32 get_wordi(uaecptr addr)
 
 STATIC_INLINE uae_u32 get_long_jit(uaecptr addr)
 {
-	addrbank *bank = &get_mem_bank(addr);
 #ifdef JIT
+	addrbank *bank = &get_mem_bank(addr);
 	special_mem |= bank->jit_read_flag;
 #endif
 	return memory_get_long(addr);
 }
 STATIC_INLINE uae_u32 get_word_jit(uaecptr addr)
 {
-	addrbank *bank = &get_mem_bank(addr);
 #ifdef JIT
+	addrbank *bank = &get_mem_bank(addr);
 	special_mem |= bank->jit_read_flag;
 #endif
 	return memory_get_word(addr);
 }
 STATIC_INLINE uae_u32 get_byte_jit(uaecptr addr)
 {
-	addrbank *bank = &get_mem_bank(addr);
 #ifdef JIT
+	addrbank *bank = &get_mem_bank(addr);
 	special_mem |= bank->jit_read_flag;
 #endif
 	return memory_get_byte(addr);
 }
 STATIC_INLINE uae_u32 get_longi_jit(uaecptr addr)
 {
-	addrbank *bank = &get_mem_bank(addr);
 #ifdef JIT
+	addrbank *bank = &get_mem_bank(addr);
 	special_mem |= bank->jit_read_flag;
 #endif
 	return memory_get_longi(addr);
 }
 STATIC_INLINE uae_u32 get_wordi_jit(uaecptr addr)
 {
-	addrbank *bank = &get_mem_bank(addr);
 #ifdef JIT
+	addrbank *bank = &get_mem_bank(addr);
 	special_mem |= bank->jit_read_flag;
 #endif
 	return memory_get_wordi(addr);
@@ -642,24 +642,24 @@ STATIC_INLINE void put_byte (uaecptr addr, uae_u32 b)
 
 STATIC_INLINE void put_long_jit(uaecptr addr, uae_u32 l)
 {
-	addrbank *bank = &get_mem_bank(addr);
 #ifdef JIT
+	addrbank *bank = &get_mem_bank(addr);
 	special_mem |= bank->jit_write_flag;
 #endif
 	memory_put_long(addr, l);
 }
 STATIC_INLINE void put_word_jit(uaecptr addr, uae_u32 l)
 {
-	addrbank *bank = &get_mem_bank(addr);
 #ifdef JIT
+	addrbank *bank = &get_mem_bank(addr);
 	special_mem |= bank->jit_write_flag;
 #endif
 	memory_put_word(addr, l);
 }
 STATIC_INLINE void put_byte_jit(uaecptr addr, uae_u32 l)
 {
-	addrbank *bank = &get_mem_bank(addr);
 #ifdef JIT
+	addrbank *bank = &get_mem_bank(addr);
 	special_mem |= bank->jit_write_flag;
 #endif
 	memory_put_byte(addr, l);

@@ -6812,8 +6812,6 @@ static struct trainerpatch **tpptr;
 static int tpptrcnt;
 bool debug_opcode_watch;
 
-uaecptr ShowEA(void *f, uaecptr pc, uae_u16 opcode, int reg, amodes mode, wordsizes size, TCHAR *buf, uae_u32 *eaddr, int safemode);
-
 static int debug_trainer_get_ea(struct trainerpatch *tp, uaecptr pc, uae_u16 opcode, uaecptr *addr)
 {
 	struct instr *dp = table68k + opcode;
