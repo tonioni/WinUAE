@@ -179,6 +179,7 @@ COLORREF g_dwBackgroundColor;
 int pause_emulation;
 
 static int sound_closed;
+static int recapture;
 static int focus;
 static int mouseinside;
 int mouseactive;
@@ -756,7 +757,7 @@ static void setcursorshape(int monid)
 
 void releasecapture(struct AmigaMonitor *mon)
 {
-	//write_log(_T("releasecapture %d\n"), showcursor);
+	//write_log(_T("releasecapture %d\n"), mon_cursorclipped);
 #if 0
 	CURSORINFO pci;
 	pci.cbSize = sizeof pci;
@@ -967,7 +968,7 @@ static void setmouseactive2(struct AmigaMonitor *mon, int active, bool allowpaus
 	bool isrp = false;
 #endif
 
-	//write_log (_T("setmouseactive %d->%d showcursor=%d focus=%d\n"), mouseactive, active, showcursor, focus);
+	//write_log (_T("setmouseactive %d->%d cursor=%d focus=%d recap=%d\n"), mouseactive, active, mon_cursorclipped, focus, recapture);
 
 	if (active == 0)
 		releasecapture (mon);
@@ -992,6 +993,7 @@ static void setmouseactive2(struct AmigaMonitor *mon, int active, bool allowpaus
 	mon->mouseposx = mon->mouseposy = 0;
 	//write_log (_T("setmouseactive(%d)\n"), active);
 	releasecapture (mon);
+	recapture = 0;
 
 	if (isfullscreen () <= 0 && (currprefs.input_mouse_untrap & MOUSEUNTRAP_MAGIC) && currprefs.input_tablet > 0) {
 		if (mousehack_alive ())
@@ -1181,6 +1183,7 @@ static void winuae_inactive(struct AmigaMonitor *mon, HWND hWnd, int minimized)
 	UnregisterHotKey (mon->hAmigaWnd, IDHOT_SNAPDESKTOP);
 #endif
 	focus = 0;
+	recapture = 0;
 	wait_keyrelease ();
 	setmouseactive(mon->monitor_id, 0);
 	clipboard_active(mon->hAmigaWnd, 0);
@@ -1358,6 +1361,9 @@ void setmouseactivexy(int monid, int x, int y, int dir)
 	if (mouseactive) {
 		disablecapture ();
 		SetCursorPos (x, y);
+		if (dir) {
+			recapture = 1;
+		}
 	}
 }
 
@@ -2206,6 +2212,11 @@ static LRESULT CALLBACK AmigaWindowProc(HWND hWnd, UINT message, WPARAM wParam, 
 
 		mx -= mon->mouseposx;
 		my -= mon->mouseposy;
+
+		if (recapture && isfullscreen() <= 0) {
+			enablecapture(mon->monitor_id);
+			return 0;
+		}
 
 		if (wm < 0 && (istablet || currprefs.input_tablet >= TABLET_MOUSEHACK)) {
 			/* absolute */
