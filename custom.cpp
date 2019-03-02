@@ -150,7 +150,6 @@ static bool graphicsbuffer_retry;
 static int scanlinecount;
 static int cia_hsync;
 static bool toscr_scanline_complex_bplcon1;
-static bool spr_width_64_seen;
 
 #define LOF_TOGGLES_NEEDED 3
 //#define NLACE_CNT_NEEDED 50
@@ -4029,7 +4028,6 @@ static void record_sprite (int line, int num, int sprxp, uae_u16 *data, uae_u16 
 			stbfm[7] |= state;
 			stbfm += 8;
 		}
-		spr_width_64_seen = true;
 	}
 }
 
@@ -7859,11 +7857,10 @@ void init_hardware_for_drawing_frame (void)
 	if (prev_sprite_entries) {
 		int first_pixel = prev_sprite_entries[0].first_pixel;
 		int npixels = prev_sprite_entries[prev_next_sprite_entry].first_pixel - first_pixel;
-		memset (spixels + first_pixel, 0, npixels * sizeof *spixels);
+		memset(spixels + first_pixel, 0, npixels * sizeof *spixels);
 		memset(spixstate.stb + first_pixel, 0, npixels * sizeof *spixstate.stb);
-		if (spr_width_64_seen) {
+		if (currprefs.chipset_mask & CSMASK_AGA) {
 			memset(spixstate.stbfm + first_pixel, 0, npixels * sizeof *spixstate.stbfm);
-			spr_width_64_seen = false;
 		}
 	}
 	prev_next_sprite_entry = next_sprite_entry;

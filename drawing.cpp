@@ -274,7 +274,7 @@ static bool ecs_genlock_features_active;
 static uae_u8 ecs_genlock_features_mask;
 static bool ecs_genlock_features_colorkey;
 static int hsync_shift_hack;
-static bool sprite_smaller_than_64;
+static bool sprite_smaller_than_64, sprite_smaller_than_64_inuse;
 
 uae_sem_t gui_sem;
 
@@ -1299,7 +1299,7 @@ static uae_u8 render_sprites (int pos, int dualpf, uae_u8 apixel, int aga)
 	// If 64 pixel wide sprite and FMODE gets lowered when sprite's
 	// first 32 pixels are being drawn: matching pixel(s) in second
 	// 32 pixel part gets blanked.
-	if (aga && spb->stfmdata && sprite_smaller_than_64) {
+	if (aga && spb->stfmdata && sprite_smaller_than_64_inuse && sprite_smaller_than_64) {
 		spb[32 << currprefs.gfx_resolution].data &= ~spb->stfmdata;
 	}
 
@@ -2815,6 +2815,8 @@ static void pfield_expand_dp_bplcon (void)
 		bpldelay_sh = sh;
 		pfield_mode_changed = true;
 	}
+	if (sprite_smaller_than_64 && (dp_for_drawing->fmode & 0x0c) == 0x0c)
+		sprite_smaller_than_64_inuse = true;
 	sprite_smaller_than_64 = (dp_for_drawing->fmode & 0x0c) != 0x0c;
 #endif
 	ecs_genlock_features_active = (currprefs.chipset_mask & CSMASK_ECS_DENISE) && ((dp_for_drawing->bplcon2 & 0x0c00) || ce_is_borderntrans(colors_for_drawing.extra)) ? 1 : 0;
@@ -3154,6 +3156,7 @@ static void pfield_draw_line (struct vidbuffer *vb, int lineno, int gfx_ypos, in
 	}
 
 	have_color_changes = is_color_changes(dip_for_drawing);
+	sprite_smaller_than_64_inuse = false;
 
 	dh = dh_line;
 	xlinebuffer = vidinfo->drawbuffer.linemem;
