@@ -1841,6 +1841,15 @@ err:
 	return 0;
 }
 
+static void set_direct_memory(addrbank *ab)
+{
+	if (!(ab->flags & ABFLAG_DIRECTACCESS))
+		return;
+	ab->baseaddr_direct_r = ab->baseaddr;
+	if (!(ab->flags & ABFLAG_ROM))
+		ab->baseaddr_direct_w = ab->baseaddr;
+}
+
 #ifndef NATMEM_OFFSET
 
 bool mapped_malloc (addrbank *ab)
@@ -1849,6 +1858,7 @@ bool mapped_malloc (addrbank *ab)
 	ab->baseaddr = xcalloc (uae_u8, ab->reserved_size + 4);
 	ab->allocated_size =  ab->baseaddr != NULL ? ab->reserved_size : 0;
 	ab->flags &= ~ABFLAG_MAPPED;
+	set_direct_memory(ab);
 	return ab->baseaddr != NULL;
 }
 
@@ -1969,15 +1979,6 @@ static void add_shmmaps (uae_u32 start, addrbank *what)
 }
 
 #define MAPPED_MALLOC_DEBUG 0
-
-static void set_direct_memory(addrbank *ab)
-{
-	if (!(ab->flags & ABFLAG_DIRECTACCESS))
-		return;
-	ab->baseaddr_direct_r = ab->baseaddr;
-	if (!(ab->flags & ABFLAG_ROM))
-		ab->baseaddr_direct_w = ab->baseaddr;
-}
 
 bool mapped_malloc (addrbank *ab)
 {
