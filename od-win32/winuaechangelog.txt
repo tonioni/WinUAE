@@ -1,4 +1,24 @@
 
+Beta 4:
+
+- Enabled color burst bit emulation always made display grayscale except if BPLCON0 was not modified during frame.
+- Adjusted color burst emulation: if genlock is connected, color burst state is ignored. Grayscale due disabled colorburst when using genlock is impossible because it is connected to RGB port and color burst only affects composite video out.
+- 410b7 sprite FMODE=3 to lower FMODE value mid scan line update affected (parts of sprite disappeared) non-FMODE=3 sprites in certain situations.
+- UAE RDB hardfile mounting didn't stop partition enumeration if number of partitions in single HDF exceeded max amount UAE HDF/directory partitions.
+- Magic mouse change (b2) reverted and correctly fixed now. Only reactive WinUAE when mouse is moved back over WinUAE window with focus still active.
+- 68020/030 cycle-exact: CPU to AGA chipset bus write waited full chipset cycle to finish which is not correct. Written data is latched by chipset buffers allowing CPU to continue executing after 68020/030 CPU memory cycle finishes (which is shorter than chipset cycle). This update slightly increases write speed to chipram/custom registers. (and probably fixes some demos and breaks others as usual)
+- D3D11 shader viewport coordinate fixes. (pre and post shaders)
+- Added Prelude (Zorro II) and Prelude 1200 (clock port) sound card emulation. (Hardware info from Oliver Gantert)
+
+Prelude emulation notes:
+- Prelude is similar to Toccata. PIO data transfers, FIFO memory and CS4231a audio codec chip. Toccata uses AD1848, CS4231a is fully compatible with AD1848 and also has some extra features.
+- Prelude 1200 driver only initializes if card.resource exists: HW config must be A1200 with A1200 KS ROM. (=hardware with clock port)
+- There may be something wrong with AHI (version specific?), test sound plays at 8000Hz instead of 44100Hz.
+- I am not sure which AHI version is required. First I tried some 5.x AHI and device was detected but test button did nothing (also no HW accesses whatsoever when button was pressed). Replaced with 6.0 and test sound worked.
+
+-> don't immediately assume problem is in emulation!
+
+Beta 3:
 
 - If win32.guikey is set to zero, disable F12 special handling. Normally if win32.guikey equals valid keycode, F12 can't open GUI, even if F12 in Input panel is configured to open GUI. (Another historic reason..)
 - Genlock mode didn't always enable fully (was emulated but transparency was not visible).

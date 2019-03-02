@@ -2451,6 +2451,24 @@ static uae_u8 *loadelffile(uae_u8 *file, int filelen, uae_u8 *dbgfile, int debug
 	int debugstr_size;
 	int debugabbrev_size;
 	int symtab_num = 0;
+	bool debuglink = false;
+
+	for (int i = 0; i < shnum; i++) {
+		struct sheader *shp = (struct sheader*)(file + i * sizeof(sheader) + eh->shoff);
+		struct sheader sh;
+		swap_header(&sh, shp);
+		uae_char *name = (uae_char*)(strtabsym + sh.name);
+		if (!strcmp(name, ".gnu_debuglink")) {
+			debuglink = true;
+		}
+	}
+
+	if (debuglink) {
+		;
+	} else {
+		dbgfile = NULL;
+		debugfilelen = 0;
+	}
 
 	for (int i = 0; i < shnum; i++) {
 		struct sheader *shp = (struct sheader*)(file + i * sizeof(sheader) + eh->shoff);
