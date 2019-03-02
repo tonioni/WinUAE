@@ -5524,10 +5524,26 @@ const struct expansionromtype expansionroms[] = {
 	},
 
 	/* Sound Cards */
-
+	{
+		_T("prelude"), _T("Prelude"), _T("Albrecht Computer Technik"),
+		NULL, prelude_init, NULL, NULL, ROMTYPE_PRELUDE | ROMTYPE_NOT, 0, 0, BOARD_AUTOCONFIG_Z2, true,
+		NULL, 0,
+		false, EXPANSIONTYPE_SOUND,
+		0, 0, 0, false, NULL,
+		false, 0, toccata_soundcard_settings,
+		{ 0xc1, 1, 0, 0, 0x42, 0x31, 0, 0, 0, 3 }
+	},
+	{
+		_T("prelude1200"), _T("Prelude 1200"), _T("Albrecht Computer Technik"),
+		NULL, prelude1200_init, NULL, NULL, ROMTYPE_PRELUDE1200 | ROMTYPE_NOT, 0, 0, BOARD_NONAUTOCONFIG_BEFORE, true,
+		NULL, 0,
+		false, EXPANSIONTYPE_SOUND,
+		0, 0, 0, false, NULL,
+		false, 0, toccata_soundcard_settings
+	},
 	{
 		_T("toccata"), _T("Toccata"), _T("MacroSystem"),
-		NULL, sndboard_init, NULL, NULL, ROMTYPE_TOCCATA | ROMTYPE_NOT, 0, 0, BOARD_AUTOCONFIG_Z2, true,
+		NULL, toccata_init, NULL, NULL, ROMTYPE_TOCCATA | ROMTYPE_NOT, 0, 0, BOARD_AUTOCONFIG_Z2, true,
 		NULL, 0,
 		false, EXPANSIONTYPE_SOUND,
 		0, 0, 0, false, NULL,

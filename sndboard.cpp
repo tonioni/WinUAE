@@ -1,7 +1,8 @@
 /*
 * UAE - The Un*x Amiga Emulator
 *
-* Toccata Z2 board emulation
+* Toccata Z2
+* Prelude and Prelude A1200
 *
 * Copyright 2014-2015 Toni Wilen
 *
@@ -24,6 +25,9 @@
 #include "rommgr.h"
 #include "devices.h"
 
+#define DEBUG_SNDDEV 0
+#define DEBUG_SNDDEV_FIFO 0
+
 static uae_u8 *sndboard_get_buffer(int *frames);
 static void sndboard_release_buffer(uae_u8 *buffer, int frames);
 static void sndboard_free_capture(void);
@@ -34,6 +38,7 @@ static double base_event_clock;
 extern addrbank uaesndboard_bank_z2, uaesndboard_bank_z3;
 
 #define MAX_DUPLICATE_SOUND_BOARDS 1
+#define MAX_SNDDEVS 3
 
 #define MAX_UAE_CHANNELS 8
 #define MAX_UAE_STREAMS 8
@@ -1166,52 +1171,72 @@ void pmx_reset(void)
 	sndboard_rethink();
 }
 
-// TOCCATA
+// TOCCATA/PRELUDE
 
-#define DEBUG_TOCCATA 0
+#define SNDDEV_TOCCATA 0
+#define SNDDEV_PRELUDE 1
+#define SNDDEV_PRELUDE1200 2
 
-#define BOARD_MASK 65535
 #define BOARD_SIZE 65536
+#define BOARD_MASK (BOARD_SIZE - 1)
 
-#define FIFO_SIZE 1024
-#define FIFO_SIZE_HALF (FIFO_SIZE / 2)
+#define FIFO_SIZE_MAX 1024
 
-struct toccata_data {
+struct snddev_data {
 	bool enabled;
+	int type;
 	uae_u8 acmemory[128];
 	int configured;
+	uae_u32 baseaddress;
 	uae_u8 ad1848_index;
-	uae_u8 ad1848_regs[16];
+	uae_u8 ad1848_index_mask;
+	uae_u8 ad1848_regs[32];
 	uae_u8 ad1848_status;
 	int autocalibration;
-	uae_u8 toccata_status;
-	int toccata_irq;
+	uae_u8 snddev_status;
+	int snddev_irq;
 	int fifo_read_index;
 	int fifo_write_index;
 	int data_in_fifo;
-	uae_u8 fifo[FIFO_SIZE];
+	int fifo_size;
+	uae_u8 fifo[FIFO_SIZE_MAX];
+	bool fifo_play_byteswap, fifo_record_byteswap;
 
 	int fifo_record_read_index;
 	int fifo_record_write_index;
 	int data_in_record_fifo;
-	uae_u8 record_fifo[FIFO_SIZE];
+	uae_u8 record_fifo[FIFO_SIZE_MAX];
 
 	int streamid;
 	int ch_sample[2];
 
+	uae_u16 codec_reg1_mask;
+	uae_u16 codec_reg1_addr;
+	uae_u16 codec_reg2_mask;
+	uae_u16 codec_reg2_addr;
+	uae_u16 codec_fifo_mask;
+	uae_u16 codec_fifo_addr;
+
 	int fifo_half;
-	int toccata_active;
+	int snddev_active;
 	int left_volume, right_volume;
 
-	int freq, freq_adjusted, channels, samplebits;
+	int freq, freq_adjusted;
+	int play_channels, play_samplebits;
+	int record_channels, record_samplebits;
 	int event_time, record_event_time;
 	int record_event_counter;
-	int bytespersample;
+	int play_bytespersample, record_bytespersample;
+
+	int capture_buffer_size;
+	int capture_read_index, capture_write_index;
+	uae_u8 *capture_buffer;
 
 	struct romconfig *rc;
+	addrbank *bank;
 };
 
-static struct toccata_data toccata[MAX_DUPLICATE_SOUND_BOARDS];
+static struct snddev_data snddev[MAX_SNDDEVS];
 
 extern addrbank toccata_bank;
 
@@ -1233,67 +1258,79 @@ void update_sndboard_sound (double clk)
 	base_event_clock = clk;
 }
 
-static void process_fifo(void)
+static void process_fifo(struct snddev_data *data)
 {
-	struct toccata_data *data = &toccata[0];
 	int prev_data_in_fifo = data->data_in_fifo;
-	if (data->data_in_fifo >= data->bytespersample) {
+	if (data->data_in_fifo >= data->play_bytespersample) {
 		uae_s16 v;
-		if (data->samplebits == 8) {
+		if (data->play_samplebits == 8) {
 			v = data->fifo[data->fifo_read_index] << 8;
 			v |= data->fifo[data->fifo_read_index];
 			data->ch_sample[0] = v;
-			if (data->channels == 2) {
+			if (data->play_channels == 2) {
 				v = data->fifo[data->fifo_read_index + 1] << 8;
 				v |= data->fifo[data->fifo_read_index + 1];
 			}
 			data->ch_sample[1] = v;
-		} else if (data->samplebits == 16) {
-			v = data->fifo[data->fifo_read_index + 1] << 8;
-			v |= data->fifo[data->fifo_read_index + 0];
+		} else if (data->play_samplebits == 16) {
+			if (data->fifo_play_byteswap) {
+				v = data->fifo[data->fifo_read_index + 0] << 8;
+				v |= data->fifo[data->fifo_read_index + 1];
+			} else {
+				v = data->fifo[data->fifo_read_index + 1] << 8;
+				v |= data->fifo[data->fifo_read_index + 0];
+			}
 			data->ch_sample[0] = v;
-			if (data->channels == 2) {
-				v = data->fifo[data->fifo_read_index + 3] << 8;
-				v |= data->fifo[data->fifo_read_index + 2];
+			if (data->play_channels == 2) {
+				if (data->fifo_play_byteswap) {
+					v = data->fifo[data->fifo_read_index + 2] << 8;
+					v |= data->fifo[data->fifo_read_index + 3];
+				} else {
+					v = data->fifo[data->fifo_read_index + 3] << 8;
+					v |= data->fifo[data->fifo_read_index + 2];
+				}
 			}
 			data->ch_sample[1] = v;
 		}
-		data->data_in_fifo -= data->bytespersample;
-		data->fifo_read_index += data->bytespersample;
-		data->fifo_read_index = data->fifo_read_index % FIFO_SIZE;
+		data->data_in_fifo -= data->play_bytespersample;
+		data->fifo_read_index += data->play_bytespersample;
+		data->fifo_read_index = data->fifo_read_index % data->fifo_size;
+	} else if (data->data_in_fifo > 0) {
+		data->data_in_fifo = 0;
 	}
-
 	data->ch_sample[0] = data->ch_sample[0] * data->left_volume / 32768;
 	data->ch_sample[1] = data->ch_sample[1] * data->right_volume / 32768;
 
-	if (data->data_in_fifo < FIFO_SIZE_HALF && prev_data_in_fifo >= FIFO_SIZE_HALF)
+	if (data->data_in_fifo < data->fifo_size / 2 && prev_data_in_fifo >= data->fifo_size / 2)
 		data->fifo_half |= STATUS_FIFO_PLAY;
 }
 
-static bool audio_state_sndboard_toccata(int streamid, void *params)
+static bool audio_state_sndboard_toccata(int streamid, void *cb)
 {
-	struct toccata_data *data = &toccata[0];
-	if (!toccata[0].toccata_active)
+	struct snddev_data *data = (struct snddev_data*)cb;
+	if (!data->snddev_active)
 		return false;
 	if (data->streamid != streamid)
 		return false;
-	if ((data->toccata_active & STATUS_FIFO_PLAY)) {
+	if ((data->snddev_active & STATUS_FIFO_PLAY)) {
 		// get all bytes at once to prevent fifo going out of sync
 		// if fifo has for example 3 bytes remaining but we need 4.
-		process_fifo();
+		process_fifo(data);
 	}
-	if (data->toccata_active && (data->toccata_status & STATUS_FIFO_CODEC)) {
-		int old = data->toccata_irq;
-		if ((data->fifo_half & STATUS_FIFO_PLAY) && (data->toccata_status & STATUS_PLAY_INTENA) && (data->toccata_status & STATUS_FIFO_PLAY)) {
-			data->toccata_irq |= STATUS_READ_PLAY_HALF;
+	if (data->type == SNDDEV_TOCCATA) {
+		int old = data->snddev_irq;
+		if (data->snddev_active && (data->snddev_status & STATUS_FIFO_CODEC)) {
+			if ((data->fifo_half & STATUS_FIFO_PLAY) && (data->snddev_status & STATUS_PLAY_INTENA) && (data->snddev_status & STATUS_FIFO_PLAY)) {
+				data->snddev_irq |= STATUS_READ_PLAY_HALF;
+			}
+			if ((data->fifo_half & STATUS_FIFO_RECORD) && (data->snddev_status & STATUS_RECORD_INTENA) && (data->snddev_status & STATUS_FIFO_RECORD)) {
+				data->snddev_irq |= STATUS_READ_RECORD_HALF;
+			}
 		}
-		if ((data->fifo_half & STATUS_FIFO_RECORD) && (data->toccata_status & STATUS_RECORD_INTENA) && (data->toccata_status & STATUS_FIFO_RECORD)) {
-			data->toccata_irq |= STATUS_READ_RECORD_HALF;
-		}
-		if (old != data->toccata_irq) {
+		if (old != data->snddev_irq) {
 			devices_rethink_all(sndboard_rethink);
-#if DEBUG_TOCCATA > 2
-			write_log(_T("TOCCATA IRQ\n"));
+#if DEBUG_SNDDEV > 2
+			write_log(_T("SNDDEV IRQ\n"));
 #endif
 		}
 	}
@@ -1323,9 +1360,8 @@ static int get_volume_in(uae_u8 v)
 	return out;
 }
 
-static void calculate_volume_toccata(void)
+static void calculate_volume_toccata(struct snddev_data *data)
 {
-	struct toccata_data *data = &toccata[0];
 	data->left_volume = (100 - currprefs.sound_volume_board) * 32768 / 100;
 	data->right_volume = (100 - currprefs.sound_volume_board) * 32768 / 100;
 
@@ -1360,68 +1396,75 @@ static const int freq_dividers[] = {
 	2560
 };
 
-static void codec_setup(void)
+static void codec_setup(struct snddev_data *data)
 {
-	struct toccata_data *data = &toccata[0];
 	uae_u8 c = data->ad1848_regs[8];
 
-	data->channels = (c & 0x10) ? 2 : 1;
-	data->samplebits = (c & 0x40) ? 16 : 8;
+	data->play_channels = (c & 0x10) ? 2 : 1;
+	data->play_samplebits = (c & 0x40) ? 16 : 8;
 	data->freq = freq_crystals[c & 1] / freq_dividers[(c >> 1) & 7];
 	data->freq_adjusted = ((data->freq + 49) / 100) * 100;
-	data->bytespersample = (data->samplebits / 8) * data->channels;
-	write_log(_T("TOCCATA start %s freq=%d bits=%d channels=%d\n"),
-		((data->toccata_active & (STATUS_FIFO_PLAY | STATUS_FIFO_RECORD)) == (STATUS_FIFO_PLAY | STATUS_FIFO_RECORD)) ? _T("Play+Record") :
-		(data->toccata_active & STATUS_FIFO_PLAY) ? _T("Play") : _T("Record"),
-		data->freq, data->samplebits, data->channels);
+	data->play_bytespersample = (data->play_samplebits / 8) * data->play_channels;
+
+	data->record_channels = data->play_channels;
+	data->record_samplebits = data->play_samplebits;
+	if (data->ad1848_regs[12] & 0x40) {
+		uae_u8 r = data->ad1848_regs[28];
+		data->record_channels = (r & 0x10) ? 2 : 1;
+		data->record_samplebits = (r & 0x40) ? 16 : 8;
+		data->fifo_record_byteswap = (r & 0x80) != 0;
+	}
+	data->record_bytespersample = (data->record_samplebits / 8) * data->record_channels;
+
+	write_log(_T("SNDDEV start %s freq=%d bits=%d channels=%d\n"),
+		((data->snddev_active & (STATUS_FIFO_PLAY | STATUS_FIFO_RECORD)) == (STATUS_FIFO_PLAY | STATUS_FIFO_RECORD)) ? _T("Play+Record") :
+		(data->snddev_active & STATUS_FIFO_PLAY) ? _T("Play") : _T("Record"),
+		data->freq, data->play_samplebits, data->play_channels);
 }
 
-static int capture_buffer_size = 48000 * 2 * 2; // 1s at 48000/stereo/16bit
-static int capture_read_index, capture_write_index;
-static uae_u8 *capture_buffer;
-
-static void codec_start(void)
+static void codec_start(struct snddev_data *data)
 {
-	struct toccata_data *data = &toccata[0];
-	data->toccata_active  = (data->ad1848_regs[9] & 1) ? STATUS_FIFO_PLAY : 0;
-	data->toccata_active |= (data->ad1848_regs[9] & 2) ? STATUS_FIFO_RECORD : 0;
+	data->snddev_active  = (data->ad1848_regs[9] & 1) ? STATUS_FIFO_PLAY : 0;
+	data->snddev_active |= (data->ad1848_regs[9] & 2) ? STATUS_FIFO_RECORD : 0;
 
-	codec_setup();
+	codec_setup(data);
 
 	data->event_time = base_event_clock * CYCLE_UNIT / data->freq;
-	data->record_event_time = base_event_clock * CYCLE_UNIT / (data->freq_adjusted * data->bytespersample);
+	data->record_event_time = base_event_clock * CYCLE_UNIT / (data->freq_adjusted * data->record_bytespersample);
 	data->record_event_counter = 0;
 
-	if (data->toccata_active & STATUS_FIFO_PLAY) {
-		data->streamid = audio_enable_stream(true, -1, 2, audio_state_sndboard_toccata, NULL);
+	if (data->snddev_active & STATUS_FIFO_PLAY) {
+		data->streamid = audio_enable_stream(true, -1, 2, audio_state_sndboard_toccata, data);
 	}
-	if (data->toccata_active & STATUS_FIFO_RECORD) {
-		capture_buffer = xcalloc(uae_u8, capture_buffer_size);
+	if (data->snddev_active & STATUS_FIFO_RECORD) {
+		data->capture_buffer_size = 48000 * 2 * 2; // 1s at 48000/stereo/16bit
+		data->capture_buffer = xcalloc(uae_u8, data->capture_buffer_size);
 		sndboard_init_capture(data->freq_adjusted);
 	}
 }
 
-static void codec_stop(void)
+static void codec_stop(struct snddev_data *data)
 {
-	struct toccata_data *data = &toccata[0];
-	if (!data->toccata_active)
+	if (!data->snddev_active)
 		return;
-	write_log(_T("TOCCATA stop\n"));
-	data->toccata_active = 0;
+	write_log(_T("CODEC stop\n"));
+	data->snddev_active = 0;
 	sndboard_free_capture();
 	audio_enable_stream(false, data->streamid, 0, NULL, NULL);
 	data->streamid = 0;
-	xfree(capture_buffer);
-	capture_buffer = NULL;
+	xfree(data->capture_buffer);
+	data->capture_buffer = NULL;
 }
 
 void sndboard_rethink(void)
 {
-	if (toccata[0].enabled) {
-		struct toccata_data *data = &toccata[0];
-		bool irq = data->toccata_irq != 0;
-		if (irq) {
-			safe_interrupt_set(IRQ_SOURCE_SOUND, 0, true);
+	for (int i = 0; i < MAX_SNDDEVS; i++) {
+		if (snddev[i].enabled) {
+			struct snddev_data *data = &snddev[i];
+			bool irq = data->snddev_irq != 0;
+			if (irq) {
+				safe_interrupt_set(IRQ_SOURCE_SOUND, 0, true);
+			}
 		}
 	}
 	if (uaesndboard[0].enabled) {
@@ -1432,131 +1475,187 @@ void sndboard_rethink(void)
 	}
 }
 
-static void sndboard_process_capture(void)
+static void sndboard_process_capture(struct snddev_data *data)
 {
-	struct toccata_data *data = &toccata[0];
 	int frames;
 	uae_u8 *buffer = sndboard_get_buffer(&frames);
 	if (buffer && frames) {
 		uae_u8 *p = buffer;
 		int bytes = frames * 4;
-		if (bytes >= capture_buffer_size - capture_write_index) {
-			memcpy(capture_buffer + capture_write_index, p, capture_buffer_size - capture_write_index);
-			p += capture_buffer_size - capture_write_index;
-			bytes -=  capture_buffer_size - capture_write_index;
-			capture_write_index = 0;
+		if (bytes >= data->capture_buffer_size - data->capture_write_index) {
+			memcpy(data->capture_buffer + data->capture_write_index, p, data->capture_buffer_size - data->capture_write_index);
+			p += data->capture_buffer_size - data->capture_write_index;
+			bytes -= data->capture_buffer_size - data->capture_write_index;
+			data->capture_write_index = 0;
 		}
-		if (bytes > 0 && bytes < capture_buffer_size - capture_write_index) {
-			memcpy(capture_buffer + capture_write_index, p, bytes);
-			capture_write_index += bytes;
+		if (bytes > 0 && bytes < data->capture_buffer_size - data->capture_write_index) {
+			memcpy(data->capture_buffer + data->capture_write_index, p, bytes);
+			data->capture_write_index += bytes;
 		}
 	}
 	sndboard_release_buffer(buffer, frames);
 }
 
+static void check_prelude_interrupt(struct snddev_data *data)
+{
+	int oldirq = data->snddev_irq;
+	if (data->data_in_fifo < data->fifo_size / 2 && data->data_in_fifo > 0) {
+		data->snddev_irq |= STATUS_READ_PLAY_HALF;
+	} else {
+		data->snddev_irq &= ~STATUS_READ_PLAY_HALF;
+	}
+	if (oldirq != data->snddev_irq) {
+		devices_rethink_all(sndboard_rethink);
+	}
+}
+
 void sndboard_hsync(void)
 {
-	struct toccata_data *data = &toccata[0];
-	static int capcnt;
+	for (int i = 0; i < MAX_SNDDEVS; i++) {
+		struct snddev_data *data = &snddev[i];
+		static int capcnt[MAX_SNDDEVS];
 
-	if (data->autocalibration > 0)
-		data->autocalibration--;
+		if (!data->configured)
+			continue;
+		if (data->autocalibration > 0)
+			data->autocalibration--;
 
-	if (data->toccata_active & STATUS_FIFO_RECORD) {
-
-		capcnt--;
-		if (capcnt <= 0) {
-			sndboard_process_capture();
-			capcnt = data->record_event_time * 312 / (maxhpos * CYCLE_UNIT);
+		if (data->type == SNDDEV_PRELUDE || data->type == SNDDEV_PRELUDE1200) {
+			check_prelude_interrupt(data);
 		}
 
-		data->record_event_counter += maxhpos * CYCLE_UNIT;
-		int bytes = data->record_event_counter / data->record_event_time;
-		bytes &= ~3;
-		if (bytes < 64 || capture_read_index == capture_write_index)
-			return;
+		if (data->snddev_active & STATUS_FIFO_RECORD) {
 
-		int oldfifo = data->data_in_record_fifo;
-		int oldbytes = bytes;
-		int size = FIFO_SIZE - data->data_in_record_fifo;
-		while (size > 0 && capture_read_index != capture_write_index && bytes > 0) {
-			uae_u8 *fifop = &data->fifo[data->fifo_record_write_index];
-			uae_u8 *bufp = &capture_buffer[capture_read_index];
+			capcnt[i]--;
+			if (capcnt[i] <= 0) {
+				sndboard_process_capture(data);
+				capcnt[i] = data->record_event_time * 312 / (maxhpos * CYCLE_UNIT);
+			}
 
-			if (data->samplebits == 8) {
-				fifop[0] = bufp[1];
-				data->fifo_record_write_index++;
-				data->data_in_record_fifo++;
-				size--;
-				bytes--;
-				if (data->channels == 2) {
-					fifop[1] = bufp[3];
+			data->record_event_counter += maxhpos * CYCLE_UNIT;
+			int bytes = data->record_event_counter / data->record_event_time;
+			bytes &= ~3;
+			if (bytes < 64 || data->capture_read_index == data->capture_write_index)
+				return;
+
+			int oldfifo = data->data_in_record_fifo;
+			int oldbytes = bytes;
+			int size = data->fifo_size - data->data_in_record_fifo;
+			while (size > 0 && data->capture_read_index != data->capture_write_index && bytes > 0) {
+				uae_u8 *fifop = &data->fifo[data->fifo_record_write_index];
+				uae_u8 *bufp = &data->capture_buffer[data->capture_read_index];
+
+				if (data->record_samplebits == 8) {
+					fifop[0] = bufp[1];
 					data->fifo_record_write_index++;
 					data->data_in_record_fifo++;
 					size--;
 					bytes--;
-				}
-			} else if (data->samplebits == 16) {
-				fifop[0] = bufp[1];
-				fifop[1] = bufp[0];
-				data->fifo_record_write_index += 2;
-				data->data_in_record_fifo += 2;
-				size -= 2;
-				bytes -= 2;
-				if (data->channels == 2) {
-					fifop[2] = bufp[3];
-					fifop[3] = bufp[2];
+					if (data->record_channels == 2) {
+						fifop[1] = bufp[3];
+						data->fifo_record_write_index++;
+						data->data_in_record_fifo++;
+						size--;
+						bytes--;
+					}
+				} else if (data->record_samplebits == 16) {
+					if (data->fifo_record_byteswap) {
+						fifop[0] = bufp[0];
+						fifop[1] = bufp[1];
+					} else {
+						fifop[0] = bufp[1];
+						fifop[1] = bufp[0];
+					}
 					data->fifo_record_write_index += 2;
 					data->data_in_record_fifo += 2;
 					size -= 2;
 					bytes -= 2;
+					if (data->record_channels == 2) {
+						if (data->fifo_record_byteswap) {
+							fifop[2] = bufp[2];
+							fifop[3] = bufp[3];
+						} else {
+							fifop[2] = bufp[3];
+							fifop[3] = bufp[2];
+						}
+						data->fifo_record_write_index += 2;
+						data->data_in_record_fifo += 2;
+						size -= 2;
+						bytes -= 2;
+					}
 				}
+
+				data->fifo_record_write_index %= data->fifo_size;
+				data->capture_read_index += 4;
+				if (data->capture_read_index >= data->capture_buffer_size)
+					data->capture_read_index = 0;
 			}
 
-			data->fifo_record_write_index %= FIFO_SIZE;
-			capture_read_index += 4;
-			if (capture_read_index >= capture_buffer_size)
-				capture_read_index = 0;
-		}
-		
-		//write_log(_T("%d %d %d %d\n"), capture_read_index, capture_write_index, size, bytes);
+			//write_log(_T("%d %d %d %d\n"), capture_read_index, capture_write_index, size, bytes);
 
-		if (data->data_in_record_fifo > FIFO_SIZE_HALF && oldfifo <= FIFO_SIZE_HALF) {
-			data->fifo_half |= STATUS_FIFO_RECORD;
-			//audio_state_sndboard(-1, -1);
+			if (data->data_in_record_fifo > data->fifo_size / 2 && oldfifo <= data->fifo_size / 2) {
+				data->fifo_half |= STATUS_FIFO_RECORD;
+				//audio_state_sndboard(-1, -1);
+			}
+			data->record_event_counter -= oldbytes * data->record_event_time;
 		}
-		data->record_event_counter -= oldbytes * data->record_event_time;
 	}
 }
 
-static void sndboard_vsync_toccata(void)
+static void sndboard_vsync_toccata(struct snddev_data *data)
 {
-	struct toccata_data *data = &toccata[0];
-	if (data->toccata_active) {
-		calculate_volume_toccata();
+	if (data->snddev_active) {
+		calculate_volume_toccata(data);
 		audio_activate();
 	}
 }
 
-static void toccata_put(uaecptr addr, uae_u8 v)
+static void toccata_put(struct snddev_data *data, uaecptr addr, uae_u8 v)
 {
-	struct toccata_data *data = &toccata[0];
-	int idx = data->ad1848_index & 15;
+	int idx = data->ad1848_index & data->ad1848_index_mask;
+	bool hit = true;
 
-#if DEBUG_TOCCATA > 2
-	if (addr & 0x4000)
-		write_log(_T("TOCCATA PUT %08x %02x %d PC=%08X\n"), addr, v, idx, M68K_GETPC);
+#if DEBUG_SNDDEV > 2
+	if ((addr & data->codec_fifo_mask) != data->codec_fifo_addr)
+		write_log(_T("SNDDEV PUT %08x %02x %d PC=%08X\n"), addr, v, idx, M68K_GETPC);
 #endif
 
-	if ((addr & 0x6801) == 0x6001) {
+	if (idx >= 16 && !(data->ad1848_regs[12] & 0x40))
+		return;
+
+	if ((addr & data->codec_reg1_mask) == data->codec_reg1_addr) {
 		// AD1848 register 0
 		data->ad1848_index = v;
-	} else if ((addr & 0x6801) == 0x6801) {
+	} else 	if ((addr & data->codec_reg2_mask) == data->codec_reg2_addr) {
 		// AD1848 register 1
 		uae_u8 old = data->ad1848_regs[idx];
+		
+		switch(idx)
+		{
+			case 12:
+			// revision (AD1848) or revision + mode (CS4231A)
+			if (data->type == SNDDEV_TOCCATA) {
+				v = 0x0a;
+			} else if (data->type == SNDDEV_PRELUDE || data->type == SNDDEV_PRELUDE1200) {
+				v &= 0xf0;
+				v |= 0x8a;
+			}
+			break;
+			case 8:
+			if (data->ad1848_regs[12] & 0x40) {
+				// CS4231A only big endian 16-bit data format?
+				data->fifo_play_byteswap = (v >> 5) == 6;
+			} else {
+				data->fifo_play_byteswap = false;
+				v &= ~0x80;
+			}
+			data->fifo_record_byteswap = data->fifo_record_byteswap;
+			break;
+		} 
+
 		data->ad1848_regs[idx] = v;
-#if DEBUG_TOCCATA > 0
-		write_log(_T("TOCCATA PUT reg %d = %02x PC=%08x\n"), idx, v, M68K_GETPC);
+#if DEBUG_SNDDEV > 0
+		write_log(_T("SNDDEV PUT reg %d = %02x PC=%08x\n"), idx, v, M68K_GETPC);
 #endif
 		switch(idx)
 		{
@@ -1564,9 +1663,9 @@ static void toccata_put(uaecptr addr, uae_u8 v)
 			if (v & 8) // ACI enabled
 				data->autocalibration = 50;
 			if (!(old & 3) && (v & 3))
-				codec_start();
+				codec_start(data);
 			else if ((old & 3) && !(v & 3))
-				codec_stop();
+				codec_stop(data);
 			break;
 
 			case 2:
@@ -1575,63 +1674,107 @@ static void toccata_put(uaecptr addr, uae_u8 v)
 			case 5:
 			case 6:
 			case 7:
-			case 8:
-				calculate_volume_toccata();
+				calculate_volume_toccata(data);
 			break;
 
 		}
-	} else if ((addr & 0x6800) == 0x2000) {
+	} else if ((addr & data->codec_fifo_mask) == data->codec_fifo_addr) {
+#if DEBUG_SNDDEV_FIFO
+		write_log(_T("SNDDEV FIFO PUT %02x (%d %d) PC=%08x\n"), v, data->fifo_write_index, data->data_in_fifo, M68K_GETPC);
+#endif
 		// FIFO input
-		if (data->toccata_status & STATUS_FIFO_PLAY) {
+		if ((data->snddev_status & STATUS_FIFO_PLAY) || (data->type == SNDDEV_PRELUDE || data->type == SNDDEV_PRELUDE1200)) {
 			// 7202LA datasheet says fifo can't overflow
-			if (((data->fifo_write_index + 1) % FIFO_SIZE) != data->fifo_read_index) {
+			if (data->data_in_fifo < data->fifo_size) {
 				data->fifo[data->fifo_write_index] = v;
 				data->fifo_write_index++;
-				data->fifo_write_index %= FIFO_SIZE;
+				data->fifo_write_index %= data->fifo_size;
 				data->data_in_fifo++;
 			}
+			if (data->type == SNDDEV_PRELUDE || data->type == SNDDEV_PRELUDE1200)
+				check_prelude_interrupt(data);
 		}
-		data->toccata_irq &= ~STATUS_READ_PLAY_HALF;
+		data->snddev_irq &= ~STATUS_READ_PLAY_HALF;
 		data->fifo_half &= ~STATUS_FIFO_PLAY;
-	} else if ((addr & 0x6800) == 0x0000) {
-		// Board status
-		if (v & STATUS_RESET) {
-			codec_stop();
-			data->toccata_status = 0;
-			data->toccata_irq = 0;
-			v = 0;
+	} else if (data->type == SNDDEV_TOCCATA) {
+		if ((addr & 0x6800) == 0x0000) {
+			// Board status
+			if (v & STATUS_RESET) {
+				codec_stop(data);
+				data->snddev_status = 0;
+				data->snddev_irq = 0;
+				v = 0;
+			}
+			if (v == STATUS_ACTIVE) {
+				data->fifo_write_index = 0;
+				data->fifo_read_index = 0;
+				data->data_in_fifo = 0;
+				data->snddev_status = 0;
+				data->snddev_irq = 0;
+				data->fifo_half = 0;
+			}
+			data->snddev_status = v;
+#if DEBUG_SNDDEV > 0
+			write_log(_T("TOCCATA PUT STATUS %08x %02x %d PC=%08X\n"), addr, v, idx, M68K_GETPC);
+#endif
+		} else {
+			hit = false;
 		}
-		if (v == STATUS_ACTIVE) {
+	} else if (data->type == SNDDEV_PRELUDE) {
+		if ((addr & 0x00ff) == 0x8A) { // Reset FIFOs and CS4231A
+			codec_stop(data);
+			data->snddev_status = 0;
+			data->snddev_irq = 0;
 			data->fifo_write_index = 0;
 			data->fifo_read_index = 0;
 			data->data_in_fifo = 0;
-			data->toccata_status = 0;
-			data->toccata_irq = 0;
+			data->snddev_status = 0;
+			data->snddev_irq = 0;
 			data->fifo_half = 0;
+		} else if (addr < 0x90 || addr >= 0xc0) {
+			hit = false;
 		}
-		data->toccata_status = v;
-#if DEBUG_TOCCATA > 0
-		write_log(_T("TOCCATA PUT STATUS %08x %02x %d PC=%08X\n"), addr, v, idx, M68K_GETPC);
-#endif
+	} else if (data->type == SNDDEV_PRELUDE1200) {
+		if ((addr & 0x00ff) == 0x15) { // Reset FIFOs and CS4231A
+			codec_stop(data);
+			data->snddev_status = 0;
+			data->snddev_irq = 0;
+			data->fifo_write_index = 0;
+			data->fifo_read_index = 0;
+			data->data_in_fifo = 0;
+			data->snddev_status = 0;
+			data->snddev_irq = 0;
+			data->fifo_half = 0;
+		} else if ((addr & 0x00ff) == 0x19) { // ?
+			;
+		} else {
+			hit = false;
+		}
 	} else {
-		write_log(_T("TOCCATA PUT UNKNOWN %08x\n"), addr);
+		hit = false;
+	}
+	if (!hit) {
+		write_log(_T("SNDDEV PUT UNKNOWN %08x PC=%08x\n"), addr, M68K_GETPC);
 	}
 }
 
-static uae_u8 toccata_get(uaecptr addr)
+static uae_u8 toccata_get(struct snddev_data *data, uaecptr addr)
 {
-	struct toccata_data *data = &toccata[0];
-	int idx = data->ad1848_index & 15;
+	int idx = data->ad1848_index & data->ad1848_index_mask;
 	uae_u8 v = 0;
+	bool hit = true;
 
-	if ((addr & 0x6801) == 0x6001) {
+	if (idx >= 16 && !(data->ad1848_regs[12] & 0x40))
+		return v;
+
+	if ((addr & data->codec_reg1_mask) == data->codec_reg1_addr) {
 		// AD1848 register 0
 		v = data->ad1848_index;
-	} else if ((addr & 0x6801) == 0x6801) {
+	} else 	if ((addr & data->codec_reg2_mask) == data->codec_reg2_addr) {
 		// AD1848 register 1
 		v = data->ad1848_regs[idx];
-#if DEBUG_TOCCATA > 0
-		write_log(_T("TOCCATA GET reg %d = %02x PC=%08x\n"), idx, v, M68K_GETPC);
+#if DEBUG_SNDDEV > 0
+		write_log(_T("SNDDEV GET reg %d = %02x PC=%08x\n"), idx, v, M68K_GETPC);
 #endif
 		switch (idx)
 		{
@@ -1641,47 +1784,110 @@ static uae_u8 toccata_get(uaecptr addr)
 			else
 				data->ad1848_regs[11] &= ~0x20;
 			break;
-			case 12:
-				// revision
-				v = 0x0a;
-			break;
 		}
-	} else if ((addr & 0x6800) == 0x2000) {
+	} else if ((addr & data->codec_fifo_mask) == data->codec_fifo_addr) {
 		// FIFO output
 		v = data->fifo[data->fifo_record_read_index];
-		if (data->toccata_status & STATUS_FIFO_RECORD) {
+#if DEBUG_SNDDEV_FIFO
+		write_log(_T("SNDDEV FIFO GET %02x (%d %d) PC=%08x\n"), v, data->fifo_record_read_index, data->data_in_fifo, M68K_GETPC);
+#endif
+		if ((data->snddev_status & STATUS_FIFO_RECORD) || (data->type == SNDDEV_PRELUDE || data->type == SNDDEV_PRELUDE1200)) {
 			if (data->data_in_record_fifo > 0) {
 				data->fifo_record_read_index++;
-				data->fifo_record_read_index %= FIFO_SIZE;
+				data->fifo_record_read_index %= data->fifo_size;
 				data->data_in_record_fifo--;
 			}
+			if (data->type == SNDDEV_PRELUDE || data->type == SNDDEV_PRELUDE1200) {
+				check_prelude_interrupt(data);
+			}
 		}
-		data->toccata_irq &= ~STATUS_READ_RECORD_HALF;
+		data->snddev_irq &= ~STATUS_READ_RECORD_HALF;
 		data->fifo_half &= ~STATUS_FIFO_RECORD;
-	} else if ((addr & 0x6800) == 0x0000) {
-		// Board status
-		v = STATUS_READ_INTREQ; // active low
-		if (data->toccata_irq) {
-			v &= ~STATUS_READ_INTREQ;
-			v |= data->toccata_irq;
-			data->toccata_irq = 0;
-		}
-#if DEBUG_TOCCATA > 0
-		write_log(_T("TOCCATA GET STATUS %08x %02x %d PC=%08X\n"), addr, v, idx, M68K_GETPC);
+	} else if (data->type == SNDDEV_TOCCATA) {
+		if ((addr & 0x6800) == 0x0000) {
+			// Board status
+			v = STATUS_READ_INTREQ; // active low
+			if (data->snddev_irq) {
+				v &= ~STATUS_READ_INTREQ;
+				v |= data->snddev_irq;
+				data->snddev_irq = 0;
+			}
+#if DEBUG_SNDDEV > 0
+			write_log(_T("TOCCATA GET STATUS %08x %02x %d PC=%08X\n"), addr, v, idx, M68K_GETPC);
 #endif
+		} else {
+			hit = false;
+		}
+	} else if (data->type == SNDDEV_PRELUDE) {
+
+		if ((addr & 0x00ff) == 0x8e) { // DMA busy flag
+			v = 0xff;
+		} else if ((addr & 0x00ff) == 0x8c) { // FIFO Status
+			if (data->data_in_fifo >= data->fifo_size / 2)
+				v |= 0x80;
+			if (!data->data_in_fifo)
+				v |= 0x40;
+			if (data->data_in_record_fifo >= data->fifo_size / 2)
+				v |= 0x20;
+			if (data->data_in_record_fifo >= data->fifo_size)
+				v |= 0x10;
+			v ^= 0xff;
+		} else if ((addr >= 0x80 && addr <= 0x90) || addr >= 0xc0) {
+			hit = false;
+		}
+
+	} else if (data->type == SNDDEV_PRELUDE1200) {
+
+		if ((addr & 0x00ff) == 0x15) { // FIFO Status
+			if (data->data_in_fifo >= data->fifo_size / 2)
+				v |= 0x08;
+			if (!data->data_in_fifo)
+				v |= 0x04;
+			if (data->data_in_record_fifo >= data->fifo_size / 2)
+				v |= 0x02;
+			if (data->data_in_record_fifo >= data->fifo_size)
+				v |= 0x01;
+			v ^= 0xff;
+		} else if ((addr & 0x00ff) == 0x1d) { // id?
+			v = 0x05;
+		} else if ((addr & 0x00ff) == 0x19) { // ?
+			v = 0x00;
+		} else {
+			hit = false;
+		}
+
 	} else {
-		write_log(_T("TOCCATA GET UNKNOWN %08x\n"), addr);
+		hit = false;
+	}
+	if (!hit) {
+		write_log(_T("SNDDEV GET UNKNOWN %08x PC=%08x\n"), addr, M68K_GETPC);
 	}
 
-#if DEBUG_TOCCATA > 2
-	write_log(_T("TOCCATA GET %08x %02x %d PC=%08X\n"), addr, v, idx, M68K_GETPC);
+#if DEBUG_SNDDEV > 2
+	write_log(_T("SNDDEV GET %08x %02x %d PC=%08X\n"), addr, v, idx, M68K_GETPC);
 #endif
 	return v;
 }
 
+static struct snddev_data *getsnddev(uaecptr addr)
+{
+	for (int i = 0; i < MAX_SNDDEVS; i++) {
+		struct snddev_data *data = &snddev[i];
+		if (data->bank) {
+			if (!data->configured)
+				return data;
+			if (data->baseaddress == (addr & 0xffff0000))
+				return data;
+		}
+	}
+	return NULL;
+}
+
 static void REGPARAM2 toccata_bput(uaecptr addr, uae_u32 b)
 {
-	struct toccata_data *data = &toccata[0];
+	struct snddev_data *data = getsnddev(addr);
+	if (!data)
+		return;
 	b &= 0xff;
 	addr &= BOARD_MASK;
 	if (!data->configured) {
@@ -1690,6 +1896,7 @@ static void REGPARAM2 toccata_bput(uaecptr addr, uae_u32 b)
 			case 0x48:
 			map_banks_z2(&toccata_bank, expamem_board_pointer >> 16, BOARD_SIZE >> 16);
 			data->configured = 1;
+			data->baseaddress = expamem_board_pointer;
 			expamem_next(&toccata_bank, NULL);
 			break;
 			case 0x4c:
@@ -1700,7 +1907,7 @@ static void REGPARAM2 toccata_bput(uaecptr addr, uae_u32 b)
 		return;
 	}
 	if (data->configured > 0)
-		toccata_put(addr, b);
+		toccata_put(data, addr, b);
 }
 
 static void REGPARAM2 toccata_wput(uaecptr addr, uae_u32 b)
@@ -1719,8 +1926,10 @@ static void REGPARAM2 toccata_lput(uaecptr addr, uae_u32 b)
 
 static uae_u32 REGPARAM2 toccata_bget(uaecptr addr)
 {
-	struct toccata_data *data = &toccata[0];
 	uae_u8 v = 0;
+	struct snddev_data *data = getsnddev(addr);
+	if (!data)
+		return v;
 	addr &= BOARD_MASK;
 	if (!data->configured) {
 		if (addr >= sizeof data->acmemory)
@@ -1728,27 +1937,27 @@ static uae_u32 REGPARAM2 toccata_bget(uaecptr addr)
 		return data->acmemory[addr];
 	}
 	if (data->configured > 0)
-		v = toccata_get(addr);
+		v = toccata_get(data, addr);
 	return v;
 }
 static uae_u32 REGPARAM2 toccata_wget(uaecptr addr)
 {
 	uae_u16 v;
-	v = toccata_get(addr) << 8;
-	v |= toccata_get(addr + 1) << 0;
+	v = toccata_bget(addr) << 8;
+	v |= toccata_bget(addr + 1) << 0;
 	return v;
 }
 static uae_u32 REGPARAM2 toccata_lget(uaecptr addr)
 {
 	uae_u32 v;
-	v = toccata_get(addr) << 24;
-	v |= toccata_get(addr + 1) << 16;
-	v |= toccata_get(addr + 2) << 8;
-	v |= toccata_get(addr + 3) << 0;
+	v = toccata_bget(addr) << 24;
+	v |= toccata_bget(addr + 1) << 16;
+	v |= toccata_bget(addr + 2) << 8;
+	v |= toccata_bget(addr + 3) << 0;
 	return v;
 }
 
-addrbank toccata_bank = {
+static addrbank toccata_bank = {
 	toccata_lget, toccata_wget, toccata_bget,
 	toccata_lput, toccata_wput, toccata_bput,
 	default_xlate, default_check, NULL, _T("*"), _T("Toccata"),
@@ -1756,7 +1965,118 @@ addrbank toccata_bank = {
 	ABFLAG_IO, S_READ, S_WRITE
 };
 
-bool sndboard_init(struct autoconfig_info *aci)
+static addrbank prelude_bank = {
+	toccata_lget, toccata_wget, toccata_bget,
+	toccata_lput, toccata_wput, toccata_bput,
+	default_xlate, default_check, NULL, _T("*"), _T("Prelude"),
+	dummy_lgeti, dummy_wgeti,
+	ABFLAG_IO, S_READ, S_WRITE
+};
+
+static addrbank prelude1200_bank = {
+	toccata_lget, toccata_wget, toccata_bget,
+	toccata_lput, toccata_wput, toccata_bput,
+	default_xlate, default_check, NULL, _T("*"), _T("Prelude1200"),
+	dummy_lgeti, dummy_wgeti,
+	ABFLAG_IO, S_READ, S_WRITE
+};;
+
+static void ad1848_init(struct snddev_data *data)
+{
+	memset(data->ad1848_regs, 0, sizeof data->ad1848_regs);
+	data->ad1848_regs[2] = 0x80;
+	data->ad1848_regs[3] = 0x80;
+	data->ad1848_regs[4] = 0x80;
+	data->ad1848_regs[5] = 0x80;
+	data->ad1848_regs[6] = 0x80;
+	data->ad1848_regs[7] = 0x80;
+	data->ad1848_regs[9] = 0x10;
+	data->ad1848_regs[12] = 0x0a;
+	data->ad1848_regs[25] = 0xa0;
+	data->ad1848_status = 0xcc;
+	data->ad1848_index = 0x40;
+	data->ad1848_index_mask = 15;
+	data->fifo_play_byteswap = false;
+	data->fifo_record_byteswap = false;
+}
+
+bool prelude1200_init(struct autoconfig_info *aci)
+{
+	struct snddev_data *data = &snddev[2];
+
+	aci->addrbank = &prelude1200_bank;
+	aci->start = 0xd80000;
+	aci->size = 0x10000;
+
+	if (!aci->doinit)
+		return true;
+
+	data->configured = 1;
+	data->baseaddress = 0xd80000;
+	data->type = SNDDEV_PRELUDE1200;
+	data->fifo_size = 1024;
+	data->codec_reg1_mask = 0x00ff;
+	data->codec_reg1_addr = 0x0001;
+	data->codec_reg2_mask = 0x00ff;
+	data->codec_reg2_addr = 0x0005;
+	data->codec_fifo_mask = 0x00ff;
+	data->codec_fifo_addr = 0x0011;
+	data->streamid = 0;
+	memset(data->acmemory, 0xff, sizeof data->acmemory);
+	data->rc = aci->rc;
+	data->enabled = true;
+	data->bank = &prelude1200_bank;
+	mapped_malloc(data->bank);
+	map_banks(data->bank, data->baseaddress >> 16, 1, 1);
+	ad1848_init(data);
+	data->ad1848_regs[12] = 0x8a;
+	data->ad1848_index_mask = 31;
+	calculate_volume_toccata(data);
+	return true;
+}
+
+bool prelude_init(struct autoconfig_info *aci)
+{
+	const struct expansionromtype *ert = get_device_expansion_rom(ROMTYPE_PRELUDE);
+	if (!ert)
+		return false;
+
+	aci->addrbank = &prelude_bank;
+
+	if (!aci->doinit) {
+		aci->autoconfigp = ert->autoconfig;
+		return true;
+	}
+
+	struct snddev_data *data = &snddev[1];
+
+	data->configured = 0;
+	data->type = SNDDEV_PRELUDE;
+	data->fifo_size = 1024;
+	data->codec_reg1_mask = 0x00ff;
+	data->codec_reg1_addr = 0x0080;
+	data->codec_reg2_mask = 0x00ff;
+	data->codec_reg2_addr = 0x0082;
+	data->codec_fifo_mask = 0x00ff;
+	data->codec_fifo_addr = 0x0088;
+	data->streamid = 0;
+	memset(data->acmemory, 0xff, sizeof data->acmemory);
+	data->rc = aci->rc;
+	data->enabled = true;
+	for (int i = 0; i < 16; i++) {
+		uae_u8 b = ert->autoconfig[i];
+		ew(data->acmemory, i * 4, b);
+	}
+	data->bank = &prelude_bank;
+	mapped_malloc(data->bank);
+	ad1848_init(data);
+	data->ad1848_regs[12] = 0x8a;
+	data->ad1848_index_mask = 31;
+	calculate_volume_toccata(data);
+	return true;
+}
+
+bool toccata_init(struct autoconfig_info *aci)
 {
 	const struct expansionromtype *ert = get_device_expansion_rom(ROMTYPE_TOCCATA);
 	if (!ert)
@@ -1769,19 +2089,17 @@ bool sndboard_init(struct autoconfig_info *aci)
 		return true;
 	}
 
-	struct toccata_data *data = &toccata[0];
-	memset(data->ad1848_regs, 0, sizeof data->ad1848_regs);
-	data->ad1848_regs[2] = 0x80;
-	data->ad1848_regs[3] = 0x80;
-	data->ad1848_regs[4] = 0x80;
-	data->ad1848_regs[5] = 0x80;
-	data->ad1848_regs[6] = 0x80;
-	data->ad1848_regs[7] = 0x80;
-	data->ad1848_regs[9] = 0x10;
-	data->ad1848_status = 0xcc;
-	data->ad1848_index = 0x40;
+	struct snddev_data *data = &snddev[0];
 
 	data->configured = 0;
+	data->type = SNDDEV_TOCCATA;
+	data->fifo_size = 1024;
+	data->codec_reg1_mask = 0x6801;
+	data->codec_reg1_addr = 0x6001;
+	data->codec_reg2_mask = 0x6801;
+	data->codec_reg2_addr = 0x6801;
+	data->codec_fifo_mask = 0x6800;
+	data->codec_fifo_addr = 0x2000;
 	data->streamid = 0;
 	memset(data->acmemory, 0xff, sizeof data->acmemory);
 	data->rc = aci->rc;
@@ -1790,30 +2108,38 @@ bool sndboard_init(struct autoconfig_info *aci)
 		uae_u8 b = ert->autoconfig[i];
 		ew(data->acmemory, i * 4, b);
 	}
-	mapped_malloc(&toccata_bank);
-	calculate_volume_toccata();
+	data->bank = &toccata_bank;
+	mapped_malloc(data->bank);
+	ad1848_init(data);
+	calculate_volume_toccata(data);
 	return true;
 }
 
 void sndboard_reset(void)
 {
-	struct toccata_data *data = &toccata[0];
-	data->ch_sample[0] = 0;
-	data->ch_sample[1] = 0;
-	codec_stop();
-	data->toccata_irq = 0;
-	if (data->streamid > 0)
-		audio_enable_stream(false, data->streamid, 0, NULL, NULL);
-	data->streamid = 0;
+	for (int i = 0; i < MAX_SNDDEVS; i++) {
+		struct snddev_data *data = &snddev[i];
+		data->ch_sample[0] = 0;
+		data->ch_sample[1] = 0;
+		codec_stop(data);
+		data->snddev_irq = 0;
+		if (data->streamid > 0)
+			audio_enable_stream(false, data->streamid, 0, NULL, data);
+		data->streamid = 0;
+		if (data->bank)
+			mapped_free(data->bank);
+		data->bank = NULL;
+	}
 	sndboard_rethink();
-	mapped_free(&toccata_bank);
 }
 
 void sndboard_free(void)
 {
 	sndboard_reset();
-	struct toccata_data *data = &toccata[0];
-	data->rc = NULL;
+	for (int i = 0; i < MAX_SNDDEVS; i++) {
+		struct snddev_data *data = &snddev[i];
+		data->rc = NULL;
+	}
 }
 
 struct fm801_data
@@ -2373,8 +2699,8 @@ static void sndboard_vsync_qemu(void)
 
 void sndboard_vsync(void)
 {
-	if (toccata[0].toccata_active)
-		sndboard_vsync_toccata();
+	if (snddev[0].snddev_active)
+		sndboard_vsync_toccata(&snddev[0]);
 	if (fm801_active)
 		sndboard_vsync_fm801();
 	if (qemu_voice_out && qemu_voice_out->active)
@@ -2383,8 +2709,8 @@ void sndboard_vsync(void)
 
 void sndboard_ext_volume(void)
 {
-	if (toccata[0].toccata_active)
-		calculate_volume_toccata();
+	if (snddev[0].snddev_active)
+		calculate_volume_toccata(&snddev[0]);
 	if (fm801_active)
 		calculate_volume_fm801();
 	if (qemu_voice_out && qemu_voice_out->active)

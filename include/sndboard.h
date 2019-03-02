@@ -3,7 +3,9 @@
 
 #include "uae/types.h"
 
-bool sndboard_init(struct autoconfig_info *aci);
+bool toccata_init(struct autoconfig_info *aci);
+bool prelude_init(struct autoconfig_info *aci);
+bool prelude1200_init(struct autoconfig_info *aci);
 void sndboard_free(void);
 void sndboard_hsync(void);
 void sndboard_vsync(void);
