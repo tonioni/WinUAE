@@ -7659,6 +7659,142 @@ static void resolve_if_jmp(TCHAR *s, uae_u32 addr)
 	}
 }
 
+static void mmu_op30_helper_get_fc(uae_u16 extra, TCHAR *out)
+{
+	switch (extra & 0x0018) {
+	case 0x0010:
+		_stprintf(out, _T("#%d"), extra & 7);
+		return;
+	case 0x0008:
+		_stprintf(out, _T("D%d"), extra & 7);
+		return;
+	case 0x0000:
+		if (extra & 1) {
+			_tcscpy(out, _T("DFC"));
+		} else {
+			_tcscpy(out, _T("SFC"));
+		}
+		return;
+	default:
+		_tcscpy(out, _T("??"));
+		return;
+	}
+}
+
+static uaecptr disasm_mmu030(uaecptr pc, uae_u16 opcode, uae_u16 extra, struct instr *dp, TCHAR *instrname, uae_u32 *seaddr2, int safemode)
+{
+	int type = extra >> 13;
+
+	pc += 2;
+	switch (type)
+	{
+	case 0:
+	case 2:
+	case 3:
+	{
+		// PMOVE
+		int preg = (extra >> 10) & 31;
+		int rw = (extra >> 9) & 1;
+		int fd = (extra >> 8) & 1;
+		int unused = (extra & 0xff);
+		TCHAR *r = NULL;
+
+		_tcscpy(instrname, _T("PMOVE"));
+		if (fd)
+			_tcscat(instrname, _T("FD"));
+		_tcscat(instrname, _T(" "));
+
+		if (!rw) {
+			pc = ShowEA(NULL, pc, opcode, dp->sreg, dp->smode, dp->size, instrname, seaddr2, safemode);
+			_tcscat(instrname, _T(","));
+		}
+		switch (preg)
+		{
+		case 0x10:
+			r = _T("TC");
+			break;
+		case 0x12:
+			r = _T("SRP");
+			break;
+		case 0x13:
+			r = _T("CRP");
+			break;
+		case 0x18:
+			r = _T("MMUSR");
+			break;
+		case 0x02:
+			r = _T("TT0");
+			break;
+		case 0x03:
+			r = _T("TT1");
+			break;
+		default:
+			r = _T("??");
+			break;
+		}
+		_tcscat(instrname, r);
+		if (rw) {
+			_tcscat(instrname, _T(","));
+			pc = ShowEA(NULL, pc, opcode, dp->sreg, dp->smode, dp->size, instrname, seaddr2, safemode);
+		}
+		break;
+	}
+	case 1:
+	{
+		// PLOAD/PFLUSH
+		uae_u16 mode = (extra >> 8) & 31;
+		uae_u16 fc_mask = (extra & 0x00E0) >> 5;
+		uae_u16 fc_bits = extra & 0x7f;
+		TCHAR fc[10];
+
+		mmu_op30_helper_get_fc(extra, fc);
+		switch (mode) {
+		case 0x00: // PLOAD W
+		case 0x02: // PLOAD R
+			_stprintf(instrname, _T("PLOAD%c %s,"), mode == 0 ? 'W' : 'R', fc);
+			pc = ShowEA(NULL, pc, opcode, dp->sreg, dp->smode, dp->size, instrname, seaddr2, safemode);
+			break;
+		case 0x04: // PFLUSHA
+			_tcscpy(instrname, _T("PFLUSHA"));
+			break;
+		case 0x10: // FC
+		case 0x18: // FC + EA
+			_stprintf(instrname, _T("PFLUSH %s,%d"), fc, fc_mask);
+			if (mode == 0x18) {
+				_tcscat(instrname, _T(","));
+				pc = ShowEA(NULL, pc, opcode, dp->sreg, dp->smode, dp->size, instrname, seaddr2, safemode);
+			}
+			break;
+		default:
+			_tcscpy(instrname, _T("PFLUSH??"));
+			break;
+		}
+		break;
+	}
+	case 4:
+	{
+		// PTEST
+		int level = (extra & 0x1C00) >> 10;
+		int rw = (extra >> 9) & 1;
+		int a = (extra >> 8) & 1;
+		int areg = (extra & 0xE0) >> 5;
+		TCHAR fc[10];
+
+		mmu_op30_helper_get_fc(extra, fc);
+		_stprintf(instrname, _T("PTEST%c %s,"), rw ? 'R' : 'W', fc);
+		pc = ShowEA(NULL, pc, opcode, dp->sreg, dp->smode, dp->size, instrname, seaddr2, safemode);
+		_stprintf(instrname + _tcslen(instrname), _T(",#%d"), level);
+		if (a)
+			_stprintf(instrname + _tcslen(instrname), _T(",A%d"), areg);
+		break;
+	}
+	default:
+		_tcscpy(instrname, _T("F-LINE"));
+		break;
+	}
+	return pc;
+}
+
 
 void m68k_disasm_2 (TCHAR *buf, int bufsize, uaecptr pc, uaecptr *nextpc, int cnt, uae_u32 *seaddr, uae_u32 *deaddr, uaecptr lastpc, int safemode)
 {
@@ -7742,19 +7878,30 @@ void m68k_disasm_2 (TCHAR *buf, int bufsize, uaecptr pc, uaecptr *nextpc, int cn
 				if (m2cregs[j].regno == creg)
 					break;
 			}
-			_stprintf (regs, _T("%c%d"), r >= 8 ? 'A' : 'D', r >= 8 ? r - 8 : r);
+			_stprintf(regs, _T("%c%d"), r >= 8 ? 'A' : 'D', r >= 8 ? r - 8 : r);
 			if (m2cregs[j].regname)
 				cname = m2cregs[j].regname;
 			if (lookup->mnemo == i_MOVE2C) {
-				_tcscat (instrname, regs);
-				_tcscat (instrname, _T(","));
-				_tcscat (instrname, cname);
+				_tcscat(instrname, regs);
+				_tcscat(instrname, _T(","));
+				_tcscat(instrname, cname);
 			} else {
-				_tcscat (instrname, cname);
-				_tcscat (instrname, _T(","));
-				_tcscat (instrname, regs);
+				_tcscat(instrname, cname);
+				_tcscat(instrname, _T(","));
+				_tcscat(instrname, regs);
 			}
 			pc += 2;
+		} else if (lookup->mnemo == i_CHK2) {
+			TCHAR *p;
+			if (!(extra & 0x0800)) {
+				instrname[1] = 'M';
+				instrname[2] = 'P';
+			}
+			pc = ShowEA(NULL, pc, opcode, dp->dreg, dp->dmode, dp->size, instrname, &seaddr2, safemode);
+			extra = get_word_debug(pc);
+			pc += 2;
+			p = instrname + _tcslen(instrname);
+			_stprintf(p, (extra & 0x8000) ? _T(",A%d") : _T(",D%d"), (extra >> 12) & 7);
 		} else if (lookup->mnemo == i_MVMEL) {
 			uae_u16 mask = extra;
 			pc += 2;
@@ -7943,6 +8090,8 @@ void m68k_disasm_2 (TCHAR *buf, int bufsize, uaecptr pc, uaecptr *nextpc, int cn
 					}
 				}
 			}
+		} else if (lookup->mnemo == i_MMUOP030) {
+			pc = disasm_mmu030(pc, opcode, extra, dp, instrname, &seaddr2, safemode);
 		} else if ((opcode & 0xf000) == 0xa000) {
 			_tcscpy(instrname, _T("A-LINE"));
 		} else {
