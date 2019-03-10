@@ -239,6 +239,7 @@ struct rtggfxboard
 	bool vram_enabled, vram_offset_enabled;
 	hwaddr vram_offset[2];
 	uae_u8 cirrus_pci[0x44];
+	uae_u8 p4i2c;
 	uae_u8 p4_pci[0x44];
 	int vga_width, vga_height;
 	bool vga_refresh_active;
@@ -988,6 +989,7 @@ void gfxboard_vsync_handler(bool full_redraw_required, bool redraw_required)
 				if ((!(gb->vga.vga.cr[0x11] & 0x20) && (gb->vga.vga.cr[0x11] & 0x10) && !(gb->vga.vga.gr[0x17] & 4))) {
 					if (gb->gfxboard_intena) {
 						gb->gfxboard_vblank = true;
+						//write_log(_T("VGA interrupt %d\n"), gb->board->irq);
 						if (gb->board->irq == 2)
 							INTREQ(0x8000 | 0x0008);
 						else
@@ -1180,7 +1182,7 @@ static void p4_pci_check (struct rtggfxboard *gb)
 	gb->p4_vram_bank[0] = b0;
 	gb->p4_vram_bank[1] = b1;
 #if PICASSOIV_DEBUG_IO
-	write_log (_T("%08X %08X\n"), p4_vram_bank[0], p4_vram_bank[1]);
+	write_log (_T("%08X %08X\n"), gb->p4_vram_bank[0], gb->p4_vram_bank[1]);
 #endif
 }
 
@@ -1203,6 +1205,8 @@ static void reset_pci (struct rtggfxboard *gb)
 
 	gb->cirrus_pci[0x10] &= ~1; // B revision
 	gb->cirrus_pci[0x13] &= ~1; // memory
+
+	gb->p4i2c = 0xff;
 }
 
 static void set_monswitch(struct rtggfxboard *gb, bool newval)
@@ -2181,6 +2185,9 @@ static uae_u32 REGPARAM2 gfxboard_bget_regs (uaecptr addr)
 	if (addr) {
 		v = gb->vgaio->read (&gb->vga, addr, 1);
 		v = bget_regtest (gb, addr, v);
+#if REGDEBUG
+		write_log(_T("GFX VGA BYTE GET IO %04X = %02X PC=%08x\n"), addr & 65535, v & 0xff, M68K_GETPC);
+#endif
 	}
 	return v;
 }
@@ -2188,9 +2195,7 @@ static uae_u32 REGPARAM2 gfxboard_bget_regs (uaecptr addr)
 static void REGPARAM2 gfxboard_lput_regs (uaecptr addr, uae_u32 l)
 {
 	struct rtggfxboard *gb = getgfxboard(addr);
-#if REGDEBUG
-	write_log (_T("GFX LONG PUT IO %04X = %04X\n"), addr & 65535, l);
-#endif
+
 	addr = mungeaddr (gb, addr, true);
 	if (addr) {
 		gb->vgaio->write (&gb->vga, addr + 0, l >> 24, 1);
@@ -2201,28 +2206,28 @@ static void REGPARAM2 gfxboard_lput_regs (uaecptr addr, uae_u32 l)
 		bput_regtest (gb, addr + 0, (l >>  8));
 		gb->vgaio->write (&gb->vga, addr + 3, (l >>  0) & 0xff, 1);
 		bput_regtest (gb, addr + 0, (l >>  0));
+#if REGDEBUG
+		write_log(_T("GFX VGA LONG PUT IO %04X = %04X PC=%08x\n"), addr & 65535, l, M68K_GETPC);
+#endif
 	}
 }
 static void REGPARAM2 gfxboard_wput_regs (uaecptr addr, uae_u32 w)
 {
 	struct rtggfxboard *gb = getgfxboard(addr);
-#if REGDEBUG
-	write_log (_T("GFX WORD PUT IO %04X = %04X\n"), addr & 65535, w & 0xffff);
-#endif
 	addr = mungeaddr (gb, addr, true);
 	if (addr) {
 		gb->vgaio->write (&gb->vga, addr + 0, (w >> 8) & 0xff, 1);
 		bput_regtest (gb, addr + 0, (w >> 8));
 		gb->vgaio->write (&gb->vga, addr + 1, (w >> 0) & 0xff, 1);
 		bput_regtest (gb, addr + 1, (w >> 0));
+#if REGDEBUG
+		write_log(_T("GFX VGA WORD PUT IO %04X = %04X PC=%08x\n"), addr & 65535, w & 0xffff, M68K_GETPC);
+#endif
 	}
 }
 static void REGPARAM2 gfxboard_bput_regs (uaecptr addr, uae_u32 b)
 {
 	struct rtggfxboard *gb = getgfxboard(addr);
-#if REGDEBUG
-	write_log (_T("GFX BYTE PUT IO %04X = %02X\n"), addr & 65535, b & 0xff);
-#endif
 	addr &= 65535;
 	if (addr >= 0x8000) {
 		write_log (_T("GFX SPECIAL BPUT IO %08X = %02X\n"), addr, b & 0xff);
@@ -2252,6 +2257,9 @@ static void REGPARAM2 gfxboard_bput_regs (uaecptr addr, uae_u32 b)
 	if (addr) {
 		gb->vgaio->write (&gb->vga, addr, b & 0xff, 1);
 		bput_regtest (gb, addr, b);
+#if REGDEBUG
+		write_log(_T("GFX VGA BYTE PUT IO %04X = %02X PC=%08x\n"), addr & 65535, b & 0xff, M68K_GETPC);
+#endif
 	}
 }
 
@@ -2465,21 +2473,23 @@ static uae_u32 REGPARAM2 gfxboards_bget_regs (uaecptr addr)
 	uae_u8 v = 0xff;
 	addr &= gb->p4_special_mask;
 
+#if PICASSOIV_DEBUG_IO > 1
+	write_log(_T("PicassoIV CL REG BGET %08x PC=%08x\n"), addr, M68K_GETPC);
+#endif
+
 	// pci config
 	if (addr >= 0x400000 || (gb->p4z2 && !(gb->picassoiv_bank & PICASSOIV_BANK_MAPRAM) && (gb->picassoiv_bank & PICASSOIV_BANK_UNMAPFLASH) && ((addr >= 0x800 && addr < 0xc00) || (addr >= 0x1000 && addr < 0x2000)))) {
 		uae_u32 addr2 = addr & 0xffff;
 		v = 0;
 		if (addr2 >= 0x0800 && addr2 < 0x840) {
-			addr2 -= 0x800;
-			v = gb->p4_pci[addr2];
-#if PICASSOIV_DEBUG_IO
-			write_log (_T("PicassoIV PCI BGET %08x %02x\n"), addr, v);
-#endif
-		} else if (addr2 >= 0x800 && addr2 <= 0x1000) {
-			if (addr2 == 0x802)
-				v = 2; // ???
-			if (addr2 == 0x808)
+			if (addr2 == 0x802) {
+				v = 2; // bridge version?
+			} else if (addr2 == 0x808) {
 				v = 4; // bridge revision
+			} else {
+				addr2 -= 0x800;
+				v = gb->p4_pci[addr2];
+			}
 #if PICASSOIV_DEBUG_IO
 			write_log (_T("PicassoIV PCI BGET %08x %02x\n"), addr, v);
 #endif
@@ -2517,6 +2527,17 @@ static uae_u32 REGPARAM2 gfxboards_bget_regs (uaecptr addr)
 				v |= 4 | 8;
 			else
 				v |= 8;
+		} else if (addr == 0x406) {
+			// FLIFI I2C
+			// bit 0 = clock out
+			// bit 1 = data out
+			// bit 2 = clock in
+			// bit 7 = data in
+			v = gb->p4i2c & 3;
+			if (v & 1)
+				v |= 4;
+			if (v & 2)
+				v |= 0x80;
 		} else if (addr == 0x408) {
 			v = gb->gfxboard_vblank ? 0x80 : 0;
 		} else if (gb->p4z2 && addr >= 0x10000) {
@@ -2525,6 +2546,7 @@ static uae_u32 REGPARAM2 gfxboards_bget_regs (uaecptr addr)
 			if (addr2) {
 				v = gb->vgaio->read (&gb->vga, addr2, 1);
 				v = bget_regtest (gb, addr2, v);
+				//write_log(_T("P4 VGA read %08X=%02X PC=%08x\n"), addr2, v, M68K_GETPC);
 			}
 			//write_log (_T("PicassoIV IO %08x %02x\n"), addr, v);
 			return v;
@@ -2650,6 +2672,11 @@ static void REGPARAM2 gfxboards_bput_regs (uaecptr addr, uae_u32 v)
 	struct rtggfxboard *gb = getgfxboard(addr);
 	uae_u8 b = (uae_u8)v;
 	addr &= gb->p4_special_mask;
+
+#if PICASSOIV_DEBUG_IO > 1
+	write_log(_T("PicassoIV CL REG BPUT %08x %02x PC=%08x\n"), addr, v, M68K_GETPC);
+#endif
+
 	if (addr >= 0x400000 || (gb->p4z2 && !(gb->picassoiv_bank & PICASSOIV_BANK_MAPRAM) && (gb->picassoiv_bank & PICASSOIV_BANK_UNMAPFLASH) && ((addr >= 0x800 && addr < 0xc00) || (addr >= 0x1000 && addr < 0x2000)))) {
 		uae_u32 addr2 = addr & 0xffff;
 		if (addr2 >= 0x0800 && addr2 < 0x840) {
@@ -2673,6 +2700,8 @@ static void REGPARAM2 gfxboards_bput_regs (uaecptr addr, uae_u32 v)
 		if (addr == 0x404) {
 			gb->picassoiv_flifi = b;
 			picassoiv_checkswitch (gb);
+		} else if (addr == 0x406) {
+			gb->p4i2c = b;
 		}
 	}
 	if (gb->picassoiv_bank & PICASSOIV_BANK_MAPRAM) {
@@ -2692,6 +2721,7 @@ static void REGPARAM2 gfxboards_bput_regs (uaecptr addr, uae_u32 v)
 		if (addr) {
 			gb->vgaio->write (&gb->vga, addr, b & 0xff, 1);
 			bput_regtest (gb, addr, b);
+			//write_log(_T("P4 VGA write %08x=%02x PC=%08x\n"), addr, b & 0xff, M68K_GETPC);
 		}
 		return;
 	}

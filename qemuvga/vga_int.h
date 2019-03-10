@@ -104,6 +104,7 @@ typedef struct VGACommonState {
     uint8_t ar_index;
     uint8_t ar[21];
     int ar_flip_flop;
+	int vref_toggle;
     uint8_t cr_index;
     uint8_t cr[256]; /* CRT registers */
     uint8_t msr; /* Misc Output Register */
