@@ -63,6 +63,9 @@ void accessx_add_ide_unit(int ch, struct uaedev_config_info *ci, struct romconfi
 bool trumpcard500at_init(struct autoconfig_info *aci);
 void trumpcard500at_add_ide_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
 
+bool tandem_init(struct autoconfig_info *aci);
+void tandem_add_ide_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
+
 uae_u32 REGPARAM3 apollo_ide_lget (uaecptr addr) REGPARAM;
 uae_u32 REGPARAM3 apollo_ide_wget (uaecptr addr) REGPARAM;
 uae_u32 REGPARAM3 apollo_ide_bget (uaecptr addr) REGPARAM;

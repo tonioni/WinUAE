@@ -4977,6 +4977,15 @@ const struct expansionromtype expansionroms[] = {
 		2092, 8, 0
 	},
 	{
+		_T("tandem"), _T("Tandem"), _T("BSC"),
+		NULL, tandem_init, NULL, tandem_add_ide_unit, ROMTYPE_TANDEM | ROMTYPE_NOT, 0, 0, BOARD_AUTOCONFIG_Z2, false,
+		NULL, 0,
+		false, EXPANSIONTYPE_IDE,
+		0, 0, 0, false, NULL,
+		false, 0, NULL,
+		{ 0xc1, 6, 0x00, 0x00, 0x08, 0x2c, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 },
+	},
+	{
 		_T("malibu"), _T("Malibu"), _T("California Access"),
 		NULL, malibu_init, NULL, malibu_add_scsi_unit, ROMTYPE_MALIBU, 0, 0, BOARD_AUTOCONFIG_Z2, false,
 		NULL, 0,

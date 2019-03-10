@@ -54,7 +54,8 @@
 #define ACCESSX_IDE (ELSATHD_IDE + MAX_DUPLICATE_EXPANSION_BOARDS)
 #define IVST500AT_IDE (ACCESSX_IDE + 2 * MAX_DUPLICATE_EXPANSION_BOARDS)
 #define TRIFECTA_IDE (IVST500AT_IDE + MAX_DUPLICATE_EXPANSION_BOARDS)
-#define TOTAL_IDE (TRIFECTA_IDE + MAX_DUPLICATE_EXPANSION_BOARDS)
+#define TANDEM_IDE (TRIFECTA_IDE + MAX_DUPLICATE_EXPANSION_BOARDS)
+#define TOTAL_IDE (TANDEM_IDE + MAX_DUPLICATE_EXPANSION_BOARDS)
 
 #define ALF_ROM_OFFSET 0x0100
 #define GVP_IDE_ROM_OFFSET 0x8000
@@ -117,6 +118,7 @@ static struct ide_board *elsathd_board[MAX_DUPLICATE_EXPANSION_BOARDS];
 static struct ide_board *accessx_board[MAX_DUPLICATE_EXPANSION_BOARDS];
 static struct ide_board *ivst500at_board[MAX_DUPLICATE_EXPANSION_BOARDS];
 static struct ide_board *trifecta_board[MAX_DUPLICATE_EXPANSION_BOARDS];
+static struct ide_board *tandem_board[MAX_DUPLICATE_EXPANSION_BOARDS];
 
 static struct ide_hdf *idecontroller_drive[TOTAL_IDE * 2];
 static struct ide_thread_state idecontroller_its;
@@ -651,7 +653,7 @@ static uae_u32 ide_read_byte(struct ide_board *board, uaecptr addr)
 			v = board->rom[addr & board->rom_mask];
 		}
 
-	} else if (board->type == ALF_IDE) {
+	} else if (board->type == ALF_IDE || board->type == TANDEM_IDE) {
 
 		if (addr < 0x1100 || (addr & 1)) {
 			if (board->rom)
@@ -1026,7 +1028,7 @@ static uae_u32 ide_read_word(struct ide_board *board, uaecptr addr)
 				v |= ide_read_byte(board, addr + 1);
 			}
 			
-		} else if (board->type == ALF_IDE) {
+		} else if (board->type == ALF_IDE || board->type == TANDEM_IDE) {
 
 			int regnum = get_alf_reg(addr, board);
 			if (regnum == IDE_DATA) {
@@ -1313,7 +1315,7 @@ static void ide_write_byte(struct ide_board *board, uaecptr addr, uae_u8 v)
 				board->userdata = v;
 			}
 
-		} else  if (board->type == ALF_IDE) {
+		} else  if (board->type == ALF_IDE || board->type == TANDEM_IDE) {
 
 			int regnum = get_alf_reg(addr, board);
 			if (regnum >= 0)
@@ -1565,7 +1567,7 @@ static void ide_write_word(struct ide_board *board, uaecptr addr, uae_u16 v)
 				ide_write_byte(board, addr + 1, v);
 			}
 
-		} else if (board->type == ALF_IDE) {
+		} else if (board->type == ALF_IDE || board->type == TANDEM_IDE) {
 
 			int regnum = get_alf_reg(addr, board);
 			if (regnum == IDE_DATA) {
@@ -1953,8 +1955,6 @@ bool alf_init(struct autoconfig_info *aci)
 	struct ide_board *ide = getide(aci);
 	if (!ide)
 		return false;
-
-	ide->configured = 0;
 
 	ide->configured = 0;
 	ide->bank = &ide_bank_generic;
@@ -2712,6 +2712,34 @@ bool trumpcard500at_init(struct autoconfig_info *aci)
 void trumpcard500at_add_ide_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc)
 {
 	add_ide_standard_unit(ch, ci, rc, ivst500at_board, IVST500AT_IDE, true, false, 2);
+}
+
+
+bool tandem_init(struct autoconfig_info *aci)
+{
+	const struct expansionromtype *ert = get_device_expansion_rom(ROMTYPE_TANDEM);
+	if (!aci->doinit) {
+		aci->autoconfigp = ert->autoconfig;
+		return true;
+	}
+
+	struct ide_board *ide = getide(aci);
+
+	ide->bank = &ide_bank_generic;
+	ide->mask = 65536 - 1;
+
+	for (int i = 0; i < 16; i++) {
+		uae_u8 b = ert->autoconfig[i];
+		ew(ide, i * 4, b);
+	}
+
+	aci->addrbank = ide->bank;
+	return true;
+}
+
+void tandem_add_ide_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc)
+{
+	add_ide_standard_unit(ch, ci, rc, tandem_board, TANDEM_IDE, false, false, 2);
 }
 
 extern void x86_xt_ide_bios(struct zfile*, struct romconfig*);
