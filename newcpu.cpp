@@ -7659,25 +7659,24 @@ static void resolve_if_jmp(TCHAR *s, uae_u32 addr)
 	}
 }
 
-static void mmu_op30_helper_get_fc(uae_u16 extra, TCHAR *out)
+static bool mmu_op30_helper_get_fc(uae_u16 extra, TCHAR *out)
 {
 	switch (extra & 0x0018) {
 	case 0x0010:
 		_stprintf(out, _T("#%d"), extra & 7);
-		return;
+		return true;
 	case 0x0008:
 		_stprintf(out, _T("D%d"), extra & 7);
-		return;
+		return true;
 	case 0x0000:
 		if (extra & 1) {
 			_tcscpy(out, _T("DFC"));
 		} else {
 			_tcscpy(out, _T("SFC"));
 		}
-		return;
+		return true;
 	default:
-		_tcscpy(out, _T("??"));
-		return;
+		return false;
 	}
 }
 
@@ -7685,7 +7684,9 @@ static uaecptr disasm_mmu030(uaecptr pc, uae_u16 opcode, uae_u16 extra, struct i
 {
 	int type = extra >> 13;
 
+	_tcscpy(instrname, _T("F-LINE (MMU 68030)"));
 	pc += 2;
+
 	switch (type)
 	{
 	case 0:
@@ -7699,15 +7700,12 @@ static uaecptr disasm_mmu030(uaecptr pc, uae_u16 opcode, uae_u16 extra, struct i
 		int unused = (extra & 0xff);
 		TCHAR *r = NULL;
 
-		_tcscpy(instrname, _T("PMOVE"));
-		if (fd)
-			_tcscat(instrname, _T("FD"));
-		_tcscat(instrname, _T(" "));
-
-		if (!rw) {
-			pc = ShowEA(NULL, pc, opcode, dp->sreg, dp->smode, dp->size, instrname, seaddr2, safemode);
-			_tcscat(instrname, _T(","));
-		}
+		if (mmu_op30_invea(opcode))
+			break;
+		if (unused)
+			break;
+		if (rw && fd)
+			break;
 		switch (preg)
 		{
 		case 0x10:
@@ -7728,9 +7726,18 @@ static uaecptr disasm_mmu030(uaecptr pc, uae_u16 opcode, uae_u16 extra, struct i
 		case 0x03:
 			r = _T("TT1");
 			break;
-		default:
-			r = _T("??");
+		}
+		if (!r)
 			break;
+
+		_tcscpy(instrname, _T("PMOVE"));
+		if (fd)
+			_tcscat(instrname, _T("FD"));
+		_tcscat(instrname, _T(" "));
+
+		if (!rw) {
+			pc = ShowEA(NULL, pc, opcode, dp->sreg, dp->smode, dp->size, instrname, seaddr2, safemode);
+			_tcscat(instrname, _T(","));
 		}
 		_tcscat(instrname, r);
 		if (rw) {
@@ -7743,30 +7750,40 @@ static uaecptr disasm_mmu030(uaecptr pc, uae_u16 opcode, uae_u16 extra, struct i
 	{
 		// PLOAD/PFLUSH
 		uae_u16 mode = (extra >> 8) & 31;
+		int unused = (extra & (0x100 | 0x80 | 0x40 | 0x20));
 		uae_u16 fc_mask = (extra & 0x00E0) >> 5;
 		uae_u16 fc_bits = extra & 0x7f;
 		TCHAR fc[10];
 
-		mmu_op30_helper_get_fc(extra, fc);
+		if (unused)
+			break;
+
 		switch (mode) {
 		case 0x00: // PLOAD W
 		case 0x02: // PLOAD R
+			if (mmu_op30_invea(opcode))
+				break;
 			_stprintf(instrname, _T("PLOAD%c %s,"), mode == 0 ? 'W' : 'R', fc);
 			pc = ShowEA(NULL, pc, opcode, dp->sreg, dp->smode, dp->size, instrname, seaddr2, safemode);
 			break;
 		case 0x04: // PFLUSHA
+			if (fc_bits)
+				break;
 			_tcscpy(instrname, _T("PFLUSHA"));
 			break;
 		case 0x10: // FC
-		case 0x18: // FC + EA
+			if (!mmu_op30_helper_get_fc(extra, fc))
+				break;
 			_stprintf(instrname, _T("PFLUSH %s,%d"), fc, fc_mask);
-			if (mode == 0x18) {
-				_tcscat(instrname, _T(","));
-				pc = ShowEA(NULL, pc, opcode, dp->sreg, dp->smode, dp->size, instrname, seaddr2, safemode);
-			}
 			break;
-		default:
-			_tcscpy(instrname, _T("PFLUSH??"));
+		case 0x18: // FC + EA
+			if (mmu_op30_invea(opcode))
+				break;
+			if (!mmu_op30_helper_get_fc(extra, fc))
+				break;
+			_stprintf(instrname, _T("PFLUSH %s,%d"), fc, fc_mask);
+			_tcscat(instrname, _T(","));
+			pc = ShowEA(NULL, pc, opcode, dp->sreg, dp->smode, dp->size, instrname, seaddr2, safemode);
 			break;
 		}
 		break;
@@ -7780,7 +7797,12 @@ static uaecptr disasm_mmu030(uaecptr pc, uae_u16 opcode, uae_u16 extra, struct i
 		int areg = (extra & 0xE0) >> 5;
 		TCHAR fc[10];
 
-		mmu_op30_helper_get_fc(extra, fc);
+		if (mmu_op30_invea(opcode))
+			break;
+		if (!mmu_op30_helper_get_fc(extra, fc))
+			break;
+		if (!level && a)
+			break;
 		_stprintf(instrname, _T("PTEST%c %s,"), rw ? 'R' : 'W', fc);
 		pc = ShowEA(NULL, pc, opcode, dp->sreg, dp->smode, dp->size, instrname, seaddr2, safemode);
 		_stprintf(instrname + _tcslen(instrname), _T(",#%d"), level);
@@ -7788,9 +7810,6 @@ static uaecptr disasm_mmu030(uaecptr pc, uae_u16 opcode, uae_u16 extra, struct i
 			_stprintf(instrname + _tcslen(instrname), _T(",A%d"), areg);
 		break;
 	}
-	default:
-		_tcscpy(instrname, _T("F-LINE"));
-		break;
 	}
 	return pc;
 }
