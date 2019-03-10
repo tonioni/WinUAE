@@ -1,4 +1,15 @@
 
+
+Beta 5:
+
+- Picasso IV Flifi I2C bus responses are now faked. Removes P4Info "I2C Bus disabled" message. Very useless.
+- Picasso IV driver polls GD5446 CR3F bit 7 (VREF state) when changing modes, probably to wait until native mode is completely redrawn, bit now toggles quickly to reduce delays when switching modes.
+- Disassembler CHK2/CMP2 support was incomplete. Another 68020+ instruction with "non-standard" encoding.
+- Added 68030 MMU instruction disassembler support.
+- 68030 MMU instructions that have FC field: 11xxx FC field is invalid and generates F-line exception. (Was missed in previous invalid bit update few versions ago)
+- Added support for shader (.fx) embedded config entries. Format: "string winuae_config : WINUAE_CONFIG = <uae-configuration compatible string>";. String can be split, for example like this: "param1 value1" <linefeed> " param2 value";. Config data is parsed and enabled when config file is loaded (with shaders selected) or when shader is changed using GUI.
+- Added Tandem IDE HD/Mitsumi CD controller emulation. Only IDE is supported (which is identical to AlfaPower IDE controllers), Mitsumi drives are not emulated.
+
 Beta 4:
 
 - Enabled color burst bit emulation always made display grayscale except if BPLCON0 was not modified during frame.

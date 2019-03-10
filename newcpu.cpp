@@ -7012,7 +7012,7 @@ static void disasm_size (TCHAR *instrname, struct instr *dp)
 	}
 }
 
-static void asm_add_extensions(uae_u16 *data, int *dcntp, int mode, uae_u32 v, uae_u16 *ext, uaecptr pc, int size)
+static void asm_add_extensions(uae_u16 *data, int *dcntp, int mode, uae_u32 v, int extcnt, uae_u16 *ext, uaecptr pc, int size)
 {
 	int dcnt = *dcntp;
 	if (mode < 0)
@@ -7024,7 +7024,9 @@ static void asm_add_extensions(uae_u16 *data, int *dcntp, int mode, uae_u32 v, u
 		data[dcnt++] = v - (pc + 2);
 	}
 	if (mode == Ad8r || mode == PC8r) {
-		data[dcnt++] = ext[0];
+		for (int i = 0; i < extcnt; i++) {
+			data[dcnt++] = ext[i];
+		}
 	}
 	if (mode == absw) {
 		data[dcnt++] = (uae_u16)v;
@@ -7075,12 +7077,18 @@ static uae_u32 asmgetval(const TCHAR *s)
 	return _tcstoul(s, &endptr, 16);
 }
 
-static int asm_parse_mode(TCHAR *s, uae_u8 *reg, uae_u32 *v, uae_u16 *ext)
+static int asm_parse_mode020(TCHAR *s, uae_u8 *reg, uae_u32 *v, int *extcnt, uae_u16 *ext)
+{
+	return -1;
+}
+
+static int asm_parse_mode(TCHAR *s, uae_u8 *reg, uae_u32 *v, int *extcnt, uae_u16 *ext)
 {
 	TCHAR *ss = s;
 	*reg = -1;
 	*v = 0;
 	*ext = 0;
+	*extcnt = 0;
 	if (s[0] == 0)
 		return -1;
 	// Dn
@@ -7123,9 +7131,27 @@ static int asm_parse_mode(TCHAR *s, uae_u8 *reg, uae_u32 *v, uae_u16 *ext)
 		*v = asmgetval(s);
 	}
 	int dots = 0;
+	int fullext = 0;
 	for (int i = 0; i < _tcslen(s); i++) {
-		if (s[i] == ',')
+		if (s[i] == ',') {
 			dots++;
+		} else if (s[i] == '[') {
+			if (fullext > 0)
+				fullext = -1;
+			else
+				fullext = 1;
+		} else if (s[i] == ']') {
+			if (fullext != 1)
+				fullext = -1;
+			else
+				fullext = 2;
+			fullext++;
+		}
+	}
+	if (fullext < 0 || fullext == 1)
+		return -1;
+	if (fullext == 2) {
+		return asm_parse_mode020(s, reg, v, extcnt, ext);
 	}
 	while (*s != 0) {
 		// d16(An)
@@ -7191,6 +7217,7 @@ static int asm_parse_mode(TCHAR *s, uae_u8 *reg, uae_u32 *v, uae_u16 *ext)
 			} else {
 				*reg = asm_isareg(s2);
 			}
+			*extcnt = 1;
 			s2 += 2;
 			if (*s2 != ',')
 				return -1;
@@ -7339,6 +7366,7 @@ int m68k_asm(TCHAR *sline, uae_u16 *out, uaecptr pc)
 	TCHAR line[256];
 	TCHAR srcea[256], dstea[256];
 	uae_u16 data[16], sexts[8], dexts[8];
+	int sextcnt, dextcnt;
 	int dcnt = 0;
 	int cc = -1;
 	int quick = 0;
@@ -7417,7 +7445,7 @@ int m68k_asm(TCHAR *sline, uae_u16 *out, uaecptr pc)
 	int ssize = -1;
 	int dsize = -1;
 
-	dmode = asm_parse_mode(dstea, &dreg, &dval, dexts);
+	dmode = asm_parse_mode(dstea, &dreg, &dval, &dextcnt, dexts);
 
 
 	// Common alias
@@ -7438,7 +7466,7 @@ int m68k_asm(TCHAR *sline, uae_u16 *out, uaecptr pc)
 			_tcscpy(dstea, tmp);
 			if (!m68k_asm_parse_movem(srcea, 0))
 				return -1;
-			dmode = asm_parse_mode(dstea, &dreg, &dval, dexts);
+			dmode = asm_parse_mode(dstea, &dreg, &dval, &dextcnt, dexts);
 		}
 	} else if (!_tcscmp(ins, _T("MOVEC"))) {
 		if (dmode == Dreg || dmode == Areg) {
@@ -7544,7 +7572,7 @@ int m68k_asm(TCHAR *sline, uae_u16 *out, uaecptr pc)
 				srcea[0] = '#';
 				_tcscpy(srcea + 1, tmp);
 			}
-			smode = asm_parse_mode(srcea, &sreg, &sval, sexts);
+			smode = asm_parse_mode(srcea, &sreg, &sval, &sextcnt, sexts);
 			if (immrelpc && !isimm) {
 				sval = sval - (pc + 2);
 			}
@@ -7624,9 +7652,9 @@ int m68k_asm(TCHAR *sline, uae_u16 *out, uaecptr pc)
 
 
 					data[dcnt++] = opcode;
-					asm_add_extensions(data, &dcnt, smode, sval, sexts, pc, tsize);
+					asm_add_extensions(data, &dcnt, smode, sval, sextcnt, sexts, pc, tsize);
 					if (smode >= 0)
-						asm_add_extensions(data, &dcnt, dmode, dval, dexts, pc, tsize);
+						asm_add_extensions(data, &dcnt, dmode, dval, dextcnt, dexts, pc, tsize);
 					for (int i = 0; i < dcnt; i++) {
 						out[i] = data[i];
 					}
