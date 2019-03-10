@@ -7293,6 +7293,44 @@ end:
 	return err;
 }
 
+static int execcmdline(struct uae_prefs *prefs, int argv, TCHAR **argc, TCHAR *out, int outsize, bool confonly)
+{
+	int ret = 0;
+	bool changed = false;
+	for (int i = 0; i < argv; i++) {
+		if (i + 2 <= argv) {
+			if (!confonly) {
+				if (!_tcsicmp(argc[i], _T("shellexec"))) {
+					uae_ShellExecute(argc[i + 1]);
+				} else if (!_tcsicmp(argc[i], _T("dbg"))) {
+					debug_parser(argc[i + 1], out, outsize);
+				} else if (!inputdevice_uaelib(argc[i], argc[i + 1])) {
+					if (!cfgfile_parse_uaelib_option(prefs, argc[i], argc[i + 1], 0)) {
+						if (!cfgfile_parse_option(prefs, argc[i], argc[i + 1], 0)) {
+							ret = 5;
+							break;
+						}
+					}
+					changed = true;
+				}
+			} else {
+				if (!cfgfile_parse_option(prefs, argc[i], argc[i + 1], 0)) {
+					ret = 5;
+					break;
+				}
+				changed = true;
+			}
+			i++;
+		}
+	}
+	if (changed) {
+		inputdevice_fix_prefs(prefs, false);
+		set_config_changed();
+		set_special(SPCFLAG_MODE_CHANGE);
+	}
+	return 0;
+}
+
 uae_u32 cfgfile_modify (uae_u32 index, const TCHAR *parms, uae_u32 size, TCHAR *out, uae_u32 outsize)
 {
 	TCHAR *p;
@@ -7350,26 +7388,7 @@ uae_u32 cfgfile_modify (uae_u32 index, const TCHAR *parms, uae_u32 size, TCHAR *
 		goto end;
 	}
 
-	for (i = 0; i < argv; i++) {
-		if (i + 2 <= argv) {
-			if (!_tcsicmp (argc[i], _T("shellexec"))) {
-				uae_ShellExecute(argc[i + 1]);
-			} else if (!_tcsicmp (argc[i], _T("dbg"))) {
-				debug_parser (argc[i + 1], out, outsize);
-			} else if (!inputdevice_uaelib (argc[i], argc[i + 1])) {
-				if (!cfgfile_parse_uaelib_option (&changed_prefs, argc[i], argc[i + 1], 0)) {
-					if (!cfgfile_parse_option (&changed_prefs, argc[i], argc[i + 1], 0)) {
-						err = 5;
-						break;
-					}
-				}
-			}
-			inputdevice_fix_prefs(&changed_prefs, false);
-			set_config_changed ();
-			set_special(SPCFLAG_MODE_CHANGE);
-			i++;
-		}
-	}
+	err = execcmdline(&changed_prefs, argv, argc, out, outsize, false);
 end:
 	for (i = 0; i < argv; i++)
 		xfree (argc[i]);
@@ -8992,6 +9011,95 @@ int built_in_cpuboard_prefs(struct uae_prefs *p)
 		return 0;
 	return 1;
 }
+
+#ifdef _WIN32
+#define SHADERPARM "string winuae_config : WINUAE_CONFIG ="
+
+// Parse early because actual shader parsing happens after screen mode
+// is already open and if shader config modifies screen parameters,
+// it would cause annoying flickering.
+void cfgfile_get_shader_config(struct uae_prefs *prefs, int rtg)
+{
+	TCHAR pluginpath[MAX_DPATH];
+	if (!get_plugin_path(pluginpath, sizeof pluginpath / sizeof(TCHAR), _T("filtershaders\\direct3d")))
+		return;
+	for (int i = 0; i < 2 * MAX_FILTERSHADERS + 1; i++) {
+		TCHAR tmp[MAX_DPATH];
+		if (!prefs->gf[rtg].gfx_filtershader[i][0])
+			continue;
+		_tcscpy(tmp, pluginpath);
+		_tcscat(tmp, prefs->gf[rtg].gfx_filtershader[i]);
+		struct zfile *z = zfile_fopen(tmp, _T("r"));
+		if (!z)
+			continue;
+		bool started = false;
+		bool quoted = false;
+		bool done = false;
+		TCHAR *cmd = NULL;
+		int len = 0;
+		int totallen = 0;
+		int linecnt = 15;
+		while (!done) {
+			char linep[MAX_DPATH], *line;
+			if (!zfile_fgetsa(linep, MAX_DPATH, z))
+				break;
+			if (!started) {
+				linecnt--;
+				if (linecnt < 0)
+					break;
+			}
+			line = linep + strspn(linep, "\t \r\n");
+			trimwsa(line);
+			char *p = line;
+			if (p[0] == '/' && p[1] == '/')
+				continue;
+			if (p[0] == ';')
+				continue;
+			if (!started) {
+				if (!strnicmp(line, SHADERPARM, strlen(SHADERPARM))) {
+					started = true;
+					p += strlen(SHADERPARM);
+					totallen = 1000;
+					cmd = xcalloc(TCHAR, totallen);
+				}
+			} else {
+				while (!done && *p) {
+					if (*p == '\"') {
+						quoted = !quoted;
+					} else if (!quoted && *p == ';') {
+						done = true;
+					} else if (quoted) {
+						if (len + 2 >= totallen) {
+							totallen += 1000;
+							cmd = xrealloc(TCHAR, cmd, totallen);
+						}
+						cmd[len++] = *p;
+					}
+					p++;
+				}
+			}
+		}
+		if (cmd) {
+			TCHAR *argc[UAELIB_MAX_PARSE];
+			cmd[len] = 0;
+			write_log(_T("Shader '%s' config '%s'\n"), tmp, cmd);
+			int argv = cmdlineparser(cmd, argc, UAELIB_MAX_PARSE);
+			if (argv > 0) {
+				execcmdline(prefs, argv, argc, NULL, 0, true);
+			}
+			for (int i = 0; i < argv; i++) {
+				xfree(argc[i]);
+			}
+		}
+		xfree(cmd);
+		zfile_fclose(z);
+	}
+}
+#else
+void cfgfile_get_shader_config(struct uae_prefs *p, int rtg)
+{
+}
+#endif
 
 void set_config_changed (void)
 {

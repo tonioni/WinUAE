@@ -2320,6 +2320,7 @@ int target_cfgfile_load (struct uae_prefs *p, const TCHAR *filename, int type, i
 			}
 		}
 	}
+	cfgfile_get_shader_config(p, 0);
 	v = 1;
 	return v;
 }
@@ -19494,6 +19495,7 @@ static void filter_handle (HWND hDlg)
 		if (item > 0) {
 			if (item > UAE_FILTER_LAST) {
 				_stprintf (workprefs.gf[filter_nativertg].gfx_filtershader[filterstackpos], _T("%s.fx"), tmp + 5);
+				cfgfile_get_shader_config(&workprefs, full_property_sheet ? 0 : filter_nativertg);
 			} else {
 				item--;
 				workprefs.gf[filter_nativertg].gfx_filter = uaefilters[item].type;

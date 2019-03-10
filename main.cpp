@@ -1155,7 +1155,7 @@ static int real_main2 (int argc, TCHAR **argv)
 		canbang = 0;
 #endif
 #endif
-
+	cfgfile_get_shader_config(&currprefs, 0);
 	fixup_prefs (&currprefs, true);
 #ifdef RETROPLATFORM
 	rp_fixup_options (&currprefs);
