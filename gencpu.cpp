@@ -29,6 +29,10 @@
 #define xBCD_KEEPS_N_FLAG 4
 #define xBCD_KEEPS_V_FLAG 2
 
+// if set: 68030 MMU and instruction's last memory access is write and it causes fault:
+// instruction is considered completed, generate short bus error stack frame.
+#define MMU68030_LAST_WRITE 1
+
 static FILE *headerfile;
 static FILE *stblfile;
 
@@ -872,12 +876,7 @@ static void clearmmufixup (int cnt)
 	}
 }
 
-static bool is_gen_set_fault_pc(void)
-{
-	return using_mmu == 68040 || using_mmu == 68030;
-}
-
-static void gen_set_fault_pc (bool multi)
+static void gen_set_fault_pc (bool multi, bool not68030)
 {
 	int m68k_pc_total_old = m68k_pc_total;
 	if (using_mmu == 68040) {
@@ -887,6 +886,10 @@ static void gen_set_fault_pc (bool multi)
 		m68k_pc_offset = 0;
 		clearmmufixup(0);
 	} else if (using_mmu == 68030) {
+		if (!MMU68030_LAST_WRITE)
+			return;
+		if (not68030)
+			return;
 		sync_m68k_pc();
 		printf("\tregs.instruction_pc = %s;\n", getpc);
 		printf("\tmmu030_state[1] |= MMU030_STATEFLAG1_LASTWRITE;\n");
@@ -1891,7 +1894,7 @@ static void genastore_2 (const char *from, amodes mode, const char *reg, wordsiz
 		const char *dstwx = !(flags & GF_FC) ? dstw : "dfc_nommu_put_word";
 		const char *dstlx = !(flags & GF_FC) ? dstl : "dfc_nommu_put_long";
 		if (!(flags & GF_NOFAULTPC))
-			gen_set_fault_pc (false);
+			gen_set_fault_pc (false, false);
 		if (using_mmu) {
 			switch (size) {
 			case sz_byte:
@@ -2188,7 +2191,7 @@ static void movem_mmu030 (const char *code, int size, bool put, bool aipi, bool 
 		dphase = 0;
 		index = "movem_index1";
 	}
-	if (put) {
+	if (put && MMU68030_LAST_WRITE) {
 		printf("\tint prefetch = 0;\n");
 	}
 	printf ("\tmmu030_state[1] |= MMU030_STATEFLAG1_MOVEM1;\n");
@@ -2216,19 +2219,21 @@ static void movem_mmu030 (const char *code, int size, bool put, bool aipi, bool 
 		printf ("\t\t\t} else {\n");
 		if (put) {
 			printf("\t\t\t\tmmu030_data_buffer_out = m68k_%creg(regs, %s[%cmask]);\n", reg, index, reg);
-			// last write?
-			if (dphase == i)
-				printf("\t\t\t\tif(!amask && !nextmask) {\n");
-			else
-				printf("\t\t\t\tif(!dmask && !nextmask) {\n");
-			get_prefetch_020();
-			gen_set_fault_pc(true);
-			printf("\t\t\t\t\tmmu030_state[1] &= ~MMU030_STATEFLAG1_MOVEM1;\n");
-			m68k_pc_offset = old_m68k_pc_offset;
-			printf("\t\t\t\t\tprefetch = 1;\n");
-			if (aipi || apdi)
-				printf("\tm68k_areg (regs, dstreg) = srca;\n");
-			printf("\t\t\t\t}\n");
+			if (MMU68030_LAST_WRITE) {
+				// last write?
+				if (dphase == i)
+					printf("\t\t\t\tif(!amask && !nextmask) {\n");
+				else
+					printf("\t\t\t\tif(!dmask && !nextmask) {\n");
+				get_prefetch_020();
+				gen_set_fault_pc(true, false);
+				printf("\t\t\t\t\tmmu030_state[1] &= ~MMU030_STATEFLAG1_MOVEM1;\n");
+				m68k_pc_offset = old_m68k_pc_offset;
+				printf("\t\t\t\t\tprefetch = 1;\n");
+				if (aipi || apdi)
+					printf("\tm68k_areg (regs, dstreg) = srca;\n");
+				printf("\t\t\t\t}\n");
+			}
 			printf("\t\t\t\t%s, mmu030_data_buffer_out);\n", code);
 		} else {
 			printf("\t\t\t\tval = %s;\n", code);
@@ -2248,14 +2253,20 @@ static void movem_mmu030 (const char *code, int size, bool put, bool aipi, bool 
 	if (aipi || apdi)
 		printf ("\tm68k_areg (regs, dstreg) = srca;\n");
 	if (put) {
-		// if both masks are zero
-		printf("\tif(prefetch == 0) {\n");
-		if (using_prefetch_020) {
-			get_prefetch_020();
+		if (MMU68030_LAST_WRITE) {
+			// if both masks are zero
+			printf("\tif(prefetch == 0) {\n");
+			if (using_prefetch_020) {
+				get_prefetch_020();
+			}
+			sync_m68k_pc();
+			printf("\t}\n");
+			m68k_pc_offset = 0;
+		} else {
+			if (using_prefetch_020) {
+				get_prefetch_020();
+			}
 		}
-		sync_m68k_pc();
-		printf("\t}\n");
-		m68k_pc_offset = 0;
 	}
 }
 
@@ -3868,7 +3879,7 @@ static void gen_opcode (unsigned int opcode)
 		break;
 	case i_TRAP:
 		genamode (curi, curi->smode, "srcreg", curi->size, "src", 1, 0, 0);
-		gen_set_fault_pc (false);
+		gen_set_fault_pc (false, true);
 		sync_m68k_pc ();
 		printf ("\tException_cpu(src + 32);\n");
 		did_prefetch = 1;
@@ -5096,7 +5107,7 @@ bccl_not68020:
 			printf ("\tint ru = (src >> 6) & 7;\n");
 			printf ("\tint rc = src & 7;\n");
 			genflags (flag_cmp, curi->size, "newv", "m68k_dreg (regs, rc)", "dst");
-			gen_set_fault_pc (false);
+			gen_set_fault_pc (false, true);
 			printf ("\tif (GET_ZFLG ()) ");
 			old_brace_level = n_braces;
 			start_brace ();
@@ -5345,7 +5356,7 @@ bccl_not68020:
 			printf ("\tval += %s;\n", gen_nextiword(0));
 			addmmufixup ("dstreg");
 			printf ("\tm68k_areg (regs, dstreg) -= areg_byteinc[dstreg];\n");
-			gen_set_fault_pc (false);
+			gen_set_fault_pc (false, false);
 			printf ("\t%s (m68k_areg (regs, dstreg),((val >> 4) & 0xf0) | (val & 0xf));\n", dstb);
 		}
 		break;
@@ -5370,7 +5381,7 @@ bccl_not68020:
 				printf ("\tm68k_areg (regs, dstreg) -= areg_byteinc[dstreg];\n");
 				printf ("\t%s (m68k_areg (regs, dstreg),val);\n", dstb);
 				printf ("\tm68k_areg (regs, dstreg) -= areg_byteinc[dstreg];\n");
-				gen_set_fault_pc (false);
+				gen_set_fault_pc (false, false);
 				printf ("\t%s (m68k_areg (regs, dstreg),val >> 8);\n", dstb);
 			}
 		}
