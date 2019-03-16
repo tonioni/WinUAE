@@ -1855,8 +1855,11 @@ static void set_direct_memory(addrbank *ab)
 bool mapped_malloc (addrbank *ab)
 {
 	ab->startmask = ab->start;
+	ab->startaccessmask = ab->start & ab->mask;
 	ab->baseaddr = xcalloc (uae_u8, ab->reserved_size + 4);
 	ab->allocated_size =  ab->baseaddr != NULL ? ab->reserved_size : 0;
+	ab->baseaddr_direct_r = NULL;
+	ab->baseaddr_direct_w = NULL;
 	ab->flags &= ~ABFLAG_MAPPED;
 	set_direct_memory(ab);
 	return ab->baseaddr != NULL;

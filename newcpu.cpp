@@ -7726,7 +7726,7 @@ static uaecptr disasm_mmu030(uaecptr pc, uae_u16 opcode, uae_u16 extra, struct i
 		int rw = (extra >> 9) & 1;
 		int fd = (extra >> 8) & 1;
 		int unused = (extra & 0xff);
-		TCHAR *r = NULL;
+		const TCHAR *r = NULL;
 
 		if (mmu_op30_invea(opcode))
 			break;
