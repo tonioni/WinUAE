@@ -6449,11 +6449,13 @@ static int parseargs(const TCHAR *argx, const TCHAR *np, const TCHAR *np2)
 		return 1;
 	}
 	if (!_tcscmp(arg, _T("cd32log"))) {
-		log_cd32 = 1;
+		if (log_cd32 < 1)
+			log_cd32 = 1;
 		return 1;
 	}
 	if (!_tcscmp(arg, _T("cd32log2"))) {
-		log_cd32 = 2;
+		if (log_cd32 < 2)
+			log_cd32 = 2;
 		return 1;
 	}
 	if (!_tcscmp(arg, _T("nolcd"))) {
