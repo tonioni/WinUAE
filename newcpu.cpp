@@ -5791,6 +5791,8 @@ void cpu_halt (int id)
 			regs.intmask = 7;
 			MakeSR ();
 			audio_deactivate ();
+			if (debugging)
+				activate_debugger();
 		}
 	}
 	set_special(SPCFLAG_CHECK);
