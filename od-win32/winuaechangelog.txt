@@ -1,4 +1,10 @@
 
+Beta 6:
+
+- On the fly switching to built-in AROS ROM with low memory config (like basic A500) crashed.
+- Tape emulation: only support reads/writes if CDB fixed bit is set, emulated drive is not variable block size compatible and it was wrong anyway.
+- Activate debugger if entering halted state and debugger is in use (for example breakpoint active)
+- ATAPI tape: ATAPI identity response device type was CD-ROM, not Sequential access device.
 
 Beta 5:
 
