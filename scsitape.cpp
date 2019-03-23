@@ -109,6 +109,8 @@ static void tape_init (int unit, struct scsi_data_tape *tape, const TCHAR *tape_
 bool tape_can_write(const TCHAR *tape_directory)
 {
 	TCHAR tmp[MAX_DPATH];
+	if (!tape_directory[0])
+		return false;
 	if (my_existsdir(tape_directory))
 		return true;
 	_tcscpy(tmp, tape_directory);
@@ -549,9 +551,10 @@ int scsi_tape_emulate (struct scsi_data_tape *tape, uae_u8 *cmdbuf, int scsi_cmd
 		break;
 
 	case 0x0a: /* WRITE (6) */
+		if (!(cmdbuf[1] & 1))
+			goto errreq;
 		len = rl (cmdbuf + 1) & 0xffffff;
-		if (cmdbuf[1] & 1)
-			len *= tape->blocksize;
+		len *= tape->blocksize;
 		if (log_tapeemu)
 			write_log (_T("TAPEEMU WRITE %lld (%d, %d)\n"), len, rl (cmdbuf + 1) & 0xffffff, cmdbuf[1] & 1);
 		if (notape (tape))
@@ -569,9 +572,10 @@ int scsi_tape_emulate (struct scsi_data_tape *tape, uae_u8 *cmdbuf, int scsi_cmd
 		break;
 
 	case 0x08: /* READ (6) */
+		if (!(cmdbuf[1] & 1))
+			goto errreq;
 		len = rl (cmdbuf + 1) & 0xffffff;
-		if (cmdbuf[1] & 1)
-			len *= tape->blocksize;
+		len *= tape->blocksize;
 		if (log_tapeemu)
 			write_log (_T("TAPEEMU READ %lld (%d, %d)\n"), len, rl (cmdbuf + 1) & 0xffffff, cmdbuf[1] & 1);
 		if (notape (tape))
