@@ -6,7 +6,7 @@
 * (c) 2006 - 2015 Toni Wilen
 */
 
-#define IDE_LOG 1
+#define IDE_LOG 0
 
 #include "sysconfig.h"
 #include "sysdeps.h"
@@ -452,16 +452,25 @@ static void ide_identity_buffer(struct ide_hdf *ide)
 {
 	TCHAR tmp[100];
 	bool atapi = ide->atapi;
+	int device_type = ide->atapi_device_type;
 	bool cf = ide->media_type > 0;
 	bool real = false;
 	int v;
 
 	memset(ide->secbuf, 0, 512);
+	if (!device_type)
+		device_type = 5; // CD
 
 	if (ata_get_identity(ide->hdhfd.hfd.geometry, ide->secbuf, true)) {
 
 		if (ini_getval(ide->hdhfd.hfd.geometry, _T("IDENTITY"), _T("atapi"), &v)) {
 			ide->atapi = v != 0;
+			if (ide->atapi) {
+				ide->atapi_device_type = 0;
+				ini_getval(ide->hdhfd.hfd.geometry, _T("IDENTITY"), _T("atapi_type"), &ide->atapi_device_type);
+				if (!ide->atapi_device_type)
+					ide->atapi_device_type = 5;
+			}
 		}
 		if (!ide->byteswap) {
 			ata_byteswapidentity(ide->secbuf);
@@ -477,7 +486,7 @@ static void ide_identity_buffer(struct ide_hdf *ide)
 
 	} else {
 
-		pw(ide, 0, atapi ? 0x85c0 : (cf ? 0x848a : (1 << 6)));
+		pw(ide, 0, atapi ? 0x80c0 | (device_type << 8) : (cf ? 0x848a : (1 << 6)));
 		pw(ide, 1, ide->hdhfd.cyls_def);
 		pw(ide, 2, 0xc837);
 		pw(ide, 3, ide->hdhfd.heads_def);
@@ -1624,6 +1633,7 @@ struct ide_hdf *add_ide_unit (struct ide_hdf **idetable, int max, int ch, struct
 		ide_identity_buffer(ide);
 		ide->cd_unit_num = ci->device_emu_unit;
 		ide->atapi = true;
+		ide->atapi_device_type = 5;
 		ide->blocksize = 512;
 		ide->uae_unitnum = ci->uae_unitnum;
 		gui_flicker_led(LED_CD, ci->uae_unitnum, -1);
@@ -1640,6 +1650,7 @@ struct ide_hdf *add_ide_unit (struct ide_hdf **idetable, int max, int ch, struct
 
 		ide_identity_buffer(ide);
 		ide->atapi = true;
+		ide->atapi_device_type = 1;
 		ide->blocksize = 512;
 		ide->cd_unit_num = -1;
 		ide->uae_unitnum = ci->uae_unitnum;

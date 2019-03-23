@@ -103,6 +103,7 @@ struct ide_hdf
 	int uae_unitnum;
 
 	bool atapi;
+	int atapi_device_type;
 	bool atapi_drdy;
 	int cd_unit_num;
 	int packet_state;
