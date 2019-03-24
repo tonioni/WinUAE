@@ -334,10 +334,12 @@ static int tape_read (struct scsi_data_tape *tape, uae_u8 *scsi_data, int len, b
 				write_log(_T("TAPEEMU READ: Requested %ld, read %ld, pos %lld, %lld remaining.\n"), len, got, pos, zfile_size(tape->zf) - pos);
 		} else {
 			got = 0;
-			uae_u8 *data = xmalloc(uae_u8, len);
-			if (data) {
-				got = zfile_fread(data, 1, len, tape->zf);
-				xfree(data);
+			if (len > 0) {
+				uae_u8 *data = xmalloc(uae_u8, len);
+				if (data) {
+					got = zfile_fread(data, 1, len, tape->zf);
+					xfree(data);
+				}
 			}
 		}
 		tape->file_offset += got;
@@ -563,7 +565,7 @@ int scsi_tape_emulate (struct scsi_data_tape *tape, uae_u8 *cmdbuf, int scsi_cmd
 			goto unloaded;
 		if (tape->wp)
 			goto writeprot;
-		if (tape->beom < 1)
+		if (len && tape->beom < 1)
 			tape->beom = 1;
 		scsi_len = tape_write (tape, scsi_data, len);
 		if (scsi_len < 0)
@@ -582,7 +584,7 @@ int scsi_tape_emulate (struct scsi_data_tape *tape, uae_u8 *cmdbuf, int scsi_cmd
 			goto notape;
 		if (tape->unloaded)
 			goto unloaded;
-		if (tape->beom < 0)
+		if (len && tape->beom < 0)
 			tape->beom = 0;
 		scsi_len = tape_read (tape, scsi_data, len, &eof);
 		if (log_tapeemu)
