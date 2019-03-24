@@ -2810,7 +2810,7 @@ void memory_reset (void)
 	}
 	if (currprefs.cs_ksmirror_a8) {
 		if (extendedkickmem2_bank.allocated_size) {
-			map_banks_set(&extendedkickmem2_bank, 0xa8, 16, 0);
+			map_banks_set(&extendedkickmem2_bank, extendedkickmem2_bank.start >> 16, extendedkickmem2_bank.allocated_size >> 16, 0);
 		} else {
 			struct romdata *rd = getromdatabypath (currprefs.cartfile);
 			if (!rd || rd->id != 63) {
@@ -2821,6 +2821,8 @@ void memory_reset (void)
 				map_banks(&kickmem_bank, 0xa8, 8, 0);
 			}
 		}
+	} else if (extendedkickmem2_bank.allocated_size && extendedkickmem2_bank.baseaddr) {
+		map_banks_set(&extendedkickmem2_bank, extendedkickmem2_bank.start >> 16, extendedkickmem2_bank.allocated_size >> 16, 0);
 	}
 
 #ifdef ARCADIA
