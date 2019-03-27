@@ -984,8 +984,8 @@ static void pfield_init_linetoscr (bool border)
 	}
 
 #ifdef AGA
-	// if BPLCON4 is non-zero: it will affect background color until end of DIW.
-	if (dp_for_drawing->xor_seen) {
+	// if BPLCON4 is non-zero or borderblank: it can affect background color until end of DIW.
+	if (dp_for_drawing->xor_seen || ce_is_borderblank(colors_for_drawing.extra)) {
 		if (playfield_end < linetoscr_diw_end && hblank_right_stop > playfield_end) {
 			playfield_end = linetoscr_diw_end;
 			expanded = true;
