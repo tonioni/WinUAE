@@ -2511,9 +2511,11 @@ static void picasso96_alloc2 (TrapContext *ctx)
 
 void picasso96_alloc (TrapContext *ctx)
 {
-	if (uaegfx_old || currprefs.rtgboards[0].rtgmem_type >= GFXBOARD_HARDWARE)
+	if (currprefs.rtgboards[0].rtgmem_type >= GFXBOARD_HARDWARE)
 		return;
 	uaegfx_resname = ds (_T("uaegfx.card"));
+	if (uaegfx_old)
+		return;
 	picasso96_alloc2 (ctx);
 }
 
@@ -2525,7 +2527,7 @@ static void inituaegfx(TrapContext *ctx, uaecptr ABI)
 	cursorvisible = false;
 	cursorok = 0;
 	cursordeactivate = 0;
-	write_log (_T("RTG mode mask: %x\n"), currprefs.picasso96_modeflags);
+	write_log (_T("RTG mode mask: %x BI=%08x\n"), currprefs.picasso96_modeflags, ABI);
 	trap_put_word(ctx, ABI + PSSO_BoardInfo_BitsPerCannon, 8);
 	trap_put_word(ctx, ABI + PSSO_BoardInfo_RGBFormats, currprefs.picasso96_modeflags);
 	trap_put_long(ctx, ABI + PSSO_BoardInfo_BoardType, picasso96_BT);
