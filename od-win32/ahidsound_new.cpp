@@ -433,7 +433,7 @@ static uae_u32 gettag (uae_u32 *tagpp, uae_u32 *datap)
 			tagp = data;
 			break;
 		case TAG_SKIP:
-			tagp += data * 8;
+			tagp += (data + 1) * 8;
 			break;
 		default:
 			tagp += 8;

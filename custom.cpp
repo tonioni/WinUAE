@@ -6578,7 +6578,6 @@ static void SPRxCTL_1(uae_u16 v, int num, int hpos)
 	SPRxCTLPOS (num);
 
 #if SPRITE_DEBUG > 0
-	struct sprite *s = &spr[num];
 	if (vpos >= SPRITE_DEBUG_MINY && vpos <= SPRITE_DEBUG_MAXY && (SPRITE_DEBUG & (1 << num))) {
 		write_log (_T("%d:%d:SPR%dCTL %04X P=%06X VSTRT=%d VSTOP=%d HSTRT=%d D=%d A=%d CP=%x PC=%x\n"),
 			vpos, hpos, num, v, s->pt, s->vstart, s->vstop, s->xpos, spr[num].dmastate, spr[num].armed, cop_state.ip, M68K_GETPC);

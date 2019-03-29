@@ -1,4 +1,12 @@
 
+Beta 7:
+
+- ELF executable ROM loader crash fix.
+- Borderblank + horizontally bitplane ending before display window end: part of right border was drawn using wrong color (borderblank color vs color 0).
+- uaegfx and Picasso IV 8-bit palette overlay mode was not implemented. Fixes XIII/Oxyron PIP mode.
+- Fixed uaegfx overlay corruption if allocated overlay bitmap width was not divisible by pixel byte size. (PiP_View + image with "unaligned" width)
+- Disassemmbling 68020+ full format extension type (an,dn,xxxx.w/.l) didn't print an part.
+
 Beta 6:
 
 - On the fly switching to built-in AROS ROM with low memory config (like basic A500) crashed.
