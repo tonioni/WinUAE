@@ -2771,13 +2771,11 @@ void init_colors(int monid)
 
 #ifdef PICASSO96
 
-int picasso_palette(int monid, struct MyCLUTEntry *CLUT)
+int picasso_palette(struct MyCLUTEntry *CLUT, uae_u32 *clut)
 {
-	struct picasso_vidbuf_description *vidinfo = &picasso_vidinfo[monid];
-	int i, changed;
+	int changed = 0;
 
-	changed = 0;
-	for (i = 0; i < 256; i++) {
+	for (int i = 0; i < 256; i++) {
 		int r = CLUT[i].Red;
 		int g = CLUT[i].Green;
 		int b = CLUT[i].Blue;
@@ -2785,9 +2783,9 @@ int picasso_palette(int monid, struct MyCLUTEntry *CLUT)
 			| doMask256 (g, green_bits, green_shift)
 			| doMask256 (b, blue_bits, blue_shift))
 			| doMask256 (0xff, alpha_bits, alpha_shift);
-		if (v != vidinfo->clut[i]) {
+		if (v != clut[i]) {
 			//write_log (_T("%d:%08x\n"), i, v);
-			vidinfo->clut[i] = v;
+			clut[i] = v;
 			changed = 1;
 		}
 	}

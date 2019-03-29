@@ -176,6 +176,7 @@ typedef struct VGACommonState {
 	int monid;
 	int old_ovl_format;
 	int old_overlay;
+	int ovl_changed;
 } VGACommonState;
 
 STATIC_INLINE int c6_to_8(int v)

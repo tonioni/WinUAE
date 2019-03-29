@@ -167,8 +167,10 @@ static uaecptr boardinfo, ABI_interrupt;
 static int interrupt_enabled;
 float p96vblank;
 
-static int overlay_src_width, overlay_src_height;
-static uae_u32 overlay_format, overlay_color;
+#define OVERLAY_DEBUG 1
+static int overlay_src_width_in, overlay_src_height_in;
+static int overlay_src_height, overlay_src_width;
+static uae_u32 overlay_format, overlay_color, overlay_color_unswapped;
 static uae_u32 overlay_modeformat, overlay_modeinfo;
 static int overlay_x, overlay_y;
 static int overlay_w, overlay_h;
@@ -178,6 +180,8 @@ static int overlay_vram_offset;
 static int overlay_active;
 static int overlay_convert;
 static int overlay_occlusion;
+static struct MyCLUTEntry overlay_clutc[256];
+static uae_u32 overlay_clut[256];
 static uae_u32 *p96_rgbx16_ovl;
 
 static int uaegfx_old, uaegfx_active;
@@ -1033,7 +1037,7 @@ static void setconvert(int monid)
 	else
 		alloc_colors_rgb(5, 6, 5, 11, 5, 0, 0, 0, 0, 0, p96rc, p96gc, p96bc);
 	gfx_set_picasso_colors(monid, state->RGBFormat);
-	picasso_palette(monid, state->CLUT);
+	picasso_palette(state->CLUT, vidinfo->clut);
 	if (vidinfo->host_mode != vidinfo->ohost_mode || state->RGBFormat != vidinfo->orgbformat) {
 		write_log (_T("RTG conversion: Depth=%d HostRGBF=%d P96RGBF=%d Mode=%d\n"),
 			picasso_vidinfo[monid].pixbytes, vidinfo->host_mode, state->RGBFormat, vidinfo->picasso_convert);
@@ -2785,6 +2789,7 @@ static int updateclut(TrapContext *ctx, uaecptr clut, int start, int count)
 	bool uaegfx = currprefs.rtgboards[0].rtgmem_type < GFXBOARD_HARDWARE && currprefs.rtgboards[0].rtgmem_size;
 	int monid = currprefs.rtgboards[0].monitor_id;
 	struct picasso96_state_struct *state = &picasso96_state[monid];
+	struct picasso_vidbuf_description *vidinfo = &picasso_vidinfo[monid];
 	uae_u8 clutbuf[256 * 3];
 	int i, changed = 0;
 	clut += start * 3;
@@ -2810,7 +2815,8 @@ static int updateclut(TrapContext *ctx, uaecptr clut, int start, int count)
 			state->CLUT[i].Blue = b;
 		}
 	}
-	changed |= picasso_palette(monid, state->CLUT);
+
+	changed |= picasso_palette(state->CLUT, vidinfo->clut);
 	return changed;
 }
 static uae_u32 REGPARAM2 picasso_SetColorArray (TrapContext *ctx)
@@ -4498,7 +4504,7 @@ void copyrow_scale(int monid, uae_u8 *src, uae_u8 *src_screen, uae_u8 *dst,
 	int screenbytesperrow, int screenpixbytes,
 	int dx, int dy, int dstwidth, int dstheight, int dstbytesperrow, int dstpixbytes,
 	bool ck, uae_u32 colorkey,
-	int convert_mode, uae_u32 *p96_rgbx16p)
+	int convert_mode, uae_u32 *p96_rgbx16p, uae_u32 *clut)
 {
 	struct picasso_vidbuf_description *vidinfo = &picasso_vidinfo[monid];
 	uae_u8 *src2 = src + sy * srcbytesperrow;
@@ -4759,36 +4765,36 @@ void copyrow_scale(int monid, uae_u8 *src, uae_u8 *src_screen, uae_u8 *dst,
 				x = sx >> 8;
 				sx += sxadd;
 				CKCHECK
-					((uae_u16*)dst2)[dx] = vidinfo->clut[src2[x]];
+					((uae_u16*)dst2)[dx] = clut[src2[x]];
 				dx++;
 			}
 			while (sx < endx4) {
 				x = sx >> 8;
 				sx += sxadd;
 				CKCHECK
-					((uae_u16*)dst2)[dx] = vidinfo->clut[src2[x]];
+					((uae_u16*)dst2)[dx] = clut[src2[x]];
 				dx++;
 				x = sx >> 8;
 				sx += sxadd;
 				CKCHECK
-					((uae_u16*)dst2)[dx] = vidinfo->clut[src2[x]];
+					((uae_u16*)dst2)[dx] = clut[src2[x]];
 				dx++;
 				x = sx >> 8;
 				sx += sxadd;
 				CKCHECK
-					((uae_u16*)dst2)[dx] = vidinfo->clut[src2[x]];
+					((uae_u16*)dst2)[dx] = clut[src2[x]];
 				dx++;
 				x = sx >> 8;
 				sx += sxadd;
 				CKCHECK
-					((uae_u16*)dst2)[dx] = vidinfo->clut[src2[x]];
+					((uae_u16*)dst2)[dx] = clut[src2[x]];
 				dx++;
 			}
 			while (sx < endx) {
 				x = sx >> 8;
 				sx += sxadd;
 				CKCHECK
-					((uae_u16*)dst2)[dx] = vidinfo->clut[src2[x]];
+					((uae_u16*)dst2)[dx] = clut[src2[x]];
 				dx++;
 			}
 		}
@@ -4801,36 +4807,36 @@ void copyrow_scale(int monid, uae_u8 *src, uae_u8 *src_screen, uae_u8 *dst,
 				x = sx >> 8;
 				sx += sxadd;
 				CKCHECK
-					((uae_u32*)dst2)[dx] = vidinfo->clut[src2[x]];
+					((uae_u32*)dst2)[dx] = clut[src2[x]];
 				dx++;
 			}
 			while (sx < endx4) {
 				x = sx >> 8;
 				sx += sxadd;
 				CKCHECK
-					((uae_u32*)dst2)[dx] = vidinfo->clut[src2[x]];
+					((uae_u32*)dst2)[dx] = clut[src2[x]];
 				dx++;
 				x = sx >> 8;
 				sx += sxadd;
 				CKCHECK
-					((uae_u32*)dst2)[dx] = vidinfo->clut[src2[x]];
+					((uae_u32*)dst2)[dx] = clut[src2[x]];
 				dx++;
 				x = sx >> 8;
 				sx += sxadd;
 				CKCHECK
-					((uae_u32*)dst2)[dx] = vidinfo->clut[src2[x]];
+					((uae_u32*)dst2)[dx] = clut[src2[x]];
 				dx++;
 				x = sx >> 8;
 				sx += sxadd;
 				CKCHECK
-					((uae_u32*)dst2)[dx] = vidinfo->clut[src2[x]];
+					((uae_u32*)dst2)[dx] = clut[src2[x]];
 				dx++;
 			}
 			while (sx < endx) {
 				x = sx >> 8;
 				sx += sxadd;
 				CKCHECK
-					((uae_u32*)dst2)[dx] = vidinfo->clut[src2[x]];
+					((uae_u32*)dst2)[dx] = clut[src2[x]];
 				dx++;
 			}
 		}
@@ -4919,23 +4925,23 @@ static void picasso_flushoverlay(int index, uae_u8 *src, int scr_offset, uae_u8 
 	uae_u8 *vram_end = src + gfxmem_banks[0]->allocated_size;
 	uae_u8 *s = src + overlay_vram_offset;
 	uae_u8 *ss = src + scr_offset;
-	int mx = overlay_src_width * 256 / overlay_w;
-	int my = overlay_src_height * 256 / overlay_h;
+	int mx = overlay_src_width_in * 256 / overlay_w;
+	int my = overlay_src_height_in * 256 / overlay_h;
 	int y = 0;
 
 	for (int dy = 0; dy < overlay_h; dy++) {
-		if (s + (y >> 8) * overlay_src_width * overlay_pix > vram_end)
+		if (s + (y >> 8) * overlay_src_width_in * overlay_pix > vram_end)
 			break;
 		if (ss + (overlay_y + dy) * state->BytesPerRow > vram_end)
 			break;
 		if (dst + (overlay_y + dy) * vidinfo->rowbytes > vram_end)
 			break;
 		copyrow_scale(monid, s, ss, dst,
-			0, (y >> 8), mx, overlay_src_width, overlay_src_width * overlay_pix, overlay_pix,
+			0, (y >> 8), mx, overlay_src_width_in, overlay_src_width * overlay_pix, overlay_pix,
 			state->BytesPerRow, state->BytesPerPixel,
 			overlay_x, overlay_y + dy, vidinfo->width, vidinfo->height, vidinfo->rowbytes, vidinfo->pixbytes,
 			overlay_occlusion != 0, overlay_color,
-			overlay_convert, p96_rgbx16_ovl);
+			overlay_convert, p96_rgbx16_ovl, overlay_clut);
 		y += my;
 	}
 }
@@ -5423,6 +5429,9 @@ static uaecptr gettag(TrapContext *ctx, uaecptr p, uae_u32 *tagp, uae_u32 *valp)
 	for (;;) {
 		uae_u32 tag = trap_get_long(ctx, p);
 		uae_u32 val = trap_get_long(ctx, p + 4);
+#if OVERLAY_DEBUG > 2
+		write_log(_T("TAG %08x: %08x %08x\n"), p, tag, val);
+#endif
 		if (tag == TAG_DONE)
 			return 0;
 		if (tag == TAG_IGNORE) {
@@ -5430,7 +5439,7 @@ static uaecptr gettag(TrapContext *ctx, uaecptr p, uae_u32 *tagp, uae_u32 *valp)
 			continue;
 		}
 		if (tag == TAG_SKIP) {
-			p += val * 8;
+			p += (val + 1) * 8;
 			continue;
 		}
 		if (tag == TAG_MORE) {
@@ -5444,12 +5453,16 @@ static uaecptr gettag(TrapContext *ctx, uaecptr p, uae_u32 *tagp, uae_u32 *valp)
 }
 static void settag(TrapContext *ctx, uaecptr p, uae_u32 v)
 {
-	uaecptr addr = trap_get_long(ctx, p - 8 + 4);
-	trap_put_long(ctx, addr, v);
+	trap_put_long(ctx, p, v);
+#if OVERLAY_DEBUG > 2
+	write_log(_T(" - %08x -> %08x\n"), p, v);
+#endif
 }
 
-static void overlaygettag(uae_u32 tag, uae_u32 val)
+static void overlaygettag(TrapContext *ctx, uae_u32 tag, uae_u32 val)
 {
+	struct picasso_vidbuf_description *vidinfo = &picasso_vidinfo[0];
+
 	switch (tag)
 	{
 	case FA_Active:
@@ -5471,10 +5484,10 @@ static void overlaygettag(uae_u32 tag, uae_u32 val)
 		overlay_h = val;
 		break;
 	case FA_SourceWidth:
-		overlay_src_width = val;
+		overlay_src_width_in = val;
 		break;
 	case FA_SourceHeight:
-		overlay_src_height = val;
+		overlay_src_height_in = val;
 		break;
 	case FA_Format:
 		overlay_format = val;
@@ -5487,25 +5500,104 @@ static void overlaygettag(uae_u32 tag, uae_u32 val)
 		break;
 	case FA_Color:
 		overlay_color = val;
+		overlay_color_unswapped = val;
 		endianswap(&overlay_color, picasso96_state[0].BytesPerPixel);
+		break;
+	case FA_Colors32:
+		{
+			while(val) {
+				uae_u8 tmpbuf[256 * 3 * 4 + 4];
+				uae_u32 v = trap_get_long(ctx, val);
+				val += 4;
+				uae_u16 num = v >> 16;
+				if (num > 256)
+					break;
+				uae_u16 first = v & 0xffff;
+				trap_get_bytes(ctx, tmpbuf, val, num * 3 * 4 + 4);
+				for (int i = 0; i < num && (first + i) < 256; i++) {
+					overlay_clutc[first + i].Red = tmpbuf[i * 3 * 4 + 0];
+					overlay_clutc[first + i].Green = tmpbuf[i * 3 * 4 + 4];
+					overlay_clutc[first + i].Blue = tmpbuf[i * 3 * 4 + 8];
+				}
+				if (!tmpbuf[num])
+					break;
+				val += num * 3 * 4;
+			}
+			if (picasso_palette(overlay_clutc, overlay_clut))
+				vidinfo->full_refresh = 1;
+		}
+		break;
+	case FA_Colors:
+		{
+			while (val) {
+				uae_u8 tmpbuf[4 * 2];
+				trap_get_bytes(ctx, tmpbuf, val, 4 * 2);
+				uae_u16 idx = (tmpbuf[0] << 8) | tmpbuf[1];
+				if (idx >= 256)
+					break;
+				overlay_clutc[idx].Red = ((tmpbuf[3] & 15) << 4) | (tmpbuf[3] & 15);
+				overlay_clutc[idx].Green = ((tmpbuf[5] & 15) << 4) | (tmpbuf[5] & 15);
+				overlay_clutc[idx].Blue = ((tmpbuf[7] & 15) << 4) | (tmpbuf[7] & 15);
+				val += 4 * 2;
+			}
+			if (picasso_palette(overlay_clutc, overlay_clut))
+				vidinfo->full_refresh = 1;
+		}
 		break;
 	}
 }
 
-static void overlaysettag(TrapContext *ctx, uaecptr p, uae_u32 tag, uae_u32 val)
+static void overlaysettag(TrapContext *ctx, uae_u32 tag, uae_u32 val)
 {
+	uae_u32 t;
 	switch (tag)
 	{
+	case FA_Active:
+		settag(ctx, val, overlay_active);
+		break;
+	case FA_Occlusion:
+		settag(ctx, val, overlay_occlusion);
+		break;
 	case FA_MinWidth:
 	case FA_MinHeight:
-		settag(ctx, p, 16);
+		settag(ctx, val, 16);
 		break;
 	case FA_MaxWidth:
 	case FA_MaxHeight:
-		settag(ctx, p, 4096);
+		settag(ctx, val, 4096);
+		break;
+	case FA_Left:
+		settag(ctx, val, overlay_x);
+		break;
+	case FA_Top:
+		settag(ctx, val, overlay_y);
+		break;
+	case FA_Width:
+		settag(ctx, val, overlay_w);
+		break;
+	case FA_Height:
+		settag(ctx, val, overlay_h);
+		break;
+	case FA_SourceWidth:
+		settag(ctx, val, overlay_src_width_in);
+		break;
+	case FA_SourceHeight:
+		settag(ctx, val, overlay_src_height_in);
 		break;
 	case FA_BitMap:
-		settag(ctx, p, overlay_bitmap);
+		settag(ctx, val, overlay_bitmap);
+		break;
+	case FA_Format:
+		settag(ctx, val, overlay_format);
+		break;
+	case FA_ModeFormat:
+		settag(ctx, val, overlay_modeformat);
+		break;
+	case FA_ModeInfo:
+		settag(ctx, val, overlay_modeinfo);
+		break;
+	case FA_Color:
+		settag(ctx, val, overlay_color_unswapped);
 		break;
 	}
 }
@@ -5518,18 +5610,25 @@ static uae_u32 REGPARAM2 picasso_SetFeatureAttrs(TrapContext *ctx)
 	uaecptr tagp = trap_get_areg(ctx, 2);
 	uae_u32 type = trap_get_dreg(ctx, 0);
 
+#if OVERLAY_DEBUG > 1
+	write_log(_T("picasso_SetFeatureAttrs %08x %d\n"), tagp, type);
+#endif
 	for (;;) {
 		uae_u32 tag, val;
 		tagp = gettag(ctx, tagp, &tag, &val);
 		if (!tagp)
 			break;
+#if OVERLAY_DEBUG > 1
 		write_log(_T("picasso_SetFeatureAttrs %08x tag %08x (%d) %08x\n"), tagp - 8, tag, tag & 0x7fffffff, val);
-		overlaygettag(tag, val);
+#endif
+		overlaygettag(ctx, tag, val);
 	}
+#if OVERLAY_DEBUG > 1
 	write_log(_T("RTG Overlay: X=%d Y=%d W=%d H=%d Act=%d SrcW=%d SrcH=%d BPP=%d VRAM=%08x\n"),
 		overlay_x, overlay_y, overlay_w, overlay_h,
-		overlay_active, overlay_src_width, overlay_src_height,
+		overlay_active, overlay_src_width_in, overlay_src_height_in,
 		overlay_pix, overlay_vram);
+#endif
 	vidinfo->full_refresh = 1;
 	return 0;
 }
@@ -5541,89 +5640,124 @@ static uae_u32 REGPARAM2 picasso_GetFeatureAttrs(TrapContext *ctx)
 	uaecptr tagp = trap_get_areg(ctx, 2);
 	uae_u32 type = trap_get_dreg(ctx, 0);
 
+#if OVERLAY_DEBUG > 1
+	write_log(_T("picasso_GetFeatureAttrs %08x %d\n"), tagp, type);
+#endif
 	for (;;) {
 		uae_u32 tag, val;
 		tagp = gettag(ctx, tagp, &tag, &val);
 		if (!tagp)
 			break;
-		write_log(_T("picasso_GetFeatureAttrs %08x tag %08x (%d) %08x\n"), tagp - 8, tag, tag & 0x7fffffff, val);
-		overlaysettag(ctx, tagp, tag, val);
+		overlaysettag(ctx, tag, val);
+#if OVERLAY_DEBUG > 1
+		write_log(_T("picasso_GetFeatureAttrs %08x tag %08x (%d) %08x\n"), tagp, tag, tag & 0x7fffffff, val);
+#endif
 	}
 	return 0;
 }
 
-// undocumented tags from picassoiv driver..
+// Tags from picassoiv driver..
 static const uae_u32 ovltags[] = {
-	0x80000003, 1,
-	0x80000004, 1,
-	0x80000005, 1,
-	0x80000008, 0,
-	0x80000009, 0,
-	0x80000010, 0,
-	0x80000006, 0,
-	0x8000000c, 0,
-	0x8000000d, 0,
-	0x8000000e, 0,
-	0x8000000f, 0,
-	0,0
+	ABMA_Clear, 1,
+	ABMA_Displayable, 1,
+	ABMA_Visible, 1,
+	ABMA_Colors, 0,
+	ABMA_Colors32, 0,
+	ABMA_ConstantBytesPerRow, 0,
+	ABMA_NoMemory, 0,
+	ABMA_RenderFunc, 0,
+	ABMA_SaveFunc, 0,
+	ABMA_UserData, 0,
+	ABMA_Alignment, 0,
+	TAG_DONE, 0
 };
+#define ALLOC_TAG_SIZE (13 * 8)
+
+// "VBInt PicassoIV (0)" -0x14
+// AllocCardMem=274 AllocBitMap=506 SetColorArray=286
+// CLUTEntry=578
 
 static uae_u32 REGPARAM2 picasso_CreateFeature(TrapContext *ctx)
 {
 	struct picasso_vidbuf_description *vidinfo = &picasso_vidinfo[0];
+	struct picasso96_state_struct *state = &picasso96_state[0];
 	uaecptr bi = trap_get_areg(ctx, 0);
 	uae_u32 type = trap_get_dreg(ctx, 0);
 	uaecptr tagp = trap_get_areg(ctx, 1);
 
-	write_log(_T("picasso_CreateFeature type %d\n"), type);
+#if OVERLAY_DEBUG
+	write_log(_T("picasso_CreateFeature type %d %08x %08x\n"), type, bi, tagp);
+#endif
 	if (type != SFT_MEMORYWINDOW)
 		return 0;
 	if (overlay_vram)
 		return 0;
-	overlay_src_width = -1;
-	overlay_src_height = -1;
+	memcpy(overlay_clutc, state->CLUT, sizeof(struct MyCLUTEntry) * 256);
+	overlay_src_width_in = -1;
+	overlay_src_height_in = -1;
 	overlay_format = 0;
 	for (;;) {
 		uae_u32 tag, val;
 		tagp = gettag(ctx, tagp, &tag, &val);
 		if (!tagp)
 			break;
+#if OVERLAY_DEBUG
 		write_log(_T("picasso_CreateFeature tag %08x (%d) %08x\n"), tag, tag & 0x7fffffff, val);
-		overlaygettag(tag, val);
+#endif
+		overlaygettag(ctx, tag, val);
 	}
-	if (overlay_src_width < 16 || overlay_src_height < 16)
+	if (overlay_src_width_in < 16 || overlay_src_height_in < 16) {
+#if OVERLAY_DEBUG
+		write_log(_T("picasso_CreateFeature overlay width or height too small (%d*%d)\n"), overlay_src_width, overlay_src_height);
+#endif
 		return 0;
-	if (overlay_src_width > vidinfo->width || overlay_src_height > vidinfo->height)
+	}
+	if (overlay_src_width_in > vidinfo->width || overlay_src_height_in > vidinfo->height) {
+#if OVERLAY_DEBUG
+		write_log(_T("picasso_CreateFeature overlay width or height too large (%d*%d)\n"), overlay_src_width, overlay_src_height);
+#endif
 		return 0;
-	if (overlay_format <= RGBFB_CLUT || overlay_format >= RGBFB_MaxFormats)
+	}
+	if (overlay_format < RGBFB_CLUT || overlay_format >= RGBFB_MaxFormats) {
+#if OVERLAY_DEBUG
+		write_log(_T("picasso_CreateFeature overlay unknown format %d\n"), overlay_format);
+#endif
 		return 0;
+	}
 	overlay_pix = GetBytesPerPixel(overlay_format);
-	uaecptr tagmem = uae_AllocMem(ctx, 13 * 8, 65536, trap_get_long(ctx, 4));
-	if (!tagmem)
+	uaecptr overlay_tagmem = uae_AllocMem(ctx, ALLOC_TAG_SIZE, 65536, trap_get_long(ctx, 4));
+	if (!overlay_tagmem)
 		return 0;
 	uaecptr func = trap_get_long(ctx, bi + PSSO_BoardInfo_AllocBitMap);
-	trap_put_long(ctx, tagmem + 0, 0x80000002);
-	trap_put_long(ctx, tagmem + 4, overlay_format);
+	trap_put_long(ctx, overlay_tagmem + 0, ABMA_RGBFormat);
+	trap_put_long(ctx, overlay_tagmem + 4, overlay_format);
 	for (int i = 0; ovltags[i]; i += 2) {
-		trap_put_long(ctx, tagmem + 8 + i * 4 + 0, ovltags[i + 0]);
-		trap_put_long(ctx, tagmem + 8 + i * 4 + 4, ovltags[i + 1]);
+		trap_put_long(ctx, overlay_tagmem + 8 + i * 4 + 0, ovltags[i + 0]);
+		trap_put_long(ctx, overlay_tagmem + 8 + i * 4 + 4, ovltags[i + 1]);
 	}
 	trap_call_add_areg(ctx, 0, bi);
-	trap_call_add_dreg(ctx, 0, overlay_src_width);
-	trap_call_add_dreg(ctx, 1, overlay_src_height);
-	trap_call_add_areg(ctx, 1, tagmem);
+	trap_call_add_dreg(ctx, 0, overlay_src_width_in);
+	trap_call_add_dreg(ctx, 1, overlay_src_height_in);
+	trap_call_add_areg(ctx, 1, overlay_tagmem);
 	overlay_bitmap = trap_call_func(ctx, func);
-	uae_FreeMem(ctx, tagmem, 13 * 8, trap_get_long(ctx, 4));
-	if (!overlay_bitmap)
+	uae_FreeMem(ctx, overlay_tagmem, ALLOC_TAG_SIZE, trap_get_long(ctx, 4));
+	if (!overlay_bitmap) {
 		return 0;
-	// probably should use GetBitMapAttr() but tags are not documented..
+	}
+	// probably should use GetBitMapAttr() but function is not documented enough.
+	overlay_src_width = trap_get_word(ctx, overlay_bitmap + 0) / overlay_pix;
+	overlay_src_height = trap_get_word(ctx, overlay_bitmap + 2);
 	overlay_vram = trap_get_long(ctx, overlay_bitmap + 8);
 	overlay_vram_offset = overlay_vram - gfxmem_banks[0]->start;
 	overlay_convert = getconvert(overlay_format, picasso_vidinfo[0].pixbytes);
 	if (!p96_rgbx16_ovl)
 		p96_rgbx16_ovl = xcalloc(uae_u32, 65536);
 	alloc_colors_picasso(8, 8, 8, 16, 8, 0, overlay_format, p96_rgbx16_ovl);
-	write_log(_T("picasso_CreateFeature overlay bitmap %08x, vram %08x\n"), overlay_bitmap, overlay_vram);
+#if OVERLAY_DEBUG
+	write_log(_T("picasso_CreateFeature overlay bitmap %08x, vram %08x (%dx%d)\n"),
+		overlay_bitmap, overlay_vram, overlay_src_width, overlay_src_height);
+#endif
+	picasso_palette(overlay_clutc, overlay_clut);
 	vidinfo->full_refresh = 1;
 	return OVERLAY_COOKIE;
 }
@@ -5634,7 +5768,9 @@ static uae_u32 REGPARAM2 picasso_DeleteFeature(TrapContext *ctx)
 	uae_u32 type = trap_get_dreg(ctx, 0);
 	uaecptr featuredata = trap_get_areg(ctx, 1);
 
+#if OVERLAY_DEBUG
 	write_log(_T("picasso_DeleteFeature type %d data %08x\n"), type, featuredata);
+#endif
 	if (type != SFT_MEMORYWINDOW)
 		return 0;
 	if (featuredata != OVERLAY_COOKIE)
@@ -5896,7 +6032,7 @@ static void inituaegfxfuncs(TrapContext *ctx, uaecptr start, uaecptr ABI)
 	if (currprefs.rtg_hardwareinterrupt)
 		RTGCALL2(PSSO_BoardInfo_SetInterrupt, picasso_SetInterrupt);
 
-	write_log (_T("uaegfx.card magic code: %08X-%08X ABI=%08X\n"), start, here (), ABI);
+	write_log (_T("uaegfx.card magic code: %08X-%08X BI=%08X\n"), start, here (), ABI);
 
 	if (ABI && currprefs.rtg_hardwareinterrupt)
 		initvblankABI(ctx, uaegfx_base, ABI);
@@ -5950,7 +6086,7 @@ void uaegfx_install_code (uaecptr start)
 }
 
 #define UAEGFX_VERSION 3
-#define UAEGFX_REVISION 3
+#define UAEGFX_REVISION 4
 
 static uae_u32 REGPARAM2 gfx_open(TrapContext *ctx)
 {
@@ -5977,7 +6113,7 @@ static uaecptr uaegfx_card_install (TrapContext *ctx, uae_u32 extrasize)
 	if (uaegfx_old || !(gfxmem_bank.flags & ABFLAG_MAPPED))
 		return 0;
 
-	uaegfx_resid = ds (_T("UAE Graphics Card 3.3"));
+	uaegfx_resid = ds (_T("UAE Graphics Card 3.4"));
 	uaegfx_vblankname = ds (_T("UAE Graphics Card VBLANK"));
 	uaegfx_portsname = ds (_T("UAE Graphics Card PORTS"));
 

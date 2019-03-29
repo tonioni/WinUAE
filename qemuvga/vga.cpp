@@ -1195,6 +1195,11 @@ static int update_basic_params(VGACommonState *s)
         s->line_compare = line_compare;
         full_update = 1;
     }
+	if (s->ovl_changed) {
+		full_update = 1;
+		s->ovl_changed = 0;
+	}
+
     return full_update;
 }
 
@@ -1936,14 +1941,17 @@ static void vga_draw_graphic(VGACommonState *s, int full_update)
 			int screenbytesperrow, int screenpixbytes,
 			int dx, int dy, int dstwidth, int dstheight, int dstbytesperrow, int dstpixbytes,
 			bool ck, uint32_t colorkey,
-			int convert_mode, uint32_t *p96_rgbx16p);
+			int convert_mode, uint32_t *p96_rgbx16p, uint32_t *clut);
 		void alloc_colors_picasso(int rw, int gw, int bw, int rs, int gs, int bs, int rgbfmt, uint32_t *rgbx16);
 		int getconvert(int rgbformat, int pixbytes);
 
 		int outbpp = surface_bits_per_pixel(surface) / 8;
+		uint32_t format = (s->cr[0x3e] >> 1) & 7;
+
 		if (!s->cirrus_rgbx16) {
 			s->cirrus_rgbx16 = (uint32_t*)malloc(65536 * 4);
 		}
+		bool clutmode = format == 2;
 		int ovl_format = 5;
 		if (s->old_ovl_format != ovl_format) {
 			alloc_colors_picasso(8, 8, 8, 16, 8, 0, ovl_format, s->cirrus_rgbx16);
@@ -1960,7 +1968,6 @@ static void vga_draw_graphic(VGACommonState *s, int full_update)
 		uint32_t r2dsz = s->cr[0x35] | (((s->cr[0x36] >> 4) & 3) << 8);
 		uint32_t wvs = s->cr[0x37] | (((s->cr[0x39] >> 0) & 3) << 8);
 		uint32_t wve = s->cr[0x38] | (((s->cr[0x39] >> 2) & 3) << 8);
-		uint32_t format = (s->cr[0x3e] >> 1) & 7;
 		bool occlusion = ((s->cr[0x3e] >> 7) & 1) != 0 && bits < 24;
 		uint32_t region1size = 32 * r1sz / gfxbpp + (r1adjust * 8 / gfxbpp);
 		uint32_t region2size = 32 * r2sz / gfxbpp + (r2adjust * 8 / gfxbpp);
@@ -1978,10 +1985,15 @@ static void vga_draw_graphic(VGACommonState *s, int full_update)
 			occlusion = false;
 		}
 
-		int overlaybpp = 2;
+		int overlaybpp = clutmode ? 1 : 2;
 		int overlay_width = overlaybpp * r2dsz;
 		int vertical_height = wve - wvs + 1;
-		int convert = getconvert(5, outbpp);
+		int convert = getconvert(clutmode ? 1 : 5, outbpp);
+
+		if (clutmode) {
+			update_palette256(s);
+			overlay_width *= 4;
+		}
 
 		if (!hzoom)
 			hzoom = 256;
@@ -2001,12 +2013,12 @@ static void vga_draw_graphic(VGACommonState *s, int full_update)
 				line_offset, bits / 8,
 				region1size, wvs, width, height, linesize, outbpp,
 				occlusion, colorkey,
-				convert, s->cirrus_rgbx16);
+				convert, s->cirrus_rgbx16, s->last_palette);
 			wvs++;
 			y += vzoom;
 		}
 
-		s->last_width = -1;
+		s->ovl_changed = 1;
 		s->old_overlay = 1;
 
 		if (y_start < 0 || y_start > wvs)
@@ -2017,7 +2029,7 @@ static void vga_draw_graphic(VGACommonState *s, int full_update)
 	} else if (s->old_overlay) {
 
 		s->old_overlay = 0;
-		s->last_width = -1;
+		s->ovl_changed = 1;
 
 	}
 
