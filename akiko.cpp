@@ -12,18 +12,18 @@
 */
 
 /*
-	B80000-B80003: C0CACAFE (Read-only identifier)
+	B80000-B80003: $C0CACAFE (Read-only identifier)
 
 	B80004.L: INTREQ (RO)
 	B80008.L: INTENA (R/W)
 
-	 31 = Subcode interrupt (One subcode buffer filled and B0018.B has changed)
-	 30 = Drive has received all command bytes and executed the command
-	 29 = Drive has status data pending
-	 28 = Drive command DMA transmit complete
-	 27 = Drive status DMA receive complete
-	 26 = Drive data DMA complete
-	 25 = DMA overflow (lost data)?
+	 31 $80000000 = Subcode interrupt (One subcode buffer filled and B0018.B has changed)
+	 30 $40000000 = Drive has received all command bytes and executed the command
+	 29 $20000000 = Drive has status data pending
+	 28 $10000000 = Drive command DMA transmit complete
+	 27 $08000000 = Drive status DMA receive complete
+	 26 $04000000 = Drive data DMA complete
+	 25 $02000000 = DMA overflow (lost data)?
 
 	 INTREQ is read-only, each interrupt has different method to clear the interrupt.
 
@@ -59,10 +59,12 @@
 	 Bit 14 = DMA base address + 0xe000
 	 Bit 15 = DMA base address + 0xf000
 
+	 When writing, if bit is one, matching register bit gets set, if bit is zero, nothing happens, it is not possible to clear already set bits.
 	 All one bit blocks (CD sectors) are transferred one by one. Bit 15 is always checked and processed first, then 14 and so on..
-	 Interrupt is generated after each transferred block (bit 1 to 0 transition)
+	 Interrupt is generated after each transferred block and matching register bit is cleared.
 
-	 Writing to this register also clears INTREQ bit 28.
+	 Writing to this register also clears INTREQ bit 28. Writing zero will only clear interrupt.
+	 If CONFIG data transfer DMA enable is not active: register gets cleared and writes are ignored.
 
 	 Structure of each block:
 
@@ -72,25 +74,26 @@
 	 0xc00: 146 bytes of CD error correction data?
 	 The rest is unused(?).
 
-	B80020.R READ = Read current DMA transfer status.
+	B80020.W READ = Read current DMA transfer status.
 
 	B80024.L: CONFIG (R/W)
 
-	 31 = Subcode DMA enable
-	 30 = Command write (to CD) DMA enable
-	 29 = Status read (from CD) DMA enable
-	 28 = Memory access mode?
-	 27 = Data transfer DMA enable
-	 26 = CD interface enable?
-	 25 = CD data mode?
-	 24 = CD data mode?
-	 23 = Akiko internal CIA faked vsync rate (0=50Hz,1=60Hz)
+	 31 $80000000 = Subcode DMA enable
+	 30 $40000000 = Command write (to CD) DMA enable
+	 29 $20000000 = Status read (from CD) DMA enable
+	 28 $10000000 = Memory access mode?
+	 27 $08000000 = Data transfer DMA enable
+	 26 $04000000 = CD interface enable?
+	 25 $02000000 = CD data mode?
+	 24 $01000000 = CD data mode?
+	 23 $00800000 = Akiko internal CIA faked vsync rate (0=50Hz,1=60Hz)
 	 00-22 = unused
 
 	B80028.B WRITE = PIO write (If CONFIG bit 30 off)
 	B80028.B READ = PIO read (If CONFIG bit 29 off)
 
-	B80030.L NVRAM I2C
+	B80030.B NVRAM I2C IO. Bit 7 = SCL, bit 6 = SDA
+	B80032.B NVRAM I2C DIRECTION. Bit 7 = SCL direction, bit 6 = SDA direction)
 
 	B80038.L C2P
 
