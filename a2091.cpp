@@ -714,6 +714,7 @@ static bool do_dma_commodore_8727(struct wd_state *wd, struct scsi_data *scsi)
 #if WD33C93_DEBUG > 0
 		write_log (_T("%s Done DMA from WD, %d/%d %08X\n"), WD33C93, scsi->offset, scsi->data_len, (odmac_acr << 1) & 0xffffff);
 #endif
+		wd->cdmac.c8727_pcsd |= 1 << 7;
 		return true;
 	} else if (scsi->direction > 0) {
 		if (!dir) {
@@ -745,6 +746,7 @@ static bool do_dma_commodore_8727(struct wd_state *wd, struct scsi_data *scsi)
 #if WD33C93_DEBUG > 0
 		write_log (_T("%s Done DMA to WD, %d/%d %08x\n"), WD33C93, scsi->offset, scsi->data_len, (odmac_acr << 1) & 0xffffff);
 #endif
+		wd->cdmac.c8727_pcsd |= 1 << 7;
 		return true;
 	}
 	return false;
@@ -1932,6 +1934,11 @@ static uae_u8 dmac8727_read_pcss(struct wd_state *wd)
 static void dmac8727_write_pcss(struct wd_state *wd, uae_u8 v)
 {
 	wd->cdmac.c8727_pcss = v;
+	if (!(wd->cdmac.c8727_pcss & 8)) {
+		// 0xF7 1111 0111
+		wd->cdmac.dmac_dma = 1;
+		wd->cdmac.c8727_pcsd = 0;
+	}
 #if A2091_DEBUG_IO > 0
 	write_log(_T("dmac8727_write_pcss %02x\n"), v);
 #endif
@@ -1943,13 +1950,15 @@ static uae_u8 dmac8727_read_pcsd(struct wd_state *wd)
 	uae_u8 v = 0;
 	if (!(c->c8727_pcss & 8)) {
 		// 0xF7 1111 0111
-		wd->cdmac.dmac_dma = 1;
+		// driver bug: checks DMA complete without correct mode.
+		v = wd->cdmac.c8727_pcsd;
 	}
 	if (!(c->c8727_pcss & 0x10)) {
 		// 0xEF 1110 1111
 		// dma complete, no overflow
-		v = (1 << 7) | (1 << 5);
+		v = wd->cdmac.c8727_pcsd;
 	}
+	v |= 1 << 5; // 1 = no error, 0 = DMA error
 	return v;
 }
 
@@ -1973,11 +1982,6 @@ static void dmac8727_write_pcsd(struct wd_state *wd, uae_u8 v)
 		c->dmac_acr |= v << 0;
 		c->dmac_wtc = 65535;
 	}
-#if 0
-	if (!(c->c8727_pcss & 8)) {
-		// 0xF7 1111 0111
-	}
-#endif
 	if (!(c->c8727_pcss & 0x80)) {
 		c->dmac_dma = 0;
 	}

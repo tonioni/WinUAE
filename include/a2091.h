@@ -56,6 +56,7 @@ struct commodore_dmac
 	uae_u8 xt_statusbyte;
 
 	uae_u8 c8727_pcss;
+	uae_u8 c8727_pcsd;
 	uae_u8 c8727_ctl;
 	uae_u8 c8727_wrcbp;
 	uae_u32 c8727_st506_cb;
