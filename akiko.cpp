@@ -18,10 +18,10 @@
 	B80008.L: INTENA (R/W)
 
 	 31 $80000000 = Subcode interrupt (One subcode buffer filled and B0018.B has changed)
-	 30 $40000000 = Drive has received all command bytes and executed the command
-	 29 $20000000 = Drive has status data pending
-	 28 $10000000 = Drive command DMA transmit complete
-	 27 $08000000 = Drive status DMA receive complete
+	 30 $40000000 = Drive has received all command bytes and executed the command (PIO only)
+	 29 $20000000 = Drive has status data pending (PIO only)
+	 28 $10000000 = Drive command DMA transmit complete (DMA only)
+	 27 $08000000 = Drive status DMA receive complete (DMA only)
 	 26 $04000000 = Drive data DMA complete
 	 25 $02000000 = DMA overflow (lost data)?
 
@@ -42,13 +42,13 @@
 	B0001D.B WRITE = Transmit DMA circular buffer end position.
 
 	 If written value is different than current: transmit DMA starts and sends command bytes to drive until value matches end position.
-	 Clears also transmit interrupt (bit 30)
+	 Clears also transmit interrupt (bit 28)
 	
 	B0001E.B READ = Receive DMA circular buffer current position.
 	B0001F.B WRITE = Receive DMA circular buffer end position.
 
 	 If written value is different than current: receive DMA fills DMA buffer if drive has response data remaining, until value matches end position.
-	 Clears also Receive interrupt (bit 29)
+	 Clears also Receive interrupt (bit 27)
 
 	B80020.W WRITE = DMA transfer block enable
 	
@@ -63,7 +63,7 @@
 	 All one bit blocks (CD sectors) are transferred one by one. Bit 15 is always checked and processed first, then 14 and so on..
 	 Interrupt is generated after each transferred block and matching register bit is cleared.
 
-	 Writing to this register also clears INTREQ bit 28. Writing zero will only clear interrupt.
+	 Writing to this register also clears INTREQ bit 26. Writing zero will only clear interrupt.
 	 If CONFIG data transfer DMA enable is not active: register gets cleared and writes are ignored.
 
 	 Structure of each block:
@@ -89,8 +89,8 @@
 	 23 $00800000 = Akiko internal CIA faked vsync rate (0=50Hz,1=60Hz)
 	 00-22 = unused
 
-	B80028.B WRITE = PIO write (If CONFIG bit 30 off)
-	B80028.B READ = PIO read (If CONFIG bit 29 off)
+	B80028.B WRITE = PIO write (If CONFIG bit 30 off). Clears also interrupt bit 30.
+	B80028.B READ = PIO read (If CONFIG bit 29 off). Clears also interrupt bit 29 if no data available anymore.
 
 	B80030.B NVRAM I2C IO. Bit 7 = SCL, bit 6 = SDA
 	B80032.B NVRAM I2C DIRECTION. Bit 7 = SCL direction, bit 6 = SDA direction)
