@@ -768,6 +768,13 @@ static void REGPARAM2 expamem_wput (uaecptr addr, uae_u32 value)
 				expamem_next(expamem_map(&cd->aci), NULL);
 				return;
 			}
+			if (expamem_autoconfig_mode) {
+				map_banks_z2(cd->aci.addrbank, expamem_board_pointer >> 16, expamem_board_size >> 16);
+				cd->aci.postinit = true;
+				cd->initrc(&cd->aci);
+				expamem_next(cd->aci.addrbank, NULL);
+				return;
+			}
 			if (expamem_bank_current && expamem_bank_current != &expamem_bank) {
 				expamem_bank_current->sub_banks ? expamem_bank_current->sub_banks[0].bank->bput(addr, value >> 8) : expamem_bank_current->bput(addr, value >> 8);
 				return;
