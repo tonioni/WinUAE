@@ -3706,7 +3706,7 @@ static int expand_sprres (uae_u16 con0, uae_u16 con3)
 /* only known game needing this is Rotor */
 static void do_playfield_collisions (void)
 {
-	int bplres = bplcon0_res;
+	int bplres = output_res(bplcon0_res);
 	hwres_t ddf_left = thisline_decision.plfleft * 2 << bplres;
 	hwres_t hw_diwlast = coord_window_to_diw_x (thisline_decision.diwlastword);
 	hwres_t hw_diwfirst = coord_window_to_diw_x (thisline_decision.diwfirstword);
@@ -3776,7 +3776,7 @@ static void do_sprite_collisions (void)
 	int first = curr_drawinfo[next_lineno].first_sprite_entry;
 	int i;
 	unsigned int collision_mask = clxmask[clxcon >> 12];
-	int bplres = bplcon0_res;
+	int bplres = output_res(bplcon0_res);
 	hwres_t ddf_left = thisline_decision.plfleft * 2 << bplres;
 	hwres_t hw_diwlast = coord_window_to_diw_x (thisline_decision.diwlastword);
 	hwres_t hw_diwfirst = coord_window_to_diw_x (thisline_decision.diwfirstword);
