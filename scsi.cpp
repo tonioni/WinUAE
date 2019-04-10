@@ -4449,7 +4449,7 @@ bool trumpcard_init(struct autoconfig_info *aci)
 
 void trumpcard_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc)
 {
-	generic_soft_scsi_add(ch, ci, rc, NCR5380_TRUMPCARD, 65536, 32768, NCR5380_TRUMPCARD);
+	generic_soft_scsi_add(ch, ci, rc, NCR5380_TRUMPCARD, 65536, 32768, ROMTYPE_IVSTC);
 }
 
 bool rochard_scsi_init(struct romconfig *rc, uaecptr baseaddress)
