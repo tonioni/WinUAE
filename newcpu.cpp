@@ -2070,6 +2070,7 @@ void check_prefs_changed_cpu(void)
 	currprefs.cpu_idle = changed_prefs.cpu_idle;
 	currprefs.ppc_cpu_idle = changed_prefs.ppc_cpu_idle;
 	currprefs.reset_delay = changed_prefs.reset_delay;
+	currprefs.cpuboard_settings = changed_prefs.cpuboard_settings;
 
 	if (check_prefs_changed_cpu2()) {
 		set_special(SPCFLAG_MODE_CHANGE);
