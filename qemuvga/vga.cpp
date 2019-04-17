@@ -1941,17 +1941,36 @@ static void vga_draw_graphic(VGACommonState *s, int full_update)
 			int screenbytesperrow, int screenpixbytes,
 			int dx, int dy, int dstwidth, int dstheight, int dstbytesperrow, int dstpixbytes,
 			bool ck, uint32_t colorkey,
-			int convert_mode, uint32_t *p96_rgbx16p, uint32_t *clut);
+			int convert_mode, uint32_t *p96_rgbx16p, uint32_t *clut, bool yuv_swap);
 		void alloc_colors_picasso(int rw, int gw, int bw, int rs, int gs, int bs, int rgbfmt, uint32_t *rgbx16);
 		int getconvert(int rgbformat, int pixbytes);
 
 		int outbpp = surface_bits_per_pixel(surface) / 8;
 		uint32_t format = (s->cr[0x3e] >> 1) & 7;
+		bool clutmode = false;
 
 		if (!s->cirrus_rgbx16) {
 			s->cirrus_rgbx16 = (uint32_t*)malloc(65536 * 4);
 		}
-		bool clutmode = format == 2;
+		int convert = 0;
+		switch (format)
+		{
+			case 0: // YUV422
+				convert = 14;
+			break;
+			case 1: // YUV411
+				convert = 15;
+			break;
+			case 2: // CLUT
+				clutmode = 1;
+				convert = 1;
+			break;
+			default: // RGB
+				convert = 5;
+			break;
+		}
+		convert = getconvert(convert, outbpp);
+
 		int ovl_format = 5;
 		if (s->old_ovl_format != ovl_format) {
 			alloc_colors_picasso(8, 8, 8, 16, 8, 0, ovl_format, s->cirrus_rgbx16);
@@ -1988,7 +2007,6 @@ static void vga_draw_graphic(VGACommonState *s, int full_update)
 		int overlaybpp = clutmode ? 1 : 2;
 		int overlay_width = overlaybpp * r2dsz;
 		int vertical_height = wve - wvs + 1;
-		int convert = getconvert(clutmode ? 1 : 5, outbpp);
 
 		if (clutmode) {
 			update_palette256(s);
@@ -2013,7 +2031,7 @@ static void vga_draw_graphic(VGACommonState *s, int full_update)
 				line_offset, bits / 8,
 				region1size, wvs, width, height, linesize, outbpp,
 				occlusion, colorkey,
-				convert, s->cirrus_rgbx16, s->last_palette);
+				convert, s->cirrus_rgbx16, s->last_palette, false);
 			wvs++;
 			y += vzoom;
 		}

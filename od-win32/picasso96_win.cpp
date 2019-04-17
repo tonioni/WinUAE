@@ -172,8 +172,11 @@ static int overlay_src_width_in, overlay_src_height_in;
 static int overlay_src_height, overlay_src_width;
 static uae_u32 overlay_format, overlay_color, overlay_color_unswapped;
 static uae_u32 overlay_modeformat, overlay_modeinfo;
+static uae_u32 overlay_brightness;
 static int overlay_x, overlay_y;
 static int overlay_w, overlay_h;
+static int overlay_clipleft, overlay_cliptop;
+static int overlay_clipwidth, overlay_clipheight;
 static int overlay_pix;
 static uaecptr overlay_bitmap, overlay_vram;
 static int overlay_vram_offset;
@@ -400,6 +403,7 @@ static uae_u8 GetBytesPerPixel (uae_u32 RGBfmt)
 	switch (RGBfmt)
 	{
 	case RGBFB_CLUT:
+	case RGBFB_Y4U1V1:
 		return 1;
 
 	case RGBFB_A8R8G8B8:
@@ -418,6 +422,7 @@ static uae_u8 GetBytesPerPixel (uae_u32 RGBfmt)
 	case RGBFB_R5G5B5PC:
 	case RGBFB_B5G6R5PC:
 	case RGBFB_B5G5R5PC:
+	case RGBFB_Y4U2V2:
 		return 2;
 	}
 	return 0;
@@ -2568,6 +2573,7 @@ static void inituaegfx(TrapContext *ctx, uaecptr ABI)
 		flags |= BIF_BLITTER;
 	}
 	flags |= BIF_NOMEMORYMODEMIX;
+	flags |= BIF_GRANTDIRECTACCESS;
 	flags &= ~BIF_HARDWARESPRITE;
 	if (currprefs.gfx_api && D3D_goodenough () > 0 && D3D_setcursor(0, -1, -1, -1, -1, false, false) && USE_HARDWARESPRITE && currprefs.rtg_hardwaresprite) {
 		hwsprite = 1;
@@ -4506,7 +4512,7 @@ void copyrow_scale(int monid, uae_u8 *src, uae_u8 *src_screen, uae_u8 *dst,
 	int screenbytesperrow, int screenpixbytes,
 	int dx, int dy, int dstwidth, int dstheight, int dstbytesperrow, int dstpixbytes,
 	bool ck, uae_u32 colorkey,
-	int convert_mode, uae_u32 *p96_rgbx16p, uae_u32 *clut)
+	int convert_mode, uae_u32 *p96_rgbx16p, uae_u32 *clut, bool yuv_swap)
 {
 	struct picasso_vidbuf_description *vidinfo = &picasso_vidinfo[monid];
 	uae_u8 *src2 = src + sy * srcbytesperrow;
@@ -4536,10 +4542,12 @@ void copyrow_scale(int monid, uae_u8 *src, uae_u8 *src_screen, uae_u8 *dst,
 		case RGBFB_Y4U2V2_32:
 		case RGBFB_Y4U2V2_16:
 		endx /= 2;
+		sxadd /= 2;
 		break;
 		case RGBFB_Y4U1V1_32:
 		case RGBFB_Y4U1V1_16:
 		endx /= 4;
+		sxadd /= 4;
 		break;
 	}
 
@@ -4649,25 +4657,58 @@ void copyrow_scale(int monid, uae_u8 *src, uae_u8 *src_screen, uae_u8 *dst,
 
 		case RGBFB_Y4U2V2_32:
 		{
+			uae_u32 outval1, outval2;
+			uae_u8 y0, y1, u, v;
+			bool docalc1 = false;
+			bool docalc2 = false;
+			int oldsx = -1;
+			uae_u32 val = ((uae_u32*)src2)[sx >> 8];
+			uae_u32 oldval = val ^ 1;
 			while (sx < endx) {
 				x = sx >> 8;
+				if (oldsx != x) {
+					uae_u32 val = ((uae_u32*)src2)[x];
+					if (val != oldval) {
+						oldval = val;
+						if (yuv_swap)
+							val = ((val & 0xff00ff00) >> 8) | ((val & 0x00ff00ff) << 8);
+						y0 = val >> 8;
+						y1 = val >> 24;
+						u = val >> 0;
+						v = val >> 16;
+						if (y0 == y1) {
+							uae_u16 out = yuvtorgb(y0, u, v);
+							outval1 = p96_rgbx16p[out];
+							outval2 = outval1;
+						} else {
+							docalc1 = true;
+							docalc2 = true;
+						}
+					}
+					oldsx = x;
+				}
+				if ((sx & 255) < 128) {
+					CKCHECK
+					{
+						if (docalc1) {
+							uae_u16 out = yuvtorgb(y0, u, v);
+							outval1 = p96_rgbx16p[out];
+							docalc1 = false;
+						}
+						((uae_u32*)dst2)[dx] = outval1;
+					}
+				} else {
+					CKCHECK
+					{
+						if (docalc2) {
+							uae_u16 out = yuvtorgb(y1, u, v);
+							outval2 = p96_rgbx16p[out];
+							docalc2 = false;
+						}
+						((uae_u32*)dst2)[dx] = outval2;
+					}
+				}
 				sx += sxadd;
-				uae_u32 val = ((uae_u32*)src2)[x];
-				uae_u8 y0 = val >> 8;
-				uae_u8 y1 = val >> 24;
-				uae_u8 u = val >> 0;
-				uae_u8 v = val >> 16;
-				CKCHECK
-				{
-					uae_u16 out = yuvtorgb(y0, u, v);
-					((uae_u32*)dst2)[dx + 0] = p96_rgbx16p[out];
-				}
-				dx++;
-				CKCHECK
-				{
-					uae_u16 out = yuvtorgb(y1, u, v);
-					((uae_u32*)dst2)[dx + 1] = p96_rgbx16p[out];
-				}
 				dx++;
 			}
 		}
@@ -4677,7 +4718,6 @@ void copyrow_scale(int monid, uae_u8 *src, uae_u8 *src_screen, uae_u8 *dst,
 		{
 			while (sx < endx) {
 				x = sx >> 8;
-				sx += sxadd;
 				uae_u32 val = ((uae_u32*)src2)[x];
 				uae_u8 y0 = ((val >> 12) & 31) * 8;
 				uae_u8 y1 = ((val >> 17) & 31) * 8;
@@ -4685,29 +4725,33 @@ void copyrow_scale(int monid, uae_u8 *src, uae_u8 *src_screen, uae_u8 *dst,
 				uae_u8 y3 = ((val >> 27) & 31) * 8;
 				uae_s8 u = ((val >> 0) & 63) * 4;
 				uae_s8 v = ((val >> 6) & 63) * 4;
-				CKCHECK
-				{
-					uae_u16 out = yuvtorgb(y0, u, v);
-					((uae_u32*)dst2)[dx + 0] = p96_rgbx16p[out];
+				int fr = sx & 255;
+				if (fr >= 192) {
+					CKCHECK
+					{
+						uae_u16 out = yuvtorgb(y3, u, v);
+						((uae_u32*)dst2)[dx] = p96_rgbx16p[out];
+					}
+				} else if (fr >= 128) {
+					CKCHECK
+					{
+						uae_u16 out = yuvtorgb(y2, u, v);
+						((uae_u32*)dst2)[dx] = p96_rgbx16p[out];
+					}
+				} else if (fr >= 64) {
+					CKCHECK
+					{
+						uae_u16 out = yuvtorgb(y1, u, v);
+						((uae_u32*)dst2)[dx] = p96_rgbx16p[out];
+					}
+				} else {
+					CKCHECK
+					{
+						uae_u16 out = yuvtorgb(y0, u, v);
+						((uae_u32*)dst2)[dx] = p96_rgbx16p[out];
+					}
 				}
-				dx++;
-				CKCHECK
-				{
-					uae_u16 out = yuvtorgb(y1, u, v);
-					((uae_u32*)dst2)[dx + 1] = p96_rgbx16p[out];
-				}
-				dx++;
-				CKCHECK
-				{
-					uae_u16 out = yuvtorgb(y2, u, v);
-					((uae_u32*)dst2)[dx + 2] = p96_rgbx16p[out];
-				}
-				dx++;
-				CKCHECK
-				{
-					uae_u16 out = yuvtorgb(y3, u, v);
-					((uae_u32*)dst2)[dx + 3] = p96_rgbx16p[out];
-				}
+				sx += sxadd;
 				dx++;
 			}
 		}
@@ -4846,25 +4890,57 @@ void copyrow_scale(int monid, uae_u8 *src, uae_u8 *src_screen, uae_u8 *dst,
 
 		case RGBFB_Y4U2V2_16:
 		{
+			uae_u16 outval1, outval2;
+			uae_u8 y0, y1, u, v;
+			bool docalc1 = false;
+			bool docalc2 = false;
+			int oldsx = -1;
+			uae_u32 val = ((uae_u32*)src2)[sx >> 8];
+			uae_u32 oldval = val ^ 1;
 			while (sx < endx) {
 				x = sx >> 8;
+				if (x != oldsx) {
+					val = ((uae_u32*)src2)[x];
+					if (val != oldval) {
+						oldval = val;
+						if (yuv_swap)
+							val = ((val & 0xff00ff00) >> 8) | ((val & 0x00ff00ff) << 8);
+						y0 = val >> 8;
+						y1 = val >> 24;
+						u = val >> 0;
+						v = val >> 16;
+						if (y0 == y1) {
+							uae_u16 out = yuvtorgb(y0, u, v);
+							outval1 = p96_rgbx16p[out];
+							outval2 = outval1;
+						} else {
+							docalc1 = true;
+							docalc2 = true;
+						}
+					}
+					oldsx = x;
+				}
+				if ((sx & 255) < 128) {
+					CKCHECK
+					{
+						if (docalc1) {
+							uae_u16 out = yuvtorgb(y0, u, v);
+							outval1 = p96_rgbx16p[out];
+							docalc1 = false;
+						}
+						((uae_u16*)dst2)[dx] = outval1;
+					}
+					CKCHECK
+					{
+						if (docalc2) {
+							uae_u16 out = yuvtorgb(y1, u, v);
+							outval2 = p96_rgbx16p[out];
+							docalc2 = false;
+						}
+						((uae_u16*)dst2)[dx] = outval2;
+					}
+				}
 				sx += sxadd;
-				uae_u32 val = ((uae_u32*)src2)[x];
-				uae_u8 y0 = val >> 8;
-				uae_u8 y1 = val >> 24;
-				uae_u8 u = val >> 0;
-				uae_u8 v = val >> 16;
-				CKCHECK
-				{
-					uae_u16 out = yuvtorgb(y0, u, v);
-				((uae_u16*)dst2)[dx + 0] = p96_rgbx16p[out];
-				}
-				dx++;
-				CKCHECK
-				{
-					uae_u16 out = yuvtorgb(y1, u, v);
-				((uae_u16*)dst2)[dx + 1] = p96_rgbx16p[out];
-				}
 				dx++;
 			}
 		}
@@ -4874,7 +4950,6 @@ void copyrow_scale(int monid, uae_u8 *src, uae_u8 *src_screen, uae_u8 *dst,
 		{
 			while (sx < endx) {
 				x = sx >> 8;
-				sx += sxadd;
 				uae_u32 val = ((uae_u32*)src2)[x];
 				uae_u8 y0 = ((val >> 12) & 31) * 8;
 				uae_u8 y1 = ((val >> 17) & 31) * 8;
@@ -4882,29 +4957,33 @@ void copyrow_scale(int monid, uae_u8 *src, uae_u8 *src_screen, uae_u8 *dst,
 				uae_u8 y3 = ((val >> 27) & 31) * 8;
 				uae_s8 u = ((val >> 0) & 63) * 4;
 				uae_s8 v = ((val >> 6) & 63) * 4;
-				CKCHECK
-				{
-					uae_u16 out = yuvtorgb(y0, u, v);
-					((uae_u16*)dst2)[dx + 0] = p96_rgbx16p[out];
+				int fr = sx & 255;
+				if (fr >= 192) {
+					CKCHECK
+					{
+						uae_u16 out = yuvtorgb(y3, u, v);
+						((uae_u16*)dst2)[dx] = p96_rgbx16p[out];
+					}
+				} else if (fr >= 128) {
+					CKCHECK
+					{
+						uae_u16 out = yuvtorgb(y2, u, v);
+						((uae_u16*)dst2)[dx] = p96_rgbx16p[out];
+					}
+				} else if (fr >= 64) {
+					CKCHECK
+					{
+						uae_u16 out = yuvtorgb(y1, u, v);
+						((uae_u16*)dst2)[dx] = p96_rgbx16p[out];
+					}
+				} else {
+					CKCHECK
+					{
+						uae_u16 out = yuvtorgb(y0, u, v);
+						((uae_u16*)dst2)[dx] = p96_rgbx16p[out];
+					}
 				}
-				dx++;
-				CKCHECK
-				{
-					uae_u16 out = yuvtorgb(y1, u, v);
-					((uae_u16*)dst2)[dx + 1] = p96_rgbx16p[out];
-				}
-				dx++;
-				CKCHECK
-				{
-					uae_u16 out = yuvtorgb(y2, u, v);
-					((uae_u16*)dst2)[dx + 2] = p96_rgbx16p[out];
-				}
-				dx++;
-				CKCHECK
-				{
-					uae_u16 out = yuvtorgb(y3, u, v);
-					((uae_u16*)dst2)[dx + 3] = p96_rgbx16p[out];
-				}
+				sx += sxadd;
 				dx++;
 			}
 		}
@@ -4943,7 +5022,7 @@ static void picasso_flushoverlay(int index, uae_u8 *src, int scr_offset, uae_u8 
 			state->BytesPerRow, state->BytesPerPixel,
 			overlay_x, overlay_y + dy, vidinfo->width, vidinfo->height, vidinfo->rowbytes, vidinfo->pixbytes,
 			overlay_occlusion != 0, overlay_color,
-			overlay_convert, p96_rgbx16_ovl, overlay_clut);
+			overlay_convert, p96_rgbx16_ovl, overlay_clut, true);
 		y += my;
 	}
 }
@@ -5497,6 +5576,9 @@ static void overlaygettag(TrapContext *ctx, uae_u32 tag, uae_u32 val)
 	case FA_ModeFormat:
 		overlay_modeformat = val;
 		break;
+	case FA_Brightness:
+		overlay_brightness = val;
+		break;
 	case FA_ModeInfo:
 		overlay_modeinfo = val;
 		break;
@@ -5504,6 +5586,18 @@ static void overlaygettag(TrapContext *ctx, uae_u32 tag, uae_u32 val)
 		overlay_color = val;
 		overlay_color_unswapped = val;
 		endianswap(&overlay_color, picasso96_state[0].BytesPerPixel);
+		break;
+	case FA_ClipLeft:
+		overlay_clipleft = val;
+		break;
+	case FA_ClipTop:
+		overlay_cliptop = val;
+		break;
+	case FA_ClipWidth:
+		overlay_clipwidth = val;
+		break;
+	case FA_ClipHeight:
+		overlay_clipheight = val;
 		break;
 	case FA_Colors32:
 		{
@@ -5551,7 +5645,6 @@ static void overlaygettag(TrapContext *ctx, uae_u32 tag, uae_u32 val)
 
 static void overlaysettag(TrapContext *ctx, uae_u32 tag, uae_u32 val)
 {
-	uae_u32 t;
 	switch (tag)
 	{
 	case FA_Active:
@@ -5595,11 +5688,26 @@ static void overlaysettag(TrapContext *ctx, uae_u32 tag, uae_u32 val)
 	case FA_ModeFormat:
 		settag(ctx, val, overlay_modeformat);
 		break;
+	case FA_Brightness:
+		settag(ctx, val, overlay_brightness);
+		break;
 	case FA_ModeInfo:
 		settag(ctx, val, overlay_modeinfo);
 		break;
 	case FA_Color:
 		settag(ctx, val, overlay_color_unswapped);
+		break;
+	case FA_ClipLeft:
+		settag(ctx, val, overlay_clipleft);
+		break;
+	case FA_ClipTop:
+		settag(ctx, val, overlay_cliptop);
+		break;
+	case FA_ClipWidth:
+		settag(ctx, val, overlay_clipwidth);
+		break;
+	case FA_ClipHeight:
+		settag(ctx, val, overlay_clipheight);
 		break;
 	}
 }
@@ -5660,6 +5768,7 @@ static uae_u32 REGPARAM2 picasso_GetFeatureAttrs(TrapContext *ctx)
 
 // Tags from picassoiv driver..
 static const uae_u32 ovltags[] = {
+	ABMA_RGBFormat, 0,
 	ABMA_Clear, 1,
 	ABMA_Displayable, 1,
 	ABMA_Visible, 1,
@@ -5727,15 +5836,23 @@ static uae_u32 REGPARAM2 picasso_CreateFeature(TrapContext *ctx)
 		return 0;
 	}
 	overlay_pix = GetBytesPerPixel(overlay_format);
+	if (!overlay_pix) {
+#if OVERLAY_DEBUG
+		write_log(_T("picasso_CreateFeature overlay bytes per bit is zero (format %d)\n"), overlay_format);
+#endif
+		return 0;
+	}
 	uaecptr overlay_tagmem = uae_AllocMem(ctx, ALLOC_TAG_SIZE, 65536, trap_get_long(ctx, 4));
 	if (!overlay_tagmem)
 		return 0;
 	uaecptr func = trap_get_long(ctx, bi + PSSO_BoardInfo_AllocBitMap);
-	trap_put_long(ctx, overlay_tagmem + 0, ABMA_RGBFormat);
-	trap_put_long(ctx, overlay_tagmem + 4, overlay_format);
 	for (int i = 0; ovltags[i]; i += 2) {
-		trap_put_long(ctx, overlay_tagmem + 8 + i * 4 + 0, ovltags[i + 0]);
-		trap_put_long(ctx, overlay_tagmem + 8 + i * 4 + 4, ovltags[i + 1]);
+		trap_put_long(ctx, overlay_tagmem + i * 4 + 0, ovltags[i + 0]);
+		if (i == 0) {
+			trap_put_long(ctx, overlay_tagmem + i * 4 + 4, overlay_format);
+		} else {
+			trap_put_long(ctx, overlay_tagmem + i * 4 + 4, ovltags[i + 1]);
+		}
 	}
 	trap_call_add_areg(ctx, 0, bi);
 	trap_call_add_dreg(ctx, 0, overlay_src_width_in);
@@ -5754,7 +5871,10 @@ static uae_u32 REGPARAM2 picasso_CreateFeature(TrapContext *ctx)
 	overlay_convert = getconvert(overlay_format, picasso_vidinfo[0].pixbytes);
 	if (!p96_rgbx16_ovl)
 		p96_rgbx16_ovl = xcalloc(uae_u32, 65536);
-	alloc_colors_picasso(8, 8, 8, 16, 8, 0, overlay_format, p96_rgbx16_ovl);
+	int of = overlay_format;
+	if (of == RGBFB_Y4U2V2 || of == RGBFB_Y4U1V1)
+		of = RGBFB_R5G5B5PC;
+	alloc_colors_picasso(8, 8, 8, 16, 8, 0, of, p96_rgbx16_ovl);
 #if OVERLAY_DEBUG
 	write_log(_T("picasso_CreateFeature overlay bitmap %08x, vram %08x (%dx%d)\n"),
 		overlay_bitmap, overlay_vram, overlay_src_width, overlay_src_height);
@@ -5881,7 +6001,7 @@ static void inituaegfxfuncs(TrapContext *ctx, uaecptr start, uaecptr ABI)
 	*/
 	PUTABI (PSSO_BoardInfo_GetCompatibleFormats);
 	dw (0x203c);
-	dl (RGBMASK_8BIT | RGBMASK_15BIT | RGBMASK_16BIT | RGBMASK_24BIT | RGBMASK_32BIT);
+	dl (RGBMASK_8BIT | RGBMASK_15BIT | RGBMASK_16BIT | RGBMASK_24BIT | RGBMASK_32BIT | (OVERLAY ? (RGBFF_Y4U2V2 | RGBFF_Y4U1V1) : 0));
 	dw (RTS);
 
 	/* CalculateBytesPerRow (optimized) */
@@ -6062,6 +6182,9 @@ void picasso_reset(int monid)
 		uaegfx_base = 0;
 		uaegfx_old = 0;
 		uaegfx_active = 0;
+		overlay_bitmap = 0;
+		overlay_vram = 0;
+		overlay_active = 0;
 		interrupt_enabled = 0;
 		reserved_gfxmem = 0;
 		resetpalette(state);
@@ -6275,6 +6398,22 @@ void restore_p96_finish (void)
 		inituaegfxfuncs(NULL, uaegfx_rom, boardinfo);
 		ad->picasso_requested_on = !!(p96_restored_flags & 1);
 		vidinfo->picasso_active = ad->picasso_requested_on;
+
+		if (overlay_vram) {
+			overlay_vram_offset = overlay_vram - gfxmem_banks[0]->start;
+			overlay_convert = getconvert(overlay_format, picasso_vidinfo[0].pixbytes);
+			if (!p96_rgbx16_ovl)
+				p96_rgbx16_ovl = xcalloc(uae_u32, 65536);
+			alloc_colors_picasso(8, 8, 8, 16, 8, 0, overlay_format, p96_rgbx16_ovl);
+			picasso_palette(overlay_clutc, overlay_clut);
+			overlay_color = overlay_color_unswapped;
+			overlay_pix = GetBytesPerPixel(overlay_format);
+			endianswap(&overlay_color, picasso96_state[0].BytesPerPixel);
+		}
+		if (cursorvisible) {
+			setspriteimage(NULL, boardinfo);
+		}
+
 		set_config_changed();
 	}
 #if 0
@@ -6331,6 +6470,34 @@ uae_u8 *restore_p96 (uae_u8 *src)
 			state->CLUT[i].Blue = restore_u8 ();
 		}
 	}
+	if (flags & 128) {
+		overlay_bitmap = restore_u32();
+		overlay_vram = restore_u32();
+		overlay_format = restore_u32();
+		overlay_modeformat = restore_u32();
+		overlay_modeinfo = restore_u32();
+		overlay_color_unswapped = restore_u32();
+		overlay_active = restore_u8();
+		overlay_occlusion = restore_u8();
+		overlay_x = restore_u16();
+		overlay_y = restore_u16();
+		overlay_w = restore_u16();
+		overlay_h = restore_u16();
+		overlay_src_width_in = restore_u16();
+		overlay_src_height_in = restore_u16();
+		overlay_src_width = restore_u16();
+		overlay_src_height = restore_u16();
+		overlay_clipleft = restore_u16();
+		overlay_cliptop = restore_u16();
+		overlay_clipwidth = restore_u16();
+		overlay_clipheight = restore_u16();
+		overlay_brightness = restore_u16();
+		for (i = 0; i < 256; i++) {
+			overlay_clutc[i].Red = restore_u8();
+			overlay_clutc[i].Green = restore_u8();
+			overlay_clutc[i].Blue = restore_u8();
+		}
+	}
 	state->HostAddress = NULL;
 	picasso_SetPanningInit(state);
 	state->Extent = state->Address + state->BytesPerRow * state->VirtualHeight;
@@ -6350,10 +6517,10 @@ uae_u8 *save_p96 (int *len, uae_u8 *dstptr)
 	if (dstptr)
 		dstbak = dst = dstptr;
 	else
-		dstbak = dst = xmalloc (uae_u8, 1000);
+		dstbak = dst = xmalloc (uae_u8, 2 * 3 * 256 + 1000);
 	save_u32 (2);
 	save_u32 ((ad->picasso_on ? 1 : 0) | (set_gc_called ? 2 : 0) | (vidinfo->set_panning_called ? 4 : 0) |
-		(hwsprite ? 8 : 0) | (cursorvisible ? 16 : 0) | (interrupt_enabled ? 32 : 0) | 64);
+		(hwsprite ? 8 : 0) | (cursorvisible ? 16 : 0) | (interrupt_enabled ? 32 : 0) | 64 | 128);
 	save_u32 (currprefs.rtgboards[0].rtgmem_size);
 	save_u32 (state->Address);
 	save_u32 (state->RGBFormat);
@@ -6377,6 +6544,34 @@ uae_u8 *save_p96 (int *len, uae_u8 *dstptr)
 		save_u8 (state->CLUT[i].Green);
 		save_u8 (state->CLUT[i].Blue);
 	}
+	// overlay
+	save_u32(overlay_bitmap);
+	save_u32(overlay_vram);
+	save_u32(overlay_format);
+	save_u32(overlay_modeformat);
+	save_u32(overlay_modeinfo);
+	save_u32(overlay_color_unswapped);
+	save_u8(overlay_active);
+	save_u8(overlay_occlusion);
+	save_u16(overlay_x);
+	save_u16(overlay_y);
+	save_u16(overlay_w);
+	save_u16(overlay_h);
+	save_u16(overlay_src_width_in);
+	save_u16(overlay_src_height_in);
+	save_u16(overlay_src_width);
+	save_u16(overlay_src_height);
+	save_u16(overlay_clipleft);
+	save_u16(overlay_cliptop);
+	save_u16(overlay_clipwidth);
+	save_u16(overlay_clipheight);
+	save_u16(overlay_brightness);
+	for (i = 0; i < 256; i++) {
+		save_u8(overlay_clutc[i].Red);
+		save_u8(overlay_clutc[i].Green);
+		save_u8(overlay_clutc[i].Blue);
+	}
+
 	*len = dst - dstbak;
 	return dstbak;
 }

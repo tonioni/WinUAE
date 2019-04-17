@@ -537,53 +537,57 @@ enum {
 /* BoardInfo flags */
 /*  0-15: hardware flags */
 /* 16-31: user flags */
-#define BIB_HARDWARESPRITE	 0	/* board has hardware sprite */
-#define BIB_NOMEMORYMODEMIX	 1	/* board does not support modifying planar bitmaps while displaying chunky and vice versa */
-#define BIB_NEEDSALIGNMENT	 2	/* bitmaps have to be aligned (not yet supported!) */
-#define BIB_CACHEMODECHANGE	 3	/* board memory may be set to Imprecise (060) or Nonserialised (040) */
-#define BIB_VBLANKINTERRUPT	 4	/* board can cause a hardware interrupt on a vertical retrace */
+#define BIB_HARDWARESPRITE		 0	/* board has hardware sprite */
+#define BIB_NOMEMORYMODEMIX		 1	/* board does not support modifying planar bitmaps while displaying chunky and vice versa */
+#define BIB_NEEDSALIGNMENT		 2	/* bitmaps have to be aligned (not yet supported!) */
+#define BIB_CACHEMODECHANGE		 3	/* board memory may be set to Imprecise (060) or Nonserialised (040) */
+#define BIB_VBLANKINTERRUPT		 4	/* board can cause a hardware interrupt on a vertical retrace */
 #define BIB_DBLSCANDBLSPRITEY	 8	/* hardware sprite y position is doubled on doublescan display modes */
 #define BIB_ILACEHALFSPRITEY	 9	/* hardware sprite y position is halved on interlace display modes */
 #define BIB_ILACEDBLROWOFFSET	10	/* doubled row offset in interlaced display modes needs additional horizontal bit */
-#define BIB_FLICKERFIXER	12	/* board can flicker fix Amiga RGB signal */
-#define BIB_VIDEOCAPTURE	13	/* board can capture video data to a memory area */
-#define BIB_VIDEOWINDOW		14	/* board can display a second mem area as a pip */
-#define BIB_BLITTER		15	/* board has blitter */
-#define BIB_HIRESSPRITE		16	/* mouse sprite has double resolution */
-#define BIB_BIGSPRITE		17	/* user wants big mouse sprite */
-#define BIB_BORDEROVERRIDE	18	/* user wants to override system overscan border prefs */
-#define BIB_BORDERBLANK		19	/* user wants border blanking */
-#define BIB_INDISPLAYCHAIN	20	/* board switches Amiga signal */
-#define BIB_QUIET		21	/* not yet implemented */
-#define BIB_NOMASKBLITS		22	/* perform blits without taking care of mask */
-#define BIB_NOC2PBLITS		23	/* use CPU for planar to chunky conversions */
-#define BIB_NOBLITTER		24	/* disable all blitter functions */
-#define BIB_OVERCLOCK		31	/* enable overclocking for some boards */
+#define BIB_FLICKERFIXER		12	/* board can flicker fix Amiga RGB signal */
+#define BIB_VIDEOCAPTURE		13	/* board can capture video data to a memory area */
+#define BIB_VIDEOWINDOW			14	/* board can display a second mem area as a pip */
+#define BIB_BLITTER				15	/* board has blitter */
+#define BIB_HIRESSPRITE			16	/* mouse sprite has double resolution */
+#define BIB_BIGSPRITE			17	/* user wants big mouse sprite */
+#define BIB_BORDEROVERRIDE		18	/* user wants to override system overscan border prefs */
+#define BIB_BORDERBLANK			19	/* user wants border blanking */
+#define BIB_INDISPLAYCHAIN		20	/* board switches Amiga signal */
+#define BIB_QUIET				21	/* not yet implemented */
+#define BIB_NOMASKBLITS			22	/* perform blits without taking care of mask */
+#define BIB_NOC2PBLITS			23	/* use CPU for planar to chunky conversions */
+#define BIB_NOBLITTER			24	/* disable all blitter functions */
+#define BIB_SYSTEM2SCREENBLITS	25	/* allow data to be written to screen memory for cpu as blitter source */
+#define BIB_GRANTDIRECTACCESS	26	/* all data on the board can be accessed at any time without bi->SetMemoryMode() */
+#define BIB_OVERCLOCK			31	/* enable overclocking for some boards */
 
 #define BIB_IGNOREMASK	BIB_NOMASKBLITS
 
-#define BIF_HARDWARESPRITE	(1 << BIB_HARDWARESPRITE)
-#define BIF_NOMEMORYMODEMIX	(1 << BIB_NOMEMORYMODEMIX)
-#define BIF_NEEDSALIGNMENT	(1 << BIB_NEEDSALIGNMENT)
-#define BIF_CACHEMODECHANGE	(1 << BIB_CACHEMODECHANGE)
-#define BIF_VBLANKINTERRUPT	(1 << BIB_VBLANKINTERRUPT)
+#define BIF_HARDWARESPRITE		(1 << BIB_HARDWARESPRITE)
+#define BIF_NOMEMORYMODEMIX		(1 << BIB_NOMEMORYMODEMIX)
+#define BIF_NEEDSALIGNMENT		(1 << BIB_NEEDSALIGNMENT)
+#define BIF_CACHEMODECHANGE		(1 << BIB_CACHEMODECHANGE)
+#define BIF_VBLANKINTERRUPT		(1 << BIB_VBLANKINTERRUPT)
 #define BIF_DBLSCANDBLSPRITEY	(1 << BIB_DBLSCANDBLSPRITEY)
 #define BIF_ILACEHALFSPRITEY	(1 << BIB_ILACEHALFSPRITEY)
 #define BIF_ILACEDBLROWOFFSET	(1 << BIB_ILACEDBLROWOFFSET)
-#define BIF_FLICKERFIXER	(1 << BIB_FLICKERFIXER)
-#define BIF_VIDEOCAPTURE	(1 << BIB_VIDEOCAPTURE)
-#define BIF_VIDEOWINDOW		(1 << BIB_VIDEOWINDOW)
-#define BIF_BLITTER		(1 << BIB_BLITTER)
-#define BIF_HIRESSPRITE		(1 << BIB_HIRESSPRITE)
-#define BIF_BIGSPRITE		(1 << BIB_BIGSPRITE)
-#define BIF_BORDEROVERRIDE	(1 << BIB_BORDEROVERRIDE)
-#define BIF_BORDERBLANK		(1 << BIB_BORDERBLANK)
-#define BIF_INDISPLAYCHAIN	(1 << BIB_INDISPLAYCHAIN)
-#define BIF_QUIET		(1 << BIB_QUIET)
-#define BIF_NOMASKBLITS		(1 << BIB_NOMASKBLITS)
-#define BIF_NOC2PBLITS		(1 << BIB_NOC2PBLITS)
-#define BIF_NOBLITTER		(1 << BIB_NOBLITTER)
-#define BIF_OVERCLOCK		(1 << BIB_OVERCLOCK)
+#define BIF_FLICKERFIXER		(1 << BIB_FLICKERFIXER)
+#define BIF_VIDEOCAPTURE		(1 << BIB_VIDEOCAPTURE)
+#define BIF_VIDEOWINDOW			(1 << BIB_VIDEOWINDOW)
+#define BIF_BLITTER				(1 << BIB_BLITTER)
+#define BIF_HIRESSPRITE			(1 << BIB_HIRESSPRITE)
+#define BIF_BIGSPRITE			(1 << BIB_BIGSPRITE)
+#define BIF_BORDEROVERRIDE		(1 << BIB_BORDEROVERRIDE)
+#define BIF_BORDERBLANK			(1 << BIB_BORDERBLANK)
+#define BIF_INDISPLAYCHAIN		(1 << BIB_INDISPLAYCHAIN)
+#define BIF_QUIET				(1 << BIB_QUIET)
+#define BIF_NOMASKBLITS			(1 << BIB_NOMASKBLITS)
+#define BIF_NOC2PBLITS			(1 << BIB_NOC2PBLITS)
+#define BIF_NOBLITTER			(1 << BIB_NOBLITTER)
+#define BIF_SYSTEM2SCREENBLITS	(1 << BIB_SYSTEM2SCREENBLITS)
+#define BIF_GRANTDIRECTACCESS	(1 << BIB_GRANTDIRECTACCESS)
+#define BIF_OVERCLOCK			(1 << BIB_OVERCLOCK)
 
 #define BIF_IGNOREMASK 	BIF_NOMASKBLITS
 
