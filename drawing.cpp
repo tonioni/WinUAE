@@ -2932,6 +2932,16 @@ static void playfield_hard_way(line_draw_func worker_pfield, int first, int last
 			pfield_do_linetoscr_bordersprite_aga(real_playfield_end, last, false);
 		src_pixel -= diff;
 		ham_decode_pixel -= diff;
+	} else if (playfield_start < real_playfield_start) {
+		int diff = real_playfield_start - playfield_start;
+		diff = res_shift_from_window(diff);
+		src_pixel += diff;
+		ham_decode_pixel += diff;
+		(*worker_pfield)(first, last < real_playfield_end ? last : real_playfield_end, false);
+		if (last > real_playfield_end)
+			pfield_do_linetoscr_bordersprite_aga(real_playfield_end, last, false);
+		src_pixel -= diff;
+		ham_decode_pixel -= diff;
 	} else {
 		(*worker_pfield)(first, last < real_playfield_end ? last : real_playfield_end, false);
 		if (last > real_playfield_end)
