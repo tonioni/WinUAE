@@ -196,11 +196,11 @@ static const int rp0_cd32[] = {
 	INPUTEVENT_JOY1_DOWN, INPUTEVENT_JOY1_UP,
 	INPUTEVENT_JOY1_CD32_RED,
 	INPUTEVENT_JOY1_CD32_BLUE,
-	INPUTEVENT_JOY1_CD32_GREEN,
 	INPUTEVENT_JOY1_CD32_YELLOW,
+	INPUTEVENT_JOY1_CD32_GREEN,
 	INPUTEVENT_JOY1_CD32_PLAY,
 	INPUTEVENT_JOY1_CD32_RWD,
-	INPUTEVENT_JOY1_CD32_FFW
+	INPUTEVENT_JOY1_CD32_FFW,
 	-1
 };
 static const int rp1_joystick[] = {
@@ -223,11 +223,11 @@ static const int rp1_cd32[] = {
 	INPUTEVENT_JOY2_DOWN, INPUTEVENT_JOY2_UP,
 	INPUTEVENT_JOY2_CD32_RED,
 	INPUTEVENT_JOY2_CD32_BLUE,
-	INPUTEVENT_JOY2_CD32_GREEN,
 	INPUTEVENT_JOY2_CD32_YELLOW,
+	INPUTEVENT_JOY2_CD32_GREEN,
 	INPUTEVENT_JOY2_CD32_PLAY,
 	INPUTEVENT_JOY2_CD32_RWD,
-	INPUTEVENT_JOY2_CD32_FFW
+	INPUTEVENT_JOY2_CD32_FFW,
 	-1
 };
 static const int rp2_joystick[] = {
@@ -380,7 +380,7 @@ static const TCHAR **getcustomeventorder(int *devicetype)
 	return NULL;
 }
 
-bool port_get_custom (int inputmap_port, TCHAR *out)
+static bool port_get_custom (int inputmap_port, TCHAR *out)
 {
 	int kb;
 	bool first = true;
