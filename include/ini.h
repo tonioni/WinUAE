@@ -36,6 +36,7 @@ void ini_addnewval64(struct ini_data *ini, const TCHAR *section, const TCHAR *ke
 
 bool ini_getstring(struct ini_data *ini, const TCHAR *section, const TCHAR *key, TCHAR **out);
 bool ini_getstring_multi(struct ini_data *ini, const TCHAR *section, const TCHAR *key, TCHAR **out, struct ini_context*);
+bool ini_getbool(struct ini_data *ini, const TCHAR *section, const TCHAR *key, bool *v);
 bool ini_getval(struct ini_data *ini, const TCHAR *section, const TCHAR *key, int *v);
 bool ini_getval_multi(struct ini_data *ini, const TCHAR *section, const TCHAR *key, int *v, struct ini_context*);
 bool ini_getdata(struct ini_data *ini, const TCHAR *section, const TCHAR *key, uae_u8 **out, int *size);

@@ -357,6 +357,24 @@ bool ini_getval(struct ini_data *ini, const TCHAR *section, const TCHAR *key, in
 	return ini_getval_multi(ini, section, key, v, NULL);
 }
 
+bool ini_getbool(struct ini_data *ini, const TCHAR *section, const TCHAR *key, bool *v)
+{
+	TCHAR *s = NULL;
+	if (!ini_getstring(ini, section, key, &s))
+		return false;
+	if (!_tcsicmp(s, _T("true")) || !_tcsicmp(s, _T("1"))) {
+		xfree(s);
+		*v = true;
+		return true;
+	}
+	if (!_tcsicmp(s, _T("false")) || !_tcsicmp(s, _T("0"))) {
+		xfree(s);
+		*v = false;
+		return true;
+	}
+	return false;
+}
+
 bool ini_getdata_multi(struct ini_data *ini, const TCHAR *section, const TCHAR *key, uae_u8 **out, int *size, struct ini_context *ctx)
 {
 	TCHAR *out2 = NULL;
