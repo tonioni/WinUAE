@@ -8992,6 +8992,7 @@ static uae_u32 REGPARAM2 mousehack_done (TrapContext *ctx)
 			return v;
 		} else {
 			trap_set_areg(ctx, 0, 0);
+			trap_set_dreg(ctx, 1, trap_get_areg(ctx, 1));
 			return trap_get_dreg(ctx, 0);
 		}
 	} else if (mode == 205 || mode == 207) {
