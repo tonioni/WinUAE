@@ -1,4 +1,18 @@
 
+
+
+
+- 420b2 "Fixed AGA HAM graphics corruption.." missed one special case. Fixes Alien Breed 3D graphics corruption.
+- Reset/Restart didn't clear uaegfx overlay state.
+- Added uaegfx overlay statefile support.
+- uaegfx statefile restore and hardware sprite mode: mouse cursor image was not restored.
+- Picasso IV and uaegfx YUV422 overlay support fixed (frogger, moovid). Note that scaling is linear, real chip uses interpolation. YUV411 is still untested but I am not sure if it was ever used.
+- New 128k UAE ROM stored statefile didn't restore correctly.
+- Changing accelerator board options (jumpers etc) on the fly didn't do anything.
+- uaedbg chip ram memory allocation fallback to normal chip ram fixed.
+- Updated remaining weird instruction names in disassembler (MOVEP, MOVE USP, MOVE/AND/OR/EOR SR/CCR, memory rotate instructions)
+
+
 4.2.0
 
 Beta 8:
