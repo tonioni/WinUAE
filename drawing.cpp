@@ -27,6 +27,8 @@ resolution.
 To prevent extremely bad things (think pixels cut in half by window borders) from
 happening, all ports should restrict window widths to be multiples of 16 pixels.  */
 
+#define SPRITE_DEBUG_HIDE 0
+
 #include "sysconfig.h"
 #include "sysdeps.h"
 
@@ -858,8 +860,9 @@ PLAYFIELD_START and PLAYFIELD_END are in window coordinates.  */
 static int playfield_start_pre, playfield_end_pre;
 static int playfield_start, playfield_end;
 static int real_playfield_start, real_playfield_end;
+static int playfield_diff;
 static int sprite_playfield_start;
-static bool may_require_hard_way;
+static int may_require_hard_way;
 static int linetoscr_diw_start, linetoscr_diw_end;
 static int native_ddf_left, native_ddf_right;
 
@@ -991,7 +994,8 @@ static void pfield_init_linetoscr (bool border)
 			expanded = true;
 		}
 	}
-	may_require_hard_way = false;
+	playfield_diff = 0;
+	may_require_hard_way = 0;
 	if (dp_for_drawing->bordersprite_seen && !ce_is_borderblank(colors_for_drawing.extra) && dip_for_drawing->nr_sprites) {
 		int min = visible_right_border, max = visible_left_border, i;
 		for (i = 0; i < dip_for_drawing->nr_sprites; i++) {
@@ -1016,7 +1020,7 @@ static void pfield_init_linetoscr (bool border)
 		if (playfield_end > visible_right_border)
 			playfield_end = visible_right_border;
 		sprite_playfield_start = 0;
-		may_require_hard_way = true;
+		may_require_hard_way = 1;
 	}
 #endif
 
@@ -1062,6 +1066,15 @@ static void pfield_init_linetoscr (bool border)
 	if (hblank_left_start > playfield_start)
 		leftborderhidden += hblank_left_start - playfield_start;
 	src_pixel = MAX_PIXELS_PER_LINE + res_shift_from_window(leftborderhidden);
+
+	if (may_require_hard_way) {
+		// must use "hard_way" rendering if negative leftborderhidden
+		if (src_pixel < MAX_PIXELS_PER_LINE)
+			may_require_hard_way = -1;
+		if (playfield_start < real_playfield_start) {
+			playfield_diff = res_shift_from_window(real_playfield_start - playfield_start);
+		}
+	}
 
 	if (dip_for_drawing->nr_sprites == 0 && !expanded)
 		return;
@@ -1364,6 +1377,9 @@ static uae_u8 render_sprites (int pos, int dualpf, uae_u8 apixel, int aga)
 			col += offs * 2;
 		}
 
+#if SPRITE_DEBUG_HIDE
+		col = 0;
+#endif
 		return col;
 	}
 
@@ -2919,34 +2935,38 @@ static void adjust_drawing_colors (int ctable, int need_full)
 
 static void playfield_hard_way(line_draw_func worker_pfield, int first, int last)
 {
+	int stop = last < real_playfield_end ? last : real_playfield_end;
+
+	src_pixel += playfield_diff;
+	ham_decode_pixel += playfield_diff;
+
 	if (first < real_playfield_start)  {
 		int next = last < real_playfield_start ? last : real_playfield_start;
-		int diff = next - first;
+		// left border sprite
 		pfield_do_linetoscr_bordersprite_aga(first, next, false);
-		diff = res_shift_from_window(diff);
-		first = next;
-		src_pixel += diff;
-		ham_decode_pixel += diff;
-		(*worker_pfield)(first, last < real_playfield_end ? last : real_playfield_end, false);
-		if (last > real_playfield_end)
-			pfield_do_linetoscr_bordersprite_aga(real_playfield_end, last, false);
-		src_pixel -= diff;
-		ham_decode_pixel -= diff;
-	} else if (playfield_start < real_playfield_start) {
-		int diff = real_playfield_start - playfield_start;
-		diff = res_shift_from_window(diff);
-		src_pixel += diff;
-		ham_decode_pixel += diff;
-		(*worker_pfield)(first, last < real_playfield_end ? last : real_playfield_end, false);
-		if (last > real_playfield_end)
-			pfield_do_linetoscr_bordersprite_aga(real_playfield_end, last, false);
-		src_pixel -= diff;
-		ham_decode_pixel -= diff;
+		// bitplanes
+		if (stop > real_playfield_start) {
+			(*worker_pfield)(real_playfield_start, stop, false);
+			// right border sprite
+			if (last > real_playfield_end) {
+				int sfirst = first > real_playfield_end ? first : real_playfield_end;
+				pfield_do_linetoscr_bordersprite_aga(sfirst, last, false);
+			}
+		}
 	} else {
-		(*worker_pfield)(first, last < real_playfield_end ? last : real_playfield_end, false);
-		if (last > real_playfield_end)
-			pfield_do_linetoscr_bordersprite_aga(real_playfield_end, last, false);
+		// bitplanes
+		if (stop > real_playfield_start) {
+			(*worker_pfield)(first, stop, false);
+			// right border sprite
+			if (last > real_playfield_end) {
+				int sfirst = first > real_playfield_end ? first : real_playfield_end;
+				pfield_do_linetoscr_bordersprite_aga(sfirst, last, false);
+			}
+		}
 	}
+
+	src_pixel -= playfield_diff;
+	ham_decode_pixel -= playfield_diff;
 }
 
 static void do_color_changes (line_draw_func worker_border, line_draw_func worker_pfield, int vp)
@@ -2990,12 +3010,14 @@ static void do_color_changes (line_draw_func worker_border, line_draw_func worke
 			// playfield
 			if (nextpos_in_range > lastpos && lastpos >= playfield_start && lastpos < playfield_end) {
 				int t = nextpos_in_range <= playfield_end ? nextpos_in_range : playfield_end;
-				if ((plf2pri >= 5 || plf1pri >= 5) && !(currprefs.chipset_mask & CSMASK_AGA))
+				if ((plf2pri >= 5 || plf1pri >= 5) && !(currprefs.chipset_mask & CSMASK_AGA)) {
 					weird_bitplane_fix(lastpos, t);
-				if (bplxor && may_require_hard_way && worker_pfield != pfield_do_linetoscr_bordersprite_aga)
+				}
+				if (may_require_hard_way && (may_require_hard_way < 0 || (bplxor && may_require_hard_way && worker_pfield != pfield_do_linetoscr_bordersprite_aga))) {
 					playfield_hard_way(worker_pfield, lastpos, t);
-				else
+				} else {
 					(*worker_pfield) (lastpos, t, 0);
+				}
 				lastpos = t;
 			}
 
@@ -3018,10 +3040,11 @@ static void do_color_changes (line_draw_func worker_border, line_draw_func worke
 			// playfield with last hires pixel not drawn.
 			if (nextpos_in_range > lastpos && lastpos >= playfield_start && lastpos < playfield_end_pre) {
 				int t = nextpos_in_range <= playfield_end_pre ? nextpos_in_range : playfield_end_pre;
-				if (bplxor && may_require_hard_way && worker_pfield != pfield_do_linetoscr_bordersprite_aga)
+				if (may_require_hard_way && (may_require_hard_way < 0 || (bplxor && may_require_hard_way && worker_pfield != pfield_do_linetoscr_bordersprite_aga))) {
 					playfield_hard_way(worker_pfield, lastpos, t);
-				else
+				} else {
 					(*worker_pfield) (lastpos, t, 0);
+				}
 				lastpos = t;
 			}
 
