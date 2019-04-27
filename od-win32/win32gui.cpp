@@ -15681,7 +15681,13 @@ static void deletesaveimage (HWND hDlg, int num)
 		return;
 	p = DISK_get_saveimagepath(workprefs.floppyslots[num].df, -2);
 	if (zfile_exists (p)) {
-		DeleteFile (p);
+		if (!DeleteFile(p)) {
+			struct mystat st;
+			if (my_stat(p, &st)) {
+				my_chmod(p, st.mode | FILEFLAG_WRITE);
+				DeleteFile(p);
+			}
+		}
 		if (!full_property_sheet)
 			DISK_reinsert (num);
 		addfloppytype (hDlg, num);
