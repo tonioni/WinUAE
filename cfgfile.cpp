@@ -2571,6 +2571,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	cfgfile_write_bool (f, _T("cpu_data_cache"), p->cpu_data_cache);
 	/* do not reorder end */
 	cfgfile_dwrite_bool(f, _T("cpu_reset_pause"), p->reset_delay);
+	cfgfile_dwrite_bool(f, _T("cpu_halt_auto_reset"), p->crash_auto_reset);
 	cfgfile_dwrite_bool(f, _T("cpu_threaded"), p->cpu_thread);
 	if (p->ppc_mode)
 		cfgfile_write_str(f, _T("ppc_implementation"), ppc_implementations[p->ppc_implementation]);
@@ -5388,6 +5389,7 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 		|| cfgfile_yesno(option, value, _T("cpu_threaded"), &p->cpu_thread)
 		|| cfgfile_yesno(option, value, _T("cpu_24bit_addressing"), &p->address_space_24)
 		|| cfgfile_yesno(option, value, _T("cpu_reset_pause"), &p->reset_delay)
+		|| cfgfile_yesno(option, value, _T("cpu_halt_auto_reset"), &p->crash_auto_reset)
 		|| cfgfile_yesno(option, value, _T("parallel_on_demand"), &p->parallel_demand)
 		|| cfgfile_yesno (option, value, _T("parallel_postscript_emulation"), &p->parallel_postscript_emulation)
 		|| cfgfile_yesno (option, value, _T("parallel_postscript_detection"), &p->parallel_postscript_detection)

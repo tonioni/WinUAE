@@ -5795,6 +5795,13 @@ void cpu_halt (int id)
 	// id > 0: emulation halted.
 	if (!regs.halted) {
 		write_log (_T("CPU halted: reason = %d PC=%08x\n"), id, M68K_GETPC);
+		if (currprefs.crash_auto_reset) {
+			write_log(_T("Forcing hard reset\n"));
+			uae_reset(true, false);
+			quit_program = -quit_program;
+			set_special(SPCFLAG_BRK | SPCFLAG_MODE_CHANGE);
+			return;
+		}
 		regs.halted = id;
 		gui_data.cpu_halted = id;
 		gui_led(LED_CPU, 0, -1);

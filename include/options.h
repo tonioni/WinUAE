@@ -629,6 +629,7 @@ struct uae_prefs {
 	TCHAR filesys_inject_icons_drawer[MAX_DPATH];
 	int uaescsidevmode;
 	bool reset_delay;
+	bool crash_auto_reset;
 
 	int cs_compatible;
 	int cs_ciaatod;
