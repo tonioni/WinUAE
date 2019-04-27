@@ -1,6 +1,12 @@
 
 
+Beta 2:
 
+- It was not possible to delete existing floppy disk saveimage using GUI button if write protected checkbox was ticked. (Very old bug)
+- Added "cpu_halt_auto_reset=false/true" config line entry. If true, hard reset is immediately forced if CPU would halt.
+- 420b2 "Fixed AGA HAM graphics corruption.." more fixing..
+
+Beta 1:
 
 - 420b2 "Fixed AGA HAM graphics corruption.." missed one special case. Fixes Alien Breed 3D graphics corruption.
 - Reset/Restart didn't clear uaegfx overlay state.
