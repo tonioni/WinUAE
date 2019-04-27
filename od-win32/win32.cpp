@@ -303,9 +303,9 @@ void target_calibrate_spin(void)
 	struct amigadisplay *ad = &adisplays[0];
 	struct apmode *ap = ad->picasso_on ? &currprefs.gfx_apmode[1] : &currprefs.gfx_apmode[0];
 	int vp;
+	const int cntlines = 1;
 	uae_u64 sc;
 
-	sc = 0;
 	spincount = 0;
 	if (!ap->gfx_vsyncmode)
 		return;
@@ -323,27 +323,30 @@ void target_calibrate_spin(void)
 			if (vp >= 1 && vp < vsync_activeheight - 10)
 				break;
 		}
-		int vp3 = target_get_display_scanline(-1);
+		uae_u64 v1;
+		int vp2;
 		for (;;) {
-			int vp2 = target_get_display_scanline(-1);
+			v1 = __rdtsc();
+			vp2 = target_get_display_scanline(-1);
 			if (vp2 <= -10)
 				goto fail;
-			if (vp2 == vp + 1)
+			if (vp2 == vp + cntlines)
 				break;
-			if (vp2 != vp)
+			if (vp2 < vp || vp2 > vp + cntlines)
 				goto trynext;
 		}
-		uae_u64 v1 = __rdtsc();
 		for (;;) {
 			int vp2 = target_get_display_scanline(-1);
 			if (vp2 <= -10)
 				goto fail;
-			if (vp2 == vp + 2) {
-				uae_u64 sc = __rdtsc() - v1;
-				if (sc > sc)
-					sc = sc;
+			if (vp2 == vp + cntlines * 2) {
+				uae_u64 scd = (__rdtsc() - v1) / cntlines;
+				if (sc > scd)
+					sc = scd;
 			}
-			if (vp2 != vp + 1)
+			if (vp2 < vp)
+				break;
+			if (vp2 > vp + cntlines * 2)
 				break;
 		}
 trynext:;
