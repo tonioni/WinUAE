@@ -8754,6 +8754,8 @@ static uae_u32 REGPARAM2 filesys_dev_storeinfo (TrapContext *ctx)
 
 	if (unit_no >= MAX_FILESYSTEM_UNITS)
 		return -2;
+	if (sub_no >= MAX_FILESYSTEM_UNITS)
+		return -2;
 
 	UnitInfo *uip = mountinfo.ui;
 	uaecptr parmpacket = trap_get_areg(ctx, 0);
