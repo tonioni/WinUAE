@@ -1,5 +1,11 @@
 
 
+Beta 3:
+
+- Number of partitions in single UAE HDF was still not correctly restricted to max supported (420b8).
+- PPC CPU incorrectly used direct access when accessing Picasso IV byteswap memory regions. (Shogo color error, probably other PPC games/demos too)
+- Added support for Picasso IV Zorro II 2M VRAM mode. (J1 jumper in real hardware, VRAM size adjustment in UAE)
+
 Beta 2:
 
 - It was not possible to delete existing floppy disk saveimage using GUI button if write protected checkbox was ticked. (Very old bug)
