@@ -154,7 +154,7 @@ static const struct gfxboard boards[] =
 	{
 		_T("Picasso IV Zorro II"), _T("Village Tronic"), _T("PicassoIV_Z2"),
 		BOARD_MANUFACTURER_PICASSO, BOARD_MODEL_MEMORY_PICASSOIV, BOARD_MODEL_REGISTERS_PICASSOIV,
-		0x00000000, 0x00400000, 0x00400000, 0x00400000, CIRRUS_ID_CLGD5446, 2, 2, false,
+		0x00000000, 0x00200000, 0x00400000, 0x00400000, CIRRUS_ID_CLGD5446, 2, 2, false,
 		ROMTYPE_PICASSOIV
 	},
 	{
@@ -2837,8 +2837,11 @@ int gfxboard_num_boards (struct rtgboardconfig *rbc)
 		return 1;
 	struct rtggfxboard *gb = &rtggfxboards[rbc->rtg_index];
 	gb->board = &boards[type - 2];
-	if (type == GFXBOARD_PICASSO4_Z2)
+	if (type == GFXBOARD_PICASSO4_Z2) {
+		if (rbc->rtgmem_size < 0x400000)
+			return 2;
 		return 3;
+	}
 	if (gb->board->model_registers == 0)
 		return 1;
 	return 2;
