@@ -4093,9 +4093,11 @@ static void memory_map_dump_3(UaeMemoryMap *map, int log)
 						r->size = region_size;
 						r->flags = 0;
 						r->memory = NULL;
-						r->memory = dump_xlate((j << 16) | bankoffset);
-						if (r->memory)
-							r->flags |= UAE_MEMORY_REGION_RAM;
+						if (!(a1->flags & ABFLAG_PPCIOSPACE)) {
+							r->memory = dump_xlate((j << 16) | bankoffset);
+							if (r->memory)
+								r->flags |= UAE_MEMORY_REGION_RAM;
+						}
 						/* just to make it easier to spot in debugger */
 						r->alias = 0xffffffff;
 						if (m >= 0) {
