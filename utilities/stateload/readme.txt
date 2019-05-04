@@ -1,0 +1,22 @@
+
+uaestateload: load UAE state files on real hardware.
+
+Currently common 68000 A500 statefiles are supported. (512k chip only, 512k+512k etc..)
+
+Information:
+
+CPU should match statefile config but it only causes warning. Mismatched CPU most likely won't work.
+RAM config must match and at least one RAM address space must be 512k larger.
+Both compressed and uncompressed statefiles are supported.
+HD compatible (statefile is completely loaded before system take over)
+KS ROM does not need to match if loaded program has already completely taken over the system.
+All, even ancient statefiles should be supported, confirmed with UAE 0.8.22 created statefile.
+Floppy state restore is not tested but at least motor state and track number is restored.
+Statefile restore can for example fail if statefile was saved when blitter was active or program was executing self-modifying code.
+
+RAM config examples:
+
+512k chip ram statefile: hardware must have 1M chip or 512k chip+512k "slow" ram or 512k chip+512k real fast.
+512k+512k statefile: hardware must have 1M+512k or 512k+1M or 512k+512k+512k real fast.
+
+Note that uncompressed statefiles require at least 1M contiguous extra RAM because all statefile RAM address spaces need to fit in RAM before system take over.
