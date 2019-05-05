@@ -92,6 +92,7 @@ static void set_agacolor(UBYTE *p)
 			}			
 		}
 	}
+	c->bplcon3 = 0x0c00;
 }
 
 static void wait_lines(WORD lines)
@@ -841,24 +842,24 @@ static void processstate(struct uaestate *st)
 
 	for (int i = 0; i < MEMORY_REGIONS; i++) {
 		if (i == MB_CHIP)
-			c->color[0] = 0x800;
+			c->color[0] = 0x400;
 		if (i == MB_SLOW)
-			c->color[0] = 0x080;
+			c->color[0] = 0x040;
 		if (i == MB_FAST)
-			c->color[0] = 0x008;
+			c->color[0] = 0x004;
 		struct MemoryBank *mb = &st->membanks[i];
 		if (mb->addr) {
 			handlerambank(mb, st);
 		}
 	}
-	c->color[0] = 0x880;
+	c->color[0] = 0x440;
 	
 	// must be before set_cia
 	for (int i = 0; i < 4; i++) {
 		set_floppy(st->floppy_chunk[i], i);
 	}
 
-	c->color[0] = 0x808;
+	c->color[0] = 0x444;
 
 	set_agacolor(st->aga_colors_chunk);
 	set_custom(st->custom_chunk);
@@ -870,8 +871,6 @@ static void processstate(struct uaestate *st)
 	}
 	set_cia(st->ciaa_chunk, 0);
 	set_cia(st->ciab_chunk, 1);
-
-	c->color[0] = 0x888;
 
 	runit(st);
 }
