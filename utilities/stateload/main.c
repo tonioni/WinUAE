@@ -205,14 +205,58 @@ static void set_custom(UBYTE *p)
 		if (i >= 0xa0 && i < 0xe0)
 			continue;
 
-		// skip blitter start, DMACON and INTENA
-		if (i == 0x58 || i == 0x5e || i == 0x96 || i == 0x9a) {
+		// skip blitter start, DMACON, INTENA, registers
+		// that are write strobed, unused registers.
+		switch(i)
+		{
+			case 0x00:
+			case 0x02:
+			case 0x04:
+			case 0x06:
+			case 0x08:
+			case 0x10:
+			case 0x16:
+			case 0x18:
+			case 0x1a:
+			case 0x1c:
+			case 0x1e:
+			case 0x24: // DSKLEN
+			case 0x26:
+			case 0x28:
+			case 0x2a: // VPOSW
+			case 0x2c: // VHPOSW
+			case 0x30:
+			case 0x38:
+			case 0x3a:
+			case 0x3c:
+			case 0x3e:
+			case 0x58:
+			case 0x5e:
+			case 0x68:
+			case 0x6a:
+			case 0x6c:
+			case 0x6e:
+			case 0x76:
+			case 0x78:
+			case 0x7a:
+			case 0x7c:
+			case 0x88:
+			case 0x8a:
+			case 0x8c:			
+			case 0x96: // DMACON
+			case 0x9a: // INTENA
+			case 0x9c: // INTREQ
 			p += 2;
 			continue;
 		}
 
 		// skip programmed sync registers except BEAMCON0
-		if (i >= 0x1c0 && i != 0x1fc && i != 0x1dc) {
+		if (i >= 0x1c0 && i < 0x1e4 && i != 0x1dc) {
+			p += 2;
+			continue;
+		}
+		// skip unused
+		if (i >= 0x1e6 && i < 0x1fc) {
 			p += 2;
 			continue;
 		}
@@ -237,6 +281,7 @@ void set_custom_final(UBYTE *p)
 	c->intena = 0x7fff;
 	c->intreq = 0x7fff;
 	c->dmacon = 0x7fff;
+	c->vposw = getword(p, 4 + 0x04) & 0x8000; // LOF
 	c->dmacon = getword(p, 4 + 0x96) | 0x8000;
 	c->intena = getword(p, 4 + 0x9a) | 0x8000;
 	c->intreq = getword(p, 4 + 0x9c) | 0x8000;
