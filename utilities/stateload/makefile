@@ -5,7 +5,7 @@ NOWTIME := "\"$(shell date "+%T")\""
 CC=/opt/amiga/bin/m68k-amigaos-gcc
 AS=/opt/amiga/bin/m68k-amigaos-as
 
-CFLAGS = -mcrt=nix13 -Os -m68000 -fomit-frame-pointer -msmall-code
+CFLAGS = -mcrt=nix13 -Os -m68000 -fomit-frame-pointer -msmall-code -DREVDATE=$(NOWDATE) -DREVTIME=$(NOWTIME)
 LINK_CFLAGS = -mcrt=nix13 -s
 
 OBJS = main.o asm.o inflate.o

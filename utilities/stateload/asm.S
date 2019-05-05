@@ -70,12 +70,12 @@ _runit:
 	lsr.l #8,d0
 	and.w #511,d0
 	cmp.w #258,d0
-	bne.s .wait1
+	bne .wait1
 .wait2:
 	move.l 4(a6),d0
 	lsr.l #8,d0
 	and.w #511,d0
-	bne.s .wait2
+	bne .wait2
 
 	| restore possible side-effect causing
 	| custom bits as late as possible
@@ -112,7 +112,7 @@ _runit:
 	movec d0,SFC
 	move.l (a1)+,d0
 	movec d0,VBR
-	move.w #0x0020,-(sp)
+	move.w #0x0020,-(sp) | Format 0, Trap #0
 .cpu68000	:
 	move.l 4+4+60(a0),-(sp) | PC
 	move.w 4+4+60+4+2+2+4+4(a0),-(sp) | SR

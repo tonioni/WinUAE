@@ -2,6 +2,8 @@
 /* Real hardware UAE state file loader */
 /* Copyright 2019 Toni Wilen */
 
+#define VER "0.2"
+
 #include <stdio.h>
 #include <stdarg.h>
 #include <stdlib.h>
@@ -22,6 +24,8 @@
 extern struct GfxBase *GfxBase;
 extern struct DosLibrary *DosBase;
 
+static const UBYTE *const version = "$VER: uaestateload " VER " (" REVDATE ")";
+
 static const char *const chunknames[] =
 {
 	"ASF ",
@@ -37,7 +41,16 @@ static const char *const memchunknames[] =
 	"CRAM", "BRAM", "FRAM",
 	NULL
 };
-
+static const char *const unsupportedchunknames[] =
+{
+	"FRA2", "FRA3", "FRA4",
+	"ZRA2", "ZRA3", "ZRA4",
+	"ZCRM", "PRAM",
+	"A3K1", "A3K2",
+	"BORO", "P96 ",
+	"FSYS",
+	NULL
+};
 
 static ULONG getlong(UBYTE *chunk, int offset)
 {
@@ -68,10 +81,13 @@ static void set_agacolor(UBYTE *p)
 		for (int k = 0; k < 2; k++) {
 			c->bplcon3 = (i << 13) | (k ? (1 << 9) : 0);
 			for (int j = 0; j < 32; j++) {
-				ULONG c32 = getlong(p, j * 4);
-				if (k)
+				ULONG c32 = getlong(p, (j + i * 32) * 4);
+				if (!k)
 					c32 >>= 4;
+				// R1R2G1G2B1B2 -> R2G2B2
 				UWORD col = ((c32 & 0x00000f) << 0) | ((c32 & 0x000f00) >> 4) | ((c32 & 0x0f0000) >> 8);
+				if (!k && (c32 & 0x80000000))
+					col |= 0x8000; // genlock transparency bit
 				c->color[j] = col;
 			}			
 		}
@@ -101,7 +117,7 @@ static void step_floppy(void)
 	// delay
 	ciab->ciaprb &= ~CIAF_DSKSTEP;
 	ciab->ciaprb |= CIAF_DSKSTEP;
-	wait_lines(300);
+	wait_lines(200);
 }
 
 static void set_floppy(UBYTE *p, ULONG num)
@@ -291,7 +307,7 @@ void set_cia_final(UBYTE *p, ULONG num)
 	UBYTE dummy = cia->ciaicr;
 	cia->ciacra = p[14] & ~CIACRAF_LOAD;
 	cia->ciacrb = p[15] & ~CIACRBF_LOAD;
-	cia->ciaicr = p[13] | CIAICRF_SETCLR;	
+	cia->ciaicr = p[16] | CIAICRF_SETCLR;	
 }
 
 static void free_allocations(struct uaestate *st)
@@ -472,6 +488,14 @@ static UBYTE *read_chunk(FILE *f, UBYTE *cname, ULONG *sizep, ULONG *flagsp, str
 		return NULL;
 
 	ULONG maxsize = 0x7fffffff;
+
+	for (int i = 0; unsupportedchunknames[i]; i++) {
+		if (!strcmp(cname, unsupportedchunknames[i])) {
+			printf("Unsupported chunk '%s', %lu bytes, flags %08x.\n", cname, size, flags);
+			return NULL;
+		}
+	}
+
 	int found = 0;
 	for (int i = 0; chunknames[i]; i++) {
 		if (!strcmp(cname, chunknames[i])) {
@@ -627,8 +651,8 @@ static void check_rom(UBYTE *p, struct uaestate *st)
 	while (*path++);
 	
 	printf("ROM %08lx-%08lx %d.%d (CRC=%08x).\n", start, start + len - 1, ver, rev, crc32);
-	printf("- '%s'\n", path);
 	if (ver != rver || rev != rrev) {
+		printf("- '%s'\n", path);
 		printf("WARNING: KS ROM version mismatch.\n");
 	}
 }
@@ -731,8 +755,8 @@ static int parse_pass_1(FILE *f, struct uaestate *st)
 			if (smodel != model) {
 				printf("- WARNING: %lu CPU statefile.\n", model);
 			}
-			if (model > 68020) {
-				printf("- ERROR: Only 68000/68010/68020 statefiles are supported.\n");
+			if (model > 68030) {
+				printf("- ERROR: Only 68000/68010/68020/68030 statefiles are supported.\n");
 				st->errors++;
 			}
 		} else if (!strcmp(cname, "CHIP")) {
@@ -745,7 +769,7 @@ static int parse_pass_1(FILE *f, struct uaestate *st)
 			int saga = (svposr & 0x0f00) == 0x0300;
 			int secs = (svposr & 0x2000) == 0x2000;
 			int sntsc = (svposr & 0x1000) == 0x1000;
-			printf("Chipset: %s %s (%04X).\n", aga ? "AGA" : (ecs ? "ECS" : "OCS"), ntsc ? "NTSC" : "PAL", vposr);
+			printf("Chipset: %s %s (0x%04X).\n", aga ? "AGA" : (ecs ? "ECS" : "OCS"), ntsc ? "NTSC" : "PAL", vposr);
 			if (aga && !saga) {
 				printf("- WARNING: AGA statefile.\n");
 			}
@@ -932,8 +956,9 @@ int main(int argc, char *argv[])
 	UBYTE cname[5];
 	struct uaestate *st;
 	
+	printf("uaestateload v" VER " (" REVTIME " " REVDATE ")\n");
 	if (argc < 2) {
-		printf("Statefile parameter missing.\n");
+		printf("Syntax: uaestateload <statefile.uss>.\n");
 		return 0;
 	}
 	

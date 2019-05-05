@@ -1,7 +1,10 @@
 
 uaestateload: load UAE state files on real hardware.
 
-Currently common 68000 A500 statefiles are supported. (512k chip only, 512k+512k etc..)
+Supported hardware configurations:
+
+- Common 68000 A500 configurations. (chip ram, slow ram and fast ram supported)
+- A1200 68020 configuration (fast ram is also supported)
 
 Information:
 
@@ -20,3 +23,13 @@ RAM config examples:
 512k+512k statefile: hardware must have 1M+512k or 512k+1M or 512k+512k+512k real fast.
 
 Note that uncompressed statefiles require at least 1M contiguous extra RAM because all statefile RAM address spaces need to fit in RAM before system take over.
+
+A1200 chip ram only statefiles require at least 1M fast ram.
+
+Background colors:
+
+- red = decompressing/copying chip ram state
+- green = decompressing/copying slow ram state
+- blue = decompressing/coping fast ram (0x00200000) state
+- yellow = setting floppy drives (seek rw head)
+
