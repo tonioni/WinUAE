@@ -1,12 +1,15 @@
 
 CPU_CHUNK = 4
-CIAA_CHUNK = 8
-CIAB_CHUNK = 12
-CUSTOM_CHUNK = 16
-AGA_COLORS_CHUNK = 20
-FLOPPY_CHUNK = 24
-AUDIO_CHUNK = FLOPPY_CHUNK + 4*4
-SPRITE_CHUNK = AUDIO_CHUNK + 4*4
+CIAA_CHUNK = CPU_CHUNK+4
+CIAB_CHUNK = CIAA_CHUNK+4
+CUSTOM_CHUNK = CIAB_CHUNK+4
+AGA_COLORS_CHUNK = CUSTOM_CHUNK+4
+FLOPPY_CHUNK = AGA_COLORS_CHUNK+4
+AUDIO_CHUNK = FLOPPY_CHUNK+4*4
+SPRITE_CHUNK = AUDIO_CHUNK+4*4
+MAP_ROM = SPRITE_CHUNK+4
+MAP_ROM_SIZE = MAP_ROM+4
+MAP_ROM_TYPE = MAP_ROM_SIZE+4
 
 	.text
 	.chip 68020
@@ -77,6 +80,8 @@ _runit:
 	and.w #511,d0
 	bne .wait2
 
+	move.w #0x1234,0xfc0004
+
 	| restore possible side-effect causing
 	| custom bits as late as possible
 	move.l CIAA_CHUNK(a4),(sp)
@@ -113,7 +118,7 @@ _runit:
 	move.l (a1)+,d0
 	movec d0,VBR
 	move.w #0x0020,-(sp) | Format 0, Trap #0
-.cpu68000	:
+.cpu68000:
 	move.l 4+4+60(a0),-(sp) | PC
 	move.w 4+4+60+4+2+2+4+4(a0),-(sp) | SR
 	movem.l 4+4(a0),d0-d7/a0-a6

@@ -26,10 +26,20 @@ Note that uncompressed statefiles require at least 1M contiguous extra RAM becau
 
 A1200 chip ram only statefiles require at least 1M fast ram.
 
+Map ROM hardware support:
+
+Currently ACA500, ACA500plus and ACA1221EC Map ROM is supported. If statefile ROM is not same as hardware ROM, ROM image is automatically loaded from devs:kickstarts and enabled if found.
+
+Command line parameters:
+
+- debug = show debug information.
+- test = parse and load statefile, exit before system take over.
+- nomaprom = do not use map rom.
+
 Background colors:
 
+- purple = map rom copy
 - red = decompressing/copying chip ram state
 - green = decompressing/copying slow ram state
 - blue = decompressing/coping fast ram (0x00200000) state
 - yellow = setting floppy drives (seek rw head)
-

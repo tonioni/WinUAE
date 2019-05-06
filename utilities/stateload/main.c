@@ -2,7 +2,7 @@
 /* Real hardware UAE state file loader */
 /* Copyright 2019 Toni Wilen */
 
-#define VER "0.2"
+#define VER "0.3"
 
 #include <stdio.h>
 #include <stdarg.h>
@@ -14,6 +14,7 @@
 #include <proto/exec.h>
 #include <proto/graphics.h>
 #include <proto/dos.h>
+#include <proto/expansion.h>
 #include <graphics/gfxbase.h>
 #include <dos/dosextens.h>
 #include <hardware/cia.h>
@@ -427,14 +428,147 @@ static UBYTE *tempmem_allocate_reserved(ULONG size, WORD index, struct uaestate 
 	}
 }
 
+static void copyrom(ULONG addr, struct uaestate *st)
+{
+	ULONG *dst = (ULONG*)addr;
+	ULONG *src = (ULONG*)st->maprom;
+	UWORD cnt = st->mapromsize / 16;
+	for (UWORD i = 0; i < cnt; i++) {
+		*dst++ = *src++;
+		*dst++ = *src++;
+		*dst++ = *src++;
+		*dst++ = *src++;
+	}
+	if (st->mapromsize == 262144) {
+		src = (ULONG*)st->maprom;
+		for (UWORD i = 0; i < cnt; i++) {
+			*dst++ = *src++;
+			*dst++ = *src++;
+			*dst++ = *src++;
+			*dst++ = *src++;
+		}
+	}
+}
+
+static void set_maprom(struct uaestate *st)
+{
+	if ((st->mapromtype & MAPROM_ACA500) || (st->mapromtype & MAPROM_ACA500P)) {
+		volatile UBYTE *base = (volatile UBYTE*)0xb00000;
+		base[0x3000] = 0;
+		base[0x7000] = 0;
+		base[0xf000] = 0;
+		base[0xb000] = 0;
+		base[0x23000] = 0;
+		copyrom(st->mapromtype == MAPROM_ACA500 ? 0x980000 : 0xa00000, st);
+		base[0x23000] = 0xff;
+		base[0x3000] = 0;
+	}
+	if (st->mapromtype & MAPROM_ACA1221EC) {
+		volatile UBYTE *base = (volatile UBYTE*)0xe90000;
+		base[0x1000] = 0x05;
+		base[0x1001] = 0x00;
+		base[0x2000] = 0x00;
+		base[0x1000] = 0x03;
+		base[0x1001] = 0x01;
+		base[0x2000] = 0x00;		
+		copyrom(0x600000, st);
+		copyrom(0x780000, st);
+		base[0x1000] = 0x03;
+		base[0x1001] = 0x00;
+		base[0x2000] = 0x00;
+		base[0x1000] = 0x05;
+		base[0x1001] = 0x01;
+		base[0x2000] = 0x00;
+	}
+}
+
+static WORD has_maprom(struct uaestate *st)
+{
+	if (!st->usemaprom)
+		return -1;
+	if (OpenResource("aca.resource")) {
+		// ACA500(+)
+		volatile UBYTE *base = (volatile UBYTE*)0xb00000;
+		Disable();
+		base[0x3000] = 0;
+		base[0x7000] = 0;
+		base[0xf000] = 0;
+		base[0xb000] = 0;
+		UBYTE id = 0;
+		if (base[0x13000] & 0x80)
+			id |= 0x08;
+		if (base[0x17000] & 0x80)
+			id |= 0x04;
+		if (base[0x1b000] & 0x80)
+			id |= 0x02;
+		if (base[0x1f000] & 0x80)
+			id |= 0x01;
+		if (id == 7)
+			st->mapromtype = MAPROM_ACA500;
+		else if (id == 8 || id == 9)
+			st->mapromtype = MAPROM_ACA500P;
+		base[0x3000] = 0;
+		Enable();
+		if (st->debug)
+			printf("ACA500/ACA500plus ID=%02x\n", id);
+	}
+	if (FindConfigDev(NULL, 0x1212, 0x16)) {
+		// ACA1221EC
+		st->mapromtype |= MAPROM_ACA1221EC;
+		// we can't use 0x200000 because it goes away when setting up maprom..
+		st->memunavailable = 0x00200000;
+	}
+	
+	if (st->debug && st->mapromtype) {
+		printf("MAPROM type %ld detected\n", st->mapromtype);
+	}
+	return st->mapromtype != 0;
+}
+
+static void load_rom(struct uaestate *st)
+{
+	UBYTE rompath[100];
+	
+	if (!st->mapromtype)
+		return;
+	
+	sprintf(rompath, "DEVS:kickstarts/kick%d%03d.%s", st->romver, st->romrev, st->agastate ? "a1200" : "a500");
+	FILE *f = fopen(rompath, "rb");
+	if (!f) {
+		printf("Couldn't open ROM image '%s'\n", rompath);
+		return;
+	}
+	fseek(f, 0, SEEK_END);
+	st->mapromsize = ftell(f);
+	fseek(f, 0, SEEK_SET);
+	if (!(st->maprom = tempmem_allocate_reserved(st->mapromsize, MB_CHIP, st))) {
+		if (!(st->maprom = tempmem_allocate_reserved(st->mapromsize, MB_SLOW, st))) {
+			st->maprom = tempmem_allocate(st->mapromsize, st);
+		}
+	}
+	if (!st->maprom) {
+		printf("Couldn't allocate %luk for ROM image '%s'\n", st->mapromsize, rompath);
+		fclose(f);
+		return;
+	}
+	if (fread(st->maprom, 1, st->mapromsize, f) != st->mapromsize) {
+		printf("Read error while reading map rom image '%s'\n", rompath);
+		fclose(f);
+		return;
+	}
+	fclose(f);
+	printf("ROM image '%s' (%luk) loaded (%08x).\n", rompath, st->mapromsize, st->maprom);
+}
+
 static void load_memory(FILE *f, WORD index, struct uaestate *st)
 {
 	struct MemoryBank *mb = &st->membanks[index];
 	ULONG oldoffset = ftell(f);
 	ULONG chunksize = mb->size + 12;
 	fseek(f, mb->offset, SEEK_SET);
-	printf("Memory '%s', size %luk, offset %lu. Target %08lx.\n", mb->chunk, chunksize >> 10, mb->offset, mb->targetaddr);
-	// if Chip RAM and space in another statefile block? Put it there because chip ram is decompressed first.
+	if (st->debug)
+		printf("Memory '%s', size %luk, offset %lu. Target %08lx.\n", mb->chunk, chunksize >> 10, mb->offset, mb->targetaddr);
+	// if Chip RAM and free space in another statefile block? Put it there because chip ram is decompressed first.
 	if (index == MB_CHIP) {
 		mb->addr = tempmem_allocate_reserved(chunksize, MB_SLOW, st);
 		if (!mb->addr)
@@ -445,14 +579,14 @@ static void load_memory(FILE *f, WORD index, struct uaestate *st)
 	if (!mb->addr)
 		mb->addr = tempmem_allocate(chunksize, st);
 	if (mb->addr) {
-		printf(" - Address %08lx - %08lx.\n", mb->addr, mb->addr + chunksize - 1);
-		int v = fread(mb->addr, 1, chunksize, f);
-		if (v != chunksize) {
-			printf("ERROR: Read error (%lu != %lu).\n", v, chunksize);
+		if (st->debug)
+			printf(" - Address %08lx - %08lx.\n", mb->addr, mb->addr + chunksize - 1);
+		if (fread(mb->addr, 1, chunksize, f) != chunksize) {
+			printf("ERROR: Read error (Chunk '%s', %lu bytes)\n", mb->chunk, chunksize);
 			st->errors++;
 		}		
 	} else {
-		printf("ERROR: Out of memory.\n");
+		printf("ERROR: Out of memory (Chunk '%s', %lu bytes).\n", mb->chunk, chunksize);
 		st->errors++;
 	}
 	fseek(f, oldoffset, SEEK_SET);
@@ -507,12 +641,12 @@ static UBYTE *load_chunk(FILE *f, UBYTE *cname, ULONG size, struct uaestate *st)
 	//printf("Reading chunk '%s', %lu bytes to address %08x\.n", cname, size, b);
 	
 	if (!b) {
-		printf("ERROR: Not enough memory (%ul bytes required).\n", size);
+		printf("ERROR: Not enough memory (Chunk '%s', %ul bytes required).\n", cname, size);
 		return NULL;
 	}
 	
 	if (fread(b, 1, size, f) != size) {
-		printf("ERROR: Read error.\n");
+		printf("ERROR: Read error  (Chunk '%s', %lu bytes).\n", cname, size);
 		return NULL;
 	}
 	
@@ -537,7 +671,8 @@ static UBYTE *read_chunk(FILE *f, UBYTE *cname, ULONG *sizep, ULONG *flagsp, str
 
 	for (int i = 0; unsupportedchunknames[i]; i++) {
 		if (!strcmp(cname, unsupportedchunknames[i])) {
-			printf("Unsupported chunk '%s', %lu bytes, flags %08x.\n", cname, size, flags);
+			printf("ERROR: Unsupported chunk '%s', %lu bytes, flags %08x.\n", cname, size, flags);
+			st->errors++;
 			return NULL;
 		}
 	}
@@ -546,7 +681,8 @@ static UBYTE *read_chunk(FILE *f, UBYTE *cname, ULONG *sizep, ULONG *flagsp, str
 	for (int i = 0; chunknames[i]; i++) {
 		if (!strcmp(cname, chunknames[i])) {
 			found = 1;
-			printf("Reading chunk '%s', %lu bytes, flags %08x.\n", cname, size, flags);
+			if (st->debug)
+				printf("Reading chunk '%s', %lu bytes, flags %08x.\n", cname, size, flags);
 			break;
 		}
 	}
@@ -556,7 +692,8 @@ static UBYTE *read_chunk(FILE *f, UBYTE *cname, ULONG *sizep, ULONG *flagsp, str
 			if (!strcmp(cname, memchunknames[i])) {
 				found = 1;
 				maxsize = 16;
-				printf("Checking memory chunk '%s', %lu bytes, flags %08x.\n", cname, size, flags);
+				if (st->debug)
+					printf("Checking memory chunk '%s', %lu bytes, flags %08x.\n", cname, size, flags);
 				break;
 			}	
 		}
@@ -575,11 +712,11 @@ static UBYTE *read_chunk(FILE *f, UBYTE *cname, ULONG *sizep, ULONG *flagsp, str
 		size = maxsize;	
 	UBYTE *chunk = malloc(size);
 	if (!chunk) {
-		printf("ERROR: Not enough memory.\n");
+		printf("ERROR: Not enough memory (Chunk '%s', %lu bytes).\n", cname, size);
 		return NULL;
 	}
 	if (fread(chunk, 1, size, f) != size) {
-		printf("ERROR: Read error.\n");
+		printf("ERROR: Read error (Chunk '%s', %lu bytes)..\n", cname, size);
 		free(chunk);
 		return NULL;
 	}
@@ -602,7 +739,7 @@ static void find_extra_ram(struct uaestate *st)
 			if (st->mem_allocated[i] == mh)
 				break;
 		}
-		if (i == MEMORY_REGIONS) {
+		if (i == MEMORY_REGIONS && mstart != st->memunavailable) {
 			if (msize > st->extra_ram_size) {
 				st->extra_ram = (UBYTE*)mstart;
 				st->extra_ram_size = msize;
@@ -621,7 +758,8 @@ static ULONG check_ram(UBYTE *cname, UBYTE *chunk, WORD index, ULONG addr, ULONG
 		size = getlong(chunk, 0);
 	else
 		size = chunksize;
-	printf("Statefile RAM: Address %08x, size %luk.\n", addr, size >> 10);
+	if (st->debug)
+		printf("Statefile RAM: Address %08x, size %luk.\n", addr, size >> 10);
 	int found = 0;
 	ULONG mstart, msize;
 	Forbid();
@@ -640,7 +778,7 @@ static ULONG check_ram(UBYTE *cname, UBYTE *chunk, WORD index, ULONG addr, ULONG
 	}
 	Permit();
 	if (!found) {
-		printf("ERROR: Not found in this system.\n");
+		printf("ERROR: Required address space %08x-%08x not found in this system.\n", addr, size >> 10);
 		st->errors++;
 		return 0;
 	}
@@ -652,9 +790,11 @@ static ULONG check_ram(UBYTE *cname, UBYTE *chunk, WORD index, ULONG addr, ULONG
 	mb->targetsize = msize;
 	mb->flags = flags;
 	strcpy(mb->chunk, cname);
-	printf("- Detected memory at %08x, total size %luk.\n", mstart, msize >> 10);
+	if (st->debug)
+		printf("- Detected memory at %08x, total size %luk.\n", mstart, msize >> 10);
 	if (found > 0) {
-		printf("- Is usable (%luk required, %luk unused, offset %lu).\n", size >> 10, (msize - size) >> 10, offset);
+		if (st->debug)
+			printf("- Is usable (%luk required, %luk unused, offset %lu).\n", size >> 10, (msize - size) >> 10, offset);
 		ULONG extrasize = msize - size;
 		if (extrasize >= 524288) {
 			if ((mstart >= 0x00200000 && st->extra_ram < (UBYTE*)0x00200000) || extrasize > st->extra_ram_size) {
@@ -664,7 +804,7 @@ static ULONG check_ram(UBYTE *cname, UBYTE *chunk, WORD index, ULONG addr, ULONG
 		}
 		return 1;
 	}
-	printf("ERROR: Not enough memory available (%luk required).\n", size >> 10);
+	printf("ERROR: Not enough memory available (Chunk '%s', %luk required).\n", chunk, size >> 10);
 	st->errors++;
 	return 0;
 }
@@ -696,10 +836,18 @@ static void check_rom(UBYTE *p, struct uaestate *st)
 	UBYTE *path = &p[4 + 4 + 4 + 4 + 4];
 	while (*path++);
 	
-	printf("ROM %08lx-%08lx %d.%d (CRC=%08x).\n", start, start + len - 1, ver, rev, crc32);
-	if (ver != rver || rev != rrev) {
+	int mismatch = ver != rver || rev != rrev;
+	if (st->debug || mismatch)
+		printf("ROM %08lx-%08lx %d.%d (CRC=%08x).\n", start, start + len - 1, ver, rev, crc32);
+	if (mismatch) {
 		printf("- '%s'\n", path);
 		printf("WARNING: KS ROM version mismatch.\n");
+		st->romver = ver;
+		st->romrev = rev;
+		if (has_maprom(st) == 0) {
+			if (st->debug)
+				printf("Map ROM support not detected\n");
+		}
 	}
 }
 
@@ -710,6 +858,9 @@ static int parse_pass_2(FILE *f, struct uaestate *st)
 		if (mb->size) {
 			load_memory(f, i, st);
 		}
+	}
+	if (st->romver) {
+		load_rom(st);
 	}
 	
 	for (;;) {
@@ -798,8 +949,9 @@ static int parse_pass_1(FILE *f, struct uaestate *st)
 			if (SysBase->AttnFlags & 0x80)
 				smodel = 68060;
 			ULONG model = getlong(b, 0);
+			printf("CPU: %lu.\n", model);
 			if (smodel != model) {
-				printf("- WARNING: %lu CPU statefile.\n", model);
+				printf("- WARNING: %lu CPU statefile but system has %lu CPU.\n", model, smodel);
 			}
 			if (model > 68030) {
 				printf("- ERROR: Only 68000/68010/68020/68030 statefiles are supported.\n");
@@ -817,17 +969,18 @@ static int parse_pass_1(FILE *f, struct uaestate *st)
 			int sntsc = (svposr & 0x1000) == 0x1000;
 			printf("Chipset: %s %s (0x%04X).\n", aga ? "AGA" : (ecs ? "ECS" : "OCS"), ntsc ? "NTSC" : "PAL", vposr);
 			if (aga && !saga) {
-				printf("- WARNING: AGA statefile.\n");
+				printf("- WARNING: AGA statefile but system is OCS/ECS.\n");
 			}
 			if (saga && !aga) {
-				printf("- WARNING: OCS/ECS statefile.\n");
+				printf("- WARNING: OCS/ECS statefile but system is AGA.\n");
 			}
 			if (!sntsc && !ecs && ntsc) {
-				printf("- WARNING: NTSC statefile.\n");
+				printf("- WARNING: NTSC statefile but system is OCS PAL.\n");
 			}
 			if (sntsc && !ecs && !ntsc) {
-				printf("- WARNING: PAL statefile.\n");
+				printf("- WARNING: PAL statefile but system is OCS NTSC.\n");
 			}
+			st->agastate = aga;
 		} else if (!strcmp(cname, "CRAM")) {
 			check_ram(cname, b, MB_CHIP, 0x000000, offset, size, flags, st);
 		} else if (!strcmp(cname, "BRAM")) {
@@ -845,10 +998,11 @@ static int parse_pass_1(FILE *f, struct uaestate *st)
 	if (!st->errors) {
 		find_extra_ram(st);
 		if (!st->extra_ram) {
-			printf("ERROR: At least 512k unused RAM required.\n");
+			printf("ERROR: At least 512k RAM not used by statefile required.\n");
 			st->errors++;
 		} else {
-			printf("%luk extra RAM at %08x.\n", st->extra_ram_size >> 10, st->extra_ram);
+			if (st->debug)
+				printf("%luk extra RAM at %08x.\n", st->extra_ram_size >> 10, st->extra_ram);
 			st->extra_mem_pointer = st->extra_ram;
 			st->errors = 0;
 		}
@@ -885,6 +1039,11 @@ static void processstate(struct uaestate *st)
 {
 	volatile struct Custom *c = (volatile struct Custom*)0xdff000;
 
+	if (st->maprom && st->mapromtype) {
+		c->color[0] = 0x404;
+		set_maprom(st);
+	}
+	
 	for (int i = 0; i < MEMORY_REGIONS; i++) {
 		if (i == MB_CHIP)
 			c->color[0] = 0x400;
@@ -897,8 +1056,9 @@ static void processstate(struct uaestate *st)
 			handlerambank(mb, st);
 		}
 	}
-	c->color[0] = 0x440;
 	
+	c->color[0] = 0x440;
+		
 	// must be before set_cia
 	for (int i = 0; i < 4; i++) {
 		set_floppy(st->floppy_chunk[i], i);
@@ -952,7 +1112,7 @@ static void take_over(struct uaestate *st)
 	}
 	memcpy(newcode, module, hunksize);
 	
-	// ugly relocation hack but jumps to other module (asm.S) are always absolute..
+	// ugly relocation hack but jumps to other module (from asm.S) are always absolute..
 	// TODO: process the executable after linking
 	UWORD *cp = (UWORD*)newcode;
 	for (int i = 0; i < hunksize / 2; i++) {
@@ -969,7 +1129,16 @@ static void take_over(struct uaestate *st)
 		cp++;
 	}
 	
-	printf("Code=%08lx Stack=%08lx Data=%08lx. Press RETURN!\n", newcode, tempsp, tempst);
+	if (st->testmode) {
+		printf("Test mode finished. Exiting.\n");
+		return;
+	}
+	
+	if (st->debug) {
+		printf("Code=%08lx Stack=%08lx Data=%08lx. Press RETURN!\n", newcode, tempsp, tempst);
+	} else {
+		printf("Change floppy disk(s) now if needed. Press RETURN to start.\n");
+	}
 	Delay(100); // So that key release gets processed by AmigaOS
 	
 #if 0
@@ -1002,7 +1171,7 @@ int main(int argc, char *argv[])
 	
 	printf("uaestateload v" VER " (" REVTIME " " REVDATE ")\n");
 	if (argc < 2) {
-		printf("Syntax: uaestateload <statefile.uss>.\n");
+		printf("Syntax: uaestateload <statefile.uss> (debug).\n");
 		return 0;
 	}
 	
@@ -1017,16 +1186,25 @@ int main(int argc, char *argv[])
 		printf("Out of memory.\n");
 		return 0;
 	}
+	st->usemaprom = 1;
+	for(int i = 2; i < argc; i++) {
+		if (!stricmp(argv[i], "debug"))
+			st->debug = 1;
+		if (!stricmp(argv[i], "test"))
+			st->testmode = 1;
+		if (!stricmp(argv[i], "nomaprom"))
+			st->usemaprom = 0;
+	}
 	
 	if (!parse_pass_1(f, st)) {
 		fseek(f, 0, SEEK_SET);
 		if (!parse_pass_2(f, st)) {
 			take_over(st);			
 		} else {
-			printf("Pass #2 failed (%ld errors).\n", st->errors);
+			printf("Pass #2 failed.\n");
 		}
 	} else {
-		printf("Pass #1 failed (%ld errors).\n", st->errors);
+		printf("Pass #1 failed.\n");
 	}
 	
 	free(st);
