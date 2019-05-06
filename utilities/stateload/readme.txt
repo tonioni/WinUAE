@@ -3,8 +3,8 @@ uaestateload: load UAE state files on real hardware.
 
 Supported hardware configurations:
 
-- Common 68000 A500 configurations. (chip ram, slow ram and fast ram supported)
-- A1200 68020 configuration (fast ram is also supported)
+- Common 68000 A500 configurations. (chip ram, "slow" ram and fast ram supported)
+- A1200 68020 configuration ("slow" ram and fast ram is also supported)
 
 Information:
 
@@ -41,5 +41,5 @@ Background colors:
 - purple = map rom copy
 - red = decompressing/copying chip ram state
 - green = decompressing/copying slow ram state
-- blue = decompressing/coping fast ram (0x00200000) state
+- blue = decompressing/copying fast ram (0x00200000) state
 - yellow = setting floppy drives (seek rw head)

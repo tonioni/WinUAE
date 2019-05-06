@@ -415,7 +415,7 @@ static UBYTE *tempmem_allocate_reserved(ULONG size, WORD index, struct uaestate 
 		return NULL;
 	UBYTE *addr = mb->targetaddr;
 	for (;;) {
-		addr += 65536;
+		addr += 32768;
 		if (addr - mb->targetaddr + size >= mb->targetsize)
 			return NULL;
 		UBYTE *b = AllocAbs(size, addr);
@@ -452,14 +452,14 @@ static void copyrom(ULONG addr, struct uaestate *st)
 
 static void set_maprom(struct uaestate *st)
 {
-	if ((st->mapromtype & MAPROM_ACA500) || (st->mapromtype & MAPROM_ACA500P)) {
+	if (st->mapromtype & (MAPROM_ACA500 | MAPROM_ACA500P)) {
 		volatile UBYTE *base = (volatile UBYTE*)0xb00000;
 		base[0x3000] = 0;
 		base[0x7000] = 0;
 		base[0xf000] = 0;
 		base[0xb000] = 0;
 		base[0x23000] = 0;
-		copyrom(st->mapromtype == MAPROM_ACA500 ? 0x980000 : 0xa00000, st);
+		copyrom((st->mapromtype & MAPROM_ACA500) ? 0x980000 : 0xa00000, st);
 		base[0x23000] = 0xff;
 		base[0x3000] = 0;
 	}
@@ -547,7 +547,7 @@ static void load_rom(struct uaestate *st)
 		}
 	}
 	if (!st->maprom) {
-		printf("Couldn't allocate %luk for ROM image '%s'\n", st->mapromsize, rompath);
+		printf("Couldn't allocate %luk for ROM image '%s'.\n", st->mapromsize >> 10, rompath);
 		fclose(f);
 		return;
 	}
@@ -557,7 +557,7 @@ static void load_rom(struct uaestate *st)
 		return;
 	}
 	fclose(f);
-	printf("ROM image '%s' (%luk) loaded (%08x).\n", rompath, st->mapromsize, st->maprom);
+	printf("ROM image '%s' (%luk) loaded (%08x).\n", rompath, st->mapromsize >> 10, st->maprom);
 }
 
 static void load_memory(FILE *f, WORD index, struct uaestate *st)
@@ -1139,7 +1139,6 @@ static void take_over(struct uaestate *st)
 	} else {
 		printf("Change floppy disk(s) now if needed. Press RETURN to start.\n");
 	}
-	Delay(100); // So that key release gets processed by AmigaOS
 	
 #if 0
 	if (SysBase->LibNode.lib_Version >= 37) {
@@ -1149,6 +1148,7 @@ static void take_over(struct uaestate *st)
 
 	UBYTE b;
 	fread(&b, 1, 1, stdin);
+	Delay(100); // So that key release gets processed by AmigaOS
 	
 	if (GfxBase->LibNode.lib_Version >= 37) {
 		LoadView(NULL);
