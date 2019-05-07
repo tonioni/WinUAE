@@ -361,6 +361,8 @@ retry:
 	ret = 0;
 	while (size-- > 0) {
 		got = false;
+#if 0
+		// always use IOCTL_CDROM_RAW_READ
 		if (!ciw->usesptiread && (sectorsize == 2048 || sectorsize == 2352)) {
 			if (read2048 (ciw, sector) == 2048) {
 				if (sectorsize == 2352) {
@@ -379,6 +381,7 @@ retry:
 				got = true;
 			}
 		}
+#endif
 		if (!got && !ciw->usesptiread) {
 			RAW_READ_INFO rri;
 			rri.DiskOffset.QuadPart = sector * 2048;
@@ -967,7 +970,7 @@ static int ioctl_command_rawread (int unitnum, uae_u8 *data, int sector, int siz
 		write_log (_T("IOCTL rawread unit=%d sector=%d blocksize=%d\n"), unitnum, sector, sectorsize);
 	cdda_stop (ciw);
 	gui_flicker_led (LED_CD, unitnum, LED_CD_ACTIVE);
-	if (sectorsize > 0) {
+	if (sectorsize > 0) { 
 		if (sectorsize != 2336 && sectorsize != 2352 && sectorsize != 2048 &&
 			sectorsize != 2336 + 96 && sectorsize != 2352 + 96 && sectorsize != 2048 + 96)
 			return 0;
