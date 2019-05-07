@@ -1676,7 +1676,7 @@ STATIC_INLINE void do_delays_3_ecs (int nbits)
 			delay += fetchmode_size;
 		int diff = delay - delaypos;
 		int nbits2 = nbits;
-		if (nbits2 >= diff) {
+		if (nbits2 > diff) {
 			do_tosrc (oddeven, 2, diff, 0);
 			nbits2 -= diff;
 			if (todisplay_fetched[oddeven]) {
@@ -1699,7 +1699,7 @@ STATIC_INLINE void do_delays_fast_3_ecs (int nbits)
 		delay += fetchmode_size;
 	int diff = delay - delaypos;
 	int nbits2 = nbits;
-	if (nbits2 >= diff) {
+	if (nbits2 > diff) {
 		do_tosrc (0, 1, diff, 0);
 		nbits2 -= diff;
 		if (todisplay_fetched[0]) {
@@ -1722,7 +1722,7 @@ STATIC_INLINE void do_delays_3_aga (int nbits, int fm)
 			delay += fetchmode_size;
 		int diff = delay - delaypos;
 		int nbits2 = nbits;
-		if (nbits2 >= diff) {
+		if (nbits2 > diff) {
 			do_tosrc (oddeven, 2, diff, fm);
 			nbits2 -= diff;
 			if (todisplay_fetched[oddeven]) {
@@ -1744,7 +1744,7 @@ STATIC_INLINE void do_delays_fast_3_aga (int nbits, int fm)
 		delay += fetchmode_size;
 	int diff = delay - delaypos;
 	int nbits2 = nbits;
-	if (nbits2 >= diff) {
+	if (nbits2 > diff) {
 		do_tosrc (0, 1, diff, fm);
 		nbits2 -= diff;
 		if (todisplay_fetched[0]) {
@@ -1818,7 +1818,7 @@ STATIC_INLINE void do_delays_3_aga_hr(int nbits, int fm)
 			delay += fetchmode_size_hr;
 		int diff = delay - delaypos;
 		int nbits2 = nbits;
-		if (nbits2 >= diff) {
+		if (nbits2 > diff) {
 			do_tosrc_hr(oddeven, 2, diff, fm);
 			nbits2 -= diff;
 			if (todisplay_fetched[oddeven]) {
@@ -1841,7 +1841,7 @@ STATIC_INLINE void do_delays_fast_3_aga_hr(int nbits, int fm)
 		delay += fetchmode_size_hr;
 	int diff = delay - delaypos;
 	int nbits2 = nbits;
-	if (nbits2 >= diff) {
+	if (nbits2 > diff) {
 		do_tosrc_hr(0, 1, diff, fm);
 		nbits2 -= diff;
 		if (todisplay_fetched[0]) {
@@ -1954,7 +1954,7 @@ static void toscr_right_edge (int nbits, int fm)
 	// (Result is ugly shift in graphics in far right overscan)
 	int diff = delay_lastcycle[lol] - delay_cycles;
 	int nbits2 = nbits;
-	if (nbits2 >= diff) {
+	if (nbits2 > diff) {
 		do_delays (diff, fm);
 		nbits2 -= diff;
 		delay_cycles = 0;
@@ -1977,7 +1977,7 @@ static void toscr_right_edge_hr(int nbits, int fm)
 {
 	int diff = delay_lastcycle[lol] - delay_cycles;
 	int nbits2 = nbits;
-	if (nbits2 >= diff) {
+	if (nbits2 > diff) {
 		if (toscr_scanline_complex_bplcon1)
 			do_delays_hr(diff, fm);
 		else
