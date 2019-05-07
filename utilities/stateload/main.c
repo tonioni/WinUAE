@@ -163,7 +163,7 @@ static void set_floppy(UBYTE *p, ULONG num)
 	}
 	
 	ciab->ciaprb &= ~CIAF_DSKDIREC;
-	wait_lines(100);
+	wait_lines(800);
 	for (UBYTE i = 0; i < track; i++) {
 		step_floppy();
 	}
@@ -1169,9 +1169,12 @@ int main(int argc, char *argv[])
 	UBYTE cname[5];
 	struct uaestate *st;
 	
-	printf("uaestateload v" VER " (" REVTIME " " REVDATE ")\n");
+	printf("ussload v" VER " (" REVTIME " " REVDATE ")\n");
 	if (argc < 2) {
-		printf("Syntax: uaestateload <statefile.uss> (debug).\n");
+		printf("Syntax: ussload <statefile.uss> (parameters).\n");
+		printf("- debug = enable debug output.\n");
+		printf("- test = test mode.\n");
+		printf("- nomaprom = do not use map rom.\n");
 		return 0;
 	}
 	

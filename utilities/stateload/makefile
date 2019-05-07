@@ -11,7 +11,7 @@ LINK_CFLAGS = -mcrt=nix13 -s
 OBJS = main.o asm.o inflate.o
 
 all: $(OBJS)
-	$(CC) $(LINK_CFLAGS) -o uaestateload $^
+	$(CC) $(LINK_CFLAGS) -o ussload $^
 
 main.o: main.c
 	$(CC) $(CFLAGS) -I. -c -o $@ main.c

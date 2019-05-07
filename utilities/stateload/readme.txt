@@ -1,5 +1,5 @@
 
-uaestateload: load UAE state files on real hardware.
+ussload: load UAE state files on real hardware.
 
 Supported hardware configurations:
 
