@@ -2,7 +2,7 @@
 /* Real hardware UAE state file loader */
 /* Copyright 2019 Toni Wilen */
 
-#define VER "0.3"
+#define VER "0.4"
 
 #include <stdio.h>
 #include <stdarg.h>
@@ -252,12 +252,8 @@ static void set_custom(UBYTE *p)
 		}
 
 		// skip programmed sync registers except BEAMCON0
-		if (i >= 0x1c0 && i < 0x1e4 && i != 0x1dc) {
-			p += 2;
-			continue;
-		}
-		// skip unused
-		if (i >= 0x1e6 && i < 0x1fc) {
+		// skip unused registers
+		if (i >= 0x1c0 && i < 0x1fc && i != 0x1e4 && i != 0x1dc) {
 			p += 2;
 			continue;
 		}
@@ -265,12 +261,23 @@ static void set_custom(UBYTE *p)
 		UWORD v = getword(p, 0);
 		p += 2;
 
+		// diwhigh
+		if (i == 0x1e4) { 
+			// diwhigh_written not set? skip.
+			if (!(v & 0x8000))
+				continue;
+			v &= ~0x8000;
+		}
+
  		// BEAMCON0: PAL/NTSC only
-		if (i == 0x1dc)
+		if (i == 0x1dc) {
 			v &= 0x20;
+		}
+
 		// ADKCON
-		if (i == 0x9e)
+		if (i == 0x9e) {
 			v |= 0x8000;
+		}
 
 		*c = v;
 	}
@@ -804,7 +811,7 @@ static ULONG check_ram(UBYTE *cname, UBYTE *chunk, WORD index, ULONG addr, ULONG
 		}
 		return 1;
 	}
-	printf("ERROR: Not enough memory available (Chunk '%s', %luk required).\n", chunk, size >> 10);
+	printf("ERROR: Not enough memory available (Chunk '%s', %luk required).\n", cname, size >> 10);
 	st->errors++;
 	return 0;
 }
