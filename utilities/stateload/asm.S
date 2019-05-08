@@ -31,6 +31,7 @@ _killsystem:
 	move.l 8(sp),a0 | uaestate
 	move.l a6,a1
 	move.l 4,a6
+	move.w 0x128(a6),(a0) | AttFlags
 	move.l sp,d1
 	move.l a5,a0
 	lea .super(pc),a5
@@ -94,12 +95,15 @@ _runit:
 	bsr _set_custom_final
 
 	| restore CPU state
+	move.w (a4),d1
 	move.l CPU_CHUNK(a4),a0
 	move.l 4+4+60+4+2+2+4(a0),SP
 	move.l 4+4+60+4+2+2(a0),a1 | USP
 	move.l a1,USP
 	cmp.l #68020,(a0)
 	bcs .cpu68010
+	btst #1,d1
+	beq .cpu68010
 	lea 4+4+60+4+2+2+4+4+2+4+4+4+4(a0),a1
 	move.l (a1)+,d0
 	movec d0,CAAR
@@ -110,6 +114,8 @@ _runit:
 .cpu68010:
 	cmp.l #68010,(a0)
 	bcs .cpu68000
+	btst #0,d1
+	beq .cpu68000	
 	lea 4+4+60+4+2+2+4+4+2+4(a0),a1
 	move.l (a1)+,d0
 	movec d0,DFC
@@ -117,8 +123,11 @@ _runit:
 	movec d0,SFC
 	move.l (a1)+,d0
 	movec d0,VBR
-	move.w #0x0020,-(sp) | Format 0, Trap #0
 .cpu68000:
+	btst #0,d1
+	beq .nocpu68010
+	move.w #0x0020,-(sp) | Format 0, Trap #0
+.nocpu68010:
 	move.l 4+4+60(a0),-(sp) | PC
 	move.w 4+4+60+4+2+2+4+4(a0),-(sp) | SR
 	movem.l 4+4(a0),d0-d7/a0-a6

@@ -785,7 +785,7 @@ static ULONG check_ram(UBYTE *cname, UBYTE *chunk, WORD index, ULONG addr, ULONG
 	}
 	Permit();
 	if (!found) {
-		printf("ERROR: Required address space %08x-%08x not found in this system.\n", addr, size >> 10);
+		printf("ERROR: Required address space %08x-%08x not found in this system.\n", addr, addr + size - 1);
 		st->errors++;
 		return 0;
 	}
