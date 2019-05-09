@@ -75,16 +75,12 @@ _runit:
 	and.w #511,d0
 	cmp.w #258,d0
 	bne .wait1
-.wait2:
-	move.l 4(a6),d0
-	lsr.l #8,d0
-	and.w #511,d0
-	bne .wait2
 
 	move.w #0x1234,0xfc0004
 
 	| restore possible side-effect causing
 	| custom bits as late as possible
+
 	move.l CIAA_CHUNK(a4),(sp)
 	clr.l 4(sp)
 	bsr _set_cia_final
@@ -128,10 +124,38 @@ _runit:
 	beq .nocpu68010
 	move.w #0x0020,-(sp) | Format 0, Trap #0
 .nocpu68010:
+
+	move.l CIAA_CHUNK(a4),a1
+	move.b 15(a1),d6
+	swap d6
+	move.b 14(a1),d6
+	move.l CIAB_CHUNK(a4),a1
+	move.b 15(a1),d7
+	swap d7
+	move.b 14(a1),d7
+
 	move.l 4+4+60(a0),-(sp) | PC
 	move.w 4+4+60+4+2+2+4+4(a0),-(sp) | SR
-	movem.l 4+4(a0),d0-d7/a0-a6
-	
+	movem.l 4+4(a0),d0-d5
+	movem.l 4+4+8*4+4+4(a0),a2-a6
+
 	move.w #0x1234,0xfc0000
+
+	lea 0xbfde00,a1
+
+	| wait line 0
+.wait2:
+	tst.b 0xdff005
+	bne .wait2
+
+	| start timers
+	move.b d6,0xbfee01-0xbfde00(a1)
+	swap d6
+	move.b d6,0xbfef01-0xbfde00(a1)
+	move.b d7,(a1)
+	swap d7
+	move.b d7,0x100(a1)
+	
+	movem.l 4+4+6*4(a0),d6-d7/a0-a1
 	
 	rte | GO! GO! GO!

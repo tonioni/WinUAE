@@ -2,7 +2,7 @@
 /* Real hardware UAE state file loader */
 /* Copyright 2019 Toni Wilen */
 
-#define VER "0.4"
+#define VER "0.5"
 
 #include <stdio.h>
 #include <stdarg.h>
@@ -49,7 +49,7 @@ static const char *const unsupportedchunknames[] =
 	"ZCRM", "PRAM",
 	"A3K1", "A3K2",
 	"BORO", "P96 ",
-	"FSYS",
+	"FSYC",
 	NULL
 };
 
@@ -232,6 +232,7 @@ static void set_custom(UBYTE *p)
 			case 0x3c:
 			case 0x3e:
 			case 0x58:
+			case 0x5a:
 			case 0x5e:
 			case 0x68:
 			case 0x6a:
@@ -306,6 +307,9 @@ static void set_cia(UBYTE *p, ULONG num)
 	cia->ciaicr = 0x7f;
 	c->intreq = 0x7fff;
 	
+	p[14] &= ~CIACRAF_LOAD;
+	p[15] &= ~CIACRAF_LOAD;
+	
 	UBYTE flags = p[16 + 1 + 2 * 2 + 3 + 3];
 	
 	cia->ciapra = p[0];
@@ -359,8 +363,6 @@ void set_cia_final(UBYTE *p, ULONG num)
 {
 	volatile struct CIA *cia = (volatile struct CIA*)(num ? 0xbfd000 : 0xbfe001);
 	UBYTE dummy = cia->ciaicr;
-	cia->ciacra = p[14] & ~CIACRAF_LOAD;
-	cia->ciacrb = p[15] & ~CIACRBF_LOAD;
 	cia->ciaicr = p[16] | CIAICRF_SETCLR;	
 }
 
@@ -1162,6 +1164,9 @@ static void take_over(struct uaestate *st)
 		WaitTOF();
 		WaitTOF();	
 	}
+	
+	OwnBlitter();
+	WaitBlit();
 	
 	// No turning back!
 	extern void *killsystem(UBYTE*, struct uaestate*, ULONG);
