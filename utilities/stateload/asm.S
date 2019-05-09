@@ -138,6 +138,7 @@ _runit:
 	move.w 4+4+60+4+2+2+4+4(a0),-(sp) | SR
 	movem.l 4+4(a0),d0-d5
 	movem.l 4+4+8*4+4+4(a0),a2-a6
+	add.w #4+4+6*4,a0
 
 	move.w #0x1234,0xfc0000
 
@@ -156,6 +157,6 @@ _runit:
 	swap d7
 	move.b d7,0x100(a1)
 	
-	movem.l 4+4+6*4(a0),d6-d7/a0-a1
+	movem.l (a0),d6-d7/a0-a1
 	
 	rte | GO! GO! GO!
