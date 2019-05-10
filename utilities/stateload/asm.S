@@ -68,15 +68,51 @@ _runit:
 	subq.l #8,sp
 	lea 0xdff000,a6
 	
-	| wait for first line
+	| find last line
+	moveq #0,d5
+	lea 0x6(a6),a2
 .wait1:
-	move.l 4(a6),d0
-	lsr.l #8,d0
-	and.w #511,d0
-	cmp.w #258,d0
-	bne .wait1
+	cmp.b #250,(a2)
+	bne.s .wait1
+.wait1a:
+	cmp.b #2,(a2)
+	bne.s .wait1a
+.wait1b:
+	move.w 4(a6),d0
+	btst #0,d0
+	beq.s .wait1c
+	move.b (a2),d0
+	cmp.b d0,d5
+	bcc.s .wait1b
+	move.b d0,d5
+	bra.s .wait1b
+.wait1c:
+	cmp.b #160,(a2)
+	bne.s .wait1c
+
+	| last line - 14
+	sub.b #14,d5
+.wait3:
+	cmp.b (a2),d5
+	bne.s .wait3
 
 	move.w #0x1234,0xfc0004
+
+	move.l CUSTOM_CHUNK(a4),a0
+	move.w 4+0x96(a0),d0 | DMACON
+	and.w #15,d0
+	or.w #0x8200,d0
+	| enable audio DMA
+	move.w d0,0x96(a6)
+
+	| wait few lines, enough time for audio channels to enter normal 2/3 states
+	addq.w #4,d5
+.wait4:
+	cmp.b (a2),d5
+	bne.s .wait4
+	| restore latched AUDxLEN and AUDxPT
+	move.l a4,(sp)
+	bsr _set_audio_final
 
 	| restore possible side-effect causing
 	| custom bits as late as possible
@@ -97,9 +133,9 @@ _runit:
 	move.l 4+4+60+4+2+2(a0),a1 | USP
 	move.l a1,USP
 	cmp.l #68020,(a0)
-	bcs .cpu68010
+	bcs.s .cpu68010
 	btst #1,d1
-	beq .cpu68010
+	beq.s .cpu68010
 	lea 4+4+60+4+2+2+4+4+2+4+4+4+4(a0),a1
 	move.l (a1)+,d0
 	movec d0,CAAR
@@ -109,9 +145,9 @@ _runit:
 	movec d0,MSP
 .cpu68010:
 	cmp.l #68010,(a0)
-	bcs .cpu68000
+	bcs.s .cpu68000
 	btst #0,d1
-	beq .cpu68000	
+	beq.s .cpu68000	
 	lea 4+4+60+4+2+2+4+4+2+4(a0),a1
 	move.l (a1)+,d0
 	movec d0,DFC
@@ -121,7 +157,14 @@ _runit:
 	movec d0,VBR
 .cpu68000:
 	btst #0,d1
-	beq .nocpu68010
+	beq.s .nocpu68010
+	btst #1,d1
+	beq.s .nocpu68020
+	btst #0,3(a4) | nocache?
+	beq.s .nocpu68020
+	moveq #0,d0
+	movec d0,CACR
+.nocpu68020:
 	move.w #0x0020,-(sp) | Format 0, Trap #0
 .nocpu68010:
 
@@ -144,10 +187,10 @@ _runit:
 
 	lea 0xbfde00,a1
 
-	| wait line 0
+	| wait last line
 .wait2:
-	tst.b 0xdff005
-	bne .wait2
+	tst.b 0xdff006
+	bne.s .wait2
 
 	| start timers
 	move.b d6,0xbfee01-0xbfde00(a1)

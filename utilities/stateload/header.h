@@ -31,6 +31,10 @@ struct MemoryBank
 #define MAPROM_ACA500P (1<<1)
 #define MAPROM_ACA1221EC (1<<2)
 
+#define FLAGS_NOCACHE 1
+#define FLAGS_FORCEPAL 2
+#define FLAGS_FORCENTSC 4
+
 struct uaestate
 {
 	ULONG flags;
@@ -65,5 +69,3 @@ struct uaestate
 	UBYTE testmode;
 };
 
-void set_custom_final(UBYTE*);
-void set_cia_final(UBYTE*, ULONG);

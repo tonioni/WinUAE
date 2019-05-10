@@ -8,7 +8,7 @@ Supported hardware configurations:
 
 Information:
 
-CPU should match statefile config but it only causes warning. Mismatched CPU most likely won't work.
+CPU should match statefile config but it only causes warning. Mismatched CPU most likely won't work but it is fully supported by ussload.
 RAM config must match and at least one RAM address space must be 512k larger.
 Both compressed and uncompressed statefiles are supported.
 HD compatible (statefile is completely loaded before system take over)
@@ -35,6 +35,9 @@ Command line parameters:
 - debug = show debug information.
 - test = parse and load statefile, exit before system take over.
 - nomaprom = do not use map rom.
+- nocache = disable caches before starting loaded program (68020+ only)
+- pal = force PAL mode (ECS/AGA only)
+- ntsc = force NTSC mode (ECS/AGA only)
 
 Background colors:
 

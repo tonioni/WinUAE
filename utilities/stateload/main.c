@@ -2,7 +2,7 @@
 /* Real hardware UAE state file loader */
 /* Copyright 2019 Toni Wilen */
 
-#define VER "0.5"
+#define VER "0.6"
 
 #include <stdio.h>
 #include <stdarg.h>
@@ -171,30 +171,49 @@ static void set_floppy(UBYTE *p, ULONG num)
 	ciab->ciaprb |= CIAF_DSKSEL0 << num;
 }
 
+// current AUDxLEN and AUDxPT
 static void set_audio(UBYTE *p, ULONG num)
 {
-	volatile UWORD *c = (volatile UWORD*)(0xdff0a0 + 16 * num);
-	c[8 / 2] = p[1]; // AUDxVOL
-	c[4 / 2] = getword(p, 1 + 1 + 1 + 1 + 2); // AUDxLEN
-	c[6 / 2] = getword(p, 1 + 1 + 1 + 1 + 2 + 2 + 2); // AUDxPER
-	c[0 / 2] = getword(p, 1 + 1 + 1 + 1 + 2 + 2 + 2 + 2); // AUDxLCH
-	c[2 / 2] = getword(p, 1 + 1 + 1 + 1 + 2 + 2 + 2 + 2 + 2); // AUDxLCL
+	volatile struct Custom *c = (volatile struct Custom*)0xdff000;
+	ULONG l;
+	c->aud[num].ac_vol = p[1]; // AUDxVOL
+	c->aud[num].ac_per = getword(p, 1 + 1 + 1 + 1 + 2 + 2 + 2); // AUDxPER
+	c->aud[num].ac_len = getword(p, 1 + 1 + 1 + 1 + 2); // AUDxLEN
+	l = getword(p, 1 + 1 + 1 + 1 + 2 + 2 + 2 + 2 + 2 + 2) << 16; // AUDxLCH
+	l |= getword(p, 1 + 1 + 1 + 1 + 2 + 2 + 2 + 2 + 2 + 2 + 2); // AUDxLCL
+	c->aud[num].ac_ptr = (UWORD*)l;
+}
+
+// latched AUDxLEN and AUDxPT
+void set_audio_final(struct uaestate *st)
+{
+	volatile struct Custom *c = (volatile struct Custom*)0xdff000;
+	for (UWORD num = 0; num < 4; num++) {
+		UBYTE *p = st->audio_chunk[num];
+		ULONG l;
+		c->aud[num].ac_len = getword(p, 1 + 1 + 1 + 1); // AUDxLEN
+		l = getword(p, 1 + 1 + 1 + 1 + 2 + 2 + 2 + 2) << 16; // AUDxLCH
+		l |= getword(p, 1 + 1 + 1 + 1 + 2 + 2 + 2 + 2 + 2); // AUDxLCL
+		c->aud[num].ac_ptr = (UWORD*)l;
+	}
 }
 
 static void set_sprite(UBYTE *p, ULONG num)
 {
-	volatile UWORD *cpt = (volatile UWORD*)(0xdff120 + 4 * num);
-	volatile UWORD *c = (volatile UWORD*)(0xdff140 + 8 * num);
+	volatile struct Custom *c = (volatile struct Custom*)0xdff000;
+	ULONG l;
 	
-	cpt[0 / 2] = getword(p, 0); // SPRxPTH
-	cpt[2 / 2] = getword(p, 2); // SPRxPTL
-	c[0 / 2] = getword(p, 2 + 2); // SPRxPOS
-	c[2 / 2] = getword(p, 2 + 2 + 2); // SPRxCTL
+	l = getword(p, 0) << 16; // SPRxPTH
+	l |= getword(p, 2); // SPRxPTL
+	c->sprpt[num] = (APTR)l;
+	c->spr[num].pos = getword(p, 2 + 2); // SPRxPOS
+	c->spr[num].ctl = getword(p, 2 + 2 + 2); // SPRxCTL
 }
 
-static void set_custom(UBYTE *p)
+static void set_custom(struct uaestate *st)
 {
 	volatile UWORD *c = (volatile UWORD*)0xdff000;
+	UBYTE *p = st->custom_chunk;
 	p += 4;
 	for (WORD i = 0; i < 0x1fe; i += 2, c++) {
 
@@ -272,6 +291,10 @@ static void set_custom(UBYTE *p)
 
  		// BEAMCON0: PAL/NTSC only
 		if (i == 0x1dc) {
+			if (st->flags & FLAGS_FORCEPAL)
+				v = 0x20;
+			else if (st->flags & FLAGS_FORCENTSC)
+				v = 0x00;
 			v &= 0x20;
 		}
 
@@ -289,7 +312,6 @@ void set_custom_final(UBYTE *p)
 	volatile struct Custom *c = (volatile struct Custom*)0xdff000;
 	c->intena = 0x7fff;
 	c->intreq = 0x7fff;
-	c->dmacon = 0x7fff;
 	c->vposw = getword(p, 4 + 0x04) & 0x8000; // LOF
 	c->dmacon = getword(p, 4 + 0x96) | 0x8000;
 	c->intena = getword(p, 4 + 0x9a) | 0x8000;
@@ -983,10 +1005,10 @@ static int parse_pass_1(FILE *f, struct uaestate *st)
 			if (saga && !aga) {
 				printf("- WARNING: OCS/ECS statefile but system is AGA.\n");
 			}
-			if (!sntsc && !ecs && ntsc) {
+			if (!sntsc && !secs && ntsc) {
 				printf("- WARNING: NTSC statefile but system is OCS PAL.\n");
 			}
-			if (sntsc && !ecs && !ntsc) {
+			if (sntsc && !secs && !ntsc) {
 				printf("- WARNING: PAL statefile but system is OCS NTSC.\n");
 			}
 			st->agastate = aga;
@@ -1076,7 +1098,7 @@ static void processstate(struct uaestate *st)
 	c->color[0] = 0x444;
 
 	set_agacolor(st->aga_colors_chunk);
-	set_custom(st->custom_chunk);
+	set_custom(st);
 	for (int i = 0; i < 4; i++) {
 		set_audio(st->audio_chunk[i], i);
 	}
@@ -1187,6 +1209,8 @@ int main(int argc, char *argv[])
 		printf("- debug = enable debug output.\n");
 		printf("- test = test mode.\n");
 		printf("- nomaprom = do not use map rom.\n");
+		printf("- nocache = disable caches before starting (68020+)\n");
+		printf("- pal/ntsc = set PAL or NTSC mode (ECS/AGA only)\n");
 		return 0;
 	}
 	
@@ -1209,8 +1233,14 @@ int main(int argc, char *argv[])
 			st->testmode = 1;
 		if (!stricmp(argv[i], "nomaprom"))
 			st->usemaprom = 0;
+		if (!stricmp(argv[i], "nocache"))
+			st->flags |= FLAGS_NOCACHE;
+		if (!stricmp(argv[i], "pal"))
+			st->flags |= FLAGS_FORCEPAL;
+		if (!stricmp(argv[i], "ntsc"))
+			st->flags |= FLAGS_FORCENTSC;
 	}
-	
+
 	if (!parse_pass_1(f, st)) {
 		fseek(f, 0, SEEK_SET);
 		if (!parse_pass_2(f, st)) {
