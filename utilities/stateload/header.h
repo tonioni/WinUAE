@@ -30,6 +30,8 @@ struct MemoryBank
 #define MAPROM_ACA500 (1<<0)
 #define MAPROM_ACA500P (1<<1)
 #define MAPROM_ACA1221EC (1<<2)
+#define MAPROM_ACA12xx64 (1<<3)
+#define MAPROM_ACA12xx128 (1<<4)
 
 #define FLAGS_NOCACHE 1
 #define FLAGS_FORCEPAL 2

@@ -17,6 +17,14 @@ MAP_ROM_TYPE = MAP_ROM_SIZE+4
 	.globl _killsystem
 	.globl _callinflate
 	.globl _inflate
+	.globl _flushcache
+
+_flushcache:
+	move.l a6,-(sp)
+	move.l 4.w,a6
+	jsr -0x27c(a6) | CacheClearU
+	move.l (sp)+,a6
+	rts
 
 _callinflate:
 	movem.l a4-a5,-(sp)

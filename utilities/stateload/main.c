@@ -2,7 +2,7 @@
 /* Real hardware UAE state file loader */
 /* Copyright 2019 Toni Wilen */
 
-#define VER "0.6"
+#define VER "0.7"
 
 #include <stdio.h>
 #include <stdarg.h>
@@ -325,7 +325,7 @@ static void set_cia(UBYTE *p, ULONG num)
 
 	cia->ciacra &= ~(CIACRAF_START | CIACRAF_RUNMODE);
 	cia->ciacrb &= ~(CIACRBF_START | CIACRBF_RUNMODE);
-	UBYTE dummy = cia->ciaicr;
+	volatile UBYTE dummy = cia->ciaicr;
 	cia->ciaicr = 0x7f;
 	c->intreq = 0x7fff;
 	
@@ -384,7 +384,7 @@ static void set_cia(UBYTE *p, ULONG num)
 void set_cia_final(UBYTE *p, ULONG num)
 {
 	volatile struct CIA *cia = (volatile struct CIA*)(num ? 0xbfd000 : 0xbfe001);
-	UBYTE dummy = cia->ciaicr;
+	volatile UBYTE dummy = cia->ciaicr;
 	cia->ciaicr = p[16] | CIAICRF_SETCLR;	
 }
 
@@ -511,6 +511,19 @@ static void set_maprom(struct uaestate *st)
 		base[0x1001] = 0x01;
 		base[0x2000] = 0x00;
 	}
+	if (st->mapromtype & (MAPROM_ACA12xx64 | MAPROM_ACA12xx128)) {
+		ULONG mapromaddr = (st->mapromtype & MAPROM_ACA12xx64) ? 0x0bf00000 : 0x0ff00000;
+		volatile UWORD *base = (volatile UWORD*)0xb8f000;
+		base[0 / 2] = 0xffff;
+		base[4 / 2] = 0x0000;
+		base[8 / 2] = 0xffff;
+		base[12 / 2] = 0xffff;
+		base[0x18 / 2] = 0x0000; // maprom off
+		copyrom(mapromaddr, st);
+		copyrom(mapromaddr + 524288, st);
+		base[0x18 / 2] = 0xffff; // maprom on
+		volatile UWORD dummy = base[0];
+	}
 }
 
 static WORD has_maprom(struct uaestate *st)
@@ -549,9 +562,57 @@ static WORD has_maprom(struct uaestate *st)
 		// we can't use 0x200000 because it goes away when setting up maprom..
 		st->memunavailable = 0x00200000;
 	}
-	
+	volatile UWORD *c = (volatile UWORD*)0x100;
+	*c = 0x1234;
+	// This test should be better..
+	if (TypeOfMem((APTR)0x0bd80000)) { // at least 62M
+		// perhaps it is ACA12xx
+		Disable();
+		volatile UWORD *base = (volatile UWORD*)0xb8f000;
+		volatile UWORD dummy = base[0];
+		// unlock
+		base[0 / 2] = 0xffff;
+		base[4 / 2] = 0x0000;
+		base[8 / 2] = 0xffff;
+		base[12 / 2] = 0xffff;
+		UBYTE id = 0;
+		volatile UWORD *idbits = base + 4 / 2;
+		for (UWORD i = 0; i < 5; i++) {
+			id <<= 1;
+			if (idbits[0] & 1)
+				id |= 1;
+			idbits += 4 / 2;
+		}
+		UWORD mrtest = 0;
+		if (id != 0 && id != 31) {
+			// test that maprom bit sticks
+			UWORD oldmr = base[0x18 / 2];
+			base[0x18 / 2] = 0xffff;
+			dummy = base[0];
+			mrtest = (base[0x18 / 2] & 0x8000) != 0;
+			base[0 / 2] = 0xffff;
+			base[4 / 2] = 0x0000;
+			base[8 / 2] = 0xffff;
+			base[12 / 2] = 0xffff;
+			base[0x18 / 2] = oldmr;
+		}
+		dummy = base[0];
+		Enable();
+		if (st->debug)
+			printf("ACA12xx ID=%02x. MapROM=%d\n", id, mrtest);
+		ULONG mraddr = 0;
+		if (mrtest) {
+			if (TypeOfMem((APTR)0x0bf00000)) {
+				if (!TypeOfMem((APTR)0x0fd80000)) {
+					st->mapromtype |= MAPROM_ACA12xx128;
+				}
+			} else {
+					st->mapromtype |= MAPROM_ACA12xx64;
+			}
+		}
+	}
 	if (st->debug && st->mapromtype) {
-		printf("MAPROM type %ld detected\n", st->mapromtype);
+		printf("MAPROM type %08lx detected\n", st->mapromtype);
 	}
 	return st->mapromtype != 0;
 }
@@ -872,12 +933,15 @@ static void check_rom(UBYTE *p, struct uaestate *st)
 		printf("ROM %08lx-%08lx %d.%d (CRC=%08x).\n", start, start + len - 1, ver, rev, crc32);
 	if (mismatch) {
 		printf("- '%s'\n", path);
-		printf("WARNING: KS ROM version mismatch.\n");
+		printf("- WARNING: KS ROM version mismatch.\n");
 		st->romver = ver;
 		st->romrev = rev;
-		if (has_maprom(st) == 0) {
+		WORD mr = has_maprom(st);
+		if (mr == 0) {
 			if (st->debug)
 				printf("Map ROM support not detected\n");
+		} else if (mr > 0) {
+			printf("- Map ROM hardware detected.\n");
 		}
 	}
 }
@@ -1049,6 +1113,7 @@ static int parse_pass_1(FILE *f, struct uaestate *st)
 
 extern void runit(void*);
 extern void callinflate(UBYTE*, UBYTE*);
+extern void flushcache(void);
 
 static void handlerambank(struct MemoryBank *mb, struct uaestate *st)
 {
@@ -1171,11 +1236,9 @@ static void take_over(struct uaestate *st)
 		printf("Change floppy disk(s) now if needed. Press RETURN to start.\n");
 	}
 	
-#if 0
 	if (SysBase->LibNode.lib_Version >= 37) {
-		CacheClearU();
+		flushcache();
 	}
-#endif
 
 	UBYTE b;
 	fread(&b, 1, 1, stdin);

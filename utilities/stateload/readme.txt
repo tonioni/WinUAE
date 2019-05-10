@@ -28,7 +28,8 @@ A1200 chip ram only statefiles require at least 1M fast ram.
 
 Map ROM hardware support:
 
-Currently ACA500, ACA500plus and ACA1221EC Map ROM is supported. If statefile ROM is not same as hardware ROM, ROM image is automatically loaded from devs:kickstarts and enabled if found.
+Currently ACA500, ACA500plus, ACA1221, ACA1221EC and most ACA123x variants map rom hardware is supported.
+If statefile ROM is not same as hardware ROM, ROM image is automatically loaded from devs:kickstarts and enabled if found.
 
 Command line parameters:
 
