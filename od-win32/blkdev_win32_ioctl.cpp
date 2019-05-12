@@ -50,6 +50,7 @@ struct dev_info_ioctl {
 	TCHAR devname[30];
 	int type;
 	CDROM_TOC cdromtoc;
+	uae_u8 trackmode[100];
 	UINT errormode;
 	int playend;
 	int fullaccess;
@@ -359,29 +360,18 @@ retry:
 	if (!open_createfile (ciw, ciw->usesptiread ? 1 : 0))
 		return 0;
 	ret = 0;
-	while (size-- > 0) {
+	while (size > 0) {
+		int track = cdtracknumber(&ciw->di.toc, sector);
 		got = false;
-#if 0
-		// always use IOCTL_CDROM_RAW_READ
-		if (!ciw->usesptiread && (sectorsize == 2048 || sectorsize == 2352)) {
+		if (!ciw->usesptiread && sectorsize == 2048 && ciw->trackmode[track] == 0) {
 			if (read2048 (ciw, sector) == 2048) {
-				if (sectorsize == 2352) {
-					memset (data, 0, 16);
-					memcpy (data + 16, p, 2048);
-					encode_l2 (data, sector + 150);
-					sector++;
-					data += sectorsize;
-					ret += sectorsize;
-				} else if (sectorsize == 2048) {
-					memcpy (data, p, 2048);
-					sector++;
-					data += sectorsize;
-					ret += sectorsize;
-				}
+				memcpy (data, p, 2048);
+				sector++;
+				data += sectorsize;
+				ret += sectorsize;
 				got = true;
 			}
 		}
-#endif
 		if (!got && !ciw->usesptiread) {
 			RAW_READ_INFO rri;
 			rri.DiskOffset.QuadPart = sector * 2048;
@@ -393,6 +383,13 @@ retry:
 			if (DeviceIoControl (ciw->h, IOCTL_CDROM_RAW_READ, &rri, sizeof rri, p, IOCTL_DATA_BUFFER, &len, NULL)) {
 				reseterrormode (ciw);
 				if (data) {
+					uae_u8 mode = data[15];
+					uae_u8 oldmode = ciw->trackmode[track];
+					ciw->trackmode[track] = mode;
+					if (oldmode == 0xff && mode == 0 && sectorsize == 2048) {
+						// it is MODE0 track, we can do normal read
+						goto retry;
+					}
 					if (sectorsize >= 2352) {
 						memcpy (data, p, sectorsize);
 						data += sectorsize;
@@ -449,6 +446,7 @@ retry:
 			got = true;
 		}
 		sector++;
+		size--;
 	}
 	return ret;
 }
@@ -1204,6 +1202,7 @@ static int ioctl_command_toc2 (int unitnum, struct cd_toc_head *tocout, bool hid
 	struct cd_toc_head *th = &ciw->di.toc;
 	struct cd_toc *t = th->toc;
 	int cnt = 3;
+	memset(ciw->trackmode, 0xff, sizeof(ciw->trackmode));
 	CDROM_TOC *toc = &ciw->cdromtoc;
 
 	if (!unitisopen (unitnum))

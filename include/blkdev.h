@@ -208,6 +208,7 @@ extern void blkdev_default_prefs (struct uae_prefs *p);
 extern void blkdev_fix_prefs (struct uae_prefs *p);
 extern int isaudiotrack (struct cd_toc_head*, int block);
 extern int isdatatrack (struct cd_toc_head*, int block);
+extern int cdtracknumber(struct cd_toc_head *th, int block);
 void sub_to_interleaved (const uae_u8 *s, uae_u8 *d);
 void sub_to_deinterleaved (const uae_u8 *s, uae_u8 *d);
 

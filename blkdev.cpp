@@ -111,6 +111,11 @@ static struct cd_toc *gettoc (int unitnum, struct cd_toc_head *th, int block)
 	return &th->toc[th->last_track_offset];
 }
 
+int cdtracknumber(struct cd_toc_head *th, int block)
+{
+	struct cd_toc *t = gettoc(-1, th, block);
+	return t->track;
+}
 int isaudiotrack (struct cd_toc_head *th, int block)
 {
 	struct cd_toc *t = gettoc (-1, th, block);
