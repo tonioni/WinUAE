@@ -1063,8 +1063,10 @@ static void pfield_init_linetoscr (bool border)
 	pixels_offset = MAX_PIXELS_PER_LINE - ddf_left;
 
 	leftborderhidden = playfield_start - native_ddf_left2;
+#if 0
 	if (hblank_left_start > playfield_start)
 		leftborderhidden += hblank_left_start - playfield_start;
+#endif
 	src_pixel = MAX_PIXELS_PER_LINE + res_shift_from_window(leftborderhidden);
 
 	if (may_require_hard_way) {
