@@ -1014,20 +1014,25 @@ bool m68k_mull (uae_u32 opcode, uae_u32 src, uae_u16 extra)
 	}
 #if defined (uae_s64)
 	if (extra & 0x800) {
-		/* signed variant */
+		/* signed */
 		uae_s64 a = (uae_s64)(uae_s32)m68k_dreg (regs, (extra >> 12) & 7);
 
 		a *= (uae_s64)(uae_s32)src;
 		SET_VFLG (0);
 		SET_CFLG (0);
-		SET_ZFLG (a == 0);
-		SET_NFLG (a < 0);
 		if (extra & 0x400) {
+			// 32 * 32 = 64
 			m68k_dreg (regs, extra & 7) = (uae_u32)(a >> 32);
-		} else if ((a & UVAL64 (0xffffffff80000000)) != 0
-			&& (a & UVAL64 (0xffffffff80000000)) != UVAL64 (0xffffffff80000000))
-		{
-			SET_VFLG (1);
+			SET_ZFLG(a == 0);
+			SET_NFLG(a < 0);
+		} else {
+			// 32 * 32 = 32
+			uae_s32 b = (uae_s32)a;
+			if ((a & UVAL64(0xffffffff80000000)) != 0 && (a & UVAL64(0xffffffff80000000)) != UVAL64(0xffffffff80000000)) {
+				SET_VFLG(1);
+			}
+			SET_ZFLG(b == 0);
+			SET_NFLG(b < 0);
 		}
 		m68k_dreg (regs, (extra >> 12) & 7) = (uae_u32)a;
 	} else {
@@ -1037,18 +1042,25 @@ bool m68k_mull (uae_u32 opcode, uae_u32 src, uae_u16 extra)
 		a *= (uae_u64)src;
 		SET_VFLG (0);
 		SET_CFLG (0);
-		SET_ZFLG (a == 0);
-		SET_NFLG (((uae_s64)a) < 0);
 		if (extra & 0x400) {
+			// 32 * 32 = 64
 			m68k_dreg (regs, extra & 7) = (uae_u32)(a >> 32);
-		} else if ((a & UVAL64 (0xffffffff00000000)) != 0) {
-			SET_VFLG (1);
+			SET_ZFLG(a == 0);
+			SET_NFLG(((uae_s64)a) < 0);
+		} else {
+			// 32 * 32 = 32
+			uae_s32 b = (uae_s32)a;
+			if ((a & UVAL64(0xffffffff00000000)) != 0) {
+				SET_VFLG(1);
+			}
+			SET_ZFLG(b == 0);
+			SET_NFLG(b < 0);
 		}
 		m68k_dreg (regs, (extra >> 12) & 7) = (uae_u32)a;
 	}
 #else
 	if (extra & 0x800) {
-		/* signed variant */
+		/* signed */
 		uae_s32 src1, src2;
 		uae_u32 dst_lo, dst_hi;
 		uae_u32 sign;
@@ -1066,15 +1078,16 @@ bool m68k_mull (uae_u32 opcode, uae_u32 src, uae_u16 extra)
 		}
 		SET_VFLG (0);
 		SET_CFLG (0);
-		SET_ZFLG (dst_hi == 0 && dst_lo == 0);
-		SET_NFLG (((uae_s32)dst_hi) < 0);
-		if (extra & 0x400)
-			m68k_dreg (regs, extra & 7) = dst_hi;
-		else if ((dst_hi != 0 || (dst_lo & 0x80000000) != 0)
-			&& ((dst_hi & 0xffffffff) != 0xffffffff
-			|| (dst_lo & 0x80000000) != 0x80000000))
-		{
-			SET_VFLG (1);
+		if (extra & 0x400) {
+			m68k_dreg(regs, extra & 7) = dst_hi;
+			SET_ZFLG(dst_hi == 0 && dst_lo == 0);
+			SET_NFLG(((uae_s32)dst_hi) < 0);
+		} else {
+			if ((dst_hi != 0 || (dst_lo & 0x80000000) != 0) && ((dst_hi & 0xffffffff) != 0xffffffff || (dst_lo & 0x80000000) != 0x80000000)) {
+				SET_VFLG(1);
+			}
+			SET_ZFLG(dst_lo == 0);
+			SET_NFLG(((uae_s32)dst_lo) < 0);
 		}
 		m68k_dreg (regs, (extra >> 12) & 7) = dst_lo;
 	} else {
@@ -1085,12 +1098,16 @@ bool m68k_mull (uae_u32 opcode, uae_u32 src, uae_u16 extra)
 
 		SET_VFLG (0);
 		SET_CFLG (0);
-		SET_ZFLG (dst_hi == 0 && dst_lo == 0);
-		SET_NFLG (((uae_s32)dst_hi) < 0);
-		if (extra & 0x400)
-			m68k_dreg (regs, extra & 7) = dst_hi;
-		else if (dst_hi != 0) {
-			SET_VFLG (1);
+		if (extra & 0x400) {
+			m68k_dreg(regs, extra & 7) = dst_hi;
+			SET_ZFLG(dst_hi == 0 && dst_lo == 0);
+			SET_NFLG(((uae_s32)dst_hi) < 0);
+		}  else {
+			if (dst_hi != 0) {
+				SET_VFLG(1);
+			}
+			SET_ZFLG(dst_lo == 0);
+			SET_NFLG(((uae_s32)dst_lo) < 0);
 		}
 		m68k_dreg (regs, (extra >> 12) & 7) = dst_lo;
 	}
