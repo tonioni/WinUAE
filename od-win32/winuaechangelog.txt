@@ -1,5 +1,19 @@
 
 
+Beta 5:
+
+- Adjusted previous SPTI CDROM update, if track type is unknown, use IOCTL_CDROM_RAW_READ and check and store track type. If track is normal CDROM track (MODE0) and only 2048 bytes are requested by caller, use normal read routine to read it. Using raw (2352 byte) read would skip part of error correction, possibly causing read errors if CD is not in good shape.
+- x86 bridgeboard floppy disk write command didn't check no more data DMA condition, causing hang if floppy write command didn't end with EOT condition.
+- x86 bridgeboard floppy disk read and write commands didn't handle non-set MT bit correctly, which broke A2386SX disk accesses.
+- CD turbo mode affected also CD32 CD features that should have normal timing (like TOC entry timing), only normal read should be accelerated.
+- Another 420b2 "Fixed AGA HAM graphics corruption.." fix. Previous fix revealed old bug if position of hblank border changed (for example automatic scaling)
+- Adjusted 68020 cycle-exact mode timing, there was some extra cycles in branch instructions that can't be correct.
+
+Beta 4:
+
+- 410b1 sub pixel update broke BPLCON1 scaling in Absolute Inebriation / Virtual Dreams. (Very old glitch was temporarily back..)
+- If SPTI CDROM mode: always use IOCTL_CDROM_RAW_READ. Normal 2048 sector read does not necessarily return error (but hangs) if track is not normal 2048 sector size CDROM track.
+
 Beta 3:
 
 - Number of partitions in single UAE HDF was still not correctly restricted to max supported (420b8).
