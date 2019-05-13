@@ -1009,11 +1009,10 @@ static void floppy_do_cmd(struct x86_bridge *xb)
 		{
 #if FLOPPY_DEBUG
 			write_log(_T("Floppy%d write MT=%d MF=%d C=%d:H=%d:R=%d:N=%d:EOT=%d:GPL=%d:DTL=%d\n"),
-					  (floppy_cmd[0] & 0x80) ? 1 : 0, (floppy_cmd[0] & 0x40) ? 1 : 0,
-					  floppy_cmd[2], floppy_cmd[3], floppy_cmd[4], floppy_cmd[5],
-					  floppy_cmd[6], floppy_cmd[7], floppy_cmd[8]);
+				floppy_num, (floppy_cmd[0] & 0x80) ? 1 : 0, (floppy_cmd[0] & 0x40) ? 1 : 0,
+				floppy_cmd[2], floppy_cmd[3], floppy_cmd[4], floppy_cmd[5],
+				floppy_cmd[6], floppy_cmd[7], floppy_cmd[8]);
 			write_log(_T("DMA addr %08x len %04x\n"), dma[2].page | dma[2].ac, dma[2].ab);
-			write_log(_T("IMG: Secs=%d Heads=%d\n"), fr.secs, fr.heads);
 #endif
 			floppy_delay_hsync = 50;
 			int eot = floppy_cmd[6];
@@ -1042,25 +1041,28 @@ static void floppy_do_cmd(struct x86_bridge *xb)
 								break;
 							}
 						}
+#if FLOPPY_DEBUG
+						write_log(_T("LEN=%d END=%d C=%d H=%d S=%d. IMG S=%d H=%d\n"), len, end, pcf->cyl, pcf->head, pcf->sector, fr.secs, fr.heads);
+#endif
 						if (end < 0)
 							break;
 						zfile_fseek(fr.img, (pcf->cyl * fr.secs * fr.heads + pcf->head * fr.secs + pcf->sector) * 512, SEEK_SET);
 						zfile_fwrite(buf, 1, 512, fr.img);
 						pcf->sector++;
-						if (!(floppy_cmd[0] & 0x80))
-							break;
 						if (pcf->sector == eot) {
-							pcf->sector = 0;
 							if (mt) {
+								pcf->sector = 0;
 								if (pcf->head)
 									pcf->cyl++;
 								pcf->head ^= 1;
+							} else {
+								break;
 							}
-							break;
 						}
 						if (pcf->sector >= fr.secs) {
 							pcf->sector = 0;
 							pcf->head ^= 1;
+							break;
 						}
 					}
 					floppy_result[3] = cyl;
@@ -1123,20 +1125,20 @@ static void floppy_do_cmd(struct x86_bridge *xb)
 								end = true;
 						}
 						pcf->sector++;
-						if (!(floppy_cmd[0] & 0x80))
-							break;
 						if (pcf->sector == eot) {
-							pcf->sector = 0;
 							if (mt) {
+								pcf->sector = 0;
 								if (pcf->head)
 									pcf->cyl++;
 								pcf->head ^= 1;
+							} else {
+								break;
 							}
-							break;
 						}
 						if (pcf->sector >= fr.secs) {
 							pcf->sector = 0;
 							pcf->head ^= 1;
+							break;
 						}
 					}
 					floppy_result[3] = cyl;
@@ -1202,8 +1204,8 @@ static void floppy_do_cmd(struct x86_bridge *xb)
 		{
 #if FLOPPY_DEBUG
 			write_log(_T("Floppy%d format MF=%d N=%d:SC=%d:GPL=%d:D=%d\n"),
-					  floppy_num, (floppy_cmd[0] & 0x40) ? 1 : 0,
-					  floppy_cmd[2], floppy_cmd[3], floppy_cmd[4], floppy_cmd[5]);
+				floppy_num, (floppy_cmd[0] & 0x40) ? 1 : 0,
+				floppy_cmd[2], floppy_cmd[3], floppy_cmd[4], floppy_cmd[5]);
 			write_log(_T("DMA addr %08x len %04x\n"), dma[2].page | dma[2].ac, dma[2].cb);
 			write_log(_T("IMG: Secs=%d Heads=%d\n"), fr.secs, fr.heads);
 #endif
