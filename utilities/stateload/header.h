@@ -69,5 +69,6 @@ struct uaestate
 	UBYTE usemaprom;
 	UBYTE debug;
 	UBYTE testmode;
+	UBYTE nowait;
 };
 

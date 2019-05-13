@@ -2,7 +2,7 @@
 /* Real hardware UAE state file loader */
 /* Copyright 2019 Toni Wilen */
 
-#define VER "0.7"
+#define VER "1.0"
 
 #include <stdio.h>
 #include <stdarg.h>
@@ -25,7 +25,7 @@
 extern struct GfxBase *GfxBase;
 extern struct DosLibrary *DosBase;
 
-static const UBYTE *const version = "$VER: uaestateload " VER " (" REVDATE ")";
+static const UBYTE *const version = "$VER: ussload " VER " (" REVDATE ")";
 
 static const char *const chunknames[] =
 {
@@ -843,7 +843,7 @@ static void find_extra_ram(struct uaestate *st)
 	Permit();
 }
 
-static ULONG check_ram(UBYTE *cname, UBYTE *chunk, WORD index, ULONG addr, ULONG offset, ULONG chunksize, ULONG flags, struct uaestate *st)
+static ULONG check_ram(UBYTE *ramname, UBYTE *cname, UBYTE *chunk, WORD index, ULONG addr, ULONG offset, ULONG chunksize, ULONG flags, struct uaestate *st)
 {
 	ULONG size;
 	if (flags & 1) // compressed
@@ -870,7 +870,7 @@ static ULONG check_ram(UBYTE *cname, UBYTE *chunk, WORD index, ULONG addr, ULONG
 	}
 	Permit();
 	if (!found) {
-		printf("ERROR: Required address space %08x-%08x not found in this system.\n", addr, addr + size - 1);
+		printf("ERROR: Required RAM address space %08x-%08x not found in this system.\n", addr, addr + size - 1);
 		st->errors++;
 		return 0;
 	}
@@ -896,7 +896,7 @@ static ULONG check_ram(UBYTE *cname, UBYTE *chunk, WORD index, ULONG addr, ULONG
 		}
 		return 1;
 	}
-	printf("ERROR: Not enough memory available (Chunk '%s', %luk required).\n", cname, size >> 10);
+	printf("ERROR: Not enough %s RAM available. %luk required.\n", ramname, size >> 10);
 	st->errors++;
 	return 0;
 }
@@ -929,11 +929,13 @@ static void check_rom(UBYTE *p, struct uaestate *st)
 	while (*path++);
 	
 	int mismatch = ver != rver || rev != rrev;
-	if (st->debug || mismatch)
+	if (mismatch)
+		printf("- WARNING: ROM version mismatch: %d.%d. System ROM: %d.%d\n", ver, rev, rver, rrev);
+	if (st->debug)
 		printf("ROM %08lx-%08lx %d.%d (CRC=%08x).\n", start, start + len - 1, ver, rev, crc32);
 	if (mismatch) {
-		printf("- '%s'\n", path);
-		printf("- WARNING: KS ROM version mismatch.\n");
+		if (st->debug)
+			printf("- '%s'\n", path);
 		st->romver = ver;
 		st->romrev = rev;
 		WORD mr = has_maprom(st);
@@ -1077,11 +1079,11 @@ static int parse_pass_1(FILE *f, struct uaestate *st)
 			}
 			st->agastate = aga;
 		} else if (!strcmp(cname, "CRAM")) {
-			check_ram(cname, b, MB_CHIP, 0x000000, offset, size, flags, st);
+			check_ram("Chip", cname, b, MB_CHIP, 0x000000, offset, size, flags, st);
 		} else if (!strcmp(cname, "BRAM")) {
-			check_ram(cname, b, MB_SLOW, 0xc00000, offset, size, flags, st);
+			check_ram("Slow", cname, b, MB_SLOW, 0xc00000, offset, size, flags, st);
 		} else if (!strcmp(cname, "FRAM")) {
-			check_ram(cname, b, MB_FAST, 0x200000, offset, size, flags, st);
+			check_ram("Fast", cname, b, MB_FAST, 0x200000, offset, size, flags, st);
 		} else if (!strcmp(cname, "ROM ")) {
 			check_rom(b, st);
 		}
@@ -1230,20 +1232,21 @@ static void take_over(struct uaestate *st)
 		return;
 	}
 	
-	if (st->debug) {
-		printf("Code=%08lx Stack=%08lx Data=%08lx. Press RETURN!\n", newcode, tempsp, tempst);
-	} else {
-		printf("Change floppy disk(s) now if needed. Press RETURN to start.\n");
+	if (!st->nowait) {
+		if (st->debug) {
+			printf("Code=%08lx Stack=%08lx Data=%08lx. Press RETURN!\n", newcode, tempsp, tempst);
+		} else {
+			printf("Change floppy disk(s) now if needed. Press RETURN to start.\n");
+		}
+		UBYTE b;
+		fread(&b, 1, 1, stdin);
+		Delay(100); // So that key release gets processed by AmigaOS
 	}
 	
 	if (SysBase->LibNode.lib_Version >= 37) {
 		flushcache();
 	}
 
-	UBYTE b;
-	fread(&b, 1, 1, stdin);
-	Delay(100); // So that key release gets processed by AmigaOS
-	
 	if (GfxBase->LibNode.lib_Version >= 37) {
 		LoadView(NULL);
 		WaitTOF();
@@ -1266,9 +1269,10 @@ int main(int argc, char *argv[])
 	UBYTE cname[5];
 	struct uaestate *st;
 	
-	printf("ussload v" VER " (" REVTIME " " REVDATE ")\n");
+	printf("ussload v" VER " (" REVDATE " " REVTIME ")\n");
 	if (argc < 2) {
-		printf("Syntax: ussload <statefile.uss> (parameters).\n");
+		printf("Syntax: ussload <statefile.uss> (parameters)\n");
+		printf("- nowait = don't wait for return key.\n");
 		printf("- debug = enable debug output.\n");
 		printf("- test = test mode.\n");
 		printf("- nomaprom = do not use map rom.\n");
@@ -1294,6 +1298,8 @@ int main(int argc, char *argv[])
 			st->debug = 1;
 		if (!stricmp(argv[i], "test"))
 			st->testmode = 1;
+		if (!stricmp(argv[i], "nowait"))
+			st->nowait = 1;
 		if (!stricmp(argv[i], "nomaprom"))
 			st->usemaprom = 0;
 		if (!stricmp(argv[i], "nocache"))
