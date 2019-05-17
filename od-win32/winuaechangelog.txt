@@ -1,5 +1,9 @@
 
 
+4.2.1:
+
+- 68020+ MUL(S/U).L EA,Dn set Z and N flags like it was 64-bit (EA,Dh:Dl) variant, it used internal 64-bit result value when it should have used truncated 32-bit result value. Returned Z and N flag may have been wrong if multiplication overflowed. Has been broken since the beginning.
+
 Beta 5:
 
 - Adjusted previous SPTI CDROM update, if track type is unknown, use IOCTL_CDROM_RAW_READ and check and store track type. If track is normal CDROM track (MODE0) and only 2048 bytes are requested by caller, use normal read routine to read it. Using raw (2352 byte) read would skip part of error correction, possibly causing read errors if CD is not in good shape.
