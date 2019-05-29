@@ -1,6 +1,17 @@
 
 ussload is UAE state save file (*.uss) loader designed for real hardware.
 
+v1.1:
+
+- GVP MapROM support added. GVP A530 and most A2000 and A3000 GVP boards.
+- Blizzard 1230 MKI/II/III/IV, 1240, 1260 MapROM support added.
+- Switch off all floppy drive motors before memory decompression.
+- Fixed crash if 68020 or 68030 statefile was loaded and CPU was
+  68040 or 68060.
+- Fixed uncompressed statefile support.
+- Compatibility improved.
+
+
 Supported state file hardware configurations:
 
 Common OCS/ECS 68000 A500 configurations. Chip RAM, "Slow" RAM and

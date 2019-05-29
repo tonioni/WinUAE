@@ -38,9 +38,10 @@ _callinflate:
 _killsystem:
 	move.l 8(sp),a0 | uaestate
 	move.l a6,a1
-	move.l 4,a6
+	move.l 4.w,a6
 	move.w 0x128(a6),(a0) | AttFlags
 	move.l sp,d1
+	move.l a0,d0
 	move.l a5,a0
 	lea .super(pc),a5
 	jsr -0x1e(a6) | Supervisor
@@ -48,7 +49,25 @@ _killsystem:
 	move.w #0x2700,sr
 	move.l a0,a5
 	move.l a1,a6
-	lea 0xdff000,a0
+	move.l d0,a0
+
+	| debug trigger
+	move.w #0x1234,0xfc0006
+
+	| check if 68060
+	move.l 0x10.w,a1
+	btst #2,1(a0)
+	beq.s .not68060
+	moveq #0,d0
+	movec d0,VBR
+	pea .not68060(pc)
+	move.l (sp)+,0x10.w
+	| movec PCR,d0
+	dc.w 0x4e7a,0x0808
+	| it is 68060
+	bset #7,1(a0)
+.not68060:
+	move.l a1,0x10.w
 
 	| CIA: stop timers, clear interrupts
 	bclr #0,0xbfde00
@@ -60,10 +79,12 @@ _killsystem:
 	tst.b 0xbfdd00
 	tst.b 0xbfed01
 	
-	move.w #0x7fff,0x96(a0)
-	move.w #0x7fff,0x9a(a0)
-	move.w #0x7fff,0x9c(a0)
-	move.w #0x7fff,0x9e(a0)
+	lea 0xdff000,a0
+	move.w #0x7fff,d0
+	move.w d0,0x96(a0)
+	move.w d0,0x9a(a0)
+	move.w d0,0x9c(a0)
+	move.w d0,0x9e(a0)
 	move.l d1,a0
 	move.l 4(a0),sp | new temp super stack
 	move.l 8(a0),-(sp) | uaestate
@@ -98,12 +119,13 @@ _runit:
 	cmp.b #160,(a2)
 	bne.s .wait1c
 
-	| last line - 14
-	sub.b #14,d5
+	| last line - 15
+	sub.b #15,d5
 .wait3:
 	cmp.b (a2),d5
 	bne.s .wait3
 
+	| debug trigger
 	move.w #0x1234,0xfc0004
 
 	move.l CUSTOM_CHUNK(a4),a0
@@ -114,7 +136,7 @@ _runit:
 	move.w d0,0x96(a6)
 
 	| wait few lines, enough time for audio channels to enter normal 2/3 states
-	addq.w #4,d5
+	addq.b #4,d5
 .wait4:
 	cmp.b (a2),d5
 	bne.s .wait4
@@ -145,11 +167,18 @@ _runit:
 	btst #1,d1
 	beq.s .cpu68010
 	lea 4+4+60+4+2+2+4+4+2+4+4+4+4(a0),a1
+	| CAAR is 68020/030 only
 	move.l (a1)+,d0
+	btst #3,d1
+	bne.s .cpu68040
 	movec d0,CAAR
+.cpu68040:
 	move.l (a1)+,d0
 	movec d0,CACR
+	| MSP is 68020-68040 only
 	move.l (a1)+,d0
+	btst #7,d1
+	bne.s .cpu68010
 	movec d0,MSP
 .cpu68010:
 	cmp.l #68010,(a0)
@@ -191,6 +220,7 @@ _runit:
 	movem.l 4+4+8*4+4+4(a0),a2-a6
 	add.w #4+4+6*4,a0
 
+	| debug trigger
 	move.w #0x1234,0xfc0000
 
 	lea 0xbfde00,a1

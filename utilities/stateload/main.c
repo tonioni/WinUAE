@@ -2,7 +2,7 @@
 /* Real hardware UAE state file loader */
 /* Copyright 2019 Toni Wilen */
 
-#define VER "1.0"
+#define VER "1.1 BETA #1"
 
 #include <stdio.h>
 #include <stdarg.h>
@@ -122,6 +122,18 @@ static void step_floppy(void)
 	wait_lines(200);
 }
 
+static void reset_floppy(struct uaestate *st)
+{
+	volatile struct CIA *ciab = (volatile struct CIA*)0xbfd000;
+
+	// all drives motor off
+	ciab->ciaprb = 0xff;
+	// select all
+	ciab->ciaprb &= ~(15 << 3);
+	// deselect all
+	ciab->ciaprb |= 15 << 3;
+}
+
 static void set_floppy(UBYTE *p, ULONG num)
 {
 	ULONG id = getlong(p, 0);
@@ -226,7 +238,8 @@ static void set_custom(struct uaestate *st)
 			continue;
 
 		// skip blitter start, DMACON, INTENA, registers
-		// that are write strobed, unused registers.
+		// that are write strobed, unused registers,
+		// read-only registers.
 		switch(i)
 		{
 			case 0x00:
@@ -312,7 +325,7 @@ void set_custom_final(UBYTE *p)
 	volatile struct Custom *c = (volatile struct Custom*)0xdff000;
 	c->intena = 0x7fff;
 	c->intreq = 0x7fff;
-	c->vposw = getword(p, 4 + 0x04) & 0x8000; // LOF
+	c->vposw = (getword(p, 4 + 0x04) & 0x8000) | (c->vposr & 7); // set LOF
 	c->dmacon = getword(p, 4 + 0x96) | 0x8000;
 	c->intena = getword(p, 4 + 0x9a) | 0x8000;
 	c->intreq = getword(p, 4 + 0x9c) | 0x8000;
@@ -400,6 +413,18 @@ static void free_allocations(struct uaestate *st)
 	}
 }
 
+static UBYTE *allocate_abs(ULONG size, ULONG addr, struct uaestate *st)
+{
+		UBYTE *b = AllocAbs(size, (APTR)addr);
+		if (b) {
+			struct Allocation *a = &st->allocations[st->num_allocations++];
+			a->addr = b;
+			a->size = size;
+			return b;
+		}
+		return NULL;
+}
+
 static UBYTE *extra_allocate(ULONG size, struct uaestate *st)
 {
 	UBYTE *b;
@@ -483,19 +508,21 @@ static void copyrom(ULONG addr, struct uaestate *st)
 
 static void set_maprom(struct uaestate *st)
 {
-	if (st->mapromtype & (MAPROM_ACA500 | MAPROM_ACA500P)) {
-		volatile UBYTE *base = (volatile UBYTE*)0xb00000;
+	struct mapromdata *mrd = &st->mrd[0];
+	if (mrd->type == MAPROM_ACA500 || mrd->type == MAPROM_ACA500P) {
+		volatile UBYTE *base = (volatile UBYTE*)mrd->board;
 		base[0x3000] = 0;
 		base[0x7000] = 0;
 		base[0xf000] = 0;
 		base[0xb000] = 0;
 		base[0x23000] = 0;
-		copyrom((st->mapromtype & MAPROM_ACA500) ? 0x980000 : 0xa00000, st);
+		copyrom(mrd->addr, st);
 		base[0x23000] = 0xff;
 		base[0x3000] = 0;
 	}
-	if (st->mapromtype & MAPROM_ACA1221EC) {
-		volatile UBYTE *base = (volatile UBYTE*)0xe90000;
+	mrd = &st->mrd[0];
+	if (mrd->type == MAPROM_ACA1221EC) {
+		volatile UBYTE *base = (volatile UBYTE*)mrd->board;
 		base[0x1000] = 0x05;
 		base[0x1001] = 0x00;
 		base[0x2000] = 0x00;
@@ -511,9 +538,9 @@ static void set_maprom(struct uaestate *st)
 		base[0x1001] = 0x01;
 		base[0x2000] = 0x00;
 	}
-	if (st->mapromtype & (MAPROM_ACA12xx64 | MAPROM_ACA12xx128)) {
-		ULONG mapromaddr = (st->mapromtype & MAPROM_ACA12xx64) ? 0x0bf00000 : 0x0ff00000;
-		volatile UWORD *base = (volatile UWORD*)0xb8f000;
+	if (mrd->type == MAPROM_ACA12xx) {
+		ULONG mapromaddr = mrd->addr;
+		volatile UWORD *base = (volatile UWORD*)mrd->board;
 		base[0 / 2] = 0xffff;
 		base[4 / 2] = 0x0000;
 		base[8 / 2] = 0xffff;
@@ -524,13 +551,144 @@ static void set_maprom(struct uaestate *st)
 		base[0x18 / 2] = 0xffff; // maprom on
 		volatile UWORD dummy = base[0];
 	}
+	if (mrd->type == MAPROM_GVP) {
+		copyrom(mrd->addr, st);
+		volatile UWORD *base = (volatile UWORD*)mrd->board;
+		*base = (UWORD)mrd->config;
+	}
+	if (mrd->type == MAPROM_BLIZZARD12x0) {
+		copyrom(mrd->addr, st);
+		volatile UBYTE *base = (volatile UBYTE*)mrd->board;
+		*base = (UBYTE)mrd->config;
+	}
 }
 
-static WORD has_maprom(struct uaestate *st)
+static BOOL has_maprom_blizzard(struct uaestate *st)
 {
-	if (!st->usemaprom)
-		return -1;
+	struct mapromdata *mrd = &st->mrd[0];
+	struct ConfigDev *cd;
+	// 1230MKIV/1240/1260
+	cd  = (struct ConfigDev*)FindConfigDev(0, 8512, 17);
+	if (cd) {
+		mrd->type = MAPROM_BLIZZARD12x0;
+		mrd->addr = 0x4ff80000;
+	}
+	// 1230MKIII
+	cd  = (struct ConfigDev*)FindConfigDev(0, 8512, 13);
+	if (cd) {
+		mrd->type = MAPROM_BLIZZARD12x0;
+		mrd->addr = 0x1ef80000;
+	}
+	// 1230MKI/II
+	cd  = (struct ConfigDev*)FindConfigDev(0, 8512, 11);
+	if (cd) {
+		mrd->type = MAPROM_BLIZZARD12x0;
+		mrd->addr = 0x0ff80000;
+	}
+	mrd->board = (APTR)0x80ffff00;
+	mrd->config = 0x42;
+	if (st->debug && mrd->type)
+		printf("Blizzard12x0 MapROM %08lx\n", mrd->addr);
+	return mrd->type != 0;
+}
+
+
+static const ULONG gvp_a530[] =
+{
+	0x00a00000, 14,
+	0x00600000, 10,
+	0x00400000, 12,
+	0x00300000, 8,
+	0
+};
+static const ULONG gvp_gforce030[] =
+{
+	0x02000000, 10,
+	0x01c00000, 12,
+	0x01800000, 8,
+	0x01400000, 6,
+	0x00a00000, 2,
+	0x00600000, 4,
+	0
+};
+static const ULONG gvp_gforce2k_040[] =
+{
+	0x05000000, 8,
+	0x04000000, 12,
+	0x03000000, 10,
+	0x02000000, 14,
+	0x01c00000, 10,
+	0x01800000, 12,
+	0
+};
+#if 0
+static const ULONG gvp_gforce3k_040[] =
+{
+	0x08800000, 0xC0000000,
+	0x08400000, 0x80000000,
+	0
+};
+#endif
+
+static BOOL has_maprom_gvp(struct uaestate *st)
+{
+		struct mapromdata *mrd = &st->mrd[0];
+		struct ConfigDev *cd = (struct ConfigDev*)FindConfigDev(0, 2017, 11);
+		if (!cd)
+			return FALSE;
+		UBYTE v = *((volatile UBYTE*)cd->cd_BoardAddr + 0x8001);
+		if (st->debug)
+			printf("GVP ID=%02x\n", v);
+		const ULONG *gvpmaprom = NULL;
+		switch(v & 0xf8)
+		{
+			case 0x20:
+			case 0x30:
+				gvpmaprom = gvp_gforce2k_040;
+				break;
+			case 0x60:
+			case 0x70:
+			case 0xe0:
+			case 0xf0:
+				gvpmaprom = gvp_gforce030;
+				break;
+			case 0xc0:
+			case 0xd0:
+				gvpmaprom = gvp_a530;
+			break;
+			case 0x40:
+				break;
+		}
+		if (!gvpmaprom)
+			return FALSE;
+		Forbid();
+		struct MemHeader *mh = (struct MemHeader*)SysBase->MemList.lh_Head;
+		while (mh->mh_Node.ln_Succ && !mrd->type) {
+			ULONG mend = ((((ULONG)mh->mh_Upper) + 0xffff) & 0xffff0000);
+			for (int i = 0; gvpmaprom[i]; i += 2) {
+				if (gvpmaprom[i] == mend) {
+					mrd->type = MAPROM_GVP;
+					mrd->addr = mend - 524288;
+					mrd->config = gvpmaprom[i + 1];
+					mrd->board = cd->cd_BoardAddr + 0x68;
+					// ignore return value, maprom may be already enabled
+					allocate_abs(524288, mrd->addr, st);
+					break;
+				}
+			}
+			mh = (struct MemHeader*)mh->mh_Node.ln_Succ;
+		}
+		Permit();
+		if (st->debug)
+			printf("GVP Map ROM=%08lx\n", mrd->addr);
+		return mrd->type != 0;
+}
+
+static BOOL has_maprom_aca(struct uaestate *st)
+{
+		struct mapromdata *mrd = &st->mrd[0];
 	if (OpenResource("aca.resource")) {
+		struct mapromdata *mrd2 = &st->mrd[1];
 		// ACA500(+)
 		volatile UBYTE *base = (volatile UBYTE*)0xb00000;
 		Disable();
@@ -547,25 +705,27 @@ static WORD has_maprom(struct uaestate *st)
 			id |= 0x02;
 		if (base[0x1f000] & 0x80)
 			id |= 0x01;
-		if (id == 7)
-			st->mapromtype = MAPROM_ACA500;
-		else if (id == 8 || id == 9)
-			st->mapromtype = MAPROM_ACA500P;
+		if (id == 7) {
+			mrd2->type = MAPROM_ACA500;
+			mrd2->addr = 0x980000;
+		} else if (id == 8 || id == 9) {
+			mrd2->type = MAPROM_ACA500P;
+			mrd2->addr = 0xa00000;
+		}
+		mrd->board = (APTR)base;
 		base[0x3000] = 0;
 		Enable();
 		if (st->debug)
 			printf("ACA500/ACA500plus ID=%02x\n", id);
 	}
-	if (FindConfigDev(NULL, 0x1212, 0x16)) {
+	if (FindConfigDev(0, 0x1212, 0x16)) {
 		// ACA1221EC
-		st->mapromtype |= MAPROM_ACA1221EC;
+		mrd->type = MAPROM_ACA1221EC;
+		mrd->board = (APTR)0xe90000;
 		// we can't use 0x200000 because it goes away when setting up maprom..
-		st->memunavailable = 0x00200000;
-	}
-	volatile UWORD *c = (volatile UWORD*)0x100;
-	*c = 0x1234;
-	// This test should be better..
-	if (TypeOfMem((APTR)0x0bd80000)) { // at least 62M
+		mrd->memunavailable = 0x00200000;
+	} else if (TypeOfMem((APTR)0x0bd80000)) { // at least 62M
+		// This test should be better..
 		// perhaps it is ACA12xx
 		Disable();
 		volatile UWORD *base = (volatile UWORD*)0xb8f000;
@@ -604,24 +764,42 @@ static WORD has_maprom(struct uaestate *st)
 		if (mrtest) {
 			if (TypeOfMem((APTR)0x0bf00000)) {
 				if (!TypeOfMem((APTR)0x0fd80000)) {
-					st->mapromtype |= MAPROM_ACA12xx128;
+					mrd->type = MAPROM_ACA12xx;
+					mrd->addr = 0x0ff00000;
 				}
 			} else {
-					st->mapromtype |= MAPROM_ACA12xx64;
+					mrd->type = MAPROM_ACA12xx;
+					mrd->addr = 0x0bf00000;
 			}
 		}
+		mrd->board = (APTR)base;
 	}
-	if (st->debug && st->mapromtype) {
-		printf("MAPROM type %08lx detected\n", st->mapromtype);
+	return st->mrd[0].type != 0;
+}
+
+static WORD has_maprom(struct uaestate *st)
+{
+	if (!st->usemaprom)
+		return -1;
+	if (!has_maprom_aca(st)) {
+		if (!has_maprom_gvp(st))
+			has_maprom_blizzard(st);
 	}
-	return st->mapromtype != 0;
+	if (st->debug) {
+		for (int i = 0; i < 2; i++) {
+			struct mapromdata *mrd = &st->mrd[i];
+			if (mrd->type)
+				printf("MAPROM type %d. Addr=%08lx Board=%08lx Cfg=%08lx.\n", mrd->type, mrd->addr, mrd->board, mrd->config);
+		}
+	}
+	return st->mrd[0].type != 0 || st->mrd[1].type != 0;
 }
 
 static void load_rom(struct uaestate *st)
 {
 	UBYTE rompath[100];
 	
-	if (!st->mapromtype)
+	if (!st->mrd[0].type && !st->mrd[1].type)
 		return;
 	
 	sprintf(rompath, "DEVS:kickstarts/kick%d%03d.%s", st->romver, st->romrev, st->agastate ? "a1200" : "a500");
@@ -643,13 +821,15 @@ static void load_rom(struct uaestate *st)
 		fclose(f);
 		return;
 	}
+	if (st->debug)
+		printf("MapROM temp %08lx\n", st->maprom);
 	if (fread(st->maprom, 1, st->mapromsize, f) != st->mapromsize) {
 		printf("Read error while reading map rom image '%s'\n", rompath);
 		fclose(f);
 		return;
 	}
 	fclose(f);
-	printf("ROM image '%s' (%luk) loaded (%08x).\n", rompath, st->mapromsize >> 10, st->maprom);
+	printf("ROM '%s' (%luk) loaded .\n", rompath, st->mapromsize >> 10);
 }
 
 static void load_memory(FILE *f, WORD index, struct uaestate *st)
@@ -831,7 +1011,7 @@ static void find_extra_ram(struct uaestate *st)
 			if (st->mem_allocated[i] == mh)
 				break;
 		}
-		if (i == MEMORY_REGIONS && mstart != st->memunavailable) {
+		if (i == MEMORY_REGIONS && (mstart != st->mrd[0].memunavailable && mstart != st->mrd[1].memunavailable)) {
 			if (msize > st->extra_ram_size) {
 				st->extra_ram = (UBYTE*)mstart;
 				st->extra_ram_size = msize;
@@ -870,7 +1050,7 @@ static ULONG check_ram(UBYTE *ramname, UBYTE *cname, UBYTE *chunk, WORD index, U
 	}
 	Permit();
 	if (!found) {
-		printf("ERROR: Required RAM address space %08x-%08x not found in this system.\n", addr, addr + size - 1);
+		printf("ERROR: Required RAM address space %08x-%08x unavailable.\n", addr, addr + size - 1);
 		st->errors++;
 		return 0;
 	}
@@ -883,10 +1063,10 @@ static ULONG check_ram(UBYTE *ramname, UBYTE *cname, UBYTE *chunk, WORD index, U
 	mb->flags = flags;
 	strcpy(mb->chunk, cname);
 	if (st->debug)
-		printf("- Detected memory at %08x, total size %luk.\n", mstart, msize >> 10);
+		printf("- Detected memory at %08x, total size %luk. Offset %ld.\n", mstart, msize >> 10, offset);
 	if (found > 0) {
 		if (st->debug)
-			printf("- Is usable (%luk required, %luk unused, offset %lu).\n", size >> 10, (msize - size) >> 10, offset);
+			printf("- Memory is usable (%luk required, %luk unused).\n", size >> 10, (msize - size) >> 10);
 		ULONG extrasize = msize - size;
 		if (extrasize >= 524288) {
 			if ((mstart >= 0x00200000 && st->extra_ram < (UBYTE*)0x00200000) || extrasize > st->extra_ram_size) {
@@ -907,7 +1087,12 @@ static void floppy_info(int num, UBYTE *p)
 	UBYTE track = p[5];
 	if (state & 2) // disabled
 		return;
-	printf("DF%d: Track %d, '%s'.\n", num, track, &p[4 + 1 + 1 + 1 + 1 + 4 + 4]);
+	UBYTE *path = &p[4 + 1 + 1 + 1 + 1 + 4 + 4];
+	printf("DF%d: Track %d ", num, track);
+	if (path[0])
+		printf("'%s'.\n", path);
+	else
+		printf("<empty>\n");
 }
 
 static void check_rom(UBYTE *p, struct uaestate *st)
@@ -1119,10 +1304,10 @@ extern void flushcache(void);
 
 static void handlerambank(struct MemoryBank *mb, struct uaestate *st)
 {
-	UBYTE *sa = mb->addr + 16; /* skip chunk header + RAM size */
+	UBYTE *sa = mb->addr + 12; /* skip chunk header */
 	if (mb->flags & 1) {
-		// +2 = skip zlib header
-		callinflate(mb->targetaddr, sa + 2);
+		// skip decompressed size and zlib header
+		callinflate(mb->targetaddr, sa + 4 + 2);
 	} else {
 		ULONG *s = (ULONG*)sa;
 		ULONG *d = (ULONG*)mb->targetaddr;
@@ -1137,7 +1322,9 @@ static void processstate(struct uaestate *st)
 {
 	volatile struct Custom *c = (volatile struct Custom*)0xdff000;
 
-	if (st->maprom && st->mapromtype) {
+	reset_floppy(st);
+
+	if (st->maprom && (st->mrd[0].type || st->mrd[1].type)) {
 		c->color[0] = 0x404;
 		set_maprom(st);
 	}

@@ -27,15 +27,25 @@ struct MemoryBank
 #define MB_SLOW 1
 #define MB_FAST 2
 
-#define MAPROM_ACA500 (1<<0)
-#define MAPROM_ACA500P (1<<1)
-#define MAPROM_ACA1221EC (1<<2)
-#define MAPROM_ACA12xx64 (1<<3)
-#define MAPROM_ACA12xx128 (1<<4)
+#define MAPROM_ACA500 1
+#define MAPROM_ACA500P 2
+#define MAPROM_ACA1221EC 3
+#define MAPROM_ACA12xx 4
+#define MAPROM_GVP 5
+#define MAPROM_BLIZZARD12x0 6
 
 #define FLAGS_NOCACHE 1
 #define FLAGS_FORCEPAL 2
 #define FLAGS_FORCENTSC 4
+
+struct mapromdata
+{
+	UWORD type;
+	ULONG config;
+	ULONG addr;
+	APTR board;
+	ULONG memunavailable;
+};
 
 struct uaestate
 {
@@ -47,9 +57,10 @@ struct uaestate
 	UBYTE *floppy_chunk[4];
 	UBYTE *audio_chunk[4];
 	UBYTE *sprite_chunk[8];
+
 	UBYTE *maprom;
 	ULONG mapromsize;
-	ULONG mapromtype;
+	struct mapromdata mrd[2];
 
 	UBYTE *extra_ram;
 	ULONG extra_ram_size;
@@ -62,7 +73,6 @@ struct uaestate
 
 	int num_allocations;
 	struct Allocation allocations[ALLOCATIONS];
-	ULONG memunavailable;
 	
 	UWORD romver, romrev;
 	UBYTE agastate;
