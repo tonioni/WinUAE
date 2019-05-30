@@ -7,12 +7,9 @@ AGA_COLORS_CHUNK = CUSTOM_CHUNK+4
 FLOPPY_CHUNK = AGA_COLORS_CHUNK+4
 AUDIO_CHUNK = FLOPPY_CHUNK+4*4
 SPRITE_CHUNK = AUDIO_CHUNK+4*4
-MAP_ROM = SPRITE_CHUNK+4
-MAP_ROM_SIZE = MAP_ROM+4
-MAP_ROM_TYPE = MAP_ROM_SIZE+4
+MMU_TABLE = SPRITE_CHUNK+4*8
 
 	.text
-	.chip 68020
 	.globl _runit
 	.globl _killsystem
 	.globl _callinflate
@@ -52,7 +49,7 @@ _killsystem:
 	move.l d0,a0
 
 	| debug trigger
-	move.w #0x1234,0xfc0006
+	move.w #0x1234,0xef0006
 
 	| check if 68060
 	move.l 0x10.w,a1
@@ -86,6 +83,10 @@ _killsystem:
 	move.w d0,0x9c(a0)
 	move.w d0,0x9e(a0)
 	move.l d1,a0
+	
+	move.l 8(a0),d0
+	bsr.w mmu_enable
+	
 	move.l 4(a0),sp | new temp super stack
 	move.l 8(a0),-(sp) | uaestate
 	move.l 12(a0),a0 | func
@@ -97,7 +98,7 @@ _runit:
 	subq.l #8,sp
 	lea 0xdff000,a6
 	
-	| find last line
+| find last line
 	moveq #0,d5
 	lea 0x6(a6),a2
 .wait1:
@@ -126,7 +127,7 @@ _runit:
 	bne.s .wait3
 
 	| debug trigger
-	move.w #0x1234,0xfc0004
+	move.w #0x1234,0xef0004
 
 	move.l CUSTOM_CHUNK(a4),a0
 	move.w 4+0x96(a0),d0 | DMACON
@@ -171,7 +172,8 @@ _runit:
 	move.l (a1)+,d0
 	btst #3,d1
 	bne.s .cpu68040
-	movec d0,CAAR
+	| movec d0,CAAR
+	dc.w 0x4e7b,0x0802
 .cpu68040:
 	move.l (a1)+,d0
 	movec d0,CACR
@@ -221,7 +223,7 @@ _runit:
 	add.w #4+4+6*4,a0
 
 	| debug trigger
-	move.w #0x1234,0xfc0000
+	move.w #0x1234,0xef0000
 
 	lea 0xbfde00,a1
 
@@ -241,3 +243,59 @@ _runit:
 	movem.l (a0),d6-d7/a0-a1
 	
 	rte | GO! GO! GO!
+
+mmu_enable:
+	movem.l d0-d2/a0-a2,-(sp)
+	move.l d0,a2
+
+	| debug trigger
+	move.w #0x1234,0xef0008
+
+	move.l MMU_TABLE(a2),d2
+	beq.s .mmuend
+
+	move.w (a2),d1
+	btst #3,d1
+	beq.s .no68040
+
+	| 68040/060
+	movec d2,urp
+	movec d2,srp
+	cpusha dc
+	cinva dc
+	pflusha
+	move.l #0x8000,d0
+	movec d0,tc
+	moveq #0,d0
+	movec d0,itt0
+	movec d0,itt1
+	movec d0,dtt0
+	movec d0,dtt1
+	bra.s .mmuend
+
+.no68040:
+	| 68030?
+	btst #2,d1
+	beq.s .mmuend
+
+	sub.w #12,sp
+	move.l #0x00c07760,(sp)
+	| pmove (sp),tc
+	dc.w 0xf017,0x4000
+	move.l #0x80000002,4(sp)
+	move.l d2,8(sp)
+	| pmove 4(sp),crp
+	dc.w 0xf02f,0x4c00,0x0004
+	bset #7,(sp)
+	| pmove (sp),tc
+	dc.w 0xf017,0x4000
+	clr.l (sp)
+	| pmove (sp),tt0
+	dc.w 0xf017,0x0800
+	| pmove (sp),tt1
+	dc.w 0xf017,0x0c00
+	add.w #12,sp
+
+.mmuend:
+	movem.l (sp)+,d0-d2/a0-a2
+	rts

@@ -2,7 +2,7 @@
 /* Real hardware UAE state file loader */
 /* Copyright 2019 Toni Wilen */
 
-#define VER "1.1 BETA #1"
+#define VER "2.0 BETA #1"
 
 #include <stdio.h>
 #include <stdarg.h>
@@ -413,13 +413,48 @@ static void free_allocations(struct uaestate *st)
 	}
 }
 
-static UBYTE *allocate_abs(ULONG size, ULONG addr, struct uaestate *st)
+static struct Allocation *add_allocation(void *addr, ULONG size, struct uaestate *st)
+{
+	if (st->num_allocations >= ALLOCATIONS) {
+		printf("ERROR: Too many allocations!\n");
+		return NULL;
+	}
+	struct Allocation *a = &st->allocations[st->num_allocations++];
+	a->addr = addr;
+	a->size = size;
+	return a;
+}
+
+static ULONG mmu_remap(ULONG addr, ULONG size, BOOL wp, struct uaestate *st)
+{
+	if (!st->canusemmu)
+		return 0;
+	void *phys = AllocMem(size + 4095, MEMF_FAST);
+	if (!phys) {
+		printf("MMU: Error allocating remap space for %08lx-%08lx.\n", addr, addr + size - 1);
+		return 0;
+	}
+	Forbid();
+	FreeMem(phys, size + 4095);
+	ULONG alignedphys = (((ULONG)phys) + 4095) & ~4095;
+	phys = AllocAbs(size, (void*)alignedphys);
+	Permit();
+	if (!phys)
+		return 0;
+	if (!map_region(st, (void*)addr, phys, size, FALSE, wp, FALSE, 0)) {
+		FreeMem(phys, size);
+		return 0;
+	}
+	add_allocation(phys, size, st);
+	st->mmuused++;
+	return alignedphys;
+}
+
+UBYTE *allocate_abs(ULONG size, ULONG addr, struct uaestate *st)
 {
 		UBYTE *b = AllocAbs(size, (APTR)addr);
 		if (b) {
-			struct Allocation *a = &st->allocations[st->num_allocations++];
-			a->addr = b;
-			a->size = size;
+			add_allocation(b, size, st);
 			return b;
 		}
 		return NULL;
@@ -432,9 +467,7 @@ static UBYTE *extra_allocate(ULONG size, struct uaestate *st)
 	for (;;) {
 		b = AllocAbs(size, st->extra_mem_pointer);
 		if (b) {
-			struct Allocation *a = &st->allocations[st->num_allocations++];
-			a->addr = b;
-			a->size = size;
+			add_allocation(b, size, st);
 			st->extra_mem_pointer += (size + 7) & ~7;
 			return b;
 		}
@@ -451,10 +484,9 @@ static UBYTE *tempmem_allocate(ULONG size, struct uaestate *st)
 	if (st->extra_mem_head) {
 		b = Allocate(st->extra_mem_head, size);
 		if (b) {
-			struct Allocation *a = &st->allocations[st->num_allocations++];
-			a->mh = st->extra_mem_head;
-			a->addr = b;
-			a->size = size;
+			struct Allocation *a = add_allocation(b, size, st);
+			if (a)
+				a->mh = st->extra_mem_head;
 		}
 	}
 	if (!b) {
@@ -476,9 +508,7 @@ static UBYTE *tempmem_allocate_reserved(ULONG size, WORD index, struct uaestate 
 			return NULL;
 		UBYTE *b = AllocAbs(size, addr);
 		if (b) {
-			struct Allocation *a = &st->allocations[st->num_allocations++];
-			a->addr = b;
-			a->size = size;
+			add_allocation(b, size, st);
 			return b;
 		}
 	}
@@ -508,7 +538,7 @@ static void copyrom(ULONG addr, struct uaestate *st)
 
 static void set_maprom(struct uaestate *st)
 {
-	struct mapromdata *mrd = &st->mrd[0];
+	struct mapromdata *mrd = &st->mrd[1];
 	if (mrd->type == MAPROM_ACA500 || mrd->type == MAPROM_ACA500P) {
 		volatile UBYTE *base = (volatile UBYTE*)mrd->board;
 		base[0x3000] = 0;
@@ -551,6 +581,33 @@ static void set_maprom(struct uaestate *st)
 		base[0x18 / 2] = 0xffff; // maprom on
 		volatile UWORD dummy = base[0];
 	}
+	if (mrd->type == MAPROM_ACA1233N) {
+		volatile UWORD *base = (volatile UWORD*)mrd->board;
+		ULONG mapromaddr = mrd->addr;
+		volatile UWORD dummy = base[0];
+		base[0x00 / 2] = 0xffff; // s unlock 0
+		base[0x02 / 2] = 0xffff; // s unlock 1
+		base[0x20 / 2] = 0xffff; // c unlock 0
+		base[0x04 / 2] = 0xffff; // s unlock 2
+		base[0x22 / 2] = 0xffff; // c unlock 1
+		base[0x06 / 2] = 0xffff; // s unlock 3
+		// maprom off
+		base[0x28 / 2] = 0xffff;
+		if (mrd->config) {
+			// maprom overlay on
+			for(int i = 0; i < 6; i++)
+				base[0x1c / 2] = 0xffff;
+			base[0x1a / 2] = 0xffff;
+		}
+		copyrom(mapromaddr, st);
+		copyrom(mapromaddr + 524288, st);
+		if (mrd->config) {
+			// maprom overlay off
+			base[0x3a / 2] = 0xffff;
+		}
+		// maprom on
+		base[0x08 / 2] = 0xffff;
+	}
 	if (mrd->type == MAPROM_GVP) {
 		copyrom(mrd->addr, st);
 		volatile UWORD *base = (volatile UWORD*)mrd->board;
@@ -560,6 +617,9 @@ static void set_maprom(struct uaestate *st)
 		copyrom(mrd->addr, st);
 		volatile UBYTE *base = (volatile UBYTE*)mrd->board;
 		*base = (UBYTE)mrd->config;
+	}
+	if (mrd->type == MAPROM_MMU) {
+		copyrom(mrd->addr, st);
 	}
 }
 
@@ -686,7 +746,6 @@ static BOOL has_maprom_gvp(struct uaestate *st)
 
 static BOOL has_maprom_aca(struct uaestate *st)
 {
-		struct mapromdata *mrd = &st->mrd[0];
 	if (OpenResource("aca.resource")) {
 		struct mapromdata *mrd2 = &st->mrd[1];
 		// ACA500(+)
@@ -712,15 +771,32 @@ static BOOL has_maprom_aca(struct uaestate *st)
 			mrd2->type = MAPROM_ACA500P;
 			mrd2->addr = 0xa00000;
 		}
-		mrd->board = (APTR)base;
+		mrd2->board = (APTR)base;
 		base[0x3000] = 0;
 		Enable();
 		if (st->debug)
 			printf("ACA500/ACA500plus ID=%02x\n", id);
 	}
-	if (FindConfigDev(0, 0x1212, 0x16)) {
+	struct mapromdata *mrd = &st->mrd[0];
+	if (FindConfigDev(0, 0x1212, 33) || FindConfigDev(0, 0x1212, 68)) {
+		// ACA1233n 68030
+		mrd->type = MAPROM_ACA1233N;
+		mrd->addr = 0x47f00000;
+		mrd->board = (APTR)0x47e8f000;
+		mrd->config = 0;
+	} else if (FindConfigDev(0, 0x1212, 32) || FindConfigDev(0, 0x1212, 72)) {
+		// ACA1233n 68EC020
+		if ((ULONG)has_maprom_aca >= 0x200000) {
+			mrd->type = MAPROM_ACA1233N;
+			mrd->addr = 0x100000;
+			mrd->board = (APTR)0xb8f000;
+			mrd->config = 1;
+			st->maprom_memlimit |= 1 << MB_CHIP;
+		}
+	} else if (FindConfigDev(0, 0x1212, 0x16)) {
 		// ACA1221EC
 		mrd->type = MAPROM_ACA1221EC;
+		mrd->addr = 0x780000;
 		mrd->board = (APTR)0xe90000;
 		// we can't use 0x200000 because it goes away when setting up maprom..
 		mrd->memunavailable = 0x00200000;
@@ -763,7 +839,7 @@ static BOOL has_maprom_aca(struct uaestate *st)
 		ULONG mraddr = 0;
 		if (mrtest) {
 			if (TypeOfMem((APTR)0x0bf00000)) {
-				if (!TypeOfMem((APTR)0x0fd80000)) {
+				if (!TypeOfMem((APTR)0x0fe80000)) {
 					mrd->type = MAPROM_ACA12xx;
 					mrd->addr = 0x0ff00000;
 				}
@@ -777,13 +853,34 @@ static BOOL has_maprom_aca(struct uaestate *st)
 	return st->mrd[0].type != 0;
 }
 
-static WORD has_maprom(struct uaestate *st)
+static BOOL has_maprom_mmu(struct uaestate *st)
+{
+	if (!st->canusemmu)
+		return FALSE;
+	struct mapromdata *mrd = &st->mrd[0];
+	unmap_region(st, (void*)0xf80000, 524288);
+	mrd->addr = mmu_remap(0xf80000, 524288, FALSE, st);
+	if (mrd->addr) {
+		mrd->type = MAPROM_MMU;
+		return TRUE;
+	}
+	return FALSE;
+}
+
+static BOOL has_maprom(struct uaestate *st)
 {
 	if (!st->usemaprom)
 		return -1;
-	if (!has_maprom_aca(st)) {
-		if (!has_maprom_gvp(st))
-			has_maprom_blizzard(st);
+	for (;;) {
+		if (has_maprom_mmu(st))
+			break;
+		if (has_maprom_aca(st))
+			break;
+		if (has_maprom_gvp(st))
+			break;
+		if (!has_maprom_blizzard(st))
+			break;
+		return FALSE;
 	}
 	if (st->debug) {
 		for (int i = 0; i < 2; i++) {
@@ -797,34 +894,42 @@ static WORD has_maprom(struct uaestate *st)
 
 static void load_rom(struct uaestate *st)
 {
-	UBYTE rompath[100];
+	UBYTE rompath[100], rompath2[100];
+	UBYTE *p;
 	
 	if (!st->mrd[0].type && !st->mrd[1].type)
 		return;
 	
 	sprintf(rompath, "DEVS:kickstarts/kick%d%03d.%s", st->romver, st->romrev, st->agastate ? "a1200" : "a500");
+	p = rompath;
 	FILE *f = fopen(rompath, "rb");
 	if (!f) {
-		printf("Couldn't open ROM image '%s'\n", rompath);
-		return;
+		sprintf(rompath2, "kick%d%03d.%s", st->romver, st->romrev, st->agastate ? "a1200" : "a500");
+		f = fopen(rompath2, "rb");
+		if (!f) {
+			printf("Couldn't open ROM image '%s'\n", rompath);
+			return;
+		}
+		p = rompath2;
 	}
 	fseek(f, 0, SEEK_END);
 	st->mapromsize = ftell(f);
 	fseek(f, 0, SEEK_SET);
-	if (!(st->maprom = tempmem_allocate_reserved(st->mapromsize, MB_CHIP, st))) {
-		if (!(st->maprom = tempmem_allocate_reserved(st->mapromsize, MB_SLOW, st))) {
-			st->maprom = tempmem_allocate(st->mapromsize, st);
-		}
-	}
+	if (!st->maprom && !(st->maprom_memlimit & (1 << MB_CHIP)))
+		st->maprom = tempmem_allocate_reserved(st->mapromsize, MB_CHIP, st);
+	if (!st->maprom && !(st->maprom_memlimit & (1 << MB_SLOW)))
+		st->maprom = tempmem_allocate_reserved(st->mapromsize, MB_SLOW, st);
+	if (!st->maprom)
+		st->maprom = tempmem_allocate(st->mapromsize, st);
 	if (!st->maprom) {
-		printf("Couldn't allocate %luk for ROM image '%s'.\n", st->mapromsize >> 10, rompath);
+		printf("Couldn't allocate %luk for ROM image '%s'.\n", st->mapromsize >> 10, p);
 		fclose(f);
 		return;
 	}
 	if (st->debug)
 		printf("MapROM temp %08lx\n", st->maprom);
 	if (fread(st->maprom, 1, st->mapromsize, f) != st->mapromsize) {
-		printf("Read error while reading map rom image '%s'\n", rompath);
+		printf("Read error while reading map rom image '%s'\n", p);
 		fclose(f);
 		return;
 	}
@@ -1050,9 +1155,17 @@ static ULONG check_ram(UBYTE *ramname, UBYTE *cname, UBYTE *chunk, WORD index, U
 	}
 	Permit();
 	if (!found) {
-		printf("ERROR: Required RAM address space %08x-%08x unavailable.\n", addr, addr + size - 1);
-		st->errors++;
-		return 0;
+		// use MMU to create this address space if available
+		if (mmu_remap(addr, size, FALSE, st)) {
+			msize = size;
+			mstart = addr;
+			mh = NULL;
+			found = 1;
+		} else {
+			printf("ERROR: Required RAM address space %08x-%08x unavailable.\n", addr, addr + size - 1);
+			st->errors++;
+			return 0;
+		}
 	}
 	st->mem_allocated[index] = mh;
 	struct MemoryBank *mb = &st->membanks[index];
@@ -1075,6 +1188,18 @@ static ULONG check_ram(UBYTE *ramname, UBYTE *cname, UBYTE *chunk, WORD index, U
 			}
 		}
 		return 1;
+	}
+	// if too small RAM area and not chip ram: mmu remap the missing part.
+	if (st->canusemmu) {
+		ULONG mmu_start = mstart + msize;
+		ULONG mmu_size = size - msize;
+		if (mmu_remap(mmu_start, mmu_size, FALSE, st)) {
+			printf("- MMU remapped missing address space %08x-%08x\n", mmu_start, mmu_start + mmu_size - 1);
+			if (mstart == 0) {
+				printf("- WARNING: Part of Chip RAM remapped, custom chipset can't access it!!\n");
+			}
+			return 1;
+		}
 	}
 	printf("ERROR: Not enough %s RAM available. %luk required.\n", ramname, size >> 10);
 	st->errors++;
@@ -1463,6 +1588,7 @@ int main(int argc, char *argv[])
 		printf("- debug = enable debug output.\n");
 		printf("- test = test mode.\n");
 		printf("- nomaprom = do not use map rom.\n");
+		printf("- nommu = do not use MMU (68030/68040/68060).\n");
 		printf("- nocache = disable caches before starting (68020+)\n");
 		printf("- pal/ntsc = set PAL or NTSC mode (ECS/AGA only)\n");
 		return 0;
@@ -1480,6 +1606,7 @@ int main(int argc, char *argv[])
 		return 0;
 	}
 	st->usemaprom = 1;
+	st->canusemmu = 1;
 	for(int i = 2; i < argc; i++) {
 		if (!stricmp(argv[i], "debug"))
 			st->debug = 1;
@@ -1489,12 +1616,24 @@ int main(int argc, char *argv[])
 			st->nowait = 1;
 		if (!stricmp(argv[i], "nomaprom"))
 			st->usemaprom = 0;
+		if (!stricmp(argv[i], "nommu"))
+			st->canusemmu = 0;
 		if (!stricmp(argv[i], "nocache"))
 			st->flags |= FLAGS_NOCACHE;
 		if (!stricmp(argv[i], "pal"))
 			st->flags |= FLAGS_FORCEPAL;
 		if (!stricmp(argv[i], "ntsc"))
 			st->flags |= FLAGS_FORCENTSC;
+	}
+
+	if (!(SysBase->AttnFlags & AFF_68030))
+		st->canusemmu = 0;
+
+	if (st->canusemmu) {
+		if (!init_mmu(st)) {
+			printf("ERROR: MMU page table allocation failed.\n");
+			st->canusemmu = 0;
+		}
 	}
 
 	if (!parse_pass_1(f, st)) {

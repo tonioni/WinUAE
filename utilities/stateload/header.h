@@ -1,7 +1,7 @@
 
 #define TEMP_STACK_SIZE 8000
 
-#define ALLOCATIONS 30
+#define ALLOCATIONS 256
 
 struct Allocation
 {
@@ -33,6 +33,8 @@ struct MemoryBank
 #define MAPROM_ACA12xx 4
 #define MAPROM_GVP 5
 #define MAPROM_BLIZZARD12x0 6
+#define MAPROM_ACA1233N 7
+#define MAPROM_MMU 255
 
 #define FLAGS_NOCACHE 1
 #define FLAGS_FORCEPAL 2
@@ -57,9 +59,11 @@ struct uaestate
 	UBYTE *floppy_chunk[4];
 	UBYTE *audio_chunk[4];
 	UBYTE *sprite_chunk[8];
+	ULONG *MMU_Level_A;
 
 	UBYTE *maprom;
 	ULONG mapromsize;
+	ULONG maprom_memlimit;
 	struct mapromdata mrd[2];
 
 	UBYTE *extra_ram;
@@ -74,11 +78,23 @@ struct uaestate
 	int num_allocations;
 	struct Allocation allocations[ALLOCATIONS];
 	
+	WORD mmutype;
+	UBYTE *page_ptr;
+	ULONG page_free;
+	
 	UWORD romver, romrev;
 	UBYTE agastate;
 	UBYTE usemaprom;
 	UBYTE debug;
 	UBYTE testmode;
 	UBYTE nowait;
+	UBYTE canusemmu;
+	UBYTE mmuused;
 };
+
+UBYTE *allocate_abs(ULONG size, ULONG addr, struct uaestate *st);
+
+BOOL map_region(struct uaestate *st, void *addr, void *physaddr, ULONG size, BOOL invalid, BOOL writeprotect, BOOL supervisor, UBYTE cachemode);
+BOOL unmap_region(struct uaestate *st, void *addr, ULONG size);
+BOOL init_mmu(struct uaestate *st);
 
