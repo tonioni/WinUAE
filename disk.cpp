@@ -3294,7 +3294,7 @@ static void fetchnextrevolution (drive *drv)
 	drv->trackspeed = get_floppy_speed_from_image(drv);
 #if REVOLUTION_DEBUG
 	if (1 || drv->mfmpos != 0) {
-		write_log (_T("REVOLUTION: DMA=%d %d %d/%d %d %d %d\n"), dskdmaen, drv->trackspeed, drv->mfmpos, drv->tracklen, drv->indexoffset, drv->floppybitcounter);
+		write_log (_T("REVOLUTION: DMA=%d %d %d/%d %d %d\n"), dskdmaen, drv->trackspeed, drv->mfmpos, drv->tracklen, drv->indexoffset, drv->floppybitcounter);
 	}
 #endif
 	drv->revolution_check = 2;
@@ -3373,8 +3373,12 @@ static void disk_doupdate_write (drive * drv, int floppybits)
 	while (floppybits >= drv->trackspeed) {
 		for (dr = 0; dr < MAX_FLOPPY_DRIVES; dr++) {
 			if (drives[dr]) {
-				floppy[dr].mfmpos++;
-				floppy[dr].mfmpos %= drv->tracklen;
+				drive *drv2 = &floppy[dr];
+				drv2->mfmpos++;
+				drv2->mfmpos %= drv2->tracklen;
+				if (drv2->mfmpos == drv2->indexoffset) {
+					do_disk_index();
+				}
 			}
 		}
 		if (dmaen (DMA_DISK) && dskdmaen == DSKDMA_WRITE && dsklength > 0 && fifo_filled) {
@@ -3467,8 +3471,7 @@ static void disk_doupdate_predict (int startcycle)
 		int diskevent_flag = 0;
 		uae_u32 tword = word;
 		noselected = false;
-		//int diff = drv->floppybitcounter % drv->trackspeed;
-		int countcycle = startcycle; // + (diff ? drv->trackspeed - diff : 0);
+		int countcycle = startcycle;
 		while (countcycle < (maxhpos << 8)) {
 			if (drv->tracktiming[0])
 				updatetrackspeed (drv, mfmpos);
@@ -3944,7 +3947,9 @@ void DISK_update (int tohpos)
 
 void DSKLEN (uae_u16 v, int hpos)
 {
-	int dr, prev = dsklen;
+	int dr;
+	int prevlen = dsklen;
+	int prevdatalen = dsklength;
 	int noselected = 0;
 	int motormask;
 
@@ -3953,10 +3958,10 @@ void DSKLEN (uae_u16 v, int hpos)
 	dsklen = v;
 	dsklength2 = dsklength = dsklen & 0x3fff;
 
-	if ((v & 0x8000) && (prev & 0x8000)) {
+	if ((v & 0x8000) && (prevlen & 0x8000)) {
 		if (dskdmaen == DSKDMA_READ && !(v & 0x4000)) {
 			// update only currently active DMA length, don't change DMA state
-			write_log(_T("warning: Disk read DMA length rewrite %d -> %d. (%04x) PC=%08x\n"), prev & 0x3fff, v & 0x3fff, v, M68K_GETPC);
+			write_log(_T("warning: Disk read DMA length rewrite %d -> %d. (%04x) PC=%08x\n"), prevlen & 0x3fff, v & 0x3fff, v, M68K_GETPC);
 			return;
 		}
 		dskdmaen = DSKDMA_READ;
@@ -3966,9 +3971,9 @@ void DSKLEN (uae_u16 v, int hpos)
 		if (dskdmaen != DSKDMA_OFF) {
 			/* Megalomania and Knightmare does this */
 			if (disk_debug_logging > 0 && dskdmaen == DSKDMA_READ)
-				write_log (_T("warning: Disk read DMA aborted, %d words left PC=%x\n"), dsklength, M68K_GETPC);
+				write_log (_T("warning: Disk read DMA aborted, %d words left PC=%x\n"), prevdatalen, M68K_GETPC);
 			if (dskdmaen == DSKDMA_WRITE) {
-				write_log (_T("warning: Disk write DMA aborted, %d words left PC=%x\n"), dsklength, M68K_GETPC);
+				write_log (_T("warning: Disk write DMA aborted, %d words left PC=%x\n"), prevdatalen, M68K_GETPC);
 				// did program write something that needs to be stored to file?
 				for (dr = 0; dr < MAX_FLOPPY_DRIVES; dr++) {
 					drive *drv2 = &floppy[dr];
@@ -3989,7 +3994,7 @@ void DSKLEN (uae_u16 v, int hpos)
 		return;
 	}
 
-	if ((v & 0x4000) && (prev & 0x4000)) {
+	if ((v & 0x4000) && (prevlen & 0x4000)) {
 		if (dsklength == 0)
 			return;
 		if (dsklength == 1) {
@@ -3997,7 +4002,7 @@ void DSKLEN (uae_u16 v, int hpos)
 			return;
 		}
 		if (dskdmaen == DSKDMA_WRITE) {
-			write_log(_T("warning: Disk write DMA length rewrite %d -> %d\n"), prev & 0x3fff, v & 0x3fff);
+			write_log(_T("warning: Disk write DMA length rewrite %d -> %d\n"), prevlen & 0x3fff, v & 0x3fff);
 			return;
 		}
 		dskdmaen = DSKDMA_WRITE;
