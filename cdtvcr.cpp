@@ -430,6 +430,8 @@ static int statusfunc(int status, int playpos)
 		return 75;
 	if (status == -2)
 		return 75;
+	if (status < 0)
+		return 0;
 	if (cd_audio_status != status) {
 		if (status == AUDIO_STATUS_PLAY_COMPLETE || status == AUDIO_STATUS_PLAY_ERROR) {
 			cdtvcr_play_done();

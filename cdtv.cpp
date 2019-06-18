@@ -58,7 +58,7 @@
 static volatile int subcodebufferoffset, subcodebufferoffsetw, subcodeoffset;
 static uae_u8 subcodebufferinuse[MAX_SUBCODEBUFFER];
 static uae_u8 subcodebuffer[MAX_SUBCODEBUFFER * SUB_CHANNEL_SIZE];
-static uae_sem_t sub_sem;
+static uae_sem_t sub_sem, cda_sem;
 
 static smp_comm_pipe requests;
 static volatile int thread_alive;
@@ -94,6 +94,7 @@ static int cdrom_command_cnt_in;
 
 static uae_u8 tp_a, tp_b, tp_c, tp_ad, tp_bd, tp_cd;
 static uae_u8 tp_imask, tp_cr, tp_air, tp_ilatch, tp_ilatch2;
+static int volstrobe1, volstrobe2;
 
 static void do_stch (void);
 
@@ -265,6 +266,8 @@ static int statusfunc (int status, int playpos)
 		return 150;
 	if (status == -2)
 		return 20;
+	if (status < 0)
+		return 0;
 	if (cd_audio_status != status) {
 		if (status == AUDIO_STATUS_PLAY_COMPLETE || status == AUDIO_STATUS_PLAY_ERROR) {
 			cd_audio_finished = 1;
@@ -280,7 +283,18 @@ static int statusfunc (int status, int playpos)
 	return 0;
 }
 
-static void do_play (void)
+static int statusfunc_imm(int status, int playpos)
+{
+	if (status == -3 || status > AUDIO_STATUS_IN_PROGRESS)
+		uae_sem_post(&cda_sem);
+	if (status < 0)
+		return 1;
+	if (status == AUDIO_STATUS_IN_PROGRESS)
+		cd_audio_status = status;
+	return statusfunc(status, playpos);
+}
+
+static void do_play(bool immediate)
 {
 	uae_u32 start = read_comm_pipe_u32_blocking (&requests);
 	uae_u32 end = read_comm_pipe_u32_blocking (&requests);
@@ -288,7 +302,7 @@ static void do_play (void)
 	subreset ();
 	sys_command_cd_pause (unitnum, 0);
 	sys_command_cd_volume (unitnum, (cd_volume_stored << 5) | (cd_volume_stored >> 5), (cd_volume_stored << 5) | (cd_volume_stored >> 5));
-	sys_command_cd_play (unitnum, start, end, 0, statusfunc, subfunc);
+	sys_command_cd_play (unitnum, start, end, 0, immediate ? statusfunc_imm : statusfunc, subfunc);
 }
 
 static void startplay (void)
@@ -731,7 +745,10 @@ static void *dev_thread (void *p)
 			cdaudiostopfp ();
 			break;
 		case 0x0110: // do_play!
-			do_play ();
+			do_play(false);
+			break;
+		case 0x0111: // do_play immediate
+			do_play(true);
 			break;
 		default:
 			cdrom_command_thread (b);
@@ -851,7 +868,6 @@ static void tp_check_interrupts (void)
 
 static void tp_bput (int addr, uae_u8 v)
 {
-	static int volstrobe1, volstrobe2;
 #ifdef CDTV_DEBUG_6525
 	if (addr != 1)
 		write_log (_T("6525 write %x=%02X PC=%x %d\n"), addr, v, M68K_GETPC, regs.s);
@@ -1641,7 +1657,8 @@ void cdtv_free (void)
 		write_comm_pipe_u32 (&requests, 0xffff, 1);
 		while (thread_alive > 0)
 			sleep_millis (10);
-		uae_sem_destroy (&sub_sem);
+		uae_sem_destroy(&sub_sem);
+		uae_sem_destroy(&cda_sem);
 	}
 	thread_alive = 0;
 	close_unit ();
@@ -1675,6 +1692,7 @@ bool cdtv_init(struct autoconfig_info *aci)
 	if (aci) {
 		aci->label = dmac_bank.name;
 		aci->hardwired = true;
+		aci->addrbank = &dmac_bank;
 		if (!aci->doinit) {
 			memcpy(aci->autoconfig_raw, dmacmemory, sizeof dmacmemory);
 			return true;
@@ -1687,7 +1705,8 @@ bool cdtv_init(struct autoconfig_info *aci)
 		uae_start_thread (_T("cdtv"), dev_thread, NULL, NULL);
 		while (!thread_alive)
 			sleep_millis (10);
-		uae_sem_init (&sub_sem, 0, 1);
+		uae_sem_init(&sub_sem, 0, 1);
+		uae_sem_init(&cda_sem, 0, 0);
 	}
 	write_comm_pipe_u32 (&requests, 0x0104, 1);
 
@@ -1708,7 +1727,7 @@ bool cdtv_init(struct autoconfig_info *aci)
 	}
 
 	int cardsize = 0;
-	if (is_board_enabled(aci->prefs, ROMTYPE_CDTVSRAM, 0)) {
+	if (aci && is_board_enabled(aci->prefs, ROMTYPE_CDTVSRAM, 0)) {
 		struct romconfig *rc = get_device_romconfig(aci->prefs, ROMTYPE_CDTVSRAM, 0);
 		cardsize = 64 << (rc->device_settings & 3);
 	}
@@ -1733,8 +1752,6 @@ bool cdtv_init(struct autoconfig_info *aci)
 	cdtv_battram_reset ();
 	open_unit ();
 	gui_flicker_led (LED_CD, 0, -1);
-	if (aci)
-		aci->addrbank = &dmac_bank;
 	return true;
 }
 
@@ -1888,6 +1905,8 @@ uae_u8 *restore_cdtv (uae_u8 *src)
 		cdrom_command_input[i] = restore_u8 ();
 	cdrom_command_cnt_in = restore_u8 ();
 	cdtv_sectorsize = restore_u16 ();
+	cd_audio_status = 0;
+	volstrobe1 = volstrobe2 = 1;
 
 	return src;
 }
@@ -1898,13 +1917,16 @@ void restore_cdtv_finish (void)
 		return;
 	cdtv_init (0);
 	get_toc ();
+	configured = 0xe90000;
+	map_banks_z2(&dmac_bank, configured >> 16, 0x10000 >> 16);
 	write_comm_pipe_u32 (&requests, 0x0104, 1);
 	if (cd_playing) {
-		write_comm_pipe_u32 (&requests, 0x0103, 1); // unpause
-		write_comm_pipe_u32 (&requests, 0x0110, 0); // play
+		cd_volume = cd_volume_stored;
+		write_comm_pipe_u32 (&requests, 0x0111, 0); // play
 		write_comm_pipe_u32 (&requests, last_play_pos, 0);
 		write_comm_pipe_u32 (&requests, last_play_end, 0);
 		write_comm_pipe_u32 (&requests, 0, 1);
+		uae_sem_wait(&cda_sem);
 	}
 }
 

@@ -474,6 +474,7 @@ static bool cdda_play_func2 (struct cdunit *cdu, int *outpos)
 	int oldtrack = -1;
 	int mode = currprefs.sound_cdaudio;
 	bool restart = false;
+	bool first = true;
 
 	cdu->thread_active = true;
 	memset(&cdu->cas, 0, sizeof(struct cd_audio_state));
@@ -699,6 +700,11 @@ static bool cdda_play_func2 (struct cdunit *cdu, int *outpos)
 						setstate (cdu, AUDIO_STATUS_PLAY_ERROR, -1);
 					goto end;
 				}
+			}
+
+			if (first) {
+				first = false;
+				setstate(cdu, -3, -1);
 			}
 
 			if (dofinish) {
