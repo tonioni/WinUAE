@@ -3957,6 +3957,7 @@ static void gen_opcode (unsigned int opcode)
 		addop_ce020 (curi, 0);
 		next_level_000 ();
 		if (cpu_level == 0) {
+			// 68000
 			genamode (NULL, Aipi, "7", sz_word, "sr", 1, 0, GF_NOREFILL);
 			genamode (NULL, Aipi, "7", sz_long, "pc", 1, 0, GF_NOREFILL);
 			printf("\tuaecptr oldpc = %s;\n", getpc);
@@ -3969,7 +3970,8 @@ static void gen_opcode (unsigned int opcode)
 			printf("\tbranch_stack_pop_rte(oldpc);\n");
 			makefromsr();
 		} else if (cpu_level == 1 && using_prefetch) {
-		    int old_brace_level = n_braces;
+			// 68010
+			int old_brace_level = n_braces;
 			printf("\tuaecptr oldpc = %s;\n", getpc);
 			printf ("\tuae_u16 newsr; uae_u32 newpc;\n");
 			printf ("\tfor (;;) {\n");
@@ -3985,7 +3987,7 @@ static void gen_opcode (unsigned int opcode)
 			printf ("\t\tnewsr = sr; newpc = pc;\n");
 		    printf ("\t\tif (frame == 0x0) { m68k_areg (regs, 7) += offset; break; }\n");
 		    printf ("\t\telse if (frame == 0x8) { m68k_areg (regs, 7) += offset + 50; break; }\n");
-		    printf ("\t\telse { m68k_areg (regs, 7) += offset; Exception_cpu(14); goto %s; }\n", endlabelstr);
+		    printf ("\t\telse { Exception_cpu(14); goto %s; }\n", endlabelstr);
 		    printf ("\t\tregs.sr = newsr; MakeFromSR ();\n}\n");
 		    pop_braces (old_brace_level);
 		    printf ("\tregs.sr = newsr;\n");
@@ -4015,24 +4017,33 @@ static void gen_opcode (unsigned int opcode)
 			printf ("\t\tnewsr = sr; newpc = pc;\n");
 			addcycles_ce020 (6);
 		    printf ("\t\tif (frame == 0x0) { m68k_areg (regs, 7) += offset; break; }\n");
-		    printf ("\t\telse if (frame == 0x1) { m68k_areg (regs, 7) += offset; }\n");
-		    printf ("\t\telse if (frame == 0x2) { m68k_areg (regs, 7) += offset + 4; break; }\n");
+			if (cpu_level >= 2) {
+				// 68020+
+				printf ("\t\telse if (frame == 0x1) { m68k_areg (regs, 7) += offset; }\n");
+				printf ("\t\telse if (frame == 0x2) { m68k_areg (regs, 7) += offset + 4; break; }\n");
+			}
 			if (cpu_level >= 4) {
+				// 68040+
 				printf ("\t\telse if (frame == 0x3) { m68k_areg (regs, 7) += offset + 4; break; }\n");
 			}
    		    if (using_mmu == 68060) {
 				printf ("\t\telse if (frame == 0x4) { m68k_do_rte_mmu060 (a); m68k_areg (regs, 7) += offset + 8; break; }\n");
 			} else if (cpu_level >= 4) {
+				// 68040+
 				printf ("\t\telse if (frame == 0x4) { m68k_areg (regs, 7) += offset + 8; break; }\n");
 			}
-			if (cpu_level == 1) // 68010 only
-				printf ("\t\telse if (frame == 0x8) { m68k_areg (regs, 7) += offset + 50; break; }\n");
+			if (cpu_level == 1) {
+				// 68010 only
+				printf("\t\telse if (frame == 0x8) { m68k_areg (regs, 7) += offset + 50; break; }\n");
+			}
 			if (using_mmu == 68040) {
 		    	printf ("\t\telse if (frame == 0x7) { m68k_do_rte_mmu040 (a); m68k_areg (regs, 7) += offset + 52; break; }\n");
 			} else if (cpu_level >= 4) {
+				// 68040+
 		    	printf ("\t\telse if (frame == 0x7) { m68k_areg (regs, 7) += offset + 52; break; }\n");
 			}
-			if (cpu_level == 2 || cpu_level == 3) { // 68020/68030 only
+			if (cpu_level == 2 || cpu_level == 3) {
+				// 68020/68030 only
 				printf ("\t\telse if (frame == 0x9) { m68k_areg (regs, 7) += offset + 12; break; }\n");
 				if (using_mmu == 68030) {
 					if (using_prefetch_020) {
@@ -4047,7 +4058,7 @@ static void gen_opcode (unsigned int opcode)
 				    printf ("\t\telse if (frame == 0xb) { m68k_areg (regs, 7) += offset + 84; break; }\n");
 				}
 			}
-		    printf ("\t\telse { m68k_areg (regs, 7) += offset; Exception_cpu(14); goto %s; }\n", endlabelstr);
+		    printf ("\t\telse { Exception_cpu(14); goto %s; }\n", endlabelstr);
 		    printf ("\t\tregs.sr = newsr;\n");
 			makefromsr_t0();
 			printf ("}\n");
@@ -4133,6 +4144,12 @@ static void gen_opcode (unsigned int opcode)
 	case i_RTS:
 		addop_ce020 (curi, 0);
 		printf ("\tuaecptr pc = %s;\n", getpc);
+		if (cpu_level <= 1 && using_exception_3) {
+			printf("\tif (m68k_areg(regs, 7) & 1) {\n");
+			printf("\t\texception3_read(opcode, m68k_areg(regs, 7));\n");
+			printf("\t\tgoto %s;\n", endlabelstr);
+			printf("\t}\n");
+		}
 		if (using_indirect > 0 && !using_ce020 && !using_prefetch_020 && !using_ce) {
 			printf("\tm68k_do_rtsi_jit ();\n");
 		} else if (using_mmu) {
@@ -4202,10 +4219,10 @@ static void gen_opcode (unsigned int opcode)
 		printf("\tuaecptr oldpc = %s;\n", getpc);
 		printf("\tuaecptr nextpc = oldpc + %d;\n", m68k_pc_offset);
 		if (using_exception_3) {
-			printf ("\tif (srca & 1) {\n");
-			printf ("\t\texception3i (opcode, srca);\n");
-			printf ("\t\tgoto %s;\n", endlabelstr);
-			printf ("\t}\n");
+			printf("\tif (srca & 1) {\n");
+			printf("\t\texception3i (opcode, srca);\n");
+			printf("\t\tgoto %s;\n", endlabelstr);
+			printf("\t}\n");
 			need_endlabel = 1;
 		}
 		if (using_mmu) {
@@ -4221,10 +4238,16 @@ static void gen_opcode (unsigned int opcode)
 				if (cpu_level <= 1 && using_prefetch)
 					printf ("\tnextpc += 2;\n");
 			}
+			printf("\tm68k_areg (regs, 7) -= 4;\n");
+			if (using_exception_3 && cpu_level <= 1) {
+				printf("\tif (m68k_areg(regs, 7) & 1) {\n");
+				printf("\t\texception3_write(opcode, m68k_areg(regs, 7));\n");
+				printf("\t\tgoto %s;\n", endlabelstr);
+				printf("\t}\n");
+			}
 			setpc ("srca");
 			clear_m68k_offset();
 			fill_prefetch_1 (0);
-			printf ("\tm68k_areg (regs, 7) -= 4;\n");
 			if (using_ce || using_prefetch) {
 				printf ("\t%s (m68k_areg (regs, 7), nextpc >> 16);\n", dstw);
 				printf ("\t%s (m68k_areg (regs, 7) + 2, nextpc);\n", dstw);
@@ -4274,10 +4297,17 @@ static void gen_opcode (unsigned int opcode)
 		}
 		printf ("\ts = (uae_s32)src + 2;\n");
 		if (using_exception_3) {
-			printf ("\tif (src & 1) {\n");
-			printf ("\t\texception3b (opcode, %s + s, 0, 1, %s + s);\n", getpc, getpc);
-			printf ("\t\tgoto %s;\n", endlabelstr);
-			printf ("\t}\n");
+			printf("\tif (src & 1) {\n");
+			printf("\t\texception3b(opcode, %s + s, 0, 1, %s + s);\n", getpc, getpc);
+			printf("\t\tgoto %s;\n", endlabelstr);
+			printf("\t}\n");
+			if (cpu_level <= 1) {
+				printf("\tif (m68k_areg(regs, 7) & 1) {\n");
+				printf("\t\tm68k_areg(regs, 7) -= 4;\n");
+				printf("\t\texception3b(opcode,  m68k_areg(regs, 7), true, false, %s + 2);\n", getpc);
+				printf("\t\tgoto %s;\n", endlabelstr);
+				printf("\t}\n");
+			}
 			need_endlabel = 1;
 		}
 		addcycles000 (2);

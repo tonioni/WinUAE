@@ -28,6 +28,7 @@ const struct mem_labels int_labels[] =
 	{ _T("TRACE"),      0x0024 },
 	{ _T("LINEA EMU"),  0x0028 },
 	{ _T("LINEF EMU"),  0x002C },
+	{ _T("FORMAT ERR"), 0x0038 },
 	{ _T("INT Uninit"), 0x003C },
 	{ _T("INT Unjust"), 0x0060 },
 	{ _T("Lvl 1 Int"),  0x0064 },
