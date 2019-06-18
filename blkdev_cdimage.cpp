@@ -1805,6 +1805,9 @@ static int parsecue (struct cdunit *cdu, struct zfile *zcue, const TCHAR *img)
 					if (!secoffset) {
 						// secoffset == 0: same file contained also previous track
 						t->offset = fileoffset - pregap * t->size;
+					} else {
+						// pregap was already added, do not add extra silence.
+						t->pregap = 0;
 					}
 					t->address += postgap;
 					if (fnametypeid == AUDENC_PCM && t->handle) {
