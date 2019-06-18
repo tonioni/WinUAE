@@ -201,6 +201,7 @@ static struct card_data cards_set[MAX_EXPANSION_BOARD_SPACE];
 static struct card_data *cards[MAX_EXPANSION_BOARD_SPACE];
 
 static int ecard, cardno, z3num;
+static int restore_cardno;
 static addrbank *expamem_bank_current;
 
 static uae_u16 uae_id;
@@ -2758,8 +2759,10 @@ static void reset_ac(struct uae_prefs *p)
 	else
 		uae_id = hackers_id;
 
-	for (int i = 0; i < MAX_EXPANSION_BOARD_SPACE; i++) {
-		memset(&cards_set[i], 0, sizeof(struct card_data));
+	if (!savestate_state) {
+		for (int i = 0; i < MAX_EXPANSION_BOARD_SPACE; i++) {
+			memset(&cards_set[i], 0, sizeof(struct card_data));
+		}
 	}
 
 	ecard = 0;
@@ -3936,57 +3939,120 @@ uae_u8 *restore_expansion (uae_u8 *src)
 	return src;
 }
 
-uae_u8 *save_expansion_info(int *len, uae_u8 *dstptr)
+uae_u8 *save_expansion_board(int *len, uae_u8 *dstptr, int cardnum)
 {
 	uae_u8 *dst, *dstbak;
+	if (cardnum >= cardno)
+		return NULL;
 	if (dstptr)
 		dst = dstbak = dstptr;
 	else
-		dstbak = dst = xmalloc(uae_u8, 100 + MAX_EXPANSION_BOARD_SPACE * 100);
-	save_u32(1);
+		dstbak = dst = xmalloc(uae_u8, 1000);
+	save_u32(3);
 	save_u32(0);
-	save_u32(cardno);
-	for (int i = 0; i < cardno; i++) {
-		struct card_data *ec = cards[i];
-		if (ec->rc) {
-			save_u32(ec->rc->back->device_type);
-			save_u32(ec->rc->back->device_num);
-			save_string(ec->rc->romfile);
-			save_string(ec->rc->romident);
-		} else {
-			save_u32(0xffffffff);
-		}
-		save_u32(ec->base);
-		save_u32(ec->size);
-		save_u32(ec->flags);
-		save_string(ec->name);
+	save_u32(cardnum);
+	struct card_data *ec = cards[cardnum];
+	save_u32(ec->base);
+	save_u32(ec->size);
+	save_u32(ec->flags);
+	save_string(ec->name);
+	for (int j = 0; j < 16; j++) {
+		save_u8(ec->aci.autoconfig_bytes[j]);
 	}
-	save_u32(0);
+	struct romconfig *rc = ec->rc;
+	if (rc) {
+		save_u32(rc->back->device_type);
+		save_u32(rc->back->device_num);
+		save_string(rc->romfile);
+		save_string(rc->romident);
+		save_u32(rc->device_id);
+		save_u32(rc->device_settings);
+		save_string(rc->configtext);
+	} else {
+		save_u32(0xffffffff);
+	}
 	*len = dst - dstbak;
 	return dstbak;
 }
 
-uae_u8 *restore_expansion_info(uae_u8 *src)
+uae_u8 *restore_expansion_board(uae_u8 *src)
 {
-	if (restore_u32() != 1)
+	if (!src) {
+		restore_cardno = 0;
+		return NULL;
+	}
+	TCHAR *s;
+	uae_u32 flags = restore_u32();
+	if (!(flags & 2))
 		return src;
 	restore_u32();
-	int num = restore_u32();
-	for (int i = 0; i < num; i++) {
-		int romtype = restore_u32();
-		if (romtype != 0xffffffff) {
-			restore_u32();
-			restore_string();
-			restore_string();
-		}
-		restore_u32();
-		restore_u32();
-		restore_u32();
-		restore_string();
+	int cardnum = restore_u32();
+	restore_cardno = cardnum + 1;
+	struct card_data *ec = &cards_set[cardnum];
+	cards[cardnum] = ec;
+
+	ec->base = restore_u32();
+	ec->size = restore_u32();
+	ec->flags = restore_u32();
+	s = restore_string();
+	xfree(s);
+	for (int j = 0; j < 16; j++) {
+		ec->aci.autoconfig_bytes[j] = restore_u8();
 	}
-	restore_u32();
+
+	uae_u32 dev_num = 0;
+	uae_u32 romtype = restore_u32();
+	if (romtype != 0xffffffff) {
+		dev_num = restore_u32();
+		ec->aci.devnum = dev_num;
+		if (!get_device_rom(&currprefs, romtype, dev_num, NULL)) {
+			get_device_rom_new(&currprefs, romtype, dev_num, NULL);
+		}
+		struct romconfig *rc = get_device_romconfig(&currprefs, romtype, dev_num);
+		if (rc) {
+			ec->rc = rc;
+			ec->ert = get_device_expansion_rom(romtype);
+			s = restore_string();
+			_tcscpy(rc->romfile, s);
+			xfree(s);
+			s = restore_string();
+			_tcscpy(rc->romident, s);
+			xfree(s);
+			rc->device_id = restore_u32();
+			rc->device_settings = restore_u32();
+			s = restore_string();
+			_tcscpy(rc->configtext, s);
+			xfree(s);
+		}
+	}
 	return src;
 }
+
+void restore_expansion_finish(void)
+{
+	cardno = restore_cardno;
+	for (int i = 0; i < cardno; i++) {
+		struct card_data *ec = &cards_set[i];
+		cards[i] = ec;
+		struct romconfig *rc = ec->rc;
+		// Handle only IO boards, RAM boards are handled differently
+		if (rc && ec->ert) {
+			ec->aci.doinit = false;
+			ec->aci.start = ec->base;
+			ec->aci.size = ec->size;
+			_tcscpy(ec->aci.name, ec->ert->friendlyname);
+			if (ec->ert->init) {
+				if (ec->ert->init(&ec->aci)) {
+					if (ec->aci.addrbank) {
+						map_banks(ec->aci.addrbank, ec->base >> 16, ec->size >> 16, 0);
+					}
+				}
+			}
+			ec->aci.doinit = true;
+		}
+	}
+}
+
 
 #endif /* SAVESTATE */
 

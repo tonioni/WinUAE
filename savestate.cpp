@@ -782,8 +782,8 @@ void restore_state (const TCHAR *filename)
 		else if (!_tcsncmp (name, _T("2065"), 4))
 			end = restore_a2065 (chunk);
 #endif
-		else if (!_tcsncmp (name, _T("EXPI"), 4))
-			end = restore_expansion_info(chunk);
+		else if (!_tcsncmp (name, _T("EXPB"), 4))
+			end = restore_expansion_board(chunk);
 		else if (!_tcsncmp (name, _T("DMWP"), 4))
 			end = restore_debug_memwatch (chunk);
 		else if (!_tcsncmp(name, _T("PIC0"), 4))
@@ -830,6 +830,7 @@ void savestate_restore_finish (void)
 	restore_audio_finish ();
 	restore_disk_finish ();
 	restore_blitter_finish ();
+	restore_expansion_finish();
 	restore_akiko_finish ();
 #ifdef CDTV
 	restore_cdtv_finish ();
@@ -1001,9 +1002,11 @@ static int save_state_internal (struct zfile *f, const TCHAR *description, int c
 	save_chunk (f, dst, len, _T("CINP"), 0);
 	xfree (dst);
 
-	dst = save_custom_agacolors (&len, 0);
-	save_chunk (f, dst, len, _T("AGAC"), 0);
-	xfree (dst);
+	dst = save_custom_agacolors(&len, 0);
+	if (dst) {
+		save_chunk(f, dst, len, _T("AGAC"), 0);
+		xfree(dst);
+	}
 
 	_tcscpy (name, _T("SPRx"));
 	for (i = 0; i < 8; i++) {
@@ -1034,8 +1037,14 @@ static int save_state_internal (struct zfile *f, const TCHAR *description, int c
 	xfree (dst);
 
 #ifdef AUTOCONFIG
-	dst = save_expansion_info(&len, 0);
-	save_chunk(f, dst, len, _T("EXPI"), 0);
+	i = 0;
+	for (;;) {
+		dst = save_expansion_board(&len, 0, i);
+		if (!dst)
+			break;
+		save_chunk(f, dst, len, _T("EXPB"), 0);
+		i++;
+	}
 	dst = save_expansion(&len, 0);
 	save_chunk(f, dst, len, _T("EXPA"), 0);
 #endif
