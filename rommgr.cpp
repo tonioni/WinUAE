@@ -95,7 +95,7 @@ struct romdata *getromdatabypath (const TCHAR *path)
 	return NULL;
 }
 
-#define NEXT_ROM_ID 250
+#define NEXT_ROM_ID 253
 
 #define ALTROM(id,grp,num,size,flags,crc32,a,b,c,d,e) \
 { _T("X"), 0, 0, 0, 0, 0, size, id, 0, 0, flags, (grp << 16) | num, 0, NULL, crc32, a, b, c, d, e },
@@ -393,7 +393,7 @@ static struct romdata roms[] = {
 	0x00447765, 0x2644e7cb,0xba5cc54e,0x880b4b42,0x49fd1dd1,0x2eb4a3bc, NULL, _T("fastlanez3.rom") },
 	{ _T("Oktagon 2008"), 6, 12, 6, 12, _T("OKTAGON\0"), 32768, 103, 0, 0, ROMTYPE_OKTAGON, 0, 0, NULL,
 	0xbb0d2f6a, 0x56c441fa,0x37d19339,0x3081b2e8,0xceae823b,0xc7e97e49, NULL, _T("oktagon2008.rom") },
-	{ _T("Warp Engine A4000"), 0, 0, 0, 0, _T("WARPENGINE\0WARPENGINEA4000\0"), 32768, 93, 0, 0, ROMTYPE_CB_WENGINE, 0, 0, NULL,
+	{ _T("Warp Engine"), 0, 0, 0, 0, _T("WARPENGINE\0"), 32768, 93, 0, 0, ROMTYPE_CB_WENGINE, 0, 0, NULL,
 	0x4deb574a, 0x6e6c95ff,0xe8448391,0xd36c5b68,0xc9065cb0,0x702a7d27 },
 	{ _T("TekMagic 2040/2060"), 1, 0, 1, 0, _T("TEKMAGIC\0TEKMAGIC2040\0TEKMAGIC2060\0"), 65536, 104, 0, 0, ROMTYPE_CB_TEKMAGIC, 0, 0, NULL,
 	0x9e9781d5, 0xf65b60d1,0x4300c50f,0x2ed17cf4,0x4dcfdef9,0x16697bc9, NULL,  _T("tekmagic2060.rom") },
@@ -618,6 +618,12 @@ static struct romdata roms[] = {
 	0x086e2716b, 0x075b50cb,0x166e00ac,0x4016ef7f,0x02532e86,0xe73b7711, NULL, NULL },
 	{ _T("Pacific Peripherals Overdrive v2.0"), 2, 0, 2, 0, _T("OVERDRIVE\0"), 8192, 247, 0, 0, ROMTYPE_OVERDRIVE, 0, 0, NULL,
 	0xebe42aa6, 0xdff761c2,0x429d0d26,0x2151d831,0x12746f83,0x3b8d36f0, NULL, NULL },
+	{ _T("Archos Overdrive HD"), 0, 0, 0, 0, _T("ARCHOSHD\0"), 32768, 250, 0, 0, ROMTYPE_ARCHOSHD, 0, 0, NULL,
+	0x30c0e3f9, 0x90014e97,0x700333a7,0x931b382f,0xe672b6e4,0x4b7b8acc, NULL, NULL },
+	{ _T("Trumpcard 500AT v1.1"), 0, 0, 0, 0, _T("ARCHOSHD\0"), 32768, 251, 0, 0, ROMTYPE_IVST500AT, 0, 0, NULL,
+	0xb6467cb8, 0xbc1cd85f,0x16011691,0x32a2a8d6, 0x2ee38666,0x520d5cf1, NULL, NULL },
+	{ _T("Trumpcard 500AT v1.2"), 0, 0, 0, 0, _T("ARCHOSHD\0"), 32768, 252, 0, 0, ROMTYPE_IVST500AT, 0, 0, NULL,
+	0x3eb87eb3, 0xff41889e,0x641114e5,0x5ec1f784,0xd79216ce,0xe9a74a40, NULL, NULL },
 
 	{ _T("CyberStorm MK I 68040"), 0, 0, 0, 0, _T("CSMKI\0"), 32768, 95, 0, 0, ROMTYPE_CB_CSMK1, 0, 0, NULL,
 	  0, 0, 0, 0, 0, 0, NULL, _T("cyberstormmk1_040.rom") },

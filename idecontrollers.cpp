@@ -597,7 +597,7 @@ static int get_accessx_reg(uaecptr addr, struct ide_board *board, int *portnum)
 static int get_ivst500at_reg(uaecptr addr, struct ide_board *board, int *portnum)
 {
 	*portnum = 0;
-	if (addr & 0x8000)
+	if (addr & (0x4000 | 0x8000))
 		return -1;
 	if (!(addr & 1))
 		return -1;
@@ -963,6 +963,8 @@ static uae_u32 ide_read_byte(struct ide_board *board, uaecptr addr)
 		} else if (board->rom && (addr & 0x8000)) {
 			int offset = addr & 0x7fff;
 			v = board->rom[offset];
+		} else if ((addr & 0x4000) && (addr & 1)) {
+			v = ide_irq_check(board->ide[0], false) ? 1 : 0;
 		}
 
 	}
@@ -2694,6 +2696,7 @@ bool trumpcard500at_init(struct autoconfig_info *aci)
 	ide->rom_size = 32768;
 	ide->rom_mask = 32768 - 1;
 	ide->keepautoconfig = false;
+	ide->intena = true;
 
 	ide->rom = xcalloc(uae_u8, 32768);
 	load_rom_rc(aci->rc, ROMTYPE_IVST500AT, 16384, 0, ide->rom, 32768, LOADROM_EVENONLY_ODDONE);
