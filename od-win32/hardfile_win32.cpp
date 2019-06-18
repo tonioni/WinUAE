@@ -3541,6 +3541,7 @@ int win32_hardfile_media_change (const TCHAR *drvname, int inserted)
 			}
 		}
 	}
+#if 0
 	for (i = 0; i < currprefs.mountitems; i++) {
 		extern struct hd_hardfiledata *pcmcia_sram;
 		int reopen = 0;
@@ -3549,7 +3550,7 @@ int win32_hardfile_media_change (const TCHAR *drvname, int inserted)
 			hmc_check (&pcmcia_sram->hfd, uci, &rescanned, &reopen, &gotinsert, drvname, inserted);
 		}
 	}
-
+#endif
 	//write_log (_T("win32_hardfile_media_change returned %d\n"), gotinsert);
 	return gotinsert;
 }

@@ -380,6 +380,7 @@ struct romconfig
 	TCHAR romident[256];
 	uae_u32 board_ram_size;
 	bool autoboot_disabled;
+	bool inserted;
 	int device_id;
 	int device_settings;
 	int subtype;

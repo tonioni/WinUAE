@@ -2347,6 +2347,7 @@ void hardfile_do_disk_change (struct uaedev_config_data *uci, bool insert)
 	int fsid = uci->configoffset;
 	struct hardfiledata *hfd;
 
+#if 0
 	if (uci->ci.controller_type == HD_CONTROLLER_TYPE_PCMCIA) {
 		if (uci->ci.controller_type_unit == 0) {
 			gayle_modify_pcmcia_sram_unit (&uci->ci, insert);
@@ -2355,6 +2356,7 @@ void hardfile_do_disk_change (struct uaedev_config_data *uci, bool insert)
 		}
 		return;
 	}
+#endif
 	hfd = get_hardfile_data (fsid);
 	if (!hfd)
 		return;

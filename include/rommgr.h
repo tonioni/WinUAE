@@ -187,6 +187,9 @@ extern int decode_cloanto_rom_do (uae_u8 *mem, int size, int real_size);
 #define ROMTYPE_PRELUDE		0x0010007c
 #define ROMTYPE_PRELUDE1200	0x0010007d
 #define ROMTYPE_TANDEM		0x0010007e
+#define ROMTYPE_ARCHOSHD	0x0010007f
+#define ROMTYPE_PCMCIASRAM	0x00100080
+#define ROMTYPE_PCMCIAIDE	0x00100081
 
 #define ROMTYPE_NOT			0x00800000
 #define ROMTYPE_QUAD		0x01000000

@@ -2143,6 +2143,8 @@ const struct expansionromtype *get_unit_expansion_rom(int hdunit)
 		return &expansionroms[hdunit - HD_CONTROLLER_TYPE_SCSI_EXPANSION_FIRST];
 	if (hdunit >= HD_CONTROLLER_TYPE_IDE_EXPANSION_FIRST && hdunit <= HD_CONTROLLER_TYPE_IDE_LAST)
 		return &expansionroms[hdunit - HD_CONTROLLER_TYPE_IDE_EXPANSION_FIRST];
+	if (hdunit >= HD_CONTROLLER_TYPE_CUSTOM_FIRST && hdunit <= HD_CONTROLLER_TYPE_CUSTOM_LAST)
+		return &expansionroms[hdunit - HD_CONTROLLER_TYPE_CUSTOM_FIRST];
 	return NULL;
 }
 

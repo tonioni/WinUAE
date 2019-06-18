@@ -39,6 +39,7 @@
 #define PCMCIA_SRAM 1
 #define PCMCIA_IDE 2
 #define PCMCIA_NE2000 3
+#define PCMCIA_ARCHOSHD 4
 
 /*
 600000 to 9FFFFF	4 MB	Credit Card memory if CC present
@@ -146,6 +147,7 @@ DE0000 to DEFFFF	64 KB Motherboard resources
 #define PCMCIA_IDE_ID 2
 
 static struct ide_hdf *idedrive[TOTAL_IDE * 2];
+static struct ide_hdf *archoshd[2];
 struct hd_hardfiledata *pcmcia_sram;
 
 static int pcmcia_card;
@@ -158,7 +160,7 @@ static int gayle_id_cnt;
 static uae_u8 gayle_irq, gayle_int, gayle_cs, gayle_cs_mask, gayle_cfg;
 static int ide_splitter;
 
-static struct ide_thread_state gayle_its;
+static struct ide_thread_state gayle_its, pcmcia_its;
 
 static bool ne2000_pcmcia_irq;
 
@@ -838,7 +840,6 @@ static void REGPARAM2 gayle2_bput (uaecptr addr, uae_u32 value)
 }
 
 static uae_u8 ramsey_config;
-static int garyidoffset;
 static int gary_coldboot;
 int gary_timeout;
 int gary_toenb;
@@ -848,11 +849,9 @@ static void mbres_write (uaecptr addr, uae_u32 val, int size)
 	addr &= 0xffff;
 	if (MBRES_LOG > 0)
 		write_log (_T("MBRES_WRITE %08X=%08X (%d) PC=%08X S=%d\n"), addr, val, size, M68K_GETPC, regs.s);
-	if (addr < 0x8000 && (1 || regs.s)) { /* CPU FC = supervisor only */
+	if (addr < 0x8000) {
 		uae_u32 addr2 = addr & 3;
 		uae_u32 addr64 = (addr >> 6) & 3;
-		if (addr == 0x1002)
-			garyidoffset = -1;
 		if (addr64 == 0 && addr2 == 0x03)
 			ramsey_config = val;
 		if (addr2 == 0x02)
@@ -870,47 +869,37 @@ static uae_u32 mbres_read (uaecptr addr, int size)
 
 	addr &= 0xffff;
 
-	if (1 || regs.s) { /* CPU FC = supervisor only (only newest ramsey/gary? never implemented?) */
-		uae_u32 addr2 = addr & 3;
-		uae_u32 addr64 = (addr >> 6) & 3;
-		/* Gary ID (I don't think this exists in real chips..) */
-		if (addr == 0x1002 && currprefs.cs_fatgaryrev >= 0) {
-			garyidoffset++;
-			garyidoffset &= 7;
-			v = (currprefs.cs_fatgaryrev << garyidoffset) & 0x80;
-		}
-		for (;;) {
-			if (addr64 == 1 && addr2 == 0x03) { /* RAMSEY revision */
-				if (currprefs.cs_ramseyrev >= 0)
-					v = currprefs.cs_ramseyrev;
-				break;
-			}
-			if (addr64 == 0 && addr2 == 0x03) { /* RAMSEY config */
-				if (currprefs.cs_ramseyrev >= 0)
-					v = ramsey_config;
-				break;
-			}
-			if (addr2 == 0x03) {
-				v = 0xff;
-				break;
-			}
-			if (addr2 == 0x02) { /* coldreboot flag */
-				if (currprefs.cs_fatgaryrev >= 0)
-					v = gary_coldboot ? 0x80 : 0x00;
-			}
-			if (addr2 == 0x01) { /* toenb flag */
-				if (currprefs.cs_fatgaryrev >= 0)
-					v = gary_toenb ? 0x80 : 0x00;
-			}
-			if (addr2 == 0x00) { /* timeout flag */
-				if (currprefs.cs_fatgaryrev >= 0)
-					v = gary_timeout ? 0x80 : 0x00;
-			}
-			v |= 0x7f;
+	uae_u32 addr2 = addr & 3;
+	uae_u32 addr64 = (addr >> 6) & 3;
+	for (;;) {
+		if (addr64 == 1 && addr2 == 0x03) { /* RAMSEY revision */
+			if (currprefs.cs_ramseyrev >= 0)
+				v = currprefs.cs_ramseyrev;
 			break;
 		}
-	} else {
-		v = 0xff;
+		if (addr64 == 0 && addr2 == 0x03) { /* RAMSEY config */
+			if (currprefs.cs_ramseyrev >= 0)
+				v = ramsey_config;
+			break;
+		}
+		if (addr2 == 0x03) {
+			v = 0xff;
+			break;
+		}
+		if (addr2 == 0x02) { /* coldreboot flag */
+			if (currprefs.cs_fatgaryrev >= 0)
+				v = gary_coldboot ? 0x80 : 0x00;
+		}
+		if (addr2 == 0x01) { /* toenb flag */
+			if (currprefs.cs_fatgaryrev >= 0)
+				v = gary_toenb ? 0x80 : 0x00;
+		}
+		if (addr2 == 0x00) { /* timeout flag */
+			if (currprefs.cs_fatgaryrev >= 0)
+				v = gary_timeout ? 0x80 : 0x00;
+		}
+		v |= 0x7f;
+		break;
 	}
 	if (MBRES_LOG > 0)
 		write_log (_T("MBRES_READ %08X=%08X (%d) PC=%08X S=%d\n"), addr, v, size, M68K_GETPC, regs.s);
@@ -992,6 +981,8 @@ void gayle_hsync(void)
 		ne2000->hsync(ne2000_board_state);
 	if (ide_interrupt_hsync(idedrive[0]) || ide_interrupt_hsync(idedrive[2]) || ide_interrupt_hsync(idedrive[4]) || checkpcmciane2000irq())
 		devices_rethink_all(rethink_gayle);
+	if (archoshd[0])
+		ide_interrupt_hsync(archoshd[0]);
 }
 
 static uaecptr from_gayle_pcmcmia(uaecptr addr)
@@ -1369,9 +1360,11 @@ static void initsramattr (int size, int readonly)
 	*p++ = 0xff;
 }
 
-static void checkflush (int addr)
+static void check_sram_flush (int addr)
 {
 	if (pcmcia_card == 0 || pcmcia_sram == 0)
+		return;
+	if (pcmcia_readonly)
 		return;
 	if (addr >= 0 && pcmcia_common[0] == 0 && pcmcia_common[1] == 0 && pcmcia_common[2] == 0)
 		return; // do not flush periodically if used as a ram expension
@@ -1402,7 +1395,7 @@ static void checkflush (int addr)
 static int freepcmcia (int reset)
 {
 	if (pcmcia_sram) {
-		checkflush (-1);
+		check_sram_flush(-1);
 		if (reset) {
 			hdf_hd_close (pcmcia_sram);
 			xfree (pcmcia_sram);
@@ -1516,6 +1509,34 @@ static int initpcmcia (const TCHAR *path, int readonly, int type, int reset, str
 			pcmcia_card = 1;
 			initne2000attr();
 		}
+	
+	} else if (type == PCMCIA_ARCHOSHD) {
+
+		pcmcia_sram->hfd.drive_empty = 0;
+		pcmcia_common_size = 0;
+		pcmcia_readonly = 1;
+		pcmcia_type = type;
+		pcmcia_common_size = 4 * 1024 * 1024;
+		pcmcia_common = xcalloc(uae_u8, pcmcia_common_size);
+		pcmcia_attrs_size = 0;
+		pcmcia_card = 1;
+
+		struct romconfig *rc = get_device_romconfig(&currprefs, ROMTYPE_ARCHOSHD, 0);
+		if (rc) {
+			load_rom_rc(rc, ROMTYPE_ARCHOSHD, 32768, 0, pcmcia_common, pcmcia_common_size, 0);
+		}
+
+		pcmcia_its.idetable = archoshd;
+		pcmcia_its.idetotal = 2;
+		start_ide_thread(&pcmcia_its);
+		alloc_ide_mem(archoshd, 2, &pcmcia_its);
+
+		if (reset && path) {
+			add_ide_unit(archoshd, 2, 0, uci, rc);
+			archoshd[0]->byteswap = true;
+		}
+		ide_initialize(archoshd, 0);
+
 	}
 
 	if (pcmcia_card && !(gayle_cs & GAYLE_CS_DIS)) {
@@ -1528,7 +1549,17 @@ static int initpcmcia (const TCHAR *path, int readonly, int type, int reset, str
 	return 1;
 }
 
-static uae_u32 gayle_common_read (uaecptr addr)
+static int archoshd_reg(uaecptr addr)
+{
+	if ((addr & 0x7f80) != 0x7f80)
+		return -1;
+	int reg = (addr >> 2) & 7;
+	if (addr & 0x40)
+		reg |= IDE_SECONDARY;
+	return reg;
+}
+
+static uae_u32 gayle_common_read_byte(uaecptr addr)
 {
 	uae_u8 v = 0;
 	if (PCMCIA_LOG > 2)
@@ -1537,25 +1568,40 @@ static uae_u32 gayle_common_read (uaecptr addr)
 		return 0;
 	addr -= PCMCIA_COMMON_START & (PCMCIA_COMMON_SIZE - 1);
 	addr &= PCMCIA_COMMON_SIZE - 1;
-	if (addr < pcmcia_common_size)
+	if (addr < pcmcia_common_size) {
+		if (pcmcia_type == PCMCIA_ARCHOSHD) {
+			if (addr >= 0x7fa0) {
+				int reg = archoshd_reg(addr);
+				v = ide_read_reg(archoshd[0], reg);
+				return v;
+			}
+		}
 		v = pcmcia_common[addr];
+	}
 	return v;
 }
 
-static void gayle_common_write (uaecptr addr, uae_u32 v)
+static void gayle_common_write_byte(uaecptr addr, uae_u32 v)
 {
 	if (PCMCIA_LOG > 2)
 		write_log (_T("PCMCIA COMMON W: %x=%x %x\n"), addr, v, M68K_GETPC);
 	if (!pcmcia_common_size)
 		return;
-	if (pcmcia_readonly)
-		return;
 	addr -= PCMCIA_COMMON_START & (PCMCIA_COMMON_SIZE - 1);
 	addr &= PCMCIA_COMMON_SIZE - 1;
 	if (addr < pcmcia_common_size) {
-		if (pcmcia_common[addr] != v) {
-			checkflush (addr);
-			pcmcia_common[addr] = v;
+		if (pcmcia_type == PCMCIA_ARCHOSHD) {
+			if (addr >= 0x7fa0) {
+				int reg = archoshd_reg(addr);
+				ide_write_reg(archoshd[0], reg, v);
+			}
+		} else {
+			if (pcmcia_readonly)
+				return;
+			if (pcmcia_common[addr] != v) {
+				check_sram_flush(addr);
+				pcmcia_common[addr] = v;
+			}
 		}
 	}
 }
@@ -1696,13 +1742,17 @@ static uae_u32 REGPARAM2 gayle_common_lget (uaecptr addr)
 static uae_u32 REGPARAM2 gayle_common_wget (uaecptr addr)
 {
 	uae_u16 v;
-	v = gayle_common_bget (addr) << 8;
-	v |= gayle_common_bget (addr + 1);
+	if (pcmcia_type == PCMCIA_ARCHOSHD && archoshd_reg(addr) >= 0) {
+		v = ide_get_data(archoshd[0]);
+	} else {
+		v = gayle_common_bget(addr) << 8;
+		v |= gayle_common_bget(addr + 1);
+	}
 	return v;
 }
 static uae_u32 REGPARAM2 gayle_common_bget (uaecptr addr)
 {
-	return gayle_common_read (addr);
+	return gayle_common_read_byte (addr);
 }
 static void REGPARAM2 gayle_common_lput (uaecptr addr, uae_u32 value)
 {
@@ -1711,25 +1761,30 @@ static void REGPARAM2 gayle_common_lput (uaecptr addr, uae_u32 value)
 }
 static void REGPARAM2 gayle_common_wput (uaecptr addr, uae_u32 value)
 {
-	gayle_common_bput (addr, value >> 8);
-	gayle_common_bput (addr + 1, value & 0xff);
+	if (pcmcia_type == PCMCIA_ARCHOSHD && archoshd_reg(addr) >= 0) {
+		ide_put_data(archoshd[0], value);
+	} else {
+		gayle_common_bput(addr, value >> 8);
+		gayle_common_bput(addr + 1, value & 0xff);
+	}
 }
 static void REGPARAM2 gayle_common_bput (uaecptr addr, uae_u32 value)
 {
-	gayle_common_write (addr, value);
+	gayle_common_write_byte (addr, value);
 }
 
 void gayle_map_pcmcia (void)
 {
 	if (currprefs.cs_pcmcia == 0)
 		return;
+	struct autoconfig_info *aci = expansion_get_autoconfig_by_address(&currprefs, 6 * 1024 * 1024);
 	if (pcmcia_card == 0 || (gayle_cs & GAYLE_CS_DIS)) {
 		map_banks_cond (&dummy_bank, 0xa0, 8, 0);
-		if (currprefs.chipmem_size <= 4 * 1024 * 1024 && !expansion_get_autoconfig_by_address(&currprefs, 4 * 1024 * 1024))
+		if (currprefs.chipmem_size <= 4 * 1024 * 1024 && (!aci || aci->zorro == 0))
 			map_banks_cond (&dummy_bank, PCMCIA_COMMON_START >> 16, PCMCIA_COMMON_SIZE >> 16, 0);
 	} else {
 		map_banks_cond (&gayle_attr_bank, 0xa0, 8, 0);
-		if (currprefs.chipmem_size <= 4 * 1024 * 1024 && !expansion_get_autoconfig_by_address(&currprefs, 4 * 1024 * 1024))
+		if (currprefs.chipmem_size <= 4 * 1024 * 1024 && (!aci || aci->zorro == 0))
 			map_banks_cond (&gayle_common_bank, PCMCIA_COMMON_START >> 16, PCMCIA_COMMON_SIZE >> 16, 0);
 	}
 }
@@ -1784,60 +1839,126 @@ bool gayle_ide_init(struct autoconfig_info *aci)
 	return true;
 }
 
-static int gayle_ne2000_unit(int insert)
+bool gayle_init_board_io_pcmcia(struct autoconfig_info *aci)
 {
-	if (insert)
-		return initpcmcia(NULL, 0, PCMCIA_NE2000, 1, NULL);
-	else
-		return freepcmcia(0);
-}
-
-bool gayle_init_ne2000_pcmcia(struct autoconfig_info *aci)
-{
-	aci->start = 0xa00000;
-	aci->size = 0x1000;
+	aci->start = PCMCIA_ATTRIBUTE_START;
+	aci->size = PCMCIA_ATTRIBUTE_SIZE;
 	aci->zorro = 0;
 	aci->parent_address_space = true;
 	return true;
 }
 
-int gayle_add_pcmcia_sram_unit (struct uaedev_config_info *uci)
+bool gayle_init_board_common_pcmcia(struct autoconfig_info *aci)
 {
-	return initpcmcia (uci->rootdir, uci->readonly, PCMCIA_SRAM, 1, NULL);
+	aci->start = PCMCIA_COMMON_START;
+	aci->size = PCMCIA_COMMON_SIZE;
+	aci->zorro = 0;
+	aci->parent_address_space = true;
+	return true;
 }
 
-int gayle_add_pcmcia_ide_unit (struct uaedev_config_info *uci)
+bool gayle_init_pcmcia(struct autoconfig_info *aci)
 {
-	return initpcmcia (uci->rootdir, 0, PCMCIA_IDE, 1, uci);
-}
-
-int gayle_modify_pcmcia_sram_unit (struct uaedev_config_info *uci, int insert)
-{
-	if (insert)
-		return initpcmcia (uci->rootdir, uci->readonly, PCMCIA_SRAM, pcmcia_sram ? 0 : 1, NULL);
-	else
-		return freepcmcia (0);
-}
-
-int gayle_modify_pcmcia_ide_unit (struct uaedev_config_info *uci, int insert)
-{
-	if (insert)
-		return initpcmcia (uci->rootdir, 0, PCMCIA_IDE, pcmcia_sram ? 0 : 1, uci);
-	else
-		return freepcmcia (0);
-}
-
-void gayle_add_pcmcia_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc)
-{
-}
-bool gayle_pcmcia_init(struct autoconfig_info *aci)
-{
-	aci->start = 0x600000;
+	aci->start = PCMCIA_COMMON_START;
 	aci->size = 0xa80000 - aci->start;
 	aci->zorro = 0;
 	return true;
 }
 
+// eject any inserted PCMCIA card
+void pcmcia_eject(struct uae_prefs *p)
+{
+	for (int i = 0; i < MAX_EXPANSION_BOARDS; i++) {
+		struct boardromconfig *brc_changed = &changed_prefs.expansionboard[i];
+		struct boardromconfig *brc = &p->expansionboard[i];
+		if (brc->device_type) {
+			const struct expansionromtype *ert = get_device_expansion_rom(brc->device_type);
+			if (ert && (ert->deviceflags & EXPANSIONTYPE_PCMCIA) && brc->roms[0].inserted) {
+				write_log(_T("PCMCIA: '%s' removed\n"), ert->friendlyname);
+				brc->roms[0].inserted = false;
+				brc_changed->roms[0].inserted = false;
+				freepcmcia(0);
+			}
+		}
+	}
+}
+
+static void pcmcia_card_check(int changecheck)
+{
+	// allow only max single PCMCIA care inserted
+	bool found = false;
+	for (int i = 0; i < MAX_EXPANSION_BOARDS; i++) {
+		struct boardromconfig *brc_prev = &currprefs.expansionboard[i];
+		struct boardromconfig *brc = &changed_prefs.expansionboard[i];
+		if (brc->device_type) {
+			const struct expansionromtype *ert = get_device_expansion_rom(brc->device_type);
+			if (ert && ert->deviceflags & EXPANSIONTYPE_PCMCIA) {
+				if (found) {
+					brc->roms[0].inserted = false;
+					brc_prev->roms[0].inserted = false;
+				} else if (brc->roms[0].inserted) {
+					found = true;
+				}
+			}
+		}
+	}
+
+	for (int i = 0; i < MAX_EXPANSION_BOARDS; i++) {
+		struct boardromconfig *brc_prev = &currprefs.expansionboard[i];
+		struct boardromconfig *brc = &changed_prefs.expansionboard[i];
+		if (brc->device_type) {
+			const struct expansionromtype *ert = get_device_expansion_rom(brc->device_type);
+			if (ert && ert->deviceflags & EXPANSIONTYPE_PCMCIA) {
+				if ((changecheck && brc->roms[0].inserted != brc_prev->roms[0].inserted) || (!changecheck && brc->roms[0].inserted)) {
+					write_log(_T("PCMCIA: '%s' inserted=%d\n"), ert->friendlyname, brc->roms[0].inserted);
+					if (!brc->roms[0].inserted) {
+						// eject card
+						freepcmcia(0);
+					} else {
+						// find matching disk (if it exist)
+						struct uaedev_config_data *ucd = NULL;
+						for (int i = 0; i < currprefs.mountitems; i++) {
+							struct uaedev_config_data *ucdx = &currprefs.mountconfig[i];
+							const struct expansionromtype *ert = get_unit_expansion_rom(ucdx->ci.controller_type);
+							if (ert && ert->romtype == brc->device_type) {
+								ucd = ucdx;
+								break;
+							}
+						}
+						int readonly = 1;
+						switch (brc->device_type & ROMTYPE_MASK)
+						{
+							case ROMTYPE_NE2KPCMCIA:
+							pcmcia_type = PCMCIA_NE2000;
+							break;
+							case ROMTYPE_ARCHOSHD:
+							pcmcia_type = PCMCIA_ARCHOSHD;
+							break;
+							case ROMTYPE_PCMCIAIDE:
+							pcmcia_type = PCMCIA_IDE;
+							if (ucd)
+								readonly = ucd->ci.readonly;
+							break;
+							case ROMTYPE_PCMCIASRAM:
+							pcmcia_type = PCMCIA_SRAM;
+							if (ucd)
+								readonly = ucd->ci.readonly;
+							break;
+						}
+						if (ucd) {
+							// insert (disk type)
+							initpcmcia(ucd->ci.rootdir, readonly, pcmcia_type, 1, &ucd->ci);
+						} else {
+							// insert (other, for example NIC)
+							initpcmcia(NULL, 0, pcmcia_type, 1, NULL);
+						}
+					}
+					board_prefs_changed(brc->device_type, 0);
+				}
+			}
+		}
+	}
+}
 
 static void initide (void)
 {
@@ -1861,6 +1982,7 @@ static void initide (void)
 void gayle_free (void)
 {
 	stop_ide_thread(&gayle_its);
+	stop_ide_thread(&pcmcia_its);
 }
 
 void gayle_reset (int hardreset)
@@ -1886,18 +2008,15 @@ void gayle_reset (int hardreset)
 #endif
 	gayle_bank.name = bankname;
 	gayle_dataflyer_enable(false);
-	if (is_board_enabled(&currprefs, ROMTYPE_NE2KPCMCIA, 0))
-		gayle_ne2000_unit(1);
+
+	pcmcia_card_check(0);
 }
 
 void check_prefs_changed_gayle(void)
 {
 	if (!currprefs.cs_pcmcia)
 		return;
-	if (is_board_enabled(&currprefs, ROMTYPE_NE2KPCMCIA, 0) != is_board_enabled(&changed_prefs, ROMTYPE_NE2KPCMCIA, 0)) {
-		board_prefs_changed(ROMTYPE_NE2KPCMCIA, 0);
-		gayle_ne2000_unit(is_board_enabled(&currprefs, ROMTYPE_NE2KPCMCIA, 0));
-	}
+	pcmcia_card_check(1);
 }
 
 uae_u8 *restore_gayle (uae_u8 *src)
