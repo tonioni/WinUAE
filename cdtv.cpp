@@ -86,6 +86,7 @@ static uae_u32 last_play_pos, last_play_end;
 static volatile int cdtv_hsync, dma_finished, cdtv_sectorsize;
 static volatile uae_u64 dma_wait;
 static int cd_volume, cd_volume_stored;
+static uae_u16 dac_control_data_format;
 static int cd_led;
 static int frontpanel;
 
@@ -918,8 +919,8 @@ static void tp_bput (int addr, uae_u8 v)
 	dten = (tp_b >> 3) & 1;
 
 	if (!volstrobe1 && ((tp_b >> 6) & 1)) {
-		cd_volume >>= 1;
-		cd_volume |= ((tp_b >> 5) & 1) << 11;
+		dac_control_data_format >>= 1;
+		dac_control_data_format |= ((tp_b >> 5) & 1) << 11;
 		volstrobe1 = 1;
 	} else if (volstrobe1 && !((tp_b >> 6) & 1)) {
 		volstrobe1 = 0;
@@ -928,12 +929,10 @@ static void tp_bput (int addr, uae_u8 v)
 #ifdef CDTV_DEBUG_CMD
 		write_log (_T("CDTV CD volume = %d\n"), cd_volume);
 #endif
-		if (cd_volume > 1023)
-			cd_volume = 1023;
+		cd_volume = dac_control_data_format & 1023;
 		if (unitnum >= 0)
 			sys_command_cd_volume (unitnum, (cd_volume << 5) | (cd_volume >> 5), (cd_volume << 5) | (cd_volume >> 5));
 		cd_volume_stored = cd_volume;
-		cd_volume = 0;
 		volstrobe2 = 1;
 	} else if (volstrobe2 && !((tp_b >> 7) & 1)) {
 		volstrobe2 = 0;
@@ -1844,7 +1843,7 @@ uae_u8 *save_cdtv (int *len, uae_u8 *dstptr)
 		(activate_stch ? 128 : 0) | (sten ? 256 : 0) | (stch ? 512 : 0) | (frontpanel ? 1024 : 0));
 	save_u8 (cd_isready);
 	save_u8 (0);
-	save_u16 (cd_volume_stored);
+	save_u16 (dac_control_data_format);
 	if (cd_playing)
 		get_qcode ();
 	save_u32 (last_play_pos);
@@ -1897,7 +1896,7 @@ uae_u8 *restore_cdtv (uae_u8 *src)
 	frontpanel = (v & 1024) ? 1 : 0;
 	cd_isready = restore_u8 ();
 	restore_u8 ();
-	cd_volume_stored = restore_u16 ();
+	dac_control_data_format = restore_u16 ();
 	last_play_pos = restore_u32 ();
 	last_play_end = restore_u32 ();
 	dma_wait = restore_u64 ();
@@ -1906,6 +1905,7 @@ uae_u8 *restore_cdtv (uae_u8 *src)
 	cdrom_command_cnt_in = restore_u8 ();
 	cdtv_sectorsize = restore_u16 ();
 	cd_audio_status = 0;
+	cd_volume_stored = dac_control_data_format & 1023;
 	volstrobe1 = volstrobe2 = 1;
 
 	return src;
