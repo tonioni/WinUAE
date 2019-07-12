@@ -254,7 +254,6 @@ struct d3d11struct
 	int texturelocked;
 	DXGI_FORMAT scrformat;
 	DXGI_FORMAT texformat;
-	DXGI_FORMAT intformat;
 	bool m_tearingSupport;
 	int dmult, dmultxh, dmultxv;
 	int xoffset, yoffset;
@@ -276,6 +275,7 @@ struct d3d11struct
 	int frames_since_init;
 	bool resizeretry;
 	bool d3dinit_done;
+	bool hdr;
 
 	struct d3d11sprite osd;
 	struct d3d11sprite hwsprite;
@@ -1873,7 +1873,7 @@ static bool allocsprite(struct d3d11struct *d3d, struct d3d11sprite *s, int widt
 	desc.Height = s->height;
 	desc.MipLevels = 1;
 	desc.ArraySize = 1;
-	desc.Format = d3d->scrformat;
+	desc.Format = d3d->texformat;
 	desc.SampleDesc.Count = 1;
 	desc.SampleDesc.Quality = 0;
 	desc.Usage = D3D11_USAGE_DYNAMIC;
@@ -1889,7 +1889,7 @@ static bool allocsprite(struct d3d11struct *d3d, struct d3d11sprite *s, int widt
 	srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
 	srvDesc.Texture2D.MostDetailedMip = 0;
 	srvDesc.Texture2D.MipLevels = desc.MipLevels;
-	srvDesc.Format = d3d->scrformat;
+	srvDesc.Format = d3d->texformat;
 
 	hr = d3d->m_device->CreateShaderResourceView(s->texture, &srvDesc, &s->texturerv);
 	if (FAILED(hr)) {
@@ -2145,7 +2145,7 @@ static bool createsltexture(struct d3d11struct *d3d)
 	desc.Height = d3d->m_screenHeight;
 	desc.MipLevels = 1;
 	desc.ArraySize = 1;
-	desc.Format = d3d->scrformat;
+	desc.Format = d3d->texformat;
 	desc.SampleDesc.Count = 1;
 	desc.SampleDesc.Quality = 0;
 	desc.Usage = D3D11_USAGE_DYNAMIC;
@@ -2161,7 +2161,7 @@ static bool createsltexture(struct d3d11struct *d3d)
 	srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
 	srvDesc.Texture2D.MostDetailedMip = 0;
 	srvDesc.Texture2D.MipLevels = desc.MipLevels;
-	srvDesc.Format = d3d->scrformat;
+	srvDesc.Format = d3d->texformat;
 
 	hr = d3d->m_device->CreateShaderResourceView(d3d->sltexture, &srvDesc, &d3d->sltexturerv);
 	if (FAILED(hr)) {
@@ -2245,6 +2245,7 @@ static void createscanlines(struct d3d11struct *d3d, int force)
 
 
 #include "png.h"
+#include <atlcomcli.h>
 
 struct uae_image
 {
@@ -2747,7 +2748,7 @@ static int createmasktexture(struct d3d11struct *d3d, const TCHAR *filename, str
 	desc.Height = maskheight;
 	desc.MipLevels = 1;
 	desc.ArraySize = 1;
-	desc.Format = d3d->scrformat;
+	desc.Format = d3d->texformat;
 	desc.SampleDesc.Count = 1;
 	desc.SampleDesc.Quality = 0;
 	desc.Usage = D3D11_USAGE_DYNAMIC;
@@ -3323,16 +3324,21 @@ static int xxD3D11_init2(HWND ahwnd, int monid, int w_w, int w_h, int t_w, int t
 	d3d->m_screenHeight = w_h;
 	d3d->ahwnd = ahwnd;
 	d3d->texformat = DXGI_FORMAT_B8G8R8A8_UNORM;
-	d3d->intformat = DXGI_FORMAT_B8G8R8A8_UNORM; // _SRGB;
 	d3d->scrformat = DXGI_FORMAT_B8G8R8A8_UNORM;
 	d3d->dmultxh = mmulth;
 	d3d->dmultxv = mmultv;
 
-	struct MultiDisplay *md = getdisplay(&currprefs, monid);
-	POINT pt;
-	pt.x = (md->rect.right - md->rect.left) / 2 + md->rect.left;
-	pt.y = (md->rect.bottom - md->rect.top) / 2 + md->rect.top;
-	HMONITOR winmon = MonitorFromPoint(pt, MONITOR_DEFAULTTONEAREST);
+	HMONITOR winmon;
+	struct MultiDisplay *md = NULL;
+	if (isfullscreen() == 0) {
+		winmon = MonitorFromWindow(ahwnd, MONITOR_DEFAULTTONEAREST);
+	} else {
+		md = getdisplay(&currprefs, monid);
+		POINT pt;
+		pt.x = (md->rect.right - md->rect.left) / 2 + md->rect.left;
+		pt.y = (md->rect.bottom - md->rect.top) / 2 + md->rect.top;
+		winmon = MonitorFromPoint(pt, MONITOR_DEFAULTTONEAREST);
+	}
 
 	// Create a DirectX graphics interface factory.
 	result = pCreateDXGIFactory1(__uuidof(IDXGIFactory4), (void**)&factory4);
@@ -3385,7 +3391,7 @@ static int xxD3D11_init2(HWND ahwnd, int monid, int w_w, int w_h, int t_w, int t
 				break;
 			result = adapterOutput->GetDesc(&odesc);
 			if (SUCCEEDED(result)) {
-				if (odesc.Monitor == winmon || !_tcscmp(odesc.DeviceName, md->adapterid)) {
+				if (odesc.Monitor == winmon || (md && !_tcscmp(odesc.DeviceName, md->adapterid))) {
 					outputFound = true;
 					break;
 				}
@@ -3422,6 +3428,7 @@ static int xxD3D11_init2(HWND ahwnd, int monid, int w_w, int w_h, int t_w, int t
 
 	ComPtr<IDXGIOutput1> adapterOutputx;
 	ComPtr<IDXGIOutput6> adapterOutput6;
+	d3d->hdr = false;
 	result = adapterOutput->QueryInterface(__uuidof(IDXGIOutput6), &adapterOutput6);
 	if (FAILED(result)) {
 		write_log(_T("IDXGIOutput6 QueryInterface %08x\n"), result);
@@ -3437,8 +3444,20 @@ static int xxD3D11_init2(HWND ahwnd, int monid, int w_w, int w_h, int t_w, int t
 		result = adapterOutput6->GetDesc1(&desc1);
 		if (SUCCEEDED(result)) {
 			write_log(_T("Monitor Rotation=%d BPC=%d ColorSpace=%d\n"), desc1.Rotation, desc1.BitsPerColor, desc1.ColorSpace);
+			write_log(_T("R=%fx%f  G=%fx%f B=%fx%f WP=%fx%f\n"),
+				desc1.RedPrimary[0], desc1.RedPrimary[1],
+				desc1.GreenPrimary[0], desc1.GreenPrimary[1],
+				desc1.BluePrimary[0], desc1.BluePrimary[1],
+				desc1.WhitePoint[0], desc1.WhitePoint[1]);
+			write_log(_T("MinL=%f MaxL=%f MaxFFL=%f\n"),
+				desc1.MinLuminance, desc1.MaxLuminance, desc1.MaxFullFrameLuminance);
+			d3d->hdr = desc1.ColorSpace == DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020;
 		}
 		adapterOutputx = adapterOutput6;
+	}
+
+	if (d3d->hdr) {
+		d3d->scrformat = DXGI_FORMAT_R16G16B16A16_FLOAT;
 	}
 
 	// Get the number of modes that fit the display format for the adapter output (monitor).
@@ -3709,6 +3728,26 @@ static int xxD3D11_init2(HWND ahwnd, int monid, int w_w, int w_h, int t_w, int t
 	if (FAILED(result)) {
 		write_log(_T("IDXGIFactory2 CreateSwapChainForHwnd %08x\n"), result);
 		return 0;
+	}
+
+	CComPtr<IDXGISwapChain3> m_swapChain3;
+	if (d3d->hdr) {
+		if (SUCCEEDED(d3d->m_swapChain->QueryInterface(&m_swapChain3))) {
+			UINT cps;
+			result = m_swapChain3->CheckColorSpaceSupport(DXGI_COLOR_SPACE_RGB_FULL_G10_NONE_P709, &cps);
+			if (SUCCEEDED(result)) {
+				if (!(cps & DXGI_SWAP_CHAIN_COLOR_SPACE_SUPPORT_FLAG_PRESENT))
+					write_log(_T("CheckColorSpaceSupport(DXGI_COLOR_SPACE_RGB_FULL_G10_NONE_P709) not supported!?\n"));
+				result = m_swapChain3->SetColorSpace1(DXGI_COLOR_SPACE_RGB_FULL_G10_NONE_P709);
+				if (FAILED(result)) {
+					write_log(_T("SetColorSpace1 failed %08x\n"), result);
+				}
+			} else {
+				write_log(_T("CheckColorSpaceSupport failed %08x\n"), result);
+			}
+		} else {
+			write_log(_T("QueryInterface(IDXGISwapChain3) failed %08x\n"), result);
+		}
 	}
 
 	{

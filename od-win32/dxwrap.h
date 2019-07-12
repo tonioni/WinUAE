@@ -73,6 +73,7 @@ struct PicassoResolution
 struct MultiDisplay {
 	bool primary;
 	GUID ddguid;
+	HMONITOR monitor;
 	TCHAR *adaptername, *adapterid, *adapterkey;
 	TCHAR *monitorname, *monitorid;
 	TCHAR *fullname;
