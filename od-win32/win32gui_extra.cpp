@@ -18,8 +18,10 @@
 #define MAX_GUI_FONTS 2
 #define DEFAULT_FONTSIZE  8
 
-static double multx, multy;
+static float multx, multy;
 static int scaleresource_width, scaleresource_height;
+static int scaleresource_reset;
+static int dux, duy;
 
 static TCHAR fontname_gui[32], fontname_list[32];
 static int fontsize_gui = DEFAULT_FONTSIZE;
@@ -29,22 +31,9 @@ static int fontstyle_list = 0;
 static int fontweight_gui = FW_REGULAR;
 static int fontweight_list = FW_REGULAR;
 
-static int listviewcnt;
-static int listviews_id[16];
-
-static int setparamcnt;
-static int setparam_id[16];
-
 static HFONT listviewfont;
 static TEXTMETRIC listview_tm;
 static const TCHAR *fontprefix;
-
-#define BASEMULT 1000
-static int baseunitx, baseunity;
-static RECT baserect, baseclientrect;
-static int baseborderwidth, baseborderheight;
-static int basewidth, baseheight;
-static int baseclientwidth, baseclientheight;
 
 #include <pshpack2.h>
 typedef struct {
@@ -145,17 +134,6 @@ static BYTE *todword (BYTE *p)
 	return p;
 }
 
-static void modifytemplate (DLGTEMPLATEEX *d, DLGTEMPLATEEX_END *d2, int id, int fullscreen)
-{
-	if (fullscreen) {
-		d->cx = scaleresource_width;
-		d->cy = scaleresource_height;
-	} else {
-		d->cx = mmx (d->cx);
-		d->cy = mmy (d->cy);
-	}
-}
-
 static void modifytemplatefont (DLGTEMPLATEEX *d, DLGTEMPLATEEX_END *d2)
 {
 	if (!wcscmp (d2->typeface, wfont_old)) {
@@ -166,67 +144,240 @@ static void modifytemplatefont (DLGTEMPLATEEX *d, DLGTEMPLATEEX_END *d2)
 }
 }
 
-static void modifyitem (DLGTEMPLATEEX *d, DLGTEMPLATEEX_END *d2, DLGITEMTEMPLATEEX *dt, int id)
+static void modifyitem (struct newresource *nr, DLGTEMPLATEEX *d, DLGTEMPLATEEX_END *d2, DLGITEMTEMPLATEEX *dt, int id)
 {
-	bool noyscale = false;
 	int wc = 0;
 
 	if (dt->windowClass[0] == 0xffff)
 		wc = dt->windowClass[1];
 
-	if (multy >= 89 && multy <= 111) {
-
-		if (wc == 0x0080 && dt->cy <= 20) { // button
-			noyscale = true;
-		}
-		if (wc == 0x0085) {// combo box
-			noyscale = false;
-		}
-		if (wc == 0x0081 && dt->cy <= 20) { // edit box
-			noyscale = true;
-		}
-	}
-
-	if (!noyscale)
-		dt->cy = mmy (dt->cy);
-
-	dt->cx = mmx (dt->cx);
-	dt->y = mmy (dt->y);
-	dt->x = mmx (dt->x);
-
 	if (wc == 0x0085) {// combo box
-		setparam_id[setparamcnt] = dt->id;
-		setparamcnt++;
+		if (nr->setparamcnt < MAX_GUIIDPARAMS) {
+			nr->setparam_id[nr->setparamcnt] = dt->id;
+			nr->setparamcnt++;
+		}
 	}
 
 	if (dt->windowClass[0] != 0xffff) {
 		if (!_tcsicmp (dt->windowClass, WC_LISTVIEWW) || !_tcsicmp (dt->windowClass, WC_TREEVIEWW)) {
-			listviews_id[listviewcnt] = dt->id;
-			listviewcnt++;
+			if (nr->listviewcnt < MAX_GUIIDPARAMS) {
+				nr->listviews_id[nr->listviewcnt] = dt->id;
+				nr->listviewcnt++;
+			}
 		}
 	}
 
 }
 
-static INT_PTR CALLBACK DummyProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
+struct rescalestruct
 {
-	switch(msg)
-	{
-	case WM_DESTROY:
-		PostQuitMessage (0);
+	HWND main, sub;
+	int dlgid;
+	struct newresource *nr;
+	struct dlgcontext *dctx;
+};
+
+static struct dlgstore dstore_main[MAX_DLGID];
+static int dlgstorecnt_main;
+
+static BOOL CALLBACK rescaleproc(HWND hwnd, LPARAM lp)
+{
+	RECT rs;
+	struct rescalestruct *rss = (struct rescalestruct *)lp;
+	struct newresource *nr = rss->nr;
+	struct dlgcontext *dctx = rss->dctx;
+	HWND parent = GetParent(hwnd);
+
+	// if not parent of sub panel or main panel: skip because for example
+	// combo boxes have child windows that should not be moved or resized.
+	if (parent != rss->main && parent != rss->sub)
 		return TRUE;
-	case WM_CLOSE:
-		DestroyWindow(hDlg);
-		return TRUE;
-	case WM_INITDIALOG:
-		return TRUE;
+
+	GetClientRect(hwnd, &rs);
+	MapWindowPoints(hwnd, parent, (LPPOINT)&rs, 2);
+
+	int wc = 0;
+	bool found = false;
+	if (parent == rss->main) {
+		for (int i = 0; i < dlgstorecnt_main; i++) {
+			struct dlgstore *dsptr = &dstore_main[i];
+			if (dsptr->h == hwnd) {
+				rs = dsptr->r;
+				found = true;
+				break;
+			}
+		}
+		if (!found) {
+			struct dlgstore *dsptr = &dstore_main[dlgstorecnt_main++];
+			dsptr->h = hwnd;
+			dsptr->r = rs;
+		}
+	} else {
+		for (int i = 0; i < dctx->dlgstorecnt; i++) {
+			struct dlgstore *dsptr = &dctx->dstore[i];
+			if (dsptr->h == hwnd) {
+				rs = dsptr->r;
+				found = true;
+				break;
+			}
+		}
+		if (!found) {
+			struct dlgstore *dsptr = &dctx->dstore[dctx->dlgstorecnt++];
+			dsptr->h = hwnd;
+			dsptr->r = rs;
+		}
 	}
-	return FALSE;
+
+	int x = rs.left;
+	x *= multx;
+	x /= 100;
+
+	int y = rs.top;
+	y *= multy;
+	y /= 100;
+
+	int xe = rs.right;
+	xe *= multx;
+	xe += 99;
+	xe /= 100;
+
+	int ye = rs.bottom;
+	if (wc != 0x85) {
+		ye *= multy;
+		ye += 99;
+		ye /= 100;
+	} else {
+		ye = y + (rs.bottom - rs.top);
+	}
+
+	SetWindowPos(hwnd, HWND_TOP, x, y, xe - x, ye - y, SWP_NOACTIVATE | SWP_NOREDRAW | SWP_NOZORDER | SWP_NOOWNERZORDER | SWP_NOCOPYBITS | SWP_DEFERERASE);
+
+	return TRUE;
 }
 
-extern int full_property_sheet;
+static void openfont(bool force)
+{
+	HDC hdc;
+	int size;
+	int lm = 72;
 
-static struct newresource *scaleresource2 (struct newresource *res, HWND parent, int resize, int fullscreen, DWORD exstyle, bool main)
+	if (listviewfont && !force)
+		return;
+	if (listviewfont)
+		DeleteObject(listviewfont);
+
+	hdc = GetDC(NULL);
+
+	if (!dpi_aware_v2) {
+		lm = GetDeviceCaps(hdc, LOGPIXELSY);
+	}
+
+	size = -MulDiv(fontsize_list, lm, 72);
+	listviewfont = CreateFont(size, 0, 0, 0, fontweight_list, (fontstyle_list & ITALIC_FONTTYPE) != 0, 0, 0, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH | FF_DONTCARE, fontname_list);
+	HGDIOBJ o = SelectObject(hdc, listviewfont);
+	memset(&listview_tm, 0, sizeof listview_tm);
+	listview_tm.tmAveCharWidth = 8;
+	GetTextMetrics(hdc, &listview_tm);
+	SelectObject(hdc, o);
+
+	ReleaseDC(NULL, hdc);
+}
+
+static void scaleresource_setfont(struct newresource *nr, HWND hDlg)
+{
+	if (nr->listviewcnt) {
+		if (!listviewfont) {
+			openfont(false);
+			if (!listviewfont)
+				return;
+		}
+		for (int i = 0; i < nr->listviewcnt; i++) {
+			HWND hwnd = GetDlgItem(hDlg, nr->listviews_id[i]);
+			if (hwnd)
+				SendMessage(hwnd, WM_SETFONT, WPARAM(listviewfont), FALSE);
+		}
+	}
+	if (os_vista) {
+		for (int i = 0; i < nr->setparamcnt; i++) {
+			HWND hwnd = GetDlgItem(hDlg, nr->setparam_id[i]);
+			if (hwnd) {
+				int v = SendMessage(hwnd, CB_GETITEMHEIGHT, -1, NULL);
+				if (v > 0 && mmy(v) > v)
+					SendMessage(hwnd, CB_SETITEMHEIGHT, -1, mmy(v));
+			}
+		}
+	}
+}
+
+void rescaleresource(struct newresource *nr, struct dlgcontext *dctx, HWND hwnd, HWND subhwnd)
+{
+	struct rescalestruct rss;
+
+	scaleresource_setfont(nr, subhwnd);
+	scaleresource_setfont(nr, hwnd);
+
+	TITLEBARINFO tbi = { 0 };
+	tbi.cbSize = sizeof(TITLEBARINFO);
+	GetTitleBarInfo(hwnd, &tbi);
+
+	int height = tbi.rcTitleBar.bottom - tbi.rcTitleBar.top;
+
+	RECT rw;
+	GetWindowRect(hwnd, &rw);
+
+	if (scaleresource_reset) {
+		RECT ru = { 0, 0, 8, 8 };
+		MapDialogRect(hwnd, &ru);
+		dux = ru.right;
+		duy = ru.bottom;
+		scaleresource_reset = 0;
+	}
+
+	WINDOWINFO pwi = { 0 };
+	pwi.cbSize = sizeof(WINDOWINFO);
+	GetWindowInfo(hwnd, &pwi);
+
+	SetWindowPos(hwnd, NULL, 0, 0, scaleresource_width, scaleresource_height, SWP_NOMOVE | SWP_NOOWNERZORDER | SWP_NOZORDER | SWP_NOREDRAW | SWP_NOCOPYBITS | SWP_DEFERERASE);
+	
+	float neww = scaleresource_width - pwi.cxWindowBorders * 2;
+	float oldw = (530.0 * dux) / 8.0;
+	multx = neww * 100.0 / oldw;
+
+	float newh = scaleresource_height - height - pwi.cyWindowBorders * 2;
+	float oldh = (345.0 * duy) / 8.0;
+	multy = newh * 100.0 / oldh;
+
+	rss.main = hwnd;
+	rss.sub = subhwnd;
+	rss.nr = nr;
+	rss.dctx = dctx;
+	EnumChildWindows(hwnd, rescaleproc, (LPARAM)&rss);
+
+	RECT rf, rpf;
+	HWND pf = GetDlgItem(hwnd, IDC_PANEL_FRAME);
+	GetClientRect(subhwnd, &rpf);
+	GetClientRect(pf, &rf);
+	MapWindowPoints(pf, hwnd, (LPPOINT)& rf, 1);
+	SetWindowPos(subhwnd, HWND_TOP, rf.left, rf.top + (rf.bottom - rpf.bottom) / 2, 0, 0, SWP_NOSIZE | SWP_NOOWNERZORDER);
+
+	RedrawWindow(hwnd, NULL, NULL, RDW_ERASE | RDW_FRAME | RDW_INVALIDATE | RDW_ALLCHILDREN);
+}
+
+void scaleresource_setsize(int w, int h, int fullscreen)
+{
+	if (w < 0 || h < 0) {
+		scaleresource_reset = 1;
+		for (int i = 0; i < dlgstorecnt_main; i++) {
+			dstore_main[i].h = NULL;
+		}
+		dlgstorecnt_main = 0;
+		return;
+	}
+	scaleresource_width = w;
+	scaleresource_height = h;
+}
+
+static struct newresource *scaleresource2 (struct newresource *res, HWND parent, int resize, int fullscreen, DWORD exstyle, int dlgid)
 {
 	static int main_width, main_height;
 
@@ -234,11 +385,10 @@ static struct newresource *scaleresource2 (struct newresource *res, HWND parent,
 	DLGTEMPLATEEX_END *d2, *s2;
 	DLGITEMTEMPLATEEX *dt;
 	BYTE *p, *p2, *ps, *ps2;
-	int i;
 	struct newresource *ns;
 
-	listviewcnt = 0;
-	setparamcnt = 0;
+	res->listviewcnt = 0;
+	res->setparamcnt = 0;
 
 	d = (DLGTEMPLATEEX*)res->resource;
 	d2 = (DLGTEMPLATEEX_END*)res->resource;
@@ -249,6 +399,8 @@ static struct newresource *scaleresource2 (struct newresource *res, HWND parent,
 		return 0;
 
 	ns = xcalloc (struct newresource, 1);
+	if (!ns)
+		return 0;
 	ns->inst = res->inst;
 	ns->size = res->size;
 	ns->tmpl = res->tmpl;
@@ -308,11 +460,10 @@ static struct newresource *scaleresource2 (struct newresource *res, HWND parent,
 
 	memcpy (p, ps2, ns->size - (ps2 - (BYTE*)res->resource));
 
-	modifytemplate(d, d2, ns->tmpl, fullscreen);
-
-	for (i = 0; i < d->cDlgItems; i++) {
+	int id2 = 0;
+	for (int i = 0; i < d->cDlgItems; i++) {
 		dt = (DLGITEMTEMPLATEEX*)p;
-		modifyitem (d, d2, dt, ns->tmpl);
+		modifyitem(res, d, d2, dt, ns->tmpl);
 		p += sizeof (DLGITEMTEMPLATEEX);
 		p = skiptextone (p);
 		p = skiptext (p);
@@ -326,74 +477,39 @@ static struct newresource *scaleresource2 (struct newresource *res, HWND parent,
 	return ns;
 }
 
-struct newresource *scaleresource (struct newresource *res, HWND parent, int resize, int fullscreen, DWORD exstyle, bool main)
+struct newresource *scaleresource (struct newresource *res, struct dlgcontext *dctx, HWND parent, int resize, int fullscreen, DWORD exstyle, int dlgid)
 {
-	return scaleresource2(res, parent, resize, fullscreen, exstyle, main);
+	dctx->dlgstorecnt = 0;
+	return scaleresource2(res, parent, resize, fullscreen, exstyle, dlgid);
 }
 
 void freescaleresource (struct newresource *ns)
 {
+	if (!ns)
+		return;
 	xfree ((void*)ns->resource);
 	xfree (ns);
 }
 
 int getscaledfontsize(int size)
 {
-	HDC hdc = GetDC(NULL);
+	int lm = 72;
+
 	if (size <= 0)
 		size = fontsize_gui;
-	size = -MulDiv(size, GetDeviceCaps(hdc, LOGPIXELSY), 72);
-	ReleaseDC(NULL, hdc);
+
+	if (!dpi_aware_v2) {
+		HDC hdc = GetDC(NULL);
+		lm = GetDeviceCaps(hdc, LOGPIXELSY);
+		ReleaseDC(NULL, hdc);
+	}
+	size = -MulDiv(size, lm, 72);
 	return size;
-}
-
-static void openfont (bool force)
-{
-	HDC hdc;
-	int size;
-
-	if (listviewfont && !force)
-		return;
-	if (listviewfont)
-		DeleteObject (listviewfont);
-
-	hdc = GetDC (NULL);
-
-	size = -MulDiv (fontsize_list, GetDeviceCaps (hdc, LOGPIXELSY), 72);
-	listviewfont = CreateFont (size, 0, 0, 0, fontweight_list, (fontstyle_list & ITALIC_FONTTYPE) != 0, 0, 0, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH | FF_DONTCARE, fontname_list);
-	HGDIOBJ o = SelectObject(hdc, listviewfont);
-	memset(&listview_tm, 0, sizeof listview_tm);
-	listview_tm.tmAveCharWidth = 8;
-	GetTextMetrics(hdc, &listview_tm);
-	SelectObject(hdc, o);
-
-	ReleaseDC (NULL, hdc);
 }
 
 void scalaresource_listview_font_info(int *w)
 {
 	*w = listview_tm.tmAveCharWidth;
-}
-
-void scaleresource_setfont (HWND hDlg)
-{
-	if (listviewcnt) {
-		if (!listviewfont) {
-			openfont (false);
-			if (!listviewfont)
-				return;
-		}
-		for (int i = 0; i < listviewcnt; i++) {
-			SendMessage (GetDlgItem (hDlg, listviews_id[i]), WM_SETFONT, WPARAM(listviewfont), FALSE);
-		}
-	}
-	if (os_vista) {
-		for (int i = 0; i < setparamcnt; i++) {
-			int v = SendMessage (GetDlgItem (hDlg, setparam_id[i]), CB_GETITEMHEIGHT , -1, NULL);
-			if (v > 0 && mmy(v) > v)
-				SendMessage (GetDlgItem (hDlg, setparam_id[i]), CB_SETITEMHEIGHT , -1, mmy(v));
-		}
-	}
 }
 
 static void setdeffont (void)
@@ -474,59 +590,6 @@ void scaleresource_setdefaults (void)
 	openfont (true);
 }
 
-static INT_PTR CALLBACK TestProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
-{
-	if (msg == WM_INITDIALOG) {
-		RECT r;
-		// there really is no better way?
-		r.left = 0;
-		r.top = 0;
-		r.bottom = BASEMULT;
-		r.right = BASEMULT;
-		MapDialogRect (hDlg, &r);
-		baseunitx = r.right * 4 / BASEMULT;
-		baseunity = r.bottom * 8 / BASEMULT;
-		GetWindowRect (hDlg, &baserect);
-		GetClientRect (hDlg, &baseclientrect);
-	}
-	return 0;
-}
-
-// horrible or what?
-static void getbaseunits (int fullscreen)
-{
-	multx = multy = 100;
-	struct newresource *nr, *nr2;
-	HWND hwnd;
-	nr = getresource (IDD_PANEL);
-	if (!nr) {
-		write_log (_T("getbaseunits fail!\n"));
-		abort();
-	}
-	nr2 = scaleresource2(nr, NULL, -1, 0, 0, false);
-	hwnd = CreateDialogIndirect (nr2->inst, nr2->resource, NULL, TestProc);
-	if (hwnd) {
-		DestroyWindow (hwnd);
-	} else {
-		baserect.left = baserect.top = 0;
-		baserect.right = 800;
-		baserect.bottom = 600;
-		baseclientrect.left = baseclientrect.top = 0;
-		baseclientrect.right = 800;
-		baseclientrect.bottom = 600;
-	}
-	freescaleresource (nr2);
-	freescaleresource (nr);
-	basewidth = baserect.right - baserect.left;
-	baseheight = baserect.bottom - baserect.top;
-	baseclientwidth = baseclientrect.right - baseclientrect.left;
-	baseclientheight = baseclientrect.bottom - baseclientrect.top;
-	baseborderwidth = basewidth - baseclientwidth;
-	baseborderheight = baseheight - baseclientheight;
-
-	write_log (_T("GUIBase %dx%d (%dx%d)\n"), basewidth, baseheight, baseunitx, baseunity);
-}
-
 void scaleresource_init (const TCHAR *prefix, int fullscreen)
 {
 	if (os_vista)
@@ -541,8 +604,6 @@ void scaleresource_init (const TCHAR *prefix, int fullscreen)
 
 	//write_log (_T("GUI font %s:%d:%d:%d\n"), fontname_gui, fontsize_gui, fontstyle_gui, fontweight_gui);
 	//write_log (_T("List font %s:%d:%d:%d\n"), fontname_list, fontsize_list, fontstyle_list, fontweight_list);
-
-	getbaseunits (fullscreen);
 
 	openfont (true);
 }
@@ -574,78 +635,13 @@ static void sizefont (HWND hDlg, const TCHAR *name, int size, int style, int wei
 }
 #endif
 
-
-typedef enum MONITOR_DPI_TYPE {
-	MDT_EFFECTIVE_DPI = 0,
-	MDT_ANGULAR_DPI = 1,
-	MDT_RAW_DPI = 2,
-	MDT_DEFAULT = MDT_EFFECTIVE_DPI
-} MONITOR_DPI_TYPE;
-typedef HRESULT(CALLBACK* GETDPIFORMONITOR)(HMONITOR, MONITOR_DPI_TYPE, UINT*, UINT*);
-
-void scaleresource_getdpimult (double *dpixmp, double *dpiymp, int *dpixp, int *dpiyp)
-{
-	GETDPIFORMONITOR pGetDpiForMonitor;
-	POINT pt = { 32000, 32000 };
-	HMONITOR mon = MonitorFromPoint(pt, MONITOR_DEFAULTTOPRIMARY);
-
-	*dpixmp = 1.0;
-	*dpiymp = 1.0;
-	*dpixp = 0;
-	*dpiyp = 0;
-	pGetDpiForMonitor = (GETDPIFORMONITOR)GetProcAddress(GetModuleHandle(_T("Shcore.dll")), "GetDpiForMonitor");
-	if (pGetDpiForMonitor) {
-		UINT dpix, dpiy;
-		if (SUCCEEDED(pGetDpiForMonitor(mon, MDT_EFFECTIVE_DPI, &dpix, &dpiy))) {
-			if (dpix > 96)
-				*dpixmp = (double)dpix / 96.0;
-			if (dpiy > 96)
-				*dpiymp = (double)dpiy / 96.0;
-			*dpixp = dpix;
-			*dpiyp = dpiy;
-		}
-	}
-}
-
-void scaleresource_setmult (HWND hDlg, int w, int h, int fullscreen)
-{
-	if (w < 0) {
-		multx = -w;
-		multy = -h;
-		return;
-	}
-
-	scaleresource_width = w;
-	scaleresource_height = h;
-
-	multx = w * 100.0 / basewidth;
-	multy = h * 100.0 / baseheight;
-
-	if (multx < 50)
-		multx = 50;
-	if (multy < 50)
-		multy = 50;
-
-	//write_log (_T("MX=%f MY=%f\n"), multx, multy);
-}
-
-void scaleresource_getmult (int *mx, int *my)
-{
-	if (mx)
-		*mx = (int)(multx + 0.5);
-	if (my)
-		*my = (int)(multy + 0.5);
-}
-
-
 int scaleresource_choosefont (HWND hDlg, int fonttype)
 {
 	CHOOSEFONT cf = { 0 };
 	LOGFONT lf = { 0 };
-	HDC hdc;
 	TCHAR *fontname[2];
 	int *fontsize[2], *fontstyle[2], *fontweight[2];
-	int lm;
+	int lm = 72;
 
 	fontname[0] = fontname_gui;
 	fontname[1] = fontname_list;
@@ -661,10 +657,12 @@ int scaleresource_choosefont (HWND hDlg, int fonttype)
 	cf.Flags = CF_FORCEFONTEXIST | CF_INITTOLOGFONTSTRUCT | CF_NOSCRIPTSEL | CF_SCREENFONTS;
 	cf.lpLogFont = &lf;
 	cf.nFontType = REGULAR_FONTTYPE;
-	cf.iPointSize = *fontsize[fonttype];
 
-	hdc = GetDC (NULL);
-	lm = GetDeviceCaps (hdc, LOGPIXELSY);
+	if (!dpi_aware_v2) {
+		HDC hdc = GetDC(NULL);
+		lm = GetDeviceCaps(hdc, LOGPIXELSY);
+		ReleaseDC(NULL, hdc);
+	}
 
 	_tcscpy (lf.lfFaceName, fontname[fonttype]);
 	lf.lfHeight = -MulDiv (*fontsize[fonttype], lm, 72);
@@ -672,19 +670,16 @@ int scaleresource_choosefont (HWND hDlg, int fonttype)
 	lf.lfItalic = (*fontstyle[fonttype] & ITALIC_FONTTYPE) != 0;
 
 	if (!ChooseFont (&cf)) {
-		ReleaseDC (NULL, hdc);
 		return 0;
 	}
 
 	_tcscpy (fontname[fonttype], lf.lfFaceName);
 	*fontsize[fonttype] = lf.lfHeight;
-	*fontsize[fonttype] = -MulDiv (*fontsize[fonttype], 72, GetDeviceCaps (hdc, LOGPIXELSY));
+	*fontsize[fonttype] = -MulDiv (*fontsize[fonttype], 72, lm);
 
 	*fontstyle[fonttype] = lf.lfItalic ? ITALIC_FONTTYPE : 0;
 
 	*fontweight[fonttype] = lf.lfWeight;
-
-	ReleaseDC (NULL, hdc);
 
 	regsetfont (NULL, fontprefix, fontreg[fonttype], fontname[fonttype], *fontsize[fonttype], *fontstyle[fonttype], *fontweight[fonttype]);
 
@@ -931,6 +926,8 @@ static void boxartpaint(HDC hdc, HWND hwnd)
 		}
 	}
 }
+
+extern int full_property_sheet;
 
 bool show_box_art(const TCHAR *path)
 {

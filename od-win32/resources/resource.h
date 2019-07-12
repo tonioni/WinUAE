@@ -30,6 +30,14 @@
 #define IDS_EXPANSION                   22
 #define IDS_EXPANSION2                  23
 #define IDS_BOARD                       24
+#define IDC_PANELTREE                   50
+#define IDD_PANEL                       51
+#define IDC_PANEL_FRAME                 52
+#define IDC_PANEL_FRAME_OUTER           53
+#define IDC_RESETAMIGA                  54
+#define IDC_QUITEMU                     55
+#define IDC_RESTARTEMU                  56
+#define IDC_ERRORLOG                    57
 #define IDS_EXTTEXT                     100
 #define IDS_EXTACTUAL                   101
 #define IDS_SOUND                       102
@@ -160,7 +168,6 @@
 #define IDI_DISK                        182
 #define IDR_DRIVE_SPINND_A500_1         182
 #define IDS_YES                         182
-#define IDD_PANEL                       183
 #define IDS_NO                          183
 #define IDD_PATHS                       184
 #define IDS_PRI_ABOVENORMAL             184
@@ -720,19 +727,15 @@
 #define IDC_SOCKETS                     1503
 #define IDC_HF_DOSTYPE                  1503
 #define IDC_HDF_CONTROLLER              1504
-#define IDC_RESETAMIGA                  1504
-#define IDC_QUITEMU                     1505
 #define IDC_HDF_CONTROLLER_UNIT         1505
 #define IDC_HDF_CONTROLLER_TYPE         1506
 #define IDC_MAPDRIVES                   1507
 #define IDC_HDF_FEATURE_LEVEL           1507
 #define IDC_CPUTEXT                     1508
 #define IDC_MAPDRIVES_NET               1508
-#define IDC_RESTARTEMU                  1508
 #define IDC_CACHETEXT                   1509
 #define IDC_SWAP                        1509
 #define IDC_MAPDRIVES_CD                1509
-#define IDC_ERRORLOG                    1509
 #define IDC_SELECTRESTEXT               1510
 #define IDC_FLUSHPRINTER                1510
 #define IDC_MAPDRIVES_REMOVABLE         1510
@@ -951,7 +954,6 @@
 #define IDC_AVIOUTPUT_FRAMELIMITER      1645
 #define IDC_STATEREC_RATE               1646
 #define IDC_SOUNDDRIVESELECT            1647
-#define IDC_PANELTREE                   1647
 #define IDC_AVIOUTPUT_NOSOUNDOUTPUT     1647
 #define IDC_STATE_BUFFERSIZE_TEXT       1648
 #define IDC_CONFIGTREE                  1648
@@ -974,11 +976,9 @@
 #define IDC_SOUNDFREQ                   1652
 #define IDC_STATEREC_AUTOPLAY           1652
 #define IDC_SOUNDFREQTXT                1653
-#define IDC_PANEL_FRAME                 1653
 #define IDC_SCREENSHOT_ORIGINALSIZE2    1653
 #define IDC_SCREENSHOT_CLIP             1653
 #define IDC_SOUNDFILTERTXT              1654
-#define IDC_PANEL_FRAME_OUTER           1654
 #define IDC_SOUNDSTEREO                 1655
 #define IDC_CONFIGTYPE                  1655
 #define IDC_SOUNDDRIVETXT               1656
@@ -1310,6 +1310,7 @@
 #define IDC_ROM_ADDRESS                 1862
 #define IDC_ROM_ADDRESS2                1863
 #define IDC_CUSTOMROMFILE               1864
+#define IDC_SCSIROMFILEPCMCIA           1865
 #define ID__FLOPPYDRIVES                40004
 #define ID_FLOPPYDRIVES_DF0             40005
 #define ID_ST_CONFIGURATION             40010
@@ -1351,7 +1352,6 @@
 #define ID_ST_CDEJECTALL                40047
 #define ID_CDDRIVES_CD                  40048
 #define ID_ST_CD0                       40049
-#define IDC_STATIC                      -1
 
 // Next default values for new objects
 // 
@@ -1361,7 +1361,7 @@
 #define _APS_3D_CONTROLS                     1
 #define _APS_NEXT_RESOURCE_VALUE        407
 #define _APS_NEXT_COMMAND_VALUE         40050
-#define _APS_NEXT_CONTROL_VALUE         1864
+#define _APS_NEXT_CONTROL_VALUE         1865
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

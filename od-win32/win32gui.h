@@ -18,6 +18,22 @@ int dragdrop (HWND hDlg, HDROP hd, struct uae_prefs *prefs, int currentpage);
 UAEREG *read_disk_history (int type);
 void write_disk_history (void);
 
+#define MAX_GUIIDPARAMS 16
+#define MAX_DLGID 100
+
+struct dlgstore
+{
+	RECT r;
+	UINT wc;
+	HWND h;
+};
+
+struct dlgcontext
+{
+	struct dlgstore dstore[MAX_DLGID];
+	int dlgstorecnt;
+};
+
 struct newresource
 {
     LPCDLGTEMPLATEW resource;
@@ -25,6 +41,10 @@ struct newresource
     int size;
     int tmpl;
     int width, height;
+	int listviews_id[MAX_GUIIDPARAMS];
+	int setparam_id[MAX_GUIIDPARAMS];
+	int listviewcnt;
+	int setparamcnt;
 };
 
 #define GUI_INTERNAL_WIDTH 800
@@ -33,18 +53,16 @@ struct newresource
 
 extern struct uae_prefs workprefs;
 
-extern struct newresource *scaleresource (struct newresource *res, HWND, int, int, DWORD, bool);
+extern struct newresource* scaleresource(struct newresource*, struct dlgcontext *dctx, HWND, int, int, DWORD, int);
+extern void rescaleresource(struct newresource*, struct dlgcontext*, HWND, HWND);
 extern void freescaleresource (struct newresource*);
-extern void scaleresource_setmult (HWND hDlg, int w, int h, int fs);
-extern void scaleresource_getmult (int *mx, int *my);
+extern void scaleresource_setsize (int w, int h, int fs);
 extern HWND CustomCreateDialog (int templ, HWND hDlg, DLGPROC proc);
 extern INT_PTR CustomDialogBox (int templ, HWND hDlg, DLGPROC proc);
 extern struct newresource *getresource (int tmpl);
 extern void scaleresource_init (const TCHAR*, int);
 extern int scaleresource_choosefont (HWND hDlg, int fonttype);
 extern void scaleresource_setdefaults (void);
-extern void scaleresource_setfont (HWND hDlg);
-extern void scaleresource_getdpimult (double*, double*, int*, int*);
 extern void scalaresource_listview_font_info(int*);
 extern int getscaledfontsize(int size);
 extern bool show_box_art(const TCHAR*);

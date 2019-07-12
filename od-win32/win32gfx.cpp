@@ -21,6 +21,7 @@
 #include <dwmapi.h>
 #include <D3dkmthk.h>
 #include <process.h>
+#include <shellscalingapi.h>
 
 #include "sysdeps.h"
 
@@ -399,11 +400,11 @@ static bool get_display_vblank_params(int displayindex, int *activeheightp, int 
 	static GETDISPLAYCONFIGBUFFERSIZES pGetDisplayConfigBufferSizes;
 	static DISPLAYCONFIGGETDEVICEINFO pDisplayConfigGetDeviceInfo;
 	if (!pQueryDisplayConfig)
-		pQueryDisplayConfig = (QUERYDISPLAYCONFIG)GetProcAddress(GetModuleHandle(_T("user32.dll")), "QueryDisplayConfig");
+		pQueryDisplayConfig = (QUERYDISPLAYCONFIG)GetProcAddress(userdll, "QueryDisplayConfig");
 	if (!pGetDisplayConfigBufferSizes)
-		pGetDisplayConfigBufferSizes = (GETDISPLAYCONFIGBUFFERSIZES)GetProcAddress(GetModuleHandle(_T("user32.dll")), "GetDisplayConfigBufferSizes");
+		pGetDisplayConfigBufferSizes = (GETDISPLAYCONFIGBUFFERSIZES)GetProcAddress(userdll, "GetDisplayConfigBufferSizes");
 	if (!pDisplayConfigGetDeviceInfo)
-		pDisplayConfigGetDeviceInfo = (DISPLAYCONFIGGETDEVICEINFO)GetProcAddress(GetModuleHandle(_T("user32.dll")), "DisplayConfigGetDeviceInfo");
+		pDisplayConfigGetDeviceInfo = (DISPLAYCONFIGGETDEVICEINFO)GetProcAddress(userdll, "DisplayConfigGetDeviceInfo");
 	if (!pQueryDisplayConfig || !pGetDisplayConfigBufferSizes || !pDisplayConfigGetDeviceInfo)
 		return false;
 	struct MultiDisplay *md = displayindex < 0 ? getdisplay(&currprefs, 0) : &Displays[displayindex];
@@ -2204,22 +2205,57 @@ static void reopen_gfx(struct AmigaMonitor *mon)
 	render_screen(mon->monitor_id, 1, true);
 }
 
-static int getstatuswindowheight(int monid)
+static int getdpiformonitor(HMONITOR mon)
+{
+	if (mon) {
+		static HMODULE shcore;
+		if (!shcore)
+			shcore = LoadLibrary(_T("Shcore.dll"));
+		if (shcore) {
+			typedef HRESULT(CALLBACK * GETDPIFORMONITOR)(HMONITOR, MONITOR_DPI_TYPE, UINT*, UINT*);
+			GETDPIFORMONITOR pGetDpiForMonitor = (GETDPIFORMONITOR)GetProcAddress(userdll, "GetDpiForMonitor");
+			if (pGetDpiForMonitor) {
+				UINT x, y;
+				if (SUCCEEDED(pGetDpiForMonitor(mon, MDT_EFFECTIVE_DPI, &x, &y)))
+					return y;
+			}
+		}
+	}
+	HDC hdc = GetDC(NULL);
+	int dpi = GetDeviceCaps(hdc, LOGPIXELSX);
+	ReleaseDC(NULL, hdc);
+	return dpi;
+}
+
+static int getdpiforwindow(HWND hwnd)
+{
+	typedef UINT (CALLBACK *GETDPIFORWINDOW)(HWND);
+	GETDPIFORWINDOW pGetDpiForWindow = (GETDPIFORWINDOW)GetProcAddress(userdll, "GetDpiForWindow");
+	if (pGetDpiForWindow)
+		return pGetDpiForWindow(hwnd);
+	HDC hdc = GetDC(NULL);
+	int dpi = GetDeviceCaps(hdc, LOGPIXELSY);
+	ReleaseDC(NULL, hdc);
+	return dpi;
+}
+
+static int getstatuswindowheight(int monid, HWND hwnd)
 {
 	if (monid > 0)
 		return 0;
 	int def = GetSystemMetrics (SM_CYMENU) + 3;
 	WINDOWINFO wi;
 	HWND h = CreateWindowEx (
-		0, STATUSCLASSNAME, (LPCTSTR) NULL, SBARS_TOOLTIPS | WS_CHILD | WS_VISIBLE,
-		0, 0, 0, 0, hHiddenWnd, (HMENU) 1, hInst, NULL);
+		0, STATUSCLASSNAME, (LPCTSTR) NULL, SBARS_TOOLTIPS | WS_CHILD,
+		0, 0, 0, 0, hwnd ? hwnd : hHiddenWnd, (HMENU) 1, hInst, NULL);
 	if (!h)
 		return def;
 	wi.cbSize = sizeof wi;
-	if (!GetWindowInfo (h, &wi))
-		return def;
+	if (GetWindowInfo (h, &wi))
+		def = wi.rcWindow.bottom - wi.rcWindow.top;
+	int dpi = hwnd ? getdpiforwindow(hwnd) : getdpiformonitor(NULL);
 	DestroyWindow (h);
-	return wi.rcWindow.bottom - wi.rcWindow.top;
+	return dpi * def / 96;
 }
 
 void graphics_reset(bool forced)
@@ -3246,10 +3282,13 @@ static void setDwmEnableMMCSS (bool state)
 {
 	if (!os_vista)
 		return;
-	DWMENABLEMMCSS pDwmEnableMMCSS;
-	pDwmEnableMMCSS = (DWMENABLEMMCSS)GetProcAddress(GetModuleHandle(_T("dwmapi.dll")), "DwmEnableMMCSS");
-	if (pDwmEnableMMCSS)
-		pDwmEnableMMCSS (state);
+	HMODULE hm = GetModuleHandle(_T("dwmapi.dll"));
+	if (hm) {
+		DWMENABLEMMCSS pDwmEnableMMCSS;
+		pDwmEnableMMCSS = (DWMENABLEMMCSS)GetProcAddress(hm, "DwmEnableMMCSS");
+		if (pDwmEnableMMCSS)
+			pDwmEnableMMCSS(state);
+	}
 }
 
 void close_windows(struct AmigaMonitor *mon)
@@ -3269,7 +3308,6 @@ void close_windows(struct AmigaMonitor *mon)
 
 static void createstatuswindow(struct AmigaMonitor *mon)
 {
-	HDC hdc;
 	RECT rc;
 	HLOCAL hloc;
 	LPINT lpParts;
@@ -3277,7 +3315,7 @@ static void createstatuswindow(struct AmigaMonitor *mon)
 	int fps_width, idle_width, snd_width, joy_width, net_width;
 	int joys = currprefs.win32_statusbar > 1 ? 2 : 0;
 	int num_parts = 12 + joys + 1;
-	double scaleX, scaleY;
+	float scale = 1.0;
 	WINDOWINFO wi;
 	int extra;
 
@@ -3300,94 +3338,92 @@ static void createstatuswindow(struct AmigaMonitor *mon)
 	wi.cbSize = sizeof wi;
 	GetWindowInfo(mon->hMainWnd, &wi);
 	extra = wi.rcClient.top - wi.rcWindow.top;
-
-	hdc = GetDC(mon->hStatusWnd);
-	scaleX = GetDeviceCaps(hdc, LOGPIXELSX) / 96.0;
-	scaleY = GetDeviceCaps(hdc, LOGPIXELSY) / 96.0;
-	ReleaseDC(mon->hStatusWnd, hdc);
-	drive_width = (int)(24 * scaleX);
-	hd_width = (int)(24 * scaleX);
-	cd_width = (int)(24 * scaleX);
-	power_width = (int)(42 * scaleX);
-	fps_width = (int)(64 * scaleX);
-	idle_width = (int)(64 * scaleX);
-	net_width = (int)(24 * scaleX);
+	scale = getdpiforwindow(mon->hStatusWnd) / 96.0;
+	drive_width = (int)(24 * scale);
+	hd_width = (int)(24 * scale);
+	cd_width = (int)(24 * scale);
+	power_width = (int)(42 * scale);
+	fps_width = (int)(64 * scale);
+	idle_width = (int)(64 * scale);
+	net_width = (int)(24 * scale);
 	if (is_ppc_cpu(&currprefs))
-		idle_width += (int)(68 * scaleX);
+		idle_width += (int)(68 * scale);
 	if (is_x86_cpu(&currprefs))
-		idle_width += (int)(68 * scaleX);
-	snd_width = (int)(72 * scaleX);
-	joy_width = (int)(24 * scaleX);
+		idle_width += (int)(68 * scale);
+	snd_width = (int)(72 * scale);
+	joy_width = (int)(24 * scale);
 	GetClientRect(mon->hMainWnd, &rc);
 	/* Allocate an array for holding the right edge coordinates. */
 	hloc = LocalAlloc (LHND, sizeof (int) * (num_parts + 1));
 	if (hloc) {
-		int i = 0, i1, j;
-		lpParts = (LPINT)LocalLock (hloc);
-		// left side, msg area
-		lpParts[i] = rc.left + 2;
-		i++;
-		window_led_msg_start = i;
-		/* Calculate the right edge coordinate for each part, and copy the coords to the array.  */
-		int startx = rc.right - (drive_width * 4) - power_width - idle_width - fps_width - cd_width - hd_width - snd_width - net_width - joys * joy_width - extra;
-		for (j = 0; j < joys; j++) {
+		lpParts = (LPINT)LocalLock(hloc);
+		if (lpParts) {
+			int i = 0, i1;
+			// left side, msg area
+			lpParts[i] = rc.left + 2;
+			i++;
+			window_led_msg_start = i;
+			/* Calculate the right edge coordinate for each part, and copy the coords to the array.  */
+			int startx = rc.right - (drive_width * 4) - power_width - idle_width - fps_width - cd_width - hd_width - snd_width - net_width - joys * joy_width - extra;
+			for (int j = 0; j < joys; j++) {
+				lpParts[i] = startx;
+				i++;
+				startx += joy_width;
+			}
+			window_led_joy_start = i;
+			if (lpParts[0] >= startx)
+				lpParts[0] = startx - 1;
+			// snd
 			lpParts[i] = startx;
 			i++;
-			startx += joy_width;
+			// cpu
+			lpParts[i] = lpParts[i - 1] + snd_width;
+			i++;
+			// fps
+			lpParts[i] = lpParts[i - 1] + idle_width;
+			i++;
+			// power
+			lpParts[i] = lpParts[i - 1] + fps_width;
+			i++;
+			i1 = i;
+			// hd
+			lpParts[i] = lpParts[i - 1] + power_width;
+			i++;
+			// cd
+			lpParts[i] = lpParts[i - 1] + hd_width;
+			i++;
+			// net
+			lpParts[i] = lpParts[i - 1] + cd_width;
+			i++;
+			// df0
+			lpParts[i] = lpParts[i - 1] + net_width;
+			i++;
+			// df1
+			lpParts[i] = lpParts[i - 1] + drive_width;
+			i++;
+			// df2
+			lpParts[i] = lpParts[i - 1] + drive_width;
+			i++;
+			// df3
+			lpParts[i] = lpParts[i - 1] + drive_width;
+			i++;
+			// edge
+			lpParts[i] = lpParts[i - 1] + drive_width;
+
+			window_led_msg = lpParts[window_led_msg_start - 1];
+			window_led_msg_end = lpParts[window_led_msg_start - 1 + 1];
+			window_led_joys = lpParts[window_led_joy_start - joys];
+			window_led_joys_end = lpParts[window_led_joy_start - joys + 1];
+			window_led_hd = lpParts[i1];
+			window_led_hd_end = lpParts[i1 + 1];
+			window_led_drives = lpParts[i1 + 3];
+			window_led_drives_end = lpParts[i1 + 3 + 4];
+
+			/* Create the parts */
+			SendMessage(mon->hStatusWnd, SB_SETPARTS, (WPARAM)num_parts, (LPARAM)lpParts);
+			LocalUnlock(hloc);
+			LocalFree(hloc);
 		}
-		window_led_joy_start = i;
-		if (lpParts[0] >= startx)
-			lpParts[0] = startx - 1;
-		// snd
-		lpParts[i] = startx;
-		i++;
-		// cpu
-		lpParts[i] = lpParts[i - 1] + snd_width;
-		i++;
-		// fps
-		lpParts[i] = lpParts[i - 1] + idle_width;
-		i++;
-		// power
-		lpParts[i] = lpParts[i - 1] + fps_width;
-		i++;
-		i1 = i;
-		// hd
-		lpParts[i] = lpParts[i - 1] + power_width;
-		i++;
-		// cd
-		lpParts[i] = lpParts[i - 1] + hd_width;
-		i++;
-		// net
-		lpParts[i] = lpParts[i - 1] + cd_width;
-		i++;
-		// df0
-		lpParts[i] = lpParts[i - 1] + net_width;
-		i++;
-		// df1
-		lpParts[i] = lpParts[i - 1] + drive_width;
-		i++;
-		// df2
-		lpParts[i] = lpParts[i - 1] + drive_width;
-		i++;
-		// df3
-		lpParts[i] = lpParts[i - 1] + drive_width;
-		i++;
-		// edge
-		lpParts[i] = lpParts[i - 1] + drive_width;
-
-		window_led_msg = lpParts[window_led_msg_start - 1];
-		window_led_msg_end = lpParts[window_led_msg_start - 1 + 1];
-		window_led_joys = lpParts[window_led_joy_start - joys];
-		window_led_joys_end = lpParts[window_led_joy_start - joys + 1];
-		window_led_hd = lpParts[i1];
-		window_led_hd_end = lpParts[i1 + 1];
-		window_led_drives = lpParts[i1 + 3];
-		window_led_drives_end = lpParts[i1 + 3 + 4];
-
-		/* Create the parts */
-		SendMessage(mon->hStatusWnd, SB_SETPARTS, (WPARAM)num_parts, (LPARAM)lpParts);
-		LocalUnlock(hloc);
-		LocalFree(hloc);
 	}
 	registertouch(mon->hStatusWnd);
 }
@@ -3509,11 +3545,10 @@ static void getextramonitorpos(struct AmigaMonitor *mon, RECT *r)
 {
 	typedef HRESULT(CALLBACK* DWMGETWINDOWATTRIBUTE)(HWND hwnd, DWORD dwAttribute, PVOID pvAttribute, DWORD cbAttribute);
 	static DWMGETWINDOWATTRIBUTE pDwmGetWindowAttribute;
-	static HMODULE dwmapihandle;
 
 	RECT r1, r2;
-	if (!pDwmGetWindowAttribute && !dwmapihandle && os_vista) {
-		dwmapihandle = LoadLibrary(_T("dwmapi.dll"));
+	if (!pDwmGetWindowAttribute && os_vista) {
+		HMODULE dwmapihandle = GetModuleHandle(_T("dwmapi.dll"));
 		if (dwmapihandle)
 			pDwmGetWindowAttribute = (DWMGETWINDOWATTRIBUTE)GetProcAddress(dwmapihandle, "DwmGetWindowAttribute");
 	}
@@ -3568,7 +3603,6 @@ static int create_windows_2(struct AmigaMonitor *mon)
 	int gap = 0;
 	int x, y, w, h;
 	struct MultiDisplay *md;
-	int sbheight;
 
 	md = getdisplay(&currprefs, mon->monitor_id);
 	if (mon->monitor_id && fsw) {
@@ -3594,8 +3628,6 @@ static int create_windows_2(struct AmigaMonitor *mon)
 	}
 	mon->md = md;
 
-	sbheight = currprefs.win32_statusbar ? getstatuswindowheight(mon->monitor_id) : 0;
-
 	if (mon->hAmigaWnd) {
 		RECT r;
 		int w, h, x, y;
@@ -3613,6 +3645,9 @@ static int create_windows_2(struct AmigaMonitor *mon)
 		}
 #endif
 		GetWindowRect (mon->hAmigaWnd, &r);
+
+		int sbheight = currprefs.win32_statusbar ? getstatuswindowheight(mon->monitor_id, mon->hAmigaWnd) : 0;
+
 		x = r.left;
 		y = r.top;
 		w = r.right - r.left;
@@ -3692,6 +3727,9 @@ static int create_windows_2(struct AmigaMonitor *mon)
 	window_led_drives_end = 0;
 	mon->hMainWnd = NULL;
 	x = 0; y = 0;
+
+	int sbheight = currprefs.win32_statusbar ? getstatuswindowheight(mon->monitor_id, NULL) : 0;
+
 	if (borderless)
 		sbheight = cyborder = 0;
 
@@ -3855,7 +3893,7 @@ static int create_windows_2(struct AmigaMonitor *mon)
 		if (currprefs.win32_shutdown_notification && !rp_isactive()) {
 			typedef BOOL(WINAPI *SHUTDOWNBLOCKREASONCREATE)(HWND, LPCWSTR);
 			SHUTDOWNBLOCKREASONCREATE pShutdownBlockReasonCreate;
-			pShutdownBlockReasonCreate = (SHUTDOWNBLOCKREASONCREATE)GetProcAddress(GetModuleHandle(_T("user32.dll")), "ShutdownBlockReasonCreate");
+			pShutdownBlockReasonCreate = (SHUTDOWNBLOCKREASONCREATE)GetProcAddress(userdll, "ShutdownBlockReasonCreate");
 			if (pShutdownBlockReasonCreate) {
 				TCHAR tmp[MAX_DPATH];
 				WIN32GUI_LoadUIString(IDS_SHUTDOWN_NOTIFICATION, tmp, MAX_DPATH);

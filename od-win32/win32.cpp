@@ -175,6 +175,8 @@ int paraport_mask;
 
 HKEY hWinUAEKey = NULL;
 COLORREF g_dwBackgroundColor;
+HMODULE userdll;
+HMODULE kerneldll;
 
 int pause_emulation;
 
@@ -2473,7 +2475,8 @@ static LRESULT CALLBACK AmigaWindowProc(HWND hWnd, UINT message, WPARAM wParam, 
 	case WM_DRAWCLIPBOARD:
 		if (clipboard_initialized) {
 			clipboard_changed(hWnd);
-			SendMessage(hwndNextViewer, message, wParam, lParam);
+			if (hwndNextViewer)
+				SendMessage(hwndNextViewer, message, wParam, lParam);
 			return 0;
 		}
 		break;
@@ -2664,23 +2667,28 @@ static LRESULT CALLBACK MainWindowProc (HWND hWnd, UINT message, WPARAM wParam, 
 	case WM_QUERYENDSESSION:
 	case WM_ENDSESSION:
 		return AmigaWindowProc (hWnd, message, wParam, lParam);
-#if 0
+
+	case WM_DWMCOMPOSITIONCHANGED:
+	case WM_THEMECHANGED:
 	case WM_DISPLAYCHANGE:
-		if (isfullscreen() <= 0 && !currprefs.gfx_filter && (wParam + 7) / 8 != DirectDraw_GetBytesPerPixel ())
-			WIN32GFX_DisplayChangeRequested ();
-		break;
-#endif
-		case WM_DWMCOMPOSITIONCHANGED:
-		case WM_THEMECHANGED:
 		WIN32GFX_DisplayChangeRequested (-1);
 		return 0;
 
-		case WM_POWERBROADCAST:
+	case WM_POWERBROADCAST:
 		if (wParam == PBT_APMRESUMEAUTOMATIC) {
 			setsystime ();
 			return TRUE;
 		}
 		return 0;
+
+	case WM_DPICHANGED:
+	{
+		if (isfullscreen() == 0) {
+			RECT* const r = (RECT*)lParam;
+			SetWindowPos(hWnd, NULL, r->left, r->top, r->right - r->left, r->bottom - r->top, SWP_NOZORDER | SWP_NOACTIVATE);
+			return 0;
+		}
+	}
 
 	case WM_GETMINMAXINFO:
 		{
@@ -3521,7 +3529,7 @@ void logging_init (void)
 #ifdef _WIN64
 	wow64 = 1;
 #else
-	fnIsWow64Process = (LPFN_ISWOW64PROCESS)GetProcAddress (GetModuleHandle (_T("kernel32")), "IsWow64Process");
+	fnIsWow64Process = (LPFN_ISWOW64PROCESS)GetProcAddress(kerneldll, "IsWow64Process");
 	if (fnIsWow64Process)
 		fnIsWow64Process (GetCurrentProcess (), &wow64);
 #endif
@@ -5651,6 +5659,7 @@ static int betamessage (void)
 
 int os_admin, os_64bit, os_win7, os_win8, os_win10, os_vista, cpu_number, os_touch;
 BOOL os_dwm_enabled;
+BOOL dpi_aware_v2;
 
 static int isadminpriv (void)
 {
@@ -5717,10 +5726,9 @@ static int osdetect (void)
 	PGETNATIVESYSTEMINFO pGetNativeSystemInfo;
 	PISUSERANADMIN pIsUserAnAdmin;
 
-	pGetNativeSystemInfo = (PGETNATIVESYSTEMINFO)GetProcAddress (
-		GetModuleHandle (_T("kernel32.dll")), "GetNativeSystemInfo");
-	pIsUserAnAdmin = (PISUSERANADMIN)GetProcAddress (
-		GetModuleHandle (_T("shell32.dll")), "IsUserAnAdmin");
+	pGetNativeSystemInfo = (PGETNATIVESYSTEMINFO)GetProcAddress(kerneldll, "GetNativeSystemInfo");
+	pIsUserAnAdmin = (PISUSERANADMIN)GetProcAddress(
+		GetModuleHandle(_T("shell32.dll")), "IsUserAnAdmin");
 
 	GetSystemInfo (&SystemInfo);
 	if (pGetNativeSystemInfo)
@@ -7346,12 +7354,9 @@ void registertouch(HWND hwnd)
 
 	if (!os_touch)
 		return;
-	pRegisterTouchWindow = (REGISTERTOUCHWINDOW)GetProcAddress(
-		GetModuleHandle (_T("user32.dll")), "RegisterTouchWindow");
-	pGetTouchInputInfo = (GETTOUCHINPUTINFO)GetProcAddress(
-		GetModuleHandle (_T("user32.dll")), "GetTouchInputInfo");
-	pCloseTouchInputHandle = (CLOSETOUCHINPUTHANDLE)GetProcAddress(
-		GetModuleHandle (_T("user32.dll")), "CloseTouchInputHandle");
+	pRegisterTouchWindow = (REGISTERTOUCHWINDOW)GetProcAddress(userdll, "RegisterTouchWindow");
+	pGetTouchInputInfo = (GETTOUCHINPUTINFO)GetProcAddress(userdll, "GetTouchInputInfo");
+	pCloseTouchInputHandle = (CLOSETOUCHINPUTHANDLE)GetProcAddress(userdll, "CloseTouchInputHandle");
 	if (!pRegisterTouchWindow || !pGetTouchInputInfo || !pCloseTouchInputHandle)
 		return;
 	if (!pRegisterTouchWindow(hwnd, 0)) {
@@ -7759,6 +7764,8 @@ bool is_mainthread(void)
 }
 
 typedef BOOL (CALLBACK* CHANGEWINDOWMESSAGEFILTER)(UINT, DWORD);
+typedef DPI_AWARENESS_CONTEXT (CALLBACK* GETTHREADDPIAWARENESSCONTEXT)(void);
+typedef DPI_AWARENESS (CALLBACK* GETAWARENESSFROMDPIAWARENESSCONTEXT)(DPI_AWARENESS_CONTEXT);
 
 #ifndef NDEBUG
 typedef BOOL(WINAPI* SETPROCESSMITIGATIONPOLICY)(DWORD, PVOID, SIZE_T);
@@ -7786,12 +7793,17 @@ int PASCAL wWinMain (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdL
 #endif
 #endif
 
+	userdll = GetModuleHandle(_T("user32.dll"));
+	kerneldll = GetModuleHandle(_T("kernel32.dll"));
+	if (!userdll || !kerneldll)
+		return 0;
+
 #ifndef NDEBUG
 	PROCESS_MITIGATION_STRICT_HANDLE_CHECK_POLICY p = { 0 };
 	p.HandleExceptionsPermanentlyEnabled = 1;
 	p.RaiseExceptionOnInvalidHandleReference = 1;
 	//ProcessStrictHandleCheckPolicy = 3
-	pSetProcessMitigationPolicy = (SETPROCESSMITIGATIONPOLICY)GetProcAddress(GetModuleHandle(_T("kernel32.dll")), "SetProcessMitigationPolicy");
+	pSetProcessMitigationPolicy = (SETPROCESSMITIGATIONPOLICY)GetProcAddress(kerneldll, "SetProcessMitigationPolicy");
 	pSetProcessMitigationPolicy(3, &p, sizeof p);
 #endif
 
@@ -7803,6 +7815,20 @@ int PASCAL wWinMain (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdL
 	SetDllDirectory (_T(""));
 	/* Make sure we do an InitCommonControls() to get some advanced controls */
 	CoInitializeEx(NULL, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
+
+	GETTHREADDPIAWARENESSCONTEXT pGetThreadDpiAwarenessContext = (GETTHREADDPIAWARENESSCONTEXT)GetProcAddress(userdll, "GetThreadDpiAwarenessContext");
+	if (pGetThreadDpiAwarenessContext) {
+		DPI_AWARENESS_CONTEXT dpiawactx = pGetThreadDpiAwarenessContext();
+		if (dpiawactx) {
+			GETAWARENESSFROMDPIAWARENESSCONTEXT pGetAwarenessFromDpiAwarenessContext = (GETAWARENESSFROMDPIAWARENESSCONTEXT)GetProcAddress(userdll, "GetAwarenessFromDpiAwarenessContext");
+			if (pGetAwarenessFromDpiAwarenessContext) {
+				DPI_AWARENESS dpiawa = pGetAwarenessFromDpiAwarenessContext(dpiawactx);
+				if (dpiawa == DPI_AWARENESS_PER_MONITOR_AWARE)
+					dpi_aware_v2 = true;
+			}
+		}
+	}
+
 	InitCommonControls ();
 
 	original_affinity = 1;
@@ -7818,7 +7844,7 @@ int PASCAL wWinMain (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdL
 #define MSGFLT_ADD 1
 	CHANGEWINDOWMESSAGEFILTER pChangeWindowMessageFilter;
 	pChangeWindowMessageFilter = (CHANGEWINDOWMESSAGEFILTER)GetProcAddress(
-		GetModuleHandle(_T("user32.dll")), _T("ChangeWindowMessageFilter"));
+		userdll, "ChangeWindowMessageFilter");
 	if (pChangeWindowMessageFilter)
 		pChangeWindowMessageFilter(WM_DROPFILES, MSGFLT_ADD);
 #endif
