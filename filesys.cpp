@@ -6015,7 +6015,7 @@ static void	action_delete_object(TrapContext *ctx, Unit *unit, dpacket *packet)
 				return;
 			}
 		} else {
-			if (my_unlink (a->nname) == -1) {
+			if (my_unlink (a->nname, false) == -1) {
 				PUT_PCK_RES1 (packet, DOS_FALSE);
 				PUT_PCK_RES2 (packet, dos_errno ());
 				return;

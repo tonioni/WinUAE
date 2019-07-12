@@ -70,7 +70,7 @@ int my_mkdir (const TCHAR *name)
 	return CreateDirectory (namep, NULL) == 0 ? -1 : 0;
 }
 
-static int recycle (const TCHAR *name)
+static int recycle (const TCHAR *name, bool dontrecycle)
 {
 	DWORD dirattr = GetFileAttributesSafe (name);
 	bool isdir = dirattr != INVALID_FILE_ATTRIBUTES && (dirattr & FILE_ATTRIBUTE_DIRECTORY);
@@ -85,7 +85,7 @@ static int recycle (const TCHAR *name)
 		namep = name;
 	}
 
-	if (currprefs.win32_norecyclebin || isdir || currprefs.win32_filesystem_mangle_reserved_names == false) {
+	if (dontrecycle || currprefs.win32_norecyclebin || isdir || currprefs.win32_filesystem_mangle_reserved_names == false) {
 		if (isdir)
 			return RemoveDirectory (namep) ? 0 : -1;
 		else
@@ -162,13 +162,13 @@ int my_rmdir (const TCHAR *name)
 		return -1;
 	}
 
-	return recycle (name);
+	return recycle (name, false);
 }
 
 /* "move to Recycle Bin" (if enabled) -version of DeleteFile() */
-int my_unlink (const TCHAR *name)
+int my_unlink (const TCHAR *name, bool dontrecycle)
 {
-	return recycle (name);
+	return recycle (name, dontrecycle);
 }
 
 int my_rename (const TCHAR *oldname, const TCHAR *newname)
@@ -944,7 +944,7 @@ bool my_resolveshortcut(TCHAR *linkfile, int size)
                 if (SUCCEEDED(hres)) 
                 { 
                     // Get the path to the link target. 
-                    hres = psl->GetPath(szGotPath, MAX_DPATH, (WIN32_FIND_DATA*)&wfd, SLGP_SHORTPATH);
+                    hres = psl->GetPath(szGotPath, MAX_DPATH, &wfd, SLGP_SHORTPATH);
 
                     if (SUCCEEDED(hres)) 
                     { 

@@ -153,7 +153,7 @@ extern int my_readdir (struct my_opendir_s*, TCHAR*);
 
 extern int my_rmdir (const TCHAR*);
 extern int my_mkdir (const TCHAR*);
-extern int my_unlink (const TCHAR*);
+extern int my_unlink (const TCHAR*, bool);
 extern int my_rename (const TCHAR*, const TCHAR*);
 extern int my_setcurrentdir (const TCHAR *curdir, TCHAR *oldcur);
 bool my_isfilehidden (const TCHAR *path);
