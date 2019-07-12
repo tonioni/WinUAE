@@ -276,6 +276,28 @@ void ata_byteswapidentity(uae_u8 *d)
 	ql(d, 230);
 }
 
+static void pl(struct ide_hdf *ide, int offset, uae_u32 l)
+{
+	if (ide->byteswap) {
+		l = ((l >> 24) & 0x000000ff) | ((l >> 8) & 0x0000ff00) | ((l << 8) & 0x00ff0000) | ((l << 24) & 0xff000000);
+	}
+	ide->secbuf[offset * 2 + 0] = l;
+	ide->secbuf[offset * 2 + 1] = l >> 8;
+	ide->secbuf[offset * 2 + 2] = l >> 16;
+	ide->secbuf[offset * 2 + 3] = l >> 24;
+}
+
+static void pq(struct ide_hdf *ide, int offset, uae_u64 q)
+{
+	if (ide->byteswap) {
+		pl(ide, offset + 0, q >> 32);
+		pl(ide, offset + 2, q >>  0);
+	} else {
+		pl(ide, offset + 0, q >>  0);
+		pl(ide, offset + 2, q >> 32);
+	}
+}
+
 static void pw (struct ide_hdf *ide, int offset, uae_u16 w)
 {
 	if (ide->byteswap) {
@@ -512,9 +534,8 @@ static void ide_identity_buffer(struct ide_hdf *ide)
 		pw(ide, 54, ide->hdhfd.cyls);
 		pw(ide, 55, ide->hdhfd.heads);
 		pw(ide, 56, ide->hdhfd.secspertrack);
-		uae_u64 totalsecs = ide->hdhfd.cyls * ide->hdhfd.heads * ide->hdhfd.secspertrack;
-		pw(ide, 57, (uae_u16)totalsecs);
-		pw(ide, 58, (uae_u16)(totalsecs >> 16));
+		uae_u64 totalsecs = (uae_u64)ide->hdhfd.cyls * ide->hdhfd.heads * ide->hdhfd.secspertrack;
+		pl(ide, 57, totalsecs);
 		pw(ide, 59, ide->max_multiple_mode ? (0x100 | ide->max_multiple_mode >> (ide->blocksize / 512 - 1)) : 0); /* Multiple mode supported */
 		pw(ide, 62, 0x0f);
 		pw(ide, 63, 0x0f);
@@ -522,8 +543,7 @@ static void ide_identity_buffer(struct ide_hdf *ide)
 			totalsecs = ide->blocksize ? ide->hdhfd.size / ide->blocksize : 0;
 			if (totalsecs > 0x0fffffff)
 				totalsecs = 0x0fffffff;
-			pw(ide, 60, (uae_u16)totalsecs);
-			pw(ide, 61, (uae_u16)(totalsecs >> 16));
+			pl(ide, 60, totalsecs);
 			if (ide->ata_level > 0) {
 				pw(ide, 64, ide->ata_level ? 0x03 : 0x00); /* PIO3 and PIO4 */
 				pw(ide, 65, 120); /* MDMA2 supported */
@@ -542,10 +562,7 @@ static void ide_identity_buffer(struct ide_hdf *ide)
 				pw(ide, 93, (1 << 14) | (1 << 13) | (1 << 0));
 				if (ide->lba48) {
 					totalsecs = ide->hdhfd.size / ide->blocksize;
-					pw(ide, 100, (uae_u16)(totalsecs >> 0));
-					pw(ide, 101, (uae_u16)(totalsecs >> 16));
-					pw(ide, 102, (uae_u16)(totalsecs >> 32));
-					pw(ide, 103, (uae_u16)(totalsecs >> 48));
+					pq(ide, 100, totalsecs);
 				}
 			}
 		}
@@ -638,7 +655,7 @@ static void ide_initialize_drive_parameters (struct ide_hdf *ide)
 		if (ide->hdhfd.hfd.ci.pcyls)
 			ide->hdhfd.cyls = ide->hdhfd.hfd.ci.pcyls;
 		else
-			ide->hdhfd.cyls = (ide->hdhfd.size / ide->blocksize) / (ide->hdhfd.secspertrack * ide->hdhfd.heads);
+			ide->hdhfd.cyls = (ide->hdhfd.size / ide->blocksize) / ((uae_u64)ide->hdhfd.secspertrack * ide->hdhfd.heads);
 		if (ide->hdhfd.heads * ide->hdhfd.cyls * ide->hdhfd.secspertrack > 16515072 || ide->lba48) {
 			if (ide->hdhfd.hfd.ci.pcyls)
 				ide->hdhfd.cyls = ide->hdhfd.hfd.ci.pcyls;
@@ -710,7 +727,7 @@ static void get_lbachs (struct ide_hdf *ide, uae_u64 *lbap, unsigned int *cyl, u
 	if (ide->lba48 && ide->lba48cmd && (ide->regs.ide_select & 0x40)) {
 		uae_u64 lba;
 		lba = (ide->regs.ide_hcyl << 16) | (ide->regs.ide_lcyl << 8) | ide->regs.ide_sector;
-		lba |= ((ide->regs.ide_hcyl2 << 16) | (ide->regs.ide_lcyl2 << 8) | ide->regs.ide_sector2) << 24;
+		lba |= ((uae_u64)(((ide->regs.ide_hcyl2 << 16) | (ide->regs.ide_lcyl2 << 8) | ide->regs.ide_sector2))) << 24;
 		*lbap = lba;
 	} else {
 		if ((ide->regs.ide_select & 0x40) && ide->lba) {
@@ -719,7 +736,7 @@ static void get_lbachs (struct ide_hdf *ide, uae_u64 *lbap, unsigned int *cyl, u
 			*cyl = (ide->regs.ide_hcyl << 8) | ide->regs.ide_lcyl;
 			*head = ide->regs.ide_select & 15;
 			*sec = ide->regs.ide_sector;
-			*lbap = (((*cyl) * ide->hdhfd.heads + (*head)) * ide->hdhfd.secspertrack) + (*sec) - 1;
+			*lbap = (((uae_u64)(*cyl) * ide->hdhfd.heads + (*head)) * ide->hdhfd.secspertrack) + (*sec) - 1;
 		}
 	}
 }
@@ -1116,7 +1133,7 @@ static void ide_format_track(struct ide_hdf *ide)
 	cyl = (ide->regs.ide_hcyl << 8) | ide->regs.ide_lcyl;
 	head = ide->regs.ide_select & 15;
 	sec = ide->regs.ide_nsector;
-	lba = (((cyl) * ide->hdhfd.heads + (head)) * ide->hdhfd.secspertrack);
+	lba = (((uae_u64)(cyl) * ide->hdhfd.heads + (head)) * ide->hdhfd.secspertrack);
 	if (lba >= ide->max_lba) {
 		ide_interrupt(ide);
 		return;
@@ -1578,6 +1595,9 @@ void ide_initialize(struct ide_hdf **idetable, int chpair)
 {
 	struct ide_hdf *ide0 = idetable[chpair * 2 + 0];
 	struct ide_hdf *ide1 = idetable[chpair * 2 + 1];
+
+	if (!ide0 || !ide1)
+		return;
 
 	ide0->regs0 = &ide0->regs;
 	ide0->regs1 = &ide1->regs;
