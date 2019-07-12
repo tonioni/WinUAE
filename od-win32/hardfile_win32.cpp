@@ -16,6 +16,9 @@
 #include "win32gui.h"
 #include "zfile.h"
 #include "ini.h"
+#include "memory.h"
+#include "autoconf.h"
+#include "rommgr.h"
 
 #define hfd_log write_log
 #define hdf_log2
@@ -1031,7 +1034,7 @@ static bool readidentity(HANDLE h, struct uae_driveinfo *udi, struct hardfiledat
 
 			memset(cmd, 0, sizeof(cmd));
 			memset(data, 0, 512);
-			cmd[0] = 0x85; // SAT ATA PASSTHROUGH (16)
+			cmd[0] = 0x85; // SAT ATA PASSTHROUGH (16) (12 conflicts with MMC BLANK command)
 			cmd[1] = 4 << 1; // PIO data-in
 			cmd[2] = 0x08 | 0x04 | 0x02; // dir = from device, 512 byte block, sector count = block cnt
 			cmd[6] = 1; // block count
@@ -3044,7 +3047,7 @@ static BOOL GetDevicePropertyFromName(const TCHAR *DevicePath, DWORD Index, DWOR
 	if (ischs(udi->identity) && gli.Length.QuadPart == 0) {
 		int c, h, s;
 		tochs(udi->identity, -1, &c, &h, &s);
-		udi->size = c * h * s * 512;
+		udi->size = (uae_u64)c * h * s * 512;
 		udi->cylinders = c;
 		udi->heads = h;
 		udi->sectors = s;
@@ -3541,16 +3544,15 @@ int win32_hardfile_media_change (const TCHAR *drvname, int inserted)
 			}
 		}
 	}
-#if 0
 	for (i = 0; i < currprefs.mountitems; i++) {
-		extern struct hd_hardfiledata *pcmcia_sram;
+		extern struct hd_hardfiledata *pcmcia_disk;
 		int reopen = 0;
 		struct uaedev_config_data *uci = &currprefs.mountconfig[i];
-		if (uci->ci.controller_type == HD_CONTROLLER_TYPE_PCMCIA && uci->ci.controller_type_unit == 0) {
-			hmc_check (&pcmcia_sram->hfd, uci, &rescanned, &reopen, &gotinsert, drvname, inserted);
+		const struct expansionromtype *ert = get_unit_expansion_rom(uci->ci.controller_type);
+		if (ert && (ert->deviceflags & EXPANSIONTYPE_PCMCIA) && pcmcia_disk) {
+			hmc_check (&pcmcia_disk->hfd, uci, &rescanned, &reopen, &gotinsert, drvname, inserted);
 		}
 	}
-#endif
 	//write_log (_T("win32_hardfile_media_change returned %d\n"), gotinsert);
 	return gotinsert;
 }

@@ -148,13 +148,14 @@ DE0000 to DEFFFF	64 KB Motherboard resources
 
 static struct ide_hdf *idedrive[TOTAL_IDE * 2];
 static struct ide_hdf *archoshd[2];
-struct hd_hardfiledata *pcmcia_sram;
+struct hd_hardfiledata *pcmcia_disk;
 
 static int pcmcia_card;
 static int pcmcia_readonly;
 static int pcmcia_type;
 static uae_u8 pcmcia_configuration[20];
 static int pcmcia_configured;
+static int pcmcia_delayed_insert, pcmcia_delayed_insert_count;
 
 static int gayle_id_cnt;
 static uae_u8 gayle_irq, gayle_int, gayle_cs, gayle_cs_mask, gayle_cfg;
@@ -975,16 +976,6 @@ static uae_u16 pcmcia_idedata;
 static const struct pci_board *ne2000;
 static struct pci_board_state *ne2000_board_state;
 
-void gayle_hsync(void)
-{
-	if (ne2000)
-		ne2000->hsync(ne2000_board_state);
-	if (ide_interrupt_hsync(idedrive[0]) || ide_interrupt_hsync(idedrive[2]) || ide_interrupt_hsync(idedrive[4]) || checkpcmciane2000irq())
-		devices_rethink_all(rethink_gayle);
-	if (archoshd[0])
-		ide_interrupt_hsync(archoshd[0]);
-}
-
 static uaecptr from_gayle_pcmcmia(uaecptr addr)
 {
 	addr &= 0x80000 - 1;
@@ -1200,7 +1191,7 @@ static void initscideattr (int readonly)
 {
 	uae_u8 *rp;
 	uae_u8 *p = pcmcia_attrs;
-	struct hardfiledata *hfd = &pcmcia_sram->hfd;
+	struct hardfiledata *hfd = &pcmcia_disk->hfd;
 
 	/* Mostly just copied from real CF cards.. */
 
@@ -1291,7 +1282,7 @@ static void initsramattr (int size, int readonly)
 	uae_u8 *rp;
 	uae_u8 *p = pcmcia_attrs;
 	int sm, su, code, units;
-	struct hardfiledata *hfd = &pcmcia_sram->hfd;
+	struct hardfiledata *hfd = &pcmcia_disk->hfd;
 	int real = hfd->flags & HFD_FLAGS_REALDRIVE;
 
 	code = 0;
@@ -1362,7 +1353,7 @@ static void initsramattr (int size, int readonly)
 
 static void check_sram_flush (int addr)
 {
-	if (pcmcia_card == 0 || pcmcia_sram == 0)
+	if (pcmcia_card == 0 || pcmcia_disk == 0)
 		return;
 	if (pcmcia_readonly)
 		return;
@@ -1374,13 +1365,13 @@ static void check_sram_flush (int addr)
 	}
 	if (pcmcia_write_min >= 0) {
 		if (abs (pcmcia_write_min - addr) >= 512 || abs (pcmcia_write_max - addr) >= 512) {
-			int blocksize = pcmcia_sram->hfd.ci.blocksize;
+			int blocksize = pcmcia_disk->hfd.ci.blocksize;
 			int mask = ~(blocksize - 1);
 			int start = pcmcia_write_min & mask;
 			int end = (pcmcia_write_max + blocksize - 1) & mask;
 			int len = end - start;
 			if (len > 0) {
-				hdf_write (&pcmcia_sram->hfd, pcmcia_common + start, start, len);
+				hdf_write (&pcmcia_disk->hfd, pcmcia_common + start, start, len);
 				pcmcia_write_min = -1;
 				pcmcia_write_max = -1;
 			}
@@ -1394,14 +1385,14 @@ static void check_sram_flush (int addr)
 
 static int freepcmcia (int reset)
 {
-	if (pcmcia_sram) {
+	if (pcmcia_disk) {
 		check_sram_flush(-1);
 		if (reset) {
-			hdf_hd_close (pcmcia_sram);
-			xfree (pcmcia_sram);
-			pcmcia_sram = NULL;
+			hdf_hd_close (pcmcia_disk);
+			xfree (pcmcia_disk);
+			pcmcia_disk = NULL;
 		} else {
-			pcmcia_sram->hfd.drive_empty = 1;
+			pcmcia_disk->hfd.drive_empty = 1;
 		}
 	}
 	remove_ide_unit(idedrive, PCMCIA_IDE_ID * 2);
@@ -1436,24 +1427,24 @@ static int initpcmcia (const TCHAR *path, int readonly, int type, int reset, str
 	if (currprefs.cs_pcmcia == 0)
 		return 0;
 	freepcmcia (reset);
-	if (!pcmcia_sram)
-		pcmcia_sram = xcalloc (struct hd_hardfiledata, 1);
-	if (!pcmcia_sram->hfd.handle_valid)
+	if (!pcmcia_disk)
+		pcmcia_disk = xcalloc (struct hd_hardfiledata, 1);
+	if (!pcmcia_disk->hfd.handle_valid)
 		reset = 1;
 	if (path != NULL)
-		_tcscpy (pcmcia_sram->hfd.ci.rootdir, path);
-	pcmcia_sram->hfd.ci.readonly = readonly != 0;
-	pcmcia_sram->hfd.ci.blocksize = 512;
+		_tcscpy (pcmcia_disk->hfd.ci.rootdir, path);
+	pcmcia_disk->hfd.ci.readonly = readonly != 0;
+	pcmcia_disk->hfd.ci.blocksize = 512;
 
 	if (type == PCMCIA_SRAM) {
 		if (reset) {
 			if (path)
-				hdf_hd_open (pcmcia_sram);
+				hdf_hd_open (pcmcia_disk);
 		} else {
-			pcmcia_sram->hfd.drive_empty = 0;
+			pcmcia_disk->hfd.drive_empty = 0;
 		}
 
-		if (pcmcia_sram->hfd.ci.readonly)
+		if (pcmcia_disk->hfd.ci.readonly)
 			readonly = 1;
 		pcmcia_common_size = 0;
 		pcmcia_readonly = readonly;
@@ -1461,15 +1452,15 @@ static int initpcmcia (const TCHAR *path, int readonly, int type, int reset, str
 		pcmcia_attrs = xcalloc (uae_u8, pcmcia_attrs_size);
 		pcmcia_type = type;
 
-		if (!pcmcia_sram->hfd.drive_empty) {
-			pcmcia_common_size = pcmcia_sram->hfd.virtsize;
-			if (pcmcia_sram->hfd.virtsize > 4 * 1024 * 1024) {
-				write_log (_T("PCMCIA SRAM: too large device, %llu bytes\n"), pcmcia_sram->hfd.virtsize);
+		if (!pcmcia_disk->hfd.drive_empty) {
+			pcmcia_common_size = pcmcia_disk->hfd.virtsize;
+			if (pcmcia_disk->hfd.virtsize > 4 * 1024 * 1024) {
+				write_log (_T("PCMCIA SRAM: too large device, %llu bytes\n"), pcmcia_disk->hfd.virtsize);
 				pcmcia_common_size = 4 * 1024 * 1024;
 			}
 			pcmcia_common = xcalloc (uae_u8, pcmcia_common_size);
 			write_log (_T("PCMCIA SRAM: '%s' open, size=%d\n"), path, pcmcia_common_size);
-			hdf_read (&pcmcia_sram->hfd, pcmcia_common, 0, pcmcia_common_size);
+			hdf_read (&pcmcia_disk->hfd, pcmcia_common, 0, pcmcia_common_size);
 			pcmcia_card = 1;
 			initsramattr (pcmcia_common_size, readonly);
 		}
@@ -1512,7 +1503,7 @@ static int initpcmcia (const TCHAR *path, int readonly, int type, int reset, str
 	
 	} else if (type == PCMCIA_ARCHOSHD) {
 
-		pcmcia_sram->hfd.drive_empty = 0;
+		pcmcia_disk->hfd.drive_empty = 0;
 		pcmcia_common_size = 0;
 		pcmcia_readonly = 1;
 		pcmcia_type = type;
@@ -1865,11 +1856,11 @@ bool gayle_init_pcmcia(struct autoconfig_info *aci)
 	return true;
 }
 
-// eject any inserted PCMCIA card
-void pcmcia_eject(struct uae_prefs *p)
+static int pcmcia_eject2(struct uae_prefs *p)
 {
 	for (int i = 0; i < MAX_EXPANSION_BOARDS; i++) {
 		struct boardromconfig *brc_changed = &changed_prefs.expansionboard[i];
+		struct boardromconfig *brc_cur = &currprefs.expansionboard[i];
 		struct boardromconfig *brc = &p->expansionboard[i];
 		if (brc->device_type) {
 			const struct expansionromtype *ert = get_device_expansion_rom(brc->device_type);
@@ -1877,13 +1868,47 @@ void pcmcia_eject(struct uae_prefs *p)
 				write_log(_T("PCMCIA: '%s' removed\n"), ert->friendlyname);
 				brc->roms[0].inserted = false;
 				brc_changed->roms[0].inserted = false;
+				brc_cur->roms[0].inserted = false;
 				freepcmcia(0);
+				return i;
 			}
 		}
 	}
+	return -1;
 }
 
-static void pcmcia_card_check(int changecheck)
+// eject any inserted PCMCIA card
+void pcmcia_eject(struct uae_prefs *p)
+{
+	pcmcia_eject2(p);
+}
+
+// eject and insert card back after few second delay
+void pcmcia_reinsert(struct uae_prefs *p)
+{
+	pcmcia_delayed_insert_count = 0;
+	int num = pcmcia_eject2(p);
+	if (num < 0)
+		return;
+	pcmcia_delayed_insert = num + 1;
+	pcmcia_delayed_insert_count = 3 * 50 * 300;
+}
+
+bool pcmcia_disk_reinsert(struct uae_prefs *p, struct uaedev_config_info *uci, bool ejectonly)
+{
+	const struct expansionromtype *ert = get_unit_expansion_rom(uci->controller_type);
+	if (ert && (ert->deviceflags & EXPANSIONTYPE_PCMCIA)) {
+		if (ejectonly) {
+			pcmcia_eject2(p);
+		} else {
+			pcmcia_reinsert(p);
+		}
+		return true;
+	}
+	return false;
+}
+
+static void pcmcia_card_check(int changecheck, int insertdev)
 {
 	// allow only max single PCMCIA care inserted
 	bool found = false;
@@ -1893,6 +1918,9 @@ static void pcmcia_card_check(int changecheck)
 		if (brc->device_type) {
 			const struct expansionromtype *ert = get_device_expansion_rom(brc->device_type);
 			if (ert && ert->deviceflags & EXPANSIONTYPE_PCMCIA) {
+				if (insertdev - 1 == i) {
+					brc->roms[0].inserted = true;
+				}
 				if (found) {
 					brc->roms[0].inserted = false;
 					brc_prev->roms[0].inserted = false;
@@ -1960,6 +1988,23 @@ static void pcmcia_card_check(int changecheck)
 	}
 }
 
+void gayle_hsync(void)
+{
+	if (ne2000)
+		ne2000->hsync(ne2000_board_state);
+	if (ide_interrupt_hsync(idedrive[0]) || ide_interrupt_hsync(idedrive[2]) || ide_interrupt_hsync(idedrive[4]) || checkpcmciane2000irq())
+		devices_rethink_all(rethink_gayle);
+	if (archoshd[0])
+		ide_interrupt_hsync(archoshd[0]);
+	if (pcmcia_delayed_insert_count > 0) {
+		pcmcia_delayed_insert_count--;
+		if (pcmcia_delayed_insert_count == 0) {
+			pcmcia_card_check(1, pcmcia_delayed_insert);
+			pcmcia_delayed_insert = 0;
+		}
+	}
+}
+
 static void initide (void)
 {
 	gayle_its.idetable = idedrive;
@@ -2009,14 +2054,14 @@ void gayle_reset (int hardreset)
 	gayle_bank.name = bankname;
 	gayle_dataflyer_enable(false);
 
-	pcmcia_card_check(0);
+	pcmcia_card_check(0, -1);
 }
 
 void check_prefs_changed_gayle(void)
 {
 	if (!currprefs.cs_pcmcia)
 		return;
-	pcmcia_card_check(1);
+	pcmcia_card_check(1, -1);
 }
 
 uae_u8 *restore_gayle (uae_u8 *src)

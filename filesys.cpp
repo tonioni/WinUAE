@@ -877,8 +877,11 @@ int kill_filesys_unitconfig (struct uae_prefs *p, int nr)
 		return 0;
 	uci = getuci (p->mountconfig, nr);
 	hardfile_do_disk_change (uci, 0);
-	if (uci->configoffset >= 0 && uci->ci.controller_type == HD_CONTROLLER_TYPE_UAE)
-		filesys_media_change (uci->ci.rootdir, 0, uci);
+	if (uci->configoffset >= 0 && uci->ci.controller_type == HD_CONTROLLER_TYPE_UAE) {
+		filesys_media_change(uci->ci.rootdir, 0, uci);
+	} else {
+		pcmcia_disk_reinsert(p, &uci->ci, true);
+	}
 	while (nr < MOUNT_CONFIG_SIZE) {
 		memmove (&p->mountconfig[nr], &p->mountconfig[nr + 1], sizeof (struct uaedev_config_data));
 		nr++;

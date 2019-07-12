@@ -30,6 +30,7 @@
 #include "ide.h"
 #include "debug.h"
 #include "ini.h"
+#include "rommgr.h"
 
 #ifdef WITH_CHD
 #include "archivers/chd/chdtypes.h"
@@ -2347,16 +2348,12 @@ void hardfile_do_disk_change (struct uaedev_config_data *uci, bool insert)
 	int fsid = uci->configoffset;
 	struct hardfiledata *hfd;
 
-#if 0
-	if (uci->ci.controller_type == HD_CONTROLLER_TYPE_PCMCIA) {
-		if (uci->ci.controller_type_unit == 0) {
-			gayle_modify_pcmcia_sram_unit (&uci->ci, insert);
-		} else {
-			gayle_modify_pcmcia_ide_unit (&uci->ci, insert);
-		}
+	const struct expansionromtype *ert = get_unit_expansion_rom(uci->ci.controller_type);
+	if (ert && (ert->deviceflags & EXPANSIONTYPE_PCMCIA)) {
+		pcmcia_reinsert(&currprefs);
 		return;
 	}
-#endif
+
 	hfd = get_hardfile_data (fsid);
 	if (!hfd)
 		return;

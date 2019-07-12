@@ -16,6 +16,8 @@ extern bool gayle_init_pcmcia(struct autoconfig_info *aci);
 extern bool gayle_init_board_io_pcmcia(struct autoconfig_info *aci);
 extern bool gayle_init_board_common_pcmcia(struct autoconfig_info *aci);
 void pcmcia_eject(struct uae_prefs *p);
+void pcmcia_reinsert(struct uae_prefs*);
+bool pcmcia_disk_reinsert(struct uae_prefs *p, struct uaedev_config_info *uci, bool ejectonly);
 
 extern int gary_toenb; // non-existing memory access = bus error.
 extern int gary_timeout; // non-existing memory access = delay
