@@ -954,13 +954,7 @@
     <None Include="..\resources\configfile.ico">
       <Filter>win32\Resource Files</Filter>
     </None>
-    <None Include="configfile.ico">
-      <Filter>win32\Resource Files</Filter>
-    </None>
     <None Include="..\resources\cpu.ico">
-      <Filter>win32\Resource Files</Filter>
-    </None>
-    <None Include="diskimage.ico">
       <Filter>win32\Resource Files</Filter>
     </None>
     <None Include="..\resources\diskimage.ico">
@@ -972,13 +966,7 @@
     <None Include="..\resources\expansion.ico">
       <Filter>win32\Resource Files</Filter>
     </None>
-    <None Include="expansion.ico">
-      <Filter>win32\Resource Files</Filter>
-    </None>
     <None Include="..\resources\file.ico">
-      <Filter>win32\Resource Files</Filter>
-    </None>
-    <None Include="file.ico">
       <Filter>win32\Resource Files</Filter>
     </None>
     <None Include="..\resources\folder.ico">
@@ -1009,9 +997,6 @@
       <Filter>win32\Resource Files</Filter>
     </None>
     <None Include="..\resources\port.ico">
-      <Filter>win32\Resource Files</Filter>
-    </None>
-    <None Include="port.ico">
       <Filter>win32\Resource Files</Filter>
     </None>
     <None Include="..\resources\quickstart.ico">
