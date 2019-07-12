@@ -3181,6 +3181,7 @@ static int memwatch_func (uaecptr addr, int rwi, int size, uae_u32 *valp, uae_u3
 		mwhit.reg = reg;
 		if (mwhit.rwi & 2)
 			mwhit.val = val;
+		mwhit.pc = M68K_GETPC;
 		memwatch_triggered = i + 1;
 		if (m->reportonly) {
 			memwatch_hit_msg(memwatch_triggered - 1);
@@ -7205,7 +7206,6 @@ void debug_init_trainer(const TCHAR *file)
 
 	}
 
-end:
 	if (tpptrcnt > 0)
 		debug_opcode_watch = true;
 

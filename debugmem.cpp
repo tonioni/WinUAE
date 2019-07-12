@@ -216,6 +216,7 @@ static int alloccnt;
 #define DEBUGMEM_INUSE 0x80
 #define DEBUGMEM_PARTIAL 0x100
 #define DEBUGMEM_NOSTACKCHECK 0x200
+#define DEBUGMEM_WRITE_NOCACHEFLUSH 0x400
 #define DEBUGMEM_STACK 0x1000
 
 struct debugmemdata
@@ -348,7 +349,7 @@ static void debugreport(struct debugmemdata *dm, uaecptr addr, int rwi, int size
 		addr_start, addr_start + PAGE_SIZE - 1,
 		!(state & (DEBUGMEM_ALLOCATED | DEBUGMEM_INUSE)) ? 'I' : (state & DEBUGMEM_WRITE) ? 'W' : 'R',
 		(state & DEBUGMEM_WRITE) ? '*' : (state & DEBUGMEM_INITIALIZED) ? '+' : '-',
-		dm->unused_start, PAGE_SIZE - dm->unused_end);
+		dm->unused_start, PAGE_SIZE - dm->unused_end - 1);
 	debugmem_break(1);
 }
 
@@ -551,6 +552,38 @@ bool debugmem_break_stack_push(void)
 	return true;
 }
 
+void debugmem_flushcache(uaecptr addr, int size)
+{
+	if (!debugmem_initialized)
+		return;
+	if (size < 0) {
+		for (int i = 0; i < totalmemdata; i++) {
+			struct debugmemdata* dm = dmd[i];
+			if (dm->flags & DEBUGMEM_WRITE_NOCACHEFLUSH) {
+				for (int j = 0; j < PAGE_SIZE; j++) {
+					dm->state[j] &= ~DEBUGMEM_WRITE_NOCACHEFLUSH;
+				}
+				dm->flags &= ~DEBUGMEM_WRITE_NOCACHEFLUSH;
+			}
+		}
+		return;
+	}
+	if (addr + size < debugmem_bank.start || addr >= debugmem_bank.start + debugmem_bank.allocated_size)
+		return;
+	for (int i = 0; i < (PAGE_SIZE + size - 1) / PAGE_SIZE; i++) {
+		uaecptr a = (addr & ~PAGE_SIZE) + i * PAGE_SIZE;
+		if (a < debugmem_bank.start || a >= debugmem_bank.start + debugmem_bank.allocated_size)
+			continue;
+		struct debugmemdata* dm = dmd[(a - debugmem_bank.start) / PAGE_SIZE];
+		for (int j = 0; j < PAGE_SIZE; j++) {
+			uaecptr aa = a + j;
+			if (aa < addr || aa >= addr + size)
+				continue;
+			dm->state[j] &= ~DEBUGMEM_WRITE_NOCACHEFLUSH;
+		}
+	}
+}
+
 static bool debugmem_func(uaecptr addr, int rwi, int size, uae_u32 val)
 {
 	bool ret = true;
@@ -585,13 +618,16 @@ static bool debugmem_func(uaecptr addr, int rwi, int size, uae_u32 val)
 		}
 
 		if (!(rwi & DEBUGMEM_NOSTACKCHECK) || ((rwi & DEBUGMEM_NOSTACKCHECK) && !(dm->flags & DEBUGMEM_STACK))) {
-			if ((rwi & DEBUGMEM_FETCH) && !(state & DEBUGMEM_INITIALIZED)) {
+			if ((rwi & DEBUGMEM_FETCH) && !(state & DEBUGMEM_INITIALIZED) && !(state & DEBUGMEM_WRITE)) {
 				debugreport(dm, oaddr, rwi, size, _T("Instruction fetch from uninitialized memory"));
 				return false;
 			}
-
-			if ((rwi & DEBUGMEM_FETCH) && (state & DEBUGMEM_WRITE) && !(state & DEBUGMEM_FETCH)) {
-				debugreport(dm, oaddr, rwi, size, _T("Instruction fetch from memory that was modified"));
+			if ((rwi & DEBUGMEM_FETCH) && (state & DEBUGMEM_WRITE_NOCACHEFLUSH)) {
+				debugreport(dm, oaddr, rwi, size, _T("Instruction fetch from memory that was modified without flushing caches"));
+				return false;
+			}
+			if ((rwi & DEBUGMEM_FETCH) && (state & DEBUGMEM_WRITE) && (state & DEBUGMEM_FETCH)) {
+				debugreport(dm, oaddr, rwi, size, _T("Instruction fetch from memory that was modified after being executed at least once"));
 				return false;
 			}
 		}
@@ -611,6 +647,12 @@ static bool debugmem_func(uaecptr addr, int rwi, int size, uae_u32 val)
 				return false;
 			}
 		}
+		if (rwi & DEBUGMEM_WRITE) {
+			rwi |= DEBUGMEM_WRITE_NOCACHEFLUSH;
+			dm->flags |= DEBUGMEM_WRITE_NOCACHEFLUSH;
+		}
+		if ((rwi & DEBUGMEM_FETCH) && (state & DEBUGMEM_WRITE))
+			state &= ~(DEBUGMEM_WRITE | DEBUGMEM_WRITE_NOCACHEFLUSH);
 		if ((state | rwi) != state) {
 			//console_out_f(_T("addr %08x %d/%d (%02x -> %02x) PC=%08x\n"), addr, i, size, state, rwi, M68K_GETPC);
 			dm->state[offset] |= rwi;

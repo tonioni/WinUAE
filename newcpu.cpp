@@ -1471,10 +1471,12 @@ void flush_cpu_caches(bool force)
 			for (int i = 0; i < CACHELINES020; i++)
 				caches020[i].valid = 0;
 			regs.cacr &= ~0x08;
+			debugmem_flushcache(0, -1);
 		}
 		if (regs.cacr & 0x04) { // clear entry in instr cache
 			caches020[(regs.caar >> 2) & (CACHELINES020 - 1)].valid = 0;
 			regs.cacr &= ~0x04;
+			debugmem_flushcache(regs.caar, CACHELINES020);
 		}
 	} else if (currprefs.cpu_model == 68030) {
 		if ((regs.cacr & 0x08) || force) { // clear instr cache
@@ -1487,10 +1489,12 @@ void flush_cpu_caches(bool force)
 				}
 			}
 			regs.cacr &= ~0x08;
+			debugmem_flushcache(0, -1);
 		}
 		if (regs.cacr & 0x04) { // clear entry in instr cache
 			icaches030[(regs.caar >> 4) & (CACHELINES030 - 1)].valid[(regs.caar >> 2) & 3] = 0;
 			regs.cacr &= ~0x04;
+			debugmem_flushcache(regs.caar, CACHELINES030);
 		}
 		if ((regs.cacr & 0x800) || force) { // clear data cache
 			if (doflush) {
@@ -1517,6 +1521,7 @@ void flush_cpu_caches(bool force)
 					icaches040[i].valid[j] = false;
 				}
 			}
+			debugmem_flushcache(0, -1);
 		}
 	}
 }
@@ -1623,6 +1628,7 @@ static void flush_cpu_caches_040_2(int cache, int scope, uaecptr addr, bool push
 						tagmask = cacheitag04060mask;
 						index = (addr >> 4) & cacheisets04060mask;
 						c = &icaches040[index];
+						debugmem_flushcache(addr, 16);
 					} else {
 						tagmask = cachedtag04060mask;
 						index = (addr >> 4) & cachedsets04060mask;
