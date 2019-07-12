@@ -11057,6 +11057,16 @@ uae_u8 *save_custom_agacolors (int *len, uae_u8 *dstptr)
 {
 	uae_u8 *dstbak, *dst;
 
+	if (!(currprefs.chipset_mask & CSMASK_AGA)) {
+		int i;
+		for (i = 0; i < 256; i++) {
+			if (current_colors.color_regs_aga[i] || color_regs_genlock[i])
+				break;
+		}
+		if (i == 256)
+			return NULL;
+	}
+
 	if (dstptr)
 		dstbak = dst = dstptr;
 	else
