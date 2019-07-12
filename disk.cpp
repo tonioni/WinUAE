@@ -2929,6 +2929,11 @@ static void DISK_check_change (void)
 #endif
 		}
 	}
+	if (config_changed) {
+		for (int i = 0; i < MAX_SPARE_DRIVES; i++) {
+			_tcscpy(currprefs.dfxlist[i], changed_prefs.dfxlist[i]);
+		}
+	}
 }
 
 void DISK_vsync (void)
