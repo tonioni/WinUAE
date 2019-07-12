@@ -2759,7 +2759,7 @@ static void reset_ac(struct uae_prefs *p)
 	else
 		uae_id = hackers_id;
 
-	if (!savestate_state) {
+	if (restore_cardno == 0) {
 		for (int i = 0; i < MAX_EXPANSION_BOARD_SPACE; i++) {
 			memset(&cards_set[i], 0, sizeof(struct card_data));
 		}
@@ -3939,7 +3939,7 @@ uae_u8 *restore_expansion (uae_u8 *src)
 	return src;
 }
 
-uae_u8 *save_expansion_board(int *len, uae_u8 *dstptr, int cardnum)
+uae_u8 *save_expansion_boards(int *len, uae_u8 *dstptr, int cardnum)
 {
 	uae_u8 *dst, *dstbak;
 	if (cardnum >= cardno)
@@ -3975,7 +3975,7 @@ uae_u8 *save_expansion_board(int *len, uae_u8 *dstptr, int cardnum)
 	return dstbak;
 }
 
-uae_u8 *restore_expansion_board(uae_u8 *src)
+uae_u8 *restore_expansion_boards(uae_u8 *src)
 {
 	if (!src) {
 		restore_cardno = 0;
@@ -4005,12 +4005,14 @@ uae_u8 *restore_expansion_board(uae_u8 *src)
 	if (romtype != 0xffffffff) {
 		dev_num = restore_u32();
 		ec->aci.devnum = dev_num;
-		if (!get_device_rom(&currprefs, romtype, dev_num, NULL)) {
-			get_device_rom_new(&currprefs, romtype, dev_num, NULL);
+		struct boardromconfig* brc = get_device_rom(&currprefs, romtype, dev_num, NULL);
+		if (!brc) {
+			brc = get_device_rom_new(&currprefs, romtype, dev_num, NULL);
 		}
 		struct romconfig *rc = get_device_romconfig(&currprefs, romtype, dev_num);
 		if (rc) {
 			ec->rc = rc;
+			rc->back = brc;
 			ec->ert = get_device_expansion_rom(romtype);
 			s = restore_string();
 			_tcscpy(rc->romfile, s);
@@ -4027,6 +4029,64 @@ uae_u8 *restore_expansion_board(uae_u8 *src)
 	}
 	return src;
 }
+
+#if 0
+// old style
+uae_u8 *save_expansion_info_old(int *len, uae_u8 *dstptr)
+{
+	uae_u8* dst, * dstbak;
+	if (dstptr)
+		dst = dstbak = dstptr;
+	else
+		dstbak = dst = xmalloc(uae_u8, 100 + MAX_EXPANSION_BOARD_SPACE * 100);
+	save_u32(1);
+	save_u32(0);
+	save_u32(cardno);
+	for (int i = 0; i < cardno; i++) {
+		struct card_data* ec = cards[i];
+		if (ec->rc) {
+			save_u32(ec->rc->back->device_type);
+			save_u32(ec->rc->back->device_num);
+			save_string(ec->rc->romfile);
+			save_string(ec->rc->romident);
+		}
+		else {
+			save_u32(0xffffffff);
+		}
+		save_u32(ec->base);
+		save_u32(ec->size);
+		save_u32(ec->flags);
+		save_string(ec->name);
+	}
+	save_u32(0);
+	*len = dst - dstbak;
+	return dstbak;
+}
+
+uae_u8 *restore_expansion_info_old(uae_u8 *src)
+{
+	if (restore_cardno)
+		return src;
+	if (restore_u32() != 1)
+		return src;
+	restore_u32();
+	int num = restore_u32();
+	for (int i = 0; i < num; i++) {
+		int romtype = restore_u32();
+		if (romtype != 0xffffffff) {
+			restore_u32();
+			restore_string();
+			restore_string();
+		}
+		restore_u32();
+		restore_u32();
+		restore_u32();
+		restore_string();
+	}
+	restore_u32();
+	return src;
+}
+#endif
 
 void restore_expansion_finish(void)
 {

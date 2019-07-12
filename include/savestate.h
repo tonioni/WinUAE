@@ -217,8 +217,12 @@ extern uae_u8 *save_a3000hram (int *);
 extern uae_u8 *restore_rom (uae_u8 *);
 extern uae_u8 *save_rom (int, int *, uae_u8 *);
 
-extern uae_u8 *save_expansion_board(int*, uae_u8*,int);
-extern uae_u8 *restore_expansion_board(uae_u8*);
+extern uae_u8 *save_expansion_boards(int*, uae_u8*, int);
+extern uae_u8 *restore_expansion_boards(uae_u8*);
+#if 0
+extern uae_u8 *save_expansion_info_old(int*, uae_u8*);
+extern uae_u8 *restore_expansion_info_old(uae_u8*);
+#endif
 extern void restore_expansion_finish(void);
 
 extern uae_u8 *restore_action_replay (uae_u8 *);

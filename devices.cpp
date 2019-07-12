@@ -468,7 +468,7 @@ void devices_restore_start(void)
 	}
 	changed_prefs.mbresmem_low_size = 0;
 	changed_prefs.mbresmem_high_size = 0;
-	restore_expansion_board(NULL);
+	restore_expansion_boards(NULL);
 }
 
 void devices_syncchange(void)

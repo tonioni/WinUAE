@@ -782,8 +782,12 @@ void restore_state (const TCHAR *filename)
 		else if (!_tcsncmp (name, _T("2065"), 4))
 			end = restore_a2065 (chunk);
 #endif
+#if 0
+		else if (!_tcsncmp(name, _T("EXPI"), 4))
+			end = restore_expansion_info_old(chunk);
+#endif
 		else if (!_tcsncmp (name, _T("EXPB"), 4))
-			end = restore_expansion_board(chunk);
+			end = restore_expansion_boards(chunk);
 		else if (!_tcsncmp (name, _T("DMWP"), 4))
 			end = restore_debug_memwatch (chunk);
 		else if (!_tcsncmp(name, _T("PIC0"), 4))
@@ -1037,14 +1041,20 @@ static int save_state_internal (struct zfile *f, const TCHAR *description, int c
 	xfree (dst);
 
 #ifdef AUTOCONFIG
+	// new
 	i = 0;
 	for (;;) {
-		dst = save_expansion_board(&len, 0, i);
+		dst = save_expansion_boards(&len, 0, i);
 		if (!dst)
 			break;
 		save_chunk(f, dst, len, _T("EXPB"), 0);
 		i++;
 	}
+#if 0
+	// old
+	dst = save_expansion_info_old(&len, 0);
+	save_chunk(f, dst, len, _T("EXPI"), 0);
+#endif
 	dst = save_expansion(&len, 0);
 	save_chunk(f, dst, len, _T("EXPA"), 0);
 #endif
