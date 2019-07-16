@@ -2080,6 +2080,8 @@ static uae_u32 REGPARAM2 cia_wget (uaecptr addr)
 		}
 		break;
 	}
+	if (addr & 1)
+		v = (v << 8) | (v >> 8);
 #ifdef ACTION_REPLAY
 	if (flags) {
 		action_replay_cia_access((flags & 2) != 0);
@@ -2147,7 +2149,7 @@ static void REGPARAM2 cia_bput (uaecptr addr, uae_u32 value)
 	}
 }
 
-static void REGPARAM2 cia_wput (uaecptr addr, uae_u32 value)
+static void REGPARAM2 cia_wput (uaecptr addr, uae_u32 v)
 {
 	int r = (addr & 0xf00) >> 8;
 
@@ -2160,8 +2162,11 @@ static void REGPARAM2 cia_wput (uaecptr addr, uae_u32 value)
 		return;
 
 	if (memwatch_access_validator) {
-		write_log(_T("CIA word write %08x = %04x PC=%08x\n"), addr, value & 0xffff, M68K_GETPC);
+		write_log(_T("CIA word write %08x = %04x PC=%08x\n"), addr, v & 0xffff, M68K_GETPC);
 	}
+
+	if (addr & 1)
+		v = (v << 8) | (v >> 8);
 
 	int cs = cia_chipselect(addr);
 
@@ -2169,12 +2174,12 @@ static void REGPARAM2 cia_wput (uaecptr addr, uae_u32 value)
 		uae_u32 flags = 0;
 		cia_wait_pre (((cs & 2) == 0 ? 1 : 0) | ((cs & 1) == 0 ? 2 : 0));
 		if ((cs & 2) == 0)
-			WriteCIAB (r, value >> 8, &flags);
+			WriteCIAB (r, v >> 8, &flags);
 		if ((cs & 1) == 0)
-			WriteCIAA (r, value & 0xff, &flags);
-		cia_wait_post (((cs & 2) == 0 ? 1 : 0) | ((cs & 1) == 0 ? 2 : 0), value);
+			WriteCIAA (r, v & 0xff, &flags);
+		cia_wait_post (((cs & 2) == 0 ? 1 : 0) | ((cs & 1) == 0 ? 2 : 0), v);
 		if (((cs & 3) == 3) && (warned > 0 || currprefs.illegal_mem)) {
-			write_log (_T("cia_wput: unknown CIA address %08X=%04X %08X\n"), addr, value & 0xffff, M68K_GETPC);
+			write_log (_T("cia_wput: unknown CIA address %08X=%04X %08X\n"), addr, v & 0xffff, M68K_GETPC);
 			warned--;
 		}
 #ifdef ACTION_REPLAY
