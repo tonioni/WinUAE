@@ -5279,9 +5279,10 @@ const struct expansionromtype expansionroms[] = {
 		_T("trifecta"), _T("Trifecta"), _T("ICD"),
 		NULL, trifecta_init, NULL, trifecta_add_idescsi_unit, ROMTYPE_TRIFECTA | ROMTYPE_NONE, 0, 0, BOARD_AUTOCONFIG_Z2, false,
 		trifecta_sub, 0,
-		false, EXPANSIONTYPE_SCSI | EXPANSIONTYPE_IDE,
+		true, EXPANSIONTYPE_SCSI | EXPANSIONTYPE_IDE,
 		2071, 32, 0, false, NULL,
 		true, 0, NULL,
+		{ 0xd1, 0x23, 0x40, 0x00, 0x08, 0x17, 0x00, 0x00, 0x00, 0x00, 0x10, 0x00 }
 	},
 	{
 		_T("buddha"), _T("Buddha"), _T("Individual Computers"),

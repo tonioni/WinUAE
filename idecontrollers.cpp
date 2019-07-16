@@ -713,7 +713,7 @@ static uae_u32 ide_read_byte(struct ide_board *board, uaecptr addr)
 			if (board->irq) {
 				v &= ~1;
 			}
-			v |= board->state2[0] &0x80;
+			v |= board->state2[0] & 0x80;
 		} else if (addr == 0xf047) {
 			v = board->state;
 		} else {
@@ -747,17 +747,16 @@ static uae_u32 ide_read_byte(struct ide_board *board, uaecptr addr)
 				v = 0xff;
 		}
 		if (addr == 0x401) {
-			if (board->subtype)
+			if (board->subtype) {
 				v = (board->aci->rc->device_id ^ 7) & 7; // inverted SCSI ID
-			else
+			} else {
 				v = 0xff;
-		} else if (addr & 0x8000) {
+			}
+		} else if (addr >= 0x1000) {
 			if (board->rom)
 				v = board->rom[addr & board->rom_mask];
 		}
-		if (addr >= 0x400 && addr <= 0x7ff) {
-			write_log(_T("trifecta get %08x\n"), addr);
-		}
+		//write_log(_T("trifecta get %08x %08x\n"), addr, M68K_GETPC);
 
 
 	} else if (board->type == APOLLO_IDE) {
@@ -1086,7 +1085,7 @@ static uae_u32 ide_read_word(struct ide_board *board, uaecptr addr)
 
 		} else if (board->type == TRIFECTA_IDE) {
 
-			if (addr & 0x8000) {
+			if (addr >= 0x1000) {
 				if (board->rom) {
 					v = board->rom[addr & board->rom_mask] << 8;
 					v |= board->rom[(addr + 1) & board->rom_mask];
@@ -2152,8 +2151,6 @@ void masoboshi_add_idescsi_unit (int ch, struct uaedev_config_info *ci, struct r
 	}
 }
 
-static const uae_u8 trifecta_autoconfig[16] = { 0xc1, 0x23, 0x00, 0x00, 0x08, 0x17, 0x00, 0x00, 0x00, 0x00, 0x80, 0x00 };
-
 bool trifecta_init(struct autoconfig_info *aci)
 {
 	int rom_size = 65536;
@@ -2161,7 +2158,7 @@ bool trifecta_init(struct autoconfig_info *aci)
 	memset(rom, 0xff, rom_size);
 
 	if (!aci->doinit) {
-		aci->autoconfigp = trifecta_autoconfig;
+		aci->autoconfigp = aci->ert->autoconfig;
 		return true;
 	}
 
@@ -2180,10 +2177,11 @@ bool trifecta_init(struct autoconfig_info *aci)
 	ide->keepautoconfig = false;
 	ide->intena = true;
 
-	load_rom_rc(aci->rc, ROMTYPE_TRIFECTA, 32768, 0, rom, 65536, LOADROM_EVENONLY_ODDONE | LOADROM_FILL);
+	if (!aci->rc->autoboot_disabled)
+		load_rom_rc(aci->rc, ROMTYPE_TRIFECTA, 32768, 0, rom, 65536, LOADROM_EVENONLY_ODDONE | LOADROM_FILL);
 
 	for (int i = 0; i < 16; i++) {
-		uae_u8 b = trifecta_autoconfig[i];
+		uae_u8 b = aci->ert->autoconfig[i];
 		ew(ide, i * 4, b);
 	}
 

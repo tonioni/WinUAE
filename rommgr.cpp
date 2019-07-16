@@ -95,7 +95,7 @@ struct romdata *getromdatabypath (const TCHAR *path)
 	return NULL;
 }
 
-#define NEXT_ROM_ID 253
+#define NEXT_ROM_ID 254
 
 #define ALTROM(id,grp,num,size,flags,crc32,a,b,c,d,e) \
 { _T("X"), 0, 0, 0, 0, 0, size, id, 0, 0, flags, (grp << 16) | num, 0, NULL, crc32, a, b, c, d, e },
@@ -620,10 +620,12 @@ static struct romdata roms[] = {
 	0xebe42aa6, 0xdff761c2,0x429d0d26,0x2151d831,0x12746f83,0x3b8d36f0, NULL, NULL },
 	{ _T("Archos Overdrive HD"), 0, 0, 0, 0, _T("ARCHOSHD\0"), 32768, 250, 0, 0, ROMTYPE_ARCHOSHD, 0, 0, NULL,
 	0x30c0e3f9, 0x90014e97,0x700333a7,0x931b382f,0xe672b6e4,0x4b7b8acc, NULL, NULL },
-	{ _T("Trumpcard 500AT v1.1"), 0, 0, 0, 0, _T("ARCHOSHD\0"), 32768, 251, 0, 0, ROMTYPE_IVST500AT, 0, 0, NULL,
+	{ _T("Trumpcard 500AT v1.1"), 0, 0, 0, 0, _T("TRUMPCARDAT\0"), 32768, 251, 0, 0, ROMTYPE_IVST500AT, 0, 0, NULL,
 	0xb6467cb8, 0xbc1cd85f,0x16011691,0x32a2a8d6, 0x2ee38666,0x520d5cf1, NULL, NULL },
-	{ _T("Trumpcard 500AT v1.2"), 0, 0, 0, 0, _T("ARCHOSHD\0"), 32768, 252, 0, 0, ROMTYPE_IVST500AT, 0, 0, NULL,
+	{ _T("Trumpcard 500AT v1.2"), 0, 0, 0, 0, _T("TRUMPCARDAT\0"), 32768, 252, 0, 0, ROMTYPE_IVST500AT, 0, 0, NULL,
 	0x3eb87eb3, 0xff41889e,0x641114e5,0x5ec1f784,0xd79216ce,0xe9a74a40, NULL, NULL },
+	{ _T("Trifecta v4.31"), 0, 0, 0, 0, _T("TRIFECTA\0"), 32768, 253, 0, 0, ROMTYPE_TRIFECTA, 0, 0, NULL,
+	0x591c3cd4, 0x681b8a67,0x3775dd0c,0x8f13b641,0x8852a51e,0xf3a29da3, NULL, NULL },
 
 	{ _T("CyberStorm MK I 68040"), 0, 0, 0, 0, _T("CSMKI\0"), 32768, 95, 0, 0, ROMTYPE_CB_CSMK1, 0, 0, NULL,
 	  0, 0, 0, 0, 0, 0, NULL, _T("cyberstormmk1_040.rom") },

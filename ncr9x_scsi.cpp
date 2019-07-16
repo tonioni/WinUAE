@@ -516,13 +516,11 @@ static int masoboshi_dma_write(void *opaque, uint8_t *buf, int len)
 	}
 }
 
-/* Trifecta is true DMA only to/from its onboard Fast RAM expansion */
-
 static int trifecta_dma_read(void *opaque, uint8_t *buf, int len)
 {
 	struct ncr9x_state *ncr = (struct ncr9x_state*)opaque;
 	if (ncr->dma_on) {
-		write_log(_T("Trifecta DMA from %08x, %d bytes\n"), ncr->dma_ptr, len);
+		//write_log(_T("Trifecta DMA from %08x, %d bytes\n"), ncr->dma_ptr, len);
 		m68k_cancel_idle();
 		while (len > 0) {
 			uae_u16 v = get_word(ncr->dma_ptr & ~1);
@@ -542,7 +540,7 @@ static int trifecta_dma_write(void *opaque, uint8_t *buf, int len)
 {
 	struct ncr9x_state *ncr = (struct ncr9x_state*)opaque;
 	if (ncr->dma_on) {
-		write_log(_T("Trifecta DMA to %08x, %d bytes\n"), ncr->dma_ptr, len);
+		//write_log(_T("Trifecta DMA to %08x, %d bytes\n"), ncr->dma_ptr, len);
 		m68k_cancel_idle();
 		while (len > 0) {
 			uae_u16 v;
