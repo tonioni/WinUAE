@@ -4117,8 +4117,9 @@ static void gen_opcode (unsigned int opcode)
 			genastore ("src", Apdi, "7", sz_long, "old");
 		} else {
 			addop_ce020 (curi, 0);
-			genamode (NULL, Apdi, "7", sz_long, "old", 2, 0, GF_AA);
 			genamode (NULL, curi->smode, "srcreg", sz_long, "src", 1, 0, GF_AA);
+			// smode must be first in case it is A7.
+			genamode(NULL, Apdi, "7", sz_long, "old", 2, 0, GF_AA);
 			genamode (NULL, curi->dmode, "dstreg", curi->size, "offs", 1, 0, 0);
 			genastore ("src", Apdi, "7", sz_long, "old");
 			genastore ("m68k_areg (regs, 7)", curi->smode, "srcreg", sz_long, "src");
@@ -4498,8 +4499,7 @@ bccl_not68020:
 			curi->dmode, "dstreg", sz_long, "dst", 1, 0);
 		printf ("\tCLEAR_CZNV ();\n");
 		printf ("\tif (src == 0) {\n");
-		if (cpu_level > 1)
-			printf ("\t\tdivbyzero_special (0, dst);\n");
+		printf ("\t\tdivbyzero_special (0, dst);\n");
 		incpc ("%d", m68k_pc_offset);
 		printf ("\t\tException_cpu(5);\n");
 		printf ("\t\tgoto %s;\n", endlabelstr);
@@ -4536,8 +4536,7 @@ bccl_not68020:
 			curi->smode, "srcreg", sz_word, "src", 1, 0,
 			curi->dmode, "dstreg", sz_long, "dst", 1, 0);
 		printf ("\tif (src == 0) {\n");
-		if (cpu_level > 1)
-			printf ("\t\tdivbyzero_special (1, dst);\n");
+		printf ("\t\tdivbyzero_special (1, dst);\n");
 		incpc ("%d", m68k_pc_offset);
 		printf ("\t\tException_cpu(5);\n");
 		printf ("\t\tgoto %s;\n", endlabelstr);
@@ -4627,17 +4626,18 @@ bccl_not68020:
 		genamode (curi, curi->dmode, "dstreg", curi->size, "dst", 1, 0, 0);
 		sync_m68k_pc ();
 		addcycles000 (4);
-		printf ("\tif (dst > src) {\n");
-		printf ("\t\tSET_NFLG (0);\n");
-		printf ("\t\tException_cpu(6);\n");
-		printf ("\t\tgoto %s;\n", endlabelstr);
-		printf ("\t}\n");
+		printf("\tsetchkundefinedflags(src, dst);\n");
+		printf("\tif ((uae_s32)dst < 0) {\n");
+		printf("\t\tSET_NFLG (1);\n");
+		printf("\t\tException_cpu(6);\n");
+		printf("\t\tgoto %s;\n", endlabelstr);
+		printf("\t}\n");
 		addcycles000 (2);
-		printf ("\tif ((uae_s32)dst < 0) {\n");
-		printf ("\t\tSET_NFLG (1);\n");
-		printf ("\t\tException_cpu(6);\n");
-		printf ("\t\tgoto %s;\n", endlabelstr);
-		printf ("\t}\n");
+		printf("\tif (dst > src) {\n");
+		printf("\t\tSET_NFLG (0);\n");
+		printf("\t\tException_cpu(6);\n");
+		printf("\t\tgoto %s;\n", endlabelstr);
+		printf("\t}\n");
 		fill_prefetch_next ();
 		need_endlabel = 1;
 		break;

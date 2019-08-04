@@ -747,9 +747,12 @@ int getDivs68kCycles (uae_s32 dividend, uae_s16 divisor)
 	return mcycles * 2;
 }
 
-/* 68000 Z=1. NVC=0
+/* DIV divide by zero
+ *
+ * 68000 Signed: NVC=0 Z=1. Unsigned: VC=0 N=(dst>>16)<0 Z=(dst>>16)==0
  * 68020 and 68030: Signed: Z=1 NVC=0. Unsigned: V=1, N<dst, Z=!N, C=0.
  * 68040/68060 C=0.
+ *
  */
 void divbyzero_special (bool issigned, uae_s32 dst)
 {
@@ -768,6 +771,15 @@ void divbyzero_special (bool issigned, uae_s32 dst)
 	} else {
 		// 68000/010
 		CLEAR_CZNV ();
+		if (issigned) {
+			SET_ZFLG(1);
+		} else {
+			uae_s16 d = dst >> 16;
+			if (d < 0)
+				SET_NFLG(1);
+			else if (d == 0)
+				SET_ZFLG(1);
+		}
 	}
 }
 
@@ -827,6 +839,19 @@ void setdivsoverflowflags(uae_s32 dividend, uae_s16 divisor)
 		SET_VFLG(1);
 		SET_NFLG(1);
 	}
+}
+
+/*
+ * CHK.W undefined flags
+ *
+ * 68000: CV=0, Z if dst==0.
+ *
+ */
+void setchkundefinedflags(uae_s16 src, uae_s16 dst)
+{
+	CLEAR_CZNV();
+	if (dst == 0)
+		SET_ZFLG(1);
 }
 
 #ifndef CPUEMU_68000_ONLY
