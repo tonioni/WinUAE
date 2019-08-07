@@ -192,11 +192,11 @@ bool preinit_shm (void)
 				max_allowed_mman = 256;
 		}
 	} else if (maxmem > 0) {
-		size64 = maxmem * 1024 * 1024;
+		size64 = (uae_u64)maxmem * 1024 * 1024;
 	}
 	if (size64 < 8 * 1024 * 1024)
 		size64 = 8 * 1024 * 1024;
-	if (max_allowed_mman * 1024 * 1024 > size64)
+	if ((uae_u64)max_allowed_mman * 1024 * 1024 > size64)
 		max_allowed_mman = size64 / (1024 * 1024);
 
 	uae_u32 natmem_size = (max_allowed_mman + 1) * 1024 * 1024;

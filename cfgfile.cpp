@@ -1531,7 +1531,7 @@ static bool cfgfile_readromboard(const TCHAR *option, const TCHAR *value, struct
 			_tcscpy(tmp1, _T("romboard_options"));
 		if (!_tcsicmp(option, tmp1)) {
 			TCHAR *endptr;
-			TCHAR *s, *s1, *s2;
+			TCHAR *s1, *s2;
 			s1 = cfgfile_option_get(value, _T("start"));
 			s2 = cfgfile_option_get(value, _T("end"));
 			rb->size = 0;
