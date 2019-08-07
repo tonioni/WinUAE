@@ -21,6 +21,7 @@ extern void scram5394_add_scsi_unit(int ch, struct uaedev_config_info *ci, struc
 extern void rapidfire_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
 extern void alf3_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
 extern void typhoon2scsi_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
+extern void squirrel_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
 
 extern bool ncr_fastlane_autoconfig_init(struct autoconfig_info *aci);
 extern bool ncr_oktagon_autoconfig_init(struct autoconfig_info *aci);
@@ -46,6 +47,11 @@ void ncr_trifecta_autoconfig_init(struct romconfig*, uaecptr);
 uae_u32 golemfast_ncr9x_scsi_get(uaecptr addr, int devnum);
 void golemfast_ncr9x_scsi_put(uaecptr addr, uae_u32 v, int devnum);
 void ncr_golemfast_autoconfig_init(struct romconfig*, uaecptr);
+
+uae_u32 squirrel_ncr9x_scsi_get(uaecptr addr, int devnum);
+void squirrel_ncr9x_scsi_put(uaecptr addr, uae_u32 v, int devnum);
+void ncr_squirrel_init(struct romconfig *, uaecptr);
+void pcmcia_interrupt_set(int);
 
 #define BLIZZARD_2060_SCSI_OFFSET 0x1ff00
 #define BLIZZARD_2060_DMA_OFFSET 0x1fff0

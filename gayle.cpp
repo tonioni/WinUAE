@@ -26,6 +26,7 @@
 #include "threaddep/thread.h"
 #include "a2091.h"
 #include "ncr_scsi.h"
+#include "ncr9x_scsi.h"
 #include "blkdev.h"
 #include "scsi.h"
 #include "ide.h"
@@ -40,6 +41,7 @@
 #define PCMCIA_IDE 2
 #define PCMCIA_NE2000 3
 #define PCMCIA_ARCHOSHD 4
+#define PCMCIA_SURFSQUIRREL 5
 
 /*
 600000 to 9FFFFF	4 MB	Credit Card memory if CC present
@@ -156,6 +158,7 @@ static int pcmcia_type;
 static uae_u8 pcmcia_configuration[20];
 static int pcmcia_configured;
 static int pcmcia_delayed_insert, pcmcia_delayed_insert_count;
+static int external_card_int;
 
 static int gayle_id_cnt;
 static uae_u8 gayle_irq, gayle_int, gayle_cs, gayle_cs_mask, gayle_cfg;
@@ -241,6 +244,7 @@ void rethink_gayle (void)
 	gayle_irq |= checkgayleideirq();
 	gayle_irq |= checkpcmciaideirq();
 	gayle_irq |= checkpcmciane2000irq();
+	gayle_irq |= external_card_int;
 	mask = gayle_int & gayle_irq;
 	if (mask & (GAYLE_IRQ_IDE | GAYLE_IRQ_WR))
 		lev2 = 1;
@@ -262,6 +266,20 @@ void rethink_gayle (void)
 		safe_interrupt_set(IRQ_SOURCE_GAYLE, 0, false);
 	if (lev6)
 		safe_interrupt_set(IRQ_SOURCE_GAYLE, 0, true);
+}
+
+void pcmcia_interrupt_set(int level)
+{
+	if (level) {
+		if (!external_card_int)
+			write_log("PCMCIA IRQ ACTIVE\n");
+		external_card_int |= GAYLE_INT_IRQ;
+	} else {
+		if (external_card_int)
+			write_log("PCMCIA IRQ INACTIVE\n");
+		external_card_int &= ~GAYLE_INT_IRQ;
+	}
+	rethink_gayle();
 }
 
 static void gayle_cs_change (uae_u8 mask, int onoff)
@@ -288,6 +306,7 @@ static void gayle_cs_change (uae_u8 mask, int onoff)
 
 static void card_trigger (int insert)
 {
+	external_card_int = 0;
 	if (insert) {
 		if (pcmcia_card) {
 			gayle_cs_change (GAYLE_CS_CCDET, 1);
@@ -1094,6 +1113,16 @@ static uae_u32 gayle_attr_read (uaecptr addr)
 			}
 			return v;
 		}
+	} else if (pcmcia_type == PCMCIA_SURFSQUIRREL) {
+		if ((addr & 0x20600) == 0x20400) {
+			int reg = (addr >> 12) & 15;
+			v = squirrel_ncr9x_scsi_get(reg, 0);
+			return v;
+		}
+		if ((addr & 0x20600) == 0x20200) {
+			v = squirrel_ncr9x_scsi_get(16, 0);
+			return v;
+		}
 	}
 	v = pcmcia_attrs[addr / 2];
 	return v;
@@ -1154,7 +1183,15 @@ static void gayle_attr_write (uaecptr addr, uae_u32 v)
 					ne2000->bars[0].bput(ne2000_board_state, reg, v);
 				}
 			}
-		 }
+		} else if (pcmcia_type == PCMCIA_SURFSQUIRREL) {
+			if ((addr & 0x20400) == 0x20400) {
+				int reg = (addr >> 12) & 15;
+				squirrel_ncr9x_scsi_put(reg, v, 0);
+			}
+			if ((addr & 0x20600) == 0x20200) {
+				squirrel_ncr9x_scsi_put(16, v, 0);
+			}
+		}
 	}
 }
 
@@ -1419,6 +1456,7 @@ static int freepcmcia (int reset)
 
 	gayle_cfg = 0;
 	gayle_cs = 0;
+	external_card_int = 0;
 	return 1;
 }
 
@@ -1527,6 +1565,26 @@ static int initpcmcia (const TCHAR *path, int readonly, int type, int reset, str
 			archoshd[0]->byteswap = true;
 		}
 		ide_initialize(archoshd, 0);
+
+	} else if (type == PCMCIA_SURFSQUIRREL) {
+
+		pcmcia_disk->hfd.drive_empty = 0;
+		pcmcia_common_size = 0;
+		pcmcia_readonly = 1;
+		pcmcia_type = type;
+		pcmcia_common_size = 0;
+		pcmcia_attrs_size = 0x40000;
+		pcmcia_attrs = xcalloc(uae_u8, pcmcia_attrs_size);
+		pcmcia_card = 1;
+
+		struct romconfig *rc = get_device_romconfig(&currprefs, ROMTYPE_SSQUIRREL, 0);
+		if (rc) {
+			ncr_squirrel_init(rc, 0xa00000);
+		}
+
+		if (reset && path) {
+			squirrel_add_scsi_unit(0, uci, rc);
+		}
 
 	}
 
@@ -1971,6 +2029,9 @@ static void pcmcia_card_check(int changecheck, int insertdev)
 							pcmcia_type = PCMCIA_SRAM;
 							if (ucd)
 								readonly = ucd->ci.readonly;
+							break;
+							case ROMTYPE_SSQUIRREL:
+							pcmcia_type = PCMCIA_SURFSQUIRREL;
 							break;
 						}
 						if (ucd) {

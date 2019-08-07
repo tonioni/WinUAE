@@ -5262,6 +5262,12 @@ const struct expansionromtype expansionroms[] = {
 		false, EXPANSIONTYPE_SCSI
 	},
 	{
+		_T("surfsquirrel"), _T("Surf Squirrel"), _T("HiSoft"),
+		NULL, gayle_init_board_io_pcmcia, NULL, NULL, ROMTYPE_SSQUIRREL | ROMTYPE_NOT, 0, 0, BOARD_NONAUTOCONFIG_BEFORE, true,
+		NULL, 0,
+		false, EXPANSIONTYPE_SCSI | EXPANSIONTYPE_PCMCIA,
+	},
+	{
 		_T("adide"), _T("AdIDE"), _T("ICD"),
 		NULL, adide_init, NULL, adide_add_ide_unit, ROMTYPE_ADIDE | ROMTYPE_NONE, 0, 0, BOARD_AUTOCONFIG_Z2, false,
 		NULL, 0,

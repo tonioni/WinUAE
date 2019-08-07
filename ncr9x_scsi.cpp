@@ -99,6 +99,7 @@ struct ncr9x_state
 	bool chipirq, boardirq, boardirqlatch;
 	bool intena;
 	bool irq6;
+	bool pcmcia;
 	void (*irq_func)(struct ncr9x_state*);
 	int led;
 	uaecptr dma_ptr;
@@ -171,6 +172,7 @@ static struct ncr9x_state *ncr_golemfast_scsi[MAX_DUPLICATE_EXPANSION_BOARDS];
 static struct ncr9x_state *ncr_scram5394_scsi[MAX_DUPLICATE_EXPANSION_BOARDS];
 static struct ncr9x_state *ncr_rapidfire_scsi[MAX_DUPLICATE_EXPANSION_BOARDS];
 static struct ncr9x_state *ncr_trifecta_scsi[MAX_DUPLICATE_EXPANSION_BOARDS];
+static struct ncr9x_state *ncr_squirrel_scsi;
 
 static struct ncr9x_state *ncr_units[MAX_NCR9X_UNITS + 1];
 
@@ -250,7 +252,10 @@ void ncr9x_rethink(void)
 {
 	for (int i = 0; ncr_units[i]; i++) {
 		if (ncr_units[i]->boardirq) {
-			safe_interrupt_set(IRQ_SOURCE_NCR9X, i, ncr_units[i]->irq6);
+			if (ncr_units[i]->pcmcia)
+				pcmcia_interrupt_set(1);
+			else
+				safe_interrupt_set(IRQ_SOURCE_NCR9X, i, ncr_units[i]->irq6);
 		}
 	}
 }
@@ -263,6 +268,8 @@ static void set_irq2(struct ncr9x_state *ncr)
 	}
 	if (!ncr->chipirq && ncr->boardirq) {
 		ncr->boardirq = false;
+		if (ncr->pcmcia)
+			pcmcia_interrupt_set(0);
 	}
 }
 
@@ -855,6 +862,17 @@ static void ncr9x_io_bput3(struct ncr9x_state *ncr, uaecptr addr, uae_u32 val, i
 			return;
 		}
 
+	} else if (ncr == ncr_squirrel_scsi) {
+
+		reg_shift = 0;
+		if (addr >= 16) {
+			ncr->data = val;
+			ncr->data_valid_r = true;
+			esp_dma_enable(ncr->devobject.lsistate, 1);
+			return;
+		}
+
+
 	} else if (isncr(ncr, ncr_masoboshi_scsi)) {
 
 		if (addr >= 0xf000 && addr < 0xf800)
@@ -1262,6 +1280,16 @@ static uae_u32 ncr9x_io_bget3(struct ncr9x_state *ncr, uaecptr addr, int *reg)
 				esp_fake_dma_done(ncr->devobject.lsistate);
 			}
 			//write_log(_T("FAKEDMA READ %08x %02X %08x (%d/%d)\n"), addr, v, M68K_GETPC, ncr->fakedma_data_offset, ncr->fakedma_data_size);
+			return v;
+		}
+
+	} else if (ncr == ncr_squirrel_scsi) {
+
+		reg_shift = 0;
+		if (addr >= 16) {
+			esp_dma_enable(ncr->devobject.lsistate, 1);
+			v = ncr->data;
+			ncr->data_valid_w = false;
 			return v;
 		}
 
@@ -1849,6 +1877,16 @@ void golemfast_ncr9x_scsi_put(uaecptr addr, uae_u32 v, int devnum)
 	ncr9x_io_bput(ncr_golemfast_scsi[devnum], addr, v);
 }
 
+uae_u32 squirrel_ncr9x_scsi_get(uaecptr addr, int devnum)
+{
+	return ncr9x_io_bget(ncr_squirrel_scsi, addr);
+}
+void squirrel_ncr9x_scsi_put(uaecptr addr, uae_u32 v, int devnum)
+{
+	ncr9x_io_bput(ncr_squirrel_scsi, addr, v);
+}
+
+
 static void ew(struct ncr9x_state *ncr, int addr, uae_u8 value)
 {
 	if (addr == 00 || addr == 02 || addr == 0x40 || addr == 0x42) {
@@ -1875,6 +1913,20 @@ void ncr9x_reset(void)
 		ncr9x_reset_board(ncr_units[i]);
 		ncr_units[i]->enabled = false;
 	}
+}
+
+void ncr_squirrel_init(struct romconfig *rc, uaecptr baseaddress)
+{
+	struct ncr9x_state *ncr = getscsi(rc);
+
+	if (!ncr)
+		return;
+
+	ncr->enabled = true;
+	ncr->pcmcia = true;
+	ncr->baseaddress = baseaddress;
+
+	ncr9x_reset_board(ncr);
 }
 
 void ncr_golemfast_autoconfig_init(struct romconfig *rc, uaecptr baseaddress)
@@ -2508,4 +2560,10 @@ void typhoon2scsi_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct ro
 	esp_dma_enable(ncr_typhoon2_scsi->devobject.lsistate, 1);
 }
 
+void squirrel_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc)
+{
+	ncr9x_add_scsi_unit(&ncr_squirrel_scsi, ch, ci, rc);
+	ncr9x_esp_scsi_init(ncr_squirrel_scsi, fake2_dma_read, fake2_dma_write, set_irq2, 0);
+	esp_dma_enable(ncr_squirrel_scsi->devobject.lsistate, 1);
+}
 #endif
