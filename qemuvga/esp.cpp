@@ -338,7 +338,8 @@ static void esp_dma_done(ESPState *s)
 	s->dma_counter -= s->dma_len;
     s->rregs[ESP_TCLO] = s->dma_counter;
     s->rregs[ESP_TCMID] = s->dma_counter >> 8;
-    s->rregs[ESP_TCHI] = s->dma_counter >> 16;
+	if (s->wregs[ESP_CFG2] & 0x40)
+		s->rregs[ESP_TCHI] = s->dma_counter >> 16;
     
 	esp_raise_irq(s);
 }
@@ -640,10 +641,19 @@ static uint64_t esp_reg_read2(void *opaque, uint32_t saddr)
 			// FIFO can be only read in PIO mode when any transfer command is active.
 			if (s->ti_size > 0) {
 				s->ti_size--;
-				if ((s->rregs[ESP_RSTAT] & STAT_PIO_MASK) == 0 || s->pio_on) {
+				if ((s->rregs[ESP_RSTAT] & 7) == STAT_DI || (s->rregs[ESP_RSTAT] & 7) == STAT_MI || (s->rregs[ESP_RSTAT] & 7) == STAT_ST || s->pio_on) {
 					/* Data out.  */
-					if (s->async_buf) {
+					if ((s->rregs[ESP_RSTAT] & 7) == STAT_DI && s->async_buf) {
 						s->rregs[ESP_FIFO] = s->async_buf[s->ti_rptr++];
+						s->pio_on = 1;
+					} else if ((s->rregs[ESP_RSTAT] & 7) == STAT_ST) {
+						s->rregs[ESP_FIFO] = s->ti_buf[s->ti_rptr++];
+						s->pio_on = 1;
+						// -> Message In
+						s->rregs[ESP_RSTAT] &= ~7;
+						s->rregs[ESP_RSTAT] |= STAT_MI;
+					} else if ((s->rregs[ESP_RSTAT] & 7) == STAT_MI) {
+						s->rregs[ESP_FIFO] = s->ti_buf[s->ti_rptr++];
 						s->pio_on = 1;
 					} else {
 						s->rregs[ESP_FIFO] = 0;
@@ -657,10 +667,6 @@ static uint64_t esp_reg_read2(void *opaque, uint32_t saddr)
 					} else {
 						esp_raise_irq(s);
 					}
-				} else {
-					s->rregs[ESP_FIFO] = s->ti_buf[s->ti_rptr++];
-					if (s->pio_on)
-						esp_raise_irq(s);
 				}
 			}
 			if (s->ti_size == 0) {
@@ -699,6 +705,10 @@ static uint64_t esp_reg_read2(void *opaque, uint32_t saddr)
 	}
 	case ESP_RES4:
 		return 0x80 | 0x20 | 0x2;
+	case ESP_TCHI:
+		if (!(s->wregs[ESP_CFG2] & 0x40))
+			return 0;
+		break;
 
 	// FAS408
 	case ESP_REGS + NCR_PIOFIFO:
@@ -767,11 +777,14 @@ void esp_reg_write(void *opaque, uint32_t saddr, uint64_t val)
 	switch (saddr) {
     case ESP_TCLO:
     case ESP_TCMID:
-    case ESP_TCHI:
-        s->rregs[ESP_RSTAT] &= ~STAT_TC;
+		s->rregs[ESP_RSTAT] &= ~STAT_TC;
+		break;
+	case ESP_TCHI:
 		if (!(s->wregs[ESP_CFG2] & 0x40))
 			val = 0;
-        break;
+		else
+			s->rregs[ESP_RSTAT] &= ~STAT_TC;
+		break;
     case ESP_FIFO:
 #if	ESPLOG
 		write_log("->FIFO %02x %d %d %d\n", val & 0xff, s->do_cmd, s->cmdlen, s->ti_wptr);
@@ -795,12 +808,16 @@ void esp_reg_write(void *opaque, uint32_t saddr, uint64_t val)
             s->rregs[ESP_TCLO] = s->wregs[ESP_TCLO];
             s->rregs[ESP_TCMID] = s->wregs[ESP_TCMID];
             s->rregs[ESP_TCHI] = s->wregs[ESP_TCHI];
+			if (!(s->wregs[ESP_CFG2] & 0x40))
+				s->rregs[ESP_TCHI] = 0;
         } else {
             s->dma = 0;
         }
         switch(val & CMD_CMD) {
         case CMD_NOP:
-            break;
+			if ((val & CMD_DMA) && (s->wregs[ESP_CFG2] & 0x40))
+				s->rregs[ESP_TCHI] = s->chip_id;
+			break;
         case CMD_FLUSH:
             //s->ti_size = 0;
 			s->fifo_on = 0;
@@ -826,8 +843,6 @@ void esp_reg_write(void *opaque, uint32_t saddr, uint64_t val)
 			// make sure status/message byte is in buffer
 			if ((s->rregs[ESP_RSTAT] & 7) == STAT_ST) {
 				init_status_phase(s, 1);
-				s->rregs[ESP_RSTAT] &= ~7;
-				s->rregs[ESP_RSTAT] |= STAT_MI;
 			} else if ((s->rregs[ESP_RSTAT] & 7) == STAT_MI) {
 				init_status_phase(s, 0);
 			}
@@ -1132,6 +1147,7 @@ void esp_scsi_init(DeviceState *dev, ESPDMAMemoryReadWriteFunc read, ESPDMAMemor
 	s->dma_memory_read = read;
 	s->dma_memory_write = write;
 	s->fas4xxextra = fas4xxextra;
+	s->chip_id = 0x12;
 }
 
 void esp_scsi_reset(DeviceState *dev, void *privdata)
