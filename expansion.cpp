@@ -4199,14 +4199,15 @@ static const struct expansionsubromtype rochard_sub[] = {
 		NULL
 	}
 };
+
 static const struct expansionsubromtype trifecta_sub[] = {
 	{
-		_T("EC"), _T("ec"), 0, // IDE-only
+		_T("EC (IDE)"), _T("ec"), 0, // IDE-only
 		2071, 32, 0, false,
 		{ 0 }
 	},
 	{
-		_T("LX"), _T("lx"), 0, // IDE+SCSI
+		_T("LX (IDE + SCSI)"), _T("lx"), 0, // IDE+SCSI
 		2071, 32, 0, false,
 		{ 0 }
 	},
@@ -4214,6 +4215,26 @@ static const struct expansionsubromtype trifecta_sub[] = {
 		NULL
 	}
 };
+static const struct expansionboardsettings trifecta_settings[] = {
+	{
+		_T("Boot delay\0") _T("off (A=0,B=0)\0") _T("8s (A=1,B=0)\0") _T("16s (A=0,B=1)\0") _T("24s (A=1,B=1)\0"),
+		_T("bootdelay\0") _T("bootdelay0\0") _T("bootdelay8\0") _T("bootdelay16\0") _T("bootdelay24\0"),
+		true
+	},
+	{
+		_T("Buffers (C)"), _T("jumper_c")
+	},
+	{
+		_T("Unused (D)"), _T("jumper_d")
+	},
+	{
+		_T("Adspeed (E)"), _T("jumper_e")
+	},
+	{
+		NULL
+	}
+};
+
 static const struct expansionsubromtype supra_sub[] = {
 	{
 		_T("A500 ByteSync/XP"), _T("bytesync"), ROMTYPE_NONE | ROMTYPE_SUPRA,
@@ -5287,7 +5308,7 @@ const struct expansionromtype expansionroms[] = {
 		trifecta_sub, 0,
 		true, EXPANSIONTYPE_SCSI | EXPANSIONTYPE_IDE,
 		2071, 32, 0, false, NULL,
-		true, 0, NULL,
+		true, 0, trifecta_settings,
 		{ 0xd1, 0x23, 0x40, 0x00, 0x08, 0x17, 0x00, 0x00, 0x00, 0x00, 0x10, 0x00 }
 	},
 	{

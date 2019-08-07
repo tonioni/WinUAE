@@ -748,10 +748,13 @@ static uae_u32 ide_read_byte(struct ide_board *board, uaecptr addr)
 		}
 		if (addr == 0x401) {
 			if (board->subtype) {
+				// LX (SCSI+IDE)
 				v = (board->aci->rc->device_id ^ 7) & 7; // inverted SCSI ID
 			} else {
-				v = 0xff;
+				// EC (IDE)
+				v = 0;
 			}
+			v |= (board->aci->rc->device_settings ^ 0xfc) << 3;
 		} else if (addr >= 0x1000) {
 			if (board->rom)
 				v = board->rom[addr & board->rom_mask];
