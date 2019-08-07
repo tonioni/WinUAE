@@ -1629,6 +1629,10 @@ static void genamode2x (amodes mode, const char *reg, wordsizes size, const char
 		maybeaddop_ce020 (flags);
 		syncmovepc (getv, flags);
 		return;
+	case am_unknown:
+		// reg = internal variable
+		printf("\tuae_u32 %sa = %s;\n", name, reg);
+		break;
 	default:
 		term ();
 	}
@@ -4154,8 +4158,8 @@ static void gen_opcode (unsigned int opcode)
 			printf ("\tm68k_areg (regs, srcreg) = old;\n");
 		} else {
 			genamode (curi, curi->smode, "srcreg", curi->size, "src", 1, 0, 0);
-			printf ("\tm68k_areg (regs, 7) = src;\n");
-			genamode (NULL, Aipi, "7", sz_long, "old", 1, 0, 0);
+			genamode(NULL, am_unknown, "src", sz_long, "old", 1, 0, 0);
+			printf("\tm68k_areg (regs, 7) = src + 4;\n");
 			fill_prefetch_next ();
 			genastore ("old", curi->smode, "srcreg", curi->size, "src");
 		}
