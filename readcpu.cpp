@@ -264,12 +264,14 @@ out1:
 		int usesrc = 0, usedst = 0;
 		int srctype = 0;
 		int srcpos = -1, dstpos = -1;
+		int usecc = 0;
 
 		amodes srcmode = am_unknown, destmode = am_unknown;
 		int srcreg = -1, destreg = -1;
 
-		for (i = 0; i < lastbit; i++)
+		for (i = 0; i < lastbit; i++) {
 			bitcnt[i] = bitval[i] = 0;
+		}
 
 		vmsk = 1 << id.n_variable;
 
@@ -285,6 +287,8 @@ out1:
 				bitcnt[currbit]++;
 				bitval[currbit] <<= 1;
 				bitval[currbit] |= bit_set;
+				if (currbit == bitC || currbit == bitc)
+					usecc = 1;
 			}
 		}
 
@@ -717,6 +721,8 @@ endofline:
 			table68k[opc].mnemo = lookuptab[find].mnemo;
 		}
 		table68k[opc].cc = bitval[bitc];
+		table68k[opc].ccuse = usecc != 0;
+
 		mnemo = table68k[opc].mnemo;
 		if (mnemo == i_BTST
 			|| mnemo == i_BSET

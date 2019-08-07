@@ -12,6 +12,11 @@
 #include "cpummu030.h"
 #include "cpu_prefetch.h"
 
+int get_cpu_model(void)
+{
+	return currprefs.cpu_model;
+}
+
 void val_move2c2 (int regno, uae_u32 val)
 {
 	switch (regno) {
@@ -436,6 +441,7 @@ uae_u32 REGPARAM2 x_get_disp_ea_020 (uae_u32 base, int idx)
 		regd = (uae_s32)(uae_s16)regd;
 	regd <<= (dp >> 9) & 3;
 	if (dp & 0x100) {
+
 		uae_s32 outer = 0;
 		if (dp & 0x80)
 			base = 0;
@@ -476,10 +482,14 @@ uae_u32 REGPARAM2 x_get_disp_ea_020 (uae_u32 base, int idx)
 	} else {
 		v = base + (uae_s32)((uae_s8)dp) + regd;
 	}
+#ifndef CPU_TESTER
 	if (cycles && currprefs.cpu_cycle_exact)
 		x_do_cycles (cycles * cpucycleunit);
+#endif
 	return v;
 }
+
+#ifndef CPU_TESTER
 
 uae_u32 REGPARAM2 x_get_disp_ea_ce030 (uae_u32 base, int idx)
 {
@@ -611,6 +621,8 @@ uae_u32 REGPARAM2 x_get_disp_ea_040(uae_u32 base, int idx)
 		return base + (uae_s32)((uae_s8)dp) + regd;
 	}
 }
+
+#endif
 
 /*
 * Compute exact number of CPU cycles taken

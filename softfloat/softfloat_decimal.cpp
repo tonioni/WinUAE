@@ -325,7 +325,7 @@ static int32_t getDecimalExponent(int32_t aExp, uint64_t aSig)
 		zSig0 &= ~(((int64_t)(zSig1<<1) == 0) & 1);
 	}
 	
-	zExp = zSign ? -zSig0 : zSig0;
+	zExp = zSign ? (0 - zSig0) : zSig0;
 
 	return zExp;
 }

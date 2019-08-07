@@ -47,7 +47,7 @@
     <ProjectGuid>{4ADAA943-1AC8-4FB5-82E5-4FB753B6C2DA}</ProjectGuid>
     <RootNamespace>winuae</RootNamespace>
     <TargetPlatformVersion>8.1</TargetPlatformVersion>
-    <WindowsTargetPlatformVersion>8.1</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'" Label="Configuration">
@@ -200,15 +200,15 @@
     <TargetName Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|x64'">winuae64</TargetName>
     <TargetName Condition="'$(Configuration)|$(Platform)'=='Test|x64'">winuae64</TargetName>
     <TargetName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">winuae64</TargetName>
-    <IncludePath Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(MSBuildProgramFiles32)\Windows Kits\10\Include\10.0.17763.0\ucrt;$(MSBuildProgramFiles32)\Windows Kits\10\Include\10.0.17763.0\winrt;$(MSBuildProgramFiles32)\Windows Kits\10\Include\10.0.17763.0\um;$(MSBuildProgramFiles32)\Windows Kits\10\Include\10.0.17763.0\shared;$(MSBuildProgramFiles32)\Windows Kits\10\Include\10.0.17763.0\km;c:\dev\include;$(IncludePath)</IncludePath>
-    <IncludePath Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">$(MSBuildProgramFiles32)\Windows Kits\10\Include\10.0.17763.0\ucrt;$(MSBuildProgramFiles32)\Windows Kits\10\Include\10.0.17763.0\winrt;$(MSBuildProgramFiles32)\Windows Kits\10\Include\10.0.17763.0\um;$(MSBuildProgramFiles32)\Windows Kits\10\Include\10.0.17763.0\shared;$(MSBuildProgramFiles32)\Windows Kits\10\Include\10.0.17763.0\km;c:\dev\include;$(IncludePath)</IncludePath>
-    <IncludePath Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">$(MSBuildProgramFiles32)\Windows Kits\10\Include\10.0.17763.0\ucrt;$(MSBuildProgramFiles32)\Windows Kits\10\Include\10.0.17763.0\winrt;$(MSBuildProgramFiles32)\Windows Kits\10\Include\10.0.17763.0\um;$(MSBuildProgramFiles32)\Windows Kits\10\Include\10.0.17763.0\shared;$(MSBuildProgramFiles32)\Windows Kits\10\Include\10.0.17763.0\km;c:\dev\include;$(IncludePath)</IncludePath>
+    <IncludePath Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(MSBuildProgramFiles32)\Windows Kits\10\Include\10.0.18362.0\km;c:\dev\include;$(IncludePath)</IncludePath>
+    <IncludePath Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">$(MSBuildProgramFiles32)\Windows Kits\10\Include\10.0.18362.0\km;c:\dev\include;$(IncludePath)</IncludePath>
+    <IncludePath Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">$(MSBuildProgramFiles32)\Windows Kits\10\Include\10.0.18362.0\km;c:\dev\include;$(IncludePath)</IncludePath>
     <LibraryPath Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">C:\dev\lib;$(LibraryPath)</LibraryPath>
     <LibraryPath Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">C:\dev\lib;$(LibraryPath)</LibraryPath>
     <LibraryPath Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">C:\dev\lib;$(LibraryPath)</LibraryPath>
     <LibraryPath Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">C:\dev\lib;$(LibraryPath)</LibraryPath>
-    <IncludePath Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(MSBuildProgramFiles32)\Windows Kits\10\Include\10.0.17763.0\ucrt;$(MSBuildProgramFiles32)\Windows Kits\10\Include\10.0.17763.0\winrt;$(MSBuildProgramFiles32)\Windows Kits\10\Include\10.0.17763.0\um;$(MSBuildProgramFiles32)\Windows Kits\10\Include\10.0.17763.0\shared;$(MSBuildProgramFiles32)\Windows Kits\10\Include\10.0.17763.0\km;c:\dev\include;$(IncludePath)</IncludePath>
-    <IncludePath Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">$(MSBuildProgramFiles32)\Windows Kits\10\Include\10.0.17763.0\ucrt;$(MSBuildProgramFiles32)\Windows Kits\10\Include\10.0.17763.0\winrt;$(MSBuildProgramFiles32)\Windows Kits\10\Include\10.0.17763.0\um;$(MSBuildProgramFiles32)\Windows Kits\10\Include\10.0.17763.0\shared;$(MSBuildProgramFiles32)\Windows Kits\10\Include\10.0.17763.0\km;c:\dev\include;$(IncludePath)</IncludePath>
+    <IncludePath Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(MSBuildProgramFiles32)\Windows Kits\10\Include\10.0.18362.0\km;c:\dev\include;$(IncludePath)</IncludePath>
+    <IncludePath Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">$(MSBuildProgramFiles32)\Windows Kits\10\Include\10.0.18362.0\km;c:\dev\include;$(IncludePath)</IncludePath>
     <ReferencePath Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">$(VC_ReferencesPath_x86);</ReferencePath>
     <LibraryPath Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">C:\dev\lib;$(LibraryPath)</LibraryPath>
     <EmbedManifest Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</EmbedManifest>
@@ -216,15 +216,15 @@
     <EmbedManifest Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">true</EmbedManifest>
     <EmbedManifest Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</EmbedManifest>
     <EmbedManifest Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">true</EmbedManifest>
-    <IncludePath Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(MSBuildProgramFiles32)\Windows Kits\10\Include\10.0.17763.0\ucrt;$(MSBuildProgramFiles32)\Windows Kits\10\Include\10.0.17763.0\winrt;$(MSBuildProgramFiles32)\Windows Kits\10\Include\10.0.17763.0\um;$(MSBuildProgramFiles32)\Windows Kits\10\Include\10.0.17763.0\shared;$(MSBuildProgramFiles32)\Windows Kits\10\Include\10.0.17763.0\km;c:\dev\include;$(IncludePath)</IncludePath>
+    <IncludePath Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(MSBuildProgramFiles32)\Windows Kits\10\Include\10.0.18362.0\km;c:\dev\include;$(IncludePath)</IncludePath>
     <LibraryPath Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">C:\dev\lib\x64;$(LibraryPath)</LibraryPath>
-    <IncludePath Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(MSBuildProgramFiles32)\Windows Kits\10\Include\10.0.17763.0\ucrt;$(MSBuildProgramFiles32)\Windows Kits\10\Include\10.0.17763.0\winrt;$(MSBuildProgramFiles32)\Windows Kits\10\Include\10.0.17763.0\um;$(MSBuildProgramFiles32)\Windows Kits\10\Include\10.0.17763.0\shared;$(MSBuildProgramFiles32)\Windows Kits\10\Include\10.0.17763.0\km;c:\dev\include;$(IncludePath)</IncludePath>
-    <IncludePath Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|x64'">$(MSBuildProgramFiles32)\Windows Kits\10\Include\10.0.17763.0\ucrt;$(MSBuildProgramFiles32)\Windows Kits\10\Include\10.0.17763.0\winrt;$(MSBuildProgramFiles32)\Windows Kits\10\Include\10.0.17763.0\um;$(MSBuildProgramFiles32)\Windows Kits\10\Include\10.0.17763.0\shared;$(MSBuildProgramFiles32)\Windows Kits\10\Include\10.0.17763.0\km;c:\dev\include;$(IncludePath)</IncludePath>
-    <IncludePath Condition="'$(Configuration)|$(Platform)'=='Test|x64'">$(MSBuildProgramFiles32)\Windows Kits\10\Include\10.0.17763.0\ucrt;$(MSBuildProgramFiles32)\Windows Kits\10\Include\10.0.17763.0\winrt;$(MSBuildProgramFiles32)\Windows Kits\10\Include\10.0.17763.0\um;$(MSBuildProgramFiles32)\Windows Kits\10\Include\10.0.17763.0\shared;$(MSBuildProgramFiles32)\Windows Kits\10\Include\10.0.17763.0\km;c:\dev\include;$(IncludePath)</IncludePath>
+    <IncludePath Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(MSBuildProgramFiles32)\Windows Kits\10\Include\10.0.18362.0\km;c:\dev\include;$(IncludePath)</IncludePath>
+    <IncludePath Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|x64'">$(MSBuildProgramFiles32)\Windows Kits\10\Include\10.0.18362.0\km;c:\dev\include;$(IncludePath)</IncludePath>
+    <IncludePath Condition="'$(Configuration)|$(Platform)'=='Test|x64'">$(MSBuildProgramFiles32)\Windows Kits\10\Include\10.0.18362.0\km;c:\dev\include;$(IncludePath)</IncludePath>
     <LibraryPath Condition="'$(Configuration)|$(Platform)'=='Release|x64'">C:\dev\lib\x64;$(LibraryPath)</LibraryPath>
     <LibraryPath Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|x64'">C:\dev\lib\x64;$(LibraryPath)</LibraryPath>
     <LibraryPath Condition="'$(Configuration)|$(Platform)'=='Test|x64'">C:\dev\lib\x64;$(LibraryPath)</LibraryPath>
-    <IncludePath Condition="'$(Configuration)|$(Platform)'=='FullRelease|x64'">$(MSBuildProgramFiles32)\Windows Kits\10\Include\10.0.17763.0\ucrt;$(MSBuildProgramFiles32)\Windows Kits\10\Include\10.0.17763.0\winrt;$(MSBuildProgramFiles32)\Windows Kits\10\Include\10.0.17763.0\um;$(MSBuildProgramFiles32)\Windows Kits\10\Include\10.0.17763.0\shared;$(MSBuildProgramFiles32)\Windows Kits\10\Include\10.0.17763.0\km;c:\dev\include;$(IncludePath)</IncludePath>
+    <IncludePath Condition="'$(Configuration)|$(Platform)'=='FullRelease|x64'">$(MSBuildProgramFiles32)\Windows Kits\10\Include\10.0.18362.0\km;c:\dev\include;$(IncludePath)</IncludePath>
     <LibraryPath Condition="'$(Configuration)|$(Platform)'=='FullRelease|x64'">C:\dev\lib\x64;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Test|x64'">
@@ -1080,6 +1080,7 @@
     <ClCompile Include="..\..\debugmem.cpp" />
     <ClCompile Include="..\..\def_icons.cpp" />
     <ClCompile Include="..\..\devices.cpp" />
+    <ClCompile Include="..\..\disasm.cpp" />
     <ClCompile Include="..\..\dlopen.cpp" />
     <ClCompile Include="..\..\ethernet.cpp" />
     <ClCompile Include="..\..\events.cpp" />

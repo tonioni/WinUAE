@@ -34,6 +34,12 @@
 #include "cpummu030.h"
 #include "debug.h"
 
+#ifndef CPU_TESTER
+#define SUPPORT_MMU 1
+#else
+#define SUPPORT_MMU 0
+#endif
+
 #include "softfloat/softfloat.h"
 
 // global variable for JIT FPU
@@ -989,7 +995,7 @@ static void fp_unimp_datatype(uae_u16 opcode, uae_u16 extra, uae_u32 ea, uaecptr
 				fsave_data.stag = 7; // undocumented
 			} else {
 				fpp_from_exten_fmovem(src, &fsave_data.et[0], &fsave_data.et[1], &fsave_data.et[2]);
-				fsave_data.stag = get_ftag(src, (opclass == 0) ? -1U : size);
+				fsave_data.stag = get_ftag(src, (opclass == 0) ? 0xffffffff : size);
 				if (fsave_data.stag == 5) {
 					fsave_data.et[0] = (size == 1) ? 0x3f800000 : 0x3c000000; // exponent for denormalized single and double
 				}
@@ -1046,11 +1052,12 @@ static bool fault_if_no_fpu (uae_u16 opcode, uae_u16 extra, uaecptr ea, uaecptr 
 #if EXCEPTION_FPP
 		write_log (_T("no FPU: %04X-%04X PC=%08X\n"), opcode, extra, oldpc);
 #endif
+#if SUPPORT_MMU
 		if (fpu_mmu_fixup) {
 			m68k_areg (regs, mmufixup[0].reg) = mmufixup[0].value;
 			mmufixup[0].reg = -1;
-
 		}
+#endif
 		fpu_op_illg(opcode, ea, oldpc);
 		return true;
 	}
@@ -1358,17 +1365,21 @@ static int get_fp_value (uae_u32 opcode, uae_u16 extra, fpdata *src, uaecptr old
 			break;
 		case 3: // (An)+
 			// Also needed by fault_if_no_fpu 
+#if SUPPORT_MMU
 			mmufixup[0].reg = reg;
 			mmufixup[0].value = m68k_areg (regs, reg);
 			fpu_mmu_fixup = true;
+#endif
 			ad = m68k_areg (regs, reg);
 			m68k_areg (regs, reg) += reg == 7 ? sz2[size] : sz1[size];
 			break;
 		case 4: // -(An)
 			// Also needed by fault_if_no_fpu 
+#if SUPPORT_MMU
 			mmufixup[0].reg = reg;
 			mmufixup[0].value = m68k_areg (regs, reg);
 			fpu_mmu_fixup = true;
+#endif
 			m68k_areg (regs, reg) -= reg == 7 ? sz2[size] : sz1[size];
 			ad = m68k_areg (regs, reg);
 			// 68060 no fpu -(an): EA points to -4, not -12 if extended precision
@@ -1576,17 +1587,21 @@ static int put_fp_value (fpdata *value, uae_u32 opcode, uae_u16 extra, uaecptr o
 			break;
 		case 3: // (An)+
 			// Also needed by fault_if_no_fpu 
+#if SUPPORT_MMU
 			mmufixup[0].reg = reg;
 			mmufixup[0].value = m68k_areg (regs, reg);
 			fpu_mmu_fixup = true;
+#endif
 			ad = m68k_areg (regs, reg);
 			m68k_areg (regs, reg) += reg == 7 ? sz2[size] : sz1[size];
 			break;
 		case 4: // -(An)
 			// Also needed by fault_if_no_fpu 
+#if SUPPORT_MMU
 			mmufixup[0].reg = reg;
 			mmufixup[0].value = m68k_areg (regs, reg);
 			fpu_mmu_fixup = true;
+#endif
 			m68k_areg (regs, reg) -= reg == 7 ? sz2[size] : sz1[size];
 			ad = m68k_areg (regs, reg);
 			// 68060 no fpu -(an): EA points to -4, not -12 if extended precision
@@ -1866,7 +1881,7 @@ void fpuop_dbcc (uae_u32 opcode, uae_u16 extra)
 	if (fault_if_no_6888x (opcode, extra, pc - 4))
 		return;
 
-	disp = (uae_s32) (uae_s16) x_cp_next_iword ();
+	disp = (uae_s32) (uae_s16)x_cp_next_iword();
 	if (fault_if_no_fpu_u (opcode, extra, pc + disp, pc - 4))
 		return;
 	regs.fpiar = pc - 4;
@@ -2432,6 +2447,7 @@ static uaecptr fmovem2mem (uaecptr ad, uae_u32 list, int incr, int regdir)
 
 	// 68030 MMU state saving is annoying!
 	if (currprefs.mmu_model == 68030) {
+#if SUPPORT_MMU
 		int idx = 0;
 		uae_u32 wrd[3];
 		mmu030_state[1] |= MMU030_STATEFLAG1_MOVEM1;
@@ -2461,6 +2477,7 @@ static uaecptr fmovem2mem (uaecptr ad, uae_u32 list, int incr, int regdir)
 			}
 			list <<= 1;
 		}
+#endif
 	} else {
 		for (int r = 0; r < 8; r++) {
 			uae_u32 wrd1, wrd2, wrd3;
@@ -2489,6 +2506,7 @@ static uaecptr fmovem2fpp (uaecptr ad, uae_u32 list, int incr, int regdir)
 	int reg;
 
 	if (currprefs.mmu_model == 68030) {
+#if SUPPORT_MMU
 		uae_u32 wrd[3];
 		int idx = 0;
 		mmu030_state[1] |= MMU030_STATEFLAG1_MOVEM1 | MMU030_STATEFLAG1_FMOVEM;
@@ -2522,6 +2540,7 @@ static uaecptr fmovem2fpp (uaecptr ad, uae_u32 list, int incr, int regdir)
 			}
 			list <<= 1;
 		}
+#endif
 	} else {
 		for (int r = 0; r < 8; r++) {
 			uae_u32 wrd1, wrd2, wrd3;
@@ -3083,9 +3102,11 @@ void fpuop_arithmetic (uae_u32 opcode, uae_u16 extra)
 	write_log(_T("FPUOP %04x %04x PC=%08x\n"), opcode, extra, M68K_GETPC);
 #endif
 	fpuop_arithmetic2 (opcode, extra);
+#if SUPPORT_MMU
 	if (fpu_mmu_fixup) {
 		mmufixup[0].reg = -1;
 	}
+#endif
 }
 
 static void get_features(void)
@@ -3098,6 +3119,8 @@ void fpu_clearstatus(void)
 {
 	fpp_clear_status();
 }
+
+#ifndef CPU_TESTER
 
 void fpu_modechange(void)
 {
@@ -3131,6 +3154,8 @@ void fpu_modechange(void)
 	}
 }
 
+#endif
+
 #if FPU_TEST
 
 static void fpu_test(void)
@@ -3149,6 +3174,7 @@ static void fpu_test(void)
 
 void fpu_reset (void)
 {
+#ifndef CPU_TESTER
 	currprefs.fpu_mode = changed_prefs.fpu_mode;
 	if (currprefs.fpu_mode > 0) {
 		fp_init_softfloat(currprefs.fpu_model);
@@ -3171,9 +3197,14 @@ void fpu_reset (void)
 	init_fpucw_x87_80();
 #endif
 #endif
+#else
+	fp_init_softfloat(currprefs.fpu_model);
+	use_long_double = false;
+#endif
 
 	regs.fpiar = 0;
 	regs.fpu_exp_state = 0;
+	regs.fp_unimp_pend = 0;
 	get_features();
 	fpp_set_fpcr (0);
 	fpp_set_fpsr (0);
@@ -3187,6 +3218,8 @@ void fpu_reset (void)
 #endif
 
 }
+
+#ifndef CPU_TESTER
 
 uae_u8 *restore_fpu (uae_u8 *src)
 {
@@ -3326,3 +3359,5 @@ uae_u8 *save_fpu (int *len, uae_u8 *dstptr)
 	*len = dst - dstbak;
 	return dstbak;
 }
+
+#endif

@@ -937,6 +937,9 @@
     <ClCompile Include="..\..\pcem\mouse_ps2.cpp">
       <Filter>x86</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\disasm.cpp">
+      <Filter>win32</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\resources\35floppy.ico">

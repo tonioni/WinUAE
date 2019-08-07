@@ -11,7 +11,6 @@
 *.idb
 *.res
 *.pch
-*.ini
 release
 debug
 bin
@@ -63,10 +62,13 @@ aros.rom.cpp
 /cpuemu_40.cpp
 /cpuemu_50.cpp
 /cpustbl.cpp
+/cpustbl_test.cpp
 /cputbl.h
+/cputbl_test.h
 /jit/compemu.cpp
 /jit/compstbl.cpp
 /jit/comptbl.h
+/cputest/data
 /linetoscr.cpp
 *.iobj
 *.ipdb
@@ -76,3 +78,4 @@ packages.config
 *.sqlite
 *.db-shm
 *.db-wal
+*.o
