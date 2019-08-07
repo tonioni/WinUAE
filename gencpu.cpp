@@ -87,6 +87,7 @@ static int disp020cnt;
 static bool candormw;
 static bool genastore_done;
 static char rmw_varname[100];
+static struct instr *g_instr;
 
 #define GENA_GETV_NO_FETCH	0
 #define GENA_GETV_FETCH		1
@@ -1474,6 +1475,8 @@ static void genamode2x (amodes mode, const char *reg, wordsizes size, const char
 			insn_n_cycles += 2;
 			count_cycles_ea += 2;
 			pc_68000_offset_fetch += 2;
+			if (size == sz_long)
+				pc_68000_offset_fetch -= 2;
 		}
 		break;
 	case Ad16: // (d16,An)
@@ -1647,13 +1650,27 @@ static void genamode2x (amodes mode, const char *reg, wordsizes size, const char
 		exception_pc_offset = pc_68000_offset + pc_68000_offset_fetch;
 	}
 
+	// check possible address error (if 68000/010 and enabled)
 	if ((using_prefetch || using_ce) && using_exception_3 && getv != 0 && size != sz_byte) {
 		printf ("\tif (%sa & 1) {\n", name);
+
+		if (g_instr->mnemo == i_ADDX || g_instr->mnemo == i_SUBX) {
+			// ADDX/SUBX special case
+			if (g_instr->size == sz_word) {
+				printf("\t\tm68k_areg (regs, %s) = %sa;\n", reg, name);
+			}
+		} else if (mode == Apdi) {
+			// 68000 decrements register first, then checks for address error
+			printf("\t\tm68k_areg (regs, %s) = %sa;\n", reg, name);
+		}
+
 		if (exception_pc_offset)
 			incpc("%d", exception_pc_offset);
+
 		// MOVE.L EA,-(An) causing address error: stacked value is original An - 2, not An - 4.
 		if ((flags & (GF_REVERSE | GF_REVERSE2)) && size == sz_long && mode == Apdi)
 			printf("\t\t%sa += %d;\n", name, flags & GF_REVERSE2 ? -2 : 2);
+
 		printf ("\t\texception3_%s(opcode, %sa);\n", getv == 2 ? "write" : "read", name);
 		printf ("\t\tgoto %s;\n", endlabelstr);
 		printf ("\t}\n");
@@ -3196,6 +3213,7 @@ static void gen_opcode (unsigned int opcode)
 	start_brace ();
 
 	m68k_pc_offset = 2;
+	g_instr = curi;
 
 	// do not unnecessarily create useless mmuop030
 	// functions when CPU is not 68030
