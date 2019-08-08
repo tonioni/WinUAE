@@ -33,3 +33,4 @@
 #define CT_END_FINISH 0xff
 #define CT_END_INIT (0x80 | 0x40)
 #define CT_END_SKIP (0x80 | 0x40 | 0x01)
+#define CT_EMPTY CT_END_INIT

@@ -13,6 +13,7 @@
 	.globl _setcpu
 	.globl _flushcache
 
+| must match main.c
 S_DREG = 0
 S_AREG = S_DREG+8*4
 S_SSP = S_AREG+8*4
@@ -20,7 +21,8 @@ S_MSP = S_SSP+4
 S_PC = S_MSP+4
 S_SR = S_PC+4
 S_EXC = S_SR+4
-S_FPU = S_EXC+4
+S_EXCFRAME = S_EXC+4
+S_FPU = S_EXCFRAME+4
 S_FPIAR = S_FPU+8*12
 S_FPCR = S_FPIAR+4
 S_FPSR = S_FPCR+4
@@ -241,6 +243,7 @@ exception:
 	addq.w #2,d0
 	move.w d0,S_EXC+2(a0)
 
+	move.l sp,S_EXCFRAME(a0)
 	cmp.w #3,d0
 	bne.s .noaddresserror
 	move.w (sp),S_EXC+0(a0)
@@ -263,13 +266,14 @@ _exception010:
 	movem.l d0-d7/a0-a6,(a0)
 	move.l (sp)+,8*4(a0)
 
+	move.l sp,S_EXCFRAME(a0)
 	move.w (sp)+,S_SR+2(a0)
 	move.l (sp)+,S_PC(a0)
 	move.w (sp),d0
 	and.w #0xfff,d0
 	lsr.w #2,d0
 	move.w d0,S_EXC+2(a0)
-	
+
 	move.l USP,a1
 	move.l a1,S_AREG+7*4(a0)
 		
@@ -284,6 +288,7 @@ _exception020:
 	movem.l d0-d7/a0-a6,(a0)
 	move.l (sp)+,8*4(a0)
 
+	move.l sp,S_EXCFRAME(a0)
 	move.w (sp)+,S_SR+2(a0)
 	move.l (sp)+,S_PC(a0)
 	move.w (sp),d0

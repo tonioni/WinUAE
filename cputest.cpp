@@ -56,6 +56,8 @@ static int verbose = 1;
 static int feature_exception3_data = 0;
 static int feature_exception3_instruction = 0;
 static int feature_sr_mask = 0;
+static int feature_loop_mode = 0;
+static int feature_loop_mode_register = -1;
 static int feature_full_extension_format = 0;
 static uae_u32 feature_addressing_modes[2];
 static int ad8r[2], pc8r[2];
@@ -126,7 +128,7 @@ static bool valid_address(uaecptr addr, int size, int w)
 	addr &= addressing_mask;
 	size--;
 	if (addr + size < LOW_MEMORY_END) {
-		if (addr < test_low_memory_start)
+		if (addr < test_low_memory_start || test_low_memory_start == 0xffffffff)
 			goto oob;
 		// exception vectors needed during tests
 		if ((addr + size >= 0x0c && addr < 0x30 || (addr + size >= 0x80 && addr < 0xc0)) && regs.vbr == 0)
@@ -138,7 +140,7 @@ static bool valid_address(uaecptr addr, int size, int w)
 		return 1;
 	}
 	if (addr >= HIGH_MEMORY_START && addr < HIGH_MEMORY_START + 0x8000) {
-		if (addr < test_high_memory_start)
+		if (addr < test_high_memory_start || test_high_memory_start == 0xffffffff)
 			goto oob;
 		if (addr + size >= test_high_memory_end)
 			goto oob;
@@ -842,11 +844,15 @@ static void save_memory(const TCHAR *path, const TCHAR *name, uae_u8 *p, int siz
 
 
 
-static uae_u8 *store_rel(uae_u8 *dst, uae_u8 mode, uae_u32 s, uae_u32 d)
+static uae_u8 *store_rel(uae_u8 *dst, uae_u8 mode, uae_u32 s, uae_u32 d, int ordered)
 {
 	int diff = (uae_s32)d - (uae_s32)s;
-	if (diff == 0)
+	if (diff == 0) {
+		if (!ordered)
+			return dst;
+		*dst++ = CT_EMPTY;
 		return dst;
+	}
 	if (diff >= -128 && diff < 128) {
 		*dst++ = mode | CT_RELATIVE_START_BYTE;
 		*dst++ = diff & 0xff;
@@ -1051,7 +1057,7 @@ static void save_data(uae_u8 *dst, const TCHAR *dir)
 		fwrite(data, 1, 4, f);
 		pl(data, (uae_u32)starttime);
 		fwrite(data, 1, 4, f);
-		pl(data, (hmem_rom << 16) | lmem_rom);
+		pl(data, ((hmem_rom | (test_high_memory_start == 0xffffffff ? 0x8000 : 0x0000)) << 16) | (lmem_rom | (test_low_memory_start == 0xffffffff ? 0x8000 : 0x0000)));
 		fwrite(data, 1, 4, f);
 		pl(data, test_memory_start);
 		fwrite(data, 1, 4, f);
@@ -1140,6 +1146,14 @@ static int create_ea(uae_u16 *opcodep, uaecptr pc, int mode, int reg, struct ins
 	switch (mode)
 	{
 	case Dreg:
+		if (reg == feature_loop_mode_register) {
+			if (((dp->sduse & 0x20) && !srcdst) || ((dp->sduse & 0x02) && srcdst)) {
+				int pos = srcdst ? dp->dpos : dp->spos;
+				opcode &= ~(7 << pos);
+				opcode |= ((reg + 1) & 7) << pos;
+			}
+		}
+		break;
 	case Areg:
 	case Aind:
 	case Aipi:
@@ -1364,7 +1378,7 @@ static int handle_specials_stack(uae_u16 opcode, uaecptr pc, struct instr *dp, i
 			addr += 2;
 			offset += 2;
 			*isconstant = imm_special >= (1 << (0 + 5)) * 4 ? 0 : -1;
-		} else if (opcode == 0x4e77) {
+		} else if (opcode == 0x4e74) {
 			// RTD
 			v = imm_special >> 2;
 			uae_u16 sr = v & 31;
@@ -1413,7 +1427,7 @@ static int handle_specials_stack(uae_u16 opcode, uaecptr pc, struct instr *dp, i
 	return offset;
 }
 
-static void execute_ins(uae_u16 opc)
+static void execute_ins(uae_u16 opc, uaecptr endpc, uaecptr targetpc)
 {
 	uae_u16 opw1 = (opcode_memory[2] << 8) | (opcode_memory[3] << 0);
 	uae_u16 opw2 = (opcode_memory[4] << 8) | (opcode_memory[5] << 0);
@@ -1431,22 +1445,55 @@ static void execute_ins(uae_u16 opc)
 
 	testing_active = 1;
 
-	if (SPCFLAG_TRACE)
-		do_trace();
+	int cnt = feature_loop_mode * 2;
 
-	(*cpufunctbl[opc])(opc);
+	for (;;) {
 
-	if (!test_exception) {
-		if (SPCFLAG_DOTRACE)
-			Exception(9);
+		if (SPCFLAG_TRACE)
+			do_trace();
 
-		if (cpu_stopped && regs.s == 0 && currprefs.cpu_model <= 68010) {
-			// 68000/68010 undocumented special case:
-			// if STOP clears S-bit and T was not set:
-			// cause privilege violation exception, PC pointing to following instruction.
-			// If T was set before STOP: STOP works as documented.
-			cpu_stopped = 0;
-			Exception(8);
+		(*cpufunctbl[opc])(opc);
+
+		if (!test_exception) {
+			if (SPCFLAG_DOTRACE)
+				Exception(9);
+
+			if (cpu_stopped && regs.s == 0 && currprefs.cpu_model <= 68010) {
+				// 68000/68010 undocumented special case:
+				// if STOP clears S-bit and T was not set:
+				// cause privilege violation exception, PC pointing to following instruction.
+				// If T was set before STOP: STOP works as documented.
+				cpu_stopped = 0;
+				Exception(8);
+			}
+		}
+
+		if (regs.pc == endpc || regs.pc == targetpc)
+			break;
+
+		if (test_exception)
+			break;
+
+		if (!valid_address(regs.pc, 2, 0))
+			break;
+
+		if (!feature_loop_mode) {
+			wprintf(_T("Test instruction didn't finish in single step in non-loop mode!?\n"));
+			abort();
+		}
+
+		if (cpu_lvl < 2) {
+			opc = get_word_test_prefetch(2);
+			m68k_incpc(2);
+		} else {
+			opc = get_word_test_prefetch(0);
+			m68k_incpc(2);
+		}
+
+		cnt--;
+		if (cnt <= 0) {
+			wprintf(_T("Loop mode didn't end!?\n"));
+			abort();
 		}
 	}
 
@@ -1511,6 +1558,13 @@ static int isunsupported(struct instr *dp)
 	}
 	return 0;
 
+}
+
+static uae_u8 *save_exception(uae_u8 *p)
+{
+	uae_u8 size = 0;
+	*p++ = size;
+	return p;
 }
 
 static const TCHAR *sizes[] = { _T("B"), _T("W"), _T("L") };
@@ -1633,6 +1687,12 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, int opcodesize, in
 		if (quick)
 			break;
 
+		if (feature_loop_mode) {
+			regs.regs[feature_loop_mode_register] &= 0xffff0000;
+			regs.regs[feature_loop_mode_register] |= feature_loop_mode - 1;
+			cur_registers[feature_loop_mode_register] = regs.regs[feature_loop_mode_register];
+		}
+
 		for (int i = 0; i < MAX_REGISTERS; i++) {
 			dst = store_reg(dst, CT_DREG + i, 0, cur_registers[i], -1);
 			regs.regs[i] = cur_registers[i];
@@ -1731,10 +1791,8 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, int opcodesize, in
 						)
 						printf("");
 
-					if (opc != opcode) {
-						// source EA modified opcode
-						dp = table68k + opc;
-					}
+					// if source EA modified opcode
+					dp = table68k + opc;
 
 					// create destination addressing mode
 					if (dp->duse) {
@@ -1749,6 +1807,9 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, int opcodesize, in
 						pc += o;
 					}
 
+					// if destination EA modified opcode
+					dp = table68k + opc;
+
 					uae_u8 *bo = opcode_memory + 2;
 					uae_u16 bopw1 = (bo[0] << 8) | (bo[1] << 0);
 					uae_u16 bopw2 = (bo[2] << 8) | (bo[3] << 0);
@@ -1762,6 +1823,14 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, int opcodesize, in
 					pc += handle_specials_branch(opc, pc, dp, &isconstant_src);
 
 					put_word_test(opcode_memory_start, opc);
+
+					// loop mode
+					if (feature_loop_mode) {
+						// dbf dn, opcode_memory_start
+						put_long_test(pc, ((0x51c8 | feature_loop_mode_register) << 16) | ((opcode_memory_start - pc - 2) & 0xffff));
+						pc += 4;
+					}
+
 					// end word, needed to detect if instruction finished normally when
 					// running on real hardware.
 					put_word_test(pc, 0x4afc); // illegal instruction
@@ -1812,6 +1881,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, int opcodesize, in
 						abort();
 					}
 #endif
+					uaecptr branch_target = 0xffffffff;
 					int bc = isbranchinst(dp);
 					if (bc) {
 						if (bc < 0) {
@@ -1849,6 +1919,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, int opcodesize, in
 						} else {
 							// branch target = generate exception
 							put_word_test(srcaddr, 0x4afc);
+							branch_target = srcaddr;
 							dst = store_mem(dst, 1);
 							memcpy(&ahist2, &ahist, sizeof(struct accesshistory) *MAX_ACCESSHIST);
 							ahcnt2 = ahcnt;
@@ -1956,7 +2027,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, int opcodesize, in
 							if (regs.sr & 0x2000)
 								prev_s_cnt++;
 
-							execute_ins(opc);
+							execute_ins(opc, pc - 2, branch_target);
 
 							if (regs.s)
 								s_cnt++;
@@ -2030,7 +2101,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, int opcodesize, in
 									last_sr = regs.sr;
 								}
 								if (regs.pc != last_pc) {
-									dst = store_rel(dst, CT_PC, last_pc, regs.pc);
+									dst = store_rel(dst, CT_PC, last_pc, regs.pc, 0);
 									last_pc = regs.pc;
 								}
 								if (currprefs.fpu_model) {
@@ -2043,7 +2114,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, int opcodesize, in
 										}
 									}
 									if (regs.fpiar != last_fpiar) {
-										dst = store_rel(dst, CT_FPIAR, last_fpiar, regs.fpiar);
+										dst = store_rel(dst, CT_FPIAR, last_fpiar, regs.fpiar, 0);
 										last_fpiar = regs.fpiar;
 									}
 									if (regs.fpsr != last_fpsr) {
@@ -2058,6 +2129,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, int opcodesize, in
 								dst = store_mem(dst, 0);
 								if (test_exception) {
 									*dst++ = CT_END | test_exception;
+									dst = save_exception(dst);
 								} else {
 									*dst++ = CT_END;
 								}
@@ -2172,6 +2244,7 @@ int __cdecl main(int argc, char *argv[])
 {
 	const struct cputbl *tbl = NULL;
 	TCHAR path[1000];
+	int v;
 
 	struct ini_data *ini = ini_load(_T("cputestgen.ini"), false);
 	if (!ini) {
@@ -2185,6 +2258,16 @@ int __cdecl main(int argc, char *argv[])
 		wprintf(_T("Unsupported CPU model.\n"));
 		return 0;
 	}
+
+	currprefs.address_space_24 = 1;
+	addressing_mask = 0x00ffffff;
+	v = 24;
+	ini_getval(ini, INISECTION, _T("cpu_address_space"), &v);
+	if (v == 32) {
+		currprefs.address_space_24 = 0;
+		addressing_mask = 0xffffffff;
+	}
+
 	currprefs.fpu_model = 0;
 	currprefs.fpu_mode = 1;
 	ini_getval(ini, INISECTION, _T("fpu"), &currprefs.fpu_model);
@@ -2211,6 +2294,12 @@ int __cdecl main(int argc, char *argv[])
 	ini_getval(ini, INISECTION, _T("feature_exception3_instruction"), &feature_exception3_instruction);
 	feature_sr_mask = 0;
 	ini_getval(ini, INISECTION, _T("feature_sr_mask"), &feature_sr_mask);
+	feature_loop_mode = 0;
+	ini_getval(ini, INISECTION, _T("feature_loop_mode"), &feature_loop_mode);
+	if (feature_loop_mode) {
+		feature_loop_mode_register = 7;
+	}
+
 	feature_full_extension_format = 0;
 	if (currprefs.cpu_model > 68000) {
 		ini_getval(ini, INISECTION, _T("feature_full_extension_format"), &feature_full_extension_format);
@@ -2221,6 +2310,7 @@ int __cdecl main(int argc, char *argv[])
 			pc8r[1] |= 2;
 		}
 	}
+
 	for (int j = 0; j < 2; j++) {
 		TCHAR *am = NULL;
 		if (ini_getstring(ini, INISECTION, j ? _T("feature_addressing_modes_dst") : _T("feature_addressing_modes_src"), &am)) {
@@ -2280,7 +2370,7 @@ int __cdecl main(int argc, char *argv[])
 
 	xorshiftstate = 1;
 
-	int v = 0;
+	v = 0;
 	ini_getval(ini, INISECTION, _T("test_memory_start"), &v);
 	if (!v) {
 		wprintf(_T("test_memory_start is required\n"));
@@ -2297,8 +2387,8 @@ int __cdecl main(int argc, char *argv[])
 	test_memory_size = v;
 	test_memory_end = test_memory_start + test_memory_size;
 
-	test_low_memory_start = 0x0000;
-	test_low_memory_end = 0x8000;
+	test_low_memory_start = 0xffffffff;
+	test_low_memory_end = 0xffffffff;
 	v = 0;
 	if (ini_getval(ini, INISECTION, _T("test_low_memory_start"), &v))
 		test_low_memory_start = v;
@@ -2306,8 +2396,8 @@ int __cdecl main(int argc, char *argv[])
 	if (ini_getval(ini, INISECTION, _T("test_low_memory_end"), &v))
 		test_low_memory_end = v;
 
-	test_high_memory_start = 0x00ff8000;
-	test_high_memory_end = 0x01000000;
+	test_high_memory_start = 0xffffffff;
+	test_high_memory_end = 0xffffffff;
 	v = 0;
 	if (ini_getval(ini, INISECTION, _T("test_high_memory_start"), &v))
 		test_high_memory_start = v;
@@ -2329,7 +2419,7 @@ int __cdecl main(int argc, char *argv[])
 
 	TCHAR *lmem_rom_name = NULL;
 	ini_getstring(ini, INISECTION, _T("low_rom"), &lmem_rom_name);
-	if (lmem_rom_name) {
+	if (lmem_rom_name && test_low_memory_start != 0xffffffff) {
 		if (load_file(NULL, lmem_rom_name, low_memory_temp, 32768, 0)) {
 			wprintf(_T("Low test memory ROM loaded\n"));
 			lmem_rom = 1;
@@ -2339,7 +2429,7 @@ int __cdecl main(int argc, char *argv[])
 
 	TCHAR *hmem_rom_name = NULL;
 	ini_getstring(ini, INISECTION, _T("high_rom"), &hmem_rom_name);
-	if (hmem_rom_name) {
+	if (hmem_rom_name && test_high_memory_start != 0xffffffff) {
 		if (load_file(NULL, hmem_rom_name, high_memory_temp, 32768, -1)) {
 			wprintf(_T("High test memory ROM loaded\n"));
 			hmem_rom = 1;
@@ -2371,15 +2461,12 @@ int __cdecl main(int argc, char *argv[])
 	if (currprefs.cpu_model == 68000) {
 		tbl = op_smalltbl_90_test_ff;
 		cpu_lvl = 0;
-		addressing_mask = 0x00ffffff;
 	} else if (currprefs.cpu_model == 68010) {
 		tbl = op_smalltbl_91_test_ff;
 		cpu_lvl = 1;
-		addressing_mask = 0x00ffffff;
 	} else if (currprefs.cpu_model == 68020) {
 		tbl = op_smalltbl_92_test_ff;
 		cpu_lvl = 2;
-		addressing_mask = 0x00ffffff;
 	} else {
 		wprintf(_T("Unsupported CPU model.\n"));
 		abort();

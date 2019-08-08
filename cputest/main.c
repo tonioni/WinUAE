@@ -33,6 +33,7 @@ struct fpureg
 	uae_u32 m[2];
 };
 
+// must match asm.S
 struct registers
 {
 	uae_u32 regs[16];
@@ -41,6 +42,7 @@ struct registers
 	uae_u32 pc;
 	uae_u32 sr;
 	uae_u32 exc;
+	uae_u32 excframe;
 	struct fpureg fpuregs[8];
 	uae_u32 fpiar, fpcr, fpsr;
 };
@@ -202,13 +204,13 @@ static void start_test(void)
 		return;
 
 #ifndef _MSC_VER
-	if (lmem_rom) {
+	if (lmem_rom > 0) {
 		if (memcmp(low_memory, low_memory_temp, 32768)) {
 			printf("Low memory ROM mismatch!\n");
 			exit(0);
 		}
 	}
-	if (hmem_rom) {
+	if (hmem_rom > 0) {
 		if (memcmp(high_memory, high_memory_temp, 32768)) {
 			printf("High memory ROM mismatch!\n");
 			exit(0);
@@ -740,6 +742,64 @@ static void out_regs(struct registers *r, int before)
 
 }
 
+static void hexdump(uae_u8 *p, int len)
+{
+	for (int i = 0; i < len; i++) {
+		if (i > 0)
+			*outbp++ = '.';
+		sprintf(outbp, "%02x", p[i]);
+		outbp += strlen(outbp);
+	}
+	*outbp++ = '\n';
+}
+
+static void validate_exception(struct registers *regs, uae_u8 *p)
+{
+	int exclen = 0;
+	uae_u8 excmatch[32];
+	uae_u8 *sp = (uae_u8*)regs->excframe;
+	uae_u32 v;
+	uae_u8 excdatalen = *p++;
+
+	if (!excdatalen)
+		return;
+
+	if (cpu_lvl == 0) {
+		if (regs->exc == 3) {
+			// status (with undocumented opcode part)
+			excmatch[0] = opcode_memory[0];
+			excmatch[1] = (opcode_memory[1] & 0xf0) | (*p++);
+			// access address
+			v = opcode_memory_addr;
+			p = restore_rel(p, &v);
+			pl(excmatch + 2, v);
+			p += 4;
+			// opcode
+			excmatch[6] = opcode_memory[0];
+			excmatch[7] = opcode_memory[1];
+			// sr
+			excmatch[8] = regs->sr >> 8;
+			excmatch[9] = regs->sr;
+			// pc
+			pl(excmatch + 10, regs->pc);
+			exclen = 14;
+		}
+	} else {
+		// sr
+		excmatch[0] = regs->sr >> 8;
+		excmatch[1] = regs->sr;
+		pl(excmatch + 2, regs->pc);
+	}
+	if (exclen == 0)
+		return;
+	if (memcmp(excmatch, sp, exclen)) {
+		strcpy(outbp, "Exception stack frame mismatch");
+		outbp += strlen(outbp);
+		hexdump(sp, exclen);
+		hexdump(excmatch, exclen);
+	}
+}
+
 static uae_u8 *validate_test(uae_u8 *p, int ignore_errors, int ignore_sr)
 {
 	uae_u8 regs_changed[16] = { 0 };
@@ -807,6 +867,13 @@ static uae_u8 *validate_test(uae_u8 *p, int ignore_errors, int ignore_sr)
 					errors++;
 				}
 				break;
+			}
+			if (exc) {
+				uae_u8 excdatalen = *p++;
+				if (exc == cpuexc && excdatalen) {
+					validate_exception(&test_regs, p);
+				}
+				p += excdatalen;
 			}
 			if (exc != cpuexc) {
 				addinfo();
@@ -954,23 +1021,25 @@ static uae_u8 *validate_test(uae_u8 *p, int ignore_errors, int ignore_sr)
 		}
 	}
 	if (!ignore_errors) {
-		for (int i = 0; i < 16; i++) {
-			if (regs_changed[i]) {
+		if (!ignore_sr) {
+			for (int i = 0; i < 16; i++) {
+				if (regs_changed[i]) {
+					addinfo();
+					if (dooutput) {
+						sprintf(outbp, "%c%d: modified %08lx -> %08lx but expected no modifications\n", i < 8 ? 'D' : 'A', i & 7, last_registers.regs[i], test_regs.regs[i]);
+						outbp += strlen(outbp);
+					}
+					errors++;
+				}
+			}
+			if (sr_changed) {
 				addinfo();
 				if (dooutput) {
-					sprintf(outbp, "%c%d: modified %08lx -> %08lx but expected no modifications\n", i < 8 ? 'D' : 'A', i & 7, last_registers.regs[i], test_regs.regs[i]);
+					sprintf(outbp, "SR: modified %04x -> %04x but expected no modifications\n", last_registers.sr, test_regs.sr);
 					outbp += strlen(outbp);
 				}
 				errors++;
 			}
-		}
-		if (sr_changed) {
-			addinfo();
-			if (dooutput) {
-				sprintf(outbp, "SR: modified %04x -> %04x but expected no modifications\n", last_registers.sr, test_regs.sr);
-				outbp += strlen(outbp);
-			}
-			errors++;
 		}
 		for (int i = 0; i < 8; i++) {
 			if (regs_fpuchanged[i]) {
@@ -1228,8 +1297,8 @@ static int test_mnemo(const char *path, const char *opcode)
 	fread(data, 1, 4, f);
 	starttimeid = gl(data);
 	fread(data, 1, 4, f);
-	hmem_rom = gl(data) >> 16;
-	lmem_rom = gl(data) & 65535;
+	hmem_rom = (uae_s16)(gl(data) >> 16);
+	lmem_rom = (uae_s16)(gl(data) & 65535);
 	fread(data, 1, 4, f);
 	test_memory_addr = gl(data);
 	fread(data, 1, 4, f);
