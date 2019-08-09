@@ -68,6 +68,8 @@ static int ad8r[2], pc8r[2];
 // large enough for RTD
 #define STACK_SIZE (0x8000 + 8)
 #define RESERVED_SUPERSTACK 1024
+// space for extra exception, not part of test region
+#define EXTRA_RESERVED_SPACE 1024
 
 static uae_u32 test_low_memory_start;
 static uae_u32 test_low_memory_end;
@@ -88,10 +90,12 @@ static int max_storage_buffer = 1000000;
 
 static bool out_of_test_space;
 static uaecptr out_of_test_space_addr;
-static int test_exception;
 static int forced_immediate_mode;
+static int test_exception;
+static int exception_stack_frame_size;
 static uaecptr test_exception_addr;
 static int test_exception_3_inst;
+static int test_exception_3_w;
 static uae_u8 imm8_cnt;
 static uae_u16 imm16_cnt;
 static uae_u32 imm32_cnt;
@@ -148,6 +152,10 @@ static bool valid_address(uaecptr addr, int size, int w)
 			goto oob;
 		return 1;
 	}
+	if (addr >= test_memory_end && addr + size < test_memory_end + EXTRA_RESERVED_SPACE) {
+		if (testing_active < 0)
+			return 1;
+	}
 	if (addr >= test_memory_start && addr + size < test_memory_end - RESERVED_SUPERSTACK) {
 		// make sure we don't modify our test instruction
 		if (testing_active && w) {
@@ -177,7 +185,7 @@ static uae_u8 *get_addr(uaecptr addr, int size, int w)
 		return low_memory + addr;
 	} else if (addr >= HIGH_MEMORY_START && addr < HIGH_MEMORY_START + 0x8000) {
 		return high_memory + (addr - HIGH_MEMORY_START);
-	} else if (addr >= test_memory_start && addr + size < test_memory_end - RESERVED_SUPERSTACK) {
+	} else if (addr >= test_memory_start && addr + size < test_memory_end + EXTRA_RESERVED_SPACE) {
 		return test_memory + (addr - test_memory_start);
 	}
 oob:
@@ -659,23 +667,55 @@ void cpureset(void)
 	test_exception = 1;
 }
 
+static void doexcstack(void)
+{
+	// generate exception but don't store it with test results
+
+	int noac = noaccesshistory;
+	int ta = testing_active;
+	noaccesshistory = 1;
+	testing_active = -1;
+
+	int sv = regs.s;
+	uaecptr tmp = m68k_areg(regs, 7);
+	m68k_areg(regs, 7) = test_memory_end + EXTRA_RESERVED_SPACE;
+	if (cpu_lvl == 0) {
+		if (test_exception == 3) {
+			uae_u16 opcode = (opcode_memory[0] << 8) | (opcode_memory[1]);
+			uae_u16 mode = (sv ? 4 : 0) | (test_exception_3_inst ? 2 : 1);
+			mode |= test_exception_3_w ? 0 : 16;
+			Exception_build_68000_address_error_stack_frame(mode, opcode, test_exception_addr, regs.pc);
+		}
+	} else if (cpu_lvl > 0) {
+		Exception_build_stack_frame_common(regs.instruction_pc, regs.pc, 0, test_exception);
+	}
+	exception_stack_frame_size = test_memory_end + EXTRA_RESERVED_SPACE - m68k_areg(regs, 7);
+
+	m68k_areg(regs, 7) = tmp;
+	testing_active = ta;
+	noaccesshistory = noac;
+}
+
 void exception3_read(uae_u32 opcode, uae_u32 addr)
 {
 	test_exception = 3;
 	test_exception_3_inst = 0;
 	test_exception_addr = addr;
+	doexcstack();
 }
 void exception3_write(uae_u32 opcode, uae_u32 addr)
 {
 	test_exception = 3;
 	test_exception_3_inst = 0;
 	test_exception_addr = addr;
+	doexcstack();
 }
 void REGPARAM2 Exception(int n)
 {
 	test_exception = n;
 	test_exception_3_inst = 0;
 	test_exception_addr = m68k_getpci();
+	doexcstack();
 }
 void REGPARAM2 Exception_cpu(int n)
 {
@@ -688,18 +728,23 @@ void REGPARAM2 Exception_cpu(int n)
 	if (t0) {
 		activate_trace();
 	}
+	doexcstack();
 }
 void exception3i(uae_u32 opcode, uaecptr addr)
 {
 	test_exception = 3;
 	test_exception_3_inst = 1;
+	test_exception_3_w = 0;
 	test_exception_addr = addr;
+	doexcstack();
 }
 void exception3b(uae_u32 opcode, uaecptr addr, bool w, bool i, uaecptr pc)
 {
 	test_exception = 3;
 	test_exception_3_inst = i;
+	test_exception_3_w = w;
 	test_exception_addr = addr;
+	doexcstack();
 }
 
 int cctrue(int cc)
@@ -998,13 +1043,16 @@ static uae_u8 *store_mem(uae_u8 *dst, int storealways)
 	return dst;
 }
 
-
 static void pl(uae_u8 *p, uae_u32 v)
 {
 	p[0] = v >> 24;
 	p[1] = v >> 16;
 	p[2] = v >> 8;
 	p[3] = v >> 0;
+}
+static uae_u32 gl(uae_u8 *p)
+{
+	return (p[0] << 24) | (p[1] << 16) | (p[2] << 8) | (p[3] << 0);
 }
 
 static bool load_file(const TCHAR *path, const TCHAR *file, uae_u8 *p, int size, int offset)
@@ -1452,6 +1500,7 @@ static void execute_ins(uae_u16 opc, uaecptr endpc, uaecptr targetpc)
 		if (SPCFLAG_TRACE)
 			do_trace();
 
+		regs.instruction_pc = regs.pc;
 		(*cpufunctbl[opc])(opc);
 
 		if (!test_exception) {
@@ -1560,10 +1609,59 @@ static int isunsupported(struct instr *dp)
 
 }
 
+static uae_u8 last_exception[256];
+static int last_exception_len;
+
 static uae_u8 *save_exception(uae_u8 *p)
 {
-	uae_u8 size = 0;
-	*p++ = size;
+	uae_u8 *op = p;
+	int framelen;
+	p++;
+	uae_u8 *sf = test_memory + test_memory_size + EXTRA_RESERVED_SPACE - exception_stack_frame_size;
+	// parse exception and store fields that are unique
+	// SR and PC was already saved with non-exception data
+	if (cpu_lvl == 0) {
+		if (test_exception == 3) {
+			*p++ = sf[1];
+			// access address
+			p = store_rel(p, 0, opcode_memory_start, gl(sf + 2), 1);
+		}
+	} else if (cpu_lvl > 0) {
+		uae_u16 frame = (sf[6] << 8) | sf[7];
+		// frame + vector offset
+		*p++ = sf[6];
+		*p++ = sf[7];
+		switch (frame >> 12)
+		{
+		case 2:
+			// instruction address
+			p = store_rel(p, 0, opcode_memory_start, gl(sf + 8), 1);
+			break;
+		case 3:
+			// effective address
+			p = store_rel(p, 0, opcode_memory_start, gl(sf + 8), 1);
+			break;
+		case 8:
+			// fault/effective address
+			p = store_rel(p, 0, opcode_memory_start, gl(sf + 8), 1);
+			// FSLW or PC of faulted instruction
+			p = store_rel(p, 0, opcode_memory_start, gl(sf + 12), 1);
+			break;
+		default:
+			wprintf(_T("Unknown frame %04x!\n"), frame);
+			abort();
+		}
+	}
+	if (last_exception_len == exception_stack_frame_size && !memcmp(sf, last_exception, exception_stack_frame_size)) {
+		// stack frame was identical to previous
+		p = op;
+		*p++ = 0xff;
+	} else {
+		int datalen = (p - op) - 1;
+		last_exception_len = exception_stack_frame_size;
+		*op = (uae_u8)datalen;
+		memcpy(last_exception, sf, exception_stack_frame_size);
+	}
 	return p;
 }
 
@@ -1679,6 +1777,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, int opcodesize, in
 	memcpy(test_memory, test_memory_temp, test_memory_size);
 
 	full_format_cnt = 0;
+	last_exception_len = -1;
 
 	int sr_override = 0;
 
@@ -2405,7 +2504,7 @@ int __cdecl main(int argc, char *argv[])
 	if (ini_getval(ini, INISECTION, _T("test_high_memory_end"), &v))
 		test_high_memory_end = v;
 
-	test_memory = (uae_u8 *)calloc(1, test_memory_size);
+	test_memory = (uae_u8 *)calloc(1, test_memory_size + EXTRA_RESERVED_SPACE);
 	test_memory_temp = (uae_u8 *)calloc(1, test_memory_size);
 	if (!test_memory || !test_memory_temp) {
 		wprintf(_T("Couldn't allocate test memory\n"));

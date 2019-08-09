@@ -361,7 +361,7 @@ static uae_u8 *restore_value(uae_u8 *p, uae_u32 *vp, int *sizep)
 	return p;
 }
 
-static uae_u8 *restore_rel(uae_u8 *p, uae_u32 *vp)
+static uae_u8 *restore_rel(uae_u8 *p, uae_u32 *vp, int nocheck)
 {
 	uae_u32 v = *vp;
 	switch ((*p++) & CT_SIZE_MASK)
@@ -397,15 +397,17 @@ static uae_u8 *restore_rel(uae_u8 *p, uae_u32 *vp)
 			val |= (*p++) << 8;
 			val |= *p++;
 			v = val;
-			if ((val & addressing_mask) < 0x8000) {
-				; // low memory
-			} else if ((val & ~addressing_mask) == ~addressing_mask && val >= 0xfff80000) {
-				; // high memory
-			} else if ((val & addressing_mask) < test_memory_addr || (val & addressing_mask) >= test_memory_addr + test_memory_size) {
-				end_test();
-				printf("restore_rel CT_ABSOLUTE_LONG outside of test memory! %08x\n", v);
-				endinfo();
-				exit(0);
+			if (!nocheck) {
+				if ((val & addressing_mask) < 0x8000) {
+					; // low memory
+				} else if ((val & ~addressing_mask) == ~addressing_mask && val >= 0xfff80000) {
+					; // high memory
+				} else if ((val & addressing_mask) < test_memory_addr || (val & addressing_mask) >= test_memory_addr + test_memory_size) {
+					end_test();
+					printf("restore_rel CT_ABSOLUTE_LONG outside of test memory! %08x\n", v);
+					endinfo();
+					exit(0);
+				}
 			}
 			break;
 		}
@@ -413,6 +415,14 @@ static uae_u8 *restore_rel(uae_u8 *p, uae_u32 *vp)
 	*vp = v;
 	return p;
 }
+
+static uae_u8 *restore_rel_ordered(uae_u8 *p, uae_u32 *vp)
+{
+	if (*p == CT_EMPTY)
+		return p + 1;
+	return restore_rel(p, vp, 1);
+}
+
 
 static void validate_mode(uae_u8 mode, uae_u8 v)
 {
@@ -753,51 +763,103 @@ static void hexdump(uae_u8 *p, int len)
 	*outbp++ = '\n';
 }
 
-static void validate_exception(struct registers *regs, uae_u8 *p)
+static uae_u8 last_exception[256];
+static int last_exception_len;
+
+static uae_u8 *validate_exception(struct registers *regs, uae_u8 *p, int excnum)
 {
 	int exclen = 0;
-	uae_u8 excmatch[32];
+	uae_u8 *exc;
+	uae_u8 *op = p;
 	uae_u8 *sp = (uae_u8*)regs->excframe;
 	uae_u32 v;
 	uae_u8 excdatalen = *p++;
 
 	if (!excdatalen)
-		return;
-
-	if (cpu_lvl == 0) {
-		if (regs->exc == 3) {
-			// status (with undocumented opcode part)
-			excmatch[0] = opcode_memory[0];
-			excmatch[1] = (opcode_memory[1] & 0xf0) | (*p++);
-			// access address
-			v = opcode_memory_addr;
-			p = restore_rel(p, &v);
-			pl(excmatch + 2, v);
-			p += 4;
-			// opcode
-			excmatch[6] = opcode_memory[0];
-			excmatch[7] = opcode_memory[1];
+		return p;
+	exc = last_exception;
+	if (excdatalen != 0xff) {
+		if (cpu_lvl == 0) {
+			if (excnum == 3) {
+				// status (with undocumented opcode part)
+				exc[0] = opcode_memory[0];
+				exc[1] = (opcode_memory[1] & 0xf0) | (*p++);
+				// access address
+				v = opcode_memory_addr;
+				p = restore_rel_ordered(p, &v);
+				pl(exc + 2, v);
+				// opcode
+				exc[6] = opcode_memory[0];
+				exc[7] = opcode_memory[1];
+				// sr
+				exc[8] = regs->sr >> 8;
+				exc[9] = regs->sr;
+				// pc
+				pl(exc + 10, regs->pc);
+				exclen = 14;
+			}
+		} else if (cpu_lvl > 0) {
 			// sr
-			excmatch[8] = regs->sr >> 8;
-			excmatch[9] = regs->sr;
-			// pc
-			pl(excmatch + 10, regs->pc);
-			exclen = 14;
+			exc[0] = regs->sr >> 8;
+			exc[1] = regs->sr;
+			pl(exc + 2, regs->pc);
+			// frame type
+			uae_u16 frame = ((*p++) << 8) | (*p++);
+			exc[6] = frame >> 8;
+			exc[7] = frame >> 0;
+
+			switch (frame >> 12)
+			{
+			case 0:
+				exclen = 8;
+				break;
+			case 2:
+				v = opcode_memory_addr;
+				p = restore_rel_ordered(p, &v);
+				pl(exc + 8, v);
+				exclen = 12;
+				break;
+			case 3:
+				v = opcode_memory_addr;
+				p = restore_rel_ordered(p, &v);
+				pl(exc + 8, v);
+				exclen = 12;
+				break;
+			case 8:
+				v = opcode_memory_addr;
+				p = restore_rel_ordered(p, &v);
+				pl(exc + 8, v);
+				v = opcode_memory_addr;
+				p = restore_rel_ordered(p, &v);
+				pl(exc + 12, v);
+				exclen = 16;
+				break;
+			default:
+				end_test();
+				printf("Unknown frame %04x\n", frame);
+				exit(0);
+				break;
+			}
+		}
+		last_exception_len = exclen;
+		if (p != op + excdatalen + 1) {
+			end_test();
+			printf("Exception length mismatch %d != %d\n", excdatalen, p - op - 1);
+			exit(0);
 		}
 	} else {
-		// sr
-		excmatch[0] = regs->sr >> 8;
-		excmatch[1] = regs->sr;
-		pl(excmatch + 2, regs->pc);
+		exclen = last_exception_len;
 	}
 	if (exclen == 0)
-		return;
-	if (memcmp(excmatch, sp, exclen)) {
-		strcpy(outbp, "Exception stack frame mismatch");
+		return p;
+	if (memcmp(exc, sp, exclen)) {
+		strcpy(outbp, "Exception stack frame mismatch:\n");
 		outbp += strlen(outbp);
 		hexdump(sp, exclen);
-		hexdump(excmatch, exclen);
+		hexdump(exc, exclen);
+		errors = 1;
 	}
+	return p;
 }
 
 static uae_u8 *validate_test(uae_u8 *p, int ignore_errors, int ignore_sr)
@@ -869,11 +931,7 @@ static uae_u8 *validate_test(uae_u8 *p, int ignore_errors, int ignore_sr)
 				break;
 			}
 			if (exc) {
-				uae_u8 excdatalen = *p++;
-				if (exc == cpuexc && excdatalen) {
-					validate_exception(&test_regs, p);
-				}
-				p += excdatalen;
+				p = validate_exception(&test_regs, p, exc);
 			}
 			if (exc != cpuexc) {
 				addinfo();
@@ -920,7 +978,7 @@ static uae_u8 *validate_test(uae_u8 *p, int ignore_errors, int ignore_sr)
 			last_registers.sr = val;
 		} else if (mode == CT_PC) {
 			uae_u32 val = last_registers.pc;
-			p = restore_rel(p, &val);
+			p = restore_rel(p, &val, 0);
 			pc_changed = 0;
 			last_registers.pc = val;
 		} else if (mode == CT_FPCR) {
@@ -953,7 +1011,7 @@ static uae_u8 *validate_test(uae_u8 *p, int ignore_errors, int ignore_sr)
 			last_registers.fpsr = val;
 		} else if (mode == CT_FPIAR) {
 			uae_u32 val = last_registers.fpiar;
-			p = restore_rel(p, &val);
+			p = restore_rel(p, &val, 0);
 			if (val != test_regs.fpiar && !ignore_errors) {
 				addinfo();
 				if (dooutput) {
