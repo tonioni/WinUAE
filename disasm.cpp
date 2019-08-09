@@ -1717,6 +1717,10 @@ void m68k_disasm_2 (TCHAR *buf, int bufsize, uaecptr pc, uaecptr *nextpc, int cn
 			TCHAR *p;
 			extra = get_word_debug(pc);
 			pc += 2;
+			if (extra & 0x0800) // signed/unsigned
+				instrname[3] = 'S';
+			else
+				instrname[3] = 'U';
 			pc = ShowEA(NULL, pc, opcode, dp->dreg, dp->dmode, dp->size, instrname, &seaddr2, safemode);
 			p = instrname + _tcslen(instrname);
 			if (extra & 0x0400)
