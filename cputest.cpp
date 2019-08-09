@@ -121,7 +121,7 @@ struct accesshistory
 static int ahcnt, ahcnt2;
 static int noaccesshistory = 0;
 
-#define MAX_ACCESSHIST 32
+#define MAX_ACCESSHIST 48
 static struct accesshistory ahist[MAX_ACCESSHIST];
 static struct accesshistory ahist2[MAX_ACCESSHIST];
 
@@ -1409,6 +1409,19 @@ static int handle_specials_branch(uae_u16 opcode, uaecptr pc, struct instr *dp, 
 	return 0;
 }
 
+static int handle_specials_pack(uae_u16 opcode, uaecptr pc, struct instr *dp, int *isconstant)
+{
+	// PACK and UNPK has third parameter
+	if (dp->mnemo == i_PACK || dp->mnemo == i_UNPK) {
+		uae_u16 v = rand16();
+		put_word_test(pc, v);
+		*isconstant = 16;
+		return 2;
+	}
+	return 0;
+}
+
+
 static int handle_specials_stack(uae_u16 opcode, uaecptr pc, struct instr *dp, int *isconstant)
 {
 	int offset = 0;
@@ -1431,9 +1444,7 @@ static int handle_specials_stack(uae_u16 opcode, uaecptr pc, struct instr *dp, i
 			v = imm_special >> 2;
 			uae_u16 sr = v & 31;
 			sr |= (v >> 5) << 12;
-			put_word_test(addr, sr);
-			addr += 2;
-			offset += 2;
+			put_word_test(addr + 4, sr);
 			*isconstant = imm_special >= (1 << (4 + 5)) * 4 ? 0 : -1;
 		} else if (opcode == 0x4e73) {
 			// RTE
@@ -1479,9 +1490,9 @@ static void execute_ins(uae_u16 opc, uaecptr endpc, uaecptr targetpc)
 {
 	uae_u16 opw1 = (opcode_memory[2] << 8) | (opcode_memory[3] << 0);
 	uae_u16 opw2 = (opcode_memory[4] << 8) | (opcode_memory[5] << 0);
-	if (opc == 0x6100
-		&& opw1 == 0x001e
-//		&& opw2 == 0x2770
+	if (opc == 0x61ff  
+		&& opw1 == 0x0000
+		&& opw2 == 0x9908
 		)
 		printf("");
 
@@ -1615,7 +1626,6 @@ static int last_exception_len;
 static uae_u8 *save_exception(uae_u8 *p)
 {
 	uae_u8 *op = p;
-	int framelen;
 	p++;
 	uae_u8 *sf = test_memory + test_memory_size + EXTRA_RESERVED_SPACE - exception_stack_frame_size;
 	// parse exception and store fields that are unique
@@ -1633,6 +1643,8 @@ static uae_u8 *save_exception(uae_u8 *p)
 		*p++ = sf[7];
 		switch (frame >> 12)
 		{
+		case 0:
+			break;
 		case 2:
 			// instruction address
 			p = store_rel(p, 0, opcode_memory_start, gl(sf + 8), 1);
@@ -1743,6 +1755,8 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, int opcodesize, in
 			continue;
 		opcodecnt++;
 		if (isunsupported(dp))
+			return;
+		if ((opcode & 0xf000) == 0xf000 && !currprefs.fpu_model)
 			return;
 		fpumode = currprefs.fpu_model && (opcode & 0xf000) == 0xf000;
 	}
@@ -1920,6 +1934,8 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, int opcodesize, in
 
 					// bcc.x
 					pc += handle_specials_branch(opc, pc, dp, &isconstant_src);
+					// pack
+					pc += handle_specials_pack(opc, pc, dp, &isconstant_src);
 
 					put_word_test(opcode_memory_start, opc);
 
@@ -2595,6 +2611,10 @@ int __cdecl main(int argc, char *argv[])
 			continue;
 		}
 
+		if (!currprefs.fpu_model && (opcode & 0xf000) == 0xf000) {
+			continue;
+		}
+
 		if (table->handler != -1) {
 			int idx = table->handler;
 			f = cpufunctbl[idx];
@@ -2624,9 +2644,7 @@ int __cdecl main(int argc, char *argv[])
 	x_cp_put_word = put_word_test;
 	x_cp_put_byte = put_byte_test;
 
-	if (currprefs.fpu_model) {
-		fpu_reset();
-	}
+	fpu_reset();
 
 	starttime = time(0);
 
@@ -2647,15 +2665,17 @@ int __cdecl main(int argc, char *argv[])
 
 			verbose = 0;
 			for (int j = 1; lookuptab[j].name; j++) {
-				for (int i = 0; i < 8; i++) {
-					test_mnemo(path, lookuptab[j].name, i, fpuopcode);
-				}
+				test_mnemo(path, lookuptab[j].name, 0, -1);
+				test_mnemo(path, lookuptab[j].name, 4, -1);
+				test_mnemo(path, lookuptab[j].name, 6, -1);
+				test_mnemo(path, lookuptab[j].name, -1, -1);
 			}
 			// illg last. All currently selected CPU model's unsupported opcodes
 			// (illegal instruction, a-line and f-line)
-			for (int i = 0; i < 8; i++) {
-				test_mnemo(path, lookuptab[0].name, i, fpuopcode);
-			}
+			test_mnemo(path, lookuptab[0].name, 0, -1);
+			test_mnemo(path, lookuptab[0].name, 4, -1);
+			test_mnemo(path, lookuptab[0].name, 6, -1);
+			test_mnemo(path, lookuptab[0].name, -1, -1);
 			break;
 		}
 

@@ -4376,7 +4376,7 @@ static void gen_opcode (unsigned int opcode)
 			printf ("\tm68k_do_bsr_ce030 (nextpc, s);\n");
 		} else if (using_ce) {
 			printf ("\tm68k_do_bsr_ce (nextpc, s);\n");
-		} else if (using_prefetch || using_prefetch_020) {
+		} else if (using_prefetch || using_prefetch_020 || using_test) {
 			printf ("\tm68k_do_bsri (nextpc, s);\n");
 		} else {
 			printf ("\tm68k_do_bsr (nextpc, s);\n");

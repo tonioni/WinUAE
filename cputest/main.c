@@ -179,7 +179,7 @@ struct accesshistory
 };
 static int ahcnt;
 
-#define MAX_ACCESSHIST 8
+#define MAX_ACCESSHIST 48
 static struct accesshistory ahist[MAX_ACCESSHIST];
 
 static void endinfo(void)
@@ -690,6 +690,24 @@ static void addinfo(void)
 	outbp += strlen(outbp);
 }
 
+struct srbit
+{
+	char *name;
+	int bit;
+};
+static struct srbit srbits[] = {
+	{ "T1", 15 },
+	{ "T0", 14 },
+	{ "M", 13 },
+	{ "S", 12 },
+	{ "X", 4 },
+	{ "N", 3 },
+	{ "Z", 2 },
+	{ "V", 1 },
+	{ "C", 0 },
+	{ NULL, 0 }
+};
+
 static void out_regs(struct registers *r, int before)
 {
 	for (int i = 0; i < 16; i++) {
@@ -709,15 +727,14 @@ static void out_regs(struct registers *r, int before)
 	uae_u16 s = before ? test_sr : r->sr;
 	uae_u16 s1 = test_regs.sr;
 	uae_u16 s2 = test_sr;
-	sprintf(outbp, "T%c%d S%c%d X%c%d N%c%d Z%c%d V%c%d C%c%d",
-		(s1 & 0x8000) != (s2 & 0x8000) ? '*' : '=', (s & 0x8000) != 0,
-		(s1 & 0x2000) != (s2 & 0x2000) ? '*' : '=', (s & 0x2000) != 0,
-		(s1 & 0x10) != (s2 & 0x10) ? '*' : '=', (s & 0x10) != 0,
-		(s1 & 0x08) != (s2 & 0x08) ? '*' : '=', (s & 0x08) != 0,
-		(s1 & 0x04) != (s2 & 0x04) ? '*' : '=', (s & 0x04) != 0,
-		(s1 & 0x02) != (s2 & 0x02) ? '*' : '=', (s & 0x02) != 0,
-		(s1 & 0x01) != (s2 & 0x01) ? '*' : '=', (s & 0x01) != 0);
-	outbp += strlen(outbp);
+	uae_u16 s3 = before ? s1 : last_registers.sr;
+	for (int i = 0; srbits[i].name; i++) {
+		if (i > 0)
+			*outbp++ = ' ';
+		uae_u16 mask = 1 << srbits[i].bit;
+		sprintf(outbp, "%s%c%d", srbits[i].name, (s3 & mask) != (s1 & mask) ? '!' : ((s1 & mask) != (s2 & mask) ? '*' : '='), (s & mask) != 0);
+		outbp += strlen(outbp);
+	}
 
 	if (!fpu_model) {
 		strcat(outbp, "\n");
@@ -855,8 +872,12 @@ static uae_u8 *validate_exception(struct registers *regs, uae_u8 *p, int excnum)
 	if (memcmp(exc, sp, exclen)) {
 		strcpy(outbp, "Exception stack frame mismatch:\n");
 		outbp += strlen(outbp);
-		hexdump(sp, exclen);
+		strcpy(outbp, "Expected: ");
+		outbp += strlen(outbp);
 		hexdump(exc, exclen);
+		strcpy(outbp, "Got     : ");
+		outbp += strlen(outbp);
+		hexdump(sp, exclen);
 		errors = 1;
 	}
 	return p;
