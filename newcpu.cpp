@@ -1620,7 +1620,7 @@ static void flush_cpu_caches_040_2(int cache, int scope, uaecptr addr, bool push
 					pagesize = 16;
 				}
 				addr &= ~(pagesize - 1);
-				for (int j = 0; j < pagesize; j += 16, addr += 16) {
+				for (uae_u32 j = 0; j < pagesize; j += 16, addr += 16) {
 					int index;
 					uae_u32 tag;
 					uae_u32 tagmask;
@@ -1821,7 +1821,7 @@ static void build_cpufunctbl (void)
 	opcnt = 0;
 	for (opcode = 0; opcode < 65536; opcode++) {
 		cpuop_func *f;
-		instr *table = &table68k[opcode];
+		struct instr *table = &table68k[opcode];
 
 		if (table->mnemo == i_ILLG)
 			continue;		
@@ -5138,7 +5138,7 @@ static void m68k_run_mmu060 (void)
 /* Aranym MMU 68040  */
 static void m68k_run_mmu040 (void)
 {
-	flag_struct f;
+	struct flag_struct f;
 	int halt = 0;
 
 	check_halt();

@@ -66,7 +66,7 @@ static const int datasizes[] = {
 static void showea_val(TCHAR *buffer, uae_u16 opcode, uaecptr addr, int size)
 {
 	struct mnemolookup *lookup;
-	instr *table = &table68k[opcode];
+	struct instr *table = &table68k[opcode];
 
 	if (addr >= 0xe90000 && addr < 0xf00000)
 		goto skip;
