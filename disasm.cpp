@@ -1808,6 +1808,13 @@ void m68k_disasm_2 (TCHAR *buf, int bufsize, uaecptr pc, uaecptr *nextpc, int cn
 					break;
 				}
 			}
+		} else if (lookup->mnemo == i_PACK || lookup->mnemo == i_UNPK) {
+			pc = ShowEA(NULL, pc, opcode, dp->sreg, dp->smode, dp->size, instrname, &seaddr2, safemode);
+			_tcscat(instrname, _T(","));
+			pc = ShowEA(NULL, pc, opcode, dp->dreg, dp->dmode, dp->size, instrname, &deaddr2, safemode);
+			extra = get_word_debug(pc);
+			_stprintf(instrname + _tcslen(instrname), _T(",#$%04x"), extra);
+			pc += 2;
 		} else if (lookup->mnemo == i_FDBcc) {
 			pc = ShowEA(NULL, pc, opcode, dp->dreg, dp->dmode, dp->size, instrname, &seaddr2, safemode);
 			pc += 2;
