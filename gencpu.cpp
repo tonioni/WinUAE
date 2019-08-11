@@ -18,7 +18,7 @@
 * Copyright 1995, 1996, 1997, 1998, 1999, 2000 Bernd Schmidt
 */
 
-#define CPU_TESTER 1
+#define CPU_TESTER 0
 
 #include "sysconfig.h"
 #include "sysdeps.h"
