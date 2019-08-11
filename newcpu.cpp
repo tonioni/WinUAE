@@ -2816,7 +2816,7 @@ static void Exception_normal (int nr)
 			if (currprefs.cpu_model >= 68040) {
 				if (nr == 2) {
 					if (currprefs.mmu_model) {
-						// 68040 mmu bus error
+						// 68040/060 mmu bus error
 						for (i = 0 ; i < 7 ; i++) {
 							m68k_areg (regs, 7) -= 4;
 							x_put_long (m68k_areg (regs, 7), 0);
@@ -2890,61 +2890,26 @@ static void Exception_normal (int nr)
 					}
 
 				} else {
-					m68k_areg (regs, 7) -= 4;
-					x_put_long (m68k_areg (regs, 7), last_fault_for_exception_3);
-					m68k_areg (regs, 7) -= 2;
-					x_put_word (m68k_areg (regs, 7), 0x2000 + vector_nr * 4);
+					// 68040/060 odd PC address error
+					Exception_build_stack_frame(last_fault_for_exception_3, currpc, 0, nr, 0x02);
+					used_exception_build_stack_frame = true;
 				}
 			} else if (currprefs.cpu_model >= 68020) {
-				// 68020/030 address error
+				// 68020/030 odd PC address error (partially implemented only)
 				uae_u16 ssw = (sv ? 4 : 0) | (last_instructionaccess_for_exception_3 ? 2 : 1);
 				ssw |= last_writeaccess_for_exception_3 ? 0 : 0x40;
 				ssw |= 0x20;
-				for (i = 0 ; i < 36; i++) {
-					m68k_areg (regs, 7) -= 2;
-					x_put_word (m68k_areg (regs, 7), 0);
-				}
-				m68k_areg (regs, 7) -= 4;
-				x_put_long (m68k_areg (regs, 7), last_fault_for_exception_3);
-				m68k_areg (regs, 7) -= 2;
-				x_put_word (m68k_areg (regs, 7), 0);
-				m68k_areg (regs, 7) -= 2;
-				x_put_word (m68k_areg (regs, 7), 0);
-				m68k_areg (regs, 7) -= 2;
-				x_put_word (m68k_areg (regs, 7), 0);
-				m68k_areg (regs, 7) -= 2;
-				x_put_word (m68k_areg (regs, 7), ssw);
-				m68k_areg (regs, 7) -= 2;
-				x_put_word (m68k_areg (regs, 7), 0xb000 + vector_nr * 4);
+				regs.mmu_fault_addr = last_fault_for_exception_3;
+				Exception_build_stack_frame(oldpc, currpc, ssw, nr, 0x0a);
+				used_exception_build_stack_frame = true;
 			} else {
 				// 68010 address error (partially implemented only)
 				uae_u16 ssw = (sv ? 4 : 0) | (last_instructionaccess_for_exception_3 ? 2 : 1);
 				ssw |= last_writeaccess_for_exception_3 ? 0 : 0x100;
 				ssw |= last_instructionaccess_for_exception_3 ? 0 : 0x2000;
-				for (i = 0; i < 15; i++) {
-					m68k_areg(regs, 7) -= 2;
-					x_put_word(m68k_areg(regs, 7), 0);
-				}
-				m68k_areg(regs, 7) -= 2;
-				x_put_word(m68k_areg(regs, 7), 0); // version
-				m68k_areg(regs, 7) -= 2;
-				x_put_word(m68k_areg(regs, 7), last_op_for_exception_3); // instruction input buffer
-				m68k_areg(regs, 7) -= 2;
-				x_put_word(m68k_areg(regs, 7), 0); // unused
-				m68k_areg(regs, 7) -= 2;
-				x_put_word(m68k_areg(regs, 7), 0); // data input buffer
-				m68k_areg(regs, 7) -= 2;
-				x_put_word(m68k_areg(regs, 7), 0); // unused
-				m68k_areg(regs, 7) -= 2;
-				x_put_word(m68k_areg(regs, 7), 0); // data output buffer
-				m68k_areg(regs, 7) -= 2;
-				x_put_word(m68k_areg(regs, 7), 0); // unused
-				m68k_areg(regs, 7) -= 4;
-				x_put_long(m68k_areg(regs, 7), last_addr_for_exception_3); // fault addr
-				m68k_areg(regs, 7) -= 2;
-				x_put_word(m68k_areg(regs, 7), ssw); // ssw
-				m68k_areg(regs, 7) -= 2;
-				x_put_word(m68k_areg(regs, 7), 0x8000 + vector_nr * 4);
+				regs.mmu_fault_addr = last_addr_for_exception_3;
+				Exception_build_stack_frame(oldpc, currpc, ssw, nr, 0x08);
+				used_exception_build_stack_frame = true;
 			}
 			write_log (_T("Exception %d (%x) at %x -> %x!\n"), nr, regs.instruction_pc, currpc, get_long_debug (regs.vbr + 4 * vector_nr));
 		} else if (regs.m && interrupt) { /* M + Interrupt */
@@ -2970,7 +2935,7 @@ static void Exception_normal (int nr)
 		add_approximate_exception_cycles(nr);
 		nextpc = m68k_getpc ();
 		if (nr == 2 || nr == 3) {
-			// 68000 address error
+			// 68000 bus error/address error
 			uae_u16 mode = (sv ? 4 : 0) | (last_instructionaccess_for_exception_3 ? 2 : 1);
 			mode |= last_writeaccess_for_exception_3 ? 0 : 16;
 			mode |= last_notinstruction_for_exception_3 ? 8 : 0;

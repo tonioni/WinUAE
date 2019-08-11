@@ -315,6 +315,7 @@ _exceptionfpu:
 	movem.l d0-d7/a0-a6,(a0)
 	move.l (sp)+,8*4(a0)
 
+	move.l sp,S_EXCFRAME(a0)
 	move.w (sp)+,S_SR+2(a0)
 	move.l (sp)+,S_PC(a0)
 	move.w (sp),d0

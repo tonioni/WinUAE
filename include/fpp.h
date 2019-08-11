@@ -25,6 +25,13 @@ extern void fpsr_set_exception(uae_u32 exception);
 extern void fpu_modechange(void);
 extern void fpu_clearstatus(void);
 
+extern void fpp_set_fpcr(uae_u32 val);
+extern void fpp_set_fpsr(uae_u32 val);
+extern void fpp_set_fpiar(uae_u32 val);
+extern uae_u32 fpp_get_fpsr(void);
+extern uae_u32 fpp_get_fpcr(void);
+extern uae_u32 fpp_get_fpiar(void);
+
 #if defined(CPU_i386) || defined(CPU_x86_64)
 extern void init_fpucw_x87(void);
 #ifdef MSVC_LONG_DOUBLE

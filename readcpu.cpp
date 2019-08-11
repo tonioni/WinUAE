@@ -128,7 +128,6 @@ struct mnemolookup lookuptab[] = {
 	{ i_FScc, _T("FScc"), NULL, 0 },
 	{ i_FTRAPcc, _T("FTRAPcc"), NULL, 0 },
 	{ i_FBcc, _T("FBcc"), NULL, 0 },
-	{ i_FBcc, _T("FBcc"), NULL, 0 },
 	{ i_FSAVE, _T("FSAVE"), NULL, 0 },
 	{ i_FRESTORE, _T("FRESTORE"), NULL, 0 },
 

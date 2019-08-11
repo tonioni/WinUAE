@@ -762,7 +762,7 @@ int getDivs68kCycles (uae_s32 dividend, uae_s16 divisor)
 /* DIV divide by zero
  *
  * 68000 Signed: NVC=0 Z=1. Unsigned: VC=0 N=(dst>>16)<0 Z=(dst>>16)==0
- * 68020 and 68030: Signed: Z=1 NVC=0. Unsigned: V=1, N=(dst>>16)<0 Z=(dst>>16)==0, C=0.
+ * 68020 and 68030: Signed: Z=1 NC=0. V=? (sometimes random!) Unsigned: V=1, N=(dst>>16)<0 Z=(dst>>16)==0, C=0.
  * 68040/68060 C=0.
  *
  */
@@ -858,14 +858,66 @@ void setdivsoverflowflags(uae_s32 dividend, uae_s16 divisor)
 /*
  * CHK.W undefined flags
  *
- * 68000: CV=0, Z if dst==0.
+ * 68000: CV=0. Z: dst==0. N: dst < 0. !N: dst > src.
+ * 68020: Z: dst==0. N: dst < 0. V: src-dst overflow. C: if dst < 0: (dst > src || src >= 0), if dst > src: (src >= 0).
  *
  */
-void setchkundefinedflags(uae_s16 src, uae_s16 dst)
+void setchkundefinedflags(uae_s32 src, uae_s32 dst, int size)
 {
 	CLEAR_CZNV();
-	if (dst == 0)
-		SET_ZFLG(1);
+	if (currprefs.cpu_model < 68020) {
+		if (dst == 0)
+			SET_ZFLG(1);
+		if (dst < 0)
+			SET_NFLG(1);
+		else if (dst > src)
+			SET_NFLG(0);
+	} else if (currprefs.cpu_model == 68020 || currprefs.cpu_model == 68030) {
+		if (dst == 0)
+			SET_ZFLG(1);
+		SET_NFLG(dst < 0);
+		if (dst < 0 || dst > src) {
+			if (size == sz_word) {
+				int flgs = ((uae_s16)(dst)) < 0;
+					int flgo = ((uae_s16)(src)) < 0;
+					uae_s16 val = (uae_s16)src - (uae_s16)dst;
+					int flgn = val < 0;
+					SET_VFLG((flgs ^ flgo) & (flgn ^ flgo));
+			} else {
+				int flgs = dst < 0;
+					int flgo = src < 0;
+					uae_s32 val = src - dst;
+				int flgn = val < 0;
+				SET_VFLG((flgs ^ flgo) & (flgn ^ flgo));
+			}
+			if (dst < 0) {
+				SET_CFLG(dst > src || src >= 0);
+			} else {
+				SET_CFLG(src >= 0);
+			}
+		}
+	}
+}
+
+void setchk2undefinedflags(uae_u32 lower, uae_u32 upper, uae_u32 val, int size)
+{
+	uae_u32 nmask;
+	if (size == sz_byte)
+		nmask = 0x80;
+	else if (size == sz_word)
+		nmask = 0x8000;
+	else
+		nmask = 0x80000000;
+
+	SET_NFLG(0);
+	if ((upper & nmask) && val > upper) {
+		SET_NFLG(1);
+	} else if (!(upper & nmask) && val > upper && val < nmask) {
+		SET_NFLG(1);
+	} else if (val < lower) {
+		SET_NFLG(1);
+	}
+	SET_VFLG(0);
 }
 
 #ifndef CPUEMU_68000_ONLY
@@ -896,6 +948,14 @@ STATIC_INLINE int div_unsigned (uae_u32 src_hi, uae_u32 src_lo, uae_u32 div, uae
 }
 #endif
 
+static void divl_overflow(void)
+{
+	SET_VFLG(1);
+	SET_NFLG(1);
+	SET_CFLG(0);
+	SET_ZFLG(0);
+}
+
 bool m68k_divl (uae_u32 opcode, uae_u32 src, uae_u16 extra)
 {
 	if ((extra & 0x400) && currprefs.int_no_unimplemented && currprefs.cpu_model == 68060) {
@@ -903,7 +963,7 @@ bool m68k_divl (uae_u32 opcode, uae_u32 src, uae_u16 extra)
 		return false;
 	}
 	if (src == 0) {
-		Exception_cpu (5);
+		Exception_cpu(5);
 		return false;
 	}
 #if defined (uae_s64)
@@ -918,18 +978,14 @@ bool m68k_divl (uae_u32 opcode, uae_u32 src, uae_u16 extra)
 		}
 
 		if ((uae_u64)a == 0x8000000000000000UL && src == ~0u) {
-			SET_VFLG (1);
-			SET_NFLG (1);
-			SET_CFLG (0);
+			divl_overflow();
 		} else {
 			rem = a % (uae_s64)(uae_s32)src;
 			quot = a / (uae_s64)(uae_s32)src;
 			if ((quot & UVAL64 (0xffffffff80000000)) != 0
 				&& (quot & UVAL64 (0xffffffff80000000)) != UVAL64 (0xffffffff80000000))
 			{
-				SET_VFLG (1);
-				SET_NFLG (1);
-				SET_CFLG (0);
+				divl_overflow();
 			} else {
 				if (((uae_s32)rem < 0) != ((uae_s64)a < 0)) rem = -rem;
 				SET_VFLG (0);
@@ -952,9 +1008,7 @@ bool m68k_divl (uae_u32 opcode, uae_u32 src, uae_u16 extra)
 		rem = a % (uae_u64)src;
 		quot = a / (uae_u64)src;
 		if (quot > 0xffffffffu) {
-			SET_VFLG (1);
-			SET_NFLG (1);
-			SET_CFLG (0);
+			divl_overflow();
 		} else {
 			SET_VFLG (0);
 			SET_CFLG (0);
@@ -986,9 +1040,7 @@ bool m68k_divl (uae_u32 opcode, uae_u32 src, uae_u16 extra)
 		if ((uae_s32)src < 0) src = -src;
 		if (div_unsigned (hi, lo, src, &quot, &rem) ||
 			(sign & 0x80000000) ? quot > 0x80000000 : quot > 0x7fffffff) {
-				SET_VFLG (1);
-				SET_NFLG (1);
-				SET_CFLG (0);
+				divl_overflow();
 		} else {
 			if (sign & 0x80000000) quot = -quot;
 			if (((uae_s32)rem < 0) != (save_high < 0)) rem = -rem;
@@ -1009,9 +1061,7 @@ bool m68k_divl (uae_u32 opcode, uae_u32 src, uae_u16 extra)
 			hi = (uae_u32)m68k_dreg (regs, extra & 7);
 		}
 		if (div_unsigned (hi, lo, src, &quot, &rem)) {
-			SET_VFLG (1);
-			SET_NFLG (1);
-			SET_CFLG (0);
+			divl_overflow();
 		} else {
 			SET_VFLG (0);
 			SET_CFLG (0);
@@ -1188,7 +1238,13 @@ void Exception_build_stack_frame(uae_u32 oldpc, uae_u32 currpc, uae_u32 ssw, int
 		m68k_areg(regs, 7) -= 4;
 		x_put_long(m68k_areg(regs, 7), regs.fp_ea);
 		break;
-#ifndef CPU_TESTER
+	case 0x4: // floating point unimplemented stack frame (68LC040, 68EC040)
+		// or 68060 bus access fault stack frame
+		m68k_areg(regs, 7) -= 4;
+		x_put_long(m68k_areg(regs, 7), ssw);
+		m68k_areg(regs, 7) -= 4;
+		x_put_long(m68k_areg(regs, 7), oldpc);
+		break;
 	case 0x7: // access error stack frame (68040)
 
 		for (i = 3; i >= 0; i--) {
@@ -1225,7 +1281,30 @@ void Exception_build_stack_frame(uae_u32 oldpc, uae_u32 currpc, uae_u32 ssw, int
 		m68k_areg(regs, 7) -= 4;
 		x_put_long(m68k_areg(regs, 7), regs.mmu_effective_addr);
 		break;
-#endif
+	case 0x8: // address error (68010)
+		for (i = 0; i < 15; i++) {
+			m68k_areg(regs, 7) -= 2;
+			x_put_word(m68k_areg(regs, 7), 0);
+		}
+		m68k_areg(regs, 7) -= 2;
+		x_put_word(m68k_areg(regs, 7), 0); // version
+		m68k_areg(regs, 7) -= 2;
+		x_put_word(m68k_areg(regs, 7), regs.opcode); // instruction input buffer
+		m68k_areg(regs, 7) -= 2;
+		x_put_word(m68k_areg(regs, 7), 0); // unused
+		m68k_areg(regs, 7) -= 2;
+		x_put_word(m68k_areg(regs, 7), 0); // data input buffer
+		m68k_areg(regs, 7) -= 2;
+		x_put_word(m68k_areg(regs, 7), 0); // unused
+		m68k_areg(regs, 7) -= 2;
+		x_put_word(m68k_areg(regs, 7), 0); // data output buffer
+		m68k_areg(regs, 7) -= 2;
+		x_put_word(m68k_areg(regs, 7), 0); // unused
+		m68k_areg(regs, 7) -= 4;
+		x_put_long(m68k_areg(regs, 7), regs.mmu_fault_addr); // fault addr
+		m68k_areg(regs, 7) -= 2;
+		x_put_word(m68k_areg(regs, 7), ssw); // ssw
+		break;
 	case 0x9: // coprocessor mid-instruction stack frame (68020, 68030)
 		m68k_areg(regs, 7) -= 4;
 		x_put_long(m68k_areg(regs, 7), regs.fp_ea);
@@ -1234,17 +1313,6 @@ void Exception_build_stack_frame(uae_u32 oldpc, uae_u32 currpc, uae_u32 ssw, int
 		m68k_areg(regs, 7) -= 4;
 		x_put_long(m68k_areg(regs, 7), oldpc);
 		break;
-	case 0x8: // bus and address error stack frame (68010)
-		write_log(_T("Exception stack frame format %X not implemented\n"), format);
-		return;
-	case 0x4: // floating point unimplemented stack frame (68LC040, 68EC040)
-		// or 68060 bus access fault stack frame
-		m68k_areg(regs, 7) -= 4;
-		x_put_long(m68k_areg(regs, 7), ssw);
-		m68k_areg(regs, 7) -= 4;
-		x_put_long(m68k_areg(regs, 7), oldpc);
-		break;
-#ifndef CPU_TESTER
 	case 0xB: // long bus cycle fault stack frame (68020, 68030)
 		// Store state information to internal register space
 #if MMU030_DEBUG
@@ -1343,7 +1411,6 @@ void Exception_build_stack_frame(uae_u32 oldpc, uae_u32 currpc, uae_u32 ssw, int
 		m68k_areg(regs, 7) -= 2;
 		x_put_word(m68k_areg(regs, 7), regs.wb2_address); // = mmu030_state[1]);
 		break;
-#endif
 	default:
 		write_log(_T("Unknown exception stack frame format: %X\n"), format);
 		return;

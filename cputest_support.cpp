@@ -6,6 +6,8 @@
 #include "memory.h"
 #include "newcpu.h"
 #include "fpp.h"
+#include "mmu_common.h"
+#include "cpummu030.h"
 
 void my_trim(TCHAR *s)
 {
@@ -98,3 +100,13 @@ uae_u16 REGPARAM2 mmu_set_tc(uae_u16 tc)
 {
 	return 0;
 }
+
+uae_u16 mmu030_state[3];
+int mmu030_opcode;
+int mmu030_idx;
+uae_u32 mmu030_disp_store[2];
+uae_u32 mmu030_fmovem_store[2];
+uae_u32 mm030_stageb_address;
+struct mmu030_access mmu030_ad[MAX_MMU030_ACCESS + 1];
+
+uae_u32 mmu040_move16[4];

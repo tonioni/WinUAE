@@ -54,6 +54,8 @@ static uae_u8 *opcode_memory;
 static uae_u32 opcode_memory_addr;
 static uae_u8 *low_memory;
 static uae_u8 *high_memory;
+static uae_u32 low_memory_size;
+static uae_u32 high_memory_size;
 static uae_u8 *test_memory;
 static uae_u32 test_memory_addr;
 static uae_u32 test_memory_size;
@@ -75,15 +77,15 @@ static uae_u32 cpustatearraynew[] = {
 	0x00000000, // MSP
 };
 
-static uae_u8 low_memory_temp[32768];
-static uae_u8 high_memory_temp[32768];
-static uae_u8 low_memory_back[32768];
-static uae_u8 high_memory_back[32768];
+static uae_u8 *low_memory_temp;
+static uae_u8 *high_memory_temp;
+static uae_u8 *low_memory_back;
+static uae_u8 *high_memory_back;
 
 static uae_u32 vbr[256];
 	
 static char inst_name[16+1];
-#ifdef _MSC_VER
+#ifndef M68K
 static char outbuffer[40000];
 #else
 static char outbuffer[4000];
@@ -97,7 +99,7 @@ static int quit;
 static uae_u8 ccr_mask;
 static uae_u32 addressing_mask = 0x00ffffff;
 
-#ifdef _MSC_VER
+#ifndef M68K
 
 #define xmemcpy memcpy
 
@@ -203,15 +205,15 @@ static void start_test(void)
 	if (test_active)
 		return;
 
-#ifndef _MSC_VER
+#ifdef M68K
 	if (lmem_rom > 0) {
-		if (memcmp(low_memory, low_memory_temp, 32768)) {
+		if (memcmp(low_memory, low_memory_temp, low_memory_size)) {
 			printf("Low memory ROM mismatch!\n");
 			exit(0);
 		}
 	}
 	if (hmem_rom > 0) {
-		if (memcmp(high_memory, high_memory_temp, 32768)) {
+		if (memcmp(high_memory, high_memory_temp, high_memory_size)) {
 			printf("High memory ROM mismatch!\n");
 			exit(0);
 		}
@@ -222,13 +224,13 @@ static void start_test(void)
 
 	enable_data = tosuper(0);
 
-	memcpy(low_memory_back, low_memory, 32768);
+	memcpy(low_memory_back, low_memory, low_memory_size);
 	if (!hmem_rom)
-		memcpy(high_memory_back, high_memory, 32768);
+		memcpy(high_memory_back, high_memory, high_memory_size);
 
-	memcpy(low_memory, low_memory_temp, 32768);
+	memcpy(low_memory, low_memory_temp, low_memory_size);
 	if (!hmem_rom)
-		memcpy(high_memory, high_memory_temp, 32768);
+		memcpy(high_memory, high_memory_temp, high_memory_size);
 
 	if (cpu_lvl == 0) {
 		uae_u32 *p = (uae_u32 *)vbr_zero;
@@ -253,9 +255,9 @@ static void end_test(void)
 		return;
 	test_active = 0;
 
-	memcpy(low_memory, low_memory_back, 32768);
+	memcpy(low_memory, low_memory_back, low_memory_size);
 	if (!hmem_rom)
-		memcpy(high_memory, high_memory_back, 32768);
+		memcpy(high_memory, high_memory_back, high_memory_size);
 
 	if (cpu_lvl > 0) {
 		setvbr(oldvbr);
@@ -303,9 +305,20 @@ static void pl(uae_u8 *p, uae_u32 v)
 	p[2] = v >>  8;
 	p[3] = v >>  0;
 }
+static void pw(uae_u8 *p, uae_u32 v)
+{
+	p[0] = v >> 8;
+	p[1] = v >> 0;
+}
+
 static uae_u32 gl(uae_u8 *p)
 {
 	return (p[0] << 24) | (p[1] << 16) | (p[2] << 8) | (p[3] << 0);
+}
+
+static uae_u16 gw(uae_u8 *p)
+{
+	return (p[0] << 8) | (p[1] << 0);
 }
 
 static uae_u8 *restore_fpvalue(uae_u8 *p, struct fpureg *fp)
@@ -317,12 +330,13 @@ static uae_u8 *restore_fpvalue(uae_u8 *p, struct fpureg *fp)
 		endinfo();
 		exit(0);
 	}
-	fp->exp = (p[0] << 8) | p[1];
+	fp->exp = gw(p);
 	p += 2;
 	fp->m[0] = gl(p);
 	p += 4;
 	fp->m[1] = gl(p);
 	p += 4;
+	fp->dummy = 0;
 	return p;
 }
 
@@ -398,7 +412,7 @@ static uae_u8 *restore_rel(uae_u8 *p, uae_u32 *vp, int nocheck)
 			val |= *p++;
 			v = val;
 			if (!nocheck) {
-				if ((val & addressing_mask) < 0x8000) {
+				if ((val & addressing_mask) < low_memory_size) {
 					; // low memory
 				} else if ((val & ~addressing_mask) == ~addressing_mask && val >= 0xfff80000) {
 					; // high memory
@@ -462,20 +476,30 @@ static uae_u8 *get_memory_addr(uae_u8 *p, uae_u8 **addrp)
 			val |= (*p++) << 16;
 			val |= (*p++) << 8;
 			val |= *p++;
-			if (val < test_memory_addr || val >= test_memory_addr + test_memory_size) {
+			if (val < low_memory_size) {
+#ifndef M68K
+				uae_u8 *addr = low_memory + val;
+#else
+				uae_u8 *addr = (uae_u8 *)val;
+#endif
+				validate_mode(p[0], CT_MEMWRITE);
+				*addrp = addr;
+				return p;
+			} else if (val >= test_memory_addr && val < test_memory_addr + test_memory_size) {
+#ifndef M68K
+				uae_u8 *addr = test_memory + (val - test_memory_addr);
+#else
+				uae_u8 *addr = (uae_u8 *)val;
+#endif
+				validate_mode(p[0], CT_MEMWRITE);
+				*addrp = addr;
+				return p;
+			} else {
 				end_test();
 				printf("get_memory_addr CT_ABSOLUTE_LONG outside of test memory! %08x\n", val);
 				endinfo();
 				exit(0);
 			}
-#ifdef _MSC_VER
-			uae_u8 *addr = test_memory + (val - test_memory_addr);
-#else
-			uae_u8 *addr = (uae_u8 *)val;
-#endif
-			validate_mode(p[0], CT_MEMWRITE);
-			*addrp = addr;
-			return p;
 		}
 		case CT_RELATIVE_START_WORD:
 		{
@@ -660,7 +684,7 @@ static uae_u8 *restore_data(uae_u8 *p)
 int	Disass68k(long addr, char *labelBuffer, char *opcodeBuffer, char *operandBuffer, char *commentBuffer);
 void Disasm_SetCPUType(int CPU, int FPU);
 
-static uae_u16 test_sr;
+static uae_u16 test_sr, test_ccrignoremask;
 static uae_u32 test_fpsr, test_fpcr;
 
 static void addinfo(void)
@@ -683,11 +707,27 @@ static void addinfo(void)
 	strcat(outbp, " ");
 	outbp += strlen(outbp);
 
+	uae_u16 disasm_instr(uae_u16 *, char *);
+#ifndef M68K
+	uae_u16 swapped[16];
+	for (int i = 0; i < 16; i++) {
+		swapped[i] = (opcode_memory[i * 2 + 0] << 8) | (opcode_memory[i * 2 + 1] << 0);
+	}
+	disasm_instr((uae_u16*)swapped, outbp);
+#else
+	disasm_instr((uae_u16 *)opcode_memory, outbp);
+#endif
+	outbp += strlen(outbp);
+	*outbp++ = '\n';
+	*outbp = 0;
+
+#if 0
 	Disasm_SetCPUType(0, 0);
 	char buf1[80], buf2[80], buf3[80], buf4[80];
 	Disass68k((long)opcode_memory, buf1, buf2, buf3, buf4);
 	sprintf(outbp, "%s %s\n", buf2, buf3);
 	outbp += strlen(outbp);
+#endif
 }
 
 struct srbit
@@ -755,7 +795,7 @@ static void out_regs(struct registers *r, int before)
 		void *f2 = &test_regs.fpuregs[i];
 		sprintf(outbp, "FP%d:%c%04x-%08lx%08lx %f",
 			i,
-			memcmp(f1, f2, 12) ? '*' : ' ',
+			memcmp(f1, f2, sizeof(struct fpureg)) ? '*' : ' ',
 			f->exp, f->m[0], f->m[1],
 			*((long double*)f));
 		outbp += strlen(outbp);
@@ -791,6 +831,7 @@ static uae_u8 *validate_exception(struct registers *regs, uae_u8 *p, int excnum)
 	uae_u8 *sp = (uae_u8*)regs->excframe;
 	uae_u32 v;
 	uae_u8 excdatalen = *p++;
+	int size;
 
 	if (!excdatalen)
 		return p;
@@ -842,7 +883,7 @@ static uae_u8 *validate_exception(struct registers *regs, uae_u8 *p, int excnum)
 				pl(exc + 8, v);
 				exclen = 12;
 				break;
-			case 8:
+			case 4:
 				v = opcode_memory_addr;
 				p = restore_rel_ordered(p, &v);
 				pl(exc + 8, v);
@@ -850,6 +891,12 @@ static uae_u8 *validate_exception(struct registers *regs, uae_u8 *p, int excnum)
 				p = restore_rel_ordered(p, &v);
 				pl(exc + 12, v);
 				exclen = 16;
+				break;
+			case 0x0a:
+				v = 0;
+				p = restore_value(p, &v, &size);
+				pw(exc + 0x0a, v);
+				exclen = 0x0c;
 				break;
 			default:
 				end_test();
@@ -896,7 +943,7 @@ static uae_u8 *validate_test(uae_u8 *p, int ignore_errors, int ignore_sr)
 			regs_changed[i] = 1;
 		}
 	}
-	if (last_registers.sr != test_regs.sr) {
+	if ((last_registers.sr & test_ccrignoremask) != (test_regs.sr & test_ccrignoremask)) {
 		sr_changed = 1;
 	}
 	if (last_registers.pc != test_regs.pc) {
@@ -904,7 +951,7 @@ static uae_u8 *validate_test(uae_u8 *p, int ignore_errors, int ignore_sr)
 	}
 	if (fpu_model) {
 		for (int i = 0; i < 8; i++) {
-			if (memcmp(&last_registers.fpuregs[i], &test_regs.fpuregs[i], 12)) {
+			if (memcmp(&last_registers.fpuregs[i], &test_regs.fpuregs[i], sizeof(struct fpureg))) {
 				regs_fpuchanged[i] = 1;
 			}
 		}
@@ -969,7 +1016,8 @@ static uae_u8 *validate_test(uae_u8 *p, int ignore_errors, int ignore_sr)
 			break;
 		}
 		int mode = v & CT_DATA_MASK;
-		if (mode < CT_AREG + 8) {
+
+		if (mode < CT_AREG + 8 && (v & CT_SIZE_MASK) != CT_SIZE_FPU) {
 			uae_u32 val = last_registers.regs[mode];
 			int size;
 			p = restore_value(p, &val, &size);
@@ -983,14 +1031,31 @@ static uae_u8 *validate_test(uae_u8 *p, int ignore_errors, int ignore_sr)
 			}
 			regs_changed[mode] = 0;
 			last_registers.regs[mode] = val;
+		} else if (mode < CT_AREG && (v & CT_SIZE_MASK) == CT_SIZE_FPU) {
+			struct fpureg val;
+			p = restore_fpvalue(p, &val);
+			if (memcmp(&val, &test_regs.fpuregs[mode], sizeof(struct fpureg)) && !ignore_errors) {
+				addinfo();
+				if (dooutput) {
+					sprintf(outbp, "FP%d: expected %04x-%08lx%08lx but got %04x-%08lx%08lx\n", mode,
+						val.exp, val.m[0], val.m[1],
+						test_regs.fpuregs[mode].exp, test_regs.fpuregs[mode].m[0], test_regs.fpuregs[mode].m[1]);
+					outbp += strlen(outbp);
+				}
+				errors++;
+			}
+			regs_fpuchanged[mode] = 0;
+			memcpy(&last_registers.fpuregs[mode], &val, sizeof(struct fpureg));
 		} else if (mode == CT_SR) {
 			uae_u32 val = last_registers.sr;
 			int size;
+			// High 16 bit: ignore mask, low 16 bit: SR/CCR
 			p = restore_value(p, &val, &size);
-			if ((val & sr_undefined_mask) != (test_regs.sr & sr_undefined_mask) && !ignore_errors && !ignore_sr) {
+			test_ccrignoremask = ~(val >> 16);
+			if ((val & (sr_undefined_mask | test_ccrignoremask)) != (test_regs.sr & (sr_undefined_mask | test_ccrignoremask)) && !ignore_errors && !ignore_sr) {
 				addinfo();
 				if (dooutput) {
-					sprintf(outbp, "SR: expected %04x -> %04x but got %04x\n", test_sr, val, test_regs.sr);
+					sprintf(outbp, "SR: expected %04x -> %04x but got %04x\n", test_sr, val & 0xffff, test_regs.sr & 0xffff);
 					outbp += strlen(outbp);
 				}
 				errors++;
@@ -1114,7 +1179,7 @@ static uae_u8 *validate_test(uae_u8 *p, int ignore_errors, int ignore_sr)
 			if (sr_changed) {
 				addinfo();
 				if (dooutput) {
-					sprintf(outbp, "SR: modified %04x -> %04x but expected no modifications\n", last_registers.sr, test_regs.sr);
+					sprintf(outbp, "SR: modified %04x -> %04x but expected no modifications\n", last_registers.sr & 0xffff, test_regs.sr & 0xffff);
 					outbp += strlen(outbp);
 				}
 				errors++;
@@ -1124,8 +1189,9 @@ static uae_u8 *validate_test(uae_u8 *p, int ignore_errors, int ignore_sr)
 			if (regs_fpuchanged[i]) {
 				addinfo();
 				if (dooutput) {
-					sprintf(outbp, "FP%d: modified %f -> %f but expected no modifications\n", i,
-						*((long double *)(&last_registers.fpuregs[i])), *((long double *)(&test_regs.fpuregs[i])));
+					sprintf(outbp, "FP%d: modified %04x-%08lx%08lx -> %04x-%08lx%08lx but expected no modifications\n", i,
+						last_registers.fpuregs[i].exp, last_registers.fpuregs[i].m[0], last_registers.fpuregs[i].m[1],
+						test_regs.fpuregs[i].exp, test_regs.fpuregs[i].m[0], test_regs.fpuregs[i].m[1]);
 					outbp += strlen(outbp);
 				}
 				errors++;
@@ -1197,11 +1263,12 @@ static void process_test(uae_u8 *p)
 
 	start_test();
 
+	test_ccrignoremask = 0xffff;
 	ahcnt = 0;
 
 	for (;;) {
 
-#ifdef _MSC_VER
+#ifndef M68K
 		outbp = outbuffer;
 #endif
 
@@ -1492,25 +1559,23 @@ static char path[256];
 
 int main(int argc, char *argv[])
 {
-	int size;
 	char opcode[16];
 	int stop_on_error = 1;
 
 	atexit(freestuff);
 
-#ifdef _MSC_VER
+#ifndef M68K
 
-	char *params[] = { "", "or.w", "", NULL };
+	char *params[] = { "", "unpk", "", NULL };
 	argv = params;
 	argc = 3;
 
 	strcpy(path, "C:\\projects\\winuae\\src\\cputest\\data\\");
 
-	low_memory = calloc(1, 32768);
-	high_memory = calloc(1, 32768);
 	vbr_zero = calloc(1, 1024);
 
-	cpu_lvl = 0;
+	cpu_lvl = 2;
+
 #else
 
 #define _stricmp stricmp
@@ -1524,6 +1589,7 @@ int main(int argc, char *argv[])
 	high_memory = (uae_u8 *)0xffff8000;
 
 	cpu_lvl = get_cpu_model();
+
 #endif
 
 	if (argc < 2) {
@@ -1558,10 +1624,27 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	size = 32768;
-	load_file(path, "lmem.dat", low_memory_temp, &size);
-	size = 32768;
-	load_file(path, "hmem.dat", high_memory_temp, &size);
+	low_memory_size = -1;
+	low_memory_temp = load_file(path, "lmem.dat", NULL, &low_memory_size);
+	high_memory_size = -1;
+	high_memory_temp = load_file(path, "hmem.dat", NULL, &high_memory_size);
+
+	if (low_memory_size < 0 || !low_memory_temp) {
+		printf("Couldn't allocate low memory\n");
+		return 0;
+	}
+	if (high_memory_size < 0 || !high_memory_temp) {
+		printf("Couldn't allocate low memory\n");
+		return 0;
+	}
+
+#ifndef M68K
+	low_memory = calloc(1, low_memory_size);
+	high_memory = calloc(1, high_memory_size);
+#endif
+
+	low_memory_back = calloc(1, low_memory_size);
+	high_memory_back = calloc(1, high_memory_size);
 
 	if (!_stricmp(opcode, "all")) {
 		DIR *d = opendir(path);
@@ -1604,11 +1687,16 @@ int main(int argc, char *argv[])
 
 		int first = 0;
 		if (argc >= 3) {
+			first = -1;
 			for (int i = 0; i < diroff; i += MAX_FILE_LEN) {
 				if (!_stricmp(dirs + i, argv[2])) {
 					first = i;
 					break;
 				}
+			}
+			if (first < 0) {
+				printf("Couldn't find '%s'\n", argv[2]);
+				return 0;
 			}
 		}
 		for (int i = first; i < diroff; i += MAX_FILE_LEN) {
@@ -1623,4 +1711,6 @@ int main(int argc, char *argv[])
 	} else {
 		test_mnemo(path, opcode);
 	}
+
+	return 0;
 }

@@ -339,6 +339,7 @@ uaecptr ShowEA (void *f, uaecptr pc, uae_u16 opcode, int reg, amodes mode, words
 		mode = immi;
 	}
 
+	buffer[0] = 0;
 	switch (mode){
 	case Dreg:
 		_stprintf (buffer, _T("D%d"), reg);
@@ -1678,6 +1679,7 @@ void m68k_disasm_2 (TCHAR *buf, int bufsize, uaecptr pc, uaecptr *nextpc, int cn
 		} else if (lookup->mnemo == i_CAS) {
 			TCHAR *p = instrname + _tcslen(instrname);
 			_stprintf(p, _T("D%d,D%d,"), extra & 7, (extra >> 6) & 7);
+			pc += 2;
 			pc = ShowEA(NULL, pc, opcode, dp->dreg, dp->dmode, dp->size, instrname, deaddr, safemode);
 		} else if (lookup->mnemo == i_CAS2) {
 			TCHAR *p = instrname + _tcslen(instrname);
@@ -1820,6 +1822,17 @@ void m68k_disasm_2 (TCHAR *buf, int bufsize, uaecptr pc, uaecptr *nextpc, int cn
 			pc += 2;
 			_tcscat(instrname, _T(","));
 			pc = ShowEA(NULL, pc, opcode, 0, imm1, sz_word, instrname, &deaddr2, safemode);
+		} else if (lookup->mnemo == i_FTRAPcc) {
+			pc = ShowEA(NULL, pc, opcode, dp->dreg, dp->dmode, dp->size, instrname, &seaddr2, safemode);
+			int mode = opcode & 7;
+			pc += 2;
+			if (mode == 2) {
+				_tcscat(instrname, _T(","));
+				pc = ShowEA(NULL, pc, opcode, 0, imm1, sz_word, instrname, NULL, safemode);
+			} else if (mode == 3) {
+				_tcscat(instrname, _T(","));
+				pc = ShowEA(NULL, pc, opcode, 0, imm1, sz_long, instrname, NULL, safemode);
+			}
 		} else if (lookup->mnemo == i_FPP) {
 			TCHAR *p;
 			int ins = extra & 0x3f;
