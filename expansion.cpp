@@ -5418,6 +5418,12 @@ const struct expansionromtype expansionroms[] = {
 		true, EXPANSIONTYPE_IDE
 	},
 	{
+		_T("mtecmastercard"), _T("Mastercard"), _T("M-Tec"),
+		NULL, ncr_mtecmastercard_init, NULL, mtecmastercard_add_scsi_unit, ROMTYPE_MASTERCARD, 0, 0, BOARD_AUTOCONFIG_Z2, false,
+		NULL, 0,
+		true, EXPANSIONTYPE_SCSI
+	},
+	{
 		_T("masoboshi"), _T("MasterCard"), _T("Masoboshi"),
 		NULL, masoboshi_init, NULL, masoboshi_add_idescsi_unit, ROMTYPE_MASOBOSHI | ROMTYPE_NONE, 0, 0, BOARD_AUTOCONFIG_Z2, false,
 		masoboshi_sub, 0,

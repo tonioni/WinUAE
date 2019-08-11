@@ -173,6 +173,7 @@ static struct ncr9x_state *ncr_scram5394_scsi[MAX_DUPLICATE_EXPANSION_BOARDS];
 static struct ncr9x_state *ncr_rapidfire_scsi[MAX_DUPLICATE_EXPANSION_BOARDS];
 static struct ncr9x_state *ncr_trifecta_scsi[MAX_DUPLICATE_EXPANSION_BOARDS];
 static struct ncr9x_state *ncr_squirrel_scsi;
+static struct ncr9x_state *ncr_mtec_mastercard;
 
 static struct ncr9x_state *ncr_units[MAX_NCR9X_UNITS + 1];
 
@@ -1176,7 +1177,7 @@ static void ncr9x_io_bput3(struct ncr9x_state *ncr, uaecptr addr, uae_u32 val, i
 			write_log(_T("DKB IO %08X PUT %02x %08x\n"), addr, val & 0xff, M68K_GETPC);
 			return;
 		}
-	} else if (ISCPUBOARD(BOARD_MTEC, BOARD_MTEC_SUB_EMATRIX530) || ISCPUBOARD(BOARD_DCE, BOARD_DCE_SUB_TYPHOON2)) {
+	} else if (ISCPUBOARD(BOARD_MTEC, BOARD_MTEC_SUB_EMATRIX530) || ISCPUBOARD(BOARD_DCE, BOARD_DCE_SUB_TYPHOON2) || ncr == ncr_mtec_mastercard) {
 		if ((addr & 0xf000) >= 0xe000) {
 			if ((addr & 0x3ff) <= 7) {
 				if (ncr->fakedma_data_offset < ncr->fakedma_data_size) {
@@ -1194,7 +1195,7 @@ static void ncr9x_io_bput3(struct ncr9x_state *ncr, uaecptr addr, uae_u32 val, i
 			return;
  		if (addr & 1)
 			return;
-		if (currprefs.cpuboard_settings & 1)
+		if ((currprefs.cpuboard_settings & 1) && ncr != ncr_mtec_mastercard)
 			return;
 		reg_shift = 3;
 	}
@@ -1535,7 +1536,7 @@ static uae_u32 ncr9x_io_bget3(struct ncr9x_state *ncr, uaecptr addr, int *reg)
 			write_log(_T("DKB IO GET %08x %08x\n"), addr, M68K_GETPC);
 			return 0;
 		}
-	} else if (ISCPUBOARD(BOARD_MTEC, BOARD_MTEC_SUB_EMATRIX530) || ISCPUBOARD(BOARD_DCE, BOARD_DCE_SUB_TYPHOON2)) {
+	} else if (ISCPUBOARD(BOARD_MTEC, BOARD_MTEC_SUB_EMATRIX530) || ISCPUBOARD(BOARD_DCE, BOARD_DCE_SUB_TYPHOON2) || ncr == ncr_mtec_mastercard) {
 		if ((addr & 0xf000) >= 0xe000) {
 			if ((addr & 0x3ff) <= 7) {
 				if (ncr->fakedma_data_offset >= ncr->fakedma_data_size) {
@@ -1561,7 +1562,7 @@ static uae_u32 ncr9x_io_bget3(struct ncr9x_state *ncr, uaecptr addr, int *reg)
 		}
 		if (addr & 1)
 			return 0x7f;
-		if (currprefs.cpuboard_settings & 1)
+		if ((currprefs.cpuboard_settings & 1) && ncr != ncr_mtec_mastercard)
 			return 0x7f;
 		if (addr < 0xc000 || addr >= 0xe000)
 			return 0x7f;
@@ -2342,6 +2343,41 @@ bool ncr_scram5394_init(struct autoconfig_info *aci)
 	return true;
 }
 
+bool ncr_mtecmastercard_init(struct autoconfig_info *aci)
+{
+	uae_u8 *rom = xcalloc(uae_u8, 65536);
+	load_rom_rc(aci->rc, ROMTYPE_MASTERCARD, 32768, 0, rom, 65536, LOADROM_EVENONLY_ODDONE);
+	memcpy(aci->autoconfig_raw, aci->rc->autoboot_disabled ? rom + 256 : rom, 128);
+	if (!aci->doinit) {
+		xfree(rom);
+		return true;
+	}
+
+	struct ncr9x_state *ncr = getscsi(aci->rc);
+	if (!ncr) {
+		xfree(rom);
+		return false;
+	}
+
+	xfree(ncr->rom);
+	ncr->rom = rom;
+
+	ncr->enabled = true;
+	memcpy(ncr->acmemory, aci->autoconfig_raw, sizeof aci->autoconfig_raw);
+	ncr->rom_start = 0;
+	ncr->rom_offset = 0;
+	ncr->rom_end = 0x8000;
+	ncr->io_start = 0x8000;
+	ncr->io_end = 0x10000;
+	ncr->bank = &ncr9x_bank_generic;
+	ncr->board_mask = 65535;
+
+	ncr9x_reset_board(ncr);
+
+	aci->addrbank = ncr->bank;
+	return true;
+}
+
 bool ncr_rapidfire_init(struct autoconfig_info *aci)
 {
 	const struct expansionromtype *ert = get_device_expansion_rom(ROMTYPE_RAPIDFIRE);
@@ -2565,5 +2601,12 @@ void squirrel_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romcon
 	ncr9x_add_scsi_unit(&ncr_squirrel_scsi, ch, ci, rc);
 	ncr9x_esp_scsi_init(ncr_squirrel_scsi, fake2_dma_read, fake2_dma_write, set_irq2, 0);
 	esp_dma_enable(ncr_squirrel_scsi->devobject.lsistate, 1);
+}
+
+void mtecmastercard_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc)
+{
+	ncr9x_add_scsi_unit(&ncr_mtec_mastercard, ch, ci, rc);
+	ncr9x_esp_scsi_init(ncr_mtec_mastercard, fake_dma_read_ematrix, fake_dma_write_ematrix, set_irq2, 0);
+	esp_dma_enable(ncr_mtec_mastercard->devobject.lsistate, 1);
 }
 #endif
