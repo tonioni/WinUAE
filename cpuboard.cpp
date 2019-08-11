@@ -814,28 +814,6 @@ static uae_u32 REGPARAM2 blizzardea_bget(uaecptr addr)
 		} else {
 			v = blizzardea_bank.baseaddr[addr];
 		}
-	} else if (is_mtec_ematrix530(&currprefs) || is_dce_typhoon2(&currprefs)) {
-		v = blizzardea_bank.baseaddr[addr];
-		if ((addr & 0xf800) == 0xe800) {
-			if ((addr & 3) < 2) {
-				map_banks(&dummy_bank, 0x10000000 >> 16, 0x8000000 >> 16, 0);
-				if (cpuboardmem1_bank.allocated_size) {
-					map_banks(&cpuboardmem1_bank, (0x18000000 - cpuboardmem1_bank.allocated_size) >> 16, cpuboardmem1_bank.allocated_size >> 16, 0);
-					if (cpuboardmem1_bank.allocated_size < 128 * 1024 * 1024) {
-						map_banks(&cpuboardmem1_bank, (0x18000000 - 2 * cpuboardmem1_bank.allocated_size) >> 16, cpuboardmem1_bank.allocated_size >> 16, 0);
-					}
-				}
-			}
-			if ((addr & 3) >= 2) {
-				map_banks(&dummy_bank, 0x18000000 >> 16, 0x8000000 >> 16, 0);
-				if (cpuboardmem2_bank.allocated_size) {
-					map_banks(&cpuboardmem2_bank, 0x18000000 >> 16, cpuboardmem2_bank.allocated_size >> 16, 0);
-					if (cpuboardmem2_bank.allocated_size < 128 * 1024 * 1024) {
-						map_banks(&cpuboardmem2_bank, (0x18000000 + cpuboardmem2_bank.allocated_size) >> 16, cpuboardmem2_bank.allocated_size >> 16, 0);
-					}
-				}
-			}
-		}
 	} else {
 		v = blizzardea_bank.baseaddr[addr];
 	}
@@ -889,18 +867,12 @@ static void REGPARAM2 blizzardea_bput(uaecptr addr, uae_u32 b)
 			addr |= csmk2_flashaddressing;
 			flash_write(flashrom, addr, b);
 		}
-	} else if (is_mtec_ematrix530(&currprefs) || is_dce_typhoon2(&currprefs)) {
-		if ((addr & 0xf800) == 0xe800) {
-			if ((addr & 3) < 2) {
-				map_banks(&dummy_bank, 0x10000000 >> 16, 0x8000000 >> 16, 0);
-				if (cpuboardmem1_bank.allocated_size)
-					map_banks(&cpuboardmem1_bank, (0x18000000 - cpuboardmem1_bank.allocated_size) >> 16, cpuboardmem1_bank.allocated_size >> 16, 0);
-			}
-			if ((addr & 3) >= 2) {
-				map_banks(&dummy_bank, 0x18000000 >> 16, 0x8000000 >> 16, 0);
-				if (cpuboardmem2_bank.allocated_size)
-					map_banks(&cpuboardmem2_bank, 0x18000000 >> 16, cpuboardmem2_bank.allocated_size >> 16, 0);
-			}
+	} else if (is_mtec_ematrix530(&currprefs) || is_dce_typhoon2(&currprefs)) {	
+		if (cpuboardmem1_bank.allocated_size < 128 * 1024 * 1024 / 2) {
+			if (cpuboardmem2_bank.allocated_size)
+				map_banks(&cpuboardmem2_bank, (0x18000000 + cpuboardmem1_bank.allocated_size) >> 16, cpuboardmem2_bank.allocated_size >> 16, 0);
+			else
+				map_banks(&dummy_bank, (0x18000000 + cpuboardmem1_bank.allocated_size) >> 16, cpuboardmem1_bank.allocated_size >> 16, 0);
 		}
 	}
 }
@@ -1666,9 +1638,9 @@ void cpuboard_map(void)
 
 	if (is_mtec_ematrix530(&currprefs) || is_sx32pro(&currprefs) || is_apollo(&currprefs) || is_dce_typhoon2(&currprefs)) {
 		if (cpuboardmem1_bank.allocated_size) {
-			map_banks(&cpuboardmem1_bank, cpuboardmem1_bank.start >> 16, cpuboardmem1_bank.allocated_size >> 16, 0);
+			map_banks(&cpuboardmem1_bank, cpuboardmem1_bank.start >> 16, 0x08000000 >> 16, cpuboardmem1_bank.allocated_size >> 16);
 		}
-		if (cpuboardmem2_bank.allocated_size) {
+		if (cpuboardmem2_bank.allocated_size && cpuboardmem2_bank.start < 0x18000000) {
 			map_banks(&cpuboardmem2_bank, cpuboardmem2_bank.start >> 16, cpuboardmem2_bank.allocated_size >> 16, 0);
 		}
 	}
@@ -1821,10 +1793,30 @@ static void cpuboard_init_2(void)
 		mapped_malloc(&blizzardea_bank);
 
 		if (is_mtec_ematrix530(&currprefs) || is_sx32pro(&currprefs) || is_dce_typhoon2(&currprefs)) {
-			cpuboardmem1_bank.start = 0x18000000 - cpuboard_size;
-			cpuboardmem1_bank.reserved_size = cpuboard_size;
-			cpuboardmem1_bank.mask = cpuboardmem1_bank.reserved_size - 1;
-			mapped_malloc(&cpuboardmem1_bank);
+			if (cpuboard_size == 2 * 1024 * 1024 || cpuboard_size == 8 * 1024 * 1024 || cpuboard_size == 32 * 1024 * 1024) {
+				cpuboardmem1_bank.start = 0x18000000;
+				cpuboardmem1_bank.reserved_size = cpuboard_size / 2;
+				cpuboardmem1_bank.mask = cpuboardmem1_bank.reserved_size - 1;
+				mapped_malloc(&cpuboardmem1_bank);
+				cpuboardmem2_bank.start = 0x18000000 + cpuboard_size / 2;
+				cpuboardmem2_bank.reserved_size = cpuboard_size / 2;
+				cpuboardmem2_bank.mask = cpuboardmem2_bank.reserved_size - 1;
+				mapped_malloc(&cpuboardmem2_bank);
+			} else if (cpuboard_size == 128 * 1024 * 1024) {
+				cpuboardmem1_bank.start = 0x18000000;
+				cpuboardmem1_bank.reserved_size = cpuboard_size / 2;
+				cpuboardmem1_bank.mask = cpuboardmem1_bank.reserved_size - 1;
+				mapped_malloc(&cpuboardmem1_bank);
+				cpuboardmem2_bank.start = 0x18000000 - cpuboard_size / 2;
+				cpuboardmem2_bank.reserved_size = cpuboard_size / 2;
+				cpuboardmem2_bank.mask = cpuboardmem2_bank.reserved_size - 1;
+				mapped_malloc(&cpuboardmem2_bank);
+			} else {
+				cpuboardmem1_bank.start = 0x18000000;
+				cpuboardmem1_bank.reserved_size = cpuboard_size;
+				cpuboardmem1_bank.mask = cpuboardmem1_bank.reserved_size - 1;
+				mapped_malloc(&cpuboardmem1_bank);
+			}
 		}
 
 	} else if (is_aca500(&currprefs)) {
