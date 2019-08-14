@@ -1338,6 +1338,128 @@ static void maybeaddop_ce020 (int flags)
 }
 
 
+// Handle special MOVE.W/.L condition codes when destination write causes address error.
+static void move_68000_address_error(amodes mode, int size, int *setapdi)
+{
+	int smode = g_instr->smode;
+	int dmode = g_instr->dmode;
+
+	if (size == sz_word) {
+		// Word MOVE is relatively simply
+		int set_ccr = 0;
+		switch(smode)
+		{
+			case Dreg:
+			case Areg:
+				set_ccr = 1;
+			break;
+			case Aind:
+			case Aipi:
+			case Apdi:
+			case Ad16:
+			case PC16:
+			case Ad8r:
+			case PC8r:
+			case absw:
+			case absl:
+			case imm:
+				if (dmode == Aind || dmode == Aipi || dmode == Apdi || dmode == Ad16 || mode == Ad8r || mode == absw || mode == absl)
+					set_ccr = 1;
+			break;
+		}
+		if (dmode == Apdi) {
+			// this is buggy, address error stack frame opcode field contains next instruction opcode!
+			printf("\t\topcode = regs.irc | 0x00080000;\n");
+		}
+		if (set_ccr) {
+			printf("\t\tccr_68000_word_move_ae_normal((uae_s16)(src));\n");
+			//printf("\t\tCLEAR_CZNV();\n");
+			//printf("\t\tSET_ZFLG(((uae_s16)(src)) == 0);\n");
+			//printf("\t\tSET_NFLG(((uae_s16)(src)) < 0);\n");
+		}
+	} else {
+		// Long MOVE is much more complex..
+		int set_ccr = 0;
+		int set_high_word = 0;
+		int set_low_word = 0;
+		switch (smode)
+		{
+		case Dreg:
+		case Areg:
+		case imm:
+			if (dmode == Aind || dmode == Aipi) {
+				set_ccr = 0;
+			} else if (dmode == Ad16 || dmode == Ad8r) {
+				set_high_word = 1;
+			} else if (dmode == Apdi || dmode == absw || dmode == absl) {
+				set_ccr = 1;
+			}
+			break;
+		case Ad16:
+		case PC16:
+		case Ad8r:
+		case PC8r:
+		case absw:
+		case absl:
+			if (mode == Apdi || mode == Ad16 || mode == Ad8r || mode == absw) {
+				set_ccr = 1;
+			} else if (mode == Aind || mode == Aipi || mode == absl) {
+				set_low_word = 1;
+			} else {
+				set_low_word = 2;
+			}
+			break;
+		case Aind:
+		case Aipi:
+		case Apdi:
+			if (dmode == Aind || dmode == Aipi || dmode == absl) {
+				set_low_word = 1;
+			} else {
+				set_ccr = 1;
+			}
+			break;
+		}
+
+		if (dmode == Apdi) {
+			*setapdi = 0;
+		}
+
+		if (set_low_word == 1) {
+			// Low word: Z and N
+			printf("\t\tccr_68000_long_move_ae_LZN(src);\n");
+			//printf("\t\tCLEAR_CZNV();\n");
+			//printf("\t\tuae_s16 vsrc = (uae_s16)(src & 0xffff);\n");
+			//printf("\t\tSET_ZFLG(vsrc == 0);\n");
+			//printf("\t\tSET_NFLG(vsrc < 0);\n");
+		} else if (set_low_word == 2) {
+			// Low word: N only
+			printf("\t\tccr_68000_long_move_ae_LN(src);\n");
+			//printf("\t\tCLEAR_CZNV();\n");
+			//printf("\t\tuae_s16 vsrc = (uae_s16)(src & 0xffff);\n");
+			//printf("\t\tSET_NFLG(vsrc < 0);\n");
+		} else if (set_high_word) {
+			// High word: N and Z clear.
+			printf("\t\tccr_68000_long_move_ae_HNZ(src);\n");
+			//printf("\t\tuae_s16 vsrc = (uae_s16)(src >> 16);\n");
+			//printf("\t\tif(vsrc < 0) {\n");
+			//printf("\t\t\tSET_NFLG(1);\n");
+			//printf("\t\t\tSET_ZFLG(0);\n");
+			//printf("\t\t} else if (vsrc) {\n");
+			//printf("\t\t\tSET_NFLG(0);\n");
+			//printf("\t\t\tSET_ZFLG(0);\n");
+			//printf("\t\t} else {\n");
+			//printf("\t\t\tSET_NFLG(0);\n");
+			//printf("\t\t}\n");
+		} else if (set_ccr) {
+			// Set normally.
+			printf("\t\tccr_68000_long_move_ae_normal(src);\n");
+			//printf("\t\tCLEAR_CZNV();\n");
+			//printf("\t\tSET_ZFLG((src) == 0);\n");
+			//printf("\t\tSET_NFLG((src) < 0);\n");
+		}
+	}
+}
+
 /* getv == 1: fetch data; getv != 0: check for odd address. If movem != 0,
 * the calling routine handles Apdi and Aipi modes.
 * gb-- movem == 2 means the same thing but for a MOVE16 instruction */
@@ -1660,6 +1782,8 @@ static void genamode2x (amodes mode, const char *reg, wordsizes size, const char
 
 	// check possible address error (if 68000/010 and enabled)
 	if ((using_prefetch || using_ce) && using_exception_3 && getv != 0 && size != sz_byte) {
+		int setapdiback = 0;
+
 		printf ("\tif (%sa & 1) {\n", name);
 
 		if (g_instr->mnemo == i_ADDX || g_instr->mnemo == i_SUBX) {
@@ -1669,11 +1793,26 @@ static void genamode2x (amodes mode, const char *reg, wordsizes size, const char
 			}
 		} else if (mode == Apdi) {
 			// 68000 decrements register first, then checks for address error
-			printf("\t\tm68k_areg (regs, %s) = %sa;\n", reg, name);
+			setapdiback = 1;
 		}
 
 		if (exception_pc_offset)
 			incpc("%d", exception_pc_offset);
+
+		if (g_instr->mnemo == i_MOVE) {
+			if (getv == 2) {
+				move_68000_address_error(mode, size, &setapdiback);
+			}
+		}
+
+		if (setapdiback) {
+			printf("\t\tm68k_areg (regs, %s) = %sa;\n", reg, name);
+		}
+
+		// PC-relative: FC=2
+		if (getv == 1 && (g_instr->smode == PC16 || g_instr->smode == PC8r)) {
+			printf("\t\topcode |= 0x01020000;\n");
+		}
 
 		// MOVE.L EA,-(An) causing address error: stacked value is original An - 2, not An - 4.
 		if ((flags & (GF_REVERSE | GF_REVERSE2)) && size == sz_long && mode == Apdi)

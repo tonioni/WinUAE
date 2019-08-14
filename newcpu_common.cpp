@@ -1470,3 +1470,51 @@ void Exception_build_68000_address_error_stack_frame(uae_u16 mode, uae_u16 opcod
 	x_put_word(m68k_areg(regs, 7) + 8, regs.sr);
 	x_put_long(m68k_areg(regs, 7) + 10, pc);
 }
+
+// Low word: Z and N
+void ccr_68000_long_move_ae_LZN(uae_s32 src)
+{
+	CLEAR_CZNV();
+	uae_s16 vsrc = (uae_s16)(src & 0xffff);
+	SET_ZFLG(vsrc == 0);
+	SET_NFLG(vsrc < 0);
+}
+
+// Low word: N only
+void ccr_68000_long_move_ae_LN(uae_s32 src)
+{
+	CLEAR_CZNV();
+	uae_s16 vsrc = (uae_s16)(src & 0xffff);
+	SET_NFLG(vsrc < 0);
+}
+
+// High word: N and Z clear.
+void ccr_68000_long_move_ae_HNZ(uae_s32 src)
+{
+	uae_s16 vsrc = (uae_s16)(src >> 16);
+	if(vsrc < 0) {
+		SET_NFLG(1);
+		SET_ZFLG(0);
+	} else if (vsrc) {
+		SET_NFLG(0);
+		SET_ZFLG(0);
+	} else {
+		SET_NFLG(0);
+	}
+}
+
+// Set normally.
+void ccr_68000_long_move_ae_normal(uae_s32 src)
+{
+	CLEAR_CZNV();
+	SET_ZFLG(src == 0);
+	SET_NFLG(src < 0);
+}
+void ccr_68000_word_move_ae_normal(uae_s16 src)
+{
+	CLEAR_CZNV();
+	SET_ZFLG(src == 0);
+	SET_NFLG(src < 0);
+}
+
+

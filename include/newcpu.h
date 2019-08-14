@@ -691,6 +691,12 @@ extern void Exception_build_stack_frame(uae_u32 oldpc, uae_u32 currpc, uae_u32 s
 extern void Exception_build_68000_address_error_stack_frame(uae_u16 mode, uae_u16 opcode, uaecptr fault_addr, uaecptr pc);
 extern uae_u32 exception_pc(int nr);
 
+void ccr_68000_long_move_ae_LZN(uae_s32 src);
+void ccr_68000_long_move_ae_LN(uae_s32 src);
+void ccr_68000_long_move_ae_HNZ(uae_s32 src);
+void ccr_68000_long_move_ae_normal(uae_s32 src);
+void ccr_68000_word_move_ae_normal(uae_s16 src);
+
 extern void mmu_op (uae_u32, uae_u32);
 extern bool mmu_op30 (uaecptr, uae_u32, uae_u16, uaecptr);
 
