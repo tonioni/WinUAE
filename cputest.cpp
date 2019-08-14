@@ -97,6 +97,7 @@ static int exception_stack_frame_size;
 static uaecptr test_exception_addr;
 static int test_exception_3_inst;
 static int test_exception_3_w;
+static int test_exception_opcode;
 static uae_u8 imm8_cnt;
 static uae_u16 imm16_cnt;
 static uae_u32 imm32_cnt;
@@ -667,13 +668,21 @@ static void doexcstack(void)
 	noaccesshistory = 1;
 	testing_active = -1;
 
+	int opcode = (opcode_memory[0] << 8) | (opcode_memory[1]);
+	int statusormask = 0, statusandmask = 0;
+	if (test_exception_opcode >= 0) {
+		opcode = test_exception_opcode;
+		statusormask = (test_exception_opcode >> 16) & 0xff;
+		statusandmask = (test_exception_opcode >> 24) & 0xff;
+	}
+
 	int sv = regs.s;
 	uaecptr tmp = m68k_areg(regs, 7);
 	m68k_areg(regs, 7) = test_memory_end + EXTRA_RESERVED_SPACE;
 	if (cpu_lvl == 0) {
 		if (test_exception == 3) {
-			uae_u16 opcode = (opcode_memory[0] << 8) | (opcode_memory[1]);
-			uae_u16 mode = (sv ? 4 : 0) | (test_exception_3_inst ? 2 : 1);
+			uae_u16 mode = (sv ? 4 : 0) | (test_exception_3_inst ? 2 : 1) | statusormask;
+			mode &= ~statusandmask;
 			mode |= test_exception_3_w ? 0 : 16;
 			Exception_build_68000_address_error_stack_frame(mode, opcode, test_exception_addr, regs.pc);
 		}
@@ -738,14 +747,18 @@ void exception3_read(uae_u32 opcode, uae_u32 addr)
 {
 	test_exception = 3;
 	test_exception_3_inst = 0;
+	test_exception_3_w = 0;
 	test_exception_addr = addr;
+	test_exception_opcode = opcode;
 	doexcstack();
 }
 void exception3_write(uae_u32 opcode, uae_u32 addr)
 {
 	test_exception = 3;
 	test_exception_3_inst = 0;
+	test_exception_3_w = 1;
 	test_exception_addr = addr;
+	test_exception_opcode = opcode;
 	doexcstack();
 }
 void REGPARAM2 Exception(int n)
@@ -753,6 +766,7 @@ void REGPARAM2 Exception(int n)
 	test_exception = n;
 	test_exception_3_inst = 0;
 	test_exception_addr = m68k_getpci();
+	test_exception_opcode = -1;
 	doexcstack();
 }
 void REGPARAM2 Exception_cpu(int n)
@@ -760,6 +774,7 @@ void REGPARAM2 Exception_cpu(int n)
 	test_exception = n;
 	test_exception_3_inst = 0;
 	test_exception_addr = m68k_getpci();
+	test_exception_opcode = -1;
 
 	bool t0 = currprefs.cpu_model >= 68020 && regs.t0;
 	// check T0 trace
@@ -774,6 +789,7 @@ void exception3i(uae_u32 opcode, uaecptr addr)
 	test_exception_3_inst = 1;
 	test_exception_3_w = 0;
 	test_exception_addr = addr;
+	test_exception_opcode = opcode;
 	doexcstack();
 }
 void exception3b(uae_u32 opcode, uaecptr addr, bool w, bool i, uaecptr pc)
@@ -782,6 +798,7 @@ void exception3b(uae_u32 opcode, uaecptr addr, bool w, bool i, uaecptr pc)
 	test_exception_3_inst = i;
 	test_exception_3_w = w;
 	test_exception_addr = addr;
+	test_exception_opcode = opcode;
 	doexcstack();
 }
 
@@ -1484,17 +1501,6 @@ static int handle_specials_pack(uae_u16 opcode, uaecptr pc, struct instr *dp, in
 
 static void handle_specials_extra(uae_u16 opcode, uaecptr pc, struct instr *dp)
 {
-	// if MOVES to A7: change it to MOVES from A7. SSP modification would cause crash.
-	if (dp->mnemo == i_MOVES) {
-		uae_u16 extra = get_word_test(opcode_memory_start + 2);
-		if (!(extra & 0x800)) {
-			int reg = extra >> 12;
-			if (reg == 7 + 8) {
-				extra |= 0x800;
-				put_word_test(opcode_memory_start + 2, extra);
-			}
-		}
-	}
 	// cas undocumented (marked as zero in document) fields do something weird, for example
 	// setting bit 9 will make "Du" address register but results are not correct.
 	// so lets make sure unused zero bits are zeroed.
@@ -1624,7 +1630,15 @@ static void execute_ins(uae_u16 opc, uaecptr endpc, uaecptr targetpc)
 			do_trace();
 
 		regs.instruction_pc = regs.pc;
+		uaecptr a7 = regs.regs[15];
+		int s = regs.s;
+
 		(*cpufunctbl[opc])(opc);
+
+		// supervisor mode and A7 was modified: skip this test round.
+		if (s && regs.regs[15] != a7) {
+			test_exception = -1;
+		}
 
 		if (!test_exception) {
 			if (SPCFLAG_DOTRACE)
@@ -1709,7 +1723,6 @@ static int is_test_trace(struct instr *dp)
 	{
 	case i_STOP:
 	case i_MV2SR:
-	case i_MVSR2:
 		return 1;
 	}
 	return 0;
@@ -1745,7 +1758,11 @@ static uae_u8 *save_exception(uae_u8 *p, struct instr *dp)
 	// SR and PC was already saved with non-exception data
 	if (cpu_lvl == 0) {
 		if (test_exception == 3) {
+			// status
 			*p++ = sf[1];
+			// opcode (which is not necessarily current opcode!)
+			*p++ = sf[6];
+			*p++ = sf[7];
 			// access address
 			p = store_rel(p, 0, opcode_memory_start, gl(sf + 2), 1);
 		}
@@ -2039,7 +2056,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, int opcodesize, in
 
 					if (opc == 0xf228)
 						printf("");
-					if (subtest_count == 3136)
+					if (subtest_count == 1537)
 						printf("");
 
 
@@ -2305,7 +2322,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, int opcodesize, in
 							if (regs.sr & 0x2000)
 								prev_s_cnt++;
 
-							if (subtest_count == 928)
+							if (subtest_count == 1536)
 								printf("");
 
 							execute_ins(opc, pc - 2, branch_target);
@@ -2326,6 +2343,9 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, int opcodesize, in
 								// instruction accessed memory out of test address space bounds
 								skipped = 1;
 								did_out_of_bounds = true;
+							} else if (test_exception < 0) {
+								// something happened that requires test skip
+								skipped = 1;
 							} else if (test_exception) {
 								// generated exception
 								exception_array[test_exception]++;
@@ -2615,7 +2635,7 @@ int __cdecl main(int argc, char *argv[])
 
 	struct ini_data *ini = ini_load(_T("cputestgen.ini"), false);
 	if (!ini) {
-		wprintf(_T("couldn't open cputestgen.ini"));
+		wprintf(_T("Couldn't open cputestgen.ini"));
 		return 0;
 	}
 
@@ -2793,28 +2813,32 @@ int __cdecl main(int argc, char *argv[])
 
 	fill_memory();
 
-	TCHAR *lmem_rom_name = NULL;
-	ini_getstring(ini, INISECTION, _T("low_rom"), &lmem_rom_name);
-	if (lmem_rom_name && test_low_memory_start != 0xffffffff) {
-		if (load_file(NULL, lmem_rom_name, low_memory_temp, low_memory_size, 0)) {
-			wprintf(_T("Low test memory ROM loaded\n"));
-			lmem_rom = 1;
+	if (test_low_memory_start != 0xffffffff) {
+		TCHAR *lmem_rom_name = NULL;
+		ini_getstring(ini, INISECTION, _T("low_rom"), &lmem_rom_name);
+		if (lmem_rom_name) {
+			if (load_file(NULL, lmem_rom_name, low_memory_temp, low_memory_size, 0)) {
+				wprintf(_T("Low test memory ROM loaded\n"));
+				lmem_rom = 1;
+			}
 		}
+		free(lmem_rom_name);
+		save_memory(path, _T("lmem.dat"), low_memory_temp, low_memory_size);
 	}
-	free(lmem_rom_name);
 
-	TCHAR *hmem_rom_name = NULL;
-	ini_getstring(ini, INISECTION, _T("high_rom"), &hmem_rom_name);
-	if (hmem_rom_name && test_high_memory_start != 0xffffffff) {
-		if (load_file(NULL, hmem_rom_name, high_memory_temp, high_memory_size, -1)) {
-			wprintf(_T("High test memory ROM loaded\n"));
-			hmem_rom = 1;
+	if (test_high_memory_start != 0xffffffff) {
+		TCHAR *hmem_rom_name = NULL;
+		ini_getstring(ini, INISECTION, _T("high_rom"), &hmem_rom_name);
+		if (hmem_rom_name) {
+			if (load_file(NULL, hmem_rom_name, high_memory_temp, high_memory_size, -1)) {
+				wprintf(_T("High test memory ROM loaded\n"));
+				hmem_rom = 1;
+			}
 		}
+		free(hmem_rom_name);
+		save_memory(path, _T("hmem.dat"), high_memory_temp, high_memory_size);
 	}
-	free(hmem_rom_name);
 
-	save_memory(path, _T("lmem.dat"), low_memory_temp, low_memory_size);
-	save_memory(path, _T("hmem.dat"), high_memory_temp, high_memory_size);
 	save_memory(path, _T("tmem.dat"), test_memory_temp, test_memory_size);
 
 	storage_buffer = (uae_u8 *)calloc(max_storage_buffer, 1);

@@ -267,14 +267,17 @@ static void end_test(void)
 	touser(enable_data);
 }
 
-static uae_u8 *load_file(const char *path, const char *file, uae_u8 *p, int *sizep)
+static uae_u8 *load_file(const char *path, const char *file, uae_u8 *p, int *sizep, int exiterror)
 {
 	char fname[256];
 	sprintf(fname, "%s%s", path, file);
 	FILE *f = fopen(fname, "rb");
 	if (!f) {
-		printf("Couldn't open '%s'\n", fname);
-		exit(0);
+		if (exiterror) {
+			printf("Couldn't open '%s'\n", fname);
+			exit(0);
+		}
+		return NULL; 
 	}
 	int size = *sizep;
 	if (size < 0) {
@@ -681,9 +684,6 @@ static uae_u8 *restore_data(uae_u8 *p)
 	return p;
 }
 
-int	Disass68k(long addr, char *labelBuffer, char *opcodeBuffer, char *operandBuffer, char *commentBuffer);
-void Disasm_SetCPUType(int CPU, int FPU);
-
 static uae_u16 test_sr, test_ccrignoremask;
 static uae_u32 test_fpsr, test_fpcr;
 
@@ -722,6 +722,8 @@ static void addinfo(void)
 	*outbp = 0;
 
 #if 0
+int	Disass68k(long addr, char *labelBuffer, char *opcodeBuffer, char *operandBuffer, char *commentBuffer);
+void Disasm_SetCPUType(int CPU, int FPU);
 	Disasm_SetCPUType(0, 0);
 	char buf1[80], buf2[80], buf3[80], buf4[80];
 	Disass68k((long)opcode_memory, buf1, buf2, buf3, buf4);
@@ -764,16 +766,18 @@ static void out_regs(struct registers *r, int before)
 	outbp += strlen(outbp);
 	sprintf(outbp, "SR:%c%04x   PC: %08lx ISP: %08lx MSP: %08lx\n", test_regs.sr != test_sr ? '*' : ' ', before ? test_sr : r->sr, r->pc, r->ssp, r->msp);
 	outbp += strlen(outbp);
-	uae_u16 s = before ? test_sr : r->sr;
-	uae_u16 s1 = test_regs.sr;
-	uae_u16 s2 = test_sr;
-	uae_u16 s3 = before ? s1 : last_registers.sr;
-	for (int i = 0; srbits[i].name; i++) {
-		if (i > 0)
-			*outbp++ = ' ';
-		uae_u16 mask = 1 << srbits[i].bit;
-		sprintf(outbp, "%s%c%d", srbits[i].name, (s3 & mask) != (s1 & mask) ? '!' : ((s1 & mask) != (s2 & mask) ? '*' : '='), (s & mask) != 0);
-		outbp += strlen(outbp);
+	if (before >= 0) {
+		uae_u16 s = before ? test_sr : r->sr;
+		uae_u16 s1 = test_regs.sr;
+		uae_u16 s2 = test_sr;
+		uae_u16 s3 = before ? s1 : last_registers.sr;
+		for (int i = 0; srbits[i].name; i++) {
+			if (i > 0)
+				*outbp++ = ' ';
+			uae_u16 mask = 1 << srbits[i].bit;
+			sprintf(outbp, "%s%c%d", srbits[i].name, (s3 & mask) != (s1 & mask) ? '!' : ((s1 & mask) != (s2 & mask) ? '*' : '='), (s & mask) != 0);
+			outbp += strlen(outbp);
+		}
 	}
 
 	if (!fpu_model) {
@@ -823,7 +827,7 @@ static void hexdump(uae_u8 *p, int len)
 static uae_u8 last_exception[256];
 static int last_exception_len;
 
-static uae_u8 *validate_exception(struct registers *regs, uae_u8 *p, int excnum)
+static uae_u8 *validate_exception(struct registers *regs, uae_u8 *p, int excnum, int sameexc)
 {
 	int exclen = 0;
 	uae_u8 *exc;
@@ -840,15 +844,18 @@ static uae_u8 *validate_exception(struct registers *regs, uae_u8 *p, int excnum)
 		if (cpu_lvl == 0) {
 			if (excnum == 3) {
 				// status (with undocumented opcode part)
-				exc[0] = opcode_memory[0];
-				exc[1] = (opcode_memory[1] & 0xf0) | (*p++);
+				uae_u8 opcode0 = p[1];
+				uae_u8 opcode1 = p[2];
+				exc[0] = opcode0;
+				exc[1] = (opcode1 & ~0x1f) | p[0];
+				p += 3;
 				// access address
 				v = opcode_memory_addr;
 				p = restore_rel_ordered(p, &v);
 				pl(exc + 2, v);
 				// opcode
-				exc[6] = opcode_memory[0];
-				exc[7] = opcode_memory[1];
+				exc[6] = opcode0;
+				exc[7] = opcode1;
 				// sr
 				exc[8] = regs->sr >> 8;
 				exc[9] = regs->sr;
@@ -914,7 +921,7 @@ static uae_u8 *validate_exception(struct registers *regs, uae_u8 *p, int excnum)
 	} else {
 		exclen = last_exception_len;
 	}
-	if (exclen == 0)
+	if (exclen == 0 || !sameexc)
 		return p;
 	if (memcmp(exc, sp, exclen)) {
 		strcpy(outbp, "Exception stack frame mismatch:\n");
@@ -987,8 +994,12 @@ static uae_u8 *validate_test(uae_u8 *p, int ignore_errors, int ignore_sr)
 				endinfo();
 				exit(0);
 			}
-			if (ignore_errors)
+			if (ignore_errors) {
+				if (exc) {
+					p = validate_exception(&test_regs, p, exc, exc == cpuexc);
+				}
 				break;
+			}
 			if (exc == 0 && cpuexc == 4) {
 				// successful complete generates exception 4 with matching PC
 				if (last_registers.pc != test_regs.pc && dooutput) {
@@ -999,7 +1010,7 @@ static uae_u8 *validate_test(uae_u8 *p, int ignore_errors, int ignore_sr)
 				break;
 			}
 			if (exc) {
-				p = validate_exception(&test_regs, p, exc);
+				p = validate_exception(&test_regs, p, exc, exc == cpuexc);
 			}
 			if (exc != cpuexc) {
 				addinfo();
@@ -1052,10 +1063,11 @@ static uae_u8 *validate_test(uae_u8 *p, int ignore_errors, int ignore_sr)
 			// High 16 bit: ignore mask, low 16 bit: SR/CCR
 			p = restore_value(p, &val, &size);
 			test_ccrignoremask = ~(val >> 16);
-			if ((val & (sr_undefined_mask | test_ccrignoremask)) != (test_regs.sr & (sr_undefined_mask | test_ccrignoremask)) && !ignore_errors && !ignore_sr) {
+
+			if ((val & (sr_undefined_mask & test_ccrignoremask)) != (test_regs.sr & (sr_undefined_mask & test_ccrignoremask)) && !ignore_errors && !ignore_sr) {
 				addinfo();
 				if (dooutput) {
-					sprintf(outbp, "SR: expected %04x -> %04x but got %04x\n", test_sr, val & 0xffff, test_regs.sr & 0xffff);
+					sprintf(outbp, "SR: expected %04x -> %04x but got %04x (%04x)\n", test_sr, val & 0xffff, test_regs.sr & 0xffff, test_ccrignoremask);
 					outbp += strlen(outbp);
 				}
 				errors++;
@@ -1375,7 +1387,7 @@ static void process_test(uae_u8 *p)
 
 				if (testexit()) {
 					end_test();
-					printf("\nAborted\n");
+					printf("\nAborted (%ld)\n", testcnt);
 					exit(0);
 				}
 
@@ -1465,6 +1477,15 @@ static int test_mnemo(const char *path, const char *opcode)
 		sr_undefined_mask = 0xffff;
 	}
 
+	if (lmem_rom >= 0 && (low_memory_size <= 0 || !low_memory_temp)) {
+		printf("lmem.dat required but it was not loaded or was missing.\n");
+		return 0;
+	}
+	if (hmem_rom >= 0 && (high_memory_size <= 0 || !high_memory_temp)) {
+		printf("hmem.dat required but it was not loaded or was missing.\n");
+		return 0;
+	}
+
 	if (!absallocated) {
 		test_memory = allocate_absolute(test_memory_addr, test_memory_size);
 		if (!test_memory) {
@@ -1481,7 +1502,7 @@ static int test_mnemo(const char *path, const char *opcode)
 	opcode_memory = test_memory + (opcode_memory_addr - test_memory_addr);
 
 	size = test_memory_size;
-	load_file(path, "tmem.dat", test_memory, &size);
+	load_file(path, "tmem.dat", test_memory, &size, 1);
 	if (size != test_memory_size) {
 		printf("tmem.dat size mismatch\n");
 		exit(0);
@@ -1505,8 +1526,8 @@ static int test_mnemo(const char *path, const char *opcode)
 		}
 		fread(data, 1, 4, f);
 		if (gl(data) != starttimeid) {
-			printf("Test data file header mismatch\n");
-			exit(0);
+			printf("Test data file header mismatch (old test data file?)\n");
+			goto next;
 		}
 		fseek(f, 0, SEEK_END);
 		test_data_size = ftell(f);
@@ -1535,6 +1556,7 @@ static int test_mnemo(const char *path, const char *opcode)
 			break;
 
 		free(test_data);
+next:
 		filecnt++;
 	}
 
@@ -1618,33 +1640,28 @@ int main(int argc, char *argv[])
 		} else if (!_stricmp(s, "ccrmask")) {
 			ccr_mask = 0;
 			if (next) {
-				ccr_mask = getparamval(next);
+				ccr_mask = ~getparamval(next);
 				i++;
 			}
 		}
 	}
 
 	low_memory_size = -1;
-	low_memory_temp = load_file(path, "lmem.dat", NULL, &low_memory_size);
+	low_memory_temp = load_file(path, "lmem.dat", NULL, &low_memory_size, 0);
 	high_memory_size = -1;
-	high_memory_temp = load_file(path, "hmem.dat", NULL, &high_memory_size);
-
-	if (low_memory_size < 0 || !low_memory_temp) {
-		printf("Couldn't allocate low memory\n");
-		return 0;
-	}
-	if (high_memory_size < 0 || !high_memory_temp) {
-		printf("Couldn't allocate low memory\n");
-		return 0;
-	}
+	high_memory_temp = load_file(path, "hmem.dat", NULL, &high_memory_size, 0);
 
 #ifndef M68K
-	low_memory = calloc(1, low_memory_size);
-	high_memory = calloc(1, high_memory_size);
+	if (low_memory_size > 0)
+		low_memory = calloc(1, low_memory_size);
+	if (high_memory_size > 0)
+		high_memory = calloc(1, high_memory_size);
 #endif
 
-	low_memory_back = calloc(1, low_memory_size);
-	high_memory_back = calloc(1, high_memory_size);
+	if (low_memory_size > 0)
+		low_memory_back = calloc(1, low_memory_size);
+	if (high_memory_size > 0)
+		high_memory_back = calloc(1, high_memory_size);
 
 	if (!_stricmp(opcode, "all")) {
 		DIR *d = opendir(path);
