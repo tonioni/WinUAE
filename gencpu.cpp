@@ -1339,7 +1339,7 @@ static void maybeaddop_ce020 (int flags)
 
 
 // Handle special MOVE.W/.L condition codes when destination write causes address error.
-static void move_68000_address_error(amodes mode, int size, int *setapdi)
+static void move_68000_address_error(amodes mode, int size, int *setapdi, int *fcmodeflags)
 {
 	int smode = g_instr->smode;
 	int dmode = g_instr->dmode;
@@ -1368,8 +1368,10 @@ static void move_68000_address_error(amodes mode, int size, int *setapdi)
 			break;
 		}
 		if (dmode == Apdi) {
-			// this is buggy, address error stack frame opcode field contains next instruction opcode!
-			printf("\t\topcode = regs.irc | 0x00080000;\n");
+			// this is buggy, address error stack frame opcode field contains next
+			// instruction opcode and Instruction/Not field is one!
+			printf("\t\topcode = regs.irc;\n");
+			*fcmodeflags |= 0x08; // "Not instruction" = 1
 		}
 		if (set_ccr) {
 			printf("\t\tccr_68000_word_move_ae_normal((uae_s16)(src));\n");
@@ -1783,6 +1785,7 @@ static void genamode2x (amodes mode, const char *reg, wordsizes size, const char
 	// check possible address error (if 68000/010 and enabled)
 	if ((using_prefetch || using_ce) && using_exception_3 && getv != 0 && size != sz_byte && !movem) {
 		int setapdiback = 0;
+		int fcmodeflags = 0;
 
 		printf("\tif (%sa & 1) {\n", name);
 
@@ -1801,7 +1804,7 @@ static void genamode2x (amodes mode, const char *reg, wordsizes size, const char
 
 		if (g_instr->mnemo == i_MOVE) {
 			if (getv == 2) {
-				move_68000_address_error(mode, size, &setapdiback);
+				move_68000_address_error(mode, size, &setapdiback, &fcmodeflags);
 			}
 		}
 
@@ -1809,16 +1812,14 @@ static void genamode2x (amodes mode, const char *reg, wordsizes size, const char
 			printf("\t\tm68k_areg (regs, %s) = %sa;\n", reg, name);
 		}
 
-		// PC-relative: FC=2
-		if (getv == 1 && (g_instr->smode == PC16 || g_instr->smode == PC8r)) {
-			printf("\t\topcode |= 0x01020000;\n");
-		}
-
 		// MOVE.L EA,-(An) causing address error: stacked value is original An - 2, not An - 4.
 		if ((flags & (GF_REVERSE | GF_REVERSE2)) && size == sz_long && mode == Apdi)
 			printf("\t\t%sa += %d;\n", name, flags & GF_REVERSE2 ? -2 : 2);
 
-		printf("\t\texception3_%s(opcode, %sa);\n", getv == 2 ? "write" : "read", name);
+		printf("\t\texception3_%s(opcode, %sa, %d);\n",
+			getv == 2 ? "write" : "read", name,
+			// PC-relative: FC=2
+			(getv == 1 && (g_instr->smode == PC16 || g_instr->smode == PC8r) ? 2 : 1) | fcmodeflags);
 
 		printf ("\t\tgoto %s;\n", endlabelstr);
 		printf ("\t}\n");
@@ -2453,7 +2454,8 @@ static void movem_ex3(int write)
 				printf("\t\topcode |= 0x01020000;\n");
 			}
 		}
-		printf("\t\texception3_%s(opcode, srca);\n", write ? "write" : "read");
+		printf("\t\texception3_%s(opcode, srca, %d);\n",
+			write ? "write" : "read", (g_instr->dmode == PC16 || g_instr->dmode == PC8r) ? 2 : 1);
 		printf("\t\tgoto %s;\n", endlabelstr);
 		printf("\t}\n");
 		need_endlabel = 1;
@@ -4374,7 +4376,7 @@ static void gen_opcode (unsigned int opcode)
 		printf ("\tuaecptr pc = %s;\n", getpc);
 		if (cpu_level <= 1 && using_exception_3) {
 			printf("\tif (m68k_areg(regs, 7) & 1) {\n");
-			printf("\t\texception3_read(opcode, m68k_areg(regs, 7));\n");
+			printf("\t\texception3_read(opcode, m68k_areg(regs, 7), 1);\n");
 			printf("\t\tgoto %s;\n", endlabelstr);
 			printf("\t}\n");
 		}
@@ -4471,7 +4473,7 @@ static void gen_opcode (unsigned int opcode)
 			printf("\tm68k_areg (regs, 7) -= 4;\n");
 			if (using_exception_3 && cpu_level <= 1) {
 				printf("\tif (m68k_areg(regs, 7) & 1) {\n");
-				printf("\t\texception3_write(opcode, m68k_areg(regs, 7));\n");
+				printf("\t\texception3_write(opcode, m68k_areg(regs, 7), 1);\n");
 				printf("\t\tgoto %s;\n", endlabelstr);
 				printf("\t}\n");
 			}
@@ -4529,14 +4531,15 @@ static void gen_opcode (unsigned int opcode)
 		}
 		printf ("\ts = (uae_s32)src + 2;\n");
 		if (using_exception_3) {
-			printf("\tif (src & 1) {\n");
-			printf("\t\texception3b(opcode, %s + s, 0, 1, %s + s);\n", getpc, getpc);
-			printf("\t\tgoto %s;\n", endlabelstr);
-			printf("\t}\n");
 			if (cpu_level <= 1) {
 				printf("\tif (m68k_areg(regs, 7) & 1) {\n");
 				printf("\t\tm68k_areg(regs, 7) -= 4;\n");
 				printf("\t\texception3b(opcode,  m68k_areg(regs, 7), true, false, %s + 2);\n", getpc);
+				printf("\t\tgoto %s;\n", endlabelstr);
+				printf("\t}\n");
+			} else {
+				printf("\tif (src & 1) {\n");
+				printf("\t\texception3b(opcode, %s + s, 0, 1, %s + s);\n", getpc, getpc);
 				printf("\t\tgoto %s;\n", endlabelstr);
 				printf("\t}\n");
 			}
@@ -4559,6 +4562,12 @@ static void gen_opcode (unsigned int opcode)
 			printf ("\tm68k_do_bsri (nextpc, s);\n");
 		} else {
 			printf ("\tm68k_do_bsr (nextpc, s);\n");
+		}
+		if (using_exception_3 && cpu_level <= 1) {
+			printf("\tif (%s & 1) {\n", getpc);
+			printf("\t\texception3b(opcode, %s, 0, 1, %s);\n", getpc, getpc);
+			printf("\t\tgoto %s;\n", endlabelstr);
+			printf("\t}\n");
 		}
 		if (using_debugmem) {
 			printf("\tif (debugmem_trace)\n");
@@ -4674,20 +4683,21 @@ bccl_not68020:
 		addcycles000 (2);
 		push_ins_cnt();
 		printf ("\tif (!cctrue (%d)) {\n", curi->cc);
+		printf("\t");
 		incpc ("(uae_s32)offs + 2");
 		printf ("\t");
-		fill_prefetch_1 (0);
-		printf ("\t");
-		genastore ("(src - 1)", curi->smode, "srcreg", curi->size, "src");
-
-		printf ("\t\tif (src) {\n");
 		if (using_exception_3) {
-			printf ("\t\t\tif (offs & 1) {\n");
-			printf ("\t\t\t\texception3i (opcode, %s + 2 + (uae_s32)offs + 2);\n", getpc);
-			printf ("\t\t\t\tgoto %s;\n", endlabelstr);
-			printf ("\t\t\t}\n");
+			printf("\tif (offs & 1) {\n");
+			printf("\t\t\texception3i (opcode, %s);\n", getpc);
+			printf("\t\t\tgoto %s;\n", endlabelstr);
+			printf("\t\t}\n");
 			need_endlabel = 1;
 		}
+		printf("\t");
+		fill_prefetch_1(0);
+		printf("\t");
+		genastore ("(src - 1)", curi->smode, "srcreg", curi->size, "src");
+		printf ("\t\tif (src) {\n");
 		irc2ir ();
 		add_head_cycs (6);
 		fill_prefetch_1 (2);

@@ -714,8 +714,8 @@ extern void fpux_restore (int*);
 extern bool fpu_get_constant(fpdata *fp, int cr);
 extern int fpp_cond(int condition);
 
-extern void exception3_read(uae_u32 opcode, uaecptr addr);
-extern void exception3_write(uae_u32 opcode, uaecptr addr);
+extern void exception3_read(uae_u32 opcode, uaecptr addr, int fc);
+extern void exception3_write(uae_u32 opcode, uaecptr addr, int fc);
 extern void exception3_notinstruction(uae_u32 opcode, uaecptr addr);
 extern void exception3i (uae_u32 opcode, uaecptr addr);
 extern void exception3b (uae_u32 opcode, uaecptr addr, bool w, bool i, uaecptr pc);

@@ -59,6 +59,7 @@ static int feature_sr_mask = 0;
 static int feature_loop_mode = 0;
 static int feature_loop_mode_register = -1;
 static int feature_full_extension_format = 0;
+static int feature_test_rounds = 2;
 static uae_u32 feature_addressing_modes[2];
 static int ad8r[2], pc8r[2];
 
@@ -95,8 +96,8 @@ static int forced_immediate_mode;
 static int test_exception;
 static int exception_stack_frame_size;
 static uaecptr test_exception_addr;
-static int test_exception_3_inst;
 static int test_exception_3_w;
+static int test_exception_3_fc;
 static int test_exception_opcode;
 static uae_u8 imm8_cnt;
 static uae_u16 imm16_cnt;
@@ -669,28 +670,23 @@ static void doexcstack(void)
 	testing_active = -1;
 
 	int opcode = (opcode_memory[0] << 8) | (opcode_memory[1]);
-	int statusormask = 0, statusandmask = 0;
-	if (test_exception_opcode >= 0) {
+	if (test_exception_opcode >= 0)
 		opcode = test_exception_opcode;
-		statusormask = (test_exception_opcode >> 16) & 0xff;
-		statusandmask = (test_exception_opcode >> 24) & 0xff;
-	}
 
 	int sv = regs.s;
 	uaecptr tmp = m68k_areg(regs, 7);
 	m68k_areg(regs, 7) = test_memory_end + EXTRA_RESERVED_SPACE;
 	if (cpu_lvl == 0) {
 		if (test_exception == 3) {
-			uae_u16 mode = (sv ? 4 : 0) | (test_exception_3_inst ? 2 : 1) | statusormask;
-			mode &= ~statusandmask;
+			uae_u16 mode = (sv ? 4 : 0) | test_exception_3_fc;
 			mode |= test_exception_3_w ? 0 : 16;
 			Exception_build_68000_address_error_stack_frame(mode, opcode, test_exception_addr, regs.pc);
 		}
 	} else if (cpu_lvl == 1) {
 		if (test_exception == 3) {
-			uae_u16 ssw = (sv ? 4 : 0) | (test_exception_3_inst ? 2 : 1);
+			uae_u16 ssw = (sv ? 4 : 0) | test_exception_3_fc;
 			ssw |= test_exception_3_w ? 0 : 0x100;
-			ssw |= test_exception_3_inst ? 0 : 0x2000;
+			ssw |= (test_exception_3_fc & 2) ? 0 : 0x2000;
 			regs.mmu_fault_addr = test_exception_addr;
 			Exception_build_stack_frame(regs.instruction_pc, regs.pc, ssw, 3, 0x08);
 		} else {
@@ -698,7 +694,7 @@ static void doexcstack(void)
 		}
 	} else if (cpu_lvl == 2) {
 		if (test_exception == 3) {
-			uae_u16 ssw = (sv ? 4 : 0) | (test_exception_3_inst ? 2 : 1);
+			uae_u16 ssw = (sv ? 4 : 0) | test_exception_3_fc;
 			ssw |= test_exception_3_w ? 0 : 0x40;
 			ssw |= 0x20;
 			regs.mmu_fault_addr = test_exception_addr;
@@ -743,28 +739,27 @@ uae_u32 REGPARAM2 op_illg(uae_u32 opcode)
 	return op_illg_1(opcode);
 }
 
-void exception3_read(uae_u32 opcode, uae_u32 addr)
+void exception3_read(uae_u32 opcode, uae_u32 addr, int fc)
 {
 	test_exception = 3;
-	test_exception_3_inst = 0;
 	test_exception_3_w = 0;
 	test_exception_addr = addr;
 	test_exception_opcode = opcode;
+	test_exception_3_fc = fc;
 	doexcstack();
 }
-void exception3_write(uae_u32 opcode, uae_u32 addr)
+void exception3_write(uae_u32 opcode, uae_u32 addr, int fc)
 {
 	test_exception = 3;
-	test_exception_3_inst = 0;
 	test_exception_3_w = 1;
 	test_exception_addr = addr;
 	test_exception_opcode = opcode;
+	test_exception_3_fc = fc;
 	doexcstack();
 }
 void REGPARAM2 Exception(int n)
 {
 	test_exception = n;
-	test_exception_3_inst = 0;
 	test_exception_addr = m68k_getpci();
 	test_exception_opcode = -1;
 	doexcstack();
@@ -772,7 +767,6 @@ void REGPARAM2 Exception(int n)
 void REGPARAM2 Exception_cpu(int n)
 {
 	test_exception = n;
-	test_exception_3_inst = 0;
 	test_exception_addr = m68k_getpci();
 	test_exception_opcode = -1;
 
@@ -786,7 +780,7 @@ void REGPARAM2 Exception_cpu(int n)
 void exception3i(uae_u32 opcode, uaecptr addr)
 {
 	test_exception = 3;
-	test_exception_3_inst = 1;
+	test_exception_3_fc = 2;
 	test_exception_3_w = 0;
 	test_exception_addr = addr;
 	test_exception_opcode = opcode;
@@ -795,7 +789,7 @@ void exception3i(uae_u32 opcode, uaecptr addr)
 void exception3b(uae_u32 opcode, uaecptr addr, bool w, bool i, uaecptr pc)
 {
 	test_exception = 3;
-	test_exception_3_inst = i;
+	test_exception_3_fc = i ? 2 : 1;
 	test_exception_3_w = w;
 	test_exception_addr = addr;
 	test_exception_opcode = opcode;
@@ -1802,7 +1796,7 @@ static uae_u8 *save_exception(uae_u8 *p, struct instr *dp)
 			abort();
 		}
 	}
-	if (last_exception_len == exception_stack_frame_size && !memcmp(sf, last_exception, exception_stack_frame_size)) {
+	if (last_exception_len > 0 && last_exception_len == exception_stack_frame_size && !memcmp(sf, last_exception, exception_stack_frame_size)) {
 		// stack frame was identical to previous
 		p = op;
 		*p++ = 0xff;
@@ -1922,7 +1916,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, int opcodesize, in
 	wprintf(_T("%s\n"), dir);
 
 	int quick = 0;
-	int rounds = 4;
+	int rounds = feature_test_rounds;
 	int subtest_count = 0;
 
 	int count = 0;
@@ -2322,7 +2316,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, int opcodesize, in
 							if (regs.sr & 0x2000)
 								prev_s_cnt++;
 
-							if (subtest_count == 1536)
+							if (subtest_count == 353)
 								printf("");
 
 							execute_ins(opc, pc - 2, branch_target);
@@ -2358,10 +2352,10 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, int opcodesize, in
 									}
 								}
 								if (test_exception == 3) {
-									if (!feature_exception3_data && !test_exception_3_inst) {
+									if (!feature_exception3_data && !(test_exception_3_fc & 2)) {
 										skipped = 1;
 									}
-									if (!feature_exception3_instruction && test_exception_3_inst) {
+									if (!feature_exception3_instruction && (test_exception_3_fc & 2)) {
 										skipped = 1;
 									}
 								} else {
