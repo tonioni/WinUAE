@@ -70,7 +70,7 @@ extern BOOL debuggerinitializing;
 extern int lof_store;
 extern int seriallog;
 static int console_input_linemode = -1;
-int always_flush_log = 1;
+int always_flush_log = 0;
 
 #define WRITE_LOG_BUF_SIZE 4096
 
