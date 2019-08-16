@@ -5632,6 +5632,7 @@ static bool debug_line (TCHAR *input)
 		case 't':
 			no_trace_exceptions = 0;
 			debug_cycles();
+			trace_param1 = trace_param2 = 0;
 			if (*inptr == 't') {
 				no_trace_exceptions = 1;
 				inptr++;
