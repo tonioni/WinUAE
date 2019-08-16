@@ -1786,6 +1786,7 @@ static void genamode2x (amodes mode, const char *reg, wordsizes size, const char
 	if ((using_prefetch || using_ce) && using_exception_3 && getv != 0 && size != sz_byte && !movem) {
 		int setapdiback = 0;
 		int fcmodeflags = 0;
+		int exp3rw = getv == 2;
 
 		printf("\tif (%sa & 1) {\n", name);
 
@@ -1806,6 +1807,10 @@ static void genamode2x (amodes mode, const char *reg, wordsizes size, const char
 			if (getv == 2) {
 				move_68000_address_error(mode, size, &setapdiback, &fcmodeflags);
 			}
+		} else if (g_instr->mnemo == i_MVSR2) {
+			// If MOVE from SR generates address error exception,
+			// RW field is set to Read!
+			exp3rw = 0;
 		}
 
 		if (setapdiback) {
@@ -1817,7 +1822,7 @@ static void genamode2x (amodes mode, const char *reg, wordsizes size, const char
 			printf("\t\t%sa += %d;\n", name, flags & GF_REVERSE2 ? -2 : 2);
 
 		printf("\t\texception3_%s(opcode, %sa, %d);\n",
-			getv == 2 ? "write" : "read", name,
+			exp3rw ? "write" : "read", name,
 			// PC-relative: FC=2
 			(getv == 1 && (g_instr->smode == PC16 || g_instr->smode == PC8r) ? 2 : 1) | fcmodeflags);
 
