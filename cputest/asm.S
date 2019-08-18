@@ -12,6 +12,10 @@
 	.globl _setvbr
 	.globl _setcpu
 	.globl _flushcache
+	.globl _msp_address1
+	.globl _msp_address2
+	.globl _msp_address3
+	.globl _msp_address4
 
 | must match main.c
 S_DREG = 0
@@ -44,9 +48,17 @@ _setcpu:
 	bcs.s .scend1
 	movec cacr,d0
 	move.l d0,(a0)+
+	moveq #0,d0
+	cmp.w #4,d1
+	bcc.s .scend1b
 	movec caar,d0
+.scend1b:
 	move.l d0,(a0)+
+	moveq #0,d0
+	cmp.w #5,d1
+	bcc.s .scend1c
 	movec msp,d0
+.scend1c:
 	move.l d0,(a0)+
 .scend1:
 	move.l a1,d0
@@ -62,16 +74,29 @@ _setcpu:
 	move.l (a1)+,d0
 	movec d0,cacr
 	move.l (a1)+,d0
+	cmp.w #4,d1
+	bcc.s .scend2b
 	movec d0,caar
+.scend2b:
 	move.l (a1)+,d0
+	cmp.w #5,d1
+	bcc.s .scend2
 	move.c d0,msp
 .scend2:
 	rts
 
 _flushcache:
+	move.l 4(sp),d1 | cpu_lvl
+	cmp.w #4,d1
+	bcc.s .fc040	
 	movec cacr,d0
 	bset #3,d0
 	movec d0,cacr
+	rts
+.fc040:
+	.arch 68040
+	cpusha bc
+	.arch 68020
 	rts
 
 	| set and return old VBR
@@ -130,7 +155,7 @@ _execute_test010:
 	movem.l (a0),d0-d7/a0-a6
 	rte
 
-	| 68020 test entrypoint
+	| 68020+ test entrypoint
 _execute_test020:
 	movem.l d1-d7/a0-a6,-(sp)
 	move.l 14*4+4(sp),a0 | register struct
@@ -149,8 +174,11 @@ _execute_test020:
 	move.w S_SR+2(a0),-(sp)
 	move.l S_AREG+7*4(a0),a1
 	move.l a1,USP
+
 	move.l S_MSP(a0),a1
+_msp_address1:
 	movec a1,MSP
+
 	movem.l (a0),d0-d7/a0-a6
 	rte
 
@@ -173,8 +201,11 @@ _execute_testfpu:
 	move.w S_SR+2(a0),-(sp)
 	move.l S_AREG+7*4(a0),a1
 	move.l a1,USP
+
 	move.l S_MSP(a0),a1
+_msp_address2:
 	movec a1,MSP
+
 	fmovem.x S_FPU(a0),fp0-fp7
 	lea S_FPIAR(a0),a1
 	fmove.l (a1)+,fpiar
@@ -296,8 +327,10 @@ _exception020:
 	lsr.w #2,d0
 	move.w d0,S_EXC+2(a0)
 	
+_msp_address3:
 	movec MSP,a1
 	move.l a1,S_MSP(a0)
+
 	move.l USP,a1
 	move.l a1,S_AREG+7*4(a0)
 		
@@ -323,8 +356,10 @@ _exceptionfpu:
 	lsr.w #2,d0
 	move.w d0,S_EXC+2(a0)
 	
+_msp_address4:
 	movec MSP,a1
 	move.l a1,S_MSP(a0)
+
 	move.l USP,a1
 	move.l a1,S_AREG+7*4(a0)
 

@@ -58,17 +58,20 @@ _allocate_absolute:
 	move.l (sp)+,a6
 	rts
 
-	| return CPU model (68000=0, 68010=1, 68020=2)
+	| return CPU model (68000=0, 68010=1, 68020=2, 68030=3, 68040=4, 68060=5)
 _get_cpu_model:
 	move.l 4.w,a0
-	moveq #0,d0
 	move.w 0x128(a0),d1
-	and.w #3,d1
-	beq.s .cpudone
-	moveq #2,d0
-	btst #1,d1
+	moveq #5,d0
+	tst.b d1
+	bmi.s .cpudone2
+	moveq #3,d0
+.cpucheck:
+	btst d0,d1
 	bne.s .cpudone
-	moveq #1,d0
+	dbf d0,.cpucheck
 .cpudone:
+	addq.l #1,d0
+.cpudone2:
 	rts
 

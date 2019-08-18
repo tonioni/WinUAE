@@ -102,6 +102,7 @@ static int test_exception_opcode;
 static uae_u8 imm8_cnt;
 static uae_u16 imm16_cnt;
 static uae_u32 imm32_cnt;
+static uae_u32 immabsl_cnt;
 static uae_u32 addressing_mask;
 static int opcodecnt;
 static int cpu_stopped;
@@ -111,6 +112,9 @@ static int testing_active;
 static time_t starttime;
 static int filecount;
 static uae_u16 sr_undefined_mask;
+static int low_memory_accessed;
+static int high_memory_accessed;
+static int test_memory_accessed;
 
 struct uae_prefs currprefs;
 
@@ -144,6 +148,7 @@ static bool valid_address(uaecptr addr, int size, int w)
 			goto oob;
 		if (w && lmem_rom)
 			goto oob;
+		low_memory_accessed = w ? -1 : 1;
 		return 1;
 	}
 	if (addr >= HIGH_MEMORY_START && addr < HIGH_MEMORY_START + 0x8000) {
@@ -153,6 +158,7 @@ static bool valid_address(uaecptr addr, int size, int w)
 			goto oob;
 		if (w && hmem_rom)
 			goto oob;
+		high_memory_accessed = w ? -1 : 1;
 		return 1;
 	}
 	if (addr >= test_memory_end && addr + size < test_memory_end + EXTRA_RESERVED_SPACE) {
@@ -165,6 +171,7 @@ static bool valid_address(uaecptr addr, int size, int w)
 			if (addr >= opcode_memory_start && addr + size < opcode_memory_start + OPCODE_AREA)
 				goto oob;
 		}
+		test_memory_accessed = w ? -1 : 1;
 		return 1;
 	}
 oob:
@@ -695,10 +702,9 @@ static void doexcstack(void)
 	} else if (cpu_lvl == 2) {
 		if (test_exception == 3) {
 			uae_u16 ssw = (sv ? 4 : 0) | test_exception_3_fc;
-			ssw |= test_exception_3_w ? 0 : 0x40;
 			ssw |= 0x20;
 			regs.mmu_fault_addr = test_exception_addr;
-			Exception_build_stack_frame(regs.instruction_pc, regs.pc, ssw, 3, 0x0a);
+			Exception_build_stack_frame(regs.instruction_pc, regs.pc, ssw, 3, 0x0b);
 		} else {
 			Exception_build_stack_frame_common(regs.instruction_pc, regs.pc, 0, test_exception);
 		}
@@ -1194,7 +1200,7 @@ static int full_format_cnt;
 
 static uaecptr putfpuimm(uaecptr pc, int opcodesize, int *isconstant)
 {
-	// TODO: generate FPU immediates
+	// TODO: generate sane FPU immediates
 	switch (opcodesize)
 	{
 	case 0: // L
@@ -1210,24 +1216,24 @@ static uaecptr putfpuimm(uaecptr pc, int opcodesize, int *isconstant)
 		pc += 2;
 		break;
 	case 1: // S
-		put_long(pc, 0);
+		put_long(pc, rand32());
 		pc += 4;
 		break;
 	case 2: // X
-		put_long(pc, 0);
-		put_long(pc + 4, 0);
-		put_long(pc + 8, 0);
+		put_long(pc, rand32());
+		put_long(pc + 4, rand32());
+		put_long(pc + 8, rand32());
 		pc += 12;
 		break;
 	case 3: // P
-		put_long(pc, 0);
-		put_long(pc + 4, 0);
-		put_long(pc + 8, 0);
+		put_long(pc, rand32());
+		put_long(pc + 4, rand32());
+		put_long(pc + 8, rand32());
 		pc += 12;
 		break;
 	case 5: // D
-		put_long(pc, 0);
-		put_long(pc + 4, 0);
+		put_long(pc, rand32());
+		put_long(pc + 4, rand32());
 		pc += 8;
 		break;
 	}
@@ -1325,9 +1331,24 @@ static int create_ea(uae_u16 *opcodep, uaecptr pc, int mode, int reg, struct ins
 		pc += 2;
 		break;
 	case absl:
-		put_long_test(pc, rand32());
-		*isconstant = 32;
-		pc += 4;
+		{
+			uae_u32 v = rand32();
+			if ((immabsl_cnt & 7) == 0) {
+				v &= 0x0000ffff;
+			} else if ((immabsl_cnt & 7) >= 4) {
+				int offset = 0;
+				for (;;) {
+					offset = (uae_s16)rand16();
+					if (offset < -OPCODE_AREA || offset > OPCODE_AREA)
+						break;
+				}
+				v = opcode_memory_start + offset;
+			}
+			immabsl_cnt++;
+			put_long_test(pc, v);
+			*isconstant = 32;
+			pc += 4;
+		}
 		break;
 	case imm:
 		if (fpuopcode >= 0 && opcodesize < 8) {
@@ -1432,8 +1453,9 @@ static int create_ea(uae_u16 *opcodep, uaecptr pc, int mode, int reg, struct ins
 	{
 		// long immediate
 		uae_u32 v = rand32();
-		if ((imm32_cnt & 7) == 0)
+		if ((imm32_cnt & 7) == 0) {
 			v &= 0x0000ffff;
+		}
 		imm32_cnt++;
 		put_long_test(pc, v);
 		if (imm32_cnt < 256)
@@ -1459,6 +1481,15 @@ static int handle_specials_preea(uae_u16 opcode, uaecptr pc, struct instr *dp)
 		put_word_test(pc, v);
 		imm_special++;
 		return 2;
+	}
+	if (dp->mnemo == i_MOVE16) {
+		if (opcode & 0x20) {
+			uae_u16 v = 0;
+			v |= imm_special << 12;
+			put_word_test(pc, v);
+			imm_special++;
+			return 2;
+		}
 	}
 	return 0;
 }
@@ -1519,7 +1550,6 @@ static void handle_specials_extra(uae_u16 opcode, uaecptr pc, struct instr *dp)
 		if (extra != extra2) {
 			put_word_test(opcode_memory_start + 4, extra);
 		}
-
 	}
 	if (dp->mnemo == i_CHK2) {
 		uae_u16 extra = get_word_test(opcode_memory_start + 2);
@@ -1528,7 +1558,6 @@ static void handle_specials_extra(uae_u16 opcode, uaecptr pc, struct instr *dp)
 		if (extra != extra2) {
 			put_word_test(opcode_memory_start + 2, extra);
 		}
-
 	}
 }
 
@@ -1549,13 +1578,6 @@ static int handle_specials_stack(uae_u16 opcode, uaecptr pc, struct instr *dp, i
 			addr += 2;
 			offset += 2;
 			*isconstant = imm_special >= (1 << (0 + 5)) * 4 ? 0 : -1;
-		} else if (dp->mnemo == i_RTD) {
-			// RTD
-			v = imm_special >> 2;
-			uae_u16 sr = v & 31;
-			sr |= (v >> 5) << 12;
-			put_word_test(addr + 4, sr);
-			*isconstant = imm_special >= (1 << (4 + 5)) * 4 ? 0 : -1;
 		} else if (dp->mnemo == i_RTE) {
 			// RTE
 			if (currprefs.cpu_model == 68000) {
@@ -1596,13 +1618,13 @@ static int handle_specials_stack(uae_u16 opcode, uaecptr pc, struct instr *dp, i
 	return offset;
 }
 
-static void execute_ins(uae_u16 opc, uaecptr endpc, uaecptr targetpc)
+static void execute_ins(uae_u16 opc, uaecptr endpc, uaecptr targetpc, struct instr *dp)
 {
 	uae_u16 opw1 = (opcode_memory[2] << 8) | (opcode_memory[3] << 0);
 	uae_u16 opw2 = (opcode_memory[4] << 8) | (opcode_memory[5] << 0);
-	if (opc == 0x61ff  
-		&& opw1 == 0x0000
-		&& opw2 == 0x9908
+	if (opc == 0xf601
+//		&& opw1 == 0x0000
+//		&& opw2 == 0x9908
 		)
 		printf("");
 	if (regs.sr & 0x2000)
@@ -1614,6 +1636,9 @@ static void execute_ins(uae_u16 opc, uaecptr endpc, uaecptr targetpc)
 
 	MakeFromSR();
 
+	low_memory_accessed = 0;
+	high_memory_accessed = 0;
+	test_memory_accessed = 0;
 	testing_active = 1;
 
 	int cnt = feature_loop_mode * 2;
@@ -1646,6 +1671,11 @@ static void execute_ins(uae_u16 opc, uaecptr endpc, uaecptr targetpc)
 				cpu_stopped = 0;
 				Exception(8);
 			}
+		}
+
+		if (dp->mnemo == i_TAS && low_memory_accessed) {
+			test_exception = -1;
+			break;
 		}
 
 		if (regs.pc == endpc || regs.pc == targetpc)
@@ -1784,12 +1814,9 @@ static uae_u8 *save_exception(uae_u8 *p, struct instr *dp)
 			// FSLW or PC of faulted instruction
 			p = store_rel(p, 0, opcode_memory_start, gl(sf + 12), 1);
 			break;
-		case 0x0a: // 68020/030 address error. Only check SSW.
-			// SSW
-			p = store_reg(p, 0, 0, gw(sf + 0x0a), sz_word);
-			exception_stack_frame_size = 0x0c;
-			sf[8] = sf[9] = 0;
-			last_exception[8] = last_exception[9] = 0;
+		case 0x0a: // 68020/030 address error.
+		case 0x0b: // Don't save anything extra, too many undefined fields and bits..
+			exception_stack_frame_size = 0x08;
 			break;
 		default:
 			wprintf(_T("Unknown frame %04x!\n"), frame);
@@ -1817,6 +1844,22 @@ static uae_u16 get_ccr_ignore(struct instr *dp)
 		ccrignoremask |= 2; // mask CCR=V
 	}
 	return ccrignoremask;
+}
+
+static int isfpp(int mnemo)
+{
+	switch (mnemo)
+	{
+	case i_FPP:
+	case i_FBcc:
+	case i_FDBcc:
+	case i_FTRAPcc:
+	case i_FScc:
+	case i_FRESTORE:
+	case i_FSAVE:
+		return 1;
+	}
+	return 0;
 }
 
 
@@ -1905,9 +1948,9 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, int opcodesize, in
 		opcodecnt++;
 		if (isunsupported(dp))
 			return;
-		if ((opcode & 0xf000) == 0xf000 && !currprefs.fpu_model)
+		if (isfpp(lookup->mnemo) && !currprefs.fpu_model)
 			return;
-		fpumode = currprefs.fpu_model && (opcode & 0xf000) == 0xf000;
+		fpumode = currprefs.fpu_model && isfpp(lookup->mnemo);
 	}
 
 	if (!opcodecnt)
@@ -2028,6 +2071,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, int opcodesize, in
 				imm8_cnt = 0;
 				imm16_cnt = 0;
 				imm32_cnt = 0;
+				immabsl_cnt = 0;
 				imm_special = 0;
 
 				// retry few times if out of bounds access
@@ -2048,7 +2092,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, int opcodesize, in
 					out_of_test_space = 0;
 					ahcnt = 0;
 
-					if (opc == 0xf228)
+					if (opc == 0xf620)
 						printf("");
 					if (subtest_count == 1537)
 						printf("");
@@ -2319,7 +2363,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, int opcodesize, in
 							if (subtest_count == 353)
 								printf("");
 
-							execute_ins(opc, pc - 2, branch_target);
+							execute_ins(opc, pc - 2, branch_target, dp);
 
 							if (regs.s)
 								s_cnt++;
@@ -2635,7 +2679,7 @@ int __cdecl main(int argc, char *argv[])
 
 	currprefs.cpu_model = 68000;
 	ini_getval(ini, INISECTION, _T("cpu"), &currprefs.cpu_model);
-	if (currprefs.cpu_model != 68000 && currprefs.cpu_model != 68010 && currprefs.cpu_model != 68020) {
+	if (currprefs.cpu_model != 68000 && currprefs.cpu_model != 68010 && currprefs.cpu_model != 68020 && currprefs.cpu_model != 68040) {
 		wprintf(_T("Unsupported CPU model.\n"));
 		return 0;
 	}
@@ -2644,7 +2688,7 @@ int __cdecl main(int argc, char *argv[])
 	addressing_mask = 0x00ffffff;
 	v = 24;
 	ini_getval(ini, INISECTION, _T("cpu_address_space"), &v);
-	if (v == 32) {
+	if (v == 32 || currprefs.cpu_model >= 68030) {
 		currprefs.address_space_24 = 0;
 		addressing_mask = 0xffffffff;
 	}
@@ -2653,7 +2697,7 @@ int __cdecl main(int argc, char *argv[])
 	currprefs.fpu_mode = 1;
 	ini_getval(ini, INISECTION, _T("fpu"), &currprefs.fpu_model);
 	if (currprefs.fpu_model && currprefs.cpu_model < 68020) {
-		wprintf(_T("FPU requires 68020 CPU.\n"));
+		wprintf(_T("FPU requires 68020 or 68040 CPU.\n"));
 		return 0;
 	}
 	if (currprefs.fpu_model != 0 && currprefs.fpu_model != 68881 && currprefs.fpu_model != 68882 && currprefs.fpu_model != 68040 && currprefs.fpu_model != 68060) {
@@ -2750,6 +2794,9 @@ int __cdecl main(int argc, char *argv[])
 	_wmkdir(path);
 
 	xorshiftstate = 1;
+
+	feature_test_rounds = 2;
+	ini_getval(ini, INISECTION, _T("test_rounds"), &feature_test_rounds);
 
 	v = 0;
 	ini_getval(ini, INISECTION, _T("test_memory_start"), &v);
@@ -2861,6 +2908,9 @@ int __cdecl main(int argc, char *argv[])
 	} else if (currprefs.cpu_model == 68020) {
 		tbl = op_smalltbl_92_test_ff;
 		cpu_lvl = 2;
+	} else if (currprefs.cpu_model == 68040) {
+		tbl = op_smalltbl_94_test_ff;
+		cpu_lvl = 4;
 	} else {
 		wprintf(_T("Unsupported CPU model.\n"));
 		abort();
@@ -2890,8 +2940,10 @@ int __cdecl main(int argc, char *argv[])
 			continue;
 		}
 
-		if (!currprefs.fpu_model && (opcode & 0xf000) == 0xf000) {
-			continue;
+		if (!currprefs.fpu_model) {
+			int fppskip = isfpp(table->mnemo);
+			if (fppskip)
+				continue;
 		}
 
 		if (table->handler != -1) {

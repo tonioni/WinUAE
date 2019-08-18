@@ -1809,7 +1809,7 @@ static void genamode2x (amodes mode, const char *reg, wordsizes size, const char
 			}
 		} else if (g_instr->mnemo == i_MVSR2) {
 			// If MOVE from SR generates address error exception,
-			// RW field is set to Read!
+			// Change it to read because it does dummy read first.
 			exp3rw = 0;
 		}
 
@@ -4023,9 +4023,9 @@ static void gen_opcode (unsigned int opcode)
 			fill_prefetch_next ();
 			addcycles000 (2);
 		} else {
-			// write to memory, dummy write to same address, X-flag seems to be always set
+			// read first and ignore result
 			if (cpu_level <= 1 && curi->size == sz_word) {
-				printf ("\t%s (srca, regs.sr | 0x0010);\n", dstw);
+				printf ("\t%s (srca);\n", srcw);
 				count_write++;
 			}
 			fill_prefetch_next ();
@@ -4455,7 +4455,7 @@ static void gen_opcode (unsigned int opcode)
 		start_brace ();
 		printf("\tuaecptr oldpc = %s;\n", getpc);
 		printf("\tuaecptr nextpc = oldpc + %d;\n", m68k_pc_offset);
-		if (using_exception_3) {
+		if (using_exception_3 && cpu_level <= 1) {
 			printf("\tif (srca & 1) {\n");
 			printf("\t\texception3i (opcode, srca);\n");
 			printf("\t\tgoto %s;\n", endlabelstr);
@@ -4481,8 +4481,16 @@ static void gen_opcode (unsigned int opcode)
 				printf("\t\texception3_write(opcode, m68k_areg(regs, 7), 1);\n");
 				printf("\t\tgoto %s;\n", endlabelstr);
 				printf("\t}\n");
+				need_endlabel = 1;
 			}
 			setpc ("srca");
+			if (using_exception_3 && cpu_level >= 2) {
+				printf("\tif (%s & 1) {\n", getpc);
+				printf("\t\texception3i (opcode, %s);\n", getpc);
+				printf("\t\tgoto %s;\n", endlabelstr);
+				printf("\t}\n");
+				need_endlabel = 1;
+			}
 			clear_m68k_offset();
 			fill_prefetch_1 (0);
 			if (using_ce || using_prefetch) {
@@ -4542,7 +4550,7 @@ static void gen_opcode (unsigned int opcode)
 				printf("\t\texception3b(opcode,  m68k_areg(regs, 7), true, false, %s + 2);\n", getpc);
 				printf("\t\tgoto %s;\n", endlabelstr);
 				printf("\t}\n");
-			} else {
+			} else if (0) {
 				printf("\tif (src & 1) {\n");
 				printf("\t\texception3b(opcode, %s + s, 0, 1, %s + s);\n", getpc, getpc);
 				printf("\t\tgoto %s;\n", endlabelstr);
@@ -4553,6 +4561,14 @@ static void gen_opcode (unsigned int opcode)
 		addcycles000 (2);
 		printf("\tuaecptr oldpc = %s;\n", getpc);
 		printf("\tuaecptr nextpc = oldpc + %d;\n", m68k_pc_offset);
+		if (using_exception_3 && cpu_level >= 2) {
+			printf("\tif (s & 1) {\n");
+			printf("\t\tm68k_areg(regs, 7) -= 4;\n");
+			printf("\t\texception3b(opcode, %s + s, 0, 1, %s + s);\n", getpc, getpc);
+			printf("\t\tgoto %s;\n", endlabelstr);
+			printf("\t}\n");
+			need_endlabel = 1;
+		}
 		if (using_indirect > 0 && !using_ce020 && !using_prefetch_020 && !using_ce && !using_test) {
 			printf("\tm68k_do_bsri_jit (nextpc, s);\n");
 		} else if (using_mmu) {
@@ -4573,6 +4589,7 @@ static void gen_opcode (unsigned int opcode)
 			printf("\t\texception3b(opcode, %s, 0, 1, %s);\n", getpc, getpc);
 			printf("\t\tgoto %s;\n", endlabelstr);
 			printf("\t}\n");
+			need_endlabel = 1;
 		}
 		if (using_debugmem) {
 			printf("\tif (debugmem_trace)\n");
@@ -5435,8 +5452,8 @@ bccl_not68020:
 			printf ("\t}}\n");
 			pop_braces (old_brace_level);
 			printf ("\tif (! GET_ZFLG ()) {\n");
-			printf ("\tm68k_dreg (regs, (extra >> 0) & 7) = (m68k_dreg (regs, (extra >> 6) & 7) & ~0xffff) | (dst2 & 0xffff);\n");
-			printf ("\tm68k_dreg (regs, (extra >> 16) & 7) = (m68k_dreg (regs, (extra >> 22) & 7) & ~0xffff) | (dst1 & 0xffff);\n");
+			printf ("\tm68k_dreg (regs, (extra >> 0) & 7) = (m68k_dreg (regs, (extra >> 0) & 7) & ~0xffff) | (dst2 & 0xffff);\n");
+			printf ("\tm68k_dreg (regs, (extra >> 16) & 7) = (m68k_dreg (regs, (extra >> 16) & 7) & ~0xffff) | (dst1 & 0xffff);\n");
 			printf ("\t}\n");
 		} else {
 			int old_brace_level = n_braces;
@@ -6308,8 +6325,11 @@ static void generate_cpu_test(int mode)
 		cpu_level = 2;
 		using_prefetch = 0;
 		using_simple_cycles = 0;
+	} else if (mode == 4) {
+		cpu_level = 4;
+		using_prefetch = 0;
+		using_simple_cycles = 0;
 	}
-
 
 	read_counts();
 	for (rp = 0; rp < nr_cpuop_funcs; rp++)
@@ -6539,6 +6559,7 @@ int main(int argc, char *argv[])
 	generate_cpu_test(0);
 	generate_cpu_test(1);
 	generate_cpu_test(2);
+	generate_cpu_test(4);
 
 #else
 

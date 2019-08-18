@@ -2631,7 +2631,7 @@ static void Exception_mmu030 (int nr, uaecptr oldpc)
 		regs.mmu_fault_addr = last_fault_for_exception_3;
 		mmu030_state[0] = mmu030_state[1] = 0;
 		mmu030_data_buffer_out = 0;
-        Exception_build_stack_frame (last_fault_for_exception_3, currpc, MMU030_SSW_RW | MMU030_SSW_SIZE_W | (regs.s ? 6 : 2), nr,  0xA);
+        Exception_build_stack_frame (last_fault_for_exception_3, currpc, MMU030_SSW_RW | MMU030_SSW_SIZE_W | (regs.s ? 6 : 2), nr,  0xB);
 	} else {
 		Exception_build_stack_frame_common(oldpc, currpc, regs.mmu_ssw, nr);
 	}
@@ -2896,11 +2896,13 @@ static void Exception_normal (int nr)
 				}
 			} else if (currprefs.cpu_model >= 68020) {
 				// 68020/030 odd PC address error (partially implemented only)
+				// annoyingly this generates frame B, not A.
 				uae_u16 ssw = (sv ? 4 : 0) | last_fc_for_exception_3;
-				ssw |= last_writeaccess_for_exception_3 ? 0 : 0x40;
-				ssw |= 0x20;
+				ssw |= MMU030_SSW_RW | MMU030_SSW_SIZE_W;
 				regs.mmu_fault_addr = last_fault_for_exception_3;
-				Exception_build_stack_frame(oldpc, currpc, ssw, nr, 0x0a);
+				mmu030_state[0] = mmu030_state[1] = 0;
+				mmu030_data_buffer_out = 0;
+				Exception_build_stack_frame(last_fault_for_exception_3, currpc, ssw, nr, 0x0b);
 				used_exception_build_stack_frame = true;
 			} else {
 				// 68010 address error (partially implemented only)

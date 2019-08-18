@@ -145,7 +145,7 @@ static uae_u32 get_cpu_model(void)
 static void setcpu(uae_u32 v, uae_u32 *s, uae_u32 *d)
 {
 }
-static void flushcache(void)
+static void flushcache(uae_u32 v)
 {
 }
 #else
@@ -168,7 +168,7 @@ extern uae_u32 testexit(void);
 extern uae_u32 setvbr(uae_u32);
 extern uae_u32 get_cpu_model(void);
 extern void setcpu(uae_u32, uae_u32*, uae_u32*);
-extern void flushcache(void);
+extern void flushcache(uae_u32);
 
 #endif
 
@@ -900,10 +900,8 @@ static uae_u8 *validate_exception(struct registers *regs, uae_u8 *p, int excnum,
 				exclen = 16;
 				break;
 			case 0x0a:
-				v = 0;
-				p = restore_value(p, &v, &size);
-				pw(exc + 0x0a, v);
-				exclen = 0x0c;
+			case 0x0b:
+				exclen = 8;
 				break;
 			default:
 				end_test();
@@ -1299,7 +1297,7 @@ static void process_test(uae_u8 *p)
 		int fpumode = fpu_model && (opcode_memory[0] & 0xf0) == 0xf0;
 
 		if (cpu_lvl >= 2)
-			flushcache();
+			flushcache(cpu_lvl);
 
 		uae_u32 pc = opcode_memory_addr;
 
@@ -1435,6 +1433,7 @@ static int test_mnemo(const char *path, const char *opcode)
 	char fname[256], tfname[256];
 	int filecnt = 1;
 	uae_u32 starttimeid;
+	int lvl;
 
 	errors = 0;
 	quit = 0;
@@ -1464,12 +1463,21 @@ static int test_mnemo(const char *path, const char *opcode)
 	fread(data, 1, 4, f);
 	opcode_memory_addr = gl(data) + test_memory_addr;
 	fread(data, 1, 4, f);
-	cpu_lvl = gl(data) >> 16;
+	lvl = gl(data) >> 16;
 	sr_undefined_mask = gl(data);
 	fread(data, 1, 4, f);
 	fpu_model = gl(data);
 	fread(inst_name, 1, sizeof(inst_name) - 1, f);
 	inst_name[sizeof(inst_name) - 1] = 0;
+
+	int lvl2 = cpu_lvl;
+	if (lvl2 == 5 && lvl2 != lvl)
+		lvl2 = 4;
+
+	if (lvl != lvl2) {
+		printf("Mismatched CPU model: %lu <> %lu\n", 68000 + 10 * cpu_lvl, 68000 + lvl * 10);
+		exit(0);
+	}
 
 	if (!check_undefined_sr) {
 		sr_undefined_mask = ~sr_undefined_mask;
@@ -1614,6 +1622,25 @@ int main(int argc, char *argv[])
 
 #endif
 
+	int lvl = cpu_lvl;
+	if (lvl == 3) {
+		lvl = 2;
+	} else if (lvl == 5) {
+		lvl = 4;
+#ifdef M68K
+		// Overwrite MOVEC to/from MSP
+		// with NOP if 68060
+		extern void *msp_address1;
+		extern void *msp_address2;
+		extern void *msp_address3;
+		extern void *msp_address4;
+		*((uae_u32*)&msp_address1) = 0x4e714e71;
+		*((uae_u32*)&msp_address2) = 0x4e714e71;
+		*((uae_u32*)&msp_address3) = 0x4e714e71;
+		*((uae_u32*)&msp_address4) = 0x4e714e71;
+#endif
+	}
+
 	if (argc < 2) {
 		printf("cputest <all/mnemonic> (<start mnemonic>) (continue)\n");
 		printf("mnemonic = test single mnemonic\n");
@@ -1624,7 +1651,7 @@ int main(int argc, char *argv[])
 		return 0;
 	}
 
-	sprintf(path + strlen(path), "%lu/", 68000 + cpu_lvl * 10);
+	sprintf(path + strlen(path), "%lu/", 68000 + lvl * 10);
 
 	strcpy(opcode, argv[1]);
 

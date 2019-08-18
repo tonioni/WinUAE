@@ -92,6 +92,10 @@ void flush_icache(int v)
 {
 }
 
+void flush_cpu_caches_040(uae_u16 opcode)
+{
+}
+
 void mmu_tt_modified(void)
 {
 }
@@ -99,6 +103,10 @@ void mmu_tt_modified(void)
 uae_u16 REGPARAM2 mmu_set_tc(uae_u16 tc)
 {
 	return 0;
+}
+
+void mmu_op(uae_u32 opcode, uae_u32 extra)
+{
 }
 
 uae_u16 mmu030_state[3];

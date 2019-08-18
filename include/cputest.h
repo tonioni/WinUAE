@@ -28,6 +28,7 @@ extern const int imm8_table[];
 extern const struct cputbl op_smalltbl_90_test_ff[];
 extern const struct cputbl op_smalltbl_91_test_ff[];
 extern const struct cputbl op_smalltbl_92_test_ff[];
+extern const struct cputbl op_smalltbl_94_test_ff[];
 
 extern struct flag_struct regflags;
 

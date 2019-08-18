@@ -1791,7 +1791,7 @@ void m68k_disasm_2 (TCHAR *buf, int bufsize, uaecptr pc, uaecptr *nextpc, int cn
 				_stprintf(p, _T("(A%d)+,(A%d)+"), opcode & 7, (extra >> 12) & 7);
 				pc += 2;
 			} else {
-				uae_u32 addr = get_long_debug(pc + 2);
+				uae_u32 addr = get_long_debug(pc);
 				int ay = opcode & 7;
 				pc += 4;
 				switch ((opcode >> 3) & 3)
