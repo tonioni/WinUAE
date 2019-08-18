@@ -47,6 +47,9 @@ struct newresource
 	int setparamcnt;
 };
 
+#define MIN_GUI_INTERNAL_WIDTH 512
+#define MIN_GUI_INTERNAL_HEIGHT 400
+
 #define GUI_INTERNAL_WIDTH 800
 #define GUI_INTERNAL_HEIGHT 600
 #define GUI_INTERNAL_FONT 8
@@ -65,10 +68,14 @@ extern int scaleresource_choosefont (HWND hDlg, int fonttype);
 extern void scaleresource_setdefaults (void);
 extern void scalaresource_listview_font_info(int*);
 extern int getscaledfontsize(int size);
-extern bool show_box_art(const TCHAR*);
+extern bool show_box_art(const TCHAR*, const TCHAR*);
 extern void move_box_art_window(void);
 extern void close_box_art_window(void);
 extern LRESULT CALLBACK BoxArtWindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
 extern int max_visible_boxart_images;
 extern int stored_boxart_window_width;
+extern int stored_boxart_window_width_fsgui;
+extern int calculated_boxart_window_width;
+void getextendedframebounds(HWND hwnd, RECT *r);
+void reset_box_art_window(void);
 #endif

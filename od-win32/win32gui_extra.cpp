@@ -415,7 +415,7 @@ static struct newresource *scaleresource2 (struct newresource *res, HWND parent,
 
 	if (resize > 0) {
 		d->style &= ~DS_MODALFRAME;
-		d->style |= WS_THICKFRAME;
+		d->style |= WS_THICKFRAME | WS_MAXIMIZEBOX;
 	} else if (resize == 0) {
 		d->style |= DS_MODALFRAME;
 		d->style &= ~WS_THICKFRAME;
@@ -708,11 +708,14 @@ static int total_images;
 static int imagemode;
 static bool imagemodereset;
 static int lastimage;
-static TCHAR image_path[MAX_DPATH];
+static TCHAR image_path[MAX_DPATH], config_path[MAX_DPATH];
 static int image_coords[MAX_VISIBLE_IMAGES + 1];
 
 int max_visible_boxart_images = MAX_VISIBLE_IMAGES;
 int stored_boxart_window_width = 400;
+int stored_boxart_window_width_fsgui = 33;
+int calculated_boxart_window_width;
+static int stored_boxart_window_height;
 
 static void boxart_init(void)
 {
@@ -731,26 +734,53 @@ typedef HRESULT(CALLBACK* DWMGETWINDOWATTRIBUTE)(HWND hwnd, DWORD dwAttribute, P
 static DWMGETWINDOWATTRIBUTE pDwmGetWindowAttribute;
 static HMODULE dwmapihandle;
 
-static void getpos(RECT *r)
+extern int gui_fullscreen;
+
+void getextendedframebounds(HWND hwnd, RECT *r)
 {
-	RECT r1, r2;
+	r->left = r->right = 0;
+	r->top = r->bottom = 0;
 	if (!pDwmGetWindowAttribute && !dwmapihandle && os_vista) {
 		dwmapihandle = LoadLibrary(_T("dwmapi.dll"));
 		if (dwmapihandle)
 			pDwmGetWindowAttribute = (DWMGETWINDOWATTRIBUTE)GetProcAddress(dwmapihandle, "DwmGetWindowAttribute");
 	}
+	if (pDwmGetWindowAttribute) {
+		pDwmGetWindowAttribute(hwnd, DWMWA_EXTENDED_FRAME_BOUNDS, r, sizeof(RECT));
+	}
+}
+
+static void getpos(RECT *r)
+{
+	RECT r1, r2;
 
 	GetWindowRect(hGUIWnd, &r1);
-	r2 = r1;
 
-	if (pDwmGetWindowAttribute) {
-		pDwmGetWindowAttribute(hGUIWnd, DWMWA_EXTENDED_FRAME_BOUNDS, &r2, sizeof(r2));
+	calculated_boxart_window_width = stored_boxart_window_width;
+	if (gui_fullscreen && stored_boxart_window_width_fsgui >= 10 && stored_boxart_window_width_fsgui <= 90) {
+		calculated_boxart_window_width = (r1.right - r1.left) * stored_boxart_window_width_fsgui / 100;
 	}
+
+	if (gui_fullscreen && (r1.right - r1.left) - calculated_boxart_window_width >= MIN_GUI_INTERNAL_WIDTH) {
+		HMONITOR mon = MonitorFromRect(&r1, MONITOR_DEFAULTTOPRIMARY);
+		MONITORINFO mi;
+		mi.cbSize = sizeof(mi);
+		if (GetMonitorInfo(mon, &mi)) {
+			RECT r = mi.rcWork;
+			if (r1.right + calculated_boxart_window_width > r.right) {
+				r1.right -= calculated_boxart_window_width - (r.right - r1.right);
+				SetWindowPos(hGUIWnd, NULL, r1.left, r1.top, r1.right - r1.left, r1.bottom - r1.top, SWP_NOZORDER | SWP_NOACTIVATE);
+			}
+		}
+	}
+
+	r2 = r1;
+	getextendedframebounds(hGUIWnd, &r2);
 
 	r->left = r1.right - ((r2.left - r1.left) + (r1.right - r2.right));
 	r->top = r1.top;
 	r->bottom = r1.bottom;
-	r->right = r->left + stored_boxart_window_width;
+	r->right = r->left + calculated_boxart_window_width;
 }
 
 void move_box_art_window(void)
@@ -787,13 +817,14 @@ static bool open_box_art_window(void)
 		DWORD exstyle = GetWindowLong(hGUIWnd, GWL_EXSTYLE);
 		DWORD style = GetWindowLong(hGUIWnd, GWL_STYLE);
 
-		style &= ~(WS_VISIBLE);
+		style &= ~(WS_VISIBLE | WS_MINIMIZEBOX | WS_MAXIMIZEBOX);
 
+		stored_boxart_window_height = r.bottom - r.top;
 		boxarthwnd = CreateWindowEx(exstyle | WS_EX_NOACTIVATE,
 			_T("BoxArt"), _T("WinUAE"),
 			style,
 			r.left, r.top,
-			stored_boxart_window_width, r.bottom - r.top,
+			calculated_boxart_window_width, r.bottom - r.top,
 			hGUIWnd, NULL, hInst, NULL);
 		if (boxarthwnd) {
 			RECT r;
@@ -806,6 +837,14 @@ static bool open_box_art_window(void)
 			InsertMenu(menu, -1, MF_BYPOSITION, 1, _T("Open Game Folder"));
 		}
 	} else {
+		GetWindowRect(hGUIWnd, &r);
+		if (stored_boxart_window_height != r.bottom - r.top) {
+			stored_boxart_window_height = r.bottom - r.top;
+			SetWindowPos(boxarthwnd, HWND_TOPMOST, 0, 0, calculated_boxart_window_width, stored_boxart_window_height, SWP_NOACTIVATE | SWP_NOOWNERZORDER | SWP_NOZORDER | SWP_NOMOVE);
+			GetClientRect(boxarthwnd, &r);
+			boxart_window_width = r.right - r.left;
+			boxart_window_height = r.bottom - r.top;
+		}
 		move_box_art_window();
 	}
 
@@ -929,7 +968,7 @@ static void boxartpaint(HDC hdc, HWND hwnd)
 
 extern int full_property_sheet;
 
-bool show_box_art(const TCHAR *path)
+bool show_box_art(const TCHAR *path, const TCHAR *configpath)
 {
 	TCHAR tmp1[MAX_DPATH];
 
@@ -958,8 +997,16 @@ bool show_box_art(const TCHAR *path)
 	if (!open_box_art_window())
 		return false;
 
-	if (path != image_path)
+	if (path != image_path) {
 		_tcscpy(image_path, path);
+		_tcscpy(config_path, configpath);
+	}
+
+	int len = _tcslen(config_path);
+	if (len > 4 && !_tcsicmp(config_path + len - 4, _T(".uae")))
+		config_path[len - 4] = 0;
+	if (_tcslen(config_path) > 0)
+		SetWindowText(boxarthwnd, config_path);
 
 	if (max_visible_boxart_images < 1 || max_visible_boxart_images > 3)
 		max_visible_boxart_images = 2;
@@ -1027,7 +1074,14 @@ static void image_reload(int cnt)
 {
 	max_visible_boxart_images = cnt;
 	regsetint(NULL, _T("ArtImageCount"), max_visible_boxart_images);
-	show_box_art(image_path);
+	show_box_art(image_path, config_path);
+}
+
+void reset_box_art_window(void)
+{
+	if (!image_path[0])
+		return;
+	show_box_art(image_path, config_path);
 }
 
 LRESULT CALLBACK BoxArtWindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
@@ -1131,6 +1185,13 @@ LRESULT CALLBACK BoxArtWindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM
 		case WM_SYSCOMMAND:
 		if (wParam == 1) {
 			ShellExecute(NULL, _T("explore"), image_path, NULL, NULL, SW_SHOWNORMAL);
+			return FALSE;
+		}
+		break;
+		case  WM_DPICHANGED:
+		{
+			RECT *const r = (RECT *)lParam;
+			SetWindowPos(hWnd, NULL, r->left, r->top, r->right - r->left, r->bottom - r->top, SWP_NOZORDER | SWP_NOACTIVATE);
 			return FALSE;
 		}
 		break;

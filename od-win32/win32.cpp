@@ -5528,6 +5528,11 @@ static void WIN32_HandleRegistryStuff (void)
 	else
 		regsetint(NULL, _T("ArtImageWidth"), stored_boxart_window_width);
 
+	if (regexists(NULL, _T("ArtImageWidthFS")))
+		regqueryint(NULL, _T("ArtImageWidthFS"), &stored_boxart_window_width_fsgui);
+	else
+		regsetint(NULL, _T("ArtImageWidthFS"), stored_boxart_window_width_fsgui);
+
 	if (regexists (NULL, _T("SaveImageOriginalPath")))
 		regqueryint (NULL, _T("SaveImageOriginalPath"), &saveimageoriginalpath);
 	else

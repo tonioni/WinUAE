@@ -913,10 +913,6 @@ static void modesList (struct MultiDisplay *md)
 	}
 }
 
-#ifndef ABM_GETAUTOHIDEBAREX
-#define ABM_GETAUTOHIDEBAREX 0x0000000b
-#endif
-
 static void adjustappbar(RECT *monitor, RECT *workrect)
 {
 	if (!os_vista)
@@ -3543,15 +3539,7 @@ static void movecursor (int x, int y)
 
 static void getextramonitorpos(struct AmigaMonitor *mon, RECT *r)
 {
-	typedef HRESULT(CALLBACK* DWMGETWINDOWATTRIBUTE)(HWND hwnd, DWORD dwAttribute, PVOID pvAttribute, DWORD cbAttribute);
-	static DWMGETWINDOWATTRIBUTE pDwmGetWindowAttribute;
-
 	RECT r1, r2;
-	if (!pDwmGetWindowAttribute && os_vista) {
-		HMODULE dwmapihandle = GetModuleHandle(_T("dwmapi.dll"));
-		if (dwmapihandle)
-			pDwmGetWindowAttribute = (DWMGETWINDOWATTRIBUTE)GetProcAddress(dwmapihandle, "DwmGetWindowAttribute");
-	}
 
 	// find rightmost window edge
 	int monid = MAX_AMIGAMONITORS - 1;
@@ -3577,9 +3565,7 @@ static void getextramonitorpos(struct AmigaMonitor *mon, RECT *r)
 	GetWindowRect(hwnd, &r1);
 	r2 = r1;
 
-	if (pDwmGetWindowAttribute) {
-		pDwmGetWindowAttribute(hwnd, DWMWA_EXTENDED_FRAME_BOUNDS, &r2, sizeof(r2));
-	}
+	getextendedframebounds(hwnd, &r2);
 	int width = r->right - r->left;
 	int height = r->bottom - r->top;
 

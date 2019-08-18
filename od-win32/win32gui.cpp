@@ -102,13 +102,12 @@
 #include "gayle.h"
 
 #define GUI_SCALE_DEFAULT 100
-#define MIN_GUI_INTERNAL_WIDTH 512
-#define MIN_GUI_INTERNAL_HEIGHT 400
+
 
 #define ARCHIVE_STRING _T("*.zip;*.7z;*.rar;*.lha;*.lzh;*.lzx")
 
 #define DISK_FORMAT_STRING _T("(*.adf;*.adz;*.gz;*.dms;*.ipf;*.scp;*.fdi;*.exe)\0*.adf;*.adz;*.gz;*.dms;*.ipf;*.scp;*.fdi;*.exe;*.ima;*.wrp;*.dsq;*.st;*.raw;") ARCHIVE_STRING _T("\0")
-#define ROM_FORMAT_STRING _T("(*.rom;*.roz;*.a500;*.a600;*.a1200;*.a4000)\0*.rom;*.roz;*.a500;*.a600;*.a1200;*.a4000;") ARCHIVE_STRING _T("\0")
+#define ROM_FORMAT_STRING _T("(*.rom;*.roz;*.bin;*.a500;*.a600;*.a1200;*.a4000)\0*.rom;*.roz;*.bin;*.a500;*.a600;*.a1200;*.a4000;") ARCHIVE_STRING _T("\0")
 #define USS_FORMAT_STRING_RESTORE _T("(*.uss)\0*.uss;*.gz;") ARCHIVE_STRING _T("\0")
 #define USS_FORMAT_STRING_SAVE _T("(*.uss)\0*.uss\0")
 #define HDF_FORMAT_STRING _T("(*.hdf;*.vhd;*.rdf;*.hdz;*.rdz;*.chd)\0*.hdf;*.vhd;*.rdf;*.hdz;*.rdz;*.chd\0")
@@ -368,6 +367,14 @@ static int gui_get_string_cursor(int *table, HWND hDlg, int item)
 	return table[posn];
 }
 
+static void commonproc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
+{
+	if (msg == WM_DPICHANGED) {
+		RECT *const r = (RECT *)lParam;
+		SetWindowPos(hDlg, NULL, r->left, r->top, r->right - r->left, r->bottom - r->top, SWP_NOZORDER | SWP_NOACTIVATE);
+	}
+}
+
 static int stringboxdialogactive;
 static INT_PTR CALLBACK StringBoxDialogProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
@@ -396,6 +403,7 @@ static INT_PTR CALLBACK StringBoxDialogProc (HWND hDlg, UINT msg, WPARAM wParam,
 		}
 		break;
 	}
+	commonproc(hDlg, msg, wParam, lParam);
 	return FALSE;
 }
 
@@ -1730,6 +1738,7 @@ static INT_PTR CALLBACK InfoBoxDialogProc (HWND hDlg, UINT msg, WPARAM wParam, L
 		}
 		break;
 	}
+	commonproc(hDlg, msg, wParam, lParam);
 	return FALSE;
 }
 static bool scan_rom_hook (const TCHAR *name, int line)
@@ -2184,13 +2193,13 @@ end:
 	return ret;
 }
 
-static void box_art_check(struct uae_prefs *p)
+static void box_art_check(struct uae_prefs *p, const TCHAR *config)
 {
 	TCHAR tmp1[MAX_DPATH];
 	if (cfgfile_detect_art(p, tmp1)) {
-		show_box_art(tmp1);
+		show_box_art(tmp1, config);
 	} else {
-		show_box_art(NULL);
+		show_box_art(NULL, NULL);
 	}
 }
 
@@ -2259,6 +2268,7 @@ int target_cfgfile_load (struct uae_prefs *p, const TCHAR *filename, int type, i
 	TCHAR tmp1[MAX_DPATH], tmp2[MAX_DPATH];
 	TCHAR fname[MAX_DPATH], cname[MAX_DPATH];
 
+	error_log(NULL);
 	_tcscpy (fname, filename);
 	cname[0] = 0;
 	if (!zfile_exists (fname)) {
@@ -2306,7 +2316,7 @@ int target_cfgfile_load (struct uae_prefs *p, const TCHAR *filename, int type, i
 		return v;
 	if (cname[0])
 		_tcscpy(config_filename, cname);
-	box_art_check(p);
+	box_art_check(p, fname);
 	for (i = 1; i <= 2; i++) {
 		if (type != i) {
 			size = sizeof (ct);
@@ -2328,7 +2338,8 @@ int target_cfgfile_load (struct uae_prefs *p, const TCHAR *filename, int type, i
 }
 
 static int gui_width, gui_height;
-static int gui_fullscreen;
+int gui_fullscreen;
+static RECT gui_fullscreen_rect;
 static bool gui_resize_enabled;
 static bool gui_resize_allowed;
 
@@ -5721,6 +5732,7 @@ static INT_PTR CALLBACK InfoSettingsProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 		recursive--;
 		break;
 	}
+	commonproc(hDlg, msg, wParam, lParam);
 	return FALSE;
 }
 
@@ -5940,7 +5952,11 @@ static void InitializeConfig (HWND hDlg, struct ConfigStruct *config)
 	} else {
 		SetDlgItemText (hDlg, IDC_EDITDESCRIPTION, config->Description);
 	}
-	show_box_art(config && config->Artpath[0] ? config->Artpath : NULL);
+	if (config && config->Artpath[0]) {
+		show_box_art(config->Artpath, config->Name);
+	} else {
+		show_box_art(NULL, NULL);
+	}
 }
 
 static void DeleteConfigTree (HWND hDlg)
@@ -6209,7 +6225,11 @@ static INT_PTR CALLBACK LoadSaveDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPA
 
 	case WM_USER + 1:
 		if (config) {
-			show_box_art(config && config->Artpath[0] ? config->Artpath : NULL);
+			if (config->Artpath[0]) {
+				show_box_art(config->Artpath, config->Name);
+			} else {
+				show_box_art(NULL, NULL);
+			}
 		}
 		break;
 
@@ -6329,6 +6349,7 @@ static INT_PTR CALLBACK ErrorLogProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 		SendDlgItemMessage (hDlg, IDC_ERRORLOGMESSAGE, EM_SETCHARFORMAT, SCF_ALL, (LPARAM) & CharFormat);
 		return TRUE;
 	}
+	commonproc(hDlg, msg, wParam, lParam);
 	return FALSE;
 }
 
@@ -6362,6 +6383,7 @@ static INT_PTR CALLBACK ContributorsProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 		SendDlgItemMessage (hDlg, IDC_CONTRIBUTORS, EM_SETCHARFORMAT, SCF_ALL, (LPARAM) & CharFormat);
 		return TRUE;
 	}
+	commonproc(hDlg, msg, wParam, lParam);
 	return FALSE;
 }
 
@@ -12324,10 +12346,7 @@ static INT_PTR MiscDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 			gui_fullscreen = ischecked (hDlg, IDC_GUI_FULLSCREEN);
 			if (!gui_fullscreen) {
 				gui_fullscreen = -1;
-				gui_resize_enabled = false;
 				getstoredguisize();
-			} else {
-				gui_resize_enabled = true;
 			}
 			gui_size_changed = 10;
 		break;
@@ -13649,6 +13668,7 @@ static INT_PTR CALLBACK VolumeSettingsProc (HWND hDlg, UINT msg, WPARAM wParam, 
 		recursive--;
 		break;
 	}
+	commonproc(hDlg, msg, wParam, lParam);
 	return FALSE;
 }
 
@@ -14219,6 +14239,7 @@ static INT_PTR CALLBACK TapeDriveSettingsProc (HWND hDlg, UINT msg, WPARAM wPara
 		recursive--;
 		break;
 	}
+	commonproc(hDlg, msg, wParam, lParam);
 	return FALSE;
 }
 
@@ -14280,6 +14301,7 @@ static INT_PTR CALLBACK CDDriveSettingsProc (HWND hDlg, UINT msg, WPARAM wParam,
 		recursive--;
 		break;
 	}
+	commonproc(hDlg, msg, wParam, lParam);
 	return FALSE;
 }
 
@@ -14580,6 +14602,7 @@ static INT_PTR CALLBACK HardfileSettingsProc (HWND hDlg, UINT msg, WPARAM wParam
 
 		break;
 	}
+	commonproc(hDlg, msg, wParam, lParam);
 	return FALSE;
 }
 
@@ -14818,6 +14841,7 @@ static INT_PTR CALLBACK HarddriveSettingsProc (HWND hDlg, UINT msg, WPARAM wPara
 		recursive--;
 		break;
 	}
+	commonproc(hDlg, msg, wParam, lParam);
 	return FALSE;
 }
 
@@ -18324,6 +18348,7 @@ static INT_PTR CALLBACK InputMapDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPA
 	break;
 	}
 	handlerawinput (hDlg, msg, wParam, lParam);
+	commonproc(hDlg, msg, wParam, lParam);
 	return FALSE;
 }
 
@@ -18581,6 +18606,7 @@ static INT_PTR CALLBACK QualifierProc (HWND hDlg, UINT msg, WPARAM wParam, LPARA
 		recursive--;
 		break;
 	}
+	commonproc(hDlg, msg, wParam, lParam);
 	return FALSE;
 }
 
@@ -20435,7 +20461,6 @@ static HWND updatePanel (int id, UINT action)
 	HWND hDlg = guiDlg;
 	static HWND hwndTT;
 	static bool first = true;
-	int w, h, x , y, i, pw, ph;
 	int fullpanel;
 	struct newresource *tres;
 
@@ -20470,7 +20495,7 @@ static HWND updatePanel (int id, UINT action)
 		DestroyWindow (ToolTipHWND);
 		ToolTipHWND = NULL;
 	}
-	for (i = 0; ToolTipHWNDS2[i].hwnd; i++) {
+	for (int i = 0; ToolTipHWNDS2[i].hwnd; i++) {
 		DestroyWindow (ToolTipHWNDS2[i].hwnd);
 		ToolTipHWNDS2[i].hwnd = NULL;
 	}
@@ -20711,7 +20736,8 @@ static void centerWindow (HWND hDlg)
 		owner = GetDesktopWindow ();
 
 	if (gui_fullscreen) {
-		x = y = 0;
+		x = gui_fullscreen_rect.left;
+		y = gui_fullscreen_rect.top;
 	} else {
 		if (isfullscreen () == 0) {
 			regqueryint (NULL, _T("GUIPosX"), &x);
@@ -21070,10 +21096,6 @@ int dragdrop (HWND hDlg, HDROP hd, struct uae_prefs *prefs, int	currentpage)
 	return ret;
 }
 
-#ifndef WM_DPICHANGED
-#define WM_DPICHANGED       0x02E0
-#endif
-
 static int dialogreturn;
 static int devicechangetimer = -1;
 static INT_PTR CALLBACK DialogProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
@@ -21085,7 +21107,7 @@ static INT_PTR CALLBACK DialogProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 	{
 	case  WM_DPICHANGED:
 	{
-		if (!gui_size_changed && hGUIWnd != NULL) {
+		if (!gui_size_changed && hGUIWnd) {
 			int dx = LOWORD(wParam);
 			int dy = HIWORD(wParam);
 			RECT *const r = (RECT*)lParam;
@@ -21107,9 +21129,18 @@ static INT_PTR CALLBACK DialogProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 	case WM_MOVE:
 		move_box_art_window();
 		return TRUE;
+	case WM_SIZE:
+		if (!gui_size_changed && hGUIWnd && (wParam == SIZE_MAXIMIZED || wParam == SIZE_RESTORED)) {
+			getguisize(hDlg, &gui_width, &gui_height);
+			oldwidth = gui_width;
+			oldheight = gui_height;
+			saveguisize();
+			gui_size_changed = 1;
+			return 0;
+		}
+		break;
 	case WM_SIZING:
 	{
-		close_box_art_window();
 		if (!recursive && gui_resize_enabled) {
 			RECT *r = (RECT*)lParam;
 			if (r->right - r->left < MIN_GUI_INTERNAL_WIDTH)
@@ -21186,7 +21217,7 @@ static INT_PTR CALLBACK DialogProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 		devicechangetimer = 0;
 		addnotifications (hDlg, TRUE, TRUE);
 		updatePanel (-1, 0);
-		show_box_art(NULL);
+		show_box_art(NULL, NULL);
 		DestroyWindow(hDlg);
 		if (dialogreturn < 0) {
 			dialogreturn = 0;
@@ -21567,6 +21598,7 @@ static int GetSettings (int all_options, HWND hwnd)
 	}
 
 	int fmultx = 0, fmulty = 0;
+	bool boxart_reopen = false;
 	setdefaultguisize();
 	getstoredguisize();
 	scaleresource_setsize(-1, -1, -1);
@@ -21612,6 +21644,7 @@ static int GetSettings (int all_options, HWND hwnd)
 		if (first)
 			write_log (_T("Entering GUI idle loop\n"));
 
+		memset(&gui_fullscreen_rect, 0, sizeof(RECT));
 		if (gui_fullscreen) {
 			gui_width = GetSystemMetrics(SM_CXSCREEN);
 			gui_height = GetSystemMetrics(SM_CYSCREEN);
@@ -21631,6 +21664,24 @@ static int GetSettings (int all_options, HWND hwnd)
 					gui_width = w;
 					gui_height = h;
 					write_log(_T("GUI Fullscreen %dx%d\n"), gui_width, gui_height);
+				}
+			} else {
+				int x = 0, y = 0, w = 0, h = 0;
+				regqueryint(NULL, _T("GUIPosX"), &x);
+				regqueryint(NULL, _T("GUIPosY"), &y);
+				regqueryint(NULL, _T("GUISizeX"), &w);
+				regqueryint(NULL, _T("GUISizeY"), &h);
+				POINT pt;
+				pt.x = x + w / 2;
+				pt.y = y + h / 2;
+				HMONITOR mon = MonitorFromPoint(pt, MONITOR_DEFAULTTOPRIMARY);
+				MONITORINFO mi;
+				mi.cbSize = sizeof(mi);
+				if (GetMonitorInfo(mon, &mi)) {
+					RECT *r = &mi.rcWork;
+					gui_fullscreen_rect = *r;
+					gui_width = r->right - r->left;
+					gui_height = r->bottom - r->top;
 				}
 			}
 			scaleresource_setsize(gui_width, gui_height, 1);
@@ -21659,7 +21710,7 @@ static int GetSettings (int all_options, HWND hwnd)
 		panelresource->width = gui_width;
 		panelresource->height = gui_height;
 		freescaleresource(tres);
-		tres = scaleresource (panelresource, &maindctx, hwnd, gui_resize_enabled, gui_fullscreen, workprefs.win32_gui_alwaysontop || workprefs.win32_main_alwaysontop ? WS_EX_TOPMOST : 0, 0);
+		tres = scaleresource (panelresource, &maindctx, hwnd, gui_resize_enabled && gui_resize_allowed, gui_fullscreen, workprefs.win32_gui_alwaysontop || workprefs.win32_main_alwaysontop ? WS_EX_TOPMOST : 0, 0);
 		HWND phwnd = hwnd;
 		if (isfullscreen() == 0)
 			phwnd = 0;
@@ -21676,8 +21727,6 @@ static int GetSettings (int all_options, HWND hwnd)
 			MSG msg;
 			DWORD v;
 			int w, h;
-
-			//rescaleresource(dhwnd);
 
 			getguisize (dhwnd, &w, &h);
 			write_log (_T("Got GUI size = %dx%d\n"), w, h);
@@ -21704,6 +21753,11 @@ static int GetSettings (int all_options, HWND hwnd)
 			if (currentpage == LOADSAVE_ID) {
 				// update boxart
 				SendMessage(pages[LOADSAVE_ID], WM_USER + 1, 0, 0);
+				boxart_reopen = false;
+			}
+			if (boxart_reopen) {
+				reset_box_art_window();
+				boxart_reopen = false;
 			}
 			if (devicechangetimer < 0)
 				SetTimer(dhwnd, 4, 2000, NULL);
@@ -21758,6 +21812,10 @@ static int GetSettings (int all_options, HWND hwnd)
 						scaleresource_setsize(gui_width, gui_height, 0);
 						rescaleresource(tres, &maindctx, dhwnd, panelDlg);
 						gui_size_changed = 0;
+						reset_box_art_window();
+					} else {
+						close_box_art_window();
+						boxart_reopen = true;
 					}
 				}
 				if (gui_size_changed >= 10) {
