@@ -62,6 +62,16 @@ _allocate_absolute:
 _get_cpu_model:
 	move.l 4.w,a0
 	move.w 0x128(a0),d1
+	cmp.w #15,d1
+	bne.s .cpucheck2
+	| 68040 but could be also 68060
+	movem.l a5/a6,-(sp)
+	move.l a0,a6
+	lea scpucheck(pc),a5
+	jsr -0x1e(a6)
+	movem.l (sp)+,a5/a6
+	bra.s .cpudone2
+.cpucheck2:	
 	moveq #5,d0
 	tst.b d1
 	bmi.s .cpudone2
@@ -75,3 +85,19 @@ _get_cpu_model:
 .cpudone2:
 	rts
 
+scpucheck:
+	or.w #0x0700,sr
+	movec vbr,a0
+	move.l 0x10(a0),d1
+	lea illg(pc),a1
+	move.l a1,0x10(a0)
+	move.l sp,a1
+	moveq #4,d0
+.arch 68060
+	movec pcr,d0
+.arch 68020
+	moveq #5,d0
+illg:
+	move.l d1,0x10(a0)
+	move.l a1,sp
+	rte

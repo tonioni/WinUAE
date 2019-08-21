@@ -1351,7 +1351,7 @@ static void process_test(uae_u8 *p)
 
 						if (cpu_lvl == 1) {
 							execute_test010(&test_regs);
-						} else if (cpu_lvl == 2) {
+						} else if (cpu_lvl >= 2) {
 							if (fpu_model)
 								execute_testfpu(&test_regs);
 							else
@@ -1463,7 +1463,8 @@ static int test_mnemo(const char *path, const char *opcode)
 	fread(data, 1, 4, f);
 	opcode_memory_addr = gl(data) + test_memory_addr;
 	fread(data, 1, 4, f);
-	lvl = gl(data) >> 16;
+	lvl = (gl(data) >> 16) & 15;
+	addressing_mask = (gl(data) & 0x80000000) ? 0xffffffff : 0x00ffffff;
 	sr_undefined_mask = gl(data);
 	fread(data, 1, 4, f);
 	fpu_model = gl(data);
@@ -1516,6 +1517,7 @@ static int test_mnemo(const char *path, const char *opcode)
 		exit(0);
 	}
 
+	printf("CPUlvl=%d, Mask=%08lx\n", cpu_lvl, addressing_mask);
 	printf("%s:\n", inst_name);
 
 	testcnt = 0;
@@ -1535,7 +1537,7 @@ static int test_mnemo(const char *path, const char *opcode)
 		fread(data, 1, 4, f);
 		if (gl(data) != starttimeid) {
 			printf("Test data file header mismatch (old test data file?)\n");
-			goto next;
+			break;
 		}
 		fseek(f, 0, SEEK_END);
 		test_data_size = ftell(f);
@@ -1564,7 +1566,6 @@ static int test_mnemo(const char *path, const char *opcode)
 			break;
 
 		free(test_data);
-next:
 		filecnt++;
 	}
 
@@ -1626,10 +1627,9 @@ int main(int argc, char *argv[])
 	if (lvl == 3) {
 		lvl = 2;
 	} else if (lvl == 5) {
-		lvl = 4;
 #ifdef M68K
 		// Overwrite MOVEC to/from MSP
-		// with NOP if 68060
+		// with NOPs if 68060
 		extern void *msp_address1;
 		extern void *msp_address2;
 		extern void *msp_address3;
@@ -1651,7 +1651,7 @@ int main(int argc, char *argv[])
 		return 0;
 	}
 
-	sprintf(path + strlen(path), "%lu/", 68000 + lvl * 10);
+	sprintf(path + strlen(path), "%lu/", 68000 + (lvl == 5 ? 6 : lvl) * 10);
 
 	strcpy(opcode, argv[1]);
 

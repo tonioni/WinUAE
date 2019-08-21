@@ -28,7 +28,9 @@ extern const int imm8_table[];
 extern const struct cputbl op_smalltbl_90_test_ff[];
 extern const struct cputbl op_smalltbl_91_test_ff[];
 extern const struct cputbl op_smalltbl_92_test_ff[];
+extern const struct cputbl op_smalltbl_93_test_ff[];
 extern const struct cputbl op_smalltbl_94_test_ff[];
+extern const struct cputbl op_smalltbl_95_test_ff[];
 
 extern struct flag_struct regflags;
 
@@ -37,6 +39,7 @@ extern int movem_index2[256];
 extern int movem_next[256];
 
 uae_u16 get_word_test_prefetch(int);
+uae_u16 get_wordi_test(uaecptr);
 
 void put_byte_test(uaecptr, uae_u32);
 void put_word_test(uaecptr, uae_u32);

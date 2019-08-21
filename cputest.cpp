@@ -63,7 +63,7 @@ static int feature_test_rounds = 2;
 static uae_u32 feature_addressing_modes[2];
 static int ad8r[2], pc8r[2];
 
-#define HIGH_MEMORY_START (0x01000000 - 0x8000)
+#define HIGH_MEMORY_START (addressing_mask == 0xffffffff ? 0xffff8000 : 0x00ff8000)
 
 // large enough for RTD
 #define STACK_SIZE (0x8000 + 8)
@@ -151,7 +151,7 @@ static bool valid_address(uaecptr addr, int size, int w)
 		low_memory_accessed = w ? -1 : 1;
 		return 1;
 	}
-	if (addr >= HIGH_MEMORY_START && addr < HIGH_MEMORY_START + 0x8000) {
+	if (addr >= HIGH_MEMORY_START && addr <= HIGH_MEMORY_START + 0x7fff) {
 		if (addr < test_high_memory_start || test_high_memory_start == 0xffffffff)
 			goto oob;
 		if (addr + size >= test_high_memory_end)
@@ -178,6 +178,15 @@ oob:
 	return 0;
 }
 
+static void validate_addr(uaecptr addr, int size)
+{
+	if (valid_address(addr, size, 0))
+		return;
+	wprintf(_T("Trying to store invalid memory address %08x!?\n"), addr);
+	abort();
+}
+
+
 static uae_u8 *get_addr(uaecptr addr, int size, int w)
 {
 	// allow debug output to read memory even if oob condition
@@ -193,7 +202,7 @@ static uae_u8 *get_addr(uaecptr addr, int size, int w)
 	size--;
 	if (addr + size < low_memory_size) {
 		return low_memory + addr;
-	} else if (addr >= HIGH_MEMORY_START && addr < HIGH_MEMORY_START + 0x8000) {
+	} else if (addr >= HIGH_MEMORY_START && addr <= HIGH_MEMORY_START + 0x7fff) {
 		return high_memory + (addr - HIGH_MEMORY_START);
 	} else if (addr >= test_memory_start && addr + size < test_memory_end + EXTRA_RESERVED_SPACE) {
 		return test_memory + (addr - test_memory_start);
@@ -429,6 +438,11 @@ void dfc_nommu_put_long(uaecptr addr, uae_u32 v)
 	put_long_test(addr, v);
 }
 
+uae_u16 get_wordi_test(uaecptr addr)
+{
+	return get_word_test(addr);
+}
+
 uae_u32 memory_get_byte(uaecptr addr)
 {
 	return get_byte_test(addr);
@@ -481,6 +495,13 @@ uae_u32 next_ilong_test(void)
 	v |= get_word_test_prefetch(2);
 	regs.pc += 4;
 	return v;
+}
+
+bool mmu_op30(uaecptr pc, uae_u32 opcode, uae_u16 extra, uaecptr extraa)
+{
+	m68k_setpc(pc);
+	op_illg(opcode);
+	return true;
 }
 
 uae_u32(*x_get_long)(uaecptr);
@@ -699,12 +720,20 @@ static void doexcstack(void)
 		} else {
 			Exception_build_stack_frame_common(regs.instruction_pc, regs.pc, 0, test_exception);
 		}
-	} else if (cpu_lvl == 2) {
+	} else if (cpu_lvl == 2 || cpu_lvl == 3) {
 		if (test_exception == 3) {
 			uae_u16 ssw = (sv ? 4 : 0) | test_exception_3_fc;
 			ssw |= 0x20;
 			regs.mmu_fault_addr = test_exception_addr;
 			Exception_build_stack_frame(regs.instruction_pc, regs.pc, ssw, 3, 0x0b);
+		} else {
+			Exception_build_stack_frame_common(regs.instruction_pc, regs.pc, 0, test_exception);
+		}
+	} else {
+		if (test_exception == 3) {
+			if (currprefs.cpu_model == 68060)
+				test_exception_addr &= ~1;
+			Exception_build_stack_frame(test_exception_addr, regs.pc, 0, 3, 0x02);
 		} else {
 			Exception_build_stack_frame_common(regs.instruction_pc, regs.pc, 0, test_exception);
 		}
@@ -942,8 +971,6 @@ static void save_memory(const TCHAR *path, const TCHAR *name, uae_u8 *p, int siz
 	fclose(f);
 }
 
-
-
 static uae_u8 *store_rel(uae_u8 *dst, uae_u8 mode, uae_u32 s, uae_u32 d, int ordered)
 {
 	int diff = (uae_s32)d - (uae_s32)s;
@@ -964,7 +991,7 @@ static uae_u8 *store_rel(uae_u8 *dst, uae_u8 mode, uae_u32 s, uae_u32 d, int ord
 		*dst++ = mode | CT_ABSOLUTE_WORD;
 		*dst++ = (d >> 8) & 0xff;
 		*dst++ = d & 0xff;
-	} else if ((d & ~addressing_mask) == ~addressing_mask && (d & addressing_mask) >= HIGH_MEMORY_START) {
+	} else if ((d & ~addressing_mask) == ~addressing_mask && (d & addressing_mask) >= (HIGH_MEMORY_START & addressing_mask)) {
 		*dst++ = mode | CT_ABSOLUTE_WORD;
 		*dst++ = (d >> 8) & 0xff;
 		*dst++ = d & 0xff;
@@ -1065,6 +1092,7 @@ static uae_u8 *store_mem(uae_u8 *dst, int storealways)
 		struct accesshistory *ah = &ahist[i];
 		if (ah->oldval == ah->val && !storealways)
  			continue;
+		validate_addr(ah->addr, 1 << ah->size);
 		uaecptr addr = ah->addr;
 		addr &= addressing_mask;
  		if (addr < 0x8000) {
@@ -1172,7 +1200,7 @@ static void save_data(uae_u8 *dst, const TCHAR *dir)
 		fwrite(data, 1, 4, f);
 		pl(data, opcode_memory_start - test_memory_start);
 		fwrite(data, 1, 4, f);
-		pl(data, (cpu_lvl << 16) | sr_undefined_mask);
+		pl(data, (cpu_lvl << 16) | sr_undefined_mask | (addressing_mask == 0xffffffff ? 0x80000000 : 0));
 		fwrite(data, 1, 4, f);
 		pl(data, currprefs.fpu_model);
 		fwrite(data, 1, 4, f);
@@ -1622,9 +1650,9 @@ static void execute_ins(uae_u16 opc, uaecptr endpc, uaecptr targetpc, struct ins
 {
 	uae_u16 opw1 = (opcode_memory[2] << 8) | (opcode_memory[3] << 0);
 	uae_u16 opw2 = (opcode_memory[4] << 8) | (opcode_memory[5] << 0);
-	if (opc == 0xf601
-//		&& opw1 == 0x0000
-//		&& opw2 == 0x9908
+	if (opc == 0xf603
+		&& opw1 == 0x6884
+		&& opw2 == 0x618d
 		)
 		printf("");
 	if (regs.sr & 0x2000)
@@ -1760,6 +1788,18 @@ static int isunsupported(struct instr *dp)
 	case i_MOVEC2:
 	case i_FSAVE:
 	case i_FRESTORE:
+	case i_PFLUSH:
+	case i_PFLUSHA:
+	case i_PFLUSHAN:
+	case i_PFLUSHN:
+	case i_PTESTR:
+	case i_PTESTW:
+	case i_CPUSHA:
+	case i_CPUSHL:
+	case i_CPUSHP:
+	case i_CINVA:
+	case i_CINVL:
+	case i_CINVP:
 		return 1;
 	case i_RTE:
 		if (cpu_lvl > 0)
@@ -2092,7 +2132,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, int opcodesize, in
 					out_of_test_space = 0;
 					ahcnt = 0;
 
-					if (opc == 0xf620)
+					if (opc == 0x0156)
 						printf("");
 					if (subtest_count == 1537)
 						printf("");
@@ -2679,7 +2719,8 @@ int __cdecl main(int argc, char *argv[])
 
 	currprefs.cpu_model = 68000;
 	ini_getval(ini, INISECTION, _T("cpu"), &currprefs.cpu_model);
-	if (currprefs.cpu_model != 68000 && currprefs.cpu_model != 68010 && currprefs.cpu_model != 68020 && currprefs.cpu_model != 68040) {
+	if (currprefs.cpu_model != 68000 && currprefs.cpu_model != 68010 && currprefs.cpu_model != 68020 &&
+		currprefs.cpu_model != 68030 && currprefs.cpu_model != 68040 && currprefs.cpu_model != 68060) {
 		wprintf(_T("Unsupported CPU model.\n"));
 		return 0;
 	}
@@ -2726,7 +2767,7 @@ int __cdecl main(int argc, char *argv[])
 	}
 
 	feature_full_extension_format = 0;
-	if (currprefs.cpu_model > 68000) {
+	if (currprefs.cpu_model >= 68020) {
 		ini_getval(ini, INISECTION, _T("feature_full_extension_format"), &feature_full_extension_format);
 		if (feature_full_extension_format) {
 			ad8r[0] |= 2;
@@ -2908,9 +2949,15 @@ int __cdecl main(int argc, char *argv[])
 	} else if (currprefs.cpu_model == 68020) {
 		tbl = op_smalltbl_92_test_ff;
 		cpu_lvl = 2;
-	} else if (currprefs.cpu_model == 68040) {
+	} else if (currprefs.cpu_model == 68030) {
+		tbl = op_smalltbl_93_test_ff;
+		cpu_lvl = 3;
+	} else if (currprefs.cpu_model == 68040 ) {
 		tbl = op_smalltbl_94_test_ff;
 		cpu_lvl = 4;
+	} else if (currprefs.cpu_model == 68060) {
+		tbl = op_smalltbl_95_test_ff;
+		cpu_lvl = 5;
 	} else {
 		wprintf(_T("Unsupported CPU model.\n"));
 		abort();
@@ -2929,12 +2976,39 @@ int __cdecl main(int argc, char *argv[])
 		cpudatatbl[opcode].branch = tbl[i].branch;
 	}
 
+	currprefs.int_no_unimplemented = true;
+	currprefs.fpu_no_unimplemented = true;
+
 	for (int opcode = 0; opcode < 65536; opcode++) {
 		cpuop_func *f;
 		instr *table = &table68k[opcode];
 
 		if (table->mnemo == i_ILLG)
 			continue;
+
+		/* unimplemented opcode? */
+		if (table->unimpclev > 0 && cpu_lvl >= table->unimpclev) {
+			if (currprefs.cpu_model == 68060) {
+				// remove unimplemented integer instructions
+				// unimpclev == 5: not implemented in 68060,
+				// generates unimplemented instruction exception.
+				if (currprefs.int_no_unimplemented && table->unimpclev == 5) {
+					cpufunctbl[opcode] = op_unimpl_1;
+					continue;
+				}
+				// remove unimplemented instruction that were removed in previous models,
+				// generates normal illegal instruction exception.
+				// unimplclev < 5: instruction was removed in 68040 or previous model.
+				// clev=4: implemented in 68040 or later. unimpclev=5: not in 68060
+				if (table->unimpclev < 5 || (table->clev == 4 && table->unimpclev == 5)) {
+					cpufunctbl[opcode] = op_illg_1;
+					continue;
+				}
+			} else {
+				cpufunctbl[opcode] = op_illg_1;
+				continue;
+			}
+		}
 
 		if (table->clev > cpu_lvl) {
 			continue;

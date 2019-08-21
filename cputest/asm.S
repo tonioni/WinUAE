@@ -51,12 +51,14 @@ _setcpu:
 	moveq #0,d0
 	cmp.w #4,d1
 	bcc.s .scend1b
+	| 68020-68030 only
 	movec caar,d0
 .scend1b:
 	move.l d0,(a0)+
 	moveq #0,d0
 	cmp.w #5,d1
 	bcc.s .scend1c
+	| 68020-68040 only
 	movec msp,d0
 .scend1c:
 	move.l d0,(a0)+
@@ -76,11 +78,13 @@ _setcpu:
 	move.l (a1)+,d0
 	cmp.w #4,d1
 	bcc.s .scend2b
+	| 68020-68030 only
 	movec d0,caar
 .scend2b:
 	move.l (a1)+,d0
 	cmp.w #5,d1
 	bcc.s .scend2
+	| 68020-68040 only
 	move.c d0,msp
 .scend2:
 	rts
@@ -125,12 +129,6 @@ _execute_test000:
 	move.l S_AREG+7*4(a0),a1
 	move.l a1,USP
 	movem.l (a0),d0-d7/a0-a6
-	
-	| cmp.l #0x,0x7a0000
-	| bne.s .not
-	| clr.w 0x100
-|.not:
-	
 	rte
 
 	| 68010+ test entrypoint

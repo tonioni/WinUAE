@@ -4328,7 +4328,10 @@ static void gen_opcode (unsigned int opcode)
 			printf ("\tm68k_areg (regs, 7) += offs;\n");
 		}
 	    printf ("\tif (pc & 1) {\n");
-	    printf ("\t\texception3i (0x%04X, pc);\n", opcode);
+		if (cpu_level >= 4) {
+			printf("\t\tm68k_areg(regs, 7) -= 4 + offs;\n");
+		}
+		printf ("\t\texception3i (0x%04X, pc);\n", opcode);
 		printf ("\t\tgoto %s;\n", endlabelstr);
 		printf ("\t}\n");
 		setpc ("pc");
@@ -4338,6 +4341,10 @@ static void gen_opcode (unsigned int opcode)
 		fill_prefetch_full ();
 	    need_endlabel = 1;
 		branch_inst = 1;
+		if (cpu_level >= 4) {
+			if (next_cpu_level < 4)
+				next_cpu_level = 4 - 1;
+		}
 		break;
 	case i_LINK:
 		// ce confirmed
@@ -4409,6 +4416,9 @@ static void gen_opcode (unsigned int opcode)
 	    printf ("\tif (%s & 1) {\n", getpc);
 		printf ("\t\tuaecptr faultpc = %s;\n", getpc);
 		setpc ("pc");
+		if (cpu_level >= 4) {
+			printf("\t\tm68k_areg(regs, 7) -= 4;\n");
+		}
 		printf ("\t\texception3i (0x%04X, faultpc);\n", opcode);
 		printf ("\t\tgoto %s;\n", endlabelstr);
 		printf ("\t}\n");
@@ -4417,6 +4427,10 @@ static void gen_opcode (unsigned int opcode)
 		fill_prefetch_full ();
 	    need_endlabel = 1;
 		branch_inst = 1;
+		if (cpu_level >= 4) {
+			if (next_cpu_level < 4)
+				next_cpu_level = 4 - 1;
+		}
 		break;
 	case i_TRAPV:
 		sync_m68k_pc ();
@@ -4432,21 +4446,34 @@ static void gen_opcode (unsigned int opcode)
 		printf ("\tMakeSR ();\n");
 		genamode (NULL, Aipi, "7", sz_word, "sr", 1, 0, 0);
 		genamode (NULL, Aipi, "7", sz_long, "pc", 1, 0, 0);
+		if (cpu_level >= 4) {
+			printf("\tif (pc & 1) {\n");
+			printf("\t\tm68k_areg(regs, 7) -= 6;\n");
+			printf("\t\texception3i (0x%04X, pc);\n", opcode);
+			printf("\t\tgoto %s;\n", endlabelstr);
+			printf("\t}\n");
+		}
 		printf ("\tregs.sr &= 0xFF00; sr &= 0xFF;\n");
 		printf ("\tregs.sr |= sr;\n");
 		setpc ("pc");
 		makefromsr();
-		printf ("\tif (%s & 1) {\n", getpc);
-		printf ("\t\tuaecptr faultpc = %s;\n", getpc);
-		setpc ("oldpc");
-		printf ("\t\texception3i (0x%04X, faultpc);\n", opcode);
-		printf ("\t\tgoto %s;\n", endlabelstr);
-		printf ("\t}\n");
+		if (cpu_level < 4) {
+			printf("\tif (%s & 1) {\n", getpc);
+			printf("\t\tuaecptr faultpc = %s;\n", getpc);
+			setpc("oldpc");
+			printf("\t\texception3i (0x%04X, faultpc);\n", opcode);
+			printf("\t\tgoto %s;\n", endlabelstr);
+			printf("\t}\n");
+		}
 		clear_m68k_offset();
 		fill_prefetch_full ();
 	    need_endlabel = 1;
 		branch_inst = 1;
 		tail_ce020_done = true;
+		if (cpu_level >= 4) {
+			if (next_cpu_level < 4)
+				next_cpu_level = 4 - 1;
+		}
 		break;
 	case i_JSR:
 		// possible idle cycle, prefetch from new address, stack high return addr, stack low, prefetch
@@ -4475,7 +4502,8 @@ static void gen_opcode (unsigned int opcode)
 				if (cpu_level <= 1 && using_prefetch)
 					printf ("\tnextpc += 2;\n");
 			}
-			printf("\tm68k_areg (regs, 7) -= 4;\n");
+			if (cpu_level < 4)
+				printf("\tm68k_areg (regs, 7) -= 4;\n");
 			if (using_exception_3 && cpu_level <= 1) {
 				printf("\tif (m68k_areg(regs, 7) & 1) {\n");
 				printf("\t\texception3_write(opcode, m68k_areg(regs, 7), 1);\n");
@@ -4491,6 +4519,8 @@ static void gen_opcode (unsigned int opcode)
 				printf("\t}\n");
 				need_endlabel = 1;
 			}
+			if (cpu_level >= 4)
+				printf("\tm68k_areg (regs, 7) -= 4;\n");
 			clear_m68k_offset();
 			fill_prefetch_1 (0);
 			if (using_ce || using_prefetch) {
@@ -4508,6 +4538,10 @@ static void gen_opcode (unsigned int opcode)
 		fill_prefetch_full_020 ();
 		fill_prefetch_next ();
 		branch_inst = 1;
+		if (cpu_level >= 4) {
+			if (next_cpu_level < 4)
+				next_cpu_level = 4 - 1;
+		}
 		break;
 	case i_JMP:
 		no_prefetch_ce020 = true;
@@ -4563,7 +4597,8 @@ static void gen_opcode (unsigned int opcode)
 		printf("\tuaecptr nextpc = oldpc + %d;\n", m68k_pc_offset);
 		if (using_exception_3 && cpu_level >= 2) {
 			printf("\tif (s & 1) {\n");
-			printf("\t\tm68k_areg(regs, 7) -= 4;\n");
+			if (cpu_level < 4)
+				printf("\t\tm68k_areg(regs, 7) -= 4;\n");
 			printf("\t\texception3b(opcode, %s + s, 0, 1, %s + s);\n", getpc, getpc);
 			printf("\t\tgoto %s;\n", endlabelstr);
 			printf("\t}\n");
@@ -4622,8 +4657,15 @@ static void gen_opcode (unsigned int opcode)
 		}
 		genamode (curi, curi->smode, "srcreg", curi->size, "src", 1, 0, GF_AA | (cpu_level < 2 ? GF_NOREFILL : 0));
 		addcycles000 (2);
+		if (using_exception_3 && cpu_level >= 4) {
+			printf("\tif (src & 1) {\n");
+			printf("\t\texception3i (opcode, %s + 2 + (uae_s32)src);\n", getpc);
+			printf("\t\tgoto %s;\n", endlabelstr);
+			printf("\t}\n");
+			need_endlabel = 1;
+		}
 		printf ("\tif (!cctrue (%d)) goto didnt_jump;\n", curi->cc);
-		if (using_exception_3) {
+		if (using_exception_3 && cpu_level < 4) {
 			printf ("\tif (src & 1) {\n");
 			printf ("\t\texception3i (opcode, %s + 2 + (uae_s32)src);\n", getpc);
 			printf ("\t\tgoto %s;\n", endlabelstr);
@@ -4664,6 +4706,10 @@ static void gen_opcode (unsigned int opcode)
 		insn_n_cycles = curi->size == sz_byte ? 8 : 12;
 		branch_inst = 1;
 bccl_not68020:
+		if (cpu_level >= 4) {
+			if (next_cpu_level < 4)
+				next_cpu_level = 4 - 1;
+		}
 		break;
 	case i_LEA:
 		if (curi->smode == Ad8r || curi->smode == PC8r)
@@ -4703,12 +4749,19 @@ bccl_not68020:
 		//genamode (curi, curi->dmode, "dstreg", curi->size, "offs", 1, 0, GF_AA | GF_NOREFILL);
 		printf ("\tuaecptr oldpc = %s;\n", getpc);
 		addcycles000 (2);
+		if (using_exception_3 && cpu_level >= 4) {
+			printf("\tif (offs & 1) {\n");
+			printf("\t\t\texception3i (opcode, oldpc + (uae_s32)offs + 2);\n");
+			printf("\t\t\tgoto %s;\n", endlabelstr);
+			printf("\t\t}\n");
+			need_endlabel = 1;
+		}
 		push_ins_cnt();
 		printf ("\tif (!cctrue (%d)) {\n", curi->cc);
 		printf("\t");
 		incpc ("(uae_s32)offs + 2");
 		printf ("\t");
-		if (using_exception_3) {
+		if (using_exception_3 && cpu_level < 4) {
 			printf("\tif (offs & 1) {\n");
 			printf("\t\t\texception3i (opcode, %s);\n", getpc);
 			printf("\t\t\tgoto %s;\n", endlabelstr);
@@ -4740,6 +4793,10 @@ bccl_not68020:
 		insn_n_cycles = 12;
 		need_endlabel = 1;
 		branch_inst = 1;
+		if (cpu_level >= 4) {
+			if (next_cpu_level < 4)
+				next_cpu_level = 4 - 1;
+		}
 		break;
 	case i_Scc:
 		// confirmed
@@ -5483,11 +5540,16 @@ bccl_not68020:
 				int old_m68k_pc_total = m68k_pc_total;
 				old_brace_level = n_braces;
 				start_brace ();
+				if (cpu_level >= 4) {
+					printf("\tuae_u32 src = regs.regs[(extra >> 12) & 15];\n");
+				}
 				genamode (curi, curi->dmode, "dstreg", curi->size, "dst", 2, 0, 0);
 				tail_ce020_done = false;
 				returntail(false);
 				did_prefetch = 0;
-				printf("\tuae_u32 src = regs.regs[(extra >> 12) & 15];\n");
+				if (cpu_level < 4) {
+					printf("\tuae_u32 src = regs.regs[(extra >> 12) & 15];\n");
+				}
 				genastore_fc ("src", curi->dmode, "dstreg", curi->size, "dst");
 				sync_m68k_pc();
 				pop_braces(old_brace_level);
@@ -5512,6 +5574,10 @@ bccl_not68020:
 				tail_ce020_done = false;
 				returntail(false);
 				pop_braces (old_brace_level);
+			}
+			if (cpu_level >= 4) {
+				if (next_cpu_level < 4)
+					next_cpu_level = 4 - 1;
 			}
 		}
 		break;
@@ -6325,8 +6391,16 @@ static void generate_cpu_test(int mode)
 		cpu_level = 2;
 		using_prefetch = 0;
 		using_simple_cycles = 0;
+	} else if (mode == 3) {
+		cpu_level = 3;
+		using_prefetch = 0;
+		using_simple_cycles = 0;
 	} else if (mode == 4) {
 		cpu_level = 4;
+		using_prefetch = 0;
+		using_simple_cycles = 0;
+	} else if (mode == 5) {
+		cpu_level = 5;
 		using_prefetch = 0;
 		using_simple_cycles = 0;
 	}
@@ -6559,7 +6633,9 @@ int main(int argc, char *argv[])
 	generate_cpu_test(0);
 	generate_cpu_test(1);
 	generate_cpu_test(2);
+	generate_cpu_test(3);
 	generate_cpu_test(4);
+	generate_cpu_test(5);
 
 #else
 
