@@ -1623,10 +1623,7 @@ int main(int argc, char *argv[])
 
 #endif
 
-	int lvl = cpu_lvl;
-	if (lvl == 3) {
-		lvl = 2;
-	} else if (lvl == 5) {
+	if (cpu_lvl == 5) {
 #ifdef M68K
 		// Overwrite MOVEC to/from MSP
 		// with NOPs if 68060
@@ -1651,8 +1648,6 @@ int main(int argc, char *argv[])
 		return 0;
 	}
 
-	sprintf(path + strlen(path), "%lu/", 68000 + (lvl == 5 ? 6 : lvl) * 10);
-
 	strcpy(opcode, argv[1]);
 
 	check_undefined_sr = 1;
@@ -1670,8 +1665,22 @@ int main(int argc, char *argv[])
 				ccr_mask = ~getparamval(next);
 				i++;
 			}
+		} else if (!_stricmp(s, "68000")) {
+			cpu_lvl = 0;
+		} else if (!_stricmp(s, "68010")) {
+			cpu_lvl = 1;
+		} else if (!_stricmp(s, "68020")) {
+			cpu_lvl = 2;
+		} else if (!_stricmp(s, "68030")) {
+			cpu_lvl = 3;
+		} else if (!_stricmp(s, "68040")) {
+			cpu_lvl = 4;
+		} else if (!_stricmp(s, "68060")) {
+			cpu_lvl = 5;
 		}
 	}
+
+	sprintf(path + strlen(path), "%lu/", 68000 + (cpu_lvl == 5 ? 6 : cpu_lvl) * 10);
 
 	low_memory_size = -1;
 	low_memory_temp = load_file(path, "lmem.dat", NULL, &low_memory_size, 0);

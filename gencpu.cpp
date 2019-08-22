@@ -4045,6 +4045,7 @@ static void gen_opcode (unsigned int opcode)
 			printf ("\tMakeSR ();\n\tregs.sr &= 0xFF00;\n\tregs.sr |= src & 0xFF;\n");
 		} else {
 			// MOVE TO SR
+			printf("\tcheck_t0_trace();\n");
 			addcycles000 (4);
 			printf ("\tregs.sr = src;\n");
 		}

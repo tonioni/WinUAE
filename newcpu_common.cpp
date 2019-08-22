@@ -1426,6 +1426,8 @@ void Exception_build_stack_frame(uae_u32 oldpc, uae_u32 currpc, uae_u32 ssw, int
 void Exception_build_stack_frame_common(uae_u32 oldpc, uae_u32 currpc, uae_u32 ssw, int nr)
 {
 	if (nr == 5 || nr == 6 || nr == 7 || nr == 9) {
+		if (nr == 9)
+			oldpc = regs.trace_pc;
 		if (currprefs.cpu_model <= 68010)
 			Exception_build_stack_frame(oldpc, currpc, regs.mmu_ssw, nr, 0x0);
 		else

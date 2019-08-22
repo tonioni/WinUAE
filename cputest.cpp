@@ -543,7 +543,8 @@ static void activate_trace(void)
 
 static void do_trace(void)
 {
-	if (regs.t0 && currprefs.cpu_model >= 68020) {
+	regs.trace_pc = regs.pc;
+	if (regs.t0 && !regs.t1 && currprefs.cpu_model >= 68020) {
 		// this is obsolete
 		return;
 	}
@@ -632,7 +633,7 @@ void MakeFromSR_x(int t0trace)
 		SR-modifying instructions (including STOP).  */
 		SPCFLAG_TRACE = 0;
 	}
-	// Stop SR-modification does not generate T0
+	// STOP SR-modification does not generate T0
 	// If this SR modification set Tx bit, no trace until next instruction.
 	if ((oldt0 && t0trace && currprefs.cpu_model >= 68020) || oldt1) {
 		// Always trace if Tx bits were already set, even if this SR modification cleared them.
@@ -654,7 +655,7 @@ static void exception_check_trace(int nr)
 {
 	SPCFLAG_TRACE = 0;
 	SPCFLAG_DOTRACE = 0;
-	if (regs.t1 && !regs.t0) {
+	if (regs.t1) {
 		/* trace stays pending if exception is div by zero, chk,
 		* trapv or trap #x
 		*/
@@ -677,7 +678,7 @@ void m68k_setstopped(void)
 
 void check_t0_trace(void)
 {
-	if (regs.t0 && currprefs.cpu_model >= 68020) {
+	if (regs.t0 && !regs.t1 && currprefs.cpu_model >= 68020) {
 		SPCFLAG_TRACE = 0;
 		SPCFLAG_DOTRACE = 1;
 	}
@@ -805,7 +806,7 @@ void REGPARAM2 Exception_cpu(int n)
 	test_exception_addr = m68k_getpci();
 	test_exception_opcode = -1;
 
-	bool t0 = currprefs.cpu_model >= 68020 && regs.t0;
+	bool t0 = currprefs.cpu_model >= 68020 && regs.t0 && !regs.t1;
 	// check T0 trace
 	if (t0) {
 		activate_trace();
@@ -1701,7 +1702,8 @@ static void execute_ins(uae_u16 opc, uaecptr endpc, uaecptr targetpc, struct ins
 			}
 		}
 
-		if (dp->mnemo == i_TAS && low_memory_accessed) {
+		// Amiga Chip ram does not support TAS or MOVE16
+		if ((dp->mnemo == i_TAS || dp->mnemo == i_MOVE16) && low_memory_accessed) {
 			test_exception = -1;
 			break;
 		}
