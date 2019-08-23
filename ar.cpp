@@ -1131,10 +1131,11 @@ void action_replay_cia_access(bool write)
 		return;
 	if (action_replay_flag == ACTION_REPLAY_INACTIVE)
 		return;
+	int delay = currprefs.cpu_cycle_exact ? 1 : 0;
 	if ((armode_write & ARMODE_ACTIVATE_BFE001) && !write) {
-		event2_newevent_xx(-1, 1, write, action_replay_cia_access_delay);
+		event2_newevent_xx(-1, delay, write, action_replay_cia_access_delay);
 	} else if ((armode_write & ARMODE_ACTIVATE_BFD100) && write) {
-		event2_newevent_xx(-1, 1, write, action_replay_cia_access_delay);
+		event2_newevent_xx(-1, delay, write, action_replay_cia_access_delay);
 	}
 }
 
