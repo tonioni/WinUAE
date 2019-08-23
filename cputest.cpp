@@ -40,6 +40,7 @@ const int imm8_table[] = { 8, 1, 2, 3, 4, 5, 6, 7 };
 int movem_index1[256];
 int movem_index2[256];
 int movem_next[256];
+struct mmufixup mmufixup[2];
 cpuop_func *cpufunctbl[65536];
 struct cputbl_data
 {
@@ -1558,15 +1559,20 @@ static void handle_specials_extra(uae_u16 opcode, uaecptr pc, struct instr *dp)
 	// cas undocumented (marked as zero in document) fields do something weird, for example
 	// setting bit 9 will make "Du" address register but results are not correct.
 	// so lets make sure unused zero bits are zeroed.
-	if (dp->mnemo == i_CAS) {
+	switch (dp->mnemo)
+	{
+	case i_CAS:
+	{
 		uae_u16 extra = get_word_test(opcode_memory_start + 2);
 		uae_u16 extra2 = extra;
 		extra &= (7 << 6) | (7 << 0);
 		if (extra != extra2) {
 			put_word_test(opcode_memory_start + 2, extra);
 		}
+		break;
 	}
-	if (dp->mnemo == i_CAS2) {
+	case i_CAS2:
+	{
 		uae_u16 extra = get_word_test(opcode_memory_start + 2);
 		uae_u16 extra2 = extra;
 		extra &= (7 << 6) | (7 << 0) | (15 << 12);
@@ -1579,14 +1585,49 @@ static void handle_specials_extra(uae_u16 opcode, uaecptr pc, struct instr *dp)
 		if (extra != extra2) {
 			put_word_test(opcode_memory_start + 4, extra);
 		}
+		break;
 	}
-	if (dp->mnemo == i_CHK2) {
+	case i_CHK2:
+	{
 		uae_u16 extra = get_word_test(opcode_memory_start + 2);
 		uae_u16 extra2 = extra;
 		extra &= (15 << 12);
 		if (extra != extra2) {
 			put_word_test(opcode_memory_start + 2, extra);
 		}
+		break;
+	}
+	case i_BFINS:
+	case i_BFFFO:
+	case i_BFEXTS:
+	case i_BFEXTU:
+	{
+		if (cpu_lvl >= 4) {
+			// 68040+ and extra word bit 15 not zero (hidden A/D field):
+			// REGISTER field becomes address register in some internal
+			// operations, results are also wrong. So clear it here..
+			uae_u16 extra = get_word_test(opcode_memory_start + 2);
+			if (extra & 0x8000) {
+				extra &= ~0x8000;
+				put_word_test(opcode_memory_start + 2, extra);
+			}
+		}
+		break;
+	}
+	case i_DIVL:
+	case i_MULL:
+	{
+		if (cpu_lvl >= 4) {
+			// same as BF instructions but also other bits need clearing
+			// or results are unexplained..
+			uae_u16 extra = get_word_test(opcode_memory_start + 2);
+			if (extra & 0x83f8) {
+				extra &= ~0x83f8;
+				put_word_test(opcode_memory_start + 2, extra);
+			}
+		}
+		break;
+	}
 	}
 }
 
@@ -1662,6 +1703,8 @@ static void execute_ins(uae_u16 opc, uaecptr endpc, uaecptr targetpc, struct ins
 	// execute instruction
 	SPCFLAG_TRACE = 0;
 	SPCFLAG_DOTRACE = 0;
+	mmufixup[0].reg = -1;
+	mmufixup[1].reg = -1;
 
 	MakeFromSR();
 

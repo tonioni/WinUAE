@@ -48,6 +48,7 @@ static int using_waitstates;
 static int using_simple_cycles;
 static int using_debugmem;
 static int using_test;
+static int need_special_fixup;
 static int cpu_level, cpu_generic;
 static int count_read, count_write, count_cycles, count_ncycles;
 static int count_cycles_ce020;
@@ -861,11 +862,28 @@ static void sync_m68k_pc_noreset (void)
 	m68k_pc_offset = m68k_pc_offset_old;
 }
 
+static bool needmmufixup(void)
+{
+	if (need_special_fixup) {
+		// need to restore -(an)/(an)+ if unimplemented
+		switch (g_instr->mnemo)
+		{
+		case i_MULL:
+		case i_DIVL:
+		case i_CAS:
+			return true;
+		}
+	}
+	if (!using_mmu)
+		return false;
+	if (using_mmu == 68040 && (mmufixupstate || mmufixupcnt > 0))
+		return false;
+	return true;
+}
+
 static void addmmufixup (const char *reg)
 {
-	if (!using_mmu)
-		return;
-	if (using_mmu == 68040 && (mmufixupstate || mmufixupcnt > 0))
+	if (!needmmufixup())
 		return;
 	printf ("\tmmufixup[%d].reg = %s;\n", mmufixupcnt, reg);
 	printf ("\tmmufixup[%d].value = m68k_areg (regs, %s);\n", mmufixupcnt, reg);
@@ -5450,8 +5468,8 @@ bccl_not68020:
 			genamode (curi, curi->dmode, "dstreg", curi->size, "dst", 1, 0, GF_LRMW);
 			if (cpu_level == 5 && curi->size > 0) {
 				printf ("\tif ((dsta & %d) && currprefs.int_no_unimplemented && get_cpu_model () == 68060) {\n", curi->size == 1 ? 1 : 3);
-				if (curi->dmode == Aipi || curi->dmode == Apdi)
-					printf ("\t\tm68k_areg (regs, dstreg) %c= %d;\n", curi->dmode == Aipi ? '-' : '+', 1 << curi->size);
+				if (mmufixupcnt)
+					printf("\t\tcpu_restore_fixup();\n");
 				sync_m68k_pc_noreset ();
 				printf ("\t\top_unimpl (opcode);\n");
 				printf ("\t\tgoto %s;\n", endlabelstr);
@@ -5608,14 +5626,22 @@ bccl_not68020:
 		genamode (curi, curi->smode, "srcreg", curi->size, "extra", 1, 0, 0);
 		genamode (curi, curi->dmode, "dstreg", curi->size, "dst", 1, 0, 0);
 		sync_m68k_pc ();
-		printf ("\tif (!m68k_divl(opcode, dst, extra)) goto %s;\n", endlabelstr);
+		printf("\tif (!m68k_divl(opcode, dst, extra)) {\n");
+		if (mmufixupcnt)
+			printf("\t\tcpu_restore_fixup();\n");
+		printf("\t\tgoto %s;\n", endlabelstr);
+		printf("\t}\n");
 		need_endlabel = 1;
 		break;
 	case i_MULL:
 		genamode (curi, curi->smode, "srcreg", curi->size, "extra", 1, 0, 0);
 		genamode (curi, curi->dmode, "dstreg", curi->size, "dst", 1, 0, 0);
 		sync_m68k_pc ();
-		printf ("\tif (!m68k_mull(opcode, dst, extra)) goto %s;\n", endlabelstr);
+		printf("\tif (!m68k_mull(opcode, dst, extra)) {\n");
+		if (mmufixupcnt)
+			printf("\t\tcpu_restore_fixup();\n");
+		printf("\t\tgoto %s;\n", endlabelstr);
+		printf("\t}\n");
 		need_endlabel = 1;
 		break;
 	case i_BFTST:
@@ -6404,6 +6430,7 @@ static void generate_cpu_test(int mode)
 		cpu_level = 5;
 		using_prefetch = 0;
 		using_simple_cycles = 0;
+		need_special_fixup = 1;
 	}
 
 	read_counts();
@@ -6466,6 +6493,7 @@ static void generate_cpu (int id, int mode)
 	using_simple_cycles = 0;
 	using_indirect = 0;
 	cpu_generic = false;
+	need_special_fixup = 0;
 
 	if (id == 11 || id == 12) { // 11 = 68010 prefetch, 12 = 68000 prefetch
 		cpu_level = id == 11 ? 1 : 0;
@@ -6572,6 +6600,7 @@ static void generate_cpu (int id, int mode)
 	} else if (id < 6) {
 		cpu_level = 5 - (id - 0); // "generic"
 		cpu_generic = true;
+		need_special_fixup = 1;
 	} else if (id >= 40 && id < 46) {
 		cpu_level = 5 - (id - 40); // "generic" + direct
 		cpu_generic = true;
@@ -6584,6 +6613,7 @@ static void generate_cpu (int id, int mode)
 	} else if (id >= 50 && id < 56) {
 		cpu_level = 5 - (id - 50); // "generic" + indirect
 		cpu_generic = true;
+		need_special_fixup = 1;
 		if (id == 50) {
 			read_counts();
 			for (rp = 0; rp < nr_cpuop_funcs; rp++)

@@ -5080,16 +5080,7 @@ static void m68k_run_mmu060 (void)
 			m68k_setpci (regs.instruction_pc);
 			regflags.cznv = f.cznv;
 			regflags.x = f.x;
-
-			if (mmufixup[0].reg >= 0) {
-				m68k_areg (regs, mmufixup[0].reg) = mmufixup[0].value;
-				mmufixup[0].reg = -1;
-			}
-			if (mmufixup[1].reg >= 0) {
-				m68k_areg (regs, mmufixup[1].reg) = mmufixup[1].value;
-				mmufixup[1].reg = -1;
-			}
-
+			cpu_restore_fixup();
 			TRY (prb2) {
 				Exception (prb);
 			} CATCH (prb2) {
@@ -5140,12 +5131,7 @@ static void m68k_run_mmu040 (void)
 				regflags.x = f.x;
 				m68k_setpci (regs.instruction_pc);
 			}
-
-			if (mmufixup[0].reg >= 0) {
-				m68k_areg (regs, mmufixup[0].reg) = mmufixup[0].value;
-				mmufixup[0].reg = -1;
-			}
-
+			cpu_restore_fixup();
 			TRY (prb2) {
 				Exception (prb);
 			} CATCH (prb2) {
@@ -5275,15 +5261,7 @@ insretry:
 			} else {
 				regflags.cznv = f.cznv;
 				regflags.x = f.x;
-
-				if (mmufixup[0].reg >= 0) {
-					m68k_areg(regs, mmufixup[0].reg) = mmufixup[0].value;
-					mmufixup[0].reg = -1;
-				}
-				if (mmufixup[1].reg >= 0) {
-					m68k_areg(regs, mmufixup[1].reg) = mmufixup[1].value;
-					mmufixup[1].reg = -1;
-				}
+				cpu_restore_fixup();
 			}
 
 			m68k_setpci (regs.instruction_pc);
