@@ -210,6 +210,7 @@ bool programmedmode;
 int syncbase;
 static int fmode_saved, fmode;
 uae_u16 beamcon0, new_beamcon0;
+static uae_u16 beamcon0_saved;
 static bool varsync_changed;
 uae_u16 vtotal = MAXVPOS_PAL, htotal = MAXHPOS_PAL;
 static int maxvpos_stored, maxhpos_stored;
@@ -550,27 +551,36 @@ void alloc_cycle_blitter (int hpos, uaecptr *ptr, int chnum)
 	alloc_cycle (hpos, CYCLE_BLITTER);
 }
 
-static void set_chipset_mode(void)
+static int expand_sprres(uae_u16 con0, uae_u16 con3)
 {
-	if (currprefs.chipset_mask & CSMASK_AGA) {
-		fmode = fmode_saved;
-	} else {
-		fmode = 0;
-	}
-	sprite_width = GET_SPRITEWIDTH (fmode);
-}
+	int res;
 
-static void update_mirrors (void)
-{
-	aga_mode = (currprefs.chipset_mask & CSMASK_AGA) != 0;
-	direct_rgb = aga_mode;
-	if (currprefs.chipset_mask & CSMASK_AGA)
-		sprite_sprctlmask = 0x01 | 0x08 | 0x10;
-	else if (currprefs.chipset_mask & CSMASK_ECS_DENISE)
-		sprite_sprctlmask = 0x01 | 0x10;
-	else
-		sprite_sprctlmask = 0x01;
-	set_chipset_mode();
+	switch ((con3 >> 6) & 3)
+	{
+	default:
+		res = RES_LORES;
+		break;
+#ifdef ECS_DENISE
+	case 0: /* ECS defaults (LORES,HIRES=LORES sprite,SHRES=HIRES sprite) */
+		if ((currprefs.chipset_mask & CSMASK_ECS_DENISE) && GET_RES_DENISE(con0) == RES_SUPERHIRES)
+			res = RES_HIRES;
+		else
+			res = RES_LORES;
+		break;
+#endif
+#ifdef AGA
+	case 1:
+		res = RES_LORES;
+		break;
+	case 2:
+		res = RES_HIRES;
+		break;
+	case 3:
+		res = RES_SUPERHIRES;
+		break;
+#endif
+	}
+	return res;
 }
 
 STATIC_INLINE uae_u8 *pfield_xlateptr (uaecptr plpt, int bytecount)
@@ -606,21 +616,6 @@ static void docols (struct color_entry *colentry)
 #ifdef AGA
 	}
 #endif
-}
-
-extern struct color_entry colors_for_drawing;
-
-void notice_new_xcolors (void)
-{
-	int i;
-
-	update_mirrors ();
-	docols (&current_colors);
-	docols (&colors_for_drawing);
-	for (i = 0; i < (MAXVPOS + 1) * 2; i++) {
-		docols (color_tables[0] + i);
-		docols (color_tables[1] + i);
-	}
 }
 
 static void do_sprites (int currhp);
@@ -983,7 +978,6 @@ static void create_cycle_diagram_table (void)
 #endif
 }
 
-
 /* Used by the copper.  */
 static int estimated_last_fetch_cycle;
 static int cycle_diagram_shift;
@@ -1051,33 +1045,50 @@ Thus, once we do call toscr_nbits (which happens at least every 16 bits),
 we can do more work at once.  */
 static int toscr_nbits;
 
-#if 0
-/* undocumented bitplane delay hardware feature */
-static int delayoffset;
-
-STATIC_INLINE void compute_delay_offset (void)
+static void set_chipset_mode(void)
 {
-	delayoffset = (16 << fetchmode) - (((plfstrt - HARD_DDF_START_REAL) & fetchstart_mask) << 1);
-	/* maybe we can finally get rid of this stupid table.. */
-	if (tmp == 4)
-		delayoffset = 4; // Loons Docs
-	else if (tmp == 8)
-		delayoffset = 8;
-	else if (tmp == 12) // Loons Docs
-		delayoffset = 4;
-	else if (tmp == 16) /* Overkill AGA */
-		delayoffset = 48;
-	else if (tmp == 24) /* AB 2 */
-		delayoffset = 8;
-	else if (tmp == 32)
-		delayoffset = 32;
-	else if (tmp == 48) /* Pinball Illusions AGA, ingame */
-		delayoffset = 16;
-	else /* what about 40 and 56? */
-		delayoffset = 0;
-	//write_log (_T("%d:%d "), vpos, delayoffset);
+	if (currprefs.chipset_mask & CSMASK_AGA) {
+		fmode = fmode_saved;
+	} else {
+		fmode = 0;
+		bplcon4 = 0x0011;
+		bplcon3 = 0x0c00;
+	}
+	sprres = expand_sprres(bplcon0, bplcon3);
+	sprite_width = GET_SPRITEWIDTH(fmode);
+	for (int i = 0; i < MAX_SPRITES; i++) {
+		spr[i].width = sprite_width;
+	}
+	shdelay_disabled = false;
 }
-#endif
+
+static void update_mirrors(void)
+{
+	aga_mode = (currprefs.chipset_mask & CSMASK_AGA) != 0;
+	direct_rgb = aga_mode;
+	if (currprefs.chipset_mask & CSMASK_AGA)
+		sprite_sprctlmask = 0x01 | 0x08 | 0x10;
+	else if (currprefs.chipset_mask & CSMASK_ECS_DENISE)
+		sprite_sprctlmask = 0x01 | 0x10;
+	else
+		sprite_sprctlmask = 0x01;
+	set_chipset_mode();
+}
+
+extern struct color_entry colors_for_drawing;
+
+void notice_new_xcolors(void)
+{
+	int i;
+
+	update_mirrors();
+	docols(&current_colors);
+	docols(&colors_for_drawing);
+	for (i = 0; i < (MAXVPOS + 1) * 2; i++) {
+		docols(color_tables[0] + i);
+		docols(color_tables[1] + i);
+	}
+}
 
 static void record_color_change2 (int hpos, int regno, uae_u32 value)
 {
@@ -3670,38 +3681,6 @@ static void record_register_change (int hpos, int regno, uae_u16 value)
 
 typedef int sprbuf_res_t, cclockres_t, hwres_t,	bplres_t;
 
-static int expand_sprres (uae_u16 con0, uae_u16 con3)
-{
-	int res;
-
-	switch ((con3 >> 6) & 3)
-	{
-	default:
-		res = RES_LORES;
-		break;
-#ifdef ECS_DENISE
-	case 0: /* ECS defaults (LORES,HIRES=LORES sprite,SHRES=HIRES sprite) */
-		if ((currprefs.chipset_mask & CSMASK_ECS_DENISE) && GET_RES_DENISE (con0) == RES_SUPERHIRES)
-			res = RES_HIRES;
-		else
-			res = RES_LORES;
-		break;
-#endif
-#ifdef AGA
-	case 1:
-		res = RES_LORES;
-		break;
-	case 2:
-		res = RES_HIRES;
-		break;
-	case 3:
-		res = RES_SUPERHIRES;
-		break;
-#endif
-	}
-	return res;
-}
-
 /* handle very rarely needed playfield collision (CLXDAT bit 0) */
 /* only known game needing this is Rotor */
 static void do_playfield_collisions (void)
@@ -5883,6 +5862,7 @@ static void BEAMCON0 (uae_u16 v)
 				dumpsync();
 			}
 		}
+		beamcon0_saved = v;
 		calcdiw();
 	}
 }
@@ -6537,6 +6517,7 @@ static void SPRxCTLPOS(int num)
 	sprstartstop (s);
 	sprxp = (s->pos & 0xFF) * 2 + (s->ctl & 1);
 	sprxp <<= sprite_buffer_res;
+	s->dblscan = 0;
 	/* Quite a bit salad in this register... */
 	if (0) {
 	}
@@ -6577,6 +6558,13 @@ static void SPRxCTL_1(uae_u16 v, int num, int hpos)
 	spr_arm (num, 0);
 	SPRxCTLPOS (num);
 
+#if 0
+	if (!(currprefs.chipset_mask & CSMASK_ECS_AGNUS)) {
+		if (s->ctl & (0x20 | 0x40)) {
+			write_log(_T("ECS sprite position bits set\n"));
+		}
+}
+#endif
 #if SPRITE_DEBUG > 0
 	if (vpos >= SPRITE_DEBUG_MINY && vpos <= SPRITE_DEBUG_MAXY && (SPRITE_DEBUG & (1 << num))) {
 		write_log (_T("%d:%d:SPR%dCTL %04X P=%06X VSTRT=%d VSTOP=%d HSTRT=%d D=%d A=%d CP=%x PC=%x\n"),
@@ -9969,7 +9957,7 @@ void custom_reset (bool hardreset, bool keyboardreset)
 		CLXCON (0);
 		CLXCON2 (0);
 		setup_fmodes (0);
-		beamcon0 = new_beamcon0 = currprefs.ntscmode ? 0x00 : 0x20;
+		beamcon0 = new_beamcon0 = beamcon0_saved = currprefs.ntscmode ? 0x00 : 0x20;
 		bltstate = BLT_done;
 		blit_interrupt = 1;
 		init_sprites ();
@@ -11384,12 +11372,21 @@ void check_prefs_changed_custom (void)
 		currprefs.picasso96_nocustom != changed_prefs.picasso96_nocustom ||
 		currprefs.ntscmode != changed_prefs.ntscmode) {
 			currprefs.picasso96_nocustom = changed_prefs.picasso96_nocustom;
-			currprefs.chipset_mask = changed_prefs.chipset_mask;
 			if (currprefs.ntscmode != changed_prefs.ntscmode) {
 				currprefs.ntscmode = changed_prefs.ntscmode;
 				new_beamcon0 = currprefs.ntscmode ? 0x00 : 0x20;
 			}
-			init_custom ();
+			if ((changed_prefs.chipset_mask & CSMASK_ECS_AGNUS) && !(currprefs.chipset_mask & CSMASK_ECS_AGNUS)) {
+				new_beamcon0 = beamcon0_saved;
+			} else if (!(changed_prefs.chipset_mask & CSMASK_ECS_AGNUS) && (currprefs.chipset_mask & CSMASK_ECS_AGNUS)) {
+				beamcon0_saved = beamcon0;
+				beamcon0 = new_beamcon0 = currprefs.ntscmode ? 0x00 : 0x20;
+				diwhigh = 0;
+				diwhigh_written = 0;
+				bplcon0 &= ~(0x10 | 0x01);
+			}
+			currprefs.chipset_mask = changed_prefs.chipset_mask;
+			init_custom();
 	}
 
 	if (currprefs.chipset_hr != changed_prefs.chipset_hr) {
