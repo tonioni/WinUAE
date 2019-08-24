@@ -590,7 +590,7 @@ static int statusfunc_imm(int status, int playpos)
 	if (status == -3 || status > AUDIO_STATUS_IN_PROGRESS)
 		uae_sem_post(&cda_sem);
 	if (status < 0)
-		return 1;
+		return 0;
 	return statusfunc(status, playpos);
 }
 
@@ -2249,14 +2249,20 @@ void restore_akiko_finish (void)
 	akiko_init ();
 	akiko_c2p_do ();
 	get_cdrom_toc ();
-	write_comm_pipe_u32 (&requests, 0x0102, 1); // pause
-	write_comm_pipe_u32 (&requests, 0x0104, 1); // stop
-	write_comm_pipe_u32 (&requests, 0x0103, 1); // unpause
-	if (cdrom_playing && isaudiotrack (last_play_pos)) {
-		write_comm_pipe_u32 (&requests, 0x0111, 0); // play immediate
-		write_comm_pipe_u32 (&requests, last_play_pos, 0);
-		write_comm_pipe_u32 (&requests, last_play_end, 0);
-		write_comm_pipe_u32 (&requests, 0, 1);
+}
+
+void restore_akiko_final(void)
+{
+	if (!currprefs.cs_cd32cd)
+		return;
+	write_comm_pipe_u32(&requests, 0x0102, 1); // pause
+	write_comm_pipe_u32(&requests, 0x0104, 1); // stop
+	write_comm_pipe_u32(&requests, 0x0103, 1); // unpause
+	if (cdrom_playing && isaudiotrack(last_play_pos)) {
+		write_comm_pipe_u32(&requests, 0x0111, 0); // play immediate
+		write_comm_pipe_u32(&requests, last_play_pos, 0);
+		write_comm_pipe_u32(&requests, last_play_end, 0);
+		write_comm_pipe_u32(&requests, 0, 1);
 		uae_sem_wait(&cda_sem);
 	}
 	cd_initialized = 2;

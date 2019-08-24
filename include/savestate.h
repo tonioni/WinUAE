@@ -135,11 +135,13 @@ extern uae_u8 *save_keyboard (int *,uae_u8*);
 
 extern uae_u8 *restore_akiko (uae_u8 *src);
 extern uae_u8 *save_akiko (int *len, uae_u8*);
-extern void restore_akiko_finish (void);
+extern void restore_akiko_finish(void);
+extern void restore_akiko_final(void);
 
 extern uae_u8 *restore_cdtv (uae_u8 *src);
 extern uae_u8 *save_cdtv (int *len, uae_u8*);
-extern void restore_cdtv_finish (void);
+extern void restore_cdtv_finish(void);
+extern void restore_cdtv_final(void);
 
 extern uae_u8 *restore_cdtv_dmac (uae_u8 *src);
 extern uae_u8 *save_cdtv_dmac (int *len, uae_u8*);
@@ -234,7 +236,8 @@ extern void restore_ar_finish (void);
 extern void savestate_initsave (const TCHAR *filename, int docompress, int nodialogs, bool save);
 extern int save_state (const TCHAR *filename, const TCHAR *description);
 extern void restore_state (const TCHAR *filename);
-extern void savestate_restore_finish (void);
+extern bool savestate_restore_finish(void);
+extern void savestate_restore_final(void);
 extern void savestate_memorysave (void);
 
 
