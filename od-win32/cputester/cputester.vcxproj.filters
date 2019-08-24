@@ -65,5 +65,14 @@
     <ClCompile Include="..\..\softfloat\softfloat_fpsp.cpp">
       <Filter>Source Files\softfloat</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\cpuemu_94_test.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\cpuemu_95_test.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\cpuemu_93_test.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>

@@ -13,13 +13,40 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
+    <Filter Include="Source Files\adis">
+      <UniqueIdentifier>{a34a9294-6e9f-4aef-b20c-b2fc154c4581}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\cputest\main.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\cputest\68kDisass.c">
-      <Filter>Source Files</Filter>
+    <ClCompile Include="..\..\cputest\adis\decode_ea.c">
+      <Filter>Source Files\adis</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\cputest\adis\globals.c">
+      <Filter>Source Files\adis</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\cputest\adis\opcode_handler_cpu.c">
+      <Filter>Source Files\adis</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\cputest\adis\opcode_handler_fpu.c">
+      <Filter>Source Files\adis</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\cputest\adis\opcode_handler_mmu.c">
+      <Filter>Source Files\adis</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\cputest\adis\opcodes_cpu.c">
+      <Filter>Source Files\adis</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\cputest\adis\opcodes_fpu.c">
+      <Filter>Source Files\adis</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\cputest\adis\opcodes_mmu.c">
+      <Filter>Source Files\adis</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\cputest\adis\util.c">
+      <Filter>Source Files\adis</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>
