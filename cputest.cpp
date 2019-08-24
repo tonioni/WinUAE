@@ -733,7 +733,7 @@ static void doexcstack(void)
 		}
 	} else {
 		if (test_exception == 3) {
-			if (currprefs.cpu_model == 68060)
+			if (currprefs.cpu_model >= 68040)
 				test_exception_addr &= ~1;
 			Exception_build_stack_frame(test_exception_addr, regs.pc, 0, 3, 0x02);
 		} else {
@@ -1692,9 +1692,9 @@ static void execute_ins(uae_u16 opc, uaecptr endpc, uaecptr targetpc, struct ins
 {
 	uae_u16 opw1 = (opcode_memory[2] << 8) | (opcode_memory[3] << 0);
 	uae_u16 opw2 = (opcode_memory[4] << 8) | (opcode_memory[5] << 0);
-	if (opc == 0xf603
-		&& opw1 == 0x6884
-		&& opw2 == 0x618d
+	if (opc == 0x4c40 
+		&& opw1 == 0x2406
+//		&& opw2 == 0x618d
 		)
 		printf("");
 	if (regs.sr & 0x2000)

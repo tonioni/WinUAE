@@ -1343,6 +1343,15 @@ static int gence020cycles_jea (instr *curi, amodes mode)
 	return oph;
 }
 
+// 68020-30 needs different implementation than 68040/060
+static void next_level_040_to_030(void)
+{
+	if (cpu_level >= 4) {
+		if (next_cpu_level < 4)
+			next_cpu_level = 4 - 1;
+	}
+}
+
 static void next_level_000 (void)
 {
 	if (next_cpu_level < 0)
@@ -4360,31 +4369,44 @@ static void gen_opcode (unsigned int opcode)
 		fill_prefetch_full ();
 	    need_endlabel = 1;
 		branch_inst = 1;
-		if (cpu_level >= 4) {
-			if (next_cpu_level < 4)
-				next_cpu_level = 4 - 1;
-		}
+		next_level_040_to_030();
 		break;
 	case i_LINK:
 		// ce confirmed
+		// 68040 uses different order than other CPU models.
 		if (using_mmu) {
-			addmmufixup ("srcreg");
-			genamode (NULL, curi->dmode, "dstreg", curi->size, "offs", GENA_GETV_FETCH, GENA_MOVEM_DO_INC, 0);
-			genamode (NULL, Apdi, "7", sz_long, "old", GENA_GETV_FETCH_ALIGN, GENA_MOVEM_DO_INC, 0);
-			genamode (NULL, curi->smode, "srcreg", sz_long, "src", GENA_GETV_FETCH, GENA_MOVEM_DO_INC, 0);
-			genastore ("m68k_areg(regs, 7)", curi->smode, "srcreg", sz_long, "src");
-			printf ("\tm68k_areg(regs, 7) += offs;\n");
-			genastore ("src", Apdi, "7", sz_long, "old");
+			addmmufixup("srcreg");
+			genamode(NULL, curi->dmode, "dstreg", curi->size, "offs", GENA_GETV_FETCH, GENA_MOVEM_DO_INC, 0);
+			if (cpu_level == 4) {
+				genamode(NULL, Apdi, "7", sz_long, "old", GENA_GETV_FETCH_ALIGN, GENA_MOVEM_DO_INC, 0);
+				genastore("m68k_areg(regs, 7)", curi->smode, "srcreg", sz_long, "src");
+				genamode(NULL, curi->smode, "srcreg", sz_long, "src", GENA_GETV_FETCH, GENA_MOVEM_DO_INC, 0);
+			} else {
+				genamode(NULL, curi->smode, "srcreg", sz_long, "src", GENA_GETV_FETCH, GENA_MOVEM_DO_INC, 0);
+				genamode(NULL, Apdi, "7", sz_long, "old", GENA_GETV_FETCH_ALIGN, GENA_MOVEM_DO_INC, 0);
+				genastore("m68k_areg(regs, 7)", curi->smode, "srcreg", sz_long, "src");
+			}
+			printf("\tm68k_areg(regs, 7) += offs;\n");
+			genastore("src", Apdi, "7", sz_long, "old");
 		} else {
-			addop_ce020 (curi, 0);
-			genamode (NULL, curi->smode, "srcreg", sz_long, "src", 1, 0, GF_AA);
-			// smode must be first in case it is A7.
-			genamode(NULL, Apdi, "7", sz_long, "old", 2, 0, GF_AA);
-			genamode (NULL, curi->dmode, "dstreg", curi->size, "offs", 1, 0, 0);
-			genastore ("src", Apdi, "7", sz_long, "old");
-			genastore ("m68k_areg (regs, 7)", curi->smode, "srcreg", sz_long, "src");
-			printf ("\tm68k_areg (regs, 7) += offs;\n");
-			fill_prefetch_next ();
+			addop_ce020(curi, 0);
+			// smode must be first in case it is A7. Except if 68040!
+			if (cpu_level == 4) {
+				genamode(NULL, Apdi, "7", sz_long, "old", 2, 0, GF_AA);
+				genamode(NULL, curi->smode, "srcreg", sz_long, "src", 1, 0, GF_AA);
+			} else {
+				genamode(NULL, curi->smode, "srcreg", sz_long, "src", 1, 0, GF_AA);
+				genamode(NULL, Apdi, "7", sz_long, "old", 2, 0, GF_AA);
+			}
+			genamode(NULL, curi->dmode, "dstreg", curi->size, "offs", 1, 0, 0);
+			genastore("src", Apdi, "7", sz_long, "old");
+			genastore("m68k_areg (regs, 7)", curi->smode, "srcreg", sz_long, "src");
+			printf("\tm68k_areg (regs, 7) += offs;\n");
+			fill_prefetch_next();
+			if (cpu_level >= 5) {
+				if (next_cpu_level < 5)
+					next_cpu_level = 5 - 1;
+			}
 		}
 		break;
 	case i_UNLK:
@@ -4446,10 +4468,7 @@ static void gen_opcode (unsigned int opcode)
 		fill_prefetch_full ();
 	    need_endlabel = 1;
 		branch_inst = 1;
-		if (cpu_level >= 4) {
-			if (next_cpu_level < 4)
-				next_cpu_level = 4 - 1;
-		}
+		next_level_040_to_030();
 		break;
 	case i_TRAPV:
 		sync_m68k_pc ();
@@ -4489,10 +4508,7 @@ static void gen_opcode (unsigned int opcode)
 	    need_endlabel = 1;
 		branch_inst = 1;
 		tail_ce020_done = true;
-		if (cpu_level >= 4) {
-			if (next_cpu_level < 4)
-				next_cpu_level = 4 - 1;
-		}
+		next_level_040_to_030();
 		break;
 	case i_JSR:
 		// possible idle cycle, prefetch from new address, stack high return addr, stack low, prefetch
@@ -4557,10 +4573,7 @@ static void gen_opcode (unsigned int opcode)
 		fill_prefetch_full_020 ();
 		fill_prefetch_next ();
 		branch_inst = 1;
-		if (cpu_level >= 4) {
-			if (next_cpu_level < 4)
-				next_cpu_level = 4 - 1;
-		}
+		next_level_040_to_030();
 		break;
 	case i_JMP:
 		no_prefetch_ce020 = true;
@@ -4725,10 +4738,7 @@ static void gen_opcode (unsigned int opcode)
 		insn_n_cycles = curi->size == sz_byte ? 8 : 12;
 		branch_inst = 1;
 bccl_not68020:
-		if (cpu_level >= 4) {
-			if (next_cpu_level < 4)
-				next_cpu_level = 4 - 1;
-		}
+		next_level_040_to_030();
 		break;
 	case i_LEA:
 		if (curi->smode == Ad8r || curi->smode == PC8r)
@@ -4812,10 +4822,7 @@ bccl_not68020:
 		insn_n_cycles = 12;
 		need_endlabel = 1;
 		branch_inst = 1;
-		if (cpu_level >= 4) {
-			if (next_cpu_level < 4)
-				next_cpu_level = 4 - 1;
-		}
+		next_level_040_to_030();
 		break;
 	case i_Scc:
 		// confirmed
@@ -4838,78 +4845,78 @@ bccl_not68020:
 		genamodedual (curi,
 			curi->smode, "srcreg", sz_word, "src", 1, 0,
 			curi->dmode, "dstreg", sz_long, "dst", 1, 0);
-		printf ("\tCLEAR_CZNV ();\n");
-		printf ("\tif (src == 0) {\n");
-		printf ("\t\tdivbyzero_special (0, dst);\n");
-		incpc ("%d", m68k_pc_offset);
-		printf ("\t\tException_cpu(5);\n");
-		printf ("\t\tgoto %s;\n", endlabelstr);
-		printf ("\t} else {\n");
-		printf ("\t\tuae_u32 newv = (uae_u32)dst / (uae_u32)(uae_u16)src;\n");
-		printf ("\t\tuae_u32 rem = (uae_u32)dst %% (uae_u32)(uae_u16)src;\n");
+		printf("\tif (src == 0) {\n");
+		printf("\t\tdivbyzero_special(0, dst);\n");
+		incpc("%d", m68k_pc_offset);
+		printf("\t\tException_cpu(5);\n");
+		printf("\t\tgoto %s;\n", endlabelstr);
+		printf("\t}\n");
+		printf("\tsetdivuflags(false, (uae_u32)dst, (uae_u16)src);\n");
+		printf("\tuae_u32 newv = (uae_u32)dst / (uae_u32)(uae_u16)src;\n");
+		printf("\tuae_u32 rem = (uae_u32)dst %% (uae_u32)(uae_u16)src;\n");
 		if (using_ce) {
-			start_brace ();
-			printf ("\t\tint cycles = (getDivu68kCycles((uae_u32)dst, (uae_u16)src)) - 4;\n");
-			addcycles000_3 ("\t\t");
+			start_brace();
+			printf("\t\tint cycles = (getDivu68kCycles((uae_u32)dst, (uae_u16)src)) - 4;\n");
+			addcycles000_3("\t\t");
 		}
 		addcycles000_nonces("\t\t", "(getDivu68kCycles((uae_u32)dst, (uae_u16)src)) - 4");
-		fill_prefetch_next ();
-		/* The N flag appears to be set each time there is an overflow.
-		 * Weird. but 68020 only sets N when dst is negative.. */
-		printf ("\t\tif (newv > 0xffff) {\n");
-		printf ("\t\t\tsetdivuoverflowflags((uae_u32)dst, (uae_u16)src);\n");
-		printf ("\t\t} else {\n");
-		printf ("\t\t"); genflags (flag_logical, sz_word, "newv", "", "");
-		printf ("\t\t\tnewv = (newv & 0xffff) | ((uae_u32)rem << 16);\n");
-		printf ("\t\t"); genastore ("newv", curi->dmode, "dstreg", sz_long, "dst");
-		printf ("\t\t}\n");
-		sync_m68k_pc ();
-		printf ("\t}\n");
+		fill_prefetch_next();
+		printf("\t\tif (newv > 0xffff) {\n");
+		printf("\t\t\tsetdivuflags(true, (uae_u32)dst, (uae_u16)src);\n");
+		printf("\t\t} else {\n");
+		printf("\t\t");
+		genflags (flag_logical, sz_word, "newv", "", "");
+		printf("\t\t\tnewv = (newv & 0xffff) | ((uae_u32)rem << 16);\n");
+		printf("\t\t");
+		genastore ("newv", curi->dmode, "dstreg", sz_long, "dst");
+		printf("\t\t}\n");
+		sync_m68k_pc();
 		count_ncycles++;
 		insn_n_cycles += 136 - (136 - 76) / 2; /* average */
 		need_endlabel = 1;
 		tail_ce020_done	= false;
-		returntail (false);
+		returntail(false);
 		break;
 	case i_DIVS:
 		tail_ce020_done	= true;
-		genamodedual (curi,
+		genamodedual(curi,
 			curi->smode, "srcreg", sz_word, "src", 1, 0,
 			curi->dmode, "dstreg", sz_long, "dst", 1, 0);
-		printf ("\tif (src == 0) {\n");
-		printf ("\t\tdivbyzero_special (1, dst);\n");
-		incpc ("%d", m68k_pc_offset);
-		printf ("\t\tException_cpu(5);\n");
-		printf ("\t\tgoto %s;\n", endlabelstr);
-		printf ("\t}\n");
-		printf ("\tCLEAR_CZNV ();\n");
+		printf("\tif (src == 0) {\n");
+		printf("\t\tdivbyzero_special (1, dst);\n");
+		incpc("%d", m68k_pc_offset);
+		printf("\t\tException_cpu(5);\n");
+		printf("\t\tgoto %s;\n", endlabelstr);
+		printf("\t}\n");
+		printf("\tsetdivsflags(false, (uae_s32)dst, (uae_s16)src);\n");
 		if (using_ce) {
-			start_brace ();
-			printf ("\t\tint cycles = (getDivs68kCycles((uae_s32)dst, (uae_s16)src)) - 4;\n");
-			addcycles000_3 ("\t\t");
+			start_brace();
+			printf("\t\tint cycles = (getDivs68kCycles((uae_s32)dst, (uae_s16)src)) - 4;\n");
+			addcycles000_3("\t\t");
 		}
 		addcycles000_nonces("\t\t", "(getDivs68kCycles((uae_s32)dst, (uae_s16)src)) - 4");
 		fill_prefetch_next ();
-		printf ("\tif (dst == 0x80000000 && src == -1) {\n");
-		printf ("\t\tsetdivsoverflowflags((uae_s32)dst, (uae_s16)src);\n");
-		printf ("\t} else {\n");
-		printf ("\t\tuae_s32 newv = (uae_s32)dst / (uae_s32)(uae_s16)src;\n");
-		printf ("\t\tuae_u16 rem = (uae_s32)dst %% (uae_s32)(uae_s16)src;\n");
-		printf ("\t\tif ((newv & 0xffff8000) != 0 && (newv & 0xffff8000) != 0xffff8000) {\n");
-		printf ("\t\t\tsetdivsoverflowflags((uae_s32)dst, (uae_s16)src);\n");
-		printf ("\t\t} else {\n");
-		printf ("\t\t\tif (((uae_s16)rem < 0) != ((uae_s32)dst < 0)) rem = -rem;\n");
-		genflags (flag_logical, sz_word, "newv", "", "");
-		printf ("\t\t\tnewv = (newv & 0xffff) | ((uae_u32)rem << 16);\n");
-		printf ("\t\t"); genastore ("newv", curi->dmode, "dstreg", sz_long, "dst");
-		printf ("\t\t}\n");
-		printf ("\t}\n");
-		sync_m68k_pc ();
+		printf("\tif (dst == 0x80000000 && src == -1) {\n");
+		printf("\t\tsetdivsflags(true, (uae_s32)dst, (uae_s16)src);\n");
+		printf("\t} else {\n");
+		printf("\t\tuae_s32 newv = (uae_s32)dst / (uae_s32)(uae_s16)src;\n");
+		printf("\t\tuae_u16 rem = (uae_s32)dst %% (uae_s32)(uae_s16)src;\n");
+		printf("\t\tif ((newv & 0xffff8000) != 0 && (newv & 0xffff8000) != 0xffff8000) {\n");
+		printf("\t\t\tsetdivsflags(true, (uae_s32)dst, (uae_s16)src);\n");
+		printf("\t\t} else {\n");
+		printf("\t\t\tif (((uae_s16)rem < 0) != ((uae_s32)dst < 0)) rem = -rem;\n");
+		genflags(flag_logical, sz_word, "newv", "", "");
+		printf("\t\t\tnewv = (newv & 0xffff) | ((uae_u32)rem << 16);\n");
+		printf("\t\t");
+		genastore("newv", curi->dmode, "dstreg", sz_long, "dst");
+		printf("\t\t}\n");
+		printf("\t}\n");
+		sync_m68k_pc();
 		count_ncycles++;
 		insn_n_cycles += 156 - (156 - 120) / 2; /* average */
 		need_endlabel = 1;
 		tail_ce020_done	= false;
-		returntail (false);
+		returntail(false);
 		break;
 	case i_MULU:
 		genamodedual (curi,
@@ -5513,40 +5520,53 @@ bccl_not68020:
 		}
 		break;
 	case i_CAS2:
-		genamode (curi, curi->smode, "srcreg", curi->size, "extra", 1, 0, GF_LRMW);
-		printf ("\tuae_u32 rn1 = regs.regs[(extra >> 28) & 15];\n");
-		printf ("\tuae_u32 rn2 = regs.regs[(extra >> 12) & 15];\n");
+		genamode(curi, curi->smode, "srcreg", curi->size, "extra", 1, 0, GF_LRMW);
+		printf("\tuae_u32 rn1 = regs.regs[(extra >> 28) & 15];\n");
+		printf("\tuae_u32 rn2 = regs.regs[(extra >> 12) & 15];\n");
 		if (curi->size == sz_word) {
 			int old_brace_level = n_braces;
-			printf ("\tuae_u16 dst1 = %s (rn1), dst2 = %s (rn2);\n", srcwlrmw, srcwlrmw);
-			genflags (flag_cmp, curi->size, "newv", "m68k_dreg (regs, (extra >> 16) & 7)", "dst1");
-			printf ("\tif (GET_ZFLG ()) {\n");
-			genflags (flag_cmp, curi->size, "newv", "m68k_dreg (regs, extra & 7)", "dst2");
-			printf ("\tif (GET_ZFLG ()) {\n");
-			printf ("\t%s (rn1, m68k_dreg (regs, (extra >> 22) & 7));\n", dstwlrmw);
-			printf ("\t%s (rn2, m68k_dreg (regs, (extra >> 6) & 7));\n", dstwlrmw);
-			printf ("\t}}\n");
-			pop_braces (old_brace_level);
-			printf ("\tif (! GET_ZFLG ()) {\n");
-			printf ("\tm68k_dreg (regs, (extra >> 0) & 7) = (m68k_dreg (regs, (extra >> 0) & 7) & ~0xffff) | (dst2 & 0xffff);\n");
-			printf ("\tm68k_dreg (regs, (extra >> 16) & 7) = (m68k_dreg (regs, (extra >> 16) & 7) & ~0xffff) | (dst1 & 0xffff);\n");
+			printf("\tuae_u16 dst1 = %s (rn1), dst2 = %s (rn2);\n", srcwlrmw, srcwlrmw);
+			genflags(flag_cmp, curi->size, "newv", "m68k_dreg (regs, (extra >> 16) & 7)", "dst1");
+			printf("\tif (GET_ZFLG ()) {\n");
+			genflags(flag_cmp, curi->size, "newv", "m68k_dreg (regs, extra & 7)", "dst2");
+			printf("\tif (GET_ZFLG ()) {\n");
+			printf("\t%s (rn1, m68k_dreg (regs, (extra >> 22) & 7));\n", dstwlrmw);
+			printf("\t%s (rn2, m68k_dreg (regs, (extra >> 6) & 7));\n", dstwlrmw);
+			printf("\t}}\n");
+			pop_braces(old_brace_level);
+			printf("\tif (! GET_ZFLG ()) {\n");
+			if (cpu_level >= 4) {
+				// 68040: register update order swapped
+				printf("\tm68k_dreg (regs, (extra >> 16) & 7) = (m68k_dreg (regs, (extra >> 16) & 7) & ~0xffff) | (dst1 & 0xffff);\n");
+				printf("\tm68k_dreg (regs, (extra >> 0) & 7) = (m68k_dreg (regs, (extra >> 0) & 7) & ~0xffff) | (dst2 & 0xffff);\n");
+			} else {
+				printf("\tm68k_dreg (regs, (extra >> 0) & 7) = (m68k_dreg (regs, (extra >> 0) & 7) & ~0xffff) | (dst2 & 0xffff);\n");
+				printf("\tm68k_dreg (regs, (extra >> 16) & 7) = (m68k_dreg (regs, (extra >> 16) & 7) & ~0xffff) | (dst1 & 0xffff);\n");
+			}
 			printf ("\t}\n");
 		} else {
 			int old_brace_level = n_braces;
-			printf ("\tuae_u32 dst1 = %s (rn1), dst2 = %s (rn2);\n", srcllrmw, srcllrmw);
-			genflags (flag_cmp, curi->size, "newv", "m68k_dreg (regs, (extra >> 16) & 7)", "dst1");
-			printf ("\tif (GET_ZFLG ()) {\n");
-			genflags (flag_cmp, curi->size, "newv", "m68k_dreg (regs, extra & 7)", "dst2");
-			printf ("\tif (GET_ZFLG ()) {\n");
-			printf ("\t%s (rn1, m68k_dreg (regs, (extra >> 22) & 7));\n", dstllrmw);
-			printf ("\t%s (rn2, m68k_dreg (regs, (extra >> 6) & 7));\n", dstllrmw);
-			printf ("\t}}\n");
-			pop_braces (old_brace_level);
-			printf ("\tif (! GET_ZFLG ()) {\n");
-			printf ("\tm68k_dreg (regs, (extra >> 0) & 7) = dst2;\n");
-			printf ("\tm68k_dreg (regs, (extra >> 16) & 7) = dst1;\n");
+			printf("\tuae_u32 dst1 = %s (rn1), dst2 = %s (rn2);\n", srcllrmw, srcllrmw);
+			genflags(flag_cmp, curi->size, "newv", "m68k_dreg (regs, (extra >> 16) & 7)", "dst1");
+			printf("\tif (GET_ZFLG ()) {\n");
+			genflags(flag_cmp, curi->size, "newv", "m68k_dreg (regs, extra & 7)", "dst2");
+			printf("\tif (GET_ZFLG ()) {\n");
+			printf("\t%s (rn1, m68k_dreg (regs, (extra >> 22) & 7));\n", dstllrmw);
+			printf("\t%s (rn2, m68k_dreg (regs, (extra >> 6) & 7));\n", dstllrmw);
+			printf("\t}}\n");
+			pop_braces(old_brace_level);
+			printf("\tif (! GET_ZFLG ()) {\n");
+			if (cpu_level >= 4) {
+				// 68040: register update order swapped
+				printf("\tm68k_dreg (regs, (extra >> 16) & 7) = dst1;\n");
+				printf("\tm68k_dreg (regs, (extra >> 0) & 7) = dst2;\n");
+			} else {
+				printf("\tm68k_dreg (regs, (extra >> 0) & 7) = dst2;\n");
+				printf("\tm68k_dreg (regs, (extra >> 16) & 7) = dst1;\n");
+			}
 			printf ("\t}\n");
 		}
+		next_level_040_to_030();
 		break;
 	case i_MOVES: /* ignore DFC and SFC when using_mmu == false */
 		{
@@ -5594,11 +5614,8 @@ bccl_not68020:
 				returntail(false);
 				pop_braces (old_brace_level);
 			}
-			if (cpu_level >= 4) {
-				if (next_cpu_level < 4)
-					next_cpu_level = 4 - 1;
-			}
-		}
+			next_level_040_to_030();
+	}
 		break;
 	case i_BKPT:		/* only needed for hardware emulators */
 		sync_m68k_pc ();

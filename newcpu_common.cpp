@@ -769,7 +769,7 @@ int getDivs68kCycles (uae_s32 dividend, uae_s16 divisor)
 void divbyzero_special (bool issigned, uae_s32 dst)
 {
 	if (currprefs.cpu_model == 68020 || currprefs.cpu_model == 68030) {
-		CLEAR_CZNV ();
+		CLEAR_CZNV();
 		if (issigned) {
 			SET_ZFLG(1);
 		} else {
@@ -778,9 +778,11 @@ void divbyzero_special (bool issigned, uae_s32 dst)
 				SET_NFLG(1);
 			else if (d == 0)
 				SET_ZFLG(1);
-			SET_VFLG (1);
+			SET_VFLG(1);
 		}
-	} else if (currprefs.cpu_model >= 68040) {
+	} else if (currprefs.cpu_model == 68040) {
+		SET_CFLG(0);
+	} else if (currprefs.cpu_model == 68060) {
 		SET_CFLG (0);
 	} else {
 		// 68000/010
@@ -799,59 +801,75 @@ void divbyzero_special (bool issigned, uae_s32 dst)
 
 /* DIVU overflow
  *
- * 68000: V=1 N=1
- * 68020: V=1 N=X
- * 68040: V=1
- * 68060: V=1
+ * 68000: V=1, C=0, Z=0, N=1
+ * 68020: V=1, C=0, Z=0, N=X
+ * 68040: V=1, C=0, NZ not modified.
+ * 68060: V=1, C=0, N=0, Z=0
  *
  * X) N is set if original 32-bit destination value is negative.
  *
  */
 
-void setdivuoverflowflags(uae_u32 dividend, uae_u16 divisor)
+void setdivuflags(bool overflow, uae_u32 dividend, uae_u16 divisor)
 {
-	if (currprefs.cpu_model >= 68040) {
-		SET_VFLG(1);
-	} else if (currprefs.cpu_model >= 68020) {
-		SET_VFLG(1);
-		if ((uae_s32)dividend < 0)
-			SET_NFLG(1);
+	if (!overflow) {
+		if (currprefs.cpu_model != 68040)
+			CLEAR_CZNV();
 	} else {
-		SET_VFLG(1);
-		SET_NFLG(1);
+		if (currprefs.cpu_model == 68060) {
+			SET_VFLG(1);
+		} else if (currprefs.cpu_model == 68040) {
+			SET_VFLG(1);
+			SET_CFLG(0);
+		} else if (currprefs.cpu_model >= 68020) {
+			SET_VFLG(1);
+			if ((uae_s32)dividend < 0)
+				SET_NFLG(1);
+		} else {
+			SET_VFLG(1);
+			SET_NFLG(1);
+		}
 	}
 }
 
 /*
  * DIVS overflow
  *
- * 68000: V = 1 N = 1
- * 68020: V = 1 ZN = X
- * 68040: V = 1
- * 68060: V = 1
+ * 68000: V=1, C=0, N=1, Z=0
+ * 68020: V=1, C=0, ZN = X
+ * 68040: V=1, C=0. NZ not modified.
+ * 68060: V=1, C=0, N=0, Z=0
  *
  * X) if absolute overflow(Check getDivs68kCycles for details) : Z = 0, N = 0
  * if not absolute overflow : N is set if internal result BYTE is negative, Z is set if it is zero!
  *
  */
 
-void setdivsoverflowflags(uae_s32 dividend, uae_s16 divisor)
+void setdivsflags(bool overflow, uae_s32 dividend, uae_s16 divisor)
 {
-	if (currprefs.cpu_model >= 68040) {
-		SET_VFLG(1);
-	} else if (currprefs.cpu_model >= 68020) {
-		SET_VFLG(1);
-		// absolute overflow?
-		if (((uae_u32)abs(dividend) >> 16) >= (uae_u16)abs(divisor))
-			return;
-		uae_u32 aquot = (uae_u32)abs(dividend) / (uae_u16)abs(divisor);
-		if ((uae_s8)aquot == 0)
-			SET_ZFLG(1);
-		if ((uae_s8)aquot < 0)
-			SET_NFLG(1);
+	if (!overflow) {
+		if (currprefs.cpu_model != 68040)
+			CLEAR_CZNV();
 	} else {
-		SET_VFLG(1);
-		SET_NFLG(1);
+		if (currprefs.cpu_model == 68060) {
+			SET_VFLG(1);
+		} else if (currprefs.cpu_model == 68040) {
+			SET_VFLG(1);
+			SET_CFLG(0);
+		} else if (currprefs.cpu_model >= 68020) {
+			SET_VFLG(1);
+			// absolute overflow?
+			if (((uae_u32)abs(dividend) >> 16) >= (uae_u16)abs(divisor))
+				return;
+			uae_u32 aquot = (uae_u32)abs(dividend) / (uae_u16)abs(divisor);
+			if ((uae_s8)aquot == 0)
+				SET_ZFLG(1);
+			if ((uae_s8)aquot < 0)
+				SET_NFLG(1);
+		} else {
+			SET_VFLG(1);
+			SET_NFLG(1);
+		}
 	}
 }
 
@@ -957,10 +975,15 @@ STATIC_INLINE int div_unsigned (uae_u32 src_hi, uae_u32 src_lo, uae_u32 div, uae
 
 static void divl_overflow(void)
 {
-	SET_VFLG(1);
-	SET_NFLG(1);
-	SET_CFLG(0);
-	SET_ZFLG(0);
+	if (currprefs.cpu_model == 68040) {
+		SET_VFLG(1);
+		SET_CFLG(0);
+	} else {
+		SET_VFLG(1);
+		SET_NFLG(1);
+		SET_CFLG(0);
+		SET_ZFLG(0);
+	}
 }
 
 bool m68k_divl (uae_u32 opcode, uae_u32 src, uae_u16 extra)
@@ -1121,8 +1144,15 @@ bool m68k_mull (uae_u32 opcode, uae_u32 src, uae_u16 extra)
 		SET_CFLG (0);
 		if (extra & 0x400) {
 			// 32 * 32 = 64
-			m68k_dreg(regs, (extra >> 12) & 7) = (uae_u32)a;
-			m68k_dreg(regs, extra & 7) = (uae_u32)(a >> 32);
+			// 68040 is different.
+			if (currprefs.cpu_model == 68040) {
+				m68k_dreg(regs, extra & 7) = (uae_u32)(a >> 32);
+				m68k_dreg(regs, (extra >> 12) & 7) = (uae_u32)a;
+			} else {
+				// 020/030/060
+				m68k_dreg(regs, (extra >> 12) & 7) = (uae_u32)a;
+				m68k_dreg(regs, extra & 7) = (uae_u32)(a >> 32);
+			}
 			SET_ZFLG(a == 0);
 			SET_NFLG(a < 0);
 		} else {
@@ -1144,8 +1174,15 @@ bool m68k_mull (uae_u32 opcode, uae_u32 src, uae_u16 extra)
 		SET_CFLG (0);
 		if (extra & 0x400) {
 			// 32 * 32 = 64
-			m68k_dreg(regs, (extra >> 12) & 7) = (uae_u32)a;
-			m68k_dreg(regs, extra & 7) = (uae_u32)(a >> 32);
+			// 68040 is different.
+			if (currprefs.cpu_model == 68040) {
+				m68k_dreg(regs, extra & 7) = (uae_u32)(a >> 32);
+				m68k_dreg(regs, (extra >> 12) & 7) = (uae_u32)a;
+			} else {
+				// 020/030/060
+				m68k_dreg(regs, (extra >> 12) & 7) = (uae_u32)a;
+				m68k_dreg(regs, extra & 7) = (uae_u32)(a >> 32);
+			}
 			SET_ZFLG(a == 0);
 			SET_NFLG(((uae_s64)a) < 0);
 		} else {
