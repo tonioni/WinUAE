@@ -3579,6 +3579,10 @@ static uae_u16 handle_joystick_potgor (uae_u16 potgor)
 			if (cd32_shifter[i] >= 2 && (joybutton[i] & ((1 << JOYBUTTON_CD32_PLAY) << (cd32_shifter[i] - 2))))
 				potgor &= ~p9dat;
 
+			// normal second button pressed: always zero. Overrides CD32 mode.
+			if (getbuttonstate(i, JOYBUTTON_2))
+				potgor &= ~p9dat;
+
 		} else  if (alg_flag) {
 
 			potgor = alg_potgor(potgo_value);
