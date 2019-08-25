@@ -720,6 +720,11 @@ static void fill_prefetch_full_ntx (void)
 			printf ("\tfill_prefetch_020_ntx();\n");
 	}
 }
+static void check_trace(void)
+{
+	printf("\tif(regs.t0) check_t0_trace();\n");
+}
+
 // check trace bits
 static void fill_prefetch_full (void)
 {
@@ -736,7 +741,7 @@ static void fill_prefetch_full (void)
 		else if (cpu_level == 2)
 			printf ("\tfill_prefetch_020();\n");
 	} else if (!using_prefetch_020 && cpu_level >= 2) {
-		printf("\tif(regs.t0) check_t0_trace();\n");
+		check_trace();
 	}
 }
 
@@ -3507,6 +3512,8 @@ static void gen_opcode (unsigned int opcode)
 		genamode (curi, curi->smode, "srcreg", curi->size, "src", 1, 0, 0);
 		if (curi->size == sz_byte) {
 			printf ("\tsrc &= 0xFF;\n");
+		} else {
+			check_trace();
 		}
 		addcycles000 (8);
 		printf ("\tregs.sr %c= src;\n", curi->mnemo == i_EORSR ? '^' : '|');
@@ -3519,6 +3526,8 @@ static void gen_opcode (unsigned int opcode)
 		genamode (curi, curi->smode, "srcreg", curi->size, "src", 1, 0, 0);
 		if (curi->size == sz_byte) {
 			printf ("\tsrc |= 0xFF00;\n");
+		} else {
+			check_trace();
 		}
 		addcycles000 (8);
 		printf ("\tregs.sr &= src;\n");
@@ -4072,7 +4081,7 @@ static void gen_opcode (unsigned int opcode)
 			printf ("\tMakeSR ();\n\tregs.sr &= 0xFF00;\n\tregs.sr |= src & 0xFF;\n");
 		} else {
 			// MOVE TO SR
-			printf("\tcheck_t0_trace();\n");
+			check_trace();
 			addcycles000 (4);
 			printf ("\tregs.sr = src;\n");
 		}
@@ -4145,6 +4154,9 @@ static void gen_opcode (unsigned int opcode)
 		genamode (curi, curi->smode, "srcreg", curi->size, "src", 1, 0, 0);
 		fill_prefetch_next ();
 		printf ("\tregs.usp = src;\n");
+		if (cpu_level == 4)
+			check_trace();
+		next_level_040_to_030();
 		break;
 	case i_MVUSP2R:
 		genamode (curi, curi->smode, "srcreg", curi->size, "src", 2, 0, 0);
@@ -4163,6 +4175,9 @@ static void gen_opcode (unsigned int opcode)
 		break;
 	case i_NOP:
 		fill_prefetch_next ();
+		if (cpu_level == 4)
+			check_trace();
+		next_level_040_to_030();
 		break;
 	case i_STOP:
 		next_level_000();
@@ -5459,6 +5474,9 @@ bccl_not68020:
 		printf ("\tint regno = (src >> 12) & 15;\n");
 		printf ("\tuae_u32 *regp = regs.regs + regno;\n");
 		printf ("\tif (! m68k_movec2(src & 0xFFF, regp)) goto %s;\n", endlabelstr);
+		if (cpu_level == 4)
+			check_trace();
+		next_level_040_to_030();
 		break;
 	case i_MOVE2C:
 		genamode (curi, curi->smode, "srcreg", curi->size, "src", 1, 0, 0);
@@ -5467,6 +5485,9 @@ bccl_not68020:
 		printf ("\tint regno = (src >> 12) & 15;\n");
 		printf ("\tuae_u32 *regp = regs.regs + regno;\n");
 		printf ("\tif (! m68k_move2c(src & 0xFFF, regp)) goto %s;\n", endlabelstr);
+		if (cpu_level == 4)
+			check_trace();
+		next_level_040_to_030();
 		break;
 	case i_CAS:
 		{
@@ -5517,6 +5538,9 @@ bccl_not68020:
 				break;
 			}
 			pop_braces (old_brace_level);
+			if (cpu_level == 4)
+				check_trace();
+			next_level_040_to_030();
 		}
 		break;
 	case i_CAS2:
@@ -5566,6 +5590,8 @@ bccl_not68020:
 			}
 			printf ("\t}\n");
 		}
+		if (cpu_level == 4)
+			check_trace();
 		next_level_040_to_030();
 		break;
 	case i_MOVES: /* ignore DFC and SFC when using_mmu == false */
@@ -5579,14 +5605,16 @@ bccl_not68020:
 				int old_m68k_pc_total = m68k_pc_total;
 				old_brace_level = n_braces;
 				start_brace ();
-				if (cpu_level >= 4) {
+				// 68060 stores original value
+				if (cpu_level == 5) {
 					printf("\tuae_u32 src = regs.regs[(extra >> 12) & 15];\n");
 				}
 				genamode (curi, curi->dmode, "dstreg", curi->size, "dst", 2, 0, 0);
 				tail_ce020_done = false;
 				returntail(false);
 				did_prefetch = 0;
-				if (cpu_level < 4) {
+				// Earlier models do -(an)/(an)+ EA calculation first
+				if (cpu_level <= 4) {
 					printf("\tuae_u32 src = regs.regs[(extra >> 12) & 15];\n");
 				}
 				genastore_fc ("src", curi->dmode, "dstreg", curi->size, "dst");
@@ -5614,8 +5642,13 @@ bccl_not68020:
 				returntail(false);
 				pop_braces (old_brace_level);
 			}
-			next_level_040_to_030();
-	}
+			if (cpu_level == 4)
+				check_trace();
+			if (cpu_level >= 5) {
+				if (next_cpu_level < 5)
+					next_cpu_level = 5 - 1;
+			}
+		}
 		break;
 	case i_BKPT:		/* only needed for hardware emulators */
 		sync_m68k_pc ();
@@ -5905,11 +5938,12 @@ bccl_not68020:
 	case i_CPUSHL:
 	case i_CPUSHP:
 	case i_CPUSHA:
-		printf ("\tflush_cpu_caches_040(opcode);\n");
+		printf("\tflush_cpu_caches_040(opcode);\n");
 		if (using_mmu)
-			printf ("\tflush_mmu%s(m68k_areg (regs, opcode & 3), (opcode >> 6) & 3);\n", mmu_postfix);
-		printf ("\tif (opcode & 0x80)\n");
-		printf ("\t\tflush_icache((opcode >> 6) & 3);\n");
+			printf("\tflush_mmu%s(m68k_areg (regs, opcode & 3), (opcode >> 6) & 3);\n", mmu_postfix);
+		printf("\tif (opcode & 0x80)\n");
+		printf("\t\tflush_icache((opcode >> 6) & 3);\n");
+		printf("\t\tcheck_t0_trace();\n");
 		break;
 
 	case i_MOVE16:
@@ -5973,12 +6007,22 @@ bccl_not68020:
 	case i_PFLUSH:
 	case i_PFLUSHAN:
 	case i_PFLUSHA:
+		sync_m68k_pc();
+		printf("\tmmu_op (opcode, 0);\n");
+		if (cpu_level == 4)
+			check_trace();
+		break;
 	case i_PLPAR:
 	case i_PLPAW:
+		sync_m68k_pc();
+		printf("\tmmu_op (opcode, 0);\n");
+		break;
 	case i_PTESTR:
 	case i_PTESTW:
 		sync_m68k_pc ();
 		printf ("\tmmu_op (opcode, 0);\n");
+		if (cpu_level == 4)
+			check_trace();
 		break;
 	case i_MMUOP030:
 		printf("\tuaecptr pc = %s;\n", getpc);
