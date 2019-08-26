@@ -570,7 +570,7 @@ static void *hardware_trap_thread(void *arg)
 		ctx->tindex = tid;
 		ctx->tcnt = ++trap_cnt;
 
-		for (int i = 0; i < 15; i++) {
+		for (int i = 0; i < 16; i++) {
 			uae_u32 v = get_long_host(data + 4 + i * 4);
 			ctx->saved_regs.regs[i] = v;
 		}
