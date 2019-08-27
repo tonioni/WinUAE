@@ -1149,7 +1149,7 @@ bool m68k_mull (uae_u32 opcode, uae_u32 src, uae_u16 extra)
 				m68k_dreg(regs, extra & 7) = (uae_u32)(a >> 32);
 				m68k_dreg(regs, (extra >> 12) & 7) = (uae_u32)a;
 			} else {
-				// 020/030/060
+				// 020/030
 				m68k_dreg(regs, (extra >> 12) & 7) = (uae_u32)a;
 				m68k_dreg(regs, extra & 7) = (uae_u32)(a >> 32);
 			}
@@ -1179,7 +1179,7 @@ bool m68k_mull (uae_u32 opcode, uae_u32 src, uae_u16 extra)
 				m68k_dreg(regs, extra & 7) = (uae_u32)(a >> 32);
 				m68k_dreg(regs, (extra >> 12) & 7) = (uae_u32)a;
 			} else {
-				// 020/030/060
+				// 020/030
 				m68k_dreg(regs, (extra >> 12) & 7) = (uae_u32)a;
 				m68k_dreg(regs, extra & 7) = (uae_u32)(a >> 32);
 			}

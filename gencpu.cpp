@@ -725,6 +725,19 @@ static void check_trace(void)
 	printf("\tif(regs.t0) check_t0_trace();\n");
 }
 
+static void trace_t0_68040_only(void)
+{
+	if (cpu_level == 4)
+		check_trace();
+	if (cpu_level == 5) {
+		if (next_cpu_level < 5)
+			next_cpu_level = 5 - 1;
+	} else if (cpu_level == 4) {
+		if (next_cpu_level < 4)
+			next_cpu_level = 4 - 1;
+	}
+}
+
 // check trace bits
 static void fill_prefetch_full (void)
 {
@@ -4154,9 +4167,7 @@ static void gen_opcode (unsigned int opcode)
 		genamode (curi, curi->smode, "srcreg", curi->size, "src", 1, 0, 0);
 		fill_prefetch_next ();
 		printf ("\tregs.usp = src;\n");
-		if (cpu_level == 4)
-			check_trace();
-		next_level_040_to_030();
+		trace_t0_68040_only();
 		break;
 	case i_MVUSP2R:
 		genamode (curi, curi->smode, "srcreg", curi->size, "src", 2, 0, 0);
@@ -4175,9 +4186,7 @@ static void gen_opcode (unsigned int opcode)
 		break;
 	case i_NOP:
 		fill_prefetch_next ();
-		if (cpu_level == 4)
-			check_trace();
-		next_level_040_to_030();
+		trace_t0_68040_only();
 		break;
 	case i_STOP:
 		next_level_000();
@@ -4394,8 +4403,8 @@ static void gen_opcode (unsigned int opcode)
 			genamode(NULL, curi->dmode, "dstreg", curi->size, "offs", GENA_GETV_FETCH, GENA_MOVEM_DO_INC, 0);
 			if (cpu_level == 4) {
 				genamode(NULL, Apdi, "7", sz_long, "old", GENA_GETV_FETCH_ALIGN, GENA_MOVEM_DO_INC, 0);
-				genastore("m68k_areg(regs, 7)", curi->smode, "srcreg", sz_long, "src");
 				genamode(NULL, curi->smode, "srcreg", sz_long, "src", GENA_GETV_FETCH, GENA_MOVEM_DO_INC, 0);
+				genastore("m68k_areg(regs, 7)", curi->smode, "srcreg", sz_long, "src");
 			} else {
 				genamode(NULL, curi->smode, "srcreg", sz_long, "src", GENA_GETV_FETCH, GENA_MOVEM_DO_INC, 0);
 				genamode(NULL, Apdi, "7", sz_long, "old", GENA_GETV_FETCH_ALIGN, GENA_MOVEM_DO_INC, 0);
@@ -5474,9 +5483,7 @@ bccl_not68020:
 		printf ("\tint regno = (src >> 12) & 15;\n");
 		printf ("\tuae_u32 *regp = regs.regs + regno;\n");
 		printf ("\tif (! m68k_movec2(src & 0xFFF, regp)) goto %s;\n", endlabelstr);
-		if (cpu_level == 4)
-			check_trace();
-		next_level_040_to_030();
+		trace_t0_68040_only();
 		break;
 	case i_MOVE2C:
 		genamode (curi, curi->smode, "srcreg", curi->size, "src", 1, 0, 0);
@@ -5485,9 +5492,7 @@ bccl_not68020:
 		printf ("\tint regno = (src >> 12) & 15;\n");
 		printf ("\tuae_u32 *regp = regs.regs + regno;\n");
 		printf ("\tif (! m68k_move2c(src & 0xFFF, regp)) goto %s;\n", endlabelstr);
-		if (cpu_level == 4)
-			check_trace();
-		next_level_040_to_030();
+		trace_t0_68040_only();
 		break;
 	case i_CAS:
 		{
@@ -5538,9 +5543,7 @@ bccl_not68020:
 				break;
 			}
 			pop_braces (old_brace_level);
-			if (cpu_level == 4)
-				check_trace();
-			next_level_040_to_030();
+			trace_t0_68040_only();
 		}
 		break;
 	case i_CAS2:
@@ -5590,9 +5593,7 @@ bccl_not68020:
 			}
 			printf ("\t}\n");
 		}
-		if (cpu_level == 4)
-			check_trace();
-		next_level_040_to_030();
+		trace_t0_68040_only();
 		break;
 	case i_MOVES: /* ignore DFC and SFC when using_mmu == false */
 		{
@@ -5642,12 +5643,7 @@ bccl_not68020:
 				returntail(false);
 				pop_braces (old_brace_level);
 			}
-			if (cpu_level == 4)
-				check_trace();
-			if (cpu_level >= 5) {
-				if (next_cpu_level < 5)
-					next_cpu_level = 5 - 1;
-			}
+			trace_t0_68040_only();
 		}
 		break;
 	case i_BKPT:		/* only needed for hardware emulators */
@@ -5836,6 +5832,7 @@ bccl_not68020:
 			addcycles000_nonce("\t\t", 4);
 			printf ("\t}\n");
 		}
+		trace_t0_68040_only();
 		break;
 	case i_FPP:
 		fpulimit();
@@ -6009,8 +6006,7 @@ bccl_not68020:
 	case i_PFLUSHA:
 		sync_m68k_pc();
 		printf("\tmmu_op (opcode, 0);\n");
-		if (cpu_level == 4)
-			check_trace();
+		trace_t0_68040_only();
 		break;
 	case i_PLPAR:
 	case i_PLPAW:
@@ -6021,8 +6017,7 @@ bccl_not68020:
 	case i_PTESTW:
 		sync_m68k_pc ();
 		printf ("\tmmu_op (opcode, 0);\n");
-		if (cpu_level == 4)
-			check_trace();
+		trace_t0_68040_only();
 		break;
 	case i_MMUOP030:
 		printf("\tuaecptr pc = %s;\n", getpc);
