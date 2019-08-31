@@ -17871,9 +17871,11 @@ static void CALLBACK timerfunc (HWND hDlg, UINT uMsg, UINT_PTR idEvent, DWORD dw
 					inputdevice_set_device_status (devnum, TRUE);
 					values_to_inputdlg (hDlg);
 				}
-				ListView_EnsureVisible (GetDlgItem (hDlg, IDC_INPUTLIST), input_selected_widget, FALSE);
-				ListView_SetItemState (GetDlgItem (hDlg, IDC_INPUTLIST), -1, 0, LVIS_SELECTED | LVIS_FOCUSED);
-				ListView_SetItemState (GetDlgItem (hDlg, IDC_INPUTLIST), input_selected_widget, LVIS_SELECTED | LVIS_FOCUSED, LVIS_SELECTED | LVIS_FOCUSED);
+				HWND list = GetDlgItem(hDlg, IDC_INPUTLIST);
+				int itemindex = input_get_lv_index(list, input_selected_widget);
+				ListView_EnsureVisible (list, itemindex, FALSE);
+				ListView_SetItemState (list, -1, 0, LVIS_SELECTED | LVIS_FOCUSED);
+				ListView_SetItemState (list, itemindex, LVIS_SELECTED | LVIS_FOCUSED, LVIS_SELECTED | LVIS_FOCUSED);
 				if (rawmode == 1) {
 					input_find (hDlg, myDlg, 0, FALSE, false);
 					if (IsWindowEnabled (GetDlgItem (hDlg, IDC_INPUTAMIGA))) {
