@@ -168,22 +168,6 @@ static struct ide_board *allocide(struct ide_board **idep, struct romconfig *rc,
 	return *idep;
 }
 
-static struct ide_board *getide(struct autoconfig_info *aci)
-{
-	for (int i = 0; i < MAX_IDE_UNITS; i++) {
-		if (ide_boards[i]) {
-			struct ide_board *ide = ide_boards[i];
-			if (ide->rc == aci->rc) {
-				ide->original_rc = aci->rc;
-				ide->rc = NULL;
-				ide->aci = aci;
-				return ide;
-			}
-		}
-	}
-	return NULL;
-}
-
 static struct ide_board *getideboard(uaecptr addr)
 {
 	for (int i = 0; ide_boards[i]; i++) {
@@ -260,7 +244,7 @@ static bool ide_rethink(struct ide_board *board, bool edge_triggered)
 
 void x86_doirq(uint8_t irqnum);
 
-void idecontroller_rethink(void)
+static void idecontroller_rethink(void)
 {
 	bool irq = false;
 	for (int i = 0; ide_boards[i]; i++) {
@@ -276,7 +260,7 @@ void idecontroller_rethink(void)
 	}
 }
 
-void idecontroller_hsync(void)
+static void idecontroller_hsync(void)
 {
 	for (int i = 0; ide_boards[i]; i++) {
 		struct ide_board *board = ide_boards[i];
@@ -305,14 +289,14 @@ static void reset_ide(struct ide_board *board)
 	board->enabled = false;
 }
 
-void idecontroller_reset(void)
+static void idecontroller_reset(int hardreset)
 {
 	for (int i = 0; ide_boards[i]; i++) {
 		reset_ide(ide_boards[i]);
 	}
 }
 
-void idecontroller_free(void)
+static void idecontroller_free(void)
 {
 	stop_ide_thread(&idecontroller_its);
 	for (int i = 0; i < MAX_IDE_UNITS; i++) {
@@ -1853,6 +1837,30 @@ static addrbank ide_bank_generic = {
 	ABFLAG_IO | ABFLAG_SAFE, S_READ, S_WRITE
 };
 
+static struct ide_board *getide(struct autoconfig_info *aci)
+{
+	device_add_rethink(idecontroller_rethink);
+	device_add_hsync(idecontroller_hsync);
+	device_add_exit(idecontroller_free);
+
+	for (int i = 0; i < MAX_IDE_UNITS; i++) {
+		if (ide_boards[i]) {
+			struct ide_board *ide = ide_boards[i];
+			if (ide->rc == aci->rc) {
+				ide->original_rc = aci->rc;
+				ide->rc = NULL;
+				ide->aci = aci;
+				return ide;
+			}
+		}
+	}
+	return NULL;
+}
+
+static void ide_add_reset(void)
+{
+	device_add_reset(idecontroller_reset);
+}
 
 static void ew(struct ide_board *ide, int addr, uae_u32 value)
 {
@@ -1878,6 +1886,7 @@ bool gvp_ide_rom_autoconfig_init(struct autoconfig_info *aci)
 	} else {
 		autoconfig = gvp_ide2_rom_autoconfig;
 	}
+	ide_add_reset();
 	aci->autoconfigp = autoconfig;
 	if (!aci->doinit)
 		return true;
@@ -1916,6 +1925,7 @@ bool gvp_ide_rom_autoconfig_init(struct autoconfig_info *aci)
 
 bool gvp_ide_controller_autoconfig_init(struct autoconfig_info *aci)
 {
+	ide_add_reset();
 	if (!aci->doinit) {
 		aci->autoconfigp = gvp_ide2_controller_autoconfig;
 		return true;
@@ -1951,6 +1961,7 @@ static const uae_u8 alfplus_autoconfig[16] = { 0xd1, 38, 0x00, 0x00, 0x08, 0x2c,
 bool alf_init(struct autoconfig_info *aci)
 {
 	bool alfplus = is_board_enabled(&currprefs, ROMTYPE_ALFAPLUS, 0);
+	ide_add_reset();
 	if (!aci->doinit) {
 		aci->autoconfigp = alfplus ? alfplus_autoconfig : alf_autoconfig;
 		return true;
@@ -2026,6 +2037,7 @@ static bool apollo_init(struct autoconfig_info *aci, bool cpuboard)
 			autoconfig = apollo_autoconfig_cpuboard;
 	}
 
+	ide_add_reset();
 	if (!aci->doinit) {
 		aci->autoconfigp = autoconfig;
 		return true;
@@ -2105,6 +2117,7 @@ bool masoboshi_init(struct autoconfig_info *aci)
 	memset(rom, 0xff, rom_size);
 
 	load_rom_rc(aci->rc, ROMTYPE_MASOBOSHI, 32768, 0, rom, 65536, LOADROM_EVENONLY_ODDONE | LOADROM_FILL);
+	ide_add_reset();
 	if (!aci->doinit) {
 		if (aci->rc && aci->rc->autoboot_disabled)
 			memcpy(aci->autoconfig_raw, rom + 0x100, sizeof aci->autoconfig_raw);
@@ -2160,6 +2173,7 @@ bool trifecta_init(struct autoconfig_info *aci)
 	uae_u8 *rom = xcalloc(uae_u8, rom_size);
 	memset(rom, 0xff, rom_size);
 
+	ide_add_reset();
 	if (!aci->doinit) {
 		aci->autoconfigp = aci->ert->autoconfig;
 		return true;
@@ -2215,6 +2229,7 @@ static const uae_u8 adide_autoconfig[16] = { 0xd1, 0x02, 0x00, 0x00, 0x08, 0x17,
 
 bool adide_init(struct autoconfig_info *aci)
 {
+	ide_add_reset();
 	if (!aci->doinit) {
 		aci->autoconfigp = adide_autoconfig;
 		return true;
@@ -2257,6 +2272,7 @@ bool mtec_init(struct autoconfig_info *aci)
 	memset(rom, 0xff, rom_size);
 	load_rom_rc(aci->rc, ROMTYPE_MTEC, 16384, !aci->rc->autoboot_disabled ? 16384 : 0, rom, 32768, LOADROM_EVENONLY_ODDONE | LOADROM_FILL);
 
+	ide_add_reset();
 	if (!aci->doinit) {
 		memcpy(aci->autoconfig_raw, rom, sizeof aci->autoconfig_raw);
 		xfree(rom);
@@ -2285,6 +2301,7 @@ void mtec_add_ide_unit(int ch, struct uaedev_config_info *ci, struct romconfig *
 
 bool rochard_init(struct autoconfig_info *aci)
 {
+	ide_add_reset();
 	if (!aci->doinit) {
 		load_rom_rc(aci->rc, ROMTYPE_ROCHARD, 8192, !aci->rc->autoboot_disabled ? 8192 : 0, aci->autoconfig_raw, sizeof aci->autoconfig_raw, 0);
 		return true;
@@ -2315,6 +2332,7 @@ bool buddha_init(struct autoconfig_info *aci)
 {
 	const struct expansionromtype *ert = get_device_expansion_rom(ROMTYPE_BUDDHA);
 
+	ide_add_reset();
 	if (!aci->doinit) {
 		aci->autoconfigp = ert->autoconfig;
 		return true;
@@ -2367,6 +2385,7 @@ bool golemfast_init(struct autoconfig_info *aci)
 	memset(rom, 0xff, rom_size);
 	load_rom_rc(aci->rc, ROMTYPE_GOLEMFAST, 16384, 0, rom, 32768, 0);
 
+	ide_add_reset();
 	if (!aci->doinit) {
 		memcpy(aci->autoconfig_raw, rom, sizeof aci->autoconfig_raw);
 		xfree(rom);
@@ -2414,6 +2433,7 @@ bool dataflyerplus_init(struct autoconfig_info *aci)
 	memset(rom, 0xff, rom_size);
 	load_rom_rc(aci->rc, ROMTYPE_DATAFLYER, 32768, aci->rc->autoboot_disabled ? 8192 : 0, rom, 16384, LOADROM_EVENONLY_ODDONE);
 
+	ide_add_reset();
 	if (!aci->doinit) {
 		memcpy(aci->autoconfig_raw, rom, sizeof aci->autoconfig_raw);
 		xfree(rom);
@@ -2465,6 +2485,7 @@ bool ateam_init(struct autoconfig_info *aci)
 	memset(rom, 0xff, rom_size);
 	load_rom_rc(aci->rc, ROMTYPE_ATEAM, 16384, !aci->rc->autoboot_disabled ? 0xc000 : 0x8000, rom, 32768, LOADROM_EVENONLY_ODDONE | LOADROM_FILL);
 
+	ide_add_reset();
 	if (!aci->doinit) {
 		memcpy(aci->autoconfig_raw, rom, sizeof aci->autoconfig_raw);
 		xfree(rom);
@@ -2504,6 +2525,7 @@ bool fastata4k_init(struct autoconfig_info *aci)
 		return true;
 	}
 
+	ide_add_reset();
 	if (!aci->doinit) {
 		memcpy(aci->autoconfig_bytes, aci->ert->autoconfig, sizeof aci->ert->autoconfig);
 		int type = aci->rc->device_settings & 3;
@@ -2544,6 +2566,7 @@ void fastata4k_add_ide_unit(int ch, struct uaedev_config_info *ci, struct romcon
 bool arriba_init(struct autoconfig_info *aci)
 {
 	const struct expansionromtype *ert = get_device_expansion_rom(ROMTYPE_ARRIBA);
+	ide_add_reset();
 	if (!aci->doinit) {
 		aci->autoconfigp = ert->autoconfig;
 		return true;
@@ -2586,6 +2609,7 @@ bool elsathd_init(struct autoconfig_info *aci)
 	if (aci->rc->autoboot_disabled)
 		rom[0] &= ~0x10;
 
+	ide_add_reset();
 	if (!aci->doinit) {
 		memcpy(aci->autoconfig_raw, rom, sizeof aci->autoconfig_raw);
 		xfree(rom);
@@ -2653,6 +2677,7 @@ bool accessx_init(struct autoconfig_info *aci)
 		}
 	}
 
+	ide_add_reset();
 	if (!aci->doinit) {
 		memcpy(aci->autoconfig_raw, rom, sizeof aci->autoconfig_raw);
 		xfree(rom);
@@ -2685,6 +2710,7 @@ void accessx_add_ide_unit(int ch, struct uaedev_config_info *ci, struct romconfi
 bool trumpcard500at_init(struct autoconfig_info *aci)
 {
 	const struct expansionromtype *ert = get_device_expansion_rom(ROMTYPE_IVST500AT);
+	ide_add_reset();
 	if (!aci->doinit) {
 		aci->autoconfigp = ert->autoconfig;
 		return true;
@@ -2722,6 +2748,7 @@ void trumpcard500at_add_ide_unit(int ch, struct uaedev_config_info *ci, struct r
 bool tandem_init(struct autoconfig_info *aci)
 {
 	const struct expansionromtype *ert = get_device_expansion_rom(ROMTYPE_TANDEM);
+	ide_add_reset();
 	if (!aci->doinit) {
 		aci->autoconfigp = ert->autoconfig;
 		return true;
@@ -2751,6 +2778,7 @@ static bool x86_at_hd_init(struct autoconfig_info *aci, int type)
 {
 	static const int parent[] = { ROMTYPE_A1060, ROMTYPE_A2088, ROMTYPE_A2088T, ROMTYPE_A2286, ROMTYPE_A2386, 0 };
 	aci->parent_romtype = parent;
+	ide_add_reset();
 	if (!aci->doinit)
 		return true;
 

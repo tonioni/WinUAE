@@ -1796,9 +1796,9 @@ void CIA_reset (void)
 		}
 	}
 #ifdef CD32
-	if (!isrestore ()) {
-		akiko_reset ();
-		if (!akiko_init ())
+	if (!isrestore()) {
+		akiko_reset(1);
+		if (!akiko_init())
 			currprefs.cs_cd32cd = changed_prefs.cs_cd32cd = 0;
 	}
 #endif

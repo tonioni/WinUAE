@@ -15,9 +15,6 @@
 
 uaecptr netdev_startup(TrapContext*, uaecptr resaddr);
 void netdev_install(void);
-void netdev_reset(void);
-void netdev_start_threads(void);
-void uaenet_vsync(void);
 
 extern int log_net;
 

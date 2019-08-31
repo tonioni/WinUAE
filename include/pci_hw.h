@@ -108,12 +108,6 @@ struct pci_bridge
 	int slot_cnt;
 };
 
-extern void pci_free(void);
-extern void pci_reset(void);
-extern void pci_rethink(void);
-
-extern addrbank *dkb_wildfire_pci_init(struct romconfig *rc);
-
 extern void pci_irq_callback(struct pci_board_state *pcibs, bool irq);
 extern void pci_write_dma(struct pci_board_state *pcibs, uaecptr addr, uae_u8*, int size);
 extern void pci_read_dma(struct pci_board_state *pcibs, uaecptr addr, uae_u8*, int size);

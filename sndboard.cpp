@@ -28,10 +28,14 @@
 #define DEBUG_SNDDEV 0
 #define DEBUG_SNDDEV_FIFO 0
 
+static void snd_init(void);
+static void sndboard_rethink(void);
 static uae_u8 *sndboard_get_buffer(int *frames);
 static void sndboard_release_buffer(uae_u8 *buffer, int frames);
 static void sndboard_free_capture(void);
 static bool sndboard_init_capture(int freq);
+static void uaesndboard_reset(int hardreset);
+static void sndboard_reset(int hardreset);
 
 static double base_event_clock;
 
@@ -961,6 +965,11 @@ bool uaesndboard_init (struct autoconfig_info *aci, int z)
 {
 	struct uaesndboard_data *data = &uaesndboard[0];
 
+	device_add_reset(uaesndboard_reset);
+
+	if (aci->doinit)
+		snd_init();
+
 	data->configured = 0;
 	data->enabled = true;
 	data->z3 = z == 3;
@@ -998,7 +1007,7 @@ bool uaesndboard_init_z3(struct autoconfig_info *aci)
 	return uaesndboard_init(aci, 3);
 }
 
-void uaesndboard_free(void)
+static void uaesndboard_free(void)
 {
 	for (int j = 0; j < MAX_DUPLICATE_SOUND_BOARDS; j++) {
 		struct uaesndboard_data *data = &uaesndboard[j];
@@ -1008,7 +1017,7 @@ void uaesndboard_free(void)
 	sndboard_rethink();
 }
 
-void uaesndboard_reset(void)
+static void uaesndboard_reset(int hardreset)
 {
 	for (int j = 0; j < MAX_DUPLICATE_SOUND_BOARDS; j++) {
 		struct uaesndboard_data *data = &uaesndboard[j];
@@ -1133,11 +1142,14 @@ bool pmx_init (struct autoconfig_info *aci)
 
 	aci->addrbank = &pmx_bank;
 	aci->autoconfig_automatic = true;
+	device_add_reset(sndboard_reset);
 
 	if (!aci->doinit) {
 		aci->autoconfigp = ert->autoconfig;
 		return true;
 	}
+
+	snd_init();
 
 	data->configured = 0;
 	data->streamid = 0;
@@ -1152,7 +1164,7 @@ bool pmx_init (struct autoconfig_info *aci)
 	return true;
 }
 
-void pmx_free(void)
+static void pmx_free(void)
 {
 	for (int j = 0; j < MAX_DUPLICATE_SOUND_BOARDS; j++) {
 		struct pmx_data *data = &pmx[j];
@@ -1161,7 +1173,7 @@ void pmx_free(void)
 	sndboard_rethink();
 }
 
-void pmx_reset(void)
+static void pmx_reset(int hardreset)
 {
 	for (int j = 0; j < MAX_DUPLICATE_SOUND_BOARDS; j++) {
 		struct pmx_data *data = &pmx[j];
@@ -1456,7 +1468,7 @@ static void codec_stop(struct snddev_data *data)
 	data->capture_buffer = NULL;
 }
 
-void sndboard_rethink(void)
+static void sndboard_rethink(void)
 {
 	for (int i = 0; i < MAX_SNDDEVS; i++) {
 		if (snddev[i].enabled) {
@@ -1509,7 +1521,7 @@ static void check_prelude_interrupt(struct snddev_data *data)
 	}
 }
 
-void sndboard_hsync(void)
+static void sndboard_hsync(void)
 {
 	for (int i = 0; i < MAX_SNDDEVS; i++) {
 		struct snddev_data *data = &snddev[i];
@@ -2007,9 +2019,12 @@ bool prelude1200_init(struct autoconfig_info *aci)
 	aci->addrbank = &prelude1200_bank;
 	aci->start = 0xd80000;
 	aci->size = 0x10000;
+	device_add_reset(sndboard_reset);
 
 	if (!aci->doinit)
 		return true;
+
+	snd_init();
 
 	data->configured = 1;
 	data->baseaddress = 0xd80000;
@@ -2042,11 +2057,14 @@ bool prelude_init(struct autoconfig_info *aci)
 		return false;
 
 	aci->addrbank = &prelude_bank;
+	device_add_reset(sndboard_reset);
 
 	if (!aci->doinit) {
 		aci->autoconfigp = ert->autoconfig;
 		return true;
 	}
+
+	snd_init();
 
 	struct snddev_data *data = &snddev[1];
 
@@ -2083,11 +2101,14 @@ bool toccata_init(struct autoconfig_info *aci)
 		return false;
 
 	aci->addrbank = &toccata_bank;
+	device_add_reset(sndboard_reset);
 
 	if (!aci->doinit) {
 		aci->autoconfigp = ert->autoconfig;
 		return true;
 	}
+
+	snd_init();
 
 	struct snddev_data *data = &snddev[0];
 
@@ -2115,7 +2136,7 @@ bool toccata_init(struct autoconfig_info *aci)
 	return true;
 }
 
-void sndboard_reset(void)
+static void sndboard_reset(int hardreset)
 {
 	for (int i = 0; i < MAX_SNDDEVS; i++) {
 		struct snddev_data *data = &snddev[i];
@@ -2133,9 +2154,9 @@ void sndboard_reset(void)
 	sndboard_rethink();
 }
 
-void sndboard_free(void)
+static void sndboard_free(void)
 {
-	sndboard_reset();
+	sndboard_reset(1);
 	for (int i = 0; i < MAX_SNDDEVS; i++) {
 		struct snddev_data *data = &snddev[i];
 		data->rc = NULL;
@@ -2697,7 +2718,7 @@ static void sndboard_vsync_qemu(void)
 	audio_activate();
 }
 
-void sndboard_vsync(void)
+static void sndboard_vsync(void)
 {
 	if (snddev[0].snddev_active)
 		sndboard_vsync_toccata(&snddev[0]);
@@ -2716,6 +2737,16 @@ void sndboard_ext_volume(void)
 	if (qemu_voice_out && qemu_voice_out->active)
 		calculate_volume_qemu();
 }
+
+static void snd_init(void)
+{
+	device_add_hsync(sndboard_hsync);
+	device_add_vsync_post(sndboard_vsync);
+	device_add_rethink(sndboard_rethink);
+	device_add_exit(sndboard_free);
+	device_add_exit(uaesndboard_free);
+}
+
 
 #ifdef _WIN32
 

@@ -1104,14 +1104,14 @@ void cdtv_scsi_clear_int (void)
 	dmac_istr &= ~ISTR_INTS;
 }
 
-void rethink_cdtv (void)
+static void rethink_cdtv (void)
 {
 	checkint ();
 	tp_check_interrupts ();
 }
 
 
-void CDTV_hsync_handler (void)
+static void CDTV_hsync_handler (void)
 {
 	static int subqcnt;
 
@@ -1647,7 +1647,7 @@ static addrbank cardmem_bank = {
 	ABFLAG_RAM, 0, 0
 };
 
-void cdtv_free (void)
+static void cdtv_free (void)
 {
 	if (thread_alive > 0) {
 		dmac_dma = 0;
@@ -1751,6 +1751,11 @@ bool cdtv_init(struct autoconfig_info *aci)
 	cdtv_battram_reset ();
 	open_unit ();
 	gui_flicker_led (LED_CD, 0, -1);
+
+	device_add_hsync(CDTV_hsync_handler);
+	device_add_rethink(rethink_cdtv);
+	device_add_exit(cdtv_free);
+
 	return true;
 }
 

@@ -9888,7 +9888,7 @@ void custom_reset (bool hardreset, bool keyboardreset)
 		board_prefs_changed(-1, -1);
 
 	target_reset ();
-	reset_all_systems ();
+	devices_reset(hardreset);
 	write_log (_T("Reset at %08X. Chipset mask = %08X\n"), M68K_GETPC, currprefs.chipset_mask);
 	memory_map_dump ();
 
@@ -9963,7 +9963,6 @@ void custom_reset (bool hardreset, bool keyboardreset)
 		init_sprites ();
 	}
 
-	devices_reset(hardreset);
 	specialmonitor_reset();
 
 	unset_special (~(SPCFLAG_BRK | SPCFLAG_MODE_CHANGE));
@@ -10084,12 +10083,6 @@ void custom_reset (bool hardreset, bool keyboardreset)
 	setup_fmodes (0);
 	shdelay_disabled = false;
 
-	// must be after audio reset
-	// this inits first autoconfig board
-#ifdef AUTOCONFIG
-	expamem_reset();
-#endif
-
 #ifdef ACTION_REPLAY
 	/* Doing this here ensures we can use the 'reset' command from within AR */
 	action_replay_reset (hardreset, keyboardreset);
@@ -10101,9 +10094,11 @@ void custom_reset (bool hardreset, bool keyboardreset)
 	if (hardreset)
 		rtc_hardreset();
 
-#ifdef PICASSO96
-	picasso_reset(0);
+	// must be last
+#ifdef AUTOCONFIG
+	expamem_reset(hardreset);
 #endif
+
 }
 
 void dumpcustom (void)

@@ -5155,10 +5155,6 @@ void inputdevice_vsync (void)
 	inputdevice_handle_inputcode ();
 	if (mouseedge_alive > 0)
 		mouseedge_alive--;
-#ifdef ARCADIA
-	if (arcadia_bios || alg_flag || cubo_enabled)
-		arcadia_vsync ();
-#endif
 	if (mouseedge(monid))
 		mouseedge_alive = 10;
 	if (mousehack_alive_cnt > 0) {

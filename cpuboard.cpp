@@ -996,6 +996,48 @@ static void csamagnum40_domaprom(void)
 	}
 }
 
+static const uae_u32 gvp_a530_maprom[7] =
+{
+	0, 0, 0,
+	0x280000,
+	0x580000,
+	0x380000,
+	0x980000
+};
+
+void cpuboard_gvpmaprom(int b)
+{
+	if (!ISCPUBOARDP(&currprefs, BOARD_GVP, BOARD_GVP_SUB_A530) &&
+		!ISCPUBOARDP(&currprefs, BOARD_GVP, BOARD_GVP_SUB_GFORCE030))
+		return;
+
+	write_log(_T("GVP MAPROM=%d\n"), b);
+	if (b < 0 || b > 7)
+		return;
+	if (!b) {
+		if (maprom_state)
+			reload_roms();
+		maprom_state = 0;
+	} else {
+		const uae_u32* addrp = 0;
+		maprom_state = b;
+		if (ISCPUBOARDP(&currprefs, BOARD_GVP, BOARD_GVP_SUB_A530)) {
+			addrp = gvp_a530_maprom;
+		}
+		if (addrp) {
+			uae_u32 addr = addrp[b];
+			if (addr) {
+				uae_u8 *src = get_real_address(addr);
+				uae_u8 *dst = kickmem_bank.baseaddr;
+				protect_roms(false);
+				memcpy(dst, src, 524288);
+				protect_roms(true);
+				set_roms_modified();
+			}
+		}
+	}
+}
+
 bool cpuboard_is_ppcboard_irq(void)
 {
 	if (is_csmk3(&currprefs) || is_blizzardppc(&currprefs)) {
@@ -1501,7 +1543,7 @@ static void REGPARAM2 blizzardio_lput(uaecptr addr, uae_u32 v)
 	}
 }
 
-void cpuboard_hsync(void)
+static void cpuboard_hsync(void)
 {
 	// we should call check_ppc_int_lvl() immediately
 	// after PPC CPU's interrupt flag is cleared but this
@@ -1511,7 +1553,7 @@ void cpuboard_hsync(void)
 	}
 }
 
-void cpuboard_vsync(void)
+static void cpuboard_vsync(void)
 {
 	if (delayed_rom_protect <= 0)
 		return;
@@ -1654,9 +1696,8 @@ void cpuboard_map(void)
 	}
 }
 
-void cpuboard_reset(void)
+void cpuboard_reset(int hardreset)
 {
-	bool hardreset = is_hardreset();
 #if 0
 	if (is_blizzard() || is_blizzardppc())
 		canbang = 0;
@@ -2412,6 +2453,8 @@ bool cpuboard_autoconfig_init(struct autoconfig_info *aci)
 	if (brc)
 		romname = brc->roms[idx].romfile;
 
+	device_add_reset(cpuboard_reset);
+
 	cpuboard_non_byte_ea = false;
 	int boardid = cpuboards[p->cpuboard_type].id;
 	switch (boardid)
@@ -2963,5 +3006,9 @@ bool cpuboard_autoconfig_init(struct autoconfig_info *aci)
 			map_banks(&blizzardf0_bank, 0xf00000 >> 16, (f0rom_size > 262144 ? 262144 : f0rom_size) >> 16, 0);
 		}
 	}
+
+	device_add_vsync_pre(cpuboard_vsync);
+	device_add_hsync(cpuboard_hsync);
+
 	return true;
 }

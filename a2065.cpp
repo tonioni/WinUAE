@@ -236,6 +236,26 @@ static int mungepacket (uae_u8 *packet, int len)
 	return ret;
 }
 
+static void rethink_a2065(void)
+{
+	if (!configured)
+		return;
+	csr[0] &= ~CSR0_INTR;
+	uae_u16 mask = csr[0];
+	if (AM79C960)
+		mask &= (~csr[3]) & (0x4000 | 0x1000 | 0x800 | 0x400 | 0x200 | 0x100);
+	if (mask & (CSR0_BABL | CSR0_MISS | CSR0_MERR | CSR0_RINT | CSR0_TINT | CSR0_IDON))
+		csr[0] |= CSR0_INTR;
+	if ((csr[0] & (CSR0_INTR | CSR0_INEA)) == (CSR0_INTR | CSR0_INEA)) {
+		safe_interrupt_set(IRQ_SOURCE_A2065, 0, false);
+		if (log_a2065 > 2)
+			write_log(_T("7990 +IRQ\n"));
+	}
+	if (log_a2065) {
+		write_log(_T("7990 -IRQ\n"));
+	}
+}
+
 static int mcfilter (const uae_u8 *data)
 {
 	if (am_ladrf == 0) // multicast filter completely disabled?
@@ -563,7 +583,7 @@ static void check_transmit(bool tdmd)
 	do_transmit ();
 }
 
-void a2065_hsync_handler (void)
+static void a2065_hsync_handler(void)
 {
 	static int cnt;
 
@@ -571,26 +591,6 @@ void a2065_hsync_handler (void)
 	if (cnt < 0 || transmitnow) {
 		check_transmit(false);
 		cnt = 15;
-	}
-}
-
-void rethink_a2065 (void)
-{
-	if (!configured)
-		return;
-	csr[0] &= ~CSR0_INTR;
-	uae_u16 mask = csr[0];
-	if (AM79C960)
-		mask &= (~csr[3]) & (0x4000 | 0x1000 | 0x800 | 0x400 | 0x200 | 0x100);
-	if (mask & (CSR0_BABL | CSR0_MISS | CSR0_MERR | CSR0_RINT | CSR0_TINT | CSR0_IDON))
-		csr[0] |= CSR0_INTR;
-	if ((csr[0] & (CSR0_INTR | CSR0_INEA)) == (CSR0_INTR | CSR0_INEA)) {
-		safe_interrupt_set(IRQ_SOURCE_A2065, 0, false);
-		if (log_a2065 > 2)
-			write_log(_T("7990 +IRQ\n"));
-	}
-	if (log_a2065) {
-		write_log(_T("7990 -IRQ\n"));
 	}
 }
 
@@ -1016,12 +1016,38 @@ static uae_u32 REGPARAM2 a2065_lgeti (uaecptr addr)
 	return v;
 }
 
+static void a2065_reset(int hardreset)
+{
+	am_initialized = 0;
+	for (int i = 0; i < RAP_SIZE; i++)
+		csr[i] = 0;
+	csr[0] = CSR0_STOP;
+	csr[1] = csr[2] = csr[3] = 0;
+	csr[4] = 0x0115;
+	dbyteswap = 0;
+	rap = 0;
+
+	free_expansion_bank(&a2065_bank);
+	boardram = NULL;
+	ethernet_close(td, sysdata);
+	xfree(sysdata);
+	sysdata = NULL;
+	td = NULL;
+}
+
+static void a2065_free(void)
+{
+	a2065_reset(1);
+}
+
 static bool a2065_config (struct autoconfig_info *aci)
 {
 	uae_u8 maco[3];
 
 	if (!aci)
 		return false;
+
+	device_add_reset(a2065_reset);
 
 	if (aci->postinit) {
 		configured = expamem_board_pointer >> 16;
@@ -1096,6 +1122,11 @@ static bool a2065_config (struct autoconfig_info *aci)
 
 	alloc_expansion_bank(&a2065_bank, aci);
 	boardram = a2065_bank.baseaddr + RAM_OFFSET;
+
+	device_add_hsync(a2065_hsync_handler);
+	device_add_rethink(rethink_a2065);
+	device_add_exit(a2065_free);
+
 	return true;
 }
 
@@ -1141,30 +1172,6 @@ bool ariadne_init(struct autoconfig_info *aci)
 {
 	configured = 0;
 	return a2065_config(aci);
-}
-
-void a2065_free(void)
-{
-	a2065_reset();
-}
-
-void a2065_reset(void)
-{
-	am_initialized = 0;
-	for (int i = 0; i < RAP_SIZE; i++)
-		csr[i] = 0;
-	csr[0] = CSR0_STOP;
-	csr[1] = csr[2] = csr[3] = 0;
-	csr[4] = 0x0115;
-	dbyteswap = 0;
-	rap = 0;
-
-	free_expansion_bank(&a2065_bank);
-	boardram = NULL;
-	ethernet_close(td, sysdata);
-	xfree(sysdata);
-	sysdata = NULL;
-	td = NULL;
 }
 
 #endif /* A2065 */

@@ -28,6 +28,7 @@
 #include "statusline.h"
 #include "rommgr.h"
 #include "flashrom.h"
+#include "devices.h"
 
 #define CUBO_DEBUG 1
 
@@ -475,6 +476,28 @@ static void nvram_read (void)
 	zfile_fclose (f);
 }
 
+static void alg_vsync(void);
+static void cubo_vsync(void);
+static void arcadia_vsync(void)
+{
+	if (alg_flag)
+		alg_vsync();
+	if (cubo_enabled)
+		cubo_vsync();
+
+	if (arcadia_bios) {
+		static int cnt;
+		cnt--;
+		if (cnt > 0)
+			return;
+		cnt = 50;
+		if (!nvwrite)
+			return;
+		nvram_write();
+		nvwrite = 0;
+	}
+}
+
 void arcadia_unmap (void)
 {
 	xfree (arbmemory);
@@ -502,29 +525,8 @@ int arcadia_map_banks (void)
 	nvram_read ();
 	multigame (0);
 	map_banks (&arcadia_boot_bank, 0xf0, 8, 0);
+	device_add_vsync_pre(arcadia_vsync);
 	return 1;
-}
-
-void alg_vsync(void);
-void cubo_vsync(void);
-void arcadia_vsync (void)
-{
-	if (alg_flag)
-		alg_vsync();
-	if (cubo_enabled)
-		cubo_vsync();
-
-	if (arcadia_bios) {
-		static int cnt;
-		cnt--;
-		if (cnt > 0)
-			return;
-		cnt = 50;
-		if (!nvwrite)
-			return;
-		nvram_write ();
-		nvwrite = 0;
-	}
 }
 
 uae_u8 arcadia_parport (int port, uae_u8 pra, uae_u8 dra)
@@ -1032,6 +1034,7 @@ void alg_map_banks(void)
 	ld_wait_ack = 0;
 	ld_direction = 0;
 	ser_buf_offset = 0;
+	device_add_vsync_pre(arcadia_vsync);
 }
 
 static TCHAR cubo_pic_settings[ROMCONFIG_CONFIGTEXT_LEN];
@@ -1585,7 +1588,7 @@ void cubo_function(int v)
 	dip_delay[c] = 5;
 }
 
-void cubo_vsync(void)
+static void cubo_vsync(void)
 {
 	for (int i = 0; i < 16; i++) {
 		if (dip_delay[i] >= 3) {
@@ -1607,18 +1610,7 @@ static addrbank cubo_bank = {
 	NULL, 0x3fffff, 0x600000, 0x600000
 };
 
-bool cubo_init(struct autoconfig_info *aci)
-{
-	aci->start = 0x00600000;
-	aci->size  = 0x00400000;
-	if (!aci->doinit)
-		return true;
-	map_banks(&cubo_bank, aci->start >> 16, aci->size >> 16, 0);
-	aci->addrbank = &cubo_bank;
-	return true;
-}
-
-void arcadia_reset(void)
+static void arcadia_reset(int hardreset)
 {
 	cubo_enabled = is_board_enabled(&currprefs, ROMTYPE_CUBO, 0);
 	i2c_free(cubo_rtc);
@@ -1630,7 +1622,7 @@ void arcadia_reset(void)
 	cubo_pic_settings[0] = 0;
 }
 
-void check_arcadia_prefs_changed(void)
+static void check_arcadia_prefs_changed(void)
 {
 	if (!config_changed)
 		return;
@@ -1642,3 +1634,18 @@ void check_arcadia_prefs_changed(void)
 	cubo_settings = brc->roms[0].device_settings;
 	_tcscpy(cubo_pic_settings, brc->roms[0].configtext);
 }
+
+bool cubo_init(struct autoconfig_info *aci)
+{
+	aci->start = 0x00600000;
+	aci->size  = 0x00400000;
+	device_add_reset(arcadia_reset);
+	if (!aci->doinit)
+		return true;
+	map_banks(&cubo_bank, aci->start >> 16, aci->size >> 16, 0);
+	aci->addrbank = &cubo_bank;
+	device_add_check_config(check_arcadia_prefs_changed);
+	device_add_vsync_pre(arcadia_vsync);
+	return true;
+}
+

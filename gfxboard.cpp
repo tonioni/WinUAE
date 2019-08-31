@@ -42,6 +42,7 @@ static bool memlogw = true;
 #include "gfxboard.h"
 #include "rommgr.h"
 #include "xwin.h"
+#include "devices.h"
 
 #include "qemuvga/qemuuaeglue.h"
 #include "qemuvga/vga.h"
@@ -390,6 +391,16 @@ void gfxboard_free_vram(int index)
 		vram_ram_a8 = 0;
 }
 
+static void gfxboard_hsync_handler(void)
+{
+	for (int i = 0; i < MAX_RTG_BOARDS; i++) {
+		struct rtggfxboard *gb = &rtggfxboards[i];
+		if (gb->func && gb->userdata) {
+			gb->func->hsync(gb->userdata);
+		}
+	}
+}
+
 static void init_board (struct rtggfxboard *gb)
 {
 	struct rtgboardconfig *rbc = gb->rbc;
@@ -463,6 +474,8 @@ static void init_board (struct rtggfxboard *gb)
 	gb->vga.vga.con = (void*)gb;
 	cirrus_init_common(&gb->vga, chiptype, 0,  NULL, NULL, gb->board->manufacturer == 0, gb->board->romtype == ROMTYPE_x86_VGA);
 	picasso_allocatewritewatch(gb->rbc->rtg_index, gb->rbc->rtgmem_size);
+
+	device_add_hsync(gfxboard_hsync_handler);
 }
 
 static int GetBytesPerPixel(RGBFTYPE RGBfmt)
@@ -901,16 +914,6 @@ void gfxboard_refresh(int monid)
 			if (rbc->rtgmem_size) {
 				gfxboard_refresh(rbc->monitor_id);
 			}
-		}
-	}
-}
-
-void gfxboard_hsync_handler(void)
-{
-	for (int i = 0; i < MAX_RTG_BOARDS; i++) {
-		struct rtggfxboard *gb = &rtggfxboards[i];
-		if (gb->func && gb->userdata) {
-			gb->func->hsync(gb->userdata);
 		}
 	}
 }

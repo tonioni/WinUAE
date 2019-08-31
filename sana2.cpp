@@ -32,6 +32,7 @@
 #endif
 #include "execio.h"
 #include "debug.h"
+#include "devices.h"
 
 #ifdef SANA2
 
@@ -1797,7 +1798,7 @@ static uae_u32 REGPARAM2 uaenet_int_handler(TrapContext *ctx)
 	}
 }
 
-void uaenet_vsync(void)
+static void uaenet_vsync(void)
 {
 	if (!irq_init)
 		return;
@@ -1861,6 +1862,26 @@ static void dev_reset (void)
 	}
 	irq_init = 0;
 
+}
+
+static void netdev_start_threads(void)
+{
+	if (!currprefs.sana2)
+		return;
+	if (log_net)
+		write_log(_T("netdev_start_threads()\n"));
+	uae_sem_init(&change_sem, 0, 1);
+	uae_sem_init(&pipe_sem, 0, 1);
+	uae_sem_init(&async_sem, 0, 1);
+}
+
+static void netdev_reset(int hardreset)
+{
+	uaenet_signal_state = 1;
+	netdev_start_threads();
+	if (!currprefs.sana2)
+		return;
+	dev_reset();
 }
 
 uaecptr netdev_startup(TrapContext *ctx, uaecptr resaddr)
@@ -1991,25 +2012,8 @@ void netdev_install (void)
 	dw (NSCMD_DEVICEQUERY);
 	dw (0);
 
-}
-
-void netdev_start_threads (void)
-{
-	if (!currprefs.sana2)
-		return;
-	if (log_net)
-		write_log (_T("netdev_start_threads()\n"));
-	uae_sem_init(&change_sem, 0, 1);
-	uae_sem_init(&pipe_sem, 0, 1);
-	uae_sem_init(&async_sem, 0, 1);
-}
-
-void netdev_reset (void)
-{
-	uaenet_signal_state = 1;
-	if (!currprefs.sana2)
-		return;
-	dev_reset ();
+	device_add_vsync_pre(uaenet_vsync);
+	device_add_reset(netdev_reset);
 }
 
 #endif /* SANA2 */

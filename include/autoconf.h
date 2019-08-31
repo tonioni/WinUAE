@@ -80,7 +80,6 @@ extern void align (int);
 
 extern volatile uae_atomic uae_int_requested;
 extern void rtarea_reset(void);
-extern bool rethink_traps(void);
 
 #define RTS 0x4e75
 #define RTE 0x4e73

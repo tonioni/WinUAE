@@ -2661,7 +2661,7 @@ void memory_reset (void)
 	currprefs.cs_fatgaryrev = changed_prefs.cs_fatgaryrev;
 	currprefs.cs_ramseyrev = changed_prefs.cs_ramseyrev;
 	currprefs.cs_unmapped_space = changed_prefs.cs_unmapped_space;
-	cpuboard_reset();
+	cpuboard_reset(mem_hardreset);
 
 	gayleorfatgary = ((currprefs.chipset_mask & CSMASK_AGA) || currprefs.cs_pcmcia || currprefs.cs_ide > 0 || currprefs.cs_mbdmac) && !currprefs.cs_cd32cd;
 
@@ -2898,7 +2898,7 @@ void memory_init (void)
 	memset (kickmem_bank.baseaddr, 0, ROM_SIZE_512);
 	_tcscpy (currprefs.romfile, _T("<none>"));
 	currprefs.romextfile[0] = 0;
-	cpuboard_reset();
+	cpuboard_reset(1);
 
 #ifdef ACTION_REPLAY
 	action_replay_unload (0);

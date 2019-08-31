@@ -180,7 +180,7 @@ static void set_irq6(int id, int level)
 		safe_interrupt_set(IRQ_SOURCE_NCR, 0, true);
 }
 
-void ncr_rethink(void)
+static void ncr_rethink(void)
 {
 	for (int i = 0; ncr_units[i]; i++) {
 		if (ncr_units[i] != ncr_cs && ncr_units[i]->irq)
@@ -398,7 +398,7 @@ static void check_timer(struct ncr_state *ncr)
 	}
 }
 
-void ncr_vsync(void)
+static void ncr_vsync(void)
 {
 	for (int i = 0; ncr_units[i]; i++) {
 		if (ncr_units[i] == ncr_magnum40) {
@@ -849,11 +849,31 @@ static void ncr_init_board(struct ncr_state *ncr)
 	ncr->configured = 0;
 }
 
+static void ncr_free(void)
+{
+	for (int i = 0; i < MAX_NCR_UNITS; i++) {
+		freencrunit(ncr_units[i]);
+	}
+}
+
+static void ncr_reset_board(struct ncr_state *ncr);
+void ncr_reset(int hardreset)
+{
+	for (int i = 0; i < MAX_NCR_UNITS; i++) {
+		ncr_reset_board(ncr_units[i]);
+	}
+}
+
 static void ncr_reset_board (struct ncr_state *ncr)
 {
 	if (!ncr)
 		return;
 	ncr->irq = false;
+
+	device_add_rethink(ncr_rethink);
+	device_add_exit(ncr_free);
+	device_add_vsync_pre(ncr_vsync);
+	device_add_reset(ncr_reset);
 }
 
 // 01010040
@@ -869,6 +889,7 @@ static const uae_u8 warpengine_a4000_autoconfig[16] = {
 bool ncr710_warpengine_autoconfig_init(struct autoconfig_info *aci)
 {
 	aci->autoconfigp = warpengine_a4000_autoconfig;
+	device_add_reset(ncr_reset);
 	if (!aci->doinit)
 		return true;
 
@@ -940,6 +961,7 @@ bool ncr710_a4091_autoconfig_init (struct autoconfig_info *aci)
 		zfile_fclose(z);
 	}
 
+	device_add_reset(ncr_reset);
 	if (!aci->doinit) {
 		xfree(rom);
 		return true;
@@ -973,6 +995,7 @@ static const uae_u8 zeus040_autoconfig[16] = {
 bool ncr710_zeus040_autoconfig_init(struct autoconfig_info *aci)
 {
 	aci->autoconfigp = zeus040_autoconfig;
+	device_add_reset(ncr_reset);
 	if (!aci->doinit)
 		return true;
 
@@ -1008,6 +1031,7 @@ bool ncr710_zeus040_autoconfig_init(struct autoconfig_info *aci)
 
 bool ncr710_magnum40_autoconfig_init(struct autoconfig_info *aci)
 {
+	device_add_reset(ncr_reset);
 	if (!aci->doinit) {
 		load_rom_rc(aci->rc, ROMTYPE_CB_MAGNUM40, 65536, 0, aci->autoconfig_raw, 128, 0);
 		return true;
@@ -1037,24 +1061,6 @@ bool ncr710_magnum40_autoconfig_init(struct autoconfig_info *aci)
 
 	aci->addrbank = &ncr_bank_generic;
 	return true;
-}
-
-void ncr_free(void)
-{
-	for (int i = 0; i < MAX_NCR_UNITS; i++) {
-		freencrunit(ncr_units[i]);
-	}
-}
-
-void ncr_init(void)
-{
-}
-
-void ncr_reset(void)
-{
-	for (int i = 0; i < MAX_NCR_UNITS; i++) {
-		ncr_reset_board(ncr_units[i]);
-	}
 }
 
 static void allocscsidevice(struct ncr_state *ncr, int ch, struct scsi_data *handle, int uae_unitnum)

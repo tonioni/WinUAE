@@ -3,11 +3,6 @@
 
 #include "uae/types.h"
 
-extern void ncr9x_init(void);
-extern void ncr9x_free(void);
-extern void ncr9x_reset(void);
-extern void ncr9x_rethink(void);
-
 extern void cpuboard_ncr9x_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
 extern void cpuboard_dkb_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
 extern void fastlane_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);

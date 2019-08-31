@@ -85,15 +85,16 @@
 #define GVP_GFORCE_040_SCSI	0x30
 #define GVP_A1291			0x46
 #define GVP_A1291_SCSI		0x47
-#define GVP_GFORCE_030		0xa0
-#define GVP_GFORCE_030_SCSI	0xb0
 #define GVP_COMBO_R4		0x60
 #define GVP_COMBO_R4_SCSI	0x70
+#define GVP_IO_EXTENDER		0x98
+#define GVP_GFORCE_030		0xa0
+#define GVP_GFORCE_030_SCSI	0xb0
+#define GVP_A530			0xc0
+#define GVP_A530_SCSI		0xd0
 #define GVP_COMBO_R3		0xe0
 #define GVP_COMBO_R3_SCSI	0xf0
 #define GVP_SERIESII		0xf8
-#define GVP_A530			0xc0
-#define GVP_A530_SCSI		0xd0
 
 /* wd register names */
 #define WD_OWN_ID		0x00
@@ -283,6 +284,9 @@ static uae_u8 gvp_accelerator_bank;
 
 static struct wd_state *scsi_units[MAX_SCSI_UNITS + 1];
 
+static void wd_init(void);
+static void wd_addreset(void);
+
 static void freencrunit(struct wd_state *wd)
 {
 	if (!wd)
@@ -462,7 +466,7 @@ static bool is_dma_enabled(struct wd_state *wds)
 	return false;
 }
 
-void rethink_a2091 (void)
+static void rethink_a2091(void)
 {
 	if (!configured)
 		return;
@@ -1537,7 +1541,7 @@ static void scsi_hsync2_comspec(struct wd_state *wds)
 	wd_check_interrupt(wds, false);
 }
 
-void scsi_hsync (void)
+static void scsi_hsync(void)
 {
 	for (int i = 0; i < MAX_DUPLICATE_EXPANSION_BOARDS; i++) {
 		scsi_hsync2_a2091(wd_a2091[i]);
@@ -3181,7 +3185,7 @@ static uae_u32 dmac_gvp_read_word(struct wd_state *wd, uaecptr addr)
 				v = wd->gdmac.cntr;
 				break;
 				case 0x68:
-				v = wd->gdmac.bank;
+				v = (wd->gdmac.bank << 6) | (wd->gdmac.maprom & 0x3f);
 				break;
 				case 0x70:
 				v = wd->gdmac.addr >> 16;
@@ -3356,6 +3360,8 @@ static void dmac_gvp_write_word(struct wd_state *wd, uaecptr addr, uae_u32 b)
 			case 0x68: // bank
 			wd->gdmac.bank_ptr = &wd->gdmac.bank;
 			wd->gdmac.bank = b >> 6;
+			wd->gdmac.maprom = b & 0x3f;
+			cpuboard_gvpmaprom((b >> 1) & 7);
 			break;
 			case 0x70: // ACR
 			wd->gdmac.addr &= 0x0000ffff;
@@ -3895,6 +3901,7 @@ void init_wd_scsi (struct wd_state *wd)
 		init_comm_pipe (&wd->requests, 100, 1);
 		uae_start_thread (_T("scsi"), scsi_thread, wd, NULL);
 	}
+	wd_init();
 }
 
 void a3000_add_scsi_unit (int ch, struct uaedev_config_info *ci, struct romconfig *rc)
@@ -3911,6 +3918,7 @@ bool a3000scsi_init(struct autoconfig_info *aci)
 	aci->start = 0xdd0000;
 	aci->size = 0x10000;
 	aci->hardwired = true;
+	wd_addreset();
 	if (!aci->doinit) {
 		return true;
 	}
@@ -3925,10 +3933,11 @@ bool a3000scsi_init(struct autoconfig_info *aci)
 	map_banks(&mbdmac_a3000_bank, wd->baseaddress >> 16, 1, 0);
 	wd_cmd_reset (&wd->wc, false, false);
 	reset_dmac(wd);
+	wd_init();
 	return true;
 }
 
-void a3000scsi_free (void)
+static void a3000scsi_free (void)
 {
 	struct wd_state *wd = wd_a3000;
 	if (!wd)
@@ -3994,7 +4003,7 @@ static void a2091_free_device (struct wd_state *wd)
 	freencrunit(wd);
 }
 
-void a2091_free (void)
+static void a2091_free(void)
 {
 	for (int i = 0; i < MAX_DUPLICATE_EXPANSION_BOARDS; i++) {
 		a2091_free_device(wd_a2091[i]);
@@ -4031,7 +4040,7 @@ static void a2090_reset_device(struct wd_state *wd)
 	reset_dmac(wd);
 }
 
-void a2091_reset (void)
+static void a2091_reset(int hardreset)
 {
 	for (int i = 0; i < MAX_DUPLICATE_EXPANSION_BOARDS; i++) {
 		a2091_reset_device(wd_a2091[i]);
@@ -4056,6 +4065,7 @@ bool a2091_init (struct autoconfig_info *aci)
 	ew (aci->autoconfig_raw, 0x20, 0x00); /* ser.no. Byte 2 */
 	ew (aci->autoconfig_raw, 0x24, 0x00); /* ser.no. Byte 3 */
 
+	wd_addreset();
 	aci->label = _T("A2091");
 	if (!aci->doinit)
 		return true;
@@ -4119,6 +4129,7 @@ bool a2091_init (struct autoconfig_info *aci)
 		}
 	}
 	aci->addrbank = &wd->bank;
+	wd_init();
 	return true;
 }
 
@@ -4139,6 +4150,7 @@ static bool a2090x_init (struct autoconfig_info *aci, bool combitec)
 	ew(aci->autoconfig_raw, 0x20, 0x00); /* ser.no. Byte 2 */
 	ew(aci->autoconfig_raw, 0x24, 0x00); /* ser.no. Byte 3 */
 
+	wd_addreset();
 	aci->label = _T("A2090");
 	if (!aci->doinit) {
 		return true;
@@ -4183,6 +4195,8 @@ static bool a2090x_init (struct autoconfig_info *aci, bool combitec)
 		}
 	}
 
+	wd_init();
+
 	return true;
 }
 
@@ -4224,7 +4238,7 @@ static void gvp_free_device (struct wd_state *wd)
 	freencrunit(wd);
 }
 
-void gvp_free (void)
+static void gvp_free(void)
 {
 	for (int i = 0; i < MAX_DUPLICATE_EXPANSION_BOARDS; i++) {
 		gvp_free_device(wd_gvps1[i]);
@@ -4247,7 +4261,7 @@ static void gvp_reset_device(struct wd_state *wd)
 	reset_dmac(wd);
 }
 
-void gvp_reset (void)
+static void gvp_reset(int hardreset)
 {
 	for (int i = 0; i < MAX_DUPLICATE_EXPANSION_BOARDS; i++) {
 		gvp_reset_device(wd_gvps1[i]);
@@ -4285,11 +4299,12 @@ static bool gvp_init(struct autoconfig_info *aci, bool series2, bool accel)
 		aci->label = series2 ? _T("GVP SCSI S2") : _T("GVP SCSI S1");
 	} else {
 		romtype = ROMTYPE_CPUBOARD;
-		aci->label = _T("GVP Acclerator SCSI");
+		aci->label = _T("GVP Accelerator SCSI");
 		gvp_accelerator_bank = 0;
 		autoboot_disabled = currprefs.cpuboard_settings & 1;
 	}
 
+	wd_addreset();
 	if (!aci->doinit) {
 		aci->autoconfigp = ac;
 		return true;
@@ -4411,6 +4426,7 @@ static bool gvp_init(struct autoconfig_info *aci, bool series2, bool accel)
 		ew(wd->dmacmemory, i * 4, b);
 	}
 	gvp_reset_device(wd);
+	wd_init();
 	return true;
 }
 
@@ -4455,6 +4471,7 @@ bool comspec_init (struct autoconfig_info *aci)
 {
 	comspec_ac(aci);
 	aci->label = _T("COMSPEC");
+	wd_addreset();
 	if (!aci->doinit)
 		return true;
 
@@ -4462,6 +4479,7 @@ bool comspec_init (struct autoconfig_info *aci)
 	if (!wd)
 		return false;
 
+	wd_init();
 	return true;
 }
 
@@ -4520,6 +4538,20 @@ void comspec_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconf
 	add_scsi_device(&wd->scsis[ch], ch, ci, rc);
 }
 
+static void wd_addreset(void)
+{
+	device_add_reset(a2091_reset);
+	device_add_reset(gvp_reset);
+}
+
+static void wd_init(void)
+{
+	device_add_hsync(scsi_hsync);
+	device_add_rethink(rethink_a2091);
+	device_add_exit(a2091_free);
+	device_add_exit(gvp_free);
+	device_add_exit(a3000scsi_free);
+}
 
 #if 0
 uae_u8 *save_scsi_dmac (int wdtype, int *len, uae_u8 *dstptr)

@@ -1145,9 +1145,6 @@ static int real_main2 (int argc, TCHAR **argv)
 #ifdef WITH_LUA
 	uae_lua_init ();
 #endif
-#ifdef PICASSO96
-	picasso_reset(0);
-#endif
 
 #if 0
 #ifdef JIT

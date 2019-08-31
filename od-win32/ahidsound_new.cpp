@@ -1164,7 +1164,7 @@ static int unqueuebuffers (struct dschannel *dc)
 	}
 }
 
-void ahi_hsync (void)
+static void ahi_hsync (void)
 {
 	struct DSAHI *dsahip = &dsahi[0];
 	static int cnt;

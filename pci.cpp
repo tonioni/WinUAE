@@ -131,7 +131,7 @@ static void pci_board_add(struct pci_bridge *pcib, const struct pci_board *pci, 
 	}
 }
 
-void pci_free(void)
+static void pci_free(void)
 {
 	for (int i = 0; i < PCI_BRIDGE_MAX; i++) {
 		pci_bridge_free(bridges[i]);
@@ -141,12 +141,12 @@ void pci_free(void)
 		hsyncs[i] = NULL;
 	}
 }
-void pci_reset(void)
+static void pci_reset(int hardreset)
 {
 	pci_free();
 }
 
-void pci_hsync(void)
+static void pci_hsync(void)
 {
 	for (int i = 0; i < MAX_PCI_BOARDS; i++) {
 		if (hsyncs[i])
@@ -154,7 +154,7 @@ void pci_hsync(void)
 	}
 }
 
-void pci_rethink(void)
+static void pci_rethink(void)
 {
 	for (int i = 0; i < PCI_BRIDGE_MAX; i++) {
 		struct pci_bridge *pcib = bridges[i];
@@ -1484,6 +1484,14 @@ static void add_pci_devices(struct pci_bridge *pcib, struct autoconfig_info *aci
 	}
 }
 
+static void pci_init(void)
+{
+	device_add_reset(pci_reset);
+	device_add_rethink(pci_rethink);
+	device_add_exit(pci_free);
+	device_add_hsync(pci_hsync);
+}
+
 // Wildfire
 
 void wildfire_ncr815_irq(int id, int v)
@@ -1496,6 +1504,7 @@ bool dkb_wildfire_pci_init(struct autoconfig_info *aci)
 {
 	struct pci_bridge *pcib = pci_bridge_alloc();
 
+	device_add_reset(pci_reset);
 	if (!aci->doinit) {
 		return true;
 	}
@@ -1520,6 +1529,7 @@ bool dkb_wildfire_pci_init(struct autoconfig_info *aci)
 	map_banks(&pci_bridge_bank, 0xffff0000 >> 16, 0x10000 >> 16, 0);
 	pcib->data = xcalloc(uae_u8, 32768);
 	aci->addrbank = &expamem_null;
+	pci_init();
 	return true;
 }
 
@@ -1554,6 +1564,7 @@ static int prometheus_get_index(uaecptr addr)
 
 static bool prometheus_pci_init(struct autoconfig_info *aci)
 {
+	device_add_reset(pci_reset);
 	if (!aci->doinit) {
 		for (int i = 0; i < sizeof prometheus_autoconfig; i++) {
 			ew(aci->autoconfig_raw, i * 4, prometheus_autoconfig[i]);
@@ -1584,6 +1595,7 @@ static bool prometheus_pci_init(struct autoconfig_info *aci)
 		ew(pcib->acmemory, i * 4, prometheus_autoconfig[i]);
 	}
 	aci->addrbank = pcib->bank;
+	pci_init();
 	return true;
 }
 
@@ -1611,6 +1623,7 @@ static bool grex_pci_init(struct autoconfig_info *aci)
 	aci->start = 0x80000000;
 	aci->size = 0x80000000;
 
+	device_add_reset(pci_reset);
 	if (!aci->doinit) {
 		return true;
 	}
@@ -1633,7 +1646,7 @@ static bool grex_pci_init(struct autoconfig_info *aci)
 	map_banks(&pci_io_bank, 0xfffa0000 >> 16, 0x20000 >> 16, 0);
 	map_banks(&pci_bridge_bank, 0xfffe0000 >> 16, 0x10000 >> 16, 0);
 	pcib->io_offset = 0xfffa0000;
-
+	pci_init();
 	return true;
 }
 
@@ -1669,6 +1682,7 @@ static bool cbvision(struct autoconfig_info *aci)
 	pcib->io_offset = 0xfffa0000;
 	aci->zorro = 0;
 	aci->parent_of_previous = true;
+	pci_init();
 	return true;
 }
 
@@ -1768,6 +1782,7 @@ static void mediator_pci_init_1200(struct pci_bridge *pcib)
 
 static addrbank *mediator_pci_init_1200_1(struct autoconfig_info *aci, struct romconfig *rc, struct mediator_autoconfig *m_ac)
 {
+	device_add_reset(pci_reset);
 	if (!aci->doinit) {
 		for (int i = 0; i < 16; i++) {
 			ew(aci->autoconfig_raw, i * 4, m_ac->io[i]);
@@ -1791,11 +1806,13 @@ static addrbank *mediator_pci_init_1200_1(struct autoconfig_info *aci, struct ro
 	for (int i = 0; i < 16; i++) {
 		ew(pcib->acmemory_2, i * 4, m_ac->io[i]);
 	}
+	pci_init();
 	return &pci_bridge_bank_2;
 }
 
 static addrbank *mediator_pci_init_1200_2(struct autoconfig_info *aci, struct romconfig *rc, struct mediator_autoconfig *m_ac)
 {
+	device_add_reset(pci_reset);
 	if (!aci->doinit) {
 		const uae_u8 *ac = (rc->device_settings & 2) ? m_ac->mem_large : m_ac->mem_small;
 		for (int i = 0; i < 16; i++) {
@@ -1822,6 +1839,7 @@ static addrbank *mediator_pci_init_1200_2(struct autoconfig_info *aci, struct ro
 	for (int i = 0; i < 16; i++) {
 		ew(pcib->acmemory, i * 4, ac[i]);
 	}
+	pci_init();
 	return &pci_bridge_bank;
 }
 
@@ -1846,6 +1864,7 @@ static void mediator_pci_init_4000(struct pci_bridge *pcib)
 
 static addrbank *mediator_pci_init_4000_1(struct autoconfig_info *aci, struct romconfig *rc, struct mediator_autoconfig *m_ac)
 {
+	device_add_reset(pci_reset);
 	if (!aci->doinit) {
 		aci->autoconfigp = m_ac->io;
 		return &pci_bridge_bank_2;
@@ -1867,10 +1886,12 @@ static addrbank *mediator_pci_init_4000_1(struct autoconfig_info *aci, struct ro
 	for (int i = 0; i < 16; i++) {
 		ew(pcib->acmemory_2, i * 4, m_ac->io[i]);
 	}
+	pci_init();
 	return &pci_bridge_bank_2;
 }
 static addrbank *mediator_pci_init_4000_2(struct autoconfig_info *aci, struct romconfig *rc, struct mediator_autoconfig *m_ac)
 {
+	device_add_reset(pci_reset);
 	if (!aci->doinit) {
 		aci->autoconfigp = (rc->device_settings & 2) ? m_ac->mem_large : m_ac->mem_small;
 		return &pci_bridge_bank;
@@ -1895,6 +1916,7 @@ static addrbank *mediator_pci_init_4000_2(struct autoconfig_info *aci, struct ro
 	for (int i = 0; i < 16; i++) {
 		ew(pcib->acmemory, i * 4, ac[i]);
 	}
+	pci_init();
 	return &pci_bridge_bank;
 }
 

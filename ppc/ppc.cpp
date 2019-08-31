@@ -16,6 +16,7 @@
 #include "uae/log.h"
 #include "uae/ppc.h"
 #include "uae/qemu.h"
+#include "devices.h"
 
 #define SPINLOCK_DEBUG 0
 #define PPC_ACCESS_LOG 0
@@ -808,6 +809,21 @@ bool UAECALL uae_ppc_io_mem_read64(uint32_t addr, uint64_t *data)
 	return true;
 }
 
+static void uae_ppc_hsync_handler(void)
+{
+	if (ppc_state == PPC_STATE_INACTIVE)
+		return;
+	if (using_pearpc()) {
+		if (ppc_state != PPC_STATE_SLEEP)
+			return;
+		if (impl.get_dec() == 0) {
+			uae_ppc_wakeup();
+		} else {
+			impl.do_dec(ppc_cycle_count);
+		}
+	}
+}
+
 void uae_ppc_cpu_stop(void)
 {
 	if (ppc_state == PPC_STATE_INACTIVE)
@@ -837,6 +853,8 @@ void uae_ppc_cpu_reboot(void)
 	TRACE(_T("uae_ppc_cpu_reboot\n"));
 
 	initialize();
+
+	device_add_hsync(uae_ppc_hsync_handler);
 
 	if (!ppc_thread_running) {
 		write_log(_T("Starting PPC thread.\n"));
@@ -943,21 +961,6 @@ void uae_ppc_crash(void)
 	ppc_state = PPC_STATE_CRASH;
 	if (impl.stop) {
 		impl.stop();
-	}
-}
-
-void uae_ppc_hsync_handler(void)
-{
-	if (ppc_state == PPC_STATE_INACTIVE)
-		return;
-	if (using_pearpc()) {
-		if (ppc_state != PPC_STATE_SLEEP)
-			return;
-		if (impl.get_dec() == 0) {
-			uae_ppc_wakeup();
-		} else {
-			impl.do_dec(ppc_cycle_count);
-		}
 	}
 }
 

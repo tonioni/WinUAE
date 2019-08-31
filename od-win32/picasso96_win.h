@@ -630,10 +630,8 @@ extern struct picasso96_state_struct picasso96_state[MAX_AMIGAMONITORS];
 extern void picasso_enablescreen(int monid, int on);
 extern void picasso_refresh(int monid);
 extern void init_hz_p96(int monid);
-extern void picasso_handle_hsync(void);
 extern void picasso_handle_vsync(void);
 extern void picasso_trigger_vblank(void);
-extern void picasso_reset(int monid);
 extern bool picasso_is_active(int monid);
 extern int picasso_setwincursor(int monid);
 extern int picasso_palette(struct MyCLUTEntry *MCLUT, uae_u32 *clut);
@@ -642,7 +640,6 @@ extern void picasso_getwritewatch (int index, int offset);
 extern bool picasso_is_vram_dirty (int index, uaecptr addr, int size);
 extern void picasso_statusline (int monid, uae_u8 *dst);
 extern void picasso_invalidate(int monid, int x, int y, int w, int h);
-extern void picasso_free(void);
 
 /* This structure describes the UAE-side framebuffer for the Picasso
  * screen.  */

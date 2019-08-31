@@ -13,11 +13,7 @@ void wildfire_ncr815_irq(int id, int v);
 extern addrbank ncr_bank_cyberstorm;
 extern addrbank ncr_bank_generic;
 
-extern void ncr_init(void);
-extern void ncr_free(void);
-extern void ncr_reset(void);
-extern void ncr_rethink(void);
-extern void ncr_vsync(void);
+extern void ncr_reset(int);
 
 extern bool ncr710_a4091_autoconfig_init(struct autoconfig_info *aci);
 extern bool ncr710_warpengine_autoconfig_init(struct autoconfig_info *aci);

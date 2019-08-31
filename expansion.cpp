@@ -47,6 +47,7 @@
 #include "ethernet.h"
 #include "sana2.h"
 #include "arcadia.h"
+#include "devices.h"
 
 
 #define CARD_FLAG_CAN_Z3 1
@@ -3690,7 +3691,7 @@ void expansion_scan_autoconfig(struct uae_prefs *p, bool log)
 	expansion_parse_cards(p, log);
 }
 
-void expamem_reset (void)
+void expamem_reset (int hardreset)
 {
 	reset_ac(&currprefs);
 
@@ -3703,6 +3704,9 @@ void expamem_reset (void)
 	expansion_init_cards(&currprefs);
 	expansion_autoconfig_sort(&currprefs);
 	expansion_parse_cards(&currprefs, true);
+
+	// this also resets all autoconfig devices
+	devices_reset_ext(hardreset);
 
 	if (cardno == 0 || savestate_state) {
 		expamem_init_clear_zero ();

@@ -36,6 +36,7 @@
 #include "rp.h"
 #include "direct3d.h"
 #include "debug.h"
+#include "devices.h"
 
 static int initialized;
 static RPGUESTINFO guestinfo;
@@ -1543,6 +1544,9 @@ HRESULT rp_init (void)
 		dactmask[i] = 0;
 	}
 	mousecapture = 0;
+
+	device_add_vsync_pre(rp_vsync);
+
 	return hr;
 }
 

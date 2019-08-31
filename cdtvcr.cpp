@@ -250,7 +250,7 @@ static void cdtvcr_4510_reset(uae_u8 v)
 		get_toc();
 }
 
-void rethink_cdtvcr(void)
+static void rethink_cdtvcr(void)
 {
 	if ((cdtvcr_4510_ram[CDTVCR_INTREQ] & cdtvcr_4510_ram[CDTVCR_INTENA]) && !cdtvcr_4510_ram[CDTVCR_INTDISABLE]) {
 		safe_interrupt_set(IRQ_SOURCE_CD32CDTV, 0, false);
@@ -901,7 +901,7 @@ static void *dev_thread (void *p)
 	}
 }
 
-void CDTVCR_hsync_handler (void)
+static void CDTVCR_hsync_handler (void)
 {
 	static int subqcnt, readcnt;
 
@@ -994,18 +994,7 @@ static void close_unit (void)
 	unitnum = -1;
 }
 
-bool cdtvcr_init(struct autoconfig_info *aci)
-{
-	aci->start = 0xb80000;
-	aci->size = 0x10000;
-	aci->zorro = 0;
-	if (!aci->doinit)
-		return true;
-	map_banks(&cdtvcr_bank, 0xB8, 1, 0);
-	return true;
-}
-
-void cdtvcr_reset(void)
+static void cdtvcr_reset(int hardreset)
 {
 	if (!currprefs.cs_cdtvcr)
 		return;
@@ -1030,7 +1019,7 @@ void cdtvcr_reset(void)
 #endif
 }
 
-void cdtvcr_free(void)
+static void cdtvcr_free(void)
 {
 	if (thread_alive > 0) {
 		write_comm_pipe_u32 (&requests, 0xffff, 1);
@@ -1040,6 +1029,23 @@ void cdtvcr_free(void)
 	}
 	thread_alive = 0;
 	close_unit ();
+}
+
+bool cdtvcr_init(struct autoconfig_info *aci)
+{
+	aci->start = 0xb80000;
+	aci->size = 0x10000;
+	aci->zorro = 0;
+	device_add_reset(cdtvcr_reset);
+	if (!aci->doinit)
+		return true;
+	map_banks(&cdtvcr_bank, 0xB8, 1, 0);
+
+	device_add_hsync(CDTVCR_hsync_handler);
+	device_add_rethink(rethink_cdtvcr);
+	device_add_exit(cdtvcr_free);
+
+	return true;
 }
 
 #if CDTVCR_4510_EMULATION

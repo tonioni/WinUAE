@@ -165,8 +165,6 @@ return y ## _lget(&z, addr); \
 void soft_scsi_put(uaecptr addr, int size, uae_u32 v);
 uae_u32 soft_scsi_get(uaecptr addr, int size);
 
-void ncr80_rethink(void);
-
 void apollo_scsi_bput(uaecptr addr, uae_u8 v, uae_u32 config);
 uae_u8 apollo_scsi_bget(uaecptr addr, uae_u32 config);
 void apollo_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
@@ -178,9 +176,6 @@ bool ivsvector_init(struct autoconfig_info *aci);
 
 void twelvegauge_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
 bool twelvegauge_init(struct autoconfig_info *aci);
-
-void soft_scsi_free(void);
-void soft_scsi_reset(void);
 
 uae_u8 parallel_port_scsi_read(int reg, uae_u8 data, uae_u8 dir);
 void parallel_port_scsi_write(int reg, uae_u8 v, uae_u8 dir);

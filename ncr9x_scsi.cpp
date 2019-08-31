@@ -249,7 +249,7 @@ static struct ncr9x_state *getscsi(struct romconfig *rc)
 	return NULL;
 }
 
-void ncr9x_rethink(void)
+static void ncr9x_rethink(void)
 {
 	for (int i = 0; ncr_units[i]; i++) {
 		if (ncr_units[i]->boardirq) {
@@ -1899,6 +1899,22 @@ static void ew(struct ncr9x_state *ncr, int addr, uae_u8 value)
 	}
 }
 
+static void ncr9x_reset_board(struct ncr9x_state *ncr);
+static void ncr9x_reset(int hardreset)
+{
+	for (int i = 0; ncr_units[i]; i++) {
+		ncr9x_reset_board(ncr_units[i]);
+		ncr_units[i]->enabled = false;
+	}
+}
+
+static void ncr9x_free(void)
+{
+	for (int i = 0; ncr_units[i]; i++) {
+		freencrunit(ncr_units[i]);
+	}
+}
+
 static void ncr9x_reset_board(struct ncr9x_state *ncr)
 {
 	if (!ncr)
@@ -1906,14 +1922,10 @@ static void ncr9x_reset_board(struct ncr9x_state *ncr)
 	ncr->configured = 0;
 	ncr->boardirq = false;
 	ncr->chipirq = false;
-}
 
-void ncr9x_reset(void)
-{
-	for (int i = 0; ncr_units[i]; i++) {
-		ncr9x_reset_board(ncr_units[i]);
-		ncr_units[i]->enabled = false;
-	}
+	device_add_rethink(ncr9x_rethink);
+	device_add_reset(ncr9x_reset);
+	device_add_exit(ncr9x_free);
 }
 
 void ncr_squirrel_init(struct romconfig *rc, uaecptr baseaddress)
@@ -1945,6 +1957,7 @@ void ncr_golemfast_autoconfig_init(struct romconfig *rc, uaecptr baseaddress)
 
 bool ncr_multievolution_init(struct autoconfig_info *aci)
 {
+	device_add_reset(ncr9x_reset);
 	if (!aci->doinit)
 		return true;
 
@@ -2003,6 +2016,7 @@ bool ncr_fastlane_autoconfig_init(struct autoconfig_info *aci)
 		zfile_fclose(z);
 	}
 
+	device_add_reset(ncr9x_reset);
 	if (!aci->doinit) {
 		xfree(rom);
 		return true;
@@ -2037,6 +2051,7 @@ static const uae_u8 oktagon_autoconfig[16] = {
 
 bool ncr_oktagon_autoconfig_init(struct autoconfig_info *aci)
 {
+	device_add_reset(ncr9x_reset);
 	aci->autoconfigp = oktagon_autoconfig;
 	if (!aci->doinit)
 		return true;
@@ -2113,6 +2128,7 @@ bool ncr_alf3_autoconfig_init(struct autoconfig_info *aci)
 		memcpy(aci->autoconfig_bytes, alf3_autoconfig, 16);
 		aci->autoconfigp = aci->autoconfig_bytes;
 	}
+	device_add_reset(ncr9x_reset);
 	if (!aci->doinit) {
 		return true;
 	}
@@ -2176,6 +2192,7 @@ bool ncr_dkb_autoconfig_init(struct autoconfig_info *aci)
 {
 	const struct expansionromtype *ert = get_device_expansion_rom(ROMTYPE_RAPIDFIRE);
 
+	device_add_reset(ncr9x_reset);
 	aci->autoconfigp = dkb_autoconfig;
 	if (!aci->doinit)
 		return true;
@@ -2221,6 +2238,7 @@ bool typhoon2scsi_init(struct autoconfig_info *aci)
 	uae_u8 *rom = xcalloc(uae_u8, 65536);
 	load_rom_rc(aci->rc, ROMTYPE_CB_TYPHOON2, 32768, 32768, rom, 65536, LOADROM_EVENONLY_ODDONE);
 	memcpy(aci->autoconfig_raw, aci->rc->autoboot_disabled ? rom + 256 : rom, 128);
+	device_add_reset(ncr9x_reset);
 	if (!aci->doinit) {
 		xfree(rom);
 		return true;
@@ -2256,6 +2274,7 @@ bool ncr_ematrix_autoconfig_init(struct autoconfig_info *aci)
 	uae_u8 *rom = xcalloc(uae_u8, 65536);
 	load_rom_rc(aci->rc, ROMTYPE_CB_EMATRIX, 32768, 32768, rom, 65536, LOADROM_EVENONLY_ODDONE);
 	memcpy(aci->autoconfig_raw, aci->rc->autoboot_disabled ? rom + 256 : rom, 128);
+	device_add_reset(ncr9x_reset);
 	if (!aci->doinit) {
 		xfree(rom);
 		return true;
@@ -2317,6 +2336,7 @@ bool ncr_scram5394_init(struct autoconfig_info *aci)
 {
 	const struct expansionromtype *ert = get_device_expansion_rom(ROMTYPE_SCRAM5394);
 
+	device_add_reset(ncr9x_reset);
 	if (!aci->doinit) {
 		aci->autoconfigp = ert->autoconfig;
 		return true;
@@ -2348,6 +2368,7 @@ bool ncr_mtecmastercard_init(struct autoconfig_info *aci)
 	uae_u8 *rom = xcalloc(uae_u8, 65536);
 	load_rom_rc(aci->rc, ROMTYPE_MASTERCARD, 32768, 0, rom, 65536, LOADROM_EVENONLY_ODDONE);
 	memcpy(aci->autoconfig_raw, aci->rc->autoboot_disabled ? rom + 256 : rom, 128);
+	device_add_reset(ncr9x_reset);
 	if (!aci->doinit) {
 		xfree(rom);
 		return true;
@@ -2382,6 +2403,7 @@ bool ncr_rapidfire_init(struct autoconfig_info *aci)
 {
 	const struct expansionromtype *ert = get_device_expansion_rom(ROMTYPE_RAPIDFIRE);
 
+	device_add_reset(ncr9x_reset);
 	if (!aci->doinit) {
 		aci->autoconfigp = ert->autoconfig;
 		return true;
@@ -2428,17 +2450,6 @@ static void ncr9x_esp_scsi_init(struct ncr9x_state *ncr, ESPDMAMemoryReadWriteFu
 	if (!ncr->devobject.lsistate)
 		esp_scsi_init(&ncr->devobject, read, write, mode > 0);
 	esp_scsi_reset(&ncr->devobject, ncr);
-}
-
-void ncr9x_free(void)
-{
-	for (int i = 0; ncr_units[i]; i++) {
-		freencrunit(ncr_units[i]);
-	}
-}
-
-void ncr9x_init(void)
-{
 }
 
 static void allocscsidevice(struct ncr9x_state *ncr, int ch, struct scsi_data *handle, int uae_unitnum)

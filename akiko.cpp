@@ -502,7 +502,7 @@ static void set_status (uae_u32 status)
 	cdrom_led ^= LED_CD_ACTIVE2;
 }
 
-void rethink_akiko (void)
+static void rethink_akiko(void)
 {
 	checkint ();
 }
@@ -1418,7 +1418,7 @@ static void akiko_internal (void)
 	}
 }
 
-void AKIKO_hsync_handler (void)
+static void AKIKO_hsync_handler (void)
 {
 	bool framesync = false;
 
@@ -2039,7 +2039,7 @@ static void akiko_cdrom_free (void)
 	sector_buffer_info_2 = 0;
 }
 
-void akiko_reset (void)
+void akiko_reset(int hardreset)
 {
 	cdaudiostop_do ();
 	nvram_read ();
@@ -2074,16 +2074,17 @@ void akiko_reset (void)
 	akiko_inited = false;
 }
 
-void akiko_free (void)
+static void akiko_free(void)
 {
-	akiko_reset ();
-	akiko_cdrom_free ();
+	akiko_reset(1);
+	akiko_cdrom_free();
 }
 
 int akiko_init (void)
 {
 	if (!currprefs.cs_cd32cd)
 		return 0;
+	device_add_reset_imm(akiko_reset);
 	akiko_free ();
 	akiko_precalculate ();
 	unitnum = -1;
@@ -2109,6 +2110,11 @@ int akiko_init (void)
 	}
 	gui_flicker_led (LED_HD, 0, -1);
 	akiko_inited = true;
+
+	device_add_hsync(AKIKO_hsync_handler);
+	device_add_exit(akiko_free);
+	device_add_rethink(rethink_akiko);
+
 	return 1;
 }
 

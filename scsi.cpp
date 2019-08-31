@@ -935,14 +935,6 @@ static struct soft_scsi *allocscsi(struct soft_scsi **ncr, struct romconfig *rc,
 	return *ncr;
 }
 
-static struct soft_scsi *getscsi(struct romconfig *rc)
-{
-	if (rc->unitdata)
-		return (struct soft_scsi*)rc->unitdata;
-	return NULL;
-}
-
-
 static struct soft_scsi *getscsiboard(uaecptr addr)
 {
 	for (int i = 0; soft_scsi_devices[i]; i++) {
@@ -1549,6 +1541,21 @@ static void dma_check(struct soft_scsi *ncr)
 	}
 }
 
+void x86_doirq(uint8_t irqnum);
+static void ncr80_rethink(void)
+{
+	for (int i = 0; soft_scsi_devices[i]; i++) {
+		struct soft_scsi *s = soft_scsi_devices[i];
+		if (s->irq && s->intena && ((s->c400 && (s->regs_400[0] & 0x10) && !s->c400_count) || !s->c400)) {
+			if (soft_scsi_devices[i] == x86_hd_data) {
+				;// x86_doirq(5);
+			} else {
+				safe_interrupt_set(IRQ_SOURCE_SCSI, i, soft_scsi_devices[i]->level6);
+			}
+		}
+	}
+}
+
 // AIC-6250
 
 static void aic_int(struct soft_scsi *scsi, uae_u8 mask)
@@ -1796,21 +1803,6 @@ static void aic_bput_data(struct soft_scsi *scsi, uae_u8 v)
 }
 
 // NCR 53C80/MISC SCSI-LIKE
-
-void x86_doirq(uint8_t irqnum);
-void ncr80_rethink(void)
-{
-	for (int i = 0; soft_scsi_devices[i]; i++) {
-		struct soft_scsi *s = soft_scsi_devices[i];
-		if (s->irq && s->intena && ((s->c400 && (s->regs_400[0] & 0x10) && !s->c400_count) || !s->c400)) {
-			if (soft_scsi_devices[i] == x86_hd_data) {
-				;// x86_doirq(5);
-			} else {
-				safe_interrupt_set(IRQ_SOURCE_SCSI, i, soft_scsi_devices[i]->level6);
-			}
-		}
-	}
-}
 
 static void ncr5380_set_irq(struct soft_scsi *scsi)
 {
@@ -4112,7 +4104,7 @@ uae_u32 soft_scsi_get(uaecptr addr, int size)
 	return v;
 }
 
-void soft_scsi_free(void)
+static void soft_scsi_free(void)
 {
 	parallel_port_scsi = false;
 	parallel_port_scsi_data = NULL;
@@ -4123,11 +4115,26 @@ void soft_scsi_free(void)
 	}
 }
 
-void soft_scsi_reset(void)
+static void soft_scsi_reset(int hardreset)
 {
 	for (int i = 0; soft_scsi_devices[i]; i++) {
 		raw_scsi_reset(&soft_scsi_devices[i]->rscsi);
 	}
+}
+
+static struct soft_scsi *getscsi(struct romconfig *rc)
+{
+	device_add_rethink(ncr80_rethink);
+	device_add_reset(soft_scsi_reset);
+	device_add_exit(soft_scsi_free);
+	if (rc->unitdata)
+		return (struct soft_scsi *)rc->unitdata;
+	return NULL;
+}
+
+static void scsi_add_reset(void)
+{
+	device_add_reset(soft_scsi_reset);
 }
 
 /*
@@ -4149,6 +4156,7 @@ bool supra_init(struct autoconfig_info *aci)
 {
 	const struct expansionromtype *ert = get_device_expansion_rom(ROMTYPE_SUPRA);
 	aci->autoconfigp = ert->subtypes[aci->rc->subtype].autoconfig;
+	scsi_add_reset();
 	if (!aci->doinit)
 		return true;
 
@@ -4178,6 +4186,7 @@ void supra_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig
 
 bool golem_init(struct autoconfig_info *aci)
 {
+	scsi_add_reset();
 	if (!aci->doinit) {
 		load_rom_rc(aci->rc, ROMTYPE_GOLEM, 8192, aci->rc->autoboot_disabled ? 8192 : 0, aci->autoconfig_raw, 128, 0);
 		return true;
@@ -4205,6 +4214,7 @@ bool stardrive_init(struct autoconfig_info *aci)
 {
 	const struct expansionromtype *ert = get_device_expansion_rom(ROMTYPE_STARDRIVE);
 	aci->autoconfigp = ert->autoconfig;
+	scsi_add_reset();
 	if (!aci->doinit)
 		return true;
 
@@ -4227,6 +4237,7 @@ void stardrive_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romco
 
 bool kommos_init(struct autoconfig_info *aci)
 {
+	scsi_add_reset();
 	if (!aci->doinit)
 		return true;
 
@@ -4254,6 +4265,7 @@ void kommos_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfi
 
 bool vector_init(struct autoconfig_info *aci)
 {
+	scsi_add_reset();
 	if (!aci->doinit) {
 		load_rom_rc(aci->rc, ROMTYPE_VECTOR, 32768, 0, aci->autoconfig_raw, 128, 0);
 		return true;
@@ -4286,6 +4298,7 @@ void vector_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfi
 
 bool protar_init(struct autoconfig_info *aci)
 {
+	scsi_add_reset();
 	if (!aci->doinit) {
 		load_rom_rc(aci->rc, ROMTYPE_PROTAR, 32768, 0x200, aci->autoconfig_raw, 128, LOADROM_EVENONLY_ODDONE);
 		return true;
@@ -4308,6 +4321,7 @@ void protar_add_ide_unit(int ch, struct uaedev_config_info *ci, struct romconfig
 
 bool add500_init(struct autoconfig_info *aci)
 {
+	scsi_add_reset();
 	if (!aci->doinit) {
 		load_rom_rc(aci->rc, ROMTYPE_ADD500, 16384, 0, aci->autoconfig_raw, 128, LOADROM_EVENONLY_ODDONE | LOADROM_FILL);
 		return true;
@@ -4337,6 +4351,7 @@ static uae_u8 kronos_eeprom[32] =
 bool kronos_init(struct autoconfig_info *aci)
 {
 	const struct expansionromtype *ert = get_device_expansion_rom(ROMTYPE_KRONOS);
+	scsi_add_reset();
 	aci->autoconfigp = ert->autoconfig;
 	if (!aci->doinit)
 		return true;
@@ -4375,6 +4390,7 @@ void kronos_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfi
 
 bool adscsi_init(struct autoconfig_info *aci)
 {
+	scsi_add_reset();
 	if (!aci->doinit) {
 		load_rom_rc(aci->rc, ROMTYPE_ADSCSI, 32768, 0, aci->autoconfig_raw, 128, LOADROM_EVENONLY_ODDONE | LOADROM_FILL);
 		return true;
@@ -4398,6 +4414,7 @@ void adscsi_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfi
 bool trumpcardpro_init(struct autoconfig_info *aci)
 {
 	const struct expansionromtype *ert = get_device_expansion_rom(ROMTYPE_IVSTPRO);
+	scsi_add_reset();
 	aci->autoconfigp = ert->autoconfig;
 	if (!aci->doinit)
 		return true;
@@ -4426,6 +4443,7 @@ void trumpcardpro_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct ro
 bool trumpcard_init(struct autoconfig_info *aci)
 {
 	const struct expansionromtype *ert = get_device_expansion_rom(ROMTYPE_IVSTC);
+	scsi_add_reset();
 	aci->autoconfigp = ert->autoconfig;
 	if (!aci->doinit)
 		return true;
@@ -4480,6 +4498,7 @@ void idescsi_scsi_put(uaecptr addr, uae_u8 v)
 bool cltda1000scsi_init(struct autoconfig_info *aci)
 {
 	const struct expansionromtype *ert = get_device_expansion_rom(ROMTYPE_CLTDSCSI);
+	scsi_add_reset();
 	aci->autoconfigp = ert->autoconfig;
 	if (!aci->doinit)
 		return true;
@@ -4508,6 +4527,7 @@ void cltda1000scsi_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct r
 bool ptnexus_init(struct autoconfig_info *aci)
 {
 	const struct expansionromtype *ert = get_device_expansion_rom(ROMTYPE_PTNEXUS);
+	scsi_add_reset();
 	if (!aci->doinit) {
 		aci->autoconfigp = ert->autoconfig;
 		return true;
@@ -4536,6 +4556,7 @@ void ptnexus_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconf
 
 bool dataflyer_init(struct autoconfig_info *aci)
 {
+	scsi_add_reset();
 	if (!aci->doinit)
 		return true;
 
@@ -4612,6 +4633,7 @@ bool tecmar_init(struct autoconfig_info *aci)
 {
 	static const uae_u8 ac[16] = { 0x40, 0x00, 0, 0, 1001 >> 8, (uae_u8)1001 };
 
+	scsi_add_reset();
 	aci->hardwired = true;
 	if (!aci->doinit) {
 		aci->zorro = 1;
@@ -4654,6 +4676,7 @@ bool microforge_init(struct autoconfig_info *aci)
 	aci->start = 0xef0000;
 	aci->size = 0x10000;
 	aci->zorro = 0;
+	scsi_add_reset();
 	if (!aci->doinit)
 		return true;
 
@@ -4677,6 +4700,7 @@ bool xebec_init(struct autoconfig_info *aci)
 {
 	aci->start = 0x600000;
 	aci->size = 0x800000 - aci->start;
+	scsi_add_reset();
 	if (!aci->doinit)
 		return true;
 
@@ -4704,6 +4728,7 @@ void xebec_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig
 
 bool paradox_init(struct autoconfig_info *aci)
 {
+	scsi_add_reset();
 	if (!aci->doinit)
 		return true;
 
@@ -4727,6 +4752,7 @@ bool hda506_init(struct autoconfig_info *aci)
 {
 	const struct expansionromtype *ert = get_device_expansion_rom(ROMTYPE_HDA506);
 
+	scsi_add_reset();
 	if (!aci->doinit) {
 		aci->autoconfigp = ert->autoconfig;
 		return true;
@@ -4755,6 +4781,7 @@ bool alf1_init(struct autoconfig_info *aci)
 {
 	aci->start = 0xef0000;
 	aci->size = 0x10000;
+	scsi_add_reset();
 	if (!aci->doinit)
 		return true;
 
@@ -4778,6 +4805,7 @@ bool promigos_init(struct autoconfig_info *aci)
 {
 	aci->start = 0xf40000;
 	aci->size = 0x10000;
+	scsi_add_reset();
 	if (!aci->doinit)
 		return true;
 
@@ -4803,7 +4831,7 @@ bool system2000_init(struct autoconfig_info *aci)
 {
 	aci->start = 0xf00000;
 	aci->size = 0x10000;
-
+	scsi_add_reset();
 	if (!aci->doinit)
 		return true;
 
@@ -4841,7 +4869,7 @@ bool wedge_init(struct autoconfig_info *aci)
 {
 	aci->start = 0xea0000;
 	aci->size = 0x10000;
-
+	scsi_add_reset();
 	if (!aci->doinit)
 		return true;
 
@@ -4876,7 +4904,7 @@ bool omtiadapter_init(struct autoconfig_info *aci)
 {
 	aci->start = 0x8f0000;
 	aci->size = 0x10000;
-
+	scsi_add_reset();
 	if (!aci->doinit)
 		return true;
 
@@ -4899,6 +4927,7 @@ void omtiadapter_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconf
 
 bool phoenixboard_init(struct autoconfig_info *aci)
 {
+	scsi_add_reset();
 	if (!aci->doinit) {
 		load_rom_rc(aci->rc, ROMTYPE_PHOENIXB, 8192, aci->rc->autoboot_disabled ? 0 : 8192, aci->autoconfig_raw, 128, LOADROM_EVENONLY_ODDONE | LOADROM_FILL);
 		return true;
@@ -4930,6 +4959,7 @@ void twelvegauge_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct rom
 bool twelvegauge_init(struct autoconfig_info *aci)
 {
 	const struct expansionromtype *ert = get_device_expansion_rom(ROMTYPE_CB_12GAUGE);
+	scsi_add_reset();
 	if (!aci->doinit) {
 		load_rom_rc(aci->rc, ROMTYPE_CB_12GAUGE, 32768, 0, aci->autoconfig_raw, 128, 0);
 		return true;
@@ -4958,6 +4988,7 @@ void ivsvector_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romco
 bool ivsvector_init(struct autoconfig_info *aci)
 {
 	const struct expansionromtype *ert = get_device_expansion_rom(ROMTYPE_CB_VECTOR);
+	scsi_add_reset();
 	if (!aci->doinit) {
 		load_rom_rc(aci->rc, ROMTYPE_CB_VECTOR, 65536, 0x300, aci->autoconfig_raw, 128, 0);
 		return true;
@@ -4988,6 +5019,7 @@ bool ivsvector_init(struct autoconfig_info *aci)
 bool scram5380_init(struct autoconfig_info *aci)
 {
 	const struct expansionromtype *ert = get_device_expansion_rom(ROMTYPE_SCRAM5380);
+	scsi_add_reset();
 	if (!aci->doinit) {
 		aci->autoconfigp = ert->autoconfig;
 		return true;
@@ -5016,6 +5048,7 @@ void scram5380_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romco
 bool ossi_init(struct autoconfig_info *aci)
 {
 	const struct expansionromtype *ert = get_device_expansion_rom(ROMTYPE_OSSI);
+	scsi_add_reset();
 	if (!aci->doinit) {
 		if (!load_rom_rc(aci->rc, ROMTYPE_OSSI, 32768, aci->rc->autoboot_disabled ? 16384 : 0, aci->autoconfig_raw, 128, 0))
 			aci->autoconfigp = ert->autoconfig;
@@ -5059,6 +5092,7 @@ void dataflyerplus_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct r
 
 bool hardframe_init(struct autoconfig_info *aci)
 {
+	scsi_add_reset();
 	if (!aci->doinit) {
 		load_rom_rc(aci->rc, ROMTYPE_HARDFRAME, 32768, aci->rc->autoboot_disabled ? 64 : 0, aci->autoconfig_raw, 128, LOADROM_EVENONLY_ODDONE);
 		return true;
@@ -5083,6 +5117,7 @@ void hardframe_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romco
 
 bool inmate_init(struct autoconfig_info *aci)
 {
+	scsi_add_reset();
 	if (!aci->doinit) {
 		load_rom_rc(aci->rc, ROMTYPE_INMATE, 32768, 0, aci->autoconfig_raw, 128, LOADROM_EVENONLY_ODDONE);
 		return true;
@@ -5106,6 +5141,7 @@ void inmate_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfi
 bool malibu_init(struct autoconfig_info *aci)
 {
 	const struct expansionromtype *ert = get_device_expansion_rom(ROMTYPE_MALIBU);
+	scsi_add_reset();
 	if (!aci->doinit) {
 		aci->autoconfigp = ert->autoconfig;
 		return true;
@@ -5134,6 +5170,7 @@ void malibu_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfi
 bool addhard_init(struct autoconfig_info *aci)
 {
 	const struct expansionromtype *ert = get_device_expansion_rom(ROMTYPE_ADDHARD);
+	scsi_add_reset();
 	if (!aci->doinit) {
 		aci->autoconfigp = ert->autoconfig;
 		return true;
@@ -5161,6 +5198,7 @@ void addhard_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconf
 bool emplant_init(struct autoconfig_info *aci)
 {
 	const struct expansionromtype *ert = get_device_expansion_rom(ROMTYPE_EMPLANT);
+	scsi_add_reset();
 	if (!aci->doinit) {
 		aci->autoconfigp = ert->autoconfig;
 		return true;
@@ -5188,6 +5226,7 @@ bool hd3000_init(struct autoconfig_info *aci)
 {
 	const struct expansionromtype *ert = get_device_expansion_rom(ROMTYPE_GOLEMHD3000);
 
+	scsi_add_reset();
 	if (!aci->doinit) {
 		load_rom_rc(aci->rc, ROMTYPE_GOLEMHD3000, 8192, !aci->rc->autoboot_disabled ? 0 : 8192, aci->autoconfig_raw, 128, 0);
 		return true;
@@ -5210,6 +5249,7 @@ void hd3000_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfi
 
 bool eveshamref_init(struct autoconfig_info *aci)
 {
+	scsi_add_reset();
 	if (!aci->doinit) {
 		load_rom_rc(aci->rc, ROMTYPE_EVESHAMREF, 65536, aci->rc->autoboot_disabled ? 0x1000 : 0, aci->autoconfig_raw, 128, LOADROM_EVENONLY_ODDONE);
 		return true;
@@ -5234,6 +5274,7 @@ bool profex_init(struct autoconfig_info *aci)
 {
 	const struct expansionromtype *ert = get_device_expansion_rom(ROMTYPE_PROFEX);
 
+	scsi_add_reset();
 	if (!aci->doinit) {
 		load_rom_rc(aci->rc, ROMTYPE_PROFEX, 8192, 0, aci->autoconfig_raw, 128, LOADROM_EVENONLY_ODDONE);
 		if (aci->rc->autoboot_disabled)
@@ -5265,6 +5306,7 @@ void profex_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfi
 
 bool fasttrak_init(struct autoconfig_info *aci)
 {
+	scsi_add_reset();
 	if (!aci->doinit) {
 		load_rom_rc(aci->rc, ROMTYPE_FASTTRAK, 65536, aci->rc->autoboot_disabled ? 0x4000 : 0x6000, aci->autoconfig_raw, 128, LOADROM_EVENONLY_ODDONE);
 		return true;
@@ -5288,6 +5330,7 @@ void fasttrak_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romcon
 bool overdrive_init(struct autoconfig_info *aci)
 {
 	const struct expansionromtype *ert = get_device_expansion_rom(ROMTYPE_OVERDRIVE);
+	scsi_add_reset();
 	if (!aci->doinit) {
 		aci->autoconfigp = ert->autoconfig;
 		return true;
@@ -5346,6 +5389,7 @@ bool x86_rt1000_init(struct autoconfig_info *aci)
 {
 	static const int parent[] = { ROMTYPE_A1060, ROMTYPE_A2088, ROMTYPE_A2088T, ROMTYPE_A2286, ROMTYPE_A2386, 0 };
 	aci->parent_romtype = parent;
+	scsi_add_reset();
 	if (!aci->doinit)
 		return true;
 

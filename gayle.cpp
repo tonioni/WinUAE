@@ -172,6 +172,8 @@ static int dataflyer_state;
 static int dataflyer_disable_irq;
 static uae_u8 dataflyer_byte;
 
+static void gayle_reset(int hardreset);
+
 static void pcmcia_reset (void)
 {
 	memset (pcmcia_configuration, 0, sizeof pcmcia_configuration);
@@ -226,7 +228,7 @@ bool isideint(void)
 	return checkgayleideirq() != 0;
 }
 
-void rethink_gayle (void)
+static void rethink_gayle (void)
 {
 	int lev2 = 0;
 	int lev6 = 0;
@@ -1875,6 +1877,8 @@ void gayle_add_ide_unit (int ch, struct uaedev_config_info *ci, struct romconfig
 	ide = add_ide_unit (idedrive, TOTAL_IDE * 2, ch, ci, NULL);
 }
 
+static void gayle_init(void);
+
 bool gayle_ide_init(struct autoconfig_info *aci)
 {
 	aci->zorro = 0;
@@ -1885,6 +1889,9 @@ bool gayle_ide_init(struct autoconfig_info *aci)
 		aci->start = GAYLE_BASE_4000;
 		aci->size = 0x1000;
 	}
+	device_add_reset(gayle_reset);
+	if (aci->doinit)
+		gayle_init();
 	return true;
 }
 
@@ -1894,6 +1901,9 @@ bool gayle_init_board_io_pcmcia(struct autoconfig_info *aci)
 	aci->size = PCMCIA_ATTRIBUTE_SIZE;
 	aci->zorro = 0;
 	aci->parent_address_space = true;
+	device_add_reset(gayle_reset);
+	if (aci->doinit)
+		gayle_init();
 	return true;
 }
 
@@ -1903,6 +1913,9 @@ bool gayle_init_board_common_pcmcia(struct autoconfig_info *aci)
 	aci->size = PCMCIA_COMMON_SIZE;
 	aci->zorro = 0;
 	aci->parent_address_space = true;
+	device_add_reset(gayle_reset);
+	if (aci->doinit)
+		gayle_init();
 	return true;
 }
 
@@ -1911,6 +1924,9 @@ bool gayle_init_pcmcia(struct autoconfig_info *aci)
 	aci->start = PCMCIA_COMMON_START;
 	aci->size = 0xa80000 - aci->start;
 	aci->zorro = 0;
+	device_add_reset(gayle_reset);
+	if (aci->doinit)
+		gayle_init();
 	return true;
 }
 
@@ -2049,7 +2065,7 @@ static void pcmcia_card_check(int changecheck, int insertdev)
 	}
 }
 
-void gayle_hsync(void)
+static void gayle_hsync(void)
 {
 	if (ne2000)
 		ne2000->hsync(ne2000_board_state);
@@ -2085,13 +2101,20 @@ static void initide (void)
 	gayle_irq = gayle_int = 0;
 }
 
-void gayle_free (void)
+static void gayle_free (void)
 {
 	stop_ide_thread(&gayle_its);
 	stop_ide_thread(&pcmcia_its);
 }
 
-void gayle_reset (int hardreset)
+static void check_prefs_changed_gayle(void)
+{
+	if (!currprefs.cs_pcmcia)
+		return;
+	pcmcia_card_check(1, -1);
+}
+
+static void gayle_reset (int hardreset)
 {
 	static TCHAR bankname[100];
 
@@ -2108,21 +2131,13 @@ void gayle_reset (int hardreset)
 #ifdef NCR
 	if (is_a4000t_scsi()) {
 		_tcscat (bankname, _T(" + NCR53C710 SCSI"));
-		ncr_init();
-		ncr_reset();
+		ncr_reset(hardreset);
 	}
 #endif
 	gayle_bank.name = bankname;
 	gayle_dataflyer_enable(false);
 
 	pcmcia_card_check(0, -1);
-}
-
-void check_prefs_changed_gayle(void)
-{
-	if (!currprefs.cs_pcmcia)
-		return;
-	pcmcia_card_check(1, -1);
 }
 
 uae_u8 *restore_gayle (uae_u8 *src)
@@ -2134,6 +2149,14 @@ uae_u8 *restore_gayle (uae_u8 *src)
 	gayle_cs_mask = restore_u8 ();
 	gayle_cfg = restore_u8 ();
 	return src;
+}
+
+static void gayle_init(void)
+{
+	device_add_check_config(check_prefs_changed_gayle);
+	device_add_rethink(rethink_gayle);
+	device_add_hsync(gayle_hsync);
+	device_add_exit(gayle_free);
 }
 
 uae_u8 *save_gayle (int *len, uae_u8 *dstptr)

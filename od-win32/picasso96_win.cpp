@@ -74,6 +74,7 @@
 #include "gfxboard.h"
 #include "gfxfilter.h"
 #include "dxwrap.h"
+#include "devices.h"
 
 int debug_rtg_blitter = 3;
 
@@ -1249,7 +1250,7 @@ void picasso_handle_vsync(void)
 	}
 }
 
-void picasso_handle_hsync(void)
+static void picasso_handle_hsync(void)
 {
 	struct AmigaMonitor *mon = &AMonitors[currprefs.rtgboards[0].monitor_id];
 	struct amigadisplay *ad = &adisplays[currprefs.rtgboards[0].monitor_id];
@@ -6160,7 +6161,7 @@ static void inituaegfxfuncs(TrapContext *ctx, uaecptr start, uaecptr ABI)
 		initvblankABI(ctx, uaegfx_base, ABI);
 }
 
-void picasso_reset(int monid)
+static void picasso_reset2(int monid)
 {
 	struct picasso96_state_struct *state = &picasso96_state[monid];
 	if (!monid && currprefs.rtg_multithread) {
@@ -6203,11 +6204,33 @@ void picasso_reset(int monid)
 	unlockrtg();
 }
 
+static void picasso_reset(int hardreset)
+{
+	for (int i = 0; i < MAX_AMIGADISPLAYS; i++) {
+		picasso_reset2(i);
+	}
+}
+
+static void picasso_free(void)
+{
+	if (render_thread_state > 0) {
+		write_comm_pipe_int(render_pipe, -1, 0);
+		while (render_thread_state >= 0) {
+			Sleep(10);
+		}
+		render_thread_state = 0;
+	}
+}
+
 void uaegfx_install_code (uaecptr start)
 {
 	uaegfx_rom = start;
 	org (start);
 	inituaegfxfuncs(NULL, start, 0);
+
+	device_add_reset(picasso_reset);
+	device_add_hsync(picasso_handle_hsync);
+	device_add_exit(picasso_free);
 }
 
 #define UAEGFX_VERSION 3
@@ -6372,17 +6395,6 @@ uae_u32 picasso_demux (uae_u32 arg, TrapContext *ctx)
 	}
 
 	return 0;
-}
-
-void picasso_free(void)
-{
-	if (render_thread_state > 0) {
-		write_comm_pipe_int(render_pipe, -1, 0);
-		while (render_thread_state >= 0) {
-			Sleep(10);
-		}
-		render_thread_state = 0;
-	}
 }
 
 static uae_u32 p96_restored_flags;

@@ -496,6 +496,7 @@ static uae_u8 x86_bridge_get_io(struct x86_bridge *xb, uaecptr addr)
 	return v;
 }
 
+static void x86_bridge_rethink(void);
 static void set_interrupt(struct x86_bridge *xb, int bit)
 {
 	if (xb->amiga_io[IO_AMIGA_INTERRUPT_STATUS] & (1 << bit))
@@ -3185,7 +3186,7 @@ static uint32_t mem_read_romextl2(uint32_t addr, void *priv)
 	return *(uint32_t *)&xtiderom[addr & 0x3fff];
 }
 
-void x86_bridge_rethink(void)
+static void x86_bridge_rethink(void)
 {
 	struct x86_bridge *xb = bridges[0];
 	if (!xb)
@@ -3201,13 +3202,7 @@ void x86_bridge_rethink(void)
 	}
 }
 
-void x86_bridge_free(void)
-{
-	x86_bridge_reset();
-	x86_found = 0;
-}
-
-void x86_bridge_reset(void)
+static void x86_bridge_reset(int hardreset)
 {
 	for (int i = 0; i < X86_BRIDGE_MAX; i++) {
 		struct x86_bridge *xb = bridges[i];
@@ -3247,6 +3242,12 @@ void x86_bridge_reset(void)
 		memset(port_outw, 0, sizeof(port_outw));
 		memset(port_outl, 0, sizeof(port_outl));
 	}
+}
+
+static void x86_bridge_free(void)
+{
+	x86_bridge_reset(1);
+	x86_found = 0;
 }
 
 static void check_floppy_delay(void)
@@ -3331,7 +3332,7 @@ void x86_bridge_sync_change(void)
 		return;
 }
 
-void x86_bridge_vsync(void)
+static void x86_bridge_vsync(void)
 {
 	struct x86_bridge *xb = bridges[0];
 	if (!xb)
@@ -3347,7 +3348,7 @@ void x86_bridge_vsync(void)
 	xb->audeventtime = x86_base_event_clock * CYCLE_UNIT / currprefs.sound_freq + 1;
 }
 
-void x86_bridge_hsync(void)
+static void x86_bridge_hsync(void)
 {
 	static float totalcycles;
 	struct x86_bridge *xb = bridges[0];
@@ -3755,6 +3756,7 @@ bool x86_bridge_init(struct autoconfig_info *aci, uae_u32 romtype, int type)
 	const uae_u8 *ac;
 	struct romconfig *rc = aci->rc;
 
+	device_add_reset(x86_bridge_reset);
 	if (type >= TYPE_2286) {
 		ac = type >= TYPE_2386 ? a2386_autoconfig : a1060_autoconfig;
 	}
@@ -4009,6 +4011,12 @@ bool x86_bridge_init(struct autoconfig_info *aci, uae_u32 romtype, int type)
 	xb->bank = &x86_bridge_bank;
 
 	aci->addrbank = xb->bank;
+
+	device_add_hsync(x86_bridge_hsync);
+	device_add_vsync_pre(x86_bridge_vsync);
+	device_add_exit(x86_bridge_free);
+	device_add_rethink(x86_bridge_rethink);
+
 	return true;
 }
 

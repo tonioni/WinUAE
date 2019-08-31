@@ -38,11 +38,6 @@ extern bool lanrover_init(struct autoconfig_info *aci);
 extern bool xsurf_init(struct autoconfig_info *aci);
 extern bool xsurf100_init(struct autoconfig_info *aci);
 
-void rethink_ne2000(void);
-void ne2000_reset(void);
-void ne2000_hsync(void);
-void ne2000_free(void);
-
 void ethernet_updateselection(void);
 uae_u32 ethernet_getselection(const TCHAR*);
 const TCHAR *ethernet_getselectionname(uae_u32 settings);

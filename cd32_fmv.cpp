@@ -346,7 +346,7 @@ static addrbank fmv_ram_bank = {
 MEMORY_FUNCTIONS(fmv_rom);
 MEMORY_FUNCTIONS(fmv_ram);
 
-void rethink_cd32fmv(void)
+static void rethink_cd32fmv(void)
 {
 	if (!fmv_ram_bank.baseaddr)
 		return;
@@ -1474,7 +1474,7 @@ static void cd32_fmv_audio_handler(void)
 	l64111_regs[A_CB_STATUS] -= PCM_SECTORS;
 }
 
-void cd32_fmv_hsync_handler(void)
+static void cd32_fmv_hsync_handler(void)
 {
 	if (!fmv_ram_bank.baseaddr)
 		return;
@@ -1525,14 +1525,14 @@ void cd32_fmv_hsync_handler(void)
 }
 
 
-void cd32_fmv_reset(void)
+static void cd32_fmv_reset(int hardreset)
 {
 	if (fmv_ram_bank.baseaddr)
 		memset(fmv_ram_bank.baseaddr, 0, fmv_ram_bank.allocated_size);
 	cd32_fmv_state(0);
 }
 
-void cd32_fmv_free(void)
+static void cd32_fmv_free(void)
 {
 	mapped_free(&fmv_rom_bank);
 	mapped_free(&fmv_ram_bank);
@@ -1562,6 +1562,7 @@ void cd32_fmv_free(void)
 
 addrbank *cd32_fmv_init (struct autoconfig_info *aci)
 {
+	device_add_reset_imm(cd32_fmv_reset);
 	cd32_fmv_free();
 	write_log (_T("CD32 FMV mapped @$%x\n"), expamem_board_pointer);
 	if (expamem_board_pointer != fmv_start) {
@@ -1604,6 +1605,12 @@ addrbank *cd32_fmv_init (struct autoconfig_info *aci)
 	map_banks(&fmv_ram_bank, (fmv_start + RAM_BASE) >> 16, fmv_ram_size >> 16, 0);
 	map_banks(&fmv_bank, (fmv_start + IO_BASE) >> 16, (RAM_BASE - IO_BASE) >> 16, 0);
 	uae_sem_init(&play_sem, 0, 1);
-	cd32_fmv_reset();
+	cd32_fmv_reset(1);
+
+	device_add_hsync(cd32_fmv_hsync_handler);
+	device_add_vsync_pre(cd32_fmv_vsync_handler);
+	device_add_exit(cd32_fmv_free);
+	device_add_rethink(rethink_cd32fmv);
+
 	return &fmv_rom_bank;
 }
