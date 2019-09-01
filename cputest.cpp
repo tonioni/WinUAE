@@ -1587,11 +1587,11 @@ static void handle_specials_extra(uae_u16 opcode, uaecptr pc, struct instr *dp)
 		}
 		break;
 	}
-	case i_CHK2:
+	case i_CHK2: // also CMP2
 	{
 		uae_u16 extra = get_word_test(opcode_memory_start + 2);
 		uae_u16 extra2 = extra;
-		extra &= (15 << 12);
+		extra &= (31 << 11);
 		if (extra != extra2) {
 			put_word_test(opcode_memory_start + 2, extra);
 		}
