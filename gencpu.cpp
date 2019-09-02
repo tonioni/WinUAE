@@ -5017,7 +5017,7 @@ bccl_not68020:
 		genamode (curi, curi->smode, "srcreg", curi->size, "extra", 1, 0, 0);
 		genamode (curi, curi->dmode, "dstreg", curi->size, "dst", 2, 0, 0);
 		fill_prefetch_0 ();
-		printf ("\t{uae_u32 upper,lower,reg = regs.regs[(extra >> 12) & 15];\n");
+		printf ("\t{uae_s32 upper,lower,reg = regs.regs[(extra >> 12) & 15];\n");
 		switch (curi->size) {
 		case sz_byte:
 			printf ("\tlower = (uae_s32)(uae_s8)%s (dsta); upper = (uae_s32)(uae_s8)%s (dsta + 1);\n", srcb, srcb);
@@ -5033,12 +5033,16 @@ bccl_not68020:
 		default:
 			term ();
 		}
-		printf("\tsetchk2undefinedflags(lower, upper, reg, (extra & 0x8000) ? %d : 2);\n", curi->size);
-		printf("\tupper -= lower;\n");
-		printf("\treg -= lower;\n");
-		printf("\tSET_ZFLG (upper == reg || 0 == reg);\n");
-		printf("\tSET_CFLG_ALWAYS (reg > upper);\n");
-		printf("\tif ((extra & 0x800) && GET_CFLG ()) { Exception_cpu(6); goto %s; }\n}\n", endlabelstr);
+		printf("\tSET_CFLG(0);\n");
+		printf("\tSET_ZFLG(0);\n");
+		printf("\tsetchk2undefinedflags(lower, upper, reg, (extra & 0x8000) ? 2 : %d);\n", curi->size);
+		printf("\tif(upper == reg || lower == reg) {\n");
+		printf("\t\tSET_ZFLG(1);\n");
+		printf("\t}else{\n");
+		printf("\t\tif (lower <= upper && (reg < lower || reg > upper)) SET_CFLG(1);\n");
+		printf("\t\tif (lower > upper && reg > upper && reg < lower) SET_CFLG(1);\n");
+		printf("\t}\n");
+		printf("\tif ((extra & 0x800) && GET_CFLG()) { Exception_cpu(6); goto %s; }\n}\n", endlabelstr);
 		need_endlabel = 1;
 		break;
 

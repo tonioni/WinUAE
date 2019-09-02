@@ -682,7 +682,7 @@ extern void divbyzero_special(bool issigned, uae_s32 dst);
 extern void setdivuflags(bool overflow, uae_u32 dividend, uae_u16 divisor);
 extern void setdivsflags(bool overflow, uae_s32 dividend, uae_s16 divisor);
 extern void setchkundefinedflags(uae_s32 src, uae_s32 dst, int size);
-extern void setchk2undefinedflags(uae_u32 lower, uae_u32 upper, uae_u32 val, int size);
+extern void setchk2undefinedflags(uae_s32 lower, uae_s32 upper, uae_s32 val, int size);
 extern void protect_roms (bool);
 extern void unprotect_maprom (void);
 extern bool is_hardreset(void);

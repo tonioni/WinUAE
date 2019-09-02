@@ -924,25 +924,98 @@ void setchkundefinedflags(uae_s32 src, uae_s32 dst, int size)
 	}
 }
 
-void setchk2undefinedflags(uae_u32 lower, uae_u32 upper, uae_u32 val, int size)
-{
-	uae_u32 nmask;
-	if (size == sz_byte)
-		nmask = 0x80;
-	else if (size == sz_word)
-		nmask = 0x8000;
-	else
-		nmask = 0x80000000;
+/*
+ * CHK2/CMP2 undefined flags
+ *
+ * 68020-68030: See below..
+ * 68040: N: val<0 V=0
+ *
+ */
 
+// This is the complex one.
+// Someone else can attempt to simplify this..
+void setchk2undefinedflags(uae_s32 lower, uae_s32 upper, uae_s32 val, int size)
+{
 	SET_NFLG(0);
-	if ((upper & nmask) && val > upper) {
-		SET_NFLG(1);
-	} else if (!(upper & nmask) && val > upper && val < nmask) {
-		SET_NFLG(1);
-	} else if (val < lower) {
-		SET_NFLG(1);
-	}
 	SET_VFLG(0);
+
+	if (currprefs.cpu_model >= 68040) {
+		SET_NFLG(val < 0);
+		return;
+	}
+
+	if (val == lower || val == upper)
+		return;
+
+	if (lower < 0 && upper >= 0) {
+		if (val < lower) {
+			SET_NFLG(1);
+		}
+		if (val >= 0 && val < upper) {
+			SET_NFLG(1);
+		}
+		if (val >= 0 && lower - val >= 0) {
+			SET_VFLG(1);
+			SET_NFLG(0);
+			if (val > upper) {
+				SET_NFLG(1);
+			}
+		}
+	} else if (lower >= 0 && upper < 0) {
+		if (val >= 0) {
+			SET_NFLG(1);
+		}
+		if (val > upper) {
+			SET_NFLG(1);
+		}
+		if (val > lower && upper - val >= 0) {
+			SET_VFLG(1);
+			SET_NFLG(0);
+		}
+	} else if (lower >= 0 && upper >= 0 && lower > upper) {
+		if (val > upper && val < lower) {
+			SET_NFLG(1);
+		}
+		if (val < 0 && lower - val < 0) {
+			SET_VFLG(1);
+		}
+		if (val < 0 && lower - val >= 0) {
+			SET_NFLG(1);
+		}
+	} else if (lower >= 0 && upper >= 0 && lower <= upper) {
+		if (val >= 0 && val < lower) {
+			SET_NFLG(1);
+		}
+		if (val > upper) {
+			SET_NFLG(1);
+		}
+		if (val < 0 && upper - val < 0) {
+			SET_VFLG(1);
+			SET_NFLG(1);
+		}
+	} else if (lower < 0 && upper < 0 && lower > upper) {
+		if (val >= 0) {
+			SET_NFLG(1);
+		}
+		if (val > upper && val < lower) {
+			SET_NFLG(1);
+		}
+		if (val >= 0 && val - lower < 0) {
+			SET_NFLG(0);
+			SET_VFLG(1);
+		}
+	} else if (lower < 0 && upper < 0 && lower <= upper) {
+		if (val < lower) {
+			SET_NFLG(1);
+		}
+		if (val < 0 && val > upper) {
+			SET_NFLG(1);
+		}
+		if (val >= 0 && val - lower < 0) {
+			SET_NFLG(1);
+			SET_VFLG(1);
+		}
+	}
 }
 
 #ifndef CPUEMU_68000_ONLY
