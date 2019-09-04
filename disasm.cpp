@@ -1723,6 +1723,13 @@ void m68k_disasm_2 (TCHAR *buf, int bufsize, uaecptr pc, uaecptr *nextpc, int cn
 				instrname[3] = 'S';
 			else
 				instrname[3] = 'U';
+			if (lookup->mnemo == i_DIVL && !(extra & 0x0400)) {
+				// DIVSL.L/DIVUL.L
+				instrname[7] = 0;
+				instrname[6] = instrname[5];
+				instrname[5] = instrname[4];
+				instrname[4] = 'L';
+			}
 			pc = ShowEA(NULL, pc, opcode, dp->dreg, dp->dmode, dp->size, instrname, &seaddr2, safemode);
 			p = instrname + _tcslen(instrname);
 			if (extra & 0x0400)

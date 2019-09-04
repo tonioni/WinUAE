@@ -116,6 +116,7 @@ static uae_u16 sr_undefined_mask;
 static int low_memory_accessed;
 static int high_memory_accessed;
 static int test_memory_accessed;
+static uae_u16 extra_or, extra_and;
 
 struct uae_prefs currprefs;
 
@@ -1692,9 +1693,9 @@ static void execute_ins(uae_u16 opc, uaecptr endpc, uaecptr targetpc, struct ins
 {
 	uae_u16 opw1 = (opcode_memory[2] << 8) | (opcode_memory[3] << 0);
 	uae_u16 opw2 = (opcode_memory[4] << 8) | (opcode_memory[5] << 0);
-	if (opc == 0x4c40 
-		&& opw1 == 0x2406
-//		&& opw2 == 0x618d
+	if (opc == 0x4c42
+		&& opw1 == 0xcf19
+		//&& opw2 == 0x504e
 		)
 		printf("");
 	if (regs.sr & 0x2000)
@@ -1924,8 +1925,8 @@ static uae_u8 *save_exception(uae_u8 *p, struct instr *dp)
 static uae_u16 get_ccr_ignore(struct instr *dp)
 {
 	uae_u16 ccrignoremask = 0;
-	if (cpu_lvl == 2 && test_exception == 5 && dp->mnemo == i_DIVS) {
-		// 68020/030 DIVS + Divide by Zero: V state is not stable.
+	if ((cpu_lvl == 2 || cpu_lvl == 3) && test_exception == 5 && (dp->mnemo == i_DIVS || dp->mnemo == i_DIVL)) {
+		// 68020/030 DIVS.W/.L + Divide by Zero: V state is not stable.
 		ccrignoremask |= 2; // mask CCR=V
 	}
 	return ccrignoremask;
@@ -1950,7 +1951,7 @@ static int isfpp(int mnemo)
 
 static const TCHAR *sizes[] = { _T("B"), _T("W"), _T("L") };
 
-static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, int opcodesize, int fpuopcode)
+static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfilename, int opcodesize, int fpuopcode)
 {
 	TCHAR dir[1000];
 	uae_u8 *dst = NULL;
@@ -2001,6 +2002,13 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, int opcodesize, in
 		}
 	}
 	xorshiftstate += 256 * opcodesize;
+	if (ovrfilename) {
+		mns = ovrfilename;
+		for (int i = 0; i < _tcslen(ovrfilename); i++) {
+			xorshiftstate <<= 1;
+			xorshiftstate ^= ovrfilename[i];
+		}
+	}
 
 	int pathlen = _tcslen(path);
 	_stprintf(dir, _T("%s%s"), path, mns);
@@ -2245,6 +2253,14 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, int opcodesize, in
 
 					put_word_test(opcode_memory_start, opc);
 
+					if (extra_or || extra_and) {
+						uae_u16 ew = get_word_test(opcode_memory_start + 2);
+						uae_u16 ew2 = (ew | extra_or) & ~extra_and;
+						if (ew2 != ew) {
+							put_word_test(opcode_memory_start + 2, ew2);
+						}
+					}
+
 					// loop mode
 					if (feature_loop_mode) {
 						// dbf dn, opcode_memory_start
@@ -2445,7 +2461,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, int opcodesize, in
 							if (regs.sr & 0x2000)
 								prev_s_cnt++;
 
-							if (subtest_count == 353)
+							if (subtest_count == 23360)
 								printf("");
 
 							execute_ins(opc, pc - 2, branch_target, dp);
@@ -2660,6 +2676,9 @@ static void test_mnemo_text(const TCHAR *path, const TCHAR *mode)
 	int fpuopcode = -1;
 	int sizes = -1;
 
+	extra_and = 0;
+	extra_or = 0;
+
 	_tcscpy(modetxt, mode);
 	my_trim(modetxt);
 	TCHAR *s = _tcschr(modetxt, '.');
@@ -2683,6 +2702,46 @@ static void test_mnemo_text(const TCHAR *path, const TCHAR *mode)
 		if (c == 'd')
 			sizes = 5;
 	}
+
+	const TCHAR *ovrname = NULL;
+	if (!_tcsicmp(modetxt, _T("DIVUL"))) {
+		_tcscpy(modetxt, _T("DIVL"));
+		extra_and = 0x0800;
+		extra_and |= 0x0400;
+		ovrname = _T("DIVUL");
+	} else if (!_tcsicmp(modetxt, _T("DIVSL"))) {
+		_tcscpy(modetxt, _T("DIVL"));
+		extra_or = 0x0800;
+		extra_and = 0x0400;
+		ovrname = _T("DIVSL");
+	} else if (!_tcsicmp(modetxt, _T("DIVS")) && sizes == 0) {
+		_tcscpy(modetxt, _T("DIVL"));
+		extra_or = 0x0800;
+		extra_or |= 0x0400;
+		ovrname = _T("DIVS");
+	} else if (!_tcsicmp(modetxt, _T("DIVU")) && sizes == 0) {
+		_tcscpy(modetxt, _T("DIVL"));
+		extra_and = 0x0800;
+		extra_or |= 0x0400;
+		ovrname = _T("DIVU");
+	} else if (!_tcsicmp(modetxt, _T("CHK2"))) {
+		_tcscpy(modetxt, _T("CHK2"));
+		extra_or = 0x0800;
+		ovrname = _T("CHK2");
+	} else if (!_tcsicmp(modetxt, _T("CMP2"))) {
+		_tcscpy(modetxt, _T("CHK2"));
+		extra_and = 0x0800;
+		ovrname = _T("CMP2");
+	} else if (!_tcsicmp(modetxt, _T("MULS")) && sizes == 0) {
+		_tcscpy(modetxt, _T("MULL"));
+		extra_or = 0x0800;
+		ovrname = _T("MULS");
+	} else if (!_tcsicmp(modetxt, _T("MULU")) && sizes == 0) {
+		_tcscpy(modetxt, _T("MULL"));
+		extra_and = 0x0800;
+		ovrname = _T("MULU");
+	}
+
 	for (int j = 0; lookuptab[j].name; j++) {
 		if (!_tcsicmp(modetxt, lookuptab[j].name)) {
 			mnemo = j;
@@ -2709,6 +2768,7 @@ static void test_mnemo_text(const TCHAR *path, const TCHAR *mode)
 				}
 			}
 		}
+
 		if (mnemo < 0) {
 			wprintf(_T("Couldn't find '%s'\n"), modetxt);
 			return;
@@ -2718,16 +2778,16 @@ static void test_mnemo_text(const TCHAR *path, const TCHAR *mode)
 	if (mnemo >= 0 && sizes < 0) {
 		if (fpuopcode >= 0) {
 			for (int i = 0; i < 7; i++) {
-				test_mnemo(path, lookuptab[mnemo].name, i, fpuopcode);
+				test_mnemo(path, lookuptab[mnemo].name, ovrname, i, fpuopcode);
 			}
 		} else {
-			test_mnemo(path, lookuptab[mnemo].name, 0, -1);
-			test_mnemo(path, lookuptab[mnemo].name, 4, -1);
-			test_mnemo(path, lookuptab[mnemo].name, 6, -1);
-			test_mnemo(path, lookuptab[mnemo].name, -1, -1);
+			test_mnemo(path, lookuptab[mnemo].name, ovrname, 0, -1);
+			test_mnemo(path, lookuptab[mnemo].name, ovrname, 4, -1);
+			test_mnemo(path, lookuptab[mnemo].name, ovrname, 6, -1);
+			test_mnemo(path, lookuptab[mnemo].name, ovrname, -1, -1);
 		}
 	} else {
-		test_mnemo(path, lookuptab[mnemo].name, sizes, fpuopcode);
+		test_mnemo(path, lookuptab[mnemo].name, ovrname, sizes, fpuopcode);
 	}
 }
 

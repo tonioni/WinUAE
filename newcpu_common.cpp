@@ -1020,43 +1020,88 @@ void setchk2undefinedflags(uae_s32 lower, uae_s32 upper, uae_s32 val, int size)
 
 #ifndef CPUEMU_68000_ONLY
 
-#if !defined (uae_s64)
-STATIC_INLINE int div_unsigned (uae_u32 src_hi, uae_u32 src_lo, uae_u32 div, uae_u32 *quot, uae_u32 *rem)
+static void divsl_overflow(uae_u16 extra, uae_s64 a, uae_s32 divider)
 {
-	uae_u32 q = 0, cbit = 0;
-	int i;
-
-	if (div <= src_hi) {
-		return 1;
-	}
-	for (i = 0 ; i < 32 ; i++) {
-		cbit = src_hi & 0x80000000ul;
-		src_hi <<= 1;
-		if (src_lo & 0x80000000ul) src_hi++;
-		src_lo <<= 1;
-		q = q << 1;
-		if (cbit || div <= src_hi) {
-			q |= 1;
-			src_hi -= div;
-		}
-	}
-	*quot = q;
-	*rem = src_hi;
-	return 0;
-}
-#endif
-
-static void divl_overflow(void)
-{
-	if (currprefs.cpu_model == 68040) {
+	if (currprefs.cpu_model >= 68040) {
 		SET_VFLG(1);
 		SET_CFLG(0);
 	} else {
+		uae_s32 a32 = (uae_s32)a;
+		bool neg64 = a < 0;
+		bool neg32 = a32 < 0;
 		SET_VFLG(1);
-		SET_NFLG(1);
+		if (extra & 0x0400) {
+			// this is still missing condition where Z is set
+			// without none of input parameters being zero.
+			uae_u32 ahigh = a >> 32;
+			if (ahigh == 0) {
+				SET_ZFLG(1);
+				SET_NFLG(0);
+			} else if (ahigh < 0 && divider < 0 && ahigh > divider) {
+				SET_ZFLG(0);
+				SET_NFLG(0);
+			} else {
+				if (a32 == 0) {
+					SET_ZFLG(1);
+					SET_NFLG(0);
+				} else {
+					SET_ZFLG(0);
+					SET_NFLG(neg32 ^ neg64);
+				}
+			}
+		} else {
+			if (a32 == 0) {
+				SET_ZFLG(1);
+				SET_NFLG(0);
+			} else {
+				SET_NFLG(neg32);
+				SET_ZFLG(0);
+			}
+		}
 		SET_CFLG(0);
-		SET_ZFLG(0);
 	}
+}
+
+static void divul_overflow(uae_u16 extra, uae_s64 a)
+{
+	if (currprefs.cpu_model >= 68040) {
+		SET_VFLG(1);
+		SET_CFLG(0);
+	} else {
+		uae_s32 a32 = (uae_s32)a;
+		bool neg32 = a32 < 0;
+		SET_VFLG(1);
+		SET_NFLG(neg32);
+		SET_ZFLG(a32 == 0);
+		SET_CFLG(0);
+	}
+}
+
+static void divsl_divbyzero(uae_u16 extra, uae_s64 a)
+{
+	if (currprefs.cpu_model == 68060) {
+		SET_CFLG(0);
+	} else {
+		SET_NFLG(0);
+		SET_ZFLG(1);
+		SET_CFLG(0);
+	}
+	Exception_cpu(5);
+}
+
+static void divul_divbyzero(uae_u16 extra, uae_s64 a)
+{
+	if (currprefs.cpu_model == 68060) {
+		SET_CFLG(0);
+	} else {
+		uae_s32 a32 = (uae_s32)a;
+		bool neg32 = a32 < 0;
+		SET_NFLG(neg32);
+		SET_ZFLG(a32 == 0);
+		SET_VFLG(1);
+		SET_CFLG(0);
+	}
+	Exception_cpu(5);
 }
 
 bool m68k_divl (uae_u32 opcode, uae_u32 src, uae_u16 extra)
@@ -1065,14 +1110,7 @@ bool m68k_divl (uae_u32 opcode, uae_u32 src, uae_u16 extra)
 		op_unimpl (opcode);
 		return false;
 	}
-	if (src == 0) {
-		if (currprefs.cpu_model == 68060) {
-			SET_CFLG(0);
-		}
-		Exception_cpu(5);
-		return false;
-	}
-#if defined (uae_s64)
+
 	if (extra & 0x800) {
 		/* signed variant */
 		uae_s64 a = (uae_s64)(uae_s32)m68k_dreg (regs, (extra >> 12) & 7);
@@ -1083,15 +1121,20 @@ bool m68k_divl (uae_u32 opcode, uae_u32 src, uae_u16 extra)
 			a |= (uae_s64)m68k_dreg (regs, extra & 7) << 32;
 		}
 
+		if (src == 0) {
+			divsl_divbyzero(extra, a);
+			return false;
+		}
+
 		if ((uae_u64)a == 0x8000000000000000UL && src == ~0u) {
-			divl_overflow();
+			divsl_overflow(extra, a, src);
 		} else {
 			rem = a % (uae_s64)(uae_s32)src;
 			quot = a / (uae_s64)(uae_s32)src;
 			if ((quot & UVAL64 (0xffffffff80000000)) != 0
 				&& (quot & UVAL64 (0xffffffff80000000)) != UVAL64 (0xffffffff80000000))
 			{
-				divl_overflow();
+				divsl_overflow(extra, a, src);
 			} else {
 				if (((uae_s32)rem < 0) != ((uae_s64)a < 0)) rem = -rem;
 				SET_VFLG (0);
@@ -1111,10 +1154,16 @@ bool m68k_divl (uae_u32 opcode, uae_u32 src, uae_u16 extra)
 			a &= 0xffffffffu;
 			a |= (uae_u64)m68k_dreg (regs, extra & 7) << 32;
 		}
+
+		if (src == 0) {
+			divul_divbyzero(extra, a);
+			return false;
+		}
+
 		rem = a % (uae_u64)src;
 		quot = a / (uae_u64)src;
 		if (quot > 0xffffffffu) {
-			divl_overflow();
+			divul_overflow(extra, a);
 		} else {
 			SET_VFLG (0);
 			SET_CFLG (0);
@@ -1124,82 +1173,9 @@ bool m68k_divl (uae_u32 opcode, uae_u32 src, uae_u16 extra)
 			m68k_dreg (regs, (extra >> 12) & 7) = (uae_u32)quot;
 		}
 	}
-#else
-	if (extra & 0x800) {
-		/* signed variant */
-		uae_s32 lo = (uae_s32)m68k_dreg (regs, (extra >> 12) & 7);
-		uae_s32 hi = lo < 0 ? -1 : 0;
-		uae_s32 save_high;
-		uae_u32 quot, rem;
-		uae_u32 sign;
-
-		if (extra & 0x400) {
-			hi = (uae_s32)m68k_dreg (regs, extra & 7);
-		}
-		save_high = hi;
-		sign = (hi ^ src);
-		if (hi < 0) {
-			hi = ~hi;
-			lo = -lo;
-			if (lo == 0) hi++;
-		}
-		if ((uae_s32)src < 0) src = -src;
-		if (div_unsigned (hi, lo, src, &quot, &rem) ||
-			(sign & 0x80000000) ? quot > 0x80000000 : quot > 0x7fffffff) {
-				divl_overflow();
-		} else {
-			if (sign & 0x80000000) quot = -quot;
-			if (((uae_s32)rem < 0) != (save_high < 0)) rem = -rem;
-			SET_VFLG (0);
-			SET_CFLG (0);
-			SET_ZFLG (((uae_s32)quot) == 0);
-			SET_NFLG (((uae_s32)quot) < 0);
-			m68k_dreg (regs, extra & 7) = rem;
-			m68k_dreg (regs, (extra >> 12) & 7) = quot;
-		}
-	} else {
-		/* unsigned */
-		uae_u32 lo = (uae_u32)m68k_dreg (regs, (extra >> 12) & 7);
-		uae_u32 hi = 0;
-		uae_u32 quot, rem;
-
-		if (extra & 0x400) {
-			hi = (uae_u32)m68k_dreg (regs, extra & 7);
-		}
-		if (div_unsigned (hi, lo, src, &quot, &rem)) {
-			divl_overflow();
-		} else {
-			SET_VFLG (0);
-			SET_CFLG (0);
-			SET_ZFLG (((uae_s32)quot) == 0);
-			SET_NFLG (((uae_s32)quot) < 0);
-			m68k_dreg (regs, extra & 7) = rem;
-			m68k_dreg (regs, (extra >> 12) & 7) = quot;
-		}
-	}
-#endif
 	return true;
 }
 
-#if !defined (uae_s64)
-STATIC_INLINE void mul_unsigned (uae_u32 src1, uae_u32 src2, uae_u32 *dst_hi, uae_u32 *dst_lo)
-{
-	uae_u32 r0 = (src1 & 0xffff) * (src2 & 0xffff);
-	uae_u32 r1 = ((src1 >> 16) & 0xffff) * (src2 & 0xffff);
-	uae_u32 r2 = (src1 & 0xffff) * ((src2 >> 16) & 0xffff);
-	uae_u32 r3 = ((src1 >> 16) & 0xffff) * ((src2 >> 16) & 0xffff);
-	uae_u32 lo;
-
-	lo = r0 + ((r1 << 16) & 0xffff0000ul);
-	if (lo < r0) r3++;
-	r0 = lo;
-	lo = r0 + ((r2 << 16) & 0xffff0000ul);
-	if (lo < r0) r3++;
-	r3 += ((r1 >> 16) & 0xffff) + ((r2 >> 16) & 0xffff);
-	*dst_lo = lo;
-	*dst_hi = r3;
-}
-#endif
 
 bool m68k_mull (uae_u32 opcode, uae_u32 src, uae_u16 extra)
 {
@@ -1207,7 +1183,6 @@ bool m68k_mull (uae_u32 opcode, uae_u32 src, uae_u16 extra)
 		op_unimpl (opcode);
 		return false;
 	}
-#if defined (uae_s64)
 	if (extra & 0x800) {
 		/* signed */
 		uae_s64 a = (uae_s64)(uae_s32)m68k_dreg (regs, (extra >> 12) & 7);
@@ -1218,7 +1193,7 @@ bool m68k_mull (uae_u32 opcode, uae_u32 src, uae_u16 extra)
 		if (extra & 0x400) {
 			// 32 * 32 = 64
 			// 68040 is different.
-			if (currprefs.cpu_model == 68040) {
+			if (currprefs.cpu_model >= 68040) {
 				m68k_dreg(regs, extra & 7) = (uae_u32)(a >> 32);
 				m68k_dreg(regs, (extra >> 12) & 7) = (uae_u32)a;
 			} else {
@@ -1248,7 +1223,7 @@ bool m68k_mull (uae_u32 opcode, uae_u32 src, uae_u16 extra)
 		if (extra & 0x400) {
 			// 32 * 32 = 64
 			// 68040 is different.
-			if (currprefs.cpu_model == 68040) {
+			if (currprefs.cpu_model >= 68040) {
 				m68k_dreg(regs, extra & 7) = (uae_u32)(a >> 32);
 				m68k_dreg(regs, (extra >> 12) & 7) = (uae_u32)a;
 			} else {
@@ -1269,60 +1244,6 @@ bool m68k_mull (uae_u32 opcode, uae_u32 src, uae_u16 extra)
 			SET_NFLG(b < 0);
 		}
 	}
-#else
-	if (extra & 0x800) {
-		/* signed */
-		uae_s32 src1, src2;
-		uae_u32 dst_lo, dst_hi;
-		uae_u32 sign;
-
-		src1 = (uae_s32)src;
-		src2 = (uae_s32)m68k_dreg (regs, (extra >> 12) & 7);
-		sign = (src1 ^ src2);
-		if (src1 < 0) src1 = -src1;
-		if (src2 < 0) src2 = -src2;
-		mul_unsigned ((uae_u32)src1, (uae_u32)src2, &dst_hi, &dst_lo);
-		if (sign & 0x80000000) {
-			dst_hi = ~dst_hi;
-			dst_lo = -dst_lo;
-			if (dst_lo == 0) dst_hi++;
-		}
-		SET_VFLG (0);
-		SET_CFLG (0);
-		if (extra & 0x400) {
-			m68k_dreg(regs, extra & 7) = dst_hi;
-			SET_ZFLG(dst_hi == 0 && dst_lo == 0);
-			SET_NFLG(((uae_s32)dst_hi) < 0);
-		} else {
-			if ((dst_hi != 0 || (dst_lo & 0x80000000) != 0) && ((dst_hi & 0xffffffff) != 0xffffffff || (dst_lo & 0x80000000) != 0x80000000)) {
-				SET_VFLG(1);
-			}
-			SET_ZFLG(dst_lo == 0);
-			SET_NFLG(((uae_s32)dst_lo) < 0);
-		}
-		m68k_dreg (regs, (extra >> 12) & 7) = dst_lo;
-	} else {
-		/* unsigned */
-		uae_u32 dst_lo, dst_hi;
-
-		mul_unsigned (src, (uae_u32)m68k_dreg (regs, (extra >> 12) & 7), &dst_hi, &dst_lo);
-
-		SET_VFLG (0);
-		SET_CFLG (0);
-		if (extra & 0x400) {
-			m68k_dreg(regs, extra & 7) = dst_hi;
-			SET_ZFLG(dst_hi == 0 && dst_lo == 0);
-			SET_NFLG(((uae_s32)dst_hi) < 0);
-		}  else {
-			if (dst_hi != 0) {
-				SET_VFLG(1);
-			}
-			SET_ZFLG(dst_lo == 0);
-			SET_NFLG(((uae_s32)dst_lo) < 0);
-		}
-		m68k_dreg (regs, (extra >> 12) & 7) = dst_lo;
-	}
-#endif
 	return true;
 }
 
