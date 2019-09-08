@@ -679,8 +679,8 @@ extern void m68k_dumpcache (bool);
 extern int getDivu68kCycles (uae_u32 dividend, uae_u16 divisor);
 extern int getDivs68kCycles (uae_s32 dividend, uae_s16 divisor);
 extern void divbyzero_special(bool issigned, uae_s32 dst);
-extern void setdivuflags(bool overflow, uae_u32 dividend, uae_u16 divisor);
-extern void setdivsflags(bool overflow, uae_s32 dividend, uae_s16 divisor);
+extern void setdivuflags(uae_u32 dividend, uae_u16 divisor);
+extern void setdivsflags(uae_s32 dividend, uae_s16 divisor);
 extern void setchkundefinedflags(uae_s32 src, uae_s32 dst, int size);
 extern void setchk2undefinedflags(uae_s32 lower, uae_s32 upper, uae_s32 val, int size);
 extern void protect_roms (bool);
@@ -816,6 +816,7 @@ extern bool can_cpu_tracer (void);
 #define CPU_HALT_CPU_STUCK 9
 #define CPU_HALT_SSP_IN_NON_EXISTING_ADDRESS 10
 #define CPU_HALT_INVALID_START_ADDRESS 11
+#define CPU_HALT_68060_HALT 12
 
 uae_u32 process_cpu_indirect_memory_read(uae_u32 addr, int size);
 void process_cpu_indirect_memory_write(uae_u32 addr, uae_u32 data, int size);

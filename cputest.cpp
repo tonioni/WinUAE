@@ -107,9 +107,11 @@ static uae_u32 immabsl_cnt;
 static uae_u32 addressing_mask;
 static int opcodecnt;
 static int cpu_stopped;
+static int cpu_halted;
 static int cpu_lvl = 0;
 static int test_count;
 static int testing_active;
+static uae_u16 testing_active_opcode;
 static time_t starttime;
 static int filecount;
 static uae_u16 sr_undefined_mask;
@@ -133,6 +135,16 @@ static int noaccesshistory = 0;
 #define MAX_ACCESSHIST 48
 static struct accesshistory ahist[MAX_ACCESSHIST];
 static struct accesshistory ahist2[MAX_ACCESSHIST];
+
+static int is_superstack_use_required(void)
+{
+	switch (testing_active_opcode)
+	{
+	case 0x4e73: // RTE
+		return 1;
+	}
+	return 0;
+}
 
 #define OPCODE_AREA 32
 
@@ -175,6 +187,18 @@ static bool valid_address(uaecptr addr, int size, int w)
 		}
 		test_memory_accessed = w ? -1 : 1;
 		return 1;
+	}
+	if (addr >= test_memory_end - RESERVED_SUPERSTACK && addr + size < test_memory_end) {
+		// allow only instructions that have to access super stack, for example RTE
+		// read-only
+		if (w)
+			goto oob;
+		if (testing_active) {
+			if (is_superstack_use_required()) {
+				test_memory_accessed = 1;
+				return 1;
+			}
+		}
 	}
 oob:
 	return 0;
@@ -440,9 +464,11 @@ void dfc_nommu_put_long(uaecptr addr, uae_u32 v)
 	put_long_test(addr, v);
 }
 
-uae_u16 get_wordi_test(uaecptr addr)
+uae_u16 get_wordi_test(int o)
 {
-	return get_word_test(addr);
+	uae_u32 v = get_word_test_prefetch(o);
+	regs.pc += 2;
+	return v;
 }
 
 uae_u32 memory_get_byte(uaecptr addr)
@@ -653,6 +679,11 @@ void REGPARAM2 MakeFromSR(void)
 	MakeFromSR_x(0);
 }
 
+void cpu_halt(int halt)
+{
+	cpu_halted = halt;
+}
+
 static void exception_check_trace(int nr)
 {
 	SPCFLAG_TRACE = 0;
@@ -688,7 +719,7 @@ void check_t0_trace(void)
 
 void cpureset(void)
 {
-	test_exception = 1;
+	cpu_halted = -1;
 }
 
 static void doexcstack(void)
@@ -1461,7 +1492,21 @@ static int create_ea(uae_u16 *opcodep, uaecptr pc, int mode, int reg, struct ins
 			if (opcodecnt == 1) {
 				// STOP #xxxx: test all combinations
 				// (also includes RTD)
-				put_word_test(pc, imm16_cnt++);
+				if (dp->mnemo == i_LPSTOP) {
+					uae_u16 lp = 0x01c0;
+					if (imm16_cnt & (0x40 | 0x80)) {
+						for (;;) {
+							lp = rand16();
+							if (lp != 0x01c0)
+								break;
+						}
+					}
+					put_word_test(pc, lp);
+					put_word_test(pc + 2, imm16_cnt++);
+					pc += 2;
+				} else {
+					put_word_test(pc, imm16_cnt++);
+				}
 				if (imm16_cnt == 0)
 					*isconstant = 0;
 				else
@@ -1632,17 +1677,102 @@ static void handle_specials_extra(uae_u16 opcode, uaecptr pc, struct instr *dp)
 	}
 }
 
+static uae_u32 generate_stack_return(int cnt)
+{
+	uae_u32 v = rand32();
+	switch (cnt & 3)
+	{
+	case 0:
+	case 3:
+		v = opcode_memory_start + 128;
+		break;
+	case 1:
+		v &= 0xffff;
+		if (test_low_memory_start == 0xffffffff)
+			v |= 0x8000;
+		if (test_high_memory_start == 0xffffffff)
+			v &= 0x7fff;
+		break;
+	case 2:
+		v = opcode_memory_start + (uae_s16)v;
+		break;
+	}
+	if (!feature_exception3_instruction)
+		v &= ~1;
+	return v;
+}
+
+static int handle_rte(uae_u16 opcode, uaecptr pc, struct instr *dp, int *isconstant, uaecptr addr)
+{
+	// skip bus error/address error frames because internal fields can't be simply randomized
+	int offset = 2;
+	int frame, v;
+
+	imm_special++;
+	for (;;) {
+		frame = (imm_special >> 2) & 15;
+		// 68010 bus/address error
+		if (cpu_lvl == 1 && (frame == 8)) {
+			imm_special += 4;
+			continue;
+		}
+		if ((cpu_lvl == 2 || cpu_lvl == 3) && (frame == 9 || frame == 10 || frame == 11)) {
+			imm_special += 4;
+			continue;
+		}
+		// 68040 FP post-instruction, FP unimplemented, Address error
+		if (cpu_lvl == 4 && (frame == 3 || frame == 4 || frame == 7)) {
+			imm_special += 4;
+			continue;
+		}
+		// 68060 access fault/FP disabled, FP post-instruction
+		if (cpu_lvl == 5 && (frame == 3 || frame == 4)) {
+			imm_special += 4;
+			continue;
+		}
+		// throwaway frame
+		if (frame == 1) {
+			imm_special += 4;
+			continue;
+		}
+		break;	
+	}
+	v = imm_special >> 6;
+	uae_u16 sr = v & 31;
+	sr |= (v >> 5) << 12;
+	put_word_test(addr, sr);
+	addr += 2 + 4;
+	// frame + vector offset
+	put_word_test(addr, (frame << 12) | (rand16() & 0x0fff));
+	addr += 2;
+#if 0
+	if (frame == 1) {
+		int imm_special_tmp = imm_special;
+		imm_special &= ~(15 << 2);
+		if (rand8() & 1)
+			imm_special |= 2 << 2;
+		handle_rte(opcode, addr, dp, isconstant, addr);
+		imm_special = imm_special_tmp;
+		v = generate_stack_return(imm_special);
+		put_long_test(addr + 2, v);
+		offset += 8 + 2;
+#endif
+	if (frame == 2) {
+		put_long_test(addr, rand32());
+	}
+	return offset;
+}
+
 static int handle_specials_stack(uae_u16 opcode, uaecptr pc, struct instr *dp, int *isconstant)
 {
 	int offset = 0;
 	if (dp->mnemo == i_RTE || dp->mnemo == i_RTD || dp->mnemo == i_RTS || dp->mnemo == i_RTR || dp->mnemo == i_UNLK) {
 		uae_u32 v;
 		uaecptr addr = regs.regs[8 + 7];
-		imm_special++;
 		// RTE, RTD, RTS and RTR
 		if (dp->mnemo == i_RTR) {
 			// RTR
-			v = imm_special;
+			v = imm_special++;
 			uae_u16 ccr = v & 31;
 			ccr |= rand16() & ~31;
 			put_word_test(addr, ccr);
@@ -1652,6 +1782,7 @@ static int handle_specials_stack(uae_u16 opcode, uaecptr pc, struct instr *dp, i
 		} else if (dp->mnemo == i_RTE) {
 			// RTE
 			if (currprefs.cpu_model == 68000) {
+				imm_special++;
 				v = imm_special >> 2;
 				uae_u16 sr = v & 31;
 				sr |= (v >> 5) << 12;
@@ -1659,27 +1790,15 @@ static int handle_specials_stack(uae_u16 opcode, uaecptr pc, struct instr *dp, i
 				addr += 2;
 				offset += 2;
 			} else {
-				// TODO 68010+ RTE
+				offset += handle_rte(opcode, pc, dp, isconstant, addr);
+				addr += 2;
 			}
 			*isconstant = imm_special >= (1 << (4 + 5)) * 4 ? 0 : -1;
 		} else if (dp->mnemo == i_RTS) {
 			// RTS
 			*isconstant = imm_special >= 256 ? 0 : -1;
 		}
-		v = rand32();
-		switch (imm_special & 3)
-		{
-		case 0:
-		case 3:
-			v = opcode_memory_start + 128;
-			break;
-		case 1:
-			v &= 0xffff;
-			break;
-		case 2:
-			v = opcode_memory_start + (uae_s16)v;
-			break;
-		}
+		v = generate_stack_return(imm_special);
 		put_long_test(addr, v);
 		if (out_of_test_space) {
 			wprintf(_T("handle_specials out of bounds access!?"));
@@ -1693,8 +1812,8 @@ static void execute_ins(uae_u16 opc, uaecptr endpc, uaecptr targetpc, struct ins
 {
 	uae_u16 opw1 = (opcode_memory[2] << 8) | (opcode_memory[3] << 0);
 	uae_u16 opw2 = (opcode_memory[4] << 8) | (opcode_memory[5] << 0);
-	if (opc == 0x4c42
-		&& opw1 == 0xcf19
+	if (opc == 0x89c2
+		//&& opw1 == 0xcf19
 		//&& opw2 == 0x504e
 		)
 		printf("");
@@ -1713,6 +1832,7 @@ static void execute_ins(uae_u16 opc, uaecptr endpc, uaecptr targetpc, struct ins
 	high_memory_accessed = 0;
 	test_memory_accessed = 0;
 	testing_active = 1;
+	testing_active_opcode = opc;
 
 	int cnt = feature_loop_mode * 2;
 
@@ -1727,9 +1847,11 @@ static void execute_ins(uae_u16 opc, uaecptr endpc, uaecptr targetpc, struct ins
 
 		(*cpufunctbl[opc])(opc);
 
-		// supervisor mode and A7 was modified: skip this test round.
+		// Supervisor mode and A7 was modified: skip this test round.
 		if (s && regs.regs[15] != a7) {
-			test_exception = -1;
+			// but not if RTE
+			if (!is_superstack_use_required())
+				test_exception = -1;
 		}
 
 		if (!test_exception) {
@@ -1831,7 +1953,6 @@ static int isunsupported(struct instr *dp)
 	switch (dp->mnemo)
 	{
 	case i_MOVE2C:
-	case i_MOVEC2:
 	case i_FSAVE:
 	case i_FRESTORE:
 	case i_PFLUSH:
@@ -1846,14 +1967,21 @@ static int isunsupported(struct instr *dp)
 	case i_CINVA:
 	case i_CINVL:
 	case i_CINVP:
+	case i_PLPAR:
+	case i_PLPAW:
 		return 1;
-	case i_RTE:
-		if (cpu_lvl > 0)
-			return 1;
-		break;
 	}
 	return 0;
+}
 
+static int noregistercheck(struct instr *dp)
+{
+	switch (dp->mnemo)
+	{
+	case i_MOVEC2:
+		return 1;
+	}
+	return 0;
 }
 
 static uae_u8 last_exception[256];
@@ -1922,12 +2050,14 @@ static uae_u8 *save_exception(uae_u8 *p, struct instr *dp)
 	return p;
 }
 
-static uae_u16 get_ccr_ignore(struct instr *dp)
+static uae_u16 get_ccr_ignore(struct instr *dp, uae_u16 extra)
 {
 	uae_u16 ccrignoremask = 0;
-	if ((cpu_lvl == 2 || cpu_lvl == 3) && test_exception == 5 && (dp->mnemo == i_DIVS || dp->mnemo == i_DIVL)) {
-		// 68020/030 DIVS.W/.L + Divide by Zero: V state is not stable.
-		ccrignoremask |= 2; // mask CCR=V
+	if ((cpu_lvl == 2 || cpu_lvl == 3) && test_exception == 5) {
+		if ((dp->mnemo == i_DIVS) || (dp->mnemo == i_DIVL && (extra & 0x0800) && !(extra & 0x0400))) {
+			// 68020/030 DIVS.W/.L + Divide by Zero: V state is not stable.
+			ccrignoremask |= 2; // mask CCR=V
+		}
 	}
 	return ccrignoremask;
 }
@@ -2009,6 +2139,8 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 			xorshiftstate ^= ovrfilename[i];
 		}
 	}
+
+	xorshiftstate ^= 0x12;
 
 	int pathlen = _tcslen(path);
 	_stprintf(dir, _T("%s%s"), path, mns);
@@ -2187,7 +2319,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 
 					if (opc == 0x0156)
 						printf("");
-					if (subtest_count == 1537)
+					if (subtest_count == 416)
 						printf("");
 
 
@@ -2416,6 +2548,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 							out_of_test_space = 0;
 							test_exception = 0;
 							cpu_stopped = 0;
+							cpu_halted = 0;
 							ahcnt = 0;
 
 							memset(&regs, 0, sizeof(regs));
@@ -2440,6 +2573,8 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 							regs.sr = ccr | sr_mask;
 							regs.usp = regs.regs[8 + 7];
 							regs.isp = test_memory_end - 0x80;
+							// copy user stack to super stack, for RTE etc support
+							memcpy(regs.isp - test_memory_start + test_memory, regs.usp - test_memory_start + test_memory, 0x20);
 							regs.msp = test_memory_end;
 
 							// data size optimization, only store data
@@ -2477,6 +2612,9 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 								cnt_stopped++;
 								// CPU stopped, skip test
 								skipped = 1;
+							} else if (cpu_halted) {
+								// CPU halted or reset, skip test
+								skipped = 1;
 							} else if (out_of_test_space) {
 								exception_array[0]++;
 								// instruction accessed memory out of test address space bounds
@@ -2490,11 +2628,8 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 								exception_array[test_exception]++;
 								if (test_exception == 8 && !(sr_mask & 0x2000)) {
 									// Privilege violation exception? Switch to super mode in next round.
-									// Except if reset..
-									if (lookup->mnemo != i_RESET) {
-										sr_mask_request |= 0x2000;
-										sr_allowed_mask |= 0x2000;
-									}
+									sr_mask_request |= 0x2000;
+									sr_allowed_mask |= 0x2000;
 								}
 								if (test_exception == 3) {
 									if (!feature_exception3_data && !(test_exception_3_fc & 2)) {
@@ -2520,23 +2655,30 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 								// validate branch instructions
 								if (isbranchinst(dp)) {
 									if ((regs.pc != srcaddr && regs.pc != pc - 2) || pcaddr[0] != 0x4a && pcaddr[1] != 0xfc) {
-										printf("Branch instruction target fault\n");
-										exit(0);
+										wprintf(_T("Branch instruction target fault\n"));
+										abort();
 									}
 								}
 							}
 							MakeSR();
 							if (!skipped) {
+								bool storeregs = true;
+								if (noregistercheck(dp)) {
+									*dst++ = CT_SKIP_REGS;
+									storeregs = false;
+								}
 								// save modified registers
 								for (int i = 0; i < MAX_REGISTERS; i++) {
 									uae_u32 s = last_registers[i];
 									uae_u32 d = regs.regs[i];
 									if (s != d) {
-										dst = store_reg(dst, CT_DREG + i, s, d, -1);
+										if (storeregs) {
+											dst = store_reg(dst, CT_DREG + i, s, d, -1);
+										}
 										last_registers[i] = d;
 									}
 								}
-								uae_u32 ccrignoremask = get_ccr_ignore(dp) << 16;
+								uae_u32 ccrignoremask = get_ccr_ignore(dp, ((pcaddr[2] << 8) | pcaddr[3])) << 16;
 								if ((regs.sr | ccrignoremask) != last_sr) {
 									dst = store_reg(dst, CT_SR, last_sr, regs.sr | ccrignoremask, -1);
 									last_sr = regs.sr | ccrignoremask;
@@ -2740,6 +2882,9 @@ static void test_mnemo_text(const TCHAR *path, const TCHAR *mode)
 		_tcscpy(modetxt, _T("MULL"));
 		extra_and = 0x0800;
 		ovrname = _T("MULU");
+	} else if (!_tcsicmp(modetxt, _T("MOVEC"))) {
+		_tcscpy(modetxt, _T("MOVEC2"));
+		ovrname = _T("MOVEC");
 	}
 
 	for (int j = 0; lookuptab[j].name; j++) {

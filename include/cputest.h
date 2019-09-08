@@ -39,7 +39,7 @@ extern int movem_index2[256];
 extern int movem_next[256];
 
 uae_u16 get_word_test_prefetch(int);
-uae_u16 get_wordi_test(uaecptr);
+uae_u16 get_wordi_test(int);
 
 void put_byte_test(uaecptr, uae_u32);
 void put_word_test(uaecptr, uae_u32);

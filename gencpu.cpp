@@ -4201,12 +4201,12 @@ static void gen_opcode (unsigned int opcode)
 		// if new SR S-bit is not set:
 		// 68000 (68010?): Update SR, increase PC and then cause privilege violation exception (handled in newcpu)
 		// 68000 (68010?): Traced STOP runs 4 cycles faster.
-		// 68020 68030: STOP works normally
-		// 68040 68060: Immediate privilege violation exception
+		// 68020 68030 68040: STOP works normally
+		// 68060: Immediate privilege violation exception
 		if ((cpu_level == 0 || cpu_level == 1) && using_ce) {
 			printf("\t%s(regs.t1 ? 4 : 8);\n", do_cycles);
 		}
-		if (cpu_level >= 4) {
+		if (cpu_level >= 5) {
 			printf("\tif (!(sr & 0x2000)) {\n");
 			incpc("%d", m68k_pc_offset);
 			printf("\t\tException(8); goto %s;\n", endlabelstr);
@@ -4221,17 +4221,27 @@ static void gen_opcode (unsigned int opcode)
 		next_cpu_level = cpu_level - 1;
 		break;
 	case i_LPSTOP: /* 68060 */
-		printf ("\tuae_u16 sw = %s (2);\n", srcwi);
-		printf ("\tif (sw != (0x100|0x80|0x40)) { Exception (4); goto %s; }\n", endlabelstr);
+		printf ("\tuae_u16 sw = %s(2);\n", srcwi);
+		printf ("\tif (sw != 0x01c0) { Exception (11); goto %s; }\n", endlabelstr);
 		printf("\tif (!(regs.sr & 0x2000)) {\n");
 		printf("\t\tException(8); goto %s;\n", endlabelstr);
 		printf("\t}\n");
-		printf("\tregs.sr = %s (4);\n", srcwi);
+		printf("\tuae_u16 newsr = %s(4);\n", srcwi);
+		printf("\tif (!(newsr & 0x2000)) {\n");
+		printf("\t\tException(8); goto %s;\n", endlabelstr);
+		printf("\t}\n");
+		printf("\tregs.sr = newsr;\n");
 		makefromsr();
 		printf ("\tm68k_setstopped();\n");
 		m68k_pc_offset += 4;
 		sync_m68k_pc ();
 		fill_prefetch_full_ntx();
+		need_endlabel = 1;
+		break;
+	case i_HALT: /* 68060 debug */
+		printf("\tcpu_halt(CPU_HALT_68060_HALT);\n");
+		break;
+	case i_PULSE: /* 68060 debug */
 		break;
 	case i_RTE:
 		addop_ce020 (curi, 0);
@@ -4267,9 +4277,9 @@ static void gen_opcode (unsigned int opcode)
 			printf ("\t\tint frame = format >> 12;\n");
 			printf ("\t\tint offset = 8;\n");
 			printf ("\t\tnewsr = sr; newpc = pc;\n");
-		    printf ("\t\tif (frame == 0x0) { m68k_areg (regs, 7) += offset; break; }\n");
-		    printf ("\t\telse if (frame == 0x8) { m68k_areg (regs, 7) += offset + 50; break; }\n");
-		    printf ("\t\telse { Exception_cpu(14); goto %s; }\n", endlabelstr);
+		    printf ("\t\tif (frame == 0x0) {\n\t\t\tm68k_areg (regs, 7) += offset; break; }\n");
+		    printf ("\t\telse if (frame == 0x8) {\n\t\t\tm68k_areg (regs, 7) += offset + 50; break; }\n");
+		    printf ("\t\telse {\n\t\t\tException_cpu(14); goto %s; }\n", endlabelstr);
 		    printf ("\t\tregs.sr = newsr; MakeFromSR ();\n}\n");
 		    pop_braces (old_brace_level);
 		    printf ("\tregs.sr = newsr;\n");
@@ -4300,49 +4310,49 @@ static void gen_opcode (unsigned int opcode)
 			printf ("\t\tint offset = 8;\n");
 			printf ("\t\tnewsr = sr; newpc = pc;\n");
 			addcycles_ce020 (6);
-		    printf ("\t\tif (frame == 0x0) { m68k_areg (regs, 7) += offset; break; }\n");
+		    printf ("\t\tif (frame == 0x0) {\n\t\t\tm68k_areg (regs, 7) += offset; break; }\n");
 			if (cpu_level >= 2) {
 				// 68020+
-				printf ("\t\telse if (frame == 0x1) { m68k_areg (regs, 7) += offset; }\n");
-				printf ("\t\telse if (frame == 0x2) { m68k_areg (regs, 7) += offset + 4; break; }\n");
+				printf ("\t\telse if (frame == 0x1) {\n\t\t\tm68k_areg (regs, 7) += offset; }\n");
+				printf ("\t\telse if (frame == 0x2) {\n\t\t\tm68k_areg (regs, 7) += offset + 4; break; }\n");
 			}
 			if (cpu_level >= 4) {
 				// 68040+
-				printf ("\t\telse if (frame == 0x3) { m68k_areg (regs, 7) += offset + 4; break; }\n");
+				printf ("\t\telse if (frame == 0x3) {\n\t\t\tm68k_areg (regs, 7) += offset + 4; break; }\n");
 			}
    		    if (using_mmu == 68060) {
-				printf ("\t\telse if (frame == 0x4) { m68k_do_rte_mmu060 (a); m68k_areg (regs, 7) += offset + 8; break; }\n");
+				printf ("\t\telse if (frame == 0x4) {\n\t\t\tm68k_do_rte_mmu060 (a); m68k_areg (regs, 7) += offset + 8; break; }\n");
 			} else if (cpu_level >= 4) {
 				// 68040+
-				printf ("\t\telse if (frame == 0x4) { m68k_areg (regs, 7) += offset + 8; break; }\n");
+				printf ("\t\telse if (frame == 0x4) {\n\t\t\tm68k_areg (regs, 7) += offset + 8; break; }\n");
 			}
 			if (cpu_level == 1) {
 				// 68010 only
-				printf("\t\telse if (frame == 0x8) { m68k_areg (regs, 7) += offset + 50; break; }\n");
+				printf("\t\telse if (frame == 0x8) {\n\t\t\tm68k_areg (regs, 7) += offset + 50; break; }\n");
 			}
 			if (using_mmu == 68040) {
-		    	printf ("\t\telse if (frame == 0x7) { m68k_do_rte_mmu040 (a); m68k_areg (regs, 7) += offset + 52; break; }\n");
-			} else if (cpu_level >= 4) {
-				// 68040+
-		    	printf ("\t\telse if (frame == 0x7) { m68k_areg (regs, 7) += offset + 52; break; }\n");
+		    	printf ("\t\telse if (frame == 0x7) {\n\t\t\tm68k_do_rte_mmu040 (a); m68k_areg (regs, 7) += offset + 52; break; }\n");
+			} else if (cpu_level == 4) {
+				// 68040 only
+		    	printf ("\t\telse if (frame == 0x7) {\n\t\t\tm68k_areg (regs, 7) += offset + 52; break; }\n");
 			}
 			if (cpu_level == 2 || cpu_level == 3) {
 				// 68020/68030 only
-				printf ("\t\telse if (frame == 0x9) { m68k_areg (regs, 7) += offset + 12; break; }\n");
+				printf ("\t\telse if (frame == 0x9) {\n\t\t\tm68k_areg (regs, 7) += offset + 12; break; }\n");
 				if (using_mmu == 68030) {
 					if (using_prefetch_020) {
-						printf ("\t\telse if (frame == 0xa) { m68k_do_rte_mmu030c (a); goto %s; }\n", endlabelstr);
-					    printf ("\t\telse if (frame == 0xb) { m68k_do_rte_mmu030c (a); goto %s; }\n", endlabelstr);
+						printf ("\t\telse if (frame == 0xa) {\n\t\t\tm68k_do_rte_mmu030c (a); goto %s; }\n", endlabelstr);
+					    printf ("\t\telse if (frame == 0xb) {\n\t\t\tm68k_do_rte_mmu030c (a); goto %s; }\n", endlabelstr);
 					} else {
-						printf ("\t\telse if (frame == 0xa) { m68k_do_rte_mmu030 (a); goto %s; }\n", endlabelstr);
-					    printf ("\t\telse if (frame == 0xb) { m68k_do_rte_mmu030 (a); goto %s; }\n", endlabelstr);
+						printf ("\t\telse if (frame == 0xa) {\n\t\t\tm68k_do_rte_mmu030 (a); goto %s; }\n", endlabelstr);
+					    printf ("\t\telse if (frame == 0xb) {\n\t\t\tm68k_do_rte_mmu030 (a); goto %s; }\n", endlabelstr);
 					}
 				} else {
-					printf ("\t\telse if (frame == 0xa) { m68k_areg (regs, 7) += offset + 24; break; }\n");
-				    printf ("\t\telse if (frame == 0xb) { m68k_areg (regs, 7) += offset + 84; break; }\n");
+					printf ("\t\telse if (frame == 0xa) {\n\t\t\tm68k_areg (regs, 7) += offset + 24; break; }\n");
+				    printf ("\t\telse if (frame == 0xb) {\n\t\t\tm68k_areg (regs, 7) += offset + 84; break; }\n");
 				}
 			}
-		    printf ("\t\telse { Exception_cpu(14); goto %s; }\n", endlabelstr);
+		    printf ("\t\telse {\n\t\t\tException_cpu(14); goto %s; }\n", endlabelstr);
 		    printf ("\t\tregs.sr = newsr;\n");
 			makefromsr_t0();
 			printf ("}\n");
@@ -4875,7 +4885,6 @@ bccl_not68020:
 		printf("\t\tException_cpu(5);\n");
 		printf("\t\tgoto %s;\n", endlabelstr);
 		printf("\t}\n");
-		printf("\tsetdivuflags(false, (uae_u32)dst, (uae_u16)src);\n");
 		printf("\tuae_u32 newv = (uae_u32)dst / (uae_u32)(uae_u16)src;\n");
 		printf("\tuae_u32 rem = (uae_u32)dst %% (uae_u32)(uae_u16)src;\n");
 		if (using_ce) {
@@ -4886,7 +4895,7 @@ bccl_not68020:
 		addcycles000_nonces("\t\t", "(getDivu68kCycles((uae_u32)dst, (uae_u16)src)) - 4");
 		fill_prefetch_next();
 		printf("\t\tif (newv > 0xffff) {\n");
-		printf("\t\t\tsetdivuflags(true, (uae_u32)dst, (uae_u16)src);\n");
+		printf("\t\t\tsetdivuflags((uae_u32)dst, (uae_u16)src);\n");
 		printf("\t\t} else {\n");
 		printf("\t\t");
 		genflags (flag_logical, sz_word, "newv", "", "");
@@ -4912,7 +4921,6 @@ bccl_not68020:
 		printf("\t\tException_cpu(5);\n");
 		printf("\t\tgoto %s;\n", endlabelstr);
 		printf("\t}\n");
-		printf("\tsetdivsflags(false, (uae_s32)dst, (uae_s16)src);\n");
 		if (using_ce) {
 			start_brace();
 			printf("\t\tint cycles = (getDivs68kCycles((uae_s32)dst, (uae_s16)src)) - 4;\n");
@@ -4921,12 +4929,12 @@ bccl_not68020:
 		addcycles000_nonces("\t\t", "(getDivs68kCycles((uae_s32)dst, (uae_s16)src)) - 4");
 		fill_prefetch_next ();
 		printf("\tif (dst == 0x80000000 && src == -1) {\n");
-		printf("\t\tsetdivsflags(true, (uae_s32)dst, (uae_s16)src);\n");
+		printf("\t\tsetdivsflags((uae_s32)dst, (uae_s16)src);\n");
 		printf("\t} else {\n");
 		printf("\t\tuae_s32 newv = (uae_s32)dst / (uae_s32)(uae_s16)src;\n");
 		printf("\t\tuae_u16 rem = (uae_s32)dst %% (uae_s32)(uae_s16)src;\n");
 		printf("\t\tif ((newv & 0xffff8000) != 0 && (newv & 0xffff8000) != 0xffff8000) {\n");
-		printf("\t\t\tsetdivsflags(true, (uae_s32)dst, (uae_s16)src);\n");
+		printf("\t\t\tsetdivsflags((uae_s32)dst, (uae_s16)src);\n");
 		printf("\t\t} else {\n");
 		printf("\t\t\tif (((uae_s16)rem < 0) != ((uae_s32)dst < 0)) rem = -rem;\n");
 		genflags(flag_logical, sz_word, "newv", "", "");
@@ -5488,6 +5496,7 @@ bccl_not68020:
 		printf ("\tuae_u32 *regp = regs.regs + regno;\n");
 		printf ("\tif (! m68k_movec2(src & 0xFFF, regp)) goto %s;\n", endlabelstr);
 		trace_t0_68040_only();
+		need_endlabel = 1;
 		break;
 	case i_MOVE2C:
 		genamode (curi, curi->smode, "srcreg", curi->size, "src", 1, 0, 0);
@@ -5497,6 +5506,7 @@ bccl_not68020:
 		printf ("\tuae_u32 *regp = regs.regs + regno;\n");
 		printf ("\tif (! m68k_move2c(src & 0xFFF, regp)) goto %s;\n", endlabelstr);
 		trace_t0_68040_only();
+		need_endlabel = 1;
 		break;
 	case i_CAS:
 		{

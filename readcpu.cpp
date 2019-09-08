@@ -151,6 +151,8 @@ struct mnemolookup lookuptab[] = {
 	{ i_PTESTW, _T("PTESTW"), NULL, 0 },
 
 	{ i_LPSTOP, _T("LPSTOP"), NULL, 0 },
+	{ i_HALT, _T("HALT"), NULL, 0 },
+	{ i_PULSE, _T("PULSE"), NULL, 0 },
 	{ i_ILLG, _T(""), NULL, 0 },
 };
 

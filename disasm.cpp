@@ -1824,6 +1824,15 @@ void m68k_disasm_2 (TCHAR *buf, int bufsize, uaecptr pc, uaecptr *nextpc, int cn
 			extra = get_word_debug(pc);
 			_stprintf(instrname + _tcslen(instrname), _T(",#$%04x"), extra);
 			pc += 2;
+		} else if (lookup->mnemo == i_LPSTOP) {
+			if (extra == 0x01c0) {
+				uae_u16 extra2 = get_word_debug(pc + 2);
+				_stprintf(instrname, _T("LPSTOP #$%04x"), extra2);
+				pc += 4;
+			} else {
+				_stprintf(instrname, _T("ILLG #$%04x"), extra);
+				pc += 2;
+			}
 		} else if (lookup->mnemo == i_FDBcc) {
 			pc = ShowEA(NULL, pc, opcode, dp->dreg, dp->dmode, dp->size, instrname, &seaddr2, safemode);
 			pc += 2;

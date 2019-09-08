@@ -110,10 +110,18 @@ int m68k_move2c (int regno, uae_u32 *regp)
 #if MOVEC_DEBUG > 0
 	write_log (_T("move2c %04X <- %08X PC=%x\n"), regno, *regp, M68K_GETPC);
 #endif
-	if (movec_illg (regno)) {
-		op_illg (0x4E7B);
+	if (movec_illg(regno)) {
+		if (currprefs.cpu_model < 68060 && !regs.s) {
+			Exception(8);
+			return 0;
+		}
+		op_illg(0x4E7B);
 		return 0;
 	} else {
+		if (!regs.s) {
+			Exception(8);
+			return 0;
+		}
 		switch (regno) {
 		case 0: regs.sfc = *regp & 7; break;
 		case 1: regs.dfc = *regp & 7; break;
@@ -185,10 +193,18 @@ int m68k_movec2 (int regno, uae_u32 *regp)
 #if MOVEC_DEBUG > 0
 	write_log (_T("movec2 %04X PC=%x\n"), regno, M68K_GETPC);
 #endif
-	if (movec_illg (regno)) {
-		op_illg (0x4E7A);
+	if (movec_illg(regno)) {
+		if (currprefs.cpu_model < 68060 && !regs.s) {
+			Exception(8);
+			return 0;
+		}
+		op_illg(0x4E7A);
 		return 0;
 	} else {
+		if (!regs.s) {
+			Exception(8);
+			return 0;
+		}
 		switch (regno) {
 		case 0: *regp = regs.sfc; break;
 		case 1: *regp = regs.dfc; break;
@@ -804,31 +820,27 @@ void divbyzero_special (bool issigned, uae_s32 dst)
  * 68000: V=1, C=0, Z=0, N=1
  * 68020: V=1, C=0, Z=0, N=X
  * 68040: V=1, C=0, NZ not modified.
- * 68060: V=1, C=0, N=0, Z=0
+ * 68060: V=1, C=0, NZ not modified.
  *
  * X) N is set if original 32-bit destination value is negative.
  *
  */
 
-void setdivuflags(bool overflow, uae_u32 dividend, uae_u16 divisor)
+void setdivuflags(uae_u32 dividend, uae_u16 divisor)
 {
-	if (!overflow) {
-		if (currprefs.cpu_model != 68040)
-			CLEAR_CZNV();
-	} else {
-		if (currprefs.cpu_model == 68060) {
-			SET_VFLG(1);
-		} else if (currprefs.cpu_model == 68040) {
-			SET_VFLG(1);
-			SET_CFLG(0);
-		} else if (currprefs.cpu_model >= 68020) {
-			SET_VFLG(1);
-			if ((uae_s32)dividend < 0)
-				SET_NFLG(1);
-		} else {
-			SET_VFLG(1);
+	if (currprefs.cpu_model == 68060) {
+		SET_VFLG(1);
+		SET_CFLG(0);
+	} else if (currprefs.cpu_model == 68040) {
+		SET_VFLG(1);
+		SET_CFLG(0);
+	} else if (currprefs.cpu_model >= 68020) {
+		SET_VFLG(1);
+		if ((uae_s32)dividend < 0)
 			SET_NFLG(1);
-		}
+	} else {
+		SET_VFLG(1);
+		SET_NFLG(1);
 	}
 }
 
@@ -838,47 +850,46 @@ void setdivuflags(bool overflow, uae_u32 dividend, uae_u16 divisor)
  * 68000: V=1, C=0, N=1, Z=0
  * 68020: V=1, C=0, ZN = X
  * 68040: V=1, C=0. NZ not modified.
- * 68060: V=1, C=0, N=0, Z=0
+ * 68060: V=1, C=0, NZ not modified.
  *
  * X) if absolute overflow(Check getDivs68kCycles for details) : Z = 0, N = 0
  * if not absolute overflow : N is set if internal result BYTE is negative, Z is set if it is zero!
  *
  */
 
-void setdivsflags(bool overflow, uae_s32 dividend, uae_s16 divisor)
+void setdivsflags(uae_s32 dividend, uae_s16 divisor)
 {
-	if (!overflow) {
-		if (currprefs.cpu_model != 68040)
-			CLEAR_CZNV();
-	} else {
-		if (currprefs.cpu_model == 68060) {
-			SET_VFLG(1);
-		} else if (currprefs.cpu_model == 68040) {
-			SET_VFLG(1);
-			SET_CFLG(0);
-		} else if (currprefs.cpu_model >= 68020) {
-			SET_VFLG(1);
-			// absolute overflow?
-			if (((uae_u32)abs(dividend) >> 16) >= (uae_u16)abs(divisor))
-				return;
-			uae_u32 aquot = (uae_u32)abs(dividend) / (uae_u16)abs(divisor);
-			if ((uae_s8)aquot == 0)
-				SET_ZFLG(1);
-			if ((uae_s8)aquot < 0)
-				SET_NFLG(1);
-		} else {
-			SET_VFLG(1);
+	if (currprefs.cpu_model == 68060) {
+		SET_VFLG(1);
+		SET_CFLG(0);
+	} else if (currprefs.cpu_model == 68040) {
+		SET_VFLG(1);
+		SET_CFLG(0);
+	} else if (currprefs.cpu_model >= 68020) {
+		CLEAR_CZNV();
+		SET_VFLG(1);
+		// absolute overflow?
+		if (((uae_u32)abs(dividend) >> 16) >= (uae_u16)abs(divisor))
+			return;
+		uae_u32 aquot = (uae_u32)abs(dividend) / (uae_u16)abs(divisor);
+		if ((uae_s8)aquot == 0)
+			SET_ZFLG(1);
+		if ((uae_s8)aquot < 0)
 			SET_NFLG(1);
-		}
+	} else {
+		CLEAR_CZNV();
+		SET_VFLG(1);
+		SET_NFLG(1);
 	}
 }
 
 /*
- * CHK.W undefined flags
+ * CHK undefined flags
  *
  * 68000: CV=0. Z: dst==0. N: dst < 0. !N: dst > src.
  * 68020: Z: dst==0. N: dst < 0. V: src-dst overflow. C: if dst < 0: (dst > src || src >= 0), if dst > src: (src >= 0).
- * 68040: N=0. If exception: N=dst < 0
+ * 68040: C=0. C=1 if exception and (dst < 0 && src >= 0) || (src >= 0 && dst >= src) || (dst < 0 && src < dst)
+ * 68060: N=0. If exception: N=dst < 0
  *
  */
 void setchkundefinedflags(uae_s32 src, uae_s32 dst, int size)
@@ -899,14 +910,14 @@ void setchkundefinedflags(uae_s32 src, uae_s32 dst, int size)
 		if (dst < 0 || dst > src) {
 			if (size == sz_word) {
 				int flgs = ((uae_s16)(dst)) < 0;
-					int flgo = ((uae_s16)(src)) < 0;
-					uae_s16 val = (uae_s16)src - (uae_s16)dst;
-					int flgn = val < 0;
-					SET_VFLG((flgs ^ flgo) & (flgn ^ flgo));
+				int flgo = ((uae_s16)(src)) < 0;
+				uae_s16 val = (uae_s16)src - (uae_s16)dst;
+				int flgn = val < 0;
+				SET_VFLG((flgs ^ flgo) & (flgn ^ flgo));
 			} else {
 				int flgs = dst < 0;
-					int flgo = src < 0;
-					uae_s32 val = src - dst;
+				int flgo = src < 0;
+				uae_s32 val = src - dst;
 				int flgn = val < 0;
 				SET_VFLG((flgs ^ flgo) & (flgn ^ flgo));
 			}
@@ -916,7 +927,19 @@ void setchkundefinedflags(uae_s32 src, uae_s32 dst, int size)
 				SET_CFLG(src >= 0);
 			}
 		}
-	} else {
+	} else if (currprefs.cpu_model == 68040) {
+		SET_CFLG(0);
+		if (dst < 0 || dst > src) {
+			if (dst < 0 && src >= 0) {
+				SET_CFLG(1);
+			} else if (src >= 0 && dst >= src) {
+				SET_CFLG(1);
+			} else if (dst < 0 && src < dst) {
+				SET_CFLG(1);
+			}
+		}
+		SET_NFLG(dst < 0);
+	} else if (currprefs.cpu_model == 68060) {
 		SET_NFLG(0);
 		if (dst < 0 || dst > src) {
 			SET_NFLG(dst < 0);
@@ -928,7 +951,8 @@ void setchkundefinedflags(uae_s32 src, uae_s32 dst, int size)
  * CHK2/CMP2 undefined flags
  *
  * 68020-68030: See below..
- * 68040: N: val<0 V=0
+ * 68040: NV not modified.
+ * 68060: N: val<0 V=0
  *
  */
 
@@ -936,13 +960,16 @@ void setchkundefinedflags(uae_s32 src, uae_s32 dst, int size)
 // Someone else can attempt to simplify this..
 void setchk2undefinedflags(uae_s32 lower, uae_s32 upper, uae_s32 val, int size)
 {
-	SET_NFLG(0);
-	SET_VFLG(0);
-
-	if (currprefs.cpu_model >= 68040) {
+	if (currprefs.cpu_model == 68060) {
+		SET_VFLG(0);
 		SET_NFLG(val < 0);
 		return;
+	} else if (currprefs.cpu_model == 68040) {
+		return;
 	}
+
+	SET_NFLG(0);
+	SET_VFLG(0);
 
 	if (val == lower || val == upper)
 		return;
@@ -1079,7 +1106,7 @@ static void divul_overflow(uae_u16 extra, uae_s64 a)
 
 static void divsl_divbyzero(uae_u16 extra, uae_s64 a)
 {
-	if (currprefs.cpu_model == 68060) {
+	if (currprefs.cpu_model >= 68040) {
 		SET_CFLG(0);
 	} else {
 		SET_NFLG(0);
@@ -1091,7 +1118,7 @@ static void divsl_divbyzero(uae_u16 extra, uae_s64 a)
 
 static void divul_divbyzero(uae_u16 extra, uae_s64 a)
 {
-	if (currprefs.cpu_model == 68060) {
+	if (currprefs.cpu_model >= 68040) {
 		SET_CFLG(0);
 	} else {
 		uae_s32 a32 = (uae_s32)a;

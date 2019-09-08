@@ -68,7 +68,7 @@ _get_cpu_model:
 	movem.l a5/a6,-(sp)
 	move.l a0,a6
 	lea scpucheck(pc),a5
-	jsr -0x1e(a6)
+	jsr -0x1e(a6) | Supervisor
 	movem.l (sp)+,a5/a6
 	bra.s .cpudone2
 .cpucheck2:	
@@ -81,7 +81,7 @@ _get_cpu_model:
 	bne.s .cpudone
 	dbf d0,.cpucheck
 .cpudone:
-	addq.l #1,d0
+	addq.w #1,d0
 .cpudone2:
 	rts
 

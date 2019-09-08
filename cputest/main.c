@@ -684,7 +684,7 @@ static uae_u8 *restore_data(uae_u8 *p)
 	return p;
 }
 
-static uae_u16 test_sr, test_ccrignoremask;
+static uae_u16 test_ccrignoremask;
 static uae_u32 test_fpsr, test_fpcr;
 
 static void addinfo(void)
@@ -764,18 +764,21 @@ static void out_regs(struct registers *r, int before)
 	}
 	strcat(outbp, "\n");
 	outbp += strlen(outbp);
-	sprintf(outbp, "SR:%c%04x   PC: %08lx ISP: %08lx MSP: %08lx\n", test_regs.sr != test_sr ? '*' : ' ', before ? test_sr : r->sr, r->pc, r->ssp, r->msp);
+	sprintf(outbp, "SR:%c%04x   PC: %08lx ISP: %08lx MSP: %08lx\n",
+		test_regs.sr != last_registers.sr ? '*' : ' ', before ? regs.sr : test_regs.sr,
+		r->pc, r->ssp, r->msp);
 	outbp += strlen(outbp);
 	if (before >= 0) {
-		uae_u16 s = before ? test_sr : r->sr;
-		uae_u16 s1 = test_regs.sr;
-		uae_u16 s2 = test_sr;
-		uae_u16 s3 = before ? s1 : last_registers.sr;
+		uae_u16 s = before ? regs.sr : test_regs.sr; // current value
+		uae_u16 s1 = regs.sr; // original value
+		uae_u16 s2 = test_regs.sr; // test result value
+		uae_u16 s3 = last_registers.sr; // expected result value
 		for (int i = 0; srbits[i].name; i++) {
 			if (i > 0)
 				*outbp++ = ' ';
 			uae_u16 mask = 1 << srbits[i].bit;
-			sprintf(outbp, "%s%c%d", srbits[i].name, (s3 & mask) != (s1 & mask) ? '!' : ((s1 & mask) != (s2 & mask) ? '*' : '='), (s & mask) != 0);
+			sprintf(outbp, "%s%c%d", srbits[i].name,
+				(s2 & mask) != (s3 & mask) ? '!' : ((s1 & mask) != (s2 & mask) ? '*' : '='), (s & mask) != 0);
 			outbp += strlen(outbp);
 		}
 	}
@@ -827,7 +830,7 @@ static void hexdump(uae_u8 *p, int len)
 static uae_u8 last_exception[256];
 static int last_exception_len;
 
-static uae_u8 *validate_exception(struct registers *regs, uae_u8 *p, int excnum, int sameexc)
+static uae_u8 *validate_exception(struct registers *regs, uae_u8 *p, int excnum, int sameexc, int *experr)
 {
 	int exclen = 0;
 	uae_u8 *exc;
@@ -931,9 +934,14 @@ static uae_u8 *validate_exception(struct registers *regs, uae_u8 *p, int excnum,
 		outbp += strlen(outbp);
 		hexdump(sp, exclen);
 		errors = 1;
+		*experr = 1;
 	}
 	return p;
 }
+
+// regs: registers before execution of test code
+// test_reg: registers used during execution of test code, also modified by test code.
+// last_registers: registers after modifications from data files. Test ok if test_reg == last_registers.
 
 static uae_u8 *validate_test(uae_u8 *p, int ignore_errors, int ignore_sr)
 {
@@ -974,6 +982,7 @@ static uae_u8 *validate_test(uae_u8 *p, int ignore_errors, int ignore_sr)
 	if (*p == CT_END_SKIP)
 		return p + 1;
 
+	int experr = 0;
 	for (;;) {
 		uae_u8 v = *p;
 		if (v & CT_END) {
@@ -994,7 +1003,7 @@ static uae_u8 *validate_test(uae_u8 *p, int ignore_errors, int ignore_sr)
 			}
 			if (ignore_errors) {
 				if (exc) {
-					p = validate_exception(&test_regs, p, exc, exc == cpuexc);
+					p = validate_exception(&test_regs, p, exc, exc == cpuexc, &experr);
 				}
 				break;
 			}
@@ -1008,7 +1017,7 @@ static uae_u8 *validate_test(uae_u8 *p, int ignore_errors, int ignore_sr)
 				break;
 			}
 			if (exc) {
-				p = validate_exception(&test_regs, p, exc, exc == cpuexc);
+				p = validate_exception(&test_regs, p, exc, exc == cpuexc, &experr);
 			}
 			if (exc != cpuexc) {
 				addinfo();
@@ -1018,6 +1027,7 @@ static uae_u8 *validate_test(uae_u8 *p, int ignore_errors, int ignore_sr)
 					} else {
 						sprintf(outbp, "Exception ID: expected %d but got %d\n", exc, cpuexc);
 					}
+					experr = 1;
 				}
 				outbp += strlen(outbp);
 				errors++;
@@ -1065,7 +1075,7 @@ static uae_u8 *validate_test(uae_u8 *p, int ignore_errors, int ignore_sr)
 			if ((val & (sr_undefined_mask & test_ccrignoremask)) != (test_regs.sr & (sr_undefined_mask & test_ccrignoremask)) && !ignore_errors && !ignore_sr) {
 				addinfo();
 				if (dooutput) {
-					sprintf(outbp, "SR: expected %04x -> %04x but got %04x (%04x)\n", test_sr, val & 0xffff, test_regs.sr & 0xffff, test_ccrignoremask);
+					sprintf(outbp, "SR: expected %04x -> %04x but got %04x (%04x)\n", regs.sr & 0xffff, val & 0xffff, test_regs.sr & 0xffff, test_ccrignoremask);
 					outbp += strlen(outbp);
 				}
 				errors++;
@@ -1245,8 +1255,10 @@ static uae_u8 *validate_test(uae_u8 *p, int ignore_errors, int ignore_sr)
 		}
 		out_regs(&test_regs, 0);
 		if (exc > 1) {
-			sprintf(outbp, "OK: Generated exception %d\n", exc);
-			outbp += strlen(outbp);
+			if (!experr) {
+				sprintf(outbp, "OK: Generated exception %d\n", exc);
+				outbp += strlen(outbp);
+			}
 			if (exc == 3 && cpu_lvl == 0) {
 				sprintf(outbp, "RW=%d IN=%d FC=%d\n",
 					((test_regs.exc >> (16 + 4)) & 1),
@@ -1326,10 +1338,11 @@ static void process_test(uae_u8 *p)
 				regs.pc = opcode_memory_addr;
 				regs.fpiar = opcode_memory_addr;
 
+				memcpy((void*)regs.ssp, (void*)regs.regs[15], 0x20);
 				xmemcpy(&test_regs, &regs, sizeof(struct registers));
 
 				test_regs.sr = ccr | sr_mask;
-				test_sr = test_regs.sr;
+				uae_u32 test_sr = test_regs.sr;
 				if (fpumode) {
 					test_regs.fpsr = (ccr & 15) << 24;
 					test_regs.fpcr = (ccr >> 4) << 4;
@@ -1373,6 +1386,13 @@ static void process_test(uae_u8 *p)
 
 					last_registers.pc = last_pc;
 					last_registers.fpiar = last_fpiar;
+
+					if ((*p) == CT_SKIP_REGS) {
+						p++;
+						for (int i = 0; i < 16; i++) {
+							test_regs.regs[i] = regs.regs[i];
+						}
+					}
 
 					p = validate_test(p, ignore_errors, ignore_sr);
 
@@ -1517,7 +1537,7 @@ static int test_mnemo(const char *path, const char *opcode)
 		exit(0);
 	}
 
-	printf("CPUlvl=%d, Mask=%08lx\n", cpu_lvl, addressing_mask);
+	printf("CPUlvl=%d, Mask=%08lx Code=%08lx\n", cpu_lvl, addressing_mask, opcode_memory);
 	printf("%s:\n", inst_name);
 
 	testcnt = 0;
