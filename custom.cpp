@@ -3758,7 +3758,6 @@ static void do_sprite_collisions (void)
 {
 	int nr_sprites = curr_drawinfo[next_lineno].nr_sprites;
 	int first = curr_drawinfo[next_lineno].first_sprite_entry;
-	int i;
 	unsigned int collision_mask = clxmask[clxcon >> 12];
 	int bplres = output_res(bplcon0_res);
 	hwres_t ddf_left = thisline_decision.plfleft * 2 << bplres;
@@ -3771,9 +3770,8 @@ static void do_sprite_collisions (void)
 	if ((clxdat & 0x1fe) == 0x1fe)
 		return;
 
-	for (i = 0; i < nr_sprites; i++) {
+	for (int i = 0; i < nr_sprites; i++) {
 		struct sprite_entry *e = curr_sprite_entries + first + i;
-		sprbuf_res_t j;
 		sprbuf_res_t minpos = e->pos;
 		sprbuf_res_t maxpos = e->max;
 		hwres_t minp1 = minpos >> sprite_buffer_res;
@@ -3788,9 +3786,9 @@ static void do_sprite_collisions (void)
 		if (minp1 < thisline_decision.plfleft * 2)
 			minpos = thisline_decision.plfleft * 2 << sprite_buffer_res;
 
-		for (j = minpos; j < maxpos; j++) {
+		for (sprbuf_res_t j = minpos; j < maxpos; j++) {
 			int sprpix = spixels[e->first_pixel + j - e->pos] & collision_mask;
-			int k, offs, match = 1;
+			int offs, match = 1;
 
 			if (sprpix == 0)
 				continue;
@@ -3800,12 +3798,11 @@ static void do_sprite_collisions (void)
 			sprpix <<= 1;
 
 			// both odd and even collision bits already set?
-			if ((clxdat & (sprpix << 0)) && (clxdat & (sprpix << 4)))
+			if (((clxdat & (sprpix << 0)) == (sprpix << 0)) && ((clxdat & (sprpix << 4)) == (sprpix << 4)))
 				continue;
 
 			/* Loop over number of playfields.  */
-			for (k = 1; k >= 0; k--) {
-				int l;
+			for (int k = 1; k >= 0; k--) {
 #ifdef AGA
 				int planes = (currprefs.chipset_mask & CSMASK_AGA) ? 8 : 6;
 #else
@@ -3813,7 +3810,7 @@ static void do_sprite_collisions (void)
 #endif
 				if (bplcon0 & 0x400)
 					match = 1;
-				for (l = k; match && l < planes; l += 2) {
+				for (int l = k; match && l < planes; l += 2) {
 					int t = 0;
 					if (l < thisline_decision.nr_planes) {
 						uae_u32 *ldata = (uae_u32 *)(line_data[next_lineno] + 2 * l * MAX_WORDS_PER_LINE);
@@ -3821,8 +3818,7 @@ static void do_sprite_collisions (void)
 						t = (word >> (31 - (offs & 31))) & 1;
 #if 0 /* debug: draw collision mask */
 						if (1) {
-							int m;
-							for (m = 0; m < 5; m++) {
+							for (int m = 0; m < 5; m++) {
 								ldata = (uae_u32 *)(line_data[next_lineno] + 2 * m * MAX_WORDS_PER_LINE);
 								ldata[(offs >> 5) + 1] |= 15 << (31 - (offs & 31));
 							}
