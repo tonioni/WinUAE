@@ -211,6 +211,7 @@ int syncbase;
 static int fmode_saved, fmode;
 uae_u16 beamcon0, new_beamcon0;
 static uae_u16 beamcon0_saved;
+static uae_u16 bplcon3_saved, bplcon4_saved;
 static bool varsync_changed;
 uae_u16 vtotal = MAXVPOS_PAL, htotal = MAXHPOS_PAL;
 static int maxvpos_stored, maxhpos_stored;
@@ -1049,7 +1050,11 @@ static void set_chipset_mode(void)
 {
 	if (currprefs.chipset_mask & CSMASK_AGA) {
 		fmode = fmode_saved;
+		bplcon3 = bplcon3_saved;
+		bplcon4 = bplcon4_saved;
 	} else {
+		bplcon3_saved = bplcon3;
+		bplcon4_saved = bplcon4;
 		fmode = 0;
 		bplcon4 = 0x0011;
 		bplcon3 = 0x0c00;
