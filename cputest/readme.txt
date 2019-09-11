@@ -1,7 +1,7 @@
 
 UAE CPU Tester
 
-I finally wrote utility (this was my "Summer 2019" project) that can be used to verify operation of for example software emulated or FPGA 680x0 CPUs.
+I finally wrote utility (This was my "Summer 2019" project) that can be used to verify operation of for example software emulated or FPGA 680x0 CPUs.
 It is based on UAE CPU core (gencpu generated special test core). All the CPU logic comes from UAE CPU core.
 
 Verifies:
@@ -42,7 +42,7 @@ Notes and limitations:
 
 Tester compatibility (integer instructions only):
 
-68000: Complete.
+68000: Complete. (Bus errors are not yet verified)
 68010: Not supported yet (Don't have real 68010, at least not yet).
 68020: Almost complete (DIVS.W/DIVS.L V-flag weirdness).
 68030: Same as 68020.
@@ -85,13 +85,13 @@ If high memory is ROM space (like on 24-bit address space Amigas), memory region
 
 Use "test_low_memory_start"/"test_high_memory_start" and "test_low_memory_end"/"test_high_memory_end" to restrict range of memory region used for tests, for example if part of region is normally inaccessible.
 
-"test_memory_start"/"test_memory_size" is the main test memory, tested instruction and stack is located here. Must be at least 128k but larger the size, the easier it is for the generator to find effective addresses that hit test memory. This memory space must be free on target m68k hardware.
+"test_memory_start"/"test_memory_size" is the main test memory, tested instruction and stack is located here. Must be at least 128k but larger the size, the easier it is for the generator to find effective addresses that hit test memory. This memory space must be free on test target m68k hardware.
 
 All 3 memory regions (if RAM) are filled with pseudo-random pattern and saved as "lmem.dat", "hmem.dat" and "tmem.dat"
 
 Usage of Amiga m68k native test program:
 
-Copy all three dat files, test executable compiled for target platform (currently only Amiga is supported) and data file directories to target system.
+Copy all memory dat files, test executable compiled for target platform (currently only Amiga is supported) and data/<cpu model> contents to target system, keeping original directory structure.
 
 cputest all = run all tests, in alphabetical order. Stops when mismatch is detected.
 cputest tst.b = run tst.b tests only

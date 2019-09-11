@@ -61,6 +61,7 @@ static int feature_loop_mode = 0;
 static int feature_loop_mode_register = -1;
 static int feature_full_extension_format = 0;
 static int feature_test_rounds = 2;
+static int feature_flag_mode = 0;
 static uae_u32 feature_addressing_modes[2];
 static int ad8r[2], pc8r[2];
 
@@ -1234,7 +1235,7 @@ static void save_data(uae_u8 *dst, const TCHAR *dir)
 		fwrite(data, 1, 4, f);
 		pl(data, opcode_memory_start - test_memory_start);
 		fwrite(data, 1, 4, f);
-		pl(data, (cpu_lvl << 16) | sr_undefined_mask | (addressing_mask == 0xffffffff ? 0x80000000 : 0));
+		pl(data, (cpu_lvl << 16) | sr_undefined_mask | (addressing_mask == 0xffffffff ? 0x80000000 : 0) | ((feature_flag_mode & 1) << 30));
 		fwrite(data, 1, 4, f);
 		pl(data, currprefs.fpu_model);
 		fwrite(data, 1, 4, f);
@@ -1796,6 +1797,7 @@ static int handle_specials_stack(uae_u16 opcode, uaecptr pc, struct instr *dp, i
 			*isconstant = imm_special >= (1 << (4 + 5)) * 4 ? 0 : -1;
 		} else if (dp->mnemo == i_RTS) {
 			// RTS
+			imm_special++;
 			*isconstant = imm_special >= 256 ? 0 : -1;
 		}
 		v = generate_stack_return(imm_special);
@@ -2524,6 +2526,11 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 					for (;;) {
 						uae_u16 sr_mask = 0;
 
+						int maxflag = fpumode ? 256 : 32;
+						if (feature_flag_mode == 1) {
+							maxflag = fpumode ? 256 / 8 : 2;
+						}
+
 						if (extraccr & 1)
 							sr_mask |= 0x2000; // S
 						if (extraccr & 2)
@@ -2541,7 +2548,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 						}
 
 						// Test every CPU CCR or FPU SR/rounding/precision combination
-						for (int ccr = 0; ccr < (fpumode ? 256 : 32); ccr++) {
+						for (int ccr = 0; ccr < maxflag; ccr++) {
 
 							bool skipped = false;
 
@@ -2566,11 +2573,21 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 								}
 								regs.fpiar = regs.pc;
 								// condition codes
-								fpp_set_fpsr((ccr & 15) << 24);
-								// precision and rounding
-								fpp_set_fpcr((ccr >> 4) << 4);
+								if (feature_flag_mode == 0) {
+									fpp_set_fpsr((ccr & 15) << 24);
+									// precision and rounding
+									fpp_set_fpcr((ccr >> 4) << 4);
+								} else {
+									fpp_set_fpsr(((ccr & 1) ? 15 : 0) << 24);
+									// precision and rounding
+									fpp_set_fpcr((ccr >> 1) << 4);
+								}
 							}
-							regs.sr = ccr | sr_mask;
+							if (feature_flag_mode == 0) {
+								regs.sr = ccr | sr_mask;
+							} else {
+								regs.sr = ((ccr & 1) ? 31 : 0) | sr_mask;
+							}
 							regs.usp = regs.regs[8 + 7];
 							regs.isp = test_memory_end - 0x80;
 							// copy user stack to super stack, for RTE etc support
@@ -3015,6 +3032,8 @@ int __cdecl main(int argc, char *argv[])
 	if (feature_loop_mode) {
 		feature_loop_mode_register = 7;
 	}
+	feature_flag_mode = 0;
+	ini_getval(ini, INISECTION, _T("feature_flags_mode"), &feature_flag_mode);
 
 	feature_full_extension_format = 0;
 	if (currprefs.cpu_model >= 68020) {
