@@ -93,9 +93,7 @@ scpucheck:
 	move.l a1,0x10(a0)
 	move.l sp,a1
 	moveq #4,d0
-.arch 68060
-	movec pcr,d0
-.arch 68020
+	dc.l 0x4e7a0808 | movec pcr,d0
 	moveq #5,d0
 illg:
 	move.l d1,0x10(a0)

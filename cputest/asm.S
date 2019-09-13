@@ -92,15 +92,10 @@ _setcpu:
 _flushcache:
 	move.l 4(sp),d1 | cpu_lvl
 	cmp.w #4,d1
-	bcc.s .fc040	
+	bcc flushcache040
 	movec cacr,d0
 	bset #3,d0
 	movec d0,cacr
-	rts
-.fc040:
-	.arch 68040
-	cpusha bc
-	.arch 68020
 	rts
 
 	| set and return old VBR
