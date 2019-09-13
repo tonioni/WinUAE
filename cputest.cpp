@@ -57,6 +57,7 @@ static int verbose = 1;
 static int feature_exception3_data = 0;
 static int feature_exception3_instruction = 0;
 static int feature_sr_mask = 0;
+static int feature_min_interrupt_mask = 0;
 static int feature_loop_mode = 0;
 static int feature_loop_mode_register = -1;
 static int feature_full_extension_format = 0;
@@ -1852,8 +1853,16 @@ static void execute_ins(uae_u16 opc, uaecptr endpc, uaecptr targetpc, struct ins
 		// Supervisor mode and A7 was modified: skip this test round.
 		if (s && regs.regs[15] != a7) {
 			// but not if RTE
-			if (!is_superstack_use_required())
+			if (!is_superstack_use_required()) {
 				test_exception = -1;
+				break;
+			}
+		}
+
+		// skip test if SR interrupt mask got too low
+		if (regs.intmask < feature_min_interrupt_mask) {
+			test_exception = -1;
+			break;
 		}
 
 		if (!test_exception) {
@@ -3027,6 +3036,8 @@ int __cdecl main(int argc, char *argv[])
 	ini_getval(ini, INISECTION, _T("feature_exception3_instruction"), &feature_exception3_instruction);
 	feature_sr_mask = 0;
 	ini_getval(ini, INISECTION, _T("feature_sr_mask"), &feature_sr_mask);
+	feature_min_interrupt_mask = 0;
+	ini_getval(ini, INISECTION, _T("feature_min_interrupt_mask"), &feature_min_interrupt_mask);
 	feature_loop_mode = 0;
 	ini_getval(ini, INISECTION, _T("feature_loop_mode"), &feature_loop_mode);
 	if (feature_loop_mode) {

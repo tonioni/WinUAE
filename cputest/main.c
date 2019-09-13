@@ -1644,7 +1644,7 @@ int main(int argc, char *argv[])
 
 #else
 
-#define _stricmp stricmp
+#define _stricmp strcasecmp
 
 	if (strlen(argv[1]) >= sizeof(opcode) - 1)
 		return 0;
