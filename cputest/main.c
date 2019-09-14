@@ -7,7 +7,7 @@
 #include <string.h>
 #include <ctype.h>
 #include <math.h>
-
+#include <sys/stat.h>
 
 #ifdef _MSC_VER
 #include "msc_dirent.h"
@@ -1342,7 +1342,9 @@ static void process_test(uae_u8 *p)
 				regs.pc = opcode_memory_addr;
 				regs.fpiar = opcode_memory_addr;
 
+#ifdef M68K
 				memcpy((void*)regs.ssp, (void*)regs.regs[15], 0x20);
+#endif
 				xmemcpy(&test_regs, &regs, sizeof(struct registers));
 
 				if (flag_mode == 0) {
@@ -1623,6 +1625,15 @@ static int getparamval(const char *p)
 
 static char path[256];
 
+static int isdir(const char *dirpath, const char *name)
+{
+	struct stat buf;
+	char path[FILENAME_MAX];
+
+	snprintf(path, sizeof(path), "%s%s", dirpath, name);
+	return stat(path, &buf) == 0 && S_ISDIR(buf.st_mode);
+}
+
 int main(int argc, char *argv[])
 {
 	char opcode[16];
@@ -1632,7 +1643,7 @@ int main(int argc, char *argv[])
 
 #ifndef M68K
 
-	char *params[] = { "", "unpk", "", NULL };
+	char *params[] = { "", "lslw.w", "", NULL };
 	argv = params;
 	argc = 3;
 
@@ -1640,7 +1651,7 @@ int main(int argc, char *argv[])
 
 	vbr_zero = calloc(1, 1024);
 
-	cpu_lvl = 2;
+	cpu_lvl = 0;
 
 #else
 
@@ -1751,7 +1762,8 @@ int main(int argc, char *argv[])
 			struct dirent *dr = readdir(d);
 			if (!dr)
 				break;
-			if (dr->d_type == DT_DIR && dr->d_name[0] != '.') {
+			int d = isdir(path, dr->d_name);
+			if (d && dr->d_name[0] != '.') {
 				strcpy(dirs + diroff, dr->d_name);
 				diroff += MAX_FILE_LEN;
 				if (diroff >= MAX_FILE_LEN * MAX_MNEMOS) {

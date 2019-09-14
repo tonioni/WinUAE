@@ -85,7 +85,7 @@ _setcpu:
 	cmp.w #5,d1
 	bcc.s .scend2
 	| 68020-68040 only
-	move.c d0,msp
+	movec d0,msp
 .scend2:
 	rts
 
