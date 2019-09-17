@@ -54,8 +54,8 @@ static uae_u8 *opcode_memory;
 static uae_u32 opcode_memory_addr;
 static uae_u8 *low_memory;
 static uae_u8 *high_memory;
-static uae_u32 low_memory_size;
-static uae_u32 high_memory_size;
+static int low_memory_size;
+static int high_memory_size;
 static uae_u8 *test_memory;
 static uae_u32 test_memory_addr;
 static uae_u32 test_memory_size;
@@ -99,6 +99,7 @@ static int dooutput = 1;
 static int quit;
 static uae_u8 ccr_mask;
 static uae_u32 addressing_mask = 0x00ffffff;
+static uae_u32 interrupt_mask;
 
 #ifndef M68K
 
@@ -738,7 +739,7 @@ struct srbit
 	char *name;
 	int bit;
 };
-static struct srbit srbits[] = {
+static const struct srbit srbits[] = {
 	{ "T1", 15 },
 	{ "T0", 14 },
 	{ "M", 13 },
@@ -1283,6 +1284,7 @@ static void process_test(uae_u8 *p)
 	errors = 0;
 
 	memset(&regs, 0, sizeof(struct registers));
+	regs.sr = interrupt_mask << 8;
 
 	start_test();
 
@@ -1352,7 +1354,7 @@ static void process_test(uae_u8 *p)
 				} else {
 					test_regs.sr = (ccr ? 31 : 0);
 				}
-				test_regs.sr |= sr_mask;
+				test_regs.sr |= sr_mask | (interrupt_mask << 8);
 				uae_u32 test_sr = test_regs.sr;
 				if (fpumode) {
 					if (flag_mode == 0) {
@@ -1500,6 +1502,7 @@ static int test_mnemo(const char *path, const char *opcode)
 	opcode_memory_addr = gl(data) + test_memory_addr;
 	fread(data, 1, 4, f);
 	lvl = (gl(data) >> 16) & 15;
+	interrupt_mask = (gl(data) >> 20) & 7;
 	addressing_mask = (gl(data) & 0x80000000) ? 0xffffffff : 0x00ffffff;
 	flag_mode = (gl(data) >> 30) & 1;
 	sr_undefined_mask = gl(data) & 0xffff;

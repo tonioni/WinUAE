@@ -1236,7 +1236,7 @@ static void save_data(uae_u8 *dst, const TCHAR *dir)
 		fwrite(data, 1, 4, f);
 		pl(data, opcode_memory_start - test_memory_start);
 		fwrite(data, 1, 4, f);
-		pl(data, (cpu_lvl << 16) | sr_undefined_mask | (addressing_mask == 0xffffffff ? 0x80000000 : 0) | ((feature_flag_mode & 1) << 30));
+		pl(data, (cpu_lvl << 16) | sr_undefined_mask | (addressing_mask == 0xffffffff ? 0x80000000 : 0) | ((feature_flag_mode & 1) << 30) | (feature_min_interrupt_mask << 20));
 		fwrite(data, 1, 4, f);
 		pl(data, currprefs.fpu_model);
 		fwrite(data, 1, 4, f);
@@ -2266,6 +2266,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 			dst = store_fpureg(dst, CT_FPREG + i, cur_fpuregisters[i]);
 			regs.fp[i].fpx = cur_fpuregisters[i];
 		}
+		regs.sr = feature_min_interrupt_mask << 8;
 
 		for (int opcode = 0; opcode < 65536; opcode++) {
 
@@ -2597,6 +2598,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 							} else {
 								regs.sr = ((ccr & 1) ? 31 : 0) | sr_mask;
 							}
+							regs.sr |= feature_min_interrupt_mask << 8;
 							regs.usp = regs.regs[8 + 7];
 							regs.isp = test_memory_end - 0x80;
 							// copy user stack to super stack, for RTE etc support
