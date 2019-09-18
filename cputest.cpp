@@ -1224,7 +1224,7 @@ static void save_data(uae_u8 *dst, const TCHAR *dir)
 	}
 	if (filecount == 0) {
 		uae_u8 data[4];
-		pl(data, 0x00000001);
+		pl(data, 0x00000002);
 		fwrite(data, 1, 4, f);
 		pl(data, (uae_u32)starttime);
 		fwrite(data, 1, 4, f);
@@ -1240,13 +1240,21 @@ static void save_data(uae_u8 *dst, const TCHAR *dir)
 		fwrite(data, 1, 4, f);
 		pl(data, currprefs.fpu_model);
 		fwrite(data, 1, 4, f);
+		pl(data, test_low_memory_start);
+		fwrite(data, 1, 4, f);
+		pl(data, test_low_memory_end);
+		fwrite(data, 1, 4, f);
+		pl(data, test_high_memory_start);
+		fwrite(data, 1, 4, f);
+		pl(data, test_high_memory_end);
+		fwrite(data, 1, 4, f);
 		fwrite(inst_name, 1, sizeof(inst_name) - 1, f);
 		fclose(f);
 		filecount++;
 		save_data(dst, dir);
 	} else {
 		uae_u8 data[4];
-		pl(data, 0x00000001);
+		pl(data, 0x00000002);
 		fwrite(data, 1, 4, f);
 		pl(data, (uae_u32)starttime);
 		fwrite(data, 1, 4, f);

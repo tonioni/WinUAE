@@ -56,6 +56,8 @@ static uae_u8 *low_memory;
 static uae_u8 *high_memory;
 static int low_memory_size;
 static int high_memory_size;
+static uae_u32 test_low_memory_start, test_low_memory_end;
+static uae_u32 test_high_memory_start, test_high_memory_end;
 static uae_u8 *test_memory;
 static uae_u32 test_memory_addr;
 static uae_u32 test_memory_size;
@@ -82,6 +84,8 @@ static uae_u8 *low_memory_temp;
 static uae_u8 *high_memory_temp;
 static uae_u8 *low_memory_back;
 static uae_u8 *high_memory_back;
+static int low_memory_offset;
+static int high_memory_offset;
 
 static uae_u32 vbr[256];
 	
@@ -226,13 +230,20 @@ static void start_test(void)
 
 	enable_data = tosuper(0);
 
-	memcpy(low_memory_back, low_memory, low_memory_size);
-	if (!hmem_rom)
-		memcpy(high_memory_back, high_memory, high_memory_size);
+	memcpy(low_memory_back + low_memory_offset, low_memory + low_memory_offset, low_memory_size - low_memory_offset);
+	// always copy exception vectors if 68000
+	if (cpu_lvl == 0 && low_memory_offset > 0x08)
+		memcpy(low_memory_back + 8, low_memory + 8, (192 - 2) * 4);
 
-	memcpy(low_memory, low_memory_temp, low_memory_size);
 	if (!hmem_rom)
-		memcpy(high_memory, high_memory_temp, high_memory_size);
+		memcpy(high_memory_back, high_memory + high_memory_offset, high_memory_size - high_memory_offset);
+
+	memcpy(low_memory + low_memory_offset, low_memory_temp + low_memory_offset, low_memory_size - low_memory_offset);
+	if (cpu_lvl == 0 && low_memory_offset > 0x08)
+		memcpy(low_memory + 8, low_memory_temp + 8, (192 - 2) * 4);
+
+	if (!hmem_rom)
+		memcpy(high_memory + high_memory_offset, high_memory_temp, high_memory_size - high_memory_offset);
 
 	if (cpu_lvl == 0) {
 		uae_u32 *p = (uae_u32 *)vbr_zero;
@@ -257,9 +268,12 @@ static void end_test(void)
 		return;
 	test_active = 0;
 
-	memcpy(low_memory, low_memory_back, low_memory_size);
+	memcpy(low_memory + low_memory_offset, low_memory_back + low_memory_offset, low_memory_size - low_memory_offset);
+	if (cpu_lvl == 0 && low_memory_offset > 0x08)
+		memcpy(low_memory + 8, low_memory_back + 8, (192 - 2) * 4);
+
 	if (!hmem_rom)
-		memcpy(high_memory, high_memory_back, high_memory_size);
+		memcpy(high_memory + high_memory_offset, high_memory_back, high_memory_size - high_memory_offset);
 
 	if (cpu_lvl > 0) {
 		setvbr(oldvbr);
@@ -1485,7 +1499,7 @@ static int test_mnemo(const char *path, const char *opcode)
 	int header_size = 32;
 	fread(data, 1, 4, f);
 	v = gl(data);
-	if (v != 0x00000001) {
+	if (v != 0x00000002) {
 		printf("Invalid test data file (header)\n");
 		exit(0);
 	}
@@ -1508,6 +1522,14 @@ static int test_mnemo(const char *path, const char *opcode)
 	sr_undefined_mask = gl(data) & 0xffff;
 	fread(data, 1, 4, f);
 	fpu_model = gl(data);
+	fread(data, 1, 4, f);
+	test_low_memory_start = gl(data);
+	fread(data, 1, 4, f);
+	test_low_memory_end = gl(data);
+	fread(data, 1, 4, f);
+	test_high_memory_start = gl(data);
+	fread(data, 1, 4, f);
+	test_high_memory_end = gl(data);
 	fread(inst_name, 1, sizeof(inst_name) - 1, f);
 	inst_name[sizeof(inst_name) - 1] = 0;
 
@@ -1516,8 +1538,9 @@ static int test_mnemo(const char *path, const char *opcode)
 		lvl2 = 4;
 
 	if (lvl != lvl2) {
-		printf("Mismatched CPU model: %lu <> %lu\n", 68000 + 10 * cpu_lvl, 68000 + lvl * 10);
-		exit(0);
+		printf("Mismatched CPU model: %lu <> %lu\n",
+			68000 + 10 * (cpu_lvl < 5 ? cpu_lvl : 6), 68000 + (lvl < 5 ? lvl : 6) * 10);
+		return 0;
 	}
 
 	if (!check_undefined_sr) {
@@ -1534,6 +1557,13 @@ static int test_mnemo(const char *path, const char *opcode)
 		printf("hmem.dat required but it was not loaded or was missing.\n");
 		return 0;
 	}
+
+	low_memory_offset = 0;
+	high_memory_offset = 0;
+	if (test_low_memory_start != 0xffffffff)
+		low_memory_offset = test_low_memory_start;
+	if (test_high_memory_start != 0xffffffff)
+		high_memory_offset = test_high_memory_start & 0x7fff;
 
 	if (!absallocated) {
 		test_memory = allocate_absolute(test_memory_addr, test_memory_size);
@@ -1570,7 +1600,7 @@ static int test_mnemo(const char *path, const char *opcode)
 		if (!f)
 			break;
 		fread(data, 1, 4, f);
-		if (gl(data) != 0x00000001) {
+		if (gl(data) != 0x00000002) {
 			printf("Invalid test data file (header)\n");
 			exit(0);
 		}
