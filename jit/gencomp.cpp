@@ -3065,6 +3065,8 @@ gen_opcode (unsigned int opcode)
      case i_PTESTR:
      case i_PTESTW:
      case i_LPSTOP:
+     case i_HALT:
+     case i_PULSE:
 	isjump;
 	failure;
 	break;
