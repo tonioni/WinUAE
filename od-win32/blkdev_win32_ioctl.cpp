@@ -12,8 +12,6 @@
 
 #ifdef WINDDK
 
-#include <sys/timeb.h>
-
 #include "options.h"
 #include "traps.h"
 #include "uae.h"
@@ -40,7 +38,6 @@
 #include <ntddscsi.h>
 
 #define IOCTL_DATA_BUFFER 8192
-#define CDDA_BUFFERS 14
 
 struct dev_info_ioctl {
 	HANDLE h;
@@ -52,31 +49,12 @@ struct dev_info_ioctl {
 	CDROM_TOC cdromtoc;
 	uae_u8 trackmode[100];
 	UINT errormode;
-	int playend;
 	int fullaccess;
-	int cdda_play_finished;
-	int cdda_play;
-	int cdda_paused;
-	int cdda_volume[2];
-	int cdda_scan;
-	int cd_last_pos;
-	HWAVEOUT cdda_wavehandle;
-	int cdda_start, cdda_end;
-	uae_u8 subcode[SUB_CHANNEL_SIZE * CDDA_BUFFERS];
-	uae_u8 subcodebuf[SUB_CHANNEL_SIZE];
-	bool subcodevalid;
-	play_subchannel_callback cdda_subfunc;
-	play_status_callback cdda_statusfunc;
-	int cdda_play_state;
-	int cdda_delay, cdda_delay_frames;
 	struct device_info di;
-	uae_sem_t sub_sem, sub_sem2;
 	bool open;
 	bool usesptiread;
 	bool changed;
-	cda_audio *cda;
-	volatile int cda_bufon[2];
-	struct cd_audio_state cas;
+	struct cda_play cda;
 };
 
 static struct dev_info_ioctl ciw32[MAX_TOTAL_SCSI_DEVICES];
@@ -451,333 +429,9 @@ retry:
 	return ret;
 }
 
-static void cdda_closewav (struct dev_info_ioctl *ciw)
+static int read_block_cda(struct cda_play *cda, int unitnum, uae_u8 *data, int sector, int size, int sectorsize)
 {
-	if (ciw->cdda_wavehandle != NULL)
-		waveOutClose (ciw->cdda_wavehandle);
-	ciw->cdda_wavehandle = NULL;
-}
-
-// DAE CDDA based on Larry Osterman's "Playing Audio CDs" blog series
-
-static int cdda_openwav (struct dev_info_ioctl *ciw)
-{
-	WAVEFORMATEX wav = { 0 };
-	MMRESULT mmr;
-
-	wav.cbSize = 0;
-	wav.nChannels = 2;
-	wav.nSamplesPerSec = 44100;
-	wav.wBitsPerSample = 16;
-	wav.nBlockAlign = wav.wBitsPerSample / 8 * wav.nChannels;
-	wav.nAvgBytesPerSec = wav.nBlockAlign * wav.nSamplesPerSec;
-	wav.wFormatTag = WAVE_FORMAT_PCM;
-	mmr = waveOutOpen (&ciw->cdda_wavehandle, WAVE_MAPPER, &wav, 0, 0, WAVE_ALLOWSYNC | WAVE_FORMAT_DIRECT);
-	if (mmr != MMSYSERR_NOERROR) {
-		write_log (_T("IOCTL CDDA: wave open %d\n"), mmr);
-		cdda_closewav (ciw);
-		return 0;
-	}
-	return 1;
-}
-
-static int setstate (struct dev_info_ioctl *ciw, int state, int playpos)
-{
-	ciw->cdda_play_state = state;
-	if (ciw->cdda_statusfunc)
-		return ciw->cdda_statusfunc (ciw->cdda_play_state, playpos);
-	return 0;
-}
-
-void ioctl_next_cd_audio_buffer_callback(int bufnum, void *param)
-{
-	struct dev_info_ioctl *ciw = (struct dev_info_ioctl*)param;
-	uae_sem_wait(&play_sem);
-	if (bufnum >= 0) {
-		ciw->cda_bufon[bufnum] = 0;
-		bufnum = 1 - bufnum;
-		if (ciw->cda_bufon[bufnum])
-			audio_cda_new_buffer(&ciw->cas, (uae_s16*)ciw->cda->buffers[bufnum], CDDA_BUFFERS * 2352 / 4, bufnum, ioctl_next_cd_audio_buffer_callback, ciw);
-		else
-			bufnum = -1;
-	}
-	if (bufnum < 0) {
-		audio_cda_new_buffer(&ciw->cas, NULL, 0, -1, NULL, ciw);
-	}
-	uae_sem_post(&play_sem);
-}
-
-static bool cdda_play2 (struct dev_info_ioctl *ciw, int *outpos)
-{
-	int cdda_pos = ciw->cdda_start;
-	int bufnum;
-	int buffered;
-	int i;
-	int oldplay;
-	int idleframes;
-	int muteframes;
-	int readblocksize = 2352 + 96;
-	int mode = currprefs.sound_cdaudio;
-	bool restart = false;
-
-	while (ciw->cdda_play == 0)
-		sleep_millis(10);
-	oldplay = -1;
-
-	ciw->cda_bufon[0] = ciw->cda_bufon[1] = 0;
-	bufnum = 0;
-	buffered = 0;
-
-	memset(&ciw->cas, 0, sizeof(struct cd_audio_state));
-	ciw->cda = new cda_audio (CDDA_BUFFERS, 2352, 44100, mode != 0);
-
-	while (ciw->cdda_play > 0) {
-
-		if (mode) {
-			while (ciw->cda_bufon[bufnum] && ciw->cdda_play > 0) {
-				if (cd_audio_mode_changed) {
-					restart = true;
-					goto end;
-				}
-				sleep_millis(10);
-			}
-		} else {
-			ciw->cda->wait(bufnum);
-		}
-		if (ciw->cdda_play <= 0)
-			goto end;
-		ciw->cda_bufon[bufnum] = 0;
-
-		if (oldplay != ciw->cdda_play) {
-			idleframes = 0;
-			muteframes = 0;
-			bool seensub = false;
-			struct _timeb tb1, tb2;
-			_ftime (&tb1);
-			cdda_pos = ciw->cdda_start;
-			ciw->cd_last_pos = cdda_pos;
-			oldplay = ciw->cdda_play;
-			write_log (_T("IOCTL%s CDDA: playing from %d to %d\n"),
-				ciw->usesptiread ? _T("(SPTI)") : _T(""), ciw->cdda_start, ciw->cdda_end);
-			ciw->subcodevalid = false;
-			idleframes = ciw->cdda_delay_frames;
-			while (ciw->cdda_paused && ciw->cdda_play > 0) {
-				sleep_millis(10);
-				idleframes = -1;
-			}
-			// force spin up
-			if (isaudiotrack (&ciw->di.toc, cdda_pos))
-				read_block (ciw, -1, ciw->cda->buffers[bufnum], cdda_pos, CDDA_BUFFERS, readblocksize);
-			if (!isaudiotrack (&ciw->di.toc, cdda_pos - 150))
-				muteframes = 75;
-
-			if (ciw->cdda_scan == 0) {
-				// find possible P-subchannel=1 and fudge starting point so that
-				// buggy CD32/CDTV software CD+G handling does not miss any frames
-				bool seenindex = false;
-				for (int sector = cdda_pos - 200; sector < cdda_pos; sector++) {
-					uae_u8 *dst = ciw->cda->buffers[bufnum];
-					if (sector >= 0 && isaudiotrack (&ciw->di.toc, sector) && read_block (ciw, -1, dst, sector, 1, readblocksize)) {
-						uae_u8 subbuf[SUB_CHANNEL_SIZE];
-						sub_deinterleave (dst + 2352, subbuf);
-						if (seenindex) {
-							for (int i = 2 * SUB_ENTRY_SIZE; i < SUB_CHANNEL_SIZE; i++) {
-								if (subbuf[i]) { // non-zero R-W subchannels?
-									int diff = cdda_pos - sector + 2;
-									write_log (_T("-> CD+G start pos fudge -> %d (%d)\n"), sector, -diff);
-									idleframes -= diff;
-									cdda_pos = sector;
-									seensub = true;
-									break;
-								}
-							}
-						} else if (subbuf[0] == 0xff) { // P == 1?
-							seenindex = true;
-						}
-					}
-				}
-			}
-			cdda_pos -= idleframes;
-
-			if (*outpos < 0) {
-				_ftime (&tb2);
-				int diff = (tb2.time * (uae_s64)1000 + tb2.millitm) - (tb1.time * (uae_s64)1000 + tb1.millitm);
-				diff -= ciw->cdda_delay;
-				if (idleframes >= 0 && diff < 0 && ciw->cdda_play > 0)
-					sleep_millis(-diff);
-				if (diff > 0 && !seensub) {
-					int ch = diff / 7 + 25;
-					if (ch > idleframes)
-						ch = idleframes;
-					idleframes -= ch;
-					cdda_pos += ch;
-				}
-				setstate (ciw, AUDIO_STATUS_IN_PROGRESS, cdda_pos);
-			}
-		}
-
-		if ((cdda_pos < ciw->cdda_end || ciw->cdda_end == 0xffffffff) && !ciw->cdda_paused && ciw->cdda_play) {
-
-			if (idleframes <= 0 && cdda_pos >= ciw->cdda_start && !isaudiotrack (&ciw->di.toc, cdda_pos)) {
-				setstate (ciw, AUDIO_STATUS_PLAY_ERROR, -1);
-				write_log (_T("IOCTL: attempted to play data track %d\n"), cdda_pos);
-				goto end; // data track?
-			}
-
-			gui_flicker_led (LED_CD, ciw->di.unitnum - 1, LED_CD_AUDIO);
-
-			uae_sem_wait (&ciw->sub_sem);
-
-			ciw->subcodevalid = false;
-			memset (ciw->subcode, 0, sizeof ciw->subcode);
-			memset (ciw->cda->buffers[bufnum], 0, CDDA_BUFFERS * readblocksize);
-
-			if (cdda_pos >= 0) {
-
-				setstate(ciw, AUDIO_STATUS_IN_PROGRESS, cdda_pos);
-
-				if (read_block (ciw, -1, ciw->cda->buffers[bufnum], cdda_pos, CDDA_BUFFERS, readblocksize)) {
-					for (i = 0; i < CDDA_BUFFERS; i++) {
-						memcpy (ciw->subcode + i * SUB_CHANNEL_SIZE, ciw->cda->buffers[bufnum] + readblocksize * i + 2352, SUB_CHANNEL_SIZE);
-					}
-					for (i = 1; i < CDDA_BUFFERS; i++) {
-						memmove (ciw->cda->buffers[bufnum] + 2352 * i, ciw->cda->buffers[bufnum] + readblocksize * i, 2352);
-					}
-					ciw->subcodevalid = true;
-				}
-			}
-
-			for (i = 0; i < CDDA_BUFFERS; i++) {
-				if (muteframes > 0) {
-					memset (ciw->cda->buffers[bufnum] + 2352 * i, 0, 2352);
-					muteframes--;
-				}
-				if (idleframes > 0) {
-					idleframes--;
-					memset (ciw->cda->buffers[bufnum] + 2352 * i, 0, 2352);
-					memset (ciw->subcode + i * SUB_CHANNEL_SIZE, 0, SUB_CHANNEL_SIZE);
-				} else if (cdda_pos < ciw->cdda_start && ciw->cdda_scan == 0) {
-					memset (ciw->cda->buffers[bufnum] + 2352 * i, 0, 2352);
-				}
-			}
-			if (idleframes > 0)
-				ciw->subcodevalid = false;
-
-			if (ciw->cdda_subfunc)
-				ciw->cdda_subfunc (ciw->subcode, CDDA_BUFFERS); 
-
-			uae_sem_post (&ciw->sub_sem);
-
-			if (ciw->subcodevalid) {
-				uae_sem_wait (&ciw->sub_sem2);
-				memcpy (ciw->subcodebuf, ciw->subcode + (CDDA_BUFFERS - 1) * SUB_CHANNEL_SIZE, SUB_CHANNEL_SIZE);
-				uae_sem_post (&ciw->sub_sem2);
-			}
-
-			if (mode) {
-				if (ciw->cda_bufon[0] == 0 && ciw->cda_bufon[1] == 0) {
-					ciw->cda_bufon[bufnum] = 1;
-					ioctl_next_cd_audio_buffer_callback(1 - bufnum, ciw);
-				}
-				audio_cda_volume(&ciw->cas, ciw->cdda_volume[0], ciw->cdda_volume[1]);
-				ciw->cda_bufon[bufnum] = 1;
-			} else {
-				ciw->cda_bufon[bufnum] = 1;
-				ciw->cda->setvolume (ciw->cdda_volume[0], ciw->cdda_volume[1]);
-				if (!ciw->cda->play (bufnum)) {
-					setstate (ciw, AUDIO_STATUS_PLAY_ERROR, -1);
-					goto end; // data track?
-				}
-			}
-
-			if (ciw->cdda_scan) {
-				cdda_pos += ciw->cdda_scan * CDDA_BUFFERS;
-				if (cdda_pos < 0)
-					cdda_pos = 0;
-			} else  {
-				if (cdda_pos < 0 && cdda_pos + CDDA_BUFFERS >= 0)
-					cdda_pos = 0;
-				else
-					cdda_pos += CDDA_BUFFERS;
-			}
-
-			if (idleframes <= 0) {
-				if (cdda_pos - CDDA_BUFFERS < ciw->cdda_end && cdda_pos >= ciw->cdda_end) {
-					cdda_pos = ciw->cdda_end;
-					setstate (ciw, AUDIO_STATUS_PLAY_COMPLETE, cdda_pos);
-					ciw->cdda_play_finished = 1;
-					ciw->cdda_play = -1;
-				}
-				ciw->cd_last_pos = cdda_pos;
-			}
-		}
-
-		if (ciw->cda_bufon[0] == 0 && ciw->cda_bufon[1] == 0) {
-			while (ciw->cdda_paused && ciw->cdda_play == oldplay)
-				sleep_millis(10);
-		}
-
-		if (cd_audio_mode_changed) {
-			restart = true;
-			goto end;
-		}
-
-		bufnum = 1 - bufnum;
-
-	}
-
-end:
-	*outpos = cdda_pos;
-	if (mode) {
-		ioctl_next_cd_audio_buffer_callback(-1, ciw);
-		if (restart)
-			audio_cda_new_buffer(&ciw->cas, NULL, -1, -1, NULL, ciw);
-	} else {
-		ciw->cda->wait (0);
-		ciw->cda->wait (1);
-	}
-
-	ciw->subcodevalid = false;
-	cd_audio_mode_changed = false;
-	delete ciw->cda;
-
-	write_log (_T("IOCTL CDDA: thread killed\n"));
-	return restart;
-}
-
-static void *cdda_play (void *v)
-{
-	int outpos = -1;
-	struct dev_info_ioctl *ciw = (struct dev_info_ioctl*)v;
-	cd_audio_mode_changed = false;
-	for (;;) {
-		if (!cdda_play2(ciw, &outpos)) {
-			break;
-		}
-		ciw->cdda_start = outpos;
-		if (ciw->cdda_start + 150 >= ciw->cdda_end) {
-			if (ciw->cdda_play >= 0)
-				setstate (ciw, AUDIO_STATUS_PLAY_COMPLETE, ciw->cdda_end + 1);
-			ciw->cdda_play = -1;
-			break;
-		}
-		ciw->cdda_play = 1;
-	}
-	ciw->cdda_play = 0;
-	return NULL;
-}
-
-static void cdda_stop (struct dev_info_ioctl *ciw)
-{
-	if (ciw->cdda_play != 0) {
-		ciw->cdda_play = -1;
-		while (ciw->cdda_play) {
-			sleep_millis(10);
-		}
-	}
-	ciw->cdda_play_finished = 0;
-	ciw->cdda_paused = 0;
-	ciw->subcodevalid = 0;
+	return read_block(&ciw32[unitnum], unitnum, data, sector, size, sectorsize);
 }
 
 /* pause/unpause CD audio */
@@ -786,9 +440,9 @@ static int ioctl_command_pause (int unitnum, int paused)
 	struct dev_info_ioctl *ciw = unitisopen (unitnum);
 	if (!ciw)
 		return -1;
-	int old = ciw->cdda_paused;
-	if ((paused && ciw->cdda_play) || !paused)
-		ciw->cdda_paused = paused;
+	int old = ciw->cda.cdda_paused;
+	if ((paused && ciw->cda.cdda_play) || !paused)
+		ciw->cda.cdda_paused = paused;
 	return old;
 }
 
@@ -800,7 +454,7 @@ static int ioctl_command_stop (int unitnum)
 	if (!ciw)
 		return 0;
 
-	cdda_stop (ciw);
+	ciw_cdda_stop(&ciw->cda);
 		
 	return 1;
 }
@@ -810,9 +464,9 @@ static uae_u32 ioctl_command_volume (int unitnum, uae_u16 volume_left, uae_u16 v
 	struct dev_info_ioctl *ciw = unitisopen (unitnum);
 	if (!ciw)
 		return -1;
-	uae_u32 old = (ciw->cdda_volume[1] << 16) | (ciw->cdda_volume[0] << 0);
-	ciw->cdda_volume[0] = volume_left;
-	ciw->cdda_volume[1] = volume_right;
+	uae_u32 old = (ciw->cda.cdda_volume[1] << 16) | (ciw->cda.cdda_volume[0] << 0);
+	ciw->cda.cdda_volume[0] = volume_left;
+	ciw->cda.cdda_volume[1] = volume_right;
 	return old;
 }
 
@@ -823,29 +477,31 @@ static int ioctl_command_play (int unitnum, int startlsn, int endlsn, int scan, 
 	if (!ciw)
 		return 0;
 
-	ciw->cdda_play_finished = 0;
-	ciw->cdda_subfunc = subfunc;
-	ciw->cdda_statusfunc = statusfunc;
-	ciw->cdda_scan = scan > 0 ? 10 : (scan < 0 ? 10 : 0);
-	ciw->cdda_delay = setstate (ciw, -1, -1);
-	ciw->cdda_delay_frames = setstate (ciw, -2, -1);
-	setstate (ciw, AUDIO_STATUS_NOT_SUPPORTED, -1);
+	ciw->cda.di = &ciw->di;
+	ciw->cda.cdda_play_finished = 0;
+	ciw->cda.cdda_subfunc = subfunc;
+	ciw->cda.cdda_statusfunc = statusfunc;
+	ciw->cda.cdda_scan = scan > 0 ? 10 : (scan < 0 ? 10 : 0);
+	ciw->cda.cdda_delay = ciw_cdda_setstate(&ciw->cda, -1, -1);
+	ciw->cda.cdda_delay_frames = ciw_cdda_setstate(&ciw->cda, -2, -1);
+	ciw_cdda_setstate(&ciw->cda, AUDIO_STATUS_NOT_SUPPORTED, -1);
+	ciw->cda.read_block = read_block_cda;
 
 	if (!open_createfile (ciw, 0)) {
-		setstate (ciw, AUDIO_STATUS_PLAY_ERROR, -1);
+		ciw_cdda_setstate(&ciw->cda, AUDIO_STATUS_PLAY_ERROR, -1);
 		return 0;
 	}
 	if (!isaudiotrack (&ciw->di.toc, startlsn)) {
-		setstate (ciw, AUDIO_STATUS_PLAY_ERROR, -1);
+		ciw_cdda_setstate(&ciw->cda, AUDIO_STATUS_PLAY_ERROR, -1);
 		return 0;
 	}
-	if (!ciw->cdda_play) {
-		uae_start_thread (_T("ioctl_cdda_play"), cdda_play, ciw, NULL);
+	if (!ciw->cda.cdda_play) {
+		uae_start_thread (_T("ioctl_cdda_play"), ciw_cdda_play, &ciw->cda, NULL);
 	}
-	ciw->cdda_start = startlsn;
-	ciw->cdda_end = endlsn;
-	ciw->cd_last_pos = ciw->cdda_start;
-	ciw->cdda_play++;
+	ciw->cda.cdda_start = startlsn;
+	ciw->cda.cdda_end = endlsn;
+	ciw->cda.cd_last_pos = ciw->cda.cdda_start;
+	ciw->cda.cdda_play++;
 
 	return 1;
 }
@@ -874,11 +530,11 @@ static int ioctl_command_qcode (int unitnum, uae_u8 *buf, int sector, bool all)
 	p = buf;
 
 	status = AUDIO_STATUS_NO_STATUS;
-	if (ciw->cdda_play) {
+	if (ciw->cda.cdda_play) {
 		status = AUDIO_STATUS_IN_PROGRESS;
-		if (ciw->cdda_paused)
+		if (ciw->cda.cdda_paused)
 			status = AUDIO_STATUS_PAUSED;
-	} else if (ciw->cdda_play_finished) {
+	} else if (ciw->cda.cdda_play_finished) {
 		status = AUDIO_STATUS_PLAY_COMPLETE;
 	}
 
@@ -888,22 +544,22 @@ static int ioctl_command_qcode (int unitnum, uae_u8 *buf, int sector, bool all)
 	p = buf + 4;
 
 	if (sector < 0)
-		pos = ciw->cd_last_pos;
+		pos = ciw->cda.cd_last_pos;
 	else
 		pos = sector;
 
 	if (!regenerate) {
-		if (sector < 0 && ciw->subcodevalid && ciw->cdda_play) {
-			uae_sem_wait (&ciw->sub_sem2);
+		if (sector < 0 && ciw->cda.subcodevalid && ciw->cda.cdda_play) {
+			uae_sem_wait (&ciw->cda.sub_sem2);
 			uae_u8 subbuf[SUB_CHANNEL_SIZE];
-			sub_deinterleave (ciw->subcodebuf, subbuf);
+			sub_deinterleave (ciw->cda.subcodebuf, subbuf);
 			memcpy (p, subbuf + 12, 12);
-			uae_sem_post (&ciw->sub_sem2);
+			uae_sem_post (&ciw->cda.sub_sem2);
 			valid = true;
 		}
 		if (!valid && sector >= 0) {
 			DWORD len;
-			uae_sem_wait (&ciw->sub_sem);
+			uae_sem_wait (&ciw->cda.sub_sem);
 			seterrormode (ciw);
 			RAW_READ_INFO rri;
 			rri.DiskOffset.QuadPart = 2048 * (pos + 0);
@@ -917,7 +573,7 @@ static int ioctl_command_qcode (int unitnum, uae_u8 *buf, int sector, bool all)
 			reseterrormode (ciw);
 			uae_u8 subbuf[SUB_CHANNEL_SIZE];
 			sub_deinterleave (ciw->tempbuffer + 2352, subbuf);
-			uae_sem_post (&ciw->sub_sem);
+			uae_sem_post (&ciw->cda.sub_sem);
 			memcpy (p, subbuf + 12, 12);
 			valid = true;
 		}
@@ -966,7 +622,7 @@ static int ioctl_command_rawread (int unitnum, uae_u8 *data, int sector, int siz
 
 	if (log_scsi)
 		write_log (_T("IOCTL rawread unit=%d sector=%d blocksize=%d\n"), unitnum, sector, sectorsize);
-	cdda_stop (ciw);
+	ciw_cdda_stop(&ciw->cda);
 	gui_flicker_led (LED_CD, unitnum, LED_CD_ACTIVE);
 	if (sectorsize > 0) { 
 		if (sectorsize != 2336 && sectorsize != 2352 && sectorsize != 2048 &&
@@ -975,7 +631,7 @@ static int ioctl_command_rawread (int unitnum, uae_u8 *data, int sector, int siz
 		while (size-- > 0) {
 			if (!read_block (ciw, unitnum, data, sector, 1, sectorsize))
 				break;
-			ciw->cd_last_pos = sector;
+			ciw->cda.cd_last_pos = sector;
 			data += sectorsize;
 			ret += sectorsize;
 			sector++;
@@ -1009,7 +665,7 @@ static int ioctl_command_rawread (int unitnum, uae_u8 *data, int sector, int siz
 					reseterrormode (ciw);
 					return ret;
 				}
-				ciw->cd_last_pos = sector;
+				ciw->cda.cd_last_pos = sector;
 
 				if (subs == 0) {
 					memcpy (data, p, blocksize);
@@ -1050,7 +706,7 @@ static int ioctl_command_readwrite (int unitnum, int sector, int size, int write
 	if (ciw->usesptiread)
 		return ioctl_command_rawread (unitnum, data, sector, size, 2048, 0);
 
-	cdda_stop (ciw);
+	ciw_cdda_stop(&ciw->cda);
 
 	DWORD dtotal;
 	int cnt = 3;
@@ -1059,7 +715,7 @@ static int ioctl_command_readwrite (int unitnum, int sector, int size, int write
 
 	if (!open_createfile (ciw, 0))
 		return 0;
-	ciw->cd_last_pos = sector;
+	ciw->cda.cd_last_pos = sector;
 	while (cnt-- > 0) {
 		LARGE_INTEGER offset;
 		gui_flicker_led (LED_CD, unitnum, LED_CD_ACTIVE);
@@ -1137,7 +793,7 @@ static int fetch_geometry (struct dev_info_ioctl *ciw, int unitnum, struct devic
 
 	if (!open_createfile (ciw, 0))
 		return 0;
-	uae_sem_wait (&ciw->sub_sem);
+	uae_sem_wait (&ciw->cda.sub_sem);
 	seterrormode (ciw);
 	while (cnt-- > 0) {
 		if (!DeviceIoControl (ciw->h, IOCTL_CDROM_GET_DRIVE_GEOMETRY, NULL, 0, &geom, sizeof (geom), &len, NULL)) {
@@ -1148,13 +804,13 @@ static int fetch_geometry (struct dev_info_ioctl *ciw, int unitnum, struct devic
 					continue;
 			}
 			reseterrormode (ciw);
-			uae_sem_post (&ciw->sub_sem);
+			uae_sem_post (&ciw->cda.sub_sem);
 			return 0;
 		}
 		break;
 	}
 	reseterrormode (ciw);
-	uae_sem_post (&ciw->sub_sem);
+	uae_sem_post (&ciw->cda.sub_sem);
 	if (di) {
 		di->cylinders = geom.Cylinders.LowPart;
 		di->sectorspertrack = geom.SectorsPerTrack;
@@ -1178,7 +834,7 @@ static int eject (int unitnum, bool eject)
 		return 0;
 	if (!unitisopen (unitnum))
 		return 0;
-	cdda_stop (ciw);
+	ciw_cdda_stop(&ciw->cda);
 	if (!open_createfile (ciw, 0))
 		return 0;
 	int ret = 0;
@@ -1328,8 +984,8 @@ static void trim (TCHAR *s)
 static int sys_cddev_open (struct dev_info_ioctl *ciw, int unitnum)
 {
 
-	ciw->cdda_volume[0] = 0x7fff;
-	ciw->cdda_volume[1] = 0x7fff;
+	ciw->cda.cdda_volume[0] = 0x7fff;
+	ciw->cda.cdda_volume[1] = 0x7fff;
 	/* buffer must be page aligned for device access */
 	ciw->tempbuffer = (uae_u8*)VirtualAlloc (NULL, IOCTL_DATA_BUFFER, MEM_COMMIT, PAGE_READWRITE);
 	if (!ciw->tempbuffer) {
@@ -1436,8 +1092,8 @@ static int sys_cddev_open (struct dev_info_ioctl *ciw, int unitnum)
 		write_log (_T("Device blacklisted\n"));
 		goto error2;
 	}
-	uae_sem_init (&ciw->sub_sem, 0, 1);
-	uae_sem_init (&ciw->sub_sem2, 0, 1);
+	uae_sem_init (&ciw->cda.sub_sem, 0, 1);
+	uae_sem_init (&ciw->cda.sub_sem2, 0, 1);
 	//ciw->usesptiread = true;
 	ioctl_command_stop (unitnum);
 	update_device_info (unitnum);
@@ -1458,12 +1114,12 @@ static void sys_cddev_close (struct dev_info_ioctl *ciw, int unitnum)
 {
 	if (ciw->open == false)
 		return;
-	cdda_stop (ciw);
+	ciw_cdda_stop(&ciw->cda);
 	close_createfile (ciw);
 	VirtualFree (ciw->tempbuffer, 0, MEM_RELEASE);
 	ciw->tempbuffer = NULL;
-	uae_sem_destroy (&ciw->sub_sem);
-	uae_sem_destroy (&ciw->sub_sem2);
+	uae_sem_destroy (&ciw->cda.sub_sem);
+	uae_sem_destroy (&ciw->cda.sub_sem2);
 	ciw->open = false;
 	write_log (_T("IOCTL: device '%s' closed\n"), ciw->devname, unitnum);
 }

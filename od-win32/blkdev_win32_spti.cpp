@@ -7,10 +7,6 @@
 *
 */
 
-
-#define WIN32_LEAN_AND_MEAN
-#define _WIN32_WINNT 0x500
-
 #include "sysconfig.h"
 #include "sysdeps.h"
 #include "options.h"
@@ -35,8 +31,10 @@
 #include <initguid.h>   // Guid definition
 #include <devguid.h>    // Device guids
 #include <setupapi.h>   // for SetupDiXxx functions.
-
 #include <ntddscsi.h>
+#include <mmsystem.h>
+
+#include "cda_play.h"
 
 #define INQUIRY_SIZE 36
 
@@ -64,6 +62,9 @@ struct dev_info_spti {
 	bool open;
 	bool enabled;
 	struct device_info di;
+	struct cda_play cda;
+	uae_u8 sense[32];
+	int senselen;
 };
 
 static uae_sem_t scgp_sem;
@@ -112,9 +113,15 @@ static int doscsi (struct dev_info_spti *di, int unitnum, SCSI_PASS_THROUGH_DIRE
 
 	*err = 0;
 	if (log_scsi) {
-		write_log (_T("SCSI, H=%X:%d:%d:%d:%d: "), di->handle, di->bus, di->path, di->target, di->lun);
+		write_log (_T("SCSI, H=%X:%d:%d:%d:%d:\n"), di->handle, di->bus, di->path, di->target, di->lun);
 		scsi_log_before (swb->spt.Cdb, swb->spt.CdbLength,
 			swb->spt.DataIn == SCSI_IOCTL_DATA_OUT ? (uae_u8*)swb->spt.DataBuffer : NULL, swb->spt.DataTransferLength);
+		for (int i = 0; i < swb->spt.CdbLength; i++) {
+			if (i > 0)
+				write_log(_T("."));
+			write_log(_T("%02x"), swb->spt.Cdb[i]);
+		}
+		write_log(_T("\n"));
 	}
 	gui_flicker_led (LED_CD, unitnum, 1);
 	swb->spt.ScsiStatus = 0;
@@ -152,12 +159,27 @@ static int doscsi (struct dev_info_spti *di, int unitnum, SCSI_PASS_THROUGH_DIRE
 #define MODE_SELECT_10 0x55
 #define MODE_SENSE_10  0x5A
 
-static int execscsicmd (struct dev_info_spti *di, int unitnum, uae_u8 *data, int len, uae_u8 *inbuf, int inlen, int timeout, int *errp)
+static int execscsicmd (struct dev_info_spti *di, int unitnum, uae_u8 *data, int len, uae_u8 *inbuf, int inlen, int timeout, int *errp, int bypass)
 {
 	SCSI_PASS_THROUGH_DIRECT_WITH_BUFFER swb;
 	DWORD status;
 	int err = 0;
 	int dolen;
+
+	if (!bypass) {
+		if (data[0] == 0x03 && di->senselen > 0) {
+			memcpy(inbuf, di->sense, di->senselen);
+			di->senselen = 0;
+			return di->senselen;
+		}
+		int r = blkdev_is_audio_command(data[0]);
+		if (r > 0) {
+			di->senselen = sizeof(di->sense);
+			return blkdev_execute_audio_command(unitnum, data, len, inbuf, inlen, di->sense, &di->senselen);
+		} else if (r < 0) {
+			ciw_cdda_stop(&di->cda);
+		}
+	}
 
 	uae_sem_wait (&scgp_sem);
 	memset (&swb, 0, sizeof (swb));
@@ -185,11 +207,63 @@ static int execscsicmd (struct dev_info_spti *di, int unitnum, uae_u8 *data, int
 	return dolen;
 }
 
+static int read_block_cda(struct cda_play *cda, int unitnum, uae_u8 *data, int sector, int size, int sectorsize)
+{
+	struct dev_info_spti *di = unitisopen(unitnum);
+	if (!di)
+		return 0;
+	if (sectorsize != 2352 + 96)
+		return 0;
+	uae_u8 cmd[12] = { 0xbe, 0, (uae_u8)(sector >> 24), (uae_u8)(sector >> 16), (uae_u8)(sector >> 8), (uae_u8)(sector >> 0), (uae_u8)(size >> 16), (uae_u8)(size >> 8), (uae_u8)(size >> 0), 0x10, 1, 0 };
+	int err = 0;
+	int len = execscsicmd(di, unitnum, cmd, sizeof(cmd), data, size * sectorsize, -1, &err, true);
+	if (len >= 0)
+		return len;
+	return -1;
+}
+
 static int execscsicmd_direct (int unitnum, struct amigascsi *as)
 {
 	struct dev_info_spti *di = unitisopen (unitnum);
 	if (!di)
 		return -1;
+
+	if (as->cmd[0] == 0x03 && di->senselen > 0) {
+		memcpy(as->data, di->sense, di->senselen);
+		as->actual = di->senselen;
+		as->status = 0;
+		as->sactual = 0;
+		as->cmdactual = as->cmd_len;
+		di->senselen = 0;
+		return 0;
+	}
+	int r = blkdev_is_audio_command(as->cmd[0]);
+	if (r > 0) {
+		di->senselen = sizeof(di->sense);
+		int len = blkdev_execute_audio_command(unitnum, as->cmd, as->cmd_len, as->data, as->len, di->sense, &di->senselen);
+		as->actual = len;
+		as->cmdactual = as->cmd_len;
+		as->sactual = 0;
+		as->status = 0;
+		if (len < 0) {
+			/* copy sense? */
+			if (as->sense_len > 32)
+				as->sense_len = 32;
+			int senselen = (as->flags & 4) ? 4 : /* SCSIF_OLDAUTOSENSE */
+				(as->flags & 2) ? as->sense_len : /* SCSIF_AUTOSENSE */ 32;
+			if (senselen > 0) {
+				for (as->sactual = 0; as->sactual < di->senselen && as->sactual < senselen; as->sactual++) {
+					as->sensedata[as->sactual] = di->sense[as->sactual];
+				}
+			}
+			as->actual = 0;
+			as->status = 2;
+			return 45;
+		}
+		return 0;
+	} else if (r < 0) {
+		ciw_cdda_stop(&di->cda);
+	}
 
 	SCSI_PASS_THROUGH_DIRECT_WITH_BUFFER swb;
 	DWORD status;
@@ -267,7 +341,7 @@ static uae_u8 *execscsicmd_out (int unitnum, uae_u8 *data, int len)
 	struct dev_info_spti *di = unitisopen (unitnum);
 	if (!di)
 		return 0;
-	int v = execscsicmd (di, unitnum, data, len, 0, 0, -1, NULL);
+	int v = execscsicmd (di, unitnum, data, len, 0, 0, -1, NULL, false);
 	if (v < 0)
 		return 0;
 	return data;
@@ -278,7 +352,7 @@ static uae_u8 *execscsicmd_in (int unitnum, uae_u8 *data, int len, int *outlen)
 	struct dev_info_spti *di = unitisopen (unitnum);
 	if (!di)
 		return 0;
-	int v = execscsicmd (di, unitnum, data, len, di->scsibuf, DEVICE_SCSI_BUFSIZE, -1, NULL);
+	int v = execscsicmd (di, unitnum, data, len, di->scsibuf, DEVICE_SCSI_BUFSIZE, -1, NULL, false);
 	if (v < 0)
 		return 0;
 	if (v == 0)
@@ -290,7 +364,7 @@ static uae_u8 *execscsicmd_in (int unitnum, uae_u8 *data, int len, int *outlen)
 
 static uae_u8 *execscsicmd_in_internal (struct dev_info_spti *di, int unitnum, uae_u8 *data, int len, int *outlen, int timeout)
 {
-	int v = execscsicmd (di, unitnum, data, len, di->scsibuf, DEVICE_SCSI_BUFSIZE, timeout, NULL);
+	int v = execscsicmd (di, unitnum, data, len, di->scsibuf, DEVICE_SCSI_BUFSIZE, timeout, NULL, false);
 	if (v < 0)
 		return 0;
 	if (v == 0)
@@ -304,8 +378,11 @@ static void close_scsi_device2 (struct dev_info_spti *di)
 {
 	if (di->open == false)
 		return;
-	if (di->handle != INVALID_HANDLE_VALUE)
-		CloseHandle (di->handle);
+	if (di->handle != INVALID_HANDLE_VALUE) {
+		CloseHandle(di->handle);
+		uae_sem_destroy(&di->cda.sub_sem);
+		uae_sem_destroy(&di->cda.sub_sem2);
+	}
 	di->handle = INVALID_HANDLE_VALUE;
 	di->open = false;
 }
@@ -370,7 +447,7 @@ static int mediacheck (struct dev_info_spti *di, int unitnum)
 	uae_u8 cmd [6] = { 0,0,0,0,0,0 }; /* TEST UNIT READY */
 	if (di->open == false)
 		return -1;
-	int v = execscsicmd (di, unitnum, cmd, sizeof cmd, 0, 0, 0, NULL);
+	int v = execscsicmd (di, unitnum, cmd, sizeof cmd, 0, 0, 0, NULL, false);
 	return v >= 0 ? 1 : 0;
 }
 
@@ -403,6 +480,7 @@ static int mediacheck_full (struct dev_info_spti *di, int unitnum, struct device
 			dinfo->write_protected = (p[3] & 0x80) ? 1 : 0;
 		}
 	}
+	sys_command_cd_toc(unitnum, &di->di.toc);
 	//	write_log (_T("mediacheck_full(%d,%d,%d,%d,%d)\n"),
 	//	di->bytespersector, di->sectorspertrack, di->trackspercylinder, di->cylinders, di->write_protected);
 	return 1;
@@ -514,7 +592,7 @@ static int open_scsi_device2 (struct dev_info_spti *di, int unitnum)
 		int err = 0;
 		uae_u8 inqdata[INQUIRY_SIZE + 1] = { 0 };
 		checkcapabilities (di);
-		execscsicmd(di, unitnum, inqdata, 6, NULL, 0, 0, &err);
+		execscsicmd(di, unitnum, inqdata, 6, NULL, 0, 0, &err, false);
 		if (err) {
 			write_log(_T("SPTI: TUR failed unit %d, err=%d ('%s':%d:%d:%d:%d)\n"), unitnum, err, dev,
 				di->bus, di->path, di->target, di->lun);
@@ -556,6 +634,11 @@ static int open_scsi_device2 (struct dev_info_spti *di, int unitnum)
 		update_device_info (unitnum);
 		if (di->type == INQ_ROMD)
 			blkdev_cd_change (unitnum, di->drvletter ? di->drvlettername : di->name);
+		di->cda.cdda_volume[0] = 0x7fff;
+		di->cda.cdda_volume[1] = 0x7fff;
+		uae_sem_init(&di->cda.sub_sem, 0, 1);
+		uae_sem_init(&di->cda.sub_sem2, 0, 1);
+		di->cda.cd_last_pos = 150;
 		return 1;
 	}
 	xfree (dev);
@@ -893,6 +976,138 @@ static int rescan (void)
 }
 
 
+/* pause/unpause CD audio */
+static int ioctl_command_pause(int unitnum, int paused)
+{
+	struct dev_info_spti *di = unitisopen(unitnum);
+	if (!di)
+		return -1;
+	int old = di->cda.cdda_paused;
+	if ((paused && di->cda.cdda_play) || !paused)
+		di->cda.cdda_paused = paused;
+	return old;
+}
+
+
+/* stop CD audio */
+static int ioctl_command_stop(int unitnum)
+{
+	struct dev_info_spti *di = unitisopen(unitnum);
+	if (!di)
+		return 0;
+
+	ciw_cdda_stop(&di->cda);
+
+	return 1;
+}
+
+static uae_u32 ioctl_command_volume(int unitnum, uae_u16 volume_left, uae_u16 volume_right)
+{
+	struct dev_info_spti *di = unitisopen(unitnum);
+	if (!di)
+		return -1;
+	uae_u32 old = (di->cda.cdda_volume[1] << 16) | (di->cda.cdda_volume[0] << 0);
+	di->cda.cdda_volume[0] = volume_left;
+	di->cda.cdda_volume[1] = volume_right;
+	return old;
+}
+
+/* play CD audio */
+static int ioctl_command_play(int unitnum, int startlsn, int endlsn, int scan, play_status_callback statusfunc, play_subchannel_callback subfunc)
+{
+	struct dev_info_spti *di = unitisopen(unitnum);
+	if (!di)
+		return 0;
+
+	di->cda.di = &di->di;
+	di->cda.subcodevalid = false;
+	di->cda.cdda_play_finished = 0;
+	di->cda.cdda_subfunc = subfunc;
+	di->cda.cdda_statusfunc = statusfunc;
+	di->cda.cdda_scan = scan > 0 ? 10 : (scan < 0 ? 10 : 0);
+	di->cda.cdda_delay = ciw_cdda_setstate(&di->cda, -1, -1);
+	di->cda.cdda_delay_frames = ciw_cdda_setstate(&di->cda, -2, -1);
+	ciw_cdda_setstate(&di->cda, AUDIO_STATUS_NOT_SUPPORTED, -1);
+	di->cda.read_block = read_block_cda;
+
+	if (!isaudiotrack(&di->di.toc, startlsn)) {
+		ciw_cdda_setstate(&di->cda, AUDIO_STATUS_PLAY_ERROR, -1);
+		return 0;
+	}
+	if (!di->cda.cdda_play) {
+		uae_start_thread(_T("ioctl_cdda_play"), ciw_cdda_play, &di->cda, NULL);
+	}
+	di->cda.cdda_start = startlsn;
+	di->cda.cdda_end = endlsn;
+	di->cda.cd_last_pos = di->cda.cdda_start;
+	di->cda.cdda_play++;
+
+	return 1;
+}
+
+static void sub_deinterleave(const uae_u8 *s, uae_u8 *d)
+{
+	for (int i = 0; i < 8 * 12; i++) {
+		int dmask = 0x80;
+		int smask = 1 << (7 - (i / 12));
+		(*d) = 0;
+		for (int j = 0; j < 8; j++) {
+			(*d) |= (s[(i % 12) * 8 + j] & smask) ? dmask : 0;
+			dmask >>= 1;
+		}
+		d++;
+	}
+}
+
+/* read qcode */
+static int ioctl_command_qcode(int unitnum, uae_u8 *buf, int sector, bool all)
+{
+	struct dev_info_spti *di = unitisopen(unitnum);
+	if (!di)
+		return 0;
+	struct cda_play *cd = &di->cda;
+
+	if (all)
+		return 0;
+
+	memset(buf, 0, SUBQ_SIZE);
+	uae_u8 *p = buf;
+
+	int status = AUDIO_STATUS_NO_STATUS;
+	if (di->cda.cdda_play) {
+		status = AUDIO_STATUS_IN_PROGRESS;
+		if (di->cda.cdda_paused)
+			status = AUDIO_STATUS_PAUSED;
+	} else if (di->cda.cdda_play_finished) {
+		status = AUDIO_STATUS_PLAY_COMPLETE;
+	}
+
+	p[1] = status;
+	p[3] = 12;
+
+	p = buf + 4;
+
+	if (cd->subcodevalid) {
+		uae_sem_wait(&di->cda.sub_sem2);
+		uae_u8 subbuf[SUB_CHANNEL_SIZE];
+		sub_deinterleave(di->cda.subcodebuf, subbuf);
+		memcpy(p, subbuf + 12, 12);
+		uae_sem_post(&di->cda.sub_sem2);
+	} else {
+		int pos = di->cda.cd_last_pos;
+		int trk = cdtracknumber(&di->di.toc, pos);
+		struct cd_toc *t = &di->di.toc.toc[trk];
+		p[0] = (t->control << 4) | (t->adr << 0);
+		p[1] = tobcd(trk);
+		p[2] = tobcd(1);
+		uae_u32 msf = lsn2msf(pos);
+		tolongbcd(p + 7, msf);
+		msf = lsn2msf(pos - t->paddress - 150);
+		tolongbcd(p + 3, msf);
+	}
+
+	return 1;
+}
 #endif
 
 
@@ -900,5 +1115,6 @@ struct device_functions devicefunc_scsi_spti = {
 	_T("SPTI"),
 	open_scsi_bus, close_scsi_bus, open_scsi_device, close_scsi_device, info_device,
 	execscsicmd_out, execscsicmd_in, execscsicmd_direct,
-	0, 0, 0, 0, 0, 0, 0, 0, 0, check_isatapi, 0, 0
+	ioctl_command_pause, ioctl_command_stop, ioctl_command_play, ioctl_command_volume, ioctl_command_qcode,
+	0, 0, 0, 0, check_isatapi, 0, 0
 };

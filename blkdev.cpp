@@ -880,7 +880,7 @@ int sys_command_cd_qcode (int unitnum, uae_u8 *buf, int sector, bool all)
 };
 
 /* read table of contents */
-int sys_command_cd_toc (int unitnum, struct cd_toc_head *toc)
+int sys_command_cd_toc (int unitnum, struct cd_toc_head *th)
 {
 	int v;
 	if (failunit (unitnum))
@@ -890,14 +890,37 @@ int sys_command_cd_toc (int unitnum, struct cd_toc_head *toc)
 	if (state[unitnum].device_func->toc == NULL) {
 		uae_u8 buf[4 + 8 * 103];
 		int size = sizeof buf;
-		uae_u8 cmd [10] = { 0x43,0,2,0,0,0,0,(uae_u8)(size>>8),(uae_u8)(size&0xff),0};
-		if (do_scsi (unitnum, cmd, sizeof cmd, buf, size)) {
-			// toc parse to do
-			v = 0;
+		uae_u8 cmd [10] = { 0x43,0,0,0,0,0,0,(uae_u8)(size>>8),(uae_u8)(size&0xff),0};
+		v = do_scsi(unitnum, cmd, sizeof cmd, buf, size);
+		if (v > 0) {
+			th->first_track = buf[2];
+			th->last_track = buf[3];
+			th->tracks = th->last_track - th->first_track + 1;
+			th->firstaddress = 0;
+			th->points = th->tracks + 1;
+			int len = (buf[0] << 8) | buf[1];
+			uae_u8 *p = buf + 4;
+			if ((th->tracks + 1) * 8 > len) {
+				freesem(unitnum);
+				return 0;
+			}
+			struct cd_toc *t = &th->toc[th->first_track];
+			for (int i = th->first_track; i <= th->last_track; i++) {
+				t->adr = p[1] >> 4;
+				t->control = p[1] & 15;
+				t->point = t->track = p[2];
+				t->paddress = (p[5] << 16) | (p[6] << 8) | (p[7] << 0);
+				p += 8;
+				t++;
+			}
+			th->lastaddress = (p[5] << 16) | (p[6] << 8) | (p[7] << 0);
+			t->track = t->point = 0xaa;
+			th->first_track_offset = 0;
+			th->last_track_offset = th->last_track;
+			v = 1;
 		}
-		v = 0;
 	} else {
-		v = state[unitnum].device_func->toc (unitnum, toc);
+		v = state[unitnum].device_func->toc (unitnum, th);
 	}
 	freesem (unitnum);
 	return v;
@@ -2160,6 +2183,62 @@ end:
 	return status;
 }
 
+static int emulate_cd_audio = 1;
+
+int blkdev_is_audio_command(uae_u8 cmd)
+{
+	if (!emulate_cd_audio)
+		return false;
+	// audio cd command?
+	switch (cmd)
+	{
+	case 0x42:
+	case 0x45:
+	case 0x47:
+	case 0x48:
+	case 0x49:
+	case 0x4b:
+	case 0x4e:
+	case 0xa5:
+	case 0xa9:
+	case 0xba:
+	case 0xbc:
+	case 0xcd:
+		return 1;
+	}
+
+	// commands that won't stop cd audio
+	switch (cmd)
+	{
+	case 0x00:
+	case 0x03:
+	case 0x12:
+	case 0x15:
+	case 0x25:
+	case 0x35:
+	case 0x1a:
+	case 0x1e:
+	case 0x55:
+	case 0x5a:
+		return 0;
+	}
+
+	// all other commands stop cd audio
+	return -1;
+}
+
+
+int blkdev_execute_audio_command(int unitnum, uae_u8 *cdb, int cdblen, uae_u8 *inbuf, int inlen, uae_u8 *sense, int *senselen)
+{
+	int len = inlen;
+	uae_u8 reply[256];
+	int replylen = sizeof(reply);
+	int status = scsi_cd_emulate(unitnum, cdb, cdblen, inbuf, &len, reply, &replylen, sense, senselen, true);
+	if (status)
+		return -1;
+	return len;
+}
+
 static int execscsicmd_direct (int unitnum, int type, struct amigascsi *as)
 {
 	int io_error = 0;
@@ -2276,6 +2355,12 @@ int sys_command_scsi_direct(TrapContext *ctx, int unitnum, int type, uaecptr acm
 			get_long_host(scsicmd + 12), as.cmd_len,
 			as.flags,
 			get_long_host(scsicmd + 22), as.sense_len);
+		for (int i = 0; i < as.cmd_len; i++) {
+			if (i > 0)
+				write_log(_T("."));
+			write_log(_T("%02x"), as.cmd[i]);
+		}
+		write_log(_T("\n"));
 	}
 
 	ret = sys_command_scsi_direct_native (unitnum, type, &as);

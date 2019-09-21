@@ -227,4 +227,7 @@ extern struct device_functions devicefunc_scsi_ioctl;
 extern struct device_functions devicefunc_scsi_spti;
 extern struct device_functions devicefunc_cdimage;
 
+int blkdev_is_audio_command(uae_u8 cmd);
+int blkdev_execute_audio_command(int unitnum, uae_u8 *cdb, int cdblen, uae_u8 *inbuf, int inlen, uae_u8 *sense, int *senselen);
+
 #endif /* UAE_BLKDEV_H */
