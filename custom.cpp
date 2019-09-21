@@ -1086,12 +1086,10 @@ extern struct color_entry colors_for_drawing;
 
 void notice_new_xcolors(void)
 {
-	int i;
-
 	update_mirrors();
 	docols(&current_colors);
 	docols(&colors_for_drawing);
-	for (i = 0; i < (MAXVPOS + 1) * 2; i++) {
+	for (int i = 0; i < (MAXVPOS + 1) * 2; i++) {
 		docols(color_tables[0] + i);
 		docols(color_tables[1] + i);
 	}
@@ -6117,6 +6115,8 @@ static void BPLCON3(int hpos, uae_u16 v)
 	if (!(currprefs.chipset_mask & CSMASK_AGA)) {
 		v &= 0x003f;
 		v |= 0x0c00;
+	} else {
+		bplcon3_saved = v;
 	}
 #if SPRBORDER
 	v |= 2;
@@ -6139,6 +6139,7 @@ static void BPLCON4(int hpos, uae_u16 v)
 		return;
 	decide_line (hpos);
 	bplcon4 = v;
+	bplcon4_saved = v;
 	record_register_change (hpos, 0x10c, v);
 }
 #endif
@@ -6585,8 +6586,8 @@ static void SPRxCTL_1(uae_u16 v, int num, int hpos)
 
 #if 0
 	if (!(currprefs.chipset_mask & CSMASK_ECS_AGNUS)) {
-		if (s->ctl & (0x20 | 0x40)) {
-			write_log(_T("ECS sprite position bits set\n"));
+		if (s->ctl & (0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40)) {
+			write_log(_T("ECS sprite %04x\n"), s->ctl);
 		}
 }
 #endif
@@ -10004,6 +10005,8 @@ void custom_reset (bool hardreset, bool keyboardreset)
 		bplcon0 = 0;
 		bplcon4 = 0x0011; /* Get AGA chipset into ECS compatibility mode */
 		bplcon3 = 0x0C00;
+		bplcon4_saved = bplcon4;
+		bplcon3_saved = bplcon3;
 
 		diwhigh = 0;
 		diwhigh_written = 0;
@@ -10886,8 +10889,12 @@ uae_u8 *restore_custom (uae_u8 *src)
 	i = RW;					/* 1FA ? */
 	if (i & 0x8000)
 		currprefs.ntscmode = changed_prefs.ntscmode = i & 1;
-	fmode = fmode_saved = RW; /* 1FC FMODE */
+	fmode = RW;				/* 1FC FMODE */
 	last_custom_value1 = last_custom_value2 = RW;/* 1FE ? */
+
+	bplcon3_saved = bplcon3;
+	bplcon4_saved = bplcon4;
+	fmode_saved = fmode;
 
 	current_colors.extra = 0;
 	if (isbrdblank (-1, bplcon0, bplcon3))
@@ -11059,16 +11066,16 @@ uae_u8 *save_custom (int *len, uae_u8 *dstptr, int full)
 	SW (vsstrt);		/* 1E0 VSSTRT */
 	SW (hcenter);		/* 1E2 HCENTER */
 	SW (diwhigh | (diwhigh_written ? 0x8000 : 0) | (hdiwstate == DIW_waiting_stop ? 0x4000 : 0)); /* 1E4 DIWHIGH */
-	SW (0);			/* 1E6 */
-	SW (0);			/* 1E8 */
-	SW (0);			/* 1EA */
-	SW (0);			/* 1EC */
-	SW (0);			/* 1EE */
-	SW (0);			/* 1F0 */
-	SW (0);			/* 1F2 */
-	SW (0);			/* 1F4 */
-	SW (0);			/* 1F6 */
-	SW (0);			/* 1F8 */
+	SW (0);				/* 1E6 */
+	SW (0);				/* 1E8 */
+	SW (0);				/* 1EA */
+	SW (0);				/* 1EC */
+	SW (0);				/* 1EE */
+	SW (0);				/* 1F0 */
+	SW (0);				/* 1F2 */
+	SW (0);				/* 1F4 */
+	SW (0);				/* 1F6 */
+	SW (0);				/* 1F8 */
 	SW (0x8000 | (currprefs.ntscmode ? 1 : 0));			/* 1FA (re-used for NTSC) */
 	SW (fmode);			/* 1FC FMODE */
 	SW (last_custom_value1);	/* 1FE */
