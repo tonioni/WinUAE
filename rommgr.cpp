@@ -626,8 +626,8 @@ static struct romdata roms[] = {
 	0x3eb87eb3, 0xff41889e,0x641114e5,0x5ec1f784,0xd79216ce,0xe9a74a40, NULL, NULL },
 	{ _T("Trifecta v4.31"), 0, 0, 0, 0, _T("TRIFECTA\0"), 32768, 253, 0, 0, ROMTYPE_TRIFECTA, 0, 0, NULL,
 	0x591c3cd4, 0x681b8a67,0x3775dd0c,0x8f13b641,0x8852a51e,0xf3a29da3, NULL, NULL },
-	{ _T("Mastercard v2.3"), 0, 0, 0, 0, _T("MTECMASTERCARD\0"), 32768, 254, 0, 0, ROMTYPE_MASTERCARD, 0, 0, NULL,
-	0xfb4d20c6, 0xdd1a38eb,0xe87a44f7,0x46cb400f,0xbd761d2e,0x9ebd31ef, NULL, NULL },
+	{ _T("Mastercard v2.3"), 0, 0, 0, 0, _T("MTECMASTERCARD\0"), 65536, 254, 0, 0, ROMTYPE_MASTERCARD, 0, 0, NULL,
+	0x4837cc3d, 0xeea5e9ab,0xb3ffb4ed,0xdf09825c,0x7e8de75d,0x0d08c01f, NULL, NULL },
 
 	{ _T("CyberStorm MK I 68040"), 0, 0, 0, 0, _T("CSMKI\0"), 32768, 95, 0, 0, ROMTYPE_CB_CSMK1, 0, 0, NULL,
 	  0, 0, 0, 0, 0, 0, NULL, _T("cyberstormmk1_040.rom") },
