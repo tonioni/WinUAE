@@ -161,7 +161,7 @@ static int lof_togglecnt_lace, lof_togglecnt_nlace; //, nlace_cnt;
 * worth the trouble..
 */
 static int vpos_previous, hpos_previous;
-static int vpos_lpen, hpos_lpen, lightpen_triggered;
+static int vpos_lpen, hpos_lpen, hhpos_lpen, lightpen_triggered;
 int lightpen_x[2], lightpen_y[2];
 int lightpen_cx[2], lightpen_cy[2], lightpen_active, lightpen_enabled, lightpen_enabled2;
 
@@ -216,6 +216,8 @@ static bool varsync_changed;
 uae_u16 vtotal = MAXVPOS_PAL, htotal = MAXHPOS_PAL;
 static int maxvpos_stored, maxhpos_stored;
 static uae_u16 hsstop, hbstrt, hbstop, vsstop, vbstrt, vbstop, hsstrt, vsstrt, hcenter;
+static uae_u16 sprhstrt, sprhstop, bplhstrt, bplhstop, hhpos, hhpos_hpos;
+static int hhbpl, hhspr;
 static int ciavsyncmode;
 static int diw_hstrt, diw_hstop;
 static int diw_hcounter;
@@ -5382,6 +5384,25 @@ static uae_u16 VHPOSR (void)
 	return vp;
 }
 
+static uae_u16 HHPOSR(void)
+{
+	uae_u16 v;
+	if (islightpentriggered()) {
+		v = hhpos_lpen;
+	} else {
+		uae_u16 max = (new_beamcon0 & 0x40) ? htotal : maxhpos + lol - 1;
+		v = hhpos + current_hpos() - hhpos_hpos;
+		if (hhpos <= max || v >= 0x100) {
+			if (max)
+				v %= max;
+			else
+				v = 0;
+		}
+	}
+	v &= 0xff;
+	return v;
+}
+
 static void REFPTR(uae_u16 v)
 {
 	/*
@@ -6042,6 +6063,7 @@ static void BPLCON0 (int hpos, uae_u16 v)
 
 	if ((v & 8) && !lightpen_triggered && vpos < sprite_vblank_endline) {
 		// setting lightpen bit immediately freezes VPOSR if inside vblank and not already frozen
+		hhpos_lpen = HHPOSR();
 		lightpen_triggered = 1;
 		vpos_lpen = vpos;
 		hpos_lpen = hpos;
@@ -8636,6 +8658,7 @@ static void lightpen_trigger_func(uae_u32 v)
 {
 	vpos_lpen = vpos;
 	hpos_lpen = v;
+	hhpos_lpen = HHPOSR();
 	lightpen_triggered = 1;
 }
 
@@ -8712,6 +8735,7 @@ static void hsync_handler_pre (bool onvsync)
 			if (vpos + 1 == maxvpos + lof_store) {
 				vpos_lpen = vpos;
 				hpos_lpen = 1;
+				hhpos_lpen = HHPOSR();
 				lightpen_triggered = 1;
 			} else if (lightpen_enabled) {
 				int lpnum = inputdevice_get_lightpen_id();
@@ -9530,6 +9554,36 @@ static void hsync_handler_post (bool onvsync)
 		lof_lastline = lof_store != 0;
 	}
 
+	if (currprefs.chipset_mask & CSMASK_ECS_AGNUS) {
+		if (vpos == sprhstrt) {
+			hhspr = 1;
+		}
+		if (vpos == sprhstop) {
+			hhspr = 0;
+		}
+		if (vpos == bplhstrt) {
+			hhbpl = 1;
+		}
+		if (vpos == bplhstop) {
+			hhbpl = 0;
+		}
+		uae_u16 add = maxhpos + lol - 1;
+		uae_u16 max = (new_beamcon0 & 0x040) ? htotal : add;
+		uae_u16 hhpos_old = hhpos;
+		hhpos += add;
+		if (hhpos_old <= max || hhpos >= 0x100) {
+			if (max)
+				hhpos %= max;
+			else
+				hhpos = 0;
+		}
+		if (hhpos_hpos) {
+			hhpos -= add - hhpos_hpos;
+			hhpos_hpos = 0;
+		}
+		hhpos &= 0xff;
+	}
+
 #ifdef CPUEMU_13
 	if (currprefs.cpu_memory_cycle_exact || currprefs.blitter_cycle_exact) {
 		int hp = maxhpos - 1, i;
@@ -10256,6 +10310,12 @@ static uae_u32 REGPARAM2 custom_wget_1(int hpos, uaecptr addr, int noput, bool i
 			goto writeonly;
 		break;
 
+	case 0x1DA:
+		if (!(currprefs.chipset_mask & CSMASK_ECS_AGNUS))
+			goto writeonly;
+		v = HHPOSR();
+		break;
+
 #ifdef AGA
 	case 0x180: case 0x182: case 0x184: case 0x186: case 0x188: case 0x18A:
 	case 0x18C: case 0x18E: case 0x190: case 0x192: case 0x194: case 0x196:
@@ -10589,6 +10649,7 @@ static int REGPARAM2 custom_wput_1 (int hpos, uaecptr addr, uae_u32 value, int n
 	case 0x1DE: if (hsstrt != value) { hsstrt = value & (MAXHPOS_ROWS - 1); varsync (); } break;
 	case 0x1E0: if (vsstrt != value) { vsstrt = value & (MAXVPOS_LINES_ECS - 1); varsync (); } break;
 	case 0x1E2: if (hcenter != value) { hcenter = value & (MAXHPOS_ROWS - 1); varsync (); } break;
+	case 0x1D8: hhpos = value & (MAXHPOS_ROWS - 1); hhpos_hpos = current_hpos();  break;
 
 #ifdef AGA
 	case 0x1FC: FMODE (hpos, value); break;
@@ -10987,12 +11048,12 @@ uae_u8 *save_custom (int *len, uae_u8 *dstptr, int full)
 	SW (vsstop);		/* 1CA VSSTOP */
 	SW (vbstrt);		/* 1CC VBSTRT */
 	SW (vbstop);		/* 1CE VBSTOP */
-	SW (0);			/* 1D0 */
-	SW (0);			/* 1D2 */
-	SW (0);			/* 1D4 */
-	SW (0);			/* 1D6 */
-	SW (0);			/* 1D8 */
-	SW (0);			/* 1DA */
+	SW (sprhstrt);		/* 1D0 SPRHSTRT */
+	SW (sprhstop);		/* 1D2 SPRHSTOP */
+	SW (bplhstrt);		/* 1D4 BPLHSTRT */
+	SW (bplhstop);		/* 1D6 BPLHSTOP */
+	SW (hhpos);			/* 1D8 HHPOSW */
+	SW (0);				/* 1DA */
 	SW (beamcon0);		/* 1DC BEAMCON0 */
 	SW (hsstrt);		/* 1DE HSSTRT */
 	SW (vsstrt);		/* 1E0 VSSTRT */
