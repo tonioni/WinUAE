@@ -168,9 +168,10 @@ static int execscsicmd (struct dev_info_spti *di, int unitnum, uae_u8 *data, int
 
 	if (!bypass) {
 		if (data[0] == 0x03 && di->senselen > 0) {
-			memcpy(inbuf, di->sense, di->senselen);
+			int l = di->senselen > inlen ? inlen : di->senselen;
+			memcpy(inbuf, di->sense, l);
 			di->senselen = 0;
-			return di->senselen;
+			return l;
 		}
 		int r = blkdev_is_audio_command(data[0]);
 		if (r > 0) {
@@ -376,15 +377,16 @@ static uae_u8 *execscsicmd_in_internal (struct dev_info_spti *di, int unitnum, u
 
 static void close_scsi_device2 (struct dev_info_spti *di)
 {
+	di->cda.subcodevalid = false;
 	if (di->open == false)
 		return;
+	di->open = false;
 	if (di->handle != INVALID_HANDLE_VALUE) {
 		CloseHandle(di->handle);
 		uae_sem_destroy(&di->cda.sub_sem);
 		uae_sem_destroy(&di->cda.sub_sem2);
 	}
 	di->handle = INVALID_HANDLE_VALUE;
-	di->open = false;
 }
 
 static void close_scsi_device (int unitnum)
@@ -1096,14 +1098,18 @@ static int ioctl_command_qcode(int unitnum, uae_u8 *buf, int sector, bool all)
 	} else {
 		int pos = di->cda.cd_last_pos;
 		int trk = cdtracknumber(&di->di.toc, pos);
-		struct cd_toc *t = &di->di.toc.toc[trk];
-		p[0] = (t->control << 4) | (t->adr << 0);
-		p[1] = tobcd(trk);
-		p[2] = tobcd(1);
-		uae_u32 msf = lsn2msf(pos);
-		tolongbcd(p + 7, msf);
-		msf = lsn2msf(pos - t->paddress - 150);
-		tolongbcd(p + 3, msf);
+		if (trk >= 0) {
+			struct cd_toc *t = &di->di.toc.toc[trk];
+			p[0] = (t->control << 4) | (t->adr << 0);
+			p[1] = tobcd(trk);
+			p[2] = tobcd(1);
+			uae_u32 msf = lsn2msf(pos);
+			tolongbcd(p + 7, msf);
+			msf = lsn2msf(pos - t->paddress - 150);
+			tolongbcd(p + 3, msf);
+		} else {
+			p[1] = AUDIO_STATUS_NO_STATUS;
+		}
 	}
 
 	return 1;

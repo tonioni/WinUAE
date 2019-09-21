@@ -340,6 +340,8 @@ retry:
 	ret = 0;
 	while (size > 0) {
 		int track = cdtracknumber(&ciw->di.toc, sector);
+		if (track < 0)
+			return 0;
 		got = false;
 		if (!ciw->usesptiread && sectorsize == 2048 && ciw->trackmode[track] == 0) {
 			if (read2048 (ciw, sector) == 2048) {
