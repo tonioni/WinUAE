@@ -79,3 +79,4 @@ packages.config
 *.db-shm
 *.db-wal
 *.o
+**/.vs
