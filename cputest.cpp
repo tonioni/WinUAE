@@ -65,6 +65,7 @@ static int feature_test_rounds = 2;
 static int feature_flag_mode = 0;
 static uae_u32 feature_addressing_modes[2];
 static int ad8r[2], pc8r[2];
+static int multi_mode;
 
 #define HIGH_MEMORY_START (addressing_mask == 0xffffffff ? 0xffff8000 : 0x00ff8000)
 
@@ -1514,13 +1515,55 @@ static int create_ea(uae_u16 *opcodep, uaecptr pc, int mode, int reg, struct ins
 					put_word_test(pc, lp);
 					put_word_test(pc + 2, imm16_cnt++);
 					pc += 2;
+					if (imm16_cnt == 0)
+						*isconstant = 0;
+					else
+						*isconstant = -1;
+				} else if (dp->mnemo == i_MOVE2C || dp->mnemo == i_MOVEC2) {
+					uae_u16 c = (imm16_cnt >> 1) & 0xfff;
+					opcode = 0x4e7a;
+					put_word_test(pc, 0x1000 | c); // movec rc,d1
+					pc += 2;
+					uae_u32 val = (imm16_cnt & 1) ? 0xffffffff : 0x00000000;
+					switch (c)
+					{
+					case 0x003: // TC
+					case 0x004: // ITT0
+					case 0x005: // ITT1
+					case 0x006: // DTT0
+					case 0x007: // DTT1
+						val &= ~0x8000;
+						break;
+					case 0x808: // PCR
+						val &= ~(0x80 | 0x40 | 0x20 | 0x10 | 0x08 | 0x04);
+						break;
+					}
+					put_word_test(pc, 0x203c); // move.l #x,d0
+					pc += 2;
+					put_long_test(pc, val);
+					pc += 4;
+					put_long_test(pc, 0x4e7b0000 | c); // movec d0,rc
+					pc += 4;
+					put_long_test(pc, 0x4e7a2000 | c); // movec rc,d2
+					pc += 4;
+					put_long_test(pc, 0x4e7b1000 | c); // movec d1,rc
+					pc += 4;
+					put_word_test(pc, 0x7200); // moveq #0,d0
+					pc += 2;
+					imm16_cnt++;
+					multi_mode = 1;
+					pc -= 2;
+					if (imm16_cnt == 0x1000)
+						*isconstant = 0;
+					else
+						*isconstant = -1;
 				} else {
 					put_word_test(pc, imm16_cnt++);
+					if (imm16_cnt == 0)
+						*isconstant = 0;
+					else
+						*isconstant = -1;
 				}
-				if (imm16_cnt == 0)
-					*isconstant = 0;
-				else
-					*isconstant = -1;
 			} else {
 				uae_u16 v = rand16();
 				if ((imm16_cnt & 7) == 0)
@@ -1610,7 +1653,7 @@ static int handle_specials_pack(uae_u16 opcode, uaecptr pc, struct instr *dp, in
 	return 0;
 }
 
-static void handle_specials_extra(uae_u16 opcode, uaecptr pc, struct instr *dp)
+static uaecptr handle_specials_extra(uae_u16 opcode, uaecptr pc, struct instr *dp)
 {
 	// cas undocumented (marked as zero in document) fields do something weird, for example
 	// setting bit 9 will make "Du" address register but results are not correct.
@@ -1685,6 +1728,7 @@ static void handle_specials_extra(uae_u16 opcode, uaecptr pc, struct instr *dp)
 		break;
 	}
 	}
+	return pc;
 }
 
 static uae_u32 generate_stack_return(int cnt)
@@ -1846,6 +1890,8 @@ static void execute_ins(uae_u16 opc, uaecptr endpc, uaecptr targetpc, struct ins
 	testing_active_opcode = opc;
 
 	int cnt = feature_loop_mode * 2;
+	if (multi_mode)
+		cnt = 100;
 
 	for (;;) {
 
@@ -1902,17 +1948,15 @@ static void execute_ins(uae_u16 opc, uaecptr endpc, uaecptr targetpc, struct ins
 		if (!valid_address(regs.pc, 2, 0))
 			break;
 
-		if (!feature_loop_mode) {
+		if (!feature_loop_mode && !multi_mode) {
 			wprintf(_T("Test instruction didn't finish in single step in non-loop mode!?\n"));
 			abort();
 		}
 
 		if (cpu_lvl < 2) {
 			opc = get_word_test_prefetch(2);
-			m68k_incpc(2);
 		} else {
 			opc = get_word_test_prefetch(0);
-			m68k_incpc(2);
 		}
 
 		cnt--;
@@ -1995,11 +2039,6 @@ static int isunsupported(struct instr *dp)
 
 static int noregistercheck(struct instr *dp)
 {
-	switch (dp->mnemo)
-	{
-	case i_MOVEC2:
-		return 1;
-	}
 	return 0;
 }
 
@@ -2336,6 +2375,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 
 					out_of_test_space = 0;
 					ahcnt = 0;
+					multi_mode = 0;
 
 					if (opc == 0x0156)
 						printf("");
@@ -2384,7 +2424,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 						pc += o;
 					}
 
-					handle_specials_extra(opc, pc, dp);
+					pc = handle_specials_extra(opc, pc, dp);
 
 					// if destination EA modified opcode
 					dp = table68k + opc;

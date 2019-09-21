@@ -729,11 +729,22 @@ static void addinfo(void)
 	for (int i = 0; i < 16; i++) {
 		swapped[i] = (opcode_memory[i * 2 + 0] << 8) | (opcode_memory[i * 2 + 1] << 0);
 	}
-	disasm_instr((uae_u16*)swapped, outbp);
+	int offset = 0;
+	uae_u32 pc = opcode_memory;
+	for (;;) {
+		int v = disasm_instr(((uae_u16 *)swapped) + offset, outbp);
+		outbp += strlen(outbp);
+		if (v <= 0)
+			break;
+		pc += v * 2;
+		offset += v;
+		if (pc >= last_registers.pc)
+			break;
+		*outbp++ = ';';
+	}
 #else
 	disasm_instr((uae_u16 *)opcode_memory, outbp);
 #endif
-	outbp += strlen(outbp);
 	*outbp++ = '\n';
 	*outbp = 0;
 
@@ -756,8 +767,8 @@ struct srbit
 static const struct srbit srbits[] = {
 	{ "T1", 15 },
 	{ "T0", 14 },
-	{ "M", 13 },
-	{ "S", 12 },
+	{ "S", 13 },
+	{ "M", 12 },
 	{ "X", 4 },
 	{ "N", 3 },
 	{ "Z", 2 },
