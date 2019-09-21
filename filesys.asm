@@ -1629,6 +1629,12 @@ addfsonthefly ; d1 = fs index
 	jsr FreeMem(a6)
 .nomem	move.l a4,a1
 	jsr -414(a6) ; CloseLibrary
+	; reply done
+	moveq #4,d1
+	move.w #$FF48,d0
+	bsr.w getrtbaselocal
+	move.l d6,d0
+	jsr (a0)
 	movem.l (sp)+,d2-d7/a2-a6
 	rts
 

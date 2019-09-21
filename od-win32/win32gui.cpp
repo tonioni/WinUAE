@@ -20828,11 +20828,15 @@ static int floppyslot_addfile (struct uae_prefs *prefs, const TCHAR *file, int d
 	return drv;
 }
 
-static int do_filesys_insert (const TCHAR *root)
+static int do_filesys_insert (const TCHAR *root, int total)
 {
-	if (filesys_insert (-1, NULL, root, 0, 0) == 0)
-		return filesys_media_change (root, 2, NULL);
-	return 0;
+	if (total <= 1) {
+		if (filesys_insert(-1, NULL, root, 0, 0))
+			return 1;
+		return filesys_media_change(root, 2, NULL);
+	}
+	filesys_media_change_queue(root, total);
+	return 1;
 }
 
 static bool draghit(DWORD id, POINT pt)
@@ -20861,6 +20865,7 @@ int dragdrop (HWND hDlg, HDROP hd, struct uae_prefs *prefs, int	currentpage)
 	TCHAR *dragrompath = NULL;
 	int corner = -1;
 
+	filesys_media_change_queue(NULL, -1);
 	DragQueryPoint (hd, &pt);
 	pt.y += GetSystemMetrics (SM_CYMENU) + GetSystemMetrics (SM_CYBORDER);
 	cnt = DragQueryFile (hd, 0xffffffff, NULL, 0);
@@ -20985,7 +20990,7 @@ int dragdrop (HWND hDlg, HDROP hd, struct uae_prefs *prefs, int	currentpage)
 		if (drvdrag) {
 			type = ZFILE_DISKIMAGE;
 		} else if ((zip || harddrive) && type != ZFILE_DISKIMAGE) {
-			if (do_filesys_insert (file))
+			if (do_filesys_insert (file, cnt))
 				continue;
 			if (zip) {
 				struct zfile *z2 = zfile_fopen (file, _T("rb"), mask);
@@ -21010,7 +21015,7 @@ int dragdrop (HWND hDlg, HDROP hd, struct uae_prefs *prefs, int	currentpage)
 				_tcscpy (current_fsvdlg.ci.rootdir, file);
 				add_filesys_config (&workprefs, -1, &current_fsvdlg.ci);
 			} else if (harddrive) {
-				do_filesys_insert (file);
+				do_filesys_insert (file, cnt);
 			} else {
 				drv = floppyslot_addfile (prefs, file, drv, firstdrv, i);
 				if (drv < 0)
@@ -21032,7 +21037,7 @@ int dragdrop (HWND hDlg, HDROP hd, struct uae_prefs *prefs, int	currentpage)
 		case ZFILE_HDF:
 			if (flags & FILE_ATTRIBUTE_DIRECTORY) {
 				if (!full_property_sheet && currentpage < 0) {
-					do_filesys_insert (file);
+					do_filesys_insert (file, cnt);
 				} else {
 					default_fsvdlg (&current_fsvdlg);
 					_tcscpy (current_fsvdlg.ci.rootdir, file);
@@ -21076,14 +21081,14 @@ int dragdrop (HWND hDlg, HDROP hd, struct uae_prefs *prefs, int	currentpage)
 			break;
 		default:
 			if (currentpage < 0 && !full_property_sheet) {
-				do_filesys_insert (file);
+				do_filesys_insert (file, cnt);
 			} else if (currentpage == HARDDISK_ID) {
 				default_fsvdlg (&current_fsvdlg);
 				_tcscpy (current_fsvdlg.ci.rootdir, file);
 				_tcscpy (current_fsvdlg.ci.volname, filepart);
 				add_filesys_config (&workprefs, -1, &current_fsvdlg.ci);
 				if (!full_property_sheet)
-					do_filesys_insert (file);
+					do_filesys_insert (file, cnt);
 			} else {
 				rd = scan_arcadia_rom (file, 0);
 				if (rd) {
@@ -21097,6 +21102,7 @@ int dragdrop (HWND hDlg, HDROP hd, struct uae_prefs *prefs, int	currentpage)
 		}
 	}
 	DragFinish (hd);
+	filesys_media_change_queue(NULL, 0);
 	set_config_changed ();
 	return ret;
 }
