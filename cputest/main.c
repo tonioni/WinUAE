@@ -95,6 +95,7 @@ static char outbuffer[40000];
 #else
 static char outbuffer[4000];
 #endif
+static char tmpbuffer[256];
 static char *outbp;
 static int infoadded;
 static int errors;
@@ -703,6 +704,8 @@ static uae_u8 *restore_data(uae_u8 *p)
 static uae_u16 test_ccrignoremask;
 static uae_u32 test_fpsr, test_fpcr;
 
+extern uae_u16 disasm_instr(uae_u16 *, char *);
+
 static void addinfo(void)
 {
 	if (infoadded)
@@ -712,39 +715,43 @@ static void addinfo(void)
 		return;
 	sprintf(outbp, "%lu:", testcnt);
 	outbp += strlen(outbp);
-	uae_u8 *p = opcode_memory;
-	for (int i = 0; i < 32 * 2; i += 2) {
-		uae_u16 v = (p[i] << 8) |(p[i + 1]);
-		if (v == 0x4afc && i > 0)
-			break;
-		sprintf(outbp, " %04x", v);
-		outbp += strlen(outbp);
-	}
-	strcat(outbp, " ");
-	outbp += strlen(outbp);
 
-	uae_u16 disasm_instr(uae_u16 *, char *);
+	uae_u16 *code;
 #ifndef M68K
 	uae_u16 swapped[16];
 	for (int i = 0; i < 16; i++) {
 		swapped[i] = (opcode_memory[i * 2 + 0] << 8) | (opcode_memory[i * 2 + 1] << 0);
 	}
+	code = swapped;
+#else
+	code = (uae_u16*)opcode_memory;
+#endif
+	uae_u8 *p = opcode_memory;
 	int offset = 0;
-	uae_u32 pc = opcode_memory;
-	for (;;) {
-		int v = disasm_instr(((uae_u16 *)swapped) + offset, outbp);
+	int lines = 0;
+	while (lines++ < 10) {
+		int v = disasm_instr(code + offset, tmpbuffer);
+		for (int i = 0; i < v; i++) {
+			uae_u16 v = (p[i * 2 + 0] << 8) | (p[i * 2 + 1]);
+			sprintf(outbp, "%s%04x", i ? " " : (lines == 0 ? "\t\t" : "\t"), v);
+			outbp += strlen(outbp);
+		}
+		sprintf(outbp, " %s\n", tmpbuffer);
 		outbp += strlen(outbp);
 		if (v <= 0)
 			break;
-		pc += v * 2;
-		offset += v;
-		if (pc >= last_registers.pc)
+		while (v > 0) {
+			offset++;
+			p += 2;
+			if (code[offset] == 0x4afc) {
+				v = -1;
+				break;
+			}
+			v--;
+		}
+		if (v < 0)
 			break;
-		*outbp++ = ';';
 	}
-#else
-	disasm_instr((uae_u16 *)opcode_memory, outbp);
-#endif
 	*outbp++ = '\n';
 	*outbp = 0;
 
