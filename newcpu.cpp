@@ -3007,15 +3007,20 @@ static void ExceptionX (int nr, uaecptr address)
 		Exception_ce000 (nr);
 	else
 #endif
+	{
+		if (currprefs.cpu_model == 68060) {
+			regs.buscr &= 0xa0000000;
+			regs.buscr |= regs.buscr >> 1;
+		}
 		if (currprefs.mmu_model) {
 			if (currprefs.cpu_model == 68030)
-				Exception_mmu030 (nr, m68k_getpc ());
+				Exception_mmu030(nr, m68k_getpc());
 			else
-				Exception_mmu (nr, m68k_getpc ());
+				Exception_mmu(nr, m68k_getpc());
 		} else {
-			Exception_normal (nr);
+			Exception_normal(nr);
 		}
-
+	}
 	regs.exception = 0;
 	if (cpu_tracer) {
 		cputrace.state = 0;

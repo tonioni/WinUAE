@@ -153,7 +153,7 @@ int m68k_move2c (int regno, uae_u32 *regp)
 		case 6: regs.dtt0 = *regp & 0xffffe364; mmu_tt_modified (); break;
 		case 7: regs.dtt1 = *regp & 0xffffe364; mmu_tt_modified (); break;
 			/* 68060 only */
-		case 8: regs.buscr = *regp & 0xa0000000; break;
+		case 8: regs.buscr &= 0x50000000; regs.buscr |= *regp & 0xa0000000; break;
 
 		case 0x800: regs.usp = *regp; break;
 		case 0x801: regs.vbr = *regp; break;
