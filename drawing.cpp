@@ -963,6 +963,7 @@ static void pfield_init_linetoscr (bool border)
 	// Sprite hpos don't include DIW_DDF_OFFSET and can appear 1 lores pixel
 	// before first bitplane pixel appears.
 	// This means "bordersprite" condition is possible under OCS/ECS too. Argh!
+
 	if (dip_for_drawing->nr_sprites) {
 		if (!ce_is_borderblank(colors_for_drawing.extra)) {
 			/* bordersprite off or not supported: sprites are visible until diw_end */
@@ -2284,7 +2285,7 @@ STATIC_INLINE void draw_sprites_1 (struct sprite_entry *e, int dualpf, int has_a
 	stbuf -= epos;
 	stfmbuf -= epos;
 
-	spr_pos = epos + ((DIW_DDF_OFFSET - DISPLAY_LEFT_SHIFT) << sprite_buffer_res);
+	spr_pos = epos - ((DISPLAY_LEFT_SHIFT - DIW_DDF_OFFSET) << sprite_buffer_res);
 
 	if (spr_pos < sprite_first_x)
 		sprite_first_x = spr_pos;
