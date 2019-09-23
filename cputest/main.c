@@ -572,8 +572,10 @@ static void tomem(uae_u8 *p, uae_u32 v, uae_u32 oldv, int size, int storedata)
 
 static void restoreahist(void)
 {
+	if (!ahcnt)
+		return;
 	for (int i = ahcnt - 1; i >= 0; i--) {
-		struct accesshistory *ah = &ahist[ahcnt];
+		struct accesshistory *ah = &ahist[i];
 		tomem(ah->addr, ah->oldval, 0, ah->size, 0);
 	}
 	ahcnt = 0;
