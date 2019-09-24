@@ -91,7 +91,7 @@ Scala MM (Red)
 
 - 10uF Capacitor between fire button and second button pin
 - Drives firebutton high, then low
-- Polls POTGOR second button pin, it must go low between about ?? DMA cycles.
+- Polls POTGOR second button pin, it must go low between about 350000-540000 DMA cycles.
 
 */
 
@@ -243,14 +243,18 @@ uae_u16 dongle_potgor (uae_u16 val)
 		break;
 	case SCALA_RED:
 	case SCALA_GREEN:
-		if ((dflag & 1) || get_cycles() >= cycles + CYCLE_UNIT * 80000 * (currprefs.dongle == SCALA_RED ? 21 : 1)) {
-			if (dflag & 0x80)
+		{
+			uae_u8 mode = 0x80;
+			if ((dflag & 1) || get_cycles() >= cycles + CYCLE_UNIT * (currprefs.dongle == SCALA_RED ? 450000 : 80000)) {
+				mode = 0x00;
+				dflag |= 1;
+			}
+			if (((dflag & 0x80) ^ mode) == 0x80)
 				val |= 1 << 14;
 			else
 				val &= ~(1 << 14);
-			dflag |= 1;
+			break;
 		}
-		break;
 	}
 	return val;
 }
