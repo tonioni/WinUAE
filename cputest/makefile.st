@@ -5,7 +5,7 @@ NOWTIME := "\"$(shell date "+%T")\""
 CC=/opt/m68k-atari/bin/m68k-atari-mint-gcc
 AS=/opt/m68k-atari/bin/m68k-atari-mint-as
 
-CFLAGS = -O2 -m68000 -fomit-frame-pointer -msoft-float -DREVDATE=$(NOWDATE) -DREVTIME=$(NOWTIME) -DM68K
+CFLAGS = -O2 -m68000 -fomit-frame-pointer -msoft-float -DREVDATE=$(NOWDATE) -DREVTIME=$(NOWTIME) -DM68K -DWAITEXIT
 LINK_CFLAGS = -lm -s
 
 OBJS = main.o asm040.o atari.o \
@@ -13,7 +13,7 @@ OBJS = main.o asm040.o atari.o \
 	opcode_handler_mmu.o opcodes_cpu.o opcodes_fpu.o opcodes_mmu.o util.o
 
 all: $(OBJS)
-	$(CC) $(LINK_CFLAGS) -o cputest $^
+	$(CC) $(LINK_CFLAGS) -o cputest.ttp $^
 
 main.o: main.c
 	$(CC) $(CFLAGS) -I. -c -o $@ main.c

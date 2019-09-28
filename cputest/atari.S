@@ -44,7 +44,7 @@ _tosuper:
 
 	move.w	0xff8240,save_color0
 
-	move.w	#0x2500,sr		| disable HBL/VBL
+	move.w	#0x2700,sr		| disable HBL/VBL
 	rts
 
 	| back to user mode, enable MFP interrupts

@@ -1624,6 +1624,9 @@ static void freestuff(void)
 {
 	if (test_memory && test_memory_addr)
 		free_absolute(test_memory_addr, test_memory_size);
+#ifdef WAITEXIT
+	getch();
+#endif
 }
 
 
@@ -1841,9 +1844,6 @@ int main(int argc, char *argv[])
 
 #define _stricmp strcasecmp
 
-	if (strlen(argv[1]) >= sizeof(opcode) - 1)
-		return 0;
-
 	strcpy(path, "data/");
 
 	low_memory = (uae_u8 *)0;
@@ -1877,6 +1877,9 @@ int main(int argc, char *argv[])
 		printf("ccrmask = ignore CCR bits that are not set.\n");
 		return 0;
 	}
+
+	if (strlen(argv[1]) >= sizeof(opcode) - 1)
+		return 0;
 
 	strcpy(opcode, argv[1]);
 
