@@ -10685,7 +10685,7 @@ static INT_PTR CALLBACK Expansion2DlgProc(HWND hDlg, UINT msg, WPARAM wParam, LP
 						} else if (workprefs.ppc_mode == 2) {
 							workprefs.ppc_mode = 0;
 						}
-						built_in_cpuboard_prefs(&workprefs);
+						cpuboard_set_cpu(&workprefs);
 						setcpuboardmemsize(hDlg);
 						enable_for_expansion2dlg(hDlg);
 						values_to_expansion2dlg(hDlg, 2);
@@ -10702,7 +10702,7 @@ static INT_PTR CALLBACK Expansion2DlgProc(HWND hDlg, UINT msg, WPARAM wParam, LP
 						} else if (workprefs.ppc_mode == 2) {
 							workprefs.ppc_mode = 0;
 						}
-						built_in_cpuboard_prefs(&workprefs);
+						cpuboard_set_cpu(&workprefs);
 						setcpuboardmemsize(hDlg);
 						enable_for_expansion2dlg(hDlg);
 						values_to_expansion2dlg(hDlg, 2);

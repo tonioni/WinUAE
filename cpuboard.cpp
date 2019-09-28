@@ -3012,3 +3012,37 @@ bool cpuboard_autoconfig_init(struct autoconfig_info *aci)
 
 	return true;
 }
+
+void cpuboard_set_cpu(struct uae_prefs *p)
+{
+	if (!p->cpuboard_type)
+		return;
+	
+	const struct cpuboardsubtype *cbt = &cpuboards[p->cpuboard_type].subtypes[p->cpuboard_subtype];
+
+	// Lower to higher model
+	if (p->cpu_model < cbt->cputype * 10 + 68000) {
+		p->cpu_model = cbt->cputype * 10 + 68000;
+		if ((p->fpu_model == 68881 || p->fpu_model == 68882) && cbt->cputype >= 4) {
+			p->fpu_model = cbt->cputype * 10 + 68000;
+		}
+		if (p->mmu_model && p->cpu_model >= 68030) {
+			p->mmu_model = p->cpu_model;
+		} else {
+			p->mmu_model = 0;
+		}
+	}
+	// 68040/060 to 68020/030
+	if (p->cpu_model >= 68040 && cbt->cputype < 4) {
+		p->cpu_model = cbt->cputype * 10 + 68000;
+		if (p->fpu_model == 68040 || p->fpu_model == 68060) {
+			p->fpu_model = 68882;
+		}
+		if (p->mmu_model && p->cpu_model == 68030) {
+			p->mmu_model = 68030;
+		} else {
+			p->mmu_model = 0;
+		}
+	}
+	p->address_space_24 = false;
+}

@@ -8986,67 +8986,6 @@ int built_in_chipset_prefs (struct uae_prefs *p)
 	return 1;
 }
 
-int built_in_cpuboard_prefs(struct uae_prefs *p)
-{
-	int roms[2], roms2[2];
-	
-	roms[0] = -1;
-	roms[1] = -1;
-	roms2[0] = -1;
-	roms2[1] = -1;
-
-	switch(cpuboards[p->cpuboard_type].id)
-	{
-		case BOARD_MACROSYSTEM:
-		switch(p->cpuboard_subtype)
-		{
-			case BOARD_MACROSYSTEM_SUB_WARPENGINE_A4000:
-			roms[0] = 93;
-			break;
-		}
-		break;
-		case BOARD_BLIZZARD:
-		switch(p->cpuboard_subtype)
-		{
-		case BOARD_BLIZZARD_SUB_1230IV:
-			roms[0] = 89;
-			break;
-		case BOARD_BLIZZARD_SUB_1260:
-			roms[0] = 90;
-			break;
-		case BOARD_BLIZZARD_SUB_2060:
-			roms[0] = 92;
-			break;
-		case BOARD_BLIZZARD_SUB_PPC:
-			roms[0] = p->cpu_model == 68040 ? 99 : 100;
-			break;
-		}
-		break;
-		case BOARD_CYBERSTORM:
-		switch(p->cpuboard_subtype)
-		{
-		case BOARD_CYBERSTORM_SUB_MK1:
-			roms[0] = p->cpu_model == 68040 ? 95 : 101;
-			break;
-		case BOARD_CYBERSTORM_SUB_MK2:
-			roms[0] = 96;
-			break;
-		case BOARD_CYBERSTORM_SUB_MK3:
-			roms[0] = 97;
-			break;
-		case BOARD_CYBERSTORM_SUB_PPC:
-			roms[0] = 98;
-			break;
-		}
-		break;
-	}
-	if (!configure_rom(p, roms, 0))
-		return 0;
-	if (!configure_rom(p, roms2, 0))
-		return 0;
-	return 1;
-}
-
 #ifdef _WIN32
 #define SHADERPARM "string winuae_config : WINUAE_CONFIG ="
 

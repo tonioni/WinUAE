@@ -6046,7 +6046,7 @@ static const struct cpuboardsubtype gvpboard_sub[] = {
 	{
 		_T("A3001 Series I"),
 		_T("A3001SI"),
-		ROMTYPE_CB_A3001S1, 0,
+		ROMTYPE_CB_A3001S1, 0, 3,
 		gvp_add_ide_unit, EXPANSIONTYPE_IDE | EXPANSIONTYPE_24BIT,
 		BOARD_MEMORY_Z2,
 		8 * 1024 * 1024,
@@ -6056,7 +6056,7 @@ static const struct cpuboardsubtype gvpboard_sub[] = {
 	{
 		_T("A3001 Series II"),
 		_T("A3001SII"),
-		0, 0,
+		0, 0, 3,
 		gvp_add_ide_unit, EXPANSIONTYPE_IDE | EXPANSIONTYPE_24BIT,
 		BOARD_MEMORY_Z2,
 		8 * 1024 * 1024,
@@ -6066,7 +6066,7 @@ static const struct cpuboardsubtype gvpboard_sub[] = {
 	{
 		_T("A530"),
 		_T("GVPA530"),
-		ROMTYPE_GVPS2, 0,
+		ROMTYPE_GVPS2, 0, 3,
 		gvp_s2_add_accelerator_scsi_unit, EXPANSIONTYPE_SCSI | EXPANSIONTYPE_24BIT,
 		BOARD_MEMORY_Z2,
 		8 * 1024 * 1024,
@@ -6078,7 +6078,7 @@ static const struct cpuboardsubtype gvpboard_sub[] = {
 	{
 		_T("G-Force 030"),
 		_T("GVPGFORCE030"),
-		ROMTYPE_GVPS2, ROMTYPE_GVPS12,
+		ROMTYPE_GVPS2, ROMTYPE_GVPS12, 3,
 		gvp_s2_add_accelerator_scsi_unit, EXPANSIONTYPE_SCSI,
 		BOARD_MEMORY_25BITMEM,
 		128 * 1024 * 1024,
@@ -6088,7 +6088,7 @@ static const struct cpuboardsubtype gvpboard_sub[] = {
 	{
 		_T("Tek Magic 2040/2060"),
 		_T("TekMagic"),
-		ROMTYPE_CB_TEKMAGIC, 0,
+		ROMTYPE_CB_TEKMAGIC, 0, 4,
 		tekmagic_add_scsi_unit, EXPANSIONTYPE_SCSI,
 		BOARD_MEMORY_HIGHMEM,
 		128 * 1024 * 1024
@@ -6096,7 +6096,7 @@ static const struct cpuboardsubtype gvpboard_sub[] = {
 	{
 		_T("A1230 Turbo+ Series II"),
 		_T("A1230SII"),
-		ROMTYPE_CB_A1230S2, 0,
+		ROMTYPE_CB_A1230S2, 0, 3,
 		gvp_s2_add_accelerator_scsi_unit, EXPANSIONTYPE_SCSI,
 		BOARD_MEMORY_25BITMEM,
 		128 * 1024 * 1024,
@@ -6108,7 +6108,7 @@ static const struct cpuboardsubtype gvpboard_sub[] = {
 	{
 		_T("QuikPak XP"),
 		_T("quikpakxp"),
-		ROMTYPE_CB_QUIKPAK, 0,
+		ROMTYPE_CB_QUIKPAK, 0, 6,
 		quikpak_add_scsi_unit, EXPANSIONTYPE_SCSI,
 		BOARD_MEMORY_HIGHMEM,
 		128 * 1024 * 1024,
@@ -6121,7 +6121,7 @@ static const struct cpuboardsubtype blizzardboard_sub[] = {
 	{
 		_T("Blizzard 1230 I/II"),
 		_T("Blizzard1230II"),
-		ROMTYPE_CB_B1230MK2, 0,
+		ROMTYPE_CB_B1230MK2, 0, 3,
 		cpuboard_ncr9x_add_scsi_unit, EXPANSIONTYPE_SCSI,
 		BOARD_MEMORY_BLIZZARD_12xx,
 		64 * 1024 * 1024,
@@ -6132,7 +6132,7 @@ static const struct cpuboardsubtype blizzardboard_sub[] = {
 	{
 		_T("Blizzard 1230 III"),
 		_T("Blizzard1230III"),
-		ROMTYPE_CB_B1230MK3, 0,
+		ROMTYPE_CB_B1230MK3, 0, 3,
 		NULL, 0,
 		BOARD_MEMORY_BLIZZARD_12xx,
 		32 * 1024 * 1024,
@@ -6143,7 +6143,7 @@ static const struct cpuboardsubtype blizzardboard_sub[] = {
 	{
 		_T("Blizzard 1230 IV"),
 		_T("Blizzard1230IV"),
-		ROMTYPE_CB_BLIZ1230, 0,
+		ROMTYPE_CB_BLIZ1230, 0, 3,
 		NULL, EXPANSIONTYPE_FALLBACK_DISABLE | EXPANSIONTYPE_HAS_FALLBACK,
 		BOARD_MEMORY_BLIZZARD_12xx,
 		256 * 1024 * 1024,
@@ -6154,7 +6154,7 @@ static const struct cpuboardsubtype blizzardboard_sub[] = {
 	{
 		_T("Blizzard 1260"),
 		_T("Blizzard1260"),
-		ROMTYPE_CB_BLIZ1260, 0,
+		ROMTYPE_CB_BLIZ1260, 0, 6,
 		NULL, EXPANSIONTYPE_FALLBACK_DISABLE | EXPANSIONTYPE_HAS_FALLBACK,
 		BOARD_MEMORY_BLIZZARD_12xx,
 		256 * 1024 * 1024,
@@ -6165,7 +6165,7 @@ static const struct cpuboardsubtype blizzardboard_sub[] = {
 	{
 		_T("Blizzard 2060"),
 		_T("Blizzard2060"),
-		ROMTYPE_CB_BLIZ2060, 0,
+		ROMTYPE_CB_BLIZ2060, 0, 6,
 		cpuboard_ncr9x_add_scsi_unit, EXPANSIONTYPE_SCSI | EXPANSIONTYPE_FALLBACK_DISABLE | EXPANSIONTYPE_HAS_FALLBACK,
 		BOARD_MEMORY_HIGHMEM,
 		128 * 1024 * 1024,
@@ -6176,7 +6176,7 @@ static const struct cpuboardsubtype blizzardboard_sub[] = {
 	{
 		_T("Blizzard PPC"),
 		_T("BlizzardPPC"),
-		ROMTYPE_CB_BLIZPPC, 0,
+		ROMTYPE_CB_BLIZPPC, 0, 4,
 		blizzardppc_add_scsi_unit, EXPANSIONTYPE_SCSI,
 		BOARD_MEMORY_BLIZZARD_PPC,
 		256 * 1024 * 1024
@@ -6189,7 +6189,7 @@ static const struct cpuboardsubtype cyberstormboard_sub[] = {
 	{
 		_T("CyberStorm MK I"),
 		_T("CyberStormMK1"),
-		ROMTYPE_CB_CSMK1, 0,
+		ROMTYPE_CB_CSMK1, 0, 4,
 		cpuboard_ncr9x_add_scsi_unit, EXPANSIONTYPE_SCSI,
 		BOARD_MEMORY_HIGHMEM,
 		128 * 1024 * 1024
@@ -6197,7 +6197,7 @@ static const struct cpuboardsubtype cyberstormboard_sub[] = {
 	{
 		_T("CyberStorm MK II"),
 		_T("CyberStormMK2"),
-		ROMTYPE_CB_CSMK2, 0,
+		ROMTYPE_CB_CSMK2, 0, 4,
 		cpuboard_ncr9x_add_scsi_unit, EXPANSIONTYPE_SCSI | EXPANSIONTYPE_FALLBACK_DISABLE | EXPANSIONTYPE_HAS_FALLBACK,
 		BOARD_MEMORY_HIGHMEM,
 		128 * 1024 * 1024
@@ -6205,7 +6205,7 @@ static const struct cpuboardsubtype cyberstormboard_sub[] = {
 	{
 		_T("CyberStorm MK III"),
 		_T("CyberStormMK3"),
-		ROMTYPE_CB_CSMK3, 0,
+		ROMTYPE_CB_CSMK3, 0, 4,
 		cyberstorm_add_scsi_unit, EXPANSIONTYPE_SCSI,
 		BOARD_MEMORY_HIGHMEM,
 		128 * 1024 * 1024
@@ -6213,7 +6213,7 @@ static const struct cpuboardsubtype cyberstormboard_sub[] = {
 	{
 		_T("CyberStorm PPC"),
 		_T("CyberStormPPC"),
-		ROMTYPE_CB_CSPPC, 0,
+		ROMTYPE_CB_CSPPC, 0, 4,
 		cyberstorm_add_scsi_unit, EXPANSIONTYPE_SCSI,
 		BOARD_MEMORY_HIGHMEM,
 		128 * 1024 * 1024
@@ -6226,7 +6226,7 @@ static const struct cpuboardsubtype macrosystem_sub[] = {
 	{
 		_T("Warp Engine A4000"),
 		_T("WarpEngineA4000"),
-		ROMTYPE_CB_WENGINE, 0,
+		ROMTYPE_CB_WENGINE, 0, 4,
 		warpengine_add_scsi_unit, EXPANSIONTYPE_SCSI,
 		BOARD_MEMORY_HIGHMEM,
 		128 * 1024 * 1024,
@@ -6259,7 +6259,7 @@ static const struct cpuboardsubtype mtec_sub[] = {
 	{
 		_T("E-Matrix 530"),
 		_T("e-matrix530"),
-		ROMTYPE_CB_EMATRIX, 0,
+		ROMTYPE_CB_EMATRIX, 0, 3,
 		ematrix_add_scsi_unit, EXPANSIONTYPE_SCSI,
 		BOARD_MEMORY_CUSTOM_32,
 		128 * 1024 * 1024,
@@ -6322,7 +6322,7 @@ static const struct cpuboardsubtype commodore_sub[] = {
 	{
 		_T("A2620/A2630"),
 		_T("A2630"),
-		ROMTYPE_CB_A26x0, 0,
+		ROMTYPE_CB_A26x0, 0, 2,
 		NULL, 0,
 		BOARD_MEMORY_25BITMEM,
 		128 * 1024 * 1024,
@@ -6349,7 +6349,7 @@ static const struct cpuboardsubtype dbk_sub[] = {
 	{
 		_T("1230/1240/Cobra"),
 		_T("DKB12x0"),
-		ROMTYPE_CB_DKB, 0,
+		ROMTYPE_CB_DKB, 0, 3,
 		cpuboard_dkb_add_scsi_unit, EXPANSIONTYPE_SCSI,
 		0,
 		128 * 1024 * 1024,
@@ -6360,7 +6360,7 @@ static const struct cpuboardsubtype dbk_sub[] = {
 	{
 		_T("Wildfire"),
 		_T("wildfire"),
-		ROMTYPE_CB_DBK_WF, 0,
+		ROMTYPE_CB_DBK_WF, 0, 4,
 		wildfire_add_scsi_unit, EXPANSIONTYPE_SCSI | EXPANSIONTYPE_HAS_FALLBACK,
 		BOARD_MEMORY_HIGHMEM,
 		128 * 1024 * 1024,
@@ -6389,7 +6389,7 @@ static const struct cpuboardsubtype fusionforty_sub[] = {
 	{
 		_T("Fusion Forty"),
 		_T("FusionForty"),
-		ROMTYPE_CB_FUSION, 0,
+		ROMTYPE_CB_FUSION, 0, 4,
 		NULL, 0,
 		0,
 		32 * 1024 * 1024
@@ -6402,7 +6402,7 @@ static const struct cpuboardsubtype ivs_sub[] = {
 	{
 		_T("Vector"),
 		_T("Vector"),
-		ROMTYPE_CB_VECTOR, 0,
+		ROMTYPE_CB_VECTOR, 0, 3,
 		ivsvector_add_scsi_unit, EXPANSIONTYPE_SCSI,
 		BOARD_MEMORY_HIGHMEM,
 		32 * 1024 * 1024,
@@ -6438,7 +6438,7 @@ static const struct cpuboardsubtype pps_sub[] = {
 	{
 		_T("Zeus 040"),
 		_T("Zeus"),
-		ROMTYPE_CB_ZEUS040, 0,
+		ROMTYPE_CB_ZEUS040, 0, 4,
 		zeus040_add_scsi_unit, EXPANSIONTYPE_SCSI,
 		BOARD_MEMORY_HIGHMEM,
 		64 * 1024 * 1024,
@@ -6456,7 +6456,7 @@ static const struct cpuboardsubtype csa_sub[] = {
 	{
 		_T("Magnum 40/4"),
 		_T("Magnum40"),
-		ROMTYPE_CB_MAGNUM40, 0,
+		ROMTYPE_CB_MAGNUM40, 0, 4,
 		magnum40_add_scsi_unit, EXPANSIONTYPE_SCSI,
 		BOARD_MEMORY_HIGHMEM,
 		128 * 1024 * 1024,
@@ -6467,7 +6467,7 @@ static const struct cpuboardsubtype csa_sub[] = {
 	{
 		_T("Twelve Gauge"),
 		_T("twelvegauge"),
-		ROMTYPE_CB_12GAUGE, 0,
+		ROMTYPE_CB_12GAUGE, 0, 3,
 		twelvegauge_add_scsi_unit, EXPANSIONTYPE_SCSI,
 		BOARD_MEMORY_CUSTOM_32,
 		32 * 1024 * 1024,
@@ -6498,7 +6498,7 @@ static const struct cpuboardsubtype apollo_sub[] = {
 	{
 		_T("Apollo 1240/1260"),
 		_T("Apollo"),
-		ROMTYPE_CB_APOLLO, 0,
+		ROMTYPE_CB_APOLLO, 0, 4,
 		apollo_add_scsi_unit, EXPANSIONTYPE_SCSI,
 		BOARD_MEMORY_CUSTOM_32,
 		64 * 1024 * 1024,
@@ -6514,7 +6514,7 @@ static const struct cpuboardsubtype kupkeboard_sub[] = {
 	{
 		_T("Golem 030"),
 		_T("golem030"),
-		ROMTYPE_CB_GOLEM030, 0,
+		ROMTYPE_CB_GOLEM030, 0, 3,
 		NULL, 0,
 		BOARD_MEMORY_25BITMEM,
 		16 * 1024 * 1024
@@ -6527,7 +6527,7 @@ static const struct cpuboardsubtype dceboard_sub[] = {
 	{
 		_T("SX32 Pro"),
 		_T("sx32pro"),
-		ROMTYPE_CB_SX32PRO, 0,
+		ROMTYPE_CB_SX32PRO, 0, 3,
 		NULL, 0,
 		BOARD_MEMORY_CUSTOM_32,
 		64 * 1024 * 1024
@@ -6535,7 +6535,7 @@ static const struct cpuboardsubtype dceboard_sub[] = {
 	{
 		_T("Typhoon MK2"),
 		_T("typhoon2"),
-		ROMTYPE_CB_TYPHOON2, 0,
+		ROMTYPE_CB_TYPHOON2, 0, 3,
 		typhoon2scsi_add_scsi_unit, EXPANSIONTYPE_SCSI,
 		BOARD_MEMORY_CUSTOM_32,
 		128 * 1024 * 1024,
@@ -6551,7 +6551,7 @@ static const struct cpuboardsubtype harms_sub[] = {
 	{
 		_T("Professional 3000"),
 		_T("harms3kp"),
-		ROMTYPE_CB_HARMS3KP, 0,
+		ROMTYPE_CB_HARMS3KP, 0, 2,
 		NULL, 0,
 		BOARD_MEMORY_25BITMEM,
 		128 * 1024 * 1024,

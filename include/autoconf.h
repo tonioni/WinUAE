@@ -245,6 +245,7 @@ struct cpuboardsubtype
 	const TCHAR *name;
 	const TCHAR *configname;
 	int romtype, romtype_extra;
+	int cputype;
 	DEVICE_ADD add;
 	int deviceflags;
 	int memorytype;
