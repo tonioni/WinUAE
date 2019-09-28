@@ -4274,13 +4274,19 @@ static void gen_opcode (unsigned int opcode)
 			count_read += 2;
 			printf ("\t\tuae_u16 format = %s (a + 2 + 4);\n", srcw);
 			count_read++;
-			printf ("\t\tint frame = format >> 12;\n");
-			printf ("\t\tint offset = 8;\n");
-			printf ("\t\tnewsr = sr; newpc = pc;\n");
-		    printf ("\t\tif (frame == 0x0) {\n\t\t\tm68k_areg (regs, 7) += offset; break; }\n");
-		    printf ("\t\telse if (frame == 0x8) {\n\t\t\tm68k_areg (regs, 7) += offset + 50; break; }\n");
-		    printf ("\t\telse {\n\t\t\tException_cpu(14); goto %s; }\n", endlabelstr);
-		    printf ("\t\tregs.sr = newsr; MakeFromSR ();\n}\n");
+			printf("\t\tint frame = format >> 12;\n");
+			printf("\t\tint offset = 8;\n");
+			printf("\t\tnewsr = sr; newpc = pc;\n");
+		    printf("\t\tif (frame == 0x0) {\n\t\t\tm68k_areg (regs, 7) += offset; break; }\n");
+		    printf("\t\telse if (frame == 0x8) {\n\t\t\tm68k_areg (regs, 7) += offset + 50; break; }\n");
+			printf("\t\telse {\n");
+			printf("\t\t\tSET_NFLG(((uae_s16)format) < 0); \n");
+			printf("\t\t\tSET_ZFLG(format == 0);\n");
+			printf("\t\t\tSET_VFLG(0);\n");
+			printf("\t\t\tException_cpu(14);\n");
+			printf("\t\t\tgoto %s; \n", endlabelstr);
+			printf("\t\t}\n");
+			printf("\t\tregs.sr = newsr; MakeFromSR ();\n}\n");
 		    pop_braces (old_brace_level);
 		    printf ("\tregs.sr = newsr;\n");
 			makefromsr();
@@ -4352,7 +4358,17 @@ static void gen_opcode (unsigned int opcode)
 				    printf ("\t\telse if (frame == 0xb) {\n\t\t\tm68k_areg (regs, 7) += offset + 84; break; }\n");
 				}
 			}
-		    printf ("\t\telse {\n\t\t\tException_cpu(14); goto %s; }\n", endlabelstr);
+			if (cpu_level == 1) {
+				printf("\t\telse {\n");
+				printf("\t\t\tSET_NFLG(((uae_s16)format) < 0); \n");
+				printf("\t\t\tSET_ZFLG(format == 0);\n");
+				printf("\t\t\tSET_VFLG(0);\n");
+				printf("\t\t\tException_cpu(14);\n");
+				printf("\t\t\tgoto %s; \n", endlabelstr);
+				printf("\t\t}\n");
+			} else {
+				printf("\t\telse {\n\t\t\tException_cpu(14); goto %s; }\n", endlabelstr);
+			}
 		    printf ("\t\tregs.sr = newsr;\n");
 			makefromsr_t0();
 			printf ("}\n");
