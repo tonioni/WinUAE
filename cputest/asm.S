@@ -119,7 +119,7 @@ _execute_test000:
 	move.w (a1)+,d0
 	move.w (a1),d1
 	eor.w d1,d0
-	move.w d0,0xdff180 | opcode^first param = background color
+	move.w d0,ACTIVITYREG | opcode^first param = background color
 	move.w S_SR+2(a0),-(sp)
 	move.l S_AREG+7*4(a0),a1
 	move.l a1,USP
@@ -141,7 +141,7 @@ _execute_test010:
 	move.w (a1)+,d0
 	move.w (a1),d1
 	eor.w d1,d0
-	move.w d0,0xdff180 | opcode^first param = background color
+	move.w d0,ACTIVITYREG | opcode^first param = background color
 	move.w S_SR+2(a0),-(sp)
 	move.l S_AREG+7*4(a0),a1
 	move.l a1,USP
@@ -163,7 +163,7 @@ _execute_test020:
 	move.w (a1)+,d0
 	move.w (a1),d1
 	eor.w d1,d0
-	move.w d0,0xdff180 | opcode^first param = background color
+	move.w d0,ACTIVITYREG | opcode^first param = background color
 	move.w S_SR+2(a0),-(sp)
 	move.l S_AREG+7*4(a0),a1
 	move.l a1,USP
@@ -190,7 +190,7 @@ _execute_testfpu:
 	move.w (a1)+,d0
 	move.w (a1),d1
 	eor.w d1,d0
-	move.w d0,0xdff180 | opcode^first param = background color
+	move.w d0,ACTIVITYREG | opcode^first param = background color
 	move.w S_SR+2(a0),-(sp)
 	move.l S_AREG+7*4(a0),a1
 	move.l a1,USP

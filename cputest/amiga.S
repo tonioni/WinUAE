@@ -1,6 +1,8 @@
 
 	.text
 
+	.equ ACTIVITYREG,0xdff180
+	
 	.globl _allocate_absolute
 	.globl _free_absolute
 	.globl _touser
@@ -99,3 +101,5 @@ illg:
 	move.l d1,0x10(a0)
 	move.l a1,sp
 	rte
+
+	.include "asm.S"

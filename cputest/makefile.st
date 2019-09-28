@@ -2,13 +2,13 @@
 NOWDATE := "\"$(shell date "+%-d.%-m.%Y")\""
 NOWTIME := "\"$(shell date "+%T")\""
 
-CC=/opt/amiga/bin/m68k-amigaos-gcc
-AS=/opt/amiga/bin/m68k-amigaos-as
+CC=/opt/m68k-atari/bin/m68k-atari-mint-gcc
+AS=/opt/m68k-atari/bin/m68k-atari-mint-as
 
-CFLAGS = -mcrt=nix13 -O2 -m68000 -fomit-frame-pointer -msmall-code -msoft-float -DREVDATE=$(NOWDATE) -DREVTIME=$(NOWTIME) -DAMIGA -DM68K
-LINK_CFLAGS = -mcrt=nix13 -lm -s
+CFLAGS = -O2 -m68000 -fomit-frame-pointer -msoft-float -DREVDATE=$(NOWDATE) -DREVTIME=$(NOWTIME) -DM68K
+LINK_CFLAGS = -lm -s
 
-OBJS = main.o asm040.o amiga.o \
+OBJS = main.o asm040.o atari.o \
 	decode_ea.o globals.o opcode_handler_cpu.o opcode_handler_fpu.o \
 	opcode_handler_mmu.o opcodes_cpu.o opcodes_fpu.o opcodes_mmu.o util.o
 
@@ -48,5 +48,5 @@ util.o: adis/util.c
 asm040.o: asm040.S
 	$(AS) -m68020  -o $@ asm040.S
 
-amiga.o: amiga.S
-	$(AS) -m68020  -o $@ amiga.S
+atari.o: atari.S
+	$(AS) -m68020  -o $@ atari.S
