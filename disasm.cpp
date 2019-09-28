@@ -1591,7 +1591,7 @@ void m68k_disasm_2 (TCHAR *buf, int bufsize, uaecptr pc, uaecptr *nextpc, int cn
 		int segid, lastsegid;
 		TCHAR *symbolpos;
 
-		seaddr2 = deaddr2 = 0;
+		seaddr2 = deaddr2 = 0xffffffff;
 		oldpc = pc;
 		opcode = get_word_debug (pc);
 		extra = get_word_debug (pc + 2);

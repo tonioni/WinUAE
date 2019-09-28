@@ -1225,7 +1225,7 @@ static void save_data(uae_u8 *dst, const TCHAR *dir)
 	}
 	if (filecount == 0) {
 		uae_u8 data[4];
-		pl(data, 0x00000002);
+		pl(data, DATA_VERSION);
 		fwrite(data, 1, 4, f);
 		pl(data, (uae_u32)starttime);
 		fwrite(data, 1, 4, f);
@@ -1255,7 +1255,7 @@ static void save_data(uae_u8 *dst, const TCHAR *dir)
 		save_data(dst, dir);
 	} else {
 		uae_u8 data[4];
-		pl(data, 0x00000002);
+		pl(data, DATA_VERSION);
 		fwrite(data, 1, 4, f);
 		pl(data, (uae_u32)starttime);
 		fwrite(data, 1, 4, f);
@@ -2315,6 +2315,11 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 		}
 		regs.sr = feature_min_interrupt_mask << 8;
 
+		uae_u32 srcaddr_old = 0xffffffff;
+		uae_u32 dstaddr_old = 0xffffffff;
+		uae_u32 srcaddr = 0xffffffff;
+		uae_u32 dstaddr = 0xffffffff;
+
 		for (int opcode = 0; opcode < 65536; opcode++) {
 
 			struct instr *dp = table68k + opcode;
@@ -2488,7 +2493,6 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 
 
 					TCHAR out[256];
-					uaecptr srcaddr, dstaddr;
 					memset(out, 0, sizeof(out));
 					// disassemble and output generated instruction
 					for (int i = 0; i < MAX_REGISTERS; i++) {
@@ -2498,6 +2502,8 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 						regs.fp[i].fpx = cur_fpuregisters[i];
 					}
 					uaecptr nextpc;
+					srcaddr = 0xffffffff;
+					dstaddr = 0xffffffff;
 					m68k_disasm_2(out, sizeof(out) / sizeof(TCHAR), opcode_memory_start, &nextpc, 1, &srcaddr, &dstaddr, 0xffffffff, 0);
 					if (verbose) {
 						my_trim(out);
@@ -2554,6 +2560,15 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 							ahcnt2 = ahcnt;
 						}
 						testing_active = 0;
+					}
+
+					if (srcaddr != srcaddr_old) {
+						dst = store_reg(dst, CT_SRCADDR, srcaddr_old, srcaddr, -1);
+						srcaddr_old = srcaddr;
+					}
+					if (dstaddr != dstaddr_old) {
+						dst = store_reg(dst, CT_DSTADDR, dstaddr_old, dstaddr, -1);
+						dstaddr_old = dstaddr;
 					}
 
 					*dst++ = CT_END_INIT;

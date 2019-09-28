@@ -55,7 +55,7 @@ Not implemented or only partially implemented:
 
 68010+:
 
-- MOVEC: Only MOVEC to An/Dn is tested and read value is ignored. Basically only verifies if correct and only correct CPU model specific control registers exist.
+- MOVEC: Most control registers tested: Write all ones, write all zeros, read it back, restore original value. 68040+ TC/TT registers enable bit is always zero.
 - RTE: long frames with undefined fields are skipped. Basic frame types 0 and 2 are verified, also unsupported frame types are tested, error is reported if CPU does not generate frame exception.
 - 68020+ undefined addressing mode bit combinations are not tested.
 

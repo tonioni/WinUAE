@@ -45,6 +45,7 @@ struct registers
 	uae_u32 excframe;
 	struct fpureg fpuregs[8];
 	uae_u32 fpiar, fpcr, fpsr;
+	uae_u32 srcaddr, dstaddr;
 };
 
 static struct registers test_regs;
@@ -59,7 +60,7 @@ static int high_memory_size;
 static uae_u32 test_low_memory_start, test_low_memory_end;
 static uae_u32 test_high_memory_start, test_high_memory_end;
 static uae_u8 *test_memory;
-static uae_u32 test_memory_addr;
+static uae_u32 test_memory_addr, test_memory_end;
 static uae_u32 test_memory_size;
 static uae_u8 *test_data;
 static int test_data_size;
@@ -105,6 +106,12 @@ static int quit;
 static uae_u8 ccr_mask;
 static uae_u32 addressing_mask = 0x00ffffff;
 static uae_u32 interrupt_mask;
+
+#define SIZE_STORED_ADDRESS 20
+static uae_u8 srcaddr[SIZE_STORED_ADDRESS];
+static uae_u8 dstaddr[SIZE_STORED_ADDRESS];
+static uae_u8 stackaddr[SIZE_STORED_ADDRESS];
+static uae_u32 stackaddr_ptr;
 
 #ifndef M68K
 
@@ -670,7 +677,13 @@ static uae_u8 *restore_data(uae_u8 *p)
 		exit(0);
 	}
 	int mode = v & CT_DATA_MASK;
-	if (mode < CT_AREG + 8) {
+	if (mode == CT_SRCADDR) {
+		int size;
+		p = restore_value(p, &regs.srcaddr, &size);
+	} else if (mode == CT_DSTADDR) {
+		int size;
+		p = restore_value(p, &regs.dstaddr, &size);
+	} else if (mode < CT_AREG + 8) {
 		int size;
 		if ((v & CT_SIZE_MASK) == CT_SIZE_FPU) {
 			p = restore_fpvalue(p, &regs.fpuregs[mode]);
@@ -703,8 +716,47 @@ static uae_u8 *restore_data(uae_u8 *p)
 	return p;
 }
 
-static uae_u16 test_ccrignoremask;
+static uae_u16 test_sr, test_ccrignoremask;
 static uae_u32 test_fpsr, test_fpcr;
+
+
+static int is_valid_test_addr(uae_u32 a)
+{
+	return (a >= test_low_memory_start && a < test_low_memory_end && test_low_memory_start != 0xffffffff) ||
+		(a >= test_high_memory_start && a < test_high_memory_end && test_high_memory_start != 0xffffffff) ||
+		(a >= test_memory_addr && a < test_memory_end);
+}
+
+static int addr_diff(uae_u8 *ap, uae_u8 *bp, int size)
+{
+	for (int i = 0; i < size; i++) {
+		if (is_valid_test_addr((uae_u32)bp)) {
+			if (*ap != *bp)
+				return 1;
+		}
+		ap++;
+		bp++;
+	}
+	return 0;
+}
+
+static void addinfo_bytes(char *name, uae_u8 *src, uae_u32 address, int offset, int len)
+{
+	sprintf(outbp, "%s: %08lx ", name, address);
+	outbp += strlen(outbp);
+	int cnt = 0;
+	while (len-- > 0) {
+		if (offset == 0)
+			*outbp++ = '*';
+		else if (cnt > 0)
+			*outbp++ = '.';
+		sprintf(outbp, "%02x", src[cnt]);
+		outbp += 2;
+		offset++;
+		cnt++;
+	}
+	*outbp++ = '\n';
+}
 
 extern uae_u16 disasm_instr(uae_u16 *, char *);
 
@@ -732,6 +784,7 @@ static void addinfo(void)
 	int offset = 0;
 	int lines = 0;
 	while (lines++ < 10) {
+		tmpbuffer[0] = 0;
 		int v = disasm_instr(code + offset, tmpbuffer);
 		for (int i = 0; i < v; i++) {
 			uae_u16 v = (p[i * 2 + 0] << 8) | (p[i * 2 + 1]);
@@ -754,8 +807,27 @@ static void addinfo(void)
 		if (v < 0)
 			break;
 	}
-	*outbp++ = '\n';
 	*outbp = 0;
+	if (code[0] == 0x4e73 || code[0] == 0x4e74 || code[0] == 0x4e75) {
+		addinfo_bytes("SA", stackaddr, stackaddr_ptr, -SIZE_STORED_ADDRESS / 2, SIZE_STORED_ADDRESS);
+		addinfo_bytes("  ", (uae_u8 *)stackaddr_ptr - SIZE_STORED_ADDRESS / 2, stackaddr_ptr, -SIZE_STORED_ADDRESS / 2, SIZE_STORED_ADDRESS);
+	}
+	if (regs.srcaddr != 0xffffffff) {
+		uae_u8 *a = srcaddr;
+		uae_u8 *b = (uae_u8 *)regs.srcaddr - SIZE_STORED_ADDRESS / 2;
+		addinfo_bytes("SA", a, regs.srcaddr, -SIZE_STORED_ADDRESS / 2, SIZE_STORED_ADDRESS);
+		if (addr_diff(a, b, SIZE_STORED_ADDRESS)) {
+			addinfo_bytes("  ", b, regs.srcaddr, -SIZE_STORED_ADDRESS / 2, SIZE_STORED_ADDRESS);
+		}
+	}
+	if (regs.dstaddr != 0xffffffff) {
+		uae_u8 *a = dstaddr;
+		uae_u8 *b = (uae_u8*)regs.dstaddr - SIZE_STORED_ADDRESS / 2;
+		addinfo_bytes("DA", a, regs.dstaddr, -SIZE_STORED_ADDRESS / 2, SIZE_STORED_ADDRESS);
+		if (addr_diff(a, b, SIZE_STORED_ADDRESS)) {
+			addinfo_bytes("  ", b, regs.dstaddr, -SIZE_STORED_ADDRESS / 2, SIZE_STORED_ADDRESS);
+		}
+	}
 
 #if 0
 int	Disass68k(long addr, char *labelBuffer, char *opcodeBuffer, char *operandBuffer, char *commentBuffer);
@@ -788,24 +860,56 @@ static const struct srbit srbits[] = {
 
 static void out_regs(struct registers *r, int before)
 {
-	for (int i = 0; i < 16; i++) {
-		if (i > 0 && (i % 4) == 0) {
-			strcat(outbp, "\n");
-		} else if ((i % 8) != 0) {
-			strcat(outbp, " ");
+	if (before) {
+		for (int i = 0; i < 16; i++) {
+			if (i > 0 && (i % 4) == 0) {
+				strcat(outbp, "\n");
+			} else if ((i % 8) != 0) {
+				strcat(outbp, " ");
+			}
+			outbp += strlen(outbp);
+			sprintf(outbp, "%c%d:%c%08lx", i < 8 ? 'D' : 'A', i & 7, test_regs.regs[i] != regs.regs[i] ? '*' : ' ', r->regs[i]);
+			outbp += strlen(outbp);
 		}
-		outbp += strlen(outbp);
-		sprintf(outbp, "%c%d:%c%08lx", i < 8 ? 'D' : 'A', i & 7, test_regs.regs[i] != regs.regs[i] ? '*' : ' ', r->regs[i]);
+		*outbp++ = '\n';
+	} else {
+		// output only lines that have at least one modified register to save screen space
+		int outdone = 0;
+		for (int i = 0; i < 4; i++) {
+			int diff = 0;
+			for (int j = 0; j < 4; j++) {
+				int idx = i * 4 + j;
+				if (test_regs.regs[idx] != regs.regs[idx]) {
+					diff = 1;
+					outdone = 1;
+				}
+			}
+			if (diff) {
+				for (int j = 0; j < 4; j++) {
+					int idx = i * 4 + j;
+					if (j > 0)
+						*outbp++ = ' ';
+					sprintf(outbp, "%c%d:%c%08lx", idx < 8 ? 'D' : 'A', idx & 7, test_regs.regs[idx] != regs.regs[idx] ? '*' : ' ', r->regs[idx]);
+					outbp += strlen(outbp);
+				}
+			}
+		}
+		if (outdone) {
+			*outbp++ = '\n';
+		}
+	}
+	outbp += strlen(outbp);
+	sprintf(outbp, "SR:%c%04x   PC: %08lx ISP: %08lx", test_sr != last_registers.sr ? '*' : ' ', before ? test_sr : test_regs.sr, r->pc, r->ssp);
+	outbp += strlen(outbp);
+	if (cpu_lvl >= 2 && cpu_lvl <= 4) {
+		sprintf(outbp, " MSP: %08lx\n", r->msp);
 		outbp += strlen(outbp);
 	}
-	strcat(outbp, "\n");
-	outbp += strlen(outbp);
-	sprintf(outbp, "SR:%c%04x   PC: %08lx ISP: %08lx MSP: %08lx\n",
-		test_regs.sr != last_registers.sr ? '*' : ' ', before ? regs.sr : test_regs.sr,
-		r->pc, r->ssp, r->msp);
+	*outbp++ = '\n';
+
 	outbp += strlen(outbp);
 	if (before >= 0) {
-		uae_u16 s = before ? regs.sr : test_regs.sr; // current value
+		uae_u16 s = before ? test_sr : test_regs.sr; // current value
 		uae_u16 s1 = regs.sr; // original value
 		uae_u16 s2 = test_regs.sr; // test result value
 		uae_u16 s3 = last_registers.sr; // expected result value
@@ -1111,7 +1215,7 @@ static uae_u8 *validate_test(uae_u8 *p, int ignore_errors, int ignore_sr)
 			if ((val & (sr_undefined_mask & test_ccrignoremask)) != (test_regs.sr & (sr_undefined_mask & test_ccrignoremask)) && !ignore_errors && !ignore_sr) {
 				addinfo();
 				if (dooutput) {
-					sprintf(outbp, "SR: expected %04x -> %04x but got %04x (%04x)\n", regs.sr & 0xffff, val & 0xffff, test_regs.sr & 0xffff, test_ccrignoremask);
+					sprintf(outbp, "SR: expected %04x -> %04x but got %04x (%04x)\n", test_sr & 0xffff, val & 0xffff, test_regs.sr & 0xffff, test_ccrignoremask);
 					outbp += strlen(outbp);
 				}
 				errors++;
@@ -1216,7 +1320,7 @@ static uae_u8 *validate_test(uae_u8 *p, int ignore_errors, int ignore_sr)
 			}
 		} else {
 			end_test();
-			printf("Unknown test data %02x\n", v);
+			printf("Unknown test data %02x mode %d\n", v, mode);
 			exit(0);
 		}
 	}
@@ -1310,6 +1414,20 @@ static uae_u8 *validate_test(uae_u8 *p, int ignore_errors, int ignore_sr)
 	return p;
 }
 
+static void store_addr(uae_u32 s, uae_u8 *d)
+{
+	if (s == 0xffffffff)
+		return;
+	for (int i = -SIZE_STORED_ADDRESS / 2; i < SIZE_STORED_ADDRESS / 2; i++) {
+		uae_u32 ss = s + i;
+		if (is_valid_test_addr(ss)) {
+			*d++ = *((uae_u8 *)ss);
+		} else {
+			*d++ = 0;
+		}
+	}
+}
+
 static void process_test(uae_u8 *p)
 {
 	outbp = outbuffer;
@@ -1319,6 +1437,8 @@ static void process_test(uae_u8 *p)
 
 	memset(&regs, 0, sizeof(struct registers));
 	regs.sr = interrupt_mask << 8;
+	regs.srcaddr = 0xffffffff;
+	regs.dstaddr = 0xffffffff;
 
 	start_test();
 
@@ -1341,6 +1461,9 @@ static void process_test(uae_u8 *p)
 			break;
 		p++;
 
+		store_addr(regs.srcaddr, srcaddr);
+		store_addr(regs.srcaddr, dstaddr);
+
 		xmemcpy(&last_registers, &regs, sizeof(struct registers));
 
 		int fpumode = fpu_model && (opcode_memory[0] & 0xf0) == 0xf0;
@@ -1354,6 +1477,7 @@ static void process_test(uae_u8 *p)
 
 		uae_u32 last_pc = opcode_memory_addr;
 		uae_u32 last_fpiar = opcode_memory_addr;
+		int old_super = -1;
 
 		for (;;) {
 			uae_u16 sr_mask = 0;
@@ -1389,7 +1513,7 @@ static void process_test(uae_u8 *p)
 					test_regs.sr = (ccr ? 31 : 0);
 				}
 				test_regs.sr |= sr_mask | (interrupt_mask << 8);
-				uae_u32 test_sr = test_regs.sr;
+				test_sr = test_regs.sr;
 				if (fpumode) {
 					if (flag_mode == 0) {
 						test_regs.fpsr = (ccr & 15) << 24;
@@ -1401,7 +1525,13 @@ static void process_test(uae_u8 *p)
 					test_fpsr = test_regs.fpsr;
 					test_fpcr = test_regs.fpcr;
 				}
+				int super = (test_regs.sr & 0x2000) != 0;
 
+				if (super != old_super) {
+					stackaddr_ptr = super ? regs.ssp : regs.regs[15];
+					store_addr(stackaddr_ptr, stackaddr);
+					old_super = super;
+				}
 
 				if ((*p) == CT_END_SKIP) {
 
@@ -1519,7 +1649,7 @@ static int test_mnemo(const char *path, const char *opcode)
 	int header_size = 32;
 	fread(data, 1, 4, f);
 	v = gl(data);
-	if (v != 0x00000002) {
+	if (v != DATA_VERSION) {
 		printf("Invalid test data file (header)\n");
 		exit(0);
 	}
@@ -1532,6 +1662,7 @@ static int test_mnemo(const char *path, const char *opcode)
 	test_memory_addr = gl(data);
 	fread(data, 1, 4, f);
 	test_memory_size = gl(data);
+	test_memory_end = test_memory_addr + test_memory_size;
 	fread(data, 1, 4, f);
 	opcode_memory_addr = gl(data) + test_memory_addr;
 	fread(data, 1, 4, f);
@@ -1620,7 +1751,7 @@ static int test_mnemo(const char *path, const char *opcode)
 		if (!f)
 			break;
 		fread(data, 1, 4, f);
-		if (gl(data) != 0x00000002) {
+		if (gl(data) != DATA_VERSION) {
 			printf("Invalid test data file (header)\n");
 			exit(0);
 		}
