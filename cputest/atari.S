@@ -59,6 +59,8 @@ _touser:
 	move.l	save_hbl,0x68
 	move.l	save_vbl,0x70
 
+	move.w	#0x2300,sr		| enable VBL/MFP 
+
 	move.l	old_ssp(pc),-(sp)
 	move.w	#0x20,-(sp)
         | we must keep the same value of A7 when going back to user mode

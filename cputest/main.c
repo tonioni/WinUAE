@@ -1625,7 +1625,7 @@ static void freestuff(void)
 	if (test_memory && test_memory_addr)
 		free_absolute(test_memory_addr, test_memory_size);
 #ifdef WAITEXIT
-	getch();
+	getchar();
 #endif
 }
 
