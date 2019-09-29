@@ -209,6 +209,7 @@ _msp_address2:
 
 
 _exceptiontable000:
+	bsr.s exception	| 2
 	bsr.s exception	| 3
 	bsr.s exception | 4
 	bsr.s exception | 5
@@ -264,12 +265,15 @@ exception:
 	lea _exceptiontable000(pc),a1
 	sub.l a1,d0
 	lsr.w #1,d0
-	addq.w #2,d0
+	addq.w #1,d0
 	move.w d0,S_EXC+2(a0)
 
 	move.l sp,S_EXCFRAME(a0)
+	cmp.w #2,d0
+	beq.s .isbuserror
 	cmp.w #3,d0
 	bne.s .noaddresserror
+.isbuserror:
 	move.w (sp),S_EXC+0(a0)
 	addq.w #8,sp
 .noaddresserror:

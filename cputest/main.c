@@ -63,6 +63,7 @@ static uae_u8 *test_memory;
 static uae_u32 test_memory_addr, test_memory_end;
 static uae_u32 test_memory_size;
 static uae_u8 *test_data;
+static uae_u8 *safe_memory_start, *safe_memory_end;
 static int test_data_size;
 static uae_u32 oldvbr;
 static uae_u8 *vbr_zero = 0;
@@ -96,7 +97,7 @@ static char outbuffer[40000];
 #else
 static char outbuffer[4000];
 #endif
-static char tmpbuffer[256];
+static char tmpbuffer[1024];
 static char *outbp;
 static int infoadded;
 static int errors;
@@ -211,6 +212,40 @@ static void endinfo(void)
 	printf("\n");
 }
 
+static void safe_memcpy(uae_u8 *d, uae_u8 *s, int size)
+{
+	if (safe_memory_start == (uae_u8*)0xffffffff && safe_memory_end == (uae_u8*)0xffffffff) {
+		memcpy(d, s, size);
+		return;
+	}
+	if (safe_memory_end <= d || safe_memory_start >= d + size) {
+		if (safe_memory_end <= s || safe_memory_start >= s + size) {
+			memcpy(d, s, size);
+			return;
+		}
+	}
+	while (size > 0) {
+		int size2 = size > sizeof(tmpbuffer) ? sizeof(tmpbuffer) : size;
+		if ((d + size2 > safe_memory_start && d < safe_memory_end) ||
+			(s + size2 > safe_memory_start && d < safe_memory_end)) {
+			for (int i = 0; i < size2; i++) {
+				if ((d >= safe_memory_start && d < safe_memory_end) ||
+					(s >= safe_memory_start && d < safe_memory_end)) {
+					s++;
+					d++;
+					continue;
+				}
+				*d++ = *s++;
+			}
+		} else {
+			memcpy(d, s, size2);
+			d += size2;
+			s += size2;
+		}
+		size -= size2;
+	}
+}
+
 static int test_active;
 static uae_u32 enable_data;
 
@@ -238,28 +273,28 @@ static void start_test(void)
 
 	enable_data = tosuper(0);
 
-	memcpy(low_memory_back + low_memory_offset, low_memory + low_memory_offset, low_memory_size - low_memory_offset);
+	safe_memcpy(low_memory_back + low_memory_offset, low_memory + low_memory_offset, low_memory_size - low_memory_offset);
 	// always copy exception vectors if 68000
 	if (cpu_lvl == 0 && low_memory_offset > 0x08)
-		memcpy(low_memory_back + 8, low_memory + 8, (192 - 2) * 4);
+		safe_memcpy(low_memory_back + 8, low_memory + 8, (192 - 2) * 4);
 
 	if (!hmem_rom)
-		memcpy(high_memory_back, high_memory + high_memory_offset, high_memory_size - high_memory_offset);
+		safe_memcpy(high_memory_back, high_memory + high_memory_offset, high_memory_size - high_memory_offset);
 
-	memcpy(low_memory + low_memory_offset, low_memory_temp + low_memory_offset, low_memory_size - low_memory_offset);
+	safe_memcpy(low_memory + low_memory_offset, low_memory_temp + low_memory_offset, low_memory_size - low_memory_offset);
 	if (cpu_lvl == 0 && low_memory_offset > 0x08)
-		memcpy(low_memory + 8, low_memory_temp + 8, (192 - 2) * 4);
+		safe_memcpy(low_memory + 8, low_memory_temp + 8, (192 - 2) * 4);
 
 	if (!hmem_rom)
-		memcpy(high_memory + high_memory_offset, high_memory_temp, high_memory_size - high_memory_offset);
+		safe_memcpy(high_memory + high_memory_offset, high_memory_temp, high_memory_size - high_memory_offset);
 
 	if (cpu_lvl == 0) {
 		uae_u32 *p = (uae_u32 *)vbr_zero;
-		for (int i = 3; i < 12; i++) {
-			p[i] = (uae_u32)(((uae_u32)&exceptiontable000) + (i - 3) * 2);
+		for (int i = 2; i < 12; i++) {
+			p[i] = (uae_u32)(((uae_u32)&exceptiontable000) + (i - 2) * 2);
 		}
 		for (int i = 32; i < 48; i++) {
-			p[i] = (uae_u32)(((uae_u32)&exceptiontable000) + (i - 3) * 2);
+			p[i] = (uae_u32)(((uae_u32)&exceptiontable000) + (i - 2) * 2);
 		}
 	} else {
 		oldvbr = setvbr((uae_u32)vbr);
@@ -276,12 +311,12 @@ static void end_test(void)
 		return;
 	test_active = 0;
 
-	memcpy(low_memory + low_memory_offset, low_memory_back + low_memory_offset, low_memory_size - low_memory_offset);
+	safe_memcpy(low_memory + low_memory_offset, low_memory_back + low_memory_offset, low_memory_size - low_memory_offset);
 	if (cpu_lvl == 0 && low_memory_offset > 0x08)
-		memcpy(low_memory + 8, low_memory_back + 8, (192 - 2) * 4);
+		safe_memcpy(low_memory + 8, low_memory_back + 8, (192 - 2) * 4);
 
 	if (!hmem_rom)
-		memcpy(high_memory + high_memory_offset, high_memory_back, high_memory_size - high_memory_offset);
+		safe_memcpy(high_memory + high_memory_offset, high_memory_back, high_memory_size - high_memory_offset);
 
 	if (cpu_lvl > 0) {
 		setvbr(oldvbr);
@@ -301,7 +336,7 @@ static uae_u8 *load_file(const char *path, const char *file, uae_u8 *p, int *siz
 			printf("Couldn't open '%s'\n", fname);
 			exit(0);
 		}
-		return NULL; 
+		return NULL;
 	}
 	int size = *sizep;
 	if (size < 0) {
@@ -316,7 +351,39 @@ static uae_u8 *load_file(const char *path, const char *file, uae_u8 *p, int *siz
 			exit(0);
 		}
 	}
-	*sizep = fread(p, 1, size, f);
+	if (safe_memory_start == (uae_u8*)0xffffffff && safe_memory_end == (uae_u8*)0xffffffff) {
+		*sizep = fread(p, 1, size, f);
+	} else if (safe_memory_end < p || safe_memory_start >= p + size) {
+		*sizep = fread(p, 1, size, f);
+	} else {
+		*sizep = size;
+		uae_u8 *pp = p;
+		while (size > 0) {
+			int size2 = size > sizeof(tmpbuffer) ? sizeof(tmpbuffer) : size;
+			if (p + size2 > safe_memory_start && p < safe_memory_end) {
+				if (fread(tmpbuffer, 1, size2, f) != size2) {
+					printf("Couldn't read file '%s' %ld\n", fname, size2);
+					exit(0);
+				}
+				uae_u8 *sp = tmpbuffer;
+				for (int i = 0; i < size2; i++) {
+					if (pp < safe_memory_start || pp >= safe_memory_end) {
+						*pp = *sp;
+					}
+					pp++;
+					sp++;
+				}
+			} else {
+				if (fread(p, 1, size2, f) != size2) {
+					printf("Couldn't read file '%s'\n", fname);
+					exit(0);
+				}
+				p += size2;
+			}
+			size -= size2;
+		}
+		size = *sizep;
+	}
 	if (*sizep != size) {
 		printf("Couldn't read file '%s'\n", fname);
 		exit(0);
@@ -722,6 +789,8 @@ static uae_u32 test_fpsr, test_fpcr;
 
 static int is_valid_test_addr(uae_u32 a)
 {
+	if ((uae_u8 *)a >= safe_memory_start && (uae_u8 *)a < safe_memory_end)
+		return 0;
 	return (a >= test_low_memory_start && a < test_low_memory_end && test_low_memory_start != 0xffffffff) ||
 		(a >= test_high_memory_start && a < test_high_memory_end && test_high_memory_start != 0xffffffff) ||
 		(a >= test_memory_addr && a < test_memory_end);
@@ -743,6 +812,7 @@ static int addr_diff(uae_u8 *ap, uae_u8 *bp, int size)
 static void addinfo_bytes(char *name, uae_u8 *src, uae_u32 address, int offset, int len)
 {
 	sprintf(outbp, "%s: %08lx ", name, address);
+	address += offset;
 	outbp += strlen(outbp);
 	int cnt = 0;
 	while (len-- > 0) {
@@ -750,9 +820,15 @@ static void addinfo_bytes(char *name, uae_u8 *src, uae_u32 address, int offset, 
 			*outbp++ = '*';
 		else if (cnt > 0)
 			*outbp++ = '.';
-		sprintf(outbp, "%02x", src[cnt]);
+		if ((uae_u8*)address >= safe_memory_start && (uae_u8*)address < safe_memory_end) {
+			outbp[0] = '?';
+			outbp[1] = '?';
+		} else {
+			sprintf(outbp, "%02x", src[cnt]);
+		}
 		outbp += 2;
 		offset++;
+		address++;
 		cnt++;
 	}
 	*outbp++ = '\n';
@@ -1164,6 +1240,8 @@ static uae_u8 *validate_test(uae_u8 *p, int ignore_errors, int ignore_sr)
 				if (dooutput) {
 					if (cpuexc == 4 && last_registers.pc == test_regs.pc) {
 						sprintf(outbp, "Exception ID: expected %d but got no exception.\n", exc);
+					} else if (cpuexc == 4) {
+						sprintf(outbp, "Exception ID: expected %d but got %d (or no exception)\n", exc, cpuexc);
 					} else {
 						sprintf(outbp, "Exception ID: expected %d but got %d\n", exc, cpuexc);
 					}
@@ -1462,7 +1540,7 @@ static void process_test(uae_u8 *p)
 		p++;
 
 		store_addr(regs.srcaddr, srcaddr);
-		store_addr(regs.srcaddr, dstaddr);
+		store_addr(regs.dstaddr, dstaddr);
 
 		xmemcpy(&last_registers, &regs, sizeof(struct registers));
 
@@ -1649,7 +1727,6 @@ static int test_mnemo(const char *path, const char *opcode)
 		printf("Couldn't open '%s'\n", tfname);
 		exit(0);
 	}
-	int header_size = 32;
 	fread(data, 1, 4, f);
 	v = gl(data);
 	if (v != DATA_VERSION) {
@@ -1684,6 +1761,12 @@ static int test_mnemo(const char *path, const char *opcode)
 	test_high_memory_start = gl(data);
 	fread(data, 1, 4, f);
 	test_high_memory_end = gl(data);
+	fread(data, 1, 4, f);
+	safe_memory_start = (uae_u8*)gl(data);
+	fread(data, 1, 4, f);
+	safe_memory_end = (uae_u8*)gl(data);
+	fread(data, 1, 4, f);
+	fread(data, 1, 4, f);
 	fread(inst_name, 1, sizeof(inst_name) - 1, f);
 	inst_name[sizeof(inst_name) - 1] = 0;
 
@@ -1742,6 +1825,12 @@ static int test_mnemo(const char *path, const char *opcode)
 	}
 
 	printf("CPUlvl=%d, Mask=%08lx Code=%08lx\n", cpu_lvl, addressing_mask, opcode_memory);
+	printf(" Low: %08lx-%08lx High: %08lx-%08lx\n",
+		test_low_memory_start, test_low_memory_end,
+		test_high_memory_start, test_high_memory_end);
+	printf("Test: %08lx-%08lx Safe: %08lx-%08lx\n",
+		test_memory_addr, test_memory_end,
+		safe_memory_start, safe_memory_end);
 	printf("%s:\n", inst_name);
 
 	testcnt = 0;

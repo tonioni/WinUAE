@@ -48,5 +48,5 @@ util.o: adis/util.c
 asm040.o: asm040.S
 	$(AS) -m68020  -o $@ asm040.S
 
-atari.o: atari.S
+atari.o: atari.S asm.S
 	$(AS) -m68020  -o $@ atari.S

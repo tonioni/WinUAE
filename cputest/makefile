@@ -48,5 +48,5 @@ util.o: adis/util.c
 asm040.o: asm040.S
 	$(AS) -m68020  -o $@ asm040.S
 
-amiga.o: amiga.S
+amiga.o: amiga.S asm.S
 	$(AS) -m68020  -o $@ amiga.S

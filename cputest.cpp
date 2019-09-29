@@ -5,6 +5,7 @@
 #include "disasm.h"
 #include "ini.h"
 #include "fpp.h"
+#include "mmu_common.h"
 
 #include "options.h"
 
@@ -40,6 +41,8 @@ const int imm8_table[] = { 8, 1, 2, 3, 4, 5, 6, 7 };
 int movem_index1[256];
 int movem_index2[256];
 int movem_next[256];
+int bus_error_offset;
+
 struct mmufixup mmufixup[2];
 cpuop_func *cpufunctbl[65536];
 struct cputbl_data
@@ -66,6 +69,7 @@ static int feature_flag_mode = 0;
 static uae_u32 feature_addressing_modes[2];
 static int ad8r[2], pc8r[2];
 static int multi_mode;
+static uae_u32 feature_target_ea[2];
 
 #define HIGH_MEMORY_START (addressing_mask == 0xffffffff ? 0xffff8000 : 0x00ff8000)
 
@@ -81,6 +85,8 @@ static uae_u32 test_high_memory_start;
 static uae_u32 test_high_memory_end;
 static uae_u32 low_memory_size = 32768;
 static uae_u32 high_memory_size = 32768;
+static uae_u32 safe_memory_start;
+static uae_u32 safe_memory_end;
 
 static uae_u8 *low_memory, *high_memory, *test_memory;
 static uae_u8 *low_memory_temp, *high_memory_temp, *test_memory_temp;
@@ -103,6 +109,7 @@ static uaecptr test_exception_addr;
 static int test_exception_3_w;
 static int test_exception_3_fc;
 static int test_exception_opcode;
+
 static uae_u8 imm8_cnt;
 static uae_u16 imm16_cnt;
 static uae_u32 imm32_cnt;
@@ -122,6 +129,7 @@ static int low_memory_accessed;
 static int high_memory_accessed;
 static int test_memory_accessed;
 static uae_u16 extra_or, extra_and;
+static uae_u32 cur_registers[MAX_REGISTERS];
 
 struct uae_prefs currprefs;
 
@@ -159,7 +167,7 @@ static bool valid_address(uaecptr addr, int size, int w)
 		if (addr < test_low_memory_start || test_low_memory_start == 0xffffffff)
 			goto oob;
 		// exception vectors needed during tests
-		if ((addr + size >= 0x0c && addr < 0x30 || (addr + size >= 0x80 && addr < 0xc0)) && regs.vbr == 0)
+		if ((addr + size >= 0x08 && addr < 0x30 || (addr + size >= 0x80 && addr < 0xc0)) && regs.vbr == 0)
 			goto oob;
 		if (addr + size >= test_low_memory_end)
 			goto oob;
@@ -250,13 +258,39 @@ oob:
 	return dummy_memory;
 }
 
+static void check_bus_error(uaecptr addr, int write, int fc)
+{
+	if (!testing_active)
+		return;
+	if (safe_memory_start == 0xffffffff && safe_memory_end == 0xffffffff)
+		return;
+	if (addr >= safe_memory_start && addr < safe_memory_end) {
+		test_exception = 2;
+		test_exception_3_w = write;
+		test_exception_addr = addr;
+		test_exception_3_fc = fc;
+		THROW(2);
+	}
+}
+
+static uae_u16 get_iword_test(uaecptr addr)
+{
+	check_bus_error(addr, 0, regs.s ? 6 : 2);
+	if (addr & 1) {
+		return (get_byte_test(addr + 0) << 8) | (get_byte_test(addr + 1) << 0);
+	} else {
+		uae_u8 *p = get_addr(addr, 2, 0);
+		return (p[0] << 8) | (p[1]);
+	}
+}
+
 uae_u16 get_word_test_prefetch(int o)
 {
 	// no real prefetch
 	if (cpu_lvl < 2)
 		o -= 2;
-	regs.irc = get_word_test(m68k_getpci() + o + 2);
-	return get_word_test(m68k_getpci() + o);
+	regs.irc = get_iword_test(m68k_getpci() + o + 2);
+	return get_iword_test(m68k_getpci() + o);
 }
 
 // Move from SR does two writes to same address:
@@ -273,6 +307,7 @@ static void previoussame(uaecptr addr, int size)
 
 void put_byte_test(uaecptr addr, uae_u32 v)
 {
+	check_bus_error(addr, 1, regs.s ? 5 : 1);
 	uae_u8 *p = get_addr(addr, 1, 1);
 	if (!out_of_test_space && !noaccesshistory) {
 		previoussame(addr, sz_byte);
@@ -290,6 +325,7 @@ void put_byte_test(uaecptr addr, uae_u32 v)
 }
 void put_word_test(uaecptr addr, uae_u32 v)
 {
+	check_bus_error(addr, 1, regs.s ? 5 : 1);
 	if (addr & 1) {
 		put_byte_test(addr + 0, v >> 8);
 		put_byte_test(addr + 1, v >> 0);
@@ -313,6 +349,7 @@ void put_word_test(uaecptr addr, uae_u32 v)
 }
 void put_long_test(uaecptr addr, uae_u32 v)
 {
+	check_bus_error(addr, 1, regs.s ? 5 : 1);
 	if (addr & 1) {
 		put_byte_test(addr + 0, v >> 24);
 		put_word_test(addr + 1, v >> 8);
@@ -372,11 +409,13 @@ static void undo_memory(struct accesshistory *ahp, int  *cntp)
 
 uae_u32 get_byte_test(uaecptr addr)
 {
+	check_bus_error(addr, 0, regs.s ? 5 : 1);
 	uae_u8 *p = get_addr(addr, 1, 0);
 	return *p;
 }
 uae_u32 get_word_test(uaecptr addr)
 {
+	check_bus_error(addr, 0, regs.s ? 5 : 1);
 	if (addr & 1) {
 		return (get_byte_test(addr + 0) << 8) | (get_byte_test(addr + 1) << 0);
 	} else {
@@ -386,6 +425,7 @@ uae_u32 get_word_test(uaecptr addr)
 }
 uae_u32 get_long_test(uaecptr addr)
 {
+	check_bus_error(addr, 0, regs.s ? 5 : 1);
 	if (addr & 1) {
 		uae_u8 v0 = get_byte_test(addr + 0);
 		uae_u16 v1 = get_word_test(addr + 1);
@@ -742,7 +782,7 @@ static void doexcstack(void)
 	uaecptr tmp = m68k_areg(regs, 7);
 	m68k_areg(regs, 7) = test_memory_end + EXTRA_RESERVED_SPACE;
 	if (cpu_lvl == 0) {
-		if (test_exception == 3) {
+		if (test_exception == 2 || test_exception == 3) {
 			uae_u16 mode = (sv ? 4 : 0) | test_exception_3_fc;
 			mode |= test_exception_3_w ? 0 : 16;
 			Exception_build_68000_address_error_stack_frame(mode, opcode, test_exception_addr, regs.pc);
@@ -1249,6 +1289,14 @@ static void save_data(uae_u8 *dst, const TCHAR *dir)
 		fwrite(data, 1, 4, f);
 		pl(data, test_high_memory_end);
 		fwrite(data, 1, 4, f);
+		pl(data, safe_memory_start);
+		fwrite(data, 1, 4, f);
+		pl(data, safe_memory_end);
+		fwrite(data, 1, 4, f);
+		pl(data, 0);
+		fwrite(data, 1, 4, f);
+		pl(data, 0);
+		fwrite(data, 1, 4, f);
 		fwrite(inst_name, 1, sizeof(inst_name) - 1, f);
 		fclose(f);
 		filecount++;
@@ -1314,14 +1362,10 @@ static uaecptr putfpuimm(uaecptr pc, int opcodesize, int *isconstant)
 }
 
 // generate mostly random EA.
-static int create_ea(uae_u16 *opcodep, uaecptr pc, int mode, int reg, struct instr *dp, int *isconstant, int srcdst, int fpuopcode, int opcodesize)
+static int create_ea_random(uae_u16 *opcodep, uaecptr pc, int mode, int reg, struct instr *dp, int *isconstant, int srcdst, int fpuopcode, int opcodesize, uae_u32 *eap)
 {
 	uaecptr old_pc = pc;
 	uae_u16 opcode = *opcodep;
-	int am = mode >= imm ? imm : mode;
-
-	if (!((1 << am) & feature_addressing_modes[srcdst]))
-		return -1;
 
 	switch (mode)
 	{
@@ -1338,12 +1382,14 @@ static int create_ea(uae_u16 *opcodep, uaecptr pc, int mode, int reg, struct ins
 	case Aind:
 	case Aipi:
 	case Apdi:
+		*eap = 1;
 		break;
 	case Ad16:
 	case PC16:
 		put_word_test(pc, rand16());
 		*isconstant = 16;
 		pc += 2;
+		*eap = 1;
 		break;
 	case Ad8r:
 	case PC8r:
@@ -1396,12 +1442,14 @@ static int create_ea(uae_u16 *opcodep, uaecptr pc, int mode, int reg, struct ins
 			}
 			*isconstant = 32;
 		}
+		*eap = 1;
 		break;
 	}
 	case absw:
 		put_word_test(pc, rand16());
 		*isconstant = 16;
 		pc += 2;
+		*eap = 1;
 		break;
 	case absl:
 		{
@@ -1422,6 +1470,7 @@ static int create_ea(uae_u16 *opcodep, uaecptr pc, int mode, int reg, struct ins
 			*isconstant = 32;
 			pc += 4;
 		}
+		*eap = 1;
 		break;
 	case imm:
 		if (fpuopcode >= 0 && opcodesize < 8) {
@@ -1597,6 +1646,195 @@ static int create_ea(uae_u16 *opcodep, uaecptr pc, int mode, int reg, struct ins
 	}
 	*opcodep = opcode;
 	return pc - old_pc;
+}
+
+static int ea_exact_cnt;
+
+// generate exact EA (for bus error test)
+static int create_ea_exact(uae_u16 *opcodep, uaecptr pc, int mode, int reg, struct instr *dp, int *isconstant, int srcdst, int fpuopcode, int opcodesize, uae_u32 *eap)
+{
+	uae_u32 target = feature_target_ea[srcdst];
+	ea_exact_cnt++;
+
+	switch (mode)
+	{
+		// always allow modes that don't have EA
+	case Areg:
+	case Dreg:
+		return 0;
+	case Aind:
+	case Aipi:
+	{
+		if (cur_registers[reg + 8] == target) {
+			*eap = target;
+			return  0;
+		}
+		return -2;
+	}
+	case Apdi:
+	{
+		if (cur_registers[reg + 8] == target + (1 << dp->size)) {
+			*eap = target;
+			return  0;
+		}
+		return -2;
+	}
+	case Ad16:
+	{
+		uae_u32 v = cur_registers[reg + 8];
+		if (target <= v + 0x7ffe && (target >= v - 0x8000 || v < 0x8000)) {
+			put_word_test(pc, target - v);
+			*eap = target;
+			return 2;
+		}
+		return -2;
+	}
+	case PC16:
+	{
+		uae_u32 pct = opcode_memory_start + 2;
+		if (target <= pct + 0x7ffe && target >= pct - 0x8000) {
+			put_word_test(pc, target - pct);
+			*eap = target;
+			return 2;
+		}
+		return -2;
+	}
+	case Ad8r:
+	{
+		for (int r = 0; r < 16; r++) {
+			uae_u32 aval = cur_registers[reg + 8];
+			int rn = ((ea_exact_cnt >> 1) + r) & 15;
+			for (int i = 0; i < 2; i++) {
+				if ((ea_exact_cnt & 1) == 0 || i == 1) {
+					uae_s32 val32 = cur_registers[rn];
+					uae_u32 addr = aval + val32;
+					if (target <= addr + 0x7f && target >= addr - 0x80) {
+						put_word_test(pc, (rn << 12) | 0x0800 | ((target - addr) & 0xff));
+						*eap = target;
+						return 2;
+					}
+				} else {
+					uae_s16 val16 = (uae_s16)cur_registers[rn];
+					uae_u32 addr = aval + val16;
+					if (target <= addr + 0x7f && target >= addr - 0x80) {
+						put_word_test(pc, (rn << 12) | 0x0000 | ((target - addr) & 0xff));
+						*eap = target;
+						return 2;
+					}
+				}
+			}
+		}
+		return -2;
+	}
+	case PC8r:
+	{
+		for (int r = 0; r < 16; r++) {
+			uae_u32 aval = opcode_memory_start + 2;
+			int rn = ((ea_exact_cnt >> 1) + r) & 15;
+			for (int i = 0; i < 2; i++) {
+				if ((ea_exact_cnt & 1) == 0 || i == 1) {
+					uae_s32 val32 = cur_registers[rn];
+					uae_u32 addr = aval + val32;
+					if (target <= addr + 0x7f && target >= addr - 0x80) {
+						put_word_test(pc, (rn << 12) | 0x0800 | ((target - addr) & 0xff));
+						*eap = target;
+						return 2;
+					}
+				} else {
+					uae_s16 val16 = (uae_s16)cur_registers[rn];
+					uae_u32 addr = aval + val16;
+					if (target <= addr + 0x7f && target >= addr - 0x80) {
+						put_word_test(pc, (rn << 12) | 0x0000 | ((target - addr) & 0xff));
+						*eap = target;
+						return 2;
+					}
+				}
+			}
+		}
+		return -2;
+	}
+	case absw:
+	{
+		if (target >= test_low_memory_start && target < test_low_memory_end) {
+			put_word_test(pc, target);
+			*eap = target;
+			return 2;
+		}
+		return -2;
+	}
+	case absl:
+	{
+		if (target >= test_low_memory_start && target < test_low_memory_end) {
+			put_long_test(pc, target);
+			*eap = target;
+			return 4;
+		}
+		if (target >= test_high_memory_start && target < test_high_memory_end) {
+			put_long_test(pc, target);
+			*eap = target;
+			return 4;
+		}
+		if (target >= test_memory_start && target < test_memory_end) {
+			put_long_test(pc, target);
+			*eap = target;
+			return 4;
+		}
+		return -2;
+	}
+	case imm:
+		if (srcdst)
+			return -2;
+		if (dp->size == sz_long) {
+			put_long_test(pc, rand32());
+			return 4;
+		} else {
+			put_word_test(pc, rand16());
+			return 2;
+		}
+		break;
+	case imm0:
+	{
+		if (srcdst)
+			return -2;
+		uae_u16 v = rand16();
+		if ((imm8_cnt & 3) == 0)
+			v &= 0xff;
+		imm8_cnt++;
+		put_word_test(pc, v);
+		return 2;
+	}
+	case imm1:
+	{
+		if (srcdst)
+			return -2;
+		uae_u16 v = rand16();
+		put_word_test(pc, v);
+		return 2;
+	}
+	case imm2:
+	{
+		if (srcdst)
+			return -2;
+		uae_u32 v = rand32();
+		put_long_test(pc, v);
+		return 4;
+	}
+	}
+	return -2;
+}
+
+static int create_ea(uae_u16 *opcodep, uaecptr pc, int mode, int reg, struct instr *dp, int *isconstant, int srcdst, int fpuopcode, int opcodesize, uae_u32 *ea)
+{
+	int am = mode >= imm ? imm : mode;
+
+	if (!((1 << am) & feature_addressing_modes[srcdst]))
+		return -1;
+
+	if (feature_target_ea[srcdst] == 0xffffffff) {
+		return create_ea_random(opcodep, pc, mode, reg, dp, isconstant, srcdst, fpuopcode, opcodesize, ea);
+	} else {
+		return create_ea_exact(opcodep, pc, mode, reg, dp, isconstant, srcdst, fpuopcode, opcodesize, ea);
+	}
 }
 
 static int imm_special;
@@ -1902,7 +2140,12 @@ static void execute_ins(uae_u16 opc, uaecptr endpc, uaecptr targetpc, struct ins
 		uaecptr a7 = regs.regs[15];
 		int s = regs.s;
 
-		(*cpufunctbl[opc])(opc);
+		TRY (ex) {
+			(*cpufunctbl[opc])(opc);
+		} CATCH(ex) {
+			// got bus error
+			Exception(2);
+		} ENDTRY
 
 		// Supervisor mode and A7 was modified: skip this test round.
 		if (s && regs.regs[15] != a7) {
@@ -2137,6 +2380,21 @@ static int isfpp(int mnemo)
 }
 
 
+static void generate_target_registers(uae_u32 target_address, uae_u32 *out)
+{
+	uae_u32 *a = out + 8;
+	a[0] = target_address;
+	a[1] = target_address + 1;
+	a[2] = target_address + 2;
+	a[3] = target_address + 4;
+	a[4] = target_address - 6;
+	a[5] = target_address + 6;
+	for (int i = 0; i < 7; i++) {
+		out[i] = i - 4;
+	}
+	out[7] = target_address - opcode_memory_start;
+}
+
 static const TCHAR *sizes[] = { _T("B"), _T("W"), _T("L") };
 
 static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfilename, int opcodesize, int fpuopcode)
@@ -2198,8 +2456,6 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 		}
 	}
 
-	xorshiftstate ^= 0x12;
-
 	int pathlen = _tcslen(path);
 	_stprintf(dir, _T("%s%s"), path, mns);
 	if (fpuopcode < 0) {
@@ -2250,6 +2506,12 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 	registers[8 + 6] = opcode_memory_start - 0x100;
 	registers[8 + 7] = test_memory_end - STACK_SIZE;
 
+	uae_u32 target_address = 0xffffffff;
+	if (feature_target_ea[0] != 0xffffffff)
+		target_address = feature_target_ea[0];
+	else if (feature_target_ea[1] != 0xffffffff)
+		target_address = feature_target_ea[1];
+
 	// 1.0
 	fpuregisters[0].high = 0x3fff;
 	fpuregisters[0].low = 0x8000000000000000;
@@ -2274,13 +2536,16 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 		fpuregisters[i].low = (((uae_u64)rand32()) << 32) | (rand32());
 	}
 
-	uae_u32 cur_registers[MAX_REGISTERS];
 	for (int i = 0; i < MAX_REGISTERS; i++) {
 		cur_registers[i] = registers[i];
 	}
 	floatx80 cur_fpuregisters[8];
 	for (int i = 0; i < 8; i++) {
 		cur_fpuregisters[i] = fpuregisters[i];
+	}
+
+	if (target_address != 0xffffffff) {
+		generate_target_registers(target_address, cur_registers);
 	}
 
 	dst = storage_buffer;
@@ -2335,6 +2600,12 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 			// skip all unsupported instructions if not specifically testing i_ILLG
 			if (dp->clev > cpu_lvl && lookup->mnemo != i_ILLG)
 				continue;
+
+			// not supported yet in target mode
+			if (target_address != 0xffffffff) {
+				if (dp->mnemo == i_MVMEL || dp->mnemo == i_MVMLE)
+					continue;
+			}
 
 			int extra_loops = 3;
 			while (extra_loops-- > 0) {
@@ -2392,9 +2663,13 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 
 					pc += handle_specials_preea(opc, pc, dp);
 
+
+					uae_u32 srcea = 0xffffffff;
+					uae_u32 dstea = 0xffffffff;
+
 					// create source addressing mode
 					if (dp->suse) {
-						int o = create_ea(&opc, pc, dp->smode, dp->sreg, dp, &isconstant_src, 0, fpuopcode, opcodesize);
+						int o = create_ea(&opc, pc, dp->smode, dp->sreg, dp, &isconstant_src, 0, fpuopcode, opcodesize, &srcea);
 						if (o < 0) {
 							memcpy(opcode_memory, oldbytes, sizeof(oldbytes));
 							if (o == -1)
@@ -2418,16 +2693,22 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 
 					// create destination addressing mode
 					if (dp->duse) {
-						int o = create_ea(&opc, pc, dp->dmode, dp->dreg, dp, &isconstant_dst, 1, fpuopcode, opcodesize);
+						int o = create_ea(&opc, pc, dp->dmode, dp->dreg, dp, &isconstant_dst, 1, fpuopcode, opcodesize, &dstea);
 						if (o < 0) {
 							memcpy(opcode_memory, oldbytes, sizeof(oldbytes));
 							if (o == -1)
 								goto nextopcode;
 							continue;
-							goto nextopcode;
 						}
 						pc += o;
 					}
+
+					// requested target address but no EA? skip
+					if (target_address != 0xffffffff && srcea == 0xffffffff && dstea == 0xffffffff) {
+						memcpy(opcode_memory, oldbytes, sizeof(oldbytes));
+						continue;
+					}
+
 
 					pc = handle_specials_extra(opc, pc, dp);
 
@@ -2504,11 +2785,21 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 					uaecptr nextpc;
 					srcaddr = 0xffffffff;
 					dstaddr = 0xffffffff;
-					m68k_disasm_2(out, sizeof(out) / sizeof(TCHAR), opcode_memory_start, &nextpc, 1, &srcaddr, &dstaddr, 0xffffffff, 0);
+					uae_u32 dflags = m68k_disasm_2(out, sizeof(out) / sizeof(TCHAR), opcode_memory_start, &nextpc, 1, &srcaddr, &dstaddr, 0xffffffff, 0);
 					if (verbose) {
 						my_trim(out);
 						wprintf(_T("%08u %s"), subtest_count, out);
 					}
+
+					if ((dflags & 1) && feature_target_ea[0] != 0xffffffff && srcaddr != 0xffffffff && srcaddr != feature_target_ea[0]) {
+						wprintf(_T("\nSource address mismatch %08x <> %08x\n"), feature_target_ea[0], srcaddr);
+						abort();
+					}
+					if ((dflags & 2) && feature_target_ea[1] != 0xffffffff && dstaddr != feature_target_ea[1]) {
+						wprintf(_T("\nDestination address mismatch %08x <> %08x\n"), feature_target_ea[1], dstaddr);
+						abort();
+					}
+
 #if 0
 					// can't test because dp may be empty if instruction is invalid
 					if (nextpc != pc - 2) {
@@ -2562,11 +2853,11 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 						testing_active = 0;
 					}
 
-					if (srcaddr != srcaddr_old) {
+					if (srcaddr != srcaddr_old && (dflags & 1)) {
 						dst = store_reg(dst, CT_SRCADDR, srcaddr_old, srcaddr, -1);
 						srcaddr_old = srcaddr;
 					}
-					if (dstaddr != dstaddr_old) {
+					if (dstaddr != dstaddr_old && (dflags & 2)) {
 						dst = store_reg(dst, CT_DSTADDR, dstaddr_old, dstaddr, -1);
 						dstaddr_old = dstaddr;
 					}
@@ -2840,7 +3131,9 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 						}
 					}
 					if (dst - storage_buffer >= storage_buffer_watermark) {
-						save_data(dst, dir);
+						if (subtest_count > 0) {
+							save_data(dst, dir);
+						}
 						dst = storage_buffer;
 						for (int i = 0; i < MAX_REGISTERS; i++) {
 							dst = store_reg(dst, CT_DREG + i, 0, cur_registers[i], -1);
@@ -2869,7 +3162,9 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 		nextopcode:;
 		}
 
-		save_data(dst, dir);
+		if (subtest_count > 0) {
+			save_data(dst, dir);
+		}
 		dst = storage_buffer;
 
 		if (opcodecnt == 1)
@@ -2881,10 +3176,15 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 		if (rounds < 0)
 			break;
 
-		// randomize registers
-		for (int i = 0; i < 16 - 2; i++) {
-			cur_registers[i] = rand32();
+		if (target_address != 0xffffffff) {
+			generate_target_registers(target_address, cur_registers);
+		} else {
+			// randomize registers
+			for (int i = 0; i < 16 - 2; i++) {
+				cur_registers[i] = rand32();
+			}
 		}
+
 		cur_registers[0] &= 0xffff;
 		cur_registers[8] &= 0xffff;
 		cur_registers[8 + 6]--;
@@ -3099,10 +3399,36 @@ int __cdecl main(int argc, char *argv[])
 	ini_getval(ini, INISECTION, _T("feature_exception3_data"), &feature_exception3_data);
 	feature_exception3_instruction = 0;
 	ini_getval(ini, INISECTION, _T("feature_exception3_instruction"), &feature_exception3_instruction);
+
+	v = -1;
+	ini_getval(ini, INISECTION, _T("feature_target_src_ea"), &v);
+	feature_target_ea[0] = v;
+	v = -1;
+	ini_getval(ini, INISECTION, _T("feature_target_dst_ea"), &v);
+	feature_target_ea[1] = v;
+	if (feature_target_ea[0] != 0xffffffff || feature_target_ea[1] != 0xffffffff) {
+		if (feature_target_ea[0] & 1) {
+			feature_exception3_data = 3;
+			feature_exception3_instruction = 3;
+		}
+		if (feature_target_ea[1] & 1) {
+			feature_exception3_data = 3;
+			feature_exception3_instruction = 3;
+		}
+	}
+
+	safe_memory_start = 0xffffffff;
+	if (ini_getval(ini, INISECTION, _T("feature_safe_memory_start"), &v))
+		safe_memory_start = v;
+	safe_memory_end = 0xffffffff;
+	if (ini_getval(ini, INISECTION, _T("feature_safe_memory_size"), &v))
+		safe_memory_end = safe_memory_start + v;
+
 	feature_sr_mask = 0;
 	ini_getval(ini, INISECTION, _T("feature_sr_mask"), &feature_sr_mask);
 	feature_min_interrupt_mask = 0;
 	ini_getval(ini, INISECTION, _T("feature_min_interrupt_mask"), &feature_min_interrupt_mask);
+
 	feature_loop_mode = 0;
 	ini_getval(ini, INISECTION, _T("feature_loop_mode"), &feature_loop_mode);
 	if (feature_loop_mode) {
@@ -3410,7 +3736,8 @@ int __cdecl main(int argc, char *argv[])
 
 		if (!_tcsicmp(mode, _T("all"))) {
 
-			verbose = 0;
+			if (verbose == 1)
+				verbose = 0;
 			for (int j = 1; lookuptab[j].name; j++) {
 				test_mnemo_text(path, lookuptab[j].name);
 			}
@@ -3422,7 +3749,8 @@ int __cdecl main(int argc, char *argv[])
 
 		if (!_tcsicmp(mode, _T("fall"))) {
 
-			verbose = 0;
+			if (verbose == 1)
+				verbose = 0;
 			test_mnemo_text(path, _T("FMOVECR"));
 			const TCHAR *prev = _T("");
 			for (int j = 0; j < 64; j++) {
