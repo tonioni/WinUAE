@@ -3001,6 +3001,12 @@ static int memwatch_func (uaecptr addr, int rwi, int size, uae_u32 *valp, uae_u3
 
 		if (!brk)
 			continue;
+
+		if (m->bus_error) {
+			exception2(addr, (rwi & 2) == 0, size, ((rwi & 4) ? 2 : 1) | (regs.s ? 4 : 0));
+			continue;
+		}
+
 		if (mem_banks[addr >> 16]->check (addr, size)) {
 			uae_u8 *p = mem_banks[addr >> 16]->xlateaddr (addr);
 			if (size == 1)
@@ -3394,6 +3400,8 @@ static void memwatch_remap (uaecptr addr)
 		newbank->name = my_strdup (tmp);
 		if (!newbank->mask)
 			newbank->mask = -1;
+		newbank->baseaddr_direct_r = 0;
+		newbank->baseaddr_direct_w = 0;
 	}
 	debug_mem_banks[banknr] = bank;
 	map_banks_quick (newbank, banknr, 1, 1);
@@ -3571,6 +3579,8 @@ void memwatch_dump2 (TCHAR *buf, int bufsize, int num)
 				buf = buf_out(buf, &bufsize, _T(" L"));
 			if (mwn->nobreak)
 				buf = buf_out(buf, &bufsize, _T(" N"));
+			if (mwn->bus_error)
+				buf = buf_out(buf, &bufsize, _T(" BER"));
 			for (int j = 0; memwatch_access_masks[j].mask; j++) {
 				uae_u32 mask = memwatch_access_masks[j].mask;
 				if ((mwn->access_mask & mask) == mask && (usedmask & mask) == 0) {
@@ -3715,6 +3725,11 @@ static void memwatch (TCHAR **c)
 						mwn->rwi |= 4;
 					if (nc == 'R')
 						mwn->rwi |= 1;
+					if (nc == 'B') {
+						mwn->bus_error = true;
+						if (!mwn->rwi)
+							mwn->rwi = 7;
+					}
 					if (ncc == ' ')
 						break;
 					if (nc == 'P' && ncc == 'C') {
