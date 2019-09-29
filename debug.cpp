@@ -6758,13 +6758,13 @@ static int debug_trainer_get_ea(struct trainerpatch *tp, uaecptr pc, uae_u16 opc
 	uaecptr pc2 = pc + 2;
 	if (dp->suse) {
 		spc = pc2;
-		pc2 = ShowEA(NULL, pc2, opcode, dp->sreg, dp->smode, dp->size, NULL, &sea, 1);
+		pc2 = ShowEA(NULL, pc2, opcode, dp->sreg, dp->smode, dp->size, NULL, &sea, NULL, 1);
 		if (sea == spc)
 			spc = 0xffffffff;
 	}
 	if (dp->duse) {
 		dpc = pc2;
-		pc2 = ShowEA(NULL, pc2, opcode, dp->dreg, dp->dmode, dp->size, NULL, &dea, 1);
+		pc2 = ShowEA(NULL, pc2, opcode, dp->dreg, dp->dmode, dp->size, NULL, &dea, NULL, 1);
 		if (dea == dpc)
 			dpc = 0xffffffff;
 	}
