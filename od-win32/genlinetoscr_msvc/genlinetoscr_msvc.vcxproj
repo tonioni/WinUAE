@@ -23,7 +23,7 @@
     <ProjectGuid>{E9F73E11-A463-45C6-A733-2BED75852BA1}</ProjectGuid>
     <RootNamespace>genlinetoscr_msvc</RootNamespace>
     <Keyword>Win32Proj</Keyword>
-    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion>10.0.18362.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'" Label="Configuration">
@@ -44,7 +44,7 @@
     <ConfigurationType>Application</ConfigurationType>
     <CharacterSet>Unicode</CharacterSet>
     <WholeProgramOptimization>true</WholeProgramOptimization>
-    <PlatformToolset>v142</PlatformToolset>
+    <PlatformToolset>v141_xp</PlatformToolset>
     <SpectreMitigation>false</SpectreMitigation>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Test|Win32'" Label="Configuration">
@@ -171,6 +171,7 @@ del genlinetoscr.exe
       </PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <AdditionalIncludeDirectories>..\..\include;..\..;..\</AdditionalIncludeDirectories>
     </ClCompile>
     <PreLinkEvent>
       <Message>deleteing linetoscr.cpp</Message>
@@ -207,6 +208,7 @@ del genlinetoscr.exe
       </PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <AdditionalIncludeDirectories>..\..\include;..\..;..\</AdditionalIncludeDirectories>
     </ClCompile>
     <PreLinkEvent>
       <Message>deleteing linetoscr.c</Message>

@@ -38,8 +38,7 @@
     <ProjectName>winuae</ProjectName>
     <ProjectGuid>{4ADAA943-1AC8-4FB5-82E5-4FB753B6C2DA}</ProjectGuid>
     <RootNamespace>winuae</RootNamespace>
-    <TargetPlatformVersion>8.1</TargetPlatformVersion>
-    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion>10.0.18362.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'" Label="Configuration">
@@ -61,7 +60,7 @@
     <ConfigurationType>Application</ConfigurationType>
     <UseOfMfc>false</UseOfMfc>
     <CharacterSet>Unicode</CharacterSet>
-    <PlatformToolset>v141_xp</PlatformToolset>
+    <PlatformToolset>v142</PlatformToolset>
     <SpectreMitigation>false</SpectreMitigation>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Test|Win32'" Label="Configuration">
@@ -1130,6 +1129,202 @@
     <ClCompile Include="..\..\moduleripper.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <CustomBuild Include="..\fpux64_80.asm">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Test|x64'">false</ExcludedFromBuild>
+      <FileType>Document</FileType>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|x64'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='FullRelease|x64'">false</ExcludedFromBuild>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Test|x64'">nasm -f win64 %(FullPath) -o $(IntDir)%(filename).obj</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|x64'">nasm -f win64 %(FullPath) -o $(IntDir)%(filename).obj</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">nasm -f win64 %(FullPath) -o $(IntDir)%(filename).obj</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='FullRelease|x64'">nasm -f win64 %(FullPath) -o $(IntDir)%(filename).obj</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Test|x64'">$(IntDir)%(filename).obj</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|x64'">$(IntDir)%(filename).obj</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(IntDir)%(filename).obj</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='FullRelease|x64'">$(IntDir)%(filename).obj</Outputs>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Test|x64'">Assembling %(filename)</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|x64'">Assembling %(filename)</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Assembling %(filename)</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='FullRelease|x64'">Assembling %(filename)</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">nasm -f win32 %(FullPath) -o $(IntDir)%(filename).obj</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">nasm -f win32 %(FullPath) -o $(IntDir)%(filename).obj</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">nasm -f win32 %(FullPath) -o $(IntDir)%(filename).obj</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">nasm -f win32 %(FullPath) -o $(IntDir)%(filename).obj</Command>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">Assembling %(filename)</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">Assembling %(filename)</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Assembling %(filename)</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">Assembling %(filename)</Message>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">$(IntDir)%(filename).obj</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">$(IntDir)%(filename).obj</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(IntDir)%(filename).obj</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">$(IntDir)%(filename).obj</Outputs>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">true</ExcludedFromBuild>
+    </CustomBuild>
+    <CustomBuild Include="..\fpux86_80.asm">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">false</ExcludedFromBuild>
+      <FileType>Document</FileType>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">nasm -f win32 %(FullPath) -o $(IntDir)%(filename).obj</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">nasm -f win32 %(FullPath) -o $(IntDir)%(filename).obj</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">nasm -f win32 %(FullPath) -o $(IntDir)%(filename).obj</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">nasm -f win32 %(FullPath) -o $(IntDir)%(filename).obj</Command>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">Assembling %(filename)</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">Assembling %(filename)</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Assembling %(filename)</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">Assembling %(filename)</Message>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">$(IntDir)%(filename).obj</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">$(IntDir)%(filename).obj</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(IntDir)%(filename).obj</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">$(IntDir)%(filename).obj</Outputs>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Test|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='FullRelease|x64'">true</ExcludedFromBuild>
+    </CustomBuild>
+    <CustomBuild Include="..\hq2x16.asm">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Test|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='FullRelease|x64'">true</ExcludedFromBuild>
+      <FileType>Document</FileType>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">nasm -w-orphan-labels -f win32 %(FullPath) -o $(IntDir)%(filename).obj</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">nasm -w-orphan-labels -f win32 %(FullPath) -o $(IntDir)%(filename).obj</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">nasm -w-orphan-labels -f win32 %(FullPath) -o $(IntDir)%(filename).obj</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">nasm -w-orphan-labels -f win32 %(FullPath) -o $(IntDir)%(filename).obj</Command>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">Assembling %(filename)</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">Assembling %(filename)</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Assembling %(filename)</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">Assembling %(filename)</Message>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">$(IntDir)%(filename).obj</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">$(IntDir)%(filename).obj</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(IntDir)%(filename).obj</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">$(IntDir)%(filename).obj</Outputs>
+    </CustomBuild>
+    <CustomBuild Include="..\hq2x32.asm">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">false</ExcludedFromBuild>
+      <FileType>Document</FileType>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Test|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='FullRelease|x64'">true</ExcludedFromBuild>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">nasm -w-orphan-labels -f win32 %(FullPath) -o $(IntDir)%(filename).obj</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">nasm -w-orphan-labels -f win32 %(FullPath) -o $(IntDir)%(filename).obj</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">nasm -w-orphan-labels -f win32 %(FullPath) -o $(IntDir)%(filename).obj</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">nasm -w-orphan-labels -f win32 %(FullPath) -o $(IntDir)%(filename).obj</Command>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">Assembling %(filename)</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">Assembling %(filename)</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Assembling %(filename)</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">Assembling %(filename)</Message>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">$(IntDir)%(filename).obj</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">$(IntDir)%(filename).obj</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(IntDir)%(filename).obj</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">$(IntDir)%(filename).obj</Outputs>
+    </CustomBuild>
+    <CustomBuild Include="..\hq3x16.asm">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">false</ExcludedFromBuild>
+      <FileType>Document</FileType>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Test|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='FullRelease|x64'">true</ExcludedFromBuild>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">nasm -w-orphan-labels -f win32 %(FullPath) -o $(IntDir)%(filename).obj</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">nasm -w-orphan-labels -f win32 %(FullPath) -o $(IntDir)%(filename).obj</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">nasm -w-orphan-labels -f win32 %(FullPath) -o $(IntDir)%(filename).obj</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">nasm -w-orphan-labels -f win32 %(FullPath) -o $(IntDir)%(filename).obj</Command>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">Assembling %(filename)</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">Assembling %(filename)</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Assembling %(filename)</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">Assembling %(filename)</Message>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">$(IntDir)%(filename).obj</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">$(IntDir)%(filename).obj</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(IntDir)%(filename).obj</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">$(IntDir)%(filename).obj</Outputs>
+    </CustomBuild>
+    <CustomBuild Include="..\hq3x32.asm">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">false</ExcludedFromBuild>
+      <FileType>Document</FileType>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Test|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='FullRelease|x64'">true</ExcludedFromBuild>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">nasm -w-orphan-labels -f win32 %(FullPath) -o $(IntDir)%(filename).obj</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">nasm -w-orphan-labels -f win32 %(FullPath) -o $(IntDir)%(filename).obj</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">nasm -w-orphan-labels -f win32 %(FullPath) -o $(IntDir)%(filename).obj</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">nasm -w-orphan-labels -f win32 %(FullPath) -o $(IntDir)%(filename).obj</Command>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">Assembling %(filename)</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">Assembling %(filename)</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Assembling %(filename)</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">Assembling %(filename)</Message>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">$(IntDir)%(filename).obj</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">$(IntDir)%(filename).obj</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(IntDir)%(filename).obj</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">$(IntDir)%(filename).obj</Outputs>
+    </CustomBuild>
+    <CustomBuild Include="..\hq4x16.asm">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">false</ExcludedFromBuild>
+      <FileType>Document</FileType>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Test|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='FullRelease|x64'">true</ExcludedFromBuild>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">nasm -w-orphan-labels -f win32 %(FullPath) -o $(IntDir)%(filename).obj</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">nasm -w-orphan-labels -f win32 %(FullPath) -o $(IntDir)%(filename).obj</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">nasm -w-orphan-labels -f win32 %(FullPath) -o $(IntDir)%(filename).obj</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">nasm -w-orphan-labels -f win32 %(FullPath) -o $(IntDir)%(filename).obj</Command>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">Assembling %(filename)</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">Assembling %(filename)</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Assembling %(filename)</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">Assembling %(filename)</Message>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">$(IntDir)%(filename).obj</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">$(IntDir)%(filename).obj</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(IntDir)%(filename).obj</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">$(IntDir)%(filename).obj</Outputs>
+    </CustomBuild>
+    <CustomBuild Include="..\hq4x32.asm">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">false</ExcludedFromBuild>
+      <FileType>Document</FileType>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Test|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='FullRelease|x64'">true</ExcludedFromBuild>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">nasm -w-orphan-labels -f win32 %(FullPath) -o $(IntDir)%(filename).obj</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">nasm -w-orphan-labels -f win32 %(FullPath) -o $(IntDir)%(filename).obj</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">nasm -w-orphan-labels -f win32 %(FullPath) -o $(IntDir)%(filename).obj</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">nasm -w-orphan-labels -f win32 %(FullPath) -o $(IntDir)%(filename).obj</Command>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">Assembling %(filename)</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">Assembling %(filename)</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Assembling %(filename)</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">Assembling %(filename)</Message>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">$(IntDir)%(filename).obj</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">$(IntDir)%(filename).obj</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(IntDir)%(filename).obj</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">$(IntDir)%(filename).obj</Outputs>
+    </CustomBuild>
     <None Include="..\resources\35floppy.ico" />
     <None Include="..\resources\amigainfo.ico" />
     <None Include="..\resources\avioutput.ico" />
@@ -1165,50 +1360,6 @@
   <ItemGroup>
     <ResourceCompile Include="..\resources\winuae.rc">
     </ResourceCompile>
-  </ItemGroup>
-  <ItemGroup>
-    <Library Include="..\hq2x16.obj">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='FullRelease|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Test|x64'">true</ExcludedFromBuild>
-      <FileType>Document</FileType>
-    </Library>
-    <Library Include="..\hq2x32.obj">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='FullRelease|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Test|x64'">true</ExcludedFromBuild>
-      <FileType>Document</FileType>
-    </Library>
-    <Library Include="..\hq3x16.obj">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='FullRelease|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Test|x64'">true</ExcludedFromBuild>
-      <FileType>Document</FileType>
-    </Library>
-    <Library Include="..\hq3x32.obj">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='FullRelease|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Test|x64'">true</ExcludedFromBuild>
-      <FileType>Document</FileType>
-    </Library>
-    <Library Include="..\hq4x16.obj">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='FullRelease|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Test|x64'">true</ExcludedFromBuild>
-      <FileType>Document</FileType>
-    </Library>
-    <Library Include="..\hq4x32.obj">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='FullRelease|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Test|x64'">true</ExcludedFromBuild>
-      <FileType>Document</FileType>
-    </Library>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\resources\resource.h" />
@@ -1512,28 +1663,6 @@
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='FullRelease|x64'">Vertex</ShaderType>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='FullRelease|x64'">4.0_level_9_1</ShaderModel>
     </FxCompile>
-  </ItemGroup>
-  <ItemGroup>
-    <Object Include="..\fpux64_80.obj">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Test|x64'">false</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|x64'">false</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='FullRelease|x64'">false</ExcludedFromBuild>
-    </Object>
-    <Object Include="..\fpux86_80.obj">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Test|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='FullRelease|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">false</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">false</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">false</ExcludedFromBuild>
-    </Object>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

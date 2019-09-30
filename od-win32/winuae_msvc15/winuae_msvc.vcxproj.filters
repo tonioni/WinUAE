@@ -74,6 +74,9 @@
     <Filter Include="win32\FX11">
       <UniqueIdentifier>{aacd260d-3fd9-43a0-9cac-463ddd009704}</UniqueIdentifier>
     </Filter>
+    <Filter Include="nasm">
+      <UniqueIdentifier>{9d6d0e7b-76b0-4b28-a9ef-0b69a02528c7}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\ahidsound_dsonly.cpp">
@@ -1025,19 +1028,30 @@
     <None Include="..\resources\drive_spin.wav" />
     <None Include="..\resources\drive_spinnd.wav" />
     <None Include="..\resources\drive_startup.wav" />
+    <None Include="..\hq2x16.asm">
+      <Filter>nasm</Filter>
+    </None>
+    <None Include="..\hq2x32.asm">
+      <Filter>nasm</Filter>
+    </None>
+    <None Include="..\hq3x16.asm">
+      <Filter>nasm</Filter>
+    </None>
+    <None Include="..\hq3x32.asm">
+      <Filter>nasm</Filter>
+    </None>
+    <None Include="..\hq4x16.asm">
+      <Filter>nasm</Filter>
+    </None>
+    <None Include="..\hq4x32.asm">
+      <Filter>nasm</Filter>
+    </None>
+    <None Include="..\fpux86_80.asm" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="..\resources\winuae.rc">
       <Filter>win32\Resource Files</Filter>
     </ResourceCompile>
-  </ItemGroup>
-  <ItemGroup>
-    <Library Include="..\hq2x16.obj" />
-    <Library Include="..\hq2x32.obj" />
-    <Library Include="..\hq3x16.obj" />
-    <Library Include="..\hq3x32.obj" />
-    <Library Include="..\hq4x16.obj" />
-    <Library Include="..\hq4x32.obj" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\resources\resource.h" />
@@ -1060,7 +1074,8 @@
     </FxCompile>
   </ItemGroup>
   <ItemGroup>
-    <Object Include="..\fpux86_80.obj" />
-    <Object Include="..\fpux64_80.obj" />
+    <CustomBuild Include="..\fpux64_80.asm">
+      <Filter>nasm</Filter>
+    </CustomBuild>
   </ItemGroup>
 </Project>

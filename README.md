@@ -1,4 +1,6 @@
 
+# WinUAE
+
 1) Requirements: Windows 7 32-bit/64-bit or newer.
 
 2) Visual Studio 2017 Community with the following feature:
@@ -24,13 +26,13 @@
 
 	Download Link -> http://www.winuae.net/files/b/aros.rom.cpp.zip	
 				
-7) Download and Install Nasm (Assembler Compiler) 
+7) Download and Install Nasm (Assembler Compiler) and put it in PATH
 
 	https://www.nasm.us/
-		
-8) Into Visual Studio click on "File"->"Open"->"Project/Solution" select the folder <source directory>\od-win32\winuae_msvc15\winuae_msvc.sln (Ignore error message "Unsupported" and click ok)
 
-9) In The solution 'winuae_msvc' you can unload or delete the following project:
+8) In Visual Studio click on "File"->"Open"->"Project/Solution" select the folder <source directory>\od-win32\winuae_msvc15\winuae_msvc.sln (Ignore error message "Unsupported" and click ok)
+
+9) In The solution 'winuae_msvc' you can unload or delete the following projects (and all others not needed in step 12):
 	-uaeunp
 	-consolewrapper
 	-decompess
@@ -55,4 +57,4 @@
 		
 13) Switch to Test (debug build) or FullRelease (full optimized) and select either 32-bit or 64-bit. Compile.
 
-Finished. In the "D:\Amiga\" you find winuae.exe and winuae64.exe
+Finished. In "D:\Amiga\" you find winuae.exe and winuae64.exe
