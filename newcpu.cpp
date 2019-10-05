@@ -79,6 +79,7 @@ static int exception_in_exception;
 int mmu_enabled, mmu_triggered;
 int cpu_cycles;
 int bus_error_offset;
+int cpu_bus_error;
 static int baseclock;
 int m68k_pc_indirect;
 bool m68k_interrupt_delay;
@@ -6852,7 +6853,7 @@ void exception3b (uae_u32 opcode, uaecptr addr, bool w, bool i, uaecptr pc)
 	exception3f (opcode, addr, w, i, false, pc, true, -1);
 }
 
-void exception2_setup(uaecptr addr, bool read, int size, uae_u32 fc)
+void exception2_setup(uaecptr addr, bool read, uae_u32 fc)
 {
 	last_addr_for_exception_3 = m68k_getpc() + bus_error_offset;
 	last_fault_for_exception_3 = addr;
@@ -6860,9 +6861,10 @@ void exception2_setup(uaecptr addr, bool read, int size, uae_u32 fc)
 	last_fc_for_exception_3 = fc;
 	last_op_for_exception_3 = regs.opcode;
 	last_notinstruction_for_exception_3 = exception_in_exception != 0;
+	cpu_bus_error = 0;
 }
 
-void exception2 (uaecptr addr, bool read, int size, uae_u32 fc)
+void exception2(uaecptr addr, bool read, int size, uae_u32 fc)
 {
 	if (currprefs.mmu_model) {
 		if (currprefs.mmu_model == 68030) {
@@ -6872,9 +6874,22 @@ void exception2 (uaecptr addr, bool read, int size, uae_u32 fc)
 			mmu_bus_error (addr, 0, fc, read == false, size, 0, true);
 		}
 	} else {
-		exception2_setup(addr, read, size, fc);
+		exception2_setup(addr, read, fc);
 		THROW(2);
+		activate_debugger();
 	}
+}
+
+void exception2_read(uae_u32 opcode, uaecptr addr, int fc)
+{
+	exception2_setup(addr, true, fc);
+	Exception(2);
+}
+
+void exception2_write(uae_u32 opcode, uaecptr addr, int fc)
+{
+	exception2_setup(addr, false, fc);
+	Exception(2);
 }
 
 void cpureset (void)

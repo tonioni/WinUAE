@@ -172,6 +172,7 @@ uint imm_b (struct opcode_entry *op)
 {
 ULONG instr = *(ULONG*)code;
 
+#if 0
 if ((instr & 0xfc0000ff) == 0)  /* if ori.b #0,ea or andi.b #0,ea */
   {
   /* ori.b #0,ea and andi.b #0,ea are probably not code */
@@ -185,7 +186,7 @@ if (!((instr == 0) || (instr == 0x0000ff00)))  /* GCC immediate may be $ffxx */
   instr_bad = TRUE;
   return (1);
   }
-
+#endif
 if (pass3)
   {
   char *to;
@@ -202,13 +203,14 @@ uint imm_w (struct opcode_entry *op)
 
 /* handler for ori.w andi.w eori.w subi.w addi.w cmpi.w */
 {
+#if 0
 if ((*((ULONG*)code) & 0xfc00ffff) == 0)
   {
   /* ori.w #0,ea and andi.w #0,ea are probably not code */
   instr_bad = TRUE;
   return (1);
   }
-
+#endif
 if (pass3)
   {
   char *to;
@@ -227,13 +229,14 @@ uint imm_l (struct opcode_entry *op)
 {
 register ULONG instr_ext = *(ULONG*)(code + 1);
 
+#if 0
 if ((instr_ext == 0) && (*(code) & 0xfc00) == 0)
   {
   /* ori.l #0,ea and andi.l #0,ea are probably not code */
   instr_bad = TRUE;
   return (1);
   }
-
+#endif
 if (pass2 && FLAGS_RELOC (current_ref + 2))
   {
   enter_ref (instr_ext, NULL, ACC_UNKNOWN);
@@ -291,13 +294,14 @@ uint bit_imm (struct opcode_entry *op)
 UWORD code_w = *code;
 UWORD data_w = *(code + 1);
 
+#if 0
 if ((data_w & 0xff00) != 0)
   {
   /* only bit #0-255 are valid */
   instr_bad = TRUE;
   return (1);
   }
-
+#endif
 if (pass3)
   {
   char *to;

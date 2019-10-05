@@ -817,7 +817,8 @@ void divbyzero_special (bool issigned, uae_s32 dst)
 
 /* DIVU overflow
  *
- * 68000: V=1, C=0, Z=0, N=1
+ * 68000: V=1, N=1, C=0, Z=0
+ * 68010: V=1, N=1, C=0, Z=0
  * 68020: V=1, C=0, Z=0, N=X
  * 68040: V=1, C=0, NZ not modified.
  * 68060: V=1, C=0, NZ not modified.
@@ -838,9 +839,17 @@ void setdivuflags(uae_u32 dividend, uae_u16 divisor)
 		SET_VFLG(1);
 		if ((uae_s32)dividend < 0)
 			SET_NFLG(1);
-	} else {
+	} else if (currprefs.cpu_model == 68010) {
 		SET_VFLG(1);
 		SET_NFLG(1);
+		SET_ZFLG(0);
+		SET_CFLG(0);
+	} else {
+		// 68000
+		SET_VFLG(1);
+		SET_NFLG(1);
+		SET_ZFLG(0);
+		SET_CFLG(0);
 	}
 }
 
@@ -876,7 +885,12 @@ void setdivsflags(uae_s32 dividend, uae_s16 divisor)
 			SET_ZFLG(1);
 		if ((uae_s8)aquot < 0)
 			SET_NFLG(1);
+	} else if (currprefs.cpu_model == 68010) {
+		CLEAR_CZNV();
+		SET_VFLG(1);
+		SET_NFLG(1);
 	} else {
+		// 68000
 		CLEAR_CZNV();
 		SET_VFLG(1);
 		SET_NFLG(1);

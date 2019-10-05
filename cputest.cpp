@@ -5,7 +5,6 @@
 #include "disasm.h"
 #include "ini.h"
 #include "fpp.h"
-#include "mmu_common.h"
 
 #include "options.h"
 
@@ -42,6 +41,7 @@ int movem_index1[256];
 int movem_index2[256];
 int movem_next[256];
 int bus_error_offset;
+int cpu_bus_error;
 
 struct mmufixup mmufixup[2];
 cpuop_func *cpufunctbl[65536];
@@ -66,6 +66,7 @@ static int feature_loop_mode_register = -1;
 static int feature_full_extension_format = 0;
 static int feature_test_rounds = 2;
 static int feature_flag_mode = 0;
+static TCHAR *feature_instruction_size = NULL;
 static uae_u32 feature_addressing_modes[2];
 static int ad8r[2], pc8r[2];
 static int multi_mode;
@@ -215,6 +216,11 @@ oob:
 	return 0;
 }
 
+static bool is_nowrite_address(uaecptr addr, int size)
+{
+	return addr + size >= safe_memory_start && addr < safe_memory_end;
+}
+
 static void validate_addr(uaecptr addr, int size)
 {
 	if (valid_address(addr, size, 0))
@@ -265,11 +271,7 @@ static void check_bus_error(uaecptr addr, int write, int fc)
 	if (safe_memory_start == 0xffffffff && safe_memory_end == 0xffffffff)
 		return;
 	if (addr >= safe_memory_start && addr < safe_memory_end) {
-		test_exception = 2;
-		test_exception_3_w = write;
-		test_exception_addr = addr;
-		test_exception_3_fc = fc;
-		THROW(2);
+		cpu_bus_error = 1;
 	}
 }
 
@@ -850,6 +852,27 @@ uae_u32 REGPARAM2 op_illg(uae_u32 opcode)
 {
 	return op_illg_1(opcode);
 }
+
+void exception2_read(uae_u32 opcode, uaecptr addr, int fc)
+{
+	test_exception = 2;
+	test_exception_3_w = 0;
+	test_exception_addr = addr;
+	test_exception_opcode = opcode;
+	test_exception_3_fc = fc;
+	doexcstack();
+}
+
+void exception2_write(uae_u32 opcode, uaecptr addr, int fc)
+{
+	test_exception = 2;
+	test_exception_3_w = 1;
+	test_exception_addr = addr;
+	test_exception_opcode = opcode;
+	test_exception_3_fc = fc;
+	doexcstack();
+}
+
 
 void exception3_read(uae_u32 opcode, uae_u32 addr, int fc)
 {
@@ -1691,7 +1714,7 @@ static int create_ea_exact(uae_u16 *opcodep, uaecptr pc, int mode, int reg, stru
 	}
 	case PC16:
 	{
-		uae_u32 pct = opcode_memory_start + 2;
+		uae_u32 pct = pc + 2 - 2;
 		if (target <= pct + 0x7ffe && target >= pct - 0x8000) {
 			put_word_test(pc, target - pct);
 			*eap = target;
@@ -1729,7 +1752,7 @@ static int create_ea_exact(uae_u16 *opcodep, uaecptr pc, int mode, int reg, stru
 	case PC8r:
 	{
 		for (int r = 0; r < 16; r++) {
-			uae_u32 aval = opcode_memory_start + 2;
+			uae_u32 aval = pc + 2 - 2;
 			int rn = ((ea_exact_cnt >> 1) + r) & 15;
 			for (int i = 0; i < 2; i++) {
 				if ((ea_exact_cnt & 1) == 0 || i == 1) {
@@ -2126,6 +2149,7 @@ static void execute_ins(uae_u16 opc, uaecptr endpc, uaecptr targetpc, struct ins
 	test_memory_accessed = 0;
 	testing_active = 1;
 	testing_active_opcode = opc;
+	cpu_bus_error = 0;
 
 	int cnt = feature_loop_mode * 2;
 	if (multi_mode)
@@ -2140,12 +2164,7 @@ static void execute_ins(uae_u16 opc, uaecptr endpc, uaecptr targetpc, struct ins
 		uaecptr a7 = regs.regs[15];
 		int s = regs.s;
 
-		TRY (ex) {
-			(*cpufunctbl[opc])(opc);
-		} CATCH(ex) {
-			// got bus error
-			Exception(2);
-		} ENDTRY
+		(*cpufunctbl[opc])(opc);
 
 		// Supervisor mode and A7 was modified: skip this test round.
 		if (s && regs.regs[15] != a7) {
@@ -2296,7 +2315,7 @@ static uae_u8 *save_exception(uae_u8 *p, struct instr *dp)
 	// parse exception and store fields that are unique
 	// SR and PC was already saved with non-exception data
 	if (cpu_lvl == 0) {
-		if (test_exception == 3) {
+		if (test_exception == 2 || test_exception == 3) {
 			// status
 			*p++ = sf[1];
 			// opcode (which is not necessarily current opcode!)
@@ -2844,7 +2863,9 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 							continue;
 						} else {
 							// branch target = generate exception
-							put_word_test(srcaddr, 0x4afc);
+							if (!is_nowrite_address(srcaddr, 2)) {
+								put_word_test(srcaddr, 0x4afc);
+							}
 							branch_target = srcaddr;
 							dst = store_mem(dst, 1);
 							memcpy(&ahist2, &ahist, sizeof(struct accesshistory) *MAX_ACCESSHIST);
@@ -3215,24 +3236,30 @@ static void test_mnemo_text(const TCHAR *path, const TCHAR *mode)
 	_tcscpy(modetxt, mode);
 	my_trim(modetxt);
 	TCHAR *s = _tcschr(modetxt, '.');
-	if (s) {
-		*s = 0;
-		TCHAR c = _totlower(s[1]);
-		if (c == 'b')
+	if (s || feature_instruction_size != NULL) {
+		TCHAR c = 0;
+		if (s) {
+			*s = 0;
+			TCHAR c = _totlower(s[1]);
+		}
+		if (!c && feature_instruction_size) {
+			c = feature_instruction_size[0];
+		}
+		if (c == 'b' || c == 'B')
 			sizes = 6;
-		if (c == 'w')
+		if (c == 'w' || c == 'W')
 			sizes = 4;
-		if (c == 'l')
+		if (c == 'l' || c == 'L')
 			sizes = 0;
-		if (c == 'u')
+		if (c == 'u' || c == 'U')
 			sizes = 8;
-		if (c == 's')
+		if (c == 's' || c == 'S')
 			sizes = 1;
-		if (c == 'x')
+		if (c == 'x' || c == 'X')
 			sizes = 2;
-		if (c == 'p')
+		if (c == 'p' || c == 'P')
 			sizes = 3;
-		if (c == 'd')
+		if (c == 'd' || c == 'D')
 			sizes = 5;
 	}
 
@@ -3349,7 +3376,7 @@ static const TCHAR *addrmodes[] =
 int __cdecl main(int argc, char *argv[])
 {
 	const struct cputbl *tbl = NULL;
-	TCHAR path[1000];
+	TCHAR path[1000], *vs;
 	int v;
 
 	struct ini_data *ini = ini_load(_T("cputestgen.ini"), false);
@@ -3400,12 +3427,13 @@ int __cdecl main(int argc, char *argv[])
 	feature_exception3_instruction = 0;
 	ini_getval(ini, INISECTION, _T("feature_exception3_instruction"), &feature_exception3_instruction);
 
-	v = -1;
-	ini_getval(ini, INISECTION, _T("feature_target_src_ea"), &v);
-	feature_target_ea[0] = v;
-	v = -1;
-	ini_getval(ini, INISECTION, _T("feature_target_dst_ea"), &v);
-	feature_target_ea[1] = v;
+	feature_target_ea[0] = 0xffffffff;
+	if (ini_getval(ini, INISECTION, _T("feature_target_src_ea"), &v))
+		feature_target_ea[0] = v;
+	feature_target_ea[1] = 0xffffffff;
+	if (ini_getval(ini, INISECTION, _T("feature_target_dst_ea"), &v))
+		feature_target_ea[1] = v;
+
 	if (feature_target_ea[0] != 0xffffffff || feature_target_ea[1] != 0xffffffff) {
 		if (feature_target_ea[0] & 1) {
 			feature_exception3_data = 3;
@@ -3509,6 +3537,11 @@ int __cdecl main(int argc, char *argv[])
 
 	feature_test_rounds = 2;
 	ini_getval(ini, INISECTION, _T("test_rounds"), &feature_test_rounds);
+
+	feature_instruction_size = NULL;
+	ini_getstring(ini, INISECTION, _T("feature_instruction_size"), &feature_instruction_size);
+
+	ini_getval(ini, INISECTION, _T("feature_instruction_size"), &feature_test_rounds);
 
 	v = 0;
 	ini_getval(ini, INISECTION, _T("test_memory_start"), &v);

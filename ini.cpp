@@ -347,6 +347,8 @@ bool ini_getval_multi(struct ini_data *ini, const TCHAR *section, const TCHAR *k
 	TCHAR *out2 = NULL;
 	if (!ini_getstring_multi(ini, section, key, &out2, ctx))
 		return false;
+	if (out2[0] == 0)
+		return false;
 	if (_tcslen(out2) > 2 && out2[0] == '0' && _totupper(out2[1]) == 'X') {
 		TCHAR *endptr;
 		*v = _tcstol(out2 + 2, &endptr, 16);

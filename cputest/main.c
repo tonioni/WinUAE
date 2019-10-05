@@ -108,7 +108,8 @@ static uae_u8 ccr_mask;
 static uae_u32 addressing_mask = 0x00ffffff;
 static uae_u32 interrupt_mask;
 
-#define SIZE_STORED_ADDRESS 20
+#define SIZE_STORED_ADDRESS_OFFSET 8
+#define SIZE_STORED_ADDRESS 16
 static uae_u8 srcaddr[SIZE_STORED_ADDRESS];
 static uae_u8 dstaddr[SIZE_STORED_ADDRESS];
 static uae_u8 stackaddr[SIZE_STORED_ADDRESS];
@@ -351,40 +352,34 @@ static uae_u8 *load_file(const char *path, const char *file, uae_u8 *p, int *siz
 			exit(0);
 		}
 	}
-	if (safe_memory_start == (uae_u8*)0xffffffff && safe_memory_end == (uae_u8*)0xffffffff) {
-		*sizep = fread(p, 1, size, f);
-	} else if (safe_memory_end < p || safe_memory_start >= p + size) {
+	if (safe_memory_end < p || safe_memory_start >= p + size) {
 		*sizep = fread(p, 1, size, f);
 	} else {
-		*sizep = size;
-		uae_u8 *pp = p;
-		while (size > 0) {
-			int size2 = size > sizeof(tmpbuffer) ? sizeof(tmpbuffer) : size;
-			if (p + size2 > safe_memory_start && p < safe_memory_end) {
-				if (fread(tmpbuffer, 1, size2, f) != size2) {
-					printf("Couldn't read file '%s' %ld\n", fname, size2);
-					exit(0);
-				}
-				uae_u8 *sp = tmpbuffer;
-				for (int i = 0; i < size2; i++) {
-					if (pp < safe_memory_start || pp >= safe_memory_end) {
-						*pp = *sp;
-					}
-					pp++;
-					sp++;
-				}
-			} else {
-				if (fread(p, 1, size2, f) != size2) {
-					printf("Couldn't read file '%s'\n", fname);
-					exit(0);
-				}
-				p += size2;
-			}
+		if (size > 0 && p < safe_memory_start) {
+			int size2 = safe_memory_start - p;
+			if (size2 > size)
+				size2 = size;
+			if (fread(p, 1, size2, f) != size2)
+				goto end;
+			p += size2;
 			size -= size2;
+		}
+		if (size > 0 && p >= safe_memory_start && p < safe_memory_end) {
+			int size2 = safe_memory_end - p;
+			if (size2 > size)
+				size2 = size;
+			fseek(f, size2, SEEK_CUR);
+			p += size2;
+			size -= size2;
+		}
+		if (size > 0) {
+			if (fread(p, 1, size, f) != size)
+				goto end;
 		}
 		size = *sizep;
 	}
 	if (*sizep != size) {
+end:
 		printf("Couldn't read file '%s'\n", fname);
 		exit(0);
 	}
@@ -811,7 +806,7 @@ static int addr_diff(uae_u8 *ap, uae_u8 *bp, int size)
 
 static void addinfo_bytes(char *name, uae_u8 *src, uae_u32 address, int offset, int len)
 {
-	sprintf(outbp, "%s: %08lx ", name, address);
+	sprintf(outbp, "%s %08lx ", name, address);
 	address += offset;
 	outbp += strlen(outbp);
 	int cnt = 0;
@@ -885,35 +880,25 @@ static void addinfo(void)
 	}
 	*outbp = 0;
 	if (code[0] == 0x4e73 || code[0] == 0x4e74 || code[0] == 0x4e75) {
-		addinfo_bytes("SA", stackaddr, stackaddr_ptr, -SIZE_STORED_ADDRESS / 2, SIZE_STORED_ADDRESS);
-		addinfo_bytes("  ", (uae_u8 *)stackaddr_ptr - SIZE_STORED_ADDRESS / 2, stackaddr_ptr, -SIZE_STORED_ADDRESS / 2, SIZE_STORED_ADDRESS);
+		addinfo_bytes("P", stackaddr, stackaddr_ptr, -SIZE_STORED_ADDRESS_OFFSET, SIZE_STORED_ADDRESS);
+		addinfo_bytes(" ", (uae_u8 *)stackaddr_ptr - SIZE_STORED_ADDRESS_OFFSET, stackaddr_ptr, -SIZE_STORED_ADDRESS_OFFSET, SIZE_STORED_ADDRESS);
 	}
 	if (regs.srcaddr != 0xffffffff) {
 		uae_u8 *a = srcaddr;
-		uae_u8 *b = (uae_u8 *)regs.srcaddr - SIZE_STORED_ADDRESS / 2;
-		addinfo_bytes("SA", a, regs.srcaddr, -SIZE_STORED_ADDRESS / 2, SIZE_STORED_ADDRESS);
+		uae_u8 *b = (uae_u8 *)regs.srcaddr - SIZE_STORED_ADDRESS_OFFSET;
+		addinfo_bytes("S", a, regs.srcaddr, -SIZE_STORED_ADDRESS_OFFSET, SIZE_STORED_ADDRESS);
 		if (addr_diff(a, b, SIZE_STORED_ADDRESS)) {
-			addinfo_bytes("  ", b, regs.srcaddr, -SIZE_STORED_ADDRESS / 2, SIZE_STORED_ADDRESS);
+			addinfo_bytes(" ", b, regs.srcaddr, -SIZE_STORED_ADDRESS_OFFSET, SIZE_STORED_ADDRESS);
 		}
 	}
 	if (regs.dstaddr != 0xffffffff) {
 		uae_u8 *a = dstaddr;
-		uae_u8 *b = (uae_u8*)regs.dstaddr - SIZE_STORED_ADDRESS / 2;
-		addinfo_bytes("DA", a, regs.dstaddr, -SIZE_STORED_ADDRESS / 2, SIZE_STORED_ADDRESS);
+		uae_u8 *b = (uae_u8*)regs.dstaddr - SIZE_STORED_ADDRESS_OFFSET;
+		addinfo_bytes("D", a, regs.dstaddr, -SIZE_STORED_ADDRESS_OFFSET, SIZE_STORED_ADDRESS);
 		if (addr_diff(a, b, SIZE_STORED_ADDRESS)) {
-			addinfo_bytes("  ", b, regs.dstaddr, -SIZE_STORED_ADDRESS / 2, SIZE_STORED_ADDRESS);
+			addinfo_bytes(" ", b, regs.dstaddr, -SIZE_STORED_ADDRESS_OFFSET, SIZE_STORED_ADDRESS);
 		}
 	}
-
-#if 0
-int	Disass68k(long addr, char *labelBuffer, char *opcodeBuffer, char *operandBuffer, char *commentBuffer);
-void Disasm_SetCPUType(int CPU, int FPU);
-	Disasm_SetCPUType(0, 0);
-	char buf1[80], buf2[80], buf3[80], buf4[80];
-	Disass68k((long)opcode_memory, buf1, buf2, buf3, buf4);
-	sprintf(outbp, "%s %s\n", buf2, buf3);
-	outbp += strlen(outbp);
-#endif
 }
 
 struct srbit
@@ -1061,7 +1046,7 @@ static uae_u8 *validate_exception(struct registers *regs, uae_u8 *p, int excnum,
 	exc = last_exception;
 	if (excdatalen != 0xff) {
 		if (cpu_lvl == 0) {
-			if (excnum == 3) {
+			if (excnum == 2 || excnum == 3) {
 				// status (with undocumented opcode part)
 				uae_u8 opcode0 = p[1];
 				uae_u8 opcode1 = p[2];
@@ -1496,8 +1481,8 @@ static void store_addr(uae_u32 s, uae_u8 *d)
 {
 	if (s == 0xffffffff)
 		return;
-	for (int i = -SIZE_STORED_ADDRESS / 2; i < SIZE_STORED_ADDRESS / 2; i++) {
-		uae_u32 ss = s + i;
+	for (int i = 0; i < SIZE_STORED_ADDRESS; i++) {
+		uae_u32 ss = s + (i - SIZE_STORED_ADDRESS_OFFSET);
 		if (is_valid_test_addr(ss)) {
 			*d++ = *((uae_u8 *)ss);
 		} else {
@@ -1940,10 +1925,7 @@ int main(int argc, char *argv[])
 
 	cpu_lvl = get_cpu_model();
 
-#endif
-
 	if (cpu_lvl == 5) {
-#ifdef M68K
 		// Overwrite MOVEC to/from MSP
 		// with NOPs if 68060
 		extern void *msp_address1;
@@ -1954,8 +1936,9 @@ int main(int argc, char *argv[])
 		*((uae_u32*)&msp_address2) = 0x4e714e71;
 		*((uae_u32*)&msp_address3) = 0x4e714e71;
 		*((uae_u32*)&msp_address4) = 0x4e714e71;
-#endif
 	}
+
+#endif
 
 	if (argc < 2) {
 		printf("cputest <all/mnemonic> (<start mnemonic>) (continue)\n");

@@ -152,13 +152,14 @@ switch (mode)
     else
       {
       UWORD size = (first_ext_w >> 9) & 0x3;
-
+#if 0
       if (!cpu68020 && size != 0)  /* Only size of 1 allowed for 68000 */
         {
         instr_bad = TRUE;
         return (0);
         }
-      if (pass3)
+#endif
+	  if (pass3)
         {
         /* To get the sign right */
         disp_an_indexed (to, (ushort)(reg + 8),
@@ -267,22 +268,25 @@ switch (mode)
           /* long extension word */
           if (cpu68020)
             return (full_extension (to, code + first_ext, mode, reg));
-          else
+#if 0
+		  else
             {
             instr_bad = TRUE;
             return (0);
             }
-          }
+#endif
+		}
         else
           {
           UWORD size = (first_ext_w >> 9) & 0x3;
-
+#if 0
           if (!cpu68020 && size != 0)  /* Only size of 1 allowed for 68000 */
             {
             instr_bad = TRUE;
             return (0);
             }
-          /* A neg displacement can make ref neg if out of bounds. */
+#endif
+		  /* A neg displacement can make ref neg if out of bounds. */
           ref = current_ref + ((ULONG)first_ext << 1) + (BYTE)first_ext_w;
           if (pass3)
             disp_pc_indexed (to, ref, (BYTE)first_ext_w,

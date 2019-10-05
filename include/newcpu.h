@@ -53,6 +53,7 @@ extern int fpp_movem_next[256];
 #endif
 
 extern int bus_error_offset;
+extern int cpu_bus_error;
 
 typedef uae_u32 REGPARAM3 cpuop_func (uae_u32) REGPARAM;
 typedef void REGPARAM3 cpuop_func_ce (uae_u32) REGPARAM;
@@ -722,7 +723,9 @@ extern void exception3_notinstruction(uae_u32 opcode, uaecptr addr);
 extern void exception3i (uae_u32 opcode, uaecptr addr);
 extern void exception3b (uae_u32 opcode, uaecptr addr, bool w, bool i, uaecptr pc);
 extern void exception2 (uaecptr addr, bool read, int size, uae_u32 fc);
-extern void exception2_setup(uaecptr addr, bool read, int size, uae_u32 fc);
+extern void exception2_setup(uaecptr addr, bool read, uae_u32 fc);
+extern void exception2_read(uae_u32 opcode, uaecptr addr, int fc);
+extern void exception2_write(uae_u32 opcode, uaecptr addr, int fc);
 extern void m68k_reset (void);
 extern void cpureset (void);
 extern void cpu_halt (int id);
