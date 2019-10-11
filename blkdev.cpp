@@ -2216,10 +2216,10 @@ int blkdev_is_audio_command(uae_u8 cmd)
 	case 0x03:
 	case 0x12:
 	case 0x15:
-	case 0x25:
-	case 0x35:
 	case 0x1a:
 	case 0x1e:
+	case 0x25:
+	case 0x35:
 	case 0x55:
 	case 0x5a:
 		return 0;
@@ -2228,7 +2228,6 @@ int blkdev_is_audio_command(uae_u8 cmd)
 	// all other commands stop cd audio
 	return -1;
 }
-
 
 int blkdev_execute_audio_command(int unitnum, uae_u8 *cdb, int cdblen, uae_u8 *inbuf, int inlen, uae_u8 *sense, int *senselen)
 {
