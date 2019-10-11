@@ -1462,7 +1462,7 @@ static uae_u8 *validate_test(uae_u8 *p, int ignore_errors, int ignore_sr)
 				sprintf(outbp, "OK: Generated exception %d\n", exc);
 				outbp += strlen(outbp);
 			}
-			if (exc == 3 && cpu_lvl == 0) {
+			if ((exc == 3 || exc == 2) && cpu_lvl == 0) {
 				sprintf(outbp, "RW=%d IN=%d FC=%d\n",
 					((test_regs.exc >> (16 + 4)) & 1),
 					((test_regs.exc >> (16 + 3)) & 1),

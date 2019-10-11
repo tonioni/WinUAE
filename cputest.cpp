@@ -70,7 +70,11 @@ static TCHAR *feature_instruction_size = NULL;
 static uae_u32 feature_addressing_modes[2];
 static int ad8r[2], pc8r[2];
 static int multi_mode;
-static uae_u32 feature_target_ea[2];
+#define MAX_TARGET_EA 8
+static uae_u32 feature_target_ea[MAX_TARGET_EA][2];
+static int target_ea_src_cnt, target_ea_dst_cnt;
+static int target_ea_src_max, target_ea_dst_max;
+static uae_u32 target_ea[2];
 
 #define HIGH_MEMORY_START (addressing_mask == 0xffffffff ? 0xffff8000 : 0x00ff8000)
 
@@ -1676,7 +1680,7 @@ static int ea_exact_cnt;
 // generate exact EA (for bus error test)
 static int create_ea_exact(uae_u16 *opcodep, uaecptr pc, int mode, int reg, struct instr *dp, int *isconstant, int srcdst, int fpuopcode, int opcodesize, uae_u32 *eap)
 {
-	uae_u32 target = feature_target_ea[srcdst];
+	uae_u32 target = target_ea[srcdst];
 	ea_exact_cnt++;
 
 	switch (mode)
@@ -1853,7 +1857,7 @@ static int create_ea(uae_u16 *opcodep, uaecptr pc, int mode, int reg, struct ins
 	if (!((1 << am) & feature_addressing_modes[srcdst]))
 		return -1;
 
-	if (feature_target_ea[srcdst] == 0xffffffff) {
+	if (target_ea[srcdst] == 0xffffffff) {
 		return create_ea_random(opcodep, pc, mode, reg, dp, isconstant, srcdst, fpuopcode, opcodesize, ea);
 	} else {
 		return create_ea_exact(opcodep, pc, mode, reg, dp, isconstant, srcdst, fpuopcode, opcodesize, ea);
@@ -2526,10 +2530,17 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 	registers[8 + 7] = test_memory_end - STACK_SIZE;
 
 	uae_u32 target_address = 0xffffffff;
-	if (feature_target_ea[0] != 0xffffffff)
-		target_address = feature_target_ea[0];
-	else if (feature_target_ea[1] != 0xffffffff)
-		target_address = feature_target_ea[1];
+	target_ea[0] = 0xffffffff;
+	target_ea[1] = 0xffffffff;
+	if (feature_target_ea[0][0] != 0xffffffff) {
+		target_address = feature_target_ea[0][0];
+		target_ea[0] = target_address;
+	} else if (feature_target_ea[0][1] != 0xffffffff) {
+		target_address = feature_target_ea[0][1];
+		target_ea[1] = target_address;
+	}
+	target_ea_src_cnt = 0;
+	target_ea_dst_cnt = 0;
 
 	// 1.0
 	fpuregisters[0].high = 0x3fff;
@@ -2723,9 +2734,11 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 					}
 
 					// requested target address but no EA? skip
-					if (target_address != 0xffffffff && srcea == 0xffffffff && dstea == 0xffffffff) {
-						memcpy(opcode_memory, oldbytes, sizeof(oldbytes));
-						continue;
+					if (target_address != 0xffffffff) {
+						if (srcea != target_address && dstea != target_address) {
+							memcpy(opcode_memory, oldbytes, sizeof(oldbytes));
+							continue;
+						}
 					}
 
 
@@ -2810,12 +2823,12 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 						wprintf(_T("%08u %s"), subtest_count, out);
 					}
 
-					if ((dflags & 1) && feature_target_ea[0] != 0xffffffff && srcaddr != 0xffffffff && srcaddr != feature_target_ea[0]) {
-						wprintf(_T("\nSource address mismatch %08x <> %08x\n"), feature_target_ea[0], srcaddr);
+					if ((dflags & 1) && target_ea[0] != 0xffffffff && srcaddr != 0xffffffff && srcaddr != target_ea[0]) {
+						wprintf(_T("\nSource address mismatch %08x <> %08x\n"), target_ea[0], srcaddr);
 						abort();
 					}
-					if ((dflags & 2) && feature_target_ea[1] != 0xffffffff && dstaddr != feature_target_ea[1]) {
-						wprintf(_T("\nDestination address mismatch %08x <> %08x\n"), feature_target_ea[1], dstaddr);
+					if ((dflags & 2) && target_ea[1] != 0xffffffff && dstaddr != target_ea[1]) {
+						wprintf(_T("\nDestination address mismatch %08x <> %08x\n"), target_ea[1], dstaddr);
 						abort();
 					}
 
@@ -3188,22 +3201,47 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 		}
 		dst = storage_buffer;
 
-		if (opcodecnt == 1)
+		if (opcodecnt == 1 && target_address == 0xffffffff)
 			break;
 		if (lookup->mnemo == i_ILLG)
 			break;
 
-		rounds--;
-		if (rounds < 0)
-			break;
-
+		bool nextround = false;
 		if (target_address != 0xffffffff) {
+			target_ea_src_cnt++;
+			if (target_ea_src_cnt >= target_ea_src_max) {
+				target_ea_src_cnt = 0;
+				if (target_ea_src_max > 0)
+					nextround = true;
+			}
+			target_ea_dst_cnt++;
+			if (target_ea_dst_cnt >= target_ea_dst_max) {
+				target_ea_dst_cnt = 0;
+				if (target_ea_dst_max > 0)
+					nextround = true;
+			}
+			target_ea[0] = 0xffffffff;
+			target_ea[1] = 0xffffffff;
+			if (feature_target_ea[target_ea_src_cnt][0] != 0xffffffff) {
+				target_address = feature_target_ea[target_ea_src_cnt][0];
+				target_ea[0] = target_address;
+			} else if (feature_target_ea[target_ea_dst_cnt][1] != 0xffffffff) {
+				target_address = feature_target_ea[target_ea_dst_cnt][1];
+				target_ea[1] = target_address;
+			}
 			generate_target_registers(target_address, cur_registers);
 		} else {
 			// randomize registers
 			for (int i = 0; i < 16 - 2; i++) {
 				cur_registers[i] = rand32();
 			}
+			nextround = true;
+		}
+
+		if (nextround) {
+			rounds--;
+			if (rounds < 0)
+				break;
 		}
 
 		cur_registers[0] &= 0xffff;
@@ -3240,7 +3278,7 @@ static void test_mnemo_text(const TCHAR *path, const TCHAR *mode)
 		TCHAR c = 0;
 		if (s) {
 			*s = 0;
-			TCHAR c = _totlower(s[1]);
+			c = _totlower(s[1]);
 		}
 		if (!c && feature_instruction_size) {
 			c = feature_instruction_size[0];
@@ -3427,21 +3465,39 @@ int __cdecl main(int argc, char *argv[])
 	feature_exception3_instruction = 0;
 	ini_getval(ini, INISECTION, _T("feature_exception3_instruction"), &feature_exception3_instruction);
 
-	feature_target_ea[0] = 0xffffffff;
-	if (ini_getval(ini, INISECTION, _T("feature_target_src_ea"), &v))
-		feature_target_ea[0] = v;
-	feature_target_ea[1] = 0xffffffff;
-	if (ini_getval(ini, INISECTION, _T("feature_target_dst_ea"), &v))
-		feature_target_ea[1] = v;
-
-	if (feature_target_ea[0] != 0xffffffff || feature_target_ea[1] != 0xffffffff) {
-		if (feature_target_ea[0] & 1) {
-			feature_exception3_data = 3;
-			feature_exception3_instruction = 3;
-		}
-		if (feature_target_ea[1] & 1) {
-			feature_exception3_data = 3;
-			feature_exception3_instruction = 3;
+	for (int i = 0; i < MAX_TARGET_EA; i++) {
+		feature_target_ea[i][0] = 0xffffffff;
+		feature_target_ea[i][1] = 0xffffffff;
+	}
+	for (int i = 0; i < 2; i++) {
+		if (ini_getstring(ini, INISECTION, i ? _T("feature_target_dst_ea") : _T("feature_target_src_ea"), &vs)) {
+			int cnt = 0;
+			TCHAR *p = vs;
+			while (p && *p) {
+				if (cnt >= MAX_TARGET_EA)
+					break;
+				TCHAR *pp = _tcschr(p, ',');
+				if (pp) {
+					*pp++ = 0;
+				}
+				TCHAR *endptr;
+				if (_tcslen(p) > 2 && p[0] == '0' && _totupper(p[1]) == 'X') {
+					p += 2;
+				}
+				feature_target_ea[cnt][i] = _tcstol(p, &endptr, 16);
+				if (feature_target_ea[cnt][i] & 1) {
+					feature_exception3_data = 3;
+					feature_exception3_instruction = 3;
+				}
+				p = pp;
+				cnt++;
+			}
+			if (i) {
+				target_ea_dst_max = cnt;
+			} else {
+				target_ea_src_max = cnt;
+			}
+			xfree(vs);
 		}
 	}
 
