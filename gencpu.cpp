@@ -482,9 +482,12 @@ static void add_mmu040_movem (int movem)
 }
 
 static char bus_error_text[200];
+static int bus_error_specials;
 
 static void do_instruction_buserror(void)
 {
+	if (!using_bus_error)
+		return;
 	if (bus_error_text[0]) {
 		printf("\tif(cpu_bus_error) {\n");
 		printf("%s", bus_error_text);
@@ -492,16 +495,35 @@ static void do_instruction_buserror(void)
 		need_endlabel = 1;
 		printf("\t}\n");
 		bus_error_text[0] = 0;
+		bus_error_specials = 0;
 	}
 }
 
 static void check_bus_error_ins(int offset)
 {
-	sprintf(bus_error_text, "\t\texception2_read(opcode, m68k_getpci() + %d, 2);\n", offset);
+	char *opcode;
+	if (bus_error_specials) {
+		opcode = "0";
+	} else {
+		opcode = "opcode";
+	}
+	sprintf(bus_error_text, "\t\texception2_read(%s, m68k_getpci() + %d, 2);\n", opcode, offset);
 }
 
 static void check_prefetch_bus_error(int offset)
 {
+	if (!using_bus_error)
+		return;
+	if (offset < 0) {
+		if (offset == -1)
+			offset = 0;
+		else
+			offset = 2;
+		// full prefetch: opcode field is zero
+		if (offset == 2) {
+			bus_error_specials = 1;
+		}
+	}
 	check_bus_error_ins(offset);
 	do_instruction_buserror();
 }
@@ -553,6 +575,7 @@ static void gen_nextilong2 (const char *type, const char *name, int flags, int m
 static void gen_nextilong (const char *type, const char *name, int flags)
 {
 	bus_error_text[0] = 0;
+	bus_error_specials = 0;
 	gen_nextilong2 (type, name, flags, 0);
 }
 
@@ -563,6 +586,7 @@ static const char *gen_nextiword (int flags)
 	m68k_pc_offset += 2;
 
 	bus_error_text[0] = 0;
+	bus_error_specials = 0;
 	if (using_ce020) {
 		if (flags & GF_NOREFILL)
 			sprintf(buffer, "%s (%d)", prefetch_word, r);
@@ -603,6 +627,7 @@ static const char *gen_nextibyte (int flags)
 	m68k_pc_offset += 2;
 
 	bus_error_text[0] = 0;
+	bus_error_specials = 0;
 	if (using_ce020 || using_prefetch_020) {
 		if (flags & GF_NOREFILL)
 			sprintf(buffer, "(uae_u8)%s (%d)", prefetch_word, r);
@@ -723,12 +748,25 @@ static void fill_prefetch_1 (int o)
 	}
 }
 
+// complete prefetch
+static void fill_prefetch_1_empty(int o)
+{
+	if (using_prefetch) {
+		printf("\t%s (%d);\n", prefetch_word, o);
+		check_prefetch_bus_error(o ? -2 : -1);
+		did_prefetch = 1;
+		ir2irc = 0;
+		count_read++;
+		insn_n_cycles += 4;
+	}
+}
+
 static void fill_prefetch_full_2 (void)
 {
 	if (using_prefetch) {
-		fill_prefetch_1 (0);
+		fill_prefetch_1_empty (0);
 		irc2ir ();
-		fill_prefetch_1 (2);
+		fill_prefetch_1_empty (2);
 	} else if (isprefetch020()) {
 		did_prefetch = 2;
 		total_ce020 -= 4;
@@ -744,9 +782,9 @@ static void fill_prefetch_full_2 (void)
 static void fill_prefetch_full_ntx (void)
 {
 	if (using_prefetch) {
-		fill_prefetch_1 (0);
+		fill_prefetch_1_empty(0);
 		irc2ir ();
-		fill_prefetch_1 (2);
+		fill_prefetch_1_empty(2);
 	} else if (isprefetch020()) {
 		did_prefetch = 2;
 		total_ce020 -= 4;
@@ -779,9 +817,9 @@ static void trace_t0_68040_only(void)
 static void fill_prefetch_full (void)
 {
 	if (using_prefetch) {
-		fill_prefetch_1 (0);
+		fill_prefetch_1_empty(0);
 		irc2ir ();
-		fill_prefetch_1 (2);
+		fill_prefetch_1_empty(2);
 	} else if (isprefetch020()) {
 		did_prefetch = 2;
 		total_ce020 -= 4;
@@ -836,21 +874,24 @@ static void dummy_prefetch (void)
 	insn_n_cycles += 4;
 }
 
-static void fill_prefetch_next_1 (void)
-{
-	irc2ir ();
-	fill_prefetch_1 (m68k_pc_offset + 2);
-}
-
 static void fill_prefetch_next (void)
 {
 	if (using_prefetch) {
-		fill_prefetch_next_1 ();
+		irc2ir();
+		fill_prefetch_1(m68k_pc_offset + 2);
 	}
 //	if (using_prefetch_020) {
 //		printf ("\t%s (%d);\n", prefetch_word, m68k_pc_offset);
 //		did_prefetch = 1;
 //	}
+}
+
+static void fill_prefetch_next_empty(void)
+{
+	if (using_prefetch) {
+		irc2ir();
+		fill_prefetch_1_empty(m68k_pc_offset + 2);
+	}
 }
 
 static void fill_prefetch_finish (void)
@@ -996,8 +1037,8 @@ static void check_bus_error(const char *name, int offset, int write, int fc)
 			break;
 		case 4:
 			if ((g_instr->mnemo == i_ADDX || g_instr->mnemo == i_SUBX) && g_instr->size == sz_long) {
-				// ADDX.L/SUBX.L -(an),-(an): not decreased
-				;
+				// ADDX.L/SUBX.L -(an),-(an) source: stack frame decreased by 2, not 4.
+				offset = 2;
 			} else {
 				printf("\t\tm68k_areg (regs, %s) = %sa;\n", bus_error_reg, name);
 			}
@@ -2057,7 +2098,7 @@ static void genamode2x (amodes mode, const char *reg, wordsizes size, const char
 					printf("\tuae_s32 %s = %s (%sa + 2);\n", name, srcwx, name);
 					check_bus_error(name, 0, 0, 1);
 					printf("\t%s |= % s(% sa) << 16; \n", name, srcw, name);
-					check_bus_error(name, 0, 0, 1);
+					check_bus_error(name, -2, 0, 1);
 				} else {
 					printf("\tuae_s32 %s = %s (%sa) << 16;\n", name, srcwx, name);
 					check_bus_error(name, 0, 0, 1);
@@ -4084,18 +4125,21 @@ static void gen_opcode (unsigned int opcode)
 		if (curi->size == sz_word) {
 			printf ("\tuae_u16 val  = (%s (mempa) & 0xff) << 8;\n", srcb);
 			check_bus_error("memp", 0, 0, 1);
-			printf ("\t        val |= (%s (mempa + 2) & 0xff);\n", srcb);
+			printf ("\tval |= (%s (mempa + 2) & 0xff);\n", srcb);
 			check_bus_error("memp", 2, 0, 1);
 			count_read += 2;
 		} else {
 			printf ("\tuae_u32 val  = (%s (mempa) & 0xff) << 24;\n", srcb);
 			check_bus_error("memp", 0, 0, 1);
-			printf ("\t        val |= (%s (mempa + 2) & 0xff) << 16;\n", srcb);
+			printf ("\tval |= (%s (mempa + 2) & 0xff) << 16;\n", srcb);
 			check_bus_error("memp", 2, 0, 1);
-			printf ("\t        val |= (%s (mempa + 4) & 0xff) << 8;\n", srcb);
+
+			// upper word gets updated after two bytes (makes only difference if bus error is possible)
+			printf("\tm68k_dreg(regs, dstreg) = (m68k_dreg(regs, dstreg) & 0x0000ffff) | (val & 0xffff0000);\n");
+
+			printf("\tval |= (%s (mempa + 4) & 0xff) << 8;\n", srcb);
 			check_bus_error("memp", 4, 0, 1);
-			printf ("\t        val |= (%s (mempa + 6) & 0xff);\n", srcb);
-			printf ("\t        val |= (%s (mempa + 6) & 0xff);\n", srcb);
+			printf ("\tval |= (%s (mempa + 6) & 0xff);\n", srcb);
 			check_bus_error("memp", 6, 0, 1);
 			count_read += 4;
 		}
@@ -4246,7 +4290,8 @@ static void gen_opcode (unsigned int opcode)
 		} else {
 			// read first and ignore result
 			if (cpu_level <= 1 && curi->size == sz_word) {
-				printf ("\t%s (srca);\n", srcw);
+				printf("\t%s (srca);\n", srcw);
+				check_bus_error("src", 0, 0, 1);
 				count_write++;
 			}
 			fill_prefetch_next ();
@@ -4765,6 +4810,16 @@ static void gen_opcode (unsigned int opcode)
 				if (cpu_level <= 1 && using_prefetch)
 					printf ("\tnextpc += 2;\n");
 			}
+			setpc ("srca");
+			clear_m68k_offset();
+			if (using_exception_3 && cpu_level >= 2) {
+				printf("\tif (%s & 1) {\n", getpc);
+				printf("\t\texception3i (opcode, %s);\n", getpc);
+				printf("\t\tgoto %s;\n", endlabelstr);
+				printf("\t}\n");
+				need_endlabel = 1;
+			}
+			fill_prefetch_1(0);
 			if (cpu_level < 4)
 				printf("\tm68k_areg (regs, 7) -= 4;\n");
 			if (using_exception_3 && cpu_level <= 1) {
@@ -4774,18 +4829,6 @@ static void gen_opcode (unsigned int opcode)
 				printf("\t}\n");
 				need_endlabel = 1;
 			}
-			setpc ("srca");
-			if (using_exception_3 && cpu_level >= 2) {
-				printf("\tif (%s & 1) {\n", getpc);
-				printf("\t\texception3i (opcode, %s);\n", getpc);
-				printf("\t\tgoto %s;\n", endlabelstr);
-				printf("\t}\n");
-				need_endlabel = 1;
-			}
-			if (cpu_level >= 4)
-				printf("\tm68k_areg (regs, 7) -= 4;\n");
-			clear_m68k_offset();
-			fill_prefetch_1 (0);
 			if (using_ce || using_prefetch) {
 				printf("\tuaecptr dsta = m68k_areg(regs, 7);\n");
 				printf("\t%s(dsta, nextpc >> 16);\n", dstw);
@@ -4793,8 +4836,10 @@ static void gen_opcode (unsigned int opcode)
 				printf("\t%s(dsta + 2, nextpc);\n", dstw);
 				check_bus_error("dst", 2, 1, 1);
 			} else {
-				printf ("\t%s(m68k_areg(regs, 7), nextpc);\n", dstl);
+				printf("\t%s(m68k_areg(regs, 7), nextpc);\n", dstl);
 			}
+			if (cpu_level >= 4)
+				printf("\tm68k_areg (regs, 7) -= 4;\n");
 			if (using_debugmem) {
 				printf("\tif (debugmem_trace)\n");
 				printf("\t\tbranch_stack_push(oldpc, nextpc);\n");
@@ -4802,7 +4847,7 @@ static void gen_opcode (unsigned int opcode)
 		}
 		count_write += 2;
 		fill_prefetch_full_020 ();
-		fill_prefetch_next ();
+		fill_prefetch_next_empty();
 		branch_inst = 1;
 		next_level_040_to_030();
 		break;
