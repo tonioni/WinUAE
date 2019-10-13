@@ -16,6 +16,7 @@
 	.globl _msp_address2
 	.globl _msp_address3
 	.globl _msp_address4
+	.globl _error_vector
 
 | must match main.c
 S_DREG = 0
@@ -257,6 +258,7 @@ _exceptiontable000:
 	bsr.s exception | 47
 	nop
 exception:
+	move.w #0,ACTIVITYREG
 	move.l a0,-(sp)
 	move.l datapointer(pc),a0
 	movem.l d0-d7/a0-a6,(a0)
@@ -283,12 +285,14 @@ exception:
 	move.l USP,a1
 	move.l a1,S_AREG+7*4(a0)
 
+	move.w #0x222,ACTIVITYREG
 	move.l superstack(pc),sp
 	move.w (sp)+,sr
 	movem.l (sp)+,d1-d7/a0-a6
 	rts
 
 _exception010:
+	move.w #0,ACTIVITYREG
 	move.l a0,-(sp)
 	move.l datapointer(pc),a0
 	movem.l d0-d7/a0-a6,(a0)
@@ -305,12 +309,14 @@ _exception010:
 	move.l USP,a1
 	move.l a1,S_AREG+7*4(a0)
 		
+	move.w #0x222,ACTIVITYREG
 	move.l superstack(pc),sp
 	move.w (sp)+,sr
 	movem.l (sp)+,d1-d7/a0-a6
 	rts
 	
 _exception020:
+	move.w #0,ACTIVITYREG
 	move.l a0,-(sp)
 	move.l datapointer(pc),a0
 	movem.l d0-d7/a0-a6,(a0)
@@ -331,6 +337,7 @@ _msp_address3:
 	move.l USP,a1
 	move.l a1,S_AREG+7*4(a0)
 		
+	move.w #0x222,ACTIVITYREG
 	| restore SR first, then stack
 	| M-bit may have been set.
 	move.l superstack(pc),a0
@@ -340,6 +347,7 @@ _msp_address3:
 	rts
 
 _exceptionfpu:
+	move.w #0,ACTIVITYREG
 	move.l a0,-(sp)
 	move.l datapointer(pc),a0
 	movem.l d0-d7/a0-a6,(a0)
@@ -366,11 +374,19 @@ _msp_address4:
 	fmove.l fpcr,(a1)+
 	fmove.l fpsr,(a1)+
 		
+	move.w #0x222,ACTIVITYREG
 	move.l superstack(pc),a0
 	move.w (a0)+,sr
 	move.l a0,sp
 	movem.l (sp)+,d1-d7/a0-a6
 	rts
+
+_error_vector:
+	or.w #0x700,sr
+waiterr:
+	move.w #0x400,ACTIVITYREG
+	move.w #0x004,ACTIVITYREG
+	bra.s waiterr
 
 datapointer:
 	dc.l 0

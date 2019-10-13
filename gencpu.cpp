@@ -75,6 +75,14 @@ static int optimized_flags;
 #define GF_OPCE020 2048
 #define GF_REVERSE 4096
 #define GF_REVERSE2 8192
+#define GF_SECONDWORDSETFLAGS 16384
+
+typedef enum
+{
+	flag_logical_noclobber, flag_logical, flag_add, flag_sub, flag_cmp, flag_addx, flag_subx, flag_z, flag_zn,
+	flag_av, flag_sv
+}
+flagtypes;
 
 /* For the current opcode, the next lower level that will have different code.
 * Initialized to -1 for each opcode. If it remains unchanged, indicates we
@@ -997,6 +1005,385 @@ static void clearmmufixup (int cnt)
 	}
 }
 
+
+static void duplicate_carry(int n)
+{
+	int i;
+	for (i = 0; i <= n; i++)
+		printf("\t");
+	printf("COPY_CARRY ();\n");
+}
+
+static void genflags_normal(flagtypes type, wordsizes size, const char *value, const char *src, const char *dst)
+{
+	char vstr[100], sstr[100], dstr[100];
+	char usstr[100], udstr[100];
+	char unsstr[100], undstr[100];
+
+	switch (size) {
+	case sz_byte:
+		strcpy(vstr, "((uae_s8)(");
+		strcpy(usstr, "((uae_u8)(");
+		break;
+	case sz_word:
+		strcpy(vstr, "((uae_s16)(");
+		strcpy(usstr, "((uae_u16)(");
+		break;
+	case sz_long:
+		strcpy(vstr, "((uae_s32)(");
+		strcpy(usstr, "((uae_u32)(");
+		break;
+	default:
+		term();
+	}
+	strcpy(unsstr, usstr);
+
+	strcpy(sstr, vstr);
+	strcpy(dstr, vstr);
+	strcat(vstr, value);
+	strcat(vstr, "))");
+	strcat(dstr, dst);
+	strcat(dstr, "))");
+	strcat(sstr, src);
+	strcat(sstr, "))");
+
+	strcpy(udstr, usstr);
+	strcat(udstr, dst);
+	strcat(udstr, "))");
+	strcat(usstr, src);
+	strcat(usstr, "))");
+
+	strcpy(undstr, unsstr);
+	strcat(unsstr, "-");
+	strcat(undstr, "~");
+	strcat(undstr, dst);
+	strcat(undstr, "))");
+	strcat(unsstr, src);
+	strcat(unsstr, "))");
+
+	switch (type) {
+	case flag_logical_noclobber:
+	case flag_logical:
+	case flag_z:
+	case flag_zn:
+	case flag_av:
+	case flag_sv:
+	case flag_addx:
+	case flag_subx:
+		break;
+
+	case flag_add:
+		start_brace();
+		printf("uae_u32 %s = %s + %s;\n", value, udstr, usstr);
+		break;
+	case flag_sub:
+	case flag_cmp:
+		start_brace();
+		printf("uae_u32 %s = %s - %s;\n", value, udstr, usstr);
+		break;
+	}
+
+	switch (type) {
+	case flag_logical_noclobber:
+	case flag_logical:
+	case flag_zn:
+		break;
+
+	case flag_add:
+	case flag_sub:
+	case flag_addx:
+	case flag_subx:
+	case flag_cmp:
+	case flag_av:
+	case flag_sv:
+		start_brace();
+		printf("\t" BOOL_TYPE " flgs = %s < 0;\n", sstr);
+		printf("\t" BOOL_TYPE " flgo = %s < 0;\n", dstr);
+		printf("\t" BOOL_TYPE " flgn = %s < 0;\n", vstr);
+		break;
+	}
+
+	switch (type) {
+	case flag_logical:
+		printf("\tCLEAR_CZNV ();\n");
+		printf("\tSET_ZFLG (%s == 0);\n", vstr);
+		printf("\tSET_NFLG (%s < 0);\n", vstr);
+		break;
+	case flag_logical_noclobber:
+		printf("\tSET_ZFLG (%s == 0);\n", vstr);
+		printf("\tSET_NFLG (%s < 0);\n", vstr);
+		break;
+	case flag_av:
+		printf("\tSET_VFLG ((flgs ^ flgn) & (flgo ^ flgn));\n");
+		break;
+	case flag_sv:
+		printf("\tSET_VFLG ((flgs ^ flgo) & (flgn ^ flgo));\n");
+		break;
+	case flag_z:
+		printf("\tSET_ZFLG (GET_ZFLG () & (%s == 0));\n", vstr);
+		break;
+	case flag_zn:
+		printf("\tSET_ZFLG (GET_ZFLG () & (%s == 0));\n", vstr);
+		printf("\tSET_NFLG (%s < 0);\n", vstr);
+		break;
+	case flag_add:
+		printf("\tSET_ZFLG (%s == 0);\n", vstr);
+		printf("\tSET_VFLG ((flgs ^ flgn) & (flgo ^ flgn));\n");
+		printf("\tSET_CFLG (%s < %s);\n", undstr, usstr);
+		duplicate_carry(0);
+		printf("\tSET_NFLG (flgn != 0);\n");
+		break;
+	case flag_sub:
+		printf("\tSET_ZFLG (%s == 0);\n", vstr);
+		printf("\tSET_VFLG ((flgs ^ flgo) & (flgn ^ flgo));\n");
+		printf("\tSET_CFLG (%s > %s);\n", usstr, udstr);
+		duplicate_carry(0);
+		printf("\tSET_NFLG (flgn != 0);\n");
+		break;
+	case flag_addx:
+		printf("\tSET_VFLG ((flgs ^ flgn) & (flgo ^ flgn));\n"); /* minterm SON: 0x42 */
+		printf("\tSET_CFLG (flgs ^ ((flgs ^ flgo) & (flgo ^ flgn)));\n"); /* minterm SON: 0xD4 */
+		duplicate_carry(0);
+		break;
+	case flag_subx:
+		printf("\tSET_VFLG ((flgs ^ flgo) & (flgo ^ flgn));\n"); /* minterm SON: 0x24 */
+		printf("\tSET_CFLG (flgs ^ ((flgs ^ flgn) & (flgo ^ flgn)));\n"); /* minterm SON: 0xB2 */
+		duplicate_carry(0);
+		break;
+	case flag_cmp:
+		printf("\tSET_ZFLG (%s == 0);\n", vstr);
+		printf("\tSET_VFLG ((flgs != flgo) && (flgn != flgo));\n");
+		printf("\tSET_CFLG (%s > %s);\n", usstr, udstr);
+		printf("\tSET_NFLG (flgn != 0);\n");
+		break;
+	}
+}
+
+static void genflags(flagtypes type, wordsizes size, const char *value, const char *src, const char *dst)
+{
+	/* Temporarily deleted 68k/ARM flag optimizations.  I'd prefer to have
+	them in the appropriate m68k.h files and use just one copy of this
+	code here.  The API can be changed if necessary.  */
+	if (optimized_flags) {
+		switch (type) {
+		case flag_add:
+		case flag_sub:
+			start_brace();
+			printf("\tuae_u32 %s;\n", value);
+			break;
+
+		default:
+			break;
+		}
+
+		/* At least some of those casts are fairly important! */
+		switch (type) {
+		case flag_logical_noclobber:
+			printf("\t{uae_u32 oldcznv = GET_CZNV & ~(FLAGVAL_Z | FLAGVAL_N);\n");
+			if (strcmp(value, "0") == 0) {
+				printf("\tSET_CZNV (olcznv | FLAGVAL_Z);\n");
+			} else {
+				switch (size) {
+				case sz_byte: printf("\toptflag_testb (regs, (uae_s8)(%s));\n", value); break;
+				case sz_word: printf("\toptflag_testw (regs, (uae_s16)(%s));\n", value); break;
+				case sz_long: printf("\toptflag_testl (regs, (uae_s32)(%s));\n", value); break;
+				}
+				printf("\tIOR_CZNV (oldcznv);\n");
+			}
+			printf("\t}\n");
+			return;
+		case flag_logical:
+			if (strcmp(value, "0") == 0) {
+				printf("\tSET_CZNV (FLAGVAL_Z);\n");
+			} else {
+				switch (size) {
+				case sz_byte: printf("\toptflag_testb (regs, (uae_s8)(%s));\n", value); break;
+				case sz_word: printf("\toptflag_testw (regs, (uae_s16)(%s));\n", value); break;
+				case sz_long: printf("\toptflag_testl (regs, (uae_s32)(%s));\n", value); break;
+				}
+			}
+			return;
+
+		case flag_add:
+			switch (size) {
+			case sz_byte: printf("\toptflag_addb (regs, %s, (uae_s8)(%s), (uae_s8)(%s));\n", value, src, dst); break;
+			case sz_word: printf("\toptflag_addw (regs, %s, (uae_s16)(%s), (uae_s16)(%s));\n", value, src, dst); break;
+			case sz_long: printf("\toptflag_addl (regs, %s, (uae_s32)(%s), (uae_s32)(%s));\n", value, src, dst); break;
+			}
+			return;
+
+		case flag_sub:
+			switch (size) {
+			case sz_byte: printf("\toptflag_subb (regs, %s, (uae_s8)(%s), (uae_s8)(%s));\n", value, src, dst); break;
+			case sz_word: printf("\toptflag_subw (regs, %s, (uae_s16)(%s), (uae_s16)(%s));\n", value, src, dst); break;
+			case sz_long: printf("\toptflag_subl (regs, %s, (uae_s32)(%s), (uae_s32)(%s));\n", value, src, dst); break;
+			}
+			return;
+
+		case flag_cmp:
+			switch (size) {
+			case sz_byte: printf("\toptflag_cmpb (regs, (uae_s8)(%s), (uae_s8)(%s));\n", src, dst); break;
+			case sz_word: printf("\toptflag_cmpw (regs, (uae_s16)(%s), (uae_s16)(%s));\n", src, dst); break;
+			case sz_long: printf("\toptflag_cmpl (regs, (uae_s32)(%s), (uae_s32)(%s));\n", src, dst); break;
+			}
+			return;
+
+		default:
+			break;
+		}
+	}
+
+	genflags_normal(type, size, value, src, dst);
+}
+
+// Handle special MOVE.W/.L condition codes when destination write causes bus error.
+static void move_68000_bus_error(int offset, int size, int *setapdi, int *fcmodeflags)
+{
+
+	int smode = g_instr->smode;
+	int dmode = g_instr->dmode;
+
+	if (size == sz_byte) {
+
+		if (dmode == Apdi) {
+
+			// this is buggy, bus error stack frame opcode field contains next
+			// instruction opcode and Instruction/Not field is one!
+			printf("\t\topcode = regs.ir;\n");
+			*fcmodeflags |= 0x08; // "Not instruction" = 1
+
+		} else if (dmode == Aipi) {
+
+			// move.b x,(an)+: an is not increased
+			printf("\t\tm68k_areg(regs, dstreg) -= areg_byteinc[dstreg];\n");
+		}
+
+	} else if (size == sz_word) {
+
+		if (dmode == Apdi) {
+			// this is buggy, bus error stack frame opcode field contains next
+			// instruction opcode and Instruction/Not field is one!
+			printf("\t\topcode = regs.ir;\n");
+			*fcmodeflags |= 0x08; // "Not instruction" = 1
+		}
+
+	} else if (size == sz_long && ((offset == 0 && dmode != Apdi) || (offset == 2 && dmode == Apdi))) {
+
+		// Long MOVE is more complex but not as complex as address error..
+		// First word.
+
+		int set_ccr = 0;
+		int set_high_word = 0;
+		int set_low_word = 0;
+		switch (smode)
+		{
+		case Dreg:
+		case Areg:
+			if (dmode == Ad16 || dmode == Ad8r) {
+				set_high_word = 3;
+			} else if (dmode == Apdi || dmode == absw || dmode == absl) {
+				set_ccr = 1;
+			}
+			break;
+		case Aind:
+		case Aipi:
+		case Apdi:
+		case Ad16:
+		case Ad8r:
+		case PC16:
+		case PC8r:
+		case absl:
+		case absw:
+			if (dmode == Aind || dmode == Aipi || dmode == absw || dmode == absl) {
+				set_low_word = 1;
+			} else if (dmode == Apdi || dmode == Ad16 || dmode == Ad8r) {
+				set_ccr = 1;
+			}
+			break;
+		case imm:
+			if (dmode == Ad16 || dmode == Ad8r) {
+				set_high_word = 1;
+			} else if (dmode == Apdi || dmode == absw || dmode == absl) {
+				set_ccr = 1;
+			}
+			break;
+		}
+
+		if (set_low_word == 1) {
+			// Low word: Z and N
+			printf("\t\tccr_68000_long_move_ae_LZN(src);\n");
+		} else if (set_high_word == 3) {
+			// High word: N only, clear Z if non-zero
+			printf("\t\tSET_NFLG(src < 0);\n");
+			printf("\t\tif((src & 0xffff0000)) SET_ZFLG(0);\n");
+		} else if (set_high_word) {
+			// High word: N set/reset and Z clear.
+			printf("\t\tccr_68000_long_move_ae_HNZ(src);\n");
+		} else if (set_ccr) {
+			// Set normally.
+			printf("\t\tccr_68000_long_move_ae_normal(src);\n");
+		}
+
+		if (dmode == Aipi) {
+			printf("\t\tm68k_areg(regs, dstreg) -= 4;\n");
+		} else if (dmode == Apdi) {
+			printf("\t\tm68k_areg(regs, dstreg) += 4;\n");
+		}
+
+	} else if (size == sz_long) {
+
+		// Second word (much simpler)
+
+		int set_ccr = 0;
+		int set_low_word = 0;
+		switch (smode)
+		{
+		case Dreg:
+		case Areg:
+			if (dmode == Apdi || dmode == absw || dmode == absl) {
+				set_ccr = 1;
+			} else {
+				set_low_word = 1;
+			}
+			break;
+		case Aind:
+		case Aipi:
+		case Apdi:
+		case Ad16:
+		case Ad8r:
+		case PC16:
+		case PC8r:
+		case absl:
+		case absw:
+			set_ccr = 1;
+			break;
+		case imm:
+			if (dmode == Apdi || dmode == absw || dmode == absl) {
+				set_ccr = 1;
+			} else {
+				set_low_word = 1;
+			}
+			break;
+		}
+
+		if (set_low_word == 1) {
+			// Low word: Z and N
+			printf("\t\tccr_68000_long_move_ae_LZN(src);\n");
+		} else if (set_ccr) {
+			// Set normally.
+			printf("\t\tccr_68000_long_move_ae_normal(src);\n");
+		}
+
+		if (dmode == Aipi) {
+			printf("\t\tm68k_areg(regs, dstreg) -= 4;\n");
+		} else if (dmode == Apdi) {
+			printf("\t\tm68k_areg(regs, dstreg) += 4;\n");
+		}
+
+	}
+
+}
+
 static char const *bus_error_reg;
 static int bus_error_reg_add;
 
@@ -1009,19 +1396,30 @@ static void check_bus_error(const char *name, int offset, int write, int fc)
 		return;
 	printf("\tif(cpu_bus_error) {\n");
 
+	int setapdiback = 0;
+
 	if (fc == 2) {
 
 		printf("\t\texception2_read(opcode, m68k_getpci() + %d, 2);\n", offset);
 
 	} else {
 
-		if (exception_pc_offset)
+		if (exception_pc_offset) {
 			incpc("%d", exception_pc_offset);
+		}
+
+		if (g_instr->mnemo == i_MOVE && write) {
+			move_68000_bus_error(offset, g_instr->size, &setapdiback, &fc);
+		}
 
 		switch (bus_error_reg_add)
 		{
 		case 1:
-			printf("\t\tm68k_areg(regs, %s) += areg_byteinc[%s] + %d;\n", bus_error_reg, bus_error_reg, offset);
+			if (g_instr->mnemo == i_CMPM && write) {
+				;
+			} else {
+				printf("\t\tm68k_areg(regs, %s) += areg_byteinc[%s] + %d;\n", bus_error_reg, bus_error_reg, offset);
+			}
 			break;
 		case 2:
 			printf("\t\tm68k_areg(regs, %s) += 2 + %d;\n", bus_error_reg, offset);
@@ -1030,9 +1428,6 @@ static void check_bus_error(const char *name, int offset, int write, int fc)
 			if (g_instr->mnemo == i_CMPM) {
 				// CMPM.L (an)+,(an)+: increased by 2
 				printf("\t\tm68k_areg(regs, %s) += 2 + %d;\n", bus_error_reg, offset);
-			} else {
-				// not increased if long first word causes bus error
-				;
 			}
 			break;
 		case 4:
@@ -1045,13 +1440,16 @@ static void check_bus_error(const char *name, int offset, int write, int fc)
 			break;
 		}
 
+		if (g_instr->mnemo == i_BTST && (g_instr->dmode == PC16 || g_instr->dmode == PC8r)) {
+			// BTST special case where destination is read access
+			fc = 2;
+		}
+
 		printf("\t\texception2_%s(opcode, %sa + %d, %d);\n",
 			write ? "write" : "read", name, offset,
-			(!write && (g_instr->smode == PC16 || g_instr->smode == PC8r) ? 2 : fc));
+			(!write && (g_instr->smode == PC16 || g_instr->smode == PC8r)) ||
+			(write && (g_instr->dmode == PC16 || g_instr->dmode == PC8r)) ? 2 : fc);
 	}
-
-	//		if (exception_pc_offset)
-	//			printf("\tbus_error_offset = %d;\n", exception_pc_offset);
 
 	printf("\t\tgoto %s;\n", endlabelstr);
 	printf("\t}\n");
@@ -1525,7 +1923,7 @@ static void maybeaddop_ce020 (int flags)
 
 
 // Handle special MOVE.W/.L condition codes when destination write causes address error.
-static void move_68000_address_error(amodes mode, int size, int *setapdi, int *fcmodeflags)
+static void move_68000_address_error(int size, int *setapdi, int *fcmodeflags)
 {
 	int smode = g_instr->smode;
 	int dmode = g_instr->dmode;
@@ -1549,7 +1947,7 @@ static void move_68000_address_error(amodes mode, int size, int *setapdi, int *f
 			case absw:
 			case absl:
 			case imm:
-				if (dmode == Aind || dmode == Aipi || dmode == Apdi || dmode == Ad16 || mode == Ad8r || mode == absw || mode == absl)
+				if (dmode == Aind || dmode == Aipi || dmode == Apdi || dmode == Ad16 || dmode == Ad8r || dmode == absw || dmode == absl)
 					set_ccr = 1;
 			break;
 		}
@@ -1561,9 +1959,6 @@ static void move_68000_address_error(amodes mode, int size, int *setapdi, int *f
 		}
 		if (set_ccr) {
 			printf("\t\tccr_68000_word_move_ae_normal((uae_s16)(src));\n");
-			//printf("\t\tCLEAR_CZNV();\n");
-			//printf("\t\tSET_ZFLG(((uae_s16)(src)) == 0);\n");
-			//printf("\t\tSET_NFLG(((uae_s16)(src)) < 0);\n");
 		}
 	} else {
 		// Long MOVE is much more complex..
@@ -1589,9 +1984,9 @@ static void move_68000_address_error(amodes mode, int size, int *setapdi, int *f
 		case PC8r:
 		case absw:
 		case absl:
-			if (mode == Apdi || mode == Ad16 || mode == Ad8r || mode == absw) {
+			if (dmode == Apdi || dmode == Ad16 || dmode == Ad8r || dmode == absw) {
 				set_ccr = 1;
-			} else if (mode == Aind || mode == Aipi || mode == absl) {
+			} else if (dmode == Aind || dmode == Aipi || dmode == absl) {
 				set_low_word = 1;
 			} else {
 				set_low_word = 2;
@@ -1615,35 +2010,15 @@ static void move_68000_address_error(amodes mode, int size, int *setapdi, int *f
 		if (set_low_word == 1) {
 			// Low word: Z and N
 			printf("\t\tccr_68000_long_move_ae_LZN(src);\n");
-			//printf("\t\tCLEAR_CZNV();\n");
-			//printf("\t\tuae_s16 vsrc = (uae_s16)(src & 0xffff);\n");
-			//printf("\t\tSET_ZFLG(vsrc == 0);\n");
-			//printf("\t\tSET_NFLG(vsrc < 0);\n");
 		} else if (set_low_word == 2) {
 			// Low word: N only
 			printf("\t\tccr_68000_long_move_ae_LN(src);\n");
-			//printf("\t\tCLEAR_CZNV();\n");
-			//printf("\t\tuae_s16 vsrc = (uae_s16)(src & 0xffff);\n");
-			//printf("\t\tSET_NFLG(vsrc < 0);\n");
 		} else if (set_high_word) {
 			// High word: N and Z clear.
 			printf("\t\tccr_68000_long_move_ae_HNZ(src);\n");
-			//printf("\t\tuae_s16 vsrc = (uae_s16)(src >> 16);\n");
-			//printf("\t\tif(vsrc < 0) {\n");
-			//printf("\t\t\tSET_NFLG(1);\n");
-			//printf("\t\t\tSET_ZFLG(0);\n");
-			//printf("\t\t} else if (vsrc) {\n");
-			//printf("\t\t\tSET_NFLG(0);\n");
-			//printf("\t\t\tSET_ZFLG(0);\n");
-			//printf("\t\t} else {\n");
-			//printf("\t\t\tSET_NFLG(0);\n");
-			//printf("\t\t}\n");
 		} else if (set_ccr) {
 			// Set normally.
 			printf("\t\tccr_68000_long_move_ae_normal(src);\n");
-			//printf("\t\tCLEAR_CZNV();\n");
-			//printf("\t\tSET_ZFLG((src) == 0);\n");
-			//printf("\t\tSET_NFLG((src) < 0);\n");
 		}
 	}
 }
@@ -1994,7 +2369,7 @@ static void genamode2x (amodes mode, const char *reg, wordsizes size, const char
 
 		if (g_instr->mnemo == i_MOVE) {
 			if (getv == 2) {
-				move_68000_address_error(mode, size, &setapdiback, &fcmodeflags);
+				move_68000_address_error(size, &setapdiback, &fcmodeflags);
 			}
 		} else if (g_instr->mnemo == i_MVSR2) {
 			// If MOVE from SR generates address error exception,
@@ -2367,12 +2742,18 @@ static void genastore_2 (const char *from, amodes mode, const char *reg, wordsiz
 					printf ("\t%s (%sa + 2, %s);\n", dstwx, to, from);
 					check_bus_error(to, 2, 1, 1);
 					check_ipl_again();
+					if (flags & GF_SECONDWORDSETFLAGS) {
+						genflags(flag_logical, g_instr->size, "src", "", "");
+					}
 					printf ("%s (%sa, %s >> 16);\n", dstwx, to, from);
 					check_bus_error(to, 0, 1, 1);
 				} else {
 					printf ("\t%s (%sa, %s >> 16);\n", dstwx, to, from);
 					check_bus_error(to, 0, 1, 1);
 					check_ipl_again();
+					if (flags & GF_SECONDWORDSETFLAGS) {
+						genflags(flag_logical, g_instr->size, "src", "", "");
+					}
 					printf ("\t%s (%sa + 2, %s);\n", dstwx, to, from);
 					check_bus_error(to, 2, 1, 1);
 				}
@@ -2404,11 +2785,17 @@ static void genastore_2 (const char *from, amodes mode, const char *reg, wordsiz
 				if (store_dir) {
 					printf("\t%s(%sa + 2, %s);\n", dstwx, to, from);
 					check_bus_error(to, 2, 1, 1);
+					if (flags & GF_SECONDWORDSETFLAGS) {
+						genflags(flag_logical, g_instr->size, "src", "", "");
+					}
 					printf("\t%s(%sa, %s >> 16); \n", dstwx, to, from);
 					check_bus_error(to, 0, 1, 1);
 				} else {
 					printf("\t%s (%sa, %s >> 16);\n", dstwx, to, from);
 					check_bus_error(to, 0, 1, 1);
+					if (flags & GF_SECONDWORDSETFLAGS) {
+						genflags(flag_logical, g_instr->size, "src", "", "");
+					}
 					printf("\t%s(%sa + 2, %s); \n", dstwx, to, from);
 					check_bus_error(to, 2, 1, 1);
 				}
@@ -2945,243 +3332,6 @@ static void genmovemle_ce (uae_u16 opcode)
 	}
 	count_ncycles++;
 	fill_prefetch_next ();
-}
-
-static void duplicate_carry (int n)
-{
-	int i;
-	for (i = 0; i <= n; i++)
-		printf ("\t");
-	printf ("COPY_CARRY ();\n");
-}
-
-typedef enum
-{
-	flag_logical_noclobber, flag_logical, flag_add, flag_sub, flag_cmp, flag_addx, flag_subx, flag_z, flag_zn,
-	flag_av, flag_sv
-}
-flagtypes;
-
-static void genflags_normal (flagtypes type, wordsizes size, const char *value, const char *src, const char *dst)
-{
-	char vstr[100], sstr[100], dstr[100];
-	char usstr[100], udstr[100];
-	char unsstr[100], undstr[100];
-
-	switch (size) {
-	case sz_byte:
-		strcpy (vstr, "((uae_s8)(");
-		strcpy (usstr, "((uae_u8)(");
-		break;
-	case sz_word:
-		strcpy (vstr, "((uae_s16)(");
-		strcpy (usstr, "((uae_u16)(");
-		break;
-	case sz_long:
-		strcpy (vstr, "((uae_s32)(");
-		strcpy (usstr, "((uae_u32)(");
-		break;
-	default:
-		term ();
-	}
-	strcpy (unsstr, usstr);
-
-	strcpy (sstr, vstr);
-	strcpy (dstr, vstr);
-	strcat (vstr, value);
-	strcat (vstr, "))");
-	strcat (dstr, dst);
-	strcat (dstr, "))");
-	strcat (sstr, src);
-	strcat (sstr, "))");
-
-	strcpy (udstr, usstr);
-	strcat (udstr, dst);
-	strcat (udstr, "))");
-	strcat (usstr, src);
-	strcat (usstr, "))");
-
-	strcpy (undstr, unsstr);
-	strcat (unsstr, "-");
-	strcat (undstr, "~");
-	strcat (undstr, dst);
-	strcat (undstr, "))");
-	strcat (unsstr, src);
-	strcat (unsstr, "))");
-
-	switch (type) {
-	case flag_logical_noclobber:
-	case flag_logical:
-	case flag_z:
-	case flag_zn:
-	case flag_av:
-	case flag_sv:
-	case flag_addx:
-	case flag_subx:
-		break;
-
-	case flag_add:
-		start_brace ();
-		printf ("uae_u32 %s = %s + %s;\n", value, udstr, usstr);
-		break;
-	case flag_sub:
-	case flag_cmp:
-		start_brace ();
-		printf ("uae_u32 %s = %s - %s;\n", value, udstr, usstr);
-		break;
-	}
-
-	switch (type) {
-	case flag_logical_noclobber:
-	case flag_logical:
-	case flag_zn:
-		break;
-
-	case flag_add:
-	case flag_sub:
-	case flag_addx:
-	case flag_subx:
-	case flag_cmp:
-	case flag_av:
-	case flag_sv:
-		start_brace ();
-		printf ("\t" BOOL_TYPE " flgs = %s < 0;\n", sstr);
-		printf ("\t" BOOL_TYPE " flgo = %s < 0;\n", dstr);
-		printf ("\t" BOOL_TYPE " flgn = %s < 0;\n", vstr);
-		break;
-	}
-
-	switch (type) {
-	case flag_logical:
-		printf ("\tCLEAR_CZNV ();\n");
-		printf ("\tSET_ZFLG (%s == 0);\n", vstr);
-		printf ("\tSET_NFLG (%s < 0);\n", vstr);
-		break;
-	case flag_logical_noclobber:
-		printf ("\tSET_ZFLG (%s == 0);\n", vstr);
-		printf ("\tSET_NFLG (%s < 0);\n", vstr);
-		break;
-	case flag_av:
-		printf ("\tSET_VFLG ((flgs ^ flgn) & (flgo ^ flgn));\n");
-		break;
-	case flag_sv:
-		printf ("\tSET_VFLG ((flgs ^ flgo) & (flgn ^ flgo));\n");
-		break;
-	case flag_z:
-		printf ("\tSET_ZFLG (GET_ZFLG () & (%s == 0));\n", vstr);
-		break;
-	case flag_zn:
-		printf ("\tSET_ZFLG (GET_ZFLG () & (%s == 0));\n", vstr);
-		printf ("\tSET_NFLG (%s < 0);\n", vstr);
-		break;
-	case flag_add:
-		printf ("\tSET_ZFLG (%s == 0);\n", vstr);
-		printf ("\tSET_VFLG ((flgs ^ flgn) & (flgo ^ flgn));\n");
-		printf ("\tSET_CFLG (%s < %s);\n", undstr, usstr);
-		duplicate_carry (0);
-		printf ("\tSET_NFLG (flgn != 0);\n");
-		break;
-	case flag_sub:
-		printf ("\tSET_ZFLG (%s == 0);\n", vstr);
-		printf ("\tSET_VFLG ((flgs ^ flgo) & (flgn ^ flgo));\n");
-		printf ("\tSET_CFLG (%s > %s);\n", usstr, udstr);
-		duplicate_carry (0);
-		printf ("\tSET_NFLG (flgn != 0);\n");
-		break;
-	case flag_addx:
-		printf ("\tSET_VFLG ((flgs ^ flgn) & (flgo ^ flgn));\n"); /* minterm SON: 0x42 */
-		printf ("\tSET_CFLG (flgs ^ ((flgs ^ flgo) & (flgo ^ flgn)));\n"); /* minterm SON: 0xD4 */
-		duplicate_carry (0);
-		break;
-	case flag_subx:
-		printf ("\tSET_VFLG ((flgs ^ flgo) & (flgo ^ flgn));\n"); /* minterm SON: 0x24 */
-		printf ("\tSET_CFLG (flgs ^ ((flgs ^ flgn) & (flgo ^ flgn)));\n"); /* minterm SON: 0xB2 */
-		duplicate_carry (0);
-		break;
-	case flag_cmp:
-		printf ("\tSET_ZFLG (%s == 0);\n", vstr);
-		printf ("\tSET_VFLG ((flgs != flgo) && (flgn != flgo));\n");
-		printf ("\tSET_CFLG (%s > %s);\n", usstr, udstr);
-		printf ("\tSET_NFLG (flgn != 0);\n");
-		break;
-	}
-}
-
-static void genflags (flagtypes type, wordsizes size, const char *value, const char *src, const char *dst)
-{
-	/* Temporarily deleted 68k/ARM flag optimizations.  I'd prefer to have
-	them in the appropriate m68k.h files and use just one copy of this
-	code here.  The API can be changed if necessary.  */
-	if (optimized_flags) {
-		switch (type) {
-		case flag_add:
-		case flag_sub:
-			start_brace ();
-			printf ("\tuae_u32 %s;\n", value);
-			break;
-
-		default:
-			break;
-		}
-
-		/* At least some of those casts are fairly important! */
-		switch (type) {
-		case flag_logical_noclobber:
-			printf ("\t{uae_u32 oldcznv = GET_CZNV & ~(FLAGVAL_Z | FLAGVAL_N);\n");
-			if (strcmp (value, "0") == 0) {
-				printf ("\tSET_CZNV (olcznv | FLAGVAL_Z);\n");
-			} else {
-				switch (size) {
-				case sz_byte: printf ("\toptflag_testb (regs, (uae_s8)(%s));\n", value); break;
-				case sz_word: printf ("\toptflag_testw (regs, (uae_s16)(%s));\n", value); break;
-				case sz_long: printf ("\toptflag_testl (regs, (uae_s32)(%s));\n", value); break;
-				}
-				printf ("\tIOR_CZNV (oldcznv);\n");
-			}
-			printf ("\t}\n");
-			return;
-		case flag_logical:
-			if (strcmp (value, "0") == 0) {
-				printf ("\tSET_CZNV (FLAGVAL_Z);\n");
-			} else {
-				switch (size) {
-				case sz_byte: printf ("\toptflag_testb (regs, (uae_s8)(%s));\n", value); break;
-				case sz_word: printf ("\toptflag_testw (regs, (uae_s16)(%s));\n", value); break;
-				case sz_long: printf ("\toptflag_testl (regs, (uae_s32)(%s));\n", value); break;
-				}
-			}
-			return;
-
-		case flag_add:
-			switch (size) {
-			case sz_byte: printf ("\toptflag_addb (regs, %s, (uae_s8)(%s), (uae_s8)(%s));\n", value, src, dst); break;
-			case sz_word: printf ("\toptflag_addw (regs, %s, (uae_s16)(%s), (uae_s16)(%s));\n", value, src, dst); break;
-			case sz_long: printf ("\toptflag_addl (regs, %s, (uae_s32)(%s), (uae_s32)(%s));\n", value, src, dst); break;
-			}
-			return;
-
-		case flag_sub:
-			switch (size) {
-			case sz_byte: printf ("\toptflag_subb (regs, %s, (uae_s8)(%s), (uae_s8)(%s));\n", value, src, dst); break;
-			case sz_word: printf ("\toptflag_subw (regs, %s, (uae_s16)(%s), (uae_s16)(%s));\n", value, src, dst); break;
-			case sz_long: printf ("\toptflag_subl (regs, %s, (uae_s32)(%s), (uae_s32)(%s));\n", value, src, dst); break;
-			}
-			return;
-
-		case flag_cmp:
-			switch (size) {
-			case sz_byte: printf ("\toptflag_cmpb (regs, (uae_s8)(%s), (uae_s8)(%s));\n", src, dst); break;
-			case sz_word: printf ("\toptflag_cmpw (regs, (uae_s16)(%s), (uae_s16)(%s));\n", src, dst); break;
-			case sz_long: printf ("\toptflag_cmpl (regs, (uae_s32)(%s), (uae_s32)(%s));\n", src, dst); break;
-			}
-			return;
-
-		default:
-			break;
-		}
-	}
-
-	genflags_normal (type, size, value, src, dst);
 }
 
 static void force_range_for_rox (const char *var, wordsizes size)
@@ -4255,8 +4405,17 @@ static void gen_opcode (unsigned int opcode)
 					prefetch_done = 1;
 				}
 
-				if (curi->mnemo == i_MOVE)
-					genflags(flag_logical, curi->size, "src", "", "");
+				int storeflags = 0;
+
+				if (curi->mnemo == i_MOVE) {
+					if (curi->size == sz_long && cpu_level <= 1 && (using_prefetch || using_ce) && curi->dmode >= Aind) {
+						// to support bus error exception correct flags, flags needs to be set
+						// after first word has been written.
+						storeflags = GF_SECONDWORDSETFLAGS;
+					} else {
+						genflags(flag_logical, curi->size, "src", "", "");
+					}
+				}
 
 				if (curi->size == sz_long) {
 					if ((curi->dmode == Ad16 || curi->dmode == PC16) && curi->smode == imm) {
@@ -4268,9 +4427,9 @@ static void gen_opcode (unsigned int opcode)
 				}
 				// MOVE EA,-(An) long writes are always reversed. Reads are normal.
 				if (curi->dmode == Apdi && curi->size == sz_long) {
-					genastore_rev("src", curi->dmode, "dstreg", curi->size, "dst");
+					genastore_2("src", curi->dmode, "dstreg", curi->size, "dst", 1, storeflags);
 				} else {
-					genastore("src", curi->dmode, "dstreg", curi->size, "dst");
+					genastore_2("src", curi->dmode, "dstreg", curi->size, "dst", 0, storeflags);
 				}
 				sync_m68k_pc ();
 				if (dualprefetch) {
@@ -6994,6 +7153,8 @@ int main(int argc, char *argv[])
 	using_debugmem = 1;
 
 	headerfile = fopen("cputbl.h", "wb");
+
+	fprintf(headerfile, "#define BUS_ERROR_EMULATION %d\n", using_bus_error);
 
 	stblfile = fopen("cpustbl.cpp", "wb");
 	generate_includes(stblfile, 0);

@@ -1567,7 +1567,7 @@ void cpu_restore_fixup(void)
 	}
 }
 
-// Low word: Z and N
+// Low word: Clear + Z and N
 void ccr_68000_long_move_ae_LZN(uae_s32 src)
 {
 	CLEAR_CZNV();
@@ -1576,7 +1576,7 @@ void ccr_68000_long_move_ae_LZN(uae_s32 src)
 	SET_NFLG(vsrc < 0);
 }
 
-// Low word: N only
+// Low word: Clear + N only
 void ccr_68000_long_move_ae_LN(uae_s32 src)
 {
 	CLEAR_CZNV();

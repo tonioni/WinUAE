@@ -176,10 +176,6 @@ uaecptr ShowEA_disp(uaecptr *pcp, uaecptr base, TCHAR *buffer, const TCHAR *name
 		dispreg = (uae_s32)(uae_s16)(dispreg);
 	}
 
-	if (currprefs.cpu_model >= 68020) {
-		dispreg <<= (dp >> 9) & 3; // SCALE
-	}
-
 	int m = 1 << ((dp >> 9) & 3);
 	mult[0] = 0;
 	if (m > 1 && buffer) {
@@ -190,8 +186,11 @@ uaecptr ShowEA_disp(uaecptr *pcp, uaecptr base, TCHAR *buffer, const TCHAR *name
 		buffer[0] = 0;
 	if ((dp & 0x100) && currprefs.cpu_model >= 68020) {
 		TCHAR dr[20];
-		// Full format extension (68020+)
 		uae_s32 outer = 0, disp = 0;
+
+		// Full format extension (68020+)
+
+		dispreg <<= (dp >> 9) & 3; // SCALE
 		if (dp & 0x80) { // BS (base register suppress)
 			base = 0;
 			if (buffer)

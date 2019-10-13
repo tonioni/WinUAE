@@ -164,6 +164,7 @@ static void setcpu(uae_u32 v, uae_u32 *s, uae_u32 *d)
 static void flushcache(uae_u32 v)
 {
 }
+static void *error_vector;
 #else
 
 static void xmemcpy(void *d, void *s, int size)
@@ -185,6 +186,7 @@ extern uae_u32 setvbr(uae_u32);
 extern uae_u32 get_cpu_model(void);
 extern void setcpu(uae_u32, uae_u32*, uae_u32*);
 extern void flushcache(uae_u32);
+extern void *error_vector;
 
 #endif
 
@@ -249,6 +251,35 @@ static void safe_memcpy(uae_u8 *d, uae_u8 *s, int size)
 
 static int test_active;
 static uae_u32 enable_data;
+static uae_u32 error_vectors[12];
+
+// if exception happens outside of test code, jump to
+// infinite loop and flash colors.
+static void reset_error_vectors(void)
+{
+	uae_u32 *p;
+	if (cpu_lvl == 0) {
+		p = (uae_u32*)vbr_zero;
+	} else {
+		p = vbr;
+	}
+	for (int i = 2; i < 4; i++) {
+		p[i] = error_vectors[i - 2];
+	}
+}
+
+static void set_error_vectors(void)
+{
+	uae_u32 *p;
+	if (cpu_lvl == 0) {
+		p = (uae_u32 *)vbr_zero;
+	} else {
+		p = vbr;
+	}
+	for (int i = 2; i < 4; i++) {
+		p[i] = (uae_u32)&error_vector;
+	}
+}
 
 static void start_test(void)
 {
@@ -293,6 +324,9 @@ static void start_test(void)
 		uae_u32 *p = (uae_u32 *)vbr_zero;
 		for (int i = 2; i < 12; i++) {
 			p[i] = (uae_u32)(((uae_u32)&exceptiontable000) + (i - 2) * 2);
+			if (i < 12 + 2) {
+				error_vectors[i - 2] = p[i];
+			}
 		}
 		for (int i = 32; i < 48; i++) {
 			p[i] = (uae_u32)(((uae_u32)&exceptiontable000) + (i - 2) * 2);
@@ -301,6 +335,9 @@ static void start_test(void)
 		oldvbr = setvbr((uae_u32)vbr);
 		for (int i = 0; i < 256; i++) {
 			vbr[i] = fpu_model ? (uae_u32)(&exceptionfpu) : (cpu_lvl == 1 ? (uae_u32)(&exception010) : (uae_u32)(&exception020));
+			if (i >= 2 && i < 12) {
+				error_vectors[i - 2] = vbr[i];
+			}
 		}
 	}
 	setcpu(cpu_lvl, cpustatearraynew, cpustatearraystore);
@@ -929,7 +966,7 @@ static void out_regs(struct registers *r, int before)
 				strcat(outbp, " ");
 			}
 			outbp += strlen(outbp);
-			sprintf(outbp, "%c%d:%c%08lx", i < 8 ? 'D' : 'A', i & 7, test_regs.regs[i] != regs.regs[i] ? '*' : ' ', r->regs[i]);
+			sprintf(outbp, "%c%d:%c%08lx", i < 8 ? 'D' : 'A', i & 7, test_regs.regs[i] != last_registers.regs[i] ? '*' : ' ', r->regs[i]);
 			outbp += strlen(outbp);
 		}
 		*outbp++ = '\n';
@@ -950,7 +987,7 @@ static void out_regs(struct registers *r, int before)
 					int idx = i * 4 + j;
 					if (j > 0)
 						*outbp++ = ' ';
-					sprintf(outbp, "%c%d:%c%08lx", idx < 8 ? 'D' : 'A', idx & 7, test_regs.regs[idx] != regs.regs[idx] ? '*' : ' ', r->regs[idx]);
+					sprintf(outbp, "%c%d:%c%08lx", idx < 8 ? 'D' : 'A', idx & 7, test_regs.regs[idx] != last_registers.regs[idx] ? '*' : ' ', regs.regs[idx]);
 					outbp += strlen(outbp);
 				}
 			}
@@ -1126,7 +1163,7 @@ static uae_u8 *validate_exception(struct registers *regs, uae_u8 *p, int excnum,
 	if (exclen == 0 || !sameexc)
 		return p;
 	if (memcmp(exc, sp, exclen)) {
-		strcpy(outbp, "Exception stack frame mismatch:\n");
+		sprintf(outbp, "Exception %ld stack frame mismatch:\n", excnum);
 		outbp += strlen(outbp);
 		strcpy(outbp, "Expected: ");
 		outbp += strlen(outbp);
@@ -1607,6 +1644,8 @@ static void process_test(uae_u8 *p)
 
 					if ((ccr_mask & ccr) || (ccr == 0)) {
 
+						reset_error_vectors();
+
 						if (cpu_lvl == 1) {
 							execute_test010(&test_regs);
 						} else if (cpu_lvl >= 2) {
@@ -1620,6 +1659,8 @@ static void process_test(uae_u8 *p)
 
 						if (ccr_mask == 0 && ccr == 0)
 							ignore_sr = 1;
+
+						set_error_vectors();
 
 					} else {
 
@@ -1970,6 +2011,8 @@ int main(int argc, char *argv[])
 				ccr_mask = ~getparamval(next);
 				i++;
 			}
+		} else if (!_stricmp(s, "silent")) {
+			dooutput = 0;
 		} else if (!_stricmp(s, "68000")) {
 			cpu_lvl = 0;
 		} else if (!_stricmp(s, "68010")) {

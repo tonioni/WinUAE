@@ -315,7 +315,7 @@ void put_byte_test(uaecptr addr, uae_u32 v)
 {
 	check_bus_error(addr, 1, regs.s ? 5 : 1);
 	uae_u8 *p = get_addr(addr, 1, 1);
-	if (!out_of_test_space && !noaccesshistory) {
+	if (!out_of_test_space && !noaccesshistory && !cpu_bus_error) {
 		previoussame(addr, sz_byte);
 		if (ahcnt >= MAX_ACCESSHIST) {
 			wprintf(_T("ahist overflow!"));
@@ -337,7 +337,7 @@ void put_word_test(uaecptr addr, uae_u32 v)
 		put_byte_test(addr + 1, v >> 0);
 	} else {
 		uae_u8 *p = get_addr(addr, 2, 1);
-		if (!out_of_test_space && !noaccesshistory) {
+		if (!out_of_test_space && !noaccesshistory && !cpu_bus_error) {
 			previoussame(addr, sz_word);
 			if (ahcnt >= MAX_ACCESSHIST) {
 				wprintf(_T("ahist overflow!"));
@@ -365,7 +365,7 @@ void put_long_test(uaecptr addr, uae_u32 v)
 		put_word_test(addr + 2, v >> 0);
 	} else {
 		uae_u8 *p = get_addr(addr, 4, 1);
-		if (!out_of_test_space && !noaccesshistory) {
+		if (!out_of_test_space && !noaccesshistory && !cpu_bus_error) {
 			previoussame(addr, sz_long);
 			if (ahcnt >= MAX_ACCESSHIST) {
 				wprintf(_T("ahist overflow!"));
@@ -2830,6 +2830,15 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 					if ((dflags & 2) && target_ea[1] != 0xffffffff && dstaddr != target_ea[1]) {
 						wprintf(_T("\nDestination address mismatch %08x <> %08x\n"), target_ea[1], dstaddr);
 						abort();
+					}
+
+					if ((dflags & 1) && target_ea[0] == 0xffffffff && (srcaddr & addressing_mask) >= safe_memory_start - 4 && (srcaddr & addressing_mask) < safe_memory_end + 4) {
+						// random generated EA must never be inside safe memory
+						continue;
+					}
+					if ((dflags & 2) && target_ea[1] == 0xffffffff && (dstaddr & addressing_mask) >= safe_memory_start - 4 && (dstaddr & addressing_mask) < safe_memory_end + 4) {
+						// random generated EA must never be inside safe memory
+						continue;
 					}
 
 #if 0
