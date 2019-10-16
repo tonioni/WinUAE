@@ -996,7 +996,6 @@ static void out_regs(struct registers *r, int before)
 			*outbp++ = '\n';
 		}
 	}
-	outbp += strlen(outbp);
 	sprintf(outbp, "SR:%c%04x   PC: %08lx ISP: %08lx", test_sr != last_registers.sr ? '*' : ' ', before ? test_sr : test_regs.sr, r->pc, r->ssp);
 	outbp += strlen(outbp);
 	if (cpu_lvl >= 2 && cpu_lvl <= 4) {
@@ -1005,7 +1004,6 @@ static void out_regs(struct registers *r, int before)
 	}
 	*outbp++ = '\n';
 
-	outbp += strlen(outbp);
 	if (before >= 0) {
 		uae_u16 s = before ? test_sr : test_regs.sr; // current value
 		uae_u16 s1 = regs.sr; // original value
@@ -1891,18 +1889,22 @@ static int test_mnemo(const char *path, const char *opcode)
 		}
 		if (fread(test_data, 1, test_data_size, f) != test_data_size) {
 			printf("Couldn't read '%s'\n", fname);
+			free(test_data);
 			break;
 		}
 		fclose(f);
 		if (test_data[test_data_size - 1] != CT_END_FINISH) {
 			printf("Invalid test data file (footer)\n");
+			free(test_data);
 			exit(0);
 		}
 
 		process_test(test_data);
 
-		if (errors || quit)
+		if (errors || quit) {
+			free(test_data);
 			break;
+		}
 
 		free(test_data);
 		filecnt++;
