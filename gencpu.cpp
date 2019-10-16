@@ -509,7 +509,7 @@ static void do_instruction_buserror(void)
 
 static void check_bus_error_ins(int offset)
 {
-	char *opcode;
+	const char *opcode;
 	if (bus_error_specials) {
 		opcode = "0";
 	} else {
@@ -1086,6 +1086,7 @@ static void genflags_normal(flagtypes type, wordsizes size, const char *value, c
 	switch (type) {
 	case flag_logical_noclobber:
 	case flag_logical:
+	case flag_z:
 	case flag_zn:
 		break;
 
@@ -1187,6 +1188,7 @@ static void genflags(flagtypes type, wordsizes size, const char *value, const ch
 				case sz_byte: printf("\toptflag_testb (regs, (uae_s8)(%s));\n", value); break;
 				case sz_word: printf("\toptflag_testw (regs, (uae_s16)(%s));\n", value); break;
 				case sz_long: printf("\toptflag_testl (regs, (uae_s32)(%s));\n", value); break;
+				default: term();
 				}
 				printf("\tIOR_CZNV (oldcznv);\n");
 			}
@@ -1200,6 +1202,7 @@ static void genflags(flagtypes type, wordsizes size, const char *value, const ch
 				case sz_byte: printf("\toptflag_testb (regs, (uae_s8)(%s));\n", value); break;
 				case sz_word: printf("\toptflag_testw (regs, (uae_s16)(%s));\n", value); break;
 				case sz_long: printf("\toptflag_testl (regs, (uae_s32)(%s));\n", value); break;
+				default: term();
 				}
 			}
 			return;
@@ -1209,6 +1212,7 @@ static void genflags(flagtypes type, wordsizes size, const char *value, const ch
 			case sz_byte: printf("\toptflag_addb (regs, %s, (uae_s8)(%s), (uae_s8)(%s));\n", value, src, dst); break;
 			case sz_word: printf("\toptflag_addw (regs, %s, (uae_s16)(%s), (uae_s16)(%s));\n", value, src, dst); break;
 			case sz_long: printf("\toptflag_addl (regs, %s, (uae_s32)(%s), (uae_s32)(%s));\n", value, src, dst); break;
+			default: term();
 			}
 			return;
 
@@ -1217,6 +1221,7 @@ static void genflags(flagtypes type, wordsizes size, const char *value, const ch
 			case sz_byte: printf("\toptflag_subb (regs, %s, (uae_s8)(%s), (uae_s8)(%s));\n", value, src, dst); break;
 			case sz_word: printf("\toptflag_subw (regs, %s, (uae_s16)(%s), (uae_s16)(%s));\n", value, src, dst); break;
 			case sz_long: printf("\toptflag_subl (regs, %s, (uae_s32)(%s), (uae_s32)(%s));\n", value, src, dst); break;
+			default: term();
 			}
 			return;
 
@@ -1225,6 +1230,7 @@ static void genflags(flagtypes type, wordsizes size, const char *value, const ch
 			case sz_byte: printf("\toptflag_cmpb (regs, (uae_s8)(%s), (uae_s8)(%s));\n", src, dst); break;
 			case sz_word: printf("\toptflag_cmpw (regs, (uae_s16)(%s), (uae_s16)(%s));\n", src, dst); break;
 			case sz_long: printf("\toptflag_cmpl (regs, (uae_s32)(%s), (uae_s32)(%s));\n", src, dst); break;
+			default: term();
 			}
 			return;
 
@@ -1511,7 +1517,7 @@ static void add_head_cycs (int h)
 	head_cycs (h);
 }
 
-static void addopcycles_ce20 (int h, int t, int c, int subhead)
+static void addopcycles_ce20 (int h, int t, int c, int subhead, int flags)
 {
 	head_cycs (h);
 
@@ -1522,7 +1528,7 @@ static void addopcycles_ce20 (int h, int t, int c, int subhead)
 	else if (tail_ce020 == 2)
 		printf ("\tregs.ce020memcycles -= 2 * cpucycleunit; /* T=2 */\n");
 #endif
-	if (1 && !subhead && (h > 0 || t > 0 || c > 0) && got_ea_ce020) {
+	if (1 && !subhead && (h > 0 || t > 0 || c > 0) && got_ea_ce020 && !(flags & GF_LRMW)) {
 		if (!did_prefetch) {
 			get_prefetch_020 ();
 			did_prefetch = 1;
@@ -1596,7 +1602,7 @@ static void addopcycles_ce20 (int h, int t, int c, int subhead)
 //		printf ("\tint op_cycles = get_cycles ();\n");
 }
 
-static void addop_ce020 (instr *curi, int subhead)
+static void addop_ce020 (instr *curi, int subhead, int flags)
 {
 	if (isce020()) {
 		int h = curi->head;
@@ -1608,7 +1614,7 @@ static void addop_ce020 (instr *curi, int subhead)
 			c += using_waitstates;
 		}
 	#endif
-		addopcycles_ce20 (h, t, c, -subhead);
+		addopcycles_ce20 (h, t, c, -subhead, flags);
 	}
 }
 
@@ -1918,7 +1924,7 @@ static void next_level_000 (void)
 static void maybeaddop_ce020 (int flags)
 {
 	if (flags & GF_OPCE020)
-		addop_ce020 (curi_ce020, subhead_ce020);
+		addop_ce020 (curi_ce020, subhead_ce020, flags);
 }
 
 
@@ -2416,6 +2422,7 @@ static void genamode2x (amodes mode, const char *reg, wordsizes size, const char
 			case sz_long:
 				bus_error_reg_add = 3;
 				break;
+			default: term();
 			}
 		} else if (mode == Apdi) {
 			bus_error_reg_add = 4;
@@ -2470,14 +2477,14 @@ static void genamode2x (amodes mode, const char *reg, wordsizes size, const char
 			{
 				insn_n_cycles += 8;
 				if ((flags & GF_REVERSE) && mode == Apdi) {
-					printf("\tuae_s32 %s = %s (%sa + 2);\n", name, srcwx, name);
+					printf("\tuae_s32 %s = %s(%sa + 2);\n", name, srcwx, name);
 					check_bus_error(name, 0, 0, 1);
-					printf("\t%s |= % s(% sa) << 16; \n", name, srcw, name);
+					printf("\t%s |= %s(%sa) << 16; \n", name, srcw, name);
 					check_bus_error(name, -2, 0, 1);
 				} else {
-					printf("\tuae_s32 %s = %s (%sa) << 16;\n", name, srcwx, name);
+					printf("\tuae_s32 %s = %s(%sa) << 16;\n", name, srcwx, name);
 					check_bus_error(name, 0, 0, 1);
-					printf("\t%s |= % s(% sa + 2); \n", name, srcw, name);
+					printf("\t%s |= %s(%sa + 2); \n", name, srcw, name);
 					check_bus_error(name, 2, 0, 1);
 				}
 				count_read += 2;
@@ -2561,7 +2568,7 @@ static void genamode (instr *curi, amodes mode, const char *reg, wordsizes size,
 		clearmmufixup (0);
 	}
 	if (curi)
-		addop_ce020 (curi, subhead);
+		addop_ce020 (curi, subhead, flags);
 }
 
 static void genamode3 (instr *curi, amodes mode, const char *reg, wordsizes size, const char *name, int getv, int movem, int flags)
@@ -2623,7 +2630,9 @@ static void genastore_2 (const char *from, amodes mode, const char *reg, wordsiz
 			candormw = false;
 	}
 	genastore_done = true;
-	returntail (mode != Dreg && mode != Areg);
+	if (!(flags & GF_LRMW)) {
+		returntail(mode != Dreg && mode != Areg);
+	}
 
 	switch (mode) {
 	case Dreg:
@@ -2841,6 +2850,11 @@ static void genastore_2 (const char *from, amodes mode, const char *reg, wordsiz
 	default:
 		term ();
 	}
+
+	if (flags & GF_LRMW) {
+		returntail(mode != Dreg && mode != Areg);
+	}
+
 }
 
 static void genastore (const char *from, amodes mode, const char *reg, wordsizes size, const char *to)
@@ -4376,7 +4390,7 @@ static void gen_opcode (unsigned int opcode)
 				}
 				genamode2x (curi->smode, "srcreg", curi->size, "src", 1, 0, 0, fea ? fetchmode_fea : -1);
 				genamode2 (curi->dmode, "dstreg", curi->size, "dst", 2, 0, GF_MOVE);
-				addopcycles_ce20 (h, t, c, -subhead);
+				addopcycles_ce20 (h, t, c, -subhead, 0);
 				if (curi->mnemo == i_MOVEA && curi->size == sz_word)
 					printf ("\tsrc = (uae_s32)(uae_s16)src;\n");
 				if (curi->mnemo == i_MOVE)
@@ -4620,7 +4634,7 @@ static void gen_opcode (unsigned int opcode)
 	case i_PULSE: /* 68060 debug */
 		break;
 	case i_RTE:
-		addop_ce020 (curi, 0);
+		addop_ce020 (curi, 0, 0);
 		next_level_000 ();
 		if (cpu_level == 0) {
 			// 68000
@@ -4771,7 +4785,7 @@ static void gen_opcode (unsigned int opcode)
 		next_cpu_level = cpu_level - 1;
 		break;
 	case i_RTD:
-		addop_ce020 (curi, 0);
+		addop_ce020 (curi, 0, 0);
 		if (using_mmu) {
 			genamode (curi, curi->smode, "srcreg", curi->size, "offs", GENA_GETV_FETCH, GENA_MOVEM_DO_INC, 0);
 			genamode (NULL, Aipi, "7", sz_long, "pc", GENA_GETV_FETCH, GENA_MOVEM_DO_INC, 0);
@@ -4815,7 +4829,7 @@ static void gen_opcode (unsigned int opcode)
 			printf("\tm68k_areg(regs, 7) += offs;\n");
 			genastore("src", Apdi, "7", sz_long, "old");
 		} else {
-			addop_ce020(curi, 0);
+			addop_ce020(curi, 0, 0);
 			// smode must be first in case it is A7. Except if 68040!
 			if (cpu_level == 4) {
 				genamode(NULL, Apdi, "7", sz_long, "old", 2, 0, GF_AA);
@@ -4851,7 +4865,7 @@ static void gen_opcode (unsigned int opcode)
 		}
 		break;
 	case i_RTS:
-		addop_ce020 (curi, 0);
+		addop_ce020 (curi, 0, 0);
 		printf ("\tuaecptr pc = %s;\n", getpc);
 		if (cpu_level <= 1 && using_exception_3) {
 			printf("\tif (m68k_areg(regs, 7) & 1) {\n");
@@ -6241,7 +6255,6 @@ bccl_not68020:
 		genflags (flag_logical, curi->size, "src", "", "");
 		if (!isreg (curi->smode))
 			addcycles000 (2);
-		fill_prefetch_next ();
 		printf ("\tsrc |= 0x80;\n");
 		if (cpu_level >= 2 || curi->smode == Dreg || !using_ce) {
 			if (next_cpu_level < 2)
@@ -6255,6 +6268,7 @@ bccl_not68020:
 			addcycles000_nonce("\t\t", 4);
 			printf ("\t}\n");
 		}
+		fill_prefetch_next();
 		trace_t0_68040_only();
 		break;
 	case i_FPP:
