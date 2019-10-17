@@ -972,14 +972,12 @@ static void out_regs(struct registers *r, int before)
 		*outbp++ = '\n';
 	} else {
 		// output only lines that have at least one modified register to save screen space
-		int outdone = 0;
 		for (int i = 0; i < 4; i++) {
 			int diff = 0;
 			for (int j = 0; j < 4; j++) {
 				int idx = i * 4 + j;
 				if (test_regs.regs[idx] != regs.regs[idx]) {
 					diff = 1;
-					outdone = 1;
 				}
 			}
 			if (diff) {
@@ -987,13 +985,11 @@ static void out_regs(struct registers *r, int before)
 					int idx = i * 4 + j;
 					if (j > 0)
 						*outbp++ = ' ';
-					sprintf(outbp, "%c%d:%c%08lx", idx < 8 ? 'D' : 'A', idx & 7, test_regs.regs[idx] != last_registers.regs[idx] ? '*' : ' ', regs.regs[idx]);
+					sprintf(outbp, "%c%d:%c%08lx", idx < 8 ? 'D' : 'A', idx & 7, test_regs.regs[idx] != last_registers.regs[idx] ? '*' : ' ', test_regs.regs[idx]);
 					outbp += strlen(outbp);
 				}
+				*outbp++ = '\n';
 			}
-		}
-		if (outdone) {
-			*outbp++ = '\n';
 		}
 	}
 	sprintf(outbp, "SR:%c%04x   PC: %08lx ISP: %08lx", test_sr != last_registers.sr ? '*' : ' ', before ? test_sr : test_regs.sr, r->pc, r->ssp);
