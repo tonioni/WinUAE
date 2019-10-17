@@ -2589,6 +2589,11 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 
 	int sr_override = 0;
 
+	uae_u32 target_ea_bak[2], target_address_bak;
+	target_ea_bak[0] = target_ea[0];
+	target_ea_bak[1] = target_ea[1];
+	target_address_bak = target_address;
+
 	for (;;) {
 
 		if (quick)
@@ -2631,11 +2636,9 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 			if (dp->clev > cpu_lvl && lookup->mnemo != i_ILLG)
 				continue;
 
-			// not supported yet in target mode
-			if (target_address != 0xffffffff) {
-				if (dp->mnemo == i_MVMEL || dp->mnemo == i_MVMLE)
-					continue;
-			}
+			target_ea[0] = target_ea_bak[0];
+			target_ea[1] = target_ea_bak[1];
+			target_address = target_address_bak;
 
 			int extra_loops = 3;
 			while (extra_loops-- > 0) {
@@ -2664,11 +2667,16 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 				immabsl_cnt = 0;
 				imm_special = 0;
 
+				target_ea[0] = target_ea_bak[0];
+				target_ea[1] = target_ea_bak[1];
+				target_address = target_address_bak;
+
 				// retry few times if out of bounds access
 				int oob_retries = 10;
 				// if instruction has immediate(s), repeat instruction test multiple times
 				// each round generates new random immediate(s)
 				int constant_loops = 32;
+
 				while (constant_loops-- > 0) {
 					uae_u8 oldbytes[OPCODE_AREA];
 					memcpy(oldbytes, opcode_memory, sizeof(oldbytes));
@@ -2682,6 +2690,10 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 					out_of_test_space = 0;
 					ahcnt = 0;
 					multi_mode = 0;
+
+					target_ea[0] = target_ea_bak[0];
+					target_ea[1] = target_ea_bak[1];
+					target_address = target_address_bak;
 
 					if (opc == 0x0156)
 						printf("");
@@ -2712,11 +2724,30 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 					uae_u8 *ao = opcode_memory + 2;
 					uae_u16 apw1 = (ao[0] << 8) | (ao[1] << 0);
 					uae_u16 apw2 = (ao[2] << 8) | (ao[3] << 0);
-					if (opc == 0x3fb2
-						&& apw1 == 0xa190
-						&& apw2 == 0x2770
+					if (opc == 0x48a8
+						&& apw1 == 0x0000
+						//&& apw2 == 0xfff0
 						)
 						printf("");
+
+					if (target_address != 0xffffffff && (dp->mnemo == i_MVMEL || dp->mnemo == i_MVMLE)) {
+						// if MOVEM and more than 1 register: randomize address so that any MOVEM
+						// access can hit target address
+						uae_u16 mask = (opcode_memory[2] << 8) | opcode_memory[3];
+						int count = 0;
+						for (int i = 0; i < 16; i++) {
+							if (mask & (1 << i))
+								count++;
+						}
+						if (count > 0) {
+							int diff = (rand8() % count);
+							if (dp->dmode == Apdi) {
+								diff = -diff;
+							}
+							target_address -= diff * (1 << dp->size);
+							target_ea[1] = target_address;
+						}
+					}
 
 					// if source EA modified opcode
 					dp = table68k + opc;
