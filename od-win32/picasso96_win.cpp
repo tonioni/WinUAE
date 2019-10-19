@@ -5161,6 +5161,12 @@ static void picasso_flushpixels(int index, uae_u8 *src, int off, bool render)
 	struct picasso_vidbuf_description *vidinfo = &picasso_vidinfo[monid];
 	bool overlay_updated = false;
 
+	// safety check
+	if (pwidth * state->BytesPerPixel > vidinfo->rowbytes)
+		pwidth = vidinfo->rowbytes / state->BytesPerPixel;
+	if (pheight > vidinfo->height)
+		pheight = vidinfo->height;
+
 	src_start = src + (off & ~gwwpagemask[index]);
 	src_end = src + ((off + state->BytesPerRow * pheight + gwwpagesize[index] - 1) & ~gwwpagemask[index]);
 #if 0
@@ -5259,7 +5265,7 @@ static void picasso_flushpixels(int index, uae_u8 *src, int off, bool render)
 
 				y = realoffset / state->BytesPerRow;
 				if (y < pheight) {
-					int w = gwwpagesize[index] / state->BytesPerPixel;
+					int w = (gwwpagesize[index] + state->BytesPerPixel - 1) / state->BytesPerPixel;
 					x = (realoffset % state->BytesPerRow) / state->BytesPerPixel;
 					if (x < pwidth) {
 						copyrow(monid, src + off, dst, x, y, pwidth - x,
@@ -5268,7 +5274,7 @@ static void picasso_flushpixels(int index, uae_u8 *src, int off, bool render)
 							state->RGBFormat == vidinfo->host_mode, vidinfo->picasso_convert, p96_rgbx16);
 						flushlines++;
 					}
-					w = (gwwpagesize[index] - (state->BytesPerRow - x * state->BytesPerPixel)) / state->BytesPerPixel;
+					w = (gwwpagesize[index] - (state->BytesPerRow - x * state->BytesPerPixel) + state->BytesPerPixel - 1) / state->BytesPerPixel;
 					if (y < miny)
 						miny = y;
 					y++;
