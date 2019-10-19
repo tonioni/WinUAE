@@ -244,12 +244,14 @@ static void addcycles_ce020 (int cycles, const char *s)
 {
 	if (!isce020())
 		return;
+#if 0
 	if (cycles > 0) {
 		if (s == NULL)
 			printf ("\t%s (%d);\n", do_cycles, cycles);
 		else
 			printf ("\t%s (%d); /* %s */\n", do_cycles, cycles, s);
 	}
+#endif
 	count_cycles += cycles;
 	count_cycles_ce020 += cycles;
 }
@@ -1558,6 +1560,7 @@ static void addopcycles_ce20 (int h, int t, int c, int subhead, int flags)
 			get_prefetch_020 ();
 			did_prefetch = 1;
 		}
+#if 0
 		if (1) {
 			if (h > 0) {
 				printf ("\tlimit_cycles_ce020(%d);\n", h);
@@ -1565,6 +1568,7 @@ static void addopcycles_ce20 (int h, int t, int c, int subhead, int flags)
 				printf ("\tlimit_all_cycles_ce020();\n");
 			}
 		}
+#endif
 	}
 
 #if 0
@@ -1670,13 +1674,13 @@ static void addcycles_ea_ce020 (const char *ea, int h, int t, int c, int oph)
 			h += oph;
 		}
 	}
-
+#if 0
 	if (h) {
 		printf ("\tlimit_cycles_ce020(%d);\n", h);
 	} else {
 		printf ("\tlimit_all_cycles_ce020();\n");
 	}
-
+#endif
 	if (1 && c > 0) {
 		printf ("\t%s (%d);\n", do_cycles, c);
 		count_cycles += c;
