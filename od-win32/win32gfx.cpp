@@ -3174,7 +3174,12 @@ void gfx_set_picasso_modeinfo(int monid, RGBFTYPE rgbfmt)
 	if (need > 0) {
 		open_screen(mon);
 	} else if (need < 0) {
-		open_windows(mon, true, true);
+		struct picasso96_state_struct *state = &picasso96_state[mon->monitor_id];
+		struct winuae_currentmode *wc = &mon->currentmode;
+		if (state->Width != wc->current_width ||
+			state->Height != wc->current_height ||
+			state->BytesPerPixel * 8 != wc->current_depth)
+			open_windows(mon, true, true);
 	}
 #ifdef RETROPLATFORM
 	rp_set_hwnd(mon->hAmigaWnd);
