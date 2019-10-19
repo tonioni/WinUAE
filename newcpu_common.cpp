@@ -1365,6 +1365,9 @@ void Exception_build_stack_frame(uae_u32 oldpc, uae_u32 currpc, uae_u32 ssw, int
 		x_put_long(m68k_areg(regs, 7), regs.mmu_effective_addr);
 		break;
 	case 0x8: // address error (68010)
+	{
+		uae_u16 in = regs.read_buffer;
+		uae_u16 out = regs.write_buffer;
 		for (i = 0; i < 15; i++) {
 			m68k_areg(regs, 7) -= 2;
 			x_put_word(m68k_areg(regs, 7), 0);
@@ -1376,11 +1379,11 @@ void Exception_build_stack_frame(uae_u32 oldpc, uae_u32 currpc, uae_u32 ssw, int
 		m68k_areg(regs, 7) -= 2;
 		x_put_word(m68k_areg(regs, 7), 0); // unused
 		m68k_areg(regs, 7) -= 2;
-		x_put_word(m68k_areg(regs, 7), regs.mmu_effective_addr); // data input buffer
+		x_put_word(m68k_areg(regs, 7), in); // data input buffer
 		m68k_areg(regs, 7) -= 2;
 		x_put_word(m68k_areg(regs, 7), 0); // unused
 		m68k_areg(regs, 7) -= 2;
-		x_put_word(m68k_areg(regs, 7), regs.mmu_effective_addr >> 16); // data output buffer
+		x_put_word(m68k_areg(regs, 7), out); // data output buffer
 		m68k_areg(regs, 7) -= 2;
 		x_put_word(m68k_areg(regs, 7), 0); // unused
 		m68k_areg(regs, 7) -= 4;
@@ -1388,6 +1391,7 @@ void Exception_build_stack_frame(uae_u32 oldpc, uae_u32 currpc, uae_u32 ssw, int
 		m68k_areg(regs, 7) -= 2;
 		x_put_word(m68k_areg(regs, 7), ssw); // ssw
 		break;
+	}
 	case 0x9: // coprocessor mid-instruction stack frame (68020, 68030)
 		m68k_areg(regs, 7) -= 4;
 		x_put_long(m68k_areg(regs, 7), regs.fp_ea);

@@ -182,6 +182,7 @@ struct regstruct
 	uae_u32 chipset_latch_rw;
 	uae_u32 chipset_latch_read;
 	uae_u32 chipset_latch_write;
+	uae_u16 write_buffer, read_buffer;
 
 	uaecptr usp, isp, msp;
 	uae_u16 sr;

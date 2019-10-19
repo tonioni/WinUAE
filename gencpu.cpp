@@ -1467,6 +1467,10 @@ static void check_bus_error(const char *name, int offset, int write, int size, c
 			fc = 2;
 		}
 
+		if (cpu_level == 1 && g_instr->mnemo == i_MVSR2 && !write) {
+			printf("\t\topcode |= 0x20000;\n"); // upper byte of SSW is zero -flag.
+		}
+
 		// 68010 bus/address error HB bit
 		if (extra && cpu_level == 1)
 			printf("\t\topcode |= 0x%x;\n", extra);
@@ -2404,7 +2408,7 @@ static void genamode2x (amodes mode, const char *reg, wordsizes size, const char
 	}
 
 	// check possible address error (if 68000/010 and enabled)
-	if ((using_prefetch || using_ce) && using_exception_3 && getv != 0 && size != sz_byte && !movem) {
+	if ((using_prefetch || using_ce) && using_exception_3 && getv != 0 && getv != 3 && size != sz_byte && !movem) {
 		int setapdiback = 0;
 		int fcmodeflags = 0;
 		int exp3rw = getv == 2;
@@ -2414,9 +2418,16 @@ static void genamode2x (amodes mode, const char *reg, wordsizes size, const char
 		if (cpu_level == 1) {
 			if (bus_error_reg_add == 4)
 				bus_error_reg_add = 0;
+			// 68010 CLR <memory>: pre and post are not added yet
+			if (g_instr->mnemo == i_CLR) {
+				if (mode == Aipi)
+					bus_error_reg_add = 0;
+				if (mode == Apdi)
+					bus_error_reg_add = 0;
+			}
 			do_bus_error_fixes(name, 0);
 			// x,-(an): an is modified
-			if (mode == Apdi && g_instr->size == sz_word) {
+			if (mode == Apdi && g_instr->size == sz_word && g_instr->mnemo != i_CLR) {
 				printf("\t\tm68k_areg (regs, %s) = %sa;\n", reg, name);
 			}
 		}
@@ -2444,6 +2455,9 @@ static void genamode2x (amodes mode, const char *reg, wordsizes size, const char
 			// If MOVE from SR generates address error exception,
 			// Change it to read because it does dummy read first.
 			exp3rw = 0;
+			if (cpu_level == 1) {
+				printf("\t\topcode |= 0x20000;\n"); // upper byte of SSW is zero -flag.
+			}
 		}
 
 		if (setapdiback) {
@@ -4246,12 +4260,35 @@ static void gen_opcode (unsigned int opcode)
 		break;
 	case i_CLR:
 		next_level_000 ();
-		genamode (curi, curi->smode, "srcreg", curi->size, "src", cpu_level == 0 ? 1 : 2, 0, 0);
-		fill_prefetch_next ();
-		if (isreg (curi->smode) && curi->size == sz_long)
-			addcycles000 (2);
-		genflags (flag_logical, curi->size, "0", "", "");
-		genastore_rev ("0", curi->smode, "srcreg", curi->size, "src");
+		if (cpu_level == 0) {
+			genamode(curi, curi->smode, "srcreg", curi->size, "src", 1, 0, 0);
+			fill_prefetch_next();
+			if (isreg(curi->smode) && curi->size == sz_long)
+				addcycles000(2);
+			genflags(flag_logical, curi->size, "0", "", "");
+			genastore_rev("0", curi->smode, "srcreg", curi->size, "src");
+		} else if (cpu_level == 1) {
+			genamode(curi, curi->smode, "srcreg", curi->size, "src", 3, 0, 0);
+			if (isreg(curi->smode) && curi->size == sz_long)
+				addcycles000(2);
+			if (!isreg(curi->smode) && using_exception_3 && (using_prefetch || using_ce)) {
+				printf("\tif(srca & 1) {\n");
+				printf("\t\texception3_write(opcode, srca, 1, 0, 1);\n");
+				printf("\t\tgoto %s;\n", endlabelstr);
+				printf("\t}\n");
+				need_endlabel = 1;
+			}
+			genflags(flag_logical, curi->size, "0", "", "");
+			genastore_rev("0", curi->smode, "srcreg", curi->size, "src");
+			fill_prefetch_next();
+		} else {
+			genamode(curi, curi->smode, "srcreg", curi->size, "src", 2, 0, 0);
+			fill_prefetch_next();
+			if (isreg(curi->smode) && curi->size == sz_long)
+				addcycles000(2);
+			genflags(flag_logical, curi->size, "0", "", "");
+			genastore_rev("0", curi->smode, "srcreg", curi->size, "src");
+		}
 		break;
 	case i_NOT:
 		genamode (curi, curi->smode, "srcreg", curi->size, "src", 1, 0, GF_RMW);
@@ -4539,13 +4576,13 @@ static void gen_opcode (unsigned int opcode)
 		}
 		break;
 	case i_MVSR2: // MOVE FROM SR
-		genamode (curi, curi->smode, "srcreg", sz_word, "src", 2, 0, 0);
+		genamode (curi, curi->smode, "srcreg", sz_word, "src", cpu_level == 0 ? 2 : 3, 0, 0);
 		if (isreg (curi->smode)) {
 			fill_prefetch_next ();
 			addcycles000 (2);
 		} else {
-			// read first and ignore result
-			if (cpu_level <= 1 && curi->size == sz_word) {
+			// 68000: read first and ignore result
+			if (cpu_level == 0 && curi->size == sz_word) {
 				printf("\t%s (srca);\n", srcw);
 				check_bus_error("src", 0, 0, 1, NULL, 1);
 				count_write++;
@@ -4553,6 +4590,13 @@ static void gen_opcode (unsigned int opcode)
 			fill_prefetch_next ();
 		}
 		printf ("\tMakeSR ();\n");
+		if (!isreg(curi->smode) && cpu_level == 1 && using_exception_3 && (using_prefetch || using_ce)) {
+			printf("\tif(srca & 1) {\n");
+			printf("\t\texception3_write(opcode, srca, 1, regs.sr, 1);\n");
+			printf("\t\tgoto %s;\n", endlabelstr);
+			printf("\t}\n");
+			need_endlabel = 1;
+		}
 		// real write
 		if (curi->size == sz_byte)
 			genastore ("regs.sr & 0xff", curi->smode, "srcreg", sz_word, "src");
@@ -5092,7 +5136,10 @@ static void gen_opcode (unsigned int opcode)
 				printf("\t%s(dsta + 2, nextpc);\n", dstw);
 				check_bus_error("dst", 2, 1, 1, "nextpc", 1);
 			} else {
-				printf("\t%s(m68k_areg(regs, 7), nextpc);\n", dstl);
+				if (cpu_level < 4)
+					printf("\t%s(m68k_areg(regs, 7), nextpc);\n", dstl);
+				else
+					printf("\t%s(m68k_areg(regs, 7) - 4, nextpc);\n", dstl);
 			}
 			if (cpu_level >= 4)
 				printf("\tm68k_areg (regs, 7) -= 4;\n");

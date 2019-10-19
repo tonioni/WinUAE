@@ -75,8 +75,6 @@ static bool last_size_for_exception_3;
 static int last_fc_for_exception_3;
 /* Data (1) or instruction fetch (0) */
 static int last_di_for_exception_3;
-/* Value */
-static int last_value_for_exception_3;
 /* not instruction */
 static bool last_notinstruction_for_exception_3;
 /* set when writing exception stack frame */
@@ -2523,15 +2521,17 @@ static void Exception_ce000 (int nr)
 			ssw |= (last_op_for_exception_3 & 0x10000) ? 0x0400 : 0x0000; // HB
 			ssw |= last_size_for_exception_3 == 0 ? 0x0200 : 0x0000; // BY
 			ssw |= last_writeaccess_for_exception_3 ? 0 : 0x0100; // RW
+			if (last_op_for_exception_3 & 0x20000)
+				ssw &= 0x00ff;
 			m68k_areg(regs, 7) -= 50;
 			exception_in_exception = -1;
 			frame_id = 8;
 			x_put_word(m68k_areg(regs, 7) + 0, ssw); // ssw
 			x_put_long(m68k_areg(regs, 7) + 2, last_addr_for_exception_3); // fault addr
 			x_put_word(m68k_areg(regs, 7) + 6, 0); // unused
-			x_put_word(m68k_areg(regs, 7) + 8, last_value_for_exception_3); // data output buffer
+			x_put_word(m68k_areg(regs, 7) + 8, regs.write_buffer); // data output buffer
 			x_put_word(m68k_areg(regs, 7) + 10, 0); // unused
-			x_put_word(m68k_areg(regs, 7) + 12, 0); // data input buffer
+			x_put_word(m68k_areg(regs, 7) + 12, regs.read_buffer); // data input buffer
 			x_put_word(m68k_areg(regs, 7) + 14, 0); // unused
 			x_put_word(m68k_areg(regs, 7) + 16, last_op_for_exception_3); // instruction input buffer
 			x_put_word(m68k_areg(regs, 7) + 18, 0); // version
@@ -2923,8 +2923,9 @@ static void Exception_normal (int nr)
 				ssw |= (last_op_for_exception_3 & 0x10000) ? 0x0400 : 0x0000; // HB
 				ssw |= last_size_for_exception_3 == 0 ? 0x0200 : 0x0000; // BY
 				ssw |= last_writeaccess_for_exception_3 ? 0x0000 : 0x0100; // RW
+				if (last_op_for_exception_3 & 0x20000)
+					ssw &= 0x00ff;
 				regs.mmu_fault_addr = last_addr_for_exception_3;
-				regs.mmu_effective_addr = last_value_for_exception_3;
 				Exception_build_stack_frame(oldpc, currpc, ssw, nr, 0x08);
 				used_exception_build_stack_frame = true;
 			}
@@ -6858,6 +6859,7 @@ void exception3_read(uae_u32 opcode, uaecptr addr, int size, int fc)
 void exception3_write(uae_u32 opcode, uaecptr addr, int size, uae_u32 val, int fc)
 {
 	exception3f (opcode, addr, true, 0, false, 0xffffffff, size, false, fc);
+	regs.write_buffer = val;
 }
 void exception3i (uae_u32 opcode, uaecptr addr)
 {
@@ -6907,6 +6909,7 @@ void exception2_write(uae_u32 opcode, uaecptr addr, int size, uae_u32 val, int f
 {
 	exception2_setup(addr, false, size, fc);
 	last_op_for_exception_3 = opcode;
+	regs.write_buffer = val;
 	Exception(2);
 }
 

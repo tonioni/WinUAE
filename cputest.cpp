@@ -114,7 +114,6 @@ static uaecptr test_exception_addr;
 static int test_exception_3_w;
 static int test_exception_3_fc;
 static int test_exception_3_size;
-static int test_exception_3_value;
 static int test_exception_3_di;
 static int test_exception_opcode;
 
@@ -138,7 +137,6 @@ static int high_memory_accessed;
 static int test_memory_accessed;
 static uae_u16 extra_or, extra_and;
 static uae_u32 cur_registers[MAX_REGISTERS];
-static uae_u32 test_last_read, test_last_write;
 
 struct uae_prefs currprefs;
 
@@ -307,7 +305,7 @@ uae_u16 get_word_test_prefetch(int o)
 	if (cpu_lvl < 2)
 		o -= 2;
 	regs.irc = get_iword_test(m68k_getpci() + o + 2);
-	test_last_read = regs.irc;
+	regs.read_buffer = regs.irc;
 	return get_iword_test(m68k_getpci() + o);
 }
 
@@ -339,7 +337,7 @@ void put_byte_test(uaecptr addr, uae_u32 v)
 		ah->oldval = *p;
 		ah->size = sz_byte;
 	}
-	test_last_write = v;
+	regs.write_buffer = v;
 	*p = v;
 }
 void put_word_test(uaecptr addr, uae_u32 v)
@@ -365,7 +363,7 @@ void put_word_test(uaecptr addr, uae_u32 v)
 		p[0] = v >> 8;
 		p[1] = v & 0xff;
 	}
-	test_last_write = v;
+	regs.write_buffer = v;
 }
 void put_long_test(uaecptr addr, uae_u32 v)
 {
@@ -396,7 +394,7 @@ void put_long_test(uaecptr addr, uae_u32 v)
 		p[2] = v >> 8;
 		p[3] = v >> 0;
 	}
-	test_last_write = v;
+	regs.write_buffer = v;
 }
 
 static void undo_memory(struct accesshistory *ahp, int  *cntp)
@@ -430,7 +428,7 @@ uae_u32 get_byte_test(uaecptr addr)
 {
 	check_bus_error(addr, 0, regs.s ? 5 : 1);
 	uae_u8 *p = get_addr(addr, 1, 0);
-	test_last_read = *p;
+	regs.read_buffer = *p;
 	return *p;
 }
 uae_u32 get_word_test(uaecptr addr)
@@ -443,7 +441,7 @@ uae_u32 get_word_test(uaecptr addr)
 		uae_u8 *p = get_addr(addr, 2, 0);
 		v = (p[0] << 8) | (p[1]);
 	}
-	test_last_read = v;
+	regs.read_buffer = v;
 	return v;
 }
 uae_u32 get_long_test(uaecptr addr)
@@ -463,7 +461,7 @@ uae_u32 get_long_test(uaecptr addr)
 		uae_u8 *p = get_addr(addr, 4, 0);
 		v = (p[0] << 24) | (p[1] << 16) | (p[2] << 8) | (p[3]);
 	}
-	test_last_read = v;
+	regs.read_buffer = v;
 	return v;
 }
 
@@ -821,9 +819,9 @@ static void doexcstack(void)
 			ssw |= (test_exception_opcode & 0x10000) ? 0x0400 : 0x0000; // HB
 			ssw |= test_exception_3_size == 0 ? 0x0200 : 0x0000; // BY
 			ssw |= test_exception_3_w ? 0x0000 : 0x0100; // RW
+			if (test_exception_opcode & 0x20000)
+				ssw &= 0x00ff;
 			regs.mmu_fault_addr = test_exception_addr;
-			regs.mmu_effective_addr = test_exception_3_value;
-			regs.mmu_effective_addr = (test_last_read & 0xffff) | ((test_last_write & 0xffff) << 16);
 			Exception_build_stack_frame(regs.instruction_pc, regs.pc, ssw, 3, 0x08);
 		} else {
 			Exception_build_stack_frame_common(regs.instruction_pc, regs.pc, 0, test_exception);
@@ -885,7 +883,7 @@ uae_u32 REGPARAM2 op_illg(uae_u32 opcode)
 void exception2_fetch(uae_u32 opcode, uaecptr addr)
 {
 	test_exception = 2;
-	test_exception_3_w = 0;
+	test_exception_3_w = 1;
 	test_exception_addr = addr;
 	test_exception_opcode = opcode;
 	test_exception_3_fc = 2;
@@ -914,7 +912,7 @@ void exception2_write(uae_u32 opcode, uaecptr addr, int size, uae_u32 val, int f
 	test_exception_opcode = opcode;
 	test_exception_3_fc = fc;
 	test_exception_3_size = size;
-	test_exception_3_value = val;
+	regs.write_buffer = val;
 	test_exception_3_di = 1;
 	doexcstack();
 }
@@ -938,7 +936,7 @@ void exception3_write(uae_u32 opcode, uae_u32 addr, int size, uae_u32 val, int f
 	test_exception_opcode = opcode;
 	test_exception_3_fc = fc;
 	test_exception_3_size = size;
-	test_exception_3_value = val;
+	regs.write_buffer = val;
 	test_exception_3_di = 1;
 	doexcstack();
 }
@@ -2201,8 +2199,8 @@ static void execute_ins(uae_u16 opc, uaecptr endpc, uaecptr targetpc, struct ins
 	testing_active = 1;
 	testing_active_opcode = opc;
 	cpu_bus_error = 0;
-	test_last_read = regs.irc;
-	test_last_write = 0xf00d;
+	regs.read_buffer = regs.irc;
+	regs.write_buffer = 0xf00d;
 
 	int cnt = feature_loop_mode * 2;
 	if (multi_mode)
