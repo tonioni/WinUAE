@@ -468,7 +468,6 @@ Global
 		{07609D0D-FE6B-4A84-8C87-F914A4566F6F}.Test|Mixed Platforms.ActiveCfg = Release|Win32
 		{07609D0D-FE6B-4A84-8C87-F914A4566F6F}.Test|Mixed Platforms.Build.0 = Release|Win32
 		{07609D0D-FE6B-4A84-8C87-F914A4566F6F}.Test|Win32.ActiveCfg = Release|Win32
-		{07609D0D-FE6B-4A84-8C87-F914A4566F6F}.Test|Win32.Build.0 = Release|Win32
 		{07609D0D-FE6B-4A84-8C87-F914A4566F6F}.Test|x64.ActiveCfg = Release|x64
 		{07609D0D-FE6B-4A84-8C87-F914A4566F6F}.Test|x64.Build.0 = Release|x64
 	EndGlobalSection

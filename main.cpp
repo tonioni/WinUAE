@@ -193,7 +193,7 @@ void fixup_prefs_dimensions (struct uae_prefs *prefs)
 					ap->gfx_strobo = prefs->lightboost_strobo;
 			}
 		} else {
-			if (ap->gfx_backbuffers > 0 && prefs->gfx_api > 1)
+			if (ap->gfx_backbuffers > 0 && (prefs->gfx_api > 1 || prefs->gfx_variable_sync))
 				ap->gfx_strobo = prefs->lightboost_strobo;
 			// no vsync: wait if triple bufferirng
 			if (ap->gfx_backbuffers >= 2)

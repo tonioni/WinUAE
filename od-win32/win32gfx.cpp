@@ -1407,7 +1407,7 @@ void show_screen_special (void)
 	}
 }
 static frame_time_t strobo_time;
-static volatile bool strobo_active;
+static volatile int strobo_active;
 static volatile bool strobo_active2;
 
 static void CALLBACK blackinsertion_cb(
@@ -1420,6 +1420,9 @@ static void CALLBACK blackinsertion_cb(
 {
 	struct AmigaMonitor *mon = &AMonitors[0];
 	if (mon->screen_is_initialized)  {
+		if (strobo_active) {
+		}
+
 		while (strobo_active) {
 			frame_time_t ct = read_processor_time();
 			int diff = (int)strobo_time - (int)ct;
@@ -1427,8 +1430,11 @@ static void CALLBACK blackinsertion_cb(
 				break;
 			}
 			if (diff <= 0) {
-				if (strobo_active2)
-					show_screen_special();
+				if (strobo_active) {
+					gfx_lock();
+					D3D_showframe_special(0, 1);
+					gfx_unlock();
+				}
 				break;
 			}
 			if (diff > vsynctimebase / 4) {
@@ -1436,7 +1442,7 @@ static void CALLBACK blackinsertion_cb(
 			}
 		}
 	}
-	strobo_active = false;
+	strobo_active = 0;
 }
 
 float target_adjust_vblank_hz(int monid, float hz)
@@ -1484,6 +1490,15 @@ void show_screen(int monid, int mode)
 		return;
 	}
 	if (mon->currentmode.flags & DM_D3D) {
+		if (ap->gfx_strobo && currprefs.gfx_variable_sync) {
+			float vblank = vblank_hz;
+			int ratio = currprefs.lightboost_strobo_ratio;
+			int ms = (int)(1000 / vblank);
+			int waitms = ms * ratio / 100 - 1;
+			strobo_active = -1;
+			strobo_time = read_processor_time() + vsynctimebase * ratio / 100;
+			timeSetEvent(waitms, 0, blackinsertion_cb, NULL, TIME_ONESHOT | TIME_CALLBACK_FUNCTION);
+		}
 #if 0
 		if (ap->gfx_vsync < 0 && ap->gfx_strobo && currprefs.gfx_api < 2) {
 			float vblank = vblank_hz;
@@ -1515,8 +1530,12 @@ void show_screen(int monid, int mode)
 		}
 #endif
 		D3D_showframe(monid);
-		if (monid == 0)
+		if (monid == 0) {
 			strobo_active2 = true;
+			if (strobo_active < 0) {
+				D3D_showframe_special(0, 2);
+			}
+		}
 #ifdef GFXFILTER
 	} else if (mon->currentmode.flags & DM_SWSCALE) {
 		if (!dx_islost () && !ad->picasso_on)
@@ -1578,6 +1597,7 @@ int lockscr(struct vidbuffer *vb, bool fullupdate, bool first)
 	flushymin = mon->currentmode.amiga_height;
 	flushymax = 0;
 #endif
+	gfx_lock();
 	ret = 1;
 	if (mon->currentmode.flags & DM_D3D) {
 #ifdef D3D
@@ -1598,12 +1618,14 @@ int lockscr(struct vidbuffer *vb, bool fullupdate, bool first)
 	} else if (mon->currentmode.flags & DM_DDRAW) {
 		ret = ddraw_dolock() != 0;
 	}
+	gfx_unlock();
 	return ret;
 }
 
 void unlockscr(struct vidbuffer *vb, int y_start, int y_end)
 {
 	struct AmigaMonitor *mon = &AMonitors[vb->monitor_id];
+	gfx_lock();
 	if (mon->currentmode.flags & DM_D3D) {
 		if (mon->currentmode.flags & DM_SWSCALE) {
 			S2X_render(vb->monitor_id, y_start, y_end);
@@ -1617,6 +1639,7 @@ void unlockscr(struct vidbuffer *vb, int y_start, int y_end)
 		DirectDraw_SurfaceUnlock();
 		vb->bufmem = NULL;
 	}
+	gfx_unlock();
 }
 
 void flush_clear_screen (struct vidbuffer *vb)

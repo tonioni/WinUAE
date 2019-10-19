@@ -49,6 +49,7 @@
 #include "blitter.h"
 #include "ini.h"
 #include "readcpu.h"
+#include "cputbl.h"
 
 #define TRACE_SKIP_INS 1
 #define TRACE_MATCH_PC 2
@@ -65,6 +66,7 @@ static uae_u32 trace_param2;
 int debugger_active;
 static int debug_rewind;
 static int memwatch_triggered;
+static int inside_debugger;
 int memwatch_access_validator;
 int memwatch_enabled;
 int debugging;
@@ -103,6 +105,7 @@ static void debug_cycles(void)
 
 void deactivate_debugger (void)
 {
+	inside_debugger = 0;
 	debugger_active = 0;
 	debugging = 0;
 	exception_debugging = 0;
@@ -120,6 +123,7 @@ void activate_debugger (void)
 
 	debugger_load_libraries();
 
+	inside_debugger = 1;
 	debug_pc = 0xffffffff;
 	trace_mode = 0;
 	if (debugger_active) {
@@ -2959,7 +2963,7 @@ static int memwatch_func (uaecptr addr, int rwi, int size, uae_u32 *valp, uae_u3
 {
 	uae_u32 val = *valp;
 
-	if (debugging > 0)
+	if (inside_debugger)
 		return 1;
 
 	if (mungwall)

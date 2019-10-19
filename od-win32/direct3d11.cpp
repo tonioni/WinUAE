@@ -3215,8 +3215,11 @@ static void do_black(struct d3d11struct *d3d)
 	color[1] = 0;
 	color[2] = 0;
 	color[3] = 0;
+	// Bind the render target view and depth stencil buffer to the output render pipeline.
+	d3d->m_deviceContext->OMSetRenderTargets(1, &d3d->m_renderTargetView, NULL);
 	// Clear the back buffer.
 	d3d->m_deviceContext->ClearRenderTargetView(d3d->m_renderTargetView, color);
+	d3d->m_deviceContext->Flush();
 }
 
 static void do_present(struct d3d11struct *d3d)
@@ -3230,7 +3233,7 @@ static void do_present(struct d3d11struct *d3d)
 	UINT syncinterval = d3d->vblankintervals;
 	// only if no vsync or low latency vsync
 	if (d3d->m_tearingSupport && (d3d->swapChainDesc.Flags & DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING) && (!vsync || apm->gfx_vsyncmode)) {
-		if (apm->gfx_vsyncmode || d3d - d3d11data > 0 || currprefs.turbo_emulation) {
+		if (apm->gfx_vsyncmode || d3d - d3d11data > 0 || currprefs.turbo_emulation || currprefs.gfx_variable_sync) {
 			presentFlags |= DXGI_PRESENT_ALLOW_TEARING;
 			syncinterval = 0;
 		}

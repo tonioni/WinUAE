@@ -77,6 +77,9 @@ struct uaesndboard_stream
 	int framesize;
 	uae_u8 io[256];
 	uae_u16 wordlatch;
+	int timer_cnt;
+	int timer_event_time;
+	int timer_active;
 	int sample[MAX_UAE_CHANNELS];
 };
 struct uaesndboard_data
@@ -125,7 +128,7 @@ static struct uaesndboard_data uaesndboard[MAX_DUPLICATE_SOUND_BOARDS];
 	24.W volume (0 to 32768)
 	26.L next sample set address (0=end, this was last set)
 	32.B number of channels. (interleaved samples if 2 or more channels)
-	33.B sample type (bit 0: bits per sample, 0=8,1=16, bit 6=signed, bit 7=little-endian)
+	33.B sample type (bit 0: bits per sample, 0=8,1=16,2=24,3=32 bit 6=signed, bit 7=little-endian)
 	34.B bit 0: interrupt when set starts, bit 1: interrupt when set ends (last sample played), bit 2: interrupt when repeat starts, bit 3: after each sample.
 	35.B if mono stream, bit mask that selects output channels. (0=default, redirect to left and right channels)
 	(Can be used for example when playing tracker modules by using 4 single channel streams)
@@ -179,13 +182,16 @@ static struct uaesndboard_data uaesndboard[MAX_DUPLICATE_SOUND_BOARDS];
 	$0184.B Reserved
 	$0185.B Reserved
 	$0186.B Reserved
-	$0187.B Interrupt status. 7: set when interrupt active. 0,1,2,3: same as 30.B bit, always set when condition matches,
-		even if 30.B bit is not set. If also 30.B bit is set: bit 7 set and interrupt is activated.
+	$0187.B Interrupt status. 7: set when interrupt active. 0,1,2,3: same as 34.B bit, always set when condition matches,
+		even if 34.B bit is not set. If also 34.B bit is set: bit 7 set and interrupt is activated.
+		bit 4 = timer interrupt.
 		Reading clears interrupt. RO.
 	$0188.B Reserved
 	$0189.B Reserved
 	$018A.B Reserved
 	$018B.B Alternate interrupt status. Same as $187.B but reading does not clear interrupt. RO.
+	$0190.B Stream master interrupt enable (same bits as $0187.B)
+	$0190.L Timer frequency (same format as 12.L), sets interrupt bit 4. Zero = disabled. WO.
 
 	$0200 stream 2
 
@@ -202,7 +208,7 @@ static struct uaesndboard_data uaesndboard[MAX_DUPLICATE_SOUND_BOARDS];
 	68020+ aligned long accesses are always guaranteed safe.
 
 	Set structure is copied to emulator side internal address space when set starts.
-	This data can be always read and written in real time by accessing $0100-$011f space.
+	This data can be always read and written in real time by accessing $0100-$013f space.
 	Writes are nearly immediate, values are updated during next sample period.
 	(It probably is not a good idea to do on the fly change number of channels or bits per sample values..)
 
@@ -223,6 +229,8 @@ static struct uaesndboard_data uaesndboard[MAX_DUPLICATE_SOUND_BOARDS];
 	when repeat counter becomes zero (or it was already zero), next sample set address is loaded and started.
 
 	Hardware word and long accesses must be aligned (unaligned write is ignored, unaligned read will return 0xffff or 0xffffffff)
+
+	Timer is usable when stream is allocated. Active audio play is not required.
 
 */
 
@@ -495,8 +503,10 @@ static void uaesnd_stream_start(struct uaesndboard_data *data, struct uaesndboar
 
 static void uaesnd_irq(struct uaesndboard_stream *s, uae_u8 mask)
 {
+	uae_u8 enablemask = get_long_host(s->io + 0x90);
+	uae_u8 intenamask = s->intenamask | 0x10 | 0x20 | 0x40;
 	s->intreqmask |= mask;
-	if ((s->intenamask & mask)) {
+	if ((intenamask & mask) && (enablemask & mask)) {
 		s->intreqmask |= 0x80;
 		devices_rethink_all(sndboard_rethink);
 	}
@@ -545,7 +555,7 @@ static bool audio_state_sndboard_uae(int streamid, void *params)
 			len = s->repeating ? s->replen : s->len;
 			addr = s->repeating ? s->repeat : s->address;
 		}
-		bool bit16 = (s->bitmode & 1) != 0;
+		int st = (s->bitmode & 7);
 		bool le = (s->bitmode & 0x80) != 0;
 		bool sign = (s->bitmode & 0x40) != 0;
 		bool len_nonzero = len != 0;
@@ -554,16 +564,28 @@ static bool audio_state_sndboard_uae(int streamid, void *params)
 				addr -= s->framesize;
 			for (int i = 0; i < s->ch; i++) {
 				uae_u16 sample = 0;
-				if (bit16) {
+				switch (st)
+				{
+				case 3: // 32-bit (last 2 bytes ignored)
+					sample = get_word(le ? (addr + 2) : (addr + 0));
+					addr += 4;
+					break;
+				case 2: // 24-bit (last byte ignored)
+					sample = get_word(le ? (addr + 1) : (addr + 0));
+					addr += 3;
+					break;
+				case 1: // 16-bit
 					sample = get_word(addr);
-					if (le)
-						sample = (sample >> 8) | (sample << 8);
 					addr += 2;
-				} else {
+					break;
+				case 0: // 8-bit
 					sample = get_byte(addr);
 					sample = (sample << 8) | sample;
 					addr += 1;
+					break;
 				}
+				if (le)
+					sample = (sample >> 8) | (sample << 8);
 				if (sign)
 					sample -= 0x8000;
 				uae_s16 samples = (uae_s16)sample;
@@ -700,12 +722,47 @@ static void uaesnd_unlatch_mask(struct uaesndboard_data *data, uae_u32 mask)
 	}
 }
 
+static int uaesnd_timer_period(uae_u32 v)
+{
+	if ((v >> 16) == 0xffff) {
+		return v & 65535;
+	} else {
+		return (uae_s64)base_event_clock * CYCLE_UNIT * 256 / v;
+	}
+}
+
+static void uaesnd_timer(uae_u32 v)
+{
+	struct uaesndboard_data *data = &uaesndboard[v >> 16];
+	struct uaesndboard_stream *s = &data->stream[v & 65535];
+	s->timer_cnt = get_long_host(s->io + 0x90);
+	if (s->timer_cnt > 0 && data->enabled) {
+		s->timer_event_time = uaesnd_timer_period(s->timer_cnt);
+		if (s->timer_event_time > 0) {
+			event2_newevent_xx(-1, s->timer_event_time, s - &data->stream[0], uaesnd_timer);
+			uaesnd_irq(s, 0x10);
+			s->timer_active = 1;
+		}
+	} else {
+		s->timer_active = 0;
+	}
+}
+
 static void uaesnd_put(struct uaesndboard_data *data, struct uaesndboard_stream *s, int reg)
 {
 	if (reg == 0x80) { // set pointer write?
 		uaecptr setaddr = get_long_host(s->io + 0x80);
 		s->next = setaddr;
 		uaesnd_stream_start(data, s);
+	} else if (reg == 0x90) { // timer
+		s->timer_cnt = get_long_host(s->io + 0x90);
+		if (s->timer_cnt > 0 && !s->timer_active) {
+			s->timer_event_time = uaesnd_timer_period(s->timer_cnt);
+			if (s->timer_event_time > 0) {
+				s->timer_active = 1;
+				event2_newevent_xx(-1, s->timer_event_time, ((data - &uaesndboard[0]) << 16) | (s - &data->stream[0]), uaesnd_timer);
+			}
+		}
 	} else {
 		if (!uaesnd_directload(s, reg)) {
 			uaesndboard_stop(data, s);

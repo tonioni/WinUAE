@@ -771,9 +771,12 @@ void releasecapture(struct AmigaMonitor *mon)
 #endif
 	if (!mon_cursorclipped)
 		return;
-	ClipCursor(NULL);
-	ReleaseCapture();
-	ShowCursor(TRUE);
+	if (!ClipCursor(NULL))
+		write_log(_T("ClipCursor %08x\n"), GetLastError());
+	if (!ReleaseCapture())
+		write_log(_T("ReleaseCapture %08x\n"), GetLastError());
+	int c = ShowCursor(TRUE);
+	write_log(_T("ShowCursor %d\n"), c);
 	mon_cursorclipped = 0;
 }
 
@@ -5098,7 +5101,7 @@ static int parseversion (TCHAR **vs)
 	return _tstol (tmp);
 }
 
-static int checkversion (TCHAR *vs)
+static int checkversion (TCHAR *vs, int *verp)
 {
 	int ver;
 	if (_tcslen (vs) < 10)
@@ -5109,6 +5112,8 @@ static int checkversion (TCHAR *vs)
 	ver = parseversion (&vs) << 16;
 	ver |= parseversion (&vs) << 8;
 	ver |= parseversion (&vs);
+	if (verp)
+		*verp = ver;
 	if (ver >= ((UAEMAJOR << 16) | (UAEMINOR << 8) | UAESUBREV))
 		return 0;
 	return 1;
@@ -5479,14 +5484,24 @@ static void WIN32_HandleRegistryStuff (void)
 	}
 	size = sizeof (version) / sizeof (TCHAR);
 	if (regquerystr (NULL, _T("Version"), version, &size)) {
-		if (checkversion (version))
+		int ver = 0;
+		if (checkversion (version, &ver))
 			regsetstr (NULL, _T("Version"), VersionStr);
+		// Reset GUI setting if pre-4.3.0
+		if (ver > 0x030000 && ver < 0x040300) {
+			regdelete(NULL, _T("GUISizeX"));
+			regdelete(NULL, _T("GUISizeY"));
+			regdelete(NULL, _T("GUISizeFWX"));
+			regdelete(NULL, _T("GUISizeFWY"));
+			regdelete(NULL, _T("GUISizeFSX"));
+			regdelete(NULL, _T("GUISizeFSY"));
+		}
 	} else {
 		regsetstr (NULL, _T("Version"), VersionStr);
 	}
 	size = sizeof (version) / sizeof (TCHAR);
 	if (regquerystr (NULL, _T("ROMCheckVersion"), version, &size)) {
-		if (checkversion (version)) {
+		if (checkversion (version, NULL)) {
 			if (regsetstr (NULL, _T("ROMCheckVersion"), VersionStr))
 				forceroms = 1;
 		}
@@ -7372,7 +7387,7 @@ void registertouch(HWND hwnd)
 
 void systray (HWND hwnd, int remove)
 {
-	static const GUID iconguid = { 0xdac2e99b, 0xe8f6, 0x4150, { 0x98, 0x46, 0xd, 0x4a, 0x61, 0xfb, 0xdd, 0x03 } };
+	static const GUID iconguid = { 0x6974bfc1, 0x898b, 0x4157, { 0xa4, 0x30, 0x43, 0x6b, 0xa0, 0xdd, 0x5d, 0xf2 } };
 	NOTIFYICONDATA nid;
 	BOOL v;
 	static bool noguid;
@@ -7413,7 +7428,7 @@ void systray (HWND hwnd, int remove)
 		if (!remove) {
 			// if guid identifier: always remove first.
 			// old icon may not have been removed due to crash etc
-			Shell_NotifyIcon(NIM_DELETE, &nid);
+			v = Shell_NotifyIcon(NIM_DELETE, &nid);
 		}
 	}
 	v = Shell_NotifyIcon (remove ? NIM_DELETE : NIM_ADD, &nid);
