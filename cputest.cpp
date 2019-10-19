@@ -113,6 +113,9 @@ static int exception_stack_frame_size;
 static uaecptr test_exception_addr;
 static int test_exception_3_w;
 static int test_exception_3_fc;
+static int test_exception_3_size;
+static int test_exception_3_value;
+static int test_exception_3_di;
 static int test_exception_opcode;
 
 static uae_u8 imm8_cnt;
@@ -135,6 +138,7 @@ static int high_memory_accessed;
 static int test_memory_accessed;
 static uae_u16 extra_or, extra_and;
 static uae_u32 cur_registers[MAX_REGISTERS];
+static uae_u32 test_last_read, test_last_write;
 
 struct uae_prefs currprefs;
 
@@ -279,11 +283,18 @@ static void check_bus_error(uaecptr addr, int write, int fc)
 	}
 }
 
+static uae_u8 get_ibyte_test(uaecptr addr)
+{
+	check_bus_error(addr, 0, regs.s ? 5 : 1);
+	uae_u8 *p = get_addr(addr, 1, 0);
+	return *p;
+}
+
 static uae_u16 get_iword_test(uaecptr addr)
 {
 	check_bus_error(addr, 0, regs.s ? 6 : 2);
 	if (addr & 1) {
-		return (get_byte_test(addr + 0) << 8) | (get_byte_test(addr + 1) << 0);
+		return (get_ibyte_test(addr + 0) << 8) | (get_ibyte_test(addr + 1) << 0);
 	} else {
 		uae_u8 *p = get_addr(addr, 2, 0);
 		return (p[0] << 8) | (p[1]);
@@ -296,6 +307,7 @@ uae_u16 get_word_test_prefetch(int o)
 	if (cpu_lvl < 2)
 		o -= 2;
 	regs.irc = get_iword_test(m68k_getpci() + o + 2);
+	test_last_read = regs.irc;
 	return get_iword_test(m68k_getpci() + o);
 }
 
@@ -327,6 +339,7 @@ void put_byte_test(uaecptr addr, uae_u32 v)
 		ah->oldval = *p;
 		ah->size = sz_byte;
 	}
+	test_last_write = v;
 	*p = v;
 }
 void put_word_test(uaecptr addr, uae_u32 v)
@@ -352,6 +365,7 @@ void put_word_test(uaecptr addr, uae_u32 v)
 		p[0] = v >> 8;
 		p[1] = v & 0xff;
 	}
+	test_last_write = v;
 }
 void put_long_test(uaecptr addr, uae_u32 v)
 {
@@ -382,8 +396,8 @@ void put_long_test(uaecptr addr, uae_u32 v)
 		p[2] = v >> 8;
 		p[3] = v >> 0;
 	}
+	test_last_write = v;
 }
-
 
 static void undo_memory(struct accesshistory *ahp, int  *cntp)
 {
@@ -412,39 +426,45 @@ static void undo_memory(struct accesshistory *ahp, int  *cntp)
 	}
 }
 
-
 uae_u32 get_byte_test(uaecptr addr)
 {
 	check_bus_error(addr, 0, regs.s ? 5 : 1);
 	uae_u8 *p = get_addr(addr, 1, 0);
+	test_last_read = *p;
 	return *p;
 }
 uae_u32 get_word_test(uaecptr addr)
 {
+	uae_u16 v;
 	check_bus_error(addr, 0, regs.s ? 5 : 1);
 	if (addr & 1) {
-		return (get_byte_test(addr + 0) << 8) | (get_byte_test(addr + 1) << 0);
+		v = (get_byte_test(addr + 0) << 8) | (get_byte_test(addr + 1) << 0);
 	} else {
 		uae_u8 *p = get_addr(addr, 2, 0);
-		return (p[0] << 8) | (p[1]);
+		v = (p[0] << 8) | (p[1]);
 	}
+	test_last_read = v;
+	return v;
 }
 uae_u32 get_long_test(uaecptr addr)
 {
+	uae_u32 v;
 	check_bus_error(addr, 0, regs.s ? 5 : 1);
 	if (addr & 1) {
 		uae_u8 v0 = get_byte_test(addr + 0);
 		uae_u16 v1 = get_word_test(addr + 1);
 		uae_u8 v3 = get_byte_test(addr + 3);
-		return (v0 << 24) | (v1 << 8) | (v3 << 0);
+		v = (v0 << 24) | (v1 << 8) | (v3 << 0);
 	} else if (addr & 2) {
 		uae_u16 v0 = get_word_test(addr + 0);
 		uae_u16 v1 = get_word_test(addr + 2);
-		return (v0 << 16) | (v1 << 0);
+		v = (v0 << 16) | (v1 << 0);
 	} else {
 		uae_u8 *p = get_addr(addr, 4, 0);
-		return (p[0] << 24) | (p[1] << 16) | (p[2] << 8) | (p[3]);
+		v = (p[0] << 24) | (p[1] << 16) | (p[2] << 8) | (p[3]);
 	}
+	test_last_read = v;
+	return v;
 }
 
 uae_u32 get_byte_debug(uaecptr addr)
@@ -794,11 +814,16 @@ static void doexcstack(void)
 			Exception_build_68000_address_error_stack_frame(mode, opcode, test_exception_addr, regs.pc);
 		}
 	} else if (cpu_lvl == 1) {
-		if (test_exception == 3) {
+		if (test_exception == 2 || test_exception == 3) {
 			uae_u16 ssw = (sv ? 4 : 0) | test_exception_3_fc;
-			ssw |= test_exception_3_w ? 0 : 0x100;
-			ssw |= (test_exception_3_fc & 2) ? 0 : 0x2000;
+			ssw |= test_exception_3_di ? 0x0000 : 0x2000; // IF
+			ssw |= (!test_exception_3_w && test_exception_3_di) ? 0x1000 : 0x000; // DF
+			ssw |= (test_exception_opcode & 0x10000) ? 0x0400 : 0x0000; // HB
+			ssw |= test_exception_3_size == 0 ? 0x0200 : 0x0000; // BY
+			ssw |= test_exception_3_w ? 0x0000 : 0x0100; // RW
 			regs.mmu_fault_addr = test_exception_addr;
+			regs.mmu_effective_addr = test_exception_3_value;
+			regs.mmu_effective_addr = (test_last_read & 0xffff) | ((test_last_write & 0xffff) << 16);
 			Exception_build_stack_frame(regs.instruction_pc, regs.pc, ssw, 3, 0x08);
 		} else {
 			Exception_build_stack_frame_common(regs.instruction_pc, regs.pc, 0, test_exception);
@@ -857,45 +882,67 @@ uae_u32 REGPARAM2 op_illg(uae_u32 opcode)
 	return op_illg_1(opcode);
 }
 
-void exception2_read(uae_u32 opcode, uaecptr addr, int fc)
+void exception2_fetch(uae_u32 opcode, uaecptr addr)
+{
+	test_exception = 2;
+	test_exception_3_w = 0;
+	test_exception_addr = addr;
+	test_exception_opcode = opcode;
+	test_exception_3_fc = 2;
+	test_exception_3_size = 1;
+	test_exception_3_di = 0;
+	doexcstack();
+}
+
+void exception2_read(uae_u32 opcode, uaecptr addr, int size, int fc)
 {
 	test_exception = 2;
 	test_exception_3_w = 0;
 	test_exception_addr = addr;
 	test_exception_opcode = opcode;
 	test_exception_3_fc = fc;
+	test_exception_3_size = size;
+	test_exception_3_di = 1;
 	doexcstack();
 }
 
-void exception2_write(uae_u32 opcode, uaecptr addr, int fc)
+void exception2_write(uae_u32 opcode, uaecptr addr, int size, uae_u32 val, int fc)
 {
 	test_exception = 2;
 	test_exception_3_w = 1;
 	test_exception_addr = addr;
 	test_exception_opcode = opcode;
 	test_exception_3_fc = fc;
+	test_exception_3_size = size;
+	test_exception_3_value = val;
+	test_exception_3_di = 1;
 	doexcstack();
 }
 
-
-void exception3_read(uae_u32 opcode, uae_u32 addr, int fc)
+void exception3_read(uae_u32 opcode, uae_u32 addr, int size, int fc)
 {
 	test_exception = 3;
 	test_exception_3_w = 0;
 	test_exception_addr = addr;
 	test_exception_opcode = opcode;
 	test_exception_3_fc = fc;
+	test_exception_3_size = size;
+	test_exception_3_di = 1;
 	doexcstack();
 }
-void exception3_write(uae_u32 opcode, uae_u32 addr, int fc)
+void exception3_write(uae_u32 opcode, uae_u32 addr, int size, uae_u32 val, int fc)
 {
 	test_exception = 3;
 	test_exception_3_w = 1;
 	test_exception_addr = addr;
 	test_exception_opcode = opcode;
 	test_exception_3_fc = fc;
+	test_exception_3_size = size;
+	test_exception_3_value = val;
+	test_exception_3_di = 1;
 	doexcstack();
 }
+
 void REGPARAM2 Exception(int n)
 {
 	test_exception = n;
@@ -2154,6 +2201,8 @@ static void execute_ins(uae_u16 opc, uaecptr endpc, uaecptr targetpc, struct ins
 	testing_active = 1;
 	testing_active_opcode = opc;
 	cpu_bus_error = 0;
+	test_last_read = regs.irc;
+	test_last_write = 0xf00d;
 
 	int cnt = feature_loop_mode * 2;
 	if (multi_mode)
@@ -2351,6 +2400,22 @@ static uae_u8 *save_exception(uae_u8 *p, struct instr *dp)
 			p = store_rel(p, 0, opcode_memory_start, gl(sf + 8), 1);
 			// FSLW or PC of faulted instruction
 			p = store_rel(p, 0, opcode_memory_start, gl(sf + 12), 1);
+			break;
+		case 8: // 68010 address/bus error
+			// SSW
+			*p++ = sf[8];
+			*p++ = sf[9];
+			// fault address
+			p = store_rel(p, 0, opcode_memory_start, gl(sf + 10), 1);
+			// data output
+			*p++ = sf[16];
+			*p++ = sf[17];
+			// data input
+			*p++ = sf[20];
+			*p++ = sf[21];
+			// instruction
+			*p++ = sf[24];
+			*p++ = sf[25];
 			break;
 		case 0x0a: // 68020/030 address error.
 		case 0x0b: // Don't save anything extra, too many undefined fields and bits..
@@ -2744,8 +2809,12 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 							if (dp->dmode == Apdi) {
 								diff = -diff;
 							}
+							uae_u32 ta = target_address;
 							target_address -= diff * (1 << dp->size);
-							target_ea[1] = target_address;
+							if (target_ea[0] == ta)
+								target_ea[0] = target_address;
+							if (target_ea[1] == ta)
+								target_ea[1] = target_address;
 						}
 					}
 

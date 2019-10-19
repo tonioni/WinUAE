@@ -1134,6 +1134,30 @@ static uae_u8 *validate_exception(struct registers *regs, uae_u8 *p, int excnum,
 				pl(exc + 12, v);
 				exclen = 16;
 				break;
+			case 8:
+				exc[8] = *p++;
+				exc[9] = *p++;
+				v = opcode_memory_addr;
+				p = restore_rel_ordered(p, &v);
+				pl(exc + 10, v);
+				// data out
+				exc[16] = *p++;
+				exc[17] = *p++;
+				// data in
+				exc[20] = *p++;
+				exc[21] = *p++;
+				// inst
+				exc[24] = *p++;
+				exc[25] = *p++;
+				exc[14] = exc[15] = 0;
+				sp[14] = sp[15] = 0;
+				exc[18] = exc[19] = 0;
+				sp[18] = sp[19] = 0;
+				exc[22] = exc[23] = 0;
+				sp[22] = sp[23] = 0;
+				// ignore undocumented data
+				exclen = 26;
+				break;
 			case 0x0a:
 			case 0x0b:
 				exclen = 8;

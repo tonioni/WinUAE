@@ -147,6 +147,9 @@ _execute_test010:
 	move.l S_AREG+7*4(a0),a1
 	move.l a1,USP
 	movem.l (a0),d0-d7/a0-a6
+	| clear data output buffer.
+	| we don't want random DOB contents in bus/address error frame
+	move.w #0xf00d,dummy
 	rte
 
 	| 68020+ test entrypoint
@@ -391,4 +394,6 @@ waiterr:
 datapointer:
 	dc.l 0
 superstack:
+	dc.l 0
+dummy:
 	dc.l 0
