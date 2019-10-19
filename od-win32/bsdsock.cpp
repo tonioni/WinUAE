@@ -371,8 +371,11 @@ void host_sbcleanup(SB)
 			bsd->asyncsb[(sb->mtable[i] - 0xb000) / 2] = NULL;
 	}
 
-	shutdown(sb->sockAbort, 1);
-	closesocket(sb->sockAbort);
+	if (sb->sockAbort != INVALID_SOCKET) {
+		shutdown(sb->sockAbort, 1);
+		closesocket(sb->sockAbort);
+		sb->sockAbort = INVALID_SOCKET;
+	}
 
 	free(sb->mtable);
 	sb->mtable = NULL;
@@ -891,6 +894,7 @@ static BOOL HandleStuff(void)
 				if (*(sockreq.params.abort_s.newsock) != sb->sockAbort) {
 					shutdown(sb->sockAbort, 1);
 					closesocket(sb->sockAbort);
+					sb->sockAbort = INVALID_SOCKET;
 				}
 				handled = FALSE; /* Don't bother the SETERRNO section after the switch() */
 				break;
