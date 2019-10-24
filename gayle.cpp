@@ -173,6 +173,7 @@ static int dataflyer_disable_irq;
 static uae_u8 dataflyer_byte;
 
 static void gayle_reset(int hardreset);
+static void gayle_map_pcmcia(void);
 
 static void pcmcia_reset (void)
 {
@@ -1503,14 +1504,17 @@ static int initpcmcia (const TCHAR *path, int readonly, int type, int reset, str
 			if (pcmcia_disk->hfd.virtsize > 4 * 1024 * 1024) {
 				write_log (_T("PCMCIA SRAM: too large device, %llu bytes\n"), pcmcia_disk->hfd.virtsize);
 				extrasize = pcmcia_disk->hfd.virtsize - 4 * 1024 * 1024;
+				if (extrasize > 262144)
+					extrasize = 262144;
+				extrasize &= ~511;
 				pcmcia_common_size = 4 * 1024 * 1024;
 			}
 			pcmcia_common = xcalloc (uae_u8, pcmcia_common_size);
 			hdf_read (&pcmcia_disk->hfd, pcmcia_common, 0, pcmcia_common_size);
 			pcmcia_card = 1;
-			if (extrasize >= 256 && extrasize < 1 * 1024 * 1024) {
-				hdf_read(&pcmcia_disk->hfd, pcmcia_attrs, pcmcia_common_size, 0x40000);
-				write_log(_T("PCMCIA SRAM: Attribute data read\n"));
+			if (extrasize >= 512 && extrasize < 1 * 1024 * 1024) {
+				hdf_read(&pcmcia_disk->hfd, pcmcia_attrs, pcmcia_common_size, extrasize);
+				write_log(_T("PCMCIA SRAM: Attribute data read %ld bytes\n"), extrasize);
 				pcmcia_attrs_full = 1;
 			} else {
 				initsramattr(pcmcia_common_size, readonly);
@@ -1837,7 +1841,7 @@ static void REGPARAM2 gayle_common_bput (uaecptr addr, uae_u32 value)
 	gayle_common_write_byte (addr, value);
 }
 
-void gayle_map_pcmcia (void)
+static void gayle_map_pcmcia (void)
 {
 	if (currprefs.cs_pcmcia == 0)
 		return;
@@ -2151,6 +2155,7 @@ static void gayle_reset (int hardreset)
 	gayle_dataflyer_enable(false);
 
 	pcmcia_card_check(0, -1);
+	gayle_map_pcmcia();
 }
 
 uae_u8 *restore_gayle (uae_u8 *src)
