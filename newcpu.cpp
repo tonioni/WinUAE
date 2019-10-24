@@ -3111,6 +3111,9 @@ static void maybe_disable_fpu(void)
 		// disable FPU at reset if no 68060 accelerator board and no $f0 ROM.
 		regs.pcr |= 2;
 	}
+	if (!currprefs.fpu_model) {
+		regs.pcr |= 2;
+	}
 }
 
 static void m68k_reset_sr(void)
