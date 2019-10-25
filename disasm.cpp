@@ -182,6 +182,10 @@ uaecptr ShowEA_disp(uaecptr *pcp, uaecptr base, TCHAR *buffer, const TCHAR *name
 		_stprintf(mult, _T("*%d"), m);
 	}
 
+	if (currprefs.cpu_model >= 68020) {
+		dispreg <<= (dp >> 9) & 3; // SCALE
+	}
+
 	if (buffer)
 		buffer[0] = 0;
 	if ((dp & 0x100) && currprefs.cpu_model >= 68020) {
@@ -190,7 +194,6 @@ uaecptr ShowEA_disp(uaecptr *pcp, uaecptr base, TCHAR *buffer, const TCHAR *name
 
 		// Full format extension (68020+)
 
-		dispreg <<= (dp >> 9) & 3; // SCALE
 		if (dp & 0x80) { // BS (base register suppress)
 			base = 0;
 			if (buffer)
@@ -1850,6 +1853,11 @@ uae_u32 m68k_disasm_2 (TCHAR *buf, int bufsize, uaecptr pc, uaecptr *nextpc, int
 				_stprintf(instrname, _T("ILLG #$%04x"), extra);
 				pc += 2;
 			}
+		} else if (lookup->mnemo == i_CALLM) {
+			TCHAR *p = instrname + _tcslen(instrname);
+			_stprintf(p, _T("#%d,"), extra & 255);
+			pc = ShowEA(NULL, pc, opcode, dp->sreg, dp->smode, dp->size, instrname, &seaddr2, &actualea_src, safemode);
+			pc += 2;
 		} else if (lookup->mnemo == i_FDBcc) {
 			pc = ShowEA(NULL, pc, opcode, dp->dreg, dp->dmode, dp->size, instrname, &seaddr2, &actualea_src, safemode);
 			pc += 2;

@@ -64,6 +64,7 @@ static uae_u32 test_memory_addr, test_memory_end;
 static uae_u32 test_memory_size;
 static uae_u8 *test_data;
 static uae_u8 *safe_memory_start, *safe_memory_end;
+static uae_u32 user_stack_memory, super_stack_memory;
 static int test_data_size;
 static uae_u32 oldvbr;
 static uae_u8 *vbr_zero = 0;
@@ -218,22 +219,22 @@ static void endinfo(void)
 static void safe_memcpy(uae_u8 *d, uae_u8 *s, int size)
 {
 	if (safe_memory_start == (uae_u8*)0xffffffff && safe_memory_end == (uae_u8*)0xffffffff) {
-		memcpy(d, s, size);
+		xmemcpy(d, s, size);
 		return;
 	}
 	if (safe_memory_end <= d || safe_memory_start >= d + size) {
 		if (safe_memory_end <= s || safe_memory_start >= s + size) {
-			memcpy(d, s, size);
+			xmemcpy(d, s, size);
 			return;
 		}
 	}
 	while (size > 0) {
 		int size2 = size > sizeof(tmpbuffer) ? sizeof(tmpbuffer) : size;
 		if ((d + size2 > safe_memory_start && d < safe_memory_end) ||
-			(s + size2 > safe_memory_start && d < safe_memory_end)) {
+			(s + size2 > safe_memory_start && s < safe_memory_end)) {
 			for (int i = 0; i < size2; i++) {
 				if ((d >= safe_memory_start && d < safe_memory_end) ||
-					(s >= safe_memory_start && d < safe_memory_end)) {
+					(s >= safe_memory_start && s < safe_memory_end)) {
 					s++;
 					d++;
 					continue;
@@ -241,7 +242,7 @@ static void safe_memcpy(uae_u8 *d, uae_u8 *s, int size)
 				*d++ = *s++;
 			}
 		} else {
-			memcpy(d, s, size2);
+			xmemcpy(d, s, size2);
 			d += size2;
 			s += size2;
 		}
@@ -730,7 +731,7 @@ static uae_u8 *restore_memory(uae_u8 *p, int storedata)
 				v &= 31;
 				if (v == 0)
 					v = 32;
-				memcpy(addr, p, v);
+				xmemcpy(addr, p, v);
 				p += v;
 				break;
 			}
@@ -995,7 +996,7 @@ static void out_regs(struct registers *r, int before)
 	sprintf(outbp, "SR:%c%04x   PC: %08lx ISP: %08lx", test_sr != last_registers.sr ? '*' : ' ', before ? test_sr : test_regs.sr, r->pc, r->ssp);
 	outbp += strlen(outbp);
 	if (cpu_lvl >= 2 && cpu_lvl <= 4) {
-		sprintf(outbp, " MSP: %08lx\n", r->msp);
+		sprintf(outbp, " MSP: %08lx", r->msp);
 		outbp += strlen(outbp);
 	}
 	*outbp++ = '\n';
@@ -1013,13 +1014,11 @@ static void out_regs(struct registers *r, int before)
 				(s2 & mask) != (s3 & mask) ? '!' : ((s1 & mask) != (s2 & mask) ? '*' : '='), (s & mask) != 0);
 			outbp += strlen(outbp);
 		}
+		*outbp++ = '\n';
 	}
 
-	if (!fpu_model) {
-		strcat(outbp, "\n");
-		outbp += strlen(outbp);
+	if (!fpu_model)
 		return;
-	}
 
 	for (int i = 0; i < 8; i++) {
 		if ((i % 2) == 0) {
@@ -1322,7 +1321,7 @@ static uae_u8 *validate_test(uae_u8 *p, int ignore_errors, int ignore_sr)
 				errors++;
 			}
 			regs_fpuchanged[mode] = 0;
-			memcpy(&last_registers.fpuregs[mode], &val, sizeof(struct fpureg));
+			xmemcpy(&last_registers.fpuregs[mode], &val, sizeof(struct fpureg));
 		} else if (mode == CT_SR) {
 			uae_u32 val = last_registers.sr;
 			int size;
@@ -1615,13 +1614,13 @@ static void process_test(uae_u8 *p)
 			}
 			for (int ccr = 0;  ccr < maxccr; ccr++) {
 
-				regs.ssp = test_memory_addr + test_memory_size - 0x80;
-				regs.msp = test_memory_addr + test_memory_size;
+				regs.ssp = super_stack_memory - 0x80;
+				regs.msp = super_stack_memory;
 				regs.pc = opcode_memory_addr;
 				regs.fpiar = opcode_memory_addr;
 
 #ifdef M68K
-				memcpy((void*)regs.ssp, (void*)regs.regs[15], 0x20);
+				xmemcpy((void*)regs.ssp, (void*)regs.regs[15], 0x20);
 #endif
 				xmemcpy(&test_regs, &regs, sizeof(struct registers));
 
@@ -1788,7 +1787,8 @@ static int test_mnemo(const char *path, const char *opcode)
 	test_memory_size = gl(data);
 	test_memory_end = test_memory_addr + test_memory_size;
 	fread(data, 1, 4, f);
-	opcode_memory_addr = gl(data) + test_memory_addr;
+	opcode_memory_addr = gl(data);
+	opcode_memory = (uae_u8*)opcode_memory_addr;
 	fread(data, 1, 4, f);
 	lvl = (gl(data) >> 16) & 15;
 	interrupt_mask = (gl(data) >> 20) & 7;
@@ -1810,7 +1810,9 @@ static int test_mnemo(const char *path, const char *opcode)
 	fread(data, 1, 4, f);
 	safe_memory_end = (uae_u8*)gl(data);
 	fread(data, 1, 4, f);
+	user_stack_memory = gl(data);
 	fread(data, 1, 4, f);
+	super_stack_memory = gl(data);
 	fread(inst_name, 1, sizeof(inst_name) - 1, f);
 	inst_name[sizeof(inst_name) - 1] = 0;
 
@@ -1859,8 +1861,6 @@ static int test_mnemo(const char *path, const char *opcode)
 		exit(0);
 	}
 
-	opcode_memory = test_memory + (opcode_memory_addr - test_memory_addr);
-
 	size = test_memory_size;
 	load_file(path, "tmem.dat", test_memory, &size, 1);
 	if (size != test_memory_size) {
@@ -1868,7 +1868,9 @@ static int test_mnemo(const char *path, const char *opcode)
 		exit(0);
 	}
 
-	printf("CPUlvl=%d, Mask=%08lx Code=%08lx\n", cpu_lvl, addressing_mask, opcode_memory);
+	printf("CPUlvl=%d, Mask=%08lx Code=%08lx SP=%08lx ISP=%08lx\n",
+		cpu_lvl, addressing_mask, opcode_memory,
+		user_stack_memory, super_stack_memory);
 	printf(" Low: %08lx-%08lx High: %08lx-%08lx\n",
 		test_low_memory_start, test_low_memory_end,
 		test_high_memory_start, test_high_memory_end);

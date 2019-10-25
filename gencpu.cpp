@@ -1395,7 +1395,7 @@ static void move_68000_bus_error(int offset, int size, int *setapdi, int *fcmode
 static char const *bus_error_reg;
 static int bus_error_reg_add;
 
-static void do_bus_error_fixes(const char *name, int offset)
+static void do_bus_error_fixes(const char *name, int offset, int write)
 {
 	switch (bus_error_reg_add)
 	{
@@ -1456,7 +1456,7 @@ static void check_bus_error(const char *name, int offset, int write, int size, c
 			move_68000_bus_error(offset, g_instr->size, &setapdiback, &fc);
 		}
 
-		do_bus_error_fixes(name, offset);
+		do_bus_error_fixes(name, offset, write);
 
 		if (g_instr->mnemo == i_BTST && (g_instr->dmode == PC16 || g_instr->dmode == PC8r)) {
 			// BTST special case where destination is read access
@@ -1472,8 +1472,13 @@ static void check_bus_error(const char *name, int offset, int write, int size, c
 		}
 
 		// 68010 bus/address error HB bit
-		if (extra && cpu_level == 1)
+		if (extra && cpu_level == 1) {
 			printf("\t\topcode |= 0x%x;\n", extra);
+		}
+
+		if (cpu_level == 0 && write) {
+			printf("\t\topcode = regs.irc;\n");
+		}
 
 		if (write) {
 			printf("\t\texception2_write(opcode, %sa + %d, %d, %s, %d);\n",
@@ -2425,7 +2430,7 @@ static void genamode2x (amodes mode, const char *reg, wordsizes size, const char
 				if (mode == Apdi)
 					bus_error_reg_add = 0;
 			}
-			do_bus_error_fixes(name, 0);
+			do_bus_error_fixes(name, 0, getv == 2);
 			// x,-(an): an is modified
 			if (mode == Apdi && g_instr->size == sz_word && g_instr->mnemo != i_CLR) {
 				printf("\t\tm68k_areg (regs, %s) = %sa;\n", reg, name);
@@ -2831,7 +2836,7 @@ static void genastore_2 (const char *from, amodes mode, const char *reg, wordsiz
 						genflags(flag_logical, g_instr->size, "src", "", "");
 					}
 					printf ("\t%s (%sa + 2, %s);\n", dstwx, to, from);
-					check_bus_error(to, 2, 1, 1, "from", 1);
+					check_bus_error(to, 2, 1, 1, from, 1);
 				}
 				count_write += 2;
 				break;

@@ -81,6 +81,8 @@ static uae_u32 target_ea[2];
 // large enough for RTD
 #define STACK_SIZE (0x8000 + 8)
 #define RESERVED_SUPERSTACK 1024
+// space between superstack and USP
+#define RESERVED_USERSTACK_EXTRA 64
 // space for extra exception, not part of test region
 #define EXTRA_RESERVED_SPACE 1024
 
@@ -92,6 +94,8 @@ static uae_u32 low_memory_size = 32768;
 static uae_u32 high_memory_size = 32768;
 static uae_u32 safe_memory_start;
 static uae_u32 safe_memory_end;
+static int safe_memory_mode;
+static uae_u32 user_stack_memory, super_stack_memory;
 
 static uae_u8 *low_memory, *high_memory, *test_memory;
 static uae_u8 *low_memory_temp, *high_memory_temp, *test_memory_temp;
@@ -193,11 +197,25 @@ static bool valid_address(uaecptr addr, int size, int w)
 		high_memory_accessed = w ? -1 : 1;
 		return 1;
 	}
+	if (addr >= super_stack_memory - RESERVED_SUPERSTACK && addr + size < super_stack_memory) {
+		// allow only instructions that have to access super stack, for example RTE
+		// read-only
+		if (w) {
+			goto oob;
+		}
+		if (testing_active) {
+			if (is_superstack_use_required()) {
+				test_memory_accessed = 1;
+				return 1;
+			}
+		}
+		goto oob;
+	}
 	if (addr >= test_memory_end && addr + size < test_memory_end + EXTRA_RESERVED_SPACE) {
 		if (testing_active < 0)
 			return 1;
 	}
-	if (addr >= test_memory_start && addr + size < test_memory_end - RESERVED_SUPERSTACK) {
+	if (addr >= test_memory_start && addr + size < test_memory_end) {
 		// make sure we don't modify our test instruction
 		if (testing_active && w) {
 			if (addr >= opcode_memory_start && addr + size < opcode_memory_start + OPCODE_AREA)
@@ -205,18 +223,6 @@ static bool valid_address(uaecptr addr, int size, int w)
 		}
 		test_memory_accessed = w ? -1 : 1;
 		return 1;
-	}
-	if (addr >= test_memory_end - RESERVED_SUPERSTACK && addr + size < test_memory_end) {
-		// allow only instructions that have to access super stack, for example RTE
-		// read-only
-		if (w)
-			goto oob;
-		if (testing_active) {
-			if (is_superstack_use_required()) {
-				test_memory_accessed = 1;
-				return 1;
-			}
-		}
 	}
 oob:
 	return 0;
@@ -277,7 +283,10 @@ static void check_bus_error(uaecptr addr, int write, int fc)
 	if (safe_memory_start == 0xffffffff && safe_memory_end == 0xffffffff)
 		return;
 	if (addr >= safe_memory_start && addr < safe_memory_end) {
-		cpu_bus_error = 1;
+		if ((safe_memory_mode & 1) && !write)
+			cpu_bus_error = 1;
+		if ((safe_memory_mode & 2) && write)
+			cpu_bus_error = 1;
 	}
 }
 
@@ -853,12 +862,25 @@ static void doexcstack(void)
 
 uae_u32 REGPARAM2 op_illg_1(uae_u32 opcode)
 {
-	if ((opcode & 0xf000) == 0xf000)
+	if ((opcode & 0xf000) == 0xf000) {
+		if (currprefs.cpu_model == 68030) {
+			// mmu instruction extra check
+			// because mmu checks following word to detect if addressing mode is supported,
+			// we can't test any MMU opcodes without parsing following word. TODO.
+			if ((opcode & 0xfe00) == 0xf000) {
+				test_exception = -1;
+				return 0;
+			}
+		}
 		test_exception = 11;
-	else if ((opcode & 0xf000) == 0xa000)
+		if (privileged_copro_instruction(opcode)) {
+			test_exception = 8;
+		}
+	} else if ((opcode & 0xf000) == 0xa000) {
 		test_exception = 10;
-	else
+	} else {
 		test_exception = 4;
+	}
 	doexcstack();
 	return 0;
 }
@@ -1347,7 +1369,7 @@ static void save_data(uae_u8 *dst, const TCHAR *dir)
 		fwrite(data, 1, 4, f);
 		pl(data, test_memory_size);
 		fwrite(data, 1, 4, f);
-		pl(data, opcode_memory_start - test_memory_start);
+		pl(data, opcode_memory_start);
 		fwrite(data, 1, 4, f);
 		pl(data, (cpu_lvl << 16) | sr_undefined_mask | (addressing_mask == 0xffffffff ? 0x80000000 : 0) | ((feature_flag_mode & 1) << 30) | (feature_min_interrupt_mask << 20));
 		fwrite(data, 1, 4, f);
@@ -1365,9 +1387,9 @@ static void save_data(uae_u8 *dst, const TCHAR *dir)
 		fwrite(data, 1, 4, f);
 		pl(data, safe_memory_end);
 		fwrite(data, 1, 4, f);
-		pl(data, 0);
+		pl(data, user_stack_memory);
 		fwrite(data, 1, 4, f);
-		pl(data, 0);
+		pl(data, super_stack_memory);
 		fwrite(data, 1, 4, f);
 		fwrite(inst_name, 1, sizeof(inst_name) - 1, f);
 		fclose(f);
@@ -1433,6 +1455,60 @@ static uaecptr putfpuimm(uaecptr pc, int opcodesize, int *isconstant)
 	return pc;
 }
 
+static int ea_state_found[3];
+
+static void reset_ea_state(void)
+{
+	ea_state_found[0] = 0;
+	ea_state_found[1] = 0;
+	ea_state_found[2] = 0;
+}
+
+// attempt to find at least one zero, positive and negative source value
+static int analyze_address(struct instr *dp, int srcdst, uae_u32 addr)
+{
+	uae_u32 v;
+	uae_u32 mask;
+
+	if (srcdst)
+		return 1;
+	if (dp->size == sz_byte) {
+		v = get_byte_test(addr);
+		mask = 0x80;
+	} else if (dp->size == sz_word) {
+		v = get_word_test(addr);
+		mask = 0x8000;
+	} else {
+		v = get_long_test(addr);
+		mask = 0x80000000;
+	}
+	if (out_of_test_space) {
+		out_of_test_space = false;
+		return 0;
+	}
+	if (ea_state_found[0] >= 2 && ea_state_found[1] >= 2 && ea_state_found[2] >= 2)
+		return 1;
+	// zero
+	if (v == 0) {
+		if (ea_state_found[0] >= 2 && (ea_state_found[1] < 2 || ea_state_found[2] < 2))
+			return 0;
+		ea_state_found[0]++;
+	}
+	// negative value
+	if (v & mask) {
+		if (ea_state_found[1] >= 2 && (ea_state_found[0] < 2 || ea_state_found[2] < 2))
+			return 0;
+		ea_state_found[1]++;
+	}
+	// positive value
+	if (v < mask && v > 0) {
+		if (ea_state_found[2] >= 2 && (ea_state_found[0] < 2 || ea_state_found[1] < 2))
+			return 0;
+		ea_state_found[2]++;
+	}
+	return 1;
+}
+
 // generate mostly random EA.
 static int create_ea_random(uae_u16 *opcodep, uaecptr pc, int mode, int reg, struct instr *dp, int *isconstant, int srcdst, int fpuopcode, int opcodesize, uae_u32 *eap)
 {
@@ -1453,20 +1529,56 @@ static int create_ea_random(uae_u16 *opcodep, uaecptr pc, int mode, int reg, str
 	case Areg:
 	case Aind:
 	case Aipi:
+		*eap = cur_registers[reg + 8];
+		break;
 	case Apdi:
-		*eap = 1;
+		*eap = cur_registers[reg + 8] - (1 << dp->size);
 		break;
 	case Ad16:
+	{
+		uae_u16 v;
+		uae_u32 addr;
+		int maxcnt = 1000;
+		for (;;) {
+			v = rand16();
+			addr = cur_registers[reg + 8] + (uae_s16)v;
+			if (analyze_address(dp, srcdst, addr))
+				break;
+			maxcnt--;
+			if (maxcnt < 0)
+				break;
+		}
+		put_word_test(pc, v);
+		*isconstant = 16;
+		pc += 2;
+		*eap = addr;
+		break;
+	}
 	case PC16:
-		put_word_test(pc, rand16());
+	{
+		uae_u32 pct = pc + 2 - 2;
+		uae_u16 v;
+		uae_u32 addr;
+		int maxcnt = 1000;
+		for (;;) {
+			v = rand16();
+			addr = pct + (uae_s16)v;
+			if (analyze_address(dp, srcdst, addr))
+				break;
+			maxcnt--;
+			if (maxcnt < 0)
+				break;
+		}
 		*isconstant = 16;
 		pc += 2;
 		*eap = 1;
 		break;
+	}
 	case Ad8r:
 	case PC8r:
 	{
-		uae_u16 v = rand16();
+		uae_u32 addr;
+		uae_u16 v = rand16() & 0x0100;
 		if (!feature_full_extension_format)
 			v &= ~0x100;
 		if (mode == Ad8r) {
@@ -1481,13 +1593,41 @@ static int create_ea_random(uae_u16 *opcodep, uaecptr pc, int mode, int reg, str
 				v |= 0x100;
 		}
 		if (currprefs.cpu_model < 68020 || (v & 0x100) == 0) {
+			// brief format extension
+			uae_u32 add = 0;
+			int maxcnt = 1000;
+			for (;;) {
+				v = rand16();
+				if (currprefs.cpu_model >= 68020)
+					v &= ~0x100;
+				addr = mode == PC8r ? pc + 2 - 2 : cur_registers[reg + 8];
+				add = cur_registers[v >> 12];
+				if (v & 0x0800) {
+					// L
+					addr += add;
+				} else {
+					// W
+					addr += (uae_s16)add;
+				}
+				if (currprefs.cpu_model >= 68020) {
+					add <<= (v >> 9) & 3; // SCALE
+				}
+				addr += (uae_s8)(v & 0xff); // DISPLACEMENT
+				if (analyze_address(dp, srcdst, addr))
+					break;
+				maxcnt--;
+				if (maxcnt < 0)
+					break;
+			}
 			*isconstant = 16;
 			put_word_test(pc, v);
 			pc += 2;
+			*eap = addr;
 		} else {
 			// full format extension
 			// attempt to generate every possible combination,
 			// one by one.
+			v |= rand16() & ~0x100;
 			for (;;) {
 				v &= 0xff00;
 				v |= full_format_cnt & 0xff;
@@ -1513,22 +1653,35 @@ static int create_ea_random(uae_u16 *opcodep, uaecptr pc, int mode, int reg, str
 				pc += 2;
 			}
 			*isconstant = 32;
+			*eap = 1;
 		}
-		*eap = 1;
 		break;
 	}
 	case absw:
-		put_word_test(pc, rand16());
+	{
+		uae_u16 v;
+		for (;;) {
+			v = rand16();
+			if (analyze_address(dp, srcdst, v))
+				break;
+		}
+		put_word_test(pc, v);
 		*isconstant = 16;
 		pc += 2;
-		*eap = 1;
+		*eap = v >= 0x8000 ? (0xffff0000 | v) : v;
 		break;
+	}
 	case absl:
-		{
-			uae_u32 v = rand32();
+	{
+		uae_u32 v;
+		for (;;) {
+			v = rand32();
 			if ((immabsl_cnt & 7) == 0) {
-				v &= 0x0000ffff;
-			} else if ((immabsl_cnt & 7) >= 4) {
+				v &= 0x00007fff;
+			} else if ((immabsl_cnt & 7) == 1) {
+				v &= 0x00007fff;
+				v = 0xffff8000 | v;
+			} else if ((immabsl_cnt & 7) >= 5) {
 				int offset = 0;
 				for (;;) {
 					offset = (uae_s16)rand16();
@@ -1538,12 +1691,15 @@ static int create_ea_random(uae_u16 *opcodep, uaecptr pc, int mode, int reg, str
 				v = opcode_memory_start + offset;
 			}
 			immabsl_cnt++;
-			put_long_test(pc, v);
-			*isconstant = 32;
-			pc += 4;
+			if (analyze_address(dp, srcdst, v))
+				break;
 		}
-		*eap = 1;
+		put_long_test(pc, v);
+		*isconstant = 32;
+		pc += 4;
+		*eap = v;
 		break;
+	}
 	case imm:
 		if (fpuopcode >= 0 && opcodesize < 8) {
 			pc = putfpuimm(pc, opcodesize, isconstant);
@@ -1564,8 +1720,11 @@ static int create_ea_random(uae_u16 *opcodep, uaecptr pc, int mode, int reg, str
 	{
 		// byte immediate but randomly fill also upper byte
 		uae_u16 v = rand16();
-		if ((imm8_cnt & 3) == 0)
+		if ((imm8_cnt & 15) == 0) {
+			v = 0;
+		} else if ((imm8_cnt & 3) == 0) {
 			v &= 0xff;
+		}
 		imm8_cnt++;
 		put_word_test(pc, v);
 		*isconstant = 16;
@@ -1687,10 +1846,11 @@ static int create_ea_random(uae_u16 *opcodep, uaecptr pc, int mode, int reg, str
 				}
 			} else {
 				uae_u16 v = rand16();
-				if ((imm16_cnt & 7) == 0)
+				if ((imm16_cnt & 7) == 0) {
 					v &= 0x00ff;
-				if ((imm16_cnt & 15) == 0)
-					v &= 0x000f;
+				} else if ((imm16_cnt & 15) == 0) {
+					v = 0;
+				}
 				imm16_cnt++;
 				put_word_test(pc, v);
 				*isconstant = 16;
@@ -1703,7 +1863,9 @@ static int create_ea_random(uae_u16 *opcodep, uaecptr pc, int mode, int reg, str
 	{
 		// long immediate
 		uae_u32 v = rand32();
-		if ((imm32_cnt & 7) == 0) {
+		if ((imm32_cnt & 63) == 0) {
+			v = 0;
+		} else if ((imm32_cnt & 7) == 0) {
 			v &= 0x0000ffff;
 		}
 		imm32_cnt++;
@@ -1951,10 +2113,16 @@ static int handle_specials_branch(uae_u16 opcode, uaecptr pc, struct instr *dp, 
 	return 0;
 }
 
-static int handle_specials_pack(uae_u16 opcode, uaecptr pc, struct instr *dp, int *isconstant)
+static int handle_specials_misc(uae_u16 opcode, uaecptr pc, struct instr *dp, int *isconstant)
 {
 	// PACK and UNPK has third parameter
 	if (dp->mnemo == i_PACK || dp->mnemo == i_UNPK) {
+		uae_u16 v = rand16();
+		put_word_test(pc, v);
+		*isconstant = 16;
+		return 2;
+	} else if (dp->mnemo == i_CALLM) {
+		// CALLM has extra parameter
 		uae_u16 v = rand16();
 		put_word_test(pc, v);
 		*isconstant = 16;
@@ -2177,8 +2345,8 @@ static void execute_ins(uae_u16 opc, uaecptr endpc, uaecptr targetpc, struct ins
 {
 	uae_u16 opw1 = (opcode_memory[2] << 8) | (opcode_memory[3] << 0);
 	uae_u16 opw2 = (opcode_memory[4] << 8) | (opcode_memory[5] << 0);
-	if (opc == 0x89c2
-		//&& opw1 == 0xcf19
+	if (opc == 0xf23d
+		//&& opw1 == 0xee38
 		//&& opw2 == 0x504e
 		)
 		printf("");
@@ -2262,7 +2430,7 @@ static void execute_ins(uae_u16 opc, uaecptr endpc, uaecptr targetpc, struct ins
 			break;
 
 		if (!feature_loop_mode && !multi_mode) {
-			wprintf(_T("Test instruction didn't finish in single step in non-loop mode!?\n"));
+			wprintf(_T(" Test instruction didn't finish in single step in non-loop mode!?\n"));
 			abort();
 		}
 
@@ -2274,7 +2442,7 @@ static void execute_ins(uae_u16 opc, uaecptr endpc, uaecptr targetpc, struct ins
 
 		cnt--;
 		if (cnt <= 0) {
-			wprintf(_T("Loop mode didn't end!?\n"));
+			wprintf(_T(" Loop mode didn't end!?\n"));
 			abort();
 		}
 	}
@@ -2345,6 +2513,8 @@ static int isunsupported(struct instr *dp)
 	case i_CINVP:
 	case i_PLPAR:
 	case i_PLPAW:
+	case i_CALLM:
+	case i_RTM:
 		return 1;
 	}
 	return 0;
@@ -2568,13 +2738,15 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 		if (size == 3 && !dp->unsized)
 			continue;
 		// skip all unsupported instructions if not specifically testing i_ILLG
-		if (dp->clev > cpu_lvl && lookup->mnemo != i_ILLG)
-			continue;
+		if (lookup->mnemo != i_ILLG) {
+			if (dp->clev > cpu_lvl)
+				continue;
+			if (isunsupported(dp))
+				return;
+			if (isfpp(lookup->mnemo) && !currprefs.fpu_model)
+				return;
+		}
 		opcodecnt++;
-		if (isunsupported(dp))
-			return;
-		if (isfpp(lookup->mnemo) && !currprefs.fpu_model)
-			return;
 		fpumode = currprefs.fpu_model && isfpp(lookup->mnemo);
 	}
 
@@ -2590,7 +2762,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 	int count = 0;
 
 	registers[8 + 6] = opcode_memory_start - 0x100;
-	registers[8 + 7] = test_memory_end - STACK_SIZE;
+	registers[8 + 7] = user_stack_memory;
 
 	uae_u32 target_address = 0xffffffff;
 	target_ea[0] = 0xffffffff;
@@ -2734,6 +2906,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 				target_ea[1] = target_ea_bak[1];
 				target_address = target_address_bak;
 
+				reset_ea_state();
 				// retry few times if out of bounds access
 				int oob_retries = 10;
 				// if instruction has immediate(s), repeat instruction test multiple times
@@ -2787,9 +2960,9 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 					uae_u8 *ao = opcode_memory + 2;
 					uae_u16 apw1 = (ao[0] << 8) | (ao[1] << 0);
 					uae_u16 apw2 = (ao[2] << 8) | (ao[3] << 0);
-					if (opc == 0x48a8
-						&& apw1 == 0x0000
-						//&& apw2 == 0xfff0
+					if (opc == 0x4eb1
+						&& apw1 == 0xee38
+						//&& apw2 == 0x7479
 						)
 						printf("");
 
@@ -2856,8 +3029,8 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 
 					// bcc.x
 					pc += handle_specials_branch(opc, pc, dp, &isconstant_src);
-					// pack
-					pc += handle_specials_pack(opc, pc, dp, &isconstant_src);
+					// misc
+					pc += handle_specials_misc(opc, pc, dp, &isconstant_src);
 
 					put_word_test(opcode_memory_start, opc);
 
@@ -3095,10 +3268,10 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 							}
 							regs.sr |= feature_min_interrupt_mask << 8;
 							regs.usp = regs.regs[8 + 7];
-							regs.isp = test_memory_end - 0x80;
+							regs.isp = super_stack_memory - 0x80;
 							// copy user stack to super stack, for RTE etc support
-							memcpy(regs.isp - test_memory_start + test_memory, regs.usp - test_memory_start + test_memory, 0x20);
-							regs.msp = test_memory_end;
+							memcpy(test_memory + (regs.isp - test_memory_start), test_memory + (regs.usp - test_memory_start), 0x20);
+							regs.msp = super_stack_memory;
 
 							// data size optimization, only store data
 							// if it is different than in previous round
@@ -3614,6 +3787,15 @@ int __cdecl main(int argc, char *argv[])
 	safe_memory_end = 0xffffffff;
 	if (ini_getval(ini, INISECTION, _T("feature_safe_memory_size"), &v))
 		safe_memory_end = safe_memory_start + v;
+	safe_memory_mode = 3;
+	if (ini_getstring(ini, INISECTION, _T("feature_safe_memory_mode"), &vs)) {
+		safe_memory_mode = 0;
+		if (_totupper(vs[0]) == 'R')
+			safe_memory_mode |= 1;
+		if (_totupper(vs[0]) == 'W')
+			safe_memory_mode |= 2;
+		xfree(vs);
+	}
 
 	feature_sr_mask = 0;
 	ini_getval(ini, INISECTION, _T("feature_sr_mask"), &feature_sr_mask);
@@ -3748,8 +3930,25 @@ int __cdecl main(int argc, char *argv[])
 		return 0;
 	}
 
-	opcode_memory = test_memory + test_memory_size / 2;
-	opcode_memory_start = test_memory_start + test_memory_size / 2;
+	v = 0;
+	if (ini_getval(ini, INISECTION, _T("feature_opcode_memory"), &v)) {
+		opcode_memory_start = v;
+		opcode_memory = test_memory + (opcode_memory_start - test_memory_start);
+	} else {
+		opcode_memory = test_memory + test_memory_size / 2;
+		opcode_memory_start = test_memory_start + test_memory_size / 2;
+	}
+	if (opcode_memory_start < opcode_memory_start || opcode_memory_start > test_memory_start + test_memory_size - 256) {
+		wprintf(_T("Opcode memory out of bounds\n"));
+		return 0;
+	}
+	if (ini_getval(ini, INISECTION, _T("feature_stack_memory"), &v)) {
+		super_stack_memory = v;
+		user_stack_memory = super_stack_memory - (RESERVED_SUPERSTACK + RESERVED_USERSTACK_EXTRA);
+	} else {
+		super_stack_memory = test_memory_end;
+		user_stack_memory = test_memory_end - (RESERVED_SUPERSTACK + RESERVED_USERSTACK_EXTRA);
+	}
 
 	low_memory_size = test_low_memory_end;
 	if (low_memory_size < 0x8000)
