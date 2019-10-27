@@ -8440,13 +8440,6 @@ static void values_from_displaydlg (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 		SendDlgItemMessage (hDlg, IDC_FRAMERATE2, TBM_SETPOS, TRUE, (LPARAM)cr->rate);
 	}
 
-	gm->gfx_size_win.width = GetDlgItemInt (hDlg, IDC_XSIZE, &success, FALSE);
-	if(!success)
-		gm->gfx_size_win.width = 800;
-	gm->gfx_size_win.height = GetDlgItemInt (hDlg, IDC_YSIZE, &success, FALSE);
-	if(!success)
-		gm->gfx_size_win.height = 600;
-
 	workprefs.gfx_xcenter = ischecked (hDlg, IDC_XCENTER) ? 2 : 0; /* Smart centering */
 	workprefs.gfx_ycenter = ischecked (hDlg, IDC_YCENTER) ? 2 : 0; /* Smart centering */
 	workprefs.gfx_variable_sync = ischecked(hDlg, IDC_DISPLAY_VARSYNC) ? 1 : 0;
@@ -8539,7 +8532,6 @@ static void values_from_displaydlg (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 			SetDlgItemInt (hDlg, IDC_XSIZE, workprefs.gfx_monitor[0].gfx_size_win.width, FALSE);
 			SetDlgItemInt (hDlg, IDC_YSIZE, workprefs.gfx_monitor[0].gfx_size_win.height, FALSE);
 			init_display_mode (hDlg);
-			//init_frequency_combo (hDlg, dmode);
 		} else if (LOWORD (wParam) == IDC_REFRESHRATE && dmode >= 0) {
 			LRESULT posn1;
 			posn1 = SendDlgItemMessage (hDlg, IDC_REFRESHRATE, CB_GETCURSEL, 0, 0);
@@ -8600,20 +8592,44 @@ static INT_PTR CALLBACK DisplayDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPAR
 		if (recursive > 0)
 			break;
 		recursive++;
-		if (LOWORD (wParam) == IDC_DA_RESET) {
-			int *p;
-			da_mode_selected = SendDlgItemMessage (hDlg, IDC_DA_MODE, CB_GETCURSEL, 0, 0);
-			p = getp_da (hDlg);
-			if (p)
-				*p = 0;
-			init_da (hDlg);
-			update_da (hDlg);
-		}
-		handle_da (hDlg);
-		values_from_displaydlg (hDlg, msg, wParam, lParam);
-		enable_for_displaydlg (hDlg);
-		if (LOWORD (wParam) == IDC_RATE2ENABLE || LOWORD(wParam) == IDC_SCREENMODE_NATIVE3 || LOWORD(wParam) == IDC_SCREENMODE_NATIVE2 || LOWORD(wParam) == IDC_SCREENMODE_NATIVE) {
-			values_to_displaydlg (hDlg);
+		switch(LOWORD(wParam))
+		{
+			case IDC_DA_RESET:
+			{
+				int *p;
+				da_mode_selected = SendDlgItemMessage(hDlg, IDC_DA_MODE, CB_GETCURSEL, 0, 0);
+				p = getp_da(hDlg);
+				if (p)
+					*p = 0;
+				init_da(hDlg);
+				update_da(hDlg);
+			}
+			break;
+			case IDC_XSIZE:
+			{
+				BOOL success;
+				struct monconfig *gm = &workprefs.gfx_monitor[0];
+				gm->gfx_size_win.width = GetDlgItemInt(hDlg, IDC_XSIZE, &success, FALSE);
+				if (!success)
+					gm->gfx_size_win.width = 800;
+			}
+			break;
+			case IDC_YSIZE:
+			{
+				BOOL success;
+				struct monconfig *gm = &workprefs.gfx_monitor[0];
+				gm->gfx_size_win.height = GetDlgItemInt(hDlg, IDC_YSIZE, &success, FALSE);
+				if (!success)
+					gm->gfx_size_win.height = 600;
+			}
+			break;
+			default:
+			handle_da (hDlg);
+			values_from_displaydlg (hDlg, msg, wParam, lParam);
+			enable_for_displaydlg (hDlg);
+			if (LOWORD (wParam) == IDC_RATE2ENABLE || LOWORD(wParam) == IDC_SCREENMODE_NATIVE3 || LOWORD(wParam) == IDC_SCREENMODE_NATIVE2 || LOWORD(wParam) == IDC_SCREENMODE_NATIVE) {
+				values_to_displaydlg (hDlg);
+			}
 		}
 		recursive--;
 		break;
