@@ -3858,6 +3858,7 @@ static void do_sprite_collisions (void)
 static void record_sprite_1 (int sprxp, uae_u16 *buf, uae_u32 datab, int num, int dbl,
 	unsigned int mask, int do_collisions, uae_u32 collision_mask)
 {
+	uae_u16 erasemask = ~(3 << (2 * num));
 	int j = 0;
 	while (datab) {
 		unsigned int col = 0;
@@ -3870,14 +3871,14 @@ static void record_sprite_1 (int sprxp, uae_u16 *buf, uae_u32 datab, int num, in
 			col ^= (uaerand () << 16) | uaerand ();
 #endif
 		if ((j & mask) == 0) {
-			unsigned int tmp = (*buf) | col;
+			unsigned int tmp = ((*buf) & erasemask) | col;
 			*buf++ = tmp;
 			if (do_collisions)
 				coltmp |= tmp;
 			sprxp++;
 		}
 		if (dbl > 0) {
-			unsigned int tmp = (*buf) | col;
+			unsigned int tmp = ((*buf) & erasemask) | col;
 			*buf++ = tmp;
 			if (do_collisions)
 				coltmp |= tmp;
@@ -3885,11 +3886,11 @@ static void record_sprite_1 (int sprxp, uae_u16 *buf, uae_u32 datab, int num, in
 		}
 		if (dbl > 1) {
 			unsigned int tmp;
-			tmp = (*buf) | col;
+			tmp = ((*buf) & erasemask) | col;
 			*buf++ = tmp;
 			if (do_collisions)
 				coltmp |= tmp;
-			tmp = (*buf) | col;
+			tmp = ((*buf) & erasemask) | col;
 			*buf++ = tmp;
 			if (do_collisions)
 				coltmp |= tmp;
