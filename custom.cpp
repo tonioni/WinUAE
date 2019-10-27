@@ -7130,17 +7130,20 @@ static void update_copper (int until_hpos)
 			cop_state.state = COP_strobe_delay1;
 			break;
 		case COP_strobe_delay1:
-			// First cycle after COPJMP is just like normal first read cycle
-			// Cycle is used and needs to be free.
-			if (copper_cant_read (old_hpos, 1))
-				continue;
-			alloc_cycle (old_hpos, CYCLE_COPPER);
+			// First cycle after COPJMP. This is the strange one.
+			// This cycle does not need to be free
+			// But it still gets allocated by copper if it is free = CPU and blitter can't use it.
+			if (!copper_cant_read(old_hpos, 0)) {
+				alloc_cycle(old_hpos, CYCLE_COPPER);
 #ifdef DEBUGGER
-			if (debug_dma)
-				record_dma (0x8c, chipmem_wget_indirect (cop_state.ip), cop_state.ip, old_hpos, vpos, DMARECORD_COPPER, 0);
-			if (memwatch_enabled)
-				debug_wgetpeekdma_chipram(cop_state.ip, chipmem_wget_indirect (cop_state.ip), MW_MASK_COPPER, 0x8c, cop_state.last_strobe == 2 ? 0x84 : 0x80);
+				if (debug_dma)
+					record_dma(0x8c, chipmem_wget_indirect(cop_state.ip), cop_state.ip, old_hpos, vpos, DMARECORD_COPPER, 0);
+				if (memwatch_enabled)
+					debug_wgetpeekdma_chipram(cop_state.ip, chipmem_wget_indirect(cop_state.ip), MW_MASK_COPPER, 0x8c, cop_state.last_strobe == 2 ? 0x84 : 0x80);
 #endif
+				// copper pointer is only increased if cycle was free
+				cop_state.ip += 2;
+			}
 			if (old_hpos == maxhpos - 2) {
 				// if COP_strobe_delay2 would cross scanlines (positioned immediately
 				// after first strobe/refresh slot) it will disappear!
@@ -7152,22 +7155,20 @@ static void update_copper (int until_hpos)
 				cop_state.strobe = 0;
 			} else {
 				cop_state.state = COP_strobe_delay2;
-				cop_state.ip += 2;
 			}
 			break;
 		case COP_strobe_delay2:
-			// Second cycle after COPJMP. This is the strange one.
-			// This cycle does not need to be free
-			// But it still gets allocated by copper if it is free = CPU and blitter can't use it.
-			if (!copper_cant_read (old_hpos, 0)) {
-				alloc_cycle (old_hpos, CYCLE_COPPER);
+			// Second cycle after COPJMP does dummy read to 1FE
+			// Cycle is used and needs to be free.
+			if (copper_cant_read(old_hpos, 1))
+				continue;
+			alloc_cycle (old_hpos, CYCLE_COPPER);
 #ifdef DEBUGGER
-				if (debug_dma)
-					record_dma (0x1fe, chipmem_wget_indirect (cop_state.ip), cop_state.ip, old_hpos, vpos, DMARECORD_COPPER, 0);
-				if (memwatch_enabled)
-					debug_wgetpeekdma_chipram(cop_state.ip, chipmem_wget_indirect (cop_state.ip), MW_MASK_COPPER, 0x1fe, 0x1fe);
+			if (debug_dma)
+				record_dma (0x1fe, chipmem_wget_indirect (cop_state.ip), cop_state.ip, old_hpos, vpos, DMARECORD_COPPER, 0);
+			if (memwatch_enabled)
+				debug_wgetpeekdma_chipram(cop_state.ip, chipmem_wget_indirect (cop_state.ip), MW_MASK_COPPER, 0x1fe, 0x1fe);
 #endif
-			}
 			cop_state.state = COP_read1;
 			// Next cycle finally reads from new pointer
 			if (cop_state.strobe == 1)
