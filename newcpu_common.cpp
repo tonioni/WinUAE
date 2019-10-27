@@ -1618,9 +1618,10 @@ void ccr_68000_word_move_ae_normal(uae_s16 src)
 	SET_NFLG(src < 0);
 }
 
+// Change F-line to privilege violation if missing co-pro
 bool privileged_copro_instruction(uae_u16 opcode)
 {
-	if ((currprefs.cpu_model == 68020 || currprefs.cpu_model == 68030) && !regs.s) {
+	if (currprefs.cpu_model >= 68020 && !regs.s) {
 		int reg = opcode & 7;
 		int mode = (opcode >> 3) & 7;
 		int id = (opcode >> 9) & 7;
@@ -1628,13 +1629,13 @@ bool privileged_copro_instruction(uae_u16 opcode)
 		if ((opcode & 0xf1c0) == 0xf100) {
 			// cpSAVE
 			if (mode == 2 || (mode >= 4 && mode <= 6) || (mode == 7 && (reg == 0 || reg == 1))) {
-				if (currprefs.cpu_model == 68020 || (currprefs.cpu_model == 68030 && id >= 2))
+				if ((currprefs.cpu_model >= 68040 && id > 0) || currprefs.cpu_model < 68040)
 					return true;
 			}
 		} else if ((opcode & 0xf1c0) == 0xf140) {
 			// cpRESTORE
 			if (mode == 2 || mode == 3 || (mode >= 5 && mode <= 6) || (mode == 7 && reg <= 3)) {
-				if (currprefs.cpu_model == 68020 || (currprefs.cpu_model == 68030 && id >= 2))
+				if ((currprefs.cpu_model >= 68040 && id > 0) || currprefs.cpu_model < 68040)
 					return true;
 			}
 		}

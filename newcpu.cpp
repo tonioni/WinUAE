@@ -3390,7 +3390,7 @@ uae_u32 REGPARAM2 op_illg (uae_u32 opcode)
 #endif
 
 	if ((opcode & 0xF000) == 0xF000) {
-		// 68020 MMU or 020/030 FPU cpSAVE/cpRESTORE privilege check
+		// Missing MMU or FPU cpSAVE/cpRESTORE privilege check
 		if (privileged_copro_instruction(opcode)) {
 			Exception(8);
 		} else {

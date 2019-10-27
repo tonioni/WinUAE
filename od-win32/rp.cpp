@@ -1545,8 +1545,6 @@ HRESULT rp_init (void)
 	}
 	mousecapture = 0;
 
-	device_add_vsync_pre(rp_vsync);
-
 	return hr;
 }
 
@@ -1789,6 +1787,7 @@ void rp_fixup_options (struct uae_prefs *p)
 	set_config_changed ();
 
 	write_log(_T("rp_fixup_options end\n"));
+
 }
 
 static void rp_device_writeprotect (int dev, int num, bool writeprotected)
@@ -2325,4 +2324,11 @@ bool rp_mouseevent(int x, int y, int buttons, int buttonmask)
 int rp_isactive (void)
 {
 	return initialized;
+}
+
+void rp_reset(void)
+{
+	if (!initialized)
+		return;
+	device_add_vsync_pre(rp_vsync);
 }

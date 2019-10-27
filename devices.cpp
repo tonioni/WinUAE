@@ -218,6 +218,9 @@ void devices_reset(int hardreset)
 #ifdef AUTOCONFIG
 	rtarea_reset();
 #endif
+#ifdef RETROPLATFORM
+	rp_reset();
+#endif
 	uae_int_requested = 0;
 }
 
