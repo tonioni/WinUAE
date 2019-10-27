@@ -2057,9 +2057,9 @@ int open_debug_window(void)
 	dbgaccel = LoadAccelerators(hUIDLL ? hUIDLL : hInst, MAKEINTRESOURCE (IDR_DBGACCEL));
 	nr = getresource(IDD_DEBUGGER);
 	if (nr) {
-		hDbgWnd = CreateDialogIndirect (nr->inst, nr->resource, NULL, DebuggerProc);
-		freescaleresource(nr);
+		hDbgWnd = CreateDialogIndirect (nr->inst, nr->sourceresource, NULL, DebuggerProc);
 	}
+	freescaleresource(nr);
 	debuggerinitializing = FALSE;
 	if (!hDbgWnd)
 		return 0;

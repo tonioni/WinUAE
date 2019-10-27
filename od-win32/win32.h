@@ -75,6 +75,8 @@ extern void minimizewindow(int monid);
 extern uae_u32 OSDEP_minimize_uae(void);
 extern void updatemouseclip(struct AmigaMonitor*);
 extern void updatewinrect(struct AmigaMonitor*, bool);
+int getdpiformonitor(HMONITOR mon);
+int getdpiforwindow(HWND hwnd);
 
 extern bool resumepaused (int priority);
 extern bool setpaused (int priority);

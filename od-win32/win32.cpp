@@ -40,6 +40,7 @@
 #include <WtsApi32.h>
 #include <Avrt.h>
 #include <Cfgmgr32.h>
+#include <shellscalingapi.h>
 
 #include "resource.h"
 
@@ -233,6 +234,40 @@ typedef BOOL (CALLBACK* CLOSETOUCHINPUTHANDLE)(HTOUCHINPUT);
 static GETTOUCHINPUTINFO pGetTouchInputInfo;
 static CLOSETOUCHINPUTHANDLE pCloseTouchInputHandle;
 #endif
+
+int getdpiformonitor(HMONITOR mon)
+{
+	if (mon) {
+		static HMODULE shcore;
+		if (!shcore)
+			shcore = LoadLibrary(_T("Shcore.dll"));
+		if (shcore) {
+			typedef HRESULT(CALLBACK *GETDPIFORMONITOR)(HMONITOR, MONITOR_DPI_TYPE, UINT *, UINT *);
+			GETDPIFORMONITOR pGetDpiForMonitor = (GETDPIFORMONITOR)GetProcAddress(shcore, "GetDpiForMonitor");
+			if (pGetDpiForMonitor) {
+				UINT x, y;
+				if (SUCCEEDED(pGetDpiForMonitor(mon, MDT_EFFECTIVE_DPI, &x, &y)))
+					return y;
+			}
+		}
+	}
+	HDC hdc = GetDC(NULL);
+	int dpi = GetDeviceCaps(hdc, LOGPIXELSX);
+	ReleaseDC(NULL, hdc);
+	return dpi;
+}
+
+int getdpiforwindow(HWND hwnd)
+{
+	typedef UINT(CALLBACK *GETDPIFORWINDOW)(HWND);
+	GETDPIFORWINDOW pGetDpiForWindow = (GETDPIFORWINDOW)GetProcAddress(userdll, "GetDpiForWindow");
+	if (pGetDpiForWindow)
+		return pGetDpiForWindow(hwnd);
+	HDC hdc = GetDC(NULL);
+	int dpi = GetDeviceCaps(hdc, LOGPIXELSY);
+	ReleaseDC(NULL, hdc);
+	return dpi;
+}
 
 static ULONG ActualTimerResolution;
 

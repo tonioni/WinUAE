@@ -130,6 +130,8 @@ static int currentpage = -1;
 static int qs_request_reset;
 static int qs_override;
 int gui_active, gui_left;
+static struct newresource *panelresource;
+int dialog_inhibit;
 
 #undef HtmlHelp
 #ifndef HH_DISPLAY_TOPIC
@@ -378,6 +380,9 @@ static void commonproc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 static int stringboxdialogactive;
 static INT_PTR CALLBACK StringBoxDialogProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
+	if (dialog_inhibit)
+		return 0;
+
 	switch(msg)
 	{
 	case WM_DESTROY:
@@ -1702,6 +1707,9 @@ static bool infoboxdialogstate;
 static HWND infoboxhwnd;
 static INT_PTR CALLBACK InfoBoxDialogProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
+	if (dialog_inhibit)
+		return 0;
+
 	switch(msg)
 	{
 	case WM_DESTROY:
@@ -5645,6 +5653,9 @@ static INT_PTR CALLBACK InfoSettingsProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 {
 	static int recursive = 0;
 
+	if (dialog_inhibit)
+		return 0;
+
 	switch (msg)
 	{
 	case WM_INITDIALOG:
@@ -6197,6 +6208,9 @@ static INT_PTR CALLBACK LoadSaveDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPA
 	static int recursive;
 	static struct ConfigStruct *config;
 
+	if (dialog_inhibit)
+		return 0;
+
 	switch (msg)
 	{
 	case WM_INITDIALOG:
@@ -6325,6 +6339,9 @@ static INT_PTR CALLBACK ErrorLogProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 	CHARFORMAT CharFormat;
 	TCHAR *err;
 
+	if (dialog_inhibit)
+		return 0;
+
 	switch (msg) {
 	case WM_COMMAND:
 		if (wParam == IDOK) {
@@ -6359,6 +6376,9 @@ static INT_PTR CALLBACK ContributorsProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 	TCHAR szContributors1[MAX_CONTRIBUTORS_LENGTH];
 	TCHAR szContributors2[MAX_CONTRIBUTORS_LENGTH];
 	TCHAR szContributors[MAX_CONTRIBUTORS_LENGTH * 2];
+
+	if (dialog_inhibit)
+		return 0;
 
 	switch (msg) {
 	case WM_COMMAND:
@@ -6750,6 +6770,9 @@ static INT_PTR CALLBACK PathsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 	static int numtypes;
 	int val, selpath = 0;
 	TCHAR tmp[MAX_DPATH];
+
+	if (dialog_inhibit)
+		return 0;
 
 	switch (msg)
 	{
@@ -7314,6 +7337,9 @@ static INT_PTR CALLBACK QuickstartDlgProc (HWND hDlg, UINT msg, WPARAM wParam, L
 	static int doinit;
 	LRESULT val;
 
+	if (dialog_inhibit)
+		return 0;
+
 	switch(msg)
 	{
 	case WM_INITDIALOG:
@@ -7532,6 +7558,9 @@ static void init_aboutdlg (HWND hDlg)
 
 static INT_PTR CALLBACK AboutDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
+	if (dialog_inhibit)
+		return 0;
+
 	switch( msg )
 	{
 	case WM_INITDIALOG:
@@ -8541,6 +8570,9 @@ static INT_PTR CALLBACK DisplayDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPAR
 {
 	static int recursive = 0;
 
+	if (dialog_inhibit)
+		return 0;
+
 	switch (msg)
 	{
 	case WM_INITDIALOG:
@@ -8758,6 +8790,9 @@ static INT_PTR CALLBACK ChipsetDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPAR
 {
 	static int recursive = 0;
 	TCHAR buffer[MAX_DPATH], tmp[MAX_DPATH];
+
+	if (dialog_inhibit)
+		return 0;
 
 	switch (msg) {
 	case WM_INITDIALOG:
@@ -9144,6 +9179,9 @@ static INT_PTR CALLBACK ChipsetDlgProc2 (HWND hDlg, UINT msg, WPARAM wParam, LPA
 {
 	static int recursive = 0;
 	TCHAR tmp[MAX_DPATH];
+
+	if (dialog_inhibit)
+		return 0;
 
 	switch (msg) {
 	case WM_INITDIALOG:
@@ -10508,6 +10546,9 @@ static INT_PTR CALLBACK Expansion2DlgProc(HWND hDlg, UINT msg, WPARAM wParam, LP
 	TCHAR tmp[MAX_DPATH];
 	static int recursive = 0;
 
+	if (dialog_inhibit)
+		return 0;
+
 	switch (msg)
 	{
 		case WM_INITDIALOG:
@@ -10902,6 +10943,9 @@ static INT_PTR CALLBACK ExpansionDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 	static int recursive = 0;
 	static int enumerated;
 
+	if (dialog_inhibit)
+		return 0;
+
 	switch (msg)
 	{
 	case WM_INITDIALOG:
@@ -11194,6 +11238,9 @@ static INT_PTR CALLBACK BoardsDlgProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 	static int recursive = 0;
 	static int selected = -1;
 
+	if (dialog_inhibit)
+		return 0;
+
 	switch (msg)
 	{
 		case WM_INITDIALOG:
@@ -11320,6 +11367,9 @@ static INT_PTR CALLBACK MemoryDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARA
 	TCHAR tmp[MAX_DPATH];
 	static int recursive = 0;
 	int v;
+
+	if (dialog_inhibit)
+		return 0;
 
 	switch (msg)
 	{
@@ -11688,6 +11738,9 @@ static INT_PTR CALLBACK KickstartDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 {
 	static int recursive;
 	TCHAR tmp[MAX_DPATH];
+
+	if (dialog_inhibit)
+		return 0;
 
 	switch (msg)
 	{
@@ -12135,15 +12188,15 @@ static void getstoredguisize(void)
 	if (full_property_sheet || isfullscreen () == 0) {
 		regqueryint (NULL, _T("GUISizeX"), &gui_width);
 		regqueryint (NULL, _T("GUISizeY"), &gui_height);
-		scaleresource_init (gui_fullscreen ? _T("GFS") : _T(""), gui_fullscreen);
+		scaleresource_init(gui_fullscreen ? _T("GFS") : _T(""), gui_fullscreen);
 	} else if (isfullscreen () < 0) {
 		regqueryint (NULL, _T("GUISizeFWX"), &gui_width);
 		regqueryint (NULL, _T("GUISizeFWY"), &gui_height);
-		scaleresource_init (gui_fullscreen ? _T("FW_GFS") : _T("FW"), gui_fullscreen);
+		scaleresource_init(gui_fullscreen ? _T("FW_GFS") : _T("FW"), gui_fullscreen);
 	} else if (isfullscreen () > 0) {
 		regqueryint (NULL, _T("GUISizeFSX"), &gui_width);
 		regqueryint (NULL, _T("GUISizeFSY"), &gui_height);
-		scaleresource_init (gui_fullscreen ? _T("FS_GFS") : _T("FS"), gui_fullscreen);
+		scaleresource_init(gui_fullscreen ? _T("FS_GFS") : _T("FS"), gui_fullscreen);
 	}
 }
 
@@ -12312,7 +12365,7 @@ static INT_PTR MiscDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 			ResetListViews();
 			break;
 		case IDC_GUI_DEFAULT:
-			scaleresource_setdefaults ();
+			scaleresource_setdefaults(hDlg);
 			v = SendDlgItemMessage (hDlg, IDC_GUI_SIZE, CB_GETCURSEL, 0, 0L);
 			if (v != CB_ERR) {
 				if (v == 0) {
@@ -12323,6 +12376,9 @@ static INT_PTR MiscDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 				}
 				gui_width = (int)(GUI_INTERNAL_WIDTH * v / 100);
 				gui_height = (int)(GUI_INTERNAL_HEIGHT * v / 100);
+				int dpi = getdpiforwindow(hDlg);
+				gui_width = MulDiv(gui_width, dpi, 96);
+				gui_height = MulDiv(gui_height, dpi, 96);
 				if (gui_width < MIN_GUI_INTERNAL_WIDTH || gui_height < MIN_GUI_INTERNAL_HEIGHT) {
 					gui_width = MIN_GUI_INTERNAL_WIDTH;
 					gui_height = MIN_GUI_INTERNAL_HEIGHT;
@@ -12333,9 +12389,6 @@ static INT_PTR MiscDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 			break;
 		case IDC_GUI_FONT:
 			misc_gui_font (hDlg, 0);
-			break;
-		case IDC_GUI_LISTFONT:
-			misc_gui_font (hDlg, 1);
 			break;
 		case IDC_GUI_RESIZE:
 			gui_resize_enabled = ischecked (hDlg, IDC_GUI_RESIZE);
@@ -12781,6 +12834,9 @@ static INT_PTR CALLBACK CPUDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 {
 	static int recursive = 0;
 	int idx;
+
+	if (dialog_inhibit)
+		return 0;
 
 	switch (msg) {
 	case WM_INITDIALOG:
@@ -13309,6 +13365,9 @@ static INT_PTR CALLBACK SoundDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 	int numdevs;
 	int card, i;
 
+	if (dialog_inhibit)
+		return 0;
+
 	switch (msg) {
 	case WM_INITDIALOG:
 		{
@@ -13563,6 +13622,9 @@ static void volumeselectdir (HWND hDlg, int newdir, int setout)
 static INT_PTR CALLBACK VolumeSettingsProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
 	static int recursive = 0;
+
+	if (dialog_inhibit)
+		return 0;
 
 	switch (msg) {
 	case WM_INITDIALOG:
@@ -14141,6 +14203,9 @@ static INT_PTR CALLBACK TapeDriveSettingsProc (HWND hDlg, UINT msg, WPARAM wPara
 	int posn, readonly;
 	TCHAR tmp[MAX_DPATH];
 
+	if (dialog_inhibit)
+		return 0;
+
 	switch (msg) {
 
 	case WM_INITDIALOG:
@@ -14248,6 +14313,9 @@ static INT_PTR CALLBACK CDDriveSettingsProc (HWND hDlg, UINT msg, WPARAM wParam,
 	static int recursive = 0;
 	int posn;
 
+	if (dialog_inhibit)
+		return 0;
+
 	switch (msg) {
 
 	case WM_INITDIALOG:
@@ -14342,6 +14410,9 @@ static INT_PTR CALLBACK HardfileSettingsProc (HWND hDlg, UINT msg, WPARAM wParam
 	TCHAR tmp[MAX_DPATH];
 	int v;
 	int *p;
+
+	if (dialog_inhibit)
+		return 0;
 
 	switch (msg) {
 	case WM_DROPFILES:
@@ -14614,6 +14685,9 @@ static INT_PTR CALLBACK HarddriveSettingsProc (HWND hDlg, UINT msg, WPARAM wPara
 	int *p;
 	LRESULT posn;
 	static int oposn;
+
+	if (dialog_inhibit)
+		return 0;
 
 	switch (msg) {
 	case WM_INITDIALOG:
@@ -15157,6 +15231,9 @@ static void harddiskdlg_volume_notify (HWND hDlg, NM_LISTVIEW *nmlistview)
 /* harddisk parent view */
 static INT_PTR CALLBACK HarddiskDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
+	if (dialog_inhibit)
+		return 0;
+
 	switch (msg) {
 	case WM_INITDIALOG:
 		clicked_entry = 0;
@@ -15782,6 +15859,9 @@ static INT_PTR CALLBACK FloppyDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARA
 	static TCHAR diskname[40] = { _T("") };
 	static int dropopen;
 
+	if (dialog_inhibit)
+		return 0;
+
 	switch (msg)
 	{
 	case WM_INITDIALOG:
@@ -16119,6 +16199,9 @@ static INT_PTR CALLBACK SwapperDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPAR
 	static int recursive = 0;
 	static int entry;
 	TCHAR tmp[MAX_DPATH];
+
+	if (dialog_inhibit)
+		return 0;
 
 	switch (msg)
 	{
@@ -16942,6 +17025,9 @@ static INT_PTR CALLBACK GamePortsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 	static int first;
 	int temp, i;
 
+	if (dialog_inhibit)
+		return 0;
+
 	switch (msg)
 	{
 	case WM_INITDIALOG:
@@ -17124,6 +17210,9 @@ static INT_PTR CALLBACK GamePortsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 static INT_PTR CALLBACK IOPortsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
 	static int recursive = 0;
+
+	if (dialog_inhibit)
+		return 0;
 
 	switch (msg)
 	{
@@ -18116,6 +18205,8 @@ static INT_PTR CALLBACK RemapSpecialsProc(HWND hDlg, UINT msg, WPARAM wParam, LP
 	static int recursive = 0;
 	HWND list = GetDlgItem(hDlg, IDC_LISTDIALOG_LIST);
 
+	if (dialog_inhibit)
+		return 0;
 
 	switch (msg)
 	{
@@ -18203,6 +18294,9 @@ static void input_remapspecials(HWND hDlg)
 
 static INT_PTR CALLBACK InputMapDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
+	if (dialog_inhibit)
+		return 0;
+
 	static int recursive;
 	HWND h = GetDlgItem (hDlg, IDC_INPUTMAPLIST);
 	TCHAR tmp[256];
@@ -18508,6 +18602,9 @@ static void qualifierlistview (HWND list)
 
 static INT_PTR CALLBACK QualifierProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
+	if (dialog_inhibit)
+		return 0;
+
 	static int recursive = 0;
 	HWND list = GetDlgItem (hDlg, IDC_LISTDIALOG_LIST);
 
@@ -18701,6 +18798,9 @@ static INT_PTR CALLBACK InputDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 	NM_LISTVIEW *nmlistview;
 	int items = 0, entry = 0;
 	static int recursive;
+
+	if (dialog_inhibit)
+		return 0;
 
 	switch (msg)
 	{
@@ -19580,6 +19680,9 @@ static INT_PTR CALLBACK hw3dDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 	int i;
 	static int filteroverlaypos = -1;
 	static bool firstinit;
+	
+	if (dialog_inhibit)
+		return 0;
 
 	switch (msg)
 	{
@@ -19990,6 +20093,9 @@ static INT_PTR CALLBACK AVIOutputDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 {
 	static int recursive = 0;
 	TCHAR tmp[1000];
+
+	if (dialog_inhibit)
+		return 0;
 
 	switch(msg)
 	{
@@ -20467,13 +20573,14 @@ static HWND updatePanel (int id, UINT action)
 	static HWND hwndTT;
 	static bool first = true;
 	int fullpanel;
-	struct newresource *tres;
 
 	SaveListView(panelDlg, false);
 	listview_id = 0;
 
 	if (!hDlg)
 		return NULL;
+
+	SetWindowRedraw(hDlg, FALSE);
 
 	if (first) {
 		first = false;
@@ -20529,14 +20636,17 @@ static HWND updatePanel (int id, UINT action)
 	}
 
 	fullpanel = ppage[id].fullpanel;
-	tres = scaleresource (ppage[id].nres, &maindctx, hDlg, -1, 0, 0, id + 1);
-	panelDlg = CreateDialogIndirectParam (tres->inst, tres->resource, hDlg, ppage[id].dlgproc, id);
+	struct newresource *res = ppage[id].nres;
+	scaleresource (res, &maindctx, hDlg, -1, 0, 0, id + 1);
+	res->parent = panelresource;
+	panelresource->child = res;
+	panelDlg = x_CreateDialogIndirectParam(res->inst, res->resource, hDlg, ppage[id].dlgproc, id, res);
 
 	//SetWindowRedraw(hDlg, FALSE);
 
-	rescaleresource(tres, &maindctx, hDlg, panelDlg);
+	rescaleresource(panelresource, false);
 
-	freescaleresource(tres);
+	freescaleresource(res);
 
 	ShowWindow (GetDlgItem (hDlg, IDC_PANEL_FRAME), SW_HIDE);
 	ShowWindow (GetDlgItem (hDlg, IDC_PANEL_FRAME_OUTER), !fullpanel ? SW_SHOW : SW_HIDE);
@@ -20570,6 +20680,9 @@ static HWND updatePanel (int id, UINT action)
 	if (ppage[id].focusid > 0 && action != TVC_BYKEYBOARD) {
 		setfocus (panelDlg, ppage[id].focusid);
 	}
+
+	SetWindowRedraw(hDlg, TRUE);
+	RedrawWindow(panelDlg, NULL, NULL, RDW_ERASE | RDW_FRAME | RDW_INVALIDATE | RDW_ALLCHILDREN);
 
 	return panelDlg;
 }
@@ -20729,6 +20842,33 @@ static bool dodialogmousemove(void)
 	return true;
 }
 
+void getguipos(int *xp, int *yp)
+{
+	int x = 10, y = 10;
+	if (gui_fullscreen) {
+		x = gui_fullscreen_rect.left;
+		y = gui_fullscreen_rect.top;
+	} else {
+		if (isfullscreen() == 0) {
+			regqueryint(NULL, _T("GUIPosX"), &x);
+			regqueryint(NULL, _T("GUIPosY"), &y);
+		} else if (isfullscreen() < 0) {
+			regqueryint(NULL, _T("GUIPosFWX"), &x);
+			regqueryint(NULL, _T("GUIPosFWY"), &y);
+		} else if (isfullscreen() > 0) {
+			regqueryint(NULL, _T("GUIPosFSX"), &x);
+			regqueryint(NULL, _T("GUIPosFSY"), &y);
+			if (dodialogmousemove()) {
+				struct MultiDisplay *mdc = getdisplay(&currprefs, 0);
+				x = mdc->rect.left;
+				y = mdc->rect.top;
+			}
+		}
+	}
+	*xp = x;
+	*yp = y;
+}
+
 static void centerWindow (HWND hDlg)
 {
 	RECT rc, rcDlg, rcOwner;
@@ -20740,25 +20880,7 @@ static void centerWindow (HWND hDlg)
 	if (owner == NULL)
 		owner = GetDesktopWindow ();
 
-	if (gui_fullscreen) {
-		x = gui_fullscreen_rect.left;
-		y = gui_fullscreen_rect.top;
-	} else {
-		if (isfullscreen () == 0) {
-			regqueryint (NULL, _T("GUIPosX"), &x);
-			regqueryint (NULL, _T("GUIPosY"), &y);
-		} else if (isfullscreen () < 0) {
-			regqueryint (NULL, _T("GUIPosFWX"), &x);
-			regqueryint (NULL, _T("GUIPosFWY"), &y);
-		} else if (isfullscreen () > 0) {
-			regqueryint (NULL, _T("GUIPosFSX"), &x);
-			regqueryint (NULL, _T("GUIPosFSY"), &y);
-			if (dodialogmousemove ()) {
-				x = mdc->rect.left;
-				y = mdc->rect.top;
-			}
-		}
-	}
+	getguipos(&x, &y);
 	pt1.x = x + 100;
 	pt1.y = y + (GetSystemMetrics (SM_CYMENU) + GetSystemMetrics (SM_CYBORDER)) / 2;
 	pt2.x = x + gui_width - 100;
@@ -21114,14 +21236,18 @@ static INT_PTR CALLBACK DialogProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 	static int recursive = 0;
 	static int oldwidth, oldheight;
 
+	if (dialog_inhibit)
+		return 0;
+
 	switch (msg)
 	{
 	case  WM_DPICHANGED:
 	{
-		if (!gui_size_changed && hGUIWnd) {
+		if (gui_size_changed <= 1 && hGUIWnd) {
 			int dx = LOWORD(wParam);
 			int dy = HIWORD(wParam);
 			RECT *const r = (RECT*)lParam;
+			gui_size_changed = 0;
 			previous_dpix = dx;
 			previous_dpiy = dy;
 			gui_width = (r->right - r->left);
@@ -21376,8 +21502,8 @@ struct newresource *getresource (int tmpl)
 	if (!newres)
 		return NULL;
 	memcpy ((void*)newres, resdata, size);
-	nr->resource = newres;
-	nr->size = size;
+	nr->sourceresource = newres;
+	nr->sourcesize = size;
 	nr->tmpl = tmpl;
 	nr->inst = inst;
 	return nr;
@@ -21385,17 +21511,15 @@ struct newresource *getresource (int tmpl)
 
 INT_PTR CustomDialogBox (int templ, HWND hDlg, DLGPROC proc)
 {
-	struct newresource *res, *r;
+	struct newresource *res;
 	struct dlgcontext dctx;
 	INT_PTR h = -1;
 
 	res = getresource (templ);
 	if (!res)
 		return h;
-	r = scaleresource (res, &dctx, hDlg, -1, 0, 0, -1);
-	if (r) {
-		h = DialogBoxIndirect (r->inst, r->resource, hDlg, proc);
-		freescaleresource (r);
+	if (scaleresource (res, &dctx, hDlg, -1, 0, 0, -1)) {
+		h = DialogBoxIndirect (res->inst, res->resource, hDlg, proc);
 	}
 	customDlgType = 0;
 	customDlg = NULL;
@@ -21405,17 +21529,15 @@ INT_PTR CustomDialogBox (int templ, HWND hDlg, DLGPROC proc)
 
 HWND CustomCreateDialog (int templ, HWND hDlg, DLGPROC proc)
 {
-	struct newresource *res, *r;
+	struct newresource *res;
 	struct dlgcontext dctx;
 	HWND h = NULL;
 
 	res = getresource (templ);
 	if (!res)
 		return h;
-	r = scaleresource (res, &dctx, hDlg, -1, 0, 0, -1);
-	if (r) {
-		h = CreateDialogIndirect (r->inst, r->resource, hDlg, proc);
-		freescaleresource (r);
+	if (scaleresource (res, &dctx, hDlg, -1, 0, 0, -1)) {
+		h = x_CreateDialogIndirectParam(res->inst, res->resource, hDlg, proc, NULL, res);
 	}
 	freescaleresource (res);
 	return h;
@@ -21549,8 +21671,6 @@ static int GetSettings (int all_options, HWND hwnd)
 	int psresult;
 	HWND dhwnd;
 	int first = 0;
-	static struct newresource *panelresource;
-	struct newresource *tres = NULL;
 	bool closed = false;
 
 	gui_active++;
@@ -21633,14 +21753,14 @@ static int GetSettings (int all_options, HWND hwnd)
 		}
 		gui_size_changed = 0;
 		if (!regexists) {
-			scaleresource_setdefaults ();
+			scaleresource_setdefaults(hwnd);
 			fmultx = 0;
 			write_log (_T("GUI default size\n"));
 			regsetint (NULL, _T("GUIResize"), 0);
 			regsetint (NULL, _T("GUIFullscreen"), 0);
 		} else {
 			if (gui_width < MIN_GUI_INTERNAL_WIDTH || gui_width > 4096 || gui_height < MIN_GUI_INTERNAL_HEIGHT || gui_height > 4096) {
-				scaleresource_setdefaults ();
+				scaleresource_setdefaults(hwnd);
 				setdefaultguisize ();
 				fmultx = 0;
 				write_log (_T("GUI size reset\n"));
@@ -21720,17 +21840,17 @@ static int GetSettings (int all_options, HWND hwnd)
 
 		panelresource->width = gui_width;
 		panelresource->height = gui_height;
-		freescaleresource(tres);
-		tres = scaleresource (panelresource, &maindctx, hwnd, gui_resize_enabled && gui_resize_allowed, gui_fullscreen, workprefs.win32_gui_alwaysontop || workprefs.win32_main_alwaysontop ? WS_EX_TOPMOST : 0, 0);
+		freescaleresource(panelresource);
+		scaleresource (panelresource, &maindctx, hwnd, gui_resize_enabled && gui_resize_allowed, gui_fullscreen, workprefs.win32_gui_alwaysontop || workprefs.win32_main_alwaysontop ? WS_EX_TOPMOST : 0, 0);
 		HWND phwnd = hwnd;
 		if (isfullscreen() == 0)
 			phwnd = 0;
 		if (isfullscreen() > 0 && currprefs.gfx_api > 1)
 			phwnd = 0;
-		dhwnd = CreateDialogIndirect(tres->inst, tres->resource, phwnd, DialogProc);
+		dhwnd = x_CreateDialogIndirectParam(panelresource->inst, panelresource->resource, phwnd, DialogProc, NULL, panelresource);
 		dialog_rect.top = dialog_rect.left = 0;
-		dialog_rect.right = tres->width;
-		dialog_rect.bottom = tres->height;
+		dialog_rect.right = panelresource->width;
+		dialog_rect.bottom = panelresource->height;
 		psresult = 0;
 		if (dhwnd != NULL) {
 			int dw = GetSystemMetrics(SM_CXSCREEN);
@@ -21743,7 +21863,7 @@ static int GetSettings (int all_options, HWND hwnd)
 			write_log (_T("Got GUI size = %dx%d\n"), w, h);
 			if (w < 100 || h < 100 || (w > 8192 && w > dw + 500) || (h > 8192 && h > dh + 500)) {
 				write_log (_T("GUI size (%dx%d) out of range!\n"), w, h);
-				scaleresource_setdefaults ();
+				scaleresource_setdefaults(hwnd);
 				setdefaultguisize ();
 				SendMessage (dhwnd, WM_COMMAND, IDCANCEL, 0);
 				fmultx = fmulty = 0;
@@ -21821,7 +21941,7 @@ static int GetSettings (int all_options, HWND hwnd)
 					regsetint(NULL, _T("GUIFullscreen"), gui_fullscreen > 0 ? 1 : 0);
 					if (gui_size_changed < 10) {
 						scaleresource_setsize(gui_width, gui_height, 0);
-						rescaleresource(tres, &maindctx, dhwnd, panelDlg);
+						rescaleresource(panelresource, true);
 						gui_size_changed = 0;
 						reset_box_art_window();
 					} else {
@@ -21847,12 +21967,11 @@ static int GetSettings (int all_options, HWND hwnd)
 				abort ();
 			}
 			setdefaultguisize ();
-			scaleresource_setdefaults ();
+			scaleresource_setdefaults(hwnd);
 			gui_size_changed = 10;
 		}
 gui_exit:
-		freescaleresource(tres);
-		tres = NULL;
+		freescaleresource(panelresource);
 		if (!gui_size_changed)
 			break;
 		quit_program = 0;

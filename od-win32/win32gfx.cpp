@@ -21,7 +21,6 @@
 #include <dwmapi.h>
 #include <D3dkmthk.h>
 #include <process.h>
-#include <shellscalingapi.h>
 
 #include "sysdeps.h"
 
@@ -2222,40 +2221,6 @@ static void reopen_gfx(struct AmigaMonitor *mon)
 	if (isfullscreen () <= 0)
 		DirectDraw_FillPrimary ();
 	render_screen(mon->monitor_id, 1, true);
-}
-
-static int getdpiformonitor(HMONITOR mon)
-{
-	if (mon) {
-		static HMODULE shcore;
-		if (!shcore)
-			shcore = LoadLibrary(_T("Shcore.dll"));
-		if (shcore) {
-			typedef HRESULT(CALLBACK * GETDPIFORMONITOR)(HMONITOR, MONITOR_DPI_TYPE, UINT*, UINT*);
-			GETDPIFORMONITOR pGetDpiForMonitor = (GETDPIFORMONITOR)GetProcAddress(userdll, "GetDpiForMonitor");
-			if (pGetDpiForMonitor) {
-				UINT x, y;
-				if (SUCCEEDED(pGetDpiForMonitor(mon, MDT_EFFECTIVE_DPI, &x, &y)))
-					return y;
-			}
-		}
-	}
-	HDC hdc = GetDC(NULL);
-	int dpi = GetDeviceCaps(hdc, LOGPIXELSX);
-	ReleaseDC(NULL, hdc);
-	return dpi;
-}
-
-static int getdpiforwindow(HWND hwnd)
-{
-	typedef UINT (CALLBACK *GETDPIFORWINDOW)(HWND);
-	GETDPIFORWINDOW pGetDpiForWindow = (GETDPIFORWINDOW)GetProcAddress(userdll, "GetDpiForWindow");
-	if (pGetDpiForWindow)
-		return pGetDpiForWindow(hwnd);
-	HDC hdc = GetDC(NULL);
-	int dpi = GetDeviceCaps(hdc, LOGPIXELSY);
-	ReleaseDC(NULL, hdc);
-	return dpi;
 }
 
 static int getstatuswindowheight(int monid, HWND hwnd)
