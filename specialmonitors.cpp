@@ -2591,6 +2591,7 @@ skip:
 			continue;
 
 		uae_u8 *line = src->bufmem + yoff * src->rowbytes;
+		uae_u8 *lineprev = yoff > 0 ? src->bufmem + (yoff - 1) * src->rowbytes : NULL;
 		uae_u8 *dstline = dst->bufmem + ((y * 2 + oddlines) - dst->yoffset) * dst->rowbytes;
 		uae_u8 *line_genlock = row_map_genlock[yoff];
 		int gy = ((y * 2 + oddlines) - src->yoffset - offsety) * deltay / 65536;
@@ -2600,13 +2601,12 @@ skip:
 		r = g = b;
 		a = amix1;
 		noise_add = (quickrand() & 15) | 1;
+		uae_u8 *s = line;
+		uae_u8 *d = dstline;
+		uae_u8 *s_genlock = line_genlock;
 		for (x = 0; x < src->inwidth; x++) {
-			uae_u8 *s = line + x * src->pixbytes;
-			uae_u8 *d = dstline + x * dst->pixbytes;
-			uae_u8 *s_genlock = line_genlock + x;
 			uae_u8 *s2 = s + src->rowbytes;
 			uae_u8 *d2 = d + dst->rowbytes;
-
 			if (is_transparent(*s_genlock)) {
 				a = amix2;
 				if (genlock_error) {
@@ -2637,6 +2637,9 @@ skip:
 			} else {
 				PUT_AMIGARGBA(d, s, d2, s2, dst, 0, doublelines, false);
 			}
+			s += src->pixbytes;
+			d += dst->pixbytes;
+			s_genlock++;
 		}
 	}
 

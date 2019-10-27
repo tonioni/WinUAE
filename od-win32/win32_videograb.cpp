@@ -442,5 +442,8 @@ void isvideograb_status(void)
 			break;
 		mediaEvent->FreeEventParams(EventCode, lParam1, lParam2);
 		write_log(_T("VIDEOGRAB EVENT %08X %08X %08X\n"), EventCode, lParam1, lParam2);
+		if (EventCode == EC_COMPLETE) {
+			getsetpositionvideograb(0);
+		}
 	}
 }
