@@ -1371,7 +1371,7 @@ static void save_data(uae_u8 *dst, const TCHAR *dir)
 		fwrite(data, 1, 4, f);
 		pl(data, opcode_memory_start);
 		fwrite(data, 1, 4, f);
-		pl(data, (cpu_lvl << 16) | sr_undefined_mask | (addressing_mask == 0xffffffff ? 0x80000000 : 0) | ((feature_flag_mode & 1) << 30) | (feature_min_interrupt_mask << 20));
+		pl(data, (cpu_lvl << 16) | sr_undefined_mask | (addressing_mask == 0xffffffff ? 0x80000000 : 0) | (feature_min_interrupt_mask << 20));
 		fwrite(data, 1, 4, f);
 		pl(data, currprefs.fpu_model);
 		fwrite(data, 1, 4, f);
@@ -2345,9 +2345,9 @@ static void execute_ins(uae_u16 opc, uaecptr endpc, uaecptr targetpc, struct ins
 {
 	uae_u16 opw1 = (opcode_memory[2] << 8) | (opcode_memory[3] << 0);
 	uae_u16 opw2 = (opcode_memory[4] << 8) | (opcode_memory[5] << 0);
-	if (opc == 0xf23d
-		//&& opw1 == 0xee38
-		//&& opw2 == 0x504e
+	if (opc == 0x2191
+		&& opw1 == 0xdd12
+		&& opw2 == 0xf78c
 		)
 		printf("");
 	if (regs.sr & 0x2000)
@@ -2384,6 +2384,10 @@ static void execute_ins(uae_u16 opc, uaecptr endpc, uaecptr targetpc, struct ins
 		int s = regs.s;
 
 		(*cpufunctbl[opc])(opc);
+
+		if (out_of_test_space) {
+			break;
+		}
 
 		// Supervisor mode and A7 was modified: skip this test round.
 		if (s && regs.regs[15] != a7) {
@@ -3205,7 +3209,8 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 						uae_u16 sr_mask = 0;
 
 						int maxflag = fpumode ? 256 : 32;
-						if (feature_flag_mode == 1) {
+						// if cc-instruction: always do full test
+						if (feature_flag_mode == 1 && !dp->ccuse) {
 							maxflag = fpumode ? 256 / 8 : 2;
 						}
 
@@ -3224,6 +3229,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 						if (extraccr) {
 							*dst++ = (uae_u8)extraccr;
 						}
+						*dst++ = (uae_u8)maxflag;
 
 						// Test every CPU CCR or FPU SR/rounding/precision combination
 						for (int ccr = 0; ccr < maxflag; ccr++) {
@@ -3251,7 +3257,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 								}
 								regs.fpiar = regs.pc;
 								// condition codes
-								if (feature_flag_mode == 0) {
+								if (maxflag >= 32) {
 									fpp_set_fpsr((ccr & 15) << 24);
 									// precision and rounding
 									fpp_set_fpcr((ccr >> 4) << 4);
@@ -3261,7 +3267,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 									fpp_set_fpcr((ccr >> 1) << 4);
 								}
 							}
-							if (feature_flag_mode == 0) {
+							if (maxflag >= 32) {
 								regs.sr = ccr | sr_mask;
 							} else {
 								regs.sr = ((ccr & 1) ? 31 : 0) | sr_mask;

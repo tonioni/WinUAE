@@ -72,7 +72,6 @@ static int hmem_rom, lmem_rom;
 static uae_u8 *absallocated;
 static int cpu_lvl, fpu_model;
 static uae_u16 sr_undefined_mask;
-static int flag_mode;
 static int check_undefined_sr;
 static uae_u32 cpustatearraystore[16];
 static uae_u32 cpustatearraynew[] = {
@@ -1608,10 +1607,7 @@ static void process_test(uae_u8 *p)
 			if (extraccr & 8)
 				sr_mask |= 0x1000; // M
 
-			int maxccr = fpumode ? 256 : 32;
-			if (flag_mode) {
-				maxccr = fpumode ? 256 / 8 : 2;
-			}
+			int maxccr = *p++;
 			for (int ccr = 0;  ccr < maxccr; ccr++) {
 
 				regs.ssp = super_stack_memory - 0x80;
@@ -1624,7 +1620,7 @@ static void process_test(uae_u8 *p)
 #endif
 				xmemcpy(&test_regs, &regs, sizeof(struct registers));
 
-				if (flag_mode == 0) {
+				if (maxccr >= 32) {
 					test_regs.sr = ccr;
 				} else {
 					test_regs.sr = (ccr ? 31 : 0);
@@ -1632,7 +1628,7 @@ static void process_test(uae_u8 *p)
 				test_regs.sr |= sr_mask | (interrupt_mask << 8);
 				test_sr = test_regs.sr;
 				if (fpumode) {
-					if (flag_mode == 0) {
+					if (maxccr >= 32) {
 						test_regs.fpsr = (ccr & 15) << 24;
 						test_regs.fpcr = (ccr >> 4) << 4;
 					} else {
@@ -1793,7 +1789,6 @@ static int test_mnemo(const char *path, const char *opcode)
 	lvl = (gl(data) >> 16) & 15;
 	interrupt_mask = (gl(data) >> 20) & 7;
 	addressing_mask = (gl(data) & 0x80000000) ? 0xffffffff : 0x00ffffff;
-	flag_mode = (gl(data) >> 30) & 1;
 	sr_undefined_mask = gl(data) & 0xffff;
 	fread(data, 1, 4, f);
 	fpu_model = gl(data);
