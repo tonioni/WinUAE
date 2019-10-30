@@ -5,10 +5,10 @@
 	.globl _execute_test010
 	.globl _execute_test020
 	.globl _execute_testfpu
-	.globl _exception010
-	.globl _exception020
-	.globl _exceptionfpu
 	.globl _exceptiontable000
+	.globl _exceptiontable010
+	.globl _exceptiontable020
+	.globl _exceptiontablefpu
 	.globl _setvbr
 	.globl _setcpu
 	.globl _flushcache
@@ -26,7 +26,8 @@ S_MSP = S_SSP+4
 S_PC = S_MSP+4
 S_SR = S_PC+4
 S_EXC = S_SR+4
-S_EXCFRAME = S_EXC+4
+S_EXC010 = S_EXC+4
+S_EXCFRAME = S_EXC010+4
 S_FPU = S_EXCFRAME+4
 S_FPIAR = S_FPU+8*12
 S_FPCR = S_FPIAR+4
@@ -294,12 +295,67 @@ exception:
 	movem.l (sp)+,d1-d7/a0-a6
 	rts
 
-_exception010:
+_exceptiontable010:
+	bsr.s exception010	| 2
+	bsr.s exception010	| 3
+	bsr.s exception010 | 4
+	bsr.s exception010 | 5
+	bsr.s exception010 | 6
+	bsr.s exception010 | 7
+	bsr.s exception010 | 8
+	bsr.s exception010 | 9
+	bsr.s exception010 | 10
+	bsr.s exception010 | 11
+	bsr.s exception010 | 12
+	bsr.s exception010 | 13
+	bsr.s exception010 | 14
+	bsr.s exception010 | 15
+	bsr.s exception010 | 16
+	bsr.s exception010 | 17
+	bsr.s exception010 | 18
+	bsr.s exception010 | 19
+	bsr.s exception010 | 20
+	bsr.s exception010 | 21
+	bsr.s exception010 | 22
+	bsr.s exception010 | 23
+	bsr.s exception010 | 24
+	bsr.s exception010 | 25
+	bsr.s exception010 | 26
+	bsr.s exception010 | 27
+	bsr.s exception010 | 28
+	bsr.s exception010 | 29
+	bsr.s exception010 | 30
+	bsr.s exception010 | 31
+	bsr.s exception010 | 32
+	bsr.s exception010 | 33
+	bsr.s exception010 | 34
+	bsr.s exception010 | 35
+	bsr.s exception010 | 36
+	bsr.s exception010 | 37
+	bsr.s exception010 | 38
+	bsr.s exception010 | 30
+	bsr.s exception010 | 40
+	bsr.s exception010 | 41
+	bsr.s exception010 | 42
+	bsr.s exception010 | 43
+	bsr.s exception010 | 44
+	bsr.s exception010 | 45
+	bsr.s exception010 | 46
+	bsr.s exception010 | 47
+	nop
+exception010:
 	move.w #0,ACTIVITYREG
 	move.l a0,-(sp)
 	move.l datapointer(pc),a0
 	movem.l d0-d7/a0-a6,(a0)
 	move.l (sp)+,8*4(a0)
+
+	move.l (sp)+,d0
+	lea _exceptiontable010(pc),a1
+	sub.l a1,d0
+	lsr.w #1,d0
+	addq.w #1,d0
+	move.w d0,S_EXC+2(a0)
 
 	move.l sp,S_EXCFRAME(a0)
 	move.w (sp)+,S_SR+2(a0)
@@ -307,7 +363,7 @@ _exception010:
 	move.w (sp),d0
 	and.w #0xfff,d0
 	lsr.w #2,d0
-	move.w d0,S_EXC+2(a0)
+	move.w d0,S_EXC010+2(a0)
 
 	move.l USP,a1
 	move.l a1,S_AREG+7*4(a0)
@@ -317,13 +373,68 @@ _exception010:
 	move.w (sp)+,sr
 	movem.l (sp)+,d1-d7/a0-a6
 	rts
-	
-_exception020:
+
+_exceptiontable020:
+	bsr.s exception020	| 2
+	bsr.s exception020	| 3
+	bsr.s exception020 | 4
+	bsr.s exception020 | 5
+	bsr.s exception020 | 6
+	bsr.s exception020 | 7
+	bsr.s exception020 | 8
+	bsr.s exception020 | 9
+	bsr.s exception020 | 10
+	bsr.s exception020 | 11
+	bsr.s exception020 | 12
+	bsr.s exception020 | 13
+	bsr.s exception020 | 14
+	bsr.s exception020 | 15
+	bsr.s exception020 | 16
+	bsr.s exception020 | 17
+	bsr.s exception020 | 18
+	bsr.s exception020 | 19
+	bsr.s exception020 | 20
+	bsr.s exception020 | 21
+	bsr.s exception020 | 22
+	bsr.s exception020 | 23
+	bsr.s exception020 | 24
+	bsr.s exception020 | 25
+	bsr.s exception020 | 26
+	bsr.s exception020 | 27
+	bsr.s exception020 | 28
+	bsr.s exception020 | 29
+	bsr.s exception020 | 30
+	bsr.s exception020 | 31
+	bsr.s exception020 | 32
+	bsr.s exception020 | 33
+	bsr.s exception020 | 34
+	bsr.s exception020 | 35
+	bsr.s exception020 | 36
+	bsr.s exception020 | 37
+	bsr.s exception020 | 38
+	bsr.s exception020 | 30
+	bsr.s exception020 | 40
+	bsr.s exception020 | 41
+	bsr.s exception020 | 42
+	bsr.s exception020 | 43
+	bsr.s exception020 | 44
+	bsr.s exception020 | 45
+	bsr.s exception020 | 46
+	bsr.s exception020 | 47
+	nop
+exception020:
 	move.w #0,ACTIVITYREG
 	move.l a0,-(sp)
 	move.l datapointer(pc),a0
 	movem.l d0-d7/a0-a6,(a0)
 	move.l (sp)+,8*4(a0)
+
+	move.l (sp)+,d0
+	lea _exceptiontable020(pc),a1
+	sub.l a1,d0
+	lsr.w #1,d0
+	addq.w #1,d0
+	move.w d0,S_EXC+2(a0)
 
 	move.l sp,S_EXCFRAME(a0)
 	move.w (sp)+,S_SR+2(a0)
@@ -331,7 +442,7 @@ _exception020:
 	move.w (sp),d0
 	and.w #0xfff,d0
 	lsr.w #2,d0
-	move.w d0,S_EXC+2(a0)
+	move.w d0,S_EXC010+2(a0)
 	
 _msp_address3:
 	movec MSP,a1
@@ -349,12 +460,67 @@ _msp_address3:
 	movem.l (sp)+,d1-d7/a0-a6
 	rts
 
-_exceptionfpu:
+_exceptiontablefpu:
+	bsr.s exceptionfpu	| 2
+	bsr.s exceptionfpu	| 3
+	bsr.s exceptionfpu | 4
+	bsr.s exceptionfpu | 5
+	bsr.s exceptionfpu | 6
+	bsr.s exceptionfpu | 7
+	bsr.s exceptionfpu | 8
+	bsr.s exceptionfpu | 9
+	bsr.s exceptionfpu | 10
+	bsr.s exceptionfpu | 11
+	bsr.s exceptionfpu | 12
+	bsr.s exceptionfpu | 13
+	bsr.s exceptionfpu | 14
+	bsr.s exceptionfpu | 15
+	bsr.s exceptionfpu | 16
+	bsr.s exceptionfpu | 17
+	bsr.s exceptionfpu | 18
+	bsr.s exceptionfpu | 19
+	bsr.s exceptionfpu | 20
+	bsr.s exceptionfpu | 21
+	bsr.s exceptionfpu | 22
+	bsr.s exceptionfpu | 23
+	bsr.s exceptionfpu | 24
+	bsr.s exceptionfpu | 25
+	bsr.s exceptionfpu | 26
+	bsr.s exceptionfpu | 27
+	bsr.s exceptionfpu | 28
+	bsr.s exceptionfpu | 29
+	bsr.s exceptionfpu | 30
+	bsr.s exceptionfpu | 31
+	bsr.s exceptionfpu | 32
+	bsr.s exceptionfpu | 33
+	bsr.s exceptionfpu | 34
+	bsr.s exceptionfpu | 35
+	bsr.s exceptionfpu | 36
+	bsr.s exceptionfpu | 37
+	bsr.s exceptionfpu | 38
+	bsr.s exceptionfpu | 30
+	bsr.s exceptionfpu | 40
+	bsr.s exceptionfpu | 41
+	bsr.s exceptionfpu | 42
+	bsr.s exceptionfpu | 43
+	bsr.s exceptionfpu | 44
+	bsr.s exceptionfpu | 45
+	bsr.s exceptionfpu | 46
+	bsr.s exceptionfpu | 47
+	nop
+exceptionfpu:
 	move.w #0,ACTIVITYREG
 	move.l a0,-(sp)
 	move.l datapointer(pc),a0
 	movem.l d0-d7/a0-a6,(a0)
 	move.l (sp)+,8*4(a0)
+
+	move.l (sp)+,d0
+	lea _exceptiontable020(pc),a1
+	sub.l a1,d0
+	lsr.w #1,d0
+	addq.w #1,d0
+	move.w d0,S_EXC+2(a0)
 
 	move.l sp,S_EXCFRAME(a0)
 	move.w (sp)+,S_SR+2(a0)
@@ -362,7 +528,7 @@ _exceptionfpu:
 	move.w (sp),d0
 	and.w #0xfff,d0
 	lsr.w #2,d0
-	move.w d0,S_EXC+2(a0)
+	move.w d0,S_EXC010+2(a0)
 	
 _msp_address4:
 	movec MSP,a1

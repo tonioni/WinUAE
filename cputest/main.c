@@ -41,7 +41,7 @@ struct registers
 	uae_u32 msp;
 	uae_u32 pc;
 	uae_u32 sr;
-	uae_u32 exc;
+	uae_u32 exc, exc010;
 	uae_u32 excframe;
 	struct fpureg fpuregs[8];
 	uae_u32 fpiar, fpcr, fpsr;
@@ -145,7 +145,7 @@ static uae_u32 tosuper(uae_u32 v)
 static void touser(uae_u32 v)
 {
 }
-static uae_u32 exceptiontable000, exception010, exception020, exceptionfpu;
+static uae_u32 exceptiontable000, exceptiontable010, exceptiontable020, exceptiontablefpu;
 static uae_u32 testexit(void)
 {
 	return 0;
@@ -180,7 +180,7 @@ extern void execute_test020(struct registers *);
 extern void execute_testfpu(struct registers *);
 extern uae_u32 tosuper(uae_u32);
 extern void touser(uae_u32);
-extern uae_u32 exceptiontable000, exception010, exception020, exceptionfpu;
+extern uae_u32 exceptiontable000, exceptiontable010, exceptiontable020, exceptiontablefpu;
 extern uae_u32 testexit(void);
 extern uae_u32 setvbr(uae_u32);
 extern uae_u32 get_cpu_model(void);
@@ -333,8 +333,14 @@ static void start_test(void)
 		}
 	} else {
 		oldvbr = setvbr((uae_u32)vbr);
-		for (int i = 0; i < 256; i++) {
-			vbr[i] = fpu_model ? (uae_u32)(&exceptionfpu) : (cpu_lvl == 1 ? (uae_u32)(&exception010) : (uae_u32)(&exception020));
+		for (int i = 2; i < 48; i++) {
+			if (fpu_model) {
+				vbr[i] = (uae_u32)(((uae_u32)&exceptiontablefpu) + (i - 2) * 2);
+			} else if (cpu_lvl == 1) {
+				vbr[i] = (uae_u32)(((uae_u32)&exceptiontable010) + (i - 2) * 2);
+			} else {
+				vbr[i] = (uae_u32)(((uae_u32)&exceptiontable020) + (i - 2) * 2);
+			}
 			if (i >= 2 && i < 12) {
 				error_vectors[i - 2] = vbr[i];
 			}
@@ -1242,6 +1248,7 @@ static uae_u8 *validate_test(uae_u8 *p, int ignore_errors, int ignore_sr)
 		if (v & CT_END) {
 			exc = v & CT_EXCEPTION_MASK;
 			int cpuexc = test_regs.exc & 65535;
+			int cpuexc010 = test_regs.exc010 & 65535;
 			p++;
 			if ((v & CT_END_INIT) == CT_END_INIT) {
 				end_test();
@@ -1251,10 +1258,21 @@ static uae_u8 *validate_test(uae_u8 *p, int ignore_errors, int ignore_sr)
 			}
 			if (exc == 1) {
 				end_test();
-				printf("Invalid exception ID %02x\n", exc);
+				printf("Invalid exception %02x\n", exc);
 				endinfo();
 				exit(0);
 			}
+			if (cpu_lvl > 0 && exc > 0 && cpuexc010 != cpuexc) {
+				addinfo();
+				if (dooutput) {
+					sprintf(outbp, "Exception: vector number does not match vector offset! (%d <> %d)\n", exc, cpuexc010);
+					experr = 1;
+					outbp += strlen(outbp);
+					errors++;
+				}
+				break;
+			}
+
 			if (ignore_errors) {
 				if (exc) {
 					p = validate_exception(&test_regs, p, exc, exc == cpuexc, &experr);
@@ -1277,11 +1295,11 @@ static uae_u8 *validate_test(uae_u8 *p, int ignore_errors, int ignore_sr)
 				addinfo();
 				if (dooutput) {
 					if (cpuexc == 4 && last_registers.pc == test_regs.pc) {
-						sprintf(outbp, "Exception ID: expected %d but got no exception.\n", exc);
+						sprintf(outbp, "Exception: expected %d but got no exception.\n", exc);
 					} else if (cpuexc == 4) {
-						sprintf(outbp, "Exception ID: expected %d but got %d (or no exception)\n", exc, cpuexc);
+						sprintf(outbp, "Exception: expected %d but got %d (or no exception)\n", exc, cpuexc);
 					} else {
-						sprintf(outbp, "Exception ID: expected %d but got %d\n", exc, cpuexc);
+						sprintf(outbp, "Exception: expected %d but got %d\n", exc, cpuexc);
 					}
 					experr = 1;
 				}
