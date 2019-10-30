@@ -20596,8 +20596,6 @@ static HWND updatePanel (int id, UINT action)
 	if (!hDlg)
 		return NULL;
 
-	SetWindowRedraw(hDlg, FALSE);
-
 	if (first) {
 		first = false;
 		getguisize (hDlg, &gui_width, &gui_height);
@@ -20615,9 +20613,11 @@ static HWND updatePanel (int id, UINT action)
 	ew (guiDlg, IDC_RESETAMIGA, full_property_sheet ? FALSE : TRUE);
 	ew (guiDlg, IDOK, TRUE);
 	if (panelDlg != NULL) {
+		SetWindowRedraw(hDlg, FALSE);
 		ShowWindow (panelDlg, FALSE);
 		DestroyWindow (panelDlg);
 		panelDlg = NULL;
+		SetWindowRedraw(hDlg, TRUE);
 	}
 	if (ToolTipHWND != NULL) {
 		DestroyWindow (ToolTipHWND);
@@ -20658,8 +20658,6 @@ static HWND updatePanel (int id, UINT action)
 	panelresource->child = res;
 	panelDlg = x_CreateDialogIndirectParam(res->inst, res->resource, hDlg, ppage[id].dlgproc, id, res);
 
-	//SetWindowRedraw(hDlg, FALSE);
-
 	rescaleresource(panelresource, false);
 
 	freescaleresource(res);
@@ -20688,17 +20686,11 @@ static HWND updatePanel (int id, UINT action)
 	EnumChildWindows (panelDlg, &childenumproc, (LPARAM)ppage[currentpage].nres->tmpl);
 	SendMessage (panelDlg, WM_NULL, 0, 0);
 
-	//SetWindowRedraw(hDlg, TRUE);
-	//RedrawWindow(hDlg, NULL, NULL, RDW_ERASE | RDW_FRAME | RDW_INVALIDATE | RDW_ALLCHILDREN | RDW_UPDATENOW);
-
 	hAccelTable = ppage[currentpage].accel;
 
 	if (ppage[id].focusid > 0 && action != TVC_BYKEYBOARD) {
 		setfocus (panelDlg, ppage[id].focusid);
 	}
-
-	SetWindowRedraw(hDlg, TRUE);
-	RedrawWindow(panelDlg, NULL, NULL, RDW_ERASE | RDW_FRAME | RDW_INVALIDATE | RDW_ALLCHILDREN);
 
 	return panelDlg;
 }
@@ -21535,6 +21527,7 @@ INT_PTR CustomDialogBox (int templ, HWND hDlg, DLGPROC proc)
 	if (!res)
 		return h;
 	if (scaleresource (res, &dctx, hDlg, -1, 0, 0, -1)) {
+		res->parent = panelresource;
 		h = DialogBoxIndirect (res->inst, res->resource, hDlg, proc);
 	}
 	customDlgType = 0;
@@ -21553,6 +21546,7 @@ HWND CustomCreateDialog (int templ, HWND hDlg, DLGPROC proc)
 	if (!res)
 		return h;
 	if (scaleresource (res, &dctx, hDlg, -1, 0, 0, -1)) {
+		res->parent = panelresource;
 		h = x_CreateDialogIndirectParam(res->inst, res->resource, hDlg, proc, NULL, res);
 	}
 	freescaleresource (res);
@@ -21893,6 +21887,7 @@ static int GetSettings (int all_options, HWND hwnd)
 			}
 
 			setguititle (dhwnd);
+			RedrawWindow(dhwnd, NULL, NULL, RDW_ERASE | RDW_FRAME | RDW_INVALIDATE | RDW_ALLCHILDREN);
 			ShowWindow (dhwnd, SW_SHOW);
 			MapDialogRect (dhwnd, &dialog_rect);
 
