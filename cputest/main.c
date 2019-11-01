@@ -90,7 +90,7 @@ static int low_memory_offset;
 static int high_memory_offset;
 
 static uae_u32 vbr[256];
-	
+
 static char inst_name[16+1];
 #ifndef M68K
 static char outbuffer[40000];
@@ -652,7 +652,7 @@ static uae_u8 *get_memory_addr(uae_u8 *p, uae_u8 **addrp)
 			endinfo();
 			exit(0);
 	}
-	return NULL;		
+	return NULL;
 }
 
 static void tomem(uae_u8 *p, uae_u32 v, uae_u32 oldv, int size, int storedata)
@@ -1764,6 +1764,12 @@ static void freestuff(void)
 #endif
 }
 
+static uae_u32 read_u32(FILE* f)
+{
+	uae_u8 data[4] = { 0 };
+	fread(data, 1, 4, f);
+	return gl(data);
+}
 
 static int test_mnemo(const char *path, const char *opcode)
 {
@@ -1784,48 +1790,35 @@ static int test_mnemo(const char *path, const char *opcode)
 		printf("Couldn't open '%s'\n", tfname);
 		exit(0);
 	}
-	fread(data, 1, 4, f);
-	v = gl(data);
+	v = read_u32(f);
 	if (v != DATA_VERSION) {
 		printf("Invalid test data file (header)\n");
 		exit(0);
 	}
-	fread(data, 1, 4, f);
-	starttimeid = gl(data);
-	fread(data, 1, 4, f);
-	hmem_rom = (uae_s16)(gl(data) >> 16);
-	lmem_rom = (uae_s16)(gl(data) & 65535);
-	fread(data, 1, 4, f);
-	test_memory_addr = gl(data);
-	fread(data, 1, 4, f);
-	test_memory_size = gl(data);
+
+	starttimeid = read_u32(f);
+	uae_u32 hmem_lmem = read_u32(f);
+	hmem_rom = (uae_s16)(hmem_lmem >> 16);
+	lmem_rom = (uae_s16)(hmem_lmem & 65535);
+	test_memory_addr = read_u32(f);
+	test_memory_size = read_u32(f);
 	test_memory_end = test_memory_addr + test_memory_size;
-	fread(data, 1, 4, f);
-	opcode_memory_addr = gl(data);
+	opcode_memory_addr = read_u32(f);
 	opcode_memory = (uae_u8*)opcode_memory_addr;
-	fread(data, 1, 4, f);
-	lvl = (gl(data) >> 16) & 15;
-	interrupt_mask = (gl(data) >> 20) & 7;
-	addressing_mask = (gl(data) & 0x80000000) ? 0xffffffff : 0x00ffffff;
-	sr_undefined_mask = gl(data) & 0xffff;
-	fread(data, 1, 4, f);
-	fpu_model = gl(data);
-	fread(data, 1, 4, f);
-	test_low_memory_start = gl(data);
-	fread(data, 1, 4, f);
-	test_low_memory_end = gl(data);
-	fread(data, 1, 4, f);
-	test_high_memory_start = gl(data);
-	fread(data, 1, 4, f);
-	test_high_memory_end = gl(data);
-	fread(data, 1, 4, f);
-	safe_memory_start = (uae_u8*)gl(data);
-	fread(data, 1, 4, f);
-	safe_memory_end = (uae_u8*)gl(data);
-	fread(data, 1, 4, f);
-	user_stack_memory = gl(data);
-	fread(data, 1, 4, f);
-	super_stack_memory = gl(data);
+	uae_u32 lvl_mask = read_u32(f);
+	lvl = (lvl_mask >> 16) & 15;
+	interrupt_mask = (lvl_mask >> 20) & 7;
+	addressing_mask = (lvl_mask & 0x80000000) ? 0xffffffff : 0x00ffffff;
+	sr_undefined_mask = lvl_mask & 0xffff;
+	fpu_model = read_u32(f);
+	test_low_memory_start = read_u32(f);
+	test_low_memory_end = read_u32(f);
+	test_high_memory_start = read_u32(f);
+	test_high_memory_end = read_u32(f);
+	safe_memory_start = (uae_u8*)read_u32(f);
+	safe_memory_end = (uae_u8*)read_u32(f);
+	user_stack_memory = read_u32(f);
+	super_stack_memory = read_u32(f);
 	fread(inst_name, 1, sizeof(inst_name) - 1, f);
 	inst_name[sizeof(inst_name) - 1] = 0;
 
