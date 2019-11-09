@@ -94,6 +94,7 @@ struct ncr9x_state
 	uae_u32 expamem_lo;
 	bool enabled;
 	int rom_start, rom_end, rom_offset;
+	bool rom_bypass_if_write;
 	int io_start, io_end;
 	addrbank *bank;
 	bool chipirq, boardirq, boardirqlatch;
@@ -1032,11 +1033,13 @@ static void ncr9x_io_bput3(struct ncr9x_state *ncr, uaecptr addr, uae_u32 val, i
 			}
 			return;
 		} else if (addr < 0x01000000) {
-			addr &= 3;
-			addr = 3 - addr;
-			ncr->dma_ptr &= ~(0xff << (addr * 8));
-			ncr->dma_ptr |= (val & 0xff) << (addr * 8);
+			// DMA address bits  0 to 23 comes from address bus.
+			// DMA address bits 24 to 31 comes from data bus.
 			ncr->dma_cnt--;
+			if (ncr->dma_cnt == 3) {
+				ncr->dma_ptr = val << 24;
+				ncr->dma_ptr |= addr;
+			}
 			if (ncr->dma_cnt == 0 && (ncr->states[0] & FLSC_PB_ENABLE_DMA))
 				esp_dma_enable(ncr->devobject.lsistate, 1);
 			return;
@@ -1637,7 +1640,7 @@ static void ncr9x_bput2(struct ncr9x_state *ncr, uaecptr addr, uae_u32 val)
 #endif
 
 	addr &= ncr->board_mask;
-	if (ncr->rom && addr >= ncr->rom_start && addr < ncr->rom_end) {
+	if (ncr->rom && addr >= ncr->rom_start && addr < ncr->rom_end && !ncr->rom_bypass_if_write) {
 		if (addr < ncr->io_start || (!ncr->romisoddonly && !ncr->romisevenonly) || (ncr->romisoddonly && (addr & 1)) || (ncr->romisevenonly && !(addr & 1))) {
 			write_rombyte(ncr, addr, val);
 			return;
@@ -2034,6 +2037,7 @@ bool ncr_fastlane_autoconfig_init(struct autoconfig_info *aci)
 	memcpy(ncr->acmemory, aci->autoconfig_raw, sizeof ncr->acmemory);
 	ncr->rom_start = 0x800;
 	ncr->rom_offset = 0;
+	ncr->rom_bypass_if_write = true; // DMA pointer set can write to ROM space
 	ncr->rom_end = FASTLANE_ROM_SIZE * 4;
 	ncr->io_start = 0;
 	ncr->io_end = 0;
