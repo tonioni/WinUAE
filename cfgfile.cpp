@@ -197,6 +197,7 @@ static const TCHAR *autoscale[] = { _T("none"), _T("auto"), _T("standard"), _T("
 static const TCHAR *autoscale_rtg[] = { _T("resize"), _T("scale"), _T("center"), _T("integer"), 0 };
 static const TCHAR *autoscalelimit[] = { _T("1/1"), _T("1/2"), _T("1/4"), _T("1/8"), 0 };
 static const TCHAR *joyportmodes[] = { _T(""), _T("mouse"), _T("mousenowheel"), _T("djoy"), _T("gamepad"), _T("ajoy"), _T("cdtvjoy"), _T("cd32joy"), _T("lightpen"), 0 };
+static const TCHAR *joyportsubmodes_lightpen[] = { _T(""), _T("trojan"), 0 };
 static const TCHAR *joyaf[] = { _T("none"), _T("normal"), _T("toggle"), _T("always"), 0 };
 static const TCHAR *epsonprinter[] = { _T("none"), _T("ascii"), _T("epson_matrix_9pin"), _T("epson_matrix_24pin"), _T("epson_matrix_48pin"), 0 };
 static const TCHAR *aspects[] = { _T("none"), _T("vga"), _T("tv"), 0 };
@@ -2015,6 +2016,10 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 			if (i < 2 && jp->mode > 0) {
 				_stprintf (tmp1, _T("joyport%dmode"), i);
 				cfgfile_write (f, tmp1, joyportmodes[jp->mode]);
+				if (jp->submode > 0 && jp->mode == 8) {
+					_stprintf(tmp1, _T("joyport%dsubmode"), i);
+					cfgfile_write(f, tmp1, joyportsubmodes_lightpen[jp->submode]);
+				}
 			}
 			if (jp->idc.name[0]) {
 				_stprintf (tmp1, _T("joyportfriendlyname%d"), i);
@@ -3799,50 +3804,58 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 		return 1;
 
 	if (_tcscmp (option, _T("joyportfriendlyname0")) == 0 || _tcscmp (option, _T("joyportfriendlyname1")) == 0) {
-		inputdevice_joyport_config_store(p, value, _tcscmp (option, _T("joyportfriendlyname0")) == 0 ? 0 : 1, -1, 2);
+		inputdevice_joyport_config_store(p, value, _tcscmp (option, _T("joyportfriendlyname0")) == 0 ? 0 : 1, -1, -1, 2);
 		return 1;
 	}
 	if (_tcscmp (option, _T("joyportfriendlyname2")) == 0 || _tcscmp (option, _T("joyportfriendlyname3")) == 0) {
-		inputdevice_joyport_config_store(p, value, _tcscmp (option, _T("joyportfriendlyname2")) == 0 ? 2 : 3, -1, 2);
+		inputdevice_joyport_config_store(p, value, _tcscmp (option, _T("joyportfriendlyname2")) == 0 ? 2 : 3, -1, -1, 2);
 		return 1;
 	}
 	if (_tcscmp (option, _T("joyportname0")) == 0 || _tcscmp (option, _T("joyportname1")) == 0) {
-		inputdevice_joyport_config_store(p, value, _tcscmp (option, _T("joyportname0")) == 0 ? 0 : 1, -1, 1);
+		inputdevice_joyport_config_store(p, value, _tcscmp (option, _T("joyportname0")) == 0 ? 0 : 1, -1, -1, 1);
 		return 1;
 	}
 	if (_tcscmp (option, _T("joyportname2")) == 0 || _tcscmp (option, _T("joyportname3")) == 0) {
-		inputdevice_joyport_config_store(p, value, _tcscmp (option, _T("joyportname2")) == 0 ? 2 : 3, -1, 1);
+		inputdevice_joyport_config_store(p, value, _tcscmp (option, _T("joyportname2")) == 0 ? 2 : 3, -1, -1, 1);
 		return 1;
 	}
 	if (_tcscmp (option, _T("joyport0")) == 0 || _tcscmp (option, _T("joyport1")) == 0) {
 		int port = _tcscmp (option, _T("joyport0")) == 0 ? 0 : 1;
-		inputdevice_joyport_config_store(p, _T(""), port, -1, 1);
-		inputdevice_joyport_config_store(p, _T(""), port, -1, 2);
-		inputdevice_joyport_config_store(p, value, port, -1, 0);
+		inputdevice_joyport_config_store(p, _T(""), port, -1, -1, 1);
+		inputdevice_joyport_config_store(p, _T(""), port, -1, -1, 2);
+		inputdevice_joyport_config_store(p, value, port, -1, -1, 0);
 		return 1;
 	}
 	if (_tcscmp (option, _T("joyport2")) == 0 || _tcscmp (option, _T("joyport3")) == 0) {
 		int port = _tcscmp (option, _T("joyport2")) == 0 ? 2 : 3;
-		inputdevice_joyport_config_store(p, _T(""), port, -1, 1);
-		inputdevice_joyport_config_store(p, _T(""), port, -1, 2);
-		inputdevice_joyport_config_store(p, value, port, -1, 0);
+		inputdevice_joyport_config_store(p, _T(""), port, -1, -1, 1);
+		inputdevice_joyport_config_store(p, _T(""), port, -1, -1, 2);
+		inputdevice_joyport_config_store(p, value, port, -1, -1, 0);
 		return 1;
 	}
-	if (cfgfile_strval (option, value, _T("joyport0mode"), &p->jports[0].mode, joyportmodes, 0))
+	if (cfgfile_strval(option, value, _T("joyport0mode"), &p->jports[0].mode, joyportmodes, 0))
 		return 1;
-	if (cfgfile_strval (option, value, _T("joyport1mode"), &p->jports[1].mode, joyportmodes, 0))
+	if (cfgfile_strval(option, value, _T("joyport1mode"), &p->jports[1].mode, joyportmodes, 0))
 		return 1;
-	if (cfgfile_strval (option, value, _T("joyport2mode"), &p->jports[2].mode, joyportmodes, 0))
+	if (cfgfile_strval(option, value, _T("joyport2mode"), &p->jports[2].mode, joyportmodes, 0))
 		return 1;
-	if (cfgfile_strval (option, value, _T("joyport3mode"), &p->jports[3].mode, joyportmodes, 0))
+	if (cfgfile_strval(option, value, _T("joyport3mode"), &p->jports[3].mode, joyportmodes, 0))
 		return 1;
-	if (cfgfile_strval (option, value, _T("joyport0autofire"), &p->jports[0].autofire, joyaf, 0))
+	if (cfgfile_strval(option, value, _T("joyport0submode"), &p->jports[0].submode, joyportsubmodes_lightpen, 0))
 		return 1;
-	if (cfgfile_strval (option, value, _T("joyport1autofire"), &p->jports[1].autofire, joyaf, 0))
+	if (cfgfile_strval(option, value, _T("joyport1submode"), &p->jports[1].submode, joyportsubmodes_lightpen, 0))
 		return 1;
-	if (cfgfile_strval (option, value, _T("joyport2autofire"), &p->jports[2].autofire, joyaf, 0))
+	if (cfgfile_strval(option, value, _T("joyport2submode"), &p->jports[2].submode, joyportsubmodes_lightpen, 0))
 		return 1;
-	if (cfgfile_strval (option, value, _T("joyport3autofire"), &p->jports[3].autofire, joyaf, 0))
+	if (cfgfile_strval(option, value, _T("joyport3submode"), &p->jports[3].submode, joyportsubmodes_lightpen, 0))
+		return 1;
+	if (cfgfile_strval(option, value, _T("joyport0autofire"), &p->jports[0].autofire, joyaf, 0))
+		return 1;
+	if (cfgfile_strval(option, value, _T("joyport1autofire"), &p->jports[1].autofire, joyaf, 0))
+		return 1;
+	if (cfgfile_strval(option, value, _T("joyport2autofire"), &p->jports[2].autofire, joyaf, 0))
+		return 1;
+	if (cfgfile_strval(option, value, _T("joyport3autofire"), &p->jports[3].autofire, joyaf, 0))
 		return 1;
 
 	if (cfgfile_yesno (option, value, _T("joyport0keyboardoverride"), &vb)) {
@@ -7697,8 +7710,8 @@ void default_prefs (struct uae_prefs *p, bool reset, int type)
 	p->jports[2].id = -1;
 	p->jports[3].id = -1;
 	if (reset) {
-		inputdevice_joyport_config_store(p, _T("mouse"), 0, -1, 0);
-		inputdevice_joyport_config_store(p, _T("kbd1"), 1, -1, 0);
+		inputdevice_joyport_config_store(p, _T("mouse"), 0, -1, -1, 0);
+		inputdevice_joyport_config_store(p, _T("kbd1"), 1, -1, -1, 0);
 	}
 	p->keyboard_lang = KBD_LANG_US;
 	p->keyboard_connected = true;

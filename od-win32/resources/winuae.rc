@@ -2069,7 +2069,7 @@ BEGIN
     IDS_JOYMODE_MOUSE       "Mouse"
     IDS_JOYMODE_JOYSTICK    "Joystick"
     IDS_JOYMODE_JOYSTICKANALOG "Analog joystick"
-    IDS_JOYMODE_LIGHTPEN    "Light pen"
+    IDS_JOYMODE_LIGHTPEN    "Generic light pen/gun\nTrojan Phazer light gun"
     IDS_JOYMODE_MOUSE_CDTV  "CDTV remote mouse"
     IDS_JOYMODE_JOYSTICK_CD32 "CD32 pad"
     IDS_TABLET_BOTH_CURSORS "Show both cursors"

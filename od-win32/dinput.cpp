@@ -4472,7 +4472,7 @@ int input_get_default_mouse (struct uae_input_device *uid, int i, int port, int 
 	return 0;
 }
 
-int input_get_default_lightpen (struct uae_input_device *uid, int i, int port, int af, bool gp, bool joymouseswap)
+int input_get_default_lightpen (struct uae_input_device *uid, int i, int port, int af, bool gp, bool joymouseswap, int submode)
 {
 	struct didata *did = NULL;
 
@@ -4487,7 +4487,14 @@ int input_get_default_lightpen (struct uae_input_device *uid, int i, int port, i
 	}
 	setid (uid, i, ID_AXIS_OFFSET + 0, 0, port, INPUTEVENT_LIGHTPEN_HORIZ, gp);
 	setid (uid, i, ID_AXIS_OFFSET + 1, 0, port, INPUTEVENT_LIGHTPEN_VERT, gp);
-	setid (uid, i, ID_BUTTON_OFFSET + 0, 0, port, port ? INPUTEVENT_JOY2_3RD_BUTTON : INPUTEVENT_JOY1_3RD_BUTTON, gp);
+	int button = port ? INPUTEVENT_JOY2_3RD_BUTTON : INPUTEVENT_JOY1_3RD_BUTTON;
+	switch (submode)
+	{
+	case 1:
+		button = port ? INPUTEVENT_JOY2_LEFT : INPUTEVENT_JOY1_LEFT;
+		break;
+	}
+	setid (uid, i, ID_BUTTON_OFFSET + 0, 0, port, button, gp);
 	if (i == 0)
 		return 1;
 	return 0;

@@ -102,6 +102,7 @@ struct inputdevconfig {
 struct jport {
 	int id;
 	int mode; // 0=def,1=mouse,2=joy,3=anajoy,4=lightpen
+	int submode;
 	int autofire;
 	struct inputdevconfig idc;
 	bool nokeyboardoverride;

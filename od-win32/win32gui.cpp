@@ -16521,6 +16521,9 @@ static const int joysm[] = { IDC_PORT0_JOYSMODE, IDC_PORT1_JOYSMODE, -1, -1 };
 static const int joysaf[] = { IDC_PORT0_AF, IDC_PORT1_AF, -1, -1 };
 static const int joyremap[] = { IDC_PORT0_REMAP, IDC_PORT1_REMAP, IDC_PORT2_REMAP, IDC_PORT3_REMAP };
 
+#define MAX_PORTSUBMODES 16
+static int portsubmodes[MAX_PORTSUBMODES];
+
 static void updatejoyport (HWND hDlg, int changedport)
 {
 	int i, j;
@@ -16546,7 +16549,7 @@ static void updatejoyport (HWND hDlg, int changedport)
 		int id = joys[i];
 		int idm = joysm[i];
 		int v = workprefs.jports[i].id;
-		int vm = workprefs.jports[i].mode;
+		int vm = workprefs.jports[i].mode + workprefs.jports[i].submode;
 		TCHAR *p1, *p2;
 
 		if (idm > 0)
@@ -16631,6 +16634,7 @@ static void values_from_gameportsdlg (HWND hDlg, int d, int changedport)
 		int idx = 0;
 		int *port = &workprefs.jports[i].id;
 		int *portm = &workprefs.jports[i].mode;
+		int *portsm = &workprefs.jports[i].submode;
 		int prevport = *port;
 		int id = joys[i];
 		int idm = joysm[i];
@@ -16657,7 +16661,22 @@ static void values_from_gameportsdlg (HWND hDlg, int d, int changedport)
 		if (idm >= 0) {
 			v = SendDlgItemMessage (hDlg, idm, CB_GETCURSEL, 0, 0L);
 			if (v != CB_ERR) {
-				*portm = v;
+				int vcnt = 0;
+				*portsm = 0;
+				for (int j = 0; j < MAX_PORTSUBMODES; j++) {
+					if (v <= 0)
+						break;
+					if (portsubmodes[j] > 0) {
+						if (v <= portsubmodes[j]) {
+							*portsm = v;
+						}
+						v -= portsubmodes[j];
+					} else {
+						v--;
+						vcnt++;
+					}
+				}
+				*portm = vcnt;
 			}
 				
 		}
@@ -17115,28 +17134,34 @@ static INT_PTR CALLBACK GamePortsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 			}
 			SendDlgItemMessage(hDlg, IDC_PORT_TABLET_MODE, CB_SETCURSEL, workprefs.input_tablet == TABLET_REAL ? 1 : 0, 0);
 
+			const int joys[] = { IDS_JOYMODE_DEFAULT, IDS_JOYMODE_WHEELMOUSE, IDS_JOYMODE_MOUSE,
+				IDS_JOYMODE_JOYSTICK, IDS_JOYMODE_GAMEPAD, IDS_JOYMODE_JOYSTICKANALOG,
+				IDS_JOYMODE_MOUSE_CDTV, IDS_JOYMODE_JOYSTICK_CD32,
+				IDS_JOYMODE_LIGHTPEN,
+				0 };
+
 			for (i = 0; i < 2; i++) {
 				int id = i == 0 ? IDC_PORT0_JOYSMODE : IDC_PORT1_JOYSMODE;
-				SendDlgItemMessage (hDlg, id, CB_RESETCONTENT, 0, 0L);
-				WIN32GUI_LoadUIString (IDS_JOYMODE_DEFAULT, tmp, MAX_DPATH);
-				SendDlgItemMessage (hDlg, id, CB_ADDSTRING, 0, (LPARAM)tmp);
-				WIN32GUI_LoadUIString (IDS_JOYMODE_WHEELMOUSE, tmp, MAX_DPATH);
-				SendDlgItemMessage (hDlg, id, CB_ADDSTRING, 0, (LPARAM)tmp);
-				WIN32GUI_LoadUIString (IDS_JOYMODE_MOUSE, tmp, MAX_DPATH);
-				SendDlgItemMessage (hDlg, id, CB_ADDSTRING, 0, (LPARAM)tmp);
-				WIN32GUI_LoadUIString (IDS_JOYMODE_JOYSTICK, tmp, MAX_DPATH);
-				SendDlgItemMessage (hDlg, id, CB_ADDSTRING, 0, (LPARAM)tmp);
-				WIN32GUI_LoadUIString (IDS_JOYMODE_GAMEPAD, tmp, MAX_DPATH);
-				SendDlgItemMessage (hDlg, id, CB_ADDSTRING, 0, (LPARAM)tmp);
-				WIN32GUI_LoadUIString (IDS_JOYMODE_JOYSTICKANALOG, tmp, MAX_DPATH);
-				SendDlgItemMessage (hDlg, id, CB_ADDSTRING, 0, (LPARAM)tmp);
-				WIN32GUI_LoadUIString (IDS_JOYMODE_MOUSE_CDTV, tmp, MAX_DPATH);
-				SendDlgItemMessage (hDlg, id, CB_ADDSTRING, 0, (LPARAM)tmp);
-				WIN32GUI_LoadUIString (IDS_JOYMODE_JOYSTICK_CD32, tmp, MAX_DPATH);
-				SendDlgItemMessage (hDlg, id, CB_ADDSTRING, 0, (LPARAM)tmp);
-				WIN32GUI_LoadUIString (IDS_JOYMODE_LIGHTPEN, tmp, MAX_DPATH);
-				SendDlgItemMessage(hDlg, id, CB_ADDSTRING, 0, (LPARAM)tmp);
+				SendDlgItemMessage(hDlg, id, CB_RESETCONTENT, 0, 0L);
+				for (int j = 0; joys[j]; j++) {
+					WIN32GUI_LoadUIString(joys[j], tmp, MAX_DPATH);
+					p1 = tmp;
+					_tcscat(p1, _T("\n"));
+					for (;;) {
+						TCHAR *p2 = _tcschr(p1, '\n');
+						if (!p2)
+							break;
+						*p2++ = 0;
+						SendDlgItemMessage(hDlg, id, CB_ADDSTRING, 0, (LPARAM)p1);
+						p1 = p2;
+					}
+				}
 			}
+			for (int i = 0; i < MAX_PORTSUBMODES; i++) {
+				portsubmodes[i] = 0;
+			}
+			portsubmodes[8] = 2;
+			portsubmodes[9] = -1;
 
 			inputdevice_updateconfig (NULL, &workprefs);
 			enable_for_gameportsdlg (hDlg);
