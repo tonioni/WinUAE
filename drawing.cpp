@@ -4132,11 +4132,12 @@ static void finish_drawing_frame(bool drawlines)
 		setspecialmonitorpos(out);
 		if (locked && emulate_specialmonitors(vb, out)) {
 			if (!multimon) {
+				vb->tempbufferinuse = true;
 				vb = vidinfo->outbuffer = out;
 			}
-			if (out->nativepositioning)
+			if (out->nativepositioning) {
 				setnativeposition(out);
-			out->tempbufferinuse = true;
+			}
 			if (!ad->specialmonitoron) {
 				need_genlock_data = specialmonitor_need_genlock();
 				ad->specialmonitoron = true;

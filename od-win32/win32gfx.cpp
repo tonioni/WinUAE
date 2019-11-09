@@ -3951,7 +3951,7 @@ static int create_windows(struct AmigaMonitor *mon)
 	return set_ddraw(mon);
 }
 
-static int oldtex_w, oldtex_h, oldtex_rtg;
+static int oldtex_w[MAX_AMIGAMONITORS], oldtex_h[MAX_AMIGAMONITORS], oldtex_rtg[MAX_AMIGAMONITORS];
 
 static BOOL doInit(struct AmigaMonitor *mon)
 {
@@ -4121,7 +4121,9 @@ retry:
 	init_colors(mon->monitor_id);
 
 	S2X_free(mon->monitor_id);
-	oldtex_w = oldtex_h = -1;
+	for (int i = 0; i < MAX_AMIGAMONITORS; i++) {
+		oldtex_w[i] = oldtex_h[i] = -1;
+	}
 	if (mon->currentmode.flags & DM_D3D) {
 		int fmh = mon->screen_is_picasso ? 1 : currprefs.gf[ad->picasso_on].gfx_filter_filtermodeh + 1;
 		int fmv = mon->screen_is_picasso ? 1 : currprefs.gf[ad->picasso_on].gfx_filter_filtermodev + 1 - 1;
@@ -4184,7 +4186,7 @@ bool target_graphics_buffer_update(int monid)
 {
 	struct AmigaMonitor *mon = &AMonitors[monid];
 	struct picasso_vidbuf_description *vidinfo = &picasso_vidinfo[monid];
-	struct vidbuf_description *avidinfo = &adisplays[0].gfxvidinfo;
+	struct vidbuf_description *avidinfo = &adisplays[monid].gfxvidinfo;
 	struct picasso96_state_struct *state = &picasso96_state[monid];
 
 	static bool	graphicsbuffer_retry;
@@ -4201,13 +4203,13 @@ bool target_graphics_buffer_update(int monid)
 		h = vb->outheight;
 	}
 	
-	if (oldtex_w == w && oldtex_h == h && oldtex_rtg == mon->screen_is_picasso)
+	if (oldtex_w[monid] == w && oldtex_h[monid] == h && oldtex_rtg[monid] == mon->screen_is_picasso)
 		return false;
 
 	if (!w || !h) {
-		oldtex_w = w;
-		oldtex_h = h;
-		oldtex_rtg = mon->screen_is_picasso;
+		oldtex_w[monid] = w;
+		oldtex_h[monid] = h;
+		oldtex_rtg[monid] = mon->screen_is_picasso;
 		return false;
 	}
 
@@ -4221,11 +4223,11 @@ bool target_graphics_buffer_update(int monid)
 		DirectDraw_ClearSurface (NULL);
 	}
 
-	oldtex_w = w;
-	oldtex_h = h;
-	oldtex_rtg = mon->screen_is_picasso;
+	oldtex_w[monid] = w;
+	oldtex_h[monid] = h;
+	oldtex_rtg[monid] = mon->screen_is_picasso;
 
-	write_log (_T("Buffer size (%d*%d) %s\n"), w, h, mon->screen_is_picasso ? _T("RTG") : _T("Native"));
+	write_log (_T("Buffer %d size (%d*%d) %s\n"), monid, w, h, mon->screen_is_picasso ? _T("RTG") : _T("Native"));
 
 	if ((mon->currentmode.flags & DM_SWSCALE) && !mon->screen_is_picasso) {
 		if (!S2X_init(mon->monitor_id, mon->currentmode.native_width, mon->currentmode.native_height, mon->currentmode.native_depth))
