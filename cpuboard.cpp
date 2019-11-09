@@ -2161,6 +2161,16 @@ void cpuboard_clear(void)
 // Adds resource resident that CSPPC/BPPC flash updater checks.
 
 #define FAKEPPCROM_OFFSET 32
+static const uae_u8 fakeppcromstart[] = {
+	0x11, 0x11,
+	// moveq #2,d0
+	0x70, 0x02,
+	// movec d0,pcr
+	0x4e, 0x7b, 0x08, 0x08,
+	// jmp (a5)
+	0x4e, 0xd5
+};
+
 static const uae_u8 fakeppcrom[] = {
 	// struct Resident
 	0x4a, 0xfc,
@@ -2170,14 +2180,21 @@ static const uae_u8 fakeppcrom[] = {
 	0x00, 0xf0, 0x00, FAKEPPCROM_OFFSET + 30,
 	0x00, 0xf0, 0x00, FAKEPPCROM_OFFSET + 30,
 	0x00, 0xf0, 0x00, FAKEPPCROM_OFFSET + 26,
-	// moveq #0,d0; rts
-	0x70, 0x00, 0x4e, 0x75
+	// moveq #0,d0
+	0x70, 0x00,
+	// rts
+	0x4e, 0x75,
 };
 static const char fakeppcromtxt_cs[] = { "CyberstormPPC.IDTag" };
 static const char fakeppcromtxt_bz[] = { "BlizzardPPC.IDTag" };
 
 static void makefakeppcrom(uae_u8 *rom, int type)
 {
+	memset(rom, 0, FAKEPPCROM_OFFSET);
+	// 68060: disable FPU because we don't have ROM that handles it.
+	if (currprefs.fpu_model == 68060) {
+		memcpy(rom, fakeppcromstart, sizeof fakeppcromstart);
+	}
 	memcpy(rom + FAKEPPCROM_OFFSET, fakeppcrom, sizeof fakeppcrom);
 	const char *txt = type ? fakeppcromtxt_bz : fakeppcromtxt_cs;
 	memcpy(rom + FAKEPPCROM_OFFSET + sizeof fakeppcrom, txt, strlen(txt) + 1);
