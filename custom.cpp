@@ -538,15 +538,9 @@ void alloc_cycle_ext (int hpos, int type)
 void alloc_cycle_blitter (int hpos, uaecptr *ptr, int chnum)
 {
 	if (cycle_line[hpos] & CYCLE_COPPER_SPECIAL) {
-		static int warned = 100;
-		uaecptr srcptr = cop_state.strobe == 1 ? cop1lc : cop2lc;
-		if (warned > 0) {
-			write_log (_T("buggy copper cycle conflict with blitter ch %c %08x <- %08x PC=%08x\n"), 'A' + (chnum - 1), *ptr, srcptr, m68k_getpc ());
-			warned--;
-			//activate_debugger ();
-		}
 		if ((currprefs.cs_hacks & 1) && currprefs.cpu_model == 68000) {
-		//if (currprefs.cpu_model == 68000 && currprefs.cpu_cycle_exact && currprefs.blitter_cycle_exact) {
+			uaecptr srcptr = cop_state.strobe == 1 ? cop1lc : cop2lc;
+			//if (currprefs.cpu_model == 68000 && currprefs.cpu_cycle_exact && currprefs.blitter_cycle_exact) {
 			// batman group / batman vuelve triggers this incorrectly. More testing needed.
 			*ptr = srcptr;
 			//activate_debugger();
@@ -5558,7 +5552,18 @@ static void COPJMP (int num, int vblank)
 	if (!oldstrobe)
 		cop_state.state_prev = cop_state.state;
 	if ((cop_state.state == COP_wait || cop_state.state == COP_waitforever) && !vblank && dmaen(DMA_COPPER)) {
-		cop_state.state = COP_strobe_delay1x;
+		if (bltstate == BLT_work) {
+			static int warned = 100;
+			if (warned > 0) {
+				write_log(_T("possible buggy copper cycle conflict with blitter PC=%08x\n"), M68K_GETPC);
+				warned--;
+			}
+		}
+		if (current_hpos() & 1) {
+			cop_state.state = COP_strobe_delay1x; // CPU unaligned COPJMP while waiting
+		} else {
+			cop_state.state = COP_strobe_delay1;
+		}
 	} else {
 		cop_state.state = vblank ? COP_start_delay : (copper_access ? COP_strobe_delay1 : COP_strobe_extra);
 	}
@@ -7201,9 +7206,14 @@ static void update_copper (int until_hpos)
 			break;
 
 		case COP_strobe_delay1x:
-			// First cycle after COPJMP and Copper was waiting.
+			// First cycle after CPU write to COPJMP while Copper was waiting.
 			// Cycle can be free and copper won't allocate it.
-			cop_state.state = COP_strobe_delay2x;
+			if (copper_cant_read(old_hpos, 0)) {
+				// becomes normal non-buggy cycle if cycle was not free
+				cop_state.state = COP_strobe_delay2;
+			} else {
+				cop_state.state = COP_strobe_delay2x;
+			}
 			break;
 		case COP_strobe_delay2x:
 			// Second cycle fetches following word and tosses it away.
