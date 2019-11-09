@@ -1,5 +1,14 @@
 
 
+Beta 4:
+
+- AGA border sprites enabled: sprite was still clipped to horizontal display window end. (b3)
+- Fastlane SCSI DMA controller address configuration emulation was incomplete. (Address bus is used for bits 0 to 23, upper 8 data bits for 24 to 31)
+- A2024 monitor didn't show full viewable area. (4.0) It still won't work correctly if multimonitor mode is enabled. A2024 is a special case, it is basically display port adapter but it is not hardwired to chipset timing/display size/position like all other display port adapters.
+- Remaining (?) GUI update glitch fixed. (b2)
+- Added Trojan light gun preset to Game ports panel. Trojan fire button is joystick left. Standard light pen/gun fire button is 3rd mouse/joystick button.
+- PPC board without ROM or zero size ROM and 68060 CPU with FPU: Generated fake boot ROM didn't include FPU disable boot code. Since 4.1.0 68060 FPU is not disabled when emulated accelerator board is configured.
+
 Beta 3:
 
 - Subpixel emulation + borderblank: sprite end was 1 hires pixel before bitplane end, leaving 1 hires pixel gap in right border.
@@ -20,7 +29,6 @@ Beta 2:
 - Fixed double free and buffer overflow in GUI code (b1)
 - Copper COPJMP cycle sequence order was wrong, first cycle does not need free cycle, second cycle requires free cycle, logic analyzer rechecked. (vAmiga test case)
 - Using SPRxPOs to move DMA mode sprite horizontally towards right very little so that "both" sprites still have overlapping pixels: old sprite was still drawn fully. (vAmiga test case)
-
 
 Beta 1:
 

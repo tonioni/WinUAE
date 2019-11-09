@@ -5,8 +5,6 @@
 
 #ifdef CDTV
 
-extern addrbank dmac_bank;
-
 extern bool cdtv_init (struct autoconfig_info *aci);
 
 void cdtv_battram_write (int addr, int v);

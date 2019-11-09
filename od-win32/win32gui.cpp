@@ -20638,11 +20638,9 @@ static HWND updatePanel (int id, UINT action)
 	ew (guiDlg, IDC_RESETAMIGA, full_property_sheet ? FALSE : TRUE);
 	ew (guiDlg, IDOK, TRUE);
 	if (panelDlg != NULL) {
-		SetWindowRedraw(hDlg, FALSE);
 		ShowWindow (panelDlg, FALSE);
 		DestroyWindow (panelDlg);
 		panelDlg = NULL;
-		SetWindowRedraw(hDlg, TRUE);
 	}
 	if (ToolTipHWND != NULL) {
 		DestroyWindow (ToolTipHWND);
