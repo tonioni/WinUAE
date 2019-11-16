@@ -2398,9 +2398,18 @@ struct boardromconfig *get_boardromconfig(struct uae_prefs *p, int romtype, int 
 static struct zfile *parse_trumpcard_driver(struct zfile *z)
 {
 	int size;
-	uae_u8 *d = zfile_getdata(z, 0x24, -1, &size);
-	if (!d)
+	uae_u8 *dp = zfile_getdata(z, 0, -1, &size);
+	if (!dp)
 		return z;
+	if (dp[0] != 0x00 || dp[1] != 0x00 || dp[2] != 0x03 || dp[3] != 0xf3) {
+		xfree(dp);
+		return z;
+	}
+	uae_u8 *d = dp + 0x1c + dp[11] * 4;
+	if (dp >= dp + size) {
+		xfree(dp);
+		return z;
+	}
 	struct zfile *zd = zfile_fopen_empty(NULL, zfile_getname(z), 16384);
 	int i, out;
 	out = 0;
@@ -2436,7 +2445,7 @@ static struct zfile *parse_trumpcard_driver(struct zfile *z)
 		zfile_fwrite(&zero, 1, 1, zd);
 		out++;
 	}
-	xfree(d);
+	xfree(dp);
 	return zd;
 }
 
