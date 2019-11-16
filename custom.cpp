@@ -8951,6 +8951,7 @@ static bool linesync_beam_single_single(void)
 		if (vsyncnextstep != 1) {
 			vsyncnextstep = 1;
 			do_render_slice(-1, 0, vpos);
+			// wait until out of vblank
 			while (!currprefs.turbo_emulation && sync_timeout_check(maxtime)) {
 				maybe_process_pull_audio();
 				vp = target_get_display_scanline(-1);
@@ -8966,10 +8967,27 @@ static bool linesync_beam_single_single(void)
 		if (vsyncnextstep != 2) {
 			vsyncnextstep = 2;
 			vsync_clear();
+			// wait until second half of display
 			while (!currprefs.turbo_emulation && sync_timeout_check(maxtime)) {
 				maybe_process_pull_audio();
 				vp = target_get_display_scanline(-1);
-				if (vp >= vsync_activeheight - 1 || vp < 0)
+				if (vp >= vsync_activeheight / 2)
+					break;
+				if (currprefs.m68k_speed < 0 && !was_syncline) {
+					is_syncline = -2;
+					is_syncline_end = vsync_activeheight - 1;
+					return 0;
+				}
+				scanlinesleep(vp, vsync_activeheight / 2);
+			}
+		}
+		if (vsyncnextstep != 3) {
+			vsyncnextstep = 3;
+			// wait until end of display (or start of next field)
+			while (!currprefs.turbo_emulation && sync_timeout_check(maxtime)) {
+				maybe_process_pull_audio();
+				vp = target_get_display_scanline(-1);
+				if (vp >= vsync_activeheight - 1 || vp < vsync_activeheight / 2)
 					break;
 				if (currprefs.m68k_speed < 0 && !was_syncline) {
 					is_syncline = -2;
@@ -8979,11 +8997,12 @@ static bool linesync_beam_single_single(void)
 				scanlinesleep(vp, vsync_activeheight - 1);
 			}
 		}
-		if (vsyncnextstep != 3) {
-			vsyncnextstep = 3;
+		if (vsyncnextstep != 4) {
+			vsyncnextstep = 4;
 			do_display_slice();
 			frame_rendered = true;
 			frame_shown = true;
+			// wait until first half of display
 			while (!currprefs.turbo_emulation && sync_timeout_check(maxtime)) {
 				maybe_process_pull_audio();
 				vp = target_get_display_scanline(-1);
@@ -9013,7 +9032,7 @@ static bool linesync_beam_multi_dual(void)
 		linesync_first_last_line(&firstline, &lastline);
 
 		display_slices = currprefs.gfx_display_sections;
-		if (!display_slices)
+		if (display_slices <= 0)
 			display_slices = 1;
 		display_slice_cnt = 0;
 		vsyncnextscanline = vsync_activeheight / display_slices + 1;
@@ -9218,7 +9237,7 @@ static bool linesync_beam_multi_single(void)
 				}
 
 				// flip slightly early because flip regularly gets delayed if done during vblank
-				int lastflipline = vsync_activeheight - vsyncnextscanline_add / 3;
+				int lastflipline = vsync_activeheight - vsyncnextscanline_add / 5;
 				while (sync_timeout_check(maxtime)) {
 					int vp = target_get_display_scanline(-1);
 					maybe_process_pull_audio();

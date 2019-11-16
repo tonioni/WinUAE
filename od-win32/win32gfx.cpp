@@ -330,6 +330,13 @@ int target_get_display(const TCHAR *name)
 	return -1;
 }
 
+static volatile int waitvblankthread_mode;
+HANDLE waitvblankevent;
+static frame_time_t wait_vblank_timestamp;
+static MultiDisplay *wait_vblank_display;
+static volatile bool vsync_active;
+static bool scanlinecalibrating;
+
 typedef NTSTATUS(CALLBACK* D3DKMTOPENADAPTERFROMHDC)(D3DKMT_OPENADAPTERFROMHDC*);
 static D3DKMTOPENADAPTERFROMHDC pD3DKMTOpenAdapterFromHdc;
 typedef NTSTATUS(CALLBACK* D3DKMTGETSCANLINE)(D3DKMT_GETSCANLINE*);
@@ -371,22 +378,35 @@ static int target_get_display_scanline2(int displayindex)
 	return -13;
 }
 
-extern uae_u64 spincount;;
+extern uae_u64 spincount;
+bool calculated_scanline = 1;
+
 int target_get_display_scanline(int displayindex)
 {
-	static uae_u64 lastrdtsc;
-	static int lastvpos;
-	if (spincount == 0 || currprefs.m68k_speed >= 0) {
-		lastrdtsc = 0;
+	if (!scanlinecalibrating && calculated_scanline) {
+		static int lastline;
+		float diff = read_processor_time() - wait_vblank_timestamp;
+		if (diff < 0)
+			return -1;
+		int sl = (int)(diff * (vsync_activeheight + (vsync_totalheight - vsync_activeheight) / 10) * vsync_vblank / syncbase);
+		if (sl < 0)
+			sl = -1;
+		return sl;
+	} else {
+		static uae_u64 lastrdtsc;
+		static int lastvpos;
+		if (spincount == 0 || currprefs.m68k_speed >= 0) {
+			lastrdtsc = 0;
+			lastvpos = target_get_display_scanline2(displayindex);
+			return lastvpos;
+		}
+		uae_u64 v = __rdtsc();
+		if (lastrdtsc > v)
+			return lastvpos;
 		lastvpos = target_get_display_scanline2(displayindex);
+		lastrdtsc = __rdtsc() + spincount * 4;
 		return lastvpos;
 	}
-	uae_u64 v = __rdtsc();
-	if (lastrdtsc > v)
-		return lastvpos;
-	lastvpos = target_get_display_scanline2(displayindex);
-	lastrdtsc = __rdtsc() + spincount * 4;
-	return lastvpos;
 }
 
 typedef LONG(CALLBACK* QUERYDISPLAYCONFIG)(UINT32, UINT32*, DISPLAYCONFIG_PATH_INFO*, UINT32*, DISPLAYCONFIG_MODE_INFO*, DISPLAYCONFIG_TOPOLOGY_ID*);
@@ -459,16 +479,10 @@ static bool get_display_vblank_params(int displayindex, int *activeheightp, int 
 	return ret;
 }
 
-static volatile int waitvblankthread_mode;
-HANDLE waitvblankevent;
-static frame_time_t wait_vblank_timestamp;
-static MultiDisplay *wait_vblank_display;
-static volatile bool vsync_active;
-
 static unsigned int __stdcall waitvblankthread(void *dummy)
 {
 	waitvblankthread_mode = 2;
-	SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_HIGHEST);
+	SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_ABOVE_NORMAL);
 	while (waitvblankthread_mode) {
 		D3DKMT_WAITFORVERTICALBLANKEVENT e = { 0 };
 		e.hAdapter = wait_vblank_display->AdapterHandle;
@@ -500,19 +514,17 @@ static void display_vblank_thread(struct AmigaMonitor *mon)
 	struct amigadisplay *ad = &adisplays[mon->monitor_id];
 	struct apmode *ap = ad->picasso_on ? &currprefs.gfx_apmode[1] : &currprefs.gfx_apmode[0];
 
-	if (currprefs.m68k_speed >= 0) {
-		display_vblank_thread_kill();
-		return;
-	}
 	if (waitvblankthread_mode > 0)
 		return;
 	// It seems some Windows 7 drivers stall if D3DKMTWaitForVerticalBlankEvent()
 	// and D3DKMTGetScanLine() is used simultaneously.
-	if (os_win8 && ap->gfx_vsyncmode && pD3DKMTWaitForVerticalBlankEvent && wait_vblank_display && wait_vblank_display->HasAdapterData) {
+	if ((calculated_scanline || os_win8) && ap->gfx_vsyncmode && pD3DKMTWaitForVerticalBlankEvent && wait_vblank_display && wait_vblank_display->HasAdapterData) {
 		waitvblankevent = CreateEvent(NULL, FALSE, FALSE, NULL);
 		waitvblankthread_mode = 1;
 		unsigned int th;
 		_beginthreadex(NULL, 0, waitvblankthread, 0, 0, &th);
+	} else {
+		calculated_scanline = 0;
 	}
 }
 
@@ -546,7 +558,9 @@ static void display_param_init(struct AmigaMonitor *mon)
 		write_log(_T("Selected display mode does not have adapter data!\n"));
 	}
 	Sleep(10);
+	scanlinecalibrating = true;
 	target_calibrate_spin();
+	scanlinecalibrating = false;
 	display_vblank_thread(mon);
 }
 

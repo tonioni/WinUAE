@@ -319,10 +319,11 @@ int target_sleep_nanos(int nanos)
 }
 
 uae_u64 spincount;
+extern bool calculated_scanline;
 
 void target_spin(int total)
 {
-	if (!spincount)
+	if (!spincount || calculated_scanline)
 		return;
 	if (total > 10)
 		total = 10;
@@ -346,7 +347,7 @@ void target_calibrate_spin(void)
 	spincount = 0;
 	if (!ap->gfx_vsyncmode)
 		return;
-	if (busywait) {
+	if (busywait || calculated_scanline) {
 		write_log(_T("target_calibrate_spin() skipped\n"));
 		return;
 	}
