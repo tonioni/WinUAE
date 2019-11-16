@@ -1077,26 +1077,26 @@ static void raw_scsi_set_signal_phase(struct raw_scsi *rs, bool busy, bool selec
 		if (busy && !select && !rs->databusoutput) {
 			if (countbits(rs->data_write) != 1) {
 #if RAW_SCSI_DEBUG
-				write_log(_T("raw_scsi: invalid arbitration scsi id mask! (%02x)\n"), rs->data_write);
+				write_log(_T("raw_scsi: invalid arbitration scsi id mask! (%02x) %08x\n"), rs->data_write, M68K_GETPC);
 #endif
 				return;
 			}
 			rs->bus_phase = SCSI_SIGNAL_PHASE_ARBIT;
 			rs->initiator_id = getbit(rs->data_write);
 #if RAW_SCSI_DEBUG
-			write_log(_T("raw_scsi: arbitration initiator id %d (%02x)\n"), rs->initiator_id, rs->data_write);
+			write_log(_T("raw_scsi: arbitration initiator id %d (%02x) %08x\n"), rs->initiator_id, rs->data_write, M68K_GETPC);
 #endif
 		} else if (!busy && select) {
 			if (countbits(rs->data_write) > 2 || rs->data_write == 0) {
 #if RAW_SCSI_DEBUG
-				write_log(_T("raw_scsi: invalid scsi id selected mask (%02x)\n"), rs->data_write);
+				write_log(_T("raw_scsi: invalid scsi id selected mask (%02x) %08x\n"), rs->data_write, M68K_GETPC);
 #endif
 				return;
 			}
 			rs->initiator_id = -1;
 			rs->bus_phase = SCSI_SIGNAL_PHASE_SELECT_1;
 #if RAW_SCSI_DEBUG
-			write_log(_T("raw_scsi: selected scsi id mask (%02x)\n"), rs->data_write);
+			write_log(_T("raw_scsi: selected scsi id mask (%02x) %08x\n"), rs->data_write, M68K_GETPC);
 #endif
 			raw_scsi_set_signal_phase(rs, busy, select, atn);
 		}
@@ -1120,7 +1120,7 @@ static void raw_scsi_set_signal_phase(struct raw_scsi *rs, bool busy, bool selec
 					rs->target_id = i;
 					rs->target = rs->device[rs->target_id];
 #if RAW_SCSI_DEBUG
-					write_log(_T("raw_scsi: selected id %d\n"), rs->target_id);
+					write_log(_T("raw_scsi: selected id %d %08x\n"), rs->target_id, M68K_GETPC);
 #endif
 					rs->io |= SCSI_IO_BUSY;
 				}
@@ -1131,7 +1131,7 @@ static void raw_scsi_set_signal_phase(struct raw_scsi *rs, bool busy, bool selec
 					if (i == rs->initiator_id)
 						continue;
 					if ((rs->data_write & (1 << i)) && !rs->device[i]) {
-						write_log(_T("raw_scsi: selected non-existing id %d\n"), i);
+						write_log(_T("raw_scsi: selected non-existing id %d %08x\n"), i, M68K_GETPC);
 					}
 				}
 			}
@@ -1177,14 +1177,14 @@ static uae_u8 raw_scsi_get_data_2(struct raw_scsi *rs, bool next, bool nodebug)
 		break;
 		case SCSI_SIGNAL_PHASE_ARBIT:
 #if RAW_SCSI_DEBUG
-		write_log(_T("raw_scsi: arbitration\n"));
+		write_log(_T("raw_scsi: arbitration %08x\n"), M68K_GETPC);
 #endif
 		v = rs->data_write;
 		break;
 		case SCSI_SIGNAL_PHASE_DATA_IN:
 #if RAW_SCSI_DEBUG > 2
 		scsi_receive_data(sd, &v, false);
-		write_log(_T("raw_scsi: read data byte %02x (%d/%d)\n"), v, sd->offset, sd->data_len);
+		write_log(_T("raw_scsi: read data byte %02x (%d/%d) %08x\n"), v, sd->offset, sd->data_len, M68K_GETPC);
 #endif
 		if (scsi_receive_data(sd, &v, next)) {
 #if RAW_SCSI_DEBUG
@@ -1196,7 +1196,7 @@ static uae_u8 raw_scsi_get_data_2(struct raw_scsi *rs, bool next, bool nodebug)
 		case SCSI_SIGNAL_PHASE_STATUS:
 #if RAW_SCSI_DEBUG
 		if (!nodebug || next)
-			write_log(_T("raw_scsi: status byte read %02x. Next=%d\n"), sd->status, next);
+			write_log(_T("raw_scsi: status byte read %02x. Next=%d PC=%08x\n"), sd->status, next, M68K_GETPC);
 #endif
 		v = sd->status;
 		if (next) {
@@ -1207,7 +1207,7 @@ static uae_u8 raw_scsi_get_data_2(struct raw_scsi *rs, bool next, bool nodebug)
 		case SCSI_SIGNAL_PHASE_MESSAGE_IN:
 #if RAW_SCSI_DEBUG
 		if (!nodebug || next)
-			write_log(_T("raw_scsi: message byte read %02x. Next=%d\n"), sd->status, next);
+			write_log(_T("raw_scsi: message byte read %02x. Next=%d PC=%08x\n"), sd->status, next, M68K_GETPC);
 #endif
 		v = sd->status;
 		rs->status = v;
@@ -1217,7 +1217,7 @@ static uae_u8 raw_scsi_get_data_2(struct raw_scsi *rs, bool next, bool nodebug)
 		break;
 		default:
 #if RAW_SCSI_DEBUG
-		write_log(_T("raw_scsi_get_data but bus phase is %d!\n"), rs->bus_phase);
+		write_log(_T("raw_scsi_get_data but bus phase is %d %08x!\n"), rs->bus_phase, M68K_GETPC);
 #endif
 		break;
 	}
@@ -1258,7 +1258,7 @@ static void raw_scsi_write_data(struct raw_scsi *rs, uae_u8 data)
 		sd->cmd[sd->offset++] = data;
 		len = scsicmdsizes[sd->cmd[0] >> 5];
 #if RAW_SCSI_DEBUG > 1
-		write_log(_T("raw_scsi: got command byte %02x (%d/%d)\n"), data, sd->offset, len);
+		write_log(_T("raw_scsi: got command byte %02x (%d/%d) %08x\n"), data, sd->offset, len, M68K_GETPC);
 #endif
 		if (sd->offset >= len) {
 			if (rs->msglun >= 0) {
@@ -1296,7 +1296,7 @@ static void raw_scsi_write_data(struct raw_scsi *rs, uae_u8 data)
 		break;
 		case SCSI_SIGNAL_PHASE_DATA_OUT:
 #if RAW_SCSI_DEBUG > 2
-		write_log(_T("raw_scsi: write data byte %02x (%d/%d)\n"), data, sd->offset, sd->data_len);
+		write_log(_T("raw_scsi: write data byte %02x (%d/%d) %08x\n"), data, sd->offset, sd->data_len, M68K_GETPC);
 #endif
 		if (scsi_send_data(sd, data)) {
 #if RAW_SCSI_DEBUG
@@ -1310,7 +1310,7 @@ static void raw_scsi_write_data(struct raw_scsi *rs, uae_u8 data)
 		sd->msgout[sd->offset++] = data;
 		len = getmsglen(sd->msgout, sd->offset);
 #if RAW_SCSI_DEBUG
-		write_log(_T("raw_scsi_put_data got message %02x (%d/%d)\n"), data, sd->offset, len);
+		write_log(_T("raw_scsi_put_data got message %02x (%d/%d) %08x\n"), data, sd->offset, len, M68K_GETPC);
 #endif
 		if (sd->offset >= len) {
 #if RAW_SCSI_DEBUG
