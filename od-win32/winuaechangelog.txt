@@ -1,4 +1,10 @@
 
+Beta 5:
+
+- Don't map invalid Blizzard 2060 maprom space and crash if board has no RAM installed.
+- Added support for new cooked adf variant that can store sector headers: sector header data is appended at the end of normal ADF. Only enabled if ADF file size is exactly (80 to 82) * (512 + 16) * (11 or 22) * 2. Practically useless because almost no program uses sector headers and extended adf can already store them (but only in raw mfm form). GUI create disk image creator won't support it.
+- Lagless vsync stability improvements. Current raster line polling removed, replaced with scanline calculation using last vsync time and total scanlines. Raster line polling causes huge GPU driver stalls.
+- IVS Trumpcard *.driver to boot ROM automatic conversion didn't support older single hunk driver file versions.
 
 Beta 4:
 
