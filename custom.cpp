@@ -7709,7 +7709,7 @@ static void do_sprites_1(int num, int cycle, int hpos)
 		posctl = 1;
 		if (dma) {
 			uae_u32 data321, data322;
-			sprite_fetch_full(s, hpos, cycle, true, &data, &data321, &data322);
+			sprite_fetch_full(s, hpos, cycle, false, &data, &data321, &data322);
 			//write_log (_T("%d:%d: %04X=%04X\n"), vpos, hpos, 0x140 + cycle * 2 + num * 8, data);
 			if (cycle == 0) {
 				if (start_before_dma && s->armed) {
@@ -7739,7 +7739,7 @@ static void do_sprites_1(int num, int cycle, int hpos)
 	}
 	if (s->dmastate && !posctl && dma) {
 		uae_u32 data321, data322;
-		sprite_fetch_full(s, hpos, cycle, false, &data, &data321, &data322);
+		sprite_fetch_full(s, hpos, cycle, true, &data, &data321, &data322);
 #if SPRITE_DEBUG >= 256
 		if (vpos >= SPRITE_DEBUG_MINY && vpos <= SPRITE_DEBUG_MAXY && (SPRITE_DEBUG & (1 << num))) {
 			write_log (_T("%d:%d:dma:P=%06X "), vpos, hpos, s->pt);
