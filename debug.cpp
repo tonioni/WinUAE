@@ -3007,7 +3007,7 @@ static int memwatch_func (uaecptr addr, int rwi, int size, uae_u32 *valp, uae_u3
 			continue;
 
 		if (m->bus_error) {
-			if (((m->bus_error & 1) && (rwi & 1)) || ((m->bus_error & 2) && (rwi & 2))) {
+			if (((m->bus_error & 1) && (rwi & 1)) || ((m->bus_error & 4) && (rwi & 4)) || ((m->bus_error & 2) && (rwi & 2))) {
 #if BUS_ERROR_EMULATION
 				cpu_bus_error = 1;
 #else
@@ -3589,12 +3589,13 @@ void memwatch_dump2 (TCHAR *buf, int bufsize, int num)
 				buf = buf_out(buf, &bufsize, _T(" L"));
 			if (mwn->nobreak)
 				buf = buf_out(buf, &bufsize, _T(" N"));
-			if (mwn->bus_error == 3)
+			if ((mwn->bus_error & (1 | 4)) && (mwn->bus_error & 2)) {
 				buf = buf_out(buf, &bufsize, _T(" BER"));
-			if (mwn->bus_error == 1)
+			} else if (mwn->bus_error & (1 | 4)) {
 				buf = buf_out(buf, &bufsize, _T(" BERR"));
-			if (mwn->bus_error == 2)
+			} else if (mwn->bus_error & 2) {
 				buf = buf_out(buf, &bufsize, _T(" BERW"));
+			}
 			for (int j = 0; memwatch_access_masks[j].mask; j++) {
 				uae_u32 mask = memwatch_access_masks[j].mask;
 				if ((mwn->access_mask & mask) == mask && (usedmask & mask) == 0) {
@@ -3740,13 +3741,15 @@ static void memwatch (TCHAR **c)
 					if (nc == 'R')
 						mwn->rwi |= 1;
 					if (nc == 'B') {
-						mwn->bus_error = 3;
+						mwn->bus_error = 7;
 						if (ncc == 'R') {
-							mwn->bus_error = 1;
+							mwn->bus_error = 1 | 4;
+							mwn->rwi |= 1 | 4;
 							next_char(c);
 						}
 						if (ncc == 'W') {
 							mwn->bus_error = 2;
+							mwn->rwi |= 2;
 							next_char(c);
 						}
 						if (!mwn->rwi)
