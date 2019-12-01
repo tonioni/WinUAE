@@ -45,7 +45,10 @@ struct registers
 	uae_u32 excframe;
 	struct fpureg fpuregs[8];
 	uae_u32 fpiar, fpcr, fpsr;
-	uae_u32 srcaddr, dstaddr;
+	uae_u32 tracecnt;
+	uae_u16 tracedata[6];
+	uae_u32 srcaddr, dstaddr, branchtarget;
+	uae_u8 branchtarget_mode;
 };
 
 static struct registers test_regs;
@@ -90,6 +93,8 @@ static int low_memory_offset;
 static int high_memory_offset;
 
 static uae_u32 vbr[256];
+static int exceptioncount[256];
+static int supercnt;
 
 static char inst_name[16+1];
 #ifndef M68K
@@ -112,6 +117,7 @@ static uae_u32 interrupt_mask;
 #define SIZE_STORED_ADDRESS 16
 static uae_u8 srcaddr[SIZE_STORED_ADDRESS];
 static uae_u8 dstaddr[SIZE_STORED_ADDRESS];
+static uae_u8 branchtarget[SIZE_STORED_ADDRESS];
 static uae_u8 stackaddr[SIZE_STORED_ADDRESS];
 static uae_u32 stackaddr_ptr;
 
@@ -189,6 +195,7 @@ extern void flushcache(uae_u32);
 extern void *error_vector;
 
 #endif
+static uae_u32 exceptiontableinuse;
 
 struct accesshistory
 {
@@ -208,9 +215,9 @@ static void endinfo(void)
 	uae_u8 *p = opcode_memory;
 	for (int i = 0; i < 32 * 2; i += 2) {
 		uae_u16 v = (p[i] << 8) | (p[i + 1]);
+		printf(" %04x", v);
 		if (v == 0x4afc && i > 0)
 			break;
-		printf(" %04x", v);
 	}
 	printf("\n");
 }
@@ -331,15 +338,19 @@ static void start_test(void)
 		for (int i = 32; i < 48; i++) {
 			p[i] = (uae_u32)(((uae_u32)&exceptiontable000) + (i - 2) * 2);
 		}
+		exceptiontableinuse = (uae_u32)&exceptiontable000;
 	} else {
 		oldvbr = setvbr((uae_u32)vbr);
 		for (int i = 2; i < 48; i++) {
 			if (fpu_model) {
 				vbr[i] = (uae_u32)(((uae_u32)&exceptiontablefpu) + (i - 2) * 2);
+				exceptiontableinuse = (uae_u32)&exceptiontablefpu;
 			} else if (cpu_lvl == 1) {
 				vbr[i] = (uae_u32)(((uae_u32)&exceptiontable010) + (i - 2) * 2);
+				exceptiontableinuse = (uae_u32)&exceptiontable010;
 			} else {
 				vbr[i] = (uae_u32)(((uae_u32)&exceptiontable020) + (i - 2) * 2);
+				exceptiontableinuse = (uae_u32)&exceptiontable020;
 			}
 			if (i >= 2 && i < 12) {
 				error_vectors[i - 2] = vbr[i];
@@ -736,7 +747,9 @@ static uae_u8 *restore_memory(uae_u8 *p, int storedata)
 				v &= 31;
 				if (v == 0)
 					v = 32;
+#ifndef _MSC_VER
 				xmemcpy(addr, p, v);
+#endif
 				p += v;
 				break;
 			}
@@ -788,6 +801,10 @@ static uae_u8 *restore_data(uae_u8 *p)
 	} else if (mode == CT_DSTADDR) {
 		int size;
 		p = restore_value(p, &regs.dstaddr, &size);
+	} else if (mode == CT_BRANCHTARGET) {
+		int size;
+		p = restore_value(p, &regs.branchtarget, &size);
+		regs.branchtarget_mode = *p++;
 	} else if (mode < CT_AREG + 8) {
 		int size;
 		if ((v & CT_SIZE_MASK) == CT_SIZE_FPU) {
@@ -874,6 +891,46 @@ static void addinfo_bytes(char *name, uae_u8 *src, uae_u32 address, int offset, 
 
 extern uae_u16 disasm_instr(uae_u16 *, char *);
 
+static void out_disasm(uae_u8 *mem)
+{
+	uae_u16 *code;
+#ifndef M68K
+	uae_u16 swapped[16];
+	for (int i = 0; i < 16; i++) {
+		swapped[i] = (mem[i * 2 + 0] << 8) | (mem[i * 2 + 1] << 0);
+	}
+	code = swapped;
+#else
+	code = (uae_u16*)mem;
+#endif
+	uae_u8 *p = mem;
+	int offset = 0;
+	int lines = 0;
+	while (lines++ < 10) {
+		if (!is_valid_test_addr((uae_u32)p) || !is_valid_test_addr((uae_u32)p + 1))
+			break;
+		tmpbuffer[0] = 0;
+		int v = disasm_instr(code + offset, tmpbuffer);
+		for (int i = 0; i < v; i++) {
+			uae_u16 v = (p[i * 2 + 0] << 8) | (p[i * 2 + 1]);
+			sprintf(outbp, "%s %08lx %04x", i ? " " : (lines == 0 ? "\t\t" : "\t"), &p[i * 2], v);
+			outbp += strlen(outbp);
+		}
+		sprintf(outbp, " %s\n", tmpbuffer);
+		outbp += strlen(outbp);
+		if (v <= 0 || code[offset] == 0x4afc)
+			break;
+		while (v > 0) {
+			offset++;
+			p += 2;
+			v--;
+		}
+		if (v < 0)
+			break;
+	}
+	*outbp = 0;
+}
+
 static void addinfo(void)
 {
 	if (infoadded)
@@ -884,44 +941,14 @@ static void addinfo(void)
 	sprintf(outbp, "%lu:", testcnt);
 	outbp += strlen(outbp);
 
-	uae_u16 *code;
-#ifndef M68K
-	uae_u16 swapped[16];
-	for (int i = 0; i < 16; i++) {
-		swapped[i] = (opcode_memory[i * 2 + 0] << 8) | (opcode_memory[i * 2 + 1] << 0);
+	out_disasm(opcode_memory);
+
+	if (regs.branchtarget != 0xffffffff) {
+		out_disasm((uae_u8*)regs.branchtarget);
+
 	}
-	code = swapped;
-#else
-	code = (uae_u16*)opcode_memory;
-#endif
-	uae_u8 *p = opcode_memory;
-	int offset = 0;
-	int lines = 0;
-	while (lines++ < 10) {
-		tmpbuffer[0] = 0;
-		int v = disasm_instr(code + offset, tmpbuffer);
-		for (int i = 0; i < v; i++) {
-			uae_u16 v = (p[i * 2 + 0] << 8) | (p[i * 2 + 1]);
-			sprintf(outbp, "%s%04x", i ? " " : (lines == 0 ? "\t\t" : "\t"), v);
-			outbp += strlen(outbp);
-		}
-		sprintf(outbp, " %s\n", tmpbuffer);
-		outbp += strlen(outbp);
-		if (v <= 0)
-			break;
-		while (v > 0) {
-			offset++;
-			p += 2;
-			if (code[offset] == 0x4afc) {
-				v = -1;
-				break;
-			}
-			v--;
-		}
-		if (v < 0)
-			break;
-	}
-	*outbp = 0;
+
+	uae_u16 *code = (uae_u16*)opcode_memory;
 	if (code[0] == 0x4e73 || code[0] == 0x4e74 || code[0] == 0x4e75) {
 		addinfo_bytes("P", stackaddr, stackaddr_ptr, -SIZE_STORED_ADDRESS_OFFSET, SIZE_STORED_ADDRESS);
 		addinfo_bytes(" ", (uae_u8 *)stackaddr_ptr - SIZE_STORED_ADDRESS_OFFSET, stackaddr_ptr, -SIZE_STORED_ADDRESS_OFFSET, SIZE_STORED_ADDRESS);
@@ -1063,10 +1090,10 @@ static void hexdump(uae_u8 *p, int len)
 	*outbp++ = '\n';
 }
 
-static uae_u8 last_exception[256];
+static uae_u8 last_exception[256], last_exception_extra;
 static int last_exception_len;
 
-static uae_u8 *validate_exception(struct registers *regs, uae_u8 *p, int excnum, int sameexc, int *experr)
+static uae_u8 *validate_exception(struct registers *regs, uae_u8 *p, int excnum, int *gotexcnum, int *experr)
 {
 	int exclen = 0;
 	uae_u8 *exc;
@@ -1076,8 +1103,59 @@ static uae_u8 *validate_exception(struct registers *regs, uae_u8 *p, int excnum,
 	uae_u8 excdatalen = *p++;
 	int size;
 
-	if (!excdatalen)
+	if (!excdatalen) {
 		return p;
+	}
+
+	if (excdatalen != 0xff) {
+		// check possible extra trace
+		last_exception_extra = *p++;
+		// some other exception + trace
+		if (last_exception_extra == 9) {
+			exceptioncount[last_exception_extra]++;
+			if (regs->tracecnt == 0) {
+				sprintf(outbp, "Expected trace exception but got none\n", regs->tracecnt);
+				outbp += strlen(outbp);
+				errors = 1;
+				*experr = 1;
+			} else {
+				uae_u16 sr = regs->tracedata[0];
+				if (!(sr & 0x2000) || (sr | 0x2000 | 0xc000) != (regs->sr | 0x2000 | 0xc000)) {
+					sprintf(outbp, "Trace exception stack frame SR mismatch: %04x != %04x\n", sr, regs->sr);
+					outbp += strlen(outbp);
+					errors = 1;
+					*experr = 1;
+				}
+				uae_u32 ret = (regs->tracedata[1] << 16) | regs->tracedata[2];
+				uae_u32 retv = exceptiontableinuse + (excnum - 2) * 2;
+				if (ret != retv) {
+					sprintf(outbp, "Trace exception stacked PC mismatch: %08lx != %08lx (%ld)\n", ret, retv, excnum);
+					outbp += strlen(outbp);
+					errors = 1;
+					*experr = 1;
+				}
+			}
+		} else if (!last_exception_extra && excnum != 9) {
+			if (regs->tracecnt > 0) {
+				sprintf(outbp, "Got unexpected trace exception\n");
+				outbp += strlen(outbp);
+				errors = 1;
+				*experr = 1;
+			}
+		} else if (last_exception_extra) {
+			end_test();
+			printf("Unsupported exception extra %d\n", last_exception_extra);
+			exit(0);
+		}
+		// trace only
+		if (excnum == 9 && *gotexcnum == 4) {
+			sp = (uae_u8 *)regs->tracedata;
+			*gotexcnum = 9;
+		}
+	}
+
+	exceptioncount[*gotexcnum]++;
+
 	exc = last_exception;
 	if (excdatalen != 0xff) {
 		if (cpu_lvl == 0) {
@@ -1184,7 +1262,7 @@ static uae_u8 *validate_exception(struct registers *regs, uae_u8 *p, int excnum,
 	} else {
 		exclen = last_exception_len;
 	}
-	if (exclen == 0 || !sameexc)
+	if (exclen == 0 || *gotexcnum != excnum)
 		return p;
 	if (memcmp(exc, sp, exclen)) {
 		sprintf(outbp, "Exception %ld stack frame mismatch:\n", excnum);
@@ -1277,7 +1355,7 @@ static uae_u8 *validate_test(uae_u8 *p, int ignore_errors, int ignore_sr)
 
 			if (ignore_errors) {
 				if (exc) {
-					p = validate_exception(&test_regs, p, exc, exc == cpuexc, &experr);
+					p = validate_exception(&test_regs, p, exc, &cpuexc, &experr);
 				}
 				break;
 			}
@@ -1291,7 +1369,7 @@ static uae_u8 *validate_test(uae_u8 *p, int ignore_errors, int ignore_sr)
 				break;
 			}
 			if (exc) {
-				p = validate_exception(&test_regs, p, exc, exc == cpuexc, &experr);
+				p = validate_exception(&test_regs, p, exc, &cpuexc, &experr);
 			}
 			if (exc != cpuexc) {
 				addinfo();
@@ -1359,6 +1437,8 @@ static uae_u8 *validate_test(uae_u8 *p, int ignore_errors, int ignore_sr)
 			sr_changed = 0;
 			last_registers.sr = val;
 		} else if (mode == CT_PC) {
+			volatile uae_u16 *c = (volatile uae_u16 *)0x100;
+			*c = 0x1234;
 			uae_u32 val = last_registers.pc;
 			p = restore_rel(p, &val, 0);
 			pc_changed = 0;
@@ -1575,6 +1655,7 @@ static void process_test(uae_u8 *p)
 	regs.sr = interrupt_mask << 8;
 	regs.srcaddr = 0xffffffff;
 	regs.dstaddr = 0xffffffff;
+	regs.branchtarget = 0xffffffff;
 
 	start_test();
 
@@ -1599,6 +1680,7 @@ static void process_test(uae_u8 *p)
 
 		store_addr(regs.srcaddr, srcaddr);
 		store_addr(regs.dstaddr, dstaddr);
+		store_addr(regs.branchtarget, branchtarget);
 
 		xmemcpy(&last_registers, &regs, sizeof(struct registers));
 
@@ -1608,6 +1690,19 @@ static void process_test(uae_u8 *p)
 			flushcache(cpu_lvl);
 
 		uae_u32 pc = opcode_memory_addr;
+		uae_u32 originalopcodeend = 0x4afc4e71;
+		uae_u8 *opcode_memory_end = (uae_u8*)pc;
+		for (;;) {
+			if (gl(opcode_memory_end) == originalopcodeend)
+				break;
+			opcode_memory_end += 2;
+			if (opcode_memory_end > (uae_u8*)pc + 32) {
+				end_test();
+				printf("Corrupted opcode memory\n");
+				exit(0);
+			}
+		}
+		uae_u32 opcodeend = originalopcodeend;
 
 		int extraccr = 0;
 
@@ -1629,6 +1724,24 @@ static void process_test(uae_u8 *p)
 
 			int maxccr = *p++;
 			for (int ccr = 0;  ccr < maxccr; ccr++) {
+
+				opcodeend = (opcodeend >> 16) | (opcodeend << 16);
+				pl(opcode_memory_end, opcodeend);
+
+				if (regs.branchtarget != 0xffffffff) {
+					if (regs.branchtarget_mode == 1) {
+						uae_u32 bv = gl((uae_u8*)regs.branchtarget);
+						bv = (bv >> 16) | (bv << 16);
+						pl((uae_u8*)regs.branchtarget, bv);
+					} else if (regs.branchtarget_mode == 2) {
+						uae_u16 bv = gw((uae_u8 *)regs.branchtarget);
+						if (bv == 0x4e71)
+							bv = 0x4afc;
+						else
+							bv = 0x4e71;
+						pw((uae_u8 *)regs.branchtarget, bv);
+					}
+				}
 
 				regs.ssp = super_stack_memory - 0x80;
 				regs.msp = super_stack_memory;
@@ -1714,6 +1827,8 @@ static void process_test(uae_u8 *p)
 					}
 
 					p = validate_test(p, ignore_errors, ignore_sr);
+					if (regs.sr & 0x2000)
+						supercnt++;
 
 					last_pc = last_registers.pc;
 					last_fpiar = last_registers.fpiar;
@@ -1743,6 +1858,8 @@ static void process_test(uae_u8 *p)
 
 		}
 
+		pl(opcode_memory_end, originalopcodeend);
+
 		restoreahist();
 
 	}
@@ -1754,7 +1871,6 @@ end:
 		printf("\n");
 		printf(outbuffer);
 	}
-
 }
 
 static void freestuff(void)
@@ -1888,6 +2004,8 @@ static int test_mnemo(const char *path, const char *opcode)
 	printf("%s:\n", inst_name);
 
 	testcnt = 0;
+	memset(exceptioncount, 0, sizeof(exceptioncount));
+	supercnt = 0;
 
 	for (;;) {
 		printf("%s. %lu...\n", tfname, testcnt);
@@ -1939,6 +2057,14 @@ static int test_mnemo(const char *path, const char *opcode)
 		free(test_data);
 		filecnt++;
 	}
+
+	printf("S=%ld", supercnt);
+	for (int i = 0; i < 256; i++) {
+		if (exceptioncount[i]) {
+			printf(" E%02d=%ld", i, exceptioncount[i]);
+		}
+	}
+	printf("\n");
 
 	if (!errors && !quit) {
 		printf("All tests complete (total %lu).\n", testcnt);

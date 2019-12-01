@@ -41,7 +41,7 @@ int movem_index1[256];
 int movem_index2[256];
 int movem_next[256];
 int bus_error_offset;
-int cpu_bus_error;
+int cpu_bus_error, cpu_bus_error_fake;
 
 struct mmufixup mmufixup[2];
 cpuop_func *cpufunctbl[65536];
@@ -70,7 +70,7 @@ static TCHAR *feature_instruction_size = NULL;
 static uae_u32 feature_addressing_modes[2];
 static int ad8r[2], pc8r[2];
 static int multi_mode;
-#define MAX_TARGET_EA 8
+#define MAX_TARGET_EA 20
 static uae_u32 feature_target_ea[MAX_TARGET_EA][2];
 static int target_ea_src_cnt, target_ea_dst_cnt;
 static int target_ea_src_max, target_ea_dst_max;
@@ -113,6 +113,7 @@ static bool out_of_test_space;
 static uaecptr out_of_test_space_addr;
 static int forced_immediate_mode;
 static int test_exception;
+static int test_exception_extra;
 static int exception_stack_frame_size;
 static uaecptr test_exception_addr;
 static int test_exception_3_w;
@@ -230,7 +231,7 @@ oob:
 
 static bool is_nowrite_address(uaecptr addr, int size)
 {
-	return addr + size >= safe_memory_start && addr < safe_memory_end;
+	return addr + size > safe_memory_start && addr < safe_memory_end;
 }
 
 static void validate_addr(uaecptr addr, int size)
@@ -283,6 +284,7 @@ static void check_bus_error(uaecptr addr, int write, int fc)
 	if (safe_memory_start == 0xffffffff && safe_memory_end == 0xffffffff)
 		return;
 	if (addr >= safe_memory_start && addr < safe_memory_end) {
+		cpu_bus_error_fake = 1;
 		if ((safe_memory_mode & 1) && !write)
 			cpu_bus_error = 1;
 		if ((safe_memory_mode & 2) && write)
@@ -334,7 +336,7 @@ void put_byte_test(uaecptr addr, uae_u32 v)
 {
 	check_bus_error(addr, 1, regs.s ? 5 : 1);
 	uae_u8 *p = get_addr(addr, 1, 1);
-	if (!out_of_test_space && !noaccesshistory && !cpu_bus_error) {
+	if (!out_of_test_space && !noaccesshistory && !cpu_bus_error_fake) {
 		previoussame(addr, sz_byte);
 		if (ahcnt >= MAX_ACCESSHIST) {
 			wprintf(_T("ahist overflow!"));
@@ -357,7 +359,7 @@ void put_word_test(uaecptr addr, uae_u32 v)
 		put_byte_test(addr + 1, v >> 0);
 	} else {
 		uae_u8 *p = get_addr(addr, 2, 1);
-		if (!out_of_test_space && !noaccesshistory && !cpu_bus_error) {
+		if (!out_of_test_space && !noaccesshistory && !cpu_bus_error_fake) {
 			previoussame(addr, sz_word);
 			if (ahcnt >= MAX_ACCESSHIST) {
 				wprintf(_T("ahist overflow!"));
@@ -386,7 +388,7 @@ void put_long_test(uaecptr addr, uae_u32 v)
 		put_word_test(addr + 2, v >> 0);
 	} else {
 		uae_u8 *p = get_addr(addr, 4, 1);
-		if (!out_of_test_space && !noaccesshistory && !cpu_bus_error) {
+		if (!out_of_test_space && !noaccesshistory && !cpu_bus_error_fake) {
 			previoussame(addr, sz_long);
 			if (ahcnt >= MAX_ACCESSHIST) {
 				wprintf(_T("ahist overflow!"));
@@ -808,8 +810,12 @@ static void doexcstack(void)
 	testing_active = -1;
 
 	int opcode = (opcode_memory[0] << 8) | (opcode_memory[1]);
-	if (test_exception_opcode >= 0)
+	if (test_exception_opcode >= 0) {
 		opcode = test_exception_opcode;
+	}
+	if (SPCFLAG_DOTRACE && test_exception == 9) {
+		SPCFLAG_DOTRACE = 0;
+	}
 
 	int sv = regs.s;
 	uaecptr tmp = m68k_areg(regs, 7);
@@ -819,6 +825,7 @@ static void doexcstack(void)
 			uae_u16 mode = (sv ? 4 : 0) | test_exception_3_fc;
 			mode |= test_exception_3_w ? 0 : 16;
 			Exception_build_68000_address_error_stack_frame(mode, opcode, test_exception_addr, regs.pc);
+			SPCFLAG_DOTRACE = 0;
 		}
 	} else if (cpu_lvl == 1) {
 		if (test_exception == 2 || test_exception == 3) {
@@ -832,6 +839,7 @@ static void doexcstack(void)
 				ssw &= 0x00ff;
 			regs.mmu_fault_addr = test_exception_addr;
 			Exception_build_stack_frame(regs.instruction_pc, regs.pc, ssw, 3, 0x08);
+			SPCFLAG_DOTRACE = 0;
 		} else {
 			Exception_build_stack_frame_common(regs.instruction_pc, regs.pc, 0, test_exception);
 		}
@@ -905,12 +913,19 @@ uae_u32 REGPARAM2 op_illg(uae_u32 opcode)
 void exception2_fetch(uae_u32 opcode, uaecptr addr)
 {
 	test_exception = 2;
-	test_exception_3_w = 1;
+	test_exception_3_w = 0;
 	test_exception_addr = addr;
 	test_exception_opcode = opcode;
 	test_exception_3_fc = 2;
 	test_exception_3_size = 1;
 	test_exception_3_di = 0;
+
+	if (currprefs.cpu_model == 68000) {
+		if (generates_group1_exception(regs.ir)) {
+			test_exception_3_fc |= 8;  // set N/I
+		}
+	}
+
 	doexcstack();
 }
 
@@ -923,6 +938,14 @@ void exception2_read(uae_u32 opcode, uaecptr addr, int size, int fc)
 	test_exception_3_fc = fc;
 	test_exception_3_size = size;
 	test_exception_3_di = 1;
+
+	if (currprefs.cpu_model == 68000) {
+		if (generates_group1_exception(regs.ir)) {
+			test_exception_3_fc |= 8;  // set N/I
+		}
+		test_exception_opcode = regs.ir;
+	}
+
 	doexcstack();
 }
 
@@ -936,6 +959,14 @@ void exception2_write(uae_u32 opcode, uaecptr addr, int size, uae_u32 val, int f
 	test_exception_3_size = size;
 	regs.write_buffer = val;
 	test_exception_3_di = 1;
+
+	if (currprefs.cpu_model == 68000) {
+		if (generates_group1_exception(regs.ir)) {
+			test_exception_3_fc |= 8;  // set N/I
+		}
+		test_exception_opcode = regs.ir;
+	}
+
 	doexcstack();
 }
 
@@ -948,6 +979,16 @@ void exception3_read(uae_u32 opcode, uae_u32 addr, int size, int fc)
 	test_exception_3_fc = fc;
 	test_exception_3_size = size;
 	test_exception_3_di = 1;
+
+	if (currprefs.cpu_model == 68000) {
+		if (generates_group1_exception(regs.ir)) {
+			test_exception_3_fc |= 8; // set N/I
+		}
+		if (opcode & 0x10000)
+			test_exception_3_fc |= 8;
+		test_exception_opcode = regs.ir;
+	}
+
 	doexcstack();
 }
 void exception3_write(uae_u32 opcode, uae_u32 addr, int size, uae_u32 val, int fc)
@@ -960,6 +1001,16 @@ void exception3_write(uae_u32 opcode, uae_u32 addr, int size, uae_u32 val, int f
 	test_exception_3_size = size;
 	regs.write_buffer = val;
 	test_exception_3_di = 1;
+
+	if (currprefs.cpu_model == 68000) {
+		if (generates_group1_exception(regs.ir)) {
+			test_exception_3_fc |= 8; // set N/I
+		}
+		if (opcode & 0x10000)
+			test_exception_3_fc |= 8;
+		test_exception_opcode = regs.ir;
+	}
+
 	doexcstack();
 }
 
@@ -1464,6 +1515,19 @@ static void reset_ea_state(void)
 	ea_state_found[2] = 0;
 }
 
+// if other EA is target EA, don't point this EA
+// to same address space.
+static bool other_targetea_same(int srcdst, uae_u32 v)
+{
+	if (target_ea[srcdst ^ 1] == 0xffffffff)
+		return false;
+	if (!is_nowrite_address(target_ea[srcdst ^ 1], 1))
+		return false;
+	if (!is_nowrite_address(v, 1))
+		return false;
+	return true;
+}
+
 // attempt to find at least one zero, positive and negative source value
 static int analyze_address(struct instr *dp, int srcdst, uae_u32 addr)
 {
@@ -1613,6 +1677,8 @@ static int create_ea_random(uae_u16 *opcodep, uaecptr pc, int mode, int reg, str
 					add <<= (v >> 9) & 3; // SCALE
 				}
 				addr += (uae_s8)(v & 0xff); // DISPLACEMENT
+				if (other_targetea_same(srcdst, addr))
+					continue;
 				if (analyze_address(dp, srcdst, addr))
 					break;
 				maxcnt--;
@@ -1662,8 +1728,10 @@ static int create_ea_random(uae_u16 *opcodep, uaecptr pc, int mode, int reg, str
 		uae_u16 v;
 		for (;;) {
 			v = rand16();
+			if (other_targetea_same(srcdst, (uae_s32)(uae_s16)v))
+				continue;
 			if (analyze_address(dp, srcdst, v))
-				break;
+				break;	
 		}
 		put_word_test(pc, v);
 		*isconstant = 16;
@@ -1691,6 +1759,8 @@ static int create_ea_random(uae_u16 *opcodep, uaecptr pc, int mode, int reg, str
 				v = opcode_memory_start + offset;
 			}
 			immabsl_cnt++;
+			if (other_targetea_same(srcdst, v))
+				continue;
 			if (analyze_address(dp, srcdst, v))
 				break;
 		}
@@ -2345,9 +2415,9 @@ static void execute_ins(uae_u16 opc, uaecptr endpc, uaecptr targetpc, struct ins
 {
 	uae_u16 opw1 = (opcode_memory[2] << 8) | (opcode_memory[3] << 0);
 	uae_u16 opw2 = (opcode_memory[4] << 8) | (opcode_memory[5] << 0);
-	if (opc == 0x2191
-		&& opw1 == 0xdd12
-		&& opw2 == 0xf78c
+	if (opc == 0x4ea9
+		&& opw1 == 0xffff
+		//&& opw2 == 0xf78c
 		)
 		printf("");
 	if (regs.sr & 0x2000)
@@ -2367,14 +2437,20 @@ static void execute_ins(uae_u16 opc, uaecptr endpc, uaecptr targetpc, struct ins
 	testing_active = 1;
 	testing_active_opcode = opc;
 	cpu_bus_error = 0;
+	cpu_bus_error_fake = 0;
 	regs.read_buffer = regs.irc;
 	regs.write_buffer = 0xf00d;
 
-	int cnt = feature_loop_mode * 2;
+	int cnt = (feature_loop_mode + 1) * 2;
 	if (multi_mode)
 		cnt = 100;
 
 	for (;;) {
+
+		if (cnt <= 0) {
+			wprintf(_T(" Loop mode didn't end!?\n"));
+			abort();
+		}
 
 		if (SPCFLAG_TRACE)
 			do_trace();
@@ -2404,18 +2480,19 @@ static void execute_ins(uae_u16 opc, uaecptr endpc, uaecptr targetpc, struct ins
 			break;
 		}
 
-		if (!test_exception) {
-			if (SPCFLAG_DOTRACE)
-				Exception(9);
+		if (!SPCFLAG_DOTRACE && cpu_stopped && regs.s == 0 && currprefs.cpu_model <= 68010) {
+			// 68000/68010 undocumented special case:
+			// if STOP clears S-bit and T was not set:
+			// cause privilege violation exception, PC pointing to following instruction.
+			// If T was set before STOP: STOP works as documented.
+			cpu_stopped = 0;
+			Exception(8);
+		}
 
-			if (cpu_stopped && regs.s == 0 && currprefs.cpu_model <= 68010) {
-				// 68000/68010 undocumented special case:
-				// if STOP clears S-bit and T was not set:
-				// cause privilege violation exception, PC pointing to following instruction.
-				// If T was set before STOP: STOP works as documented.
-				cpu_stopped = 0;
-				Exception(8);
-			}
+		// Trace is only added as an exception if there was no other exceptions
+		// Trace stacked with other exception is handled later
+		if (SPCFLAG_DOTRACE && !test_exception) {
+			Exception(9);
 		}
 
 		// Amiga Chip ram does not support TAS or MOVE16
@@ -2427,15 +2504,15 @@ static void execute_ins(uae_u16 opc, uaecptr endpc, uaecptr targetpc, struct ins
 		if (regs.pc == endpc || regs.pc == targetpc)
 			break;
 
-		if (test_exception)
+		if (test_exception || SPCFLAG_DOTRACE)
 			break;
 
 		if (!valid_address(regs.pc, 2, 0))
 			break;
 
-		if (!feature_loop_mode && !multi_mode) {
-			wprintf(_T(" Test instruction didn't finish in single step in non-loop mode!?\n"));
-			abort();
+		if (regs.pc + 2 == targetpc) {
+			opc = regs.ir;
+			continue;
 		}
 
 		if (cpu_lvl < 2) {
@@ -2445,10 +2522,12 @@ static void execute_ins(uae_u16 opc, uaecptr endpc, uaecptr targetpc, struct ins
 		}
 
 		cnt--;
-		if (cnt <= 0) {
-			wprintf(_T(" Loop mode didn't end!?\n"));
+
+		if (!feature_loop_mode && !multi_mode && opc != 0x4e71) {
+			wprintf(_T(" Test instruction didn't finish in single step in non-loop mode!?\n"));
 			abort();
 		}
+
 	}
 
 	testing_active = 0;
@@ -2531,11 +2610,13 @@ static int noregistercheck(struct instr *dp)
 
 static uae_u8 last_exception[256];
 static int last_exception_len;
+static int last_exception_extra;
 
 static uae_u8 *save_exception(uae_u8 *p, struct instr *dp)
 {
 	uae_u8 *op = p;
 	p++;
+	*p++ = test_exception_extra;
 	uae_u8 *sf = test_memory + test_memory_size + EXTRA_RESERVED_SPACE - exception_stack_frame_size;
 	// parse exception and store fields that are unique
 	// SR and PC was already saved with non-exception data
@@ -2598,13 +2679,14 @@ static uae_u8 *save_exception(uae_u8 *p, struct instr *dp)
 			abort();
 		}
 	}
-	if (last_exception_len > 0 && last_exception_len == exception_stack_frame_size && !memcmp(sf, last_exception, exception_stack_frame_size)) {
+	if (last_exception_len > 0 && last_exception_len == exception_stack_frame_size && test_exception_extra == last_exception_extra && !memcmp(sf, last_exception, exception_stack_frame_size)) {
 		// stack frame was identical to previous
 		p = op;
 		*p++ = 0xff;
 	} else {
 		int datalen = (p - op) - 1;
 		last_exception_len = exception_stack_frame_size;
+		last_exception_extra = test_exception_extra;
 		*op = (uae_u8)datalen;
 		memcpy(last_exception, sf, exception_stack_frame_size);
 	}
@@ -2829,11 +2911,12 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 	int sr_override = 0;
 
 	uae_u32 target_ea_bak[2], target_address_bak;
-	target_ea_bak[0] = target_ea[0];
-	target_ea_bak[1] = target_ea[1];
-	target_address_bak = target_address;
 
 	for (;;) {
+
+		target_ea_bak[0] = target_ea[0];
+		target_ea_bak[1] = target_ea[1];
+		target_address_bak = target_address;
 
 		if (quick)
 			break;
@@ -2858,6 +2941,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 		uae_u32 dstaddr_old = 0xffffffff;
 		uae_u32 srcaddr = 0xffffffff;
 		uae_u32 dstaddr = 0xffffffff;
+		uae_u32 branchtarget_old = 0xffffffff;
 
 		for (int opcode = 0; opcode < 65536; opcode++) {
 
@@ -2916,6 +3000,9 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 				// if instruction has immediate(s), repeat instruction test multiple times
 				// each round generates new random immediate(s)
 				int constant_loops = 32;
+				if (dp->mnemo == i_ILLG) {
+					constant_loops = 1;
+				}
 
 				while (constant_loops-- > 0) {
 					uae_u8 oldbytes[OPCODE_AREA];
@@ -2927,114 +3014,127 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 					int did_out_of_bounds = 0;
 					uae_u8 *prev_dst2 = dst;
 
+					uae_u32 branch_target_swap_address = 0;
+					int branch_target_swap_mode = 0;
+					uae_u32 branch_target_data_original = 0x4afc4e71;
+					uae_u32 branch_target_data = branch_target_data_original;
+
 					out_of_test_space = 0;
+					noaccesshistory = 0;
+					cpu_bus_error_fake = 0;
+					cpu_bus_error = 0;
 					ahcnt = 0;
+					ahcnt2 = 0;
 					multi_mode = 0;
 
 					target_ea[0] = target_ea_bak[0];
 					target_ea[1] = target_ea_bak[1];
 					target_address = target_address_bak;
 
-					if (opc == 0x0156)
+					if (opc == 0x4ed0)
 						printf("");
-					if (subtest_count == 416)
+					if (subtest_count == 2568)
 						printf("");
 
 
 					uaecptr pc = opcode_memory_start + 2;
 
-					pc += handle_specials_preea(opc, pc, dp);
+					if (dp->mnemo != i_ILLG) {
+
+						pc += handle_specials_preea(opc, pc, dp);
 
 
-					uae_u32 srcea = 0xffffffff;
-					uae_u32 dstea = 0xffffffff;
+						uae_u32 srcea = 0xffffffff;
+						uae_u32 dstea = 0xffffffff;
 
-					// create source addressing mode
-					if (dp->suse) {
-						int o = create_ea(&opc, pc, dp->smode, dp->sreg, dp, &isconstant_src, 0, fpuopcode, opcodesize, &srcea);
-						if (o < 0) {
-							memcpy(opcode_memory, oldbytes, sizeof(oldbytes));
-							if (o == -1)
-								goto nextopcode;
-							continue;
-						}
-						pc += o;
-					}
-
-					uae_u8 *ao = opcode_memory + 2;
-					uae_u16 apw1 = (ao[0] << 8) | (ao[1] << 0);
-					uae_u16 apw2 = (ao[2] << 8) | (ao[3] << 0);
-					if (opc == 0x4eb1
-						&& apw1 == 0xee38
-						//&& apw2 == 0x7479
-						)
-						printf("");
-
-					if (target_address != 0xffffffff && (dp->mnemo == i_MVMEL || dp->mnemo == i_MVMLE)) {
-						// if MOVEM and more than 1 register: randomize address so that any MOVEM
-						// access can hit target address
-						uae_u16 mask = (opcode_memory[2] << 8) | opcode_memory[3];
-						int count = 0;
-						for (int i = 0; i < 16; i++) {
-							if (mask & (1 << i))
-								count++;
-						}
-						if (count > 0) {
-							int diff = (rand8() % count);
-							if (dp->dmode == Apdi) {
-								diff = -diff;
+						// create source addressing mode
+						if (dp->suse) {
+							int o = create_ea(&opc, pc, dp->smode, dp->sreg, dp, &isconstant_src, 0, fpuopcode, opcodesize, &srcea);
+							if (o < 0) {
+								memcpy(opcode_memory, oldbytes, sizeof(oldbytes));
+								if (o == -1)
+									goto nextopcode;
+								continue;
 							}
-							uae_u32 ta = target_address;
-							target_address -= diff * (1 << dp->size);
-							if (target_ea[0] == ta)
-								target_ea[0] = target_address;
-							if (target_ea[1] == ta)
-								target_ea[1] = target_address;
+							pc += o;
 						}
-					}
 
-					// if source EA modified opcode
-					dp = table68k + opc;
+						uae_u8 *ao = opcode_memory + 2;
+						uae_u16 apw1 = (ao[0] << 8) | (ao[1] << 0);
+						uae_u16 apw2 = (ao[2] << 8) | (ao[3] << 0);
+						if (opc == 0x4eb1
+							&& apw1 == 0xee38
+							//&& apw2 == 0x7479
+							)
+							printf("");
 
-					// create destination addressing mode
-					if (dp->duse) {
-						int o = create_ea(&opc, pc, dp->dmode, dp->dreg, dp, &isconstant_dst, 1, fpuopcode, opcodesize, &dstea);
-						if (o < 0) {
-							memcpy(opcode_memory, oldbytes, sizeof(oldbytes));
-							if (o == -1)
-								goto nextopcode;
-							continue;
+						if (target_address != 0xffffffff && (dp->mnemo == i_MVMEL || dp->mnemo == i_MVMLE)) {
+							// if MOVEM and more than 1 register: randomize address so that any MOVEM
+							// access can hit target address
+							uae_u16 mask = (opcode_memory[2] << 8) | opcode_memory[3];
+							int count = 0;
+							for (int i = 0; i < 16; i++) {
+								if (mask & (1 << i))
+									count++;
+							}
+							if (count > 0) {
+								int diff = (rand8() % count);
+								if (dp->dmode == Apdi) {
+									diff = -diff;
+								}
+								uae_u32 ta = target_address;
+								target_address -= diff * (1 << dp->size);
+								if (target_ea[0] == ta)
+									target_ea[0] = target_address;
+								if (target_ea[1] == ta)
+									target_ea[1] = target_address;
+							}
 						}
-						pc += o;
-					}
 
-					// requested target address but no EA? skip
-					if (target_address != 0xffffffff) {
-						if (srcea != target_address && dstea != target_address) {
-							memcpy(opcode_memory, oldbytes, sizeof(oldbytes));
-							continue;
+						// if source EA modified opcode
+						dp = table68k + opc;
+
+						// create destination addressing mode
+						if (dp->duse) {
+							int o = create_ea(&opc, pc, dp->dmode, dp->dreg, dp, &isconstant_dst, 1, fpuopcode, opcodesize, &dstea);
+							if (o < 0) {
+								memcpy(opcode_memory, oldbytes, sizeof(oldbytes));
+								if (o == -1)
+									goto nextopcode;
+								continue;
+							}
+							pc += o;
 						}
+
+						// requested target address but no EA? skip
+						if (target_address != 0xffffffff) {
+							if (srcea != target_address && dstea != target_address) {
+								memcpy(opcode_memory, oldbytes, sizeof(oldbytes));
+								continue;
+							}
+						}
+
+
+						pc = handle_specials_extra(opc, pc, dp);
+
+						// if destination EA modified opcode
+						dp = table68k + opc;
+
+						uae_u8 *bo = opcode_memory + 2;
+						uae_u16 bopw1 = (bo[0] << 8) | (bo[1] << 0);
+						uae_u16 bopw2 = (bo[2] << 8) | (bo[3] << 0);
+						if (opc == 0xf228
+							&& bopw1 == 0x003a
+							//&& bopw2 == 0x2770
+							)
+							printf("");
+
+						// bcc.x
+						pc += handle_specials_branch(opc, pc, dp, &isconstant_src);
+						// misc
+						pc += handle_specials_misc(opc, pc, dp, &isconstant_src);
+
 					}
-
-
-					pc = handle_specials_extra(opc, pc, dp);
-
-					// if destination EA modified opcode
-					dp = table68k + opc;
-
-					uae_u8 *bo = opcode_memory + 2;
-					uae_u16 bopw1 = (bo[0] << 8) | (bo[1] << 0);
-					uae_u16 bopw2 = (bo[2] << 8) | (bo[3] << 0);
-					if (opc == 0xf228
-						&& bopw1 == 0x003a
-						//&& bopw2 == 0x2770
-						)
-						printf("");
-
-					// bcc.x
-					pc += handle_specials_branch(opc, pc, dp, &isconstant_src);
-					// misc
-					pc += handle_specials_misc(opc, pc, dp, &isconstant_src);
 
 					put_word_test(opcode_memory_start, opc);
 
@@ -3055,8 +3155,10 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 
 					// end word, needed to detect if instruction finished normally when
 					// running on real hardware.
-					put_word_test(pc, 0x4afc); // illegal instruction
-					pc += 2;
+					uae_u32 originalendopcode = 0x4afc4e71;
+					uae_u32 endopcode = originalendopcode;
+					put_long_test(pc, endopcode); // illegal instruction + nop
+					pc += 4;
 
 					if (isconstant_src < 0 || isconstant_dst < 0) {
 						constant_loops++;
@@ -3124,6 +3226,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 					}
 #endif
 					uaecptr branch_target = 0xffffffff;
+					uaecptr branch_target_pc = 0xffffffff;
 					int bc = isbranchinst(dp);
 					if (bc) {
 						if (bc < 0) {
@@ -3160,12 +3263,20 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 							continue;
 						} else {
 							// branch target = generate exception
-							if (!is_nowrite_address(srcaddr, 2)) {
-								put_word_test(srcaddr, 0x4afc);
+							if (!is_nowrite_address(srcaddr, 4)) {
+								branch_target_swap_address = srcaddr;
+								branch_target_swap_mode = 1;
+								put_long_test(srcaddr, branch_target_data);
+							} else {
+								if (!is_nowrite_address(srcaddr, 2)) {
+									put_word_test(srcaddr, branch_target_data >> 16);
+									branch_target_swap_address = srcaddr;
+									branch_target_swap_mode = 2;
+								}
 							}
 							branch_target = srcaddr;
 							dst = store_mem(dst, 1);
-							memcpy(&ahist2, &ahist, sizeof(struct accesshistory) *MAX_ACCESSHIST);
+							memcpy(&ahist2, &ahist, sizeof(struct accesshistory) * MAX_ACCESSHIST);
 							ahcnt2 = ahcnt;
 						}
 						testing_active = 0;
@@ -3178,6 +3289,11 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 					if (dstaddr != dstaddr_old && (dflags & 2)) {
 						dst = store_reg(dst, CT_DSTADDR, dstaddr_old, dstaddr, -1);
 						dstaddr_old = dstaddr;
+					}
+					if (branch_target != branchtarget_old) {
+						dst = store_reg(dst, CT_BRANCHTARGET, branchtarget_old, branch_target, -1);
+						branchtarget_old = branch_target;
+						*dst++ = branch_target_swap_mode;
 					}
 
 					*dst++ = CT_END_INIT;
@@ -3210,7 +3326,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 
 						int maxflag = fpumode ? 256 : 32;
 						// if cc-instruction: always do full test
-						if (feature_flag_mode == 1 && !dp->ccuse) {
+						if (feature_flag_mode == 1 && (dp->mnemo == i_ILLG || !dp->ccuse)) {
 							maxflag = fpumode ? 256 / 8 : 2;
 						}
 
@@ -3238,13 +3354,39 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 
 							out_of_test_space = 0;
 							test_exception = 0;
+							test_exception_extra = 0;
 							cpu_stopped = 0;
 							cpu_halted = 0;
 							ahcnt = 0;
 
 							memset(&regs, 0, sizeof(regs));
 
+							// swap end opcode illegal/nop
+							endopcode = (endopcode >> 16) | (endopcode << 16);
+							noaccesshistory++;
+							put_long_test(pc - 4, endopcode);
+							noaccesshistory--;
+							int endopcodesize = (endopcode >> 16) == 0x4e71 ? 2 : 4;
+
+							// swap branch target illegal/nop
+							if (branch_target_swap_mode) {
+								noaccesshistory++;
+								branch_target_data = (branch_target_data >> 16) | (branch_target_data << 16);
+								branch_target_pc = branch_target;
+								if (branch_target_swap_mode == 1) {
+									put_long_test(branch_target_swap_address, branch_target_data);
+									if ((branch_target_data >> 16) == 0x4e71)
+										branch_target_pc = branch_target + 2;
+									else
+										branch_target_pc = branch_target;
+								} else if (branch_target_swap_mode == 2) {
+									put_word_test(branch_target_swap_address, branch_target_data >> 16);
+								}
+								noaccesshistory--;
+							}
+
 							regs.pc = opcode_memory_start;
+							regs.ir = get_word_test(regs.pc + 0);
 							regs.irc = get_word_test(regs.pc + 2);
 
 							// set up registers
@@ -3298,10 +3440,10 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 							if (regs.sr & 0x2000)
 								prev_s_cnt++;
 
-							if (subtest_count == 23360)
+							if (subtest_count == 220)
 								printf("");
 
-							execute_ins(opc, pc - 2, branch_target, dp);
+							execute_ins(opc, pc - endopcodesize, branch_target_pc, dp);
 
 							if (regs.s)
 								s_cnt++;
@@ -3348,7 +3490,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 										skipped = 1;
 									}
 								}
-								if (test_exception == 9) {
+								if (SPCFLAG_DOTRACE || test_exception == 9) {
 									t_cnt++;
 								}
 							} else {
@@ -3356,13 +3498,38 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 								ok++;
 								// validate branch instructions
 								if (isbranchinst(dp)) {
-									if ((regs.pc != srcaddr && regs.pc != pc - 2) || pcaddr[0] != 0x4a && pcaddr[1] != 0xfc) {
+									if ((regs.pc != branch_target_pc && regs.pc != pc - endopcodesize) || ((pcaddr[0] != 0x4a && pcaddr[1] != 0xfc) && (pcaddr[0] != 0x4e && pcaddr[1] != 0x71))) {
 										wprintf(_T("Branch instruction target fault\n"));
 										abort();
 									}
 								}
 							}
+
+							noaccesshistory++;
+							put_long_test(pc - 4, originalendopcode);
+							if (branch_target_data != 0xffffff) {
+								if (branch_target_swap_address == 1) {
+									put_long_test(branch_target_swap_address, branch_target_data_original);
+								} else if (branch_target_swap_mode == 2) {
+									put_word_test(branch_target_swap_address, branch_target_data_original >> 16);
+								}
+							}
+							noaccesshistory--;
+
 							MakeSR();
+
+							// did we have trace also active?
+							if (SPCFLAG_DOTRACE) {
+								if (regs.t1 && (test_exception == 5 || test_exception == 6 || test_exception == 7 || (test_exception >= 32 && test_exception <= 47))) {
+									test_exception_extra = 9;
+								} else {
+									test_exception_extra = 0;
+								}
+								// clear trace
+								regs.t0 = 0;
+								regs.t1 = 0;
+							}
+
 							if (!skipped) {
 								bool storeregs = true;
 								if (noregistercheck(dp)) {

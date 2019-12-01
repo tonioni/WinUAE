@@ -1642,3 +1642,21 @@ bool privileged_copro_instruction(uae_u16 opcode)
 	}
 	return false;
 }
+
+bool generates_group1_exception(uae_u16 opcode)
+{
+	struct instr *table = &table68k[opcode];
+	// illegal/a-line/f-line?
+	if (table->mnemo == i_ILLG)
+		return true;
+	// privilege violation?
+	if (!regs.s) {
+		if (table->plev == 1 && currprefs.cpu_model > 68000)
+			return true;
+		if (table->plev == 2)
+			return true;
+		if (table->plev == 3 && table->size == sz_word)
+			return true;
+	}
+	return false;
+}

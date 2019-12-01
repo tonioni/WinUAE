@@ -80,6 +80,8 @@ static bool last_notinstruction_for_exception_3;
 /* set when writing exception stack frame */
 static int exception_in_exception;
 
+static void exception3_read_special(uae_u32 opcode, uaecptr addr, int size, int fc);
+
 int mmu_enabled, mmu_triggered;
 int cpu_cycles;
 int bus_error_offset;
@@ -2651,7 +2653,7 @@ static void Exception_mmu030 (int nr, uaecptr oldpc)
 		if (nr == 2 || nr == 3)
 			cpu_halt (CPU_HALT_DOUBLE_FAULT);
 		else
-			exception3_read(regs.ir, newpc, 1, 1);
+			exception3_read_special(regs.ir, newpc, 1, 1);
 		return;
 	}
 	if (interrupt)
@@ -2717,7 +2719,7 @@ static void Exception_mmu (int nr, uaecptr oldpc)
 		if (nr == 2 || nr == 3)
 			cpu_halt (CPU_HALT_DOUBLE_FAULT);
 		else
-			exception3_read(regs.ir, newpc, 2, 1);
+			exception3_read_special(regs.ir, newpc, 2, 1);
 		return;
 	}
 
@@ -2861,7 +2863,7 @@ static void Exception_normal (int nr)
 							if (nr == 2 || nr == 3)
 								cpu_halt (CPU_HALT_DOUBLE_FAULT);
 							else
-								exception3_read(regs.ir, newpc, 2, 1);
+								exception3_read_special(regs.ir, newpc, 2, 1);
 							return;
 						}
 						m68k_setpc (newpc);
@@ -6860,13 +6862,37 @@ void exception3_notinstruction(uae_u32 opcode, uaecptr addr)
 {
 	exception3f (opcode, addr, true, false, true, 0xffffffff, 1, false, -1);
 }
+static void exception3_read_special(uae_u32 opcode, uaecptr addr, int size, int fc)
+{
+	exception3f(opcode, addr, false, 0, false, 0xffffffff, size, false, fc);
+}
 void exception3_read(uae_u32 opcode, uaecptr addr, int size, int fc)
 {
-	exception3f (opcode, addr, false, 0, false, 0xffffffff, size, false, fc);
+	bool ni = false;
+	if (currprefs.cpu_model == 68000 && currprefs.cpu_compatible) {
+		if (generates_group1_exception(regs.ir)) {
+			ni = true;
+			fc = -1;
+		}
+		if (opcode & 0x100000)
+			ni = true;
+		opcode = regs.ir;
+	}
+	exception3f (opcode, addr, false, 0, ni, 0xffffffff, size, false, fc);
 }
 void exception3_write(uae_u32 opcode, uaecptr addr, int size, uae_u32 val, int fc)
 {
-	exception3f (opcode, addr, true, 0, false, 0xffffffff, size, false, fc);
+	bool ni = false;
+	if (currprefs.cpu_model == 68000 && currprefs.cpu_compatible) {
+		if (generates_group1_exception(regs.ir)) {
+			ni = true;
+			fc = -1;
+		}
+		if (opcode & 0x100000)
+			ni = true;
+		opcode = regs.ir;
+	}
+	exception3f (opcode, addr, true, 0, ni, 0xffffffff, size, false, fc);
 	regs.write_buffer = val;
 }
 void exception3i (uae_u32 opcode, uaecptr addr)
@@ -6889,6 +6915,14 @@ void exception2_setup(uaecptr addr, bool read, int size, uae_u32 fc)
 	last_size_for_exception_3 = size;
 	last_di_for_exception_3 = 1;
 	cpu_bus_error = 0;
+
+	if (currprefs.cpu_model == 68000 && currprefs.cpu_compatible) {
+		if (generates_group1_exception(regs.ir)) {
+			last_notinstruction_for_exception_3 = true;
+			fc = -1;
+		}
+		last_op_for_exception_3 = regs.ir;
+	}
 }
 
 void exception2(uaecptr addr, bool read, int size, uae_u32 fc)

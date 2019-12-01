@@ -32,6 +32,9 @@ S_FPU = S_EXCFRAME+4
 S_FPIAR = S_FPU+8*12
 S_FPCR = S_FPIAR+4
 S_FPSR = S_FPCR+4
+S_TRACECNT = S_FPSR+4
+S_TRACESTACK = S_TRACECNT+4
+S_NEXT = S_TRACESTACK+12
 
 	| set CPU special registers
 _setcpu:
@@ -212,6 +215,17 @@ _msp_address2:
 	movem.l (a0),d0-d7/a0-a6
 	rte
 
+exception_trace000:
+	move.l a0,-(sp)
+	move.l datapointer(pc),a0
+	tst.l S_TRACECNT(a0)
+	bne.s .nexttrace000
+	move.l 4(sp),S_TRACESTACK(a0)
+	move.l 8(sp),S_TRACESTACK+4(a0)
+.nexttrace000:
+	addq.l #1,S_TRACECNT(a0)
+	move.l (sp)+,a0
+	rte
 
 _exceptiontable000:
 	bsr.s exception	| 2
@@ -221,7 +235,7 @@ _exceptiontable000:
 	bsr.s exception | 6
 	bsr.s exception | 7
 	bsr.s exception | 8
-	bsr.s exception | 9
+	bra.s exception_trace000 | 9
 	bsr.s exception | 10
 	bsr.s exception | 11
 	bsr.s exception | 12
@@ -295,6 +309,19 @@ exception:
 	movem.l (sp)+,d1-d7/a0-a6
 	rts
 
+exception_trace010:
+	move.l a0,-(sp)
+	move.l datapointer(pc),a0
+	tst.l S_TRACECNT(a0)
+	bne.s .nexttrace010
+	move.l 4(sp),S_TRACESTACK(a0)
+	move.l 8(sp),S_TRACESTACK+4(a0)
+	move.l 12(sp),S_TRACESTACK+8(a0)
+.nexttrace010:
+	addq.l #1,S_TRACECNT(a0)
+	move.l (sp)+,a0
+	rte
+
 _exceptiontable010:
 	bsr.s exception010	| 2
 	bsr.s exception010	| 3
@@ -303,7 +330,7 @@ _exceptiontable010:
 	bsr.s exception010 | 6
 	bsr.s exception010 | 7
 	bsr.s exception010 | 8
-	bsr.s exception010 | 9
+	bra.s exception_trace010 | 9
 	bsr.s exception010 | 10
 	bsr.s exception010 | 11
 	bsr.s exception010 | 12
@@ -374,6 +401,9 @@ exception010:
 	movem.l (sp)+,d1-d7/a0-a6
 	rts
 
+exception_trace010t1:
+	bra exception_trace010
+
 _exceptiontable020:
 	bsr.s exception020	| 2
 	bsr.s exception020	| 3
@@ -382,7 +412,7 @@ _exceptiontable020:
 	bsr.s exception020 | 6
 	bsr.s exception020 | 7
 	bsr.s exception020 | 8
-	bsr.s exception020 | 9
+	bra.s exception_trace010t1 | 9
 	bsr.s exception020 | 10
 	bsr.s exception020 | 11
 	bsr.s exception020 | 12
@@ -460,6 +490,9 @@ _msp_address3:
 	movem.l (sp)+,d1-d7/a0-a6
 	rts
 
+exception_trace010t2:
+	bra exception_trace010
+
 _exceptiontablefpu:
 	bsr.s exceptionfpu	| 2
 	bsr.s exceptionfpu	| 3
@@ -468,7 +501,7 @@ _exceptiontablefpu:
 	bsr.s exceptionfpu | 6
 	bsr.s exceptionfpu | 7
 	bsr.s exceptionfpu | 8
-	bsr.s exceptionfpu | 9
+	bsr.s exception_trace010t2 | 9
 	bsr.s exceptionfpu | 10
 	bsr.s exceptionfpu | 11
 	bsr.s exceptionfpu | 12
