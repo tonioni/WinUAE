@@ -4240,6 +4240,18 @@ static const struct expansionboardsettings trifecta_settings[] = {
 	}
 };
 
+static const struct expansionsubromtype accessx_sub[] = {
+	{
+		_T("AccessX 500"), _T("accessx500"), ROMTYPE_ACCESSX,
+	},
+	{
+		_T("AccessX 2000"), _T("accessx2000"), ROMTYPE_ACCESSX,
+	},
+	{
+		NULL
+	}
+};
+
 static const struct expansionsubromtype supra_sub[] = {
 	{
 		_T("A500 ByteSync/XP"), _T("bytesync"), ROMTYPE_NONE | ROMTYPE_SUPRA,
@@ -5120,9 +5132,9 @@ const struct expansionromtype expansionroms[] = {
 		false, EXPANSIONTYPE_SCSI
 	},
 	{
-		_T("accessx500"), _T("AccessX 500"), _T("Breitfeld Computersysteme"),
+		_T("accessx"), _T("AccessX"), _T("Breitfeld Computersysteme"),
 		NULL, accessx_init, NULL, accessx_add_ide_unit, ROMTYPE_ACCESSX, 0, 0, BOARD_AUTOCONFIG_Z2, false,
-		NULL, 0,
+		accessx_sub, 0,
 		true, EXPANSIONTYPE_IDE,
 		0, 0, 0, true, NULL,
 		false, 2

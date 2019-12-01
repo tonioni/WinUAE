@@ -2644,38 +2644,80 @@ bool accessx_init(struct autoconfig_info *aci)
 
 	rom = xcalloc(uae_u8, rom_size);
 	memset(rom, 0xff, rom_size);
-	load_rom_rc(aci->rc, ROMTYPE_ACCESSX, 32768, aci->rc->autoboot_disabled ? 0x4000 : 0x0000, rom, 32768, LOADROM_EVENONLY_ODDONE | LOADROM_FILL);
+	load_rom_rc(aci->rc, ROMTYPE_ACCESSX, 32768, 0, rom, 32768, LOADROM_FILL);
+	uae_u8 rom2[32768];
+	memcpy(rom2, rom, 32768);
 
-	if ((rom[0] != 0xd0 && rom[2] != 0x10) && (rom[0] != 0xc0 && rom[2] != 0x10)) {
+	if ((rom[0] != 0xd0 && rom[1] != 0x10) && (rom[0] != 0xc0 && rom[1] != 0x10)) {
 		// descramble
-		uae_u8 rom2[32768];
-		memcpy(rom2, rom, 32768);
+		if (aci->rc->subtype == 1) {
+			// 2000 variant
+			for (int i = 0; i < 32768; i += 2) {
+				int addr = 0;
+				addr |= ((i >> 7) & 1) << 0;
+				addr |= ((i >> 10) & 1) << 1;
+				addr |= ((i >> 9) & 1) << 2;
+				addr |= ((i >> 8) & 1) << 3;
+				addr |= ((i >> 1) & 1) << 4;
+				addr |= ((i >> 2) & 1) << 5;
+				addr |= ((i >> 3) & 1) << 6;
+				addr |= ((i >> 4) & 1) << 7;
+				addr |= ((i >> 13) & 1) << 8;
+				addr |= ((i >> 14) & 1) << 9;
+				if (!aci->rc->autoboot_disabled)
+					addr |= 1 << 10;
+				addr |= ((i >> 11) & 1) << 11;
+				addr |= ((i >> 6) & 1) << 12;
+				addr |= ((i >> 12) & 1) << 13;
+				addr |= ((i >> 5) & 1) << 14;
+				uae_u8 b = rom2[addr];
+				uae_u8 v = 0;
+				v |= ((b >> 4) & 1) << 1;
+				v |= ((b >> 5) & 1) << 2;
+				v |= ((b >> 6) & 1) << 0;
+				v |= ((b >> 7) & 1) << 3;
+				rom[i + 0] = v << 4;
+				rom[i + 1] = 0xff;
+			}
+
+		} else {
+			// 500 variant
+			for (int i = 0; i < 16384; i++) {
+				int addr = 0;
+				addr |= ((i >> 5) & 1) << 0;
+				addr |= ((i >> 4) & 1) << 1;
+				addr |= ((i >> 3) & 1) << 2;
+				addr |= ((i >> 6) & 1) << 3;
+				addr |= ((i >> 1) & 1) << 4;
+				addr |= ((i >> 0) & 1) << 5;
+				addr |= ((i >> 9) & 1) << 6;
+				addr |= ((i >> 11) & 1) << 7;
+				addr |= ((i >> 10) & 1) << 8;
+				addr |= ((i >> 8) & 1) << 9;
+				addr |= ((i >> 2) & 1) << 10;
+				addr |= ((i >> 7) & 1) << 11;
+				addr |= ((i >> 13) & 1) << 12;
+				addr |= ((i >> 12) & 1) << 13;
+				if (aci->rc->autoboot_disabled)
+					addr |= 1 << 14;
+				uae_u8 b = rom2[addr];
+				uae_u8 v = 0;
+				v |= ((b >> 0) & 1) << 1;
+				v |= ((b >> 1) & 1) << 2;
+				v |= ((b >> 2) & 1) << 3;
+				v |= ((b >> 3) & 1) << 0;
+				rom[i * 2 + 0] = v << 4;
+				rom[i * 2 + 1] = 0xff;
+			}
+		}
+	} else {
+		int offset = aci->rc->autoboot_disabled ? 16384 : 0;
 		for (int i = 0; i < 16384; i++) {
-			int addr = 0;
-			addr |= ((i >>  5) & 1) <<  0;
-			addr |= ((i >>  4) & 1) <<  1;
-			addr |= ((i >>  3) & 1) <<  2;
-			addr |= ((i >>  6) & 1) <<  3;
-			addr |= ((i >>  1) & 1) <<  4;
-			addr |= ((i >>  0) & 1) <<  5;
-			addr |= ((i >>  9) & 1) <<  6;
-			addr |= ((i >> 11) & 1) <<  7;
-			addr |= ((i >> 10) & 1) <<  8;
-			addr |= ((i >>  8) & 1) <<  9;
-			addr |= ((i >>  2) & 1) << 10;
-			addr |= ((i >>  7) & 1) << 11;
-			addr |= ((i >> 13) & 1) << 12;
-			addr |= ((i >> 12) & 1) << 13;
-			addr |= ((i >> 14) & 1) << 14;
-			uae_u8 b = rom2[addr * 2];
-			uae_u8 v = 0;
-			v |= ((b >> 0) & 1) << 1;
-			v |= ((b >> 1) & 1) << 2;
-			v |= ((b >> 2) & 1) << 3;
-			v |= ((b >> 3) & 1) << 0;
-			rom[i * 2] = v << 4;
+			rom[i * 2 + 0] = rom2[i + offset];
+			rom[i * 2 + 1] = 0xff;
 		}
 	}
+
 
 	ide_add_reset();
 	if (!aci->doinit) {
