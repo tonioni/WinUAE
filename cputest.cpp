@@ -121,6 +121,8 @@ static int test_exception_3_fc;
 static int test_exception_3_size;
 static int test_exception_3_di;
 static int test_exception_opcode;
+static uae_u32 trace_store_pc;
+static uae_u16 trace_store_sr;
 
 static uae_u8 imm8_cnt;
 static uae_u16 imm16_cnt;
@@ -924,6 +926,8 @@ void exception2_fetch(uae_u32 opcode, uaecptr addr)
 		if (generates_group1_exception(regs.ir)) {
 			test_exception_3_fc |= 8;  // set N/I
 		}
+		if (opcode & 0x10000)
+			test_exception_3_fc |= 8;
 	}
 
 	doexcstack();
@@ -943,6 +947,8 @@ void exception2_read(uae_u32 opcode, uaecptr addr, int size, int fc)
 		if (generates_group1_exception(regs.ir)) {
 			test_exception_3_fc |= 8;  // set N/I
 		}
+		if (opcode & 0x10000)
+			test_exception_3_fc |= 8;
 		test_exception_opcode = regs.ir;
 	}
 
@@ -964,6 +970,8 @@ void exception2_write(uae_u32 opcode, uaecptr addr, int size, uae_u32 val, int f
 		if (generates_group1_exception(regs.ir)) {
 			test_exception_3_fc |= 8;  // set N/I
 		}
+		if (opcode & 0x10000)
+			test_exception_3_fc |= 8;
 		test_exception_opcode = regs.ir;
 	}
 
@@ -2426,6 +2434,7 @@ static void execute_ins(uae_u16 opc, uaecptr endpc, uaecptr targetpc, struct ins
 	// execute instruction
 	SPCFLAG_TRACE = 0;
 	SPCFLAG_DOTRACE = 0;
+	trace_store_pc = 0xffffffff;
 	mmufixup[0].reg = -1;
 	mmufixup[1].reg = -1;
 
@@ -2489,30 +2498,42 @@ static void execute_ins(uae_u16 opc, uaecptr endpc, uaecptr targetpc, struct ins
 			Exception(8);
 		}
 
-		// Trace is only added as an exception if there was no other exceptions
-		// Trace stacked with other exception is handled later
-		if (SPCFLAG_DOTRACE && !test_exception) {
-			Exception(9);
-		}
-
 		// Amiga Chip ram does not support TAS or MOVE16
 		if ((dp->mnemo == i_TAS || dp->mnemo == i_MOVE16) && low_memory_accessed) {
 			test_exception = -1;
 			break;
 		}
 
-		if (regs.pc == endpc || regs.pc == targetpc)
+		if (regs.pc == endpc || regs.pc == targetpc) {
+			// Trace is only added as an exception if there was no other exceptions
+			// Trace stacked with other exception is handled later
+			if (SPCFLAG_DOTRACE && !test_exception) {
+				Exception(9);
+			}
 			break;
+		}
 
-		if (test_exception || SPCFLAG_DOTRACE)
+		if (test_exception)
 			break;
 
 		if (!valid_address(regs.pc, 2, 0))
 			break;
 
-		if (regs.pc + 2 == targetpc) {
+		if (targetpc != 0xffffffff && regs.pc + 2 == targetpc) {
+			// trace after jumping to branch target
+			// and opcode was NOP
+			if (SPCFLAG_DOTRACE) {
+				trace_store_pc = regs.pc;
+				trace_store_sr = regs.sr;
+				SPCFLAG_DOTRACE = 0;
+			}
 			opc = regs.ir;
 			continue;
+		}
+
+		if (SPCFLAG_DOTRACE) {
+			wprintf(_T("Trace not supported in loop mode\n"));
+			abort();
 		}
 
 		if (cpu_lvl < 2) {
@@ -2617,6 +2638,12 @@ static uae_u8 *save_exception(uae_u8 *p, struct instr *dp)
 	uae_u8 *op = p;
 	p++;
 	*p++ = test_exception_extra;
+	// Separate, non-stacked Trace
+	if (test_exception_extra & 0x80) {
+		*p++ = trace_store_sr >> 8;
+		*p++ = trace_store_sr;
+		p = store_rel(p, 0, opcode_memory_start, trace_store_pc, 1);
+	}
 	uae_u8 *sf = test_memory + test_memory_size + EXTRA_RESERVED_SPACE - exception_stack_frame_size;
 	// parse exception and store fields that are unique
 	// SR and PC was already saved with non-exception data
@@ -3518,6 +3545,11 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 
 							MakeSR();
 
+							if (SPCFLAG_DOTRACE && trace_store_pc != 0xffffffff) {
+								wprintf(_T("Trace and stored trace at the same time!\n"));
+								abort();
+							}
+
 							// did we have trace also active?
 							if (SPCFLAG_DOTRACE) {
 								if (regs.t1 && (test_exception == 5 || test_exception == 6 || test_exception == 7 || (test_exception >= 32 && test_exception <= 47))) {
@@ -3528,6 +3560,9 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 								// clear trace
 								regs.t0 = 0;
 								regs.t1 = 0;
+							}
+							if (trace_store_pc != 0xffffffff) {
+								test_exception_extra = 9 | 0x80;
 							}
 
 							if (!skipped) {

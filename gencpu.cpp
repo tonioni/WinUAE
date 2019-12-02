@@ -5185,6 +5185,8 @@ static void gen_opcode (unsigned int opcode)
 				int sp = (curi->smode == Ad16 || curi->smode == absw || curi->smode == absl || curi->smode == PC16 || curi->smode == Ad8r || curi->smode == PC8r) ? -1 : 0;
 				irc2ir();
 				printf("\topcode = regs.ir;\n");
+				if (sp < 0)
+					printf("\tif(regs.t1) opcode |= 0x10000;\n");
 				printf("\t%s (%d);\n", prefetch_word, 2);
 				check_prefetch_bus_error(-2, sp);
 				did_prefetch = 1;
@@ -5221,6 +5223,8 @@ static void gen_opcode (unsigned int opcode)
 			printf("\t%s (%d);\n", prefetch_word, 2);
 			int sp = (curi->smode == Ad16 || curi->smode == absw || curi->smode == absl || curi->smode == PC16 || curi->smode == Ad8r || curi->smode == PC8r) ? -1 : 0;
 			printf("\topcode = regs.ir;\n");
+			if (sp < 0)
+				printf("\tif(regs.t1) opcode |= 0x10000;\n");
 			check_prefetch_bus_error(-2, sp);
 			did_prefetch = 1;
 			ir2irc = 0;

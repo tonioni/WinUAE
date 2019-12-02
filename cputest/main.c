@@ -93,7 +93,7 @@ static int low_memory_offset;
 static int high_memory_offset;
 
 static uae_u32 vbr[256];
-static int exceptioncount[256];
+static int exceptioncount[128];
 static int supercnt;
 
 static char inst_name[16+1];
@@ -1110,26 +1110,44 @@ static uae_u8 *validate_exception(struct registers *regs, uae_u8 *p, int excnum,
 	if (excdatalen != 0xff) {
 		// check possible extra trace
 		last_exception_extra = *p++;
-		// some other exception + trace
-		if (last_exception_extra == 9) {
-			exceptioncount[last_exception_extra]++;
+		if ((last_exception_extra & 0x7f) == 9) {
+			exceptioncount[last_exception_extra & 0x7f]++;
+			uae_u32 ret = (regs->tracedata[1] << 16) | regs->tracedata[2];
+			uae_u16 sr = regs->tracedata[0];
 			if (regs->tracecnt == 0) {
-				sprintf(outbp, "Expected trace exception but got none\n", regs->tracecnt);
+				sprintf(outbp, "Expected trace exception but got none\n");
 				outbp += strlen(outbp);
 				errors = 1;
 				*experr = 1;
-			} else {
-				uae_u16 sr = regs->tracedata[0];
+			} else if (!(last_exception_extra & 0x80)) {
+				// Trace stacked with group 2 exception
 				if (!(sr & 0x2000) || (sr | 0x2000 | 0xc000) != (regs->sr | 0x2000 | 0xc000)) {
-					sprintf(outbp, "Trace exception stack frame SR mismatch: %04x != %04x\n", sr, regs->sr);
+					sprintf(outbp, "Trace (%d stacked) SR mismatch: %04x != %04x\n", excnum, sr, regs->sr);
 					outbp += strlen(outbp);
 					errors = 1;
 					*experr = 1;
 				}
-				uae_u32 ret = (regs->tracedata[1] << 16) | regs->tracedata[2];
 				uae_u32 retv = exceptiontableinuse + (excnum - 2) * 2;
 				if (ret != retv) {
-					sprintf(outbp, "Trace exception stacked PC mismatch: %08lx != %08lx (%ld)\n", ret, retv, excnum);
+					sprintf(outbp, "Trace (%d stacked) PC mismatch: %08lx != %08lx (%ld)\n", excnum, ret, retv);
+					outbp += strlen(outbp);
+					errors = 1;
+					*experr = 1;
+				}
+			} else {
+				// Standalone Trace
+				uae_u16 vsr = (p[0] << 8) | (p[1]);
+				p += 2;
+				v = opcode_memory_addr;
+				p = restore_rel_ordered(p, &v);
+				if (vsr != sr) {
+					sprintf(outbp, "Trace (non-stacked) SR mismatch: %04x != %04x\n", sr, vsr);
+					outbp += strlen(outbp);
+					errors = 1;
+					*experr = 1;
+				}
+				if (v != ret) {
+					sprintf(outbp, "Trace (non-stacked) PC mismatch: %08lx != %08lx\n", ret, v);
 					outbp += strlen(outbp);
 					errors = 1;
 					*experr = 1;
@@ -1827,7 +1845,8 @@ static void process_test(uae_u8 *p)
 					}
 
 					p = validate_test(p, ignore_errors, ignore_sr);
-					if (regs.sr & 0x2000)
+
+					if (super)
 						supercnt++;
 
 					last_pc = last_registers.pc;
@@ -2059,7 +2078,7 @@ static int test_mnemo(const char *path, const char *opcode)
 	}
 
 	printf("S=%ld", supercnt);
-	for (int i = 0; i < 256; i++) {
+	for (int i = 0; i < 128; i++) {
 		if (exceptioncount[i]) {
 			printf(" E%02d=%ld", i, exceptioncount[i]);
 		}
