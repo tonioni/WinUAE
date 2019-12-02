@@ -12202,16 +12202,16 @@ static void saveguisize(void)
 static void getstoredguisize(void)
 {
 	if (full_property_sheet || isfullscreen () == 0) {
-		regqueryint (NULL, _T("GUISizeX"), &gui_width);
-		regqueryint (NULL, _T("GUISizeY"), &gui_height);
+		regqueryint(NULL, _T("GUISizeX"), &gui_width);
+		regqueryint(NULL, _T("GUISizeY"), &gui_height);
 		scaleresource_init(gui_fullscreen ? _T("GFS") : _T(""), gui_fullscreen);
 	} else if (isfullscreen () < 0) {
-		regqueryint (NULL, _T("GUISizeFWX"), &gui_width);
-		regqueryint (NULL, _T("GUISizeFWY"), &gui_height);
+		regqueryint(NULL, _T("GUISizeFWX"), &gui_width);
+		regqueryint(NULL, _T("GUISizeFWY"), &gui_height);
 		scaleresource_init(gui_fullscreen ? _T("FW_GFS") : _T("FW"), gui_fullscreen);
 	} else if (isfullscreen () > 0) {
-		regqueryint (NULL, _T("GUISizeFSX"), &gui_width);
-		regqueryint (NULL, _T("GUISizeFSY"), &gui_height);
+		regqueryint(NULL, _T("GUISizeFSX"), &gui_width);
+		regqueryint(NULL, _T("GUISizeFSY"), &gui_height);
 		scaleresource_init(gui_fullscreen ? _T("FS_GFS") : _T("FS"), gui_fullscreen);
 	}
 }

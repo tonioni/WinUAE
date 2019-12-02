@@ -2344,6 +2344,8 @@ static void allocate_memory (void)
 
 	if (savestate_state == STATE_RESTORE) {
 		if (bootrom_filepos) {
+			if (currprefs.uaeboard <= 0)
+				currprefs.uaeboard = 1;
 			protect_roms (false);
 			restore_ram (bootrom_filepos, rtarea_bank.baseaddr);
 			protect_roms (true);

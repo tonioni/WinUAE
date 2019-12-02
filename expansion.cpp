@@ -52,6 +52,7 @@
 
 #define CARD_FLAG_CAN_Z3 1
 #define CARD_FLAG_CHILD 8
+#define CARD_FLAG_UAEROM 16
 
 // More information in first revision HRM Appendix_G
 #define BOARD_PROTOAUTOCONFIG 1
@@ -3556,21 +3557,21 @@ static void expansion_add_autoconfig(struct uae_prefs *p)
 
 #ifdef FILESYS
 	if (do_mount && p->uaeboard >= 0 && p->uaeboard < 2) {
-		cards_set[cardno].flags = 0;
+		cards_set[cardno].flags = CARD_FLAG_UAEROM;
 		cards_set[cardno].name = _T("UAEFS");
 		cards_set[cardno].zorro = 2;
 		cards_set[cardno].initnum = expamem_init_filesys;
 		cards_set[cardno++].map = expamem_map_filesys;
 	}
 	if (p->uaeboard > 0) {
-		cards_set[cardno].flags = 0;
+		cards_set[cardno].flags = CARD_FLAG_UAEROM;
 		cards_set[cardno].name = _T("UAEBOARD");
 		cards_set[cardno].zorro = 2;
 		cards_set[cardno].initnum = expamem_init_uaeboard;
 		cards_set[cardno++].map = expamem_map_uaeboard;
 	}
 	if (do_mount && p->uaeboard < 2) {
-		cards_set[cardno].flags = 0;
+		cards_set[cardno].flags = CARD_FLAG_UAEROM;
 		cards_set[cardno].name = _T("UAEBOOTROM");
 		cards_set[cardno].zorro = BOARD_NONAUTOCONFIG_BEFORE;
 		cards_set[cardno].initnum = expamem_rtarea_init;
@@ -3985,6 +3986,9 @@ uae_u8 *restore_expansion_boards(uae_u8 *src)
 {
 	if (!src) {
 		restore_cardno = 0;
+#if 0
+		currprefs.uaeboard = changed_prefs.uaeboard = -1;
+#endif
 		return NULL;
 	}
 	TCHAR *s;
@@ -4005,7 +4009,23 @@ uae_u8 *restore_expansion_boards(uae_u8 *src)
 	for (int j = 0; j < 16; j++) {
 		ec->aci.autoconfig_bytes[j] = restore_u8();
 	}
-
+#if 0
+	if (ec->flags & CARD_FLAG_UAEROM) {
+		if (ec->base >= 0xe90000 && ec->base < 0xf00000) {
+			if (ec->size > 65536) {
+				currprefs.uaeboard = changed_prefs.uaeboard = 2;
+			} else {
+				if (currprefs.uaeboard < 0) {
+					currprefs.uaeboard = changed_prefs.uaeboard = 0;
+				} else {
+					currprefs.uaeboard = changed_prefs.uaeboard = 1;
+				}
+			}
+		} else {
+			currprefs.uaeboard = changed_prefs.uaeboard = 0;
+		}
+	}
+#endif
 	uae_u32 dev_num = 0;
 	uae_u32 romtype = restore_u32();
 	if (romtype != 0xffffffff) {
@@ -4101,12 +4121,15 @@ void restore_expansion_finish(void)
 		struct card_data *ec = &cards_set[i];
 		cards[i] = ec;
 		struct romconfig *rc = ec->rc;
+		expamem_board_pointer = ec->base;
 		// Handle only IO boards, RAM boards are handled differently
+		ec->aci.doinit = false;
+		ec->aci.start = ec->base;
+		ec->aci.size = ec->size;
+		ec->aci.prefs = &currprefs;
+		ec->aci.ert = ec->ert;
+		ec->aci.rc = rc;
 		if (rc && ec->ert) {
-			ec->aci.doinit = false;
-			ec->aci.start = ec->base;
-			ec->aci.size = ec->size;
-			ec->aci.prefs = &currprefs;
 			_tcscpy(ec->aci.name, ec->ert->friendlyname);
 			if (ec->ert->init) {
 				if (ec->ert->init(&ec->aci)) {

@@ -5521,16 +5521,19 @@ static void WIN32_HandleRegistryStuff (void)
 	size = sizeof (version) / sizeof (TCHAR);
 	if (regquerystr (NULL, _T("Version"), version, &size)) {
 		int ver = 0;
-		if (checkversion (version, &ver))
-			regsetstr (NULL, _T("Version"), VersionStr);
-		// Reset GUI setting if pre-4.3.0
-		if (ver > 0x030000 && ver < 0x040300) {
-			regdelete(NULL, _T("GUISizeX"));
-			regdelete(NULL, _T("GUISizeY"));
-			regdelete(NULL, _T("GUISizeFWX"));
-			regdelete(NULL, _T("GUISizeFWY"));
-			regdelete(NULL, _T("GUISizeFSX"));
-			regdelete(NULL, _T("GUISizeFSY"));
+		if (checkversion(version, &ver)) {
+			regsetstr(NULL, _T("Version"), VersionStr);
+			// Reset GUI setting if pre-4.3.0
+			if (ver > 0x030000 && ver < 0x040300) {
+				regdelete(NULL, _T("GUISizeX"));
+				regdelete(NULL, _T("GUISizeY"));
+				regdelete(NULL, _T("GUISizeFWX"));
+				regdelete(NULL, _T("GUISizeFWY"));
+				regdelete(NULL, _T("GUISizeFSX"));
+				regdelete(NULL, _T("GUISizeFSY"));
+				regdelete(NULL, _T("GUIFont"));
+				regdelete(NULL, _T("GUIListFont"));
+			}
 		}
 	} else {
 		regsetstr (NULL, _T("Version"), VersionStr);

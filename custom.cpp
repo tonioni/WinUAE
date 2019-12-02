@@ -2187,7 +2187,7 @@ static int flush_plane_data_n(int fm)
 		toscr_1(32 - out_nbits, fm);
 	}
 
-	for (int j = 0; j < (fmode == 2 ? 3 : 1); j++) {
+	for (int j = 0; j < (fm == 2 ? 3 : 1); j++) {
 		if (out_offs >= MAX_WORDS_PER_LINE / 4 - 1)
 			break;
 		i += 32;

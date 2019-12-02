@@ -140,7 +140,7 @@ static const struct gfxboard boards[] =
 	{
 		_T("Piccolo SD64 Zorro III"), _T("Ingenieurbüro Helfrich"), _T("PiccoloSD64_Z3"),
 		BOARD_MANUFACTURER_PICCOLO, BOARD_MODEL_MEMORY_PICCOLO64, BOARD_MODEL_REGISTERS_PICCOLO64,
-		0x00000000, 0x00200000, 0x00400000, 0x04000000, CIRRUS_ID_CLGD5434, 3, 6, true
+		0x00000000, 0x00200000, 0x00400000, 0x01000000, CIRRUS_ID_CLGD5434, 3, 6, true
 	},
 	{
 		_T("Spectrum 28/24 Zorro II"), _T("Great Valley Products"), _T("Spectrum28/24_Z2"),
@@ -162,7 +162,7 @@ static const struct gfxboard boards[] =
 		// REG:00600000 IO:00200000 VRAM:01000000
 		_T("Picasso IV Zorro III"), _T("Village Tronic"), _T("PicassoIV_Z3"),
 		BOARD_MANUFACTURER_PICASSO, BOARD_MODEL_MEMORY_PICASSOIV, 0,
-		0x00000000, 0x00400000, 0x00400000, 0x04000000, CIRRUS_ID_CLGD5446, 3, 2, false,
+		0x00000000, 0x00400000, 0x00400000, 0x02000000, CIRRUS_ID_CLGD5446, 3, 2, false,
 		ROMTYPE_PICASSOIV
 	},
 	{
