@@ -2106,9 +2106,10 @@ static int create_ea_exact(uae_u16 *opcodep, uaecptr pc, int mode, int reg, stru
 		break;
 	case imm0:
 	{
+		uae_u16 v;
 		if (srcdst)
 			return -2;
-		uae_u16 v = rand16();
+		v = rand16();
 		if ((imm8_cnt & 3) == 0)
 			v &= 0xff;
 		imm8_cnt++;
@@ -2117,19 +2118,58 @@ static int create_ea_exact(uae_u16 *opcodep, uaecptr pc, int mode, int reg, stru
 	}
 	case imm1:
 	{
-		if (srcdst)
+		bool vgot = false;
+		uae_u16 v;
+		if (srcdst && dp->mnemo != i_DBcc)
 			return -2;
-		uae_u16 v = rand16();
+		if (dp->mnemo == i_DBcc || dp->mnemo == i_BSR || dp->mnemo == i_Bcc) {
+			uae_u32 pct = pc + 2 - 2;
+			if (target <= pct + 0x7ffe && target >= pct - 0x8000) {
+				v = target - pct;
+				*eap = target;
+				vgot = true;
+			} else {
+				return -2;
+			}
+		}
+		if (!vgot)
+			v = rand16();
 		put_word_test(pc, v);
 		return 2;
 	}
 	case imm2:
 	{
+		bool vgot = false;
+		uae_u32 v;
 		if (srcdst)
 			return -2;
-		uae_u32 v = rand32();
+		if (dp->mnemo == i_BSR || dp->mnemo == i_Bcc) {
+			if (currprefs.cpu_model < 68020)
+				return -2;
+			uae_u32 pct = pc + 2 - 2;
+			v = target - pct;
+			*eap = target;
+			vgot = true;
+		}
+		if (!vgot) {
+			v = rand32();
+		}
 		put_long_test(pc, v);
 		return 4;
+	}
+	case immi:
+	{
+		uae_u8 v = (*opcodep) & 0xff;
+		if (srcdst)
+			return -2;
+		if (dp->mnemo == i_BSR || dp->mnemo == i_Bcc) {
+			uae_u32 pct = pc - 2 + 2;
+			if (pct + v == target) {
+				*eap = target;
+				return 0;
+			}
+		}
+		return -2;
 	}
 	}
 	return -2;
@@ -2423,8 +2463,8 @@ static void execute_ins(uae_u16 opc, uaecptr endpc, uaecptr targetpc, struct ins
 {
 	uae_u16 opw1 = (opcode_memory[2] << 8) | (opcode_memory[3] << 0);
 	uae_u16 opw2 = (opcode_memory[4] << 8) | (opcode_memory[5] << 0);
-	if (opc == 0x4ea9
-		&& opw1 == 0xffff
+	if (opc == 0x6200
+		//&& opw1 == 0xffff
 		//&& opw2 == 0xf78c
 		)
 		printf("");
@@ -2519,7 +2559,7 @@ static void execute_ins(uae_u16 opc, uaecptr endpc, uaecptr targetpc, struct ins
 		if (!valid_address(regs.pc, 2, 0))
 			break;
 
-		if (targetpc != 0xffffffff && regs.pc + 2 == targetpc) {
+		if (targetpc != 0xffffffff && (regs.pc + 2 == targetpc || regs.pc + 2 == endpc)) {
 			// trace after jumping to branch target
 			// and opcode was NOP
 			if (SPCFLAG_DOTRACE) {
@@ -2970,6 +3010,13 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 		uae_u32 dstaddr = 0xffffffff;
 		uae_u32 branchtarget_old = 0xffffffff;
 
+		if (verbose) {
+			if (target_ea[0] != 0xffffffff)
+				wprintf(_T("Targeat EA SRC=%08x\n"), target_ea[0]);
+			if (target_ea[1] != 0xffffffff)
+				wprintf(_T("Targeat EA DST=%08x\n"), target_ea[1]);
+		}
+
 		for (int opcode = 0; opcode < 65536; opcode++) {
 
 			struct instr *dp = table68k + opcode;
@@ -3294,12 +3341,10 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 								branch_target_swap_address = srcaddr;
 								branch_target_swap_mode = 1;
 								put_long_test(srcaddr, branch_target_data);
-							} else {
-								if (!is_nowrite_address(srcaddr, 2)) {
-									put_word_test(srcaddr, branch_target_data >> 16);
-									branch_target_swap_address = srcaddr;
-									branch_target_swap_mode = 2;
-								}
+							} else if (!is_nowrite_address(srcaddr, 2)) {
+								put_word_test(srcaddr, branch_target_data >> 16);
+								branch_target_swap_address = srcaddr;
+								branch_target_swap_mode = 2;
 							}
 							branch_target = srcaddr;
 							dst = store_mem(dst, 1);
@@ -3410,6 +3455,8 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 									put_word_test(branch_target_swap_address, branch_target_data >> 16);
 								}
 								noaccesshistory--;
+							} else {
+								branch_target_pc = branch_target;
 							}
 
 							regs.pc = opcode_memory_start;
@@ -4139,7 +4186,7 @@ int __cdecl main(int argc, char *argv[])
 	}
 
 	v = 0;
-	if (ini_getval(ini, INISECTION, _T("feature_opcode_memory"), &v)) {
+	if (ini_getval(ini, INISECTION, _T("opcode_memory_start"), &v)) {
 		opcode_memory_start = v;
 		opcode_memory = test_memory + (opcode_memory_start - test_memory_start);
 	} else {
@@ -4154,8 +4201,8 @@ int __cdecl main(int argc, char *argv[])
 		super_stack_memory = v;
 		user_stack_memory = super_stack_memory - (RESERVED_SUPERSTACK + RESERVED_USERSTACK_EXTRA);
 	} else {
-		super_stack_memory = test_memory_end;
-		user_stack_memory = test_memory_end - (RESERVED_SUPERSTACK + RESERVED_USERSTACK_EXTRA);
+		super_stack_memory = test_memory_start + (2 * RESERVED_SUPERSTACK + RESERVED_USERSTACK_EXTRA);
+		user_stack_memory = test_memory_start + RESERVED_SUPERSTACK;
 	}
 
 	low_memory_size = test_low_memory_end;
