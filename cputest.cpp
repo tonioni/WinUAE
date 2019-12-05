@@ -1253,7 +1253,7 @@ static uae_u8 *store_fpureg(uae_u8 *dst, uae_u8 mode, floatx80 d)
 
 static uae_u8 *store_reg(uae_u8 *dst, uae_u8 mode, uae_u32 s, uae_u32 d, int size)
 {
-	if (s == d && size < 0)
+	if (s == d && size == -1)
 		return dst;
 	if (((s & 0xffffff00) == (d & 0xffffff00) && size < 0) || size == sz_byte) {
 		*dst++ = mode | CT_SIZE_BYTE;
@@ -3012,6 +3012,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 		uae_u32 srcaddr = 0xffffffff;
 		uae_u32 dstaddr = 0xffffffff;
 		uae_u32 branchtarget_old = 0xffffffff;
+		int branch_target_swap_mode_old = 0;
 
 		if (verbose) {
 			if (target_ea[0] != 0xffffffff)
@@ -3098,7 +3099,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 					uae_u32 branch_target_data_original = 0x4afc4e71;
 					uae_u32 branch_target_data = branch_target_data_original;
 
-					out_of_test_space = 0;
+					out_of_test_space = 0; 
 					noaccesshistory = 0;
 					cpu_bus_error_fake = 0;
 					cpu_bus_error = 0;
@@ -3112,7 +3113,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 
 					if (opc == 0x4ed0)
 						printf("");
-					if (subtest_count == 2568)
+					if (subtest_count >= 28540)
 						printf("");
 
 
@@ -3333,7 +3334,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 							continue;
 						}				
 						testing_active = 1;
-						if (!valid_address(srcaddr, 2, 1)) {
+						if (!valid_address(srcaddr, 2, 1) || srcaddr + 2 == opcode_memory_start) {
 							if (verbose) {
 								wprintf(_T(" Branch target inaccessible\n"));
 							}
@@ -3367,10 +3368,11 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 						dst = store_reg(dst, CT_DSTADDR, dstaddr_old, dstaddr, -1);
 						dstaddr_old = dstaddr;
 					}
-					if (branch_target != branchtarget_old) {
-						dst = store_reg(dst, CT_BRANCHTARGET, branchtarget_old, branch_target, -1);
+					if (branch_target != branchtarget_old || branch_target_swap_mode != branch_target_swap_mode_old) {
+						dst = store_reg(dst, CT_BRANCHTARGET, branchtarget_old, branch_target, -2);
 						branchtarget_old = branch_target;
 						*dst++ = branch_target_swap_mode;
+						branch_target_swap_mode_old = branch_target_swap_mode;
 					}
 
 					*dst++ = CT_END_INIT;
@@ -3468,6 +3470,11 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 							regs.ir = get_word_test(regs.pc + 0);
 							regs.irc = get_word_test(regs.pc + 2);
 
+							if (regs.ir == 0x4afc && dp->mnemo != i_ILLG) {
+								wprintf(_T(" Illegal as starting opcode!?\n"));
+								abort();
+							}
+
 							// set up registers
 							for (int i = 0; i < MAX_REGISTERS; i++) {
 								regs.regs[i] = cur_registers[i];
@@ -3549,8 +3556,8 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 							} else if (test_exception) {
 								// generated exception
 								exception_array[test_exception]++;
-								if (test_exception == 8 && !(sr_mask & 0x2000)) {
-									// Privilege violation exception? Switch to super mode in next round.
+								if (test_exception == 8 && !(sr_mask & 0x2000) && !(feature_sr_mask & 0x2000)) {
+									// Privilege violation exception and S mask not set? Switch to super mode in next round.
 									sr_mask_request |= 0x2000;
 									sr_allowed_mask |= 0x2000;
 								}
@@ -3709,6 +3716,10 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 					if (dst - storage_buffer >= storage_buffer_watermark) {
 						if (subtest_count > 0) {
 							save_data(dst, dir);
+
+							branchtarget_old = 0xffffffff;
+							srcaddr_old = 0xffffffff;
+							dstaddr_old = 0xffffffff;
 						}
 						dst = storage_buffer;
 						for (int i = 0; i < MAX_REGISTERS; i++) {
@@ -4049,6 +4060,10 @@ int __cdecl main(int argc, char *argv[])
 	safe_memory_end = 0xffffffff;
 	if (ini_getval(ini, INISECTION, _T("feature_safe_memory_size"), &v))
 		safe_memory_end = safe_memory_start + v;
+	if (safe_memory_start == 0xffffffff || safe_memory_end == 0xffffffff) {
+		safe_memory_end = 0xffffffff;
+		safe_memory_start = 0xffffffff;
+	}
 	safe_memory_mode = 3;
 	if (ini_getstring(ini, INISECTION, _T("feature_safe_memory_mode"), &vs)) {
 		safe_memory_mode = 0;

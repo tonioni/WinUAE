@@ -953,7 +953,6 @@ static void addinfo(void)
 
 	if (regs.branchtarget != 0xffffffff) {
 		out_disasm((uae_u8*)regs.branchtarget);
-
 	}
 
 	uae_u16 *code = (uae_u16*)opcode_memory;
@@ -976,6 +975,10 @@ static void addinfo(void)
 		if (addr_diff(a, b, SIZE_STORED_ADDRESS)) {
 			addinfo_bytes(" ", b, regs.dstaddr, -SIZE_STORED_ADDRESS_OFFSET, SIZE_STORED_ADDRESS);
 		}
+	}
+	if (regs.branchtarget != 0xffffffff && regs.srcaddr != regs.branchtarget && regs.dstaddr != regs.branchtarget) {
+		uae_u8 *b = (uae_u8 *)regs.branchtarget - SIZE_STORED_ADDRESS_OFFSET;
+		addinfo_bytes("B", b, regs.branchtarget, -SIZE_STORED_ADDRESS_OFFSET, SIZE_STORED_ADDRESS);
 	}
 }
 
