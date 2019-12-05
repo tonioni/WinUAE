@@ -4818,6 +4818,7 @@ static void gen_opcode (unsigned int opcode)
 			genamode (NULL, Aipi, "7", sz_long, "pc", 1, 0, GF_NOREFILL);
 			printf("\tuaecptr oldpc = %s;\n", getpc);
 			printf ("\tregs.sr = sr;\n");
+			makefromsr_t0();
 			printf ("\tif (pc & 1) {\n");
 			printf ("\t\texception3i (0x%04X, pc);\n", opcode);
 			printf ("\t\tgoto %s;\n", endlabelstr);
@@ -4956,7 +4957,11 @@ static void gen_opcode (unsigned int opcode)
 		/* PC is set and prefetch filled. */
 		clear_m68k_offset();
 		tail_ce020_done = true;
-		fill_prefetch_full_ntx();
+		if (using_ce || using_prefetch) {
+			fill_prefetch_full_000_special();
+		} else {
+			fill_prefetch_full_ntx();
+		}
 		branch_inst = 1;
 		next_cpu_level = cpu_level - 1;
 		break;

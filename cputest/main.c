@@ -907,23 +907,31 @@ static void out_disasm(uae_u8 *mem)
 	int offset = 0;
 	int lines = 0;
 	while (lines++ < 10) {
+		int v = 0;
 		if (!is_valid_test_addr((uae_u32)p) || !is_valid_test_addr((uae_u32)p + 1))
 			break;
 		tmpbuffer[0] = 0;
-		int v = disasm_instr(code + offset, tmpbuffer);
-		for (int i = 0; i < v; i++) {
-			uae_u16 v = (p[i * 2 + 0] << 8) | (p[i * 2 + 1]);
-			sprintf(outbp, "%s %08lx %04x", i ? " " : (lines == 0 ? "\t\t" : "\t"), &p[i * 2], v);
+		if (!(((uae_u32)code) & 1)) {
+			v = disasm_instr(code + offset, tmpbuffer);
+			for (int i = 0; i < v; i++) {
+				uae_u16 v = (p[i * 2 + 0] << 8) | (p[i * 2 + 1]);
+				sprintf(outbp, "%s %08lx %04x", i ? " " : (lines == 0 ? "\t\t" : "\t"), &p[i * 2], v);
+				outbp += strlen(outbp);
+			}
+			sprintf(outbp, " %s\n", tmpbuffer);
 			outbp += strlen(outbp);
-		}
-		sprintf(outbp, " %s\n", tmpbuffer);
-		outbp += strlen(outbp);
-		if (v <= 0 || code[offset] == 0x4afc)
-			break;
-		while (v > 0) {
-			offset++;
-			p += 2;
-			v--;
+			if (v <= 0 || code[offset] == 0x4afc)
+				break;
+			while (v > 0) {
+				offset++;
+				p += 2;
+				v--;
+			}
+		} else {
+			sprintf(outbp, "\t %08lx %02x\n", code, *((uae_u8*)code));
+			code = (uae_u16*)(((uae_u32)code) + 1);
+			p++;
+			outbp += strlen(outbp);
 		}
 		if (v < 0)
 			break;
@@ -949,7 +957,7 @@ static void addinfo(void)
 	}
 
 	uae_u16 *code = (uae_u16*)opcode_memory;
-	if (code[0] == 0x4e73 || code[0] == 0x4e74 || code[0] == 0x4e75) {
+	if (code[0] == 0x4e73 || code[0] == 0x4e74 || code[0] == 0x4e75 || code[0] == 0x4e77) {
 		addinfo_bytes("P", stackaddr, stackaddr_ptr, -SIZE_STORED_ADDRESS_OFFSET, SIZE_STORED_ADDRESS);
 		addinfo_bytes(" ", (uae_u8 *)stackaddr_ptr - SIZE_STORED_ADDRESS_OFFSET, stackaddr_ptr, -SIZE_STORED_ADDRESS_OFFSET, SIZE_STORED_ADDRESS);
 	}
@@ -1141,13 +1149,13 @@ static uae_u8 *validate_exception(struct registers *regs, uae_u8 *p, int excnum,
 				v = opcode_memory_addr;
 				p = restore_rel_ordered(p, &v);
 				if (vsr != sr) {
-					sprintf(outbp, "Trace (non-stacked) SR mismatch: %04x != %04x\n", sr, vsr);
+					sprintf(outbp, "Trace (non-stacked) SR mismatch: %04x != %04x (PC=%08lx)\n", sr, vsr, v);
 					outbp += strlen(outbp);
 					errors = 1;
 					*experr = 1;
 				}
 				if (v != ret) {
-					sprintf(outbp, "Trace (non-stacked) PC mismatch: %08lx != %08lx\n", ret, v);
+					sprintf(outbp, "Trace (non-stacked) PC mismatch: %08lx != %08lx (SR=%04x)\n", ret, v, vsr);
 					outbp += strlen(outbp);
 					errors = 1;
 					*experr = 1;
@@ -1455,8 +1463,6 @@ static uae_u8 *validate_test(uae_u8 *p, int ignore_errors, int ignore_sr)
 			sr_changed = 0;
 			last_registers.sr = val;
 		} else if (mode == CT_PC) {
-			volatile uae_u16 *c = (volatile uae_u16 *)0x100;
-			*c = 0x1234;
 			uae_u32 val = last_registers.pc;
 			p = restore_rel(p, &val, 0);
 			pc_changed = 0;
@@ -1846,15 +1852,13 @@ static void process_test(uae_u8 *p)
 
 					p = validate_test(p, ignore_errors, ignore_sr);
 
+					testcnt++;
 					if (super)
 						supercnt++;
 
 					last_pc = last_registers.pc;
 					last_fpiar = last_registers.fpiar;
-
 				}
-
-				testcnt++;
 
 				if (testexit()) {
 					end_test();

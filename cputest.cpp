@@ -240,7 +240,7 @@ static void validate_addr(uaecptr addr, int size)
 {
 	if (valid_address(addr, size, 0))
 		return;
-	wprintf(_T("Trying to store invalid memory address %08x!?\n"), addr);
+	wprintf(_T(" Trying to store invalid memory address %08x!?\n"), addr);
 	abort();
 }
 
@@ -341,7 +341,7 @@ void put_byte_test(uaecptr addr, uae_u32 v)
 	if (!out_of_test_space && !noaccesshistory && !cpu_bus_error_fake) {
 		previoussame(addr, sz_byte);
 		if (ahcnt >= MAX_ACCESSHIST) {
-			wprintf(_T("ahist overflow!"));
+			wprintf(_T(" ahist overflow!"));
 			abort();
 		}
 		struct accesshistory *ah = &ahist[ahcnt++];
@@ -364,7 +364,7 @@ void put_word_test(uaecptr addr, uae_u32 v)
 		if (!out_of_test_space && !noaccesshistory && !cpu_bus_error_fake) {
 			previoussame(addr, sz_word);
 			if (ahcnt >= MAX_ACCESSHIST) {
-				wprintf(_T("ahist overflow!"));
+				wprintf(_T(" ahist overflow!"));
 				abort();
 			}
 			struct accesshistory *ah = &ahist[ahcnt++];
@@ -393,7 +393,7 @@ void put_long_test(uaecptr addr, uae_u32 v)
 		if (!out_of_test_space && !noaccesshistory && !cpu_bus_error_fake) {
 			previoussame(addr, sz_long);
 			if (ahcnt >= MAX_ACCESSHIST) {
-				wprintf(_T("ahist overflow!"));
+				wprintf(_T(" ahist overflow!"));
 				abort();
 			}
 			struct accesshistory *ah = &ahist[ahcnt++];
@@ -432,7 +432,7 @@ static void undo_memory(struct accesshistory *ahp, int  *cntp)
 	}
 	noaccesshistory = 0;
 	if (out_of_test_space) {
-		wprintf(_T("undo_memory out of test space fault!?\n"));
+		wprintf(_T(" undo_memory out of test space fault!?\n"));
 		abort();
 	}
 }
@@ -1277,7 +1277,7 @@ static uae_u8 *store_mem_bytes(uae_u8 *dst, uaecptr start, int len, uae_u8 *old)
 	if (!len)
 		return dst;
 	if (len > 32) {
-		wprintf(_T("too long byte count!\n"));
+		wprintf(_T(" too long byte count!\n"));
 		abort();
 	}
 	uaecptr oldstart = start;
@@ -2329,26 +2329,31 @@ static uaecptr handle_specials_extra(uae_u16 opcode, uaecptr pc, struct instr *d
 
 static uae_u32 generate_stack_return(int cnt)
 {
-	uae_u32 v = rand32();
-	switch (cnt & 3)
-	{
-	case 0:
-	case 3:
-		v = opcode_memory_start + 128;
-		break;
-	case 1:
-		v &= 0xffff;
-		if (test_low_memory_start == 0xffffffff)
-			v |= 0x8000;
-		if (test_high_memory_start == 0xffffffff)
-			v &= 0x7fff;
-		break;
-	case 2:
-		v = opcode_memory_start + (uae_s16)v;
-		break;
+	uae_u32 v;
+	if (target_ea[0] != 0xffffffff) {
+		v = target_ea[0];
+	} else {
+		v = rand32();
+		switch (cnt & 3)
+		{
+		case 0:
+		case 3:
+			v = opcode_memory_start + 128;
+			break;
+		case 1:
+			v &= 0xffff;
+			if (test_low_memory_start == 0xffffffff)
+				v |= 0x8000;
+			if (test_high_memory_start == 0xffffffff)
+				v &= 0x7fff;
+			break;
+		case 2:
+			v = opcode_memory_start + (uae_s16)v;
+			break;
+		}
+		if (!feature_exception3_instruction)
+			v &= ~1;
 	}
-	if (!feature_exception3_instruction)
-		v &= ~1;
 	return v;
 }
 
@@ -2452,7 +2457,7 @@ static int handle_specials_stack(uae_u16 opcode, uaecptr pc, struct instr *dp, i
 		v = generate_stack_return(imm_special);
 		put_long_test(addr, v);
 		if (out_of_test_space) {
-			wprintf(_T("handle_specials out of bounds access!?"));
+			wprintf(_T(" handle_specials out of bounds access!?"));
 			abort();
 		}
 	}
@@ -2463,8 +2468,8 @@ static void execute_ins(uae_u16 opc, uaecptr endpc, uaecptr targetpc, struct ins
 {
 	uae_u16 opw1 = (opcode_memory[2] << 8) | (opcode_memory[3] << 0);
 	uae_u16 opw2 = (opcode_memory[4] << 8) | (opcode_memory[5] << 0);
-	if (opc == 0x6200
-		//&& opw1 == 0xffff
+	if (opc == 0x4e72
+		&& opw1 == 0xb000
 		//&& opw2 == 0xf78c
 		)
 		printf("");
@@ -2510,7 +2515,7 @@ static void execute_ins(uae_u16 opc, uaecptr endpc, uaecptr targetpc, struct ins
 
 		(*cpufunctbl[opc])(opc);
 
-		if (out_of_test_space) {
+		if (out_of_test_space || cpu_stopped) {
 			break;
 		}
 
@@ -2559,27 +2564,25 @@ static void execute_ins(uae_u16 opc, uaecptr endpc, uaecptr targetpc, struct ins
 		if (!valid_address(regs.pc, 2, 0))
 			break;
 
-		if (targetpc != 0xffffffff && (regs.pc + 2 == targetpc || regs.pc + 2 == endpc)) {
-			// trace after jumping to branch target
-			// and opcode was NOP
+		if (!feature_loop_mode) {
+			// trace after NOP
 			if (SPCFLAG_DOTRACE) {
+				if (trace_store_pc != 0xffffffff) {
+					wprintf(_T(" Stand-alone trace detected twice!\n"));
+					abort();
+				}
+				MakeSR();
 				trace_store_pc = regs.pc;
 				trace_store_sr = regs.sr;
 				SPCFLAG_DOTRACE = 0;
+				// STOP can only end with exception, fake prefetch here.
+				if (dp->mnemo == i_STOP) {
+					regs.ir = get_word_test(regs.pc + 0);
+					regs.irc = get_word_test(regs.pc + 2);
+				}
 			}
 			opc = regs.ir;
 			continue;
-		}
-
-		if (SPCFLAG_DOTRACE) {
-			wprintf(_T("Trace not supported in loop mode\n"));
-			abort();
-		}
-
-		if (cpu_lvl < 2) {
-			opc = get_word_test_prefetch(2);
-		} else {
-			opc = get_word_test_prefetch(0);
 		}
 
 		cnt--;
@@ -2742,7 +2745,7 @@ static uae_u8 *save_exception(uae_u8 *p, struct instr *dp)
 			exception_stack_frame_size = 0x08;
 			break;
 		default:
-			wprintf(_T("Unknown frame %04x!\n"), frame);
+			wprintf(_T(" Unknown frame %04x!\n"), frame);
 			abort();
 		}
 	}
@@ -3087,6 +3090,8 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 					int isconstant_dst = 0;
 					int did_out_of_bounds = 0;
 					uae_u8 *prev_dst2 = dst;
+					int prev_test_count = test_count;
+					int prev_subtest_count = subtest_count;
 
 					uae_u32 branch_target_swap_address = 0;
 					int branch_target_swap_mode = 0;
@@ -3181,7 +3186,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 						}
 
 						// requested target address but no EA? skip
-						if (target_address != 0xffffffff) {
+						if (target_address != 0xffffffff && !isbranchinst(dp)) {
 							if (srcea != target_address && dstea != target_address) {
 								memcpy(opcode_memory, oldbytes, sizeof(oldbytes));
 								continue;
@@ -3248,7 +3253,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 					}
 
 					if (out_of_test_space) {
-						wprintf(_T("Setting up test instruction generated out of bounds error!?\n"));
+						wprintf(_T( "Setting up test instruction generated out of bounds error!?\n"));
 						abort();
 					}
 
@@ -3275,11 +3280,11 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 					}
 
 					if ((dflags & 1) && target_ea[0] != 0xffffffff && srcaddr != 0xffffffff && srcaddr != target_ea[0]) {
-						wprintf(_T("\nSource address mismatch %08x <> %08x\n"), target_ea[0], srcaddr);
+						wprintf(_T(" Source address mismatch %08x <> %08x\n"), target_ea[0], srcaddr);
 						abort();
 					}
 					if ((dflags & 2) && target_ea[1] != 0xffffffff && dstaddr != target_ea[1]) {
-						wprintf(_T("\nDestination address mismatch %08x <> %08x\n"), target_ea[1], dstaddr);
+						wprintf(_T(" Destination address mismatch %08x <> %08x\n"), target_ea[1], dstaddr);
 						abort();
 					}
 
@@ -3295,7 +3300,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 #if 0
 					// can't test because dp may be empty if instruction is invalid
 					if (nextpc != pc - 2) {
-						wprintf(_T("Disassembler/generator instruction length mismatch!\n"));
+						wprintf(_T(" Disassembler/generator instruction length mismatch!\n"));
 						abort();
 					}
 #endif
@@ -3514,7 +3519,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 							if (regs.sr & 0x2000)
 								prev_s_cnt++;
 
-							if (subtest_count == 220)
+							if (subtest_count == 2052)
 								printf("");
 
 							execute_ins(opc, pc - endopcodesize, branch_target_pc, dp);
@@ -3573,7 +3578,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 								// validate branch instructions
 								if (isbranchinst(dp)) {
 									if ((regs.pc != branch_target_pc && regs.pc != pc - endopcodesize) || ((pcaddr[0] != 0x4a && pcaddr[1] != 0xfc) && (pcaddr[0] != 0x4e && pcaddr[1] != 0x71))) {
-										wprintf(_T("Branch instruction target fault\n"));
+										wprintf(_T(" Branch instruction target fault\n"));
 										abort();
 									}
 								}
@@ -3581,7 +3586,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 
 							noaccesshistory++;
 							put_long_test(pc - 4, originalendopcode);
-							if (branch_target_data != 0xffffff) {
+							if (branch_target_swap_mode) {
 								if (branch_target_swap_address == 1) {
 									put_long_test(branch_target_swap_address, branch_target_data_original);
 								} else if (branch_target_swap_mode == 2) {
@@ -3592,8 +3597,8 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 
 							MakeSR();
 
-							if (SPCFLAG_DOTRACE && trace_store_pc != 0xffffffff) {
-								wprintf(_T("Trace and stored trace at the same time!\n"));
+							if (SPCFLAG_DOTRACE && test_exception_extra) {
+								wprintf(_T(" Trace and stored trace at the same time!\n"));
 								abort();
 							}
 
@@ -3689,6 +3694,8 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 						dst = prev_dst2;
 						//*dst++ = CT_END_INIT;
 						memcpy(opcode_memory, oldbytes, sizeof(oldbytes));
+						test_count = prev_test_count;
+						subtest_count = prev_subtest_count;
 					} else {
 						full_format_cnt++;
 					}
