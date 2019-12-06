@@ -2468,8 +2468,8 @@ static void execute_ins(uae_u16 opc, uaecptr endpc, uaecptr targetpc, struct ins
 {
 	uae_u16 opw1 = (opcode_memory[2] << 8) | (opcode_memory[3] << 0);
 	uae_u16 opw2 = (opcode_memory[4] << 8) | (opcode_memory[5] << 0);
-	if (opc == 0x4e72
-		&& opw1 == 0xb000
+	if (opc == 0x4a10
+		//&& opw1 == 0xb000
 		//&& opw2 == 0xf78c
 		)
 		printf("");
@@ -2567,19 +2567,22 @@ static void execute_ins(uae_u16 opc, uaecptr endpc, uaecptr targetpc, struct ins
 		if (!feature_loop_mode) {
 			// trace after NOP
 			if (SPCFLAG_DOTRACE) {
-				if (trace_store_pc != 0xffffffff) {
-					wprintf(_T(" Stand-alone trace detected twice!\n"));
-					abort();
-				}
 				MakeSR();
-				trace_store_pc = regs.pc;
-				trace_store_sr = regs.sr;
-				SPCFLAG_DOTRACE = 0;
+				// store only first
+				if (trace_store_pc == 0xffffffff) {
+					trace_store_pc = regs.pc;
+					trace_store_sr = regs.sr;
+					SPCFLAG_DOTRACE = 0;
+				}
 				// STOP can only end with exception, fake prefetch here.
 				if (dp->mnemo == i_STOP) {
 					regs.ir = get_word_test(regs.pc + 0);
 					regs.irc = get_word_test(regs.pc + 2);
 				}
+			}
+			if (currprefs.cpu_model >= 68020) {
+				regs.ir = get_word_test(regs.pc + 0);
+				regs.irc = get_word_test(regs.pc + 2);
 			}
 			opc = regs.ir;
 			continue;
@@ -3123,7 +3126,6 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 
 						pc += handle_specials_preea(opc, pc, dp);
 
-
 						uae_u32 srcea = 0xffffffff;
 						uae_u32 dstea = 0xffffffff;
 
@@ -3187,7 +3189,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 						}
 
 						// requested target address but no EA? skip
-						if (target_address != 0xffffffff && !isbranchinst(dp)) {
+						if (target_address != 0xffffffff) {
 							if (srcea != target_address && dstea != target_address) {
 								memcpy(opcode_memory, oldbytes, sizeof(oldbytes));
 								continue;
@@ -3282,11 +3284,11 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 
 					if ((dflags & 1) && target_ea[0] != 0xffffffff && srcaddr != 0xffffffff && srcaddr != target_ea[0]) {
 						wprintf(_T(" Source address mismatch %08x <> %08x\n"), target_ea[0], srcaddr);
-						abort();
+						continue;;
 					}
 					if ((dflags & 2) && target_ea[1] != 0xffffffff && dstaddr != target_ea[1]) {
 						wprintf(_T(" Destination address mismatch %08x <> %08x\n"), target_ea[1], dstaddr);
-						abort();
+						continue;;
 					}
 
 					if ((dflags & 1) && target_ea[0] == 0xffffffff && (srcaddr & addressing_mask) >= safe_memory_start - 4 && (srcaddr & addressing_mask) < safe_memory_end + 4) {
@@ -3602,8 +3604,6 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 							}
 							noaccesshistory--;
 
-							MakeSR();
-
 							if (SPCFLAG_DOTRACE && test_exception_extra) {
 								wprintf(_T(" Trace and stored trace at the same time!\n"));
 								abort();
@@ -3611,18 +3611,16 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 
 							// did we have trace also active?
 							if (SPCFLAG_DOTRACE) {
-								if (regs.t1 && (test_exception == 5 || test_exception == 6 || test_exception == 7 || (test_exception >= 32 && test_exception <= 47))) {
+								if ((regs.t1 || regs.t0) && (test_exception == 5 || test_exception == 6 || test_exception == 7 || (test_exception >= 32 && test_exception <= 47))) {
 									test_exception_extra = 9;
 								} else {
 									test_exception_extra = 0;
 								}
-								// clear trace
-								regs.t0 = 0;
-								regs.t1 = 0;
 							}
 							if (trace_store_pc != 0xffffffff) {
 								test_exception_extra = 9 | 0x80;
 							}
+							MakeSR();
 
 							if (!skipped) {
 								bool storeregs = true;
@@ -3684,6 +3682,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 								ccr_done++;
 							} else {
 								*dst++ = CT_END_SKIP;
+								last_exception_len = -1;
 							}
 							undo_memory(ahist, &ahcnt);
 						}
@@ -3703,6 +3702,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 						memcpy(opcode_memory, oldbytes, sizeof(oldbytes));
 						test_count = prev_test_count;
 						subtest_count = prev_subtest_count;
+						last_exception_len = -1;
 					} else {
 						full_format_cnt++;
 					}

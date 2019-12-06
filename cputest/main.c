@@ -906,16 +906,18 @@ static void out_disasm(uae_u8 *mem)
 	uae_u8 *p = mem;
 	int offset = 0;
 	int lines = 0;
-	while (lines++ < 10) {
+	while (lines++ < 5) {
 		int v = 0;
 		if (!is_valid_test_addr((uae_u32)p) || !is_valid_test_addr((uae_u32)p + 1))
 			break;
 		tmpbuffer[0] = 0;
 		if (!(((uae_u32)code) & 1)) {
 			v = disasm_instr(code + offset, tmpbuffer);
+			sprintf(outbp, "%08lx ", p);
+			outbp += strlen(outbp);
 			for (int i = 0; i < v; i++) {
 				uae_u16 v = (p[i * 2 + 0] << 8) | (p[i * 2 + 1]);
-				sprintf(outbp, "%s %08lx %04x", i ? " " : (lines == 0 ? "\t\t" : "\t"), &p[i * 2], v);
+				sprintf(outbp, "%04x ", v);
 				outbp += strlen(outbp);
 			}
 			sprintf(outbp, " %s\n", tmpbuffer);
@@ -946,8 +948,6 @@ static void addinfo(void)
 	infoadded = 1;
 	if (!dooutput)
 		return;
-	sprintf(outbp, "%lu:", testcnt);
-	outbp += strlen(outbp);
 
 	out_disasm(opcode_memory);
 
@@ -1713,9 +1713,6 @@ static void process_test(uae_u8 *p)
 
 		int fpumode = fpu_model && (opcode_memory[0] & 0xf0) == 0xf0;
 
-		if (cpu_lvl >= 2)
-			flushcache(cpu_lvl);
-
 		uae_u32 pc = opcode_memory_addr;
 		uae_u32 originalopcodeend = 0x4afc4e71;
 		uae_u8 *opcode_memory_end = (uae_u8*)pc;
@@ -1730,7 +1727,6 @@ static void process_test(uae_u8 *p)
 			}
 		}
 		uae_u32 opcodeend = originalopcodeend;
-
 		int extraccr = 0;
 
 		uae_u32 last_pc = opcode_memory_addr;
@@ -1818,10 +1814,14 @@ static void process_test(uae_u8 *p)
 					if ((ccr_mask & ccr) || (ccr == 0)) {
 
 						reset_error_vectors();
-
+#if 0
+						volatile int *tn = (volatile int*)0x100;
+						*tn = testcnt;
+#endif
 						if (cpu_lvl == 1) {
 							execute_test010(&test_regs);
 						} else if (cpu_lvl >= 2) {
+							flushcache(cpu_lvl);
 							if (fpu_model)
 								execute_testfpu(&test_regs);
 							else
@@ -2084,6 +2084,7 @@ static int test_mnemo(const char *path, const char *opcode)
 		filecnt++;
 	}
 
+	printf("%lu ", testcnt);
 	printf("S=%ld", supercnt);
 	for (int i = 0; i < 128; i++) {
 		if (exceptioncount[i]) {

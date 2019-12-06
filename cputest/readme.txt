@@ -42,9 +42,9 @@ Notes and limitations:
 
 Tester compatibility (integer instructions only):
 
-68000: Complete. (Bus errors are not yet verified)
-68010: Not supported yet (Don't have real 68010, at least not yet).
-68020: Almost complete (DIVS.W/DIVS.L V-flag weirdness).
+68000: Complete. Bus errors are only supported partially.
+68010: Partially supported.
+68020: Almost complete (DIV undocumented behavior is not yet known)
 68030: Same as 68020.
 68040: Almost complete (Weird unaligned MOVE16 behavior which may be board specific).
 68060: Same as 68040.
@@ -88,6 +88,8 @@ Use "test_low_memory_start"/"test_high_memory_start" and "test_low_memory_end"/"
 "test_memory_start"/"test_memory_size" is the main test memory, tested instruction and stack is located here. Must be at least 128k but larger the size, the easier it is for the generator to find effective addresses that hit test memory. This memory space must be free on test target m68k hardware.
 
 All 3 memory regions (if RAM) are filled with pseudo-random pattern and saved as "lmem.dat", "hmem.dat" and "tmem.dat"
+
+Use feature_target_src_ea/feature_target_dst_ea=<one or more addresses separated by a comman> if you want generate test set that only uses listed addresses (of course instructions that can have memory source or destination EA are used). Useful for bus and address errors.
 
 Usage of Amiga m68k native test program:
 
