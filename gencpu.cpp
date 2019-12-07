@@ -936,6 +936,22 @@ static void fill_prefetch_next (void)
 //	}
 }
 
+static void fill_prefetch_next_skipopcode(void)
+{
+	if (using_prefetch) {
+		irc2ir();
+		if (using_bus_error) {
+			printf("\topcode |= 0x20000;\n");
+		}
+		fill_prefetch_1(m68k_pc_offset + 2);
+	}
+	//	if (using_prefetch_020) {
+	//		printf ("\t%s (%d);\n", prefetch_word, m68k_pc_offset);
+	//		did_prefetch = 1;
+	//	}
+}
+
+
 static void fill_prefetch_next_empty(void)
 {
 	if (using_prefetch) {
@@ -1295,10 +1311,7 @@ static void move_68000_bus_error(int offset, int size, int *setapdi, int *fcmode
 
 		if (dmode == Apdi) {
 
-			// this is buggy, bus error stack frame opcode field contains next
-			// instruction opcode and Instruction/Not field is one!
-			printf("\t\topcode = regs.ir;\n");
-			*fcmodeflags |= 0x08; // "Not instruction" = 1
+			printf("\t\tif (regs.t1) opcode |= 0x10000;\n"); // I/N set
 
 		} else if (dmode == Aipi) {
 
@@ -1309,11 +1322,9 @@ static void move_68000_bus_error(int offset, int size, int *setapdi, int *fcmode
 	} else if (size == sz_word) {
 
 		if (dmode == Apdi) {
-			// this is buggy, bus error stack frame opcode field contains next
-			// instruction opcode and Instruction/Not field is one!
-			printf("\t\topcode = regs.ir;\n");
-			*fcmodeflags |= 0x08; // "Not instruction" = 1
-	
+
+			printf("\t\tif (regs.t1) opcode |= 0x10000;\n"); // I/N set
+
 		} else if (dmode == Aipi) {
 
 			// move.w x,(an)+: an is not increased
@@ -1477,6 +1488,8 @@ static int do_bus_error_fixes(const char *name, int offset, int write)
 
 static void check_bus_error(const char *name, int offset, int write, int size, const char *writevar, int fc)
 {
+	int mnemo = g_instr->mnemo;
+
 	// check possible bus error (if 68000/010 and enabled)
 	if (!using_bus_error)
 		return;
@@ -1508,16 +1521,16 @@ static void check_bus_error(const char *name, int offset, int write, int size, c
 
 		offset = do_bus_error_fixes(name, offset, write);
 
-		if (g_instr->mnemo == i_BTST && (g_instr->dmode == PC16 || g_instr->dmode == PC8r)) {
+		if (mnemo == i_BTST && (g_instr->dmode == PC16 || g_instr->dmode == PC8r)) {
 			// BTST special case where destination is read access
 			fc = 2;
 		}
-		if (g_instr->mnemo == i_MVMEL && (g_instr->dmode == PC16 || g_instr->dmode == PC8r)) {
+		if (mnemo == i_MVMEL && (g_instr->dmode == PC16 || g_instr->dmode == PC8r)) {
 			// MOVEM to registers
 			fc = 2;
 		}
 
-		if (g_instr->mnemo == i_LINK) {
+		if (mnemo == i_LINK) {
 			// a7 -> a0 copy done before A7 address error check
 			printf("\tm68k_areg(regs, srcreg) = olda;\n");
 		}
@@ -1529,6 +1542,14 @@ static void check_bus_error(const char *name, int offset, int write, int size, c
 		// 68010 bus/address error HB bit
 		if (extra && cpu_level == 1) {
 			printf("\t\topcode |= 0x%x;\n", extra);
+		}
+
+		// write causing bus error and trace: set I/N
+		if (write && g_instr->size <= sz_word &&
+			mnemo != i_MOVE &&
+			mnemo != i_MVMEL && mnemo != i_MVMLE &&
+			mnemo != i_MVPRM && mnemo != i_MVPMR) {		
+			printf("\t\tif (regs.t1) opcode |= 0x10000;\n"); // I/N set
 		}
 
 		//if (cpu_level == 0 && write) {
@@ -4621,7 +4642,10 @@ static void gen_opcode (unsigned int opcode)
 				if (curi->mnemo == i_MOVEA && curi->size == sz_word)
 					printf ("\tsrc = (uae_s32)(uae_s16)src;\n");
 				if (curi->dmode == Apdi) {
-					fill_prefetch_next ();
+					if (curi->size == sz_long)
+						fill_prefetch_next_skipopcode();
+					else
+						fill_prefetch_next();
 					prefetch_done = 1;
 				}
 

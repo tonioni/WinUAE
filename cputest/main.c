@@ -67,6 +67,7 @@ static uae_u32 test_memory_addr, test_memory_end;
 static uae_u32 test_memory_size;
 static uae_u8 *test_data;
 static uae_u8 *safe_memory_start, *safe_memory_end;
+static int safe_memory_mode;
 static uae_u32 user_stack_memory, super_stack_memory;
 static int test_data_size;
 static uae_u32 oldvbr;
@@ -93,7 +94,7 @@ static int low_memory_offset;
 static int high_memory_offset;
 
 static uae_u32 vbr[256];
-static int exceptioncount[128];
+static int exceptioncount[2][128];
 static int supercnt;
 
 static char inst_name[16+1];
@@ -209,13 +210,24 @@ static int ahcnt;
 #define MAX_ACCESSHIST 48
 static struct accesshistory ahist[MAX_ACCESSHIST];
 
+static int is_valid_test_addr_read(uae_u32 a)
+{
+	if ((uae_u8 *)a >= safe_memory_start && (uae_u8 *)a < safe_memory_end && (safe_memory_mode & 1))
+		return 0;
+	return (a >= test_low_memory_start && a < test_low_memory_end && test_low_memory_start != 0xffffffff) ||
+		(a >= test_high_memory_start && a < test_high_memory_end && test_high_memory_start != 0xffffffff) ||
+		(a >= test_memory_addr && a < test_memory_end);
+}
+
 static void endinfo(void)
 {
 	printf("Last test: %lu\n", testcnt);
 	uae_u8 *p = opcode_memory;
-	for (int i = 0; i < 32 * 2; i += 2) {
+	for (int i = 0; i < 4 * 2; i += 2) {
+		if (!is_valid_test_addr_read((uae_u32)(&p[i])))
+			break;
 		uae_u16 v = (p[i] << 8) | (p[i + 1]);
-		printf(" %04x", v);
+		printf("%08lx %04x\n", &p[i], v);
 		if (v == 0x4afc && i > 0)
 			break;
 	}
@@ -418,13 +430,54 @@ static uae_u8 *load_file(const char *path, const char *file, uae_u8 *p, int *siz
 			p += size2;
 			size -= size2;
 		}
-		if (size > 0 && p >= safe_memory_start && p < safe_memory_end) {
-			int size2 = safe_memory_end - p;
-			if (size2 > size)
-				size2 = size;
-			fseek(f, size2, SEEK_CUR);
-			p += size2;
-			size -= size2;
+		if ((safe_memory_mode & 1)) {
+			// if reading cause bus error: skip it
+			if (size > 0 && p >= safe_memory_start && p < safe_memory_end) {
+				int size2 = safe_memory_end - p;
+				if (size2 > size)
+					size2 = size;
+				fseek(f, size2, SEEK_CUR);
+				p += size2;
+				size -= size2;
+			}
+		} else if (safe_memory_mode == 2) {
+			// if only writes generate bus error: load data if different
+			if (size > 0 && p >= safe_memory_start && p < safe_memory_end) {
+				int size2 = safe_memory_end - p;
+				if (size2 > size)
+					size2 = size;
+				uae_u8 *tmp = malloc(size2);
+				if (!tmp) {
+					printf("Couldn't allocate safe tmp memory (%ld bytes)\n", size2);
+					exit(0);
+				}
+				fread(tmp, 1, size2, f);
+				if (memcmp(tmp, p, size2)) {
+					printf("Disable write bus error mode and press any key (SPACE=skip,ESC=abort)\n");
+					int ch = getchar();
+					if (ch == 27) {
+						exit(0);
+					} else if (ch == 32) {
+						fseek(f, size2, SEEK_CUR);
+						p += size2;
+						size -= size2;
+					} else {
+						memcpy(p, tmp, size2);
+						p += size2;
+						size -= size2;
+						printf("Re-enable write bus error mode and press any key (ESC=abort)\n");
+						if (getchar() == 27) {
+							exit(0);
+						}
+					}
+				} else {
+					printf("Write-only bus error mode, data already correct\n");
+					fseek(f, size2, SEEK_CUR);
+					p += size2;
+					size -= size2;
+				}
+				free(tmp);
+			}
 		}
 		if (size > 0) {
 			if (fread(p, 1, size, f) != size)
@@ -841,20 +894,10 @@ static uae_u8 *restore_data(uae_u8 *p)
 static uae_u16 test_sr, test_ccrignoremask;
 static uae_u32 test_fpsr, test_fpcr;
 
-
-static int is_valid_test_addr(uae_u32 a)
-{
-	if ((uae_u8 *)a >= safe_memory_start && (uae_u8 *)a < safe_memory_end)
-		return 0;
-	return (a >= test_low_memory_start && a < test_low_memory_end && test_low_memory_start != 0xffffffff) ||
-		(a >= test_high_memory_start && a < test_high_memory_end && test_high_memory_start != 0xffffffff) ||
-		(a >= test_memory_addr && a < test_memory_end);
-}
-
 static int addr_diff(uae_u8 *ap, uae_u8 *bp, int size)
 {
 	for (int i = 0; i < size; i++) {
-		if (is_valid_test_addr((uae_u32)bp)) {
+		if (is_valid_test_addr_read((uae_u32)bp)) {
 			if (*ap != *bp)
 				return 1;
 		}
@@ -875,7 +918,7 @@ static void addinfo_bytes(char *name, uae_u8 *src, uae_u32 address, int offset, 
 			*outbp++ = '*';
 		else if (cnt > 0)
 			*outbp++ = '.';
-		if ((uae_u8*)address >= safe_memory_start && (uae_u8*)address < safe_memory_end) {
+		if ((uae_u8*)address >= safe_memory_start && (uae_u8*)address < safe_memory_end && (safe_memory_mode & 1)) {
 			outbp[0] = '?';
 			outbp[1] = '?';
 		} else {
@@ -908,7 +951,7 @@ static void out_disasm(uae_u8 *mem)
 	int lines = 0;
 	while (lines++ < 5) {
 		int v = 0;
-		if (!is_valid_test_addr((uae_u32)p) || !is_valid_test_addr((uae_u32)p + 1))
+		if (!is_valid_test_addr_read((uae_u32)p) || !is_valid_test_addr_read((uae_u32)p + 1))
 			break;
 		tmpbuffer[0] = 0;
 		if (!(((uae_u32)code) & 1)) {
@@ -1113,6 +1156,7 @@ static uae_u8 *validate_exception(struct registers *regs, uae_u8 *p, int excnum,
 	uae_u32 v;
 	uae_u8 excdatalen = *p++;
 	int size;
+	int excrw = 0;
 
 	if (!excdatalen) {
 		return p;
@@ -1122,7 +1166,7 @@ static uae_u8 *validate_exception(struct registers *regs, uae_u8 *p, int excnum,
 		// check possible extra trace
 		last_exception_extra = *p++;
 		if ((last_exception_extra & 0x7f) == 9) {
-			exceptioncount[last_exception_extra & 0x7f]++;
+			exceptioncount[0][last_exception_extra & 0x7f]++;
 			uae_u32 ret = (regs->tracedata[1] << 16) | regs->tracedata[2];
 			uae_u16 sr = regs->tracedata[0];
 			if (regs->tracecnt == 0) {
@@ -1183,8 +1227,6 @@ static uae_u8 *validate_exception(struct registers *regs, uae_u8 *p, int excnum,
 		}
 	}
 
-	exceptioncount[*gotexcnum]++;
-
 	exc = last_exception;
 	if (excdatalen != 0xff) {
 		if (cpu_lvl == 0) {
@@ -1194,6 +1236,7 @@ static uae_u8 *validate_exception(struct registers *regs, uae_u8 *p, int excnum,
 				uae_u8 opcode1 = p[2];
 				exc[0] = opcode0;
 				exc[1] = (opcode1 & ~0x1f) | p[0];
+				excrw = (p[0] & 0x10) == 0;
 				p += 3;
 				// access address
 				v = opcode_memory_addr;
@@ -1250,6 +1293,7 @@ static uae_u8 *validate_exception(struct registers *regs, uae_u8 *p, int excnum,
 			case 8:
 				exc[8] = *p++;
 				exc[9] = *p++;
+				excrw = (exc[8] & 1) == 0;
 				v = opcode_memory_addr;
 				p = restore_rel_ordered(p, &v);
 				pl(exc + 10, v);
@@ -1291,6 +1335,9 @@ static uae_u8 *validate_exception(struct registers *regs, uae_u8 *p, int excnum,
 	} else {
 		exclen = last_exception_len;
 	}
+
+	exceptioncount[excrw][*gotexcnum]++;
+
 	if (exclen == 0 || *gotexcnum != excnum)
 		return p;
 	if (memcmp(exc, sp, exclen)) {
@@ -1663,7 +1710,7 @@ static void store_addr(uae_u32 s, uae_u8 *d)
 		return;
 	for (int i = 0; i < SIZE_STORED_ADDRESS; i++) {
 		uae_u32 ss = s + (i - SIZE_STORED_ADDRESS_OFFSET);
-		if (is_valid_test_addr(ss)) {
+		if (is_valid_test_addr_read(ss)) {
 			*d++ = *((uae_u8 *)ss);
 		} else {
 			*d++ = 0;
@@ -1723,6 +1770,7 @@ static void process_test(uae_u8 *p)
 			if (opcode_memory_end > (uae_u8*)pc + 32) {
 				end_test();
 				printf("Corrupted opcode memory\n");
+				endinfo();
 				exit(0);
 			}
 		}
@@ -1954,6 +2002,7 @@ static int test_mnemo(const char *path, const char *opcode)
 	interrupt_mask = (lvl_mask >> 20) & 7;
 	addressing_mask = (lvl_mask & 0x80000000) ? 0xffffffff : 0x00ffffff;
 	sr_undefined_mask = lvl_mask & 0xffff;
+	safe_memory_mode = (lvl_mask >> 23) & 3;
 	fpu_model = read_u32(f);
 	test_low_memory_start = read_u32(f);
 	test_low_memory_end = read_u32(f);
@@ -2087,8 +2136,12 @@ static int test_mnemo(const char *path, const char *opcode)
 	printf("%lu ", testcnt);
 	printf("S=%ld", supercnt);
 	for (int i = 0; i < 128; i++) {
-		if (exceptioncount[i]) {
-			printf(" E%02d=%ld", i, exceptioncount[i]);
+		if (exceptioncount[0][i] || exceptioncount[1][i]) {
+			if (i == 2 || i == 3) {
+				printf(" E%02d=%ld/%ld", i, exceptioncount[0][i], exceptioncount[1][i]);
+			} else {
+				printf(" E%02d=%ld", i, exceptioncount[0][i]);
+			}
 		}
 	}
 	printf("\n");
