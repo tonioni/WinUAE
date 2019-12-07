@@ -66,6 +66,7 @@ static int feature_loop_mode_register = -1;
 static int feature_full_extension_format = 0;
 static int feature_test_rounds = 2;
 static int feature_flag_mode = 0;
+static int feature_odd_usp = 0;
 static TCHAR *feature_instruction_size = NULL;
 static uae_u32 feature_addressing_modes[2];
 static int ad8r[2], pc8r[2];
@@ -96,6 +97,7 @@ static uae_u32 safe_memory_start;
 static uae_u32 safe_memory_end;
 static int safe_memory_mode;
 static uae_u32 user_stack_memory, super_stack_memory;
+static uae_u32 user_stack_memory_use;
 
 static uae_u8 *low_memory, *high_memory, *test_memory;
 static uae_u8 *low_memory_temp, *high_memory_temp, *test_memory_temp;
@@ -942,6 +944,7 @@ void exception2_read(uae_u32 opcode, uaecptr addr, int size, int fc)
 	test_exception_3_fc = fc;
 	test_exception_3_size = size;
 	test_exception_3_di = 1;
+	regs.read_buffer = 0;
 
 	if (currprefs.cpu_model == 68000) {
 		if (generates_group1_exception(regs.ir)) {
@@ -987,6 +990,7 @@ void exception3_read(uae_u32 opcode, uae_u32 addr, int size, int fc)
 	test_exception_3_fc = fc;
 	test_exception_3_size = size;
 	test_exception_3_di = 1;
+	regs.read_buffer = 0;
 
 	if (currprefs.cpu_model == 68000) {
 		if (generates_group1_exception(regs.ir)) {
@@ -1446,7 +1450,7 @@ static void save_data(uae_u8 *dst, const TCHAR *dir)
 		fwrite(data, 1, 4, f);
 		pl(data, safe_memory_end);
 		fwrite(data, 1, 4, f);
-		pl(data, user_stack_memory);
+		pl(data, user_stack_memory_use);
 		fwrite(data, 1, 4, f);
 		pl(data, super_stack_memory);
 		fwrite(data, 1, 4, f);
@@ -2501,6 +2505,12 @@ static void execute_ins(uae_u16 opc, uaecptr endpc, uaecptr targetpc, struct ins
 
 	for (;;) {
 
+		// if supervisor stack is odd: exit
+		if (regs.s && (regs.isp & 1)) {
+			test_exception = -1;
+			break;
+		}
+
 		if (cnt <= 0) {
 			wprintf(_T(" Loop mode didn't end!?\n"));
 			abort();
@@ -2921,7 +2931,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 	int count = 0;
 
 	registers[8 + 6] = opcode_memory_start - 0x100;
-	registers[8 + 7] = user_stack_memory;
+	registers[8 + 7] = user_stack_memory_use;
 
 	uae_u32 target_address = 0xffffffff;
 	target_ea[0] = 0xffffffff;
@@ -4086,6 +4096,8 @@ int __cdecl main(int argc, char *argv[])
 	}
 	feature_flag_mode = 0;
 	ini_getval(ini, INISECTION, _T("feature_flags_mode"), &feature_flag_mode);
+	feature_odd_usp = 0;
+	ini_getval(ini, INISECTION, _T("feature_odd_usp"), &feature_odd_usp);
 
 	feature_full_extension_format = 0;
 	if (currprefs.cpu_model >= 68020) {
@@ -4225,6 +4237,10 @@ int __cdecl main(int argc, char *argv[])
 	} else {
 		super_stack_memory = test_memory_start + (2 * RESERVED_SUPERSTACK + RESERVED_USERSTACK_EXTRA);
 		user_stack_memory = test_memory_start + RESERVED_SUPERSTACK;
+	}
+	user_stack_memory_use = user_stack_memory;
+	if (feature_odd_usp) {
+		user_stack_memory_use |= 1;
 	}
 
 	low_memory_size = test_low_memory_end;

@@ -102,6 +102,7 @@ static bool candormw;
 static bool genastore_done;
 static char rmw_varname[100];
 static struct instr *g_instr;
+static char g_srcname[100];
 
 #define GENA_GETV_NO_FETCH	0
 #define GENA_GETV_FETCH		1
@@ -1516,6 +1517,11 @@ static void check_bus_error(const char *name, int offset, int write, int size, c
 			fc = 2;
 		}
 
+		if (g_instr->mnemo == i_LINK) {
+			// a7 -> a0 copy done before A7 address error check
+			printf("\tm68k_areg(regs, srcreg) = olda;\n");
+		}
+
 		if (cpu_level == 1 && g_instr->mnemo == i_MVSR2 && !write) {
 			printf("\t\topcode |= 0x20000;\n"); // upper byte of SSW is zero -flag.
 		}
@@ -2120,6 +2126,7 @@ static void genamode2x (amodes mode, const char *reg, wordsizes size, const char
 	int pc_68000_offset = m68k_pc_offset;
 	int pc_68000_offset_fetch = 0;
 	int pc_68000_offset_store = 0;
+	bool addr = false;
 
 	sprintf (namea, "%sa", name);
 	if ((flags & GF_RMW) && using_mmu == 68060) {
@@ -2164,6 +2171,7 @@ static void genamode2x (amodes mode, const char *reg, wordsizes size, const char
 		}
 		maybeaddop_ce020 (flags);
 		syncmovepc (getv, flags);
+		strcpy(g_srcname, name);
 		return;
 	case Areg:
 		if (movem)
@@ -2181,6 +2189,7 @@ static void genamode2x (amodes mode, const char *reg, wordsizes size, const char
 		}
 		maybeaddop_ce020 (flags);
 		syncmovepc (getv, flags);
+		strcpy(g_srcname, name);
 		return;
 	case Aind: // (An)
 		switch (fetchmode)
@@ -2198,6 +2207,7 @@ static void genamode2x (amodes mode, const char *reg, wordsizes size, const char
 		printf ("\tuaecptr %sa;\n", name);
 		add_mmu040_movem (movem);
 		printf ("\t%sa = m68k_areg (regs, %s);\n", name, reg);
+		addr = true;
 		break;
 	case Aipi: // (An)+
 		switch (fetchmode)
@@ -2211,6 +2221,7 @@ static void genamode2x (amodes mode, const char *reg, wordsizes size, const char
 		printf ("\tuaecptr %sa;\n", name);
 		add_mmu040_movem (movem);
 		printf ("\t%sa = m68k_areg (regs, %s);\n", name, reg);
+		addr = true;
 		break;
 	case Apdi: // -(An)
 		switch (fetchmode)
@@ -2246,18 +2257,21 @@ static void genamode2x (amodes mode, const char *reg, wordsizes size, const char
 			if (size == sz_long)
 				pc_68000_offset_fetch -= 2;
 		}
+		addr = true;
 		break;
 	case Ad16: // (d16,An)
 		printf ("\tuaecptr %sa;\n", name);
 		add_mmu040_movem (movem);
 		printf ("\t%sa = m68k_areg (regs, %s) + (uae_s32)(uae_s16)%s;\n", name, reg, gen_nextiword (flags));
 		count_read_ea++; 
+		addr = true;
 		break;
 	case PC16: // (d16,PC)
 		printf ("\tuaecptr %sa;\n", name);
 		add_mmu040_movem (movem);
 		printf ("\t%sa = %s + %d;\n", name, getpc, m68k_pc_offset);
 		printf ("\t%sa += (uae_s32)(uae_s16)%s;\n", name, gen_nextiword (flags));
+		addr = true;
 		break;
 	case Ad8r: // (d8,An,Xn)
 		switch (fetchmode)
@@ -2292,6 +2306,7 @@ static void genamode2x (amodes mode, const char *reg, wordsizes size, const char
 			}
 			count_read_ea++; 
 		}
+		addr = true;
 		break;
 	case PC8r: // (d8,PC,Xn)
 		switch (fetchmode)
@@ -2328,19 +2343,21 @@ static void genamode2x (amodes mode, const char *reg, wordsizes size, const char
 				printf ("\t%sa = %s (tmppc, %s);\n", name, disp000, gen_nextiword (flags));
 			}
 		}
-
+		addr = true;
 		break;
 	case absw:
 		printf ("\tuaecptr %sa;\n", name);
 		add_mmu040_movem (movem);
 		printf ("\t%sa = (uae_s32)(uae_s16)%s;\n", name, gen_nextiword (flags));
 		pc_68000_offset_fetch += 2;
+		addr = true;
 		break;
 	case absl:
 		gen_nextilong2 ("uaecptr", namea, flags, movem);
 		count_read_ea += 2;
 		pc_68000_offset_fetch += 4;
 		pc_68000_offset_store += 2;
+		addr = true;
 		break;
 	case imm:
 		// fetch immediate address
@@ -2366,6 +2383,7 @@ static void genamode2x (amodes mode, const char *reg, wordsizes size, const char
 		do_instruction_buserror();
 		maybeaddop_ce020 (flags);
 		syncmovepc (getv, flags);
+		strcpy(g_srcname, name);
 		return;
 	case imm0:
 		if (getv != 1)
@@ -2374,6 +2392,7 @@ static void genamode2x (amodes mode, const char *reg, wordsizes size, const char
 		count_read_ea++;
 		maybeaddop_ce020 (flags);
 		syncmovepc (getv, flags);
+		strcpy(g_srcname, name);
 		return;
 	case imm1:
 		if (getv != 1)
@@ -2382,6 +2401,7 @@ static void genamode2x (amodes mode, const char *reg, wordsizes size, const char
 		count_read_ea++;
 		maybeaddop_ce020 (flags);
 		syncmovepc (getv, flags);
+		strcpy(g_srcname, name);
 		return;
 	case imm2:
 		if (getv != 1)
@@ -2390,6 +2410,7 @@ static void genamode2x (amodes mode, const char *reg, wordsizes size, const char
 		count_read_ea += 2;
 		maybeaddop_ce020 (flags);
 		syncmovepc (getv, flags);
+		strcpy(g_srcname, name);
 		return;
 	case immi:
 		if (getv != 1)
@@ -2397,13 +2418,22 @@ static void genamode2x (amodes mode, const char *reg, wordsizes size, const char
 		printf ("\tuae_u32 %s = %s;\n", name, reg);
 		maybeaddop_ce020 (flags);
 		syncmovepc (getv, flags);
+		strcpy(g_srcname, name);
 		return;
 	case am_unknown:
 		// reg = internal variable
 		printf("\tuae_u32 %sa = %s;\n", name, reg);
+		addr = true;
 		break;
 	default:
 		term ();
+	}
+
+	if (g_srcname[0] == 0) {
+		if (addr)
+			strcpy(g_srcname, namea);
+		else
+			strcpy(g_srcname, name);	
 	}
 
 	do_instruction_buserror();
@@ -2482,12 +2512,13 @@ static void genamode2x (amodes mode, const char *reg, wordsizes size, const char
 			if (g_instr->size == sz_word) {
 				printf("\t\tm68k_areg (regs, %s) = %sa;\n", reg, name);
 			}
-		} else if (mode == Apdi) {
+		} else if (mode == Apdi && g_instr->mnemo != i_LINK) {
 			// 68000 decrements register first, then checks for address error
 			// 68010 does not
 			if (cpu_level == 0)
 				setapdiback = 1;
 		}
+
 
 		if (exception_pc_offset)
 			incpc("%d", exception_pc_offset);
@@ -2503,6 +2534,10 @@ static void genamode2x (amodes mode, const char *reg, wordsizes size, const char
 			if (cpu_level == 1) {
 				printf("\t\topcode |= 0x20000;\n"); // upper byte of SSW is zero -flag.
 			}
+		} else if (g_instr->mnemo == i_LINK) {
+			// a7 -> a0 copy done before A7 address error check
+			printf("\tm68k_areg(regs, srcreg) = olda;\n");
+			setapdiback = 0;
 		}
 
 		if (setapdiback) {
@@ -2514,8 +2549,9 @@ static void genamode2x (amodes mode, const char *reg, wordsizes size, const char
 			printf("\t\t%sa += %d;\n", name, flags & GF_REVERSE2 ? -2 : 2);
 
 		if (exp3rw) {
-			printf("\t\texception3_write(opcode, %sa, %d, %s, %d);\n",
-				name, size, "0",
+			char *shift = size == sz_long ? " >> 16" : "";
+			printf("\t\texception3_write(opcode, %sa, %d, %s%s, %d);\n",
+				name, size, g_srcname, shift,
 				// PC-relative: FC=2
 				(getv == 1 && (g_instr->smode == PC16 || g_instr->smode == PC8r) ? 2 : 1) | fcmodeflags);
 
@@ -3968,6 +4004,7 @@ static void gen_opcode (unsigned int opcode)
 
 	m68k_pc_offset = 2;
 	g_instr = curi;
+	g_srcname[0] = 0;
 
 	// do not unnecessarily create useless mmuop030
 	// functions when CPU is not 68030
