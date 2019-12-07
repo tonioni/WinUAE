@@ -483,7 +483,7 @@ static void serdatcopy(void)
 
 	if (seriallog > 0 || (consoleopen && seriallog < 0)) {
 		gotlogwrite = true;
-		if (seriallog_lf && seriallog > 1) {
+		if (seriallog_lf && seriallog > 2) {
 			TCHAR *ts = write_log_get_ts();
 			if (ts)
 				write_logx(_T("%s:"), ts);
@@ -556,7 +556,7 @@ void serial_hsynchandler (void)
 			serial_check_irq();
 		}
 	}
-	if (seriallog > 0 && !data_in_serdatr && gotlogwrite) {
+	if (seriallog > 1 && !data_in_serdatr && gotlogwrite) {
 		int ch = read_log();
 		if (ch > 0) {
 			serdatr = ch | 0x100;

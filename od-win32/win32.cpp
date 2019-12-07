@@ -6394,6 +6394,10 @@ static int parseargs(const TCHAR *argx, const TCHAR *np, const TCHAR *np2)
 		log_sercon = 2;
 		return 1;
 	}
+	if (!_tcscmp(arg, _T("serlog3"))) {
+		log_sercon = 3;
+		return 1;
+	}
 	if (!_tcscmp(arg, _T("a2065log"))) {
 		log_a2065 = 1;
 		return 1;

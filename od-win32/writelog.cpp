@@ -68,7 +68,6 @@ int console_logging = 0;
 static int debugger_type = -1;
 extern BOOL debuggerinitializing;
 extern int lof_store;
-extern int seriallog;
 static int console_input_linemode = -1;
 int always_flush_log = 0;
 
