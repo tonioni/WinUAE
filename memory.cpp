@@ -971,7 +971,7 @@ static void REGPARAM2 kickmem_lput (uaecptr addr, uae_u32 b)
 		} else
 			a1000_handle_kickstart (0);
 	} else if (currprefs.illegal_mem) {
-		write_log (_T("Illegal kickmem lput at %08x\n"), addr);
+		write_log (_T("Illegal kickmem lput at %08x PC= %08x\n"), addr, M68K_GETPC);
 	}
 }
 
@@ -991,7 +991,7 @@ static void REGPARAM2 kickmem_wput (uaecptr addr, uae_u32 b)
 		} else
 			a1000_handle_kickstart (0);
 	} else if (currprefs.illegal_mem) {
-		write_log (_T("Illegal kickmem wput at %08x\n"), addr);
+		write_log (_T("Illegal kickmem wput at %08x PC= %08x\n"), addr, M68K_GETPC);
 	}
 }
 
@@ -1008,7 +1008,7 @@ static void REGPARAM2 kickmem_bput (uaecptr addr, uae_u32 b)
 		} else
 			a1000_handle_kickstart (0);
 	} else if (currprefs.illegal_mem) {
-		write_log (_T("Illegal kickmem bput at %08x\n"), addr);
+		write_log (_T("Illegal kickmem bput at %08x PC= %08x\n"), addr, M68K_GETPC);
 	}
 }
 

@@ -1075,7 +1075,7 @@ static void divsl_overflow(uae_u16 extra, uae_s64 a, uae_s32 divider)
 		if (extra & 0x0400) {
 			// this is still missing condition where Z is set
 			// without none of input parameters being zero.
-			uae_u32 ahigh = a >> 32;
+			uae_s32 ahigh = a >> 32;
 			if (ahigh == 0) {
 				SET_ZFLG(1);
 				SET_NFLG(0);
