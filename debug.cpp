@@ -1972,20 +1972,19 @@ static void decode_dma_record (int hpos, int vpos, int toggle, bool logfile)
 		console_out_f (_T("Line: %02X %3d HPOS %02X %3d:\n"), vpos, vpos, hpos, hpos);
 	h = hpos;
 	dr += hpos;
-	maxh = hpos + 80;
+	maxh = hpos + (logfile ? maxhpos : 80);
 	if (maxh > maxhpos)
 		maxh = maxhpos;
 	cycles = vsync_cycles;
 	if (toggle)
 		cycles -= maxvpos * maxhpos * CYCLE_UNIT;
 	while (h < maxh) {
-		int col = 9;
-		int cols = 8;
-		TCHAR l1[81];
-		TCHAR l2[81];
-		TCHAR l3[81];
-		TCHAR l4[81];
-		TCHAR l5[81];
+		int cols = (logfile ? 16 : 8);
+		TCHAR l1[200];
+		TCHAR l2[200];
+		TCHAR l3[200];
+		TCHAR l4[200];
+		TCHAR l5[200];
 		l1[0] = 0;
 		l2[0] = 0;
 		l3[0] = 0;
@@ -2023,6 +2022,8 @@ static void decode_dma_record (int hpos, int vpos, int toggle, bool logfile)
 			console_out_f (_T("\n"));
 		}
 	}
+	if (logfile)
+		flush_log();
 }
 
 void log_dma_record (void)
@@ -5904,12 +5905,16 @@ static bool debug_line (TCHAR *input)
 						mw_help();
 					} else {
 						free_heatmap();
+						int nextcmd = peekchar(&inptr);
+						if (nextcmd != ' ') {
+							next_char(&inptr);
+						}
 						if (more_params (&inptr))
 							v1 = readint (&inptr);
 						if (more_params (&inptr))
 							v2 = readint (&inptr);
 						if (debug_dma && v1 >= 0 && v2 >= 0) {
-							decode_dma_record (v2, v1, cmd == 'v', false);
+							decode_dma_record (v2, v1, cmd == 'v', nextcmd == 'l');
 						} else {
 							if (debug_dma) {
 								record_dma_reset();
