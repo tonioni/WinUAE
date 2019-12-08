@@ -14060,6 +14060,7 @@ static void updatehdfinfo (HWND hDlg, bool force, bool defaults)
 	bsize = 0;
 	if (force) {
 		bool open = false;
+		bool gotrdb = false;
 		int blocksize = 512;
 		struct hardfiledata hfd;
 		memset (id, 0, sizeof id);
@@ -14076,6 +14077,7 @@ static void updatehdfinfo (HWND hDlg, bool force, bool defaults)
 				current_hfdlg.size = hfd.virtsize;
 				if (!memcmp (id, "RDSK", 4) || !memcmp (id, "CDSK", 4)) {
 					blocksize = (id[16] << 24)  | (id[17] << 16) | (id[18] << 8) | (id[19] << 0);
+					gotrdb = true;
 					break;
 				}
 			}
@@ -14101,6 +14103,10 @@ static void updatehdfinfo (HWND hDlg, bool force, bool defaults)
 				getchspgeometry (bsize, &current_hfdlg.ci.pcyls, &current_hfdlg.ci.pheads, &current_hfdlg.ci.psecs, true);
 			} else {
 				getchspgeometry (bsize, &current_hfdlg.ci.pcyls, &current_hfdlg.ci.pheads, &current_hfdlg.ci.psecs, false);
+			}
+			if (defaults && !gotrdb) {
+				gethdfgeometry(bsize, &current_hfdlg.ci);
+				phys = false;
 			}
 		} else {
 			current_hfdlg.forcedcylinders = current_hfdlg.ci.pcyls;
