@@ -41,6 +41,7 @@ struct registers
 	uae_u32 msp;
 	uae_u32 pc;
 	uae_u32 sr;
+	uae_u32 expsr;
 	uae_u32 exc, exc010;
 	uae_u32 excframe;
 	struct fpureg fpuregs[8];
@@ -1072,6 +1073,7 @@ static void out_regs(struct registers *r, int before)
 			outbp += strlen(outbp);
 		}
 		*outbp++ = '\n';
+		sprintf(outbp, "SR:%c%04x      PC: %08lx ISP: %08lx", test_sr != last_registers.sr ? '*' : ' ', test_sr, r->pc, r->ssp);
 	} else {
 		// output only lines that have at least one modified register to save screen space
 		for (int i = 0; i < 4; i++) {
@@ -1093,8 +1095,8 @@ static void out_regs(struct registers *r, int before)
 				*outbp++ = '\n';
 			}
 		}
+		sprintf(outbp, "SR:%c%04x/%04x PC: %08lx ISP: %08lx", test_sr != last_registers.sr ? '*' : ' ', test_regs.sr, test_regs.expsr, r->pc, r->ssp);
 	}
-	sprintf(outbp, "SR:%c%04x   PC: %08lx ISP: %08lx", test_sr != last_registers.sr ? '*' : ' ', before ? test_sr : test_regs.sr, r->pc, r->ssp);
 	outbp += strlen(outbp);
 	if (cpu_lvl >= 2 && cpu_lvl <= 4) {
 		sprintf(outbp, " MSP: %08lx", r->msp);
@@ -1527,6 +1529,17 @@ static uae_u8 *validate_test(uae_u8 *p, int ignore_errors, int ignore_sr)
 			}
 			sr_changed = 0;
 			last_registers.sr = val;
+			if (!(test_regs.expsr & 0x2000)) {
+				sprintf(outbp, "SR S-bit is not set at start of exception handler!\n");
+				outbp += strlen(outbp);
+				errors++;
+			}
+			if ((test_regs.expsr & 0xff) != (test_regs.sr & 0xff)) {
+				sprintf(outbp, "Exception stacked CCR != CCR at start of exception handler!\n");
+				outbp += strlen(outbp);
+				errors++;
+			}
+
 		} else if (mode == CT_PC) {
 			uae_u32 val = last_registers.pc;
 			p = restore_rel(p, &val, 0);
@@ -1855,6 +1868,7 @@ static void process_test(uae_u8 *p)
 					test_regs.sr = (ccr ? 31 : 0);
 				}
 				test_regs.sr |= sr_mask | (interrupt_mask << 8);
+				test_regs.expsr = test_regs.sr | 0x2000;
 				test_sr = test_regs.sr;
 				if (fpumode) {
 					if (maxccr >= 32) {

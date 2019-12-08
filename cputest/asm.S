@@ -25,7 +25,8 @@ S_SSP = S_AREG+8*4
 S_MSP = S_SSP+4
 S_PC = S_MSP+4
 S_SR = S_PC+4
-S_EXC = S_SR+4
+S_EXPSR = S_SR+4
+S_EXC = S_EXPSR+4
 S_EXC010 = S_EXC+4
 S_EXCFRAME = S_EXC010+4
 S_FPU = S_EXCFRAME+4
@@ -276,11 +277,13 @@ _exceptiontable000:
 	bsr.s exception | 47
 	nop
 exception:
+	move.w sr,-(sp)
 	move.w #0,ACTIVITYREG
 	move.l a0,-(sp)
 	move.l datapointer(pc),a0
 	movem.l d0-d7/a0-a6,(a0)
 	move.l (sp)+,8*4(a0)
+	move.w (sp)+,S_EXPSR+2(a0)
 	move.l (sp)+,d0
 	lea _exceptiontable000(pc),a1
 	sub.l a1,d0
@@ -371,11 +374,13 @@ _exceptiontable010:
 	bsr.s exception010 | 47
 	nop
 exception010:
+	move.w sr,-(sp)
 	move.w #0,ACTIVITYREG
 	move.l a0,-(sp)
 	move.l datapointer(pc),a0
 	movem.l d0-d7/a0-a6,(a0)
 	move.l (sp)+,8*4(a0)
+	move.w (sp)+,S_EXPSR+2(a0)
 
 	move.l (sp)+,d0
 	lea _exceptiontable010(pc),a1
@@ -453,11 +458,13 @@ _exceptiontable020:
 	bsr.s exception020 | 47
 	nop
 exception020:
+	move.w sr,-(sp)
 	move.w #0,ACTIVITYREG
 	move.l a0,-(sp)
 	move.l datapointer(pc),a0
 	movem.l d0-d7/a0-a6,(a0)
 	move.l (sp)+,8*4(a0)
+	move.w (sp)+,S_EXPSR+2(a0)
 
 	move.l (sp)+,d0
 	lea _exceptiontable020(pc),a1
@@ -542,11 +549,13 @@ _exceptiontablefpu:
 	bsr.s exceptionfpu | 47
 	nop
 exceptionfpu:
+	move.w sr,-(sp)
 	move.w #0,ACTIVITYREG
 	move.l a0,-(sp)
 	move.l datapointer(pc),a0
 	movem.l d0-d7/a0-a6,(a0)
 	move.l (sp)+,8*4(a0)
+	move.w (sp)+,S_EXPSR+2(a0)
 
 	move.l (sp)+,d0
 	lea _exceptiontable020(pc),a1

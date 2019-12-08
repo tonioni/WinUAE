@@ -999,7 +999,7 @@ void exception3_read(uae_u32 opcode, uae_u32 addr, int size, int fc)
 	regs.read_buffer = 0;
 
 	if (currprefs.cpu_model == 68000) {
-		if (generates_group1_exception(regs.ir)) {
+		if (generates_group1_exception(regs.ir) && !(opcode & 0x20000)) {
 			test_exception_3_fc |= 8; // set N/I
 		}
 		if (opcode & 0x10000)
@@ -1021,7 +1021,7 @@ void exception3_write(uae_u32 opcode, uae_u32 addr, int size, uae_u32 val, int f
 	test_exception_3_di = 1;
 
 	if (currprefs.cpu_model == 68000) {
-		if (generates_group1_exception(regs.ir)) {
+		if (generates_group1_exception(regs.ir) && !(opcode & 0x20000)) {
 			test_exception_3_fc |= 8; // set N/I
 		}
 		if (opcode & 0x10000)
@@ -2455,15 +2455,20 @@ static int handle_specials_stack(uae_u16 opcode, uaecptr pc, struct instr *dp, i
 				imm_special++;
 				v = imm_special >> 2;
 				uae_u16 sr = v & 31;
-				sr |= (v >> 5) << 12;
+				if (v & 32)
+					sr |= 0x2000;
+				if (v & 64)
+					sr |= 0x8000;
 				put_word_test(addr, sr);
+				printf("%04x (%04x) ", sr, regs.sr);
 				addr += 2;
 				offset += 2;
+				*isconstant = imm_special >= (1 << (2 + 5)) * 4 ? 0 : -1;
 			} else {
 				offset += handle_rte(opcode, pc, dp, isconstant, addr);
 				addr += 2;
+				*isconstant = imm_special >= (1 << (4 + 5)) * 4 ? 0 : -1;
 			}
-			*isconstant = imm_special >= (1 << (4 + 5)) * 4 ? 0 : -1;
 		} else if (dp->mnemo == i_RTS) {
 			// RTS
 			imm_special++;
@@ -3250,7 +3255,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 						}
 
 						// requested target address but no EA? skip
-						if (target_address != 0xffffffff) {
+						if (target_address != 0xffffffff && isbranchinst(dp) != 2) {
 							if (srcea != target_address && dstea != target_address) {
 								memcpy(opcode_memory, oldbytes, sizeof(oldbytes));
 								continue;

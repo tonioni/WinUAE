@@ -4878,17 +4878,16 @@ static void gen_opcode (unsigned int opcode)
 			genamode (NULL, Aipi, "7", sz_word, "sr", 1, 0, GF_NOREFILL);
 			genamode (NULL, Aipi, "7", sz_long, "pc", 1, 0, GF_NOREFILL);
 			printf("\tuaecptr oldpc = %s;\n", getpc);
-			printf ("\tregs.sr = sr;\n");
-			makefromsr_t0();
-			printf ("\tif (pc & 1) {\n");
-			printf ("\t\texception3i (0x%04X, pc);\n", opcode);
-			printf ("\t\tgoto %s;\n", endlabelstr);
-			printf ("\t}\n");
+			printf("\tregs.sr = sr;\n");
+			makefromsr();
+			printf("\tif (pc & 1) {\n");
+			printf("\t\texception3_read(0x%04X | 0x20000, pc, 1, 2);\n", opcode);
+			printf("\t\tgoto %s;\n", endlabelstr);
+			printf("\t}\n");
 			setpc ("pc");
 			if (using_debugmem) {
 				printf("\tbranch_stack_pop_rte(oldpc);\n");
 			}
-			makefromsr();
 		} else if (cpu_level == 1 && using_prefetch) {
 			// 68010
 			int old_brace_level = n_braces;
