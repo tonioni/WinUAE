@@ -2479,8 +2479,9 @@ static int handle_specials_stack(uae_u16 opcode, uaecptr pc, struct instr *dp, i
 	return offset;
 }
 
-static void execute_ins(uae_u16 opc, uaecptr endpc, uaecptr targetpc, struct instr *dp)
+static void execute_ins(uaecptr endpc, uaecptr targetpc, struct instr *dp)
 {
+	uae_u16 opc = regs.ir;
 	uae_u16 opw1 = (opcode_memory[2] << 8) | (opcode_memory[3] << 0);
 	uae_u16 opw2 = (opcode_memory[4] << 8) | (opcode_memory[5] << 0);
 	if (opc == 0x4a10
@@ -2945,9 +2946,14 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 	registers[8 + 7] = user_stack_memory_use;
 
 	uae_u32 target_address = 0xffffffff;
+	uae_u32 target_opcode_address = 0xffffffff;
 	target_ea[0] = 0xffffffff;
 	target_ea[1] = 0xffffffff;
 	target_ea[2] = 0xffffffff;
+	if (feature_target_ea[0][2] && feature_target_ea[0][2] != 0xffffffff) {
+		target_opcode_address = feature_target_ea[0][2];
+		target_ea[2] = target_opcode_address;
+	}
 	if (feature_target_ea[0][0] != 0xffffffff) {
 		target_address = feature_target_ea[0][0];
 		target_ea[0] = target_address;
@@ -3006,7 +3012,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 
 	int sr_override = 0;
 
-	uae_u32 target_ea_bak[3], target_address_bak;
+	uae_u32 target_ea_bak[3], target_address_bak, target_opcode_address_bak;
 
 	for (;;) {
 
@@ -3014,6 +3020,16 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 		target_ea_bak[1] = target_ea[1];
 		target_ea_bak[2] = target_ea[2];
 		target_address_bak = target_address;
+		target_opcode_address_bak = target_opcode_address;
+
+		uae_u32 opcode_memory_address = opcode_memory_start;
+		uae_u8 *opcode_memory_ptr = opcode_memory;
+		if (target_opcode_address != 0xffffffff) {
+			opcode_memory_address += target_opcode_address;
+			opcode_memory_ptr = get_addr(opcode_memory_address, 2, 0);
+			if (opcode_memory_address >= safe_memory_start && opcode_memory_address < safe_memory_end)
+				break;
+		}
 
 		if (quick)
 			break;
@@ -3070,6 +3086,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 			target_ea[1] = target_ea_bak[1];
 			target_ea[2] = target_ea_bak[2];
 			target_address = target_address_bak;
+			target_opcode_address = target_opcode_address_bak;
 
 			int extra_loops = 3;
 			while (extra_loops-- > 0) {
@@ -3102,6 +3119,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 				target_ea[1] = target_ea_bak[1];
 				target_ea[2] = target_ea_bak[1];
 				target_address = target_address_bak;
+				target_opcode_address = target_opcode_address_bak;
 
 				reset_ea_state();
 				// retry few times if out of bounds access
@@ -3142,6 +3160,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 					target_ea[1] = target_ea_bak[1];
 					target_ea[2] = target_ea_bak[2];
 					target_address = target_address_bak;
+					target_opcode_address = target_opcode_address_bak;
 
 					if (opc == 0x4ed0)
 						printf("");
@@ -3150,6 +3169,19 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 
 
 					uaecptr pc = opcode_memory_start + 2;
+					if (target_opcode_address != 0xffffffff) {
+						pc -= 2;
+						int cnt = 0;
+						while (pc - 2 != opcode_memory_address) {
+							put_word_test(pc, 0x4e71);
+							pc += 2;
+							cnt++;
+							if (cnt >= 16) {
+								wprintf(_T("opcode target is too far from opcode address\n"));
+								abort();
+							}
+						}
+					}
 
 					if (dp->mnemo != i_ILLG) {
 
@@ -3170,7 +3202,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 							pc += o;
 						}
 
-						uae_u8 *ao = opcode_memory + 2;
+						uae_u8 *ao = opcode_memory_ptr + 2;
 						uae_u16 apw1 = (ao[0] << 8) | (ao[1] << 0);
 						uae_u16 apw2 = (ao[2] << 8) | (ao[3] << 0);
 						if (opc == 0x4eb1
@@ -3182,7 +3214,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 						if (target_address != 0xffffffff && (dp->mnemo == i_MVMEL || dp->mnemo == i_MVMLE)) {
 							// if MOVEM and more than 1 register: randomize address so that any MOVEM
 							// access can hit target address
-							uae_u16 mask = (opcode_memory[2] << 8) | opcode_memory[3];
+							uae_u16 mask = (opcode_memory_ptr[2] << 8) | opcode_memory_ptr[3];
 							int count = 0;
 							for (int i = 0; i < 16; i++) {
 								if (mask & (1 << i))
@@ -3231,7 +3263,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 						// if destination EA modified opcode
 						dp = table68k + opc;
 
-						uae_u8 *bo = opcode_memory + 2;
+						uae_u8 *bo = opcode_memory_ptr + 2;
 						uae_u16 bopw1 = (bo[0] << 8) | (bo[1] << 0);
 						uae_u16 bopw2 = (bo[2] << 8) | (bo[3] << 0);
 						if (opc == 0x0662
@@ -3247,20 +3279,20 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 
 					}
 
-					put_word_test(opcode_memory_start, opc);
+					put_word_test(opcode_memory_address, opc);
 
 					if (extra_or || extra_and) {
-						uae_u16 ew = get_word_test(opcode_memory_start + 2);
+						uae_u16 ew = get_word_test(opcode_memory_address + 2);
 						uae_u16 ew2 = (ew | extra_or) & ~extra_and;
 						if (ew2 != ew) {
-							put_word_test(opcode_memory_start + 2, ew2);
+							put_word_test(opcode_memory_address + 2, ew2);
 						}
 					}
 
 					// loop mode
 					if (feature_loop_mode) {
 						// dbf dn, opcode_memory_start
-						put_long_test(pc, ((0x51c8 | feature_loop_mode_register) << 16) | ((opcode_memory_start - pc - 2) & 0xffff));
+						put_long_test(pc, ((0x51c8 | feature_loop_mode_register) << 16) | ((opcode_memory_address - pc - 2) & 0xffff));
 						pc += 4;
 					}
 
@@ -3268,7 +3300,14 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 					// running on real hardware.
 					uae_u32 originalendopcode = 0x4afc4e71;
 					uae_u32 endopcode = originalendopcode;
-					put_long_test(pc, endopcode); // illegal instruction + nop
+					uae_u32 actualendpc = pc;
+					if (!is_nowrite_address(pc, 4)) {
+						put_long_test(pc, endopcode); // illegal instruction + nop
+						actualendpc += 4;
+					} else if (!is_nowrite_address(pc, 2)) {
+						put_word_test(pc, endopcode >> 16);
+						actualendpc += 2;
+					}
 					pc += 4;
 
 					if (isconstant_src < 0 || isconstant_dst < 0) {
@@ -3289,7 +3328,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 						abort();
 					}
 
-					dst = store_mem_bytes(dst, opcode_memory_start, pc - opcode_memory_start, subtest_count > 0 ? oldbytes : NULL);
+					dst = store_mem_bytes(dst, opcode_memory_start, actualendpc - opcode_memory_start, subtest_count > 0 ? oldbytes : NULL);
 					ahcnt = 0;
 
 
@@ -3305,7 +3344,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 					uaecptr nextpc;
 					srcaddr = 0xffffffff;
 					dstaddr = 0xffffffff;
-					uae_u32 dflags = m68k_disasm_2(out, sizeof(out) / sizeof(TCHAR), opcode_memory_start, &nextpc, 1, &srcaddr, &dstaddr, 0xffffffff, 0);
+					uae_u32 dflags = m68k_disasm_2(out, sizeof(out) / sizeof(TCHAR), opcode_memory_address, &nextpc, 1, &srcaddr, &dstaddr, 0xffffffff, 0);
 					if (verbose) {
 						my_trim(out);
 						wprintf(_T("%08u %s"), subtest_count, out);
@@ -3474,9 +3513,16 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 							// swap end opcode illegal/nop
 							endopcode = (endopcode >> 16) | (endopcode << 16);
 							noaccesshistory++;
-							put_long_test(pc - 4, endopcode);
+							int endopcodesize = 0;
+							if (!is_nowrite_address(pc - 4, 4)) {
+								put_long_test(pc - 4, endopcode);
+								endopcodesize = (endopcode >> 16) == 0x4e71 ? 2 : 4;
+							} else if (!is_nowrite_address(pc - 4, 2)) {
+								put_word_test(pc - 4, endopcode >> 16);
+								endopcodesize = 2;
+							}
 							noaccesshistory--;
-							int endopcodesize = (endopcode >> 16) == 0x4e71 ? 2 : 4;
+							
 
 							// swap branch target illegal/nop
 							if (branch_target_swap_mode) {
@@ -3560,7 +3606,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 							if (subtest_count == 2052)
 								printf("");
 
-							execute_ins(opc, pc - endopcodesize, branch_target_pc, dp);
+							execute_ins(pc - endopcodesize, branch_target_pc, dp);
 
 							if (regs.s)
 								s_cnt++;
@@ -3797,7 +3843,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 		}
 		dst = storage_buffer;
 
-		if (opcodecnt == 1 && target_address == 0xffffffff)
+		if (opcodecnt == 1 && target_address == 0xffffffff && target_opcode_address == 0xffffffff)
 			break;
 		if (lookup->mnemo == i_ILLG)
 			break;
@@ -3832,6 +3878,18 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 				cur_registers[i] = rand32();
 			}
 			nextround = true;
+		}
+
+		if (target_opcode_address != 0xffffffff) {
+			nextround = false;
+			target_ea_opcode_cnt++;
+			if (target_ea_opcode_cnt >= target_ea_opcode_max) {
+				target_ea_opcode_cnt = 0;
+				if (target_ea_opcode_max > 0)
+					nextround = true;
+			}
+			target_opcode_address = feature_target_ea[target_ea_opcode_cnt][2];
+			target_ea[2] = opcode_memory_address + target_opcode_address;
 		}
 
 		if (nextround) {
@@ -4067,7 +4125,7 @@ int __cdecl main(int argc, char *argv[])
 		feature_target_ea[i][2] = 0xffffffff;
 	}
 	for (int i = 0; i < 3; i++) {
-		if (ini_getstring(ini, INISECTION, i == 2 ? _T("feature_target_opcode") : (i ? _T("feature_target_dst_ea") : _T("feature_target_src_ea")), &vs)) {
+		if (ini_getstring(ini, INISECTION, i == 2 ? _T("feature_target_opcode_offset") : (i ? _T("feature_target_dst_ea") : _T("feature_target_src_ea")), &vs)) {
 			int cnt = 0;
 			TCHAR *p = vs;
 			while (p && *p) {

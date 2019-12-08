@@ -219,6 +219,16 @@ static int is_valid_test_addr_read(uae_u32 a)
 		(a >= test_memory_addr && a < test_memory_end);
 }
 
+static int is_valid_test_addr_readwrite(uae_u32 a)
+{
+	if ((uae_u8 *)a >= safe_memory_start && (uae_u8 *)a < safe_memory_end)
+		return 0;
+	return (a >= test_low_memory_start && a < test_low_memory_end && test_low_memory_start != 0xffffffff) ||
+		(a >= test_high_memory_start && a < test_high_memory_end && test_high_memory_start != 0xffffffff) ||
+		(a >= test_memory_addr && a < test_memory_end);
+}
+
+
 static void endinfo(void)
 {
 	printf("Last test: %lu\n", testcnt);
@@ -951,8 +961,11 @@ static void out_disasm(uae_u8 *mem)
 	int lines = 0;
 	while (lines++ < 5) {
 		int v = 0;
-		if (!is_valid_test_addr_read((uae_u32)p) || !is_valid_test_addr_read((uae_u32)p + 1))
+		if (!is_valid_test_addr_read((uae_u32)p) || !is_valid_test_addr_read((uae_u32)p + 1)) {
+			sprintf(outbp, "%08lx -- INACCESSIBLE --\n", p);
+			outbp += strlen(outbp);
 			break;
+		}
 		tmpbuffer[0] = 0;
 		if (!(((uae_u32)code) & 1)) {
 			v = disasm_instr(code + offset, tmpbuffer);
@@ -962,6 +975,8 @@ static void out_disasm(uae_u8 *mem)
 				uae_u16 v = (p[i * 2 + 0] << 8) | (p[i * 2 + 1]);
 				sprintf(outbp, "%04x ", v);
 				outbp += strlen(outbp);
+				if (v == 0x4e71)
+					lines--;
 			}
 			sprintf(outbp, " %s\n", tmpbuffer);
 			outbp += strlen(outbp);
@@ -1764,7 +1779,7 @@ static void process_test(uae_u8 *p)
 		uae_u32 originalopcodeend = 0x4afc4e71;
 		uae_u8 *opcode_memory_end = (uae_u8*)pc;
 		for (;;) {
-			if (gl(opcode_memory_end) == originalopcodeend)
+			if (opcode_memory_end == safe_memory_start || gw(opcode_memory_end) == 0x4afc)
 				break;
 			opcode_memory_end += 2;
 			if (opcode_memory_end > (uae_u8*)pc + 32) {
@@ -1776,6 +1791,12 @@ static void process_test(uae_u8 *p)
 		}
 		uae_u32 opcodeend = originalopcodeend;
 		int extraccr = 0;
+		int validendsize = 0;
+		if (is_valid_test_addr_readwrite((uae_u32)opcode_memory_end + 2)) {
+			validendsize = 2;
+		} else if (is_valid_test_addr_readwrite((uae_u32)opcode_memory_end)) {
+			validendsize = 1;
+		}
 
 		uae_u32 last_pc = opcode_memory_addr;
 		uae_u32 last_fpiar = opcode_memory_addr;
@@ -1797,7 +1818,11 @@ static void process_test(uae_u8 *p)
 			for (int ccr = 0;  ccr < maxccr; ccr++) {
 
 				opcodeend = (opcodeend >> 16) | (opcodeend << 16);
-				pl(opcode_memory_end, opcodeend);
+				if (validendsize == 2) {
+					pl(opcode_memory_end, opcodeend);
+				} else if (validendsize == 1) {
+					pw(opcode_memory_end, opcodeend >> 16);
+				}
 
 				if (regs.branchtarget != 0xffffffff) {
 					if (regs.branchtarget_mode == 1) {
@@ -1932,7 +1957,11 @@ static void process_test(uae_u8 *p)
 
 		}
 
-		pl(opcode_memory_end, originalopcodeend);
+		if (validendsize == 2) {
+			pl(opcode_memory_end, originalopcodeend);
+		} else if (validendsize == 1) {
+			pw(opcode_memory_end, originalopcodeend >> 16);
+		}
 
 		restoreahist();
 
