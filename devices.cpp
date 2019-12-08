@@ -335,6 +335,9 @@ void virtualdevice_init (void)
 {
 	reset_device_items();
 
+#ifdef CD32
+	akiko_init();
+#endif
 #ifdef AUTOCONFIG
 	rtarea_setup ();
 #endif
