@@ -1769,7 +1769,7 @@ static int createmask2texture (struct d3dstruct *d3d, const TCHAR *filename)
 		d3d->mask2textureled_power_dim->Release();
 	d3d->mask2textureled_power_dim = NULL;
 
-	if (filename[0] == 0 || WIN32GFX_IsPicassoScreen(mon))
+	if (filename[0] == 0)
 		return 0;
 
 	zf = NULL;
@@ -2111,7 +2111,7 @@ end:
 	return 0;
 }
 
-static bool xD3D_getscalerect(int monid, float *mx, float *my, float *sx, float *sy)
+static bool xD3D_getscalerect(int monid, float *mx, float *my, float *sx, float *sy, int width, int height)
 {
 	struct d3dstruct *d3d = &d3ddata[monid];
 	struct vidbuf_description *vidinfo = &adisplays[monid].gfxvidinfo;
@@ -2122,8 +2122,8 @@ static bool xD3D_getscalerect(int monid, float *mx, float *my, float *sx, float 
 	float mw = d3d->mask2rect.right - d3d->mask2rect.left;
 	float mh = d3d->mask2rect.bottom - d3d->mask2rect.top;
 
-	float mxt = (float)mw / vidinfo->outbuffer->inwidth2;
-	float myt = (float)mh / vidinfo->outbuffer->inheight2;
+	float mxt = (float)mw / width;
+	float myt = (float)mh / height;
 
 	*mx = d3d->mask2texture_minusx / mxt;
 	*my = d3d->mask2texture_minusy / myt;

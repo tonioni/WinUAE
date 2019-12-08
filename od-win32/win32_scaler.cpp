@@ -257,6 +257,10 @@ void getfilterrect2(int monid, RECT *sr, RECT *dr, RECT *zr, int dst_width, int 
 
 	if (mon->screen_is_picasso) {
 		getrtgfilterrect2(monid, sr, dr, zr, dst_width, dst_height);
+		if (D3D_getscalerect && D3D_getscalerect(monid, &mrmx, &mrmy, &mrsx, &mrsy, dst_width, dst_height)) {
+			sizeoffset(dr, zr, mrmx, mrmy);
+			OffsetRect(dr, mrsx, mrsy);
+		}
 		return;
 	}
 
@@ -270,7 +274,7 @@ void getfilterrect2(int monid, RECT *sr, RECT *dr, RECT *zr, int dst_width, int 
 	extrah = -ahs * (filter_vert_zoom - currprefs.gf[ad->picasso_on].gfx_filteroverlay_overscan * 10) / 2.0f;
 
 	extraw2 = 0;
-	if (D3D_getscalerect && D3D_getscalerect(0, &mrmx, &mrmy, &mrsx, &mrsy)) {
+	if (D3D_getscalerect && D3D_getscalerect(monid, &mrmx, &mrmy, &mrsx, &mrsy, avidinfo->outbuffer->inwidth2, avidinfo->outbuffer->inheight2)) {
 		extraw2 = mrmx;
 		//extrah -= mrmy;
 	}
@@ -704,7 +708,7 @@ cont:
 
 end:
 
-	if (D3D_getscalerect && D3D_getscalerect(0, &mrmx, &mrmy, &mrsx, &mrsy)) {
+	if (D3D_getscalerect && D3D_getscalerect(monid, &mrmx, &mrmy, &mrsx, &mrsy, avidinfo->outbuffer->inwidth2, avidinfo->outbuffer->inheight2)) {
 		sizeoffset (dr, zr, mrmx, mrmy);
 		OffsetRect (dr, mrsx, mrsy);
 	}

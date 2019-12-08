@@ -29,7 +29,7 @@ extern float(*D3D_getrefreshrate)(int);
 extern void(*D3D_restore)(int, bool);
 extern void(*D3D_resize)(int, int);
 extern void(*D3D_change)(int, int);
-extern bool(*D3D_getscalerect)(int, float *mx, float *my, float *sx, float *sy);
+extern bool(*D3D_getscalerect)(int, float *mx, float *my, float *sx, float *sy, int width, int height);
 extern bool(*D3D_run)(int);
 extern int(*D3D_debug)(int, int);
 extern void(*D3D_led)(int, int, int);

@@ -62,7 +62,7 @@ float (*D3D_getrefreshrate)(int);
 void(*D3D_restore)(int, bool);
 void(*D3D_resize)(int, int);
 void (*D3D_change)(int, int);
-bool(*D3D_getscalerect)(int, float *mx, float *my, float *sx, float *sy);
+bool(*D3D_getscalerect)(int, float *mx, float *my, float *sx, float *sy, int width, int height);
 bool(*D3D_run)(int);
 int(*D3D_debug)(int, int);
 void(*D3D_led)(int, int, int);
@@ -2485,7 +2485,7 @@ static int createmask2texture(struct d3d11struct *d3d, const TCHAR *filename)
 	freesprite(&d3d->mask2textureled_power_dim);
 	freesprite(&d3d->blanksprite);
 
-	if (filename[0] == 0 || WIN32GFX_IsPicassoScreen(mon))
+	if (filename[0] == 0)
 		return 0;
 
 	zf = NULL;
@@ -5072,7 +5072,7 @@ static uae_u8 *xD3D_setcursorsurface(int monid, int *pitch)
 	}
 }
 
-static bool xD3D11_getscalerect(int monid, float *mx, float *my, float *sx, float *sy)
+static bool xD3D11_getscalerect(int monid, float *mx, float *my, float *sx, float *sy, int width, int height)
 {
 	struct d3d11struct *d3d = &d3d11data[monid];
 	struct vidbuf_description *vidinfo = &adisplays[monid].gfxvidinfo;
@@ -5082,8 +5082,8 @@ static bool xD3D11_getscalerect(int monid, float *mx, float *my, float *sx, floa
 	float mw = d3d->mask2rect.right - d3d->mask2rect.left;
 	float mh = d3d->mask2rect.bottom - d3d->mask2rect.top;
 
-	float mxt = (float)mw / vidinfo->outbuffer->inwidth2;
-	float myt = (float)mh / vidinfo->outbuffer->inheight2;
+	float mxt = (float)mw / width;
+	float myt = (float)mh / height;
 
 	*mx = d3d->mask2texture_minusx / mxt;
 	*my = d3d->mask2texture_minusy / myt;
