@@ -4164,10 +4164,6 @@ int __cdecl main(int argc, char *argv[])
 	safe_memory_end = 0xffffffff;
 	if (ini_getval(ini, INISECTION, _T("feature_safe_memory_size"), &v))
 		safe_memory_end = safe_memory_start + v;
-	if (safe_memory_start == 0xffffffff || safe_memory_end == 0xffffffff) {
-		safe_memory_end = 0xffffffff;
-		safe_memory_start = 0xffffffff;
-	}
 	safe_memory_mode = 3;
 	if (ini_getstring(ini, INISECTION, _T("feature_safe_memory_mode"), &vs)) {
 		safe_memory_mode = 0;
@@ -4176,6 +4172,11 @@ int __cdecl main(int argc, char *argv[])
 		if (_totupper(vs[0]) == 'W')
 			safe_memory_mode |= 2;
 		xfree(vs);
+	}
+	if (safe_memory_start == 0xffffffff || safe_memory_end == 0xffffffff) {
+		safe_memory_end = 0xffffffff;
+		safe_memory_start = 0xffffffff;
+		safe_memory_mode = 0;
 	}
 
 	feature_sr_mask = 0;
