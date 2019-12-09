@@ -324,7 +324,7 @@ static void parsefilepath(TCHAR *path, int maxlen)
 	xfree(tmp);
 }
 
-static int scsiromselect_table[256];
+static int scsiromselect_table[300];
 
 static bool getcomboboxtext(HWND hDlg, int id, TCHAR *out, int maxlen)
 {
