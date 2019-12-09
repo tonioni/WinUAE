@@ -3454,7 +3454,7 @@ static int xxD3D11_init2(HWND ahwnd, int monid, int w_w, int w_h, int t_w, int t
 				desc1.WhitePoint[0], desc1.WhitePoint[1]);
 			write_log(_T("MinL=%f MaxL=%f MaxFFL=%f\n"),
 				desc1.MinLuminance, desc1.MaxLuminance, desc1.MaxFullFrameLuminance);
-			d3d->hdr = desc1.ColorSpace == DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020;
+			d3d->hdr = desc1.ColorSpace == DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020 && currprefs.gfx_hdr;
 		}
 		adapterOutputx = adapterOutput6;
 	}
