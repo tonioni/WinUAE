@@ -578,21 +578,28 @@ static void gen_nextilong2 (const char *type, const char *name, int flags, int m
 		} else {
 			printf ("\t%s = %s (%d) << 16;\n", name, prefetch_word, r + 2);
 			count_read++;
+			check_bus_error_ins(r + 2);
+			do_instruction_buserror();
 			printf ("\t%s |= %s (%d);\n", name, prefetch_word, r + 4);
 			count_read++;
+			check_bus_error_ins(r + 4);
 		}
 	} else {
 		if (using_prefetch) {
 			if (flags & GF_NOREFILL) {
 				printf ("\t%s = %s (%d) << 16;\n", name, prefetch_word, r + 2);
 				count_read++;
+				check_bus_error_ins(r + 2);
 				printf ("\t%s |= regs.irc;\n", name);
 				insn_n_cycles += 4;
 			} else {
 				printf ("\t%s = %s (%d) << 16;\n", name, prefetch_word, r + 2);
 				count_read += 2;
+				check_bus_error_ins(r + 2);
+				do_instruction_buserror();
 				printf ("\t%s |= %s (%d);\n", name, prefetch_word, r + 4);
 				insn_n_cycles += 8;
+				check_bus_error_ins(r + 4);
 			}
 		} else {
 			insn_n_cycles += 8;
