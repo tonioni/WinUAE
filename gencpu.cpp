@@ -699,7 +699,11 @@ static void makefromsr(void)
 
 static void makefromsr_t0(void)
 {
-	printf ("\tMakeFromSR_T0();\n");
+	if (using_prefetch || using_ce) {
+		printf("\tMakeFromSR();\n");
+	} else {
+		printf("\tMakeFromSR_T0();\n");
+	}
 	if (using_ce || isce020())
 		printf ("\tregs.ipl_pin = intlev ();\n");
 }
@@ -825,7 +829,8 @@ static void fill_prefetch_full_ntx (void)
 }
 static void check_trace(void)
 {
-	printf("\tif(regs.t0) check_t0_trace();\n");
+	if (!using_prefetch && !using_ce)
+		printf("\tif(regs.t0) check_t0_trace();\n");
 }
 
 static void trace_t0_68040_only(void)
@@ -892,7 +897,8 @@ static void fill_prefetch_full_000 (void)
 static void fill_prefetch_full_020 (void)
 {
 	if (!using_prefetch_020) {
-		printf("\tif(regs.t0) check_t0_trace();\n");
+		if (!using_prefetch && !using_ce)
+			printf("\tif(regs.t0) check_t0_trace();\n");
 		return;
 	}
 	fill_prefetch_full ();
