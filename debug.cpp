@@ -5901,12 +5901,12 @@ static bool debug_line (TCHAR *input)
 						}
 					}
 				} else {
-					int nextcmd = peekchar(&inptr);
 					if (more_params(&inptr) && *inptr == '?') {
 						mw_help();
 					} else {
 						free_heatmap();
-						if (nextcmd != ' ') {
+						int nextcmd = peekchar(&inptr);
+						if (nextcmd == 'l') {
 							next_char(&inptr);
 						}
 						if (more_params (&inptr))
