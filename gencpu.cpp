@@ -2583,7 +2583,7 @@ static void genamode2x (amodes mode, const char *reg, wordsizes size, const char
 			printf("\t\t%sa += %d;\n", name, flags & GF_REVERSE2 ? -2 : 2);
 
 		if (exp3rw) {
-			char *shift = size == sz_long ? " >> 16" : "";
+			const char *shift = size == sz_long ? " >> 16" : "";
 			printf("\t\texception3_write(opcode, %sa, %d, %s%s, %d);\n",
 				name, size, g_srcname, shift,
 				// PC-relative: FC=2
