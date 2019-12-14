@@ -97,6 +97,7 @@ static int high_memory_offset;
 static uae_u32 vbr[256];
 static int exceptioncount[2][128];
 static int supercnt;
+static uae_u32 endpc;
 
 static char inst_name[16+1];
 #ifndef M68K
@@ -865,6 +866,9 @@ static uae_u8 *restore_data(uae_u8 *p)
 	} else if (mode == CT_DSTADDR) {
 		int size;
 		p = restore_value(p, &regs.dstaddr, &size);
+	} else if (mode == CT_PC) {
+		int size;
+		p = restore_value(p, &regs.pc, &size);
 	} else if (mode == CT_BRANCHTARGET) {
 		int size;
 		p = restore_value(p, &regs.branchtarget, &size);
@@ -1244,6 +1248,10 @@ static uae_u8 *validate_exception(struct registers *regs, uae_u8 *p, int excnum,
 		}
 	}
 
+	last_exception_len = 0;
+	if (excnum == 1)
+		return p;
+
 	exc = last_exception;
 	if (excdatalen != 0xff) {
 		if (cpu_lvl == 0) {
@@ -1429,13 +1437,7 @@ static uae_u8 *validate_test(uae_u8 *p, int ignore_errors, int ignore_sr)
 				endinfo();
 				exit(0);
 			}
-			if (exc == 1) {
-				end_test();
-				printf("Invalid exception %02x\n", exc);
-				endinfo();
-				exit(0);
-			}
-			if (cpu_lvl > 0 && exc > 0 && cpuexc010 != cpuexc) {
+			if (cpu_lvl > 0 && exc >= 2 && cpuexc010 != cpuexc) {
 				addinfo();
 				if (dooutput) {
 					sprintf(outbp, "Exception: vector number does not match vector offset! (%d <> %d)\n", exc, cpuexc010);
@@ -1445,7 +1447,6 @@ static uae_u8 *validate_test(uae_u8 *p, int ignore_errors, int ignore_sr)
 				}
 				break;
 			}
-
 			if (ignore_errors) {
 				if (exc) {
 					p = validate_exception(&test_regs, p, exc, &cpuexc, &experr);
@@ -1464,7 +1465,7 @@ static uae_u8 *validate_test(uae_u8 *p, int ignore_errors, int ignore_sr)
 			if (exc) {
 				p = validate_exception(&test_regs, p, exc, &cpuexc, &experr);
 			}
-			if (exc != cpuexc) {
+			if (exc != cpuexc && exc >= 2) {
 				addinfo();
 				if (dooutput) {
 					if (cpuexc == 4 && last_registers.pc == test_regs.pc) {
@@ -1759,6 +1760,8 @@ static void process_test(uae_u8 *p)
 	regs.dstaddr = 0xffffffff;
 	regs.branchtarget = 0xffffffff;
 
+	endpc = opcode_memory_addr;
+
 	start_test();
 
 	test_ccrignoremask = 0xffff;
@@ -1770,6 +1773,7 @@ static void process_test(uae_u8 *p)
 		outbp = outbuffer;
 #endif
 
+		regs.pc = endpc;
 		for (;;) {
 			uae_u8 v = *p;
 			if (v == CT_END_INIT || v == CT_END_FINISH)
@@ -1783,6 +1787,8 @@ static void process_test(uae_u8 *p)
 		store_addr(regs.srcaddr, srcaddr);
 		store_addr(regs.dstaddr, dstaddr);
 		store_addr(regs.branchtarget, branchtarget);
+		endpc = regs.pc;
+		uae_u8 *opcode_memory_end = (uae_u8*)endpc;
 
 		xmemcpy(&last_registers, &regs, sizeof(struct registers));
 
@@ -1790,18 +1796,6 @@ static void process_test(uae_u8 *p)
 
 		uae_u32 pc = opcode_memory_addr;
 		uae_u32 originalopcodeend = 0x4afc4e71;
-		uae_u8 *opcode_memory_end = (uae_u8*)pc;
-		for (;;) {
-			if (opcode_memory_end == safe_memory_start || gw(opcode_memory_end) == 0x4afc)
-				break;
-			opcode_memory_end += 2;
-			if (opcode_memory_end > (uae_u8*)pc + 32) {
-				end_test();
-				printf("Corrupted opcode memory\n");
-				endinfo();
-				exit(0);
-			}
-		}
 		uae_u32 opcodeend = originalopcodeend;
 		int extraccr = 0;
 		int validendsize = 0;

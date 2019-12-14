@@ -3049,9 +3049,12 @@ void REGPARAM2 Exception_cpu(int nr)
 {
 	bool t0 = currprefs.cpu_model >= 68020 && regs.t0 && !regs.t1;
 	ExceptionX (nr, -1);
-	// check T0 trace
-	if (t0) {
-		activate_trace();
+	// Check T0 trace
+	// RTE format error ignores T0 trace
+	if (nr != 14) {
+		if (t0) {
+			activate_trace();
+		}
 	}
 }
 void REGPARAM2 Exception (int nr)

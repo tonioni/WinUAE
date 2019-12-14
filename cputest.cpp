@@ -770,20 +770,6 @@ void cpu_halt(int halt)
 	cpu_halted = halt;
 }
 
-static void exception_check_trace(int nr)
-{
-	SPCFLAG_TRACE = 0;
-	SPCFLAG_DOTRACE = 0;
-	if (regs.t1) {
-		/* trace stays pending if exception is div by zero, chk,
-		* trapv or trap #x
-		*/
-		if (nr == 5 || nr == 6 || nr == 7 || (nr >= 32 && nr <= 47))
-			SPCFLAG_DOTRACE = 1;
-	}
-	regs.t1 = regs.t0 = 0;
-}
-
 void m68k_setstopped(void)
 {
 	/* A traced STOP instruction drops through immediately without
@@ -2454,13 +2440,17 @@ static int handle_specials_stack(uae_u16 opcode, uaecptr pc, struct instr *dp, i
 			if (currprefs.cpu_model == 68000) {
 				imm_special++;
 				v = imm_special >> 2;
-				uae_u16 sr = v & 31;
+				uae_u16 sr = 0;
 				if (v & 32)
 					sr |= 0x2000;
 				if (v & 64)
 					sr |= 0x8000;
+				// fill also unused bits
+				sr |= sr >> 1;
+				sr |= v & 31;
+				sr |= (v & 7) << 5;
+				sr |= feature_min_interrupt_mask << 8;
 				put_word_test(addr, sr);
-				printf("%04x (%04x) ", sr, regs.sr);
 				addr += 2;
 				offset += 2;
 				*isconstant = imm_special >= (1 << (2 + 5)) * 4 ? 0 : -1;
@@ -2489,12 +2479,16 @@ static void execute_ins(uaecptr endpc, uaecptr targetpc, struct instr *dp)
 	uae_u16 opc = regs.ir;
 	uae_u16 opw1 = (opcode_memory[2] << 8) | (opcode_memory[3] << 0);
 	uae_u16 opw2 = (opcode_memory[4] << 8) | (opcode_memory[5] << 0);
-	if (opc == 0x4a10
-		//&& opw1 == 0xb000
-		//&& opw2 == 0xf78c
+	if (opc == 0x87b9
+		&& opw1 == 0x0000
+		&& opw2 == 0x4afc
 		)
 		printf("");
 	if (regs.sr & 0x2000)
+		printf("");
+	if (regs.sr & 0x8000)
+		printf("");
+	if (regs.sr & 0x4000)
 		printf("");
 
 	// execute instruction
@@ -2717,69 +2711,72 @@ static uae_u8 *save_exception(uae_u8 *p, struct instr *dp)
 		*p++ = trace_store_sr;
 		p = store_rel(p, 0, opcode_memory_start, trace_store_pc, 1);
 	}
-	uae_u8 *sf = test_memory + test_memory_size + EXTRA_RESERVED_SPACE - exception_stack_frame_size;
-	// parse exception and store fields that are unique
-	// SR and PC was already saved with non-exception data
-	if (cpu_lvl == 0) {
-		if (test_exception == 2 || test_exception == 3) {
-			// status
-			*p++ = sf[1];
-			// opcode (which is not necessarily current opcode!)
+	uae_u8 *sf = NULL;
+	if (test_exception > 0) {
+		sf = test_memory + test_memory_size + EXTRA_RESERVED_SPACE - exception_stack_frame_size;
+		// parse exception and store fields that are unique
+		// SR and PC was already saved with non-exception data
+		if (cpu_lvl == 0) {
+			if (test_exception == 2 || test_exception == 3) {
+				// status
+				*p++ = sf[1];
+				// opcode (which is not necessarily current opcode!)
+				*p++ = sf[6];
+				*p++ = sf[7];
+				// access address
+				p = store_rel(p, 0, opcode_memory_start, gl(sf + 2), 1);
+			}
+		} else if (cpu_lvl > 0) {
+			uae_u8 ccrmask = 0;
+			uae_u16 frame = (sf[6] << 8) | sf[7];
+			// frame + vector offset
 			*p++ = sf[6];
 			*p++ = sf[7];
-			// access address
-			p = store_rel(p, 0, opcode_memory_start, gl(sf + 2), 1);
-		}
-	} else if (cpu_lvl > 0) {
-		uae_u8 ccrmask = 0;
-		uae_u16 frame = (sf[6] << 8) | sf[7];
-		// frame + vector offset
-		*p++ = sf[6];
-		*p++ = sf[7];
-		switch (frame >> 12)
-		{
-		case 0:
-			break;
-		case 2:
-			// instruction address
-			p = store_rel(p, 0, opcode_memory_start, gl(sf + 8), 1);
-			break;
-		case 3:
-			// effective address
-			p = store_rel(p, 0, opcode_memory_start, gl(sf + 8), 1);
-			break;
-		case 4: // floating point unimplemented (68040/060)
-			// fault/effective address
-			p = store_rel(p, 0, opcode_memory_start, gl(sf + 8), 1);
-			// FSLW or PC of faulted instruction
-			p = store_rel(p, 0, opcode_memory_start, gl(sf + 12), 1);
-			break;
-		case 8: // 68010 address/bus error
-			// SSW
-			*p++ = sf[8];
-			*p++ = sf[9];
-			// fault address
-			p = store_rel(p, 0, opcode_memory_start, gl(sf + 10), 1);
-			// data output
-			*p++ = sf[16];
-			*p++ = sf[17];
-			// data input
-			*p++ = sf[20];
-			*p++ = sf[21];
-			// instruction
-			*p++ = sf[24];
-			*p++ = sf[25];
-			break;
-		case 0x0a: // 68020/030 address error.
-		case 0x0b: // Don't save anything extra, too many undefined fields and bits..
-			exception_stack_frame_size = 0x08;
-			break;
-		default:
-			wprintf(_T(" Unknown frame %04x!\n"), frame);
-			abort();
+			switch (frame >> 12)
+			{
+			case 0:
+				break;
+			case 2:
+				// instruction address
+				p = store_rel(p, 0, opcode_memory_start, gl(sf + 8), 1);
+				break;
+			case 3:
+				// effective address
+				p = store_rel(p, 0, opcode_memory_start, gl(sf + 8), 1);
+				break;
+			case 4: // floating point unimplemented (68040/060)
+				// fault/effective address
+				p = store_rel(p, 0, opcode_memory_start, gl(sf + 8), 1);
+				// FSLW or PC of faulted instruction
+				p = store_rel(p, 0, opcode_memory_start, gl(sf + 12), 1);
+				break;
+			case 8: // 68010 address/bus error
+				// SSW
+				*p++ = sf[8];
+				*p++ = sf[9];
+				// fault address
+				p = store_rel(p, 0, opcode_memory_start, gl(sf + 10), 1);
+				// data output
+				*p++ = sf[16];
+				*p++ = sf[17];
+				// data input
+				*p++ = sf[20];
+				*p++ = sf[21];
+				// instruction
+				*p++ = sf[24];
+				*p++ = sf[25];
+				break;
+			case 0x0a: // 68020/030 address error.
+			case 0x0b: // Don't save anything extra, too many undefined fields and bits..
+				exception_stack_frame_size = 0x08;
+				break;
+			default:
+				wprintf(_T(" Unknown frame %04x!\n"), frame);
+				abort();
+			}
 		}
 	}
-	if (last_exception_len > 0 && last_exception_len == exception_stack_frame_size && test_exception_extra == last_exception_extra && !memcmp(sf, last_exception, exception_stack_frame_size)) {
+	if (last_exception_len > 0 && last_exception_len == exception_stack_frame_size && test_exception_extra == last_exception_extra && (!sf || !memcmp(sf, last_exception, exception_stack_frame_size))) {
 		// stack frame was identical to previous
 		p = op;
 		*p++ = 0xff;
@@ -2788,7 +2785,9 @@ static uae_u8 *save_exception(uae_u8 *p, struct instr *dp)
 		last_exception_len = exception_stack_frame_size;
 		last_exception_extra = test_exception_extra;
 		*op = (uae_u8)datalen;
-		memcpy(last_exception, sf, exception_stack_frame_size);
+		if (sf) {
+			memcpy(last_exception, sf, exception_stack_frame_size);
+		}
 	}
 	return p;
 }
@@ -3060,6 +3059,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 		uae_u32 srcaddr = 0xffffffff;
 		uae_u32 dstaddr = 0xffffffff;
 		uae_u32 branchtarget_old = 0xffffffff;
+		uae_u32 instructionendpc_old = opcode_memory_start;
 		int branch_target_swap_mode_old = 0;
 
 		if (verbose) {
@@ -3144,7 +3144,6 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 					int isconstant_src = 0;
 					int isconstant_dst = 0;
 					int did_out_of_bounds = 0;
-					uae_u8 *prev_dst2 = dst;
 					int prev_test_count = test_count;
 					int prev_subtest_count = subtest_count;
 
@@ -3167,9 +3166,9 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 					target_address = target_address_bak;
 					target_opcode_address = target_opcode_address_bak;
 
-					if (opc == 0x4ed0)
+					if (opc == 0x0e35)
 						printf("");
-					if (subtest_count >= 28540)
+					if (subtest_count >= 144)
 						printf("");
 
 
@@ -3210,8 +3209,8 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 						uae_u8 *ao = opcode_memory_ptr + 2;
 						uae_u16 apw1 = (ao[0] << 8) | (ao[1] << 0);
 						uae_u16 apw2 = (ao[2] << 8) | (ao[3] << 0);
-						if (opc == 0x4eb1
-							&& apw1 == 0xee38
+						if (opc == 0xe1f8
+							&& apw1 == 0x4e71
 							//&& apw2 == 0x7479
 							)
 							printf("");
@@ -3227,7 +3226,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 							}
 							if (count > 0) {
 								int diff = (rand8() % count);
-								if (dp->dmode == Apdi) {
+ 								if (dp->dmode == Apdi) {
 									diff = -diff;
 								}
 								uae_u32 ta = target_address;
@@ -3306,14 +3305,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 					uae_u32 originalendopcode = 0x4afc4e71;
 					uae_u32 endopcode = originalendopcode;
 					uae_u32 actualendpc = pc;
-					if (!is_nowrite_address(pc, 4)) {
-						put_long_test(pc, endopcode); // illegal instruction + nop
-						actualendpc += 4;
-					} else if (!is_nowrite_address(pc, 2)) {
-						put_word_test(pc, endopcode >> 16);
-						actualendpc += 2;
-					}
-					pc += 4;
+					uae_u32 instructionendpc = pc;
 
 					if (isconstant_src < 0 || isconstant_dst < 0) {
 						constant_loops++;
@@ -3333,9 +3325,20 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 						abort();
 					}
 
+					uae_u8 *prev_dst = dst;
 					dst = store_mem_bytes(dst, opcode_memory_start, actualendpc - opcode_memory_start, subtest_count > 0 ? oldbytes : NULL);
 					ahcnt = 0;
 
+					noaccesshistory++;
+					if (!is_nowrite_address(pc, 4)) {
+						put_long_test(pc, endopcode); // illegal instruction + nop
+						actualendpc += 4;
+					} else if (!is_nowrite_address(pc, 2)) {
+						put_word_test(pc, endopcode >> 16);
+						actualendpc += 2;
+					}
+					noaccesshistory--;
+					pc += 4;
 
 					TCHAR out[256];
 					memset(out, 0, sizeof(out));
@@ -3357,11 +3360,11 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 
 					if ((dflags & 1) && target_ea[0] != 0xffffffff && srcaddr != 0xffffffff && srcaddr != target_ea[0]) {
 						wprintf(_T(" Source address mismatch %08x <> %08x\n"), target_ea[0], srcaddr);
-						continue;;
+						continue;
 					}
 					if ((dflags & 2) && target_ea[1] != 0xffffffff && dstaddr != target_ea[1]) {
 						wprintf(_T(" Destination address mismatch %08x <> %08x\n"), target_ea[1], dstaddr);
-						continue;;
+						continue;
 					}
 
 					if ((dflags & 1) && target_ea[0] == 0xffffffff && (srcaddr & addressing_mask) >= safe_memory_start - 4 && (srcaddr & addressing_mask) < safe_memory_end + 4) {
@@ -3397,9 +3400,8 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 							srcaddr = get_long_test(regs.regs[8 + 7] + stackoffset);
 						}
 						// branch target is not accessible? skip.
-						if ((srcaddr >= cur_registers[15] - 16 && srcaddr <= cur_registers[15] + 16) || ((srcaddr & 1) && !feature_exception3_instruction)) {
+						if ((srcaddr >= cur_registers[15] - 16 && srcaddr <= cur_registers[15] + 16) || ((srcaddr & 1) && !feature_exception3_instruction && feature_odd_usp < 2)) {
 							// lets not jump directly to stack..
-							prev_dst2 = dst;
 							if (verbose) {
 								if (srcaddr & 1)
 									wprintf(_T(" Branch target is odd\n"));
@@ -3414,7 +3416,6 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 								wprintf(_T(" Branch target inaccessible\n"));
 							}
 							testing_active = 0;
-							prev_dst2 = dst;
 							continue;
 						} else {
 							// branch target = generate exception
@@ -3435,6 +3436,12 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 						testing_active = 0;
 					}
 
+					uae_u32 instructionendpc_old_prev = instructionendpc_old;
+					// PC before test: end address of test intruction
+					if (instructionendpc != instructionendpc_old) {
+						dst = store_reg(dst, CT_PC, instructionendpc_old, instructionendpc, -1);
+						instructionendpc_old = instructionendpc;
+					}
 					if (srcaddr != srcaddr_old && (dflags & 1)) {
 						dst = store_reg(dst, CT_SRCADDR, srcaddr_old, srcaddr, -1);
 						srcaddr_old = srcaddr;
@@ -3449,6 +3456,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 						*dst++ = branch_target_swap_mode;
 						branch_target_swap_mode_old = branch_target_swap_mode;
 					}
+
 
 					*dst++ = CT_END_INIT;
 
@@ -3628,6 +3636,18 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 								(cpu_bus_error == 2 && !(safe_memory_mode & 2))) {
 								skipped = 1;
 							}
+							if (test_exception != 3) {
+								if (feature_exception3_data == 2) {
+									skipped = 1;
+								}
+								if (feature_exception3_instruction == 2) {
+									skipped = 1;
+								}
+								if (feature_odd_usp > 1) {
+									skipped = 1;
+								}
+							}
+
 							if (cpu_stopped) {
 								cnt_stopped++;
 								// CPU stopped, skip test
@@ -3652,17 +3672,10 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 									sr_allowed_mask |= 0x2000;
 								}
 								if (test_exception == 3) {
-									if (!feature_exception3_data && !(test_exception_3_fc & 2)) {
+									if (!feature_odd_usp && !feature_exception3_data && !(test_exception_3_fc & 2)) {
 										skipped = 1;
 									}
-									if (!feature_exception3_instruction && (test_exception_3_fc & 2)) {
-										skipped = 1;
-									}
-								} else {
-									if (feature_exception3_data == 2) {
-										skipped = 1;
-									}
-									if (feature_exception3_instruction == 2) {
+									if (!feature_odd_usp && !feature_exception3_instruction && (test_exception_3_fc & 2)) {
 										skipped = 1;
 									}
 								}
@@ -3768,6 +3781,9 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 								if (test_exception) {
 									*dst++ = CT_END | test_exception;
 									dst = save_exception(dst, dp);
+								} else if (test_exception_extra) {
+									*dst++ = CT_END | 1;
+									dst = save_exception(dst, dp);
 								} else {
 									*dst++ = CT_END;
 								}
@@ -3791,12 +3807,13 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 
 					if (!ccr_done) {
 						// undo whole previous ccr/extra loop if all tests were skipped
-						dst = prev_dst2;
+						dst = prev_dst;
 						//*dst++ = CT_END_INIT;
 						memcpy(opcode_memory, oldbytes, sizeof(oldbytes));
 						test_count = prev_test_count;
 						subtest_count = prev_subtest_count;
 						last_exception_len = -1;
+						instructionendpc_old = instructionendpc_old_prev;
 					} else {
 						full_format_cnt++;
 					}
@@ -3814,6 +3831,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 							branchtarget_old = 0xffffffff;
 							srcaddr_old = 0xffffffff;
 							dstaddr_old = 0xffffffff;
+							instructionendpc_old = opcode_memory_start;
 						}
 						dst = storage_buffer;
 						for (int i = 0; i < MAX_REGISTERS; i++) {
@@ -4133,6 +4151,7 @@ int __cdecl main(int argc, char *argv[])
 		if (ini_getstring(ini, INISECTION, i == 2 ? _T("feature_target_opcode_offset") : (i ? _T("feature_target_dst_ea") : _T("feature_target_src_ea")), &vs)) {
 			int cnt = 0;
 			TCHAR *p = vs;
+			int exp3cnt = 0;
 			while (p && *p) {
 				if (cnt >= MAX_TARGET_EA)
 					break;
@@ -4146,8 +4165,7 @@ int __cdecl main(int argc, char *argv[])
 				}
 				feature_target_ea[cnt][i] = _tcstol(p, &endptr, 16);
 				if (feature_target_ea[cnt][i] & 1) {
-					feature_exception3_data = 3;
-					feature_exception3_instruction = 3;
+					exp3cnt++;
 				}
 				p = pp;
 				cnt++;
@@ -4160,6 +4178,17 @@ int __cdecl main(int argc, char *argv[])
 				target_ea_src_max = cnt;
 			}
 			xfree(vs);
+			if (cnt > 0) {
+				if (exp3cnt == cnt) {
+					if (feature_exception3_data < 2)
+						feature_exception3_data = 2;
+					if (feature_exception3_instruction < 2)
+						feature_exception3_instruction = 2;
+				} else {
+					feature_exception3_data = 3;
+					feature_exception3_instruction = 3;
+				}
+			}
 		}
 	}
 
