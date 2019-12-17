@@ -593,7 +593,7 @@ if (offset == 0)
   offset = (WORD)*(code + 1);
   used = 2;
   }
-else if (offset == -1)
+else if (offset == -1 && cpu68020)
   {
   /* long displacement */
   if (!cpu68020)
@@ -608,8 +608,8 @@ else
   }
 
 ref = offset + current_ref + 2;
-if (ODD (offset) || ref < first_ref || ref >= last_ref)
-  return (TRANSFER);
+//if (ODD (offset) || ref < first_ref || ref >= last_ref)
+//  return (TRANSFER);
 
 if (pass3)
   {
@@ -640,8 +640,8 @@ uint dbranch (struct opcode_entry *op)
 {
 ULONG ref;
 
-if (*(code + 1) & 0x1)  /* branch to an odd address */
-  return (TRANSFER);
+//if (*(code + 1) & 0x1)  /* branch to an odd address */
+//  return (TRANSFER);
 
 if (pass3)
   str_cpy (src, reg_names [*code & 7]);

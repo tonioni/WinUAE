@@ -970,6 +970,10 @@ uint disasm_instr(UWORD *instr, char *out)
 	struct opcode_entry *op;
 	uint size = 0;
 
+    first_ref = 0;
+    last_ref = 0xffffffff;
+    current_ref = (ULONG)instr;
+
 	set_pass3;
 
 	opcode[0] = src[0] = dest[0] = 0;
