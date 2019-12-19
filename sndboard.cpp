@@ -778,7 +778,7 @@ static bool audio_state_sndboard_uae(int streamid, void *params)
 		s->sample[6] = c;
 		s->sample[7] = lfe;
 	}
-	audio_state_stream_state(s->streamid, s->sample, highestch, s->event_time);
+	audio_state_stream_state(streamid, s->sample, highestch, s->event_time);
 	return true;
 }
 
@@ -1550,7 +1550,7 @@ static bool audio_state_sndboard_toccata(int streamid, void *cb)
 #endif
 		}
 	}
-	audio_state_stream_state(data->streamid, data->ch_sample, 2, data->event_time);
+	audio_state_stream_state(streamid, data->ch_sample, 2, data->event_time);
 	return true;
 }
 
@@ -1666,8 +1666,9 @@ static void codec_stop(struct snddev_data *data)
 	write_log(_T("CODEC stop\n"));
 	data->snddev_active = 0;
 	sndboard_free_capture();
-	audio_enable_stream(false, data->streamid, 0, NULL, NULL);
+	int streamid = data->streamid;
 	data->streamid = 0;
+	audio_enable_stream(false, streamid, 0, NULL, NULL);
 	xfree(data->capture_buffer);
 	data->capture_buffer = NULL;
 }
@@ -2407,8 +2408,9 @@ static void fm801_stop(struct fm801_data *data)
 {
 	write_log(_T("FM801 STOP\n"));
 	data->play_on = false;
-	audio_enable_stream(false, data->streamid, 0, NULL, NULL);
+	int streamid = data->streamid;
 	data->streamid = 0;
+	audio_enable_stream(false, streamid, 0, NULL, NULL);
 }
 
 static void fm801_swap_buffers(struct fm801_data *data)
@@ -2465,7 +2467,7 @@ static bool audio_state_sndboard_fm801(int streamid, void *params)
 			fm801_interrupt(data);
 		}
 	}
-	audio_state_stream_state(data->streamid, data->ch_sample, data->ch, data->event_time);
+	audio_state_stream_state(streamid, data->ch_sample, data->ch, data->event_time);
 	return true;
 }
 
@@ -2817,7 +2819,7 @@ static bool audio_state_sndboard_qemu(int streamid, void *params)
 		out->ch_sample[1] = out->ch_sample[1] * out->right_volume / 32768;
 		out->samplebuf_index += out->bytesperframe;
 	}
-	audio_state_stream_state(out->streamid, out->ch_sample, out->ch, out->event_time);
+	audio_state_stream_state(streamid, out->ch_sample, out->ch, out->event_time);
 	return true;
 }
 
