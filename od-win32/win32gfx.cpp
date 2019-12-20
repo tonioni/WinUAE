@@ -2251,9 +2251,8 @@ static int getstatuswindowheight(int monid, HWND hwnd)
 	wi.cbSize = sizeof wi;
 	if (GetWindowInfo (h, &wi))
 		def = wi.rcWindow.bottom - wi.rcWindow.top;
-	int dpi = hwnd ? getdpiforwindow(hwnd) : getdpiformonitor(NULL);
-	DestroyWindow (h);
-	return dpi * def / 96;
+	DestroyWindow(h);
+	return def;
 }
 
 void graphics_reset(bool forced)
@@ -3785,19 +3784,33 @@ static int create_windows_2(struct AmigaMonitor *mon)
 			mon->currentmode.native_width = rc.right - rc.left;
 			mon->currentmode.native_height = rc.bottom - rc.top;
 		}
-		flags |= (currprefs.win32_main_alwaysontop ? WS_EX_TOPMOST : 0);
+		flags |= currprefs.win32_main_alwaysontop ? WS_EX_TOPMOST : 0;
 
 		if (!borderless) {
 			RECT rc2;
-			mon->hMainWnd = CreateWindowEx(WS_EX_ACCEPTFILES | exstyle | flags,
-				_T("PCsuxRox"), _T("WinUAE"),
-				style,
-				rc.left, rc.top,
-				rc.right - rc.left, rc.bottom - rc.top,
-				NULL, NULL, hInst, NULL);
-			if (!mon->hMainWnd) {
-				write_log (_T("main window creation failed\n"));
-				return 0;
+			int sbheight2 = -1;
+			for (;;) {
+				mon->hMainWnd = CreateWindowEx(WS_EX_ACCEPTFILES | exstyle | flags,
+					_T("PCsuxRox"), _T("WinUAE"),
+					style,
+					rc.left, rc.top,
+					rc.right - rc.left, rc.bottom - rc.top,
+					NULL, NULL, hInst, NULL);
+				if (!mon->hMainWnd) {
+					write_log(_T("main window creation failed\n"));
+					return 0;
+				}
+				if (sbheight && sbheight2 < 0 && !fsw) {
+					// recheck, system could have multiple monitors with different DPI
+					sbheight2 = getstatuswindowheight(mon->monitor_id, mon->hMainWnd);
+					if (sbheight2 != sbheight) {
+						rc.bottom -= sbheight;
+						rc.bottom += sbheight2;
+						sbheight = sbheight2;
+						continue;
+					}
+				}
+				break;
 			}
 			GetWindowRect(mon->hMainWnd, &rc2);
 			mon->window_extra_width = rc2.right - rc2.left - mon->currentmode.current_width;

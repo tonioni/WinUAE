@@ -1028,25 +1028,6 @@
     <None Include="..\resources\drive_spin.wav" />
     <None Include="..\resources\drive_spinnd.wav" />
     <None Include="..\resources\drive_startup.wav" />
-    <None Include="..\hq2x16.asm">
-      <Filter>nasm</Filter>
-    </None>
-    <None Include="..\hq2x32.asm">
-      <Filter>nasm</Filter>
-    </None>
-    <None Include="..\hq3x16.asm">
-      <Filter>nasm</Filter>
-    </None>
-    <None Include="..\hq3x32.asm">
-      <Filter>nasm</Filter>
-    </None>
-    <None Include="..\hq4x16.asm">
-      <Filter>nasm</Filter>
-    </None>
-    <None Include="..\hq4x32.asm">
-      <Filter>nasm</Filter>
-    </None>
-    <None Include="..\fpux86_80.asm" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="..\resources\winuae.rc">
@@ -1077,5 +1058,12 @@
     <CustomBuild Include="..\fpux64_80.asm">
       <Filter>nasm</Filter>
     </CustomBuild>
+    <CustomBuild Include="..\fpux86_80.asm" />
+    <CustomBuild Include="..\hq2x16.asm" />
+    <CustomBuild Include="..\hq2x32.asm" />
+    <CustomBuild Include="..\hq3x16.asm" />
+    <CustomBuild Include="..\hq3x32.asm" />
+    <CustomBuild Include="..\hq4x16.asm" />
+    <CustomBuild Include="..\hq4x32.asm" />
   </ItemGroup>
 </Project>

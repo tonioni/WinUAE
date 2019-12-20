@@ -12157,27 +12157,17 @@ static void setstatefilename (HWND hDlg)
 	setchecked (hDlg, IDC_STATECLEAR, workprefs.statefile[0] != 0);
 }
 
-static int previous_dpix, previous_dpiy;
-
-static void setdefaultguisize (void)
+static void setdefaultguisize(int skipdpi)
 {
-	double dpix = 1.0, dpiy = 1.0;
+	int dpi = skipdpi ? 96 : getdpiformonitor(NULL);
 
-#if 0
-	previous_dpix = 0;
-	previous_dpiy = 0;
-	if (isfullscreen() <= 0) {
-		scaleresource_getdpimult(&dpix, &dpiy, &previous_dpix, &previous_dpiy);
-	}
-#endif
-
-	gui_width = (int)(GUI_INTERNAL_WIDTH * dpix);
-	gui_height = (int)(GUI_INTERNAL_HEIGHT * dpiy);
+	gui_width = MulDiv(GUI_INTERNAL_WIDTH, dpi, 96);
+	gui_height = MulDiv(GUI_INTERNAL_HEIGHT, dpi, 96);
 
 	int w = GetSystemMetrics(SM_CXVIRTUALSCREEN);
 	int h = GetSystemMetrics(SM_CYVIRTUALSCREEN);
 
-	if ((dpix > 1 || dpiy > 1) && (gui_width > w || gui_height > h)) {
+	if ((dpi > 96) && (gui_width > w || gui_height > h)) {
 		gui_width = w;
 		gui_height = h;
 	}
@@ -21285,8 +21275,6 @@ static INT_PTR CALLBACK DialogProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 			int dy = HIWORD(wParam);
 			RECT *const r = (RECT*)lParam;
 			gui_size_changed = 0;
-			previous_dpix = dx;
-			previous_dpiy = dy;
 			gui_width = (r->right - r->left);
 			gui_height = (r->bottom - r->top);
 			oldwidth = gui_width;
@@ -21768,8 +21756,9 @@ static int GetSettings (int all_options, HWND hwnd)
 	}
 
 	int fmultx = 0, fmulty = 0;
+	int resetcount = 0;
 	bool boxart_reopen = false;
-	setdefaultguisize();
+	setdefaultguisize(0);
 	getstoredguisize();
 	scaleresource_setsize(-1, -1, -1);
 	for (;;) {
@@ -21787,7 +21776,7 @@ static int GetSettings (int all_options, HWND hwnd)
 			gui_fullscreen = 1;
 		}
 		if (!gui_fullscreen && !gui_size_changed) {
-			setdefaultguisize ();
+			setdefaultguisize(0);
 			getstoredguisize();
 		}
 		gui_size_changed = 0;
@@ -21800,7 +21789,8 @@ static int GetSettings (int all_options, HWND hwnd)
 		} else {
 			if (gui_width < MIN_GUI_INTERNAL_WIDTH || gui_width > 4096 || gui_height < MIN_GUI_INTERNAL_HEIGHT || gui_height > 4096) {
 				scaleresource_setdefaults(hwnd);
-				setdefaultguisize ();
+				setdefaultguisize(resetcount > 0);
+				resetcount++;
 				fmultx = 0;
 				write_log (_T("GUI size reset\n"));
 			}
@@ -21903,10 +21893,11 @@ static int GetSettings (int all_options, HWND hwnd)
 			if (w < 100 || h < 100 || (w > 8192 && w > dw + 500) || (h > 8192 && h > dh + 500)) {
 				write_log (_T("GUI size (%dx%d) out of range!\n"), w, h);
 				scaleresource_setdefaults(hwnd);
-				setdefaultguisize ();
+				setdefaultguisize(resetcount > 0);
 				SendMessage (dhwnd, WM_COMMAND, IDCANCEL, 0);
 				fmultx = fmulty = 0;
 				gui_size_changed = 10;
+				resetcount++;
 				goto gui_exit;
 			}
 
@@ -22006,7 +21997,7 @@ static int GetSettings (int all_options, HWND hwnd)
 				pre_gui_message (_T("GUI failed to open"));
 				abort ();
 			}
-			setdefaultguisize ();
+			setdefaultguisize(count >= 2);
 			scaleresource_setdefaults(hwnd);
 			gui_size_changed = 10;
 		}

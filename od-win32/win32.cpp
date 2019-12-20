@@ -5484,6 +5484,35 @@ void associate_file_extensions (void)
 		SHChangeNotify (SHCNE_ASSOCCHANGED, 0, 0, 0); 
 }
 
+static bool resetgui_pending;
+static void resetgui(void)
+{
+	regdelete(NULL, _T("GUIPosX"));
+	regdelete(NULL, _T("GUIPosY"));
+	regdelete(NULL, _T("GUIPosFWX"));
+	regdelete(NULL, _T("GUIPosFWY"));
+	regdelete(NULL, _T("GUIPosFSX"));
+	regdelete(NULL, _T("GUIPosFSY"));
+	regdelete(NULL, _T("GUISizeX"));
+	regdelete(NULL, _T("GUISizeY"));
+	regdelete(NULL, _T("GUISizeFWX"));
+	regdelete(NULL, _T("GUISizeFWY"));
+	regdelete(NULL, _T("GUISizeFSX"));
+	regdelete(NULL, _T("GUISizeFSY"));
+	regdelete(NULL, _T("GUIFont"));
+	regdelete(NULL, _T("GUIListFont"));
+	UAEREG *key = regcreatetree(NULL, _T("ListViews"));
+	if (key) {
+		for (int i = 1; i <= 10; i++) {
+			TCHAR buf[100];
+			_stprintf(buf, _T("LV_%d"), i);
+			regdelete(key, buf);
+		}
+		regclosetree(key);
+	}
+	resetgui_pending = false;
+}
+
 static void WIN32_HandleRegistryStuff (void)
 {
 	RGBFTYPE colortype = RGBFB_NONE;
@@ -5503,11 +5532,30 @@ static void WIN32_HandleRegistryStuff (void)
 	initpath (_T("SaveimagePath"), start_path_data);
 	initpath (_T("VideoPath"), start_path_data);
 	initpath (_T("InputPath"), start_path_data);
+
+	size = sizeof(version) / sizeof(TCHAR);
+	if (regquerystr(NULL, _T("Version"), version, &size)) {
+		int ver = 0;
+		if (checkversion(version, &ver)) {
+			regsetstr(NULL, _T("Version"), VersionStr);
+			// Reset GUI setting if pre-4.3.0
+			if (ver > 0x030000 && ver < 0x040300) {
+				resetgui_pending = true;
+			}
+		}
+	} else {
+		regsetstr(NULL, _T("Version"), VersionStr);
+	}
+	if (resetgui_pending) {
+		resetgui();
+	}
+
 	if (!regexists (NULL, _T("MainPosX")) || !regexists (NULL, _T("GUIPosX"))) {
 		int x = GetSystemMetrics (SM_CXSCREEN);
 		int y = GetSystemMetrics (SM_CYSCREEN);
-		x = (x - 800) / 2;
-		y = (y - 600) / 2;
+		int dpi = getdpiformonitor(NULL);
+		x = (x - (800 * dpi / 96)) / 2;
+		y = (y - (600 * dpi / 96)) / 2;
 		if (x < 10)
 			x = 10;
 		if (y < 10)
@@ -5517,26 +5565,6 @@ static void WIN32_HandleRegistryStuff (void)
 		regsetint (NULL, _T("MainPosY"), y);
 		regsetint (NULL, _T("GUIPosX"), x);
 		regsetint (NULL, _T("GUIPosY"), y);
-	}
-	size = sizeof (version) / sizeof (TCHAR);
-	if (regquerystr (NULL, _T("Version"), version, &size)) {
-		int ver = 0;
-		if (checkversion(version, &ver)) {
-			regsetstr(NULL, _T("Version"), VersionStr);
-			// Reset GUI setting if pre-4.3.0
-			if (ver > 0x030000 && ver < 0x040300) {
-				regdelete(NULL, _T("GUISizeX"));
-				regdelete(NULL, _T("GUISizeY"));
-				regdelete(NULL, _T("GUISizeFWX"));
-				regdelete(NULL, _T("GUISizeFWY"));
-				regdelete(NULL, _T("GUISizeFSX"));
-				regdelete(NULL, _T("GUISizeFSY"));
-				regdelete(NULL, _T("GUIFont"));
-				regdelete(NULL, _T("GUIListFont"));
-			}
-		}
-	} else {
-		regsetstr (NULL, _T("Version"), VersionStr);
 	}
 	size = sizeof (version) / sizeof (TCHAR);
 	if (regquerystr (NULL, _T("ROMCheckVersion"), version, &size)) {
@@ -6551,6 +6579,10 @@ static int parseargs(const TCHAR *argx, const TCHAR *np, const TCHAR *np2)
 	}
 	if (!_tcscmp(arg, _T("nontdelayexecution"))) {
 		noNtDelayExecution = 1;
+		return 1;
+	}
+	if (!_tcscmp(arg, _T("resetgui"))) {
+		resetgui_pending = true;
 		return 1;
 	}
 	if (!np)

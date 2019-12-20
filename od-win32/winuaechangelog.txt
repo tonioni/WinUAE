@@ -1,4 +1,45 @@
 
+4.3.0
+
+- Emulated sound card stream close changes, mark the stream first closed, then close the stream to not crash if done by PPC thread while audio is playing.
+
+Beta 10:
+
+- Emulation window status bar DPI calculation fixed.
+- Default GUI size (when opened without existing registry/ini data or version in reg/ini is old) didn't include DPI correction.
+- Added -resetgui command line parameter that resets GUI customizations stored in registry/ini.
+
+Beta 9:
+
+- Executed full 68000 and 68020 CPU tester recheck (Including trace and address errors).
+- 68020 T0 set and RTE causing format error exception: trace exception is not generated.
+- Yet another update to "Alien Breed 3D glitch that depends on screen size". Hopefully this is now fully working.
+
+Beta 8:
+
+- Partition HDF default geometry calculation changed if partition size is 1000M or larger, keeps total cylinders under 32768 = better compatibility with pre-OS3.9(BB2?) versions. Only changed when HDF is added using GUI. Config file loaded geometry won't change.
+- RDB mode didn't disable if RDB HDF was selected and then switched to partition HDF using GUI.
+- CD32 didn't boot from CD after reset (b1)
+- DMA debugger update in b7 had incorrect commmand parsing.
+- Microbotics HardFrame v1.9 ROM CRCs added.
+- D3D11 HDR mode is not anymore enabled automatically (if compatible hardware is detected), it is now only enabled if gfx_hdr=true is in config file. This is experimental feature and should not be the default in official versions.
+- RTG mode D3D9/11 overlay graphics support. (Scaling/positioning needs to be better but it needs more updates, after 4.3.0 is out)
+
+Beta 7:
+
+- Output DMA debugger output to log file with "vl" command.
+- Fixed b6 horizontal bitplane buffer size check. (for example superhires wasn't fully visible)
+
+Beta 6:
+
+- DMA debugger SPRxPOS/SPRxCTL and SPRxDATA/SPRxDATB was swapped.
+- Lagless vsync: use raster line polling if Windows 7. D3DKMTWaitForVerticalBlankEvent() (still) seems to work badly in Windoes 7 (b5).
+- PCMCIA overrode any Z2 boards at 0x600000-0x9fffff range. Any Z2 board conflict will now disable PCMCIA. (This is not really what happens in real world but you can't easily have multiple Z2 boards in A600 or A1200 either in real world. It can get confusing if you change Z2 boards and suddenly one or both boards simply stop working.)
+- Added limits to internal horizontal bitplane rendering, in some situations (high AGA fetch mode, high resolution and/or subpixel mode) it overflowed to next line.
+- Added support for AccessX 2000 IDE controller. Same ROM contents, different ROM address/data line "scrambling" than used in 500 variant.
+- 68010 CLR.B <odd ea> caused address error. (CPU tester previous beta updates missed size check..)
+- CPU tester updates, more bus error and address error special cases (branch instruction jumping to bus error address - 2 etc) checked and correctly emulated. Trace is also now much better supported.
+
 Beta 5:
 
 - Don't map invalid Blizzard 2060 maprom space and crash if board has no RAM installed.
@@ -90,7 +131,7 @@ UAE = emulation bug fixed, not undocumented feature. No UAE = Undocumented CPU f
 - LINK stacked value is saved before SP is decreased by 4. Only affects pointless LINK A7,#x variant. (All models except 68040)
 - CHK.W undefined flags fully emulated.
 - DIVU and DIVS divide by zero condition codes are now 100% correct: DIVS always set Z-flag, DIVU sets Z-flag if dividend upper word is zero, N-flag if dividend upper word is negative.
-- CPU bug found and emulated, MOVE.W <EA>,-(An) causing bus or address error: stack frame's opcode field contains following instruction's opcode and "IN" (Instruction/Not) field is set to one! ("Not instruction").
+- CPU bug found and emulated, MOVE.W <EA>,-(An) causing bus or address error: stack frame's opcode field contains following instruction's opcode and "IN" (Instruction/Not) field is set to one! ("Not instruction"). ADDED: this only happens if following instruction would cause illegal instruction, privilege violation or trace is pending.
 - All instruction address errors should be 100% correct now. An contents are updated (or not updated) if -(an) or (an)+. Condition codes are also correct.
 - MOVEM to <EA> with zero register mask: possible odd EA does not cause address error exception. (NOTE: MOVEM from <EA> with zero mask does generate address error exception even if mask is zero because MOVEM that reads from memory always does extra word read)
 - BSR.B/W stores old PC to stack and decreases SP before checking if PC is odd.
@@ -127,7 +168,7 @@ UAE = emulation bug fixed, not undocumented feature. No UAE = Undocumented CPU f
 - UAE: MOVE to SR is considered change of flow instruction because it does full pipeline reload (T0 trace, also 68040).
 - 64-bit MUL.L: Dh is updated before Dl.
 - UAE: 68020/030 FSAVE/FRESTORE and PSAVE/PRESTORE (cpSAVE/cpRESTORE) generate privilege violation exception if run in user mode even if FPU/MMU is not installed.
-
+- UAE: 68020 T0 set and RTE causing format error: trace exception is not generated.
 
 68040:
 
@@ -16916,4 +16957,4 @@ Beta 1:
 - blitter "fix" (fixes Desert Dream freeze and Hostages insta-kill)
 - input device rewrite (no config file save/load and gui yet, not very useful now..)
 - Sane's AviOutput (no sound support yet due to changes in 0820 Win32 audio code)
-- JIT + some fixes (I decided to drop "JIT"-part from the        
+- JIT + some fixes (I decided to drop "JIT"-part from the
