@@ -156,12 +156,11 @@ struct accesshistory
 	uae_u32 oldval;
 	int size;
 };
-static int ahcnt, ahcnt2;
+static int ahcnt_current, ahcnt_written;
 static int noaccesshistory = 0;
 
-#define MAX_ACCESSHIST 48
+#define MAX_ACCESSHIST 80
 static struct accesshistory ahist[MAX_ACCESSHIST];
-static struct accesshistory ahist2[MAX_ACCESSHIST];
 
 static int is_superstack_use_required(void)
 {
@@ -174,6 +173,7 @@ static int is_superstack_use_required(void)
 }
 
 #define OPCODE_AREA 32
+#define BRANCHTARGET_AREA 4
 
 static bool valid_address(uaecptr addr, int size, int w)
 {
@@ -332,11 +332,11 @@ uae_u16 get_word_test_prefetch(int o)
 // ignore the first one
 static void previoussame(uaecptr addr, int size)
 {
-	if (!ahcnt)
+	if (!ahcnt_current || ahcnt_current == ahcnt_written)
 		return;
-	struct accesshistory *ah = &ahist[ahcnt - 1];
+	struct accesshistory *ah = &ahist[ahcnt_current - 1];
 	if (ah->addr == addr && ah->size == size) {
-		ahcnt--;
+		ahcnt_current--;
 	}
 }
 
@@ -346,11 +346,11 @@ void put_byte_test(uaecptr addr, uae_u32 v)
 	uae_u8 *p = get_addr(addr, 1, 1);
 	if (!out_of_test_space && !noaccesshistory && !cpu_bus_error_fake) {
 		previoussame(addr, sz_byte);
-		if (ahcnt >= MAX_ACCESSHIST) {
+		if (ahcnt_current >= MAX_ACCESSHIST) {
 			wprintf(_T(" ahist overflow!"));
 			abort();
 		}
-		struct accesshistory *ah = &ahist[ahcnt++];
+		struct accesshistory *ah = &ahist[ahcnt_current++];
 		ah->addr = addr;
 		ah->val = v & 0xff;
 		ah->oldval = *p;
@@ -369,11 +369,11 @@ void put_word_test(uaecptr addr, uae_u32 v)
 		uae_u8 *p = get_addr(addr, 2, 1);
 		if (!out_of_test_space && !noaccesshistory && !cpu_bus_error_fake) {
 			previoussame(addr, sz_word);
-			if (ahcnt >= MAX_ACCESSHIST) {
+			if (ahcnt_current >= MAX_ACCESSHIST) {
 				wprintf(_T(" ahist overflow!"));
 				abort();
 			}
-			struct accesshistory *ah = &ahist[ahcnt++];
+			struct accesshistory *ah = &ahist[ahcnt_current++];
 			ah->addr = addr;
 			ah->val = v & 0xffff;
 			ah->oldval = (p[0] << 8) | p[1];
@@ -398,11 +398,11 @@ void put_long_test(uaecptr addr, uae_u32 v)
 		uae_u8 *p = get_addr(addr, 4, 1);
 		if (!out_of_test_space && !noaccesshistory && !cpu_bus_error_fake) {
 			previoussame(addr, sz_long);
-			if (ahcnt >= MAX_ACCESSHIST) {
+			if (ahcnt_current >= MAX_ACCESSHIST) {
 				wprintf(_T(" ahist overflow!"));
 				abort();
 			}
-			struct accesshistory *ah = &ahist[ahcnt++];
+			struct accesshistory *ah = &ahist[ahcnt_current++];
 			ah->addr = addr;
 			ah->val = v;
 			ah->oldval = (p[0] << 24) | (p[1] << 16) | (p[2] << 8) | p[3];
@@ -416,12 +416,11 @@ void put_long_test(uaecptr addr, uae_u32 v)
 	regs.write_buffer = v;
 }
 
-static void undo_memory(struct accesshistory *ahp, int  *cntp)
+static void undo_memory(struct accesshistory *ahp, int end)
 {
 	out_of_test_space = 0;
-	int cnt = *cntp;
 	noaccesshistory = 1;
-	for (int i = cnt - 1; i >= 0; i--) {
+	for (int i = ahcnt_current - 1; i >= end; i--) {
 		struct accesshistory *ah = &ahp[i];
 		switch (ah->size)
 		{
@@ -441,6 +440,7 @@ static void undo_memory(struct accesshistory *ahp, int  *cntp)
 		wprintf(_T(" undo_memory out of test space fault!?\n"));
 		abort();
 	}
+	ahcnt_current = end;
 }
 
 uae_u32 get_byte_test(uaecptr addr)
@@ -1268,7 +1268,7 @@ static uae_u8 *store_reg(uae_u8 *dst, uae_u8 mode, uae_u32 s, uae_u32 d, int siz
 	return dst;
 }
 
-static uae_u8 *store_mem_bytes(uae_u8 *dst, uaecptr start, int len, uae_u8 *old)
+static uae_u8 *store_mem_bytes(uae_u8 *dst, uaecptr start, int len, uae_u8 *old, bool header)
 {
 	if (!len)
 		return dst;
@@ -1305,7 +1305,9 @@ static uae_u8 *store_mem_bytes(uae_u8 *dst, uaecptr start, int len, uae_u8 *old)
 	}
 	if (!len)
 		return dst;
-	*dst++ = CT_MEMWRITES | CT_PC_BYTES;
+	if (header) {
+		*dst++ = CT_MEMWRITES | CT_PC_BYTES;
+	}
 	*dst++ = (offset << 5) | (uae_u8)(len == 32 ? 0 : len);
 	for (int i = 0; i < len; i++) {
 		*dst++ = get_byte_test(start);
@@ -1314,11 +1316,11 @@ static uae_u8 *store_mem_bytes(uae_u8 *dst, uaecptr start, int len, uae_u8 *old)
 	return dst;
 }
 
-static uae_u8 *store_mem(uae_u8 *dst, int storealways)
+static uae_u8 *store_mem_writes(uae_u8 *dst, int storealways)
 {
-	if (ahcnt == 0)
+	if (ahcnt_current == ahcnt_written)
 		return dst;
-	for (int i = 0; i < ahcnt; i++) {
+	for (int i = ahcnt_written; i < ahcnt_current; i++) {
 		struct accesshistory *ah = &ahist[i];
 		if (ah->oldval == ah->val && !storealways)
  			continue;
@@ -1353,6 +1355,7 @@ static uae_u8 *store_mem(uae_u8 *dst, int storealways)
 		dst = store_reg(dst, CT_MEMWRITE, 0, ah->oldval, ah->size);
 		dst = store_reg(dst, CT_MEMWRITE, 0, ah->val, ah->size);
 	}
+	ahcnt_written = ahcnt_current;
 	return dst;
 }
 
@@ -1416,6 +1419,7 @@ static void save_data(uae_u8 *dst, const TCHAR *dir)
 		wprintf(_T("couldn't open '%s'\n"), path);
 		abort();
 	}
+	wprintf(_T("%s\n"), path);
 	if (filecount == 0) {
 		uae_u8 data[4];
 		pl(data, DATA_VERSION);
@@ -1642,6 +1646,7 @@ static int create_ea_random(uae_u16 *opcodep, uaecptr pc, int mode, int reg, str
 			if (maxcnt < 0)
 				break;
 		}
+		put_word_test(pc, v);
 		*isconstant = 16;
 		pc += 2;
 		*eap = 1;
@@ -2252,7 +2257,7 @@ static int handle_specials_misc(uae_u16 opcode, uaecptr pc, struct instr *dp, in
 
 static uaecptr handle_specials_extra(uae_u16 opcode, uaecptr pc, struct instr *dp)
 {
-	// cas undocumented (marked as zero in document) fields do something weird, for example
+	// CAS undocumented (marked as zero in document) fields do something weird, for example
 	// setting bit 9 will make "Du" address register but results are not correct.
 	// so lets make sure unused zero bits are zeroed.
 	switch (dp->mnemo)
@@ -2479,9 +2484,9 @@ static void execute_ins(uaecptr endpc, uaecptr targetpc, struct instr *dp)
 	uae_u16 opc = regs.ir;
 	uae_u16 opw1 = (opcode_memory[2] << 8) | (opcode_memory[3] << 0);
 	uae_u16 opw2 = (opcode_memory[4] << 8) | (opcode_memory[5] << 0);
-	if (opc == 0x87b9
-		&& opw1 == 0x0000
-		&& opw2 == 0x4afc
+	if (opc == 0xe3d5
+		//&& opw1 == 0x0000
+		//&& opw2 == 0x4afc
 		)
 		printf("");
 	if (regs.sr & 0x2000)
@@ -2536,6 +2541,8 @@ static void execute_ins(uaecptr endpc, uaecptr targetpc, struct instr *dp)
 
 		(*cpufunctbl[opc])(opc);
 
+		// Test did one or more out of bounds memory accesses
+		// or CPU stopped or was reset: skip
 		if (out_of_test_space || cpu_stopped) {
 			break;
 		}
@@ -2648,21 +2655,6 @@ static int isbranchinst(struct instr *dp)
 	return 0;
 }
 
-// only test instructions that can have
-// special trace behavior
-static int is_test_trace(struct instr *dp)
-{
-	if (isbranchinst(dp))
-		return 1;
-	switch (dp->mnemo)
-	{
-	case i_STOP:
-	case i_MV2SR:
-		return 1;
-	}
-	return 0;
-}
-
 static int isunsupported(struct instr *dp)
 {
 	switch (dp->mnemo)
@@ -2700,6 +2692,7 @@ static uae_u8 last_exception[256];
 static int last_exception_len;
 static int last_exception_extra;
 
+// save expected exception stack frame
 static uae_u8 *save_exception(uae_u8 *p, struct instr *dp)
 {
 	uae_u8 *op = p;
@@ -3011,6 +3004,8 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 	memcpy(high_memory, high_memory_temp, high_memory_size);
 	memcpy(test_memory, test_memory_temp, test_memory_size);
 
+	memset(storage_buffer, 0xdd, 1000);
+
 	full_format_cnt = 0;
 	last_exception_len = -1;
 
@@ -3049,7 +3044,9 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 			regs.regs[i] = cur_registers[i];
 		}
 		for (int i = 0; i < 8; i++) {
-			dst = store_fpureg(dst, CT_FPREG + i, cur_fpuregisters[i]);
+			if (fpumode) {
+				dst = store_fpureg(dst, CT_FPREG + i, cur_fpuregisters[i]);
+			}
 			regs.fp[i].fpx = cur_fpuregisters[i];
 		}
 		regs.sr = feature_min_interrupt_mask << 8;
@@ -3137,8 +3134,11 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 				}
 
 				while (constant_loops-- > 0) {
-					uae_u8 oldbytes[OPCODE_AREA];
-					memcpy(oldbytes, opcode_memory, sizeof(oldbytes));
+					uae_u8 oldcodebytes[OPCODE_AREA];
+					uae_u8 oldbcbytes[BRANCHTARGET_AREA];
+					uae_u8 *oldbcbytes_ptr = NULL;
+					int oldbcbytes_inuse = 0;
+					memcpy(oldcodebytes, opcode_memory, sizeof(oldcodebytes));
 
 					uae_u16 opc = opcode;
 					int isconstant_src = 0;
@@ -3156,8 +3156,8 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 					noaccesshistory = 0;
 					cpu_bus_error_fake = 0;
 					cpu_bus_error = 0;
-					ahcnt = 0;
-					ahcnt2 = 0;
+					ahcnt_current = 0;
+					ahcnt_written = 0;
 					multi_mode = 0;
 
 					target_ea[0] = target_ea_bak[0];
@@ -3166,9 +3166,9 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 					target_address = target_address_bak;
 					target_opcode_address = target_opcode_address_bak;
 
-					if (opc == 0x0e35)
+					if (opc == 0x4a53)
 						printf("");
-					if (subtest_count >= 144)
+					if (subtest_count >= 700)
 						printf("");
 
 
@@ -3198,7 +3198,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 						if (dp->suse) {
 							int o = create_ea(&opc, pc, dp->smode, dp->sreg, dp, &isconstant_src, 0, fpuopcode, opcodesize, &srcea);
 							if (o < 0) {
-								memcpy(opcode_memory, oldbytes, sizeof(oldbytes));
+								memcpy(opcode_memory, oldcodebytes, sizeof(oldcodebytes));
 								if (o == -1)
 									goto nextopcode;
 								continue;
@@ -3209,8 +3209,8 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 						uae_u8 *ao = opcode_memory_ptr + 2;
 						uae_u16 apw1 = (ao[0] << 8) | (ao[1] << 0);
 						uae_u16 apw2 = (ao[2] << 8) | (ao[3] << 0);
-						if (opc == 0xe1f8
-							&& apw1 == 0x4e71
+						if (opc == 0x4ef8
+							&& apw1 == 0x0000
 							//&& apw2 == 0x7479
 							)
 							printf("");
@@ -3245,7 +3245,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 						if (dp->duse) {
 							int o = create_ea(&opc, pc, dp->dmode, dp->dreg, dp, &isconstant_dst, 1, fpuopcode, opcodesize, &dstea);
 							if (o < 0) {
-								memcpy(opcode_memory, oldbytes, sizeof(oldbytes));
+								memcpy(opcode_memory, oldcodebytes, sizeof(oldcodebytes));
 								if (o == -1)
 									goto nextopcode;
 								continue;
@@ -3256,7 +3256,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 						// requested target address but no EA? skip
 						if (target_address != 0xffffffff && isbranchinst(dp) != 2) {
 							if (srcea != target_address && dstea != target_address) {
-								memcpy(opcode_memory, oldbytes, sizeof(oldbytes));
+								memcpy(opcode_memory, oldcodebytes, sizeof(oldcodebytes));
 								continue;
 							}
 						}
@@ -3325,10 +3325,6 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 						abort();
 					}
 
-					uae_u8 *prev_dst = dst;
-					dst = store_mem_bytes(dst, opcode_memory_start, actualendpc - opcode_memory_start, subtest_count > 0 ? oldbytes : NULL);
-					ahcnt = 0;
-
 					noaccesshistory++;
 					if (!is_nowrite_address(pc, 4)) {
 						put_long_test(pc, endopcode); // illegal instruction + nop
@@ -3339,6 +3335,11 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 					}
 					noaccesshistory--;
 					pc += 4;
+
+					if (out_of_test_space) {
+						wprintf(_T("out_of_test_space set!?\n"));
+						abort();
+					}
 
 					TCHAR out[256];
 					memset(out, 0, sizeof(out));
@@ -3357,22 +3358,29 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 						my_trim(out);
 						wprintf(_T("%08u %s"), subtest_count, out);
 					}
+					
+					// disassembler may set this
+					out_of_test_space = false;
 
 					if ((dflags & 1) && target_ea[0] != 0xffffffff && srcaddr != 0xffffffff && srcaddr != target_ea[0]) {
 						wprintf(_T(" Source address mismatch %08x <> %08x\n"), target_ea[0], srcaddr);
+						memcpy(opcode_memory, oldcodebytes, sizeof(oldcodebytes));
 						continue;
 					}
 					if ((dflags & 2) && target_ea[1] != 0xffffffff && dstaddr != target_ea[1]) {
 						wprintf(_T(" Destination address mismatch %08x <> %08x\n"), target_ea[1], dstaddr);
+						memcpy(opcode_memory, oldcodebytes, sizeof(oldcodebytes));
 						continue;
 					}
 
 					if ((dflags & 1) && target_ea[0] == 0xffffffff && (srcaddr & addressing_mask) >= safe_memory_start - 4 && (srcaddr & addressing_mask) < safe_memory_end + 4) {
 						// random generated EA must never be inside safe memory
+						memcpy(opcode_memory, oldcodebytes, sizeof(oldcodebytes));
 						continue;
 					}
 					if ((dflags & 2) && target_ea[1] == 0xffffffff && (dstaddr & addressing_mask) >= safe_memory_start - 4 && (dstaddr & addressing_mask) < safe_memory_end + 4) {
 						// random generated EA must never be inside safe memory
+						memcpy(opcode_memory, oldcodebytes, sizeof(oldcodebytes));
 						continue;
 					}
 
@@ -3408,6 +3416,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 								else
 									wprintf(_T(" Branch target is stack\n"));
 							}
+							memcpy(opcode_memory, oldcodebytes, sizeof(oldcodebytes));
 							continue;
 						}				
 						testing_active = 1;
@@ -3416,27 +3425,52 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 								wprintf(_T(" Branch target inaccessible\n"));
 							}
 							testing_active = 0;
+							memcpy(opcode_memory, oldcodebytes, sizeof(oldcodebytes));
 							continue;
-						} else {
-							// branch target = generate exception
-							if (!is_nowrite_address(srcaddr, 4)) {
-								branch_target_swap_address = srcaddr;
-								branch_target_swap_mode = 1;
-								put_long_test(srcaddr, branch_target_data);
-							} else if (!is_nowrite_address(srcaddr, 2)) {
-								put_word_test(srcaddr, branch_target_data >> 16);
-								branch_target_swap_address = srcaddr;
-								branch_target_swap_mode = 2;
-							}
-							branch_target = srcaddr;
-							dst = store_mem(dst, 1);
-							memcpy(&ahist2, &ahist, sizeof(struct accesshistory) * MAX_ACCESSHIST);
-							ahcnt2 = ahcnt;
 						}
 						testing_active = 0;
 					}
 
+					// no exit continue or goto after this
+
+					uae_u8 *prev_dst = dst;
+
+					oldbcbytes_inuse = 0;
+					if (bc) {
+						branch_target = srcaddr;
+						// branch target = generate exception
+						if (!is_nowrite_address(branch_target, 4)) {
+							branch_target_swap_address = branch_target;
+							branch_target_swap_mode = 1;
+							if (!(branch_target & 1)) {
+								oldbcbytes_inuse = 4;
+								oldbcbytes_ptr = get_addr(branch_target, oldbcbytes_inuse, 0);
+								memcpy(oldbcbytes, oldbcbytes_ptr, oldbcbytes_inuse);
+								put_long_test(branch_target, branch_target_data);
+							}
+						} else if (!is_nowrite_address(branch_target, 2)) {
+							branch_target_swap_address = branch_target;
+							branch_target_swap_mode = 2;
+							if (!(branch_target & 1)) {
+								oldbcbytes_inuse = 2;
+								oldbcbytes_ptr = get_addr(branch_target, oldbcbytes_inuse, 0);
+								memcpy(oldbcbytes, oldbcbytes_ptr, oldbcbytes_inuse);
+								put_word_test(branch_target, branch_target_data >> 16);
+							}
+						}
+					}
+
+					// save opcode memory
+					dst = store_mem_bytes(dst, opcode_memory_start, instructionendpc - opcode_memory_start, oldcodebytes, true);
+
+					// store branch target and stack modifications (these needs to be rolled back after the test)
+					dst = store_mem_writes(dst, 1);
+
 					uae_u32 instructionendpc_old_prev = instructionendpc_old;
+					uae_u32 branchtarget_old_prev = branchtarget_old;
+					uae_u32 srcaddr_old_prev = srcaddr_old;
+					uae_u32 dstaddr_old_prev = dstaddr_old;
+
 					// PC before test: end address of test intruction
 					if (instructionendpc != instructionendpc_old) {
 						dst = store_reg(dst, CT_PC, instructionendpc_old, instructionendpc, -1);
@@ -3454,10 +3488,9 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 						dst = store_reg(dst, CT_BRANCHTARGET, branchtarget_old, branch_target, -2);
 						branchtarget_old = branch_target;
 						*dst++ = branch_target_swap_mode;
-						branch_target_swap_mode_old = branch_target_swap_mode;
 					}
 
-
+					// pre-test data end
 					*dst++ = CT_END_INIT;
 
 					int exception_array[256] = { 0 };
@@ -3519,13 +3552,14 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 							test_exception_extra = 0;
 							cpu_stopped = 0;
 							cpu_halted = 0;
-							ahcnt = 0;
+							ahcnt_current = ahcnt_written;
+							int ahcnt_start = ahcnt_current;
 
 							memset(&regs, 0, sizeof(regs));
 
 							// swap end opcode illegal/nop
-							endopcode = (endopcode >> 16) | (endopcode << 16);
 							noaccesshistory++;
+							endopcode = (endopcode >> 16) | (endopcode << 16);
 							int endopcodesize = 0;
 							if (!is_nowrite_address(pc - 4, 4)) {
 								put_long_test(pc - 4, endopcode);
@@ -3536,25 +3570,31 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 							}
 							noaccesshistory--;
 							
-
 							// swap branch target illegal/nop
+							noaccesshistory++;
 							if (branch_target_swap_mode) {
-								noaccesshistory++;
-								branch_target_data = (branch_target_data >> 16) | (branch_target_data << 16);
 								branch_target_pc = branch_target;
 								if (branch_target_swap_mode == 1) {
-									put_long_test(branch_target_swap_address, branch_target_data);
-									if ((branch_target_data >> 16) == 0x4e71)
-										branch_target_pc = branch_target + 2;
-									else
-										branch_target_pc = branch_target;
+									if (!(branch_target_swap_address & 1)) {
+										branch_target_data = (branch_target_data >> 16) | (branch_target_data << 16);
+										put_long_test(branch_target_swap_address, branch_target_data);
+										if ((branch_target_data >> 16) == 0x4e71)
+											branch_target_pc = branch_target + 2;
+										else
+											branch_target_pc = branch_target;
+									}
 								} else if (branch_target_swap_mode == 2) {
-									put_word_test(branch_target_swap_address, branch_target_data >> 16);
+									if (!(branch_target_swap_address & 1)) {
+										branch_target_data = (branch_target_data >> 16) | (branch_target_data << 16);
+										put_word_test(branch_target_swap_address, branch_target_data >> 16);
+									}
 								}
-								noaccesshistory--;
 							} else {
 								branch_target_pc = branch_target;
 							}
+							noaccesshistory--;
+
+							// initialize CPU state
 
 							regs.pc = opcode_memory_start;
 							regs.ir = get_word_test(regs.pc + 0);
@@ -3585,6 +3625,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 									fpp_set_fpcr((ccr >> 1) << 4);
 								}
 							}
+							// all CCR combinations or only all ones/all zeros?
 							if (maxflag >= 32) {
 								regs.sr = ccr | sr_mask;
 							} else {
@@ -3619,6 +3660,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 							if (subtest_count == 2052)
 								printf("");
 
+							// execute test instruction(s)
 							execute_ins(pc - endopcodesize, branch_target_pc, dp);
 
 							if (regs.s)
@@ -3636,6 +3678,8 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 								(cpu_bus_error == 2 && !(safe_memory_mode & 2))) {
 								skipped = 1;
 							}
+
+							// exception 3 required but didn't get one?
 							if (test_exception != 3) {
 								if (feature_exception3_data == 2) {
 									skipped = 1;
@@ -3671,6 +3715,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 									sr_mask_request |= 0x2000;
 									sr_allowed_mask |= 0x2000;
 								}
+								// got exception 3 but didn't want them?
 								if (test_exception == 3) {
 									if (!feature_odd_usp && !feature_exception3_data && !(test_exception_3_fc & 2)) {
 										skipped = 1;
@@ -3700,10 +3745,11 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 								}
 							}
 
+							// restore original branch target (This is not part of saved data)
 							noaccesshistory++;
 							put_long_test(pc - 4, originalendopcode);
-							if (branch_target_swap_mode) {
-								if (branch_target_swap_address == 1) {
+							if (branch_target_swap_mode && !(branch_target_swap_address & 1)) {
+								if (branch_target_swap_mode == 1) {
 									put_long_test(branch_target_swap_address, branch_target_data_original);
 								} else if (branch_target_swap_mode == 2) {
 									put_word_test(branch_target_swap_address, branch_target_data_original >> 16);
@@ -3731,6 +3777,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 
 							if (!skipped) {
 								bool storeregs = true;
+								// tell m68k code to skip register checks?
 								if (noregistercheck(dp)) {
 									*dst++ = CT_SKIP_REGS;
 									storeregs = false;
@@ -3746,15 +3793,18 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 										last_registers[i] = d;
 									}
 								}
+								// SR/CCR
 								uae_u32 ccrignoremask = get_ccr_ignore(dp, ((pcaddr[2] << 8) | pcaddr[3])) << 16;
 								if ((regs.sr | ccrignoremask) != last_sr) {
 									dst = store_reg(dst, CT_SR, last_sr, regs.sr | ccrignoremask, -1);
 									last_sr = regs.sr | ccrignoremask;
 								}
+								// PC
 								if (regs.pc != last_pc) {
 									dst = store_rel(dst, CT_PC, last_pc, regs.pc, 0);
 									last_pc = regs.pc;
 								}
+								// FPU stuff
 								if (currprefs.fpu_model) {
 									for (int i = 0; i < 8; i++) {
 										floatx80 s = last_fpuregisters[i];
@@ -3777,7 +3827,13 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 										last_fpcr = regs.fpcr;
 									}
 								}
-								dst = store_mem(dst, 0);
+								// store test instruction generated changes
+								dst = store_mem_writes(dst, 0);
+								// save exception, possible combinations:
+								// - any exception except trace
+								// - any exception except trace + trace stacked on top of previous exception
+								// - any exception except trace + following instruction generated trace
+								// - trace only
 								if (test_exception) {
 									*dst++ = CT_END | test_exception;
 									dst = save_exception(dst, dp);
@@ -3794,7 +3850,8 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 								*dst++ = CT_END_SKIP;
 								last_exception_len = -1;
 							}
-							undo_memory(ahist, &ahcnt);
+							// undo any test instruction generated memory modifications
+							undo_memory(ahist, ahcnt_start);
 						}
 					nextextra:
 						extraccr++;
@@ -3803,27 +3860,33 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 					}
 					*dst++ = CT_END;
 
-					undo_memory(ahist2, &ahcnt2);
-
 					if (!ccr_done) {
 						// undo whole previous ccr/extra loop if all tests were skipped
 						dst = prev_dst;
-						//*dst++ = CT_END_INIT;
-						memcpy(opcode_memory, oldbytes, sizeof(oldbytes));
+						memcpy(opcode_memory, oldcodebytes, sizeof(oldcodebytes));
+						if (oldbcbytes_inuse > 0)
+							memcpy(oldbcbytes_ptr, oldbcbytes, oldbcbytes_inuse);
+						oldbcbytes_inuse = 0;
 						test_count = prev_test_count;
 						subtest_count = prev_subtest_count;
 						last_exception_len = -1;
+						srcaddr_old = srcaddr_old_prev;
+						dstaddr_old = dstaddr_old_prev;
+						branchtarget_old = branchtarget_old_prev;
 						instructionendpc_old = instructionendpc_old_prev;
 					} else {
 						full_format_cnt++;
 					}
 					if (verbose) {
 						wprintf(_T(" OK=%d OB=%d S=%d/%d T=%d STP=%d"), ok, exception_array[0], prev_s_cnt, s_cnt, t_cnt, cnt_stopped);
+						if (!ccr_done)
+							wprintf(_T(" X"));
 						for (int i = 2; i < 128; i++) {
 							if (exception_array[i])
 								wprintf(_T(" E%d=%d"), i, exception_array[i]);
 						}
 					}
+					// save to file and create new file if watermark reached
 					if (dst - storage_buffer >= storage_buffer_watermark) {
 						if (subtest_count > 0) {
 							save_data(dst, dir);
@@ -3848,6 +3911,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 					if (verbose) {
 						wprintf(_T("\n"));
 					}
+					// if we got out of bounds access, add extra retries
 					if (did_out_of_bounds) {
 						if (oob_retries) {
 							oob_retries--;
@@ -3926,11 +3990,13 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 		cur_registers[8 + 6]--;
 		cur_registers[8 + 7] -= 2;
 
-		for (int i = 0; i < 8; i++) {
-			cur_fpuregisters[i].high = rand16();
-			cur_fpuregisters[i].low = (((uae_u64)rand32()) << 32) | (rand32());
-			if (rand16() & 1) {
-				cur_fpuregisters[i].low |= 0x8000000000000000;
+		if (fpumode) {
+			for (int i = 0; i < 8; i++) {
+				cur_fpuregisters[i].high = rand16();
+				cur_fpuregisters[i].low = (((uae_u64)rand32()) << 32) | (rand32());
+				if (rand16() & 1) {
+					cur_fpuregisters[i].low |= 0x8000000000000000;
+				}
 			}
 		}
 	}
@@ -4341,6 +4407,11 @@ int __cdecl main(int argc, char *argv[])
 	if (ini_getval(ini, INISECTION, _T("test_high_memory_end"), &v))
 		test_high_memory_end = v;
 
+	if (addressing_mask == 0xffffffff && test_high_memory_end <= 0x01000000) {
+		test_high_memory_start = 0xffffffff;
+		test_high_memory_end = 0xffffffff;
+	}
+
 	test_memory = (uae_u8 *)calloc(1, test_memory_size + EXTRA_RESERVED_SPACE);
 	test_memory_temp = (uae_u8 *)calloc(1, test_memory_size);
 	if (!test_memory || !test_memory_temp) {
@@ -4542,7 +4613,7 @@ int __cdecl main(int argc, char *argv[])
 	starttime = time(0);
 
 	if (!mode) {
-		wprintf(_T("Mode must be 'all' or '<mnemonic>'\n"));
+		wprintf(_T("Mode must be 'all', 'fall', 'branch', 'branchj', 'branchs' or '<mnemonic>'\n"));
 		return 0;
 	}
 
@@ -4562,6 +4633,25 @@ int __cdecl main(int argc, char *argv[])
 			// (Generates illegal instruction, a-line or f-line exception)
 			test_mnemo_text(path, _T("ILLEGAL"));
 			break;
+		}
+
+		if (!_tcsicmp(mode, _T("branch")) || !_tcsicmp(mode, _T("branchj")) || !_tcsicmp(mode, _T("branchs"))) {
+			static const TCHAR *branchs[] = {
+				_T("RTS"), _T("RTD"), _T("RTR"), _T("RTE"), _T("JSR"), _T("BSR"), NULL
+			};
+			static const TCHAR *branchj[] = {
+				_T("DBcc"), _T("Bcc"), _T("JMP"), _T("FDBcc"), _T("FBcc"), NULL
+			};
+			if (!_tcsicmp(mode, _T("branch")) || !_tcsicmp(mode, _T("branchj"))) {
+				for (int i = 0; branchj[i]; i++) {
+					test_mnemo_text(path, branchj[i]);
+				}
+			}
+			if (!_tcsicmp(mode, _T("branch")) || !_tcsicmp(mode, _T("branchs"))) {
+				for (int i = 0; branchs[i]; i++) {
+					test_mnemo_text(path, branchs[i]);
+				}
+			}
 		}
 
 		if (!_tcsicmp(mode, _T("fall"))) {

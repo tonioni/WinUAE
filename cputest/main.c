@@ -733,6 +733,12 @@ static uae_u8 *get_memory_addr(uae_u8 *p, uae_u8 **addrp)
 
 static void tomem(uae_u8 *p, uae_u32 v, uae_u32 oldv, int size, int storedata)
 {
+	if (ahcnt >= MAX_ACCESSHIST) {
+		end_test();
+		printf("History index too large! %d >= %d\n", ahcnt, MAX_ACCESSHIST);
+		exit(0);
+	}
+
 	if (storedata) {
 		struct accesshistory *ah = &ahist[ahcnt++];
 		ah->oldval = oldv;
@@ -769,6 +775,20 @@ static void restoreahist(void)
 	ahcnt = 0;
 }
 
+static uae_u8 *restore_bytes(uae_u8 *mem, uae_u8 *p)
+{
+	uae_u8 *addr = mem;
+	uae_u8 v = *p++;
+	addr += v >> 5;
+	v &= 31;
+	if (v == 0)
+		v = 32;
+#ifndef _MSC_VER
+	xmemcpy(addr, p, v);
+#endif
+	p += v;
+	return p;
+}
 
 static uae_u8 *restore_memory(uae_u8 *p, int storedata)
 {
@@ -805,17 +825,7 @@ static uae_u8 *restore_memory(uae_u8 *p, int storedata)
 		{
 			case CT_PC_BYTES:
 			{
-				p++;
-				uae_u8 *addr = opcode_memory;
-				uae_u8 v = *p++;
-				addr += v >> 5;
-				v &= 31;
-				if (v == 0)
-					v = 32;
-#ifndef _MSC_VER
-				xmemcpy(addr, p, v);
-#endif
-				p += v;
+				p = restore_bytes(opcode_memory, p + 1);
 				break;
 			}
 			default:
@@ -993,7 +1003,7 @@ static void out_disasm(uae_u8 *mem)
 				v--;
 			}
 		} else {
-			sprintf(outbp, "\t %08lx %02x\n", code, *((uae_u8*)code));
+			sprintf(outbp, "%08lx %02x\n", code, *((uae_u8*)code));
 			code = (uae_u16*)(((uae_u32)code) + 1);
 			p++;
 			outbp += strlen(outbp);
@@ -1043,6 +1053,8 @@ static void addinfo(void)
 		uae_u8 *b = (uae_u8 *)regs.branchtarget - SIZE_STORED_ADDRESS_OFFSET;
 		addinfo_bytes("B", b, regs.branchtarget, -SIZE_STORED_ADDRESS_OFFSET, SIZE_STORED_ADDRESS);
 	}
+	sprintf(outbp, "ENDPC=%08lx\n", endpc);
+	outbp += strlen(outbp);
 }
 
 struct srbit
@@ -1831,7 +1843,7 @@ static void process_test(uae_u8 *p)
 					pw(opcode_memory_end, opcodeend >> 16);
 				}
 
-				if (regs.branchtarget != 0xffffffff) {
+				if (regs.branchtarget != 0xffffffff && !(regs.branchtarget & 1)) {
 					if (regs.branchtarget_mode == 1) {
 						uae_u32 bv = gl((uae_u8*)regs.branchtarget);
 						bv = (bv >> 16) | (bv << 16);
