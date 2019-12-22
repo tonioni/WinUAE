@@ -289,13 +289,15 @@ static void check_bus_error(uaecptr addr, int write, int fc)
 		return;
 	if (addr >= safe_memory_start && addr < safe_memory_end) {
 		cpu_bus_error_fake = -1;
-		if ((safe_memory_mode & 1) && !write) {
-			cpu_bus_error = 1;
-			cpu_bus_error_fake = 1;
-		}
-		if ((safe_memory_mode & 2) && write) {
-			cpu_bus_error = 2;
-			cpu_bus_error_fake = 2;
+		if ((safe_memory_mode & 4) && !write && (fc & 2)) {
+			cpu_bus_error |= 4;
+			cpu_bus_error_fake |= 1;
+		} else if ((safe_memory_mode & 1) && !write && !(fc & 2)) {
+			cpu_bus_error |= 1;
+			cpu_bus_error_fake |= 1;
+		} else if ((safe_memory_mode & 2) && write) {
+			cpu_bus_error |= 2;
+			cpu_bus_error_fake |= 2;
 		}
 	}
 }
@@ -342,6 +344,8 @@ static void previoussame(uaecptr addr, int size)
 
 void put_byte_test(uaecptr addr, uae_u32 v)
 {
+	if (!testing_active && is_nowrite_address(addr, 1))
+		return;
 	check_bus_error(addr, 1, regs.s ? 5 : 1);
 	uae_u8 *p = get_addr(addr, 1, 1);
 	if (!out_of_test_space && !noaccesshistory && !cpu_bus_error_fake) {
@@ -361,6 +365,8 @@ void put_byte_test(uaecptr addr, uae_u32 v)
 }
 void put_word_test(uaecptr addr, uae_u32 v)
 {
+	if (!testing_active && is_nowrite_address(addr, 1))
+		return;
 	check_bus_error(addr, 1, regs.s ? 5 : 1);
 	if (addr & 1) {
 		put_byte_test(addr + 0, v >> 8);
@@ -386,6 +392,8 @@ void put_word_test(uaecptr addr, uae_u32 v)
 }
 void put_long_test(uaecptr addr, uae_u32 v)
 {
+	if (!testing_active && is_nowrite_address(addr, 1))
+		return;
 	check_bus_error(addr, 1, regs.s ? 5 : 1);
 	if (addr & 1) {
 		put_byte_test(addr + 0, v >> 24);
@@ -915,7 +923,7 @@ void exception2_fetch(uae_u32 opcode, uaecptr addr)
 	test_exception_3_di = 0;
 
 	if (currprefs.cpu_model == 68000) {
-		if (generates_group1_exception(regs.ir)) {
+		if (generates_group1_exception(regs.ir) && !(opcode & 0x20000)) {
 			test_exception_3_fc |= 8;  // set N/I
 		}
 		if (opcode & 0x10000)
@@ -1276,6 +1284,11 @@ static uae_u8 *store_mem_bytes(uae_u8 *dst, uaecptr start, int len, uae_u8 *old,
 		wprintf(_T(" too long byte count!\n"));
 		abort();
 	}
+	if (is_nowrite_address(start, 1) || is_nowrite_address(start + len - 1, 1)) {
+		wprintf(_T(" store_mem_bytes accessing safe memory area! (%08x - %08x)\n"), start, start + len - 1);
+		abort();
+	}
+
 	uaecptr oldstart = start;
 	uae_u8 offset = 0;
 	// start
@@ -1327,7 +1340,11 @@ static uae_u8 *store_mem_writes(uae_u8 *dst, int storealways)
 		validate_addr(ah->addr, 1 << ah->size);
 		uaecptr addr = ah->addr;
 		addr &= addressing_mask;
- 		if (addr < 0x8000) {
+		if (is_nowrite_address(addr, 1)) {
+			wprintf(_T("attempting to save safe memory address %08x!\n"), addr);
+			abort();
+		}	
+		if (addr < 0x8000) {
 			*dst++ = CT_MEMWRITE | CT_ABSOLUTE_WORD;
 			*dst++ = (addr >> 8) & 0xff;
 			*dst++ = addr & 0xff;
@@ -3173,6 +3190,11 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 
 
 					uaecptr pc = opcode_memory_start + 2;
+
+					if (is_nowrite_address(pc, 1)) {
+						goto nextopcode;
+					}
+
 					if (target_opcode_address != 0xffffffff) {
 						pc -= 2;
 						int cnt = 0;
@@ -3298,6 +3320,11 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 						// dbf dn, opcode_memory_start
 						put_long_test(pc, ((0x51c8 | feature_loop_mode_register) << 16) | ((opcode_memory_address - pc - 2) & 0xffff));
 						pc += 4;
+					}
+
+					// if instruction was long enough to hit safe area, decrease pc until we are back to normal area
+					while (is_nowrite_address(pc - 1, 1)) {
+						pc -= 2;
 					}
 
 					// end word, needed to detect if instruction finished normally when
@@ -3674,8 +3701,13 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 							// if only testing read bus errors, skip tests that generated only writes and vice-versa
 							// skip also all tests don't generate any bus errors
 							if ((cpu_bus_error == 0 && safe_memory_mode) ||
-								(cpu_bus_error == 1 && !(safe_memory_mode & 1)) ||
-								(cpu_bus_error == 2 && !(safe_memory_mode & 2))) {
+								((cpu_bus_error & 4) && !(safe_memory_mode & 4)) ||
+								((cpu_bus_error & 1) && !(safe_memory_mode & 1)) ||
+								((cpu_bus_error & 2) && !(safe_memory_mode & 2))) {
+								skipped = 1;
+							}
+							// skip if feature_target_opcode_offset mode and non-prefetch bus error
+							if (target_opcode_address != 0xffffffff && (cpu_bus_error & 3)) {
 								skipped = 1;
 							}
 
@@ -4208,6 +4240,30 @@ int __cdecl main(int argc, char *argv[])
 	feature_exception3_instruction = 0;
 	ini_getval(ini, INISECTION, _T("feature_exception3_instruction"), &feature_exception3_instruction);
 
+	safe_memory_start = 0xffffffff;
+	if (ini_getval(ini, INISECTION, _T("feature_safe_memory_start"), &v))
+		safe_memory_start = v;
+	safe_memory_end = 0xffffffff;
+	if (ini_getval(ini, INISECTION, _T("feature_safe_memory_size"), &v))
+		safe_memory_end = safe_memory_start + v;
+	safe_memory_mode = 7;
+	if (ini_getstring(ini, INISECTION, _T("feature_safe_memory_mode"), &vs)) {
+		safe_memory_mode = 0;
+		if (_totupper(vs[0]) == 'R')
+			safe_memory_mode |= 1;
+		if (_totupper(vs[0]) == 'W')
+			safe_memory_mode |= 2;
+		if (_totupper(vs[0]) == 'P')
+			safe_memory_mode |= 4;
+		xfree(vs);
+	}
+	if (safe_memory_start == 0xffffffff || safe_memory_end == 0xffffffff) {
+		safe_memory_end = 0xffffffff;
+		safe_memory_start = 0xffffffff;
+		safe_memory_mode = 0;
+	}
+
+
 	for (int i = 0; i < MAX_TARGET_EA; i++) {
 		feature_target_ea[i][0] = 0xffffffff;
 		feature_target_ea[i][1] = 0xffffffff;
@@ -4226,10 +4282,12 @@ int __cdecl main(int argc, char *argv[])
 					*pp++ = 0;
 				}
 				TCHAR *endptr;
+				int radix = i == 2 ? 10 : 16;
 				if (_tcslen(p) > 2 && p[0] == '0' && _totupper(p[1]) == 'X') {
 					p += 2;
+					radix = 16;
 				}
-				feature_target_ea[cnt][i] = _tcstol(p, &endptr, 16);
+				feature_target_ea[cnt][i] = _tcstol(p, &endptr, radix);
 				if (feature_target_ea[cnt][i] & 1) {
 					exp3cnt++;
 				}
@@ -4238,6 +4296,7 @@ int __cdecl main(int argc, char *argv[])
 			}
 			if (i == 2) {
 				target_ea_opcode_max = cnt;
+				safe_memory_mode = 7;
 			} else if (i) {
 				target_ea_dst_max = cnt;
 			} else {
@@ -4256,27 +4315,6 @@ int __cdecl main(int argc, char *argv[])
 				}
 			}
 		}
-	}
-
-	safe_memory_start = 0xffffffff;
-	if (ini_getval(ini, INISECTION, _T("feature_safe_memory_start"), &v))
-		safe_memory_start = v;
-	safe_memory_end = 0xffffffff;
-	if (ini_getval(ini, INISECTION, _T("feature_safe_memory_size"), &v))
-		safe_memory_end = safe_memory_start + v;
-	safe_memory_mode = 3;
-	if (ini_getstring(ini, INISECTION, _T("feature_safe_memory_mode"), &vs)) {
-		safe_memory_mode = 0;
-		if (_totupper(vs[0]) == 'R')
-			safe_memory_mode |= 1;
-		if (_totupper(vs[0]) == 'W')
-			safe_memory_mode |= 2;
-		xfree(vs);
-	}
-	if (safe_memory_start == 0xffffffff || safe_memory_end == 0xffffffff) {
-		safe_memory_end = 0xffffffff;
-		safe_memory_start = 0xffffffff;
-		safe_memory_mode = 0;
 	}
 
 	feature_sr_mask = 0;

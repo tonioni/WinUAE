@@ -95,7 +95,7 @@ static int low_memory_offset;
 static int high_memory_offset;
 
 static uae_u32 vbr[256];
-static int exceptioncount[2][128];
+static int exceptioncount[3][128];
 static int supercnt;
 static uae_u32 endpc;
 
@@ -214,6 +214,7 @@ static struct accesshistory ahist[MAX_ACCESSHIST];
 
 static int is_valid_test_addr_read(uae_u32 a)
 {
+	a &= addressing_mask;
 	if ((uae_u8 *)a >= safe_memory_start && (uae_u8 *)a < safe_memory_end && (safe_memory_mode & 1))
 		return 0;
 	return (a >= test_low_memory_start && a < test_low_memory_end && test_low_memory_start != 0xffffffff) ||
@@ -223,6 +224,7 @@ static int is_valid_test_addr_read(uae_u32 a)
 
 static int is_valid_test_addr_readwrite(uae_u32 a)
 {
+	a &= addressing_mask;
 	if ((uae_u8 *)a >= safe_memory_start && (uae_u8 *)a < safe_memory_end)
 		return 0;
 	return (a >= test_low_memory_start && a < test_low_memory_end && test_low_memory_start != 0xffffffff) ||
@@ -943,7 +945,7 @@ static void addinfo_bytes(char *name, uae_u8 *src, uae_u32 address, int offset, 
 			*outbp++ = '*';
 		else if (cnt > 0)
 			*outbp++ = '.';
-		if ((uae_u8*)address >= safe_memory_start && (uae_u8*)address < safe_memory_end && (safe_memory_mode & 1)) {
+		if ((uae_u8*)address >= safe_memory_start && (uae_u8*)address < safe_memory_end && (safe_memory_mode & (1 | 4))) {
 			outbp[0] = '?';
 			outbp[1] = '?';
 		} else {
@@ -1053,8 +1055,8 @@ static void addinfo(void)
 		uae_u8 *b = (uae_u8 *)regs.branchtarget - SIZE_STORED_ADDRESS_OFFSET;
 		addinfo_bytes("B", b, regs.branchtarget, -SIZE_STORED_ADDRESS_OFFSET, SIZE_STORED_ADDRESS);
 	}
-	sprintf(outbp, "ENDPC=%08lx\n", endpc);
-	outbp += strlen(outbp);
+	//sprintf(outbp, "ENDPC=%08lx\n", endpc);
+	//outbp += strlen(outbp);
 }
 
 struct srbit
@@ -1189,7 +1191,7 @@ static uae_u8 *validate_exception(struct registers *regs, uae_u8 *p, int excnum,
 	uae_u32 v;
 	uae_u8 excdatalen = *p++;
 	int size;
-	int excrw = 0;
+	int excrwp = 0;
 
 	if (!excdatalen) {
 		return p;
@@ -1273,7 +1275,9 @@ static uae_u8 *validate_exception(struct registers *regs, uae_u8 *p, int excnum,
 				uae_u8 opcode1 = p[2];
 				exc[0] = opcode0;
 				exc[1] = (opcode1 & ~0x1f) | p[0];
-				excrw = (p[0] & 0x10) == 0;
+				excrwp = ((p[0] & 0x10) == 0) ? 1 : 0;
+				if (p[0] & 2)
+					excrwp = 2;
 				p += 3;
 				// access address
 				v = opcode_memory_addr;
@@ -1330,7 +1334,9 @@ static uae_u8 *validate_exception(struct registers *regs, uae_u8 *p, int excnum,
 			case 8:
 				exc[8] = *p++;
 				exc[9] = *p++;
-				excrw = (exc[8] & 1) == 0;
+				excrwp = ((exc[8] & 1) == 0) ? 1 : 0;
+				if (exc[9] & 2)
+					excrwp = 2;
 				v = opcode_memory_addr;
 				p = restore_rel_ordered(p, &v);
 				pl(exc + 10, v);
@@ -1373,7 +1379,7 @@ static uae_u8 *validate_exception(struct registers *regs, uae_u8 *p, int excnum,
 		exclen = last_exception_len;
 	}
 
-	exceptioncount[excrw][*gotexcnum]++;
+	exceptioncount[excrwp][*gotexcnum]++;
 
 	if (exclen == 0 || *gotexcnum != excnum)
 		return p;
@@ -2185,9 +2191,9 @@ static int test_mnemo(const char *path, const char *opcode)
 	printf("%lu ", testcnt);
 	printf("S=%ld", supercnt);
 	for (int i = 0; i < 128; i++) {
-		if (exceptioncount[0][i] || exceptioncount[1][i]) {
+		if (exceptioncount[0][i] || exceptioncount[1][i] || exceptioncount[2][i]) {
 			if (i == 2 || i == 3) {
-				printf(" E%02d=%ld/%ld", i, exceptioncount[0][i], exceptioncount[1][i]);
+				printf(" E%02d=%ld/%ld/%ld", i, exceptioncount[0][i], exceptioncount[1][i], exceptioncount[2][i]);
 			} else {
 				printf(" E%02d=%ld", i, exceptioncount[0][i]);
 			}
