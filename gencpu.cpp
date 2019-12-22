@@ -977,11 +977,13 @@ static void fill_prefetch_next(void)
 	}
 }
 
-static void fill_prefetch_next_extra(const char *format, ...)
+static void fill_prefetch_next_extra(const char *cond, const char *format, ...)
 {
 	if (using_prefetch) {
 		irc2ir();
 		if (using_bus_error) {
+			if (cond)
+				printf("\t%s\n\t", cond);
 			printf("\topcode = regs.ir;\n");
 			bus_error_code[0] = 0;
 			if (format) {
@@ -4607,6 +4609,8 @@ static void gen_opcode (unsigned int opcode)
 	case i_MVPRM: // MOVEP R->M
 		genamode (curi, curi->smode, "srcreg", curi->size, "src", 1, 0, 0);
 		printf ("\tuaecptr mempa = m68k_areg (regs, dstreg) + (uae_s32)(uae_s16)%s;\n", gen_nextiword (0));
+		check_bus_error_ins(4);
+		do_instruction_buserror();
 		if (curi->size == sz_word) {
 			printf("\t%s(mempa, src >> 8);\n", dstb);
 			check_bus_error("memp", 0, 1, 0, "src >> 8", 1 | 0x10000);
@@ -4628,6 +4632,8 @@ static void gen_opcode (unsigned int opcode)
 		break;
 	case i_MVPMR: // MOVEP M->R
 		printf ("\tuaecptr mempa = m68k_areg (regs, srcreg) + (uae_s32)(uae_s16)%s;\n", gen_nextiword (0));
+		check_bus_error_ins(4);
+		do_instruction_buserror();
 		genamode (curi, curi->dmode, "dstreg", curi->size, "dst", 2, 0, 0);
 		if (curi->size == sz_word) {
 			printf ("\tuae_u16 val  = (%s (mempa) & 0xff) << 8;\n", srcb);
@@ -4650,8 +4656,8 @@ static void gen_opcode (unsigned int opcode)
 			check_bus_error("memp", 6, 0, 0, NULL, 1);
 			count_read += 4;
 		}
+		genastore("val", curi->dmode, "dstreg", curi->size, "dst");
 		fill_prefetch_next ();
-		genastore ("val", curi->dmode, "dstreg", curi->size, "dst");
 		break;
 	case i_MOVE:
 	case i_MOVEA:
@@ -5708,19 +5714,28 @@ bccl_not68020:
 		break;
 	case i_Scc:
 		// confirmed
-		next_level_000 ();
-		genamode (curi, curi->smode, "srcreg", curi->size, "src", cpu_level == 0 ? 1 : 2, 0, 0);
-		start_brace ();
-		fill_prefetch_next();
-		start_brace ();
-		printf ("\tint val = cctrue (%d) ? 0xff : 0;\n", curi->cc);
-		if (isreg (curi->smode)) {
+		next_level_000();
+		genamode(curi, curi->smode, "srcreg", curi->size, "src", cpu_level == 0 ? 1 : 2, 0, 0);
+		if (isreg(curi->smode)) {
+			// If mode is Dn and condition true = 2 extra cycles needed.
+			printf("\tint val = cctrue(%d) ? 0xff : 0x00;\n", curi->cc);
 			if (using_ce)
-				printf ("\tint cycles = val ? 2 : 0;\n");
-			addcycles000_3 ("\t");
+				printf("\tint cycles = val ? 2 : 0;\n");
+			if (using_bus_error) {
+				printf("\tif (!val) {\n");
+				genastore("val", curi->smode, "srcreg", curi->size, "src");
+				printf("\t}\n");
+				printf("\topcode |= 0x20000;\n");
+			}
+			fill_prefetch_next_extra("if (!val)", NULL);
+			genastore("val", curi->smode, "srcreg", curi->size, "src");
+			addcycles000_3("\t");
 			addcycles000_nonces("\t", "(val ? 2 : 0)");
+		} else {
+			fill_prefetch_next_after(NULL);
+			printf("\tint val = cctrue(%d) ? 0xff : 0x00;\n", curi->cc);
+			genastore("val", curi->smode, "srcreg", curi->size, "src");
 		}
-		genastore ("val", curi->smode, "srcreg", curi->size, "src");
 		break;
 	case i_DIVU:
 		tail_ce020_done	= true;
