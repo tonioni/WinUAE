@@ -4171,24 +4171,43 @@ static void gen_opcode (unsigned int opcode)
 	case i_AND:
 	case i_EOR:
 	{
-		// documentaion error: and.l #imm,dn = 2 idle, not 1 idle (same as OR and EOR)
+		// documentation error: and.l #imm,dn = 2 idle, not 1 idle (same as OR and EOR)
 		int c = 0;
-		genamodedual (curi,
+		genamodedual(curi,
 			curi->smode, "srcreg", curi->size, "src", 1, 0,
 			curi->dmode, "dstreg", curi->size, "dst", 1, GF_RMW);
-//		genamode (curi, curi->smode, "srcreg", curi->size, "src", 1, 0, 0);
-//		genamode (curi, curi->dmode, "dstreg", curi->size, "dst", 1, 0, GF_RMW);
-		printf ("\tsrc %c= dst;\n", curi->mnemo == i_OR ? '|' : curi->mnemo == i_AND ? '&' : '^');
-		genflags (flag_logical, curi->size, "src", "", "");
-		if (curi->dmode == Dreg && curi->size == sz_long) {
-			c += 2;
-			if (curi->smode == imm || curi->smode == Dreg)
+		printf("\tsrc %c= dst;\n", curi->mnemo == i_OR ? '|' : curi->mnemo == i_AND ? '&' : '^');
+		genflags(flag_logical, curi->size, "src", "", "");
+		if (curi->size == sz_long) {
+			if (curi->dmode == Dreg) {
 				c += 2;
+				if (curi->smode == imm || curi->smode == Dreg) {
+					c += 2;
+					fill_prefetch_next_after("\t\tccr_68000_long_move_ae_LZN(src);\n\t\treg_68000_long_replace_low(dstreg, src);\n");
+				} else {
+					fill_prefetch_next_after("\t\treg_68000_long_replace_low(dstreg, src);\n");
+				}
+			} else {
+				fill_prefetch_next_after("\t\tccr_68000_long_move_ae_LZN(src);\n");
+			}
+			if (c > 0)
+				addcycles000(c);
+			genastore_rev("src", curi->dmode, "dstreg", curi->size, "dst");
+		} else {
+			if (curi->dmode == Dreg) {
+				genastore_rev("src", curi->dmode, "dstreg", curi->size, "dst");
+			}
+			if ((curi->smode == imm || curi->smode == Dreg) && curi->dmode != Dreg) {
+				fill_prefetch_next_after(NULL);
+			} else {
+				fill_prefetch_next();
+			}
+			if (c > 0)
+				addcycles000(c);
+			if (curi->dmode != Dreg) {
+				genastore_rev("src", curi->dmode, "dstreg", curi->size, "dst");
+			}
 		}
-		fill_prefetch_next ();
-		if (c > 0)
-			addcycles000 (c);
-		genastore_rev ("src", curi->dmode, "dstreg", curi->size, "dst");
 		break;
 	}
 	// all SR/CCR modifications does full prefetch

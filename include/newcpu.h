@@ -702,6 +702,7 @@ void ccr_68000_long_move_ae_LN(uae_s32 src);
 void ccr_68000_long_move_ae_HNZ(uae_s32 src);
 void ccr_68000_long_move_ae_normal(uae_s32 src);
 void ccr_68000_word_move_ae_normal(uae_s16 src);
+void reg_68000_long_replace_low(int reg, uae_u16 v);
 
 extern void mmu_op (uae_u32, uae_u32);
 extern bool mmu_op30 (uaecptr, uae_u32, uae_u16, uaecptr);
