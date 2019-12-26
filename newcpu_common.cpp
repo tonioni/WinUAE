@@ -1618,9 +1618,14 @@ void ccr_68000_word_move_ae_normal(uae_s16 src)
 	SET_NFLG(src < 0);
 }
 
-void reg_68000_long_replace_low(int reg, uae_u16 v)
+void dreg_68000_long_replace_low(int reg, uae_u16 v)
 {
 	m68k_dreg(regs, reg) = (m68k_dreg(regs, reg) & 0xffff0000) | v;
+}
+
+void areg_68000_long_replace_low(int reg, uae_u16 v)
+{
+	m68k_areg(regs, reg) = (m68k_areg(regs, reg) & 0xffff0000) | v;
 }
 
 // Change F-line to privilege violation if missing co-pro

@@ -159,7 +159,7 @@ struct accesshistory
 static int ahcnt_current, ahcnt_written;
 static int noaccesshistory = 0;
 
-#define MAX_ACCESSHIST 80
+#define MAX_ACCESSHIST 128
 static struct accesshistory ahist[MAX_ACCESSHIST];
 
 static int is_superstack_use_required(void)
@@ -2953,6 +2953,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 	int quick = 0;
 	int rounds = feature_test_rounds;
 	int subtest_count = 0;
+	int data_saved = 0;
 
 	int count = 0;
 
@@ -3074,6 +3075,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 		uae_u32 dstaddr = 0xffffffff;
 		uae_u32 branchtarget_old = 0xffffffff;
 		uae_u32 instructionendpc_old = opcode_memory_start;
+		uae_u32 startpc_old = opcode_memory_start;
 		int branch_target_swap_mode_old = 0;
 
 		if (verbose) {
@@ -3189,11 +3191,8 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 						printf("");
 
 
-					uaecptr pc = opcode_memory_start + 2;
-
-					if (is_nowrite_address(pc, 1)) {
-						goto nextopcode;
-					}
+					uaecptr startpc = opcode_memory_start;
+					uaecptr pc = startpc + 2;
 
 					if (target_opcode_address != 0xffffffff) {
 						pc -= 2;
@@ -3207,6 +3206,13 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 								abort();
 							}
 						}
+						startpc = opcode_memory_address;
+					}
+
+					// Start address to start address + 3 must be accessible or
+					// jump prefetch would cause early bus error which we don't want
+					if (is_nowrite_address(startpc, 4)) {
+						goto nextopcode;
 					}
 
 					if (dp->mnemo != i_ILLG) {
@@ -3494,13 +3500,17 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 					dst = store_mem_writes(dst, 1);
 
 					uae_u32 instructionendpc_old_prev = instructionendpc_old;
+					uae_u32 startpc_old_prev = startpc_old;
 					uae_u32 branchtarget_old_prev = branchtarget_old;
 					uae_u32 srcaddr_old_prev = srcaddr_old;
 					uae_u32 dstaddr_old_prev = dstaddr_old;
 
-					// PC before test: end address of test intruction
+					if (startpc != startpc_old) {
+						dst = store_reg(dst, CT_PC, startpc_old, startpc, -1);
+						startpc_old = startpc;
+					}
 					if (instructionendpc != instructionendpc_old) {
-						dst = store_reg(dst, CT_PC, instructionendpc_old, instructionendpc, -1);
+						dst = store_reg(dst, CT_ENDPC, instructionendpc_old, instructionendpc, -1);
 						instructionendpc_old = instructionendpc;
 					}
 					if (srcaddr != srcaddr_old && (dflags & 1)) {
@@ -3623,7 +3633,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 
 							// initialize CPU state
 
-							regs.pc = opcode_memory_start;
+							regs.pc = startpc;
 							regs.ir = get_word_test(regs.pc + 0);
 							regs.irc = get_word_test(regs.pc + 2);
 
@@ -3906,8 +3916,10 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 						dstaddr_old = dstaddr_old_prev;
 						branchtarget_old = branchtarget_old_prev;
 						instructionendpc_old = instructionendpc_old_prev;
+						startpc_old = startpc_old_prev;
 					} else {
 						full_format_cnt++;
+						data_saved = 1;
 					}
 					if (verbose) {
 						wprintf(_T(" OK=%d OB=%d S=%d/%d T=%d STP=%d"), ok, exception_array[0], prev_s_cnt, s_cnt, t_cnt, cnt_stopped);
@@ -3927,6 +3939,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 							srcaddr_old = 0xffffffff;
 							dstaddr_old = 0xffffffff;
 							instructionendpc_old = opcode_memory_start;
+							startpc_old = opcode_memory_start;
 						}
 						dst = storage_buffer;
 						for (int i = 0; i < MAX_REGISTERS; i++) {
@@ -3957,8 +3970,9 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 		nextopcode:;
 		}
 
-		if (subtest_count > 0) {
+		if (data_saved) {
 			save_data(dst, dir);
+			data_saved = 0;
 		}
 		dst = storage_buffer;
 
@@ -4006,6 +4020,8 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 				target_ea_opcode_cnt = 0;
 				if (target_ea_opcode_max > 0)
 					nextround = true;
+			} else {
+				quick = 0;
 			}
 			target_opcode_address = feature_target_ea[target_ea_opcode_cnt][2];
 			target_ea[2] = opcode_memory_address + target_opcode_address;

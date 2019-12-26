@@ -960,7 +960,7 @@ ULONG next_ref(ULONG from, ULONG to, UWORD *access_type)
 	return 0;
 }
 
-uint disasm_instr(UWORD *instr, char *out)
+uint disasm_instr(UWORD *instr, char *out, int cpu_lvl)
 
 /**********************************************************************/
 /*    Returns number of 16 bit words disassembled                     */
@@ -973,6 +973,19 @@ uint disasm_instr(UWORD *instr, char *out)
     first_ref = 0;
     last_ref = 0xffffffff;
     current_ref = (ULONG)instr;
+    if (cpu_lvl < 5) {
+        cpu68060 = 0;
+    }
+    if (cpu_lvl < 4) {
+        cpu68040 = 0;
+    }
+    if (cpu_lvl < 3) {
+        cpu68030 = 0;
+    }
+    if (cpu_lvl < 2) {
+        cpu68020 = 0;
+        fpu68881 = 0;
+    }
 
 	set_pass3;
 

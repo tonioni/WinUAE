@@ -50,6 +50,7 @@ struct registers
 	uae_u16 tracedata[6];
 	uae_u32 srcaddr, dstaddr, branchtarget;
 	uae_u8 branchtarget_mode;
+	uae_u32 endpc;
 };
 
 static struct registers test_regs;
@@ -97,7 +98,7 @@ static int high_memory_offset;
 static uae_u32 vbr[256];
 static int exceptioncount[3][128];
 static int supercnt;
-static uae_u32 endpc;
+static uae_u32 startpc, endpc;
 
 static char inst_name[16+1];
 #ifndef M68K
@@ -115,6 +116,7 @@ static int quit;
 static uae_u8 ccr_mask;
 static uae_u32 addressing_mask = 0x00ffffff;
 static uae_u32 interrupt_mask;
+static int disasm;
 
 #define SIZE_STORED_ADDRESS_OFFSET 8
 #define SIZE_STORED_ADDRESS 16
@@ -878,6 +880,9 @@ static uae_u8 *restore_data(uae_u8 *p)
 	} else if (mode == CT_DSTADDR) {
 		int size;
 		p = restore_value(p, &regs.dstaddr, &size);
+	} else if (mode == CT_ENDPC) {
+		int size;
+		p = restore_value(p, &regs.endpc, &size);
 	} else if (mode == CT_PC) {
 		int size;
 		p = restore_value(p, &regs.pc, &size);
@@ -959,7 +964,7 @@ static void addinfo_bytes(char *name, uae_u8 *src, uae_u32 address, int offset, 
 	*outbp++ = '\n';
 }
 
-extern uae_u16 disasm_instr(uae_u16 *, char *);
+extern uae_u16 disasm_instr(uae_u16 *, char *, int);
 
 static void out_disasm(uae_u8 *mem)
 {
@@ -985,7 +990,7 @@ static void out_disasm(uae_u8 *mem)
 		}
 		tmpbuffer[0] = 0;
 		if (!(((uae_u32)code) & 1)) {
-			v = disasm_instr(code + offset, tmpbuffer);
+			v = disasm_instr(code + offset, tmpbuffer, cpu_lvl);
 			sprintf(outbp, "%08lx ", p);
 			outbp += strlen(outbp);
 			for (int i = 0; i < v; i++) {
@@ -1024,7 +1029,9 @@ static void addinfo(void)
 	if (!dooutput)
 		return;
 
-	out_disasm(opcode_memory);
+	if (disasm) {
+		out_disasm(opcode_memory);
+	}
 
 	if (regs.branchtarget != 0xffffffff) {
 		out_disasm((uae_u8*)regs.branchtarget);
@@ -1055,8 +1062,8 @@ static void addinfo(void)
 		uae_u8 *b = (uae_u8 *)regs.branchtarget - SIZE_STORED_ADDRESS_OFFSET;
 		addinfo_bytes("B", b, regs.branchtarget, -SIZE_STORED_ADDRESS_OFFSET, SIZE_STORED_ADDRESS);
 	}
-	//sprintf(outbp, "ENDPC=%08lx\n", endpc);
-	//outbp += strlen(outbp);
+	sprintf(outbp, "STARTPC=%08lx ENDPC=%08lx\n", startpc, endpc);
+	outbp += strlen(outbp);
 }
 
 struct srbit
@@ -1541,8 +1548,13 @@ static uae_u8 *validate_test(uae_u8 *p, int ignore_errors, int ignore_sr)
 			if ((val & (sr_undefined_mask & test_ccrignoremask)) != (test_regs.sr & (sr_undefined_mask & test_ccrignoremask)) && !ignore_errors && !ignore_sr) {
 				addinfo();
 				if (dooutput) {
-					sprintf(outbp, "SR: expected %04x -> %04x but got %04x (%04x)\n", test_sr & 0xffff, val & 0xffff, test_regs.sr & 0xffff, test_ccrignoremask);
+					sprintf(outbp, "SR: expected %04x -> %04x but got %04x", test_sr & 0xffff, val & 0xffff, test_regs.sr & 0xffff);
 					outbp += strlen(outbp);
+					if (test_ccrignoremask != 0xffff) {
+						sprintf(outbp, " (%04x)", test_ccrignoremask);
+						outbp += strlen(outbp);
+					}
+					*outbp++ = '\n';
 				}
 				errors++;
 			}
@@ -1779,6 +1791,7 @@ static void process_test(uae_u8 *p)
 	regs.branchtarget = 0xffffffff;
 
 	endpc = opcode_memory_addr;
+	startpc = opcode_memory_addr;
 
 	start_test();
 
@@ -1791,7 +1804,9 @@ static void process_test(uae_u8 *p)
 		outbp = outbuffer;
 #endif
 
-		regs.pc = endpc;
+		regs.endpc = endpc;
+		regs.pc = startpc;
+
 		for (;;) {
 			uae_u8 v = *p;
 			if (v == CT_END_INIT || v == CT_END_FINISH)
@@ -1805,14 +1820,14 @@ static void process_test(uae_u8 *p)
 		store_addr(regs.srcaddr, srcaddr);
 		store_addr(regs.dstaddr, dstaddr);
 		store_addr(regs.branchtarget, branchtarget);
-		endpc = regs.pc;
+		startpc = regs.pc;
+		endpc = regs.endpc;
 		uae_u8 *opcode_memory_end = (uae_u8*)endpc;
 
 		xmemcpy(&last_registers, &regs, sizeof(struct registers));
 
 		int fpumode = fpu_model && (opcode_memory[0] & 0xf0) == 0xf0;
 
-		uae_u32 pc = opcode_memory_addr;
 		uae_u32 originalopcodeend = 0x4afc4e71;
 		uae_u32 opcodeend = originalopcodeend;
 		int extraccr = 0;
@@ -1823,8 +1838,8 @@ static void process_test(uae_u8 *p)
 			validendsize = 1;
 		}
 
-		uae_u32 last_pc = opcode_memory_addr;
-		uae_u32 last_fpiar = opcode_memory_addr;
+		uae_u32 last_pc = startpc;
+		uae_u32 last_fpiar = startpc;
 		int old_super = -1;
 
 		for (;;) {
@@ -1866,8 +1881,8 @@ static void process_test(uae_u8 *p)
 
 				regs.ssp = super_stack_memory - 0x80;
 				regs.msp = super_stack_memory;
-				regs.pc = opcode_memory_addr;
-				regs.fpiar = opcode_memory_addr;
+				regs.pc = startpc;
+				regs.fpiar = startpc;
 
 #ifdef M68K
 				xmemcpy((void*)regs.ssp, (void*)regs.regs[15], 0x20);
@@ -2291,6 +2306,7 @@ int main(int argc, char *argv[])
 
 	check_undefined_sr = 1;
 	ccr_mask = 0xff;
+	disasm = 1;
 	for (int i = 1; i < argc; i++) {
 		char *s = argv[i];
 		char *next = i + 1 < argc ? argv[i + 1] : NULL;
@@ -2318,6 +2334,8 @@ int main(int argc, char *argv[])
 			cpu_lvl = 4;
 		} else if (!_stricmp(s, "68060")) {
 			cpu_lvl = 5;
+		} else if (!_stricmp(s, "nodisasm")) {
+			disasm = 0;
 		}
 	}
 

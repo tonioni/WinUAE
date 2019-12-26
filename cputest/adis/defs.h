@@ -319,7 +319,7 @@ void analyze_code (UBYTE *seg);
 uint decode_ea (char *to, ushort mode, ushort reg, UWORD access, ushort first_ext);
 
 /* disasm_code.c */
-uint disasm_instr (UWORD *instr, char*);
+uint disasm_instr (UWORD *instr, char*, int);
 void disasm_code (UBYTE *seg, ULONG seg_size);
 
 /* disasm_data.c */

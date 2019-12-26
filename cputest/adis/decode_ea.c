@@ -139,19 +139,25 @@ switch (mode)
   /****************** address register indirect indexed ***************/
 
   case 6:
+    if ((first_ext_w & 0x100) && !cpu68020)
+      first_ext_w &= ~0x100;
     if (first_ext_w & 0x100)
       {
       if (cpu68020)
         return (full_extension (to, code + first_ext, mode, reg));
+#if 0
       else
         {
         instr_bad = TRUE;
         return (0);
         }
-      }
+#endif
+    }
     else
       {
       UWORD size = (first_ext_w >> 9) & 0x3;
+      if (size != 0 && !cpu68020)
+          size = 0;
 #if 0
       if (!cpu68020 && size != 0)  /* Only size of 1 allowed for 68000 */
         {
@@ -263,7 +269,9 @@ switch (mode)
       /***************** PC memory indirect with index ************/
 
       case 3:
-        if (first_ext_w & 0x0100)
+          if ((first_ext_w & 0x100) && !cpu68020)
+              first_ext_w &= ~0x100;
+          if (first_ext_w & 0x0100)
           {
           /* long extension word */
           if (cpu68020)
@@ -279,6 +287,8 @@ switch (mode)
         else
           {
           UWORD size = (first_ext_w >> 9) & 0x3;
+          if (size != 0 && !cpu68020)
+              size = 0;
 #if 0
           if (!cpu68020 && size != 0)  /* Only size of 1 allowed for 68000 */
             {
