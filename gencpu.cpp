@@ -57,6 +57,7 @@ static const char *mmu_postfix, *xfc_postfix;
 static int memory_cycle_cnt;
 static int did_prefetch;
 static int ipl_fetched;
+static int opcode_nextcopy;
 
 static int optimized_flags;
 
@@ -778,12 +779,18 @@ static void irc2ir (void)
 	irc2ir (false);
 }
 
+static void copy_opcode(void)
+{
+	printf("\topcode = regs.ir;\n");
+}
+
 static void fill_prefetch_bcc(void)
 {
 	if (!using_prefetch)
 		return;
 	if (using_bus_error) {
-		printf("\topcode = regs.ir;\n");
+		copy_opcode();
+		printf("\tif(regs.t1) opcode |= 0x10000;\n");
 	}
 	printf("\t%s(%d);\n", prefetch_word, m68k_pc_offset + 2);
 	check_prefetch_bus_error(m68k_pc_offset + 2, 0);
@@ -842,7 +849,11 @@ static void fill_prefetch_full_ntx(int beopcode)
 		fill_prefetch_1_empty(0);
 		irc2ir ();
 		if (beopcode) {
-			printf("\topcode = regs.ir;\n");
+			copy_opcode();
+			if (beopcode == 2)
+				printf("\tif(regs.t1) opcode |= 0x10000;\n");
+			if (beopcode == 3)
+				printf("\tif(t1) opcode |= 0x10000;\n");
 			fill_prefetch_1(2);
 		} else {
 			fill_prefetch_1_empty(2);
@@ -883,7 +894,9 @@ static void fill_prefetch_full(int beopcode)
 		fill_prefetch_1_empty(0);
 		irc2ir ();
 		if (beopcode) {
-			printf("\topcode = regs.ir;\n");
+			copy_opcode();
+			if (beopcode > 1)
+				printf("\tif(regs.t1) opcode |= 0x10000;\n");
 			fill_prefetch_1(2);
 		} else {
 			fill_prefetch_1_empty(2);
@@ -909,7 +922,7 @@ static void fill_prefetch_full_000_special(void)
 	check_prefetch_bus_error(-1, -1);
 	irc2ir();
 	if (using_bus_error) {
-		printf("\topcode = regs.ir;\n");
+		copy_opcode();
 		if (g_instr->mnemo == i_RTE) {
 			printf("\tif(oldt1) opcode |= 0x10000;\n");
 		} else {
@@ -982,7 +995,7 @@ static void fill_prefetch_next_noopcodecopy(const char *format, ...)
 		}
 		fill_prefetch_1(m68k_pc_offset + 2);
 		if (using_bus_error) {
-			printf("\topcode = regs.ir;\n");
+			copy_opcode();
 		}
 	}
 }
@@ -992,11 +1005,24 @@ static void fill_prefetch_next(void)
 	if (using_prefetch) {
 		irc2ir();
 		if (using_bus_error) {
-			printf("\topcode = regs.ir;\n");
+			copy_opcode();
 		}
 		fill_prefetch_1(m68k_pc_offset + 2);
 	}
 }
+
+static void fill_prefetch_next_t(void)
+{
+	if (using_prefetch) {
+		irc2ir();
+		if (using_bus_error) {
+			printf("\topcode = regs.ir;\n");
+			strcat(bus_error_code, "\t\tif (regs.t1) opcode |= 0x10000;\n");
+		}
+		fill_prefetch_1(m68k_pc_offset + 2);
+	}
+}
+
 
 static void fill_prefetch_next_extra(const char *cond, const char *format, ...)
 {
@@ -1019,7 +1045,7 @@ static void fill_prefetch_next_extra(const char *cond, const char *format, ...)
 }
 
 
-static void fill_prefetch_next_after(const char *format, ...)
+static void fill_prefetch_next_after(int copy, const char *format, ...)
 {
 	if (using_prefetch) {
 		irc2ir();
@@ -1033,7 +1059,12 @@ static void fill_prefetch_next_after(const char *format, ...)
 		}
 		fill_prefetch_1(m68k_pc_offset + 2);
 		if (using_bus_error) {
-			printf("\topcode = regs.ir;\n");
+			if (copy) {
+				copy_opcode();
+			} else if (g_instr->size == sz_long) {
+				// long write, only do opcode copy after first word write
+				opcode_nextcopy = 1;
+			}
 		}
 	}
 }
@@ -1575,7 +1606,6 @@ static int do_bus_error_fixes(const char *name, int offset, int write)
 			// CMPM.L (an)+,(an)+: first increased normally, second not increased
 			printf("\t\tm68k_areg(regs, %s) += 2 + %d;\n", bus_error_reg, offset);
 		}
-		break;
 	case 4:
 	case -4:
 		if ((g_instr->mnemo == i_ADDX || g_instr->mnemo == i_SUBX) && g_instr->size == sz_long) {
@@ -1631,6 +1661,26 @@ static void check_bus_error(const char *name, int offset, int write, int size, c
 		if (mnemo == i_MVMEL && (g_instr->dmode == PC16 || g_instr->dmode == PC8r)) {
 			// MOVEM to registers
 			fc = 2;
+		}
+
+		if ((mnemo == i_ADDX || mnemo == i_SUBX) && g_instr->size == sz_long && g_instr->dmode == Apdi && write && offset) {
+			printf(
+				"\t\tint bflgs = ((uae_s16)(src)) < 0;\n"
+				"\t\tint bflgo = ((uae_s16)(dst)) < 0;\n"
+				"\t\tint bflgn = ((uae_s16)(newv)) < 0;\n");
+			if (mnemo == i_ADDX) {
+				printf(
+					"\t\tSET_VFLG((bflgs ^ bflgn) & (bflgo ^ bflgn));\n"
+					"\t\tSET_CFLG(bflgs ^ ((bflgs ^ bflgo) & (bflgo ^ bflgn)));\n");
+			} else {
+				printf(
+					"\t\tSET_VFLG((bflgs ^ bflgo) & (bflgo ^ bflgn));\n"
+					"\t\tSET_CFLG(bflgs ^ ((bflgs ^ bflgn) & (bflgo ^ bflgn)));\n");
+			}
+			printf(
+				"\t\tCOPY_CARRY(); \n"
+				"\t\tSET_ZFLG(GET_ZFLG() & (((uae_s16)(newv)) == 0));\n"
+				"\t\tSET_NFLG(((uae_s16)(newv)) < 0);\n");
 		}
 
 		if (mnemo == i_LINK) {
@@ -3068,6 +3118,9 @@ static void genastore_2 (const char *from, amodes mode, const char *reg, wordsiz
 				if (store_dir) {
 					printf("\t%s(%sa + 2, %s);\n", dstwx, to, from);
 					check_bus_error(to, 2, 1, 1, from, 1);
+					if (opcode_nextcopy)
+						copy_opcode();
+					opcode_nextcopy = 0;
 					if (flags & GF_SECONDWORDSETFLAGS) {
 						genflags(flag_logical, g_instr->size, "src", "", "");
 					}
@@ -3078,6 +3131,9 @@ static void genastore_2 (const char *from, amodes mode, const char *reg, wordsiz
 					printf("\t%s(%sa, %s >> 16);\n", dstwx, to, from);
 					sprintf(tmp, "%s >> 16", from);
 					check_bus_error(to, 0, 1, 1, tmp, 1);
+					if (opcode_nextcopy)
+						copy_opcode();
+					opcode_nextcopy = 0;
 					if (flags & GF_SECONDWORDSETFLAGS) {
 						genflags(flag_logical, g_instr->size, "src", "", "");
 					}
@@ -3432,7 +3488,7 @@ static void genmovemel (uae_u16 opcode)
 		}
 	}
 	count_ncycles++;
-	fill_prefetch_next ();
+	fill_prefetch_next_t();
 	get_prefetch_020 ();
 }
 
@@ -3496,7 +3552,7 @@ static void genmovemel_ce (uae_u16 opcode)
 	if (table68k[opcode].dmode == Aipi)
 		printf("\tm68k_areg(regs, dstreg) = srca;\n");
 	count_ncycles++;
-	fill_prefetch_next ();
+	fill_prefetch_next_t();
 }
 
 static void genmovemle (uae_u16 opcode)
@@ -3557,7 +3613,7 @@ static void genmovemle (uae_u16 opcode)
 		}
 	}
 	count_ncycles++;
-	fill_prefetch_next ();
+	fill_prefetch_next_t();
 	get_prefetch_020 ();
 }
 
@@ -3655,7 +3711,7 @@ static void genmovemle_ce (uae_u16 opcode)
 		}
 	}
 	count_ncycles++;
-	fill_prefetch_next ();
+	fill_prefetch_next_t();
 }
 
 static void force_range_for_rox (const char *var, wordsizes size)
@@ -4135,6 +4191,7 @@ static void gen_opcode (unsigned int opcode)
 	g_srcname[0] = 0;
 	bus_error_code[0] = 0;
 	bus_error_code2[0] = 0;
+	opcode_nextcopy = 0;
 
 	// do not unnecessarily create useless mmuop030
 	// functions when CPU is not 68030
@@ -4184,12 +4241,12 @@ static void gen_opcode (unsigned int opcode)
 				c += 2;
 				if (curi->smode == imm || curi->smode == Dreg) {
 					c += 2;
-					fill_prefetch_next_after("\t\tccr_68000_long_move_ae_LZN(src);\n\t\tdreg_68000_long_replace_low(dstreg, src);\n");
+					fill_prefetch_next_after(1, "\t\tccr_68000_long_move_ae_LZN(src);\n\t\tdreg_68000_long_replace_low(dstreg, src);\n");
 				} else {
-					fill_prefetch_next_after("\t\tdreg_68000_long_replace_low(dstreg, src);\n");
+					fill_prefetch_next_after(1, "\t\tdreg_68000_long_replace_low(dstreg, src);\n");
 				}
 			} else {
-				fill_prefetch_next_after("\t\tccr_68000_long_move_ae_LZN(src);\n");
+				fill_prefetch_next_after(0, "\t\tccr_68000_long_move_ae_LZN(src);\n");
 			}
 			if (c > 0)
 				addcycles000(c);
@@ -4199,9 +4256,9 @@ static void gen_opcode (unsigned int opcode)
 				genastore_rev("src", curi->dmode, "dstreg", curi->size, "dst");
 			}
 			if ((curi->smode == imm || curi->smode == Dreg) && curi->dmode != Dreg) {
-				fill_prefetch_next_after(NULL);
+				fill_prefetch_next_after(1, NULL);
 			} else {
-				fill_prefetch_next();
+				fill_prefetch_next_t();
 			}
 			if (c > 0)
 				addcycles000(c);
@@ -4216,9 +4273,13 @@ static void gen_opcode (unsigned int opcode)
 	case i_ANDSR:
 	case i_EORSR:
 		printf("\tMakeSR();\n");
+		if (cpu_level <= 1)
+			printf("\tint t1 = regs.t1;\n");
 		genamode (curi, curi->smode, "srcreg", curi->size, "src", 1, 0, 0);
 		if (curi->size == sz_byte) {
 			printf("\tsrc &= 0xFF;\n");
+			if (curi->mnemo == i_ANDSR)
+				printf("\tsrc |= 0xff00;\n");
 		} else {
 			check_trace();
 		}
@@ -4226,7 +4287,7 @@ static void gen_opcode (unsigned int opcode)
 		printf("\tregs.sr %c= src;\n", curi->mnemo == i_ORSR ? '|' : curi->mnemo == i_ANDSR ? '&' : '^');
 		makefromsr_t0();
 		sync_m68k_pc();
-		fill_prefetch_full_ntx(1);
+		fill_prefetch_full_ntx(3);
 		break;
 	case i_SUB:
 	{
@@ -4240,7 +4301,7 @@ static void gen_opcode (unsigned int opcode)
 				c += 2;
 				if (curi->smode == imm || curi->smode == immi || curi->smode == Dreg || curi->smode == Areg) {
 					c += 2;
-					fill_prefetch_next_after(
+					fill_prefetch_next_after(1,
 						"\t\tuae_s16 bnewv = (uae_s16)dst - (uae_s16)src;\n"
 						"\t\tint bflgs = ((uae_s16)(src)) < 0;\n"
 						"\t\tint bflgo = ((uae_s16)(dst)) < 0;\n"
@@ -4251,10 +4312,10 @@ static void gen_opcode (unsigned int opcode)
 						"\t\tSET_VFLG((bflgs ^ bflgo) & (bflgn ^ bflgo));\n"
 						"\t\tdreg_68000_long_replace_low(dstreg, bnewv);\n");
 				} else {
-					fill_prefetch_next_after("\t\tdreg_68000_long_replace_low(dstreg, newv);\n");
+					fill_prefetch_next_after(1, "\t\tdreg_68000_long_replace_low(dstreg, newv);\n");
 				}
 			} else {
-				fill_prefetch_next_after(
+				fill_prefetch_next_after(0,
 					"\t\tuae_s16 bnewv = (uae_s16)dst - (uae_s16)src;\n"
 					"\t\tint bflgs = ((uae_s16)(src)) < 0;\n"
 					"\t\tint bflgo = ((uae_s16)(dst)) < 0;\n"
@@ -4272,9 +4333,9 @@ static void gen_opcode (unsigned int opcode)
 				genastore_rev("newv", curi->dmode, "dstreg", curi->size, "dst");
 			}
 			if ((curi->smode >= imm || curi->smode == Dreg) && curi->dmode != Dreg) {
-				fill_prefetch_next_after(NULL);
+				fill_prefetch_next_after(1, NULL);
 			} else {
-				fill_prefetch_next();
+				fill_prefetch_next_t();
 			}
 			if (c > 0)
 				addcycles000(c);
@@ -4299,7 +4360,7 @@ static void gen_opcode (unsigned int opcode)
 			if (islongimm (curi))
 				c += 2;
 		}
-		fill_prefetch_next_after("\t\tareg_68000_long_replace_low(dstreg, newv);\n");
+		fill_prefetch_next_after(0, "\t\tareg_68000_long_replace_low(dstreg, newv);\n");
 		if (c > 0)
 			addcycles000 (c);
 		genastore ("newv", curi->dmode, "dstreg", sz_long, "dst");
@@ -4325,7 +4386,7 @@ static void gen_opcode (unsigned int opcode)
 		if (isreg(curi->smode)) {
 			if (curi->size == sz_long) {
 				// set CCR using only low word if prefetch bus error
-				fill_prefetch_next_after(
+				fill_prefetch_next_after(1,
 					"\t\tint bflgs = ((uae_s16)(src)) < 0;\n"
 					"\t\tint bflgo = ((uae_s16)(dst)) < 0;\n"
 					"\t\tint bflgn = ((uae_s16)(newv)) < 0;\n"
@@ -4336,16 +4397,18 @@ static void gen_opcode (unsigned int opcode)
 					"\t\tSET_NFLG(newv & 0x8000); \n"
 					"\t\tdreg_68000_long_replace_low(dstreg, newv);\n");
 			} else {
-				fill_prefetch_next();
+				fill_prefetch_next_t();
 			}
+		} else if (curi->size == sz_long) {
+			fill_prefetch_next_after(0, NULL);
 		} else {
-			fill_prefetch_next_after(NULL);
+			fill_prefetch_next_after(1, NULL);
 		}
 		if (curi->size == sz_long && isreg(curi->smode)) {
 			addcycles000(4);
 		}
 		if (curi->size == sz_long || !isreg(curi->smode)) {
-			genastore("newv", curi->dmode, "dstreg", curi->size, "dst");
+			genastore_rev("newv", curi->dmode, "dstreg", curi->size, "dst");
 		}
 		break;
 	case i_SBCD:
@@ -4378,7 +4441,7 @@ static void gen_opcode (unsigned int opcode)
 		} else {
 			printf("\tSET_VFLG ((tmp_newv & 0x80) != 0 && (newv & 0x80) == 0);\n");
 		}
-		fill_prefetch_next_after(NULL);
+		fill_prefetch_next_after(1, NULL);
 		if (isreg (curi->smode)) {
 			addcycles000 (2);
 		}
@@ -4396,7 +4459,7 @@ static void gen_opcode (unsigned int opcode)
 				c += 2;
 				if (curi->smode == imm || curi->smode == immi || curi->smode == Dreg || curi->smode == Areg) {
 					c += 2;
-					fill_prefetch_next_after(
+					fill_prefetch_next_after(1,
 						"\t\tuae_s16 bnewv = (uae_s16)dst + (uae_s16)src;\n"
 						"\t\tint bflgs = ((uae_s16)(src)) < 0;\n"
 						"\t\tint bflgo = ((uae_s16)(dst)) < 0;\n"
@@ -4407,10 +4470,10 @@ static void gen_opcode (unsigned int opcode)
 						"\t\tSET_VFLG((bflgs ^ bflgn) & (bflgo ^ bflgn));\n"
 						"\t\tdreg_68000_long_replace_low(dstreg, bnewv);\n");
 				} else {
-					fill_prefetch_next_after("\t\tdreg_68000_long_replace_low(dstreg, newv);\n");
+					fill_prefetch_next_after(1, "\t\tdreg_68000_long_replace_low(dstreg, newv);\n");
 				}
 			} else {
-				fill_prefetch_next_after(
+				fill_prefetch_next_after(0,
 					"\t\tuae_s16 bnewv = (uae_s16)dst + (uae_s16)src;\n"
 					"\t\tint bflgs = ((uae_s16)(src)) < 0;\n"
 					"\t\tint bflgo = ((uae_s16)(dst)) < 0;\n"
@@ -4428,9 +4491,9 @@ static void gen_opcode (unsigned int opcode)
 				genastore_rev("newv", curi->dmode, "dstreg", curi->size, "dst");
 			}
 			if ((curi->smode >= imm || curi->smode == Dreg) && curi->dmode != Dreg) {
-				fill_prefetch_next_after(NULL);
+				fill_prefetch_next_after(1, NULL);
 			} else {
-				fill_prefetch_next();
+				fill_prefetch_next_t();
 			}
 			if (c > 0)
 				addcycles000(c);
@@ -4455,7 +4518,7 @@ static void gen_opcode (unsigned int opcode)
 			if (islongimm (curi))
 				c += 2;
 		}
-		fill_prefetch_next_after("\t\tareg_68000_long_replace_low(dstreg, newv);\n");
+		fill_prefetch_next_after(1, "\t\tareg_68000_long_replace_low(dstreg, newv);\n");
 		if (c > 0)
 			addcycles000 (c);
 		genastore("newv", curi->dmode, "dstreg", sz_long, "dst");
@@ -4482,7 +4545,7 @@ static void gen_opcode (unsigned int opcode)
 		if (isreg(curi->smode)) {
 			if (curi->size == sz_long) {
 				// set CCR using only low word if prefetch bus error
-				fill_prefetch_next_after(
+				fill_prefetch_next_after(1,
 					"\t\tint bflgs = ((uae_s16)(src)) < 0;\n"
 					"\t\tint bflgo = ((uae_s16)(dst)) < 0;\n"
 					"\t\tint bflgn = ((uae_s16)(newv)) < 0;\n"
@@ -4493,16 +4556,18 @@ static void gen_opcode (unsigned int opcode)
 					"\t\tSET_NFLG(newv & 0x8000); \n"
 					"\t\tdreg_68000_long_replace_low(dstreg, newv);\n");
 			} else {
-				fill_prefetch_next();
+				fill_prefetch_next_t();
 			}
+		} else if (curi->size == sz_long) {
+			fill_prefetch_next_after(0, NULL);
 		} else {
-			fill_prefetch_next_after(NULL);
+			fill_prefetch_next_after(1, NULL);
 		}
 		if (curi->size == sz_long && isreg(curi->smode)) {
 			addcycles000(4);
 		}
 		if (curi->size == sz_long || !isreg(curi->smode)) {
-			genastore("newv", curi->dmode, "dstreg", curi->size, "dst");
+			genastore_rev("newv", curi->dmode, "dstreg", curi->size, "dst");
 		}
 		break;
 	case i_ABCD:
@@ -4536,7 +4601,7 @@ static void gen_opcode (unsigned int opcode)
 		} else {
 			printf("\tSET_VFLG ((tmp_newv & 0x80) == 0 && (newv & 0x80) != 0);\n");
 		}
-		fill_prefetch_next_after(NULL);
+		fill_prefetch_next_after(1, NULL);
 		if (isreg (curi->smode)) {
 			addcycles000 (2);
 		}
@@ -4549,7 +4614,7 @@ static void gen_opcode (unsigned int opcode)
 			if (curi->size == sz_long) {
 				// prefetch bus error and long register: only low word is updated
 				// N flag from high word. Z both.
-				fill_prefetch_next_after(
+				fill_prefetch_next_after(1,
 					"\t\tdreg_68000_long_replace_low(srcreg, dst);\n"
 					"\t\tint bflgs = ((uae_s16)(src)) < 0;\n"
 					"\t\tint bflgo = ((uae_s16)(0)) < 0;\n"
@@ -4562,11 +4627,11 @@ static void gen_opcode (unsigned int opcode)
 				genastore_rev("dst", curi->smode, "srcreg", curi->size, "src");
 			} else {
 				genastore_rev("dst", curi->smode, "srcreg", curi->size, "src");
-				fill_prefetch_next();
+				fill_prefetch_next_t();
 			}
 		} else if (curi->size == sz_long) {
 			// prefetch bus error and long memory: only low word CCR decoded
-			fill_prefetch_next_after(
+			fill_prefetch_next_after(0,
 				"\t\tint bflgs = ((uae_s16)(src)) < 0;\n"
 				"\t\tint bflgo = ((uae_s16)(0)) < 0;\n"
 				"\t\tint bflgn = ((uae_s16)(dst)) < 0;\n"
@@ -4576,7 +4641,7 @@ static void gen_opcode (unsigned int opcode)
 				"\t\tSET_NFLG(bflgn != 0);\n"
 				"\t\tSET_XFLG(GET_CFLG());\n");
 		} else {
-			fill_prefetch_next_after(NULL);
+			fill_prefetch_next_after(1, NULL);
 		}
 		if (isreg(curi->smode) && curi->size == sz_long)
 			addcycles000(2);
@@ -4593,7 +4658,7 @@ static void gen_opcode (unsigned int opcode)
 			if (curi->size == sz_long) {
 				// prefetch bus error and long register: only low word is updated
 				// N flag from high word. Z both.
-				fill_prefetch_next_after(
+				fill_prefetch_next_after(1,
 					"\t\tdreg_68000_long_replace_low(srcreg, newv);\n"
 					"\t\tint bflgs = ((uae_s16)(src)) < 0;\n"
 					"\t\tint bflgo = ((uae_s16)(0)) < 0;\n"
@@ -4606,11 +4671,11 @@ static void gen_opcode (unsigned int opcode)
 				genastore_rev("newv", curi->smode, "srcreg", curi->size, "src");
 			} else {
 				genastore_rev("newv", curi->smode, "srcreg", curi->size, "src");
-				fill_prefetch_next();
+				fill_prefetch_next_t();
 			}
 		} else if (curi->size == sz_long) {
 			// prefetch bus error and long memory: only low word CCR decoded
-			fill_prefetch_next_after(
+			fill_prefetch_next_after(0,
 				"\t\tint bflgs = ((uae_s16)(src)) < 0;\n"
 				"\t\tint bflgo = ((uae_s16)(0)) < 0;\n"
 				"\t\tint bflgn = ((uae_s16)(newv)) < 0;\n"
@@ -4620,7 +4685,7 @@ static void gen_opcode (unsigned int opcode)
 				"\t\tSET_NFLG(((uae_s16)(newv)) < 0);\n"
 				"\t\tSET_XFLG(GET_CFLG());\n");
 		} else {
-			fill_prefetch_next_after(NULL);
+			fill_prefetch_next_after(1, NULL);
 		}
 		if (isreg (curi->smode) && curi->size == sz_long)
 			addcycles000 (2);
@@ -4660,7 +4725,7 @@ static void gen_opcode (unsigned int opcode)
 		} else {
 			printf("\tSET_VFLG ((tmp_newv & 0x80) != 0 && (newv & 0x80) == 0);\n");
 		}
-		fill_prefetch_next_after(NULL);
+		fill_prefetch_next_after(1, NULL);
 		genastore ("newv", curi->smode, "srcreg", curi->size, "src");
 		break;
 	case i_CLR:
@@ -4672,19 +4737,19 @@ static void gen_opcode (unsigned int opcode)
 				if (curi->size == sz_long) {
 					// prefetch bus error and long register: only low word is updated
 					// N flag from high word. Z both.
-					fill_prefetch_next_after(
+					fill_prefetch_next_after(1, 
 						"\t\tm68k_dreg(regs, srcreg) = (src & 0xffff0000);\n"
 						"\t\tSET_VFLG(0);SET_ZFLG(1);SET_NFLG(0);SET_CFLG(0);\n");
 					genastore_rev("0", curi->smode, "srcreg", curi->size, "src");
 				} else {
 					genastore_rev("0", curi->smode, "srcreg", curi->size, "src");
-					fill_prefetch_next();
+					fill_prefetch_next_t();
 				}
 			} else if (curi->size == sz_long) {
 				// prefetch bus error and long memory: only low word CCR decoded
-				fill_prefetch_next_after("\t\tSET_VFLG(0);SET_ZFLG(1);SET_NFLG(0);SET_CFLG(0);\n");
+				fill_prefetch_next_after(0, "\t\tSET_VFLG(0);SET_ZFLG(1);SET_NFLG(0);SET_CFLG(0);\n");
 			} else {
-				fill_prefetch_next_after(NULL);
+				fill_prefetch_next_after(1, NULL);
 			}
 			if (isreg(curi->smode) && curi->size == sz_long)
 				addcycles000(2);
@@ -4722,7 +4787,7 @@ static void gen_opcode (unsigned int opcode)
 			if (curi->size == sz_long) {
 				// prefetch bus error and long register: only low word is updated
 				// N flag from high word. Z both.
-				fill_prefetch_next_after(
+				fill_prefetch_next_after(1, 
 					"\t\tdreg_68000_long_replace_low(srcreg, dst);\n"
 					"\t\tSET_VFLG(0);SET_ZFLG(!dst);\n"
 					"\t\tSET_NFLG(dst & 0x80000000);\n"
@@ -4730,17 +4795,17 @@ static void gen_opcode (unsigned int opcode)
 				genastore_rev("dst", curi->smode, "srcreg", curi->size, "src");
 			} else {
 				genastore_rev("dst", curi->smode, "srcreg", curi->size, "src");
-				fill_prefetch_next();
+				fill_prefetch_next_t();
 			}
 		} else if (curi->size == sz_long) {
 			// prefetch bus error and long memory: only low word CCR decoded
-			fill_prefetch_next_after(
+			fill_prefetch_next_after(0, 
 				"\t\tSET_VFLG(0);\n"
 				"\t\tSET_ZFLG(!(dst & 0xffff));\n"
 				"\t\tSET_NFLG(dst & 0x8000);\n"
 				"\t\tSET_CFLG(0);\n");
 		} else {
-			fill_prefetch_next_after(NULL);
+			fill_prefetch_next_after(1, NULL);
 		}
 		if (isreg (curi->smode) && curi->size == sz_long)
 			addcycles000 (2);
@@ -4752,25 +4817,25 @@ static void gen_opcode (unsigned int opcode)
 	case i_TST:
 		genamode (curi, curi->smode, "srcreg", curi->size, "src", 1, 0, 0);
 		genflags (flag_logical, curi->size, "src", "", "");
-		fill_prefetch_next();
+		fill_prefetch_next_t();
 		break;
 	case i_BTST:
 		genamodedual(curi,
 			curi->smode, "srcreg", curi->size, "src", 1, 0,
 			curi->dmode, "dstreg", curi->size, "dst", 1, 0);
 		if (curi->size == sz_long) {
-			fill_prefetch_next_after(NULL);
+			fill_prefetch_next_after(1, NULL);
 			bsetcycles(curi);
 			printf("\tSET_ZFLG(1 ^ ((dst >> src) & 1));\n");
 		} else {
 			bsetcycles(curi);
 			if (curi->dmode == imm) {
 				// btst dn,#x
-				fill_prefetch_next_after(NULL);
+				fill_prefetch_next_after(1, NULL);
 				printf("\tSET_ZFLG(1 ^ ((dst >> src) & 1));\n");
 			} else {
 				printf("\tSET_ZFLG(1 ^ ((dst >> src) & 1));\n");
-				fill_prefetch_next();
+				fill_prefetch_next_t();
 			}
 		}
 		break;
@@ -4786,10 +4851,10 @@ static void gen_opcode (unsigned int opcode)
 			curi->smode, "srcreg", curi->size, "src", 1, 0,
 			curi->dmode, "dstreg", curi->size, "dst", 1, GF_RMW);
 		if (curi->size == sz_long) {
-			fill_prefetch_next_after(NULL);
+			fill_prefetch_next_after(1, NULL);
 		} else {
 			if (curi->smode == Dreg || curi->smode >= imm) {
-				fill_prefetch_next_after(NULL);
+				fill_prefetch_next_after(1, NULL);
 			}
 		}
 		bsetcycles(curi);
@@ -4808,7 +4873,7 @@ static void gen_opcode (unsigned int opcode)
 		}
 		if (curi->size != sz_long) {
 			if (curi->smode < imm && curi->smode != Dreg) {
-				fill_prefetch_next();
+				fill_prefetch_next_t();
 			}
 		}
 		genastore ("dst", curi->dmode, "dstreg", curi->size, "dst");
@@ -4818,7 +4883,7 @@ static void gen_opcode (unsigned int opcode)
 			curi->smode, "srcreg", curi->size, "src", 1, GF_AA,
 			curi->dmode, "dstreg", curi->size, "dst", 1, GF_AA);
 		genflags (flag_cmp, curi->size, "newv", "src", "dst");
-		fill_prefetch_next();
+		fill_prefetch_next_t();
 		break;
 	case i_CMP:
 		genamodedual(curi,
@@ -4826,10 +4891,10 @@ static void gen_opcode (unsigned int opcode)
 			curi->dmode, "dstreg", curi->size, "dst", 1, 0);
 		genflags(flag_cmp, curi->size, "newv", "src", "dst");
 		if (curi->dmode == Dreg && curi->size == sz_long) {
-			fill_prefetch_next_after(NULL);
+			fill_prefetch_next_after(1, NULL);
 			addcycles000(2);
 		} else {
-			fill_prefetch_next();
+			fill_prefetch_next_t();
 		}
 		break;
 	case i_CMPA:
@@ -4838,9 +4903,9 @@ static void gen_opcode (unsigned int opcode)
 			curi->dmode, "dstreg", sz_long, "dst", 1, 0);
 		genflags(flag_cmp, sz_long, "newv", "src", "dst");
 		if (curi->dmode == Areg) {
-			fill_prefetch_next_after(NULL);
+			fill_prefetch_next_after(1, NULL);
 		} else {
-			fill_prefetch_next();
+			fill_prefetch_next_t();
 		}
 		addcycles000(2);
 		break;
@@ -4867,7 +4932,7 @@ static void gen_opcode (unsigned int opcode)
 			check_bus_error("memp", 6, 1, 0, "src", 1);
 			count_write += 4;
 		}
-		fill_prefetch_next ();
+		fill_prefetch_next_t();
 		break;
 	case i_MVPMR: // MOVEP M->R
 		printf("\tuaecptr mempa = m68k_areg(regs, srcreg) + (uae_s32)(uae_s16)%s;\n", gen_nextiword (0));
@@ -4886,7 +4951,9 @@ static void gen_opcode (unsigned int opcode)
 			check_bus_error("memp", 2, 0, 0, NULL, 1);
 
 			// upper word gets updated after two bytes (makes only difference if bus error is possible)
-			printf("\tdreg_68000_long_replace_low(dstreg, val);\n");
+			if (cpu_level <= 1) {
+				printf("\tm68k_dreg(regs, dstreg) = (m68k_dreg(regs, dstreg) & 0x0000ffff) | val;\n");
+			}
 
 			printf("\tval |= (%s(mempa + 4) & 0xff) << 8;\n", srcb);
 			check_bus_error("memp", 4, 0, 0, NULL, 1 | 0x10000);
@@ -4895,7 +4962,7 @@ static void gen_opcode (unsigned int opcode)
 			count_read += 4;
 		}
 		genastore("val", curi->dmode, "dstreg", curi->size, "dst");
-		fill_prefetch_next ();
+		fill_prefetch_next_t();
 		break;
 	case i_MOVE:
 	case i_MOVEA:
@@ -5047,19 +5114,21 @@ static void gen_opcode (unsigned int opcode)
 				if (curi->dmode == Apdi) {
 					// -(an) decrease is not done if bus error
 					if (curi->size == sz_long) {
-						fill_prefetch_next_after(
+						fill_prefetch_next_after(0,
 							"\t\tm68k_areg(regs, dstreg) += 4;\n"
 							"\t\tccr_68000_long_move_ae_LZN(src);\n"
 						);
 					} else {
 						// x,-(an): flags are set before prefetch detects possible bus error
 						if (curi->mnemo == i_MOVE) {
-							fill_prefetch_next_after(
-								"\t\tm68k_areg(regs, dstreg) += 2;\n"
-								"\t\tccr_68000_word_move_ae_normal((uae_s16)src);");
+							fill_prefetch_next_after(1, 
+								"\t\tm68k_areg(regs, dstreg) += %s;\n"
+								"\t\tccr_68000_word_move_ae_normal((uae_s16)src);\n",
+								curi->size == sz_byte ? "areg_byteinc[dstreg]" : "2");
 						} else {
-							fill_prefetch_next_after(
-								"\t\tm68k_areg(regs, dstreg) += 2;\n");
+							fill_prefetch_next_after(1,
+								"\t\tm68k_areg(regs, dstreg) += %s;\n",
+								curi->size == sz_byte ? "areg_byteinc[dstreg]" : "2");
 						}
 					}
 					prefetch_done = 1;
@@ -5096,11 +5165,11 @@ static void gen_opcode (unsigned int opcode)
 				}
 				sync_m68k_pc ();
 				if (dualprefetch) {
-					fill_prefetch_full_000(1);
+					fill_prefetch_full_000(curi->mnemo == i_MOVE ? 2 : 1);
 					prefetch_done = 1;
 				}
 				if (!prefetch_done)
-					fill_prefetch_next();
+					fill_prefetch_next_t();
 			}
 		}
 		break;
@@ -5109,9 +5178,9 @@ static void gen_opcode (unsigned int opcode)
 		printf("\tMakeSR();\n");
 		if (isreg (curi->smode)) {
 			if (cpu_level == 0 && curi->size == sz_word) {
-				fill_prefetch_next_after("\t\tMakeSR();\n\t\tm68k_dreg(regs, srcreg) = (m68k_dreg(regs, srcreg) & ~0xffff) | ((regs.sr) & 0xffff);\n");
+				fill_prefetch_next_after(1, "\t\tMakeSR();\n\t\tm68k_dreg(regs, srcreg) = (m68k_dreg(regs, srcreg) & ~0xffff) | ((regs.sr) & 0xffff);\n");
 			} else {
-				fill_prefetch_next_after(NULL);
+				fill_prefetch_next_after(1, NULL);
 			}
 			addcycles000 (2);
 		} else {
@@ -5121,7 +5190,7 @@ static void gen_opcode (unsigned int opcode)
 				check_bus_error("src", 0, 0, 1, NULL, 1);
 				count_write++;
 			}
-			fill_prefetch_next_after(NULL);
+			fill_prefetch_next_after(1, NULL);
 		}
 		if (!isreg(curi->smode) && cpu_level == 1 && using_exception_3 && (using_prefetch || using_ce)) {
 			printf("\tif(srca & 1) {\n");
@@ -5138,6 +5207,7 @@ static void gen_opcode (unsigned int opcode)
 		break;
 	case i_MV2SR: // MOVE TO SR
 		genamode (curi, curi->smode, "srcreg", sz_word, "src", 1, 0, 0);
+		printf("\tint t1 = regs.t1;\n");
 		if (curi->size == sz_byte) {
 			// MOVE TO CCR
 			addcycles000 (4);
@@ -5150,15 +5220,15 @@ static void gen_opcode (unsigned int opcode)
 		}
 		makefromsr_t0();
 		// does full prefetch because S-bit change may change memory mapping under the CPU
-		sync_m68k_pc ();
-		fill_prefetch_full_ntx(1);
+		sync_m68k_pc();
+		fill_prefetch_full_ntx(3);
 		break;
 	case i_SWAP:
 		genamode (curi, curi->smode, "srcreg", sz_long, "src", 1, 0, 0);
 		printf("\tuae_u32 dst = ((src >> 16)&0xFFFF) | ((src&0xFFFF)<<16);\n");
 		genastore("dst", curi->smode, "srcreg", sz_long, "src");
 		genflags(flag_logical, sz_long, "dst", "", "");
-		fill_prefetch_next();
+		fill_prefetch_next_t();
 		break;
 	case i_EXG:
 		genamodedual (curi,
@@ -5166,7 +5236,7 @@ static void gen_opcode (unsigned int opcode)
 			curi->dmode, "dstreg", curi->size, "dst", 1, 0);
 		genastore ("dst", curi->smode, "srcreg", curi->size, "src");
 		genastore ("src", curi->dmode, "dstreg", curi->size, "dst");
-		fill_prefetch_next_after(NULL);
+		fill_prefetch_next_after(1, NULL);
 		addcycles000(2);
 		break;
 	case i_EXT:
@@ -5181,12 +5251,11 @@ static void gen_opcode (unsigned int opcode)
 		if (curi->size == sz_long) {
 			genflags(flag_logical, sz_long, "dst", "", "");
 			genastore("dst", curi->smode, "srcreg", sz_long, "src");
-			fill_prefetch_next();
 		} else {
 			genflags(flag_logical, sz_word, "dst", "", "");
 			genastore("dst", curi->smode, "srcreg", sz_word, "src");
-			fill_prefetch_next();
 		}
+		fill_prefetch_next_t();
 		break;
 	case i_MVMEL:
 		// confirmed
@@ -5213,23 +5282,23 @@ static void gen_opcode (unsigned int opcode)
 		clear_m68k_offset();
 		break;
 	case i_MVR2USP:
-		genamode (curi, curi->smode, "srcreg", curi->size, "src", 1, 0, 0);
+		genamode(curi, curi->smode, "srcreg", curi->size, "src", 1, 0, 0);
 		printf("\tregs.usp = src;\n");
-		fill_prefetch_next();
+		fill_prefetch_next_t();
 		trace_t0_68040_only();
 		break;
 	case i_MVUSP2R:
-		genamode (curi, curi->smode, "srcreg", curi->size, "src", 2, 0, 0);
-		genastore ("regs.usp", curi->smode, "srcreg", curi->size, "src");
-		fill_prefetch_next();
+		genamode(curi, curi->smode, "srcreg", curi->size, "src", 2, 0, 0);
+		genastore("regs.usp", curi->smode, "srcreg", curi->size, "src");
+		fill_prefetch_next_t();
 		break;
 	case i_RESET:
 		printf("\tcpureset();\n");
 		addcycles000(128);
-		fill_prefetch_next();
+		fill_prefetch_next_t();
 		break;
 	case i_NOP:
-		fill_prefetch_next();
+		fill_prefetch_next_t();
 		trace_t0_68040_only();
 		break;
 	case i_STOP:
@@ -5508,7 +5577,7 @@ static void gen_opcode (unsigned int opcode)
 			genastore("src", Apdi, "7", sz_long, "old");
 			genastore("m68k_areg(regs, 7)", curi->smode, "srcreg", sz_long, "src");
 			printf("\tm68k_areg(regs, 7) += offs;\n");
-			fill_prefetch_next();
+			fill_prefetch_next_t();
 			if (cpu_level >= 5) {
 				if (next_cpu_level < 5)
 					next_cpu_level = 5 - 1;
@@ -5527,7 +5596,7 @@ static void gen_opcode (unsigned int opcode)
 			genamode(NULL, am_unknown, "src", sz_long, "old", 1, 0, 0);
 			printf("\tm68k_areg(regs, 7) = src + 4;\n");
 			genastore ("old", curi->smode, "srcreg", curi->size, "src");
-			fill_prefetch_next();
+			fill_prefetch_next_t();
 		}
 		break;
 	case i_RTS:
@@ -5589,12 +5658,16 @@ static void gen_opcode (unsigned int opcode)
 	case i_TRAPV:
 		sync_m68k_pc();
 		// If V is set but prefetch causes bus error: S is set.
-		fill_prefetch_next_after(
+		// for some reason T is also cleared!
+		fill_prefetch_next_after(1,
 			"\t\tif (GET_VFLG()) {\n"
+			"\t\t\tMakeSR();\n"
 			"\t\t\tregs.sr |= 0x2000;\n"
+			"\t\t\tregs.sr &= ~0x8000;\n"
 			"\t\t\tMakeFromSR();\n"
 			"\t\t} else {\n"
-			"\t\t\topcode = regs.ir;\n"
+			"\t\t\topcode = regs.ir | 0x20000;\n"
+			"\t\t\tif(regs.t1) opcode |= 0x10000;\n"
 			"\t\t}\n");
 		printf("\tif (GET_VFLG()) {\n");
 		printf("\t\tException_cpu(7);\n");
@@ -5934,7 +6007,7 @@ bccl_not68020:
 		if (curi->smode == Ad8r || curi->smode == PC8r)
 			addcycles000 (2);
 		genastore("srca", curi->dmode, "dstreg", curi->size, "dst");
-		fill_prefetch_next ();
+		fill_prefetch_next_t();
 		break;
 	case i_PEA:
 		if (curi->smode == Ad8r || curi->smode == PC8r)
@@ -5942,12 +6015,12 @@ bccl_not68020:
 		genamode (curi, curi->smode, "srcreg", curi->size, "src", 0, 0, GF_AA);
 		genamode (NULL, Apdi, "7", sz_long, "dst", 2, 0, GF_AA);
 		if (!(curi->smode == absw || curi->smode == absl))
-			fill_prefetch_next_after("m68k_areg(regs, 7) += 4;\n");
+			fill_prefetch_next_after(1, "m68k_areg(regs, 7) += 4;\n");
 		if (curi->smode == Ad8r || curi->smode == PC8r)
 			addcycles000 (2);
 		genastore ("srca", Apdi, "7", sz_long, "dst");
 		if ((curi->smode == absw || curi->smode == absl))
-			fill_prefetch_next();
+			fill_prefetch_next_t();
 		break;
 	case i_DBcc:
 		// cc true: idle cycle, prefetch
@@ -6034,12 +6107,12 @@ bccl_not68020:
 				printf("\t}\n");
 				printf("\topcode |= 0x20000;\n");
 			}
-			fill_prefetch_next_extra("if (!val)", NULL);
+			fill_prefetch_next_extra("if (!val)", "\t\tif(!val && regs.t1) opcode |= 0x10000;\n");
 			genastore("val", curi->smode, "srcreg", curi->size, "src");
 			addcycles000_3("\t");
 			addcycles000_nonces("\t", "(val ? 2 : 0)");
 		} else {
-			fill_prefetch_next_after(NULL);
+			fill_prefetch_next_after(1, NULL);
 			printf("\tint val = cctrue(%d) ? 0xff : 0x00;\n", curi->cc);
 			genastore("val", curi->smode, "srcreg", curi->size, "src");
 		}
@@ -6072,7 +6145,7 @@ bccl_not68020:
 		printf("\t\t");
 		genastore ("newv", curi->dmode, "dstreg", sz_long, "dst");
 		printf("\t\t}\n");
-		fill_prefetch_next();
+		fill_prefetch_next_t();
 		sync_m68k_pc();
 		count_ncycles++;
 		insn_n_cycles += 136 - (136 - 76) / 2; /* average */
@@ -6112,7 +6185,7 @@ bccl_not68020:
 		genastore("newv", curi->dmode, "dstreg", sz_long, "dst");
 		printf("\t\t}\n");
 		printf("\t}\n");
-		fill_prefetch_next();
+		fill_prefetch_next_t();
 		sync_m68k_pc();
 		count_ncycles++;
 		insn_n_cycles += 156 - (156 - 120) / 2; /* average */
@@ -6124,7 +6197,7 @@ bccl_not68020:
 		genamodedual (curi,
 			curi->smode, "srcreg", sz_word, "src", 1, 0,
 			curi->dmode, "dstreg", sz_word, "dst", 1, 0);
-		fill_prefetch_next_after(
+		fill_prefetch_next_after(1,
 			"\t\tCLEAR_CZNV();\n"
 			"\t\tSET_ZFLG(1);\n"
 			"\t\tm68k_dreg(regs, dstreg) &= 0xffff0000;\n");
@@ -6150,7 +6223,7 @@ bccl_not68020:
 		genamodedual (curi,
 			curi->smode, "srcreg", sz_word, "src", 1, 0,
 			curi->dmode, "dstreg", sz_word, "dst", 1, 0);
-		fill_prefetch_next_after(
+		fill_prefetch_next_after(1, 
 			"\t\tCLEAR_CZNV();\n"
 			"\t\tSET_ZFLG(1);\n"
 			"\t\tm68k_dreg(regs, dstreg) &= 0xffff0000;\n");
@@ -6192,7 +6265,7 @@ bccl_not68020:
 		printf("\t\tgoto %s;\n", endlabelstr);
 		printf("\t}\n");
 		printf("\tsetchkundefinedflags(src, dst, %d);\n", curi->size);
-		fill_prefetch_next ();
+		fill_prefetch_next_t();
 		need_endlabel = 1;
 		break;
 	case i_CHK2:
@@ -7019,7 +7092,7 @@ bccl_not68020:
 			addcycles000_nonce("\t\t", 4);
 			printf("\t}\n");
 		}
-		fill_prefetch_next();
+		fill_prefetch_next_t();
 		trace_t0_68040_only();
 		break;
 	case i_FPP:

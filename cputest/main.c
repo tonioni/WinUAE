@@ -487,8 +487,7 @@ static uae_u8 *load_file(const char *path, const char *file, uae_u8 *p, int *siz
 						}
 					}
 				} else {
-					printf("Write-only bus error mode, data already correct\n");
-					fseek(f, size2, SEEK_CUR);
+					printf("Write-only bus error mode, data already correct. Skipping read.\n");
 					p += size2;
 					size -= size2;
 				}

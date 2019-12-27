@@ -4319,7 +4319,7 @@ int __cdecl main(int argc, char *argv[])
 				target_ea_src_max = cnt;
 			}
 			xfree(vs);
-			if (cnt > 0) {
+			if (cnt > 0 && cpu_lvl <= 1) {
 				if (exp3cnt == cnt) {
 					if (feature_exception3_data < 2)
 						feature_exception3_data = 2;

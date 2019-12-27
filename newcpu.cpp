@@ -6907,14 +6907,13 @@ void exception3b (uae_u32 opcode, uaecptr addr, bool w, bool i, uaecptr pc)
 	exception3f (opcode, addr, w, i, false, pc, 1, true, -1);
 }
 
-void exception2_setup(uaecptr addr, bool read, int size, uae_u32 fc)
+void exception2_setup(uae_u32 opcode, uaecptr addr, bool read, int size, uae_u32 fc)
 {
-	uae_u32 opcode = last_op_for_exception_3;
 	last_addr_for_exception_3 = m68k_getpc() + bus_error_offset;
 	last_fault_for_exception_3 = addr;
 	last_writeaccess_for_exception_3 = read == 0;
+	last_op_for_exception_3 = opcode;
 	last_fc_for_exception_3 = fc;
-	last_op_for_exception_3 = regs.opcode;
 	last_notinstruction_for_exception_3 = exception_in_exception != 0;
 	last_size_for_exception_3 = size;
 	last_di_for_exception_3 = 1;
@@ -6942,30 +6941,27 @@ void exception2(uaecptr addr, bool read, int size, uae_u32 fc)
 			mmu_bus_error (addr, 0, fc, read == false, size, 0, true);
 		}
 	} else {
-		exception2_setup(addr, read, size == 1 ? 0 : (size == 2 ? 1 : 2), fc);
+		exception2_setup(regs.opcode, addr, read, size == 1 ? 0 : (size == 2 ? 1 : 2), fc);
 		THROW(2);
 	}
 }
 
 void exception2_read(uae_u32 opcode, uaecptr addr, int size, int fc)
 {
-	last_op_for_exception_3 = opcode;
-	exception2_setup(addr, true, size, fc);
+	exception2_setup(opcode, addr, true, size, fc);
 	Exception(2);
 }
 
 void exception2_write(uae_u32 opcode, uaecptr addr, int size, uae_u32 val, int fc)
 {
-	last_op_for_exception_3 = opcode;
-	exception2_setup(addr, false, size, fc);
+	exception2_setup(opcode, addr, false, size, fc);
 	regs.write_buffer = val;
 	Exception(2);
 }
 
 void exception2_fetch(uae_u32 opcode, uaecptr addr)
 {
-	last_op_for_exception_3 = opcode;
-	exception2_setup(addr, true, 1, 2);
+	exception2_setup(opcode, addr, true, 1, 2);
 	last_di_for_exception_3 = 0;
 	Exception(2);
 }
