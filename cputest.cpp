@@ -66,7 +66,7 @@ static int feature_loop_mode_register = -1;
 static int feature_full_extension_format = 0;
 static int feature_test_rounds = 2;
 static int feature_flag_mode = 0;
-static int feature_odd_usp = 0;
+static int feature_usp = 0;
 static TCHAR *feature_instruction_size = NULL;
 static uae_u32 feature_addressing_modes[2];
 static int ad8r[2], pc8r[2];
@@ -298,6 +298,10 @@ static void check_bus_error(uaecptr addr, int write, int fc)
 		} else if ((safe_memory_mode & 2) && write) {
 			cpu_bus_error |= 2;
 			cpu_bus_error_fake |= 2;
+		}
+		if (!write && (fc & 2) && feature_usp == 3) {
+			out_of_test_space = true;
+			out_of_test_space_addr = addr;
 		}
 	}
 }
@@ -2353,7 +2357,8 @@ static uaecptr handle_specials_extra(uae_u16 opcode, uaecptr pc, struct instr *d
 static uae_u32 generate_stack_return(int cnt)
 {
 	uae_u32 v;
-	if (target_ea[0] != 0xffffffff) {
+	// if targer sp mode: generate random return address
+	if (target_ea[0] != 0xffffffff && feature_usp < 3) {
 		v = target_ea[0];
 	} else {
 		v = rand32();
@@ -2446,9 +2451,9 @@ static int handle_specials_stack(uae_u16 opcode, uaecptr pc, struct instr *dp, i
 	int offset = 0;
 	if (dp->mnemo == i_RTE || dp->mnemo == i_RTD || dp->mnemo == i_RTS || dp->mnemo == i_RTR || dp->mnemo == i_UNLK) {
 		uae_u32 v;
-		uaecptr addr = regs.regs[8 + 7];
+		uaecptr addr = regs.regs[15];
 		// RTE, RTD, RTS and RTR
-		if (dp->mnemo == i_RTR) {
+ 		if (dp->mnemo == i_RTR) {
 			// RTR
 			v = imm_special++;
 			uae_u16 ccr = v & 31;
@@ -2647,6 +2652,26 @@ static void execute_ins(uaecptr endpc, uaecptr targetpc, struct instr *dp)
 	if (regs.s) {
 		regs.regs[15] = regs.usp;
 	}
+}
+
+// instruction that reads or writes stack
+static int stackinst(struct instr *dp)
+{
+	switch (dp->mnemo)
+	{
+	case i_RTS:
+	case i_RTR:
+	case i_RTD:
+	case i_RTE:
+	case i_UNLK:
+		return 1;
+	case i_BSR:
+	case i_JSR:
+	case i_LINK:
+	case i_PEA:
+		return 2;
+	}
+	return 0;
 }
 
 // any instruction that can branch execution
@@ -2958,16 +2983,23 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 	int count = 0;
 
 	registers[8 + 6] = opcode_memory_start - 0x100;
-	registers[8 + 7] = user_stack_memory_use;
+	registers[15] = user_stack_memory_use;
 
 	uae_u32 target_address = 0xffffffff;
 	uae_u32 target_opcode_address = 0xffffffff;
+	uae_u32 target_usp_address = 0xffffffff;
 	target_ea[0] = 0xffffffff;
 	target_ea[1] = 0xffffffff;
 	target_ea[2] = 0xffffffff;
 	if (feature_target_ea[0][2] && feature_target_ea[0][2] != 0xffffffff) {
-		target_opcode_address = feature_target_ea[0][2];
-		target_ea[2] = target_opcode_address;
+		if (feature_usp == 3) {
+			target_usp_address = feature_target_ea[0][2];
+			target_ea[2] = target_usp_address;
+			target_usp_address += opcode_memory_start;
+		} else {
+			target_opcode_address = feature_target_ea[0][2];
+			target_ea[2] = target_opcode_address;
+		}
 	}
 	if (feature_target_ea[0][0] != 0xffffffff) {
 		target_address = feature_target_ea[0][0];
@@ -3185,6 +3217,11 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 					target_address = target_address_bak;
 					target_opcode_address = target_opcode_address_bak;
 
+					if (target_usp_address != 0xffffffff) {
+						cur_registers[15] = target_usp_address;
+						regs.regs[15] = target_usp_address;
+					}
+
 					if (opc == 0x4a53)
 						printf("");
 					if (subtest_count >= 700)
@@ -3282,7 +3319,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 						}
 
 						// requested target address but no EA? skip
-						if (target_address != 0xffffffff && isbranchinst(dp) != 2) {
+						if (target_address != 0xffffffff && isbranchinst(dp) != 2 && (feature_usp < 3 || !stackinst(dp))) {
 							if (srcea != target_address && dstea != target_address) {
 								memcpy(opcode_memory, oldcodebytes, sizeof(oldcodebytes));
 								continue;
@@ -3383,6 +3420,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 					for (int i = 0; i < 8; i++) {
 						regs.fp[i].fpx = cur_fpuregisters[i];
 					}
+
 					uaecptr nextpc;
 					srcaddr = 0xffffffff;
 					dstaddr = 0xffffffff;
@@ -3438,10 +3476,10 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 								constant_loops++;
 								quick = 0;
 							}
-							srcaddr = get_long_test(regs.regs[8 + 7] + stackoffset);
+							srcaddr = get_long_test(regs.regs[15] + stackoffset);
 						}
 						// branch target is not accessible? skip.
-						if ((srcaddr >= cur_registers[15] - 16 && srcaddr <= cur_registers[15] + 16) || ((srcaddr & 1) && !feature_exception3_instruction && feature_odd_usp < 2)) {
+						if ((srcaddr >= cur_registers[15] - 16 && srcaddr <= cur_registers[15] + 16) || ((srcaddr & 1) && !feature_exception3_instruction && feature_usp < 2)) {
 							// lets not jump directly to stack..
 							if (verbose) {
 								if (srcaddr & 1)
@@ -3525,6 +3563,10 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 						dst = store_reg(dst, CT_BRANCHTARGET, branchtarget_old, branch_target, -2);
 						branchtarget_old = branch_target;
 						*dst++ = branch_target_swap_mode;
+					}
+
+					if (feature_usp >= 3) {
+						dst = store_reg(dst, CT_AREG + 7, 0, target_usp_address, sz_long);
 					}
 
 					// pre-test data end
@@ -3669,7 +3711,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 								regs.sr = ((ccr & 1) ? 31 : 0) | sr_mask;
 							}
 							regs.sr |= feature_min_interrupt_mask << 8;
-							regs.usp = regs.regs[8 + 7];
+							regs.usp = regs.regs[15];
 							regs.isp = super_stack_memory - 0x80;
 							// copy user stack to super stack, for RTE etc support
 							memcpy(test_memory + (regs.isp - test_memory_start), test_memory + (regs.usp - test_memory_start), 0x20);
@@ -3716,6 +3758,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 								((cpu_bus_error & 2) && !(safe_memory_mode & 2))) {
 								skipped = 1;
 							}
+
 							// skip if feature_target_opcode_offset mode and non-prefetch bus error
 							if (target_opcode_address != 0xffffffff && (cpu_bus_error & 3)) {
 								skipped = 1;
@@ -3729,7 +3772,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 								if (feature_exception3_instruction == 2) {
 									skipped = 1;
 								}
-								if (feature_odd_usp > 1) {
+								if (feature_usp == 2) {
 									skipped = 1;
 								}
 							}
@@ -3759,10 +3802,10 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 								}
 								// got exception 3 but didn't want them?
 								if (test_exception == 3) {
-									if (!feature_odd_usp && !feature_exception3_data && !(test_exception_3_fc & 2)) {
+									if ((feature_usp != 1 && feature_usp != 2) && !feature_exception3_data && !(test_exception_3_fc & 2)) {
 										skipped = 1;
 									}
-									if (!feature_odd_usp && !feature_exception3_instruction && (test_exception_3_fc & 2)) {
+									if ((feature_usp != 1 && feature_usp != 2) && !feature_exception3_instruction && (test_exception_3_fc & 2)) {
 										skipped = 1;
 									}
 								}
@@ -3976,7 +4019,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 		}
 		dst = storage_buffer;
 
-		if (opcodecnt == 1 && target_address == 0xffffffff && target_opcode_address == 0xffffffff)
+		if (opcodecnt == 1 && target_address == 0xffffffff && target_opcode_address == 0xffffffff && target_usp_address == 0xffffffff)
 			break;
 		if (lookup->mnemo == i_ILLG)
 			break;
@@ -4013,7 +4056,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 			nextround = true;
 		}
 
-		if (target_opcode_address != 0xffffffff) {
+		if (target_opcode_address != 0xffffffff || target_usp_address != 0xffffffff) {
 			nextround = false;
 			target_ea_opcode_cnt++;
 			if (target_ea_opcode_cnt >= target_ea_opcode_max) {
@@ -4023,8 +4066,14 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 			} else {
 				quick = 0;
 			}
-			target_opcode_address = feature_target_ea[target_ea_opcode_cnt][2];
-			target_ea[2] = opcode_memory_address + target_opcode_address;
+			if (feature_usp == 3) {
+				target_usp_address = feature_target_ea[target_ea_opcode_cnt][2];
+				target_usp_address += opcode_memory_start;
+				target_ea[2] =  target_usp_address;
+			} else {
+				target_opcode_address = feature_target_ea[target_ea_opcode_cnt][2];
+				target_ea[2] = opcode_memory_address + target_opcode_address;
+			}
 		}
 
 		if (nextround) {
@@ -4036,7 +4085,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 		cur_registers[0] &= 0xffff;
 		cur_registers[8] &= 0xffff;
 		cur_registers[8 + 6]--;
-		cur_registers[8 + 7] -= 2;
+		cur_registers[15] -= 2;
 
 		if (fpumode) {
 			for (int i = 0; i < 8; i++) {
@@ -4345,8 +4394,8 @@ int __cdecl main(int argc, char *argv[])
 	}
 	feature_flag_mode = 0;
 	ini_getval(ini, INISECTION, _T("feature_flags_mode"), &feature_flag_mode);
-	feature_odd_usp = 0;
-	ini_getval(ini, INISECTION, _T("feature_odd_usp"), &feature_odd_usp);
+	feature_usp = 0;
+	ini_getval(ini, INISECTION, _T("feature_usp"), &feature_usp);
 
 	feature_full_extension_format = 0;
 	if (currprefs.cpu_model >= 68020) {
@@ -4493,7 +4542,7 @@ int __cdecl main(int argc, char *argv[])
 		user_stack_memory = test_memory_start + RESERVED_SUPERSTACK;
 	}
 	user_stack_memory_use = user_stack_memory;
-	if (feature_odd_usp) {
+	if (feature_usp == 1 || feature_usp == 2) {
 		user_stack_memory_use |= 1;
 	}
 

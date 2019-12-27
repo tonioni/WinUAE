@@ -1016,7 +1016,7 @@ static void fill_prefetch_next_t(void)
 	if (using_prefetch) {
 		irc2ir();
 		if (using_bus_error) {
-			printf("\topcode = regs.ir;\n");
+			copy_opcode();
 			strcat(bus_error_code, "\t\tif (regs.t1) opcode |= 0x10000;\n");
 		}
 		fill_prefetch_1(m68k_pc_offset + 2);
@@ -1031,7 +1031,7 @@ static void fill_prefetch_next_extra(const char *cond, const char *format, ...)
 		if (using_bus_error) {
 			if (cond)
 				printf("\t%s\n\t", cond);
-			printf("\topcode = regs.ir;\n");
+			copy_opcode();
 			bus_error_code[0] = 0;
 			if (format) {
 				va_list parms;
@@ -1598,7 +1598,11 @@ static int do_bus_error_fixes(const char *name, int offset, int write)
 		break;
 	case 2:
 	case -2:
-		printf("\t\tm68k_areg(regs, %s) += 2 + %d;\n", bus_error_reg, offset);
+		if (g_instr->mnemo == i_RTR) {
+			;
+		} else {
+			printf("\t\tm68k_areg(regs, %s) += 2 + %d;\n", bus_error_reg, offset);
+		}
 		break;
 	case 3:
 	case -3:
@@ -1611,6 +1615,15 @@ static int do_bus_error_fixes(const char *name, int offset, int write)
 		if ((g_instr->mnemo == i_ADDX || g_instr->mnemo == i_SUBX) && g_instr->size == sz_long) {
 			// ADDX.L/SUBX.L -(an),-(an) source: stack frame decreased by 2, not 4.
 			offset += 2;
+		} else if (g_instr->mnemo == i_RTR) {
+			if (offset) {
+				printf("\t\tm68k_areg(regs, %s) += 4;\n", bus_error_reg);
+				printf("\t\tregs.sr &= 0xFF00; sr &= 0xFF;\n");
+				printf("\t\tregs.sr |= sr;\n");
+				printf("\t\tMakeFromSR();\n");
+			} else {
+				printf("\t\tm68k_areg(regs, %s) -= 2;\n", bus_error_reg);
+			}
 		} else {
 			printf("\t\tm68k_areg(regs, %s) = %sa;\n", bus_error_reg, name);
 		}
@@ -1685,7 +1698,13 @@ static void check_bus_error(const char *name, int offset, int write, int size, c
 
 		if (mnemo == i_LINK) {
 			// a7 -> a0 copy done before A7 address error check
-			printf("\tm68k_areg(regs, srcreg) = olda;\n");
+			if (write) {
+				printf("\t\tm68k_areg(regs, 7) += 4;\n");
+			}
+			printf("\t\tm68k_areg(regs, srcreg) = olda;\n");
+		}
+		if (mnemo == i_PEA && write && offset && g_instr->smode != absw && g_instr->smode != absl) {
+			printf("\t\tif (regs.t1) opcode |= 0x10000;\n"); // I/N set
 		}
 
 		if (cpu_level == 1 && g_instr->mnemo == i_MVSR2 && !write) {
@@ -1700,8 +1719,10 @@ static void check_bus_error(const char *name, int offset, int write, int size, c
 		// write causing bus error and trace: set I/N
 		if (write && g_instr->size <= sz_word &&
 			mnemo != i_MOVE &&
+			mnemo != i_BSR &&
+			mnemo != i_LINK &&
 			mnemo != i_MVMEL && mnemo != i_MVMLE &&
-			mnemo != i_MVPRM && mnemo != i_MVPMR) {		
+			mnemo != i_MVPRM && mnemo != i_MVPMR) {
 			printf("\t\tif (regs.t1) opcode |= 0x10000;\n"); // I/N set
 		}
 
@@ -5679,7 +5700,7 @@ static void gen_opcode (unsigned int opcode)
 		printf("\tuaecptr oldpc = %s;\n", getpc);
 		printf("\tMakeSR();\n");
 		genamode (NULL, Aipi, "7", sz_word, "sr", 1, 0, 0);
-		genamode (NULL, Aipi, "7", sz_long, "pc", 1, 0, 0);
+		genamode(NULL, Aipi, "7", sz_long, "pc", 1, 0, 0);
 		if (cpu_level >= 4) {
 			printf("\tif (pc & 1) {\n");
 			printf("\t\tm68k_areg(regs, 7) -= 6;\n");
@@ -5689,8 +5710,8 @@ static void gen_opcode (unsigned int opcode)
 		}
 		printf("\tregs.sr &= 0xFF00; sr &= 0xFF;\n");
 		printf("\tregs.sr |= sr;\n");
-		setpc ("pc");
 		makefromsr();
+		setpc ("pc");
 		if (cpu_level < 4) {
 			printf("\tif (%s & 1) {\n", getpc);
 			printf("\t\tuaecptr faultpc = %s;\n", getpc);
@@ -5783,7 +5804,7 @@ static void gen_opcode (unsigned int opcode)
 			if (using_prefetch || using_ce) {
 				int sp = (curi->smode == Ad16 || curi->smode == absw || curi->smode == absl || curi->smode == PC16 || curi->smode == Ad8r || curi->smode == PC8r) ? -1 : 0;
 				irc2ir();
-				printf("\topcode = regs.ir;\n");
+				copy_opcode();
 				if (sp < 0)
 					printf("\tif(regs.t1) opcode |= 0x10000;\n");
 				printf("\t%s(%d);\n", prefetch_word, 2);
@@ -5821,7 +5842,7 @@ static void gen_opcode (unsigned int opcode)
 			irc2ir();
 			printf("\t%s(%d);\n", prefetch_word, 2);
 			int sp = (curi->smode == Ad16 || curi->smode == absw || curi->smode == absl || curi->smode == PC16 || curi->smode == Ad8r || curi->smode == PC8r) ? -1 : 0;
-			printf("\topcode = regs.ir;\n");
+			copy_opcode();
 			if (sp < 0)
 				printf("\tif(regs.t1) opcode |= 0x10000;\n");
 			check_prefetch_bus_error(-2, sp);
@@ -6015,7 +6036,7 @@ bccl_not68020:
 		genamode (curi, curi->smode, "srcreg", curi->size, "src", 0, 0, GF_AA);
 		genamode (NULL, Apdi, "7", sz_long, "dst", 2, 0, GF_AA);
 		if (!(curi->smode == absw || curi->smode == absl))
-			fill_prefetch_next_after(1, "m68k_areg(regs, 7) += 4;\n");
+			fill_prefetch_next_after(0, "m68k_areg(regs, 7) += 4;\n");
 		if (curi->smode == Ad8r || curi->smode == PC8r)
 			addcycles000 (2);
 		genastore ("srca", Apdi, "7", sz_long, "dst");
@@ -6063,7 +6084,7 @@ bccl_not68020:
 		add_head_cycs (6);
 
 		if (using_prefetch || using_ce) {
-			printf("\topcode = regs.ir;\n");
+			copy_opcode();
 			printf("\tif(regs.t1) opcode |= 0x10000;\n");
 			printf("\t%s(%d);\n", prefetch_word, 2);
 			check_prefetch_bus_error(-2, -1);

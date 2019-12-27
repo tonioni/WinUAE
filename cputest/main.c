@@ -1816,6 +1816,13 @@ static void process_test(uae_u8 *p)
 			break;
 		p++;
 
+		int stackcopysize = 0;
+		for (int i = 0; i < 32; i += 2) {
+			if (!is_valid_test_addr_readwrite(regs.regs[15] + i))
+				break;
+			stackcopysize += 2;
+		}
+
 		store_addr(regs.srcaddr, srcaddr);
 		store_addr(regs.dstaddr, dstaddr);
 		store_addr(regs.branchtarget, branchtarget);
@@ -1884,7 +1891,8 @@ static void process_test(uae_u8 *p)
 				regs.fpiar = startpc;
 
 #ifdef M68K
-				xmemcpy((void*)regs.ssp, (void*)regs.regs[15], 0x20);
+				if (stackcopysize > 0)
+					xmemcpy((void*)regs.ssp, (void*)regs.regs[15], stackcopysize);
 #endif
 				xmemcpy(&test_regs, &regs, sizeof(struct registers));
 
