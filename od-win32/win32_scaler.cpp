@@ -360,7 +360,7 @@ void getfilterrect2(int monid, RECT *sr, RECT *dr, RECT *zr, int dst_width, int 
 					cx = 28 << currprefs.gfx_resolution;
 					cy = 10 << currprefs.gfx_vresolution;
 					cw -= 40 << currprefs.gfx_resolution;
-					ch -= 25 << currprefs.gfx_vresolution;
+					ch -= 20 << currprefs.gfx_vresolution;
 				}
 				set_custom_limits (cw, ch, cx, cy);
 				store_custom_limits (cw, ch, cx, cy);
