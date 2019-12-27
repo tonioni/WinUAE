@@ -42,11 +42,9 @@
 	-singlefilehelper
 	-wix
 
-10) Open command prompt and run <source directory>\od-win32\asm.cmd to compile assembly files.
+10) Change to 32-bit Release mode.
 
-11) Change to 32-bit Release mode.
-
-12) Build following projects in following order:
+11) Build following projects in following order:
 	build68k
 	genlinetoscr
 	genblitter
@@ -55,6 +53,6 @@
 	prowizard
 	unpackers
 		
-13) Switch to Test (debug build) or FullRelease (full optimized) and select either 32-bit or 64-bit. Compile.
+12) Switch to Test (debug build) or FullRelease (full optimized) and select either 32-bit or 64-bit. Compile.
 
 Finished. In "D:\Amiga\" you find winuae.exe and winuae64.exe
