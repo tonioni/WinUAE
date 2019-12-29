@@ -8,8 +8,6 @@
 * As an alternative, it can generate functions that handle specific
 * MC68000 instructions, plus a prototype header file and a function pointer
 * array to look up the function for an opcode.
-* Error checking is bad, an illegal table68k file will cause the program to
-* call abort().
 * The generated code is sometimes sub-optimal, an optimizing compiler should
 * take care of this.
 *
@@ -1621,8 +1619,11 @@ static int do_bus_error_fixes(const char *name, int offset, int write)
 		break;
 	case 2:
 	case -2:
-		if (g_instr->mnemo == i_RTR || g_instr->mnemo == i_RTE) {
+		if (g_instr->mnemo == i_RTR) {
 			;
+		} else if (g_instr->mnemo == i_RTE) {
+			// stack is decreased first
+			printf("\t\tm68k_areg(regs, %s) += %d;\n", bus_error_reg, cpu_level == 0 ? 14 : 58);
 		} else {
 			printf("\t\tm68k_areg(regs, %s) += 2 + %d;\n", bus_error_reg, offset);
 		}
@@ -1646,6 +1647,13 @@ static int do_bus_error_fixes(const char *name, int offset, int write)
 				printf("\t\tMakeFromSR();\n");
 			} else {
 				printf("\t\tm68k_areg(regs, %s) -= 2;\n", bus_error_reg);
+			}
+		} else if (g_instr->mnemo == i_RTE) {
+			// stack is decreased first
+			printf("\t\tm68k_areg(regs, %s) += %d - 2;\n", bus_error_reg, cpu_level == 0 ? 14 : 58);
+			if (offset) {
+				printf("\t\tregs.sr = sr;\n");
+				printf("\t\tMakeFromSR();\n");
 			}
 		} else {
 			printf("\t\tm68k_areg(regs, %s) = %sa;\n", bus_error_reg, name);
@@ -5439,6 +5447,14 @@ static void gen_opcode (unsigned int opcode)
 	case i_RTE:
 		addop_ce020 (curi, 0, 0);
 		next_level_000 ();
+		if (cpu_level <= 1) {
+			if (cpu_level <= 1 && using_exception_3) {
+				printf("\tif (m68k_areg(regs, 7) & 1) {\n");
+				printf("\t\texception3_read(opcode, m68k_areg(regs, 7), 1, 1);\n");
+				write_return_cycles("\t\t", 0);
+				printf("\t}\n");
+			}
+		}
 		if (cpu_level == 0) {
 			// 68000
 			genamode (NULL, Aipi, "7", sz_word, "sr", 1, 0, GF_NOREFILL);
@@ -5466,23 +5482,35 @@ static void gen_opcode (unsigned int opcode)
 			printf("\t\tuaecptr a = m68k_areg(regs, 7);\n");
 			printf("\t\tuae_u16 sr = %s(a);\n", srcw);
 			count_read++;
-			printf("\t\tuae_u32 pc = %s(a + 2) << 16; pc |= %s(a + 4);\n", srcw, srcw);
-			count_read += 2;
+			check_bus_error("", 0, 0, 1, NULL, 1);
+			printf("\t\tuae_u32 pc = %s(a + 2) << 16;\n", srcw);
+			count_read++;
+			check_bus_error("", 2, 0, 1, NULL, 1);
+			printf("\t\tpc |= % s(a + 4); \n", srcw);
+			count_read++;
+			check_bus_error("", 4, 0, 1, NULL, 1);
 			printf("\t\tuae_u16 format = %s(a + 2 + 4);\n", srcw);
 			count_read++;
+			check_bus_error("", 6, 0, 1, NULL, 1);
 			printf("\t\tint frame = format >> 12;\n");
 			printf("\t\tint offset = 8;\n");
 			printf("\t\tnewsr = sr; newpc = pc;\n");
-		    printf("\t\tif (frame == 0x0) {\n\t\t\tm68k_areg(regs, 7) += offset; break; }\n");
-		    printf("\t\telse if (frame == 0x8) {\n\t\t\tm68k_areg(regs, 7) += offset + 50; break; }\n");
-			printf("\t\telse {\n");
+			printf("\t\tif (frame == 0x0) {\n");
+			printf("\t\t\tm68k_areg(regs, 7) += offset;\n");
+			printf("\t\t\tbreak;\n");
+			printf("\t\t} else if (frame == 0x8) {\n");
+			printf("\t\t\tm68k_areg(regs, 7) += offset + 50;\n");
+			printf("\t\t\tbreak;\n");
+			printf("\t\t} else {\n");
 			printf("\t\t\tSET_NFLG(((uae_s16)format) < 0); \n");
 			printf("\t\t\tSET_ZFLG(format == 0);\n");
 			printf("\t\t\tSET_VFLG(0);\n");
 			printf("\t\t\tException_cpu(14);\n");
 			write_return_cycles("\t\t", 0);
 			printf("\t\t}\n");
-			printf("\t\tregs.sr = newsr; MakeFromSR();\n}\n");
+			printf("\t\tregs.sr = newsr;\n");
+			printf("\t\tMakeFromSR();\n");
+			printf("\t}\n");
 		    pop_braces (old_brace_level);
 		    printf("\tregs.sr = newsr;\n");
 			makefromsr();
