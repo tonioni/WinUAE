@@ -2357,7 +2357,7 @@ static uaecptr handle_specials_extra(uae_u16 opcode, uaecptr pc, struct instr *d
 static uae_u32 generate_stack_return(int cnt)
 {
 	uae_u32 v;
-	// if targer sp mode: generate random return address
+	// if target sp mode: always generate valid address
 	if (target_ea[0] != 0xffffffff && feature_usp < 3) {
 		v = target_ea[0];
 	} else {
@@ -2366,7 +2366,7 @@ static uae_u32 generate_stack_return(int cnt)
 		{
 		case 0:
 		case 3:
-			v = opcode_memory_start + 128;
+			v = opcode_memory_start + 32768;
 			break;
 		case 1:
 			v &= 0xffff;
@@ -2569,8 +2569,8 @@ static void execute_ins(uaecptr endpc, uaecptr targetpc, struct instr *dp)
 			break;
 		}
 
-		// Supervisor mode and A7 was modified: skip this test round.
-		if (s && regs.regs[15] != a7) {
+		// Supervisor mode and A7 was modified and not RTE+stack mode: skip this test round.
+		if (s && regs.regs[15] != a7 && (dp->mnemo != i_RTE || feature_usp < 3)) {
 			// but not if RTE
 			if (!is_superstack_use_required()) {
 				test_exception = -1;
@@ -2754,10 +2754,20 @@ static uae_u8 *save_exception(uae_u8 *p, struct instr *dp)
 		if (cpu_lvl == 0) {
 			if (test_exception == 2 || test_exception == 3) {
 				// status
-				*p++ = sf[1];
+				uae_u8 st = sf[1];
+				// save also current opcode if different than stacked opcode
+				// used by basic exception check
+				if (((sf[6] << 8) | sf[7]) != regs.opcode) {
+					st |= 0x20;
+				}
+				*p++ = st;
 				// opcode (which is not necessarily current opcode!)
 				*p++ = sf[6];
 				*p++ = sf[7];
+				if (st & 0x20) {
+					*p++ = regs.opcode >> 8;
+					*p++ = regs.opcode;
+				}
 				// access address
 				p = store_rel(p, 0, opcode_memory_start, gl(sf + 2), 1);
 			}
@@ -3348,7 +3358,14 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 
 					}
 
-					put_word_test(opcode_memory_address, opc);
+					// if bus error stack checking and RTE: copy USP to ISP before RTE
+					if (dp->mnemo == i_RTE && feature_usp == 3) {
+						put_word_test(opcode_memory_address, 0x4e6f); // MOVE USP,A7
+						put_word_test(opcode_memory_address + 2, opc);
+						pc += 2;
+					} else {
+						put_word_test(opcode_memory_address, opc);
+					}
 
 					if (extra_or || extra_and) {
 						uae_u16 ew = get_word_test(opcode_memory_address + 2);
@@ -3479,13 +3496,13 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 							srcaddr = get_long_test(regs.regs[15] + stackoffset);
 						}
 						// branch target is not accessible? skip.
-						if ((srcaddr >= cur_registers[15] - 16 && srcaddr <= cur_registers[15] + 16) || ((srcaddr & 1) && !feature_exception3_instruction && feature_usp < 2)) {
+						if (((srcaddr >= cur_registers[15] - 16 && srcaddr <= cur_registers[15] + 16) && dp->mnemo != i_RTE) || ((srcaddr & 1) && !feature_exception3_instruction && feature_usp < 2)) {
 							// lets not jump directly to stack..
 							if (verbose) {
 								if (srcaddr & 1)
-									wprintf(_T(" Branch target is odd\n"));
+									wprintf(_T(" Branch target is odd (%08x)\n"), srcaddr);
 								else
-									wprintf(_T(" Branch target is stack\n"));
+									wprintf(_T(" Branch target is stack (%08x)\n"), srcaddr);
 							}
 							memcpy(opcode_memory, oldcodebytes, sizeof(oldcodebytes));
 							continue;
@@ -3493,7 +3510,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 						testing_active = 1;
 						if (!valid_address(srcaddr, 2, 1) || srcaddr + 2 == opcode_memory_start) {
 							if (verbose) {
-								wprintf(_T(" Branch target inaccessible\n"));
+								wprintf(_T(" Branch target inaccessible (%08x)\n"), srcaddr);
 							}
 							testing_active = 0;
 							memcpy(opcode_memory, oldcodebytes, sizeof(oldcodebytes));

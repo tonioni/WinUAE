@@ -11,14 +11,14 @@ Verifies:
 - Generated exception and stack frame contents (if any)
 - Memory writes, including stack modifications (if any)
 - Loop mode for JIT testing. (generates <test instruction>, dbf dn,loop)
-- Supports 68000, 68020, 68030 (only difference between 020 and 030 seems to be data cache and MMU), 68040 and 68060. (I don't currently have real 68010)
+- Supports 68000, 68010, 68020, 68030 (only difference between 020 and 030 seems to be data cache and MMU), 68040 and 68060.
 
 Tests executed for each tested instruction:
 
-- Every CCR combination (32 tests)
+- Every CCR combination or optionally only all zeros, all ones CCR (32 or 2 tests)
 - Every FPU condition combination (4 bits) + 2 precision bits + 2 rounding bits (256 tests)
 - Every addressing mode, including optionally 68020+ addressing modes.
-- If instruction generated privilege violation exception, extra test round is run in supervisor mode (Total 64 tests).
+- If instruction generated privilege violation exception, extra test round is run in supervisor mode.
 - Optionally can do any combination of T0, T1, S and M -bit SR register extra test rounds.
 - Every opcode value is tested. Total number of tests per opcode depends on available addressing modes etc. It can be hundreds of thousands or even millions..
 
@@ -29,20 +29,19 @@ If 68000/68010 and address error testing is enabled: 2 extra test rounds are gen
 
 Notes and limitations:
 
-- Test generator is very brute force based, it should be more intelligent..
-- Address error testing is optional, if disabled, generated tests never cause address errors.
+- Test generator is very brute force based, it should be more intelligent.. Now has optional target src/dst/opcode modes for better bus/address error testing.
+- Bus and address error testing is optional, if disabled, generated tests never cause bus/address errors.
 - RTE test only tests stack frame types 0 and 2 (if 68020+)
 - All tests that would halt or reset the CPU are skipped (RESET in supervisor mode, STOP parameter that would stop the CPU etc)
 - Single instruction test set will take long time to run on real 68000. Few minutes to much longer...
-- Undefined flags (for example DIV and CHK) are also verified. It probably would be good idea to optionally filter them out.
+- Undefined flags (for example DIV and CHK or 68000/010 bus address error) are also verified. It probably would be good idea to optionally filter them out.
 - Instruction cycle order or timing is ignored. It is not possible without extra hardware.
-- 68000 bus errors are not tested but there are some plans for future version with custom hardware. (Hatari also uses UAE CPU core)
 - FPU testing is not yet fully implemented.
 - Sometimes reported old and new condition code state does not match error report..
 
 Tester compatibility (integer instructions only):
 
-68000: Complete. Bus errors are only supported partially.
+68000: Complete. Including bus and address error stack frame/register/CCR modification undocumented behavior.
 68010: Partially supported.
 68020: Almost complete (DIV undocumented behavior is not yet known)
 68030: Same as 68020.
@@ -76,7 +75,7 @@ Build instructions:
 
 Test generator quick instructions:
 
-Update cputestgen.ini to match your CPU model, memory settings etc...
+Update cputestgen.ini to match your CPU model, memory settings etc.
 
 "Low memory" = memory accessible using absolute word addressing mode, positive value (0x0000 to 0x7fff). Can be larger.
 "High memory" = memory accessible using absolute word addressing mode, negative value (0xFFF8000 to 0xFFFFFFFF)
