@@ -2591,6 +2591,7 @@ kludge_me_do:
 		regs.intmask = nr - 24;
 	branch_stack_push(currpc, currpc);
 	regs.ir = x_get_word (m68k_getpc ()); // prefetch 1
+	regs.ird = regs.ir;
 	x_do_cycles (2 * cpucycleunit);
 	regs.ipl_pin = intlev();
 	ipl_fetch();
@@ -6418,6 +6419,7 @@ static void fill_prefetch_quick (void)
 	// old statefile compatibility, this needs to done,
 	// even in 68000 cycle-exact mode
 	regs.ir = get_word (m68k_getpc ());
+	regs.ird = regs.ir;
 	regs.irc = get_word (m68k_getpc () + 2);
 }
 
@@ -9153,6 +9155,7 @@ void fill_prefetch (void)
 	} else if (currprefs.cpu_model <= 68010) {
 		uaecptr pc = m68k_getpc ();
 		regs.ir = x_get_word (pc);
+		regs.ird = regs.ir;
 		regs.irc = x_get_word (pc + 2);
 	}
 }
