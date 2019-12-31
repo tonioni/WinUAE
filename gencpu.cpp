@@ -5423,7 +5423,7 @@ static void gen_opcode (unsigned int opcode)
 		case sz_long: printf("\tuae_u32 dst = (uae_s32)(uae_s16)src;\n"); break;
 		default: term ();
 		}
-		if (curi->size == sz_long || cpu_level >= 2) {
+		if (curi->size != sz_word) {
 			genflags(flag_logical, sz_long, "dst", "", "");
 			genastore("dst", curi->smode, "srcreg", sz_long, "src");
 		} else {
