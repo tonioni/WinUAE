@@ -102,6 +102,7 @@ static bool genastore_done;
 static char rmw_varname[100];
 static struct instr *g_instr;
 static char g_srcname[100];
+static int loopmode;
 
 #define GENA_GETV_NO_FETCH	0
 #define GENA_GETV_FETCH		1
@@ -1041,9 +1042,26 @@ static void dummy_prefetch (void)
 	check_prefetch_bus_error(o, 0);
 }
 
+static void loopmode_begin(void)
+{
+	if (loopmode) {
+		printf("\tif(!regs.loop_mode) {\n");
+		printf("\t\tregs.ird = opcode;\n");
+	}
+}
+static void loopmode_end(void)
+{
+	if (loopmode) {
+		printf("\t} else {\n");
+		addcycles000(2);
+		printf("\t}\n");
+	}
+}
+
 static void fill_prefetch_next_noopcodecopy(const char *format, ...)
 {
 	if (using_prefetch) {
+		loopmode_begin();
 		irc2ir();
 		if (using_bus_error) {
 			bus_error_code[0] = 0;
@@ -1059,29 +1077,34 @@ static void fill_prefetch_next_noopcodecopy(const char *format, ...)
 		if (using_bus_error) {
 			copy_opcode();
 		}
+		loopmode_end();
 	}
 }
 
 static void fill_prefetch_next(void)
 {
 	if (using_prefetch) {
+		loopmode_begin();
 		irc2ir();
 		if (using_bus_error) {
 			copy_opcode();
 		}
 		fill_prefetch_1(m68k_pc_offset + 2);
+		loopmode_end();
 	}
 }
 
 static void fill_prefetch_next_t(void)
 {
 	if (using_prefetch) {
+		loopmode_begin();
 		irc2ir();
 		if (using_bus_error) {
 			copy_opcode();
 			strcat(bus_error_code, "\t\tif (regs.t1) opcode |= 0x10000;\n");
 		}
 		fill_prefetch_1(m68k_pc_offset + 2);
+		loopmode_end();
 	}
 }
 
@@ -1089,6 +1112,7 @@ static void fill_prefetch_next_t(void)
 static void fill_prefetch_next_extra(const char *cond, const char *format, ...)
 {
 	if (using_prefetch) {
+		loopmode_begin();
 		irc2ir();
 		if (using_bus_error) {
 			if (cond)
@@ -1103,6 +1127,7 @@ static void fill_prefetch_next_extra(const char *cond, const char *format, ...)
 			}
 		}
 		fill_prefetch_1(m68k_pc_offset + 2);
+		loopmode_end();
 	}
 }
 
@@ -1110,6 +1135,7 @@ static void fill_prefetch_next_extra(const char *cond, const char *format, ...)
 static void fill_prefetch_next_after(int copy, const char *format, ...)
 {
 	if (using_prefetch) {
+		loopmode_begin();
 		irc2ir();
 		printf("\topcode |= 0x20000;\n");
 		bus_error_code[0] = 0;
@@ -1128,6 +1154,7 @@ static void fill_prefetch_next_after(int copy, const char *format, ...)
 				opcode_nextcopy = 1;
 			}
 		}
+		loopmode_end();
 	}
 }
 
@@ -2737,6 +2764,9 @@ static void genamode2x (amodes mode, const char *reg, wordsizes size, const char
 			if (mode == Apdi && g_instr->size == sz_word && g_instr->mnemo != i_CLR) {
 				printf("\t\tm68k_areg(regs, %s) = %sa;\n", reg, name);
 			}
+			if (mode == Apdi) {
+				;// printf("\t\tregs.read_buffer = 0;\n");
+			}
 		}
 
 		if (g_instr->mnemo == i_ADDX || g_instr->mnemo == i_SUBX) {
@@ -3894,11 +3924,11 @@ static void resetvars (void)
 	dstblrmw = NULL;
 	dstwlrmw = NULL;
 	dstllrmw = NULL;
-	getpc = "m68k_getpc ()";
+	getpc = "m68k_getpc()";
 
 	if (using_indirect > 0) {
 		// tracer
-		getpc = "m68k_getpci ()";
+		getpc = "m68k_getpci()";
 		if (using_mmu == 68030) {
 			// 68030 cache MMU / CE cache MMU
 			disp020 = "get_disp_ea_020_mmu030c";
@@ -3926,7 +3956,7 @@ static void resetvars (void)
 			srcwd = "get_word_mmu030c";
 			dstld = "put_long_mmu030c";
 			dstwd = "put_word_mmu030c";
-			getpc = "m68k_getpci ()";
+			getpc = "m68k_getpci()";
 		} else if (!using_ce020 && !using_prefetch_020 && !using_ce) {
 			// generic + indirect
 			disp020 = "x_get_disp_ea_020";
@@ -4102,7 +4132,7 @@ static void resetvars (void)
 		srcwd = "get_word_mmu030";
 		dstld = "put_long_mmu030";
 		dstwd = "put_word_mmu030";
-		getpc = "m68k_getpci ()";
+		getpc = "m68k_getpci()";
 	} else if (using_mmu == 68040) {
 		// 68040 MMU
 		disp020 = "x_get_disp_ea_020";
@@ -4125,7 +4155,7 @@ static void resetvars (void)
 		dstblrmw = "put_lrmw_byte_mmu040";
 		dstwlrmw = "put_lrmw_word_mmu040";
 		dstllrmw = "put_lrmw_long_mmu040";
-		getpc = "m68k_getpci ()";
+		getpc = "m68k_getpci()";
 	} else if (using_mmu) {
 		// 68060 MMU
 		disp020 = "x_get_disp_ea_020";
@@ -4155,7 +4185,7 @@ static void resetvars (void)
 		dstbrmw = "put_rmw_byte_mmu060";
 		dstwrmw = "put_rmw_word_mmu060";
 		dstlrmw = "put_rmw_long_mmu060";
-		getpc = "m68k_getpci ()";
+		getpc = "m68k_getpci()";
 	} else if (using_ce) {
 		// 68000 ce
 		prefetch_word = "get_word_ce000_prefetch";
@@ -4167,7 +4197,7 @@ static void resetvars (void)
 		srcb = "get_byte_ce000";
 		dstb = "put_byte_ce000";
 		do_cycles = "do_cycles_ce000";
-		getpc = "m68k_getpci ()";
+		getpc = "m68k_getpci()";
 	} else if (using_prefetch) {
 		// 68000 prefetch
 		prefetch_word = "get_word_000_prefetch";
@@ -4179,7 +4209,7 @@ static void resetvars (void)
 		dstw = "put_word_000";
 		srcb = "get_byte_000";
 		dstb = "put_byte_000";
-		getpc = "m68k_getpci ()";
+		getpc = "m68k_getpci()";
 	} else {
 		// generic + direct
 		prefetch_long = "get_dilong";
@@ -4253,6 +4283,15 @@ static void gen_opcode (unsigned int opcode)
 	bus_error_code[0] = 0;
 	bus_error_code2[0] = 0;
 	opcode_nextcopy = 0;
+
+	loopmode = 0;
+	// 68010 loop mode available if
+	if (cpu_level == 1) {
+		loopmode = opcode_loop_mode(opcode);
+		if (curi->mnemo == i_DBcc || loopmode) {
+			next_level_000();
+		}
+	}
 
 	// do not unnecessarily create useless mmuop030
 	// functions when CPU is not 68030
@@ -6163,6 +6202,9 @@ bccl_not68020:
 		genamodedual (curi,
 			curi->smode, "srcreg", curi->size, "src", 1, GF_AA | (cpu_level < 2 ? GF_NOREFILL : 0),
 			curi->dmode, "dstreg", curi->size, "offs", 1, GF_AA | (cpu_level < 2 ? GF_NOREFILL : 0));
+		if (cpu_level == 1) {
+			printf("\tregs.loop_mode = false;\n");
+		}
 		printf("\tuaecptr oldpc = %s;\n", getpc);
 		addcycles000 (2);
 		if (using_exception_3 && cpu_level >= 4) {
@@ -6184,6 +6226,33 @@ bccl_not68020:
 			write_return_cycles("\t\t", 0);
 			printf("\t\t}\n");
 		}
+		// 68010 loop mode handling
+		if (cpu_level == 1) {
+			printf("\t\tif(offs == -4 && !regs.t1 && loop_mode_table[regs.ird]) {\n");
+			printf("\t\t\tregs.loop_mode = true;\n");
+			printf("\t\t\tsrc = m68k_dreg(regs, srcreg);\n");
+			genastore("(src - 1)", curi->smode, "srcreg", curi->size, "src");
+			addcycles000(2);
+			printf("\t\t\tif (src) {\n");
+			if (using_ce) {
+				printf("\t\t\t\tloop_mode_table[regs.ird](regs.ird);\n");
+			} else {
+				printf("\t\t\t\tcount_cycles += loop_mode_table[regs.ird](regs.ird);\n");
+			}
+			setpc("oldpc");
+			check_ipl();
+			addcycles000(2);
+			returncycles("\t\t\t\t", 4);
+			printf("\t\t\t} else {\n");
+			addcycles000(2);
+			printf("\t\t\t}\n");
+			printf("\t\t\tregs.loop_mode = false;\n");
+			setpc("oldpc + %d", m68k_pc_offset);
+			fill_prefetch_full_000_special();
+			returncycles("\t\t\t", 6);
+			printf("\t\t}\n");
+		}
+
 		printf("\t");
 		fill_prefetch_1(0);
 		printf("\t");

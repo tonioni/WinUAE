@@ -85,6 +85,8 @@ struct comptbl {
 };
 #endif
 
+extern cpuop_func *loop_mode_table[];
+
 extern uae_u32 REGPARAM3 op_illg (uae_u32) REGPARAM;
 extern void REGPARAM3 op_unimpl (uae_u32) REGPARAM;
 
@@ -176,13 +178,14 @@ struct regstruct
 	uae_u32 instruction_pc_user_exception;
 	uae_u32 trace_pc;
 
-	uae_u16 irc, ir, db;
+	uae_u16 irc, ir, ird, db;
 	volatile uae_atomic spcflags;
 	uae_u32 last_prefetch;
 	uae_u32 chipset_latch_rw;
 	uae_u32 chipset_latch_read;
 	uae_u32 chipset_latch_write;
 	uae_u16 write_buffer, read_buffer;
+	bool loop_mode;
 
 	uaecptr usp, isp, msp;
 	uae_u16 sr;
@@ -270,7 +273,7 @@ struct cputracestruct
 {
 	uae_u32 regs[16];
 	uae_u32 usp, isp, pc;
-	uae_u16 ir, irc, sr, opcode;
+	uae_u16 ir, irc, ird, sr, opcode;
 	int intmask, stopped, state;
 
 	uae_u32 msp, vbr;

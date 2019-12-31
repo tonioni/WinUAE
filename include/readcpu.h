@@ -116,5 +116,6 @@ extern void read_table68k (void);
 extern void do_merges (void);
 extern int get_no_mismatches (void);
 extern int nr_cpuop_funcs;
+extern bool opcode_loop_mode(uae_u16 opcode);
 
 #endif /* UAE_READCPU_H */

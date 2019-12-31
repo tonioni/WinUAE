@@ -111,6 +111,7 @@ int movem_index2[256];
 int movem_next[256];
 
 cpuop_func *cpufunctbl[65536];
+cpuop_func *loop_mode_table[65536];
 
 struct cputbl_data
 {
@@ -1831,7 +1832,7 @@ static void build_cpufunctbl (void)
 		struct instr *table = &table68k[opcode];
 
 		if (table->mnemo == i_ILLG)
-			continue;		
+			continue;
 
 		/* unimplemented opcode? */
 		if (table->unimpclev > 0 && lvl >= table->unimpclev) {
@@ -1874,6 +1875,11 @@ static void build_cpufunctbl (void)
 			memcpy(&cpudatatbl[opcode], &cpudatatbl[idx], sizeof(struct cputbl_data));
 			opcnt++;
 		}
+
+		if (opcode_loop_mode(opcode)) {
+			loop_mode_table[opcode] = cpufunctbl[opcode];
+		}
+
 	}
 	write_log (_T("Building CPU, %d opcodes (%d %d %d)\n"),
 		opcnt, lvl,
@@ -3001,6 +3007,7 @@ static void ExceptionX (int nr, uaecptr address)
 {
 	uaecptr pc = m68k_getpc();
 	regs.exception = nr;
+	regs.loop_mode = 0;
 	if (cpu_tracer) {
 		cputrace.state = nr;
 	}
@@ -4389,6 +4396,8 @@ static void m68k_run_1 (void)
 				do_cycles (cpu_cycles);
 				r->instruction_pc = m68k_getpc ();
 				cpu_cycles = (*cpufunctbl[r->opcode])(r->opcode);
+				if (!regs.loop_mode)
+					regs.ird = regs.opcode;
 				cpu_cycles = adjust_cycles (cpu_cycles);
 				if (r->spcflags) {
 					if (do_specialties (cpu_cycles))
@@ -4434,6 +4443,7 @@ static void m68k_run_1_ce (void)
 					memcpy (&r->regs, &cputrace.regs, 16 * sizeof (uae_u32));
 					r->ir = cputrace.ir;
 					r->irc = cputrace.irc;
+					r->ird = cputrace.ird;
 					r->sr = cputrace.sr;
 					r->usp = cputrace.usp;
 					r->isp = cputrace.isp;
@@ -4471,6 +4481,7 @@ static void m68k_run_1_ce (void)
 					cputrace.opcode = r->opcode;
 					cputrace.ir = r->ir;
 					cputrace.irc = r->irc;
+					cputrace.ird = r->ird;
 					cputrace.sr = r->sr;
 					cputrace.usp = r->usp;
 					cputrace.isp = r->isp;
@@ -4497,6 +4508,8 @@ static void m68k_run_1_ce (void)
 
 				r->instruction_pc = m68k_getpc ();
 				(*cpufunctbl[r->opcode])(r->opcode);
+				if (!regs.loop_mode)
+					regs.ird = regs.opcode;
 				wait_memory_cycles();
 				if (cpu_tracer) {
 					cputrace.state = 0;
@@ -6225,6 +6238,7 @@ uae_u8 *restore_cpu (uae_u8 *src)
 	} else {
 		regs.stopped = 0;
 	}
+	regs.ird = l >> 16;
 	if (model >= 68010) {
 		regs.dfc = restore_u32 ();
 		regs.sfc = restore_u32 ();
@@ -6434,7 +6448,7 @@ uae_u8 *save_cpu_trace (int *len, uae_u8 *dstptr)
 	else
 		dstbak = dst = xmalloc (uae_u8, 10000);
 
-	save_u32 (2 | 4 | 16 | 32);
+	save_u32 (2 | 4 | 16 | 32 | 64);
 	save_u16 (cputrace.opcode);
 	for (int i = 0; i < 16; i++)
 		save_u32 (cputrace.regs[i]);
@@ -6488,6 +6502,8 @@ uae_u8 *save_cpu_trace (int *len, uae_u8 *dstptr)
 		save_u16(cputrace.pipeline_r8[1]);
 		save_u16(cputrace.pipeline_stop);
 	}
+
+	save_u16(cputrace.ird);
 
 	*len = dst - dstbak;
 	cputrace.needendcycles = 1;
@@ -6575,6 +6591,9 @@ uae_u8 *restore_cpu_trace (uae_u8 *src)
 				cputrace.pipeline_r8[0] = restore_u16();
 				cputrace.pipeline_r8[1] = restore_u16();
 				cputrace.pipeline_stop = restore_u16();
+			}
+			if (v & 64) {
+				cputrace.ird = restore_u16();
 			}
 		}
 	}
@@ -6671,7 +6690,7 @@ uae_u8 *save_cpu (int *len, uae_u8 *dstptr)
 	save_u32 (!regs.s ? regs.regs[15] : regs.usp);	/* USP */
 	save_u32 (regs.s ? regs.regs[15] : regs.isp);	/* ISP */
 	save_u16 (regs.sr);								/* SR/CCR */
-	save_u32 (regs.stopped ? CPUMODE_HALT : 0);		/* flags */
+	save_u32 ((regs.stopped ? CPUMODE_HALT : 0) | (regs.ird << 16)); /* flags + ird */
 	if (model >= 68010) {
 		save_u32 (regs.dfc);			/* DFC */
 		save_u32 (regs.sfc);			/* SFC */

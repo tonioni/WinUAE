@@ -16,39 +16,39 @@ int nr_cpuop_funcs;
 
 struct mnemolookup lookuptab[] = {
 	{ i_ILLG, _T("ILLEGAL"), NULL, 0 },
-	{ i_OR, _T("OR"), NULL, 1 },
+	{ i_OR, _T("OR"), NULL, 1 | 2 },
 	{ i_CHK, _T("CHK"), NULL, 0 },
 	{ i_CHK2, _T("CHK2"), NULL, 0 },
-	{ i_AND, _T("AND"), NULL, 1 },
-	{ i_EOR, _T("EOR"), NULL, 1 },
+	{ i_AND, _T("AND"), NULL, 1 | 2 },
+	{ i_EOR, _T("EOR"), NULL, 1 | 2 },
 	{ i_ORSR, _T("ORSR"), _T("OR"), 0 },
 	{ i_ANDSR, _T("ANDSR"), _T("AND"), 0 },
 	{ i_EORSR, _T("EORSR"), _T("EOR"), 0 },
-	{ i_SUB, _T("SUB"), NULL, 1 },
-	{ i_SUBA, _T("SUBA"), NULL, 1 },
-	{ i_SUBX, _T("SUBX"), NULL, 0 },
-	{ i_SBCD, _T("SBCD"), NULL, 0 },
-	{ i_ADD, _T("ADD"), NULL, 1 },
-	{ i_ADDA, _T("ADDA"), NULL, 1 },
-	{ i_ADDX, _T("ADDX"), NULL, 0 },
-	{ i_ABCD, _T("ABCD"), NULL, 0 },
-	{ i_NEG, _T("NEG"), NULL, 1 },
-	{ i_NEGX, _T("NEGX"), NULL, 1 },
-	{ i_NBCD, _T("NBCD"), NULL, 0 },
-	{ i_CLR, _T("CLR"), NULL, 1 },
-	{ i_NOT, _T("NOT"), NULL, 1 },
-	{ i_TST, _T("TST"), NULL, 1 },
+	{ i_SUB, _T("SUB"), NULL, 1 | 2 },
+	{ i_SUBA, _T("SUBA"), NULL, 1 | 2 },
+	{ i_SUBX, _T("SUBX"), NULL, 0 | 2 },
+	{ i_SBCD, _T("SBCD"), NULL, 0 | 2 },
+	{ i_ADD, _T("ADD"), NULL, 1 | 2 },
+	{ i_ADDA, _T("ADDA"), NULL, 1 | 2 },
+	{ i_ADDX, _T("ADDX"), NULL, 0 | 2 },
+	{ i_ABCD, _T("ABCD"), NULL, 0 | 2 },
+	{ i_NEG, _T("NEG"), NULL, 1 | 2 },
+	{ i_NEGX, _T("NEGX"), NULL, 1 | 2 },
+	{ i_NBCD, _T("NBCD"), NULL, 0 | 2 },
+	{ i_CLR, _T("CLR"), NULL, 1 | 2 },
+	{ i_NOT, _T("NOT"), NULL, 1 | 2 },
+	{ i_TST, _T("TST"), NULL, 1 | 2 },
 	{ i_BTST, _T("BTST"), NULL, 1 },
 	{ i_BCHG, _T("BCHG"), NULL, 1 },
 	{ i_BCLR, _T("BCLR"), NULL, 1 },
 	{ i_BSET, _T("BSET"), NULL, 1 },
-	{ i_CMP, _T("CMP"), NULL, 1 },
-	{ i_CMPM, _T("CMPM"), NULL, 1 },
-	{ i_CMPA, _T("CMPA"), NULL, 1 },
+	{ i_CMP, _T("CMP"), NULL, 1 | 2 },
+	{ i_CMPM, _T("CMPM"), NULL, 1 | 2 },
+	{ i_CMPA, _T("CMPA"), NULL, 1 | 2 },
 	{ i_MVPRM, _T("MVPRM"), _T("MOVEP"), 0 },
 	{ i_MVPMR, _T("MVPMR"), _T("MOVEP"), 0 },
-	{ i_MOVE, _T("MOVE"), NULL, 1 },
-	{ i_MOVEA, _T("MOVEA"), NULL, 1 },
+	{ i_MOVE, _T("MOVE"), NULL, 1 | 2 },
+	{ i_MOVEA, _T("MOVEA"), NULL, 1 | 2 },
 	{ i_MVSR2, _T("MVSR2"), _T("MOVE"), 0 },
 	{ i_MV2SR, _T("MV2SR"), _T("MOVE"), 0 },
 	{ i_SWAP, _T("SWAP"), NULL, 0 },
@@ -89,14 +89,14 @@ struct mnemolookup lookuptab[] = {
 	{ i_ROR, _T("ROR"), NULL, 0 },
 	{ i_ROXL, _T("ROXL"), NULL, 1 },
 	{ i_ROXR, _T("ROXR"), NULL, 1 },
-	{ i_ASRW, _T("ASRW"), _T("ASR"), 1 },
-	{ i_ASLW, _T("ASLW"), _T("ASL"), 1 },
-	{ i_LSRW, _T("LSRW"), _T("LSR"), 1 },
-	{ i_LSLW, _T("LSLW"), _T("LSL"), 1 },
-	{ i_ROLW, _T("ROLW"), _T("ROL"), 1 },
-	{ i_RORW, _T("RORW"), _T("ROR"), 1 },
-	{ i_ROXLW, _T("ROXLW"), _T("ROXL"), 1 },
-	{ i_ROXRW, _T("ROXRW"), _T("ROXR"), 1 },
+	{ i_ASRW, _T("ASRW"), _T("ASR"), 1 | 2 },
+	{ i_ASLW, _T("ASLW"), _T("ASL"), 1 | 2 },
+	{ i_LSRW, _T("LSRW"), _T("LSR"), 1 | 2 },
+	{ i_LSLW, _T("LSLW"), _T("LSL"), 1 | 2 },
+	{ i_ROLW, _T("ROLW"), _T("ROL"), 1 | 2 },
+	{ i_RORW, _T("RORW"), _T("ROR"), 1 | 2 },
+	{ i_ROXLW, _T("ROXLW"), _T("ROXL"), 1 | 2 },
+	{ i_ROXRW, _T("ROXRW"), _T("ROXR"), 1 | 2 },
 
 	{ i_MOVE2C, _T("MOVE2C"), _T("MOVEC"), 0 },
 	{ i_MOVEC2, _T("MOVEC2"), _T("MOVEC"), 0 },
@@ -881,4 +881,37 @@ void do_merges (void)
 int get_no_mismatches (void)
 {
 	return imismatch;
+}
+
+static int isreg(amodes mode)
+{
+	if (mode == Dreg || mode == Areg)
+		return 1;
+	return 0;
+}
+
+bool opcode_loop_mode(uae_u16 opcode)
+{
+	instr *c = &table68k[opcode];
+	bool loopmode = false;
+	int i;
+	for (i = 0; lookuptab[i].name[0]; i++) {
+		if (c->mnemo == lookuptab[i].mnemo)
+			break;
+	}
+	if (lookuptab[i].flags & 2) {
+		// Source is Dn,An,(An),(An)+,-(An)
+		// Destination is Dn,An,(An),(An)+,-(An)
+		// Both source and destination must not be Dn or An.
+		// RMW instruction must not be Dn or An
+		if (((isreg(c->smode) || c->smode == Aind || c->smode == Apdi || c->smode == Aipi)) &&
+			((!c->duse && !isreg(c->smode)) || (c->duse && (isreg(c->dmode) || c->dmode == Aind || c->dmode == Apdi || c->dmode == Aipi))) &&
+			(!c->duse || (isreg(c->smode) && !isreg(c->dmode)) || (!isreg(c->smode) && isreg(c->dmode)) || (!isreg(c->smode) && !isreg(c->dmode)))) {
+			loopmode = true;
+		}
+		if (c->mnemo == i_MOVE && isreg(c->dmode)) {
+			loopmode = false;
+		}
+	}
+	return loopmode;
 }
