@@ -2666,7 +2666,9 @@ static void genamode2x (amodes mode, const char *reg, wordsizes size, const char
 			strcpy(g_srcname, name);	
 	}
 
-	do_instruction_buserror();
+	if (mode >= Ad16) {
+		do_instruction_buserror();
+	}
 
 	syncmovepc (getv, flags);
 	maybeaddop_ce020 (flags);
