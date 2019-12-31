@@ -1364,7 +1364,7 @@ void Exception_build_stack_frame(uae_u32 oldpc, uae_u32 currpc, uae_u32 ssw, int
 		m68k_areg(regs, 7) -= 4;
 		x_put_long(m68k_areg(regs, 7), regs.mmu_effective_addr);
 		break;
-	case 0x8: // address error (68010)
+	case 0x8: // bus/address error (68010)
 	{
 		uae_u16 in = regs.read_buffer;
 		uae_u16 out = regs.write_buffer;

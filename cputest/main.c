@@ -1362,7 +1362,7 @@ static uae_u8 *validate_exception(struct registers *regs, uae_u8 *p, int excnum,
 				pl(exc + 12, v);
 				exclen = 16;
 				break;
-			case 8:
+			case 8: // 68010 bus/address error
 				exc[8] = *p++;
 				exc[9] = *p++;
 				excrwp = ((exc[8] & 1) == 0) ? 1 : 0;
@@ -1388,6 +1388,12 @@ static uae_u8 *validate_exception(struct registers *regs, uae_u8 *p, int excnum,
 				sp[22] = sp[23] = 0;
 				// ignore undocumented data
 				exclen = 26;
+				// read input buffer may contain either actual data read from memory or previous read data
+				// this depends on hardware, cpu does dummy read cycle and some hardware returns memory data, some ignore it.
+				memcpy(alternate_exception1, exc, exclen);
+				alternate_exception1[20] = *p++;
+				alternate_exception1[21] = *p++;
+				alts = 1;
 				break;
 			case 0x0a:
 			case 0x0b:

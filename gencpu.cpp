@@ -2749,6 +2749,8 @@ static void genamode2x (amodes mode, const char *reg, wordsizes size, const char
 		printf("\tif (%sa & 1) {\n", name);
 
 		if (cpu_level == 1) {
+			// 68010 does dummy access
+			printf("\t\tuae_s16 d_%s = %s(%sa & ~1);\n", name, srcw, name);
 			if (abs(bus_error_reg_add) == 4)
 				bus_error_reg_add = 0;
 			// 68010 CLR <memory>: pre and post are not added yet
@@ -2762,9 +2764,6 @@ static void genamode2x (amodes mode, const char *reg, wordsizes size, const char
 			// x,-(an): an is modified
 			if (mode == Apdi && g_instr->size == sz_word && g_instr->mnemo != i_CLR) {
 				printf("\t\tm68k_areg(regs, %s) = %sa;\n", reg, name);
-			}
-			if (mode == Apdi) {
-				;// printf("\t\tregs.read_buffer = 0;\n");
 			}
 		}
 
@@ -3511,13 +3510,34 @@ static void movem_mmu030 (const char *code, int size, bool put, bool aipi, bool 
 static void movem_ex3(int write)
 {
 	if ((using_prefetch || using_ce) && using_exception_3) {
+
 		if (write) {
 			// MOVEM write to memory won't generate address error
 			// exception if mask is zero and EA is odd.
 			printf("\tif ((amask || dmask) && (srca & 1)) {\n");
 			// MOVE.L EA,-(An) causing address error: stacked value is original An - 2, not An - 4.
-			if (g_instr->dmode == Apdi)
+			if (g_instr->dmode == Apdi) {
 				printf("\t\tsrca -= 2;\n");
+			}
+			printf("\t\tuaecptr srcav = srca;\n");
+			if (cpu_level == 1) {
+				if (g_instr->dmode == Apdi) {
+					printf("\t\tif(amask) {\n");
+					printf("\t\t\tsrcav = m68k_areg(regs, movem_index2[amask]);\n");
+					printf("\t\t} else if (dmask) {\n");
+					printf("\t\t\tsrcav = m68k_dreg(regs, movem_index2[dmask]);\n");
+					printf("\t\t}\n");
+				} else {
+					printf("\t\tif(dmask) {\n");
+					printf("\t\t\tsrcav = m68k_dreg(regs, movem_index1[dmask]);\n");
+					printf("\t\t} else if (amask) {\n");
+					printf("\t\t\tsrcav = m68k_areg(regs, movem_index1[amask]);\n");
+					printf("\t\t}\n");
+				}
+				if (g_instr->dmode == Aind || g_instr->dmode == Apdi || g_instr->dmode == Aipi) {
+					printf("\t\tregs.read_buffer = mask;\n");
+				}
+			}
 		} else {
 			// MOVEM from memory will generate address error
 			// exception if mask is zero and EA is odd.
@@ -3525,9 +3545,13 @@ static void movem_ex3(int write)
 			if (g_instr->dmode == PC16 || g_instr->dmode == PC8r) {
 				printf("\t\topcode |= 0x01020000;\n");
 			}
+			printf("\t\tuaecptr srcav = srca;\n");
+			if (cpu_level == 1) {
+				printf("\t\tuae_s16 dummy = %s(srca & ~1);\n", srcw);
+			}
 		}
 		if (write) {
-			printf("\t\texception3_write(opcode, srca, %d, srca, %d);\n",
+			printf("\t\texception3_write(opcode, srca, %d, srcav, %d);\n",
 				g_instr->size,
 				(g_instr->dmode == PC16 || g_instr->dmode == PC8r) ? 2 : 1);
 		} else {
@@ -4879,13 +4903,21 @@ static void gen_opcode (unsigned int opcode)
 				addcycles000(2);
 			if (!isreg(curi->smode) && using_exception_3 && curi->size != sz_byte && (using_prefetch || using_ce)) {
 				printf("\tif(srca & 1) {\n");
+				if (curi->smode == Aipi) {
+					printf("\t\tm68k_areg(regs, srcreg) -= %d;\n", 1 << curi->size);
+				} else if (curi->smode == Apdi) {
+					printf("\t\tm68k_areg(regs, srcreg) += %d;\n", 1 << curi->size);
+				} else if (curi->smode >= Ad16) {
+					printf("\t%s(%d);\n", prefetch_word, m68k_pc_offset + 2);
+					genflags(flag_logical, curi->size, "0", "", "");
+				}
 				printf("\t\texception3_write(opcode, srca, 1, 0, 1);\n");
 				write_return_cycles("\t\t", 0);
 				printf("\t}\n");
 			}
+			fill_prefetch_next();
 			genflags(flag_logical, curi->size, "0", "", "");
 			genastore_rev("0", curi->smode, "srcreg", curi->size, "src");
-			fill_prefetch_next();
 		} else {
 			genamode(curi, curi->smode, "srcreg", curi->size, "src", 2, 0, 0);
 			fill_prefetch_next();
@@ -6028,15 +6060,15 @@ static void gen_opcode (unsigned int opcode)
 		}
 		printf("\ts = (uae_s32)src + 2;\n");
 		if (using_exception_3) {
-			if (cpu_level <= 1) {
+			if (cpu_level == 0) {
 				printf("\tif (m68k_areg(regs, 7) & 1) {\n");
 				printf("\t\tm68k_areg(regs, 7) -= 4;\n");
-				printf("\t\texception3b(opcode,  m68k_areg(regs, 7), true, false, %s + 2);\n", getpc);
+				printf("\t\texception3b(opcode, m68k_areg(regs, 7), true, false, %s + 2);\n", getpc);
 				write_return_cycles("\t\t", 0);
 				printf("\t}\n");
-			} else if (0) {
-				printf("\tif (src & 1) {\n");
-				printf("\t\texception3b(opcode, %s + s, 0, 1, %s + s);\n", getpc, getpc);
+			} else if (cpu_level == 1) {
+				printf("\tif (m68k_areg(regs, 7) & 1) {\n");
+				printf("\t\texception3b(opcode, m68k_areg(regs, 7), true, true, %s);\n", getpc);
 				write_return_cycles("\t\t", 0);
 				printf("\t}\n");
 			}
@@ -6044,6 +6076,16 @@ static void gen_opcode (unsigned int opcode)
 		addcycles000 (2);
 		printf("\tuaecptr oldpc = %s;\n", getpc);
 		printf("\tuaecptr nextpc = oldpc + %d;\n", m68k_pc_offset);
+		if (using_exception_3 && cpu_level == 1) {
+			// 68010 TODO: looks like prefetches are done first and stack writes last
+			printf("\tif (s & 1) {\n");
+			setpc("(oldpc + s) & ~1");
+			printf("\t%s(0);\n", prefetch_word);
+			setpc("oldpc");
+			printf("\t\texception3b(opcode, oldpc + s, false, true, %s);\n", getpc);
+			write_return_cycles("\t\t", 0);
+			printf("\t}\n");
+		}
 		if (using_exception_3 && cpu_level >= 2) {
 			printf("\tif (s & 1) {\n");
 			if (cpu_level < 4)
@@ -6075,9 +6117,9 @@ static void gen_opcode (unsigned int opcode)
 		} else {
 			printf("\tm68k_do_bsr (nextpc, s);\n");
 		}
-		if (using_exception_3 && cpu_level <= 1) {
+		if (using_exception_3 && cpu_level == 0) {
 			printf("\tif (%s & 1) {\n", getpc);
-			printf("\t\texception3b(opcode, %s, 0, 1, %s);\n", getpc, getpc);
+			printf("\t\texception3b(opcode, %s, false, true, %s);\n", getpc, getpc);
 			write_return_cycles("\t\t", 0);
 			printf("\t}\n");
 		}
@@ -6100,7 +6142,7 @@ static void gen_opcode (unsigned int opcode)
 			if (cpu_level < 2) {
 				addcycles000 (2);
 				printf("\tif (cctrue(%d)) {\n", curi->cc);
-				printf("\t\texception3i (opcode, %s + 1);\n", getpc);
+				printf("\t\texception3i(opcode, %s + 1);\n", getpc);
 				write_return_cycles("\t\t", 0);
 				printf("\t}\n");
 				sync_m68k_pc ();
@@ -6117,14 +6159,20 @@ static void gen_opcode (unsigned int opcode)
 		addcycles000 (2);
 		if (using_exception_3 && cpu_level >= 4) {
 			printf("\tif (src & 1) {\n");
-			printf("\t\texception3i (opcode, %s + 2 + (uae_s32)src);\n", getpc);
+			printf("\t\texception3i(opcode, %s + 2 + (uae_s32)src);\n", getpc);
 			write_return_cycles("\t\t", 0);
 			printf("\t}\n");
 		}
 		printf("\tif (cctrue(%d)) {\n", curi->cc);
 		if (using_exception_3 && cpu_level < 4) {
 			printf("\t\tif (src & 1) {\n");
-			printf("\t\t\texception3i (opcode, %s + 2 + (uae_s32)src);\n", getpc);
+			if (cpu_level == 1) {
+				printf("\t\tuaecptr oldpc = %s;\n", getpc);
+				incpc("((uae_s32)src + 2) & ~1");
+				printf("\t%s(0);\n", prefetch_word);
+				setpc("oldpc");
+			}
+			printf("\t\t\texception3i(opcode, %s + 2 + (uae_s32)src);\n", getpc);
 			write_return_cycles("\t\t\t", 0);
 			printf("\t\t}\n");
 		}

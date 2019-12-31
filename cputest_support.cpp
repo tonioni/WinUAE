@@ -9,6 +9,8 @@
 #include "mmu_common.h"
 #include "cpummu030.h"
 
+cpuop_func *loop_mode_table[65536];
+
 void my_trim(TCHAR *s)
 {
 	int len;

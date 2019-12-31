@@ -146,6 +146,7 @@ static int high_memory_accessed;
 static int test_memory_accessed;
 static uae_u16 extra_or, extra_and;
 static uae_u32 cur_registers[MAX_REGISTERS];
+static uae_u16 read_buffer_prev;
 
 struct uae_prefs currprefs;
 
@@ -330,6 +331,7 @@ uae_u16 get_word_test_prefetch(int o)
 	if (cpu_lvl < 2)
 		o -= 2;
 	regs.irc = get_iword_test(m68k_getpci() + o + 2);
+	read_buffer_prev = regs.read_buffer;
 	regs.read_buffer = regs.irc;
 	return get_iword_test(m68k_getpci() + o);
 }
@@ -459,6 +461,7 @@ uae_u32 get_byte_test(uaecptr addr)
 {
 	check_bus_error(addr, 0, regs.s ? 5 : 1);
 	uae_u8 *p = get_addr(addr, 1, 0);
+	read_buffer_prev = regs.read_buffer;
 	regs.read_buffer = *p;
 	return *p;
 }
@@ -472,6 +475,7 @@ uae_u32 get_word_test(uaecptr addr)
 		uae_u8 *p = get_addr(addr, 2, 0);
 		v = (p[0] << 8) | (p[1]);
 	}
+	read_buffer_prev = regs.read_buffer;
 	regs.read_buffer = v;
 	return v;
 }
@@ -492,6 +496,7 @@ uae_u32 get_long_test(uaecptr addr)
 		uae_u8 *p = get_addr(addr, 4, 0);
 		v = (p[0] << 24) | (p[1] << 16) | (p[2] << 8) | (p[3]);
 	}
+	read_buffer_prev = regs.read_buffer;
 	regs.read_buffer = v;
 	return v;
 }
@@ -946,7 +951,6 @@ void exception2_read(uae_u32 opcode, uaecptr addr, int size, int fc)
 	test_exception_3_fc = fc;
 	test_exception_3_size = size;
 	test_exception_3_di = 1;
-	regs.read_buffer = 0;
 
 	if (currprefs.cpu_model == 68000) {
 		if (generates_group1_exception(regs.ir) && !(opcode & 0x20000)) {
@@ -994,7 +998,6 @@ void exception3_read(uae_u32 opcode, uae_u32 addr, int size, int fc)
 	test_exception_3_fc = fc;
 	test_exception_3_size = size;
 	test_exception_3_di = 1;
-	regs.read_buffer = 0;
 
 	if (currprefs.cpu_model == 68000) {
 		if (generates_group1_exception(regs.ir) && !(opcode & 0x20000)) {
@@ -1003,6 +1006,11 @@ void exception3_read(uae_u32 opcode, uae_u32 addr, int size, int fc)
 		if (opcode & 0x10000)
 			test_exception_3_fc |= 8;
 		test_exception_opcode = regs.ir;
+	}
+	if (currprefs.cpu_model == 68010) {
+		if (opcode & 0x40000) {
+			test_exception_3_di = 0;
+		}
 	}
 
 	doexcstack();
@@ -1057,6 +1065,8 @@ void exception3i(uae_u32 opcode, uaecptr addr)
 	test_exception_3_w = 0;
 	test_exception_addr = addr;
 	test_exception_opcode = opcode;
+	test_exception_3_di = 0;
+	test_exception_3_size = sz_word;
 	doexcstack();
 }
 void exception3b(uae_u32 opcode, uaecptr addr, bool w, bool i, uaecptr pc)
@@ -1066,6 +1076,8 @@ void exception3b(uae_u32 opcode, uaecptr addr, bool w, bool i, uaecptr pc)
 	test_exception_3_w = w;
 	test_exception_addr = addr;
 	test_exception_opcode = opcode;
+	test_exception_3_di = 0;
+	test_exception_3_size = sz_word;
 	doexcstack();
 }
 
@@ -2534,6 +2546,7 @@ static void execute_ins(uaecptr endpc, uaecptr targetpc, struct instr *dp)
 	testing_active_opcode = opc;
 	cpu_bus_error = 0;
 	cpu_bus_error_fake = 0;
+	read_buffer_prev = regs.ir;
 	regs.read_buffer = regs.irc;
 	regs.write_buffer = 0xf00d;
 
@@ -2810,6 +2823,9 @@ static uae_u8 *save_exception(uae_u8 *p, struct instr *dp)
 				// instruction
 				*p++ = sf[24];
 				*p++ = sf[25];
+				// optional data input (some hardware does real memory fetch when CPU does the dummy fetch, some don't)
+				*p++ = read_buffer_prev >> 8;
+				*p++ = read_buffer_prev;
 				break;
 			case 0x0a: // 68020/030 address error.
 			case 0x0b: // Don't save anything extra, too many undefined fields and bits..
