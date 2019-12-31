@@ -1,4 +1,5 @@
 
+
 #define _CRT_SECURE_NO_WARNINGS
 
 #include <stdio.h>
@@ -1218,21 +1219,18 @@ static uae_u8 *validate_exception(struct registers *regs, uae_u8 *p, int excnum,
 			if (regs->tracecnt == 0) {
 				sprintf(outbp, "Expected trace exception but got none\n");
 				outbp += strlen(outbp);
-				errors = 1;
 				*experr = 1;
 			} else if (!(last_exception_extra & 0x80)) {
 				// Trace stacked with group 2 exception
 				if (!(sr & 0x2000) || (sr | 0x2000 | 0xc000) != (regs->sr | 0x2000 | 0xc000)) {
 					sprintf(outbp, "Trace (%d stacked) SR mismatch: %04x != %04x\n", excnum, sr, regs->sr);
 					outbp += strlen(outbp);
-					errors = 1;
 					*experr = 1;
 				}
 				uae_u32 retv = exceptiontableinuse + (excnum - 2) * 2;
 				if (ret != retv) {
 					sprintf(outbp, "Trace (%d stacked) PC mismatch: %08lx != %08lx\n", excnum, ret, retv);
 					outbp += strlen(outbp);
-					errors = 1;
 					*experr = 1;
 				}
 			} else {
@@ -1244,13 +1242,11 @@ static uae_u8 *validate_exception(struct registers *regs, uae_u8 *p, int excnum,
 				if (vsr != sr) {
 					sprintf(outbp, "Trace (non-stacked) SR mismatch: %04x != %04x (PC=%08lx)\n", sr, vsr, v);
 					outbp += strlen(outbp);
-					errors = 1;
 					*experr = 1;
 				}
 				if (v != ret) {
 					sprintf(outbp, "Trace (non-stacked) PC mismatch: %08lx != %08lx (SR=%04x)\n", ret, v, vsr);
 					outbp += strlen(outbp);
-					errors = 1;
 					*experr = 1;
 				}
 			}
@@ -1258,7 +1254,6 @@ static uae_u8 *validate_exception(struct registers *regs, uae_u8 *p, int excnum,
 			if (regs->tracecnt > 0) {
 				sprintf(outbp, "Got unexpected trace exception\n");
 				outbp += strlen(outbp);
-				errors = 1;
 				*experr = 1;
 			}
 		} else if (last_exception_extra) {
@@ -1440,7 +1435,6 @@ static uae_u8 *validate_exception(struct registers *regs, uae_u8 *p, int excnum,
 		strcpy(outbp, "Got     : ");
 		outbp += strlen(outbp);
 		hexdump(sp, exclen);
-		errors = 1;
 		*experr = 1;
 	}
 	return p;
@@ -1536,6 +1530,9 @@ static uae_u8 *validate_test(uae_u8 *p, int ignore_errors, int ignore_sr)
 			}
 			if (exc) {
 				p = validate_exception(&test_regs, p, exc, &cpuexc, &experr);
+				if (experr) {
+					errflag |= 1 << 16;
+				}
 				if (basicexcept && (cpuexc == 2 || cpuexc == 3)) {
 					errflag_orig = errflag;
 					errflag &= ~(1 << 0);
