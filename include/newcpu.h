@@ -178,13 +178,13 @@ struct regstruct
 	uae_u32 instruction_pc_user_exception;
 	uae_u32 trace_pc;
 
-	uae_u16 irc, ir, ird, db;
+	uae_u16 irc, ir, ird;
 	volatile uae_atomic spcflags;
 	uae_u32 last_prefetch;
 	uae_u32 chipset_latch_rw;
 	uae_u32 chipset_latch_read;
 	uae_u32 chipset_latch_write;
-	uae_u16 write_buffer, read_buffer;
+	uae_u16 db, write_buffer, read_buffer;
 	bool loop_mode;
 
 	uaecptr usp, isp, msp;
@@ -287,6 +287,7 @@ struct cputracestruct
 	int pipeline_pos;
 	int pipeline_r8[2];
 	int pipeline_stop;
+	uae_u16 read_buffer, write_buffer;
 
 	uae_u32 startcycles;
 	int needendcycles;

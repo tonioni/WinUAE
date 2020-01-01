@@ -1252,8 +1252,14 @@ static uae_u8 *validate_exception(struct registers *regs, uae_u8 *p, int excnum,
 			}
 		} else if (!last_exception_extra && excnum != 9) {
 			if (regs->tracecnt > 0) {
-				sprintf(outbp, "Got unexpected trace exception\n");
+				uae_u32 ret = (regs->tracedata[1] << 16) | regs->tracedata[2];
+				uae_u16 sr = regs->tracedata[0];
+				sprintf(outbp, "Got unexpected trace exception: SR=%04x PC=%08lx.\n", sr, ret);
 				outbp += strlen(outbp);
+				if (excnum >= 2) {
+					sprintf(outbp, "Exception %ld also pending.\n", excnum);
+					outbp += strlen(outbp);
+				}
 				*experr = 1;
 			}
 		} else if (last_exception_extra) {
@@ -1391,9 +1397,17 @@ static uae_u8 *validate_exception(struct registers *regs, uae_u8 *p, int excnum,
 				// read input buffer may contain either actual data read from memory or previous read data
 				// this depends on hardware, cpu does dummy read cycle and some hardware returns memory data, some ignore it.
 				memcpy(alternate_exception1, exc, exclen);
-				alternate_exception1[20] = *p++;
-				alternate_exception1[21] = *p++;
-				alts = 1;
+				memcpy(alternate_exception2, exc, exclen);
+				alternate_exception1[20] = p[0];
+				alternate_exception1[21] = p[1];
+				memcpy(alternate_exception3, alternate_exception1, exclen);
+				// same with instruction input buffer if branch instruction generates address error
+				alternate_exception2[24] = p[0];
+				alternate_exception2[25] = p[1];
+				alternate_exception3[24] = p[0];
+				alternate_exception3[25] = p[1];
+				p += 2;
+				alts = 3;
 				break;
 			case 0x0a:
 			case 0x0b:

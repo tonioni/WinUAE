@@ -846,8 +846,6 @@ static void doexcstack(void)
 			ssw |= (test_exception_opcode & 0x10000) ? 0x0400 : 0x0000; // HB
 			ssw |= test_exception_3_size == 0 ? 0x0200 : 0x0000; // BY
 			ssw |= test_exception_3_w ? 0x0000 : 0x0100; // RW
-			if (test_exception_opcode & 0x20000)
-				ssw &= 0x00ff;
 			regs.mmu_fault_addr = test_exception_addr;
 			Exception_build_stack_frame(regs.instruction_pc, regs.pc, ssw, 3, 0x08);
 			SPCFLAG_DOTRACE = 0;

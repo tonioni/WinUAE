@@ -4454,6 +4454,8 @@ static void m68k_run_1_ce (void)
 					r->isp = cputrace.isp;
 					r->intmask = cputrace.intmask;
 					r->stopped = cputrace.stopped;
+					r->read_buffer = cputrace.read_buffer;
+					r->write_buffer = cputrace.write_buffer;
 					m68k_setpc (cputrace.pc);
 					if (!r->stopped) {
 						if (cputrace.state > 1) {
@@ -4492,6 +4494,8 @@ static void m68k_run_1_ce (void)
 					cputrace.isp = r->isp;
 					cputrace.intmask = r->intmask;
 					cputrace.stopped = r->stopped;
+					cputrace.read_buffer = r->read_buffer;
+					cputrace.write_buffer = r->write_buffer;
 					cputrace.state = 1;
 					cputrace.pc = m68k_getpc ();
 					cputrace.startcycles = get_cycles ();
@@ -6243,7 +6247,6 @@ uae_u8 *restore_cpu (uae_u8 *src)
 	} else {
 		regs.stopped = 0;
 	}
-	regs.ird = l >> 16;
 	if (model >= 68010) {
 		regs.dfc = restore_u32 ();
 		regs.sfc = restore_u32 ();
@@ -6406,6 +6409,13 @@ uae_u8 *restore_cpu (uae_u8 *src)
 		regs.pipeline_stop = restore_u16();
 	}
 
+	if (flags & 0x2000000 && currprefs.cpu_model <= 68010) {
+		restore_u32();
+		regs.ird = restore_u16();
+		regs.read_buffer = restore_u16();
+		regs.write_buffer = restore_u16();
+	}
+
 	m68k_reset_sr();
 
 	write_log (_T("CPU: %d%s%03d, PC=%08X\n"),
@@ -6510,6 +6520,8 @@ uae_u8 *save_cpu_trace (int *len, uae_u8 *dstptr)
 	}
 
 	save_u16(cputrace.ird);
+	save_u16(cputrace.read_buffer);
+	save_u16(cputrace.writecounter);
 
 	*len = dst - dstbak;
 	cputrace.needendcycles = 1;
@@ -6600,6 +6612,8 @@ uae_u8 *restore_cpu_trace (uae_u8 *src)
 			}
 			if (v & 64) {
 				cputrace.ird = restore_u16();
+				cputrace.read_buffer = restore_u16();
+				cputrace.write_buffer = restore_u16();
 			}
 		}
 	}
@@ -6686,7 +6700,7 @@ uae_u8 *save_cpu (int *len, uae_u8 *dstptr)
 		dstbak = dst = xmalloc (uae_u8, 1000 + 30000);
 	model = currprefs.cpu_model;
 	save_u32 (model);					/* MODEL */
-	save_u32(0x80000000 | 0x40000000 | 0x20000000 | 0x10000000 | 0x8000000 | 0x4000000 | (currprefs.address_space_24 ? 1 : 0)); /* FLAGS */
+	save_u32(0x80000000 | 0x40000000 | 0x20000000 | 0x10000000 | 0x8000000 | 0x4000000 | 0x2000000 | (currprefs.address_space_24 ? 1 : 0)); /* FLAGS */
 	for (int i = 0;i < 15; i++)
 		save_u32 (regs.regs[i]);		/* D0-D7 A0-A6 */
 	save_u32 (m68k_getpc ());			/* PC */
@@ -6696,7 +6710,7 @@ uae_u8 *save_cpu (int *len, uae_u8 *dstptr)
 	save_u32 (!regs.s ? regs.regs[15] : regs.usp);	/* USP */
 	save_u32 (regs.s ? regs.regs[15] : regs.isp);	/* ISP */
 	save_u16 (regs.sr);								/* SR/CCR */
-	save_u32 ((regs.stopped ? CPUMODE_HALT : 0) | (regs.ird << 16)); /* flags + ird */
+	save_u32 (regs.stopped ? CPUMODE_HALT : 0); /* flags */
 	if (model >= 68010) {
 		save_u32 (regs.dfc);			/* DFC */
 		save_u32 (regs.sfc);			/* SFC */
@@ -6823,6 +6837,12 @@ uae_u8 *save_cpu (int *len, uae_u8 *dstptr)
 		save_u16(regs.pipeline_r8[0]);
 		save_u16(regs.pipeline_r8[1]);
 		save_u16(regs.pipeline_stop);
+	}
+	if (currprefs.cpu_model <= 68010) {
+		save_u32(0);
+		save_u16(regs.ird);
+		save_u16(regs.read_buffer);
+		save_u16(regs.write_buffer);
 	}
 	*len = dst - dstbak;
 	return dstbak;
@@ -9161,6 +9181,7 @@ void fill_prefetch (void)
 		regs.ir = x_get_word (pc);
 		regs.ird = regs.ir;
 		regs.irc = x_get_word (pc + 2);
+		regs.read_buffer = regs.irc;
 	}
 }
 
