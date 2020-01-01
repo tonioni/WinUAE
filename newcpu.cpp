@@ -2333,6 +2333,10 @@ static void exception_check_trace (int nr)
 		*/
 		if (nr == 5 || nr == 6 || nr == 7 || (nr >= 32 && nr <= 47))
 			set_special (SPCFLAG_DOTRACE);
+		// 68010 and RTE format error: trace is not cleared
+		if (nr == 14 && currprefs.cpu_model == 68010)
+			set_special(SPCFLAG_DOTRACE);
+
 	}
 	regs.t1 = regs.t0 = 0;
 }

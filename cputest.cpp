@@ -3882,7 +3882,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 
 							// did we have trace also active?
 							if (SPCFLAG_DOTRACE) {
-								if ((regs.t1 || regs.t0) && (test_exception == 5 || test_exception == 6 || test_exception == 7 || (test_exception >= 32 && test_exception <= 47))) {
+								if ((regs.t1 || regs.t0) && (test_exception == 5 || test_exception == 6 || test_exception == 7 || (test_exception >= 32 && test_exception <= 47) || (cpu_lvl == 1 && test_exception == 14))) {
 									test_exception_extra = 9;
 								} else {
 									test_exception_extra = 0;
