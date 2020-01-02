@@ -725,11 +725,25 @@ static bool movemout (TCHAR *out, uae_u16 mask, int mode, int fpmode, bool dst)
 
 static void disasm_size (TCHAR *instrname, struct instr *dp)
 {
+	int size = dp->size;
 	if (dp->unsized) {
 		_tcscat(instrname, _T(" "));
 		return;
 	}
-	switch (dp->size)
+	int m = dp->mnemo;
+	if (dp->suse && dp->smode == immi &&
+		(m == i_MOVE || m == i_ADD || m == i_ADDA || m == i_SUB || m == i_SUBA)) {
+		_tcscat(instrname, _T("Q"));
+		if (m == i_MOVE)
+			size = -1;
+	}
+	// EXT.B -> EXTB.L
+	if (m == i_EXT && dp->size == sz_byte) {
+		_tcscat(instrname,_T("B"));
+		size = sz_long;
+	}
+
+	switch (size)
 	{
 	case sz_byte:
 		_tcscat (instrname, _T(".B "));
