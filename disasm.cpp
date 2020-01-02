@@ -1251,10 +1251,13 @@ int m68k_asm(TCHAR *sline, uae_u16 *out, uaecptr pc)
 	}
 
 	bool fp = ins[0] == 'F';
+	int tsize = size;
 
 	if (ins[_tcslen(ins) - 1] == 'Q' && _tcslen(ins) > 3 && !fp) {
 		quick = 1;
 		ins[_tcslen(ins) - 1] = 0;
+		if (inssize < 0)
+			tsize = 2;
 	}
 
 	struct mnemolookup *lookup;
@@ -1300,7 +1303,6 @@ int m68k_asm(TCHAR *sline, uae_u16 *out, uaecptr pc)
 
 	int found = 0;
 	int sizemask = 0;
-	int tsize = size;
 	int unsized = 0;
 
 	for (int round = 0; round < 9; round++) {
@@ -1309,10 +1311,6 @@ int m68k_asm(TCHAR *sline, uae_u16 *out, uaecptr pc)
 			return 0;
 
 		if (round == 3) {
-			// Q is always LONG sized
-			if (quick == 1) {
-				tsize = 2;
-			}
 			bool isimm = srcea[0] == '#';
 			if (immrelpc && !isimm) {
 				TCHAR tmp[256];
