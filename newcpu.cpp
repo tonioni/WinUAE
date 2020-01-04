@@ -2584,10 +2584,11 @@ kludge_me_do:
 	newpc |= x_get_word (regs.vbr + 4 * vector_nr + 2); // read low address
 	exception_in_exception = 0;
 	if (newpc & 1) {
-		if (nr == 2 || nr == 3)
-			cpu_halt (CPU_HALT_DOUBLE_FAULT);
-		else
-			exception3_notinstruction(regs.ir, newpc);
+		if (nr == 2 || nr == 3) {
+			cpu_halt(CPU_HALT_DOUBLE_FAULT);
+			return;
+		}
+		exception3_notinstruction(regs.ir, newpc);
 		return;
 	}
 	m68k_setpc (newpc);
@@ -2595,11 +2596,31 @@ kludge_me_do:
 		regs.intmask = nr - 24;
 	branch_stack_push(currpc, currpc);
 	regs.ir = x_get_word (m68k_getpc ()); // prefetch 1
+#if BUS_ERROR_EMULATION
+	if (cpu_bus_error) {
+		if (nr == 2 || nr == 3) {
+			cpu_halt(CPU_HALT_DOUBLE_FAULT);
+			return;
+		}
+		exception2_fetch(regs.irc, 0);
+		return;
+	}
+#endif
 	regs.ird = regs.ir;
 	x_do_cycles (2 * cpucycleunit);
 	regs.ipl_pin = intlev();
 	ipl_fetch();
 	regs.irc = x_get_word (m68k_getpc () + 2); // prefetch 2
+#if BUS_ERROR_EMULATION
+	if (cpu_bus_error) {
+		if (nr == 2 || nr == 3) {
+			cpu_halt(CPU_HALT_DOUBLE_FAULT);
+			return;
+		}
+		exception2_fetch(regs.ir, 2);
+		return;
+	}
+#endif
 #ifdef JIT
 	set_special (SPCFLAG_END_COMPILE);
 #endif
@@ -7004,8 +7025,9 @@ void exception2_write(uae_u32 opcode, uaecptr addr, int size, uae_u32 val, int f
 	Exception(2);
 }
 
-void exception2_fetch(uae_u32 opcode, uaecptr addr)
+void exception2_fetch(uae_u32 opcode, int offset)
 {
+	uaecptr addr = m68k_getpc() + offset;
 	exception2_setup(opcode, addr, true, 1, 2);
 	last_di_for_exception_3 = 0;
 	Exception(2);

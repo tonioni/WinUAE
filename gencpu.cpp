@@ -580,6 +580,7 @@ static void do_instruction_buserror(void)
 {
 	if (!using_bus_error)
 		return;
+
 	if (bus_error_text[0]) {
 		printf("\tif(cpu_bus_error) {\n");
 		if (bus_error_code[0])
@@ -600,13 +601,14 @@ static void check_bus_error_ins(int offset)
 	} else {
 		opcode = "opcode";
 	}
-	sprintf(bus_error_text, "\t\texception2_fetch(%s, m68k_getpci() + %d);\n", opcode, offset);
+	sprintf(bus_error_text, "\t\texception2_fetch(%s, %d);\n", opcode, offset);
 }
 
 static void check_prefetch_bus_error(int offset, int secondprefetchmode)
 {
 	if (!using_bus_error)
 		return;
+
 	if (offset < 0) {
 		if (offset == -1)
 			offset = 0;
@@ -849,12 +851,14 @@ static void fill_prefetch_bcc(void)
 {
 	if (!using_prefetch)
 		return;
+
 	if (using_bus_error) {
 		copy_opcode();
 		if (cpu_level == 0) {
 			printf("\tif(regs.t1) opcode |= 0x10000;\n");
 		}
 	}
+
 	printf("\t%s(%d);\n", prefetch_word, m68k_pc_offset + 2);
 	count_read++;
 	insn_n_cycles += 4;
@@ -984,6 +988,7 @@ static void fill_prefetch_full_000_special(void)
 {
 	if (!using_prefetch)
 		return;
+
 	printf("\t%s(%d);\n", prefetch_word, 0);
 	count_read++;
 	insn_n_cycles += 2;
@@ -1733,8 +1738,32 @@ static void check_bus_error(const char *name, int offset, int write, int size, c
 {
 	int mnemo = g_instr->mnemo;
 
-	// check possible bus error (if 68000/010 and enabled)
 	if (!using_bus_error)
+		return;
+
+	// basic support
+	if ((!using_prefetch && !using_ce) || cpu_level >= 2) {
+
+		fc &= 7;
+		printf("\tif(cpu_bus_error) {\n");
+		if (write) {
+			printf("\t\texception2_write(opcode, %sa + %d, %d, %s, %d);\n",
+				name, offset, size, writevar,
+				(!write && (g_instr->smode == PC16 || g_instr->smode == PC8r)) ||
+				(write && (g_instr->dmode == PC16 || g_instr->dmode == PC8r)) ? 2 : fc);
+		} else {
+			printf("\t\texception2_read(opcode, %sa + %d, %d, %d);\n",
+				name, offset, size,
+				(!write && (g_instr->smode == PC16 || g_instr->smode == PC8r)) ||
+				(write && (g_instr->dmode == PC16 || g_instr->dmode == PC8r)) ? 2 : fc);
+		}
+		write_return_cycles("\t\t", 0);
+		printf("\t}\n");
+		return;
+	}
+
+	// 68000/68010 bus error
+	if (cpu_level >= 2)
 		return;
 	if (!using_prefetch && !using_ce)
 		return;
@@ -1750,7 +1779,7 @@ static void check_bus_error(const char *name, int offset, int write, int size, c
 
 	if (fc == 2) {
 
-		printf("\t\texception2_fetch(opcode, m68k_getpci() + %d);\n", offset);
+		printf("\t\texception2_fetch(opcode, %d);\n", offset);
 
 	} else {
 
@@ -3007,9 +3036,24 @@ static void genamode2x (amodes mode, const char *reg, wordsizes size, const char
 			}
 		} else if (using_ce020 || using_prefetch_020) {
 			switch (size) {
-			case sz_byte: insn_n_cycles += 4; printf("\tuae_s8 %s = %s(%sa);\n", name, srcbx, name); count_read++; break;
-			case sz_word: insn_n_cycles += 4; printf("\tuae_s16 %s = %s(%sa);\n", name, srcwx, name); count_read++; break;
-			case sz_long: insn_n_cycles += 8; printf("\tuae_s32 %s = %s(%sa);\n", name, srclx, name); count_read += 2; break;
+			case sz_byte:
+				insn_n_cycles += 4;
+				printf("\tuae_s8 %s = %s(%sa);\n", name, srcbx, name);
+				count_read++;
+				check_bus_error(name, 0, 0, 0, NULL, 1);
+				break;
+			case sz_word:
+				insn_n_cycles += 4;
+				printf("\tuae_s16 %s = %s(%sa);\n", name, srcwx, name);
+				count_read++;
+				check_bus_error(name, 0, 0, 1, NULL, 1);
+				break;
+			case sz_long:
+				insn_n_cycles += 8;
+				printf("\tuae_s32 %s = %s(%sa);\n", name, srclx, name);
+				count_read += 2;
+				check_bus_error(name, 0, 0, 2, NULL, 1);
+				break;
 			default: term ();
 			}
 		} else if (using_ce || using_prefetch) {
@@ -3052,9 +3096,24 @@ static void genamode2x (amodes mode, const char *reg, wordsizes size, const char
 			}
 		} else {
 			switch (size) {
-			case sz_byte: insn_n_cycles += 4; printf("\tuae_s8 %s = %s(%sa);\n", name, srcbx, name); count_read++; break;
-			case sz_word: insn_n_cycles += 4; printf("\tuae_s16 %s = %s(%sa);\n", name, srcwx, name); count_read++; break;
-			case sz_long: insn_n_cycles += 8; printf("\tuae_s32 %s = %s(%sa);\n", name, srclx, name); count_read += 2; break;
+			case sz_byte:
+				insn_n_cycles += 4;
+				printf("\tuae_s8 %s = %s(%sa);\n", name, srcbx, name);
+				count_read++;
+				check_bus_error(name, 0, 0, 0, NULL, 1);
+				break;
+			case sz_word:
+				insn_n_cycles += 4;
+				printf("\tuae_s16 %s = %s(%sa);\n", name, srcwx, name);
+				count_read++;
+				check_bus_error(name, 0, 0, 1, NULL, 1);
+				break;
+			case sz_long:
+				insn_n_cycles += 8;
+				printf("\tuae_s32 %s = %s(%sa);\n", name, srclx, name);
+				count_read += 2;
+				check_bus_error(name, 0, 0, 2, NULL, 1);
+				break;
 			default: term ();
 			}
 		}
@@ -3272,18 +3331,21 @@ static void genastore_2 (const char *from, amodes mode, const char *reg, wordsiz
 			case sz_byte:
 				printf("\t%s(%sa, %s);\n", dstbx, to, from);
 				count_write++;
+				check_bus_error(to, 0, 1, 0, from, 1);
 				break;
 			case sz_word:
 				if (cpu_level < 2 && (mode == PC16 || mode == PC8r))
 					term ();
 				printf("\t%s(%sa, %s);\n", dstwx, to, from);
 				count_write++;
+				check_bus_error(to, 0, 1, 1, from, 1);
 				break;
 			case sz_long:
 				if (cpu_level < 2 && (mode == PC16 || mode == PC8r))
 					term ();
 				printf("\t%s(%sa, %s);\n", dstlx, to, from);
 				count_write += 2;
+				check_bus_error(to, 0, 1, 2, from, 1);
 				break;
 			default:
 				term ();
@@ -3395,6 +3457,7 @@ static void genastore_2 (const char *from, amodes mode, const char *reg, wordsiz
 				insn_n_cycles += 4;
 				printf("\t%s(%sa, %s);\n", dstbx, to, from);
 				count_write++;
+				check_bus_error(to, 0, 1, 0, from, 1);
 				break;
 			case sz_word:
 				insn_n_cycles += 4;
@@ -3402,6 +3465,7 @@ static void genastore_2 (const char *from, amodes mode, const char *reg, wordsiz
 					term ();
 				printf("\t%s(%sa, %s);\n", dstwx, to, from);
 				count_write++;
+				check_bus_error(to, 0, 1, 1, from, 1);
 				break;
 			case sz_long:
 				insn_n_cycles += 8;
@@ -3409,6 +3473,7 @@ static void genastore_2 (const char *from, amodes mode, const char *reg, wordsiz
 					term ();
 				printf("\t%s(%sa, %s);\n", dstlx, to, from);
 				count_write += 2;
+				check_bus_error(to, 0, 1, 2, from, 1);
 				break;
 			default:
 				term ();
@@ -3744,12 +3809,16 @@ static void genmovemel (uae_u16 opcode)
 		movem_mmu040 (getcode, size, false, table68k[opcode].dmode == Aipi, false, opcode);
 	} else {
 		printf("\twhile (dmask) {\n");
-		printf("\t\tm68k_dreg(regs, movem_index1[dmask]) = %s; srca += %d; dmask = movem_next[dmask];\n", getcode, size);
-		//addcycles_ce020 (1);
+		printf("\t\tm68k_dreg(regs, movem_index1[dmask]) = %s;\n", getcode);
+		check_bus_error("src", 0, 0, table68k[opcode].size, NULL, 1);
+		printf("\t\tsrca += %d;\n", size);
+		printf("\t\tdmask = movem_next[dmask];\n");
 		printf("\t}\n");
 		printf("\twhile (amask) {\n");
-		printf("\t\tm68k_areg(regs, movem_index1[amask]) = %s; srca += %d; amask = movem_next[amask];\n", getcode, size);
-		//addcycles_ce020 (1);
+		printf("\t\tm68k_areg(regs, movem_index1[amask]) = %s;\n", getcode);
+		check_bus_error("src", 0, 0, table68k[opcode].size, NULL, 1);
+		printf("\t\tsrca += %d;\n", size);
+		printf("\t\tamask = movem_next[amask];\n");
 		printf("\t}\n");
 		if (table68k[opcode].dmode == Aipi) {
 			printf("\tm68k_areg(regs, dstreg) = srca;\n");
@@ -3863,22 +3932,40 @@ static void genmovemle (uae_u16 opcode)
 			printf("\twhile (amask) {\n");
 			printf("\t\tsrca -= %d;\n", size);
 
-			printf("\t\tif (!type || movem_index2[amask] != dstreg)\n");
+			printf("\t\tif (!type || movem_index2[amask] != dstreg) {\n");
 			printf("\t\t\t%s, m68k_areg(regs, movem_index2[amask]));\n", putcode);
-			printf("\t\telse\n");
+			check_bus_error("src", 0, 1, table68k[opcode].size, "m68k_areg(regs, movem_index2[amask])", 1);
+			printf("\t\t} else {\n");
 			printf("\t\t\t%s, m68k_areg(regs, movem_index2[amask]) - %d);\n", putcode, size);
-
+			if (size == 4) {
+				check_bus_error("src", 0, 1, table68k[opcode].size, "m68k_areg(regs, movem_index2[amask]) - 4", 1);
+			} else {
+				check_bus_error("src", 0, 1, table68k[opcode].size, "m68k_areg(regs, movem_index2[amask]) - 2", 1);
+			}
+			printf("\t\t}\n");
 			printf("\t\tamask = movem_next[amask];\n");
 			printf("\t}\n");
-			printf("\twhile (dmask) { srca -= %d; %s, m68k_dreg(regs, movem_index2[dmask])); dmask = movem_next[dmask]; }\n",
-				size, putcode);
+			printf("\twhile (dmask) {\n");
+			printf("\t\tsrca -= %d;\n", size);
+			printf("\t\t%s, m68k_dreg(regs, movem_index2[dmask]));\n", putcode);
+			check_bus_error("src", 0, 1, table68k[opcode].size, "m68k_dreg(regs, movem_index2[dmask])", 1);
+			printf("\t\tdmask = movem_next[dmask];\n");
+			printf("\t}\n");
 			printf("\tm68k_areg(regs, dstreg) = srca;\n");
 		} else {
 			printf("\tuae_u16 dmask = mask & 0xff, amask = (mask >> 8) & 0xff;\n");
-			printf("\twhile (dmask) { %s, m68k_dreg(regs, movem_index1[dmask])); srca += %d; dmask = movem_next[dmask]; }\n",
-				putcode, size);
-			printf("\twhile (amask) { %s, m68k_areg(regs, movem_index1[amask])); srca += %d; amask = movem_next[amask]; }\n",
-				putcode, size);
+			printf("\twhile (dmask) {\n");
+			printf("\t\t%s, m68k_dreg(regs, movem_index1[dmask]));\n", putcode);
+			check_bus_error("src", 0, 1, table68k[opcode].size, "m68k_dreg(regs, movem_index1[dmask])", 1);
+			printf("\t\tsrca += %d;\n", size);
+			printf("\t\tdmask = movem_next[dmask];\n");
+			printf("\t}\n");
+			printf("\twhile (amask) {\n");
+			printf("\t\t%s, m68k_areg(regs, movem_index1[amask]));\n", putcode);
+			check_bus_error("src", 0, 1, table68k[opcode].size, "m68k_areg(regs, movem_index1[amask])", 1);
+			printf("\t\tsrca += %d;\n", size);
+			printf("\t\tamask = movem_next[amask];\n");
+			printf("\t}\n");
 		}
 	}
 	count_ncycles++;
@@ -6525,7 +6612,7 @@ bccl_not68020:
 			printf("\tint val = cctrue(%d) ? 0xff : 0x00;\n", curi->cc);
 			if (using_ce)
 				printf("\tint cycles = val ? 2 : 0;\n");
-			if (using_bus_error) {
+			if (using_bus_error && cpu_level <= 1) {
 				printf("\tif (!val) {\n");
 				genastore("val", curi->smode, "srcreg", curi->size, "src");
 				printf("\t}\n");
