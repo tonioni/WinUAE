@@ -2453,6 +2453,8 @@ Interrupt:
 
 */
 
+static void exception3f(uae_u32 opcode, uaecptr addr, bool writeaccess, bool instructionaccess, bool notinstruction, uaecptr pc, int size, bool plus2, int fc);
+
 static int iack_cycle(int nr)
 {
 	int vector;
@@ -2588,7 +2590,19 @@ kludge_me_do:
 			cpu_halt(CPU_HALT_DOUBLE_FAULT);
 			return;
 		}
-		exception3_notinstruction(regs.ir, newpc);
+		if (currprefs.cpu_model == 68000) {
+			// if exception vector is odd:
+			// opcode is last opcode executed, address is address of exception vector
+			// pc is last prefetch address
+			exception3b(regs.opcode, newpc, false, true, regs.vbr + 4 * vector_nr);
+		} else if (currprefs.cpu_model == 68010) {
+			regs.write_buffer = regs.vbr + 4 * vector_nr;
+			regs.read_buffer = newpc;
+			regs.irc = regs.read_buffer;
+			exception3b(regs.opcode, newpc, false, true, newpc);
+		} else {
+			exception3_notinstruction(regs.ir, newpc);
+		}
 		return;
 	}
 	m68k_setpc (newpc);
@@ -3010,10 +3024,20 @@ kludge_me_do:
 	newpc = x_get_long (regs.vbr + 4 * vector_nr);
 	exception_in_exception = 0;
 	if (newpc & 1) {
-		if (nr == 2 || nr == 3)
-			cpu_halt (CPU_HALT_DOUBLE_FAULT);
-		else
+		if (nr == 2 || nr == 3) {
+			cpu_halt(CPU_HALT_DOUBLE_FAULT);
+			return;
+		}
+		if (currprefs.cpu_model == 68000) {
+			exception3b(regs.opcode, newpc, false, true, regs.vbr + 4 * vector_nr);
+		} else if (currprefs.cpu_model == 68010) {
+			regs.write_buffer = regs.vbr + 4 * vector_nr;
+			regs.read_buffer = newpc;
+			regs.irc = regs.read_buffer;
+			exception3b(regs.opcode, newpc, false, true, newpc);
+		} else {
 			exception3_notinstruction(regs.ir, newpc);
+		}
 		return;
 	}
 	if (interrupt)
