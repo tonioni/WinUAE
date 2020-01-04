@@ -113,7 +113,7 @@ void mmu_op(uae_u32 opcode, uae_u32 extra)
 
 uae_u16 mmu030_state[3];
 int mmu030_opcode;
-int mmu030_idx;
+int mmu030_idx, mmu030_idx_done;
 uae_u32 mmu030_disp_store[2];
 uae_u32 mmu030_fmovem_store[2];
 uae_u32 mm030_stageb_address;

@@ -919,11 +919,11 @@ uae_u32 REGPARAM2 op_illg(uae_u32 opcode)
 	return op_illg_1(opcode);
 }
 
-void exception2_fetch(uae_u32 opcode, uaecptr addr)
+void exception2_fetch(uae_u32 opcode, int offset)
 {
 	test_exception = 2;
 	test_exception_3_w = 0;
-	test_exception_addr = addr;
+	test_exception_addr = m68k_getpci() + offset;
 	test_exception_opcode = opcode;
 	test_exception_3_fc = 2;
 	test_exception_3_size = 1;
