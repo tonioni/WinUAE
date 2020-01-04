@@ -16,7 +16,7 @@ extern uae_u16 mmusr_030;
 
 #define MAX_MMU030_ACCESS 9
 extern uae_u32 mm030_stageb_address;
-extern int mmu030_idx;
+extern int mmu030_idx, mmu030_idx_done;
 extern bool mmu030_retry;
 extern int mmu030_opcode, mmu030_opcode_stageb;
 extern int mmu030_fake_prefetch;
@@ -46,7 +46,6 @@ extern uae_u8 mmu030_cache_state, mmu030_cache_state_default;
 
 struct mmu030_access
 {
-	bool done;
 	uae_u32 val;
 };
 extern struct mmu030_access mmu030_ad[MAX_MMU030_ACCESS + 1];
@@ -261,41 +260,41 @@ static ALWAYS_INLINE void uae_mmu030_put_byte_fcx(uaecptr addr, uae_u32 val, int
 	mmu030_put_byte(addr, val, fc);
 }
 
-
 #define ACCESS_CHECK_PUT \
-	if (!mmu030_ad[mmu030_idx].done) { \
-		mmu030_data_buffer_out = v; \
-	} else { \
-		mmu030_idx++; \
+	if (mmu030_idx++ < mmu030_idx_done) { \
 		return; \
+	} else { \
+		mmu030_data_buffer_out = v; \
 	}
 
 #define ACCESS_CHECK_GET \
-	if (mmu030_ad[mmu030_idx].done) { \
-		v = mmu030_ad[mmu030_idx].val; \
-		mmu030_idx++; \
+	if (mmu030_idx++ < mmu030_idx_done) { \
+		v = mmu030_ad[mmu030_idx - 1].val; \
 		return v; \
 	}
 
 #define ACCESS_CHECK_GET_PC(pc) \
-	if (mmu030_ad[mmu030_idx].done) { \
-		v = mmu030_ad[mmu030_idx].val; \
-		mmu030_idx++; \
-		m68k_incpci (pc); \
+	if (mmu030_idx++ < mmu030_idx_done) { \
+		v = mmu030_ad[mmu030_idx - 1].val; \
+		m68k_incpci(pc); \
 		return v; \
 	}
 
 #define ACCESS_EXIT_PUT \
-	mmu030_ad[mmu030_idx].val = mmu030_data_buffer_out; \
-	mmu030_ad[mmu030_idx].done = true; \
-	mmu030_idx++; \
-	mmu030_ad[mmu030_idx].done = false;
+	mmu030_ad[mmu030_idx_done++].val = mmu030_data_buffer_out;
 
 #define ACCESS_EXIT_GET \
-	mmu030_ad[mmu030_idx].val = v; \
-	mmu030_ad[mmu030_idx].done = true; \
-	mmu030_idx++; \
-	mmu030_ad[mmu030_idx].done = false;
+	mmu030_ad[mmu030_idx_done++].val = v;
+
+STATIC_INLINE uae_u32 state_store_mmu030(uae_u32 v)
+{
+	if (mmu030_idx++ < mmu030_idx_done) {
+		v = mmu030_ad[mmu030_idx - 1].val;
+	} else {
+		mmu030_ad[mmu030_idx_done++].val = v;
+	}
+	return v;
+}
 
 // non-cache
 
@@ -602,20 +601,6 @@ STATIC_INLINE uae_u32 next_ilong_mmu030 (void)
 	return v;
 }
 
-STATIC_INLINE uae_u32 state_store_mmu030(uae_u32 v)
-{
-	if (mmu030_ad[mmu030_idx].done) {
-		v = mmu030_ad[mmu030_idx].val;
-		mmu030_idx++;
-	} else {
-		mmu030_ad[mmu030_idx].val = v;
-		mmu030_ad[mmu030_idx].done = true;
-		mmu030_idx++;
-		mmu030_ad[mmu030_idx].done = false;
-	}
-	return v;
-}
-
 extern void m68k_do_rts_mmu030 (void);
 extern void m68k_do_rte_mmu030 (uaecptr a7);
 extern void flush_mmu030 (uaecptr, int);
@@ -651,7 +636,7 @@ static ALWAYS_INLINE void mmu030_put_fc_long(uaecptr addr, uae_u32 val, uae_u32 
 static ALWAYS_INLINE uae_u32 sfc030c_get_long(uaecptr addr)
 {
 #if MMUDEBUG > 2
-	write_log(_T("sfc030_get_long: FC = %i\n"),fc);
+	write_log(_T("sfc030_get_long: FC = %i\n"), regs.sfc);
 #endif
 	return read_data_030_fc_lget(addr, regs.sfc);
 }
@@ -659,7 +644,7 @@ static ALWAYS_INLINE uae_u32 sfc030c_get_long(uaecptr addr)
 static ALWAYS_INLINE uae_u16 sfc030c_get_word(uaecptr addr)
 {
 #if MMUDEBUG > 2
-	write_log(_T("sfc030_get_word: FC = %i\n"),fc);
+	write_log(_T("sfc030_get_word: FC = %i\n"), regs.sfc);
 #endif
 	return read_data_030_fc_wget(addr, regs.sfc);
 }
@@ -667,7 +652,7 @@ static ALWAYS_INLINE uae_u16 sfc030c_get_word(uaecptr addr)
 static ALWAYS_INLINE uae_u8 sfc030c_get_byte(uaecptr addr)
 {
 #if MMUDEBUG > 2
-	write_log(_T("sfc030_get_byte: FC = %i\n"),fc);
+	write_log(_T("sfc030_get_byte: FC = %i\n"), regs.sfc);
 #endif
 	return read_data_030_fc_bget(addr, regs.sfc);
 }
@@ -675,7 +660,7 @@ static ALWAYS_INLINE uae_u8 sfc030c_get_byte(uaecptr addr)
 static ALWAYS_INLINE void dfc030c_put_long(uaecptr addr, uae_u32 val)
 {
 #if MMUDEBUG > 2
-	write_log(_T("dfc030_put_long: %08X = %08X FC = %i\n"), addr, val, fc);
+	write_log(_T("dfc030_put_long: %08X = %08X FC = %i\n"), addr, val, regs.dfc);
 #endif
 	write_data_030_fc_lput(addr, val, regs.dfc);
 }
@@ -683,7 +668,7 @@ static ALWAYS_INLINE void dfc030c_put_long(uaecptr addr, uae_u32 val)
 static ALWAYS_INLINE void dfc030c_put_word(uaecptr addr, uae_u16 val)
 {
 #if MMUDEBUG > 2
-	write_log(_T("dfc030_put_word: %08X = %04X FC = %i\n"), addr, val, fc);
+	write_log(_T("dfc030_put_word: %08X = %04X FC = %i\n"), addr, val, regs.dfc);
 #endif
 	write_data_030_fc_wput(addr, val, regs.dfc);
 }
@@ -691,7 +676,7 @@ static ALWAYS_INLINE void dfc030c_put_word(uaecptr addr, uae_u16 val)
 static ALWAYS_INLINE void dfc030c_put_byte(uaecptr addr, uae_u8 val)
 {
 #if MMUDEBUG > 2
-	write_log(_T("dfc030_put_byte: %08X = %02X FC = %i\n"), addr, val, fc);
+	write_log(_T("dfc030_put_byte: %08X = %02X FC = %i\n"), addr, val, regs.dfc);
 #endif
 	write_data_030_fc_bput(addr, val, regs.dfc);
 }

@@ -1410,7 +1410,7 @@ void Exception_build_stack_frame(uae_u32 oldpc, uae_u32 currpc, uae_u32 ssw, int
 		if (!(ssw & MMU030_SSW_RW)) {
 			mmu030_ad[mmu030_idx].val = regs.wb3_data;
 		}
-		for (i = 0; i < mmu030_idx + 1; i++) {
+		for (i = 0; i < mmu030_idx_done; i++) {
 			m68k_areg(regs, 7) -= 4;
 			x_put_long(m68k_areg(regs, 7), mmu030_ad[i].val);
 		}
@@ -1434,7 +1434,7 @@ void Exception_build_stack_frame(uae_u32 oldpc, uae_u32 currpc, uae_u32 ssw, int
 		}
 		// version & internal information (We store index here)
 		m68k_areg(regs, 7) -= 2;
-		x_put_word(m68k_areg(regs, 7), mmu030_idx);
+		x_put_word(m68k_areg(regs, 7), (mmu030_idx & 0xff) | ((mmu030_idx_done & 0xff) << 8));
 		// 3* internal registers
 		m68k_areg(regs, 7) -= 2;
 		x_put_word(m68k_areg(regs, 7), mmu030_state[2]);
