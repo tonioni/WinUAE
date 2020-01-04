@@ -1048,9 +1048,13 @@ static void loopmode_end(void)
 {
 	if (loopmode) {
 		int m = g_instr->mnemo;
-		if (g_instr->dmode == Apdi || m != i_MOVE) {
+		if (using_ce && (g_instr->dmode == Apdi || (m != i_MOVE && m != i_CLR))) {
 			printf("\t} else {\n");
-			addcycles000(2);
+			if (m == i_ASLW || m == i_ASRW || m == i_LSLW || m == i_LSRW || m == i_ROLW || m == i_RORW || m == i_ROXLW || m == i_ROXRW) {
+				addcycles000(4);
+			} else {
+				addcycles000(2);
+			}
 		}
 		printf("\t}\n");
 	}
@@ -5753,7 +5757,7 @@ static void gen_opcode (unsigned int opcode)
 			printf("\tuae_u32 pc = %s(a + 2) << 16;\n", srcw);
 			count_read++;
 			check_bus_error("", 2, 0, 1, NULL, 1);
-			printf("\tpc |= % s(a + 4); \n", srcw);
+			printf("\tpc |= %s(a + 4); \n", srcw);
 			count_read++;
 			check_bus_error("", 4, 0, 1, NULL, 1);
 		    pop_braces (old_brace_level);
@@ -6357,7 +6361,9 @@ static void gen_opcode (unsigned int opcode)
 		pop_ins_cnt();
 		printf("\t}\n");
 		sync_m68k_pc ();
-		addcycles000 (2);
+		if (cpu_level != 1 || curi->size != sz_byte) {
+			addcycles000(2);
+		}
 		get_prefetch_020_continue ();
 		if (curi->size == sz_byte) {
 			irc2ir ();
@@ -6374,6 +6380,7 @@ static void gen_opcode (unsigned int opcode)
 		branch_inst = 1;
 bccl_not68020:
 		next_level_040_to_030();
+		next_level_000();
 		break;
 	case i_LEA:
 		if (curi->smode == Ad8r || curi->smode == PC8r)

@@ -892,7 +892,7 @@ static int isreg(amodes mode)
 
 bool opcode_loop_mode(uae_u16 opcode)
 {
-	instr *c = &table68k[opcode];
+	struct instr *c = &table68k[opcode];
 	bool loopmode = false;
 	int i;
 	for (i = 0; lookuptab[i].name[0]; i++) {
