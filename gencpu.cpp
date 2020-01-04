@@ -255,11 +255,24 @@ static bool needmmufixup(void)
 	return true;
 }
 
-static void addmmufixup(const char *reg)
+static void addmmufixup(const char *reg, int size, int mode)
 {
 	if (!needmmufixup())
 		return;
-	printf("\tmmufixup[%d].reg = %s;\n", mmufixupcnt, reg);
+	int flags = 0;
+	if (cpu_level == 3 && size >= 0 && mode >= 0) {
+		if (mode == Aipi) {
+			flags |= 0x100;
+		} else if (mode == Apdi) {
+			flags |= 0x200;
+		}
+		if (size == sz_long) {
+			flags |= 0x800;
+		} else if (size == sz_word) {
+			flags |= 0x400;
+		}
+	}
+	printf("\tmmufixup[%d].reg = %s | 0x%x;\n", mmufixupcnt, reg, flags);
 	printf("\tmmufixup[%d].value = m68k_areg(regs, %s);\n", mmufixupcnt, reg);
 	mmufixupstate |= 1 << mmufixupcnt;
 	mmufixupcnt++;
@@ -3013,6 +3026,10 @@ static void genamode2x (amodes mode, const char *reg, wordsizes size, const char
 	else if (flags & GF_IR2IRC)
 		irc2ir (true);
 
+	if (!movem && (mode == Aipi || mode == Apdi)) {
+		addmmufixup(reg, size, mode);
+	}
+
 	if (getv == 1) {
 		const char *srcbx = !(flags & GF_FC) ? srcb : "sfc_nommu_get_byte";
 		const char *srcwx = !(flags & GF_FC) ? srcw : "sfc_nommu_get_word";
@@ -3123,10 +3140,9 @@ static void genamode2x (amodes mode, const char *reg, wordsizes size, const char
 
 	/* We now might have to fix up the register for pre-dec or post-inc
 	* addressing modes. */
-	if (!movem)
+	if (!movem) {
 		switch (mode) {
 		case Aipi:
-			addmmufixup (reg);
 			switch (size) {
 			case sz_byte:
 				printf("\tm68k_areg(regs, %s) += areg_byteinc[%s];\n", reg, reg);
@@ -3138,15 +3154,15 @@ static void genamode2x (amodes mode, const char *reg, wordsizes size, const char
 				printf("\tm68k_areg(regs, %s) += 4;\n", reg);
 				break;
 			default:
-				term ();
+				term();
 			}
 			break;
 		case Apdi:
-			addmmufixup (reg);
 			printf("\tm68k_areg(regs, %s) = %sa;\n", reg, name);
 			break;
 		default:
 			break;
+		}
 	}
 
 	if (movem == 3) {
@@ -6005,7 +6021,7 @@ static void gen_opcode (unsigned int opcode)
 		// ce confirmed
 		// 68040 uses different order than other CPU models.
 		if (using_mmu) {
-			addmmufixup("srcreg");
+			addmmufixup("srcreg", -1, -1);
 			genamode(NULL, curi->dmode, "dstreg", curi->size, "offs", GENA_GETV_FETCH, GENA_MOVEM_DO_INC, 0);
 			if (cpu_level == 4) {
 				genamode(NULL, Apdi, "7", sz_long, "old", GENA_GETV_FETCH_ALIGN, GENA_MOVEM_DO_INC, 0);
@@ -7557,11 +7573,11 @@ bccl_not68020:
 			printf("\tm68k_dreg(regs, dstreg) = (m68k_dreg(regs, dstreg) & 0xffffff00) | ((val >> 4) & 0xf0) | (val & 0xf);\n");
 		} else {
 			printf("\tuae_u16 val;\n");
-			addmmufixup ("srcreg");
+			addmmufixup("srcreg", curi->size, curi->smode);
 			printf("\tm68k_areg(regs, srcreg) -= 2;\n");
 			printf("\tval = (uae_u16)(%s(m68k_areg(regs, srcreg)));\n", srcw);
 			printf("\tval += %s;\n", gen_nextiword(0));
-			addmmufixup ("dstreg");
+			addmmufixup("dstreg", curi->size, curi->dmode);
 			printf("\tm68k_areg(regs, dstreg) -= areg_byteinc[dstreg];\n");
 			gen_set_fault_pc (false, false);
 			printf("\t%s(m68k_areg(regs, dstreg),((val >> 4) & 0xf0) | (val & 0xf));\n", dstb);
@@ -7575,11 +7591,11 @@ bccl_not68020:
 			printf("\tm68k_dreg(regs, dstreg) = (m68k_dreg(regs, dstreg) & 0xffff0000) | (val & 0xffff);\n");
 		} else {
 			printf("\tuae_u16 val;\n");
-			addmmufixup ("srcreg");
+			addmmufixup ("srcreg", curi->size, curi->smode);
 			printf("\tm68k_areg(regs, srcreg) -= areg_byteinc[srcreg];\n");
 			printf("\tval = (uae_u16)(%s(m68k_areg(regs, srcreg)) & 0xff);\n", srcb);
 			printf("\tval = (((val << 4) & 0xf00) | (val & 0xf)) + %s;\n", gen_nextiword (0));
-			addmmufixup ("dstreg");
+			addmmufixup ("dstreg", curi->size, curi->dmode);
 			printf("\tm68k_areg(regs, dstreg) -= 2;\n");
 			gen_set_fault_pc(false, false);
 			printf("\t%s(m68k_areg(regs, dstreg), val);\n", dstw);

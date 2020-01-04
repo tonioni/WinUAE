@@ -1563,11 +1563,11 @@ void Exception_build_68000_address_error_stack_frame(uae_u16 mode, uae_u16 opcod
 void cpu_restore_fixup(void)
 {
 	if (mmufixup[0].reg >= 0) {
-		m68k_areg(regs, mmufixup[0].reg) = mmufixup[0].value;
+		m68k_areg(regs, mmufixup[0].reg & 15) = mmufixup[0].value;
 		mmufixup[0].reg = -1;
 	}
 	if (mmufixup[1].reg >= 0) {
-		m68k_areg(regs, mmufixup[1].reg) = mmufixup[1].value;
+		m68k_areg(regs, mmufixup[1].reg & 15) = mmufixup[1].value;
 		mmufixup[1].reg = -1;
 	}
 }

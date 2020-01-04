@@ -1760,6 +1760,22 @@ static void dump_opcode(uae_u16 opcode)
 }
 #endif
 
+// if CPU is 68030 and faulted access' addressing mode was -(an) or (an)+
+// register content is not restored when exception starts.
+static void mmu030fixupreg(int i)
+{
+	struct mmufixup *m = &mmufixup[i];
+	if (m->reg < 0)
+		return;
+	int size = 1 << ((m->reg >> 10) & 3);
+	if (m->reg & 0x100) {
+		m68k_areg(regs, m->reg & 15) += size;
+	}
+	if (m->reg & 0x200) {
+		m68k_areg(regs, m->reg & 15) -= size;
+	}
+}
+
 void mmu030_page_fault(uaecptr addr, bool read, int flags, uae_u32 fc)
 {
 	if (flags < 0) {
@@ -1783,6 +1799,10 @@ void mmu030_page_fault(uaecptr addr, bool read, int flags, uae_u32 fc)
 			}
 		} else {
 			regs.mmu_ssw = MMU030_SSW_FB | MMU030_SSW_RB;
+		}
+		if (!(mmu030_state[1] & MMU030_STATEFLAG1_LASTWRITE)) {
+			mmu030fixupreg(0);
+			mmu030fixupreg(1);
 		}
 	}
 	regs.mmu_ssw |= read ? MMU030_SSW_RW : 0;
