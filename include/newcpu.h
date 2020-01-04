@@ -809,6 +809,7 @@ extern uae_u32 val_move2c (int regno);
 extern void val_move2c2 (int regno, uae_u32 val);
 struct cpum2c {
 	int regno;
+	int flags;
 	const TCHAR *regname;
 };
 extern struct cpum2c m2cregs[];

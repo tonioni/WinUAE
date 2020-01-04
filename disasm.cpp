@@ -12,25 +12,25 @@
 
 
 struct cpum2c m2cregs[] = {
-	{ 0, _T("SFC") },
-	{ 1, _T("DFC") },
-	{ 2, _T("CACR") },
-	{ 3, _T("TC") },
-	{ 4, _T("ITT0") },
-	{ 5, _T("ITT1") },
-	{ 6, _T("DTT0") },
-	{ 7, _T("DTT1") },
-	{ 8, _T("BUSC") },
-	{ 0x800, _T("USP") },
-	{ 0x801, _T("VBR") },
-	{ 0x802, _T("CAAR") },
-	{ 0x803, _T("MSP") },
-	{ 0x804, _T("ISP") },
-	{ 0x805, _T("MMUS") },
-	{ 0x806, _T("URP") },
-	{ 0x807, _T("SRP") },
-	{ 0x808, _T("PCR") },
-    { -1, NULL }
+	{ 0, 31, _T("SFC") },
+	{ 1, 31, _T("DFC") },
+	{ 2, 30, _T("CACR") },
+	{ 3, 24, _T("TC") },
+	{ 4, 24, _T("ITT0") },
+	{ 5, 24, _T("ITT1") },
+	{ 6, 24, _T("DTT0") },
+	{ 7, 24, _T("DTT1") },
+	{ 8, 16, _T("BUSC") },
+	{ 0x800, 31, _T("USP") },
+	{ 0x801, 31, _T("VBR") },
+	{ 0x802,  6, _T("CAAR") },
+	{ 0x803, 15, _T("MSP") },
+	{ 0x804, 31, _T("ISP") },
+	{ 0x805,  8, _T("MMUS") },
+	{ 0x806, 12, _T("URP") },
+	{ 0x807, 12, _T("SRP") },
+	{ 0x808, 16, _T("PCR") },
+    { -1, 0, NULL }
 };
 
 const TCHAR *fpsizes[] = {
@@ -1696,6 +1696,11 @@ uae_u32 m68k_disasm_2 (TCHAR *buf, int bufsize, uaecptr pc, uaecptr *nextpc, int
 				_tcscat(instrname, _T(","));
 				_tcscat(instrname, regs);
 			}
+			int lvl = (currprefs.cpu_model - 68000) / 10;
+			if (lvl == 6)
+				lvl = 5;
+			if (lvl < 1 || !(m2cregs[j].flags & (1 << (lvl - 1))))
+				illegal = true;
 			pc += 2;
 		} else if (lookup->mnemo == i_CHK2) {
 			TCHAR *p;
