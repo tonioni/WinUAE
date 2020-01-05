@@ -2842,7 +2842,7 @@ void m68k_do_rte_mmu030 (uaecptr a7)
 		uae_u16 v = get_word_mmu030(a7 + 0x36);
 		idxsize = v & 0xff;
 		idxsize_done = (v >> 8) & 0xff;
-		for (int i = 0; i < idxsize_done; i++) {
+		for (int i = 0; i < idxsize_done + 1; i++) {
 			mmu030_ad_v[i].val = get_long_mmu030(a7 + 0x5c - (i + 1) * 4);
 		}
 
@@ -2860,8 +2860,9 @@ void m68k_do_rte_mmu030 (uaecptr a7)
 			} else {
 				if (ssw & MMU030_SSW_RW) {
 					// Read and no DF: use value in data input buffer
-					mmu030_ad_v[idxsize_done++].val = mmu030_data_buffer_in_v;
-				}
+					mmu030_ad_v[idxsize_done].val = mmu030_data_buffer_in_v;
+				} // else: use value idxsize_done that was saved from regs.wb3_data;
+				idxsize_done++;
 			}
 			unalign_clear();
 		}
@@ -2897,7 +2898,7 @@ void m68k_do_rte_mmu030 (uaecptr a7)
 		mmu030_data_buffer_out = mmu030_data_buffer_out_v;
 		mmu030_idx = idxsize;
 		mmu030_idx_done = idxsize_done;
-		for (int i = 0; i < idxsize_done; i++) {
+		for (int i = 0; i < idxsize_done + 1; i++) {
 			mmu030_ad[i].val = mmu030_ad_v[i].val;
 		}
 
@@ -3289,7 +3290,7 @@ void m68k_do_rte_mmu030c (uaecptr a7)
 		uae_u16 v = get_word_mmu030c(a7 + 0x36);
 		idxsize = v & 0xff;
 		idxsize_done = (v >> 8) & 0xff;
-		for (int i = 0; i < idxsize_done; i++) {
+		for (int i = 0; i < idxsize_done + 1; i++) {
 			mmu030_ad_v[i].val = get_long_mmu030c(a7 + 0x5c - (i + 1) * 4);
 		}
 
@@ -3307,8 +3308,9 @@ void m68k_do_rte_mmu030c (uaecptr a7)
 			} else {
 				if (ssw & MMU030_SSW_RW) {
 					// Read and no DF: use value in data input buffer
-					mmu030_ad_v[idxsize_done++].val = mmu030_data_buffer_in_v;
+					mmu030_ad_v[idxsize_done].val = mmu030_data_buffer_in_v;
 				}
+				idxsize_done++;
 			}
 			unalign_clear();
 		}
@@ -3353,7 +3355,7 @@ void m68k_do_rte_mmu030c (uaecptr a7)
 		mmu030_data_buffer_out = mmu030_data_buffer_out_v;
 		mmu030_idx = idxsize;
 		mmu030_idx_done = idxsize_done;
-		for (int i = 0; i < idxsize_done; i++) {
+		for (int i = 0; i < idxsize_done + 1; i++) {
 			mmu030_ad[i].val = mmu030_ad_v[i].val;
 		}
 

@@ -1408,9 +1408,11 @@ void Exception_build_stack_frame(uae_u32 oldpc, uae_u32 currpc, uae_u32 ssw, int
 		}
 #endif
 		if (!(ssw & MMU030_SSW_RW)) {
-			mmu030_ad[mmu030_idx].val = regs.wb3_data;
+			// written value that caused fault but was not yet written to memory
+			// this value is used in cpummu030 when write is retried.
+			mmu030_ad[mmu030_idx_done].val = regs.wb3_data;
 		}
-		for (i = 0; i < mmu030_idx_done; i++) {
+		for (i = 0; i < mmu030_idx_done + 1; i++) {
 			m68k_areg(regs, 7) -= 4;
 			x_put_long(m68k_areg(regs, 7), mmu030_ad[i].val);
 		}
