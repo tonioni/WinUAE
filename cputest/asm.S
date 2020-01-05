@@ -1,6 +1,7 @@
 
 	.text
 
+	.globl _callinflate
 	.globl _execute_test000
 	.globl _execute_test010
 	.globl _execute_test020
@@ -36,6 +37,14 @@ S_FPSR = S_FPCR+4
 S_TRACECNT = S_FPSR+4
 S_TRACESTACK = S_TRACECNT+4
 S_NEXT = S_TRACESTACK+12
+
+_callinflate:
+	movem.l a4-a5,-(sp)
+	move.l 4+2*4(sp),a4
+	move.l 8+2*4(sp),a5
+	bsr _inflate
+	movem.l (sp)+,a4-a5
+	rts
 
 	| set CPU special registers
 _setcpu:

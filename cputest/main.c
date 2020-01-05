@@ -27,6 +27,8 @@ typedef signed char uae_s8;
 
 #include "cputest_defines.h"
 
+extern void callinflate(uae_u8*, uae_u8*);
+
 struct fpureg
 {
 	uae_u16 exp;
@@ -411,23 +413,124 @@ static void end_test(void)
 	touser(enable_data);
 }
 
-static uae_u8 *load_file(const char *path, const char *file, uae_u8 *p, int *sizep, int exiterror)
+static int readdata(uae_u8 *p, int size, FILE *f, uae_u8 *unpack, int *offsetp)
+{
+	if (!unpack) {
+		return fread(p, 1, size, f);
+	} else {
+		memcpy(p, unpack + (*offsetp), size);
+		(*offsetp) += size;
+		return size;
+	}
+}
+static void seekdata(int seek, FILE *f, uae_u8 *unpack, int *offsetp)
+{
+	if (!unpack) {
+		fseek(f, seek, SEEK_CUR);
+	} else {
+		(*offsetp) += seek;
+	}
+}
+
+static uae_u8 *parse_gzip(uae_u8 *gzbuf, int *sizep)
+{
+	uae_u8 *end = gzbuf + (*sizep);
+	uae_u8 flags = gzbuf[3];
+	uae_u16 v;
+	if (gzbuf[0] != 0x1f && gzbuf[1] != 0x8b)
+		return NULL;
+	gzbuf += 10;
+	if (flags & 2) /* multipart not supported */
+		return NULL;
+	if (flags & 32) /* encryption not supported */
+		return NULL;
+	if (flags & 4) { /* skip extra field */
+		v = *gzbuf++;
+		v |= (*gzbuf++) << 8;
+		gzbuf += v + 2;
+	}
+	if (flags & 8) { /* get original file name */
+		while (*gzbuf++);
+	}
+	if (flags & 16) { /* skip comment */
+		while (*gzbuf++);
+	}
+	*sizep = (end[-4] << 0) | (end[-3] << 8) | (end[-2] << 16) | (end[-1] << 24);
+	return gzbuf;
+}
+
+static uae_u8 *load_file(const char *path, const char *file, uae_u8 *p, int *sizep, int exiterror, int candirect)
 {
 	char fname[256];
-	sprintf(fname, "%s%s", path, file);
+	uae_u8 *unpack = NULL;
+	int unpackoffset = 0;
+	int size = 0;
+
+	sprintf(fname, "%s%s.gz", path, file);
 	FILE *f = fopen(fname, "rb");
-	if (!f) {
-		if (exiterror) {
-			printf("Couldn't open '%s'\n", fname);
+	if (f) {
+		fseek(f, 0, SEEK_END);
+		int gsize = ftell(f);
+		fseek(f, 0, SEEK_SET);
+		uae_u8 *gzbuf = malloc(gsize);
+		if (!gzbuf) {
+			printf("Couldn't allocate %ld bytes (packed), file '%s'\n", gsize, fname);
 			exit(0);
 		}
-		return NULL;
+		if (fread(gzbuf, 1, gsize, f) != gsize) {
+			printf("Couldn't read file '%s'\n", fname);
+			exit(0);
+		}
+		fclose(f);
+		size = gsize;
+		uae_u8 *gzdata = parse_gzip(gzbuf, &size);
+		if (!gzdata) {
+			printf("Couldn't parse gzip file '%s'\n", fname);
+			exit(0);
+		}
+		f = NULL;
+		if (!p) {
+			p = calloc(1, size);
+			if (!p) {
+				printf("Couldn't allocate %ld bytes, file '%s'\n", size, fname);
+				exit(0);
+			}
+			printf("Decompressing '%s' (%ld -> %ld)\n", fname, gsize, size);
+			callinflate(p, gzdata);
+			*sizep = size;
+			return p;
+		} else if (candirect) {
+			printf("Decompressing '%s' (%ld -> %ld)\n", fname, gsize, size);
+			callinflate(p, gzdata);
+			*sizep = size;
+			return p;
+		} else {
+			unpack = calloc(1, size);
+			if (!unpack) {
+				printf("Couldn't allocate %ld bytes (unpack), file '%s'\n", size, fname);
+				exit(0);
+			}
+			printf("Decompressing '%s' (%ld -> %ld)\n", fname, gsize, size);
+			callinflate(unpack, gzdata);
+			*sizep = size;
+		}
 	}
-	int size = *sizep;
-	if (size < 0) {
-		fseek(f, 0, SEEK_END);
-		size = ftell(f);
-		fseek(f, 0, SEEK_SET);
+	if (!unpack) {
+		sprintf(fname, "%s%s", path, file);
+		f = fopen(fname, "rb");
+		if (!f) {
+			if (exiterror) {
+				printf("Couldn't open '%s'\n", fname);
+				exit(0);
+			}
+			return NULL;
+		}
+		size = *sizep;
+		if (size < 0) {
+			fseek(f, 0, SEEK_END);
+			size = ftell(f);
+			fseek(f, 0, SEEK_SET);
+		}
 	}
 	if (!p) {
 		p = calloc(1, size);
@@ -437,13 +540,13 @@ static uae_u8 *load_file(const char *path, const char *file, uae_u8 *p, int *siz
 		}
 	}
 	if (safe_memory_end < p || safe_memory_start >= p + size) {
-		*sizep = fread(p, 1, size, f);
+		*sizep = readdata(p, size, f, unpack, &unpackoffset);
 	} else {
 		if (size > 0 && p < safe_memory_start) {
 			int size2 = safe_memory_start - p;
 			if (size2 > size)
 				size2 = size;
-			if (fread(p, 1, size2, f) != size2)
+			if (readdata(p, size2, f, unpack, &unpackoffset) != size2)
 				goto end;
 			p += size2;
 			size -= size2;
@@ -454,7 +557,7 @@ static uae_u8 *load_file(const char *path, const char *file, uae_u8 *p, int *siz
 				int size2 = safe_memory_end - p;
 				if (size2 > size)
 					size2 = size;
-				fseek(f, size2, SEEK_CUR);
+				seekdata(size2, f, unpack, &unpackoffset);
 				p += size2;
 				size -= size2;
 			}
@@ -469,14 +572,14 @@ static uae_u8 *load_file(const char *path, const char *file, uae_u8 *p, int *siz
 					printf("Couldn't allocate safe tmp memory (%ld bytes)\n", size2);
 					exit(0);
 				}
-				fread(tmp, 1, size2, f);
+				readdata(tmp, size2, f, unpack, &unpackoffset);
 				if (memcmp(tmp, p, size2)) {
 					printf("Disable write bus error mode and press any key (SPACE=skip,ESC=abort)\n");
 					int ch = getchar();
 					if (ch == 27) {
 						exit(0);
 					} else if (ch == 32) {
-						fseek(f, size2, SEEK_CUR);
+						seekdata(size2, f, unpack, &unpackoffset);
 						p += size2;
 						size -= size2;
 					} else {
@@ -497,17 +600,22 @@ static uae_u8 *load_file(const char *path, const char *file, uae_u8 *p, int *siz
 			}
 		}
 		if (size > 0) {
-			if (fread(p, 1, size, f) != size)
+			if (readdata(p, size, f, unpack, &unpackoffset) != size)
 				goto end;
 		}
 		size = *sizep;
 	}
 	if (*sizep != size) {
 end:
-		printf("Couldn't read file '%s'\n", fname);
+		printf("Couldn't read file '%s' (%ld <> %ld)\n", fname, *sizep, size);
 		exit(0);
 	}
-	fclose(f);
+	if (f) {
+		fclose(f);
+	}
+	if (unpack) {
+		free(unpack);
+	}
 	return p;
 }
 
@@ -2117,10 +2225,11 @@ static void freestuff(void)
 #endif
 }
 
-static uae_u32 read_u32(FILE* f)
+static uae_u32 read_u32(uae_u8 *headerfile, int *poffset)
 {
 	uae_u8 data[4] = { 0 };
-	fread(data, 1, 4, f);
+	memcpy(data, headerfile + (*poffset), 4);
+	(*poffset) += 4;
 	return gl(data);
 }
 
@@ -2137,44 +2246,48 @@ static int test_mnemo(const char *path, const char *opcode)
 	errors = 0;
 	quit = 0;
 
-	sprintf(tfname, "%s%s/0000.dat", path, opcode);
-	FILE *f = fopen(tfname, "rb");
-	if (!f) {
-		printf("Couldn't open '%s'\n", tfname);
+
+	sprintf(tfname, "%s/0000.dat", opcode);
+	size = -1;
+	uae_u8 *headerfile = load_file(path, tfname, NULL, &size, 1, 1);
+	if (!headerfile) {
 		exit(0);
 	}
-	v = read_u32(f);
+	int headoffset = 0;
+	v = read_u32(headerfile, &headoffset);
 	if (v != DATA_VERSION) {
 		printf("Invalid test data file (header)\n");
 		exit(0);
 	}
 
-	starttimeid = read_u32(f);
-	uae_u32 hmem_lmem = read_u32(f);
+	starttimeid = read_u32(headerfile, &headoffset);
+	uae_u32 hmem_lmem = read_u32(headerfile, &headoffset);
 	hmem_rom = (uae_s16)(hmem_lmem >> 16);
 	lmem_rom = (uae_s16)(hmem_lmem & 65535);
-	test_memory_addr = read_u32(f);
-	test_memory_size = read_u32(f);
+	test_memory_addr = read_u32(headerfile, &headoffset);
+	test_memory_size = read_u32(headerfile, &headoffset);
 	test_memory_end = test_memory_addr + test_memory_size;
-	opcode_memory_addr = read_u32(f);
+	opcode_memory_addr = read_u32(headerfile, &headoffset);
 	opcode_memory = (uae_u8*)opcode_memory_addr;
-	uae_u32 lvl_mask = read_u32(f);
+	uae_u32 lvl_mask = read_u32(headerfile, &headoffset);
 	lvl = (lvl_mask >> 16) & 15;
 	interrupt_mask = (lvl_mask >> 20) & 7;
 	addressing_mask = (lvl_mask & 0x80000000) ? 0xffffffff : 0x00ffffff;
 	sr_undefined_mask = lvl_mask & 0xffff;
 	safe_memory_mode = (lvl_mask >> 23) & 3;
-	fpu_model = read_u32(f);
-	test_low_memory_start = read_u32(f);
-	test_low_memory_end = read_u32(f);
-	test_high_memory_start = read_u32(f);
-	test_high_memory_end = read_u32(f);
-	safe_memory_start = (uae_u8*)read_u32(f);
-	safe_memory_end = (uae_u8*)read_u32(f);
-	user_stack_memory = read_u32(f);
-	super_stack_memory = read_u32(f);
-	fread(inst_name, 1, sizeof(inst_name) - 1, f);
+	fpu_model = read_u32(headerfile, &headoffset);
+	test_low_memory_start = read_u32(headerfile, &headoffset);
+	test_low_memory_end = read_u32(headerfile, &headoffset);
+	test_high_memory_start = read_u32(headerfile, &headoffset);
+	test_high_memory_end = read_u32(headerfile, &headoffset);
+	safe_memory_start = (uae_u8*)read_u32(headerfile, &headoffset);
+	safe_memory_end = (uae_u8*)read_u32(headerfile, &headoffset);
+	user_stack_memory = read_u32(headerfile, &headoffset);
+	super_stack_memory = read_u32(headerfile, &headoffset);
+	memcpy(inst_name, headerfile + headoffset, sizeof(inst_name) - 1);
 	inst_name[sizeof(inst_name) - 1] = 0;
+	free(headerfile);
+	headerfile = NULL;
 
 	int lvl2 = cpu_lvl;
 	if (lvl2 == 5 && lvl2 != lvl)
@@ -2222,7 +2335,7 @@ static int test_mnemo(const char *path, const char *opcode)
 	}
 
 	size = test_memory_size;
-	load_file(path, "tmem.dat", test_memory, &size, 1);
+	load_file(path, "tmem.dat", test_memory, &size, 1, 0);
 	if (size != test_memory_size) {
 		printf("tmem.dat size mismatch\n");
 		exit(0);
@@ -2246,51 +2359,39 @@ static int test_mnemo(const char *path, const char *opcode)
 	for (;;) {
 		printf("%s. %lu...\n", tfname, testcnt);
 
-		sprintf(tfname, "%s%s/%04ld.dat", path, opcode, filecnt);
-		FILE *f = fopen(tfname, "rb");
-		if (!f)
+		sprintf(tfname, "%s/%04ld.dat", opcode, filecnt);
+
+		test_data_size = -1;
+		test_data = load_file(path, tfname, NULL, &test_data_size, 0, 1);
+		if (!test_data)
 			break;
-		fread(data, 1, 4, f);
-		if (gl(data) != DATA_VERSION) {
+		if (gl(test_data) != DATA_VERSION) {
 			printf("Invalid test data file (header)\n");
 			exit(0);
 		}
-		fread(data, 1, 4, f);
-		if (gl(data) != starttimeid) {
+		if (gl(test_data + 4) != starttimeid) {
 			printf("Test data file header mismatch (old test data file?)\n");
 			break;
 		}
-		fseek(f, 0, SEEK_END);
-		test_data_size = ftell(f);
-		fseek(f, 16, SEEK_SET);
-		test_data_size -= 16;
-		if (test_data_size <= 0)
-			break;
-		test_data = calloc(1, test_data_size);
-		if (!test_data) {
-			printf("Couldn't allocate memory for '%s', %lu bytes\n", tfname, test_memory_size);
-			exit(0);
-		}
-		if (fread(test_data, 1, test_data_size, f) != test_data_size) {
-			printf("Couldn't read '%s'\n", fname);
-			free(test_data);
-			break;
-		}
-		fclose(f);
 		if (test_data[test_data_size - 1] != CT_END_FINISH) {
 			printf("Invalid test data file (footer)\n");
 			free(test_data);
 			exit(0);
 		}
+		test_data_size -= 16;
+		if (test_data_size <= 0)
+			break;
 
+		test_data += 16;
 		process_test(test_data);
+		test_data -= 16;
+
+		free(test_data);
 
 		if (errors || quit) {
-			free(test_data);
 			break;
 		}
 
-		free(test_data);
 		filecnt++;
 	}
 
@@ -2437,9 +2538,9 @@ int main(int argc, char *argv[])
 	sprintf(path + strlen(path), "%lu/", 68000 + (cpu_lvl == 5 ? 6 : cpu_lvl) * 10);
 
 	low_memory_size = -1;
-	low_memory_temp = load_file(path, "lmem.dat", NULL, &low_memory_size, 0);
+	low_memory_temp = load_file(path, "lmem.dat", NULL, &low_memory_size, 0, 1);
 	high_memory_size = -1;
-	high_memory_temp = load_file(path, "hmem.dat", NULL, &high_memory_size, 0);
+	high_memory_temp = load_file(path, "hmem.dat", NULL, &high_memory_size, 0, 1);
 
 #ifndef M68K
 	if (low_memory_size > 0)

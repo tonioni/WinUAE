@@ -10,7 +10,8 @@ LINK_CFLAGS = -lm -s
 
 OBJS = main.o asm040.o atari.o \
 	decode_ea.o globals.o opcode_handler_cpu.o opcode_handler_fpu.o \
-	opcode_handler_mmu.o opcodes_cpu.o opcodes_fpu.o opcodes_mmu.o util.o
+	opcode_handler_mmu.o opcodes_cpu.o opcodes_fpu.o opcodes_mmu.o util.o \
+	inflate.o
 
 all: $(OBJS)
 	$(CC) $(LINK_CFLAGS) -o cputest.ttp $^
@@ -44,6 +45,9 @@ opcodes_mmu.o: adis/opcodes_mmu.c
 
 util.o: adis/util.c
 	$(CC) $(CFLAGS) -I. -c -o $@ adis/util.c
+
+inflate.o: inflate.S
+	$(CC) $(CFLAGS) -I. -c -o $@ inflate.S
 
 asm040.o: asm040.S
 	$(AS) -m68020  -o $@ asm040.S
