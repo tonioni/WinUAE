@@ -3025,7 +3025,7 @@ uae_u32 REGPARAM2 get_disp_ea_020_mmu030 (uae_u32 base, int idx)
 	uae_u16 dp;
 	int reg;
 	uae_u32 v;
-	int oldidx, oldidx2;
+	int oldidx;
 	int pcadd = 0;
 
 	// we need to do this hack here because in worst case we don't have enough
@@ -3038,7 +3038,6 @@ uae_u32 REGPARAM2 get_disp_ea_020_mmu030 (uae_u32 base, int idx)
 	}
 
 	oldidx = mmu030_idx;
-	oldidx2 = mmu030_idx_done;
 	dp = next_iword_mmu030_state ();
 	pcadd += 1;
 	
@@ -3090,7 +3089,7 @@ uae_u32 REGPARAM2 get_disp_ea_020_mmu030 (uae_u32 base, int idx)
 	mmu030_state[2] |= pcadd << (idx * 4);
 	mmu030_disp_store[idx] = v;
 	mmu030_idx = oldidx;
-	mmu030_idx_done = oldidx2;
+	mmu030_idx_done = oldidx;
 
 	return v;
 }
@@ -3116,7 +3115,7 @@ uae_u32 REGPARAM2 get_disp_ea_020_mmu030c (uae_u32 base, int idx)
 	uae_u16 dp;
 	int reg;
 	uae_u32 v;
-	int oldidx, oldidx2;
+	int oldidx;
 	int pcadd = 0;
 
 	// we need to do this hack here because in worst case we don't have enough
@@ -3129,7 +3128,6 @@ uae_u32 REGPARAM2 get_disp_ea_020_mmu030c (uae_u32 base, int idx)
 	}
 
 	oldidx = mmu030_idx;
-	oldidx2 = mmu030_idx_done;
 	dp = next_iword_mmu030c_state ();
 	pcadd += 1;
 	
@@ -3181,7 +3179,7 @@ uae_u32 REGPARAM2 get_disp_ea_020_mmu030c (uae_u32 base, int idx)
 	mmu030_state[2] |= pcadd << (idx * 4);
 	mmu030_disp_store[idx] = v;
 	mmu030_idx = oldidx;
-	mmu030_idx_done = oldidx2;
+	mmu030_idx_done = oldidx;
 
 	return v;
 }
