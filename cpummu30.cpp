@@ -1762,17 +1762,35 @@ static void dump_opcode(uae_u16 opcode)
 
 // if CPU is 68030 and faulted access' addressing mode was -(an) or (an)+
 // register content is not restored when exception starts.
-static void mmu030fixupreg(int i)
+static uae_u8 mmu030fixupreg(int i)
 {
 	struct mmufixup *m = &mmufixup[i];
+	uae_u8 v = 0;
 	if (m->reg < 0)
+		return v;
+	if (!(m->reg & 0x300))
+		return v;
+	v = m->reg & 7;
+	v |= ((m->reg >> 10) & 3) << 3; // size
+	if (m->reg & 0x200) // -(an)?
+		v |= 1 << 5;
+	v |= 1 << 6;
+	return v;
+}
+
+static void mmu030fixupmod(uae_u8 data, int dir, int idx)
+{
+	if (!data)
 		return;
-	int size = 1 << ((m->reg >> 10) & 3);
-	if (m->reg & 0x100) {
-		m68k_areg(regs, m->reg & 15) += size;
-	}
-	if (m->reg & 0x200) {
-		m68k_areg(regs, m->reg & 15) -= size;
+	int reg = data & 7;
+	int adj = (data & (1 << 5)) ? -1 : 1;
+	if (dir)
+		adj = -adj;
+	adj <<= (data >> 3) & 3;
+	m68k_areg(regs, reg) += adj;
+	if (idx >= 0) {
+		struct mmufixup *m = &mmufixup[idx];
+		m->value += adj;
 	}
 }
 
@@ -1783,9 +1801,17 @@ void mmu030_page_fault(uaecptr addr, bool read, int flags, uae_u32 fc)
 		fc = regs.mmu_ssw & MMU030_SSW_FC_MASK;
 		flags = regs.mmu_ssw & ~(MMU030_SSW_FC | MMU030_SSW_RC | MMU030_SSW_FB | MMU030_SSW_RB | MMU030_SSW_RW | 7);
 	}
+	regs.wb3_status = 0;
+	regs.wb2_status = 0;
 	regs.mmu_fault_addr = addr;
 	if (fc & 1) {
 		regs.mmu_ssw = MMU030_SSW_DF | (MMU030_SSW_DF << 1);
+		if (!(mmu030_state[1] & MMU030_STATEFLAG1_LASTWRITE)) {
+			regs.wb2_status = mmu030fixupreg(0);
+			mmu030fixupmod(regs.wb2_status, 0, 0);
+			regs.wb3_status = mmu030fixupreg(1);
+			mmu030fixupmod(regs.wb3_status, 0, 1);
+		}
 	} else {
 		if (currprefs.cpu_compatible) {
 			if (regs.prefetch020_valid[1] != 1 && regs.prefetch020_valid[2] == 1) {
@@ -1799,10 +1825,6 @@ void mmu030_page_fault(uaecptr addr, bool read, int flags, uae_u32 fc)
 			}
 		} else {
 			regs.mmu_ssw = MMU030_SSW_FB | MMU030_SSW_RB;
-		}
-		if (!(mmu030_state[1] & MMU030_STATEFLAG1_LASTWRITE)) {
-			mmu030fixupreg(0);
-			mmu030fixupreg(1);
 		}
 	}
 	regs.mmu_ssw |= read ? MMU030_SSW_RW : 0;
@@ -2840,11 +2862,16 @@ void m68k_do_rte_mmu030 (uaecptr a7)
 		}
 
 		uae_u16 v = get_word_mmu030(a7 + 0x36);
-		idxsize = v & 0xff;
-		idxsize_done = (v >> 8) & 0xff;
+		idxsize = v & 0x0f;
+		idxsize_done = (v >> 4) & 0x0f;
 		for (int i = 0; i < idxsize_done + 1; i++) {
 			mmu030_ad_v[i].val = get_long_mmu030(a7 + 0x5c - (i + 1) * 4);
 		}
+
+		regs.wb2_status = v >> 8;
+		regs.wb3_status = mmu030_state_2 >> 8;
+		mmu030fixupmod(regs.wb2_status, 1, -1);
+		mmu030fixupmod(regs.wb3_status, 1, -1);
 
 		// did we have data fault but DF bit cleared?
 		if (ssw & (MMU030_SSW_DF << 1) && !(ssw & MMU030_SSW_DF)) {
@@ -3286,8 +3313,8 @@ void m68k_do_rte_mmu030c (uaecptr a7)
 		}
 
 		uae_u16 v = get_word_mmu030c(a7 + 0x36);
-		idxsize = v & 0xff;
-		idxsize_done = (v >> 8) & 0xff;
+		idxsize = v & 0x0f;
+		idxsize_done = (v >> 4) & 0x0f;
 		for (int i = 0; i < idxsize_done + 1; i++) {
 			mmu030_ad_v[i].val = get_long_mmu030c(a7 + 0x5c - (i + 1) * 4);
 		}
