@@ -110,6 +110,8 @@ static char outbuffer[40000];
 static char outbuffer[4000];
 #endif
 static char tmpbuffer[1024];
+static char path[256];
+
 static char *outbp;
 static int infoadded;
 static int errors;
@@ -121,6 +123,7 @@ static uae_u32 addressing_mask = 0x00ffffff;
 static uae_u32 interrupt_mask;
 static int disasm;
 static int basicexcept;
+static int askifmissing;
 
 #define SIZE_STORED_ADDRESS_OFFSET 8
 #define SIZE_STORED_ADDRESS 16
@@ -2233,7 +2236,7 @@ static uae_u32 read_u32(uae_u8 *headerfile, int *poffset)
 	return gl(data);
 }
 
-static int test_mnemo(const char *path, const char *opcode)
+static int test_mnemo(const char *opcode)
 {
 	int size;
 	uae_u8 data[4] = { 0 };
@@ -2363,8 +2366,20 @@ static int test_mnemo(const char *path, const char *opcode)
 
 		test_data_size = -1;
 		test_data = load_file(path, tfname, NULL, &test_data_size, 0, 1);
-		if (!test_data)
+		if (!test_data) {
+			if (askifmissing) {
+				printf("Couldn't open '%s%s'. Type new path and press enter.\n", path, tfname);
+				path[0] = 0;
+				fgets(path, sizeof(path), stdin);
+				if (path[0]) {
+					path[strlen(path) - 1] = 0;
+					if (path[0]) {
+						continue;
+					}
+				}
+			}
 			break;
+		}
 		if (gl(test_data) != DATA_VERSION) {
 			printf("Invalid test data file (header)\n");
 			exit(0);
@@ -2424,8 +2439,6 @@ static int getparamval(const char *p)
 		return atol(p);
 	}
 }
-
-static char path[256];
 
 static int isdir(const char *dirpath, const char *name)
 {
@@ -2532,6 +2545,8 @@ int main(int argc, char *argv[])
 			disasm = 0;
 		} else if (!_stricmp(s, "basicexc")) {
 			basicexcept = 1;
+		} else if (!_stricmp(s, "askifmissing")) {
+			askifmissing = 1;
 		}
 	}
 
@@ -2609,7 +2624,7 @@ int main(int argc, char *argv[])
 			}
 		}
 		for (int i = first; i < diroff; i += MAX_FILE_LEN) {
-			if (test_mnemo(path, dirs + i)) {
+			if (test_mnemo(dirs + i)) {
 				if (stop_on_error)
 					break;
 			}
@@ -2618,7 +2633,7 @@ int main(int argc, char *argv[])
 		free(dirs);
 
 	} else {
-		test_mnemo(path, opcode);
+		test_mnemo(opcode);
 	}
 
 	return 0;
