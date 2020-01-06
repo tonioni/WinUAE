@@ -409,7 +409,7 @@ STATIC_INLINE uae_u32 get_byte_ce000 (uaecptr addr)
 STATIC_INLINE uae_u32 get_word_ce000_prefetch (int o)
 {
 	uae_u32 v = regs.irc;
-	regs.irc = regs.db = x_get_iword (o);
+	regs.irc = regs.read_buffer = regs.db = x_get_iword (o);
 	return v;
 }
 

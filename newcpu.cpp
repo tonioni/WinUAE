@@ -2529,6 +2529,8 @@ static void Exception_ce000 (int nr)
 			goto kludge_me_do;
 		} else {
 			// 68010 bus/address error (partially implemented only)
+			uae_u16 in = regs.read_buffer;
+			uae_u16 out = regs.write_buffer;
 			uae_u16 ssw = (sv ? 4 : 0) | last_fc_for_exception_3;
 			ssw |= last_di_for_exception_3 ? 0x0000 : 0x2000; // IF
 			ssw |= (!last_writeaccess_for_exception_3 && last_di_for_exception_3) ? 0x1000 : 0x000; // DF
@@ -2543,11 +2545,11 @@ static void Exception_ce000 (int nr)
 			x_put_word(m68k_areg(regs, 7) + 0, ssw); // ssw
 			x_put_long(m68k_areg(regs, 7) + 2, last_fault_for_exception_3); // fault addr
 			x_put_word(m68k_areg(regs, 7) + 6, 0); // unused
-			x_put_word(m68k_areg(regs, 7) + 8, regs.write_buffer); // data output buffer
+			x_put_word(m68k_areg(regs, 7) + 8, out); // data output buffer
 			x_put_word(m68k_areg(regs, 7) + 10, 0); // unused
-			x_put_word(m68k_areg(regs, 7) + 12, regs.read_buffer); // data input buffer
+			x_put_word(m68k_areg(regs, 7) + 12, in); // data input buffer
 			x_put_word(m68k_areg(regs, 7) + 14, 0); // unused
-			x_put_word(m68k_areg(regs, 7) + 16, last_op_for_exception_3); // instruction input buffer
+			x_put_word(m68k_areg(regs, 7) + 16, regs.irc); // instruction input buffer
 			x_put_word(m68k_areg(regs, 7) + 18, 0); // version
 			for (int i = 0; i < 15; i++) {
 				x_put_word(m68k_areg(regs, 7) + 20 + i * 2, 0);
@@ -2582,6 +2584,10 @@ static void Exception_ce000 (int nr)
 		x_put_word (m68k_areg (regs, 7) + 2, currpc >> 16); // write high address
 	}
 kludge_me_do:
+	if ((regs.vbr & 1) && currprefs.cpu_model <= 68010) {
+		cpu_halt(CPU_HALT_DOUBLE_FAULT);
+		return;
+	}
 	newpc = x_get_word (regs.vbr + 4 * vector_nr) << 16; // read high address
 	newpc |= x_get_word (regs.vbr + 4 * vector_nr + 2); // read low address
 	exception_in_exception = 0;
@@ -3027,6 +3033,10 @@ static void Exception_normal (int nr)
 		regs.m = 0;
 	}
 kludge_me_do:
+	if ((regs.vbr & 1) && currprefs.cpu_model <= 68010) {
+		cpu_halt(CPU_HALT_DOUBLE_FAULT);
+		return;
+	}
 	newpc = x_get_long (regs.vbr + 4 * vector_nr);
 	exception_in_exception = 0;
 	if (newpc & 1) {
@@ -7166,6 +7176,7 @@ uae_u32 mem_access_delay_word_read (uaecptr addr)
 		break;
 	}
 	regs.db = v;
+	regs.read_buffer = v;
 	return v;
 }
 uae_u32 mem_access_delay_wordi_read (uaecptr addr)
@@ -7187,6 +7198,7 @@ uae_u32 mem_access_delay_wordi_read (uaecptr addr)
 		break;
 	}
 	regs.db = v;
+	regs.read_buffer = v;
 	return v;
 }
 
@@ -7209,11 +7221,13 @@ uae_u32 mem_access_delay_byte_read (uaecptr addr)
 		break;
 	}
 	regs.db = (v << 8) | v;
+	regs.read_buffer = v;
 	return v;
 }
 void mem_access_delay_byte_write (uaecptr addr, uae_u32 v)
 {
 	regs.db = (v << 8)  | v;
+	regs.write_buffer = v;
 	switch (ce_banktype[addr >> 16])
 	{
 	case CE_MEMBANK_CHIP16:
@@ -7231,6 +7245,7 @@ void mem_access_delay_byte_write (uaecptr addr, uae_u32 v)
 void mem_access_delay_word_write (uaecptr addr, uae_u32 v)
 {
 	regs.db = v;
+	regs.write_buffer = v;
 	switch (ce_banktype[addr >> 16])
 	{
 	case CE_MEMBANK_CHIP16:
