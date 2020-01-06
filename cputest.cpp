@@ -6,6 +6,8 @@
 #include "ini.h"
 #include "fpp.h"
 
+#include "zlib.h"
+
 #include "options.h"
 
 #define MAX_REGISTERS 16
@@ -70,6 +72,7 @@ static int feature_usp = 0;
 static int feature_exception_vectors = 0;
 static TCHAR *feature_instruction_size = NULL;
 static uae_u32 feature_addressing_modes[2];
+static int feature_gzip = 0;
 static int ad8r[2], pc8r[2];
 static int multi_mode;
 #define MAX_TARGET_EA 20
@@ -882,31 +885,22 @@ static void doexcstack2(void)
 
 static void doexcstack(void)
 {
-	bool changed = false;
 	doexcstack2();
 	if (cpu_lvl >= 2)
 		return;
 	if (test_exception < 4)
 		return;
 
-	int original_exception = test_exception;
-	int opcode = (opcode_memory[0] << 8) | (opcode_memory[1]);
-	if (opcode == 0x419f)
-		printf("");
-
 	// did we got bus error or address error
 	// when fetching exception vector?
 	// (bus error not yet tested)
-	if (regs.vbr & 1) {
-		test_exception = 3;
-		changed = true;
-	} else if (feature_exception_vectors & 1) {
-		test_exception = 3;
-		test_exception_addr = feature_exception_vectors;
-		changed = true;
-	}
-	if (!changed)
+	if (!feature_exception_vectors)
 		return;
+
+	int original_exception = test_exception;
+	// odd exception vector
+	test_exception = 3;
+	test_exception_addr = feature_exception_vectors;
 
 	// store original exception stack (which may not be complete)
 	uae_u8 *sf = test_memory + test_memory_size + EXTRA_RESERVED_SPACE - exception_stack_frame_size;
@@ -1262,6 +1256,41 @@ static void fill_memory(void)
 	fill_memory_buffer(test_memory_temp, test_memory_size);
 }
 
+static void compressfile(TCHAR *path, int flags)
+{
+	if (feature_gzip & flags) {
+		FILE *f = _tfopen(path, _T("rb"));
+		fseek(f, 0, SEEK_END);
+		int size = ftell(f);
+		fseek(f, 0, SEEK_SET);
+		uae_u8 *mem = (uae_u8 *)malloc(size);
+		fread(mem, 1, size, f);
+		fclose(f);
+		_tunlink(path);
+		_tcscat(path, _T(".gz"));
+		_tunlink(path);
+		f = _tfopen(path, _T("wb"));
+		int fd = fileno(f);
+		gzFile gz = gzdopen(dup(fd), "wb9");
+		gzwrite(gz, mem, size);
+		gzclose(gz);
+		fclose(f);
+		free(mem);
+	} else {
+		_tcscat(path, _T(".gz"));
+		_tunlink(path);
+	}
+}
+
+static void compressfiles(const TCHAR *dir)
+{
+	for (int i = 1; i < filecount; i++) {
+		TCHAR path[1000];
+		_stprintf(path, _T("%s/%04d.dat"), dir, i);
+		compressfile(path, 1);
+	}
+}
+
 static void save_memory(const TCHAR *path, const TCHAR *name, uae_u8 *p, int size)
 {
 	TCHAR fname[1000];
@@ -1273,6 +1302,7 @@ static void save_memory(const TCHAR *path, const TCHAR *name, uae_u8 *p, int siz
 	}
 	fwrite(p, 1, size, f);
 	fclose(f);
+	compressfile(fname, 2);
 }
 
 static uae_u8 *store_rel(uae_u8 *dst, uae_u8 mode, uae_u32 s, uae_u32 d, int ordered)
@@ -4216,6 +4246,8 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 
 	markfile(dir);
 
+	compressfiles(dir);
+
 	wprintf(_T("- %d tests\n"), subtest_count);
 }
 
@@ -4412,6 +4444,9 @@ int __cdecl main(int argc, char *argv[])
 
 	verbose = 1;
 	ini_getval(ini, INISECTION, _T("verbose"), &verbose);
+
+	feature_gzip = 0;
+	ini_getval(ini, INISECTION, _T("feature_gzip"), &feature_gzip);
 
 	feature_addressing_modes[0] = 0xffffffff;
 	feature_addressing_modes[1] = 0xffffffff;
