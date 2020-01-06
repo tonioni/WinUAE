@@ -67,6 +67,7 @@ static int feature_full_extension_format = 0;
 static int feature_test_rounds = 2;
 static int feature_flag_mode = 0;
 static int feature_usp = 0;
+static int feature_exception_vectors = 0;
 static TCHAR *feature_instruction_size = NULL;
 static uae_u32 feature_addressing_modes[2];
 static int ad8r[2], pc8r[2];
@@ -117,6 +118,8 @@ static int forced_immediate_mode;
 static int test_exception;
 static int test_exception_extra;
 static int exception_stack_frame_size;
+static uae_u8 exception_extra_frame[100];
+static int exception_extra_frame_size;
 static uaecptr test_exception_addr;
 static int test_exception_3_w;
 static int test_exception_3_fc;
@@ -811,7 +814,7 @@ void cpureset(void)
 	cpu_halted = -1;
 }
 
-static void doexcstack(void)
+static void doexcstack2(void)
 {
 	// generate exception but don't store it with test results
 
@@ -875,6 +878,59 @@ static void doexcstack(void)
 	m68k_areg(regs, 7) = tmp;
 	testing_active = ta;
 	noaccesshistory = noac;
+}
+
+static void doexcstack(void)
+{
+	bool changed = false;
+	doexcstack2();
+	if (cpu_lvl >= 2)
+		return;
+	if (test_exception < 4)
+		return;
+
+	int original_exception = test_exception;
+	int opcode = (opcode_memory[0] << 8) | (opcode_memory[1]);
+	if (opcode == 0x419f)
+		printf("");
+
+	// did we got bus error or address error
+	// when fetching exception vector?
+	// (bus error not yet tested)
+	if (regs.vbr & 1) {
+		test_exception = 3;
+		changed = true;
+	} else if (feature_exception_vectors & 1) {
+		test_exception = 3;
+		test_exception_addr = feature_exception_vectors;
+		changed = true;
+	}
+	if (!changed)
+		return;
+
+	// store original exception stack (which may not be complete)
+	uae_u8 *sf = test_memory + test_memory_size + EXTRA_RESERVED_SPACE - exception_stack_frame_size;
+	exception_extra_frame_size = exception_stack_frame_size;
+	memcpy(exception_extra_frame, sf, exception_extra_frame_size);
+
+	MakeSR();
+	regs.sr |= 0x2000;
+	regs.sr &= ~0x8000;
+	MakeFromSR();
+
+	int flags = 0;
+	if (cpu_lvl == 1) {
+		// IF = 1
+		flags |= 0x40000;
+		// low word of address
+		regs.irc = (uae_u16)test_exception_addr;
+		// low word of address
+		regs.read_buffer = regs.irc;
+		// vector offset (not vbr + offset)
+		regs.write_buffer = original_exception * 4;
+	}
+
+	exception3_read(regs.ir | flags, test_exception_addr, 1, 2);
 }
 
 uae_u32 REGPARAM2 op_illg_1(uae_u32 opcode)
@@ -1431,6 +1487,21 @@ static bool load_file(const TCHAR *path, const TCHAR *file, uae_u8 *p, int size,
 	return true;
 }
 
+static void markfile(const TCHAR *dir)
+{
+	TCHAR path[1000];
+	if (filecount <= 1)
+		return;
+	_stprintf(path, _T("%s/%04d.dat"), dir, filecount - 1);
+	FILE *f = _tfopen(path, _T("r+b"));
+	if (f) {
+		fseek(f, -1, SEEK_END);
+		uae_u8 b = CT_END_FINISH;
+		fwrite(&b, 1, 1, f);
+		fclose(f);
+	}
+}
+
 static void save_data(uae_u8 *dst, const TCHAR *dir)
 {
 	TCHAR path[1000];
@@ -1485,7 +1556,16 @@ static void save_data(uae_u8 *dst, const TCHAR *dir)
 		fwrite(data, 1, 4, f);
 		pl(data, super_stack_memory);
 		fwrite(data, 1, 4, f);
+		pl(data, feature_exception_vectors);
+		fwrite(data, 1, 4, f);
+		data[0] = data[1] = data[2] = data[3] = 0;
+		fwrite(data, 1, 4, f);
+		fwrite(data, 1, 4, f);
+		fwrite(data, 1, 4, f);
 		fwrite(inst_name, 1, sizeof(inst_name) - 1, f);
+		data[0] = CT_END_FINISH;
+		data[1] = 0;
+		fwrite(data, 1, 2, f);
 		fclose(f);
 		filecount++;
 		save_data(dst, dir);
@@ -1499,6 +1579,7 @@ static void save_data(uae_u8 *dst, const TCHAR *dir)
 		fwrite(data, 1, 4, f);
 		fwrite(data, 1, 4, f);
 		*dst++ = CT_END_FINISH;
+		*dst++ = filecount;
 		fwrite(storage_buffer, 1, dst - storage_buffer, f);
 		fclose(f);
 		filecount++;
@@ -2547,6 +2628,7 @@ static void execute_ins(uaecptr endpc, uaecptr targetpc, struct instr *dp)
 	read_buffer_prev = regs.ir;
 	regs.read_buffer = regs.irc;
 	regs.write_buffer = 0xf00d;
+	exception_extra_frame_size = 0;
 
 	int cnt = (feature_loop_mode + 1) * 2;
 	if (multi_mode)
@@ -3806,6 +3888,9 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 								if (feature_usp == 2) {
 									skipped = 1;
 								}
+								if (feature_exception_vectors) {
+									skipped = 1;
+								}
 							}
 
 							if (cpu_stopped) {
@@ -3833,10 +3918,10 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 								}
 								// got exception 3 but didn't want them?
 								if (test_exception == 3) {
-									if ((feature_usp != 1 && feature_usp != 2) && !feature_exception3_data && !(test_exception_3_fc & 2)) {
+									if ((feature_usp != 1 && feature_usp != 2) && !feature_exception3_data && !(test_exception_3_fc & 2) && !feature_exception_vectors) {
 										skipped = 1;
 									}
-									if ((feature_usp != 1 && feature_usp != 2) && !feature_exception3_instruction && (test_exception_3_fc & 2)) {
+									if ((feature_usp != 1 && feature_usp != 2) && !feature_exception3_instruction && (test_exception_3_fc & 2) && !feature_exception_vectors) {
 										skipped = 1;
 									}
 								}
@@ -4128,6 +4213,8 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 			}
 		}
 	}
+
+	markfile(dir);
 
 	wprintf(_T("- %d tests\n"), subtest_count);
 }
@@ -4427,6 +4514,8 @@ int __cdecl main(int argc, char *argv[])
 	ini_getval(ini, INISECTION, _T("feature_flags_mode"), &feature_flag_mode);
 	feature_usp = 0;
 	ini_getval(ini, INISECTION, _T("feature_usp"), &feature_usp);
+	feature_exception_vectors = 0;
+	ini_getval(ini, INISECTION, _T("feature_exception_vectors"), &feature_exception_vectors);
 
 	feature_full_extension_format = 0;
 	if (currprefs.cpu_model >= 68020) {

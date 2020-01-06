@@ -6138,8 +6138,12 @@ static void gen_opcode (unsigned int opcode)
 		break;
 	case i_TRAPV:
 		sync_m68k_pc();
+		// TRAPV is really weird
 		// If V is set but prefetch causes bus error: S is set.
 		// for some reason T is also cleared!
+		if (using_prefetch) {
+			printf("\tuae_u16 opcode_v = opcode;\n");
+		}
 		fill_prefetch_next_after(1,
 			"\t\tif (GET_VFLG()) {\n"
 			"\t\t\tMakeSR();\n"
@@ -6151,6 +6155,11 @@ static void gen_opcode (unsigned int opcode)
 			"\t\t\tif(regs.t1) opcode |= 0x10000;\n"
 			"\t\t}\n");
 		printf("\tif (GET_VFLG()) {\n");
+		if (using_prefetch) {
+			// If exception vector is odd,
+			// stacked opcode is TRAPV
+			printf("\t\tregs.ir = opcode_v;\n");
+		}
 		printf("\t\tException_cpu(7);\n");
 		write_return_cycles("\t\t", 0);
 		printf("\t}\n");

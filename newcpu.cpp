@@ -2541,7 +2541,7 @@ static void Exception_ce000 (int nr)
 			exception_in_exception = -1;
 			frame_id = 8;
 			x_put_word(m68k_areg(regs, 7) + 0, ssw); // ssw
-			x_put_long(m68k_areg(regs, 7) + 2, last_addr_for_exception_3); // fault addr
+			x_put_long(m68k_areg(regs, 7) + 2, last_fault_for_exception_3); // fault addr
 			x_put_word(m68k_areg(regs, 7) + 6, 0); // unused
 			x_put_word(m68k_areg(regs, 7) + 8, regs.write_buffer); // data output buffer
 			x_put_word(m68k_areg(regs, 7) + 10, 0); // unused
@@ -2594,9 +2594,15 @@ kludge_me_do:
 			// if exception vector is odd:
 			// opcode is last opcode executed, address is address of exception vector
 			// pc is last prefetch address
-			exception3b(regs.opcode, newpc, false, true, regs.vbr + 4 * vector_nr);
+			regs.t1 = 0;
+			MakeSR();
+			m68k_setpc(regs.vbr + 4 * vector_nr);
+			exception3_read(regs.ir | 0x40000, newpc, 1, 2);
 		} else if (currprefs.cpu_model == 68010) {
-			regs.write_buffer = regs.vbr + 4 * vector_nr;
+			// offset, not vbr + offset
+			regs.t1 = 0;
+			MakeSR();
+			regs.write_buffer = 4 * vector_nr;
 			regs.read_buffer = newpc;
 			regs.irc = regs.read_buffer;
 			exception3b(regs.opcode, newpc, false, true, newpc);
@@ -2973,7 +2979,7 @@ static void Exception_normal (int nr)
 				ssw |= last_writeaccess_for_exception_3 ? 0x0000 : 0x0100; // RW
 				if (last_op_for_exception_3 & 0x20000)
 					ssw &= 0x00ff;
-				regs.mmu_fault_addr = last_addr_for_exception_3;
+				regs.mmu_fault_addr = last_fault_for_exception_3;
 				Exception_build_stack_frame(oldpc, currpc, ssw, nr, 0x08);
 				used_exception_build_stack_frame = true;
 			}
@@ -3029,12 +3035,17 @@ kludge_me_do:
 			return;
 		}
 		if (currprefs.cpu_model == 68000) {
-			exception3b(regs.opcode, newpc, false, true, regs.vbr + 4 * vector_nr);
+			regs.t1 = 0;
+			MakeSR();
+			m68k_setpc(regs.vbr + 4 * vector_nr);
+			exception3_read(regs.ir | 0x40000, newpc, 1, 2);
 		} else if (currprefs.cpu_model == 68010) {
-			regs.write_buffer = regs.vbr + 4 * vector_nr;
+			regs.t1 = 0;
+			MakeSR();
+			regs.write_buffer = 4 * vector_nr;
 			regs.read_buffer = newpc;
 			regs.irc = regs.read_buffer;
-			exception3b(regs.opcode, newpc, false, true, newpc);
+			exception3b(regs.ir, newpc, false, true, newpc);
 		} else {
 			exception3_notinstruction(regs.ir, newpc);
 		}
@@ -6953,6 +6964,7 @@ static void exception3f (uae_u32 opcode, uaecptr addr, bool writeaccess, bool in
 
 void exception3_notinstruction(uae_u32 opcode, uaecptr addr)
 {
+	last_di_for_exception_3 = 1;
 	exception3f (opcode, addr, true, false, true, 0xffffffff, 1, false, -1);
 }
 static void exception3_read_special(uae_u32 opcode, uaecptr addr, int size, int fc)
@@ -6962,6 +6974,7 @@ static void exception3_read_special(uae_u32 opcode, uaecptr addr, int size, int 
 void exception3_read(uae_u32 opcode, uaecptr addr, int size, int fc)
 {
 	bool ni = false;
+	bool ia = false;
 	if (currprefs.cpu_model == 68000 && currprefs.cpu_compatible) {
 		if (generates_group1_exception(regs.ir) && !(opcode & 0x20000)) {
 			ni = true;
@@ -6969,13 +6982,17 @@ void exception3_read(uae_u32 opcode, uaecptr addr, int size, int fc)
 		}
 		if (opcode & 0x10000)
 			ni = true;
+		if (opcode & 0x40000)
+			ia = true;
 		opcode = regs.ir;
 	}
-	exception3f (opcode, addr, false, 0, ni, 0xffffffff, size, false, fc);
+	last_di_for_exception_3 = 1;
+	exception3f (opcode, addr, false, ia, ni, 0xffffffff, size, false, fc);
 }
 void exception3_write(uae_u32 opcode, uaecptr addr, int size, uae_u32 val, int fc)
 {
 	bool ni = false;
+	bool ia = false;
 	if (currprefs.cpu_model == 68000 && currprefs.cpu_compatible) {
 		if (generates_group1_exception(regs.ir) && !(opcode & 0x20000)) {
 			ni = true;
@@ -6983,17 +7000,22 @@ void exception3_write(uae_u32 opcode, uaecptr addr, int size, uae_u32 val, int f
 		}
 		if (opcode & 0x10000)
 			ni = true;
+		if (opcode & 0x40000)
+			ia = true;
 		opcode = regs.ir;
 	}
-	exception3f (opcode, addr, true, 0, ni, 0xffffffff, size, false, fc);
+	last_di_for_exception_3 = 1;
+	exception3f (opcode, addr, true, ia, ni, 0xffffffff, size, false, fc);
 	regs.write_buffer = val;
 }
-void exception3i (uae_u32 opcode, uaecptr addr)
+void exception3i(uae_u32 opcode, uaecptr addr)
 {
+	last_di_for_exception_3 = 0;
 	exception3f (opcode, addr, 0, 1, false, 0xffffffff, 1, true, -1);
 }
-void exception3b (uae_u32 opcode, uaecptr addr, bool w, bool i, uaecptr pc)
+void exception3b(uae_u32 opcode, uaecptr addr, bool w, bool i, uaecptr pc)
 {
+	last_di_for_exception_3 = 0;
 	exception3f (opcode, addr, w, i, false, pc, 1, true, -1);
 }
 

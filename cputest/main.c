@@ -74,6 +74,7 @@ static uae_u8 *test_data;
 static uae_u8 *safe_memory_start, *safe_memory_end;
 static int safe_memory_mode;
 static uae_u32 user_stack_memory, super_stack_memory;
+static uae_u32 exception_vectors;
 static int test_data_size;
 static uae_u32 oldvbr;
 static uae_u8 *vbr_zero = 0;
@@ -366,12 +367,18 @@ static void start_test(void)
 		uae_u32 *p = (uae_u32 *)vbr_zero;
 		for (int i = 2; i < 12; i++) {
 			p[i] = (uae_u32)(((uae_u32)&exceptiontable000) + (i - 2) * 2);
+			if (exception_vectors && i >= 4) {
+				p[i] = exception_vectors;
+			}
 			if (i < 12 + 2) {
 				error_vectors[i - 2] = p[i];
 			}
 		}
 		for (int i = 32; i < 48; i++) {
 			p[i] = (uae_u32)(((uae_u32)&exceptiontable000) + (i - 2) * 2);
+			if (exception_vectors) {
+				p[i] = exception_vectors;
+			}
 		}
 		exceptiontableinuse = (uae_u32)&exceptiontable000;
 	} else {
@@ -389,6 +396,9 @@ static void start_test(void)
 			}
 			if (i >= 2 && i < 12) {
 				error_vectors[i - 2] = vbr[i];
+			}
+			if (exception_vectors && i >= 4) {
+				vbr[i] = exception_vectors;
 			}
 		}
 	}
@@ -2287,6 +2297,10 @@ static int test_mnemo(const char *opcode)
 	safe_memory_end = (uae_u8*)read_u32(headerfile, &headoffset);
 	user_stack_memory = read_u32(headerfile, &headoffset);
 	super_stack_memory = read_u32(headerfile, &headoffset);
+	exception_vectors = read_u32(headerfile, &headoffset);
+	read_u32(headerfile, &headoffset);
+	read_u32(headerfile, &headoffset);
+	read_u32(headerfile, &headoffset);
 	memcpy(inst_name, headerfile + headoffset, sizeof(inst_name) - 1);
 	inst_name[sizeof(inst_name) - 1] = 0;
 	free(headerfile);
@@ -2378,6 +2392,7 @@ static int test_mnemo(const char *opcode)
 					}
 				}
 			}
+			quit = 1;
 			break;
 		}
 		if (gl(test_data) != DATA_VERSION) {
@@ -2388,11 +2403,15 @@ static int test_mnemo(const char *opcode)
 			printf("Test data file header mismatch (old test data file?)\n");
 			break;
 		}
-		if (test_data[test_data_size - 1] != CT_END_FINISH) {
+		if (test_data[test_data_size - 2] != CT_END_FINISH) {
 			printf("Invalid test data file (footer)\n");
 			free(test_data);
 			exit(0);
 		}
+
+		// last file?
+		int last = test_data[test_data_size - 1] == CT_END_FINISH;
+
 		test_data_size -= 16;
 		if (test_data_size <= 0)
 			break;
@@ -2403,7 +2422,7 @@ static int test_mnemo(const char *opcode)
 
 		free(test_data);
 
-		if (errors || quit) {
+		if (errors || quit || last) {
 			break;
 		}
 
@@ -2503,6 +2522,7 @@ int main(int argc, char *argv[])
 		printf("ccrmask = ignore CCR bits that are not set.\n");
 		printf("nodisasm = do not disassemble failed test.\n");
 		printf("basicexc = do only basic checks when exception is 2 or 3.\n");
+		printf("askifmissing = ask for new path if dat file is missing.\n");
 		return 0;
 	}
 
