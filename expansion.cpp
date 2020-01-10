@@ -5082,6 +5082,65 @@ const struct expansionromtype expansionroms[] = {
 		false, EXPANSIONTYPE_SCSI | EXPANSIONTYPE_IDE
 	},
 
+	/* built-in controllers */
+	{
+		_T("cd32fmv"), _T("CD32 FMV"), _T("Commodore"),
+		NULL, expamem_init_cd32fmv, NULL, NULL, ROMTYPE_CD32CART, 0, 0, BOARD_AUTOCONFIG_Z2, true,
+		NULL, 0,
+		false, EXPANSIONTYPE_INTERNAL
+	},
+	{
+		_T("cdtvdmac"), _T("CDTV DMAC"), _T("Commodore"),
+		NULL, cdtv_init, NULL, NULL, ROMTYPE_CDTVDMAC | ROMTYPE_NOT, 0, 0, BOARD_AUTOCONFIG_Z2, true,
+		NULL, 0,
+		false, EXPANSIONTYPE_INTERNAL
+	},
+	{
+		_T("cdtvscsi"), _T("CDTV SCSI"), _T("Commodore"),
+		NULL, cdtvscsi_init, NULL, cdtv_add_scsi_unit, ROMTYPE_CDTVSCSI | ROMTYPE_NOT, 0, 0, BOARD_NONAUTOCONFIG_AFTER_Z2, true,
+		NULL, 0,
+		false, EXPANSIONTYPE_INTERNAL | EXPANSIONTYPE_SCSI
+	},
+	{
+		_T("cdtvsram"), _T("CDTV SRAM"), _T("Commodore"),
+		NULL, cdtvsram_init, NULL, NULL, ROMTYPE_CDTVSRAM | ROMTYPE_NOT, 0, 0, BOARD_NONAUTOCONFIG_BEFORE, true,
+		NULL, 0,
+		false, EXPANSIONTYPE_INTERNAL,
+		0, 0, 0, false, NULL,
+		false, 0, cdtvsram_settings
+	},
+	{
+		_T("cdtvcr"), _T("CDTV-CR"), _T("Commodore"),
+		NULL, cdtvcr_init, NULL, NULL, ROMTYPE_CDTVCR | ROMTYPE_NOT, 0, 0, BOARD_NONAUTOCONFIG_AFTER_Z2, true,
+		NULL, 0,
+		false, EXPANSIONTYPE_INTERNAL
+	},
+	{
+		_T("scsi_a3000"), _T("A3000 SCSI"), _T("Commodore"),
+		NULL, a3000scsi_init, NULL, a3000_add_scsi_unit, ROMTYPE_SCSI_A3000 | ROMTYPE_NOT, 0, 0, BOARD_NONAUTOCONFIG_AFTER_Z2, true,
+		NULL, 0,
+		false, EXPANSIONTYPE_INTERNAL | EXPANSIONTYPE_SCSI
+	},
+	{
+		_T("scsi_a4000t"), _T("A4000T SCSI"), _T("Commodore"),
+		NULL, a4000t_scsi_init, NULL, a4000t_add_scsi_unit, ROMTYPE_SCSI_A4000T | ROMTYPE_NOT, 0, 0, BOARD_NONAUTOCONFIG_BEFORE, true,
+		NULL, 0,
+		false, EXPANSIONTYPE_INTERNAL | EXPANSIONTYPE_SCSI
+	},
+	{
+		_T("ide_mb"), _T("A600/A1200/A4000 IDE"), _T("Commodore"),
+		NULL, gayle_ide_init, NULL, gayle_add_ide_unit, ROMTYPE_MB_IDE | ROMTYPE_NOT, 0, 0, BOARD_NONAUTOCONFIG_BEFORE, true,
+		NULL, 0,
+		false, EXPANSIONTYPE_INTERNAL | EXPANSIONTYPE_IDE,
+		0, 0, 0, false, NULL, false, 1
+	},
+	{
+		_T("pcmcia_mb"), _T("A600/A1200 PCMCIA"), _T("Commodore"),
+		NULL, gayle_init_pcmcia, NULL, NULL, ROMTYPE_MB_PCMCIA | ROMTYPE_NOT, 0, 0, BOARD_NONAUTOCONFIG_BEFORE, true,
+		NULL, 0,
+		false, EXPANSIONTYPE_INTERNAL
+	},
+
 	/* PCI Bridgeboards */
 
 	{
@@ -5936,65 +5995,6 @@ const struct expansionromtype expansionroms[] = {
 		NULL, expamem_init_catweasel, NULL, NULL, ROMTYPE_CATWEASEL | ROMTYPE_NOT, 0, 0, BOARD_AUTOCONFIG_Z2, true,
 		NULL, 0,
 		false, EXPANSIONTYPE_FLOPPY
-	},
-
-		/* built-in controllers */
-	{
-		_T("cd32fmv"), _T("CD32 FMV"), _T("Commodore"),
-		NULL, expamem_init_cd32fmv, NULL, NULL, ROMTYPE_CD32CART, 0, 0, BOARD_AUTOCONFIG_Z2, true,
-		NULL, 0,
-		false, EXPANSIONTYPE_INTERNAL
-	},
-	{
-		_T("cdtvdmac"), _T("CDTV DMAC"), _T("Commodore"),
-		NULL, cdtv_init, NULL, NULL, ROMTYPE_CDTVDMAC | ROMTYPE_NOT, 0, 0, BOARD_AUTOCONFIG_Z2, true,
-		NULL, 0,
-		false, EXPANSIONTYPE_INTERNAL
-	},
-	{
-		_T("cdtvscsi"), _T("CDTV SCSI"), _T("Commodore"),
-		NULL, cdtvscsi_init, NULL, cdtv_add_scsi_unit, ROMTYPE_CDTVSCSI | ROMTYPE_NOT, 0, 0, BOARD_NONAUTOCONFIG_AFTER_Z2, true,
-		NULL, 0,
-		false, EXPANSIONTYPE_INTERNAL | EXPANSIONTYPE_SCSI
-	},
-	{
-		_T("cdtvsram"), _T("CDTV SRAM"), _T("Commodore"),
-		NULL, cdtvsram_init, NULL, NULL, ROMTYPE_CDTVSRAM | ROMTYPE_NOT, 0, 0, BOARD_NONAUTOCONFIG_BEFORE, true,
-		NULL, 0,
-		false, EXPANSIONTYPE_INTERNAL,
-		0, 0, 0, false, NULL,
-		false, 0, cdtvsram_settings
-	},
-	{
-		_T("cdtvcr"), _T("CDTV-CR"), _T("Commodore"),
-		NULL, cdtvcr_init, NULL, NULL, ROMTYPE_CDTVCR | ROMTYPE_NOT, 0, 0, BOARD_NONAUTOCONFIG_AFTER_Z2, true,
-		NULL, 0,
-		false, EXPANSIONTYPE_INTERNAL
-	},
-	{
-		_T("scsi_a3000"), _T("A3000 SCSI"), _T("Commodore"),
-		NULL, a3000scsi_init, NULL, a3000_add_scsi_unit, ROMTYPE_SCSI_A3000 | ROMTYPE_NOT, 0, 0, BOARD_NONAUTOCONFIG_AFTER_Z2, true,
-		NULL, 0,
-		false, EXPANSIONTYPE_INTERNAL | EXPANSIONTYPE_SCSI
-	},
-	{
-		_T("scsi_a4000t"), _T("A4000T SCSI"), _T("Commodore"),
-		NULL, a4000t_scsi_init, NULL, a4000t_add_scsi_unit, ROMTYPE_SCSI_A4000T | ROMTYPE_NOT, 0, 0, BOARD_NONAUTOCONFIG_BEFORE, true,
-		NULL, 0,
-		false, EXPANSIONTYPE_INTERNAL | EXPANSIONTYPE_SCSI
-	},
-	{
-		_T("ide_mb"), _T("A600/A1200/A4000 IDE"), _T("Commodore"),
-		NULL, gayle_ide_init, NULL, gayle_add_ide_unit, ROMTYPE_MB_IDE | ROMTYPE_NOT, 0, 0, BOARD_NONAUTOCONFIG_BEFORE, true,
-		NULL, 0,
-		false, EXPANSIONTYPE_INTERNAL | EXPANSIONTYPE_IDE,
-		0, 0, 0, false, NULL, false, 1
-	},
-	{
-		_T("pcmcia_mb"), _T("A600/A1200 PCMCIA"), _T("Commodore"),
-		NULL, gayle_init_pcmcia, NULL, NULL, ROMTYPE_MB_PCMCIA | ROMTYPE_NOT, 0, 0, BOARD_NONAUTOCONFIG_BEFORE, true,
-		NULL, 0,
-		false, EXPANSIONTYPE_INTERNAL
 	},
 
 	// misc
