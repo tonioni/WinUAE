@@ -2934,8 +2934,13 @@ static void genamode2x (amodes mode, const char *reg, wordsizes size, const char
 
 		if (cpu_level == 1) {
 			// 68010 does dummy access
-			if (getv != 2)
-				printf("\t\tuae_s16 d_%s = %s(%sa & ~1);\n", name, srcw, name);
+			if (getv != 2) {
+				if ((flags & GF_REVERSE) && size == sz_long) {
+					printf("\t\tuae_s16 d_%s = %s((%sa + 2) & ~1);\n", name, srcw, name);
+				} else {
+					printf("\t\tuae_s16 d_%s = %s(%sa & ~1);\n", name, srcw, name);
+				}
+			}
 			if (abs(bus_error_reg_add) == 4)
 				bus_error_reg_add = 0;
 			// 68010 CLR <memory>: pre and post are not added yet
