@@ -125,6 +125,7 @@ static uae_u32 interrupt_mask;
 static int disasm;
 static int basicexcept;
 static int askifmissing;
+static int nextall;
 
 #define SIZE_STORED_ADDRESS_OFFSET 8
 #define SIZE_STORED_ADDRESS 16
@@ -2518,6 +2519,7 @@ int main(int argc, char *argv[])
 		printf("mnemonic = test single mnemonic\n");
 		printf("all = test all\n");
 		printf("all <mnemonic> = test all, starting from <mnemonic>\n");
+		printf("all <mnemonic> next = test all, starting after <mnemonic>\n");
 		printf("continue = don't stop on error (all mode only)\n");
 		printf("ccrmask = ignore CCR bits that are not set.\n");
 		printf("nodisasm = do not disassemble failed test.\n");
@@ -2567,6 +2569,8 @@ int main(int argc, char *argv[])
 			basicexcept = 1;
 		} else if (!_stricmp(s, "askifmissing")) {
 			askifmissing = 1;
+		} else if (!_stricmp(s, "next")) {
+			nextall = 1;
 		}
 	}
 
@@ -2642,6 +2646,9 @@ int main(int argc, char *argv[])
 				printf("Couldn't find '%s'\n", argv[2]);
 				return 0;
 			}
+		}
+		if (nextall) {
+			first += MAX_FILE_LEN;
 		}
 		for (int i = first; i < diroff; i += MAX_FILE_LEN) {
 			if (test_mnemo(dirs + i)) {
