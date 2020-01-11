@@ -3009,8 +3009,8 @@ static int memwatch_func (uaecptr addr, int rwi, int size, uae_u32 *valp, uae_u3
 
 		if (m->bus_error) {
 			if (((m->bus_error & 1) && (rwi & 1)) || ((m->bus_error & 4) && (rwi & 4)) || ((m->bus_error & 2) && (rwi & 2))) {
-#if BUS_ERROR_EMULATION
-				cpu_bus_error = 1;
+#if HARDWARE_BUS_ERROR_EMULATION
+				hardware_bus_error = 1;
 #else
 				exception2(addr, (rwi & 2) == 0, size, ((rwi & 4) ? 2 : 1) | (regs.s ? 4 : 0));
 #endif

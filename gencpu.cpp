@@ -595,7 +595,7 @@ static void do_instruction_buserror(void)
 		return;
 
 	if (bus_error_text[0]) {
-		printf("\tif(cpu_bus_error) {\n");
+		printf("\tif(hardware_bus_error) {\n");
 		if (bus_error_code[0])
 			printf("%s", bus_error_code);
 		printf("%s", bus_error_text);
@@ -1758,7 +1758,7 @@ static void check_bus_error(const char *name, int offset, int write, int size, c
 	if ((!using_prefetch && !using_ce) || cpu_level >= 2) {
 
 		fc &= 7;
-		printf("\tif(cpu_bus_error) {\n");
+		printf("\tif(hardware_bus_error) {\n");
 		if (write) {
 			printf("\t\texception2_write(opcode, %sa + %d, %d, %s, %d);\n",
 				name, offset, size, writevar,
@@ -1786,7 +1786,7 @@ static void check_bus_error(const char *name, int offset, int write, int size, c
 	uae_u32 extra = fc & 0xffff0000;
 	fc &= 0xffff;
 
-	printf("\tif(cpu_bus_error) {\n");
+	printf("\tif(hardware_bus_error) {\n");
 
 	int setapdiback = 0;
 
@@ -8515,7 +8515,7 @@ int main(int argc, char *argv[])
 
 	headerfile = fopen("cputbl.h", "wb");
 
-	fprintf(headerfile, "#define BUS_ERROR_EMULATION %d\n", using_bus_error);
+	fprintf(headerfile, "#define HARDWARE_BUS_ERROR_EMULATION %d\n", using_bus_error);
 
 	stblfile = fopen("cpustbl.cpp", "wb");
 	generate_includes(stblfile, 0);

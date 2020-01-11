@@ -43,7 +43,7 @@ int movem_index1[256];
 int movem_index2[256];
 int movem_next[256];
 int bus_error_offset;
-int cpu_bus_error, cpu_bus_error_fake;
+int hardware_bus_error, hardware_bus_error_fake;
 
 struct mmufixup mmufixup[2];
 cpuop_func *cpufunctbl[65536];
@@ -295,16 +295,16 @@ static void check_bus_error(uaecptr addr, int write, int fc)
 	if (safe_memory_start == 0xffffffff && safe_memory_end == 0xffffffff)
 		return;
 	if (addr >= safe_memory_start && addr < safe_memory_end) {
-		cpu_bus_error_fake = -1;
+		hardware_bus_error_fake = -1;
 		if ((safe_memory_mode & 4) && !write && (fc & 2)) {
-			cpu_bus_error |= 4;
-			cpu_bus_error_fake |= 1;
+			hardware_bus_error |= 4;
+			hardware_bus_error_fake |= 1;
 		} else if ((safe_memory_mode & 1) && !write && !(fc & 2)) {
-			cpu_bus_error |= 1;
-			cpu_bus_error_fake |= 1;
+			hardware_bus_error |= 1;
+			hardware_bus_error_fake |= 1;
 		} else if ((safe_memory_mode & 2) && write) {
-			cpu_bus_error |= 2;
-			cpu_bus_error_fake |= 2;
+			hardware_bus_error |= 2;
+			hardware_bus_error_fake |= 2;
 		}
 		if (!write && (fc & 2) && feature_usp == 3) {
 			out_of_test_space = true;
@@ -360,7 +360,7 @@ void put_byte_test(uaecptr addr, uae_u32 v)
 		return;
 	check_bus_error(addr, 1, regs.s ? 5 : 1);
 	uae_u8 *p = get_addr(addr, 1, 1);
-	if (!out_of_test_space && !noaccesshistory && !cpu_bus_error_fake) {
+	if (!out_of_test_space && !noaccesshistory && !hardware_bus_error_fake) {
 		previoussame(addr, sz_byte);
 		if (ahcnt_current >= MAX_ACCESSHIST) {
 			wprintf(_T(" ahist overflow!"));
@@ -385,7 +385,7 @@ void put_word_test(uaecptr addr, uae_u32 v)
 		put_byte_test(addr + 1, v >> 0);
 	} else {
 		uae_u8 *p = get_addr(addr, 2, 1);
-		if (!out_of_test_space && !noaccesshistory && !cpu_bus_error_fake) {
+		if (!out_of_test_space && !noaccesshistory && !hardware_bus_error_fake) {
 			previoussame(addr, sz_word);
 			if (ahcnt_current >= MAX_ACCESSHIST) {
 				wprintf(_T(" ahist overflow!"));
@@ -416,7 +416,7 @@ void put_long_test(uaecptr addr, uae_u32 v)
 		put_word_test(addr + 2, v >> 0);
 	} else {
 		uae_u8 *p = get_addr(addr, 4, 1);
-		if (!out_of_test_space && !noaccesshistory && !cpu_bus_error_fake) {
+		if (!out_of_test_space && !noaccesshistory && !hardware_bus_error_fake) {
 			previoussame(addr, sz_long);
 			if (ahcnt_current >= MAX_ACCESSHIST) {
 				wprintf(_T(" ahist overflow!"));
@@ -2653,8 +2653,8 @@ static void execute_ins(uaecptr endpc, uaecptr targetpc, struct instr *dp)
 	test_memory_accessed = 0;
 	testing_active = 1;
 	testing_active_opcode = opc;
-	cpu_bus_error = 0;
-	cpu_bus_error_fake = 0;
+	hardware_bus_error = 0;
+	hardware_bus_error_fake = 0;
 	read_buffer_prev = regs.ir;
 	regs.read_buffer = regs.irc;
 	regs.write_buffer = 0xf00d;
@@ -3341,8 +3341,8 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 
 					out_of_test_space = 0; 
 					noaccesshistory = 0;
-					cpu_bus_error_fake = 0;
-					cpu_bus_error = 0;
+					hardware_bus_error_fake = 0;
+					hardware_bus_error = 0;
 					ahcnt_current = 0;
 					ahcnt_written = 0;
 					multi_mode = 0;
@@ -3895,15 +3895,15 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 
 							// if only testing read bus errors, skip tests that generated only writes and vice-versa
 							// skip also all tests don't generate any bus errors
-							if ((cpu_bus_error == 0 && safe_memory_mode) ||
-								((cpu_bus_error & 4) && !(safe_memory_mode & 4)) ||
-								((cpu_bus_error & 1) && !(safe_memory_mode & 1)) ||
-								((cpu_bus_error & 2) && !(safe_memory_mode & 2))) {
+							if ((hardware_bus_error == 0 && safe_memory_mode) ||
+								((hardware_bus_error & 4) && !(safe_memory_mode & 4)) ||
+								((hardware_bus_error & 1) && !(safe_memory_mode & 1)) ||
+								((hardware_bus_error & 2) && !(safe_memory_mode & 2))) {
 								skipped = 1;
 							}
 
 							// skip if feature_target_opcode_offset mode and non-prefetch bus error
-							if (target_opcode_address != 0xffffffff && (cpu_bus_error & 3)) {
+							if (target_opcode_address != 0xffffffff && (hardware_bus_error & 3)) {
 								skipped = 1;
 							}
 

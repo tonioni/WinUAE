@@ -53,7 +53,7 @@ extern int fpp_movem_next[256];
 #endif
 
 extern int bus_error_offset;
-extern int cpu_bus_error;
+extern int hardware_bus_error;
 
 typedef uae_u32 REGPARAM3 cpuop_func (uae_u32) REGPARAM;
 typedef void REGPARAM3 cpuop_func_ce (uae_u32) REGPARAM;

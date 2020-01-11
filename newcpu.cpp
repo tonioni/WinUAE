@@ -85,7 +85,7 @@ static void exception3_read_special(uae_u32 opcode, uaecptr addr, int size, int 
 int mmu_enabled, mmu_triggered;
 int cpu_cycles;
 int bus_error_offset;
-int cpu_bus_error;
+int hardware_bus_error;
 static int baseclock;
 int m68k_pc_indirect;
 bool m68k_interrupt_delay;
@@ -2622,8 +2622,8 @@ kludge_me_do:
 		regs.intmask = nr - 24;
 	branch_stack_push(currpc, currpc);
 	regs.ir = x_get_word (m68k_getpc ()); // prefetch 1
-#if BUS_ERROR_EMULATION
-	if (cpu_bus_error) {
+#if HARDWARE_BUS_ERROR_EMULATION
+	if (hardware_bus_error) {
 		if (nr == 2 || nr == 3) {
 			cpu_halt(CPU_HALT_DOUBLE_FAULT);
 			return;
@@ -2637,8 +2637,8 @@ kludge_me_do:
 	regs.ipl_pin = intlev();
 	ipl_fetch();
 	regs.irc = x_get_word (m68k_getpc () + 2); // prefetch 2
-#if BUS_ERROR_EMULATION
-	if (cpu_bus_error) {
+#if HARDWARE_BUS_ERROR_EMULATION
+	if (hardware_bus_error) {
 		if (nr == 2 || nr == 3) {
 			cpu_halt(CPU_HALT_DOUBLE_FAULT);
 			return;
@@ -7039,7 +7039,7 @@ void exception2_setup(uae_u32 opcode, uaecptr addr, bool read, int size, uae_u32
 	last_notinstruction_for_exception_3 = exception_in_exception != 0;
 	last_size_for_exception_3 = size;
 	last_di_for_exception_3 = 1;
-	cpu_bus_error = 0;
+	hardware_bus_error = 0;
 
 	if (currprefs.cpu_model == 68000 && currprefs.cpu_compatible) {
 		if (generates_group1_exception(regs.ir) && !(opcode & 0x20000)) {
