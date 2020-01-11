@@ -853,7 +853,7 @@ static void doexcstack2(void)
 			ssw |= test_exception_3_size == 0 ? 0x0200 : 0x0000; // BY
 			ssw |= test_exception_3_w ? 0x0000 : 0x0100; // RW
 			regs.mmu_fault_addr = test_exception_addr;
-			Exception_build_stack_frame(regs.instruction_pc, regs.pc, ssw, 3, 0x08);
+			Exception_build_stack_frame(regs.instruction_pc, regs.pc, ssw, test_exception, 0x08);
 			SPCFLAG_DOTRACE = 0;
 		} else {
 			Exception_build_stack_frame_common(regs.instruction_pc, regs.pc, 0, test_exception);
@@ -863,7 +863,7 @@ static void doexcstack2(void)
 			uae_u16 ssw = (sv ? 4 : 0) | test_exception_3_fc;
 			ssw |= 0x20;
 			regs.mmu_fault_addr = test_exception_addr;
-			Exception_build_stack_frame(regs.instruction_pc, regs.pc, ssw, 3, 0x0b);
+			Exception_build_stack_frame(regs.instruction_pc, regs.pc, ssw, test_exception, 0x0b);
 		} else {
 			Exception_build_stack_frame_common(regs.instruction_pc, regs.pc, 0, test_exception);
 		}
@@ -871,7 +871,7 @@ static void doexcstack2(void)
 		if (test_exception == 3) {
 			if (currprefs.cpu_model >= 68040)
 				test_exception_addr &= ~1;
-			Exception_build_stack_frame(test_exception_addr, regs.pc, 0, 3, 0x02);
+			Exception_build_stack_frame(test_exception_addr, regs.pc, 0, test_exception, 0x02);
 		} else {
 			Exception_build_stack_frame_common(regs.instruction_pc, regs.pc, 0, test_exception);
 		}

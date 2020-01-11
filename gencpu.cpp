@@ -1739,6 +1739,12 @@ static int do_bus_error_fixes(const char *name, int offset, int write)
 				printf("\t\tregs.sr = sr;\n");
 				printf("\t\tMakeFromSR();\n");
 			}
+		} else if (cpu_level == 1) {
+			// -(an).l where first word causes bus error: An is not modified
+			// -(an).l where second word causes bus error: An is modified
+			if (g_instr->size != sz_long || (g_instr->size == sz_long && offset)) {
+				printf("\t\tm68k_areg(regs, %s) = %sa;\n", bus_error_reg, name);
+			}
 		} else {
 			printf("\t\tm68k_areg(regs, %s) = %sa;\n", bus_error_reg, name);
 		}
@@ -1848,13 +1854,21 @@ static void check_bus_error(const char *name, int offset, int write, int size, c
 			}
 		}
 
-		if (cpu_level == 1 && g_instr->mnemo == i_MVSR2 && !write) {
-			printf("\t\topcode |= 0x20000;\n"); // upper byte of SSW is zero -flag.
-		}
+		if (cpu_level == 1) {
+			// 68010 bus/address error HB bit
+			if (extra) {
+				printf("\t\topcode |= 0x%x;\n", extra);
+			}
+			// upper byte of SSW is zero -flag.
+			if (g_instr->mnemo == i_MVSR2 && !write) {
+				printf("\t\topcode |= 0x20000;\n");
+			}
+			// read bus error, -(an).w/.l: pre-decrement is done first.
+			if (!write && g_instr->smode == Apdi && g_instr->size == sz_long) {
 
-		// 68010 bus/address error HB bit
-		if (extra && cpu_level == 1) {
-			printf("\t\topcode |= 0x%x;\n", extra);
+				//printf("\t\tm68k_areg(regs, %s) = %sa;\n", bus_error_reg, name);
+			}
+
 		}
 
 		// write causing bus error and trace: set I/N
@@ -2933,6 +2947,7 @@ static void genamode2x (amodes mode, const char *reg, wordsizes size, const char
 		printf("\tif (%sa & 1) {\n", name);
 
 		if (cpu_level == 1) {
+			int bus_error_reg_add_old = bus_error_reg_add;
 			// 68010 does dummy access
 			if (getv != 2) {
 				if ((flags & GF_REVERSE) && size == sz_long) {
@@ -2957,10 +2972,11 @@ static void genamode2x (amodes mode, const char *reg, wordsizes size, const char
 			} else {
 				do_bus_error_fixes(name, 0, getv == 2);
 			}
-			// x,-(an): an is modified
-			if (mode == Apdi && g_instr->size == sz_word && g_instr->mnemo != i_CLR) {
+			// x,-(an): an is modified (MOVE to CCR counts as word sized)
+			if (mode == Apdi && (g_instr->size == sz_word || g_instr->size == i_MV2SR) && g_instr->mnemo != i_CLR) {
 				printf("\t\tm68k_areg(regs, %s) = %sa;\n", reg, name);
 			}
+			bus_error_reg_add = bus_error_reg_add_old;
 		}
 
 		if (g_instr->mnemo == i_ADDX || g_instr->mnemo == i_SUBX) {

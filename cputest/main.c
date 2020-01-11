@@ -1314,6 +1314,24 @@ static int last_exception_len;
 static uae_u8 alternate_exception1[256];
 static uae_u8 alternate_exception2[256];
 static uae_u8 alternate_exception3[256];
+static uae_u8 masked_exception[256];
+static int mask_exception;
+static int exception_stored;
+
+static int compare_exception(uae_u8 *s1, uae_u8 *s2, int len, int domask, uae_u8 *mask)
+{
+	if (!domask) {
+		return memcmp(s1, s2, len);
+	} else {
+		for (int i = 0; i < len; i++) {
+			if (mask[i])
+				continue;
+			if (s1[i] != s2[i])
+				return 1;
+		}
+		return 0;
+	}
+}
 
 static uae_u8 *validate_exception(struct registers *regs, uae_u8 *p, int excnum, int *gotexcnum, int *experr)
 {
@@ -1327,6 +1345,7 @@ static uae_u8 *validate_exception(struct registers *regs, uae_u8 *p, int excnum,
 	int excrwp = 0;
 	int alts = 0;
 
+	mask_exception = 0;
 	if (!excdatalen) {
 		return p;
 	}
@@ -1491,45 +1510,59 @@ static uae_u8 *validate_exception(struct registers *regs, uae_u8 *p, int excnum,
 				exclen = 16;
 				break;
 			case 8: // 68010 bus/address error
-				exc[8] = *p++;
-				exc[9] = *p++;
-				excrwp = ((exc[8] & 1) == 0) ? 1 : 0;
-				if (exc[9] & 2)
-					excrwp = 2;
-				v = opcode_memory_addr;
-				p = restore_rel_ordered(p, &v);
-				pl(exc + 10, v);
-				// data out
-				exc[16] = *p++;
-				exc[17] = *p++;
-				// data in
-				exc[20] = *p++;
-				exc[21] = *p++;
-				// inst
-				exc[24] = *p++;
-				exc[25] = *p++;
-				exc[14] = exc[15] = 0;
-				sp[14] = sp[15] = 0;
-				exc[18] = exc[19] = 0;
-				sp[18] = sp[19] = 0;
-				exc[22] = exc[23] = 0;
-				sp[22] = sp[23] = 0;
-				// ignore undocumented data
-				exclen = 26;
-				// read input buffer may contain either actual data read from memory or previous read data
-				// this depends on hardware, cpu does dummy read cycle and some hardware returns memory data, some ignore it.
-				memcpy(alternate_exception1, exc, exclen);
-				memcpy(alternate_exception2, exc, exclen);
-				alternate_exception1[20] = p[0];
-				alternate_exception1[21] = p[1];
-				memcpy(alternate_exception3, alternate_exception1, exclen);
-				// same with instruction input buffer if branch instruction generates address error
-				alternate_exception2[24] = p[0];
-				alternate_exception2[25] = p[1];
-				alternate_exception3[24] = p[0];
-				alternate_exception3[25] = p[1];
-				p += 2;
-				alts = 3;
+				{
+					exc[8] = *p++;
+					exc[9] = *p++;
+					excrwp = ((exc[8] & 1) == 0) ? 1 : 0;
+					if (exc[9] & 2)
+						excrwp = 2;
+					uae_u32 fault_addr = opcode_memory_addr;
+					p = restore_rel_ordered(p, &fault_addr);
+					pl(exc + 10, fault_addr);
+					// data out
+					exc[16] = *p++;
+					exc[17] = *p++;
+					// data in
+					exc[20] = *p++;
+					exc[21] = *p++;
+					// inst
+					exc[24] = *p++;
+					exc[25] = *p++;
+					exc[14] = exc[15] = 0;
+					sp[14] = sp[15] = 0;
+					exc[18] = exc[19] = 0;
+					sp[18] = sp[19] = 0;
+					exc[22] = exc[23] = 0;
+					sp[22] = sp[23] = 0;
+					if (basicexcept) {
+						exclen = 14;
+					} else {
+						// ignore undocumented data
+						exclen = 26;
+						// read input buffer may contain either actual data read from memory or previous read data
+						// this depends on hardware, cpu does dummy read cycle and some hardware returns memory data, some ignore it.
+						memcpy(alternate_exception1, exc, exclen);
+						memcpy(alternate_exception2, exc, exclen);
+						alternate_exception1[20] = p[0];
+						alternate_exception1[21] = p[1];
+						memcpy(alternate_exception3, alternate_exception1, exclen);
+						// same with instruction input buffer if branch instruction generates address error
+						alternate_exception2[24] = p[0];
+						alternate_exception2[25] = p[1];
+						alternate_exception3[24] = p[0];
+						alternate_exception3[25] = p[1];
+						if (excnum == 2 || !is_valid_test_addr_readwrite(fault_addr - 4) || !is_valid_test_addr_readwrite(fault_addr + 4)) {
+							// bus error read: cpu may still the data, depends on hardware.
+							// ignore input buffer contents
+							mask_exception = 1;
+							memset(masked_exception, 0, sizeof(masked_exception));
+							masked_exception[20] = 1;
+							masked_exception[21] = 1;
+						}
+						alts = 3;
+					}
+					p += 2;
+				}
 				break;
 			case 0x0a:
 			case 0x0b:
@@ -1557,14 +1590,14 @@ static uae_u8 *validate_exception(struct registers *regs, uae_u8 *p, int excnum,
 	if (exclen == 0 || *gotexcnum != excnum)
 		return p;
 	int err = 0;
-	if (memcmp(exc, sp, exclen)) {
+	if (compare_exception(exc, sp, exclen, mask_exception, masked_exception)) {
 		err = 1;
 		if (err && alts > 0) {
-			if (alts >= 1 && !memcmp(alternate_exception1, sp, exclen))
+			if (alts >= 1 && !compare_exception(alternate_exception1, sp, exclen, mask_exception, masked_exception))
 				err = 0;
-			if (alts >= 2 && !memcmp(alternate_exception2, sp, exclen))
+			if (alts >= 2 && !compare_exception(alternate_exception2, sp, exclen, mask_exception, masked_exception))
 				err = 0;
-			if (alts >= 3 && !memcmp(alternate_exception3, sp, exclen))
+			if (alts >= 3 && !compare_exception(alternate_exception3, sp, exclen, mask_exception, masked_exception))
 				err = 0;
 		}
 	}
@@ -1579,8 +1612,10 @@ static uae_u8 *validate_exception(struct registers *regs, uae_u8 *p, int excnum,
 		hexdump(sp, exclen);
 		*experr = 1;
 	}
+	exception_stored = exclen;
 	return p;
 }
+
 
 // regs: registers before execution of test code
 // test_reg: registers used during execution of test code, also modified by test code.
@@ -1629,6 +1664,7 @@ static uae_u8 *validate_test(uae_u8 *p, int ignore_errors, int ignore_sr)
 	int errflag = 0;
 	int errflag_orig = 0;
 	uae_u8 *outbp_old = outbp;
+	exception_stored = 0;
 
 	for (;;) {
 		uae_u8 v = *p;
@@ -1944,8 +1980,11 @@ static uae_u8 *validate_test(uae_u8 *p, int ignore_errors, int ignore_sr)
 		out_regs(&test_regs, 0);
 		if (exc > 1) {
 			if (!experr) {
-				sprintf(outbp, "OK: Generated exception %d\n", exc);
+				sprintf(outbp, "OK: exception %d ", exc);
 				outbp += strlen(outbp);
+				if (exception_stored) {
+					hexdump(last_exception, exception_stored);
+				}
 			}
 			if ((exc == 3 || exc == 2) && cpu_lvl == 0) {
 				sprintf(outbp, "RW=%d IN=%d FC=%d\n",
