@@ -909,8 +909,13 @@ bool opcode_loop_mode(uae_u16 opcode)
 			(!c->duse || (isreg(c->smode) && !isreg(c->dmode)) || (!isreg(c->smode) && isreg(c->dmode)) || (!isreg(c->smode) && !isreg(c->dmode)))) {
 			loopmode = true;
 		}
-		if (c->mnemo == i_MOVE && isreg(c->dmode)) {
-			loopmode = false;
+		if (c->mnemo == i_MOVE) {
+			// move x,dn: not supported
+			if (isreg(c->dmode))
+				loopmode = false;
+			// move reg,-(an): not supported
+			if (isreg(c->smode) && c->dmode == Apdi)
+				loopmode = false;
 		}
 	}
 	return loopmode;

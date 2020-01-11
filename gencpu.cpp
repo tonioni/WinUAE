@@ -4645,7 +4645,9 @@ static void gen_opcode (unsigned int opcode)
 			if (curi->dmode == Dreg) {
 				c += 2;
 				if (curi->smode == imm || curi->smode == Dreg) {
-					c += 2;
+					if (cpu_level == 0) {
+						c += 2;
+					}
 					fill_prefetch_next_after(1, "\t\tccr_68000_long_move_ae_LZN(src);\n\t\tdreg_68000_long_replace_low(dstreg, src);\n");
 				} else {
 					fill_prefetch_next_after(1, "\t\tdreg_68000_long_replace_low(dstreg, src);\n");
@@ -4705,7 +4707,9 @@ static void gen_opcode (unsigned int opcode)
 			if (curi->dmode == Dreg) {
 				c += 2;
 				if (curi->smode == imm || curi->smode == immi || curi->smode == Dreg || curi->smode == Areg) {
-					c += 2;
+					if (cpu_level == 0) {
+						c += 2;
+					}
 					fill_prefetch_next_after(1,
 						"\t\tuae_s16 bnewv = (uae_s16)dst - (uae_s16)src;\n"
 						"\t\tint bflgs = ((uae_s16)(src)) < 0;\n"
@@ -4870,7 +4874,9 @@ static void gen_opcode (unsigned int opcode)
 			if (curi->dmode == Dreg) {
 				c += 2;
 				if (curi->smode == imm || curi->smode == immi || curi->smode == Dreg || curi->smode == Areg) {
-					c += 2;
+					if (cpu_level == 0) {
+						c += 2;
+					}
 					fill_prefetch_next_after(1,
 						"\t\tuae_s16 bnewv = (uae_s16)dst + (uae_s16)src;\n"
 						"\t\tint bflgs = ((uae_s16)(src)) < 0;\n"
@@ -5577,6 +5583,10 @@ static void gen_opcode (unsigned int opcode)
 						}
 					}
 					prefetch_done = 1;
+					// MOVE.L reg,-(an): 2 extra cycles if 68010
+					if (cpu_level == 1 && isreg(curi->smode) && curi->size == sz_long) {
+						addcycles000(2);
+					}
 				}
 
 				int storeflags = 0;
@@ -6494,7 +6504,7 @@ static void gen_opcode (unsigned int opcode)
 		pop_ins_cnt();
 		printf("\t}\n");
 		sync_m68k_pc ();
-		if (cpu_level != 1 || curi->size != sz_byte) {
+		if (cpu_level != 1 && curi->size != sz_byte) {
 			addcycles000(2);
 		}
 		get_prefetch_020_continue ();
@@ -6636,9 +6646,11 @@ bccl_not68020:
 		printf("\t\t}\n");
 		add_head_cycs (10);
 		addcycles000_nonce("\t\t", 2 + 2);
-		printf("\t} else {\n");
-		addcycles000_onlyce(2);
-		addcycles000_nonce("\t\t", 2);
+		if (cpu_level == 0) {
+			printf("\t} else {\n");
+			addcycles000_onlyce(2);
+			addcycles000_nonce("\t\t", 2);
+		}
 		printf("\t}\n");
 		pop_ins_cnt();
 		setpc ("oldpc + %d", m68k_pc_offset);
@@ -6690,20 +6702,19 @@ bccl_not68020:
 		printf("\tuae_u32 newv = (uae_u32)dst / (uae_u32)(uae_u16)src;\n");
 		printf("\tuae_u32 rem = (uae_u32)dst %% (uae_u32)(uae_u16)src;\n");
 		if (using_ce) {
-			start_brace();
-			printf("\t\tint cycles = (getDivu68kCycles((uae_u32)dst, (uae_u16)src)) - 4;\n");
-			addcycles000_3("\t\t");
+			printf("\tint cycles = getDivu68kCycles((uae_u32)dst, (uae_u16)src);\n");
+			addcycles000_3("\t");
 		}
-		addcycles000_nonces("\t\t", "(getDivu68kCycles((uae_u32)dst, (uae_u16)src)) - 4");
-		printf("\t\tif (newv > 0xffff) {\n");
-		printf("\t\t\tsetdivuflags((uae_u32)dst, (uae_u16)src);\n");
-		printf("\t\t} else {\n");
-		printf("\t\t");
+		addcycles000_nonces("\t", "getDivu68kCycles((uae_u32)dst, (uae_u16)src)");
+		printf("\tif (newv > 0xffff) {\n");
+		printf("\t\tsetdivuflags((uae_u32)dst, (uae_u16)src);\n");
+		printf("\t} else {\n");
+		printf("\t");
 		genflags (flag_logical, sz_word, "newv", "", "");
-		printf("\t\t\tnewv = (newv & 0xffff) | ((uae_u32)rem << 16);\n");
-		printf("\t\t");
+		printf("\t\tnewv = (newv & 0xffff) | ((uae_u32)rem << 16);\n");
+		printf("\t");
 		genastore ("newv", curi->dmode, "dstreg", sz_long, "dst");
-		printf("\t\t}\n");
+		printf("\t}\n");
 		fill_prefetch_next_t();
 		sync_m68k_pc();
 		count_ncycles++;
@@ -6723,11 +6734,10 @@ bccl_not68020:
 		write_return_cycles("\t\t", 0);
 		printf("\t}\n");
 		if (using_ce) {
-			start_brace();
-			printf("\t\tint cycles = (getDivs68kCycles((uae_s32)dst, (uae_s16)src)) - 4;\n");
-			addcycles000_3("\t\t");
+			printf("\tint cycles = getDivs68kCycles((uae_s32)dst, (uae_s16)src);\n");
+			addcycles000_3("\t");
 		}
-		addcycles000_nonces("\t\t", "(getDivs68kCycles((uae_s32)dst, (uae_s16)src)) - 4");
+		addcycles000_nonces("\t", "getDivs68kCycles((uae_s32)dst, (uae_s16)src)");
 		printf("\tif (dst == 0x80000000 && src == -1) {\n");
 		printf("\t\tsetdivsflags((uae_s32)dst, (uae_s16)src);\n");
 		printf("\t} else {\n");
@@ -6759,20 +6769,14 @@ bccl_not68020:
 			"\t\tSET_ZFLG(1);\n"
 			"\t\tm68k_dreg(regs, dstreg) &= 0xffff0000;\n");
 		printf("\tuae_u32 newv = (uae_u32)(uae_u16)dst * (uae_u32)(uae_u16)src;\n");
-		if (using_ce)
-			printf("\tint cycles = 38 - 4, bits;\n");
-		else if (using_prefetch)
-			printf("\tint bits;\n");
 		genflags (flag_logical, sz_long, "newv", "", "");
 		if (using_ce) {
-			printf("\tfor(bits = 0; bits < 16 && src; bits++, src >>= 1)\n");
-			printf("\t\tif (src & 1) cycles += 2;\n");
-			addcycles000_3 ("\t");
+			printf("\tint cycles = getMulu68kCycles(src);\n");
+			addcycles000_3("\t");
 		}
-		addcycles000_nonce("\tfor(bits = 0; bits < 16 && src; bits++, src >>= 1)\n\t\tif (src & 1) ", 2);
+		addcycles000_nonces("\t", "getMulu68kCycles(src)");
 		genastore ("newv", curi->dmode, "dstreg", sz_long, "dst");
 		sync_m68k_pc ();
-		count_cycles += 38 - 4;
 		count_ncycles++;
 		insn_n_cycles += (70 - 38) / 2 + 38; /* average */
 		break;
@@ -6785,23 +6789,13 @@ bccl_not68020:
 			"\t\tSET_ZFLG(1);\n"
 			"\t\tm68k_dreg(regs, dstreg) &= 0xffff0000;\n");
 		printf("\tuae_u32 newv = (uae_s32)(uae_s16)dst * (uae_s32)(uae_s16)src;\n");
-		if (using_ce) {
-			printf("\tint cycles = 38 - 4, bits;\n");
-			printf("\tuae_u32 usrc;\n");
-		} else if (using_prefetch) {
-			printf("\tint bits;\n");
-			printf("\tuae_u32 usrc;\n");
-		}
 		genflags (flag_logical, sz_long, "newv", "", "");
 		if (using_ce) {
-			printf("\tusrc = ((uae_u32)src) << 1;\n");
-			printf("\tfor(bits = 0; bits < 16 && usrc; bits++, usrc >>= 1)\n");
-			printf("\t\tif ((usrc & 3) == 1 || (usrc & 3) == 2) cycles += 2;\n");
-			addcycles000_3 ("\t");
+			printf("\tint cycles = getMuls68kCycles(src);\n");
+			addcycles000_3("\t");
 		}
-		addcycles000_nonce("\tusrc = ((uae_u32)src) << 1;\n\tfor(bits = 0; bits < 16 && usrc; bits++, usrc >>= 1)\n\t\tif ((usrc & 3) == 1 || (usrc & 3) == 2) ", 2);
+		addcycles000_nonces("\t", "getMuls68kCycles(src)");
 		genastore ("newv", curi->dmode, "dstreg", sz_long, "dst");
-		count_cycles += 38 - 4;
 		count_ncycles++;
 		insn_n_cycles += (70 - 38) / 2 + 38; /* average */
 		break;

@@ -640,6 +640,40 @@ uae_u32 REGPARAM2 x_get_disp_ea_040(uae_u32 base, int idx)
 
 #endif
 
+
+int getMulu68kCycles(uae_u16 src)
+{
+	int cycles = 0;
+	if (currprefs.cpu_model == 68000) {
+		cycles = 38 - 4;
+	} else {
+		cycles = 8 - 4;
+	}
+	for (int bits = 0; bits < 16 && src; bits++, src >>= 1) {
+		if (src & 1)
+			cycles += 2;
+	}
+	return cycles;
+}
+
+int getMuls68kCycles(uae_u16 src)
+{
+	int cycles;
+	if (currprefs.cpu_model == 68000) {
+		cycles = 38 - 4;
+	} else {
+		cycles = 10 - 4;
+	}
+	uae_u32 usrc = ((uae_u32)src) << 1;
+	for (int bits = 0; bits < 16 && usrc; bits++, usrc >>= 1) {
+		if ((usrc & 3) == 1 || (usrc & 3) == 2) {
+			cycles += 2;
+		}
+	}
+	return cycles;
+}
+
+
 /*
 * Compute exact number of CPU cycles taken
 * by DIVU and DIVS on a 68000 processor.
@@ -709,9 +743,14 @@ int getDivu68kCycles (uae_u32 dividend, uae_u16 divisor)
 
 	// Overflow
 	if ((dividend >> 16) >= divisor)
-		return (mcycles = 5) * 2;
+		return (mcycles = 5) * 2 - 4;
 
-	mcycles = 38;
+	if (currprefs.cpu_model == 68000) {
+		mcycles = 38;
+	} else {
+		mcycles = 22;
+	}
+
 	hdivisor = divisor << 16;
 
 	for (i = 0; i < 15; i++) {
@@ -731,7 +770,7 @@ int getDivu68kCycles (uae_u32 dividend, uae_u16 divisor)
 			}
 		}
 	}
-	return mcycles * 2;
+	return mcycles * 2 - 4;
 }
 
 int getDivs68kCycles (uae_s32 dividend, uae_s16 divisor)
@@ -750,12 +789,16 @@ int getDivs68kCycles (uae_s32 dividend, uae_s16 divisor)
 
 	// Check for absolute overflow
 	if (((uae_u32)abs (dividend) >> 16) >= (uae_u16)abs (divisor))
-		return (mcycles + 2) * 2;
+		return (mcycles + 2) * 2 - 4;
 
 	// Absolute quotient
 	aquot = (uae_u32) abs (dividend) / (uae_u16)abs (divisor);
 
-	mcycles += 55;
+	if (currprefs.cpu_model == 68000) {
+		mcycles += 55;
+	} else {
+		mcycles += 37;
+	}
 
 	if (divisor >= 0) {
 		if (dividend >= 0)
@@ -772,7 +815,7 @@ int getDivs68kCycles (uae_s32 dividend, uae_s16 divisor)
 		aquot <<= 1;
 	}
 
-	return mcycles * 2;
+	return mcycles * 2 - 4;
 }
 
 /* DIV divide by zero
