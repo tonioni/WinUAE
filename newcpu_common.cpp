@@ -770,6 +770,7 @@ int getDivu68kCycles (uae_u32 dividend, uae_u16 divisor)
 			}
 		}
 	}
+	// -4 = remove prefetch cycle
 	return mcycles * 2 - 4;
 }
 

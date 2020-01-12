@@ -2375,7 +2375,7 @@ Address/Bus Error:
 
 Division by Zero:
 
-- 8 idle cycles
+- 4 idle cycles (EA + 4 cycles in cpuemu)
 - write PC low word
 - write SR
 - write PC high word
@@ -2411,7 +2411,7 @@ TrapV:
 
 CHK:
 
-- 8 idle cycles
+- 4 idle cycles (EA + 4 cycles in cpuemu)
 - write PC low word
 - write SR
 - write PC high word
@@ -2487,7 +2487,7 @@ static void Exception_ce000 (int nr)
 			start = 0;
 		else if (nr >= 32 && nr < 32 + 16) // TRAP #x
 			start = 4;
-		else if (nr == 4 || nr == 8 || nr == 9 || nr == 10 || nr == 11) // ILLG, PRIV, TRACE, LINEA, LINEF
+		else if (nr == 4 || nr == 5 || nr == 6 || nr == 8 || nr == 9 || nr == 10 || nr == 11) // ILLG, DIVBYZERO, PRIV, TRACE, LINEA, LINEF
 			start = 4;
 	}
 
@@ -2801,15 +2801,15 @@ static void add_approximate_exception_cycles(int nr)
 		cycles = 44 + 4; 
 	} else if (nr >= 32 && nr <= 47) {
 		/* Trap (total is 34, but cpuemux.c already adds 4) */ 
-		cycles = 34 -4;
+		cycles = 34 - 4;
 	} else {
 		switch (nr)
 		{
 			case 2: cycles = 50; break;		/* Bus error */
 			case 3: cycles = 50; break;		/* Address error */
 			case 4: cycles = 34; break;		/* Illegal instruction */
-			case 5: cycles = 38; break;		/* Division by zero */
-			case 6: cycles = 40; break;		/* CHK */
+			case 5: cycles = 34; break;		/* Division by zero */
+			case 6: cycles = 34; break;		/* CHK */
 			case 7: cycles = 34; break;		/* TRAPV */
 			case 8: cycles = 34; break;		/* Privilege violation */
 			case 9: cycles = 34; break;		/* Trace */
