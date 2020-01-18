@@ -18,6 +18,12 @@
 	.globl _msp_address3
 	.globl _msp_address4
 	.globl _error_vector
+	.globl _cyclereg_address1
+	.globl _cyclereg_address2
+	.globl _cyclereg_address3
+	.globl _cyclereg_address4
+	.globl _cyclereg_address5
+	.globl _cyclereg_address6
 
 | must match main.c
 S_DREG = 0
@@ -140,6 +146,7 @@ _execute_test000:
 	bsr sync
 	move.l d0,S_CYCLES2(a0)
 	movem.l (a0),d0-d7/a0-a6
+_cyclereg_address1:
 	move.w CYCLEREG,cycles
 	rte
 
@@ -162,6 +169,7 @@ _execute_test010:
 	bsr sync
 	move.l d0,S_CYCLES2(a0)
 	movem.l (a0),d0-d7/a0-a6
+_cyclereg_address2:
 	move.w CYCLEREG,cycles
 	| clear data output buffer.
 	| we don't want random DOB contents in bus/address error frame
@@ -223,6 +231,7 @@ _msp_address2:
 
 exception_trace000:
 	move.w sr,-(sp)
+_cyclereg_address3:
 	move.w CYCLEREG,cycles+4
 	addq.l #2+4,sp
 	move.l a0,-(sp)
@@ -287,6 +296,7 @@ _exceptiontable000:
 	nop
 exception:
 	move.w sr,-(sp)
+_cyclereg_address4:
 	move.w CYCLEREG,cycles+2
 	move.w #0,ACTIVITYREG
 	move.l a0,-(sp)
@@ -325,6 +335,7 @@ exception:
 
 exception_trace010:
 	move.w sr,-(sp)
+_cyclereg_address5:
 	move.w CYCLEREG,cycles+4
 	addq.l #2+4,sp
 	move.l a0,-(sp)
@@ -390,6 +401,7 @@ _exceptiontable010:
 	nop
 exception010:
 	move.w sr,-(sp)
+_cyclereg_address6:
 	move.w CYCLEREG,cycles+2
 	move.w #0,ACTIVITYREG
 	move.l a0,-(sp)

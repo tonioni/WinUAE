@@ -131,6 +131,7 @@ static int exitcnt;
 static short cycles, cycles_range, cycles_adjust;
 static short gotcycles;
 static short interrupttest;
+static uae_u32 cyclecounter_addr;
 #ifdef AMIGA
 static short interrupt_count;
 static uae_u16 main_intena;
@@ -1731,7 +1732,8 @@ static int getexceptioncycles(int exc)
 	}
 }
 
-static int check_cycles(int exc)
+#ifdef AMIGA
+static int get_cycles_amiga(void)
 {
 	// 7MHz 68000 PAL A500 only!
 	uae_u16 vstart = (test_regs.cycles >> 24) & 0xff;
@@ -1774,6 +1776,31 @@ static int check_cycles(int exc)
 	int startcycle = vstart * 227 + hstart;
 	int endcycle = vend * 227 + hend;
 	int gotcycles = (endcycle - startcycle) * 2;
+	return gotcycles;
+}
+#endif
+
+static int check_cycles(int exc)
+{
+	int gotcycles = 0;
+
+	if (cyclecounter_addr != 0xffffffff) {
+		gotcycles = (test_regs.cycles & 0xffff) - (test_regs.cycles >> 16);
+		if (gotcycles == 0) {
+			end_test();
+			printf("Cycle counter hardware address %lx returned zero.\n", cyclecounter_addr);
+			exit(0);
+		}
+	} else {
+#ifdef AMIGA
+		gotcycles = get_cycles_amiga();
+#else
+		end_test();
+		printf("No cycle count support\n");
+		exit(0);
+#endif
+	}
+
 	int expectedcycles = last_registers.cycles;
 	if (cpu_lvl == 0) {
 		// move.w CYCLEREG,cycles
@@ -2854,6 +2881,7 @@ int main(int argc, char *argv[])
 		printf("-askifmissing = ask for new path if dat file is missing.\n");
 		printf("-exit n = exit after n tests.\n");
 		printf("-cycles [range adjust] = check cycle counts.\n");
+		printf("-cyclecnt <address>. Use custom hardware cycle counter.\n");
 		return 0;
 	}
 
@@ -2864,6 +2892,8 @@ int main(int argc, char *argv[])
 	ccr_mask = 0xff;
 	disasm = 1;
 	exitcnt = -1;
+	cyclecounter_addr = 0xffffffff;
+	cycles_range = 2;
 
 	for (int i = 1; i < argc; i++) {
 		char *s = argv[i];
@@ -2911,7 +2941,6 @@ int main(int argc, char *argv[])
 			}
 		} else if (!_stricmp(s, "-cycles")) {
 			cycles = 1;
-			cycles_range = 2;
 			if (i + 1 < argc) {
 				i++;
 				cycles_range = atoi(argv[i]);
@@ -2920,8 +2949,31 @@ int main(int argc, char *argv[])
 					cycles_adjust = atoi(argv[i]);
 				}
 			}
+		} else if (!_stricmp(s, "-cyclecnt")) {
+			if (next) {
+				cyclecounter_addr = getparamval(next);
+				cycles = 1;
+			}
 		}
 	}
+
+#ifdef M68K
+	if(cyclecounter_addr != 0xffffffff) {
+		// yes, this is far too ugly
+		extern uae_u32 cyclereg_address1;
+		extern uae_u32 *cyclereg_address2;
+		extern uae_u32 *cyclereg_address3;
+		extern uae_u32 *cyclereg_address4;
+		extern uae_u32 *cyclereg_address5;
+		extern uae_u32 *cyclereg_address6;
+		*((uae_u32*)((uae_u32)(&cyclereg_address1) + 2)) = cyclecounter_addr;
+		*((uae_u32*)((uae_u32)(&cyclereg_address2) + 2)) = cyclecounter_addr;
+		*((uae_u32*)((uae_u32)(&cyclereg_address3) + 2)) = cyclecounter_addr;
+		*((uae_u32*)((uae_u32)(&cyclereg_address4) + 2)) = cyclecounter_addr;
+		*((uae_u32*)((uae_u32)(&cyclereg_address5) + 2)) = cyclecounter_addr;
+		*((uae_u32*)((uae_u32)(&cyclereg_address6) + 2)) = cyclecounter_addr;
+	}
+#endif
 
 	DIR *groupd = NULL;
 	
