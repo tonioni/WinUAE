@@ -1,5 +1,5 @@
 
-UAE CPU Tester
+UAE 680x0 CPU Tester
 
 I finally wrote utility (This was my "Summer 2019" project) that can be used to verify operation of for example software emulated or FPGA 680x0 CPUs.
 It is based on UAE CPU core (gencpu generated special test core). All the CPU logic comes from UAE CPU core.
@@ -12,6 +12,7 @@ Verifies:
 - Memory writes, including stack modifications (if any)
 - Loop mode for JIT testing. (generates <test instruction>, dbf dn,loop)
 - Supports 68000, 68010, 68020, 68030 (only difference between 020 and 030 seems to be data cache and MMU), 68040 and 68060.
+- Cycle counts (68000 Amiga only)
 
 Tests executed for each tested instruction:
 
@@ -24,8 +25,10 @@ Tests executed for each tested instruction:
 
 Test generation details:
 
-Instruction's effective address is randomized. It is accepted if it points to any of 3 test memory regions. If it points outside of test memory, it will be re-randomized few times. Test will be skipped if current EA makes it impossible to point to any of 3 test regions.
+If normal mode: Instruction's effective address is randomized. It is accepted if it points to any of 3 test memory regions. If it points outside of test memory, it will be re-randomized few times. Test will be skipped if current EA makes it impossible to point to any of 3 test regions.
 If 68000/68010 and address error testing is enabled: 2 extra test rounds are generated, one with even and another with odd EAs to test and verify address errors.
+
+If target EA mode: instruction's effective address always points to configured target address(es). Very useful when testing address or bus errors.
 
 Notes and limitations:
 
@@ -35,20 +38,34 @@ Notes and limitations:
 - All tests that would halt or reset the CPU are skipped (RESET in supervisor mode, STOP parameter that would stop the CPU etc)
 - Single instruction test set will take long time to run on real 68000. Few minutes to much longer...
 - Undefined flags (for example DIV and CHK or 68000/010 bus address error) are also verified. It probably would be good idea to optionally filter them out.
-- Instruction cycle order or timing is ignored. It is not possible without extra hardware.
 - FPU testing is not yet fully implemented.
-- Sometimes reported old and new condition code state does not match error report..
 
 Tester compatibility (integer instructions only):
 
-68000: Complete. Including bus and address error stack frame/register/CCR modification undocumented behavior.
-68010: Partially supported.
+68000: Complete. Including bus and address error stack frame/register/CCR modification undocumented behavior. Cycle count support.
+68010: Almost complete. Bus errors are only partially supported. DIVS undefined condition codes are not yet supported.
 68020: Almost complete (DIV undocumented behavior is not yet known)
 68030: Same as 68020.
 68040: Almost complete (Weird unaligned MOVE16 behavior which may be board specific).
 68060: Same as 68040.
 
-More CPU details in WinUAE changelog.
+68000 cycle count testing:
+
+Cycle counting requires 100% accurate timing also for following instructions:
+- BSR.B
+- NOP
+- MOVE.W ABS.L,ABS.L
+- MOVE SR,-(SP)
+- RTE
+- Illegal instruction exception
+- If instruction internally generates exception, internal exception also needs to be cycle-accurate.
+
+0xDFF006 is used for cycle counting = accuracy will be +-2 CPU cycles. 0xDFF006 behavior must be accurate.
+Currently only supported hardware for cycle counting is 7MHz 68000 PAL Amiga with real Fast RAM.
+
+Bus error cycle counting is not yet supported.
+
+--
 
 Not implemented or only partially implemented:
 
@@ -60,7 +77,7 @@ Not implemented or only partially implemented:
 
 All models:
 
-- Interrupts (stack frames and STOP)
+- STOP test only checks immediate values that do not stop the CPU.
 - MMU instructions (Not going to happen)
 - 68020+ cache related instructions.
 - FPU FSAVE/FRESTORE, FPU support also isn't fully implemented yet.
@@ -72,6 +89,9 @@ Build instructions:
 - build cputestgen project.
 - build native Amiga project (cputest directory). Assembly files probably only compiles with Bebbo's GCC.
 
+More CPU details in WinUAE changelog.
+
+--
 
 Test generator quick instructions:
 
@@ -99,3 +119,12 @@ cputest tst.b = run tst.b tests only
 cputest all tst.b = run tst.b, then tst.w and so on in alphabetical order until end or mismatch is detected.
 
 If mismatch is detected, opcode word(s), instruction disassembly, registers before and after and reason message is shown on screen. If difference is in exception stack frame, both expected and returned stack frame is shown in hexadecimal.
+
+--
+
+Change log:
+
+- Cycle count validation (Amiga, 68000 only), including exceptions (except bus errors).
+- Interrupt testing (Amiga only, INTREQ bits set one by one, validate correct exception).
+- Multiple test sets can be generated and tested in single step.
+- Stack usage reduced, gzip decompression works with default 4096 byte stack.

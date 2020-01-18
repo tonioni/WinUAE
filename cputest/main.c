@@ -27,7 +27,7 @@ typedef signed char uae_s8;
 
 #include "cputest_defines.h"
 
-extern void callinflate(uae_u8*, uae_u8*);
+extern void callinflate(uae_u8*, uae_u8*,uae_u8*);
 
 struct fpureg
 {
@@ -51,6 +51,7 @@ struct registers
 	uae_u32 fpiar, fpcr, fpsr;
 	uae_u32 tracecnt;
 	uae_u16 tracedata[6];
+	uae_u32 cycles, cycles2, cyclest;
 	uae_u32 srcaddr, dstaddr, branchtarget;
 	uae_u8 branchtarget_mode;
 	uae_u32 endpc;
@@ -72,7 +73,7 @@ static uae_u32 test_memory_addr, test_memory_end;
 static uae_u32 test_memory_size;
 static uae_u8 *test_data;
 static uae_u8 *safe_memory_start, *safe_memory_end;
-static int safe_memory_mode;
+static short safe_memory_mode;
 static uae_u32 user_stack_memory, super_stack_memory;
 static uae_u32 exception_vectors;
 static int test_data_size;
@@ -114,18 +115,26 @@ static char tmpbuffer[1024];
 static char path[256];
 
 static char *outbp;
-static int infoadded;
+static short infoadded;
 static int errors;
 static int testcnt;
-static int dooutput = 1;
-static int quit;
+static short dooutput = 1;
+static short quit;
 static uae_u8 ccr_mask;
 static uae_u32 addressing_mask = 0x00ffffff;
 static uae_u32 interrupt_mask;
-static int disasm;
-static int basicexcept;
-static int askifmissing;
-static int nextall;
+static short disasm;
+static short basicexcept;
+static short askifmissing;
+static short nextall;
+static int exitcnt;
+static short cycles, cycles_range, cycles_adjust;
+static short gotcycles;
+static short interrupttest;
+#ifdef AMIGA
+static short interrupt_count;
+static uae_u16 main_intena;
+#endif
 
 #define SIZE_STORED_ADDRESS_OFFSET 8
 #define SIZE_STORED_ADDRESS 16
@@ -134,6 +143,8 @@ static uae_u8 dstaddr[SIZE_STORED_ADDRESS];
 static uae_u8 branchtarget[SIZE_STORED_ADDRESS];
 static uae_u8 stackaddr[SIZE_STORED_ADDRESS];
 static uae_u32 stackaddr_ptr;
+
+static char opcode[32], group[32], cpustr[10];
 
 #ifndef M68K
 
@@ -349,19 +360,27 @@ static void start_test(void)
 
 	enable_data = tosuper(0);
 
-	safe_memcpy(low_memory_back + low_memory_offset, low_memory + low_memory_offset, low_memory_size - low_memory_offset);
+#ifdef AMIGA
+	main_intena = *((volatile uae_u16*)0xdff01c);
+#endif
+
+	if (test_low_memory_start != 0xffffffff)
+		safe_memcpy(low_memory_back + low_memory_offset, low_memory + low_memory_offset, low_memory_size - low_memory_offset);
+
 	// always copy exception vectors if 68000
 	if (cpu_lvl == 0 && low_memory_offset > 0x08)
 		safe_memcpy(low_memory_back + 8, low_memory + 8, (192 - 2) * 4);
 
-	if (!hmem_rom)
+	if (!hmem_rom && test_high_memory_start != 0xffffffff)
 		safe_memcpy(high_memory_back, high_memory + high_memory_offset, high_memory_size - high_memory_offset);
 
-	safe_memcpy(low_memory + low_memory_offset, low_memory_temp + low_memory_offset, low_memory_size - low_memory_offset);
+	if (test_low_memory_start != 0xffffffff)
+		safe_memcpy(low_memory + low_memory_offset, low_memory_temp + low_memory_offset, low_memory_size - low_memory_offset);
+
 	if (cpu_lvl == 0 && low_memory_offset > 0x08)
 		safe_memcpy(low_memory + 8, low_memory_temp + 8, (192 - 2) * 4);
 
-	if (!hmem_rom)
+	if (!hmem_rom && test_high_memory_start != 0xffffffff)
 		safe_memcpy(high_memory + high_memory_offset, high_memory_temp, high_memory_size - high_memory_offset);
 
 	if (cpu_lvl == 0) {
@@ -373,6 +392,12 @@ static void start_test(void)
 			}
 			if (i < 12 + 2) {
 				error_vectors[i - 2] = p[i];
+			}
+		}
+		for (int i = 24; i < 24 + 8; i++) {
+			p[i] = (uae_u32)(((uae_u32)&exceptiontable000) + (i - 2) * 2);
+			if (exception_vectors) {
+				p[i] = exception_vectors;
 			}
 		}
 		for (int i = 32; i < 48; i++) {
@@ -412,17 +437,25 @@ static void end_test(void)
 		return;
 	test_active = 0;
 
-	safe_memcpy(low_memory + low_memory_offset, low_memory_back + low_memory_offset, low_memory_size - low_memory_offset);
+	if (test_low_memory_start != 0xffffffff)
+		safe_memcpy(low_memory + low_memory_offset, low_memory_back + low_memory_offset, low_memory_size - low_memory_offset);
+
 	if (cpu_lvl == 0 && low_memory_offset > 0x08)
 		safe_memcpy(low_memory + 8, low_memory_back + 8, (192 - 2) * 4);
 
-	if (!hmem_rom)
+	if (!hmem_rom && test_high_memory_start != 0xffffffff)
 		safe_memcpy(high_memory + high_memory_offset, high_memory_back, high_memory_size - high_memory_offset);
 
 	if (cpu_lvl > 0) {
 		setvbr(oldvbr);
 	}
 	setcpu(cpu_lvl, cpustatearraystore, NULL);
+
+#ifdef AMIGA
+	*((volatile uae_u16*)0xdff09a) = 0x7fff;
+	*((volatile uae_u16*)0xdff09c) = 0x7fff;
+	*((volatile uae_u16*)0xdff09a) = main_intena | 0x8000;
+#endif
 
 	touser(enable_data);
 }
@@ -473,6 +506,9 @@ static uae_u8 *parse_gzip(uae_u8 *gzbuf, int *sizep)
 	return gzbuf;
 }
 
+#define INFLATE_STACK_SIZE 3000
+static uae_u8 *inflatestack;
+
 static uae_u8 *load_file(const char *path, const char *file, uae_u8 *p, int *sizep, int exiterror, int candirect)
 {
 	char fname[256];
@@ -503,6 +539,14 @@ static uae_u8 *load_file(const char *path, const char *file, uae_u8 *p, int *siz
 			exit(0);
 		}
 		f = NULL;
+		if (!inflatestack) {
+			inflatestack = malloc(INFLATE_STACK_SIZE);
+			if (!inflatestack) {
+				printf("Couldn't allocate %ld bytes (inflate stack)\n", INFLATE_STACK_SIZE);
+				exit(0);
+			}
+			inflatestack += INFLATE_STACK_SIZE;
+		}
 		if (!p) {
 			p = calloc(1, size);
 			if (!p) {
@@ -510,12 +554,12 @@ static uae_u8 *load_file(const char *path, const char *file, uae_u8 *p, int *siz
 				exit(0);
 			}
 			printf("Decompressing '%s' (%ld -> %ld)\n", fname, gsize, size);
-			callinflate(p, gzdata);
+			callinflate(p, gzdata, inflatestack);
 			*sizep = size;
 			return p;
 		} else if (candirect) {
 			printf("Decompressing '%s' (%ld -> %ld)\n", fname, gsize, size);
-			callinflate(p, gzdata);
+			callinflate(p, gzdata, inflatestack);
 			*sizep = size;
 			return p;
 		} else {
@@ -525,7 +569,7 @@ static uae_u8 *load_file(const char *path, const char *file, uae_u8 *p, int *siz
 				exit(0);
 			}
 			printf("Decompressing '%s' (%ld -> %ld)\n", fname, gsize, size);
-			callinflate(unpack, gzdata);
+			callinflate(unpack, gzdata, inflatestack);
 			*sizep = size;
 		}
 	}
@@ -747,9 +791,9 @@ static uae_u8 *restore_rel(uae_u8 *p, uae_u32 *vp, int nocheck)
 			val |= *p++;
 			v = val;
 			if (!nocheck) {
-				if ((val & addressing_mask) < low_memory_size) {
+				if (test_low_memory_start != 0xffffffff && (val & addressing_mask) < low_memory_size) {
 					; // low memory
-				} else if ((val & ~addressing_mask) == ~addressing_mask && val >= 0xfff80000) {
+				} else if (test_high_memory_start != 0xffffffff && (val & ~addressing_mask) == ~addressing_mask && val >= 0xfff80000) {
 					; // high memory
 				} else if ((val & addressing_mask) < test_memory_addr || (val & addressing_mask) >= test_memory_addr + test_memory_size) {
 					end_test();
@@ -1023,6 +1067,10 @@ static uae_u8 *restore_data(uae_u8 *p)
 	} else if (mode == CT_SR) {
 		int size;
 		p = restore_value(p, &regs.sr, &size);
+	} else if (mode == CT_CYCLES) {
+		int size;
+		p = restore_value(p, &regs.cycles, &size);
+		gotcycles = 1;
 	} else if (mode == CT_FPIAR) {
 		int size;
 		p = restore_value(p, &regs.fpiar, &size);
@@ -1616,6 +1664,156 @@ static uae_u8 *validate_exception(struct registers *regs, uae_u8 *p, int excnum,
 	return p;
 }
 
+static int getexceptioncycles(int exc)
+{
+	if (cpu_lvl == 0) {
+		switch (exc)
+		{
+		case 2:
+		case 3:
+			return 58;
+		case 4:
+		case 5:
+		case 6:
+		case 8:
+		case 9:
+		case 10:
+		case 11:
+			return 34;
+		case 7:
+			return 30;
+		case 24:
+		case 25:
+		case 26:
+		case 27:
+		case 28:
+		case 29:
+		case 30:
+		case 31:
+			return 44;
+		default:
+			return 34;
+		}
+	} else {
+		switch (exc)
+		{
+		case 2:
+		case 3:
+			return 126;
+		case 4:
+		case 10:
+		case 11:
+			return 38;
+		case 5:
+			return 42;
+		case 6:
+			return 44;
+		case 7:
+			return 40;
+		case 8:
+			return 38;
+		case 9:
+			return 38;
+		case 24:
+		case 25:
+		case 26:
+		case 27:
+		case 28:
+		case 29:
+		case 30:
+		case 31:
+			return 48;
+		default:
+			return 38;
+		}
+	}
+}
+
+static int check_cycles(int exc)
+{
+	// 7MHz 68000 PAL A500 only!
+	uae_u16 vstart = (test_regs.cycles >> 24) & 0xff;
+	uae_u16 vend = (test_regs.cycles >> 8) & 0xff;
+	uae_u16 hstart = (test_regs.cycles >> 16) & 0xff;
+	uae_u16 hend = (test_regs.cycles >> 0) & 0xff;
+
+	// trace exception?
+	if (test_regs.cyclest != 0xffffffff) {
+		vend = (test_regs.cyclest >> 8) & 0xff;
+		hend = (test_regs.cyclest >> 0) & 0xff;
+	}
+
+	if (test_regs.cycles2 & 0x00010000) {
+		if (vstart > vend) {
+			vstart += 0x100;
+			vend += 0x138 + 1;
+		} else {
+			vstart += 0x100;
+			vend += 0x100;
+		}
+	} else {
+		if (vstart > vend) {
+			vend += 0x100;
+		}
+	}
+
+	// hpos 0-1: vertical count hasn't been increased yet
+	if (hstart <= 1) {
+		vstart++;
+	}
+	if (hend <= 1) {
+		vend++;
+	}
+
+	if (hstart >= hend) {
+		hend += 227;
+		vend--;
+	}
+	int startcycle = vstart * 227 + hstart;
+	int endcycle = vend * 227 + hend;
+	int gotcycles = (endcycle - startcycle) * 2;
+	int expectedcycles = last_registers.cycles;
+	if (cpu_lvl == 0) {
+		// move.w CYCLEREG,cycles
+		gotcycles -= 20;
+		// RTE
+		gotcycles -= 20;
+		// <test instruction>
+		// EXCEPTION
+		expectedcycles += getexceptioncycles(exc);
+		// bsr.b
+		gotcycles -= 18;
+		// move.w sr,-(sp)
+		gotcycles -= 14;
+		// move.w CYCLEREG,cycles
+		gotcycles -= 8;
+	} else {
+		// move.w CYCLEREG,cycles
+		gotcycles -= 20;
+		// move.w #x,dummy
+		gotcycles -= 20;
+		// RTE
+		gotcycles -= 24;
+		// <test instruction>
+		// ILLEGAL
+		expectedcycles += getexceptioncycles(exc);
+		// bsr.b
+		gotcycles -= 18;
+		// move.w sr,-(sp)
+		gotcycles -= 12;
+		// move.w CYCLEREG,cycles
+		gotcycles -= 8;
+	}
+	gotcycles += cycles_adjust;
+
+	if (0 || abs(gotcycles - expectedcycles) > cycles_range) {
+		addinfo();
+		sprintf(outbp, "Got %ld cycles but expected %ld cycles (%08x %08x)\n", gotcycles, expectedcycles, test_regs.cycles, test_regs.cycles2);
+		outbp += strlen(outbp);
+		return 0;
+	}
+	return 1;
+}
 
 // regs: registers before execution of test code
 // test_reg: registers used during execution of test code, also modified by test code.
@@ -1811,6 +2009,12 @@ static uae_u8 *validate_test(uae_u8 *p, int ignore_errors, int ignore_sr)
 			p = restore_rel(p, &val, 0);
 			pc_changed = 0;
 			last_registers.pc = val;
+		} else if (mode == CT_CYCLES) {
+			uae_u32 val = last_registers.cycles;
+			int size;
+			p = restore_value(p, &val, &size);
+			last_registers.cycles = val;
+			gotcycles = 1;
 		} else if (mode == CT_FPCR) {
 			uae_u32 val = last_registers.fpcr;
 			int size;
@@ -1965,6 +2169,18 @@ static uae_u8 *validate_test(uae_u8 *p, int ignore_errors, int ignore_sr)
 			}
 			errflag |= 1 << 5;
 		}
+		if (cycles && cpu_lvl <= 1) {
+			if (!gotcycles && errflag) {
+				if (dooutput) {
+					sprintf(outbp, "No Cycle count data available.\n");
+					outbp += strlen(outbp);
+				}
+			} else {
+				if (!check_cycles(exc)) {
+					errflag |= 1 << 8;
+				}
+			}
+		}
 	}
 	if (errflag && dooutput) {
 		addinfo();
@@ -1984,6 +2200,8 @@ static uae_u8 *validate_test(uae_u8 *p, int ignore_errors, int ignore_sr)
 				outbp += strlen(outbp);
 				if (exception_stored) {
 					hexdump(last_exception, exception_stored);
+				} else {
+					*outbp++ = '\n';
 				}
 			}
 			if ((exc == 3 || exc == 2) && cpu_lvl == 0) {
@@ -2021,6 +2239,34 @@ static void store_addr(uae_u32 s, uae_u8 *d)
 	}
 }
 
+#ifdef AMIGA
+static const int interrupt_levels[] =
+{
+	0, 1, 1, 1, 2, 3, 3, 3, 4, 4, 4, 4, 5, 5, 6, 6, -1
+};
+
+static void set_interrupt(void)
+{
+	if (interrupt_count < 15) {
+		volatile uae_u16 *intena = (uae_u16*)0xdff09a;
+		volatile uae_u16 *intreq = (uae_u16*)0xdff09c;
+		uae_u16 mask = 1 << interrupt_count;
+		*intena = mask | 0x8000 | 0x4000;
+		*intreq = mask | 0x8000;
+	}
+	interrupt_count++;
+	interrupt_count &= 15;
+}
+
+static void clear_interrupt(void)
+{
+	volatile uae_u16 *intena = (uae_u16*)0xdff09a;
+	volatile uae_u16 *intreq = (uae_u16*)0xdff09c;
+	*intena = 0x7fff;
+	*intreq = 0x7fff;
+}
+#endif
+
 static void process_test(uae_u8 *p)
 {
 	outbp = outbuffer;
@@ -2036,10 +2282,14 @@ static void process_test(uae_u8 *p)
 
 	endpc = opcode_memory_addr;
 	startpc = opcode_memory_addr;
-
 	start_test();
 
 	test_ccrignoremask = 0xffff;
+
+#ifdef AMIGA
+	interrupt_count = 0;
+	clear_interrupt();
+#endif
 	ahcnt = 0;
 
 	for (;;) {
@@ -2134,6 +2384,7 @@ static void process_test(uae_u8 *p)
 				regs.msp = super_stack_memory;
 				regs.pc = startpc;
 				regs.fpiar = startpc;
+				regs.cyclest = 0xffffffff;
 
 #ifdef M68K
 				if (stackcopysize > 0)
@@ -2168,6 +2419,20 @@ static void process_test(uae_u8 *p)
 					old_super = super;
 				}
 
+				if (exitcnt >= 0) {
+					exitcnt--;
+					if (exitcnt < 0) {
+						addinfo();
+						strcat(outbp, "Registers before:\n");
+						outbp += strlen(outbp);
+						out_regs(&regs, 1);
+						end_test();
+						printf(outbuffer);
+						printf("\nExit count expired\n");
+						exit(0);
+					}
+				}
+
 				if ((*p) == CT_END_SKIP) {
 
 					p++;
@@ -2180,10 +2445,18 @@ static void process_test(uae_u8 *p)
 					if ((ccr_mask & ccr) || (ccr == 0)) {
 
 						reset_error_vectors();
+
 #if 0
 						volatile int *tn = (volatile int*)0x100;
 						*tn = testcnt;
 #endif
+
+#ifdef AMIGA
+						if (interrupttest) {
+							set_interrupt();
+						}
+#endif
+
 						if (cpu_lvl == 1) {
 							execute_test010(&test_regs);
 						} else if (cpu_lvl >= 2) {
@@ -2195,6 +2468,12 @@ static void process_test(uae_u8 *p)
 						} else {
 							execute_test000(&test_regs);
 						}
+
+#ifdef AMIGA
+						if (interrupttest) {
+							clear_interrupt();
+						}
+#endif
 
 						if (ccr_mask == 0 && ccr == 0)
 							ignore_sr = 1;
@@ -2326,6 +2605,7 @@ static int test_mnemo(const char *opcode)
 	lvl = (lvl_mask >> 16) & 15;
 	interrupt_mask = (lvl_mask >> 20) & 7;
 	addressing_mask = (lvl_mask & 0x80000000) ? 0xffffffff : 0x00ffffff;
+	interrupttest = (lvl_mask >> 26) & 1;
 	sr_undefined_mask = lvl_mask & 0xffff;
 	safe_memory_mode = (lvl_mask >> 23) & 3;
 	fpu_model = read_u32(headerfile, &headoffset);
@@ -2372,11 +2652,19 @@ static int test_mnemo(const char *opcode)
 	}
 
 	low_memory_offset = 0;
-	high_memory_offset = 0;
-	if (test_low_memory_start != 0xffffffff)
+	if (test_low_memory_start != 0xffffffff) {
 		low_memory_offset = test_low_memory_start;
-	if (test_high_memory_start != 0xffffffff)
+	} else {
+		low_memory_offset = 0x100;
+		test_low_memory_end = 0xffffffff;
+	}
+
+	high_memory_offset = 0;
+	if (test_high_memory_start != 0xffffffff) {
 		high_memory_offset = test_high_memory_start & 0x7fff;
+	} else {
+		test_high_memory_end = 0xffffffff;
+	}
 
 	if (!absallocated) {
 		test_memory = allocate_absolute(test_memory_addr, test_memory_size);
@@ -2407,14 +2695,14 @@ static int test_mnemo(const char *opcode)
 	printf("Test: %08lx-%08lx Safe: %08lx-%08lx\n",
 		test_memory_addr, test_memory_end,
 		safe_memory_start, safe_memory_end);
-	printf("%s:\n", inst_name);
+	printf("%s (%s):\n", inst_name, group);
 
 	testcnt = 0;
 	memset(exceptioncount, 0, sizeof(exceptioncount));
 	supercnt = 0;
 
 	for (;;) {
-		printf("%s. %lu...\n", tfname, testcnt);
+		printf("%s (%s). %lu...\n", tfname, group, testcnt);
 
 		sprintf(tfname, "%s/%04ld.dat", opcode, filecnt);
 
@@ -2502,15 +2790,13 @@ static int getparamval(const char *p)
 static int isdir(const char *dirpath, const char *name)
 {
 	struct stat buf;
-	char path[FILENAME_MAX];
 
-	snprintf(path, sizeof(path), "%s%s", dirpath, name);
-	return stat(path, &buf) == 0 && S_ISDIR(buf.st_mode);
+	snprintf(tmpbuffer, sizeof(tmpbuffer), "%s%s", dirpath, name);
+	return stat(tmpbuffer, &buf) == 0 && S_ISDIR(buf.st_mode);
 }
 
 int main(int argc, char *argv[])
 {
-	char opcode[16];
 	int stop_on_error = 1;
 
 	atexit(freestuff);
@@ -2554,153 +2840,233 @@ int main(int argc, char *argv[])
 #endif
 
 	if (argc < 2) {
-		printf("cputest <all/mnemonic> (<start mnemonic>) (continue)\n");
+		printf("cputest (<group>)/<all/mnemonic> (<start mnemonic>) (other params)\n");
 		printf("mnemonic = test single mnemonic\n");
 		printf("all = test all\n");
 		printf("all <mnemonic> = test all, starting from <mnemonic>\n");
-		printf("all <mnemonic> next = test all, starting after <mnemonic>\n");
-		printf("continue = don't stop on error (all mode only)\n");
-		printf("ccrmask = ignore CCR bits that are not set.\n");
-		printf("nodisasm = do not disassemble failed test.\n");
-		printf("basicexc = do only basic checks when exception is 2 or 3.\n");
-		printf("askifmissing = ask for new path if dat file is missing.\n");
+		printf("all <mnemonic> -next = test all, starting after <mnemonic>\n");
+		printf("-continue = don't stop on error (all mode only)\n");
+		printf("-ccrmask = ignore CCR bits that are not set.\n");
+		printf("-nodisasm = do not disassemble failed test.\n");
+		printf("-basicexc = do only basic checks when exception is 2 or 3.\n");
+		printf("-askifmissing = ask for new path if dat file is missing.\n");
+		printf("-exit n = exit after n tests.\n");
+		printf("-cycles [range adjust] = check cycle counts.\n");
 		return 0;
 	}
 
-	if (strlen(argv[1]) >= sizeof(opcode) - 1)
-		return 0;
-
-	strcpy(opcode, argv[1]);
+	opcode[0] = 0;
+	strcpy(group, "default");
 
 	check_undefined_sr = 1;
 	ccr_mask = 0xff;
 	disasm = 1;
+	exitcnt = -1;
+
 	for (int i = 1; i < argc; i++) {
 		char *s = argv[i];
 		char *next = i + 1 < argc ? argv[i + 1] : NULL;
-		if (!_stricmp(s, "continue")) {
+		if (s[0] != '-' && opcode[0] == 0 && strlen(s) < sizeof(opcode) - 1) {
+			strcpy(opcode, s);
+			continue;
+		}
+		if (!_stricmp(s, "-continue")) {
 			stop_on_error = 0;
-		} else if (!_stricmp(s, "noundefined")) {
+		} else if (!_stricmp(s, "-noundefined")) {
 			check_undefined_sr = 0;
-		} else if (!_stricmp(s, "ccrmask")) {
+		} else if (!_stricmp(s, "-ccrmask")) {
 			ccr_mask = 0;
 			if (next) {
 				ccr_mask = ~getparamval(next);
 				i++;
 			}
-		} else if (!_stricmp(s, "silent")) {
+		} else if (!_stricmp(s, "-silent")) {
 			dooutput = 0;
-		} else if (!_stricmp(s, "68000")) {
+		} else if (!_stricmp(s, "-68000")) {
 			cpu_lvl = 0;
-		} else if (!_stricmp(s, "68010")) {
+		} else if (!_stricmp(s, "-68010")) {
 			cpu_lvl = 1;
-		} else if (!_stricmp(s, "68020")) {
+		} else if (!_stricmp(s, "-68020")) {
 			cpu_lvl = 2;
-		} else if (!_stricmp(s, "68030")) {
+		} else if (!_stricmp(s, "-68030")) {
 			cpu_lvl = 3;
-		} else if (!_stricmp(s, "68040")) {
+		} else if (!_stricmp(s, "-68040")) {
 			cpu_lvl = 4;
-		} else if (!_stricmp(s, "68060")) {
+		} else if (!_stricmp(s, "-68060")) {
 			cpu_lvl = 5;
-		} else if (!_stricmp(s, "nodisasm")) {
+		} else if (!_stricmp(s, "-nodisasm")) {
 			disasm = 0;
-		} else if (!_stricmp(s, "basicexc")) {
+		} else if (!_stricmp(s, "-basicexc")) {
 			basicexcept = 1;
-		} else if (!_stricmp(s, "askifmissing")) {
+		} else if (!_stricmp(s, "-askifmissing")) {
 			askifmissing = 1;
-		} else if (!_stricmp(s, "next")) {
+		} else if (!_stricmp(s, "-next")) {
 			nextall = 1;
+		} else if (!_stricmp(s, "-exit")) {
+			if (next) {
+				exitcnt = atoi(next);
+				i++;
+			}
+		} else if (!_stricmp(s, "-cycles")) {
+			cycles = 1;
+			cycles_range = 2;
+			if (i + 1 < argc) {
+				i++;
+				cycles_range = atoi(argv[i]);
+				if (i + 1 < argc) {
+					i++;
+					cycles_adjust = atoi(argv[i]);
+				}
+			}
 		}
 	}
 
-	sprintf(path + strlen(path), "%lu/", 68000 + (cpu_lvl == 5 ? 6 : cpu_lvl) * 10);
+	DIR *groupd = NULL;
+	
+	char *p = strchr(opcode, '/');
+	if (p) {
+		strcpy(tmpbuffer, opcode);
+		strcpy(group, opcode);
+		group[p - opcode] = 0;
+		strcpy(opcode, tmpbuffer + (p - opcode) + 1);
+	}
+	
+	if (!strcmp(group, "all")) {
+		groupd = opendir(path);
+	}
 
-	low_memory_size = -1;
-	low_memory_temp = load_file(path, "lmem.dat", NULL, &low_memory_size, 0, 1);
-	high_memory_size = -1;
-	high_memory_temp = load_file(path, "hmem.dat", NULL, &high_memory_size, 0, 1);
+	int cpumodel = 68000 + (cpu_lvl == 5 ? 6 : cpu_lvl) * 10;
+	sprintf(cpustr, "%lu_", cpumodel);
+	char *pathptr = path + strlen(path);
+
+	for (;;) {
+
+		if (groupd) {
+			pathptr[0] = 0;
+			struct dirent *groupdr = readdir(groupd);
+			if (!groupdr)
+				break;
+			if (!isdir(path, groupdr->d_name))
+				continue;
+			if (groupdr->d_name[0] == '.')
+				continue;
+			if (strnicmp(cpustr, groupdr->d_name, strlen(cpustr)))
+				continue;
+			sprintf(pathptr, "%s/", groupdr->d_name);		
+			strcpy(group, groupdr->d_name + strlen(cpustr));
+		} else {
+			sprintf(pathptr, "%lu_%s/",cpumodel, group);
+		}
+
+		low_memory_size = -1;
+		low_memory_temp = load_file(path, "lmem.dat", NULL, &low_memory_size, 0, 1);
+		high_memory_size = -1;
+		high_memory_temp = load_file(path, "hmem.dat", NULL, &high_memory_size, 0, 1);
 
 #ifndef M68K
-	if (low_memory_size > 0)
-		low_memory = calloc(1, low_memory_size);
-	if (high_memory_size > 0)
-		high_memory = calloc(1, high_memory_size);
+		low_memory = calloc(1, 32768);
+		if (high_memory_size > 0)
+			high_memory = calloc(1, high_memory_size);
 #endif
 
-	if (low_memory_size > 0)
-		low_memory_back = calloc(1, low_memory_size);
-	if (high_memory_size > 0)
-		high_memory_back = calloc(1, high_memory_size);
-
-	if (!_stricmp(opcode, "all")) {
-		DIR *d = opendir(path);
-		if (!d) {
-			printf("Couldn't list directory '%s'\n", path);
-			return 0;
+		low_memory_back = calloc(1, 32768);
+		if (!low_memory_temp) {
+			low_memory_temp = calloc(1, 32768);
 		}
+
+		if (high_memory_size > 0) {
+			high_memory_back = calloc(1, high_memory_size);
+		}
+
+		if (!_stricmp(opcode, "all")) {
+			DIR *d = opendir(path);
+			if (!d) {
+				printf("Couldn't list directory '%s'\n", path);
+				return 0;
+			}
 #define MAX_FILE_LEN 128
 #define MAX_MNEMOS 256
-		char *dirs = calloc(MAX_MNEMOS, MAX_FILE_LEN);
-		int diroff = 0;
-		if (!dirs)
-			return 0;
+			char *dirs = calloc(MAX_MNEMOS, MAX_FILE_LEN);
+			int diroff = 0;
+			if (!dirs)
+				return 0;
 
-		for (;;) {
-			struct dirent *dr = readdir(d);
-			if (!dr)
-				break;
-			int d = isdir(path, dr->d_name);
-			if (d && dr->d_name[0] != '.') {
-				strcpy(dirs + diroff, dr->d_name);
-				diroff += MAX_FILE_LEN;
-				if (diroff >= MAX_FILE_LEN * MAX_MNEMOS) {
-					printf("too many directories!?\n");
+			for (;;) {
+				struct dirent *dr = readdir(d);
+				if (!dr)
+					break;
+				int d = isdir(path, dr->d_name);
+				if (d && dr->d_name[0] != '.') {
+					strcpy(dirs + diroff, dr->d_name);
+					diroff += MAX_FILE_LEN;
+					if (diroff >= MAX_FILE_LEN * MAX_MNEMOS) {
+						printf("too many directories!?\n");
+						return 0;
+					}
+				}
+			}
+			closedir(d);
+
+			for (int i = 0; i < diroff; i += MAX_FILE_LEN) {
+				for (int j = i + MAX_FILE_LEN; j < diroff; j += MAX_FILE_LEN) {
+					if (_stricmp(dirs + i, dirs + j) > 0) {
+						char tmp[MAX_FILE_LEN];
+						strcpy(tmp, dirs + j);
+						strcpy(dirs + j, dirs + i);
+						strcpy(dirs + i, tmp);
+					}
+				}
+			}
+
+			int first = 0;
+			if (argc >= 3 && argv[2][0] != '-') {
+				first = -1;
+				for (int i = 0; i < diroff; i += MAX_FILE_LEN) {
+					if (!_stricmp(dirs + i, argv[2])) {
+						first = i;
+						break;
+					}
+				}
+				if (first < 0) {
+					printf("Couldn't find '%s'\n", argv[2]);
 					return 0;
 				}
 			}
-		}
-		closedir(d);
-
-		for (int i = 0; i < diroff; i += MAX_FILE_LEN) {
-			for (int j = i + MAX_FILE_LEN; j < diroff; j += MAX_FILE_LEN) {
-				if (_stricmp(dirs + i, dirs + j) > 0) {
-					char tmp[MAX_FILE_LEN];
-					strcpy(tmp, dirs + j);
-					strcpy(dirs + j, dirs + i);
-					strcpy(dirs + i, tmp);
+			if (nextall) {
+				first += MAX_FILE_LEN;
+			}
+			int err = 0;
+			for (int i = first; i < diroff; i += MAX_FILE_LEN) {
+				if (test_mnemo(dirs + i)) {
+					err = 1;
+					if (stop_on_error)
+						break;
 				}
 			}
-		}
 
-		int first = 0;
-		if (argc >= 3) {
-			first = -1;
-			for (int i = 0; i < diroff; i += MAX_FILE_LEN) {
-				if (!_stricmp(dirs + i, argv[2])) {
-					first = i;
-					break;
-				}
-			}
-			if (first < 0) {
-				printf("Couldn't find '%s'\n", argv[2]);
-				return 0;
-			}
-		}
-		if (nextall) {
-			first += MAX_FILE_LEN;
-		}
-		for (int i = first; i < diroff; i += MAX_FILE_LEN) {
-			if (test_mnemo(dirs + i)) {
+			free(dirs);
+
+			if (err && stop_on_error)
+				break;
+
+		} else {
+			if (test_mnemo(opcode)) {
 				if (stop_on_error)
 					break;
 			}
 		}
 
-		free(dirs);
+		free(low_memory_temp);
+		free(high_memory_temp);
+		free(low_memory_back);
+		free(high_memory_back);
 
-	} else {
-		test_mnemo(opcode);
+		if (!groupd)
+			break;
 	}
+
+	if (groupd)
+		closedir(groupd);
 
 	return 0;
 }

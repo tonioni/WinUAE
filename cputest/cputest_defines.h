@@ -1,5 +1,5 @@
 
-#define DATA_VERSION 14
+#define DATA_VERSION 15
 
 #define CT_FPREG 0
 #define CT_DREG 0
@@ -11,6 +11,7 @@
 #define CT_FPIAR 20
 #define CT_FPSR 21
 #define CT_FPCR 22
+#define CT_CYCLES 25
 #define CT_ENDPC 26
 #define CT_BRANCHTARGET 27
 #define CT_SRCADDR 28

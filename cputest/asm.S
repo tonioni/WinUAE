@@ -36,14 +36,16 @@ S_FPCR = S_FPIAR+4
 S_FPSR = S_FPCR+4
 S_TRACECNT = S_FPSR+4
 S_TRACESTACK = S_TRACECNT+4
-S_NEXT = S_TRACESTACK+12
+S_CYCLES = S_TRACESTACK+12
+S_CYCLES2 = S_CYCLES+4
+S_CYCLEST = S_CYCLES2+4
+S_NEXT = S_CYCLEST+4
 
 _callinflate:
-	movem.l a4-a5,-(sp)
-	move.l 4+2*4(sp),a4
-	move.l 8+2*4(sp),a5
+	movem.l a4-a6,-(sp)
+	movem.l 4+3*4(sp),a4-a6
 	bsr _inflate
-	movem.l (sp)+,a4-a5
+	movem.l (sp)+,a4-a6
 	rts
 
 	| set CPU special registers
@@ -135,7 +137,10 @@ _execute_test000:
 	move.w S_SR+2(a0),-(sp)
 	move.l S_AREG+7*4(a0),a1
 	move.l a1,USP
+	bsr sync
+	move.l d0,S_CYCLES2(a0)
 	movem.l (a0),d0-d7/a0-a6
+	move.w CYCLEREG,cycles
 	rte
 
 	| 68010+ test entrypoint
@@ -154,7 +159,10 @@ _execute_test010:
 	move.w S_SR+2(a0),-(sp)
 	move.l S_AREG+7*4(a0),a1
 	move.l a1,USP
+	bsr sync
+	move.l d0,S_CYCLES2(a0)
 	movem.l (a0),d0-d7/a0-a6
+	move.w CYCLEREG,cycles
 	| clear data output buffer.
 	| we don't want random DOB contents in bus/address error frame
 	move.w #0xf00d,dummy
@@ -214,12 +222,16 @@ _msp_address2:
 	rte
 
 exception_trace000:
+	move.w sr,-(sp)
+	move.w CYCLEREG,cycles+4
+	addq.l #2+4,sp
 	move.l a0,-(sp)
 	move.l datapointer(pc),a0
 	tst.l S_TRACECNT(a0)
 	bne.s .nexttrace000
 	move.l 4(sp),S_TRACESTACK(a0)
 	move.l 8(sp),S_TRACESTACK+4(a0)
+	move.w cycles+4(pc),S_CYCLEST+2(a0)
 .nexttrace000:
 	addq.l #1,S_TRACECNT(a0)
 	move.l (sp)+,a0
@@ -233,7 +245,7 @@ _exceptiontable000:
 	bsr.s exception | 6
 	bsr.s exception | 7
 	bsr.s exception | 8
-	bra.s exception_trace000 | 9
+	bsr.s exception_trace000 | 9
 	bsr.s exception | 10
 	bsr.s exception | 11
 	bsr.s exception | 12
@@ -275,6 +287,7 @@ _exceptiontable000:
 	nop
 exception:
 	move.w sr,-(sp)
+	move.w CYCLEREG,cycles+2
 	move.w #0,ACTIVITYREG
 	move.l a0,-(sp)
 	move.l datapointer(pc),a0
@@ -302,6 +315,7 @@ exception:
 
 	move.l USP,a1
 	move.l a1,S_AREG+7*4(a0)
+	move.l cycles(pc),S_CYCLES(a0)
 
 	move.w #0x222,ACTIVITYREG
 	move.l superstack(pc),sp
@@ -310,6 +324,9 @@ exception:
 	rts
 
 exception_trace010:
+	move.w sr,-(sp)
+	move.w CYCLEREG,cycles+4
+	addq.l #2+4,sp
 	move.l a0,-(sp)
 	move.l datapointer(pc),a0
 	tst.l S_TRACECNT(a0)
@@ -317,20 +334,21 @@ exception_trace010:
 	move.l 4(sp),S_TRACESTACK(a0)
 	move.l 8(sp),S_TRACESTACK+4(a0)
 	move.l 12(sp),S_TRACESTACK+8(a0)
+	move.w cycles+4(pc),S_CYCLEST+2(a0)
 .nexttrace010:
 	addq.l #1,S_TRACECNT(a0)
 	move.l (sp)+,a0
 	rte
 
 _exceptiontable010:
-	bsr.s exception010	| 2
-	bsr.s exception010	| 3
+	bsr.s exception010 | 2
+	bsr.s exception010 | 3
 	bsr.s exception010 | 4
 	bsr.s exception010 | 5
 	bsr.s exception010 | 6
 	bsr.s exception010 | 7
 	bsr.s exception010 | 8
-	bra.s exception_trace010 | 9
+	bsr.s exception_trace010 | 9
 	bsr.s exception010 | 10
 	bsr.s exception010 | 11
 	bsr.s exception010 | 12
@@ -372,6 +390,7 @@ _exceptiontable010:
 	nop
 exception010:
 	move.w sr,-(sp)
+	move.w CYCLEREG,cycles+2
 	move.w #0,ACTIVITYREG
 	move.l a0,-(sp)
 	move.l datapointer(pc),a0
@@ -396,7 +415,8 @@ exception010:
 
 	move.l USP,a1
 	move.l a1,S_AREG+7*4(a0)
-		
+	move.l cycles(pc),S_CYCLES(a0)
+
 	move.w #0x222,ACTIVITYREG
 	move.l superstack(pc),sp
 	move.w (sp)+,sr
@@ -600,5 +620,7 @@ datapointer:
 	dc.l 0
 superstack:
 	dc.l 0
+cycles:
+	dc.l 0,0
 dummy:
 	dc.l 0

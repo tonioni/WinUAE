@@ -57,6 +57,7 @@ static struct cputbl_data cpudatatbl[65536];
 
 struct regstruct regs;
 struct flag_struct regflags;
+int cpu_cycles;
 
 static int verbose = 1;
 static int feature_exception3_data = 0;
@@ -70,6 +71,7 @@ static int feature_test_rounds = 2;
 static int feature_flag_mode = 0;
 static int feature_usp = 0;
 static int feature_exception_vectors = 0;
+static int feature_interrupts = 0;
 static TCHAR *feature_instruction_size = NULL;
 static uae_u32 feature_addressing_modes[2];
 static int feature_gzip = 0;
@@ -153,6 +155,7 @@ static int test_memory_accessed;
 static uae_u16 extra_or, extra_and;
 static uae_u32 cur_registers[MAX_REGISTERS];
 static uae_u16 read_buffer_prev;
+static int interrupt_count;
 
 struct uae_prefs currprefs;
 
@@ -313,10 +316,20 @@ static void check_bus_error(uaecptr addr, int write, int fc)
 	}
 }
 
+static void add_memory_cycles(int c)
+{
+	if (!testing_active)
+		return;
+	if (trace_store_pc != 0xffffffff)
+		return;
+	cpu_cycles += c * 4;
+}
+
 static uae_u8 get_ibyte_test(uaecptr addr)
 {
 	check_bus_error(addr, 0, regs.s ? 5 : 1);
 	uae_u8 *p = get_addr(addr, 1, 0);
+	add_memory_cycles(1);
 	return *p;
 }
 
@@ -327,6 +340,7 @@ static uae_u16 get_iword_test(uaecptr addr)
 		return (get_ibyte_test(addr + 0) << 8) | (get_ibyte_test(addr + 1) << 0);
 	} else {
 		uae_u8 *p = get_addr(addr, 2, 0);
+		add_memory_cycles(1);
 		return (p[0] << 8) | (p[1]);
 	}
 }
@@ -336,6 +350,7 @@ uae_u16 get_word_test_prefetch(int o)
 	// no real prefetch
 	if (cpu_lvl < 2)
 		o -= 2;
+	add_memory_cycles(-1);
 	regs.irc = get_iword_test(m68k_getpci() + o + 2);
 	read_buffer_prev = regs.read_buffer;
 	regs.read_buffer = regs.irc;
@@ -374,6 +389,7 @@ void put_byte_test(uaecptr addr, uae_u32 v)
 	}
 	regs.write_buffer = v;
 	*p = v;
+	add_memory_cycles(1);
 }
 void put_word_test(uaecptr addr, uae_u32 v)
 {
@@ -401,6 +417,7 @@ void put_word_test(uaecptr addr, uae_u32 v)
 		p[1] = v & 0xff;
 	}
 	regs.write_buffer = v;
+	add_memory_cycles(1);
 }
 void put_long_test(uaecptr addr, uae_u32 v)
 {
@@ -432,6 +449,7 @@ void put_long_test(uaecptr addr, uae_u32 v)
 		p[1] = v >> 16;
 		p[2] = v >> 8;
 		p[3] = v >> 0;
+		add_memory_cycles(2);
 	}
 	regs.write_buffer = v;
 }
@@ -469,6 +487,7 @@ uae_u32 get_byte_test(uaecptr addr)
 	uae_u8 *p = get_addr(addr, 1, 0);
 	read_buffer_prev = regs.read_buffer;
 	regs.read_buffer = *p;
+	add_memory_cycles(1);
 	return *p;
 }
 uae_u32 get_word_test(uaecptr addr)
@@ -483,6 +502,7 @@ uae_u32 get_word_test(uaecptr addr)
 	}
 	read_buffer_prev = regs.read_buffer;
 	regs.read_buffer = v;
+	add_memory_cycles(1);
 	return v;
 }
 uae_u32 get_long_test(uaecptr addr)
@@ -501,6 +521,7 @@ uae_u32 get_long_test(uaecptr addr)
 	} else {
 		uae_u8 *p = get_addr(addr, 4, 0);
 		v = (p[0] << 24) | (p[1] << 16) | (p[2] << 8) | (p[3]);
+		add_memory_cycles(2);
 	}
 	read_buffer_prev = regs.read_buffer;
 	regs.read_buffer = v;
@@ -641,10 +662,33 @@ bool mmu_op30(uaecptr pc, uae_u32 opcode, uae_u16 extra, uaecptr extraa)
 	return true;
 }
 
+int is_cycle_ce(void)
+{
+	return 0;
+}
+
+void ipl_fetch(void)
+{
+}
+
+int intlev(void)
+{
+	return 0;
+}
+
+void do_cycles_test(int cycles)
+{
+	if (!testing_active)
+		return;
+	cpu_cycles += cycles;
+}
+
 uae_u32(*x_get_long)(uaecptr);
 uae_u32(*x_get_word)(uaecptr);
+uae_u32(*x_get_byte)(uaecptr);
 void (*x_put_long)(uaecptr, uae_u32);
 void (*x_put_word)(uaecptr, uae_u32);
+void (*x_put_byte)(uaecptr, uae_u32);
 
 uae_u32(*x_cp_get_long)(uaecptr);
 uae_u32(*x_cp_get_word)(uaecptr);
@@ -660,6 +704,31 @@ uae_u32(*x_next_ilong)(void);
 void (*x_do_cycles)(unsigned long);
 
 uae_u32(REGPARAM3 *x_cp_get_disp_ea_020)(uae_u32 base, int idx) REGPARAM;
+
+void m68k_do_rts_ce(void)
+{
+	uaecptr pc;
+	pc = x_get_word(m68k_areg(regs, 7)) << 16;
+	pc |= x_get_word(m68k_areg(regs, 7) + 2);
+	m68k_areg(regs, 7) += 4;
+	m68k_setpci(pc);
+}
+
+void m68k_do_bsr_ce(uaecptr oldpc, uae_s32 offset)
+{
+	m68k_areg(regs, 7) -= 4;
+	x_put_word(m68k_areg(regs, 7), oldpc >> 16);
+	x_put_word(m68k_areg(regs, 7) + 2, oldpc);
+	m68k_incpci(offset);
+}
+
+void m68k_do_jsr_ce(uaecptr oldpc, uaecptr dest)
+{
+	m68k_areg(regs, 7) -= 4;
+	x_put_word(m68k_areg(regs, 7), oldpc >> 16);
+	x_put_word(m68k_areg(regs, 7) + 2, oldpc);
+	m68k_setpci(dest);
+}
 
 static int SPCFLAG_TRACE, SPCFLAG_DOTRACE;
 
@@ -823,6 +892,7 @@ static void doexcstack2(void)
 
 	int noac = noaccesshistory;
 	int ta = testing_active;
+	int cycs = cpu_cycles;
 	noaccesshistory = 1;
 	testing_active = -1;
 
@@ -881,6 +951,7 @@ static void doexcstack2(void)
 	m68k_areg(regs, 7) = tmp;
 	testing_active = ta;
 	noaccesshistory = noac;
+	cpu_cycles = cycs;
 }
 
 static void doexcstack(void)
@@ -1558,7 +1629,8 @@ static void save_data(uae_u8 *dst, const TCHAR *dir)
 		fwrite(data, 1, 4, f);
 		pl(data, (uae_u32)starttime);
 		fwrite(data, 1, 4, f);
-		pl(data, ((hmem_rom | (test_high_memory_start == 0xffffffff ? 0x8000 : 0x0000)) << 16) | (lmem_rom | (test_low_memory_start == 0xffffffff ? 0x8000 : 0x0000)));
+		pl(data, ((hmem_rom | (test_high_memory_start == 0xffffffff ? 0x8000 : 0x0000)) << 16) |
+			(lmem_rom | (test_low_memory_start == 0xffffffff ? 0x8000 : 0x0000)));
 		fwrite(data, 1, 4, f);
 		pl(data, test_memory_start);
 		fwrite(data, 1, 4, f);
@@ -1566,7 +1638,8 @@ static void save_data(uae_u8 *dst, const TCHAR *dir)
 		fwrite(data, 1, 4, f);
 		pl(data, opcode_memory_start);
 		fwrite(data, 1, 4, f);
-		pl(data, (cpu_lvl << 16) | sr_undefined_mask | (addressing_mask == 0xffffffff ? 0x80000000 : 0) | (feature_min_interrupt_mask << 20) | (safe_memory_mode << 23));
+		pl(data, (cpu_lvl << 16) | sr_undefined_mask | (addressing_mask == 0xffffffff ? 0x80000000 : 0) |
+			(feature_min_interrupt_mask << 20) | (safe_memory_mode << 23) | (feature_interrupts << 26));
 		fwrite(data, 1, 4, f);
 		pl(data, currprefs.fpu_model);
 		fwrite(data, 1, 4, f);
@@ -1881,13 +1954,17 @@ static int create_ea_random(uae_u16 *opcodep, uaecptr pc, int mode, int reg, str
 	}
 	case absw:
 	{
-		uae_u16 v;
+		uae_u32 v;
+		if (!high_memory && !low_memory)
+			return -1;
 		for (;;) {
 			v = rand16();
+			if (v >= 0x8000)
+				v |= 0xffff0000;
 			if (other_targetea_same(srcdst, (uae_s32)(uae_s16)v))
 				continue;
 			if (analyze_address(dp, srcdst, v))
-				break;	
+				break;
 		}
 		put_word_test(pc, v);
 		*isconstant = 16;
@@ -2622,6 +2699,11 @@ static int handle_specials_stack(uae_u16 opcode, uaecptr pc, struct instr *dp, i
 	return offset;
 }
 
+static const int interrupt_levels[] =
+{
+	1, 1, 1, 2, 3, 3, 3, 4, 4, 4, 4, 5, 5, 6, 6, 0
+};
+
 static void execute_ins(uaecptr endpc, uaecptr targetpc, struct instr *dp)
 {
 	uae_u16 opc = regs.ir;
@@ -2659,6 +2741,7 @@ static void execute_ins(uaecptr endpc, uaecptr targetpc, struct instr *dp)
 	regs.read_buffer = regs.irc;
 	regs.write_buffer = 0xf00d;
 	exception_extra_frame_size = 0;
+	cpu_cycles = 0;
 
 	int cnt = (feature_loop_mode + 1) * 2;
 	if (multi_mode)
@@ -2677,8 +2760,20 @@ static void execute_ins(uaecptr endpc, uaecptr targetpc, struct instr *dp)
 			abort();
 		}
 
-		if (SPCFLAG_TRACE)
+		if (SPCFLAG_TRACE) {
 			do_trace();
+		}
+
+		if (feature_interrupts) {
+			int ic = interrupt_count;
+			interrupt_count++;
+			interrupt_count &= 15;
+			int lvl = interrupt_levels[ic];
+			if (lvl > 0 && lvl > feature_min_interrupt_mask) {
+				Exception(lvl + 24);
+				break;
+			}
+		}
 
 		regs.instruction_pc = regs.pc;
 		uaecptr a7 = regs.regs[15];
@@ -3115,6 +3210,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 	int rounds = feature_test_rounds;
 	int subtest_count = 0;
 	int data_saved = 0;
+	int first_cycles = 1;
 
 	int count = 0;
 
@@ -3194,6 +3290,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 
 	full_format_cnt = 0;
 	last_exception_len = -1;
+	interrupt_count = 0;
 
 	int sr_override = 0;
 
@@ -3721,6 +3818,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 
 					uae_u32 last_sr = 0;
 					uae_u32 last_pc = 0;
+					uae_u32 last_cpu_cycles = 0;
 					uae_u32 last_registers[MAX_REGISTERS];
 					floatx80 last_fpuregisters[8];
 					uae_u32 last_fpiar = 0;
@@ -4057,6 +4155,11 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 										dst = store_reg(dst, CT_FPCR, last_fpcr, regs.fpcr, -1);
 										last_fpcr = regs.fpcr;
 									}
+								}
+								if (cpu_lvl <= 1 && (last_cpu_cycles != cpu_cycles || first_cycles)) {
+									dst = store_reg(dst, CT_CYCLES, last_cpu_cycles, cpu_cycles, first_cycles  ? 0 : -1);
+									last_cpu_cycles = cpu_cycles;
+									first_cycles = 0;
 								}
 								// store test instruction generated changes
 								dst = store_mem_writes(dst, 0);
@@ -4401,20 +4504,71 @@ static const TCHAR *addrmodes[] =
 
 #define INISECTION _T("cputest")
 
-int __cdecl main(int argc, char *argv[])
+static bool ini_getvalx(struct ini_data *ini, const TCHAR *sections, const TCHAR *key, int *val)
+{
+	bool ret = false;
+	while (*sections) {
+		const TCHAR *sect = sections;
+		if (_tcsicmp(sections, INISECTION)) {
+			TCHAR *tout = NULL;
+			if (ini_getstring(ini, sections, key, &tout)) {
+				if (!_tcsicmp(tout, _T("*"))) {
+					sect = INISECTION;
+				}
+				xfree(tout);
+			}
+		}
+		if (ini_getval(ini, sect, key, val))
+			ret = true;
+		sections += _tcslen(sections) + 1;
+	}
+	if (ret)
+		wprintf(_T("%s=%08x (%d)\n"), key, *val, *val);
+	return ret;
+}
+static bool ini_getstringx(struct ini_data *ini, const TCHAR *sections, const TCHAR *key, TCHAR **out)
+{
+	bool ret = false;
+	*out = NULL;
+	while (*sections) {
+		TCHAR *tout = NULL;
+		if (ini_getstring(ini, sections, key, &tout)) {
+			if (!_tcsicmp(tout, _T("*"))) {
+				xfree(tout);
+				if (!ini_getstring(ini, INISECTION, key, &tout)) {
+					tout = my_strdup(_T(""));
+				}
+			}
+			ret = true;
+			if (*out) {
+				free(*out);
+			}
+			*out = tout;
+		}
+		sections += _tcslen(sections) + 1;
+	}
+	if (ret)
+		wprintf(_T("%s=%s\n"), key, *out);
+	return ret;
+}
+
+static int test(struct ini_data *ini, const TCHAR *sections, const TCHAR *testname)
 {
 	const struct cputbl *tbl = NULL;
 	TCHAR path[1000], *vs;
 	int v;
 
-	struct ini_data *ini = ini_load(_T("cputestgen.ini"), false);
-	if (!ini) {
-		wprintf(_T("Couldn't open cputestgen.ini"));
-		return 0;
+	wprintf(_T("Generating test '%s'\n"), testname);
+
+	v = 0;
+	ini_getvalx(ini, sections, _T("enabled"), &v);
+	if (!v) {
+		wprintf(_T("Test disabled\n"));
+		return 1;
 	}
 
 	currprefs.cpu_model = 68000;
-	ini_getval(ini, INISECTION, _T("cpu"), &currprefs.cpu_model);
+	ini_getvalx(ini, sections, _T("cpu"), &currprefs.cpu_model);
 	if (currprefs.cpu_model != 68000 && currprefs.cpu_model != 68010 && currprefs.cpu_model != 68020 &&
 		currprefs.cpu_model != 68030 && currprefs.cpu_model != 68040 && currprefs.cpu_model != 68060) {
 		wprintf(_T("Unsupported CPU model.\n"));
@@ -4424,7 +4578,7 @@ int __cdecl main(int argc, char *argv[])
 	currprefs.address_space_24 = 1;
 	addressing_mask = 0x00ffffff;
 	v = 24;
-	ini_getval(ini, INISECTION, _T("cpu_address_space"), &v);
+	ini_getvalx(ini, sections, _T("cpu_address_space"), &v);
 	if (v == 32 || currprefs.cpu_model >= 68030) {
 		currprefs.address_space_24 = 0;
 		addressing_mask = 0xffffffff;
@@ -4432,7 +4586,7 @@ int __cdecl main(int argc, char *argv[])
 
 	currprefs.fpu_model = 0;
 	currprefs.fpu_mode = 1;
-	ini_getval(ini, INISECTION, _T("fpu"), &currprefs.fpu_model);
+	ini_getvalx(ini, sections, _T("fpu"), &currprefs.fpu_model);
 	if (currprefs.fpu_model && currprefs.cpu_model < 68020) {
 		wprintf(_T("FPU requires 68020 or 68040 CPU.\n"));
 		return 0;
@@ -4443,10 +4597,10 @@ int __cdecl main(int argc, char *argv[])
 	}
 
 	verbose = 1;
-	ini_getval(ini, INISECTION, _T("verbose"), &verbose);
+	ini_getvalx(ini, sections, _T("verbose"), &verbose);
 
 	feature_gzip = 0;
-	ini_getval(ini, INISECTION, _T("feature_gzip"), &feature_gzip);
+	ini_getvalx(ini, sections, _T("feature_gzip"), &feature_gzip);
 
 	feature_addressing_modes[0] = 0xffffffff;
 	feature_addressing_modes[1] = 0xffffffff;
@@ -4454,18 +4608,18 @@ int __cdecl main(int argc, char *argv[])
 	pc8r[0] = pc8r[1] = 1;
 
 	feature_exception3_data = 0;
-	ini_getval(ini, INISECTION, _T("feature_exception3_data"), &feature_exception3_data);
+	ini_getvalx(ini, sections, _T("feature_exception3_data"), &feature_exception3_data);
 	feature_exception3_instruction = 0;
-	ini_getval(ini, INISECTION, _T("feature_exception3_instruction"), &feature_exception3_instruction);
+	ini_getvalx(ini, sections, _T("feature_exception3_instruction"), &feature_exception3_instruction);
 
 	safe_memory_start = 0xffffffff;
-	if (ini_getval(ini, INISECTION, _T("feature_safe_memory_start"), &v))
+	if (ini_getvalx(ini, sections, _T("feature_safe_memory_start"), &v))
 		safe_memory_start = v;
 	safe_memory_end = 0xffffffff;
-	if (ini_getval(ini, INISECTION, _T("feature_safe_memory_size"), &v))
+	if (ini_getvalx(ini, sections, _T("feature_safe_memory_size"), &v))
 		safe_memory_end = safe_memory_start + v;
 	safe_memory_mode = 7;
-	if (ini_getstring(ini, INISECTION, _T("feature_safe_memory_mode"), &vs)) {
+	if (ini_getstringx(ini, sections, _T("feature_safe_memory_mode"), &vs)) {
 		safe_memory_mode = 0;
 		if (_totupper(vs[0]) == 'R')
 			safe_memory_mode |= 1;
@@ -4488,7 +4642,7 @@ int __cdecl main(int argc, char *argv[])
 		feature_target_ea[i][2] = 0xffffffff;
 	}
 	for (int i = 0; i < 3; i++) {
-		if (ini_getstring(ini, INISECTION, i == 2 ? _T("feature_target_opcode_offset") : (i ? _T("feature_target_dst_ea") : _T("feature_target_src_ea")), &vs)) {
+		if (ini_getstringx(ini, sections, i == 2 ? _T("feature_target_opcode_offset") : (i ? _T("feature_target_dst_ea") : _T("feature_target_src_ea")), &vs)) {
 			int cnt = 0;
 			TCHAR *p = vs;
 			int exp3cnt = 0;
@@ -4536,25 +4690,27 @@ int __cdecl main(int argc, char *argv[])
 	}
 
 	feature_sr_mask = 0;
-	ini_getval(ini, INISECTION, _T("feature_sr_mask"), &feature_sr_mask);
+	ini_getvalx(ini, sections, _T("feature_sr_mask"), &feature_sr_mask);
 	feature_min_interrupt_mask = 0;
-	ini_getval(ini, INISECTION, _T("feature_min_interrupt_mask"), &feature_min_interrupt_mask);
+	ini_getvalx(ini, sections, _T("feature_min_interrupt_mask"), &feature_min_interrupt_mask);
 
 	feature_loop_mode = 0;
-	ini_getval(ini, INISECTION, _T("feature_loop_mode"), &feature_loop_mode);
+	ini_getvalx(ini, sections, _T("feature_loop_mode"), &feature_loop_mode);
 	if (feature_loop_mode) {
 		feature_loop_mode_register = 7;
 	}
 	feature_flag_mode = 0;
-	ini_getval(ini, INISECTION, _T("feature_flags_mode"), &feature_flag_mode);
+	ini_getvalx(ini, sections, _T("feature_flags_mode"), &feature_flag_mode);
 	feature_usp = 0;
-	ini_getval(ini, INISECTION, _T("feature_usp"), &feature_usp);
+	ini_getvalx(ini, sections, _T("feature_usp"), &feature_usp);
 	feature_exception_vectors = 0;
-	ini_getval(ini, INISECTION, _T("feature_exception_vectors"), &feature_exception_vectors);
+	ini_getvalx(ini, sections, _T("feature_exception_vectors"), &feature_exception_vectors);
+	feature_interrupts = 0;
+	ini_getvalx(ini, sections, _T("feature_interrupts"), &feature_interrupts);
 
 	feature_full_extension_format = 0;
 	if (currprefs.cpu_model >= 68020) {
-		ini_getval(ini, INISECTION, _T("feature_full_extension_format"), &feature_full_extension_format);
+		ini_getvalx(ini, sections, _T("feature_full_extension_format"), &feature_full_extension_format);
 		if (feature_full_extension_format) {
 			ad8r[0] |= 2;
 			ad8r[1] |= 2;
@@ -4565,7 +4721,7 @@ int __cdecl main(int argc, char *argv[])
 
 	for (int j = 0; j < 2; j++) {
 		TCHAR *am = NULL;
-		if (ini_getstring(ini, INISECTION, j ? _T("feature_addressing_modes_dst") : _T("feature_addressing_modes_src"), &am)) {
+		if (ini_getstringx(ini, sections, j ? _T("feature_addressing_modes_dst") : _T("feature_addressing_modes_src"), &am)) {
 			if (_tcslen(am) > 0) {
 				feature_addressing_modes[j] = 0;
 				ad8r[j] = 0;
@@ -4606,10 +4762,10 @@ int __cdecl main(int argc, char *argv[])
 
 
 	TCHAR *mode = NULL;
-	ini_getstring(ini, INISECTION, _T("mode"), &mode);
+	ini_getstringx(ini, sections, _T("mode"), &mode);
 
 	TCHAR *ipath = NULL;
-	ini_getstring(ini, INISECTION, _T("path"), &ipath);
+	ini_getstringx(ini, sections, _T("path"), &ipath);
 	if (!ipath) {
 		_tcscpy(path, _T("data/"));
 	} else {
@@ -4617,21 +4773,21 @@ int __cdecl main(int argc, char *argv[])
 	}
 	free(ipath);
 
-	_stprintf(path + _tcslen(path), _T("%lu/"), currprefs.cpu_model);
+	_stprintf(path + _tcslen(path), _T("%lu_%s/"), currprefs.cpu_model, testname);
 	_wmkdir(path);
 
 	xorshiftstate = 1;
 
 	feature_test_rounds = 2;
-	ini_getval(ini, INISECTION, _T("test_rounds"), &feature_test_rounds);
+	ini_getvalx(ini, sections, _T("test_rounds"), &feature_test_rounds);
 
 	feature_instruction_size = NULL;
-	ini_getstring(ini, INISECTION, _T("feature_instruction_size"), &feature_instruction_size);
+	ini_getstringx(ini, sections, _T("feature_instruction_size"), &feature_instruction_size);
 
-	ini_getval(ini, INISECTION, _T("feature_instruction_size"), &feature_test_rounds);
+	ini_getvalx(ini, sections, _T("feature_instruction_size"), &feature_test_rounds);
 
 	v = 0;
-	ini_getval(ini, INISECTION, _T("test_memory_start"), &v);
+	ini_getvalx(ini, sections, _T("test_memory_start"), &v);
 	if (!v) {
 		wprintf(_T("test_memory_start is required\n"));
 		return 0;
@@ -4639,7 +4795,7 @@ int __cdecl main(int argc, char *argv[])
 	test_memory_start = v;
 
 	v = 0;
-	ini_getval(ini, INISECTION, _T("test_memory_size"), &v);
+	ini_getvalx(ini, sections, _T("test_memory_size"), &v);
 	if (!v) {
 		wprintf(_T("test_memory_start is required\n"));
 		return 0;
@@ -4650,19 +4806,19 @@ int __cdecl main(int argc, char *argv[])
 	test_low_memory_start = 0xffffffff;
 	test_low_memory_end = 0xffffffff;
 	v = 0;
-	if (ini_getval(ini, INISECTION, _T("test_low_memory_start"), &v))
+	if (ini_getvalx(ini, sections, _T("test_low_memory_start"), &v))
 		test_low_memory_start = v;
 	v = 0;
-	if (ini_getval(ini, INISECTION, _T("test_low_memory_end"), &v))
+	if (ini_getvalx(ini, sections, _T("test_low_memory_end"), &v))
 		test_low_memory_end = v;
 
 	test_high_memory_start = 0xffffffff;
 	test_high_memory_end = 0xffffffff;
 	v = 0;
-	if (ini_getval(ini, INISECTION, _T("test_high_memory_start"), &v))
+	if (ini_getvalx(ini, sections, _T("test_high_memory_start"), &v))
 		test_high_memory_start = v;
 	v = 0;
-	if (ini_getval(ini, INISECTION, _T("test_high_memory_end"), &v))
+	if (ini_getvalx(ini, sections, _T("test_high_memory_end"), &v))
 		test_high_memory_end = v;
 
 	if (addressing_mask == 0xffffffff && test_high_memory_end <= 0x01000000) {
@@ -4678,7 +4834,7 @@ int __cdecl main(int argc, char *argv[])
 	}
 
 	v = 0;
-	if (ini_getval(ini, INISECTION, _T("opcode_memory_start"), &v)) {
+	if (ini_getvalx(ini, sections, _T("opcode_memory_start"), &v)) {
 		opcode_memory_start = v;
 		opcode_memory = test_memory + (opcode_memory_start - test_memory_start);
 	} else {
@@ -4689,7 +4845,7 @@ int __cdecl main(int argc, char *argv[])
 		wprintf(_T("Opcode memory out of bounds\n"));
 		return 0;
 	}
-	if (ini_getval(ini, INISECTION, _T("feature_stack_memory"), &v)) {
+	if (ini_getvalx(ini, sections, _T("feature_stack_memory"), &v)) {
 		super_stack_memory = v;
 		user_stack_memory = super_stack_memory - (RESERVED_SUPERSTACK + RESERVED_USERSTACK_EXTRA);
 	} else {
@@ -4714,7 +4870,7 @@ int __cdecl main(int argc, char *argv[])
 
 	if (test_low_memory_start != 0xffffffff) {
 		TCHAR *lmem_rom_name = NULL;
-		ini_getstring(ini, INISECTION, _T("low_rom"), &lmem_rom_name);
+		ini_getstringx(ini, sections, _T("low_rom"), &lmem_rom_name);
 		if (lmem_rom_name) {
 			if (load_file(NULL, lmem_rom_name, low_memory_temp, low_memory_size, 0)) {
 				wprintf(_T("Low test memory ROM loaded\n"));
@@ -4727,7 +4883,7 @@ int __cdecl main(int argc, char *argv[])
 
 	if (test_high_memory_start != 0xffffffff) {
 		TCHAR *hmem_rom_name = NULL;
-		ini_getstring(ini, INISECTION, _T("high_rom"), &hmem_rom_name);
+		ini_getstringx(ini, sections, _T("high_rom"), &hmem_rom_name);
 		if (hmem_rom_name) {
 			if (load_file(NULL, hmem_rom_name, high_memory_temp, high_memory_size, -1)) {
 				wprintf(_T("High test memory ROM loaded\n"));
@@ -4849,8 +5005,10 @@ int __cdecl main(int argc, char *argv[])
 
 	x_get_long = get_long_test;
 	x_get_word = get_word_test;
+	x_get_byte = get_byte_test;
 	x_put_long = put_long_test;
 	x_put_word = put_word_test;
+	x_put_byte = put_byte_test;
 
 	x_next_iword = next_iword_test;
 	x_cp_next_iword = next_iword_test;
@@ -4943,7 +5101,49 @@ int __cdecl main(int argc, char *argv[])
 		modep = sp;
 	}
 
+	xfree(low_memory);
+	xfree(low_memory_temp);
+	xfree(high_memory);
+	xfree(high_memory_temp);
+	xfree(test_memory);
+	xfree(test_memory_temp);
+	xfree(storage_buffer);
+
 	wprintf(_T("%d total tests generated\n"), test_count);
 
-	return 0;
+	return 1;
 }
+
+static TCHAR sections[1000];
+
+int __cdecl main(int argc, char *argv[])
+{
+	const struct cputbl *tbl = NULL;
+	TCHAR path[1000], *vs;
+	int v;
+
+	struct ini_data *ini = ini_load(_T("cputestgen.ini"), false);
+	if (!ini) {
+		wprintf(_T("Couldn't open cputestgen.ini"));
+		return 0;
+	}
+
+	TCHAR *sptr = sections;
+	_tcscpy(sections, INISECTION);
+	sptr += _tcslen(sptr) + 1;
+
+	int idx = 0;
+	for (;;) {
+		TCHAR *section = NULL;
+		if (!ini_getsection(ini, idx, &section))
+			break;
+		if (!_tcsnicmp(section, _T("test="), 5)) {
+			_tcscpy(sptr, section);
+			if (!test(ini, sections, section + 5))
+				break;
+		}
+		idx++;
+	}
+
+}
+

@@ -446,6 +446,30 @@ bool ini_getdata(struct ini_data *ini, const TCHAR *section, const TCHAR *key, u
 	return ini_getdata_multi(ini, section, key, out, size, NULL);
 }
 
+bool ini_getsection(struct ini_data *ini, int idx, TCHAR **section)
+{
+	const TCHAR *sptr = NULL;
+	for (int c = 0; c < ini->inilines; c++) {
+		struct ini_line *il = ini->inidata[c];
+		if (il) {
+			if (!sptr) {
+				sptr = il->section;
+			}
+			if (!sptr)
+				continue;
+			if (_tcsicmp(sptr, il->section)) {
+				idx--;
+				if (idx < 0) {
+					*section = my_strdup(il->section);
+					return true;
+				}
+				sptr = il->section;
+			}
+		}
+	}
+	return false;
+}
+
 bool ini_getsectionstring(struct ini_data *ini, const TCHAR *section, int idx, TCHAR **keyout, TCHAR **valout)
 {
 	for (int c = 0; c < ini->inilines; c++) {

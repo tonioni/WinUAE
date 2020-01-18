@@ -6255,6 +6255,10 @@ static void gen_opcode (unsigned int opcode)
 				if (curi->smode >= Ad16 && cpu_level == 1 && using_prefetch) {
 					dummy_prefetch("srca", NULL);
 				}
+				if (curi->smode == Ad16 || curi->smode == absw || curi->smode == PC16)
+					addcycles000(2);
+				if (curi->smode == Ad8r || curi->smode == PC8r)
+					addcycles000(6);
 				printf("\t\texception3i(opcode, srca);\n");
 				write_return_cycles("\t\t", 0);
 				printf("\t}\n");
@@ -6339,6 +6343,10 @@ static void gen_opcode (unsigned int opcode)
 			if (curi->smode >= Ad16 && cpu_level == 1 && using_prefetch) {
 				dummy_prefetch("srca", NULL);
 			}
+			if (curi->smode == Ad16 || curi->smode == absw || curi->smode == PC16)
+				addcycles000(2);
+			if (curi->smode == Ad8r || curi->smode == PC8r)
+				addcycles000(6);
 			printf("\t\texception3i(opcode, srca);\n");
 			write_return_cycles("\t\t", 0);
 			printf("\t}\n");
@@ -8288,7 +8296,12 @@ static void generate_cpu_test(int mode)
 	using_exception_3 = 1;
 	using_simple_cycles = 1;
 
-	if (mode == 1) {
+	if (mode == 0) {
+		using_simple_cycles = 0;
+		using_ce = 1;
+	} else if (mode == 1) {
+		using_simple_cycles = 0;
+		using_ce = 1;
 		cpu_level = 1;
 	} else if (mode == 2) {
 		cpu_level = 2;

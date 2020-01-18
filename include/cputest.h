@@ -38,6 +38,10 @@ extern int movem_index1[256];
 extern int movem_index2[256];
 extern int movem_next[256];
 
+void ipl_fetch(void);
+void do_cycles_test(int);
+int intlev(void);
+
 uae_u16 get_word_test_prefetch(int);
 uae_u16 get_wordi_test(int);
 
@@ -55,6 +59,9 @@ uaecptr m68k_getpci(void);
 void m68k_setpci_j(uaecptr);
 void m68k_do_rtsi(void);
 void m68k_do_bsri(uaecptr, uae_s32);
+void m68k_do_bsr_ce(uaecptr, uae_s32);
+void m68k_do_bsr_ce(uaecptr oldpc, uae_s32 offset);
+void m68k_do_jsr_ce(uaecptr oldpc, uaecptr dest);
 
 void m68k_setstopped(void);
 void check_t0_trace(void);

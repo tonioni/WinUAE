@@ -2,6 +2,7 @@
 	.text
 
 	.equ ACTIVITYREG,0xdff180
+	.equ CYCLEREG,0xdff006
 	
 	.globl _allocate_absolute
 	.globl _free_absolute
@@ -9,6 +10,19 @@
 	.globl _tosuper
 	.globl _testexit
 	.globl _get_cpu_model
+	.globl sync
+
+sync:
+	move.b 0xdff006,d0
+	beq.s sync
+	cmp.b #0xff,d0
+	beq.s sync
+	cmp.b #0x38,d0
+	beq.s sync
+	| above prevent wraparound between
+	| dff004.w and dff006.w reads
+	move.l 0xdff004,d0
+	rts
 
 	| check left mouse button/joystick fire
 _testexit:
@@ -26,6 +40,7 @@ _tosuper:
 	jsr -0x78(a6) | Disable
 	jsr -0x96(a6) | SuperState
 	move.w #0x0200,0xdff096
+	move.w #0x2700,sr
 	move.l (sp)+,a6
 	rts
 	
