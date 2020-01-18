@@ -42,6 +42,7 @@ bool ini_getval_multi(struct ini_data *ini, const TCHAR *section, const TCHAR *k
 bool ini_getdata(struct ini_data *ini, const TCHAR *section, const TCHAR *key, uae_u8 **out, int *size);
 bool ini_getdata_multi(struct ini_data *ini, const TCHAR *section, const TCHAR *key, uae_u8 **out, int *size, struct ini_context*);
 bool ini_getsectionstring(struct ini_data *ini, const TCHAR *section, int idx, TCHAR **keyout, TCHAR **valout);
+bool ini_getsection(struct ini_data *ini, int idx, TCHAR **section);
 
 bool ini_addstring(struct ini_data *ini, const TCHAR *section, const TCHAR *key, const TCHAR *val);
 bool ini_delete(struct ini_data *ini, const TCHAR *section, const TCHAR *key);

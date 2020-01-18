@@ -2810,7 +2810,7 @@ static void add_approximate_exception_cycles(int nr)
 			case 4: cycles = 34; break;		/* Illegal instruction */
 			case 5: cycles = 34; break;		/* Division by zero */
 			case 6: cycles = 34; break;		/* CHK */
-			case 7: cycles = 34; break;		/* TRAPV */
+			case 7: cycles = 30; break;		/* TRAPV */
 			case 8: cycles = 34; break;		/* Privilege violation */
 			case 9: cycles = 34; break;		/* Trace */
 			case 10: cycles = 34; break;	/* Line-A */
