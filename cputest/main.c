@@ -394,10 +394,12 @@ static void start_test(void)
 				error_vectors[i - 2] = p[i];
 			}
 		}
-		for (int i = 24; i < 24 + 8; i++) {
-			p[i] = (uae_u32)(((uae_u32)&exceptiontable000) + (i - 2) * 2);
-			if (exception_vectors) {
-				p[i] = exception_vectors;
+		if (interrupttest) {
+			for (int i = 24; i < 24 + 8; i++) {
+				p[i] = (uae_u32)(((uae_u32)&exceptiontable000) + (i - 2) * 2);
+				if (exception_vectors) {
+					p[i] = exception_vectors;
+				}
 			}
 		}
 		for (int i = 32; i < 48; i++) {

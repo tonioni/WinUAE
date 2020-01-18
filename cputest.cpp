@@ -189,7 +189,7 @@ static bool valid_address(uaecptr addr, int size, int w)
 {
 	addr &= addressing_mask;
 	size--;
-	if (addr + size < low_memory_size) {
+	if (low_memory_size != 0xffffffff && addr + size < low_memory_size) {
 		if (addr < test_low_memory_start || test_low_memory_start == 0xffffffff)
 			goto oob;
 		// exception vectors needed during tests
@@ -202,7 +202,7 @@ static bool valid_address(uaecptr addr, int size, int w)
 		low_memory_accessed = w ? -1 : 1;
 		return 1;
 	}
-	if (addr >= HIGH_MEMORY_START && addr <= HIGH_MEMORY_START + 0x7fff) {
+	if (high_memory_size != 0xffffffff && addr >= HIGH_MEMORY_START && addr <= HIGH_MEMORY_START + 0x7fff) {
 		if (addr < test_high_memory_start || test_high_memory_start == 0xffffffff)
 			goto oob;
 		if (addr + size >= test_high_memory_end)
@@ -270,9 +270,9 @@ static uae_u8 *get_addr(uaecptr addr, int size, int w)
 	}
 	addr &= addressing_mask;
 	size--;
-	if (addr + size < low_memory_size) {
+	if (low_memory_size != 0xffffffff && addr + size < low_memory_size) {
 		return low_memory + addr;
-	} else if (addr >= HIGH_MEMORY_START && addr <= HIGH_MEMORY_START + 0x7fff) {
+	} else if (high_memory_size != 0xffffffff && addr >= HIGH_MEMORY_START && addr <= HIGH_MEMORY_START + 0x7fff) {
 		return high_memory + (addr - HIGH_MEMORY_START);
 	} else if (addr >= test_memory_start && addr + size < test_memory_end + EXTRA_RESERVED_SPACE) {
 		return test_memory + (addr - test_memory_start);
@@ -1322,8 +1322,10 @@ static void fill_memory_buffer(uae_u8 *p, int size)
 
 static void fill_memory(void)
 {
-	fill_memory_buffer(low_memory_temp, low_memory_size);
-	fill_memory_buffer(high_memory_temp, high_memory_size);
+	if (low_memory_temp)
+		fill_memory_buffer(low_memory_temp, low_memory_size);
+	if (high_memory_temp)
+		fill_memory_buffer(high_memory_temp, high_memory_size);
 	fill_memory_buffer(test_memory_temp, test_memory_size);
 }
 
@@ -3282,8 +3284,12 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 
 	dst = storage_buffer;
 
-	memcpy(low_memory, low_memory_temp, low_memory_size);
-	memcpy(high_memory, high_memory_temp, high_memory_size);
+	if (low_memory) {
+		memcpy(low_memory, low_memory_temp, low_memory_size);
+	}
+	if (high_memory) {
+		memcpy(high_memory, high_memory_temp, high_memory_size);
+	}
 	memcpy(test_memory, test_memory_temp, test_memory_size);
 
 	memset(storage_buffer, 0xdd, 1000);
@@ -4861,10 +4867,14 @@ static int test(struct ini_data *ini, const TCHAR *sections, const TCHAR *testna
 	if (low_memory_size < 0x8000)
 		low_memory_size = 0x8000;
 
-	low_memory = (uae_u8 *)calloc(1, low_memory_size);
-	low_memory_temp = (uae_u8 *)calloc(1, low_memory_size);
-	high_memory = (uae_u8 *)calloc(1, high_memory_size);
-	high_memory_temp = (uae_u8 *)calloc(1, high_memory_size);
+	if (low_memory_size != 0xffffffff) {
+		low_memory = (uae_u8 *)calloc(1, low_memory_size);
+		low_memory_temp = (uae_u8 *)calloc(1, low_memory_size);
+	}
+	if (high_memory_size != 0xffffffff) {
+		high_memory = (uae_u8 *)calloc(1, high_memory_size);
+		high_memory_temp = (uae_u8 *)calloc(1, high_memory_size);
+	}
 
 	fill_memory();
 
