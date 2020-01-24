@@ -171,7 +171,7 @@ _execute_test010:
 	movem.l (a0),d0-d7/a0-a6
 _cyclereg_address2:
 	move.w CYCLEREG,cycles
-	| clear data output buffer.
+	| pre set data output buffer.
 	| we don't want random DOB contents in bus/address error frame
 	move.w #0xf00d,dummy
 	rte
