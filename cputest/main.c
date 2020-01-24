@@ -1384,7 +1384,7 @@ static int compare_exception(uae_u8 *s1, uae_u8 *s2, int len, int domask, uae_u8
 	}
 }
 
-static uae_u8 *validate_exception(struct registers *regs, uae_u8 *p, int excnum, int *gotexcnum, int *experr)
+static uae_u8 *validate_exception(struct registers *regs, uae_u8 *p, int excnum, int *gotexcnum, int *experr, int *extratrace)
 {
 	int exclen = 0;
 	uae_u8 *exc;
@@ -1425,6 +1425,7 @@ static uae_u8 *validate_exception(struct registers *regs, uae_u8 *p, int excnum,
 					outbp += strlen(outbp);
 					*experr = 1;
 				}
+				*extratrace = 1;
 			} else {
 				// Standalone Trace
 				uae_u16 vsr = (p[0] << 8) | (p[1]);
@@ -1780,7 +1781,7 @@ static int get_cycles_amiga(void)
 }
 #endif
 
-static int check_cycles(int exc)
+static int check_cycles(int exc, int extratrace)
 {
 	int gotcycles = 0;
 
@@ -1802,6 +1803,7 @@ static int check_cycles(int exc)
 	}
 
 	int expectedcycles = last_registers.cycles;
+	int exceptioncycles = getexceptioncycles(exc);
 	if (cpu_lvl == 0) {
 		// move.w CYCLEREG,cycles
 		gotcycles -= 20;
@@ -1809,7 +1811,7 @@ static int check_cycles(int exc)
 		gotcycles -= 20;
 		// <test instruction>
 		// EXCEPTION
-		expectedcycles += getexceptioncycles(exc);
+		expectedcycles += exceptioncycles;
 		// bsr.b
 		gotcycles -= 18;
 		// move.w sr,-(sp)
@@ -1825,7 +1827,7 @@ static int check_cycles(int exc)
 		gotcycles -= 24;
 		// <test instruction>
 		// ILLEGAL
-		expectedcycles += getexceptioncycles(exc);
+		expectedcycles += exceptioncycles;
 		// bsr.b
 		gotcycles -= 18;
 		// move.w sr,-(sp)
@@ -1834,6 +1836,10 @@ static int check_cycles(int exc)
 		gotcycles -= 8;
 	}
 	gotcycles += cycles_adjust;
+
+	if (extratrace) {
+		expectedcycles += getexceptioncycles(9);
+	}
 
 	if (0 || abs(gotcycles - expectedcycles) > cycles_range) {
 		addinfo();
@@ -1890,6 +1896,7 @@ static uae_u8 *validate_test(uae_u8 *p, int ignore_errors, int ignore_sr)
 	int experr = 0;
 	int errflag = 0;
 	int errflag_orig = 0;
+	int extratrace = 0;
 	uae_u8 *outbp_old = outbp;
 	exception_stored = 0;
 
@@ -1918,7 +1925,7 @@ static uae_u8 *validate_test(uae_u8 *p, int ignore_errors, int ignore_sr)
 			}
 			if (ignore_errors) {
 				if (exc) {
-					p = validate_exception(&test_regs, p, exc, &cpuexc, &experr);
+					p = validate_exception(&test_regs, p, exc, &cpuexc, &experr, &extratrace);
 				}
 				errflag_orig = errflag;
 				errflag = 0;
@@ -1934,7 +1941,7 @@ static uae_u8 *validate_test(uae_u8 *p, int ignore_errors, int ignore_sr)
 				break;
 			}
 			if (exc) {
-				p = validate_exception(&test_regs, p, exc, &cpuexc, &experr);
+				p = validate_exception(&test_regs, p, exc, &cpuexc, &experr, &extratrace);
 				if (experr) {
 					errflag |= 1 << 16;
 				}
