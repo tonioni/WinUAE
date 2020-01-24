@@ -108,8 +108,10 @@ static uae_u32 startpc, endpc;
 static char inst_name[16+1];
 #ifndef M68K
 static char outbuffer[40000];
+static char outbuffer2[40000];
 #else
 static char outbuffer[4000];
+static char outbuffer2[4000];
 #endif
 static char tmpbuffer[1024];
 static char path[256];
@@ -125,6 +127,7 @@ static uae_u32 addressing_mask = 0x00ffffff;
 static uae_u32 interrupt_mask;
 static short disasm;
 static short basicexcept;
+static short excskipccr;
 static short askifmissing;
 static short nextall;
 static int exitcnt;
@@ -1384,7 +1387,7 @@ static int compare_exception(uae_u8 *s1, uae_u8 *s2, int len, int domask, uae_u8
 	}
 }
 
-static uae_u8 *validate_exception(struct registers *regs, uae_u8 *p, int excnum, int *gotexcnum, int *experr, int *extratrace)
+static uae_u8 *validate_exception(struct registers *regs, uae_u8 *p, short excnum, short *gotexcnum, short *experr, short *extratrace)
 {
 	int exclen = 0;
 	uae_u8 *exc;
@@ -1709,7 +1712,7 @@ static int getexceptioncycles(int exc)
 		case 11:
 			return 38;
 		case 5:
-			return 42;
+			return 38;
 		case 6:
 			return 44;
 		case 7:
@@ -1856,13 +1859,13 @@ static int check_cycles(int exc, int extratrace)
 // test_reg: registers used during execution of test code, also modified by test code.
 // last_registers: registers after modifications from data files. Test ok if test_reg == last_registers.
 
-static uae_u8 *validate_test(uae_u8 *p, int ignore_errors, int ignore_sr)
+static uae_u8 *validate_test(uae_u8 *p, short ignore_errors, short ignore_sr)
 {
 	uae_u8 regs_changed[16] = { 0 };
 	uae_u8 regs_fpuchanged[8] = { 0 };
 	uae_u8 sr_changed = 0, pc_changed = 0;
 	uae_u8 fpiar_changed = 0, fpsr_changed = 0, fpcr_changed = 0;
-	int exc = -1;
+	short exc = -1;
 
 	for (int i = 0; i < 16; i++) {
 		if (last_registers.regs[i] != test_regs.regs[i]) {
@@ -1895,10 +1898,11 @@ static uae_u8 *validate_test(uae_u8 *p, int ignore_errors, int ignore_sr)
 	if (*p == CT_END_SKIP)
 		return p + 1;
 
-	int experr = 0;
+	short experr = 0;
 	int errflag = 0;
 	int errflag_orig = 0;
-	int extratrace = 0;
+	short extratrace = 0;
+	short exceptionnum = 0;
 	uae_u8 *outbp_old = outbp;
 	exception_stored = 0;
 
@@ -1906,8 +1910,8 @@ static uae_u8 *validate_test(uae_u8 *p, int ignore_errors, int ignore_sr)
 		uae_u8 v = *p;
 		if (v & CT_END) {
 			exc = v & CT_EXCEPTION_MASK;
-			int cpuexc = test_regs.exc & 65535;
-			int cpuexc010 = test_regs.exc010 & 65535;
+			short cpuexc = test_regs.exc & 65535;
+			short cpuexc010 = test_regs.exc010 & 65535;
 			p++;
 			if ((v & CT_END_INIT) == CT_END_INIT) {
 				end_test();
@@ -1916,7 +1920,6 @@ static uae_u8 *validate_test(uae_u8 *p, int ignore_errors, int ignore_sr)
 				exit(0);
 			}
 			if (cpu_lvl > 0 && exc >= 2 && cpuexc010 != cpuexc) {
-				addinfo();
 				if (dooutput) {
 					sprintf(outbp, "Exception: vector number does not match vector offset! (%d <> %d)\n", exc, cpuexc010);
 					experr = 1;
@@ -1929,7 +1932,7 @@ static uae_u8 *validate_test(uae_u8 *p, int ignore_errors, int ignore_sr)
 				if (exc) {
 					p = validate_exception(&test_regs, p, exc, &cpuexc, &experr, &extratrace);
 				}
-				errflag_orig = errflag;
+				errflag_orig |= errflag;
 				errflag = 0;
 				break;
 			}
@@ -1946,15 +1949,15 @@ static uae_u8 *validate_test(uae_u8 *p, int ignore_errors, int ignore_sr)
 				p = validate_exception(&test_regs, p, exc, &cpuexc, &experr, &extratrace);
 				if (experr) {
 					errflag |= 1 << 16;
+					errflag_orig |= errflag;
 				}
 				if (basicexcept && (cpuexc == 2 || cpuexc == 3)) {
-					errflag_orig = errflag;
 					errflag &= ~(1 << 0);
 					errflag &= ~(1 << 7);
 				}
+				exceptionnum = cpuexc;
 			}
 			if (exc != cpuexc && exc >= 2) {
-				addinfo();
 				if (dooutput) {
 					if (cpuexc == 4 && last_registers.pc == test_regs.pc) {
 						sprintf(outbp, "Exception: expected %d but got no exception.\n", exc);
@@ -1970,14 +1973,13 @@ static uae_u8 *validate_test(uae_u8 *p, int ignore_errors, int ignore_sr)
 			}
 			break;
 		}
-		int mode = v & CT_DATA_MASK;
+		short mode = v & CT_DATA_MASK;
 
 		if (mode < CT_AREG + 8 && (v & CT_SIZE_MASK) != CT_SIZE_FPU) {
 			uae_u32 val = last_registers.regs[mode];
 			int size;
 			p = restore_value(p, &val, &size);
 			if (val != test_regs.regs[mode] && !ignore_errors) {
-				addinfo();
 				if (dooutput) {
 					sprintf(outbp, "%c%d: expected %08x but got %08x\n", mode < CT_AREG ? 'D' : 'A', mode & 7, val, test_regs.regs[mode]);
 					outbp += strlen(outbp);
@@ -1990,7 +1992,6 @@ static uae_u8 *validate_test(uae_u8 *p, int ignore_errors, int ignore_sr)
 			struct fpureg val;
 			p = restore_fpvalue(p, &val);
 			if (memcmp(&val, &test_regs.fpuregs[mode], sizeof(struct fpureg)) && !ignore_errors) {
-				addinfo();
 				if (dooutput) {
 					sprintf(outbp, "FP%d: expected %04x-%08x%08x but got %04x-%08x%08x\n", mode,
 						val.exp, val.m[0], val.m[1],
@@ -2008,7 +2009,6 @@ static uae_u8 *validate_test(uae_u8 *p, int ignore_errors, int ignore_sr)
 			p = restore_value(p, &val, &size);
 			test_ccrignoremask = ~(val >> 16);
 			if ((val & (sr_undefined_mask & test_ccrignoremask)) != (test_regs.sr & (sr_undefined_mask & test_ccrignoremask)) && !ignore_errors && !ignore_sr) {
-				addinfo();
 				if (dooutput) {
 					sprintf(outbp, "SR: expected %04x -> %04x but got %04x", test_sr & 0xffff, val & 0xffff, test_regs.sr & 0xffff);
 					outbp += strlen(outbp);
@@ -2020,10 +2020,12 @@ static uae_u8 *validate_test(uae_u8 *p, int ignore_errors, int ignore_sr)
 					errflag |= 1 << 2;
 					errflag |= 1 << 7;
 				}
+				// SR check
 				uae_u16 mask = test_ccrignoremask & 0xff00;
 				if ((val & (sr_undefined_mask & mask)) == (test_regs.sr & (sr_undefined_mask & mask))) {
 					errflag &= ~(1 << 2);
 				}
+				// CCR check
 				mask = test_ccrignoremask & 0x00ff;
 				if ((val & (sr_undefined_mask & mask)) == (test_regs.sr & (sr_undefined_mask & mask))) {
 					errflag &= ~(1 << 7);
@@ -2058,7 +2060,6 @@ static uae_u8 *validate_test(uae_u8 *p, int ignore_errors, int ignore_sr)
 			int size;
 			p = restore_value(p, &val, &size);
 			if (val != test_regs.fpcr && !ignore_errors) {
-				addinfo();
 				if (dooutput) {
 					sprintf(outbp, "FPCR: expected %08x -> %08x but got %08x\n", test_fpcr, val, test_regs.fpcr);
 					outbp += strlen(outbp);
@@ -2072,7 +2073,6 @@ static uae_u8 *validate_test(uae_u8 *p, int ignore_errors, int ignore_sr)
 			int size;
 			p = restore_value(p, &val, &size);
 			if (val != test_regs.fpsr && !ignore_errors) {
-				addinfo();
 				if (dooutput) {
 					sprintf(outbp, "FPSR: expected %08x -> %08x but got %08x\n", test_fpsr, val, test_regs.fpsr);
 					outbp += strlen(outbp);
@@ -2085,7 +2085,6 @@ static uae_u8 *validate_test(uae_u8 *p, int ignore_errors, int ignore_sr)
 			uae_u32 val = last_registers.fpiar;
 			p = restore_rel(p, &val, 0);
 			if (val != test_regs.fpiar && !ignore_errors) {
-				addinfo();
 				if (dooutput) {
 					sprintf(outbp, "FPIAR: expected %08x but got %08x\n", val, test_regs.fpiar);
 					outbp += strlen(outbp);
@@ -2109,7 +2108,6 @@ static uae_u8 *validate_test(uae_u8 *p, int ignore_errors, int ignore_sr)
 				case 0:
 				mval = addr[0];
 				if (mval != val && !ignore_errors) {
-					addinfo();
 					if (dooutput) {
 						sprintf(outbp, "Memory byte write: address %08x, expected %02x but got %02x\n", (uae_u32)addr, val, mval);
 						outbp += strlen(outbp);
@@ -2121,7 +2119,6 @@ static uae_u8 *validate_test(uae_u8 *p, int ignore_errors, int ignore_sr)
 				case 1:
 				mval = (addr[0] << 8) | (addr[1]);
 				if (mval != val && !ignore_errors) {
-					addinfo();
 					if (dooutput) {
 						sprintf(outbp, "Memory word write: address %08x, expected %04x but got %04x\n", (uae_u32)addr, val, mval);
 						outbp += strlen(outbp);
@@ -2134,7 +2131,6 @@ static uae_u8 *validate_test(uae_u8 *p, int ignore_errors, int ignore_sr)
 				case 2:
 				mval = gl(addr);
 				if (mval != val && !ignore_errors) {
-					addinfo();
 					if (dooutput) {
 						sprintf(outbp, "Memory long write: address %08x, expected %08x but got %08x\n", (uae_u32)addr, val, mval);
 						outbp += strlen(outbp);
@@ -2154,7 +2150,6 @@ static uae_u8 *validate_test(uae_u8 *p, int ignore_errors, int ignore_sr)
 		if (!ignore_sr) {
 			for (int i = 0; i < 16; i++) {
 				if (regs_changed[i]) {
-					addinfo();
 					if (dooutput) {
 						sprintf(outbp, "%c%d: modified %08x -> %08x but expected no modifications\n", i < 8 ? 'D' : 'A', i & 7, last_registers.regs[i], test_regs.regs[i]);
 						outbp += strlen(outbp);
@@ -2163,7 +2158,6 @@ static uae_u8 *validate_test(uae_u8 *p, int ignore_errors, int ignore_sr)
 				}
 			}
 			if (sr_changed) {
-				addinfo();
 				if (dooutput) {
 					sprintf(outbp, "SR: modified %04x -> %04x but expected no modifications\n", last_registers.sr & 0xffff, test_regs.sr & 0xffff);
 					outbp += strlen(outbp);
@@ -2173,7 +2167,6 @@ static uae_u8 *validate_test(uae_u8 *p, int ignore_errors, int ignore_sr)
 		}
 		for (int i = 0; i < 8; i++) {
 			if (regs_fpuchanged[i]) {
-				addinfo();
 				if (dooutput) {
 					sprintf(outbp, "FP%d: modified %04x-%08x%08x -> %04x-%08x%08x but expected no modifications\n", i,
 						last_registers.fpuregs[i].exp, last_registers.fpuregs[i].m[0], last_registers.fpuregs[i].m[1],
@@ -2184,7 +2177,6 @@ static uae_u8 *validate_test(uae_u8 *p, int ignore_errors, int ignore_sr)
 			}
 		}
 		if (fpsr_changed) {
-			addinfo();
 			if (dooutput) {
 				sprintf(outbp, "FPSR: modified %08x -> %08x but expected no modifications\n", last_registers.fpsr, test_regs.fpsr);
 				outbp += strlen(outbp);
@@ -2192,7 +2184,6 @@ static uae_u8 *validate_test(uae_u8 *p, int ignore_errors, int ignore_sr)
 			errflag |= 1 << 3;
 		}
 		if (fpcr_changed) {
-			addinfo();
 			if (dooutput) {
 				sprintf(outbp, "FPCR: modified %08x -> %08x but expected no modifications\n", last_registers.fpcr, test_regs.fpcr);
 				outbp += strlen(outbp);
@@ -2200,7 +2191,6 @@ static uae_u8 *validate_test(uae_u8 *p, int ignore_errors, int ignore_sr)
 			errflag |= 1 << 4;
 		}
 		if (fpiar_changed) {
-			addinfo();
 			if (dooutput) {
 				sprintf(outbp, "FPIAR: modified %08x -> %08x but expected no modifications\n", last_registers.fpiar, test_regs.fpiar);
 				outbp += strlen(outbp);
@@ -2219,9 +2209,18 @@ static uae_u8 *validate_test(uae_u8 *p, int ignore_errors, int ignore_sr)
 				}
 			}
 		}
+		errflag_orig |= errflag;
 	}
+
+	// if excskipccr + bus, address, divide by zero or chk + only CCR mismatch detected: clear error
+	if (excskipccr && errflag == (1 << 7) && (exceptionnum == 2 || exceptionnum == 3 || exceptionnum == 5 || exceptionnum == 6)) {
+		errflag = 0;
+	}
+
 	if (errflag && dooutput) {
+		outbp = outbuffer;
 		addinfo();
+		strcpy(outbp, outbuffer2);
 		if (!fpu_model) {
 			strcat(outbp, "Registers before:\n");
 			outbp += strlen(outbp);
@@ -2307,7 +2306,7 @@ static void clear_interrupt(void)
 
 static void process_test(uae_u8 *p)
 {
-	outbp = outbuffer;
+	outbp = outbuffer2;
 	outbp[0] = 0;
 	infoadded = 0;
 	errors = 0;
@@ -2333,7 +2332,7 @@ static void process_test(uae_u8 *p)
 	for (;;) {
 
 #ifndef M68K
-		outbp = outbuffer;
+		outbp = outbuffer2;
 #endif
 
 		regs.endpc = endpc;
@@ -2477,8 +2476,8 @@ static void process_test(uae_u8 *p)
 
 				} else {
 
-					int ignore_errors = 0;
-					int ignore_sr = 0;
+					short ignore_errors = 0;
+					short ignore_sr = 0;
 
 					if ((ccr_mask & ccr) || (ccr == 0)) {
 
@@ -2887,6 +2886,7 @@ int main(int argc, char *argv[])
 		printf("-ccrmask = ignore CCR bits that are not set.\n");
 		printf("-nodisasm = do not disassemble failed test.\n");
 		printf("-basicexc = do only basic checks when exception is 2 or 3.\n");
+		printf("-excskipccr = ignore CCR if DivByZero, CHK, Address/Bus error exception.\n");
 		printf("-askifmissing = ask for new path if dat file is missing.\n");
 		printf("-exit n = exit after n tests.\n");
 		printf("-cycles [range adjust] = check cycle counts.\n");
@@ -2939,6 +2939,8 @@ int main(int argc, char *argv[])
 			disasm = 0;
 		} else if (!_stricmp(s, "-basicexc")) {
 			basicexcept = 1;
+		} else if (!_stricmp(s, "-excskipccr")) {
+			excskipccr = 1;
 		} else if (!_stricmp(s, "-askifmissing")) {
 			askifmissing = 1;
 		} else if (!_stricmp(s, "-next")) {

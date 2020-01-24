@@ -66,6 +66,7 @@ static int feature_sr_mask = 0;
 static int feature_min_interrupt_mask = 0;
 static int feature_loop_mode = 0;
 static int feature_loop_mode_register = -1;
+static int feature_loop_mode_68010 = 0;
 static int feature_full_extension_format = 0;
 static int feature_test_rounds = 2;
 static int feature_flag_mode = 0;
@@ -114,8 +115,9 @@ static int hmem_rom, lmem_rom;
 static uae_u8 *opcode_memory;
 static uae_u8 *storage_buffer;
 static char inst_name[16+1];
+static int storage_buffer_watermark_size;
 static int storage_buffer_watermark;
-static int max_storage_buffer = 1000000;
+static int max_storage_buffer;
 
 static bool out_of_test_space;
 static uaecptr out_of_test_space_addr;
@@ -169,7 +171,7 @@ struct accesshistory
 static int ahcnt_current, ahcnt_written;
 static int noaccesshistory = 0;
 
-#define MAX_ACCESSHIST 128
+#define MAX_ACCESSHIST 16000
 static struct accesshistory ahist[MAX_ACCESSHIST];
 
 static int is_superstack_use_required(void)
@@ -2711,8 +2713,8 @@ static void execute_ins(uaecptr endpc, uaecptr targetpc, struct instr *dp)
 	uae_u16 opc = regs.ir;
 	uae_u16 opw1 = (opcode_memory[2] << 8) | (opcode_memory[3] << 0);
 	uae_u16 opw2 = (opcode_memory[4] << 8) | (opcode_memory[5] << 0);
-	if (opc == 0xe3d5
-		//&& opw1 == 0x0000
+	if (opc == 0x40ef 
+		&& opw1 == 0x64fc
 		//&& opw2 == 0x4afc
 		)
 		printf("");
@@ -2744,6 +2746,7 @@ static void execute_ins(uaecptr endpc, uaecptr targetpc, struct instr *dp)
 	regs.write_buffer = 0xf00d;
 	exception_extra_frame_size = 0;
 	cpu_cycles = 0;
+	regs.loop_mode = 0;
 
 	int cnt = (feature_loop_mode + 1) * 2;
 	if (multi_mode)
@@ -2865,6 +2868,14 @@ static void execute_ins(uaecptr endpc, uaecptr targetpc, struct instr *dp)
 			abort();
 		}
 
+		if (!regs.loop_mode)
+			regs.ird = opc;
+
+		if (currprefs.cpu_model >= 68020) {
+			regs.ir = get_word_test(regs.pc + 0);
+			regs.irc = get_word_test(regs.pc + 2);
+		}
+		opc = regs.ir;
 	}
 
 	testing_active = 0;
@@ -3373,6 +3384,11 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 			// skip all unsupported instructions if not specifically testing i_ILLG
 			if (dp->clev > cpu_lvl && lookup->mnemo != i_ILLG)
 				continue;
+
+			if (feature_loop_mode_68010) {
+				if (!opcode_loop_mode(opcode))
+					continue;
+			}
 
 			target_ea[0] = target_ea_bak[0];
 			target_ea[1] = target_ea_bak[1];
@@ -4705,6 +4721,9 @@ static int test(struct ini_data *ini, const TCHAR *sections, const TCHAR *testna
 	if (feature_loop_mode) {
 		feature_loop_mode_register = 7;
 	}
+	feature_loop_mode_68010 = 0;
+	ini_getvalx(ini, sections, _T("feature_loop_mode_68010"), &feature_loop_mode_68010);
+
 	feature_flag_mode = 0;
 	ini_getvalx(ini, sections, _T("feature_flags_mode"), &feature_flag_mode);
 	feature_usp = 0;
@@ -4827,9 +4846,10 @@ static int test(struct ini_data *ini, const TCHAR *sections, const TCHAR *testna
 	if (ini_getvalx(ini, sections, _T("test_high_memory_end"), &v))
 		test_high_memory_end = v;
 
-	if (addressing_mask == 0xffffffff && test_high_memory_end <= 0x01000000) {
+	if ((addressing_mask == 0xffffffff && test_high_memory_end <= 0x01000000) || test_high_memory_start == 0xffffffff) {
 		test_high_memory_start = 0xffffffff;
 		test_high_memory_end = 0xffffffff;
+		high_memory_size = 0xffffffff;
 	}
 
 	test_memory = (uae_u8 *)calloc(1, test_memory_size + EXTRA_RESERVED_SPACE);
@@ -4862,6 +4882,12 @@ static int test(struct ini_data *ini, const TCHAR *sections, const TCHAR *testna
 	if (feature_usp == 1 || feature_usp == 2) {
 		user_stack_memory_use |= 1;
 	}
+
+	storage_buffer_watermark_size = 200000;
+	max_storage_buffer = 1000000;
+	ini_getvalx(ini, sections, _T("buffer_size"), &max_storage_buffer);
+	ini_getvalx(ini, sections, _T("watermark"), &storage_buffer_watermark_size);
+	max_storage_buffer += storage_buffer_watermark_size;
 
 	low_memory_size = test_low_memory_end;
 	if (low_memory_size < 0x8000)
@@ -4906,9 +4932,9 @@ static int test(struct ini_data *ini, const TCHAR *sections, const TCHAR *testna
 
 	save_memory(path, _T("tmem.dat"), test_memory_temp, test_memory_size);
 
-	storage_buffer = (uae_u8 *)calloc(max_storage_buffer, 1);
+	storage_buffer = (uae_u8 *)calloc(max_storage_buffer + storage_buffer_watermark_size, 1);
 	// FMOVEM stores can use lots of memory
-	storage_buffer_watermark = max_storage_buffer - 70000;
+	storage_buffer_watermark = max_storage_buffer - storage_buffer_watermark_size;
 
 	for (int i = 0; i < 256; i++) {
 		int j;
@@ -5011,6 +5037,11 @@ static int test(struct ini_data *ini, const TCHAR *sections, const TCHAR *testna
 			cpufunctbl[opcode] = f;
 			memcpy(&cpudatatbl[opcode], &cpudatatbl[idx], sizeof(struct cputbl_data));
 		}
+
+		if (opcode_loop_mode(opcode)) {
+			loop_mode_table[opcode] = cpufunctbl[opcode];
+		}
+
 	}
 
 	x_get_long = get_long_test;
@@ -5128,10 +5159,6 @@ static TCHAR sections[1000];
 
 int __cdecl main(int argc, char *argv[])
 {
-	const struct cputbl *tbl = NULL;
-	TCHAR path[1000], *vs;
-	int v;
-
 	struct ini_data *ini = ini_load(_T("cputestgen.ini"), false);
 	if (!ini) {
 		wprintf(_T("Couldn't open cputestgen.ini"));
