@@ -1681,7 +1681,7 @@ static int getexceptioncycles(int exc)
 		{
 		case 2:
 		case 3:
-			return 58;
+			return 56;
 		case 4:
 		case 5:
 		case 6:
@@ -1709,7 +1709,7 @@ static int getexceptioncycles(int exc)
 		{
 		case 2:
 		case 3:
-			return 126;
+			return 132;
 		case 4:
 		case 5:
 		case 6:

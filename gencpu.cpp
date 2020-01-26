@@ -6494,10 +6494,14 @@ static void gen_opcode (unsigned int opcode)
 				if (curi->smode >= Ad16 && cpu_level == 1 && using_prefetch) {
 					dummy_prefetch("srca", NULL);
 				}
-				if (curi->smode == Ad16 || curi->smode == absw || curi->smode == PC16)
-					addcycles000(2);
-				if (curi->smode == Ad8r || curi->smode == PC8r)
-					addcycles000(6);
+				if (curi->smode == Ad16 || curi->smode == absw || curi->smode == PC16) {
+					addcycles000_onlyce(2);
+					addcycles000_nonce("\t\t", 2);
+				}
+				if (curi->smode == Ad8r || curi->smode == PC8r) {
+					addcycles000_onlyce(6);
+					addcycles000_nonce("\t\t", 6);
+				}
 				printf("\t\texception3i(opcode, srca);\n");
 				write_return_cycles("\t\t", 0);
 				printf("\t}\n");
@@ -6573,7 +6577,8 @@ static void gen_opcode (unsigned int opcode)
 			}
 			branch_inst = 1;
 			next_level_040_to_030();
-		}
+			next_level_000();
+	}
 		break;
 	case i_JMP:
 		no_prefetch_ce020 = true;
@@ -6584,10 +6589,14 @@ static void gen_opcode (unsigned int opcode)
 			if (curi->smode >= Ad16 && cpu_level == 1 && using_prefetch) {
 				dummy_prefetch("srca", NULL);
 			}
-			if (curi->smode == Ad16 || curi->smode == absw || curi->smode == PC16)
-				addcycles000(2);
-			if (curi->smode == Ad8r || curi->smode == PC8r)
-				addcycles000(6);
+			if (curi->smode == Ad16 || curi->smode == absw || curi->smode == PC16) {
+				addcycles000_onlyce(2);
+				addcycles000_nonce("\t\t", 2);
+			}
+			if (curi->smode == Ad8r || curi->smode == PC8r) {
+				addcycles000_onlyce(6);
+				addcycles000_nonce("\t\t", 6);
+			}
 			printf("\t\texception3i(opcode, srca);\n");
 			write_return_cycles("\t\t", 0);
 			printf("\t}\n");
@@ -6617,6 +6626,7 @@ static void gen_opcode (unsigned int opcode)
 			fill_prefetch_full(0);
 		}
 		branch_inst = 1;
+		next_level_000();
 		break;
 	case i_BSR:
 		// .b/.w = idle cycle, store high, store low, 2xprefetch
@@ -6647,7 +6657,7 @@ static void gen_opcode (unsigned int opcode)
 				printf("\t}\n");
 			}
 		}
-		addcycles000 (2);
+		addcycles000(2);
 		printf("\tuaecptr oldpc = %s;\n", getpc);
 		printf("\tuaecptr nextpc = oldpc + %d;\n", m68k_pc_offset);
 		if (using_exception_3 && cpu_level == 1) {
@@ -6675,7 +6685,7 @@ static void gen_opcode (unsigned int opcode)
 		} else if (using_ce020 == 2) {
 			printf("\tm68k_do_bsr_ce030(nextpc, s);\n");
 		} else if (using_ce) {
-			printf("\tm68k_do_bsr_ce (nextpc, s);\n");
+			printf("\tm68k_do_bsr_ce(nextpc, s);\n");
 		} else if (using_prefetch || (using_test && cpu_level <= 1)) {
 			printf("\tm68k_areg(regs, 7) -= 4;\n");
 			printf("\tuaecptr dsta = m68k_areg(regs, 7);\n");
@@ -6689,6 +6699,7 @@ static void gen_opcode (unsigned int opcode)
 		} else {
 			printf("\tm68k_do_bsr (nextpc, s);\n");
 		}
+		count_write += 2;
 		if (using_exception_3 && cpu_level == 0) {
 			printf("\tif (%s & 1) {\n", getpc);
 			printf("\t\texception3b(opcode, %s, false, true, %s);\n", getpc, getpc);
@@ -6699,7 +6710,6 @@ static void gen_opcode (unsigned int opcode)
 			printf("\tif (debugmem_trace)\n");
 			printf("\t\tbranch_stack_push(oldpc, nextpc);\n");
 		}
-		count_write += 2;
 		clear_m68k_offset();
 		if (using_prefetch || using_ce) {
 			fill_prefetch_full_000_special();
@@ -6707,6 +6717,7 @@ static void gen_opcode (unsigned int opcode)
 			fill_prefetch_full(0);
 		}
 		branch_inst = 1;
+		next_level_000();
 		break;
 	case i_Bcc:
 		tail_ce020_done = true;

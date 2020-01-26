@@ -2482,13 +2482,11 @@ static void Exception_ce000 (int nr)
 	start = 6;
 	interrupt = nr >= 24 && nr < 24 + 8;
 	if (!interrupt) {
-		start = 8;
+		start = 4;
 		if (nr == 7) // TRAPV
 			start = 0;
-		else if (nr >= 32 && nr < 32 + 16) // TRAP #x
-			start = 4;
-		else if (nr == 4 || nr == 5 || nr == 6 || nr == 8 || nr == 9 || nr == 10 || nr == 11 || nr == 14) // ILLG, DIVBYZERO, PRIV, TRACE, LINEA, LINEF, RTE
-			start = 4;
+		else if (nr == 2 || nr == 3)
+			start = 8;
 	}
 
 	if (start)
@@ -2797,15 +2795,15 @@ static void add_approximate_exception_cycles(int nr)
 	if (currprefs.cpu_model == 68000) {
 		if (nr >= 24 && nr <= 31) {
 			/* Interrupts */
-			cycles = 44 + 4;
+			cycles = 44;
 		} else if (nr >= 32 && nr <= 47) {
 			/* Trap (total is 34, but cpuemux.c already adds 4) */
 			cycles = 34 - 4;
 		} else {
 			switch (nr)
 			{
-			case 2: cycles = 50; break;		/* Bus error */
-			case 3: cycles = 50; break;		/* Address error */
+			case 2: cycles = 56; break;		/* Bus error */
+			case 3: cycles = 56; break;		/* Address error */
 			case 4: cycles = 34; break;		/* Illegal instruction */
 			case 5: cycles = 34; break;		/* Division by zero */
 			case 6: cycles = 34; break;		/* CHK */
@@ -2822,15 +2820,15 @@ static void add_approximate_exception_cycles(int nr)
 	} else if (currprefs.cpu_model == 68010) {
 		if (nr >= 24 && nr <= 31) {
 			/* Interrupts */
-			cycles = 48 + 4;
+			cycles = 48;
 		} else if (nr >= 32 && nr <= 47) {
 			/* Trap */
 			cycles = 38 - 4;
 		} else {
 			switch (nr)
 			{
-			case 2: cycles = 126; break;	/* Bus error */
-			case 3: cycles = 126; break;	/* Address error */
+			case 2: cycles = 132; break;	/* Bus error */
+			case 3: cycles = 132; break;	/* Address error */
 			case 4: cycles = 38; break;		/* Illegal instruction */
 			case 5: cycles = 38; break;		/* Division by zero */
 			case 6: cycles = 38; break;		/* CHK */
