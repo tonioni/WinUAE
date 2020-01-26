@@ -12,7 +12,7 @@ Verifies:
 - Memory writes, including stack modifications (if any)
 - Loop mode for JIT testing. (generates <test instruction>, dbf dn,loop)
 - Supports 68000, 68010, 68020, 68030 (only difference between 020 and 030 seems to be data cache and MMU), 68040 and 68060.
-- Cycle counts (68000 Amiga only)
+- Cycle counts (68000/68010, Amiga only)
 
 Tests executed for each tested instruction:
 
@@ -43,25 +43,26 @@ Notes and limitations:
 Tester compatibility (integer instructions only):
 
 68000: Complete. Including bus and address error stack frame/register/CCR modification undocumented behavior. Cycle count support.
-68010: Almost complete. Bus errors are only partially supported. DIVS undefined condition codes are not yet supported.
+68010: Almost complete (same as 68000). Loop mode is also fully supported. NOTE: DIVS overflow undocumented N-flag is not fully correct.
 68020: Almost complete (DIV undocumented behavior is not yet known)
 68030: Same as 68020.
 68040: Almost complete (Weird unaligned MOVE16 behavior which may be board specific).
 68060: Same as 68040.
 
-68000 cycle count testing:
+68000/68010 cycle count testing:
 
 Cycle counting requires 100% accurate timing also for following instructions:
 - BSR.B
 - NOP
 - MOVE.W ABS.L,ABS.L
 - MOVE SR,-(SP)
+- MOVE.W #x,ABS.L (68010 only)
 - RTE
 - Illegal instruction exception
 - If instruction internally generates exception, internal exception also needs to be cycle-accurate.
 
 0xDFF006 is used for cycle counting = accuracy will be +-2 CPU cycles. 0xDFF006 behavior must be accurate.
-Currently only supported hardware for cycle counting is 7MHz 68000 PAL Amiga with real Fast RAM.
+Currently only supported hardware for cycle counting is 7MHz 68000/68010 PAL Amiga with real Fast RAM.
 
 Bus error cycle counting is not yet supported.
 
@@ -124,7 +125,18 @@ If mismatch is detected, opcode word(s), instruction disassembly, registers befo
 
 Change log:
 
+18.01.2020
+
 - Cycle count validation (Amiga, 68000 only), including exceptions (except bus errors).
 - Interrupt testing (Amiga only, INTREQ bits set one by one, validate correct exception).
 - Multiple test sets can be generated and tested in single step.
 - Stack usage reduced, gzip decompression works with default 4096 byte stack.
+
+26.01.2020
+
+- 68010 is now almost fully supported, including loop mode and cycle count verification.
+- Removed most ColdFire instructions from disassembler. RTD was not disassembled if 68010. Added missing 68060 PCR and BUSCR control registers.
+- Fixed ahist overflow when generating MOVEM with more than 1 SR flag combination.
+- Some instructions (for example TRAP) had wrong expected cycle count if instruction generated any non-trace exception and also trace exception.
+- added -skipexcccr parameter. Skip CCR check if instruction generates bus, address, divide by zero or CHK exception.
+- added -skipmem (ignore memory write mismatches) -skipreg (ignore register mismatched) -skipccr (ignored CCR mismatch) parameters.

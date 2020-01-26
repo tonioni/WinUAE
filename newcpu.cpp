@@ -2487,7 +2487,7 @@ static void Exception_ce000 (int nr)
 			start = 0;
 		else if (nr >= 32 && nr < 32 + 16) // TRAP #x
 			start = 4;
-		else if (nr == 4 || nr == 5 || nr == 6 || nr == 8 || nr == 9 || nr == 10 || nr == 11) // ILLG, DIVBYZERO, PRIV, TRACE, LINEA, LINEF
+		else if (nr == 4 || nr == 5 || nr == 6 || nr == 8 || nr == 9 || nr == 10 || nr == 11 || nr == 14) // ILLG, DIVBYZERO, PRIV, TRACE, LINEA, LINEF, RTE
 			start = 4;
 	}
 
@@ -2794,17 +2794,16 @@ static void add_approximate_exception_cycles(int nr)
 {
 	int cycles;
 
-	if (currprefs.cpu_model > 68000)
-		return;
-	if (nr >= 24 && nr <= 31) {
-		/* Interrupts */
-		cycles = 44 + 4; 
-	} else if (nr >= 32 && nr <= 47) {
-		/* Trap (total is 34, but cpuemux.c already adds 4) */ 
-		cycles = 34 - 4;
-	} else {
-		switch (nr)
-		{
+	if (currprefs.cpu_model == 68000) {
+		if (nr >= 24 && nr <= 31) {
+			/* Interrupts */
+			cycles = 44 + 4;
+		} else if (nr >= 32 && nr <= 47) {
+			/* Trap (total is 34, but cpuemux.c already adds 4) */
+			cycles = 34 - 4;
+		} else {
+			switch (nr)
+			{
 			case 2: cycles = 50; break;		/* Bus error */
 			case 3: cycles = 50; break;		/* Address error */
 			case 4: cycles = 34; break;		/* Illegal instruction */
@@ -2816,9 +2815,38 @@ static void add_approximate_exception_cycles(int nr)
 			case 10: cycles = 34; break;	/* Line-A */
 			case 11: cycles = 34; break;	/* Line-F */
 			default:
-			cycles = 4;
-			break;
+				cycles = 4;
+				break;
+			}
 		}
+	} else if (currprefs.cpu_model == 68010) {
+		if (nr >= 24 && nr <= 31) {
+			/* Interrupts */
+			cycles = 48 + 4;
+		} else if (nr >= 32 && nr <= 47) {
+			/* Trap */
+			cycles = 38 - 4;
+		} else {
+			switch (nr)
+			{
+			case 2: cycles = 126; break;	/* Bus error */
+			case 3: cycles = 126; break;	/* Address error */
+			case 4: cycles = 38; break;		/* Illegal instruction */
+			case 5: cycles = 38; break;		/* Division by zero */
+			case 6: cycles = 38; break;		/* CHK */
+			case 7: cycles = 40; break;		/* TRAPV */
+			case 8: cycles = 38; break;		/* Privilege violation */
+			case 9: cycles = 38; break;		/* Trace */
+			case 10: cycles = 38; break;	/* Line-A */
+			case 11: cycles = 38; break;	/* Line-F */
+			case 14: cycles = 38; break;	/* RTE frame error */
+			default:
+				cycles = 4;
+				break;
+			}
+		}
+	} else {
+		return;
 	}
 	cycles = adjust_cycles(cycles * CYCLE_UNIT / 2);
 	x_do_cycles(cycles);
@@ -3006,6 +3034,7 @@ static void Exception_normal (int nr)
 				x_put_word (m68k_areg (regs, 7), 0x1000 + vector_nr * 4);
 			}
 		} else {
+			add_approximate_exception_cycles(nr);
 			Exception_build_stack_frame_common(oldpc, currpc, regs.mmu_ssw, nr);
 			used_exception_build_stack_frame = true;
 		}

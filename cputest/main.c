@@ -128,6 +128,9 @@ static uae_u32 interrupt_mask;
 static short disasm;
 static short basicexcept;
 static short excskipccr;
+static short skipmemwrite;
+static short skipregchange;
+static short skipccrchange;
 static short askifmissing;
 static short nextall;
 static int exitcnt;
@@ -1158,7 +1161,7 @@ static void out_disasm(uae_u8 *mem)
 	uae_u8 *p = mem;
 	int offset = 0;
 	int lines = 0;
-	while (lines++ < 5) {
+	while (lines++ < 7) {
 		int v = 0;
 		if (!is_valid_test_addr_read((uae_u32)p) || !is_valid_test_addr_read((uae_u32)p + 1)) {
 			sprintf(outbp, "%08x -- INACCESSIBLE --\n", (uae_u32)p);
@@ -1708,18 +1711,15 @@ static int getexceptioncycles(int exc)
 		case 3:
 			return 126;
 		case 4:
+		case 5:
+		case 6:
+		case 8:
+		case 9:
 		case 10:
 		case 11:
+		case 14:
 			return 38;
-		case 5:
-			return 38;
-		case 6:
-			return 44;
 		case 7:
-			return 40;
-		case 8:
-			return 38;
-		case 9:
 			return 38;
 		case 24:
 		case 25:
@@ -1863,7 +1863,7 @@ static uae_u8 *validate_test(uae_u8 *p, short ignore_errors, short ignore_sr)
 {
 	uae_u8 regs_changed[16] = { 0 };
 	uae_u8 regs_fpuchanged[8] = { 0 };
-	uae_u8 sr_changed = 0, pc_changed = 0;
+	uae_u8 sr_changed = 0, ccr_changed = 0, pc_changed = 0;
 	uae_u8 fpiar_changed = 0, fpsr_changed = 0, fpcr_changed = 0;
 	short exc = -1;
 
@@ -1872,8 +1872,11 @@ static uae_u8 *validate_test(uae_u8 *p, short ignore_errors, short ignore_sr)
 			regs_changed[i] = 1;
 		}
 	}
-	if ((last_registers.sr & test_ccrignoremask) != (test_regs.sr & test_ccrignoremask)) {
+	if ((last_registers.sr & test_ccrignoremask & 0xff00) != (test_regs.sr & test_ccrignoremask & 0xff00)) {
 		sr_changed = 1;
+	}
+	if ((last_registers.sr & test_ccrignoremask & 0x00ff) != (test_regs.sr & test_ccrignoremask & 0x00ff)) {
+		ccr_changed = 1;
 	}
 	if (last_registers.pc != test_regs.pc) {
 		pc_changed = 1;
@@ -1979,7 +1982,7 @@ static uae_u8 *validate_test(uae_u8 *p, short ignore_errors, short ignore_sr)
 			uae_u32 val = last_registers.regs[mode];
 			int size;
 			p = restore_value(p, &val, &size);
-			if (val != test_regs.regs[mode] && !ignore_errors) {
+			if (val != test_regs.regs[mode] && !ignore_errors && !skipregchange) {
 				if (dooutput) {
 					sprintf(outbp, "%c%d: expected %08x but got %08x\n", mode < CT_AREG ? 'D' : 'A', mode & 7, val, test_regs.regs[mode]);
 					outbp += strlen(outbp);
@@ -1988,7 +1991,7 @@ static uae_u8 *validate_test(uae_u8 *p, short ignore_errors, short ignore_sr)
 			}
 			regs_changed[mode] = 0;
 			last_registers.regs[mode] = val;
-		} else if (mode < CT_AREG && (v & CT_SIZE_MASK) == CT_SIZE_FPU) {
+		} else if (mode < CT_AREG && (v & CT_SIZE_MASK) == CT_SIZE_FPU && !skipregchange) {
 			struct fpureg val;
 			p = restore_fpvalue(p, &val);
 			if (memcmp(&val, &test_regs.fpuregs[mode], sizeof(struct fpureg)) && !ignore_errors) {
@@ -2027,11 +2030,12 @@ static uae_u8 *validate_test(uae_u8 *p, short ignore_errors, short ignore_sr)
 				}
 				// CCR check
 				mask = test_ccrignoremask & 0x00ff;
-				if ((val & (sr_undefined_mask & mask)) == (test_regs.sr & (sr_undefined_mask & mask))) {
+				if (skipccrchange || ((val & (sr_undefined_mask & mask)) == (test_regs.sr & (sr_undefined_mask & mask)))) {
 					errflag &= ~(1 << 7);
 				}
 			}
 			sr_changed = 0;
+			ccr_changed = 0;
 			last_registers.sr = val;
 			if (!(test_regs.expsr & 0x2000)) {
 				sprintf(outbp, "SR S-bit is not set at start of exception handler!\n");
@@ -2107,7 +2111,7 @@ static uae_u8 *validate_test(uae_u8 *p, short ignore_errors, short ignore_sr)
 			{
 				case 0:
 				mval = addr[0];
-				if (mval != val && !ignore_errors) {
+				if (mval != val && !ignore_errors && !skipmemwrite) {
 					if (dooutput) {
 						sprintf(outbp, "Memory byte write: address %08x, expected %02x but got %02x\n", (uae_u32)addr, val, mval);
 						outbp += strlen(outbp);
@@ -2118,7 +2122,7 @@ static uae_u8 *validate_test(uae_u8 *p, short ignore_errors, short ignore_sr)
 				break;
 				case 1:
 				mval = (addr[0] << 8) | (addr[1]);
-				if (mval != val && !ignore_errors) {
+				if (mval != val && !ignore_errors && !skipmemwrite) {
 					if (dooutput) {
 						sprintf(outbp, "Memory word write: address %08x, expected %04x but got %04x\n", (uae_u32)addr, val, mval);
 						outbp += strlen(outbp);
@@ -2130,7 +2134,7 @@ static uae_u8 *validate_test(uae_u8 *p, short ignore_errors, short ignore_sr)
 				break;
 				case 2:
 				mval = gl(addr);
-				if (mval != val && !ignore_errors) {
+				if (mval != val && !ignore_errors && !skipmemwrite) {
 					if (dooutput) {
 						sprintf(outbp, "Memory long write: address %08x, expected %08x but got %08x\n", (uae_u32)addr, val, mval);
 						outbp += strlen(outbp);
@@ -2147,7 +2151,7 @@ static uae_u8 *validate_test(uae_u8 *p, short ignore_errors, short ignore_sr)
 		}
 	}
 	if (!ignore_errors) {
-		if (!ignore_sr) {
+		if (!skipregchange) {
 			for (int i = 0; i < 16; i++) {
 				if (regs_changed[i]) {
 					if (dooutput) {
@@ -2157,7 +2161,15 @@ static uae_u8 *validate_test(uae_u8 *p, short ignore_errors, short ignore_sr)
 					errflag |= 1 << 0;
 				}
 			}
+		}
+		if (!ignore_sr) {
 			if (sr_changed) {
+				if (dooutput) {
+					sprintf(outbp, "SR: modified %04x -> %04x but expected no modifications\n", last_registers.sr & 0xffff, test_regs.sr & 0xffff);
+					outbp += strlen(outbp);
+				}
+				errflag |= 1 << 2;
+			} else if (ccr_changed && !skipccrchange) {
 				if (dooutput) {
 					sprintf(outbp, "SR: modified %04x -> %04x but expected no modifications\n", last_registers.sr & 0xffff, test_regs.sr & 0xffff);
 					outbp += strlen(outbp);
@@ -2886,7 +2898,9 @@ int main(int argc, char *argv[])
 		printf("-ccrmask = ignore CCR bits that are not set.\n");
 		printf("-nodisasm = do not disassemble failed test.\n");
 		printf("-basicexc = do only basic checks when exception is 2 or 3.\n");
-		printf("-excskipccr = ignore CCR if DivByZero, CHK, Address/Bus error exception.\n");
+		printf("-skipexcccr = ignore CCR if DivByZero, CHK, Address/Bus error exception.\n");
+		printf("-skipmem = do not validate memory writes.\n");
+		printf("-skipreg = do not validate registers.\n");
 		printf("-askifmissing = ask for new path if dat file is missing.\n");
 		printf("-exit n = exit after n tests.\n");
 		printf("-cycles [range adjust] = check cycle counts.\n");
@@ -2939,8 +2953,14 @@ int main(int argc, char *argv[])
 			disasm = 0;
 		} else if (!_stricmp(s, "-basicexc")) {
 			basicexcept = 1;
-		} else if (!_stricmp(s, "-excskipccr")) {
+		} else if (!_stricmp(s, "-skipexcccr")) {
 			excskipccr = 1;
+		} else if (!_stricmp(s, "-skipmem")) {
+			skipmemwrite = 1;
+		} else if (!_stricmp(s, "-skipreg")) {
+			skipregchange = 1;
+		} else if (!_stricmp(s, "-skipccr")) {
+			skipccrchange = 1;
 		} else if (!_stricmp(s, "-askifmissing")) {
 			askifmissing = 1;
 		} else if (!_stricmp(s, "-next")) {

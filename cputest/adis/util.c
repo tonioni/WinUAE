@@ -986,6 +986,9 @@ uint disasm_instr(UWORD *instr, char *out, int cpu_lvl)
         cpu68020 = 0;
         fpu68881 = 0;
     }
+    if (cpu_lvl < 1) {
+    		cpu68010 = 0;
+		}
 
 	set_pass3;
 

@@ -697,7 +697,7 @@ struct opcode_entry opcode_table [] =
 { invalid  , 0xff, 0xff, 1024, 0         , 0, 0            }, /* 1010 000 010 */
 { invalid  , 0xff, 0xff, 1024, 0         , 0, 0            }, /* 1010 000 011 */
 { invalid  , 0xff, 0xff, 1024, 0         , 0, 0            }, /* 1010 000 100 */
-{ mov3q    , 0xff, 0x0f, 1024, "mov3q"   , 0, ACC_LONG     }, /* 1010 000 101 */
+{ invalid  , 0xff, 0xff, 1024, 0         , 0, 0            }, /* 1010 000 101 */
 { invalid  , 0xff, 0xff, 1024, 0         , 0, 0            }, /* 1010 000 110 */
 { invalid  , 0xff, 0xff, 1024, 0         , 0, 0            }, /* 1010 000 111 */
 { invalid  , 0xff, 0xff, 1024, 0         , 0, 0            }, /* 1010 001 000 */
@@ -705,7 +705,7 @@ struct opcode_entry opcode_table [] =
 { invalid  , 0xff, 0xff, 1024, 0         , 0, 0            }, /* 1010 001 010 */
 { invalid  , 0xff, 0xff, 1024, 0         , 0, 0            }, /* 1010 001 011 */
 { invalid  , 0xff, 0xff, 1024, 0         , 0, 0            }, /* 1010 001 100 */
-{ mov3q    , 0xff, 0x0f, 1024, "mov3q"   , 1, ACC_LONG     }, /* 1010 001 101 */
+{ invalid  , 0xff, 0xff, 1024, 0         , 0, 0            }, /* 1010 001 101 */
 { invalid  , 0xff, 0xff, 1024, 0         , 0, 0            }, /* 1010 001 110 */
 { invalid  , 0xff, 0xff, 1024, 0         , 0, 0            }, /* 1010 001 111 */
 { invalid  , 0xff, 0xff, 1024, 0         , 0, 0            }, /* 1010 010 000 */
@@ -713,7 +713,7 @@ struct opcode_entry opcode_table [] =
 { invalid  , 0xff, 0xff, 1024, 0         , 0, 0            }, /* 1010 010 010 */
 { invalid  , 0xff, 0xff, 1024, 0         , 0, 0            }, /* 1010 010 011 */
 { invalid  , 0xff, 0xff, 1024, 0         , 0, 0            }, /* 1010 010 100 */
-{ mov3q    , 0xff, 0x0f, 1024, "mov3q"   , 2, ACC_LONG     }, /* 1010 010 101 */
+{ invalid  , 0xff, 0xff, 1024, 0         , 0, 0            }, /* 1010 010 101 */
 { invalid  , 0xff, 0xff, 1024, 0         , 0, 0            }, /* 1010 010 110 */
 { invalid  , 0xff, 0xff, 1024, 0         , 0, 0            }, /* 1010 010 111 */
 { invalid  , 0xff, 0xff, 1024, 0         , 0, 0            }, /* 1010 011 000 */
@@ -721,7 +721,7 @@ struct opcode_entry opcode_table [] =
 { invalid  , 0xff, 0xff, 1024, 0         , 0, 0            }, /* 1010 011 010 */
 { invalid  , 0xff, 0xff, 1024, 0         , 0, 0            }, /* 1010 011 011 */
 { invalid  , 0xff, 0xff, 1024, 0         , 0, 0            }, /* 1010 011 100 */
-{ mov3q    , 0xff, 0x0f, 1024, "mov3q"   , 3, ACC_LONG     }, /* 1010 011 101 */
+{ invalid  , 0xff, 0xff, 1024, 0         , 0, 0            }, /* 1010 011 101 */
 { invalid  , 0xff, 0xff, 1024, 0         , 0, 0            }, /* 1010 011 110 */
 { invalid  , 0xff, 0xff, 1024, 0         , 0, 0            }, /* 1010 011 111 */
 { invalid  , 0xff, 0xff, 1024, 0         , 0, 0            }, /* 1010 100 000 */
@@ -729,7 +729,7 @@ struct opcode_entry opcode_table [] =
 { invalid  , 0xff, 0xff, 1024, 0         , 0, 0            }, /* 1010 100 010 */
 { invalid  , 0xff, 0xff, 1024, 0         , 0, 0            }, /* 1010 100 011 */
 { invalid  , 0xff, 0xff, 1024, 0         , 0, 0            }, /* 1010 100 100 */
-{ mov3q    , 0xff, 0x0f, 1024, "mov3q"   , 4, ACC_LONG     }, /* 1010 100 101 */
+{ invalid  , 0xff, 0xff, 1024, 0         , 0, 0            }, /* 1010 100 101 */
 { invalid  , 0xff, 0xff, 1024, 0         , 0, 0            }, /* 1010 100 110 */
 { invalid  , 0xff, 0xff, 1024, 0         , 0, 0            }, /* 1010 100 111 */
 { invalid  , 0xff, 0xff, 1024, 0         , 0, 0            }, /* 1010 101 000 */
@@ -737,7 +737,7 @@ struct opcode_entry opcode_table [] =
 { invalid  , 0xff, 0xff, 1024, 0         , 0, 0            }, /* 1010 101 010 */
 { invalid  , 0xff, 0xff, 1024, 0         , 0, 0            }, /* 1010 101 011 */
 { invalid  , 0xff, 0xff, 1024, 0         , 0, 0            }, /* 1010 101 100 */
-{ mov3q    , 0xff, 0x0f, 1024, "mov3q"   , 5, ACC_LONG     }, /* 1010 101 101 */
+{ invalid  , 0xff, 0xff, 1024, 0         , 0, 0            }, /* 1010 101 101 */
 { invalid  , 0xff, 0xff, 1024, 0         , 0, 0            }, /* 1010 101 110 */
 { invalid  , 0xff, 0xff, 1024, 0         , 0, 0            }, /* 1010 101 111 */
 { invalid  , 0xff, 0xff, 1024, 0         , 0, 0            }, /* 1010 110 000 */
@@ -745,7 +745,7 @@ struct opcode_entry opcode_table [] =
 { invalid  , 0xff, 0xff, 1024, 0         , 0, 0            }, /* 1010 110 010 */
 { invalid  , 0xff, 0xff, 1024, 0         , 0, 0            }, /* 1010 110 011 */
 { invalid  , 0xff, 0xff, 1024, 0         , 0, 0            }, /* 1010 110 100 */
-{ mov3q    , 0xff, 0x0f, 1024, "mov3q"   , 6, ACC_LONG     }, /* 1010 110 101 */
+{ invalid  , 0xff, 0xff, 1024, 0         , 0, 0            }, /* 1010 110 101 */
 { invalid  , 0xff, 0xff, 1024, 0         , 0, 0            }, /* 1010 110 110 */
 { invalid  , 0xff, 0xff, 1024, 0         , 0, 0            }, /* 1010 110 111 */
 { invalid  , 0xff, 0xff, 1024, 0         , 0, 0            }, /* 1010 111 000 */
@@ -753,7 +753,7 @@ struct opcode_entry opcode_table [] =
 { invalid  , 0xff, 0xff, 1024, 0         , 0, 0            }, /* 1010 111 010 */
 { invalid  , 0xff, 0xff, 1024, 0         , 0, 0            }, /* 1010 111 011 */
 { invalid  , 0xff, 0xff, 1024, 0         , 0, 0            }, /* 1010 111 100 */
-{ mov3q    , 0xff, 0x0f, 1024, "mov3q"   , 7, ACC_LONG     }, /* 1010 111 101 */
+{ invalid  , 0xff, 0xff, 1024, 0         , 0, 0            }, /* 1010 111 101 */
 { invalid  , 0xff, 0xff, 1024, 0         , 0, 0            }, /* 1010 111 110 */
 { invalid  , 0xff, 0xff, 1024, 0         , 0, 0            }, /* 1010 111 111 */
 { EA_to_Rn , 0xff, 0x1f, 1024, "cmp.b"   , 0, ACC_BYTE     }, /* 1011 000 000 */
@@ -1114,10 +1114,5 @@ struct opcode_entry opcode_table [] =
 { op2_bcdx , 0x03, 0x00, 1024, "subx.b"  , NO_ADJ, 0       }, /* 1052 */
 { op2_bcdx , 0x03, 0x00, 1024, "subx.w"  , NO_ADJ, 0       }, /* 1053 */
 { op2_bcdx , 0x03, 0x00, 1024, "subx.l"  , NO_ADJ, 0       }, /* 1054 */
-{ link_l   , 0x02, 0x00, 1024, "link.l"  , 0, 0            }, /* 1055 */
-/* ColdFire chains */
-{ op1      , 0x03, 0x00, 1024, "bitrev"  , 0, ACC_LONG     }, /* 1056 */
-{ op1      , 0x03, 0x00, 1024, "byterev" , 0, ACC_LONG     }, /* 1057 */
-{ op1      , 0x03, 0x00, 1024, "ff1"     , 0, ACC_LONG     }, /* 1058 */
-{ op1      , 0x03, 0x00, 1024, "sats"    , 0, ACC_SLONG    }  /* 1059 */
+{ link_l   , 0x02, 0x00, 1024, "link.l"  , 0, 0            }  /* 1055 */
 };

@@ -157,7 +157,8 @@ struct opcode_sub_entry
 enum 
   {
   SR, CCR, USP, SFC, DFC, CACR, VBR, CAAR, MSP, ISP, TC, 
-  ITT0, ITT1, DTT0, DTT1, MMUSR, URP, SRP, TT0, TT1, CRP
+  ITT0, ITT1, DTT0, DTT1, MMUSR, URP, SRP, TT0, TT1, CRP,
+  BUSCR, PCR
   };
 
 #define PC (ushort)16               /* index into reg_names array */
@@ -283,7 +284,8 @@ extern BOOL single_file;
 extern BOOL ascending_label_numbers;
 extern BOOL disasm_as_lib;
 extern BOOL old_style;
-extern BOOL cpu68020,
+extern BOOL cpu68010,
+            cpu68020,
             cpu68030,
             cpu68040,
             cpu68060,
@@ -301,7 +303,6 @@ extern short cpu68020_disabled [];
 extern short cpu68030_disabled [];
 extern short cpu68040_disabled [];
 extern short cpu68060_disabled [];
-extern short cpuCF_disabled [];
 extern short fpu68881_disabled [];
 
 extern int OPCODE_COL;

@@ -87,11 +87,11 @@ BOOL try_small = FALSE;             /* -b */
 BOOL single_file = TRUE;                                   
 BOOL print_illegal_instr_offset = FALSE;         /* -i */
 BOOL old_style = FALSE;
-BOOL cpu68020 = TRUE,              /* -m2 */
+BOOL cpu68010 = TRUE,
+     cpu68020 = TRUE,              /* -m2 */
      cpu68030 = TRUE,              /* -m3 */
      cpu68040 = TRUE,              /* -m4 */
      cpu68060 = TRUE,              /* -m6 */
-     cpuCF = FALSE,
      fpu68881 = TRUE;              /* -m8 */
 BOOL disasm_as_lib = FALSE;         /* -l */
 BOOL ascending_label_numbers = FALSE;   /* -dn */
@@ -188,6 +188,8 @@ char *special_regs [] =
   "tt0",       /* 18 */
   "tt1",       /* 19 */
   "crp"        /* 20 */
+  "buscr"      /* 21 */
+  "pcr"        /* 22 */
   };
 
 /**********************************************************************/
@@ -274,54 +276,5 @@ short cpu68060_disabled [] =
   {
   982, /* PLPAW */
   983, /* PLPAR */
-    0
-  };
-
-short cpuCF_disabled [] =
-  {
-  452, /* MVS.B */
-  453, /* MVS.W */
-  454, /* MVZ.B */
-  455, /* MVZ.W */
-  460, /* MVS.B */
-  461, /* MVS.W */
-  462, /* MVZ.B */
-  463, /* MVZ.W */
-  468, /* MVS.B */
-  469, /* MVS.W */
-  470, /* MVZ.B */
-  471, /* MVZ.W */
-  476, /* MVS.B */
-  477, /* MVS.W */
-  478, /* MVZ.B */
-  479, /* MVZ.W */
-  484, /* MVS.B */
-  485, /* MVS.W */
-  486, /* MVZ.B */
-  487, /* MVZ.W */
-  492, /* MVS.B */
-  493, /* MVS.W */
-  494, /* MVZ.B */
-  495, /* MVZ.W */
-  500, /* MVS.B */
-  501, /* MVS.W */
-  502, /* MVZ.B */
-  503, /* MVZ.W */
-  508, /* MVS.B */
-  509, /* MVS.W */
-  510, /* MVZ.B */
-  511, /* MVZ.W */
-  645, /* MOV3Q */
-  653, /* MOV3Q */
-  661, /* MOV3Q */
-  669, /* MOV3Q */
-  677, /* MOV3Q */
-  685, /* MOV3Q */
-  693, /* MOV3Q */
-  701, /* MOV3Q */
- 1056, /* BITREV */
- 1057, /* BYTEREV */
- 1058, /* FF1 */
- 1059, /* SATS */
     0
   };

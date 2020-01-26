@@ -167,6 +167,7 @@ struct accesshistory
 	uae_u32 val;
 	uae_u32 oldval;
 	int size;
+	bool donotsave;
 };
 static int ahcnt_current, ahcnt_written;
 static int noaccesshistory = 0;
@@ -359,15 +360,26 @@ uae_u16 get_word_test_prefetch(int o)
 	return get_iword_test(m68k_getpci() + o);
 }
 
-// Move from SR does two writes to same address:
-// ignore the first one
 static void previoussame(uaecptr addr, int size)
 {
 	if (!ahcnt_current || ahcnt_current == ahcnt_written)
 		return;
-	struct accesshistory *ah = &ahist[ahcnt_current - 1];
-	if (ah->addr == addr && ah->size == size) {
-		ahcnt_current--;
+	// Move from SR does two writes to same address.
+	// Loop mode can write different values to same address.
+	// Mark old values as do not save.
+	for (int i = ahcnt_written; i < ahcnt_current; i++) {
+		struct accesshistory  *ah = &ahist[i];
+		if (ah->size == size && ah->addr == addr) {
+			ah->donotsave = true;
+		}
+		if (size == sz_long) {
+			if (ah->size == sz_word && ah->addr == addr) {
+				ah->donotsave = true;
+			}
+			if (ah->size == sz_word && ah->addr == addr + 2) {
+				ah->donotsave = true;
+			}
+		}
 	}
 }
 
@@ -388,6 +400,7 @@ void put_byte_test(uaecptr addr, uae_u32 v)
 		ah->val = v & 0xff;
 		ah->oldval = *p;
 		ah->size = sz_byte;
+		ah->donotsave = false;
 	}
 	regs.write_buffer = v;
 	*p = v;
@@ -414,6 +427,7 @@ void put_word_test(uaecptr addr, uae_u32 v)
 			ah->val = v & 0xffff;
 			ah->oldval = (p[0] << 8) | p[1];
 			ah->size = sz_word;
+			ah->donotsave = false;
 		}
 		p[0] = v >> 8;
 		p[1] = v & 0xff;
@@ -446,6 +460,7 @@ void put_long_test(uaecptr addr, uae_u32 v)
 			ah->val = v;
 			ah->oldval = (p[0] << 24) | (p[1] << 16) | (p[2] << 8) | p[3];
 			ah->size = sz_long;
+			ah->donotsave = false;
 		}
 		p[0] = v >> 24;
 		p[1] = v >> 16;
@@ -1512,6 +1527,8 @@ static uae_u8 *store_mem_writes(uae_u8 *dst, int storealways)
 		struct accesshistory *ah = &ahist[i];
 		if (ah->oldval == ah->val && !storealways)
  			continue;
+		if (ah->donotsave)
+			continue;
 		validate_addr(ah->addr, 1 << ah->size);
 		uaecptr addr = ah->addr;
 		addr &= addressing_mask;
@@ -2713,8 +2730,8 @@ static void execute_ins(uaecptr endpc, uaecptr targetpc, struct instr *dp)
 	uae_u16 opc = regs.ir;
 	uae_u16 opw1 = (opcode_memory[2] << 8) | (opcode_memory[3] << 0);
 	uae_u16 opw2 = (opcode_memory[4] << 8) | (opcode_memory[5] << 0);
-	if (opc == 0x40ef 
-		&& opw1 == 0x64fc
+	if (opc == 0xd196 
+		//&& opw1 == 0x64fc
 		//&& opw2 == 0x4afc
 		)
 		printf("");
@@ -3387,6 +3404,8 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 
 			if (feature_loop_mode_68010) {
 				if (!opcode_loop_mode(opcode))
+					continue;
+				if (dp->mnemo == i_DBcc)
 					continue;
 			}
 

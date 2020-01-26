@@ -646,12 +646,12 @@ int getMulu68kCycles(uae_u16 src)
 	int cycles = 0;
 	if (currprefs.cpu_model == 68000) {
 		cycles = 38 - 4;
+		for (int bits = 0; bits < 16 && src; bits++, src >>= 1) {
+			if (src & 1)
+				cycles += 2;
+		}
 	} else {
-		cycles = 8 - 4;
-	}
-	for (int bits = 0; bits < 16 && src; bits++, src >>= 1) {
-		if (src & 1)
-			cycles += 2;
+		cycles = 40 - 4;
 	}
 	return cycles;
 }
@@ -661,14 +661,17 @@ int getMuls68kCycles(uae_u16 src)
 	int cycles;
 	if (currprefs.cpu_model == 68000) {
 		cycles = 38 - 4;
-	} else {
-		cycles = 10 - 4;
-	}
-	uae_u32 usrc = ((uae_u32)src) << 1;
-	for (int bits = 0; bits < 16 && usrc; bits++, usrc >>= 1) {
-		if ((usrc & 3) == 1 || (usrc & 3) == 2) {
-			cycles += 2;
+		uae_u32 usrc = ((uae_u32)src) << 1;
+		for (int bits = 0; bits < 16 && usrc; bits++, usrc >>= 1) {
+			if ((usrc & 3) == 1 || (usrc & 3) == 2) {
+				cycles += 2;
+			}
 		}
+	} else {
+		cycles = 40 - 4;
+		// 2 extra cycles added if source is negative
+		if (src & 0x8000)
+			cycles += 2;
 	}
 	return cycles;
 }
@@ -741,15 +744,18 @@ int getDivu68kCycles (uae_u32 dividend, uae_u16 divisor)
 	if (divisor == 0)
 		return 0;
 
+	if (currprefs.cpu_model == 68010) {
+		// Overflow
+		if ((dividend >> 16) >= divisor)
+			return 4;
+		return 104;
+	}
+
 	// Overflow
 	if ((dividend >> 16) >= divisor)
 		return (mcycles = 5) * 2 - 4;
 
-	if (currprefs.cpu_model == 68000) {
-		mcycles = 38;
-	} else {
-		mcycles = 22;
-	}
+	mcycles = 38;
 
 	hdivisor = divisor << 16;
 
@@ -783,6 +789,17 @@ int getDivs68kCycles (uae_s32 dividend, uae_s16 divisor)
 	if (divisor == 0)
 		return 0;
 
+	if (currprefs.cpu_model == 68010) {
+		// Check for absolute overflow
+		if (((uae_u32)abs(dividend) >> 16) >= (uae_u16)abs(divisor))
+			return 12;
+		mcycles = 116;
+		// add 2 extra cycles if negative dividend
+		if (dividend < 0)
+			mcycles += 2;
+		return mcycles;
+	}
+
 	mcycles = 6;
 
 	if (dividend < 0)
@@ -795,11 +812,7 @@ int getDivs68kCycles (uae_s32 dividend, uae_s16 divisor)
 	// Absolute quotient
 	aquot = (uae_u32) abs (dividend) / (uae_u16)abs (divisor);
 
-	if (currprefs.cpu_model == 68000) {
-		mcycles += 55;
-	} else {
-		mcycles += 37;
-	}
+	mcycles += 55;
 
 	if (divisor >= 0) {
 		if (dividend >= 0)

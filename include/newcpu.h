@@ -185,7 +185,7 @@ struct regstruct
 	uae_u32 chipset_latch_read;
 	uae_u32 chipset_latch_write;
 	uae_u16 db, write_buffer, read_buffer;
-	bool loop_mode;
+	int loop_mode;
 
 	uaecptr usp, isp, msp;
 	uae_u16 sr;

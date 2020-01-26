@@ -380,7 +380,7 @@ if ((*code & 0x38) == 0x30)
     case 3: ptr = "rte";
             instr_end = TRUE;
             break;
-    case 4: if (!cpu68020)
+    case 4: if (!cpu68010)
               return (TRANSFER);
             ptr = "rtd";
             instr_end = TRUE;
@@ -408,7 +408,7 @@ else if ((*code & 0x3e) == 0x3a)          /* MOVEC */
   {
   short reg_offset;
 
-  if (!cpu68020)
+  if (!cpu68010)
     return (TRANSFER);
   switch (*(code + 1) & 0xfff)
     {
@@ -418,30 +418,17 @@ else if ((*code & 0x3e) == 0x3a)          /* MOVEC */
                 break;
     case 0x002: ptr = special_regs [CACR];
                 break;
-    case 0x003: if (cpu68040)
-                  ptr = special_regs [TC];
-                else
-                  return (TRANSFER);
+    case 0x003: ptr = special_regs [TC];
                 break;
-    case 0x004: if (cpu68040)
-                  ptr = special_regs [ITT0];
-                else
-                  return (TRANSFER);
+    case 0x004: ptr = special_regs [ITT0];
                 break;
-    case 0x005: if (cpu68040)
-                  ptr = special_regs [ITT1];
-                else
-                  return (TRANSFER);
+    case 0x005: ptr = special_regs [ITT1];
                 break;
-    case 0x006: if (cpu68040)
-                  ptr = special_regs [DTT0];
-                else
-                  return (TRANSFER);
+    case 0x006: ptr = special_regs [DTT0];
                 break;
-    case 0x007: if (cpu68040)
-                  ptr = special_regs [DTT1];
-                else
-                  return (TRANSFER);
+    case 0x007: ptr = special_regs [DTT1];
+                break;
+    case 0x008: ptr = special_regs [BUSCR];
                 break;
     case 0x800: ptr = special_regs [USP];
                 break;
@@ -453,20 +440,13 @@ else if ((*code & 0x3e) == 0x3a)          /* MOVEC */
                 break;
     case 0x804: ptr = special_regs [ISP];
                 break;
-    case 0x805: if (cpu68040)
-                  ptr = special_regs [MMUSR];
-                else
-                  return (TRANSFER);
+    case 0x805: ptr = special_regs [MMUSR];
                 break;
-    case 0x806: if (cpu68040)
-                  ptr = special_regs [URP];
-                else
-                  return (TRANSFER);
+    case 0x806: ptr = special_regs [URP];
                 break;
-    case 0x807: if (cpu68040)
-                  ptr = special_regs [SRP];
-                else
-                  return (TRANSFER);
+    case 0x807: ptr = special_regs [SRP];
+                break;
+    case 0x808: ptr = special_regs [PCR];
                 break;
     default : return (TRANSFER);
     }
@@ -474,7 +454,7 @@ else if ((*code & 0x3e) == 0x3a)          /* MOVEC */
   reg_offset = (*(code + 1) & 0x8000) ? 8 : 0;
   if (pass3)
     {
-    str_cpy (opcode, "movec.l");
+    str_cpy (opcode, "movec");
     if (*code & 0x1)
       {
       /* from general register to control register */
@@ -1195,30 +1175,4 @@ if (pass3)
     indirect (dest, (REG_NUM (*code) + 8));
   }
 return (1);
-}
-
-/**********************************************************************
- ColdFire handlers
-**********************************************************************/
-
-uint mov3q (struct opcode_entry *op)
-
-/* handler for ColdFire mov3q */
-{
-if (pass3)
-  {
-  char *to;
-  to = src;
-  *to++ = '#';
-  UBYTE data = (UBYTE)op->param;
-  if (data)
-    *to++ = data + '0';
-  else
-    {
-    *to++ = '-';
-    *to++ = '1';
-    }
-  *to = 0;
-  }
-return (decode_ea (dest, MODE_NUM(*code), REG_NUM(*code), ACC_LONG, 1) + 1);
 }
