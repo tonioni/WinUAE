@@ -4542,6 +4542,17 @@ static void my_trim(TCHAR *s)
 		s[--len] = '\0';
 }
 
+static int check_safe_memory(uae_u32 start, uae_u32 end)
+{
+	if (start == 0xffffffff)
+		return 0;
+	if (safe_memory_start < start)
+		return 1;
+	if (safe_memory_end > end)
+		return 1;
+	return 0;
+}
+
 static const TCHAR *addrmodes[] =
 {
 	_T("Dreg"), _T("Areg"), _T("Aind"), _T("Aipi"), _T("Apdi"), _T("Ad16"), _T("Ad8r"),
@@ -4875,6 +4886,16 @@ static int test(struct ini_data *ini, const TCHAR *sections, const TCHAR *testna
 		test_high_memory_start = 0xffffffff;
 		test_high_memory_end = 0xffffffff;
 		high_memory_size = 0xffffffff;
+	}
+
+	if (safe_memory_start != 0xffffffff) {
+		int err = check_safe_memory(test_low_memory_start, test_low_memory_end);
+		err += check_safe_memory(test_low_memory_start, test_low_memory_end);
+		err += check_safe_memory(test_high_memory_start, test_high_memory_end);
+		if (err == 3) {
+			wprintf(_T("Safe_memory outside of all test memory regions!\n"));
+			return 0;
+		}
 	}
 
 	test_memory = (uae_u8 *)calloc(1, test_memory_size + EXTRA_RESERVED_SPACE);
