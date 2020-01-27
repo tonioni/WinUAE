@@ -3393,14 +3393,16 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 			if (dp->mnemo != lookup->mnemo)
 				continue;
 
-			// match requested size
-			if ((size >= 0 && size <= 2) && (size != dp->size || dp->unsized))
-				continue;
-			if (size == 3 && !dp->unsized)
-				continue;
-			// skip all unsupported instructions if not specifically testing i_ILLG
-			if (dp->clev > cpu_lvl && lookup->mnemo != i_ILLG)
-				continue;
+			if (lookup->mnemo != i_ILLG) {
+				// match requested size
+				if ((size >= 0 && size <= 2) && (size != dp->size || dp->unsized))
+					continue;
+				if (size == 3 && !dp->unsized)
+					continue;
+				// skip all unsupported instructions if not specifically testing i_ILLG
+				if (dp->clev > cpu_lvl)
+					continue;
+			}
 
 			if (feature_loop_mode_68010) {
 				if (!opcode_loop_mode(opcode))
@@ -4516,10 +4518,14 @@ static void test_mnemo_text(const TCHAR *path, const TCHAR *mode)
 				test_mnemo(path, lookuptab[mnemo].name, ovrname, i, fpuopcode);
 			}
 		} else {
-			test_mnemo(path, lookuptab[mnemo].name, ovrname, 0, -1);
-			test_mnemo(path, lookuptab[mnemo].name, ovrname, 4, -1);
-			test_mnemo(path, lookuptab[mnemo].name, ovrname, 6, -1);
-			test_mnemo(path, lookuptab[mnemo].name, ovrname, -1, -1);
+			if (lookuptab[mnemo].mnemo == i_ILLG) {
+				test_mnemo(path, lookuptab[mnemo].name, ovrname, -1, -1);
+			} else {
+				test_mnemo(path, lookuptab[mnemo].name, ovrname, 0, -1);
+				test_mnemo(path, lookuptab[mnemo].name, ovrname, 4, -1);
+				test_mnemo(path, lookuptab[mnemo].name, ovrname, 6, -1);
+				test_mnemo(path, lookuptab[mnemo].name, ovrname, -1, -1);
+			}
 		}
 	} else {
 		test_mnemo(path, lookuptab[mnemo].name, ovrname, sizes, fpuopcode);
