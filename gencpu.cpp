@@ -7971,25 +7971,44 @@ bccl_not68020:
 		}
 		break;
 	case i_TAS:
-		genamode (curi, curi->smode, "srcreg", curi->size, "src", 1, 0, GF_LRMW);
-		genflags (flag_logical, curi->size, "src", "", "");
-		if (!isreg (curi->smode))
-			addcycles000 (2);
-		printf("\tsrc |= 0x80;\n");
-		if (cpu_level >= 2 || curi->smode == Dreg || !using_ce) {
-			if (next_cpu_level < 2)
-				next_cpu_level = 2 - 1;
-			genastore_tas ("src", curi->smode, "srcreg", curi->size, "src");
+		if (cpu_level <= 1) {
+			if (!isreg(curi->smode)) {
+				genamode(curi, curi->smode, "srcreg", curi->size, "src", 2, 0, GF_LRMW);
+				fill_prefetch_next_after(0, NULL);
+				printf("\tuae_s8 src = %s(srca);\n", srcb);
+				check_bus_error("src", 0, 0, 0, NULL, 1);
+			} else {
+				genamode(curi, curi->smode, "srcreg", curi->size, "src", 1, 0, GF_LRMW);
+				fill_prefetch_next();
+			}
+			genflags(flag_logical, curi->size, "src", "", "");
+			if (!isreg(curi->smode)) {
+				addcycles000(2);
+			}
+			printf("\tsrc |= 0x80;\n");
+			if (cpu_level >= 2 || curi->smode == Dreg || !using_ce) {
+				if (next_cpu_level < 2)
+					next_cpu_level = 2 - 1;
+				genastore_tas("src", curi->smode, "srcreg", curi->size, "src");
+			} else {
+				printf("\tif (!is_cycle_ce ()) {\n");
+				genastore("src", curi->smode, "srcreg", curi->size, "src");
+				printf("\t} else {\n");
+				printf("\t\t%s(4);\n", do_cycles);
+				addcycles000_nonce("\t\t", 4);
+				printf("\t}\n");
+			}
 		} else {
-			printf("\tif (!is_cycle_ce ()) {\n");
-			genastore ("src", curi->smode, "srcreg", curi->size, "src");
-			printf("\t} else {\n");
-			printf("\t\t%s(4);\n", do_cycles);
-			addcycles000_nonce("\t\t", 4);
-			printf("\t}\n");
+			genamode(curi, curi->smode, "srcreg", curi->size, "src", 1, 0, GF_LRMW);
+			genflags(flag_logical, curi->size, "src", "", "");
+			printf("\tsrc |= 0x80;\n");
+			genastore_tas("src", curi->smode, "srcreg", curi->size, "src");
+			fill_prefetch_next();
+			trace_t0_68040_only();
 		}
-		fill_prefetch_next_t();
-		trace_t0_68040_only();
+		if (next_cpu_level < 2)
+			next_cpu_level = 2 - 1;
+		next_level_000();
 		break;
 	case i_FPP:
 		fpulimit();
