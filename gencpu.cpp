@@ -3583,6 +3583,9 @@ static void genastore_2 (const char *from, amodes mode, const char *reg, wordsiz
 					if (flags & GF_SECONDWORDSETFLAGS) {
 						genflags(flag_logical, g_instr->size, "src", "", "");
 					}
+					if (store_dir > 1) {
+						fill_prefetch_next_after(0, NULL);
+					}
 					printf("\t%s(%sa, %s >> 16);\n", dstwx, to, from);
 					sprintf(tmp, "%s >> 16", from);
 					count_write++;
@@ -3720,9 +3723,15 @@ static void genastore_cas (const char *from, amodes mode, const char *reg, words
 {
 	genastore_2 (from, mode, reg, size, to, 0, GF_LRMW | GF_NOFAULTPC);
 }
-static void genastore_rev (const char *from, amodes mode, const char *reg, wordsizes size, const char *to)
+// write to addr + 2, write to addr + 0
+static void genastore_rev(const char *from, amodes mode, const char *reg, wordsizes size, const char *to)
 {
-	genastore_2 (from, mode, reg, size, to, 1, 0);
+	genastore_2(from, mode, reg, size, to, 1, 0);
+}
+// write to addr + 2, prefetch, write to addr + 0
+static void genastore_rev_prefetch(const char *from, amodes mode, const char *reg, wordsizes size, const char *to)
+{
+	genastore_2(from, mode, reg, size, to, 2, 0);
 }
 static void genastore_fc (const char *from, amodes mode, const char *reg, wordsizes size, const char *to)
 {
@@ -5005,7 +5014,9 @@ static void gen_opcode (unsigned int opcode)
 					fill_prefetch_next_t();
 				}
 			} else if (curi->size == sz_long) {
-				fill_prefetch_next_after(0, NULL);
+				if (isreg(curi->smode)) {
+					fill_prefetch_next_after(0, NULL);
+				}
 			} else {
 				fill_prefetch_next_after(1, NULL);
 			}
@@ -5015,8 +5026,13 @@ static void gen_opcode (unsigned int opcode)
 				else
 					addcycles000(2);
 			}
-			if (curi->size == sz_long || !isreg(curi->smode)) {
-				genastore_rev("newv", curi->dmode, "dstreg", curi->size, "dst");
+			if (curi->size == sz_long && !isreg(curi->dmode)) {
+				// write addr + 2
+				// prefetch
+				// write addr + 0
+				genastore_rev_prefetch("newv", curi->dmode, "dstreg", curi->size, "dst");
+			} else {
+				genastore("newv", curi->dmode, "dstreg", curi->size, "dst");
 			}
 		}
 		break;
@@ -5186,7 +5202,9 @@ static void gen_opcode (unsigned int opcode)
 					fill_prefetch_next_t();
 				}
 			} else if (curi->size == sz_long) {
-				fill_prefetch_next_after(0, NULL);
+				if (isreg(curi->smode)) {
+					fill_prefetch_next_after(0, NULL);
+				}
 			} else {
 				fill_prefetch_next_after(1, NULL);
 			}
@@ -5196,8 +5214,13 @@ static void gen_opcode (unsigned int opcode)
 				else
 					addcycles000(2);
 			}
-			if (curi->size == sz_long || !isreg(curi->smode)) {
-				genastore_rev("newv", curi->dmode, "dstreg", curi->size, "dst");
+			if (curi->size == sz_long && !isreg(curi->dmode)) {
+				// write addr + 2
+				// prefetch
+				// write addr + 0
+				genastore_rev_prefetch("newv", curi->dmode, "dstreg", curi->size, "dst");
+			} else {
+				genastore("newv", curi->dmode, "dstreg", curi->size, "dst");
 			}
 		}
 		break;
@@ -7971,43 +7994,25 @@ bccl_not68020:
 		}
 		break;
 	case i_TAS:
-		if (cpu_level <= 1) {
-			if (!isreg(curi->smode)) {
-				genamode(curi, curi->smode, "srcreg", curi->size, "src", 2, 0, GF_LRMW);
-				fill_prefetch_next_after(0, NULL);
-				printf("\tuae_s8 src = %s(srca);\n", srcb);
-				check_bus_error("src", 0, 0, 0, NULL, 1);
-			} else {
-				genamode(curi, curi->smode, "srcreg", curi->size, "src", 1, 0, GF_LRMW);
-				fill_prefetch_next();
-			}
-			genflags(flag_logical, curi->size, "src", "", "");
-			if (!isreg(curi->smode)) {
-				addcycles000(2);
-			}
-			printf("\tsrc |= 0x80;\n");
-			if (cpu_level >= 2 || curi->smode == Dreg || !using_ce) {
-				if (next_cpu_level < 2)
-					next_cpu_level = 2 - 1;
-				genastore_tas("src", curi->smode, "srcreg", curi->size, "src");
-			} else {
-				printf("\tif (!is_cycle_ce ()) {\n");
-				genastore("src", curi->smode, "srcreg", curi->size, "src");
-				printf("\t} else {\n");
-				printf("\t\t%s(4);\n", do_cycles);
-				addcycles000_nonce("\t\t", 4);
-				printf("\t}\n");
-			}
-		} else {
-			genamode(curi, curi->smode, "srcreg", curi->size, "src", 1, 0, GF_LRMW);
-			genflags(flag_logical, curi->size, "src", "", "");
-			printf("\tsrc |= 0x80;\n");
+		genamode(curi, curi->smode, "srcreg", curi->size, "src", 1, 0, GF_LRMW);
+		genflags(flag_logical, curi->size, "src", "", "");
+		if (!isreg(curi->smode))
+			addcycles000(2);
+		printf("\tsrc |= 0x80;\n");
+		if (cpu_level >= 2 || curi->smode == Dreg || !using_ce) {
+			if (next_cpu_level < 2)
+				next_cpu_level = 2 - 1;
 			genastore_tas("src", curi->smode, "srcreg", curi->size, "src");
-			fill_prefetch_next();
-			trace_t0_68040_only();
+		} else {
+			printf("\tif (!is_cycle_ce ()) {\n");
+			genastore("src", curi->smode, "srcreg", curi->size, "src");
+			printf("\t} else {\n");
+			printf("\t\t%s (4);\n", do_cycles);
+			addcycles000_nonce("\t\t", 4);
+			printf("\t}\n");
 		}
-		if (next_cpu_level < 2)
-			next_cpu_level = 2 - 1;
+		fill_prefetch_next();
+		trace_t0_68040_only();
 		next_level_000();
 		break;
 	case i_FPP:
