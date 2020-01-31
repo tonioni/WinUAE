@@ -4063,44 +4063,46 @@ static void genmovemel_ce (uae_u16 opcode)
 	if (table68k[opcode].size == sz_long) {
 		printf("\twhile (dmask) {\n");
 		printf("\t\tuae_u32 v = (%s(srca) << 16) | (m68k_dreg(regs, movem_index1[dmask]) & 0xffff);\n", srcw);
+		addcycles000_nonce("\t\t", 4);
 		check_bus_error("src", 0, 0, 1, NULL, 1);
 		printf("\t\tm68k_dreg(regs, movem_index1[dmask]) = v;\n");
 		printf("\t\tv &= 0xffff0000;\n");
 		printf("\t\tv |= %s(srca + 2); \n", srcw);
+		addcycles000_nonce("\t\t", 4);
 		check_bus_error("src", 2, 0, 1, NULL, 1);
 		printf("\t\tm68k_dreg(regs, movem_index1[dmask]) = v;\n");
 		printf("\t\tsrca += %d;\n", size);
 		printf("\t\tdmask = movem_next[dmask];\n");
-		addcycles000_nonce("\t\t", 8);
 		printf("\t}\n");
 		printf("\twhile (amask) {\n");
 		printf("\t\tuae_u32 v = (%s(srca) << 16) | (m68k_areg(regs, movem_index1[amask]) & 0xffff);\n", srcw);
+		addcycles000_nonce("\t\t", 4);
 		check_bus_error("src", 0, 0, 1, NULL, 1);
 		printf("\t\tm68k_areg(regs, movem_index1[amask]) = v;\n");
 		printf("\t\tv &= 0xffff0000;\n");
 		printf("\t\tv |= %s(srca + 2);\n", srcw);
+		addcycles000_nonce("\t\t", 4);
 		check_bus_error("src", 2, 0, 1, NULL, 1);
 		printf("\t\tm68k_areg(regs, movem_index1[amask]) = v;\n");
 		printf("\t\tsrca += %d;\n", size);
 		printf("\t\tamask = movem_next[amask];\n");
-		addcycles000_nonce("\t\t", 8);
 		printf("\t}\n");
 	} else {
 		printf("\twhile (dmask) {\n");
 		printf("\t\tuae_u32 v = (uae_s32)(uae_s16)%s(srca);\n", srcw);
+		addcycles000_nonce("\t\t", 4);
 		check_bus_error("src", 0, 0, 1, NULL, 1);
 		printf("\t\tm68k_dreg(regs, movem_index1[dmask]) = v;\n");
 		printf("\t\tsrca += %d;\n", size);
 		printf("\t\tdmask = movem_next[dmask];\n");
-		addcycles000_nonce("\t\t", 4);
 		printf("\t}\n");
 		printf("\twhile (amask) {\n");
 		printf("\t\tuae_u32 v = (uae_s32)(uae_s16)%s(srca);\n", srcw);
+		addcycles000_nonce("\t\t", 4);
 		check_bus_error("src", 0, 0, 1, NULL, 1);
 		printf("\t\tm68k_areg(regs, movem_index1[amask]) = v;\n");
 		printf("\t\tsrca += %d;\n", size);
 		printf("\t\tamask = movem_next[amask];\n");
-		addcycles000_nonce("\t\t", 4);
 		printf("\t}\n");
 	}
 	printf("\t%s(srca);\n", srcw); // and final extra word fetch that goes nowhere..
@@ -4208,21 +4210,23 @@ static void genmovemle_ce (uae_u16 opcode)
 			movem_ex3(1);
 			printf("\twhile (amask) {\n");
 			printf("\t\t%s(srca - 2, m68k_areg(regs, movem_index2[amask]));\n", dstw);
+			addcycles000_nonce("\t\t", 4);
 			check_bus_error("src", -2, 1, 1, "m68k_areg(regs, movem_index2[amask])", 1);
 			printf("\t\t%s(srca - 4, m68k_areg(regs, movem_index2[amask]) >> 16);\n", dstw);
+			addcycles000_nonce("\t\t", 4);
 			check_bus_error("src", -4, 1, 1, "m68k_areg(regs, movem_index2[amask]) >> 16", 1);
 			printf("\t\tsrca -= %d;\n", size);
 			printf("\t\tamask = movem_next[amask];\n");
-			addcycles000_nonce("\t\t", 8);
 			printf("\t}\n");
 			printf("\twhile (dmask) {\n");
 			printf("\t\t%s(srca - 2, m68k_dreg(regs, movem_index2[dmask]));\n", dstw);
+			addcycles000_nonce("\t\t", 4);
 			check_bus_error("src", -2, 1, 1, "m68k_dreg(regs, movem_index2[dmask])", 1);
 			printf("\t\t%s(srca - 4, m68k_dreg(regs, movem_index2[dmask]) >> 16);\n", dstw);
+			addcycles000_nonce("\t\t", 4);
 			check_bus_error("src", -4, 1, 1, "m68k_dreg(regs, movem_index2[dmask]) >> 16", 1);
 			printf("\t\tsrca -= %d;\n", size);
 			printf("\t\tdmask = movem_next[dmask];\n");
-			addcycles000_nonce("\t\t", 8);
 			printf("\t}\n");
 			printf("\tm68k_areg(regs, dstreg) = srca;\n");
 		} else {
@@ -4230,21 +4234,23 @@ static void genmovemle_ce (uae_u16 opcode)
 			movem_ex3(1);
 			printf("\twhile (dmask) {\n");
 			printf("\t\t%s(srca, m68k_dreg(regs, movem_index1[dmask]) >> 16);\n", dstw);
+			addcycles000_nonce("\t\t", 4);
 			check_bus_error("src", 0, 1, 1, "m68k_dreg(regs, movem_index1[dmask]) >> 16", 1);
 			printf("\t\t%s(srca + 2, m68k_dreg(regs, movem_index1[dmask]));\n", dstw);
+			addcycles000_nonce("\t\t", 4);
 			check_bus_error("src", 2, 1, 1, "m68k_dreg(regs, movem_index1[dmask])", 1);
 			printf("\t\tsrca += %d;\n", size);
 			printf("\t\tdmask = movem_next[dmask];\n");
-			addcycles000_nonce("\t\t", 8);
 			printf("\t}\n");
 			printf("\twhile (amask) {\n");
 			printf("\t\t%s(srca, m68k_areg(regs, movem_index1[amask]) >> 16);\n", dstw);
+			addcycles000_nonce("\t\t", 4);
 			check_bus_error("src", 0, 1, 1, "m68k_areg(regs, movem_index1[amask]) >> 16", 1);
 			printf("\t\t%s(srca + 2, m68k_areg(regs, movem_index1[amask]));\n", dstw);
+			addcycles000_nonce("\t\t", 4);
 			check_bus_error("src", 2, 1, 1, "m68k_areg(regs, movem_index1[amask])", 1);
 			printf("\t\tsrca += %d;\n", size);
 			printf("\t\tamask = movem_next[amask];\n");
-			addcycles000_nonce("\t\t", 8);
 			printf("\t}\n");
 		}
 	} else {
@@ -4254,16 +4260,16 @@ static void genmovemle_ce (uae_u16 opcode)
 			printf("\twhile (amask) {\n");
 			printf("\t\tsrca -= %d;\n", size);
 			printf("\t\t%s(srca, m68k_areg(regs, movem_index2[amask]));\n", dstw);
+			addcycles000_nonce("\t\t", 4);
 			check_bus_error("src", 0, 1, 1, "m68k_areg(regs, movem_index2[amask])", 1);
 			printf("\tamask = movem_next[amask];\n");
-			addcycles000_nonce("\t\t", 4);
 			printf("\t}\n");
 			printf("\twhile (dmask) {\n");
 			printf("\t\tsrca -= %d;\n", size);
 			printf("\t\t%s(srca, m68k_dreg(regs, movem_index2[dmask]));\n", dstw);
+			addcycles000_nonce("\t\t", 4);
 			check_bus_error("src", 0, 1, 1, "m68k_dreg(regs, movem_index2[dmask])", 1);
 			printf("\t\tdmask = movem_next[dmask];\n");
-			addcycles000_nonce("\t\t", 4);
 			printf("\t}\n");
 			printf("\tm68k_areg(regs, dstreg) = srca;\n");
 		} else {
@@ -4271,17 +4277,17 @@ static void genmovemle_ce (uae_u16 opcode)
 			movem_ex3(1);
 			printf("\twhile (dmask) {\n");
 			printf("\t\t%s(srca, m68k_dreg(regs, movem_index1[dmask]));\n", dstw);
+			addcycles000_nonce("\t\t", 4);
 			check_bus_error("src", 0, 1, 1, "m68k_dreg(regs, movem_index1[dmask])", 1);
 			printf("\t\tsrca += %d;\n", size);
 			printf("\t\tdmask = movem_next[dmask];\n");
-			addcycles000_nonce("\t\t", 4);
 			printf("\t}\n");
 			printf("\twhile (amask) {\n");
 			printf("\t\t%s(srca, m68k_areg(regs, movem_index1[amask]));\n", dstw);
+			addcycles000_nonce("\t\t", 4);
 			check_bus_error("src", 0, 1, 1, "m68k_areg(regs, movem_index1[amask])", 1);
 			printf("\t\tsrca += %d;\n", size);
 			printf("\t\tamask = movem_next[amask];\n");
-			addcycles000_nonce("\t\t", 4);
 			printf("\t}\n");
 		}
 	}
