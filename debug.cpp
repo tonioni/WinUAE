@@ -518,9 +518,13 @@ static TCHAR readchar (TCHAR **c)
 	(*c)++;
 	return cc;
 }
-static TCHAR next_char (TCHAR **c)
+static TCHAR next_char(TCHAR **c)
 {
 	ignore_ws (c);
+	return *(*c)++;
+}
+static TCHAR next_char2(TCHAR **c)
+{
 	return *(*c)++;
 }
 static TCHAR peek_next_char (TCHAR **c)
@@ -528,9 +532,13 @@ static TCHAR peek_next_char (TCHAR **c)
 	TCHAR *pc = *c;
 	return pc[1];
 }
-static int more_params (TCHAR **c)
+static int more_params(TCHAR **c)
 {
-	ignore_ws (c);
+	ignore_ws(c);
+	return (**c) != 0;
+}
+static int more_params2(TCHAR **c)
+{
 	return (**c) != 0;
 }
 
@@ -3868,11 +3876,11 @@ static void writeintomem (TCHAR **c)
 		uae_u32 addrb = addr;
 		*c = cb;
 		if (cc == '\'' || cc == '\"') {
-			next_char (c);
-			while (more_params (c)) {
+			next_char2(c);
+			while (more_params2(c)) {
 				TCHAR str[2];
 				char *astr;
-				cc = next_char (c);
+				cc = next_char2(c);
 				if (cc == '\'' || cc == '\"')
 					break;
 				str[0] = cc;
