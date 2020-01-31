@@ -3630,34 +3630,27 @@ static void genastore_2 (const char *from, amodes mode, const char *reg, wordsiz
 				if (store_dir) {
 					printf("\t%s(%sa + 2, %s);\n", dstwx, to, from);
 					count_write++;
-					check_bus_error(to, 0, 1, 1, from, 1);
 					check_bus_error(to, 2, 1, 1, from, 1);
-					if (opcode_nextcopy)
-						copy_opcode();
-					opcode_nextcopy = 0;
 					if (flags & GF_SECONDWORDSETFLAGS) {
 						genflags(flag_logical, g_instr->size, "src", "", "");
 					}
+					if (store_dir > 1) {
+						fill_prefetch_next_after(0, NULL);
+					}
 					printf("\t%s(%sa, %s >> 16); \n", dstwx, to, from);
-					count_write++;
 					sprintf(tmp, "%s >> 16", from);
-					check_bus_error(to, 0, 1, 1, from, 1);
+					count_write++;
 					check_bus_error(to, 0, 1, 1, tmp, 1);
 				} else {
 					printf("\t%s(%sa, %s >> 16);\n", dstwx, to, from);
-					count_write++;
 					sprintf(tmp, "%s >> 16", from);
-					check_bus_error(to, 0, 1, 1, from, 1);
+					count_write++;
 					check_bus_error(to, 0, 1, 1, tmp, 1);
-					if (opcode_nextcopy)
-						copy_opcode();
-					opcode_nextcopy = 0;
 					if (flags & GF_SECONDWORDSETFLAGS) {
 						genflags(flag_logical, g_instr->size, "src", "", "");
 					}
-					count_write++;
 					printf("\t%s(%sa + 2, %s); \n", dstwx, to, from);
-					check_bus_error(to, 0, 1, 1, from, 1);
+					count_write++;
 					check_bus_error(to, 2, 1, 1, from, 1);
 				}
 				break;
@@ -6571,14 +6564,17 @@ static void gen_opcode (unsigned int opcode)
 				if (using_ce || using_prefetch) {
 					printf("\tuaecptr dsta = m68k_areg(regs, 7);\n");
 					printf("\t%s(dsta, nextpc >> 16);\n", dstw);
+					count_write++;
 					check_bus_error("dst", 0, 1, 1, "nextpc >> 16", 1);
 					printf("\t%s(dsta + 2, nextpc);\n", dstw);
+					count_write++;
 					check_bus_error("dst", 2, 1, 1, "nextpc", 1);
 				} else {
 					if (cpu_level < 4)
 						printf("\t%s(m68k_areg(regs, 7), nextpc);\n", dstl);
 					else
 						printf("\t%s(m68k_areg(regs, 7) - 4, nextpc);\n", dstl);
+					count_write += 2;
 				}
 				if (cpu_level >= 4)
 					printf("\tm68k_areg(regs, 7) -= 4;\n");
@@ -6587,7 +6583,6 @@ static void gen_opcode (unsigned int opcode)
 					printf("\t\tbranch_stack_push(oldpc, nextpc);\n");
 				}
 			}
-			count_write += 2;
 			fill_prefetch_full_020();
 			if (using_prefetch || using_ce) {
 				int sp = (curi->smode == Ad16 || curi->smode == absw || curi->smode == absl || curi->smode == PC16 || curi->smode == Ad8r || curi->smode == PC8r) ? -1 : 0;
@@ -6596,10 +6591,10 @@ static void gen_opcode (unsigned int opcode)
 				if (sp < 0 && cpu_level == 0)
 					printf("\tif(regs.t1) opcode |= 0x10000;\n");
 				printf("\t%s(%d);\n", prefetch_word, 2);
+				count_read++;
 				check_prefetch_bus_error(-2, sp);
 				did_prefetch = 1;
 				ir2irc = 0;
-				count_read++;
 				insn_n_cycles += 4;
 			} else {
 				fill_prefetch_next_empty();
@@ -6639,6 +6634,7 @@ static void gen_opcode (unsigned int opcode)
 		clear_m68k_offset();
 		if (using_prefetch || using_ce) {
 			printf("\t%s(%d);\n", prefetch_word, 0);
+			count_read++;
 			check_prefetch_bus_error(-1, 0);
 			irc2ir();
 			printf("\t%s(%d);\n", prefetch_word, 2);
@@ -6646,10 +6642,10 @@ static void gen_opcode (unsigned int opcode)
 			copy_opcode();
 			if (sp < 0 && cpu_level == 0)
 				printf("\tif(regs.t1) opcode |= 0x10000;\n");
+			count_read++;
 			check_prefetch_bus_error(-2, sp);
 			did_prefetch = 1;
 			ir2irc = 0;
-			count_read += 2 * 1;
 			insn_n_cycles += 2 * 4;
 		} else {
 			fill_prefetch_full(0);
