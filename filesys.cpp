@@ -8263,6 +8263,8 @@ static int pt_babe(TrapContext *ctx, uae_u8 *bufrdb, UnitInfo *uip, int unit_no,
 
 	bad = rl(bufrdb + 4);
 	if (bad) {
+		if (bad * hfd->ci.blocksize > FILESYS_MAX_BLOCKSIZE)
+			return 0;
 		hdf_read_rdb(hfd, bufrdb2, bad * hfd->ci.blocksize, hfd->ci.blocksize);
 		if (bufrdb2[0] != 0xBA || bufrdb2[1] != 0xD1)
 			return 0;
@@ -8556,6 +8558,11 @@ static int rdb_mount (TrapContext *ctx, UnitInfo *uip, int unit_no, int partnum,
 	if (lastblock * hfd->ci.blocksize > hfd->virtsize) {
 		rdbmnt;
 		write_log (_T("failed, too small (%d*%d > %llu)\n"), lastblock, hfd->ci.blocksize, hfd->virtsize);
+		return -2;
+	}
+
+	if (hfd->ci.blocksize > FILESYS_MAX_BLOCKSIZE) {
+		write_log(_T("failed, too large block size %d\n"), hfd->ci.blocksize);
 		return -2;
 	}
 
