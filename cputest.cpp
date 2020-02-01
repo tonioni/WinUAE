@@ -679,7 +679,7 @@ bool mmu_op30(uaecptr pc, uae_u32 opcode, uae_u16 extra, uaecptr extraa)
 	return true;
 }
 
-int is_cycle_ce(void)
+bool is_cycle_ce(uaecptr addr)
 {
 	return 0;
 }

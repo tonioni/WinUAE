@@ -8025,7 +8025,7 @@ bccl_not68020:
 			if (isreg(curi->smode) || !using_ce) {
 				genastore_tas("src", curi->smode, "srcreg", curi->size, "src");
 			} else {
-				out("if (!is_cycle_ce()) {\n");
+				out("if (!is_cycle_ce(srca)) {\n");
 				genastore("src", curi->smode, "srcreg", curi->size, "src");
 				out("} else {\n");
 				out("%s(4);\n", do_cycles);
@@ -8048,7 +8048,7 @@ bccl_not68020:
 			if (isreg(curi->smode) || !using_ce) {
 				genastore_tas("src", curi->smode, "srcreg", curi->size, "src");
 			} else {
-				out("if (!is_cycle_ce()) {\n");
+				out("if (!is_cycle_ce(srca)) {\n");
 				genastore("src", curi->smode, "srcreg", curi->size, "src");
 				out("} else {\n");
 				out("%s(4);\n", do_cycles);
