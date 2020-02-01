@@ -1462,7 +1462,7 @@ static int gethdfchs(HWND hDlg, struct uae_driveinfo *udi, HANDLE h, int *cylsp,
 		err = -13;
 		goto end;
 	}
-	if (secs >= 256 || heads >= 16 || cyls > 2048) {
+	if (secs >= 256 || heads > 16 || cyls > 2048) {
 		err = -14;
 		goto end;
 	}
