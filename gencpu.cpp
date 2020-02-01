@@ -6102,11 +6102,12 @@ static void gen_opcode (unsigned int opcode)
 		if (cpu_level <= 1 && using_exception_3) {
 			printf("\tif (m68k_areg(regs, 7) & 1) {\n");
 			printf("\t\texception3_read(opcode, m68k_areg(regs, 7), 1, 1);\n");
-			write_return_cycles("\t\t", 0);
+			write_return_cycles_noadd("\t\t", 0);
 			printf("\t}\n");
 		}
 		if (cpu_level == 0) {
 			// 68000
+			// Read SR, Read PC high, Read PC low.
 			genamode (NULL, Aipi, "7", sz_word, "sr", 1, 0, GF_NOREFILL);
 			genamode (NULL, Aipi, "7", sz_long, "pc", 1, 0, GF_NOREFILL);
 			printf("\tuaecptr oldpc = %s;\n", getpc);
@@ -6124,6 +6125,7 @@ static void gen_opcode (unsigned int opcode)
 			}
 		} else if (cpu_level == 1 && using_prefetch) {
 			// 68010
+			// Read SR, Read Format, Read PC high, Read PC low.
 			int old_brace_level = n_braces;
 			printf("\tuaecptr oldpc = %s;\n", getpc);
 			printf("\tuae_u16 newsr;\n");
@@ -6132,9 +6134,6 @@ static void gen_opcode (unsigned int opcode)
 			printf("\tuae_u16 sr = %s(a);\n", srcw);
 			count_read++;
 			check_bus_error("", 0, 0, 1, NULL, 1);
-			printf("\tuae_u32 pc = %s(a + 2) << 16;\n", srcw);
-			count_read++;
-			check_bus_error("", 2, 0, 1, NULL, 1);
 
 			printf("\tuae_u16 format = %s(a + 2 + 4);\n", srcw);
 			count_read++;
@@ -6153,7 +6152,10 @@ static void gen_opcode (unsigned int opcode)
 			write_return_cycles("\t\t", 0);
 			printf("\t}\n");
 
-			printf("\tpc |= %s(a + 4); \n", srcw);
+			printf("\tuae_u32 pc = %s(a + 2) << 16;\n", srcw);
+			count_read++;
+			check_bus_error("", 2, 0, 1, NULL, 1);
+			printf("\tpc |= %s(a + 2 + 2); \n", srcw);
 			count_read++;
 			check_bus_error("", 4, 0, 1, NULL, 1);
 		    pop_braces (old_brace_level);
@@ -8006,25 +8008,57 @@ bccl_not68020:
 		}
 		break;
 	case i_TAS:
-		genamode(curi, curi->smode, "srcreg", curi->size, "src", 1, 0, GF_LRMW);
-		genflags(flag_logical, curi->size, "src", "", "");
-		if (!isreg(curi->smode))
-			addcycles000(2);
-		printf("\tsrc |= 0x80;\n");
-		if (cpu_level >= 2 || curi->smode == Dreg || !using_ce) {
+		if (cpu_level == 0) {
+			genamode(curi, curi->smode, "srcreg", curi->size, "src", 1, 0, GF_LRMW);
+			genflags(flag_logical, curi->size, "src", "", "");
+			if (!isreg(curi->smode)) {
+				addcycles000(2);
+			}
+			printf("\tsrc |= 0x80;\n");
+			if (isreg(curi->smode) || !using_ce) {
+				genastore_tas("src", curi->smode, "srcreg", curi->size, "src");
+			} else {
+				printf("\tif (!is_cycle_ce()) {\n");
+				genastore("src", curi->smode, "srcreg", curi->size, "src");
+				printf("\t} else {\n");
+				printf("\t\t%s(4);\n", do_cycles);
+				addcycles000_nonce("\t\t", 4);
+				printf("\t}\n");
+			}
+			fill_prefetch_next();
+		} else if (cpu_level == 1) {
+			if (isreg(curi->smode)) {
+				genamode(curi, curi->smode, "srcreg", curi->size, "src", 1, 0, GF_LRMW);
+			} else {
+				genamode(curi, curi->smode, "srcreg", curi->size, "src", 2, 0, GF_LRMW | GF_NOFETCH);
+				printf("\tuae_u8 src = %s(srca);\n", srcb);
+			}
+			genflags(flag_logical, curi->size, "src", "", "");
+			if (!isreg(curi->smode)) {
+				addcycles000(2);
+			}
+			printf("\tsrc |= 0x80;\n");
+			if (isreg(curi->smode) || !using_ce) {
+				genastore_tas("src", curi->smode, "srcreg", curi->size, "src");
+			} else {
+				printf("\tif (!is_cycle_ce()) {\n");
+				genastore("src", curi->smode, "srcreg", curi->size, "src");
+				printf("\t} else {\n");
+				printf("\t\t%s(4);\n", do_cycles);
+				addcycles000_nonce("\t\t", 4);
+				printf("\t}\n");
+			}
+			fill_prefetch_next();
+		} else {
+			genamode(curi, curi->smode, "srcreg", curi->size, "src", 1, 0, GF_LRMW);
+			genflags(flag_logical, curi->size, "src", "", "");
+			printf("\tsrc |= 0x80;\n");
 			if (next_cpu_level < 2)
 				next_cpu_level = 2 - 1;
 			genastore_tas("src", curi->smode, "srcreg", curi->size, "src");
-		} else {
-			printf("\tif (!is_cycle_ce ()) {\n");
-			genastore("src", curi->smode, "srcreg", curi->size, "src");
-			printf("\t} else {\n");
-			printf("\t\t%s (4);\n", do_cycles);
-			addcycles000_nonce("\t\t", 4);
-			printf("\t}\n");
+			fill_prefetch_next();
+			trace_t0_68040_only();
 		}
-		fill_prefetch_next();
-		trace_t0_68040_only();
 		next_level_000();
 		break;
 	case i_FPP:
