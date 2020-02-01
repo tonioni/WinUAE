@@ -257,7 +257,6 @@ static void read_counts (void)
 static int genamode_cnt, genamode8r_offset[2];
 static int set_fpulimit;
 
-static int n_braces, limit_braces;
 static int m68k_pc_offset, m68k_pc_offset_old;
 static int m68k_pc_total;
 static int exception_pc_offset;
@@ -653,31 +652,6 @@ static int isreg (amodes mode)
 	return 0;
 }
 
-static void start_brace (void)
-{
-	n_braces++;
-//	out("{");
-}
-
-static void close_brace (void)
-{
-	assert (n_braces > 0);
-	n_braces--;
-//	out("}");
-}
-
-static void finish_braces (void)
-{
-	while (n_braces > 0)
-		close_brace ();
-}
-
-static void pop_braces (int to)
-{
-	while (n_braces > to)
-		close_brace ();
-}
-
 static int bit_size (int size)
 {
 	switch (size) {
@@ -707,7 +681,6 @@ static void add_mmu040_movem (int movem)
 	out("if (mmu040_movem) {\n");
 	out("srca = mmu040_movem_ea;\n");
 	out("} else\n");
-	start_brace ();
 }
 
 static char bus_error_text[200];
@@ -1583,12 +1556,10 @@ static void genflags_normal(flagtypes type, wordsizes size, const char *value, c
 		break;
 
 	case flag_add:
-		start_brace();
 		out("uae_u32 %s = %s + %s;\n", value, udstr, usstr);
 		break;
 	case flag_sub:
 	case flag_cmp:
-		start_brace();
 		out("uae_u32 %s = %s - %s;\n", value, udstr, usstr);
 		break;
 	}
@@ -1607,7 +1578,6 @@ static void genflags_normal(flagtypes type, wordsizes size, const char *value, c
 	case flag_cmp:
 	case flag_av:
 	case flag_sv:
-		start_brace();
 		out("" BOOL_TYPE " flgs = %s < 0;\n", sstr);
 		out("" BOOL_TYPE " flgo = %s < 0;\n", dstr);
 		out("" BOOL_TYPE " flgn = %s < 0;\n", vstr);
@@ -1679,7 +1649,6 @@ static void genflags(flagtypes type, wordsizes size, const char *value, const ch
 		switch (type) {
 		case flag_add:
 		case flag_sub:
-			start_brace();
 			out("uae_u32 %s;\n", value);
 			break;
 
@@ -2812,8 +2781,6 @@ static void genamode2x (amodes mode, const char *reg, wordsizes size, const char
 
 	loopmode_access();
 
-	start_brace ();
-
 	switch (mode) {
 	case Dreg:
 		if (movem)
@@ -2970,7 +2937,6 @@ static void genamode2x (amodes mode, const char *reg, wordsizes size, const char
 				next_cpu_level = 1;
 			sync_m68k_pc ();
 			add_mmu040_movem (movem);
-			start_brace ();
 			/* This would ordinarily be done in gen_nextiword, which we bypass.  */
 			insn_n_cycles += 4;
 			out("%sa = %s(m68k_areg(regs, %s), %d);\n", name, disp020, reg, disp020cnt++);
@@ -3016,7 +2982,6 @@ static void genamode2x (amodes mode, const char *reg, wordsizes size, const char
 				next_cpu_level = 1;
 			sync_m68k_pc ();
 			add_mmu040_movem (movem);
-			start_brace ();
 			/* This would ordinarily be done in gen_nextiword, which we bypass.  */
 			insn_n_cycles += 4;
 			out("tmppc = %s;\n", getpc);
@@ -3300,7 +3265,6 @@ static void genamode2x (amodes mode, const char *reg, wordsizes size, const char
 		const char *srcbx = !(flags & GF_FC) ? srcb : "sfc_nommu_get_byte";
 		const char *srcwx = !(flags & GF_FC) ? srcw : "sfc_nommu_get_word";
 		const char *srclx = !(flags & GF_FC) ? srcl : "sfc_nommu_get_long";
-		start_brace ();
 		if (using_mmu) {
 			if (flags & GF_FC) {
 				switch (size) {
@@ -3431,10 +3395,6 @@ static void genamode2x (amodes mode, const char *reg, wordsizes size, const char
 		default:
 			break;
 		}
-	}
-
-	if (movem == 3) {
-		close_brace ();
 	}
 }
 
@@ -4093,7 +4053,6 @@ static void genmovemel (uae_u16 opcode)
 	genamode (NULL, table68k[opcode].dmode, "dstreg", table68k[opcode].size, "src", 2, mmu040_special_movem (opcode) ? -3 : -1, GF_MOVE);
 	movem_ex3(0);
 	addcycles_ce020 (8 - 2);
-	start_brace ();
 	if (using_mmu == 68030) {
 		movem_mmu030 (getcode, size, false, table68k[opcode].dmode == Aipi, false);
 	} else if (using_mmu == 68060) {
@@ -4133,7 +4092,6 @@ static void genmovemel_ce (uae_u16 opcode)
 		addcycles000(2);
 	genamode(NULL, table68k[opcode].dmode, "dstreg", table68k[opcode].size, "src", 2, -1, GF_AA | GF_MOVE);
 	movem_ex3(0);
-	start_brace();
 	if (table68k[opcode].size == sz_long) {
 		out("while (dmask) {\n");
 		out("uae_u32 v = (%s(srca) << 16) | (m68k_dreg(regs, movem_index1[dmask]) & 0xffff);\n", srcw);
@@ -4203,7 +4161,6 @@ static void genmovemle (uae_u16 opcode)
 	out("uae_u16 mask = %s;\n", gen_nextiword (0));
 	genamode (NULL, table68k[opcode].dmode, "dstreg", table68k[opcode].size, "src", 2, mmu040_special_movem (opcode) ? 3 : 1, GF_MOVE);
 	addcycles_ce020 (4 - 2);
-	start_brace ();
 	if (using_mmu >= 68030) {
 		if (table68k[opcode].dmode == Apdi)
 			out("uae_u16 amask = mask & 0xff, dmask = (mask >> 8) & 0xff;\n");
@@ -4277,7 +4234,6 @@ static void genmovemle_ce (uae_u16 opcode)
 	if (table68k[opcode].dmode == Ad8r || table68k[opcode].dmode == PC8r)
 		addcycles000 (2);
 	genamode (NULL, table68k[opcode].dmode, "dstreg", table68k[opcode].size, "src", 2, 1, GF_AA | GF_MOVE | GF_REVERSE | GF_REVERSE2);
-	start_brace ();
 	if (table68k[opcode].size == sz_long) {
 		if (table68k[opcode].dmode == Apdi) {
 			out("uae_u16 amask = mask & 0xff, dmask = (mask >> 8) & 0xff;\n");
@@ -5423,7 +5379,6 @@ static void gen_opcode (unsigned int opcode)
 		}
 		if (isreg (curi->smode) && curi->size == sz_long)
 			addcycles000 (2);
-		start_brace ();
 		if (curi->smode != Dreg) {
 			genastore_rev("newv", curi->smode, "srcreg", curi->size, "src");
 		}
@@ -5564,7 +5519,6 @@ static void gen_opcode (unsigned int opcode)
 		}
 		if (isreg (curi->smode) && curi->size == sz_long)
 			addcycles000 (2);
-		start_brace ();
 		if (curi->smode != Dreg) {
 			genastore_rev("dst", curi->smode, "srcreg", curi->size, "src");
 		}
@@ -6197,7 +6151,6 @@ static void gen_opcode (unsigned int opcode)
 		} else if (cpu_level == 1 && using_prefetch) {
 			// 68010
 			// Read SR, Read Format, Read PC high, Read PC low.
-			int old_brace_level = n_braces;
 			out("uaecptr oldpc = %s;\n", getpc);
 			out("uae_u16 newsr;\n");
 			out("uae_u32 newpc;\n");
@@ -6229,7 +6182,6 @@ static void gen_opcode (unsigned int opcode)
 			out("pc |= %s(a + 2 + 2); \n", srcw);
 			count_read++;
 			check_bus_error("", 4, 0, 1, NULL, 1);
-		    pop_braces (old_brace_level);
 			out("regs.sr = sr;\n");
 			makefromsr();
 			out("if (pc & 1) {\n");
@@ -6244,7 +6196,6 @@ static void gen_opcode (unsigned int opcode)
 			}
 			check_ipl ();
 		} else {
-		    int old_brace_level = n_braces;
 			out("uaecptr oldpc = %s;\n", getpc);
 			out("uae_u16 newsr; uae_u32 newpc;\n");
 			out("for (;;) {\n");
@@ -6328,7 +6279,6 @@ static void gen_opcode (unsigned int opcode)
 		    out("regs.sr = newsr;\n");
 			makefromsr_t0();
 			out("}\n");
-		    pop_braces (old_brace_level);
 		    out("regs.sr = newsr;\n");
 			addcycles_ce020 (4);
 			makefromsr_t0();
@@ -6591,7 +6541,6 @@ static void gen_opcode (unsigned int opcode)
 			// possible idle cycle, prefetch from new address, stack high return addr, stack low, prefetch
 			no_prefetch_ce020 = true;
 			genamode(curi, curi->smode, "srcreg", curi->size, "src", 0, 0, GF_AA | GF_NOREFILL);
-			start_brace();
 			out("uaecptr oldpc = %s;\n", getpc);
 			out("uaecptr nextpc = oldpc + %d;\n", m68k_pc_offset);
 			if (using_exception_3 && cpu_level <= 1) {
@@ -7766,7 +7715,6 @@ bccl_not68020:
 		break;
 	case i_CAS:
 		{
-			int old_brace_level;
 			genamode (curi, curi->smode, "srcreg", curi->size, "src", 1, 0, GF_LRMW);
 			genamode (curi, curi->dmode, "dstreg", curi->size, "dst", 1, 0, GF_LRMW);
 			if (cpu_level == 5 && curi->size > 0) {
@@ -7779,18 +7727,13 @@ bccl_not68020:
 				out("}\n");
 			}
 			fill_prefetch_0 ();
-			start_brace();
 			out("int ru = (src >> 6) & 7;\n");
 			out("int rc = src & 7;\n");
 			genflags (flag_cmp, curi->size, "newv", "m68k_dreg(regs, rc)", "dst");
 			gen_set_fault_pc (false, true);
 			out("if (GET_ZFLG ()) {\n");
-			old_brace_level = n_braces;
-			start_brace();
 			genastore_cas ("(m68k_dreg(regs, ru))", curi->dmode, "dstreg", curi->size, "dst");
-			pop_braces(old_brace_level);
 			out("} else {\n");
-			start_brace();
 			get_prefetch_020 ();
 			if (cpu_level >= 4) {
 				// apparently 68040/060 needs to always write at the end of RMW cycle
@@ -7809,7 +7752,6 @@ bccl_not68020:
 				break;
 			}
 			out("}\n");
-			pop_braces(old_brace_level);
 			trace_t0_68040_only();
 		}
 		break;
@@ -7818,17 +7760,16 @@ bccl_not68020:
 		out("uae_u32 rn1 = regs.regs[(extra >> 28) & 15];\n");
 		out("uae_u32 rn2 = regs.regs[(extra >> 12) & 15];\n");
 		if (curi->size == sz_word) {
-			int old_brace_level = n_braces;
 			out("uae_u16 dst1 = %s(rn1), dst2 = %s(rn2);\n", srcwlrmw, srcwlrmw);
 			genflags(flag_cmp, curi->size, "newv", "m68k_dreg(regs, (extra >> 16) & 7)", "dst1");
-			out("if (GET_ZFLG ()) {\n");
+			out("if (GET_ZFLG()) {\n");
 			genflags(flag_cmp, curi->size, "newv", "m68k_dreg(regs, extra & 7)", "dst2");
-			out("if (GET_ZFLG ()) {\n");
+			out("if (GET_ZFLG()) {\n");
 			out("%s(rn1, m68k_dreg(regs, (extra >> 22) & 7));\n", dstwlrmw);
 			out("%s(rn2, m68k_dreg(regs, (extra >> 6) & 7));\n", dstwlrmw);
-			out("}}\n");
-			pop_braces(old_brace_level);
-			out("if (! GET_ZFLG ()) {\n");
+			out("}\n");
+			out("}\n");
+			out("if (!GET_ZFLG()) {\n");
 			if (cpu_level >= 4) {
 				// 68040: register update order swapped
 				out("m68k_dreg(regs, (extra >> 16) & 7) = (m68k_dreg(regs, (extra >> 16) & 7) & ~0xffff) | (dst1 & 0xffff);\n");
@@ -7839,17 +7780,16 @@ bccl_not68020:
 			}
 			out("}\n");
 		} else {
-			int old_brace_level = n_braces;
 			out("uae_u32 dst1 = %s(rn1), dst2 = %s(rn2);\n", srcllrmw, srcllrmw);
 			genflags(flag_cmp, curi->size, "newv", "m68k_dreg(regs, (extra >> 16) & 7)", "dst1");
-			out("if (GET_ZFLG ()) {\n");
+			out("if (GET_ZFLG()) {\n");
 			genflags(flag_cmp, curi->size, "newv", "m68k_dreg(regs, extra & 7)", "dst2");
-			out("if (GET_ZFLG ()) {\n");
+			out("if (GET_ZFLG()) {\n");
 			out("%s(rn1, m68k_dreg(regs, (extra >> 22) & 7));\n", dstllrmw);
 			out("%s(rn2, m68k_dreg(regs, (extra >> 6) & 7));\n", dstllrmw);
-			out("}}\n");
-			pop_braces(old_brace_level);
-			out("if (! GET_ZFLG ()) {\n");
+			out("}\n");
+			out("}\n");
+			out("if (!GET_ZFLG()) {\n");
 			if (cpu_level >= 4) {
 				// 68040: register update order swapped
 				out("m68k_dreg(regs, (extra >> 16) & 7) = dst1;\n");
@@ -7982,7 +7922,6 @@ bccl_not68020:
 
 			genamode (curi, curi->smode, "srcreg", curi->size, "extra", 1, 0, 0);
 			genamode (curi, curi->dmode, "dstreg", sz_long, "dst", 2, 0, 0);
-			start_brace ();
 			out("uae_u32 bdata[2];\n");
 			out("uae_s32 offset = extra & 0x800 ? m68k_dreg(regs, (extra >> 6) & 7) : (extra >> 6) & 0x1f;\n");
 			out("int width = (((extra & 0x20 ? m68k_dreg(regs, extra & 7) : extra) -1) & 0x1f) +1;\n");
@@ -8195,7 +8134,6 @@ bccl_not68020:
 	case i_FBcc:
 		fpulimit();
 		sync_m68k_pc ();
-		start_brace ();
 		out("uaecptr pc = %s;\n", getpc);
 		genamode (curi, curi->dmode, "srcreg", curi->size, "extra", 1, 0, 0);
 		sync_m68k_pc ();
@@ -8359,7 +8297,6 @@ end:
 	loopmode_stop();
 	if (!genastore_done)
 		returntail (0);
-	finish_braces ();
 	if (set_fpulimit) {
 		out("\n#endif\n");
 	}
