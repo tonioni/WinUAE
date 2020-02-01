@@ -39,6 +39,8 @@ ENUMDECL {
 	MAX_OPCODE_FAMILY
 } ENUMNAME (instrmnem);
 
+#define MNEMOFLAG_LOOPMODE 2
+
 struct mnemolookup {
     instrmnem mnemo;
     const TCHAR *name;
