@@ -294,6 +294,22 @@ oob:
 	return dummy_memory;
 }
 
+void do_cycles_test(int cycles)
+{
+	if (!testing_active)
+		return;
+	cpu_cycles += cycles;
+}
+
+static void add_memory_cycles(int c)
+{
+	if (!testing_active)
+		return;
+	if (trace_store_pc != 0xffffffff)
+		return;
+	cpu_cycles += c * 4;
+}
+
 static void check_bus_error(uaecptr addr, int write, int fc)
 {
 	if (!testing_active)
@@ -319,14 +335,6 @@ static void check_bus_error(uaecptr addr, int write, int fc)
 	}
 }
 
-static void add_memory_cycles(int c)
-{
-	if (!testing_active)
-		return;
-	if (trace_store_pc != 0xffffffff)
-		return;
-	cpu_cycles += c * 4;
-}
 
 static uae_u8 get_ibyte_test(uaecptr addr)
 {
@@ -691,13 +699,6 @@ void ipl_fetch(void)
 int intlev(void)
 {
 	return 0;
-}
-
-void do_cycles_test(int cycles)
-{
-	if (!testing_active)
-		return;
-	cpu_cycles += cycles;
 }
 
 uae_u32(*x_get_long)(uaecptr);
@@ -3550,8 +3551,8 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 						uae_u8 *ao = opcode_memory_ptr + 2;
 						uae_u16 apw1 = (ao[0] << 8) | (ao[1] << 0);
 						uae_u16 apw2 = (ao[2] << 8) | (ao[3] << 0);
-						if (opc == 0x4ef8
-							&& apw1 == 0x0000
+						if (opc == 0x4662
+							// && apw1 == 0x0000
 							//&& apw2 == 0x7479
 							)
 							printf("");

@@ -11,6 +11,37 @@
 	.globl _testexit
 	.globl _get_cpu_model
 	.globl sync
+	.globl _uae_command
+
+_uae_command:
+	move.l 4(sp),a0
+	movem.l d2-d3/a2-a3/a6,-(sp)
+	move.l 4.w,a6
+	move.l a0,a2
+	lea uaeres(pc),a1
+	jsr -0x1f2(a6) | OpenResource
+	tst.l d0
+	beq.s .nores
+	move.l d0,a6
+	lea uaefuncname(pc),a0
+	jsr -6(a6)
+	move.l d0,a0
+	clr.l -(sp)
+	clr.l -(sp)
+	move.l #100,-(sp)
+	move.l a2,-(sp)
+	move.l #-1,-(sp)
+	move.l #82,-(sp)
+	jsr (a0)
+	add.w #6*4,sp
+.nores:
+	movem.l (sp)+,d2-d3/a2-a3/a6
+	rts
+
+uaeres:
+	.asciz "uae.resource"
+uaefuncname:
+	.asciz "uaelib_demux"
 
 sync:
 	move.b 0xdff006,d0

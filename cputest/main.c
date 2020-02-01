@@ -138,6 +138,7 @@ static short cycles, cycles_range, cycles_adjust;
 static short gotcycles;
 static short interrupttest;
 static uae_u32 cyclecounter_addr;
+static short uae;
 #ifdef AMIGA
 static short interrupt_count;
 static uae_u16 main_intena;
@@ -518,6 +519,34 @@ static uae_u8 *parse_gzip(uae_u8 *gzbuf, int *sizep)
 #define INFLATE_STACK_SIZE 3000
 static uae_u8 *inflatestack;
 
+#ifdef AMIGA
+extern void uae_command(char*);
+#endif
+
+static int set_berr(int mask, int ask)
+{
+#ifdef AMIGA
+	if (uae) {
+		if (!mask) {
+			sprintf(tmpbuffer, "dbg \"w 0\"");
+		} else {
+			sprintf(tmpbuffer, "dbg \"w 0 %08x %08x BE%s%s%s\"", (uae_u32)safe_memory_start, safe_memory_end - safe_memory_start, (mask & 1) ? "R" : "", (mask & 2) ? "W" : "", (mask & 4) ? "P" : "");
+		}
+		uae_command(tmpbuffer);
+		return 0;
+	}
+#endif
+	if (!ask) {
+		return 0;
+	}
+	if (mask) {
+		printf("Re-enable write bus error mode and press any key (ESC=abort)\n");
+	} else {
+		printf("Disable write bus error mode and press any key (SPACE=skip,ESC=abort)\n");
+	}
+	return getchar();
+}
+
 static uae_u8 *load_file(const char *path, const char *file, uae_u8 *p, int *sizep, int exiterror, int candirect)
 {
 	char fname[256];
@@ -641,8 +670,7 @@ static uae_u8 *load_file(const char *path, const char *file, uae_u8 *p, int *siz
 				}
 				readdata(tmp, size2, f, unpack, &unpackoffset);
 				if (memcmp(tmp, p, size2)) {
-					printf("Disable write bus error mode and press any key (SPACE=skip,ESC=abort)\n");
-					int ch = getchar();
+					int ch = set_berr(0, 1);
 					if (ch == 27) {
 						exit(0);
 					} else if (ch == 32) {
@@ -653,8 +681,8 @@ static uae_u8 *load_file(const char *path, const char *file, uae_u8 *p, int *siz
 						memcpy(p, tmp, size2);
 						p += size2;
 						size -= size2;
-						printf("Re-enable write bus error mode and press any key (ESC=abort)\n");
-						if (getchar() == 27) {
+						ch = set_berr(2, 1);
+						if (ch == 27) {
 							exit(0);
 						}
 					}
@@ -1798,6 +1826,15 @@ static int check_cycles(int exc, int extratrace)
 	} else {
 #ifdef AMIGA
 		gotcycles = get_cycles_amiga();
+		// if write bus error, decrease cycles by 2. Tester hardware side-effect.
+		if (exc == 2) {
+			if (cpu_lvl == 0 && (last_exception[1] & 0x10) == 0) {
+				gotcycles -= 2;
+			}
+			if (cpu_lvl == 1 && (last_exception[8] & 0x01) == 0) {
+				gotcycles -= 2;
+			}
+		}
 #else
 		end_test();
 		printf("No cycle count support\n");
@@ -2329,6 +2366,10 @@ static void process_test(uae_u8 *p)
 	regs.dstaddr = 0xffffffff;
 	regs.branchtarget = 0xffffffff;
 
+	if (safe_memory_mode) {
+		set_berr(safe_memory_mode, 0);
+	}
+
 	endpc = opcode_memory_addr;
 	startpc = opcode_memory_addr;
 	start_test();
@@ -2590,6 +2631,7 @@ static void process_test(uae_u8 *p)
 
 end:
 	end_test();
+	set_berr(0, 0);
 
 	if (infoadded) {
 		printf("\n");
@@ -2985,6 +3027,8 @@ int main(int argc, char *argv[])
 				cyclecounter_addr = getparamval(next);
 				cycles = 1;
 			}
+		} else if (!_stricmp(s, "-uae")) {
+			uae = 1;
 		}
 	}
 
