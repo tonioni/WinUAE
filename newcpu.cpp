@@ -2451,6 +2451,15 @@ Interrupt:
 - 2 idle cycles
 - prefetch
 
+68010:
+
+...
+- write SR
+- write PC high word
+- write frame format
+- read exception address high word
+...
+
 */
 
 static void exception3f(uae_u32 opcode, uaecptr addr, bool writeaccess, bool instructionaccess, bool notinstruction, uaecptr pc, int size, bool plus2, int fc);
@@ -2486,7 +2495,7 @@ static void Exception_ce000 (int nr)
 		if (nr == 7) // TRAPV
 			start = 0;
 		else if (nr == 2 || nr == 3)
-			start = 8;
+			start = 4 + 8;
 	}
 
 	if (start)
@@ -2586,6 +2595,8 @@ kludge_me_do:
 		cpu_halt(CPU_HALT_DOUBLE_FAULT);
 		return;
 	}
+	if (interrupt)
+		regs.intmask = nr - 24;
 	newpc = x_get_word (regs.vbr + 4 * vector_nr) << 16; // read high address
 	newpc |= x_get_word (regs.vbr + 4 * vector_nr + 2); // read low address
 	exception_in_exception = 0;
@@ -2601,7 +2612,12 @@ kludge_me_do:
 			regs.t1 = 0;
 			MakeSR();
 			m68k_setpc(regs.vbr + 4 * vector_nr);
-			exception3_read(regs.ir | 0x40000, newpc, 1, 2);
+			if (interrupt) {
+				regs.ir = nr;
+				exception3_read(regs.ir | 0x20000 | 0x10000, newpc, 1, 2);
+			} else {
+				exception3_read(regs.ir | 0x40000, newpc, 1, 2);
+			}
 		} else if (currprefs.cpu_model == 68010) {
 			// offset, not vbr + offset
 			regs.t1 = 0;
@@ -2616,8 +2632,6 @@ kludge_me_do:
 		return;
 	}
 	m68k_setpc (newpc);
-	if (interrupt)
-		regs.intmask = nr - 24;
 	branch_stack_push(currpc, currpc);
 	regs.ir = x_get_word (m68k_getpc ()); // prefetch 1
 #if HARDWARE_BUS_ERROR_EMULATION
@@ -3032,12 +3046,10 @@ static void Exception_normal (int nr)
 				x_put_word (m68k_areg (regs, 7), 0x1000 + vector_nr * 4);
 			}
 		} else {
-			add_approximate_exception_cycles(nr);
 			Exception_build_stack_frame_common(oldpc, currpc, regs.mmu_ssw, nr);
 			used_exception_build_stack_frame = true;
 		}
  	} else {
-		add_approximate_exception_cycles(nr);
 		nextpc = m68k_getpc ();
 		if (nr == 2 || nr == 3) {
 			// 68000 bus/address error
@@ -3064,6 +3076,8 @@ kludge_me_do:
 		cpu_halt(CPU_HALT_DOUBLE_FAULT);
 		return;
 	}
+	if (interrupt)
+		regs.intmask = nr - 24;
 	newpc = x_get_long (regs.vbr + 4 * vector_nr);
 	exception_in_exception = 0;
 	if (newpc & 1) {
@@ -3071,11 +3085,17 @@ kludge_me_do:
 			cpu_halt(CPU_HALT_DOUBLE_FAULT);
 			return;
 		}
+		x_do_cycles(adjust_cycles(6 * 4 * CYCLE_UNIT / 2));
 		if (currprefs.cpu_model == 68000) {
 			regs.t1 = 0;
 			MakeSR();
 			m68k_setpc(regs.vbr + 4 * vector_nr);
-			exception3_read(regs.ir | 0x40000, newpc, 1, 2);
+			if (interrupt) {
+				regs.ir = nr;
+				exception3_read(regs.ir | 0x20000 | 0x10000, newpc, 1, 2);
+			} else {
+				exception3_read(regs.ir | 0x40000, newpc, 1, 2);
+			}
 		} else if (currprefs.cpu_model == 68010) {
 			regs.t1 = 0;
 			MakeSR();
@@ -3088,8 +3108,7 @@ kludge_me_do:
 		}
 		return;
 	}
-	if (interrupt)
-		regs.intmask = nr - 24;
+	add_approximate_exception_cycles(nr);
 	m68k_setpc (newpc);
 	cache_default_data &= ~CACHE_DISABLE_ALLOCATE;
 #ifdef JIT
@@ -7024,7 +7043,7 @@ void exception3_read(uae_u32 opcode, uaecptr addr, int size, int fc)
 		opcode = regs.ir;
 	}
 	last_di_for_exception_3 = 1;
-	exception3f (opcode, addr, false, ia, ni, 0xffffffff, size, false, fc);
+	exception3f(opcode, addr, false, ia, ni, 0xffffffff, size, false, fc);
 }
 void exception3_write(uae_u32 opcode, uaecptr addr, int size, uae_u32 val, int fc)
 {
@@ -7042,7 +7061,7 @@ void exception3_write(uae_u32 opcode, uaecptr addr, int size, uae_u32 val, int f
 		opcode = regs.ir;
 	}
 	last_di_for_exception_3 = 1;
-	exception3f (opcode, addr, true, ia, ni, 0xffffffff, size, false, fc);
+	exception3f(opcode, addr, true, ia, ni, 0xffffffff, size, false, fc);
 	regs.write_buffer = val;
 }
 void exception3i(uae_u32 opcode, uaecptr addr)

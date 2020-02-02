@@ -137,6 +137,7 @@ static int exitcnt;
 static short cycles, cycles_range, cycles_adjust;
 static short gotcycles;
 static short interrupttest;
+static short randomizetest;
 static uae_u32 cyclecounter_addr;
 static short uae;
 #ifdef AMIGA
@@ -1383,7 +1384,7 @@ static void out_regs(struct registers *r, int before)
 
 }
 
-static void hexdump(uae_u8 *p, int len)
+static void hexdump(uae_u8 *p, int len, short lf)
 {
 	for (int i = 0; i < len; i++) {
 		if (i > 0)
@@ -1391,7 +1392,8 @@ static void hexdump(uae_u8 *p, int len)
 		sprintf(outbp, "%02x", p[i]);
 		outbp += strlen(outbp);
 	}
-	*outbp++ = '\n';
+	if (lf)
+		*outbp++ = '\n';
 }
 
 static uae_u8 last_exception[256], last_exception_extra;
@@ -1418,7 +1420,7 @@ static int compare_exception(uae_u8 *s1, uae_u8 *s2, int len, int domask, uae_u8
 	}
 }
 
-static uae_u8 *validate_exception(struct registers *regs, uae_u8 *p, short excnum, short *gotexcnum, short *experr, short *extratrace)
+static uae_u8 *validate_exception(struct registers *regs, uae_u8 *p, short excnum, short *gotexcnum, short *experr, short *extratrace, short *group2with1)
 {
 	int exclen = 0;
 	uae_u8 *exc;
@@ -1438,8 +1440,12 @@ static uae_u8 *validate_exception(struct registers *regs, uae_u8 *p, short excnu
 	if (excdatalen != 0xff) {
 		// check possible extra trace
 		last_exception_extra = *p++;
-		if ((last_exception_extra & 0x7f) == 9) {
-			exceptioncount[0][last_exception_extra & 0x7f]++;
+		if (last_exception_extra & 0x40) {
+			*group2with1 = *p++;
+			last_exception_extra &= ~0x40;
+		}
+		if ((last_exception_extra & 0x3f) == 9) {
+			exceptioncount[0][last_exception_extra & 0x3f]++;
 			uae_u32 ret = (regs->tracedata[1] << 16) | regs->tracedata[2];
 			uae_u16 sr = regs->tracedata[0];
 			if (regs->tracecnt == 0) {
@@ -1692,10 +1698,10 @@ static uae_u8 *validate_exception(struct registers *regs, uae_u8 *p, short excnu
 		outbp += strlen(outbp);
 		strcpy(outbp, "Expected: ");
 		outbp += strlen(outbp);
-		hexdump(exc, exclen);
+		hexdump(exc, exclen, 1);
 		strcpy(outbp, "Got     : ");
 		outbp += strlen(outbp);
-		hexdump(sp, exclen);
+		hexdump(sp, exclen, 1);
 		*experr = 1;
 	}
 	exception_stored = exclen;
@@ -1709,7 +1715,7 @@ static int getexceptioncycles(int exc)
 		{
 		case 2:
 		case 3:
-			return 56;
+			return 60;
 		case 4:
 		case 5:
 		case 6:
@@ -1812,7 +1818,7 @@ static int get_cycles_amiga(void)
 }
 #endif
 
-static int check_cycles(int exc, int extratrace)
+static int check_cycles(int exc, short extratrace, short extrag2w1)
 {
 	int gotcycles = 0;
 
@@ -1880,6 +1886,19 @@ static int check_cycles(int exc, int extratrace)
 	if (extratrace) {
 		expectedcycles += getexceptioncycles(9);
 	}
+	// address error during group 2 exception stacking (=odd exception vector)
+	if (extrag2w1) {
+		// 4 idle, write pc low, write sr, write pc high, read vector high, read vector low
+		expectedcycles += 6 * 4;
+		if (cpu_lvl == 1) {
+			// 68010: frame type
+			expectedcycles += 4;
+		}
+		if (extrag2w1 >= 24 && extrag2w1 < 24 + 8) {
+			// interrupt
+			expectedcycles += 2 + 4 + 4;
+		}
+	}
 
 	if (0 || abs(gotcycles - expectedcycles) > cycles_range) {
 		addinfo();
@@ -1942,6 +1961,7 @@ static uae_u8 *validate_test(uae_u8 *p, short ignore_errors, short ignore_sr)
 	int errflag = 0;
 	int errflag_orig = 0;
 	short extratrace = 0;
+	short extrag2w1 = 0;
 	short exceptionnum = 0;
 	uae_u8 *outbp_old = outbp;
 	exception_stored = 0;
@@ -1970,7 +1990,7 @@ static uae_u8 *validate_test(uae_u8 *p, short ignore_errors, short ignore_sr)
 			}
 			if (ignore_errors) {
 				if (exc) {
-					p = validate_exception(&test_regs, p, exc, &cpuexc, &experr, &extratrace);
+					p = validate_exception(&test_regs, p, exc, &cpuexc, &experr, &extratrace, &extrag2w1);
 				}
 				errflag_orig |= errflag;
 				errflag = 0;
@@ -1986,7 +2006,7 @@ static uae_u8 *validate_test(uae_u8 *p, short ignore_errors, short ignore_sr)
 				break;
 			}
 			if (exc) {
-				p = validate_exception(&test_regs, p, exc, &cpuexc, &experr, &extratrace);
+				p = validate_exception(&test_regs, p, exc, &cpuexc, &experr, &extratrace, &extrag2w1);
 				if (experr) {
 					errflag |= 1 << 16;
 					errflag_orig |= errflag;
@@ -2253,7 +2273,7 @@ static uae_u8 *validate_test(uae_u8 *p, short ignore_errors, short ignore_sr)
 					outbp += strlen(outbp);
 				}
 			} else {
-				if (!check_cycles(exc, extratrace)) {
+				if (!check_cycles(exc, extratrace, extrag2w1)) {
 					errflag |= 1 << 8;
 				}
 			}
@@ -2285,10 +2305,13 @@ static uae_u8 *validate_test(uae_u8 *p, short ignore_errors, short ignore_sr)
 				sprintf(outbp, "OK: exception %d ", exc);
 				outbp += strlen(outbp);
 				if (exception_stored) {
-					hexdump(last_exception, exception_stored);
-				} else {
-					*outbp++ = '\n';
+					hexdump(last_exception, exception_stored, 0);
 				}
+				if (extrag2w1) {
+					sprintf(outbp, " (+EXC %d)", extrag2w1);
+					outbp += strlen(outbp);
+				}
+				*outbp++ = '\n';
 			}
 			if ((exc == 3 || exc == 2) && cpu_lvl == 0) {
 				sprintf(outbp, "RW=%d IN=%d FC=%d\n",
@@ -2352,6 +2375,17 @@ static void clear_interrupt(void)
 	*intreq = 0x7fff;
 }
 #endif
+
+static uae_u32 xorshiftstate;
+static uae_u32 xorshift32(void)
+{
+	uae_u32 x = xorshiftstate;
+	x ^= x << 13;
+	x ^= x >> 17;
+	x ^= x << 5;
+	xorshiftstate = x;
+	return xorshiftstate;
+}
 
 static void process_test(uae_u8 *p)
 {
@@ -2610,6 +2644,11 @@ static void process_test(uae_u8 *p)
 #endif
 			}
 
+			if (randomizetest) {
+				;
+			}
+
+
 			if (*p == CT_END) {
 				p++;
 				break;
@@ -2697,6 +2736,7 @@ static int test_mnemo(const char *opcode)
 	interrupt_mask = (lvl_mask >> 20) & 7;
 	addressing_mask = (lvl_mask & 0x80000000) ? 0xffffffff : 0x00ffffff;
 	interrupttest = (lvl_mask >> 26) & 1;
+	randomizetest = (lvl_mask >> 28) & 1;
 	sr_undefined_mask = lvl_mask & 0xffff;
 	safe_memory_mode = (lvl_mask >> 23) & 3;
 	fpu_model = read_u32(headerfile, &headoffset);

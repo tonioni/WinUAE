@@ -73,6 +73,7 @@ static int feature_flag_mode = 0;
 static int feature_usp = 0;
 static int feature_exception_vectors = 0;
 static int feature_interrupts = 0;
+static int feature_randomize = 0;
 static TCHAR *feature_instruction_size = NULL;
 static uae_u32 feature_addressing_modes[2];
 static int feature_gzip = 0;
@@ -126,7 +127,7 @@ static int test_exception;
 static int test_exception_extra;
 static int exception_stack_frame_size;
 static uae_u8 exception_extra_frame[100];
-static int exception_extra_frame_size;
+static int exception_extra_frame_size, exception_extra_frame_type;
 static uaecptr test_exception_addr;
 static int test_exception_3_w;
 static int test_exception_3_fc;
@@ -986,6 +987,7 @@ static void doexcstack(void)
 	if (!feature_exception_vectors)
 		return;
 
+	int interrupt = test_exception >= 24 && test_exception < 24 + 8;
 	int original_exception = test_exception;
 	// odd exception vector
 	test_exception = 3;
@@ -994,6 +996,7 @@ static void doexcstack(void)
 	// store original exception stack (which may not be complete)
 	uae_u8 *sf = test_memory + test_memory_size + EXTRA_RESERVED_SPACE - exception_stack_frame_size;
 	exception_extra_frame_size = exception_stack_frame_size;
+	exception_extra_frame_type = original_exception;
 	memcpy(exception_extra_frame, sf, exception_extra_frame_size);
 
 	MakeSR();
@@ -1011,6 +1014,12 @@ static void doexcstack(void)
 		regs.read_buffer = regs.irc;
 		// vector offset (not vbr + offset)
 		regs.write_buffer = original_exception * 4;
+	}
+
+	if (interrupt) {
+		regs.intmask = original_exception - 24;
+		regs.ir = original_exception;
+		flags |= 0x10000 | 0x20000;
 	}
 
 	exception3_read(regs.ir | flags, test_exception_addr, 1, 2);
@@ -1661,7 +1670,7 @@ static void save_data(uae_u8 *dst, const TCHAR *dir)
 		pl(data, opcode_memory_start);
 		fwrite(data, 1, 4, f);
 		pl(data, (cpu_lvl << 16) | sr_undefined_mask | (addressing_mask == 0xffffffff ? 0x80000000 : 0) |
-			(feature_min_interrupt_mask << 20) | (safe_memory_mode << 23) | (feature_interrupts << 26));
+			(feature_min_interrupt_mask << 20) | (safe_memory_mode << 23) | (feature_interrupts << 26) | (feature_randomize << 28));
 		fwrite(data, 1, 4, f);
 		pl(data, currprefs.fpu_model);
 		fwrite(data, 1, 4, f);
@@ -2763,6 +2772,7 @@ static void execute_ins(uaecptr endpc, uaecptr targetpc, struct instr *dp)
 	regs.read_buffer = regs.irc;
 	regs.write_buffer = 0xf00d;
 	exception_extra_frame_size = 0;
+	exception_extra_frame_type = 0;
 	cpu_cycles = 0;
 	regs.loop_mode = 0;
 
@@ -2988,7 +2998,11 @@ static uae_u8 *save_exception(uae_u8 *p, struct instr *dp)
 {
 	uae_u8 *op = p;
 	p++;
-	*p++ = test_exception_extra;
+	*p++ = test_exception_extra | (exception_extra_frame_type ? 0x40 : 0x00);
+	// bus/address error aborted group 2 exception
+	if (exception_extra_frame_type) {
+		*p++ = exception_extra_frame_type;
+	}
 	// Separate, non-stacked Trace
 	if (test_exception_extra & 0x80) {
 		*p++ = trace_store_sr >> 8;
@@ -4057,10 +4071,18 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 								if (feature_exception3_instruction == 2) {
 									skipped = 1;
 								}
-								if (feature_usp == 2) {
+								if (feature_exception_vectors) {
 									skipped = 1;
 								}
-								if (feature_exception_vectors) {
+							}
+
+							if (feature_usp == 2) {
+								// need exception 3
+								if (test_exception != 3) {
+									skipped = 1;
+								}
+								// need also extra exception
+								if (!exception_extra_frame_type) {
 									skipped = 1;
 								}
 							}
@@ -4769,6 +4791,8 @@ static int test(struct ini_data *ini, const TCHAR *sections, const TCHAR *testna
 	ini_getvalx(ini, sections, _T("feature_exception_vectors"), &feature_exception_vectors);
 	feature_interrupts = 0;
 	ini_getvalx(ini, sections, _T("feature_interrupts"), &feature_interrupts);
+	feature_randomize = 0;
+	ini_getvalx(ini, sections, _T("feature_randomize"), &feature_randomize);
 
 	feature_full_extension_format = 0;
 	if (currprefs.cpu_model >= 68020) {
@@ -5130,7 +5154,7 @@ static int test(struct ini_data *ini, const TCHAR *sections, const TCHAR *testna
 
 			if (verbose == 1)
 				verbose = 0;
-			for (int j = 1; lookuptab[j].name; j++) {
+			for (int j = 1; lookuptab[j].name[0]; j++) {
 				test_mnemo_text(path, lookuptab[j].name);
 			}
 			// Illegal instructions last. All currently selected CPU model's unsupported opcodes

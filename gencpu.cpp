@@ -6032,6 +6032,7 @@ static void gen_opcode (unsigned int opcode)
 		gen_set_fault_pc (false, true);
 		sync_m68k_pc();
 		out("Exception_cpu(src + 32);\n");
+		write_return_cycles_noadd(0);
 		did_prefetch = 1;
 		clear_m68k_offset();
 		break;
@@ -6164,6 +6165,11 @@ static void gen_opcode (unsigned int opcode)
 			out("uae_u16 format = %s(a + 2 + 4);\n", srcw);
 			count_read++;
 			check_bus_error("", 6, 0, 1, NULL, 1);
+
+			out("uae_u32 pc = %s(a + 2) << 16;\n", srcw);
+			count_read++;
+			check_bus_error("", 2, 0, 1, NULL, 1);
+
 			out("int frame = format >> 12;\n");
 			out("int offset = 8;\n");
 			out("if (frame == 0x0) {\n");
@@ -6178,9 +6184,6 @@ static void gen_opcode (unsigned int opcode)
 			write_return_cycles(0);
 			out("}\n");
 
-			out("uae_u32 pc = %s(a + 2) << 16;\n", srcw);
-			count_read++;
-			check_bus_error("", 2, 0, 1, NULL, 1);
 			out("pc |= %s(a + 2 + 2); \n", srcw);
 			count_read++;
 			check_bus_error("", 4, 0, 1, NULL, 1);
