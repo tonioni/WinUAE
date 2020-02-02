@@ -3395,7 +3395,6 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 		return 1;
 	}
 
-
 #ifdef GFXFILTER
 	for (int j = 0; j < 2; j++) {
 		struct gfx_filterdata *gf = &p->gf[j];
@@ -7372,7 +7371,8 @@ uae_u32 cfgfile_modify (uae_u32 index, const TCHAR *parms, uae_u32 size, TCHAR *
 	uae_u32 err;
 	static TCHAR *configsearch;
 
-	*out = 0;
+	if (out)
+		*out = 0;
 	err = 0;
 	argv = 0;
 	p = 0;
