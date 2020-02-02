@@ -1499,10 +1499,13 @@ static int drive_insert (drive * drv, struct uae_prefs *p, int dnum, const TCHAR
 
 static void rand_shifter (drive *drv)
 {
-	int r = ((uaerand () >> 4) & 7) + 1;
+	if (selected & (1 << (drv - floppy)))
+		return;
+
+	int r = ((uaerand() >> 4) & 7) + 1;
 	while (r-- > 0) {
 		word <<= 1;
-		word |= (uaerand () & 0x1000) ? 1 : 0;
+		word |= (uaerand() & 0x1000) ? 1 : 0;
 		bitoffset++;
 		bitoffset &= 15;
 	}
@@ -4216,24 +4219,22 @@ void DSKLEN (uae_u16 v, int hpos)
 				}
 			}
 		}
-		if (!done && noselected) {
+		if (!done && noselected && amax_enabled) {
 			int bits = -1;
 			while (dsklength-- > 0) {
 				if (dskdmaen == DSKDMA_WRITE) {
-					uae_u16 w = chipmem_wget_indirect (dskpt);
+					uae_u16 w = chipmem_wget_indirect(dskpt);
 #ifdef AMAX
-					if (amax_enabled) {
-						amax_diskwrite (w);
-						if (w) {
-							for (int i = 0; i < 16; i++) {
-								if (w & (1 << i))
-									bits++;
-							}
+					amax_diskwrite(w);
+					if (w) {
+						for (int i = 0; i < 16; i++) {
+							if (w & (1 << i))
+								bits++;
 						}
 					}
 #endif
 				} else {
-					chipmem_wput_indirect (dskpt, 0);
+					chipmem_wput_indirect(dskpt, 0);
 				}
 				dskpt += 2;
 			}
@@ -4241,7 +4242,7 @@ void DSKLEN (uae_u16 v, int hpos)
 				// AMAX speedup hack
 				done = 1;
 			} else {
-				INTREQ (0x8000 | 0x1000);
+				INTREQ(0x8000 | 0x1000);
 				done = 2;
 			}
 		}
