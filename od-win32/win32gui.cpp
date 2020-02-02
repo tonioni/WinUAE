@@ -22172,9 +22172,9 @@ void gui_led (int led, int on, int brightness)
 	if (D3D_led)
 		D3D_led(led, on, brightness);
 #ifdef RETROPLATFORM
-	if (led >= LED_DF0 && led <= LED_DF3 && !gui_data.drive_disabled[led - LED_DF0]) {
-		rp_floppy_track (led - LED_DF0, gui_data.drive_track[led - LED_DF0]);
-		writing = gui_data.drive_writing[led - LED_DF0];
+	if (led >= LED_DF0 && led <= LED_DF3 && !gui_data.drives[led - LED_DF0].drive_disabled) {
+		rp_floppy_track(led - LED_DF0, gui_data.drives[led - LED_DF0].drive_track);
+		writing = gui_data.drives[led - LED_DF0].drive_writing;
 	}
 	rp_update_leds (led, on, brightness, writing);
 #endif
@@ -22184,11 +22184,11 @@ void gui_led (int led, int on, int brightness)
 	if (led >= LED_DF0 && led <= LED_DF3) {
 		pos = 7 + (led - LED_DF0);
 		ptr = drive_text + pos * LED_STRING_WIDTH;
-		if (gui_data.drive_disabled[led - 1])
+		if (gui_data.drives[led - 1].drive_disabled)
 			_tcscpy (ptr, _T(""));
 		else
-			_stprintf (ptr , _T("%02d"), gui_data.drive_track[led - 1]);
-		p = gui_data.df[led - 1];
+			_stprintf (ptr , _T("%02d"), gui_data.drives[led - 1].drive_track);
+		p = gui_data.drives[led - 1].df;
 		j = _tcslen (p) - 1;
 		if (j < 0)
 			j = 0;
@@ -22200,9 +22200,9 @@ void gui_led (int led, int on, int brightness)
 		tt = dfx[led - 1];
 		tt[0] = 0;
 		if (_tcslen (p + j) > 0)
-			_stprintf (tt, _T("%s [CRC=%08X]"), p + j, gui_data.crc32[led - 1]);
+			_stprintf (tt, _T("%s [CRC=%08X]"), p + j, gui_data.drives[led - 1].crc32);
 		center = 1;
-		if (gui_data.drive_writing[led - 1])
+		if (gui_data.drives[led - 1].drive_writing)
 			writing = 1;
 	} else if (led == LED_POWER) {
 		pos = 3;

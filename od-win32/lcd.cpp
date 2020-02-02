@@ -231,8 +231,8 @@ void lcd_update(int led, int on)
 	if (led >= 1 && led <= 4) {
 		x = 23 + (led - 1) * 40;
 		y = 17;
-		track = gui_data.drive_track[led - 1];
-		if (gui_data.drive_disabled[led - 1]) {
+		track = gui_data.drives[led - 1].drive_track;
+		if (gui_data.drives[led - 1].drive_disabled) {
 			track = -1;
 			on = 0;
 		}

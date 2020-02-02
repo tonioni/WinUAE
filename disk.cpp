@@ -668,11 +668,12 @@ static int drive_insert (drive * drv, struct uae_prefs *p, int dnum, const TCHAR
 
 static void reset_drive_gui (int num)
 {
-	gui_data.drive_disabled[num] = 0;
-	gui_data.df[num][0] = 0;
-	gui_data.crc32[num] = 0;
+	struct gui_info_drive *gid = &gui_data.drives[num];
+	gid->drive_disabled = 0;
+	gid->df[0] = 0;
+	gid->crc32 = 0;
 	if (currprefs.floppyslots[num].dfxtype < 0)
-		gui_data.drive_disabled[num] = 1;
+		gid->drive_disabled = 1;
 }
 
 static void setamax (void)
@@ -701,6 +702,15 @@ static bool ispcbridgedrive(int num)
 {
 	int type = currprefs.floppyslots[num].dfxtype;
 	return type == DRV_PC_525_ONLY_40 || type == DRV_PC_35_ONLY_80 || type == DRV_PC_525_40_80;
+}
+
+static bool drive_writeprotected(drive *drv)
+{
+#ifdef CATWEASEL
+	if (drv->catweasel)
+		return 1;
+#endif
+	return currprefs.floppy_read_only || drv->wrprot || drv->forcedwrprot || drv->diskfile == NULL;
 }
 
 static void reset_drive (int num)
@@ -748,25 +758,27 @@ static void update_drive_gui (int num, bool force)
 {
 	drive *drv = floppy + num;
 	bool writ = dskdmaen == DSKDMA_WRITE && drv->state && !((selected | disabled) & (1 << num));
+	struct gui_info_drive *gid = &gui_data.drives[num];
 
-	if (!force && drv->state == gui_data.drive_motor[num]
-		&& drv->cyl == gui_data.drive_track[num]
+	if (!force && drv->state == gid->drive_motor
+		&& drv->cyl == gid->drive_track
 		&& side == gui_data.drive_side
-		&& drv->crc32 == gui_data.crc32[num]
-		&& writ == gui_data.drive_writing[num]
-		&& !_tcscmp (gui_data.df[num], currprefs.floppyslots[num].df))
+		&& drv->crc32 == gid->crc32
+		&& writ == gid->drive_writing
+		&& drive_writeprotected(drv) == gid->floppy_protected
+		&& !_tcscmp (gid->df, currprefs.floppyslots[num].df))
 		return;
-	_tcscpy (gui_data.df[num], currprefs.floppyslots[num].df);
-	gui_data.crc32[num] = drv->crc32;
-	gui_data.drive_motor[num] = drv->state;
-	gui_data.drive_track[num] = drv->cyl;
+	_tcscpy (gid->df, currprefs.floppyslots[num].df);
+	gid->crc32 = drv->crc32;
+	gid->drive_motor = drv->state;
+	gid->drive_track = drv->cyl;
 	if (reserved & (1 << num))
 		gui_data.drive_side = reserved_side;
 	else
 		gui_data.drive_side = side;
-	gui_data.drive_writing[num] = writ;
-	//write_log(_T("%d %d\n"), num, (gui_data.drive_motor[num] ? 1 : 0) | (gui_data.drive_writing[num] ? 2 : 0));
-	gui_led (num + LED_DF0, (gui_data.drive_motor[num] ? 1 : 0) | (gui_data.drive_writing[num] ? 2 : 0), -1);
+	gid->drive_writing = writ;
+	gid->floppy_protected = drive_writeprotected(drv);
+	gui_led (num + LED_DF0, (gid->drive_motor ? 1 : 0) | (gid->drive_writing ? 2 : 0), -1);
 }
 
 static void drive_fill_bigbuf (drive * drv,int);
@@ -1579,16 +1591,6 @@ static int drive_track0 (drive * drv)
 		return catweasel_track0 (drv->catweasel);
 #endif
 	return drv->cyl == 0;
-}
-
-static int drive_writeprotected (drive * drv)
-{
-#ifdef CATWEASEL
-	if (drv->catweasel)
-		return 1;
-#endif
-	//write_log(_T("df%d: %d %d %d %x %s\n"), drv-&floppy[0],currprefs.floppy_read_only, drv->wrprot, drv->forcedwrprot, drv->diskfile, drv->diskfile ? zfile_getname(drv->diskfile) : _T("none"));
-	return currprefs.floppy_read_only || drv->wrprot || drv->forcedwrprot || drv->diskfile == NULL;
 }
 
 static int drive_running (drive * drv)
