@@ -55,7 +55,8 @@
 #define IVST500AT_IDE (ACCESSX_IDE + 2 * MAX_DUPLICATE_EXPANSION_BOARDS)
 #define TRIFECTA_IDE (IVST500AT_IDE + MAX_DUPLICATE_EXPANSION_BOARDS)
 #define TANDEM_IDE (TRIFECTA_IDE + MAX_DUPLICATE_EXPANSION_BOARDS)
-#define TOTAL_IDE (TANDEM_IDE + MAX_DUPLICATE_EXPANSION_BOARDS)
+#define DOTTO_IDE (TANDEM_IDE + MAX_DUPLICATE_EXPANSION_BOARDS)
+#define TOTAL_IDE (DOTTO_IDE + MAX_DUPLICATE_EXPANSION_BOARDS)
 
 #define ALF_ROM_OFFSET 0x0100
 #define GVP_IDE_ROM_OFFSET 0x8000
@@ -119,6 +120,7 @@ static struct ide_board *accessx_board[MAX_DUPLICATE_EXPANSION_BOARDS];
 static struct ide_board *ivst500at_board[MAX_DUPLICATE_EXPANSION_BOARDS];
 static struct ide_board *trifecta_board[MAX_DUPLICATE_EXPANSION_BOARDS];
 static struct ide_board *tandem_board[MAX_DUPLICATE_EXPANSION_BOARDS];
+static struct ide_board *dotto_board[MAX_DUPLICATE_EXPANSION_BOARDS];
 
 static struct ide_hdf *idecontroller_drive[TOTAL_IDE * 2];
 static struct ide_thread_state idecontroller_its;
@@ -953,6 +955,18 @@ static uae_u32 ide_read_byte(struct ide_board *board, uaecptr addr)
 			v = ide_irq_check(board->ide[0], false) ? 1 : 0;
 		}
 
+	} else if (board->type == DOTTO_IDE) {
+
+		int offset = addr;
+		v = board->rom[offset];
+		if (board->configured) {
+			int regnum = get_adide_reg(addr, board);
+			if (regnum >= 0) {
+				v = get_ide_reg(board, regnum);
+				v = adide_decode_word(v);
+			}
+		}
+
 	}
 
 	return v;
@@ -1235,6 +1249,24 @@ static uae_u32 ide_read_word(struct ide_board *board, uaecptr addr)
 				v = board->rom[(offset + 0) & board->rom_mask];
 				v <<= 8;
 				v |= board->rom[(offset + 1) & board->rom_mask];
+			}
+
+		} else if (board->type == DOTTO_IDE) {
+
+			int offset = addr;
+			v = board->rom[(offset + 0) & board->rom_mask];
+			v <<= 8;
+			v |= board->rom[(offset + 1) & board->rom_mask];
+			if (board->configured) {
+				int regnum = get_adide_reg(addr, board);
+				if (regnum >= 0) {
+					if (regnum == IDE_DATA) {
+						v = get_ide_reg(board, IDE_DATA);
+					} else {
+						v = get_ide_reg(board, regnum) << 8;
+						v = adide_decode_word(v);
+					}
+				}
 			}
 
 		}
@@ -1527,6 +1559,14 @@ static void ide_write_byte(struct ide_board *board, uaecptr addr, uae_u8 v)
 				put_ide_reg_multi(board, reg, v, portnum, 1);
 			}
 
+		} else if (board->type == DOTTO_IDE) {
+
+			if (board->configured) {
+				int regnum = get_adide_reg(addr, board);
+				v = adide_encode_word(v);
+				put_ide_reg(board, regnum, v);
+			}
+
 		}
 
 	}
@@ -1719,6 +1759,16 @@ static void ide_write_word(struct ide_board *board, uaecptr addr, uae_u16 v)
 			int reg = get_ivst500at_reg(addr, board, &portnum);
 			if (!reg || addr == 0 || addr == 2) {
 				put_ide_reg_multi(board, IDE_DATA, v, portnum, 1);
+			}
+
+		} else if (board->type == DOTTO_IDE) {
+
+			int regnum = get_adide_reg(addr, board);
+			if (regnum == IDE_DATA) {
+				put_ide_reg(board, IDE_DATA, v);
+			} else {
+				v = adide_encode_word(v);
+				put_ide_reg(board, regnum, v >> 8);
 			}
 		}
 	}
@@ -2814,6 +2864,40 @@ void tandem_add_ide_unit(int ch, struct uaedev_config_info *ci, struct romconfig
 {
 	add_ide_standard_unit(ch, ci, rc, tandem_board, TANDEM_IDE, false, false, 2);
 }
+
+bool dotto_init(struct autoconfig_info *aci)
+{
+	const struct expansionromtype *ert = get_device_expansion_rom(ROMTYPE_DOTTO);
+	ide_add_reset();
+
+	uae_u8 *rom = xcalloc(uae_u8, 65536);
+	load_rom_rc(aci->rc, ROMTYPE_DOTTO, 32768, 0, rom, 65536, LOADROM_EVENONLY_ODDONE);
+
+	if (!aci->doinit) {
+		memcpy(aci->autoconfig_raw, rom, sizeof aci->autoconfig_raw);
+		xfree(rom);
+		return true;
+	}
+	struct ide_board *ide = getide(aci);
+
+	ide->bank = &ide_bank_generic;
+	ide->mask = 65536 - 1;
+	ide->rom_size = 65536;
+	ide->rom_mask = 65536 - 1;
+	ide->keepautoconfig = false;
+
+	ide->rom = rom;
+	memcpy(ide->acmemory, ide->rom, sizeof ide->acmemory);
+
+	aci->addrbank = ide->bank;
+	return true;
+}
+
+void dotto_add_ide_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc)
+{
+	add_ide_standard_unit(ch, ci, rc, dotto_board, DOTTO_IDE, false, true, 2);
+}
+
 
 extern void x86_xt_ide_bios(struct zfile*, struct romconfig*);
 static bool x86_at_hd_init(struct autoconfig_info *aci, int type)

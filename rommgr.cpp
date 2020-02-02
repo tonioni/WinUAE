@@ -95,7 +95,7 @@ struct romdata *getromdatabypath (const TCHAR *path)
 	return NULL;
 }
 
-#define NEXT_ROM_ID 257
+#define NEXT_ROM_ID 258
 
 #define ALTROM(id,grp,num,size,flags,crc32,a,b,c,d,e) \
 { _T("X"), 0, 0, 0, 0, 0, size, id, 0, 0, flags, (grp << 16) | num, 0, NULL, crc32, a, b, c, d, e },
@@ -632,6 +632,8 @@ static struct romdata roms[] = {
 	0x591c3cd4, 0x681b8a67,0x3775dd0c,0x8f13b641,0x8852a51e,0xf3a29da3, NULL, NULL },
 	{ _T("Mastercard v2.3"), 0, 0, 0, 0, _T("MTECMASTERCARD\0"), 65536, 254, 0, 0, ROMTYPE_MASTERCARD, 0, 0, NULL,
 	0x4837cc3d, 0xeea5e9ab,0xb3ffb4ed,0xdf09825c,0x7e8de75d,0x0d08c01f, NULL, NULL },
+	{ _T("Hardital Dotto"), 0, 0, 0, 0, _T("DOTTO\0"), 32768, 257, 0, 0, ROMTYPE_DOTTO, 0, 0, NULL,
+	0xee803484, 0x62822cb9,0x0b095efa,0x455496ea,0xd5b22740,0x77d86375, NULL, NULL },
 
 	{ _T("CyberStorm MK I 68040"), 0, 0, 0, 0, _T("CSMKI\0"), 32768, 95, 0, 0, ROMTYPE_CB_CSMK1, 0, 0, NULL,
 	  0, 0, 0, 0, 0, 0, NULL, _T("cyberstormmk1_040.rom") },

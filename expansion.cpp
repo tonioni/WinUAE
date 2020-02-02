@@ -5378,6 +5378,12 @@ const struct expansionromtype expansionroms[] = {
 		2017, 10, 0
 	},
 	{
+		_T("dotto"), _T("Dotto"), _T("Hardital"),
+		NULL, dotto_init, NULL, dotto_add_ide_unit, ROMTYPE_DOTTO, 0, 0, BOARD_AUTOCONFIG_Z2, false,
+		NULL, 0,
+		true, EXPANSIONTYPE_IDE
+	},
+	{
 		_T("vector"), _T("Vector Falcon 8000"), _T("HK-Computer"),
 		NULL, vector_init, NULL, vector_add_scsi_unit, ROMTYPE_VECTOR, 0, 0, BOARD_AUTOCONFIG_Z2, false,
 		NULL, 0,
