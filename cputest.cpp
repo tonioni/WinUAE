@@ -1184,6 +1184,25 @@ void exception3_write(uae_u32 opcode, uae_u32 addr, int size, uae_u32 val, int f
 	doexcstack();
 }
 
+void exception3_read_opcode(uae_u32 opcode, uae_u32 addr, int size, int fc)
+{
+	add_memory_cycles(1);
+	exception3_read(opcode, addr, size, fc);
+}
+
+void exception3_write_opcode(uae_u32 opcode, uae_u32 addr, int size, uae_u32 val, int fc)
+{
+	add_memory_cycles(1);
+	exception3_write(opcode, addr, size, val, fc);
+
+}
+
+uae_u16 exception3_word_read(uaecptr addr)
+{
+	add_memory_cycles(1);
+	return 0;
+}
+
 void REGPARAM2 Exception(int n)
 {
 	test_exception = n;
@@ -2168,6 +2187,16 @@ static int create_ea_random(uae_u16 *opcodep, uaecptr pc, int mode, int reg, str
 					multi_mode = 1;
 					pc -= 2;
 					if (imm16_cnt == 0x1000)
+						*isconstant = 0;
+					else
+						*isconstant = -1;
+				} else if (dp->mnemo == i_BSR || dp->mnemo == i_DBcc || dp->mnemo == i_Bcc ||
+					dp->mnemo == i_ORSR || dp->mnemo == i_ANDSR || dp->mnemo == i_EORSR) {
+					// don't try to test all 65536 possibilies..
+					uae_u16 i16 = imm16_cnt;
+					put_word_test(pc, imm16_cnt);
+					imm16_cnt += rand16() & 127;
+					if (i16 > imm16_cnt)
 						*isconstant = 0;
 					else
 						*isconstant = -1;
@@ -4081,10 +4110,6 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 								if (test_exception != 3) {
 									skipped = 1;
 								}
-								// need also extra exception
-								if (!exception_extra_frame_type) {
-									skipped = 1;
-								}
 							}
 
 							if (cpu_stopped) {
@@ -4699,9 +4724,8 @@ static int test(struct ini_data *ini, const TCHAR *sections, const TCHAR *testna
 	safe_memory_end = 0xffffffff;
 	if (ini_getvalx(ini, sections, _T("feature_safe_memory_size"), &v))
 		safe_memory_end = safe_memory_start + v;
-	safe_memory_mode = 7;
+	safe_memory_mode = 0;
 	if (ini_getstringx(ini, sections, _T("feature_safe_memory_mode"), &vs)) {
-		safe_memory_mode = 0;
 		if (_totupper(vs[0]) == 'R')
 			safe_memory_mode |= 1;
 		if (_totupper(vs[0]) == 'W')
@@ -4749,7 +4773,9 @@ static int test(struct ini_data *ini, const TCHAR *sections, const TCHAR *testna
 			}
 			if (i == 2) {
 				target_ea_opcode_max = cnt;
-				safe_memory_mode = 7;
+				if (cnt > 0) {
+					safe_memory_mode = 7;
+				}
 			} else if (i) {
 				target_ea_dst_max = cnt;
 			} else {
@@ -5164,6 +5190,7 @@ static int test(struct ini_data *ini, const TCHAR *sections, const TCHAR *testna
 		}
 
 		if (!_tcsicmp(mode, _T("branch")) || !_tcsicmp(mode, _T("branchj")) || !_tcsicmp(mode, _T("branchs"))) {
+
 			static const TCHAR *branchs[] = {
 				_T("RTS"), _T("RTD"), _T("RTR"), _T("RTE"), _T("JSR"), _T("BSR"), NULL
 			};
@@ -5180,6 +5207,7 @@ static int test(struct ini_data *ini, const TCHAR *sections, const TCHAR *testna
 					test_mnemo_text(path, branchs[i]);
 				}
 			}
+			break;
 		}
 
 		if (!_tcsicmp(mode, _T("fall"))) {

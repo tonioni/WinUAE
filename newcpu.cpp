@@ -2358,6 +2358,7 @@ static void exception_debug (int nr)
 
 Address/Bus Error:
 
+- [memory access causing bus/address error]
 - 8 idle cycles
 - write PC low word
 - write SR
@@ -2495,7 +2496,7 @@ static void Exception_ce000 (int nr)
 		if (nr == 7) // TRAPV
 			start = 0;
 		else if (nr == 2 || nr == 3)
-			start = 4 + 8;
+			start = 8;
 	}
 
 	if (start)
@@ -2521,7 +2522,7 @@ static void Exception_ce000 (int nr)
 			uae_u16 mode = (sv ? 4 : 0) | last_fc_for_exception_3;
 			mode |= last_writeaccess_for_exception_3 ? 0 : 16;
 			mode |= last_notinstruction_for_exception_3 ? 8 : 0;
-			// undocumented bits seem to contain opcode
+			// undocumented bits contain opcode
 			mode |= last_op_for_exception_3 & ~31;
 			m68k_areg(regs, 7) -= 14;
 			exception_in_exception = -1;
@@ -7027,6 +7028,19 @@ static void exception3_read_special(uae_u32 opcode, uaecptr addr, int size, int 
 {
 	exception3f(opcode, addr, false, 0, false, 0xffffffff, size, false, fc);
 }
+
+// Some hardware accepts address error aborted reads or writes as normal reads/writes.
+void exception3_read_opcode(uae_u32 opcode, uaecptr addr, int size, int fc)
+{
+	x_do_cycles(4 * cpucycleunit);
+	exception3_read(opcode, addr, size, fc);
+}
+void exception3_write_opcode(uae_u32 opcode, uaecptr addr, int size, uae_u32 val, int fc)
+{
+	x_do_cycles(4 * cpucycleunit);
+	exception3_write(opcode, addr, size, val, fc);
+}
+
 void exception3_read(uae_u32 opcode, uaecptr addr, int size, int fc)
 {
 	bool ni = false;

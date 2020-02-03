@@ -730,6 +730,8 @@ extern int fpp_cond(int condition);
 
 extern void exception3_read(uae_u32 opcode, uaecptr addr, int size, int fc);
 extern void exception3_write(uae_u32 opcode, uaecptr addr, int size, uae_u32 val, int fc);
+extern void exception3_read_opcode(uae_u32 opcode, uaecptr addr, int size, int fc);
+extern void exception3_write_opcode(uae_u32 opcode, uaecptr addr, int size, uae_u32 val, int fc);
 extern void exception3_notinstruction(uae_u32 opcode, uaecptr addr);
 extern void exception3i (uae_u32 opcode, uaecptr addr);
 extern void exception3b (uae_u32 opcode, uaecptr addr, bool w, bool i, uaecptr pc);

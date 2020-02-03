@@ -3097,7 +3097,7 @@ static void genamode2x (amodes mode, const char *reg, wordsizes size, const char
 			strcpy(g_srcname, name);	
 	}
 
-	if (mode >= Ad16) {
+	if (mode >= Ad16 && mode < am_unknown) {
 		do_instruction_buserror();
 	}
 
@@ -3155,14 +3155,6 @@ static void genamode2x (amodes mode, const char *reg, wordsizes size, const char
 
 		if (cpu_level == 1) {
 			int bus_error_reg_add_old = bus_error_reg_add;
-			// 68010 does dummy access
-			if (getv != 2) {
-				if ((flags & GF_REVERSE) && size == sz_long) {
-					out("uae_s16 d_%s = %s((%sa + 2) & ~1);\n", name, srcw, name);
-				} else {
-					out("uae_s16 d_%s = %s(%sa & ~1);\n", name, srcw, name);
-				}
-			}
 			if (abs(bus_error_reg_add) == 4)
 				bus_error_reg_add = 0;
 			// 68010 CLR <memory>: pre and post are not added yet
@@ -3233,13 +3225,13 @@ static void genamode2x (amodes mode, const char *reg, wordsizes size, const char
 
 		if (exp3rw) {
 			const char *shift = (size == sz_long && !(flags & GF_REVERSE)) ? " >> 16" : "";
-			out("exception3_write(opcode, %sa, %d, %s%s, %d);\n",
+			out("exception3_write_opcode(opcode, %sa, %d, %s%s, %d);\n",
 				name, size, g_srcname, shift,
 				// PC-relative: FC=2
 				(getv == 1 && (g_instr->smode == PC16 || g_instr->smode == PC8r) ? 2 : 1) | fcmodeflags);
 
 		} else {
-			out("exception3_read(opcode, %sa, %d, %d);\n",
+			out("exception3_read_opcode(opcode, %sa, %d, %d);\n",
 				name, size,
 				// PC-relative: FC=2
 				(getv == 1 && (g_instr->smode == PC16 || g_instr->smode == PC8r) ? 2 : 1) | fcmodeflags);
@@ -4015,16 +4007,13 @@ static void movem_ex3(int write)
 				out("opcode |= 0x00020000;\n");
 			}
 			out("uaecptr srcav = srca;\n");
-			if (cpu_level == 1) {
-				out("uae_s16 dummy = %s(srca & ~1);\n", srcw);
-			}
 		}
 		if (write) {
-			out("exception3_write(opcode, srca, %d, srcav, %d);\n",
+			out("exception3_write_opcode(opcode, srca, %d, srcav, %d);\n",
 				g_instr->size,
 				(g_instr->dmode == PC16 || g_instr->dmode == PC8r) ? 2 : 1);
 		} else {
-			out("exception3_read(opcode, srca, %d, %d);\n",
+			out("exception3_read_opcode(opcode, srca, %d, %d);\n",
 				g_instr->size,
 				(g_instr->dmode == PC16 || g_instr->dmode == PC8r) ? 2 : 1);
 		}
@@ -6135,10 +6124,22 @@ static void gen_opcode (unsigned int opcode)
 		}
 		if (cpu_level == 0) {
 			// 68000
-			// Read SR, Read PC high, Read PC low.
-			genamode(NULL, Aipi, "7", sz_word, "sr", 1, 0, GF_NOREFILL);
-			genamode(NULL, Aipi, "7", sz_long, "pc", 1, 0, GF_NOREFILL);
+			// Read SR (SP+=6), Read PC high, Read PC low.
 			out("uaecptr oldpc = %s;\n", getpc);
+			out("uaecptr a = m68k_areg(regs, 7);\n");
+			out("uae_u16 sr = %s(a);\n", srcw);
+			count_read++;
+			check_bus_error("", 0, 0, 1, NULL, 1);
+
+			out("m68k_areg(regs, 7) += 6;\n");
+
+			out("uae_u32 pc = %s(a + 2) << 16;\n", srcw);
+			count_read++;
+			check_bus_error("", 2, 0, 1, NULL, 1);
+			out("pc |= %s(a + 2 + 2); \n", srcw);
+			count_read++;
+			check_bus_error("", 4, 0, 1, NULL, 1);
+
 			out("uae_u16 oldt1 = regs.t1;\n");
 			out("regs.sr = sr;\n");
 			makefromsr();
@@ -6505,6 +6506,13 @@ static void gen_opcode (unsigned int opcode)
 		}
 		break;
 	case i_RTR:
+		if (cpu_level <= 1 && using_exception_3) {
+			// RTR (and RTS) exception3 does not have normal 4 cycle delay
+			out("if (m68k_areg(regs, 7) & 1) {\n");
+			out("exception3_read(opcode, m68k_areg(regs, 7), 1, 1);\n");
+			write_return_cycles(0);
+			out("}\n");
+		}
 		out("uaecptr oldpc = %s;\n", getpc);
 		out("MakeSR();\n");
 		genamode(NULL, Aipi, "7", sz_word, "sr", 1, 0, 0);
