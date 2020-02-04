@@ -4866,6 +4866,7 @@ static void gen_opcode (unsigned int opcode)
 					fill_prefetch_next_after(1, "dreg_68000_long_replace_low(dstreg, src);\n");
 				}
 				loopmodeextra = 4;
+				next_level_000();
 			} else {
 				fill_prefetch_next_after(0, "ccr_68000_long_move_ae_LZN(src);\n");
 			}
@@ -4894,7 +4895,6 @@ static void gen_opcode (unsigned int opcode)
 	case i_ORSR:
 	case i_ANDSR:
 	case i_EORSR:
-		next_level_000();
 		out("MakeSR();\n");
 		if (cpu_level == 0) {
 			out("int t1 = regs.t1;\n");
@@ -4912,6 +4912,7 @@ static void gen_opcode (unsigned int opcode)
 		makefromsr_t0();
 		sync_m68k_pc();
 		fill_prefetch_full_ntx(3);
+		next_level_000();
 		break;
 	case i_SUB:
 	{
@@ -4944,6 +4945,7 @@ static void gen_opcode (unsigned int opcode)
 					fill_prefetch_next_after(1, "dreg_68000_long_replace_low(dstreg, newv);\n");
 				}
 				loopmodeextra = 4;
+				next_level_000();
 			} else {
 				fill_prefetch_next_after(0,
 					"uae_s16 bnewv = (uae_s16)dst - (uae_s16)src;\n"
@@ -5052,6 +5054,7 @@ static void gen_opcode (unsigned int opcode)
 					addcycles000(4);
 				else
 					addcycles000(2);
+				next_level_000();
 			}
 			if (curi->size == sz_long && !isreg(curi->dmode)) {
 				// write addr + 2
@@ -5131,6 +5134,7 @@ static void gen_opcode (unsigned int opcode)
 					fill_prefetch_next_after(1, "dreg_68000_long_replace_low(dstreg, newv);\n");
 				}
 				loopmodeextra = 4;
+				next_level_000();
 			} else {
 				fill_prefetch_next_after(0,
 					"uae_s16 bnewv = (uae_s16)dst + (uae_s16)src;\n"
@@ -5240,6 +5244,7 @@ static void gen_opcode (unsigned int opcode)
 					addcycles000(4);
 				else
 					addcycles000(2);
+				next_level_000();
 			}
 			if (curi->size == sz_long && !isreg(curi->dmode)) {
 				// write addr + 2
@@ -5409,7 +5414,6 @@ static void gen_opcode (unsigned int opcode)
 		genastore("newv", curi->smode, "srcreg", curi->size, "src");
 		break;
 	case i_CLR:
-		next_level_000();
 		if (cpu_level == 0) {
 			genamode(curi, curi->smode, "srcreg", curi->size, "src", 1, 0, 0);
 			genflags(flag_logical, curi->size, "0", "", "");
@@ -5479,6 +5483,7 @@ static void gen_opcode (unsigned int opcode)
 			genflags(flag_logical, curi->size, "0", "", "");
 			genastore_rev("0", curi->smode, "srcreg", curi->size, "src");
 		}
+		next_level_000();
 		break;
 	case i_NOT:
 		genamode(curi, curi->smode, "srcreg", curi->size, "src", 1, 0, GF_RMW);
@@ -5646,6 +5651,7 @@ static void gen_opcode (unsigned int opcode)
 			check_bus_error("memp", 6, 1, 0, "src", 1);
 		}
 		fill_prefetch_next_t();
+		next_level_000();
 		break;
 	case i_MVPMR: // MOVEP M->R
 		out("uaecptr mempa = m68k_areg(regs, srcreg) + (uae_s32)(uae_s16)%s;\n", gen_nextiword (0));
@@ -5680,6 +5686,7 @@ static void gen_opcode (unsigned int opcode)
 		}
 		genastore("val", curi->dmode, "dstreg", curi->size, "dst");
 		fill_prefetch_next_t();
+		next_level_000();
 		break;
 	case i_MOVE:
 	case i_MOVEA:
@@ -5848,8 +5855,11 @@ static void gen_opcode (unsigned int opcode)
 					}
 					prefetch_done = 1;
 					// MOVE.L reg,-(an): 2 extra cycles if 68010
-					if (cpu_level == 1 && isreg(curi->smode) && curi->size == sz_long) {
-						addcycles000(2);
+					if (isreg(curi->smode) && curi->size == sz_long) {
+						if (cpu_level == 1) {
+							addcycles000(2);
+						}
+						next_level_000();
 					}
 				}
 
@@ -5907,7 +5917,6 @@ static void gen_opcode (unsigned int opcode)
 		}
 		break;
 	case i_MVSR2: // MOVE FROM SR
-		next_level_000();
 		genamode(curi, curi->smode, "srcreg", sz_word, "src", cpu_level == 0 ? 2 : 3, 0, cpu_level == 1 ? GF_NOFETCH : 0);
 		out("MakeSR();\n");
 		if (isreg (curi->smode)) {
@@ -5941,6 +5950,7 @@ static void gen_opcode (unsigned int opcode)
 			genastore("regs.sr & 0xff", curi->smode, "srcreg", sz_word, "src");
 		else
 			genastore("regs.sr", curi->smode, "srcreg", sz_word, "src");
+		next_level_000();
 		break;
 	case i_MV2SR: // MOVE TO SR
 		genamode(curi, curi->smode, "srcreg", sz_word, "src", 1, 0, 0);
@@ -5960,6 +5970,7 @@ static void gen_opcode (unsigned int opcode)
 		// does full prefetch because S-bit change may change memory mapping under the CPU
 		sync_m68k_pc();
 		fill_prefetch_full_ntx(3);
+		next_level_000();
 		break;
 	case i_SWAP:
 		genamode(curi, curi->smode, "srcreg", sz_long, "src", 1, 0, 0);
@@ -6034,6 +6045,7 @@ static void gen_opcode (unsigned int opcode)
 		}
 		fill_prefetch_next_t();
 		trace_t0_68040_only();
+		next_level_000();
 		break;
 	case i_MVUSP2R:
 		next_level_000();
@@ -6043,6 +6055,7 @@ static void gen_opcode (unsigned int opcode)
 			addcycles000(2);
 		}
 		fill_prefetch_next_t();
+		next_level_000();
 		break;
 	case i_RESET:
 		out("cpureset();\n");
@@ -6054,7 +6067,6 @@ static void gen_opcode (unsigned int opcode)
 		trace_t0_68040_only();
 		break;
 	case i_STOP:
-		next_level_000();
 		if (using_prefetch) {
 			out("uae_u16 sr = regs.irc;\n");
 			m68k_pc_offset += 2;
@@ -6085,6 +6097,7 @@ static void gen_opcode (unsigned int opcode)
 		// STOP does not prefetch anything
 		did_prefetch = -1;
 		next_cpu_level = cpu_level - 1;
+		next_level_000();
 		break;
 	case i_LPSTOP: /* 68060 */
 		out("uae_u16 sw = %s(2);\n", srcwi);
@@ -6461,7 +6474,6 @@ static void gen_opcode (unsigned int opcode)
 		break;
 	case i_TRAPV:
 		sync_m68k_pc();
-		next_level_000();
 		if (cpu_level == 0) {
 			// 68000 TRAPV is really weird
 			// If V is set but prefetch causes bus error: S is set.
@@ -6504,6 +6516,7 @@ static void gen_opcode (unsigned int opcode)
 			write_return_cycles(0);
 			out("}\n");
 		}
+		next_level_000();
 		break;
 	case i_RTR:
 		if (cpu_level <= 1 && using_exception_3) {
@@ -7051,7 +7064,6 @@ bccl_not68020:
 		next_level_040_to_030();
 		break;
 	case i_Scc:
-		next_level_000();
 		genamode(curi, curi->smode, "srcreg", curi->size, "src", cpu_level == 0 ? 1 : 2, 0, cpu_level == 1 ? GF_NOFETCH : 0);
 		if (isreg(curi->smode)) {
 			// If mode is Dn and condition true = 2 extra cycles needed.
@@ -7075,6 +7087,7 @@ bccl_not68020:
 			out("int val = cctrue(%d) ? 0xff : 0x00;\n", curi->cc);
 			genastore("val", curi->smode, "srcreg", curi->size, "src");
 		}
+		next_level_000();
 		break;
 	case i_DIVU:
 		tail_ce020_done	= true;
