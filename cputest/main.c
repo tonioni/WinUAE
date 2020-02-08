@@ -139,7 +139,7 @@ static short gotcycles;
 static short interrupttest;
 static short randomizetest;
 static uae_u32 cyclecounter_addr;
-static short uae;
+static short uaemode;
 #ifdef AMIGA
 static short interrupt_count;
 static uae_u16 main_intena;
@@ -527,11 +527,11 @@ extern void uae_command(char*);
 static int set_berr(int mask, int ask)
 {
 #ifdef AMIGA
-	if (uae) {
+	if (uaemode) {
 		if (!mask) {
 			sprintf(tmpbuffer, "dbg \"w 0\"");
 		} else {
-			sprintf(tmpbuffer, "dbg \"w 0 %08x %08x BE%s%s%s\"", (uae_u32)safe_memory_start, safe_memory_end - safe_memory_start, (mask & 1) ? "R" : "", (mask & 2) ? "W" : "", (mask & 4) ? "P" : "");
+			sprintf(tmpbuffer, "dbg \"w 0 %08x %08x B%s%s%s\"", (uae_u32)safe_memory_start, safe_memory_end - safe_memory_start, (mask & 1) ? "R" : "", (mask & 2) ? "W" : "", (mask & 4) ? "P" : "");
 		}
 		uae_command(tmpbuffer);
 		return 0;
@@ -1715,7 +1715,7 @@ static int getexceptioncycles(int exc)
 		{
 		case 2:
 		case 3:
-			return 60;
+			return 56;
 		case 4:
 		case 5:
 		case 6:
@@ -2738,7 +2738,7 @@ static int test_mnemo(const char *opcode)
 	interrupttest = (lvl_mask >> 26) & 1;
 	randomizetest = (lvl_mask >> 28) & 1;
 	sr_undefined_mask = lvl_mask & 0xffff;
-	safe_memory_mode = (lvl_mask >> 23) & 3;
+	safe_memory_mode = (lvl_mask >> 23) & 7;
 	fpu_model = read_u32(headerfile, &headoffset);
 	test_low_memory_start = read_u32(headerfile, &headoffset);
 	test_low_memory_end = read_u32(headerfile, &headoffset);
@@ -2987,6 +2987,9 @@ int main(int argc, char *argv[])
 		printf("-exit n = exit after n tests.\n");
 		printf("-cycles [range adjust] = check cycle counts.\n");
 		printf("-cyclecnt <address>. Use custom hardware cycle counter.\n");
+#ifdef AMIGA
+		printf("-uae = running in UAE, automatic bus error enable/disable.\n");
+#endif
 		return 0;
 	}
 
@@ -3068,7 +3071,7 @@ int main(int argc, char *argv[])
 				cycles = 1;
 			}
 		} else if (!_stricmp(s, "-uae")) {
-			uae = 1;
+			uaemode = 1;
 		}
 	}
 

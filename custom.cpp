@@ -11845,8 +11845,9 @@ void do_cycles_ce020 (unsigned long cycles)
 
 bool is_cycle_ce(uaecptr addr)
 {
+	addr &= currprefs.address_space_24 ? 0x00ffffff : 0xffffffff;
 	addrbank *ab = get_mem_bank_real(addr);
-	if ((ab->flags & ABFLAG_CHIPRAM) || ab == &custom_bank) {
+	if (!ab || (ab->flags & ABFLAG_CHIPRAM) || ab == &custom_bank) {
 		int hpos = current_hpos();
 		return (cycle_line[hpos] & CYCLE_MASK) != 0;
 	}

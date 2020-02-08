@@ -427,31 +427,6 @@ STATIC_INLINE void put_byte_ce000 (uaecptr addr, uae_u32 v)
 	mem_access_delay_byte_write (addr, v);
 }
 
-STATIC_INLINE void m68k_do_rts_ce (void)
-{
-	uaecptr pc;
-	pc = x_get_word (m68k_areg (regs, 7)) << 16;
-	pc |= x_get_word (m68k_areg (regs, 7) + 2);
-	m68k_areg (regs, 7) += 4;
-	m68k_setpci (pc);
-}
-
-STATIC_INLINE void m68k_do_bsr_ce (uaecptr oldpc, uae_s32 offset)
-{
-	m68k_areg (regs, 7) -= 4;
-	x_put_word (m68k_areg (regs, 7), oldpc >> 16);
-	x_put_word (m68k_areg (regs, 7) + 2, oldpc);
-	m68k_incpci (offset);
-}
-
-STATIC_INLINE void m68k_do_jsr_ce (uaecptr oldpc, uaecptr dest)
-{
-	m68k_areg (regs, 7) -= 4;
-	x_put_word (m68k_areg (regs, 7), oldpc >> 16);
-	x_put_word (m68k_areg (regs, 7) + 2, oldpc);
-	m68k_setpci (dest);
-}
-
 #endif
 
 STATIC_INLINE uae_u32 get_disp_ea_000 (uae_u32 base, uae_u32 dp)

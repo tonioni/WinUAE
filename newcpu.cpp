@@ -84,7 +84,6 @@ static void exception3_read_special(uae_u32 opcode, uaecptr addr, int size, int 
 
 int mmu_enabled, mmu_triggered;
 int cpu_cycles;
-int bus_error_offset;
 int hardware_bus_error;
 static int baseclock;
 int m68k_pc_indirect;
@@ -2615,9 +2614,9 @@ kludge_me_do:
 			m68k_setpc(regs.vbr + 4 * vector_nr);
 			if (interrupt) {
 				regs.ir = nr;
-				exception3_read(regs.ir | 0x20000 | 0x10000, newpc, 1, 2);
+				exception3_read(regs.ir | 0x20000 | 0x10000, newpc, sz_word, 2);
 			} else {
-				exception3_read(regs.ir | 0x40000, newpc, 1, 2);
+				exception3_read(regs.ir | 0x40000, newpc, sz_word, 2);
 			}
 		} else if (currprefs.cpu_model == 68010) {
 			// offset, not vbr + offset
@@ -2626,7 +2625,7 @@ kludge_me_do:
 			regs.write_buffer = 4 * vector_nr;
 			regs.read_buffer = newpc;
 			regs.irc = regs.read_buffer;
-			exception3b(regs.opcode, newpc, false, true, newpc);
+			exception3_read(regs.opcode, newpc, sz_word, 2);
 		} else {
 			exception3_notinstruction(regs.ir, newpc);
 		}
@@ -3093,9 +3092,9 @@ kludge_me_do:
 			m68k_setpc(regs.vbr + 4 * vector_nr);
 			if (interrupt) {
 				regs.ir = nr;
-				exception3_read(regs.ir | 0x20000 | 0x10000, newpc, 1, 2);
+				exception3_read(regs.ir | 0x20000 | 0x10000, newpc, sz_word, 2);
 			} else {
-				exception3_read(regs.ir | 0x40000, newpc, 1, 2);
+				exception3_read(regs.ir | 0x40000, newpc, sz_word, 2);
 			}
 		} else if (currprefs.cpu_model == 68010) {
 			regs.t1 = 0;
@@ -3103,7 +3102,7 @@ kludge_me_do:
 			regs.write_buffer = 4 * vector_nr;
 			regs.read_buffer = newpc;
 			regs.irc = regs.read_buffer;
-			exception3b(regs.ir, newpc, false, true, newpc);
+			exception3_read(regs.ir, newpc, sz_word, 2);
 		} else {
 			exception3_notinstruction(regs.ir, newpc);
 		}
@@ -7030,6 +7029,12 @@ static void exception3_read_special(uae_u32 opcode, uaecptr addr, int size, int 
 }
 
 // Some hardware accepts address error aborted reads or writes as normal reads/writes.
+void exception3_read_prefetch(uae_u32 opcode, uaecptr addr)
+{
+	x_do_cycles(4 * cpucycleunit);
+	last_di_for_exception_3 = 0;
+	exception3f(opcode, addr, false, true, false, m68k_getpc(), sz_word, false, -1);
+}
 void exception3_read_opcode(uae_u32 opcode, uaecptr addr, int size, int fc)
 {
 	x_do_cycles(4 * cpucycleunit);
@@ -7078,20 +7083,10 @@ void exception3_write(uae_u32 opcode, uaecptr addr, int size, uae_u32 val, int f
 	exception3f(opcode, addr, true, ia, ni, 0xffffffff, size, false, fc);
 	regs.write_buffer = val;
 }
-void exception3i(uae_u32 opcode, uaecptr addr)
-{
-	last_di_for_exception_3 = 0;
-	exception3f (opcode, addr, 0, 1, false, 0xffffffff, 1, true, -1);
-}
-void exception3b(uae_u32 opcode, uaecptr addr, bool w, bool i, uaecptr pc)
-{
-	last_di_for_exception_3 = 0;
-	exception3f (opcode, addr, w, i, false, pc, 1, true, -1);
-}
 
 void exception2_setup(uae_u32 opcode, uaecptr addr, bool read, int size, uae_u32 fc)
 {
-	last_addr_for_exception_3 = m68k_getpc() + bus_error_offset;
+	last_addr_for_exception_3 = m68k_getpc();
 	last_fault_for_exception_3 = addr;
 	last_writeaccess_for_exception_3 = read == 0;
 	last_op_for_exception_3 = opcode;
@@ -7143,9 +7138,23 @@ void exception2_write(uae_u32 opcode, uaecptr addr, int size, uae_u32 val, int f
 
 void exception2_fetch(uae_u32 opcode, int offset)
 {
-	uaecptr addr = m68k_getpc() + offset;
-	exception2_setup(opcode, addr, true, 1, 2);
+	last_fault_for_exception_3 = m68k_getpc() + offset;
+	last_writeaccess_for_exception_3 = 0;
+	last_op_for_exception_3 = opcode;
+	last_fc_for_exception_3 = 2;
+	last_notinstruction_for_exception_3 = exception_in_exception != 0;
+	last_size_for_exception_3 = sz_word;
 	last_di_for_exception_3 = 0;
+	hardware_bus_error = 0;
+
+	if (currprefs.cpu_model == 68000 && currprefs.cpu_compatible) {
+		if (generates_group1_exception(regs.ir) && !(opcode & 0x20000)) {
+			last_fc_for_exception_3 |= 8;  // set N/I
+		}
+		if (opcode & 0x10000)
+			last_fc_for_exception_3 |= 8;
+	}
+
 	Exception(2);
 }
 

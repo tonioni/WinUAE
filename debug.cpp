@@ -50,6 +50,7 @@
 #include "ini.h"
 #include "readcpu.h"
 #include "cputbl.h"
+#include "keybuf.h"
 
 #define TRACE_SKIP_INS 1
 #define TRACE_MATCH_PC 2
@@ -114,6 +115,7 @@ void deactivate_debugger (void)
 	processname = NULL;
 	debugmem_enable();
 	debug_pc = 0xffffffff;
+	keybuf_ignore_next_release();
 }
 
 void activate_debugger (void)
@@ -3598,12 +3600,11 @@ void memwatch_dump2 (TCHAR *buf, int bufsize, int num)
 				buf = buf_out(buf, &bufsize, _T(" L"));
 			if (mwn->nobreak)
 				buf = buf_out(buf, &bufsize, _T(" N"));
-			if ((mwn->bus_error & (1 | 4)) && (mwn->bus_error & 2)) {
-				buf = buf_out(buf, &bufsize, _T(" BER"));
-			} else if (mwn->bus_error & (1 | 4)) {
-				buf = buf_out(buf, &bufsize, _T(" BERR"));
-			} else if (mwn->bus_error & 2) {
-				buf = buf_out(buf, &bufsize, _T(" BERW"));
+			if (mwn->bus_error) {
+				buf = buf_out(buf, &bufsize, _T(" BER%s%s%s"),
+					(mwn->bus_error & 1) ? _T("R") : _T(""),
+					(mwn->bus_error & 2) ? _T("W") : _T(""),
+					(mwn->bus_error & 4) ? _T("P") : _T(""));
 			}
 			for (int j = 0; memwatch_access_masks[j].mask; j++) {
 				uae_u32 mask = memwatch_access_masks[j].mask;
@@ -3738,7 +3739,7 @@ static void memwatch (TCHAR **c)
 			if (more_params(c)) {
 				for (;;) {
 					TCHAR ncc = _totupper(peek_next_char(c));
-					TCHAR nc = _totupper (next_char (c));
+					TCHAR nc = _totupper(next_char(c));
 					if (mwn->rwi == 7)
 						mwn->rwi = 0;
 					if (nc == 'F')
@@ -3750,21 +3751,30 @@ static void memwatch (TCHAR **c)
 					if (nc == 'R')
 						mwn->rwi |= 1;
 					if (nc == 'B') {
-						mwn->bus_error = 7;
-						if (ncc == 'R') {
-							mwn->bus_error = 1 | 4;
-							mwn->rwi |= 1 | 4;
-							next_char(c);
-						}
-						if (ncc == 'W') {
-							mwn->bus_error = 2;
-							mwn->rwi |= 2;
-							next_char(c);
+						mwn->bus_error = 0;
+						for (;;) {
+							ncc = next_char2(c);
+							if (ncc == ' ' || ncc == 0)
+								break;
+							if (ncc == 'R') {
+								mwn->bus_error |= 1;
+								mwn->rwi |= 1;
+							} else if (ncc == 'W') {
+								mwn->bus_error |= 2;
+								mwn->rwi |= 2;
+							} else if (ncc == 'P') {
+								mwn->bus_error |= 4;
+								mwn->rwi |= 4;
+							} else {
+								break;
+							}
 						}
 						if (!mwn->rwi)
 							mwn->rwi = 7;
+						if (!mwn->bus_error)
+							mwn->bus_error = 7;
 					}
-					if (ncc == ' ')
+					if (ncc == ' ' || ncc == 0)
 						break;
 					if (nc == 'P' && ncc == 'C') {
 						next_char(c);

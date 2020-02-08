@@ -42,7 +42,6 @@ const int imm8_table[] = { 8, 1, 2, 3, 4, 5, 6, 7 };
 int movem_index1[256];
 int movem_index2[256];
 int movem_next[256];
-int bus_error_offset;
 int hardware_bus_error, hardware_bus_error_fake;
 
 struct mmufixup mmufixup[2];
@@ -1074,7 +1073,7 @@ void exception2_fetch(uae_u32 opcode, int offset)
 	test_exception_addr = m68k_getpci() + offset;
 	test_exception_opcode = opcode;
 	test_exception_3_fc = 2;
-	test_exception_3_size = 1;
+	test_exception_3_size = sz_word;
 	test_exception_3_di = 0;
 
 	if (currprefs.cpu_model == 68000) {
@@ -1180,6 +1179,21 @@ void exception3_write(uae_u32 opcode, uae_u32 addr, int size, uae_u32 val, int f
 			test_exception_3_fc |= 8;
 		test_exception_opcode = regs.ir;
 	}
+
+	doexcstack();
+}
+
+void exception3_read_prefetch(uae_u32 opcode, uae_u32 addr)
+{
+	add_memory_cycles(1);
+
+	test_exception = 3;
+	test_exception_3_w = 0;
+	test_exception_addr = addr;
+	test_exception_opcode = opcode;
+	test_exception_3_fc = 2;
+	test_exception_3_size = sz_word;
+	test_exception_3_di = 0;
 
 	doexcstack();
 }
@@ -4101,6 +4115,15 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 									skipped = 1;
 								}
 								if (feature_exception_vectors) {
+									skipped = 1;
+								}
+							} else {
+								// wanted read address error but got write
+								if (target_ea[0] != 0xffffffff && (target_ea[0] & 1) && target_ea[1] == 0xffffffff && test_exception_3_w) {
+									skipped = 1;
+								}
+								// wanted write address error but got read
+								if (target_ea[1] != 0xffffffff && (target_ea[1] & 1) && target_ea[0] == 0xffffffff && !test_exception_3_w) {
 									skipped = 1;
 								}
 							}

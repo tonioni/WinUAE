@@ -3028,7 +3028,7 @@ void m68k_do_rte_mmu030 (uaecptr a7)
 	regs.sr = sr;
 	MakeFromSR_T0();
 	if (pc & 1) {
-		exception3i(0x4E73, pc);
+		exception3_read_prefetch(0x4E73, pc);
 		return;
 	}
 	m68k_setpci(pc);
@@ -3483,7 +3483,7 @@ void m68k_do_rte_mmu030c (uaecptr a7)
 	regs.sr = sr;
 	MakeFromSR_T0();
 	if (pc & 1) {
-		exception3i (0x4E73, pc);
+		exception3_read_prefetch(0x4E73, pc);
 		return;
 	}
 	m68k_setpci (pc);
