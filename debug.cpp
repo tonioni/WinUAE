@@ -3485,7 +3485,14 @@ static void initialize_memwatch (int mode)
 {
 	membank_total = currprefs.address_space_24 ? 256 : 65536;
 	deinitialize_memwatch ();
-	debug_mem_banks = xcalloc (addrbank*, membank_total);
+	debug_mem_banks = xcalloc (addrbank*, 65536);
+	if (!debug_mem_banks)
+		return;
+	if (membank_total < 65536) {
+		for (int i = 256; i < 65536; i++) {
+			debug_mem_banks[i] = &dummy_bank;
+		}
+	}
 	debug_mem_area = xcalloc (addrbank, membank_total);
 	membank_stores = xcalloc (struct membank_store, MEMWATCH_STORE_SLOTS);
 	for (int i = 0; i < MEMWATCH_TOTAL; i++) {
