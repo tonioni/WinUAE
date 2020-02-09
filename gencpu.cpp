@@ -4164,8 +4164,8 @@ static void genmovemel_ce (uae_u16 opcode)
 		out("}\n");
 	}
 	out("%s(srca);\n", srcw); // and final extra word fetch that goes nowhere..
-	check_bus_error("src", 0, 0, 1, NULL, 1);
 	count_read++;
+	check_bus_error("src", 0, 0, 1, NULL, 1);
 	if (table68k[opcode].dmode == Aipi)
 		out("m68k_areg(regs, dstreg) = srca;\n");
 	count_ncycles++;
