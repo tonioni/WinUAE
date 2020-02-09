@@ -2972,6 +2972,10 @@ int main(int argc, char *argv[])
 
 	if (argc < 2) {
 		printf("cputest (<group>)/<all/mnemonic> (<start mnemonic>) (other params)\n");
+#ifdef M68K
+		printf("Designed and programmed by Toni Wilen. ("REVDATE " " REVTIME")");
+#endif
+		printf("\n");
 		printf("mnemonic = test single mnemonic\n");
 		printf("all = test all\n");
 		printf("all <mnemonic> = test all, starting from <mnemonic>\n");
