@@ -686,6 +686,7 @@ static void add_mmu040_movem (int movem)
 
 static char bus_error_text[200];
 static int bus_error_specials;
+static int bus_error_cycles;
 // 1 = first access, 2 = long second access only
 static char bus_error_code[1000], bus_error_code2[1000];
 
@@ -2008,6 +2009,15 @@ static void check_bus_error(const char *name, int offset, int write, int size, c
 		out("exception2_fetch(opcode, %d);\n", offset);
 
 	} else {
+
+		if (bus_error_cycles > 0) {
+			if (using_prefetch) {
+				out("%s(%d);\n", do_cycles, bus_error_cycles);
+			} else {
+				out("count_cycles += % d * CYCLE_UNIT / 2;\n", bus_error_cycles);
+			}
+			bus_error_cycles = 0;
+		}
 
 		if (exception_pc_offset) {
 			incpc("%d", exception_pc_offset);
@@ -4431,6 +4441,7 @@ static void resetvars (void)
 	m68k_pc_total = 0;
 	branch_inst = 0;
 	set_fpulimit = 0;
+	bus_error_cycles = 0;
 
 	ir2irc = 0;
 	mmufixupcnt = 0;
@@ -8071,11 +8082,13 @@ bccl_not68020:
 		break;
 	case i_TAS:
 		if (cpu_level == 0) {
+			bus_error_cycles = 2;
 			genamode(curi, curi->smode, "srcreg", curi->size, "src", 1, 0, GF_LRMW);
 			genflags(flag_logical, curi->size, "src", "", "");
 			if (!isreg(curi->smode)) {
 				addcycles000(2);
 			}
+			out("uae_u8 old_src = src;\n");
 			out("src |= 0x80;\n");
 			if (isreg(curi->smode) || !using_ce) {
 				genastore_tas("src", curi->smode, "srcreg", curi->size, "src");
