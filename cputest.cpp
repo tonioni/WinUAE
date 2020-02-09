@@ -4101,6 +4101,13 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 								skipped = 1;
 							}
 
+							// if testing bus errors: skip test if instruction under test didn't generate it
+							// (it could have been following nop/illegal used for aligning instruction before
+							// bus error boundary)
+							if (hardware_bus_error && safe_memory_mode && regs.instruction_pc != startpc) {
+								skipped = 1;
+							}
+
 							// skip if feature_target_opcode_offset mode and non-prefetch bus error
 							if (target_opcode_address != 0xffffffff && (hardware_bus_error & 3)) {
 								skipped = 1;
