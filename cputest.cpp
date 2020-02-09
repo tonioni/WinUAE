@@ -974,6 +974,8 @@ static void doexcstack2(void)
 
 static void doexcstack(void)
 {
+	bool g1 = generates_group1_exception(regs.ir);
+
 	doexcstack2();
 	if (cpu_lvl >= 2)
 		return;
@@ -1019,6 +1021,12 @@ static void doexcstack(void)
 		regs.intmask = original_exception - 24;
 		regs.ir = original_exception;
 		flags |= 0x10000 | 0x20000;
+	}
+
+	// set I/N if original exception was group 1 exception.
+	flags |= 0x20000;
+	if (g1) {
+		flags |= 0x10000;
 	}
 
 	exception3_read(regs.ir | flags, test_exception_addr, 1, 2);
