@@ -2812,8 +2812,8 @@ static void add_approximate_exception_cycles(int nr)
 			/* Interrupts */
 			cycles = 44;
 		} else if (nr >= 32 && nr <= 47) {
-			/* Trap (total is 34, but cpuemux.c already adds 4) */
-			cycles = 34 - 4;
+			/* Trap */
+			cycles = 34;
 		} else {
 			switch (nr)
 			{
@@ -2838,7 +2838,7 @@ static void add_approximate_exception_cycles(int nr)
 			cycles = 48;
 		} else if (nr >= 32 && nr <= 47) {
 			/* Trap */
-			cycles = 38 - 4;
+			cycles = 38;
 		} else {
 			switch (nr)
 			{
@@ -4517,10 +4517,11 @@ static void m68k_run_1 (void)
 				}
 				do_cycles (cpu_cycles);
 				r->instruction_pc = m68k_getpc ();
-				cpu_cycles = (*cpufunctbl[r->opcode])(r->opcode);
+				cpu_cycles = (*cpufunctbl[r->opcode])(r->opcode) & 0xffff;
 				if (!regs.loop_mode)
 					regs.ird = regs.opcode;
 				cpu_cycles = adjust_cycles (cpu_cycles);
+				regs.instruction_cnt++;
 				if (r->spcflags) {
 					if (do_specialties (cpu_cycles))
 						exit = true;
@@ -4636,6 +4637,7 @@ static void m68k_run_1_ce (void)
 				(*cpufunctbl[r->opcode])(r->opcode);
 				if (!regs.loop_mode)
 					regs.ird = regs.opcode;
+				regs.instruction_cnt++;
 				wait_memory_cycles();
 				if (cpu_tracer) {
 					cputrace.state = 0;
@@ -5003,7 +5005,7 @@ void exec_nostats (void)
 		} else {
 			r->opcode = x_get_iword(0);
 		}
-		cpu_cycles = (*cpufunctbl[r->opcode])(r->opcode);
+		cpu_cycles = (*cpufunctbl[r->opcode])(r->opcode) >> 16;
 		cpu_cycles = adjust_cycles (cpu_cycles);
 
 		if (!currprefs.cpu_thread) {
@@ -5046,7 +5048,7 @@ void execute_normal (void)
 		special_mem = DISTRUST_CONSISTENT_MEM;
 		pc_hist[blocklen].location = (uae_u16*)r->pc_p;
 
-		cpu_cycles = (*cpufunctbl[r->opcode])(r->opcode);
+		cpu_cycles = (*cpufunctbl[r->opcode])(r->opcode) >> 16;
 		cpu_cycles = adjust_cycles(cpu_cycles);
 		if (!currprefs.cpu_thread) {
 			do_cycles (cpu_cycles);
@@ -5240,9 +5242,10 @@ static void m68k_run_mmu060 (void)
 				mmu060_state = 1;
 
 				count_instr (regs.opcode);
-				cpu_cycles = (*cpufunctbl[regs.opcode])(regs.opcode);
+				cpu_cycles = (*cpufunctbl[regs.opcode])(regs.opcode) >> 16;
 
 				cpu_cycles = adjust_cycles (cpu_cycles);
+				regs.instruction_cnt++;
 
 				if (regs.spcflags) {
 					if (do_specialties (cpu_cycles))
@@ -5288,8 +5291,9 @@ static void m68k_run_mmu040 (void)
 				mmu_opcode = -1;
 				mmu_opcode = regs.opcode = x_prefetch (0);
 				count_instr (regs.opcode);
-				cpu_cycles = (*cpufunctbl[regs.opcode])(regs.opcode);
+				cpu_cycles = (*cpufunctbl[regs.opcode])(regs.opcode) >> 16;
 				cpu_cycles = adjust_cycles (cpu_cycles);
+				regs.instruction_cnt++;
 
 				if (regs.spcflags) {
 					if (do_specialties (cpu_cycles))
@@ -5379,7 +5383,7 @@ insretry:
 						count_instr (regs.opcode);
 						do_cycles (cpu_cycles);
 
-						cpu_cycles = (*cpufunctbl[regs.opcode])(regs.opcode);
+						cpu_cycles = (*cpufunctbl[regs.opcode])(regs.opcode) >> 16;
 
 					} else {
 						
@@ -5404,6 +5408,7 @@ insretry:
 				if (!currprefs.cpu_cycle_exact) {
 
 					cpu_cycles = adjust_cycles (cpu_cycles);
+					regs.instruction_cnt++;
 					if (regs.spcflags) {
 						if (do_specialties (cpu_cycles))
 							return;
@@ -5411,6 +5416,7 @@ insretry:
 
 				} else {
 
+					regs.instruction_cnt++;
 					if (regs.spcflags || time_for_interrupt ()) {
 						if (do_specialties (0))
 							return;
@@ -5480,6 +5486,7 @@ static void m68k_run_3ce (void)
 						exit = true;
 				}
 
+				regs.instruction_cnt++;
 				// workaround for situation when all accesses are cached
 				extracycles++;
 				if (extracycles >= 8) {
@@ -5522,6 +5529,7 @@ static void m68k_run_3p(void)
 
 				cpu_cycles = 1 * CYCLE_UNIT;
 				cycles = adjust_cycles(cpu_cycles);
+				regs.instruction_cnt++;
 				do_cycles(cycles);
 
 				if (r->spcflags) {
@@ -5660,6 +5668,7 @@ static void m68k_run_2ce (void)
 				(*cpufunctbl[r->opcode])(r->opcode);
 		
 				wait_memory_cycles();
+				regs.instruction_cnt++;
 
 		cont:
 				if (r->spcflags || time_for_interrupt ()) {
@@ -5783,9 +5792,6 @@ static void m68k_run_2p (void)
 					debug_trainer_match();
 				}
 
-				if (cpu_cycles > 0)
-					x_do_cycles(cpu_cycles);
-
 				if (currprefs.cpu_memory_cycle_exact) {
 
 					(*cpufunctbl[r->opcode])(r->opcode);
@@ -5795,13 +5801,19 @@ static void m68k_run_2p (void)
 					cpu_cycles -= CYCLE_UNIT;
 					if (cpu_cycles <= 0)
 						cpu_cycles = cpucycleunit;
+					regs.instruction_cnt++;
 
 				} else {
 
-					cpu_cycles = (*cpufunctbl[r->opcode])(r->opcode);
+					cpu_cycles = (*cpufunctbl[r->opcode])(r->opcode) >> 16;
 					cpu_cycles = adjust_cycles (cpu_cycles);
+					regs.instruction_cnt++;
 
 				}
+
+				if (cpu_cycles > 0)
+					x_do_cycles(cpu_cycles);
+
 cont:
 				if (r->spcflags) {
 					if (do_specialties (cpu_cycles))
@@ -5862,15 +5874,8 @@ static void *cpu_thread_run_2(void *v)
 #endif
 
 /* Same thing, but don't use prefetch to get opcode.  */
-static void m68k_run_2 (void)
+static void m68k_run_2_000(void)
 {
-#ifdef WITH_THREADED_CPU
-	if (currprefs.cpu_thread) {
-		run_cpu_thread(cpu_thread_run_2);
-		return;
-	}
-#endif
-
 	struct regstruct *r = &regs;
 	bool exit = false;
 
@@ -5885,10 +5890,10 @@ static void m68k_run_2 (void)
 				if (debug_opcode_watch) {
 					debug_trainer_match();
 				}
-				do_cycles (cpu_cycles);
 
-				cpu_cycles = (*cpufunctbl[r->opcode])(r->opcode);
+				cpu_cycles = (*cpufunctbl[r->opcode])(r->opcode) & 0xffff;
 				cpu_cycles = adjust_cycles (cpu_cycles);
+				do_cycles(cpu_cycles);
 
 				if (r->spcflags) {
 					if (do_specialties (cpu_cycles))
@@ -5904,6 +5909,50 @@ static void m68k_run_2 (void)
 		} ENDTRY
 	}
 }
+
+static void m68k_run_2_020(void)
+{
+#ifdef WITH_THREADED_CPU
+	if (currprefs.cpu_thread) {
+		run_cpu_thread(cpu_thread_run_2);
+		return;
+	}
+#endif
+
+	struct regstruct *r = &regs;
+	bool exit = false;
+
+	while (!exit) {
+		TRY(prb) {
+			while (!exit) {
+				r->instruction_pc = m68k_getpc();
+
+				r->opcode = x_get_iword(0);
+				count_instr(r->opcode);
+
+				if (debug_opcode_watch) {
+					debug_trainer_match();
+				}
+
+				cpu_cycles = (*cpufunctbl[r->opcode])(r->opcode) >> 16;
+				cpu_cycles = adjust_cycles(cpu_cycles);
+				do_cycles(cpu_cycles);
+
+				if (r->spcflags) {
+					if (do_specialties(cpu_cycles))
+						exit = true;
+				}
+			}
+		} CATCH(prb) {
+			bus_error();
+			if (r->spcflags) {
+				if (do_specialties(cpu_cycles))
+					exit = true;
+			}
+		} ENDTRY
+	}
+}
+
 
 /* fake MMU 68k  */
 #if 0
@@ -6146,7 +6195,7 @@ void m68k_go (int may_quit)
 				currprefs.cpu_model == 68030 && currprefs.cpu_compatible ? m68k_run_2p :
 				currprefs.cpu_model >= 68040 && currprefs.cpu_compatible ? m68k_run_3p :
 
-				m68k_run_2;
+				currprefs.cpu_model < 68020 ? m68k_run_2_000 : m68k_run_2_020;
 #if 0
 		}
 #endif
