@@ -348,6 +348,7 @@ static void fpulimit (void)
 
 static int s_count_readw, s_count_readl;
 static int s_count_writew, s_count_writel;
+static int s_count_readp;
 static int s_count_cycles, s_count_ncycles, s_insn_cycles;
 
 static void push_ins_cnt(void)
@@ -356,6 +357,7 @@ static void push_ins_cnt(void)
 	s_count_readl = count_readl;
 	s_count_writew = count_writew;
 	s_count_writel = count_writel;
+	s_count_readp = count_readp;
 	s_count_cycles = count_cycles;
 	s_count_ncycles = count_ncycles;
 	s_insn_cycles = insn_n_cycles;
@@ -366,6 +368,7 @@ static void pop_ins_cnt(void)
 	count_readl = s_count_readl;
 	count_writew = s_count_writew;
 	count_writel = s_count_writel;
+	count_readp = s_count_readp;
 	count_cycles = s_count_cycles;
 	count_ncycles = s_count_ncycles;
 	insn_n_cycles = s_insn_cycles;
@@ -553,8 +556,8 @@ static void returncycles(int cycles)
 		int total = count_readl + count_readw + count_writel + count_writew - count_readp;
 		if (!total)
 			total++;
-		out("return (%d * CYCLE_UNIT / 2 + count_cycles) | (((%d * 4 * CYCLE_UNIT / 2 + count_cycles) * 3) << 16);\n", cycles,
-			total);
+		out("return (%d * CYCLE_UNIT / 2 + count_cycles) | (((%d * 4 * CYCLE_UNIT / 2 + count_cycles) * 3) << 16);\n",
+			cycles, total);
 	} else if (using_simple_cycles) {
 		out("return %d * CYCLE_UNIT / 2 + count_cycles;\n", cycles);
 	} else {
