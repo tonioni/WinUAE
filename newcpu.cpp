@@ -1905,6 +1905,10 @@ static void build_cpufunctbl (void)
 	if (currprefs.cpu_cycle_exact) {
 		if (tbl == op_smalltbl_14_ff || tbl == op_smalltbl_13_ff || tbl == op_smalltbl_21_ff || tbl == op_smalltbl_23_ff)
 			m68k_interrupt_delay = true;
+	} else if (currprefs.cpu_compatible) {
+		if (currprefs.cpu_model <= 68010 && currprefs.m68k_speed == 0) {
+			m68k_interrupt_delay = true;
+		}
 	}
 
 	if (currprefs.cpu_cycle_exact) {
@@ -3120,6 +3124,8 @@ kludge_me_do:
 	set_special (SPCFLAG_END_COMPILE);
 #endif
 	branch_stack_push(currpc, nextpc);
+	regs.ipl_pin = intlev();
+	ipl_fetch();
 	fill_prefetch ();
 	exception_check_trace (nr);
 }

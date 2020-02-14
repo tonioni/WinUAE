@@ -145,6 +145,9 @@ static const char *do_cycles, *disp000, *disp020, *getpc;
 
 static int brace_level;
 
+static char outbuffer[30000];
+static int last_access_offset;
+
 static void out(const char *format, ...)
 {
 	char outbuf[1000];
@@ -190,9 +193,9 @@ static void out(const char *format, ...)
 				ps++;
 			}
 			for (int i = 0; i < brace_level; i++) {
-				printf("\t");
+				strcat(outbuffer, "\t");
 			}
-			printf("%s", outbuf2);
+			strcat(outbuffer, outbuf2);
 
 			ps = outbuf2;
 			while (*ps) {
@@ -205,13 +208,28 @@ static void out(const char *format, ...)
 		}
 
 		if (islf) {
-			printf("\n");
+			strcat(outbuffer, "\n");
 			pe++;
 		}
 		if (*pe == 0)
 			break;
 		p = pe;
 	}
+}
+
+static void insertstring(const char *s, int offset)
+{
+	int len = strlen(s);
+	memmove(outbuffer + offset + len + brace_level, outbuffer + offset, strlen(outbuffer + offset) + 1);
+	for (int i = 0; i < brace_level; i++) {
+		outbuffer[offset + i] = '\t';
+	}
+	memcpy(outbuffer + offset + brace_level, s, len);
+}
+
+static void set_last_access(void)
+{
+	last_access_offset = strlen(outbuffer);
 }
 
 NORETURN static void term (void)
@@ -796,6 +814,7 @@ static void gen_nextilong2 (const char *type, const char *name, int flags, int m
 	} else if (using_ce) {
 		/* we must do this because execution order of (something | something2) is not defined */
 		if (flags & GF_NOREFILL) {
+			set_last_access();
 			out("%s = %s(%d) << 16;\n", name, prefetch_word, r + 2);
 			count_readw++;
 			out("%s |= regs.irc;\n", name);
@@ -811,12 +830,14 @@ static void gen_nextilong2 (const char *type, const char *name, int flags, int m
 			do_instruction_buserror();
 			strcpy(bus_error_code, bus_error_code2);
 			bus_error_code2[0] = 0;
+			set_last_access();
 			out("%s |= %s(%d);\n", name, prefetch_word, r + 4);
 			count_readw++;
 			check_bus_error_ins(r + 4);
 		}
 	} else if (using_prefetch) {
 		if (flags & GF_NOREFILL) {
+			set_last_access();
 			out("%s = %s(%d) << 16;\n", name, prefetch_word, r + 2);
 			count_readw++;
 			out("%s |= regs.irc;\n", name);
@@ -832,6 +853,7 @@ static void gen_nextilong2 (const char *type, const char *name, int flags, int m
 			do_instruction_buserror();
 			strcpy(bus_error_code, bus_error_code2);
 			bus_error_code2[0] = 0;
+			set_last_access();
 			out("%s |= %s(%d);\n", name, prefetch_word, r + 4);
 			count_readw++;
 			check_bus_error_ins(r + 4);
@@ -872,6 +894,7 @@ static const char *gen_nextiword (int flags)
 		if (flags & GF_NOREFILL) {
 			strcpy(buffer, "regs.irc");
 		} else {
+			set_last_access();
 			sprintf(buffer, "%s(%d)", prefetch_word, r + 2);
 			count_readw++;
 			check_bus_error_ins(r + 2);
@@ -880,6 +903,7 @@ static const char *gen_nextiword (int flags)
 		if (flags & GF_NOREFILL) {
 			strcpy(buffer, "regs.irc");
 		} else {
+			set_last_access();
 			sprintf(buffer, "%s(%d)", prefetch_word, r + 2);
 			count_readw++;
 			check_bus_error_ins(r + 2);
@@ -913,6 +937,7 @@ static const char *gen_nextibyte (int flags)
 		if (flags & GF_NOREFILL) {
 			strcpy(buffer, "(uae_u8)regs.irc");
 		} else {
+			set_last_access();
 			sprintf(buffer, "(uae_u8)%s(%d)", prefetch_word, r + 2);
 			count_readw++;
 			check_bus_error_ins(r + 2);
@@ -921,6 +946,7 @@ static const char *gen_nextibyte (int flags)
 		if (flags & GF_NOREFILL) {
 			strcpy(buffer, "(uae_u8)regs.irc");
 		} else {
+			set_last_access();
 			sprintf(buffer, "(uae_u8)%s(%d)", prefetch_word, r + 2);
 			count_readw++;
 			check_bus_error_ins(r + 2);
@@ -963,28 +989,6 @@ static void check_ipl (void)
 	ipl_fetched = 1;
 }
 
-static void single_check_ipl(void)
-{
-	check_ipl();
-	ipl_fetched = 2;
-
-}
-/* this is not true, it seems to be microcode controller */
-
-/* Apparently interrupt state is sampled
- * during any memory access. Because we don't
- * know if there are future memory accesses,
- * we'll check each memory access after prefetch
- * and recheck interrupt state again.
- */
-static void check_ipl_again (void)
-{
-	if (ipl_fetched != 1)
-		return;
-	if (using_ce)
-		out("ipl_fetch();\n");
-}
-
 static void irc2ir (bool dozero)
 {
 	if (!using_prefetch)
@@ -995,7 +999,6 @@ static void irc2ir (bool dozero)
 	out("regs.ir = regs.irc;\n");
 	if (dozero)
 		out("regs.irc = 0;\n");
-	check_ipl();
 }
 static void irc2ir (void)
 {
@@ -1019,7 +1022,7 @@ static void fill_prefetch_bcc(void)
 		}
 		next_level_000();
 	}
-
+	set_last_access();
 	out("%s(%d);\n", prefetch_word, m68k_pc_offset + 2);
 	count_readw++;
 	check_prefetch_bus_error(m68k_pc_offset + 2, 0);
@@ -1030,6 +1033,7 @@ static void fill_prefetch_bcc(void)
 static void fill_prefetch_1(int o)
 {
 	if (using_prefetch) {
+		set_last_access();
 		out("%s(%d);\n", prefetch_word, o);
 		if (!loopmode || using_ce) {
 			count_readw++;
@@ -1048,6 +1052,7 @@ static void fill_prefetch_1(int o)
 static void fill_prefetch_1_empty(int o)
 {
 	if (using_prefetch) {
+		set_last_access();
 		out("%s(%d);\n", prefetch_word, o);
 		count_readw++;
 		check_prefetch_bus_error(o ? -2 : -1, 0);
@@ -1196,6 +1201,7 @@ static void fill_prefetch_full_000_special(const char *format, ...)
 		va_end(parms);
 		out(outbuf);
 	}
+	set_last_access();
 	out("%s(%d);\n", prefetch_word, 2);
 	count_readw++;
 	check_prefetch_bus_error(-2, -1);
@@ -3674,7 +3680,7 @@ static void genastore_2 (const char *from, amodes mode, const char *reg, wordsiz
 		} else if (using_ce) {
 			switch (size) {
 			case sz_byte:
-				check_ipl_again();
+				set_last_access();
 				out("x_put_byte(%sa, %s);\n", to, from);
 				count_writew++;
 				check_bus_error(to, 0, 1, 0, from, 1);
@@ -3682,7 +3688,7 @@ static void genastore_2 (const char *from, amodes mode, const char *reg, wordsiz
 			case sz_word:
 				if (cpu_level < 2 && (mode == PC16 || mode == PC8r))
 					term();
-				check_ipl_again();
+				set_last_access();
 				out("x_put_word(%sa, %s);\n", to, from);
 				count_writew++;
 				check_bus_error(to, 0, 1, 1, from, 1);
@@ -3694,7 +3700,6 @@ static void genastore_2 (const char *from, amodes mode, const char *reg, wordsiz
 					out("%s(%sa + 2, %s);\n", dstwx, to, from);
 					count_writew++;
 					check_bus_error(to, 2, 1, 1, from, 1);
-					check_ipl_again();
 					if (flags & GF_SECONDWORDSETFLAGS) {
 						genflags(flag_logical, g_instr->size, "src", "", "");
 					}
@@ -3703,6 +3708,7 @@ static void genastore_2 (const char *from, amodes mode, const char *reg, wordsiz
 						fill_prefetch_next_after(0, NULL);
 						insn_n_cycles += 4;
 					}
+					set_last_access();
 					out("%s(%sa, %s >> 16);\n", dstwx, to, from);
 					sprintf(tmp, "%s >> 16", from);
 					count_writew++;
@@ -3712,10 +3718,10 @@ static void genastore_2 (const char *from, amodes mode, const char *reg, wordsiz
 					sprintf(tmp, "%s >> 16", from);
 					count_writew++;
 					check_bus_error(to, 0, 1, 1, tmp, 1);
-					check_ipl_again();
 					if (flags & GF_SECONDWORDSETFLAGS) {
 						genflags(flag_logical, g_instr->size, "src", "", "");
 					}
+					set_last_access();
 					out("%s(%sa + 2, %s);\n", dstwx, to, from);
 					count_writew++;
 					check_bus_error(to, 2, 1, 1, from, 1);
@@ -3727,6 +3733,7 @@ static void genastore_2 (const char *from, amodes mode, const char *reg, wordsiz
 		} else if (using_prefetch) {
 			switch (size) {
 			case sz_byte:
+				set_last_access();
 				out("%s(%sa, %s);\n", dstbx, to, from);
 				count_writew++;
 				check_bus_error(to, 0, 1, 0, from, 1);
@@ -3734,6 +3741,7 @@ static void genastore_2 (const char *from, amodes mode, const char *reg, wordsiz
 			case sz_word:
 				if (cpu_level < 2 && (mode == PC16 || mode == PC8r))
 					term();
+				set_last_access();
 				out("%s(%sa, %s);\n", dstwx, to, from);
 				count_writew++;
 				check_bus_error(to, 0, 1, 1, from, 1);
@@ -3752,6 +3760,7 @@ static void genastore_2 (const char *from, amodes mode, const char *reg, wordsiz
 					if (store_dir > 1) {
 						fill_prefetch_next_after(0, NULL);
 					}
+					set_last_access();
 					out("%s(%sa, %s >> 16); \n", dstwx, to, from);
 					sprintf(tmp, "%s >> 16", from);
 					count_writew++;
@@ -3764,6 +3773,7 @@ static void genastore_2 (const char *from, amodes mode, const char *reg, wordsiz
 					if (flags & GF_SECONDWORDSETFLAGS) {
 						genflags(flag_logical, g_instr->size, "src", "", "");
 					}
+					set_last_access();
 					out("%s(%sa + 2, %s); \n", dstwx, to, from);
 					count_writew++;
 					check_bus_error(to, 2, 1, 1, from, 1);
@@ -4924,6 +4934,7 @@ static void gen_opcode (unsigned int opcode)
 	bus_error_code[0] = 0;
 	bus_error_code2[0] = 0;
 	opcode_nextcopy = 0;
+	last_access_offset = -1;
 
 	loopmode = 0;
 	// 68010 loop mode available if
@@ -5995,14 +6006,6 @@ static void gen_opcode (unsigned int opcode)
 				bus_error_code[0] = 0;
 				bus_error_code2[0] = 0;
 
-				if (curi->size == sz_long) {
-					if ((curi->dmode == Ad16 || curi->dmode == PC16) && curi->smode == imm) {
-						// lots more needed..
-						// move.l x,absl
-						// move.l (an),x(an)
-						single_check_ipl();
-					}
-				}
 				// MOVE EA,-(An) long writes are always reversed. Reads are normal.
 				if (curi->dmode == Apdi && curi->size == sz_long) {
 					genastore_2("src", curi->dmode, "dstreg", curi->size, "dst", 1, storeflags);
@@ -6150,7 +6153,8 @@ static void gen_opcode (unsigned int opcode)
 		sync_m68k_pc();
 		out("Exception_cpu(src + 32);\n");
 		write_return_cycles_noadd(0);
-		did_prefetch = 1;
+		did_prefetch = -1;
+		ipl_fetched = -1;
 		clear_m68k_offset();
 		break;
 	case i_MVR2USP:
@@ -6332,7 +6336,6 @@ static void gen_opcode (unsigned int opcode)
 			if (using_debugmem) {
 				out("branch_stack_pop_rte(oldpc);\n");
 			}
-			check_ipl();
 		} else {
 			out("uaecptr oldpc = %s;\n", getpc);
 			out("uae_u16 newsr; uae_u32 newpc;\n");
@@ -6428,7 +6431,6 @@ static void gen_opcode (unsigned int opcode)
 			if (using_debugmem) {
 				out("branch_stack_pop_rte(oldpc);\n");
 			}
-			check_ipl();
 		}
 		/* PC is set and prefetch filled. */
 		clear_m68k_offset();
@@ -6817,6 +6819,7 @@ static void gen_opcode (unsigned int opcode)
 			count_readw++;
 			check_prefetch_bus_error(-1, 0);
 			irc2ir();
+			set_last_access();
 			out("%s(%d);\n", prefetch_word, 2);
 			int sp = (curi->smode == Ad16 || curi->smode == absw || curi->smode == absl || curi->smode == PC16 || curi->smode == Ad8r || curi->smode == PC8r) ? -1 : 0;
 			copy_opcode();
@@ -8035,6 +8038,7 @@ bccl_not68020:
 		addcycles000(4);
 		out("op_illg(opcode);\n");
 		did_prefetch = -1;
+		ipl_fetched = -1;
 		break;
 	case i_CALLM:		/* not present in 68030 */
 		sync_m68k_pc();
@@ -8482,6 +8486,13 @@ end:
 	if (did_prefetch >= 0)
 		fill_prefetch_finish();
 	sync_m68k_pc();
+	if ((using_ce || using_prefetch) && did_prefetch >= 0) {
+		if (last_access_offset > 0) {
+			insertstring("ipl_fetch();\n", last_access_offset);
+		} else {
+			out("// MISSING\n");
+		}
+	}
 	did_prefetch = 0;
 	ipl_fetched = 0;
 	if (cpu_level >= 2 && !using_ce && !using_ce020) {
@@ -8680,6 +8691,8 @@ static void generate_one_opcode (int rp, const char *extra)
 	if (table68k[opcode].handler != -1)
 		return;
 
+	outbuffer[0] = 0;
+
 	if (opcode_next_clev[rp] != cpu_level) {
 		char *name = ua (lookuptab[idx].name);
 		if (generate_stbl)
@@ -8792,6 +8805,8 @@ static void generate_one_opcode (int rp, const char *extra)
 		out("#endif\n");
 	opcode_next_clev[rp] = next_cpu_level;
 	opcode_last_postfix[rp] = postfix;
+
+	printf("%s", outbuffer);
 
 	if (generate_stbl) {
 		char *name = ua (lookuptab[idx].name);
