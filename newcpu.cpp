@@ -1949,7 +1949,7 @@ static unsigned long cycles_mult;
 static void update_68k_cycles (void)
 {
 	cycles_mult = 0;
-	if (currprefs.m68k_speed >= 0 && !currprefs.cpu_cycle_exact) {
+	if (currprefs.m68k_speed >= 0 && !currprefs.cpu_cycle_exact && !currprefs.cpu_compatible) {
 		if (currprefs.m68k_speed_throttle < 0) {
 			cycles_mult = (unsigned long)(CYCLES_DIV * 1000 / (1000 + currprefs.m68k_speed_throttle));
 		} else if (currprefs.m68k_speed_throttle > 0) {
@@ -1998,7 +1998,15 @@ static void update_68k_cycles (void)
 	}
 	if (cpucycleunit < 1)
 		cpucycleunit = 1;
-	if (currprefs.cpu_cycle_exact)
+	if (!currprefs.cpu_cycle_exact && currprefs.cpu_compatible) {
+		if (cpucycleunit == CYCLE_UNIT / 2) {
+			cycles_mult = 0;
+		} else {
+			cycles_mult = cpucycleunit * (CYCLES_DIV / (CYCLE_UNIT / 2));
+		}
+	}
+
+	if (currprefs.cpu_cycle_exact || currprefs.cpu_compatible)
 		write_log (_T("CPU cycleunit: %d (%.3f)\n"), cpucycleunit, (float)cpucycleunit / CYCLE_UNIT);
 	set_config_changed ();
 }
@@ -4520,12 +4528,12 @@ static void m68k_run_1 (void)
 				if (debug_opcode_watch) {
 					debug_trainer_match();
 				}
-				do_cycles (cpu_cycles);
 				r->instruction_pc = m68k_getpc ();
 				cpu_cycles = (*cpufunctbl[r->opcode])(r->opcode) & 0xffff;
 				if (!regs.loop_mode)
 					regs.ird = regs.opcode;
 				cpu_cycles = adjust_cycles (cpu_cycles);
+				do_cycles(cpu_cycles);
 				regs.instruction_cnt++;
 				if (r->spcflags) {
 					if (do_specialties (cpu_cycles))
@@ -5810,7 +5818,7 @@ static void m68k_run_2p (void)
 
 				} else {
 
-					cpu_cycles = (*cpufunctbl[r->opcode])(r->opcode) >> 16;
+					cpu_cycles = (*cpufunctbl[r->opcode])(r->opcode);
 					cpu_cycles = adjust_cycles (cpu_cycles);
 					regs.instruction_cnt++;
 

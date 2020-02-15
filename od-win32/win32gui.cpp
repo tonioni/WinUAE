@@ -12557,7 +12557,7 @@ static void enable_for_cpudlg (HWND hDlg)
 #if 0
 	ew(hDlg, IDC_CPU_MULTIPLIER, workprefs.cpu_cycle_exact);
 #endif
-	ew(hDlg, IDC_CPU_FREQUENCY, workprefs.cpu_cycle_exact && workprefs.m68k_speed >= 0);
+	ew(hDlg, IDC_CPU_FREQUENCY, (workprefs.cpu_cycle_exact || workprefs.cpu_compatible) && workprefs.m68k_speed >= 0);
 	ew(hDlg, IDC_CPU_FREQUENCY2, workprefs.cpu_cycle_exact && !workprefs.cpu_clock_multiplier && workprefs.m68k_speed >= 0);
 
 	ew(hDlg, IDC_FPU1, workprefs.cpu_model < 68040 && (workprefs.cpu_model >= 68020 || !workprefs.cpu_compatible));
@@ -12641,13 +12641,11 @@ static void values_to_cpudlg (HWND hDlg)
 	CheckRadioButton (hDlg, IDC_MMUENABLEOFF, IDC_MMUENABLE, mmu == 0 ? IDC_MMUENABLEOFF : (mmu && workprefs.mmu_ec) ? IDC_MMUENABLEEC : IDC_MMUENABLE);
 	CheckDlgButton(hDlg, IDC_CPU_PPC, workprefs.ppc_mode || is_ppc_cpu(&workprefs));
 
-	if (workprefs.cpu_cycle_exact) {
-		if (workprefs.cpu_clock_multiplier) {
-			TCHAR txt[20];
-			double f = getcpufreq (workprefs.cpu_clock_multiplier);
-			_stprintf (txt, _T("%.6f"), f / 1000000.0);
-			SendDlgItemMessage (hDlg, IDC_CPU_FREQUENCY2, WM_SETTEXT, 0, (LPARAM)txt);
-		}
+	if ((workprefs.cpu_cycle_exact || workprefs.cpu_compatible) && workprefs.cpu_clock_multiplier) {
+		TCHAR txt[20];
+		double f = getcpufreq (workprefs.cpu_clock_multiplier);
+		_stprintf (txt, _T("%.6f"), f / 1000000.0);
+		SendDlgItemMessage (hDlg, IDC_CPU_FREQUENCY2, WM_SETTEXT, 0, (LPARAM)txt);
 	} else {
 		SendDlgItemMessage (hDlg, IDC_CPU_FREQUENCY2, WM_SETTEXT, 0, (LPARAM)_T(""));
 	}
@@ -12822,12 +12820,12 @@ static void values_from_cpudlg (HWND hDlg)
 		workprefs.cpu_clock_multiplier = 0;
 		if (idx < 4) {
 			workprefs.cpu_clock_multiplier = (1 << 8) << idx;
-		} else {
+		} else if (workprefs.cpu_cycle_exact) {
 			TCHAR txt[20];
 			txt[0] = 0;
-			SendDlgItemMessage (hDlg, IDC_CPU_FREQUENCY2, WM_GETTEXT, (WPARAM)sizeof (txt) / sizeof (TCHAR), (LPARAM)txt);
+			SendDlgItemMessage(hDlg, IDC_CPU_FREQUENCY2, WM_GETTEXT, (WPARAM)sizeof(txt) / sizeof(TCHAR), (LPARAM)txt);
 			workprefs.cpu_clock_multiplier = 0;
-			workprefs.cpu_frequency = (int)(_tstof (txt) * 1000000.0);
+			workprefs.cpu_frequency = (int)(_tstof(txt) * 1000000.0);
 			if (workprefs.cpu_frequency < 1 * 1000000)
 				workprefs.cpu_frequency = 0;
 			if (workprefs.cpu_frequency >= 99 * 1000000)
@@ -12861,7 +12859,9 @@ static INT_PTR CALLBACK CPUDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 		SendDlgItemMessage (hDlg, IDC_CPU_FREQUENCY, CB_ADDSTRING, 0, (LPARAM)_T("2x (A500)"));
 		SendDlgItemMessage (hDlg, IDC_CPU_FREQUENCY, CB_ADDSTRING, 0, (LPARAM)_T("4x (A1200)"));
 		SendDlgItemMessage (hDlg, IDC_CPU_FREQUENCY, CB_ADDSTRING, 0, (LPARAM)_T("8x"));
-		SendDlgItemMessage (hDlg, IDC_CPU_FREQUENCY, CB_ADDSTRING, 0, (LPARAM)_T("Custom"));
+		if (workprefs.cpu_cycle_exact) {
+			SendDlgItemMessage(hDlg, IDC_CPU_FREQUENCY, CB_ADDSTRING, 0, (LPARAM)_T("Custom"));
+		}
 
 		SendDlgItemMessage(hDlg, IDC_FPU_MODE, CB_RESETCONTENT, 0, 0);
 		SendDlgItemMessage(hDlg, IDC_FPU_MODE, CB_ADDSTRING, 0, (LPARAM)_T("Host (64-bit)"));
@@ -12882,12 +12882,14 @@ static INT_PTR CALLBACK CPUDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 			idx = 2; // A1200
 		}
 		if (!workprefs.cpu_cycle_exact) {
-			idx = 3;
-			workprefs.cpu_clock_multiplier = 0;
 			workprefs.cpu_frequency = 0;
-		} else {
-			if (!workprefs.cpu_frequency && (idx == 1 || idx == 2))
+			if (!workprefs.cpu_clock_multiplier && (idx == 1 || idx == 2)) {
 				workprefs.cpu_clock_multiplier = (1 << idx) << 8;
+			}
+		} else {
+			if (!workprefs.cpu_frequency && (idx == 1 || idx == 2)) {
+				workprefs.cpu_clock_multiplier = (1 << idx) << 8;
+			}
 		}
 		SendDlgItemMessage (hDlg, IDC_CPU_FREQUENCY, CB_SETCURSEL, idx, 0);
 		if (!workprefs.cpu_clock_multiplier) {

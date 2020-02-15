@@ -8164,6 +8164,10 @@ static void set_68020_compa (struct uae_prefs *p, int compa, int cd32)
 	case 2:
 		p->cpu_compatible = true;
 		p->m68k_speed = 0;
+		if (p->cpu_model == 68020)
+			p->cpu_clock_multiplier = 4 << 8;
+		else
+			p->cpu_clock_multiplier = 5 << 8;
 		break;
 	case 3:
 		p->cpu_compatible = 0;
