@@ -32,6 +32,7 @@ static int keyinject_offset;
 static uae_u8 keyinject_previous;
 static bool keyinject_state;
 static bool keyinject_do;
+static bool ignore_next_release;
 
 struct kbtab
 {
@@ -252,8 +253,16 @@ int record_key (int kc)
 int record_key_direct (int kc)
 {
 	int kpb_next = kpb_first + 1;
+	int kcd = (kc << 7) | (kc >> 1);
 
-	//write_log (_T("got kc %02X\n"), ((kc << 7) | (kc >> 1)) & 0xff);
+	if (ignore_next_release) {
+		ignore_next_release = false;
+		if (kcd & 0x80) {
+			return 0;
+		}
+	}
+
+	//write_log (_T("got kc %02X\n"), kcd & 0xff);
 	if (kpb_next == KEYBUF_SIZE)
 		kpb_next = 0;
 	if (kpb_next == kpb_last) {
@@ -272,6 +281,11 @@ void keybuf_init (void)
 	xfree(keyinject);
 	keyinject = NULL;
 	inputdevice_updateconfig (&changed_prefs, &currprefs);
+}
+
+void keybuf_ignore_next_release(void)
+{
+	ignore_next_release = true;
 }
 
 void keybuf_inject(const uae_char *txt)
