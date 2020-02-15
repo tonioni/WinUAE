@@ -22,6 +22,7 @@ Tests executed for each tested instruction:
 - If instruction generated privilege violation exception, extra test round is run in supervisor mode.
 - Optionally can do any combination of T0, T1, S and M -bit SR register extra test rounds.
 - Every opcode value is tested. Total number of tests per opcode depends on available addressing modes etc. It can be hundreds of thousands or even millions..
+- Optinnally can be used to fully validate address and bus errors. Bus error testing requires extra hardware/logic.
 
 Test generation details:
 
@@ -39,10 +40,11 @@ Notes and limitations:
 - Single instruction test set will take long time to run on real 68000. Few minutes to much longer...
 - Undefined flags (for example DIV and CHK or 68000/010 bus address error) are also verified. It probably would be good idea to optionally filter them out.
 - FPU testing is not yet fully implemented.
+- TAS test will return wrong results if test RAM region is not fully TAS read-modify-write special memory access compatible.
 
 Tester compatibility (integer instructions only):
 
-68000: Complete. Including bus and address error stack frame/register/CCR modification undocumented behavior. Cycle count support.
+68000: Complete. Including bus and address error stack frame/register/CCR modification undocumented behavior. Full cycle count support.
 68010: Almost complete (same as 68000). Loop mode is also fully supported. NOTE: DIVS overflow undocumented N-flag is not fully correct.
 68020: Almost complete (DIV undocumented behavior is not yet known)
 68030: Same as 68020.
@@ -63,8 +65,6 @@ Cycle counting requires 100% accurate timing also for following instructions:
 
 0xDFF006 is used for cycle counting = accuracy will be +-2 CPU cycles. 0xDFF006 behavior must be accurate.
 Currently only supported hardware for cycle counting is 7MHz 68000/68010 PAL Amiga with real Fast RAM.
-
-Bus error cycle counting is not yet supported.
 
 --
 
@@ -140,3 +140,13 @@ Change log:
 - Some instructions (for example TRAP) had wrong expected cycle count if instruction generated any non-trace exception and also trace exception.
 - added -skipexcccr parameter. Skip CCR check if instruction generates bus, address, divide by zero or CHK exception.
 - added -skipmem (ignore memory write mismatches) -skipreg (ignore register mismatched) -skipccr (ignored CCR mismatch) parameters.
+
+09.02.2020
+
+- All 68000 tests are 100% confirmed, including full cycle-count support.
+
+15.02.2020
+
+- 68000 Address error timing fix (CHK.W cycle count error)
+- 68000 MOVE to memory address error cycle order fixed.
+- 68000 re-verified (except bus errors)

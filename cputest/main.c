@@ -1714,6 +1714,7 @@ static int getexceptioncycles(int exc)
 		switch (exc)
 		{
 		case 2:
+			return 58;
 		case 3:
 			return 54;
 		case 4:
@@ -1742,6 +1743,7 @@ static int getexceptioncycles(int exc)
 		switch (exc)
 		{
 		case 2:
+			return 134;
 		case 3:
 			return 130;
 		case 4:

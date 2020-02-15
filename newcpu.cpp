@@ -2370,7 +2370,7 @@ static void exception_debug (int nr)
 Address/Bus Error:
 
 - [memory access causing bus/address error]
-- 8 idle cycles
+- 8 idle cycles (+4 if bus error)
 - write PC low word
 - write SR
 - write PC high word
@@ -2505,8 +2505,10 @@ static void Exception_ce000 (int nr)
 		start = 4;
 		if (nr == 7) // TRAPV
 			start = 0;
-		else if (nr == 2 || nr == 3)
+		else if (nr == 3)
 			start = 8;
+		else if (nr == 2)
+			start = 12;
 	}
 
 	if (start)
@@ -2827,7 +2829,7 @@ static void add_approximate_exception_cycles(int nr)
 		} else {
 			switch (nr)
 			{
-			case 2: cycles = 54; break;		/* Bus error */
+			case 2: cycles = 58; break;		/* Bus error */
 			case 3: cycles = 54; break;		/* Address error */
 			case 4: cycles = 34; break;		/* Illegal instruction */
 			case 5: cycles = 34; break;		/* Division by zero */
@@ -2852,7 +2854,7 @@ static void add_approximate_exception_cycles(int nr)
 		} else {
 			switch (nr)
 			{
-			case 2: cycles = 130; break;	/* Bus error */
+			case 2: cycles = 134; break;	/* Bus error */
 			case 3: cycles = 130; break;	/* Address error */
 			case 4: cycles = 38; break;		/* Illegal instruction */
 			case 5: cycles = 38; break;		/* Division by zero */
