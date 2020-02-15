@@ -86,7 +86,8 @@ static int optimized_flags;
 #define GF_SECONDEA	0x08000
 #define GF_NOFETCH	0x10000 // 68010
 #define GF_CLR68010	0x20000 // 68010
-#define GF_NOEXC	0x40000
+#define GF_NOEXC3	0x40000
+#define GF_EXC3		0x80000
 
 typedef enum
 {
@@ -2654,10 +2655,13 @@ static void move_68000_address_error(int size, int *setapdi, int *fcmodeflags)
 	if (dmode == Apdi) {
 		addcycles000_onlyce(2);
 		addcycles000_nonce(2);
+	} else if (dmode == Aipi) {
+		// move.x x,(an)+: an is not increased
+		out("m68k_areg(regs, dstreg) -= %d;\n", 1 << size);
 	}
 
 	if (size == sz_word) {
-		// Word MOVE is relatively simply
+		// Word MOVE is relatively simple
 		int set_ccr = 0;
 		switch(smode)
 		{
@@ -2678,13 +2682,6 @@ static void move_68000_address_error(int size, int *setapdi, int *fcmodeflags)
 				if (dmode == Aind || dmode == Aipi || dmode == Apdi || dmode == Ad16 || dmode == Ad8r || dmode == absw || dmode == absl)
 					set_ccr = 1;
 			break;
-		}
-		if (dmode == Apdi) {
-			// partial prefetch already done
-			out("regs.ir = regs.irc;\n");
-			// if trace, I/N is also set
-			out("if(regs.t1) opcode |= 0x10000;\n");
-
 		}
 		if (set_ccr) {
 			out("ccr_68000_word_move_ae_normal((uae_s16)(src));\n");
@@ -2734,6 +2731,8 @@ static void move_68000_address_error(int size, int *setapdi, int *fcmodeflags)
 
 		if (dmode == Apdi) {
 			*setapdi = 0;
+			out("m68k_areg(regs, dstreg) += 4;\n");
+			out("regs.ir = opcode;\n");
 		}
 
 		if (set_low_word == 1) {
@@ -2759,7 +2758,7 @@ static void move_68010_address_error(int size, int *setapdi, int *fcmodeflags)
 	int dmode = g_instr->dmode;
 
 	if (size == sz_word) {
-		// Word MOVE is relatively simply
+		// Word MOVE is relatively simple
 		int set_ccr = 0;
 		switch (smode)
 		{
@@ -2853,6 +2852,108 @@ static void move_68010_address_error(int size, int *setapdi, int *fcmodeflags)
 			// Set normally.
 			out("ccr_68000_long_move_ae_normal(src);\n");
 		}
+	}
+}
+
+static void check_address_error(const  char *name, int mode, const char *reg, int size, int getv, int movem, int flags)
+{
+	// check possible address error (if 68000/010 and enabled)
+	if ((using_prefetch || using_ce) && using_exception_3 && getv != 0 && getv != 3 && size != sz_byte && !movem && !(flags & GF_NOEXC3)) {
+		int setapdiback = 0;
+		int fcmodeflags = 0;
+		int exp3rw = getv == 2;
+
+		next_level_000();
+
+		out("if (%sa & 1) {\n", name);
+
+		if (cpu_level == 1) {
+			int bus_error_reg_add_old = bus_error_reg_add;
+			if (abs(bus_error_reg_add) == 4)
+				bus_error_reg_add = 0;
+			// 68010 CLR <memory>: pre and post are not added yet
+			if (g_instr->mnemo == i_CLR) {
+				if (mode == Aipi)
+					bus_error_reg_add = 0;
+				if (mode == Apdi)
+					bus_error_reg_add = 0;
+			}
+			if (g_instr->mnemo == i_MOVE || g_instr->mnemo == i_MOVEA) {
+				if (getv != 2) {
+					do_bus_error_fixes(name, 0, getv == 2);
+				}
+			} else {
+				do_bus_error_fixes(name, 0, getv == 2);
+			}
+			// x,-(an): an is modified (MOVE to CCR counts as word sized)
+			if (mode == Apdi && (g_instr->size == sz_word || g_instr->size == i_MV2SR) && g_instr->mnemo != i_CLR) {
+				out("m68k_areg(regs, %s) = %sa;\n", reg, name);
+			}
+			bus_error_reg_add = bus_error_reg_add_old;
+		}
+
+		if (g_instr->mnemo == i_ADDX || g_instr->mnemo == i_SUBX) {
+			// ADDX/SUBX special case
+			if (g_instr->size == sz_word) {
+				out("m68k_areg(regs, %s) = %sa;\n", reg, name);
+			}
+		} else if (mode == Apdi && g_instr->mnemo != i_LINK) {
+			// 68000 decrements register first, then checks for address error
+			// 68010 does not
+			if (cpu_level == 0)
+				setapdiback = 1;
+		}
+
+
+		if (exception_pc_offset) {
+			incpc("%d", exception_pc_offset);
+		}
+
+		if (g_instr->mnemo == i_MOVE) {
+			if (getv == 2) {
+				if (cpu_level == 0) {
+					move_68000_address_error(size, &setapdiback, &fcmodeflags);
+				} else {
+					move_68010_address_error(size, &setapdiback, &fcmodeflags);
+				}
+			}
+		} else if (g_instr->mnemo == i_MVSR2) {
+			// If MOVE from SR generates address error exception,
+			// Change it to read because it does dummy read first.
+			exp3rw = 0;
+			if (cpu_level == 1) {
+				out("opcode |= 0x20000;\n"); // upper byte of SSW is zero -flag.
+			}
+		} else if (g_instr->mnemo == i_LINK) {
+			// a7 -> a0 copy done before A7 address error check
+			out("m68k_areg(regs, srcreg) = olda;\n");
+			setapdiback = 0;
+		}
+
+		if (setapdiback) {
+			out("m68k_areg(regs, %s) = %sa;\n", reg, name);
+		}
+
+		// MOVE.L EA,-(An) causing address error: stacked value is original An - 2, not An - 4.
+		if ((flags & (GF_REVERSE | GF_REVERSE2)) && size == sz_long && mode == Apdi)
+			out("%sa += %d;\n", name, flags & GF_REVERSE2 ? -2 : 2);
+
+		if (exp3rw) {
+			const char *shift = (size == sz_long && !(flags & GF_REVERSE)) ? " >> 16" : "";
+			out("exception3_write_opcode(opcode, %sa, %d, %s%s, %d);\n",
+				name, size, g_srcname, shift,
+				// PC-relative: FC=2
+				(getv == 1 && (g_instr->smode == PC16 || g_instr->smode == PC8r) ? 2 : 1) | fcmodeflags);
+
+		} else {
+			out("exception3_read_opcode(opcode, %sa, %d, %d);\n",
+				name, size,
+				// PC-relative: FC=2
+				(getv == 1 && (g_instr->smode == PC16 || g_instr->smode == PC8r) ? 2 : 1) | fcmodeflags);
+		}
+
+		write_return_cycles_noadd(0);
+		out("}\n");
 	}
 }
 
@@ -3246,102 +3347,8 @@ static void genamode2x (amodes mode, const char *reg, wordsizes size, const char
 		exception_pc_offset = pc_68000_offset + pc_68000_offset_fetch;
 	}
 
-	// check possible address error (if 68000/010 and enabled)
-	if ((using_prefetch || using_ce) && using_exception_3 && getv != 0 && getv != 3 && size != sz_byte && !movem && !(flags & GF_NOEXC)) {
-		int setapdiback = 0;
-		int fcmodeflags = 0;
-		int exp3rw = getv == 2;
-
-		next_level_000();
-
-		out("if (%sa & 1) {\n", name);
-
-		if (cpu_level == 1) {
-			int bus_error_reg_add_old = bus_error_reg_add;
-			if (abs(bus_error_reg_add) == 4)
-				bus_error_reg_add = 0;
-			// 68010 CLR <memory>: pre and post are not added yet
-			if (g_instr->mnemo == i_CLR) {
-				if (mode == Aipi)
-					bus_error_reg_add = 0;
-				if (mode == Apdi)
-					bus_error_reg_add = 0;
-			}
-			if (g_instr->mnemo == i_MOVE || g_instr->mnemo == i_MOVEA) {
-				if (getv != 2) {
-					do_bus_error_fixes(name, 0, getv == 2);
-				}
-			} else {
-				do_bus_error_fixes(name, 0, getv == 2);
-			}
-			// x,-(an): an is modified (MOVE to CCR counts as word sized)
-			if (mode == Apdi && (g_instr->size == sz_word || g_instr->size == i_MV2SR) && g_instr->mnemo != i_CLR) {
-				out("m68k_areg(regs, %s) = %sa;\n", reg, name);
-			}
-			bus_error_reg_add = bus_error_reg_add_old;
-		}
-
-		if (g_instr->mnemo == i_ADDX || g_instr->mnemo == i_SUBX) {
-			// ADDX/SUBX special case
-			if (g_instr->size == sz_word) {
-				out("m68k_areg(regs, %s) = %sa;\n", reg, name);
-			}
-		} else if (mode == Apdi && g_instr->mnemo != i_LINK) {
-			// 68000 decrements register first, then checks for address error
-			// 68010 does not
-			if (cpu_level == 0)
-				setapdiback = 1;
-		}
-
-
-		if (exception_pc_offset)
-			incpc("%d", exception_pc_offset);
-
-		if (g_instr->mnemo == i_MOVE) {
-			if (getv == 2) {
-				if (cpu_level == 0) {
-					move_68000_address_error(size, &setapdiback, &fcmodeflags);
-				} else {
-					move_68010_address_error(size, &setapdiback, &fcmodeflags);
-				}
-			}
-		} else if (g_instr->mnemo == i_MVSR2) {
-			// If MOVE from SR generates address error exception,
-			// Change it to read because it does dummy read first.
-			exp3rw = 0;
-			if (cpu_level == 1) {
-				out("opcode |= 0x20000;\n"); // upper byte of SSW is zero -flag.
-			}
-		} else if (g_instr->mnemo == i_LINK) {
-			// a7 -> a0 copy done before A7 address error check
-			out("m68k_areg(regs, srcreg) = olda;\n");
-			setapdiback = 0;
-		}
-
-		if (setapdiback) {
-			out("m68k_areg(regs, %s) = %sa;\n", reg, name);
-		}
-
-		// MOVE.L EA,-(An) causing address error: stacked value is original An - 2, not An - 4.
-		if ((flags & (GF_REVERSE | GF_REVERSE2)) && size == sz_long && mode == Apdi)
-			out("%sa += %d;\n", name, flags & GF_REVERSE2 ? -2 : 2);
-
-		if (exp3rw) {
-			const char *shift = (size == sz_long && !(flags & GF_REVERSE)) ? " >> 16" : "";
-			out("exception3_write_opcode(opcode, %sa, %d, %s%s, %d);\n",
-				name, size, g_srcname, shift,
-				// PC-relative: FC=2
-				(getv == 1 && (g_instr->smode == PC16 || g_instr->smode == PC8r) ? 2 : 1) | fcmodeflags);
-
-		} else {
-			out("exception3_read_opcode(opcode, %sa, %d, %d);\n",
-				name, size,
-				// PC-relative: FC=2
-				(getv == 1 && (g_instr->smode == PC16 || g_instr->smode == PC8r) ? 2 : 1) | fcmodeflags);
-		}
-
-		write_return_cycles_noadd(0);
-		out("}\n");
+	if (!(flags & GF_NOEXC3)) {
+		check_address_error(name, mode, reg, size, getv, movem, flags);
 	}
 
 	if (flags & GF_PREFETCH)
@@ -3581,6 +3588,10 @@ static void genastore_2 (const char *from, amodes mode, const char *reg, wordsiz
 	genastore_done = true;
 	if (!(flags & GF_LRMW)) {
 		returntail(mode != Dreg && mode != Areg);
+	}
+
+	if ((flags & GF_EXC3) && !isreg(mode)) {
+		check_address_error(to, mode, reg, size, 2, 0, flags);
 	}
 
 	switch (mode) {
@@ -5959,7 +5970,7 @@ static void gen_opcode (unsigned int opcode)
 					}
 				}
 
-				genamode(curi, curi->dmode, "dstreg", curi->size, "dst", 2, 0, flags);
+				genamode(curi, curi->dmode, "dstreg", curi->size, "dst", 2, 0, flags | GF_NOEXC3);
 
 				if (curi->mnemo == i_MOVEA && curi->size == sz_word)
 					out("src = (uae_s32)(uae_s16)src;\n");
@@ -5994,13 +6005,13 @@ static void gen_opcode (unsigned int opcode)
 					}
 				}
 
-				int storeflags = 0;
+				int storeflags = flags & (GF_REVERSE | GF_APDI);
 
 				if (curi->mnemo == i_MOVE) {
 					if (curi->size == sz_long && cpu_level <= 1 && (using_prefetch || using_ce) && curi->dmode >= Aind) {
 						// to support bus error exception correct flags, flags needs to be set
 						// after first word has been written.
-						storeflags = GF_SECONDWORDSETFLAGS;
+						storeflags |= GF_SECONDWORDSETFLAGS;
 					} else {
 						genflags(flag_logical, curi->size, "src", "", "");
 					}
@@ -6011,9 +6022,9 @@ static void gen_opcode (unsigned int opcode)
 
 				// MOVE EA,-(An) long writes are always reversed. Reads are normal.
 				if (curi->dmode == Apdi && curi->size == sz_long) {
-					genastore_2("src", curi->dmode, "dstreg", curi->size, "dst", 1, storeflags);
+					genastore_2("src", curi->dmode, "dstreg", curi->size, "dst", 1, storeflags | GF_EXC3);
 				} else {
-					genastore_2("src", curi->dmode, "dstreg", curi->size, "dst", 0, storeflags);
+					genastore_2("src", curi->dmode, "dstreg", curi->size, "dst", 0, storeflags | GF_EXC3);
 				}
 				sync_m68k_pc();
 				if (dualprefetch) {
@@ -6497,11 +6508,11 @@ static void gen_opcode (unsigned int opcode)
 			addop_ce020(curi, 0, 0);
 			// smode must be first in case it is A7. Except if 68040!
 			if (cpu_level == 4) {
-				genamode(NULL, Apdi, "7", sz_long, "old", 2, 0, GF_AA | GF_NOEXC);
+				genamode(NULL, Apdi, "7", sz_long, "old", 2, 0, GF_AA | GF_NOEXC3);
 				genamode(NULL, curi->smode, "srcreg", sz_long, "src", 1, 0, GF_AA);
 			} else {
 				genamode(NULL, curi->smode, "srcreg", sz_long, "src", 1, 0, GF_AA);
-				genamode(NULL, Apdi, "7", sz_long, "old", 2, 0, GF_AA | GF_NOEXC);
+				genamode(NULL, Apdi, "7", sz_long, "old", 2, 0, GF_AA | GF_NOEXC3);
 			}
 			strcpy(bus_error_code, "m68k_areg(regs, 7) += 4;\n");
 			genamode(NULL, curi->dmode, "dstreg", curi->size, "offs", 1, 0, 0);
@@ -7039,7 +7050,7 @@ bccl_not68020:
 			out("uae_u16 old_opcode = opcode;\n");
 		}
 		genamode(curi, curi->smode, "srcreg", curi->size, "src", 0, 0, GF_AA);
-		genamode(NULL, Apdi, "7", sz_long, "dst", 2, 0, GF_AA | GF_NOEXC);
+		genamode(NULL, Apdi, "7", sz_long, "dst", 2, 0, GF_AA | GF_NOEXC3);
 		if (curi->smode == Ad8r || curi->smode == PC8r)
 			addcycles000(2);
 		if (!(curi->smode == absw || curi->smode == absl))
@@ -8928,7 +8939,7 @@ static void generate_cpu_test(int mode)
 	for (rp = 0; rp < nr_cpuop_funcs; rp++)
 		opcode_next_clev[rp] = cpu_level;
 
-	out("#include \"cputest.h\"\n");
+	printf("#include \"cputest.h\"\n");
 	if (!mode) {
 		fprintf(stblfile, "#include \"cputest.h\"\n");
 	}

@@ -2370,7 +2370,6 @@ Address/Bus Error:
 - write fault address low word
 - write status code
 - write fault address high word
-- 2 idle cycles
 - read exception address high word
 - read exception address low word
 - prefetch
@@ -2415,7 +2414,7 @@ TrapV:
 
 CHK:
 
-- 4 idle cycles (EA + 4 cycles in cpuemu)
+- 4 idle cycles (EA + 4/6 cycles in cpuemu)
 - write PC low word
 - write SR
 - write PC high word
@@ -2537,7 +2536,6 @@ static void Exception_ce000 (int nr)
 			x_put_word(m68k_areg(regs, 7) + 4, last_fault_for_exception_3);
 			x_put_word(m68k_areg(regs, 7) + 0, mode);
 			x_put_word(m68k_areg(regs, 7) + 2, last_fault_for_exception_3 >> 16);
-			x_do_cycles(2 * cpucycleunit);
 			goto kludge_me_do;
 		} else {
 			// 68010 bus/address error (partially implemented only)
@@ -2821,8 +2819,8 @@ static void add_approximate_exception_cycles(int nr)
 		} else {
 			switch (nr)
 			{
-			case 2: cycles = 56; break;		/* Bus error */
-			case 3: cycles = 56; break;		/* Address error */
+			case 2: cycles = 54; break;		/* Bus error */
+			case 3: cycles = 54; break;		/* Address error */
 			case 4: cycles = 34; break;		/* Illegal instruction */
 			case 5: cycles = 34; break;		/* Division by zero */
 			case 6: cycles = 34; break;		/* CHK */
@@ -2846,8 +2844,8 @@ static void add_approximate_exception_cycles(int nr)
 		} else {
 			switch (nr)
 			{
-			case 2: cycles = 132; break;	/* Bus error */
-			case 3: cycles = 132; break;	/* Address error */
+			case 2: cycles = 130; break;	/* Bus error */
+			case 3: cycles = 130; break;	/* Address error */
 			case 4: cycles = 38; break;		/* Illegal instruction */
 			case 5: cycles = 38; break;		/* Division by zero */
 			case 6: cycles = 38; break;		/* CHK */

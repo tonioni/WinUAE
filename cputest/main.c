@@ -1715,7 +1715,7 @@ static int getexceptioncycles(int exc)
 		{
 		case 2:
 		case 3:
-			return 56;
+			return 54;
 		case 4:
 		case 5:
 		case 6:
@@ -1743,7 +1743,7 @@ static int getexceptioncycles(int exc)
 		{
 		case 2:
 		case 3:
-			return 132;
+			return 130;
 		case 4:
 		case 5:
 		case 6:
@@ -1888,8 +1888,13 @@ static int check_cycles(int exc, short extratrace, short extrag2w1)
 	}
 	// address error during group 2 exception stacking (=odd exception vector)
 	if (extrag2w1) {
-		// 4 idle, write pc low, write sr, write pc high, read vector high, read vector low
-		expectedcycles += 6 * 4;
+		// 4 idle, write pc low, write sr, write pc high, read vector high, read vector low,
+		// exception vector fetch that generates address error
+		expectedcycles += 7 * 4;
+		if (extrag2w1 == 7) {
+			// TRAPV has no startup idle cycles
+			expectedcycles -= 4;
+		}
 		if (cpu_lvl == 1) {
 			// 68010: frame type
 			expectedcycles += 4;
@@ -1898,6 +1903,7 @@ static int check_cycles(int exc, short extratrace, short extrag2w1)
 			// interrupt
 			expectedcycles += 2 + 4 + 4;
 		}
+		exceptioncount[0][extrag2w1]++;
 	}
 
 	if (0 || abs(gotcycles - expectedcycles) > cycles_range) {
