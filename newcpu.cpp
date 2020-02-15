@@ -2617,9 +2617,9 @@ kludge_me_do:
 			m68k_setpc(regs.vbr + 4 * vector_nr);
 			if (interrupt) {
 				regs.ir = nr;
-				exception3_read(regs.ir | 0x20000 | 0x10000, newpc, sz_word, 2);
+				exception3_read_opcode(regs.ir | 0x20000 | 0x10000, newpc, sz_word, 2);
 			} else {
-				exception3_read(regs.ir | 0x40000 | 0x20000 | (g1 ? 0x10000 : 0), newpc, sz_word, 2);
+				exception3_read_opcode(regs.ir | 0x40000 | 0x20000 | (g1 ? 0x10000 : 0), newpc, sz_word, 2);
 			}
 		} else if (currprefs.cpu_model == 68010) {
 			// offset, not vbr + offset
@@ -2628,7 +2628,7 @@ kludge_me_do:
 			regs.write_buffer = 4 * vector_nr;
 			regs.read_buffer = newpc;
 			regs.irc = regs.read_buffer;
-			exception3_read(regs.opcode, newpc, sz_word, 2);
+			exception3_read_opcode(regs.opcode, newpc, sz_word, 2);
 		} else {
 			exception3_notinstruction(regs.ir, newpc);
 		}
@@ -3092,6 +3092,7 @@ kludge_me_do:
 			cpu_halt(CPU_HALT_DOUBLE_FAULT);
 			return;
 		}
+		// 4 idle, write pc low, write sr, write pc high, read vector high, read vector low
 		x_do_cycles(adjust_cycles(6 * 4 * CYCLE_UNIT / 2));
 		if (currprefs.cpu_model == 68000) {
 			regs.t1 = 0;
@@ -3099,9 +3100,9 @@ kludge_me_do:
 			m68k_setpc(regs.vbr + 4 * vector_nr);
 			if (interrupt) {
 				regs.ir = nr;
-				exception3_read(regs.ir | 0x20000 | 0x10000, newpc, sz_word, 2);
+				exception3_read_opcode(regs.ir | 0x20000 | 0x10000, newpc, sz_word, 2);
 			} else {
-				exception3_read(regs.ir | 0x40000 | 0x20000 | (g1 ? 0x10000 : 0), newpc, sz_word, 2);
+				exception3_read_opcode(regs.ir | 0x40000 | 0x20000 | (g1 ? 0x10000 : 0), newpc, sz_word, 2);
 			}
 		} else if (currprefs.cpu_model == 68010) {
 			regs.t1 = 0;
@@ -3109,7 +3110,7 @@ kludge_me_do:
 			regs.write_buffer = 4 * vector_nr;
 			regs.read_buffer = newpc;
 			regs.irc = regs.read_buffer;
-			exception3_read(regs.ir, newpc, sz_word, 2);
+			exception3_read_opcode(regs.ir, newpc, sz_word, 2);
 		} else {
 			exception3_notinstruction(regs.ir, newpc);
 		}
