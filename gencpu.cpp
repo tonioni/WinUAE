@@ -5523,14 +5523,12 @@ static void gen_opcode (unsigned int opcode)
 		break;
 	case i_NBCD:
 		genamode(curi, curi->smode, "srcreg", curi->size, "src", 1, 0, GF_RMW);
-		if (isreg (curi->smode))
-			addcycles000(2);
 		out("uae_u16 newv_lo = - (src & 0xF) - (GET_XFLG() ? 1 : 0);\n");
 		out("uae_u16 newv_hi = - (src & 0xF0);\n");
 		out("uae_u16 newv;\n");
 		out("int cflg, tmp_newv;\n");
 		out("tmp_newv = newv_hi + newv_lo;\n");
-		out("if (newv_lo > 9) { newv_lo -= 6; }\n");
+		out("if (newv_lo > 9) newv_lo -= 6;\n");
 		out("newv = newv_hi + newv_lo;\n");
 		out("cflg = (newv & 0x1F0) > 0x90;\n");
 		out("if (cflg) newv -= 0x60;\n");
@@ -5552,7 +5550,12 @@ static void gen_opcode (unsigned int opcode)
 		} else {
 			out("SET_VFLG((tmp_newv & 0x80) != 0 && (newv & 0x80) == 0);\n");
 		}
-		fill_prefetch_next_after(1, NULL);
+		if (isreg(curi->smode)) {
+			fill_prefetch_next_after(1, NULL);
+			addcycles000(2);
+		} else {
+			fill_prefetch_next_after(1, NULL);
+		}
 		genastore("newv", curi->smode, "srcreg", curi->size, "src");
 		break;
 	case i_CLR:
@@ -5678,8 +5681,8 @@ static void gen_opcode (unsigned int opcode)
 			bsetcycles(curi);
 			if (curi->dmode == imm) {
 				// btst dn,#x
-				addcycles000(2);
 				fill_prefetch_next_after(1, NULL);
+				addcycles000(2);
 				out("SET_ZFLG(1 ^ ((dst >> src) & 1));\n");
 			} else {
 				out("SET_ZFLG(1 ^ ((dst >> src) & 1));\n");
@@ -7403,11 +7406,11 @@ bccl_not68020:
 		out("uae_s32 upper,lower,reg = regs.regs[(extra >> 12) & 15];\n");
 		switch (curi->size) {
 		case sz_byte:
-			out("lower = (uae_s32)(uae_s8)%s(dsta); upper = (uae_s32)(uae_s8)%s(dsta + 1);\n", srcb, srcb);
+			out("lower = (uae_s32)(uae_s8)%s(dsta);\nupper = (uae_s32)(uae_s8)%s(dsta + 1);\n", srcb, srcb);
 			out("if ((extra & 0x8000) == 0) reg = (uae_s32)(uae_s8)reg;\n");
 			break;
 		case sz_word:
-			out("lower = (uae_s32)(uae_s16)%s(dsta); upper = (uae_s32)(uae_s16)%s(dsta + 2);\n", srcw, srcw);
+			out("lower = (uae_s32)(uae_s16)%s(dsta);\nupper = (uae_s32)(uae_s16)%s(dsta + 2);\n", srcw, srcw);
 			out("if ((extra & 0x8000) == 0) reg = (uae_s32)(uae_s16)reg;\n");
 			break;
 		case sz_long:
@@ -7442,9 +7445,9 @@ bccl_not68020:
 		}
 		out("CLEAR_CZNV();\n");
 		if (curi->size == sz_long) {
-			fill_prefetch_next_noopcodecopy("SET_NFLG(val & 0x8000);SET_ZFLG(!(val & 0xffff));\n");
+			fill_prefetch_next_noopcodecopy("SET_NFLG(val & 0x8000);\nSET_ZFLG(!(val & 0xffff));\n");
 		} else {
-			fill_prefetch_next_noopcodecopy("SET_ZFLG(!(val & %s));SET_NFLG(val & %s);\n", bit_mask(curi->size), cmask(curi->size));
+			fill_prefetch_next_noopcodecopy("SET_ZFLG(!(val & %s));\nSET_NFLG(val & %s);\n", bit_mask(curi->size), cmask(curi->size));
 		}
 		out("uae_u32 sign = (%s & val) >> %d;\n", cmask (curi->size), bit_size (curi->size) - 1);
 		out("int ccnt = cnt & 63;\n");
@@ -7482,9 +7485,9 @@ bccl_not68020:
 		}
 		out("CLEAR_CZNV();\n");
 		if (curi->size == sz_long) {
-			fill_prefetch_next_noopcodecopy("SET_NFLG(val & 0x8000);SET_ZFLG(!(val & 0xffff));\n");
+			fill_prefetch_next_noopcodecopy("SET_NFLG(val & 0x8000);\nSET_ZFLG(!(val & 0xffff));\n");
 		} else {
-			fill_prefetch_next_noopcodecopy("SET_ZFLG(!(val & %s));SET_NFLG(val & %s);\n", bit_mask(curi->size), cmask(curi->size));
+			fill_prefetch_next_noopcodecopy("SET_ZFLG(!(val & %s));\nSET_NFLG(val & %s);\n", bit_mask(curi->size), cmask(curi->size));
 		}
 		out("int ccnt = cnt & 63;\n");
 		out("cnt &= 63;\n");
@@ -7525,9 +7528,9 @@ bccl_not68020:
 		}
 		out("CLEAR_CZNV();\n");
 		if (curi->size == sz_long) {
-			fill_prefetch_next_noopcodecopy("SET_NFLG(val & 0x8000);SET_ZFLG(!(val & 0xffff));\n");
+			fill_prefetch_next_noopcodecopy("SET_NFLG(val & 0x8000);\nSET_ZFLG(!(val & 0xffff));\n");
 		} else {
-			fill_prefetch_next_noopcodecopy("SET_ZFLG(!(val & %s));SET_NFLG(val & %s);\n", bit_mask(curi->size), cmask(curi->size));
+			fill_prefetch_next_noopcodecopy("SET_ZFLG(!(val & %s));\nSET_NFLG(val & %s);\n", bit_mask(curi->size), cmask(curi->size));
 		}
 		out("int ccnt = cnt & 63;\n");
 		out("cnt &= 63;\n");
@@ -7561,9 +7564,9 @@ bccl_not68020:
 		}
 		out("CLEAR_CZNV();\n");
 		if (curi->size == sz_long) {
-			fill_prefetch_next_noopcodecopy("SET_NFLG(val & 0x8000);SET_ZFLG(!(val & 0xffff));\n");
+			fill_prefetch_next_noopcodecopy("SET_NFLG(val & 0x8000);\nSET_ZFLG(!(val & 0xffff));\n");
 		} else {
-			fill_prefetch_next_noopcodecopy("SET_ZFLG(!(val & %s));SET_NFLG(val & %s);\n", bit_mask(curi->size), cmask(curi->size));
+			fill_prefetch_next_noopcodecopy("SET_ZFLG(!(val & %s));\nSET_NFLG(val & %s);\n", bit_mask(curi->size), cmask(curi->size));
 		}
 		out("int ccnt = cnt & 63;\n");
 		out("cnt &= 63;\n");
@@ -7597,9 +7600,9 @@ bccl_not68020:
 		}
 		out("CLEAR_CZNV();\n");
 		if (curi->size == sz_long) {
-			fill_prefetch_next_noopcodecopy("SET_NFLG(val & 0x8000);SET_ZFLG(!(val & 0xffff));\n");
+			fill_prefetch_next_noopcodecopy("SET_NFLG(val & 0x8000);\nSET_ZFLG(!(val & 0xffff));\n");
 		} else {
-			fill_prefetch_next_noopcodecopy("SET_ZFLG(!(val & %s));SET_NFLG(val & %s);\n", bit_mask(curi->size), cmask(curi->size));
+			fill_prefetch_next_noopcodecopy("SET_ZFLG(!(val & %s));\nSET_NFLG(val & %s);\n", bit_mask(curi->size), cmask(curi->size));
 		}
 		out("int ccnt = cnt & 63;\n");
 		out("cnt &= 63;\n");
@@ -7631,9 +7634,9 @@ bccl_not68020:
 		}
 		out("CLEAR_CZNV();\n");
 		if (curi->size == sz_long) {
-			fill_prefetch_next_noopcodecopy("SET_NFLG(val & 0x8000);SET_ZFLG(!(val & 0xffff));\n");
+			fill_prefetch_next_noopcodecopy("SET_NFLG(val & 0x8000);\nSET_ZFLG(!(val & 0xffff));\n");
 		} else {
-			fill_prefetch_next_noopcodecopy("SET_ZFLG(!(val & %s));SET_NFLG(val & %s);\n", bit_mask(curi->size), cmask(curi->size));
+			fill_prefetch_next_noopcodecopy("SET_ZFLG(!(val & %s));\nSET_NFLG(val & %s);\n", bit_mask(curi->size), cmask(curi->size));
 		}
 		out("int ccnt = cnt & 63;\n");
 		out("cnt &= 63;\n");
@@ -7665,9 +7668,9 @@ bccl_not68020:
 		}
 		out("CLEAR_CZNV();\n");
 		if (curi->size == sz_long) {
-			fill_prefetch_next_noopcodecopy("SET_NFLG(val & 0x8000);SET_ZFLG(!(val & 0xffff));SET_CFLG(GET_XFLG());\n");
+			fill_prefetch_next_noopcodecopy("SET_NFLG(val & 0x8000);\nSET_ZFLG(!(val & 0xffff));\nSET_CFLG(GET_XFLG());\n");
 		} else {
-			fill_prefetch_next_noopcodecopy("SET_ZFLG(!(val & %s));SET_NFLG(val & %s);SET_CFLG(GET_XFLG());\n", bit_mask(curi->size), cmask(curi->size));
+			fill_prefetch_next_noopcodecopy("SET_ZFLG(!(val & %s));\nSET_NFLG(val & %s);\nSET_CFLG(GET_XFLG());\n", bit_mask(curi->size), cmask(curi->size));
 		}
 		out("int ccnt = cnt & 63;\n");
 		out("cnt &= 63;\n");
@@ -7703,9 +7706,9 @@ bccl_not68020:
 		}
 		out("CLEAR_CZNV();\n");
 		if (curi->size == sz_long) {
-			fill_prefetch_next_noopcodecopy("SET_NFLG(val & 0x8000);SET_ZFLG(!(val & 0xffff));SET_CFLG(GET_XFLG());\n");
+			fill_prefetch_next_noopcodecopy("SET_NFLG(val & 0x8000);\nSET_ZFLG(!(val & 0xffff));\nSET_CFLG(GET_XFLG());\n");
 		} else {
-			fill_prefetch_next_noopcodecopy("SET_ZFLG(!(val & %s));SET_NFLG(val & %s);SET_CFLG(GET_XFLG());\n", bit_mask(curi->size), cmask(curi->size));
+			fill_prefetch_next_noopcodecopy("SET_ZFLG(!(val & %s));\nSET_NFLG(val & %s);\nSET_CFLG(GET_XFLG());\n", bit_mask(curi->size), cmask(curi->size));
 		}
 		out("int ccnt = cnt & 63;\n");
 		out("cnt &= 63;\n");
@@ -7740,7 +7743,7 @@ bccl_not68020:
 		case sz_long: out("uae_u32 val = data;\n"); break;
 		default: term();
 		}
-		fill_prefetch_next_noopcodecopy("CLEAR_CZNV();SET_CFLG(val & 1);SET_ZFLG(!(val >> 1));SET_NFLG(val & 0x8000);SET_XFLG(GET_CFLG());\n");
+		fill_prefetch_next_noopcodecopy("CLEAR_CZNV();\nSET_CFLG(val & 1);\nSET_ZFLG(!(val >> 1));\nSET_NFLG(val & 0x8000);\nSET_XFLG(GET_CFLG());\n");
 		out("uae_u32 sign = %s & val;\n", cmask (curi->size));
 		out("uae_u32 cflg = val & 1;\n");
 		out("val = (val >> 1) | sign;\n");
@@ -7758,7 +7761,7 @@ bccl_not68020:
 		case sz_long: out("uae_u32 val = data;\n"); break;
 		default: term();
 		}
-		fill_prefetch_next_noopcodecopy("CLEAR_CZNV();SET_CFLG(val & %s);SET_ZFLG(!((val << 1) & 0x7fff));SET_NFLG(val & 0x4000);SET_XFLG(GET_CFLG());SET_VFLG((val & 0x8000) != ((val << 1) & 0x8000));\n", cmask(curi->size));
+		fill_prefetch_next_noopcodecopy("CLEAR_CZNV();\nSET_CFLG(val & %s);\nSET_ZFLG(!((val << 1) & 0x7fff));\nSET_NFLG(val & 0x4000);\nSET_XFLG(GET_CFLG());\nSET_VFLG((val & 0x8000) != ((val << 1) & 0x8000));\n", cmask(curi->size));
 		out("uae_u32 sign = %s & val;\n", cmask (curi->size));
 		out("uae_u32 sign2;\n");
 		out("val <<= 1;\n");
@@ -7778,7 +7781,7 @@ bccl_not68020:
 		case sz_long: out("uae_u32 val = data;\n"); break;
 		default: term();
 		}
-		fill_prefetch_next_noopcodecopy("CLEAR_CZNV();SET_CFLG(val & 1);SET_ZFLG(!(val >> 1));SET_NFLG(0);SET_XFLG(GET_CFLG());\n");
+		fill_prefetch_next_noopcodecopy("CLEAR_CZNV();\nSET_CFLG(val & 1);\nSET_ZFLG(!(val & 0xfffe));\nSET_NFLG(0);\nSET_XFLG(GET_CFLG());\n");
 		out("uae_u32 carry = val & 1;\n");
 		out("val >>= 1;\n");
 		genflags (flag_logical, curi->size, "val", "", "");
@@ -7795,7 +7798,7 @@ bccl_not68020:
 		case sz_long: out("uae_u32 val = data;\n"); break;
 		default: term();
 		}
-		fill_prefetch_next_noopcodecopy("CLEAR_CZNV();SET_CFLG(val & %s);SET_ZFLG(!(val << 1));SET_NFLG(val & 0x4000);SET_XFLG(GET_CFLG());\n", cmask(curi->size));
+		fill_prefetch_next_noopcodecopy("CLEAR_CZNV();\nSET_CFLG(val & %s);\nSET_ZFLG(!(val & 0x7fff));\nSET_NFLG(val & 0x4000);\nSET_XFLG(GET_CFLG());\n", cmask(curi->size));
 		out("uae_u32 carry = val & %s;\n", cmask (curi->size));
 		out("val <<= 1;\n");
 		genflags (flag_logical, curi->size, "val", "", "");
@@ -7812,7 +7815,7 @@ bccl_not68020:
 		case sz_long: out("uae_u32 val = data;\n"); break;
 		default: term();
 		}
-		fill_prefetch_next_noopcodecopy("CLEAR_CZNV();SET_CFLG(val & %s);SET_ZFLG(!val);SET_NFLG(val & 0x4000);\n", cmask(curi->size));
+		fill_prefetch_next_noopcodecopy("CLEAR_CZNV();SET_CFLG(val & %s);\nSET_ZFLG(!val);\nSET_NFLG(val & 0x4000);\n", cmask(curi->size));
 		out("uae_u32 carry = val & %s;\n", cmask (curi->size));
 		out("val <<= 1;\n");
 		out("if (carry)  val |= 1;\n");
@@ -7829,7 +7832,7 @@ bccl_not68020:
 		case sz_long: out("uae_u32 val = data;\n"); break;
 		default: term();
 		}
-		fill_prefetch_next_noopcodecopy("CLEAR_CZNV();SET_CFLG(val & 1);SET_ZFLG(!val);SET_NFLG(val & 0x0001);\n");
+		fill_prefetch_next_noopcodecopy("CLEAR_CZNV();\nSET_CFLG(val & 1);\nSET_ZFLG(!val);\nSET_NFLG(val & 0x0001);\n");
 		out("uae_u32 carry = val & 1;\n");
 		out("val >>= 1;\n");
 		out("if (carry) val |= %s;\n", cmask (curi->size));
@@ -7846,7 +7849,7 @@ bccl_not68020:
 		case sz_long: out("uae_u32 val = data;\n"); break;
 		default: term();
 		}
-		fill_prefetch_next_noopcodecopy("CLEAR_CZNV();SET_CFLG(val & 0x8000);SET_ZFLG(!((val << 1) | GET_XFLG()));SET_NFLG(val & 0x4000);SET_XFLG(GET_CFLG());\n", cmask(curi->size));
+		fill_prefetch_next_noopcodecopy("CLEAR_CZNV();\nSET_CFLG(val & 0x8000);\nSET_ZFLG(!((val << 1) | GET_XFLG()));\nSET_NFLG(val & 0x4000);\nSET_XFLG(GET_CFLG());\n", cmask(curi->size));
 		out("uae_u32 carry = val & %s;\n", cmask (curi->size));
 		out("val <<= 1;\n");
 		out("if (GET_XFLG()) val |= 1;\n");
@@ -7864,7 +7867,7 @@ bccl_not68020:
 		case sz_long: out("uae_u32 val = data;\n"); break;
 		default: term();
 		}
-		fill_prefetch_next_noopcodecopy("CLEAR_CZNV();SET_CFLG(val & 1);SET_ZFLG(!((val >> 1) | GET_XFLG()));SET_NFLG(GET_XFLG());SET_XFLG(GET_CFLG());\n", cmask(curi->size));
+		fill_prefetch_next_noopcodecopy("CLEAR_CZNV();SET_CFLG(val & 1);\nSET_ZFLG(!((val >> 1) | GET_XFLG()))\n;SET_NFLG(GET_XFLG())\n;SET_XFLG(GET_CFLG());\n", cmask(curi->size));
 		out("uae_u32 carry = val & 1;\n");
 		out("val >>= 1;\n");
 		out("if (GET_XFLG()) val |= %s;\n", cmask (curi->size));

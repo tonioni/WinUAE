@@ -125,12 +125,20 @@ If mismatch is detected, opcode word(s), instruction disassembly, registers befo
 
 Change log:
 
-18.01.2020
+16.02.2020
 
-- Cycle count validation (Amiga, 68000 only), including exceptions (except bus errors).
-- Interrupt testing (Amiga only, INTREQ bits set one by one, validate correct exception).
-- Multiple test sets can be generated and tested in single step.
-- Stack usage reduced, gzip decompression works with default 4096 byte stack.
+- 68000 prefetch bus error BTST Dn,#x, NBCD.B and LSLW fix. All prefetch bus error tests verified.
+- 68000 read bus errors re-verified.
+
+15.02.2020
+
+- 68000 Address error timing fix (CHK.W cycle count error)
+- 68000 MOVE to memory address error cycle order fixed.
+- 68000 re-verified (except bus errors)
+
+09.02.2020
+
+- All 68000 tests are 100% confirmed, including full cycle-count support.
 
 26.01.2020
 
@@ -141,12 +149,10 @@ Change log:
 - added -skipexcccr parameter. Skip CCR check if instruction generates bus, address, divide by zero or CHK exception.
 - added -skipmem (ignore memory write mismatches) -skipreg (ignore register mismatched) -skipccr (ignored CCR mismatch) parameters.
 
-09.02.2020
+18.01.2020
 
-- All 68000 tests are 100% confirmed, including full cycle-count support.
+- Cycle count validation (Amiga, 68000 only), including exceptions (except bus errors).
+- Interrupt testing (Amiga only, INTREQ bits set one by one, validate correct exception).
+- Multiple test sets can be generated and tested in single step.
+- Stack usage reduced, gzip decompression works with default 4096 byte stack.
 
-15.02.2020
-
-- 68000 Address error timing fix (CHK.W cycle count error)
-- 68000 MOVE to memory address error cycle order fixed.
-- 68000 re-verified (except bus errors)
