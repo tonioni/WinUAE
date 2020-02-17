@@ -7108,6 +7108,7 @@ bccl_not68020:
 		}
 		// 68010 loop mode handling
 		if (cpu_level == 1 && using_prefetch) {
+			push_ins_cnt();
 			out("if(offs == -4 && !regs.t1 && loop_mode_table[regs.ird]) {\n");
 			// first loop takes as many cycles as normal DBcc branch
 			// perhaps it also does actual prefetches??
@@ -7168,6 +7169,7 @@ bccl_not68020:
 			fill_prefetch_full_000_special(NULL);
 			returncycles(8);
 			out("}\n");
+			pop_ins_cnt();
 		}
 
 		fill_prefetch_1(0);
@@ -7196,29 +7198,32 @@ bccl_not68020:
 		fill_prefetch_full_020();
 		returncycles(10);
 		out("}\n");
-		if (cpu_level == 1 && using_prefetch) {
-			out("if (!src) {\n");
-			addcycles000_onlyce(2);
+		if (cpu_level == 0) {
 			addcycles000_nonce(2);
-			out("}\n");
+		} else {
+			addcycles000_onlyce(2);
+			addcycles000_nonce(6);
 		}
 		add_head_cycs (10);
-		if (cpu_level == 0 || (cpu_level == 1 && !using_prefetch)) {
+		if (cpu_level == 0 && using_ce) {
 			out("} else {\n");
 			addcycles000_onlyce(2);
-			addcycles000_nonce(2);
 		}
 		out("}\n");
 		pop_ins_cnt();
-		insn_n_cycles += 2;
-		count_cycles += 2;
+		if (cpu_level == 0) {
+			insn_n_cycles += 2;
+			count_cycles += 2;
+		}
 		setpc ("oldpc + %d", m68k_pc_offset);
 		clear_m68k_offset();
 		get_prefetch_020_continue();
 		fill_prefetch_full_000_special("if (!cctrue(%d)) {\nm68k_dreg(regs, srcreg) = (m68k_dreg(regs, srcreg) & ~0xffff) | (((src - 1)) & 0xffff);\n}\n", curi->cc);
 		branch_inst = 1;
-		if (!next_level_040_to_030())
-			next_level_020_to_010();
+		if (!next_level_040_to_030()) {
+			if (!next_level_020_to_010())
+				next_level_000();
+		}		
 		break;
 	case i_Scc:
 		genamode(curi, curi->smode, "srcreg", curi->size, "src", cpu_level == 0 ? 1 : 2, 0, cpu_level == 1 ? GF_NOFETCH : 0);
