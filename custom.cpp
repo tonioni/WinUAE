@@ -5693,16 +5693,14 @@ void NMI_delayed (void)
 	irq_nmi = 1;
 }
 
-static uae_u16 intreq_internal, intena_internal;
-
 int intlev (void)
 {
-	uae_u16 imask = intreq_internal & intena_internal;
+	uae_u16 imask = intreq & intena;
 	if (irq_nmi) {
 		irq_nmi = 0;
 		return 7;
 	}
-	if (!(imask && (intena_internal & 0x4000)))
+	if (!(imask && (intena & 0x4000)))
 		return -1;
 	if (imask & (0x4000 | 0x2000))						// 13 14
 		return 6;
@@ -5718,15 +5716,6 @@ int intlev (void)
 		return 1;
 	return -1;
 }
-
-#define INT_PROCESSING_DELAY (3 * CYCLE_UNIT)
-STATIC_INLINE int use_eventmode (uae_u16 v)
-{
-	if (currprefs.cpu_memory_cycle_exact && currprefs.cpu_model <= 68020)
-		return 1;
-	return 0;
-}
-
 
 void rethink_uae_int(void)
 {
@@ -5763,124 +5752,75 @@ static void send_interrupt_do (uae_u32 v)
 	INTREQ_0 (0x8000 | (1 << v));
 }
 
+// external delayed interrupt (4 CCKs minimum)
 void send_interrupt (int num, int delay)
 {
-	if (use_eventmode (0x8000) && delay > 0) {
-		// always queue interrupt if it is active because
-		// next instruction in bad code can switch it off..
-		// Absolute Inebriation / Virtual Dreams "big glenz" part
-		if (!(intreq & (1 << num)) || (intena & (1 << num)))
-			event2_newevent_xx (-1, delay, num, send_interrupt_do);
+	if (delay > 0 && (currprefs.cpu_cycle_exact || currprefs.cpu_compatible)) {
+		event2_newevent_xx(-1, delay, num, send_interrupt_do);
 	} else {
-		send_interrupt_do (num);
+		send_interrupt_do(num);
 	}
 }
 
-static int int_recursive; // yes, bad idea.
-
-static void send_intena_do (uae_u32 v)
+static void doint_delay_do(uae_u32 v)
 {
-	setclr (&intena_internal, v);
-	doint ();
+	doint();
 }
 
-static void send_intreq_do (uae_u32 v)
+static void doint_delay(void)
 {
-	setclr (&intreq_internal, v);
-	int_recursive++;
-	rethink_intreq ();
-	int_recursive--;
-	doint ();
+	if (currprefs.cpu_compatible) {
+		event2_newevent_xx(-1, CYCLE_UNIT + CYCLE_UNIT / 2, 0, doint_delay_do);
+	} else {
+		doint();
+	}
 }
 
 static void INTENA (uae_u16 v)
 {
 	uae_u16 old = intena;
-	setclr (&intena, v);
+	setclr(&intena, v);
 
-	if (!(v & 0x8000) && old == intena && intena == intena_internal)
-		return;
-
-	//write_log (_T("%04x %04x %04x %04x\n"), intena, intena_internal, intreq, intreq_internal);
-
-	if (use_eventmode (v)) {
-		if (old == intena && intena == intena_internal)
-			return;
-		event2_newevent_xx (-1, INT_PROCESSING_DELAY, v, send_intena_do);
-	} else {
-		intena_internal = intena;
-		if (v & 0x8000)
-			doint ();
+	if ((v & 0x8000) && old != intena) {
+		doint_delay();
 	}
-#if 0
-	if (v & 0x40)
-		write_log (_T("INTENA %04X (%04X) %p\n"), intena, v, M68K_GETPC);
-#endif
 }
 
 static void INTREQ_nodelay (uae_u16 v)
 {
-	setclr (&intreq, v);
-	setclr (&intreq_internal, v);
-	doint ();
+	setclr(&intreq, v);
+	doint();
 }
 
 void INTREQ_f (uae_u16 v)
 {
-	if (use_eventmode (v)) {
-		setclr (&intreq, v);
-		send_intreq_do (v);
-	} else {
-		uae_u16 old = intreq;
-		setclr (&intreq, v);
-		setclr (&intreq_internal, v);
-		if ((old & 0x0800) && !(intreq & 0x0800))
-			serial_rbf_clear();
+	uae_u16 old = intreq;
+	setclr (&intreq, v);
+	if ((old & 0x0800) && !(intreq & 0x0800)) {
+		serial_rbf_clear();
 	}
 }
 
 bool INTREQ_0 (uae_u16 v)
 {
-#if 0
-	if (!(v & 0x8000) && (v & (0x80 | 0x100 | 0x200 | 0x400) != 0x0780))
-		write_log (_T("audirq clear %04x %04x\n"), v, intreq);
-#endif
 	uae_u16 old = intreq;
 	setclr (&intreq, v);
 
-	if ((old & 0x0800) && !(intreq & 0x0800))
+	if ((old & 0x0800) && !(intreq & 0x0800)) {
 		serial_rbf_clear();
-
-	if (int_recursive) {
-		// don't add new event if this call came from send_intreq_do/rethink
-		// and intreq didn't change.
-		// it wouldn't make any difference except to slow down everything
-		if (old == intreq)
-			return false;
 	}
 
-	if (use_eventmode (v)) {
-		// don't bother to waste time for interrupt queuing if nothing changes
-		// but only if we are sure there is no other queued changes
-		if (old == intreq && intreq_internal == intreq)
-			return false;
-		event2_newevent_xx (-1, INT_PROCESSING_DELAY, v, send_intreq_do);
-		return false;
-	} else {
-		uae_u16 old2 = intreq_internal;
-		intreq_internal = intreq;
-		if (old == intreq && old2 == intreq_internal)
-			return false;
-		if (v & 0x8000)
-			doint ();
-		return true;
+	if ((v & 0x8000) && old != v) {
+		doint_delay();
 	}
+	return true;
 }
 
 void INTREQ (uae_u16 data)
 {
-	if (INTREQ_0 (data))
-		rethink_intreq ();
+	if (INTREQ_0(data)) {
+		rethink_intreq();
+	}
 }
 
 static void ADKCON (int hpos, uae_u16 v)
@@ -9985,8 +9925,8 @@ void custom_cpuchange(void)
 {
 	// both values needs to be same but also different
 	// after CPU mode changes
-	intreq_internal = intreq | 0x8000;
-	intena_internal = intena | 0x8000;
+	intreq = intreq | 0x8000;
+	intena = intena | 0x8000;
 }
 
 void custom_reset (bool hardreset, bool keyboardreset)
@@ -10045,8 +9985,8 @@ void custom_reset (bool hardreset, bool keyboardreset)
 		memset (spr, 0, sizeof spr);
 
 		dmacon = 0;
-		intreq_internal = 0;
-		intena = intena_internal = 0;
+		intreq = 0;
+		intena = 0;
 
 		copcon = 0;
 		DSKLEN (0, 0);
@@ -10217,7 +10157,7 @@ void custom_reset (bool hardreset, bool keyboardreset)
 void dumpcustom (void)
 {
 	console_out_f (_T("DMACON: %04x INTENA: %04x (%04x) INTREQ: %04x (%04x) VPOS: %x HPOS: %x\n"), DMACONR (current_hpos ()),
-		intena, intena_internal, intreq, intreq_internal, vpos, current_hpos ());
+		intena, intena, intreq, intreq, vpos, current_hpos ());
 	console_out_f (_T("INT: %04x IPL: %d\n"), intena & intreq, intlev());
 	console_out_f (_T("COP1LC: %08lx, COP2LC: %08lx COPPTR: %08lx\n"), (unsigned long)cop1lc, (unsigned long)cop2lc, cop_state.ip);
 	console_out_f (_T("DIWSTRT: %04x DIWSTOP: %04x DDFSTRT: %04x DDFSTOP: %04x\n"),
@@ -10886,9 +10826,8 @@ uae_u8 *restore_custom (uae_u8 *src)
 	ddfstop = RW;			/* 094 DDFSTOP */
 	dmacon = RW & ~(0x2000|0x4000); /* 096 DMACON */
 	CLXCON (RW);			/* 098 CLXCON */
-	intena = intena_internal = RW;	/* 09A INTENA */
+	intena = RW;			/* 09A INTENA */
 	intreq = RW;			/* 09C INTREQ */
-	intreq_internal = intreq;
 	adkcon = RW;			/* 09E ADKCON */
 	for (i = 0; i < 8; i++)
 		bplptx[i] = bplpt[i] = RL;

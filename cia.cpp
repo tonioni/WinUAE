@@ -177,7 +177,7 @@ static void RethinkICRA (void)
 		if (!(ciaaicr & 0x80)) {
 			ciaaicr |= 0x80;
 			if (currprefs.cpu_memory_cycle_exact) {
-				event2_newevent_xx (-1, DIV10 + 2 * CYCLE_UNIT + CYCLE_UNIT / 2, 0, ICRA);
+				event2_newevent_xx (-1, DIV10 + 2 * CYCLE_UNIT + CYCLE_UNIT / 2 + 4 * CYCLE_UNIT, 0, ICRA);
 			} else {
 				ICRA (0);
 			}
@@ -194,7 +194,7 @@ static void RethinkICRB (void)
 		if (!(ciabicr & 0x80)) {
 			ciabicr |= 0x80;
 			if (currprefs.cpu_memory_cycle_exact) {
-				event2_newevent_xx (-1, DIV10 + 2 * CYCLE_UNIT + CYCLE_UNIT / 2, 0, ICRB);
+				event2_newevent_xx (-1, DIV10 + 2 * CYCLE_UNIT + CYCLE_UNIT / 2 + 4 * CYCLE_UNIT, 0, ICRB);
 			} else {
 				ICRB (0);
 			}
