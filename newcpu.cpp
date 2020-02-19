@@ -2367,7 +2367,7 @@ static void exception_debug (int nr)
 
 /*
 
-Address/Bus Error:
+68000 Address/Bus Error:
 
 - [memory access causing bus/address error]
 - 8 idle cycles (+4 if bus error)
@@ -2383,6 +2383,46 @@ Address/Bus Error:
 - prefetch
 - 2 idle cycles
 - prefetch
+
+68010 Address/Bus Error:
+
+- [memory access causing bus/address error]
+- 8 idle cycles (+4 if bus error)
+- write word 28
+- write word 26
+- write word 27
+- write word 25
+- write word 23
+- write word 24
+- write word 22
+- write word 21
+- write word 20
+- write word 19
+- write word 18
+- write word 17
+- write word 16
+- write word 15
+- write word 13
+- write word 14
+- write instruction buffer
+- (skipped)
+- write data input buffer
+- (skipped)
+- write data output buffer
+- (skipped)
+- write fault address low word
+- write fault address high word
+- write special status word
+- write PC low word
+- write SR
+- write PC high word
+- write frame format
+- read exception address high word
+- read exception address low word
+- prefetch
+- 2 idle cycles
+- prefetch
+
 
 Division by Zero:
 
@@ -2503,12 +2543,19 @@ static void Exception_ce000 (int nr)
 	interrupt = nr >= 24 && nr < 24 + 8;
 	if (!interrupt) {
 		start = 4;
-		if (nr == 7) // TRAPV
+		if (nr == 7) { // TRAPV
 			start = 0;
-		else if (nr == 3)
-			start = 8;
-		else if (nr == 2)
-			start = 12;
+		} else if (nr == 3) {
+			if (currprefs.cpu_model == 68000)
+				start = 8;
+			else
+				start = 4;
+		} else if (nr == 2) {
+			if (currprefs.cpu_model == 68000)
+				start = 12;
+			else
+				start = 8;
+		}
 	}
 
 	if (start)
@@ -2537,7 +2584,7 @@ static void Exception_ce000 (int nr)
 			mode |= last_notinstruction_for_exception_3 ? 8 : 0;
 			// undocumented bits contain opcode
 			mode |= last_op_for_exception_3 & ~31;
-			m68k_areg(regs, 7) -= 14;
+			m68k_areg(regs, 7) -= 7 * 2;
 			exception_in_exception = -1;
 			x_put_word(m68k_areg(regs, 7) + 12, last_addr_for_exception_3);
 			x_put_word(m68k_areg(regs, 7) + 8, regs.sr);
@@ -2559,26 +2606,24 @@ static void Exception_ce000 (int nr)
 			ssw |= last_writeaccess_for_exception_3 ? 0 : 0x0100; // RW
 			if (last_op_for_exception_3 & 0x20000)
 				ssw &= 0x00ff;
-			m68k_areg(regs, 7) -= 50;
+			m68k_areg(regs, 7) -= (29 - 4) * 2;
 			exception_in_exception = -1;
 			frame_id = 8;
-			x_put_word(m68k_areg(regs, 7) + 0, ssw); // ssw
-			x_put_long(m68k_areg(regs, 7) + 2, last_fault_for_exception_3); // fault addr
-			x_put_word(m68k_areg(regs, 7) + 6, 0); // unused
-			x_put_word(m68k_areg(regs, 7) + 8, out); // data output buffer
-			x_put_word(m68k_areg(regs, 7) + 10, 0); // unused
-			x_put_word(m68k_areg(regs, 7) + 12, in); // data input buffer
-			x_put_word(m68k_areg(regs, 7) + 14, 0); // unused
-			x_put_word(m68k_areg(regs, 7) + 16, regs.irc); // instruction input buffer
-			x_put_word(m68k_areg(regs, 7) + 18, 0); // version
 			for (int i = 0; i < 15; i++) {
-				x_put_word(m68k_areg(regs, 7) + 20 + i * 2, 0);
+				x_put_word(m68k_areg(regs, 7) + 20 + i * 2, ((i + 1) << 8) | ((i + 2) << 0));
 			}
+			x_put_word(m68k_areg(regs, 7) + 18, 0); // version
+			x_put_word(m68k_areg(regs, 7) + 16, regs.irc); // instruction input buffer
+			x_put_word(m68k_areg(regs, 7) + 12, in); // data input buffer
+			x_put_word(m68k_areg(regs, 7) + 8, out); // data output buffer
+			x_put_word(m68k_areg(regs, 7) + 4, last_fault_for_exception_3); // fault addr
+			x_put_word(m68k_areg(regs, 7) + 2, last_fault_for_exception_3 >> 16);
+			x_put_word(m68k_areg(regs, 7) + 0, ssw); // ssw
 		}
 	}
 	if (currprefs.cpu_model == 68010) {
 		// 68010 creates only format 0 and 8 stack frames
-		m68k_areg (regs, 7) -= 8;
+		m68k_areg (regs, 7) -= 4 * 2;
 		if (m68k_areg(regs, 7) & 1) {
 			exception3_notinstruction(regs.ir, m68k_areg(regs, 7) + 4);
 			return;
@@ -2591,7 +2636,7 @@ static void Exception_ce000 (int nr)
 		x_put_word (m68k_areg (regs, 7) + 2, currpc >> 16); // write high address
 		x_put_word (m68k_areg (regs, 7) + 6, (frame_id << 12) | (vector_nr * 4));
 	} else {
-		m68k_areg (regs, 7) -= 6;
+		m68k_areg (regs, 7) -= 3 * 2;
 		if (m68k_areg(regs, 7) & 1) {
 			exception3_notinstruction(regs.ir, m68k_areg(regs, 7) + 4);
 			return;
@@ -2627,9 +2672,9 @@ kludge_me_do:
 			m68k_setpc(regs.vbr + 4 * vector_nr);
 			if (interrupt) {
 				regs.ir = nr;
-				exception3_read_opcode(regs.ir | 0x20000 | 0x10000, newpc, sz_word, 2);
+				exception3_read_access(regs.ir | 0x20000 | 0x10000, newpc, sz_word, 2);
 			} else {
-				exception3_read_opcode(regs.ir | 0x40000 | 0x20000 | (g1 ? 0x10000 : 0), newpc, sz_word, 2);
+				exception3_read_access(regs.ir | 0x40000 | 0x20000 | (g1 ? 0x10000 : 0), newpc, sz_word, 2);
 			}
 		} else if (currprefs.cpu_model == 68010) {
 			// offset, not vbr + offset
@@ -2638,7 +2683,7 @@ kludge_me_do:
 			regs.write_buffer = 4 * vector_nr;
 			regs.read_buffer = newpc;
 			regs.irc = regs.read_buffer;
-			exception3_read_opcode(regs.opcode, newpc, sz_word, 2);
+			exception3_read_access(regs.opcode, newpc, sz_word, 2);
 		} else {
 			exception3_notinstruction(regs.ir, newpc);
 		}
@@ -2854,8 +2899,8 @@ static void add_approximate_exception_cycles(int nr)
 		} else {
 			switch (nr)
 			{
-			case 2: cycles = 134; break;	/* Bus error */
-			case 3: cycles = 130; break;	/* Address error */
+			case 2: cycles = 140; break;	/* Bus error */
+			case 3: cycles = 136; break;	/* Address error */
 			case 4: cycles = 38; break;		/* Illegal instruction */
 			case 5: cycles = 38; break;		/* Division by zero */
 			case 6: cycles = 38; break;		/* CHK */
@@ -3110,9 +3155,9 @@ kludge_me_do:
 			m68k_setpc(regs.vbr + 4 * vector_nr);
 			if (interrupt) {
 				regs.ir = nr;
-				exception3_read_opcode(regs.ir | 0x20000 | 0x10000, newpc, sz_word, 2);
+				exception3_read_access(regs.ir | 0x20000 | 0x10000, newpc, sz_word, 2);
 			} else {
-				exception3_read_opcode(regs.ir | 0x40000 | 0x20000 | (g1 ? 0x10000 : 0), newpc, sz_word, 2);
+				exception3_read_access(regs.ir | 0x40000 | 0x20000 | (g1 ? 0x10000 : 0), newpc, sz_word, 2);
 			}
 		} else if (currprefs.cpu_model == 68010) {
 			regs.t1 = 0;
@@ -3120,7 +3165,7 @@ kludge_me_do:
 			regs.write_buffer = 4 * vector_nr;
 			regs.read_buffer = newpc;
 			regs.irc = regs.read_buffer;
-			exception3_read_opcode(regs.ir, newpc, sz_word, 2);
+			exception3_read_access(regs.ir, newpc, sz_word, 2);
 		} else {
 			exception3_notinstruction(regs.ir, newpc);
 		}
@@ -7095,6 +7140,20 @@ static void exception3_read_special(uae_u32 opcode, uaecptr addr, int size, int 
 	exception3f(opcode, addr, false, 0, false, 0xffffffff, size, fc);
 }
 
+// 68010 special prefetch handling
+void exception3_read_prefetch_only(uae_u32 opcode, uae_u32 addr)
+{
+	if (currprefs.cpu_model == 68010) {
+		uae_u16 prev = regs.read_buffer;
+		x_get_word(addr & ~1);
+		regs.irc = regs.read_buffer;
+	} else {
+		x_do_cycles(4 * cpucycleunit);
+	}
+	last_di_for_exception_3 = 0;
+	exception3f(opcode, addr, false, true, false, m68k_getpc(), sz_word, -1);
+}
+
 // Some hardware accepts address error aborted reads or writes as normal reads/writes.
 void exception3_read_prefetch(uae_u32 opcode, uaecptr addr)
 {
@@ -7102,12 +7161,18 @@ void exception3_read_prefetch(uae_u32 opcode, uaecptr addr)
 	last_di_for_exception_3 = 0;
 	exception3f(opcode, addr, false, true, false, m68k_getpc(), sz_word, -1);
 }
-void exception3_read_opcode(uae_u32 opcode, uaecptr addr, int size, int fc)
+void exception3_read_access(uae_u32 opcode, uaecptr addr, int size, int fc)
 {
 	x_do_cycles(4 * cpucycleunit);
 	exception3_read(opcode, addr, size, fc);
 }
-void exception3_write_opcode(uae_u32 opcode, uaecptr addr, int size, uae_u32 val, int fc)
+void exception3_read_access2(uae_u32 opcode, uaecptr addr, int size, int fc)
+{
+	// (An), -(An) and (An)+ and 68010: read happens twice!
+	x_do_cycles(8 * cpucycleunit);
+	exception3_read(opcode, addr, size, fc);
+}
+void exception3_write_access(uae_u32 opcode, uaecptr addr, int size, uae_u32 val, int fc)
 {
 	x_do_cycles(4 * cpucycleunit);
 	exception3_write(opcode, addr, size, val, fc);
@@ -7147,8 +7212,8 @@ void exception3_write(uae_u32 opcode, uaecptr addr, int size, uae_u32 val, int f
 		opcode = regs.ir;
 	}
 	last_di_for_exception_3 = 1;
-	exception3f(opcode, addr, true, ia, ni, 0xffffffff, size, fc);
 	regs.write_buffer = val;
+	exception3f(opcode, addr, true, ia, ni, 0xffffffff, size, fc);
 }
 
 void exception2_setup(uae_u32 opcode, uaecptr addr, bool read, int size, uae_u32 fc)

@@ -2761,6 +2761,8 @@ static void move_68010_address_error(int size, int *setapdi, int *fcmodeflags)
 	if (size == sz_word) {
 		// Word MOVE is relatively simple
 		int set_ccr = 0;
+		int reset_ccr = 0;
+		*setapdi = 1;
 		switch (smode)
 		{
 		case Dreg:
@@ -2768,6 +2770,8 @@ static void move_68010_address_error(int size, int *setapdi, int *fcmodeflags)
 		case imm:
 			if (dmode == Apdi || dmode == Ad16 || dmode == Ad8r || dmode == absw || dmode == absl)
 				set_ccr = 1;
+			else
+				reset_ccr = 1;
 			break;
 		case Aind:
 		case Aipi:
@@ -2787,6 +2791,9 @@ static void move_68010_address_error(int size, int *setapdi, int *fcmodeflags)
 		} else if (dmode == absl && smode >= Aind && smode < imm) {
 			out("regs.irc = dsta >> 16;\n");
 		}
+		if (reset_ccr) {
+			out("regflags.cznv = oldflags;\n");
+		}
 		if (set_ccr) {
 			out("ccr_68000_word_move_ae_normal((uae_s16)(src));\n");
 		}
@@ -2795,6 +2802,11 @@ static void move_68010_address_error(int size, int *setapdi, int *fcmodeflags)
 		int set_ccr = 0;
 		int set_high_word = 0;
 		int set_low_word = 0;
+		if (dmode == Apdi) {
+			*setapdi = -4;
+		} else {
+			*setapdi = 1;
+		}
 		switch (smode)
 		{
 		case Dreg:
@@ -2833,10 +2845,7 @@ static void move_68010_address_error(int size, int *setapdi, int *fcmodeflags)
 			break;
 		}
 
-		if (dmode == Apdi) {
-			dummy_prefetch(NULL, NULL);
-			*setapdi = 0;
-		} else if (dmode == absl && smode >= Aind && smode < imm) {
+		if (dmode == absl && smode >= Aind && smode < imm) {
 			out("regs.irc = dsta >> 16;\n");
 		}
 
@@ -2886,6 +2895,28 @@ static void check_address_error(const  char *name, int mode, const char *reg, in
 			} else {
 				do_bus_error_fixes(name, 0, getv == 2);
 			}
+			if (g_instr->mnemo == i_MOVES) {
+				// MOVES has strange behavior
+				out("regs.irc = extra;\n");
+				if (!exp3rw) {
+					out("regs.write_buffer = extra;\n");
+				} else {
+					// moves.w an,-(an)/(an)+ (same registers): write buffer contains modified value.
+					if (mode == Aipi || mode == Apdi) {
+						out("if (dstreg + 8 == ((extra >> 12) & 15)) {\n");
+						out("src += %d;\n", mode == Aipi ? 2 : -2);
+						out("}\n");
+					}
+				}
+				if (size == sz_long) {
+					if (mode == Aipi) {
+						out("m68k_areg(regs, dstreg) += 4;\n");
+					} else if (mode == Apdi) {
+						setapdiback = 1;
+					}
+				}
+			}
+
 			// x,-(an): an is modified (MOVE to CCR counts as word sized)
 			if (mode == Apdi && (g_instr->size == sz_word || g_instr->size == i_MV2SR) && g_instr->mnemo != i_CLR) {
 				out("m68k_areg(regs, %s) = %sa;\n", reg, name);
@@ -2917,6 +2948,9 @@ static void check_address_error(const  char *name, int mode, const char *reg, in
 				} else {
 					move_68010_address_error(size, &setapdiback, &fcmodeflags);
 				}
+				if (mode != Apdi && mode != Aipi) {
+					setapdiback = 0;
+				}
 			}
 		} else if (g_instr->mnemo == i_MVSR2) {
 			// If MOVE from SR generates address error exception,
@@ -2931,8 +2965,13 @@ static void check_address_error(const  char *name, int mode, const char *reg, in
 			setapdiback = 0;
 		}
 
+		// can be used for both Apdi and Aipi
 		if (setapdiback) {
-			out("m68k_areg(regs, %s) = %sa;\n", reg, name);
+			if (setapdiback > 0) {
+				out("m68k_areg(regs, %s) = %sa;\n", reg, name);
+			} else {
+				out("m68k_areg(regs, %s) = %sa + %d;\n", reg, name, -setapdiback);
+			}
 		}
 
 		// MOVE.L EA,-(An) causing address error: stacked value is original An - 2, not An - 4.
@@ -2941,16 +2980,24 @@ static void check_address_error(const  char *name, int mode, const char *reg, in
 
 		if (exp3rw) {
 			const char *shift = (size == sz_long && !(flags & GF_REVERSE)) ? " >> 16" : "";
-			out("exception3_write_opcode(opcode, %sa, %d, %s%s, %d);\n",
+			out("exception3_write_access(opcode, %sa, %d, %s%s, %d);\n",
 				name, size, g_srcname, shift,
 				// PC-relative: FC=2
 				(getv == 1 && (g_instr->smode == PC16 || g_instr->smode == PC8r) ? 2 : 1) | fcmodeflags);
 
 		} else {
-			out("exception3_read_opcode(opcode, %sa, %d, %d);\n",
-				name, size,
-				// PC-relative: FC=2
-				(getv == 1 && (g_instr->smode == PC16 || g_instr->smode == PC8r) ? 2 : 1) | fcmodeflags);
+			// 68010 address error: if addressing mode is (An), (An)+ or -(An) and byte or word: CPU does extra read access!
+			if (cpu_level == 1 && (g_instr->smode == Aind || g_instr->smode == Aipi || g_instr->smode == Apdi) && g_instr->size < sz_long) {
+				out("exception3_read_access2(opcode, %sa, %d, %d);\n",
+					name, size,
+					// PC-relative: FC=2
+					(getv == 1 && (g_instr->smode == PC16 || g_instr->smode == PC8r) ? 2 : 1) | fcmodeflags);
+			} else {
+				out("exception3_read_access(opcode, %sa, %d, %d);\n",
+					name, size,
+					// PC-relative: FC=2
+					(getv == 1 && (g_instr->smode == PC16 || g_instr->smode == PC8r) ? 2 : 1) | fcmodeflags);
+			}
 		}
 
 		write_return_cycles_noadd(0);
@@ -4120,11 +4167,11 @@ static void movem_ex3(int write)
 			out("uaecptr srcav = srca;\n");
 		}
 		if (write) {
-			out("exception3_write_opcode(opcode, srca, %d, srcav, %d);\n",
+			out("exception3_write_access(opcode, srca, %d, srcav, %d);\n",
 				g_instr->size,
 				(g_instr->dmode == PC16 || g_instr->dmode == PC8r) ? 2 : 1);
 		} else {
-			out("exception3_read_opcode(opcode, srca, %d, %d);\n",
+			out("exception3_read_access(opcode, srca, %d, %d);\n",
 				g_instr->size,
 				(g_instr->dmode == PC16 || g_instr->dmode == PC8r) ? 2 : 1);
 		}
@@ -5976,8 +6023,9 @@ static void gen_opcode (unsigned int opcode)
 
 				genamode(curi, curi->dmode, "dstreg", curi->size, "dst", 2, 0, flags | GF_NOEXC3);
 
-				if (curi->mnemo == i_MOVEA && curi->size == sz_word)
+				if (curi->mnemo == i_MOVEA && curi->size == sz_word) {
 					out("src = (uae_s32)(uae_s16)src;\n");
+				}
 
 				if (curi->dmode == Apdi) {
 					// -(an) decrease is not done if bus error
@@ -6012,7 +6060,10 @@ static void gen_opcode (unsigned int opcode)
 				int storeflags = flags & (GF_REVERSE | GF_APDI);
 
 				if (curi->mnemo == i_MOVE) {
-					if (curi->size == sz_long && cpu_level <= 1 && (using_prefetch || using_ce) && curi->dmode >= Aind) {
+					if (cpu_level == 1 && (isreg(curi->smode) || curi->smode == imm)) {
+						out("uae_u16 oldflags = regflags.cznv;\n");
+					}
+					if (curi->size == sz_long && (using_prefetch || using_ce) && curi->dmode >= Aind) {
 						// to support bus error exception correct flags, flags needs to be set
 						// after first word has been written.
 						storeflags |= GF_SECONDWORDSETFLAGS;
@@ -6270,7 +6321,7 @@ static void gen_opcode (unsigned int opcode)
 		next_level_000();
 		if (cpu_level <= 1 && using_exception_3) {
 			out("if (m68k_areg(regs, 7) & 1) {\n");
-			out("exception3_read_opcode(opcode, m68k_areg(regs, 7), 1, 1);\n");
+			out("exception3_read_access(opcode, m68k_areg(regs, 7), 1, 1);\n");
 			write_return_cycles_noadd(0);
 			out("}\n");
 		}
@@ -6296,7 +6347,7 @@ static void gen_opcode (unsigned int opcode)
 			out("regs.sr = sr;\n");
 			makefromsr();
 			out("if (pc & 1) {\n");
-			out("exception3_read_opcode(opcode | 0x20000, pc, 1, 2);\n");
+			out("exception3_read_access(opcode | 0x20000, pc, 1, 2);\n");
 			write_return_cycles(0);
 			out("}\n");
 			setpc ("pc");
@@ -6345,8 +6396,7 @@ static void gen_opcode (unsigned int opcode)
 			out("regs.sr = sr;\n");
 			makefromsr();
 			out("if (pc & 1) {\n");
-			dummy_prefetch("pc", "oldpc");
-			out("exception3_read_prefetch(opcode, pc);\n");
+			out("exception3_read_prefetch_only(opcode, pc);\n");
 			write_return_cycles(0);
 			out("}\n");
 			out("newsr = sr; newpc = pc;\n");
@@ -6476,7 +6526,7 @@ static void gen_opcode (unsigned int opcode)
 		if (cpu_level >= 4) {
 			out("m68k_areg(regs, 7) -= 4 + offs;\n");
 		}
-		out("exception3_read_prefetch(opcode, pc);\n");
+		out("exception3_read_prefetch_only(opcode, pc);\n");
 		write_return_cycles(0);
 		out("}\n");
 		setpc ("pc");
@@ -6524,7 +6574,7 @@ static void gen_opcode (unsigned int opcode)
 				out("if (olda & 1) {\n");
 				out("m68k_areg(regs, 7) += 4;\n");
 				out("m68k_areg(regs, srcreg) = olda;\n");
-				out("exception3_write_opcode(opcode, olda, sz_word, src >> 16, 1);\n");
+				out("exception3_write_access(opcode, olda, sz_word, src >> 16, 1);\n");
 				write_return_cycles(0);
 				out("}\n");
 			}
@@ -6556,7 +6606,7 @@ static void gen_opcode (unsigned int opcode)
 		out("uaecptr pc = %s;\n", getpc);
 		if (cpu_level <= 1 && using_exception_3) {
 			out("if (m68k_areg(regs, 7) & 1) {\n");
-			out("exception3_read_opcode(opcode, m68k_areg(regs, 7), 1, 1);\n");
+			out("exception3_read_access(opcode, m68k_areg(regs, 7), 1, 1);\n");
 			write_return_cycles(0);
 			out("}\n");
 		}
@@ -6598,14 +6648,11 @@ static void gen_opcode (unsigned int opcode)
 		}
 	    out("if (%s & 1) {\n", getpc);
 		out("uaecptr faultpc = %s;\n", getpc);
-		if (cpu_level == 1) {
-			dummy_prefetch(NULL, NULL);
-		}
 		setpc("pc");
 		if (cpu_level >= 4) {
 			out("m68k_areg(regs, 7) -= 4;\n");
 		}
-		out("exception3_read_prefetch(opcode, faultpc);\n");
+		out("exception3_read_prefetch_only(opcode, faultpc);\n");
 		write_return_cycles(0);
 		out("}\n");
 		clear_m68k_offset();
@@ -6666,7 +6713,7 @@ static void gen_opcode (unsigned int opcode)
 	case i_RTR:
 		if (cpu_level <= 1 && using_exception_3) {
 			out("if (m68k_areg(regs, 7) & 1) {\n");
-			out("exception3_read_opcode(opcode, m68k_areg(regs, 7), 1, 1);\n");
+			out("exception3_read_access(opcode, m68k_areg(regs, 7), 1, 1);\n");
 			write_return_cycles(0);
 			out("}\n");
 		}
@@ -6688,11 +6735,8 @@ static void gen_opcode (unsigned int opcode)
 		if (cpu_level < 4) {
 			out("if (%s & 1) {\n", getpc);
 			out("uaecptr faultpc = %s;\n", getpc);
-			if (cpu_level == 1) {
-				dummy_prefetch(NULL, NULL);
-			}
 			setpc("oldpc");
-			out("exception3_read_prefetch(opcode, faultpc);\n");
+			out("exception3_read_prefetch_only(opcode, faultpc);\n");
 			write_return_cycles(0);
 			out("}\n");
 		}
@@ -6724,7 +6768,7 @@ static void gen_opcode (unsigned int opcode)
 					addcycles000_onlyce(6);
 					addcycles000_nonce(6);
 				}
-				out("exception3_read_prefetch(opcode, srca);\n");
+				out("exception3_read_prefetch_only(opcode, srca);\n");
 				write_return_cycles_noadd(0);
 				out("}\n");
 				pop_ins_cnt();
@@ -6757,7 +6801,7 @@ static void gen_opcode (unsigned int opcode)
 					out("m68k_areg(regs, 7) -= 4;\n");
 				if (using_exception_3 && cpu_level <= 1) {
 					out("if (m68k_areg(regs, 7) & 1) {\n");
-					out("exception3_write_opcode(opcode, m68k_areg(regs, 7), 1, m68k_areg(regs, 7) >> 16, 1);\n");
+					out("exception3_write_access(opcode, m68k_areg(regs, 7), 1, m68k_areg(regs, 7) >> 16, 1);\n");
 					write_return_cycles(0);
 					out("}\n");
 				}
@@ -6810,9 +6854,6 @@ static void gen_opcode (unsigned int opcode)
 		if (using_exception_3) {
 			push_ins_cnt();
 			out("if (srca & 1) {\n");
-			if (curi->smode >= Ad16 && cpu_level == 1 && using_prefetch) {
-				dummy_prefetch("srca", NULL);
-			}
 			if (curi->smode == Ad16 || curi->smode == absw || curi->smode == PC16) {
 				addcycles000_onlyce(2);
 				addcycles000_nonce(2);
@@ -6821,7 +6862,7 @@ static void gen_opcode (unsigned int opcode)
 				addcycles000_onlyce(6);
 				addcycles000_nonce(6);
 			}
-			out("exception3_read_prefetch(opcode, srca);\n");
+			out("exception3_read_prefetch_only(opcode, srca);\n");
 			write_return_cycles_noadd(0);
 			out("}\n");
 			pop_ins_cnt();
@@ -6876,12 +6917,12 @@ static void gen_opcode (unsigned int opcode)
 				out("if (m68k_areg(regs, 7) & 1) {\n");
 				out("m68k_areg(regs, 7) -= 4;\n");
 				incpc("2");
-				out("exception3_write_opcode(opcode, m68k_areg(regs, 7), sz_word, oldpc, 1);\n");
+				out("exception3_write_access(opcode, m68k_areg(regs, 7), sz_word, oldpc, 1);\n");
 				write_return_cycles(0);
 				out("}\n");
 			} else if (cpu_level == 1) {
 				out("if (m68k_areg(regs, 7) & 1) {\n");
-				out("exception3_write_opcode(opcode, m68k_areg(regs, 7), sz_word, oldpc, 1);\n");
+				out("exception3_write_access(opcode, m68k_areg(regs, 7), sz_word, oldpc, 1);\n");
 				write_return_cycles(0);
 				out("}\n");
 			}
@@ -6889,7 +6930,7 @@ static void gen_opcode (unsigned int opcode)
 		if (using_exception_3 && cpu_level == 1) {
 			// 68010 TODO: looks like prefetches are done first and stack writes last
 			out("if (s & 1) {\n");
-			out("exception3_read_prefetch(opcode, s);\n");
+			out("exception3_read_prefetch_only(opcode, s + oldpc);\n");
 			write_return_cycles(0);
 			out("}\n");
 		}
@@ -6982,8 +7023,10 @@ static void gen_opcode (unsigned int opcode)
 			out("if (src & 1) {\n");
 			if (cpu_level == 1) {
 				out("uaecptr oldpc = %s;\n", getpc);
+				out("uae_u16 rb = regs.irc;\n");
 				incpc("((uae_s32)src + 2) & ~1");
 				dummy_prefetch(NULL, "oldpc");
+				out("regs.read_buffer = rb;\n");
 			}
 			out("exception3_read_prefetch(opcode, %s + 2 + (uae_s32)src);\n", getpc);
 			write_return_cycles(0);
@@ -7062,7 +7105,7 @@ bccl_not68020:
 		if (cpu_level <= 1 && using_exception_3) {
 			out("if (dsta & 1) {\n");
 			out("regs.ir = old_opcode;\n");
-			out("exception3_write_opcode(old_opcode, dsta, sz_word, srca >> 16, 1);\n");
+			out("exception3_write_access(old_opcode, dsta, sz_word, srca >> 16, 1);\n");
 			write_return_cycles(0);
 			out("}\n");
 		}

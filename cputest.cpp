@@ -1191,9 +1191,17 @@ void exception3_write(uae_u32 opcode, uae_u32 addr, int size, uae_u32 val, int f
 	doexcstack();
 }
 
-void exception3_read_prefetch(uae_u32 opcode, uae_u32 addr)
+// load to irc only
+void exception3_read_prefetch_only(uae_u32 opcode, uae_u32 addr)
 {
-	add_memory_cycles(1);
+	if (cpu_lvl == 1) {
+		uae_u16 prev = regs.read_buffer;
+		get_word_test(addr & ~1);
+		regs.irc = regs.read_buffer;
+		regs.read_buffer = prev;
+	} else {
+		add_memory_cycles(1);
+	}
 
 	test_exception = 3;
 	test_exception_3_w = 0;
@@ -1206,13 +1214,43 @@ void exception3_read_prefetch(uae_u32 opcode, uae_u32 addr)
 	doexcstack();
 }
 
-void exception3_read_opcode(uae_u32 opcode, uae_u32 addr, int size, int fc)
+void exception3_read_prefetch(uae_u32 opcode, uae_u32 addr)
 {
-	add_memory_cycles(1);
+	if (cpu_lvl == 1) {
+		get_word_test(addr & ~1);
+	} else {
+		add_memory_cycles(1);
+	}
+
+	test_exception = 3;
+	test_exception_3_w = 0;
+	test_exception_addr = addr;
+	test_exception_opcode = opcode;
+	test_exception_3_fc = 2;
+	test_exception_3_size = sz_word;
+	test_exception_3_di = 0;
+
+	doexcstack();
+}
+
+void exception3_read_access2(uae_u32 opcode, uae_u32 addr, int size, int fc)
+{
+	get_word_test(addr & ~1);
+	get_word_test(addr & ~1);
 	exception3_read(opcode, addr, size, fc);
 }
 
-void exception3_write_opcode(uae_u32 opcode, uae_u32 addr, int size, uae_u32 val, int fc)
+void exception3_read_access(uae_u32 opcode, uae_u32 addr, int size, int fc)
+{
+	if (cpu_lvl == 1) {
+		get_word_test(addr & ~1);
+	} else {
+		add_memory_cycles(1);
+	}
+	exception3_read(opcode, addr, size, fc);
+}
+
+void exception3_write_access(uae_u32 opcode, uae_u32 addr, int size, uae_u32 val, int fc)
 {
 	add_memory_cycles(1);
 	exception3_write(opcode, addr, size, val, fc);
@@ -2819,7 +2857,7 @@ static void execute_ins(uaecptr endpc, uaecptr targetpc, struct instr *dp)
 	testing_active_opcode = opc;
 	hardware_bus_error = 0;
 	hardware_bus_error_fake = 0;
-	read_buffer_prev = regs.ir;
+	read_buffer_prev = regs.irc;
 	regs.read_buffer = regs.irc;
 	regs.write_buffer = 0xf00d;
 	exception_extra_frame_size = 0;
