@@ -5084,8 +5084,8 @@ uae_u8 *getrtgbuffer(int monid, int *widthp, int *heightp, int *pitch, int *dept
 {
 	struct picasso_vidbuf_description *vidinfo = &picasso_vidinfo[monid];
 	struct picasso96_state_struct *state = &picasso96_state[monid];
-	uae_u8 *src = gfxmem_bank.start + natmem_offset;
-	int off = state->XYOffset - gfxmem_bank.start;
+	uae_u8 *src = gfxmem_banks[monid]->start + natmem_offset;
+	int off = state->XYOffset - gfxmem_banks[monid]->start;
 	int width, height, pixbytes;
 	uae_u8 *dst;
 	int convert;
@@ -5162,8 +5162,8 @@ static void picasso_flushpixels(int index, uae_u8 *src, int off, bool render)
 	bool overlay_updated = false;
 
 	// safety check
-	if (pwidth * state->BytesPerPixel > vidinfo->rowbytes)
-		pwidth = vidinfo->rowbytes / state->BytesPerPixel;
+	if (pwidth > vidinfo->rowbytes / vidinfo->pixbytes)
+		pwidth = vidinfo->rowbytes / vidinfo->pixbytes;
 	if (pheight > vidinfo->height)
 		pheight = vidinfo->height;
 

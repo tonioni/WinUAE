@@ -3161,6 +3161,21 @@ end:
 #endif
 }
 
+static void updatepicasso96(struct AmigaMonitor *mon)
+{
+#ifdef PICASSO96
+	struct picasso_vidbuf_description *vidinfo = &picasso_vidinfo[mon->monitor_id];
+	vidinfo->rowbytes = 0;
+	vidinfo->pixbytes = mon->currentmode.current_depth / 8;
+	vidinfo->rgbformat = 0;
+	vidinfo->extra_mem = 1;
+	vidinfo->height = mon->currentmode.current_height;
+	vidinfo->width = mon->currentmode.current_width;
+	vidinfo->depth = mon->currentmode.current_depth;
+	vidinfo->offset = 0;
+#endif
+}
+
 void gfx_set_picasso_modeinfo(int monid, RGBFTYPE rgbfmt)
 {
 	struct AmigaMonitor *mon = &AMonitors[monid];
@@ -3177,10 +3192,10 @@ void gfx_set_picasso_modeinfo(int monid, RGBFTYPE rgbfmt)
 	} else if (need < 0) {
 		struct picasso96_state_struct *state = &picasso96_state[mon->monitor_id];
 		struct winuae_currentmode *wc = &mon->currentmode;
-		if (state->Width != wc->current_width ||
-			state->Height != wc->current_height ||
-			state->BytesPerPixel * 8 != wc->current_depth)
+		if (state->Width != wc->native_width || state->Width != wc->current_width ||
+			state->Height != wc->native_height || state->Height != wc->current_height) {
 			open_windows(mon, true, true);
+		}
 	}
 #ifdef RETROPLATFORM
 	rp_set_hwnd(mon->hAmigaWnd);
@@ -4103,17 +4118,8 @@ retry:
 #endif
 	}
 
-#ifdef PICASSO96
-	struct picasso_vidbuf_description *vidinfo = &picasso_vidinfo[mon->monitor_id];
-	vidinfo->rowbytes = 0;
-	vidinfo->pixbytes = mon->currentmode.current_depth / 8;
-	vidinfo->rgbformat = 0;
-	vidinfo->extra_mem = 1;
-	vidinfo->height = mon->currentmode.current_height;
-	vidinfo->width = mon->currentmode.current_width;
-	vidinfo->depth = mon->currentmode.current_depth;
-	vidinfo->offset = 0;
-#endif
+	updatepicasso96(mon);
+
 	if (!scrlinebuf)
 		scrlinebuf = xmalloc (uae_u8, max_uae_width * 4);
 
