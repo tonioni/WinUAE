@@ -776,6 +776,17 @@ static void check_bus_error_ins(int offset)
 	sprintf(bus_error_text, "exception2_fetch(%s, %d);\n", opcode, offset);
 }
 
+static void check_bus_error_ins_opcode(int offset)
+{
+	const char *opcode;
+	if (bus_error_specials) {
+		opcode = "0";
+	} else {
+		opcode = "opcode";
+	}
+	sprintf(bus_error_text, "exception2_fetch_opcode(%s, %d);\n", opcode, offset);
+}
+
 static void check_prefetch_bus_error(int offset, int secondprefetchmode)
 {
 	if (!using_bus_error || using_mmu)
@@ -791,7 +802,7 @@ static void check_prefetch_bus_error(int offset, int secondprefetchmode)
 			bus_error_specials = 1;
 		}
 	}
-	check_bus_error_ins(offset);
+	check_bus_error_ins_opcode(offset);
 	do_instruction_buserror();
 }
 
@@ -2161,7 +2172,45 @@ static void check_bus_error(const char *name, int offset, int write, int size, c
 
 				//out("m68k_areg(regs, %s) = %sa;\n", bus_error_reg, name);
 			}
-
+			if (g_instr->mnemo == i_MOVES) {
+				out("regs.irc = extra;\n");
+				if (!write) {
+					out("regs.write_buffer = extra;\n");
+				}
+				if (g_instr->size == sz_long) {
+					// moves.l an,-(an)/(an)+ (same registers): write buffer contains modified value.
+					if (g_instr->dmode == Aipi || g_instr->dmode == Apdi) {
+						out("if (dstreg + 8 == ((extra >> 12) & 15)) {\n");
+						out("src += %d;\n", g_instr->dmode == Aipi ? 2 : -2);
+						out("}\n");
+					}
+					if (g_instr->dmode == Apdi) {
+						if (!write) {
+							out("m68k_areg(regs, dstreg) = srca;\n");
+						}
+					} else if (g_instr->dmode == Aipi) {
+						out("m68k_areg(regs, dstreg) += 4;\n");
+					}
+				}
+			} else if (g_instr->mnemo == i_TAS) {
+				if (!write) {
+					out("regs.read_buffer = regs.irc & 0xff00;\n");
+					out("regs.read_buffer |= 0x80;\n");
+				}
+				out("opcode |= 0x80000;\n");
+			} else if (g_instr->mnemo == i_CLR) {
+				if (g_instr->smode < Ad16) {
+					out("regflags.cznv = oldflags;\n");
+				}
+				// (an)+ and -(an) is done later
+				if (g_instr->smode == Aipi || g_instr->smode == Apdi) {
+					if (g_instr->size == sz_byte) {
+						out("m68k_areg(regs, srcreg) %c= areg_byteinc[srcreg];\n", g_instr->smode == Aipi ? '-' : '+');
+					} else {
+						out("m68k_areg(regs, srcreg) %c= %d;\n", g_instr->smode == Aipi ? '-' : '+', 1 << g_instr->size);
+					}
+				}
+			}
 		}
 
 		// write causing bus error and trace: set I/N
@@ -2173,10 +2222,6 @@ static void check_bus_error(const char *name, int offset, int write, int size, c
 			mnemo != i_MVPRM && mnemo != i_MVPMR) {
 			out("if (regs.t1) opcode |= 0x10000;\n"); // I/N set
 		}
-
-		//if (cpu_level == 0 && write) {
-		//	out("opcode = regs.irc;\n");
-		//}
 
 		if (write) {
 			out("exception2_write(opcode, %sa + %d, %d, %s, %d);\n",
@@ -3916,7 +3961,7 @@ static void genastore_rev_prefetch(const char *from, amodes mode, const char *re
 }
 static void genastore_fc (const char *from, amodes mode, const char *reg, wordsizes size, const char *to)
 {
-	genastore_2 (from, mode, reg, size, to, 1, GF_FC);
+	genastore_2(from, mode, reg, size, to, 0, GF_FC);
 }
 
 static void movem_mmu060 (const char *code, int size, bool put, bool aipi, bool apdi)
@@ -4259,7 +4304,10 @@ static void genmovemel_ce(uae_u16 opcode)
 		out("uae_u32 v = (%s(srca) << 16) | (m68k_dreg(regs, movem_index1[dmask]) & 0xffff);\n", srcw);
 		addcycles000_nonce(4);
 		check_bus_error("src", 0, 0, 1, NULL, 1);
-		out("m68k_dreg(regs, movem_index1[dmask]) = v;\n");
+		if (cpu_level == 0) {
+			// 68010 does not do partial updates
+			out("m68k_dreg(regs, movem_index1[dmask]) = v;\n");
+		}
 		out("v &= 0xffff0000;\n");
 		out("v |= %s(srca + 2); \n", srcw);
 		addcycles000_nonce(4);
@@ -4272,7 +4320,9 @@ static void genmovemel_ce(uae_u16 opcode)
 		out("uae_u32 v = (%s(srca) << 16) | (m68k_areg(regs, movem_index1[amask]) & 0xffff);\n", srcw);
 		addcycles000_nonce(4);
 		check_bus_error("src", 0, 0, 1, NULL, 1);
-		out("m68k_areg(regs, movem_index1[amask]) = v;\n");
+		if (cpu_level == 0) {
+			out("m68k_areg(regs, movem_index1[amask]) = v;\n");
+		}
 		out("v &= 0xffff0000;\n");
 		out("v |= %s(srca + 2);\n", srcw);
 		addcycles000_nonce(4);
@@ -5634,6 +5684,7 @@ static void gen_opcode (unsigned int opcode)
 				genastore_rev("0", curi->smode, "srcreg", curi->size, "src");
 			}
 		} else if (cpu_level == 1) {
+			out("uae_u16 oldflags = regflags.cznv;\n");
 			genamode(curi, curi->smode, "srcreg", curi->size, "src", 3, 0, GF_CLR68010);
 			if (isreg(curi->smode) && curi->size == sz_long) {
 				addcycles000(2);
@@ -5665,7 +5716,7 @@ static void gen_opcode (unsigned int opcode)
 				write_return_cycles(0);
 				out("}\n");
 			}
-			fill_prefetch_next();
+			fill_prefetch_next_after(0, "CLEAR_CZNV();\nSET_ZFLG(1);\n");
 			genflags(flag_logical, curi->size, "0", "", "");
 			genastore_rev("0", curi->smode, "srcreg", curi->size, "src");
 		} else {
@@ -8055,6 +8106,7 @@ bccl_not68020:
 			addcycles000(4);
 			out("if (extra & 0x800) {\n");
 			{
+				// reg -> memory
 				int old_m68k_pc_offset = m68k_pc_offset;
 				int old_m68k_pc_total = m68k_pc_total;
 				push_ins_cnt();
@@ -8076,6 +8128,7 @@ bccl_not68020:
 			}
 			out("} else {\n");
 			{
+				// memory -> reg
 				genamode(curi, curi->dmode, "dstreg", curi->size, "src", 1, 0, GF_FC | (cpu_level == 1 ? GF_NOFETCH : 0));
 				out("if (extra & 0x8000) {\n");
 				switch (curi->size) {
@@ -8292,6 +8345,7 @@ bccl_not68020:
 			} else {
 				genamode(curi, curi->smode, "srcreg", curi->size, "src", 2, 0, GF_LRMW | GF_NOFETCH);
 				out("uae_u8 src = %s(srca);\n", srcb);
+				check_bus_error("src", 0, 0, 0, "src", 1);
 			}
 			genflags(flag_logical, curi->size, "src", "", "");
 			if (!isreg(curi->smode)) {

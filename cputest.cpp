@@ -410,7 +410,8 @@ void put_byte_test(uaecptr addr, uae_u32 v)
 		ah->size = sz_byte;
 		ah->donotsave = false;
 	}
-	regs.write_buffer = v;
+	regs.write_buffer &= 0xff00;
+	regs.write_buffer |= v & 0xff;
 	*p = v;
 	add_memory_cycles(1);
 }
@@ -511,7 +512,8 @@ uae_u32 get_byte_test(uaecptr addr)
 	check_bus_error(addr, 0, regs.s ? 5 : 1);
 	uae_u8 *p = get_addr(addr, 1, 0);
 	read_buffer_prev = regs.read_buffer;
-	regs.read_buffer = *p;
+	regs.read_buffer &= 0xff00;
+	regs.read_buffer |= *p;
 	add_memory_cycles(1);
 	return *p;
 }
@@ -935,11 +937,12 @@ static void doexcstack2(void)
 	} else if (cpu_lvl == 1) {
 		if (test_exception == 2 || test_exception == 3) {
 			uae_u16 ssw = (sv ? 4 : 0) | test_exception_3_fc;
-			ssw |= test_exception_3_di ? 0x0000 : 0x2000; // IF
+			ssw |= test_exception_3_di > 0 ? 0x0000 : (test_exception_3_di < 0 ? (0x2000 | 0x1000) : 0x2000);
 			ssw |= (!test_exception_3_w && test_exception_3_di) ? 0x1000 : 0x000; // DF
 			ssw |= (test_exception_opcode & 0x10000) ? 0x0400 : 0x0000; // HB
 			ssw |= test_exception_3_size == 0 ? 0x0200 : 0x0000; // BY
 			ssw |= test_exception_3_w ? 0x0000 : 0x0100; // RW
+			ssw |= (test_exception_opcode & 0x80000) ? 0x0800 : 0x0000; // RM
 			regs.mmu_fault_addr = test_exception_addr;
 			Exception_build_stack_frame(regs.instruction_pc, regs.pc, ssw, test_exception, 0x08);
 			SPCFLAG_DOTRACE = 0;
@@ -1020,12 +1023,16 @@ static void doexcstack(void)
 	if (interrupt) {
 		regs.intmask = original_exception - 24;
 		regs.ir = original_exception;
-		flags |= 0x10000 | 0x20000;
+		if (cpu_lvl == 0) {
+			flags |= 0x10000 | 0x20000;
+		} else {
+			flags |= 0x20000;
+		}
 	}
 
 	// set I/N if original exception was group 1 exception.
 	flags |= 0x20000;
-	if (g1) {
+	if (g1 && cpu_lvl == 0) {
 		flags |= 0x10000;
 	}
 
@@ -1074,7 +1081,7 @@ uae_u32 REGPARAM2 op_illg(uae_u32 opcode)
 	return op_illg_1(opcode);
 }
 
-void exception2_fetch(uae_u32 opcode, int offset)
+static void exception2_fetch_common(uae_u32 opcode, int offset)
 {
 	test_exception = 2;
 	test_exception_3_w = 0;
@@ -1091,7 +1098,20 @@ void exception2_fetch(uae_u32 opcode, int offset)
 		if (opcode & 0x10000)
 			test_exception_3_fc |= 8;
 	}
+}
 
+void exception2_fetch(uae_u32 opcode, int offset)
+{
+	exception2_fetch_common(opcode, offset);
+	doexcstack();
+}
+
+void exception2_fetch_opcode(uae_u32 opcode, int offset)
+{
+	exception2_fetch_common(opcode, offset);
+	if (currprefs.cpu_model == 68010) {
+		test_exception_3_di = -1;
+	}
 	doexcstack();
 }
 
@@ -1126,7 +1146,12 @@ void exception2_write(uae_u32 opcode, uaecptr addr, int size, uae_u32 val, int f
 	test_exception_opcode = opcode;
 	test_exception_3_fc = fc;
 	test_exception_3_size = size;
-	regs.write_buffer = val;
+	if (size == sz_byte) {
+		regs.write_buffer &= 0xff00;
+		regs.write_buffer |= val & 0xff;
+	} else {
+		regs.write_buffer = val;
+	}
 	test_exception_3_di = 1;
 
 	if (currprefs.cpu_model == 68000) {
@@ -2465,8 +2490,18 @@ static int create_ea_exact(uae_u16 *opcodep, uaecptr pc, int mode, int reg, stru
 	{
 		bool vgot = false;
 		uae_u16 v;
-		if (srcdst && dp->mnemo != i_DBcc)
-			return -2;
+		if (dp->mnemo == i_MOVES) {
+			v = imm16_cnt << 11;
+			v |= rand16() & 0x07ff;
+			imm16_cnt++;
+			*isconstant = 32;
+			put_word_test(pc, v);
+			return 2;
+		}
+		if (srcdst) {
+			if (dp->mnemo != i_DBcc)
+				return -2;
+		}
 		if (dp->mnemo == i_DBcc || dp->mnemo == i_BSR || dp->mnemo == i_Bcc) {
 			uae_u32 pct = pc + 2 - 2;
 			if (target <= pct + 0x7ffe && target >= pct - 0x8000) {
@@ -2829,8 +2864,8 @@ static void execute_ins(uaecptr endpc, uaecptr targetpc, struct instr *dp)
 	uae_u16 opc = regs.ir;
 	uae_u16 opw1 = (opcode_memory[2] << 8) | (opcode_memory[3] << 0);
 	uae_u16 opw2 = (opcode_memory[4] << 8) | (opcode_memory[5] << 0);
-	if (opc == 0xd196 
-		//&& opw1 == 0x64fc
+	if (opc == 0x199c 
+		&& opw1 == 0x2808
 		//&& opw2 == 0x4afc
 		)
 		printf("");
@@ -3602,7 +3637,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 						regs.regs[15] = target_usp_address;
 					}
 
-					if (opc == 0x4a53)
+					if (opc == 0x0e51)
 						printf("");
 					if (subtest_count >= 700)
 						printf("");
@@ -3696,6 +3731,15 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 								continue;
 							}
 							pc += o;
+						}
+
+						if (dp->mnemo == i_MOVES) {
+							// MOVES is stupid
+							if (!(get_word_test(pc - 2) & 0x0800)) {
+								uae_u32 vv = dstea;
+								dstea = srcea;
+								srcea = vv;
+							}
 						}
 
 						// requested target address but no EA? skip
@@ -3821,12 +3865,16 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 					out_of_test_space = false;
 
 					if ((dflags & 1) && target_ea[0] != 0xffffffff && srcaddr != 0xffffffff && srcaddr != target_ea[0]) {
-						wprintf(_T(" Source address mismatch %08x <> %08x\n"), target_ea[0], srcaddr);
+						if (verbose) {
+							wprintf(_T(" Source address mismatch %08x <> %08x\n"), target_ea[0], srcaddr);
+						}
 						memcpy(opcode_memory, oldcodebytes, sizeof(oldcodebytes));
 						continue;
 					}
 					if ((dflags & 2) && target_ea[1] != 0xffffffff && dstaddr != target_ea[1]) {
-						wprintf(_T(" Destination address mismatch %08x <> %08x\n"), target_ea[1], dstaddr);
+						if (verbose) {
+							wprintf(_T(" Destination address mismatch %08x <> %08x\n"), target_ea[1], dstaddr);
+						}
 						memcpy(opcode_memory, oldcodebytes, sizeof(oldcodebytes));
 						continue;
 					}
@@ -3834,11 +3882,17 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 					if ((dflags & 1) && target_ea[0] == 0xffffffff && (srcaddr & addressing_mask) >= safe_memory_start - 4 && (srcaddr & addressing_mask) < safe_memory_end + 4) {
 						// random generated EA must never be inside safe memory
 						memcpy(opcode_memory, oldcodebytes, sizeof(oldcodebytes));
+						if (verbose) {
+							wprintf(_T("\n"));
+						}
 						continue;
 					}
 					if ((dflags & 2) && target_ea[1] == 0xffffffff && (dstaddr & addressing_mask) >= safe_memory_start - 4 && (dstaddr & addressing_mask) < safe_memory_end + 4) {
 						// random generated EA must never be inside safe memory
 						memcpy(opcode_memory, oldcodebytes, sizeof(oldcodebytes));
+						if (verbose) {
+							wprintf(_T("\n"));
+						}
 						continue;
 					}
 
@@ -4179,6 +4233,9 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 								if (target_ea[1] != 0xffffffff && (target_ea[1] & 1) && target_ea[0] == 0xffffffff && !test_exception_3_w) {
 									skipped = 1;
 								}
+								if (safe_memory_mode) {
+									skipped = 1;
+								}					
 							}
 
 							if (feature_usp == 2) {
@@ -4850,7 +4907,7 @@ static int test(struct ini_data *ini, const TCHAR *sections, const TCHAR *testna
 			if (i == 2) {
 				target_ea_opcode_max = cnt;
 				if (cnt > 0) {
-					safe_memory_mode = 7;
+					safe_memory_mode = 1 | 4;
 				}
 			} else if (i) {
 				target_ea_dst_max = cnt;

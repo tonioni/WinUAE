@@ -2599,7 +2599,7 @@ static void Exception_ce000 (int nr)
 			uae_u16 in = regs.read_buffer;
 			uae_u16 out = regs.write_buffer;
 			uae_u16 ssw = (sv ? 4 : 0) | last_fc_for_exception_3;
-			ssw |= last_di_for_exception_3 ? 0x0000 : 0x2000; // IF
+			ssw |= last_di_for_exception_3 > 0 ? 0x0000 : (last_di_for_exception_3 < 0 ? (0x2000 | 0x1000) : 0x2000);
 			ssw |= (!last_writeaccess_for_exception_3 && last_di_for_exception_3) ? 0x1000 : 0x000; // DF
 			ssw |= (last_op_for_exception_3 & 0x10000) ? 0x0400 : 0x0000; // HB
 			ssw |= last_size_for_exception_3 == 0 ? 0x0200 : 0x0000; // BY
@@ -3080,7 +3080,7 @@ static void Exception_normal (int nr)
 			} else {
 				// 68010 bus/address error (partially implemented only)
 				uae_u16 ssw = (sv ? 4 : 0) | last_fc_for_exception_3;
-				ssw |= last_di_for_exception_3 ? 0x0000 : 0x2000; // IF
+				ssw |= last_di_for_exception_3 > 0 ? 0x0000 : (last_di_for_exception_3 < 0 ? (0x2000 | 0x1000) : 0x2000);
 				ssw |= (!last_writeaccess_for_exception_3 && last_di_for_exception_3) ? 0x1000 : 0x000; // DF
 				ssw |= (last_op_for_exception_3 & 0x10000) ? 0x0400 : 0x0000; // HB
 				ssw |= last_size_for_exception_3 == 0 ? 0x0200 : 0x0000; // BY
@@ -7268,7 +7268,7 @@ void exception2_write(uae_u32 opcode, uaecptr addr, int size, uae_u32 val, int f
 	Exception(2);
 }
 
-void exception2_fetch(uae_u32 opcode, int offset)
+static void exception2_fetch_common(uae_u32 opcode, int offset)
 {
 	last_fault_for_exception_3 = m68k_getpc() + offset;
 	last_writeaccess_for_exception_3 = 0;
@@ -7286,7 +7286,20 @@ void exception2_fetch(uae_u32 opcode, int offset)
 		if (opcode & 0x10000)
 			last_fc_for_exception_3 |= 8;
 	}
+}
 
+void exception2_fetch_opcode(uae_u32 opcode, int offset)
+{
+	exception2_fetch_common(opcode, offset);
+	if (currprefs.cpu_model == 68010) {
+		last_di_for_exception_3 = -1;
+	}
+	Exception(2);
+}
+
+void exception2_fetch(uae_u32 opcode, int offset)
+{
+	exception2_fetch_common(opcode, offset);
 	Exception(2);
 }
 

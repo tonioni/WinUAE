@@ -648,8 +648,8 @@ static uae_u8 *load_file(const char *path, const char *file, uae_u8 *p, int *siz
 			p += size2;
 			size -= size2;
 		}
-		if ((safe_memory_mode & 1)) {
-			// if reading cause bus error: skip it
+		if ((safe_memory_mode & 2) && (safe_memory_mode & (1 | 4))) {
+			// if writing causes bus error and other bit(s) are also active: skip it
 			if (size > 0 && p >= safe_memory_start && p < safe_memory_end) {
 				int size2 = safe_memory_end - p;
 				if (size2 > size)
