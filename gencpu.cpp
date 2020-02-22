@@ -5112,12 +5112,20 @@ static void gen_opcode (unsigned int opcode)
 					if (cpu_level == 0) {
 						c += 2;
 					}
-					if (cpu_level == 1 && curi->smode == immi) {
+					if (cpu_level == 1 && curi->smode == imm) {
 						c += 2;
 					}
-					fill_prefetch_next_after(1, "ccr_68000_long_move_ae_LZN(src);\ndreg_68000_long_replace_low(dstreg, src);\n");
+					if (cpu_level == 1 && (curi->smode == imm || curi->smode == Dreg)) {
+						fill_prefetch_next_after(0, "m68k_dreg(regs, dstreg) = (src);\n");
+					} else {
+						fill_prefetch_next_after(1, "ccr_68000_long_move_ae_LZN(src);\ndreg_68000_long_replace_low(dstreg, src);\n");
+					}
 				} else {
-					fill_prefetch_next_after(1, "dreg_68000_long_replace_low(dstreg, src);\n");
+					if (cpu_level == 1) {
+						fill_prefetch_next_after(0, "m68k_dreg(regs, dstreg) = (src);\n");
+					} else {
+						fill_prefetch_next_after(1, "dreg_68000_long_replace_low(dstreg, src);\n");
+					}
 				}
 				loopmodeextra = 4;
 				next_level_000();
@@ -7128,10 +7136,15 @@ bccl_not68020:
 		if (curi->smode == Ad8r || curi->smode == PC8r)
 			addcycles000(2);
 		if (curi->smode == absl) {
-			strcpy(bus_error_code, "m68k_areg(regs, dstreg) = (m68k_areg(regs, dstreg) & 0x0000ffff) | (srca & 0xffff0000);\n");
-			strcpy(bus_error_code2, "m68k_areg(regs, dstreg) = (srca);\n");
+			if (cpu_level == 0) {
+				strcpy(bus_error_code, "m68k_areg(regs, dstreg) = (m68k_areg(regs, dstreg) & 0x0000ffff) | (srca & 0xffff0000);\n");
+				strcpy(bus_error_code2, "m68k_areg(regs, dstreg) = (srca);\n");
+			}
+			next_level_000();
 		}  else if (curi->smode != Ad8r && curi->smode != PC8r) {
-			strcpy(bus_error_code, "m68k_areg(regs, dstreg) = (srca);\n");
+			if (cpu_level == 0) {
+				strcpy(bus_error_code, "m68k_areg(regs, dstreg) = (srca);\n");
+			}
 		}
 		genamodedual(curi,
 			curi->smode, "srcreg", curi->size, "src", 0, GF_AA,

@@ -1411,9 +1411,10 @@ static int compare_exception(uae_u8 *s1, uae_u8 *s2, int len, int domask, uae_u8
 		return memcmp(s1, s2, len);
 	} else {
 		for (int i = 0; i < len; i++) {
-			if (mask[i])
+			uae_u8 m = mask[i];
+			if (m == 0)
 				continue;
-			if (s1[i] != s2[i])
+			if ((s1[i] & m) != (s2[i] & m))
 				return 1;
 		}
 		return 0;
@@ -1603,6 +1604,7 @@ static uae_u8 *validate_exception(struct registers *regs, uae_u8 *p, short excnu
 				break;
 			case 8: // 68010 bus/address error
 				{
+					uae_u16 ssw = (p[0] << 8) | p[1];
 					exc[8] = *p++;
 					exc[9] = *p++;
 					excrwp = ((exc[8] & 1) == 0) ? 1 : 0;
@@ -1628,6 +1630,9 @@ static uae_u8 *validate_exception(struct registers *regs, uae_u8 *p, short excnu
 					sp[22] = sp[23] = 0;
 					if (basicexcept) {
 						exclen = 14;
+						mask_exception = 1;
+						memset(masked_exception, 0xff, sizeof(masked_exception));
+						masked_exception[8] = ~0x30;
 					} else {
 						// ignore undocumented data
 						exclen = 26;
@@ -1647,9 +1652,9 @@ static uae_u8 *validate_exception(struct registers *regs, uae_u8 *p, short excnu
 							// bus error read: cpu may still read the data, depends on hardware.
 							// ignore input buffer contents
 							mask_exception = 1;
-							memset(masked_exception, 0, sizeof(masked_exception));
-							masked_exception[20] = 1;
-							masked_exception[21] = 1;
+							memset(masked_exception, 0xff, sizeof(masked_exception));
+							masked_exception[20] = 0;
+							masked_exception[21] = 0;
 						}
 						alts = 3;
 					}
