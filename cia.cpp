@@ -944,6 +944,7 @@ void CIA_vsync_prehandler (void)
 		kblostsynccnt -= maxvpos;
 		if (kblostsynccnt <= 0) {
 			kblostsynccnt = 0;
+			kbcode = 0;
 			keyreq ();
 #if KB_DEBUG
 			write_log (_T("lostsync\n"));
