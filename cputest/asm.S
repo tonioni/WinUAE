@@ -446,7 +446,7 @@ _exceptiontable020:
 	bsr.s exception020 | 6
 	bsr.s exception020 | 7
 	bsr.s exception020 | 8
-	bra.s exception_trace010t1 | 9
+	bsr.s exception_trace010t1 | 9
 	bsr.s exception020 | 10
 	bsr.s exception020 | 11
 	bsr.s exception020 | 12
