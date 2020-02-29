@@ -2468,6 +2468,9 @@ static void gui_to_prefs(void)
 {
 	/* Always copy our prefs to changed_prefs, ... */
 	copy_prefs(&workprefs, &changed_prefs);
+	if (quit_program == -UAE_RESET_HARD) {
+		copy_prefs(&workprefs, &currprefs);
+	}
 	/* filesys hack */
 	currprefs.mountitems = changed_prefs.mountitems;
 	memcpy (&currprefs.mountconfig, &changed_prefs.mountconfig, MOUNT_CONFIG_SIZE * sizeof (struct uaedev_config_info));
