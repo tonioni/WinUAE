@@ -7218,16 +7218,25 @@ bccl_not68020:
 			push_ins_cnt();
 			out("if(offs == -4 && !regs.t1 && loop_mode_table[regs.ird]) {\n");
 			// first loop takes as many cycles as normal DBcc branch
-			// perhaps it also does actual prefetches??
+			// because it does 2xprefetch
 			out("if(!was_loop_mode) {\n");
-			addcycles000(6);
-			addcycles000_nonce(6);
+			out("uae_u16 irc = regs.irc;\n");
+			// read looping instruction opcode
+			addcycles000_nonce(4);
+			out("%s(%d);\n", prefetch_word, 0);
+			check_prefetch_bus_error(-1, -1);
+			// read dbcc opcode
+			addcycles000_nonce(4);
+			out("%s(%d);\n", prefetch_word, 2);
+			check_prefetch_bus_error(-2, -1);
+			out("regs.irc = irc;\n");
+			out("} else {\n");
+			addcycles000(2);
+			addcycles000_nonce(2);
 			out("}\n");
 			out("regs.loop_mode = 1;\n");
 			out("src = m68k_dreg(regs, srcreg);\n");
 			genastore("(src - 1)", curi->smode, "srcreg", curi->size, "src");
-			addcycles000(2);
-			addcycles000_nonce(2);
 			out("if (src) {\n");
 			if (using_ce) {
 				out("loop_mode_table[regs.ird](regs.ird);\n");
