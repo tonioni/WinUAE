@@ -4204,7 +4204,7 @@ STATIC_INLINE bool time_for_interrupt (void)
 	return regs.ipl > regs.intmask || regs.ipl == 7;
 }
 
-void doint (void)
+void doint(void)
 {
 #ifdef WITH_PPC
 	if (ppc_state) {
@@ -4214,7 +4214,7 @@ void doint (void)
 #endif
 	if (m68k_interrupt_delay) {
 		regs.ipl_pin = intlev ();
-		unset_special (SPCFLAG_INT);
+		set_special(SPCFLAG_INT);
 		return;
 	}
 	if (currprefs.cpu_compatible && currprefs.cpu_model < 68020)
@@ -4362,6 +4362,7 @@ static int do_specialties (int cycles)
 			do_copper ();
 
 		if (m68k_interrupt_delay) {
+			unset_special(SPCFLAG_INT);
 			ipl_fetch ();
 			if (time_for_interrupt ()) {
 				do_interrupt (regs.ipl);
@@ -4408,6 +4409,7 @@ static int do_specialties (int cycles)
 	}
 
 	if (m68k_interrupt_delay) {
+		unset_special(SPCFLAG_INT);
 		if (time_for_interrupt ()) {
 			do_interrupt (regs.ipl);
 		}
