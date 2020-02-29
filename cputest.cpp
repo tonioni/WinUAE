@@ -5408,7 +5408,13 @@ int __cdecl main(int argc, char *argv[])
 			break;
 		if (!_tcsnicmp(section, _T("test="), 5)) {
 			_tcscpy(sptr, section);
-			if (!test(ini, sections, section + 5))
+			TCHAR testname[1000];
+			_tcscpy(testname, section + 5);
+			const TCHAR *p = _tcschr(testname, '|');
+			if (p) {
+				testname[p - testname] = 0;
+			}
+			if (!test(ini, sections, testname))
 				break;
 		}
 		idx++;
