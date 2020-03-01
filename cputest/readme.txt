@@ -156,3 +156,8 @@ Change log:
 - Multiple test sets can be generated and tested in single step.
 - Stack usage reduced, gzip decompression works with default 4096 byte stack.
 
+01.03.2020
+
+- Added 68020+ test presets.
+- CPU selection changed. CPU=680x0 line at the top of ini is now the main CPU selection field. Test is generated if CPU model matches preset's CPU and preset is active. This update allows use of same preset for multiple CPU models.
+- cpu_address_space can be also used to select which CPU model is first 32-bit addressing capable model (normally 68020 or 68030).

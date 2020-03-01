@@ -83,6 +83,7 @@ static uae_u32 feature_target_ea[MAX_TARGET_EA][3];
 static int target_ea_src_cnt, target_ea_dst_cnt, target_ea_opcode_cnt;
 static int target_ea_src_max, target_ea_dst_max, target_ea_opcode_max;
 static uae_u32 target_ea[3];
+static int maincpu[6];
 
 #define HIGH_MEMORY_START (addressing_mask == 0xffffffff ? 0xffff8000 : 0x00ff8000)
 
@@ -980,8 +981,6 @@ static void doexcstack(void)
 	bool g1 = generates_group1_exception(regs.ir);
 
 	doexcstack2();
-	if (cpu_lvl >= 2)
-		return;
 	if (test_exception < 4)
 		return;
 
@@ -1942,6 +1941,10 @@ static int create_ea_random(uae_u16 *opcodep, uaecptr pc, int mode, int reg, str
 	uaecptr old_pc = pc;
 	uae_u16 opcode = *opcodep;
 
+	// feature_full_extension_format = 2 and 68020 addressing modes enabled: do not generate any normal addressing modes
+	if (feature_full_extension_format == 2 && (ad8r[srcdst] || pc8r[srcdst]) && (mode != Ad8r && mode != PC8r))
+		return -1;
+
 	switch (mode)
 	{
 	case Dreg:
@@ -2082,7 +2085,7 @@ static int create_ea_random(uae_u16 *opcodep, uaecptr pc, int mode, int reg, str
 				put_word_test(pc, v);
 				pc += 2;
 			}
-			*isconstant = 32;
+			*isconstant = 128;
 			*eap = 1;
 		}
 		break;
@@ -3230,7 +3233,7 @@ static uae_u8 *save_exception(uae_u8 *p, struct instr *dp)
 static uae_u16 get_ccr_ignore(struct instr *dp, uae_u16 extra)
 {
 	uae_u16 ccrignoremask = 0;
-	if ((cpu_lvl == 2 || cpu_lvl == 3) && test_exception == 5) {
+	if ((cpu_lvl == 2 || cpu_lvl == 3) && (test_exception == 5 || exception_extra_frame_type == 5)) {
 		if ((dp->mnemo == i_DIVS) || (dp->mnemo == i_DIVL && (extra & 0x0800) && !(extra & 0x0400))) {
 			// 68020/030 DIVS.W/.L + Divide by Zero: V state is not stable.
 			ccrignoremask |= 2; // mask CCR=V
@@ -3637,6 +3640,9 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 						regs.regs[15] = target_usp_address;
 					}
 
+					regs.usp = regs.regs[15];
+					regs.isp = super_stack_memory - 0x80;
+
 					if (opc == 0x0e51)
 						printf("");
 					if (subtest_count >= 700)
@@ -3788,6 +3794,8 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 							put_word_test(opcode_memory_address + 2, ew2);
 						}
 					}
+
+					uae_u16 extraword = get_word_test(opcode_memory_address + 2);
 
 					// loop mode
 					if (feature_loop_mode) {
@@ -4347,7 +4355,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 									}
 								}
 								// SR/CCR
-								uae_u32 ccrignoremask = get_ccr_ignore(dp, ((pcaddr[2] << 8) | pcaddr[3])) << 16;
+								uae_u32 ccrignoremask = get_ccr_ignore(dp, extraword) << 16;
 								if ((regs.sr | ccrignoremask) != last_sr) {
 									dst = store_reg(dst, CT_SR, last_sr, regs.sr | ccrignoremask, -1);
 									last_sr = regs.sr | ccrignoremask;
@@ -4791,6 +4799,24 @@ static bool ini_getstringx(struct ini_data *ini, const TCHAR *sections, const TC
 	return ret;
 }
 
+static int cputoindex(int cpu)
+{
+	if (cpu == 68000) {
+		return 0;
+	} else if (cpu == 68010) {
+		return 1;
+	} else if (cpu == 68020) {
+		return 2;
+	} else if (cpu == 68030) {
+		return 3;
+	} else if (cpu == 68040) {
+		return 4;
+	} else if (cpu == 68060) {
+		return 5;
+	}
+	return -1;
+}
+
 static int test(struct ini_data *ini, const TCHAR *sections, const TCHAR *testname)
 {
 	const struct cputbl *tbl = NULL;
@@ -4806,19 +4832,72 @@ static int test(struct ini_data *ini, const TCHAR *sections, const TCHAR *testna
 		return 1;
 	}
 
-	currprefs.cpu_model = 68000;
-	ini_getvalx(ini, sections, _T("cpu"), &currprefs.cpu_model);
-	if (currprefs.cpu_model != 68000 && currprefs.cpu_model != 68010 && currprefs.cpu_model != 68020 &&
-		currprefs.cpu_model != 68030 && currprefs.cpu_model != 68040 && currprefs.cpu_model != 68060) {
-		wprintf(_T("Unsupported CPU model.\n"));
-		return 0;
+	bool cpufound = false;
+	if (ini_getstringx(ini, sections, _T("cpu"), &vs)) {
+		TCHAR *p = vs;
+		while (p && *p) {
+			TCHAR *pp1 = _tcschr(p, ',');
+			TCHAR *pp2 = _tcschr(p, '-');
+			if (pp1) {
+				*pp1++ = 0;
+				int idx = cputoindex(_tstol(p));
+				if (idx < 0) {
+					wprintf(_T("Invalid CPU string '%s'\n"), vs);
+					return 0;
+				}
+				if (maincpu[idx]) {
+					cpufound = true;
+					break;
+				}
+				p = pp1;
+			} else if (pp2) {
+				*pp2++ = 0;
+				int idx1 = cputoindex(_tstol(p));
+				int idx2 = cputoindex(_tstol(pp2));
+				if (idx1 < 0 || idx2 < 0) {
+					wprintf(_T("Invalid CPU string '%s'\n"), vs);
+					return 0;
+				}
+				for (int i = idx1; i <= idx2; i++) {
+					if (maincpu[i]) {
+						cpufound = true;
+						break;
+					}
+				}
+				if (cpufound) {
+					break;
+				}
+				p = pp2;
+			} else {
+				int idx = cputoindex(_tstol(p));
+				if (idx < 0) {
+					wprintf(_T("Invalid CPU string '%s'\n"), vs);
+					return 0;
+				}
+				if (maincpu[idx]) {
+					cpufound = true;
+				}
+				break;
+			}
+		}
+		xfree(vs);
+	}
+
+	if (!cpufound) {
+		wprintf(_T("Test skipped. CPU does not match.\n"));
+		return 1;
 	}
 
 	currprefs.address_space_24 = 1;
 	addressing_mask = 0x00ffffff;
-	v = 24;
+	v = 68030;
 	ini_getvalx(ini, sections, _T("cpu_address_space"), &v);
-	if (v == 32 || currprefs.cpu_model >= 68030) {
+	if (v < 68000) {
+		if (v == 32) {
+			currprefs.address_space_24 = 0;
+			addressing_mask = 0xffffffff;
+		}
+	} else if (currprefs.cpu_model >= v) {
 		currprefs.address_space_24 = 0;
 		addressing_mask = 0xffffffff;
 	}
@@ -4827,7 +4906,7 @@ static int test(struct ini_data *ini, const TCHAR *sections, const TCHAR *testna
 	currprefs.fpu_mode = 1;
 	ini_getvalx(ini, sections, _T("fpu"), &currprefs.fpu_model);
 	if (currprefs.fpu_model && currprefs.cpu_model < 68020) {
-		wprintf(_T("FPU requires 68020 or 68040 CPU.\n"));
+		wprintf(_T("FPU requires 68020+ CPU.\n"));
 		return 0;
 	}
 	if (currprefs.fpu_model != 0 && currprefs.fpu_model != 68881 && currprefs.fpu_model != 68882 && currprefs.fpu_model != 68040 && currprefs.fpu_model != 68060) {
@@ -5393,13 +5472,27 @@ int __cdecl main(int argc, char *argv[])
 {
 	struct ini_data *ini = ini_load(_T("cputestgen.ini"), false);
 	if (!ini) {
-		wprintf(_T("Couldn't open cputestgen.ini"));
+		wprintf(_T("Couldn't open cputestgen.ini\n"));
 		return 0;
 	}
 
 	TCHAR *sptr = sections;
 	_tcscpy(sections, INISECTION);
 	sptr += _tcslen(sptr) + 1;
+
+	int cpu;
+	if (!ini_getval(ini, INISECTION, _T("cpu"), &cpu)) {
+		wprintf(_T("CPU model is not set\n"));
+		return 0;
+	}
+
+	int cpuidx = cputoindex(cpu);
+	if (cpuidx < 0) {
+		wprintf(_T("Unsupport CPU model\n"));
+		return 0;
+	}
+	maincpu[cpuidx] = 1;
+	currprefs.cpu_model = cpu;
 
 	int idx = 0;
 	for (;;) {
