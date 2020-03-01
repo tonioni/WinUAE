@@ -7048,7 +7048,10 @@ static void gen_opcode (unsigned int opcode)
 			fill_prefetch_full(0);
 		}
 		branch_inst = 1;
-		next_level_000();
+		if (!next_level_040_to_030()) {
+			if (!next_level_020_to_010())
+				next_level_000();
+		}
 		break;
 	case i_Bcc:
 		tail_ce020_done = true;
@@ -7414,7 +7417,7 @@ bccl_not68020:
 			curi->dmode, "dstreg", sz_long, "dst", 1, 0);
 		push_ins_cnt();
 		out("if (src == 0) {\n");
-		out("divbyzero_special (1, dst);\n");
+		out("divbyzero_special(1, dst);\n");
 		incpc("%d", m68k_pc_offset);
 		addcycles000(4);
 		out("Exception_cpu(5);\n");
