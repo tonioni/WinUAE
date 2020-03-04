@@ -733,13 +733,23 @@ static const char *bit_mask (int size)
 	return 0;
 }
 
-static void add_mmu040_movem (int movem)
+static int mmu040_movem;
+static void start_mmu040_movem(int movem)
 {
 	if (abs(movem) != 3)
 		return;
 	out("if (mmu040_movem) {\n");
 	out("srca = mmu040_movem_ea;\n");
-	out("} else\n");
+	out("} else {\n");
+	mmu040_movem = 1;
+}
+
+static void end_mmu040_movem(void)
+{
+	if (!mmu040_movem)
+		return;
+	out("}\n");
+	mmu040_movem = 0;
 }
 
 static char bus_error_text[200];
@@ -819,7 +829,7 @@ static void gen_nextilong2 (const char *type, const char *name, int flags, int m
 	m68k_pc_offset += 4;
 
 	out("%s %s;\n", type, name);
-	add_mmu040_movem (movem);
+	start_mmu040_movem(movem);
 	if (using_ce020) {
 		if (flags & GF_NOREFILL)
 			out("%s = %s(%d);\n", name, prefetch_long, r);
@@ -3147,7 +3157,7 @@ static void genamode2x (amodes mode, const char *reg, wordsizes size, const char
 			break;
 		}
 		out("uaecptr %sa;\n", name);
-		add_mmu040_movem (movem);
+		start_mmu040_movem(movem);
 		out("%sa = m68k_areg(regs, %s);\n", name, reg);
 		if ((flags & GF_NOFETCH) && using_prefetch) {
 			addcycles000(2);
@@ -3163,7 +3173,7 @@ static void genamode2x (amodes mode, const char *reg, wordsizes size, const char
 			break;
 		}
 		out("uaecptr %sa;\n", name);
-		add_mmu040_movem (movem);
+		start_mmu040_movem(movem);
 		out("%sa = m68k_areg(regs, %s);\n", name, reg);
 		if ((flags & GF_NOFETCH) && using_prefetch) {
 			addcycles000(4);
@@ -3178,7 +3188,7 @@ static void genamode2x (amodes mode, const char *reg, wordsizes size, const char
 			break;
 		}
 		out("uaecptr %sa;\n", name);
-		add_mmu040_movem (movem);
+		start_mmu040_movem(movem);
 		switch (size) {
 		case sz_byte:
 			if (movem)
@@ -3208,14 +3218,14 @@ static void genamode2x (amodes mode, const char *reg, wordsizes size, const char
 		break;
 	case Ad16: // (d16,An)
 		out("uaecptr %sa;\n", name);
-		add_mmu040_movem (movem);
+		start_mmu040_movem(movem);
 		out("%sa = m68k_areg(regs, %s) + (uae_s32)(uae_s16)%s;\n", name, reg, gen_nextiword (flags));
 		count_read_ea++; 
 		addr = true;
 		break;
 	case PC16: // (d16,PC)
 		out("uaecptr %sa;\n", name);
-		add_mmu040_movem (movem);
+		start_mmu040_movem(movem);
 		out("%sa = %s + %d;\n", name, getpc, m68k_pc_offset);
 		out("%sa += (uae_s32)(uae_s16)%s;\n", name, gen_nextiword (flags));
 		addr = true;
@@ -3235,7 +3245,7 @@ static void genamode2x (amodes mode, const char *reg, wordsizes size, const char
 			if (next_cpu_level < 1)
 				next_cpu_level = 1;
 			sync_m68k_pc();
-			add_mmu040_movem (movem);
+			start_mmu040_movem(movem);
 			/* This would ordinarily be done in gen_nextiword, which we bypass.  */
 			insn_n_cycles += 4;
 			out("%sa = %s(m68k_areg(regs, %s), %d);\n", name, disp020, reg, disp020cnt++);
@@ -3271,19 +3281,18 @@ static void genamode2x (amodes mode, const char *reg, wordsizes size, const char
 			case fetchmode_jea:
 			break;
 		}
-		out("uaecptr tmppc;\n");
 		out("uaecptr %sa;\n", name);
 		if (cpu_level > 1) {
 			if (next_cpu_level < 1)
 				next_cpu_level = 1;
 			sync_m68k_pc();
-			add_mmu040_movem (movem);
+			start_mmu040_movem(movem);
 			/* This would ordinarily be done in gen_nextiword, which we bypass.  */
 			insn_n_cycles += 4;
-			out("tmppc = %s;\n", getpc);
+			out("uaecptr tmppc = %s;\n", getpc);
 			out("%sa = %s(tmppc, %d);\n", name, disp020, disp020cnt++);
 		} else {
-			out("tmppc = %s + %d;\n", getpc, m68k_pc_offset);
+			out("uaecptr tmppc = %s + %d;\n", getpc, m68k_pc_offset);
 			if (!(flags & GF_PC8R)) {
 				addcycles000(2);
 				count_cycles_ea += 2;
@@ -3301,7 +3310,7 @@ static void genamode2x (amodes mode, const char *reg, wordsizes size, const char
 		break;
 	case absw:
 		out("uaecptr %sa;\n", name);
-		add_mmu040_movem (movem);
+		start_mmu040_movem(movem);
 		out("%sa = (uae_s32)(uae_s16)%s;\n", name, gen_nextiword (flags));
 		pc_68000_offset_fetch += 2;
 		addr = true;
@@ -3579,6 +3588,8 @@ static void genamode2x (amodes mode, const char *reg, wordsizes size, const char
 			break;
 		}
 	}
+
+	end_mmu040_movem();
 }
 
 static void genamode2 (amodes mode, const char *reg, wordsizes size, const char *name, int getv, int movem, int flags)
