@@ -2430,7 +2430,7 @@ void tablet_lightpen(int tx, int ty, int tmaxx, int tmaxy, int touch, int button
 	}
 
 	if (touch >= 0)
-		lightpen_active = true;
+		lightpen_active |= 1;
 
 	if (touch > 0 && devid >= 0) {
 		setmousebuttonstate (devid, 0, 1);
@@ -2441,7 +2441,7 @@ void tablet_lightpen(int tx, int ty, int tmaxx, int tmaxy, int touch, int button
 
 end:
 	if (lightpen_active) {
-		lightpen_active = false;
+		lightpen_active &= ~1;
 		if (devid >= 0)
 			setmousebuttonstate (devid, 0, 0);
 	}
@@ -3378,12 +3378,13 @@ static void charge_cap (int joy, int idx, int charge)
 		pot_cap[joy][idx] = 511;
 }
 
-static void cap_check (void)
+static void cap_check(bool hsync)
 {
 	int joy, i;
 
 	for (joy = 0; joy < 2; joy++) {
 		for (i = 0; i < 2; i++) {
+			bool cancharge = true;
 			int charge = 0, dong, joypot;
 			uae_u16 pdir = 0x0200 << (joy * 4 + i * 2); /* output enable */
 			uae_u16 pdat = 0x0100 << (joy * 4 + i * 2); /* data */
@@ -3418,12 +3419,14 @@ static void cap_check (void)
 					charge = 1; // slow charge via pull-up resistor
 			}
 			if (!(potgo_value & pdir)) { // input?
-				if (pot_dat_act[joy][i])
+				if (pot_dat_act[joy][i] && hsync) {
 					pot_dat[joy][i]++;
+				}
 				/* first 7 or 8 lines after potgo has been started = discharge cap */
 				if (pot_dat_act[joy][i] == 1) {
 					if (pot_dat[joy][i] < (currprefs.ntscmode ? POTDAT_DELAY_NTSC : POTDAT_DELAY_PAL)) {
 						charge = -2; /* fast discharge delay */
+						cancharge = hsync;
 					} else {
 						pot_dat_act[joy][i] = 2;
 						pot_dat[joy][i] = 0;
@@ -3440,6 +3443,17 @@ static void cap_check (void)
 							pot_dat_act[joy][i] = 0;
 					}
 				}
+				// CD32 pad 3rd button line floating: 2-button mode
+				if (cd32_pad_enabled[joy] && i == 0) {
+					if (charge == 0)
+						charge = 2;
+				}
+				// CD32 pad in 2-button mode: blue button is internally pulled up
+				if (cd32_pad_enabled[joy] && !cd32padmode(joy) && i == 1) {
+					if (charge == 0)
+						charge = 2;
+				}
+
 			} else { // output?
 				charge = (potgo_value & pdat) ? 2 : -2; /* fast (dis)charge if output */
 				if (potgo_value & pdat)
@@ -3448,8 +3462,9 @@ static void cap_check (void)
 					pot_dat[joy][i]++; // "free running" if output+low
 			}
 
-			if (isbutton)
+			if (isbutton) {
 				charge = -2; // button press overrides everything
+			}
 
 			if (currprefs.cs_cdtvcd) {
 				/* CDTV P9 is not floating */
@@ -3457,12 +3472,6 @@ static void cap_check (void)
 					charge = 2;
 			}
 
-			// CD32 pad in 2-button mode: blue button is not floating
-			if (cd32_pad_enabled[joy] && !cd32padmode(joy) && i == 1) {
-				if (charge == 0)
-					charge = 2;
-			}
-		
 			if (dong < 0 && charge == 0) {
 
 				if (lightpen_port[joy])
@@ -3481,7 +3490,9 @@ static void cap_check (void)
 					charge = 2;
 			}
 
-			charge_cap (joy, i, charge);
+			if (cancharge) {
+				charge_cap(joy, i, charge);
+			}
 		}
 	}
 }
@@ -3493,7 +3504,7 @@ uae_u8 handle_joystick_buttons (uae_u8 pra, uae_u8 dra)
 	int i;
 
 	maybe_read_input();
-	cap_check ();
+	cap_check(false);
 	for (i = 0; i < 2; i++) {
 		int mask = 0x40 << i;
 		if (cd32_pad_enabled[i]) {
@@ -3540,7 +3551,7 @@ void handle_cd32_joystick_cia (uae_u8 pra, uae_u8 dra)
 	if (inputdevice_logging & (4 | 256)) {
 		write_log (_T("BFE001 W: %02X:%02X %x\n"), dra, pra, M68K_GETPC);
 	}
-	cap_check ();
+	cap_check(false);
 	for (i = 0; i < 2; i++) {
 		uae_u8 but = 0x40 << i;
 		if (cd32padmode(i)) {
@@ -3563,7 +3574,7 @@ static uae_u16 handle_joystick_potgor (uae_u16 potgor)
 {
 	int i;
 
-	cap_check ();
+	cap_check(false);
 	for (i = 0; i < 2; i++) {
 		uae_u16 p9dir = 0x0800 << (i * 4); /* output enable P9 */
 		uae_u16 p9dat = 0x0400 << (i * 4); /* data P9 */
@@ -3867,7 +3878,7 @@ int handle_custom_event (const TCHAR *custom, int append)
 
 void inputdevice_hsync (bool forceread)
 {
-	cap_check ();
+	cap_check(true);
 
 #ifdef CATWEASEL
 	catweasel_hsync ();
@@ -4736,13 +4747,14 @@ static int handle_input_event2(int nr, int state, int max, int flags, int extra)
 		{
 			int unit = (ie->data & 1) ? 1 : 0;
 			int lpnum = ie->unit - 5;
-			if (lightpen_active <= 0) {
-				lightpen_x[0] = vidinfo->outbuffer->outwidth / 2;
-				lightpen_y[0] = vidinfo->outbuffer->outheight / 2;
-				lightpen_x[1] = -1;
-				lightpen_y[1] = -1;
+			if (!(lightpen_active & (1 << lpnum))) {
+				if (!state) {
+					break;
+				}
+				lightpen_x[lpnum] = vidinfo->outbuffer->outwidth / 2;
+				lightpen_y[lpnum] = vidinfo->outbuffer->outheight / 2;
+				lightpen_active |= 1 << lpnum;
 			}
-			lightpen_active = true;
 			lightpen_enabled = true;
 			if (flags & HANDLE_IE_FLAG_ABSOLUTE) {
 				lastmxy_abs[lpnum][unit] = extra;
@@ -5965,8 +5977,7 @@ static void scanevents (struct uae_prefs *p)
 	}
 	lightpen_enabled = false;
 	lightpen_enabled2 = false;
-	if (lightpen_active > 0)
-		lightpen_active = -1;
+	lightpen_active = 0;
 
 	for (i = 0; i < MAX_INPUT_DEVICES; i++) {
 		use_joysticks[i] = 0;

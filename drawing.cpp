@@ -3762,7 +3762,7 @@ static void draw_lightpen_cursor(int monid, int x, int y, int line, int onscreen
 	struct vidbuf_description *vidinfo = &adisplays[monid].gfxvidinfo;
 	const char *p;
 	int color1 = onscreen ? (lpnum ? 0x0ff : 0xff0) : (lpnum ? 0x0f0 : 0xf00);
-	int color2 = 0x000;
+	int color2 = (color1 & 0xeee) >> 1;
 
 	xlinebuffer = vidinfo->drawbuffer.linemem;
 	if (xlinebuffer == 0)
@@ -3773,7 +3773,7 @@ static void draw_lightpen_cursor(int monid, int x, int y, int line, int onscreen
 	for (int i = 0; i < LIGHTPEN_WIDTH; i++) {
 		int xx = x + i - LIGHTPEN_WIDTH / 2;
 		if (*p != '-' && xx >= 0 && xx < vidinfo->drawbuffer.outwidth) {
-			putpixel (xlinebuffer, xlinebuffer_genlock, vidinfo->drawbuffer.pixbytes, xx, *p == 'x' ? xcolors[color1] : xcolors[color2], 1);
+			putpixel(xlinebuffer, xlinebuffer_genlock, vidinfo->drawbuffer.pixbytes, xx, *p == 'x' ? xcolors[color1] : xcolors[color2], 1);
 		}
 		p++;
 	}
@@ -3814,11 +3814,13 @@ static void lightpen_update(struct vidbuffer *vb, int lpnum)
 	if (cy >= maxvpos)
 		cy = maxvpos - 1;
 
-	for (int i = 0; i < LIGHTPEN_HEIGHT; i++) {
-		int line = lightpen_y[lpnum] + i - LIGHTPEN_HEIGHT / 2;
-		if (line >= 0 || line < max_ypos_thisframe) {
-			if (lightpen_active > 0 && currprefs.lightpen_crosshair) {
-				draw_lightpen_cursor(vb->monitor_id, lightpen_x[lpnum], i, line, cx > 0, lpnum);
+	if (currprefs.lightpen_crosshair && lightpen_active) {
+		for (int i = 0; i < LIGHTPEN_HEIGHT; i++) {
+			int line = lightpen_y[lpnum] + i - LIGHTPEN_HEIGHT / 2;
+			if (line >= 0 && line < max_ypos_thisframe) {
+				if (lightpen_active & (1 << lpnum)) {
+					draw_lightpen_cursor(vb->monitor_id, lightpen_x[lpnum], i, line, cx > 0, lpnum);
+				}
 			}
 		}
 	}
@@ -3828,9 +3830,6 @@ static void lightpen_update(struct vidbuffer *vb, int lpnum)
 
 	lightpen_cx[lpnum] = cx;
 	lightpen_cy[lpnum] = cy;
-
-	if (lightpen_active < 0)
-		lightpen_active = 0;
 }
 
 static void refresh_indicator_init(void)
@@ -3945,9 +3944,12 @@ static void draw_frame_extras(struct vidbuffer *vb, int y_start, int y_end)
 	}
 
 	if (lightpen_active) {
-		lightpen_update(vb, 0);
-		if (inputdevice_get_lightpen_id() >= 0)
+		if (lightpen_active & 1) {
+			lightpen_update(vb, 0);
+		}
+		if (inputdevice_get_lightpen_id() >= 0 && (lightpen_active & 2)) {
 			lightpen_update(vb, 1);
+		}
 	}
 	if (refresh_indicator_buffer)
 		refresh_indicator_update(vb);

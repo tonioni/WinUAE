@@ -9939,7 +9939,7 @@ void custom_reset (bool hardreset, bool keyboardreset)
 	write_log (_T("Reset at %08X. Chipset mask = %08X\n"), M68K_GETPC, currprefs.chipset_mask);
 	memory_map_dump ();
 
-	lightpen_active = -1;
+	lightpen_active = 0;
 	lightpen_triggered = 0;
 	lightpen_cx[0] = lightpen_cy[0] = -1;
 	lightpen_cx[1] = lightpen_cy[1] = -1;
