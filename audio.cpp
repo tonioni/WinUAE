@@ -45,6 +45,7 @@
 #include <math.h>
 
 #define DEBUG_AUDIO 0
+#define DEBUG_AUDIO2 0
 #define DEBUG_AUDIO_HACK 0
 #define DEBUG_CHANNEL_MASK 15
 #define TEST_AUDIO 0
@@ -60,7 +61,7 @@ STATIC_INLINE bool isaudio (void)
 	return currprefs.produce_sound != 0;
 }
 
-#if DEBUG_AUDIO > 0 || DEBUG_AUDIO_HACK > 0
+#if DEBUG_AUDIO > 0 || DEBUG_AUDIO_HACK > 0 || DEBUG_AUDIO2 > 0
 static bool debugchannel (int ch)
 {
 	return ((1 << ch) & DEBUG_CHANNEL_MASK) != 0;
@@ -69,7 +70,7 @@ static bool debugchannel (int ch)
 
 STATIC_INLINE bool usehacks(void)
 {
-	return currprefs.cpu_model >= 68020 || currprefs.m68k_speed != 0 || (currprefs.cs_hacks & 4);
+	return !(currprefs.cs_hacks & 8) && (currprefs.cpu_model >= 68020 || currprefs.m68k_speed != 0 || (currprefs.cs_hacks & 4));
 }
 
 #define SINC_QUEUE_MAX_AGE 2048
@@ -137,6 +138,8 @@ struct audio_channel_data
 	bool ptx_written;
 	bool ptx_tofetch;
 	int dmaofftime_active;
+	int dmaofftime_cpu_cnt;
+	uaecptr dmaofftime_pc;
 	int volcntbufcnt;
 	float volcntbuf[VOLCNT_BUFFER_SIZE];
 };
@@ -1425,7 +1428,7 @@ static void setirq (int nr, int which)
 		write_log (_T("SETIRQ%d (%d,%d) PC=%08X\n"), nr, which, isirq (nr) ? 1 : 0, M68K_GETPC);
 #endif
 	// audio interrupts are delayed by 2 cycles
-	if (currprefs.cpu_memory_cycle_exact) {
+	if (currprefs.cpu_compatible) {
 		event2_newevent_xx (-1, 2 * CYCLE_UNIT + CYCLE_UNIT / 2, nr, audio_setirq_event);
 	} else {
 		audio_setirq_event(nr);
@@ -1461,12 +1464,18 @@ STATIC_INLINE void setdr (int nr)
 		write_log (_T("%d: DR already active (STATE=%d)\n"), nr, cdp->state);
 #endif
 	cdp->drhpos = current_hpos ();
+
+#if DEBUG_AUDIO > 0
+	if (debugchannel(nr) && cdp->wlen <= 2)
+		write_log(_T("DR%d=%d LEN=%d/%d PT=%08X PC=%08X\n"), nr, cdp->dr, cdp->wlen, cdp->len, cdp->pt, M68K_GETPC);
+#endif
 	cdp->dr = true;
+
 	if (cdp->wlen == 1) {
 		cdp->dsr = true;
 #if DEBUG_AUDIO > 0
-		if (debugchannel (nr) && cdp->wlen > 1)
-			write_log (_T("DSR%d PT=%08X PC=%08X\n"), nr, cdp->pt, M68K_GETPC);
+		if (debugchannel (nr))
+			write_log (_T("DSR%d=1 PT=%08X PC=%08X\n"), nr, cdp->pt, M68K_GETPC);
 #endif
 	}
 }
@@ -1500,7 +1509,7 @@ static void loaddat (int nr, bool modper)
 		cdp->hisample = cdp->losample = true;
 		cdp->have_dat = false;
 #endif
-#if DEBUG_AUDIO > 2
+#if DEBUG_AUDIO > 2 || DEBUG_AUDIO2
 		if (debugchannel (nr))
 			write_log (_T("LOAD%dDAT: New:%04x, Old:%04x\n"), nr, cdp->dat, cdp->dat2);
 #endif
@@ -1540,23 +1549,39 @@ static void audio_state_channel2 (int nr, bool perfin)
 	}
 	audio_activate ();
 
-	if ((cdp->state == 2 || cdp->state == 3) && usehacks()) {
+	if (cdp->state == 2 || cdp->state == 3) {
 		if (!chan_ena && old_dma) {
 			// DMA switched off, state=2/3 and "too fast CPU": set flag
 			cdp->dmaofftime_active = true;
+			cdp->dmaofftime_cpu_cnt = regs.instruction_cnt;
+			cdp->dmaofftime_pc = M68K_GETPC;
 		}
+		// check if CPU executed at least 60 instructions (if JIT is off), there are stupid code that
+		// disable audio DMA, then set new sample, then re-enable without actually wanting to start
+		// new sample immediately.
 		if (cdp->dmaofftime_active && !old_dma && chan_ena) {
+			static int warned = 100;
 			// We are still in state=2/3 and program is going to re-enable
 			// DMA. Force state to zero to prevent CPU timed DMA wait
 			// routines in common tracker players to lose notes.
+			if (usehacks() && (currprefs.cachesize || (regs.instruction_cnt - cdp->dmaofftime_cpu_cnt) >= 60)) {
+				if (warned >= 0) {
+					warned--;
+					write_log(_T("Audio %d DMA wait hack: ENABLED. OFF=%08x, ON=%08x\n"), nr, cdp->dmaofftime_pc, M68K_GETPC);
+				}
 #if DEBUG_AUDIO_HACK > 0
-			if (debugchannel (nr))
-				write_log (_T("%d: INSTADMAOFF\n"), nr, M68K_GETPC);
+				if (debugchannel(nr))
+					write_log(_T("%d: INSTADMAOFF\n"), nr, M68K_GETPC);
 #endif
-			newsample (nr, (cdp->dat2 >> 0) & 0xff);
-//			if (napnav)
-//				setirq (nr, 91);
-			zerostate (nr);
+				newsample(nr, (cdp->dat2 >> 0) & 0xff);
+				zerostate(nr);
+			} else {
+				if (warned >= 0) {
+					warned--;
+					write_log(_T("Audio %d DMA wait hack: DISABLED. OFF=%08x, ON=%08x\n"), nr, cdp->dmaofftime_pc, M68K_GETPC);
+				}
+			}
+			cdp->dmaofftime_active = false;
 		}
 	}
 
@@ -1594,9 +1619,14 @@ static void audio_state_channel2 (int nr, bool perfin)
 			setirq (nr, 0);
 			loaddat (nr);
 			if (usehacks() && cdp->per < 10 * CYCLE_UNIT) {
+				static int warned = 100;
 				// make sure audio.device AUDxDAT startup returns to idle state before DMA is enabled
 				newsample (nr, (cdp->dat2 >> 0) & 0xff);
 				zerostate (nr);
+				if (warned > 0) {
+					write_log(_T("AUD%d: forced idle state PER=%d PC=%08x\n"), nr, cdp->per, M68K_GETPC);
+					warned--;
+				}
 			} else {
 				cdp->pbufldl = true;
 				audio_state_channel2 (nr, false);
@@ -1666,6 +1696,19 @@ static void audio_state_channel2 (int nr, bool perfin)
 		}
 		if (!perfin)
 			return;
+
+
+#if DEBUG_AUDIO2 > 0
+		if (debugchannel(nr)) {
+			write_log(_T("%d_2->3: LEN=%d/%d DSR=%d\n"), nr, cdp->wlen, cdp->len, cdp->dsr);
+		}
+#endif
+
+#if DEBUG_AUDIO > 0
+		if (debugchannel(nr) && (cdp->wlen <= 2 || cdp->wlen >= cdp->len - 1))
+			write_log(_T("%d_2->3: LEN=%d/%d DSR=%d\n"), nr, cdp->wlen, cdp->len, cdp->dsr);
+#endif
+
 		if (audap)
 			loaddat (nr, true);
 		if (chan_ena) {
@@ -1694,6 +1737,19 @@ static void audio_state_channel2 (int nr, bool perfin)
 		}
 		if (!perfin)
 			return;
+
+#if DEBUG_AUDIO2 > 0
+		if (debugchannel(nr)) {
+			write_log(_T("%d_3->2: LEN=%d/%d DSR=%d\n"), nr, cdp->wlen, cdp->len, cdp->dsr);
+		}
+#endif
+
+
+#if DEBUG_AUDIO > 0
+		if (debugchannel(nr) && (cdp->wlen <= 2 || cdp->wlen >= cdp->len - 1))
+			write_log(_T("%d_3->2: LEN=%d/%d DSR=%d\n"), nr, cdp->wlen, cdp->len, cdp->dsr);
+#endif
+
 		if (chan_ena) {
 			loaddat (nr);
 			if (cdp->intreq2 && napnav)
@@ -2212,10 +2268,51 @@ void audio_hsync (void)
 	previous_volcnt_update = 0;
 }
 
+static void audxdat_func(uae_u32 v)
+{
+	int nr = v & 3;
+	int chan_ena = (v & 0x100) != 0;
+	struct audio_channel_data *cdp = audio_channel + nr;
+	if (cdp->state == 2 || cdp->state == 3) {
+		if (chan_ena) {
+#if DEBUG_AUDIO > 0
+			if (debugchannel(nr) && (cdp->wlen >= cdp->len - 1 || cdp->wlen <= 2))
+				write_log(_T("AUD%d near loop, IRQ=%d, LC=%08X LEN=%d/%d DSR=%d\n"), nr, isirq(nr) ? 1 : 0, cdp->pt, cdp->wlen, cdp->len, cdp->dsr);
+#endif
+			if (cdp->wlen == 1) {
+				cdp->wlen = cdp->len;
+				cdp->intreq2 = true;
+				if (sampleripper_enabled)
+					do_samplerip(cdp);
+#if DEBUG_AUDIO > 0
+				if (debugchannel(nr) && cdp->wlen > 1)
+					write_log(_T("AUD%d looped, IRQ=%d, LC=%08X LEN=%d DSR=%d\n"), nr, isirq(nr) ? 1 : 0, cdp->pt, cdp->wlen, cdp->dsr);
+#endif
+			} else {
+				cdp->wlen = (cdp->wlen - 1) & 0xffff;
+			}
+		}
+	} else {
+		audio_activate();
+		update_audio();
+		audio_state_channel(nr, false);
+		schedule_audio();
+		events_schedule();
+	}
+	cdp->dat_written = false;
+}
+
 void AUDxDAT (int nr, uae_u16 v, uaecptr addr)
 {
 	struct audio_channel_data *cdp = audio_channel + nr;
 	int chan_ena = (dmacon & DMA_MASTER) && (dmacon & (1 << nr));
+
+#if DEBUG_AUDIO2
+	if (debugchannel(nr)) {
+		write_log(_T("AUD%dDAT: %04X ADDR=%08X LEN=%d/%d %d,%d,%d %06X\n"), nr,
+			v, addr, cdp->wlen, cdp->len, cdp->state, chan_ena, isirq(nr) ? 1 : 0, M68K_GETPC);
+	}
+#endif
 
 #if DEBUG_AUDIO > 0
 	if (debugchannel (nr) && (DEBUG_AUDIO > 1 || (!chan_ena || addr == 0xffffffff || (cdp->state != 2 && cdp->state != 3)))) {
@@ -2230,29 +2327,12 @@ void AUDxDAT (int nr, uae_u16 v, uaecptr addr)
 		write_log (_T("%d: audxdat 1=%04x 2=%04x but old dat not yet used\n"), nr, cdp->dat, cdp->dat2);
 	cdp->have_dat = true;
 #endif
-	if (cdp->state == 2 || cdp->state == 3) {
-		if (chan_ena) {
-			if (cdp->wlen == 1) {
-				cdp->wlen = cdp->len;
-				cdp->intreq2 = true;
-				if (sampleripper_enabled)
-					do_samplerip (cdp);
-#if DEBUG_AUDIO > 0
-				if (debugchannel (nr) && cdp->wlen > 1)
-					write_log (_T("AUD%d looped, IRQ=%d, LC=%08X LEN=%d\n"), nr, isirq (nr) ? 1 : 0, cdp->pt, cdp->wlen);
-#endif
-			} else {
-				cdp->wlen = (cdp->wlen - 1) & 0xffff;
-			}
-		}
+	// AUDxLEN is processed after 2 cycle delay
+	if (cdp->per < 124 * CYCLE_UNIT || currprefs.cpu_compatible) {
+		event2_newevent_xx(-1, 2 * CYCLE_UNIT, nr | (chan_ena ? 0x100 : 0), audxdat_func);
 	} else {
-		audio_activate ();
-		update_audio ();
-		audio_state_channel (nr, false);
-		schedule_audio ();
-		events_schedule ();
+		audxdat_func(nr | (chan_ena ? 0x100 : 0));
 	}
-	cdp->dat_written = false;
 }
 void AUDxDAT (int nr, uae_u16 v)
 {
@@ -2279,8 +2359,13 @@ void AUDxLCH (int nr, uae_u16 v)
 	// someone wants to update PT but DSR has not yet been processed.
 	// too fast CPU and some tracker players: enable DMA, CPU delay, update AUDxPT with loop position
 	if (usehacks() && ((cdp->ptx_tofetch && cdp->state == 1) || cdp->ptx_written)) {
+		static int warned = 100;
 		cdp->ptx = cdp->lc;
 		cdp->ptx_written = true;
+		if (warned > 0) {
+			write_log(_T("AUD%dLCH HACK: %04X %08X (%d) (%d %d %08x)\n"), nr, v, M68K_GETPC, cdp->state, cdp->dsr, cdp->ptx_written, cdp->ptx);
+			warned--;
+		}
 #if DEBUG_AUDIO_HACK > 0
 		if (debugchannel (nr))
 			write_log (_T("AUD%dLCH HACK: %04X %08X (%d) (%d %d %08x)\n"), nr, v, M68K_GETPC, cdp->state, cdp->dsr, cdp->ptx_written, cdp->ptx);
@@ -2300,8 +2385,14 @@ void AUDxLCL (int nr, uae_u16 v)
 	audio_activate ();
 	update_audio ();
 	if (usehacks() && ((cdp->ptx_tofetch && cdp->state == 1) || cdp->ptx_written)) {
+		static int warned = 100;
 		cdp->ptx = cdp->lc;
 		cdp->ptx_written = true;
+		cdp->ptx_written = true;
+		if (warned > 0) {
+			write_log(_T("AUD%dLCL HACK: %04X %08X (%d) (%d %d %08x)\n"), nr, v, M68K_GETPC, cdp->state, cdp->dsr, cdp->ptx_written, cdp->ptx);
+			warned--;
+		}
 #if DEBUG_AUDIO_HACK > 0
 		if (debugchannel (nr))
 			write_log (_T("AUD%dLCL HACK: %04X %08X (%d) (%d %d %08x)\n"), nr, v, M68K_GETPC, cdp->state, cdp->dsr, cdp->ptx_written, cdp->ptx);
