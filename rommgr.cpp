@@ -95,7 +95,7 @@ struct romdata *getromdatabypath (const TCHAR *path)
 	return NULL;
 }
 
-#define NEXT_ROM_ID 258
+#define NEXT_ROM_ID 259
 
 #define ALTROM(id,grp,num,size,flags,crc32,a,b,c,d,e) \
 { _T("X"), 0, 0, 0, 0, 0, size, id, 0, 0, flags, (grp << 16) | num, 0, NULL, crc32, a, b, c, d, e },
@@ -578,8 +578,10 @@ static struct romdata roms[] = {
 	0xc49daa65, 0x20275716, 0xdc7eb00e, 0x5dc53680, 0xb5c8a90a, 0x7c00e390, NULL, NULL },
 	{ _T("Microbotics HardFrame v1.5"), 1, 5, 1, 5, _T("HARDFRAME\0"), 32768, 173, 0, 0, ROMTYPE_HARDFRAME, 0, 0, NULL,
 	0x8d144212, 0xc5a4f497, 0x5216c1b1, 0xe08760d0, 0x0bd579ef, 0xea226354, NULL, NULL },
+	{ _T("Microbotics HardFrame v1.8"), 1, 8, 1, 8, _T("HARDFRAME\0"), 32768, 258, 0, 0, ROMTYPE_HARDFRAME, 0, 0, NULL,
+	0x10de5e2d, 0x3e25af5, 0x9e6bb0d69, 0xd925f07b, 0x200b1b0e, 0x45e57d33, NULL, NULL },
 	{ _T("Microbotics HardFrame v1.9"), 1, 9, 1, 9, _T("HARDFRAME\0"), 32768, 256, 0, 0, ROMTYPE_HARDFRAME, 0, 0, NULL,
-	0xf248ad3c, 0xa88116d2, 0x97d522dc, 0x50261465, 0x5d6d1d64, 0xfbe2b9b3, NULL, NULL },
+	0x948a3de8, 0xc34cb0ef, 0xa0ebdd71, 0x9d604d38, 0x625a160d, 0x9e2ca95d, NULL, NULL },
 	{ _T("Mainhattan Data A-Team v1.8"), 1, 8, 1, 8, _T("ATEAM\0"), 65536, 174, 0, 0, ROMTYPE_ATEAM, 0, 0, NULL,
 	0x4fe08a5d, 0x007e5c61, 0x4048f598, 0x6d14011d, 0x23a41435, 0x5e0a2259, NULL, NULL },
 	{ _T("M-Tec AT500 Megabody v1.33"), 1, 33, 1, 33, _T("MTECAT\0"), 32768, 199, 0, 0, ROMTYPE_MTEC, 0, 0, NULL,
