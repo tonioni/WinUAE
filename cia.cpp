@@ -1000,7 +1000,7 @@ void CIAA_tod_inc (int cycles)
 	event2_newevent_xx (-1, cycles + TOD_INC_DELAY, 0, CIAA_tod_handler);
 }
 
-static void check_led (void)
+static void check_led(void)
 {
 	uae_u8 v = ciaapra;
 	bool led2;
@@ -1008,28 +1008,29 @@ static void check_led (void)
 	v |= ~ciaadra; /* output is high when pin's direction is input */
 	led2 = (v & 2) ? 0 : 1;
 	if (led2 != led) {
-		calc_led (led);
+		calc_led(led);
 		led = led2;
 		led_old_brightness = -1;
 	}
 }
 
-static void bfe001_change (void)
+static void bfe001_change(void)
 {
 	uae_u8 v = ciaapra;
-	check_led ();
+	v |= ~ciaadra; /* output is high when pin's direction is input */
+	check_led();
 	if (currprefs.cs_ciaoverlay && (v & 1) != oldovl) {
 		oldovl = v & 1;
 		if (!oldovl) {
-			map_overlay (1);
+			map_overlay(1);
 		} else {
-			//activate_debugger ();
-			map_overlay (0);
+			//activate_debugger();
+			map_overlay(0);
 		}
 	}
 	if (currprefs.cs_cd32cd && (v & 1) != oldcd32mute) {
 		oldcd32mute = v & 1;
-		akiko_mute (oldcd32mute ? 0 : 1);
+		akiko_mute(oldcd32mute ? 0 : 1);
 	}
 }
 
