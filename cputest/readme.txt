@@ -2,7 +2,7 @@
 UAE 680x0 CPU Tester
 
 I finally wrote utility (This was my "Summer 2019" project) that can be used to verify operation of for example software emulated or FPGA 680x0 CPUs.
-It is based on UAE CPU core (gencpu generated special test core). All the CPU logic comes from UAE CPU core.
+Tester is based on UAE CPU core (gencpu generated special test core). All the CPU logic comes from UAE CPU core.
 
 Verifies:
 
@@ -22,18 +22,18 @@ Tests executed for each tested instruction:
 - If instruction generated privilege violation exception, extra test round is run in supervisor mode.
 - Optionally can do any combination of T0, T1, S and M -bit SR register extra test rounds.
 - Every opcode value is tested. Total number of tests per opcode depends on available addressing modes etc. It can be hundreds of thousands or even millions..
-- Optinnally can be used to fully validate address and bus errors. Bus error testing requires extra hardware/logic.
+- Optionally can be used to fully validate address and bus errors. Bus error testing requires extra hardware/logic.
 
 Test generation details:
 
-If normal mode: Instruction's effective address is randomized. It is accepted if it points to any of 3 test memory regions. If it points outside of test memory, it will be re-randomized few times. Test will be skipped if current EA makes it impossible to point to any of 3 test regions.
+If normal mode: instruction's effective address is randomized. It is accepted if it points to any of 3 test memory regions. If it points outside of test memory, it will be re-randomized few times. Test will be skipped if current EA makes it impossible to point to any of 3 test regions.
 If 68000/68010 and address error testing is enabled: 2 extra test rounds are generated, one with even and another with odd EAs to test and verify address errors.
 
 If target EA mode: instruction's effective address always points to configured target address(es). Very useful when testing address or bus errors.
 
 Notes and limitations:
 
-- Test generator is very brute force based, it should be more intelligent.. Now has optional target src/dst/opcode modes for better bus/address error testing.
+- Test generator was originally very brute force based, it should be more intelligent.. Now has optional target src/dst/opcode modes for better bus/address error testing.
 - Bus and address error testing is optional, if disabled, generated tests never cause bus/address errors.
 - RTE test only tests stack frame types 0 and 2 (if 68020+)
 - All tests that would halt or reset the CPU are skipped (RESET in supervisor mode, STOP parameter that would stop the CPU etc)
@@ -41,6 +41,7 @@ Notes and limitations:
 - Undefined flags (for example DIV and CHK or 68000/010 bus address error) are also verified. It probably would be good idea to optionally filter them out.
 - FPU testing is not yet fully implemented.
 - TAS test will return wrong results if test RAM region is not fully TAS read-modify-write special memory access compatible.
+- if 24-bit address space and high ram is enabled, tester can generate word or long accesses that wrap around. (For example: move.l $fffffe,d0)
 
 Tester compatibility (integer instructions only):
 
@@ -73,7 +74,7 @@ Not implemented or only partially implemented:
 68010+:
 
 - MOVEC: Most control registers tested: Write all ones, write all zeros, read it back, restore original value. 68040+ TC/TT registers enable bit is always zero.
-- RTE: long frames with undefined fields are skipped. Basic frame types 0 and 2 are verified, also unsupported frame types are tested, error is reported if CPU does not generate frame exception.
+- RTE: address/bus error undefined fields are skipped. Basic frame types 0, 2 and 8 are verified, also unsupported frame types are tested, error is reported if CPU does not generate frame exception.
 - 68020+ undefined addressing mode bit combinations are not tested.
 
 All models:
@@ -88,7 +89,7 @@ Build instructions:
 - buildm68k first (already built if UAE core was previously compiled)
 - gencpu with CPU_TEST=1 define. This creates cpuemu_x_test.cpp files (x=90-94), cpustbl_test.cpp and cputbl_test.h
 - build cputestgen project.
-- build native Amiga project (cputest directory). Assembly files probably only compiles with Bebbo's GCC.
+- build native Amiga project (cputest directory). Assembly files probably only compile with Bebbo's GCC.
 
 More CPU details in WinUAE changelog.
 
@@ -96,7 +97,7 @@ More CPU details in WinUAE changelog.
 
 Test generator quick instructions:
 
-Update cputestgen.ini to match your CPU model, memory settings etc.
+Update cputestgen.ini to match your CPU model, memory settings etc. Enable (enabled=1) preset test set, for example 68000 Basic test is good starting point.
 
 "Low memory" = memory accessible using absolute word addressing mode, positive value (0x0000 to 0x7fff). Can be larger.
 "High memory" = memory accessible using absolute word addressing mode, negative value (0xFFF8000 to 0xFFFFFFFF)
@@ -115,15 +116,22 @@ Usage of Amiga m68k native test program:
 
 Copy all memory dat files, test executable compiled for target platform (currently only Amiga is supported) and data/<cpu model> contents to target system, keeping original directory structure.
 
-cputest all = run all tests, in alphabetical order. Stops when mismatch is detected.
-cputest tst.b = run tst.b tests only
-cputest all tst.b = run tst.b, then tst.w and so on in alphabetical order until end or mismatch is detected.
+cputest basic/all = run all tests, in alphabetical order. Stops when mismatch is detected. (Assuming 68000 Basic test set)
+cputest basic/tst.b = run tst.b tests only
+cputest basic/all tst.b = run tst.b, then tst.w and so on in alphabetical order until end or mismatch is detected.
 
 If mismatch is detected, opcode word(s), instruction disassembly, registers before and after and reason message is shown on screen. If difference is in exception stack frame, both expected and returned stack frame is shown in hexadecimal.
 
 --
 
 Change log:
+
+15.03.2020
+
+- Test coverage improved: If test uses data or address register as a source or destination, register gets modified after each test. Each register has different modification logic. (Some simply toggle few bits, some shift data etc..). Previously registers were static during single test round and start of each new round randomized register contents.
+- 68020+ addressing mode test sets improved.
+
+Only test generator was updated. Data structures or m68k tester has not been changed.
 
 16.02.2020
 
