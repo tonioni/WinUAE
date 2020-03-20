@@ -2014,6 +2014,12 @@ static uae_u8 *validate_test(uae_u8 *p, short ignore_errors, short ignore_sr)
 				if (last_registers.pc != test_regs.pc && dooutput) {
 					sprintf(outbp, "PC: expected %08x but got %08x\n", last_registers.pc, test_regs.pc);
 					outbp += strlen(outbp);
+					if (test_regs.pc == opcode_memory_addr) {
+						sprintf(outbp, "Got unexpected exception %d (unsupported instruction?)\n", cpuexc);
+					} else {
+						sprintf(outbp, "Got unexpected exception %d\n", cpuexc);
+					}
+					outbp += strlen(outbp);
 					errflag |= 1 << 16;
 				}
 				break;
@@ -2333,7 +2339,7 @@ static uae_u8 *validate_test(uae_u8 *p, short ignore_errors, short ignore_sr)
 					((test_regs.exc >> (16 + 0)) & 7));
 				outbp += strlen(outbp);
 			}
-		} else if (exc == 0 && (test_regs.exc & 65535) == 4) {
+		} else if (exc == 0 && (test_regs.exc & 65535) == 4 && last_registers.pc == test_regs.pc) {
 			sprintf(outbp, "OK: No exception generated\n");
 			outbp += strlen(outbp);
 		}
