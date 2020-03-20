@@ -178,9 +178,6 @@ uaecptr ShowEA_disp(uaecptr *pcp, uaecptr base, TCHAR *buffer, const TCHAR *name
 
 	int m = 1 << ((dp >> 9) & 3);
 	mult[0] = 0;
-	if (m > 1 && buffer) {
-		_stprintf(mult, _T("*%d"), m);
-	}
 
 	if (currprefs.cpu_model >= 68020) {
 		dispreg <<= (dp >> 9) & 3; // SCALE
@@ -193,6 +190,10 @@ uaecptr ShowEA_disp(uaecptr *pcp, uaecptr base, TCHAR *buffer, const TCHAR *name
 		uae_s32 outer = 0, disp = 0;
 
 		// Full format extension (68020+)
+
+		if (m > 1 && buffer) {
+			_stprintf(mult, _T("*%d"), m);
+		}
 
 		if (dp & 0x80) { // BS (base register suppress)
 			base = 0;
@@ -314,12 +315,19 @@ uaecptr ShowEA_disp(uaecptr *pcp, uaecptr base, TCHAR *buffer, const TCHAR *name
 		TCHAR regstr[20];
 		uae_s8 disp8 = dp & 0xFF;
 
+		if (m > 1 && buffer) {
+			if (currprefs.cpu_model < 68020) {
+				_stprintf(mult, _T("[*%d]"), m);
+			} else {
+				_stprintf(mult, _T("*%d"), m);
+			}
+		}
 		regstr[0] = 0;
 		_stprintf(regstr, _T(",%c%d.%c"), dp & 0x8000 ? 'A' : 'D', (int)r, dp & 0x800 ? 'L' : 'W');
 		addr = base + (uae_s32)((uae_s8)disp8) + dispreg;
 		if (buffer) {
 			_stprintf(buffer, _T("(%s%s%s,$%02x) == $%08x"), name, regstr, mult, (uae_u8)disp8, addr);
-			if (dp & 0x100) {
+			if (((dp & 0x0100) || m != 1) && currprefs.cpu_model < 68020) {
 				_tcscat(buffer, _T(" (68020+)"));
 			}
 		}
@@ -1762,7 +1770,8 @@ uae_u32 m68k_disasm_2 (TCHAR *buf, int bufsize, uaecptr pc, uaecptr *nextpc, int
 				instrname[3] = 'U';
 			if (lookup->mnemo == i_DIVL && !(extra & 0x0400)) {
 				// DIVSL.L/DIVUL.L
-				instrname[7] = 0;
+				instrname[8] = 0;
+				instrname[7] = ' ';
 				instrname[6] = instrname[5];
 				instrname[5] = instrname[4];
 				instrname[4] = 'L';
