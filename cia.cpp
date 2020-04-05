@@ -1106,20 +1106,21 @@ static uae_u8 ReadCIAA (unsigned int addr, uae_u32 *flags)
 		return v;
 	}
 	case 1:
+		tmp = (ciaaprb & ciaadrb) | (ciaadrb ^ 0xff);
 #ifdef PARALLEL_PORT
-		if (isprinter () > 0) {
+		if (isprinter() > 0) {
 			tmp = ciaaprb;
-		} else if (isprinter () < 0) {
+		} else if (isprinter() < 0) {
 			uae_u8 v;
-			parallel_direct_read_data (&v);
+			parallel_direct_read_data(&v);
 			tmp = v;
 #ifdef ARCADIA
 		} else if (arcadia_bios) {
-			tmp = arcadia_parport (0, ciaaprb, ciaadrb);
+			tmp = arcadia_parport(0, ciaaprb, ciaadrb);
 #endif
 		} else if (currprefs.win32_samplersoundcard >= 0) {
 
-			tmp = sampler_getsample ((ciabpra & 4) ? 1 : 0);
+			tmp = sampler_getsample((ciabpra & 4) ? 1 : 0);
 #endif
 
 		} else if (parallel_port_scsi) {
@@ -1127,7 +1128,7 @@ static uae_u8 ReadCIAA (unsigned int addr, uae_u32 *flags)
 			tmp = parallel_port_scsi_read(0, ciaaprb, ciaadrb);
 
 		} else {
-			tmp = handle_parport_joystick (0, ciaaprb, ciaadrb);
+			tmp = handle_parport_joystick (0, tmp);
 			tmp = dongle_cia_read (1, reg, ciaadrb, tmp);
 #if DONGLE_DEBUG > 0
 			if (notinrom())
@@ -1254,24 +1255,21 @@ static uae_u8 ReadCIAB (unsigned int addr, uae_u32 *flags)
 
 	switch (reg) {
 	case 0:
-		tmp = 0;
-#ifdef ARCADIA
-		// CD inactive, Arcadia bios 4.00 does not detect printer
-		if (arcadia_bios && !currprefs.use_serial)
-			tmp = 0x20;
-#endif
+		tmp = (ciabpra & ciabdra) | (ciabdra ^ 0xff);
 #ifdef SERIAL_PORT
-		if (currprefs.use_serial)
-			tmp = serial_readstatus (ciabdra);
+		if (currprefs.use_serial) {
+			tmp &= 7;
+			tmp |= serial_readstatus(ciabdra) & 0xf8;
+		}
 #endif
 #ifdef PARALLEL_PORT
-		if (isprinter () > 0) {
-			//tmp |= ciabpra & (0x04 | 0x02 | 0x01);
+		if (isprinter() > 0) {
 			tmp &= ~3; // clear BUSY and PAPEROUT
 			tmp |= 4; // set SELECT
-		} else if (isprinter () < 0) {
+		} else if (isprinter() < 0) {
 			uae_u8 v;
-			parallel_direct_read_status (&v);
+			tmp &= ~7;
+			parallel_direct_read_status(&v);
 			tmp |= v & 7;
 		} else if (parallel_port_scsi) {
 			tmp = parallel_port_scsi_read(1, ciabpra, ciabdra);
@@ -1282,13 +1280,13 @@ static uae_u8 ReadCIAB (unsigned int addr, uae_u32 *flags)
 				tmp |= (ciabsdr_cnt & 1) ? 2 : 0; // clock
 				tmp |= (ciabsdr_buf & 0x80) ? 1 : 0; // data
 			}
-			tmp |= handle_parport_joystick (1, ciabpra, ciabdra);
+			tmp = handle_parport_joystick(1, tmp);
 		}
 #endif
-		tmp = dongle_cia_read (1, reg, ciabpra, tmp);
+		tmp = dongle_cia_read(1, reg, ciabpra, tmp);
 #if DONGLE_DEBUG > 0
-		if (notinrom ())
-			write_log (_T("BFD000 R %02X %s\n"), tmp, debuginfo(0));
+		if (notinrom())
+			write_log(_T("BFD000 R %02X %s\n"), tmp, debuginfo(0));
 #endif
 
 		if (currprefs.cs_ciatype[1]) {
@@ -1582,6 +1580,9 @@ static void WriteCIAA (uae_u16 addr, uae_u8 val, uae_u32 *flags)
 			if (kblostsynccnt > 0 && currprefs.cs_kbhandshake) {
 				kbhandshakestart = get_cycles();
 			}
+#if KB_DEBUG
+			write_log(_T("KB_ACK_START %02x->%02x %08x\n"), ciaacra, val, M68K_GETPC);
+#endif
 		} else if ((val & 0x40) == 0 && (ciaacra & 0x40) != 0) {
 			// handshake end
 			/* todo: check if low to high or high to low only */
@@ -1593,7 +1594,7 @@ static void WriteCIAA (uae_u16 addr, uae_u8 val, uae_u32 *flags)
 			}
 			kblostsynccnt = 0;
 #if KB_DEBUG
-			write_log (_T("KB_ACK %02x->%02x %08x\n"), ciaacra, val, M68K_GETPC);
+			write_log (_T("KB_ACK_END %02x->%02x %08x\n"), ciaacra, val, M68K_GETPC);
 #endif
 		}
 		ciaacra = val;
@@ -2181,18 +2182,21 @@ static uae_u32 REGPARAM2 cia_wget (uaecptr addr)
 		if (!issinglecia ())
 		{
 			cia_wait_pre (1 | 2);
-			v = (ReadCIAB (r, &flags) << 8) | ReadCIAA (r, &flags);
+			v = ReadCIAB(r, &flags) << 8;
+			v |= ReadCIAA(r, &flags);
 			cia_wait_post (1 | 2, v);
 		}
 		break;
 	case 1:
 		cia_wait_pre (2);
-		v = (ReadCIAB (r, &flags) << 8) | dummy_get_safe(addr, 1, false, 0);
+		v = ReadCIAB(r, &flags) << 8;
+		v |= dummy_get_safe(addr + 1, 1, false, 0);
 		cia_wait_post (2, v);
 		break;
 	case 2:
 		cia_wait_pre (1);
-		v = (dummy_get_safe(addr, 1, false, 0) << 8) | ReadCIAA (r, &flags);
+		v = ReadCIAA(r, &flags);
+		v |= dummy_get_safe(addr, 1, false, 0) << 8;
 		cia_wait_post (1, v);
 		break;
 	case 3:

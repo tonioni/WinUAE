@@ -219,7 +219,7 @@ INPUTEVENT_END
 #undef DEFEVENT2
 
 extern void handle_cd32_joystick_cia (uae_u8, uae_u8);
-extern uae_u8 handle_parport_joystick (int port, uae_u8 pra, uae_u8 dra);
+extern uae_u8 handle_parport_joystick (int port, uae_u8 data);
 extern uae_u8 handle_joystick_buttons (uae_u8, uae_u8);
 
 #define MAGICMOUSE_BOTH 0
