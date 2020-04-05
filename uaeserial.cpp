@@ -441,17 +441,21 @@ void uaeser_signal (void *vdev, int sigmask)
 					io_done = 1;
 					while (io_length > 0) {
 						int size = io_length > sizeof(tmp) ? sizeof(tmp) : io_length;
-						if (uaeser_read(dev->sysdata, tmp, size)) {
+						int status = uaeser_read(dev->sysdata, tmp, size);
+						if (status > 0) {
 							trap_put_bytes(ctx, tmp, io_data, size);
 							io_actual += size;
 							io_data += size;
 							io_length -= size;
-						} else {
+						} else if (status == 0) {
 							if (io_actual == 0)
 								io_done = 0;
 							break;
 						}
 					}
+				} else if (sigmask & 4) {
+					io_done = 1;
+					io_error = SerErr_DetectedBreak;
 				}
 				break;
 			case CMD_WRITE:
@@ -732,7 +736,7 @@ void uaeserialdev_install (void)
 		return;
 
 	ROM_uaeserialdev_resname = ds (_T("uaeserial.device"));
-	ROM_uaeserialdev_resid = ds (_T("UAE serial.device 0.2"));
+	ROM_uaeserialdev_resid = ds (_T("UAE serial.device 0.3"));
 
 	/* initcode */
 	initcode = here ();

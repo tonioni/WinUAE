@@ -687,6 +687,8 @@ static void *uaeser_trap_thread (void *arg)
 				sigmask |= 1;
 			if ((evtmask & EV_TXEMPTY) && !sd->writeactive)
 				sigmask |= 2;
+			if (evtmask & EV_BREAK)
+				sigmask |= 4;
 			startwce(sd, &evtmask);
 		}
 		cnt = 0;
@@ -741,6 +743,8 @@ int uaeser_read (void *vsd, uae_u8 *data, uae_u32 len)
 
 	if (!ClearCommError (sd->hCom, &err, &ComStat))
 		return 0;
+	if (err & EV_BREAK)
+		return -1;
 	if (len > ComStat.cbInQue)
 		return 0;
 	if (!ReadFile (sd->hCom, data, len, NULL, &sd->olr)) {
@@ -841,6 +845,7 @@ static int datainoutput;
 static int dataininput, dataininputcnt;
 static OVERLAPPED writeol, readol;
 static int writepending;
+static bool breakpending;
 
 static WSADATA wsadata;
 static SOCKET serialsocket = INVALID_SOCKET;
@@ -1014,7 +1019,7 @@ int openser (const TCHAR *sername)
 		return 0;
 	}
 
-	SetCommMask (hCom, EV_RXFLAG);
+	SetCommMask (hCom, EV_RXFLAG | EV_BREAK);
 	SetupComm (hCom, 65536, 128);
 	PurgeComm (hCom, PURGE_TXABORT | PURGE_RXABORT | PURGE_TXCLEAR | PURGE_RXCLEAR);
 	CommTimeOuts.ReadIntervalTimeout = 0xFFFFFFFF;
@@ -1058,6 +1063,7 @@ int openser (const TCHAR *sername)
 		write_log (_T("SERIAL: Using %s CTS/RTS=%d\n"), sername, currprefs.serial_hwctsrts);
 		return 1;
 	}
+
 
 	write_log (_T("SERIAL: serial driver didn't accept new parameters\n"));
 	closeser();
@@ -1151,11 +1157,29 @@ int checkserwrite (int spaceneeded)
 	return 1;
 }
 
-int readseravail (void)
+void flushser(void)
+{
+	if (!tcpserial && !midi_ready && hCom) {
+		COMSTAT ComStat;
+		DWORD dwErrorFlags;
+		ClearCommError(hCom, &dwErrorFlags, &ComStat);
+		PurgeComm(hCom, PURGE_RXCLEAR);
+	} else {
+		while (readseravail(NULL)) {
+			int data;
+			if (readser(&data) <= 0)
+				break;
+		}
+	}
+}
+
+int readseravail(bool *breakcond)
 {
 	COMSTAT ComStat;
 	DWORD dwErrorFlags;
 
+	if (breakcond)
+		*breakcond = false;
 	if (tcpserial) {
 		if (tcp_is_connected ()) {
 			struct timeval tv;
@@ -1183,8 +1207,12 @@ int readseravail (void)
 			return 1;
 		if (hCom != INVALID_HANDLE_VALUE)  {
 			ClearCommError (hCom, &dwErrorFlags, &ComStat);
+			if (breakcond && ((dwErrorFlags & CE_BREAK) || breakpending)) {
+				*breakcond = true;
+				breakpending = false;
+			}
 			if (ComStat.cbInQue > 0)
-				return 1;
+				return ComStat.cbInQue;
 		}
 	}
 	return 0;
@@ -1227,6 +1255,8 @@ int readser (int *buffer)
 		if (hCom != INVALID_HANDLE_VALUE)  {
 			/* only try to read number of bytes in queue */
 			ClearCommError (hCom, &dwErrorFlags, &ComStat);
+			if (dwErrorFlags & CE_BREAK)
+				breakpending = true;
 			if (ComStat.cbInQue)  {
 				int len = ComStat.cbInQue;
 				if (len > sizeof (inputbuffer))
@@ -1261,6 +1291,7 @@ void serialuartbreak (int v)
 
 void getserstat (int *pstatus)
 {
+	DWORD err;
 	DWORD stat;
 	int status = 0;
 
