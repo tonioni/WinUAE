@@ -2409,15 +2409,11 @@ void AUDxLCL (int nr, uae_u16 v)
 void AUDxPER (int nr, uae_u16 v)
 {
 	struct audio_channel_data *cdp = audio_channel + nr;
-	unsigned long per;
 
 	audio_activate ();
 	update_audio ();
 
-	per = v * CYCLE_UNIT;
-	if (per == 0)
-		per = PERIOD_MAX - 1;
-
+	int per = (v ? v : 65536) * CYCLE_UNIT;
 	if (per < PERIOD_MIN * CYCLE_UNIT) {
 		/* smaller values would cause extremely high cpu usage */
 		per = PERIOD_MIN * CYCLE_UNIT;
