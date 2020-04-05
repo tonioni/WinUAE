@@ -629,7 +629,72 @@ const TCHAR *fpuopcodes[] =
 	NULL,
 	NULL,
 	NULL,
-	NULL
+	NULL,
+	_T("FSMOVE"),	// 0x40
+	_T("FSSQRT"),
+	NULL,
+	NULL,
+	_T("FDMOVE"),
+	_T("FDSQRT"),
+	NULL,
+	NULL,
+	NULL,
+	NULL,
+	NULL,
+	NULL,
+	NULL,
+	NULL,
+	NULL,
+	NULL,
+	NULL,	// 0x50
+	NULL,
+	NULL,
+	NULL,
+	NULL,
+	NULL,
+	NULL,
+	NULL,
+	_T("FSABS"),
+	NULL,
+	_T("FSNEG"),
+	NULL,
+	_T("FDABS"),
+	NULL,
+	_T("FDNEG"),
+	NULL,
+	_T("FSDIV"), // 0x60
+	NULL,
+	_T("FSADD"),
+	_T("FSMUL"),
+	_T("FDDIV"),
+	NULL,
+	_T("FDADD"),
+	_T("FDMUL"),
+	_T("FSSUB"),
+	NULL,
+	NULL,
+	NULL,
+	_T("FDSUB"),
+	NULL,
+	NULL,
+	NULL,
+	NULL,  // 0x70
+	NULL,
+	NULL,
+	NULL,
+	NULL,
+	NULL,
+	NULL,
+	NULL,
+	NULL,
+	NULL,
+	NULL,
+	NULL,
+	NULL,
+	NULL,
+	NULL,
+	NULL,
+	_T("ILLG") // 0x80
 };
 
 static const TCHAR *movemregs[] =
@@ -1902,7 +1967,7 @@ uae_u32 m68k_disasm_2 (TCHAR *buf, int bufsize, uaecptr pc, uaecptr *nextpc, int
 			}
 		} else if (lookup->mnemo == i_FPP) {
 			TCHAR *p;
-			int ins = extra & 0x3f;
+			int ins = extra & 0x7f;
 			int size = (extra >> 10) & 7;
 
 			pc += 2;
@@ -1910,7 +1975,7 @@ uae_u32 m68k_disasm_2 (TCHAR *buf, int bufsize, uaecptr pc, uaecptr *nextpc, int
 				fpdata fp;
 				fpu_get_constant(&fp, extra);
 				_stprintf(instrname, _T("FMOVECR.X #0x%02x [%s],FP%d"), extra & 0x7f, fpp_print(&fp, 0), (extra >> 7) & 7);
-			} else if ((extra & 0x8000) == 0x8000) { // FMOVEM
+			} else if ((extra & 0x8000) == 0x8000) { // FMOVEM or FMOVE control register
 				int dr = (extra >> 13) & 1;
 				int mode;
 				int dreg = (extra >> 4) & 7;
@@ -1923,7 +1988,7 @@ uae_u32 m68k_disasm_2 (TCHAR *buf, int bufsize, uaecptr pc, uaecptr *nextpc, int
 					_tcscpy(instrname, _T("FMOVEM.X "));
 				} else {
 					mode = 0;
-					regmask = (extra >> 10) & 7;  // FMOVEM control
+					regmask = (extra >> 10) & 7;  // FMOVEM or FMOVE control
 					fpmode = 2;
 					_tcscpy(instrname, _T("FMOVEM.L "));
 					if (regmask == 1 || regmask == 2 || regmask == 4)
@@ -1946,12 +2011,12 @@ uae_u32 m68k_disasm_2 (TCHAR *buf, int bufsize, uaecptr pc, uaecptr *nextpc, int
 						movemout(p, regmask, dp->dmode, fpmode, true);
 				}
 			} else {
-				if (fpuopcodes[ins])
+				if (fpuopcodes[ins]) {
 					_tcscpy(instrname, fpuopcodes[ins]);
-				else
-					_tcscpy(instrname, _T("F?"));
-
-				if ((extra & 0xe000) == 0x6000) { // FMOVE to memory
+				} else {
+					_stprintf(instrname, _T("F?%02X"), ins);
+				}
+				if ((extra & (0x8000 | 0x4000 | 0x2000)) == (0x4000 | 0x2000)) { // FMOVE to memory/data register
 					int kfactor = extra & 0x7f;
 					_tcscpy(instrname, _T("FMOVE."));
 					_tcscat(instrname, fpsizes[size]);
@@ -1967,7 +2032,7 @@ uae_u32 m68k_disasm_2 (TCHAR *buf, int bufsize, uaecptr pc, uaecptr *nextpc, int
 							kfactor |= ~0x3f;
 						_stprintf(p, _T(" {%d}"), kfactor);
 					}
-				} else {
+				} else if ((extra & (0x8000 | 0x2000)) == 0) {
 					if (extra & 0x4000) { // source is EA
 						_tcscat(instrname, _T("."));
 						_tcscat(instrname, fpsizes[size]);
@@ -1984,6 +2049,9 @@ uae_u32 m68k_disasm_2 (TCHAR *buf, int bufsize, uaecptr pc, uaecptr *nextpc, int
 						p = instrname + _tcslen(instrname);
 						_stprintf(p, _T(",FP%d"), extra & 7);
 					}
+				}
+				if (ins >= 0x40 && currprefs.fpu_model >= 68881 && fpuopcodes[ins]) {
+					_tcscat(instrname, _T(" (68040+)"));
 				}
 			}
 		} else if (lookup->mnemo == i_MMUOP030) {
