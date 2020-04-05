@@ -371,6 +371,18 @@ static ALWAYS_INLINE int mmu_get_fc(bool super, bool data)
 	return (super ? 4 : 0) | (data ? 1 : 2);
 }
 
+void mmu_hardware_bus_error(uaecptr addr, uae_u32 v, bool read, bool ins, int size)
+{
+	uae_u32 fc;
+	
+	if (ismoves) {
+		fc = read ? regs.sfc : regs.dfc;
+	} else {
+		fc = (regs.s ? 4 : 0) | (ins ? 2 : 1);
+	}
+	mmu_bus_error(addr, v, fc, !read, size, 0, true);
+}
+
 void mmu_bus_error(uaecptr addr, uae_u32 val, int fc, bool write, int size,uae_u32 status060, bool nonmmu)
 {
 	if (currprefs.mmu_model == 68040) {

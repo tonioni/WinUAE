@@ -72,6 +72,7 @@ uae_u32 mmu030_disp_store[2];
 uae_u32 mmu030_fmovem_store[2];
 uae_u8 mmu030_cache_state;
 struct mmu030_access mmu030_ad[MAX_MMU030_ACCESS + 1];
+bool ismoves030;
 
 static void mmu030_ptest_atc_search(uaecptr logical_addr, uae_u32 fc, bool write);
 static uae_u32 mmu030_table_search(uaecptr addr, uae_u32 fc, bool write, int level);
@@ -1802,6 +1803,7 @@ void mmu030_page_fault(uaecptr addr, bool read, int flags, uae_u32 fc)
 		fc = regs.mmu_ssw & MMU030_SSW_FC_MASK;
 		flags = regs.mmu_ssw & ~(MMU030_SSW_FC | MMU030_SSW_RC | MMU030_SSW_FB | MMU030_SSW_RB | MMU030_SSW_RW | 7);
 	}
+	ismoves030 = false;
 	regs.wb3_status = 0;
 	regs.wb2_status = 0;
 	regs.mmu_fault_addr = addr;
@@ -1860,19 +1862,22 @@ void mmu030_page_fault(uaecptr addr, bool read, int flags, uae_u32 fc)
 	THROW(2);
 }
 
-#if HARDWARE_BUS_ERROR_EMULATION
-static void mmu030_hardware_bus_error(uaecptr addr, uae_u32 v, bool read, int size, uae_u32 fc)
+void mmu030_hardware_bus_error(uaecptr addr, uae_u32 v, bool read, bool ins, int size)
 {
 	int flags = size == sz_byte ? MMU030_SSW_SIZE_B : (size == sz_word ? MMU030_SSW_SIZE_W : MMU030_SSW_SIZE_L);
+	int fc;
+	if (ismoves030) {
+		fc = read ? regs.sfc : regs.dfc;
+	} else {
+		fc = (regs.s ? 4 : 0) | (ins ? 2 : 1);
+	}
 	if (!read) {
 		mmu030_data_buffer_out = v;
 	} else {
 		flags |= MMU030_SSW_RW;
 	}
-	hardware_bus_error = 0;
 	mmu030_page_fault(addr, read, flags, fc);
 }
-#endif
 
 static void mmu030_add_data_read_cache(uaecptr addr, uaecptr phys, uae_u32 fc)
 {
@@ -2093,10 +2098,6 @@ void mmu030_put_long(uaecptr addr, uae_u32 val, uae_u32 fc)
 	}
 	cacheablecheck(addr);
 	x_phys_put_long(addr,val);
-#if HARDWARE_BUS_ERROR_EMULATION
-	if (hardware_bus_error)
-		mmu030_hardware_bus_error(addr, val, false, sz_long, fc);
-#endif
 }
 
 void mmu030_put_word(uaecptr addr, uae_u16 val, uae_u32 fc)
@@ -2123,10 +2124,6 @@ void mmu030_put_word(uaecptr addr, uae_u16 val, uae_u32 fc)
 	}
 	cacheablecheck(addr);
 	x_phys_put_word(addr,val);
-#if HARDWARE_BUS_ERROR_EMULATION
-	if (hardware_bus_error)
-		mmu030_hardware_bus_error(addr, val, false, sz_word, fc);
-#endif
 }
 
 void mmu030_put_byte(uaecptr addr, uae_u8 val, uae_u32 fc)
@@ -2153,10 +2150,6 @@ void mmu030_put_byte(uaecptr addr, uae_u8 val, uae_u32 fc)
 	}
 	cacheablecheck(addr);
 	x_phys_put_byte(addr,val);
-#if HARDWARE_BUS_ERROR_EMULATION
-	if (hardware_bus_error)
-		mmu030_hardware_bus_error(addr, val, false, sz_byte, fc);
-#endif
 }
 
 
@@ -2184,10 +2177,6 @@ uae_u32 mmu030_get_long(uaecptr addr, uae_u32 fc)
 	}
 	cacheablecheck(addr);
 	uae_u32 v = x_phys_get_long(addr);
-#if HARDWARE_BUS_ERROR_EMULATION
-	if (hardware_bus_error)
-		mmu030_hardware_bus_error(addr, v, true, sz_long, fc);
-#endif
 	return v;
 }
 
@@ -2215,10 +2204,6 @@ uae_u16 mmu030_get_word(uaecptr addr, uae_u32 fc)
 	}
 	cacheablecheck(addr);
 	uae_u16 v = x_phys_get_word(addr);
-#if HARDWARE_BUS_ERROR_EMULATION
-	if (hardware_bus_error)
-		mmu030_hardware_bus_error(addr, v, true, sz_word, fc);
-#endif
 	return v;
 }
 
@@ -2246,10 +2231,6 @@ uae_u8 mmu030_get_byte(uaecptr addr, uae_u32 fc)
 	}
 	cacheablecheck(addr);
 	uae_u8 v = x_phys_get_byte(addr);
-#if HARDWARE_BUS_ERROR_EMULATION
-	if (hardware_bus_error)
-		mmu030_hardware_bus_error(addr, v, true, sz_byte, fc);
-#endif
 	return v;
 }
 
@@ -2265,10 +2246,6 @@ uae_u32 mmu030_get_ilong(uaecptr addr, uae_u32 fc)
 #else
 		mmu030_cache_state = mmu030.mmu030_cache_state;
 		v = x_phys_get_ilong(mmu030.mmu030_last_physical_address + (addr & mmu030.translation.page.mask));
-#if HARDWARE_BUS_ERROR_EMULATION
-		if (hardware_bus_error)
-			mmu030_hardware_bus_error(addr, v, true, sz_long, fc);
-#endif
 		return v;
 #endif
 	}
@@ -2287,10 +2264,6 @@ uae_u32 mmu030_get_ilong(uaecptr addr, uae_u32 fc)
 	}
 	cacheablecheck(addr);
 	v = x_phys_get_ilong(addr);
-#if HARDWARE_BUS_ERROR_EMULATION
-	if (hardware_bus_error)
-		mmu030_hardware_bus_error(addr, v, true, sz_long, fc);
-#endif
 	return v;
 }
 
@@ -2305,10 +2278,6 @@ uae_u16 mmu030_get_iword(uaecptr addr, uae_u32 fc) {
 #else
 		mmu030_cache_state = mmu030.mmu030_cache_state;
 		v = x_phys_get_iword(mmu030.mmu030_last_physical_address + (addr & mmu030.translation.page.mask));
-#if HARDWARE_BUS_ERROR_EMULATION
-		if (hardware_bus_error)
-			mmu030_hardware_bus_error(addr, v, true, sz_word, fc);
-#endif
 		return v;
 #endif
 	}
@@ -2327,10 +2296,6 @@ uae_u16 mmu030_get_iword(uaecptr addr, uae_u32 fc) {
 	}
 	cacheablecheck(addr);
 	v = x_phys_get_iword(addr);
-#if HARDWARE_BUS_ERROR_EMULATION
-	if (hardware_bus_error)
-		mmu030_hardware_bus_error(addr, v, true, sz_word, fc);
-#endif
 	return v;
 }
 
@@ -2357,11 +2322,6 @@ static void mmu030_put_generic_lrmw(uaecptr addr, uae_u32 val, uae_u32 fc, int s
 		x_phys_put_word(addr, val);
 	else
 		x_phys_put_long(addr, val);
-
-#if HARDWARE_BUS_ERROR_EMULATION
-	if (hardware_bus_error)
-		mmu030_hardware_bus_error(addr, val, false, size, fc);
-#endif
 }
 
 void mmu030_put_generic(uaecptr addr, uae_u32 val, uae_u32 fc, int size, int flags)
@@ -2390,11 +2350,6 @@ void mmu030_put_generic(uaecptr addr, uae_u32 val, uae_u32 fc, int size, int fla
 		x_phys_put_word(addr, val);
 	else
 		x_phys_put_long(addr, val);
-
-#if HARDWARE_BUS_ERROR_EMULATION
-	if (hardware_bus_error)
-		mmu030_hardware_bus_error(addr, val, false, size, fc);
-#endif
 }
 
 static uae_u32 mmu030_get_generic_lrmw(uaecptr addr, uae_u32 fc, int size, int flags)
@@ -2419,11 +2374,6 @@ static uae_u32 mmu030_get_generic_lrmw(uaecptr addr, uae_u32 fc, int size, int f
 		v = x_phys_get_word(addr);
 	else
 		v = x_phys_get_long(addr);
-
-#if HARDWARE_BUS_ERROR_EMULATION
-	if (hardware_bus_error)
-		mmu030_hardware_bus_error(addr, v, true, size, fc);
-#endif
 
 	return v;
 }
@@ -2455,11 +2405,6 @@ uae_u32 mmu030_get_generic(uaecptr addr, uae_u32 fc, int size, int flags)
 		v = x_phys_get_word(addr);
 	else
 		v = x_phys_get_long(addr);
-
-#if HARDWARE_BUS_ERROR_EMULATION
-	if (hardware_bus_error)
-		mmu030_hardware_bus_error(addr, v, true, size, fc);
-#endif
 
 	return v;
 }

@@ -117,6 +117,7 @@ static char g_srcname[100];
 static int loopmode;
 static int loopmodeextra;
 static int loopmode_set;
+static int postfix;
 
 #define GENA_GETV_NO_FETCH	0
 #define GENA_GETV_FETCH		1
@@ -298,6 +299,23 @@ static int subhead_ce020;
 static instr *curi_ce020;
 static bool no_prefetch_ce020;
 static bool got_ea_ce020;
+
+static bool needbuserror(void)
+{
+	if (!using_bus_error)
+		return false;
+	if (using_mmu)
+		return false;
+#if CPU_TESTER
+	return true;
+#else
+	// only 68000/010 need cpuemu internal bus error handling
+	// 68020+ use CATCH/TRY method
+	if (postfix >= 10 && postfix < 20)
+		return true;
+	return false;
+#endif
+}
 
 // 68010-40 needs different implementation than 68060
 static bool next_level_060_to_040(void)
@@ -760,7 +778,7 @@ static char bus_error_code[1000], bus_error_code2[1000];
 
 static void do_instruction_buserror(void)
 {
-	if (!using_bus_error || using_mmu)
+	if (!needbuserror())
 		return;
 
 	if (bus_error_text[0]) {
@@ -799,7 +817,7 @@ static void check_bus_error_ins_opcode(int offset)
 
 static void check_prefetch_bus_error(int offset, int secondprefetchmode)
 {
-	if (!using_bus_error || using_mmu)
+	if (!needbuserror())
 		return;
 
 	if (offset < 0) {
@@ -2069,7 +2087,7 @@ static void check_bus_error(const char *name, int offset, int write, int size, c
 {
 	int mnemo = g_instr->mnemo;
 
-	if (!using_bus_error || using_mmu)
+	if (!needbuserror())
 		return;
 
 	// basic support
@@ -8690,9 +8708,6 @@ static void generate_includes (FILE * f, int id)
 		"#include \"noflags.h\"\n"
 		"#endif\n");
 }
-
-static int postfix;
-
 
 static char *decodeEA (amodes mode, wordsizes size)
 {

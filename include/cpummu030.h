@@ -26,6 +26,7 @@ extern uae_u32 mmu030_data_buffer_out;
 extern uae_u32 mmu030_disp_store[2];
 extern uae_u32 mmu030_fmovem_store[2];
 extern uae_u8 mmu030_cache_state, mmu030_cache_state_default;
+extern bool ismoves030;
 
 #define MMU030_STATEFLAG1_FMOVEM 0x2000
 #define MMU030_STATEFLAG1_MOVEM1 0x4000
@@ -70,7 +71,7 @@ void mmu030_flush_atc_all(void);
 void mmu030_reset(int hardreset);
 void mmu030_set_funcs(void);
 uaecptr mmu030_translate(uaecptr addr, bool super, bool data, bool write);
-
+void mmu030_hardware_bus_error(uaecptr addr, uae_u32 v, bool read, bool ins, int size);
 void mmu030_put_long(uaecptr addr, uae_u32 val, uae_u32 fc);
 void mmu030_put_word(uaecptr addr, uae_u16 val, uae_u32 fc);
 void mmu030_put_byte(uaecptr addr, uae_u8  val, uae_u32 fc);
@@ -366,7 +367,9 @@ static ALWAYS_INLINE uae_u32 sfc030_get_long_state(uaecptr addr)
 {
 	uae_u32 v;
 	ACCESS_CHECK_GET
+	ismoves030 = true;
 	v = sfc030_get_long(addr);
+	ismoves030 = false;
 	ACCESS_EXIT_GET
 	return v;
 }
@@ -374,7 +377,9 @@ static ALWAYS_INLINE uae_u16 sfc030_get_word_state(uaecptr addr)
 {
 	uae_u32 v;
 	ACCESS_CHECK_GET
+	ismoves030 = true;
 	v = sfc030_get_word(addr);
+	ismoves030 = false;
 	ACCESS_EXIT_GET
 	return v;
 }
@@ -382,7 +387,9 @@ static ALWAYS_INLINE uae_u8 sfc030_get_byte_state(uaecptr addr)
 {
 	uae_u32 v;
 	ACCESS_CHECK_GET
+	ismoves030 = true;
 	v = sfc030_get_byte(addr);
+	ismoves030 = false;
 	ACCESS_EXIT_GET
 	return v;
 }
@@ -390,19 +397,25 @@ static ALWAYS_INLINE uae_u8 sfc030_get_byte_state(uaecptr addr)
 static ALWAYS_INLINE void dfc030_put_long_state(uaecptr addr, uae_u32 v)
 {
 	ACCESS_CHECK_PUT
+	ismoves030 = true;
 	dfc030_put_long(addr, v);
+	ismoves030 = false;
 	ACCESS_EXIT_PUT
 }
 static ALWAYS_INLINE void dfc030_put_word_state(uaecptr addr, uae_u32 v)
 {
 	ACCESS_CHECK_PUT
+	ismoves030 = true;
 	dfc030_put_word(addr, v);
+	ismoves030 = false;
 	ACCESS_EXIT_PUT
 }
 static ALWAYS_INLINE void dfc030_put_byte_state(uaecptr addr, uae_u32 v)
 {
 	ACCESS_CHECK_PUT
+	ismoves030 = true;
 	dfc030_put_byte(addr, v);
+	ismoves030 = false;
 	ACCESS_EXIT_PUT
 }
 

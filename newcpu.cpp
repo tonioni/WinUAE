@@ -89,6 +89,7 @@ static int baseclock;
 int m68k_pc_indirect;
 bool m68k_interrupt_delay;
 static bool m68k_reset_delay;
+static bool ismoves_nommu;
 
 static volatile uae_atomic uae_interrupt;
 static volatile uae_atomic uae_interrupts2[IRQ_SOURCE_MAX];
@@ -7242,19 +7243,25 @@ void exception2_setup(uae_u32 opcode, uaecptr addr, bool read, int size, uae_u32
 	}
 }
 
-void exception2(uaecptr addr, bool read, int size, uae_u32 fc)
+// Common hardware bus error entry point. Both for MMU and non-MMU emulation.
+void hardware_exception2(uaecptr addr, uae_u32 v, bool read, bool ins, int size)
 {
 	if (currprefs.mmu_model) {
 		if (currprefs.mmu_model == 68030) {
-			uae_u32 flags = size == 1 ? MMU030_SSW_SIZE_B : (size == 2 ? MMU030_SSW_SIZE_W : MMU030_SSW_SIZE_L);
-			mmu030_page_fault (addr, read, flags, fc);
+			 mmu030_hardware_bus_error(addr, v, read, ins, size);
 		} else {
-			mmu_bus_error (addr, 0, fc, read == false, size, 0, true);
+			mmu_hardware_bus_error(addr, v, read, ins, size);
 		}
-	} else {
-		exception2_setup(regs.opcode, addr, read, size == 1 ? 0 : (size == 2 ? 1 : 2), fc);
-		THROW(2);
+		return;
 	}
+	int fc = (regs.s ? 4 : 0) | (ins ? 2 : 1);
+	if (ismoves_nommu) {
+		ismoves_nommu = false;
+		fc = read ? regs.sfc : regs.dfc;
+	}
+	// Non-MMU
+	exception2_setup(regs.opcode, addr, read, size, fc);
+	THROW(2);
 }
 
 void exception2_read(uae_u32 opcode, uaecptr addr, int size, int fc)
@@ -9489,36 +9496,48 @@ extern bool cpuboard_fc_check(uaecptr addr, uae_u32 *v, int size, bool write);
 uae_u32 sfc_nommu_get_byte(uaecptr addr)
 {
 	uae_u32 v;
+	ismoves_nommu = true;
 	if (!cpuboard_fc_check(addr, &v, 0, false))
 		v = x_get_byte(addr);
+	ismoves_nommu = false;
 	return v;
 }
 uae_u32 sfc_nommu_get_word(uaecptr addr)
 {
 	uae_u32 v;
+	ismoves_nommu = true;
 	if (!cpuboard_fc_check(addr, &v, 1, false))
 		v = x_get_word(addr);
+	ismoves_nommu = false;
 	return v;
 }
 uae_u32 sfc_nommu_get_long(uaecptr addr)
 {
 	uae_u32 v;
+	ismoves_nommu = true;
 	if (!cpuboard_fc_check(addr, &v, 2, false))
 		v = x_get_long(addr);
+	ismoves_nommu = false;
 	return v;
 }
 void dfc_nommu_put_byte(uaecptr addr, uae_u32 v)
 {
+	ismoves_nommu = true;
 	if (!cpuboard_fc_check(addr, &v, 0, true))
 		x_put_byte(addr, v);
+	ismoves_nommu = false;
 }
 void dfc_nommu_put_word(uaecptr addr, uae_u32 v)
 {
+	ismoves_nommu = true;
 	if (!cpuboard_fc_check(addr, &v, 1, true))
 		x_put_word(addr, v);
+	ismoves_nommu = false;
 }
 void dfc_nommu_put_long(uaecptr addr, uae_u32 v)
 {
+	ismoves_nommu = true;
 	if (!cpuboard_fc_check(addr, &v, 2, true))
 		x_put_long(addr, v);
+	ismoves_nommu = false;
 }

@@ -176,6 +176,7 @@ extern void mmu_bus_error_ttr_write_fault(uaecptr addr, bool super, bool data, u
 extern int mmu_match_ttr_write(uaecptr addr, bool super, bool data, uae_u32 val, int size);
 extern int mmu_match_ttr_maybe_write(uaecptr addr, bool super, bool data, int size, bool write);
 extern uaecptr mmu_translate(uaecptr addr, uae_u32 val, bool super, bool data, bool write, int size);
+extern void mmu_hardware_bus_error(uaecptr addr, uae_u32 v, bool read, bool ins, int size);
 
 extern uae_u32 REGPARAM3 mmu060_get_rmw_bitfield (uae_u32 src, uae_u32 bdata[2], uae_s32 offset, int width) REGPARAM;
 extern void REGPARAM3 mmu060_put_rmw_bitfield (uae_u32 dst, uae_u32 bdata[2], uae_u32 val, uae_s32 offset, int width) REGPARAM;
