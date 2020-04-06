@@ -72,6 +72,8 @@ void mmu030_reset(int hardreset);
 void mmu030_set_funcs(void);
 uaecptr mmu030_translate(uaecptr addr, bool super, bool data, bool write);
 void mmu030_hardware_bus_error(uaecptr addr, uae_u32 v, bool read, bool ins, int size);
+bool mmu030_is_super_access(bool read);
+
 void mmu030_put_long(uaecptr addr, uae_u32 val, uae_u32 fc);
 void mmu030_put_word(uaecptr addr, uae_u16 val, uae_u32 fc);
 void mmu030_put_byte(uaecptr addr, uae_u8  val, uae_u32 fc);

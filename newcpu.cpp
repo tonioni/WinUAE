@@ -257,6 +257,8 @@ void(*x_phys_put_byte)(uaecptr, uae_u32);
 void(*x_phys_put_word)(uaecptr, uae_u32);
 void(*x_phys_put_long)(uaecptr, uae_u32);
 
+bool(*is_super_access)(bool);
+
 static void set_x_cp_funcs(void)
 {
 	x_cp_put_long = x_put_long;
@@ -843,7 +845,7 @@ void(*write_data_030_fc_wput)(uaecptr, uae_u32, uae_u32);
 void(*write_data_030_fc_lput)(uaecptr, uae_u32, uae_u32);
 
  
- static void set_x_ifetches(void)
+static void set_x_ifetches(void)
 {
 	if (m68k_pc_indirect) {
 		if (currprefs.cachesize) {
@@ -871,9 +873,35 @@ void(*write_data_030_fc_lput)(uaecptr, uae_u32, uae_u32);
 	}
 }
 
+static bool is_super_access_68000(bool read)
+{
+	return regs.s;
+}
+static bool nommu_is_super_access(bool read)
+{
+	if (!ismoves_nommu) {
+		return regs.s;
+	} else {
+		uae_u32 fc = read ? regs.sfc : regs.dfc;
+		return (fc & 4) != 0;
+	}
+}
+
 // indirect memory access functions
 static void set_x_funcs (void)
 {
+	if (currprefs.cpu_model >= 68010) {
+		if (currprefs.mmu_model == 68030) {
+			is_super_access = mmu030_is_super_access;
+		} else if (currprefs.mmu_model >= 68040) {
+			is_super_access = mmu_is_super_access;
+		} else {
+			is_super_access = nommu_is_super_access;
+		}
+	} else {
+		is_super_access = is_super_access_68000;
+	}
+
 	if (currprefs.mmu_model) {
 		if (currprefs.cpu_model == 68060) {
 

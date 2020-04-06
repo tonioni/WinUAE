@@ -1879,6 +1879,16 @@ void mmu030_hardware_bus_error(uaecptr addr, uae_u32 v, bool read, bool ins, int
 	mmu030_page_fault(addr, read, flags, fc);
 }
 
+bool mmu030_is_super_access(bool read)
+{
+	if (!ismoves030) {
+		return regs.s;
+	} else {
+		uae_u32 fc = read ? regs.sfc : regs.dfc;
+		return (fc & 4) != 0;
+	}
+}
+
 static void mmu030_add_data_read_cache(uaecptr addr, uaecptr phys, uae_u32 fc)
 {
 #if MMU_DPAGECACHE030

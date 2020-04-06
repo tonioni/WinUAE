@@ -383,6 +383,16 @@ void mmu_hardware_bus_error(uaecptr addr, uae_u32 v, bool read, bool ins, int si
 	mmu_bus_error(addr, v, fc, !read, size, 0, true);
 }
 
+bool mmu_is_super_access(bool read)
+{
+	if (!ismoves) {
+		return regs.s;
+	} else {
+		uae_u32 fc = read ? regs.sfc : regs.dfc;
+		return (fc & 4) != 0;
+	}
+}
+
 void mmu_bus_error(uaecptr addr, uae_u32 val, int fc, bool write, int size,uae_u32 status060, bool nonmmu)
 {
 	if (currprefs.mmu_model == 68040) {
