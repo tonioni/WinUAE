@@ -69,6 +69,7 @@ static int videoallocated;
 static int aviout_width_out, aviout_height_out;
 static int aviout_xoffset_out, aviout_yoffset_out;
 int avioutput_width, avioutput_height, avioutput_bits;
+static int avioutput_bitmode = 24;
 static int avioutput_fps = VBLANK_HZ_PAL;
 int avioutput_framelimiter = 0, avioutput_nosoundoutput = 0;
 int avioutput_nosoundsync = 1, avioutput_originalsize = 0;
@@ -513,20 +514,20 @@ int AVIOutput_ChooseAudioCodec (HWND hwnd, TCHAR *s, int len)
 	return 0;
 }
 
-static int AVIOutput_VideoAllocated (void)
+static int AVIOutput_VideoAllocated(void)
 {
 	return videoallocated ? 1 : 0;
 }
 
-void AVIOutput_ReleaseVideo (void)
+void AVIOutput_ReleaseVideo(void)
 {
 	videoallocated = 0;
-	freequeue ();
-	xfree (lpbi);
+	freequeue();
+	xfree(lpbi);
 	lpbi = NULL;
 }
 
-static int AVIOutput_AllocateVideo (void)
+static int AVIOutput_AllocateVideo(void)
 {
 	struct AmigaMonitor *mon = &AMonitors[aviout_monid];
 	avioutput_width = avioutput_height = avioutput_bits = 0;
@@ -535,7 +536,7 @@ static int AVIOutput_AllocateVideo (void)
 
 	avioutput_fps = (int)(vblank_hz + 0.5);
 	if (!avioutput_fps)
-		avioutput_fps = ispal () ? 50 : 60;
+		avioutput_fps = ispal() ? 50 : 60;
 	if (avioutput_originalsize || WIN32GFX_IsPicassoScreen(mon)) {
 		int pitch;
 		if (!WIN32GFX_IsPicassoScreen(mon)) {
@@ -561,8 +562,8 @@ static int AVIOutput_AllocateVideo (void)
 	aviout_height_out = avioutput_height + 1;
 	aviout_height_out &= ~1;
 
-	AVIOutput_Initialize ();
-	AVIOutput_ReleaseVideo ();
+	AVIOutput_Initialize();
+	AVIOutput_ReleaseVideo();
 	if (avioutput_width == 0 || avioutput_height == 0) {
 		avioutput_width = workprefs.gfx_monitor[0].gfx_size.width;
 		avioutput_height = workprefs.gfx_monitor[0].gfx_size.height;
@@ -588,10 +589,11 @@ static int AVIOutput_AllocateVideo (void)
 		avioutput_bits = 24;
 	if (avioutput_bits > 24)
 		avioutput_bits = 24;
-	if (usealpha() && avioutput_bits == 24)
-		avioutput_bits = 32;
-	lpbi = (LPBITMAPINFOHEADER)xcalloc (uae_u8, lpbisize ());
-	lpbi->biSize = sizeof (BITMAPINFOHEADER);
+	if (avioutput_bitmode && avioutput_bits >= 24)
+		avioutput_bits = avioutput_bitmode;
+
+	lpbi = (LPBITMAPINFOHEADER)xcalloc(uae_u8, lpbisize());
+	lpbi->biSize = sizeof(BITMAPINFOHEADER);
 	lpbi->biWidth = aviout_width_out;
 	lpbi->biHeight = aviout_height_out;
 	lpbi->biPlanes = 1;
@@ -608,7 +610,7 @@ static int AVIOutput_AllocateVideo (void)
 }
 
 static int compressorallocated;
-static void AVIOutput_FreeVideoDstFormat ()
+static void AVIOutput_FreeVideoDstFormat(void)
 {
 	if (!pcompvars)
 		return;
@@ -619,7 +621,7 @@ static void AVIOutput_FreeVideoDstFormat ()
 	pcompvars->hic = NULL;
 }
 
-static int AVIOutput_GetCOMPVARSFromRegistry (COMPVARS *pcv)
+static int AVIOutput_GetCOMPVARSFromRegistry(COMPVARS *pcv)
 {
 	UAEREG *avikey;
 	int ss;
@@ -677,34 +679,34 @@ static int AVIOutput_GetVideoCodecName (COMPVARS *pcv, TCHAR *name, int len)
 	return 0;
 }
 
-int AVIOutput_GetVideoCodec (TCHAR *name, int len)
+int AVIOutput_GetVideoCodec(TCHAR *name, int len)
 {
-	AVIOutput_Initialize ();
+	AVIOutput_Initialize();
 
-	if (AVIOutput_VideoAllocated ())
-		return AVIOutput_GetVideoCodecName (pcompvars, name, len);
-	if (!AVIOutput_AllocateVideo ())
+	if (AVIOutput_VideoAllocated())
+		return AVIOutput_GetVideoCodecName(pcompvars, name, len);
+	if (!AVIOutput_AllocateVideo())
 		return 0;
-	AVIOutput_FreeVideoDstFormat ();
-	if (AVIOutput_GetCOMPVARSFromRegistry (pcompvars) > 0) {
-		if (AVIOutput_GetVideoCodecName (pcompvars, name, len)) {
+	AVIOutput_FreeVideoDstFormat();
+	if (AVIOutput_GetCOMPVARSFromRegistry(pcompvars) > 0) {
+		if (AVIOutput_GetVideoCodecName(pcompvars, name, len)) {
 			write_log(_T("Video %s\n"), name);
 			return 1;
 		}
 		write_log(_T("Failed to open video %08x\n"), pcompvars->fccType);
 	}
-	AVIOutput_ReleaseVideo ();
+	AVIOutput_ReleaseVideo();
 	return 0;
 }
 
 int AVIOutput_ChooseVideoCodec (HWND hwnd, TCHAR *s, int len)
 {
-	AVIOutput_Initialize ();
+	AVIOutput_Initialize();
 
-	AVIOutput_End ();
-	if (!AVIOutput_AllocateVideo ())
+	AVIOutput_End();
+	if (!AVIOutput_AllocateVideo())
 		return 0;
-	AVIOutput_FreeVideoDstFormat ();
+	AVIOutput_FreeVideoDstFormat();
 
 	// we really should check first to see if the user has a particular compressor installed before we set one
 	// we could set one but we will leave it up to the operating system and the set priority levels for the compressors
@@ -951,9 +953,9 @@ static void AVIOutput_AVIWriteAudio_Thread_End(void)
 }
 
 
-static void AVIOuput_WAVWriteAudio (uae_u8 *sndbuffer, int sndbufsize)
+static void AVIOuput_WAVWriteAudio(uae_u8 *sndbuffer, int sndbufsize)
 {
-	fwrite (sndbuffer, 1, sndbufsize, wavfile);
+	fwrite(sndbuffer, 1, sndbufsize, wavfile);
 }
 
 static int getFromRenderTarget11(struct avientry *avie, bool renderTarget)
@@ -1499,42 +1501,55 @@ static void AVIOutput_Begin2(bool fullstart, bool immediate)
 	}
 
 	if (avioutput_video) {
-		ae = allocavientry_video();
-		if (!AVIOutput_AllocateVideo ())
-			goto error;
+		int retrycnt = 0;
+		while (retrycnt < 2) {
+			avioutput_bitmode = retrycnt ? 32 : 24;
+			if (usealpha()) {
+				avioutput_bitmode = avioutput_bitmode == 32 ? 24 : 32;
+			}
+			retrycnt++;
+			ae = allocavientry_video();
+			if (!AVIOutput_AllocateVideo())
+				goto error;
 
-		// fill in the header for the video stream
-		memset (&avistreaminfo, 0, sizeof(AVISTREAMINFO));
-		avistreaminfo.fccType = streamtypeVIDEO; // stream type
+			// fill in the header for the video stream
+			memset(&avistreaminfo, 0, sizeof(AVISTREAMINFO));
+			avistreaminfo.fccType = streamtypeVIDEO; // stream type
 
-		// unsure about this, as this is the uncompressed stream, not the compressed stream
-		//avistreaminfo.fccHandler = 0;
+			// unsure about this, as this is the uncompressed stream, not the compressed stream
+			//avistreaminfo.fccHandler = 0;
 
-		// incase the amiga changes palette
-		if (ae->lpbi->biBitCount < 24)
-			avistreaminfo.dwFlags = AVISTREAMINFO_FORMATCHANGES;
-		//avistreaminfo.dwCaps =; // Capability flags; currently unused
-		//avistreaminfo.wPriority =; // Priority of the stream
-		//avistreaminfo.wLanguage =; // Language of the stream
-		avistreaminfo.dwScale = 1;
-		avistreaminfo.dwRate = avioutput_fps; // our playback speed default (PAL 50fps), (NTSC 60fps)
-		avistreaminfo.dwStart = 0; // no delay
-		avistreaminfo.dwLength = 1; // initial length
-		//avistreaminfo.dwInitialFrames =; // audio only
-		avistreaminfo.dwSuggestedBufferSize = ae->lpbi->biSizeImage;
-		avistreaminfo.dwQuality = -1; // drivers will use the default quality setting
-		avistreaminfo.dwSampleSize = 0; // variable video data samples
+			// incase the amiga changes palette
+			if (ae->lpbi->biBitCount < 24)
+				avistreaminfo.dwFlags = AVISTREAMINFO_FORMATCHANGES;
+			//avistreaminfo.dwCaps =; // Capability flags; currently unused
+			//avistreaminfo.wPriority =; // Priority of the stream
+			//avistreaminfo.wLanguage =; // Language of the stream
+			avistreaminfo.dwScale = 1;
+			avistreaminfo.dwRate = avioutput_fps; // our playback speed default (PAL 50fps), (NTSC 60fps)
+			avistreaminfo.dwStart = 0; // no delay
+			avistreaminfo.dwLength = 1; // initial length
+			//avistreaminfo.dwInitialFrames =; // audio only
+			avistreaminfo.dwSuggestedBufferSize = ae->lpbi->biSizeImage;
+			avistreaminfo.dwQuality = -1; // drivers will use the default quality setting
+			avistreaminfo.dwSampleSize = 0; // variable video data samples
 
-		SetRect (&avistreaminfo.rcFrame, 0, 0, ae->lpbi->biWidth, ae->lpbi->biHeight); // rectangle for stream
+			SetRect(&avistreaminfo.rcFrame, 0, 0, ae->lpbi->biWidth, ae->lpbi->biHeight); // rectangle for stream
 
-		//avistreaminfo.dwEditCount =; // Number of times the stream has been edited. The stream handler maintains this count.
-		//avistreaminfo.dwFormatChangeCount =; // Number of times the stream format has changed. The stream handler maintains this count.
-		_tcscpy (avistreaminfo.szName, _T("Videostream")); // description of the stream.
+			//avistreaminfo.dwEditCount =; // Number of times the stream has been edited. The stream handler maintains this count.
+			//avistreaminfo.dwFormatChangeCount =; // Number of times the stream format has changed. The stream handler maintains this count.
+			_tcscpy(avistreaminfo.szName, _T("Videostream")); // description of the stream.
 
-		// create the stream
-		if ((err = AVIFileCreateStream (pfile, &AVIStreamInterface, &avistreaminfo)) != 0) {
-			gui_message (_T("AVIFileCreateStream() FAILED (%X)\n"), err);
-			goto error;
+			// create the stream
+			if ((err = AVIFileCreateStream(pfile, &AVIStreamInterface, &avistreaminfo)) != 0) {
+				if (retrycnt < 2) {
+					freeavientry(ae);
+					continue;
+				}
+				gui_message(_T("AVIFileCreateStream() FAILED (%08X)\n"), err);
+				goto error;
+			}
+			break;
 		}
 
 		videoOptions.fccType = streamtypeVIDEO;
@@ -1554,24 +1569,24 @@ static void AVIOutput_Begin2(bool fullstart, bool immediate)
 		videoOptions.lpParms = pcompvars->lpState;
 
 		// create a compressed stream from our uncompressed stream and a compression filter
-		if ((err = AVIMakeCompressedStream (&AVIVideoStream, AVIStreamInterface, &videoOptions, NULL)) != AVIERR_OK) {
-			gui_message (_T("AVIMakeCompressedStream() FAILED (%X)\n"), err);
+		if ((err = AVIMakeCompressedStream(&AVIVideoStream, AVIStreamInterface, &videoOptions, NULL)) != AVIERR_OK) {
+			gui_message(_T("AVIMakeCompressedStream() FAILED (%X)\n"), err);
 			goto error;
 		}
 	}
-	freeavientry (ae);
-	init_comm_pipe (&workindex, 20, 1);
-	init_comm_pipe (&queuefull, 20, 1);
+	freeavientry(ae);
+	init_comm_pipe(&workindex, 20, 1);
+	init_comm_pipe(&queuefull, 20, 1);
 	avientryindex = -1;
 	alive = -1;
 	fps_in_use = avioutput_fps;
-	uae_start_thread (_T("aviworker"), AVIOutput_worker, NULL, NULL);
-	write_log (_T("AVIOutput enabled: monitor=%d video=%d audio=%d path='%s'\n"), aviout_monid, avioutput_video, avioutput_audio, avioutput_filename_inuse);
+	uae_start_thread(_T("aviworker"), AVIOutput_worker, NULL, NULL);
+	write_log(_T("AVIOutput enabled: monitor=%d video=%d audio=%d path='%s'\n"), aviout_monid, avioutput_video, avioutput_audio, avioutput_filename_inuse);
 	return;
 
 error:
-	freeavientry (ae);
-	AVIOutput_End ();
+	freeavientry(ae);
+	AVIOutput_End();
 }
 
 void AVIOutput_Begin(bool immediate)

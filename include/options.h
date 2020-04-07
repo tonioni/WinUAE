@@ -16,7 +16,7 @@
 
 #define UAEMAJOR 4
 #define UAEMINOR 3
-#define UAESUBREV 0
+#define UAESUBREV 1
 
 #define MAX_AMIGADISPLAYS 4
 
@@ -595,6 +595,7 @@ struct uae_prefs {
 	int collision_level;
 	int leds_on_screen;
 	int leds_on_screen_mask[2];
+	int leds_on_screen_multiplier[2];
 	int power_led_dim;
 	struct wh osd_pos;
 	int keyboard_leds[3];
