@@ -160,6 +160,7 @@ static const TCHAR *compmode[] = { _T("direct"), _T("indirect"), _T("indirectKS"
 static const TCHAR *flushmode[] = { _T("soft"), _T("hard"), 0 };
 static const TCHAR *kbleds[] = { _T("none"), _T("POWER"), _T("DF0"), _T("DF1"), _T("DF2"), _T("DF3"), _T("HD"), _T("CD"), _T("DFx"), 0 };
 static const TCHAR *onscreenleds[] = { _T("false"), _T("true"), _T("rtg"), _T("both"), 0 };
+static const TCHAR *ledscale[] = { _T("automatic"), _T("1x"), _T("2x"), _T("3x"), _T("4x"), 0 };
 static const TCHAR *soundfiltermode1[] = { _T("off"), _T("emulated"), _T("on"), 0 };
 static const TCHAR *soundfiltermode2[] = { _T("standard"), _T("enhanced"), 0 };
 static const TCHAR *lorestype1[] = { _T("lores"), _T("hires"), _T("superhires"), 0 };
@@ -2302,6 +2303,8 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	cfgfile_dwrite_bool (f, _T("show_leds_rtg"), !!(p->leds_on_screen & STATUSLINE_RTG));
 	write_leds(f, _T("show_leds_enabled"), p->leds_on_screen_mask[0]);
 	write_leds(f, _T("show_leds_enabled_rtg"), p->leds_on_screen_mask[1]);
+	cfgfile_dwrite_str(f, _T("show_leds_size"), ledscale[p->leds_on_screen_multiplier[0]]);
+	cfgfile_dwrite_str(f, _T("show_leds_size_rtg"), ledscale[p->leds_on_screen_multiplier[1]]);
 	cfgfile_dwrite_bool(f, _T("show_refresh_indicator"), p->refresh_indicator);
 	cfgfile_dwrite(f, _T("power_led_dim"), _T("%d"), p->power_led_dim);
 
@@ -3563,6 +3566,12 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 			p->leds_on_screen |= STATUSLINE_RTG;
 		else
 			p->leds_on_screen &= ~STATUSLINE_RTG;
+		return 1;
+	}
+	if (_tcscmp(option, _T("show_leds_size")) == 0 || _tcscmp(option, _T("show_leds_size_rtg")) == 0) {
+		TCHAR tmp[MAX_DPATH];
+		int idx = _tcscmp(option, _T("show_leds_size")) == 0 ? 0 : 1;
+		cfgfile_strval(option, value, option, &p->leds_on_screen_multiplier[idx], ledscale, 0);
 		return 1;
 	}
 	if (_tcscmp (option, _T("show_leds_enabled")) == 0 || _tcscmp (option, _T("show_leds_enabled_rtg")) == 0) {

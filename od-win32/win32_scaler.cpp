@@ -797,15 +797,16 @@ static void statusline(int monid)
 
 	if (!(currprefs.leds_on_screen & STATUSLINE_CHIPSET) || !tempsurf)
 		return;
-	statusline_getpos(monid, &slx, &sly, dst_width, dst_height, 1, 1);
+	statusline_getpos(monid, &slx, &sly, dst_width, dst_height);
+	int m = statusline_get_multiplier(monid);
 	lx = dst_width;
 	ly = dst_height;
-	SetRect(&sr, slx, 0, slx + lx, TD_TOTAL_HEIGHT);
-	SetRect(&dr, slx, sly, slx + lx, sly + TD_TOTAL_HEIGHT);
+	SetRect(&sr, slx, 0, slx + lx, TD_TOTAL_HEIGHT * m);
+	SetRect(&dr, slx, sly, slx + lx, sly + TD_TOTAL_HEIGHT * m);
 	DirectDraw_BlitRect(tempsurf, &sr, NULL, &dr);
 	if (DirectDraw_LockSurface(tempsurf, &desc)) {
 		statusline_render(0, (uae_u8*)desc.lpSurface, dst_depth / 8, desc.lPitch, lx, ly, rc, gc, bc, NULL);
-		for (y = 0; y < TD_TOTAL_HEIGHT; y++) {
+		for (y = 0; y < TD_TOTAL_HEIGHT * m; y++) {
 			uae_u8 *buf = (uae_u8*)desc.lpSurface + y * desc.lPitch;
 			draw_status_line_single(monid, buf, dst_depth / 8, y, lx, rc, gc, bc, NULL);
 		}
@@ -878,6 +879,7 @@ bool S2X_init(int monid, int dw, int dh, int dd)
 	d3d = currprefs.gfx_api;
 	changed_prefs.leds_on_screen |= STATUSLINE_TARGET;
 	currprefs.leds_on_screen |= STATUSLINE_TARGET;
+	statusline_set_multiplier(monid, dw, dh);
 
 	if (d3d)
 		dd = amiga_depth2;

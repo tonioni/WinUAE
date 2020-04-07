@@ -1574,7 +1574,7 @@ static void updateleds(struct d3d11struct *d3d)
 	if (!d3d->osd.texture || d3d != d3d11data)
 		return;
 
-	statusline_getpos(d3d - d3d11data, &osdx, &osdy, d3d->m_screenWidth, d3d->m_screenHeight, d3d->statusbar_hx, d3d->statusbar_vx);
+	statusline_getpos(d3d - d3d11data, &osdx, &osdy, d3d->m_screenWidth, d3d->m_screenHeight);
 	d3d->osd.x = osdx;
 	d3d->osd.y = osdy;
 
@@ -1585,16 +1585,13 @@ static void updateleds(struct d3d11struct *d3d)
 	}
 	for (int y = 0; y < TD_TOTAL_HEIGHT * d3d->statusbar_vx; y++) {
 		uae_u8 *buf = (uae_u8*)map.pData + y * map.RowPitch;
-		statusline_single_erase(d3d - d3d11data, buf, 32 / 8, y, d3d->ledwidth * d3d->statusbar_hx);
+		statusline_single_erase(d3d - d3d11data, buf, 32 / 8, y, d3d->ledwidth);
 	}
 	statusline_render(d3d - d3d11data, (uae_u8*)map.pData, 32 / 8, map.RowPitch, d3d->ledwidth, d3d->ledheight, rc, gc, bc, a);
 
-	int y = 0;
-	for (int yy = 0; yy < d3d->statusbar_vx * TD_TOTAL_HEIGHT; yy++) {
-		uae_u8 *buf = (uae_u8*)map.pData + yy * map.RowPitch;
+	for (int y = 0; y < TD_TOTAL_HEIGHT * d3d->statusbar_vx; y++) {
+		uae_u8 *buf = (uae_u8*)map.pData + y * map.RowPitch;
 		draw_status_line_single(d3d - d3d11data, buf, 32 / 8, y, d3d->ledwidth, rc, gc, bc, a);
-		if ((yy % d3d->statusbar_vx) == 0)
-			y++;
 	}
 
 	d3d->m_deviceContext->Unmap(d3d->osd.texture, 0);
@@ -1922,6 +1919,7 @@ static void erasetexture(struct d3d11struct *d3d)
 
 static bool CreateTexture(struct d3d11struct *d3d)
 {
+	struct AmigaMonitor *mon = &AMonitors[d3d - d3d11data];
 	D3D11_TEXTURE2D_DESC desc;
 	D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc;
 	HRESULT hr;
@@ -2005,12 +2003,9 @@ static bool CreateTexture(struct d3d11struct *d3d)
 
 	UpdateVertexArray(d3d, d3d->m_vertexBuffer, 0, 0, 0, 0, 0, 0, 0, 0);
 
+	d3d->statusbar_hx = d3d->statusbar_vx = statusline_set_multiplier(mon->monitor_id, d3d->m_screenWidth, d3d->m_screenHeight);
 	d3d->ledwidth = d3d->m_screenWidth;
-	d3d->ledheight = TD_TOTAL_HEIGHT;
-	if (d3d->statusbar_hx < 1)
-		d3d->statusbar_hx = 1;
-	if (d3d->statusbar_vx < 1)
-		d3d->statusbar_vx = 1;
+	d3d->ledheight = TD_TOTAL_HEIGHT * d3d->statusbar_vx;
 	allocsprite(d3d, &d3d->osd, d3d->ledwidth, d3d->ledheight, true);
 	d3d->osd.enabled = true;
 
