@@ -495,6 +495,11 @@ void ini_setcurrentasstart(struct ini_data *ini, struct ini_context *ctx)
 	ctx->start = ctx->lastpos;
 }
 
+void ini_setnextasstart(struct ini_data *ini, struct ini_context *ctx)
+{
+	ctx->start = ctx->lastpos + 1;
+}
+
 void ini_setlast(struct ini_data *ini, const TCHAR *section, const TCHAR *key, struct ini_context *ctx)
 {
 	for (int c = ctx->start + 1; c < ini->inilines; c++) {

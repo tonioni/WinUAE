@@ -26,6 +26,7 @@ bool ini_save(struct ini_data *ini, const TCHAR *path);
 void ini_initcontext(struct ini_data *ini, struct ini_context *ctx);
 void ini_setlast(struct ini_data *ini, const TCHAR *section, const TCHAR *key, struct ini_context *ctx);
 void ini_setlastasstart(struct ini_data *ini, struct ini_context *ctx);
+void ini_setnextasstart(struct ini_data *ini, struct ini_context *ctx);
 void ini_setcurrentasstart(struct ini_data *ini, struct ini_context *ctx);
 
 void ini_addnewstring(struct ini_data *ini, const TCHAR *section, const TCHAR *key, const TCHAR *val);
