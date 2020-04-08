@@ -43,7 +43,7 @@ const TCHAR *fpsizes[] = {
 	_T("B"),
 	_T("P")
 };
-static const int fpsizeconv[] = {
+static const wordsizes fpsizeconv[] = {
 	sz_long,
 	sz_single,
 	sz_extended,

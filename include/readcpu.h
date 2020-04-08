@@ -100,11 +100,11 @@ extern struct instr {
     unsigned int mnemo:8;
     unsigned int cc:4;
     unsigned int plev:2;
-    unsigned int size:2;
+    wordsizes size;
 	unsigned int unsized:1;
-    unsigned int smode:5;
+    amodes smode;
     unsigned int stype:3;
-    unsigned int dmode:5;
+    amodes dmode;
     unsigned int suse:1;
     unsigned int duse:1;
     unsigned int ccuse:1;

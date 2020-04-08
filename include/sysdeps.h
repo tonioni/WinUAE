@@ -237,22 +237,8 @@ extern void unicode_init (void);
 extern void to_lower (TCHAR *s, int len);
 extern void to_upper (TCHAR *s, int len);
 
-/* We can only rely on GNU C getting enums right. Mickeysoft VSC++ is known
- * to have problems, and it's likely that other compilers choke too. */
-#ifdef __GNUC__
 #define ENUMDECL typedef enum
 #define ENUMNAME(name) name
-
-/* While we're here, make abort more useful.  */
-#define abort() \
-  do { \
-    write_log ("Internal error; file %s, line %d\n", __FILE__, __LINE__); \
-    (abort) (); \
-} while (0)
-#else
-#define ENUMDECL enum
-#define ENUMNAME(name) ; typedef int name
-#endif
 
 /*
  * Porters to weird systems, look! This is the preferred way to get

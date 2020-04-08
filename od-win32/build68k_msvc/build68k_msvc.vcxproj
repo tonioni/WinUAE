@@ -148,7 +148,6 @@
     <PostBuildEvent>
       <Message>creating cpudefs.cpp</Message>
       <Command>build68k.exe &gt;..\..\cpudefs.cpp &lt;..\..\table68k
-del build68k.exe
 </Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
@@ -238,7 +237,7 @@ del build68k.exe
     <PostBuildEvent>
       <Message>creating cpudefs.cpp</Message>
       <Command>build68k.exe &gt;..\..\cpudefs.cpp &lt;..\..\table68k
-del build68k.exe
+
 </Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
