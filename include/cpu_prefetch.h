@@ -80,6 +80,13 @@ STATIC_INLINE void do_cycles_ce020_internal(int clocks)
 	x_do_cycles (cycs);
 }
 
+STATIC_INLINE void do_cycles_020_internal(int clocks)
+{
+	if (currprefs.m68k_speed < 0)
+		return;
+	x_do_cycles(clocks * cpucycleunit);
+}
+
 STATIC_INLINE void do_cycles_ce020_mem (int clocks, uae_u32 val)
 {
 	x_do_cycles_post (clocks * cpucycleunit, val);

@@ -296,7 +296,7 @@ static int insn_n_cycles;
 static int tail_ce020, total_ce020, head_in_ea_ce020;
 static bool head_ce020_cycs_done, tail_ce020_done;
 static int subhead_ce020;
-static instr *curi_ce020;
+static struct instr *curi_ce020;
 static bool no_prefetch_ce020;
 static bool got_ea_ce020;
 
@@ -461,6 +461,28 @@ static bool isprefetch020(void)
 	return true;
 }
 
+static void check_ipl(void)
+{
+	if (ipl_fetched)
+		return;
+	if (using_ce || isce020() || using_prefetch_020)
+		out("ipl_fetch();\n");
+	ipl_fetched = 1;
+}
+
+static void check_ipl_always(void)
+{
+	if (using_ce || isce020())
+		out("ipl_fetch();\n");
+}
+
+static void addcycles_020(int cycles)
+{
+	if (using_prefetch_020 || using_ce020) {
+		out("%s(%d);\n", do_cycles, cycles);
+	}
+}
+
 static void addcycles_ce020 (int cycles, const char *s)
 {
 	if (!isce020())
@@ -485,6 +507,7 @@ static void get_prefetch_020 (void)
 {
 	if (!isprefetch020() || no_prefetch_ce020)
 		return;
+	check_ipl();
 	out("regs.irc = %s(%d);\n", prefetch_opcode, m68k_pc_offset);
 }
 static void get_prefetch_020_continue(void)
@@ -1022,22 +1045,6 @@ static void makefromsr_t0(void)
 	if (using_ce || isce020())
 		out("regs.ipl_pin = intlev();\n");
 }
-
-static void check_ipl (void)
-{
-	if (ipl_fetched)
-		return;
-	if (using_ce || isce020())
-		out("ipl_fetch();\n");
-	ipl_fetched = 1;
-}
-
-static void check_ipl_always(void)
-{
-	if (using_ce || isce020())
-		out("ipl_fetch();\n");
-}
-
 
 static void irc2ir (bool dozero)
 {
@@ -4802,7 +4809,7 @@ static void resetvars (void)
 			dstw = "x_put_word";
 			srcb = "x_get_byte";
 			dstb = "x_put_byte";
-			do_cycles = "do_cycles_ce020_internal";
+			do_cycles = "do_cycles_020_internal";
 			nextw = "next_iword_020ce";
 			nextl = "next_ilong_020ce";
 		} else if (using_ce020 == 2) {
@@ -4820,7 +4827,7 @@ static void resetvars (void)
 			dstw = "x_put_word";
 			srcb = "x_get_byte";
 			dstb = "x_put_byte";
-			do_cycles = "do_cycles_ce020_internal";
+			do_cycles = "do_cycles_020_internal";
 			nextw = "next_iword_030ce";
 			nextl = "next_ilong_030ce";
 		} else if (using_ce020 == 3) {
@@ -4837,7 +4844,7 @@ static void resetvars (void)
 			dstw = "x_put_word";
 			srcb = "x_get_byte";
 			dstb = "x_put_byte";
-			do_cycles = "do_cycles_ce020_internal";
+			do_cycles = "do_cycles_020_internal";
 			nextw = "next_iword_cache040";
 			nextl = "next_ilong_cache040";
 		} else if (using_prefetch_020 == 1) {
@@ -4855,6 +4862,7 @@ static void resetvars (void)
 			dstb = "x_put_byte";
 			nextw = "next_iword_020_prefetch";
 			nextl = "next_ilong_020_prefetch";
+			do_cycles = "do_cycles_020_internal";
 		} else if (using_prefetch_020 == 2) {
 			disp020 = "x_get_disp_ea_020";
 			prefetch_word = "get_word_030_prefetch";
@@ -4870,6 +4878,7 @@ static void resetvars (void)
 			dstb = "x_put_byte";
 			nextw = "next_iword_030_prefetch";
 			nextl = "next_ilong_030_prefetch";
+			do_cycles = "do_cycles_020_internal";
 		}
 #if 0
 	} else if (using_ce020) {
@@ -7445,6 +7454,7 @@ bccl_not68020:
 		if (!do_always_dynamic_cycles) {
 			insn_n_cycles += 136 - (136 - 76) / 3; /* average */
 		}
+		addcycles_020(34);
 		tail_ce020_done	= false;
 		returntail(false);
 		next_level_020_to_010();
@@ -7490,6 +7500,7 @@ bccl_not68020:
 		if (!do_always_dynamic_cycles) {
 			insn_n_cycles += 156 - (156 - 120) / 3; /* average */
 		}
+		addcycles_020(48);
 		tail_ce020_done	= false;
 		returntail(false);
 		next_level_020_to_010();
@@ -7511,6 +7522,7 @@ bccl_not68020:
 		if (cpu_level <= 1) {
 			addcycles000_nonces("getMulu68kCycles(src)");
 		}
+		addcycles_020(20);
 		genastore("newv", curi->dmode, "dstreg", sz_long, "dst");
 		sync_m68k_pc();
 		count_ncycles++;
@@ -7536,6 +7548,7 @@ bccl_not68020:
 		if (cpu_level <= 1) {
 			addcycles000_nonces("getMuls68kCycles(src)");
 		}
+		addcycles_020(20);
 		genastore("newv", curi->dmode, "dstreg", sz_long, "dst");
 		count_ncycles++;
 		if (!do_always_dynamic_cycles) {
