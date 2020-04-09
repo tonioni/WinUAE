@@ -3019,11 +3019,7 @@ static int memwatch_func (uaecptr addr, int rwi, int size, uae_u32 *valp, uae_u3
 
 		if (m->bus_error) {
 			if (((m->bus_error & 1) && (rwi & 1)) || ((m->bus_error & 4) && (rwi & 4)) || ((m->bus_error & 2) && (rwi & 2))) {
-#if HARDWARE_BUS_ERROR_EMULATION
-				hardware_bus_error = 1;
-#else
-				exception2(addr, (rwi & 2) == 0, size, ((rwi & 4) ? 2 : 1) | (regs.s ? 4 : 0));
-#endif
+				hardware_exception2(addr, val, (rwi & 2) != 0, (rwi & 4) != 0, size == 4 ? sz_long : (size == 2 ? sz_word : sz_byte));
 			}
 			continue;
 		}
@@ -3720,6 +3716,7 @@ static void memwatch (TCHAR **c)
 	mwn->reg = 0xffffffff;
 	mwn->frozen = 0;
 	mwn->modval_written = 0;
+	mwn->bus_error = 0;
 	ignore_ws (c);
 	if (more_params (c)) {
 		mwn->size = readhex (c);
@@ -3731,7 +3728,7 @@ static void memwatch (TCHAR **c)
 					const TCHAR *n = memwatch_access_masks[i].name;
 					int len = _tcslen(n);
 					if (!_tcsnicmp(cs, n, len)) {
-						if (cs[len] == 0 || cs[len] == 10 || cs[len] == 13) {
+						if (cs[len] == 0 || cs[len] == 10 || cs[len] == 13 || cs[len] == ' ') {
 							mwn->access_mask |= memwatch_access_masks[i].mask;
 							while (len > 0) {
 								len--;
@@ -3747,7 +3744,7 @@ static void memwatch (TCHAR **c)
 				for (;;) {
 					TCHAR ncc = _totupper(peek_next_char(c));
 					TCHAR nc = _totupper(next_char(c));
-					if (mwn->rwi == 7)
+					if (mwn->rwi == 7 && (nc == 'W' || nc == 'R' || nc == 'I'))
 						mwn->rwi = 0;
 					if (nc == 'F')
 						mwn->frozen = 1;
@@ -3781,16 +3778,16 @@ static void memwatch (TCHAR **c)
 						if (!mwn->bus_error)
 							mwn->bus_error = 7;
 					}
+					if (nc == 'L')
+						mwn->reportonly = true;
+					if (nc == 'N')
+						mwn->nobreak = true;
 					if (ncc == ' ' || ncc == 0)
 						break;
 					if (nc == 'P' && ncc == 'C') {
 						next_char(c);
 						mwn->pc = readhex(c, NULL);
 					}
-					if (ncc == 'L')
-						mwn->reportonly = true;
-					if (ncc == 'N')
-						mwn->nobreak = true;
 					if (!more_params(c))
 						break;
 				}

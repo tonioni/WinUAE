@@ -2721,7 +2721,6 @@ kludge_me_do:
 	m68k_setpc (newpc);
 	branch_stack_push(currpc, currpc);
 	regs.ir = x_get_word (m68k_getpc ()); // prefetch 1
-#if HARDWARE_BUS_ERROR_EMULATION
 	if (hardware_bus_error) {
 		if (nr == 2 || nr == 3) {
 			cpu_halt(CPU_HALT_DOUBLE_FAULT);
@@ -2730,13 +2729,11 @@ kludge_me_do:
 		exception2_fetch(regs.irc, 0);
 		return;
 	}
-#endif
 	regs.ird = regs.ir;
 	x_do_cycles (2 * cpucycleunit);
 	regs.ipl_pin = intlev();
 	ipl_fetch();
 	regs.irc = x_get_word (m68k_getpc () + 2); // prefetch 2
-#if HARDWARE_BUS_ERROR_EMULATION
 	if (hardware_bus_error) {
 		if (nr == 2 || nr == 3) {
 			cpu_halt(CPU_HALT_DOUBLE_FAULT);
@@ -2745,7 +2742,6 @@ kludge_me_do:
 		exception2_fetch(regs.ir, 2);
 		return;
 	}
-#endif
 #ifdef JIT
 	set_special (SPCFLAG_END_COMPILE);
 #endif
@@ -7274,22 +7270,25 @@ void exception2_setup(uae_u32 opcode, uaecptr addr, bool read, int size, uae_u32
 // Common hardware bus error entry point. Both for MMU and non-MMU emulation.
 void hardware_exception2(uaecptr addr, uae_u32 v, bool read, bool ins, int size)
 {
-	if (currprefs.mmu_model) {
+	if (currprefs.cpu_model <= 68010 && currprefs.cpu_compatible && HARDWARE_BUS_ERROR_EMULATION) {
+		hardware_bus_error = 1;
+	} else if (currprefs.mmu_model) {
 		if (currprefs.mmu_model == 68030) {
 			 mmu030_hardware_bus_error(addr, v, read, ins, size);
 		} else {
 			mmu_hardware_bus_error(addr, v, read, ins, size);
 		}
 		return;
+	} else {
+		int fc = (regs.s ? 4 : 0) | (ins ? 2 : 1);
+		if (ismoves_nommu) {
+			ismoves_nommu = false;
+			fc = read ? regs.sfc : regs.dfc;
+		}
+		// Non-MMU
+		exception2_setup(regs.opcode, addr, read, size, fc);
+		THROW(2);
 	}
-	int fc = (regs.s ? 4 : 0) | (ins ? 2 : 1);
-	if (ismoves_nommu) {
-		ismoves_nommu = false;
-		fc = read ? regs.sfc : regs.dfc;
-	}
-	// Non-MMU
-	exception2_setup(regs.opcode, addr, read, size, fc);
-	THROW(2);
 }
 
 void exception2_read(uae_u32 opcode, uaecptr addr, int size, int fc)
