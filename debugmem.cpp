@@ -23,6 +23,8 @@
 #define ELFMODE_ROM 1
 #define ELFMODE_DEBUGMEM 2
 
+#define ELF_ALIGN_MASK 7
+
 #define N_GSYM 0x20
 #define N_FUN 0x24
 #define N_STSYM 0x26
@@ -2421,12 +2423,13 @@ static void swap_rel(struct rel *d, struct rel *s)
 static int loadelf(uae_u8 *file, int filelen, uae_u8 **outp, int outsize, struct sheader *sh)
 {
 	int size = sh->size;
+	int asize = (size + ELF_ALIGN_MASK) & ~ELF_ALIGN_MASK;
 	uae_u8 *out = *outp;
 	if (outsize >= 0) {
 		if (!out)
-			out = xcalloc(uae_u8, outsize + size);
+			out = xcalloc(uae_u8, outsize + asize);
 		else
-			out = xrealloc(uae_u8, out, outsize + size);
+			out = xrealloc(uae_u8, out, outsize + asize);
 	} else {
 		outsize = 0;
 	}
@@ -2562,6 +2565,7 @@ static uae_u8 *loadelffile(uae_u8 *file, int filelen, uae_u8 *dbgfile, int debug
 
 	struct loadelfsection *lelfs = xcalloc(struct loadelfsection, shnum);
 	outsize = 0;
+	int aoutsize = 0;
 	for (int i = 0; i < shnum; i++) {
 		struct sheader *shp = (struct sheader*)&shp_first[i];
 		struct sheader sh;
@@ -2583,9 +2587,10 @@ static uae_u8 *loadelffile(uae_u8 *file, int filelen, uae_u8 *dbgfile, int debug
 				} else {
 					lelfs[i].offsets = outsize;
 					if (relocate)
-						lelfs[i].bases = outsize;
+						lelfs[i].bases = aoutsize;
 				}
 				outsize += sh.size;
+				aoutsize += (sh.size + ELF_ALIGN_MASK) & ~ELF_ALIGN_MASK;
 			}
 		} else if (sh.type == SHT_NOBITS) {
 			if (sh.size) {
@@ -2613,7 +2618,7 @@ static uae_u8 *loadelffile(uae_u8 *file, int filelen, uae_u8 *dbgfile, int debug
 	}
 
 	if (mode == ELFMODE_ROM) {
-		relocate_base = getrombase(outsize);
+		relocate_base = getrombase(aoutsize);
 		if (!relocate_base)
 			goto end;
 		for (int i = 0; i < shnum; i++) {
@@ -2696,6 +2701,7 @@ static uae_u8 *loadelffile(uae_u8 *file, int filelen, uae_u8 *dbgfile, int debug
 						loadelf(file, filelen, &outp, -1, &sh);
 					} else {
 						int newoutsize = loadelf(file, filelen, &outp, outsize, &sh);
+						newoutsize = (newoutsize + ELF_ALIGN_MASK) & ~ELF_ALIGN_MASK;
 						outptr = outp + outsize;
 						outsize = newoutsize;
 						*outsizep = outsize;

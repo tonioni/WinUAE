@@ -40,7 +40,8 @@ S_FPU = S_EXCFRAME+4
 S_FPIAR = S_FPU+8*12
 S_FPCR = S_FPIAR+4
 S_FPSR = S_FPCR+4
-S_TRACECNT = S_FPSR+4
+S_FSAVE = S_FPSR+4
+S_TRACECNT = S_FSAVE+216
 S_TRACESTACK = S_TRACECNT+4
 S_CYCLES = S_TRACESTACK+12
 S_CYCLES2 = S_CYCLES+4
@@ -59,6 +60,10 @@ _setcpu:
 	move.l 4(sp),d1 | cpu_lvl
 	move.l 8(sp),a1 | new
 	move.l 12(sp),a0 | store
+	cmp.w #5,d1
+	bcs.s .scend1d
+	bsr.w enable060fpu
+.scend1d:
 	cmp.w #1,d1
 	bcs.s .scend1
 	move.l a0,d0
@@ -398,6 +403,22 @@ _exceptiontable010:
 	bsr.s exception010 | 45
 	bsr.s exception010 | 46
 	bsr.s exception010 | 47
+	bsr.s exception010 | 48
+	bsr.s exception010 | 49
+	bsr.s exception010 | 50
+	bsr.s exception010 | 51
+	bsr.s exception010 | 52
+	bsr.s exception010 | 53
+	bsr.s exception010 | 54
+	bsr.s exception010 | 55
+	bsr.s exception010 | 56
+	bsr.s exception010 | 57
+	bsr.s exception010 | 58
+	bsr.s exception010 | 59
+	bsr.s exception010 | 60
+	bsr.s exception010 | 61
+	bsr.s exception010 | 62
+	bsr.s exception010 | 63
 	nop
 exception010:
 	move.w sr,-(sp)
@@ -485,6 +506,22 @@ _exceptiontable020:
 	bsr.s exception020 | 45
 	bsr.s exception020 | 46
 	bsr.s exception020 | 47
+	bsr.s exception020 | 48
+	bsr.s exception020 | 49
+	bsr.s exception020 | 50
+	bsr.s exception020 | 51
+	bsr.s exception020 | 52
+	bsr.s exception020 | 53
+	bsr.s exception020 | 54
+	bsr.s exception020 | 55
+	bsr.s exception020 | 56
+	bsr.s exception020 | 57
+	bsr.s exception020 | 58
+	bsr.s exception020 | 59
+	bsr.s exception020 | 60
+	bsr.s exception020 | 61
+	bsr.s exception020 | 62
+	bsr.s exception020 | 63
 	nop
 exception020:
 	move.w sr,-(sp)
@@ -530,8 +567,8 @@ exception_trace010t2:
 	bra exception_trace010
 
 _exceptiontablefpu:
-	bsr.s exceptionfpu	| 2
-	bsr.s exceptionfpu	| 3
+	bsr.s exceptionfpu | 2
+	bsr.s exceptionfpu | 3
 	bsr.s exceptionfpu | 4
 	bsr.s exceptionfpu | 5
 	bsr.s exceptionfpu | 6
@@ -576,9 +613,26 @@ _exceptiontablefpu:
 	bsr.s exceptionfpu | 45
 	bsr.s exceptionfpu | 46
 	bsr.s exceptionfpu | 47
+	bsr.s exceptionfpu | 48
+	bsr.s exceptionfpu | 49
+	bsr.s exceptionfpu | 50
+	bsr.s exceptionfpu | 51
+	bsr.s exceptionfpu | 52
+	bsr.s exceptionfpu | 53
+	bsr.s exceptionfpu | 54
+	bsr.s exceptionfpu | 55
+	bsr.s exceptionfpu | 56
+	bsr.s exceptionfpu | 57
+	bsr.s exceptionfpu | 58
+	bsr.s exceptionfpu | 59
+	bsr.s exceptionfpu | 60
+	bsr.s exceptionfpu | 61
+	bsr.s exceptionfpu | 62
+	bsr.s exceptionfpu | 63
 	nop
 exceptionfpu:
 	move.w sr,-(sp)
+exceptionfpucontinue:
 	move.w #0,ACTIVITYREG
 	move.l a0,-(sp)
 	move.l datapointer(pc),a0
@@ -587,7 +641,7 @@ exceptionfpu:
 	move.w (sp)+,S_EXPSR+2(a0)
 
 	move.l (sp)+,d0
-	lea _exceptiontable020(pc),a1
+	lea _exceptiontablefpu(pc),a1
 	sub.l a1,d0
 	lsr.w #1,d0
 	addq.w #1,d0
@@ -608,11 +662,15 @@ _msp_address4:
 	move.l USP,a1
 	move.l a1,S_AREG+7*4(a0)
 
+	fsave S_FSAVE(a0)
 	fmovem.x fp0-fp7,S_FPU(a0)
 	lea S_FPIAR(a0),a1
 	fmove.l fpiar,(a1)+
 	fmove.l fpcr,(a1)+
 	fmove.l fpsr,(a1)+
+	
+	lea nullframe(pc),a0
+	frestore (a0)
 		
 	move.w #0x222,ACTIVITYREG
 	move.l superstack(pc),a0
@@ -636,3 +694,7 @@ cycles:
 	dc.l 0,0
 dummy:
 	dc.l 0
+temp:
+	dc.l 0
+nullframe:
+	dc.l 0,0,0

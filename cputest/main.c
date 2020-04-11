@@ -49,12 +49,15 @@ struct registers
 	uae_u32 excframe;
 	struct fpureg fpuregs[8];
 	uae_u32 fpiar, fpcr, fpsr;
+	uae_u32 fsave[216/4];
 	uae_u32 tracecnt;
 	uae_u16 tracedata[6];
 	uae_u32 cycles, cycles2, cyclest;
+
 	uae_u32 srcaddr, dstaddr, branchtarget;
 	uae_u8 branchtarget_mode;
 	uae_u32 endpc;
+	uae_u16 fpeaset;
 };
 
 static struct registers test_regs;
@@ -420,7 +423,7 @@ static void start_test(void)
 		exceptiontableinuse = (uae_u32)&exceptiontable000;
 	} else {
 		oldvbr = setvbr((uae_u32)vbr);
-		for (int i = 2; i < 48; i++) {
+		for (int i = 2; i < 64; i++) {
 			if (fpu_model) {
 				vbr[i] = (uae_u32)(((uae_u32)&exceptiontablefpu) + (i - 2) * 2);
 				exceptiontableinuse = (uae_u32)&exceptiontablefpu;
@@ -1358,7 +1361,7 @@ static void out_regs(struct registers *r, int before)
 		return;
 
 	for (int i = 0; i < 8; i++) {
-		if ((i % 2) == 0) {
+		if (i > 0 && (i % 2) == 0) {
 			strcat(outbp, "\n");
 		}
 		else if ((i % 4) != 0) {
@@ -1376,9 +1379,9 @@ static void out_regs(struct registers *r, int before)
 		outbp += strlen(outbp);
 	}
 	sprintf(outbp, "\nFPSR:%c%08x FPCR:%c%08x FPIAR:%c%08x\n",
-		test_fpsr != test_regs.fpsr ? '*' : ' ', before ? test_fpsr : r->fpsr,
-		test_fpcr != test_regs.fpcr ? '*' : ' ', before ? test_fpcr : r->fpcr,
-		regs.fpiar != test_regs.fpiar ? '*' : ' ', r->fpiar);
+		test_fpsr != last_registers.fpsr ? '*' : ' ', before ? test_fpsr : test_regs.fpsr,
+		test_fpcr != last_registers.fpcr ? '*' : ' ', before ? test_fpcr : test_regs.fpcr,
+		regs.fpiar != last_registers.fpiar ? '*' : ' ', r->fpiar);
 
 	outbp += strlen(outbp);
 
@@ -1586,12 +1589,26 @@ static uae_u8 *validate_exception(struct registers *regs, uae_u8 *p, short excnu
 				p = restore_rel_ordered(p, &v);
 				pl(exc + 8, v);
 				exclen = 12;
+				if (excnum == 11 || excnum == 55) {
+					regs->fpeaset = (*p++) & 1;
+					if (!regs->fpeaset) {
+						mask_exception = 1;
+						memset(masked_exception, 0xff, exclen);
+						memset(masked_exception + 8, 0, 4);
+					}
+				}
 				break;
 			case 3:
 				v = opcode_memory_addr;
 				p = restore_rel_ordered(p, &v);
 				pl(exc + 8, v);
 				exclen = 12;
+				regs->fpeaset = (*p++) & 1;
+				if (!regs->fpeaset) {
+					mask_exception = 1;
+					memset(masked_exception, 0xff, exclen);
+					memset(masked_exception + 8, 0, 4);
+				}
 				break;
 			case 4:
 				v = opcode_memory_addr;
@@ -1601,6 +1618,12 @@ static uae_u8 *validate_exception(struct registers *regs, uae_u8 *p, short excnu
 				p = restore_rel_ordered(p, &v);
 				pl(exc + 12, v);
 				exclen = 16;
+				regs->fpeaset = (*p++) & 1;
+				if (!regs->fpeaset) {
+					mask_exception = 1;
+					memset(masked_exception, 0xff, exclen);
+					memset(masked_exception + 8, 0, 4);
+				}
 				break;
 			case 8: // 68010 bus/address error
 				{
@@ -1994,7 +2017,7 @@ static uae_u8 *validate_test(uae_u8 *p, short ignore_errors, short ignore_sr)
 			}
 			if (cpu_lvl > 0 && exc >= 2 && cpuexc010 != cpuexc) {
 				if (dooutput) {
-					sprintf(outbp, "Exception: vector number does not match vector offset! (%d <> %d)\n", exc, cpuexc010);
+					sprintf(outbp, "Exception: vector number does not match vector offset! (%d <> %d) %d\n", exc, cpuexc010, cpuexc);
 					experr = 1;
 					outbp += strlen(outbp);
 					errflag |= 1 << 16;
@@ -2253,23 +2276,27 @@ static uae_u8 *validate_test(uae_u8 *p, short ignore_errors, short ignore_sr)
 				errflag |= 1 << 2;
 			}
 		}
-		for (int i = 0; i < 8; i++) {
-			if (regs_fpuchanged[i]) {
-				if (dooutput) {
-					sprintf(outbp, "FP%d: modified %04x-%08x%08x -> %04x-%08x%08x but expected no modifications\n", i,
-						last_registers.fpuregs[i].exp, last_registers.fpuregs[i].m[0], last_registers.fpuregs[i].m[1],
-						test_regs.fpuregs[i].exp, test_regs.fpuregs[i].m[0], test_regs.fpuregs[i].m[1]);
-					outbp += strlen(outbp);
+		if (!skipregchange) {
+			for (int i = 0; i < 8; i++) {
+				if (regs_fpuchanged[i]) {
+					if (dooutput) {
+						sprintf(outbp, "FP%d: modified %04x-%08x%08x -> %04x-%08x%08x but expected no modifications\n", i,
+							last_registers.fpuregs[i].exp, last_registers.fpuregs[i].m[0], last_registers.fpuregs[i].m[1],
+							test_regs.fpuregs[i].exp, test_regs.fpuregs[i].m[0], test_regs.fpuregs[i].m[1]);
+						outbp += strlen(outbp);
+					}
+					errflag |= 1 << 1;
 				}
-				errflag |= 1 << 1;
 			}
 		}
-		if (fpsr_changed) {
-			if (dooutput) {
-				sprintf(outbp, "FPSR: modified %08x -> %08x but expected no modifications\n", last_registers.fpsr, test_regs.fpsr);
-				outbp += strlen(outbp);
+		if (!ignore_sr) {
+			if (fpsr_changed) {
+				if (dooutput) {
+					sprintf(outbp, "FPSR: modified %08x -> %08x but expected no modifications\n", last_registers.fpsr, test_regs.fpsr);
+					outbp += strlen(outbp);
+				}
+				errflag |= 1 << 3;
 			}
-			errflag |= 1 << 3;
 		}
 		if (fpcr_changed) {
 			if (dooutput) {
@@ -2309,15 +2336,11 @@ static uae_u8 *validate_test(uae_u8 *p, short ignore_errors, short ignore_sr)
 		outbp = outbuffer;
 		addinfo();
 		strcpy(outbp, outbuffer2);
-		if (!fpu_model) {
-			strcat(outbp, "Registers before:\n");
-			outbp += strlen(outbp);
-		}
+		strcat(outbp, "Registers before:\n");
+		outbp += strlen(outbp);
 		out_regs(&regs, 1);
-		if (!fpu_model) {
-			strcat(outbp, "Registers after:\n");
-			outbp += strlen(outbp);
-		}
+		strcat(outbp, "Registers after:\n");
+		outbp += strlen(outbp);
 		out_regs(&test_regs, 0);
 		if (exc > 1) {
 			if (!experr) {
@@ -2499,6 +2522,8 @@ static void process_test(uae_u8 *p)
 				sr_mask |= 0x1000; // M
 
 			int maxccr = *p++;
+			if (!maxccr)
+				maxccr = 256;
 			for (int ccr = 0;  ccr < maxccr; ccr++) {
 
 				opcodeend = (opcodeend >> 16) | (opcodeend << 16);
@@ -2528,6 +2553,7 @@ static void process_test(uae_u8 *p)
 				regs.pc = startpc;
 				regs.fpiar = startpc;
 				regs.cyclest = 0xffffffff;
+				regs.fpeaset = 0;
 
 #ifdef M68K
 				if (stackcopysize > 0)
@@ -2544,11 +2570,11 @@ static void process_test(uae_u8 *p)
 				test_regs.expsr = test_regs.sr | 0x2000;
 				test_sr = test_regs.sr;
 				if (fpumode) {
-					if (maxccr >= 32) {
+					if (maxccr > 32) {
 						test_regs.fpsr = (ccr & 15) << 24;
 						test_regs.fpcr = (ccr >> 4) << 4;
 					} else {
-						test_regs.fpsr = (ccr ? 15 : 0) << 24;
+						test_regs.fpsr = ((ccr & 1) ? 15 : 0) << 24;
 						test_regs.fpcr = (ccr >> 1) << 4;
 					}
 					test_fpsr = test_regs.fpsr;
@@ -2626,6 +2652,7 @@ static void process_test(uae_u8 *p)
 					} else {
 
 						test_regs.sr = test_sr;
+						test_regs.fpsr = test_fpsr;
 						ignore_errors = 1;
 						ignore_sr = 1;
 
@@ -2638,6 +2665,11 @@ static void process_test(uae_u8 *p)
 						p++;
 						for (int i = 0; i < 16; i++) {
 							test_regs.regs[i] = regs.regs[i];
+						}
+						if (fpu_model) {
+							for (int i = 0; i < 8; i++) {
+								test_regs.fpuregs[i] = regs.fpuregs[i];
+							}
 						}
 					}
 

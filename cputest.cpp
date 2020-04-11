@@ -5,6 +5,7 @@
 #include "disasm.h"
 #include "ini.h"
 #include "fpp.h"
+#include "softfloat/softfloat-specialize.h"
 
 #include "zlib.h"
 
@@ -13,6 +14,7 @@
 #define MAX_REGISTERS 16
 
 
+#define FPUOPP_ILLEGAL 0x80
 static floatx80 fpuregisters[8];
 static uae_u32 fpu_fpiar, fpu_fpcr, fpu_fpsr;
 
@@ -54,7 +56,8 @@ static int feature_usp = 0;
 static int feature_exception_vectors = 0;
 static int feature_interrupts = 0;
 static int feature_randomize = 0;
-static TCHAR *feature_instruction_size = NULL;
+static int feature_instruction_size = 0;
+static TCHAR *feature_instruction_size_text = NULL;
 static uae_u32 feature_addressing_modes[2];
 static int feature_gzip = 0;
 static int ad8r[2], pc8r[2];
@@ -65,6 +68,7 @@ static int target_ea_src_cnt, target_ea_dst_cnt, target_ea_opcode_cnt;
 static int target_ea_src_max, target_ea_dst_max, target_ea_opcode_max;
 static uae_u32 target_ea[3];
 static int maincpu[6];
+static uae_u8 exceptionenabletable[256];
 
 #define HIGH_MEMORY_START (addressing_mask == 0xffffffff ? 0xffff8000 : 0x00ff8000)
 
@@ -118,10 +122,12 @@ static int test_exception_opcode;
 static uae_u32 trace_store_pc;
 static uae_u16 trace_store_sr;
 static int generate_address_mode;
+static int test_memory_access_mask;
 
 static uae_u8 imm8_cnt;
 static uae_u16 imm16_cnt;
 static uae_u32 imm32_cnt;
+static uae_u32 immabsw_cnt;
 static uae_u32 immabsl_cnt;
 static uae_u32 specials_cnt;
 static uae_u32 addressing_mask;
@@ -187,7 +193,9 @@ static bool valid_address(uaecptr addr, int size, int rwp)
 			goto oob;
 		if (w && lmem_rom)
 			goto oob;
-		low_memory_accessed = w ? -1 : 1;
+		if (testing_active) {
+			low_memory_accessed = w ? -1 : 1;
+		}
 		return 1;
 	}
 	if (high_memory_size != 0xffffffff && addr >= HIGH_MEMORY_START && addr <= HIGH_MEMORY_START + 0x7fff) {
@@ -197,7 +205,9 @@ static bool valid_address(uaecptr addr, int size, int rwp)
 			goto oob;
 		if (w && hmem_rom)
 			goto oob;
-		high_memory_accessed = w ? -1 : 1;
+		if (testing_active) {
+			high_memory_accessed = w ? -1 : 1;
+		}
 		return 1;
 	}
 	if (addr >= super_stack_memory - RESERVED_SUPERSTACK && addr + size < super_stack_memory) {
@@ -229,11 +239,22 @@ static bool valid_address(uaecptr addr, int size, int rwp)
 			if (addr >= opcode_memory_start && addr + size < opcode_memory_start + OPCODE_AREA)
 				goto oob;
 		}
-		test_memory_accessed = w ? -1 : 1;
+		if (testing_active) {
+			test_memory_accessed = w ? -1 : 1;
+		}
 		return 1;
 	}
 oob:
 	return 0;
+}
+
+static bool check_valid_addr(uaecptr addr, int size, int rwp)
+{
+	if (!valid_address(addr, 1, rwp))
+		return false;
+	if (!valid_address(addr + size - 1, 1, rwp))
+		return false;
+	return true;
 }
 
 static bool is_nowrite_address(uaecptr addr, int size)
@@ -304,6 +325,13 @@ static void check_bus_error(uaecptr addr, int write, int fc)
 {
 	if (!testing_active)
 		return;
+	if (!write && (fc & 2)) {
+		test_memory_access_mask |= 4;
+	} else if (!write && !(fc & 2)) {
+		test_memory_access_mask |= 1;
+	} else if (write) {
+		test_memory_access_mask |= 2;
+	}
 	if (safe_memory_start == 0xffffffff && safe_memory_end == 0xffffffff)
 		return;
 	if (addr >= safe_memory_start && addr < safe_memory_end) {
@@ -1448,6 +1476,74 @@ static uae_u32 registers[] =
 	0x00000000  // 15 replaced with stack
 };
 static int regcnts[16];
+static int fpuregcnts[8];
+static float_status fpustatus;
+
+static bool fpuregchange(int reg, floatx80 *regs)
+{
+	int regcnt = fpuregcnts[reg];
+	floatx80 v = regs[reg];
+	floatx80 add;
+
+	switch(reg)
+	{
+	case 0: // positive
+		add = floatx80_div(int32_to_floatx80(1), int32_to_floatx80(10), &fpustatus);
+		v = floatx80_add(v, add, &fpustatus);
+		break;
+	case 1: // negative
+		add = floatx80_div(int32_to_floatx80(1), int32_to_floatx80(10), &fpustatus);
+		v = floatx80_sub(v, add, &fpustatus);
+		break;
+	case 2: // positive/negative zero
+		v.high ^= 0x8000;
+		break;
+	case 3:
+		// very large value, larger than fits in double
+		v = packFloatx80(1, 0x7000 + (rand16() & 0xfff), 0x8000000000000000 | (((uae_u64)rand32()) << 32));
+		if (regcnt & 1) {
+			v.high ^= 0x8000;
+		}
+		break;
+	case 4:
+		// value that fits in double but does not fit in single
+		v = packFloatx80(1, 0x700 + rand8(), 0x8000000000000000 | (((uae_u64)rand32()) << 32));
+		if (regcnt & 1) {
+			v.high ^= 0x8000;
+		}
+		break;
+	case 5:
+	case 6:
+		// random
+		v = int32_to_floatx80(rand32());
+		for (int i = 0; i < 10; i++) {
+			uae_u64 n = rand32() | (((uae_u64)rand16()) << 32);
+			// don't create denormals yet
+			if (!((v.low + n) & 0x8000000000000000)) {
+				v.low |= 0x8000000000000000;
+				continue;
+			}
+			v.low += n;
+			break;
+		}
+		break;
+	case 7: // +NaN, -Nan, +Inf, -Inf
+		if ((regcnt & 3) == 0) {
+			v = floatx80_default_nan(NULL);
+		} else if ((regcnt & 3) == 1) {
+			v = floatx80_default_nan(NULL);
+			v.high ^= 0x8000;
+		} else if ((regcnt & 3) == 2) {
+			v = packFloatx80(0, 0x7FFF, floatx80_default_infinity_low);
+		} else if ((regcnt & 3) == 3) {
+			v = packFloatx80(1, 0x7FFF, floatx80_default_infinity_low);
+		}
+		break;
+	}
+	fpuregcnts[reg]++;
+	regs[reg] = v;
+	return true;
+}
 
 static bool regchange(int reg, uae_u32 *regs)
 {
@@ -1923,47 +2019,96 @@ static void save_data(uae_u8 *dst, const TCHAR *dir)
 }
 
 static int full_format_cnt;
+static int fpu_imm_cnt;
 
-static uaecptr putfpuimm(uaecptr pc, int opcodesize, int *isconstant)
+static const int bytesizes[] = { 4, 4, 12, 12, 2, 8, 1, 12 };
+static int fpuopsize;
+
+static int putfpuimm(uaecptr addr, int opcodesize, int *isconstant)
 {
-	// TODO: generate sane FPU immediates
+	uaecptr start = addr;
+
 	switch (opcodesize)
 	{
 	case 0: // L
-		put_long_test(pc, rand32());
-		pc += 4;
+		put_long_test(addr, rand32());
+		addr += 4;
 		break;
 	case 4: // W
-		put_word_test(pc, rand16());
-		pc += 2;
+		put_word_test(addr, rand16());
+		addr += 2;
 		break;
 	case 6: // B
-		put_word_test(pc, rand16());
-		pc += 2;
+		put_byte_test(addr, rand8());
+		addr += 1;
 		break;
 	case 1: // S
-		put_long(pc, rand32());
-		pc += 4;
-		break;
-	case 2: // X
-		put_long(pc, rand32());
-		put_long(pc + 4, rand32());
-		put_long(pc + 8, rand32());
-		pc += 12;
-		break;
-	case 3: // P
-		put_long(pc, rand32());
-		put_long(pc + 4, rand32());
-		put_long(pc + 8, rand32());
-		pc += 12;
-		break;
-	case 5: // D
-		put_long(pc, rand32());
-		put_long(pc + 4, rand32());
-		pc += 8;
+	{
+		floatx80 v;
+		if (fpu_imm_cnt & 1) {
+			v = int32_to_floatx80(rand32());
+		} else {
+			v = fpuregisters[(fpu_imm_cnt >> 1) & 7];
+		}
+		fpu_imm_cnt++;
+		float32 v2 = floatx80_to_float32(v, &fpustatus);
+		put_long_test(addr, v2);
+		addr += 4;
 		break;
 	}
-	return pc;
+	case 2: // X
+	{
+		floatx80 v;
+		if (fpu_imm_cnt & 1) {
+			v = int32_to_floatx80(rand32());
+		} else {
+			v = fpuregisters[(fpu_imm_cnt >> 1) & 7];
+		}
+		fpu_imm_cnt++;
+		put_long_test(addr + 0, v.high);
+		put_long_test(addr + 4, v.low >> 32);
+		put_long_test(addr + 8, v.low);
+		addr += 12;
+		break;
+	}
+	case 3: // P
+	{
+		fpdata fpd = { 0 };
+		if (fpu_imm_cnt & 1) {
+			fpd.fpx = int32_to_floatx80(rand32());
+		} else {
+			fpd.fpx = fpuregisters[(fpu_imm_cnt >> 1) & 7];
+		}
+		fpu_imm_cnt++;
+		uae_u32 out[3];
+		fpp_from_pack(&fpd, out, (rand8() & 63) - 31);
+		put_long_test(addr + 0, out[0]);
+		put_long_test(addr + 4, out[1]);
+		put_long_test(addr + 8, out[2]);
+		addr += 12;
+		break;
+	}
+	case 5: // D
+	{
+		floatx80 v;
+		if (fpu_imm_cnt & 1) {
+			v = int32_to_floatx80(rand32());
+		} else {
+			v = fpuregisters[(fpu_imm_cnt >> 1) & 7];
+		}
+		fpu_imm_cnt++;
+		float64 v2 = floatx80_to_float64(v, &fpustatus);
+		put_long_test(addr + 0, v2 >> 32);
+		put_long_test(addr + 4, v2);
+		addr += 8;
+		break;
+	}
+	}
+	if (out_of_test_space) {
+		wprintf(_T(" putfpuimm out of bounds access!?"));
+		abort();
+	}
+	return addr - start;
 }
 
 static int ea_state_found[3];
@@ -2034,8 +2179,10 @@ static int analyze_address(struct instr *dp, int srcdst, uae_u32 addr)
 	return 1;
 }
 
+static int generate_fpu_memory_read(uae_u16 opcode, uaecptr pc, struct instr *dp, int *isconstant, uae_u32 *eap, int *regused);
+
 // generate mostly random EA.
-static int create_ea_random(uae_u16 *opcodep, uaecptr pc, int mode, int reg, struct instr *dp, int *isconstant, int srcdst, int fpuopcode, int opcodesize, uae_u32 *eap, int *regused)
+static int create_ea_random(uae_u16 *opcodep, uaecptr pc, int mode, int reg, struct instr *dp, int *isconstant, int srcdst, int fpuopcode, int opcodesize, uae_u32 *eap, int *regused, int *fpuregused)
 {
 	uaecptr old_pc = pc;
 	uae_u16 opcode = *opcodep;
@@ -2059,6 +2206,8 @@ static int create_ea_random(uae_u16 *opcodep, uaecptr pc, int mode, int reg, str
 		}
 		break;
 	case Areg:
+		*regused = reg + 8;
+		break;
 	case Aind:
 	case Aipi:
 		*regused = reg + 8;
@@ -2066,7 +2215,11 @@ static int create_ea_random(uae_u16 *opcodep, uaecptr pc, int mode, int reg, str
 		break;
 	case Apdi:
 		*regused = reg + 8;
-		*eap = cur_registers[reg + 8] - (1 << dp->size);
+		if (fpuopsize < 0) {
+			*eap = cur_registers[reg + 8] - (1 << dp->size);
+		} else {
+			*eap = cur_registers[reg + 8] - bytesizes[fpuopsize];
+		}
 		break;
 	case Ad16:
 	{
@@ -2077,8 +2230,13 @@ static int create_ea_random(uae_u16 *opcodep, uaecptr pc, int mode, int reg, str
 			v = rand16();
 			addr = cur_registers[reg + 8] + (uae_s16)v;
 			*regused = reg + 8;
-			if (analyze_address(dp, srcdst, addr))
-				break;
+			if (fpuopsize >= 0) {
+				if (check_valid_addr(addr, bytesizes[fpuopsize], 2))
+					break;
+			} else {
+				if (analyze_address(dp, srcdst, addr))
+					break;
+			}
 			maxcnt--;
 			if (maxcnt < 0)
 				break;
@@ -2098,8 +2256,13 @@ static int create_ea_random(uae_u16 *opcodep, uaecptr pc, int mode, int reg, str
 		for (;;) {
 			v = rand16();
 			addr = pct + (uae_s16)v;
-			if (analyze_address(dp, srcdst, addr))
-				break;
+			if (fpuopsize >= 0) {
+				if (check_valid_addr(addr, bytesizes[fpuopsize], 2))
+					break;
+			} else {
+				if (analyze_address(dp, srcdst, addr))
+					break;
+			}
 			maxcnt--;
 			if (maxcnt < 0)
 				break;
@@ -2139,6 +2302,9 @@ static int create_ea_random(uae_u16 *opcodep, uaecptr pc, int mode, int reg, str
 				addr = mode == PC8r ? pc + 2 - 2 : cur_registers[reg + 8];
 				*regused = v >> 12;
 				add = cur_registers[v >> 12];
+				if (currprefs.cpu_model >= 68020) {
+					add <<= (v >> 9) & 3; // SCALE
+				}
 				if (v & 0x0800) {
 					// L
 					addr += add;
@@ -2146,14 +2312,16 @@ static int create_ea_random(uae_u16 *opcodep, uaecptr pc, int mode, int reg, str
 					// W
 					addr += (uae_s16)add;
 				}
-				if (currprefs.cpu_model >= 68020) {
-					add <<= (v >> 9) & 3; // SCALE
-				}
 				addr += (uae_s8)(v & 0xff); // DISPLACEMENT
-				if (other_targetea_same(srcdst, addr))
-					continue;
-				if (analyze_address(dp, srcdst, addr))
-					break;
+				if (fpuopsize >= 0) {
+					if (check_valid_addr(addr, bytesizes[fpuopsize], 2))
+						break;
+				} else {
+					if (other_targetea_same(srcdst, addr))
+						continue;
+					if (analyze_address(dp, srcdst, addr))
+						break;
+				}
 				maxcnt--;
 				if (maxcnt < 0)
 					break;
@@ -2186,14 +2354,13 @@ static int create_ea_random(uae_u16 *opcodep, uaecptr pc, int mode, int reg, str
 			uaecptr pce = pc;
 			pc += 2;
 			// calculate lenght of extension
-			ShowEA_disp(&pce, mode == Ad8r ? regs.regs[reg + 8] : pce, NULL, NULL);
+			*eap = ShowEA_disp(&pce, mode == Ad8r ? regs.regs[reg + 8] : pce, NULL, NULL);
 			while (pc < pce) {
 				v = rand16();
 				put_word_test(pc, v);
 				pc += 2;
 			}
 			*isconstant = 128;
-			*eap = 1;
 		}
 		break;
 	}
@@ -2204,12 +2371,22 @@ static int create_ea_random(uae_u16 *opcodep, uaecptr pc, int mode, int reg, str
 			return -1;
 		for (;;) {
 			v = rand16();
+			if (immabsw_cnt & 1)
+				v |= 0x8000;
+			else
+				v &= ~0x8000;
+			immabsw_cnt++;
 			if (v >= 0x8000)
 				v |= 0xffff0000;
-			if (other_targetea_same(srcdst, (uae_s32)(uae_s16)v))
-				continue;
-			if (analyze_address(dp, srcdst, v))
-				break;
+			if (fpuopsize >= 0) {
+				if (check_valid_addr((uae_s32)(uae_s16)v, bytesizes[fpuopsize], 2))
+					break;
+			} else {
+				if (other_targetea_same(srcdst, (uae_s32)(uae_s16)v))
+					continue;
+				if (analyze_address(dp, srcdst, v))
+					break;
+			}
 		}
 		put_word_test(pc, v);
 		*isconstant = 16;
@@ -2237,10 +2414,15 @@ static int create_ea_random(uae_u16 *opcodep, uaecptr pc, int mode, int reg, str
 				v = opcode_memory_start + offset;
 			}
 			immabsl_cnt++;
-			if (other_targetea_same(srcdst, v))
-				continue;
-			if (analyze_address(dp, srcdst, v))
-				break;
+			if (fpuopsize >= 0) {
+				if (check_valid_addr(v, bytesizes[fpuopsize], 2))
+					break;
+			} else {
+				if (other_targetea_same(srcdst, v))
+					continue;
+				if (analyze_address(dp, srcdst, v))
+					break;
+			}
 		}
 		put_long_test(pc, v);
 		*isconstant = 32;
@@ -2249,15 +2431,14 @@ static int create_ea_random(uae_u16 *opcodep, uaecptr pc, int mode, int reg, str
 		break;
 	}
 	case imm:
-		if (fpuopcode >= 0 && opcodesize < 8) {
-			pc = putfpuimm(pc, opcodesize, isconstant);
+		if (fpuopsize >= 0) {
+			pc += putfpuimm(pc, fpuopsize, isconstant);
 		} else {
 			if (dp->size == sz_long) {
 				put_long_test(pc, rand32());
 				*isconstant = 32;
 				pc += 4;
-			}
-			else {
+			} else {
 				put_word_test(pc, rand16());
 				*isconstant = 16;
 				pc += 2;
@@ -2283,9 +2464,11 @@ static int create_ea_random(uae_u16 *opcodep, uaecptr pc, int mode, int reg, str
 	{
 		// word immediate
 		if (fpuopcode >= 0) {
+			int extra = 0;
 			uae_u16 v = 0;
-			if (opcodesize == 7) {
-				// FMOVECR
+			if (opcodesize == 7 && fpuopcode == 0) {
+				// FMOVECR (which is technically non-existing FMOVE.P
+				// with Packed-Decimal Real with Dynamic k-Factor.
 				v = 0x4000;
 				v |= opcodesize << 10;
 				v |= imm16_cnt & 0x3ff;
@@ -2307,26 +2490,50 @@ static int create_ea_random(uae_u16 *opcodep, uaecptr pc, int mode, int reg, str
 					*isconstant = -1;
 			} else {
 				v |= fpuopcode;
-				if (imm16_cnt & 1) {
-					// EA to FP reg
+				imm16_cnt++;
+				if ((imm16_cnt & 3) == 0) {
+					// FPUOP EA,FPx
 					v |= 0x4000;
 					v |= opcodesize << 10;
-					imm16_cnt++;
-				} else {
-					// FP reg to FP reg
-					v |= ((imm16_cnt >> 1) & 7) << 10;
-					// clear mode/reg field
-					opcode &= ~0x3f;
-					imm16_cnt++;
+					fpuopsize = (v >> 10) & 7;
+					// generate source addressing mode
+					extra = generate_fpu_memory_read(opcode, pc + 2, dp, isconstant, eap, regused);
+					if (extra < 0)
+						return -2;
+					v |= ((imm16_cnt >> 2) & 7) << 7;
+					*fpuregused = (v >> 7) & 7;
+					*isconstant = 8 * 2;
+				} else if ((imm16_cnt & 3) == 1) {
+					// FPUOP FPx,FPx
+					v |= ((imm16_cnt >> 2) & 7) << 10;
+					v |= ((imm16_cnt >> 5) & 7) << 7;
+					if (opcode & 0x3f) {
+						// mode/reg field non-zero: we already processed same FPU instruction
+						return -2;
+					}
 					if (opcodesize != 2) {
 						// not X: skip
 						return -2;
 					}
+					*fpuregused = (v >> 10) & 7;
+					*isconstant = 8 * 8 * 2;
+				} else if ((imm16_cnt & 3) == 2) {
+					if (fpuopcode != 0)
+						return -2;
+					// FMOVE FPx,EA
+					v |= 0x2000 | 0x4000;
+					v |= opcodesize << 10;
+					int srcspec = (v >> 10) & 7;
+					v |= ((imm16_cnt >> 2) & 7) << 7;
+					*fpuregused = (v >> 7) & 7;
+					*isconstant = 8 * 2;
+				} else {
+					return -2;
 				}
-				*isconstant = 16;
 			}
 			put_word_test(pc, v);
 			pc += 2;
+			pc += extra;
 		} else {
 			if (opcodecnt == 1) {
 				// STOP #xxxx: test all combinations
@@ -2443,7 +2650,7 @@ static int create_ea_random(uae_u16 *opcodep, uaecptr pc, int mode, int reg, str
 static int ea_exact_cnt;
 
 // generate exact EA (for bus error test)
-static int create_ea_exact(uae_u16 *opcodep, uaecptr pc, int mode, int reg, struct instr *dp, int *isconstant, int srcdst, int fpuopcode, int opcodesize, uae_u32 *eap, int *regused)
+static int create_ea_exact(uae_u16 *opcodep, uaecptr pc, int mode, int reg, struct instr *dp, int *isconstant, int srcdst, int fpuopcode, int opcodesize, uae_u32 *eap, int *regused, int *fpuregused)
 {
 	uae_u32 target = target_ea[srcdst];
 	ea_exact_cnt++;
@@ -2675,7 +2882,7 @@ static int create_ea_exact(uae_u16 *opcodep, uaecptr pc, int mode, int reg, stru
 	return -2;
 }
 
-static int create_ea(uae_u16 *opcodep, uaecptr pc, int mode, int reg, struct instr *dp, int *isconstant, int srcdst, int fpuopcode, int opcodesize, uae_u32 *ea, int *regused)
+static int create_ea(uae_u16 *opcodep, uaecptr pc, int mode, int reg, struct instr *dp, int *isconstant, int srcdst, int fpuopcode, int opcodesize, uae_u32 *ea, int *regused, int *fpuregused)
 {
 	int am = mode >= imm ? imm : mode;
 
@@ -2683,10 +2890,37 @@ static int create_ea(uae_u16 *opcodep, uaecptr pc, int mode, int reg, struct ins
 		return -1;
 
 	if (target_ea[srcdst] == 0xffffffff) {
-		return create_ea_random(opcodep, pc, mode, reg, dp, isconstant, srcdst, fpuopcode, opcodesize, ea, regused);
+		return create_ea_random(opcodep, pc, mode, reg, dp, isconstant, srcdst, fpuopcode, opcodesize, ea, regused, fpuregused);
 	} else {
-		return create_ea_exact(opcodep, pc, mode, reg, dp, isconstant, srcdst, fpuopcode, opcodesize, ea, regused);
+		return create_ea_exact(opcodep, pc, mode, reg, dp, isconstant, srcdst, fpuopcode, opcodesize, ea, regused, fpuregused);
 	}
+}
+
+// generate valid FPU memory access that returns valid FPU data.
+static int generate_fpu_memory_read(uae_u16 opcode, uaecptr pc, struct instr *dp, int *isconstant, uae_u32 *eap, int *regused)
+{
+	int fpuopsize_t = fpuopsize;
+	int reg = opcode & 7;
+	int mode = (opcode >> 3) & 7;
+	if (mode == 7) {
+		mode = absw + reg;
+		reg = 0;
+		if (mode == imm && fpuopsize == 6) {
+			fpuopsize = 4;
+		}
+	}
+	uaecptr addr = 0xff0000ff; // FIXME: use separate flag
+	int o = create_ea_random(&opcode, pc, mode, reg, dp, isconstant, 0, -1, 8, &addr, regused, NULL);
+	fpuopsize = fpuopsize_t;
+	if (o < 0)
+		return o;
+	if (addr != 0xff0000ff) {
+		if (!check_valid_addr(addr, bytesizes[fpuopsize], 2))
+			return -2;
+		putfpuimm(addr, fpuopsize, NULL);
+		*eap = addr;
+	}
+	return o;
 }
 
 static int imm_special;
@@ -3049,8 +3283,8 @@ static void execute_ins(uaecptr endpc, uaecptr targetpc, struct instr *dp)
 	uae_u16 opc = regs.ir;
 	uae_u16 opw1 = (opcode_memory[2] << 8) | (opcode_memory[3] << 0);
 	uae_u16 opw2 = (opcode_memory[4] << 8) | (opcode_memory[5] << 0);
-	if (opc == 0x199c 
-		&& opw1 == 0x2808
+	if (opc == 0xf200
+		&& opw1 == 0x0019
 		//&& opw2 == 0x4afc
 		)
 		printf("");
@@ -3073,6 +3307,7 @@ static void execute_ins(uaecptr endpc, uaecptr targetpc, struct instr *dp)
 	low_memory_accessed = 0;
 	high_memory_accessed = 0;
 	test_memory_accessed = 0;
+	test_memory_access_mask = 0;
 	testing_active = 1;
 	testing_active_opcode = opc;
 	hardware_bus_error = 0;
@@ -3118,6 +3353,7 @@ static void execute_ins(uaecptr endpc, uaecptr targetpc, struct instr *dp)
 		}
 
 		regs.instruction_pc = regs.pc;
+		regs.fp_ea_set = false;
 		uaecptr a7 = regs.regs[15];
 		int s = regs.s;
 
@@ -3186,13 +3422,13 @@ static void execute_ins(uaecptr endpc, uaecptr targetpc, struct instr *dp)
 				}
 				// STOP can only end with exception, fake prefetch here.
 				if (dp->mnemo == i_STOP) {
-					regs.ir = get_word_test(regs.pc + 0);
-					regs.irc = get_word_test(regs.pc + 2);
+					regs.ir = get_iword_test(regs.pc + 0);
+					regs.irc = get_iword_test(regs.pc + 2);
 				}
 			}
 			if (currprefs.cpu_model >= 68020) {
-				regs.ir = get_word_test(regs.pc + 0);
-				regs.irc = get_word_test(regs.pc + 2);
+				regs.ir = get_iword_test(regs.pc + 0);
+				regs.irc = get_iword_test(regs.pc + 2);
 			}
 			opc = regs.ir;
 			continue;
@@ -3209,8 +3445,8 @@ static void execute_ins(uaecptr endpc, uaecptr targetpc, struct instr *dp)
 			regs.ird = opc;
 
 		if (currprefs.cpu_model >= 68020) {
-			regs.ir = get_word_test(regs.pc + 0);
-			regs.irc = get_word_test(regs.pc + 2);
+			regs.ir = get_iword_test(regs.pc + 0);
+			regs.irc = get_iword_test(regs.pc + 2);
 		}
 		opc = regs.ir;
 	}
@@ -3354,18 +3590,23 @@ static uae_u8 *save_exception(uae_u8 *p, struct instr *dp)
 			case 0:
 				break;
 			case 2:
-				// instruction address
+				// instruction address or effective address
 				p = store_rel(p, 0, opcode_memory_start, gl(sf + 8), 1);
+				if (test_exception == 11 || test_exception == 55) { // FPU unimplemented?
+					*p++ = regs.fp_ea_set ? 0x01 : 0x00;
+				}
 				break;
 			case 3:
 				// effective address
 				p = store_rel(p, 0, opcode_memory_start, gl(sf + 8), 1);
+				*p++ = regs.fp_ea_set ? 0x01 : 0x00;
 				break;
 			case 4: // floating point unimplemented (68040/060)
 				// fault/effective address
 				p = store_rel(p, 0, opcode_memory_start, gl(sf + 8), 1);
 				// FSLW or PC of faulted instruction
 				p = store_rel(p, 0, opcode_memory_start, gl(sf + 12), 1);
+				*p++ = regs.fp_ea_set ? 0x01 : 0x00;
 				break;
 			case 8: // 68010 address/bus error
 				// SSW
@@ -3480,6 +3721,12 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 			size = 1;
 		else if (opcodesize == 6)
 			size = 0;
+		if (opcodesize == -1)
+			opcodesize = 8;
+	}
+
+	if (feature_instruction_size && !(feature_instruction_size & (1 << opcodesize))) {
+		return;
 	}
 
 	filecount = 0;
@@ -3497,21 +3744,26 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 
 	mn = lookup->mnemo;
 	xorshiftstate = lookup - lookuptab;
-	const TCHAR *mns = lookup->name;
+	TCHAR mns[200];
+	_tcscpy(mns, lookup->name);
 	if (fpuopcode >= 0) {
 		xorshiftstate = 128 + fpuopcode;
-		mns = fpuopcodes[fpuopcode];
+		if (fpuopcodes[fpuopcode] == NULL) {
+			_stprintf(mns, _T("FPP%02X"), fpuopcode);
+		} else {
+			_tcscpy(mns, fpuopcodes[fpuopcode]);
+		}
 		if (opcodesize == 7) {
-			mns = _T("FMOVECR");
+			_tcscpy(mns, _T("FMOVECR"));
 			xorshiftstate = 128 + 64;
 		} else if (opcodesize == 8) {
-			mns = _T("FMOVEM");
+			_tcscpy(mns, _T("FMOVEM"));
 			xorshiftstate = 128 + 64 + 1;
 		}
 	}
 	xorshiftstate += 256 * opcodesize;
 	if (ovrfilename) {
-		mns = ovrfilename;
+		_tcscpy(mns, ovrfilename);
 		for (int i = 0; i < _tcslen(ovrfilename); i++) {
 			xorshiftstate <<= 1;
 			xorshiftstate ^= ovrfilename[i];
@@ -3525,7 +3777,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 			_tcscat(dir, _T("."));
 			_tcscat(dir, sizes[size]);
 		}
-	} else {
+	} else if (fpuopcode != FPUOPP_ILLEGAL) {
 		_tcscat(dir, _T("."));
 		_tcscat(dir, fpsizes[opcodesize < 7 ? opcodesize : 2]);
 	}
@@ -3535,6 +3787,9 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 	opcodecnt = 0;
 	for (int opcode = 0; opcode < 65536; opcode++) {
 		struct instr *dp = table68k + opcode;
+		// if FPU mode: skip everything else than FPU instructions
+		if (currprefs.fpu_model && (opcode & 0xf000) != 0xf000)
+			continue;
 		// match requested mnemonic
 		if (dp->mnemo != lookup->mnemo)
 			continue;
@@ -3544,7 +3799,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 		if (size == 3 && !dp->unsized)
 			continue;
 		// skip all unsupported instructions if not specifically testing i_ILLG
-		if (lookup->mnemo != i_ILLG) {
+		if (lookup->mnemo != i_ILLG && fpuopcode != FPUOPP_ILLEGAL) {
 			if (dp->clev > cpu_lvl)
 				continue;
 			if (isunsupported(dp))
@@ -3600,28 +3855,23 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 	target_ea_opcode_cnt = 0;
 	generate_address_mode = 0;
 
-	// 1.0
-	fpuregisters[0].high = 0x3fff;
-	fpuregisters[0].low = 0x8000000000000000;
-	// -1.0
-	fpuregisters[1].high = 0xbfff;
-	fpuregisters[1].low = 0x8000000000000000;
-	// 0.0
-	fpuregisters[2].high = 0x0000;
-	fpuregisters[2].low = 0x0000000000000000;
-	// NaN
-	fpuregisters[3].high = 0x7fff;
-	fpuregisters[3].low = 0xffffffffffffffff;
-	// inf+
-	fpuregisters[4].high = 0x7fff;
-	fpuregisters[4].low = 0x0000000000000000;
-	// inf-
-	fpuregisters[5].high = 0xffff;
-	fpuregisters[5].low = 0x0000000000000000;
+	fpustatus.floatx80_rounding_precision = 80;
+	fpustatus.float_rounding_mode = float_round_nearest_even;
 
-	for (int i = 6; i < 8; i++) {
-		fpuregisters[i].high = rand16();
-		fpuregisters[i].low = (((uae_u64)rand32()) << 32) | (rand32());
+	// 1.0
+	fpuregisters[0] = int32_to_floatx80(1);
+	// -1.0
+	fpuregisters[1] = int32_to_floatx80(-1);
+	// 0.0
+	fpuregisters[2] = int32_to_floatx80(0);
+	// NaN
+	fpuregisters[7] = floatx80_default_nan(NULL);
+
+	for (int i = 3; i < 7; i++) {
+		uae_u32 v = rand32();
+		if (v < 10 || v > -10)
+			continue;
+		fpuregisters[i] = int32_to_floatx80(v);
 	}
 
 	for (int i = 0; i < MAX_REGISTERS; i++) {
@@ -3719,7 +3969,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 			if (dp->mnemo != lookup->mnemo)
 				continue;
 
-			if (lookup->mnemo != i_ILLG) {
+			if (lookup->mnemo != i_ILLG && fpuopcode != FPUOPP_ILLEGAL) {
 				// match requested size
 				if ((size >= 0 && size <= 2) && (size != dp->size || dp->unsized))
 					continue;
@@ -3768,6 +4018,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 				imm16_cnt = 0;
 				imm32_cnt = 0;
 				immabsl_cnt = 0;
+				immabsw_cnt = 0;
 				imm_special = 0;
 
 				target_ea[0] = target_ea_bak[0];
@@ -3781,9 +4032,13 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 				int oob_retries = 10;
 				// if instruction has immediate(s), repeat instruction test multiple times
 				// each round generates new random immediate(s)
-				int constant_loops = 32;
-				if (dp->mnemo == i_ILLG) {
-					constant_loops = 1;
+				int constant_loops = 256;
+				if (dp->mnemo == i_ILLG || fpuopcode == FPUOPP_ILLEGAL) {
+					if (fpumode) {
+						constant_loops = 65536;
+					} else {
+						constant_loops = 1;
+					}
 				}
 
 				while (constant_loops-- > 0) {
@@ -3807,6 +4062,8 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 
 					int srcregused = -1;
 					int dstregused = -1;
+					int srcfpuregused = -1;
+					int dstfpuregused = -1;
 
 					out_of_test_space = 0;
 					noaccesshistory = 0;
@@ -3815,6 +4072,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 					ahcnt_current = 0;
 					ahcnt_written = 0;
 					multi_mode = 0;
+					fpuopsize = -1;
 
 					target_ea[0] = target_ea_bak[0];
 					target_ea[1] = target_ea_bak[1];
@@ -3830,7 +4088,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 					regs.usp = regs.regs[15];
 					regs.isp = super_stack_memory - 0x80;
 
-					if (opc == 0x0e51)
+					if (opc == 0xf228)
 						printf("");
 					if (subtest_count >= 700)
 						printf("");
@@ -3860,7 +4118,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 						goto nextopcode;
 					}
 
-					if (dp->mnemo != i_ILLG) {
+					if (dp->mnemo != i_ILLG && fpuopcode != FPUOPP_ILLEGAL) {
 
 						pc += handle_specials_preea(opc, pc, dp);
 
@@ -3869,7 +4127,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 
 						// create source addressing mode
 						if (dp->suse) {
-							int o = create_ea(&opc, pc, dp->smode, dp->sreg, dp, &isconstant_src, 0, fpuopcode, opcodesize, &srcea, &srcregused);
+							int o = create_ea(&opc, pc, dp->smode, dp->sreg, dp, &isconstant_src, 0, fpuopcode, opcodesize, &srcea, &srcregused, &srcfpuregused);
 							if (o < 0) {
 								memcpy(opcode_memory, oldcodebytes, sizeof(oldcodebytes));
 								if (o == -1)
@@ -3915,8 +4173,8 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 						dp = table68k + opc;
 
 						// create destination addressing mode
-						if (dp->duse) {
-							int o = create_ea(&opc, pc, dp->dmode, dp->dreg, dp, &isconstant_dst, 1, fpuopcode, opcodesize, &dstea, &dstregused);
+						if (dp->duse && fpuopsize < 0) {
+							int o = create_ea(&opc, pc, dp->dmode, dp->dreg, dp, &isconstant_dst, 1, fpuopcode, opcodesize, &dstea, &dstregused, &dstfpuregused);
 							if (o < 0) {
 								memcpy(opcode_memory, oldcodebytes, sizeof(oldcodebytes));
 								if (o == -1)
@@ -3963,6 +4221,19 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 						// misc
 						pc += handle_specials_misc(opc, pc, dp, &isconstant_src);
 
+						if (fpumode) {
+							// append fnop so that we detect pending FPU exceptions immediately
+							put_long_test(pc, 0xf2800000);
+							pc += 4;
+						}
+
+					} else {
+
+						if (fpumode) {
+							put_word_test(pc, 65535 - constant_loops);
+							pc += 2;
+						}
+
 					}
 
 					// if bus error stack checking and RTE: copy USP to ISP before RTE
@@ -4004,17 +4275,19 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 					
 					uae_u32 instructionendpc = pc;
 
-					if (isconstant_src < 0 || isconstant_dst < 0) {
-						constant_loops++;
-						quick = 1;
-					} else {
-						// the smaller the immediate, the less test loops
-						if (constant_loops > isconstant_src && constant_loops > isconstant_dst)
-							constant_loops = isconstant_dst > isconstant_src ? isconstant_dst : isconstant_src;
+					if (fpuopcode != FPUOPP_ILLEGAL) {
+						if (isconstant_src < 0 || isconstant_dst < 0) {
+							constant_loops++;
+							quick = 1;
+						} else {
+							// the smaller the immediate, the less test loops
+							if (constant_loops > isconstant_src && constant_loops > isconstant_dst)
+								constant_loops = isconstant_dst > isconstant_src ? isconstant_dst : isconstant_src;
 
-						// don't do extra tests if no immediates
-						if (!isconstant_dst && !isconstant_src)
-							extra_loops = 0;
+							// don't do extra tests if no immediates
+							if (!isconstant_dst && !isconstant_src)
+								extra_loops = 0;
+						}
 					}
 
 					if (out_of_test_space) {
@@ -4238,7 +4511,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 
 						int maxflag = fpumode ? 256 : 32;
 						// if cc-instruction: always do full test
-						if (feature_flag_mode == 1 && (dp->mnemo == i_ILLG || !dp->ccuse)) {
+						if (feature_flag_mode > 1 || (feature_flag_mode == 1 && (dp->mnemo == i_ILLG || fpuopcode == FPUOPP_ILLEGAL || (!dp->ccuse && !fpumode)))) {
 							maxflag = fpumode ? 256 / 8 : 2;
 						}
 
@@ -4332,7 +4605,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 								}
 								regs.fpiar = regs.pc;
 								// condition codes
-								if (maxflag >= 32) {
+								if (maxflag > 32) {
 									fpp_set_fpsr((ccr & 15) << 24);
 									// precision and rounding
 									fpp_set_fpcr((ccr >> 4) << 4);
@@ -4387,6 +4660,18 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 							uae_u8 *pcaddr = get_addr(regs.pc, 2, 0);
 
 							// examine results
+
+							if (fpumode) {
+								// if FPU illegal test: skip unless PC equals start of instruction
+								if (fpuopcode == FPUOPP_ILLEGAL && (test_exception != 11 && test_exception != 4 && test_exception != 8)) {
+									skipped = 1;
+								}
+							}
+
+							// exception check disabled
+							if (!exceptionenabletable[test_exception]) {
+								skipped = 1;
+							}
 
 							// if only testing read bus errors, skip tests that generated only writes and vice-versa
 							// skip also all tests don't generate any bus errors
@@ -4632,7 +4917,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 					} else {
 						full_format_cnt++;
 						data_saved = 1;
-						// if test used data register as a source: modify it
+						// if test used data or fpu register as a source or destination: modify it
 						if (srcregused >= 0) {
 							uae_u32 prev = cur_registers[srcregused];
 							if (regchange(srcregused, cur_registers)) {
@@ -4643,6 +4928,16 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 							uae_u32 prev = cur_registers[dstregused];
 							if (regchange(dstregused, cur_registers)) {
 								dst = store_reg(dst, CT_DREG + dstregused, prev, cur_registers[dstregused], -1);
+							}
+						}
+						if (srcfpuregused >= 0) {
+							if (fpuregchange(srcfpuregused, cur_fpuregisters)) {
+								dst = store_fpureg(dst, CT_FPREG + srcfpuregused, cur_fpuregisters[srcfpuregused]);
+							}
+						}
+						if (dstfpuregused >= 0 && srcfpuregused != dstfpuregused) {
+							if (fpuregchange(dstfpuregused, cur_fpuregisters)) {
+								dst = store_fpureg(dst, CT_FPREG + dstfpuregused, cur_fpuregisters[dstfpuregused]);
 							}
 						}
 					}
@@ -4693,6 +4988,9 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 				}
 			}
 		nextopcode:;
+			if (fpuopcode == FPUOPP_ILLEGAL) {
+				break;
+			}
 		}
 
 		if (data_saved) {
@@ -4703,7 +5001,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 
 		if (opcodecnt == 1 && target_address == 0xffffffff && target_opcode_address == 0xffffffff && target_usp_address == 0xffffffff && subtest_count >= feature_test_rounds_opcode)
 			break;
-		if (lookup->mnemo == i_ILLG)
+		if (lookup->mnemo == i_ILLG || fpuopcode == FPUOPP_ILLEGAL)
 			break;
 
 		bool nextround = false;
@@ -4770,11 +5068,8 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 
 		if (fpumode) {
 			for (int i = 0; i < 8; i++) {
-				cur_fpuregisters[i].high = rand16();
-				cur_fpuregisters[i].low = (((uae_u64)rand32()) << 32) | (rand32());
-				if (rand16() & 1) {
-					cur_fpuregisters[i].low |= 0x8000000000000000;
-				}
+				uae_u32 v = rand32();
+				cur_fpuregisters[i] = int32_to_floatx80(v);
 			}
 		}
 	}
@@ -4799,30 +5094,27 @@ static void test_mnemo_text(const TCHAR *path, const TCHAR *mode)
 	_tcscpy(modetxt, mode);
 	my_trim(modetxt);
 	TCHAR *s = _tcschr(modetxt, '.');
-	if (s || feature_instruction_size != NULL) {
+	if (s || feature_instruction_size) {
 		TCHAR c = 0;
 		if (s) {
 			*s = 0;
 			c = _totlower(s[1]);
 		}
-		if (!c && feature_instruction_size) {
-			c = feature_instruction_size[0];
-		}
-		if (c == 'b' || c == 'B')
+		if (c == 'B')
 			sizes = 6;
-		if (c == 'w' || c == 'W')
+		if (c == 'W')
 			sizes = 4;
-		if (c == 'l' || c == 'L')
+		if (c == 'L')
 			sizes = 0;
-		if (c == 'u' || c == 'U')
+		if (c == 'U')
 			sizes = 8;
-		if (c == 's' || c == 'S')
+		if (c == 'S')
 			sizes = 1;
-		if (c == 'x' || c == 'X')
+		if (c == 'X')
 			sizes = 2;
-		if (c == 'p' || c == 'P')
+		if (c == 'P')
 			sizes = 3;
-		if (c == 'd' || c == 'D')
+		if (c == 'D')
 			sizes = 5;
 	}
 
@@ -4884,9 +5176,18 @@ static void test_mnemo_text(const TCHAR *path, const TCHAR *mode)
 				mnemo = i_FPP;
 				sizes = 8;
 				fpuopcode = 0;
+			} else if (!_tcsicmp(modetxt, _T("fillegal"))) {
+				mnemo = i_FPP;
+				fpuopcode = FPUOPP_ILLEGAL;
 			} else {
-				for (int i = 0; i < 64; i++) {
-					if (fpuopcodes[i] && !_tcsicmp(modetxt, fpuopcodes[i])) {
+				for (int i = 0; i < 128; i++) {
+					TCHAR name[100];
+					if (fpuopcodes[i]) {
+						_tcscpy(name, fpuopcodes[i]);
+					} else {
+						_stprintf(name, _T("FPP%02X"), i);
+					}
+					if (!_tcsicmp(modetxt, name)) {
 						mnemo = i_FPP;
 						fpuopcode = i;
 						break;
@@ -4905,6 +5206,8 @@ static void test_mnemo_text(const TCHAR *path, const TCHAR *mode)
 		if (fpuopcode >= 0) {
 			for (int i = 0; i < 7; i++) {
 				test_mnemo(path, lookuptab[mnemo].name, ovrname, i, fpuopcode);
+				if (fpuopcode == FPUOPP_ILLEGAL)
+					break;
 			}
 		} else {
 			if (lookuptab[mnemo].mnemo == i_ILLG) {
@@ -4918,6 +5221,10 @@ static void test_mnemo_text(const TCHAR *path, const TCHAR *mode)
 		}
 	} else {
 		test_mnemo(path, lookuptab[mnemo].name, ovrname, sizes, fpuopcode);
+		if (fpuopcode > 0 && sizes == 3) {
+			// Dynamic k-Factor packed (0 = FMOVE = FMOVECR)
+			test_mnemo(path, lookuptab[mnemo].name, ovrname, 7, fpuopcode);
+		}
 	}
 }
 
@@ -4975,11 +5282,13 @@ static bool ini_getvalx(struct ini_data *ini, const TCHAR *sections, const TCHAR
 }
 static bool ini_getstringx(struct ini_data *ini, const TCHAR *sections, const TCHAR *key, TCHAR **out)
 {
+	struct ini_context ictx;
+	ini_initcontext(ini, &ictx);
 	bool ret = false;
 	*out = NULL;
 	while (*sections) {
 		TCHAR *tout = NULL;
-		if (ini_getstring(ini, sections, key, &tout)) {
+		if (ini_getstring_multi(ini, sections, key, &tout, &ictx)) {
 			if (!_tcsicmp(tout, _T("*"))) {
 				xfree(tout);
 				if (!ini_getstring(ini, INISECTION, key, &tout)) {
@@ -4991,6 +5300,17 @@ static bool ini_getstringx(struct ini_data *ini, const TCHAR *sections, const TC
 				free(*out);
 			}
 			*out = tout;
+			TCHAR *tout2 = NULL;
+			ini_setnextasstart(ini, &ictx);
+			while (ini_getstring_multi(ini, sections, key, &tout2, &ictx)) {
+				TCHAR *out2 = xcalloc(TCHAR, _tcslen(*out) + _tcslen(tout2) + 1 + 1);
+				_tcscpy(out2, *out);
+				_tcscat(out2, _T(","));
+				_tcscat(out2, tout2);
+				xfree(*out);
+				*out = out2;
+				ini_setnextasstart(ini, &ictx);
+			}
 		}
 		sections += _tcslen(sections) + 1;
 	}
@@ -5024,6 +5344,8 @@ static int test(struct ini_data *ini, const TCHAR *sections, const TCHAR *testna
 	int v;
 
 	wprintf(_T("Generating test '%s'\n"), testname);
+
+	memset(exceptionenabletable, 1, sizeof(exceptionenabletable));
 
 	v = 0;
 	ini_getvalx(ini, sections, _T("enabled"), &v);
@@ -5105,13 +5427,25 @@ static int test(struct ini_data *ini, const TCHAR *sections, const TCHAR *testna
 	currprefs.fpu_model = 0;
 	currprefs.fpu_mode = 1;
 	ini_getvalx(ini, sections, _T("fpu"), &currprefs.fpu_model);
-	if (currprefs.fpu_model && currprefs.cpu_model < 68020) {
-		wprintf(_T("FPU requires 68020+ CPU.\n"));
-		return 0;
-	}
-	if (currprefs.fpu_model != 0 && currprefs.fpu_model != 68881 && currprefs.fpu_model != 68882 && currprefs.fpu_model != 68040 && currprefs.fpu_model != 68060) {
-		wprintf(_T("Unsupported FPU model.\n"));
-		return 0;
+	if (currprefs.fpu_model) {
+		if (currprefs.fpu_model < 0) {
+			currprefs.fpu_model = currprefs.cpu_model;
+			if (currprefs.fpu_model == 68020 || currprefs.fpu_model == 68030) {
+				currprefs.fpu_model == 68882;
+			}
+		} else if (currprefs.cpu_model >= 68040) {
+			currprefs.fpu_model = currprefs.cpu_model;
+		} else if (currprefs.cpu_model >= 68020 && currprefs.cpu_model <= 68030 && currprefs.fpu_model < 68881) {
+			currprefs.fpu_model = 68882;
+		}
+		if (currprefs.fpu_model && currprefs.cpu_model < 68020) {
+			wprintf(_T("FPU requires 68020+ CPU.\n"));
+			return 0;
+		}
+		if (currprefs.fpu_model != 68881 && currprefs.fpu_model != 68882 && currprefs.fpu_model != 68040 && currprefs.fpu_model != 68060) {
+			wprintf(_T("Unsupported FPU model.\n"));
+			return 0;
+		}
 	}
 
 	verbose = 1;
@@ -5152,6 +5486,33 @@ static int test(struct ini_data *ini, const TCHAR *sections, const TCHAR *testna
 		safe_memory_mode = 0;
 	}
 
+
+	if (ini_getstringx(ini, sections, _T("exceptions"), &vs)) {
+		bool first = true;
+		TCHAR *p = vs;
+		while (p && *p) {
+			TCHAR *pp = _tcschr(p, ',');
+			if (pp) {
+				*pp++ = 0;
+			}
+			int exc = _tstol(p);
+			bool neg = exc < 0;
+			if (exc < 0) {
+				exc = -exc;
+			}
+			if (exc <= 2 || exc >= 256) {
+				wprintf(_T("Invalid exception number %d.\n"), exc);
+				return 0;
+			}
+			if (first) {
+				memset(exceptionenabletable, neg ? 1 : 0, sizeof(exceptionenabletable));
+				first = false;
+			}
+			exceptionenabletable[exc] = neg ? 0 : 1;
+			p = pp;
+		}
+		xfree(vs);
+	}
 
 	for (int i = 0; i < MAX_TARGET_EA; i++) {
 		feature_target_ea[i][0] = 0xffffffff;
@@ -5308,10 +5669,33 @@ static int test(struct ini_data *ini, const TCHAR *sections, const TCHAR *testna
 	feature_test_rounds_opcode = 0;
 	ini_getvalx(ini, sections, _T("min_opcode_test_rounds"), &feature_test_rounds_opcode);
 
-	feature_instruction_size = NULL;
-	ini_getstringx(ini, sections, _T("feature_instruction_size"), &feature_instruction_size);
+	ini_getstringx(ini, sections, _T("feature_instruction_size"), &feature_instruction_size_text);
+	for (int i = 0; i < _tcslen(feature_instruction_size_text); i++) {
+		TCHAR c = _totupper(feature_instruction_size_text[i]);
+		int sizes = -1;
+		if (c == 'B')
+			sizes = 6;
+		else if (c == 'W')
+			sizes = 4;
+		else if (c == 'L')
+			sizes = 0;
+		else if (c == 'U')
+			sizes = 8;
+		else if (c == 'S')
+			sizes = 1;
+		else if (c == 'X')
+			sizes = 2;
+		else if (c == 'P')
+			sizes = 3;
+		else if (c == 'D')
+			sizes = 5;
+		if (sizes >= 0) {
+			feature_instruction_size |= 1 << sizes;
+		}
+	}
+	xfree(feature_instruction_size_text);
 
-	ini_getvalx(ini, sections, _T("feature_instruction_size"), &feature_test_rounds);
+	ini_getvalx(ini, sections, _T("test_rounds"), &feature_test_rounds);
 
 	v = 0;
 	ini_getvalx(ini, sections, _T("test_memory_start"), &v);
@@ -5375,6 +5759,11 @@ static int test(struct ini_data *ini, const TCHAR *sections, const TCHAR *testna
 	if (ini_getvalx(ini, sections, _T("opcode_memory_start"), &v)) {
 		opcode_memory_start = v;
 		opcode_memory = test_memory + (opcode_memory_start - test_memory_start);
+		if (opcode_memory_start < test_memory_start || opcode_memory_start + OPCODE_AREA >= test_memory_end) {
+			wprintf(_T("Opcode memory out of bounds, using default location.\n"));
+			opcode_memory = test_memory + test_memory_size / 2;
+			opcode_memory_start = test_memory_start + test_memory_size / 2;
+		}
 	} else {
 		opcode_memory = test_memory + test_memory_size / 2;
 		opcode_memory_start = test_memory_start + test_memory_size / 2;
@@ -5630,11 +6019,21 @@ static int test(struct ini_data *ini, const TCHAR *sections, const TCHAR *testna
 			if (verbose == 1)
 				verbose = 0;
 			test_mnemo_text(path, _T("FMOVECR"));
-			const TCHAR *prev = _T("");
-			for (int j = 0; j < 64; j++) {
-				if (fpuopcodes[j] && _tcscmp(prev, fpuopcodes[j])) {
-					test_mnemo_text(path, fpuopcodes[j]);
-					prev = fpuopcodes[j];
+			TCHAR prev[100];
+			prev[0] = 0;
+			TCHAR namebuf[100];
+			for (int j = 0; j < 128; j++) {
+				const TCHAR *name = fpuopcodes[j];
+				if (name == NULL) {
+					// test also one unsupported opcode
+					if (j == 0x3f) {
+						_stprintf(namebuf, _T("FPP%02X"), j);
+						name = namebuf;
+					}
+				}
+				if (name && _tcscmp(prev, name)) {
+					test_mnemo_text(path, name);
+					_tcscpy(prev, name);
 				}
 			}
 			for (int j = 1; lookuptab[j].name; j++) {
@@ -5691,7 +6090,7 @@ int __cdecl main(int argc, char *argv[])
 
 	int cpuidx = cputoindex(cpu);
 	if (cpuidx < 0) {
-		wprintf(_T("Unsupport CPU model\n"));
+		wprintf(_T("Unsupported CPU model\n"));
 		return 0;
 	}
 	maincpu[cpuidx] = 1;

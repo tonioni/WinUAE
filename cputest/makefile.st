@@ -8,7 +8,7 @@ AS=/opt/m68k-atari/bin/m68k-atari-mint-as
 CFLAGS = -O2 -m68000 -fomit-frame-pointer -msoft-float -DREVDATE=$(NOWDATE) -DREVTIME=$(NOWTIME) -DM68K -DWAITEXIT
 LINK_CFLAGS = -lm -s
 
-OBJS = main.o asm040.o atari.o \
+OBJS = main.o asm040.o asm060.o atari.o \
 	decode_ea.o globals.o opcode_handler_cpu.o opcode_handler_fpu.o \
 	opcode_handler_mmu.o opcodes_cpu.o opcodes_fpu.o opcodes_mmu.o util.o \
 	inflate.o
@@ -52,5 +52,8 @@ inflate.o: inflate.S
 asm040.o: asm040.S
 	$(AS) -m68020  -o $@ asm040.S
 
+asm060.o: asm060.S
+	$(AS) -m68020  -o $@ asm060.S
+	
 atari.o: atari.S asm.S
 	$(AS) -m68020  -o $@ atari.S

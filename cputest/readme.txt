@@ -67,6 +67,11 @@ Cycle counting requires 100% accurate timing also for following instructions:
 0xDFF006 is used for cycle counting = accuracy will be +-2 CPU cycles. 0xDFF006 behavior must be accurate.
 Currently only supported hardware for cycle counting is 7MHz 68000/68010 PAL Amiga with real Fast RAM.
 
+FPU testing: (Work in progress)
+
+68040/060 FPU test hardware must not have any 68040/060 or MMU support libraries loaded.
+
+
 --
 
 Not implemented or only partially implemented:
@@ -126,12 +131,23 @@ If mismatch is detected, opcode word(s), instruction disassembly, registers befo
 
 Change log:
 
+11.04.2020
+
+- Working FPU support. Not all tests work correctly yet.
+- Added FPU test presets.
+
 15.03.2020
 
 - Test coverage improved: If test uses data or address register as a source or destination, register gets modified after each test. Each register has different modification logic. (Some simply toggle few bits, some shift data etc..). Previously registers were static during single test round and start of each new round randomized register contents.
 - 68020+ addressing mode test sets improved.
 
 Only test generator was updated. Data structures or m68k tester has not been changed.
+
+01.03.2020
+
+- Added 68020+ test presets.
+- CPU selection changed. CPU=680x0 line at the top of ini is now the main CPU selection field. Test is generated if CPU model matches preset's CPU and preset is active. This update allows use of same preset for multiple CPU models.
+- cpu_address_space can be also used to select which CPU model is first 32-bit addressing capable model (normally 68020 or 68030).
 
 16.02.2020
 
@@ -163,9 +179,3 @@ Only test generator was updated. Data structures or m68k tester has not been cha
 - Interrupt testing (Amiga only, INTREQ bits set one by one, validate correct exception).
 - Multiple test sets can be generated and tested in single step.
 - Stack usage reduced, gzip decompression works with default 4096 byte stack.
-
-01.03.2020
-
-- Added 68020+ test presets.
-- CPU selection changed. CPU=680x0 line at the top of ini is now the main CPU selection field. Test is generated if CPU model matches preset's CPU and preset is active. This update allows use of same preset for multiple CPU models.
-- cpu_address_space can be also used to select which CPU model is first 32-bit addressing capable model (normally 68020 or 68030).
