@@ -3005,7 +3005,7 @@ static void check_address_error(const  char *name, int mode, const char *reg, in
 			}
 
 			// x,-(an): an is modified (MOVE to CCR counts as word sized)
-			if (mode == Apdi && (g_instr->size == sz_word || g_instr->size == i_MV2SR) && g_instr->mnemo != i_CLR) {
+			if (mode == Apdi && g_instr->mnemo != i_CLR) {
 				out("m68k_areg(regs, %s) = %sa;\n", reg, name);
 			}
 			bus_error_reg_add = bus_error_reg_add_old;
