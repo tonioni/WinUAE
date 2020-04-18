@@ -1739,10 +1739,15 @@ uae_u32 m68k_disasm_2 (TCHAR *buf, int bufsize, uaecptr pc, uaecptr *nextpc, int
 			_tcscpy (instrname, lookup->name);
 		ccpt = _tcsstr (instrname, _T("cc"));
 		if (ccpt != 0) {
-			if ((opcode & 0xf000) == 0xf000)
-				_tcscpy (ccpt, fpccnames[extra & 0x1f]);
-			else
-				_tcsncpy (ccpt, ccnames[dp->cc], 2);
+			if ((opcode & 0xf000) == 0xf000) {
+				if (lookup->mnemo == i_FBcc) {
+					_tcscpy(ccpt, fpccnames[opcode & 0x1f]);
+				} else {
+					_tcscpy(ccpt, fpccnames[extra & 0x1f]);
+				}
+			} else {
+				_tcsncpy(ccpt, ccnames[dp->cc], 2);
+			}
 		}
 		disasm_size (instrname, dp);
 
@@ -1959,11 +1964,9 @@ uae_u32 m68k_disasm_2 (TCHAR *buf, int bufsize, uaecptr pc, uaecptr *nextpc, int
 			int mode = opcode & 7;
 			pc += 2;
 			if (mode == 2) {
-				_tcscat(instrname, _T(","));
 				pc = ShowEA(NULL, pc, opcode, 0, imm1, sz_word, instrname, NULL, NULL, safemode);
 			} else if (mode == 3) {
-				_tcscat(instrname, _T(","));
-				pc = ShowEA(NULL, pc, opcode, 0, imm1, sz_long, instrname, NULL, NULL, safemode);
+				pc = ShowEA(NULL, pc, opcode, 0, imm2, sz_long, instrname, NULL, NULL, safemode);
 			}
 		} else if (lookup->mnemo == i_FPP) {
 			TCHAR *p;
@@ -1973,7 +1976,7 @@ uae_u32 m68k_disasm_2 (TCHAR *buf, int bufsize, uaecptr pc, uaecptr *nextpc, int
 			pc += 2;
 			if ((extra & 0xfc00) == 0x5c00) { // FMOVECR (=i_FPP with source specifier = 7)
 				fpdata fp;
-				fpu_get_constant(&fp, extra);
+				fpu_get_constant(&fp, extra & 0x7f);
 				_stprintf(instrname, _T("FMOVECR.X #0x%02x [%s],FP%d"), extra & 0x7f, fpp_print(&fp, 0), (extra >> 7) & 7);
 			} else if ((extra & 0x8000) == 0x8000) { // FMOVEM or FMOVE control register
 				int dr = (extra >> 13) & 1;
@@ -2100,10 +2103,12 @@ uae_u32 m68k_disasm_2 (TCHAR *buf, int bufsize, uaecptr pc, uaecptr *nextpc, int
 			if (deaddr)
 				*deaddr = pc;
 			if ((opcode & 0xf000) == 0xf000) {
-				if (fpp_cond(dp->cc)) {
-					buf = buf_out(buf, &bufsize, _T(" == $%08x (T)"), addr2);
-				} else {
-					buf = buf_out(buf, &bufsize, _T(" == $%08x (F)"), addr2);
+				if (currprefs.fpu_model) {
+					if (fpp_cond(dp->cc)) {
+						buf = buf_out(buf, &bufsize, _T(" == $%08x (T)"), addr2);
+					} else {
+						buf = buf_out(buf, &bufsize, _T(" == $%08x (F)"), addr2);
+					}
 				}
 			} else {
 				if (dp->mnemo == i_Bcc || dp->mnemo == i_DBcc) {
