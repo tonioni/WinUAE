@@ -61,6 +61,8 @@ extern int debug_safe_addr(uaecptr addr, int size);
 extern void debug_invalid_reg(int reg, int size, uae_u16 val);
 extern void debug_check_reg(uae_u32 addr, int write, uae_u16 v);
 extern int memwatch_access_validator;
+#define DEBUG_SPRINTF_ADDRESS 0xbfff00
+extern bool debug_sprintf(uaecptr, uae_u32, int);
 
 extern void debug_init_trainer(const TCHAR*);
 extern void debug_trainer_match(void);

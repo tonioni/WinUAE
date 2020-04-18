@@ -2242,9 +2242,23 @@ static uae_u32 REGPARAM2 cia_lgeti (uaecptr addr)
 	return cia_lget (addr);
 }
 
+
+static bool cia_debug(uaecptr addr, uae_u32 value, int size)
+{
+	if (addr == DEBUG_SPRINTF_ADDRESS || addr == DEBUG_SPRINTF_ADDRESS + 4 ||
+		(addr == DEBUG_SPRINTF_ADDRESS + 2 && currprefs.cpu_model < 68020) ||
+		(addr == DEBUG_SPRINTF_ADDRESS + 6 && currprefs.cpu_model < 68020)) {
+		return debug_sprintf(addr, value, size);
+	}
+	return false;
+}
+
 static void REGPARAM2 cia_bput (uaecptr addr, uae_u32 value)
 {
 	int r = (addr & 0xf00) >> 8;
+
+	if (cia_debug(addr, value, sz_byte))
+		return;
 
 	if (isgarynocia(addr)) {
 		dummy_put(addr, 1, false);
@@ -2283,6 +2297,9 @@ static void REGPARAM2 cia_bput (uaecptr addr, uae_u32 value)
 static void REGPARAM2 cia_wput (uaecptr addr, uae_u32 v)
 {
 	int r = (addr & 0xf00) >> 8;
+
+	if (cia_debug(addr, v, sz_word))
+		return;
 
 	if (isgarynocia(addr)) {
 		dummy_put(addr, 2, false);
@@ -2323,6 +2340,8 @@ static void REGPARAM2 cia_wput (uaecptr addr, uae_u32 v)
 
 static void REGPARAM2 cia_lput (uaecptr addr, uae_u32 value)
 {
+	if (cia_debug(addr, value, sz_long))
+		return;
 	cia_wput (addr, value >> 16);
 	cia_wput (addr + 2, value & 0xffff);
 }

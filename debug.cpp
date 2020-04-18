@@ -7217,3 +7217,146 @@ bool debug_trainer_event(int evt, int state)
 	}
 	return false;
 }
+
+#define DEBUGSPRINTF_SIZE 32
+static int debugsprintf_cnt;
+struct dsprintfstack
+{
+	uae_u32 val;
+	int size;
+};
+static dsprintfstack debugsprintf_stack[DEBUGSPRINTF_SIZE];
+static uae_u16 debugsprintf_latch, debugsprintf_latched;
+
+static void read_bstring(char *out, int max, uae_u32 addr)
+{
+	out[0] = 0;
+	if (!valid_address(addr, 1))
+		return;
+	uae_u8 l = get_byte(addr);
+	if (l > max)
+		l = max;
+	addr++;
+	for (int i = 0; i < l && i < max; i++) {
+		uae_u8 c = 0;
+		if (valid_address(addr, 1)) {
+			c = get_byte(addr);
+		}
+		if (c == 0) {
+			c = '.';
+		}
+		addr++;
+		out[i] = c;
+		out[i + 1] = 0;
+	}
+}
+
+static void read_string(char *out, int max, uae_u32 addr)
+{
+	out[0] = 0;
+	for (int i = 0; i < max; i++) {
+		uae_u8 c = 0;
+		if (valid_address(addr, 1)) {
+			c = get_byte(addr);
+		}
+		addr++;
+		out[i] = c;
+		out[i + 1] = 0;
+		if (!c)
+			break;
+	}
+}
+
+static void debug_sprintf_do(uae_u32 s)
+{
+	int cnt = 0;
+	char format[MAX_DPATH];
+	char out[MAX_DPATH];
+	read_string(format, MAX_DPATH - 1, s);
+	char *p = format;
+	char *d = out;
+	struct dsprintfstack *stack = debugsprintf_stack;
+	*d = 0;
+	for (;;) {
+		char c = *p++;
+		char cn = *p;
+		if (c == 0)
+			break;
+		if (c == '%' && cn == '%') {
+			*d++ = '%';
+			p++;
+		} else if (c == '%') {
+			if (stack >= &debugsprintf_stack[DEBUGSPRINTF_SIZE]) {
+				*d++ = '[';
+				*d++ = '?';
+				*d++ = ']';
+			} else {
+				if (cn == 'b') {
+					char tmp[MAX_DPATH];
+					read_bstring(tmp, MAX_DPATH - 1, stack->val);
+					strcpy(d, tmp);
+				} else if (cn == 's') {
+					char tmp[MAX_DPATH];
+					read_string(tmp, MAX_DPATH - 1, stack->val);
+					strcpy(d, tmp);
+				} else if (cn == 'p') {
+					sprintf(d, "%08x", stack->val);
+				} else if (cn == 'x') {
+					sprintf(d, stack->size == sz_long ? "%08x" : (stack->size == sz_word ? "%04x" : "%02x"), stack->val);
+				} else if (cn == 'd') {
+					sprintf(d, "%d", stack->val);
+				} else if (cn == 'u') {
+					sprintf(d, "%u", stack->val);
+				} else {
+					d[0] = '?';
+					d[1] = 0;
+				}
+				p++;
+				d += strlen(d);
+				stack++;
+			}
+		} else {
+			*d++ = c;
+		}
+		*d = 0;
+	}
+	write_log("%s", out);
+}
+
+bool debug_sprintf(uaecptr addr, uae_u32 val, int size)
+{
+	if (currprefs.uaeboard < 2)
+		return false;
+
+	uae_u32 v = val;
+	if (size == sz_word && currprefs.cpu_model < 68020) {
+		v &= 0xffff;
+		if (!(addr & 2)) {
+			debugsprintf_latch = v;
+			debugsprintf_latched = 1;
+		} else if (debugsprintf_latched) {
+			v |= debugsprintf_latch << 16;
+			size = sz_long;
+			if (!(addr & 4) && debugsprintf_cnt > 0) {
+				debugsprintf_cnt--;
+			}
+		}
+	}
+	if (size != sz_word) {
+		debugsprintf_latched = 0;
+	}
+	if (addr & 4) {
+		if (size != sz_long)
+			return true;
+		debug_sprintf_do(v);
+		debugsprintf_cnt = 0;
+		debugsprintf_latched = 0;
+	} else {
+		if (debugsprintf_cnt < DEBUGSPRINTF_SIZE) {
+			debugsprintf_stack[debugsprintf_cnt].val = v;
+			debugsprintf_stack[debugsprintf_cnt].size = size;
+			debugsprintf_cnt++;
+		}
+	}
+	return true;
+}
