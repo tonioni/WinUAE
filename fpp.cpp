@@ -660,8 +660,7 @@ static int fpsr_set_bsun(void)
 	regs.fpsr |= FPSR_AE_IOP;
 	
 	if (regs.fpcr & FPSR_BSUN) {
-		// logging only so far
-		write_log (_T("FPU exception: BSUN! (FPSR: %08x, FPCR: %04x)\n"), regs.fpsr, regs.fpcr);
+		write_log (_T("FPU exception: BSUN! (FPSR: %08x, FPCR: %08x)\n"), regs.fpsr, regs.fpcr);
 		if (support_exceptions && !jit_fpu()) {
 			regs.fp_exp_pend = fpsr_get_vector(FPSR_BSUN);
 			fp_exception_pending(true);
@@ -2009,31 +2008,73 @@ static int put_fp_value(fpdata *value, uae_u32 opcode, uae_u16 extra, uaecptr ol
 	return v;
 }
 
-
-int fpp_cond (int condition)
+// 68040/68060
+static const bool condition_table_040_060[] =
 {
-	int NotANumber, N, Z;
+	0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1,
+	0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1,
+	0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1,
+	0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1,
+	0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1,
+	0, 1, 0, 1, 0, 1, 0, 0, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 0, 1, 1, 1, 1, 1, 1, 0, 1,
+	0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1,
+	0, 1, 0, 1, 0, 1, 0, 0, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 0, 1, 1, 1, 1, 1, 1, 0, 1,
+	0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1,
+	0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1,
+	0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1,
+	0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1,
+	0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1,
+	0, 1, 0, 1, 0, 1, 0, 0, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 0, 1, 1, 1, 1, 1, 1, 0, 1,
+	0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1,
+	0, 1, 0, 1, 0, 1, 0, 0, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 0, 1, 1, 1, 1, 1, 1, 0, 1
+};
+// 68882
+static const bool condition_table_6888x[] =
+{
+	0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1,
+	0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1,
+	0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1,
+	0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1,
+	0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1,
+	0, 1, 0, 1, 0, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 0, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+	0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1,
+	0, 1, 0, 1, 0, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 0, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+	0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1,
+	0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1,
+	0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1,
+	0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1,
+	0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1,
+	0, 1, 0, 1, 0, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 0, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+	0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1,
+	0, 1, 0, 1, 0, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 0, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1
+};
+static const bool *condition_table = condition_table_6888x;
 
+int fpp_cond(int condition)
+{
+	condition &= 0x1f;
 #ifdef JIT
 	if (currprefs.cachesize && currprefs.compfpu) {
 		// JIT reads and writes regs.fpu_result
 		fpp_is_init(&regs.fp_result);
-		NotANumber = fpp_is_nan(&regs.fp_result);
-		N = fpp_is_neg(&regs.fp_result);
-		Z = fpp_is_zero(&regs.fp_result);
+		int NotANumber = fpp_is_nan(&regs.fp_result);
+		int I = fpp_is_infinity(&regs.fp_result);
+		int Z = fpp_is_zero(&regs.fp_result);
+		int N = fpp_is_neg(&regs.fp_result);
+		int control = (N << 3) | (Z << 2) | (I << 1) | (NotANumber << 0);
+		return condition_table[control * 32 + condition];
 	} else
 #endif
 	{
-		NotANumber = (regs.fpsr & FPSR_CC_NAN) != 0;
-		N = (regs.fpsr & FPSR_CC_N) != 0;
-		Z = (regs.fpsr & FPSR_CC_Z) != 0;
+		if ((condition & 0x10) && (regs.fpsr & FPSR_CC_NAN)) {
+			if (fpsr_set_bsun())
+				return -2;
+		}
+		int control = (regs.fpsr >> 24) & 15;
+		return condition_table[control * 32 + condition];
 	}
 
-	if ((condition & 0x10) && NotANumber) {
-		if (fpsr_set_bsun())
-			return -2;
-	}
-
+#if 0
 	switch (condition)
 	{
 		case 0x00:
@@ -2102,6 +2143,7 @@ int fpp_cond (int condition)
 			return 1;
 	}
 	return -1;
+#endif
 }
 
 static void maybe_idle_state (void)
@@ -2141,7 +2183,7 @@ void fpuop_dbcc (uae_u32 opcode, uae_u16 extra)
 		return;
 	regs.fpiar = pc - 4;
 	maybe_idle_state ();
-	cc = fpp_cond (extra & 0x3f);
+	cc = fpp_cond (extra);
 	if (cc < 0) {
 		if (cc == -2)
 			return; // BSUN
@@ -2166,6 +2208,8 @@ void fpuop_scc (uae_u32 opcode, uae_u16 extra)
 	bool adset = false;
 	int cc;
 	uaecptr pc = m68k_getpc () - 4;
+	int mode = (opcode >> 3) & 7;
+	int reg = opcode & 7;
 
 	if (fp_exception_pending(true))
 		return;
@@ -2178,7 +2222,8 @@ void fpuop_scc (uae_u32 opcode, uae_u16 extra)
 	if (fault_if_no_6888x (opcode, extra, pc))
 		return;
 
-	if (opcode & 0x38) {
+	// EA calculation needed? (Mode != 000)
+	if (mode) {
 		if (get_fp_ad (opcode, &ad, &adset) == 0) {
 			fpu_noinst (opcode, regs.fpiar);
 			return;
@@ -2190,15 +2235,26 @@ void fpuop_scc (uae_u32 opcode, uae_u16 extra)
 
 	regs.fpiar = pc;
 	maybe_idle_state ();
-	cc = fpp_cond (extra & 0x3f);
+	cc = fpp_cond (extra);
 	if (cc < 0) {
 		if (cc == -2)
 			return; // BSUN
 		fpu_op_illg (opcode, 0, false, regs.fpiar);
-	} else if ((opcode & 0x38) == 0) {
-		m68k_dreg (regs, opcode & 7) = (m68k_dreg (regs, opcode & 7) & ~0xff) | (cc ? 0xff : 0x00);
+	} else if (!mode) {
+		m68k_dreg (regs, reg) = (m68k_dreg (regs, reg) & ~0xff) | (cc ? 0xff : 0x00);
 	} else {
+		if (mode == Apdi) {
+			mmufixup[0].reg = reg;
+			mmufixup[0].value = m68k_areg(regs, reg);
+			fpu_mmu_fixup = true;
+			ad -= reg == 7 ? 2 : 1;
+			m68k_areg(regs, reg) = ad;
+		}
 		x_cp_put_byte (ad, cc ? 0xff : 0x00);
+		if (mode == Aipi) {
+			m68k_areg(regs, reg) += reg == 7 ? 2 : 1;
+		}
+		fpu_mmu_fixup = false;
 	}
 }
 
@@ -2219,7 +2275,7 @@ void fpuop_trapcc (uae_u32 opcode, uaecptr oldpc, uae_u16 extra)
 
 	regs.fpiar = oldpc;
 	maybe_idle_state ();
-	cc = fpp_cond (extra & 0x3f);
+	cc = fpp_cond (extra);
 	if (cc < 0) {
 		if (cc == -2)
 			return; // BSUN
@@ -2248,7 +2304,7 @@ void fpuop_bcc(uae_u32 opcode, uaecptr oldpc, uae_u32 extra)
 		regs.fpiar = oldpc - 2;
 	}
 	maybe_idle_state();
-	cc = fpp_cond(opcode & 0x3f);
+	cc = fpp_cond(opcode);
 	if (cc < 0) {
 		if (cc == -2)
 			return; // BSUN
@@ -3408,6 +3464,11 @@ static void get_features(void)
 {
 	support_exceptions = (fpp_get_support_flags() & FPU_FEATURE_EXCEPTIONS) != 0;
 	support_denormals = (fpp_get_support_flags() & FPU_FEATURE_DENORMALS) != 0;
+	if (currprefs.fpu_model == 68040 || currprefs.fpu_model == 68060) {
+		condition_table = condition_table_040_060;
+	} else {
+		condition_table = condition_table_6888x;
+	}
 }
 
 void fpu_clearstatus(void)
@@ -3499,6 +3560,7 @@ void fpu_reset (void)
 
 	regs.fpu_exp_state = 0;
 	regs.fp_unimp_pend = 0;
+	regs.fp_ea_set = false;
 	get_features();
 	fpp_set_fpcr (0);
 	fpp_set_fpsr (0);
@@ -3534,6 +3596,7 @@ uae_u8 *restore_fpu (uae_u8 *src)
 	regs.fpcr = restore_u32 ();
 	regs.fpsr = restore_u32 ();
 	regs.fpiar = restore_u32 ();
+	regs.fp_ea_set = (flags & 0x00000001) != 0;
 	fpsr_make_status();
 	if (flags & 0x80000000) {
 		restore_u32 ();
@@ -3597,7 +3660,7 @@ uae_u8 *save_fpu (int *len, uae_u8 *dstptr)
 	else
 		dstbak = dst = xmalloc (uae_u8, 4+4+8*10+4+4+4+4+4+2*10+3*(4+2));
 	save_u32 (currprefs.fpu_model);
-	save_u32 (0x80000000 | 0x20000000);
+	save_u32 (0x80000000 | 0x20000000 | (regs.fp_ea_set ? 0x00000001 : 0x00000000));
 	for (i = 0; i < 8; i++) {
 		fpp_from_exten_fmovem(&regs.fp[i], &w1, &w2, &w3);
 		save_u16 (w1 >> 16);
