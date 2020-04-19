@@ -4250,6 +4250,18 @@ void doint(void)
 		set_special (SPCFLAG_DOINT);
 }
 
+static void check_debugger(void)
+{
+	if (regs.spcflags & SPCFLAG_BRK) {
+		unset_special(SPCFLAG_BRK);
+#ifdef DEBUGGER
+		if (debugging) {
+			debug();
+		}
+#endif
+	}
+}
+
 static int do_specialties (int cycles)
 {
 	bool stopped_debug = false;
@@ -4581,6 +4593,7 @@ static void m68k_run_1 (void)
 	bool exit = false;
 
 	while (!exit) {
+		check_debugger();
 		TRY (prb) {
 			while (!exit) {
 				r->opcode = r->ir;
@@ -4649,6 +4662,7 @@ static void m68k_run_1_ce (void)
 	bool exit = false;
 
 	while (!exit) {
+		check_debugger();
 		TRY (prb) {
 			if (first) {
 				if (cpu_tracer < 0) {
@@ -5317,6 +5331,7 @@ static void m68k_run_mmu060 (void)
 
 	check_halt();
 	while (!halt) {
+		check_debugger();
 		TRY (prb) {
 			for (;;) {
 				f.cznv = regflags.cznv;
@@ -5368,6 +5383,7 @@ static void m68k_run_mmu040 (void)
 
 	check_halt();
 	while (!halt) {
+		check_debugger();
 		TRY (prb) {
 			for (;;) {
 				f.cznv = regflags.cznv;
@@ -5422,6 +5438,7 @@ static void m68k_run_mmu030 (void)
 	mmu030_fake_prefetch = -1;
 	check_halt();
 	while(!halt) {
+		check_debugger();
 		TRY (prb) {
 			for (;;) {
 				int cnt;
@@ -5556,6 +5573,7 @@ static void m68k_run_3ce (void)
 	int extracycles = 0;
 
 	while (!exit) {
+		check_debugger();
 		TRY(prb) {
 			while (!exit) {
 				r->instruction_pc = m68k_getpc();
@@ -5602,6 +5620,7 @@ static void m68k_run_3p(void)
 	int cycles;
 
 	while (!exit)  {
+		check_debugger();
 		TRY(prb) {
 			while (!exit) {
 				r->instruction_pc = m68k_getpc();
@@ -5646,6 +5665,7 @@ static void m68k_run_2ce (void)
 	bool first = true;
 
 	while (!exit) {
+		check_debugger();
 		TRY(prb) {
 			if (first) {
 				if (cpu_tracer < 0) {
@@ -5789,6 +5809,7 @@ static void m68k_run_2p (void)
 	bool first = true;
 
 	while (!exit) {
+		check_debugger();
 		TRY(prb) {
 
 			if (first) {
@@ -5969,6 +5990,7 @@ static void m68k_run_2_000(void)
 	bool exit = false;
 
 	while (!exit) {
+		check_debugger();
 		TRY(prb) {
 			while (!exit) {
 				r->instruction_pc = m68k_getpc ();
@@ -6012,6 +6034,7 @@ static void m68k_run_2_020(void)
 	bool exit = false;
 
 	while (!exit) {
+		check_debugger();
 		TRY(prb) {
 			while (!exit) {
 				r->instruction_pc = m68k_getpc();
