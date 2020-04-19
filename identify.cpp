@@ -62,6 +62,22 @@ const struct mem_labels trap_labels[] =
 	{ 0, 0 }
 };
 
+const struct mem_labels extraexp_labels[] =
+{
+	{ _T("FP BSUN"),	0x00c0 },
+	{ _T("FP INEXACT"), 0x00c4 },
+	{ _T("FP DIV BY 0"),0x00c8 },
+	{ _T("FP UNDERF"),	0x00cc },
+	{ _T("FP OPERR"),	0x00d0 },
+	{ _T("FP OVERF"),	0x00d4 },
+	{ _T("FP SNAN"),	0x00d8 },
+	{ _T("FP UNIMP DT"),0x00dc },
+	{ _T("MMU CNFERR"),	0x00e0 },
+	{ _T("UNIMP EA"),   0x00f0 },
+	{ _T("UNIMP INT"),	0x00f4 },
+	{ NULL, 0 }
+};
+
 const struct mem_labels mem_labels[] =
 {
 	{ _T("CIAB PRA"),   0xBFD000 },
@@ -124,7 +140,7 @@ const struct customData custd[] =
 	{ _T("VHPOSR"),   0xdff006, 0 }, /* Read vert and horiz position of beam */
 	{ _T("DSKDATR"),  0xdff008, CD_NONE }, /* Disk data early read (dummy address) */
 	{ _T("JOY0DAT"),  0xdff00A, 0 }, /* Joystick-mouse 0 data (vert,horiz) */
-	{ _T("JOT1DAT"),  0xdff00C, 0 }, /* Joystick-mouse 1 data (vert,horiz) */
+	{ _T("JOY1DAT"),  0xdff00C, 0 }, /* Joystick-mouse 1 data (vert,horiz) */
 	{ _T("CLXDAT"),   0xdff00E, 0 }, /* Collision data reg. (read and clear) */
 	{ _T("ADKCONR"),  0xdff010, 0 }, /* Audio,disk control register read */
 	{ _T("POT0DAT"),  0xdff012, 0 }, /* Pot counter pair 0 data (vert,horiz) */
