@@ -1787,7 +1787,20 @@ static int put_fp_value2(fpdata *value, uae_u32 opcode, uae_u16 extra, uaecptr o
 					break;
 				case 3: // packed
 				case 7: // packed
+				{
+					// K-factor size and other errors are checked even if EA is illegal
+					if (!currprefs.fpu_no_unimplemented || currprefs.cpu_model < 68040) {
+						uae_u32 wrd[3];
+						int kfactor = size == 7 ? m68k_dreg(regs, (extra >> 4) & 7) : extra;
+						kfactor &= 127;
+						if (kfactor & 64)
+							kfactor |= ~63;
+						fpp_normalize(value);
+						fpp_from_pack(value, wrd, kfactor);
+						fpp_get_status(&regs.fpsr);
+					}
 					return -2;
+				}
 				default:
 					return 0;
 			}
@@ -2819,9 +2832,15 @@ static uaecptr fmovem2mem (uaecptr ad, uae_u32 list, int incr, int regdir)
 				fpp_from_exten_fmovem(&regs.fp[reg], &wrd1, &wrd2, &wrd3);
 				if (incr < 0)
 					ad -= 3 * 4;
-				x_cp_put_long(ad + 0, wrd1);
-				x_cp_put_long(ad + 4, wrd2);
-				x_cp_put_long(ad + 8, wrd3);
+				if (regdir < -1 || regdir > 1) {
+					x_cp_put_long(ad + 0, wrd3);
+					x_cp_put_long(ad + 4, wrd2);
+					x_cp_put_long(ad + 8, wrd1);
+				} else {
+					x_cp_put_long(ad + 0, wrd1);
+					x_cp_put_long(ad + 4, wrd2);
+					x_cp_put_long(ad + 8, wrd3);
+				}
 				if (incr > 0)
 					ad += 3 * 4;
 			}
@@ -3398,7 +3417,8 @@ static void fpuop_arithmetic2 (uae_u32 opcode, uae_u16 extra)
 					return;
 				}
 
-				switch ((extra >> 11) & 3)
+				int mode = (extra >> 11) & 3;
+				switch (mode)
 				{
 					case 0:	/* static pred */
 					case 2:	/* static postinc */
@@ -3411,22 +3431,56 @@ static void fpuop_arithmetic2 (uae_u32 opcode, uae_u16 extra)
 						list = m68k_dreg (regs, (extra >> 4) & 7) & 0xff;
 						break;
 				}
-				if (((opcode & 0x38) == 0x20) || (currprefs.fpu_model == 68881 || currprefs.fpu_model == 68882)) {
-					// -(an)
+
+				if (currprefs.fpu_model >= 68881) {
+					// 6888x works mostly as documented
 					if ((opcode & 0x38) == 0x20) {
 						incr = -1;
-						if (currprefs.fpu_model == 68060) {
-							regdir = -1;
-						}
 					}
-					switch ((extra >> 11) & 3)
+					switch (mode)
 					{
-						case 0:	/* static pred */
-						case 1:	/* dynamic pred */
+					case 0:	/* static pred */
+					case 1:	/* dynamic pred */
 						regdir = -1;
 						break;
 					}
+				} else if (currprefs.fpu_model == 68040) {
+					// 68040 is weird..
+					if ((opcode & 0x38) == 0x20) {
+						incr = -1;
+					}
+					switch (mode)
+					{
+					case 0:	/* static pred */
+						if ((opcode & 0x38) == 0x20 || (extra & 0x2000)) {
+							regdir = -1;
+						}
+						break;
+					case 1:	/* dynamic pred */
+						if ((opcode & 0x38) == 0x20 || (extra & 0x2000)) {
+							regdir = -1;
+						}
+						break;
+					}
+					// FMOVEM x,any EA that is not -(An): reversed write order.
+					// (low mantissa, high mantissa, exponent)!
+					if (list && (extra & 0x2000) && regdir < 0 && incr > 0 && (opcode & 0x38) != 0x20) {
+						regdir = -2;
+					}
+					// FMOVEM x,-(An) but postinc: also reversed.
+					if (list && (extra & 0x2000) && regdir > 0 && incr < 0) {
+						regdir = 2;
+					}
+					// 68040 hangs if FMOVEM control registers
+					// has undefined bit 10 set.
+				} else {
+					// 68060 simply ignores MODE field completely.
+					if ((opcode & 0x38) == 0x20) {
+						incr = -1;
+						regdir = -1;
+					}
 				}
+
 				if (extra & 0x2000) {
 					/* FMOVEM FPP->Memory */
 					ad = fmovem2mem(ad, list, incr, regdir);
