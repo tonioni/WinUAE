@@ -458,7 +458,14 @@ void getfilterrect2(int monid, RECT *sr, RECT *dr, RECT *zr, int dst_width, int 
 
 			cv = 1;
 
-		} else if (scalemode == AUTOSCALE_CENTER || scalemode == AUTOSCALE_RESIZE) {
+		} else if (scalemode == AUTOSCALE_CENTER) {
+
+			cv = get_custom_limits(&cw, &ch, &cx, &cy, &crealh);
+			if (cv) {
+				store_custom_limits(cw, ch, cx, cy);
+			}
+
+		} else if (scalemode == AUTOSCALE_RESIZE) {
 
 			cv = get_custom_limits (&cw, &ch, &cx, &cy, &crealh);
 			if (cv) {
