@@ -131,6 +131,11 @@ If mismatch is detected, opcode word(s), instruction disassembly, registers befo
 
 Change log:
 
+19.04.2020
+
+- * = ignore rest of name, for example "cputest basic/neg*" will run NEG.B, NEG.W and NEG.L tests.
+- FMOVECR, FMOVEM (includes FMOVE to/from control register), FDBcc, FBcc, FTRAPcc and FScc tests improved.
+
 11.04.2020
 
 - Working FPU support. Not all tests work correctly yet.

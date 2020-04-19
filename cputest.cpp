@@ -130,6 +130,7 @@ static uae_u32 imm32_cnt;
 static uae_u32 immabsw_cnt;
 static uae_u32 immabsl_cnt;
 static uae_u32 specials_cnt;
+static uae_u32 immfpu_cnt;
 static uae_u32 addressing_mask;
 static int opcodecnt;
 static int cpu_stopped;
@@ -164,6 +165,11 @@ static int noaccesshistory = 0;
 
 #define MAX_ACCESSHIST 16000
 static struct accesshistory ahist[MAX_ACCESSHIST];
+
+void cputester_fault(void)
+{
+	test_exception = -1;
+}
 
 static int is_superstack_use_required(void)
 {
@@ -372,6 +378,27 @@ static uae_u16 get_iword_test(uaecptr addr)
 		add_memory_cycles(1);
 		return (p[0] << 8) | (p[1]);
 	}
+}
+
+uae_u32 get_ilong_test(uaecptr addr)
+{
+	uae_u32 v;
+	check_bus_error(addr, 0, regs.s ? 6 : 2);
+	if (addr & 1) {
+		uae_u8 v0 = get_ibyte_test(addr + 0);
+		uae_u16 v1 = get_iword_test(addr + 1);
+		uae_u8 v3 = get_ibyte_test(addr + 3);
+		v = (v0 << 24) | (v1 << 8) | (v3 << 0);
+	} else if (addr & 2) {
+		uae_u16 v0 = get_iword_test(addr + 0);
+		uae_u16 v1 = get_iword_test(addr + 2);
+		v = (v0 << 16) | (v1 << 0);
+	} else {
+		uae_u8 *p = get_addr(addr, 4, 1);
+		v = (p[0] << 24) | (p[1] << 16) | (p[2] << 8) | (p[3]);
+		add_memory_cycles(2);
+	}
+	return v;
 }
 
 uae_u16 get_word_test_prefetch(int o)
@@ -656,7 +683,7 @@ uae_u32 memory_get_word(uaecptr addr)
 }
 uae_u32 memory_get_wordi(uaecptr addr)
 {
-	return get_word_test(addr);
+	return get_iword_test(addr);
 }
 uae_u32 memory_get_long(uaecptr addr)
 {
@@ -664,7 +691,7 @@ uae_u32 memory_get_long(uaecptr addr)
 }
 uae_u32 memory_get_longi(uaecptr addr)
 {
-	return get_long_test(addr);
+	return get_ilong_test(addr);
 }
 
 void memory_put_long(uaecptr addr, uae_u32 v)
@@ -2462,7 +2489,9 @@ static int create_ea_random(uae_u16 *opcodep, uaecptr pc, int mode, int reg, str
 	}
 	case imm1:
 	{
-		// word immediate
+		if (dp->mnemo == i_FBcc || dp->mnemo == i_FTRAPcc || dp->mnemo == i_FScc || dp->mnemo == i_FDBcc) {
+			break;
+		}
 		if (fpuopcode >= 0) {
 			int extra = 0;
 			uae_u16 v = 0;
@@ -2479,15 +2508,24 @@ static int create_ea_random(uae_u16 *opcodep, uaecptr pc, int mode, int reg, str
 				if (imm16_cnt < 0x400)
 					*isconstant = -1;
 			} else if (opcodesize == 8) {
-				// FMOVEM/FMOVE to/from control registers
+				// FMOVEM/FMOVE to/from (control) registers
 				v |= 0x8000;
-				v |= (imm16_cnt & 15) << 11;
-				v |= rand16() & 0x07ff;
+				v |= (imm16_cnt & 1) ? 0x2000 : 0x0000; // DR
+				// keep zero bits zero because at least 68040 can hang if wrong bits are set
+				// (at least set bit 10 causes hang if Control registers FMOVEM)
+				if (imm16_cnt & 2) {
+					// Control registers
+					int list = (imm16_cnt >> 2) & 7;
+					v |= list << 10; // REGISTER LIST
+				} else {
+					// FPU registers
+					v |= 0x4000;
+					uae_u16 mode = (imm16_cnt >> 3) & 3; // MODE
+					v |= mode << 11;
+					v |= rand8();
+				}
 				imm16_cnt++;
-				if (imm16_cnt >= 32)
-					*isconstant = 0;
-				else
-					*isconstant = -1;
+				*isconstant = 128;
 			} else {
 				v |= fpuopcode;
 				imm16_cnt++;
@@ -2513,6 +2551,7 @@ static int create_ea_random(uae_u16 *opcodep, uaecptr pc, int mode, int reg, str
 					}
 					if (opcodesize != 2) {
 						// not X: skip
+						// No need to generate multiple identical tests
 						return -2;
 					}
 					*fpuregused = (v >> 10) & 7;
@@ -2605,7 +2644,7 @@ static int create_ea_random(uae_u16 *opcodep, uaecptr pc, int mode, int reg, str
 				} else {
 					put_word_test(pc, imm16_cnt++);
 					if (imm16_cnt == 0)
-						*isconstant = 0;
+						*isconstant = 0; 
 					else
 						*isconstant = -1;
 				}
@@ -2626,6 +2665,9 @@ static int create_ea_random(uae_u16 *opcodep, uaecptr pc, int mode, int reg, str
 	}
 	case imm2:
 	{
+		if (dp->mnemo == i_FBcc || dp->mnemo == i_FTRAPcc) {
+			break;
+		}
 		// long immediate
 		uae_u32 v = rand32();
 		if ((imm32_cnt & 63) == 0) {
@@ -2643,6 +2685,7 @@ static int create_ea_random(uae_u16 *opcodep, uaecptr pc, int mode, int reg, str
 		break;
 	}
 	}
+end:
 	*opcodep = opcode;
 	return pc - old_pc;
 }
@@ -2925,15 +2968,56 @@ static int generate_fpu_memory_read(uae_u16 opcode, uaecptr pc, struct instr *dp
 
 static int imm_special;
 
-static int handle_specials_preea(uae_u16 opcode, uaecptr pc, struct instr *dp)
+static int handle_specials_preea(uae_u16 opcode, uaecptr pc, struct instr *dp, int *isconstant)
 {
+	int off = 0;
+	int f = 0;
 	if (dp->mnemo == i_FTRAPcc) {
-		uae_u16 v = rand16();
-		v &= ~7;
-		v |= imm_special;
+		uae_u16 v = imm_special & 63;
+		int mode = opcode & 7;
 		put_word_test(pc, v);
 		imm_special++;
-		return 2;
+		off += 2;
+		pc += 2;
+		if (mode == 2) {
+			f = 1;
+		} else if (mode == 3) {
+			f = 2;
+		} else {
+			f = -1;
+		}
+		*isconstant = 64;
+	}
+	if (dp->mnemo == i_FScc || dp->mnemo == i_FDBcc) {
+		uae_u16 v = immfpu_cnt & 63;
+		immfpu_cnt++;
+		*isconstant = 64;
+		put_word_test(pc, v);
+		pc += 2;
+		off += 2;
+		if (dp->mnemo == i_FDBcc) {
+			f = 1;
+		}
+	} else if (dp->mnemo == i_FBcc) {
+		opcode |= immfpu_cnt & 63;
+		immfpu_cnt++;
+		*isconstant = 64;
+		f = (opcode & 0x40) ? 2 : 1;
+	}
+	if (f) {
+		uae_s16 v;
+		for (;;) {
+			v = rand16() & ~1;
+			if (v > 128 || v < -128)
+				break;
+		}
+		if (f == 2) {
+			put_long_test(pc, v);
+			off += 4;
+		} else if (f == 1) {
+			put_word_test(pc, v);
+			off += 2;
+		}
 	}
 	if (dp->mnemo == i_MOVE16) {
 		if (opcode & 0x20) {
@@ -2941,10 +3025,10 @@ static int handle_specials_preea(uae_u16 opcode, uaecptr pc, struct instr *dp)
 			v |= imm_special << 12;
 			put_word_test(pc, v);
 			imm_special++;
-			return 2;
+			off = 2;
 		}
 	}
-	return 0;
+	return off;
 }
 
 static int handle_specials_branch(uae_u16 opcode, uaecptr pc, struct instr *dp, int *isconstant)
@@ -2955,12 +3039,6 @@ static int handle_specials_branch(uae_u16 opcode, uaecptr pc, struct instr *dp, 
 			return 0;
 		}
 		return -2;
-	} else if (dp->mnemo == i_FDBcc) {
-		// FDBcc jump offset
-		uae_u16 v = rand16();
-		put_word_test(pc, v);
-		*isconstant = 16;
-		return 2;
 	}
 	return 0;
 }
@@ -3284,7 +3362,7 @@ static void execute_ins(uaecptr endpc, uaecptr targetpc, struct instr *dp)
 	uae_u16 opw1 = (opcode_memory[2] << 8) | (opcode_memory[3] << 0);
 	uae_u16 opw2 = (opcode_memory[4] << 8) | (opcode_memory[5] << 0);
 	if (opc == 0xf200
-		&& opw1 == 0x0019
+		&& opw1 == 0x6c12
 		//&& opw2 == 0x4afc
 		)
 		printf("");
@@ -3681,6 +3759,19 @@ static int isfpp(int mnemo)
 	return 0;
 }
 
+static void outbytes(const TCHAR *s, uaecptr addr)
+{
+#if 0
+	wprintf(_T(" %s=%08x="), s, addr);
+	for (int i = 0; i < 8; i++) {
+		uae_u8 c = get_byte_test(addr + i);
+		if (i > 0)
+			wprintf(_T("."));
+		wprintf(_T("%02x"), c);
+	}
+#endif
+}
+
 
 static void generate_target_registers(uae_u32 target_address, uae_u32 *out)
 {
@@ -4020,6 +4111,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 				immabsl_cnt = 0;
 				immabsw_cnt = 0;
 				imm_special = 0;
+				immfpu_cnt = 0;
 
 				target_ea[0] = target_ea_bak[0];
 				target_ea[1] = target_ea_bak[1];
@@ -4088,7 +4180,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 					regs.usp = regs.regs[15];
 					regs.isp = super_stack_memory - 0x80;
 
-					if (opc == 0xf228)
+					if (opc == 0xf27c)
 						printf("");
 					if (subtest_count >= 700)
 						printf("");
@@ -4120,14 +4212,18 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 
 					if (dp->mnemo != i_ILLG && fpuopcode != FPUOPP_ILLEGAL) {
 
-						pc += handle_specials_preea(opc, pc, dp);
+						pc += handle_specials_preea(opc, pc, dp, &isconstant_src);
 
 						uae_u32 srcea = 0xffffffff;
 						uae_u32 dstea = 0xffffffff;
 
 						// create source addressing mode
 						if (dp->suse) {
+							int isconstant_tmp = isconstant_src;
 							int o = create_ea(&opc, pc, dp->smode, dp->sreg, dp, &isconstant_src, 0, fpuopcode, opcodesize, &srcea, &srcregused, &srcfpuregused);
+							if (isconstant_src < isconstant_tmp && isconstant_src > 0) {
+								isconstant_src = isconstant_tmp;
+							}
 							if (o < 0) {
 								memcpy(opcode_memory, oldcodebytes, sizeof(oldcodebytes));
 								if (o == -1)
@@ -4328,6 +4424,12 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 					if (verbose) {
 						my_trim(out);
 						wprintf(_T("%08u %s"), subtest_count, out);
+						if (srcaddr != 0xffffffff) {
+							outbytes(_T("S"), srcaddr);
+						}
+						if (dstaddr != 0xffffffff && srcaddr != dstaddr) {
+							outbytes(_T("D"), dstaddr);
+						}
 					}
 					
 					// disassembler may set this
@@ -4509,10 +4611,26 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 					for (;;) {
 						uae_u16 sr_mask = 0;
 
-						int maxflag = fpumode ? 256 : 32;
-						// if cc-instruction: always do full test
-						if (feature_flag_mode > 1 || (feature_flag_mode == 1 && (dp->mnemo == i_ILLG || fpuopcode == FPUOPP_ILLEGAL || (!dp->ccuse && !fpumode)))) {
-							maxflag = fpumode ? 256 / 8 : 2;
+						int maxflag;
+						int flagmode = 0;
+						if (fpumode) {
+							if (fpuopcode == FPUOPP_ILLEGAL) {
+								// Illegal FPU instruction: all on/all off only (*2)
+								maxflag = 2;
+							} else if (dp->mnemo == i_FDBcc || dp->mnemo == i_FScc || dp->mnemo == i_FTRAPcc || dp->mnemo == i_FBcc) {
+								// FXXcc-instruction: FPU condition codes (*16)
+								maxflag = 16;
+								flagmode = 1;
+							} else {
+								// Other FPU instructions: FPU rounding and precision (*16)
+								maxflag = 16;
+							}
+						} else {
+							maxflag = 32; // all flag combinations (*32)
+							if (feature_flag_mode > 1 || (feature_flag_mode == 1 && (dp->mnemo == i_ILLG || !dp->ccuse))) {
+								// if not cc instruction or illegal or forced: all on/all off (*2)
+								maxflag = 2;
+							}
 						}
 
 						if (extraccr & 1)
@@ -4530,7 +4648,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 						if (extraccr) {
 							*dst++ = (uae_u8)extraccr;
 						}
-						*dst++ = (uae_u8)maxflag;
+						*dst++ = (uae_u8)(maxflag | (fpumode ? 0x80 : 0x00) | (flagmode ? 0x40 : 0x00));
 
 						// Test every CPU CCR or FPU SR/rounding/precision combination
 						for (int ccr = 0; ccr < maxflag; ccr++) {
@@ -4604,20 +4722,27 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 									regs.fp[i].fpx = cur_fpuregisters[i];
 								}
 								regs.fpiar = regs.pc;
-								// condition codes
-								if (maxflag > 32) {
-									fpp_set_fpsr((ccr & 15) << 24);
-									// precision and rounding
-									fpp_set_fpcr((ccr >> 4) << 4);
+								uae_u32 fpsr = 0, fpcr = 0;
+								if (maxflag == 16) {
+									if (flagmode) {
+										fpsr = (ccr & 15) << 24;
+									} else {
+										fpcr = (ccr & 15) << 4;
+									}
 								} else {
-									fpp_set_fpsr(((ccr & 1) ? 15 : 0) << 24);
-									// precision and rounding
-									fpp_set_fpcr((ccr >> 1) << 4);
+									// 2
+									fpsr = ((ccr & 1) ? 15 : 0) << 24;
+									fpcr = ((ccr & 1) ? 15 : 0) << 4;
 								}
+								// condition codes
+								fpp_set_fpsr(fpsr);
+								// precision and rounding
+								fpp_set_fpcr(fpcr);
+
 							}
 							// all CCR combinations or only all ones/all zeros?
 							if (maxflag >= 32) {
-								regs.sr = ccr | sr_mask;
+								regs.sr = (ccr & 0xff) | sr_mask;
 							} else {
 								regs.sr = ((ccr & 1) ? 31 : 0) | sr_mask;
 							}
@@ -4849,7 +4974,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 										}
 									}
 									if (regs.fpiar != last_fpiar) {
-										dst = store_rel(dst, CT_FPIAR, last_fpiar, regs.fpiar, 0);
+										dst = store_reg(dst, CT_FPIAR, last_fpiar, regs.fpiar, -1);
 										last_fpiar = regs.fpiar;
 									}
 									if (regs.fpsr != last_fpsr) {

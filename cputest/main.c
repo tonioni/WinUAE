@@ -16,8 +16,6 @@
 #include <dirent.h>
 #endif
 
-#define DONTSTOPONERROR 0
-
 typedef unsigned int uae_u32;
 typedef int uae_s32;
 typedef unsigned short uae_u16;
@@ -60,6 +58,7 @@ struct registers
 	uae_u16 fpeaset;
 };
 
+static short continue_on_error;
 static struct registers test_regs;
 static struct registers last_registers;
 static struct registers regs;
@@ -109,13 +108,10 @@ static int supercnt;
 static uae_u32 startpc, endpc;
 
 static char inst_name[16+1];
-#ifndef M68K
-static char outbuffer[40000];
-static char outbuffer2[40000];
-#else
-static char outbuffer[4000];
-static char outbuffer2[4000];
-#endif
+#define DEFAULT_OUTBUFFER_SIZE 20000
+static int outbuffer_size;
+static char *outbuffer;
+static char *outbuffer2;
 static char tmpbuffer[1024];
 static char path[256];
 
@@ -148,8 +144,8 @@ static short interrupt_count;
 static uae_u16 main_intena;
 #endif
 
-#define SIZE_STORED_ADDRESS_OFFSET 8
-#define SIZE_STORED_ADDRESS 16
+#define SIZE_STORED_ADDRESS_OFFSET 6
+#define SIZE_STORED_ADDRESS 20
 static uae_u8 srcaddr[SIZE_STORED_ADDRESS];
 static uae_u8 dstaddr[SIZE_STORED_ADDRESS];
 static uae_u8 branchtarget[SIZE_STORED_ADDRESS];
@@ -2083,7 +2079,11 @@ static uae_u8 *validate_test(uae_u8 *p, short ignore_errors, short ignore_sr)
 			p = restore_value(p, &val, &size);
 			if (val != test_regs.regs[mode] && !ignore_errors && !skipregchange) {
 				if (dooutput) {
-					sprintf(outbp, "%c%d: expected %08x but got %08x\n", mode < CT_AREG ? 'D' : 'A', mode & 7, val, test_regs.regs[mode]);
+					if (regs.regs[mode] == test_regs.regs[mode]) {
+						sprintf(outbp, "%c%d: expected %08x but register was not modified\n", mode < CT_AREG ? 'D' : 'A', mode & 7, val);
+					} else {
+						sprintf(outbp, "%c%d: expected %08x but got %08x\n", mode < CT_AREG ? 'D' : 'A', mode & 7, val, test_regs.regs[mode]);
+					}
 					outbp += strlen(outbp);
 				}
 				errflag |= 1 << 0;
@@ -2095,9 +2095,16 @@ static uae_u8 *validate_test(uae_u8 *p, short ignore_errors, short ignore_sr)
 			p = restore_fpvalue(p, &val);
 			if (memcmp(&val, &test_regs.fpuregs[mode], sizeof(struct fpureg)) && !ignore_errors) {
 				if (dooutput) {
-					sprintf(outbp, "FP%d: expected %04x-%08x%08x but got %04x-%08x%08x\n", mode,
-						val.exp, val.m[0], val.m[1],
-						test_regs.fpuregs[mode].exp, test_regs.fpuregs[mode].m[0], test_regs.fpuregs[mode].m[1]);
+					if (regs.fpuregs[mode].m[0] == test_regs.fpuregs[mode].m[0] &&
+						regs.fpuregs[mode].m[1] == test_regs.fpuregs[mode].m[1] &&
+						regs.fpuregs[mode].exp == test_regs.fpuregs[mode].exp) {
+						sprintf(outbp, "FP%d: expected %04x-%08x%08x but register was not modified\n", mode,
+							val.exp, val.m[0], val.m[1]);
+					} else {
+						sprintf(outbp, "FP%d: expected %04x-%08x%08x but got %04x-%08x%08x\n", mode,
+							val.exp, val.m[0], val.m[1],
+							test_regs.fpuregs[mode].exp, test_regs.fpuregs[mode].m[0], test_regs.fpuregs[mode].m[1]);
+					}
 					outbp += strlen(outbp);
 				}
 				errflag |= 1 << 1;
@@ -2164,7 +2171,11 @@ static uae_u8 *validate_test(uae_u8 *p, short ignore_errors, short ignore_sr)
 			p = restore_value(p, &val, &size);
 			if (val != test_regs.fpcr && !ignore_errors) {
 				if (dooutput) {
-					sprintf(outbp, "FPCR: expected %08x -> %08x but got %08x\n", test_fpcr, val, test_regs.fpcr);
+					if (regs.fpcr == test_regs.fpcr) {
+						sprintf(outbp, "FPCR: expected %08x but register was not modified\n", val);
+					} else {
+						sprintf(outbp, "FPCR: expected %08x -> %08x but got %08x\n", test_fpcr, val, test_regs.fpcr);
+					}
 					outbp += strlen(outbp);
 				}
 				errflag |= 1 << 3;
@@ -2177,7 +2188,11 @@ static uae_u8 *validate_test(uae_u8 *p, short ignore_errors, short ignore_sr)
 			p = restore_value(p, &val, &size);
 			if (val != test_regs.fpsr && !ignore_errors) {
 				if (dooutput) {
-					sprintf(outbp, "FPSR: expected %08x -> %08x but got %08x\n", test_fpsr, val, test_regs.fpsr);
+					if (regs.fpsr == test_regs.fpsr) {
+						sprintf(outbp, "FPSR: expected %08x but register was not modified\n", val);
+					} else {
+						sprintf(outbp, "FPSR: expected %08x -> %08x but got %08x\n", test_fpsr, val, test_regs.fpsr);
+					}
 					outbp += strlen(outbp);
 				}
 				errflag |= 1 << 4;
@@ -2186,10 +2201,15 @@ static uae_u8 *validate_test(uae_u8 *p, short ignore_errors, short ignore_sr)
 			last_registers.fpsr = val;
 		} else if (mode == CT_FPIAR) {
 			uae_u32 val = last_registers.fpiar;
-			p = restore_rel(p, &val, 0);
+			int size;
+			p = restore_value(p, &val, &size);
 			if (val != test_regs.fpiar && !ignore_errors) {
 				if (dooutput) {
-					sprintf(outbp, "FPIAR: expected %08x but got %08x\n", val, test_regs.fpiar);
+					if (regs.fpiar == test_regs.fpiar) {
+						sprintf(outbp, "FPIAR: expected %08x but register was not modified\n", val);
+					} else {
+						sprintf(outbp, "FPIAR: expected %08x but got %08x\n", val, test_regs.fpiar);
+					}
 					outbp += strlen(outbp);
 				}
 				errflag |= 1 << 5;
@@ -2460,10 +2480,6 @@ static void process_test(uae_u8 *p)
 
 	for (;;) {
 
-#ifndef M68K
-		outbp = outbuffer2;
-#endif
-
 		regs.endpc = endpc;
 		regs.pc = startpc;
 
@@ -2521,9 +2537,8 @@ static void process_test(uae_u8 *p)
 			if (extraccr & 8)
 				sr_mask |= 0x1000; // M
 
-			int maxccr = *p++;
-			if (!maxccr)
-				maxccr = 256;
+			uae_u8 ccrmode = *p++;
+			int maxccr = ccrmode & 0x3f;
 			for (int ccr = 0;  ccr < maxccr; ccr++) {
 
 				opcodeend = (opcodeend >> 16) | (opcodeend << 16);
@@ -2562,20 +2577,28 @@ static void process_test(uae_u8 *p)
 				xmemcpy(&test_regs, &regs, sizeof(struct registers));
 
 				if (maxccr >= 32) {
-					test_regs.sr = ccr;
+					test_regs.sr = ccr & 0xff;
 				} else {
-					test_regs.sr = (ccr ? 31 : 0);
+					test_regs.sr = (ccr & 1) ? 31 : 0;
 				}
 				test_regs.sr |= sr_mask | (interrupt_mask << 8);
 				test_regs.expsr = test_regs.sr | 0x2000;
 				test_sr = test_regs.sr;
 				if (fpumode) {
-					if (maxccr > 32) {
-						test_regs.fpsr = (ccr & 15) << 24;
-						test_regs.fpcr = (ccr >> 4) << 4;
-					} else {
+					test_regs.fpcr = 0;
+					test_regs.fpsr = 0;
+					if (maxccr < 16) {
+						// all on/all off
 						test_regs.fpsr = ((ccr & 1) ? 15 : 0) << 24;
-						test_regs.fpcr = (ccr >> 1) << 4;
+						test_regs.fpcr = ((ccr & 1) ? 15 : 0) << 4;
+					} else {
+						if (ccrmode & 0x40) {
+							// condition modes
+							test_regs.fpsr = (ccr & 15) << 24;
+						} else {
+							// precision and rounding
+							test_regs.fpcr = (ccr & 15) << 4;
+						}
 					}
 					test_fpsr = test_regs.fpsr;
 					test_fpcr = test_regs.fpcr;
@@ -2689,16 +2712,16 @@ static void process_test(uae_u8 *p)
 					exit(0);
 				}
 
-#if DONTSTOPONERROR == 0
-				if (quit || errors)
-					goto end;
-#endif
+				if (quit || errors) {
+					if (continue_on_error) {
+						// always abort if buffer is getting too small
+						if (outbp - outbuffer >= outbuffer_size - 3000)
+							goto end;
+					} else {
+						goto end;
+					}
+				}
 			}
-
-			if (randomizetest) {
-				;
-			}
-
 
 			if (*p == CT_END) {
 				p++;
@@ -3031,7 +3054,8 @@ int main(int argc, char *argv[])
 		printf("all = test all\n");
 		printf("all <mnemonic> = test all, starting from <mnemonic>\n");
 		printf("all <mnemonic> -next = test all, starting after <mnemonic>\n");
-		printf("-continue = don't stop on error (all mode only)\n");
+		printf("-continue = don't stop on error (continue to next test, all mode only)\n");
+		printf("-nostop = don't stop on error (continue current instruction)\n");
 		printf("-ccrmask = ignore CCR bits that are not set.\n");
 		printf("-nodisasm = do not disassemble failed test.\n");
 		printf("-basicexc = do only basic checks when exception is 2 or 3.\n");
@@ -3057,6 +3081,7 @@ int main(int argc, char *argv[])
 	exitcnt = -1;
 	cyclecounter_addr = 0xffffffff;
 	cycles_range = 2;
+	outbuffer_size = DEFAULT_OUTBUFFER_SIZE;
 
 	for (int i = 1; i < argc; i++) {
 		char *s = argv[i];
@@ -3067,6 +3092,8 @@ int main(int argc, char *argv[])
 		}
 		if (!_stricmp(s, "-continue")) {
 			stop_on_error = 0;
+		} else if (!_stricmp(s, "-nostop")) {
+			continue_on_error = 1;
 		} else if (!_stricmp(s, "-noundefined")) {
 			check_undefined_sr = 0;
 		} else if (!_stricmp(s, "-ccrmask")) {
@@ -3127,7 +3154,13 @@ int main(int argc, char *argv[])
 			}
 		} else if (!_stricmp(s, "-uae")) {
 			uaemode = 1;
+		} else if (!_stricmp(s, "-outbuffer")) {
+			if (i + 1 < argc) {
+				i++;
+				outbuffer_size = atoi(argv[i]);
+			}
 		}
+
 	}
 
 #ifdef M68K
@@ -3147,6 +3180,16 @@ int main(int argc, char *argv[])
 		*((uae_u32*)((uae_u32)(&cyclereg_address6) + 2)) = cyclecounter_addr;
 	}
 #endif
+
+	if (outbuffer_size < 4000) {
+		outbuffer_size = 4000;
+	}
+	outbuffer = (char*)calloc(outbuffer_size, 1);
+	outbuffer2 = (char*)calloc(outbuffer_size, 1);
+	if (!outbuffer || !outbuffer2) {
+		printf("Out of memory when allocating output buffer.\n");
+		return 0;
+	}
 
 	DIR *groupd = NULL;
 	
@@ -3275,6 +3318,29 @@ int main(int argc, char *argv[])
 
 			if (err && stop_on_error)
 				break;
+
+		} else if (opcode[0] && opcode[strlen(opcode) - 1] == '*') {
+			DIR *d = opendir(path);
+			if (!d) {
+				printf("Couldn't list directory '%s'\n", path);
+				return 0;
+			}
+			for (;;) {
+				struct dirent *dr = readdir(d);
+				if (!dr)
+					break;
+				if (!strnicmp(dr->d_name, opcode, strlen(opcode) - 1)) {
+					int d = isdir(path, dr->d_name);
+					if (d) {
+						if (test_mnemo(dr->d_name)) {
+							if (stop_on_error)
+								break;
+						}
+					}
+				}
+			}
+			closedir(d);
+
 
 		} else {
 			if (test_mnemo(opcode)) {
