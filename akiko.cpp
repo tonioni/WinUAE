@@ -11,6 +11,8 @@
 *
 */
 
+#define EEPROM_DEBUG 0
+
 /*
 	B80000-B80003: $C0CACAFE (Read-only identifier)
 
@@ -240,6 +242,10 @@ static void akiko_nvram_write (int offset, uae_u32 v)
 	switch (offset)
 	{
 	case 0:
+	{
+#if EEPROM_DEBUG
+		uae_u8 o = (cd32_i2c_data_scl ? 0x80 : 0x00) | (cd32_i2c_data_sda ? 0x40 : 0x00);
+#endif
 		if (cd32_i2c_direction & 0x80)
 			cd32_i2c_data_scl = (v & 0x80) != 0;
 		else
@@ -250,10 +256,22 @@ static void akiko_nvram_write (int offset, uae_u32 v)
 		else
 			cd32_i2c_data_sda = true;
 		eeprom_i2c_set(cd32_eeprom, BITBANG_I2C_SDA, cd32_i2c_data_sda);
+#if EEPROM_DEBUG
+		uae_u8 n = (cd32_i2c_data_scl ? 0x80 : 0x00) | (cd32_i2c_data_sda ? 0x40 : 0x00);
+		write_log(_T("Data write: %02x->%02x (%02x)\n"), o, v, n);
+#endif
 		break;
+	}
 	case 2:
+	{
+#if EEPROM_DEBUG
+		if (cd32_i2c_direction != v) {
+			write_log(_T("Direction write: %02x->%02x\n"), cd32_i2c_direction, v);
+		}
+#endif
 		cd32_i2c_direction = v;
 		break;
+	}
 	}
 }
 
@@ -265,9 +283,15 @@ static uae_u32 akiko_nvram_read (int offset)
 	case 0:
 		v |= eeprom_i2c_set(cd32_eeprom, BITBANG_I2C_SCL, cd32_i2c_data_scl) ? 0x80 : 0x00;
 		v |= eeprom_i2c_set(cd32_eeprom, BITBANG_I2C_SDA, cd32_i2c_data_sda) ? 0x40 : 0x00;
+#if EEPROM_DEBUG
+		write_log(_T("Data read: %02x\n"), v);
+#endif
 		break;
 	case 2:
 		v = cd32_i2c_direction;
+#if EEPROM_DEBUG
+		write_log(_T("Direction read: %02x\n"), v);
+#endif
 		break;
 	}
 	return v;
@@ -2010,7 +2034,7 @@ static void patchrom(void)
 	if (currprefs.cpu_model > 68020 || currprefs.cachesize || currprefs.m68k_speed != 0) {
 		uae_u8 *p = extendedkickmem_bank.baseaddr;
 		if (p) {
-			for (i = 0; i < 524288 - sizeof(patchdata); i++) {
+			for (i = 0; i < 524288 - 512; i++) {
 				if (!memcmp(p + i, patchdata2, sizeof(patchdata2)))
 					return;				
 				if (!memcmp(p + i, patchdata, sizeof(patchdata))) {
