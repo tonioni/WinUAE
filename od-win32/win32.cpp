@@ -2920,13 +2920,16 @@ static LRESULT CALLBACK MainWindowProc (HWND hWnd, UINT message, WPARAM wParam, 
 				tflags = txt[_tcslen (txt) + 1];
 				SetBkMode (lpDIS->hDC, TRANSPARENT);
 				if ((tflags & 2) == 0)
-					tflags &= ~(4 | 8 | 16);
+					tflags &= ~(4 | 8 | 16 | 32);
 				if (tflags & 4) {
 					oc = SetTextColor (lpDIS->hDC, RGB(0xcc, 0x00, 0x00)); // writing
 				} else if (tflags & 8) {
 					oc = SetTextColor (lpDIS->hDC, RGB(0x00, 0xcc, 0x00)); // playing
 				} else {
 					oc = SetTextColor (lpDIS->hDC, GetSysColor ((tflags & 2) ? COLOR_BTNTEXT : COLOR_GRAYTEXT));
+				}
+				if (tflags & 32) {
+					;
 				}
 				flags = DT_VCENTER | DT_SINGLELINE;
 				if (tflags & 1) {

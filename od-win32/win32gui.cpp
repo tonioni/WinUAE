@@ -22168,6 +22168,7 @@ void gui_led (int led, int on, int brightness)
 	TCHAR *ptr, *tt, *p;
 	int pos = -1, j;
 	int writing = 0, playing = 0, active2 = 0;
+	int writeprotected = 0;
 	int center = 0;
 
 	indicator_leds (led, on);
@@ -22209,6 +22210,8 @@ void gui_led (int led, int on, int brightness)
 		center = 1;
 		if (gui_data.drives[led - 1].drive_writing)
 			writing = 1;
+		if (gui_data.drives[led - 1].floppy_protected)
+			writeprotected = 1;
 	} else if (led == LED_POWER) {
 		pos = 3;
 		ptr = _tcscpy(drive_text + pos * LED_STRING_WIDTH, _T("Power"));
@@ -22329,19 +22332,21 @@ void gui_led (int led, int on, int brightness)
 
 	type = SBT_OWNERDRAW;
 	if (pos >= 0) {
-		ptr[_tcslen (ptr) + 1] = 0;
+		ptr[_tcslen(ptr) + 1] = 0;
 		if (center)
-			ptr[_tcslen (ptr) + 1] |= 1;
+			ptr[_tcslen(ptr) + 1] |= 1;
 		if (on) {
-			ptr[_tcslen (ptr) + 1] |= 2;
+			ptr[_tcslen(ptr) + 1] |= 2;
 			type |= SBT_POPOUT;
 		}
 		if (writing)
-			ptr[_tcslen (ptr) + 1] |= 4;
+			ptr[_tcslen(ptr) + 1] |= 4;
 		if (playing)
-			ptr[_tcslen (ptr) + 1] |= 8;
+			ptr[_tcslen(ptr) + 1] |= 8;
 		if (active2)
-			ptr[_tcslen (ptr) + 1] |= 16;
+			ptr[_tcslen(ptr) + 1] |= 16;
+		if (writeprotected)
+			ptr[_tcslen(ptr) + 1] |= 32;
 		pos += window_led_joy_start;
 		PostMessage(mon->hStatusWnd, SB_SETTEXT, (WPARAM)((pos + 1) | type), (LPARAM)ptr);
 		if (tt != NULL)
