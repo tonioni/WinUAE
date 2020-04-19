@@ -200,6 +200,8 @@ static void flac_metadata_callback (const FLAC__StreamDecoder *decoder, const FL
 		return;
 	if(metadata->type == FLAC__METADATA_TYPE_STREAMINFO) {
 		t->filesize = metadata->data.stream_info.total_samples * (metadata->data.stream_info.bits_per_sample / 8) * metadata->data.stream_info.channels;
+	} else if (metadata->type == FLAC__METADATA_TYPE_CUESHEET) {
+		write_log("!");
 	}
 }
 static void flac_error_callback (const FLAC__StreamDecoder *decoder, FLAC__StreamDecoderErrorStatus status, void *client_data)
@@ -253,6 +255,7 @@ static void flac_get_size (struct cdtoc *t)
 	FLAC__StreamDecoder *decoder = FLAC__stream_decoder_new ();
 	if (decoder) {
 		FLAC__stream_decoder_set_md5_checking (decoder, false);
+		FLAC__stream_decoder_set_metadata_respond(decoder, FLAC__METADATA_TYPE_CUESHEET);
 		int init_status = FLAC__stream_decoder_init_stream (decoder,
 			&file_read_callback, &file_seek_callback, &file_tell_callback,
 			&file_len_callback, &file_eof_callback,
@@ -1659,15 +1662,19 @@ static int parsecue (struct cdunit *cdu, struct zfile *zcue, const TCHAR *img, c
 			fname = my_strdup (nextstring (&p));
 			fnametype = nextstring (&p);
 			fnametypeid = AUDENC_NONE;
+			TCHAR *ext = _tcsrchr(fname, '.');
+			if (ext) {
+				ext++;
+			}
 			if (!fnametype)
 				break;
 			if (_tcsicmp (fnametype, _T("BINARY")) && _tcsicmp (fnametype, _T("WAVE")) && _tcsicmp (fnametype, _T("MP3")) && _tcsicmp (fnametype, _T("FLAC"))) {
 				write_log (_T("CUE: unknown file type '%s' ('%s')\n"), fnametype, fname);
 			}
 			fnametypeid = AUDENC_PCM;
-			if (!_tcsicmp (fnametype, _T("MP3")))
+			if (!_tcsicmp (fnametype, _T("MP3")) || (ext && !_tcsicmp(ext, _T("MP3"))))
 				fnametypeid = AUDENC_MP3;
-			else if (!_tcsicmp (fnametype, _T("FLAC")))
+			else if (!_tcsicmp (fnametype, _T("FLAC")) || (ext && !_tcsicmp(ext, _T("FLAC"))))
 				fnametypeid = AUDENC_FLAC;
 			fileoffset = 0;
 			newfile = 1;
@@ -1969,12 +1976,15 @@ static int parsenrg(struct cdunit *cdu, struct zfile *znrg, const TCHAR *img, co
 				} else {
 					tracknum = frombcd(trk);
 					int index = frombcd(buf[2]);
-					if (index == 0 && tracknum >= 1 && tracknum <= 99) {
+					uae_u32 address = get_long_host(buf + 4);
+					if (tracknum >= 1 && tracknum <= 99) {
 						struct cdtoc *t = &cdu->toc[tracknum - 1];
-						t->address = get_long_host(buf + 4);
-						t->ctrl = buf[0] >> 4;
-						t->adr = buf[0] & 15;
-						t->track = tracknum;
+						if (index == 0) {
+							t->address = address;
+							t->ctrl = buf[0] >> 4;
+							t->adr = buf[0] & 15;
+							t->track = tracknum;
+						}
 					}
 				}
 				size -= 8;

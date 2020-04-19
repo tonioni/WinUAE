@@ -513,8 +513,11 @@ static bool gfxboard_setmode(struct rtggfxboard *gb, struct gfxboard_mode *mode)
 
 	state->Width = mode->width;
 	state->Height = mode->height;
+	state->VirtualWidth = state->Width;
+	state->VirtualHeight = state->Height;
 	int bpp = GetBytesPerPixel(mode->mode);
 	state->BytesPerPixel = bpp;
+	state->BytesPerRow = mode->width * bpp;
 	state->RGBFormat = mode->mode;
 	write_log(_T("GFXBOARD %dx%dx%d\n"), mode->width, mode->height, bpp);
 	if (!ad->picasso_requested_on && !ad->picasso_on) {
@@ -834,10 +837,11 @@ DisplaySurface* qemu_create_displaysurface_from(int width, int height, int bpp,
                                                 int linesize, uint8_t *data,
                                                 bool byteswap)
 {
-	struct rtggfxboard *gb;
 	for (int i = 0; i < MAX_RTG_BOARDS; i++) {
-		gb = &rtggfxboards[i];
+		struct rtggfxboard *gb = &rtggfxboards[i];
 		if (data >= gb->vram && data < gb->vramend) {
+			struct picasso96_state_struct *state = &picasso96_state[gb->monitor_id];
+			state->XYOffset = (gb->vram - data) + gfxmem_banks[gb->rtg_index]->start;
 			gb->modechanged = true;
 			return &gb->fakesurface;
 		}

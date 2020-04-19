@@ -6712,6 +6712,10 @@ bool cfgfile_detect_art_path(const TCHAR *path, TCHAR *outpath)
 	const TCHAR *p;
 	if (!path[0])
 		return false;
+#if 0
+	if (path[0] == '\\')
+		return false;
+#endif
 	write_log(_T("Possible boxart path: '%s'\n"), path);
 	_tcscpy(tmp, path);
 	p = _tcsrchr(tmp, '\\');

@@ -4165,7 +4165,7 @@ retry:
 		}
 		const TCHAR *err = D3D_init(mon->hAmigaWnd, mon->monitor_id, mon->currentmode.native_width, mon->currentmode.native_height,
 			mon->currentmode.current_depth, &mon->currentmode.freq, fmh, fmv);
-			if (err) {
+		if (err) {
 			if (currprefs.gfx_api == 2) {
 				D3D_free(0, true);
 				if (err[0] == 0 && currprefs.color_mode != 5) {

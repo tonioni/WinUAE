@@ -3599,7 +3599,7 @@ void logging_init (void)
 		SystemInfo.wProcessorArchitecture, SystemInfo.wProcessorLevel, SystemInfo.wProcessorRevision,
 		SystemInfo.dwNumberOfProcessors, filedate, os_touch);
 	write_log (_T("\n(c) 1995-2001 Bernd Schmidt   - Core UAE concept and implementation.")
-		_T("\n(c) 1998-2019 Toni Wilen      - Win32 port, core code updates.")
+		_T("\n(c) 1998-2020 Toni Wilen      - Win32 port, core code updates.")
 		_T("\n(c) 1996-2001 Brian King      - Win32 port, Picasso96 RTG, and GUI.")
 		_T("\n(c) 1996-1999 Mathias Ortmann - Win32 port and bsdsocket support.")
 		_T("\n(c) 2000-2001 Bernd Meyer     - JIT engine.")
@@ -4133,9 +4133,9 @@ void target_quit (void)
 void target_fixup_options (struct uae_prefs *p)
 {
 	if (p->win32_automount_cddrives && !p->scsi)
-		p->scsi = UAESCSI_SPTI;
-	if (p->scsi > UAESCSI_LAST)
-		p->scsi = UAESCSI_SPTI;
+		p->scsi = 1;
+	if (p->win32_uaescsimode > UAESCSI_LAST)
+		p->win32_uaescsimode = UAESCSI_SPTI;
 	bool paused = false;
 	bool nosound = false;
 	bool nojoy = true;
@@ -7376,7 +7376,7 @@ LONG WINAPI WIN32_ExceptionFilter (struct _EXCEPTION_POINTERS *pExceptionPointer
 							prevpc = (uae_u8*)ppc;
 						}
 						m68k_setpc ((uaecptr)p);
-						exception2(opc, er->ExceptionInformation[0] == 0, 4, regs.s ? 4 : 0);
+						hardware_exception2(opc, 0, er->ExceptionInformation[0] == 0, true, 4);
 						lRet = EXCEPTION_CONTINUE_EXECUTION;
 					}
 			}
