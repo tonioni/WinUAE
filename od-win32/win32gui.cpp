@@ -12585,7 +12585,7 @@ static double getcpufreq (int m)
 	return f * (m >> 8) / 8.0;
 }
 
-static void values_to_cpudlg (HWND hDlg)
+static void values_to_cpudlg(HWND hDlg, WPARAM wParam)
 {
 	TCHAR buffer[8] = _T("");
 	int cpu;
@@ -12643,18 +12643,9 @@ static void values_to_cpudlg (HWND hDlg)
 		workprefs.cachesize == 0;
 	CheckRadioButton (hDlg, IDC_MMUENABLEOFF, IDC_MMUENABLE, mmu == 0 ? IDC_MMUENABLEOFF : (mmu && workprefs.mmu_ec) ? IDC_MMUENABLEEC : IDC_MMUENABLE);
 	CheckDlgButton(hDlg, IDC_CPU_PPC, workprefs.ppc_mode || is_ppc_cpu(&workprefs));
-
-	if ((workprefs.cpu_cycle_exact || workprefs.cpu_compatible) && workprefs.cpu_clock_multiplier) {
-		TCHAR txt[20];
-		double f = getcpufreq (workprefs.cpu_clock_multiplier);
-		_stprintf (txt, _T("%.6f"), f / 1000000.0);
-		SendDlgItemMessage (hDlg, IDC_CPU_FREQUENCY2, WM_SETTEXT, 0, (LPARAM)txt);
-	} else {
-		SendDlgItemMessage (hDlg, IDC_CPU_FREQUENCY2, WM_SETTEXT, 0, (LPARAM)_T(""));
-	}
 }
 
-static void values_from_cpudlg (HWND hDlg)
+static void values_from_cpudlg(HWND hDlg, WPARAM wParam)
 {
 	int newcpu, oldcpu, newfpu, newtrust, oldcache, jitena, idx;
 	static int cachesize_prev, trust_prev;
@@ -12816,13 +12807,21 @@ static void values_from_cpudlg (HWND hDlg)
 	if (pages[MEMORY_ID])
 		SendMessage (pages[MEMORY_ID], WM_USER, 0, 0);
 
-	idx = SendDlgItemMessage (hDlg, IDC_CPU_FREQUENCY, CB_GETCURSEL, 0, 0);
+	idx = SendDlgItemMessage(hDlg, IDC_CPU_FREQUENCY, CB_GETCURSEL, 0, 0);
 	if (idx != CB_ERR) {
 		int m = workprefs.cpu_clock_multiplier;
 		workprefs.cpu_frequency = 0;
 		workprefs.cpu_clock_multiplier = 0;
 		if (idx < 4) {
 			workprefs.cpu_clock_multiplier = (1 << 8) << idx;
+			if (workprefs.cpu_cycle_exact || workprefs.cpu_compatible) {
+				TCHAR txt[20];
+				double f = getcpufreq(workprefs.cpu_clock_multiplier);
+				_stprintf(txt, _T("%.6f"), f / 1000000.0);
+				SendDlgItemMessage(hDlg, IDC_CPU_FREQUENCY2, WM_SETTEXT, 0, (LPARAM)txt);
+			} else {
+				SendDlgItemMessage(hDlg, IDC_CPU_FREQUENCY2, WM_SETTEXT, 0, (LPARAM)_T(""));
+			}
 		} else if (workprefs.cpu_cycle_exact) {
 			TCHAR txt[20];
 			txt[0] = 0;
@@ -12833,6 +12832,9 @@ static void values_from_cpudlg (HWND hDlg)
 				workprefs.cpu_frequency = 0;
 			if (workprefs.cpu_frequency >= 99 * 1000000)
 				workprefs.cpu_frequency = 0;
+			if (!workprefs.cpu_frequency) {
+				workprefs.cpu_frequency = (int)(getcpufreq(m) * 1000000.0);
+			}
 		}
 	}
 }
@@ -12910,7 +12912,7 @@ static INT_PTR CALLBACK CPUDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 	case WM_USER:
 		recursive++;
 		enable_for_cpudlg (hDlg);
-		values_to_cpudlg (hDlg);
+		values_to_cpudlg (hDlg, wParam);
 		recursive--;
 		return TRUE;
 
@@ -12919,9 +12921,9 @@ static INT_PTR CALLBACK CPUDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 			break;
 		if (currentpage == CPU_ID) {
 			recursive++;
-			values_from_cpudlg(hDlg);
+			values_from_cpudlg(hDlg, wParam);
 			enable_for_cpudlg(hDlg);
-			values_to_cpudlg(hDlg);
+			values_to_cpudlg(hDlg, wParam);
 			recursive--;
 		}
 		break;
@@ -12929,9 +12931,9 @@ static INT_PTR CALLBACK CPUDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 	case WM_HSCROLL:
 		if (currentpage == CPU_ID) {
 			recursive++;
-			values_from_cpudlg(hDlg);
+			values_from_cpudlg(hDlg, wParam);
 			enable_for_cpudlg(hDlg);
-			values_to_cpudlg(hDlg);
+			values_to_cpudlg(hDlg, wParam);
 			recursive--;
 		}
 		break;
