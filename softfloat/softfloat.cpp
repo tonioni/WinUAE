@@ -3174,8 +3174,8 @@ floatx80 floatx80_getman( floatx80 a, float_status *status)
         if ( aSig == 0 ) return packFloatx80( aSign, 0, 0 );
         normalizeFloatx80Subnormal( aSig, &aExp, &aSig );
     }
-    
-    return roundAndPackFloatx80(status->floatx80_rounding_precision, aSign, 0x3FFF, aSig, 0, status);
+
+    return packFloatx80(aSign, 0x3fff, aSig);
 }
 
 /*----------------------------------------------------------------------------
