@@ -1,4 +1,154 @@
 
+
+Beta 2:
+
+- Custom CPU frequency selection fixed (b1)
+- CPU speed adjustment supported in more compatible (prefetch) CPU mode.
+- 68020+ speed has changed again. Was also changed in b1.
+- "uae-configuration cdimage0 ." left image partially mounted in some situations. GUI eject button always worked.
+- FPU FGETMAN should ignore current rounding mode, result is always in extended precision.
+- Debugger "mustchange" memwatch point flag was never cleared.
+- Added misc panel enable checkbox for beta 1 introduced debug logging. Note that quickstart mode always disables it.
+- BPLCON4 sprite bank selection bits have different delay than bitplane "XOR" bits. Sprites: 1 hires pixel. Bitplanes: 2 hires pixels. It was wrong previously.
+- "diskchange rdh0:" can be now used to eject drag&drop mounted directory/file/archive harddrive.
+
+- 68030 MMU with more compatible (prefetch) is not stable, at least in Amix (as usual..). Will be fixed later.
+
+
+Beta 1:
+
+Another quite useless new feature: cycle-accurate 68010! Includes full and accurate 68010 loop mode emulation.
+
+Main updates:
+
+- 68000 emulation is now fully(*) accurate, functionally and in cycle level, including exception side-effects (undefined flags and register contents etc). Cycle counts are also correct in prefetch (more compatible) mode if nothing steals cycles from the CPU.
+- 68000 common instructions cycle count without more compatible are also accurate unless instruction has variable cycle count (like MUL/DIV and others).
+  * = IPL sampling time to interrupt level change detection is not 100% accurate.
+- 68010 emulation is now cycle-accurate, including loop mode. (Exception timing/side-effects, mainly bus error undefined flags are wrong. Address errors are correct)
+- Basic FPU support added to my CPU tester. FPU softfloat basic arithmetic instructions tested and confirmed working accurately. No exceptions yet tested because FPSR setting when FPU generates exception seems to have CPU/FPU specific differences.
+
+- 68000 address error and bus error emulation updates, all side-effects/undocumented behaviors are now emulated. Prefetch generated bus errors are now 100% functionally accurate (Including possibly partially modified flags, partially modified registers etc..) and cycle accurate. Special case example: TRAPV, if prefetch causes bus error and V is set: bus error stacked SR field always has S-bit set and T is always cleared. If V was not set: stacked SR field contents are as expected. Another more common result: if long word is being read or written to and access causes bus or address error: CCR Z and N flags are set using only low 16-bit of long word. CPU tester prefetch bus error testing mode added.
+- 68010 loop mode emulation (prefetch and ce only) NOTE: when stepping loop mode in UAE debugger, looped instruction appears to be skipped because in loop mode it is merged with DBcc execution.
+- 68010 loop mode is cycle-accurate. Cycle totals are correct but idle cycle ordering may not be fully correct. (TODO: do some logic analyzer checks)
+- 68010 accurate address errors and exception stack frame emulation (only documented part of stack frame, it has lots of undefined fields, like 68020/030 bus/address error to allow instruction continuation after the fault/fault retry with RTE. This is not emulated). Prefetch/ce only.
+- 68010 read bus errors accurately emulated. (Except RTE support like above)
+- 68010 cycle count adjustments. Most 68010 cycle counts are correct now. (TODO: recheck later)
+- MOVES was 68020+ instruction. It was introduced in 68010.
+- BKPT was 68020+ instruction. It was introduced in 68010. It is illegal instruction (at least without debugging hardware), only difference is that it executes break point access cycle which delays illegal instruction by 4 cycles compared to normal illegal instruction.
+- 68030 MMU emulation simplified and optimized.
+- 68030 MMU seems to do -(an)/(an)+ adjustment before bus error is detected and original register content is not restored when bus error exception starts. This is now emulated. No programs should care.
+- gencpu now automatically and properly indents generated cpuemu_xxx.cpp files.
+- 68000-010 CPU internal IPL change detection timing is now more accurate (but not 100% correct) and more optimal.
+- 68000-010 CPU internal IPL change detection timing is now also emulated in prefetch mode without cycle-exact. (IK+, Warhead, etc sound now works without cycle-exact)
+- 68010 RTE format error exception does not clear trace flag. 68020+ RTE format error exception clears it.
+- 68000/010 odd exception vector generated address error stack frame is now correct. Tester support added. Odd bus error or address error vector will halt the CPU.
+- 68000 exception (including interrupts) cycle usage also validated.
+- 68000 BTST Dn,#x was 2 cycles too fast.
+- 68000 DIVU/DIVS divide by zero exception processing starts after 4 cycles (was zero).
+- 68000 JMP and JSR address error check was before EA calculation, 2-6 cycles too early.
+- 68000 ADDX.L -(an),-(an) and SUBX.L -(an),-(an) had wrong cycle order: it is reada+2,reada+0,readb+2,readb+0,writec+2,prefetch,writec+0 (was prefetch,writec+2,writec+0)
+- Lots of approximate (with or without prefetch) 68000 mode instruction total cycle count fixes. Cycle counts are now 100% correct.
+- 68010 is now cycle accurate.
+- 68010 MOVES.W an,-(an)/(an)+ and both source and destination an is same register: modified register content is stored if size is word. MOVES.L stores original register content.
+- 68000 MOVE causing write address error: address error was checked too early, after read, even if it was followed by prefetch before write.
+- All CPUs: Most address errors due to odd jump/branch address are now correctly emulated in non-prefetch mode.
+- 68020 MUL and DIV use static cycle counts (just like 68010. Only 68000 MUL/DIV cycle counts depend on input values). Added slightly shorter delay than documented to non-fastest possible prefetch and ce modes. (MUL.L and DIV.L probably don't have fully static cycle counts)
+- MOVES access to supervisor only address range is now correctly emulated in all CPU modes (SFC/DFC is used to check access privilege instead of CPU's current supervisor state), including MMU modes. Amiga does not have any but Atari ST does, used by Hatari.
+- Full hardware bus error support (used by Hatari and also available via UAE debugger memwatch point b mode) is enabled in beta builds. It will require slightly more CPU power in 68000/010 modes.
+
+FPU emulation updates:
+
+- Implemented CPU tester FPU support. Still work to do.
+- FBcc, FDBcc, FTRAPcc, FScc, FMOVEM and FMOVE to/from control register validated. Basic FPU instructions also validated (not logarithmec or arithmetic). (68882, 68040 and 68060)
+- FPU exceptions that have EA field now also keep state if instruction filled the field because real FPU EA field can contain data used by previous instruction(s) if instruction didn't have EA, enables FPU tester EA field validation only when needed.
+- Softfloat FCMP didn't also set N flag if source and destination was zero and either or both was negative zero.
+- FPU conditional instructions (FBcc, FDBcc, FTRAPcc, FScc) didn't handle condition codes completely accurately. Invalid combinations like NaN + Z didn't match real hardware behavior.
+- 6888x and 68040/68060 have different behavior in some undefined condition code combinations. This is also now emulated.
+- FScc didn't modify address register if EA was (An)+ or -(An).
+- If 68040+ unimplemented FPU instruction uses (An)+ or -(An) addressing mode, An should not be modified.
+- If 68060 tries to execute packed datatype and addressing mode is -(An), An stored in unimplemented instruction stack frame is only decreased by 4 bytes. (eXtended datatype does same if FPU is not available or disabled. This is documented. Packed datatype behavior was not mentioned in documentation.)
+- It was possible to set some FPCR and FPSR unused bits. 68040 and 68060/6888x have slightly different behavior.
+- If 68040+ and instruction is unimplemented: generate exception 11 if instruction's EA can never be valid (for example PC relative or immediate destination) but generate unimplemented instruction exception 55 if EA can be generally valid but not necessarily valid for current instruction. Previously 11 was always generated if EA was invalid.
+- 68040+ generates normal exception 11 (frame 0, like 6888x) if FPU instruction is non-existing (unknown opmode field). Previously frame 2 was always generated, only instructions that are implemented in 6888x but unimplemented in 68040+ generate frame 2.
+- 6888x has undocumented opmodes that map to existing, documented, opmodes (for example $05 -> $04 = FSQRT). Only unused opmodes 0x40 to 0x7f generate F-line. This is now emulated, main reason was to not require special conditions in cputester. "Some extension field encodings are unspecified, are redundant with valid instructions implemented by the FPCP, and do not cause an F-line exception if executed.  However, these encodings are reserved for future definition by Motorola, and thus should not be generated by assemblers or compilers.".  Future is in the past now and 68040+ generate F-line exception as expected.
+- 68888x packed data type is not 100% correct, sometimes last digit of 64-bit mantissa is 1 higher or lower. Probably rounding related.
+- All FPUs FMOVE(M) to/from control registers and register field is zero: FPIAR is selected. This was previously partially emulated.
+- FMOVEM with dynamic register list used incorrect mask, registers D4 to D7 become D0 to D3.
+- 6888x and FMOVEM with MODE field=predecrement: register list order is inverted, even if actual EA is not predecrement. 68040+ only use inverted register order if EA is predecrement. 68060 ignores MODE field completely and only uses EA to select between predec/postinc.
+- 6888x FMOVE.P FPx,EA: if EA is invalid (for example Dn), conversion is still executed and possible FPSR flags (for example OPERR if k-factor>17) are set before F-line exception is generated.
+
+68040 FPU weird behavior:
+
+- FMOVEM.X to/from Control registers: if undefined bit 10 is set, CPU hangs. Not emulated. Tester blacklisted.
+- FMOVEM.X to memory,-(An) but mode is postinc or FMOVEM.X to memory,NOT -(An) but mode is predec: extended doubles are written in reversed order (low mantissa, high mantissa, exponent).
+
+68060 FPU weird behavior:
+
+- 68060 unimplemented FDBcc stacked EA field contains last 2 words of instruction (condition and offset). It does not contain real effective address.
+- If FPU instruction opmode is 0x78-0x7f (last 8 opmodes): instruction generates exception 4! All other non-existing opmodes generate expected F-line exception 11.
+- At least 68060 is weird when it attemps to execute invalid FMOVE.D FPx,Dn (Works like FMOVE.S FPx,Dn but also generates exception 4!) or FMOVE.X FPx,Dn. (Also generates exception 4!) There are also other situations where illegal FPU instruction (valid opmode but EA is invalid) does something unexpected, like modifies other registers. Which means annoying special cases are needed in tester.. Not emulated. Tester blacklisted.
+- FMOVEM.X #imm,FPx-FPy does not generate any exceptions and seems to zero all listed FP registers! Not emulated. Tester blacklisted.
+
+- Do not enable filter detected borders in autoscale center mode.
+- List all enabled hardware built-in HD expansions first in hardfile/drive controller selection.
+- Disassembler now disassembles MOVEQ, ADDQ and SUBQ correctly (previously it was disassembled as MOVE.L #, ADD.x #..), EXT.B -> EXTB.L. Assembler also didn't support byte or word size ADDQ/SUBQ variants.
+- Disassembler shows MOVEC inside [] if used control register is not supported by currently selected CPU model.
+- Ignore ncap/winpcap dll version because recent ncap versions have smaller version number than old winpcap versions.
+- On screen led floppy leds have brighter border if inserted disk is write protected. (Color/shape may change in future updates)
+- Hardital Dotto IDE controller emulation.
+- CD32 ROM delay loop patch was skipped because of initialization order change in 4.3.0. Broke CD32 CD if CPU speed was too fast.
+- Debugger W command used white space stripping parsing functions.
+- RDB HDF max physical block size was 2048 and larger block size was not out of range checked causing buffer overflow. Max is now 8k and larger sizes are ignored.
+- If disk read DMA was started without selected drives, it was always emulated in turbo mode. (Probably broken whan Amax floppy support was added)
+- CD32 pad red button didn't always work as a normal fire button, depending on how it was configured. (4.3.0)
+- Ignore next key release after exiting debugger. (Only if following key event is release, if next is key press, next release is handled normally)
+- GUI Reset button now also copies current GUI config to active config. Normally only config entries that support on the fly changes are active after reset but because GUI Reset button does cold reset, all changed config entries can be safely enabled. (For example Harddrive panel automount options)
+- Paula has 2 CCK delay between AUDxDAT write and AUDxLEN counting down. (http://eab.abime.net/showthread.php?t=100311)
+- DMA wait hack (automatically work around audio routines that have CPU delay loops) now also checks if CPU has executed enough instructions between DMA off and DMA on because there are also few bad audio routines that unnecessarily disable audio DMA and then re-enable it quickly. Log also if audio dma hack activates (first 100 times only to prevent possible log flood)
+- Debugger memwatch points accessed random memory (and possibly crashed) if CPU was 24-bit but accessed address was outside of 24-bit address space.
+- Interrupt delays rewritten to match real hardware better. Only Paula external interrupt pins (INT 2, 3 and 6) have delays (4 CCKs which is a lot, why?), internally generated interrupts don't have delays.
+- 1x-8x CPU multipliers are now also supported in prefetch (more compatible) CPU mode.
+- Some RTG to RTG mode resolution switches didn't resize windowed mode correctly (4300b1)
+- Keyboard resync didn't replace old key code with new (zero) key code.
+- Emulated CIA-B serial port which is connected to parallel port busy and paper out lines (CIA-A SP is connected to keyboard). Perhaps some diagnostics software uses this connection to do simple partial CIA port test without extra hardware.
+- Emulated CIA-B timer mode that counts CNT (serial port clock pin) pulses. Probably no program cares.
+- Emulated CIA-B PBON+OUTMODE. PB6 and PB7 are connected to floppy drive /MOTOR and /SEL3 signals. Most likely no program cares, part 2. But really weird program can at least in theory control floppy motor by starting and stopping CIA-B timer B in continuous mode...
+- If 2 light pens/guns enabled, if gun 2 moves, enable only gun 2 crosshair. Previously gun 1 move enabled both crosshairs.
+- Microbotics HardFrame v1.8 rom added, v1.9 replaced, previous v1.9 may have been corrupted. All other known HF roms have almost identical (and unused) data where old v1.9 has random looking data.
+- .wrp unpacking now aborts if it attempts to read more data than is available (instead of possibly hanging in infinite loop). Reversed wrp algorithm may not be 100% correct, at least one file has been found that does not unpack correctly.
+- CIA ROM overlay bit, parallel port and serial port handshake bits in input mode didn't have pullup support. (If input mode and pin floating: read state is high)
+- Disassembler didn't output "(68020+)" if brief extension format with non-zero SCALE bit(s) and CPU was 68000 or 68010. It was only shown if full extension format.
+- Disassembler didn't support 68040+ FxxxS and FxxxD FPU instruction variants (FSADD, FDADD etc). Append "(68040+)" if current FPU is 6888x.
+- Implemented Paula serial port emulation receive break detection support. Paula behavior when serial receive line is in break condition is weird and undocumented: it keeps receiving all-zero serial words (including zero stop bit) continuously, as long as break condition is active. Serial.device break detection behavior is also a bit weird: when break status is detected (all SERDATR receive bits and RXD is zero), it starts a timer. If any non-break state serial word arrives when timer is active: not a break condition. When timer expires and RXD is not zero: not a break condition. Break is now internally marked as detected but serial.device still needs one more serial word that is not in break condition before break is reported to caller. One normal serial word always arrives at the end of break because when Paula finally sees non-break state, it receives serial word with stop bit normally set (other bits may or may not be zeros depending on timing). In other words, serial.device break support depends on Paula undocumented behavior.
+- If selected avioutput selected video codec returns error, automatically retry codec open using 32-bit bit depth. Some codecs don't support 24-bit mode. 32-bit was already selected if genlock was enabled.
+- AUDxPER=0 internally set wrong period, should equal 65536 but was set to something much larger.
+- Added on screen led size multiplier, config file only currently: show_leds_size and show_leds_size_rtg ("1x","2x","3x","4x")
+- Added A1060 Sidecar 2.05 ROM (pre-release, BIOS screen says "Test release") to ROM scanner.
+- New easy to use and transparent printf()-like debug logging method for developers: simply write parameters to address $bfff00 (byte, word and long accepted) one by one, then format string to $bfff04 (must be long) and formatted log message will appear in log window. Address may change, currently only active if 128k UAE boot rom mode is enabled and accepts only %d, %u, %x, %p, %s and %b (BSTR). Quickly made for quick and easy UAESND AHI driver debug logging..
+- ELF ROM loader: always align section beginning to 8-divisible addresses.
+
+68010 loop mode:
+
+Loop mode is basically <supported single word instruction> + DBcc loop that uses CPU internal 2 prefetch registers and instruction decode storage register as a cache for all 3 words (looped instruction, DBcc and DBcc offset). Loop runs without any prefetch memory reads.
+
+- Most instructions have same cycle totals in loop mode. Prefetches are usually replaced with 4 idle cycles. Some only have 2, some add 2 cycles.
+- DBcc execution when loop continues: 4 cycles. Non loop mode DBcc takes 10 cycles so usually at least 6 cycles is saved per round.
+- When DBcc is executed that matches all loop conditions and loop mode is not yet active, first DBcc execution takes normal 10 cycles and does normal prefetches (one for looped instruction = branch address, one for itself = branch address + 2 which seems unnecessary)
+- Loop exit due to loop count expiring: no extra cycles added, 2*prefetches only.
+- Loop exit due to condition code: adds 2 or 4 cycles (+2*prefetches), depends on looped instruction.
+- Memory shift instructions (ASRW etc..) and few others add unexplained 2 extra idle cycles in loop mode.
+
+New undocumented 68010 weird behavior:
+
+- some instructions, when they generate bus error, take 4 cycles longer because they for some unknown reason repeat bus access that caused bus error. Normal bus error: bus access is done, CPU waits for DTACK or BERR, if bus error, exception starts. Weird case: bus access is done, same bus access is done again, bus error exception starts. (logic analyzer confirmed). Possibly this only happens because my test hardware generates bus error when address range and rw-state matches, normally external hardware generates it after few cycles delay. This is not handled by tester (bus error cycle counts don't match) or emulated.
+
+Hardital Dotto:
+- Clone of ICD AdIDE.
+- Memory map and autoconfig IDs are identical.
+- Driver has strings "icdboot.device", "ICD BootRom (C)1990" and "icddiskide" "hidden" in nibble part of boot ROM. All visible strings have been edited from "ICD" to "SYN". Almost identical to already dumped ICD AdIDE ROMs, probably based on v32 AdIDE ROM (which is not yet dumped).
+
+
+
 4.3.0
 
 - Emulated sound card stream close changes, mark the stream first closed, then close the stream to not crash if done by PPC thread while audio is playing.

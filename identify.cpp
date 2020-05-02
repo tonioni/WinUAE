@@ -176,7 +176,7 @@ const struct customData custd[] =
 	{ _T("BLTBPTL"),  0xdff04E, CD_WO | CD_DMA_PTR }, /* Blitter pointer to source B (low 15 bits) */
 	{ _T("BLTAPTH"),  0xdff050, CD_WO | CD_DMA_PTR }, /* Blitter pointer to source A (high 5 bits) */
 	{ _T("BLTAPTL"),  0xdff052, CD_WO | CD_DMA_PTR }, /* Blitter pointer to source A (low 15 bits) */
-	{ _T("BPTDPTH"),  0xdff054, CD_WO | CD_DMA_PTR }, /* Blitter pointer to destn  D (high 5 bits) */
+	{ _T("BLTDPTH"),  0xdff054, CD_WO | CD_DMA_PTR }, /* Blitter pointer to destn  D (high 5 bits) */
 	{ _T("BLTDPTL"),  0xdff056, CD_WO | CD_DMA_PTR }, /* Blitter pointer to destn  D (low 15 bits) */
 	{ _T("BLTSIZE"),  0xdff058, CD_WO }, /* Blitter start and size (win/width,height) */
 	{ _T("BLTCON0L"), 0xdff05A, CD_WO | CD_ECS_AGNUS }, /* Blitter control 0 lower 8 bits (minterms) */
