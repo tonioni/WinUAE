@@ -1840,8 +1840,21 @@ static void clear_exkeys (Unit *unit)
 	}
 }
 
+static void filesys_delayed_eject(Unit *u)
+{
+	if (u->reinsertdelay)
+		return;
+	u->reinsertdelay = 50;
+	u->newreadonly = false;
+	xfree(u->newrootdir);
+	u->newrootdir = NULL;
+	write_log(_T("FILESYS: delayed eject %d\n"), u->unit);
+}
+
 static void filesys_delayed_change (Unit *u, int frames, const TCHAR *rootdir, const TCHAR *volume, bool readonly, int flags)
 {
+	if (u->reinsertdelay)
+		return;
 	u->reinsertdelay = frames;
 	u->newflags = flags;
 	u->newreadonly = readonly;
@@ -6275,10 +6288,14 @@ static void	action_more_cache(TrapContext *ctx, Unit *unit, dpacket *packet)
 
 static void	action_inhibit(TrapContext *ctx, Unit *unit, dpacket *packet)
 {
+	int old = unit->inhibited;
 	PUT_PCK_RES1 (packet, DOS_TRUE);
 	flush_cache (unit, 0);
 	unit->inhibited = GET_PCK_ARG1 (packet) != 0;
 	TRACE((_T("ACTION_INHIBIT(%d:%d)\n"), unit->unit, unit->inhibited));
+	if (unit->ui.canremove && !unit->ui.configureddrive && unit->ui.open && old && !GET_PCK_ARG1(packet)) {
+		filesys_delayed_eject(unit);
+	}
 }
 
 static void	action_write_protect(TrapContext *ctx, Unit *unit, dpacket *packet)
@@ -9153,7 +9170,11 @@ void filesys_vsync (void)
 		if (u->reinsertdelay > 0) {
 			u->reinsertdelay--;
 			if (u->reinsertdelay == 0) {
-				filesys_insert (u->unit, u->newvolume, u->newrootdir, u->newreadonly, u->newflags);
+				if (u->newrootdir == NULL && u->newvolume == NULL) {
+					filesys_eject(u->unit);
+				} else {
+					filesys_insert(u->unit, u->newvolume, u->newrootdir, u->newreadonly, u->newflags);
+				}
 				xfree (u->newvolume);
 				u->newvolume = NULL;
 				xfree (u->newrootdir);
