@@ -1979,24 +1979,28 @@ static unsigned long cycles_mult;
 static void update_68k_cycles (void)
 {
 	cycles_mult = 0;
-	if (currprefs.m68k_speed >= 0 && !currprefs.cpu_cycle_exact && !currprefs.cpu_compatible) {
-		if (currprefs.m68k_speed_throttle < 0) {
-			cycles_mult = (unsigned long)(CYCLES_DIV * 1000 / (1000 + currprefs.m68k_speed_throttle));
-		} else if (currprefs.m68k_speed_throttle > 0) {
-			cycles_mult = (unsigned long)(CYCLES_DIV * 1000 / (1000 + currprefs.m68k_speed_throttle));
-		}
-	}
-	if (currprefs.m68k_speed == 0) {
+
+	if (currprefs.m68k_speed == 0) { // aproximate
+		cycles_mult = CYCLES_DIV;
 		if (currprefs.cpu_model >= 68040) {
-			if (!cycles_mult)
-				cycles_mult = CYCLES_DIV / 8;
-			else
-				cycles_mult /= 8;
+			cycles_mult = CYCLES_DIV / 12;
 		} else if (currprefs.cpu_model >= 68020) {
-			if (!cycles_mult)
-				cycles_mult = CYCLES_DIV / 4;
-			else
-				cycles_mult /= 4;
+			cycles_mult = CYCLES_DIV / 6;
+		}
+		if (!currprefs.cpu_cycle_exact) {
+			if (currprefs.m68k_speed_throttle < 0) {
+				cycles_mult = (cycles_mult * 1000) / (1000 + currprefs.m68k_speed_throttle);
+			} else if (currprefs.m68k_speed_throttle > 0) {
+				cycles_mult = (cycles_mult * 1000) / (1000 + currprefs.m68k_speed_throttle);
+			}
+		}
+	} else {
+		if (currprefs.m68k_speed >= 0 && !currprefs.cpu_cycle_exact && !currprefs.cpu_compatible) {
+			if (currprefs.m68k_speed_throttle < 0) {
+				cycles_mult = (unsigned long)(CYCLES_DIV * 1000 / (1000 + currprefs.m68k_speed_throttle));
+			} else if (currprefs.m68k_speed_throttle > 0) {
+				cycles_mult = (unsigned long)(CYCLES_DIV * 1000 / (1000 + currprefs.m68k_speed_throttle));
+			}
 		}
 	}
 
@@ -2011,8 +2015,9 @@ static void update_68k_cycles (void)
 		} else {
 			cpucycleunit = CYCLE_UNIT * currprefs.cpu_clock_multiplier;
 		}
-		if (currprefs.cpu_model >= 68040)
+		if (currprefs.cpu_model >= 68040) {
 			cpucycleunit /= 2;
+		}
 	} else if (currprefs.cpu_frequency) {
 		cpucycleunit = CYCLE_UNIT * baseclock / currprefs.cpu_frequency;
 	} else if (currprefs.cpu_memory_cycle_exact && currprefs.cpu_clock_multiplier == 0) {
@@ -5346,7 +5351,7 @@ static void m68k_run_mmu060 (void)
 				mmu060_state = 1;
 
 				count_instr (regs.opcode);
-				cpu_cycles = (*cpufunctbl[regs.opcode])(regs.opcode) >> 16;
+				cpu_cycles = (*cpufunctbl[regs.opcode])(regs.opcode);
 
 				cpu_cycles = adjust_cycles (cpu_cycles);
 				regs.instruction_cnt++;
@@ -5396,7 +5401,7 @@ static void m68k_run_mmu040 (void)
 				mmu_opcode = -1;
 				mmu_opcode = regs.opcode = x_prefetch (0);
 				count_instr (regs.opcode);
-				cpu_cycles = (*cpufunctbl[regs.opcode])(regs.opcode) >> 16;
+				cpu_cycles = (*cpufunctbl[regs.opcode])(regs.opcode);
 				cpu_cycles = adjust_cycles (cpu_cycles);
 				regs.instruction_cnt++;
 
@@ -5489,7 +5494,7 @@ insretry:
 						count_instr (regs.opcode);
 						do_cycles (cpu_cycles);
 
-						cpu_cycles = (*cpufunctbl[regs.opcode])(regs.opcode) >> 16;
+						cpu_cycles = (*cpufunctbl[regs.opcode])(regs.opcode);
 
 					} else {
 						
