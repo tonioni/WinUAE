@@ -456,6 +456,7 @@ extern void logging_init (void);
 extern FILE *log_open (const TCHAR *name, int append, int bootlog, TCHAR*);
 extern void log_close (FILE *f);
 extern TCHAR *write_log_get_ts(void);
+extern bool is_console_open(void);
 
 extern bool use_long_double;
 

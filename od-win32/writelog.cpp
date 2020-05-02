@@ -75,6 +75,11 @@ int always_flush_log = 0;
 
 /* console functions for debugger */
 
+bool is_console_open(void)
+{
+	return consoleopen;
+}
+
 static HWND myGetConsoleWindow (void)
 {
 	return GetConsoleWindow ();

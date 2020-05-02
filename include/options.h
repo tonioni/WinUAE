@@ -474,6 +474,7 @@ struct uae_prefs {
 	TCHAR config_window_title[256];
 
 	bool illegal_mem;
+	bool debug_mem;
 	bool use_serial;
 	bool serial_demand;
 	bool serial_hwctsrts;

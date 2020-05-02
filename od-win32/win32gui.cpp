@@ -4647,7 +4647,7 @@ static const struct miscentry misclist[] = {
 	{ 0, 1, _T("Native on-screen display"), NULL, &workprefs.leds_on_screen, STATUSLINE_CHIPSET, STATUSLINE_CHIPSET },
 	{ 0, 1, _T("RTG on-screen display"), NULL, &workprefs.leds_on_screen, STATUSLINE_RTG, STATUSLINE_RTG },
 	{ 0, 0, _T("Create winuaelog.txt log"), &workprefs.win32_logfile },
-	{ 0, 0, _T("Log illegal memory accesses"), &workprefs.illegal_mem },
+	{ 0, 1, _T("Log illegal memory accesses"), &workprefs.illegal_mem },
 	{ 0, 0, _T("Blank unused displays"), &workprefs.win32_blankmonitors },
 	{ 0, 0, _T("Start mouse uncaptured"), &workprefs.win32_start_uncaptured  },
 	{ 0, 0, _T("Start minimized"), &workprefs.win32_start_minimized  },
@@ -4661,6 +4661,7 @@ static const struct miscentry misclist[] = {
 	{ 0, 1, _T("Warn when attempting to close window"), &workprefs.win32_warn_exit },
 	{ 0, 1, _T("Power led dims when audio filter is disabled"), NULL, &workprefs.power_led_dim, 128, 0 },
 	{ 0, 1, _T("Automatically capture mouse when window is activated"), &workprefs.win32_capture_always },
+	{ 0, 0, _T("Debug memory space"), &workprefs.debug_mem },
 	{ 0, NULL }
 };
 

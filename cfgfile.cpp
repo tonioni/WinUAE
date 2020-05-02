@@ -2621,7 +2621,8 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	cfgfile_write_bool (f, _T("rtg_nocustom"), p->picasso96_nocustom);
 	cfgfile_write (f, _T("rtg_modes"), _T("0x%x"), p->picasso96_modeflags);
 
-	cfgfile_write_bool (f, _T("log_illegal_mem"), p->illegal_mem);
+	cfgfile_write_bool(f, _T("debug_mem"), p->debug_mem);
+	cfgfile_write_bool(f, _T("log_illegal_mem"), p->illegal_mem);
 
 #if 0
 	if (p->catweasel >= 100)
@@ -3341,6 +3342,7 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 		|| cfgfile_yesno(option, value, _T("sound_volcnt"), &p->sound_volcnt)
 		|| cfgfile_yesno(option, value, _T("sound_stereo_swap_paula"), &p->sound_stereo_swap_paula)
 		|| cfgfile_yesno(option, value, _T("sound_stereo_swap_ahi"), &p->sound_stereo_swap_ahi)
+		|| cfgfile_yesno(option, value, _T("debug_mem"), &p->debug_mem)
 		|| cfgfile_yesno(option, value, _T("log_illegal_mem"), &p->illegal_mem)
 		|| cfgfile_yesno(option, value, _T("filesys_no_fsdb"), &p->filesys_no_uaefsdb)
 		|| cfgfile_yesno(option, value, _T("gfx_monochrome"), &p->gfx_grayscale)
@@ -8143,6 +8145,8 @@ static void buildin_default_prefs (struct uae_prefs *p)
 	p->sername[0] = 0;
 
 	p->mountitems = 0;
+
+	p->debug_mem = false;
 
 	target_default_options (p, 1);
 	cfgfile_compatibility_romtype(p);

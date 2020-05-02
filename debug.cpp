@@ -3716,6 +3716,7 @@ static void memwatch (TCHAR **c)
 	mwn->reg = 0xffffffff;
 	mwn->frozen = 0;
 	mwn->modval_written = 0;
+	mwn->mustchange = 0;
 	mwn->bus_error = 0;
 	ignore_ws (c);
 	if (more_params (c)) {
@@ -7227,6 +7228,7 @@ struct dsprintfstack
 };
 static dsprintfstack debugsprintf_stack[DEBUGSPRINTF_SIZE];
 static uae_u16 debugsprintf_latch, debugsprintf_latched;
+static uae_u32 debugsprintf_cycles, debugsprintf_cycles_set;
 
 static void read_bstring(char *out, int max, uae_u32 addr)
 {
@@ -7265,6 +7267,20 @@ static void read_string(char *out, int max, uae_u32 addr)
 		if (!c)
 			break;
 	}
+}
+
+static char *parse_custom(char *p, char *d)
+{
+	if (!strcmp(p, "CYCLES")) {
+		if (debugsprintf_cycles_set) {
+			uae_u32 c = (get_cycles() - debugsprintf_cycles) / CYCLE_UNIT;
+			sprintf(d, "%u", c);
+		} else {
+			strcpy(d, "-");
+		}
+		d += strlen(d);
+	}
+	return d;
 }
 
 static void debug_sprintf_do(uae_u32 s)
@@ -7307,6 +7323,14 @@ static void debug_sprintf_do(uae_u32 s)
 					sprintf(d, "%d", stack->val);
 				} else if (cn == 'u') {
 					sprintf(d, "%u", stack->val);
+				} else if (cn == '[') {
+					char *next = strchr(p, ']');
+					if (next) {
+						p++;
+						*next = 0;
+						d = parse_custom(p, d);
+						p = next + 1;
+					}
 				} else {
 					d[0] = '?';
 					d[1] = 0;
@@ -7325,7 +7349,7 @@ static void debug_sprintf_do(uae_u32 s)
 
 bool debug_sprintf(uaecptr addr, uae_u32 val, int size)
 {
-	if (currprefs.uaeboard < 2)
+	if (!currprefs.debug_mem)
 		return false;
 
 	uae_u32 v = val;
@@ -7351,6 +7375,8 @@ bool debug_sprintf(uaecptr addr, uae_u32 val, int size)
 		debug_sprintf_do(v);
 		debugsprintf_cnt = 0;
 		debugsprintf_latched = 0;
+		debugsprintf_cycles = get_cycles();
+		debugsprintf_cycles_set = 1;
 	} else {
 		if (debugsprintf_cnt < DEBUGSPRINTF_SIZE) {
 			debugsprintf_stack[debugsprintf_cnt].val = v;
