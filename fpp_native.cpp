@@ -701,9 +701,8 @@ static void fp_getexp(fpdata *a, fpdata *b)
     int expon;
 	fp_normal_prec();
 	frexpl(b->fp, &expon);
-    a->fp = (fptype) (expon - 1);
+	a->fp = (fptype)expon - 1;
 	fp_reset_normal_prec();
-	fp_round(a);
 }
 static void fp_getman(fpdata *a, fpdata *b)
 {
@@ -711,7 +710,6 @@ static void fp_getman(fpdata *a, fpdata *b)
 	fp_normal_prec();
 	a->fp = frexpl(b->fp, &expon) * 2.0;
 	fp_reset_normal_prec();
-	fp_round(a);
 }
 static void fp_div(fpdata *a, fpdata *b, int prec)
 {
