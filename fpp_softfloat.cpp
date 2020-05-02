@@ -127,7 +127,7 @@ static const TCHAR *fp_printx80(floatx80 *fx, int mode)
 		int8_t save_exception_flags = fs.float_exception_flags;
 		fs.float_exception_flags = 0;
 		floatx80 x = floatx80_to_floatdecimal(*fx, &len, &fs);
-		_stprintf(fsout, _T("%c%01lld.%016llde%c%04d%s%s"), n ? '-' : '+',
+		_stprintf(fsout, _T("%c%01lld.%016llde%c%05u%s%s"), n ? '-' : '+',
 				x.low / LIT64(10000000000000000), x.low % LIT64(10000000000000000),
 				(x.high & 0x4000) ? '-' : '+', x.high & 0x3FFF, d ? _T("D") : u ? _T("U") : _T(""),
 				(fs.float_exception_flags & float_flag_inexact) ? _T("~") : _T(""));
