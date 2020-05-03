@@ -2976,8 +2976,8 @@ floatx80 floatx80_rem( floatx80 a, floatx80 b, uint64_t *q, flag *s, float_statu
         ++*q;
     }
     return
-    normalizeRoundAndPackFloatx80(
-                                  80, zSign, bExp + expDiff, aSig0, aSig1, status );
+    normalizeRoundAndPackFloatx80(status->floatx80_rounding_precision,
+                                  zSign, bExp + expDiff, aSig0, aSig1, status );
     
 }
 #endif // End of modification
@@ -3070,8 +3070,8 @@ floatx80 floatx80_mod( floatx80 a, floatx80 b, uint64_t *q, flag *s, float_statu
         *q += qTemp;
     }
     return
-        normalizeRoundAndPackFloatx80(
-            80, zSign, bExp + expDiff, aSig0, aSig1, status );
+        normalizeRoundAndPackFloatx80(status->floatx80_rounding_precision,
+            zSign, bExp + expDiff, aSig0, aSig1, status );
     
 }
 #endif // end of addition for Previous
@@ -3246,7 +3246,10 @@ floatx80 floatx80_scale(floatx80 a, floatx80 b, float_status *status)
         normalizeFloatx80Subnormal( aSig, &aExp, &aSig );
     }
     
-    if ( bExp < 0x3FFF ) return a;
+    if (bExp < 0x3FFF) {
+        return roundAndPackFloatx80(
+            status->floatx80_rounding_precision, aSign, aExp, aSig, 0, status);
+    }
     
     if ( 0x400F < bExp ) {
         aExp = bSign ? -0x6001 : 0xE000;

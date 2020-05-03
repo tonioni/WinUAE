@@ -625,7 +625,9 @@ floatx80 floatx80_cosh(floatx80 a, float_status *status)
 	if (compact > 0x400CB167) {
 		if (compact > 0x400CB2B3) {
 			RESET_PREC;
-			return roundAndPackFloatx80(status->floatx80_rounding_precision, 0, 0x8000, one_sig, 0, status);
+			a =  roundAndPackFloatx80(status->floatx80_rounding_precision, 0, 0x8000, one_sig, 0, status);
+			float_raise(float_flag_inexact, status);
+			return a;
 		} else {
 			fp0 = packFloatx80(0, aExp, aSig);
 			fp0 = floatx80_sub(fp0, float64_to_floatx80(LIT64(0x40C62D38D3D64634), status), status);
@@ -1608,7 +1610,9 @@ floatx80 floatx80_sinh(floatx80 a, float_status *status)
 		if (compact > 0x400CB2B3) {
 			RESET_PREC;
 			
-			return roundAndPackFloatx80(status->floatx80_rounding_precision, aSign, 0x8000, aSig, 0, status);
+			a = roundAndPackFloatx80(status->floatx80_rounding_precision, aSign, 0x8000, aSig, 0, status);
+			float_raise(float_flag_inexact, status);
+			return a;
 		} else {
 			fp0 = floatx80_abs(a, status); // Y = |X|
 			fp0 = floatx80_sub(fp0, float64_to_floatx80(LIT64(0x40C62D38D3D64634), status), status); // (|X|-16381LOG2_LEAD)
