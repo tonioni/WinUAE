@@ -178,7 +178,8 @@ precision80:
             ++zExp;
             zSig0 = LIT64( 0x8000000000000000 );
         } else {
-            zSig0 &= ~ ( ( (uint64_t) ( zSig1<<1 ) == 0 ) & ( status->float_rounding_mode == float_round_nearest_even ) );
+            if ((zSig1 << 1) == 0 && status->float_rounding_mode == float_round_nearest_even)
+                zSig0 &= ~1;
         }
     } else {
         if ( zSig0 == 0 ) zExp = 0;
@@ -297,7 +298,8 @@ precision80:
             ++zExp;
             zSig0 = LIT64( 0x8000000000000000 );
         } else {
-            zSig0 &= ~ ( ( (uint64_t) ( zSig1<<1 ) == 0 ) & ( floatx80_internal_mode == float_round_nearest_even ) );
+            if ((zSig1 << 1) == 0 && floatx80_internal_mode == float_round_nearest_even)
+                zSig0 &= ~1;
         }
     } else {
         if ( zSig0 == 0 ) zExp = 0;
