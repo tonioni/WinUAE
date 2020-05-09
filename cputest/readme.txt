@@ -131,6 +131,15 @@ If mismatch is detected, opcode word(s), instruction disassembly, registers befo
 
 Change log:
 
+09.05.2020
+
+- dat format changed, now it is possible to continue running test if previous test reported error.
+- dat file stored FPU data uses less space.
+- added forced_register option, force static content to any supported register.
+- added -exit n command line parameter, n = number of errors until current test run gets aborted.
+- added -fpuadj x,y,z command line parameter. x = max exponent difference allowed, y = ignore y last bits of mantissa, z = ignore z last zero bits of mantissa.
+- 68000 bus/address error stack frame program counter field was ignored.
+
 19.04.2020
 
 - * = ignore rest of name, for example "cputest basic/neg*" will run NEG.B, NEG.W and NEG.L tests.

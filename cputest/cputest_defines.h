@@ -1,5 +1,5 @@
 
-#define DATA_VERSION 16
+#define DATA_VERSION 17
 
 #define CT_FPREG 0
 #define CT_DREG 0
@@ -42,3 +42,4 @@
 #define CT_END_SKIP (0x80 | 0x40 | 0x01)
 #define CT_SKIP_REGS (0x80 | 0x40 | 0x02)
 #define CT_EMPTY CT_END_INIT
+#define CT_OVERRIDE_REG (0x80 | 0x40 | 0x10)
