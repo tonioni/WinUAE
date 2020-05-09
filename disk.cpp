@@ -3418,7 +3418,7 @@ void DISK_handler (uae_u32 data)
 		do_disk_index ();
 }
 
-static void disk_doupdate_write (drive * drv, int floppybits)
+static void disk_doupdate_write(int floppybits, int trackspeed)
 {
 	int dr;
 	int drives[4];
@@ -3433,7 +3433,7 @@ static void disk_doupdate_write (drive * drv, int floppybits)
 		drives[dr] = 1;
 	}
 
-	while (floppybits >= drv->trackspeed) {
+	while (floppybits >= trackspeed) {
 		for (dr = 0; dr < MAX_FLOPPY_DRIVES; dr++) {
 			if (drives[dr]) {
 				drive *drv2 = &floppy[dr];
@@ -3458,7 +3458,7 @@ static void disk_doupdate_write (drive * drv, int floppybits)
 				}
 				if (disk_fifostatus () >= 0) {
 					uae_u16 w = DSKDATR ();
-					for (dr = 0; dr < MAX_FLOPPY_DRIVES ; dr++) {
+					for (dr = 0; dr < MAX_FLOPPY_DRIVES; dr++) {
 						drive *drv2 = &floppy[dr];
 						if (drives[dr]) {
 							drv2->bigmfmbuf[drv2->mfmpos >> 4] = w;
@@ -3486,7 +3486,7 @@ static void disk_doupdate_write (drive * drv, int floppybits)
 				}
 			}
 		}
-		floppybits -= drv->trackspeed;
+		floppybits -= trackspeed;
 	}
 }
 
@@ -3629,7 +3629,7 @@ static int doreaddma (void)
 	return 0;
 }
 
-static void disk_doupdate_read_nothing (int floppybits)
+static void disk_doupdate_read_nothing(int floppybits)
 {
 	while (floppybits >= get_floppy_speed ()) {
 		word <<= 1;
@@ -3985,16 +3985,20 @@ void DISK_update (int tohpos)
 		}
 		/* write dma and wordsync enabled: read until wordsync match found */
 		if (dskdmaen == DSKDMA_WRITE && dma_enable)
-			disk_doupdate_write (drv, drv->floppybitcounter);
+			disk_doupdate_write(drv->floppybitcounter, drv->trackspeed);
 		else
-			disk_doupdate_read (drv, drv->floppybitcounter);
+			disk_doupdate_read(drv, drv->floppybitcounter);
 
 		drv->floppybitcounter %= drv->trackspeed;
 		didaccess = 1;
 	}
-	/* no floppy selected but read dma */
-	if (!didaccess && dskdmaen == DSKDMA_READ) {
-		disk_doupdate_read_nothing (cycles);
+	/* no floppy selected but dma active */
+	if (!didaccess) {
+		if (dskdmaen == DSKDMA_READ) {
+			disk_doupdate_read_nothing(cycles);
+		} else if (dskdmaen == DSKDMA_WRITE) {
+			disk_doupdate_write(cycles, get_floppy_speed());
+		}
 	}
 
 	/* instantly finish dma if dsklen==0 and wordsync detected */
@@ -4201,10 +4205,10 @@ void DSKLEN (uae_u16 v, int hpos)
 					for (i = 0; i < dsklength; i++) {
 						uae_u16 w = chipmem_wget_indirect (dskpt + i * 2);
 						drv->bigmfmbuf[pos >> 4] = w;
-	#ifdef AMAX
+#ifdef AMAX
 						if (amax_enabled)
 							amax_diskwrite (w);
-	#endif
+#endif
 						pos += 16;
 						pos %= drv->tracklen;
 					}
