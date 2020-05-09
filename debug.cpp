@@ -7326,10 +7326,9 @@ static void debug_sprintf_do(uae_u32 s)
 				} else if (cn == '[') {
 					char *next = strchr(p, ']');
 					if (next) {
-						p++;
 						*next = 0;
-						d = parse_custom(p, d);
-						p = next + 1;
+						d = parse_custom(p + 1, d);
+						p = next;
 					}
 				} else {
 					d[0] = '?';
