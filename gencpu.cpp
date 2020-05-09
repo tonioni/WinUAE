@@ -288,7 +288,7 @@ static int set_fpulimit;
 
 static int m68k_pc_offset, m68k_pc_offset_old;
 static int m68k_pc_total;
-static int exception_pc_offset;
+static int exception_pc_offset, exception_pc_offset_extra;
 static int branch_inst;
 static int ir2irc;
 static int insn_n_cycles;
@@ -2158,8 +2158,8 @@ static void check_bus_error(const char *name, int offset, int write, int size, c
 			bus_error_cycles = 0;
 		}
 
-		if (exception_pc_offset) {
-			incpc("%d", exception_pc_offset);
+		if (exception_pc_offset || exception_pc_offset_extra) {
+			incpc("%d", exception_pc_offset + exception_pc_offset_extra);
 		}
 
 		if (g_instr->mnemo == i_MOVE && write) {
@@ -3034,8 +3034,8 @@ static void check_address_error(const  char *name, int mode, const char *reg, in
 		}
 
 
-		if (exception_pc_offset) {
-			incpc("%d", exception_pc_offset);
+		if (exception_pc_offset || exception_pc_offset_extra) {
+			incpc("%d", exception_pc_offset + exception_pc_offset_extra);
 		}
 
 		if (g_instr->mnemo == i_MOVE) {
@@ -4265,10 +4265,16 @@ static void movem_ex3(int write)
 			out("uaecptr srcav = srca;\n");
 		}
 		if (write) {
+			incpc("%d", m68k_pc_offset + 2);
 			out("exception3_write_access(opcode, srca, %d, srcav, %d);\n",
 				g_instr->size,
 				(g_instr->dmode == PC16 || g_instr->dmode == PC8r) ? 2 : 1);
 		} else {
+			int pcoff = 2;
+			if (g_instr->dmode == Ad8r || g_instr->dmode == PC8r) {
+				pcoff = -2;
+			}
+			incpc("%d", m68k_pc_offset + pcoff);
 			out("exception3_read_access(opcode, srca, %d, %d);\n",
 				g_instr->size,
 				(g_instr->dmode == PC16 || g_instr->dmode == PC8r) ? 2 : 1);
@@ -4518,8 +4524,9 @@ static void genmovemle_ce (uae_u16 opcode)
 
 	out("uae_u16 mask = %s;\n", gen_nextiword (0));
 	check_prefetch_buserror(m68k_pc_offset);
-	if (table68k[opcode].dmode == Ad8r || table68k[opcode].dmode == PC8r)
+	if (table68k[opcode].dmode == Ad8r || table68k[opcode].dmode == PC8r) {
 		addcycles000(2);
+	}
 	genamode(NULL, table68k[opcode].dmode, "dstreg", table68k[opcode].size, "src", 2, 1, GF_AA | GF_MOVE | GF_REVERSE | GF_REVERSE2);
 	if (table68k[opcode].size == sz_long) {
 		if (table68k[opcode].dmode == Apdi) {
@@ -5102,6 +5109,7 @@ static void gen_opcode (unsigned int opcode)
 	bus_error_code2[0] = 0;
 	opcode_nextcopy = 0;
 	last_access_offset = -1;
+	exception_pc_offset_extra = 0;
 
 	loopmode = 0;
 	// 68010 loop mode available if
@@ -5320,6 +5328,7 @@ static void gen_opcode (unsigned int opcode)
 		break;
 	}
 	case i_SUBX:
+		exception_pc_offset_extra = 2;
 		next_level_000();
 		if (!isreg(curi->smode))
 			addcycles000(2);
@@ -5512,6 +5521,7 @@ static void gen_opcode (unsigned int opcode)
 		break;
 	}
 	case i_ADDX:
+		exception_pc_offset_extra = 2;
 		next_level_000();
 		if (!isreg(curi->smode)) {
 			addcycles000(2);
@@ -5900,6 +5910,7 @@ static void gen_opcode (unsigned int opcode)
 		genastore("dst", curi->dmode, "dstreg", curi->size, "dst");
 		break;
 	case i_CMPM:
+		exception_pc_offset_extra = 2;
 		genamodedual(curi,
 			curi->smode, "srcreg", curi->size, "src", 1, GF_AA,
 			curi->dmode, "dstreg", curi->size, "dst", 1, GF_AA);
@@ -6189,12 +6200,19 @@ static void gen_opcode (unsigned int opcode)
 				bus_error_code[0] = 0;
 				bus_error_code2[0] = 0;
 
+				int pcoffset = 0;
+				if (curi->smode >= Aind && curi->smode < imm && curi->dmode == absl) {
+					// address/bus error stacked PC is 2 less
+					pcoffset -= 2;
+				}
+				exception_pc_offset += pcoffset;
 				// MOVE EA,-(An) long writes are always reversed. Reads are normal.
 				if (curi->dmode == Apdi && curi->size == sz_long) {
 					genastore_2("src", curi->dmode, "dstreg", curi->size, "dst", 1, storeflags | GF_EXC3);
 				} else {
 					genastore_2("src", curi->dmode, "dstreg", curi->size, "dst", 0, storeflags | GF_EXC3);
 				}
+				exception_pc_offset -= pcoffset;
 				sync_m68k_pc();
 				if (dualprefetch) {
 					fill_prefetch_full_000(curi->mnemo == i_MOVE ? 2 : 1);
@@ -6220,7 +6238,11 @@ static void gen_opcode (unsigned int opcode)
 		}
 		break;
 	case i_MVSR2: // MOVE FROM SR
+		if ((curi->smode != Apdi && curi->smode != absw && curi->smode != absl) && curi->size == sz_word) {
+			exception_pc_offset_extra = -2;
+		}
 		genamode(curi, curi->smode, "srcreg", sz_word, "src", cpu_level == 0 ? 2 : 3, 0, cpu_level == 1 ? GF_NOFETCH : 0);
+		exception_pc_offset_extra = 0;
 		out("MakeSR();\n");
 		if (isreg (curi->smode)) {
 			if (cpu_level == 0 && curi->size == sz_word) {
@@ -6461,6 +6483,7 @@ static void gen_opcode (unsigned int opcode)
 			out("regs.sr = sr;\n");
 			makefromsr();
 			out("if (pc & 1) {\n");
+			incpc("2");
 			out("exception3_read_access(opcode | 0x20000, pc, 1, 2);\n");
 			write_return_cycles(0);
 			out("}\n");
@@ -6688,6 +6711,7 @@ static void gen_opcode (unsigned int opcode)
 				out("if (olda & 1) {\n");
 				out("m68k_areg(regs, 7) += 4;\n");
 				out("m68k_areg(regs, srcreg) = olda;\n");
+				incpc("6");
 				out("exception3_write_access(opcode, olda, sz_word, src >> 16, 1);\n");
 				write_return_cycles(0);
 				out("}\n");
@@ -6708,9 +6732,11 @@ static void gen_opcode (unsigned int opcode)
 			out("m68k_areg(regs, 7) = src + 4;\n");
 			out("m68k_areg(regs, srcreg) = old;\n");
 		} else {
+			m68k_pc_offset = 4;
 			genamode(curi, curi->smode, "srcreg", curi->size, "src", 1, 0, 0);
 			genamode(NULL, am_unknown, "src", sz_long, "old", 1, 0, 0);
 			out("m68k_areg(regs, 7) = src + 4;\n");
+			m68k_pc_offset = 2;
 			genastore("old", curi->smode, "srcreg", curi->size, "src");
 			fill_prefetch_next_t();
 		}
@@ -6720,6 +6746,7 @@ static void gen_opcode (unsigned int opcode)
 		out("uaecptr pc = %s;\n", getpc);
 		if (cpu_level <= 1 && using_exception_3) {
 			out("if (m68k_areg(regs, 7) & 1) {\n");
+			incpc("2");
 			out("exception3_read_access(opcode, m68k_areg(regs, 7), 1, 1);\n");
 			write_return_cycles(0);
 			out("}\n");
@@ -6766,6 +6793,9 @@ static void gen_opcode (unsigned int opcode)
 		if (cpu_level >= 4) {
 			out("m68k_areg(regs, 7) -= 4;\n");
 		}
+		if (cpu_level <= 1) {
+			incpc("2");
+		}
 		out("exception3_read_prefetch_only(opcode, faultpc);\n");
 		write_return_cycles(0);
 		out("}\n");
@@ -6776,7 +6806,10 @@ static void gen_opcode (unsigned int opcode)
 			fill_prefetch_full(0);
 		}
 		branch_inst = 1;
-		next_level_040_to_030();
+		if (!next_level_040_to_030()) {
+			if (!next_level_020_to_010())
+				next_level_000();
+		}
 		break;
 	case i_TRAPV:
 		sync_m68k_pc();
@@ -6827,6 +6860,7 @@ static void gen_opcode (unsigned int opcode)
 	case i_RTR:
 		if (cpu_level <= 1 && using_exception_3) {
 			out("if (m68k_areg(regs, 7) & 1) {\n");
+			incpc("2");
 			out("exception3_read_access(opcode, m68k_areg(regs, 7), 1, 1);\n");
 			write_return_cycles(0);
 			out("}\n");
@@ -6849,7 +6883,7 @@ static void gen_opcode (unsigned int opcode)
 		if (cpu_level < 4) {
 			out("if (%s & 1) {\n", getpc);
 			out("uaecptr faultpc = %s;\n", getpc);
-			setpc("oldpc");
+			setpc("oldpc + 2");
 			out("exception3_read_prefetch_only(opcode, faultpc);\n");
 			write_return_cycles(0);
 			out("}\n");
@@ -6882,6 +6916,13 @@ static void gen_opcode (unsigned int opcode)
 					addcycles000_onlyce(6);
 					addcycles000_nonce(6);
 				}
+				if (curi->smode == absl) {
+					incpc("6");
+				} else if (curi->smode == absw) {
+					incpc("4");
+				} else {
+					incpc("2");
+				}
 				out("exception3_read_prefetch_only(opcode, srca);\n");
 				write_return_cycles_noadd(0);
 				out("}\n");
@@ -6902,8 +6943,9 @@ static void gen_opcode (unsigned int opcode)
 				}
 				setpc("srca");
 				clear_m68k_offset();
-				if (cpu_level >= 2 && cpu_level < 4)
+				if (cpu_level >= 2 && cpu_level < 4) {
 					out("m68k_areg(regs, 7) -= 4;\n");
+				}
 				if (using_exception_3 && cpu_level >= 2) {
 					out("if (%s & 1) {\n", getpc);
 					out("exception3_read_prefetch(opcode, %s);\n", getpc);
@@ -6911,10 +6953,19 @@ static void gen_opcode (unsigned int opcode)
 					out("}\n");
 				}
 				fill_prefetch_1(0);
-				if (cpu_level < 2)
+				if (cpu_level < 2) {
 					out("m68k_areg(regs, 7) -= 4;\n");
+				}
 				if (using_exception_3 && cpu_level <= 1) {
 					out("if (m68k_areg(regs, 7) & 1) {\n");
+					setpc("oldpc");
+					if (curi->smode == absl) {
+						incpc("6");
+					} else if (curi->smode == Ad8r || curi->smode == PC8r || curi->smode == Ad16 || curi->smode == PC16 || curi->smode == absw) {
+						incpc("4");
+					} else {
+						incpc("2");
+					}
 					out("exception3_write_access(opcode, m68k_areg(regs, 7), 1, m68k_areg(regs, 7) >> 16, 1);\n");
 					write_return_cycles(0);
 					out("}\n");
@@ -6976,6 +7027,7 @@ static void gen_opcode (unsigned int opcode)
 				addcycles000_onlyce(6);
 				addcycles000_nonce(6);
 			}
+			incpc("2");
 			out("exception3_read_prefetch_only(opcode, srca);\n");
 			write_return_cycles_noadd(0);
 			out("}\n");
@@ -7013,10 +7065,6 @@ static void gen_opcode (unsigned int opcode)
 		if (isce020())
 			no_prefetch_ce020 = true;
 		out("uae_s32 s;\n");
-		if (curi->size == sz_long) {
-			if (next_cpu_level < 1)
-				next_cpu_level = 1;
-		}
 		if (curi->size == sz_long && cpu_level < 2) {
 			out("uae_u32 src = 0xffffffff;\n");
 		} else {
@@ -7086,8 +7134,11 @@ static void gen_opcode (unsigned int opcode)
 			count_writel++;
 		}
 		if (using_exception_3 && cpu_level == 0) {
+			// both stacked fields point to new PC
 			out("if (%s & 1) {\n", getpc);
-			out("exception3_read_prefetch(opcode, %s);\n", getpc);
+			out("uaecptr addr = %s;\n", getpc);
+			incpc("-2");
+			out("exception3_read_prefetch(opcode, addr);\n");
 			write_return_cycles(0);
 			out("}\n");
 		}
@@ -7131,7 +7182,7 @@ static void gen_opcode (unsigned int opcode)
 		addcycles000(2);
 		if (using_exception_3 && cpu_level >= 4) {
 			out("if (src & 1) {\n");
-			out("exception3_read_prefetch(opcode, %s + 2 + (uae_s32)src);\n", getpc);
+			out("exception3_read_prefetch(opcode, %s + (uae_s32)src + 2);\n", getpc);
 			write_return_cycles(0);
 			out("}\n");
 		}
@@ -7144,8 +7195,12 @@ static void gen_opcode (unsigned int opcode)
 				incpc("((uae_s32)src + 2) & ~1");
 				dummy_prefetch(NULL, "oldpc");
 				out("regs.read_buffer = rb;\n");
+				out("exception3_read_prefetch(opcode, %s + (uae_s32)src + 2);\n", getpc);
+			} else {
+				// Addr = new address, PC = current PC
+				out("uaecptr addr = %s + (uae_s32)src + 2;\n", getpc);
+				out("exception3_read_prefetch(opcode, addr);\n");
 			}
-			out("exception3_read_prefetch(opcode, %s + 2 + (uae_s32)src);\n", getpc);
 			write_return_cycles(0);
 			out("}\n");
 		}
@@ -7222,20 +7277,24 @@ bccl_not68020:
 		}
 		genamode(curi, curi->smode, "srcreg", curi->size, "src", 0, 0, GF_AA);
 		genamode(NULL, Apdi, "7", sz_long, "dst", 2, 0, GF_AA | GF_NOEXC3);
-		if (curi->smode == Ad8r || curi->smode == PC8r)
+		if (curi->smode == Ad8r || curi->smode == PC8r) {
 			addcycles000(2);
-		if (!(curi->smode == absw || curi->smode == absl))
+		}
+		if (!(curi->smode == absw || curi->smode == absl)) {
 			fill_prefetch_next_after(0, "m68k_areg(regs, 7) += 4;\n");
+		}
 		if (cpu_level <= 1 && using_exception_3) {
 			out("if (dsta & 1) {\n");
 			out("regs.ir = old_opcode;\n");
+			incpc("%d", m68k_pc_offset + ((curi->smode == absw || curi->smode == absl) ? 0 : 2));
 			out("exception3_write_access(old_opcode, dsta, sz_word, srca >> 16, 1);\n");
 			write_return_cycles(0);
 			out("}\n");
 		}
 		genastore("srca", Apdi, "7", sz_long, "dst");
-		if ((curi->smode == absw || curi->smode == absl))
+		if ((curi->smode == absw || curi->smode == absl)) {
 			fill_prefetch_next_t();
+		}
 		break;
 	case i_DBcc:
 		// cc true: idle cycle, prefetch

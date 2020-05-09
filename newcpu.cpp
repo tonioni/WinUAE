@@ -7217,6 +7217,9 @@ void exception3_read_prefetch(uae_u32 opcode, uaecptr addr)
 {
 	x_do_cycles(4 * cpucycleunit);
 	last_di_for_exception_3 = 0;
+	if (currprefs.cpu_model == 68000) {
+		m68k_incpci(2);
+	}
 	exception3f(opcode, addr, false, true, false, m68k_getpc(), sz_word, -1);
 }
 void exception3_read_access(uae_u32 opcode, uaecptr addr, int size, int fc)
