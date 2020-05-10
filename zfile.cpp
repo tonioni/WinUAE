@@ -3222,6 +3222,7 @@ void zfile_fclose_archive (struct zvolume *zv)
 		zn = zn2;
 	}
 	archive_access_close (zv->handle, zv->id);
+	zfile_fclose(zv->archive);
 	if (zvolume_list == zv) {
 		zvolume_list = zvolume_list->next;
 	} else {
