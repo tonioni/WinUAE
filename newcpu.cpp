@@ -7341,6 +7341,8 @@ void exception2_write(uae_u32 opcode, uaecptr addr, int size, uae_u32 val, int f
 static void exception2_fetch_common(uae_u32 opcode, int offset)
 {
 	last_fault_for_exception_3 = m68k_getpc() + offset;
+	// this is not yet fully correct
+	last_addr_for_exception_3 = last_fault_for_exception_3;
 	last_writeaccess_for_exception_3 = 0;
 	last_op_for_exception_3 = opcode;
 	last_fc_for_exception_3 = 2;
