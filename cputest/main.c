@@ -1699,6 +1699,10 @@ static uae_u8 *validate_exception(struct registers *regs, uae_u8 *p, short excnu
 				break;
 			case 8: // 68010 bus/address error
 				{
+					// program counter
+					v = opcode_memory_addr;
+					p = restore_rel_ordered(p, &v);
+					pl(exc + 2, v);
 					uae_u16 ssw = (p[0] << 8) | p[1];
 					exc[8] = *p++;
 					exc[9] = *p++;

@@ -1191,6 +1191,7 @@ static void exception2_fetch_common(uae_u32 opcode, int offset)
 void exception2_fetch(uae_u32 opcode, int offset)
 {
 	exception2_fetch_common(opcode, offset);
+	regs.pc = test_exception_addr;
 	doexcstack();
 }
 
@@ -1200,6 +1201,7 @@ void exception2_fetch_opcode(uae_u32 opcode, int offset)
 	if (currprefs.cpu_model == 68010) {
 		test_exception_3_di = -1;
 	}
+	regs.pc = test_exception_addr;
 	doexcstack();
 }
 
@@ -3879,6 +3881,8 @@ static uae_u8 *save_exception(uae_u8 *p, struct instr *dp)
 				*p++ = regs.fp_ea_set ? 0x01 : 0x00;
 				break;
 			case 8: // 68010 address/bus error
+				// program counter
+				p = store_rel(p, 0, opcode_memory_start, gl(sf + 2), 1);
 				// SSW
 				*p++ = sf[8];
 				*p++ = sf[9];
@@ -6144,7 +6148,7 @@ static int test(struct ini_data *ini, const TCHAR *sections, const TCHAR *testna
 	}
 
 	if (safe_memory_start != 0xffffffff) {
-		int err = check_safe_memory(test_low_memory_start, test_low_memory_end);
+		int err = check_safe_memory(test_memory_start, test_memory_end);
 		err += check_safe_memory(test_low_memory_start, test_low_memory_end);
 		err += check_safe_memory(test_high_memory_start, test_high_memory_end);
 		if (err == 3) {
