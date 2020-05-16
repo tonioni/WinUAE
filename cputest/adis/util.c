@@ -86,7 +86,7 @@ return (dest - 1);
 BOOL is_str (char *maybe_string, uint max_len)
 
 {
-register uchar *tmp_str;
+uchar *tmp_str;
 uchar *last_char;
 
 tmp_str = (uchar*) maybe_string;
@@ -104,7 +104,7 @@ int str_len (char *maybe_string, uint max_len)
 
 /* str_len() returns string length or 0 if not a valid string */
 {
-register uchar *tmp_str;
+uchar *tmp_str;
 uchar *last_char;
 
 tmp_str = (uchar*) maybe_string;
@@ -172,8 +172,8 @@ char *format_line (char *to, BOOL commented, int instr_words)
 /* format opcode, src and dest to to */
 {
 char *tmp_str;
-register int i;
-register char reg_space_char = space_char;
+int i;
+char reg_space_char = space_char;
 
 tmp_str = to;
 i = OPCODE_COL;
@@ -284,7 +284,7 @@ if (commented && comment)
       for (i = 0; i < instr_words; i++)
         {
         *to++ = ' ';
-        to = format_ulx_digits (to, *(code + i), 4L);
+        to = format_ulx_digits (to, lw(code + i), 4L);
         }
       }
     }
@@ -464,8 +464,8 @@ return (to);
 void format_reg_list (char *to, ushort list, BOOL incr_list, ushort reglist_offset)
 
 {
-register int i;
-register long mylist;                 /* list in order a7-a0/d7-d0 */
+int i;
+long mylist;                 /* list in order a7-a0/d7-d0 */
 short last_set;
 BOOL regs_used;
 
@@ -644,7 +644,7 @@ void disp_pc_indexed (char *to, ULONG ref, BYTE disp, ushort index_reg,
 if (!old_style)
   *to++ = '(';
 
-if (!((*code & 0xffc0) == 0x4ec0))  /* not jmp */
+if (!((lw(code) & 0xffc0) == 0x4ec0))  /* not jmp */
   to = gen_label_ref (to, ref);
 else if (!(disp == 0 && optimize))
   to = format_x (to, (WORD)disp);
@@ -721,10 +721,10 @@ UWORD full_ext_w,
       post_indexed,
       no_index_reg,
       no_base_reg;
-WORD *next_instr_ext;
+UWORD *next_instr_ext;
 
-full_ext_w = *instr_ext;
-next_instr_ext = (WORD*)instr_ext + 1;
+full_ext_w = lw(instr_ext);
+next_instr_ext = instr_ext + 1;
 
 no_index_reg = (full_ext_w & 0x0040);  /*  %1000000, bit #6 */
 
@@ -754,13 +754,13 @@ if (bd_size == 1)  /* .w? */
     {
     ULONG b_offset = current_ref + ((instr_ext - code)  << 1);
     if (pass2)
-      enter_ref (b_offset + *(next_instr_ext++), NULL, ACC_UNKNOWN);
+      enter_ref (b_offset + (WORD)lw(next_instr_ext++), NULL, ACC_UNKNOWN);
     else
-      to = gen_label_ref (to, b_offset + *(next_instr_ext++));
+      to = gen_label_ref (to, b_offset + (WORD)lw(next_instr_ext++));
     }
   else
     {
-    to = format_x (to, *(next_instr_ext++));
+    to = format_x (to, lw(next_instr_ext++));
     if (!optimize)
       {
       *to++ = '.';
@@ -774,20 +774,20 @@ else if (bd_size == 2)  /* .l? */
   if (FLAGS_RELOC (b_offset + 2))  /* relocated absolute (to a label) */
     {
     if (pass2)
-      enter_ref (*((LONG*)(next_instr_ext)), NULL, ACC_UNKNOWN);
+      enter_ref (lls(next_instr_ext), NULL, ACC_UNKNOWN);
     else
-      to = gen_label_ref (to, *((LONG*)(next_instr_ext)));
+      to = gen_label_ref (to, llu(next_instr_ext));
     }
   else if (mode == 7 && !no_base_reg)  /* pc relative && pc not suppressed? */
     {
     if (pass2)
-      enter_ref (b_offset + *((LONG*)(next_instr_ext)), NULL, ACC_UNKNOWN);
+      enter_ref (b_offset + lls(next_instr_ext), NULL, ACC_UNKNOWN);
     else
-      to = gen_label_ref (to, b_offset + *((LONG*)(next_instr_ext)));
+      to = gen_label_ref (to, b_offset + lls(next_instr_ext));
     }
   else
     {
-    to = format_lx (to, *((LONG*)(next_instr_ext)));
+    to = format_lx (to, llu(next_instr_ext));
     if (!optimize)
       {
       *to++ = '.';
@@ -834,7 +834,7 @@ if (!post_indexed && od_size >= 0)
 if (od_size == 1)  /* .w? */
   {
   *to++ = ',';
-  to = format_x (to, *(next_instr_ext++));
+  to = format_x (to, lw(next_instr_ext++));
   if (!optimize)
     {
     *to++ = '.';
@@ -844,7 +844,7 @@ if (od_size == 1)  /* .w? */
 else if (od_size == 2)  /* .l? */
   {
   *to++ = ',';
-  to = format_lx (to, *((LONG*)(next_instr_ext)));
+  to = format_lx (to, llu(next_instr_ext));
   if (!optimize)
     {
     *to++ = '.';
@@ -997,14 +997,14 @@ uint disasm_instr(UWORD *instr, char *out, int cpu_lvl)
 	instr_end = FALSE; /* global variable TRUE at rts, bra, jmp, etc. */
 	code = instr;      /* global variable */
 
-	for (op = &(opcode_table[(instr[0]) >> 6]);
+	for (op = &(opcode_table[(lw(instr)) >> 6]);
 		size == 0;
 		op = &(opcode_table[op->chain]))
 	{
 		/* Test for validity of ea_mode */
-		if (op->modes & (1 << MODE_NUM(*instr)))
+		if (op->modes & (1 << MODE_NUM(lw(instr))))
 		{
-			if ((MODE_NUM(*instr) == 7) && !(op->submodes & (1 << REG_NUM(*instr))))
+			if ((MODE_NUM(lw(instr)) == 7) && !(op->submodes & (1 << REG_NUM(lw(instr)))))
 				continue;
 
 			if (pass3 && op->mnemonic != 0)

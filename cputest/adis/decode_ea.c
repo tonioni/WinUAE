@@ -52,9 +52,9 @@ uint decode_ea (char *to, ushort mode, ushort reg, UWORD access, ushort first_ex
 {
 static ULONG maybe_jmptable_ref = UNSET;  /* for jump table disassembly */
 ULONG ref;
-register UWORD first_ext_w;
+UWORD first_ext_w;
 
-first_ext_w = *(code + first_ext);
+first_ext_w = lw(code + first_ext);
 switch (mode)
   {
   /********************** data register direct ************************/
@@ -81,7 +81,7 @@ switch (mode)
   case 2:
     if (pass3)
       indirect (to, (ushort)(reg + 8));
-    else if ((*code & 0xfff8) == 0x4ed0)  /* jmp (An) */
+    else if ((lw(code) & 0xfff8) == 0x4ed0)  /* jmp (An) */
       {
       if (!FLAGS_RELOC (maybe_jmptable_ref))
         enter_jmptab (maybe_jmptable_ref, 0);  /* jmp table with word entries */
@@ -197,7 +197,7 @@ switch (mode)
       /*********************** absolute long **********************/
 
       case 1:
-        ref = *(ULONG*)(code + first_ext);
+        ref = llu(code + first_ext);
         if (FLAGS_RELOC (current_ref + first_ext * 2))
           {
           if (pass3)
@@ -305,7 +305,7 @@ switch (mode)
                             (first_ext_w & 0x0800) ? ACC_LONG : ACC_WORD);
           else if ((LONG)ref >= (LONG)first_ref && (LONG)ref < (LONG)last_ref)
             {
-            if (*code == 0x4efb)  /* Check for JMP (d8,PC,Xn) */
+            if (lw(code) == 0x4efb)  /* Check for JMP (d8,PC,Xn) */
               {
               enter_jmptab (maybe_jmptable_ref, (ULONG)((BYTE)first_ext_w) + 2);
               }
@@ -348,7 +348,7 @@ switch (mode)
           }
         else if (access & ACC_LONG)
           {
-          ref = *(ULONG*)(code + first_ext);
+          ref = llu(code + first_ext);
           if (FLAGS_RELOC (current_ref + first_ext * 2))
             {
             if (pass2)
@@ -381,8 +381,8 @@ switch (mode)
           {
           if (pass3)
             {
-            sprintf (to, "#$%lx%08lx", *(ULONG*)(code + first_ext),
-                     *(ULONG*)(code + first_ext + 2));
+            sprintf (to, "#$%lx%08lx", llu(code + first_ext),
+                     llu(code + first_ext + 2));
             }
           return (4);
           }
@@ -390,9 +390,9 @@ switch (mode)
           {
           if (pass3)
             {
-            sprintf (to, "#$%lx%08lx%08lx", *(ULONG*)(code + first_ext),
-                     *(ULONG*)(code + first_ext + 2), 
-                     *(ULONG*)(code + first_ext + 4));
+            sprintf (to, "#$%lx%08lx%08lx", llu(code + first_ext),
+                     llu(code + first_ext + 2), 
+                     llu(code + first_ext + 4));
             }
           return (6);
           }

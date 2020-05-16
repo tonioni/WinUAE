@@ -191,6 +191,18 @@ enum
 #define FLAG_TABLE      0x40  /* data is a table */
 #define FLAG_CODE       0x80  /* data is code */
 
+#if 1
+#define FLAGS_BYTE(ref) 0
+#define FLAGS_WORD(ref) 0
+#define FLAGS_LONG(ref) 0
+#define FLAGS_SIGNED(ref) 0
+#define FLAGS_RELOC(ref) 0
+#define FLAGS_CODE(ref) 0
+#define FLAGS_STRING(ref) 0
+#define FLAGS_BAD(ref) 0
+#define FLAGS_ANY(ref) 0
+#define FLAGS_NONE(ref) 0
+#else
 #define FLAGS_BYTE(ref)    (*(flags + (ref) - first_ref) & FLAG_BYTE)
 #define FLAGS_WORD(ref)    (*(flags + (ref) - first_ref) & FLAG_WORD)
 #define FLAGS_LONG(ref)    (*(flags + (ref) - first_ref) & FLAG_LONG)
@@ -212,6 +224,7 @@ enum
 #define FLAGS_STRING_P(ptr)    (*(ptr) & FLAG_STRING)
 #define FLAGS_BAD_P(ptr)       (*(ptr) & (FLAG_CODE | FLAG_RELOC))
 #define FLAGS_ANY_P(ptr)       (*(ptr))
+#endif
 
 /* Marker for jump-tables */
 #ifdef DEBUG
@@ -521,3 +534,7 @@ void print_jmptab_list (void);
 
 /* library.c */
 void enter_library_refs (UBYTE *seg);
+
+UWORD lw(UWORD*);
+ULONG llu(UWORD*);
+LONG lls(UWORD*);

@@ -272,6 +272,24 @@ static int is_valid_test_addr_readwrite(uae_u32 a)
 		(a >= test_memory_addr && a < test_memory_end);
 }
 
+uae_u16 lw(uae_u16 *p)
+{
+	if (!is_valid_test_addr_read((uae_u32)p) || !is_valid_test_addr_read(((uae_u32)p) + 1))
+		return 0;
+	return *p;
+}
+uae_u32 llu(uae_u16 *p)
+{
+	if (!is_valid_test_addr_read((uae_u32)p) || !is_valid_test_addr_read(((uae_u32)p) + 1))
+		return 0;
+	if (!is_valid_test_addr_read(((uae_u32)p) + 2) || !is_valid_test_addr_read(((uae_u32)p) + 3))
+		return p[0] << 16;
+	return *(uae_u32*)p;
+}
+uae_s32 lls(uae_u16 *p)
+{
+	return (uae_s32)llu(p);
+}
 
 static void endinfo(void)
 {
@@ -1212,6 +1230,13 @@ static void addinfo_bytes(char *name, uae_u8 *src, uae_u32 address, int offset, 
 
 extern uae_u16 disasm_instr(uae_u16 *, char *, int);
 
+static short is_valid_word(uae_u8 *p)
+{
+	if (!is_valid_test_addr_read((uae_u32)p) || !is_valid_test_addr_read((uae_u32)p + 1))
+		return 0;
+	return 1;
+}
+
 static void out_disasm(uae_u8 *mem)
 {
 	uae_u16 *code;
@@ -1229,7 +1254,7 @@ static void out_disasm(uae_u8 *mem)
 	int lines = 0;
 	while (lines++ < 7) {
 		int v = 0;
-		if (!is_valid_test_addr_read((uae_u32)p) || !is_valid_test_addr_read((uae_u32)p + 1)) {
+		if (!is_valid_word(p)) {
 			sprintf(outbp, "%08x -- INACCESSIBLE --\n", (uae_u32)p);
 			outbp += strlen(outbp);
 			break;
@@ -1240,7 +1265,11 @@ static void out_disasm(uae_u8 *mem)
 			sprintf(outbp, "%08x ", (uae_u32)p);
 			outbp += strlen(outbp);
 			for (int i = 0; i < v; i++) {
-				uae_u16 v = (p[i * 2 + 0] << 8) | (p[i * 2 + 1]);
+				uae_u8 *pb = &p[i * 2 + 0];
+				uae_u16 v = 0;
+				if (is_valid_word(pb)) {
+					v = (pb[0] << 8) | (pb[1]);
+				}
 				sprintf(outbp, "%04x ", v);
 				outbp += strlen(outbp);
 				if (v == 0x4e71)
@@ -1248,6 +1277,8 @@ static void out_disasm(uae_u8 *mem)
 			}
 			sprintf(outbp, " %s\n", tmpbuffer);
 			outbp += strlen(outbp);
+			if (!is_valid_word((uae_u8*)(code + offset)))
+				break;
 			if (v <= 0 || code[offset] == 0x4afc)
 				break;
 			while (v > 0) {
@@ -1256,6 +1287,8 @@ static void out_disasm(uae_u8 *mem)
 				v--;
 			}
 		} else {
+			if (!is_valid_test_addr_read((uae_u32)code))
+				break;
 			sprintf(outbp, "%08x %02x\n", (uae_u32)code, *((uae_u8*)code));
 			code = (uae_u16*)(((uae_u32)code) + 1);
 			p++;

@@ -96,7 +96,7 @@ BOOL cpu68010 = TRUE,
 BOOL disasm_as_lib = FALSE;         /* -l */
 BOOL ascending_label_numbers = FALSE;   /* -dn */
 BOOL verbose = FALSE;
-BOOL optimize = TRUE;
+BOOL optimize = FALSE;
 BOOL branch_sizes = TRUE;
 BOOL instr_bad;
 BOOL instr_end;

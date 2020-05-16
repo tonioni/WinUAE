@@ -35,11 +35,11 @@ uint fpu (struct opcode_entry *op)
 uint used;
 char *reg_list,
      *ea;
-register char *tmp = NULL;
+char *tmp = NULL;
 uint num_regs;
-register UWORD instr_word1;
-register UWORD instr_word2;
-register UWORD mode;
+UWORD instr_word1;
+UWORD instr_word2;
+UWORD mode;
 
 instr_word1 = *code;
 instr_word2 = *(code + 1);

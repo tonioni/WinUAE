@@ -49,7 +49,7 @@ uint EA_to_Rn (struct opcode_entry *op)
 {
 if (pass3)
   str_cpy (dest, reg_names [op->param]);
-return (decode_ea (src, MODE_NUM (*code), REG_NUM (*code), op->access, 1) + 1);
+return (decode_ea (src, MODE_NUM (lw(code)), REG_NUM (lw(code)), op->access, 1) + 1);
 }
 
 /**********************************************************************/
@@ -60,7 +60,7 @@ uint Rn_to_EA (struct opcode_entry *op)
 {
 if (pass3)
   str_cpy (src, reg_names [op->param]);
-return (decode_ea (dest, MODE_NUM (*code), REG_NUM (*code), op->access, 1) + 1);
+return (decode_ea (dest, MODE_NUM (lw(code)), REG_NUM (lw(code)), op->access, 1) + 1);
 }
 
 /**********************************************************************/
@@ -69,7 +69,7 @@ uint op1 (struct opcode_entry *op)
 
 /* handler for 1 op instructions */
 {
-return (decode_ea (src, MODE_NUM(*code), REG_NUM(*code), op->access, 1) + 1);
+return (decode_ea (src, MODE_NUM(lw(code)), REG_NUM(lw(code)), op->access, 1) + 1);
 }
 
 /**********************************************************************/
@@ -80,7 +80,7 @@ uint op1_end (struct opcode_entry *op)
    i.e. jmp rtm */
 {
 instr_end = TRUE;
-return (decode_ea (src, MODE_NUM(*code), REG_NUM(*code), op->access, 1) + 1);
+return (decode_ea (src, MODE_NUM(lw(code)), REG_NUM(lw(code)), op->access, 1) + 1);
 }
 
 /**********************************************************************/
@@ -98,7 +98,7 @@ if (pass3)
   *to++ = (UBYTE)(op->param) + '0';
   *to = 0;
   }
-return (decode_ea (dest, MODE_NUM (*code), REG_NUM (*code), op->access, 1) + 1);
+return (decode_ea (dest, MODE_NUM (lw(code)), REG_NUM (lw(code)), op->access, 1) + 1);
 }
 
 /**********************************************************************/
@@ -111,7 +111,7 @@ if (pass3)
   char *to;
   to = src;
   *to++ = '#';
-  format_x (to, (BYTE)(*code));
+  format_x (to, (BYTE)(lw(code)));
   str_cpy (dest, reg_names [op->param]);
   }
 return (1);
@@ -124,8 +124,8 @@ uint move (struct opcode_entry *op)
 {
 uint used;
 
-used = decode_ea (src, MODE_NUM (*code), REG_NUM (*code), op->access, 1);
-used += decode_ea (dest,((*code >> 6) & 0x7), ((*code >> 9) & 0x7),
+used = decode_ea (src, MODE_NUM (lw(code)), REG_NUM (lw(code)), op->access, 1);
+used += decode_ea (dest,((lw(code) >> 6) & 0x7), ((lw(code) >> 9) & 0x7),
                      op->access, used + 1);
 return (used + 1);
 }
@@ -142,17 +142,17 @@ if (op->param == REG_TO_MEM)
   {
   /* Transfer registers to memory */
   reg_list = src;
-  used = decode_ea (dest, MODE_NUM (*code), REG_NUM (*code), ACC_DATA, 2);
+  used = decode_ea (dest, MODE_NUM (lw(code)), REG_NUM (lw(code)), ACC_DATA, 2);
   }
 else
   {
   reg_list = dest;
-  used = decode_ea (src, MODE_NUM (*code), REG_NUM (*code), ACC_DATA, 2);
+  used = decode_ea (src, MODE_NUM (lw(code)), REG_NUM (lw(code)), ACC_DATA, 2);
   }
 
 if (pass3)
   {
-  format_reg_list (reg_list, *(code + 1), (MODE_NUM (*code) != 4), 0);
+  format_reg_list (reg_list, lw(code + 1), (MODE_NUM (lw(code)) != 4), 0);
   if (*reg_list == 0)
     {
     /* some compilers generate empty reg lists for movem instructions */
@@ -170,7 +170,7 @@ uint imm_b (struct opcode_entry *op)
 
 /* handler for ori.b andi.b eori.b subi.b addi.b cmpi.b callm */
 {
-ULONG instr = *(ULONG*)code;
+ULONG instr = llu(code);
 
 #if 0
 if ((instr & 0xfc0000ff) == 0)  /* if ori.b #0,ea or andi.b #0,ea */
@@ -192,9 +192,9 @@ if (pass3)
   char *to;
   to = src;
   *to++ = '#';
-  format_ux (to, (*(code + 1) & 0xff));
+  format_ux (to, (lw(code + 1) & 0xff));
   }
-return (decode_ea (dest, MODE_NUM(*code), REG_NUM(*code), op->access, 2) + 2);
+return (decode_ea (dest, MODE_NUM(lw(code)), REG_NUM(lw(code)), op->access, 2) + 2);
 }
 
 /**********************************************************************/
@@ -204,7 +204,7 @@ uint imm_w (struct opcode_entry *op)
 /* handler for ori.w andi.w eori.w subi.w addi.w cmpi.w */
 {
 #if 0
-if ((*((ULONG*)code) & 0xfc00ffff) == 0)
+if (llu(code) & 0xfc00ffff) == 0)
   {
   /* ori.w #0,ea and andi.w #0,ea are probably not code */
   instr_bad = TRUE;
@@ -216,9 +216,9 @@ if (pass3)
   char *to;
   to = src;
   *to++ = '#';
-  format_ux (to, *(code + 1));
+  format_ux (to, lw(code + 1));
   }
-return (decode_ea (dest, MODE_NUM(*code), REG_NUM(*code), op->access, 2) + 2);
+return (decode_ea (dest, MODE_NUM(lw(code)), REG_NUM(lw(code)), op->access, 2) + 2);
 }
 
 /**********************************************************************/
@@ -227,10 +227,10 @@ uint imm_l (struct opcode_entry *op)
 
 /* handler for ori.l andi.l eori.l subi.l addi.l cmpi.l */
 {
-register ULONG instr_ext = *(ULONG*)(code + 1);
+ULONG instr_ext = llu(code + 1);
 
 #if 0
-if ((instr_ext == 0) && (*(code) & 0xfc00) == 0)
+if ((instr_ext == 0) && (lw(code) & 0xfc00) == 0)
   {
   /* ori.l #0,ea and andi.l #0,ea are probably not code */
   instr_bad = TRUE;
@@ -263,7 +263,7 @@ else if (pass3)
   else
     format_ulx (to, instr_ext);
   }
-return (decode_ea (dest, MODE_NUM(*code), REG_NUM(*code), op->access, 3) + 3);
+return (decode_ea (dest, MODE_NUM(lw(code)), REG_NUM(lw(code)), op->access, 3) + 3);
 }
 
 /**********************************************************************/
@@ -271,7 +271,7 @@ return (decode_ea (dest, MODE_NUM(*code), REG_NUM(*code), op->access, 3) + 3);
 uint bit_reg (struct opcode_entry *op)
 
 {
-UWORD code_w = *code;
+UWORD code_w = lw(code);
 
 if (pass3)
   str_cpy (src, reg_names [op->param]);
@@ -291,8 +291,8 @@ else
 uint bit_imm (struct opcode_entry *op)
 
 {
-UWORD code_w = *code;
-UWORD data_w = *(code + 1);
+UWORD code_w = lw(code);
+UWORD data_w = lw(code + 1);
 
 #if 0
 if ((data_w & 0xff00) != 0)
@@ -326,14 +326,14 @@ uint srccr (struct opcode_entry *op)
 
 /* ANDI, ORI, EORI to CCR or SR */
 {
-UWORD size = (*code & 0x00C0) >> 6;  /* size: byte=0 word=1 long=2 */
+UWORD size = (lw(code) & 0x00C0) >> 6;  /* size: byte=0 word=1 long=2 */
 /* Only allow word size SR or byte size CCR instructions. */
-if (size == 0 && (*(code + 1) & 0xff00))
+if (size == 0 && (lw(code + 1) & 0xff00))
   return (TRANSFER);
 if (pass3)
   {
-  str_cpy (opcode, opcode_table [*code >> 6].mnemonic);
-  immed (src, (ULONG)(*(code + 1)));
+  str_cpy (opcode, opcode_table [lw(code) >> 6].mnemonic);
+  immed (src, (ULONG)(lw(code + 1)));
   str_cpy (dest, special_regs [!size]);
   }
 return (2);
@@ -364,9 +364,9 @@ uint special (struct opcode_entry *op)
 char *ptr = NULL;
 uint used = 1;
 
-if ((*code & 0x38) == 0x30)
+if ((lw(code) & 0x38) == 0x30)
   {
-  switch (*code & 0xf)
+  switch (lw(code) & 0xf)
     {
     case 0: ptr = "reset";
             break;
@@ -374,7 +374,7 @@ if ((*code & 0x38) == 0x30)
             break;
     case 2: ptr = "stop";
             if (pass3)
-              immed (src, (ULONG)*(code + 1));
+              immed (src, lw(code + 1));
             used = 2;
             break;
     case 3: ptr = "rte";
@@ -387,7 +387,7 @@ if ((*code & 0x38) == 0x30)
             if (pass3)
               {
               src [0] = '#';
-              format_ux (src + 1, (UWORD)*(code + 1));
+              format_ux (src + 1, lw(code + 1));
               }
             used = 2;
             break;
@@ -404,13 +404,13 @@ if ((*code & 0x38) == 0x30)
     str_cpy (opcode, ptr);
   return (used);
   }
-else if ((*code & 0x3e) == 0x3a)          /* MOVEC */
+else if ((lw(code) & 0x3e) == 0x3a)          /* MOVEC */
   {
   short reg_offset;
 
   if (!cpu68010)
     return (TRANSFER);
-  switch (*(code + 1) & 0xfff)
+  switch (lw(code + 1) & 0xfff)
     {
     case 0x000: ptr = special_regs [SFC];
                 break;
@@ -451,74 +451,74 @@ else if ((*code & 0x3e) == 0x3a)          /* MOVEC */
     default : return (TRANSFER);
     }
 
-  reg_offset = (*(code + 1) & 0x8000) ? 8 : 0;
+  reg_offset = (lw(code + 1) & 0x8000) ? 8 : 0;
   if (pass3)
     {
     str_cpy (opcode, "movec");
-    if (*code & 0x1)
+    if (lw(code) & 0x1)
       {
       /* from general register to control register */
       str_cpy (dest, ptr);
-      str_cpy (src, reg_names [((*(code + 1) >> 12) & 0x7) + reg_offset]);
+      str_cpy (src, reg_names [((lw(code + 1) >> 12) & 0x7) + reg_offset]);
       }
     else
       {
       str_cpy (src, ptr);
-      str_cpy (dest, reg_names [((*(code + 1) >> 12) & 0x7) + reg_offset]);
+      str_cpy (dest, reg_names [((lw(code + 1) >> 12) & 0x7) + reg_offset]);
       }
     }
   return (2);
   }
-else if ((*code & 0x30) == 0)
+else if ((lw(code) & 0x30) == 0)
   {
   /* TRAP */
   if (pass3)
     {
     str_cpy (opcode, "trap");
     src [0] = '#';
-    format_ux (src + 1, (UWORD)(*code & 0xf));
+    format_ux (src + 1, lw(code) & 0xf);
     }
   return (1);
   }
-else if ((*code & 0x38) == 0x10)
+else if ((lw(code) & 0x38) == 0x10)
   {
   /* LINK */
   if (pass3)
     {
     str_cpy (opcode, "link");
-    str_cpy (src, reg_names [(*code & 0x7) + 8]);
+    str_cpy (src, reg_names [(lw(code) & 0x7) + 8]);
     dest [0] = '#';
-    format_x (dest + 1, (WORD)*(code + 1));
+    format_x (dest + 1, (WORD)lw(code + 1));
     }
   return (2);
   }
-else if ((*code & 0x38) == 0x18)
+else if ((lw(code) & 0x38) == 0x18)
   {
   /* UNLK */
   if (pass3)
     {
     str_cpy (opcode, "unlk");
-    str_cpy (src, reg_names [(*code & 0x7) + 8]);
+    str_cpy (src, reg_names [(lw(code) & 0x7) + 8]);
     }
   return (1);
   }
-else if ((*code & 0x38) == 0x20)
+else if ((lw(code) & 0x38) == 0x20)
   {
   if (pass3)
     {
     str_cpy (opcode, "move.l");
     str_cpy (dest, special_regs [USP]);
-    str_cpy (src, reg_names [(*code & 0x7) + 8]);
+    str_cpy (src, reg_names [(lw(code) & 0x7) + 8]);
     }
   return (1);
   }
-else if ((*code & 0x38) == 0x28)
+else if ((lw(code) & 0x38) == 0x28)
   {
   if (pass3)
     {
     str_cpy (opcode, "move");
     str_cpy (src, special_regs [USP]);
-    str_cpy (dest, reg_names [(*code & 0x7) + 8]);
+    str_cpy (dest, reg_names [(lw(code) & 0x7) + 8]);
     }
   return (1);
   }
@@ -565,12 +565,12 @@ uint branch (struct opcode_entry *op)
 {
 uint used;
 ULONG ref;
-register LONG offset = (BYTE)(*code & 0xff);
+LONG offset = (BYTE)(lw(code) & 0xff);
 
 if (offset == 0)
   {
   /* word displacement */
-  offset = (WORD)*(code + 1);
+  offset = (WORD)lw(code + 1);
   used = 2;
   }
 else if (offset == -1 && cpu68020)
@@ -578,7 +578,7 @@ else if (offset == -1 && cpu68020)
   /* long displacement */
   if (!cpu68020)
     return (TRANSFER);
-  offset = *(LONG*)(code + 1);
+  offset = lls(code + 1);
   used = 3;
   }
 else
@@ -607,7 +607,7 @@ if (pass3)
 else
   {
   enter_ref (ref, NULL, ACC_CODE);
-  if ((*code & 0xff00) == 0x6000)  /* bra */
+  if ((lw(code) & 0xff00) == 0x6000)  /* bra */
     instr_end = TRUE;  /* NOT on pass3 as it looks better without blank line */
   }
 return (used);
@@ -620,12 +620,12 @@ uint dbranch (struct opcode_entry *op)
 {
 ULONG ref;
 
-//if (*(code + 1) & 0x1)  /* branch to an odd address */
+//if (lw(code + 1) & 0x1)  /* branch to an odd address */
 //  return (TRANSFER);
 
 if (pass3)
-  str_cpy (src, reg_names [*code & 7]);
-ref = current_ref + 2 + (short)(*(code + 1));
+  str_cpy (src, reg_names [lw(code) & 7]);
+ref = current_ref + 2 + (short)(lw(code + 1));
 if (ref < first_ref || ref > last_ref)
   return (TRANSFER);
 if (pass3)
@@ -645,7 +645,7 @@ if (pass3)
   {
   opcode [1] = 's';
   opcode [2] = 0;
-  switch ((*code >> 3) & 0x3)
+  switch ((lw(code) >> 3) & 0x3)
     {
     case 0:  /* Arithmetic shift */
              opcode [0] = 'a';
@@ -663,7 +663,7 @@ if (pass3)
     }
   str_cat (opcode, op->mnemonic);
 
-  if (*code & 0x20)
+  if (lw(code) & 0x20)
     {
     /* shift count is in register */
     str_cpy (src, reg_names [op->param & 0x7]);
@@ -676,7 +676,7 @@ if (pass3)
     format_ux (src + 1, (UWORD)op->param);
     }
 
-  str_cpy (dest, reg_names [REG_NUM (*code)]);
+  str_cpy (dest, reg_names [REG_NUM (lw(code))]);
   }
 return (1);
 }
@@ -692,17 +692,17 @@ char *tmp;
 
 if (pass3)
   {
-  if (*code & 0x8)
+  if (lw(code) & 0x8)
     {
     /* -(Ax) addressing */
-    pre_dec (src, (ushort)(REG_NUM (*code) + 8));
-    pre_dec (dest, (ushort)(((*code >> 9) & 0x7) + 8));
+    pre_dec (src, (ushort)(REG_NUM (lw(code)) + 8));
+    pre_dec (dest, (ushort)(((lw(code) >> 9) & 0x7) + 8));
     }
   else
     {
     /* Dn addressing */
-    str_cpy (src, reg_names [REG_NUM (*code)]);
-    str_cpy (dest, reg_names [((*code >> 9) & 0x7)]);
+    str_cpy (src, reg_names [REG_NUM (lw(code))]);
+    str_cpy (dest, reg_names [((lw(code) >> 9) & 0x7)]);
     }
   }
 
@@ -714,7 +714,7 @@ else
     {
     tmp = dest + strlen (dest);
     *tmp++ = ',';
-    immed (tmp, (ULONG)*(code + 1));
+    immed (tmp, lw(code + 1));
     }
   return (2);
   }
@@ -725,8 +725,8 @@ else
 uint muldivl (struct opcode_entry *op)
 
 {
-UWORD instr1w = *code;
-UWORD instr2w = *(code + 1);
+UWORD instr1w = lw(code);
+UWORD instr2w = lw(code + 1);
 UWORD access = ACC_LONG;
 
 if ((instr2w & 0x800) != 0)
@@ -736,7 +736,7 @@ if (pass3)
   {
   char *tmp_o;
   char *tmp_d;
-  register UWORD dr, dq;
+  UWORD dr, dq;
 
   tmp_o = opcode + 3;
 
@@ -778,10 +778,10 @@ uint bitfield (struct opcode_entry *op)
 {
 uint used;
 UWORD offset, width;
-register char *ptr_ea = NULL, *ptr_dn = NULL;
+char *ptr_ea = NULL, *ptr_dn = NULL;
 
-offset = (*(code + 1) >> 6) & 0x1f;
-width = *(code + 1) & 0x1f;
+offset = (lw(code + 1) >> 6) & 0x1f;
+width = lw(code + 1) & 0x1f;
 
 switch (op->param)
   {
@@ -795,16 +795,16 @@ switch (op->param)
                  break;
   }
 
-used = decode_ea (ptr_ea, MODE_NUM (*code), REG_NUM (*code), ACC_DATA, 2);
+used = decode_ea (ptr_ea, MODE_NUM (lw(code)), REG_NUM (lw(code)), ACC_DATA, 2);
 
 if (pass3)
   {
   ptr_ea = str_cat (ptr_ea, "{");
   if (op->param != SINGLEOP)
-    str_cpy (ptr_dn, reg_names [(*(code + 1) >> 12) & 0x7]);
+    str_cpy (ptr_dn, reg_names [(lw(code + 1) >> 12) & 0x7]);
   }
 
-if (*(code + 1) & 0x800)
+if (lw(code + 1) & 0x800)
   {
   /* Offset specified in register */
   if (offset > 7)
@@ -821,7 +821,7 @@ else if (pass3)
 if (pass3)
   *ptr_ea++ = ':';
 
-if (*(code + 1) & 0x20)
+if (lw(code + 1) & 0x20)
   {
   /* Width specified in register */
   if (width > 7)
@@ -852,8 +852,8 @@ uint scc (struct opcode_entry *op)
 
 {
 if (pass3)
-  str_cat (opcode, conditions [(*code >> 8) & 0xf]);
-return (decode_ea (src, MODE_NUM (*code), REG_NUM (*code), ACC_BYTE, 1) + 1);
+  str_cat (opcode, conditions [(lw(code) >> 8) & 0xf]);
+return (decode_ea (src, MODE_NUM (lw(code)), REG_NUM (lw(code)), ACC_BYTE, 1) + 1);
 }
 
 /**********************************************************************/
@@ -861,33 +861,33 @@ return (decode_ea (src, MODE_NUM (*code), REG_NUM (*code), ACC_BYTE, 1) + 1);
 uint exg (struct opcode_entry *op)
 
 {
-UWORD rx = (*code >> REG2_SHIFT) & 0x7;
+UWORD rx = (lw(code) >> REG2_SHIFT) & 0x7;
 
-if (((*code >> 3) & 0x1f) == 0x8)
+if (((lw(code) >> 3) & 0x1f) == 0x8)
   {
   /* exchange two data registers */
   if (pass3)
     {
     str_cpy (src, reg_names [rx]);
-    str_cpy (dest, reg_names [*code & 0x7]);
+    str_cpy (dest, reg_names [lw(code) & 0x7]);
     }
   }
-else if (((*code >> 3) & 0x1f) == 0x9)
+else if (((lw(code) >> 3) & 0x1f) == 0x9)
   {
   /* exchange two address registers */
   if (pass3)
     {
     str_cpy (src, reg_names [rx + 8]);
-    str_cpy (dest, reg_names [(*code & 0x7) + 8]);
+    str_cpy (dest, reg_names [(lw(code) & 0x7) + 8]);
     }
   }
-else if (((*code >> 3) & 0x1f) == 0x11)
+else if (((lw(code) >> 3) & 0x1f) == 0x11)
   {
   /* exchange an address and a data register */
   if (pass3)
     {
     str_cpy (src, reg_names [rx]);
-    str_cpy (dest, reg_names [(*code & 0x7) + 8]);
+    str_cpy (dest, reg_names [(lw(code) & 0x7) + 8]);
     }
   }
 else
@@ -901,17 +901,17 @@ uint trapcc (struct opcode_entry *op)
 
 {
 if (pass3)
-  str_cat (opcode, conditions [(*code >> 8) & 0xf]);
-if ((*code & 0x7) == 2)
+  str_cat (opcode, conditions [(lw(code) >> 8) & 0xf]);
+if ((lw(code) & 0x7) == 2)
   {
   if (pass3)
-    immed (src, (ULONG)*(code + 1));
+    immed (src, lw(code + 1));
   return (2);
   }
-if ((*code & 0x7) == 3)
+if ((lw(code) & 0x7) == 3)
   {
   if (pass3)
-    immed (src, *(ULONG*)(code + 1));
+    immed (src, llu(code + 1));
   return (3);
   }
 return (1);
@@ -924,7 +924,7 @@ uint chkcmp2 (struct opcode_entry *op)
 {
 if (pass3)
   {
-  if (*(code + 1) & 0x800)
+  if (lw(code + 1) & 0x800)
     {
     /* CHK2 */
     opcode [1] = 'h';
@@ -937,9 +937,9 @@ if (pass3)
     opcode [2] = 'p';
     }
   if (pass3)
-    str_cpy (dest, reg_names [*(code + 1) >> 12]);
+    str_cpy (dest, reg_names [lw(code + 1) >> 12]);
   }
-return (decode_ea (src, MODE_NUM (*code), REG_NUM (*code), op->access, 2) + 2);
+return (decode_ea (src, MODE_NUM (lw(code)), REG_NUM (lw(code)), op->access, 2) + 2);
 }
 
 /**********************************************************************/
@@ -947,15 +947,15 @@ return (decode_ea (src, MODE_NUM (*code), REG_NUM (*code), op->access, 2) + 2);
 uint cas (struct opcode_entry *op)
 
 {
-register char *tmp_s;
+char *tmp_s;
 
 if (pass3)
   {
-  tmp_s = str_cpy (src, reg_names [*(code + 1) & 0x7]);
+  tmp_s = str_cpy (src, reg_names [lw(code + 1) & 0x7]);
   *tmp_s++ = ',';
-  str_cpy (tmp_s, reg_names [(*(code + 1) >> 6) & 0x7]);
+  str_cpy (tmp_s, reg_names [(lw(code + 1) >> 6) & 0x7]);
   }
-return (decode_ea (dest, MODE_NUM (*code), REG_NUM (*code), op->access, 2) + 2);
+return (decode_ea (dest, MODE_NUM (lw(code)), REG_NUM (lw(code)), op->access, 2) + 2);
 }
 
 /**********************************************************************/
@@ -965,13 +965,13 @@ uint cas2 (struct opcode_entry *op)
 {
 if (pass3)
   {
-  sprintf (src, "%s:%s,%s:%s", reg_names [*(code + 1) & 0x7],
-                               reg_names [*(code + 2) & 0x7],
-                               reg_names [(*(code + 1) >> 6) & 0x7],
-                               reg_names [(*(code + 2) >> 6) & 0x7]);
+  sprintf (src, "%s:%s,%s:%s", reg_names [lw(code + 1) & 0x7],
+                               reg_names [lw(code + 2) & 0x7],
+                               reg_names [(lw(code + 1) >> 6) & 0x7],
+                               reg_names [(lw(code + 2) >> 6) & 0x7]);
 
-  sprintf (dest, "(%s):(%s)",  reg_names [*(code + 1) >> 12],
-                               reg_names [*(code + 2) >> 12]);
+  sprintf (dest, "(%s):(%s)",  reg_names [lw(code + 1) >> 12],
+                               reg_names [lw(code + 2) >> 12]);
   }
 return (3);
 }
@@ -983,7 +983,7 @@ uint moves (struct opcode_entry *op)
 {
 char *reg, *ea;
 
-if (*(code + 1) & 0x800)
+if (lw(code + 1) & 0x800)
   {
   reg = src;
   ea = dest;
@@ -995,8 +995,8 @@ else
   }
 
 if (pass3)
-  str_cpy (reg, reg_names [(*(code + 1) >> 12) & 0xf]);
-return (decode_ea (ea, MODE_NUM (*code), REG_NUM (*code), op->access, 2) + 2);
+  str_cpy (reg, reg_names [(lw(code + 1) >> 12) & 0xf]);
+return (decode_ea (ea, MODE_NUM (lw(code)), REG_NUM (lw(code)), op->access, 2) + 2);
 }
 
 /**********************************************************************/
@@ -1024,7 +1024,7 @@ if (pass3)
                    break;
     }
   }
-return (decode_ea (ea, MODE_NUM (*code), REG_NUM (*code), ACC_WORD, 1) + 1);
+return (decode_ea (ea, MODE_NUM (lw(code)), REG_NUM (lw(code)), ACC_WORD, 1) + 1);
 }
 
 /**********************************************************************/
@@ -1034,8 +1034,8 @@ uint cmpm (struct opcode_entry *op)
 {
 if (pass3)
   {
-  post_inc (src, (*code & 0xf));
-  post_inc (dest, ((*code >> 9) & 0xf));
+  post_inc (src, (lw(code) & 0xf));
+  post_inc (dest, ((lw(code) >> 9) & 0xf));
   }
 return (1);
 }
@@ -1049,12 +1049,12 @@ char *dn, *an;
 
 if (pass3)
   {
-  if (*code & 0x40)
+  if (lw(code) & 0x40)
     str_cat (opcode, ".l");
   else
     str_cat (opcode, ".w");
   }
-if (*code & 0x80)
+if (lw(code) & 0x80)
   {
   /* Transfer to memory */
   an = dest;
@@ -1069,8 +1069,8 @@ else
 
 if (pass3)
   {
-  str_cpy (dn, reg_names [(*code >> 9) & 0x7]);
-  disp_an (an, ((*code & 0x7) + 8), *(code + 1));
+  str_cpy (dn, reg_names [(lw(code) >> 9) & 0x7]);
+  disp_an (an, ((lw(code) & 0x7) + 8), lw(code + 1));
   }
 return (2);
 }
@@ -1083,7 +1083,7 @@ uint bkpt (struct opcode_entry *op)
 if (pass3)
   {
   src [0] = '#';
-  format_ux (src + 1, (UWORD)(*code & 0x7));
+  format_ux (src + 1, (UWORD)(lw(code) & 0x7));
   }
 return (1);
 }
@@ -1096,8 +1096,8 @@ uint link_l (struct opcode_entry *op)
 if (pass3)
   {
   dest [0] = '#';
-  format_ulx (dest + 1, *(ULONG*)(code + 1));
-  str_cpy (src, reg_names [REG_NUM (*code) + 8]);
+  format_ulx (dest + 1, llu(code + 1));
+  str_cpy (src, reg_names [REG_NUM (lw(code)) + 8]);
   }
 return (3);
 }
@@ -1109,20 +1109,20 @@ uint move16 (struct opcode_entry *op)
 {
 char *tmp;
 
-if ((*code & 0x20) && ((*(code + 1) & 0x8fff) == 0x8000))
+if ((lw(code) & 0x20) && ((lw(code + 1) & 0x8fff) == 0x8000))
   {  /* post increment mode for src and dest */
   if (pass3)
     {
-    post_inc (src, (*code & 0x7) + 8);
-    post_inc (dest, ((*(code + 1) >> 12) & 0x7) + 8);
+    post_inc (src, (lw(code) & 0x7) + 8);
+    post_inc (dest, ((lw(code + 1) >> 12) & 0x7) + 8);
     }
   return (2);
   }
-else if ((*code & 0x20) == 0)
+else if ((lw(code) & 0x20) == 0)
   {
   if (pass3)
     {
-    if (*code & 0x8)    
+    if (lw(code) & 0x8)    
       {
       tmp = dest;
       decode_ea (src, 7, 1, ACC_LONG, 1);
@@ -1132,10 +1132,10 @@ else if ((*code & 0x20) == 0)
       tmp = src;
       decode_ea (dest, 7, 1, ACC_LONG, 1);
       }
-    if (*code & 0x10)
-      indirect (tmp, (*code & 0x7) + 8);
+    if (lw(code) & 0x10)
+      indirect (tmp, (lw(code) & 0x7) + 8);
     else
-      post_inc (tmp, (*code & 0x7) + 8);
+      post_inc (tmp, (lw(code) & 0x7) + 8);
     }
   return (3);
   }
@@ -1151,11 +1151,11 @@ char *tmp_o;
 
 if (pass3)
   {
-  if (*code & 0x20)
+  if (lw(code) & 0x20)
     tmp_o = str_cpy (opcode, "cpush");
   else
     tmp_o = str_cpy (opcode, "cinv");
-  switch ((*code >> 3) & 0x3)
+  switch ((lw(code) >> 3) & 0x3)
     {
     case 1: *tmp_o++ = 'l'; break;
     case 2: *tmp_o++ = 'p'; break;
@@ -1171,8 +1171,8 @@ if (pass3)
     case 3: str_cpy (src, "bc"); break;
     }
 
-  if (((*code >> 3) & 0x3) != 0x3)      /* not all --> page or line */
-    indirect (dest, (REG_NUM (*code) + 8));
+  if (((lw(code) >> 3) & 0x3) != 0x3)      /* not all --> page or line */
+    indirect (dest, (REG_NUM (lw(code)) + 8));
   }
 return (1);
 }
