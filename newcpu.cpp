@@ -2733,7 +2733,7 @@ kludge_me_do:
 			cpu_halt(CPU_HALT_DOUBLE_FAULT);
 			return;
 		}
-		exception2_fetch(regs.irc, 0);
+		exception2_fetch(regs.irc, 0, 0);
 		return;
 	}
 	regs.ird = regs.ir;
@@ -2746,7 +2746,7 @@ kludge_me_do:
 			cpu_halt(CPU_HALT_DOUBLE_FAULT);
 			return;
 		}
-		exception2_fetch(regs.ir, 2);
+		exception2_fetch(regs.ir, 0, 2);
 		return;
 	}
 #ifdef JIT
@@ -7360,18 +7360,20 @@ static void exception2_fetch_common(uae_u32 opcode, int offset)
 	}
 }
 
-void exception2_fetch_opcode(uae_u32 opcode, int offset)
+void exception2_fetch_opcode(uae_u32 opcode, int offset, int pcoffset)
 {
 	exception2_fetch_common(opcode, offset);
+	last_addr_for_exception_3 += pcoffset;
 	if (currprefs.cpu_model == 68010) {
 		last_di_for_exception_3 = -1;
 	}
 	Exception(2);
 }
 
-void exception2_fetch(uae_u32 opcode, int offset)
+void exception2_fetch(uae_u32 opcode, int offset, int pcoffset)
 {
 	exception2_fetch_common(opcode, offset);
+	last_addr_for_exception_3 += pcoffset;
 	Exception(2);
 }
 

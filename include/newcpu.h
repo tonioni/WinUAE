@@ -743,8 +743,8 @@ extern void hardware_exception2(uaecptr addr, uae_u32 v, bool read, bool ins, in
 extern void exception2_setup(uae_u32 opcode, uaecptr addr, bool read, int size, uae_u32 fc);
 extern void exception2_read(uae_u32 opcode, uaecptr addr, int size, int fc);
 extern void exception2_write(uae_u32 opcode, uaecptr addr, int size, uae_u32 val, int fc);
-extern void exception2_fetch_opcode(uae_u32 opcode, int offset);
-extern void exception2_fetch(uae_u32 opcode, int offset);
+extern void exception2_fetch_opcode(uae_u32 opcode, int offset, int pcoffset);
+extern void exception2_fetch(uae_u32 opcode, int offset, int pcoffset);
 extern void m68k_reset (void);
 extern void cpureset (void);
 extern void cpu_halt (int id);
