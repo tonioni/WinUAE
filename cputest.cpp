@@ -1188,20 +1188,22 @@ static void exception2_fetch_common(uae_u32 opcode, int offset)
 	}
 }
 
-void exception2_fetch(uae_u32 opcode, int offset)
+void exception2_fetch(uae_u32 opcode, int offset, int pcoffset)
 {
 	exception2_fetch_common(opcode, offset);
 	regs.pc = test_exception_addr;
+	regs.pc += pcoffset;
 	doexcstack();
 }
 
-void exception2_fetch_opcode(uae_u32 opcode, int offset)
+void exception2_fetch_opcode(uae_u32 opcode, int offset, int pcoffset)
 {
 	exception2_fetch_common(opcode, offset);
 	if (currprefs.cpu_model == 68010) {
 		test_exception_3_di = -1;
 	}
 	regs.pc = test_exception_addr;
+	regs.pc += pcoffset;
 	doexcstack();
 }
 
