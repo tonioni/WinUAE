@@ -2276,7 +2276,7 @@ static uae_u8 *validate_test(uae_u8 *p, short ignore_errors, short ignore_sr, st
 			}
 			if (exc == 0 && cpuexc == 4) {
 				// successful complete generates exception 4 with matching PC
-				if (lregs->pc + opcodeendsizeextra != tregs->pc && dooutput) {
+				if (lregs->pc + opcodeendsizeextra != tregs->pc && lregs->pc != tregs->pc && dooutput) {
 					sprintf(outbp, "PC: expected %08x but got %08x\n", lregs->pc, tregs->pc);
 					outbp += strlen(outbp);
 					if (tregs->pc == opcode_memory_addr) {

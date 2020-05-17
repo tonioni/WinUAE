@@ -131,6 +131,10 @@ If mismatch is detected, opcode word(s), instruction disassembly, registers befo
 
 Change log:
 
+17.05.2020
+
+- Rewritten disassembler to use indirect and validated opword reads, now it is safe to use when testing bus errors.
+
 09.05.2020
 
 - dat format changed, now it is possible to continue running test if previous test reported error.
