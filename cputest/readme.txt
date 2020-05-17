@@ -134,6 +134,7 @@ Change log:
 17.05.2020
 
 - Rewritten disassembler to use indirect and validated opword reads, now it is safe to use when testing bus errors.
+- Added 'B' branching identifier to register output. 0 = instruction didn't branch when test was genered, 1 = instruction branched when test was generated.
 
 09.05.2020
 

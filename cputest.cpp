@@ -5210,19 +5210,20 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 								}
 								// store test instruction generated changes
 								dst = store_mem_writes(dst, 0);
+								uae_u8 bcflag = regs.pc == branch_target_pc ? CT_BRANCHED : 0;
 								// save exception, possible combinations:
 								// - any exception except trace
 								// - any exception except trace + trace stacked on top of previous exception
 								// - any exception except trace + following instruction generated trace
 								// - trace only
 								if (test_exception) {
-									*dst++ = CT_END | test_exception;
+									*dst++ = CT_END | test_exception | bcflag;
 									dst = save_exception(dst, dp);
 								} else if (test_exception_extra) {
-									*dst++ = CT_END | 1;
+									*dst++ = CT_END | 1 | bcflag;
 									dst = save_exception(dst, dp);
 								} else {
-									*dst++ = CT_END;
+									*dst++ = CT_END | bcflag;
 								}
 								test_count++;
 								subtest_count++;

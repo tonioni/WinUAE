@@ -1368,7 +1368,7 @@ static const struct srbit srbits[] = {
 // r2 = expected results
 // sreg = original registers
 
-static void out_regs(struct registers *r, struct registers *r1, struct registers *r2, struct registers *sreg, int before)
+static void out_regs(struct registers *r, struct registers *r1, struct registers *r2, struct registers *sreg, short before, short branched)
 {
 	if (before) {
 		for (int i = 0; i < 16; i++) {
@@ -1382,7 +1382,7 @@ static void out_regs(struct registers *r, struct registers *r1, struct registers
 			outbp += strlen(outbp);
 		}
 		*outbp++ = '\n';
-		sprintf(outbp, "SR:%c%04x      PC: %08x ISP: %08x", r1->sr != r2->sr ? '*' : ' ', r->sr, r->pc, r->ssp);
+		sprintf(outbp, "SR:%c%04x      PC: %08x ISP: %08x B: %d", r1->sr != r2->sr ? '*' : ' ', r->sr, r->pc, r->ssp, branched);
 	} else {
 		// output only lines that have at least one modified register to save screen space
 		for (int i = 0; i < 4; i++) {
@@ -1404,7 +1404,7 @@ static void out_regs(struct registers *r, struct registers *r1, struct registers
 				*outbp++ = '\n';
 			}
 		}
-		sprintf(outbp, "SR:%c%04x/%04x PC: %08x ISP: %08x", r->sr != r2->sr ? '*' : ' ', r->sr, r->expsr, r->pc, r->ssp);
+		sprintf(outbp, "SR:%c%04x/%04x PC: %08x ISP: %08x B: %d", r->sr != r2->sr ? '*' : ' ', r->sr, r->expsr, r->pc, r->ssp, branched);
 	}
 	outbp += strlen(outbp);
 	if (cpu_lvl >= 2 && cpu_lvl <= 4) {
@@ -2242,6 +2242,7 @@ static uae_u8 *validate_test(uae_u8 *p, short ignore_errors, short ignore_sr, st
 	short extrag2w1 = 0;
 	short exceptionnum = 0;
 	uae_u8 *outbp_old = outbp;
+	short branched = 0, branched2 = 0;
 	exception_stored = 0;
 
 	for (;;) {
@@ -2250,13 +2251,9 @@ static uae_u8 *validate_test(uae_u8 *p, short ignore_errors, short ignore_sr, st
 			exc = v & CT_EXCEPTION_MASK;
 			short cpuexc = tregs->exc & 65535;
 			short cpuexc010 = tregs->exc010 & 65535;
+			branched = (v & CT_BRANCHED) != 0;
+			branched2 = branched;
 			p++;
-			if ((v & CT_END_INIT) == CT_END_INIT) {
-				end_test();
-				printf("Unexpected CT_END_INIT %02x %08x\n", v, p - test_data);
-				endinfo();
-				exit(0);
-			}
 			if (cpu_lvl > 0 && exc >= 2 && cpuexc010 != cpuexc) {
 				if (dooutput) {
 					sprintf(outbp, "Exception: vector number does not match vector offset! (%d <> %d) %d\n", exc, cpuexc010, cpuexc);
@@ -2276,15 +2273,22 @@ static uae_u8 *validate_test(uae_u8 *p, short ignore_errors, short ignore_sr, st
 			}
 			if (exc == 0 && cpuexc == 4) {
 				// successful complete generates exception 4 with matching PC
-				if (lregs->pc + opcodeendsizeextra != tregs->pc && lregs->pc != tregs->pc && dooutput) {
-					sprintf(outbp, "PC: expected %08x but got %08x\n", lregs->pc, tregs->pc);
-					outbp += strlen(outbp);
-					if (tregs->pc == opcode_memory_addr) {
-						sprintf(outbp, "Got unexpected exception %d (unsupported instruction?)\n", cpuexc);
+				if ((!branched && lregs->pc + opcodeendsizeextra != tregs->pc) || (branched && lregs->pc != tregs->pc)) {
+					if (lregs->pc == tregs->pc) {
+						branched2 = 1;
 					} else {
-						sprintf(outbp, "Got unexpected exception %d\n", cpuexc);
+						branched2 = 0;
 					}
-					outbp += strlen(outbp);
+					if (dooutput) {
+						sprintf(outbp, "PC (%c): expected %08x but got %08x\n", branched ? 'B' : '-', lregs->pc, tregs->pc);
+						outbp += strlen(outbp);
+						if (tregs->pc == opcode_memory_addr) {
+							sprintf(outbp, "Got unexpected exception %d (unsupported instruction?)\n", cpuexc);
+						} else {
+							sprintf(outbp, "Got unexpected exception %d\n", cpuexc);
+						}
+						outbp += strlen(outbp);
+					}
 					errflag |= 1 << 16;
 				}
 				break;
@@ -2617,10 +2621,10 @@ static uae_u8 *validate_test(uae_u8 *p, short ignore_errors, short ignore_sr, st
 		strcpy(outbp, outbuffer2);
 		strcat(outbp, "Registers before:\n");
 		outbp += strlen(outbp);
-		out_regs(sregs, tregs, lregs, sregs, 1);
+		out_regs(sregs, tregs, lregs, sregs, 1, branched);
 		strcat(outbp, "Registers after:\n");
 		outbp += strlen(outbp);
-		out_regs(tregs, tregs, lregs, sregs, 0);
+		out_regs(tregs, tregs, lregs, sregs, 0, branched2);
 		if (exc > 1) {
 			if (!experr) {
 				sprintf(outbp, "OK: exception %d ", exc);
@@ -2966,7 +2970,7 @@ static void process_test(uae_u8 *p)
 						addinfo();
 						strcat(outbp, "Registers before:\n");
 						outbp += strlen(outbp);
-						out_regs(&cur_regs, &test_regs, &last_regs, &cur_regs, 1);
+						out_regs(&cur_regs, &test_regs, &last_regs, &cur_regs, 1, 0);
 						end_test();
 						printf(outbuffer);
 						printf("\nExit count expired\n");
