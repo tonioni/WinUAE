@@ -3085,9 +3085,21 @@ static void check_address_error(const  char *name, int mode, const char *reg, in
 				setapdiback = 1;
 		}
 
+		int pcextra = 0;
 
-		if (exception_pc_offset || exception_pc_offset_extra) {
-			incpc("%d", exception_pc_offset + exception_pc_offset_extra);
+		// adjust MOVE write address error stacked PC
+		if (g_instr->mnemo == i_MOVE && getv == 2) {
+			if (g_instr->smode >= Aind && g_instr->smode != imm && g_instr->dmode == absl) {
+				pcextra = -2;
+			} else if (g_instr->dmode >= Ad16) {
+				pcextra = 0;
+			} else {
+				pcextra = 2;
+			}
+		}
+
+		if (exception_pc_offset + exception_pc_offset_extra + pcextra) {
+			incpc("%d", exception_pc_offset + exception_pc_offset_extra + pcextra);
 		}
 
 		if (g_instr->mnemo == i_MOVE) {
