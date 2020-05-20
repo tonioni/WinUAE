@@ -2273,12 +2273,8 @@ static uae_u8 *validate_test(uae_u8 *p, short ignore_errors, short ignore_sr, st
 			}
 			if (exc == 0 && cpuexc == 4) {
 				// successful complete generates exception 4 with matching PC
-				if ((!branched && lregs->pc + opcodeendsizeextra != tregs->pc) || (branched && lregs->pc != tregs->pc)) {
-					if (lregs->pc == tregs->pc) {
-						branched2 = 1;
-					} else {
-						branched2 = 0;
-					}
+				if (lregs->pc + opcodeendsizeextra != tregs->pc) {
+					branched2 = lregs->pc < opcode_memory_addr || lregs->pc >= opcode_memory_addr + OPCODE_AREA;
 					if (dooutput) {
 						sprintf(outbp, "PC (%c): expected %08x but got %08x\n", branched ? 'B' : '-', lregs->pc, tregs->pc);
 						outbp += strlen(outbp);
@@ -2739,9 +2735,10 @@ static uae_u32 xorshift32(void)
 
 static void copyregs(struct registers *d, struct registers *s, short fpumode)
 {
-	memcpy(&d->regs[0], &s->regs[0], offsetof(struct registers, cycles));
 	if (fpumode) {
-		memcpy(&d->fpuregs[0], &s->fpuregs[0], offsetof(struct registers, fsave) - offsetof(struct registers, fpuregs));
+		memcpy(&d->regs[0], &s->regs[0], offsetof(struct registers, fsave));
+	} else {
+		memcpy(&d->regs[0], &s->regs[0], offsetof(struct registers, fpuregs));
 	}
 }
 
@@ -2849,18 +2846,19 @@ static void process_test(uae_u8 *p)
 					pw(opcode_memory_end, opcodeend >> 16);
 				}
 
-				if (test_regs.branchtarget != 0xffffffff && !(test_regs.branchtarget & 1)) {
-					if (test_regs.branchtarget_mode == 1) {
-						uae_u32 bv = gl((uae_u8*)test_regs.branchtarget);
+
+				if (cur_regs.branchtarget != 0xffffffff && !(cur_regs.branchtarget & 1)) {
+					if (cur_regs.branchtarget_mode == 1) {
+						uae_u32 bv = gl((uae_u8*)cur_regs.branchtarget);
 						bv = (bv >> 16) | (bv << 16);
-						pl((uae_u8*)test_regs.branchtarget, bv);
-					} else if (test_regs.branchtarget_mode == 2) {
-						uae_u16 bv = gw((uae_u8 *)test_regs.branchtarget);
+						pl((uae_u8*)cur_regs.branchtarget, bv);
+					} else if (cur_regs.branchtarget_mode == 2) {
+						uae_u16 bv = gw((uae_u8 *)cur_regs.branchtarget);
 						if (bv == 0x4e71)
 							bv = 0x4afc;
 						else
 							bv = 0x4e71;
-						pw((uae_u8 *)test_regs.branchtarget, bv);
+						pw((uae_u8 *)cur_regs.branchtarget, bv);
 					}
 				}
 

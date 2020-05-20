@@ -44,3 +44,6 @@
 #define CT_EMPTY CT_END_INIT
 #define CT_OVERRIDE_REG (0x80 | 0x40 | 0x10)
 #define CT_BRANCHED 0x40
+
+#define OPCODE_AREA 32
+#define BRANCHTARGET_AREA 4

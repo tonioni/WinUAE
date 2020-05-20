@@ -216,9 +216,6 @@ static int is_superstack_use_required(void)
 	return 0;
 }
 
-#define OPCODE_AREA 32
-#define BRANCHTARGET_AREA 4
-
 static bool valid_address(uaecptr addr, int size, int rwp)
 {
 	int w = rwp == 2;
@@ -880,13 +877,6 @@ void MakeFromSR_x(int t0trace)
 	SET_VFLG((regs.sr >> 1) & 1);
 	SET_CFLG(regs.sr & 1);
 
-	if (regs.t1 == ((regs.sr >> 15) & 1) &&
-		regs.t0 == ((regs.sr >> 14) & 1) &&
-		regs.s == ((regs.sr >> 13) & 1) &&
-		regs.m == ((regs.sr >> 12) & 1) &&
-		regs.intmask == ((regs.sr >> 8) & 7))
-		return;
-
 	regs.t1 = (regs.sr >> 15) & 1;
 	regs.t0 = (regs.sr >> 14) & 1;
 	regs.s = (regs.sr >> 13) & 1;
@@ -1058,6 +1048,7 @@ static void doexcstack2(void)
 static void doexcstack(void)
 {
 	bool g1 = generates_group1_exception(regs.ir);
+	uaecptr original_pc = regs.pc;
 
 	doexcstack2();
 	if (test_exception < 4)
@@ -1098,6 +1089,7 @@ static void doexcstack(void)
 		regs.read_buffer = regs.irc;
 		// vector offset (not vbr + offset)
 		regs.write_buffer = original_exception * 4;
+		regs.pc = original_pc;
 	}
 
 	if (interrupt) {
@@ -4510,8 +4502,8 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 						uae_u8 *bo = opcode_memory_ptr + 2;
 						uae_u16 bopw1 = (bo[0] << 8) | (bo[1] << 0);
 						uae_u16 bopw2 = (bo[2] << 8) | (bo[3] << 0);
-						if (opc == 0x0662
-							&& bopw1 == 0x3dec
+						if (opc == 0x4e96
+							//&& bopw1 == 0x3dec
 							//&& bopw2 == 0x2770
 							)
 							printf("");
