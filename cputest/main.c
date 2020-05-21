@@ -187,11 +187,11 @@ static void execute_test020(struct registers *regs)
 static void execute_testfpu(struct registers *regs)
 {
 }
-static uae_u32 tosuper(uae_u32 v)
+static uae_u32 tosuper(uae_u32 v, uae_u32 vv)
 {
 	return 0;
 }
-static void touser(uae_u32 v)
+static void touser(uae_u32 v, uae_u32 vv)
 {
 }
 static uae_u32 exceptiontable000, exceptiontable010, exceptiontable020, exceptiontablefpu;
@@ -213,6 +213,9 @@ static void setcpu(uae_u32 v, uae_u32 *s, uae_u32 *d)
 static void flushcache(uae_u32 v)
 {
 }
+static void berrcopy(void *src, void *dst, uae_u32 size, uae_u32 hasvbr)
+{
+}
 static void *error_vector;
 #else
 
@@ -227,8 +230,8 @@ extern void execute_test000(struct registers*);
 extern void execute_test010(struct registers *);
 extern void execute_test020(struct registers *);
 extern void execute_testfpu(struct registers *);
-extern uae_u32 tosuper(uae_u32);
-extern void touser(uae_u32);
+extern uae_u32 tosuper(uae_u32, uae_u32);
+extern void touser(uae_u32, uae_u32);
 extern uae_u32 exceptiontable000, exceptiontable010, exceptiontable020, exceptiontablefpu;
 extern uae_u32 testexit(void);
 extern uae_u32 setvbr(uae_u32);
@@ -236,6 +239,7 @@ extern uae_u32 get_cpu_model(void);
 extern void setcpu(uae_u32, uae_u32*, uae_u32*);
 extern void flushcache(uae_u32);
 extern void *error_vector;
+extern void berrcopy(void*, void*, uae_u32, uae_u32);
 
 #endif
 static uae_u32 exceptiontableinuse;
@@ -394,7 +398,7 @@ static void start_test(void)
 
 	test_active = 1;
 
-	enable_data = tosuper(0);
+	enable_data = tosuper(0, 1);
 
 #ifdef AMIGA
 	main_intena = *((volatile uae_u16*)0xdff01c);
@@ -495,7 +499,7 @@ static void end_test(void)
 	*((volatile uae_u16*)0xdff09a) = main_intena | 0x8000;
 #endif
 
-	touser(enable_data);
+	touser(enable_data, 1);
 }
 
 static int readdata(uae_u8 *p, int size, FILE *f, uae_u8 *unpack, int *offsetp)
@@ -698,23 +702,33 @@ static uae_u8 *load_file(const char *path, const char *file, uae_u8 *p, int *siz
 				}
 				readdata(tmp, size2, f, unpack, &unpackoffset);
 				if (memcmp(tmp, p, size2)) {
-					int ch = set_berr(0, 1);
-					if (ch == 27) {
-						exit(0);
-					} else if (ch == 32) {
-						seekdata(size2, f, unpack, &unpackoffset);
-						p += size2;
-						size -= size2;
-					} else {
-						memcpy(p, tmp, size2);
-						p += size2;
-						size -= size2;
-						ch = set_berr(2, 1);
+					uae_u32 t = tosuper(0, 0);
+					berrcopy(tmp, p, size2 / 2, cpu_lvl > 0);
+					touser(t, 0);
+					if (memcmp(tmp, p, size2)) {
+						// data was still different, do it manually.
+						int ch = set_berr(0, 1);
 						if (ch == 27) {
 							exit(0);
+						} else if (ch == 32) {
+							seekdata(size2, f, unpack, &unpackoffset);
+							p += size2;
+							size -= size2;
+						} else {
+							memcpy(p, tmp, size2);
+							p += size2;
+							size -= size2;
+							ch = set_berr(2, 1);
+							if (ch == 27) {
+								exit(0);
+							}
 						}
+					} else {
+						p += size2;
+						size -= size2;
 					}
 				} else {
+					// data was identical
 					printf("Write-only bus error mode, data already correct. Skipping read.\n");
 					p += size2;
 					size -= size2;

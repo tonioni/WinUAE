@@ -70,7 +70,10 @@ _tosuper:
 	move.l 4.w,a6
 	jsr -0x78(a6) | Disable
 	jsr -0x96(a6) | SuperState
+	tst.l 8+1*4(sp)
+	beq.s .keepdisplay
 	move.w #0x0200,0xdff096
+.keepdisplay:
 	move.w #0x2700,sr
 	move.l (sp)+,a6
 	rts

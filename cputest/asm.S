@@ -24,6 +24,7 @@
 	.globl _cyclereg_address4
 	.globl _cyclereg_address5
 	.globl _cyclereg_address6
+	.globl _berrcopy
 
 | must match main.c
 S_DREG = 0
@@ -47,6 +48,42 @@ S_FPCR = S_FPIAR+4
 S_FPSR = S_FPCR+4
 S_FSAVE = S_FPSR+4
 S_NEXT = S_FSAVE+216
+
+
+	| src, dst, size, >68000
+_berrcopy:
+	movem.l d2-d4/a2-a4,-(sp)
+	movem.l 7*4+0*4(sp),a0-a1
+	move.l 7*4+2*4(sp),d0
+	sub.l a2,a2
+	tst.l 7*4+3*4(sp)
+	beq.s .novbrbc1
+	movec vbr,a2
+.novbrbc1:
+	addq.l #8,a2
+	lea .berrptr(pc),a4
+	move.l (a2),a3
+	move.l a4,(a2)
+.nextbc2:
+	move.w (a0)+,d1
+	move.w (a1),d2
+	cmp.w d1,d2
+	beq.s .bercopycont
+	move.l sp,a4
+	move.w d1,(a1)
+.berrptr:
+	move.l a4,sp
+.nextbc1:
+	cmp.w (a1),d1
+	bne.s .outbc
+.bercopycont:
+	addq.l #2,a1
+	subq.l #1,d0
+	bne.s .nextbc2
+.outbc:
+	move.l a3,(a2)
+	movem.l (sp)+,d2-d4/a2-a4
+	rts
 
 _callinflate:
 	movem.l a4-a6,-(sp)
