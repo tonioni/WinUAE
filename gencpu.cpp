@@ -2308,10 +2308,20 @@ static void check_bus_error(const char *name, int offset, int write, int size, c
 						out("m68k_areg(regs, dstreg) += 4;\n");
 					}
 				}
+				if (!write) {
+					if (g_instr->dmode == Apdi || g_instr->dmode == absl) {
+						incpc("2");
+					} else if (g_instr->dmode >= Ad16) {
+						incpc("4");
+					}
+				}
 			} else if (g_instr->mnemo == i_TAS) {
 				if (!write) {
 					out("regs.read_buffer = regs.irc & 0xff00;\n");
 					out("regs.read_buffer |= 0x80;\n");
+					if (cpu_level == 1 && g_instr->smode >= Ad16) {
+						incpc("2");
+					}
 				}
 				out("opcode |= 0x80000;\n");
 			} else if (g_instr->mnemo == i_CLR) {
@@ -2324,6 +2334,12 @@ static void check_bus_error(const char *name, int offset, int write, int size, c
 						out("m68k_areg(regs, srcreg) %c= areg_byteinc[srcreg];\n", g_instr->smode == Aipi ? '-' : '+');
 					} else {
 						out("m68k_areg(regs, srcreg) %c= %d;\n", g_instr->smode == Aipi ? '-' : '+', 1 << g_instr->size);
+					}
+				}
+			} else if (g_instr->mnemo == i_MOVE) {
+				if (write) {
+					if (g_instr->smode >= Aind && g_instr->smode < imm && g_instr->dmode == absl) {
+						out("regs.irc = dsta >> 16;\n");
 					}
 				}
 			}
