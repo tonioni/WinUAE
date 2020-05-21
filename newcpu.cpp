@@ -823,6 +823,7 @@ static void put_byte030_cicheck(uaecptr addr, uae_u32 v)
 }
 
 static uae_u32 (*icache_fetch)(uaecptr);
+static uae_u16 (*icache_fetch_word)(uaecptr);
 static uae_u32 (*dcache_lget)(uaecptr);
 static uae_u32 (*dcache_wget)(uaecptr);
 static uae_u32 (*dcache_bget)(uaecptr);
@@ -1356,6 +1357,7 @@ static void set_x_funcs (void)
 	dcache_check = dcache_check_nommu;
 
 	icache_fetch = get_longi;
+	icache_fetch_word = NULL;
 	if (currprefs.cpu_cycle_exact) {
 		icache_fetch = mem_access_delay_longi_read_ce020;
 	}
@@ -1404,8 +1406,10 @@ static void set_x_funcs (void)
 		if (currprefs.mmu_model) {
 			if (currprefs.cpu_compatible) {
 				icache_fetch = uae_mmu030_get_ilong_fc;
+				icache_fetch_word = uae_mmu030_get_iword_fc;
 			} else {
 				icache_fetch = uae_mmu030_get_ilong;
+				icache_fetch_word = uae_mmu030_get_iword_fc;
 			}
 			dcache_lput = uae_mmu030_put_long_fc;
 			dcache_wput = uae_mmu030_put_word_fc;
@@ -8088,7 +8092,28 @@ STATIC_INLINE void update_dcache030 (struct cache030 *c, uae_u32 val, uae_u32 ta
 	c->data[lws] = val;
 }
 
-static void fill_icache030 (uae_u32 addr)
+static bool maybe_icache030(uae_u32 addr)
+{
+	int lws;
+	uae_u32 tag;
+	uae_u32 data;
+	struct cache030 *c;
+
+	regs.fc030 = (regs.s ? 4 : 0) | 2;
+	addr &= ~3;
+	if (regs.cacheholdingaddr020 == addr || regs.cacheholdingdata_valid == 0)
+		return true;
+	c = geticache030(icaches030, addr, &tag, &lws);
+	if ((regs.cacr & 1) && c->valid[lws] && c->tag == tag) {
+		// cache hit
+		regs.cacheholdingaddr020 = addr;
+		regs.cacheholdingdata020 = c->data[lws];
+		return true;
+	}
+	return false;
+}
+
+static void fill_icache030(uae_u32 addr)
 {
 	int lws;
 	uae_u32 tag;
@@ -8645,6 +8670,10 @@ uae_u32 get_word_030_prefetch (int o)
 	regs.prefetch020_valid[1] = regs.prefetch020_valid[2];
 	regs.prefetch020_valid[2] = false;
 	if (!regs.prefetch020_valid[1]) {
+		if (regs.pipeline_stop) {
+			regs.db = regs.prefetch020[0];
+			return v;
+		}
 		do_access_or_bus_error(0xffffffff, pc + 4);
 	}
 #if MORE_ACCURATE_68020_PIPELINE
@@ -9426,15 +9455,59 @@ void fill_prefetch_030_ntx_continue (void)
 	regs.cacheholdingdata_valid = 1;
 	regs.cacheholdingaddr020 = 0xffffffff;
 
-	for (int i = 2; i >= 0; i--) {
-		if (!regs.prefetch020_valid[i])
-			break;
-#if MORE_ACCURATE_68020_PIPELINE
-		if (idx >= 1) {
-			pipeline_020(pc);
+	if (regs.prefetch020_valid[0] && regs.prefetch020_valid[1] && regs.prefetch020_valid[2]) {
+		for (int i = 2; i >= 0; i--) {
+			regs.prefetch020[i + 1] = regs.prefetch020[i];
 		}
+		for (int i = 1; i <= 3; i++) {
+#if MORE_ACCURATE_68020_PIPELINE
+			pipeline_020(pc);
+#endif
+			regs.prefetch020[i - 1] = regs.prefetch020[i];
+			pc += 2;
+			idx++;
+		}
+	} else if (regs.prefetch020_valid[2] && !regs.prefetch020_valid[1]) {
+		regs.prefetch020_valid[1] = regs.prefetch020_valid[2];
+		regs.prefetch020[1] = regs.prefetch020[2];
+		regs.prefetch020_valid[2] = 0;
+		pc += 2;
+		idx++;
+#if MORE_ACCURATE_68020_PIPELINE
+		pipeline_020(pc);
+#endif
+		if (!regs.pipeline_stop) {
+			if (maybe_icache030(pc)) {
+				regs.prefetch020[2] = regs.cacheholdingdata020 >> (regs.cacheholdingaddr020 == pc ? 16 : 0);
+			} else {
+				regs.prefetch020[2] = icache_fetch_word(pc);
+			}
+			regs.prefetch020_valid[2] = 1;
+			pc += 2;
+			idx++;
+#if MORE_ACCURATE_68020_PIPELINE
+			pipeline_020(pc);
+#endif
+		}
+
+	} else if (regs.prefetch020_valid[2] && regs.prefetch020_valid[1]) {
+		pc += 2;
+#if MORE_ACCURATE_68020_PIPELINE
+		pipeline_020(pc);
 #endif
 		pc += 2;
+#if MORE_ACCURATE_68020_PIPELINE
+		pipeline_020(pc);
+#endif
+		idx += 2;
+	}
+
+	while (idx < 2) {
+		regs.prefetch020[0] = regs.prefetch020[1];
+		regs.prefetch020[1] = regs.prefetch020[2];
+		regs.prefetch020_valid[0] = regs.prefetch020_valid[1];
+		regs.prefetch020_valid[1] = regs.prefetch020_valid[2];
+		regs.prefetch020_valid[2] = false;
 		idx++;
 	}
 
@@ -9465,9 +9538,9 @@ void fill_prefetch_030_ntx_continue (void)
 
 	ipl_fetch();
 	if (currprefs.cpu_cycle_exact)
-		regs.irc = get_word_ce030_prefetch_opcode (0);
+		regs.irc = get_word_ce030_prefetch_opcode(0);
 	else
-		regs.irc = get_word_030_prefetch (0);
+		regs.irc = get_word_030_prefetch(0);
 }
 
 void fill_prefetch_020_ntx(void)

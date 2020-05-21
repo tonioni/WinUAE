@@ -411,8 +411,18 @@ static bool needmmufixup(void)
 	}
 	if (!using_mmu)
 		return false;
-	if (using_mmu == 68040 && (mmufixupstate || mmufixupcnt > 0))
+	if (using_mmu == 68040 && (mmufixupstate || mmufixupcnt > 0)) {
 		return false;
+	}
+	if (using_mmu == 68030) {
+		switch (g_instr->mnemo)
+		{
+		case i_LINK:
+		case i_RTD:
+		case i_RTR:
+			return false;
+		}
+	}
 	return true;
 }
 

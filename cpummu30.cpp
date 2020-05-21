@@ -72,7 +72,7 @@ uae_u32 mmu030_disp_store[2];
 uae_u32 mmu030_fmovem_store[2];
 uae_u8 mmu030_cache_state;
 struct mmu030_access mmu030_ad[MAX_MMU030_ACCESS + 1];
-bool ismoves030;
+bool ismoves030, islrmw030;
 
 static void mmu030_ptest_atc_search(uaecptr logical_addr, uae_u32 fc, bool write);
 static uae_u32 mmu030_table_search(uaecptr addr, uae_u32 fc, bool write, int level);
@@ -1803,7 +1803,6 @@ void mmu030_page_fault(uaecptr addr, bool read, int flags, uae_u32 fc)
 		fc = regs.mmu_ssw & MMU030_SSW_FC_MASK;
 		flags = regs.mmu_ssw & ~(MMU030_SSW_FC | MMU030_SSW_RC | MMU030_SSW_FB | MMU030_SSW_RB | MMU030_SSW_RW | 7);
 	}
-	ismoves030 = false;
 	regs.wb3_status = 0;
 	regs.wb2_status = 0;
 	regs.mmu_fault_addr = addr;
@@ -1817,6 +1816,10 @@ void mmu030_page_fault(uaecptr addr, bool read, int flags, uae_u32 fc)
 		}
 	} else {
 		if (currprefs.cpu_compatible) {
+			regs.wb2_status = mmu030fixupreg(0);
+			mmu030fixupmod(regs.wb2_status, 0, 0);
+			regs.wb3_status = mmu030fixupreg(1);
+			mmu030fixupmod(regs.wb3_status, 0, 1);
 			if (regs.prefetch020_valid[1] != 1 && regs.prefetch020_valid[2] == 1) {
 				regs.mmu_ssw = MMU030_SSW_FC | MMU030_SSW_RC;
 			} else if (regs.prefetch020_valid[2] != 1) {
@@ -1833,6 +1836,7 @@ void mmu030_page_fault(uaecptr addr, bool read, int flags, uae_u32 fc)
 	regs.mmu_ssw |= read ? MMU030_SSW_RW : 0;
 	regs.mmu_ssw |= flags;
 	regs.mmu_ssw |= fc;
+	regs.mmu_ssw |= islrmw030 ? MMU030_SSW_RM : 0;
 	// temporary store in 68040+ variables because stack frame creation may modify them.
 	regs.wb3_data = mmu030_data_buffer_out;
 	regs.wb2_address = mmu030_state[1];
@@ -1848,8 +1852,11 @@ void mmu030_page_fault(uaecptr addr, bool read, int flags, uae_u32 fc)
 	write_log(_T("\n"));
 #endif
 
+	ismoves030 = false;
+	islrmw030 = false;
+
 #if 0
-	if (addr == 0x00016060)
+	if (addr == 0xc1026ea0)
 		write_log("!");
 #endif
 #if 0
@@ -2441,7 +2448,7 @@ uae_u8 uae_mmu030_check_fc(uaecptr addr, bool write, uae_u32 size)
 }
 
 /* Locked RMW is rarely used */
-uae_u32 uae_mmu030_get_lrmw_fcx(uaecptr addr, int size, int fc)
+static uae_u32 uae_mmu030_get_lrmw_fcx(uaecptr addr, int size, int fc)
 {
 	if (size == sz_byte) {
 		return mmu030_get_generic(addr, fc, size, MMU030_SSW_RM | MMU030_SSW_SIZE_B);
@@ -2460,10 +2467,13 @@ uae_u32 uae_mmu030_get_lrmw_fcx(uaecptr addr, int size, int fc)
 uae_u32 uae_mmu030_get_lrmw(uaecptr addr, int size)
 {
 	uae_u32 fc = (regs.s ? 4 : 0) | 1;
-	return uae_mmu030_get_lrmw_fcx(addr, size, fc);
+	islrmw030 = true;
+	uae_u32 v = uae_mmu030_get_lrmw_fcx(addr, size, fc);
+	islrmw030 = false;
+	return v;
 }
 
-void uae_mmu030_put_lrmw_fcx(uaecptr addr, uae_u32 val, int size, int fc)
+static void uae_mmu030_put_lrmw_fcx(uaecptr addr, uae_u32 val, int size, int fc)
 {
 	if (size == sz_byte) {
 		mmu030_put_generic(addr, val, fc, size, MMU030_SSW_RM | MMU030_SSW_SIZE_B);
@@ -2482,7 +2492,9 @@ void uae_mmu030_put_lrmw_fcx(uaecptr addr, uae_u32 val, int size, int fc)
 void uae_mmu030_put_lrmw(uaecptr addr, uae_u32 val, int size)
 {
 	uae_u32 fc = (regs.s ? 4 : 0) | 1;
+	islrmw030 = true;
 	uae_mmu030_put_lrmw_fcx(addr, val, size, fc);
+	islrmw030 = false;
 }
 
 uae_u32 REGPARAM2 mmu030_get_ilong_unaligned(uaecptr addr, uae_u32 fc, int flags)
@@ -2947,8 +2959,8 @@ void m68k_do_rte_mmu030 (uaecptr a7)
 				mmu030_opcode_stageb = stageb;
 				write_log(_T("Software fixed stage B! opcode = %04x\n"), stageb);
 			} else {
-				mmu030_ad_v[idxsize].val = stageb;
-				idxsize_done = idxsize;
+				mmu030_ad_v[idxsize_done].val = stageb;
+				idxsize_done++;
 				write_log(_T("Software fixed stage B! opcode = %04X, opword = %04x\n"), mmu030_opcode_v, stageb);
 			}
 		}
@@ -3006,9 +3018,6 @@ void m68k_do_rte_mmu030 (uaecptr a7)
 			if (mmu030_state[1] & MMU030_STATEFLAG1_MOVEM2) {
 				write_log(_T("68030 MMU MOVEM %04x retry but MMU030_STATEFLAG1_MOVEM2 was already set!?\n"), mmu030_opcode);
 			}
-		}
-		if (idxsize >= 0 && mmu030_ad[idxsize].done) {
-			write_log(_T("68030 MMU ins %04x retry but it was already marked as done!?\n"), mmu030_opcode);
 		}
 #endif
 
@@ -3366,6 +3375,11 @@ void m68k_do_rte_mmu030c (uaecptr a7)
 			mmu030_ad_v[i].val = get_long_mmu030c(a7 + 0x5c - (i + 1) * 4);
 		}
 
+		regs.wb2_status = v >> 8;
+		regs.wb3_status = mmu030_state_2 >> 8;
+		mmu030fixupmod(regs.wb2_status, 1, -1);
+		mmu030fixupmod(regs.wb3_status, 1, -1);
+
 		// did we have data fault but DF bit cleared?
 		if (ssw & (MMU030_SSW_DF << 1) && !(ssw & MMU030_SSW_DF)) {
 			// DF not set: mark access as done
@@ -3473,10 +3487,6 @@ void m68k_do_rte_mmu030c (uaecptr a7)
 		if (mmu030_state[1] & MMU030_STATEFLAG1_MOVEM1) {
 			if (mmu030_state[1] & MMU030_STATEFLAG1_MOVEM2) {
 				write_log(_T("68030 MMU MOVEM %04x retry but MMU030_STATEFLAG1_MOVEM2 was already set!?\n"), mmu030_opcode);
-			}
-		} else {
-			if (idxsize >= 0 && mmu030_ad[idxsize].done) {
-				write_log(_T("68030 MMU ins %04x retry but it was already marked as done!?\n"), mmu030_opcode);
 			}
 		}
 #endif

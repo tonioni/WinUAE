@@ -26,7 +26,7 @@ extern uae_u32 mmu030_data_buffer_out;
 extern uae_u32 mmu030_disp_store[2];
 extern uae_u32 mmu030_fmovem_store[2];
 extern uae_u8 mmu030_cache_state, mmu030_cache_state_default;
-extern bool ismoves030;
+extern bool ismoves030, islrmw030;
 
 #define MMU030_STATEFLAG1_FMOVEM 0x2000
 #define MMU030_STATEFLAG1_MOVEM1 0x4000
@@ -84,9 +84,7 @@ uae_u32 mmu030_get_ilong(uaecptr addr, uae_u32 fc);
 uae_u16 mmu030_get_iword(uaecptr addr, uae_u32 fc);
 
 uae_u32 uae_mmu030_get_lrmw(uaecptr addr, int size);
-uae_u32 uae_mmu030_get_lrmw_fcx(uaecptr addr, int size, int fc);
 void uae_mmu030_put_lrmw(uaecptr addr, uae_u32 val, int size);
-void uae_mmu030_put_lrmw_fcx(uaecptr addr, uae_u32 val, int size, int fc);
 
 void mmu030_put_generic(uaecptr addr, uae_u32 val, uae_u32 fc, int size, int flags);
 uae_u32 mmu030_get_generic(uaecptr addr, uae_u32 fc, int size, int flags);
@@ -750,9 +748,11 @@ STATIC_INLINE void put_byte_mmu030c_state (uaecptr addr, uae_u32 v)
 }
 STATIC_INLINE void put_lrmw_byte_mmu030c_state (uaecptr addr, uae_u32 v)
 {
+	islrmw030 = true;
 	ACCESS_CHECK_PUT
 	write_dcache030_lrmw_mmu(addr, v, 0);
 	ACCESS_EXIT_PUT
+	islrmw030 = false;
 }
 STATIC_INLINE void put_word_mmu030c_state (uaecptr addr, uae_u32 v)
 {
@@ -762,9 +762,11 @@ STATIC_INLINE void put_word_mmu030c_state (uaecptr addr, uae_u32 v)
 }
 STATIC_INLINE void put_lrmw_word_mmu030c_state (uaecptr addr, uae_u32 v)
 {
+	islrmw030 = true;
 	ACCESS_CHECK_PUT
 	write_dcache030_lrmw_mmu(addr, v, 1);
 	ACCESS_EXIT_PUT
+	islrmw030 = false;
 }
 STATIC_INLINE void put_long_mmu030c_state (uaecptr addr, uae_u32 v)
 {
@@ -774,9 +776,11 @@ STATIC_INLINE void put_long_mmu030c_state (uaecptr addr, uae_u32 v)
 }
 STATIC_INLINE void put_lrmw_long_mmu030c_state (uaecptr addr, uae_u32 v)
 {
+	islrmw030 = true;
 	ACCESS_CHECK_PUT
 	write_dcache030_lrmw_mmu(addr, v, 2);
 	ACCESS_EXIT_PUT
+	islrmw030 = false;
 }
 
 STATIC_INLINE uae_u32 get_byte_mmu030c_state (uaecptr addr)
@@ -790,9 +794,11 @@ STATIC_INLINE uae_u32 get_byte_mmu030c_state (uaecptr addr)
 STATIC_INLINE uae_u32 get_lrmw_byte_mmu030c_state (uaecptr addr)
 {
 	uae_u32 v;
+	islrmw030 = true;
 	ACCESS_CHECK_GET
     v = read_dcache030_lrmw_mmu(addr, 0);
 	ACCESS_EXIT_GET
+	islrmw030 = false;
 	return v;
 }
 
@@ -807,9 +813,11 @@ STATIC_INLINE uae_u32 get_word_mmu030c_state (uaecptr addr)
 STATIC_INLINE uae_u32 get_lrmw_word_mmu030c_state (uaecptr addr)
 {
  	uae_u32 v;
+	islrmw030 = true;
 	ACCESS_CHECK_GET
     v = read_dcache030_lrmw_mmu(addr, 1);
 	ACCESS_EXIT_GET
+	islrmw030 = false;
 	return v;
 }
 STATIC_INLINE uae_u32 get_long_mmu030c_state (uaecptr addr)
@@ -823,9 +831,11 @@ STATIC_INLINE uae_u32 get_long_mmu030c_state (uaecptr addr)
 STATIC_INLINE uae_u32 get_lrmw_long_mmu030c_state (uaecptr addr)
 {
  	uae_u32 v;
+	islrmw030 = true;
 	ACCESS_CHECK_GET
     v = read_dcache030_lrmw_mmu(addr, 2);
 	ACCESS_EXIT_GET
+	islrmw030 = false;
 	return v;
 }
 
