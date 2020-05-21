@@ -292,7 +292,7 @@ static int set_fpulimit;
 
 static int m68k_pc_offset, m68k_pc_offset_old;
 static int m68k_pc_total;
-static int exception_pc_offset, exception_pc_offset_extra;
+static int exception_pc_offset, exception_pc_offset_extra_000;
 static int branch_inst;
 static int ir2irc;
 static int insn_n_cycles;
@@ -2218,10 +2218,12 @@ static void check_bus_error(const char *name, int offset, int write, int size, c
 			bus_error_cycles = 0;
 		}
 
+		int pc_offset_extra = cpu_level == 0 ? exception_pc_offset_extra_000 : 0;
+
 		if (pcoffset == -1) {
 			incpc("%d", m68k_pc_offset + 2);
-		} else if (exception_pc_offset + exception_pc_offset_extra + pcoffset) {
-			incpc("%d", exception_pc_offset + exception_pc_offset_extra + pcoffset);
+		} else if (exception_pc_offset + pc_offset_extra + pcoffset) {
+			incpc("%d", exception_pc_offset + pc_offset_extra + pcoffset);
 		}
 
 		if (g_instr->mnemo == i_MOVE && write) {
@@ -3060,6 +3062,11 @@ static void check_address_error(const  char *name, int mode, const char *reg, in
 				out("regs.irc = extra;\n");
 				if (!exp3rw) {
 					out("regs.write_buffer = extra;\n");
+					if (mode == Ad8r || mode == PC8r) {
+						pcextra = 4;
+					} else {
+						pcextra = 2;
+					}
 				} else {
 					// moves.w an,-(an)/(an)+ (same registers): write buffer contains modified value.
 					if (mode == Aipi || mode == Apdi) {
@@ -3081,7 +3088,7 @@ static void check_address_error(const  char *name, int mode, const char *reg, in
 			}
 
 			// x,-(an): an is modified (MOVE to CCR counts as word sized)
-			if (mode == Apdi && g_instr->mnemo != i_CLR) {
+			if (mode == Apdi && g_instr->mnemo != i_CLR && size == sz_word) {
 				out("m68k_areg(regs, %s) = %sa;\n", reg, name);
 			}
 			bus_error_reg_add = bus_error_reg_add_old;
@@ -3095,8 +3102,9 @@ static void check_address_error(const  char *name, int mode, const char *reg, in
 		} else if (mode == Apdi && g_instr->mnemo != i_LINK) {
 			// 68000 decrements register first, then checks for address error
 			// 68010 does not
-			if (cpu_level == 0)
+			if (cpu_level == 0) {
 				setapdiback = 1;
+			}
 		}
 
 		// adjust MOVE write address error stacked PC
@@ -3110,8 +3118,10 @@ static void check_address_error(const  char *name, int mode, const char *reg, in
 			}
 		}
 
-		if (exception_pc_offset + exception_pc_offset_extra + pcextra) {
-			incpc("%d", exception_pc_offset + exception_pc_offset_extra + pcextra);
+		int pc_offset_extra = cpu_level == 0 ? exception_pc_offset_extra_000 : 0;
+
+		if (exception_pc_offset + pc_offset_extra + pcextra) {
+			incpc("%d", exception_pc_offset + pc_offset_extra + pcextra);
 		}
 
 		if (g_instr->mnemo == i_MOVE) {
@@ -4362,7 +4372,7 @@ static void movem_ex3(int write)
 				(g_instr->dmode == PC16 || g_instr->dmode == PC8r) ? 2 : 1);
 		} else {
 			int pcoff = 2;
-			if (g_instr->dmode == Ad8r || g_instr->dmode == PC8r) {
+			if (cpu_level == 0 && (g_instr->dmode == Ad8r || g_instr->dmode == PC8r)) {
 				pcoff = -2;
 			}
 			incpc("%d", m68k_pc_offset + pcoff);
@@ -4815,7 +4825,7 @@ static void resetvars (void)
 	set_fpulimit = 0;
 	bus_error_cycles = 0;
 	exception_pc_offset = 0;
-	exception_pc_offset_extra = 0;
+	exception_pc_offset_extra_000 = 0;
 
 	ir2irc = 0;
 	mmufixupcnt = 0;
@@ -5431,7 +5441,7 @@ static void gen_opcode (unsigned int opcode)
 		break;
 	}
 	case i_SUBX:
-		exception_pc_offset_extra = 2;
+		exception_pc_offset_extra_000 = 2;
 		next_level_000();
 		if (!isreg(curi->smode))
 			addcycles000(2);
@@ -5488,7 +5498,7 @@ static void gen_opcode (unsigned int opcode)
 					addcycles000(2);
 				next_level_000();
 			}
-			exception_pc_offset_extra = 0;
+			exception_pc_offset_extra_000 = 0;
 			if (curi->size == sz_long && !isreg(curi->dmode)) {
 				// write addr + 2
 				// prefetch
@@ -5500,7 +5510,7 @@ static void gen_opcode (unsigned int opcode)
 		}
 		break;
 	case i_SBCD:
-		exception_pc_offset_extra = 2;
+		exception_pc_offset_extra_000 = 2;
 		if (!isreg (curi->smode))
 			addcycles000(2);
 		genamode(curi, curi->smode, "srcreg", curi->size, "src", 1, 0, GF_AA);
@@ -5534,7 +5544,7 @@ static void gen_opcode (unsigned int opcode)
 		if (isreg (curi->smode)) {
 			addcycles000(2);
 		}
-		exception_pc_offset_extra = 0;
+		exception_pc_offset_extra_000 = 0;
 		genastore("newv", curi->dmode, "dstreg", curi->size, "dst");
 		break;
 	case i_ADD:
@@ -5627,7 +5637,7 @@ static void gen_opcode (unsigned int opcode)
 		break;
 	}
 	case i_ADDX:
-		exception_pc_offset_extra = 2;
+		exception_pc_offset_extra_000 = 2;
 		next_level_000();
 		if (!isreg(curi->smode)) {
 			addcycles000(2);
@@ -5685,7 +5695,7 @@ static void gen_opcode (unsigned int opcode)
 					addcycles000(2);
 				next_level_000();
 			}
-			exception_pc_offset_extra = 0;
+			exception_pc_offset_extra_000 = 0;
 			if (curi->size == sz_long && !isreg(curi->dmode)) {
 				// write addr + 2
 				// prefetch
@@ -5697,7 +5707,7 @@ static void gen_opcode (unsigned int opcode)
 		}
 		break;
 	case i_ABCD:
-		exception_pc_offset_extra = 2;
+		exception_pc_offset_extra_000 = 2;
 		if (!isreg (curi->smode))
 			addcycles000(2);
 		genamode(curi, curi->smode, "srcreg", curi->size, "src", 1, 0, GF_AA);
@@ -5732,7 +5742,7 @@ static void gen_opcode (unsigned int opcode)
 		if (isreg (curi->smode)) {
 			addcycles000(2);
 		}
-		exception_pc_offset_extra = 0;
+		exception_pc_offset_extra_000 = 0;
 		genastore("newv", curi->dmode, "dstreg", curi->size, "dst");
 		break;
 	case i_NEG:
@@ -6021,7 +6031,7 @@ static void gen_opcode (unsigned int opcode)
 		genastore("dst", curi->dmode, "dstreg", curi->size, "dst");
 		break;
 	case i_CMPM:
-		exception_pc_offset_extra = 2;
+		exception_pc_offset_extra_000 = 2;
 		genamodedual(curi,
 			curi->smode, "srcreg", curi->size, "src", 1, GF_AA,
 			curi->dmode, "dstreg", curi->size, "dst", 1, GF_AA);
@@ -6378,7 +6388,7 @@ static void gen_opcode (unsigned int opcode)
 	case i_MVSR2: // MOVE FROM SR
 		if (cpu_level == 0) {
 			if ((curi->smode != Apdi && curi->smode != absw && curi->smode != absl) && curi->size == sz_word) {
-				exception_pc_offset_extra = -2;
+				exception_pc_offset_extra_000 = -2;
 			}
 		}
 		genamode(curi, curi->smode, "srcreg", sz_word, "src", cpu_level == 0 ? 2 : 3, 0, cpu_level == 1 ? GF_NOFETCH : 0);
@@ -6403,7 +6413,7 @@ static void gen_opcode (unsigned int opcode)
 			}
 			fill_prefetch_next_after(1, NULL);
 		}
-		exception_pc_offset_extra = 0;
+		exception_pc_offset_extra_000 = 0;
 		if (!isreg(curi->smode) && cpu_level == 1 && using_exception_3 && (using_prefetch || using_ce)) {
 			out("if(srca & 1) {\n");
 			incpc("%d", m68k_pc_offset + 2);
@@ -6674,6 +6684,7 @@ static void gen_opcode (unsigned int opcode)
 			out("regs.sr = sr;\n");
 			makefromsr();
 			out("if (pc & 1) {\n");
+			incpc("2");
 			out("exception3_read_prefetch_only(opcode, pc);\n");
 			write_return_cycles(0);
 			out("}\n");
@@ -6804,6 +6815,8 @@ static void gen_opcode (unsigned int opcode)
 	    out("if (pc & 1) {\n");
 		if (cpu_level >= 4) {
 			out("m68k_areg(regs, 7) -= 4 + offs;\n");
+		} else if (cpu_level == 1) {
+			incpc("2");
 		}
 		out("exception3_read_prefetch_only(opcode, pc);\n");
 		write_return_cycles(0);
@@ -7060,7 +7073,11 @@ static void gen_opcode (unsigned int opcode)
 					addcycles000_nonce(6);
 				}
 				if (curi->smode == absl) {
-					incpc("6");
+					if (cpu_level == 0) {
+						incpc("6");
+					} else {
+						incpc("2");
+					}
 				} else if (curi->smode == absw) {
 					incpc("4");
 				} else {
@@ -7240,6 +7257,7 @@ static void gen_opcode (unsigned int opcode)
 		if (using_exception_3 && cpu_level == 1) {
 			// 68010 TODO: looks like prefetches are done first and stack writes last
 			out("if (s & 1) {\n");
+			incpc("2");
 			out("exception3_read_prefetch_only(opcode, oldpc + s);\n");
 			write_return_cycles(0);
 			out("}\n");
