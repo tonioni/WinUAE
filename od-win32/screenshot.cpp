@@ -70,8 +70,8 @@ static int toclipboard (BITMAPINFO *bi, void *bmp)
 	if (hg) {
 		dib = (uae_u8*)GlobalLock (hg);
 		if (dib) {
-			memcpy (dib, &bi->bmiHeader, bi->bmiHeader.biSize);
-			memcpy (dib + bi->bmiHeader.biSize, bmp, bi->bmiHeader.biSizeImage);
+			memcpy (dib, &bi->bmiHeader, bi->bmiHeader.biSize + bi->bmiHeader.biClrUsed * sizeof(RGBQUAD));
+			memcpy (dib + bi->bmiHeader.biSize + +bi->bmiHeader.biClrUsed * sizeof(RGBQUAD), bmp, bi->bmiHeader.biSizeImage);
 		}
 		GlobalUnlock (hg);
 		if (SetClipboardData (CF_DIB, hg))
@@ -268,6 +268,7 @@ static int screenshot_prepare(int monid, int imagemode, struct vidbuffer *vb, bo
 		int yoffset = screenshot_yoffset < 0 ? (screenshot_height - height) / 2 : -screenshot_yoffset;
 
 		ZeroMemory (bi, sizeof(bi));
+		bi->bmiHeader.biClrUsed = bits <= 8 ? (1 << bits) : 0;
 		bi->bmiHeader.biSize = sizeof (BITMAPINFOHEADER);
 		bi->bmiHeader.biWidth = screenshot_width * screenshot_xmult;
 		bi->bmiHeader.biHeight = screenshot_height * screenshot_ymult;
@@ -278,7 +279,6 @@ static int screenshot_prepare(int monid, int imagemode, struct vidbuffer *vb, bo
 		bi->bmiHeader.biSizeImage = dpitch * bi->bmiHeader.biHeight;
 		bi->bmiHeader.biXPelsPerMeter = 0;
 		bi->bmiHeader.biYPelsPerMeter = 0;
-		bi->bmiHeader.biClrUsed = bits <= 8 ? (1 << bits) : 0;
 		bi->bmiHeader.biClrImportant = 0;
 		if (bits <= 8) {
 			for (int i = 0; i < bi->bmiHeader.biClrUsed; i++) {
@@ -342,7 +342,7 @@ static int screenshot_prepare(int monid, int imagemode, struct vidbuffer *vb, bo
 					uae_u8 *d2 = d;
 					for (int y2 = 0; y2 < ymult; y2++) {
 						for (int x2 = 0; x2 < xmult; x2++) {
-							d[xx + x2] = s[x];
+							d2[xx + x2] = s[x];
 						}
 						d2 += dpitch2;
 					}
@@ -404,7 +404,6 @@ static int screenshot_prepare(int monid, int imagemode, struct vidbuffer *vb, bo
 					}
 				}
 			}
-
 
 			src += spitch;
 		}
