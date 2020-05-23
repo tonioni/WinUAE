@@ -7259,7 +7259,7 @@ void exception3_read(uae_u32 opcode, uaecptr addr, int size, int fc)
 		opcode = regs.ir;
 	}
 	last_di_for_exception_3 = 1;
-	exception3f(opcode, addr, false, ia, ni, 0xffffffff, size, fc);
+	exception3f(opcode, addr, false, ia, ni, 0xffffffff, size & 15, fc);
 }
 void exception3_write(uae_u32 opcode, uaecptr addr, int size, uae_u32 val, int fc)
 {
@@ -7278,7 +7278,7 @@ void exception3_write(uae_u32 opcode, uaecptr addr, int size, uae_u32 val, int f
 	}
 	last_di_for_exception_3 = 1;
 	regs.write_buffer = val;
-	exception3f(opcode, addr, true, ia, ni, 0xffffffff, size, fc);
+	exception3f(opcode, addr, true, ia, ni, 0xffffffff, size & 15, fc);
 }
 
 void exception2_setup(uae_u32 opcode, uaecptr addr, bool read, int size, uae_u32 fc)
@@ -7289,7 +7289,7 @@ void exception2_setup(uae_u32 opcode, uaecptr addr, bool read, int size, uae_u32
 	last_op_for_exception_3 = opcode;
 	last_fc_for_exception_3 = fc;
 	last_notinstruction_for_exception_3 = exception_in_exception != 0;
-	last_size_for_exception_3 = size;
+	last_size_for_exception_3 = size & 15;
 	last_di_for_exception_3 = 1;
 	hardware_bus_error = 0;
 
@@ -7331,14 +7331,23 @@ void hardware_exception2(uaecptr addr, uae_u32 v, bool read, bool ins, int size)
 
 void exception2_read(uae_u32 opcode, uaecptr addr, int size, int fc)
 {
-	exception2_setup(opcode, addr, true, size, fc);
+	exception2_setup(opcode, addr, true, size & 15, fc);
 	Exception(2);
 }
 
 void exception2_write(uae_u32 opcode, uaecptr addr, int size, uae_u32 val, int fc)
 {
-	exception2_setup(opcode, addr, false, size, fc);
-	regs.write_buffer = val;
+	exception2_setup(opcode, addr, false, size & 15, fc);
+	if (size & 0x100) {
+		regs.write_buffer = val;
+	} else {
+		if (size == sz_byte) {
+			regs.write_buffer &= 0xff00;
+			regs.write_buffer |= val & 0xff;
+		} else {
+			regs.write_buffer = val;
+		}
+	}
 	Exception(2);
 }
 

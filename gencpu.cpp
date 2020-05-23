@@ -1454,8 +1454,8 @@ static void loopmode_access(void)
 		} else {
 			addcycles000_nonces("loop_mode & 0xfffe");
 		}
-		// CLR.L adds 2 extra cycles when loop exits
-		if (g_instr->mnemo == i_CLR && g_instr->size == sz_long) {
+		// CLR.x adds 2 extra cycles when loop exits
+		if (g_instr->mnemo == i_CLR) {
 			out("loop_mode &= 0xffff0000;\n");
 			out("loop_mode |= 1;\n");
 		} else {
@@ -2283,23 +2283,12 @@ static void check_bus_error(const char *name, int offset, int write, int size, c
 			if (g_instr->mnemo == i_MVSR2 && !write) {
 				out("opcode |= 0x20000;\n");
 			}
-			// read bus error, -(an).w/.l: pre-decrement is done first.
-			if (!write && g_instr->smode == Apdi && g_instr->size == sz_long) {
-
-				//out("m68k_areg(regs, %s) = %sa;\n", bus_error_reg, name);
-			}
 			if (g_instr->mnemo == i_MOVES) {
 				out("regs.irc = extra;\n");
 				if (!write) {
 					out("regs.write_buffer = extra;\n");
 				}
 				if (g_instr->size == sz_long) {
-					// moves.l an,-(an)/(an)+ (same registers): write buffer contains modified value.
-					if (g_instr->dmode == Aipi || g_instr->dmode == Apdi) {
-						out("if (dstreg + 8 == ((extra >> 12) & 15)) {\n");
-						out("src += %d;\n", g_instr->dmode == Aipi ? 2 : -2);
-						out("}\n");
-					}
 					if (g_instr->dmode == Apdi) {
 						if (!write) {
 							out("m68k_areg(regs, dstreg) = srca;\n");
@@ -2342,6 +2331,16 @@ static void check_bus_error(const char *name, int offset, int write, int size, c
 						out("regs.irc = dsta >> 16;\n");
 					}
 				}
+			} else if (g_instr->mnemo == i_MVPRM) {
+				if (write) {
+					if (g_instr->size == sz_word) {
+						out("uae_u16 val = src;\n");
+					} else {
+						out("uae_u16 val = src >> %d;\n", offset <= 2 ? 16 : 0);
+					}
+					size |= 0x100;
+					writevar = "val";
+				}
 			}
 		}
 
@@ -2356,12 +2355,12 @@ static void check_bus_error(const char *name, int offset, int write, int size, c
 		}
 
 		if (write) {
-			out("exception2_write(opcode, %sa + %d, %d, %s, %d);\n",
+			out("exception2_write(opcode, %sa + %d, 0x%x, %s, %d);\n",
 				name, offset, size, writevar,
 				(!write && (g_instr->smode == PC16 || g_instr->smode == PC8r)) ||
 				(write && (g_instr->dmode == PC16 || g_instr->dmode == PC8r)) ? 2 : fc);
 		} else {
-			out("exception2_read(opcode, %sa + %d, %d, %d);\n",
+			out("exception2_read(opcode, %sa + %d, 0x%x, %d);\n",
 				name, offset, size,
 				(!write && (g_instr->smode == PC16 || g_instr->smode == PC8r)) ||
 				(write && (g_instr->dmode == PC16 || g_instr->dmode == PC8r)) ? 2 : fc);
@@ -7574,8 +7573,10 @@ bccl_not68020:
 			int old_m68k_pc_offset = m68k_pc_offset;
 			int old_m68k_pc_total = m68k_pc_total;
 			clear_m68k_offset();
+			count_cycles -= 4;
 			get_prefetch_020_continue();
 			fill_prefetch_full_000_special(1, NULL);
+			count_cycles += 4;
 			returncycles(8);
 			m68k_pc_offset = old_m68k_pc_offset;
 			m68k_pc_total = old_m68k_pc_total;
@@ -7591,7 +7592,7 @@ bccl_not68020:
 
 			setpc("oldpc");
 			check_ipl_always();
-			returncycles(0);
+			returncycles(2);
 			out("}\n");
 			out("regs.loop_mode = 0;\n");
 			setpc("oldpc + %d", m68k_pc_offset);
@@ -8467,7 +8468,7 @@ bccl_not68020:
 				returntail(false);
 				did_prefetch = 0;
 				// Earlier models do -(an)/(an)+ EA calculation first
-				if (!(cpu_level == 5 || (curi->dmode != Aipi && curi->dmode != Apdi) || (cpu_level == 1 && curi->size == sz_long))) {
+				if (!(cpu_level == 5 || (curi->dmode != Aipi && curi->dmode != Apdi)) || (cpu_level == 1 && curi->size == sz_long)) {
 					out("src = regs.regs[(extra >> 12) & 15];\n");
 				}
 				genastore_fc ("src", curi->dmode, "dstreg", curi->size, "dst");

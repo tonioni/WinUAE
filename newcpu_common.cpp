@@ -716,14 +716,19 @@ Best and worst cases for register operand:
 (Note the difference with the documented range.)
 
 
-DIVU:
+DIVU 68000:
 
 Overflow (always): 10 cycles.
 Worst case: 136 cycles.
 Best case: 76 cycles.
 
+DIVU 68010:
 
-DIVS:
+Overflow (always): 8 cycles.
+Wost case: 108 cycles.
+Best case: 78 cycles.
+
+DIVS 68000:
 
 Absolute overflow: 16-18 cycles.
 Signed overflow is not detected prematurely.
@@ -732,6 +737,13 @@ Worst case: 156 cycles.
 Best case without signed overflow: 122 cycles.
 Best case with signed overflow: 120 cycles
 
+DIVS 68010:
+
+Absolute overflow: 16 cycles.
+Signed overflow is not detected prematurely.
+
+Worst case: 122 cycles.
+Best case: 120 cycles.
 
 */
 
@@ -745,39 +757,64 @@ int getDivu68kCycles (uae_u32 dividend, uae_u16 divisor)
 		return 0;
 
 	if (currprefs.cpu_model == 68010) {
+
 		// Overflow
-		if ((dividend >> 16) >= divisor)
+		if ((dividend >> 16) >= divisor) {
 			return 4;
-		return 104;
-	}
+		}
 
-	// Overflow
-	if ((dividend >> 16) >= divisor)
-		return (mcycles = 5) * 2 - 4;
+		mcycles = 74;
 
-	mcycles = 38;
+		hdivisor = divisor << 16;
 
-	hdivisor = divisor << 16;
+		for (i = 0; i < 15; i++) {
+			uae_u32 temp;
+			temp = dividend;
 
-	for (i = 0; i < 15; i++) {
-		uae_u32 temp;
-		temp = dividend;
+			dividend <<= 1;
 
-		dividend <<= 1;
-
-		// If carry from shift
-		if ((uae_s32)temp < 0)
-			dividend -= hdivisor;
-		else {
-			mcycles += 2;
-			if (dividend >= hdivisor) {
+			// If carry from shift
+			if ((uae_s32)temp < 0) {
 				dividend -= hdivisor;
-				mcycles--;
+			} else {
+				mcycles += 2;
+				if (dividend >= hdivisor) {
+					dividend -= hdivisor;
+				}
 			}
 		}
+		return mcycles;
+
+	} else {
+
+		// Overflow
+		if ((dividend >> 16) >= divisor)
+			return (mcycles = 5) * 2 - 4;
+
+		mcycles = 38;
+
+		hdivisor = divisor << 16;
+
+		for (i = 0; i < 15; i++) {
+			uae_u32 temp;
+			temp = dividend;
+
+			dividend <<= 1;
+
+			// If carry from shift
+			if ((uae_s32)temp < 0)
+				dividend -= hdivisor;
+			else {
+				mcycles += 2;
+				if (dividend >= hdivisor) {
+					dividend -= hdivisor;
+					mcycles--;
+				}
+			}
+		}
+		// -4 = remove prefetch cycle
+		return mcycles * 2 - 4;
 	}
-	// -4 = remove prefetch cycle
-	return mcycles * 2 - 4;
 }
 
 int getDivs68kCycles (uae_s32 dividend, uae_s16 divisor)
@@ -875,7 +912,7 @@ void divbyzero_special (bool issigned, uae_s32 dst)
 /* DIVU overflow
  *
  * 68000: V=1, N=1, C=0, Z=0
- * 68010: V=1, N=divisor<0x8000, C=0, Z=divided upper word == 0xffff and divisor == 0xffff
+ * 68010: V=1, N=1, C=0, Z=0
  * 68020: V=1, C=0, Z=0, N=X
  * 68040: V=1, C=0, NZ not modified.
  * 68060: V=1, C=0, NZ not modified.
@@ -898,9 +935,8 @@ void setdivuflags(uae_u32 dividend, uae_u16 divisor)
 			SET_NFLG(1);
 	} else if (currprefs.cpu_model == 68010) {
 		SET_VFLG(1);
-		SET_NFLG(divisor < 0x8000);
-		// can anyone explain this?
-		SET_ZFLG((dividend >> 16) == 0xffff && divisor == 0xffff);
+		SET_NFLG(1);
+		SET_ZFLG(0);
 		SET_CFLG(0);
 	} else {
 		// 68000
