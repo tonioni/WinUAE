@@ -2245,9 +2245,10 @@ static uae_u32 REGPARAM2 cia_lgeti (uaecptr addr)
 
 static bool cia_debug(uaecptr addr, uae_u32 value, int size)
 {
-	if (addr == DEBUG_SPRINTF_ADDRESS || addr == DEBUG_SPRINTF_ADDRESS + 4 ||
+	if (addr == DEBUG_SPRINTF_ADDRESS || addr == DEBUG_SPRINTF_ADDRESS + 4 || addr == DEBUG_SPRINTF_ADDRESS + 8 ||
 		(addr == DEBUG_SPRINTF_ADDRESS + 2 && currprefs.cpu_model < 68020) ||
-		(addr == DEBUG_SPRINTF_ADDRESS + 6 && currprefs.cpu_model < 68020)) {
+		(addr == DEBUG_SPRINTF_ADDRESS + 6 && currprefs.cpu_model < 68020) ||
+		(addr == DEBUG_SPRINTF_ADDRESS + 10 && currprefs.cpu_model < 68020)) {
 		return debug_sprintf(addr, value, size);
 	}
 	return false;
