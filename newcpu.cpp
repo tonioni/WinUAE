@@ -1984,7 +1984,7 @@ static void update_68k_cycles (void)
 {
 	cycles_mult = 0;
 
-	if (currprefs.m68k_speed == 0) { // aproximate
+	if (currprefs.m68k_speed == 0) { // approximate
 		cycles_mult = CYCLES_DIV;
 		if (currprefs.cpu_model >= 68040) {
 			cycles_mult = CYCLES_DIV / 12;

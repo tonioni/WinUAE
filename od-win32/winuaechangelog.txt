@@ -1,5 +1,38 @@
 
 
+Beta 4:
+
+- 68010 address errors fixed. Most read and write bus errors tested and fixed.
+- 68010 DIVU cycle count fix. It does not have fully static cycle count as I originally thought (due to not random enough test data). Best case 74 cycles, worst case 104 cycles. Most "normal" divisions (relatively small divisor) are 104 cycles. Algorithm seems to be exact same as used in 68000 but compare and subtract operation if comparison was true appears to be "free" in 68010. (MULs have similar operation, they do compare and add in a loop. 68010 hardware probably gained feature that first executes compare, then compare result is used to select between internal register or zero register, then following ALU operation is executed using selected value. 68000 had to do compare, check comparison result, branch if false, execute ALU operation if true which takes longer.)
+- 68010 loop mode CLR.B and CLR.W need 2 extra cycles when loop ends. CLR.L was already correct.
+- 68010 loop mode was 2 cycles too fast/loop round in prefetch (non-ce) mode.
+- Verified real 68000 and 68010 in cputester cycle test mode again.
+- 68030 MMU RTE software fixed pipeline stage handling bug fix. (WHDLoad QA tests 33003/33004/33005, 33012)
+- 68030 MMU + prefetch: if instruction generated MMU access fault and it was Locked Read-Modify-Write (TAS, CAS, CAS2), MMU status register RM flag was not set. (94040)
+- 68030 MMU + prefetch: "68030 MMU seems to do -(an)/(an)+ adjustment before bus error is detected and original register content is not restored when bus error exception starts" b1 update fix. Amix should boot again.
+- Screen capture to clipboard created blank image if 256 color or less RTG mode and capture before filtering was set.
+- When switching GUI panels, old sub panel window was not removed from element array. Possibly could cause crashes or some other issues when it was re-used.
+- Added b1 debug logging format string flags and width specifier support (except floating point values). Alternate use mode implemented: write pointer to argument array to $BFFF08, then format string to $BFFF04. In this mode %d/%u/%x is assumed to be word wide, %ld/%lu/%lx long word wide (like exec/RawDoFmt). %c was missing.
+
+
+Beta 3:
+
+Not much updated because 68000 bus/address error stack frame bug wasn't that simple to fix.
+
+- b1 disk read dma without drives update didn't handle situation where disk write was started without any selected drives.
+- 68000 bus/address error stack frame program counter field was almost always incorrect (b1). One modification was lost when gencpu was cleaned up and my CPU tester had a bug and ignored this field.. Address errors and bus errors fixed (read, write and prefetch). Amiga does not use bus errors and only some protections use address errors. You probably would expect bus/address error stacked PC point to address that was being prefetched but usually it has +2/-2 offset. It can get even more interesting if it is jump or branch instruction.
+- When ejecting directory filesystem that points to plain file or archive, not all host file handles were closed properly.
+
+CPU tester FPU trigonometric and logarithmic instructions verified. Last 16 or so bits of extended double was ignored in most tests because 6888x returns slightly different results than 68040+ FPSP and also some 6888x instructions return less precise result than FPSP does. All 6888x trigonometic and logarithmic instructions seem to work correctly enough in softfloat mode.
+
+- FSINH and FCOSH didn't set INEX bit if result was infinity.
+- FREM and FMOD didn't round using current rounding mode.
+- FREM and FMOD will only return correct results with some input parameter values. FREM and FMOD is based on some other CPU behavior, most likely x87, and it isn't fully compatible with Motorola implementation. For some reason this was not updated. Will be fixed later.
+- FSCALE didn't round the final result correctlyin all code paths.
+
+Most likely no real world program was affected. Host FPU mode will also return even more different results.
+
+
 Beta 2:
 
 - Custom CPU frequency selection fixed (b1)
