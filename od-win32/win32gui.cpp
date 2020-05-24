@@ -20643,7 +20643,7 @@ static HWND updatePanel (int id, UINT action)
 	ew (guiDlg, IDOK, TRUE);
 	if (panelDlg != NULL) {
 		ShowWindow (panelDlg, FALSE);
-		DestroyWindow (panelDlg);
+		x_DestroyWindow(panelDlg, panelresource);
 		panelDlg = NULL;
 	}
 	if (ToolTipHWND != NULL) {

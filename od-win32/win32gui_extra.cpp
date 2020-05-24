@@ -746,6 +746,21 @@ HWND x_CreateDialogIndirectParam(
 	return DIALOG_CreateIndirect(hInstance, lpTemplate, hWndParent, lpDialogFunc, lParamInit, NULL, res);
 }
 
+void x_DestroyWindow(HWND hwnd, struct newresource *res)
+{
+	for (int i = 0; res->hwndcnt; i++) {
+		struct newreswnd *pr = &res->hwnds[i];
+		if (res->hwnds[i].hwnd == hwnd) {
+			res->hwndcnt--;
+			int tomove = res->hwndcnt - i;
+			if (tomove > 0) {
+				memmove(&res->hwnds[i], &res->hwnds[i + 1], tomove * sizeof(newreswnd));
+			}
+			break;
+		}
+	}
+	DestroyWindow(hwnd);
+}
 
 static int align (double f)
 {
@@ -841,7 +856,9 @@ static void scalechildwindows(struct newresource *nr)
 			disable = true;
 		}
 		SetFocus(nw->hwnd);
-		SetWindowPos(nw->hwnd, HWND_TOP, x, y, w, h, SWP_NOACTIVATE | SWP_NOREDRAW | SWP_NOZORDER | SWP_NOOWNERZORDER | SWP_NOCOPYBITS | SWP_DEFERERASE);
+		if (!SetWindowPos(nw->hwnd, HWND_TOP, x, y, w, h, SWP_NOACTIVATE | SWP_NOREDRAW | SWP_NOZORDER | SWP_NOOWNERZORDER | SWP_NOCOPYBITS | SWP_DEFERERASE)) {
+			write_log("scalechildwindows %d/%d: ERROR %d", i, nr->hwndcnt, GetLastError());
+		}
 		if (disable) {
 			EnableWindow(nw->hwnd, FALSE);
 		}

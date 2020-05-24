@@ -110,6 +110,7 @@ extern struct uae_prefs workprefs;
 extern int dialog_inhibit;
 
 HWND x_CreateDialogIndirectParam(HINSTANCE hInstance, LPCDLGTEMPLATE lpTemplate, HWND hWndParent, DLGPROC lpDialogFunc, LPARAM lParamInit, struct newresource*);
+void x_DestroyWindow(HWND, struct newresource*);
 void getguipos(int *xp, int *yp);
 extern int scaleresource(struct newresource*, struct dlgcontext *dctx, HWND, int, int, DWORD, int);
 extern void rescaleresource(struct newresource*, bool);
