@@ -1630,6 +1630,25 @@ static void abspathtorelative (TCHAR *name)
 		memmove (name, name + _tcslen (start_path_exe), (_tcslen (name) - _tcslen (start_path_exe) + 1) * sizeof (TCHAR));
 }
 
+static int extpri(const TCHAR *p, int size)
+{
+	const TCHAR *s = _tcsrchr(p, '.');
+	if (s == NULL)
+		return 80;
+	// if archive: lowest priority
+	if (!my_existsfile(p))
+		return 100;
+	int pri = 10;
+	// prefer matching size
+	struct mystat ms;
+	if (my_stat(p, &ms)) {
+		if (ms.size == size) {
+			pri--;
+		}
+	}
+	return pri;
+}
+
 static int addrom (UAEREG *fkey, struct romdata *rd, const TCHAR *name)
 {
 	TCHAR tmp1[MAX_DPATH], tmp2[MAX_DPATH], tmp3[MAX_DPATH];
@@ -1653,6 +1672,7 @@ static int addrom (UAEREG *fkey, struct romdata *rd, const TCHAR *name)
 		else
 			_stprintf (tmp2, _T(":ROM_%03d"), rd->id);
 	}
+
 	int size = sizeof tmp3 / sizeof(TCHAR);
 	if (regquerystr(fkey, tmp1, tmp3, &size)) {
 		TCHAR *s = _tcschr(tmp3, '\"');
@@ -1661,10 +1681,10 @@ static int addrom (UAEREG *fkey, struct romdata *rd, const TCHAR *name)
 			s = _tcschr(s2, '\"');
 			if (s)
 				*s = 0;
-			// if plain file already in registry: do not overwrite it
-			if (my_existsfile(s2) && !my_existsfile(pathname)) {
+			int pri1 = extpri(s2, rd->size);
+			int pri2 = extpri(pathname, rd->size);
+			if (pri2 >= pri1)
 				return 1;
-			}
 		}
 	}
 	if (pathname[0]) {
