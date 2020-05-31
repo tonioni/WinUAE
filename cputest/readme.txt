@@ -131,6 +131,13 @@ If mismatch is detected, opcode word(s), instruction disassembly, registers befo
 
 Change log:
 
+31.05.2020
+
+- 68010 bus error and byte size memory access: ignore bus error stack frame high byte of input and output buffers. Their contents depends on type of ALU operation, instruction type and probably more..
+- If trace exception was generated after some other exception ("+EXC 9" in stack frame info line), it was not counted in final exception totals (Exx=1234)
+- Replaced NOP with MOVEA.L A0,A0 in test code because 68040 NOP is considered branching instruction and triggers T0 trace.
+- Interrupt test improved.
+
 17.05.2020
 
 - Rewritten disassembler to use indirect and validated opword reads, now it is safe to use when testing bus errors.

@@ -1,5 +1,5 @@
 
-#define DATA_VERSION 18
+#define DATA_VERSION 20
 
 #define CT_FPREG 0
 #define CT_DREG 0
@@ -45,5 +45,10 @@
 #define CT_OVERRIDE_REG (0x80 | 0x40 | 0x10)
 #define CT_BRANCHED 0x40
 
-#define OPCODE_AREA 32
+#define OPCODE_AREA 48
 #define BRANCHTARGET_AREA 4
+
+// MOVEA.L A0,A0
+// not NOP because on 68040 NOP generates T0 trace.
+#define NOP_OPCODE 0x2048
+#define ILLG_OPCODE 0x4afc

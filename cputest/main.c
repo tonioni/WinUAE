@@ -133,6 +133,7 @@ static short quit;
 static uae_u8 ccr_mask;
 static uae_u32 addressing_mask = 0x00ffffff;
 static uae_u32 interrupt_mask;
+static short instructionsize;
 static short disasm;
 static short basicexcept;
 static short excskipccr;
@@ -161,6 +162,7 @@ static uae_u8 dstaddr[SIZE_STORED_ADDRESS];
 static uae_u8 branchtarget[SIZE_STORED_ADDRESS];
 static uae_u8 stackaddr[SIZE_STORED_ADDRESS];
 static uae_u32 stackaddr_ptr;
+static uae_u8 *opcode_memory_end;
 
 static char opcode[32], group[32], cpustr[10];
 
@@ -304,7 +306,7 @@ static void endinfo(void)
 			break;
 		uae_u16 v = (p[i] << 8) | (p[i + 1]);
 		printf("%08x %04x\n", (uae_u32)&p[i], v);
-		if (v == 0x4afc && i > 0)
+		if (v == ILLG_OPCODE && i > 0)
 			break;
 	}
 	printf("\n");
@@ -1057,11 +1059,17 @@ static void restoreahist(void)
 static uae_u8 *restore_bytes(uae_u8 *mem, uae_u8 *p)
 {
 	uae_u8 *addr = mem;
-	uae_u8 v = *p++;
+	uae_u16 v = *p++;
 	addr += v >> 5;
 	v &= 31;
-	if (v == 0)
+	if (v == 31) {
+		v = *p++;
+		if (v == 0) {
+			v = 256;
+		}
+	} else if (v == 0) {
 		v = 32;
+	}
 #ifndef _MSC_VER
 	xmemcpy(addr, p, v);
 #endif
@@ -1266,7 +1274,7 @@ static void out_disasm(uae_u8 *mem)
 	uae_u8 *p = mem;
 	int offset = 0;
 	int lines = 0;
-	while (lines++ < 7) {
+	while (lines++ < 15) {
 		int v = 0;
 		if (!is_valid_word(p)) {
 			sprintf(outbp, "%08x -- INACCESSIBLE --\n", (uae_u32)p);
@@ -1286,14 +1294,14 @@ static void out_disasm(uae_u8 *mem)
 				}
 				sprintf(outbp, "%04x ", v);
 				outbp += strlen(outbp);
-				if (v == 0x4e71)
+				if (v == NOP_OPCODE)
 					lines--;
 			}
 			sprintf(outbp, " %s\n", tmpbuffer);
 			outbp += strlen(outbp);
 			if (!is_valid_word((uae_u8*)(code + offset)))
 				break;
-			if (v <= 0 || code[offset] == 0x4afc)
+			if (v <= 0 || code[offset] == ILLG_OPCODE)
 				break;
 			while (v > 0) {
 				offset++;
@@ -1391,19 +1399,22 @@ static void out_regs(struct registers *r, struct registers *r1, struct registers
 			} else if ((i % 8) != 0) {
 				strcat(outbp, " ");
 			}
+			uae_u32 v1 = r1->regs[i];
+			uae_u32 v2 = r2->regs[i];
+			uae_u32 sv = sreg->regs[i];
 			outbp += strlen(outbp);
-			sprintf(outbp, "%c%d:%c%08x", i < 8 ? 'D' : 'A', i & 7, r1->regs[i] != r2->regs[i] ? '*' : ' ', r->regs[i]);
+			sprintf(outbp, "%c%d:%c%08x", i < 8 ? 'D' : 'A', i & 7, v1 == v2 && v1 != sv ? '*' : (v1 != v2 ? '!' : ' '), r->regs[i]);
 			outbp += strlen(outbp);
 		}
 		*outbp++ = '\n';
-		sprintf(outbp, "SR:%c%04x      PC: %08x ISP: %08x B: %d", r1->sr != r2->sr ? '*' : ' ', r->sr, r->pc, r->ssp, branched);
+		sprintf(outbp, "SR:%c%04x      PC: %08x ISP: %08x", r1->sr == r2->sr && r1->sr != sreg->sr ? '*' : (r1->sr != r2->sr ? '!' : ' '), r->sr, r->pc, r->ssp);
 	} else {
 		// output only lines that have at least one modified register to save screen space
 		for (int i = 0; i < 4; i++) {
 			int diff = 0;
 			for (int j = 0; j < 4; j++) {
 				int idx = i * 4 + j;
-				if (r1->regs[idx] != r2->regs[idx]) {
+				if (r1->regs[idx] != sreg->regs[idx]) {
 					diff = 1;
 				}
 			}
@@ -1412,17 +1423,24 @@ static void out_regs(struct registers *r, struct registers *r1, struct registers
 					int idx = i * 4 + j;
 					if (j > 0)
 						*outbp++ = ' ';
-					sprintf(outbp, "%c%d:%c%08x", idx < 8 ? 'D' : 'A', idx & 7, r->regs[idx] != r2->regs[idx] ? '*' : ' ', r->regs[idx]);
+					uae_u32 v1 = r1->regs[idx];
+					uae_u32 v2 = r2->regs[idx];
+					uae_u32 sv = sreg->regs[idx];
+					sprintf(outbp, "%c%d:%c%08x", idx < 8 ? 'D' : 'A', idx & 7, v1 == v2 && v1 != sv ? '*' : ((v1 != v2) ? '!' : ' '), r->regs[idx]);
 					outbp += strlen(outbp);
 				}
 				*outbp++ = '\n';
 			}
 		}
-		sprintf(outbp, "SR:%c%04x/%04x PC: %08x ISP: %08x B: %d", r->sr != r2->sr ? '*' : ' ', r->sr, r->expsr, r->pc, r->ssp, branched);
+		sprintf(outbp, "SR:%c%04x/%04x PC: %08x ISP: %08x", r1->sr == r2->sr && r1->sr != sreg->sr ? '*' : (r1->sr != r2->sr ? '!' : ' '), r->sr, r->expsr, r->pc, r->ssp);
 	}
 	outbp += strlen(outbp);
 	if (cpu_lvl >= 2 && cpu_lvl <= 4) {
 		sprintf(outbp, " MSP: %08x", r->msp);
+		outbp += strlen(outbp);
+	}
+	if (branched) {
+		sprintf(outbp, " B: %d", branched);
 		outbp += strlen(outbp);
 	}
 	*outbp++ = '\n';
@@ -1563,6 +1581,7 @@ static uae_u8 *validate_exception(struct registers *regs, uae_u8 *p, short excnu
 		last_exception_extra = *p++;
 		if (last_exception_extra & 0x40) {
 			*group2with1 = *p++;
+			exceptioncount[0][*group2with1]++;
 			last_exception_extra &= ~0x40;
 		}
 		if ((last_exception_extra & 0x3f) == 9) {
@@ -1570,7 +1589,14 @@ static uae_u8 *validate_exception(struct registers *regs, uae_u8 *p, short excnu
 			uae_u32 ret = (regs->tracedata[1] << 16) | regs->tracedata[2];
 			uae_u16 sr = regs->tracedata[0];
 			if (regs->tracecnt == 0) {
-				sprintf(outbp, "Expected trace exception but got none\n");
+				uae_u32 pc;
+				if (!(last_exception_extra & 0x80)) {
+					pc = exceptiontableinuse + (excnum - 2) * 2;
+				} else {
+					pc = opcode_memory_addr;
+					p = restore_rel_ordered(p + 2, &pc);
+				}
+				sprintf(outbp, "Expected trace exception (PC=%08x) but got none.\n", pc);
 				outbp += strlen(outbp);
 				*experr = 1;
 			} else if (!(last_exception_extra & 0x80)) {
@@ -1804,6 +1830,12 @@ static uae_u8 *validate_exception(struct registers *regs, uae_u8 *p, short excnu
 						}
 						alts = 3;
 					}
+					if (instructionsize == 0) {
+						// if byte wide bus error, ignore high byte of input and output buffer
+						// contents of high byte depends on used alu operation and instruction type and more..
+						masked_exception[16] = 0;
+						masked_exception[20] = 0;
+					}
 					p += 2;
 				}
 				break;
@@ -1969,6 +2001,30 @@ static int get_cycles_amiga(void)
 	int gotcycles = (endcycle - startcycle) * 2;
 	return gotcycles;
 }
+
+static uae_u16 test_intena, test_intreq;
+
+static void set_interrupt(void)
+{
+	if (interrupt_count < 15) {
+		volatile uae_u16 *intena = (uae_u16 *)0xdff09a;
+		volatile uae_u16 *intreq = (uae_u16 *)0xdff09c;
+		uae_u16 mask = 1 << interrupt_count;
+		test_intena = mask | 0x8000 | 0x4000;
+		test_intreq = mask | 0x8000;
+		*intena = test_intena;
+		*intreq = test_intreq;
+	}
+}
+
+static void clear_interrupt(void)
+{
+	volatile uae_u16 *intena = (uae_u16 *)0xdff09a;
+	volatile uae_u16 *intreq = (uae_u16 *)0xdff09c;
+	*intena = 0x7fff;
+	*intreq = 0x7fff;
+}
+
 #endif
 
 static int check_cycles(int exc, short extratrace, short extrag2w1, struct registers *lregs)
@@ -2056,7 +2112,6 @@ static int check_cycles(int exc, short extratrace, short extrag2w1, struct regis
 			// interrupt
 			expectedcycles += 2 + 4 + 4;
 		}
-		exceptioncount[0][extrag2w1]++;
 	}
 
 	if (0 || abs(gotcycles - expectedcycles) > cycles_range) {
@@ -2411,14 +2466,14 @@ static uae_u8 *validate_test(uae_u8 *p, short ignore_errors, short ignore_sr, st
 				errflag |= 1 << 16;
 			}
 			if ((tregs->expsr & 0xff) != (tregs->sr & 0xff)) {
-				sprintf(outbp, "Exception stacked CCR != CCR at start of exception handler!\n");
+				sprintf(outbp, "Exception stacked CCR (%04x) != CCR (%04x) at start of exception handler!\n", tregs->sr, tregs->expsr);
 				outbp += strlen(outbp);
 				errflag |= 1 << 16;
 			}
 			lregs->sr = val;
 		} else if (mode == CT_PC) {
 			uae_u32 val = lregs->pc;
-			p = restore_rel(p, &val, 0);
+			p = restore_rel(p, &val, 1);
 			pc_changed = 0;
 			lregs->pc = val;
 		} else if (mode == CT_CYCLES) {
@@ -2635,6 +2690,12 @@ static uae_u8 *validate_test(uae_u8 *p, short ignore_errors, short ignore_sr, st
 		strcat(outbp, "Registers after:\n");
 		outbp += strlen(outbp);
 		out_regs(tregs, tregs, lregs, sregs, 0, branched2);
+#ifdef AMIGA
+		if (interrupttest) {
+			sprintf(outbp, "INTREQ: %04x INTENA: %04x\n", test_intreq, test_intena);
+			outbp += strlen(outbp);
+		}
+#endif
 		if (exc > 1) {
 			if (!experr) {
 				sprintf(outbp, "OK: exception %d ", exc);
@@ -2707,34 +2768,6 @@ static void store_addr(uae_u32 s, uae_u8 *d)
 		}
 	}
 }
-
-#ifdef AMIGA
-static const int interrupt_levels[] =
-{
-	0, 1, 1, 1, 2, 3, 3, 3, 4, 4, 4, 4, 5, 5, 6, 6, -1
-};
-
-static void set_interrupt(void)
-{
-	if (interrupt_count < 15) {
-		volatile uae_u16 *intena = (uae_u16*)0xdff09a;
-		volatile uae_u16 *intreq = (uae_u16*)0xdff09c;
-		uae_u16 mask = 1 << interrupt_count;
-		*intena = mask | 0x8000 | 0x4000;
-		*intreq = mask | 0x8000;
-	}
-	interrupt_count++;
-	interrupt_count &= 15;
-}
-
-static void clear_interrupt(void)
-{
-	volatile uae_u16 *intena = (uae_u16*)0xdff09a;
-	volatile uae_u16 *intreq = (uae_u16*)0xdff09c;
-	*intena = 0x7fff;
-	*intreq = 0x7fff;
-}
-#endif
 
 static uae_u32 xorshiftstate;
 static uae_u32 xorshift32(void)
@@ -2812,13 +2845,13 @@ static void process_test(uae_u8 *p)
 		store_addr(cur_regs.branchtarget, branchtarget);
 		startpc = cur_regs.pc;
 		endpc = cur_regs.endpc;
-		uae_u8 *opcode_memory_end = (uae_u8*)endpc;
+		opcode_memory_end = (uae_u8*)endpc;
 
 		int fpumode = fpu_model && (opcode_memory[0] & 0xf0) == 0xf0;
 
 		copyregs(&last_regs, &cur_regs, fpumode);
 
-		uae_u32 originalopcodeend = 0x4afc4e71;
+		uae_u32 originalopcodeend = (ILLG_OPCODE << 16) | NOP_OPCODE;
 		short opcodeendsizeextra = 0;
 		uae_u32 opcodeend = originalopcodeend;
 		int extraccr = 0;
@@ -2849,7 +2882,6 @@ static void process_test(uae_u8 *p)
 			testcntsub = 0;
 			for (short ccr = 0;  ccr < maxccr; ccr++, testcntsub++) {
 
-				copyregs(&test_regs, &cur_regs, fpumode);
 				fpu_approx = 0;
 
 				opcodeend = (opcodeend >> 16) | (opcodeend << 16);
@@ -2868,16 +2900,19 @@ static void process_test(uae_u8 *p)
 						pl((uae_u8*)cur_regs.branchtarget, bv);
 					} else if (cur_regs.branchtarget_mode == 2) {
 						uae_u16 bv = gw((uae_u8 *)cur_regs.branchtarget);
-						if (bv == 0x4e71)
-							bv = 0x4afc;
+						if (bv == NOP_OPCODE)
+							bv = ILLG_OPCODE;
 						else
-							bv = 0x4e71;
+							bv = NOP_OPCODE;
 						pw((uae_u8 *)cur_regs.branchtarget, bv);
 					}
 				}
 
-				test_regs.ssp = super_stack_memory - 0x80;
-				test_regs.msp = super_stack_memory;
+				cur_regs.ssp = super_stack_memory - 0x80;
+				cur_regs.msp = super_stack_memory;
+
+				copyregs(&test_regs, &cur_regs, fpumode);
+
 				test_regs.pc = startpc;
 				test_regs.fpiar = startpc;
 				test_regs.cyclest = 0xffffffff;
@@ -2910,6 +2945,12 @@ static void process_test(uae_u8 *p)
 						}
 					}
 				}
+
+#ifdef AMIGA
+				if (interrupttest) {
+					interrupt_count = *p++;
+				}
+#endif
 
 				while ((*p) == CT_OVERRIDE_REG) {
 					p++;
@@ -3179,7 +3220,7 @@ static int test_mnemo(const char *opcode)
 	int headoffset = 0;
 	v = read_u32(headerfile, &headoffset);
 	if (v != DATA_VERSION) {
-		printf("Invalid test data file (header)\n");
+		printf("Invalid test data file (header %08x<>%08x)\n", v, DATA_VERSION);
 		exit(0);
 	}
 
@@ -3317,7 +3358,7 @@ static int test_mnemo(const char *opcode)
 			break;
 		}
 		if (gl(test_data) != DATA_VERSION) {
-			printf("Invalid test data file (header)\n");
+			printf("Invalid test data file (header, %08x<>%08x)\n", gl(test_data), DATA_VERSION);
 			exit(0);
 		}
 		if (gl(test_data + 4) != starttimeid) {
@@ -3329,6 +3370,8 @@ static int test_mnemo(const char *opcode)
 			free(test_data);
 			exit(0);
 		}
+		uae_u32 flags = gl(test_data + 8);
+		instructionsize = flags & 3;
 
 		// last file?
 		int last = test_data[test_data_size - 1] == CT_END_FINISH;
