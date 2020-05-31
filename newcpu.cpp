@@ -80,6 +80,8 @@ static int last_di_for_exception_3;
 static bool last_notinstruction_for_exception_3;
 /* set when writing exception stack frame */
 static int exception_in_exception;
+/* secondary SR for handling 68040 bug */
+static uae_u16 last_sr_for_exception3;
 
 static void exception3_read_special(uae_u32 opcode, uaecptr addr, int size, int fc);
 
@@ -2375,19 +2377,41 @@ void REGPARAM2 MakeFromSR(void)
 	MakeFromSR_x(0);
 }
 
+void REGPARAM2 MakeFromSR_intmask(uae_u16 oldsr, uae_u16 newsr)
+{
+#if 0
+	int oldlvl = (oldsr >> 8) & 7;
+	int newlvl = (newsr >> 8) & 7;
+	int ilvl = intlev();
+
+	// interrupt mask lowered and allows new interrupt to start?
+	if (newlvl < oldlvl && ilvl > 0 && ilvl > newlvl && ilvl <= oldlvl) {
+		if (currprefs.cpu_model >= 68020) {
+			unset_special(SPCFLAG_INT);
+		}
+	}
+#endif
+}
+
+static bool internalexception(int nr)
+{
+	return nr == 5 || nr == 6 || nr == 7 || (nr >= 32 && nr <= 47);
+}
+
 static void exception_check_trace (int nr)
 {
 	unset_special (SPCFLAG_TRACE | SPCFLAG_DOTRACE);
 	if (regs.t1) {
 		/* trace stays pending if exception is div by zero, chk,
-		* trapv or trap #x
+		* trapv or trap #x. Except if 68040 or 68060.
 		*/
-		if (nr == 5 || nr == 6 || nr == 7 || (nr >= 32 && nr <= 47))
-			set_special (SPCFLAG_DOTRACE);
-		// 68010 and RTE format error: trace is not cleared
-		if (nr == 14 && currprefs.cpu_model == 68010)
+		if (currprefs.cpu_model < 68040 && internalexception(nr)) {
 			set_special(SPCFLAG_DOTRACE);
-
+		}
+		// 68010 and RTE format error: trace is not cleared
+		if (nr == 14 && currprefs.cpu_model == 68010) {
+			set_special(SPCFLAG_DOTRACE);
+		}
 	}
 	regs.t1 = regs.t0 = 0;
 }
@@ -2552,8 +2576,6 @@ Interrupt:
 ...
 
 */
-
-static void exception3f(uae_u32 opcode, uaecptr addr, bool writeaccess, bool instructionaccess, bool notinstruction, uaecptr pc, int size, int fc);
 
 static int iack_cycle(int nr)
 {
@@ -2725,6 +2747,7 @@ kludge_me_do:
 			regs.irc = regs.read_buffer;
 			exception3_read_access(regs.opcode, newpc, sz_word, 2);
 		} else {
+			exception_check_trace(nr);
 			exception3_notinstruction(regs.ir, newpc);
 		}
 		return;
@@ -3169,6 +3192,12 @@ static void Exception_normal (int nr)
 	if (currprefs.cpu_model == 68060 && interrupt) {
 		regs.m = 0;
 	}
+	if (currprefs.cpu_model == 68040 && nr == 3 && (last_op_for_exception_3 & 0x10000)) {
+		// Weird 68040 bug with RTR and RTE. New SR when exception starts. Stacked SR is different!
+		// Just replace it in stack, it is safe enough because we are in address error exception
+		// any other exception would halt the CPU.
+		x_put_word(m68k_areg(regs, 7), last_sr_for_exception3);
+	}
 kludge_me_do:
 	if ((regs.vbr & 1) && currprefs.cpu_model <= 68010) {
 		cpu_halt(CPU_HALT_DOUBLE_FAULT);
@@ -3203,6 +3232,7 @@ kludge_me_do:
 			regs.irc = regs.read_buffer;
 			exception3_read_access(regs.ir, newpc, sz_word, 2);
 		} else {
+			exception_check_trace(nr);
 			exception3_notinstruction(regs.ir, newpc);
 		}
 		return;
@@ -3277,6 +3307,9 @@ void REGPARAM2 Exception_cpu(int nr)
 	// Check T0 trace
 	// RTE format error ignores T0 trace
 	if (nr != 14) {
+		if (currprefs.cpu_model >= 68040 && internalexception(nr)) {
+			t0 = false;
+		}
 		if (t0) {
 			activate_trace();
 		}
@@ -4002,7 +4035,7 @@ void mmu_op (uae_u32 opcode, uae_u32 extra)
 static void do_trace (void)
 {
 	// need to store PC because of branch instructions
-	regs.trace_pc = regs.pc;
+	regs.trace_pc = m68k_getpc();
 	if (regs.t0 && !regs.t1 && currprefs.cpu_model >= 68020) {
 		// this is obsolete
 		return;
@@ -7175,7 +7208,7 @@ uae_u8 *restore_mmu (uae_u8 *src)
 
 #endif /* SAVESTATE */
 
-static void exception3f (uae_u32 opcode, uaecptr addr, bool writeaccess, bool instructionaccess, bool notinstruction, uaecptr pc, int size, int fc)
+static void exception3f(uae_u32 opcode, uaecptr addr, bool writeaccess, bool instructionaccess, bool notinstruction, uaecptr pc, int size, int fc, uae_u16 secondarysr)
 {
 	if (currprefs.cpu_model >= 68040)
 		addr &= ~1;
@@ -7185,7 +7218,7 @@ static void exception3f (uae_u32 opcode, uaecptr addr, bool writeaccess, bool in
 		else
 			last_addr_for_exception_3 = pc;
 	} else if (pc == 0xffffffff) {
-		last_addr_for_exception_3 = m68k_getpc ();
+		last_addr_for_exception_3 = m68k_getpc();
 	} else {
 		last_addr_for_exception_3 = pc;
 	}
@@ -7195,6 +7228,7 @@ static void exception3f (uae_u32 opcode, uaecptr addr, bool writeaccess, bool in
 	last_fc_for_exception_3 = fc >= 0 ? fc : (instructionaccess ? 2 : 1);
 	last_notinstruction_for_exception_3 = notinstruction;
 	last_size_for_exception_3 = size;
+	last_sr_for_exception3 = secondarysr;
 	Exception (3);
 #if EXCEPTION3_DEBUGGER
 	activate_debugger();
@@ -7204,11 +7238,11 @@ static void exception3f (uae_u32 opcode, uaecptr addr, bool writeaccess, bool in
 void exception3_notinstruction(uae_u32 opcode, uaecptr addr)
 {
 	last_di_for_exception_3 = 1;
-	exception3f (opcode, addr, true, false, true, 0xffffffff, 1, -1);
+	exception3f (opcode, addr, true, false, true, 0xffffffff, 1, -1, 0);
 }
 static void exception3_read_special(uae_u32 opcode, uaecptr addr, int size, int fc)
 {
-	exception3f(opcode, addr, false, 0, false, 0xffffffff, size, fc);
+	exception3f(opcode, addr, false, 0, false, 0xffffffff, size, fc, 0);
 }
 
 // 68010 special prefetch handling
@@ -7222,7 +7256,7 @@ void exception3_read_prefetch_only(uae_u32 opcode, uae_u32 addr)
 		x_do_cycles(4 * cpucycleunit);
 	}
 	last_di_for_exception_3 = 0;
-	exception3f(opcode, addr, false, true, false, m68k_getpc(), sz_word, -1);
+	exception3f(opcode, addr, false, true, false, m68k_getpc(), sz_word, -1, 0);
 }
 
 // Some hardware accepts address error aborted reads or writes as normal reads/writes.
@@ -7233,8 +7267,15 @@ void exception3_read_prefetch(uae_u32 opcode, uaecptr addr)
 	if (currprefs.cpu_model == 68000) {
 		m68k_incpci(2);
 	}
-	exception3f(opcode, addr, false, true, false, m68k_getpc(), sz_word, -1);
+	exception3f(opcode, addr, false, true, false, m68k_getpc(), sz_word, -1, 0);
 }
+void exception3_read_prefetch_68040bug(uae_u32 opcode, uaecptr addr, uae_u16 secondarysr)
+{
+	x_do_cycles(4 * cpucycleunit);
+	last_di_for_exception_3 = 0;
+	exception3f(opcode | 0x10000, addr, false, true, false, m68k_getpc(), sz_word, -1, secondarysr);
+}
+
 void exception3_read_access(uae_u32 opcode, uaecptr addr, int size, int fc)
 {
 	x_do_cycles(4 * cpucycleunit);
@@ -7268,7 +7309,7 @@ void exception3_read(uae_u32 opcode, uaecptr addr, int size, int fc)
 		opcode = regs.ir;
 	}
 	last_di_for_exception_3 = 1;
-	exception3f(opcode, addr, false, ia, ni, 0xffffffff, size & 15, fc);
+	exception3f(opcode, addr, false, ia, ni, 0xffffffff, size & 15, fc, 0);
 }
 void exception3_write(uae_u32 opcode, uaecptr addr, int size, uae_u32 val, int fc)
 {
@@ -7287,7 +7328,7 @@ void exception3_write(uae_u32 opcode, uaecptr addr, int size, uae_u32 val, int f
 	}
 	last_di_for_exception_3 = 1;
 	regs.write_buffer = val;
-	exception3f(opcode, addr, true, ia, ni, 0xffffffff, size & 15, fc);
+	exception3f(opcode, addr, true, ia, ni, 0xffffffff, size & 15, fc, 0);
 }
 
 void exception2_setup(uae_u32 opcode, uaecptr addr, bool read, int size, uae_u32 fc)

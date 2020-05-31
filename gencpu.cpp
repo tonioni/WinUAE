@@ -5360,10 +5360,18 @@ static void gen_opcode (unsigned int opcode)
 		}
 		addcycles000(8);
 		out("regs.sr %c= src;\n", curi->mnemo == i_ORSR ? '|' : curi->mnemo == i_ANDSR ? '&' : '^');
-		makefromsr_t0();
+		if (cpu_level < 5 && curi->size == sz_word) {
+			makefromsr_t0();
+		} else {
+			makefromsr();
+		}
 		sync_m68k_pc();
-		fill_prefetch_full_ntx(3);
-		next_level_000();
+		if (cpu_level < 2 || curi->size == sz_word) {
+			fill_prefetch_full_ntx(3);
+		} else {
+			fill_prefetch_next();
+		}
+		next_cpu_level = cpu_level - 1;
 		break;
 	case i_SUB:
 	{
@@ -6445,22 +6453,28 @@ static void gen_opcode (unsigned int opcode)
 		break;
 	case i_MV2SR: // MOVE TO SR
 		genamode(curi, curi->smode, "srcreg", sz_word, "src", 1, 0, 0);
-		if (cpu_level == 0)
+		if (cpu_level == 0) {
 			out("int t1 = regs.t1;\n");
+		}
 		if (curi->size == sz_byte) {
 			// MOVE TO CCR
 			addcycles000(4);
 			out("MakeSR();\nregs.sr &= 0xFF00;\nregs.sr |= src & 0xFF;\n");
+			makefromsr();
 		} else {
 			// MOVE TO SR
 			check_trace();
 			addcycles000(4);
 			out("regs.sr = src;\n");
+			makefromsr_t0();
 		}
-		makefromsr_t0();
-		// does full prefetch because S-bit change may change memory mapping under the CPU
-		sync_m68k_pc();
-		fill_prefetch_full_ntx(3);
+		if (cpu_level >= 2 && curi->size == sz_byte) {
+			fill_prefetch_next();
+		} else {
+			// does full prefetch because S-bit change may change memory mapping under the CPU
+			sync_m68k_pc();
+			fill_prefetch_full_ntx(3);
+		}
 		next_level_000();
 		break;
 	case i_SWAP:
@@ -6710,7 +6724,8 @@ static void gen_opcode (unsigned int opcode)
 			}
 		} else {
 			out("uaecptr oldpc = %s;\n", getpc);
-			out("uae_u16 newsr; uae_u32 newpc;\n");
+			out("uae_u16 oldsr = regs.sr, newsr;\n");
+			out("uae_u32 newpc;\n");
 			out("for (;;) {\n");
 			out("uaecptr a = m68k_areg(regs, 7);\n");
 			out("uae_u16 sr = %s(a);\n", srcw);
@@ -6775,28 +6790,47 @@ static void gen_opcode (unsigned int opcode)
 				    out("else if (frame == 0xb) {\nm68k_areg(regs, 7) += offset + 84; break; }\n");
 				}
 			}
+			out("else {\n");
 			if (cpu_level == 1) {
-				out("else {\n");
 				out("SET_NFLG(((uae_s16)format) < 0); \n");
 				out("SET_ZFLG(format == 0);\n");
 				out("SET_VFLG(0);\n");
 				out("Exception_cpu(14);\n");
 				write_return_cycles(0);
-				out("}\n");
-			} else {
-				out("else {\n");
+			} else if (cpu_level == 0) {
 				out("Exception_cpu(14);\n");
 				write_return_cycles(0);
-				out("}\n");
+			} else if (cpu_level == 3) {
+				// 68030: trace bits are cleared
+				out("regs.t1 = regs.t0 = 0;\n");
+				out("Exception_cpu(14);\n");
+				write_return_cycles(0);
+			} else {
+				out("Exception_cpu(14);\n");
+				write_return_cycles(0);
 			}
-		    out("regs.sr = newsr;\n");
+			out("}\n");
+			out("regs.sr = newsr;\n");
+			out("oldsr = newsr;\n");
 			makefromsr_t0();
 			out("}\n");
+			out("MakeFromSR_intmask(regs.sr, newsr);\n");
 		    out("regs.sr = newsr;\n");
 			addcycles_ce020 (4);
 			makefromsr_t0();
 		    out("if (newpc & 1) {\n");
-		    out("exception3_read_prefetch(opcode, newpc);\n");
+			if (cpu_level == 5) {
+				out("regs.sr = oldsr & 0xff00;\n");
+				makefromsr();
+				out("SET_ZFLG(newsr == 0);\n");
+				out("SET_NFLG(newsr & 0x8000);\n");
+				out("exception3_read_prefetch(opcode, newpc);\n");
+			} else if (cpu_level == 4) {
+				makefromsr();
+				out("exception3_read_prefetch_68040bug(opcode, newpc, oldsr);\n");
+			} else {
+				out("exception3_read_prefetch(opcode, newpc);\n");
+			}
 			write_return_cycles(0);
 			out("}\n");
 		    setpc ("newpc");
@@ -7043,7 +7077,19 @@ static void gen_opcode (unsigned int opcode)
 		if (cpu_level >= 4) {
 			out("if (pc & 1) {\n");
 			out("m68k_areg(regs, 7) -= 6;\n");
-			out("exception3_read_prefetch(opcode, pc);\n");
+			if (cpu_level == 5) {
+				out("regs.sr &= 0xFF00; sr &= 0xFF;\n");
+				out("regs.sr |= sr;\n");
+				makefromsr();
+				out("exception3_read_prefetch(opcode, pc);\n");
+			} else {
+				// stacked SR is original SR. Real SR has CCR part zeroed.
+				out("uae_u16 oldsr = regs.sr;\n");
+				out("regs.sr &= 0xFF00; sr &= 0xFF;\n");
+				out("regs.sr |= sr;\n");
+				makefromsr();
+				out("exception3_read_prefetch_68040bug(opcode, pc, oldsr);\n");
+			}
 			write_return_cycles(0);
 			out("}\n");
 		}
@@ -7067,7 +7113,7 @@ static void gen_opcode (unsigned int opcode)
 		}
 		branch_inst = 1;
 		tail_ce020_done = true;
-		next_level_040_to_030();
+		next_cpu_level = cpu_level - 1;
 		break;
 	case i_JSR:
 		{
@@ -7281,7 +7327,7 @@ static void gen_opcode (unsigned int opcode)
 			out("if (s & 1) {\n");
 			if (cpu_level < 4)
 				out("m68k_areg(regs, 7) -= 4;\n");
-			out("exception3_read_prefetch(opcode, s);\n");
+			out("exception3_read_prefetch(opcode, oldpc + s);\n");
 			write_return_cycles(0);
 			out("}\n");
 		}
@@ -8342,7 +8388,6 @@ bccl_not68020:
 		write_return_cycles(0);
 		out("}\n");
 		addcycles000(4);
-		trace_t0_68040_only();
 		break;
 	case i_MOVE2C:
 		if (cpu_level == 1) {
@@ -8722,7 +8767,6 @@ bccl_not68020:
 				next_cpu_level = 2 - 1;
 			genastore_tas("src", curi->smode, "srcreg", curi->size, "src");
 			fill_prefetch_next();
-			trace_t0_68040_only();
 		}
 		next_level_000();
 		break;

@@ -1726,6 +1726,7 @@ void areg_68000_long_replace_low(int reg, uae_u16 v)
 }
 
 // Change F-line to privilege violation if missing co-pro
+// 68040 and 68060 always return F-line
 bool privileged_copro_instruction(uae_u16 opcode)
 {
 	if (currprefs.cpu_model >= 68020 && !regs.s) {
@@ -1735,14 +1736,16 @@ bool privileged_copro_instruction(uae_u16 opcode)
 		// cpSAVE and cpRESTORE: privilege violation if user mode.
 		if ((opcode & 0xf1c0) == 0xf100) {
 			// cpSAVE
+			// check if valid EA
 			if (mode == 2 || (mode >= 4 && mode <= 6) || (mode == 7 && (reg == 0 || reg == 1))) {
-				if ((currprefs.cpu_model >= 68040 && id > 0) || currprefs.cpu_model < 68040)
+				if (currprefs.cpu_model < 68040 || (currprefs.cpu_model >= 68040 && id == 1))
 					return true;
 			}
 		} else if ((opcode & 0xf1c0) == 0xf140) {
 			// cpRESTORE
+			// check if valid EA
 			if (mode == 2 || mode == 3 || (mode >= 5 && mode <= 6) || (mode == 7 && reg <= 3)) {
-				if ((currprefs.cpu_model >= 68040 && id > 0) || currprefs.cpu_model < 68040)
+				if (currprefs.cpu_model < 68040 || (currprefs.cpu_model >= 68040 && id == 1))
 					return true;
 			}
 		}
