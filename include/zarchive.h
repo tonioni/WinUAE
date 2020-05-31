@@ -65,6 +65,7 @@ struct znode {
 struct zvolume
 {
     struct zfile *archive;
+    bool autofree;
     void *handle;
     struct znode root;
     struct zvolume *next;

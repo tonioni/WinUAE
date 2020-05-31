@@ -172,7 +172,6 @@ typedef struct {
 	TCHAR *volname; /* volume name, e.g. CDROM, WORK, etc. */
 	int volflags; /* volume flags, readonly, stream uaefsdb support */
 	TCHAR *rootdir; /* root native directory/hdf. empty drive if invalid path */
-	struct zvolume *zarchive;
 	TCHAR *rootdirdiff; /* "diff" file/directory */
 	bool readonly; /* disallow write access? */
 	bool locked; /* action write protect */
@@ -185,6 +184,7 @@ typedef struct {
 	bool inject_icons; /* inject icons if directory filesystem */
 
 	struct hardfiledata hf;
+	struct zvolume *zarchive;
 
 	/* Threading stuff */
 	smp_comm_pipe *volatile unit_pipe, *volatile back_pipe;
@@ -218,6 +218,268 @@ struct uaedev_mount_info {
 };
 
 static struct uaedev_mount_info mountinfo;
+
+
+/* minimal AmigaDOS definitions */
+
+/* field offsets in DosPacket */
+#define dp_Type 8
+#define dp_Res1 12
+#define dp_Res2 16
+#define dp_Arg1 20
+#define dp_Arg2 24
+#define dp_Arg3 28
+#define dp_Arg4 32
+#define dp_Arg5 36
+
+#define DP64_INIT       -3L
+
+#define dp64_Type 8
+#define dp64_Res0 12
+#define dp64_Res2 16
+#define dp64_Res1 24
+#define dp64_Arg1 32
+#define dp64_Arg2 40
+#define dp64_Arg3 48
+#define dp64_Arg4 52
+#define dp64_Arg5 56
+
+#define dp_Max 60
+
+/* result codes */
+#define DOS_TRUE ((uae_u32)-1L)
+#define DOS_FALSE (0L)
+
+/* DirEntryTypes */
+#define ST_PIPEFILE -5
+#define ST_LINKFILE -4
+#define ST_FILE -3
+#define ST_ROOT 1
+#define ST_USERDIR 2
+#define ST_SOFTLINK 3
+#define ST_LINKDIR 4
+
+#if 1
+#define MAXFILESIZE32 (0xffffffff)
+#else
+/* technically correct but most native
+ * filesystems don't enforce it
+ */
+#define MAXFILESIZE32 (0x7fffffff)
+#endif
+#define MAXFILESIZE32_2G (0x7fffffff)
+
+ /* Passed as type to Lock() */
+#define SHARED_LOCK		-2  /* File is readable by others */
+#define ACCESS_READ		-2  /* Synonym */
+#define EXCLUSIVE_LOCK	-1  /* No other access allowed  */
+#define ACCESS_WRITE	-1  /* Synonym */
+
+/* packet types */
+#define ACTION_CURRENT_VOLUME	 7
+#define ACTION_LOCATE_OBJECT	 8
+#define ACTION_RENAME_DISK		 9
+#define ACTION_FREE_LOCK		15
+#define ACTION_DELETE_OBJECT	16
+#define ACTION_RENAME_OBJECT	17
+#define ACTION_MORE_CACHE		18
+#define ACTION_COPY_DIR			19
+#define ACTION_SET_PROTECT		21
+#define ACTION_CREATE_DIR		22
+#define ACTION_EXAMINE_OBJECT	23
+#define ACTION_EXAMINE_NEXT		24
+#define ACTION_DISK_INFO		25
+#define ACTION_INFO				26
+#define ACTION_FLUSH			27
+#define ACTION_SET_COMMENT		28
+#define ACTION_PARENT			29
+#define ACTION_SET_DATE			34
+#define ACTION_FIND_WRITE		1004
+#define ACTION_FIND_INPUT		1005
+#define ACTION_FIND_OUTPUT		1006
+#define ACTION_END				1007
+#define ACTION_SEEK				1008
+#define ACTION_WRITE_PROTECT	1023
+#define ACTION_IS_FILESYSTEM	1027
+#define ACTION_READ				 'R'
+#define ACTION_WRITE			 'W'
+
+/* 2.0+ packet types */
+#define ACTION_INHIBIT			  31
+#define ACTION_SET_FILE_SIZE	1022
+#define ACTION_LOCK_RECORD		2008
+#define ACTION_FREE_RECORD		2009
+#define ACTION_SAME_LOCK		  40
+#define ACTION_CHANGE_MODE		1028
+#define ACTION_FH_FROM_LOCK		1026
+#define ACTION_COPY_DIR_FH		1030
+#define ACTION_PARENT_FH		1031
+#define ACTION_EXAMINE_ALL		1033
+#define ACTION_EXAMINE_FH		1034
+#define ACTION_EXAMINE_ALL_END	1035
+
+#define ACTION_FORMAT			1020
+#define ACTION_IS_FILESYSTEM	1027
+#define ACTION_ADD_NOTIFY		4097
+#define ACTION_REMOVE_NOTIFY	4098
+
+#define ACTION_READ_LINK		1024
+
+/* OS4 64-bit filesize packets */
+#define ACTION_FILESYSTEM_ATTR         3005
+#define ACTION_CHANGE_FILE_POSITION64  8001
+#define ACTION_GET_FILE_POSITION64     8002
+#define ACTION_CHANGE_FILE_SIZE64      8003
+#define ACTION_GET_FILE_SIZE64         8004
+
+/* MOS 64-bit filesize packets */
+#define ACTION_SEEK64			26400
+#define ACTION_SET_FILE_SIZE64	26401
+#define ACTION_LOCK_RECORD64	26402
+#define ACTION_FREE_RECORD64	26403
+#define ACTION_QUERY_ATTR		26407
+#define ACTION_EXAMINE_OBJECT64	26408
+#define ACTION_EXAMINE_NEXT64	26409
+#define ACTION_EXAMINE_FH64		26410
+
+
+/* not supported */
+#define ACTION_MAKE_LINK		1021
+
+#define DISK_TYPE_DOS 0x444f5300 /* DOS\0 */
+#define DISK_TYPE_DOS_FFS 0x444f5301 /* DOS\1 */
+#define CDFS_DOSTYPE 0x43440000 /* CDxx */
+
+typedef struct _dpacket {
+	uaecptr packet_addr;
+	uae_u8 *packet_data;
+	uae_u8 packet_array[dp_Max];
+	bool need_flush;
+} dpacket;
+
+typedef struct {
+	uae_u32 uniq;
+	/* The directory we're going through.  */
+	a_inode *aino;
+	/* The file we're going to look up next.  */
+	a_inode *curr_file;
+} ExamineKey;
+
+struct lockrecord
+{
+	struct lockrecord *next;
+	dpacket *packet;
+	uae_u64 pos;
+	uae_u64 len;
+	uae_u32 mode;
+	uae_u32 timeout;
+	uae_u32 msg;
+};
+
+typedef struct key {
+	struct key *next;
+	a_inode *aino;
+	uae_u32 uniq;
+	struct fs_filehandle *fd;
+	uae_u64 file_pos;
+	int dosmode;
+	int createmode;
+	int notifyactive;
+	struct lockrecord *record;
+} Key;
+
+typedef struct notify {
+	struct notify *next;
+	uaecptr notifyrequest;
+	TCHAR *fullname;
+	TCHAR *partname;
+} Notify;
+
+typedef struct exallkey {
+	uae_u32 id;
+	struct fs_dirhandle *dirhandle;
+	TCHAR *fn;
+	uaecptr control;
+} ExAllKey;
+
+/* Since ACTION_EXAMINE_NEXT is so braindamaged, we have to keep
+* some of these around
+*/
+
+#define EXKEYS 128
+#define EXALLKEYS 100
+#define MAX_AINO_HASH 128
+#define NOTIFY_HASH_SIZE 127
+
+/* handler state info */
+
+typedef struct _unit {
+	struct _unit *next;
+
+	/* Amiga stuff */
+	uaecptr dosbase;
+	/* volume points to our IO board, always 1:1 mapping */
+	uaecptr volume;
+	uaecptr port;	/* Our port */
+	uaecptr locklist;
+
+	/* Native stuff */
+	uae_s32 unit;	/* unit number */
+	UnitInfo ui;	/* unit startup info */
+	TCHAR tmpbuf3[256];
+
+	/* Dummy message processing */
+	uaecptr dummy_message;
+	volatile unsigned int cmds_sent;
+	volatile unsigned int cmds_complete;
+	volatile unsigned int cmds_acked;
+
+	/* ExKeys */
+	ExamineKey examine_keys[EXKEYS];
+	int next_exkey;
+	unsigned int total_locked_ainos;
+
+	/* ExAll */
+	ExAllKey exalls[EXALLKEYS];
+	int exallid;
+
+	/* Keys */
+	struct key *keys;
+
+	struct lockrecord *waitingrecords;
+
+	a_inode rootnode;
+	unsigned int aino_cache_size;
+	a_inode *aino_hash[MAX_AINO_HASH];
+	unsigned int nr_cache_hits;
+	unsigned int nr_cache_lookups;
+
+	struct notify *notifyhash[NOTIFY_HASH_SIZE];
+
+	int volflags;
+	uae_u32 lockkey;
+	bool inhibited;
+	bool canremovable;
+	/* increase when media is changed.
+	 * used to detect if cached aino is valid
+	 */
+	int mountcount;
+	int mount_changed;
+	void *cdfs_superblock;
+
+	TCHAR *mount_volume;
+	TCHAR *mount_rootdir;
+	bool mount_readonly;
+	int mount_flags;
+
+	int reinsertdelay;
+	TCHAR *newvolume;
+	TCHAR *newrootdir;
+	bool newreadonly;
+	int newflags;
+
+} Unit;
+
 
 int nr_units (void)
 {
@@ -1180,267 +1442,6 @@ struct hardfiledata *get_hardfile_data (int nr)
 	return &uip[nr].hf;
 }
 
-/* minimal AmigaDOS definitions */
-
-/* field offsets in DosPacket */
-#define dp_Type 8
-#define dp_Res1 12
-#define dp_Res2 16
-#define dp_Arg1 20
-#define dp_Arg2 24
-#define dp_Arg3 28
-#define dp_Arg4 32
-#define dp_Arg5 36
-
-#define DP64_INIT       -3L
-
-#define dp64_Type 8
-#define dp64_Res0 12
-#define dp64_Res2 16
-#define dp64_Res1 24
-#define dp64_Arg1 32
-#define dp64_Arg2 40
-#define dp64_Arg3 48
-#define dp64_Arg4 52
-#define dp64_Arg5 56
-
-#define dp_Max 60
-
-/* result codes */
-#define DOS_TRUE ((uae_u32)-1L)
-#define DOS_FALSE (0L)
-
-/* DirEntryTypes */
-#define ST_PIPEFILE -5
-#define ST_LINKFILE -4
-#define ST_FILE -3
-#define ST_ROOT 1
-#define ST_USERDIR 2
-#define ST_SOFTLINK 3
-#define ST_LINKDIR 4
-
-#if 1
-#define MAXFILESIZE32 (0xffffffff)
-#else
-/* technically correct but most native
- * filesystems don't enforce it
- */
-#define MAXFILESIZE32 (0x7fffffff)
-#endif
-#define MAXFILESIZE32_2G (0x7fffffff)
-
-/* Passed as type to Lock() */
-#define SHARED_LOCK		-2  /* File is readable by others */
-#define ACCESS_READ		-2  /* Synonym */
-#define EXCLUSIVE_LOCK	-1  /* No other access allowed  */
-#define ACCESS_WRITE	-1  /* Synonym */
-
-/* packet types */
-#define ACTION_CURRENT_VOLUME	 7
-#define ACTION_LOCATE_OBJECT	 8
-#define ACTION_RENAME_DISK		 9
-#define ACTION_FREE_LOCK		15
-#define ACTION_DELETE_OBJECT	16
-#define ACTION_RENAME_OBJECT	17
-#define ACTION_MORE_CACHE		18
-#define ACTION_COPY_DIR			19
-#define ACTION_SET_PROTECT		21
-#define ACTION_CREATE_DIR		22
-#define ACTION_EXAMINE_OBJECT	23
-#define ACTION_EXAMINE_NEXT		24
-#define ACTION_DISK_INFO		25
-#define ACTION_INFO				26
-#define ACTION_FLUSH			27
-#define ACTION_SET_COMMENT		28
-#define ACTION_PARENT			29
-#define ACTION_SET_DATE			34
-#define ACTION_FIND_WRITE		1004
-#define ACTION_FIND_INPUT		1005
-#define ACTION_FIND_OUTPUT		1006
-#define ACTION_END				1007
-#define ACTION_SEEK				1008
-#define ACTION_WRITE_PROTECT	1023
-#define ACTION_IS_FILESYSTEM	1027
-#define ACTION_READ				 'R'
-#define ACTION_WRITE			 'W'
-
-/* 2.0+ packet types */
-#define ACTION_INHIBIT			  31
-#define ACTION_SET_FILE_SIZE	1022
-#define ACTION_LOCK_RECORD		2008
-#define ACTION_FREE_RECORD		2009
-#define ACTION_SAME_LOCK		  40
-#define ACTION_CHANGE_MODE		1028
-#define ACTION_FH_FROM_LOCK		1026
-#define ACTION_COPY_DIR_FH		1030
-#define ACTION_PARENT_FH		1031
-#define ACTION_EXAMINE_ALL		1033
-#define ACTION_EXAMINE_FH		1034
-#define ACTION_EXAMINE_ALL_END	1035
-
-#define ACTION_FORMAT			1020
-#define ACTION_IS_FILESYSTEM	1027
-#define ACTION_ADD_NOTIFY		4097
-#define ACTION_REMOVE_NOTIFY	4098
-
-#define ACTION_READ_LINK		1024
-
-/* OS4 64-bit filesize packets */
-#define ACTION_FILESYSTEM_ATTR         3005
-#define ACTION_CHANGE_FILE_POSITION64  8001
-#define ACTION_GET_FILE_POSITION64     8002
-#define ACTION_CHANGE_FILE_SIZE64      8003
-#define ACTION_GET_FILE_SIZE64         8004
-
-/* MOS 64-bit filesize packets */
-#define ACTION_SEEK64			26400
-#define ACTION_SET_FILE_SIZE64	26401
-#define ACTION_LOCK_RECORD64	26402
-#define ACTION_FREE_RECORD64	26403
-#define ACTION_QUERY_ATTR		26407
-#define ACTION_EXAMINE_OBJECT64	26408
-#define ACTION_EXAMINE_NEXT64	26409
-#define ACTION_EXAMINE_FH64		26410
-
-
-/* not supported */
-#define ACTION_MAKE_LINK		1021
-
-#define DISK_TYPE_DOS 0x444f5300 /* DOS\0 */
-#define DISK_TYPE_DOS_FFS 0x444f5301 /* DOS\1 */
-#define CDFS_DOSTYPE 0x43440000 /* CDxx */
-
-typedef struct _dpacket {
-	uaecptr packet_addr;
-	uae_u8 *packet_data;
-	uae_u8 packet_array[dp_Max];
-	bool need_flush;
-} dpacket;
-
-typedef struct {
-	uae_u32 uniq;
-	/* The directory we're going through.  */
-	a_inode *aino;
-	/* The file we're going to look up next.  */
-	a_inode *curr_file;
-} ExamineKey;
-
-struct lockrecord
-{
-	struct lockrecord *next;
-	dpacket *packet;
-	uae_u64 pos;
-	uae_u64 len;
-	uae_u32 mode;
-	uae_u32 timeout;
-	uae_u32 msg;
-};
-
-typedef struct key {
-	struct key *next;
-	a_inode *aino;
-	uae_u32 uniq;
-	struct fs_filehandle *fd;
-	uae_u64 file_pos;
-	int dosmode;
-	int createmode;
-	int notifyactive;
-	struct lockrecord *record;
-} Key;
-
-typedef struct notify {
-	struct notify *next;
-	uaecptr notifyrequest;
-	TCHAR *fullname;
-	TCHAR *partname;
-} Notify;
-
-typedef struct exallkey {
-	uae_u32 id;
-	struct fs_dirhandle *dirhandle;
-	TCHAR *fn;
-	uaecptr control;
-} ExAllKey;
-
-/* Since ACTION_EXAMINE_NEXT is so braindamaged, we have to keep
-* some of these around
-*/
-
-#define EXKEYS 128
-#define EXALLKEYS 100
-#define MAX_AINO_HASH 128
-#define NOTIFY_HASH_SIZE 127
-
-/* handler state info */
-
-typedef struct _unit {
-	struct _unit *next;
-
-	/* Amiga stuff */
-	uaecptr dosbase;
-	/* volume points to our IO board, always 1:1 mapping */
-	uaecptr volume;
-	uaecptr port;	/* Our port */
-	uaecptr locklist;
-
-	/* Native stuff */
-	uae_s32 unit;	/* unit number */
-	UnitInfo ui;	/* unit startup info */
-	TCHAR tmpbuf3[256];
-
-	/* Dummy message processing */
-	uaecptr dummy_message;
-	volatile unsigned int cmds_sent;
-	volatile unsigned int cmds_complete;
-	volatile unsigned int cmds_acked;
-
-	/* ExKeys */
-	ExamineKey examine_keys[EXKEYS];
-	int next_exkey;
-	unsigned int total_locked_ainos;
-
-	/* ExAll */
-	ExAllKey exalls[EXALLKEYS];
-	int exallid;
-
-	/* Keys */
-	struct key *keys;
-
-	struct lockrecord *waitingrecords;
-
-	a_inode rootnode;
-	unsigned int aino_cache_size;
-	a_inode *aino_hash[MAX_AINO_HASH];
-	unsigned int nr_cache_hits;
-	unsigned int nr_cache_lookups;
-
-	struct notify *notifyhash[NOTIFY_HASH_SIZE];
-
-	int volflags;
-	uae_u32 lockkey;
-	bool inhibited;
-	bool canremovable;
-	/* increase when media is changed.
-	 * used to detect if cached aino is valid
-	 */
-	int mountcount;
-	int mount_changed;
-	struct zvolume *zarchive;
-	void *cdfs_superblock;
-
-	TCHAR *mount_volume;
-	TCHAR *mount_rootdir;
-	bool mount_readonly;
-	int mount_flags;
-
-	int reinsertdelay;
-	TCHAR *newvolume;
-	TCHAR *newrootdir;
-	bool newreadonly;
-	int newflags;
-
-} Unit;
-
 static uae_u32 a_uniq, key_uniq;
 
 #define PUT_PCK_RES1(p,v) do { put_long_host((p)->packet_data + dp_Res1, (v)); } while (0)
@@ -2044,8 +2045,8 @@ static uae_u32 filesys_media_change_reply (int mode)
 			flush_cache (u, -1);
 			isofs_unmount (u->ui.cdfs_superblock);
 			ui->cdfs_superblock = u->ui.cdfs_superblock = NULL;
-			zfile_fclose_archive (u->zarchive);
-			u->zarchive = NULL;
+			zfile_fclose_archive (ui->zarchive);
+			ui->zarchive = NULL;
 			u->ui.unknown_media = false;
 #ifdef RETROPLATFORM
 			if (ui->unit_type == UNIT_CDFS)
@@ -2093,12 +2094,12 @@ static uae_u32 filesys_media_change_reply (int mode)
 					}
 				}
 			} else {
-				if (set_filesys_volume (u->mount_rootdir, &u->mount_flags, &u->mount_readonly, &emptydrive, &u->zarchive) < 0)
+				if (set_filesys_volume (u->mount_rootdir, &u->mount_flags, &u->mount_readonly, &emptydrive, &ui->zarchive) < 0)
 					return 0;
 				if (emptydrive)
 					return 0;
 				xfree (u->ui.volname);
-				ui->volname = u->ui.volname = filesys_createvolname (u->mount_volume, u->mount_rootdir, u->zarchive, _T("removable"));
+				ui->volname = u->ui.volname = filesys_createvolname (u->mount_volume, u->mount_rootdir, ui->zarchive, _T("removable"));
 #ifdef RETROPLATFORM
 				rp_harddrive_image_change (nr, u->mount_readonly, u->mount_rootdir);
 #endif

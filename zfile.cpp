@@ -3145,7 +3145,11 @@ struct zvolume *zfile_fopen_archive (const TCHAR *filename, int flags)
 }
 struct zvolume *zfile_fopen_archive (const TCHAR *filename)
 {
-	return zfile_fopen_archive (filename, ZFD_ALL);
+	struct zvolume *zv = zfile_fopen_archive (filename, ZFD_ALL);
+	if (zv) {
+		zv->autofree = true;
+	}
+	return zv;
 }
 
 struct zvolume *zfile_fopen_archive_root (const TCHAR *filename, int flags)
@@ -3222,7 +3226,9 @@ void zfile_fclose_archive (struct zvolume *zv)
 		zn = zn2;
 	}
 	archive_access_close (zv->handle, zv->id);
-	zfile_fclose(zv->archive);
+	if (zv->autofree) {
+		zfile_fclose(zv->archive);
+	}
 	if (zvolume_list == zv) {
 		zvolume_list = zvolume_list->next;
 	} else {
