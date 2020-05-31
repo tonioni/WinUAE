@@ -1265,6 +1265,7 @@ int m68k_asm(TCHAR *sline, uae_u16 *out, uaecptr pc)
 	uae_u32 dval = 0;
 	int ssize = -1;
 	int dsize = -1;
+	struct mnemolookup *lookup;
 
 	dmode = asm_parse_mode(dstea, &dreg, &dval, &dextcnt, dexts);
 
@@ -1319,7 +1320,15 @@ int m68k_asm(TCHAR *sline, uae_u16 *out, uaecptr pc)
 				ins[l + 1] = 0;
 			}
 		} else if (last != 'A') {
-			_tcscat(ins, _T("A"));
+			TCHAR insa[256];
+			_tcscpy(insa, ins);
+			_tcscat(insa, _T("A"));
+			for (lookup = lookuptab; lookup->name; lookup++) {
+				if (!_tcscmp(insa, lookup->name)) {
+					_tcscpy(ins, insa);
+					break;
+				}
+			}
 		}
 	}
 
@@ -1333,7 +1342,6 @@ int m68k_asm(TCHAR *sline, uae_u16 *out, uaecptr pc)
 			tsize = 2;
 	}
 
-	struct mnemolookup *lookup;
 	for (lookup = lookuptab; lookup->name; lookup++) {
 		if (!_tcscmp(ins, lookup->name))
 			break;
