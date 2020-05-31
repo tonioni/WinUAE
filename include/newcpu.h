@@ -840,6 +840,7 @@ extern bool can_cpu_tracer (void);
 #define CPU_HALT_SSP_IN_NON_EXISTING_ADDRESS 10
 #define CPU_HALT_INVALID_START_ADDRESS 11
 #define CPU_HALT_68060_HALT 12
+#define CPU_HALT_BKPT 13
 
 uae_u32 process_cpu_indirect_memory_read(uae_u32 addr, int size);
 void process_cpu_indirect_memory_write(uae_u32 addr, uae_u32 data, int size);

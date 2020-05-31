@@ -3582,6 +3582,15 @@ uae_u32 REGPARAM2 op_illg (uae_u32 opcode)
 		return 4;
 	}
 
+	// BKPT?
+	if (opcode >= 0x4848 && opcode <= 0x484f && currprefs.cpu_model >= 68020) {
+		// some boards hang because there is no break point cycle acknowledge
+		if (currprefs.cs_bkpthang) {
+			cpu_halt(CPU_HALT_BKPT);
+			return 4;
+		}
+	}
+
 	if (debugmem_illg(opcode)) {
 		m68k_incpc_normal(2);
 		return 4;
