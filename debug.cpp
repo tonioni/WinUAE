@@ -1088,8 +1088,8 @@ static uaecptr nextaddr (uaecptr addr, uaecptr last, uaecptr *endp, bool verbose
 	uaecptr start = addr;
 
 	while (addr <= (lastbank << 16)) {
-		ab = get_mem_bank_real(addr);
-		if ((last && last != 0xffffffff && addr >= last) || !ab->baseaddr || !(ab->flags & ABFLAG_RAM)) {
+		addrbank *ab2 = get_mem_bank_real(addr);
+		if ((last && last != 0xffffffff && addr >= last) || !ab2->baseaddr || !(ab2->flags & ABFLAG_RAM) || ab != ab2) {
 			if (endp)
 				*endp = addr;
 			break;
@@ -4917,10 +4917,12 @@ static void searchmem (TCHAR **cc)
 	endaddr = lastaddr ();
 	if (more_params (cc)) {
 		addr = readhex (cc);
-		if (more_params (cc))
-			endaddr = readhex (cc);
+		addr--;
+		if (more_params(cc)) {
+			endaddr = readhex(cc);
+		}
 	}
-	console_out_f (_T("Searching from %08X to %08X..\n"), addr, endaddr);
+	console_out_f (_T("Searching from %08X to %08X..\n"), addr + 1, endaddr);
 	while ((addr = nextaddr (addr, endaddr, NULL, true)) != 0xffffffff) {
 		if (addr == endaddr)
 			break;
@@ -5269,15 +5271,17 @@ static void find_ea (TCHAR **inptr)
 	uaecptr addr, end, end2;
 	int hits = 0;
 
-	addr = 0;
+	addr = 0xffffffff;
 	end = lastaddr ();
 	ea = readhex (inptr);
 	if (more_params(inptr)) {
 		addr = readhex (inptr);
-		if (more_params(inptr))
-			end = readhex (inptr);
+		addr--;
+		if (more_params(inptr)) {
+			end = readhex(inptr);
+		}
 	}
-	console_out_f (_T("Searching from %08X to %08X\n"), addr, end);
+	console_out_f (_T("Searching from %08X to %08X\n"), addr + 1, end);
 	end2 = 0;
 	while((addr = nextaddr (addr, end, &end2, true)) != 0xffffffff) {
 		if ((addr & 1) == 0 && addr + 6 <= end2) {
