@@ -1,5 +1,30 @@
 
 
+Beta 5:
+
+Some more or less edge-case cpu tester detected fixes:
+
+- 68020 and 68030 unexpected difference found: RTE causing format error with trace set (T0, T1 or both). 68020: format error stacked SR has trace bits unmodified (expected behavior). 68030: stacked SR has trace bits cleared! (Stacked SR equals current SR at the beginning of format exception handler) Very useless difference. 68040/68060 works like 68020.
+- 68040 and 68060: instruction that can generate exception internally (CHK, CHK2, DIV, TRAPx) and if trace is active: trace is not generated after execution continues from address pointed by exception vector. All previous CPU models generate trace exception in this situation.
+- 68040 T0 trace + MOVEC: only MOVEC to control register triggers T0 trace. (Documentation only lists "MOVEC")
+- 68040/68060 + cpRESTORE/cpSAVE (=FSAVE/FRESTORE with co-pro ID!=1) will always generate F-line exception. Probably because external co-pro interface was removed in 68040. 68020-68030 will generate privilege violation if not in supervisor mode.
+- 68040 RTR and RTE with odd return address in stack: address error stacked SR contains contents before RTR/RTE SR modifications. SR register contents when address error exception starts has correct contents.
+- 68060 RTR odd return address: CCR is loaded first, then address exception is generated. Previous models: CCR is not modified.
+- 68060 RTE odd return address: SR is not updated, CCR part is cleared. Z is set if new SR would have been zero, N is set if new SR would have had bit 15 set.
+- 68040/68060 seems to halt if trace (probably any exception) is being processed but exception vector is odd. 68000-68030 will generate address error without halting.
+
+- UAE: 68020+ MOVE to CCR triggered T0 trace but it only should be done if MOVE to SR (which does pipeline refill which triggeres T0 trace)
+- UAE: 68020+ and trace exception with odd trace exception vector (which will generate address error): SR trace bits were not cleared when address error started.
+- UAE: 68040+ BSR/JSR address error stacked address field was incorrect.
+- UAE: 68020+ MOVE to SR, EOR SR, OR SR enabled trace: following trace exception stack frame PC field in stack was wrong.
+
+- b3 "When ejecting directory filesystem that points to plain file or archive, not all host file handles were closed properly." caused problems when opening archive files.
+- ROM scanner now prefer roms that have matching size (overdumps and a1000 ks disks have lower priority) and are not in archive (was already done previously).
+- Debugger assembler didn't support instructions that modify address register but mnemonic does not end to 'A'. (for example EXG x,An)
+- Debugger fa and s commands skipped chip ram.
+- FPU default is back to 64-bit. Very few programs requires 80-bit, it isn't worth the speed loss.
+- Optional (config file only) halt if BKPT instruction is executed. Some accelerator boards hang when it is executed because they don't generate required acknowledge cycle.
+
 Beta 4:
 
 - 68010 address errors fixed. Most read and write bus errors tested and fixed.

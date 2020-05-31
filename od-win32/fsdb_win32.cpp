@@ -124,11 +124,11 @@ static int delete_uaefsdb (const TCHAR *dir)
 	return ret;
 }
 
-static int write_uaefsdb (const TCHAR *dir, uae_u8 *fsdb)
+static int write_uaefsdb(const TCHAR *item, uae_u8 *fsdb)
 {
 	TCHAR *p;
 	HANDLE h;
-	DWORD written = 0, dirflag, dirattr;
+	DWORD written = 0, itemflag, itemattr;
 	DWORD attr = INVALID_FILE_ATTRIBUTES;
 	FILETIME t1, t2, t3;
 	int time_valid = FALSE;
@@ -137,78 +137,99 @@ static int write_uaefsdb (const TCHAR *dir, uae_u8 *fsdb)
 	TCHAR path[MAX_DPATH];
 	
 	if (currprefs.win32_filesystem_mangle_reserved_names == false) {
-		_tcscpy (path, PATHPREFIX);
-		_tcscat (path, dir);
+		_tcscpy(path, PATHPREFIX);
+		_tcscat(path, item);
 		namep = path;
 	} else {
-		namep = dir;
+		namep = item;
 	}
 
-	p = make_uaefsdbpath (dir, NULL);
+	p = make_uaefsdbpath (item, NULL);
 
-	dirattr = GetFileAttributesSafe (dir);
-	dirflag = FILE_ATTRIBUTE_NORMAL;
-	if (dirattr != INVALID_FILE_ATTRIBUTES && (dirattr & FILE_ATTRIBUTE_DIRECTORY))
-		dirflag = FILE_FLAG_BACKUP_SEMANTICS; /* argh... */
-	h = CreateFile (namep, GENERIC_READ, 0,
-		NULL, OPEN_EXISTING, dirflag, NULL);
+	itemattr = GetFileAttributesSafe (item);
+	itemflag = FILE_ATTRIBUTE_NORMAL;
+	if (itemflag != INVALID_FILE_ATTRIBUTES && (itemattr & FILE_ATTRIBUTE_DIRECTORY))
+		itemflag = FILE_FLAG_BACKUP_SEMANTICS; /* argh... */
+	h = CreateFile(namep, GENERIC_READ, 0, NULL, OPEN_EXISTING, itemflag, NULL);
 	if (h != INVALID_HANDLE_VALUE) {
-		if (GetFileTime (h, &t1, &t2, &t3))
+		if (GetFileTime(h, &t1, &t2, &t3)) {
+			if (fsdb_debug) {
+				write_log(_T("time ok (%08x-%08x %08x-%08x %08x-%08x)\n"),
+					t1.dwHighDateTime, t1.dwLowDateTime,
+					t2.dwHighDateTime, t2.dwLowDateTime,
+					t3.dwHighDateTime, t3.dwLowDateTime);
+			}
 			time_valid = TRUE;
-		CloseHandle (h);
+		}
+		CloseHandle(h);
 	}
-	h = CreateFile (p, GENERIC_WRITE, 0,
-		NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+	h = CreateFile(p, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
 	if (fsdb_debug) {
 		TCHAR *an, *nn, *co;
-		an = au_fs ((char*)fsdb + 5);
-		nn = au_fs ((char*)fsdb + 262);
-		co = au_fs ((char*)fsdb + 519);
-		write_log (_T("write_uaefsdb '%s' = %x\n"), p, h);
+		an = au_fs((char*)fsdb + 5);
+		nn = au_fs((char*)fsdb + 262);
+		co = au_fs((char*)fsdb + 519);
+		write_log (_T("write_uaefsdb '%s' = %p\n"), p, h);
 		write_log (_T("v=%02x flags=%08x an='%s' nn='%s' c='%s'\n"),
 			fsdb[0], ((uae_u32*)(fsdb+1))[0], an, nn, co);
-		xfree (co);
-		xfree (nn);
-		xfree (an);
+		xfree(co);
+		xfree(nn);
+		xfree(an);
 	}
-	if (h == INVALID_HANDLE_VALUE && GetLastError () == ERROR_ACCESS_DENIED) {
-		attr = GetFileAttributes (p);
-		if (attr != INVALID_FILE_ATTRIBUTES) {
-			if (attr & (FILE_ATTRIBUTE_READONLY | FILE_ATTRIBUTE_SYSTEM | FILE_ATTRIBUTE_HIDDEN)) {
-				SetFileAttributes (p, attr & ~(FILE_ATTRIBUTE_READONLY | FILE_ATTRIBUTE_SYSTEM | FILE_ATTRIBUTE_HIDDEN));
-				h = CreateFile (p, GENERIC_WRITE, 0,
-					NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
-				if (fsdb_debug)
-					write_log (_T("write_uaefsdb (2) '%s' = %x\n"), p, h);
+	if (h == INVALID_HANDLE_VALUE) {
+		DWORD err = GetLastError();
+		if (fsdb_debug) {
+			write_log(_T("fail %d\n"), err);
+		}
+		if (err == ERROR_ACCESS_DENIED) {
+			attr = GetFileAttributes(p);
+			if (fsdb_debug) {
+				write_log(_T("attrs %08x\n"), attr);
+			}
+			if (attr != INVALID_FILE_ATTRIBUTES) {
+				if (attr & (FILE_ATTRIBUTE_READONLY | FILE_ATTRIBUTE_SYSTEM | FILE_ATTRIBUTE_HIDDEN)) {
+					uae_u32 attr2 = attr & ~(FILE_ATTRIBUTE_READONLY | FILE_ATTRIBUTE_SYSTEM | FILE_ATTRIBUTE_HIDDEN);
+					if (!SetFileAttributes(p, attr2)) {
+						write_log(_T("'%s' SetFileAttributes1 %08x %d\n"), p, attr2, GetLastError());
+					}
+					h = CreateFile(p, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+					if (fsdb_debug) {
+						write_log(_T("write_uaefsdb (2) '%s' = %p %d\n"), p, h, GetLastError());
+					}
+				}
 			}
 		}
 	}
 	if (h != INVALID_HANDLE_VALUE) {
-		WriteFile (h, fsdb, UAEFSDB2_LEN, &written, NULL);
-		CloseHandle (h);
+		WriteFile(h, fsdb, UAEFSDB2_LEN, &written, NULL);
+		CloseHandle(h);
 		if (written == UAEFSDB2_LEN) {
 			if (fsdb_debug)
-				write_log (_T("->ok\n"));
+				write_log(_T("->ok\n"));
 			ret = 1;
 			goto end;
 		}
 	}
 	if (fsdb_debug)
-		write_log (_T("->fail %d, %d\n"), written, GetLastError ());
+		write_log(_T("->fail %d, %d\n"), written, GetLastError());
 
-	DeleteFile (p);
+	DeleteFile(p);
 end:
-	if (attr != INVALID_FILE_ATTRIBUTES)
-		SetFileAttributes (p, attr);
-	if (time_valid) {
-		h = CreateFile (namep, GENERIC_WRITE, 0,
-			NULL, OPEN_EXISTING, dirflag, NULL);
-		if (h != INVALID_HANDLE_VALUE) {
-			SetFileTime (h, &t1, &t2, &t3);
-			CloseHandle (h);
+	if (attr != INVALID_FILE_ATTRIBUTES) {
+		if (!SetFileAttributes(p, attr)) {
+			write_log(_T("'%s' SetFileAttributes2 %08x %d\n"), p, attr, GetLastError());
 		}
 	}
-	xfree (p);
+	if (time_valid) {
+		h = CreateFile(namep, GENERIC_WRITE, 0, NULL, OPEN_EXISTING, itemflag, NULL);
+		if (h != INVALID_HANDLE_VALUE) {
+			if (!SetFileTime(h, &t1, &t2, &t3)) {
+				write_log(_T("'%s' SetFileTime %d\n"), namep, GetLastError());
+			}
+			CloseHandle(h);
+		}
+	}
+	xfree(p);
 	return ret;
 }
 
