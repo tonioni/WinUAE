@@ -120,7 +120,7 @@ struct cputbl_data
 {
 	uae_s16 length;
 	uae_s8 disp020[2];
-	uae_u8 branch;
+	uae_s8 branch;
 };
 static struct cputbl_data cpudatatbl[65536];
 
@@ -7765,7 +7765,7 @@ static void pipeline_020(uaecptr pc)
 #endif
 	// illegal instructions, TRAP, TRAPV, A-line, F-line don't stop prefetches
 	int branch = cpudatatbl[w].branch;
-	if (regs.pipeline_pos > 0 && branch) {
+	if (regs.pipeline_pos > 0 && branch > 0) {
 		// Short branches (Bcc.s) still do one more prefetch.
 #if 0
 		// RTS and other unconditional single opcode instruction stop immediately.

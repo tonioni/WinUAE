@@ -420,6 +420,8 @@ static bool needmmufixup(void)
 		case i_LINK:
 		case i_RTD:
 		case i_RTR:
+		case i_RTE:
+		case i_RTS:
 			return false;
 		}
 	}
@@ -530,17 +532,7 @@ static void get_prefetch_020_continue(void)
 {
 	if (!isprefetch020())
 		return;
-	if (using_ce020) {
-		if (using_ce020 > 1)
-			out("continue_ce030_prefetch();\n");
-		else
-			out("continue_ce020_prefetch();\n");
-	} else {
-		if (using_prefetch_020 > 1)
-			out("continue_030_prefetch();\n");
-		else
-			out("continue_020_prefetch();\n");
-	}
+	get_prefetch_020();
 }
 
 static void returntail (bool iswrite)
@@ -6846,7 +6838,7 @@ static void gen_opcode (unsigned int opcode)
 		} else {
 			fill_prefetch_full_ntx(0);
 		}
-		branch_inst = 1;
+		branch_inst = m68k_pc_total;
 		next_cpu_level = cpu_level - 1;
 		break;
 	case i_RTD:
@@ -6879,7 +6871,7 @@ static void gen_opcode (unsigned int opcode)
 		} else {
 			fill_prefetch_full(0);
 		}
-		branch_inst = 1;
+		branch_inst = m68k_pc_total;
 		next_level_040_to_030();
 		break;
 	case i_LINK:
@@ -7009,7 +7001,7 @@ static void gen_opcode (unsigned int opcode)
 		} else {
 			fill_prefetch_full(0);
 		}
-		branch_inst = 1;
+		branch_inst = m68k_pc_total;
 		if (!next_level_040_to_030()) {
 			if (!next_level_020_to_010())
 				next_level_000();
@@ -7111,7 +7103,7 @@ static void gen_opcode (unsigned int opcode)
 		} else {
 			fill_prefetch_full(0);
 		}
-		branch_inst = 1;
+		branch_inst = m68k_pc_total;
 		tail_ce020_done = true;
 		next_cpu_level = cpu_level - 1;
 		break;
@@ -7233,7 +7225,7 @@ static void gen_opcode (unsigned int opcode)
 			} else {
 				fill_prefetch_next_empty();
 			}
-			branch_inst = 1;
+			branch_inst = m68k_pc_total;
 			next_level_040_to_030();
 			next_level_000();
 	}
@@ -7282,7 +7274,7 @@ static void gen_opcode (unsigned int opcode)
 		} else {
 			fill_prefetch_full(0);
 		}
-		branch_inst = 1;
+		branch_inst = m68k_pc_total;
 		next_level_000();
 		break;
 	case i_BSR:
@@ -7380,7 +7372,7 @@ static void gen_opcode (unsigned int opcode)
 		} else {
 			fill_prefetch_full(0);
 		}
-		branch_inst = 1;
+		branch_inst = m68k_pc_total;
 		if (!next_level_040_to_030()) {
 			if (!next_level_020_to_010())
 				next_level_000();
@@ -7472,7 +7464,7 @@ static void gen_opcode (unsigned int opcode)
 			fill_prefetch_full_000_special(0, NULL);
 		}
 		insn_n_cycles = curi->size == sz_byte ? 8 : 12;
-		branch_inst = 1;
+		branch_inst = -m68k_pc_total;
 bccl_not68020:
 		if (!next_level_040_to_030())
 			next_level_020_to_010();
@@ -7701,7 +7693,7 @@ bccl_not68020:
 		clear_m68k_offset();
 		get_prefetch_020_continue();
 		fill_prefetch_full_000_special(-1, "if (!cctrue(%d)) {\nm68k_dreg(regs, srcreg) = (m68k_dreg(regs, srcreg) & ~0xffff) | (((src - 1)) & 0xffff);\n}\n", curi->cc);
-		branch_inst = 1;
+		branch_inst = -m68k_pc_total;
 		if (!next_level_040_to_030()) {
 			if (!next_level_020_to_010())
 				next_level_000();
@@ -9304,7 +9296,7 @@ static void generate_one_opcode (int rp, const char *extra)
 	cputbltmp[opcode].disp020[1] = 0;
 	if (genamode8r_offset[1] > 0)
 		cputbltmp[opcode].disp020[1] = m68k_pc_total - genamode8r_offset[1] + 2;
-	cputbltmp[opcode].branch = branch_inst;
+	cputbltmp[opcode].branch = branch_inst / 2;
 
 	if (m68k_pc_total > 0)
 		out("/* %d %d,%d %c */\n",

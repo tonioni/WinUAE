@@ -62,7 +62,7 @@ struct cputbl {
 	uae_u16 opcode;
 	uae_s8 length;
 	uae_s8 disp020[2];
-	uae_u8 branch;
+	uae_s8 branch;
 };
 
 #ifdef JIT

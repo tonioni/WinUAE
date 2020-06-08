@@ -532,7 +532,7 @@ STATIC_INLINE uae_u32 get_ilong_mmu030_state (int o)
  	uae_u32 v;
     uae_u32 addr = m68k_getpci () + o;
 	ACCESS_CHECK_GET
-    v = uae_mmu030_get_ilong (addr);
+    v = uae_mmu030_get_ilong(addr);
 	ACCESS_EXIT_GET
 	return v;
 }
@@ -551,7 +551,7 @@ STATIC_INLINE uae_u32 next_ilong_mmu030_state (void)
  	uae_u32 v;
     uae_u32 addr = m68k_getpci ();
 	ACCESS_CHECK_GET_PC(4);
-    v = uae_mmu030_get_ilong (addr);
+    v = uae_mmu030_get_ilong(addr);
     m68k_incpci (4);
 	ACCESS_EXIT_GET
 	return v;
@@ -860,10 +860,8 @@ STATIC_INLINE uae_u32 get_iword_mmu030c_state (int o)
 STATIC_INLINE uae_u32 get_ilong_mmu030c_state (int o)
 {
  	uae_u32 v;
-	ACCESS_CHECK_GET;
-	v = get_word_030_prefetch(o + 0) << 16;
-	v |= get_word_030_prefetch(o + 2);
-	ACCESS_EXIT_GET
+	v = get_iword_mmu030c_state(o + 0) << 16;
+	v |= get_iword_mmu030c_state(o + 2) & 0xffff;
 	return v;
 }
 STATIC_INLINE uae_u32 get_iword_mmu030c_opcode_state(int o)
@@ -884,11 +882,8 @@ STATIC_INLINE uae_u32 next_iword_mmu030c_state (void)
 STATIC_INLINE uae_u32 next_ilong_mmu030c_state (void)
 {
  	uae_u32 v;
-	ACCESS_CHECK_GET_PC(4);
-	v = get_word_030_prefetch(0) << 16;
-	v |= get_word_030_prefetch(2);
-    m68k_incpci (4);
-	ACCESS_EXIT_GET
+	v = next_iword_mmu030c_state() << 16;
+	v |= next_iword_mmu030c_state() & 0xffff;
 	return v;
 }
 

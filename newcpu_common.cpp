@@ -1566,34 +1566,34 @@ void Exception_build_stack_frame(uae_u32 oldpc, uae_u32 currpc, uae_u32 ssw, int
 		// used when instruction's last write causes bus fault
 		m68k_areg(regs, 7) -= 4;
 		if (format == 0xb) {
-			x_put_long(m68k_areg(regs, 7), mmu030_disp_store[0]);
+			x_put_long(m68k_areg(regs, 7), mmu030_disp_store[0]); // 28 0x1c
 		} else {
 			uae_u32 ps = (regs.prefetch020_valid[0] ? 1 : 0) | (regs.prefetch020_valid[1] ? 2 : 0) | (regs.prefetch020_valid[2] ? 4 : 0);
 			ps |= ((regs.pipeline_r8[0] & 7) << 8);
 			ps |= ((regs.pipeline_r8[1] & 7) << 11);
 			ps |= ((regs.pipeline_pos & 15) << 16);
 			ps |= ((regs.pipeline_stop & 15) << 20);
-			x_put_long(m68k_areg(regs, 7), ps);
+			x_put_long(m68k_areg(regs, 7), ps); // 28 0x1c
 		}
 		m68k_areg(regs, 7) -= 4;
 		// Data output buffer = value that was going to be written
-		x_put_long(m68k_areg(regs, 7), regs.wb3_data);
+		x_put_long(m68k_areg(regs, 7), regs.wb3_data); // 24 0x18
 		m68k_areg(regs, 7) -= 4;
 		if (format == 0xb) {
-			x_put_long(m68k_areg(regs, 7), (mmu030_opcode & 0xffff) | (regs.prefetch020[0] << 16));  // Internal register (opcode storage)
+			x_put_long(m68k_areg(regs, 7), (mmu030_opcode & 0xffff) | (regs.prefetch020[0] << 16));  // Internal register (opcode storage) 20 0x14
 		} else {
-			x_put_long(m68k_areg(regs, 7), regs.irc | (regs.prefetch020[0] << 16));  // Internal register (opcode storage)
+			x_put_long(m68k_areg(regs, 7), regs.irc | (regs.prefetch020[0] << 16));  // Internal register (opcode storage)  20 0x14
 		}
 		m68k_areg(regs, 7) -= 4;
-		x_put_long(m68k_areg(regs, 7), regs.mmu_fault_addr); // data cycle fault address
+		x_put_long(m68k_areg(regs, 7), regs.mmu_fault_addr); // data cycle fault address 16 0x10
 		m68k_areg(regs, 7) -= 2;
-		x_put_word(m68k_areg(regs, 7), regs.prefetch020[2]);  // Instr. pipe stage B
+		x_put_word(m68k_areg(regs, 7), regs.prefetch020[2]);  // Instr. pipe stage B 14 0x0e
 		m68k_areg(regs, 7) -= 2;
-		x_put_word(m68k_areg(regs, 7), regs.prefetch020[1]);  // Instr. pipe stage C
+		x_put_word(m68k_areg(regs, 7), regs.prefetch020[1]);  // Instr. pipe stage C 12 0x0c
 		m68k_areg(regs, 7) -= 2;
-		x_put_word(m68k_areg(regs, 7), ssw);
+		x_put_word(m68k_areg(regs, 7), ssw); // 10 0x0a
 		m68k_areg(regs, 7) -= 2;
-		x_put_word(m68k_areg(regs, 7), regs.wb2_address); // = mmu030_state[1]);
+		x_put_word(m68k_areg(regs, 7), regs.wb2_address); // = mmu030_state[1]); 8 0x08
 		break;
 	default:
 		write_log(_T("Unknown exception stack frame format: %X\n"), format);
