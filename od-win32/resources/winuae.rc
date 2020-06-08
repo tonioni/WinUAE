@@ -1568,7 +1568,6 @@ BEGIN
 
     IDD_CPU, DIALOG
     BEGIN
-        BOTTOMMARGIN, 316
     END
 
     IDD_FLOPPY, DIALOG
@@ -1911,7 +1910,7 @@ BEGIN
     IDS_MUSTSELECTCONFIGFORDELETE 
                             "You must select a configuration or enter a name before selecting Delete...\n"
     IDS_DELETECONFIGCONFIRMATION 
-                            "Are you sure you want to Delete configuration '%s'?\n"
+                            "Are you sure you want to Delete configuration\n%s?\n"
     IDS_DELETECONFIGTITLE   "Confirm Delete"
     IDS_MUSTSELECTPATH      "You must select a path!"
     IDS_SETTINGSERROR       "Settings error"
@@ -2128,6 +2127,10 @@ BEGIN
     IDS_GENERIC             "Generic"
     IDS_AUTODETECT          "Autodetect"
     IDS_OFF                 "off"
+    IDS_DELETECONFIGDIRCONFIRMATION 
+                            "Delete empty configuration directory\n%s\n"
+    IDS_DELETECONFIGDIRNOTEMPTY 
+                            "Only empty configuration directory can be deleted."
 END
 
 STRINGTABLE
@@ -2152,7 +2155,7 @@ END
 
 STRINGTABLE
 BEGIN
-    IDS_MISCLISTITEMS4      "Windows shutdown/logoff notification\nWarn when attempting to close window\nPower led dims when audio filter is disabled\nAutomatically capture mouse when window is activated\n"
+    IDS_MISCLISTITEMS4      "Windows shutdown/logoff notification\nWarn when attempting to close window\nPower led dims when audio filter is disabled\nAutomatically capture mouse when window is activated\nDebug memory space\n"
     IDS_SHUTDOWN_NOTIFICATION "Emulation session active"
     IDS_QUIT_WARNING        "Are you sure you want to quit WinUAE?"
     IDS_UNMAPPED_ADDRESS    "Floating\nAll zeros\nAll ones\n"

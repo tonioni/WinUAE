@@ -190,9 +190,6 @@
     <ClCompile Include="..\win32gfx.cpp">
       <Filter>win32</Filter>
     </ClCompile>
-    <ClCompile Include="..\win32gui.cpp">
-      <Filter>win32</Filter>
-    </ClCompile>
     <ClCompile Include="..\win32gui_extra.cpp">
       <Filter>win32</Filter>
     </ClCompile>
@@ -251,9 +248,6 @@
       <Filter>common</Filter>
     </ClCompile>
     <ClCompile Include="..\..\cdtv.cpp">
-      <Filter>common</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\cfgfile.cpp">
       <Filter>common</Filter>
     </ClCompile>
     <ClCompile Include="..\..\cia.cpp">
@@ -941,6 +935,12 @@
       <Filter>x86</Filter>
     </ClCompile>
     <ClCompile Include="..\..\disasm.cpp">
+      <Filter>common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\win32gui.cpp">
+      <Filter>win32</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\cfgfile.cpp">
       <Filter>common</Filter>
     </ClCompile>
   </ItemGroup>

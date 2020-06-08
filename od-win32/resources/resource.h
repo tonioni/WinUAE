@@ -274,6 +274,8 @@
 #define IDS_GENERIC                     273
 #define IDS_AUTODETECT                  274
 #define IDS_OFF                         275
+#define IDS_DELETECONFIGDIRCONFIRMATION 276
+#define IDS_DELETECONFIGDIRNOTEMPTY     277
 #define IDS_NUMSG_NEEDEXT2              300
 #define IDS_NUMSG_NOROMKEY              301
 #define IDS_NUMSG_KSROMCRCERROR         302
@@ -1351,6 +1353,7 @@
 #define ID_ST_CDEJECTALL                40047
 #define ID_CDDRIVES_CD                  40048
 #define ID_ST_CD0                       40049
+#define IDC_STATIC                      -1
 
 // Next default values for new objects
 // 

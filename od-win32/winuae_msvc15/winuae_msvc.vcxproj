@@ -886,6 +886,7 @@
     <ClCompile Include="..\..\casablanca.cpp" />
     <ClCompile Include="..\..\cd32_fmv_genlock.cpp" />
     <ClCompile Include="..\..\cdtvcr.cpp" />
+    <ClCompile Include="..\..\cfgfile.cpp" />
     <ClCompile Include="..\..\cpuboard.cpp" />
     <ClCompile Include="..\..\cpuemu_13.cpp" />
     <ClCompile Include="..\..\cpuemu_21.cpp" />
@@ -1044,10 +1045,10 @@
     <ClCompile Include="..\statusline_win32.cpp" />
     <ClCompile Include="..\unicode.cpp" />
     <ClCompile Include="..\win32.cpp" />
+    <ClCompile Include="..\win32gui.cpp" />
     <ClCompile Include="..\win32_scaler.cpp" />
     <ClCompile Include="..\win32_uaenet.cpp" />
     <ClCompile Include="..\win32gfx.cpp" />
-    <ClCompile Include="..\win32gui.cpp" />
     <ClCompile Include="..\win32gui_extra.cpp" />
     <ClCompile Include="..\win32_videograb.cpp" />
     <ClCompile Include="..\writelog.cpp" />
@@ -1069,7 +1070,6 @@
     <ClCompile Include="..\..\cd32_fmv.cpp" />
     <ClCompile Include="..\..\cdrom.cpp" />
     <ClCompile Include="..\..\cdtv.cpp" />
-    <ClCompile Include="..\..\cfgfile.cpp" />
     <ClCompile Include="..\..\cia.cpp" />
     <ClCompile Include="..\..\consolehook.cpp" />
     <ClCompile Include="..\..\cpudefs.cpp" />
