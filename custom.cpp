@@ -8601,7 +8601,7 @@ static void events_dmal (int hp)
 {
 	if (!dmal)
 		return;
-	if (currprefs.cpu_memory_cycle_exact) {
+	if (currprefs.cpu_compatible) {
 		while (dmal) {
 			if (dmal & 3)
 				break;
