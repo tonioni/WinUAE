@@ -5295,7 +5295,7 @@ static int shell_associate (const TCHAR *extension, TCHAR *command, struct conte
 {
 	int v = shell_associate_2 (extension, NULL, command, cc, perceivedtype, description, ext2, icon);
 	if (!_tcscmp (extension, _T(".uae")))
-		shell_associate_2 (extension, _T("edit"), _T("-f \"%1\" -s use_gui=yes"), NULL, _T("text"), description, NULL, 0);
+		shell_associate_2 (extension, _T("edit"), _T("-f \"%1\" -s use_gui=yes"), NULL, _T("text"), description, NULL, icon);
 	return v;
 }
 
