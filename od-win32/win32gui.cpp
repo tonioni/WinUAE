@@ -2486,12 +2486,14 @@ static void prefs_to_gui(struct uae_prefs *p)
 
 static void gui_to_prefs(void)
 {
-	/* Always copy our prefs to changed_prefs, ... */
+	// Always copy our prefs to changed_prefs
 	copy_prefs(&workprefs, &changed_prefs);
 	if (quit_program == -UAE_RESET_HARD) {
+		// copy all if hard reset
 		copy_prefs(&workprefs, &currprefs);
+		memory_hardreset(2);
 	}
-	/* filesys hack */
+	// filesys hack
 	currprefs.mountitems = changed_prefs.mountitems;
 	memcpy (&currprefs.mountconfig, &changed_prefs.mountconfig, MOUNT_CONFIG_SIZE * sizeof (struct uaedev_config_info));
 	fixup_prefs (&changed_prefs, true);
@@ -3998,7 +4000,7 @@ static struct ConfigStruct *GetConfigs (struct ConfigStruct *configparent, int u
 			return first; 
 	}
 
-	handle = FindFirstFile (path2, &find_data );
+	handle = FindFirstFile (path2, &find_data);
 	if (handle == INVALID_HANDLE_VALUE) {
 #ifndef SINGLEFILE
 		// Either the directory has no .CFG files, or doesn't exist.
@@ -4204,28 +4206,71 @@ static TCHAR *HandleConfiguration (HWND hDlg, int flag, struct ConfigStruct *con
 		break;
 
 	case CONFIG_DELETE:
-		if (_tcslen (name) == 0) {
-			TCHAR szMessage[MAX_DPATH];
-			WIN32GUI_LoadUIString (IDS_MUSTSELECTCONFIGFORDELETE, szMessage, MAX_DPATH);
-			pre_gui_message (szMessage);
-		} else {
+		{
 			TCHAR szMessage[MAX_DPATH];
 			TCHAR szTitle[MAX_DPATH];
 			TCHAR msg[MAX_DPATH];
-			WIN32GUI_LoadUIString (IDS_DELETECONFIGCONFIRMATION, szMessage, MAX_DPATH);
-			WIN32GUI_LoadUIString (IDS_DELETECONFIGTITLE, szTitle, MAX_DPATH );
-			_stprintf(msg, szMessage, name);
-			if (MessageBox (hDlg, msg, szTitle,
-				MB_YESNO | MB_ICONWARNING | MB_APPLMODAL | MB_SETFOREGROUND) == IDYES) {
-					cfgfile_backup (path);
-					DeleteFile (path);
-					write_log (_T("deleted config '%s'\n"), path);
-					config_filename[0] = 0;
+			WIN32GUI_LoadUIString(IDS_DELETECONFIGTITLE, szTitle, MAX_DPATH);
+			ok = 0;
+			if (name[0] == 0) {
+				if (config && config->Fullpath[0]) {
+					// directory selected
+					bool allowdelete = false;
+					TCHAR fp[MAX_DPATH];
+					_tcscpy(fp, config->Fullpath);
+					_tcscat(fp, _T("*"));
+					WIN32_FIND_DATA fd;
+					HANDLE h = FindFirstFile(fp, &fd);
+					if (h != INVALID_HANDLE_VALUE) {
+						allowdelete = true;
+						for (;;) {
+							if (fd.cFileName[0] != '.' || !(fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)) {
+								allowdelete = false;
+							}
+							if (!FindNextFile(h, &fd))
+								break;
+						}
+						FindClose(h);
+					}
+					if (allowdelete) {
+						WIN32GUI_LoadUIString(IDS_DELETECONFIGDIRCONFIRMATION, szMessage, MAX_DPATH);
+						TCHAR fp[MAX_DPATH];
+						_tcscpy(fp, config->Fullpath);
+						fp[_tcslen(fp) - 1] = 0;
+						_stprintf(msg, szMessage, fp);
+						if (MessageBox(hDlg, msg, szTitle,
+							MB_YESNO | MB_ICONWARNING | MB_APPLMODAL | MB_SETFOREGROUND) == IDYES) {
+							if (RemoveDirectory(fp)) {
+								write_log(_T("deleted config directory '%s'\n"), fp);
+								config_filename[0] = 0;
+								ok = 1;
+							}
+						}
+					} else {
+						WIN32GUI_LoadUIString(IDS_DELETECONFIGDIRNOTEMPTY, szMessage, MAX_DPATH);
+						MessageBox(hDlg, szMessage, szTitle, MB_OK | MB_ICONWARNING | MB_APPLMODAL | MB_SETFOREGROUND);
+					}
+				} else {
+					TCHAR szMessage[MAX_DPATH];
+					WIN32GUI_LoadUIString(IDS_MUSTSELECTCONFIGFORDELETE, szMessage, MAX_DPATH);
+					pre_gui_message(szMessage);
+				}
 			} else {
-				ok = 0;
+				// config file selected
+				WIN32GUI_LoadUIString(IDS_DELETECONFIGCONFIRMATION, szMessage, MAX_DPATH);
+				_stprintf(msg, szMessage, name);
+				if (MessageBox(hDlg, msg, szTitle,
+					MB_YESNO | MB_ICONWARNING | MB_APPLMODAL | MB_SETFOREGROUND) == IDYES) {
+					cfgfile_backup(path);
+					if (DeleteFile(path)) {
+						write_log(_T("deleted config '%s'\n"), path);
+						config_filename[0] = 0;
+						ok = 1;
+					}
+				}
 			}
+			config_pathfilename[0] = 0;
 		}
-		config_pathfilename[0] = 0;
 		break;
 	}
 
