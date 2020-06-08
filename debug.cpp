@@ -1065,9 +1065,10 @@ static uaecptr nextaddr (uaecptr addr, uaecptr last, uaecptr *endp, bool verbose
 	int lastbank = currprefs.address_space_24 ? 255 : 65535;
 
 	if (addr != 0xffffffff) {
+		addrbank *ab2 = get_mem_bank_real(addr);
 		addr++;
 		ab = get_mem_bank_real(addr);
-		if (ab->baseaddr && (ab->flags & ABFLAG_RAM))
+		if (ab->baseaddr && (ab->flags & ABFLAG_RAM) && ab == ab2)
 			return addr;
 	} else {
 		addr = 0;
