@@ -25,9 +25,9 @@
 #include "rommgr.h"
 #include "devices.h"
 
-#define DEBUG_SNDDEV 1
+#define DEBUG_SNDDEV 0
 #define DEBUG_SNDDEV_READ 0
-#define DEBUG_SNDDEV_WRITE 1
+#define DEBUG_SNDDEV_WRITE 0
 #define DEBUG_SNDDEV_FIFO 0
 
 static void snd_init(void);

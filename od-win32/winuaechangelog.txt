@@ -1,5 +1,13 @@
 
 
+Beta 7:
+
+- Fixed Misc panel statefile text box working strangely when typing. Also default statefile path and .uss extension is added if missing.
+- CPU multiplier in prefetch mode (support added in b1) wasn't saved to config file.
+- CPU multiplier is set to pre-4.4 defaults when loading old config files.
+- CPU multiplier (if prefetch/ce) is changed to default multiplier when CPU model is changed.
+- "Default" filter mode now enables aspect ratio correction and scales to window/screen size. Disabled previously active GUI elements that are not compatible with current filter mode.
+
 Beta 6:
 
 - Small 68030 prefetch mode tweak.
