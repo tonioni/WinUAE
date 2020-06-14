@@ -12364,10 +12364,25 @@ static INT_PTR MiscDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 				switch (LOWORD (wParam))
 				{
 				case IDC_STATENAME:
-					if (getcomboboxtext(hDlg, IDC_STATENAME, savestate_fname, sizeof savestate_fname / sizeof(TCHAR))) {
+					if (HIWORD(wParam) != CBN_EDITCHANGE && getcomboboxtext(hDlg, IDC_STATENAME, savestate_fname, sizeof savestate_fname / sizeof(TCHAR))) {
 						if (savestate_fname[0]) {
 							parsefilepath(savestate_fname, sizeof savestate_fname / sizeof(TCHAR));
 							savestate_state = STATE_DORESTORE;
+							if (!my_existsfile(savestate_fname)) {
+								TCHAR t[MAX_DPATH];
+								_tcscpy(t, savestate_fname);
+								_tcscat(savestate_fname, _T(".uss"));
+								if (!my_existsfile(savestate_fname)) {
+									fetch_statefilepath(savestate_fname, sizeof(t) / sizeof(MAX_DPATH));
+									_tcscat(savestate_fname, t);
+									if (!my_existsfile(savestate_fname)) {
+										_tcscat(savestate_fname, _T(".uss"));
+										if (!my_existsfile(savestate_fname)) {
+											_tcscpy(savestate_fname, t);
+										}
+									}
+								}
+							}
 							_tcscpy(workprefs.statefile, savestate_fname);
 							setstatefilename(hDlg);
 						}
@@ -12793,6 +12808,21 @@ static void values_from_cpudlg(HWND hDlg, WPARAM wParam)
 		if (workprefs.cpu_compatible)
 			workprefs.cpu_data_cache = ischecked (hDlg, IDC_CPUDATACACHE);
 		break;
+	}
+
+	if (newcpu != oldcpu && workprefs.cpu_compatible) {
+		int idx = 0;
+		if (newcpu <= 68010) {
+			workprefs.cpu_clock_multiplier = 2 * 256;
+			idx = 1;
+		} else if (newcpu == 68020) {
+			workprefs.cpu_clock_multiplier = 4 * 256;
+			idx = 2;
+		} else {
+			workprefs.cpu_clock_multiplier = 8 * 256;
+			idx = 3;
+		}
+		SendDlgItemMessage(hDlg, IDC_CPU_FREQUENCY, CB_SETCURSEL, idx, 0);
 	}
 
 	newtrust = ischecked (hDlg, IDC_TRUST0) ? 0 : 1;
@@ -19053,6 +19083,7 @@ static int filter_nativertg;
 static void enable_for_hw3ddlg (HWND hDlg)
 {
 	int v = workprefs.gf[filter_nativertg].gfx_filter ? TRUE : FALSE;
+	int scalemode = workprefs.gf[filter_nativertg].gfx_filter_autoscale;
 	int vv = FALSE, vv2 = FALSE, vv3 = FALSE;
 	int as = FALSE;
 	struct uae_filter *uf;
@@ -19075,16 +19106,17 @@ static void enable_for_hw3ddlg (HWND hDlg)
 		vv2 = TRUE;
 	if (workprefs.gfx_api)
 		v = vv = vv2 = vv3 = TRUE;
-
 	if (filter_nativertg)
 		v = FALSE;
+	if (scalemode == AUTOSCALE_STATIC_AUTO || scalemode == AUTOSCALE_STATIC_NOMINAL || scalemode == AUTOSCALE_STATIC_MAX)
+		as = TRUE;
 
-	ew(hDlg, IDC_FILTERHZ, v);
-	ew(hDlg, IDC_FILTERVZ, v);
 	ew(hDlg, IDC_FILTERHZMULT, v && !as);
 	ew(hDlg, IDC_FILTERVZMULT, v && !as);
-	ew(hDlg, IDC_FILTERHO, v && !as);
-	ew(hDlg, IDC_FILTERVO, v && !as);
+	ew(hDlg, IDC_FILTERHZ, v);
+	ew(hDlg, IDC_FILTERVZ, v);
+	ew(hDlg, IDC_FILTERHO, v);
+	ew(hDlg, IDC_FILTERVO, v);
 	ew(hDlg, IDC_FILTERSLR, vv3);
 	ew(hDlg, IDC_FILTERXL, vv2);
 	ew(hDlg, IDC_FILTERXLV, vv2);
@@ -19092,11 +19124,10 @@ static void enable_for_hw3ddlg (HWND hDlg)
 	ew(hDlg, IDC_FILTERFILTERH, workprefs.gfx_api);
 	ew(hDlg, IDC_FILTERFILTERV, workprefs.gfx_api);
 	ew(hDlg, IDC_FILTERSTACK, workprefs.gfx_api);
-	ew(hDlg, IDC_FILTERKEEPASPECT, v);
-	ew(hDlg, IDC_FILTERASPECT, v);
-	ew(hDlg, IDC_FILTERASPECT2, v && workprefs.gf[filter_nativertg].gfx_filter_keep_aspect);
-	ew(hDlg, IDC_FILTERKEEPAUTOSCALEASPECT, (workprefs.gf[filter_nativertg].gfx_filter_autoscale == AUTOSCALE_NORMAL ||
-		workprefs.gf[filter_nativertg].gfx_filter_autoscale == AUTOSCALE_INTEGER_AUTOSCALE));
+	ew(hDlg, IDC_FILTERKEEPASPECT, v && scalemode != AUTOSCALE_STATIC_AUTO);
+	ew(hDlg, IDC_FILTERASPECT, v && scalemode != AUTOSCALE_STATIC_AUTO);
+	ew(hDlg, IDC_FILTERASPECT2, v && workprefs.gf[filter_nativertg].gfx_filter_keep_aspect && scalemode != AUTOSCALE_STATIC_AUTO);
+	ew(hDlg, IDC_FILTERKEEPAUTOSCALEASPECT, scalemode == AUTOSCALE_NORMAL || scalemode == AUTOSCALE_INTEGER_AUTOSCALE);
 	ew(hDlg, IDC_FILTEROVERLAY, workprefs.gfx_api);
 	ew(hDlg, IDC_FILTEROVERLAYTYPE, workprefs.gfx_api);
 
@@ -19104,8 +19135,7 @@ static void enable_for_hw3ddlg (HWND hDlg)
 	ew(hDlg, IDC_FILTERPRESETLOAD, filterpreset_selected > 0);
 	ew(hDlg, IDC_FILTERPRESETDELETE, filterpreset_selected > 0 && filterpreset_builtin < 0);
 
-	ew(hDlg, IDC_FILTERINTEGER, workprefs.gf[filter_nativertg].gfx_filter_autoscale == AUTOSCALE_INTEGER ||
-		workprefs.gf[filter_nativertg].gfx_filter_autoscale == AUTOSCALE_INTEGER_AUTOSCALE);
+	ew(hDlg, IDC_FILTERINTEGER, scalemode == AUTOSCALE_INTEGER || scalemode == AUTOSCALE_INTEGER_AUTOSCALE);
 }
 
 static const TCHAR *filtermultnames[] = {
