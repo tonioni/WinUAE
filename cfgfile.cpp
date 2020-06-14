@@ -2592,10 +2592,11 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 
 	if (p->cpu_cycle_exact) {
 		if (p->cpu_frequency)
-			cfgfile_write (f, _T("cpu_frequency"), _T("%d"), p->cpu_frequency);
-		if (p->cpu_clock_multiplier) {
-			if (p->cpu_clock_multiplier >= 256)
-				cfgfile_write (f, _T("cpu_multiplier"), _T("%d"), p->cpu_clock_multiplier >> 8);
+			cfgfile_write(f, _T("cpu_frequency"), _T("%d"), p->cpu_frequency);
+	}
+	if (p->cpu_compatible) {
+		if (p->m68k_speed == 0 && p->cpu_clock_multiplier >= 256) {
+			cfgfile_write(f, _T("cpu_multiplier"), _T("%d"), p->cpu_clock_multiplier / 256);
 		}
 	}
 
@@ -5330,11 +5331,26 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 	bool dummybool;
 	TCHAR tmpbuf[CONFIG_BLEN];
 
+	if (cfgfile_yesno(option, value, _T("cpu_compatible"), &p->cpu_compatible)) {
+		return 1;
+	}
+
 	if (cfgfile_yesno (option, value, _T("cpu_cycle_exact"), &p->cpu_cycle_exact)) {
 		/* we don't want cycle-exact in 68020/40+JIT modes */
 		if (p->cpu_model >= 68020 && p->cachesize > 0)
 			p->cpu_cycle_exact = p->cpu_memory_cycle_exact = p->blitter_cycle_exact = 0;
 		p->cpu_memory_cycle_exact = p->cpu_cycle_exact;
+		// pre-4.4.0 didn't support cpu multiplier in prefetch mode without cycle-exact
+		// set pre-4.4.0 defaults first
+		if (!p->cpu_cycle_exact && p->cpu_compatible && !p->cpu_clock_multiplier) {
+			if (p->cpu_model < 68020) {
+				p->cpu_clock_multiplier = 2 * 256;
+			} else if (p->cpu_model == 68020) {
+				p->cpu_clock_multiplier = 4 * 256;
+			} else {
+				p->cpu_clock_multiplier = 8 * 256;
+			}
+		}
 		return 1;
 	}
 	if (cfgfile_yesno (option, value, _T("blitter_cycle_exact"), &p->blitter_cycle_exact)) {
@@ -5422,7 +5438,6 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 		|| cfgfile_yesno(option, value, _T("genlock"), &p->genlock)
 		|| cfgfile_yesno(option, value, _T("genlock_alpha"), &p->genlock_alpha)
 		|| cfgfile_yesno(option, value, _T("genlock_aspect"), &p->genlock_aspect)
-		|| cfgfile_yesno(option, value, _T("cpu_compatible"), &p->cpu_compatible)
 		|| cfgfile_yesno(option, value, _T("cpu_data_cache"), &p->cpu_data_cache)
 		|| cfgfile_yesno(option, value, _T("cpu_threaded"), &p->cpu_thread)
 		|| cfgfile_yesno(option, value, _T("cpu_24bit_addressing"), &p->address_space_24)
