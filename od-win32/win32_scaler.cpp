@@ -303,13 +303,24 @@ void getfilterrect2(int monid, RECT *sr, RECT *dr, RECT *zr, int dst_width, int 
 		oscalemode = scalemode = AUTOSCALE_NONE;
 	}
 
+	srcratio = 4.0f / 3.0f;
+
 	if (!specialmode && scalemode == AUTOSCALE_STATIC_AUTO) {
-		scalemode = AUTOSCALE_STATIC_NOMINAL;
-		filter_aspect = -1;
+		int w = (dst_width / 2) << currprefs.gfx_resolution;
+		int h = (dst_height / 2) << currprefs.gfx_vresolution;
+		filter_aspect = 0;
 		keep_aspect = 0;
+		if (w >= 640 && w <= 800 && h >= 480 && h <= 600) {
+			scalemode = AUTOSCALE_NONE;
+		} else {
+			float dstratio = 1.0f * dst_width / dst_height;
+			scalemode = AUTOSCALE_STATIC_NOMINAL;
+			if (dstratio > srcratio + 0.1 || dstratio < srcratio - 0.1) {
+				filter_aspect = -1;
+			}
+		}
 	}
 
-	srcratio = 4.0f / 3.0f;
 	if (filter_aspect > 0) {
 		dstratio = (filter_aspect / ASPECTMULT) * 1.0f / (filter_aspect & (ASPECTMULT - 1));
 	} else if (filter_aspect < 0) {
