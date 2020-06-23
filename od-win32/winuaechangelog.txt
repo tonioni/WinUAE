@@ -1,5 +1,10 @@
 
 
+Beta 8 (RC1):
+
+- More "Default" filter adjustments: enable aspect ratio correction only if current aspect ratio is not close enough to 4:3. Enable scaling to current window/screen size only if current window/screen is "too" large or small. Main reason for this change is to keep old behavior (no scaling or aspect ratio correction if default window/screen size but enable scaling/aspect ratio correction if window is larger or smaller)
+- Beta tag removed.
+
 Beta 7:
 
 - Fixed Misc panel statefile text box working strangely when typing. Also default statefile path and .uss extension is added if missing.

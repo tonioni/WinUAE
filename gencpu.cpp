@@ -9168,7 +9168,7 @@ struct cputbl_tmp
 {
 	uae_s16 length;
 	uae_s8 disp020[2];
-	uae_u8 branch;
+	uae_s8 branch;
 };
 static struct cputbl_tmp cputbltmp[65536];
 
