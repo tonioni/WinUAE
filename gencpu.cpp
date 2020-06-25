@@ -8559,6 +8559,7 @@ bccl_not68020:
 		if (curi->smode != am_unknown && curi->smode != am_illg)
 			genamode(curi, curi->smode, "srcreg", curi->size, "dummy", 1, 0, 0);
 		fill_prefetch_0();
+		sync_m68k_pc();
 		out("if (cctrue(%d)) {\n", curi->cc);
 		out("Exception_cpu(7);\n");
 		write_return_cycles(0);
