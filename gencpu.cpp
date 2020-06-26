@@ -6574,8 +6574,8 @@ static void gen_opcode (unsigned int opcode)
 		}
 		// STOP undocumented features:
 		// if new SR S-bit is not set:
-		// 68000 (68010?): Update SR, increase PC and then cause privilege violation exception (handled in newcpu)
-		// 68000 (68010?): Traced STOP runs 4 cycles faster.
+		// 68000/68010: Update SR, increase PC and then cause privilege violation exception (handled in newcpu)
+		// 68000/68010: Traced STOP runs 4 cycles faster.
 		// 68020 68030 68040: STOP works normally
 		// 68060: Immediate privilege violation exception
 		if ((cpu_level == 0 || cpu_level == 1) && using_ce) {
@@ -6583,7 +6583,6 @@ static void gen_opcode (unsigned int opcode)
 		}
 		if (cpu_level >= 5) {
 			out("if (!(sr & 0x2000)) {\n");
-			incpc("%d", m68k_pc_offset);
 			out("Exception(8);\n");
 			write_return_cycles(0);
 			out("}\n");
@@ -6598,7 +6597,7 @@ static void gen_opcode (unsigned int opcode)
 		next_level_000();
 		break;
 	case i_LPSTOP: /* 68060 */
-		out("uae_u16 sw = %s(2);\n", srcwi);
+		out("uae_u16 sw = %s;\n", gen_nextiword(0));
 		out("if (sw != 0x01c0) {\n");
 		out("Exception(11);\n");
 		write_return_cycles(0);
@@ -6607,7 +6606,7 @@ static void gen_opcode (unsigned int opcode)
 		out("Exception(8);\n");
 		write_return_cycles(0);
 		out("}\n");
-		out("uae_u16 newsr = %s(4);\n", srcwi);
+		out("uae_u16 newsr = %s;\n", gen_nextiword(0));
 		out("if (!(newsr & 0x2000)) {\n");
 		out("Exception(8);\n");
 		write_return_cycles(0);
@@ -6615,7 +6614,6 @@ static void gen_opcode (unsigned int opcode)
 		out("regs.sr = newsr;\n");
 		makefromsr();
 		out("m68k_setstopped();\n");
-		m68k_pc_offset += 4;
 		sync_m68k_pc();
 		fill_prefetch_full_ntx(0);
 		break;
@@ -7907,6 +7905,7 @@ bccl_not68020:
 		default:
 			term();
 		}
+		sync_m68k_pc();
 		out("SET_CFLG(0);\n");
 		out("SET_ZFLG(0);\n");
 		out("setchk2undefinedflags(lower, upper, reg, (extra & 0x8000) ? 2 : %d);\n", curi->size);
