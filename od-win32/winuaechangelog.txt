@@ -1,5 +1,11 @@
 
 
+Beta 9 (RC2):
+
+- TRAPcc and CHK2 exception stack frame fix. Stacked PC was not pointing to next instruction. (CPU tester didn't validate 68020+ exception stacked PC field. Fixed and retested.)
+- 68060 LPSTOP illegal instruction if second word is not 0x01C0 and privilege violation due to new SR not having S-bit set stack frame had wrong stacked PC.
+- 68060 STOP privilege violation if new SR didn't have S-bit set (68060-only special case) exception stacked PC was wrong.
+
 Beta 8 (RC1):
 
 - More "Default" filter adjustments: enable aspect ratio correction only if current aspect ratio is not close enough to 4:3. Enable scaling to current window/screen size only if current window/screen is "too" large or small. Main reason for this change is to keep old behavior (no scaling or aspect ratio correction if default window/screen size but enable scaling/aspect ratio correction if window is larger or smaller)
