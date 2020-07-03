@@ -1711,12 +1711,24 @@ static uae_u8 *validate_exception(struct registers *regs, uae_u8 *p, short excnu
 						alts += 2;
 					}
 				}
+			} else {
+				// sr
+				exc[0] = regs->sr >> 8;
+				exc[1] = regs->sr;
+				// program counter
+				v = opcode_memory_addr;
+				p = restore_rel_ordered(p, &v);
+				pl(exc + 2, v);
+				exclen = 6;
 			}
 		} else if (cpu_lvl > 0) {
 			// sr
 			exc[0] = regs->sr >> 8;
 			exc[1] = regs->sr;
-			pl(exc + 2, regs->pc);
+			// program counter
+			v = opcode_memory_addr;
+			p = restore_rel_ordered(p, &v);
+			pl(exc + 2, v);
 			const uae_u16 t0 = *p++;
 			const uae_u16 t1 = *p++;
 			// frame type

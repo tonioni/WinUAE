@@ -962,6 +962,10 @@ void REGPARAM2 MakeFromSR(void)
 	MakeFromSR_x(0);
 }
 
+void REGPARAM2 MakeFromSR_intmask(uae_u16 oldsr, uae_u16 newsr)
+{
+}
+
 void cpu_halt(int halt)
 {
 	cpu_halted = halt;
@@ -3919,10 +3923,15 @@ static uae_u8 *save_exception(uae_u8 *p, struct instr *dp)
 				p = store_rel(p, 0, opcode_memory_start, gl(sf + 2), 1);
 				// program counter
 				p = store_rel(p, 0, opcode_memory_start, gl(sf + 10), 1);
+			} else {
+				// program counter
+				p = store_rel(p, 0, opcode_memory_start, gl(sf + 2), 1);
 			}
 		} else if (cpu_lvl > 0) {
 			uae_u8 ccrmask = 0;
 			uae_u16 frame = (sf[6] << 8) | sf[7];
+			// program counter
+			p = store_rel(p, 0, opcode_memory_start, gl(sf + 2), 1);
 			// frame + vector offset
 			*p++ = sf[6];
 			*p++ = sf[7];
