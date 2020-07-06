@@ -8568,9 +8568,13 @@ bccl_not68020:
 		genamode(curi, curi->smode, "srcreg", curi->size, "extra", 1, 0, 0);
 		genamode(curi, curi->dmode, "dstreg", curi->size, "dst", 1, 0, 0);
 		sync_m68k_pc();
-		out("if (!m68k_divl(opcode, dst, extra)) {\n");
-		if (mmufixupcnt)
+		out("int e = m68k_divl(opcode, dst, extra);\n");
+		out("if (e <= 0) {\n");
+		if (mmufixupcnt) {
+			out("if (e < 0) {\n");
 			out("cpu_restore_fixup();\n");
+			out("}\n");
+		}
 		write_return_cycles(0);
 		out("}\n");
 		break;
@@ -8578,9 +8582,13 @@ bccl_not68020:
 		genamode(curi, curi->smode, "srcreg", curi->size, "extra", 1, 0, 0);
 		genamode(curi, curi->dmode, "dstreg", curi->size, "dst", 1, 0, 0);
 		sync_m68k_pc();
-		out("if (!m68k_mull(opcode, dst, extra)) {\n");
-		if (mmufixupcnt)
+		out("int e = m68k_mull(opcode, dst, extra);\n");
+		out("if (e <= 0) {\n");
+		if (mmufixupcnt) {
+			out("if (e < 0) {\n");
 			out("cpu_restore_fixup();\n");
+			out("}\n");
+		}
 		write_return_cycles(0);
 		out("}\n");
 		break;
@@ -8610,7 +8618,7 @@ bccl_not68020:
 			genamode(curi, curi->dmode, "dstreg", sz_long, "dst", 2, 0, 0);
 			out("uae_u32 bdata[2];\n");
 			out("uae_s32 offset = extra & 0x800 ? m68k_dreg(regs, (extra >> 6) & 7) : (extra >> 6) & 0x1f;\n");
-			out("int width = (((extra & 0x20 ? m68k_dreg(regs, extra & 7) : extra) -1) & 0x1f) +1;\n");
+			out("int width = (((extra & 0x20 ? m68k_dreg(regs, extra & 7) : extra) - 1) & 0x1f) + 1;\n");
 			if (curi->mnemo == i_BFFFO)
 				out("uae_u32 offset2 = offset;\n");
 			if (curi->dmode == Dreg) {

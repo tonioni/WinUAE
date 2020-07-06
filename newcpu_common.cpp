@@ -1239,11 +1239,11 @@ static void divul_divbyzero(uae_u16 extra, uae_s64 a)
 	Exception_cpu(5);
 }
 
-bool m68k_divl (uae_u32 opcode, uae_u32 src, uae_u16 extra)
+int m68k_divl(uae_u32 opcode, uae_u32 src, uae_u16 extra)
 {
 	if ((extra & 0x400) && currprefs.int_no_unimplemented && currprefs.cpu_model == 68060) {
 		op_unimpl (opcode);
-		return false;
+		return -1;
 	}
 
 	if (extra & 0x800) {
@@ -1258,7 +1258,7 @@ bool m68k_divl (uae_u32 opcode, uae_u32 src, uae_u16 extra)
 
 		if (src == 0) {
 			divsl_divbyzero(extra, a);
-			return false;
+			return 0;
 		}
 
 		if ((uae_u64)a == 0x8000000000000000UL && src == ~0u) {
@@ -1292,7 +1292,7 @@ bool m68k_divl (uae_u32 opcode, uae_u32 src, uae_u16 extra)
 
 		if (src == 0) {
 			divul_divbyzero(extra, a);
-			return false;
+			return 0;
 		}
 
 		rem = a % (uae_u64)src;
@@ -1308,15 +1308,15 @@ bool m68k_divl (uae_u32 opcode, uae_u32 src, uae_u16 extra)
 			m68k_dreg (regs, (extra >> 12) & 7) = (uae_u32)quot;
 		}
 	}
-	return true;
+	return 1;
 }
 
 
-bool m68k_mull (uae_u32 opcode, uae_u32 src, uae_u16 extra)
+int m68k_mull (uae_u32 opcode, uae_u32 src, uae_u16 extra)
 {
 	if ((extra & 0x400) && currprefs.int_no_unimplemented && currprefs.cpu_model == 68060) {
 		op_unimpl (opcode);
-		return false;
+		return -1;
 	}
 	if (extra & 0x800) {
 		/* signed */
@@ -1379,7 +1379,7 @@ bool m68k_mull (uae_u32 opcode, uae_u32 src, uae_u16 extra)
 			SET_NFLG(b < 0);
 		}
 	}
-	return true;
+	return 1;
 }
 
 #endif
