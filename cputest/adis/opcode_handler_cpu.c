@@ -807,8 +807,9 @@ if (pass3)
 if (lw(code + 1) & 0x800)
   {
   /* Offset specified in register */
-  if (offset > 7)
-    return (TRANSFER);
+    offset &= 7;
+//  if (offset > 7)
+//    return (TRANSFER);
   if (pass3)
     ptr_ea = str_cpy (ptr_ea, reg_names [offset]);
   }
@@ -824,8 +825,9 @@ if (pass3)
 if (lw(code + 1) & 0x20)
   {
   /* Width specified in register */
-  if (width > 7)
-    return (TRANSFER);
+  width &= 7;
+//  if (width > 7)
+//    return (TRANSFER);
   if (pass3)
     ptr_ea = str_cpy (ptr_ea, reg_names [width]);
   }

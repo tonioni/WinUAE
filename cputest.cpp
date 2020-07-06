@@ -164,6 +164,8 @@ static uae_u16 extra_or, extra_and;
 static struct regstruct cur_regs;
 static uae_u16 read_buffer_prev;
 static int interrupt_count;
+static int interrupt_cycle_cnt;
+static int interrupt_level;
 
 struct uae_prefs currprefs;
 
@@ -348,11 +350,23 @@ oob:
 	return dummy_memory;
 }
 
+static void count_interrupt_cycles(int cycles)
+{
+	if (!interrupt_cycle_cnt)
+		return;
+	interrupt_cycle_cnt -= cycles;
+	if (interrupt_cycle_cnt <= 0) {
+		interrupt_cycle_cnt = 0;
+		interrupt_level = 6;
+	}
+}
+
 void do_cycles_test(int cycles)
 {
 	if (!testing_active)
 		return;
 	cpu_cycles += cycles;
+	count_interrupt_cycles(cycles);
 }
 
 static void add_memory_cycles(int c)
@@ -361,7 +375,9 @@ static void add_memory_cycles(int c)
 		return;
 	if (trace_store_pc != 0xffffffff)
 		return;
-	cpu_cycles += c * 4;
+	c *= 4;
+	cpu_cycles += c;
+	count_interrupt_cycles(c);
 }
 
 static void check_bus_error(uaecptr addr, int write, int fc)
@@ -461,7 +477,7 @@ static void previoussame(uaecptr addr, int size, uae_u32 *old)
 	bool gotold = false;
 	for (int i = ahcnt_written; i < ahcnt_current; i++) {
 		struct accesshistory  *ah = &ahist[i];
-		if (ah->size == size && ah->addr == addr) {
+		if (!feature_loop_mode && ah->size == size && ah->addr == addr) {
 			ah->donotsave = true;
 			if (!gotold) {
 				*old = ah->oldval;
@@ -793,7 +809,7 @@ void ipl_fetch(void)
 
 int intlev(void)
 {
-	return 0;
+	return interrupt_level;
 }
 
 uae_u32(*x_get_long)(uaecptr);
@@ -1022,6 +1038,11 @@ static void doexcstack2(void)
 			mode |= test_exception_3_w ? 0 : 16;
 			Exception_build_68000_address_error_stack_frame(mode, opcode, test_exception_addr, regs.pc);
 			SPCFLAG_DOTRACE = 0;
+		} else {
+			m68k_areg(regs, 7) -= 4;
+			x_put_long(m68k_areg(regs, 7), regs.pc);
+			m68k_areg(regs, 7) -= 2;
+			x_put_word(m68k_areg(regs, 7), regs.sr);
 		}
 	} else if (cpu_lvl == 1) {
 		if (test_exception == 2 || test_exception == 3) {
@@ -2088,6 +2109,7 @@ static uae_u8 *store_mem_bytes(uae_u8 *dst, uaecptr start, int len, uae_u8 *old,
 	offset = start - oldstart;
 	if (offset > 7) {
 		start -= (offset - 7);
+		old -= (offset - 7);
 		offset = 7;
 	}
 	len -= offset;
@@ -2121,7 +2143,7 @@ static uae_u8 *store_mem_writes(uae_u8 *dst, int storealways)
 {
 	if (ahcnt_current == ahcnt_written)
 		return dst;
-	for (int i = ahcnt_written; i < ahcnt_current; i++) {
+	for (int i = ahcnt_current - 1; i >= ahcnt_written; i--) {
 		struct accesshistory *ah = &ahist[i];
 		if (ah->oldval == ah->val && !storealways)
  			continue;
@@ -3606,7 +3628,7 @@ static const int interrupt_levels[] =
 
 static bool check_interrupts(void)
 {
-	if (feature_interrupts) {
+	if (feature_interrupts == 1) {
 		int ic = interrupt_count & 15;
 		int lvl = interrupt_levels[ic];
 		if (lvl > 0 && lvl > feature_min_interrupt_mask) {
@@ -3622,8 +3644,8 @@ static void execute_ins(uaecptr endpc, uaecptr targetpc, struct instr *dp)
 	uae_u16 opc = regs.ir;
 	uae_u16 opw1 = (opcode_memory[2] << 8) | (opcode_memory[3] << 0);
 	uae_u16 opw2 = (opcode_memory[4] << 8) | (opcode_memory[5] << 0);
-	if (opc == 0x4ed6
-		//&& opw1 == 0x5225
+	if (opc == 0x4c58
+		&& opw1 == 0xf756
 		//&& opw2 == 0x4afc
 		)
 		printf("");
@@ -3658,15 +3680,26 @@ static void execute_ins(uaecptr endpc, uaecptr targetpc, struct instr *dp)
 	exception_extra_frame_type = 0;
 	cpu_cycles = 0;
 	regs.loop_mode = 0;
+	regs.ipl_pin = 0;
+	interrupt_level = 0;
+	interrupt_cycle_cnt = 0;
 
 	int cnt = 2;
+	uaecptr first_pc = regs.pc;
+	uae_u32 loop_mode_reg = 0;
 	if (feature_loop_mode_68010) {
+		// 68010 loop mode
 		cnt = (feature_loop_mode + 1) * 2;
 	} else if (feature_loop_mode) {
+		// JIT loop mode
 		cnt = (feature_loop_mode + 1) * 20;
 	}
-	if (multi_mode)
+	if (multi_mode) {
 		cnt = 100;
+	}
+	if (feature_interrupts == 2) {
+		interrupt_cycle_cnt = 10;
+	}
 
 	for (;;) {
 
@@ -3685,9 +3718,8 @@ static void execute_ins(uaecptr endpc, uaecptr targetpc, struct instr *dp)
 			do_trace();
 		}
 
-		if (cpu_lvl <= 1) {
-			if (check_interrupts())
-				break;
+		if (check_interrupts()) {
+			break;
 		}
 
 		regs.instruction_pc = regs.pc;
@@ -3695,7 +3727,26 @@ static void execute_ins(uaecptr endpc, uaecptr targetpc, struct instr *dp)
 		uaecptr a7 = regs.regs[15];
 		int s = regs.s;
 
+		bool test_ins = false;
+		if (regs.pc == first_pc) {
+			test_ins = true;
+			if (feature_loop_mode) {
+				loop_mode_reg = regs.regs[feature_loop_mode_register];
+			}
+		}
+
 		(*cpufunctbl[opc])(opc);
+
+		if (test_ins) {
+			// skip if test instruction modified loop mode register
+			if (feature_loop_mode) {
+				if ((regs.regs[feature_loop_mode_register] & 0xffff) != (loop_mode_reg & 0xffff)) {
+					test_exception = -1;
+					break;
+				}
+			}
+		}
+
 
 		// Test did one or more out of bounds memory accesses
 		// or CPU stopped or was reset: skip
@@ -3733,11 +3784,6 @@ static void execute_ins(uaecptr endpc, uaecptr targetpc, struct instr *dp)
 			break;
 		}
 
-		if (cpu_lvl >= 2) {
-			if (check_interrupts())
-				break;
-		}
-
 		if (regs.pc == endpc || regs.pc == targetpc) {
 			// Trace is only added as an exception if there was no other exceptions
 			// Trace stacked with other exception is handled later
@@ -3752,6 +3798,11 @@ static void execute_ins(uaecptr endpc, uaecptr targetpc, struct instr *dp)
 
 		if (!valid_address(regs.pc, 2, 0))
 			break;
+
+		if (regs.ipl_pin > regs.intmask) {
+			Exception(24 + regs.ipl_pin);
+			break;
+		}
 
 		if (!feature_loop_mode) {
 			// trace after NOP
@@ -3868,6 +3919,23 @@ static int isunsupported(struct instr *dp)
 	case i_CALLM:
 	case i_RTM:
 		return 1;
+	}
+	if (feature_loop_mode) {
+		switch (dp->mnemo)
+		{
+		case i_MOVEC2:
+		case i_RTS:
+		case i_RTR:
+		case i_RTD:
+		case i_RTE:
+		case i_BSR:
+		case i_JMP:
+		case i_JSR:
+		case i_LINK:
+		case i_UNLK:
+		case i_ILLG:
+			return 1;
+		}
 	}
 	return 0;
 }
@@ -4305,14 +4373,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 
 		if (feature_loop_mode) {
 			cur_regs.regs[feature_loop_mode_register] &= 0xffff0000;
-			if (feature_loop_mode_68010) {
-				cur_regs.regs[feature_loop_mode_register] |= feature_loop_mode - 1;
-			} else {
-				// loop register is used as index in some addressing modes but
-				// we don't handle situation where multiple memory writes access same
-				// memory location using different access sizes.
-				cur_regs.regs[feature_loop_mode_register] |= feature_loop_mode * 64 - 1;
-			}
+			cur_regs.regs[feature_loop_mode_register] |= feature_loop_mode - 1;
 		}
 
 		for (int i = 0; i < MAX_REGISTERS; i++) {
@@ -4660,9 +4721,6 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 							// negx.b d0 ; add.w d0,d0
 							put_long(pc, 0x4000d040);
 							pc += 4;
-							// sub.w #63,dn
-							put_long(pc, ((0x0440 | feature_loop_mode_register) << 16) | 63);
-							pc += 4;
 						}
 						// dbf dn,label
 						put_long_test(pc, ((0x51c8 | feature_loop_mode_register) << 16) | ((opcode_memory_address - pc - 2) & 0xffff));
@@ -4975,7 +5033,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 							ahcnt_current = ahcnt_written;
 							int ahcnt_start = ahcnt_current;
 
-							if (feature_interrupts) {
+							if (feature_interrupts == 1) {
 								*dst++ = (uae_u8)interrupt_count;
 								interrupt_count++;
 								interrupt_count &= 15;
