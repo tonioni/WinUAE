@@ -6138,12 +6138,20 @@ static const struct cpuboardsubtype gvpboard_sub[] = {
 		128 * 1024 * 1024
 	},
 	{
+		_T("A1230 Turbo+"),
+		_T("A1230SI"),
+		ROMTYPE_CB_A1230S1, 0, 3,
+		NULL, 0,
+		BOARD_MEMORY_25BITMEM,
+		32 * 1024 * 1024
+	},
+	{
 		_T("A1230 Turbo+ Series II"),
 		_T("A1230SII"),
 		ROMTYPE_CB_A1230S2, 0, 3,
 		gvp_s2_add_accelerator_scsi_unit, EXPANSIONTYPE_SCSI,
 		BOARD_MEMORY_25BITMEM,
-		128 * 1024 * 1024,
+		32 * 1024 * 1024,
 		0,
 		gvp_init_accelerator, NULL, BOARD_AUTOCONFIG_Z2, 1,
 		gvpa1230s2_settings, NULL,

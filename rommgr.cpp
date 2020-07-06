@@ -95,7 +95,7 @@ struct romdata *getromdatabypath (const TCHAR *path)
 	return NULL;
 }
 
-#define NEXT_ROM_ID 260
+#define NEXT_ROM_ID 261
 
 #define ALTROM(id,grp,num,size,flags,crc32,a,b,c,d,e) \
 { _T("X"), 0, 0, 0, 0, 0, size, id, 0, 0, flags, (grp << 16) | num, 0, NULL, crc32, a, b, c, d, e },
@@ -413,6 +413,8 @@ static struct romdata roms[] = {
 	0xa2ba67d1, 0x2015685f, 0xaadfbaf6, 0x8b19b07e, 0x5f4e888f, 0x738b99d7, NULL, NULL },
 	{ _T("GVP A1230 Turbo+ Series II"), 0, 0, 0, 0, _T("A1230SII\0"), 16384, 230, 0, 0, ROMTYPE_CB_A1230S2, 0, 0, NULL,
 	0x96bd351f, 0xb7648daf, 0x52d0732d, 0x897548f3, 0x29ebf624, 0x101474d5, NULL, NULL },
+	{ _T("GVP A1230 Turbo+"), 0, 0, 0, 0, _T("A1230SI\0"), 16384, 260, 0, 0, ROMTYPE_CB_A1230S1, 0, 0, NULL,
+	0x3f0b8d7a, 0x258c6ee7, 0x5d8dfee5, 0x7871c5be, 0x79a83fa3, 0xca53a1a9, NULL, NULL },
 	{ _T("Harms 3000 Professional"), 0, 0, 0, 00, _T("HARMS3000PRO\0"), 65536, 248, 0, 0, ROMTYPE_CB_HARMS3KP, 0, 0, NULL,
 	0x80da32b5,0x0a3ded88,0x20a24238,0xd3e43baf,0x7163226c,0x861e2d88, NULL, NULL },
 	ALTROMPN(248, 1, 1, 32768, ROMTYPE_ODD  | ROMTYPE_8BIT, NULL, 0xc22c5ee5, 0xc211f305, 0xacb2ce10, 0x32b1b296, 0xc5780dde, 0x78dba814)
@@ -579,7 +581,7 @@ static struct romdata roms[] = {
 	{ _T("Microbotics HardFrame v1.5"), 1, 5, 1, 5, _T("HARDFRAME\0"), 32768, 173, 0, 0, ROMTYPE_HARDFRAME, 0, 0, NULL,
 	0x8d144212, 0xc5a4f497, 0x5216c1b1, 0xe08760d0, 0x0bd579ef, 0xea226354, NULL, NULL },
 	{ _T("Microbotics HardFrame v1.8"), 1, 8, 1, 8, _T("HARDFRAME\0"), 32768, 258, 0, 0, ROMTYPE_HARDFRAME, 0, 0, NULL,
-	0x10de5e2d, 0x3e25af5, 0x9e6bb0d69, 0xd925f07b, 0x200b1b0e, 0x45e57d33, NULL, NULL },
+	0x10de5e2d, 0x3e25af59, 0xe6bb0d69, 0xd925f07b, 0x200b1b0e, 0x45e57d33, NULL, NULL },
 	{ _T("Microbotics HardFrame v1.9"), 1, 9, 1, 9, _T("HARDFRAME\0"), 32768, 256, 0, 0, ROMTYPE_HARDFRAME, 0, 0, NULL,
 	0x948a3de8, 0xc34cb0ef, 0xa0ebdd71, 0x9d604d38, 0x625a160d, 0x9e2ca95d, NULL, NULL },
 	{ _T("Mainhattan Data A-Team v1.8"), 1, 8, 1, 8, _T("ATEAM\0"), 65536, 174, 0, 0, ROMTYPE_ATEAM, 0, 0, NULL,

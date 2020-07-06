@@ -356,6 +356,10 @@ static bool is_tqm(struct uae_prefs *p)
 {
 	return ISCPUBOARDP(p, BOARD_HARDITAL, BOARD_HARDITAL_SUB_TQM);
 }
+static bool is_a1230s1(struct uae_prefs *p)
+{
+	return ISCPUBOARDP(p, BOARD_GVP, BOARD_GVP_SUB_A1230SI);
+}
 static bool is_a1230s2(struct uae_prefs *p)
 {
 	return ISCPUBOARDP(p, BOARD_GVP, BOARD_GVP_SUB_A1230SII);
@@ -1653,6 +1657,9 @@ void cpuboard_map(void)
 	if (is_apollo(&currprefs)) {
 		map_banks(&blizzardf0_bank, 0xf00000 >> 16, 131072 >> 16, 0);
 	}
+	if (is_a1230s1(&currprefs)) {
+		map_banks(&blizzardf0_bank, 0xf00000 >> 16, 65536 >> 16, 0);
+	}
 	if (is_dkb_wildfire(&currprefs)) {
 		map_banks(&blizzardf0_bank, 0xf00000 >> 16, 0x80000 >> 16, 0);
 	}
@@ -1684,6 +1691,12 @@ void cpuboard_map(void)
 		}
 		if (cpuboardmem2_bank.allocated_size && cpuboardmem2_bank.start < 0x18000000) {
 			map_banks(&cpuboardmem2_bank, cpuboardmem2_bank.start >> 16, cpuboardmem2_bank.allocated_size >> 16, 0);
+		}
+	}
+
+	if (is_a1230s1(&currprefs)) {
+		if (cpuboardmem1_bank.allocated_size) {
+			map_banks(&cpuboardmem1_bank, cpuboardmem1_bank.start >> 16, cpuboardmem1_bank.allocated_size >> 16, cpuboardmem1_bank.allocated_size >> 16);
 		}
 	}
 
@@ -1859,6 +1872,13 @@ static void cpuboard_init_2(void)
 				mapped_malloc(&cpuboardmem1_bank);
 			}
 		}
+
+	} else if (is_a1230s1(&currprefs)) {
+
+		blizzardf0_bank.start = 0x00f00000;
+		blizzardf0_bank.reserved_size = 65536;
+		blizzardf0_bank.mask = blizzardf0_bank.reserved_size - 1;
+		mapped_malloc(&blizzardf0_bank);
 
 	} else if (is_aca500(&currprefs)) {
 
@@ -2598,6 +2618,9 @@ bool cpuboard_autoconfig_init(struct autoconfig_info *aci)
 			case BOARD_GVP_SUB_QUIKPAK:
 				romtype = romtype = ROMTYPE_CB_QUIKPAK;
 				break;
+			case BOARD_GVP_SUB_A1230SI:
+				romtype = romtype = ROMTYPE_CB_A1230S1;
+				break;
 		}
 		break;
 
@@ -2809,6 +2832,12 @@ bool cpuboard_autoconfig_init(struct autoconfig_info *aci)
 	} else if (is_apollo(p)) {
 		f0rom_size = 131072;
 		zfile_fread(blizzardf0_bank.baseaddr, 1, 131072, autoconfig_rom);
+		autoconf = false;
+		aci->start = 0xf00000;
+		aci->size = f0rom_size;
+	} else if (is_a1230s1(p)) {
+		f0rom_size = 65536;
+		zfile_fread(blizzardf0_bank.baseaddr, 1, 32768, autoconfig_rom);
 		autoconf = false;
 		aci->start = 0xf00000;
 		aci->size = f0rom_size;
