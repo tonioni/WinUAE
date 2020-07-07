@@ -255,7 +255,7 @@ struct accesshistory
 };
 static int ahcnt;
 
-#define MAX_ACCESSHIST 48
+#define MAX_ACCESSHIST 64
 static struct accesshistory ahist[MAX_ACCESSHIST];
 
 static int is_valid_test_addr_read(uae_u32 a)

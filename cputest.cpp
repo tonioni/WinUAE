@@ -90,7 +90,7 @@ static struct regdata regdatas[MAX_REGDATAS];
 #define STACK_SIZE (0x8000 + 8)
 #define RESERVED_SUPERSTACK 1024
 // space between superstack and USP
-#define RESERVED_USERSTACK_EXTRA 64
+#define RESERVED_USERSTACK_EXTRA 128
 // space for extra exception, not part of test region
 #define EXTRA_RESERVED_SPACE 1024
 
@@ -166,6 +166,7 @@ static uae_u16 read_buffer_prev;
 static int interrupt_count;
 static int interrupt_cycle_cnt;
 static int interrupt_level;
+static uaecptr test_instruction_end_pc;
 
 struct uae_prefs currprefs;
 
@@ -477,7 +478,7 @@ static void previoussame(uaecptr addr, int size, uae_u32 *old)
 	bool gotold = false;
 	for (int i = ahcnt_written; i < ahcnt_current; i++) {
 		struct accesshistory  *ah = &ahist[i];
-		if (!feature_loop_mode && ah->size == size && ah->addr == addr) {
+		if ((!feature_loop_mode || !testing_active) && ah->size == size && ah->addr == addr) {
 			ah->donotsave = true;
 			if (!gotold) {
 				*old = ah->oldval;
@@ -2483,10 +2484,23 @@ static int create_ea_random(uae_u16 *opcodep, uaecptr pc, int mode, int reg, str
 {
 	uaecptr old_pc = pc;
 	uae_u16 opcode = *opcodep;
+	bool loopmodelimit = false;
 
 	// feature_full_extension_format = 2 and 68020 addressing modes enabled: do not generate any normal addressing modes
 	if (feature_full_extension_format == 2 && (ad8r[srcdst] || pc8r[srcdst]) && (mode != Ad8r && mode != PC8r))
 		return -1;
+
+	if (feature_loop_mode) {
+		// loop mode JMP or JSR: skip if A3 or A7 is used in EA calculation
+		if (dp->mnemo == i_JMP || dp->mnemo == i_JSR) {
+			if (mode == Areg || mode == Aind || mode == Aipi || mode == Apdi || mode == Ad16 || mode == Ad8r) {
+				if (reg == 3 || reg == 7) {
+					return -1;
+				}
+				loopmodelimit = true;
+			}
+		}
+	}
 
 	switch (mode)
 	{
@@ -2593,12 +2607,20 @@ static int create_ea_random(uae_u16 *opcodep, uaecptr pc, int mode, int reg, str
 			uae_u32 add = 0;
 			int maxcnt = 1000;
 			for (;;) {
-				v = rand16();
-				if (currprefs.cpu_model >= 68020)
-					v &= ~0x100;
 				addr = mode == PC8r ? pc + 2 - 2 : cur_regs.regs[reg + 8];
-				*regused = v >> 12;
-				add = cur_regs.regs[v >> 12];
+				int ereg;
+				for (;;) {
+					v = rand16();
+					if (currprefs.cpu_model >= 68020)
+						v &= ~0x100;
+					ereg = v >> 12;
+					if (loopmodelimit && (ereg == 0 || ereg == 8 + 3 || ereg == 8 + 7 || ereg == feature_loop_mode_register)) {
+						continue;
+					}
+					break;
+				}
+				*regused = ereg;
+				add = cur_regs.regs[ereg];
 				if (currprefs.cpu_model >= 68020) {
 					add <<= (v >> 9) & 3; // SCALE
 				}
@@ -2646,7 +2668,11 @@ static int create_ea_random(uae_u16 *opcodep, uaecptr pc, int mode, int reg, str
 				}
 				break;
 			}
-			*regused = v >> 12;
+			int ereg = v >> 12;
+			if (loopmodelimit && (ereg == 0 || ereg == 8 + 3 || ereg == 8 + 7 || ereg == feature_loop_mode_register)) {
+				return -1;
+			}
+			*regused = ereg;
 			put_word_test(pc, v);
 			uaecptr pce = pc;
 			pc += 2;
@@ -3477,8 +3503,11 @@ static uaecptr handle_specials_extra(uae_u16 opcode, uaecptr pc, struct instr *d
 static uae_u32 generate_stack_return(int cnt)
 {
 	uae_u32 v;
-	// if target sp mode: always generate valid address
-	if (target_ea[0] != 0xffffffff && feature_usp < 3) {
+	if (feature_loop_mode) {
+		// if loop mode: return after test instruction
+		v = test_instruction_end_pc;
+	} else if (target_ea[0] != 0xffffffff && feature_usp < 3) {
+		// if target sp mode: always generate valid address
 		v = target_ea[0];
 	} else {
 		v = rand32();
@@ -3505,7 +3534,7 @@ static uae_u32 generate_stack_return(int cnt)
 	return v;
 }
 
-static int handle_rte(uae_u16 opcode, uaecptr pc, struct instr *dp, int *isconstant, uaecptr addr)
+static int handle_rte(uae_u16 opcode, uaecptr pc, struct instr *dp, int *isconstant, uaecptr addr, int *stackoffset)
 {
 	// skip bus error/address error frames because internal fields can't be simply randomized
 	int offset = 2;
@@ -3538,16 +3567,25 @@ static int handle_rte(uae_u16 opcode, uaecptr pc, struct instr *dp, int *isconst
 			imm_special += 4;
 			continue;
 		}
+		if (feature_loop_mode && frame != 0 && frame != 2) {
+			imm_special += 4;
+			continue;
+		}
 		break;	
 	}
 	v = imm_special >> 6;
 	uae_u16 sr = v & 31;
 	sr |= (v >> 5) << 12;
+	if (feature_loop_mode) {
+		sr &= ~(0x8000 | 0x4000 | 0x1000);
+		sr |= 0x2000;
+	}
 	put_word_test(addr, sr);
 	addr += 2 + 4;
 	// frame + vector offset
 	put_word_test(addr, (frame << 12) | (rand16() & 0x0fff));
 	addr += 2;
+	*stackoffset += 2;
 #if 0
 	if (frame == 1) {
 		int imm_special_tmp = imm_special;
@@ -3562,16 +3600,17 @@ static int handle_rte(uae_u16 opcode, uaecptr pc, struct instr *dp, int *isconst
 #endif
 	if (frame == 2) {
 		put_long_test(addr, rand32());
+		*stackoffset += 4;
 	}
 	return offset;
 }
 
-static int handle_specials_stack(uae_u16 opcode, uaecptr pc, struct instr *dp, int *isconstant)
+static int handle_specials_stack(uae_u16 opcode, uaecptr pc, struct instr *dp, int *isconstant, int *stackoffset)
 {
 	int offset = 0;
-	if (dp->mnemo == i_RTE || dp->mnemo == i_RTD || dp->mnemo == i_RTS || dp->mnemo == i_RTR || dp->mnemo == i_UNLK) {
+	uaecptr addr = regs.regs[15] + (*stackoffset);
+	if (dp->mnemo == i_RTE || dp->mnemo == i_RTD || dp->mnemo == i_RTS || dp->mnemo == i_RTR) {
 		uae_u32 v;
-		uaecptr addr = regs.regs[15];
 		// RTE, RTD, RTS and RTR
  		if (dp->mnemo == i_RTR) {
 			// RTR
@@ -3602,7 +3641,7 @@ static int handle_specials_stack(uae_u16 opcode, uaecptr pc, struct instr *dp, i
 				offset += 2;
 				*isconstant = imm_special >= (1 << (2 + 5)) * 4 ? 0 : -1;
 			} else {
-				offset += handle_rte(opcode, pc, dp, isconstant, addr);
+				offset += handle_rte(opcode, pc, dp, isconstant, addr, stackoffset);
 				addr += 2;
 				*isconstant = imm_special >= (1 << (4 + 5)) * 4 ? 0 : -1;
 			}
@@ -3613,6 +3652,7 @@ static int handle_specials_stack(uae_u16 opcode, uaecptr pc, struct instr *dp, i
 		}
 		v = generate_stack_return(imm_special);
 		put_long_test(addr, v);
+		*stackoffset += offset + 4;
 		if (out_of_test_space) {
 			wprintf(_T(" handle_specials out of bounds access!?"));
 			abort();
@@ -3793,8 +3833,12 @@ static void execute_ins(uaecptr endpc, uaecptr targetpc, struct instr *dp)
 			break;
 		}
 
-		if (test_exception)
+		if (test_exception) {
+			if (feature_loop_mode) {
+				test_exception = -1;
+			}
 			break;
+		}
 
 		if (!valid_address(regs.pc, 2, 0))
 			break;
@@ -3924,15 +3968,8 @@ static int isunsupported(struct instr *dp)
 		switch (dp->mnemo)
 		{
 		case i_MOVEC2:
-		case i_RTS:
-		case i_RTR:
-		case i_RTD:
-		case i_RTE:
-		case i_BSR:
-		case i_JMP:
-		case i_JSR:
-		case i_LINK:
 		case i_UNLK:
+		case i_RTE:
 		case i_ILLG:
 			return 1;
 		}
@@ -4706,6 +4743,8 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 
 					uae_u16 extraword = get_word_test(opcode_memory_address + 2);
 
+					test_instruction_end_pc = pc;
+
 					// loop mode
 					if (feature_loop_mode) {
 						// dbf dn, opcode_memory_start
@@ -4718,6 +4757,9 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 								put_long(pc, 0xd6fc0000 | (1 << (i * 3)));
 								pc += 4;
 							}
+							// adda.w a3,a3
+							put_word(pc, 0xd6cb);
+							pc += 2;
 							// negx.b d0 ; add.w d0,d0
 							put_long(pc, 0x4000d040);
 							pc += 4;
@@ -4737,8 +4779,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 					uae_u32 originalendopcode = (ILLG_OPCODE << 16) | NOP_OPCODE;
 					uae_u32 endopcode = originalendopcode;
 					uae_u32 actualendpc = pc;
-					
-					uae_u32 instructionendpc = pc;
+					uae_u32 instruction_end_pc = pc;
 
 					if (fpuopcode != FPUOPP_ILLEGAL) {
 						if (isconstant_src < 0 || isconstant_dst < 0) {
@@ -4849,6 +4890,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 						abort();
 					}
 #endif
+
 					uaecptr branch_target = 0xffffffff;
 					uaecptr branch_target_pc = 0xffffffff;
 					int bc = isbranchinst(dp);
@@ -4858,12 +4900,17 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 						}
 						if (bc == 2) {
 							// RTS and friends
-							int stackoffset = handle_specials_stack(opc, pc, dp, &isconstant_src);
+							int stackpcoffset = 0;
+							int stackoffset = 0;
+							// if loop mode: all loop mode rounds need stacked data
+							for (int i = 0; i < (feature_loop_mode ? feature_loop_mode : 1); i++) {
+								stackpcoffset = handle_specials_stack(opc, pc, dp, &isconstant_src, &stackoffset);
+							}
 							if (isconstant_src < 0 || isconstant_dst < 0) {
 								constant_loops++;
 								quick = 0;
 							}
-							srcaddr = get_long_test(regs.regs[15] + stackoffset);
+							srcaddr = get_long_test(regs.regs[15] + stackpcoffset);
 						}
 						// branch target is not accessible? skip.
 						if ((((srcaddr & addressing_mask) >= cur_regs.regs[15] - 16 && (srcaddr & addressing_mask) <= cur_regs.regs[15] + 16) && dp->mnemo != i_RTE) || ((srcaddr & 1) && !feature_exception3_instruction && feature_usp < 2)) {
@@ -4878,13 +4925,24 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 							continue;
 						}				
 						testing_active = 1;
-						if (!valid_address(srcaddr, 2, 1) || ((srcaddr + 2) & addressing_mask) == opcode_memory_start) {
-							if (verbose) {
-								wprintf(_T(" Branch target inaccessible (%08x)\n"), srcaddr);
+						if (feature_loop_mode) {
+							if ((srcaddr & addressing_mask) != test_instruction_end_pc && !valid_address(srcaddr, 8, 1)) {
+								if (verbose) {
+									wprintf(_T(" Branch target inaccessible (%08x)\n"), srcaddr);
+								}
+								testing_active = 0;
+								memcpy(opcode_memory, oldcodebytes, sizeof(oldcodebytes));
+								continue;
 							}
-							testing_active = 0;
-							memcpy(opcode_memory, oldcodebytes, sizeof(oldcodebytes));
-							continue;
+						} else {
+							if (!valid_address(srcaddr, 2, 1) || ((srcaddr + 2) & addressing_mask) == opcode_memory_start) {
+								if (verbose) {
+									wprintf(_T(" Branch target inaccessible (%08x)\n"), srcaddr);
+								}
+								testing_active = 0;
+								memcpy(opcode_memory, oldcodebytes, sizeof(oldcodebytes));
+								continue;
+							}
 						}
 						testing_active = 0;
 					}
@@ -4895,31 +4953,39 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 
 					oldbcbytes_inuse = 0;
 					if (bc) {
-						branch_target = srcaddr;
-						// branch target = generate exception
-						if (!is_nowrite_address(branch_target, 4)) {
-							branch_target_swap_address = branch_target;
-							branch_target_swap_mode = 1;
-							if (!(branch_target & 1)) {
-								oldbcbytes_inuse = 4;
-								oldbcbytes_ptr = get_addr(branch_target, oldbcbytes_inuse, 0);
-								memcpy(oldbcbytes, oldbcbytes_ptr, oldbcbytes_inuse);
-								put_long_test(branch_target, branch_target_data);
+						if (feature_loop_mode) {
+							if (srcaddr != test_instruction_end_pc) {
+								// addq.w #2,a3, jmp xxx
+								put_long_test(srcaddr, 0x544b4ef9);
+								put_long_test(srcaddr + 4, test_instruction_end_pc);
 							}
-						} else if (!is_nowrite_address(branch_target, 2)) {
-							branch_target_swap_address = branch_target;
-							branch_target_swap_mode = 2;
-							if (!(branch_target & 1)) {
-								oldbcbytes_inuse = 2;
-								oldbcbytes_ptr = get_addr(branch_target, oldbcbytes_inuse, 0);
-								memcpy(oldbcbytes, oldbcbytes_ptr, oldbcbytes_inuse);
-								put_word_test(branch_target, branch_target_data >> 16);
+						} else {
+							branch_target = srcaddr;
+							// branch target = generate exception
+							if (!is_nowrite_address(branch_target, 4)) {
+								branch_target_swap_address = branch_target;
+								branch_target_swap_mode = 1;
+								if (!(branch_target & 1)) {
+									oldbcbytes_inuse = 4;
+									oldbcbytes_ptr = get_addr(branch_target, oldbcbytes_inuse, 0);
+									memcpy(oldbcbytes, oldbcbytes_ptr, oldbcbytes_inuse);
+									put_long_test(branch_target, branch_target_data);
+								}
+							} else if (!is_nowrite_address(branch_target, 2)) {
+								branch_target_swap_address = branch_target;
+								branch_target_swap_mode = 2;
+								if (!(branch_target & 1)) {
+									oldbcbytes_inuse = 2;
+									oldbcbytes_ptr = get_addr(branch_target, oldbcbytes_inuse, 0);
+									memcpy(oldbcbytes, oldbcbytes_ptr, oldbcbytes_inuse);
+									put_word_test(branch_target, branch_target_data >> 16);
+								}
 							}
 						}
 					}
 
 					// save opcode memory
-					dst = store_mem_bytes(dst, opcode_memory_start, instructionendpc - opcode_memory_start, oldcodebytes, true);
+					dst = store_mem_bytes(dst, opcode_memory_start, instruction_end_pc - opcode_memory_start, oldcodebytes, true);
 
 					// store branch target and stack modifications (these needs to be rolled back after the test)
 					dst = store_mem_writes(dst, 1);
@@ -4935,9 +5001,9 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 						dst = store_reg(dst, CT_PC, startpc_old, startpc, -1);
 						startpc_old = startpc;
 					}
-					if (instructionendpc != instructionendpc_old) {
-						dst = store_reg(dst, CT_ENDPC, instructionendpc_old, instructionendpc, -1);
-						instructionendpc_old = instructionendpc;
+					if (instruction_end_pc != instructionendpc_old) {
+						dst = store_reg(dst, CT_ENDPC, instructionendpc_old, instruction_end_pc, -1);
+						instructionendpc_old = instruction_end_pc;
 					}
 					if (srcaddr != srcaddr_old && (dflags & 1)) {
 						dst = store_reg(dst, CT_SRCADDR, srcaddr_old, srcaddr, -1);
@@ -5623,7 +5689,7 @@ static void test_mnemo_text(const TCHAR *path, const TCHAR *mode)
 		TCHAR c = 0;
 		if (s) {
 			*s = 0;
-			c = _totlower(s[1]);
+			c = _totupper(s[1]);
 		}
 		if (c == 'B')
 			sizes = 6;
@@ -6331,7 +6397,7 @@ static int test(struct ini_data *ini, const TCHAR *sections, const TCHAR *testna
 	if (ini_getvalx(ini, sections, _T("test_high_memory_end"), &v))
 		test_high_memory_end = v;
 
-	if ((addressing_mask == 0xffffffff && test_high_memory_end <= 0x01000000) || test_high_memory_start == 0xffffffff) {
+	if ((addressing_mask == 0xffffffff && test_high_memory_end <= 0x01000000) || test_high_memory_start == 0xffffffff || test_high_memory_end == 0xffffffff) {
 		test_high_memory_start = 0xffffffff;
 		test_high_memory_end = 0xffffffff;
 		high_memory_size = 0xffffffff;
@@ -6389,10 +6455,15 @@ static int test(struct ini_data *ini, const TCHAR *sections, const TCHAR *testna
 	ini_getvalx(ini, sections, _T("watermark"), &storage_buffer_watermark_size);
 	max_storage_buffer += storage_buffer_watermark_size;
 
-	low_memory_size = test_low_memory_end;
-	if (low_memory_size < 0x8000)
-		low_memory_size = 0x8000;
-
+	if (test_low_memory_start == 0xffffffff || test_low_memory_end == 0xffffffff) {
+		low_memory_size = 0xffffffff;
+		test_low_memory_start = 0xffffffff;
+		test_low_memory_end = 0xffffffff;
+	} else {
+		low_memory_size = test_low_memory_end;
+		if (low_memory_size < 0x8000)
+			low_memory_size = 0x8000;
+	}
 	if (low_memory_size != 0xffffffff) {
 		low_memory = (uae_u8 *)calloc(1, low_memory_size);
 		low_memory_temp = (uae_u8 *)calloc(1, low_memory_size);
