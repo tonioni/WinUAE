@@ -588,7 +588,13 @@ static uae_u8 *load_file(const char *path, const char *file, uae_u8 *p, int *siz
 	int unpackoffset = 0;
 	int size = 0;
 
-	sprintf(fname, "%s%s.gz", path, file);
+	strcpy(fname, path);
+	strcat(fname, file);
+	if (strchr(file, '.')) {
+		fname[strlen(fname) - 1] = 'z';
+	} else {
+		strcat(fname, ".gz");
+	}
 	FILE *f = fopen(fname, "rb");
 	if (f) {
 		fseek(f, 0, SEEK_END);
@@ -3659,7 +3665,7 @@ int main(int argc, char *argv[])
 		groupd = opendir(path);
 	}
 
-	int cpumodel = 68000 + (cpu_lvl == 5 ? 6 : cpu_lvl) * 10;
+	int cpumodel = cpu_lvl == 5 ? 6 : cpu_lvl;
 	sprintf(cpustr, "%u_", cpumodel);
 	char *pathptr = path + strlen(path);
 
@@ -3694,12 +3700,24 @@ int main(int argc, char *argv[])
 #endif
 
 		low_memory_back = calloc(1, 32768);
+		if (!low_memory_back) {
+			printf("Couldn't allocate low_memory_back.\n");
+			return 0;
+		}
 		if (!low_memory_temp) {
 			low_memory_temp = calloc(1, 32768);
+			if (!low_memory_temp) {
+				printf("Couldn't allocate low_memory_temp.\n");
+				return 0;
+			}
 		}
 
 		if (high_memory_size > 0) {
 			high_memory_back = calloc(1, high_memory_size);
+			if (!high_memory_back) {
+				printf("Couldn't allocate high_memory_back.\n");
+				return 0;
+			}
 		}
 
 		if (!_stricmp(opcode, "all")) {

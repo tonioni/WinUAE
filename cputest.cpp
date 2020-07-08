@@ -1830,7 +1830,11 @@ static void compressfile(TCHAR *path, int flags)
 		fread(mem, 1, size, f);
 		fclose(f);
 		_tunlink(path);
-		_tcscat(path, _T(".gz"));
+		if (_tcschr(path, '.')) {
+			path[_tcslen(path) - 1] = 'z';
+		} else {
+			_tcscat(path, _T(".gz"));
+		}
 		_tunlink(path);
 		f = _tfopen(path, _T("wb"));
 		int fd = fileno(f);
@@ -1840,7 +1844,11 @@ static void compressfile(TCHAR *path, int flags)
 		fclose(f);
 		free(mem);
 	} else {
-		_tcscat(path, _T(".gz"));
+		if (_tcschr(path, '.')) {
+			path[_tcslen(path) - 1] = 'z';
+		} else {
+			_tcscat(path, _T(".gz"));
+		}
 		_tunlink(path);
 	}
 }
@@ -1867,6 +1875,20 @@ static void save_memory(const TCHAR *path, const TCHAR *name, uae_u8 *p, int siz
 	fclose(f);
 	compressfile(fname, 2);
 }
+
+static void deletefile(const TCHAR *path, const TCHAR *name)
+{
+	TCHAR path2[1000];
+	_tcscpy(path2, path);
+	_tcscat(path2, name);
+	_tcscat(path2, _T(".dat"));
+	_tunlink(path2);
+	_tcscpy(path2, path);
+	_tcscat(path2, name);
+	_tcscat(path2, _T(".daz"));
+	_tunlink(path2);
+}
+
 
 static uae_u8 *modify_reg(uae_u8 *dst, struct regstruct *regs, uae_u8 type, uae_u32 *valp)
 {
@@ -6323,7 +6345,7 @@ static int test(struct ini_data *ini, const TCHAR *sections, const TCHAR *testna
 	}
 	free(ipath);
 
-	_stprintf(path + _tcslen(path), _T("%lu_%s/"), currprefs.cpu_model, testname);
+	_stprintf(path + _tcslen(path), _T("%u_%s/"), (currprefs.cpu_model - 68000) / 10, testname);
 	_wmkdir(path);
 
 	xorshiftstate = 1;
@@ -6486,6 +6508,8 @@ static int test(struct ini_data *ini, const TCHAR *sections, const TCHAR *testna
 		}
 		free(lmem_rom_name);
 		save_memory(path, _T("lmem.dat"), low_memory_temp, low_memory_size);
+	} else {
+		deletefile(path, _T("lmem"));
 	}
 
 	if (test_high_memory_start != 0xffffffff) {
@@ -6499,6 +6523,8 @@ static int test(struct ini_data *ini, const TCHAR *sections, const TCHAR *testna
 		}
 		free(hmem_rom_name);
 		save_memory(path, _T("hmem.dat"), high_memory_temp, high_memory_size);
+	} else {
+		deletefile(path, _T("hmem"));
 	}
 
 	save_memory(path, _T("tmem.dat"), test_memory_temp, test_memory_size);
