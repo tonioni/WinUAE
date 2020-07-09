@@ -410,7 +410,7 @@ static void start_test(void)
 		safe_memcpy(low_memory_back + low_memory_offset, low_memory + low_memory_offset, low_memory_size - low_memory_offset);
 
 	// always copy exception vectors if 68000
-	if (cpu_lvl == 0 && low_memory_offset > 0x08)
+	if (cpu_lvl == 0 && (low_memory_offset > 0x08 || test_low_memory_start == 0xffffffff))
 		safe_memcpy(low_memory_back + 8, low_memory + 8, (192 - 2) * 4);
 
 	if (!hmem_rom && test_high_memory_start != 0xffffffff)
@@ -484,7 +484,7 @@ static void end_test(void)
 	if (test_low_memory_start != 0xffffffff)
 		safe_memcpy(low_memory + low_memory_offset, low_memory_back + low_memory_offset, low_memory_size - low_memory_offset);
 
-	if (cpu_lvl == 0 && low_memory_offset > 0x08)
+	if (cpu_lvl == 0 && (low_memory_offset > 0x08 || test_low_memory_start == 0xffffffff))
 		safe_memcpy(low_memory + 8, low_memory_back + 8, (192 - 2) * 4);
 
 	if (!hmem_rom && test_high_memory_start != 0xffffffff)
