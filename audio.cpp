@@ -1456,26 +1456,33 @@ static void newsample (int nr, sample8_t sample)
 	}
 }
 
-STATIC_INLINE void setdr (int nr)
+static void setdr(int nr, bool startup)
 {
 	struct audio_channel_data *cdp = audio_channel + nr;
 #if TEST_AUDIO > 0
 	if (debugchannel (nr) && cdp->dr)
 		write_log (_T("%d: DR already active (STATE=%d)\n"), nr, cdp->state);
 #endif
-	cdp->drhpos = current_hpos ();
+	if (dmaen(DMA_MASTER)) {
 
 #if DEBUG_AUDIO > 0
-	if (debugchannel(nr) && cdp->wlen <= 2)
-		write_log(_T("DR%d=%d LEN=%d/%d PT=%08X PC=%08X\n"), nr, cdp->dr, cdp->wlen, cdp->len, cdp->pt, M68K_GETPC);
+		if (debugchannel(nr) && cdp->wlen <= 2)
+			write_log(_T("DR%d=%d LEN=%d/%d PT=%08X PC=%08X\n"), nr, cdp->dr, cdp->wlen, cdp->len, cdp->pt, M68K_GETPC);
 #endif
-	cdp->dr = true;
+		cdp->dr = true;
+		cdp->drhpos = current_hpos();
 
-	if (cdp->wlen == 1) {
-		cdp->dsr = true;
+		if (!startup && cdp->wlen == 1) {
+			cdp->dsr = true;
 #if DEBUG_AUDIO > 0
-		if (debugchannel (nr))
-			write_log (_T("DSR%d=1 PT=%08X PC=%08X\n"), nr, cdp->pt, M68K_GETPC);
+			if (debugchannel(nr))
+				write_log(_T("DSR%d=1 PT=%08X PC=%08X\n"), nr, cdp->pt, M68K_GETPC);
+#endif
+		}
+	} else {
+#if DEBUG_AUDIO > 0
+		if (debugchannel(nr))
+			write_log(_T("setdr%d ignored, DMA disabled PT=%08X PC=%08X\n"), nr, cdp->pt, M68K_GETPC);
 #endif
 	}
 }
@@ -1596,8 +1603,7 @@ static void audio_state_channel2 (int nr, bool perfin)
 		if (chan_ena) {
 			cdp->evtime = MAX_EV;
 			cdp->state = 1;
-			cdp->dr = true;
-			cdp->drhpos = hpos;
+			setdr(nr, true);
 			cdp->wlen = cdp->len;
 			cdp->ptx_written = false;
 			/* Some programs first start short empty sample and then later switch to
@@ -1650,7 +1656,7 @@ static void audio_state_channel2 (int nr, bool perfin)
 		cdp->losample = cdp->hisample = false;
 #endif
 		setirq (nr, 10);
-		setdr (nr);
+		setdr(nr, false);
 		if (cdp->wlen != 1)
 			cdp->wlen = (cdp->wlen - 1) & 0xffff;
 		cdp->state = 5;
@@ -1675,7 +1681,7 @@ static void audio_state_channel2 (int nr, bool perfin)
 		}
 		loaddat (nr);
 		if (napnav)
-			setdr (nr);
+			setdr(nr, false);
 		cdp->state = 2;
 		loadper (nr);
 		cdp->pbufldl = true;
@@ -1713,7 +1719,7 @@ static void audio_state_channel2 (int nr, bool perfin)
 			loaddat (nr, true);
 		if (chan_ena) {
 			if (audap)
-				setdr (nr);
+				setdr(nr, false);
 			if (cdp->intreq2 && audap)
 				setirq (nr, 21);
 		} else {
@@ -1755,7 +1761,7 @@ static void audio_state_channel2 (int nr, bool perfin)
 			if (cdp->intreq2 && napnav)
 				setirq (nr, 31);
 			if (napnav)
-				setdr (nr);
+				setdr(nr, false);
 		} else {
 			if (isirq (nr)) {
 #if DEBUG_AUDIO > 0

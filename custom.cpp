@@ -8531,14 +8531,12 @@ static void hsync_scandoubler (void)
 	}
 }
 
-static void events_dmal (int);
+static void events_dmal(int);
 static uae_u16 dmal, dmal_hpos;
 
-static void dmal_emu (uae_u32 v)
+static void dmal_emu(uae_u32 v)
 {
-	// Disk and Audio DMA bits are ignored by Agnus, Agnus only checks DMAL and master bit
-	if (!(dmacon & DMA_MASTER))
-		return;
+	// Disk and Audio DMA bits are ignored by Agnus. Including DMA master bit.
 	int hpos = current_hpos ();
 	if (v >= 6) {
 		v -= 6;
@@ -8581,23 +8579,23 @@ static void dmal_emu (uae_u32 v)
 	}
 }
 
-static void dmal_func (uae_u32 v)
+static void dmal_func(uae_u32 v)
 {
 	dmal_emu (v);
 	events_dmal (0);
 }
 
-static void dmal_func2 (uae_u32 v)
+static void dmal_func2(uae_u32 v)
 {
 	while (dmal) {
 		if (dmal & 3)
-			dmal_emu (dmal_hpos + ((dmal & 2) ? 1 : 0));
+			dmal_emu(dmal_hpos + ((dmal & 2) ? 1 : 0));
 		dmal_hpos += 2;
 		dmal >>= 2;
 	}
 }
 
-static void events_dmal (int hp)
+static void events_dmal(int hp)
 {
 	if (!dmal)
 		return;
@@ -8609,33 +8607,33 @@ static void events_dmal (int hp)
 			dmal >>= 2;
 			dmal_hpos += 2;
 		}
-		event2_newevent2 (hp, dmal_hpos + ((dmal & 2) ? 1 : 0), dmal_func);
+		event2_newevent2(hp, dmal_hpos + ((dmal & 2) ? 1 : 0), dmal_func);
 		dmal &= ~3;
 	} else if (currprefs.cachesize) {
-		dmal_func2 (0);
+		dmal_func2(0);
 	} else {
-		event2_newevent2 (hp, 13, dmal_func2);
+		event2_newevent2(hp, 13, dmal_func2);
 	}
 }
 
-static void events_dmal_hsync (void)
+static void events_dmal_hsync(void)
 {
 	if (dmal)
 		write_log (_T("DMAL error!? %04x\n"), dmal);
-	dmal = audio_dmal ();
+	dmal = audio_dmal();
 	dmal <<= 6;
-	dmal |= disk_dmal ();
+	dmal |= disk_dmal();
 	if (!dmal)
 		return;
 	dmal_hpos = 0;
 	if (currprefs.cpu_memory_cycle_exact) {
 		for (int i = 0; i < 6 + 8; i += 2) {
 			if (dmal & (3 << i)) {
-				alloc_cycle_ext (i + 7, CYCLE_MISC);
+				alloc_cycle_ext(i + 7, CYCLE_MISC);
 			}
 		}
 	}
-	events_dmal (7);
+	events_dmal(7);
 }
 
 static void lightpen_trigger_func(uae_u32 v)
