@@ -95,7 +95,7 @@ struct romdata *getromdatabypath (const TCHAR *path)
 	return NULL;
 }
 
-#define NEXT_ROM_ID 261
+#define NEXT_ROM_ID 264
 
 #define ALTROM(id,grp,num,size,flags,crc32,a,b,c,d,e) \
 { _T("X"), 0, 0, 0, 0, 0, size, id, 0, 0, flags, (grp << 16) | num, 0, NULL, crc32, a, b, c, d, e },
@@ -528,6 +528,8 @@ static struct romdata roms[] = {
 	0xf99c6f11, 0x77098a9e,0x35acaef2,0x11a546f0,0xc564cdac,0xf52836c4, NULL, NULL },
 	{ _T("GVP Series I/II v3.7"), 3, 7, 3, 7, _T("GVPII\0GVPI\0"), 16384, 238, 0, 0, ROMTYPE_GVPS12, 0, 0, NULL,
 	0xe136b9c4, 0xabcc0b52,0xa99dba6f,0xc2eb8428,0x63c7c805,0xb7f4d770, NULL, NULL },
+	{ _T("GVP Series II v4.13"), 4, 13, 4, 13, _T("GVPII\0"), 16384, 263, 0, 0, ROMTYPE_GVPS2, 0, 0, NULL,
+	0xfc20b5e2, 0x85c050ba, 0x894ced53, 0x359fd7d6, 0x730250e7, 0x4c4b66bf, NULL, NULL },
 	{ _T("GVP Series II v4.15"), 4, 15, 4, 15, _T("GVPII\0"), 16384, 109, 0, 0, ROMTYPE_GVPS2, 0, 0, NULL,
 	0xf89f44d6, 0xbf10c12c,0xc72dd040,0x549ea17c,0x24947633,0xe3773297, NULL, NULL },
 	{ _T("GVP Series II Guru ROM"), 6, 14, 6, 14, _T("GVPII\0"), 32768, 110, 0, 0, ROMTYPE_GVPS2, 0, 0, NULL,
@@ -570,6 +572,10 @@ static struct romdata roms[] = {
 	0x4a15f224, 0x29500b47, 0x289e84ac, 0x575e3c7d, 0x82199b45, 0x605d8fc9, NULL, NULL },
 	{ _T("IVS Trumpcard v4.9"), 4, 9, 4, 9, _T("IVSTC\0"), 16384, 249, 0, 0, ROMTYPE_IVSTC, 0, 0, NULL,
 	0x5282febc, 0x9d69a534, 0x60529d66, 0x13b64723, 0xb0c8dfa5, 0x80274048, NULL, NULL },
+	{ _T("IVS Trumpcard v3.1"), 3, 1, 3, 1, _T("IVSTC\0"), 8192, 261, 0, 0, ROMTYPE_IVSTC, 0, 0, NULL,
+	0xfe48dd5d, 0x03e6c1b1, 0xf3300c94, 0x4cc176ea, 0xb3082e91, 0xe75d5e62, NULL, NULL },
+	{ _T("IVS Trumpcard v1.5"), 1, 5, 1, 5, _T("IVSTC\0"), 8192, 262, 0, 0, ROMTYPE_IVSTC, 0, 0, NULL,
+	0x6f37eb74, 0xbf510c23, 0x1c2134d7, 0xed4b4158, 0xba4acf14, 0xa34824d2, NULL, NULL },
 	{ _T("Expansion Systems Dataflyer+ v1.5"), 1, 5, 1, 5, _T("DATAFLYERPLUS\0"), 32768, 170, 0, 0, ROMTYPE_DATAFLYER, 0, 0, NULL,
 	0x00888f19, 0x54b73354, 0xb3592691, 0x59a80909, 0x0bdb67df, 0x8ac22aa9, NULL, NULL },
 	{ _T("Expansion Systems Dataflyer+ v1.7"), 1, 7, 1, 7, _T("DATAFLYERPLUS\0"), 32768, 171, 0, 0, ROMTYPE_DATAFLYER, 0, 0, NULL,

@@ -4265,6 +4265,16 @@ static const struct expansionboardsettings trifecta_settings[] = {
 	}
 };
 
+static const struct expansionboardsettings trumpcard_settings[] = {
+	{
+		_T("Interrupt support"), _T("irq")
+	},
+	{
+		NULL
+	}
+};
+
+
 static const struct expansionsubromtype accessx_sub[] = {
 	{
 		_T("AccessX 500"), _T("accessx500"), ROMTYPE_ACCESSX,
@@ -5433,7 +5443,7 @@ const struct expansionromtype expansionroms[] = {
 		NULL, 0,
 		true, EXPANSIONTYPE_SCSI,
 		2112, 4, 0, false, NULL,
-		true, 0, NULL,
+		true, 0, trumpcard_settings,
 		{  0xd1, 0x30, 0x00, 0x00, 0x08, 0x40, 0x00, 0x00, 0x00, 0x00, 0x80, 0x00 },
 	},
 	{

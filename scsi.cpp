@@ -4452,10 +4452,14 @@ bool trumpcard_init(struct autoconfig_info *aci)
 	if (!scsi)
 		return false;
 
-	scsi->intena = true;
-	scsi->dma_autodack = true;
-
 	load_rom_rc(aci->rc, ROMTYPE_IVSTC, 16384, 0, scsi->rom, 32768, LOADROM_EVENONLY_ODDONE | LOADROM_FILL);
+	if (aci->rc->device_settings & 1) {
+		scsi->intena = true;
+		scsi->dma_autodack = true;
+	} else {
+		scsi->intena = false;
+		scsi->dma_autodack = false;
+	}
 
 	for (int i = 0; i < 16; i++) {
 		uae_u8 b = ert->autoconfig[i];
