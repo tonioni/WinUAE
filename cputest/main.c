@@ -95,7 +95,7 @@ static uae_u32 cpustatearraystore[16];
 static uae_u32 cpustatearraynew[] = {
 	0x00000005, // SFC
 	0x00000005, // DFC
-	0x00000009, // CACR
+	0x00000000, // CACR
 	0x00000000, // CAAR
 	0x00000000, // MSP
 };
@@ -472,6 +472,14 @@ static void start_test(void)
 			}
 		}
 	}
+	if (cpu_lvl >= 4) {
+		// 68040/060 CACR (IE=1)
+		cpustatearraynew[2] = 0x00008000;
+	} else {
+		// 68020/30 CACR (CI=1,IE=1)
+		cpustatearraynew[2] = 0x00000009;
+	}
+
 	setcpu(cpu_lvl, cpustatearraynew, cpustatearraystore);
 }
 
@@ -3320,7 +3328,7 @@ static int test_mnemo(const char *opcode)
 	if (!absallocated) {
 		test_memory = allocate_absolute(test_memory_addr, test_memory_size);
 		if (!test_memory) {
-			printf("Couldn't allocate tmem area %08x-%08x\n", (uae_u32)test_memory_addr, test_memory_size);
+			printf("Couldn't allocate tmem area %08x-%08x\n", test_memory_addr, test_memory_addr + test_memory_size - 1);
 			exit(0);
 		}
 		absallocated = test_memory;

@@ -3856,9 +3856,6 @@ static void execute_ins(uaecptr endpc, uaecptr targetpc, struct instr *dp)
 		}
 
 		if (test_exception) {
-			if (feature_loop_mode) {
-				test_exception = -1;
-			}
 			break;
 		}
 
@@ -4779,8 +4776,8 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 								put_long(pc, 0xd6fc0000 | (1 << (i * 3)));
 								pc += 4;
 							}
-							// adda.w a3,a3
-							put_word(pc, 0xd6cb);
+							// adda.l a3,a3
+							put_word(pc, 0xd7cb);
 							pc += 2;
 							// negx.b d0 ; add.w d0,d0
 							put_long(pc, 0x4000d040);
@@ -5330,6 +5327,10 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 								if (safe_memory_mode) {
 									skipped = 1;
 								}					
+							}
+
+							if (test_exception >= 2 && feature_loop_mode) {
+								skipped = 1;
 							}
 
 							if (feature_usp == 2) {

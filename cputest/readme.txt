@@ -10,7 +10,7 @@ Verifies:
 - All FPU registers (FP0-FP7, FPIAR, FPCR, FPSR)
 - Generated exception and stack frame contents (if any)
 - Memory writes, including stack modifications (if any)
-- Loop mode for JIT testing. (generates <test instruction>, dbf dn,loop)
+- Loop mode for JIT testing. (generates <test instruction>, store CCR state, dbf dn,loop)
 - Supports 68000, 68010, 68020, 68030 (only difference between 020 and 030 seems to be data cache and MMU), 68040 and 68060.
 - Cycle counts (68000/68010, Amiga only)
 
@@ -39,7 +39,6 @@ Notes and limitations:
 - All tests that would halt or reset the CPU are skipped (RESET in supervisor mode, STOP parameter that would stop the CPU etc)
 - Single instruction test set will take long time to run on real 68000. Few minutes to much longer...
 - Undefined flags (for example DIV and CHK or 68000/010 bus address error) are also verified. It probably would be good idea to optionally filter them out.
-- FPU testing is not yet fully implemented.
 - TAS test will return wrong results if test RAM region is not fully TAS read-modify-write special memory access compatible.
 - if 24-bit address space and high ram is enabled, tester can generate word or long accesses that wrap around. (For example: move.l $fffffe,d0)
 
@@ -67,7 +66,7 @@ Cycle counting requires 100% accurate timing also for following instructions:
 0xDFF006 is used for cycle counting = accuracy will be +-2 CPU cycles. 0xDFF006 behavior must be accurate.
 Currently only supported hardware for cycle counting is 7MHz 68000/68010 PAL Amiga with real Fast RAM.
 
-FPU testing: (Work in progress)
+FPU testing:
 
 68040/060 FPU test hardware must not have any 68040/060 or MMU support libraries loaded.
 
@@ -130,6 +129,12 @@ If mismatch is detected, opcode word(s), instruction disassembly, registers befo
 --
 
 Change log:
+
+10.07.2020
+
+- 68020+ stack frame PC field was ignored.
+- JIT loop mode tester improved. CCR is now checked after each test round. Almost all instructions supported.
+- File names are now 8.3 compatible.
 
 31.05.2020
 
