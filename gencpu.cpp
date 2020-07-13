@@ -8448,8 +8448,8 @@ bccl_not68020:
 			out("if (GET_ZFLG()) {\n");
 			genflags(flag_cmp, curi->size, "newv", "m68k_dreg(regs, extra & 7)", "dst2");
 			out("if (GET_ZFLG()) {\n");
-			out("%s(rn1, m68k_dreg(regs, (extra >> 22) & 7));\n", dstwlrmw);
 			out("%s(rn2, m68k_dreg(regs, (extra >> 6) & 7));\n", dstwlrmw);
+			out("%s(rn1, m68k_dreg(regs, (extra >> 22) & 7));\n", dstwlrmw);
 			out("}\n");
 			out("}\n");
 			out("if (!GET_ZFLG()) {\n");
@@ -8468,8 +8468,8 @@ bccl_not68020:
 			out("if (GET_ZFLG()) {\n");
 			genflags(flag_cmp, curi->size, "newv", "m68k_dreg(regs, extra & 7)", "dst2");
 			out("if (GET_ZFLG()) {\n");
-			out("%s(rn1, m68k_dreg(regs, (extra >> 22) & 7));\n", dstllrmw);
 			out("%s(rn2, m68k_dreg(regs, (extra >> 6) & 7));\n", dstllrmw);
+			out("%s(rn1, m68k_dreg(regs, (extra >> 22) & 7));\n", dstllrmw);
 			out("}\n");
 			out("}\n");
 			out("if (!GET_ZFLG()) {\n");
