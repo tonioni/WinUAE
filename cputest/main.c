@@ -1661,7 +1661,7 @@ static uae_u8 *validate_exception(struct registers *regs, uae_u8 *p, short excnu
 				p += 2;
 				v = opcode_memory_addr;
 				p = restore_rel_ordered(p, &v);
-				if (vsr != sr) {
+				if ((vsr & test_ccrignoremask) != (sr & test_ccrignoremask)) {
 					sprintf(outbp, "Trace (non-stacked) SR mismatch: %04x != %04x (PC=%08x)\n", sr, vsr, v);
 					outbp += strlen(outbp);
 					*experr = 1;

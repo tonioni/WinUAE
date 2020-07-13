@@ -55,6 +55,7 @@ static int verbose = 1;
 static int feature_exception3_data = 0;
 static int feature_exception3_instruction = 0;
 static int feature_sr_mask = 0;
+static int feature_undefined_ccr = 0;
 static int feature_min_interrupt_mask = 0;
 static int feature_loop_mode = 0;
 static int feature_loop_mode_register = -1;
@@ -4132,10 +4133,25 @@ static uae_u8 *save_exception(uae_u8 *p, struct instr *dp)
 static uae_u16 get_ccr_ignore(struct instr *dp, uae_u16 extra)
 {
 	uae_u16 ccrignoremask = 0;
-	if ((cpu_lvl == 2 || cpu_lvl == 3) && (test_exception == 5 || exception_extra_frame_type == 5)) {
-		if ((dp->mnemo == i_DIVS) || (dp->mnemo == i_DIVL && (extra & 0x0800) && !(extra & 0x0400))) {
-			// 68020/030 DIVS.W/.L + Divide by Zero: V state is not stable.
-			ccrignoremask |= 2; // mask CCR=V
+	if (!feature_undefined_ccr) {
+		if (test_exception == 5 || exception_extra_frame_type == 5) {
+			if (dp->mnemo == i_DIVS || dp->mnemo == i_DIVU || dp->mnemo == i_DIVL) {
+				// DIV + Divide by Zero: flags are undefined
+				ccrignoremask |= 0x08 | 0x04 | 0x02 | 0x01;
+			}
+		} else {
+			if ((dp->mnemo == i_DIVS || dp->mnemo == i_DIVU || dp->mnemo == i_DIVL) && (regs.sr & 0x02)) {
+				// DIV + V: other flags are undefined
+				ccrignoremask |= 0x08 | 0x04 | 0x01;
+			}
+		}
+		if (dp->mnemo == i_CHK2) {
+			// CHK: N and V are undefined
+			ccrignoremask |= 0x08 | 0x02;
+		}
+		if (dp->mnemo == i_CHK) {
+			// CHK: N and V are undefined
+			ccrignoremask |= 0x04 | 0x02 | 0x01;
 		}
 	}
 	return ccrignoremask;
@@ -6259,6 +6275,9 @@ static int test(struct ini_data *ini, const TCHAR *sections, const TCHAR *testna
 
 	feature_sr_mask = 0;
 	ini_getvalx(ini, sections, _T("feature_sr_mask"), &feature_sr_mask);
+	feature_undefined_ccr = 0;
+	ini_getvalx(ini, sections, _T("feature_undefined_ccr"), &feature_undefined_ccr);
+
 	feature_min_interrupt_mask = 0;
 	ini_getvalx(ini, sections, _T("feature_min_interrupt_mask"), &feature_min_interrupt_mask);
 
