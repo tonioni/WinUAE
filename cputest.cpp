@@ -4130,7 +4130,7 @@ static uae_u8 *save_exception(uae_u8 *p, struct instr *dp)
 	return p;
 }
 
-static uae_u16 get_ccr_ignore(struct instr *dp, uae_u16 extra)
+static uae_u16 get_ccr_ignore(struct instr *dp, uae_u16 extra, bool prerun)
 {
 	uae_u16 ccrignoremask = 0;
 	if (!feature_undefined_ccr) {
@@ -4140,7 +4140,7 @@ static uae_u16 get_ccr_ignore(struct instr *dp, uae_u16 extra)
 				ccrignoremask |= 0x08 | 0x04 | 0x02 | 0x01;
 			}
 		} else {
-			if ((dp->mnemo == i_DIVS || dp->mnemo == i_DIVU || dp->mnemo == i_DIVL) && (regs.sr & 0x02)) {
+			if ((dp->mnemo == i_DIVS || dp->mnemo == i_DIVU || dp->mnemo == i_DIVL) && ((regs.sr & 0x02) || prerun)) {
 				// DIV + V: other flags are undefined
 				ccrignoremask |= 0x08 | 0x04 | 0x01;
 			}
@@ -4591,6 +4591,8 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 					ahcnt_written = 0;
 					multi_mode = 0;
 					fpuopsize = -1;
+					test_exception = 0;
+					test_exception_extra = 0;
 
 					target_ea[0] = target_ea_bak[0];
 					target_ea[1] = target_ea_bak[1];
@@ -4784,12 +4786,23 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 					if (feature_loop_mode) {
 						// dbf dn, opcode_memory_start
 						if (!feature_loop_mode_68010) {
+							uae_u16 ccrmaskt = get_ccr_ignore(dp, extraword, true);
+							uae_u16 ccrmask = ccrmaskt & (0x08 | 0x01);
+							if (ccrmaskt & 0x04)
+								ccrmask |= 0x02;
+							if (ccrmaskt & 0x02)
+								ccrmask |= 0x04;
 							for (int i = 0; i < 4; i++) {
 								// bcc, bne, bvc, bpl
 								put_word(pc, 0x6400 + (i * 0x0200) + 4);
 								pc += 2;
-								// adda.w #x,a3
-								put_long(pc, 0xd6fc0000 | (1 << (i * 3)));
+								if (!(ccrmask & (1 << i))) {
+									// adda.w #x,a3
+									put_long(pc, 0xd6fc0000 | (1 << (i * 3)));
+								} else {
+									// adda.w #0,a3
+									put_long(pc, 0xd6fc0000);
+								}
 								pc += 4;
 							}
 							// adda.l a3,a3
@@ -5461,7 +5474,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 									}
 								}
 								// SR/CCR
-								uae_u32 ccrignoremask = get_ccr_ignore(dp, extraword) << 16;
+								uae_u32 ccrignoremask = get_ccr_ignore(dp, extraword, false) << 16;
 								if ((regs.sr | ccrignoremask) != last_regs.sr) {
 									dst = store_reg(dst, CT_SR, last_regs.sr, regs.sr | ccrignoremask, -1);
 									last_regs.sr = regs.sr | ccrignoremask;
