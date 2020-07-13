@@ -154,6 +154,9 @@ static short uaemode;
 static short interrupt_count;
 static uae_u16 main_intena;
 #endif
+static int prealloc_test_data_size = 1001000;
+static int prealloc_gzip_size = 500000;
+static int prealloc;
 
 #define SIZE_STORED_ADDRESS_OFFSET 6
 #define SIZE_STORED_ADDRESS 20
@@ -560,6 +563,7 @@ static uae_u8 *parse_gzip(uae_u8 *gzbuf, int *sizep)
 
 #define INFLATE_STACK_SIZE 3000
 static uae_u8 *inflatestack;
+static uae_u8 *prealloc_gzip;
 
 #ifdef AMIGA
 extern void uae_command(char*);
@@ -608,7 +612,23 @@ static uae_u8 *load_file(const char *path, const char *file, uae_u8 *p, int *siz
 		fseek(f, 0, SEEK_END);
 		int gsize = ftell(f);
 		fseek(f, 0, SEEK_SET);
-		uae_u8 *gzbuf = malloc(gsize);
+		uae_u8 *gzbuf = NULL;
+		if (prealloc) {
+			if (!prealloc_gzip) {
+				prealloc_gzip = malloc(prealloc_gzip_size);
+				if (!prealloc_gzip) {
+					printf("Couldn't preallocate gzip temp memory, %d bytes.\n", prealloc_gzip_size);
+					exit(0);
+				}
+			}
+			if (gsize > prealloc_gzip_size) {
+				printf("Preallocated gzip temp memory space is too small %d < %d\n", prealloc_gzip_size, gsize);
+				exit(0);
+			}
+			gzbuf = prealloc_gzip;
+		} else {
+			gzbuf = malloc(gsize);
+		}
 		if (!gzbuf) {
 			printf("Couldn't allocate %d bytes (packed), file '%s'\n", gsize, fname);
 			exit(0);
@@ -658,6 +678,9 @@ static uae_u8 *load_file(const char *path, const char *file, uae_u8 *p, int *siz
 			callinflate(unpack, gzdata, inflatestack);
 			*sizep = size;
 		}
+		if (!prealloc_gzip) {
+			free(gzbuf);
+		}
 	}
 	if (!unpack) {
 		sprintf(fname, "%s%s", path, file);
@@ -680,6 +703,11 @@ static uae_u8 *load_file(const char *path, const char *file, uae_u8 *p, int *siz
 		p = calloc(1, size);
 		if (!p) {
 			printf("Couldn't allocate %d bytes, file '%s'\n", size, fname);
+			exit(0);
+		}
+	} else {
+		if (prealloc_test_data_size < size) {
+			printf("Preallocated memory space is too small %d < %d\n", prealloc_test_data_size, size);
 			exit(0);
 		}
 	}
@@ -2963,7 +2991,7 @@ static void process_test(uae_u8 *p)
 						test_regs.fpcr = ((ccr & 1) ? 15 : 0) << 4;
 					} else {
 						if (ccrmode & 0x40) {
-							// condition modes
+							// condition codes
 							test_regs.fpsr = (ccr & 15) << 24;
 						} else {
 							// precision and rounding
@@ -3349,11 +3377,11 @@ static int test_mnemo(const char *opcode)
 		cpu_lvl, addressing_mask, (uae_u32)opcode_memory,
 		user_stack_memory, super_stack_memory);
 	printf(" Low: %08x-%08x High: %08x-%08x\n",
-		test_low_memory_start, test_low_memory_end,
-		test_high_memory_start, test_high_memory_end);
+		test_low_memory_start, test_low_memory_end - 1,
+		test_high_memory_start, test_high_memory_end - 1);
 	printf("Test: %08x-%08x Safe: %08x-%08x\n",
-		test_memory_addr, test_memory_end,
-		(uae_u32)safe_memory_start, (uae_u32)safe_memory_end);
+		test_memory_addr, test_memory_end - 1,
+		(uae_u32)safe_memory_start, (uae_u32)safe_memory_end - 1);
 	printf("%s (%s):\n", inst_name, group);
 
 	testcnt = 0;
@@ -3361,13 +3389,23 @@ static int test_mnemo(const char *opcode)
 	memset(exceptioncount, 0, sizeof(exceptioncount));
 	supercnt = 0;
 
+	uae_u8 *test_data_prealloc = NULL;
+
+	if (prealloc) {
+		test_data_prealloc = malloc(prealloc_test_data_size);
+		if (!test_data_prealloc) {
+			printf("Couldn't preallocate test data memory, %d bytes.\n", prealloc_test_data_size);
+			exit(0);
+		}
+	}
+
 	for (;;) {
 		printf("%s (%s). %u...\n", tfname, group, testcnt);
 
 		sprintf(tfname, "%s/%04d.dat", opcode, filecnt);
 
 		test_data_size = -1;
-		test_data = load_file(path, tfname, NULL, &test_data_size, 0, 1);
+		test_data = load_file(path, tfname, test_data_prealloc, &test_data_size, 0, 1);
 		if (!test_data) {
 			if (askifmissing) {
 				printf("Couldn't open '%s%s'. Type new path and press enter.\n", path, tfname);
@@ -3410,7 +3448,10 @@ static int test_mnemo(const char *opcode)
 		process_test(test_data);
 		test_data -= 16;
 
-		free(test_data);
+		if (!prealloc) {
+			free(test_data);
+		}
+		test_data = NULL;
 
 		if (errors || quit || last) {
 			break;
@@ -3590,6 +3631,8 @@ int main(int argc, char *argv[])
 				exitcnt = atoi(next);
 				i++;
 			}
+		} else if (!_stricmp(s, "-prealloc")) {
+			prealloc = 1;
 		} else if (!_stricmp(s, "-fpuadj")) {
 			if (next) {
 				fpu_adjust_exp = atol(next);

@@ -2258,7 +2258,7 @@ static void save_data(uae_u8 *dst, const TCHAR *dir, int size)
 	if (dst == storage_buffer)
 		return;
 
-	if (dst - storage_buffer > max_storage_buffer) {
+	if (dst - storage_buffer > max_storage_buffer + storage_buffer_watermark_size) {
 		wprintf(_T("data buffer overrun!\n"));
 		abort();
 	}
@@ -6476,7 +6476,6 @@ static int test(struct ini_data *ini, const TCHAR *sections, const TCHAR *testna
 	max_storage_buffer = 1000000;
 	ini_getvalx(ini, sections, _T("buffer_size"), &max_storage_buffer);
 	ini_getvalx(ini, sections, _T("watermark"), &storage_buffer_watermark_size);
-	max_storage_buffer += storage_buffer_watermark_size;
 
 	if (test_low_memory_start == 0xffffffff || test_low_memory_end == 0xffffffff) {
 		low_memory_size = 0xffffffff;
