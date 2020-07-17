@@ -76,7 +76,8 @@
 #define NCR5380_12GAUGE 41
 #define NCR5380_OVERDRIVE 42
 #define NCR5380_TRUMPCARD 43
-#define NCR_LAST 44
+#define OMTI_ALF2 44
+#define NCR_LAST 45
 
 extern int log_scsiemu;
 
@@ -2535,6 +2536,18 @@ static int alf1_reg(struct soft_scsi *ncr, uaecptr addr, bool write)
 	return addr;
 }
 
+static int alf2_reg(struct soft_scsi *ncr, uaecptr addr, bool write)
+{
+	if (!(addr & 0x10000))
+		return -1;
+	addr &= 0xffff;
+	if ((addr & 0x7ff9) != 0x0641)
+		return -2;
+	addr >>= 1;
+	addr &= 3;
+	return addr;
+}
+
 static int wedge_reg(struct soft_scsi *ncr, uaecptr addr, int size, bool write)
 {
 	if (size != 1)
@@ -3325,6 +3338,15 @@ static uae_u32 ncr80_bget2(struct soft_scsi *ncr, uaecptr addr, int size)
 		if (reg >= 0)
 			v = omti_bget(ncr, reg);
 
+	} else if (ncr->type == OMTI_ALF2) {
+
+		reg = alf2_reg(ncr, origaddr, false);
+		if (reg >= 0) {
+			v = omti_bget(ncr, reg);
+		} else if (reg == -1) {
+			v = ncr->rom[addr & 32767];
+		}
+
 	} else if (ncr->type == OMTI_PROMIGOS) {
 
 		reg = promigos_reg(ncr, addr, size, false);
@@ -3774,6 +3796,12 @@ static void ncr80_bput2(struct soft_scsi *ncr, uaecptr addr, uae_u32 val, int si
 		if (reg >= 0)
 			omti_bput(ncr, reg, val);
 
+	} else if (ncr->type == OMTI_ALF2) {
+
+		reg = alf2_reg(ncr, origaddr, true);
+		if (reg >= 0)
+			omti_bput(ncr, reg, val);
+
 	} else if (ncr->type == OMTI_PROMIGOS) {
 
 		reg = promigos_reg(ncr, addr, size, true);
@@ -3962,7 +3990,6 @@ static uae_u32 REGPARAM2 ncr80_bget(struct soft_scsi *ncr, uaecptr addr)
 {
 	bool iaa = isautoconfigaddr(addr);
 	uae_u32 v;
-	addr &= ncr->board_mask;
 	if (!ncr->configured && iaa) {
 		addr &= 65535;
 		if (addr >= sizeof ncr->acmemory)
@@ -3996,7 +4023,6 @@ static void REGPARAM2 ncr80_bput(struct soft_scsi *ncr, uaecptr addr, uae_u32 b)
 {
 	bool iaa = isautoconfigaddr(addr);
 	b &= 0xff;
-	addr &= ncr->board_mask;
 	if (!ncr->configured && iaa) {
 		addr &= 65535;
 		switch (addr)
@@ -4803,6 +4829,37 @@ bool alf1_init(struct autoconfig_info *aci)
 void alf1_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc)
 {
 	generic_soft_scsi_add(ch, ci, rc, OMTI_ALF1, 65536, 0, ROMTYPE_ALF1);
+}
+
+bool alf2_init(struct autoconfig_info *aci)
+{
+	aci->start = 0xef0000;
+	aci->size = 0x20000;
+	scsi_add_reset();
+	if (!aci->doinit)
+		return true;
+
+	struct soft_scsi *scsi = getscsi(aci->rc);
+	if (!scsi)
+		return false;
+
+	load_rom_rc(aci->rc, ROMTYPE_ALF2, 32768, 32768, scsi->rom, 32768, 0);
+
+	scsi->baseaddress = 0xf00000;
+	scsi->baseaddress2 = 0xef0000;
+	scsi->board_mask = 65535;
+
+	map_banks(scsi->bank, scsi->baseaddress >> 16, 1, 0);
+	map_banks(scsi->bank, scsi->baseaddress2 >> 16, 1, 0);
+
+	scsi->configured = 1;
+	aci->addrbank = scsi->bank;
+	return true;
+}
+
+void alf2_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc)
+{
+	generic_soft_scsi_add(ch, ci, rc, OMTI_ALF2, 65536, 32768, ROMTYPE_ALF2);
 }
 
 bool promigos_init(struct autoconfig_info *aci)

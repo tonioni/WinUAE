@@ -5670,6 +5670,12 @@ const struct expansionromtype expansionroms[] = {
 		false, EXPANSIONTYPE_CUSTOM | EXPANSIONTYPE_SCSI
 	},
 	{
+		_T("alf2"), _T("A.L.F.2"), _T("Elaborate Bytes"),
+		NULL, alf2_init, NULL, alf2_add_scsi_unit, ROMTYPE_ALF2, 0, 0, BOARD_NONAUTOCONFIG_BEFORE, true,
+		NULL, 0,
+		false, EXPANSIONTYPE_CUSTOM | EXPANSIONTYPE_SCSI
+	},
+	{
 		_T("alf3"), _T("A.L.F.3"), _T("Elaborate Bytes"),
 		NULL, ncr_alf3_autoconfig_init, NULL, alf3_add_scsi_unit, ROMTYPE_ALF3 | ROMTYPE_NONE, 0, 0, BOARD_AUTOCONFIG_Z2, false,
 		NULL, 0,
