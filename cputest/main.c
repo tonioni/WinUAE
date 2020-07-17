@@ -480,7 +480,11 @@ static void start_test(void)
 		cpustatearraynew[2] = 0x00008000;
 	} else {
 		// 68020/30 CACR (CI=1,IE=1)
-		cpustatearraynew[2] = 0x00000009;
+		cpustatearraynew[2] = 0x0009;
+		if (cpu_lvl == 3) {
+			// 68030 CACR CD=1
+			cpustatearraynew[2] |= 0x0800;
+		}
 	}
 
 	setcpu(cpu_lvl, cpustatearraynew, cpustatearraystore);
