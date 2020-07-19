@@ -156,7 +156,7 @@ skip:
 	}
 }
 
-uaecptr ShowEA_disp(uaecptr *pcp, uaecptr base, TCHAR *buffer, const TCHAR *name)
+uaecptr ShowEA_disp(uaecptr *pcp, uaecptr base, TCHAR *buffer, const TCHAR *name, bool pcrel)
 {
 	uaecptr addr;
 	uae_u16 dp;
@@ -326,7 +326,11 @@ uaecptr ShowEA_disp(uaecptr *pcp, uaecptr base, TCHAR *buffer, const TCHAR *name
 		_stprintf(regstr, _T(",%c%d.%c"), dp & 0x8000 ? 'A' : 'D', (int)r, dp & 0x800 ? 'L' : 'W');
 		addr = base + (uae_s32)((uae_s8)disp8) + dispreg;
 		if (buffer) {
-			_stprintf(buffer, _T("(%s%s%s,$%02x) == $%08x"), name, regstr, mult, (uae_u8)disp8, addr);
+			if (pcrel) {
+				_stprintf(buffer, _T("(%s%s%s,$%02x=$%08x) == $%08x"), name, regstr, mult, (uae_u8)disp8, (*pcp) += disp8, addr);
+			} else {
+				_stprintf(buffer, _T("(%s%s%s,$%02x) == $%08x"), name, regstr, mult, (uae_u8)disp8, addr);
+			}
 			if (((dp & 0x0100) || m != 1) && currprefs.cpu_model < 68020) {
 				_tcscat(buffer, _T(" (68020+)"));
 			}
@@ -395,7 +399,7 @@ uaecptr ShowEA(void *f, uaecptr pc, uae_u16 opcode, int reg, amodes mode, wordsi
 		{
 			TCHAR name[10];
 			_stprintf(name, _T("A%d"), reg);
-			addr = ShowEA_disp(&pc, m68k_areg(regs, reg), buffer, name);
+			addr = ShowEA_disp(&pc, m68k_areg(regs, reg), buffer, name, false);
 			showea_val(buffer, opcode, addr, size);
 		}
 		break;
@@ -407,7 +411,7 @@ uaecptr ShowEA(void *f, uaecptr pc, uae_u16 opcode, int reg, amodes mode, wordsi
 		break;
 	case PC8r:
 		{
-			addr = ShowEA_disp(&pc, addr, buffer, _T("PC"));
+			addr = ShowEA_disp(&pc, addr, buffer, _T("PC"), true);
 			showea_val(buffer, opcode, addr, size);
 		}
 		break;
@@ -1794,9 +1798,8 @@ uae_u32 m68k_disasm_2 (TCHAR *buf, int bufsize, uaecptr pc, uaecptr *nextpc, int
 				instrname[1] = 'M';
 				instrname[2] = 'P';
 			}
-			pc = ShowEA(NULL, pc, opcode, dp->dreg, dp->dmode, dp->size, instrname, &seaddr2, &actualea_src, safemode);
-			extra = get_word_debug(pc);
 			pc += 2;
+			pc = ShowEA(NULL, pc, opcode, dp->dreg, dp->dmode, dp->size, instrname, &seaddr2, &actualea_src, safemode);
 			p = instrname + _tcslen(instrname);
 			_stprintf(p, (extra & 0x8000) ? _T(",A%d") : _T(",D%d"), (extra >> 12) & 7);
 		} else if (lookup->mnemo == i_CAS) {
