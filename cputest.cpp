@@ -2711,7 +2711,7 @@ static int create_ea_random(uae_u16 *opcodep, uaecptr pc, int mode, int reg, str
 			if (mode == Ad8r && reg == 7) {
 				*flagsp |= EAFLAG_SP;
 			}
-			*eap = ShowEA_disp(&pce, mode == Ad8r ? regs.regs[reg + 8] : pce, NULL, NULL);
+			*eap = ShowEA_disp(&pce, mode == Ad8r ? regs.regs[reg + 8] : pce, NULL, NULL, false);
 			while (pc < pce) {
 				v = rand16();
 				put_word_test(pc, v);
