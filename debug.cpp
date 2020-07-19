@@ -61,8 +61,7 @@
 #define TRACE_CHECKONLY 10
 
 static int trace_mode;
-static uae_u32 trace_param1;
-static uae_u32 trace_param2;
+static uae_u32 trace_param[3];
 
 int debugger_active;
 static int debug_rewind;
@@ -150,8 +149,8 @@ void activate_debugger_new_pc(uaecptr pc, int len)
 {
 	activate_debugger();
 	trace_mode = TRACE_RANGE_PC;
-	trace_param1 = pc;
-	trace_param2 = pc + len;
+	trace_param[0] = pc;
+	trace_param[1] = pc + len;
 }
 
 bool debug_enforcer(void)
@@ -189,7 +188,7 @@ static const TCHAR help[] = {
 	_T("  fa <address> [<start>] [<end>]\n")
 	_T("                        Find effective address <address>.\n")
 	_T("  fi                    Step forward until PC points to RTS, RTD or RTE.\n")
-	_T("  fi <opcode>           Step forward until PC points to <opcode>.\n")
+	_T("  fi <opcode> [<w2>] [<w3>] Step forward until PC points to <opcode>.\n")
 	_T("  fp \"<name>\"/<addr>    Step forward until process <name> or <addr> is active.\n")
 	_T("  fl                    List breakpoints.\n")
 	_T("  fd                    Remove all breakpoints.\n")
@@ -4703,10 +4702,19 @@ int instruction_breakpoint (TCHAR **c)
 			return 0;
 		} else if (nc == 'I') {
 			next_char (c);
-			if (more_params (c))
-				trace_param1 = readhex (c);
-			else
-				trace_param1 = 0x10000;
+			trace_param[1] = 0x10000;
+			trace_param[2] = 0x10000;
+			if (more_params(c)) {
+				trace_param[0] = readhex(c);
+				if (more_params(c)) {
+					trace_param[1] = readhex(c);
+				}
+				if (more_params(c)) {
+					trace_param[2] = readhex(c);
+				}
+			} else {
+				trace_param[0] = 0x10000;
+			}
 			trace_mode = TRACE_MATCH_INS;
 			return 1;
 		} else if (nc == 'D' && (*c)[1] == 0) {
@@ -4739,14 +4747,14 @@ int instruction_breakpoint (TCHAR **c)
 			return 0;
 		}
 		trace_mode = TRACE_RANGE_PC;
-		trace_param1 = readhex (c);
+		trace_param[0] = readhex (c);
 		if (more_params (c)) {
-			trace_param2 = readhex (c);
+			trace_param[1] = readhex (c);
 			return 1;
 		} else {
 			for (i = 0; i < BREAKPOINT_TOTAL; i++) {
 				bpn = &bpnodes[i];
-				if (bpn->enabled && bpn->value1 == trace_param1) {
+				if (bpn->enabled && bpn->value1 == trace_param[0]) {
 					bpn->enabled = 0;
 					console_out (_T("Breakpoint removed.\n"));
 					trace_mode = 0;
@@ -4757,7 +4765,7 @@ int instruction_breakpoint (TCHAR **c)
 				bpn = &bpnodes[i];
 				if (bpn->enabled)
 					continue;
-				bpn->value1 = trace_param1;
+				bpn->value1 = trace_param[0];
 				bpn->type = BREAKPOINT_REG_PC;
 				bpn->oper = BREAKPOINT_CMP_EQUAL;
 				bpn->enabled = 1;
@@ -5620,14 +5628,14 @@ static bool debug_line (TCHAR *input)
 		case 't':
 			no_trace_exceptions = 0;
 			debug_cycles();
-			trace_param1 = trace_param2 = 0;
+			trace_param[0] = trace_param[1] = 0;
 			if (*inptr == 't') {
 				no_trace_exceptions = 1;
 				inptr++;
 			}
 			if (*inptr == 'r') {
 				// break when PC in debugmem
-				if (debugmem_get_range(&trace_param1, &trace_param2)) {
+				if (debugmem_get_range(&trace_param[0], &trace_param[1])) {
 					trace_mode = TRACE_RANGE_PC;
 					return true;
 				}
@@ -5651,15 +5659,15 @@ static bool debug_line (TCHAR *input)
 				// skip next source line
 				if (debugmem_isactive()) {
 					trace_mode = TRACE_SKIP_LINE;
-					trace_param1 = 1;
-					trace_param2 = debugmem_get_sourceline(M68K_GETPC, NULL, 0);
+					trace_param[0] = 1;
+					trace_param[1] = debugmem_get_sourceline(M68K_GETPC, NULL, 0);
 					return true;
 				}
 			} else {
 				if (more_params(&inptr))
-					trace_param1 = readint(&inptr);
-				if (trace_param1 <= 0 || trace_param1 > 10000)
-					trace_param1 = 1;
+					trace_param[0] = readint(&inptr);
+				if (trace_param[0] <= 0 || trace_param[0] > 10000)
+					trace_param[0] = 1;
 				trace_mode = TRACE_SKIP_INS;
 				exception_debugging = 1;
 				return true;
@@ -5667,7 +5675,7 @@ static bool debug_line (TCHAR *input)
 			break;
 		case 'z':
 			trace_mode = TRACE_MATCH_PC;
-			trace_param1 = nextpc;
+			trace_param[0] = nextpc;
 			exception_debugging = 1;
 			debug_cycles();
 			return true;
@@ -6165,7 +6173,7 @@ void debug (void)
 			}
 
 			if (trace_mode) {
-				if (trace_mode == TRACE_MATCH_PC && trace_param1 == pc)
+				if (trace_mode == TRACE_MATCH_PC && trace_param[0] == pc)
 					bp = -1;
 				if (trace_mode == TRACE_RAM_PC) {
 					addrbank *ab = &get_mem_bank(pc);
@@ -6207,16 +6215,24 @@ void debug (void)
 						}
 					}
 				} else if (trace_mode == TRACE_MATCH_INS) {
-					if (trace_param1 == 0x10000) {
+					if (trace_param[0] == 0x10000) {
 						if (opcode == 0x4e75 || opcode == 0x4e73 || opcode == 0x4e77)
 							bp = -1;
-					} else if (opcode == trace_param1) {
+					} else if (opcode == trace_param[0]) {
 						bp = -1;
+						for (int op = 1; op < 3; op++) {
+							if (trace_param[op] != 0x10000) {
+								uae_u16 w = 0xffff;
+								debug_get_prefetch(op, &w);
+								if (w != trace_param[op])
+									bp = 0;
+							}
+						}
 					}
 				} else if (trace_mode == TRACE_SKIP_INS) {
-					if (trace_param1 != 0)
-						trace_param1--;
-					if (trace_param1 == 0) {
+					if (trace_param[0] != 0)
+						trace_param[0]--;
+					if (trace_param[0] == 0) {
 						bp = -1;
 					}
 #if 0
@@ -6224,14 +6240,14 @@ void debug (void)
 					bp = -1;
 #endif
 				} else if (trace_mode == TRACE_RANGE_PC) {
-					if (pc >= trace_param1 && pc < trace_param2)
+					if (pc >= trace_param[0] && pc < trace_param[1])
 						bp = -1;
 				} else if (trace_mode == TRACE_SKIP_LINE) {
-					if (trace_param1 != 0)
-						trace_param1--;
-					if (trace_param1 == 0) {
+					if (trace_param[0] != 0)
+						trace_param[0]--;
+					if (trace_param[0] == 0) {
 						int line = debugmem_get_sourceline(pc, NULL, 0);
-						if (line > 0 && line != trace_param2)
+						if (line > 0 && line != trace_param[1])
 							bp = -1;
 					}
 				}
@@ -7222,6 +7238,35 @@ bool debug_trainer_event(int evt, int state)
 		}
 	}
 	return false;
+}
+
+bool debug_get_prefetch(int idx, uae_u16 *opword)
+{
+	if (currprefs.cpu_compatible) {
+		if (currprefs.cpu_model < 68020) {
+			if (idx == 0) {
+				*opword = regs.ir;
+				return true;
+			}
+			if (idx == 1) {
+				*opword = regs.irc;
+				return true;
+			}
+			*opword = get_word_debug(m68k_getpc() + idx * 2);
+			return false;
+		} else {
+			if (regs.prefetch020_valid[idx]) {
+				*opword = regs.prefetch020[idx];
+				return true;
+			}
+			*opword = get_word_debug(m68k_getpc() + idx * 2);
+			return false;
+		}
+
+	} else {
+		*opword = get_word_debug(m68k_getpc() + idx * 2);
+		return false;
+	}
 }
 
 #define DEBUGSPRINTF_SIZE 32

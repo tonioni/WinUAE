@@ -6447,23 +6447,23 @@ void m68k_dumpstate(uaecptr *nextpc, uaecptr prevpc)
 		console_out_f (_T("TT0: %08X TT1: %08X TC: %08X\n"), tt0_030, tt1_030, tc_030);
 	}
 	if (currprefs.cpu_compatible) {
-		if (currprefs.cpu_model == 68000) {
-			struct instr *dp;
-			struct mnemolookup *lookup1, *lookup2;
-			dp = table68k + regs.irc;
-			for (lookup1 = lookuptab; lookup1->mnemo != dp->mnemo; lookup1++)
-				;
-			dp = table68k + regs.ir;
-			for (lookup2 = lookuptab; lookup2->mnemo != dp->mnemo; lookup2++)
-				;
-			console_out_f (_T("Prefetch %04x (%s) %04x (%s) Chip latch %08X\n"), regs.irc, lookup1->name, regs.ir, lookup2->name, regs.chipset_latch_rw);
-		} else if (currprefs.cpu_model == 68020 || currprefs.cpu_model == 68030) {
-			console_out_f (_T("Prefetch %08x %08x (%d) %04x (%d) %04x (%d) %04x (%d)\n"),
-				regs.cacheholdingaddr020, regs.cacheholdingdata020, regs.cacheholdingdata_valid,
-				regs.prefetch020[0], regs.prefetch020_valid[0],
-				regs.prefetch020[1], regs.prefetch020_valid[1],
-				regs.prefetch020[2], regs.prefetch020_valid[2]);
+		console_out_f(_T("Prefetch"));
+		if (currprefs.cpu_model == 68020 || currprefs.cpu_model == 68030) {
+			console_out_f(_T(" %08x %08x (%d)"),
+				regs.cacheholdingaddr020, regs.cacheholdingdata020, regs.cacheholdingdata_valid);
 		}
+		for (int i = 0; i < 3; i++) {
+			uae_u16 w;
+			if (!debug_get_prefetch(i, &w))
+				break;
+			struct instr *dp;
+			struct mnemolookup *lookup;
+			dp = table68k + w;
+			for (lookup = lookuptab; lookup->mnemo != dp->mnemo; lookup++)
+				;
+			console_out_f(_T(" %04x (%s)"), w, lookup->name);
+		}
+		console_out_f (_T(" Chip latch %08X\n"), regs.chipset_latch_rw);
 	}
 	if (prevpc != 0xffffffff && pc - prevpc < 100) {
 		while (prevpc < pc) {
