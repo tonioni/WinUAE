@@ -352,6 +352,7 @@ static const TCHAR *obsolete[] = {
 	_T("comp_lowopt"),
 	_T("avoid_cmov"),
 	_T("compforcesettings"),
+	_T("comp_catchdetect"),
 
 	NULL
 };
@@ -1525,7 +1526,6 @@ static void cfgfile_write_board_rom(struct uae_prefs *prefs, struct zfile *f, st
 static bool cfgfile_readromboard(const TCHAR *option, const TCHAR *value, struct romboard *rbp)
 {
 	TCHAR tmp1[MAX_DPATH];
-	int v;
 	for (int i = 0; i < MAX_ROM_BOARDS; i++) {
 		struct romboard *rb = &rbp[i];
 		if (i > 0)
@@ -1989,7 +1989,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 #ifdef USE_JIT_FPU
 	cfgfile_write_bool (f, _T("compfpu"), p->compfpu);
 #endif
-	cfgfile_write_bool(f, _T("comp_catchdetect"), p->comp_catchfault);
+	cfgfile_write_bool(f, _T("comp_catchfault"), p->comp_catchfault);
 	cfgfile_write (f, _T("cachesize"), _T("%d"), p->cachesize);
 
 	for (i = 0; i < MAX_JPORTS; i++) {
@@ -3574,7 +3574,6 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 		return 1;
 	}
 	if (_tcscmp(option, _T("show_leds_size")) == 0 || _tcscmp(option, _T("show_leds_size_rtg")) == 0) {
-		TCHAR tmp[MAX_DPATH];
 		int idx = _tcscmp(option, _T("show_leds_size")) == 0 ? 0 : 1;
 		cfgfile_strval(option, value, option, &p->leds_on_screen_multiplier[idx], ledscale, 0);
 		return 1;
