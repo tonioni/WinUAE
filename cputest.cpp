@@ -13,6 +13,7 @@
 
 #define MAX_REGISTERS 16
 
+#define EAFLAG_SP 1
 
 #define FPUOPP_ILLEGAL 0x80
 static floatx80 fpuregisters[8];
@@ -2503,7 +2504,7 @@ static int analyze_address(struct instr *dp, int srcdst, uae_u32 addr)
 static int generate_fpu_memory_read(uae_u16 opcode, uaecptr pc, struct instr *dp, int *isconstant, uae_u32 *eap, int *regused);
 
 // generate mostly random EA.
-static int create_ea_random(uae_u16 *opcodep, uaecptr pc, int mode, int reg, struct instr *dp, int *isconstant, int srcdst, int fpuopcode, int opcodesize, uae_u32 *eap, int *regused, int *fpuregused)
+static int create_ea_random(uae_u16 *opcodep, uaecptr pc, int mode, int reg, struct instr *dp, int *isconstant, int srcdst, int fpuopcode, int opcodesize, uae_u32 *eap, int *regused, int *fpuregused, int *flagsp)
 {
 	uaecptr old_pc = pc;
 	uae_u16 opcode = *opcodep;
@@ -2630,8 +2631,15 @@ static int create_ea_random(uae_u16 *opcodep, uaecptr pc, int mode, int reg, str
 			uae_u32 add = 0;
 			int maxcnt = 1000;
 			for (;;) {
-				addr = mode == PC8r ? pc + 2 - 2 : cur_regs.regs[reg + 8];
 				int ereg;
+				if (mode == PC8r) {
+					addr = pc + 2 - 2;
+				} else {
+					addr = cur_regs.regs[reg + 8];
+					if (reg == 7) {
+						*flagsp |= EAFLAG_SP;
+					}
+				}
 				for (;;) {
 					v = rand16();
 					if (currprefs.cpu_model >= 68020)
@@ -2700,6 +2708,9 @@ static int create_ea_random(uae_u16 *opcodep, uaecptr pc, int mode, int reg, str
 			uaecptr pce = pc;
 			pc += 2;
 			// calculate lenght of extension
+			if (mode == Ad8r && reg == 7) {
+				*flagsp |= EAFLAG_SP;
+			}
 			*eap = ShowEA_disp(&pce, mode == Ad8r ? regs.regs[reg + 8] : pce, NULL, NULL);
 			while (pc < pce) {
 				v = rand16();
@@ -3012,7 +3023,7 @@ end:
 static int ea_exact_cnt;
 
 // generate exact EA (for bus error test)
-static int create_ea_exact(uae_u16 *opcodep, uaecptr pc, int mode, int reg, struct instr *dp, int *isconstant, int srcdst, int fpuopcode, int opcodesize, uae_u32 *eap, int *regused, int *fpuregused)
+static int create_ea_exact(uae_u16 *opcodep, uaecptr pc, int mode, int reg, struct instr *dp, int *isconstant, int srcdst, int fpuopcode, int opcodesize, uae_u32 *eap, int *regused, int *fpuregused, int *flagsp)
 {
 	uae_u32 target = target_ea[srcdst];
 	ea_exact_cnt++;
@@ -3244,18 +3255,23 @@ static int create_ea_exact(uae_u16 *opcodep, uaecptr pc, int mode, int reg, stru
 	return -2;
 }
 
-static int create_ea(uae_u16 *opcodep, uaecptr pc, int mode, int reg, struct instr *dp, int *isconstant, int srcdst, int fpuopcode, int opcodesize, uae_u32 *ea, int *regused, int *fpuregused)
+static int create_ea(uae_u16 *opcodep, uaecptr pc, int mode, int reg, struct instr *dp, int *isconstantp, int srcdst, int fpuopcode, int opcodesize, uae_u32 *eap, int *regusedp, int *fpuregusedp, int *flagsp)
 {
 	int am = mode >= imm ? imm : mode;
+	int v;
 
 	if (!((1 << am) & feature_addressing_modes[srcdst]))
 		return -1;
 
 	if (target_ea[srcdst] == 0xffffffff) {
-		return create_ea_random(opcodep, pc, mode, reg, dp, isconstant, srcdst, fpuopcode, opcodesize, ea, regused, fpuregused);
+		v = create_ea_random(opcodep, pc, mode, reg, dp, isconstantp, srcdst, fpuopcode, opcodesize, eap, regusedp, fpuregusedp, flagsp);
 	} else {
-		return create_ea_exact(opcodep, pc, mode, reg, dp, isconstant, srcdst, fpuopcode, opcodesize, ea, regused, fpuregused);
+		v = create_ea_exact(opcodep, pc, mode, reg, dp, isconstantp, srcdst, fpuopcode, opcodesize, eap, regusedp, fpuregusedp, flagsp);
 	}
+	if (*regusedp == 8 + 7) {
+		*flagsp |= EAFLAG_SP;
+	}
+	return v;
 }
 
 // generate valid FPU memory access that returns valid FPU data.
@@ -3272,7 +3288,7 @@ static int generate_fpu_memory_read(uae_u16 opcode, uaecptr pc, struct instr *dp
 		}
 	}
 	uaecptr addr = 0xff0000ff; // FIXME: use separate flag
-	int o = create_ea_random(&opcode, pc, mode, reg, dp, isconstant, 0, -1, 8, &addr, regused, NULL);
+	int o = create_ea_random(&opcode, pc, mode, reg, dp, isconstant, 0, -1, 8, &addr, regused, NULL, NULL);
 	fpuopsize = fpuopsize_t;
 	if (o < 0)
 		return o;
@@ -4582,6 +4598,8 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 					int dstregused = -1;
 					int srcfpuregused = -1;
 					int dstfpuregused = -1;
+					int srceaflags = 0;
+					int dsteaflags = 0;
 
 					out_of_test_space = 0;
 					noaccesshistory = 0;
@@ -4649,7 +4667,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 						// create source addressing mode
 						if (dp->suse) {
 							int isconstant_tmp = isconstant_src;
-							int o = create_ea(&opc, pc, dp->smode, dp->sreg, dp, &isconstant_src, 0, fpuopcode, opcodesize, &srcea, &srcregused, &srcfpuregused);
+							int o = create_ea(&opc, pc, dp->smode, dp->sreg, dp, &isconstant_src, 0, fpuopcode, opcodesize, &srcea, &srcregused, &srcfpuregused, &srceaflags);
 							if (isconstant_src < isconstant_tmp && isconstant_src > 0) {
 								isconstant_src = isconstant_tmp;
 							}
@@ -4699,7 +4717,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 
 						// create destination addressing mode
 						if (dp->duse && fpuopsize < 0) {
-							int o = create_ea(&opc, pc, dp->dmode, dp->dreg, dp, &isconstant_dst, 1, fpuopcode, opcodesize, &dstea, &dstregused, &dstfpuregused);
+							int o = create_ea(&opc, pc, dp->dmode, dp->dreg, dp, &isconstant_dst, 1, fpuopcode, opcodesize, &dstea, &dstregused, &dstfpuregused, &dsteaflags);
 							if (o < 0) {
 								memcpy(opcode_memory, oldcodebytes, sizeof(oldcodebytes));
 								if (o == -1)
@@ -5307,6 +5325,13 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 								}
 							}
 
+							if (dp->mnemo == i_JMP || dp->mnemo == i_JSR) {
+								// if A7 relative JMP/JSR and S=1: skip it because branch target was calculated using USP.
+								if (((srceaflags | dsteaflags) & EAFLAG_SP) && regs.s) {
+									skipped = 1;
+								}
+							}
+
 							// exception check disabled
 							if (!exceptionenabletable[test_exception]) {
 								skipped = 1;
@@ -5416,6 +5441,14 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 									if (safe_memory_start != 0xffffffff && (branch_target_pc & addressing_mask) < safe_memory_start || (branch_target_pc & addressing_mask) >= safe_memory_end) {
 										if ((pcaddr[0] != 0x4a && pcaddr[1] != 0xfc) && (pcaddr[0] != 0x4e && pcaddr[1] != 0x71)) {
 											wprintf(_T(" Branch instruction target fault\n"));
+											abort();
+										}
+									}
+									if (!feature_loop_mode) {
+										uae_u32 t1 = gl(pcaddr - 2);
+										uae_u32 t2 = gl(pcaddr);
+										if (t1 != ((NOP_OPCODE << 16) | ILLG_OPCODE) && t2 != ((ILLG_OPCODE << 16) | NOP_OPCODE)) {
+											wprintf(_T(" Branch instruction PC didn't point to branch target instructions!\n"));
 											abort();
 										}
 									}
