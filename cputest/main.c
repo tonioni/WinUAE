@@ -133,6 +133,7 @@ static short quit;
 static uae_u8 ccr_mask;
 static uae_u32 addressing_mask = 0x00ffffff;
 static uae_u32 interrupt_mask;
+static short loop_mode, loop_mode_68010, loop_mode_cnt;
 static short instructionsize;
 static short disasm;
 static short basicexcept;
@@ -146,7 +147,6 @@ static int exitcnt;
 static short cycles, cycles_range, cycles_adjust;
 static short gotcycles;
 static short interrupttest;
-static short randomizetest;
 static uae_u32 cyclecounter_addr;
 static int errorcnt;
 static short uaemode;
@@ -2313,6 +2313,49 @@ static short fpucheckextra(struct fpureg *f1, struct fpureg *f2)
 	return 1;
 }
 
+static void loop_mode_error(uae_u32 ov, uae_u32 nv)
+{
+	strcpy(outbp, " expected ");
+	outbp += strlen(outbp);
+	for (short i = loop_mode_cnt - 1; i >= 0; i--) {
+		if ((ov >> i) & 1) {
+			*outbp++ = '1';
+		} else {
+			*outbp++ = '0';
+		}
+	}
+	strcpy(outbp, " got ");
+	outbp += strlen(outbp);
+	for (short i = loop_mode_cnt - 1; i >= 0; i--) {
+		if ((nv >> i) & 1) {
+			*outbp++ = '1';
+		} else {
+			*outbp++ = '0';
+		}
+	}
+	*outbp++ = '\n';
+}
+
+static const char cvzn[] = { "CVZN" };
+static void loop_mode_error_CVZN(uae_u32 ov, uae_u32 nv)
+{
+	for (short i = 0; i < 4; i++) {
+		if ((ov & 0xff) != (nv & 0xff)) {
+			sprintf(outbp, "Loop mode %c:", cvzn[i]);
+			outbp += strlen(outbp);
+			loop_mode_error(ov, nv);
+		}
+		ov >>= 8;
+		nv >>= 8;
+	}
+}
+static void loop_mode_error_X(uae_u32 ov, uae_u32 nv)
+{
+	sprintf(outbp, "Loop mode X:");
+	outbp += strlen(outbp);
+	loop_mode_error(ov, nv);
+}
+
 // sregs: registers before execution of test code
 // tregs: registers used during execution of test code, also modified by test code.
 // lregs: registers after modifications from data files. Test ok if tregs == lregs.
@@ -2459,6 +2502,13 @@ static uae_u8 *validate_test(uae_u8 *p, short ignore_errors, short ignore_sr, st
 							sprintf(outbp, "%c%d: expected %08x but got %08x\n", mode < CT_AREG ? 'D' : 'A', mode & 7, val, tregs->regs[mode]);
 						}
 						outbp += strlen(outbp);
+						if (loop_mode && !loop_mode_68010) {
+							if (mode == CT_AREG + 3) {
+								loop_mode_error_CVZN(val, tregs->regs[mode]);
+							} else if (mode == CT_AREG + 4) {
+								loop_mode_error_X(val, tregs->regs[mode]);
+							}
+						}
 					}
 					errflag |= 1 << 0;
 				}
@@ -2656,6 +2706,14 @@ static uae_u8 *validate_test(uae_u8 *p, short ignore_errors, short ignore_sr, st
 					if (dooutput) {
 						uae_u32 val = lregs->regs[mode];
 						sprintf(outbp, "%c%d: expected %08x but got %08x\n", mode < CT_AREG ? 'D' : 'A', mode & 7, val, tregs->regs[mode]);
+						outbp += strlen(outbp);
+						if (loop_mode && !loop_mode_68010) {
+							if (mode == CT_AREG + 3) {
+								loop_mode_error_CVZN(val, tregs->regs[mode]);
+							} else if (mode == CT_AREG + 4) {
+								loop_mode_error_X(val, tregs->regs[mode]);
+							}
+						}
 					}
 					errflag |= 1 << 0;
 				}
@@ -3296,9 +3354,10 @@ static int test_mnemo(const char *opcode)
 	interrupt_mask = (lvl_mask >> 20) & 7;
 	addressing_mask = (lvl_mask & 0x80000000) ? 0xffffffff : 0x00ffffff;
 	interrupttest = (lvl_mask >> 26) & 1;
-	randomizetest = (lvl_mask >> 28) & 1;
 	sr_undefined_mask = lvl_mask & 0xffff;
 	safe_memory_mode = (lvl_mask >> 23) & 7;
+	loop_mode = (lvl_mask >> 28) & 1;
+	loop_mode_68010 = (lvl_mask >> 29) & 1;
 	fpu_model = read_u32(headerfile, &headoffset);
 	test_low_memory_start = read_u32(headerfile, &headoffset);
 	test_low_memory_end = read_u32(headerfile, &headoffset);
@@ -3309,7 +3368,10 @@ static int test_mnemo(const char *opcode)
 	user_stack_memory = read_u32(headerfile, &headoffset);
 	super_stack_memory = read_u32(headerfile, &headoffset);
 	exception_vectors = read_u32(headerfile, &headoffset);
-	read_u32(headerfile, &headoffset);
+	v = read_u32(headerfile, &headoffset);
+	if (loop_mode) {
+		loop_mode_cnt = v & 0xff;
+	}
 	read_u32(headerfile, &headoffset);
 	read_u32(headerfile, &headoffset);
 	memcpy(inst_name, headerfile + headoffset, sizeof(inst_name) - 1);
