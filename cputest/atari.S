@@ -1,10 +1,18 @@
 | cputester's machine specific support for Atari's STF/STE/TT/Falcon
 |
 | 2019/09	Nicolas Pomarede
+| 2020/07/07	Updates for latest cputester version
+| 2020/07/16	Disable second MFP when machine is a TT
+
 
 	.text
 
+	| Color register used to show activity during the tests (changing background color)
 	.equ ACTIVITYREG,0xff8240
+	| Video counter register used to measure number of cycles after calling 'sync'
+	| Not used for now, cycle counting is only in Amiga mode
+	| On ST this requires supervisor mode, so we use a dummy address for now as we don't use 'sync' 
+	.equ CYCLEREG,0x10000		| 0xff8209
 
 	.globl _allocate_absolute
 	.globl _free_absolute
@@ -12,6 +20,13 @@
 	.globl _tosuper
 	.globl _testexit
 	.globl _get_cpu_model
+	.globl sync
+
+	| sync with video counter to start opcode test at a specific position
+	| and to measure number of cycles taken by each tested opcode
+	| (not used in atari version for now)
+sync:
+	rts
 
 	| check "space" key is pressed
 _testexit:
@@ -39,9 +54,15 @@ _tosuper:
 
 	move.b	0xfffa13,save_imra
 	move.b	0xfffa15,save_imrb
-	clr.b	0xfffa13
+	clr.b	0xfffa13		| disable level 6 MFP interrupts
 	clr.b	0xfffa15
-
+	cmp.w	#2,machine_level.l	| use absolute addr because cmp #x,pc is not supported on 68000
+	bne.s	.not_tt_save
+	move.b	0xfffa93,save_imra_tt
+	move.b	0xfffa95,save_imrb_tt
+	clr.b	0xfffa93		| disable level 6 TT MFP interrupts
+	clr.b	0xfffa95
+.not_tt_save:
 	move.w	0xff8240,save_color0
 
 	move.w	#0x2700,sr		| disable HBL/VBL
@@ -55,11 +76,15 @@ _touser:
 
 	move.b	save_imra,0xfffa13
 	move.b	save_imrb,0xfffa15
-
+	cmp.w	#2,machine_level.l	| use absolute addr because cmp #x,pc is not supported on 68000
+	bne.s	.not_tt_restore
+	move.b	save_imra_tt,0xfffa93
+	move.b	save_imrb_tt,0xfffa95
+.not_tt_restore:
 	move.l	save_hbl,0x68
 	move.l	save_vbl,0x70
 
-	move.w	#0x2300,sr		| enable VBL/MFP 
+	move.w	#0x2300,sr		| enable VBL/MFP interrupts
 
 	move.l	old_ssp(pc),-(sp)
 	move.w	#0x20,-(sp)
@@ -86,7 +111,8 @@ _allocate_absolute:
 	rts
 
 	| return CPU model (68000=0, 68010=1, 68020=2, 68030=3, 68040=4, 68060=5)
-	| we read TOS' cookie jar at $5A0, or return 0 it cpu is not found
+	| we also read machine model (0=STF 1=STE 2=TT 3=Falcon) for HW init
+	| we read TOS' cookie jar at $5A0, or return 0 if CPU model is not found
 _get_cpu_model:
 	move.l	#0,-(sp)
 	move.w	#0x20,-(sp)
@@ -94,28 +120,39 @@ _get_cpu_model:
 	addq.l	#6,sp
 	move.l	d0,old_ssp
 
-	move.q	#0,d0
-	move.l	0x5a0,d1
-	beq.s	.cpudone		| no cookie jar, assume 68000
+	moveq	#0,d0			| CPU defaults to 68000
+	moveq	#0,d1			| machine defaults to STF
+	move.l	0x5a0,d2
+	beq	.all_done		| no cookie jar, assume 68000 STF
 
-	move.l	d1,a0
-.loop:
-	move.l	(a0),d0
-	beq.s	.cpudone		| end of cookie list, assume 68000
-	cmp.l	#0x5f435055,d0		| '_CPU'
-	beq.s	.found
+	move.l	d2,a0
+.loop_cookie:
+	move.l	(a0),d2
+	beq.s	.all_done		| end of cookie list
+	cmp.l	#0x5f435055,d2		| '_CPU'
+	beq.s	.cpu_found
+	cmp.l	#0x5f4d4348,d2		| '_MCH'
+	beq.s	.machine_found
+.next_cookie:
 	addq.w	#8,a0			| next cookie
-	bra.s	.loop
-.found:
+	bra.s	.loop_cookie
+
+.cpu_found:
 	move.l	4(a0),d0		| _CPU value : 0, 10, 20, 30, 40 or 60
 	divu	#10,d0
 	ext.l	d0
 	cmp.w	#6,d0
-	bne.s	.cpudone
+	bne.s	.next_cookie
 	moveq	#5,d0			| 68060 -> d0=5
+	bra.s	.next_cookie
 
-.cpudone:
+.machine_found:
+	move.l	4(a0),d1		| _MCH value for upper word : 0=STF 1=STE 2=TT 3=Falcon
+	bra.s	.next_cookie
+
+.all_done:
 	move.l	d0,cpu_level
+	move.l	d1,machine_level
 
 	move.l	old_ssp(pc),-(sp)
 	move.w	#0x20,-(sp)
@@ -141,9 +178,16 @@ save_imra:
 	dc.b	0
 save_imrb:
 	dc.b	0
+save_imra_tt:
+	dc.b	0
+save_imrb_tt:
+	dc.b	0
 save_color0:
 	dc.w	0
 cpu_level:
 	dc.l	0
+machine_level:
+	dc.l	0
 
 	.include "asm.S"
+

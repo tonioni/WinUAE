@@ -1,5 +1,5 @@
 
-	.chip 68020
+	.chip 68000
 	.globl _inflate
 	
 
