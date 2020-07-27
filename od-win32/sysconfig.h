@@ -13,7 +13,7 @@
 #define DRIVESOUND
 #define GFXFILTER
 #define X86_MSVC_ASSEMBLY
-#define OPTIMIZED_FLAGS
+//#define OPTIMIZED_FLAGS
 #define MSVC_LONG_DOUBLE
 #ifndef __i386__
 #define __i386__
@@ -30,6 +30,8 @@
 #define AUTOCONFIG /* autoconfig support, fast ram, harddrives etc.. */
 #define JIT /* JIT compiler support */
 #define USE_JIT_FPU
+#define NOFLAGS_SUPPORT
+//#define HAVE_GET_WORD_UNSWAPPED
 #define NATMEM_OFFSET natmem_offset
 #define USE_NORMAL_CALLING_CONVENTION 0
 #define USE_X86_FPUCW 1

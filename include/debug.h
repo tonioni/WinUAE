@@ -12,6 +12,13 @@
 
 #include "uae/types.h"
 
+#ifndef D
+#define D
+#endif
+#ifndef bug
+#define bug write_log
+#endif
+
 #ifdef DEBUGGER
 
 #define	MAX_HIST 500

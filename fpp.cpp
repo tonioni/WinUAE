@@ -2304,7 +2304,7 @@ void fpuop_trapcc (uae_u32 opcode, uaecptr oldpc, uae_u16 extra)
 			return; // BSUN
 		fpu_op_illg (opcode, 0, false, regs.fpiar);
 	} else if (cc) {
-		Exception (7);
+		Exception_cpu_oldpc(7, oldpc);
 	}
 }
 

@@ -1135,6 +1135,7 @@ static int real_main2 (int argc, TCHAR **argv)
 	logging_init (); /* Yes, we call this twice - the first case handles when the user has loaded
 						 a config using the cmd-line.  This case handles loads through the GUI. */
 
+	compiler_init();
 #ifdef NATMEM_OFFSET
 	if (!init_shm ()) {
 		if (currprefs.start_gui)

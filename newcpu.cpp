@@ -93,6 +93,7 @@ int m68k_pc_indirect;
 bool m68k_interrupt_delay;
 static bool m68k_reset_delay;
 static bool ismoves_nommu;
+static bool need_opcode_swap;
 
 static volatile uae_atomic uae_interrupt;
 static volatile uae_atomic uae_interrupts2[IRQ_SOURCE_MAX];
@@ -149,6 +150,8 @@ static struct regstruct fallback_regs;
 static int fallback_new_cpu_model;
 
 int cpu_last_stop_vpos, cpu_stopped_lines;
+
+void (*flush_icache)(int);
 
 #if COUNT_INSTRS
 static unsigned long int instrcount[65536];
@@ -1764,17 +1767,26 @@ STATIC_INLINE void count_instr (unsigned int opcode)
 {
 }
 
+static uae_u32 opcode_swap(uae_u16 opcode)
+{
+	if (!need_opcode_swap)
+		return opcode;
+	return do_byteswap_16(opcode);
+}
+
 uae_u32 REGPARAM2 op_illg_1 (uae_u32 opcode)
 {
-	op_illg (opcode);
+	opcode = opcode_swap(opcode);
+	op_illg(opcode);
 	return 4;
 }
 uae_u32 REGPARAM2 op_unimpl_1 (uae_u32 opcode)
 {
+	opcode = opcode_swap(opcode);
 	if ((opcode & 0xf000) == 0xf000 || currprefs.cpu_model < 68060)
-		op_illg (opcode);
+		op_illg(opcode);
 	else
-		op_unimpl (opcode);
+		op_unimpl(opcode);
 	return 4;
 }
 
@@ -1782,26 +1794,41 @@ uae_u32 REGPARAM2 op_unimpl_1 (uae_u32 opcode)
 static const struct cputbl *cputbls[6][8] =
 {
 	// 68000
-	{ op_smalltbl_5_ff, op_smalltbl_45_ff, op_smalltbl_55_ff, op_smalltbl_12_ff, op_smalltbl_14_ff, NULL, NULL, NULL },
+	{ op_smalltbl_5, op_smalltbl_45, op_smalltbl_55, op_smalltbl_12, op_smalltbl_14, NULL, NULL, NULL },
 	// 68010
-	{ op_smalltbl_4_ff, op_smalltbl_44_ff, op_smalltbl_54_ff, op_smalltbl_11_ff, op_smalltbl_13_ff, NULL, NULL, NULL },
+	{ op_smalltbl_4, op_smalltbl_44, op_smalltbl_54, op_smalltbl_11, op_smalltbl_13, NULL, NULL, NULL },
 	// 68020
-	{ op_smalltbl_3_ff, op_smalltbl_43_ff, op_smalltbl_53_ff, op_smalltbl_20_ff, op_smalltbl_21_ff, NULL, NULL, NULL },
+	{ op_smalltbl_3, op_smalltbl_43, op_smalltbl_53, op_smalltbl_20, op_smalltbl_21, NULL, NULL, NULL },
 	// 68030
-	{ op_smalltbl_2_ff, op_smalltbl_42_ff, op_smalltbl_52_ff, op_smalltbl_22_ff, op_smalltbl_23_ff, op_smalltbl_32_ff, op_smalltbl_34_ff, op_smalltbl_35_ff },
+	{ op_smalltbl_2, op_smalltbl_42, op_smalltbl_52, op_smalltbl_22, op_smalltbl_23, op_smalltbl_32, op_smalltbl_34, op_smalltbl_35 },
 	// 68040
-	{ op_smalltbl_1_ff, op_smalltbl_41_ff, op_smalltbl_51_ff, op_smalltbl_25_ff, op_smalltbl_25_ff, op_smalltbl_31_ff, op_smalltbl_31_ff, op_smalltbl_31_ff },
+	{ op_smalltbl_1, op_smalltbl_41, op_smalltbl_51, op_smalltbl_25, op_smalltbl_25, op_smalltbl_31, op_smalltbl_31, op_smalltbl_31 },
 	// 68060
-	{ op_smalltbl_0_ff, op_smalltbl_40_ff, op_smalltbl_50_ff, op_smalltbl_24_ff, op_smalltbl_24_ff, op_smalltbl_33_ff, op_smalltbl_33_ff, op_smalltbl_33_ff }
+	{ op_smalltbl_0, op_smalltbl_40, op_smalltbl_50, op_smalltbl_24, op_smalltbl_24, op_smalltbl_33, op_smalltbl_33, op_smalltbl_33 }
 };
+
+const struct cputbl *uaegetjitcputbl(void)
+{
+	int lvl = (currprefs.cpu_model - 68000) / 10;
+	if (lvl > 4)
+		lvl--;
+	int index = currprefs.comptrustbyte ? 0 : 1;
+	return cputbls[lvl][index];
+}
+
+const struct cputbl *getjitcputbl(int cpulvl, int direct)
+{
+	return cputbls[cpulvl][1 + direct];
+}
 
 static void build_cpufunctbl (void)
 {
 	int i, opcnt;
 	unsigned long opcode;
 	const struct cputbl *tbl = NULL;
-	int lvl, mode;
+	int lvl, mode, jit;
 
+	jit = 0;
 	if (!currprefs.cachesize) {
 		if (currprefs.mmu_model) {
 			if (currprefs.cpu_cycle_exact)
@@ -1821,6 +1848,7 @@ static void build_cpufunctbl (void)
 	} else {
 		mode = 1;
 		m68k_pc_indirect = 0;
+		jit = 1;
 		if (currprefs.comptrustbyte) {
 			mode = 2;
 			m68k_pc_indirect = -1;
@@ -1838,9 +1866,9 @@ static void build_cpufunctbl (void)
 
 	for (opcode = 0; opcode < 65536; opcode++)
 		cpufunctbl[opcode] = op_illg_1;
-	for (i = 0; tbl[i].handler != NULL; i++) {
+	for (i = 0; tbl[i].handler_ff != NULL; i++) {
 		opcode = tbl[i].opcode;
-		cpufunctbl[opcode] = tbl[i].handler;
+		cpufunctbl[opcode] = tbl[i].handler_ff;
 		cpudatatbl[opcode].length = tbl[i].length;
 		cpudatatbl[opcode].disp020[0] = tbl[i].disp020[0];
 		cpudatatbl[opcode].disp020[1] = tbl[i].disp020[1];
@@ -1849,10 +1877,10 @@ static void build_cpufunctbl (void)
 
 	/* hack fpu to 68000/68010 mode */
 	if (currprefs.fpu_model && currprefs.cpu_model < 68020) {
-		tbl = op_smalltbl_3_ff;
-		for (i = 0; tbl[i].handler != NULL; i++) {
+		tbl = op_smalltbl_3;
+		for (i = 0; tbl[i].handler_ff != NULL; i++) {
 			if ((tbl[i].opcode & 0xfe00) == 0xf200) {
-				cpufunctbl[tbl[i].opcode] = tbl[i].handler;
+				cpufunctbl[tbl[i].opcode] = tbl[i].handler_ff;
 				cpudatatbl[tbl[i].opcode].length = tbl[i].length;
 				cpudatatbl[tbl[i].opcode].disp020[0] = tbl[i].disp020[0];
 				cpudatatbl[tbl[i].opcode].disp020[1] = tbl[i].disp020[1];
@@ -1916,6 +1944,21 @@ static void build_cpufunctbl (void)
 		}
 
 	}
+
+	need_opcode_swap = 0;
+#ifdef HAVE_GET_WORD_UNSWAPPED
+	if (jit) {
+		cpuop_func **tmp = xmalloc(cpuop_func*, 65536);
+		memcpy(tmp, cpufunctbl, sizeof(cpuop_func*) * 65536);
+		for (int i = 0; i < 65536; i++) {
+			int offset = do_byteswap_16(i);
+			cpufunctbl[offset] = tmp[i];
+		}
+		xfree(tmp);
+		need_opcode_swap = 1;
+	}
+#endif
+
 	write_log (_T("Building CPU, %d opcodes (%d %d %d)\n"),
 		opcnt, lvl,
 		currprefs.cpu_cycle_exact ? -2 : currprefs.cpu_memory_cycle_exact ? -1 : currprefs.cpu_compatible ? 1 : 0, currprefs.address_space_24);
@@ -1939,7 +1982,7 @@ static void build_cpufunctbl (void)
 	}
 	m68k_interrupt_delay = false;
 	if (currprefs.cpu_cycle_exact) {
-		if (tbl == op_smalltbl_14_ff || tbl == op_smalltbl_13_ff || tbl == op_smalltbl_21_ff || tbl == op_smalltbl_23_ff)
+		if (tbl == op_smalltbl_14 || tbl == op_smalltbl_13 || tbl == op_smalltbl_21 || tbl == op_smalltbl_23)
 			m68k_interrupt_delay = true;
 	} else if (currprefs.cpu_compatible) {
 		if (currprefs.cpu_model <= 68010 && currprefs.m68k_speed == 0) {
@@ -2174,8 +2217,7 @@ void init_m68k (void)
 	}
 #endif
 
-	read_table68k ();
-	do_merges ();
+	init_table68k();
 
 	write_log (_T("%d CPU functions\n"), nr_cpuop_funcs);
 }
@@ -3242,7 +3284,7 @@ kludge_me_do:
 }
 
 // address = format $2 stack frame address field
-static void ExceptionX (int nr, uaecptr address)
+static void ExceptionX (int nr, uaecptr address, uaecptr oldpc)
 {
 	uaecptr pc = m68k_getpc();
 	regs.exception = nr;
@@ -3253,12 +3295,9 @@ static void ExceptionX (int nr, uaecptr address)
 	if (!regs.s) {
 		regs.instruction_pc_user_exception = pc;
 	}
-
-#ifdef JIT
-	if (currprefs.cachesize)
-		regs.instruction_pc = address == -1 ? pc : address;
-#endif
-
+	if (oldpc != 0xffffffff) {
+		regs.instruction_pc = oldpc;
+	}
 	if (debug_illegal && !in_rom(pc)) {
 		if (nr <= 63 && (debug_illegal_mask & ((uae_u64)1 << nr))) {
 			write_log(_T("Exception %d breakpoint\n"), nr);
@@ -3291,10 +3330,10 @@ static void ExceptionX (int nr, uaecptr address)
 	}
 }
 
-void REGPARAM2 Exception_cpu(int nr)
+void REGPARAM2 Exception_cpu_oldpc(int nr, uaecptr oldpc)
 {
 	bool t0 = currprefs.cpu_model >= 68020 && regs.t0 && !regs.t1;
-	ExceptionX (nr, -1);
+	ExceptionX(nr, 0xffffffff, oldpc);
 	// Check T0 trace
 	// RTE format error ignores T0 trace
 	if (nr != 14) {
@@ -3306,13 +3345,17 @@ void REGPARAM2 Exception_cpu(int nr)
 		}
 	}
 }
-void REGPARAM2 Exception (int nr)
+void REGPARAM2 Exception_cpu(int nr)
 {
-	ExceptionX (nr, -1);
+	Exception_cpu_oldpc(nr, 0xffffffff);
 }
-void REGPARAM2 ExceptionL (int nr, uaecptr address)
+void REGPARAM2 Exception(int nr)
 {
-	ExceptionX (nr, address);
+	ExceptionX(nr, 0xffffffff, 0xffffffff);
+}
+void REGPARAM2 ExceptionL(int nr, uaecptr address)
+{
+	ExceptionX(nr, address, 0xffffffff);
 }
 
 static void bus_error(void)
@@ -3600,10 +3643,12 @@ uae_u32 REGPARAM2 op_illg (uae_u32 opcode)
 	int inrom = in_rom (pc);
 	int inrt = in_rtarea (pc);
 
-	if ((opcode == 0x4afc || opcode == 0xfc4a) && !valid_address(pc, 4) && valid_address(pc - 4, 4)) {
-		// PC fell off the end of RAM
-		bus_error();
-		return 4;
+	if (opcode == 0x4afc || opcode == 0xfc4a) {
+		if (!valid_address(pc, 4) && valid_address(pc - 4, 4)) {
+			// PC fell off the end of RAM
+			bus_error();
+			return 4;
+		}
 	}
 
 	// BKPT?
@@ -5139,19 +5184,35 @@ void do_nothing (void)
 	}
 }
 
+static uae_u32 get_jit_opcode(void)
+{
+	uae_u32 opcode;
+	if (currprefs.cpu_compatible) {
+		opcode = get_word_020_prefetchf(m68k_getpc());
+#ifdef HAVE_GET_WORD_UNSWAPPED
+		opcode = do_byteswap_16(opcode);
+#endif
+	} else {
+#ifdef HAVE_GET_WORD_UNSWAPPED
+		opcode = do_get_mem_word_unswapped((uae_u16 *)get_real_address(m68k_getpc()));
+#else
+		opcode = x_get_iword(0);
+#endif
+	}
+	return opcode;
+}
+
 void exec_nostats (void)
 {
 	struct regstruct *r = &regs;
 
 	for (;;)
 	{
-		if (currprefs.cpu_compatible) {
-			r->opcode = get_word_020_prefetchf(m68k_getpc());
-		} else {
-			r->opcode = x_get_iword(0);
-		}
-		cpu_cycles = (*cpufunctbl[r->opcode])(r->opcode) >> 16;
-		cpu_cycles = adjust_cycles (cpu_cycles);
+		r->opcode = get_jit_opcode();
+
+		(*cpufunctbl[r->opcode])(r->opcode);
+
+		cpu_cycles = 4 * CYCLE_UNIT; // adjust_cycles(cpu_cycles);
 
 		if (!currprefs.cpu_thread) {
 			do_cycles (cpu_cycles);
@@ -5167,7 +5228,7 @@ void exec_nostats (void)
 	}
 }
 
-void execute_normal (void)
+void execute_normal(void)
 {
 	struct regstruct *r = &regs;
 	int blocklen;
@@ -5183,22 +5244,21 @@ void execute_normal (void)
 	start_pc = r->pc;
 	for (;;) {
 		/* Take note: This is the do-it-normal loop */
-		regs.instruction_pc = m68k_getpc ();
-		if (currprefs.cpu_compatible) {
-			r->opcode = get_word_020_prefetchf (regs.instruction_pc);
-		} else {
-			r->opcode = x_get_iword(0);
-		}
+		r->opcode = get_jit_opcode();
 
 		special_mem = DISTRUST_CONSISTENT_MEM;
 		pc_hist[blocklen].location = (uae_u16*)r->pc_p;
 
-		cpu_cycles = (*cpufunctbl[r->opcode])(r->opcode) >> 16;
-		cpu_cycles = adjust_cycles(cpu_cycles);
+		(*cpufunctbl[r->opcode])(r->opcode);
+	
+		cpu_cycles = 4 * CYCLE_UNIT;
+
+//		cpu_cycles = adjust_cycles(cpu_cycles);
 		if (!currprefs.cpu_thread) {
 			do_cycles (cpu_cycles);
 		}
 		total_cycles += cpu_cycles;
+
 		pc_hist[blocklen].specmem = special_mem;
 		blocklen++;
 		if (end_block (r->opcode) || blocklen >= MAXRUN || r->spcflags || uae_int_requested) {
@@ -8146,7 +8206,6 @@ static bool maybe_icache030(uae_u32 addr)
 {
 	int lws;
 	uae_u32 tag;
-	uae_u32 data;
 	struct cache030 *c;
 
 	regs.fc030 = (regs.s ? 4 : 0) | 2;

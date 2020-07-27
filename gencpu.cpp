@@ -49,7 +49,12 @@ static int using_tracer;
 static int using_waitstates;
 static int using_simple_cycles;
 static int using_debugmem;
+static int using_noflags;
 static int using_test;
+static int using_nocycles;
+static int using_get_word_unswapped;
+static int using_optimized_flags;
+static int need_exception_oldpc;
 static int need_special_fixup;
 static int cpu_level, cpu_generic;
 static int count_readp;
@@ -63,9 +68,9 @@ static int memory_cycle_cnt;
 static int did_prefetch;
 static int ipl_fetched;
 static int opcode_nextcopy;
+static int disable_noflags;
 static int do_always_dynamic_cycles;
 
-static int optimized_flags;
 
 #define GF_APDI		0x00001
 #define GF_AD8R		0x00002
@@ -590,6 +595,10 @@ static void returntail (bool iswrite)
 
 static void returncycles(int cycles)
 {
+	if (using_nocycles) {
+		out("return 0;\n");
+		return;
+	}
 	if (using_ce || using_ce020) {
 #if 0
 		if (tail_ce020 == 0)
@@ -712,6 +721,9 @@ static void addcycles_ce020 (const char *name, int head, int tail, int cycles, i
 
 static void addcycles000_nonces(const char *sc)
 {
+	if (using_nocycles) {
+		return;
+	}
 	if (using_simple_cycles || do_always_dynamic_cycles) {
 		out("count_cycles += (%s) * CYCLE_UNIT / 2;\n", sc);
 		count_ncycles++;
@@ -719,6 +731,9 @@ static void addcycles000_nonces(const char *sc)
 }
 static void addcycles000_nonce(int c)
 {
+	if (using_nocycles) {
+		return;
+	}
 	if (using_simple_cycles || do_always_dynamic_cycles) {
 		out("count_cycles += %d * CYCLE_UNIT / 2;\n", c);
 		count_ncycles++;
@@ -785,6 +800,25 @@ static const char *bit_mask (int size)
 	default: term();
 	}
 	return 0;
+}
+
+static void swap_opcode(void)
+{
+	if (using_get_word_unswapped) {
+		out("\topcode = do_byteswap_16(opcode);\n");
+	}
+}
+
+static void real_opcode(int *have)
+{
+	if (!*have) {
+		if (using_get_word_unswapped) {
+			out("\tuae_u32 real_opcode = do_byteswap_16(opcode);\n");
+		} else {
+			out("\tuae_u32 real_opcode = opcode;\n");
+		}
+		*have = 1;
+	}
 }
 
 static int mmu040_movem;
@@ -1857,7 +1891,7 @@ static void genflags(flagtypes type, wordsizes size, const char *value, const ch
 	/* Temporarily deleted 68k/ARM flag optimizations.  I'd prefer to have
 	them in the appropriate m68k.h files and use just one copy of this
 	code here.  The API can be changed if necessary.  */
-	if (optimized_flags) {
+	if (using_optimized_flags) {
 		switch (type) {
 		case flag_add:
 		case flag_sub:
@@ -1876,9 +1910,9 @@ static void genflags(flagtypes type, wordsizes size, const char *value, const ch
 				out("SET_CZNV(olcznv | FLAGVAL_Z);\n");
 			} else {
 				switch (size) {
-				case sz_byte: out("optflag_testb(regs, (uae_s8)(%s));\n", value); break;
-				case sz_word: out("optflag_testw(regs, (uae_s16)(%s));\n", value); break;
-				case sz_long: out("optflag_testl(regs, (uae_s32)(%s));\n", value); break;
+				case sz_byte: out("optflag_testb((uae_s8)(%s));\n", value); break;
+				case sz_word: out("optflag_testw((uae_s16)(%s));\n", value); break;
+				case sz_long: out("optflag_testl((uae_s32)(%s));\n", value); break;
 				default: term();
 				}
 				out("IOR_CZNV(oldcznv);\n");
@@ -1890,41 +1924,39 @@ static void genflags(flagtypes type, wordsizes size, const char *value, const ch
 				out("SET_CZNV(FLAGVAL_Z);\n");
 			} else {
 				switch (size) {
-				case sz_byte: out("optflag_testb(regs, (uae_s8)(%s));\n", value); break;
-				case sz_word: out("optflag_testw(regs, (uae_s16)(%s));\n", value); break;
-				case sz_long: out("optflag_testl(regs, (uae_s32)(%s));\n", value); break;
+				case sz_byte: out("optflag_testb((uae_s8)(%s));\n", value); break;
+				case sz_word: out("optflag_testw((uae_s16)(%s));\n", value); break;
+				case sz_long: out("optflag_testl((uae_s32)(%s));\n", value); break;
 				default: term();
 				}
 			}
 			return;
-
 		case flag_add:
 			switch (size) {
-			case sz_byte: out("optflag_addb(regs, %s, (uae_s8)(%s), (uae_s8)(%s));\n", value, src, dst); break;
-			case sz_word: out("optflag_addw(regs, %s, (uae_s16)(%s), (uae_s16)(%s));\n", value, src, dst); break;
-			case sz_long: out("optflag_addl(regs, %s, (uae_s32)(%s), (uae_s32)(%s));\n", value, src, dst); break;
+			case sz_byte: out("optflag_addb(%s, (uae_s8)(%s), (uae_s8)(%s));\n", value, src, dst); break;
+			case sz_word: out("optflag_addw(%s, (uae_s16)(%s), (uae_s16)(%s));\n", value, src, dst); break;
+			case sz_long: out("optflag_addl(%s, (uae_s32)(%s), (uae_s32)(%s));\n", value, src, dst); break;
 			default: term();
 			}
 			return;
 
 		case flag_sub:
 			switch (size) {
-			case sz_byte: out("optflag_subb(regs, %s, (uae_s8)(%s), (uae_s8)(%s));\n", value, src, dst); break;
-			case sz_word: out("optflag_subw(regs, %s, (uae_s16)(%s), (uae_s16)(%s));\n", value, src, dst); break;
-			case sz_long: out("optflag_subl(regs, %s, (uae_s32)(%s), (uae_s32)(%s));\n", value, src, dst); break;
+			case sz_byte: out("optflag_subb(%s, (uae_s8)(%s), (uae_s8)(%s));\n", value, src, dst); break;
+			case sz_word: out("optflag_subw(%s, (uae_s16)(%s), (uae_s16)(%s));\n", value, src, dst); break;
+			case sz_long: out("optflag_subl(%s, (uae_s32)(%s), (uae_s32)(%s));\n", value, src, dst); break;
 			default: term();
 			}
 			return;
 
 		case flag_cmp:
 			switch (size) {
-			case sz_byte: out("optflag_cmpb(regs, (uae_s8)(%s), (uae_s8)(%s));\n", src, dst); break;
-			case sz_word: out("optflag_cmpw(regs, (uae_s16)(%s), (uae_s16)(%s));\n", src, dst); break;
-			case sz_long: out("optflag_cmpl(regs, (uae_s32)(%s), (uae_s32)(%s));\n", src, dst); break;
+			case sz_byte: out("optflag_cmpb((uae_s8)(%s), (uae_s8)(%s));\n", src, dst); break;
+			case sz_word: out("optflag_cmpw((uae_s16)(%s), (uae_s16)(%s));\n", src, dst); break;
+			case sz_long: out("optflag_cmpl((uae_s32)(%s), (uae_s32)(%s));\n", src, dst); break;
 			default: term();
 			}
 			return;
-
 		default:
 			break;
 		}
@@ -4805,7 +4837,7 @@ static void bsetcycles (struct instr *curi)
 					out("if (src > 15) %s(2);\n", do_cycles);
 				}
 				next_level_020_to_010();
-				if ((using_simple_cycles || do_always_dynamic_cycles) && cpu_level <= 1) {
+				if ((using_simple_cycles || do_always_dynamic_cycles) && cpu_level <= 1 && !using_nocycles) {
 					out("if (src > 15) {\n");
 					out("count_cycles += % d * CYCLE_UNIT / 2;\n", 2);
 					out("}\n");
@@ -4821,6 +4853,20 @@ static int islongimm (struct instr *curi)
 	return (curi->size == sz_long && (curi->smode == Dreg || curi->smode == imm || curi->smode == Areg));
 }
 
+static void exception_cpu(const char *s)
+{
+	if (need_exception_oldpc) {
+		out("Exception_cpu_oldpc(%s,oldpc);\n", s);
+	} else {
+		out("Exception_cpu(%s);\n", s);
+	}
+}
+static void exception_oldpc(void)
+{
+	if (need_exception_oldpc) {
+		out("uaecptr oldpc = %s;\n", getpc);
+	}
+}
 
 static void resetvars (void)
 {
@@ -6046,6 +6092,7 @@ static void gen_opcode (unsigned int opcode)
 		genastore("dst", curi->dmode, "dstreg", curi->size, "dst");
 		break;
 	case i_CMPM:
+		disable_noflags = 1;
 		exception_pc_offset_extra_000 = 2;
 		genamodedual(curi,
 			curi->smode, "srcreg", curi->size, "src", 1, GF_AA,
@@ -6054,6 +6101,7 @@ static void gen_opcode (unsigned int opcode)
 		fill_prefetch_next_t();
 		break;
 	case i_CMP:
+		disable_noflags = 1;
 		genamodedual(curi,
 			curi->smode, "srcreg", curi->size, "src", 1, 0,
 			curi->dmode, "dstreg", curi->size, "dst", 1, 0);
@@ -6066,6 +6114,7 @@ static void gen_opcode (unsigned int opcode)
 		}
 		break;
 	case i_CMPA:
+		disable_noflags = 1;
 		genamodedual(curi,
 			curi->smode, "srcreg", curi->size, "src", 1, 0,
 			curi->dmode, "dstreg", sz_long, "dst", 1, 0);
@@ -6525,10 +6574,11 @@ static void gen_opcode (unsigned int opcode)
 		tail_ce020_done = true;
 		break;
 	case i_TRAP:
+		exception_oldpc();
 		genamode(curi, curi->smode, "srcreg", curi->size, "src", 1, 0, 0);
 		gen_set_fault_pc (false, true);
 		sync_m68k_pc();
-		out("Exception_cpu(src + 32);\n");
+		exception_cpu("src + 32");
 		write_return_cycles_noadd(0);
 		did_prefetch = -1;
 		ipl_fetched = -1;
@@ -6693,7 +6743,7 @@ static void gen_opcode (unsigned int opcode)
 			out("SET_NFLG(((uae_s16)format) < 0); \n");
 			out("SET_ZFLG(format == 0);\n");
 			out("SET_VFLG(0);\n");
-			out("Exception_cpu(14);\n");
+			exception_cpu("14");
 			write_return_cycles(0);
 			out("}\n");
 
@@ -6785,18 +6835,18 @@ static void gen_opcode (unsigned int opcode)
 				out("SET_NFLG(((uae_s16)format) < 0); \n");
 				out("SET_ZFLG(format == 0);\n");
 				out("SET_VFLG(0);\n");
-				out("Exception_cpu(14);\n");
+				exception_cpu("14");
 				write_return_cycles(0);
 			} else if (cpu_level == 0) {
-				out("Exception_cpu(14);\n");
+				exception_cpu("14");
 				write_return_cycles(0);
 			} else if (cpu_level == 3) {
 				// 68030: trace bits are cleared
 				out("regs.t1 = regs.t0 = 0;\n");
-				out("Exception_cpu(14);\n");
+				exception_cpu("14");
 				write_return_cycles(0);
 			} else {
-				out("Exception_cpu(14);\n");
+				exception_cpu("14");
 				write_return_cycles(0);
 			}
 			out("}\n");
@@ -7006,6 +7056,7 @@ static void gen_opcode (unsigned int opcode)
 		}
 		break;
 	case i_TRAPV:
+		exception_oldpc();
 		sync_m68k_pc();
 		if (cpu_level == 0) {
 			// 68000 TRAPV is really weird
@@ -7031,14 +7082,14 @@ static void gen_opcode (unsigned int opcode)
 				// stacked opcode is TRAPV
 				out("regs.ir = opcode_v;\n");
 			}
-			out("Exception_cpu(7);\n");
+			exception_cpu("7");
 			write_return_cycles(0);
 			out("}\n");
 		} else if (cpu_level == 1) {
 			push_ins_cnt();
 			out("if (GET_VFLG()) {\n");
 			addcycles000(2);
-			out("Exception_cpu(7);\n");
+			exception_cpu("7");
 			write_return_cycles(0);
 			out("}\n");
 			pop_ins_cnt();
@@ -7046,7 +7097,7 @@ static void gen_opcode (unsigned int opcode)
 		} else {
 			fill_prefetch_next();
 			out("if (GET_VFLG()) {\n");
-			out("Exception_cpu(7);\n");
+			exception_cpu("7");
 			write_return_cycles(0);
 			out("}\n");
 		}
@@ -7588,7 +7639,7 @@ bccl_not68020:
 			out("if (src) {\n");
 			if (using_ce) {
 				out("loop_mode_table[regs.ird](regs.ird);\n");
-			} else {
+			} else if (!using_nocycles) {
 				out("count_cycles += loop_mode_table[regs.ird](regs.ird);\n");
 			}
 
@@ -7724,6 +7775,7 @@ bccl_not68020:
 		next_level_000();
 		break;
 	case i_DIVU:
+		exception_oldpc();
 		tail_ce020_done	= true;
 		genamodedual(curi,
 			curi->smode, "srcreg", sz_word, "src", 1, 0,
@@ -7733,7 +7785,7 @@ bccl_not68020:
 		out("divbyzero_special(0, dst);\n");
 		incpc("%d", m68k_pc_offset);
 		addcycles000(4);
-		out("Exception_cpu(5);\n");
+		exception_cpu("5");
 		write_return_cycles(0);
 		out("}\n");
 		pop_ins_cnt();
@@ -7765,6 +7817,7 @@ bccl_not68020:
 		next_level_020_to_010();
 		break;
 	case i_DIVS:
+		exception_oldpc();
 		tail_ce020_done	= true;
 		genamodedual(curi,
 			curi->smode, "srcreg", sz_word, "src", 1, 0,
@@ -7774,7 +7827,7 @@ bccl_not68020:
 		out("divbyzero_special(1, dst);\n");
 		incpc("%d", m68k_pc_offset);
 		addcycles000(4);
-		out("Exception_cpu(5);\n");
+		exception_cpu("5");
 		write_return_cycles(0);
 		out("}\n");
 		pop_ins_cnt();
@@ -7867,25 +7920,29 @@ bccl_not68020:
 		next_level_020_to_010();
 		break;
 	case i_CHK:
+		disable_noflags = 1;
+		exception_oldpc();
 		genamode(curi, curi->smode, "srcreg", curi->size, "src", 1, 0, 0);
 		genamode(curi, curi->dmode, "dstreg", curi->size, "dst", 1, 0, 0);
 		sync_m68k_pc();
 		addcycles000(4);
 		out("if (dst > src) {\n");
 		out("setchkundefinedflags(src, dst, %d);\n", curi->size);
-		out("Exception_cpu(6);\n");
+		exception_cpu("6");
 		write_return_cycles(0);
 		out("}\n");
 		addcycles000(2);
 		out("if ((uae_s32)dst < 0) {\n");
 		out("setchkundefinedflags(src, dst, %d);\n", curi->size);
-		out("Exception_cpu(6);\n");
+		exception_cpu("6");
 		write_return_cycles(0);
 		out("}\n");
 		out("setchkundefinedflags(src, dst, %d);\n", curi->size);
 		fill_prefetch_next_t();
 		break;
 	case i_CHK2:
+		disable_noflags = 1;
+		exception_oldpc();
 		genamode(curi, curi->smode, "srcreg", curi->size, "extra", 1, 0, 0);
 		genamode(curi, curi->dmode, "dstreg", curi->size, "dst", 2, 0, 0);
 		fill_prefetch_0();
@@ -7912,11 +7969,11 @@ bccl_not68020:
 		out("if(upper == reg || lower == reg) {\n");
 		out("SET_ZFLG(1);\n");
 		out("}else{\n");
-		out("if (lower <= upper && (reg < lower || reg > upper)) SET_CFLG(1);\n");
-		out("if (lower > upper && reg > upper && reg < lower) SET_CFLG(1);\n");
+		out("if (lower <= upper && (reg < lower || reg > upper)) SET_ALWAYS_CFLG(1);\n");
+		out("if (lower > upper && reg > upper && reg < lower) SET_ALWAYS_CFLG(1);\n");
 		out("}\n");
 		out("if ((extra & 0x800) && GET_CFLG()) {\n");
-		out("Exception_cpu(6);\n");
+		exception_cpu("6");
 		write_return_cycles(0);
 		out("}\n");
 		break;
@@ -8399,6 +8456,7 @@ bccl_not68020:
 		break;
 	case i_CAS:
 		{
+			disable_noflags = 1;
 			genamode(curi, curi->smode, "srcreg", curi->size, "src", 1, 0, GF_LRMW);
 			genamode(curi, curi->dmode, "dstreg", curi->size, "dst", 1, 0, GF_LRMW);
 			if (cpu_level == 5 && curi->size > 0) {
@@ -8439,6 +8497,7 @@ bccl_not68020:
 		}
 		break;
 	case i_CAS2:
+		disable_noflags = 1;
 		genamode(curi, curi->smode, "srcreg", curi->size, "extra", 1, 0, GF_LRMW);
 		out("uae_u32 rn1 = regs.regs[(extra >> 28) & 15];\n");
 		out("uae_u32 rn2 = regs.regs[(extra >> 12) & 15];\n");
@@ -8555,20 +8614,22 @@ bccl_not68020:
 		did_prefetch = -1;
 		break;
 	case i_TRAPcc:
+		exception_oldpc();
 		if (curi->smode != am_unknown && curi->smode != am_illg)
 			genamode(curi, curi->smode, "srcreg", curi->size, "dummy", 1, 0, 0);
 		fill_prefetch_0();
 		sync_m68k_pc();
 		out("if (cctrue(%d)) {\n", curi->cc);
-		out("Exception_cpu(7);\n");
+		exception_cpu("7");
 		write_return_cycles(0);
 		out("}\n");
 		break;
 	case i_DIVL:
+		out("uaecptr oldpc = %s;\n", getpc);
 		genamode(curi, curi->smode, "srcreg", curi->size, "extra", 1, 0, 0);
 		genamode(curi, curi->dmode, "dstreg", curi->size, "dst", 1, 0, 0);
 		sync_m68k_pc();
-		out("int e = m68k_divl(opcode, dst, extra);\n");
+		out("int e = m68k_divl(opcode, dst, extra, oldpc);\n");
 		out("if (e <= 0) {\n");
 		if (mmufixupcnt) {
 			out("if (e < 0) {\n");
@@ -8631,7 +8692,7 @@ bccl_not68020:
 				out("dsta += offset >> 3;\n");
 				out("tmp = %s(dsta, bdata, offset, width);\n", getb);
 			}
-			out("SET_NFLG_ALWAYS (((uae_s32)tmp) < 0 ? 1 : 0);\n");
+			out("SET_ALWAYS_NFLG(((uae_s32)tmp) < 0 ? 1 : 0);\n");
 			if (curi->mnemo == i_BFEXTS)
 				out("tmp = (uae_s32)tmp >> (32 - width);\n");
 			else
@@ -8661,7 +8722,7 @@ bccl_not68020:
 			case i_BFINS:
 				out("tmp = m68k_dreg(regs, (extra >> 12) & 7);\n");
 				out("tmp = tmp & (0xffffffffu >> (32 - width));\n");
-				out("SET_NFLG(tmp & (1 << (width - 1)) ? 1 : 0);\n");
+				out("SET_ALWAYS_NFLG(tmp & (1 << (width - 1)) ? 1 : 0);\n");
 				out("SET_ZFLG(tmp == 0);\n");
 				break;
 			default:
@@ -8774,6 +8835,7 @@ bccl_not68020:
 		fpulimit();
 		genamode(curi, curi->smode, "srcreg", curi->size, "extra", 1, 0, 0);
 		sync_m68k_pc();
+		swap_opcode();
 		out("fpuop_arithmetic(opcode, extra);\n");
 		if (using_prefetch || using_prefetch_020) {
 			out("if (regs.fp_exception) {\n");
@@ -8785,6 +8847,7 @@ bccl_not68020:
 		fpulimit();
 		genamode(curi, curi->smode, "srcreg", curi->size, "extra", 1, 0, 0);
 		sync_m68k_pc();
+		swap_opcode();
 		out("fpuop_dbcc (opcode, extra);\n");
 		if (using_prefetch || using_prefetch_020) {
 			out("if (regs.fp_exception) {\n");
@@ -8806,6 +8869,7 @@ bccl_not68020:
 		fpulimit();
 		genamode(curi, curi->smode, "srcreg", curi->size, "extra", 1, 0, 0);
 		sync_m68k_pc();
+		swap_opcode();
 		out("fpuop_scc (opcode, extra);\n");
 		if (using_prefetch || using_prefetch_020) {
 			out("if (regs.fp_exception) {\n");
@@ -8820,6 +8884,7 @@ bccl_not68020:
 		if (curi->smode != am_unknown && curi->smode != am_illg)
 			genamode(curi, curi->smode, "srcreg", curi->size, "dummy", 1, 0, 0);
 		sync_m68k_pc();
+		swap_opcode();
 		out("fpuop_trapcc (opcode, oldpc, extra);\n");
 		if (using_prefetch || using_prefetch_020) {
 			out("if (regs.fp_exception) {\n");
@@ -8833,6 +8898,7 @@ bccl_not68020:
 		out("uaecptr pc = %s;\n", getpc);
 		genamode(curi, curi->dmode, "srcreg", curi->size, "extra", 1, 0, 0);
 		sync_m68k_pc();
+		swap_opcode();
 		out("fpuop_bcc (opcode, pc,extra);\n");
 		if (using_prefetch || using_prefetch_020) {
 			out("if (regs.fp_exception) {\n");
@@ -8853,6 +8919,7 @@ bccl_not68020:
 	case i_FSAVE:
 		fpulimit();
 		sync_m68k_pc();
+		swap_opcode();
 		out("fpuop_save (opcode);\n");
 		if (using_prefetch || using_prefetch_020) {
 			out("if (regs.fp_exception) {\n");
@@ -8863,6 +8930,7 @@ bccl_not68020:
 	case i_FRESTORE:
 		fpulimit();
 		sync_m68k_pc();
+		swap_opcode();
 		out("fpuop_restore (opcode);\n");
 		if (using_prefetch || using_prefetch_020) {
 			out("if (regs.fp_exception) {\n");
@@ -9016,7 +9084,14 @@ end:
 	}
 }
 
-static void generate_includes (FILE * f, int id)
+static void generate_macros(FILE *f)
+{
+	fprintf(f,
+		"#define SET_ALWAYS_CFLG(x) SET_CFLG(x)\n"
+		"#define SET_ALWAYS_NFLG(x) SET_NFLG(x)\n");
+}
+
+static void generate_includes (FILE *f, int id)
 {
 	fprintf(f, "#include \"sysconfig.h\"\n");
 	fprintf(f, "#include \"sysdeps.h\"\n");
@@ -9031,13 +9106,7 @@ static void generate_includes (FILE * f, int id)
 		fprintf(f, "#include \"cpummu.h\"\n");
 	else if (id == 32 || id == 34 || id == 35)
 		fprintf(f, "#include \"cpummu030.h\"\n");
-
-	fprintf(f, "#define CPUFUNC(x) x##_ff\n"
-		"#define SET_CFLG_ALWAYS(x) SET_CFLG(x)\n"
-		"#define SET_NFLG_ALWAYS(x) SET_NFLG(x)\n"
-		"#ifdef NOFLAGS\n"
-		"#include \"noflags.h\"\n"
-		"#endif\n");
+	generate_macros(f);
 }
 
 static char *decodeEA (amodes mode, wordsizes size)
@@ -9180,14 +9249,63 @@ struct cputbl_tmp
 };
 static struct cputbl_tmp cputbltmp[65536];
 
+static const char *remove_nf[] = {
+	"SET_ZFLG",
+	"SET_NFLG",
+	"SET_VFLG",
+	"SET_CFLG",
+	"SET_XFLG",
+	"COPY_CARRY",
+	"CLEAR_CZNV",
+	NULL
+};
+
+static void remove_func(const char *fs, char *p)
+{
+	for (;;) {
+		const char *f1 = strstr(p, fs);
+		if (!f1)
+			break;
+		const char *f2 = strchr(f1, ';');
+		if (!f2) {
+			abort();
+		}
+		while (f1 > p && (f1[-1] == '\t' || f1[-1] == ' ')) {
+			f1--;
+		}
+		f2++;
+		while (*f2 == '\n' || *f2 == '\r') {
+			f2++;
+		}
+		if (f1[1] == '\n') {
+			f1++;
+		}
+		memmove(p + (f1 - p), f2, strlen(f2) + 1);
+	}
+}
+
+static void convert_to_noflags(char *p)
+{
+	for (int i = 0; remove_nf[i]; i++) {
+		remove_func(remove_nf[i], p);
+	}
+	const char *f1 = strstr(p, "_ff(");
+	if (!f1) {
+		abort();
+	}
+	p[f1 - p + 1] = 'n';
+}
+
 static void generate_one_opcode (int rp, const char *extra)
 {
 	int idx;
 	uae_u16 smsk, dmsk;
 	unsigned int opcode = opcode_map[rp];
 	int i68000 = table68k[opcode].clev > 0;
+	int have_realopcode = 0;
 
 	brace_level = 0;
+	disable_noflags = 0;
 
 	if (table68k[opcode].mnemo == i_ILLG
 		|| table68k[opcode].clev > cpu_level)
@@ -9206,10 +9324,10 @@ static void generate_one_opcode (int rp, const char *extra)
 	if (opcode_next_clev[rp] != cpu_level) {
 		char *name = ua (lookuptab[idx].name);
 		if (generate_stbl)
-			fprintf(stblfile, "{ %sCPUFUNC(op_%04x_%d%s), 0x%04x, %d, { %d, %d }, %d }, /* %s */\n",
-				(using_ce || using_ce020) ? "(cpuop_func*)" : "",
-				opcode, opcode_last_postfix[rp],
-				extra, opcode,
+			fprintf(stblfile, "{ %sop_%04x_%d%s_ff, %sop_%04x_%d%s_ff, 0x%04x, %d, { %d, %d }, %d }, /* %s */\n",
+				(using_ce || using_ce020) ? "(cpuop_func*)" : "", opcode, opcode_last_postfix[rp], extra,
+				(using_ce || using_ce020) ? "(cpuop_func*)" : "", opcode, opcode_last_postfix[rp], extra,
+				opcode,
 				cputbltmp[opcode].length, cputbltmp[opcode].disp020[0], cputbltmp[opcode].disp020[1], cputbltmp[opcode].branch, name);
 		xfree (name);
 		return;
@@ -9221,8 +9339,8 @@ static void generate_one_opcode (int rp, const char *extra)
 	out("/* %s */\n", outopcode (opcode));
 	if (i68000)
 		out("#ifndef CPUEMU_68000_ONLY\n");
-	out("%s REGPARAM2 CPUFUNC(op_%04x_%d%s)(uae_u32 opcode)\n{\n", (using_ce || using_ce020) ? "void" : "uae_u32", opcode, postfix, extra);
-	if (using_simple_cycles || do_always_dynamic_cycles)
+	out("%s REGPARAM2 op_%04x_%d%s_ff(uae_u32 opcode)\n{\n", (using_ce || using_ce020) ? "void" : "uae_u32", opcode, postfix, extra);
+	if ((using_simple_cycles || do_always_dynamic_cycles) && !using_nocycles)
 		out("int count_cycles = 0;\n");
 
 	switch (table68k[opcode].stype) {
@@ -9253,10 +9371,11 @@ static void generate_one_opcode (int rp, const char *extra)
 			char source[100];
 			int pos = table68k[opcode].spos;
 
+			real_opcode(&have_realopcode);
 			if (pos)
-				sprintf(source, "((opcode >> %d) & %d)", pos, smsk);
+				sprintf(source, "((real_opcode >> %d) & %d)", pos, smsk);
 			else
-				sprintf(source, "(opcode & %d)", smsk);
+				sprintf(source, "(real_opcode & %d)", smsk);
 
 			if (table68k[opcode].stype == 3)
 				out("uae_u32 srcreg = imm8_table[%s];\n", source);
@@ -9279,11 +9398,12 @@ static void generate_one_opcode (int rp, const char *extra)
 				out("uae_u32 dstreg = %d;\n", (int) table68k[opcode].dreg);
 		} else {
 			int pos = table68k[opcode].dpos;
+			real_opcode(&have_realopcode);
 			if (pos)
-				out("uae_u32 dstreg = (opcode >> %d) & %d;\n",
+				out("uae_u32 dstreg = (real_opcode >> %d) & %d;\n",
 				pos, dmsk);
 			else
-				out("uae_u32 dstreg = opcode & %d;\n", dmsk);
+				out("uae_u32 dstreg = real_opcode & %d;\n", dmsk);
 		}
 	}
 	count_readw = count_readl = count_writew = count_writel = count_ncycles = count_cycles = 0;
@@ -9318,13 +9438,22 @@ static void generate_one_opcode (int rp, const char *extra)
 
 	printf("%s", outbuffer);
 
+	int nfgenerated = 0;
+	// generate noflags variant if needed
+	if (using_noflags && table68k[opcode].flagdead != 0 && !disable_noflags) {
+		convert_to_noflags(outbuffer);
+		printf("%s", outbuffer);
+		nfgenerated = 1;
+	}
+
 	if (generate_stbl) {
 		char *name = ua (lookuptab[idx].name);
 		if (i68000)
 			fprintf(stblfile, "#ifndef CPUEMU_68000_ONLY\n");
-		fprintf(stblfile, "{ %sCPUFUNC(op_%04x_%d%s), 0x%04x, %d, { %d, %d }, %d }, /* %s */\n",
-			(using_ce || using_ce020) ? "(cpuop_func*)" : "",
-			opcode, postfix, extra, opcode,
+		fprintf(stblfile, "{ %sop_%04x_%d%s_ff, %sop_%04x_%d%s_%s, 0x%04x, %d, { %d, %d }, %d }, /* %s */\n",
+			(using_ce || using_ce020) ? "(cpuop_func*)" : "", opcode, postfix, extra,
+			(using_ce || using_ce020) ? "(cpuop_func*)" : "", opcode, postfix, extra, nfgenerated ? "nf" : "ff",
+			opcode,
 			cputbltmp[opcode].length, cputbltmp[opcode].disp020[0], cputbltmp[opcode].disp020[1], cputbltmp[opcode].branch, name);
 		if (i68000)
 			fprintf(stblfile, "#endif\n");
@@ -9384,6 +9513,7 @@ static void generate_cpu_test(int mode)
 	if (freopen(fname, "wb", stdout) == NULL) {
 		abort();
 	}
+	generate_macros(stdout);
 
 	using_exception_3 = 1;
 	using_bus_error = 1;
@@ -9399,6 +9529,7 @@ static void generate_cpu_test(int mode)
 	using_simple_cycles = 0;
 	using_indirect = 1;
 	cpu_generic = false;
+	need_exception_oldpc = 0;
 
 	cpu_level = 0;
 	using_prefetch = 1;
@@ -9491,6 +9622,9 @@ static void generate_cpu (int id, int mode)
 	using_indirect = 0;
 	cpu_generic = false;
 	need_special_fixup = 0;
+	need_exception_oldpc = 0;
+	using_get_word_unswapped = 0;
+	using_noflags = 0;
 
 	if (id == 11 || id == 12) { // 11 = 68010 prefetch, 12 = 68000 prefetch
 		cpu_level = id == 11 ? 1 : 0;
@@ -9601,16 +9735,28 @@ static void generate_cpu (int id, int mode)
 	} else if (id >= 40 && id < 46) {
 		cpu_level = 5 - (id - 40); // "generic" + direct
 		cpu_generic = true;
+		need_exception_oldpc = 1;
 		if (id == 40) {
 			read_counts();
 			for (rp = 0; rp < nr_cpuop_funcs; rp++)
 				opcode_next_clev[rp] = cpu_level;
 		}
 		using_indirect = -1;
+		using_noflags = 1;
+		using_nocycles = 1;
+#ifdef HAVE_GET_WORD_UNSWAPPED
+		using_get_word_unswapped = 1;
+#endif
 	} else if (id >= 50 && id < 56) {
 		cpu_level = 5 - (id - 50); // "generic" + indirect
 		cpu_generic = true;
 		need_special_fixup = 1;
+		need_exception_oldpc = 1;
+		using_noflags = 1;
+		using_nocycles = 1;
+#ifdef HAVE_GET_WORD_UNSWAPPED
+		using_get_word_unswapped = 1;
+#endif
 		if (id == 50) {
 			read_counts();
 			for (rp = 0; rp < nr_cpuop_funcs; rp++)
@@ -9626,7 +9772,7 @@ static void generate_cpu (int id, int mode)
 	if (generate_stbl) {
 		if ((id > 0 && id < 6) || (id >= 20 && id < 40) || (id > 40 && id < 46) || (id > 50 && id < 56))
 			fprintf(stblfile, "#ifndef CPUEMU_68000_ONLY\n");
-		fprintf(stblfile, "const struct cputbl CPUFUNC(op_smalltbl_%d%s)[] = {\n", postfix, extra);
+		fprintf(stblfile, "const struct cputbl op_smalltbl_%d%s[] = {\n", postfix, extra);
 	}
 	generate_func (extra);
 	if (generate_stbl) {
@@ -9640,8 +9786,7 @@ static void generate_cpu (int id, int mode)
 
 int main(int argc, char *argv[])
 {
-	read_table68k();
-	do_merges();
+	init_table68k();
 
 	opcode_map =  xmalloc (int, nr_cpuop_funcs);
 	opcode_last_postfix = xmalloc (int, nr_cpuop_funcs);

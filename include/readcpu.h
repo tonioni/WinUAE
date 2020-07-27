@@ -64,8 +64,19 @@ ENUMDECL {
 } ENUMNAME (flaguse);
 
 ENUMDECL {
+    fl_normal = 0,
+    fl_branch = 1,
+    fl_jump = 2,
+    fl_return = 3,
+    fl_trap = 4,
+    fl_const_jump = 8,
+    /* Instructions that can trap don't mark the end of a block */
+    fl_end_block = 3
+} ENUMNAME (cflow_t);
+
+ENUMDECL {
     bit0, bit1, bitc, bitC, bitf, biti, bitI, bitj, bitJ, bitk, bitK,
-    bits, bitS, bitd, bitD, bitr, bitR, bitz, bitp, lastbit
+    bits, bitS, bitd, bitD, bitr, bitR, bitz, bitE, bitp, lastbit
 } ENUMNAME (bitvals);
 
 struct instr_def {
@@ -77,9 +88,10 @@ struct instr_def {
 	int unimpcpulevel;
     int plevel;
     struct {
-	unsigned int flaguse:3;
-	unsigned int flagset:3;
+	    unsigned int flaguse:3;
+	    unsigned int flagset:3;
     } flaginfo[5];
+    uae_u8 cflow;
     uae_u8 sduse;
     const TCHAR *opcstr;
 	// 68020/030 timing
@@ -109,14 +121,15 @@ extern struct instr {
     unsigned int duse:1;
     unsigned int ccuse:1;
     unsigned int clev:3, unimpclev:3;
-    unsigned int isjmp:1;
+    unsigned int cflow:3;
     unsigned int unused2:1;
 	char head, tail, clocks, fetchmode;
 } *table68k;
 
-extern void read_table68k (void);
-extern void do_merges (void);
-extern int get_no_mismatches (void);
+extern void init_table68k(void);
+extern void exit_table68k(void);
+
+extern int get_no_mismatches(void);
 extern int nr_cpuop_funcs;
 extern bool opcode_loop_mode(uae_u16 opcode);
 

@@ -43,8 +43,11 @@ using namespace std;
 #if defined(__x86_64__) || defined(_M_AMD64)
 #define CPU_x86_64 1
 #define CPU_64_BIT 1
+#define X86_64_ASSEMBLY 1
 #elif defined(__i386__) || defined(_M_IX86)
 #define CPU_i386 1
+#define X86_ASSEMBLY 1
+#define SAHF_SETO_PROFITABLE
 #elif defined(__arm__) || defined(_M_ARM)
 #define CPU_arm 1
 #elif defined(__powerpc__) || defined(_M_PPC)
@@ -412,7 +415,8 @@ extern void mallocemu_free (void *ptr);
 #endif
 
 #ifdef X86_ASSEMBLY
-#define ASM_SYM_FOR_FUNC(a) __asm__(a)
+//#define ASM_SYM_FOR_FUNC(a) __asm__(a)
+#define ASM_SYM_FOR_FUNC(a)
 #else
 #define ASM_SYM_FOR_FUNC(a)
 #endif

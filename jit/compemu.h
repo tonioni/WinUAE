@@ -38,6 +38,7 @@
 #ifdef UAE
 #ifdef CPU_64_BIT
 typedef uae_u64 uintptr;
+typedef uae_s64 intptr;
 #else
 typedef uae_u32 uintptr;
 #endif
@@ -130,19 +131,11 @@ union cacheline {
 			  for jump targets */
 
 #define INDIVIDUAL_INST 0
-#ifdef WINUAE_ARANYM
 #define FLAG_X    0x0010
 #define FLAG_N    0x0008
 #define FLAG_Z    0x0004
 #define FLAG_V    0x0002
 #define FLAG_C    0x0001
-#else
-#define FLAG_C    0x0010
-#define FLAG_V    0x0008
-#define FLAG_Z    0x0004
-#define FLAG_N    0x0002
-#define FLAG_X    0x0001
-#endif
 #define FLAG_CZNV (FLAG_C | FLAG_Z | FLAG_N | FLAG_V)
 #define FLAG_ALL  (FLAG_C | FLAG_Z | FLAG_N | FLAG_V | FLAG_X)
 #define FLAG_ZNV  (FLAG_Z | FLAG_N | FLAG_V)
@@ -163,33 +156,78 @@ union cacheline {
 
 /* Functions exposed to newcpu, or to what was moved from newcpu.c to
  * compemu_support.c */
-#ifdef WINUAE_ARANYM
 extern void compiler_init(void);
 extern void compiler_exit(void);
 extern bool compiler_use_jit(void);
-#endif
-extern void init_comp(void);
 extern void flush(int save_regs);
-extern void small_flush(int save_regs);
+void flush_reg(int reg);
 extern void set_target(uae_u8* t);
 extern uae_u8* get_target(void);
-extern void freescratch(void);
+#ifdef UAE
 extern void build_comp(void);
+#endif
 extern void set_cache_state(int enabled);
 extern int get_cache_state(void);
 extern uae_u32 get_jitted_size(void);
 #ifdef JIT
-#ifdef WINUAE_ARANYM
-extern void (*flush_icache)(int n);
-#else
-extern void flush_icache(int n);
-extern void flush_icache_hard(int n);
-#endif
+extern void (*flush_icache)(int);
 #endif
 extern void alloc_cache(void);
 extern int check_for_cache_miss(void);
 
 /* JIT FPU compilation */
+struct jit_disable_opcodes {
+	bool fbcc;
+	bool fdbcc;
+	bool fscc;
+	bool ftrapcc;
+	bool fsave;
+	bool frestore;
+	bool fmove;
+	bool fmovem;
+	bool fmovec;  /* for move control register */
+	bool fmovecr; /* for move from constant rom */
+	bool fint;
+	bool fsinh;
+	bool fintrz;
+	bool fsqrt;
+	bool flognp1;
+	bool fetoxm1;
+	bool ftanh;
+	bool fatan;
+	bool fasin;
+	bool fatanh;
+	bool fsin;
+	bool ftan;
+	bool fetox;
+	bool ftwotox;
+	bool ftentox;
+	bool flogn;
+	bool flog10;
+	bool flog2;
+	bool fabs;
+	bool fcosh;
+	bool fneg;
+	bool facos;
+	bool fcos;
+	bool fgetexp;
+	bool fgetman;
+	bool fdiv;
+	bool fmod;
+	bool fadd;
+	bool fmul;
+	bool fsgldiv;
+	bool frem;
+	bool fscale;
+	bool fsglmul;
+	bool fsub;
+	bool fsincos;
+	bool fcmp;
+	bool ftst;
+};
+extern struct jit_disable_opcodes jit_disable;
+
+
 extern void comp_fpp_opp (uae_u32 opcode, uae_u16 extra);
 extern void comp_fbcc_opp (uae_u32 opcode);
 extern void comp_fscc_opp (uae_u32 opcode, uae_u16 extra);
@@ -233,6 +271,7 @@ typedef struct {
   uae_u8 needflush;
 } freg_status;
 
+#define SP_REG 15
 #define PC_P 16
 #define FLAGX 17
 #define FLAGTMP 18
@@ -324,18 +363,20 @@ extern int touchcnt;
 #define RW4 uae_u32
 #define MEMR uae_u32
 #define MEMW uae_u32
-#define MEMRW uae_u32
+#define MEMRW    uae_u32
+#define MEMPTR   uintptr
+#define MEMPTRR  MEMPTR
+#define MEMPTRW  MEMPTR
+#define MEMPTRRW MEMPTR
 
 #define FW   uae_u32
 #define FR   uae_u32
 #define FRW  uae_u32
 
 #define MIDFUNC(nargs,func,args) void func args
-#define MENDFUNC(nargs,func,args)
 #define COMPCALL(func) func
 
 #define LOWFUNC(flags,mem,nargs,func,args) static inline void func args
-#define LENDFUNC(flags,mem,nargs,func,args)
 
 /* What we expose to the outside */
 #define DECLARE_MIDFUNC(func) extern void func
@@ -379,6 +420,11 @@ extern void sync_m68k_pc(void);
 extern uae_u32 get_const(int r);
 extern int  is_const(int r);
 extern void register_branch(uae_u32 not_taken, uae_u32 taken, uae_u8 cond);
+void compemu_make_sr(int sr, int tmp);
+void compemu_enter_super(int sr);
+void compemu_exc_make_frame(int format, int sr, int currpc, int nr, int tmp);
+void compemu_bkpt(void);
+extern bool disasm_this_inst;
 
 #define comp_get_ibyte(o) do_get_mem_byte((uae_u8 *)(comp_pc_p + (o) + 1))
 #define comp_get_iword(o) do_get_mem_word((uae_u16 *)(comp_pc_p + (o)))
@@ -460,18 +506,11 @@ void do_nothing(void);
 
 #else
 
-static inline void flush_icache(int) { }
-static inline void build_comp() { }
+static inline void flush_icache(void) { }
 
 #endif /* !USE_JIT */
 
 #ifdef UAE
-
-typedef struct {
-    uae_u8 type;
-    uae_u8 reg;
-    uae_u32 next;
-} regacc;
 
 #define JIT_EXCEPTION_HANDLER
 // #define JIT_ALWAYS_DISTRUST
@@ -488,20 +527,16 @@ extern void compile_block(cpu_history* pc_hist, int blocklen, int totcyles);
 /* Flags for Bernie during development/debugging. Should go away eventually */
 #define DISTRUST_CONSISTENT_MEM 0
 
-typedef struct {
-    uae_u8 use_flags;
-    uae_u8 set_flags;
-    uae_u8 is_jump;
-    uae_u8 is_addx;
-    uae_u8 is_const_jump;
-} op_properties;
-
+struct op_properties {
+	uae_u8 use_flags;
+	uae_u8 set_flags;
+	uae_u8 is_addx;
+	uae_u8 cflow;
+};
 extern op_properties prop[65536];
-
-STATIC_INLINE int end_block(uae_u16 opcode)
+static inline int end_block(uae_u32 opcode)
 {
-    return prop[opcode].is_jump ||
-	(prop[opcode].is_const_jump && !currprefs.comp_constjump);
+	return (prop[opcode].cflow & fl_end_block);
 }
 
 #ifdef _WIN32
