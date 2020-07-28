@@ -9246,6 +9246,7 @@ struct cputbl_tmp
 	uae_s16 length;
 	uae_s8 disp020[2];
 	uae_s8 branch;
+	uae_s8 nf;
 };
 static struct cputbl_tmp cputbltmp[65536];
 
@@ -9323,12 +9324,20 @@ static void generate_one_opcode (int rp, const char *extra)
 
 	if (opcode_next_clev[rp] != cpu_level) {
 		char *name = ua (lookuptab[idx].name);
-		if (generate_stbl)
-			fprintf(stblfile, "{ %sop_%04x_%d%s_ff, %sop_%04x_%d%s_ff, 0x%04x, %d, { %d, %d }, %d }, /* %s */\n",
+		if (generate_stbl) {
+#ifdef NOFLAGS_SUPPORT_GENCPU
+			fprintf(stblfile, "{ %sop_%04x_%d%s_ff, %sop_%04x_%d%s_%s, 0x%04x, %d, { %d, %d }, %d }, /* %s */\n",
 				(using_ce || using_ce020) ? "(cpuop_func*)" : "", opcode, opcode_last_postfix[rp], extra,
+				(using_ce || using_ce020) ? "(cpuop_func*)" : "", opcode, opcode_last_postfix[rp], extra, cputbltmp[opcode].nf ? "nf" : "ff",
+				opcode,
+				cputbltmp[opcode].length, cputbltmp[opcode].disp020[0], cputbltmp[opcode].disp020[1], cputbltmp[opcode].branch, name);
+#else
+			fprintf(stblfile, "{ %sop_%04x_%d%s_ff, 0x%04x, %d, { %d, %d }, %d }, /* %s */\n",
 				(using_ce || using_ce020) ? "(cpuop_func*)" : "", opcode, opcode_last_postfix[rp], extra,
 				opcode,
 				cputbltmp[opcode].length, cputbltmp[opcode].disp020[0], cputbltmp[opcode].disp020[1], cputbltmp[opcode].branch, name);
+#endif
+		}
 		xfree (name);
 		return;
 	}
@@ -9425,6 +9434,7 @@ static void generate_one_opcode (int rp, const char *extra)
 	if (genamode8r_offset[1] > 0)
 		cputbltmp[opcode].disp020[1] = m68k_pc_total - genamode8r_offset[1] + 2;
 	cputbltmp[opcode].branch = branch_inst / 2;
+	cputbltmp[opcode].nf = 0;
 
 	if (m68k_pc_total > 0)
 		out("/* %d %d,%d %c */\n",
@@ -9438,23 +9448,31 @@ static void generate_one_opcode (int rp, const char *extra)
 
 	printf("%s", outbuffer);
 
-	int nfgenerated = 0;
 	// generate noflags variant if needed
+	int nfgenerated = 0;
 	if (using_noflags && table68k[opcode].flagdead != 0 && !disable_noflags) {
 		convert_to_noflags(outbuffer);
 		printf("%s", outbuffer);
 		nfgenerated = 1;
+		cputbltmp[opcode].nf = 1;
 	}
 
 	if (generate_stbl) {
 		char *name = ua (lookuptab[idx].name);
 		if (i68000)
 			fprintf(stblfile, "#ifndef CPUEMU_68000_ONLY\n");
+#ifdef NOFLAGS_SUPPORT_GENCPU
 		fprintf(stblfile, "{ %sop_%04x_%d%s_ff, %sop_%04x_%d%s_%s, 0x%04x, %d, { %d, %d }, %d }, /* %s */\n",
 			(using_ce || using_ce020) ? "(cpuop_func*)" : "", opcode, postfix, extra,
 			(using_ce || using_ce020) ? "(cpuop_func*)" : "", opcode, postfix, extra, nfgenerated ? "nf" : "ff",
 			opcode,
 			cputbltmp[opcode].length, cputbltmp[opcode].disp020[0], cputbltmp[opcode].disp020[1], cputbltmp[opcode].branch, name);
+#else
+		fprintf(stblfile, "{ %sop_%04x_%d%s_ff, 0x%04x, %d, { %d, %d }, %d }, /* %s */\n",
+			(using_ce || using_ce020) ? "(cpuop_func*)" : "", opcode, postfix, extra,
+			opcode,
+			cputbltmp[opcode].length, cputbltmp[opcode].disp020[0], cputbltmp[opcode].disp020[1], cputbltmp[opcode].branch, name);
+#endif
 		if (i68000)
 			fprintf(stblfile, "#endif\n");
 		xfree (name);
@@ -9742,8 +9760,10 @@ static void generate_cpu (int id, int mode)
 				opcode_next_clev[rp] = cpu_level;
 		}
 		using_indirect = -1;
-		using_noflags = 1;
 		using_nocycles = 1;
+#ifdef NOFLAGS_SUPPORT_GENCPU
+		using_noflags = 1;
+#endif
 #ifdef HAVE_GET_WORD_UNSWAPPED
 		using_get_word_unswapped = 1;
 #endif
@@ -9752,8 +9772,10 @@ static void generate_cpu (int id, int mode)
 		cpu_generic = true;
 		need_special_fixup = 1;
 		need_exception_oldpc = 1;
-		using_noflags = 1;
 		using_nocycles = 1;
+#ifdef NOFLAGS_SUPPORT_GENCPU
+		using_noflags = 1;
+#endif
 #ifdef HAVE_GET_WORD_UNSWAPPED
 		using_get_word_unswapped = 1;
 #endif

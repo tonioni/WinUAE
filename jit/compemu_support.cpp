@@ -259,7 +259,7 @@ static int untranslated_compfn(const void *e1, const void *e2)
 
 static compop_func *compfunctbl[65536];
 static compop_func *nfcompfunctbl[65536];
-#ifdef NOFLAGS_SUPPORT
+#ifdef NOFLAGS_SUPPORT_GENCOMP
 static cpuop_func *nfcpufunctbl[65536];
 #endif
 uae_u8* comp_pc_p;
@@ -400,25 +400,12 @@ static blockinfo* hold_bi[MAX_HOLD_BI];
 static blockinfo* active;
 static blockinfo* dormant;
 
-#ifdef NOFLAGS_SUPPORT
+#ifdef NOFLAGS_SUPPORT_GENCOMP
 /* 68040 */
 extern const struct cputbl op_smalltbl_0[];
 #endif
 extern const struct comptbl op_smalltbl_0_comp_nf[];
 extern const struct comptbl op_smalltbl_0_comp_ff[];
-
-#ifdef NOFLAGS_SUPPORT
-/* 68020 + 68881 */
-extern const struct cputbl op_smalltbl_1[];
-/* 68020 */
-extern const struct cputbl op_smalltbl_2[];
-/* 68010 */
-extern const struct cputbl op_smalltbl_3[];
-/* 68000 */
-extern const struct cputbl op_smalltbl_4[];
-/* 68000 slow but compatible.  */
-extern const struct cputbl op_smalltbl_5[];
-#endif
 
 static void flush_icache_hard(int);
 static void flush_icache_lazy(int);
@@ -4270,7 +4257,7 @@ void build_comp(void)
 	unsigned int cpu_level = (currprefs.cpu_model - 68000) / 10;
 	if (cpu_level > 4)
 		cpu_level--;
-#ifdef NOFLAGS_SUPPORT
+#ifdef NOFLAGS_SUPPORT_GENCOMP
 	extern const struct cputbl *uaegetjitcputbl(void);
 	const struct cputbl *nfctbl = uaegetjitcputbl();
 #endif
@@ -4290,7 +4277,7 @@ void build_comp(void)
 	
 	for (opcode = 0; opcode < 65536; opcode++) {
 		reset_compop(opcode);
-#ifdef NOFLAGS_SUPPORT
+#ifdef NOFLAGS_SUPPORT_GENCOMP
 		nfcpufunctbl[opcode] = op_illg;
 #endif
 		prop[opcode].use_flags = FLAG_ALL;
@@ -4319,21 +4306,31 @@ void build_comp(void)
 			nfcompfunctbl[cft_map(nftbl[i].opcode)] = NULL;
 		else
 			nfcompfunctbl[cft_map(nftbl[i].opcode)] = nftbl[i].handler;
-#ifdef NOFLAGS_SUPPORT
+#ifdef NOFLAGS_SUPPORT_GENCOMP
+#ifdef NOFLAGS_SUPPORT_GENCPU
 		nfcpufunctbl[cft_map(nftbl[i].opcode)] = nfctbl[i].handler_nf;
+#else
+		nfcpufunctbl[cft_map(nftbl[i].opcode)] = nfctbl[i].handler_ff;
+#endif
 #endif
 	}
 
-#ifdef NOFLAGS_SUPPORT
+#ifdef NOFLAGS_SUPPORT_GENCOMP
+#ifdef NOFLAGS_SUPPORT_GENCPU
 	for (i = 0; nfctbl[i].handler_nf; i++) {
 		nfcpufunctbl[cft_map(nfctbl[i].opcode)] = nfctbl[i].handler_nf;
 	}
+#else
+	for (i = 0; nfctbl[i].handler_ff; i++) {
+		nfcpufunctbl[cft_map(nfctbl[i].opcode)] = nfctbl[i].handler_ff;
+	}
+#endif
 #endif
 
 	for (opcode = 0; opcode < 65536; opcode++) {
 		compop_func *f;
 		compop_func *nff;
-#ifdef NOFLAGS_SUPPORT
+#ifdef NOFLAGS_SUPPORT_GENCOMP
 		cpuop_func *nfcf;
 #endif
 		int isaddx;
@@ -4345,7 +4342,7 @@ void build_comp(void)
 		if (table68k[opcode].handler != -1) {
 			f = compfunctbl[cft_map(table68k[opcode].handler)];
 			nff = nfcompfunctbl[cft_map(table68k[opcode].handler)];
-#ifdef NOFLAGS_SUPPORT
+#ifdef NOFLAGS_SUPPORT_GENCOMP
 			nfcf = nfcpufunctbl[cft_map(table68k[opcode].handler)];
 #endif
 			isaddx = prop[cft_map(table68k[opcode].handler)].is_addx;
@@ -4354,7 +4351,7 @@ void build_comp(void)
 			prop[cft_map(opcode)].cflow = cflow;
 			compfunctbl[cft_map(opcode)] = f;
 			nfcompfunctbl[cft_map(opcode)] = nff;
-#ifdef NOFLAGS_SUPPORT
+#ifdef NOFLAGS_SUPPORT_GENCOMP
 			Dif (nfcf == op_illg)
 				abort();
 			nfcpufunctbl[cft_map(opcode)] = nfcf;
@@ -4367,11 +4364,18 @@ void build_comp(void)
 		if (prop[cft_map(opcode)].cflow & fl_const_jump)
 			prop[cft_map(opcode)].use_flags = 0;
 	}
-#ifdef NOFLAGS_SUPPORT
+#ifdef NOFLAGS_SUPPORT_GENCOMP
+#ifdef NOFLAGS_SUPPORT_GENCPU
 	for (i = 0; nfctbl[i].handler_nf != NULL; i++) {
 		if (nfctbl[i].specific)
 			nfcpufunctbl[cft_map(tbl[i].opcode)] = nfctbl[i].handler_nf;
 	}
+#else
+	for (i = 0; nfctbl[i].handler_ff != NULL; i++) {
+		if (nfctbl[i].specific)
+			nfcpufunctbl[cft_map(tbl[i].opcode)] = nfctbl[i].handler_ff;
+	}
+#endif
 #endif
 
 	/* Merge in blacklist */
@@ -4848,7 +4852,7 @@ static void compile_block(cpu_history* pc_hist, int blocklen)
 				if (!needed_flags)
 #endif
 				{
-#ifdef NOFLAGS_SUPPORT
+#ifdef NOFLAGS_SUPPORT_GENCOMP
 					cputbl=nfcpufunctbl;
 #else
 					cputbl=cpufunctbl;

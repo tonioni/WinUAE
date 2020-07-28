@@ -59,7 +59,9 @@ typedef void REGPARAM3 cpuop_func_ce (uae_u32) REGPARAM;
 
 struct cputbl {
 	cpuop_func *handler_ff;
+#ifdef NOFLAGS_SUPPORT_GENCPU
 	cpuop_func *handler_nf;
+#endif
 	uae_u16 opcode;
 	uae_s8 length;
 	uae_s8 disp020[2];
