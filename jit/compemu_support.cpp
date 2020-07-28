@@ -287,14 +287,15 @@ const bool follow_const_jumps = false;
 #endif
 
 static uae_u32 cache_size = 0; // Size of total cache allocated for compiled blocks
-static uae_u32		current_cache_size	= 0;		// Cache grows upwards: how much has been consumed already
-static bool		lazy_flush		= true;	// Flag: lazy translation cache invalidation
+static uae_u32 current_cache_size = 0; // Cache grows upwards: how much has been consumed already
 // Flag: compile FPU instructions ?
 #ifdef UAE
 #ifdef USE_JIT_FPU
 #define avoid_fpu (!currprefs.compfpu)
+#define lazy_flush (!currprefs.comp_hardflush)
 #else
 #define avoid_fpu (true)
+#define lazy_flush (true)
 #endif
 #else
 #ifdef USE_JIT_FPU
@@ -4060,6 +4061,7 @@ static void prepare_block(blockinfo* bi)
 #ifdef UAE
 void compemu_reset(void)
 {
+	flush_icache = lazy_flush ? flush_icache_lazy : flush_icache_hard;
 	set_cache_state(0);
 }
 #endif
