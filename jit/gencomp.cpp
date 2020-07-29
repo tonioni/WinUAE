@@ -477,16 +477,18 @@ static void genamode(amodes mode, const char *reg, wordsizes size, const char *n
 			comprintf("\tint %s = dodgy ? scratchie++ : %s + 8;\n", name, reg);
 			if (getv == GENA_GETV_FETCH)
 			{
-				comprintf("\tif (dodgy) \n");
+				comprintf("\tif (dodgy) {\n");
 				comprintf("\t\tmov_l_rr(%s, %s + 8);\n", name, reg);
+				comprintf("}\n");
 			}
 		}
 		return;
 
 	case Aind:
 		comprintf("\tint %sa = dodgy ? scratchie++ : %s + 8;\n", name, reg);
-		comprintf("\tif (dodgy)\n");
+		comprintf("\tif (dodgy) {\n");
 		comprintf("\t\tmov_l_rr(%sa, %s + 8);\n", name, reg);
+		comprintf("}\n");
 		break;
 	case Aipi:
 		comprintf("\tint %sa = scratchie++;\n", name);
@@ -499,45 +501,51 @@ static void genamode(amodes mode, const char *reg, wordsizes size, const char *n
 			if (movem != GENA_MOVEM_DO_INC)
 			{
 				comprintf("\tint %sa = dodgy ? scratchie++ : %s + 8;\n", name, reg);
-				comprintf("\tif (dodgy)\n");
+				comprintf("\tif (dodgy) {\n");
 				comprintf("\t\tmov_l_rr(%sa, 8 + %s);\n", name, reg);
+				comprintf("}\n");
 			} else
 			{
 				start_brace();
 				comprintf("\tint %sa = dodgy ? scratchie++ : %s + 8;\n", name, reg);
 				comprintf("\tlea_l_brr(%s + 8, %s + 8, (uae_s32)-areg_byteinc[%s]);\n", reg, reg, reg);
-				comprintf("\tif (dodgy)\n");
+				comprintf("\tif (dodgy) {\n");
 				comprintf("\t\tmov_l_rr(%sa, 8 + %s);\n", name, reg);
+				comprintf("}\n");
 			}
 			break;
 		case sz_word:
 			if (movem != GENA_MOVEM_DO_INC)
 			{
 				comprintf("\tint %sa=dodgy?scratchie++:%s+8;\n", name, reg);
-				comprintf("\tif (dodgy) \n");
+				comprintf("\tif (dodgy) {\n");
 				comprintf("\tmov_l_rr(%sa,8+%s);\n", name, reg);
+				comprintf("}\n");
 			} else
 			{
 				start_brace();
 				comprintf("\tint %sa = dodgy ? scratchie++ : %s + 8;\n", name, reg);
 				comprintf("\tlea_l_brr(%s + 8, %s + 8, -2);\n", reg, reg);
-				comprintf("\tif (dodgy)\n");
+				comprintf("\tif (dodgy) {\n");
 				comprintf("\t\tmov_l_rr(%sa, 8 + %s);\n", name, reg);
+				comprintf("}\n");
 			}
 			break;
 		case sz_long:
 			if (movem != GENA_MOVEM_DO_INC)
 			{
 				comprintf("\tint %sa = dodgy ? scratchie++ : %s + 8;\n", name, reg);
-				comprintf("\tif (dodgy)\n");
+				comprintf("\tif (dodgy) {\n");
 				comprintf("\t\tmov_l_rr(%sa, 8 + %s);\n", name, reg);
+				comprintf("}\n");
 			} else
 			{
 				start_brace();
 				comprintf("\tint %sa = dodgy ? scratchie++ : %s + 8;\n", name, reg);
 				comprintf("\tlea_l_brr(%s + 8, %s + 8, -4);\n", reg, reg);
-				comprintf("\tif (dodgy)\n");
+				comprintf("\tif (dodgy) {\n");
 				comprintf("\t\tmov_l_rr(%sa, 8 + %s);\n", name, reg);
+				comprintf("}\n");
 			}
 			break;
 		default:
@@ -704,16 +712,19 @@ static void genastore(const char *from, amodes mode, const char *reg, wordsizes 
 		switch (size)
 		{
 		case sz_byte:
-			comprintf("\tif(%s != %s)\n", reg, from);
+			comprintf("\tif(%s != %s) {\n", reg, from);
 			comprintf("\t\tmov_b_rr(%s, %s);\n", reg, from);
+			comprintf("}\n");
 			break;
 		case sz_word:
-			comprintf("\tif(%s != %s)\n", reg, from);
+			comprintf("\tif(%s != %s) {\n", reg, from);
 			comprintf("\t\tmov_w_rr(%s, %s);\n", reg, from);
+			comprintf("}\n");
 			break;
 		case sz_long:
-			comprintf("\tif(%s != %s)\n", reg, from);
+			comprintf("\tif(%s != %s) {\n", reg, from);
 			comprintf("\t\tmov_l_rr(%s, %s);\n", reg, from);
+			comprintf("}\n");
 			break;
 		default:
 			assert(0);
@@ -724,12 +735,14 @@ static void genastore(const char *from, amodes mode, const char *reg, wordsizes 
 		switch (size)
 		{
 		case sz_word:
-			comprintf("\tif(%s + 8 != %s)\n", reg, from);
+			comprintf("\tif(%s + 8 != %s) {\n", reg, from);
 			comprintf("\t\tmov_w_rr(%s + 8, %s);\n", reg, from);
+			comprintf("}\n");
 			break;
 		case sz_long:
-			comprintf("\tif(%s + 8 != %s)\n", reg, from);
+			comprintf("\tif(%s + 8 != %s) {\n", reg, from);
 			comprintf("\t\tmov_l_rr(%s + 8, %s);\n", reg, from);
+			comprintf("}\n");
 			break;
 		default:
 			assert(0);
@@ -806,8 +819,9 @@ static void genmov16(uae_u32 opcode, struct instr *curi)
 	comprintf("\tand_l_ri(dst,~15);\n");
 
 	if ((opcode & 0xfff8) == 0xf620) {
-		comprintf("\tif (srcreg != dstreg)\n");
+		comprintf("\tif (srcreg != dstreg) {\n");
 		comprintf("\tadd_l_ri(srcreg+8,16);\n");
+		comprintf("}\n");
 		comprintf("\tadd_l_ri(dstreg+8,16);\n");
 	} else if ((opcode & 0xfff8) == 0xf600)
 		comprintf("\tadd_l_ri(srcreg+8,16);\n");
@@ -1042,7 +1056,9 @@ genmovemle(uae_u16 opcode)
 static void
 duplicate_carry(void)
 {
-	comprintf("\tif (needed_flags&FLAG_X) duplicate_carry();\n");
+	comprintf("\tif (needed_flags&FLAG_X) {\n");
+	comprintf("\tduplicate_carry();\n");
+	comprintf("}\n");
 }
 
 typedef enum
@@ -2618,12 +2634,13 @@ gen_opcode(unsigned int opcode)
 			/*
 			 * x86 ROL instruction does not set ZF/SF, so we need extra checks here
 			 */
-			comprintf("\tif (needed_flags & FLAG_ZNV)\n");
+			comprintf("\tif (needed_flags & FLAG_ZNV) {\n");
 			switch (curi->size) {
-			case sz_byte: comprintf("\t    test_b_rr(data,data);\n"); break;
-			case sz_word: comprintf("\t    test_w_rr(data,data);\n"); break;
-			case sz_long: comprintf("\t    test_l_rr(data,data);\n"); break;
+			case sz_byte: comprintf("\ttest_b_rr(data,data);\n"); break;
+			case sz_word: comprintf("\ttest_w_rr(data,data);\n"); break;
+			case sz_long: comprintf("\ttest_l_rr(data,data);\n"); break;
 			}
+			comprintf("}\n");
 			comprintf("\tbt_l_ri(data,0x00);\n"); /* Set C */
 			comprintf("\tlive_flags();\n");
 			comprintf("\tend_needflags();\n");
@@ -2660,12 +2677,13 @@ gen_opcode(unsigned int opcode)
 			/*
 			 * x86 ROR instruction does not set ZF/SF, so we need extra checks here
 			 */
-			comprintf("\tif (needed_flags & FLAG_ZNV)\n");
+			comprintf("\tif (needed_flags & FLAG_ZNV) {\n");
 			switch (curi->size) {
-			case sz_byte: comprintf("\t    test_b_rr(data,data);\n"); break;
-			case sz_word: comprintf("\t    test_w_rr(data,data);\n"); break;
-			case sz_long: comprintf("\t    test_l_rr(data,data);\n"); break;
+			case sz_byte: comprintf("\ttest_b_rr(data,data);\n"); break;
+			case sz_word: comprintf("\ttest_w_rr(data,data);\n"); break;
+			case sz_long: comprintf("\ttest_l_rr(data,data);\n"); break;
 			}
+			comprintf("}\n");
 			switch (curi->size) {
 			case sz_byte: comprintf("\tbt_l_ri(data,0x07);\n"); break;
 			case sz_word: comprintf("\tbt_l_ri(data,0x0f);\n"); break;

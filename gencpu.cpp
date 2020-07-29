@@ -8948,8 +8948,9 @@ bccl_not68020:
 		out("flush_cpu_caches_040(opcode);\n");
 		if (using_mmu)
 			out("flush_mmu%s(m68k_areg(regs, opcode & 3), (opcode >> 6) & 3);\n", mmu_postfix);
-		out("if (opcode & 0x80)\n");
+		out("if (opcode & 0x80) {\n");
 		out("flush_icache((opcode >> 6) & 3);\n");
+		out("}\n");
 		out("check_t0_trace();\n");
 		break;
 
