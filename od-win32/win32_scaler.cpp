@@ -241,6 +241,7 @@ void getfilterrect2(int monid, RECT *sr, RECT *dr, RECT *zr, int dst_width, int 
 	float autoaspectratio;
 	int keep_aspect = currprefs.gf[ad->picasso_on].gfx_filter_keep_aspect;
 	int filter_aspect = currprefs.gf[ad->picasso_on].gfx_filter_aspect;
+	int palntscadjust = 1;
 
 	float filter_horiz_zoom = currprefs.gf[ad->picasso_on].gfx_filter_horiz_zoom / 1000.0f;
 	float filter_vert_zoom = currprefs.gf[ad->picasso_on].gfx_filter_vert_zoom / 1000.0f;
@@ -310,6 +311,7 @@ void getfilterrect2(int monid, RECT *sr, RECT *dr, RECT *zr, int dst_width, int 
 		int h = (dst_height / 2) << currprefs.gfx_vresolution;
 		filter_aspect = 0;
 		keep_aspect = 0;
+		palntscadjust = 1;
 		if (w >= 640 && w <= 800 && h >= 480 && h <= 600) {
 			scalemode = AUTOSCALE_NONE;
 		} else {
@@ -667,11 +669,17 @@ cont:
 	}
 
 	if (currprefs.ntscmode) {
+		if (palntscadjust && ispal()) {
+			dstratio = dstratio * (625 / 525.0);
+		}
 		if (keep_aspect == 2 && ispal ())
 			dstratio = dstratio * 0.93f;
 		else if (keep_aspect == 1 && !ispal ())
 			dstratio = dstratio * 0.98f;
 	} else {
+		if (palntscadjust && !ispal()) {
+			dstratio = dstratio * (625 / 525.0);
+		}
 		if (keep_aspect == 2 && ispal ())
 			dstratio = dstratio * 0.95f;
 		else if (keep_aspect == 1 && !ispal ())
