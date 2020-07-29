@@ -90,9 +90,7 @@ void set_cpu_caches(bool flush)
 {
 }
 
-void flush_icache(int v)
-{
-}
+void (*flush_icache)(int);
 
 void flush_cpu_caches_040(uae_u16 opcode)
 {

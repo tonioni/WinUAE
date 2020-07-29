@@ -47,8 +47,10 @@
 
 #define OPCODE_AREA 48
 #define BRANCHTARGET_AREA 4
+#define LM_BUFFER 128
 
 // MOVEA.L A0,A0
 // not NOP because on 68040 NOP generates T0 trace.
 #define NOP_OPCODE 0x2048
 #define ILLG_OPCODE 0x4afc
+#define LM_OPCODE 0x42db

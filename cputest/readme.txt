@@ -130,6 +130,10 @@ If mismatch is detected, opcode word(s), instruction disassembly, registers befo
 
 Change log:
 
+25.07.2020
+
+- JIT loop mode test improved.
+
 13.07.2020
 
 - Added undefined_ccr option. Ignores undefined flags, currently supports DIVx, CHK and CHK2 (Instructions that don't have simple undefined behavior)

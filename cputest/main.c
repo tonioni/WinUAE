@@ -134,7 +134,7 @@ static short quit;
 static uae_u8 ccr_mask;
 static uae_u32 addressing_mask = 0x00ffffff;
 static uae_u32 interrupt_mask;
-static short loop_mode, loop_mode_68010, loop_mode_cnt;
+static short loop_mode_jit, loop_mode_68010, loop_mode_cnt;
 static short instructionsize;
 static short disasm;
 static short basicexcept;
@@ -1306,6 +1306,8 @@ static short is_valid_word(uae_u8 *p)
 	return 1;
 }
 
+#define MAX_DISM_LINES 15
+
 static void out_disasm(uae_u8 *mem)
 {
 	uae_u16 *code;
@@ -1321,7 +1323,8 @@ static void out_disasm(uae_u8 *mem)
 	uae_u8 *p = mem;
 	int offset = 0;
 	int lines = 0;
-	while (lines++ < 15) {
+	short last = 0;
+	while (lines++ < MAX_DISM_LINES) {
 		int v = 0;
 		if (!is_valid_word(p)) {
 			sprintf(outbp, "%08x -- INACCESSIBLE --\n", (uae_u32)p);
@@ -1348,8 +1351,12 @@ static void out_disasm(uae_u8 *mem)
 			outbp += strlen(outbp);
 			if (!is_valid_word((uae_u8*)(code + offset)))
 				break;
-			if (v <= 0 || code[offset] == ILLG_OPCODE)
+			if (v <= 0)
 				break;
+			if (last)
+				break;
+			if (code[offset] == ILLG_OPCODE)
+				last = 1;
 			while (v > 0) {
 				offset++;
 				p += 2;
@@ -2222,9 +2229,9 @@ static short fpucheckextra(struct fpureg *f1, struct fpureg *f2)
 	m2[1] = f2->m[1];
 	uae_u16 exp1 = f1->exp & 0x7fff;
 	uae_u16 exp2 = f2->exp & 0x7fff;
-	// NaN or Infinite: both must match
+	// NaN or Infinite: both must match but skip possible last bits
 	if (exp1 == 0x7fff || exp2 == 0x7fff) {
-		return 0;
+		goto lastbits;
 	}
 	// Zero: both must match
 	if ((!exp1 && !m1[0] && !m1[1]) || (!exp2 && !m2[0] && !m2[1])) {
@@ -2284,6 +2291,7 @@ static short fpucheckextra(struct fpureg *f1, struct fpureg *f2)
 			return 0;
 	}
 
+lastbits:
 	// skip n bits from the end
 	if (fpu_adjust_man >= 0) {
 		short shift = zb1 < zb2 ? zb1 : zb2;
@@ -2340,6 +2348,10 @@ static void loop_mode_error(uae_u32 ov, uae_u32 nv)
 static const char cvzn[] = { "CVZN" };
 static void loop_mode_error_CVZN(uae_u32 ov, uae_u32 nv)
 {
+	// Swap V<>Z
+	ov = (ov & 0xff0000ff) | ((ov >> 8) & 0x0000ff00) | ((ov << 8) & 0x00ff0000);
+	nv = (nv & 0xff0000ff) | ((nv >> 8) & 0x0000ff00) | ((nv << 8) & 0x00ff0000);
+
 	for (short i = 0; i < 4; i++) {
 		if ((ov & 0xff) != (nv & 0xff)) {
 			sprintf(outbp, "Loop mode %c:", cvzn[i]);
@@ -2354,8 +2366,13 @@ static void loop_mode_error_X(uae_u32 ov, uae_u32 nv)
 {
 	sprintf(outbp, "Loop mode X:");
 	outbp += strlen(outbp);
+	ov >>= 4;
+	nv >>= 4;
 	loop_mode_error(ov, nv);
 }
+
+static uae_u16 lmtable1[LM_BUFFER / 2];
+static uae_u16 lmtable2[LM_BUFFER / 2];
 
 // sregs: registers before execution of test code
 // tregs: registers used during execution of test code, also modified by test code.
@@ -2368,6 +2385,11 @@ static uae_u8 *validate_test(uae_u8 *p, short ignore_errors, short ignore_sr, st
 	uae_u8 sr_changed = 0, ccr_changed = 0, pc_changed = 0;
 	uae_u8 fpiar_changed = 0, fpsr_changed = 0, fpcr_changed = 0;
 	short exc = -1;
+
+	if (loop_mode_jit) {
+		memset(lmtable1, 0xff, sizeof(lmtable1));
+		memset(lmtable2, 0xff, sizeof(lmtable2));
+	}
 
 	// Register modified in test? (start register != test register)
 	for (short i = 0; i < 16; i++) {
@@ -2503,13 +2525,6 @@ static uae_u8 *validate_test(uae_u8 *p, short ignore_errors, short ignore_sr, st
 							sprintf(outbp, "%c%d: expected %08x but got %08x\n", mode < CT_AREG ? 'D' : 'A', mode & 7, val, tregs->regs[mode]);
 						}
 						outbp += strlen(outbp);
-						if (loop_mode && !loop_mode_68010) {
-							if (mode == CT_AREG + 3) {
-								loop_mode_error_CVZN(val, tregs->regs[mode]);
-							} else if (mode == CT_AREG + 4) {
-								loop_mode_error_X(val, tregs->regs[mode]);
-							}
-						}
 					}
 					errflag |= 1 << 0;
 				}
@@ -2654,6 +2669,7 @@ static uae_u8 *validate_test(uae_u8 *p, short ignore_errors, short ignore_sr, st
 			uae_u8 *addr;
 			uae_u32 val = 0, mval = 0, oldval = 0;
 			int size;
+			short lm = 0;
 			p = get_memory_addr(p, &addr);
 			p = restore_value(p, &oldval, &size);
 			p = restore_value(p, &val, &size);
@@ -2672,9 +2688,16 @@ static uae_u8 *validate_test(uae_u8 *p, short ignore_errors, short ignore_sr, st
 				break;
 				case 1:
 				mval = (addr[0] << 8) | (addr[1]);
+				if (loop_mode_jit && addr >= test_memory && addr < test_memory + LM_BUFFER) {
+					lmtable1[(addr - test_memory) / 2] = val;
+					lmtable2[(addr - test_memory) / 2] = mval;
+					lm = 1;
+				}
 				if (mval != val && !ignore_errors && !skipmemwrite) {
 					if (dooutput) {
-						sprintf(outbp, "Memory word write: address %08x, expected %04x but got %04x\n", (uae_u32)addr, val, mval);
+						if (!lm || (lm && (val == 0xffff || mval == 0xffff))) {
+							sprintf(outbp, "Memory word write: address %08x, expected %04x but got %04x\n", (uae_u32)addr, val, mval);
+						}
 						outbp += strlen(outbp);
 					}
 					errflag |= 1 << 6;
@@ -2708,13 +2731,6 @@ static uae_u8 *validate_test(uae_u8 *p, short ignore_errors, short ignore_sr, st
 						uae_u32 val = lregs->regs[mode];
 						sprintf(outbp, "%c%d: expected %08x but got %08x\n", mode < CT_AREG ? 'D' : 'A', mode & 7, val, tregs->regs[mode]);
 						outbp += strlen(outbp);
-						if (loop_mode && !loop_mode_68010) {
-							if (mode == CT_AREG + 3) {
-								loop_mode_error_CVZN(val, tregs->regs[mode]);
-							} else if (mode == CT_AREG + 4) {
-								loop_mode_error_X(val, tregs->regs[mode]);
-							}
-						}
 					}
 					errflag |= 1 << 0;
 				}
@@ -2790,6 +2806,38 @@ static uae_u8 *validate_test(uae_u8 *p, short ignore_errors, short ignore_sr, st
 			}
 		}
 		errflag_orig |= errflag;
+	}
+
+	if (loop_mode_jit) {
+		short idx = 0, cnt = 0, end = loop_mode_cnt * 2;
+		for (;;) {
+			uae_u16 v1, v2;
+			v1 = lmtable1[idx];
+			v2 = lmtable2[idx];
+			idx++;
+			if (idx >= LM_BUFFER / 2) {
+				break;
+			}
+			if (v1 == 0xffff && v2 == 0xffff) {
+				continue;
+			}
+			cnt++;
+			if (v1 != v2) {
+				sprintf(outbp, "LM %02d/%02d CCR: %02x != %02x",
+					cnt, end, v1, v2);
+				outbp += strlen(outbp);
+				sprintf(outbp, " X%c%d N%c%d Z%c%d V%c%d C%c%d\n",
+					(v1 & 0x10) != (v2 & 0x10) ? '!' : '=', (v2 & 0x10) != 0,
+					(v1 & 0x08) != (v2 & 0x08) ? '!' : '=', (v2 & 0x08) != 0,
+					(v1 & 0x04) != (v2 & 0x04) ? '!' : '=', (v2 & 0x04) != 0,
+					(v1 & 0x02) != (v2 & 0x02) ? '!' : '=', (v2 & 0x02) != 0,
+					(v1 & 0x01) != (v2 & 0x01) ? '!' : '=', (v2 & 0x01) != 0);
+				outbp += strlen(outbp);
+			}
+			if (cnt >= end) {
+				break;
+			}
+		}
 	}
 
 	// if excskipccr + bus, address, divide by zero or chk + only CCR mismatch detected: clear error
@@ -3357,7 +3405,7 @@ static int test_mnemo(const char *opcode)
 	interrupttest = (lvl_mask >> 26) & 1;
 	sr_undefined_mask = lvl_mask & 0xffff;
 	safe_memory_mode = (lvl_mask >> 23) & 7;
-	loop_mode = (lvl_mask >> 28) & 1;
+	loop_mode_jit = (lvl_mask >> 28) & 1;
 	loop_mode_68010 = (lvl_mask >> 29) & 1;
 	fpu_model = read_u32(headerfile, &headoffset);
 	test_low_memory_start = read_u32(headerfile, &headoffset);
@@ -3370,7 +3418,7 @@ static int test_mnemo(const char *opcode)
 	super_stack_memory = read_u32(headerfile, &headoffset);
 	exception_vectors = read_u32(headerfile, &headoffset);
 	v = read_u32(headerfile, &headoffset);
-	if (loop_mode) {
+	if (loop_mode_jit || loop_mode_68010) {
 		loop_mode_cnt = v & 0xff;
 	}
 	read_u32(headerfile, &headoffset);
