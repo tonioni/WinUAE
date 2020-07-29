@@ -2385,6 +2385,13 @@ static void MakeFromSR_x(int t0trace)
 	if (currprefs.mmu_model)
 		mmu_set_super (regs.s != 0);
 
+#ifdef JIT
+	// if JIT enabled and T1, T0 or M changes: end compile.
+	if (currprefs.cachesize && (oldt0 != regs.t0 || oldt1 != regs.t1 || oldm != regs.m)) {
+		set_special(SPCFLAG_END_COMPILE);
+	}
+#endif
+
 	doint_imm();
 	if (regs.t1 || regs.t0) {
 		set_special (SPCFLAG_TRACE);
@@ -5333,8 +5340,26 @@ static void m68k_run_jit(void)
 						return;
 					}
 				}
+				// If T0, T1 or M got set: run normal emulation loop
+				if (regs.t0 || regs.t1 || regs.m) {
+					flush_icache(3);
+					struct regstruct *r = &regs;
+					bool exit = false;
+					check_debugger();
+					while (!exit && (regs.t0 || regs.t1 || regs.m)) {
+						r->instruction_pc = m68k_getpc();
+						r->opcode = x_get_iword(0);
+						(*cpufunctbl[r->opcode])(r->opcode);
+						count_instr(r->opcode);
+						do_cycles(4 * CYCLE_UNIT);
+						if (r->spcflags) {
+							if (do_specialties(cpu_cycles))
+								exit = true;
+						}
+					}
+					unset_special(SPCFLAG_END_COMPILE);
+				}
 			}
-
 #ifdef USE_STRUCTURED_EXCEPTION_HANDLING
 		} __except (EvalException(GetExceptionInformation())) {
 			// Something very bad happened, generate fake bus error exception
