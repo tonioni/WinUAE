@@ -5340,7 +5340,7 @@ static void picasso_flushpixels(int index, uae_u8 *src, int off, bool render)
 	}
 }
 
-static void *render_thread(void *v)
+static void render_thread(void *v)
 {
 	render_thread_state = 1;
 	for (;;) {
@@ -5361,7 +5361,6 @@ static void *render_thread(void *v)
 		}
 	}
 	render_thread_state = -1;
-	return 0;
 }
 
 extern addrbank gfxmem_bank;

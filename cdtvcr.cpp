@@ -856,7 +856,7 @@ static addrbank cdtvcr_bank = {
 	ABFLAG_IO | ABFLAG_SAFE, S_READ, S_WRITE
 };
 
-static void *dev_thread (void *p)
+static void dev_thread (void *p)
 {
 	write_log (_T("CDTV-CR: CD thread started\n"));
 	thread_alive = 1;
@@ -865,7 +865,7 @@ static void *dev_thread (void *p)
 		uae_u32 b = read_comm_pipe_u32_blocking (&requests);
 		if (b == 0xffff) {
 			thread_alive = -1;
-			return NULL;
+			return;
 		}
 		if (unitnum < 0)
 			continue;

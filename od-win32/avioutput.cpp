@@ -1385,7 +1385,7 @@ void AVIOutput_End(void)
 	AVIOutput_End2(true);
 }
 
-static void *AVIOutput_worker (void *arg);
+static void AVIOutput_worker (void *arg);
 
 static void AVIOutput_Begin2(bool fullstart, bool immediate)
 {
@@ -1636,7 +1636,7 @@ void AVIOutput_Initialize (void)
 }
 
 
-static void *AVIOutput_worker (void *arg)
+static void AVIOutput_worker (void *arg)
 {
 	bool quit = false;
 	write_log (_T("AVIOutput worker thread started\n"));
@@ -1675,7 +1675,6 @@ static void *AVIOutput_worker (void *arg)
 	AVIOutput_AVIWriteAudio_Thread_End();
 	write_log (_T("AVIOutput worker thread killed. quit=%d\n"), quit);
 	alive = 0;
-	return 0;
 }
 
 void AVIOutput_Toggle (int mode, bool immediate)

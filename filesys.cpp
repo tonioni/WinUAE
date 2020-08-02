@@ -3225,7 +3225,7 @@ static bool mount_cd(UnitInfo *uinfo, int nr, struct mytimeval *ctime, uae_u64 *
 }
 
 #ifdef UAE_FILESYS_THREADS
-static void *filesys_thread (void *unit_v);
+static void filesys_thread (void *unit_v);
 #endif
 static void filesys_start_thread (UnitInfo *ui, int nr)
 {
@@ -7139,17 +7139,16 @@ static int filesys_iteration(UnitInfo *ui)
 }
 
 
-static void *filesys_thread (void *unit_v)
+static void filesys_thread (void *unit_v)
 {
 	UnitInfo *ui = (UnitInfo *)unit_v;
 
 	uae_set_thread_priority (NULL, 1);
 	for (;;) {
 		if (!filesys_iteration(ui)) {
-			return 0;
+			return;
 		}
 	}
-	return 0;
 }
 #endif
 

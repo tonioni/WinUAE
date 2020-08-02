@@ -137,7 +137,7 @@ static volatile int slirp_thread_active;
 static uae_thread_id slirp_tid;
 extern uae_sem_t slirp_sem2;
 
-static void *slirp_receive_func(void *arg)
+static void slirp_receive_func(void *arg)
 {
 	slirp_thread_active = 1;
 	while (slirp_thread_active) {
@@ -175,7 +175,6 @@ static void *slirp_receive_func(void *arg)
 		}
 	}
 	slirp_thread_active = -1;
-	return 0;
 }
 
 int slirp_can_output(void)

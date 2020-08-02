@@ -264,7 +264,7 @@ static TrapContext *current_context;
 /*
 * Thread body for trap context
 */
-static void *trap_thread (void *arg)
+static void trap_thread (void *arg)
 {
 	TrapContext *context = (TrapContext *) arg;
 
@@ -301,9 +301,6 @@ static void *trap_thread (void *arg)
 	uae_sem_post (&context->switch_to_emu_sem);
 
 	/* Good bye, cruel world... */
-
-	/* dummy return value */
-	return 0;
 }
 
 
@@ -552,7 +549,7 @@ static void hardware_trap_ack(TrapContext *ctx)
 	xfree(ctx);
 }
 
-static void *hardware_trap_thread(void *arg)
+static void hardware_trap_thread(void *arg)
 {
 	int tid = (uae_u32)arg;
 	for (;;) {
@@ -612,7 +609,6 @@ static void *hardware_trap_thread(void *arg)
 		}
 	}
 	hardware_trap_kill[tid] = -1;
-	return 0;
 }
 
 void trap_background_set_complete(TrapContext *ctx)

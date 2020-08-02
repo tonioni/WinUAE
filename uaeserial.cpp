@@ -158,7 +158,7 @@ static struct devstruct *getdevstruct (int uniq)
 	return 0;
 }
 
-static void *dev_thread (void *devs);
+static void dev_thread (void *devs);
 static int start_thread (struct devstruct *dev)
 {
 	init_comm_pipe (&dev->requests, 100, 1);
@@ -628,7 +628,7 @@ end:
 	return err;
 }
 
-static void *dev_thread (void *devs)
+static void dev_thread (void *devs)
 {
 	struct devstruct *dev = (struct devstruct*)devs;
 
@@ -644,7 +644,7 @@ static void *dev_thread (void *devs)
 			dev->thread_running = 0;
 			uae_sem_post (&dev->sync_sem);
 			uae_sem_post (&change_sem);
-			return 0;
+			return;
 		} else if (get_async_request (dev, request, 1)) {
 			uae_ReplyMsg (request);
 			release_async_request (dev, request);
@@ -657,7 +657,6 @@ static void *dev_thread (void *devs)
 		trap_background_set_complete(ctx);
 		uae_sem_post (&change_sem);
 	}
-	return 0;
 }
 
 static uae_u32 REGPARAM2 dev_init (TrapContext *context)

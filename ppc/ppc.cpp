@@ -607,7 +607,7 @@ static void uae_ppc_cpu_reset(void)
 	ppc_state = PPC_STATE_ACTIVE;
 }
 
-static void *ppc_thread(void *v)
+static void ppc_thread(void *v)
 {
 	if (using_qemu()) {
 		write_log(_T("PPC: Warning - ppc_thread started with QEMU impl\n"));
@@ -620,7 +620,6 @@ static void *ppc_thread(void *v)
 		write_log(_T("ppc_cpu_run() exited.\n"));
 		ppc_thread_running = false;
 	}
-	return NULL;
 }
 
 void uae_ppc_execute_check(void)

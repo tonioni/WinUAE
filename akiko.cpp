@@ -1508,7 +1508,7 @@ static void AKIKO_hsync_handler (void)
 }
 
 /* cdrom data buffering thread */
-static void *akiko_thread (void *null)
+static void akiko_thread (void *null)
 {
 	int secnum;
 	uae_u8 *tmp1;
@@ -1629,7 +1629,6 @@ static void *akiko_thread (void *null)
 		sleep_millis (10);
 	}
 	akiko_thread_running = -1;
-	return 0;
 }
 
 STATIC_INLINE uae_u8 akiko_get_long (uae_u32 v, int offset)

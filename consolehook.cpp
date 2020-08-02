@@ -59,7 +59,7 @@ void consolehook_config (struct uae_prefs *p)
 	add_filesys_config (p, -1, &ci);
 }
 
-static void *console_thread (void *v)
+static void console_thread (void *v)
 {
 	uae_set_thread_priority (NULL, 1);
 	for (;;) {
@@ -72,7 +72,6 @@ static void *console_thread (void *v)
 		record_key_direct ((0x10 << 1) | 0);
 		record_key_direct ((0x10 << 1) | 1);
 	}
-	return NULL;
 }
 
 int consolehook_activate (void)

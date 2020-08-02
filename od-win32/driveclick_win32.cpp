@@ -90,7 +90,7 @@ void driveclick_fdrawcmd_vsync(void)
 	}
 }
 
-static void *driveclick_thread (void *v)
+static void driveclick_thread (void *v)
 {
 	for (;;) {
 		int drive, cyl;
@@ -109,7 +109,6 @@ static void *driveclick_thread (void *v)
 			CmdSeek(h[drive], cyl);
 		}
 	}
-	return NULL;
 }
 
 static int driveclick_fdrawcmd_init(int drive)

@@ -68,6 +68,6 @@ struct cda_play
 	cda_play_read_block read_block;
 };
 
-void *ciw_cdda_play(void *ciw);
+void ciw_cdda_play(void *ciw);
 void ciw_cdda_stop(struct cda_play *ciw);
 int ciw_cdda_setstate(struct cda_play *ciw, int state, int playpos);

@@ -5026,7 +5026,7 @@ void process_cpu_indirect_memory_write(uae_u32 addr, uae_u32 data, int size)
 	cpu_thread_indirect_mode = 0xff;
 }
 
-static void run_cpu_thread(void *(*f)(void *))
+static void run_cpu_thread(void (*f)(void *))
 {
 	int framecnt = -1;
 	int vp = 0;
@@ -5285,7 +5285,7 @@ void execute_normal(void)
 typedef void compiled_handler (void);
 
 #ifdef WITH_THREADED_CPU
-static void *cpu_thread_run_jit(void *v)
+static void cpu_thread_run_jit(void *v)
 {
 	cpu_thread_tid = uae_thread_get_id();
 	cpu_thread_active = 1;
@@ -5314,7 +5314,6 @@ static void *cpu_thread_run_jit(void *v)
 	}
 #endif
 	cpu_thread_active = 0;
-	return 0;
 }
 #endif
 
@@ -6072,7 +6071,7 @@ cont:
 #endif
 
 #ifdef WITH_THREADED_CPU
-static void *cpu_thread_run_2(void *v)
+static void cpu_thread_run_2(void *v)
 {
 	bool exit = false;
 	struct regstruct *r = &regs;
@@ -6106,7 +6105,6 @@ static void *cpu_thread_run_2(void *v)
 		} ENDTRY
 	}
 	cpu_thread_active = 0;
-	return 0;
 }
 #endif
 

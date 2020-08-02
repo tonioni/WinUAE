@@ -135,7 +135,7 @@ static const TCHAR *getdevname (int type)
 	}
 }
 
-static void *dev_thread(void *devs);
+static void dev_thread(void *devs);
 static int start_thread(struct devstruct *dev)
 {
 	if (dev->thread_running)
@@ -1102,7 +1102,7 @@ static uae_u32 REGPARAM2 dev_beginio(TrapContext *ctx)
 	}
 }
 
-static void *dev_thread (void *devs)
+static void dev_thread (void *devs)
 {
 	struct devstruct *dev = (struct devstruct*)devs;
 
@@ -1118,7 +1118,7 @@ static void *dev_thread (void *devs)
 			dev->thread_running = 0;
 			uae_sem_post (&dev->sync_sem);
 			uae_sem_post (&change_sem);
-			return 0;
+			return;
 		} else if (dev_do_io(ctx, dev, iobuf, request) == 0) {
 			put_byte_host(iobuf + 30, get_byte_host(iobuf + 30) & ~1);
 			trap_put_bytes(ctx, iobuf + 8, request + 8, 48 - 8);
@@ -1132,7 +1132,6 @@ static void *dev_thread (void *devs)
 		trap_background_set_complete(ctx);
 		uae_sem_post (&change_sem);
 	}
-	return 0;
 }
 
 static uae_u32 REGPARAM2 dev_init_2(TrapContext *ctx, int type)

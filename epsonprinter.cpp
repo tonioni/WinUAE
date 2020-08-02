@@ -713,7 +713,7 @@ STATIC_INLINE void getcolor (uae_u8 *Tpage, uae_u8 *Tcpage, int x, int y, int Tp
 	*b = 255 - color_b;
 }
 
-static void *prt_thread (void *p) 
+static void prt_thread(void *p) 
 {
 	Bit16u x, y;
 	HDC TprinterDC = printerDC;
@@ -885,7 +885,6 @@ end:
 		DeleteObject (TprinterDC);
 	DeleteObject (TmemHDC);
 	write_log (_T("EPSONPRINTER: background thread finished\n"));
-	return 0;
 }
 
 static void outputPage(void)

@@ -149,21 +149,21 @@ typedef unsigned (__stdcall *BEGINTHREADEX_FUNCPTR)(void *);
 
 struct thparms
 {
-	void *(*f)(void*);
+	void (*f)(void *);
 	void *arg;
 };
 
 static unsigned __stdcall thread_init (void *f)
 {
 	struct thparms *thp = (struct thparms*)f;
-	void *(*fp)(void*) = thp->f;
+	void (*fp)(void *) = thp->f;
 	void *arg = thp->arg;
 
 	xfree (f);
 
 #ifndef _CONSOLE
 	__try {
-		fp (arg);
+		fp(arg);
 #endif
 #ifndef _CONSOLE
 	} __except (WIN32_ExceptionFilter (GetExceptionInformation (), GetExceptionCode ())) {
@@ -183,7 +183,7 @@ void uae_end_thread (uae_thread_id *tid)
 typedef BOOL(WINAPI* AVSETMMTHREADPRIORITY)(HANDLE, AVRT_PRIORITY);
 static AVSETMMTHREADPRIORITY pAvSetMmThreadPriority;
 
-int uae_start_thread (const TCHAR *name, void *(*f)(void *), void *arg, uae_thread_id *tid)
+int uae_start_thread (const TCHAR *name, void (*f)(void *), void *arg, uae_thread_id *tid)
 {
 	HANDLE hThread;
 	int result = 1;
@@ -218,7 +218,7 @@ int uae_start_thread (const TCHAR *name, void *(*f)(void *), void *arg, uae_thre
 	return result;
 }
 
-int uae_start_thread_fast (void *(*f)(void *), void *arg, uae_thread_id *tid)
+int uae_start_thread_fast (void (*f)(void *), void *arg, uae_thread_id *tid)
 {
 	int v = uae_start_thread (NULL, f, arg, tid);
 	if (*tid) {

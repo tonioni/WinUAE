@@ -690,7 +690,7 @@ static void dma_do_thread (void)
 	cd_finished = 1;
 }
 
-static void *dev_thread (void *p)
+static void dev_thread (void *p)
 {
 	write_log (_T("CDTV: CD thread started\n"));
 	thread_alive = 1;
@@ -699,7 +699,7 @@ static void *dev_thread (void *p)
 		uae_u32 b = read_comm_pipe_u32_blocking (&requests);
 		if (b == 0xffff) {
 			thread_alive = -1;
-			return NULL;
+			return;
 		}
 		if (unitnum < 0)
 			continue;

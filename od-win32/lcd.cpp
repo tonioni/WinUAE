@@ -43,7 +43,7 @@ static LOGILCDSETBACKGROUND pLogiLcdMonoSetBackground, pLogiLcdColorSetBackgroun
 
 #define LOGITECH_LCD_DLL _T("SOFTWARE\\Classes\\CLSID\\{d0e790a5-01a7-49ae-ae0b-e986bdd0c21b}\\ServerBinary")
 
-static void *lcd_thread(void *null);
+static void lcd_thread(void *null);
 
 void lcd_close (void)
 {
@@ -255,7 +255,7 @@ void lcd_update(int led, int on)
 	lcd_updated = true;
 }
 
-static void *lcd_thread(void *null)
+static void lcd_thread(void *null)
 {
 	while (lcd_thread_active > 0) {
 		bool c;
@@ -272,7 +272,6 @@ static void *lcd_thread(void *null)
 		}
 	}
 	lcd_thread_active = 0;
-	return NULL;
 }
 
 int lcd_open (void)

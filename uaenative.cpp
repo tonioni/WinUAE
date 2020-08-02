@@ -449,7 +449,7 @@ static void do_call_function (struct uni *uni)
     }
 }
 
-static void *uaenative_thread(void *arg)
+static void uaenative_thread(void *arg)
 {
     struct library_data *library_data = (struct library_data *) arg;
 
@@ -468,7 +468,6 @@ static void *uaenative_thread(void *arg)
 
     write_log (_T("uni: uaenative_thread exiting\n"));
     free_library_data(library_data);
-    return NULL;
 }
 
 uae_u32 uaenative_call_function (TrapContext *ctx, int flags)

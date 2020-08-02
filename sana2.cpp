@@ -270,7 +270,7 @@ static struct priv_s2devstruct *getps2devstruct(TrapContext *ctx, uae_u8 *iobuf,
 	return &pdevst[idx];
 }
 
-static void *dev_thread (void *devs);
+static void dev_thread (void *devs);
 static int start_thread (struct s2devstruct *dev)
 {
 	if (dev->thread_running)
@@ -1504,7 +1504,7 @@ err:
 	return err;
 }
 
-static void *dev_thread (void *devs)
+static void dev_thread (void *devs)
 {
 	struct s2devstruct *dev = (struct s2devstruct*)devs;
 
@@ -1521,7 +1521,7 @@ static void *dev_thread (void *devs)
 			uae_sem_post (&dev->sync_sem);
 			uae_sem_post (&change_sem);
 			write_log (_T("%s: dev_thread killed\n"), getdevname ());
-			return 0;
+			return;
 		}
 		struct priv_s2devstruct *pdev = getps2devstruct(ctx, iobuf, request);
 		asyncreq *ar = get_async_request (dev, request, 1);
@@ -1544,7 +1544,6 @@ static void *dev_thread (void *devs)
 		trap_background_set_complete(ctx);
 		uae_sem_post (&change_sem);
 	}
-	return 0;
 }
 
 static uae_u32 REGPARAM2 dev_init_2 (TrapContext *ctx)

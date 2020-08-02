@@ -3071,7 +3071,7 @@ struct d3d_initargs
 };
 static struct d3d_initargs d3dargs;
 
-static void *D3D_init_start (void *p)
+static void D3D_init_start (void *p)
 {
 	struct d3dstruct *d3d = &d3ddata[0];
 	struct timeval tv1, tv2;
@@ -3100,7 +3100,6 @@ static void *D3D_init_start (void *p)
 	write_log (_T("Threaded D3D_init() finished\n"));
 	d3d->frames_since_init = 0;
 	d3d->fakemode = false;
-	return NULL;
 }
 
 static const TCHAR *xD3D_init (HWND ahwnd, int monid, int w_w, int w_h, int depth, int *freq, int mmulth, int mmultv)

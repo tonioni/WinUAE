@@ -176,7 +176,7 @@ static void *uaenet_trap_thread (void *arg)
 }
 #endif
 
-static void *uaenet_trap_threadr (void *arg)
+static void uaenet_trap_threadr (void *arg)
 {
 	struct uaenetdatawin32 *sd = (struct uaenetdatawin32*)arg;
 	struct pcap_pkthdr *header;
@@ -200,10 +200,9 @@ static void *uaenet_trap_threadr (void *arg)
 	}
 	sd->threadactiver = 0;
 	uae_sem_post (&sd->sync_semr);
-	return 0;
 }
 
-static void *uaenet_trap_threadw (void *arg)
+static void uaenet_trap_threadw (void *arg)
 {
 	struct uaenetdatawin32 *sd = (struct uaenetdatawin32*)arg;
 
@@ -234,7 +233,6 @@ static void *uaenet_trap_threadw (void *arg)
 	}
 	sd->threadactivew = 0;
 	uae_sem_post (&sd->sync_semw);
-	return 0;
 }
 
 void uaenet_trigger (void *vsd)

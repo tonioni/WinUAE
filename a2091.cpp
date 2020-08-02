@@ -3869,7 +3869,7 @@ static void wd_execute_cmd(struct wd_state *wds, int cmd, int msg, int unit)
 	}
 }
 
-static void *scsi_thread (void *wdv)
+static void scsi_thread (void *wdv)
 {
 	struct wd_state *wds = (struct wd_state*)wdv;
 	struct wd_chip_state *wd = &wds->wc;
@@ -3883,7 +3883,6 @@ static void *scsi_thread (void *wdv)
 		wd_execute_cmd(wds, cmd, msg, unit);
 	}
 	wds->scsi_thread_running = -1;
-	return 0;
 }
 
 void init_wd_scsi (struct wd_state *wd)

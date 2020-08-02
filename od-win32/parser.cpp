@@ -181,7 +181,7 @@ static int openprinter_ps (void)
 	return 1;
 }
 
-static void *prt_thread (void *p)
+static void prt_thread (void *p)
 {
 	uae_u8 **buffers = (uae_u8**)p;
 	int err, cnt, ok;
@@ -223,7 +223,6 @@ static void *prt_thread (void *p)
 	}
 	unload_ghostscript ();
 	prt_running--;
-	return 0;
 }
 
 static int doflushprinter (void)
@@ -668,7 +667,7 @@ static void startwce(struct uaeserialdatawin32 *sd, DWORD *evtmask)
 	WaitCommEvent(sd->hCom, evtmask, &sd->olwce);
 }
 
-static void *uaeser_trap_thread (void *arg)
+static void uaeser_trap_thread (void *arg)
 {
 	struct uaeserialdatawin32 *sd = (struct uaeserialdatawin32*)arg;
 	HANDLE handles[4];
@@ -710,7 +709,6 @@ static void *uaeser_trap_thread (void *arg)
 	}
 	sd->threadactive = 0;
 	uae_sem_post (&sd->sync_sem);
-	return 0;
 }
 
 void uaeser_trigger (void *vsd)
