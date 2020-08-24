@@ -126,6 +126,7 @@ extern struct instr {
 	char head, tail, clocks, fetchmode;
 } *table68k;
 
+extern void do_merges(void);
 extern void init_table68k(void);
 extern void exit_table68k(void);
 

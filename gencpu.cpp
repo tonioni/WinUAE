@@ -9450,7 +9450,7 @@ static void generate_one_opcode (int rp, const char *extra)
 	printf("%s", outbuffer);
 
 	// generate noflags variant if needed
-	int nfgenerated = 0;
+	NOWARN_UNUSED(int nfgenerated = 0);
 	if (using_noflags && table68k[opcode].flagdead != 0 && !disable_noflags) {
 		convert_to_noflags(outbuffer);
 		printf("%s", outbuffer);
