@@ -1807,6 +1807,8 @@ static const struct cputbl *cputbls[6][8] =
 	{ op_smalltbl_0, op_smalltbl_40, op_smalltbl_50, op_smalltbl_24, op_smalltbl_24, op_smalltbl_33, op_smalltbl_33, op_smalltbl_33 }
 };
 
+#ifdef JIT
+
 const struct cputbl *uaegetjitcputbl(void)
 {
 	int lvl = (currprefs.cpu_model - 68000) / 10;
@@ -1820,6 +1822,8 @@ const struct cputbl *getjitcputbl(int cpulvl, int direct)
 {
 	return cputbls[cpulvl][1 + direct];
 }
+
+#endif
 
 static void build_cpufunctbl (void)
 {
