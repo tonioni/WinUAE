@@ -10,7 +10,8 @@
 #include "codegen.h"
 #include "timer.h"
 #include "sound.h"
-#include "sound_mpu401_uart.h"
+#include "rom.h"
+#include "thread.h"
 
 #ifdef _WIN32
 #include <windows.h>
@@ -21,6 +22,15 @@
 
 #include "sysconfig.h"
 #include "sysdeps.h"
+#include "threaddep/thread.h"
+#include "machdep/maccess.h"
+#include "gfxboard.h"
+#include "uae/time.h"
+
+#include "video.h"
+#include "vid_svga.h"
+
+CPU_STATE cpu_state;
 
 PIT pit, pit2;
 PIC pic, pic2;
@@ -28,23 +38,17 @@ dma_t dma[8];
 int AT;
 
 int ppispeakon;
-float CGACONST;
-float MDACONST;
-float VGACONST1, VGACONST2;
-float RTCCONST;
 int gated, speakval, speakon;
 
 PPI ppi;
-
-cpu_state_s cpu_state;
-
 
 int codegen_flags_changed;
 uint32_t codegen_endpc;
 int codegen_in_recompile;
 int codegen_flat_ds, codegen_flat_ss;
 uint32_t recomp_page;
-codeblock_t **codeblock_hash;
+uint16_t *codeblock_hash;
+codeblock_t *codeblock;
 
 void codegen_reset(void)
 {
@@ -109,43 +113,30 @@ void device_speed_changed(void)
 	write_log(_T("device_speed_changed\n"));
 }
 
-union CR0_s CR0;
-
 int model;
 int cpuspeed;
-int CPUID;
 int insc;
 int hasfpu;
 int romset;
 int nmi_mask;
-int use32;
-int stack32;
-uint32_t cr2, cr3, cr4;
 uint32_t rammask;
 uintptr_t *readlookup2;
 uintptr_t *writelookup2;
 uint16_t flags, eflags;
-x86seg gdt, ldt, idt, tr;
-x86seg _cs, _ds, _es, _ss, _fs, _gs;
-x86seg _oldds;
 int writelookup[256], writelookupp[256];
 int readlookup[256], readlookupp[256];
 int readlnext;
 int writelnext;
-int pccache;
-unsigned char *pccache2;
-int cpl_override;
-uint32_t oldds, oldss, olddslimit, oldsslimit, olddslimitw, oldsslimitw;
+uint32_t olddslimit, oldsslimit, olddslimitw, oldsslimitw;
 int pci_burst_time, pci_nonburst_time;
-int optype;
 uint32_t oxpc;
 char logs_path[512];
 uint32_t ealimit, ealimitw;
+int MCA;
+struct svga_t *mb_vga;
 
 uint32_t x87_pc_off, x87_op_off;
 uint16_t x87_pc_seg, x87_op_seg;
-
-uint32_t dr[8];
 
 int xi8088_bios_128kb(void)
 {
@@ -195,7 +186,7 @@ int TANDY;
 int keybsenddelay;
 int mouse_buttons;
 int mouse_type;
-int pcem_key[272];
+uint8_t pcem_key[272];
 
 int mouse_get_type(int mouse_type)
 {
@@ -249,6 +240,99 @@ int video_is_mda()
 	return 0;
 }
 
+static FPU fpus_none[] =
+{
+	{ "None", "none", FPU_NONE },
+	{ NULL, NULL, 0 }
+};
+static FPU fpus_8088[] =
+{
+	{ "None", "none", FPU_NONE },
+	{ "8087", "8087", FPU_8087 },
+	{ NULL, NULL, 0 }
+};
+static FPU fpus_80286[] =
+{
+	{ "None", "none", FPU_NONE },
+	{ "287", "287", FPU_287 },
+	{ "287XL", "287xl", FPU_287XL },
+	{ NULL, NULL, 0 }
+};
+static FPU fpus_80386[] =
+{
+	{ "None", "none", FPU_NONE },
+	{ "387", "387", FPU_387 },
+	{ NULL, NULL, 0 }
+};
+static FPU fpus_builtin[] =
+{
+	{ "Built-in", "builtin", FPU_BUILTIN },
+	{ NULL, NULL, 0 }
+};
+
+static CPU cpus_8088[] =
+{
+	/*8088 standard*/
+	{ "8088/4.77", CPU_8088, fpus_8088, 0, 4772728, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1 },
+	{ "8088/7.16", CPU_8088, fpus_8088, 1, 14318184 / 2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1 },
+	{ "8088/8", CPU_8088, fpus_8088, 1, 8000000, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1 },
+	{ "8088/10", CPU_8088, fpus_8088, 2, 10000000, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1 },
+	{ "8088/12", CPU_8088, fpus_8088, 3, 12000000, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1 },
+	{ "8088/16", CPU_8088, fpus_8088, 4, 16000000, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1 },
+	{ "", -1, 0, 0, 0, 0 }
+};
+
+static CPU cpus_286[] =
+{
+	/*286*/
+	{ "286/6", CPU_286, fpus_80286, 0, 6000000, 1, 0, 0, 0, 0, 0, 2, 2, 2, 2, 1 },
+	{ "286/8", CPU_286, fpus_80286, 1, 8000000, 1, 0, 0, 0, 0, 0, 2, 2, 2, 2, 1 },
+	{ "286/10", CPU_286, fpus_80286, 2, 10000000, 1, 0, 0, 0, 0, 0, 2, 2, 2, 2, 1 },
+	{ "286/12", CPU_286, fpus_80286, 3, 12000000, 1, 0, 0, 0, 0, 0, 3, 3, 3, 3, 2 },
+	{ "286/16", CPU_286, fpus_80286, 4, 16000000, 1, 0, 0, 0, 0, 0, 3, 3, 3, 3, 2 },
+	{ "286/20", CPU_286, fpus_80286, 5, 20000000, 1, 0, 0, 0, 0, 0, 4, 4, 4, 4, 3 },
+	{ "286/25", CPU_286, fpus_80286, 6, 25000000, 1, 0, 0, 0, 0, 0, 4, 4, 4, 4, 3 },
+	{ "", -1, 0, 0, 0, 0 }
+};
+
+static CPU cpus_i386SX[] =
+{
+	/*i386SX*/
+	{ "i386SX/16", CPU_386SX, fpus_80386, 0, 16000000, 1, 0, 0x2308, 0, 0, 0, 3, 3, 3, 3, 2 },
+	{ "i386SX/20", CPU_386SX, fpus_80386, 1, 20000000, 1, 0, 0x2308, 0, 0, 0, 4, 4, 3, 3, 3 },
+	{ "i386SX/25", CPU_386SX, fpus_80386, 2, 25000000, 1, 0, 0x2308, 0, 0, 0, 4, 4, 3, 3, 3 },
+	{ "i386SX/33", CPU_386SX, fpus_80386, 3, 33333333, 1, 0, 0x2308, 0, 0, 0, 6, 6, 3, 3, 4 },
+	{ "", -1, 0, 0, 0 }
+};
+
+static CPU cpus_i386DX[] =
+{
+	/*i386DX*/
+	{ "i386DX/16", CPU_386DX, fpus_80386, 0, 16000000, 1, 0, 0x0308, 0, 0, 0, 3, 3, 3, 3, 2 },
+	{ "i386DX/20", CPU_386DX, fpus_80386, 1, 20000000, 1, 0, 0x0308, 0, 0, 0, 4, 4, 3, 3, 3 },
+	{ "i386DX/25", CPU_386DX, fpus_80386, 2, 25000000, 1, 0, 0x0308, 0, 0, 0, 4, 4, 3, 3, 3 },
+	{ "i386DX/33", CPU_386DX, fpus_80386, 3, 33333333, 1, 0, 0x0308, 0, 0, 0, 6, 6, 3, 3, 4 },
+	{ "", -1, 0, 0, 0 }
+};
+
+static CPU cpus_i486[] =
+{
+	/*i486*/
+	{ "i486SX/16", CPU_i486SX, fpus_none, 0, 16000000, 1, 16000000, 0x42a, 0, 0, CPU_SUPPORTS_DYNAREC, 3, 3, 3, 3, 2 },
+	{ "i486SX/20", CPU_i486SX, fpus_none, 1, 20000000, 1, 20000000, 0x42a, 0, 0, CPU_SUPPORTS_DYNAREC, 4, 4, 3, 3, 3 },
+	{ "i486SX/25", CPU_i486SX, fpus_none, 2, 25000000, 1, 25000000, 0x42a, 0, 0, CPU_SUPPORTS_DYNAREC, 4, 4, 3, 3, 3 },
+	{ "i486SX/33", CPU_i486SX, fpus_none, 3, 33333333, 1, 33333333, 0x42a, 0, 0, CPU_SUPPORTS_DYNAREC, 6, 6, 3, 3, 4 },
+	{ "i486SX2/50", CPU_i486SX, fpus_none, 5, 50000000, 2, 25000000, 0x45b, 0, 0, CPU_SUPPORTS_DYNAREC, 8, 8, 6, 6, 2 * 3 },
+	{ "i486DX/25", CPU_i486DX, fpus_builtin, 2, 25000000, 1, 25000000, 0x404, 0, 0, CPU_SUPPORTS_DYNAREC, 4, 4, 3, 3, 3 },
+	{ "i486DX/33", CPU_i486DX, fpus_builtin, 3, 33333333, 1, 33333333, 0x404, 0, 0, CPU_SUPPORTS_DYNAREC, 6, 6, 3, 3, 4 },
+	{ "i486DX/50", CPU_i486DX, fpus_builtin, 5, 50000000, 1, 25000000, 0x404, 0, 0, CPU_SUPPORTS_DYNAREC, 8, 8, 4, 4, 6 },
+	{ "i486DX2/40", CPU_i486DX, fpus_builtin, 4, 40000000, 2, 20000000, 0x430, 0, 0, CPU_SUPPORTS_DYNAREC, 8, 8, 6, 6, 2 * 3 },
+	{ "i486DX2/50", CPU_i486DX, fpus_builtin, 5, 50000000, 2, 25000000, 0x430, 0, 0, CPU_SUPPORTS_DYNAREC, 8, 8, 6, 6, 2 * 3 },
+	{ "i486DX2/66", CPU_i486DX, fpus_builtin, 6, 66666666, 2, 33333333, 0x430, 0, 0, CPU_SUPPORTS_DYNAREC, 12, 12, 6, 6, 2 * 4 },
+	{ "", -1, 0, 0, 0 }
+};
+
+
 MODEL models[] =
 {
 	{ "[8088] Generic XT clone", ROM_GENXT, "genxt", { { "", cpus_8088 }, { "", NULL }, { "", NULL } }, MODEL_GFX_NONE, 32, 704, 16, model_init, NULL },
@@ -277,4 +361,598 @@ void pcem_close(void)
 	midi_open = 0;
 }
 
-// void (*code)() = (void(*)(void))&block->data[BLOCK_START];
+#ifdef CPU_i386
+void codegen_set_rounding_mode(int mode)
+{
+	/*SSE*/
+	cpu_state.new_fp_control = (cpu_state.old_fp_control & ~0x6000) | (mode << 13);
+	/*x87 - used for double -> i64 conversions*/
+	cpu_state.new_fp_control2 = (cpu_state.old_fp_control2 & ~0x0c00) | (mode << 10);
+}
+#else
+void codegen_set_rounding_mode(int mode)
+{
+	/*SSE*/
+	cpu_state.new_fp_control = (cpu_state.old_fp_control & ~0x6000) | (mode << 13);
+	/*x87 - used for double -> i64 conversions*/
+	cpu_state.new_fp_control2 = (cpu_state.old_fp_control2 & ~0x0c00) | (mode << 10);
+}
+#endif
+
+// VIDEO STUFF
+
+int video_timing_read_b;
+int video_timing_read_w;
+int video_timing_read_l;
+
+int video_timing_write_b;
+int video_timing_write_w;
+int video_timing_write_l;
+
+int cycles_lost;
+
+uint8_t fontdat[2048][8];
+uint8_t fontdatm[2048][16];
+uint8_t fontdatw[512][32];	/* Wyse700 font */
+uint8_t fontdat8x12[256][16];	/* MDSI Genius font */
+uint8_t fontdat12x18[256][36];	/* IM1024 font */
+uint8_t fontdatksc5601[16384][32]; /* Korean KSC-5601 font */
+uint8_t fontdatksc5601_user[192][32]; /* Korean KSC-5601 user defined font */
+
+int PCI;
+int readflash;
+int egareads;
+int egawrites;
+int changeframecount;
+PCBITMAP *buffer32;
+static int buffer32size;
+static uae_u8 *tempbuf;
+int vid_resize;
+int xsize, ysize;
+uint64_t timer_freq;
+
+uint8_t edatlookup[4][4];
+uint8_t rotatevga[8][256];
+uint32_t *video_15to32, *video_16to32;
+
+static void *gfxboard_priv;
+
+static mem_mapping_t *pcem_mapping_linear;
+void *pcem_mapping_linear_priv;
+uae_u32 pcem_mapping_linear_offset;
+uint8_t(*pcem_linear_read_b)(uint32_t addr, void *priv);
+uint16_t(*pcem_linear_read_w)(uint32_t addr, void *priv);
+uint32_t(*pcem_linear_read_l)(uint32_t addr, void *priv);
+void (*pcem_linear_write_b)(uint32_t addr, uint8_t  val, void *priv);
+void (*pcem_linear_write_w)(uint32_t addr, uint16_t val, void *priv);
+void (*pcem_linear_write_l)(uint32_t addr, uint32_t val, void *priv);
+
+static uint8_t dummy_bread(uint32_t addr, void *p)
+{
+	return 0;
+}
+static uint16_t dummy_wread(uint32_t addr, void *p)
+{
+	return 0;
+}
+static uint32_t dummy_lread(uint32_t addr, void *p)
+{
+	return 0;
+}
+static void dummy_bwrite(uint32_t addr, uint8_t v, void *p)
+{
+
+}
+static void dummy_wwrite(uint32_t addr, uint16_t v, void *p)
+{
+
+}
+static void dummy_lwrite(uint32_t addr, uint32_t v, void *p)
+{
+
+}
+
+uint64_t timer_read(void)
+{
+	return read_processor_time();
+}
+
+void initpcemvideo(void *p, bool swapped)
+{
+	int c, d, e;
+
+	gfxboard_priv = p;
+	has_vlb = 0;
+	timer_freq = syncbase;
+
+	for (c = 0; c < 256; c++)
+	{
+		e = c;
+		for (d = 0; d < 8; d++)
+		{
+			rotatevga[d][c] = e;
+			e = (e >> 1) | ((e & 1) ? 0x80 : 0);
+		}
+	}
+	for (c = 0; c < 4; c++)
+	{
+		for (d = 0; d < 4; d++)
+		{
+			edatlookup[c][d] = 0;
+			if (c & 1) edatlookup[c][d] |= 1;
+			if (d & 1) edatlookup[c][d] |= 2;
+			if (c & 2) edatlookup[c][d] |= 0x10;
+			if (d & 2) edatlookup[c][d] |= 0x20;
+			//                        printf("Edat %i,%i now %02X\n",c,d,edatlookup[c][d]);
+		}
+	}
+
+	if (!video_15to32)
+		video_15to32 = (uint32_t*)malloc(4 * 65536);
+	for (c = 0; c < 65536; c++) {
+		if (swapped) {
+			video_15to32[c] = (((c >> 10) & 31) << 3) | (((c >> 5) & 31) << 11) | (((c >> 0) & 31) << 19);
+		} else {
+			video_15to32[c] = ((c & 31) << 3) | (((c >> 5) & 31) << 11) | (((c >> 10) & 31) << 19);
+		}
+	}
+
+	if (!video_16to32)
+		video_16to32 = (uint32_t*)malloc(4 * 65536);
+	for (c = 0; c < 65536; c++) {
+		if (swapped) {
+			video_16to32[c] = (((c >> 11) & 31) << 3) | (((c >> 5) & 63) << 10) | (((c >> 0) & 31) << 19);
+		} else {
+			video_16to32[c] = ((c & 31) << 3) | (((c >> 5) & 63) << 10) | (((c >> 11) & 31) << 19);
+		}
+	}
+
+	if (!buffer32) {
+		buffer32 = (PCBITMAP *)calloc(sizeof(PCBITMAP) + sizeof(uint8_t *) * 2048, 1);
+		buffer32->dat = xcalloc(uae_u8, 2048 * 2048 * 4);
+		buffer32->w = 2048;
+		buffer32->h = 2048;
+		for (int i = 0; i < buffer32->h; i++) {
+			buffer32->line[i] = buffer32->dat + buffer32->w * 4 * i;
+		}
+	}
+
+	pcem_linear_read_b = dummy_bread;
+	pcem_linear_read_w = dummy_wread;
+	pcem_linear_read_l = dummy_lread;
+	pcem_linear_write_b = dummy_bwrite;
+	pcem_linear_write_w = dummy_wwrite;
+	pcem_linear_write_l = dummy_lwrite;
+	pcem_mapping_linear = NULL;
+	pcem_mapping_linear_offset = 0;
+
+}
+
+extern void *svga_get_object(void);
+
+uae_u8 pcem_read_io(int port, int index)
+{
+	svga_t *svga = (svga_t*)svga_get_object();
+	if (port == 0x3d5) {
+		return svga->crtc[index];
+	} else {
+		write_log("unknown port %04x!\n", port);
+		abort();
+	}
+}
+
+#if 0
+void update_pcembuffer32(void *buf, int w, int h, int bytesperline)
+{
+	if (!buf) {
+		w = 2048;
+		h = 2048;
+		if (!tempbuf) {
+			tempbuf = xmalloc(uae_u8, w * 4);
+		}
+		buf = tempbuf;
+		bytesperline = 0;
+	}
+	if (!buffer32 || h > buffer32->h) {
+		free(buffer32);
+		buffer32 = (PCBITMAP *)calloc(sizeof(PCBITMAP) + sizeof(uint8_t *) * h, 1);
+	}
+	if (buffer32->w == w && buffer32->h == h && buffer32->line[0] == buf)
+		return;
+	buffer32->w = w;
+	buffer32->h = h;
+	uae_u8 *b = (uae_u8*)buf;
+	for (int i = 0; i < h; i++) {
+		buffer32->line[i] = b;
+		b += bytesperline;
+	}
+}
+#endif
+
+uae_u8 *getpcembuffer32(int x, int y, int yy)
+{
+	return buffer32->line[y + yy] + x * 4;
+}
+
+
+void video_wait_for_buffer(void)
+{
+	//write_log(_T("video_wait_for_buffer\n"));
+}
+void updatewindowsize(int x, int y)
+{
+	gfxboard_resize(x, y, gfxboard_priv);
+}
+
+static void (*pci_card_write)(int func, int addr, uint8_t val, void *priv);
+static uint8_t(*pci_card_read)(int func, int addr, void *priv);
+static void *pci_card_priv;
+
+void put_pci_pcem(uaecptr addr, uae_u8 v)
+{
+	if (pci_card_write) {
+		pci_card_write(0, addr, v, pci_card_priv);
+	}
+}
+uae_u8 get_pci_pcem(uaecptr addr)
+{
+	uae_u8 v = 0;
+	if (pci_card_read) {
+		v = pci_card_read(0, addr, pci_card_priv);
+	}
+	return v;
+}
+
+int pci_add(uint8_t(*read)(int func, int addr, void *priv), void (*write)(int func, int addr, uint8_t val, void *priv), void *priv)
+{
+	pci_card_read = read;
+	pci_card_write = write;
+	pci_card_priv = priv;
+	return 0;
+}
+extern void gfxboard_intreq(void *, int);
+void pci_set_irq_routing(int card, int irq)
+{
+	write_log(_T("pci_set_irq_routing %d %d\n"), card, irq);
+}
+void pci_set_irq(int card, int pci_int)
+{
+	//write_log(_T("pci_set_irq %d %d\n"), card, pci_int);
+	gfxboard_intreq(gfxboard_priv, 1);
+}
+void pci_clear_irq(int card, int pci_int)
+{
+	//write_log(_T("pci_clear_irq %d %d\n"), card, pci_int);
+	gfxboard_intreq(gfxboard_priv, 0);
+}
+int rom_init(rom_t *rom, char *fn, uint32_t address, int size, int mask, int file_offset, uint32_t flags)
+{
+	return 0;
+}
+
+thread_t *thread_create(void (*thread_rout)(void *param), void *param)
+{
+	uae_thread_id tid;
+	uae_start_thread(_T("PCem helper"), thread_rout, param, &tid);
+	return tid;
+}
+void thread_kill(thread_t *handle)
+{
+	uae_end_thread((uae_thread_id*)handle);
+}
+event_t *thread_create_event(void)
+{
+	uae_sem_t sem = { 0 };
+	uae_sem_init(&sem, 1, 0);
+	return sem;
+}
+void thread_set_event(event_t *event)
+{
+	uae_sem_post((uae_sem_t*)&event);
+}
+void thread_reset_event(event_t *_event)
+{
+	uae_sem_init((uae_sem_t*)&_event, 1, 0);
+}
+int thread_wait_event(event_t *event, int timeout)
+{
+	uae_sem_trywait_delay((uae_sem_t*)&event, timeout);
+	return 0;
+}
+void thread_destroy_event(event_t *_event)
+{
+	uae_sem_destroy((uae_sem_t*)&_event);
+}
+
+#define MAX_PCEMMAPPINGS 10
+static mem_mapping_t *pcemmappings[MAX_PCEMMAPPINGS];
+#define PCEMMAPBLOCKSIZE 0x10000
+#define MAX_PCEMMAPBLOCKS (0x10000000 / PCEMMAPBLOCKSIZE)
+mem_mapping_t *pcemmap[MAX_PCEMMAPBLOCKS];
+
+static mem_mapping_t *getmm(uaecptr *addrp)
+{
+	uaecptr addr = *addrp;
+	addr &= 0x0fffffff;
+	int index = addr / PCEMMAPBLOCKSIZE;
+	mem_mapping_t *m = pcemmap[index];
+	if (!m) {
+		write_log(_T("%08x no mapping\n"), addr);
+	}
+	return m;
+}
+
+void put_mem_pcem(uaecptr addr, uae_u32 v, int size)
+{
+	mem_mapping_t *m = getmm(&addr);
+	if (m) {
+		if (size == 0) {
+			m->write_b(addr, v, m->p);
+		} else if (size == 1) {
+			m->write_w(addr, v, m->p);
+		} else if (size == 2) {
+			m->write_l(addr, v, m->p);
+		}
+	}
+}
+uae_u32 get_mem_pcem(uaecptr addr, int size)
+{
+	uae_u32 v = 0;
+	mem_mapping_t *m = getmm(&addr);
+	if (m) {
+		if (size == 0) {
+			v = m->read_b(addr, m->p);
+		} else if (size == 1) {
+			v = m->read_w(addr, m->p);
+		} else if (size == 2) {
+			v = m->read_l(addr, m->p);
+		}
+	}
+	return v;
+}
+
+static void mapping_recalc(mem_mapping_t *mapping)
+{
+	if (mapping->read_b == NULL)
+		mapping->read_b = dummy_bread;
+	if (mapping->read_w == NULL)
+		mapping->read_w = dummy_wread;
+	if (mapping->read_l == NULL)
+		mapping->read_l = dummy_lread;
+	if (mapping->write_b == NULL)
+		mapping->write_b = dummy_bwrite;
+	if (mapping->write_w == NULL)
+		mapping->write_w = dummy_wwrite;
+	if (mapping->write_l == NULL)
+		mapping->write_l = dummy_lwrite;
+
+
+	if (mapping == pcem_mapping_linear || (!pcem_mapping_linear && mapping->size >= 1024 * 1024)) {
+		pcem_mapping_linear = mapping;
+		pcem_mapping_linear_priv = mapping->p;
+		pcem_mapping_linear_offset = mapping->base;
+		if (!mapping->enable) {
+			pcem_linear_read_b = dummy_bread;
+			pcem_linear_read_w = dummy_wread;
+			pcem_linear_read_l = dummy_lread;
+			pcem_linear_write_b = dummy_bwrite;
+			pcem_linear_write_w = dummy_wwrite;
+			pcem_linear_write_l = dummy_lwrite;
+		} else {
+			pcem_linear_read_b = mapping->read_b;
+			pcem_linear_read_w = mapping->read_w;
+			pcem_linear_read_l = mapping->read_l;
+			pcem_linear_write_b = mapping->write_b;
+			pcem_linear_write_w = mapping->write_w;
+			pcem_linear_write_l = mapping->write_l;
+		}
+	}
+
+	for (uae_u32 i = 0; i < mapping->size; i += PCEMMAPBLOCKSIZE) {
+		uae_u32 addr = i + mapping->base;
+		addr &= 0x0fffffff;
+		int offset = addr / PCEMMAPBLOCKSIZE;
+		if (offset >= 0 && offset < MAX_PCEMMAPBLOCKS) {
+			if (mapping->enable) {
+				pcemmap[offset] = mapping;
+			} else {
+				pcemmap[offset] = NULL;
+			}
+		}
+	}
+}
+
+void mem_mapping_addx(mem_mapping_t *mapping,
+	uint32_t base,
+	uint32_t size,
+	uint8_t(*read_b)(uint32_t addr, void *p),
+	uint16_t(*read_w)(uint32_t addr, void *p),
+	uint32_t(*read_l)(uint32_t addr, void *p),
+	void (*write_b)(uint32_t addr, uint8_t  val, void *p),
+	void (*write_w)(uint32_t addr, uint16_t val, void *p),
+	void (*write_l)(uint32_t addr, uint32_t val, void *p),
+	uint8_t *exec,
+	uint32_t flags,
+	void *p)
+{
+	mapping->enable = 0;
+	for (int i = 0; i < MAX_PCEMMAPPINGS; i++) {
+		if (pcemmappings[i] == mapping)
+			return;
+	}
+	for (int i = 0; i < MAX_PCEMMAPPINGS; i++) {
+		if (pcemmappings[i] == NULL) {
+			pcemmappings[i] = mapping;
+			mapping->base = base;
+			mapping->size = size;
+			mapping->read_b = read_b;
+			mapping->read_w = read_w;
+			mapping->read_l = read_l;
+			mapping->write_b = write_b;
+			mapping->write_w = write_w;
+			mapping->write_l = write_l;
+			mapping->exec = exec;
+			mapping->flags = flags;
+			mapping->p = p;
+			mapping->next = NULL;
+			mapping_recalc(mapping);
+			return;
+		}
+	}
+}
+
+void mem_mapping_set_handlerx(mem_mapping_t *mapping,
+	uint8_t(*read_b)(uint32_t addr, void *p),
+	uint16_t(*read_w)(uint32_t addr, void *p),
+	uint32_t(*read_l)(uint32_t addr, void *p),
+	void (*write_b)(uint32_t addr, uint8_t  val, void *p),
+	void (*write_w)(uint32_t addr, uint16_t val, void *p),
+	void (*write_l)(uint32_t addr, uint32_t val, void *p))
+{
+	mapping->read_b = read_b;
+	mapping->read_w = read_w;
+	mapping->read_l = read_l;
+	mapping->write_b = write_b;
+	mapping->write_w = write_w;
+	mapping->write_l = write_l;
+	mapping_recalc(mapping);
+}
+
+void mem_mapping_set_px(mem_mapping_t *mapping, void *p)
+{
+	mapping->p = p;
+}
+
+void pci_add_specific(int card, uint8_t(*read)(int func, int addr, void *priv), void (*write)(int func, int addr, uint8_t val, void *priv), void *priv)
+{
+}
+
+void mca_add(uint8_t(*read)(int addr, void *priv), void (*write)(int addr, uint8_t val, void *priv), void (*reset)(void *priv), void *priv)
+{
+}
+
+#define MAX_IO_PORT 0x10000
+static uint8_t(*port_inb[MAX_IO_PORT])(uint16_t addr, void *priv);
+static uint16_t(*port_inw[MAX_IO_PORT])(uint16_t addr, void *priv);
+static uint32_t(*port_inl[MAX_IO_PORT])(uint16_t addr, void *priv);
+static void(*port_outb[MAX_IO_PORT])(uint16_t addr, uint8_t  val, void *priv);
+static void(*port_outw[MAX_IO_PORT])(uint16_t addr, uint16_t val, void *priv);
+static void(*port_outl[MAX_IO_PORT])(uint16_t addr, uint32_t val, void *priv);
+static void *port_priv[MAX_IO_PORT];
+
+void put_io_pcem(uaecptr addr, uae_u32 v, int size)
+{
+	addr &= MAX_IO_PORT - 1;
+	if (size == 0) {
+		if (port_outb[addr])
+			port_outb[addr](addr, v, port_priv[addr]);
+	} else if (size == 1) {
+		if (port_outw[addr]) {
+			port_outw[addr](addr, v, port_priv[addr]);
+		} else {
+			put_io_pcem(addr + 0, v >> 0, 0);
+			put_io_pcem(addr + 1, v >> 8, 0);
+		}
+	} else if (size == 2) {
+		if (port_outl[addr]) {
+			port_outl[addr](addr, v, port_priv[addr]);
+		} else {
+			put_io_pcem(addr + 0, v >> 16, 1);
+			put_io_pcem(addr + 2, v >> 0, 1);
+		}
+	}
+}
+uae_u32 get_io_pcem(uaecptr addr, int size)
+{
+	uae_u32 v = 0;
+	addr &= MAX_IO_PORT - 1;
+	if (size == 0) {
+		if (port_inb[addr])
+			v = port_inb[addr](addr, port_priv[addr]);
+	} else if (size == 1) {
+		if (port_inw[addr]) {
+			v = port_inw[addr](addr, port_priv[addr]);
+		} else {
+			v = get_io_pcem(addr + 0, 0) << 0;
+			v |= get_io_pcem(addr + 1, 0) << 8;
+		}
+	} else if (size == 2) {
+		if (port_inl[addr]) {
+			v = port_inl[addr](addr, port_priv[addr]);
+		} else {
+			v = get_io_pcem(addr + 0, 1) << 16;
+			v |= get_io_pcem(addr + 2, 1) << 0;
+		}
+	}
+	return v;
+}
+
+void io_sethandlerx(uint16_t base, int size,
+	uint8_t(*inb)(uint16_t addr, void *priv),
+	uint16_t(*inw)(uint16_t addr, void *priv),
+	uint32_t(*inl)(uint16_t addr, void *priv),
+	void (*outb)(uint16_t addr, uint8_t  val, void *priv),
+	void (*outw)(uint16_t addr, uint16_t val, void *priv),
+	void (*outl)(uint16_t addr, uint32_t val, void *priv),
+	void *priv)
+{
+	if (base + size > MAX_IO_PORT)
+		return;
+
+	for (int i = 0; i < size; i++) {
+		int io = base + i;
+		port_inb[io] = inb;
+		port_inw[io] = inw;
+		port_inl[io] = inl;
+		port_outb[io] = outb;
+		port_outw[io] = outw;
+		port_outl[io] = outl;
+		port_priv[io] = priv;
+	}
+}
+
+void io_removehandlerx(uint16_t base, int size,
+	uint8_t(*inb)(uint16_t addr, void *priv),
+	uint16_t(*inw)(uint16_t addr, void *priv),
+	uint32_t(*inl)(uint16_t addr, void *priv),
+	void (*outb)(uint16_t addr, uint8_t  val, void *priv),
+	void (*outw)(uint16_t addr, uint16_t val, void *priv),
+	void (*outl)(uint16_t addr, uint32_t val, void *priv),
+	void *priv)
+{
+	if (base + size > MAX_IO_PORT)
+		return;
+
+	for (int i = 0; i < size; i++) {
+		int io = base + i;
+		port_inb[io] = NULL;
+		port_inw[io] = NULL;
+		port_inl[io] = NULL;
+		port_outb[io] = NULL;
+		port_outw[io] = NULL;
+		port_outl[io] = NULL;
+	}
+}
+
+void mem_mapping_set_addrx(mem_mapping_t *mapping, uint32_t base, uint32_t size)
+{
+	mapping->enable = 0;
+	mapping_recalc(mapping);
+	mapping->enable = 1;
+	mapping->base = base;
+	mapping->size = size;
+	mapping_recalc(mapping);
+}
+
+void mem_mapping_disablex(mem_mapping_t *mapping)
+{
+	mapping->enable = 0;
+	mapping_recalc(mapping);
+}
+
+void mem_mapping_enablex(mem_mapping_t *mapping)
+{
+	mapping->enable = 1;
+	mapping_recalc(mapping);
+}
+

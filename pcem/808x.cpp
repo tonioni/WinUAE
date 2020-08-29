@@ -25,45 +25,49 @@
 #include "x87.h"
 #include "paths.h"
 
-int xt_cpu_multi;
+uint64_t xt_cpu_multi;
 int nmi = 0;
 int nmi_auto_clear = 0;
 
-int nextcyc=0;
-int cycdiff;
+int oldcpl;
+
+int tempc;
+static int noint=0;
+
+int output=0;
+int timetolive=0;
+int ins=0;
+
 int is8086=0;
 
-int memcycs;
-int nopageerrors=0;
+static uint32_t oldds;
+uint32_t oldss;
 
-void FETCHCOMPLETE();
+static int nextcyc=0;
+static int memcycs;
 
-uint8_t readmembl(uint32_t addr);
-void writemembl(uint32_t addr, uint8_t val);
-uint16_t readmemwl(uint32_t seg, uint32_t addr);
-void writememwl(uint32_t seg, uint32_t addr, uint16_t val);
-uint32_t readmemll(uint32_t seg, uint32_t addr);
-void writememll(uint32_t seg, uint32_t addr, uint32_t val);
+static int cycdiff;
+static void FETCHCOMPLETE();
 
-#undef readmemb
-#undef readmemw
-uint8_t readmemb(uint32_t a)
+#define IRQTEST ((cpu_state.flags & I_FLAG) && (pic.pend&~pic.mask) && !noint)
+
+static uint8_t readmemb(uint32_t a)
 {
         if (a!=(cs+cpu_state.pc)) memcycs+=4;
         if (readlookup2[(a)>>12]==-1) return readmembl(a);
         else return *(uint8_t *)(readlookup2[(a) >> 12] + (a));
 }
 
-uint8_t readmembf(uint32_t a)
+static uint8_t readmembf(uint32_t a)
 {
         if (readlookup2[(a)>>12]==-1) return readmembl(a);
         else return *(uint8_t *)(readlookup2[(a) >> 12] + (a));
 }
 
-uint16_t readmemw(uint32_t s, uint16_t a)
+static uint16_t readmemw(uint32_t s, uint16_t a)
 {
         if (a!=(cs+cpu_state.pc)) memcycs+=(8>>is8086);
-        if ((readlookup2[((s)+(a))>>12]==-1 || (s)==0xFFFFFFFF)) return readmemwl(s,a);
+        if ((readlookup2[((s)+(a))>>12]==-1 || (s)==0xFFFFFFFF)) return readmemwl(s+a);
         else return *(uint16_t *)(readlookup2[(s + a) >> 12] + s + a);
 }
 
@@ -76,48 +80,28 @@ void refreshread() { /*pclog("Refreshread\n"); */FETCHCOMPLETE(); memcycs+=4; }
                     cpu_rm=rmdat&7;                   \
                     if (cpu_mod!=3) fetcheal(); }
 
-void writemembl(uint32_t addr, uint8_t val);
-void writememb(uint32_t a, uint8_t v)
+static void writememb(uint32_t a, uint8_t v)
 {
         memcycs+=4;
         if (writelookup2[(a)>>12]==-1) writemembl(a,v);
         else *(uint8_t *)(writelookup2[a >> 12] + a) = v;
 }
-void writememwl(uint32_t seg, uint32_t addr, uint16_t val);
-void writememw(uint32_t s, uint32_t a, uint16_t v)
+static void writememw(uint32_t s, uint32_t a, uint16_t v)
 {
         memcycs+=(8>>is8086);
-        if (writelookup2[((s)+(a))>>12]==-1 || (s)==0xFFFFFFFF) writememwl(s,a,v);
+        if (writelookup2[((s)+(a))>>12]==-1 || (s)==0xFFFFFFFF) writememwl(s+a,v);
         else *(uint16_t *)(writelookup2[(s + a) >> 12] + s + a) = v;
 }
-void writememll(uint32_t seg, uint32_t addr, uint32_t val);
-void writememl(uint32_t s, uint32_t a, uint32_t v)
-{
-        if (writelookup2[((s)+(a))>>12]==-1 || (s)==0xFFFFFFFF) writememll(s,a,v);
-        else *(uint32_t *)(writelookup2[(s + a) >> 12] + s + a) = v;
-}
 
 
-uint16_t oldcs;
-int oldcpl;
-
-int tempc;
-uint8_t opcode;
-uint16_t pc2,pc3;
-int noint=0;
-
-int output=0;
-
-extern int shadowbios;
-
-int ins=0;
 //#define readmemb(a) (((a)<0xA0000)?ram[a]:readmembl(a))
 
-int fetchcycles=0,fetchclocks;
+static int fetchcycles=0,fetchclocks;
 
-uint8_t prefetchqueue[6];
-uint16_t prefetchpc;
-int prefetchw=0;
+static uint8_t prefetchqueue[6];
+static uint16_t prefetchpc;
+static int prefetchw=0;
+
 static inline uint8_t FETCH()
 {
         uint8_t temp;
@@ -202,7 +186,7 @@ static inline void FETCHADD(int c)
 //        if (fetchcycles>24) fetchcycles=24;
 }
 
-void FETCHCOMPLETE()
+static void FETCHCOMPLETE()
 {
 //        pclog("Fetchcomplete %i %i %i\n",fetchcycles&3,fetchcycles,prefetchw);
         if (!(fetchcycles&3)) return;
@@ -343,9 +327,9 @@ reg = If mod=11,  (depending on data size, 16 bits/8 bits, 32 bits=extend 16 bit
 */
 
 uint32_t easeg;
-int rmdat;
+uint32_t rmdat;
 
-uint16_t zero=0;
+static uint16_t zero=0;
 uint16_t *mod1add[2][8];
 uint32_t *mod1seg[8];
 
@@ -442,7 +426,7 @@ static inline void seteaw(uint16_t val)
 
 /*Flags*/
 uint8_t znptable8[256];
-uint16_t znptable16[65536];
+static uint16_t znptable16[65536];
 
 void makeznptable()
 {
@@ -489,16 +473,11 @@ void makeznptable()
       
 //      makemod1table();
 }
-int timetolive=0;
-
-extern uint32_t oldcs2;
-extern uint32_t oldpc2;
 
 int indump = 0;
 
 void dumpregs()
 {
-#if 0
         int c,d=0,e=0;
 #ifndef RELEASE_BUILD
         FILE *f;
@@ -510,7 +489,6 @@ void dumpregs()
 //        savenvr();
 //        return;
         chdir(logs_path);
-        nopageerrors=1;
 /*        f=fopen("rram3.dmp","wb");
         for (c=0;c<0x8000000;c++) putc(readmemb(c+0x10000000),f);
         fclose(f);*/
@@ -539,10 +517,10 @@ void dumpregs()
         fclose(f);*/
         pclog("Dumping rram4.dmp\n");
         f=fopen("rram4.dmp","wb");
-        for (c=0;c<0x0050000;c++) 
+        for (c=0;c<0x0050000;c++)
         {
                 cpu_state.abrt = 0;
-                putc(readmemb386l(0,c+0x80000000),f);
+                putc(readmembl(c+0x80000000),f);
         }
         fclose(f);
         pclog("Dumping done\n");        
@@ -581,22 +559,22 @@ void dumpregs()
            printf("EAX=%08X EBX=%08X ECX=%08X EDX=%08X\nEDI=%08X ESI=%08X EBP=%08X ESP=%08X\n",EAX,EBX,ECX,EDX,EDI,ESI,EBP,ESP);
         else
            printf("AX=%04X BX=%04X CX=%04X DX=%04X DI=%04X SI=%04X BP=%04X SP=%04X\n",AX,BX,CX,DX,DI,SI,BP,SP);
-        printf("PC=%04X CS=%04X DS=%04X ES=%04X SS=%04X FLAGS=%04X\n",cpu_state.pc,CS,DS,ES,SS,flags);
-        printf("%04X:%04X %04X:%04X\n",oldcs,cpu_state.oldpc, oldcs2, oldpc2);
+        printf("PC=%04X CS=%04X DS=%04X ES=%04X SS=%04X FLAGS=%04X\n",cpu_state.pc,CS,DS,ES,SS,cpu_state.flags);
+        printf("%04X\n",cpu_state.oldpc);
         printf("%i ins\n",ins);
         if (is386)
-           printf("In %s mode\n",(msw&1)?((eflags&VM_FLAG)?"V86":"protected"):"real");
+           printf("In %s mode\n",(msw&1)?((cpu_state.eflags&VM_FLAG)?"V86":"protected"):"real");
         else
            printf("In %s mode\n",(msw&1)?"protected":"real");
-        printf("CS : base=%06X limit=%08X access=%02X  limit_low=%08X limit_high=%08X\n",cs,_cs.limit,_cs.access, _cs.limit_low, _cs.limit_high);
-        printf("DS : base=%06X limit=%08X access=%02X  limit_low=%08X limit_high=%08X\n",ds,_ds.limit,_ds.access, _ds.limit_low, _ds.limit_high);
-        printf("ES : base=%06X limit=%08X access=%02X  limit_low=%08X limit_high=%08X\n",es,_es.limit,_es.access, _es.limit_low, _es.limit_high);
+        printf("CS : base=%06X limit=%08X access=%02X  limit_low=%08X limit_high=%08X\n",cs,cpu_state.seg_cs.limit,cpu_state.seg_cs.access, cpu_state.seg_cs.limit_low, cpu_state.seg_cs.limit_high);
+        printf("DS : base=%06X limit=%08X access=%02X  limit_low=%08X limit_high=%08X\n",ds,cpu_state.seg_ds.limit,cpu_state.seg_ds.access, cpu_state.seg_ds.limit_low, cpu_state.seg_ds.limit_high);
+        printf("ES : base=%06X limit=%08X access=%02X  limit_low=%08X limit_high=%08X\n",es,cpu_state.seg_es.limit,cpu_state.seg_es.access, cpu_state.seg_es.limit_low, cpu_state.seg_es.limit_high);
         if (is386)
         {
-                printf("FS : base=%06X limit=%08X access=%02X  limit_low=%08X limit_high=%08X\n",seg_fs,_fs.limit,_fs.access, _fs.limit_low, _fs.limit_high);
-                printf("GS : base=%06X limit=%08X access=%02X  limit_low=%08X limit_high=%08X\n",gs,_gs.limit,_gs.access, _gs.limit_low, _gs.limit_high);
+                printf("FS : base=%06X limit=%08X access=%02X  limit_low=%08X limit_high=%08X\n",cpu_state.seg_fs.base,cpu_state.seg_fs.limit,cpu_state.seg_fs.access, cpu_state.seg_fs.limit_low, cpu_state.seg_fs.limit_high);
+                printf("GS : base=%06X limit=%08X access=%02X  limit_low=%08X limit_high=%08X\n",gs,cpu_state.seg_gs.limit,cpu_state.seg_gs.access, cpu_state.seg_gs.limit_low, cpu_state.seg_gs.limit_high);
         }
-        printf("SS : base=%06X limit=%08X access=%02X  limit_low=%08X limit_high=%08X\n",ss,_ss.limit,_ss.access, _ss.limit_low, _ss.limit_high);
+        printf("SS : base=%06X limit=%08X access=%02X  limit_low=%08X limit_high=%08X\n",ss,cpu_state.seg_ss.limit,cpu_state.seg_ss.access, cpu_state.seg_ss.limit_low, cpu_state.seg_ss.limit_high);
         printf("GDT : base=%06X limit=%04X\n",gdt.base,gdt.limit);
         printf("LDT : base=%06X limit=%04X\n",ldt.base,ldt.limit);
         printf("IDT : base=%06X limit=%04X\n",idt.base,idt.limit);
@@ -615,20 +593,16 @@ void dumpregs()
         printf("Entries in readlookup : %i    writelookup : %i\n",d,e);
         x87_dumpregs();
         indump = 0;
-#endif
 }
 
-int resets = 0;
 int x86_was_reset = 0;
 void resetx86()
 {
         pclog("x86 reset\n");
-        resets++;
         ins = 0;
         use32=0;
         cpu_cur_status = 0;
         stack32=0;
-        cpu_hasCX8 = 0;
 //        i86_Reset();
 //        cs=0xFFFF0;
         msw=0;
@@ -639,7 +613,7 @@ void resetx86()
         cpu_cache_int_enabled = 0;
         cpu_update_waitstates();
         cr4 = 0;
-        eflags=0;
+        cpu_state.eflags=0;
         cgate32=0;
         if (AT)
         {
@@ -655,17 +629,15 @@ void resetx86()
         }
         idt.base = 0;
         idt.limit = is386 ? 0x03FF : 0xFFFF;
-        flags=2;
+        cpu_state.flags=2;
+        EAX = EBX = ECX = EDX = ESI = EDI = EBP = ESP = 0;
         makeznptable();
         resetreadlookup();
         makemod1table();
         FETCHCLEAR();
         x87_reset();
         cpu_set_edx();
-        EAX = 0;
-        ESP=0;
         mmu_perm=4;
-        memset(inscounts, 0, sizeof(inscounts));
         x86seg_reset();
         codegen_reset();
         x86_was_reset = 1;
@@ -688,9 +660,8 @@ void softresetx86()
         cpu_cache_int_enabled = 0;
         cpu_update_waitstates();
         cr4 = 0;
-        eflags=0;
+        cpu_state.eflags=0;
         cgate32=0;
-        cpu_hasCX8 = 0;
         if (AT)
         {
                 loadcs(0xF000);
@@ -704,142 +675,194 @@ void softresetx86()
                 rammask = 0xfffff;
         }
         //rammask=0xFFFFFFFF;
-        flags=2;
+        cpu_state.flags=2;
         idt.base = 0;
-        idt.limit = is386 ? 0x03FF : 0xFFFF;
+        if (is386)
+        {
+                idt.limit = 0x03FF;
+                EAX = EBX = ECX = EDX = ESI = EDI = EBP = ESP = 0;
+        }
+        else
+        {
+                idt.limit = 0xFFFF;
+        }
         x86seg_reset();
+        flushmmucache();
         x86_was_reset = 1;
+        FETCHCLEAR();
 }
 
 static void setznp8(uint8_t val)
 {
-        flags&=~0xC4;
-        flags|=znptable8[val];
+        cpu_state.flags &= ~0xC4;
+        cpu_state.flags |= znptable8[val];
 }
 
 static void setznp16(uint16_t val)
 {
-        flags&=~0xC4;
-        flags|=znptable16[val];
+        cpu_state.flags &= ~0xC4;
+        cpu_state.flags |= znptable16[val];
 }
 
 static void setadd8(uint8_t a, uint8_t b)
 {
-        uint16_t c=(uint16_t)a+(uint16_t)b;
-        flags&=~0x8D5;
-        flags|=znptable8[c&0xFF];
-        if (c&0x100) flags|=C_FLAG;
-        if (!((a^b)&0x80)&&((a^c)&0x80)) flags|=V_FLAG;
-        if (((a&0xF)+(b&0xF))&0x10)      flags|=A_FLAG;
+        uint16_t c = (uint16_t)a + (uint16_t)b;
+        cpu_state.flags &= ~0x8D5;
+        cpu_state.flags |= znptable8[c&0xFF];
+        if (c & 0x100)
+                cpu_state.flags |= C_FLAG;
+        if (!((a ^ b) & 0x80) && ((a ^ c) & 0x80))
+                cpu_state.flags |= V_FLAG;
+        if (((a & 0xF) + (b & 0xF)) & 0x10)
+                cpu_state.flags |= A_FLAG;
 }
 static void setadd8nc(uint8_t a, uint8_t b)
 {
-        uint16_t c=(uint16_t)a+(uint16_t)b;
-        flags&=~0x8D4;
-        flags|=znptable8[c&0xFF];
-        if (!((a^b)&0x80)&&((a^c)&0x80)) flags|=V_FLAG;
-        if (((a&0xF)+(b&0xF))&0x10)      flags|=A_FLAG;
+        uint16_t c = (uint16_t)a + (uint16_t)b;
+        cpu_state.flags &= ~0x8D4;
+        cpu_state.flags |= znptable8[c&0xFF];
+        if (!((a ^ b) & 0x80) && ((a ^ c) & 0x80))
+                cpu_state.flags |= V_FLAG;
+        if (((a & 0xF) + (b & 0xF)) & 0x10)
+                cpu_state.flags |= A_FLAG;
 }
 static void setadc8(uint8_t a, uint8_t b)
 {
-        uint16_t c=(uint16_t)a+(uint16_t)b+tempc;
-        flags&=~0x8D5;
-        flags|=znptable8[c&0xFF];
-        if (c&0x100) flags|=C_FLAG;
-        if (!((a^b)&0x80)&&((a^c)&0x80)) flags|=V_FLAG;
-        if (((a&0xF)+(b&0xF))&0x10)      flags|=A_FLAG;
+        uint16_t c = (uint16_t)a + (uint16_t)b+tempc;
+        cpu_state.flags &= ~0x8D5;
+        cpu_state.flags |= znptable8[c&0xFF];
+        if (c & 0x100)
+                cpu_state.flags |= C_FLAG;
+        if (!((a ^ b) & 0x80) && ((a ^ c) & 0x80))
+                cpu_state.flags |= V_FLAG;
+        if (((a & 0xF) + (b & 0xF)) & 0x10)
+                cpu_state.flags |= A_FLAG;
 }
 static void setadd16(uint16_t a, uint16_t b)
 {
-        uint32_t c=(uint32_t)a+(uint32_t)b;
-        flags&=~0x8D5;
-        flags|=znptable16[c&0xFFFF];
-        if (c&0x10000) flags|=C_FLAG;
-        if (!((a^b)&0x8000)&&((a^c)&0x8000)) flags|=V_FLAG;
-        if (((a&0xF)+(b&0xF))&0x10)      flags|=A_FLAG;
+        uint32_t c = (uint32_t)a + (uint32_t)b;
+        cpu_state.flags &= ~0x8D5;
+        cpu_state.flags |= znptable16[c&0xFFFF];
+        if (c & 0x10000)
+                cpu_state.flags |= C_FLAG;
+        if (!((a ^ b) & 0x8000) && ((a ^ c) & 0x8000))
+                cpu_state.flags |= V_FLAG;
+        if (((a & 0xF) + (b & 0xF)) & 0x10)
+                cpu_state.flags |= A_FLAG;
 }
 static void setadd16nc(uint16_t a, uint16_t b)
 {
-        uint32_t c=(uint32_t)a+(uint32_t)b;
-        flags&=~0x8D4;
-        flags|=znptable16[c&0xFFFF];
-        if (!((a^b)&0x8000)&&((a^c)&0x8000)) flags|=V_FLAG;
-        if (((a&0xF)+(b&0xF))&0x10)      flags|=A_FLAG;
+        uint32_t c = (uint32_t)a + (uint32_t)b;
+        cpu_state.flags &= ~0x8D4;
+        cpu_state.flags |= znptable16[c&0xFFFF];
+        if (!((a ^ b) & 0x8000) && ((a ^ c) & 0x8000))
+                cpu_state.flags |= V_FLAG;
+        if (((a & 0xF) + (b & 0xF)) & 0x10)
+                cpu_state.flags |= A_FLAG;
 }
 static void setadc16(uint16_t a, uint16_t b)
 {
-        uint32_t c=(uint32_t)a+(uint32_t)b+tempc;
-        flags&=~0x8D5;
-        flags|=znptable16[c&0xFFFF];
-        if (c&0x10000) flags|=C_FLAG;
-        if (!((a^b)&0x8000)&&((a^c)&0x8000)) flags|=V_FLAG;
-        if (((a&0xF)+(b&0xF))&0x10)      flags|=A_FLAG;
+        uint32_t c = (uint32_t)a + (uint32_t)b+tempc;
+        cpu_state.flags &= ~0x8D5;
+        cpu_state.flags |= znptable16[c&0xFFFF];
+        if (c & 0x10000)
+                cpu_state.flags |= C_FLAG;
+        if (!((a ^ b) & 0x8000) && ((a ^ c) & 0x8000))
+                cpu_state.flags |= V_FLAG;
+        if (((a & 0xF) + (b & 0xF)) & 0x10)
+                cpu_state.flags |= A_FLAG;
 }
 
 static void setsub8(uint8_t a, uint8_t b)
 {
-        uint16_t c=(uint16_t)a-(uint16_t)b;
-        flags&=~0x8D5;
-        flags|=znptable8[c&0xFF];
-        if (c&0x100) flags|=C_FLAG;
-        if ((a^b)&(a^c)&0x80) flags|=V_FLAG;
-        if (((a&0xF)-(b&0xF))&0x10)      flags|=A_FLAG;
+        uint16_t c = (uint16_t)a - (uint16_t)b;
+        cpu_state.flags &= ~0x8D5;
+        cpu_state.flags |= znptable8[c&0xFF];
+        if (c & 0x100)
+                cpu_state.flags |= C_FLAG;
+        if ((a ^ b) & (a ^ c) & 0x80)
+                cpu_state.flags |= V_FLAG;
+        if (((a & 0xF) - (b & 0xF)) & 0x10)
+                cpu_state.flags |= A_FLAG;
 }
 static void setsub8nc(uint8_t a, uint8_t b)
 {
-        uint16_t c=(uint16_t)a-(uint16_t)b;
-        flags&=~0x8D4;
-        flags|=znptable8[c&0xFF];
-        if ((a^b)&(a^c)&0x80) flags|=V_FLAG;
-        if (((a&0xF)-(b&0xF))&0x10)      flags|=A_FLAG;
+        uint16_t c = (uint16_t)a - (uint16_t)b;
+        cpu_state.flags &= ~0x8D4;
+        cpu_state.flags |= znptable8[c&0xFF];
+        if ((a ^ b) & (a ^ c) & 0x80)
+                cpu_state.flags |= V_FLAG;
+        if (((a & 0xF) - (b & 0xF)) & 0x10)
+                cpu_state.flags |= A_FLAG;
 }
 static void setsbc8(uint8_t a, uint8_t b)
 {
-        uint16_t c=(uint16_t)a-(((uint16_t)b)+tempc);
-        flags&=~0x8D5;
-        flags|=znptable8[c&0xFF];
-        if (c&0x100) flags|=C_FLAG;
-        if ((a^b)&(a^c)&0x80) flags|=V_FLAG;
-        if (((a&0xF)-(b&0xF))&0x10)      flags|=A_FLAG;
+        uint16_t c = (uint16_t)a - (((uint16_t)b) + tempc);
+        cpu_state.flags &= ~0x8D5;
+        cpu_state.flags |= znptable8[c&0xFF];
+        if (c & 0x100)
+                cpu_state.flags |= C_FLAG;
+        if ((a ^ b) & (a ^ c) & 0x80)
+                cpu_state.flags |= V_FLAG;
+        if (((a & 0xF) - (b & 0xF)) & 0x10)
+                cpu_state.flags |= A_FLAG;
 }
 static void setsub16(uint16_t a, uint16_t b)
 {
-        uint32_t c=(uint32_t)a-(uint32_t)b;
-        flags&=~0x8D5;
-        flags|=znptable16[c&0xFFFF];
-        if (c&0x10000) flags|=C_FLAG;
-        if ((a^b)&(a^c)&0x8000) flags|=V_FLAG;
-//        if (output) printf("%04X %04X %i\n",a^b,a^c,flags&V_FLAG);
-        if (((a&0xF)-(b&0xF))&0x10)      flags|=A_FLAG;
+        uint32_t c = (uint32_t)a - (uint32_t)b;
+        cpu_state.flags &= ~0x8D5;
+        cpu_state.flags |= znptable16[c&0xFFFF];
+        if (c & 0x10000)
+                cpu_state.flags |= C_FLAG;
+        if ((a ^ b) & (a ^ c) & 0x8000)
+                cpu_state.flags |= V_FLAG;
+        if (((a & 0xF) - (b & 0xF)) & 0x10)
+                cpu_state.flags |= A_FLAG;
 }
 static void setsub16nc(uint16_t a, uint16_t b)
 {
-        uint32_t c=(uint32_t)a-(uint32_t)b;
-        flags&=~0x8D4;
-        flags|=(znptable16[c&0xFFFF]&~4);
-        flags|=(znptable8[c&0xFF]&4);
-        if ((a^b)&(a^c)&0x8000) flags|=V_FLAG;
-        if (((a&0xF)-(b&0xF))&0x10)      flags|=A_FLAG;
+        uint32_t c = (uint32_t)a - (uint32_t)b;
+        cpu_state.flags &= ~0x8D4;
+        cpu_state.flags |= (znptable16[c&0xFFFF]&~4);
+        cpu_state.flags |= (znptable8[c&0xFF]&4);
+        if ((a ^ b) & (a ^ c) & 0x8000)
+                cpu_state.flags |= V_FLAG;
+        if (((a & 0xF) - (b & 0xF)) & 0x10)
+                cpu_state.flags |= A_FLAG;
 }
 static void setsbc16(uint16_t a, uint16_t b)
 {
-        uint32_t c=(uint32_t)a-(((uint32_t)b)+tempc);
-        flags&=~0x8D5;
-        flags|=(znptable16[c&0xFFFF]&~4);
-        flags|=(znptable8[c&0xFF]&4);
-        if (c&0x10000) flags|=C_FLAG;
-        if ((a^b)&(a^c)&0x8000) flags|=V_FLAG;
-        if (((a&0xF)-(b&0xF))&0x10)      flags|=A_FLAG;
+        uint32_t c = (uint32_t)a - (((uint32_t)b) + tempc);
+        cpu_state.flags &= ~0x8D5;
+        cpu_state.flags |= (znptable16[c&0xFFFF]&~4);
+        cpu_state.flags |= (znptable8[c&0xFF]&4);
+        if (c & 0x10000)
+                cpu_state.flags |= C_FLAG;
+        if ((a ^ b) & (a ^ c) & 0x8000)
+                cpu_state.flags |= V_FLAG;
+        if (((a & 0xF) - (b & 0xF)) & 0x10)
+                cpu_state.flags |= A_FLAG;
 }
 
 int current_diff = 0;
-void clockhardware()
+
+/*XT systems use the XT master oscillator (14.318 MHz) rather than the CPU clock
+  at the base timer frequency. Because there isn't an integer relationship
+  between the two frequencies, use fixed point arithmetic when updating TSC.*/
+static uint64_t tsc_frac = 0;
+
+static void clockhardware()
 {
         int diff = cycdiff - cycles - current_diff;
         
         current_diff += diff;
-  
-        timer_end_period(cycles*xt_cpu_multi);
+
+        tsc_frac += (uint64_t)diff * xt_cpu_multi;
+
+	tsc += (tsc_frac >> 32);
+        tsc_frac &= 0xffffffff;
+	if (TIMER_VAL_LESS_THAN_VAL(timer_target, (uint32_t)tsc))
+		timer_process();
 }
 
 static int takeint = 0;
@@ -847,7 +870,7 @@ static int takeint = 0;
 
 int firstrepcycle=1;
 
-void rep(int fv)
+static void rep(int fv)
 {
         uint8_t temp;
         int c=CX;
@@ -894,8 +917,8 @@ void rep(int fv)
                 {
                         temp2=readmemb(ds+SI);
                         outb(DX,temp2);
-                        if (flags&D_FLAG) SI--;
-                        else              SI++;
+                        if (cpu_state.flags & D_FLAG) SI--;
+                        else                          SI++;
                         c--;
                         cycles-=5;
                 }
@@ -908,8 +931,8 @@ void rep(int fv)
                         temp2=readmemb(ds+SI);
                         writememb(es+DI,temp2);
 //                        if (output) printf("Moved %02X from %04X:%04X to %04X:%04X\n",temp2,ds>>4,SI,es>>4,DI);
-                        if (flags&D_FLAG) { DI--; SI--; }
-                        else              { DI++; SI++; }
+                        if (cpu_state.flags & D_FLAG) { DI--; SI--; }
+                        else                          { DI++; SI++; }
                         c--;
                         cycles-=17;
                         clockhardware();
@@ -926,8 +949,8 @@ void rep(int fv)
                         memcycs=0;
                         tempw=readmemw(ds,SI);
                         writememw(es,DI,tempw);
-                        if (flags&D_FLAG) { DI-=2; SI-=2; }
-                        else              { DI+=2; SI+=2; }
+                        if (cpu_state.flags & D_FLAG) { DI-=2; SI-=2; }
+                        else                          { DI+=2; SI+=2; }
                         c--;
                         cycles-=17;
                         clockhardware();
@@ -939,43 +962,43 @@ void rep(int fv)
 //                }
                 break;
                 case 0xA6: /*REP CMPSB*/
-                if (fv) flags|=Z_FLAG;
-                else    flags&=~Z_FLAG;
-                while ((c>0) && (fv==((flags&Z_FLAG)?1:0)) && !IRQTEST)
+                if (fv) cpu_state.flags |= Z_FLAG;
+                else    cpu_state.flags &= ~Z_FLAG;
+                while ((c>0) && (fv==((cpu_state.flags & Z_FLAG)?1:0)) && !IRQTEST)
                 {
                         memcycs=0;
                         temp=readmemb(ds+SI);
                         temp2=readmemb(es+DI);
 //                        printf("CMPSB %c %c %i %05X %05X %04X:%04X\n",temp,temp2,c,ds+SI,es+DI,cs>>4,pc);
-                        if (flags&D_FLAG) { DI--; SI--; }
-                        else              { DI++; SI++; }
+                        if (cpu_state.flags & D_FLAG) { DI--; SI--; }
+                        else                          { DI++; SI++; }
                         c--;
                         cycles -= 30;
                         setsub8(temp,temp2);
                         clockhardware();
                         FETCHADD(30 - memcycs);
                 }
-                if (IRQTEST && c>0 && (fv==((flags&Z_FLAG)?1:0))) cpu_state.pc=ipc;
+                if (IRQTEST && c>0 && (fv==((cpu_state.flags & Z_FLAG)?1:0))) cpu_state.pc=ipc;
 //                if ((c>0) && (fv==((flags&Z_FLAG)?1:0))) { pc=ipc; firstrepcycle=0; if (ssegs) ssegs++; FETCHCLEAR(); }
 //                else firstrepcycle=1;
                 break;
                 case 0xA7: /*REP CMPSW*/
-                if (fv) flags|=Z_FLAG;
-                else    flags&=~Z_FLAG;
-                while ((c>0) && (fv==((flags&Z_FLAG)?1:0)) && !IRQTEST)
+                if (fv) cpu_state.flags |= Z_FLAG;
+                else    cpu_state.flags &= ~Z_FLAG;
+                while ((c>0) && (fv==((cpu_state.flags & Z_FLAG)?1:0)) && !IRQTEST)
                 {
                         memcycs=0;
                         tempw=readmemw(ds,SI);
                         tempw2=readmemw(es,DI);
-                        if (flags&D_FLAG) { DI-=2; SI-=2; }
-                        else              { DI+=2; SI+=2; }
+                        if (cpu_state.flags & D_FLAG) { DI-=2; SI-=2; }
+                        else                          { DI+=2; SI+=2; }
                         c--;
                         cycles -= 30;
                         setsub16(tempw,tempw2);
                         clockhardware();
                         FETCHADD(30 - memcycs);
                 }
-                if (IRQTEST && c>0 && (fv==((flags&Z_FLAG)?1:0))) cpu_state.pc=ipc;
+                if (IRQTEST && c>0 && (fv==((cpu_state.flags & Z_FLAG)?1:0))) cpu_state.pc=ipc;
 //                if ((c>0) && (fv==((flags&Z_FLAG)?1:0))) { pc=ipc; firstrepcycle=0; if (ssegs) ssegs++; FETCHCLEAR(); }
 //                else firstrepcycle=1;
 //                if (firstrepcycle) printf("REP CMPSW  %06X:%04X %06X:%04X %04X %04X\n",ds,SI,es,DI,tempw,tempw2);
@@ -985,8 +1008,8 @@ void rep(int fv)
                 {
                         memcycs=0;
                         writememb(es+DI,AL);
-                        if (flags&D_FLAG) DI--;
-                        else              DI++;
+                        if (cpu_state.flags & D_FLAG) DI--;
+                        else                          DI++;
                         c--;
                         cycles -= 10;
                         clockhardware();
@@ -1001,8 +1024,8 @@ void rep(int fv)
                 {
                         memcycs=0;
                         writememw(es,DI,AX);
-                        if (flags&D_FLAG) DI-=2;
-                        else              DI+=2;
+                        if (cpu_state.flags & D_FLAG) DI -= 2;
+                        else                          DI += 2;
                         c--;
                         cycles -= 10;
                         clockhardware();
@@ -1016,8 +1039,8 @@ void rep(int fv)
                 if (c>0)
                 {
                         temp2=readmemb(ds+SI);
-                        if (flags&D_FLAG) SI--;
-                        else              SI++;
+                        if (cpu_state.flags & D_FLAG) SI--;
+                        else                          SI++;
                         c--;
                         cycles-=4;
                 }
@@ -1028,8 +1051,8 @@ void rep(int fv)
                 if (c>0)
                 {
                         tempw2=readmemw(ds,SI);
-                        if (flags&D_FLAG) SI-=2;
-                        else              SI+=2;
+                        if (cpu_state.flags & D_FLAG) SI -= 2;
+                        else                          SI += 2;
                         c--;
                         cycles-=4;
                 }
@@ -1037,37 +1060,37 @@ void rep(int fv)
                 else firstrepcycle=1;
                 break;
                 case 0xAE: /*REP SCASB*/
-                if (fv) flags|=Z_FLAG;
-                else    flags&=~Z_FLAG;
-                if ((c>0) && (fv==((flags&Z_FLAG)?1:0)))
+                if (fv) cpu_state.flags |= Z_FLAG;
+                else    cpu_state.flags &= ~Z_FLAG;
+                if ((c>0) && (fv==((cpu_state.flags & Z_FLAG)?1:0)))
                 {
                         temp2=readmemb(es+DI);
 //                        if (output) printf("SCASB %02X %c %02X %05X  ",temp2,temp2,AL,es+DI);
                         setsub8(AL,temp2);
 //                        if (output && flags&Z_FLAG) printf("Match %02X %02X\n",AL,temp2);
-                        if (flags&D_FLAG) DI--;
-                        else              DI++;
+                        if (cpu_state.flags & D_FLAG) DI--;
+                        else                          DI++;
                         c--;
                         cycles -= 15;
                 }
 //if (output)                printf("%i %i %i %i\n",c,(c>0),(fv==((flags&Z_FLAG)?1:0)),((c>0) && (fv==((flags&Z_FLAG)?1:0))));
-                if ((c>0) && (fv==((flags&Z_FLAG)?1:0)))  { cpu_state.pc=ipc; firstrepcycle=0; if (cpu_state.ssegs) cpu_state.ssegs++; FETCHCLEAR(); }
+                if ((c>0) && (fv==((cpu_state.flags & Z_FLAG)?1:0)))  { cpu_state.pc=ipc; firstrepcycle=0; if (cpu_state.ssegs) cpu_state.ssegs++; FETCHCLEAR(); }
                 else firstrepcycle=1;
 //                cycles-=120;
                 break;
                 case 0xAF: /*REP SCASW*/
-                if (fv) flags|=Z_FLAG;
-                else    flags&=~Z_FLAG;
-                if ((c>0) && (fv==((flags&Z_FLAG)?1:0)))
+                if (fv) cpu_state.flags |= Z_FLAG;
+                else    cpu_state.flags &= ~Z_FLAG;
+                if ((c>0) && (fv==((cpu_state.flags & Z_FLAG)?1:0)))
                 {
                         tempw=readmemw(es,DI);
                         setsub16(AX,tempw);
-                        if (flags&D_FLAG) DI-=2;
-                        else              DI+=2;
+                        if (cpu_state.flags & D_FLAG) DI -= 2;
+                        else                          DI += 2;
                         c--;
                         cycles -= 15;
                 }
-                if ((c>0) && (fv==((flags&Z_FLAG)?1:0)))  { cpu_state.pc=ipc; firstrepcycle=0; if (cpu_state.ssegs) cpu_state.ssegs++; FETCHCLEAR(); }
+                if ((c>0) && (fv==((cpu_state.flags & Z_FLAG)?1:0)))  { cpu_state.pc=ipc; firstrepcycle=0; if (cpu_state.ssegs) cpu_state.ssegs++; FETCHCLEAR(); }
                 else firstrepcycle=1;
                 break;
                 default:
@@ -1086,12 +1109,11 @@ void rep(int fv)
 }
 
 
-int inhlt=0;
-uint16_t lastpc,lastcs;
-int skipnextprint=0;
+static int inhlt=0;
+static int skipnextprint=0;
 
-int instime=0;
-//#if 0
+#include "8087.h"
+
 void execx86(int cycs)
 {
         uint8_t temp,temp2;
@@ -1109,25 +1131,20 @@ void execx86(int cycs)
 //        return;
         while (cycles>0)
         {
-//                old83=old82;
-//                old82=old8;
-//                old8=oldpc|(oldcs<<16);
-//                if (pc==0x96B && cs==0x9E040) { printf("Hit it\n"); output=1; timetolive=150; }
-//                if (pc<0x8000) printf("%04X : %04X %04X %04X %04X %04X %04X %04X %04X %04X %04X %04X %04X %02X %04X %i\n",pc,AX,BX,CX,DX,cs>>4,ds>>4,es>>4,ss>>4,DI,SI,BP,SP,opcode,flags,disctime);
+                uint8_t opcode;
+                
                 cycdiff=cycles;
-                timer_start_period(cycles*xt_cpu_multi);
                 current_diff = 0;
                 cycles-=nextcyc;
 //                if (instime) pclog("Cycles %i %i\n",cycles,cycdiff);
                 nextcyc=0;
 //        if (output) printf("CLOCK %i %i\n",cycdiff,cycles);
                 fetchclocks=0;
-                oldcs=CS;
                 cpu_state.oldpc = cpu_state.pc;
                 opcodestart:
                 opcode=FETCH();
-                tempc=flags&C_FLAG;
-                trap=flags&T_FLAG;
+                tempc = cpu_state.flags & C_FLAG;
+                trap = cpu_state.flags & T_FLAG;
                 cpu_state.pc--;
 //                output=1;
 //                if (output) printf("%04X:%04X : %04X %04X %04X %04X %04X %04X %04X %04X %04X %04X %04X %04X %02X %04X\n",cs>>4,pc,AX,BX,CX,DX,cs>>4,ds>>4,es>>4,ss>>4,DI,SI,BP,SP,opcode,flags&~0x200,rmdat);
@@ -1136,7 +1153,7 @@ void execx86(int cycs)
                 {
 //                        if ((opcode!=0xF2 && opcode!=0xF3) || firstrepcycle)
 //                        {
-                                if (!skipnextprint) printf("%04X:%04X : %04X %04X %04X %04X %04X %04X %04X %04X %04X %04X %04X %04X %02X %04X  %i %p %02X\n",cs,cpu_state.pc,AX,BX,CX,DX,CS,DS,ES,SS,DI,SI,BP,SP,opcode,flags, ins, ram, ram[0x1a925]);
+                                if (!skipnextprint) printf("%04X:%04X : %04X %04X %04X %04X %04X %04X %04X %04X %04X %04X %04X %04X %02X %04X  %i %p %02X\n",cs,cpu_state.pc,AX,BX,CX,DX,CS,DS,ES,SS,DI,SI,BP,SP,opcode,cpu_state.flags, ins, ram, ram[0x1a925]);
                                 skipnextprint=0;
 //                                ins++;
 //                        }
@@ -1206,7 +1223,7 @@ void execx86(int cycs)
                         case 0x07: /*POP ES*/
                         if (cpu_state.ssegs) ss=oldss;
                         tempw=readmemw(ss,SP);
-                        loadseg(tempw,&_es);
+                        loadseg(tempw,&cpu_state.seg_es);
                         SP+=2;
                         cycles-=12;
                         break;
@@ -1216,7 +1233,7 @@ void execx86(int cycs)
                         temp=geteab();
                         temp|=getr8(cpu_reg);
                         setznp8(temp);
-                        flags&=~(C_FLAG|V_FLAG|A_FLAG);
+                        cpu_state.flags &= ~(C_FLAG|V_FLAG|A_FLAG);
                         seteab(temp);
                         cycles-=((cpu_mod==3)?3:24);
                         break;
@@ -1225,7 +1242,7 @@ void execx86(int cycs)
                         tempw=geteaw();
                         tempw|=cpu_state.regs[cpu_reg].w;
                         setznp16(tempw);
-                        flags&=~(C_FLAG|V_FLAG|A_FLAG);
+                        cpu_state.flags &= ~(C_FLAG|V_FLAG|A_FLAG);
                         seteaw(tempw);
                         cycles-=((cpu_mod==3)?3:24);
                         break;
@@ -1234,7 +1251,7 @@ void execx86(int cycs)
                         temp=geteab();
                         temp|=getr8(cpu_reg);
                         setznp8(temp);
-                        flags&=~(C_FLAG|V_FLAG|A_FLAG);
+                        cpu_state.flags &= ~(C_FLAG|V_FLAG|A_FLAG);
                         setr8(cpu_reg,temp);
                         cycles-=((cpu_mod==3)?3:13);
                         break;
@@ -1243,20 +1260,20 @@ void execx86(int cycs)
                         tempw=geteaw();
                         tempw|=cpu_state.regs[cpu_reg].w;
                         setznp16(tempw);
-                        flags&=~(C_FLAG|V_FLAG|A_FLAG);
+                        cpu_state.flags &= ~(C_FLAG|V_FLAG|A_FLAG);
                         cpu_state.regs[cpu_reg].w=tempw;
                         cycles-=((cpu_mod==3)?3:13);
                         break;
                         case 0x0C: /*OR AL,#8*/
                         AL|=FETCH();
                         setznp8(AL);
-                        flags&=~(C_FLAG|V_FLAG|A_FLAG);
+                        cpu_state.flags &= ~(C_FLAG|V_FLAG|A_FLAG);
                         cycles-=4;
                         break;
                         case 0x0D: /*OR AX,#16*/
                         AX|=getword();
                         setznp16(AX);
-                        flags&=~(C_FLAG|V_FLAG|A_FLAG);
+                        cpu_state.flags &= ~(C_FLAG|V_FLAG|A_FLAG);
                         cycles-=4;
                         break;
 
@@ -1269,7 +1286,7 @@ void execx86(int cycs)
                         case 0x0F: /*POP CS - 8088/8086 only*/
                         if (cpu_state.ssegs) ss=oldss;
                         tempw=readmemw(ss,SP);
-                        loadseg(tempw,&_cs);
+                        loadseg(tempw,&cpu_state.seg_cs);
                         SP+=2;
                         cycles-=12;
                         break;
@@ -1328,7 +1345,7 @@ void execx86(int cycs)
                         case 0x17: /*POP SS*/
                         if (cpu_state.ssegs) ss=oldss;
                         tempw=readmemw(ss,SP);
-                        loadseg(tempw,&_ss);
+                        loadseg(tempw,&cpu_state.seg_ss);
                         SP+=2;
                         noint=1;
                         cycles-=12;
@@ -1393,7 +1410,7 @@ void execx86(int cycs)
                         case 0x1F: /*POP DS*/
                         if (cpu_state.ssegs) ss=oldss;
                         tempw=readmemw(ss,SP);
-                        loadseg(tempw,&_ds);
+                        loadseg(tempw,&cpu_state.seg_ds);
                         if (cpu_state.ssegs) oldds=ds;
                         SP+=2;
                         cycles-=12;
@@ -1404,7 +1421,7 @@ void execx86(int cycs)
                         temp=geteab();
                         temp&=getr8(cpu_reg);
                         setznp8(temp);
-                        flags&=~(C_FLAG|V_FLAG|A_FLAG);
+                        cpu_state.flags &= ~(C_FLAG|V_FLAG|A_FLAG);
                         seteab(temp);
                         cycles-=((cpu_mod==3)?3:24);
                         break;
@@ -1413,7 +1430,7 @@ void execx86(int cycs)
                         tempw=geteaw();
                         tempw&=cpu_state.regs[cpu_reg].w;
                         setznp16(tempw);
-                        flags&=~(C_FLAG|V_FLAG|A_FLAG);
+                        cpu_state.flags &= ~(C_FLAG|V_FLAG|A_FLAG);
                         seteaw(tempw);
                         cycles-=((cpu_mod==3)?3:24);
                         break;
@@ -1422,7 +1439,7 @@ void execx86(int cycs)
                         temp=geteab();
                         temp&=getr8(cpu_reg);
                         setznp8(temp);
-                        flags&=~(C_FLAG|V_FLAG|A_FLAG);
+                        cpu_state.flags &= ~(C_FLAG|V_FLAG|A_FLAG);
                         setr8(cpu_reg,temp);
                         cycles-=((cpu_mod==3)?3:13);
                         break;
@@ -1431,20 +1448,20 @@ void execx86(int cycs)
                         tempw=geteaw();
                         tempw&=cpu_state.regs[cpu_reg].w;
                         setznp16(tempw);
-                        flags&=~(C_FLAG|V_FLAG|A_FLAG);
+                        cpu_state.flags &= ~(C_FLAG|V_FLAG|A_FLAG);
                         cpu_state.regs[cpu_reg].w=tempw;
                         cycles-=((cpu_mod==3)?3:13);
                         break;
                         case 0x24: /*AND AL,#8*/
                         AL&=FETCH();
                         setznp8(AL);
-                        flags&=~(C_FLAG|V_FLAG|A_FLAG);
+                        cpu_state.flags &= ~(C_FLAG|V_FLAG|A_FLAG);
                         cycles-=4;
                         break;
                         case 0x25: /*AND AX,#16*/
                         AX&=getword();
                         setznp16(AX);
-                        flags&=~(C_FLAG|V_FLAG|A_FLAG);
+                        cpu_state.flags &= ~(C_FLAG|V_FLAG|A_FLAG);
                         cycles-=4;
                         break;
 
@@ -1458,19 +1475,20 @@ void execx86(int cycs)
 //                        break;
 
                         case 0x27: /*DAA*/
-                        if ((flags&A_FLAG) || ((AL&0xF)>9))
+                        if ((cpu_state.flags & A_FLAG) || ((AL & 0xF) > 9))
                         {
-                                tempi=((uint16_t)AL)+6;
-                                AL+=6;
-                                flags|=A_FLAG;
-                                if (tempi&0x100) flags|=C_FLAG;
+                                tempi = ((uint16_t)AL) + 6;
+                                AL += 6;
+                                cpu_state.flags |= A_FLAG;
+                                if (tempi & 0x100)
+                                        cpu_state.flags |= C_FLAG;
                         }
 //                        else
 //                           flags&=~A_FLAG;
-                        if ((flags&C_FLAG) || (AL>0x9F))
+                        if ((cpu_state.flags & C_FLAG) || (AL > 0x9F))
                         {
-                                AL+=0x60;
-                                flags|=C_FLAG;
+                                AL += 0x60;
+                                cpu_state.flags |= C_FLAG;
                         }
 //                        else
 //                           flags&=~C_FLAG;
@@ -1532,19 +1550,20 @@ void execx86(int cycs)
                         cycles-=4;
                         goto opcodestart;
                         case 0x2F: /*DAS*/
-                        if ((flags&A_FLAG)||((AL&0xF)>9))
+                        if ((cpu_state.flags & A_FLAG) || ((AL & 0xF) > 9))
                         {
-                                tempi=((uint16_t)AL)-6;
-                                AL-=6;
-                                flags|=A_FLAG;
-                                if (tempi&0x100) flags|=C_FLAG;
+                                tempi = ((uint16_t)AL) - 6;
+                                AL -= 6;
+                                cpu_state.flags |= A_FLAG;
+                                if (tempi & 0x100)
+                                        cpu_state.flags |= C_FLAG;
                         }
 //                        else
 //                           flags&=~A_FLAG;
-                        if ((flags&C_FLAG)||(AL>0x9F))
+                        if ((cpu_state.flags & C_FLAG) || (AL > 0x9F))
                         {
-                                AL-=0x60;
-                                flags|=C_FLAG;
+                                AL -= 0x60;
+                                cpu_state.flags |= C_FLAG;
                         }
 //                        else
 //                           flags&=~C_FLAG;
@@ -1556,7 +1575,7 @@ void execx86(int cycs)
                         temp=geteab();
                         temp^=getr8(cpu_reg);
                         setznp8(temp);
-                        flags&=~(C_FLAG|V_FLAG|A_FLAG);
+                        cpu_state.flags &= ~(C_FLAG|V_FLAG|A_FLAG);
                         seteab(temp);
                         cycles-=((cpu_mod==3)?3:24);
                         break;
@@ -1565,7 +1584,7 @@ void execx86(int cycs)
                         tempw=geteaw();
                         tempw^=cpu_state.regs[cpu_reg].w;
                         setznp16(tempw);
-                        flags&=~(C_FLAG|V_FLAG|A_FLAG);
+                        cpu_state.flags &= ~(C_FLAG|V_FLAG|A_FLAG);
                         seteaw(tempw);
                         cycles-=((cpu_mod==3)?3:24);
                         break;
@@ -1574,7 +1593,7 @@ void execx86(int cycs)
                         temp=geteab();
                         temp^=getr8(cpu_reg);
                         setznp8(temp);
-                        flags&=~(C_FLAG|V_FLAG|A_FLAG);
+                        cpu_state.flags &= ~(C_FLAG|V_FLAG|A_FLAG);
                         setr8(cpu_reg,temp);
                         cycles-=((cpu_mod==3)?3:13);
                         break;
@@ -1583,20 +1602,20 @@ void execx86(int cycs)
                         tempw=geteaw();
                         tempw^=cpu_state.regs[cpu_reg].w;
                         setznp16(tempw);
-                        flags&=~(C_FLAG|V_FLAG|A_FLAG);
+                        cpu_state.flags &= ~(C_FLAG|V_FLAG|A_FLAG);
                         cpu_state.regs[cpu_reg].w=tempw;
                         cycles-=((cpu_mod==3)?3:13);
                         break;
                         case 0x34: /*XOR AL,#8*/
                         AL^=FETCH();
                         setznp8(AL);
-                        flags&=~(C_FLAG|V_FLAG|A_FLAG);
+                        cpu_state.flags &= ~(C_FLAG|V_FLAG|A_FLAG);
                         cycles-=4;
                         break;
                         case 0x35: /*XOR AX,#16*/
                         AX^=getword();
                         setznp16(AX);
-                        flags&=~(C_FLAG|V_FLAG|A_FLAG);
+                        cpu_state.flags &= ~(C_FLAG|V_FLAG|A_FLAG);
                         cycles-=4;
                         break;
 
@@ -1610,16 +1629,16 @@ void execx86(int cycs)
 //                        break;
 
                         case 0x37: /*AAA*/
-                        if ((flags&A_FLAG)||((AL&0xF)>9))
+                        if ((cpu_state.flags & A_FLAG)||((AL & 0xF) > 9))
                         {
-                                AL+=6;
+                                AL += 6;
                                 AH++;
-                                flags|=(A_FLAG|C_FLAG);
+                                cpu_state.flags |= (A_FLAG|C_FLAG);
                         }
                         else
-                           flags&=~(A_FLAG|C_FLAG);
-                        AL&=0xF;
-                        cycles-=8;
+                                cpu_state.flags &= ~(A_FLAG|C_FLAG);
+                        AL &= 0xF;
+                        cycles -= 8;
                         break;
 
                         case 0x38: /*CMP 8,reg*/
@@ -1671,16 +1690,16 @@ void execx86(int cycs)
 //                        break;
 
                         case 0x3F: /*AAS*/
-                        if ((flags&A_FLAG)||((AL&0xF)>9))
+                        if ((cpu_state.flags & A_FLAG) || ((AL & 0xF) > 9))
                         {
-                                AL-=6;
+                                AL -= 6;
                                 AH--;
-                                flags|=(A_FLAG|C_FLAG);
+                                cpu_state.flags |= (A_FLAG|C_FLAG);
                         }
                         else
-                           flags&=~(A_FLAG|C_FLAG);
-                        AL&=0xF;
-                        cycles-=8;
+                                cpu_state.flags &= ~(A_FLAG|C_FLAG);
+                        AL &= 0xF;
+                        cycles -= 8;
                         break;
 
                         case 0x40: case 0x41: case 0x42: case 0x43: /*INC r16*/
@@ -1715,105 +1734,105 @@ void execx86(int cycs)
 			case 0x60: /*JO alias*/
                         case 0x70: /*JO*/
                         offset=(int8_t)FETCH();
-                        if (flags&V_FLAG) { cpu_state.pc+=offset; cycles-=12; FETCHCLEAR(); }
+                        if (cpu_state.flags & V_FLAG) { cpu_state.pc+=offset; cycles-=12; FETCHCLEAR(); }
                         cycles-=4;
                         break;
 			case 0x61: /*JNO alias*/
                         case 0x71: /*JNO*/
                         offset=(int8_t)FETCH();
-                        if (!(flags&V_FLAG)) { cpu_state.pc+=offset; cycles-=12; FETCHCLEAR(); }
+                        if (!(cpu_state.flags & V_FLAG)) { cpu_state.pc+=offset; cycles-=12; FETCHCLEAR(); }
                         cycles-=4;
                         break;
 			case 0x62: /*JB alias*/
                         case 0x72: /*JB*/
                         offset=(int8_t)FETCH();
-                        if (flags&C_FLAG) { cpu_state.pc+=offset; cycles-=12; FETCHCLEAR(); }
+                        if (cpu_state.flags & C_FLAG) { cpu_state.pc+=offset; cycles-=12; FETCHCLEAR(); }
                         cycles-=4;
                         break;
 			case 0x63: /*JNB alias*/
                         case 0x73: /*JNB*/
                         offset=(int8_t)FETCH();
-                        if (!(flags&C_FLAG)) { cpu_state.pc+=offset; cycles-=12; FETCHCLEAR(); }
+                        if (!(cpu_state.flags & C_FLAG)) { cpu_state.pc+=offset; cycles-=12; FETCHCLEAR(); }
                         cycles-=4;
                         break;
 			case 0x64: /*JE alias*/
                         case 0x74: /*JE*/
                         offset=(int8_t)FETCH();
-                        if (flags&Z_FLAG) { cpu_state.pc+=offset; cycles-=12; FETCHCLEAR(); }
+                        if (cpu_state.flags & Z_FLAG) { cpu_state.pc+=offset; cycles-=12; FETCHCLEAR(); }
                         cycles-=4;
                         break;
 			case 0x65: /*JNE alias*/
                         case 0x75: /*JNE*/
                         offset=(int8_t)FETCH();
                         cycles-=4;
-                        if (!(flags&Z_FLAG)) { cpu_state.pc+=offset; cycles-=12; FETCHCLEAR(); }
+                        if (!(cpu_state.flags & Z_FLAG)) { cpu_state.pc+=offset; cycles-=12; FETCHCLEAR(); }
                         break;
 			case 0x66: /*JBE alias*/
                         case 0x76: /*JBE*/
                         offset=(int8_t)FETCH();
-                        if (flags&(C_FLAG|Z_FLAG)) { cpu_state.pc+=offset; cycles-=12; FETCHCLEAR(); }
+                        if (cpu_state.flags & (C_FLAG|Z_FLAG)) { cpu_state.pc+=offset; cycles-=12; FETCHCLEAR(); }
                         cycles-=4;
                         break;
 			case 0x67: /*JNBE alias*/
                         case 0x77: /*JNBE*/
                         offset=(int8_t)FETCH();
-                        if (!(flags&(C_FLAG|Z_FLAG))) { cpu_state.pc+=offset; cycles-=12; FETCHCLEAR(); }
+                        if (!(cpu_state.flags & (C_FLAG|Z_FLAG))) { cpu_state.pc+=offset; cycles-=12; FETCHCLEAR(); }
                         cycles-=4;
                         break;
 			case 0x68: /*JS alias*/
                         case 0x78: /*JS*/
                         offset=(int8_t)FETCH();
-                        if (flags&N_FLAG)  { cpu_state.pc+=offset; cycles-=12; FETCHCLEAR(); }
+                        if (cpu_state.flags & N_FLAG)  { cpu_state.pc+=offset; cycles-=12; FETCHCLEAR(); }
                         cycles-=4;
                         break;
 			case 0x69: /*JNS alias*/
                         case 0x79: /*JNS*/
                         offset=(int8_t)FETCH();
-                        if (!(flags&N_FLAG))  { cpu_state.pc+=offset; cycles-=12; FETCHCLEAR(); }
+                        if (!(cpu_state.flags & N_FLAG))  { cpu_state.pc+=offset; cycles-=12; FETCHCLEAR(); }
                         cycles-=4;
                         break;
 			case 0x6A: /*JP alias*/
                         case 0x7A: /*JP*/
                         offset=(int8_t)FETCH();
-                        if (flags&P_FLAG)  { cpu_state.pc+=offset; cycles-=12; FETCHCLEAR(); }
+                        if (cpu_state.flags & P_FLAG)  { cpu_state.pc+=offset; cycles-=12; FETCHCLEAR(); }
                         cycles-=4;
                         break;
 			case 0x6B: /*JNP alias*/
                         case 0x7B: /*JNP*/
                         offset=(int8_t)FETCH();
-                        if (!(flags&P_FLAG))  { cpu_state.pc+=offset; cycles-=12; FETCHCLEAR(); }
+                        if (!(cpu_state.flags & P_FLAG))  { cpu_state.pc+=offset; cycles-=12; FETCHCLEAR(); }
                         cycles-=4;
                         break;
 			case 0x6C: /*JL alias*/
                         case 0x7C: /*JL*/
                         offset=(int8_t)FETCH();
-                        temp=(flags&N_FLAG)?1:0;
-                        temp2=(flags&V_FLAG)?1:0;
+                        temp=(cpu_state.flags & N_FLAG)?1:0;
+                        temp2=(cpu_state.flags & V_FLAG)?1:0;
                         if (temp!=temp2)  { cpu_state.pc+=offset; cycles-=12; FETCHCLEAR(); }
                         cycles-=4;
                         break;
 			case 0x6D: /*JNL alias*/
                         case 0x7D: /*JNL*/
                         offset=(int8_t)FETCH();
-                        temp=(flags&N_FLAG)?1:0;
-                        temp2=(flags&V_FLAG)?1:0;
+                        temp=(cpu_state.flags & N_FLAG)?1:0;
+                        temp2=(cpu_state.flags & V_FLAG)?1:0;
                         if (temp==temp2)  { cpu_state.pc+=offset; cycles-=12; FETCHCLEAR(); }
                         cycles-=4;
                         break;
 			case 0x6E: /*JLE alias*/
                         case 0x7E: /*JLE*/
                         offset=(int8_t)FETCH();
-                        temp=(flags&N_FLAG)?1:0;
-                        temp2=(flags&V_FLAG)?1:0;
-                        if ((flags&Z_FLAG) || (temp!=temp2))  { cpu_state.pc+=offset; cycles-=12; FETCHCLEAR(); }
+                        temp=(cpu_state.flags & N_FLAG)?1:0;
+                        temp2=(cpu_state.flags & V_FLAG)?1:0;
+                        if ((cpu_state.flags & Z_FLAG) || (temp!=temp2))  { cpu_state.pc+=offset; cycles-=12; FETCHCLEAR(); }
                         cycles-=4;
                         break;
 			case 0x6F: /*JNLE alias*/
                         case 0x7F: /*JNLE*/
                         offset=(int8_t)FETCH();
-                        temp=(flags&N_FLAG)?1:0;
-                        temp2=(flags&V_FLAG)?1:0;
-                        if (!((flags&Z_FLAG) || (temp!=temp2)))  { cpu_state.pc+=offset; cycles-=12; FETCHCLEAR(); }
+                        temp=(cpu_state.flags & N_FLAG)?1:0;
+                        temp2=(cpu_state.flags & V_FLAG)?1:0;
+                        if (!((cpu_state.flags & Z_FLAG) || (temp!=temp2)))  { cpu_state.pc+=offset; cycles-=12; FETCHCLEAR(); }
                         cycles-=4;
                         break;
 
@@ -1831,7 +1850,7 @@ void execx86(int cycs)
                                 case 0x08: /*OR b,#8*/
                                 temp|=temp2;
                                 setznp8(temp);
-                                flags&=~(C_FLAG|V_FLAG|A_FLAG);
+                                cpu_state.flags &= ~(C_FLAG|V_FLAG|A_FLAG);
                                 seteab(temp);
                                 cycles-=((cpu_mod==3)?4:23);
                                 break;
@@ -1850,7 +1869,7 @@ void execx86(int cycs)
                                 case 0x20: /*AND b,#8*/
                                 temp&=temp2;
                                 setznp8(temp);
-                                flags&=~(C_FLAG|V_FLAG|A_FLAG);
+                                cpu_state.flags &= ~(C_FLAG|V_FLAG|A_FLAG);
                                 seteab(temp);
                                 cycles-=((cpu_mod==3)?4:23);
                                 break;
@@ -1862,7 +1881,7 @@ void execx86(int cycs)
                                 case 0x30: /*XOR b,#8*/
                                 temp^=temp2;
                                 setznp8(temp);
-                                flags&=~(C_FLAG|V_FLAG|A_FLAG);
+                                cpu_state.flags &= ~(C_FLAG|V_FLAG|A_FLAG);
                                 seteab(temp);
                                 cycles-=((cpu_mod==3)?4:23);
                                 break;
@@ -1893,7 +1912,7 @@ void execx86(int cycs)
                                 case 0x08: /*OR w,#16*/
                                 tempw|=tempw2;
                                 setznp16(tempw);
-                                flags&=~(C_FLAG|V_FLAG|A_FLAG);
+                                cpu_state.flags &= ~(C_FLAG|V_FLAG|A_FLAG);
                                 seteaw(tempw);
                                 cycles-=((cpu_mod==3)?4:23);
                                 break;
@@ -1907,7 +1926,7 @@ void execx86(int cycs)
                                 case 0x20: /*AND w,#16*/
                                 tempw&=tempw2;
                                 setznp16(tempw);
-                                flags&=~(C_FLAG|V_FLAG|A_FLAG);
+                                cpu_state.flags &= ~(C_FLAG|V_FLAG|A_FLAG);
                                 seteaw(tempw);
                                 cycles-=((cpu_mod==3)?4:23);
                                 break;
@@ -1926,7 +1945,7 @@ void execx86(int cycs)
                                 case 0x30: /*XOR w,#16*/
                                 tempw^=tempw2;
                                 setznp16(tempw);
-                                flags&=~(C_FLAG|V_FLAG|A_FLAG);
+                                cpu_state.flags &= ~(C_FLAG|V_FLAG|A_FLAG);
                                 seteaw(tempw);
                                 cycles-=((cpu_mod==3)?4:23);
                                 break;
@@ -1960,7 +1979,7 @@ void execx86(int cycs)
                                 tempw|=tempw2;
                                 setznp16(tempw);
                                 seteaw(tempw);
-                                flags&=~(C_FLAG|A_FLAG|V_FLAG);
+                                cpu_state.flags &= ~(C_FLAG|A_FLAG|V_FLAG);
                                 cycles-=((cpu_mod==3)?4:23);
                                 break;
                                 case 0x10: /*ADC w,#8*/
@@ -1982,7 +2001,7 @@ void execx86(int cycs)
                                 setznp16(tempw);
                                 seteaw(tempw);
                                 cycles-=((cpu_mod==3)?4:23);
-                                flags&=~(C_FLAG|A_FLAG|V_FLAG);
+                                cpu_state.flags &= ~(C_FLAG|A_FLAG|V_FLAG);
                                 break;
                                 case 0x28: /*SUB w,#8*/
                                 setsub16(tempw,tempw2);
@@ -1995,7 +2014,7 @@ void execx86(int cycs)
                                 setznp16(tempw);
                                 seteaw(tempw);
                                 cycles-=((cpu_mod==3)?4:23);
-                                flags&=~(C_FLAG|A_FLAG|V_FLAG);
+                                cpu_state.flags &= ~(C_FLAG|A_FLAG|V_FLAG);
                                 break;
                                 case 0x38: /*CMP w,#8*/
                                 setsub16(tempw,tempw2);
@@ -2014,7 +2033,7 @@ void execx86(int cycs)
                         temp=geteab();
                         temp2=getr8(cpu_reg);
                         setznp8(temp&temp2);
-                        flags&=~(C_FLAG|V_FLAG|A_FLAG);
+                        cpu_state.flags &= ~(C_FLAG|V_FLAG|A_FLAG);
                         cycles-=((cpu_mod==3)?3:13);
                         break;
                         case 0x85: /*TEST w,reg*/
@@ -2022,7 +2041,7 @@ void execx86(int cycs)
                         tempw=geteaw();
                         tempw2=cpu_state.regs[cpu_reg].w;
                         setznp16(tempw&tempw2);
-                        flags&=~(C_FLAG|V_FLAG|A_FLAG);
+                        cpu_state.flags &= ~(C_FLAG|V_FLAG|A_FLAG);
                         cycles-=((cpu_mod==3)?3:13);
                         break;
                         case 0x86: /*XCHG b,reg*/
@@ -2099,20 +2118,20 @@ void execx86(int cycs)
                         {
                                 case 0x00: /*ES*/
                                 tempw=geteaw();
-                                loadseg(tempw,&_es);
+                                loadseg(tempw,&cpu_state.seg_es);
                                 break;
                                 case 0x08: /*CS - 8088/8086 only*/
                                 tempw=geteaw();
-                                loadseg(tempw,&_cs);
+                                loadseg(tempw,&cpu_state.seg_cs);
                                 break;
                                 case 0x18: /*DS*/
                                 tempw=geteaw();
-                                loadseg(tempw,&_ds);
+                                loadseg(tempw,&cpu_state.seg_ds);
                                 if (cpu_state.ssegs) oldds=ds;
                                 break;
                                 case 0x10: /*SS*/
                                 tempw=geteaw();
-                                loadseg(tempw,&_ss);
+                                loadseg(tempw,&cpu_state.seg_ss);
                                 if (cpu_state.ssegs) oldss=ss;
 //                                printf("LOAD SS %04X %04X\n",tempw,SS);
 //				printf("SS loaded with %04X %04X:%04X %04X %04X %04X\n",ss>>4,cs>>4,pc,CX,DX,es>>4);
@@ -2172,22 +2191,22 @@ void execx86(int cycs)
                         break;
                         case 0x9C: /*PUSHF*/
                         if (cpu_state.ssegs) ss=oldss;
-                        writememw(ss,((SP-2)&0xFFFF),flags|0xF000);
+                        writememw(ss, ((SP-2)&0xFFFF), cpu_state.flags | 0xF000);
                         SP-=2;
                         cycles-=14;
                         break;
                         case 0x9D: /*POPF*/
                         if (cpu_state.ssegs) ss=oldss;
-                        flags=readmemw(ss,SP)&0xFFF;
+                        cpu_state.flags = readmemw(ss,SP) & 0xFFF;
                         SP+=2;
                         cycles-=12;
                         break;
                         case 0x9E: /*SAHF*/
-                        flags=(flags&0xFF00)|AH;
+                        cpu_state.flags = (cpu_state.flags & 0xFF00) | AH;
                         cycles-=4;
                         break;
                         case 0x9F: /*LAHF*/
-                        AH=flags&0xFF;
+                        AH = cpu_state.flags & 0xFF;
                         cycles-=4;
                         break;
 
@@ -2217,23 +2236,23 @@ void execx86(int cycs)
                         case 0xA4: /*MOVSB*/
                         temp=readmemb(ds+SI);
                         writememb(es+DI,temp);
-                        if (flags&D_FLAG) { DI--; SI--; }
-                        else              { DI++; SI++; }
+                        if (cpu_state.flags & D_FLAG) { DI--; SI--; }
+                        else                          { DI++; SI++; }
                         cycles-=18;
                         break;
                         case 0xA5: /*MOVSW*/
                         tempw=readmemw(ds,SI);
                         writememw(es,DI,tempw);
-                        if (flags&D_FLAG) { DI-=2; SI-=2; }
-                        else              { DI+=2; SI+=2; }
+                        if (cpu_state.flags & D_FLAG) { DI -= 2; SI -= 2; }
+                        else                          { DI += 2; SI += 2; }
                         cycles-=18;
                         break;
                         case 0xA6: /*CMPSB*/
                         temp =readmemb(ds+SI);
                         temp2=readmemb(es+DI);
                         setsub8(temp,temp2);
-                        if (flags&D_FLAG) { DI--; SI--; }
-                        else              { DI++; SI++; }
+                        if (cpu_state.flags & D_FLAG) { DI--; SI--; }
+                        else                          { DI++; SI++; }
                         cycles-=30;
                         break;
                         case 0xA7: /*CMPSW*/
@@ -2241,60 +2260,60 @@ void execx86(int cycs)
                         tempw2=readmemw(es,DI);
 //                        printf("CMPSW %04X %04X\n",tempw,tempw2);
                         setsub16(tempw,tempw2);
-                        if (flags&D_FLAG) { DI-=2; SI-=2; }
-                        else              { DI+=2; SI+=2; }
+                        if (cpu_state.flags & D_FLAG) { DI -= 2; SI -= 2; }
+                        else                          { DI += 2; SI += 2; }
                         cycles-=30;
                         break;
                         case 0xA8: /*TEST AL,#8*/
                         temp=FETCH();
                         setznp8(AL&temp);
-                        flags&=~(C_FLAG|V_FLAG|A_FLAG);
+                        cpu_state.flags &= ~(C_FLAG|V_FLAG|A_FLAG);
                         cycles-=5;
                         break;
                         case 0xA9: /*TEST AX,#16*/
                         tempw=getword();
                         setznp16(AX&tempw);
-                        flags&=~(C_FLAG|V_FLAG|A_FLAG);
+                        cpu_state.flags &= ~(C_FLAG|V_FLAG|A_FLAG);
                         cycles-=5;
                         break;
                         case 0xAA: /*STOSB*/
                         writememb(es+DI,AL);
-                        if (flags&D_FLAG) DI--;
-                        else              DI++;
+                        if (cpu_state.flags & D_FLAG) DI--;
+                        else                          DI++;
                         cycles-=11;
                         break;
                         case 0xAB: /*STOSW*/
                         writememw(es,DI,AX);
-                        if (flags&D_FLAG) DI-=2;
-                        else              DI+=2;
+                        if (cpu_state.flags & D_FLAG) DI -= 2;
+                        else                          DI += 2;
                         cycles-=11;
                         break;
                         case 0xAC: /*LODSB*/
                         AL=readmemb(ds+SI);
 //                        printf("LODSB %04X:%04X %02X %04X:%04X\n",cs>>4,pc,AL,ds>>4,SI);
-                        if (flags&D_FLAG) SI--;
-                        else              SI++;
+                        if (cpu_state.flags & D_FLAG) SI--;
+                        else                          SI++;
                         cycles-=16;
                         break;
                         case 0xAD: /*LODSW*/
 //                        if (times) printf("LODSW %04X:%04X\n",cs>>4,pc);
                         AX=readmemw(ds,SI);
-                        if (flags&D_FLAG) SI-=2;
-                        else              SI+=2;
+                        if (cpu_state.flags & D_FLAG) SI -= 2;
+                        else                          SI += 2;
                         cycles-=16;
                         break;
                         case 0xAE: /*SCASB*/
                         temp=readmemb(es+DI);
                         setsub8(AL,temp);
-                        if (flags&D_FLAG) DI--;
-                        else              DI++;
+                        if (cpu_state.flags & D_FLAG) DI--;
+                        else                          DI++;
                         cycles-=19;
                         break;
                         case 0xAF: /*SCASW*/
                         tempw=readmemw(es,DI);
                         setsub16(AX,tempw);
-                        if (flags&D_FLAG) DI-=2;
-                        else              DI+=2;
+                        if (cpu_state.flags & D_FLAG) DI -= 2;
+                        else                          DI += 2;
                         cycles-=19;
                         break;
 
@@ -2361,14 +2380,14 @@ void execx86(int cycs)
                         fetchea();
                         cpu_state.regs[cpu_reg].w=readmemw(easeg,cpu_state.eaaddr); //geteaw();
                         tempw=readmemw(easeg,(cpu_state.eaaddr+2)&0xFFFF); //geteaw2();
-                        loadseg(tempw,&_es);
+                        loadseg(tempw,&cpu_state.seg_es);
                         cycles-=24;
                         break;
                         case 0xC5: /*LDS*/
                         fetchea();
                         cpu_state.regs[cpu_reg].w=readmemw(easeg,cpu_state.eaaddr);
                         tempw=readmemw(easeg,(cpu_state.eaaddr+2)&0xFFFF);
-                        loadseg(tempw,&_ds);
+                        loadseg(tempw,&cpu_state.seg_ds);
                         if (cpu_state.ssegs) oldds=ds;
                         cycles-=24;
                         break;
@@ -2409,13 +2428,13 @@ void execx86(int cycs)
                         break;
                         case 0xCC: /*INT 3*/
                         if (cpu_state.ssegs) ss=oldss;
-                        writememw(ss,((SP-2)&0xFFFF),flags|0xF000);
-                        writememw(ss,((SP-4)&0xFFFF),CS);
-                        writememw(ss,((SP-6)&0xFFFF),cpu_state.pc);
+                        writememw(ss, ((SP-2)&0xFFFF), cpu_state.flags | 0xF000);
+                        writememw(ss, ((SP-4)&0xFFFF), CS);
+                        writememw(ss, ((SP-6)&0xFFFF), cpu_state.pc);
                         SP-=6;
                         addr=3<<2;
-                        flags&=~I_FLAG;
-                        flags&=~T_FLAG;
+                        cpu_state.flags &= ~I_FLAG;
+                        cpu_state.flags &= ~T_FLAG;
 //                        printf("CC %04X:%04X  ",CS,pc);
                         cpu_state.pc=readmemw(0,addr);
                         loadcs(readmemw(0,addr+2));
@@ -2424,15 +2443,13 @@ void execx86(int cycs)
                         cycles-=72;
                         break;
                         case 0xCD: /*INT*/
-                        lastpc=cpu_state.pc;
-                        lastcs=CS;
                         temp=FETCH();
 
                         if (cpu_state.ssegs) ss=oldss;
-                        writememw(ss,((SP-2)&0xFFFF),flags|0xF000);
-                        writememw(ss,((SP-4)&0xFFFF),CS);
-                        writememw(ss,((SP-6)&0xFFFF),cpu_state.pc);
-                        flags&=~T_FLAG;
+                        writememw(ss, ((SP-2)&0xFFFF), cpu_state.flags | 0xF000);
+                        writememw(ss, ((SP-4)&0xFFFF), CS);
+                        writememw(ss, ((SP-6)&0xFFFF), cpu_state.pc);
+                        cpu_state.flags &= ~T_FLAG;
                         SP-=6;
                         addr=temp<<2;
                         cpu_state.pc=readmemw(0,addr);
@@ -2449,7 +2466,7 @@ void execx86(int cycs)
                         cpu_state.pc=readmemw(ss,SP);
 //                        printf("CF\n");
                         loadcs(readmemw(ss,((SP+2)&0xFFFF)));
-                        flags=readmemw(ss,((SP+4)&0xFFFF))&0xFFF;
+                        cpu_state.flags = readmemw(ss,((SP+4)&0xFFFF))&0xFFF;
                         SP+=6;
                         cycles-=44;
                         FETCHCLEAR();
@@ -2461,83 +2478,85 @@ void execx86(int cycs)
                         switch (rmdat&0x38)
                         {
                                 case 0x00: /*ROL b,1*/
-                                if (temp&0x80) flags|=C_FLAG;
-                                else           flags&=~C_FLAG;
+                                if (temp&0x80) cpu_state.flags |= C_FLAG;
+                                else           cpu_state.flags &= ~C_FLAG;
                                 temp<<=1;
-                                if (flags&C_FLAG) temp|=1;
+                                if (cpu_state.flags & C_FLAG)
+                                        temp |= 1;
                                 seteab(temp);
 //                                setznp8(temp);
-                                if ((flags&C_FLAG)^(temp>>7)) flags|=V_FLAG;
-                                else                          flags&=~V_FLAG;
+                                if ((cpu_state.flags&C_FLAG) ^ (temp >> 7)) cpu_state.flags |= V_FLAG;
+                                else                                        cpu_state.flags &= ~V_FLAG;
                                 cycles-=((cpu_mod==3)?2:23);
                                 break;
                                 case 0x08: /*ROR b,1*/
-                                if (temp&1) flags|=C_FLAG;
-                                else        flags&=~C_FLAG;
+                                if (temp&1) cpu_state.flags |= C_FLAG;
+                                else        cpu_state.flags &= ~C_FLAG;
                                 temp>>=1;
-                                if (flags&C_FLAG) temp|=0x80;
+                                if (cpu_state.flags & C_FLAG)
+                                        temp |= 0x80;
                                 seteab(temp);
 //                                setznp8(temp);
-                                if ((temp^(temp>>1))&0x40) flags|=V_FLAG;
-                                else                       flags&=~V_FLAG;
+                                if ((temp^(temp>>1))&0x40) cpu_state.flags |= V_FLAG;
+                                else                       cpu_state.flags &= ~V_FLAG;
                                 cycles-=((cpu_mod==3)?2:23);
                                 break;
                                 case 0x10: /*RCL b,1*/
-                                temp2=flags&C_FLAG;
-                                if (temp&0x80) flags|=C_FLAG;
-                                else           flags&=~C_FLAG;
+                                temp2 = cpu_state.flags & C_FLAG;
+                                if (temp&0x80) cpu_state.flags |= C_FLAG;
+                                else           cpu_state.flags &= ~C_FLAG;
                                 temp<<=1;
                                 if (temp2) temp|=1;
                                 seteab(temp);
 //                                setznp8(temp);
-                                if ((flags&C_FLAG)^(temp>>7)) flags|=V_FLAG;
-                                else                          flags&=~V_FLAG;
+                                if ((cpu_state.flags & C_FLAG)^(temp>>7)) cpu_state.flags |= V_FLAG;
+                                else                                      cpu_state.flags &= ~V_FLAG;
                                 cycles-=((cpu_mod==3)?2:23);
                                 break;
                                 case 0x18: /*RCR b,1*/
-                                temp2=flags&C_FLAG;
-                                if (temp&1) flags|=C_FLAG;
-                                else        flags&=~C_FLAG;
+                                temp2 = cpu_state.flags & C_FLAG;
+                                if (temp&1) cpu_state.flags |= C_FLAG;
+                                else        cpu_state.flags &= ~C_FLAG;
                                 temp>>=1;
                                 if (temp2) temp|=0x80;
                                 seteab(temp);
 //                                setznp8(temp);
-                                if ((temp^(temp>>1))&0x40) flags|=V_FLAG;
-                                else                       flags&=~V_FLAG;
+                                if ((temp^(temp>>1))&0x40) cpu_state.flags |= V_FLAG;
+                                else                       cpu_state.flags &= ~V_FLAG;
                                 cycles-=((cpu_mod==3)?2:23);
                                 break;
                                 case 0x20: case 0x30: /*SHL b,1*/
-                                if (temp&0x80) flags|=C_FLAG;
-                                else           flags&=~C_FLAG;
-                                if ((temp^(temp<<1))&0x80) flags|=V_FLAG;
-                                else                       flags&=~V_FLAG;
+                                if (temp&0x80) cpu_state.flags |= C_FLAG;
+                                else           cpu_state.flags &= ~C_FLAG;
+                                if ((temp^(temp<<1))&0x80) cpu_state.flags |= V_FLAG;
+                                else                       cpu_state.flags &= ~V_FLAG;
                                 temp<<=1;
                                 seteab(temp);
                                 setznp8(temp);
                                 cycles-=((cpu_mod==3)?2:23);
-                                flags|=A_FLAG;
+                                cpu_state.flags |= A_FLAG;
                                 break;
                                 case 0x28: /*SHR b,1*/
-                                if (temp&1) flags|=C_FLAG;
-                                else        flags&=~C_FLAG;
-                                if (temp&0x80) flags|=V_FLAG;
-                                else           flags&=~V_FLAG;
+                                if (temp&1) cpu_state.flags |= C_FLAG;
+                                else        cpu_state.flags &= ~C_FLAG;
+                                if (temp&0x80) cpu_state.flags |= V_FLAG;
+                                else           cpu_state.flags &= ~V_FLAG;
                                 temp>>=1;
                                 seteab(temp);
                                 setznp8(temp);
                                 cycles-=((cpu_mod==3)?2:23);
-                                flags|=A_FLAG;
+                                cpu_state.flags |= A_FLAG;
                                 break;
                                 case 0x38: /*SAR b,1*/
-                                if (temp&1) flags|=C_FLAG;
-                                else        flags&=~C_FLAG;
+                                if (temp&1) cpu_state.flags |= C_FLAG;
+                                else        cpu_state.flags &= ~C_FLAG;
                                 temp>>=1;
                                 if (temp&0x40) temp|=0x80;
                                 seteab(temp);
                                 setznp8(temp);
                                 cycles-=((cpu_mod==3)?2:23);
-                                flags|=A_FLAG;
-                                flags&=~V_FLAG;
+                                cpu_state.flags |= A_FLAG;
+                                cpu_state.flags &= ~V_FLAG;
                                 break;
 
 //                                default:
@@ -2553,83 +2572,83 @@ void execx86(int cycs)
                         switch (rmdat&0x38)
                         {
                                 case 0x00: /*ROL w,1*/
-                                if (tempw&0x8000) flags|=C_FLAG;
-                                else              flags&=~C_FLAG;
+                                if (tempw&0x8000) cpu_state.flags |= C_FLAG;
+                                else              cpu_state.flags &= ~C_FLAG;
                                 tempw<<=1;
-                                if (flags&C_FLAG) tempw|=1;
+                                if (cpu_state.flags & C_FLAG) tempw|=1;
                                 seteaw(tempw);
 //                                setznp16(tempw);
-                                if ((flags&C_FLAG)^(tempw>>15)) flags|=V_FLAG;
-                                else                            flags&=~V_FLAG;
+                                if ((cpu_state.flags & C_FLAG)^(tempw>>15)) cpu_state.flags |= V_FLAG;
+                                else                                        cpu_state.flags &= ~V_FLAG;
                                 cycles-=((cpu_mod==3)?2:23);
                                 break;
                                 case 0x08: /*ROR w,1*/
-                                if (tempw&1) flags|=C_FLAG;
-                                else         flags&=~C_FLAG;
+                                if (tempw&1) cpu_state.flags |= C_FLAG;
+                                else         cpu_state.flags &= ~C_FLAG;
                                 tempw>>=1;
-                                if (flags&C_FLAG) tempw|=0x8000;
+                                if (cpu_state.flags & C_FLAG) tempw|=0x8000;
                                 seteaw(tempw);
 //                                setznp16(tempw);
-                                if ((tempw^(tempw>>1))&0x4000) flags|=V_FLAG;
-                                else                           flags&=~V_FLAG;
+                                if ((tempw^(tempw>>1))&0x4000) cpu_state.flags |= V_FLAG;
+                                else                           cpu_state.flags &= ~V_FLAG;
                                 cycles-=((cpu_mod==3)?2:23);
                                 break;
                                 case 0x10: /*RCL w,1*/
-                                temp2=flags&C_FLAG;
-                                if (tempw&0x8000) flags|=C_FLAG;
-                                else              flags&=~C_FLAG;
+                                temp2 = cpu_state.flags & C_FLAG;
+                                if (tempw&0x8000) cpu_state.flags |= C_FLAG;
+                                else              cpu_state.flags &= ~C_FLAG;
                                 tempw<<=1;
                                 if (temp2) tempw|=1;
                                 seteaw(tempw);
-                                if ((flags&C_FLAG)^(tempw>>15)) flags|=V_FLAG;
-                                else                            flags&=~V_FLAG;
+                                if ((cpu_state.flags & C_FLAG)^(tempw>>15)) cpu_state.flags |= V_FLAG;
+                                else                                        cpu_state.flags &= ~V_FLAG;
                                 cycles-=((cpu_mod==3)?2:23);
                                 break;
                                 case 0x18: /*RCR w,1*/
-                                temp2=flags&C_FLAG;
-                                if (tempw&1) flags|=C_FLAG;
-                                else         flags&=~C_FLAG;
+                                temp2 = cpu_state.flags & C_FLAG;
+                                if (tempw&1) cpu_state.flags |= C_FLAG;
+                                else         cpu_state.flags &= ~C_FLAG;
                                 tempw>>=1;
                                 if (temp2) tempw|=0x8000;
                                 seteaw(tempw);
 //                                setznp16(tempw);
-                                if ((tempw^(tempw>>1))&0x4000) flags|=V_FLAG;
-                                else                           flags&=~V_FLAG;
+                                if ((tempw^(tempw>>1))&0x4000) cpu_state.flags |= V_FLAG;
+                                else                           cpu_state.flags &= ~V_FLAG;
                                 cycles-=((cpu_mod==3)?2:23);
                                 break;
                                 case 0x20: case 0x30: /*SHL w,1*/
-                                if (tempw&0x8000) flags|=C_FLAG;
-                                else              flags&=~C_FLAG;
-                                if ((tempw^(tempw<<1))&0x8000) flags|=V_FLAG;
-                                else                           flags&=~V_FLAG;
+                                if (tempw&0x8000) cpu_state.flags |= C_FLAG;
+                                else              cpu_state.flags &= ~C_FLAG;
+                                if ((tempw^(tempw<<1))&0x8000) cpu_state.flags |= V_FLAG;
+                                else                           cpu_state.flags &= ~V_FLAG;
                                 tempw<<=1;
                                 seteaw(tempw);
                                 setznp16(tempw);
                                 cycles-=((cpu_mod==3)?2:23);
-                                flags|=A_FLAG;
+                                cpu_state.flags |= A_FLAG;
                                 break;
                                 case 0x28: /*SHR w,1*/
-                                if (tempw&1) flags|=C_FLAG;
-                                else         flags&=~C_FLAG;
-                                if (tempw&0x8000) flags|=V_FLAG;
-                                else              flags&=~V_FLAG;
+                                if (tempw&1) cpu_state.flags |= C_FLAG;
+                                else         cpu_state.flags &= ~C_FLAG;
+                                if (tempw&0x8000) cpu_state.flags |= V_FLAG;
+                                else              cpu_state.flags &= ~V_FLAG;
                                 tempw>>=1;
                                 seteaw(tempw);
                                 setznp16(tempw);
                                 cycles-=((cpu_mod==3)?2:23);
-                                flags|=A_FLAG;
+                                cpu_state.flags |= A_FLAG;
                                 break;
 
                                 case 0x38: /*SAR w,1*/
-                                if (tempw&1) flags|=C_FLAG;
-                                else         flags&=~C_FLAG;
+                                if (tempw&1) cpu_state.flags |= C_FLAG;
+                                else         cpu_state.flags &= ~C_FLAG;
                                 tempw>>=1;
                                 if (tempw&0x4000) tempw|=0x8000;
                                 seteaw(tempw);
                                 setznp16(tempw);
                                 cycles-=((cpu_mod==3)?2:23);
-                                flags|=A_FLAG;
-                                flags&=~V_FLAG;
+                                cpu_state.flags |= A_FLAG;
+                                cpu_state.flags &= ~V_FLAG;
                                 break;
 
 //                                default:
@@ -2656,12 +2675,12 @@ void execx86(int cycs)
                                         c--;
                                         cycles-=4;
                                 }
-                                if (temp2) flags|=C_FLAG;
-                                else       flags&=~C_FLAG;
+                                if (temp2) cpu_state.flags |= C_FLAG;
+                                else       cpu_state.flags &= ~C_FLAG;
                                 seteab(temp);
 //                                setznp8(temp);
-                                if ((flags&C_FLAG)^(temp>>7)) flags|=V_FLAG;
-                                else                          flags&=~V_FLAG;
+                                if ((cpu_state.flags & C_FLAG)^(temp>>7)) cpu_state.flags |= V_FLAG;
+                                else                                      cpu_state.flags &= ~V_FLAG;
                                 cycles-=((cpu_mod==3)?8:28);
                                 break;
                                 case 0x08: /*ROR b,CL*/
@@ -2673,40 +2692,40 @@ void execx86(int cycs)
                                         c--;
                                         cycles-=4;
                                 }
-                                if (temp2) flags|=C_FLAG;
-                                else       flags&=~C_FLAG;
+                                if (temp2) cpu_state.flags |= C_FLAG;
+                                else       cpu_state.flags &= ~C_FLAG;
                                 seteab(temp);
-                                if ((temp^(temp>>1))&0x40) flags|=V_FLAG;
-                                else                       flags&=~V_FLAG;
+                                if ((temp^(temp>>1))&0x40) cpu_state.flags |= V_FLAG;
+                                else                       cpu_state.flags &= ~V_FLAG;
                                 cycles-=((cpu_mod==3)?8:28);
                                 break;
                                 case 0x10: /*RCL b,CL*/
 //                                printf("RCL %i %02X %02X\n",c,CL,temp);
                                 while (c>0)
                                 {
-                                        templ=flags&C_FLAG;
+                                        templ=cpu_state.flags & C_FLAG;
                                         temp2=temp&0x80;
                                         temp<<=1;
-                                        if (temp2) flags|=C_FLAG;
-                                        else       flags&=~C_FLAG;
+                                        if (temp2) cpu_state.flags |= C_FLAG;
+                                        else       cpu_state.flags &= ~C_FLAG;
                                         if (templ) temp|=1;
                                         c--;
                                         cycles-=4;
                                 }
 //                                printf("Now %02X\n",temp);
                                 seteab(temp);
-                                if ((flags&C_FLAG)^(temp>>7)) flags|=V_FLAG;
-                                else                          flags&=~V_FLAG;
+                                if ((cpu_state.flags & C_FLAG)^(temp>>7)) cpu_state.flags |= V_FLAG;
+                                else                                      cpu_state.flags &= ~V_FLAG;
                                 cycles-=((cpu_mod==3)?8:28);
                                 break;
                                 case 0x18: /*RCR b,CL*/
                                 while (c>0)
                                 {
-                                        templ=flags&C_FLAG;
+                                        templ=cpu_state.flags & C_FLAG;
                                         temp2=temp&1;
                                         temp>>=1;
-                                        if (temp2) flags|=C_FLAG;
-                                        else       flags&=~C_FLAG;
+                                        if (temp2) cpu_state.flags |= C_FLAG;
+                                        else       cpu_state.flags &= ~C_FLAG;
                                         if (templ) temp|=0x80;
                                         c--;
                                         cycles-=4;
@@ -2714,49 +2733,49 @@ void execx86(int cycs)
 //                                if (temp2) flags|=C_FLAG;
 //                                else       flags&=~C_FLAG;
                                 seteab(temp);
-                                if ((temp^(temp>>1))&0x40) flags|=V_FLAG;
-                                else                       flags&=~V_FLAG;
+                                if ((temp^(temp>>1))&0x40) cpu_state.flags |= V_FLAG;
+                                else                       cpu_state.flags &= ~V_FLAG;
                                 cycles-=((cpu_mod==3)?8:28);
                                 break;
                                 case 0x20: case 0x30: /*SHL b,CL*/
                                 if (c > 8)
                                 {
                                         temp = 0;
-                                        flags &= ~C_FLAG;
+                                        cpu_state.flags &= ~C_FLAG;
                                 }
                                 else
                                 {
-                                        if ((temp<<(c-1))&0x80) flags|=C_FLAG;
-                                        else                    flags&=~C_FLAG;
+                                        if ((temp<<(c-1))&0x80) cpu_state.flags |= C_FLAG;
+                                        else                    cpu_state.flags &= ~C_FLAG;
                                         temp<<=c;
                                 }
                                 seteab(temp);
                                 setznp8(temp);
                                 cycles-=(c*4);
                                 cycles-=((cpu_mod==3)?8:28);
-                                flags|=A_FLAG;
+                                cpu_state.flags |= A_FLAG;
                                 break;
                                 case 0x28: /*SHR b,CL*/
                                 if (c > 8)
                                 {
                                         temp = 0;
-                                        flags &= ~C_FLAG;
+                                        cpu_state.flags &= ~C_FLAG;
                                 }
                                 else
                                 {
-                                        if ((temp>>(c-1))&1) flags|=C_FLAG;
-                                        else                 flags&=~C_FLAG;
+                                        if ((temp>>(c-1))&1) cpu_state.flags |= C_FLAG;
+                                        else                 cpu_state.flags &= ~C_FLAG;
                                         temp>>=c;
                                 }
                                 seteab(temp);
                                 setznp8(temp);
                                 cycles-=(c*4);
                                 cycles-=((cpu_mod==3)?8:28);
-                                flags|=A_FLAG;
+                                cpu_state.flags |= A_FLAG;
                                 break;
                                 case 0x38: /*SAR b,CL*/
-                                if ((temp>>(c-1))&1) flags|=C_FLAG;
-                                else                 flags&=~C_FLAG;
+                                if ((temp>>(c-1))&1) cpu_state.flags |= C_FLAG;
+                                else                 cpu_state.flags &= ~C_FLAG;
                                 while (c>0)
                                 {
                                         temp>>=1;
@@ -2767,7 +2786,7 @@ void execx86(int cycs)
                                 seteab(temp);
                                 setznp8(temp);
                                 cycles-=((cpu_mod==3)?8:28);
-                                flags|=A_FLAG;
+                                cpu_state.flags |= A_FLAG;
                                 break;
 
 //                                default:
@@ -2794,11 +2813,11 @@ void execx86(int cycs)
                                         c--;
                                         cycles-=4;
                                 }
-                                if (temp) flags|=C_FLAG;
-                                else      flags&=~C_FLAG;
+                                if (temp) cpu_state.flags |= C_FLAG;
+                                else      cpu_state.flags &= ~C_FLAG;
                                 seteaw(tempw);
-                                if ((flags&C_FLAG)^(tempw>>15)) flags|=V_FLAG;
-                                else                            flags&=~V_FLAG;
+                                if ((cpu_state.flags & C_FLAG)^(tempw>>15)) cpu_state.flags |= V_FLAG;
+                                else                                        cpu_state.flags &= ~V_FLAG;
                                 cycles-=((cpu_mod==3)?8:28);
                                 break;
                                 case 0x08: /*ROR w,CL*/
@@ -2809,46 +2828,46 @@ void execx86(int cycs)
                                         c--;
                                         cycles-=4;
                                 }
-                                if (tempw2) flags|=C_FLAG;
-                                else        flags&=~C_FLAG;
+                                if (tempw2) cpu_state.flags |= C_FLAG;
+                                else        cpu_state.flags &= ~C_FLAG;
                                 seteaw(tempw);
-                                if ((tempw^(tempw>>1))&0x4000) flags|=V_FLAG;
-                                else                           flags&=~V_FLAG;
+                                if ((tempw^(tempw>>1))&0x4000) cpu_state.flags |= V_FLAG;
+                                else                           cpu_state.flags &= ~V_FLAG;
                                 cycles-=((cpu_mod==3)?8:28);
                                 break;
                                 case 0x10: /*RCL w,CL*/
                                 while (c>0)
                                 {
-                                        templ=flags&C_FLAG;
-                                        if (tempw&0x8000) flags|=C_FLAG;
-                                        else              flags&=~C_FLAG;
+                                        templ = cpu_state.flags & C_FLAG;
+                                        if (tempw&0x8000) cpu_state.flags |= C_FLAG;
+                                        else              cpu_state.flags &= ~C_FLAG;
                                         tempw=(tempw<<1)|templ;
                                         c--;
                                         cycles-=4;
                                 }
-                                if (templ) flags|=C_FLAG;
-                                else       flags&=~C_FLAG;
+                                if (templ) cpu_state.flags |= C_FLAG;
+                                else       cpu_state.flags &= ~C_FLAG;
                                 seteaw(tempw);
-                                if ((flags&C_FLAG)^(tempw>>15)) flags|=V_FLAG;
-                                else                            flags&=~V_FLAG;
+                                if ((cpu_state.flags & C_FLAG)^(tempw>>15)) cpu_state.flags |= V_FLAG;
+                                else                                        cpu_state.flags &= ~V_FLAG;
                                 cycles-=((cpu_mod==3)?8:28);
                                 break;
                                 case 0x18: /*RCR w,CL*/
                                 while (c>0)
                                 {
-                                        templ=flags&C_FLAG;
+                                        templ = cpu_state.flags & C_FLAG;
                                         tempw2=(templ&1)?0x8000:0;
-                                        if (tempw&1) flags|=C_FLAG;
-                                        else         flags&=~C_FLAG;
+                                        if (tempw&1) cpu_state.flags |= C_FLAG;
+                                        else         cpu_state.flags &= ~C_FLAG;
                                         tempw=(tempw>>1)|tempw2;
                                         c--;
                                         cycles-=4;
                                 }
-                                if (tempw2) flags|=C_FLAG;
-                                else        flags&=~C_FLAG;
+                                if (tempw2) cpu_state.flags |= C_FLAG;
+                                else        cpu_state.flags &= ~C_FLAG;
                                 seteaw(tempw);
-                                if ((tempw^(tempw>>1))&0x4000) flags|=V_FLAG;
-                                else                           flags&=~V_FLAG;
+                                if ((tempw^(tempw>>1))&0x4000) cpu_state.flags |= V_FLAG;
+                                else                           cpu_state.flags &= ~V_FLAG;
                                 cycles-=((cpu_mod==3)?8:28);
                                 break;
 
@@ -2856,44 +2875,44 @@ void execx86(int cycs)
                                 if (c>16)
                                 {
                                         tempw=0;
-                                        flags&=~C_FLAG;
+                                        cpu_state.flags &= ~C_FLAG;
                                 }
                                 else
                                 {
-                                        if ((tempw<<(c-1))&0x8000) flags|=C_FLAG;
-                                        else                       flags&=~C_FLAG;
+                                        if ((tempw<<(c-1))&0x8000) cpu_state.flags |= C_FLAG;
+                                        else                       cpu_state.flags &= ~C_FLAG;
                                         tempw<<=c;
                                 }
                                 seteaw(tempw);
                                 setznp16(tempw);
                                 cycles-=(c*4);
                                 cycles-=((cpu_mod==3)?8:28);
-                                flags|=A_FLAG;
+                                cpu_state.flags |= A_FLAG;
                                 break;
 
                                 case 0x28:            /*SHR w,CL*/
                                 if (c > 16)
                                 {
                                         tempw = 0;
-                                        flags &= ~C_FLAG;
+                                        cpu_state.flags &= ~C_FLAG;
                                 }
                                 else
                                 {
-                                        if ((tempw>>(c-1))&1) flags|=C_FLAG;
-                                        else                  flags&=~C_FLAG;
+                                        if ((tempw>>(c-1))&1) cpu_state.flags |= C_FLAG;
+                                        else                  cpu_state.flags &= ~C_FLAG;
                                         tempw>>=c;
                                 }
                                 seteaw(tempw);
                                 setznp16(tempw);
                                 cycles-=(c*4);
                                 cycles-=((cpu_mod==3)?8:28);
-                                flags|=A_FLAG;
+                                cpu_state.flags |= A_FLAG;
                                 break;
 
                                 case 0x38:            /*SAR w,CL*/
                                 tempw2=tempw&0x8000;
-                                if ((tempw>>(c-1))&1) flags|=C_FLAG;
-                                else                  flags&=~C_FLAG;
+                                if ((tempw>>(c-1))&1) cpu_state.flags |= C_FLAG;
+                                else                  cpu_state.flags &= ~C_FLAG;
                                 while (c>0)
                                 {
                                         tempw=(tempw>>1)|tempw2;
@@ -2903,7 +2922,7 @@ void execx86(int cycs)
                                 seteaw(tempw);
                                 setznp16(tempw);
                                 cycles-=((cpu_mod==3)?8:28);
-                                flags|=A_FLAG;
+                                cpu_state.flags |= A_FLAG;
                                 break;
 
 //                                default:
@@ -2928,7 +2947,7 @@ void execx86(int cycs)
                         cycles-=60;
                         break;
                         case 0xD6: /*SETALC*/
-                        AL = (flags & C_FLAG) ? 0xff : 0;
+                        AL = (cpu_state.flags & C_FLAG) ? 0xff : 0;
                         cycles -= 4;
                         break;
                         case 0xD7: /*XLAT*/
@@ -2936,22 +2955,90 @@ void execx86(int cycs)
                         AL=readmemb(ds+addr);
                         cycles-=11;
                         break;
-                        case 0xD9: case 0xDA: case 0xDB: case 0xDD: /*ESCAPE*/
-                        case 0xDC: case 0xDE: case 0xDF: case 0xD8:
+                        
+                        case 0xd8:
                         fetchea();
-                        geteab();
+                        if (hasfpu)
+                        {
+                                uint16_t save_pc = cpu_state.pc;
+                                ops_808x_fpu_d8_a16[rmdat >> 3](rmdat);
+                                cpu_state.pc = save_pc;
+                        }
+                        break;
+                        case 0xd9:
+                        fetchea();
+                        if (hasfpu)
+                        {
+                                uint16_t save_pc = cpu_state.pc;
+                                ops_808x_fpu_d9_a16[rmdat](rmdat);
+                                cpu_state.pc = save_pc;
+                        }
+                        break;
+                        case 0xda:
+                        fetchea();
+                        if (hasfpu)
+                        {
+                                uint16_t save_pc = cpu_state.pc;
+                                ops_808x_fpu_da_a16[rmdat](rmdat);
+                                cpu_state.pc = save_pc;
+                        }
+                        break;
+                        case 0xdb:
+                        fetchea();
+                        if (hasfpu)
+                        {
+                                uint16_t save_pc = cpu_state.pc;
+                                ops_808x_fpu_db_a16[rmdat](rmdat);
+                                cpu_state.pc = save_pc;
+                        }
+                        break;
+                        case 0xdc:
+                        fetchea();
+                        if (hasfpu)
+                        {
+                                uint16_t save_pc = cpu_state.pc;
+                                ops_808x_fpu_dc_a16[rmdat >> 3](rmdat);
+                                cpu_state.pc = save_pc;
+                        }
+                        break;
+                        case 0xdd:
+                        fetchea();
+                        if (hasfpu)
+                        {
+                                uint16_t save_pc = cpu_state.pc;
+                                ops_808x_fpu_dd_a16[rmdat](rmdat);
+                                cpu_state.pc = save_pc;
+                        }
+                        break;
+                        case 0xde:
+                        fetchea();
+                        if (hasfpu)
+                        {
+                                uint16_t save_pc = cpu_state.pc;
+                                ops_808x_fpu_de_a16[rmdat](rmdat);
+                                cpu_state.pc = save_pc;
+                        }
+                        break;
+                        case 0xdf:
+                        fetchea();
+                        if (hasfpu)
+                        {
+                                uint16_t save_pc = cpu_state.pc;
+                                ops_808x_fpu_df_a16[rmdat](rmdat);
+                                cpu_state.pc = save_pc;
+                        }
                         break;
 
                         case 0xE0: /*LOOPNE*/
                         offset=(int8_t)FETCH();
                         CX--;
-                        if (CX && !(flags&Z_FLAG)) { cpu_state.pc+=offset; cycles-=12; FETCHCLEAR(); }
+                        if (CX && !(cpu_state.flags & Z_FLAG)) { cpu_state.pc+=offset; cycles-=12; FETCHCLEAR(); }
                         cycles-=6;
                         break;
                         case 0xE1: /*LOOPE*/
                         offset=(int8_t)FETCH();
                         CX--;
-                        if (CX && (flags&Z_FLAG)) { cpu_state.pc+=offset; cycles-=12; FETCHCLEAR(); }
+                        if (CX && (cpu_state.flags & Z_FLAG)) { cpu_state.pc+=offset; cycles-=12; FETCHCLEAR(); }
                         cycles-=6;
                         break;
                         case 0xE2: /*LOOP*/
@@ -3058,7 +3145,7 @@ void execx86(int cycs)
                         break;
 
                         case 0xF4: /*HLT*/
-//                        printf("IN HLT!!!! %04X:%04X %08X %08X %08X\n",oldcs,oldpc,old8,old82,old83);
+//                        printf("IN HLT!!!! %04X %08X %08X %08X\n",oldpc,old8,old82,old83);
 /*                        if (!(flags & I_FLAG))
                         {
                                 pclog("HLT\n");
@@ -3071,7 +3158,7 @@ void execx86(int cycs)
                         cycles-=2;
                         break;
                         case 0xF5: /*CMC*/
-                        flags^=C_FLAG;
+                        cpu_state.flags ^= C_FLAG;
                         cycles-=2;
                         break;
 
@@ -3085,7 +3172,7 @@ void execx86(int cycs)
                                 temp2=FETCH();
                                 temp&=temp2;
                                 setznp8(temp);
-                                flags&=~(C_FLAG|V_FLAG|A_FLAG);
+                                cpu_state.flags &= ~(C_FLAG|V_FLAG|A_FLAG);
                                 cycles-=((cpu_mod==3)?5:11);
                                 break;
                                 case 0x10: /*NOT b*/
@@ -3102,20 +3189,20 @@ void execx86(int cycs)
                                 case 0x20: /*MUL AL,b*/
                                 setznp8(AL);
                                 AX=AL*temp;
-                                if (AX) flags&=~Z_FLAG;
-                                else    flags|=Z_FLAG;
-                                if (AH) flags|=(C_FLAG|V_FLAG);
-                                else    flags&=~(C_FLAG|V_FLAG);
+                                if (AX) cpu_state.flags &= ~Z_FLAG;
+                                else    cpu_state.flags |= Z_FLAG;
+                                if (AH) cpu_state.flags |= (C_FLAG|V_FLAG);
+                                else    cpu_state.flags &= ~(C_FLAG|V_FLAG);
                                 cycles-=70;
                                 break;
                                 case 0x28: /*IMUL AL,b*/
                                 setznp8(AL);
                                 tempws=(int)((int8_t)AL)*(int)((int8_t)temp);
                                 AX=tempws&0xFFFF;
-                                if (AX) flags&=~Z_FLAG;
-                                else    flags|=Z_FLAG;
-                                if (AH) flags|=(C_FLAG|V_FLAG);
-                                else    flags&=~(C_FLAG|V_FLAG);
+                                if (AX) cpu_state.flags &= ~Z_FLAG;
+                                else    cpu_state.flags |= Z_FLAG;
+                                if (AH) cpu_state.flags |= (C_FLAG|V_FLAG);
+                                else    cpu_state.flags &= ~(C_FLAG|V_FLAG);
                                 cycles-=80;
                                 break;
                                 case 0x30: /*DIV AL,b*/
@@ -3146,12 +3233,12 @@ void execx86(int cycs)
                                 else
                                 {
                                         printf("DIVb BY 0 %04X:%04X\n",cs>>4,cpu_state.pc);
-                                        writememw(ss,(SP-2)&0xFFFF,flags|0xF000);
+                                        writememw(ss,(SP-2)&0xFFFF,cpu_state.flags | 0xF000);
                                         writememw(ss,(SP-4)&0xFFFF,CS);
                                         writememw(ss,(SP-6)&0xFFFF,cpu_state.pc);
                                         SP-=6;
-                                        flags&=~I_FLAG;
-                                        flags&=~T_FLAG;
+                                        cpu_state.flags &= ~I_FLAG;
+                                        cpu_state.flags &= ~T_FLAG;
                                         cpu_state.pc=readmemw(0,0);
 //                        printf("F6 30\n");
                                         loadcs(readmemw(0,2));
@@ -3190,12 +3277,12 @@ void execx86(int cycs)
                                 else
                                 {
                                         printf("IDIVb BY 0 %04X:%04X\n",cs>>4,cpu_state.pc);
-                                        writememw(ss,(SP-2)&0xFFFF,flags|0xF000);
+                                        writememw(ss,(SP-2)&0xFFFF,cpu_state.flags | 0xF000);
                                         writememw(ss,(SP-4)&0xFFFF,CS);
                                         writememw(ss,(SP-6)&0xFFFF,cpu_state.pc);
                                         SP-=6;
-                                        flags&=~I_FLAG;
-                                        flags&=~T_FLAG;
+                                        cpu_state.flags &= ~I_FLAG;
+                                        cpu_state.flags &= ~T_FLAG;
                                         cpu_state.pc=readmemw(0,0);
 //                        printf("F6 38\n");
                                         loadcs(readmemw(0,2));
@@ -3223,7 +3310,7 @@ void execx86(int cycs)
                                 case 0x08:
                                 tempw2=getword();
                                 setznp16(tempw&tempw2);
-                                flags&=~(C_FLAG|V_FLAG|A_FLAG);
+                                cpu_state.flags &= ~(C_FLAG|V_FLAG|A_FLAG);
                                 cycles-=((cpu_mod==3)?5:11);
                                 break;
                                 case 0x10: /*NOT w*/
@@ -3242,18 +3329,18 @@ void execx86(int cycs)
 //                                if (output) printf("%04X*%04X=%08X\n",AX,tempw,templ);
                                 AX=templ&0xFFFF;
                                 DX=templ>>16;
-                                if (AX|DX) flags&=~Z_FLAG;
-                                else       flags|=Z_FLAG;
-                                if (DX)    flags|=(C_FLAG|V_FLAG);
-                                else       flags&=~(C_FLAG|V_FLAG);
+                                if (AX|DX) cpu_state.flags &= ~Z_FLAG;
+                                else       cpu_state.flags |= Z_FLAG;
+                                if (DX)    cpu_state.flags |= (C_FLAG|V_FLAG);
+                                else       cpu_state.flags &= ~(C_FLAG|V_FLAG);
                                 cycles-=118;
                                 break;
                                 case 0x28: /*IMUL AX,w*/
                                 setznp16(AX);
 //                                printf("IMUL %i %i ",(int)((int16_t)AX),(int)((int16_t)tempw));
                                 tempws=(int)((int16_t)AX)*(int)((int16_t)tempw);
-                                if ((tempws>>15) && ((tempws>>15)!=-1)) flags|=(C_FLAG|V_FLAG);
-                                else                                    flags&=~(C_FLAG|V_FLAG);
+                                if ((tempws>>15) && ((tempws>>15)!=-1)) cpu_state.flags |= (C_FLAG|V_FLAG);
+                                else                                    cpu_state.flags &= ~(C_FLAG|V_FLAG);
 //                                printf("%i ",tempws);
                                 AX=tempws&0xFFFF;
                                 tempws=(uint16_t)(tempws>>16);
@@ -3261,8 +3348,8 @@ void execx86(int cycs)
 //                                printf("%04X %04X\n",AX,DX);
 //                                dumpregs();
 //                                exit(-1);
-                                if (AX|DX) flags&=~Z_FLAG;
-                                else       flags|=Z_FLAG;
+                                if (AX|DX) cpu_state.flags &= ~Z_FLAG;
+                                else       cpu_state.flags |= Z_FLAG;
                                 cycles-=128;
                                 break;
                                 case 0x30: /*DIV AX,w*/
@@ -3278,12 +3365,12 @@ void execx86(int cycs)
                                 else
                                 {
                                         printf("DIVw BY 0 %04X:%04X\n",cs>>4,cpu_state.pc);
-                                        writememw(ss,(SP-2)&0xFFFF,flags|0xF000);
+                                        writememw(ss,(SP-2)&0xFFFF,cpu_state.flags | 0xF000);
                                         writememw(ss,(SP-4)&0xFFFF,CS);
                                         writememw(ss,(SP-6)&0xFFFF,cpu_state.pc);
                                         SP-=6;
-                                        flags&=~I_FLAG;
-                                        flags&=~T_FLAG;
+                                        cpu_state.flags &= ~I_FLAG;
+                                        cpu_state.flags &= ~T_FLAG;
                                         cpu_state.pc=readmemw(0,0);
 //                        printf("F7 30\n");
                                         loadcs(readmemw(0,2));
@@ -3305,12 +3392,12 @@ void execx86(int cycs)
                                 else
                                 {
                                         printf("IDIVw BY 0 %04X:%04X\n",cs>>4,cpu_state.pc);
-                                        writememw(ss,(SP-2)&0xFFFF,flags|0xF000);
+                                        writememw(ss,(SP-2)&0xFFFF,cpu_state.flags | 0xF000);
                                         writememw(ss,(SP-4)&0xFFFF,CS);
                                         writememw(ss,(SP-6)&0xFFFF,cpu_state.pc);
                                         SP-=6;
-                                        flags&=~I_FLAG;
-                                        flags&=~T_FLAG;
+                                        cpu_state.flags &= ~I_FLAG;
+                                        cpu_state.flags &= ~T_FLAG;
                                         cpu_state.pc=readmemw(0,0);
 //                        printf("F7 38\n");
                                         loadcs(readmemw(0,2));
@@ -3327,48 +3414,48 @@ void execx86(int cycs)
                         break;
 
                         case 0xF8: /*CLC*/
-                        flags&=~C_FLAG;
+                        cpu_state.flags &= ~C_FLAG;
                         cycles-=2;
                         break;
                         case 0xF9: /*STC*/
 //                        printf("STC %04X\n",pc);
-                        flags|=C_FLAG;
+                        cpu_state.flags |= C_FLAG;
                         cycles-=2;
                         break;
                         case 0xFA: /*CLI*/
-                        flags&=~I_FLAG;
+                        cpu_state.flags &= ~I_FLAG;
 //                        printf("CLI at %04X:%04X\n",cs>>4,pc);
                         cycles-=3;
                         break;
                         case 0xFB: /*STI*/
-                        flags|=I_FLAG;
+                        cpu_state.flags |= I_FLAG;
 //                        printf("STI at %04X:%04X\n",cs>>4,pc);
                         cycles-=2;
                         break;
                         case 0xFC: /*CLD*/
-                        flags&=~D_FLAG;
+                        cpu_state.flags &= ~D_FLAG;
                         cycles-=2;
                         break;
                         case 0xFD: /*STD*/
-                        flags|=D_FLAG;
+                        cpu_state.flags |= D_FLAG;
                         cycles-=2;
                         break;
 
                         case 0xFE: /*INC/DEC b*/
                         fetchea();
                         temp=geteab();
-                        flags&=~V_FLAG;
+                        cpu_state.flags &= ~V_FLAG;
                         if (rmdat&0x38)
                         {
                                 setsub8nc(temp,1);
                                 temp2=temp-1;
-                                if ((temp&0x80) && !(temp2&0x80)) flags|=V_FLAG;
+                                if ((temp&0x80) && !(temp2&0x80)) cpu_state.flags |= V_FLAG;
                         }
                         else
                         {
                                 setadd8nc(temp,1);
                                 temp2=temp+1;
-                                if ((temp2&0x80) && !(temp&0x80)) flags|=V_FLAG;
+                                if ((temp2&0x80) && !(temp&0x80)) cpu_state.flags |= V_FLAG;
                         }
 //                        setznp8(temp2);
                         seteab(temp2);
@@ -3485,14 +3572,6 @@ void execx86(int cycs)
                // if (instime) printf("%i %i %i %i\n",cycdiff,cycles,memcycs,fetchclocks);
                 FETCHADD(((cycdiff-cycles)-memcycs)-fetchclocks);
                 if ((cycdiff-cycles)<memcycs) cycles-=(memcycs-(cycdiff-cycles));
-                if (romset==ROM_IBMPC)
-                {
-                        if ((cs+cpu_state.pc)==0xFE4A7) /*You didn't seriously think I was going to emulate the cassette, did you?*/
-                        {
-                                CX=1;
-                                BX=0x500;
-                        }
-                }
                 memcycs=0;
 
                 insc++;
@@ -3500,16 +3579,16 @@ void execx86(int cycs)
                 clockhardware();
 
 
-                if (trap && (flags&T_FLAG) && !noint)
+                if (trap && (cpu_state.flags & T_FLAG) && !noint)
                 {
 //                        printf("TRAP!!! %04X:%04X\n",CS,pc);
-                        writememw(ss,(SP-2)&0xFFFF,flags|0xF000);
+                        writememw(ss,(SP-2)&0xFFFF,cpu_state.flags | 0xF000);
                         writememw(ss,(SP-4)&0xFFFF,CS);
                         writememw(ss,(SP-6)&0xFFFF,cpu_state.pc);
                         SP-=6;
                         addr=1<<2;
-                        flags&=~I_FLAG;
-                        flags&=~T_FLAG;
+                        cpu_state.flags &= ~I_FLAG;
+                        cpu_state.flags &= ~T_FLAG;
                         cpu_state.pc=readmemw(0,addr);
                         loadcs(readmemw(0,addr+2));
                         FETCHCLEAR();
@@ -3517,13 +3596,13 @@ void execx86(int cycs)
                 else if (nmi && nmi_enable && nmi_mask)
                 {
 //                        output = 3;
-                        writememw(ss,(SP-2)&0xFFFF,flags|0xF000);
+                        writememw(ss,(SP-2)&0xFFFF,cpu_state.flags | 0xF000);
                         writememw(ss,(SP-4)&0xFFFF,CS);
                         writememw(ss,(SP-6)&0xFFFF,cpu_state.pc);
                         SP-=6;
                         addr=2<<2;
-                        flags&=~I_FLAG;
-                        flags&=~T_FLAG;
+                        cpu_state.flags &= ~I_FLAG;
+                        cpu_state.flags &= ~T_FLAG;
                         cpu_state.pc=readmemw(0,addr);
                         loadcs(readmemw(0,addr+2));
                         FETCHCLEAR();
@@ -3535,13 +3614,13 @@ void execx86(int cycs)
                         if (temp!=0xFF)
                         {
                                 if (inhlt) cpu_state.pc++;
-                                writememw(ss,(SP-2)&0xFFFF,flags|0xF000);
+                                writememw(ss,(SP-2)&0xFFFF,cpu_state.flags | 0xF000);
                                 writememw(ss,(SP-4)&0xFFFF,CS);
                                 writememw(ss,(SP-6)&0xFFFF,cpu_state.pc);
                                 SP-=6;
                                 addr=temp<<2;
-                                flags&=~I_FLAG;
-                                flags&=~T_FLAG;
+                                cpu_state.flags &= ~I_FLAG;
+                                cpu_state.flags &= ~T_FLAG;
                                 cpu_state.pc=readmemw(0,addr);
 //                        printf("INT INT INT\n");
                                 loadcs(readmemw(0,addr+2));
@@ -3549,7 +3628,7 @@ void execx86(int cycs)
 //                                printf("INTERRUPT\n");
                         }
                 }
-                takeint = (flags&I_FLAG) && (pic.pend&~pic.mask);
+                takeint = (cpu_state.flags & I_FLAG) && (pic.pend&~pic.mask);
 
                 if (noint) noint=0;
                 ins++;

@@ -4,7 +4,6 @@
 #include "pit.h"
 #include "video.h"
 
-extern int output;
 int intclear;
 int keywaiting=0;
 int pic_intpending;
@@ -74,8 +73,6 @@ static void pic_autoeoi()
         }
 }
 
-void x86_ack_keyboard(void);
-
 void pic_write(uint16_t addr, uint8_t val, void *priv)
 {
         int c;
@@ -124,12 +121,7 @@ void pic_write(uint16_t addr, uint8_t val, void *priv)
                         if ((val&0xE0)==0x60)
                         {
 //                                pclog("Specific EOI - %02X %i\n",pic.ins,1<<(val&7));
-
-								if ((pic.ins & (1 << 1)) && ((val & 7) == 1)) {
-									x86_ack_keyboard();
-								}
-							
-								pic.ins&=~(1<<(val&7));
+                                pic.ins&=~(1<<(val&7));
                                 pic_update_mask(&pic.mask2, pic.ins);
                                 if (val == 2 && (pic2.pend&~pic2.mask)&~pic2.mask2)
                                         pic.pend |= (1 << 2);
@@ -148,10 +140,6 @@ void pic_write(uint16_t addr, uint8_t val, void *priv)
 
                                                 if (c == 2 && (pic2.pend&~pic2.mask)&~pic2.mask2)
                                                         pic.pend |= (1 << 2);
-
-												if (c == 1) {
-													x86_ack_keyboard();
-												}
 
                                                 if (c==1 && keywaiting)
                                                 {
@@ -335,7 +323,7 @@ int pic_current[16];
 
 void picint(uint16_t num)
 {
-        if (AT && num == (1 << 2))
+        if ((AT || romset == ROM_XI8088) && num == (1 << 2))
                 num = 1 << 9;
 //        pclog("picint : %04X\n", num);
 //        if (num == 0x10) pclog("PICINT 10\n");
@@ -357,7 +345,7 @@ void picintlevel(uint16_t num)
 {
         int c = 0;
         while (!(num & (1 << c))) c++;
-        if (AT && c == 2)
+        if ((AT || romset == ROM_XI8088) && num == (1 << 2))
         {
                 c = 9;
                 num = 1 << 9;
@@ -383,7 +371,7 @@ void picintc(uint16_t num)
         if (!num)
                 return;
         while (!(num & (1 << c))) c++;
-        if (AT && c == 2)
+        if ((AT || romset == ROM_XI8088) && num == (1 << 2))
         {
                 c = 9;
                 num = 1 << 9;

@@ -7,6 +7,7 @@ void fdc_reset();
 void fdc_poll();
 void fdc_abort();
 void fdc_discchange_clear(int drive);
+int fdc_discchange_read();
 void fdc_set_dskchg_activelow();
 void fdc_3f1_enable(int enable);
 void fdc_set_ps1();
@@ -23,3 +24,13 @@ void fdc_update_boot_drive(int boot_drive);
 void fdc_update_densel_polarity(int densel_polarity);
 void fdc_update_densel_force(int densel_force);
 void fdc_update_drvrate(int drive, int drvrate);
+
+
+
+enum
+{
+        FDC_STATUS_AM_NOT_FOUND,
+        FDC_STATUS_NOT_FOUND,
+        FDC_STATUS_WRONG_CYLINDER,
+        FDC_STATUS_BAD_CYLINDER
+};

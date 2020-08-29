@@ -35,7 +35,7 @@ void serial_update_ints(SERIAL *serial)
                 stat = 1;
                 serial->iir = 6;
         }
-        else if ((serial->ier & 1) && (serial->int_status & SERIAL_INT_RECEIVE)) /*Recieved data available*/
+        else if ((serial->ier & 1) && (serial->int_status & SERIAL_INT_RECEIVE)) /*Received data available*/
         {
                 stat = 1;
                 serial->iir = 4;
@@ -111,7 +111,8 @@ void serial_write(uint16_t addr, uint8_t val, void *p)
                 serial_update_ints(serial);
                 break;
                 case 2:
-                serial->fcr = val;
+                if (serial->has_fifo)
+                        serial->fcr = val;
                 break;
                 case 3:
                 serial->lcr = val;
@@ -185,7 +186,7 @@ uint8_t serial_read(uint16_t addr, void *p)
                 serial_update_ints(serial);
                 temp = serial_read_fifo(serial);
                 if (serial->fifo_read != serial->fifo_write)
-                        serial->recieve_delay = 1000 * TIMER_USEC;
+                        timer_set_delay_u64(&serial->receive_timer, 1000 * TIMER_USEC);
                 break;
                 case 1:
                 if (serial->lcr & 0x80)
@@ -234,11 +235,9 @@ uint8_t serial_read(uint16_t addr, void *p)
         return temp;
 }
 
-void serial_recieve_callback(void *p)
+void serial_receive_callback(void *p)
 {
         SERIAL *serial = (SERIAL *)p;
-        
-        serial->recieve_delay = 0;
         
         if (serial->fifo_read != serial->fifo_write)
         {
@@ -249,14 +248,15 @@ void serial_recieve_callback(void *p)
 }
 
 /*Tandy might need COM1 at 2f8*/
-void serial1_init(uint16_t addr, int irq)
+void serial1_init(uint16_t addr, int irq, int has_fifo)
 {
         memset(&serial1, 0, sizeof(serial1));
         io_sethandler(addr, 0x0008, serial_read,  NULL, NULL, serial_write,  NULL, NULL, &serial1);
         serial1.irq = irq;
         serial1.addr = addr;
         serial1.rcr_callback = NULL;
-        timer_add(serial_recieve_callback, &serial1.recieve_delay, &serial1.recieve_delay, &serial1);
+        timer_add(&serial1.receive_timer, serial_receive_callback, &serial1, 0);
+        serial1.has_fifo = has_fifo;
 }
 void serial1_set(uint16_t addr, int irq)
 {
@@ -270,14 +270,15 @@ void serial1_remove()
         io_removehandler(serial1.addr, 0x0008, serial_read,  NULL, NULL, serial_write,  NULL, NULL, &serial1);
 }
 
-void serial2_init(uint16_t addr, int irq)
+void serial2_init(uint16_t addr, int irq, int has_fifo)
 {
         memset(&serial2, 0, sizeof(serial2));
         io_sethandler(addr, 0x0008, serial_read, NULL, NULL, serial_write, NULL, NULL, &serial2);
         serial2.irq = irq;
         serial2.addr = addr;
         serial2.rcr_callback = NULL;
-        timer_add(serial_recieve_callback, &serial2.recieve_delay, &serial2.recieve_delay, &serial2);
+        timer_add(&serial2.receive_timer, serial_receive_callback, &serial2, 0);
+        serial2.has_fifo = has_fifo;
 }
 void serial2_set(uint16_t addr, int irq)
 {
