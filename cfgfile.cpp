@@ -5995,7 +5995,7 @@ void cfgfile_compatibility_rtg(struct uae_prefs *p)
 	int vga = -1;
 	for (int i = 0; i < MAX_RTG_BOARDS; i++) {
 		struct rtgboardconfig *rbc = &p->rtgboards[i];
-		if (rbc->rtgmem_type == GFXBOARD_A2410) {
+		if (rbc->rtgmem_type == GFXBOARD_ID_A2410) {
 			if (a2410 >= 0) {
 				rbc->rtgmem_size = 0;
 				rbc->rtgmem_type = 0;
@@ -6003,7 +6003,7 @@ void cfgfile_compatibility_rtg(struct uae_prefs *p)
 				a2410 = i;
 			}
 		}
-		if (rbc->rtgmem_type == GFXBOARD_VGA) {
+		if (rbc->rtgmem_type == GFXBOARD_ID_VGA) {
 			if (vga >= 0) {
 				rbc->rtgmem_size = 0;
 				rbc->rtgmem_type = 0;

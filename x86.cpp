@@ -8,7 +8,8 @@
 * 8088 x86 and PC support chip emulation from Fake86.
 * 80286+ CPU and AT support chip emulation from DOSBox.
 *
-* 2018: Replaced Fake86 and DOSBox with PCem.
+* 2018: Replaced Fake86 and DOSBox with PCem v14.
+* 2020: PCem v16.
 *
 */
 
@@ -64,10 +65,10 @@
 #include "pcem/sound_cms.h"
 #include "pcem/mouse.h"
 #include "pcem/mouse_serial.h"
+#include "pcem/serial.h"
 extern int cpu;
 extern int nvrmask;
 void keyboard_at_write(uint16_t port, uint8_t val, void *priv);
-
 
 #define MAX_IO_PORT 0x400
 
@@ -83,8 +84,10 @@ static double x86_base_event_clock;
 static int x86_sndbuffer_playpos;
 static int x86_sndbuffer_playindex;
 static int sound_handlers_num;
-int sound_poll_time = 0, sound_poll_latch;
+static uint64_t sound_poll_latch;
+static pc_timer_t sound_poll_timer;
 void sound_poll(void *priv);
+void sound_speed_changed(bool);
 
 #define TYPE_SIDECAR 0
 #define TYPE_2088 1
@@ -95,6 +98,7 @@ void sound_poll(void *priv);
 void x86_doirq(uint8_t irqnum);
 
 bool x86_cpu_active;
+extern int cpu_multiplier;
 
 static int x86_vga_mode;
 static int x86_vga_board;
@@ -507,231 +511,6 @@ static void set_interrupt(struct x86_bridge *xb, int bit)
 	xb->amiga_io[IO_AMIGA_INTERRUPT_STATUS] |= 1 << bit;
 	devices_rethink_all(x86_bridge_rethink);
 }
-
-#if 0
-/* 8237 and 8253 from fake86 with small modifications */
-
-struct dmachan_s {
-	uint32_t page;
-	uint32_t addr;
-	uint32_t reload;
-	uint32_t count;
-	uint8_t direction;
-	uint8_t autoinit;
-	uint8_t writemode;
-	uint8_t modeselect;
-	uint8_t masked;
-	uint8_t verifymode;
-};
-
-static struct dmachan_s dmachan[2 * 4];
-static uae_u8 dmareg[2 * 16];
-static uint8_t flipflop = 0;
-
-static int write8237(struct x86_bridge *xb, uint8_t channel, uint8_t data)
-{
-	if (dmachan[channel].masked)
-		return 0;
-	if (dmachan[channel].autoinit && (dmachan[channel].count > dmachan[channel].reload))
-		dmachan[channel].count = 0;
-	if (dmachan[channel].count > dmachan[channel].reload)
-		return 0;
-	//if (dmachan[channel].direction) ret = RAM[dmachan[channel].page + dmachan[channel].addr + dmachan[channel].count];
-	//	else ret = RAM[dmachan[channel].page + dmachan[channel].addr - dmachan[channel].count];
-	if (!dmachan[channel].verifymode) {
-		xb->pc_ram[dmachan[channel].page + dmachan[channel].addr] = data;
-		if (dmachan[channel].direction == 0) {
-			dmachan[channel].addr++;
-		} else {
-			dmachan[channel].addr--;
-		}
-		dmachan[channel].addr &= 0xffff;
-	}
-	dmachan[channel].count++;
-	if (dmachan[channel].count > dmachan[channel].reload)
-		return -1;
-	return 1;
-}
-
-static uint8_t read8237(struct x86_bridge *xb, uint8_t channel, bool *end)
-{
-	uint8_t ret = 128;
-	*end = false;
-	if (dmachan[channel].masked) {
-		*end = true;
-		return ret;
-	}
-	if (dmachan[channel].autoinit && (dmachan[channel].count > dmachan[channel].reload))
-		dmachan[channel].count = 0;
-	if (dmachan[channel].count > dmachan[channel].reload) {
-		*end = true;
-		return ret;
-	}
-	//if (dmachan[channel].direction) ret = RAM[dmachan[channel].page + dmachan[channel].addr + dmachan[channel].count];
-	//	else ret = RAM[dmachan[channel].page + dmachan[channel].addr - dmachan[channel].count];
-	if (!dmachan[channel].verifymode) {
-		ret = xb->pc_ram[dmachan[channel].page + dmachan[channel].addr];
-		if (dmachan[channel].direction == 0) {
-			dmachan[channel].addr++;
-		} else {
-			dmachan[channel].addr--;
-		}
-		dmachan[channel].addr &= 0xffff;
-	}
-	dmachan[channel].count++;
-	if (dmachan[channel].count > dmachan[channel].reload)
-		*end = true;
-	return ret;
-}
-
-static void out8237(uint16_t addr, uint8_t value)
-{
-	uint8_t channel;
-	int chipnum = 0;
-	int reg = -1;
-#if DEBUG_DMA
-	write_log("out8237(0x%X, %X);\n", addr, value);
-#endif
-	if (addr >= 0x80 && addr <= 0x8f) {
-		dmareg[addr & 0xf] = value;
-		reg = addr;
-	} else if (addr >= 0xc0 && addr <= 0xdf) {
-		reg = (addr - 0xc0) / 2;
-		chipnum = 4;
-	} else if (addr <= 0x0f) {
-		reg = addr;
-		chipnum = 0;
-	}
-	switch (reg) {
-		case 0x0:
-		case 0x2: //channel 1 address register
-		case 0x4:
-		case 0x6:
-		channel = reg / 2 + chipnum;
-		if (flipflop == 1)
-			dmachan[channel].addr = (dmachan[channel].addr & 0x00FF) | ((uint32_t)value << 8);
-		else
-			dmachan[channel].addr = (dmachan[channel].addr & 0xFF00) | value;
-#if DEBUG_DMA
-		if (flipflop == 1) write_log("[NOTICE] DMA channel %d address register = %04X\n", channel, dmachan[channel].addr);
-#endif
-		flipflop = ~flipflop & 1;
-		break;
-		case 0x1:
-		case 0x3: //channel 1 count register
-		case 0x5:
-		case 0x7:
-		channel = reg / 2 + chipnum;
-		if (flipflop == 1)
-			dmachan[channel].reload = (dmachan[channel].reload & 0x00FF) | ((uint32_t)value << 8);
-		else
-			dmachan[channel].reload = (dmachan[channel].reload & 0xFF00) | value;
-		if (flipflop == 1) {
-			if (dmachan[channel].reload == 0)
-				dmachan[channel].reload = 65536;
-			dmachan[channel].count = 0;
-#if DEBUG_DMA
-			write_log("[NOTICE] DMA channel %d reload register = %04X\n", channel, dmachan[channel].reload);
-#endif
-		}
-		flipflop = ~flipflop & 1;
-		break;
-		case 0xA: //write single mask register
-		channel = (value & 3) + chipnum;
-		dmachan[channel].masked = (value >> 2) & 1;
-#if DEBUG_DMA
-		write_log("[NOTICE] DMA channel %u masking = %u\n", channel, dmachan[channel].masked);
-#endif
-		break;
-		case 0xB: //write mode register
-		channel = (value & 3) + chipnum;
-		dmachan[channel].direction = (value >> 5) & 1;
-		dmachan[channel].autoinit = (value >> 4) & 1;
-		dmachan[channel].modeselect = (value >> 6) & 3;
-		dmachan[channel].writemode = (value >> 2) & 1; //not quite accurate
-		dmachan[channel].verifymode = ((value >> 2) & 3) == 0;
-#if DEBUG_DMA
-		write_log("[NOTICE] DMA channel %u write mode reg: direction = %u, autoinit = %u, write mode = %u, verify mode = %u, mode select = %u\n",
-			   channel, dmachan[channel].direction, dmachan[channel].autoinit, dmachan[channel].writemode, dmachan[channel].verifymode, dmachan[channel].modeselect);
-#endif
-		break;
-		case 0xC: //clear byte pointer flip-flop
-#if DEBUG_DMA
-		write_log("[NOTICE] DMA cleared byte pointer flip-flop\n");
-#endif
-		flipflop = 0;
-		break;
-		case 0x89: // 6
-		case 0x8a: // 7
-		case 0x8b: // 5
-		case 0x81: // 2
-		case 0x82: // 3
-		case 0x83: // DMA channel 1 page register
-		// Original PC design. It can't get any more stupid.
-		if ((addr & 3) == 1)
-			channel = 2;
-		else if ((addr & 3) == 2)
-			channel = 3;
-		else
-			channel = 1;
-		if (addr >= 0x84)
-			channel += 4;
-		dmachan[channel].page = (uint32_t)value << 16;
-#if DEBUG_DMA
-		write_log("[NOTICE] DMA channel %d page base = %05X\n", channel, dmachan[channel].page);
-#endif
-		break;
-	}
-}
-
-static uint8_t in8237(uint16_t addr)
-{
-	struct x86_bridge *xb = bridges[0];
-	uint8_t channel;
-	int reg = -1;
-	int chipnum = addr >= 0xc0 ? 4 : 0;
-	uint8_t out = 0;
-
-	if (addr >= 0xc0 && addr <= 0xdf) {
-		reg = (addr - 0xc0) / 2;
-		chipnum = 4;
-	} else if (addr <= 0x0f) {
-		reg = addr;
-		chipnum = 0;
-	}
-	switch (reg) {
-		case 0x0:
-		case 0x2: //channel 1 address register
-		case 0x4:
-		case 0x6:
-		channel = reg / 2 + chipnum;
-		flipflop = ~flipflop & 1;
-		if (flipflop == 0)
-			out = dmachan[channel].addr >> 8;
-		else
-			out = dmachan[channel].addr;
-		break;
-		case 0x1:
-		case 0x3: //channel 1 count register
-		case 0x5:
-		case 0x7:
-		channel = reg / 2 + chipnum;
-		flipflop = ~flipflop & 1;
-		if (flipflop == 0)
-			out = dmachan[channel].reload >> 8;
-		else
-			out = dmachan[channel].reload;
-		break;
-	}
-	if (addr >= 0x80 && addr <= 0x8f)
-		out = dmareg[addr & 0xf];
-
-#if DEBUG_DMA
-	write_log("in8237(0x%X = %02x);\n", addr, out);
-#endif
-	return out;
-}
-#endif
 
 void x86_ack_keyboard(void)
 {
@@ -1430,7 +1209,8 @@ static uae_u8 infloppy(struct x86_bridge *xb, int portnum)
 
 static void set_cpu_turbo(struct x86_bridge *xb)
 {
-	cpu_set((int)currprefs.x86_speed_throttle);
+	cpu_multiplier = (int)currprefs.x86_speed_throttle;
+	cpu_set();
 	cpu_update_waitstates();
 	cpu_set_turbo(0);
 	cpu_set_turbo(1);
@@ -1954,7 +1734,7 @@ void portout(uint16_t portnum, uint8_t v)
 			keyboard_at_write(portnum, v, NULL);
 		} else {
 			timer_process();
-			timer_update_outstanding();
+			//timer_update_outstanding();
 			speaker_update();
 			speaker_gated = v & 1;
 			speaker_enable = v & 2;
@@ -3361,8 +3141,9 @@ static void x86_bridge_hsync(void)
 		if (xb->sound_emu) {
 			write_log(_T("x86 sound init\n"));
 			xb->audeventtime = x86_base_event_clock * CYCLE_UNIT / currprefs.sound_freq + 1;
-			timer_add(sound_poll, &sound_poll_time, TIMER_ALWAYS_ENABLED, NULL);
+			timer_add(&sound_poll_timer, sound_poll, NULL, 0);
 			xb->audstream = audio_enable_stream(true, -1, 2, audio_state_sndboard_x86, NULL);
+			sound_speed_changed(true);
 		}
 	}
 
@@ -3513,6 +3294,17 @@ static int x86_global_settings;
 
 int device_get_config_int(char *s)
 {
+	if (!strcmp(s, "bilinear")) {
+		return 1;
+	}
+	if (!strcmp(s, "dithering")) {
+		return 1;
+	}
+	if (!strcmp(s, "memory")) {
+		return pcem_getvramsize() >> 20;
+	}
+
+
 	if (x86_global_settings < 0)
 		return 0;
 	if (!strcmp(s, "addr")) {
@@ -3679,7 +3471,7 @@ static void set_vga(struct x86_bridge *xb)
 	// load vga bios
 	xb->vgaboard = -1;
 	for (int i = 0; i < MAX_RTG_BOARDS; i++) {
-		if (currprefs.rtgboards[i].rtgmem_type == GFXBOARD_VGA) {
+		if (currprefs.rtgboards[i].rtgmem_type == GFXBOARD_ID_VGA) {
 			xb->vgaboard = i;
 			x86_vga_board = i;
 			xb->vgaboard_vram = currprefs.rtgboards[i].rtgmem_size;
@@ -3716,15 +3508,13 @@ void x86_mouse(int port, int x, int y, int z, int b)
 void *mouse_serial_init();
 void *mouse_ps2_init();
 void *mouse_intellimouse_init();
-void serial1_init(uint16_t addr, int irq);
-void serial_reset();
 
 static void set_mouse(struct x86_bridge *xb)
 {
+	ps2_mouse_supported = false;
 	if (!is_board_enabled(&currprefs, ROMTYPE_X86MOUSE, 0))
 		return;
 	struct romconfig *rc = get_device_romconfig(&currprefs, ROMTYPE_X86MOUSE, 0);
-	ps2_mouse_supported = false;
 	if (rc) {
 		xb->mouse_port = (rc->device_settings & 3) + 1;
 		xb->mouse_type = (rc->device_settings >> 2) & 3;
@@ -3732,7 +3522,7 @@ static void set_mouse(struct x86_bridge *xb)
 		{
 			case 0:
 			default:
-			serial1_init(0x3f8, 4);
+			serial1_init(0x3f8, 4, 1);
 			serial_reset();
 			xb->mouse_base = mouse_serial_init();
 			break;
@@ -3825,8 +3615,8 @@ bool x86_bridge_init(struct autoconfig_info *aci, uae_u32 romtype, int type)
 	}
 
 	romset = ROM_GENXT;
-	shadowbios = 0;
 	enable_sync = 1;
+	fpu_type = 0;
 
 	switch (xb->type)
 	{
@@ -3834,26 +3624,31 @@ bool x86_bridge_init(struct autoconfig_info *aci, uae_u32 romtype, int type)
 		model = 0;
 		cpu_manufacturer = 0;
 		cpu = 0; // 4.77MHz
+		fpu_type = (xb->settings  & (1 << 19)) ? FPU_8087 : FPU_NONE;
 		break;
 	case TYPE_2088:
 		model = 0;
 		cpu_manufacturer = 0;
 		cpu = 0; // 4.77MHz
+		fpu_type = (xb->settings & (1 << 19)) ? FPU_8087 : FPU_NONE;
 		break;
 	case TYPE_2088T:
 		model = 0;
 		cpu_manufacturer = 0;
 		cpu = 0; // 4.77MHz
+		fpu_type = (xb->settings & (1 << 19)) ? FPU_8087 : FPU_NONE;
 		break;
 	case TYPE_2286:
 		model = 1;
 		cpu_manufacturer = 0;
 		cpu = 1; // 8MHz
+		fpu_type = (xb->settings & (1 << 19)) ? FPU_287 : FPU_NONE;
 		break;
 	case TYPE_2386:
 		model = 2;
 		cpu_manufacturer = 0;
 		cpu = 2; // 25MHz
+		fpu_type = (xb->settings & (1 << 19)) ? FPU_387 : FPU_NONE;
 		break;
 	}
 	if (rc->configtext[0]) {
@@ -3862,11 +3657,23 @@ bool x86_bridge_init(struct autoconfig_info *aci, uae_u32 romtype, int type)
 		while (m->cpu[mannum].cpus) {
 			CPU *cpup = m->cpu[mannum].cpus;
 			int cpunum = 0;
-			while(cpup[cpunum].cpu_type >= 0) {
+			while (cpup[cpunum].cpu_type >= 0) {
 				TCHAR *cpuname = au(cpup[cpunum].name);
-				if (!_tcsicmp(rc->configtext, cpuname)) {
+				if (_tcsstr(rc->configtext, cpuname)) {
+					int cputype = cpup[cpunum].cpu_type;
 					cpu_manufacturer = mannum;
 					cpu = cpunum;
+					if (cputype == CPU_i486SX) {
+						fpu_type = FPU_NONE;
+					} else if (cputype == CPU_i486DX) {
+						fpu_type = FPU_BUILTIN;
+					} else if ((cputype == CPU_386DX || cputype == CPU_386SX) && fpu_type != FPU_NONE) {
+						fpu_type = FPU_387;
+					} else if (cputype == CPU_286 && fpu_type != FPU_NONE) {
+						fpu_type = FPU_287;
+					} else if (cputype == CPU_8088 && fpu_type != FPU_NONE) {
+						fpu_type == FPU_8087;
+					}
 					write_log(_T("CPU override = %s\n"), cpuname);
 				}
 				xfree(cpuname);
@@ -3876,7 +3683,8 @@ bool x86_bridge_init(struct autoconfig_info *aci, uae_u32 romtype, int type)
 		}
 	}
 
-	cpu_set(0);
+	cpu_multiplier = (int)currprefs.x86_speed_throttle;
+	cpu_set();
 	if (xb->type >= TYPE_2286) {
 		mem_size = (1024 * 1024) << ((xb->settings >> 16) & 7);
 	} else {
@@ -3884,6 +3692,7 @@ bool x86_bridge_init(struct autoconfig_info *aci, uae_u32 romtype, int type)
 	}
 	mem_size /= 1024;
 	mem_init();
+	mem_alloc();
 	xb->pc_ram = ram;
 	if (xb->type < TYPE_2286) {
 		mem_set_704kb();
@@ -3892,12 +3701,20 @@ bool x86_bridge_init(struct autoconfig_info *aci, uae_u32 romtype, int type)
 	bridge_reset(xb);
 
 	timer_reset();
+
+	// SB setup must come before DMA init
+	sound_reset();
+	speaker_init();
+	set_sb_emu(xb);
+	sound_pos_global = xb->sound_emu ? 0 : -1;
+
 	dma_init();
 	pit_init();
 	pic_init();
+
 	if (xb->type >= TYPE_2286) {
 		AT = 1;
-		nvr_init();
+		nvr_device.init();
 		TCHAR path[MAX_DPATH];
 		cfgfile_resolve_path_out_load(currprefs.flashfile, path, MAX_DPATH, PATH_ROM);
 		xb->cmossize = xb->type == TYPE_2386 ? 192 : 64;
@@ -3999,12 +3816,6 @@ bool x86_bridge_init(struct autoconfig_info *aci, uae_u32 romtype, int type)
 	if (xb->type == TYPE_2386) {
 		vlsi_init_mapping(xb);
 	}
-
-	sound_reset();
-	sound_speed_changed();
-	speaker_init();
-	set_sb_emu(xb);
-	sound_pos_global = xb->sound_emu ? 0 : -1;
 
 	set_mouse(xb);
 
@@ -4112,16 +3923,19 @@ void sound_add_handler(void(*get_buffer)(int32_t *buffer, int len, void *p), voi
 	sound_handlers_num++;
 }
 
-void sound_speed_changed()
+void sound_speed_changed(bool enable)
 {
-	sound_poll_latch = (int)((double)TIMER_USEC * (1000000.0 / currprefs.sound_freq));
+	if (sound_poll_timer.enabled || enable) {
+		sound_poll_latch = (uae_u64)((double)TIMER_USEC * (1000000.0 / currprefs.sound_freq));
+		timer_set_delay_u64(&sound_poll_timer, sound_poll_latch);
+	}
 }
 
 void sound_poll(void *priv)
 {
 	struct x86_bridge *xb = bridges[0];
 
-	sound_poll_time += sound_poll_latch;
+	timer_advance_u64(&sound_poll_timer, sound_poll_latch);
 
 	if (x86_sndbuffer_filled[x86_sndbuffer_index]) {
 		return;
@@ -4162,7 +3976,7 @@ void x86_update_sound(double clk)
 	x86_base_event_clock = clk;
 	if (xb) {
 		xb->audeventtime = x86_base_event_clock * CYCLE_UNIT / currprefs.sound_freq + 1;
-		sound_speed_changed();
+		sound_speed_changed(false);
 	}
 }
 

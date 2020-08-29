@@ -10965,7 +10965,7 @@ static void values_to_expansiondlg(HWND hDlg)
 	SendDlgItemMessage(hDlg, IDC_P96MEM, TBM_SETPOS, TRUE, mem_size);
 	SetDlgItemText(hDlg, IDC_P96RAM, memsize_names[msi_gfx[mem_size]]);
 
-	SendDlgItemMessage(hDlg, IDC_RTG_Z2Z3, CB_SETCURSEL, rbc->rtgmem_size == 0 ? 0 : rbc->rtgmem_type + 1, 0);
+	SendDlgItemMessage(hDlg, IDC_RTG_Z2Z3, CB_SETCURSEL, rbc->rtgmem_size == 0 ? 0 : gfxboard_get_index_from_id(rbc->rtgmem_type) + 1, 0);
 	SendDlgItemMessage(hDlg, IDC_MONITOREMU_MON, CB_SETCURSEL, rbc->monitor_id, 0);
 	SendDlgItemMessage(hDlg, IDC_RTG_NUM, CB_SETCURSEL, gui_rtg_index, 0);
 	SendDlgItemMessage(hDlg, IDC_RTG_8BIT, CB_SETCURSEL, (workprefs.picasso96_modeflags & RGBFF_CLUT) ? 1 : 0, 0);
@@ -11055,10 +11055,11 @@ static INT_PTR CALLBACK ExpansionDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 		SendDlgItemMessage (hDlg, IDC_RTG_Z2Z3, CB_ADDSTRING, 0, (LPARAM)_T("-"));
 		v = 0;
 		for (;;) {
-			const TCHAR *n1 = gfxboard_get_name(v);
-			const TCHAR *n2 = gfxboard_get_manufacturername(v);
-			if (!n1 && !n2)
+			int index = gfxboard_get_id_from_index(v);
+			if (index < 0)
 				break;
+			const TCHAR *n1 = gfxboard_get_name(index);
+			const TCHAR *n2 = gfxboard_get_manufacturername(index);
 			v++;
 			_tcscpy(tmp, n1);
 			if (n2) {
@@ -11205,7 +11206,7 @@ static INT_PTR CALLBACK ExpansionDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 							workprefs.rtgboards[gui_rtg_index].rtgmem_type = 1;
 							workprefs.rtgboards[gui_rtg_index].rtgmem_size = 0;
 						} else {
-							workprefs.rtgboards[gui_rtg_index].rtgmem_type = v - 1;
+							workprefs.rtgboards[gui_rtg_index].rtgmem_type = gfxboard_get_id_from_index(v - 1);
 							if (workprefs.rtgboards[gui_rtg_index].rtgmem_size == 0)
 								workprefs.rtgboards[gui_rtg_index].rtgmem_size = 4096 * 1024;
 						}

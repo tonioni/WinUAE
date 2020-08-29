@@ -24,6 +24,8 @@ extern const TCHAR *gfxboard_get_name(int);
 extern const TCHAR *gfxboard_get_manufacturername(int);
 extern const TCHAR *gfxboard_get_configname(int);
 extern struct gfxboard_func *gfxboard_get_func(struct rtgboardconfig *rbc);
+extern int gfxboard_get_index_from_id(int);
+extern int gfxboard_get_id_from_index(int);
 
 extern bool gfxboard_allocate_slot(int, int);
 extern void gfxboard_free_slot(int);
@@ -31,6 +33,7 @@ extern bool gfxboard_rtg_enable_initial(int monid, int);
 extern void gfxboard_rtg_disable(int monid, int);
 extern bool gfxboard_init_board(struct autoconfig_info*);
 extern bool gfxboard_set(int monid, bool rtg);
+extern void gfxboard_resize(int width, int height, void *p);
 
 extern struct gfxboard_func a2410_func;
 extern struct gfxboard_func harlequin_func;
@@ -47,22 +50,29 @@ void gfxboard_free_vram(int index);
 
 int gfxboard_get_devnum(struct uae_prefs *p, int index);
 
+int pcem_getvramsize(void);
+
 #define GFXBOARD_UAE_Z2 0
 #define GFXBOARD_UAE_Z3 1
 #define GFXBOARD_HARDWARE 2
 
-#define GFXBOARD_PICASSO2 2
-#define GFXBOARD_PICASSO2PLUS 3
-#define GFXBOARD_PICCOLO_Z2 4
-#define GFXBOARD_PICCOLO_Z3 5
-#define GFXBOARD_SD64_Z2 6
-#define GFXBOARD_SD64_Z3 7
-#define GFXBOARD_SPECTRUM_Z2 8
-#define GFXBOARD_SPECTRUM_Z3 9
-#define GFXBOARD_PICASSO4_Z2 10
-#define GFXBOARD_PICASSO4_Z3 11
-#define GFXBOARD_A2410 12
-#define GFXBOARD_VGA 13
+#define GFXBOARD_ID_PICASSO2 2
+#define GFXBOARD_ID_PICASSO2PLUS 3
+#define GFXBOARD_ID_PICCOLO_Z2 4
+#define GFXBOARD_ID_PICCOLO_Z3 5
+#define GFXBOARD_ID_SD64_Z2 6
+#define GFXBOARD_ID_SD64_Z3 7
+#define GFXBOARD_ID_SPECTRUM_Z2 8
+#define GFXBOARD_ID_SPECTRUM_Z3 9
+#define GFXBOARD_ID_PICASSO4_Z2 10
+#define GFXBOARD_ID_PICASSO4_Z3 11
+#define GFXBOARD_ID_A2410 12
+#define GFXBOARD_ID_VGA 13
+#define GFXBOARD_ID_HARLEQUIN 14
+#define GFXBOARD_ID_CV643D_Z2 15
+#define GFXBOARD_ID_CV643D_Z3 16
+#define GFXBOARD_ID_CV64_Z3 17
+
 
 struct gfxboard_mode
 {

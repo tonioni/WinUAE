@@ -4411,6 +4411,11 @@ static const struct expansionboardsettings x86at286_bridge_settings[] = {
 		true, false, 0
 	},
 	{
+		// 19
+		_T("FPU"),
+		_T("fpu"),
+	},
+	{
 		_T("Emulator config\0"),
 		_T("config\0"),
 		2, false, 0
@@ -4437,6 +4442,11 @@ static const struct expansionboardsettings x86at386_bridge_settings[] = {
 		_T("Memory\0") _T("1M\0") _T("2M\0") _T("4M\0") _T("8M\0") _T("16M\0") _T("32M\0") _T("64M\0"),
 		_T("memory\0") _T("1M\0") _T("2M\0") _T("4M\0") _T("8M\0") _T("16M\0") _T("32M\0") _T("64M\0"),
 		true, false, 0
+	},
+	{
+		// 19
+		_T("FPU"),
+		_T("fpu"),
 	},
 	{
 		_T("Emulator config\0"),
@@ -4469,6 +4479,12 @@ static const struct expansionboardsettings x86_bridge_settings[] = {
 		false, false, 13 - 6
 	},
 	{
+		// 19
+		_T("FPU"),
+		_T("fpu"),
+		false, false, 19 - 14
+	},
+	{
 		_T("Emulator config\0"),
 		_T("config\0"),
 		2, false, 0
@@ -4486,7 +4502,7 @@ static const struct expansionboardsettings x86_bridge_sidecar_settings[] = {
 	},
 	{
 		// 1
-		_T("8037 installed (SW1:2)"),
+		_T("8087 installed (SW1:2)"),
 		_T("fpu"),
 	},
 	{
@@ -4532,6 +4548,12 @@ static const struct expansionboardsettings x86_bridge_sidecar_settings[] = {
 		// 13
 		_T("PC Speaker emulation"),
 		_T("speaker")
+	},
+	{
+		// 19
+		_T("FPU"),
+		_T("fpu"),
+		false, false, 19 - 14
 	},
 	{
 		_T("Emulator config\0"),
