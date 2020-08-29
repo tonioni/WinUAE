@@ -2,7 +2,7 @@ typedef struct svga_t
 {
         mem_mapping_t mapping;
         
-        uint8_t crtcreg;
+        uint8_t crtcreg, crtcreg_mask;
         uint8_t crtc[128];
         uint8_t gdcreg[64];
         int gdcaddr;
@@ -143,6 +143,8 @@ typedef struct svga_t
         
         /*Used to implement CRTC[0x17] bit 2 hsync divisor*/
         int hsync_divisor;
+
+        bool swaprb;
 } svga_t;
 
 extern int svga_init(svga_t *svga, void *p, int memsize, 

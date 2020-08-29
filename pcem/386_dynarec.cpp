@@ -391,7 +391,7 @@ void exec386_dynarec(int cycs)
 
                                 if (valid_block && (block->flags & CODEBLOCK_WAS_RECOMPILED))
                                 {
-                                        void (*code)() = (void *)&block->data[BLOCK_START];
+                                        void (*code)() = (void(*)(void))&block->data[BLOCK_START];
 
 //                                        if (output) pclog("Run block at %04x:%04x  %04x %04x %04x %04x  %04x %04x  ESP=%08x %04x  %08x %08x  %016llx %08x\n", CS, pc, AX, BX, CX, DX, SI, DI, ESP, BP, get_phys(cs+pc), block->phys, block->page_mask, block->endpc);
 

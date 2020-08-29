@@ -7,6 +7,9 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <math.h>
+#ifndef M_PI
+#define M_PI   3.14159265358979323846264338327950288
+#endif
 #include "ibm.h"
 
 
@@ -16,7 +19,9 @@
 #include "io.h"
 #include "pic.h"
 #include "sound.h"
+#ifndef UAE
 #include "sound_azt2316a.h"
+#endif
 #include "sound_sb_dsp.h"
 #include "timer.h"
 #include "x86.h"
@@ -696,6 +701,7 @@ void sb_exec_command(sb_dsp_t *dsp)
                 case 0x05:
                 break;
                 case 0x09: /*AZTECH mode set*/
+#ifndef UAE
                 if (IS_AZTECH(dsp))
                 {
                         if (dsp->sb_data[0] == 0x00)
@@ -712,6 +718,7 @@ void sb_exec_command(sb_dsp_t *dsp)
                                 pclog("AZT2316A: UNKNOWN MODE!\n"); // sequences 0x02->0xFF, 0x04->0xFF seen
                 }
                 break;
+#endif
                 case 0x38: /*TODO: AZTECH MIDI-related? */
                 break;
 //                default:

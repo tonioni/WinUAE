@@ -59,7 +59,7 @@ typedef union MMX_REG
         float    f[2];
 } MMX_REG;
 
-struct
+typedef struct
 {
         x86reg regs[8];
 
@@ -118,7 +118,9 @@ struct
         } CR0;
 
         uint16_t flags, eflags;
-} cpu_state;
+} CPU_STATE;
+
+extern CPU_STATE cpu_state;
 
 #define cpu_state_offset(MEMBER) ((uintptr_t)&cpu_state.MEMBER - (uintptr_t)&cpu_state - 128)
 

@@ -14,6 +14,11 @@
 #include "keyboard.h"
 #include "keyboard_at.h"
 
+#ifdef UAE
+extern bool ps2_mouse_supported;
+extern uint8_t x86_get_jumpers(void);
+#endif
+
 #define STAT_PARITY     0x80
 #define STAT_RTIMEOUT   0x40
 #define STAT_TTIMEOUT   0x20
@@ -282,8 +287,13 @@ void keyboard_at_write(uint16_t port, uint8_t val, void *priv)
                                            keyboard_at.wantirq = 1;
                                         if (!(val & 1) && keyboard_at.wantirq)
                                            keyboard_at.wantirq = 0;
+#ifdef UAE
+                                        if (ps2_mouse_supported)
+#endif
                                         mouse_scan = !(val & 0x20);
+#ifndef UAE // A2386SX sets this bit but if translation is allowed, keyboard stops working. Purpose unknown.
                                         keyboard_at.translate = val & 0x40;
+#endif
                                 }                                           
                                 break;
 
@@ -311,10 +321,16 @@ void keyboard_at_write(uint16_t port, uint8_t val, void *priv)
                                 break;
                                 
                                 case 0xd3: /*Write to mouse output buffer*/
+#ifdef UAE
+                                if (ps2_mouse_supported)
+#endif
                                 keyboard_at_adddata_mouse(val);
                                 break;
                                 
                                 case 0xd4: /*Write to mouse*/
+#ifdef UAE
+                                if (ps2_mouse_supported)
+#endif
                                 if (keyboard_at.mouse_write)
                                 {
                                         keyboard_at.mouse_write(val, keyboard_at.mouse_p);
@@ -417,8 +433,10 @@ void keyboard_at_write(uint16_t port, uint8_t val, void *priv)
 
                                         case 0xf2: /*Read ID*/
                                         keyboard_at_adddata_keyboard(0xfa);
+#ifndef UAE // A2286/A2386 does not want these codes
                                         keyboard_at_adddata_keyboard(0xab);
                                         keyboard_at_adddata_keyboard(0x83);
+#endif
                                         break;
                                         
                                         case 0xf3: /*Set typematic rate/delay*/
@@ -507,11 +525,20 @@ void keyboard_at_write(uint16_t port, uint8_t val, void *priv)
                         break;
 
                         case 0xa8: /*Enable mouse port*/
+#ifdef UAE
+                        if (ps2_mouse_supported) {
+#endif
                         mouse_scan = 1;
                         keyboard_at.mem[0] &= ~0x20;
+#ifdef UAE
+                        }
+#endif
                         break;
                         
                         case 0xa9: /*Test mouse port*/
+#ifdef UAE
+                        if (ps2_mouse_supported)
+#endif
                         keyboard_at_adddata(0x00); /*no error*/
                         break;
                         
@@ -549,6 +576,10 @@ void keyboard_at_write(uint16_t port, uint8_t val, void *priv)
 
                         case 0xae: /*Enable keyboard*/
                         keyboard_at.mem[0] &= ~0x10;
+#ifdef UAE
+                        if (!keyboard_at.initialised)
+                            keyboard_at_adddata(0x00); // A2286 BIOS requires data in output buffer after keyboard enable
+#endif
                         break;
 
 			case 0xb0:	/* T3100e: Turbo on */
@@ -616,7 +647,11 @@ void keyboard_at_write(uint16_t port, uint8_t val, void *priv)
 			if (romset == ROM_T3100E)
 				keyboard_at.input_port = (t3100e_mono_get() & 1) ? 0xFF : 0xBF;
 
+#ifdef UAE
+                        keyboard_at_adddata(x86_get_jumpers());
+#else
                         keyboard_at_adddata(keyboard_at.input_port | 4);
+#endif
                         keyboard_at.input_port = ((keyboard_at.input_port + 1) & 3) | (keyboard_at.input_port & 0xfc);
                         break;
                         
@@ -644,10 +679,16 @@ void keyboard_at_write(uint16_t port, uint8_t val, void *priv)
                         break;
                         
                         case 0xd3: /*Write mouse output buffer*/
+#ifdef UAE
+                        if (ps2_mouse_supported)
+#endif
                         keyboard_at.want60 = 1;
                         break;
                         
                         case 0xd4: /*Write to mouse*/
+#ifdef UAE
+                        if (ps2_mouse_supported)
+#endif
                         keyboard_at.want60 = 1;
                         break;
                         
@@ -762,6 +803,13 @@ static void at_refresh(void *p)
         timer_advance_u64(&keyboard_at.refresh_timer, PS2_REFRESH_TIME);
 }
 
+// C++ FIX
+static void keyboard_at_poll_2(void *p)
+{
+    keyboard_at_poll();
+}
+// END C++
+
 void keyboard_at_init()
 {
         //return;
@@ -776,7 +824,7 @@ void keyboard_at_init()
         keyboard_set_scancode_set(SCANCODE_SET_2);
         keyboard_at.scancode_set = SCANCODE_SET_2;
         
-        timer_add(&keyboard_at.send_delay_timer, keyboard_at_poll, NULL, 1);
+        timer_add(&keyboard_at.send_delay_timer, keyboard_at_poll_2, NULL, 1);
 }
 
 void keyboard_at_set_mouse(void (*mouse_write)(uint8_t val, void *p), void *p)

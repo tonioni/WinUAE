@@ -327,7 +327,6 @@ reg = If mod=11,  (depending on data size, 16 bits/8 bits, 32 bits=extend 16 bit
 */
 
 uint32_t easeg;
-uint32_t rmdat;
 
 static uint16_t zero=0;
 uint16_t *mod1add[2][8];
@@ -476,6 +475,8 @@ void makeznptable()
 
 int indump = 0;
 
+#ifndef UAE
+
 void dumpregs()
 {
         int c,d=0,e=0;
@@ -594,6 +595,8 @@ void dumpregs()
         x87_dumpregs();
         indump = 0;
 }
+
+#endif
 
 int x86_was_reset = 0;
 void resetx86()

@@ -20,7 +20,6 @@
 int stimes = 0;
 int dtimes = 0;
 int btimes = 0;
-int is486=1;
 
 uint32_t abrt_error;
 int cgate16,cgate32;
@@ -35,6 +34,7 @@ void taskswitch386(uint16_t seg, uint16_t *segdat);
 /*NOT PRESENT is INT 0B
   GPF is INT 0D*/
 
+#ifndef UAE
 FILE *pclogf;
 void x86abort(const char *format, ...)
 {
@@ -57,6 +57,17 @@ void x86abort(const char *format, ...)
         dumpregs();
         exit(-1);
 }
+#else
+void x86abort(const char *format, ...)
+{
+    char buf[256];
+    va_list ap;
+    va_start(ap, format);
+    vsprintf(buf, format, ap);
+    va_end(ap);
+    fatal(buf);
+}
+#endif
 
 static void seg_reset(x86seg *s)
 {

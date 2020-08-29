@@ -176,7 +176,7 @@ uint8_t cms_read(uint16_t addr, void *p)
 
 void *cms_init()
 {
-        cms_t *cms = malloc(sizeof(cms_t));
+        cms_t *cms = (cms_t*)malloc(sizeof(cms_t));
         memset(cms, 0, sizeof(cms_t));
 
         pclog("cms_init\n");

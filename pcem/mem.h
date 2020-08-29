@@ -66,6 +66,33 @@ void mem_mapping_enable(mem_mapping_t *mapping);
 
 void mem_set_mem_state(uint32_t base, uint32_t size, int state);
 
+#ifdef UAE
+void mem_mapping_addx(mem_mapping_t *mapping,
+    uint32_t base,
+    uint32_t size,
+    uint8_t(*read_b)(uint32_t addr, void *p),
+    uint16_t(*read_w)(uint32_t addr, void *p),
+    uint32_t(*read_l)(uint32_t addr, void *p),
+    void (*write_b)(uint32_t addr, uint8_t  val, void *p),
+    void (*write_w)(uint32_t addr, uint16_t val, void *p),
+    void (*write_l)(uint32_t addr, uint32_t val, void *p),
+    uint8_t *exec,
+    uint32_t flags,
+    void *p);
+void mem_mapping_set_handlerx(mem_mapping_t *mapping,
+    uint8_t(*read_b)(uint32_t addr, void *p),
+    uint16_t(*read_w)(uint32_t addr, void *p),
+    uint32_t(*read_l)(uint32_t addr, void *p),
+    void (*write_b)(uint32_t addr, uint8_t  val, void *p),
+    void (*write_w)(uint32_t addr, uint16_t val, void *p),
+    void (*write_l)(uint32_t addr, uint32_t val, void *p));
+void mem_mapping_set_addrx(mem_mapping_t *mapping, uint32_t base, uint32_t size);
+void mem_mapping_disablex(mem_mapping_t *mapping);
+void mem_mapping_enablex(mem_mapping_t *mapping);
+void mem_mapping_set_px(mem_mapping_t *mapping, void *p);
+
+#endif
+
 #define MEM_READ_ANY       0x00
 #define MEM_READ_INTERNAL  0x10
 #define MEM_READ_EXTERNAL  0x20
@@ -106,8 +133,8 @@ void mem_write_nulll(uint32_t addr, uint32_t val, void *p);
 
 FILE *romfopen(char *fn, char *mode);
 
-mem_mapping_t bios_mapping[8];
-mem_mapping_t bios_high_mapping[8];
+extern mem_mapping_t bios_mapping[8];
+extern mem_mapping_t bios_high_mapping[8];
 
 extern mem_mapping_t ram_high_mapping;
 extern mem_mapping_t ram_remapped_mapping;
@@ -222,6 +249,9 @@ void mem_add_bios();
 
 void mem_init();
 void mem_alloc();
+#ifdef UAE
+void mem_free();
+#endif
 
 void mem_set_704kb();
 

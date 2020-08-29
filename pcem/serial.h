@@ -8,9 +8,7 @@ void serial1_remove();
 void serial2_remove();
 void serial_reset();
 
-struct SERIAL;
-
-typedef struct
+typedef struct SERIAL
 {
         uint8_t lsr,thr,mctrl,rcr,iir,ier,lcr,msr;
         uint8_t dlab1,dlab2;
@@ -22,7 +20,7 @@ typedef struct
         int irq;
         uint16_t addr;
 
-        void (*rcr_callback)(struct SERIAL *serial, void *p);
+        void (*rcr_callback)(SERIAL *serial, void *p);
         void *rcr_callback_p;
         uint8_t fifo[256];
         int fifo_read, fifo_write;

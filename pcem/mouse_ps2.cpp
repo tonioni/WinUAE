@@ -243,7 +243,7 @@ void *mouse_ps2_init()
 
 void *mouse_intellimouse_init()
 {
-        mouse_ps2_t *mouse = mouse_ps2_init();
+        mouse_ps2_t *mouse = (mouse_ps2_t*)mouse_ps2_init();
 
         mouse->is_intellimouse = 1;
                 

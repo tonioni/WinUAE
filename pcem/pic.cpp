@@ -4,6 +4,10 @@
 #include "pit.h"
 #include "video.h"
 
+#ifdef UAE
+void x86_ack_keyboard(void);
+#endif
+
 int intclear;
 int keywaiting=0;
 int pic_intpending;
@@ -120,7 +124,12 @@ void pic_write(uint16_t addr, uint8_t val, void *priv)
 //                        printf("Clear ints - %02X %02X\n",pic.ins,val);
                         if ((val&0xE0)==0x60)
                         {
-//                                pclog("Specific EOI - %02X %i\n",pic.ins,1<<(val&7));
+//                              pclog("Specific EOI - %02X %i\n",pic.ins,1<<(val&7));
+#ifdef UAE
+                                if ((pic.ins & (1 << 1)) && ((val & 7) == 1)) {
+                                    x86_ack_keyboard();
+                                }
+#endif
                                 pic.ins&=~(1<<(val&7));
                                 pic_update_mask(&pic.mask2, pic.ins);
                                 if (val == 2 && (pic2.pend&~pic2.mask)&~pic2.mask2)
@@ -140,6 +149,12 @@ void pic_write(uint16_t addr, uint8_t val, void *priv)
 
                                                 if (c == 2 && (pic2.pend&~pic2.mask)&~pic2.mask2)
                                                         pic.pend |= (1 << 2);
+
+#ifdef UAE
+                                                if (c == 1) {
+                                                    x86_ack_keyboard();
+                                                }
+#endif
 
                                                 if (c==1 && keywaiting)
                                                 {

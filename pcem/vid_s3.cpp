@@ -146,7 +146,7 @@ typedef struct s3_t
         
         uint32_t hwc_fg_col, hwc_bg_col;
         int hwc_col_stack_pos;
-        
+
         volatile int force_busy;
 } s3_t;
 
@@ -156,7 +156,7 @@ typedef struct s3_t
 #define INT_FIFO_EMP (1 << 3)
 #define INT_MASK     0xf
 
-void s3_updatemapping();
+void s3_updatemapping(s3_t*);
 
 void s3_accel_write(uint32_t addr, uint8_t val, void *p);
 void s3_accel_write_w(uint32_t addr, uint16_t val, void *p);
@@ -177,12 +177,24 @@ static void s3_wait_fifo_idle(s3_t *s3)
         }
 }
 
+static int s3_vga_vsync_enabled(s3_t *s3)
+{
+    if (!(s3->svga.crtc[0x11] & 0x20) && (s3->svga.crtc[0x11] & 0x10) && (s3->svga.crtc[0x32] & 0x10))
+        return 1;
+    return 0;
+}
+
 static void s3_update_irqs(s3_t *s3)
 {
-        if (s3->subsys_cntl & s3->subsys_stat & INT_MASK)
+        int enabled = s3_vga_vsync_enabled(s3);
+        if ((s3->subsys_cntl & s3->subsys_stat & INT_MASK) || (enabled && (s3->subsys_stat & INT_VSY)))
                 pci_set_irq(s3->card, PCI_INTA);
         else
                 pci_clear_irq(s3->card, PCI_INTA);
+
+        if ((s3->subsys_stat & INT_VSY) && !(s3->subsys_stat & INT_VSY) && !enabled) {
+            s3->subsys_stat &= ~INT_VSY;
+        }
 }
 
 void s3_accel_start(int count, int cpu_input, uint32_t mix_dat, uint32_t cpu_dat, s3_t *s3);
@@ -525,9 +537,11 @@ static void s3_accel_out_fifo(s3_t *s3, uint16_t port, uint8_t val)
                 break;
                 
                 case 0xbee8:
+                case 0xbeea:
                 s3->accel.multifunc_cntl = (s3->accel.multifunc_cntl & 0xff00) | val;
                 break;
                 case 0xbee9:
+                case 0xbeeb:
                 s3->accel.multifunc_cntl = (s3->accel.multifunc_cntl & 0xff) | (val << 8);
                 s3->accel.multifunc[s3->accel.multifunc_cntl >> 12] = s3->accel.multifunc_cntl & 0xfff;
                 break;
@@ -920,9 +934,10 @@ static void fifo_thread(void *param)
 static void s3_vblank_start(svga_t *svga)
 {
         s3_t *s3 = (s3_t *)svga->p;
-
-        s3->subsys_stat |= INT_VSY;
-        s3_update_irqs(s3);
+        if ((s3->subsys_cntl & INT_VSY) || s3_vga_vsync_enabled(s3)) {
+                s3->subsys_stat |= INT_VSY;
+                s3_update_irqs(s3);
+        }
 }
 
 static void s3_queue(s3_t *s3, uint32_t addr, uint32_t val, uint32_t type)
@@ -1004,11 +1019,18 @@ void s3_out(uint16_t addr, uint8_t val, void *p)
                 svga->crtc[svga->crtcreg] = val;
                 switch (svga->crtcreg)
                 {
+                        case 0x11:
+                        if (!(val & 0x10))
+                            s3->subsys_stat &= ~INT_VSY;
+                        s3_update_irqs(s3);
+                        break;
+
                         case 0x31:
                         s3->ma_ext = (s3->ma_ext & 0x1c) | ((val & 0x30) >> 4);
                         break;
                         case 0x32:
                         svga->vram_display_mask = (val & 0x40) ? 0x3ffff : s3->vram_mask;
+                        s3_update_irqs(s3);
                         break;
                                                 
                         case 0x50:
@@ -1135,6 +1157,7 @@ uint8_t s3_in(uint16_t addr, void *p)
 {
         s3_t *s3 = (s3_t *)p;
         svga_t *svga = &s3->svga;
+        uint8_t ret;
 
         if (((addr & 0xfff0) == 0x3d0 || (addr & 0xfff0) == 0x3b0) && !(svga->miscout & 1)) 
                 addr ^= 0x60;
@@ -1147,6 +1170,12 @@ uint8_t s3_in(uint16_t addr, void *p)
                         return 0xff;
                 break;
                         
+                /* UAE UPDATE */
+                case 0x3c2:
+                    ret = svga_in(addr, svga);
+                    ret |= (s3->subsys_stat & INT_VSY) ? 0x80 : 0x00;
+                    return ret;
+
                 case 0x3c5:
                 if (svga->seqaddr >= 0x10 && svga->seqaddr < 0x20)
                         return svga->seqregs[svga->seqaddr];
@@ -1210,7 +1239,7 @@ void s3_recalctimings(svga_t *svga)
         else if (svga->crtc[0x43] & 0x04) svga->rowoffset  += 0x100;
         if (!svga->rowoffset) svga->rowoffset = 256;
         svga->interlace = svga->crtc[0x42] & 0x20;
-        svga->clock = (cpuclock * (float)(1ull << 32)) / s3->getclock(clk_sel, s3->getclock_p);
+        //svga->clock = (cpuclock * (float)(1ull << 32)) / s3->getclock(clk_sel, s3->getclock_p);
 
         switch (svga->crtc[0x67] >> 4)
         {
@@ -1257,9 +1286,9 @@ void s3_updatemapping(s3_t *s3)
         if (!(s3->pci_regs[PCI_REG_COMMAND] & PCI_COMMAND_MEM))
         {
 //                pclog("Update mapping - PCI disabled\n");
-                mem_mapping_disable(&svga->mapping);
-                mem_mapping_disable(&s3->linear_mapping);
-                mem_mapping_disable(&s3->mmio_mapping);
+                mem_mapping_disablex(&svga->mapping);
+                mem_mapping_disablex(&s3->linear_mapping);
+                mem_mapping_disablex(&s3->mmio_mapping);
                 return;
         }
 
@@ -1268,25 +1297,25 @@ void s3_updatemapping(s3_t *s3)
         if (svga->crtc[0x31] & 0x08) /*Enhanced mode mappings*/
         {
                 /*Enhanced mapping forces 64kb at 0xa0000*/
-                mem_mapping_set_addr(&svga->mapping, 0xa0000, 0x10000);
+                mem_mapping_set_addrx(&svga->mapping, 0xa0000, 0x10000);
                 svga->banked_mask = 0xffff;
         }
         else switch (svga->gdcreg[6] & 0xc) /*VGA mapping*/
         {
                 case 0x0: /*128k at A0000*/
-                mem_mapping_set_addr(&svga->mapping, 0xa0000, 0x20000);
+                mem_mapping_set_addrx(&svga->mapping, 0xa0000, 0x20000);
                 svga->banked_mask = 0xffff;
                 break;
                 case 0x4: /*64k at A0000*/
-                mem_mapping_set_addr(&svga->mapping, 0xa0000, 0x10000);
+                mem_mapping_set_addrx(&svga->mapping, 0xa0000, 0x10000);
                 svga->banked_mask = 0xffff;
                 break;
                 case 0x8: /*32k at B0000*/
-                mem_mapping_set_addr(&svga->mapping, 0xb0000, 0x08000);
+                mem_mapping_set_addrx(&svga->mapping, 0xb0000, 0x08000);
                 svga->banked_mask = 0x7fff;
                 break;
                 case 0xC: /*32k at B8000*/
-                mem_mapping_set_addr(&svga->mapping, 0xb8000, 0x08000);
+                mem_mapping_set_addrx(&svga->mapping, 0xb8000, 0x08000);
                 svga->banked_mask = 0x7fff;
                 break;
         }
@@ -1294,7 +1323,7 @@ void s3_updatemapping(s3_t *s3)
 //        pclog("Linear framebuffer %02X ", svga->crtc[0x58] & 0x10);
         if (svga->crtc[0x58] & 0x10) /*Linear framebuffer*/
         {
-                mem_mapping_disable(&svga->mapping);
+                mem_mapping_disablex(&svga->mapping);
                 
                 s3->linear_base = (svga->crtc[0x5a] << 16) | (svga->crtc[0x59] << 24);
                 switch (svga->crtc[0x58] & 3)
@@ -1317,28 +1346,28 @@ void s3_updatemapping(s3_t *s3)
 //                pclog("Linear framebuffer at %08X size %08X\n", s3->linear_base, s3->linear_size);
                 if (s3->linear_base == 0xa0000)
                 {
-                        mem_mapping_disable(&s3->linear_mapping);
+                        mem_mapping_disablex(&s3->linear_mapping);
                         if (!(svga->crtc[0x53] & 0x10))
                         {
-                                mem_mapping_set_addr(&svga->mapping, 0xa0000, 0x10000);
+                                mem_mapping_set_addrx(&svga->mapping, 0xa0000, 0x10000);
                                 svga->banked_mask = 0xffff;
                         }
-//                        mem_mapping_set_addr(&s3->linear_mapping, 0xa0000, 0x10000);
+//                        mem_mapping_set_addrx(&s3->linear_mapping, 0xa0000, 0x10000);
                 }
                 else
-                        mem_mapping_set_addr(&s3->linear_mapping, s3->linear_base, s3->linear_size);
+                        mem_mapping_set_addrx(&s3->linear_mapping, s3->linear_base, s3->linear_size);
         }
         else
-                mem_mapping_disable(&s3->linear_mapping);
+                mem_mapping_disablex(&s3->linear_mapping);
         
 //        pclog("Memory mapped IO %02X\n", svga->crtc[0x53] & 0x10);
         if (svga->crtc[0x53] & 0x10) /*Memory mapped IO*/
         {
-                mem_mapping_disable(&svga->mapping);
-                mem_mapping_enable(&s3->mmio_mapping);
+                mem_mapping_disablex(&svga->mapping);
+                mem_mapping_enablex(&s3->mmio_mapping);
         }
         else
-                mem_mapping_disable(&s3->mmio_mapping);
+                mem_mapping_disablex(&s3->mmio_mapping);
 }
 
 static float s3_trio64_getclock(int clock, void *p)
@@ -1729,7 +1758,13 @@ void s3_accel_start(int count, int cpu_input, uint32_t mix_dat, uint32_t cpu_dat
         
         if ((s3->chip == S3_TRIO64) && (s3->accel.cmd & (1 << 11)))
                 cmd |= 8;
-        
+
+        // Amiga CGX4 driver sets all clipping values to FFF.
+        if (clip_t == 0xfff)
+            clip_t = 0;
+        if (clip_l == 0xfff)
+            clip_l = 0;
+
         s3->force_busy = 1;
 //return;
 //        if (!cpu_input) pclog("Start S3 command %i  %i, %i  %i, %i (clip %i, %i to %i, %i  %i)\n", s3->accel.cmd >> 13, s3->accel.cur_x, s3->accel.cur_y, s3->accel.maj_axis_pcnt & 0xfff, s3->accel.multifunc[0]  & 0xfff, clip_l, clip_t, clip_r, clip_b, s3->accel.multifunc[0xe] & 0x20);
@@ -2522,68 +2557,67 @@ void s3_hwcursor_draw(svga_t *svga, int displine)
 
 static void s3_io_remove(s3_t *s3)
 {
-        io_removehandler(0x03c0, 0x0020, s3_in, NULL, NULL, s3_out, NULL, NULL, s3);
+        io_removehandlerx(0x03c0, 0x0020, s3_in, NULL, NULL, s3_out, NULL, NULL, s3);
         
-        io_removehandler(0x42e8, 0x0002, s3_accel_in, NULL, NULL, s3_accel_out, NULL, NULL,  s3);
-        io_removehandler(0x46e8, 0x0002, s3_accel_in, NULL, NULL, s3_accel_out, NULL, NULL,  s3);
-        io_removehandler(0x4ae8, 0x0002, s3_accel_in, NULL, NULL, s3_accel_out, NULL, NULL,  s3);
-        io_removehandler(0x82e8, 0x0002, s3_accel_in, NULL, NULL, s3_accel_out, NULL, NULL,  s3);
-        io_removehandler(0x86e8, 0x0002, s3_accel_in, NULL, NULL, s3_accel_out, NULL, NULL,  s3);
-        io_removehandler(0x8ae8, 0x0002, s3_accel_in, NULL, NULL, s3_accel_out, NULL, NULL,  s3);
-        io_removehandler(0x8ee8, 0x0002, s3_accel_in, NULL, NULL, s3_accel_out, NULL, NULL,  s3);
-        io_removehandler(0x92e8, 0x0002, s3_accel_in, NULL, NULL, s3_accel_out, NULL, NULL,  s3);
-        io_removehandler(0x96e8, 0x0002, s3_accel_in, NULL, NULL, s3_accel_out, NULL, NULL,  s3);
-        io_removehandler(0x9ae8, 0x0002, s3_accel_in, NULL, NULL, s3_accel_out, NULL, NULL,  s3);
-        io_removehandler(0x9ee8, 0x0002, s3_accel_in, NULL, NULL, s3_accel_out, NULL, NULL,  s3);
-        io_removehandler(0xa2e8, 0x0004, s3_accel_in, NULL, NULL, s3_accel_out, NULL, NULL,  s3);
-        io_removehandler(0xa6e8, 0x0004, s3_accel_in, NULL, NULL, s3_accel_out, NULL, NULL,  s3);
-        io_removehandler(0xaae8, 0x0004, s3_accel_in, NULL, NULL, s3_accel_out, NULL, NULL,  s3);
-        io_removehandler(0xaee8, 0x0004, s3_accel_in, NULL, NULL, s3_accel_out, NULL, NULL,  s3);
-        io_removehandler(0xb2e8, 0x0004, s3_accel_in, NULL, NULL, s3_accel_out, NULL, NULL,  s3);
-        io_removehandler(0xb6e8, 0x0002, s3_accel_in, NULL, NULL, s3_accel_out, NULL, NULL,  s3);
-        io_removehandler(0xbae8, 0x0002, s3_accel_in, NULL, NULL, s3_accel_out, NULL, NULL,  s3);
-        io_removehandler(0xbee8, 0x0002, s3_accel_in, NULL, NULL, s3_accel_out, NULL, NULL,  s3);
-        io_removehandler(0xe2e8, 0x0004, s3_accel_in, NULL, NULL, s3_accel_out, s3_accel_out_w, s3_accel_out_l,  s3);
+        io_removehandlerx(0x42e8, 0x0002, s3_accel_in, NULL, NULL, s3_accel_out, NULL, NULL,  s3);
+        io_removehandlerx(0x46e8, 0x0002, s3_accel_in, NULL, NULL, s3_accel_out, NULL, NULL,  s3);
+        io_removehandlerx(0x4ae8, 0x0002, s3_accel_in, NULL, NULL, s3_accel_out, NULL, NULL,  s3);
+        io_removehandlerx(0x82e8, 0x0002, s3_accel_in, NULL, NULL, s3_accel_out, NULL, NULL,  s3);
+        io_removehandlerx(0x86e8, 0x0002, s3_accel_in, NULL, NULL, s3_accel_out, NULL, NULL,  s3);
+        io_removehandlerx(0x8ae8, 0x0002, s3_accel_in, NULL, NULL, s3_accel_out, NULL, NULL,  s3);
+        io_removehandlerx(0x8ee8, 0x0002, s3_accel_in, NULL, NULL, s3_accel_out, NULL, NULL,  s3);
+        io_removehandlerx(0x92e8, 0x0002, s3_accel_in, NULL, NULL, s3_accel_out, NULL, NULL,  s3);
+        io_removehandlerx(0x96e8, 0x0002, s3_accel_in, NULL, NULL, s3_accel_out, NULL, NULL,  s3);
+        io_removehandlerx(0x9ae8, 0x0002, s3_accel_in, NULL, NULL, s3_accel_out, NULL, NULL,  s3);
+        io_removehandlerx(0x9ee8, 0x0002, s3_accel_in, NULL, NULL, s3_accel_out, NULL, NULL,  s3);
+        io_removehandlerx(0xa2e8, 0x0004, s3_accel_in, NULL, NULL, s3_accel_out, NULL, NULL,  s3);
+        io_removehandlerx(0xa6e8, 0x0004, s3_accel_in, NULL, NULL, s3_accel_out, NULL, NULL,  s3);
+        io_removehandlerx(0xaae8, 0x0004, s3_accel_in, NULL, NULL, s3_accel_out, NULL, NULL,  s3);
+        io_removehandlerx(0xaee8, 0x0004, s3_accel_in, NULL, NULL, s3_accel_out, NULL, NULL,  s3);
+        io_removehandlerx(0xb2e8, 0x0004, s3_accel_in, NULL, NULL, s3_accel_out, NULL, NULL,  s3);
+        io_removehandlerx(0xb6e8, 0x0002, s3_accel_in, NULL, NULL, s3_accel_out, NULL, NULL,  s3);
+        io_removehandlerx(0xbae8, 0x0002, s3_accel_in, NULL, NULL, s3_accel_out, NULL, NULL,  s3);
+        io_removehandlerx(0xe2e8, 0x0004, s3_accel_in, NULL, NULL, s3_accel_out, s3_accel_out_w, s3_accel_out_l,  s3);
 }
 
 static void s3_io_set(s3_t *s3)
 {
         s3_io_remove(s3);
 
-        io_sethandler(0x03c0, 0x0020, s3_in, NULL, NULL, s3_out, NULL, NULL, s3);
+        io_sethandlerx(0x03c0, 0x0020, s3_in, NULL, NULL, s3_out, NULL, NULL, s3);
         
-        io_sethandler(0x42e8, 0x0002, s3_accel_in, NULL, NULL, s3_accel_out, NULL, NULL,  s3);
-        io_sethandler(0x46e8, 0x0002, s3_accel_in, NULL, NULL, s3_accel_out, NULL, NULL,  s3);
-        io_sethandler(0x4ae8, 0x0002, s3_accel_in, NULL, NULL, s3_accel_out, NULL, NULL,  s3);
+        io_sethandlerx(0x42e8, 0x0002, s3_accel_in, NULL, NULL, s3_accel_out, NULL, NULL,  s3);
+        io_sethandlerx(0x46e8, 0x0002, s3_accel_in, NULL, NULL, s3_accel_out, NULL, NULL,  s3);
+        io_sethandlerx(0x4ae8, 0x0002, s3_accel_in, NULL, NULL, s3_accel_out, NULL, NULL,  s3);
         if (s3->chip == S3_TRIO64)
         {
-                io_sethandler(0x82e8, 0x0004, s3_accel_in, NULL, NULL, s3_accel_out, NULL, NULL,  s3);
-                io_sethandler(0x86e8, 0x0004, s3_accel_in, NULL, NULL, s3_accel_out, NULL, NULL,  s3);
-                io_sethandler(0x8ae8, 0x0004, s3_accel_in, NULL, NULL, s3_accel_out, NULL, NULL,  s3);
-                io_sethandler(0x8ee8, 0x0004, s3_accel_in, NULL, NULL, s3_accel_out, NULL, NULL,  s3);
-                io_sethandler(0x92e8, 0x0004, s3_accel_in, NULL, NULL, s3_accel_out, NULL, NULL,  s3);
-                io_sethandler(0x96e8, 0x0004, s3_accel_in, NULL, NULL, s3_accel_out, NULL, NULL,  s3);
+                io_sethandlerx(0x82e8, 0x0004, s3_accel_in, NULL, NULL, s3_accel_out, NULL, NULL,  s3);
+                io_sethandlerx(0x86e8, 0x0004, s3_accel_in, NULL, NULL, s3_accel_out, NULL, NULL,  s3);
+                io_sethandlerx(0x8ae8, 0x0004, s3_accel_in, NULL, NULL, s3_accel_out, NULL, NULL,  s3);
+                io_sethandlerx(0x8ee8, 0x0004, s3_accel_in, NULL, NULL, s3_accel_out, NULL, NULL,  s3);
+                io_sethandlerx(0x92e8, 0x0004, s3_accel_in, NULL, NULL, s3_accel_out, NULL, NULL,  s3);
+                io_sethandlerx(0x96e8, 0x0004, s3_accel_in, NULL, NULL, s3_accel_out, NULL, NULL,  s3);
         }
         else
         {
-                io_sethandler(0x82e8, 0x0002, s3_accel_in, NULL, NULL, s3_accel_out, NULL, NULL,  s3);
-                io_sethandler(0x86e8, 0x0002, s3_accel_in, NULL, NULL, s3_accel_out, NULL, NULL,  s3);
-                io_sethandler(0x8ae8, 0x0002, s3_accel_in, NULL, NULL, s3_accel_out, NULL, NULL,  s3);
-                io_sethandler(0x8ee8, 0x0002, s3_accel_in, NULL, NULL, s3_accel_out, NULL, NULL,  s3);
-                io_sethandler(0x92e8, 0x0002, s3_accel_in, NULL, NULL, s3_accel_out, NULL, NULL,  s3);
-                io_sethandler(0x96e8, 0x0002, s3_accel_in, NULL, NULL, s3_accel_out, NULL, NULL,  s3);
+                io_sethandlerx(0x82e8, 0x0002, s3_accel_in, NULL, NULL, s3_accel_out, NULL, NULL,  s3);
+                io_sethandlerx(0x86e8, 0x0002, s3_accel_in, NULL, NULL, s3_accel_out, NULL, NULL,  s3);
+                io_sethandlerx(0x8ae8, 0x0002, s3_accel_in, NULL, NULL, s3_accel_out, NULL, NULL,  s3);
+                io_sethandlerx(0x8ee8, 0x0002, s3_accel_in, NULL, NULL, s3_accel_out, NULL, NULL,  s3);
+                io_sethandlerx(0x92e8, 0x0002, s3_accel_in, NULL, NULL, s3_accel_out, NULL, NULL,  s3);
+                io_sethandlerx(0x96e8, 0x0002, s3_accel_in, NULL, NULL, s3_accel_out, NULL, NULL,  s3);
         }
-        io_sethandler(0x9ae8, 0x0002, s3_accel_in, NULL, NULL, s3_accel_out, NULL, NULL,  s3);
-        io_sethandler(0x9ee8, 0x0002, s3_accel_in, NULL, NULL, s3_accel_out, NULL, NULL,  s3);
-        io_sethandler(0xa2e8, 0x0004, s3_accel_in, NULL, NULL, s3_accel_out, NULL, NULL,  s3);
-        io_sethandler(0xa6e8, 0x0004, s3_accel_in, NULL, NULL, s3_accel_out, NULL, NULL,  s3);
-        io_sethandler(0xaae8, 0x0004, s3_accel_in, NULL, NULL, s3_accel_out, NULL, NULL,  s3);
-        io_sethandler(0xaee8, 0x0004, s3_accel_in, NULL, NULL, s3_accel_out, NULL, NULL,  s3);
-        io_sethandler(0xb2e8, 0x0004, s3_accel_in, NULL, NULL, s3_accel_out, NULL, NULL,  s3);
-        io_sethandler(0xb6e8, 0x0002, s3_accel_in, NULL, NULL, s3_accel_out, NULL, NULL,  s3);
-        io_sethandler(0xbae8, 0x0002, s3_accel_in, NULL, NULL, s3_accel_out, NULL, NULL,  s3);
-        io_sethandler(0xbee8, 0x0002, s3_accel_in, NULL, NULL, s3_accel_out, NULL, NULL,  s3);
-        io_sethandler(0xe2e8, 0x0004, s3_accel_in, NULL, NULL, s3_accel_out, s3_accel_out_w, s3_accel_out_l,  s3);
+        io_sethandlerx(0x9ae8, 0x0002, s3_accel_in, NULL, NULL, s3_accel_out, NULL, NULL,  s3);
+        io_sethandlerx(0x9ee8, 0x0002, s3_accel_in, NULL, NULL, s3_accel_out, NULL, NULL,  s3);
+        io_sethandlerx(0xa2e8, 0x0004, s3_accel_in, NULL, NULL, s3_accel_out, NULL, NULL,  s3);
+        io_sethandlerx(0xa6e8, 0x0004, s3_accel_in, NULL, NULL, s3_accel_out, NULL, NULL,  s3);
+        io_sethandlerx(0xaae8, 0x0004, s3_accel_in, NULL, NULL, s3_accel_out, NULL, NULL,  s3);
+        io_sethandlerx(0xaee8, 0x0004, s3_accel_in, NULL, NULL, s3_accel_out, NULL, NULL,  s3);
+        io_sethandlerx(0xb2e8, 0x0004, s3_accel_in, NULL, NULL, s3_accel_out, NULL, NULL,  s3);
+        io_sethandlerx(0xb6e8, 0x0002, s3_accel_in, NULL, NULL, s3_accel_out, NULL, NULL,  s3);
+        io_sethandlerx(0xbae8, 0x0002, s3_accel_in, NULL, NULL, s3_accel_out, NULL, NULL,  s3);
+        io_sethandlerx(0xbee8, 0x0002, s3_accel_in, NULL, NULL, s3_accel_out, NULL, NULL,  s3);
+        io_sethandlerx(0xe2e8, 0x0004, s3_accel_in, NULL, NULL, s3_accel_out, s3_accel_out_w, s3_accel_out_l,  s3);
 }
 
         
@@ -2658,12 +2692,12 @@ void s3_pci_write(int func, int addr, uint8_t val, void *p)
                 {
                         uint32_t addr = (s3->pci_regs[0x32] << 16) | (s3->pci_regs[0x33] << 24);
 //                        pclog("S3 bios_rom enabled at %08x\n", addr);
-                        mem_mapping_set_addr(&s3->bios_rom.mapping, addr, 0x8000);
+                        mem_mapping_set_addrx(&s3->bios_rom.mapping, addr, 0x8000);
                 }
                 else
                 {
 //                        pclog("S3 bios_rom disabled\n");
-                        mem_mapping_disable(&s3->bios_rom.mapping);
+                        mem_mapping_disablex(&s3->bios_rom.mapping);
                 }
                 return;
                 
@@ -2688,7 +2722,7 @@ static int vram_sizes[] =
 
 static void *s3_init(char *bios_fn, int chip)
 {
-        s3_t *s3 = malloc(sizeof(s3_t));
+        s3_t *s3 = (s3_t*)malloc(sizeof(s3_t));
         svga_t *svga = &s3->svga;
         int vram;
         uint32_t vram_size;
@@ -2704,11 +2738,11 @@ static void *s3_init(char *bios_fn, int chip)
 
         rom_init(&s3->bios_rom, bios_fn, 0xc0000, 0x8000, 0x7fff, 0, MEM_MAPPING_EXTERNAL);
         if (PCI)
-                mem_mapping_disable(&s3->bios_rom.mapping);
+                mem_mapping_disablex(&s3->bios_rom.mapping);
 
-        mem_mapping_add(&s3->linear_mapping, 0,       0,       svga_read_linear, svga_readw_linear, svga_readl_linear, svga_write_linear, svga_writew_linear, svga_writel_linear, NULL, MEM_MAPPING_EXTERNAL, &s3->svga);
-        mem_mapping_add(&s3->mmio_mapping,   0xa0000, 0x10000, s3_accel_read, NULL, NULL, s3_accel_write, s3_accel_write_w, s3_accel_write_l, NULL, MEM_MAPPING_EXTERNAL, s3);
-        mem_mapping_disable(&s3->mmio_mapping);
+        mem_mapping_addx(&s3->linear_mapping, 0,       0,       svga_read_linear, svga_readw_linear, svga_readl_linear, svga_write_linear, svga_writew_linear, svga_writel_linear, NULL, MEM_MAPPING_EXTERNAL, &s3->svga);
+        mem_mapping_addx(&s3->mmio_mapping,   0xa0000, 0x10000, s3_accel_read, NULL, NULL, s3_accel_write, s3_accel_write_w, s3_accel_write_l, NULL, MEM_MAPPING_EXTERNAL, s3);
+        mem_mapping_disablex(&s3->mmio_mapping);
 
         svga_init(&s3->svga, s3, vram_size, /*4mb - 864 supports 8mb but buggy VESA driver reports 0mb*/
                    s3_recalctimings,
@@ -2770,6 +2804,7 @@ static void *s3_init(char *bios_fn, int chip)
         return s3;
 }
 
+#ifndef UAE
 void *s3_bahamas64_init()
 {
         s3_t *s3 = s3_init("bahamas64.bin", S3_VISION864);
@@ -2850,6 +2885,22 @@ int s3_phoenix_trio64_available()
         return rom_present("86c764x1.bin");
 }
 
+#endif
+
+void *s3_cybervision_init()
+{
+    s3_t *s3 = (s3_t*)s3_init("86c764x1.bin", S3_TRIO64);
+
+    s3->id = 0xe1; /*Trio64*/
+    s3->packed_mmio = 1;
+
+    s3->getclock = s3_trio64_getclock;
+    s3->getclock_p = s3;
+    s3->svga.fb_only = -1;
+
+    return s3;
+}
+
 void s3_close(void *p)
 {
         s3_t *s3 = (s3_t *)p;
@@ -2894,6 +2945,8 @@ void s3_add_status_info(char *s, int max_len, void *p)
 
         s3->blitter_time = 0;
 }
+
+#ifndef UAE
 
 static device_config_t s3_bahamas64_config[] =
 {
@@ -3067,3 +3120,20 @@ device_t s3_phoenix_trio64_device =
         s3_add_status_info,
         s3_phoenix_trio64_config
 };
+
+#else
+
+device_t s3_cybervision_trio64_device =
+{
+    "CyberVision64",
+    0,
+    s3_cybervision_init,
+    s3_close,
+    NULL,
+    s3_speed_changed,
+    s3_force_redraw,
+    s3_add_status_info,
+    NULL
+};
+
+#endif

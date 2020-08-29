@@ -648,12 +648,19 @@ void svga_render_24bpp_lowres(svga_t *svga)
 
                 offset = (8 - (svga->scrollcache & 6)) + 24;
 
-                for (x = 0; x <= svga->hdisp; x++)
-                {
-                        fg = svga->vram[svga->ma] | (svga->vram[svga->ma + 1] << 8) | (svga->vram[svga->ma + 2] << 16);
-                        svga->ma += 3; 
+                if (svga->swaprb) {
+                        fg = svga->vram[svga->ma + 2] | (svga->vram[svga->ma + 1] << 8) | (svga->vram[svga->ma + 0] << 16);
+                        svga->ma += 3;
                         svga->ma &= svga->vram_display_mask;
                         ((uint32_t *)buffer32->line[svga->displine])[(x << 1) + offset] = ((uint32_t *)buffer32->line[svga->displine])[(x << 1) + 1 + offset] = fg;
+                } else {
+                    for (x = 0; x <= svga->hdisp; x++)
+                    {
+                        fg = svga->vram[svga->ma] | (svga->vram[svga->ma + 1] << 8) | (svga->vram[svga->ma + 2] << 16);
+                        svga->ma += 3;
+                        svga->ma &= svga->vram_display_mask;
+                        ((uint32_t *)buffer32->line[svga->displine])[(x << 1) + offset] = ((uint32_t *)buffer32->line[svga->displine])[(x << 1) + 1 + offset] = fg;
+                    }
                 }
         }
 }
@@ -670,21 +677,32 @@ void svga_render_24bpp_highres(svga_t *svga)
                         svga->firstline_draw = svga->displine;
                 svga->lastline_draw = svga->displine;
 
-                for (x = 0; x <= svga->hdisp; x += 4)
-                {
+                if (svga->swaprb) {
+                    uint32_t dat;
+                    for (x = 0; x <= svga->hdisp; x++)
+                    {
+                        dat = svga->vram[svga->ma + 2] | (svga->vram[svga->ma + 1] << 8) | (svga->vram[svga->ma + 0] << 16);
+                        p[x] = dat;
+                        svga->ma += 3;
+                        svga->ma &= svga->vram_display_mask;
+                    }
+                } else {
+                    for (x = 0; x <= svga->hdisp; x += 4)
+                    {
                         uint32_t dat = *(uint32_t *)(&svga->vram[svga->ma & svga->vram_display_mask]);
                         p[x] = dat & 0xffffff;
-                        
+
                         dat = *(uint32_t *)(&svga->vram[(svga->ma + 3) & svga->vram_display_mask]);
                         p[x + 1] = dat & 0xffffff;
-                        
+
                         dat = *(uint32_t *)(&svga->vram[(svga->ma + 6) & svga->vram_display_mask]);
                         p[x + 2] = dat & 0xffffff;
-                        
+
                         dat = *(uint32_t *)(&svga->vram[(svga->ma + 9) & svga->vram_display_mask]);
                         p[x + 3] = dat & 0xffffff;
-                        
+
                         svga->ma += 12;
+                    }
                 }
                 svga->ma &= svga->vram_display_mask;
         }

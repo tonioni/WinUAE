@@ -88,7 +88,9 @@ static void timer_remove_head()
 		pc_timer_t *timer = timer_head;
 //		pclog("timer_remove_head %p %p\n", timer_head, timer_head->next);
 		timer_head = timer->next;
-		timer_head->prev = NULL;
+		if (timer_head) {
+			timer_head->prev = NULL;
+		}
 		timer->next = timer->prev = NULL;
 		timer->enabled = 0;
 	}

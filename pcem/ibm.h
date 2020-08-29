@@ -19,16 +19,30 @@
 #define readflash_get(offset, drive) ((readflash&(1<<((offset)+(drive)))) != 0)
 
 /*Memory*/
+
+#ifdef UAE
+extern uint8_t *ram;
+extern uint32_t rammask;
+#else
 uint8_t *ram;
-
 uint32_t rammask;
+#endif
 
+#ifdef UAE
+extern int readlookup[256], readlookupp[256];
+extern uintptr_t *readlookup2;
+extern int readlnext;
+extern int writelookup[256], writelookupp[256];
+extern uintptr_t *writelookup2;
+extern int writelnext;
+#else
 int readlookup[256],readlookupp[256];
 uintptr_t *readlookup2;
 int readlnext;
 int writelookup[256],writelookupp[256];
 uintptr_t *writelookup2;
 int writelnext;
+#endif
 
 extern int mmu_perm;
 
@@ -104,7 +118,11 @@ typedef struct PIT
         void (*set_out_funcs[3])(int new_out, int old_out);
 } PIT;
 
+#ifdef UAE
+extern PIT pit, pit2;
+#else
 PIT pit, pit2;
+#endif
 void setpitclock(float clock);
 
 float pit_timer0_freq();
@@ -133,7 +151,11 @@ typedef struct dma_t
         uint16_t io_addr;
 } dma_t;
 
+#ifdef UAE
+extern dma_t dma[8];
+#else
 dma_t dma[8];
+#endif
 
 /*PPI*/
 typedef struct PPI
@@ -142,8 +164,11 @@ typedef struct PPI
         uint8_t pa,pb;
 } PPI;
 
+#ifdef UAE
+extern PPI ppi;
+#else
 PPI ppi;
-
+#endif
 
 /*PIC*/
 typedef struct PIC
@@ -155,16 +180,25 @@ typedef struct PIC
         uint8_t level_sensitive;
 } PIC;
 
+#ifdef UAE
+extern PIC pic, pic2;
+#else
 PIC pic,pic2;
+#endif
 extern int pic_intpending;
 
 
+#ifdef UAE
+extern char discfns[2][256];
+extern int driveempty[2];
+#else
 char discfns[2][256];
 int driveempty[2];
+#endif
 
 #define PCJR (romset == ROM_IBMPCJR)
 
-int GAMEBLASTER, GUS, SSI2001, voodoo_enabled;
+extern int GAMEBLASTER, GUS, SSI2001, voodoo_enabled;
 extern int AMSTRAD, AT, is386, PCI, TANDY, MCA;
 
 enum
@@ -266,8 +300,13 @@ enum
 
 extern int romspresent[ROM_MAX];
 
+#ifdef UAE
+extern int hasfpu;
+extern int romset;
+#else
 int hasfpu;
 int romset;
+#endif
 
 enum
 {
@@ -319,13 +358,25 @@ enum
 
 extern int gfx_present[GFX_MAX];
 
+#ifdef UAE
+extern int gfxcard;
+#else
 int gfxcard;
+#endif
 
+#ifdef UAE
+extern int cpuspeed;
+#else
 int cpuspeed;
+#endif
 
 
 /*Video*/
+#ifdef UAE
+extern int readflash;
+#else
 int readflash;
+#endif
 extern int egareads,egawrites;
 extern int vid_resize;
 extern int vid_api;
@@ -335,13 +386,17 @@ extern int changeframecount;
 
 
 /*Sound*/
+#ifdef UAE
+extern int ppispeakon;
+extern int gated, speakval, speakon;
+#else
 int ppispeakon;
+int gated, speakval, speakon;
+#endif
 extern uint64_t CGACONST;
 extern uint64_t MDACONST;
 extern uint64_t VGACONST1,VGACONST2;
 extern uint64_t RTCCONST;
-int gated,speakval,speakon;
-
 
 /*Sound Blaster*/
 #define SADLIB    1     /*No DSP*/
@@ -365,11 +420,18 @@ typedef struct
         int tracks;
 } PcemHDC;
 
+#ifdef UAE
+extern PcemHDC hdc[7];
+#else
 PcemHDC hdc[7];
+#endif
 
 /*Keyboard*/
+#ifdef UAE
+extern int keybsenddelay;
+#else
 int keybsenddelay;
-
+#endif
 
 /*CD-ROM*/
 extern int cdrom_drive;

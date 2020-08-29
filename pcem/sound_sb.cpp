@@ -849,7 +849,7 @@ void *sb_1_init()
           2x0 to 2x3 -> CMS chip
           2x6, 2xA, 2xC, 2xE -> DSP chip
           2x8, 2x9, 388 and 389 FM chip*/
-        sb_t *sb = malloc(sizeof(sb_t));
+        sb_t *sb = (sb_t*)malloc(sizeof(sb_t));
         uint16_t addr = device_get_config_int("addr");        
         memset(sb, 0, sizeof(sb_t));
         
@@ -871,7 +871,7 @@ void *sb_15_init()
           2x0 to 2x3 -> CMS chip
           2x6, 2xA, 2xC, 2xE -> DSP chip
           2x8, 2x9, 388 and 389 FM chip*/
-        sb_t *sb = malloc(sizeof(sb_t));
+        sb_t *sb = (sb_t *)malloc(sizeof(sb_t));
         uint16_t addr = device_get_config_int("addr");
         memset(sb, 0, sizeof(sb_t));
 
@@ -888,12 +888,13 @@ void *sb_15_init()
         return sb;
 }
 
+#ifndef UAE
 void *sb_mcv_init()
 {
         /*sb1/2 port mappings, 210h to 260h in 10h steps
           2x6, 2xA, 2xC, 2xE -> DSP chip
           2x8, 2x9, 388 and 389 FM chip*/
-        sb_t *sb = malloc(sizeof(sb_t));
+        sb_t *sb = (sb_t *)malloc(sizeof(sb_t));
         memset(sb, 0, sizeof(sb_t));
 
         opl2_init(&sb->opl);
@@ -908,6 +909,8 @@ void *sb_mcv_init()
         sb->pos_regs[1] = 0x50;
         return sb;
 }
+#endif
+
 void *sb_2_init()
 {
         /*sb2 port mappings. 220h or 240h.
@@ -923,7 +926,7 @@ void *sb_2_init()
           test this. It shouldn't exist on SB 1.0 as the CMS chips are always
           present there.
           Syndicate requires this mirror for music to play.*/
-        sb_t *sb = malloc(sizeof(sb_t));
+        sb_t *sb = (sb_t *)malloc(sizeof(sb_t));
         uint16_t addr = device_get_config_int("addr");
         memset(sb, 0, sizeof(sb_t));
 
@@ -960,7 +963,7 @@ void *sb_pro_v1_init()
           2x6, 2xA, 2xC, 2xE -> DSP chip
           2x8, 2x9, 388 and 389 FM chip (9 voices)
           2x0+10 to 2x0+13 CDROM interface.*/
-        sb_t *sb = malloc(sizeof(sb_t));
+        sb_t *sb = (sb_t *)malloc(sizeof(sb_t));
         uint16_t addr = device_get_config_int("addr");
         memset(sb, 0, sizeof(sb_t));
 
@@ -989,7 +992,7 @@ void *sb_pro_v2_init()
           2x6, 2xA, 2xC, 2xE -> DSP chip
           2x8, 2x9, 388 and 389 FM chip (9 voices)
           2x0+10 to 2x0+13 CDROM interface.*/
-        sb_t *sb = malloc(sizeof(sb_t));
+        sb_t *sb = (sb_t *)malloc(sizeof(sb_t));
         memset(sb, 0, sizeof(sb_t));
 
         uint16_t addr = device_get_config_int("addr");
@@ -1010,6 +1013,7 @@ void *sb_pro_v2_init()
         return sb;
 }
 
+#ifndef UAE
 void *sb_pro_mcv_init()
 {
         /*sbpro port mappings. 220h or 240h.
@@ -1017,7 +1021,7 @@ void *sb_pro_mcv_init()
           2x4 to 2x5 -> Mixer interface
           2x6, 2xA, 2xC, 2xE -> DSP chip
           2x8, 2x9, 388 and 389 FM chip (9 voices)*/
-        sb_t *sb = malloc(sizeof(sb_t));
+        sb_t *sb = (sb_t *)malloc(sizeof(sb_t));
         memset(sb, 0, sizeof(sb_t));
 
         sb->opl_emu = device_get_config_int("opl_emu");
@@ -1034,10 +1038,11 @@ void *sb_pro_mcv_init()
 
         return sb;
 }
+#endif
 
 void *sb_16_init()
 {
-        sb_t *sb = malloc(sizeof(sb_t));
+        sb_t *sb = (sb_t *)malloc(sizeof(sb_t));
         memset(sb, 0, sizeof(sb_t));
 
         uint16_t addr = device_get_config_int("addr");
@@ -1057,6 +1062,8 @@ void *sb_16_init()
 
         return sb;
 }
+
+#ifndef UAE
 
 int sb_awe32_available()
 {
@@ -1088,6 +1095,8 @@ void *sb_awe32_init()
         return sb;
 }
 
+#endif
+
 void sb_close(void *p)
 {
         sb_t *sb = (sb_t *)p;
@@ -1108,6 +1117,8 @@ void sb_close(void *p)
         free(sb);
 }
 
+#ifndef UAE
+
 void sb_awe32_close(void *p)
 {
         sb_t *sb = (sb_t *)p;
@@ -1116,6 +1127,8 @@ void sb_awe32_close(void *p)
 
         sb_close(sb);
 }
+
+#endif
 
 void sb_speed_changed(void *p)
 {
@@ -1130,6 +1143,8 @@ void sb_add_status_info(char *s, int max_len, void *p)
         
         sb_dsp_add_status_info(s, max_len, &sb->dsp);
 }
+
+#ifndef UAE
 
 static device_config_t sb_config[] =
 {
@@ -1846,3 +1861,5 @@ device_t sb_awe32_device =
         sb_add_status_info,
         sb_awe32_config
 };
+
+#endif

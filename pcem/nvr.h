@@ -11,6 +11,6 @@ void savenvr();
 
 FILE *nvrfopen(char *fn, char *mode);
 
-extern uint8_t nvrram[128];
+extern uint8_t nvrram[128+64];
 extern int nvrmask;
 extern int oldromset;

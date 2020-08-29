@@ -17,7 +17,7 @@
 
 int oldromset;
 int nvrmask=63;
-uint8_t nvrram[128];
+uint8_t nvrram[128+64];
 int nvraddr;
 
 int nvr_dosave = 0;
@@ -31,6 +31,7 @@ typedef struct nvr_t
         int onesec_cnt;
 } nvr_t;
 
+#ifndef UAE
 FILE *nvrfopen(char *fn, char *mode)
 {
         char s[512];
@@ -61,6 +62,7 @@ FILE *nvrfopen(char *fn, char *mode)
                 return NULL;
         }
 }
+#endif
 
 void getnvrtime()
 {
@@ -227,6 +229,14 @@ static void writenvr(uint16_t addr, uint8_t val, void *p)
         else
         {
                 nvraddr=val&nvrmask;
+
+#ifdef UAE
+                // A2386SX extra 64 byte bank
+                extern int x86_cmos_bank;
+                if (nvraddr >= 64 && x86_cmos_bank)
+                    nvraddr += 64;
+#endif
+
                 /*PS/2 BIOSes will disable NMIs and expect the watchdog timer to still be able
                   to fire them. I suspect the watchdog is exempt from NMI masking. Currently NMIs
                   are always enabled for PS/2 machines - this would mean that other peripherals
@@ -273,10 +283,12 @@ uint8_t readnvr(uint16_t addr, void *p)
 
 void loadnvr()
 {
-        FILE *f;
-
         nvrmask=63;
         oldromset=romset;
+
+#ifndef UAE
+        FILE *f;
+
         switch (romset)
         {
                 case ROM_PC1512:      f = nvrfopen("pc1512.nvr",      "rb"); break;
@@ -371,14 +383,17 @@ void loadnvr()
                 return;
         }
         fread(nvrram,128,1,f);
+        fclose(f);
+#endif
         if (enable_sync)
                 time_internal_sync(nvrram);
         else
                 time_internal_set_nvrram(nvrram); /* Update the internal clock state based on the NVR registers. */
-        fclose(f);
         nvrram[RTC_REGA] = 6;
         nvrram[RTC_REGB] = RTC_2412;
 }
+
+#ifndef UAE
 void savenvr()
 {
         FILE *f;
@@ -465,6 +480,7 @@ void savenvr()
         fwrite(nvrram,128,1,f);
         fclose(f);
 }
+#endif
 
 static void *nvr_init()
 {
