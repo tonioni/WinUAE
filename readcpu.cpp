@@ -219,7 +219,7 @@ static void build_insn (int insn)
 	cflow = id.cflow;
 
 	// Mask of flags set/used
-	unsigned char flags_set(0), flags_used(0);
+	unsigned char flags_set = 0, flags_used = 0;
 
 	for (i = 0, n = 4; i < 5; i++, n--) {
 		switch (id.flaginfo[i].flagset) {
