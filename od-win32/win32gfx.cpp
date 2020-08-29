@@ -2808,7 +2808,7 @@ int picasso_palette(struct MyCLUTEntry *CLUT, uae_u32 *clut)
 {
 	int changed = 0;
 
-	for (int i = 0; i < 256; i++) {
+	for (int i = 0; i < 256 * 2; i++) {
 		int r = CLUT[i].Red;
 		int g = CLUT[i].Green;
 		int b = CLUT[i].Blue;
