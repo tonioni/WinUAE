@@ -1544,6 +1544,8 @@ void REGPARAM2 mmu_set_super(bool super)
 
 void REGPARAM2 mmu_flush_cache(void)
 {
+	if (!currprefs.mmu_model)
+		return;
 #if MMU_ICACHE
 	int len = sizeof(mmu_icache_data);
 	memset(&mmu_icache_data, 0xff, sizeof(mmu_icache_data));
