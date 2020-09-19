@@ -148,6 +148,83 @@ resident
 	dc.l 0
 	dc.l start-resident
 
+	; KS 1.x does not support RTF_AFTERDOS and KS 2.x RTF_AFTERDOS is broken.
+afterdos_hack:
+	movem.l d0-d2/a0-a2/a6,-(sp)
+
+	move.l 4.w,a6
+	cmp.w #39,20(a6)
+	bcc.s .rsh
+	cmp.w #37,20(a6)
+	bcs.s .rsh
+
+	move.w #$FF38,d0
+	moveq #17,d1
+	bsr.w getrtbase
+	jsr (a0)
+	tst.l d0
+	beq.s .rsh
+
+	moveq #residentcodeend-residentcodestart,d0
+	move.l d0,d2
+	moveq #1,d1
+	jsr AllocMem(a6)
+	tst.l d0
+	beq.s .rsh
+	move.l d0,a2
+
+	move.l a2,a0
+	lea residentcodestart(pc),a1
+.cp1
+	move.l (a1)+,(a0)+
+	subq.l #4,d2
+	bne.s .cp1
+
+	jsr -$0078(a6) ;Disable
+	move.l a6,a1
+	move.w #-$48,a0 ;InitCode
+	move.l a2,d0
+	jsr -$01a4(a6) ;SetFunction
+	move.l d0,residentcodejump2-residentcodestart+2(a2)
+	lea myafterdos(pc),a0
+	move.l a0,residentcodejump1-residentcodestart+2(a2)
+	jsr -$27C(a6) ;CacheClearU
+	jsr -$007e(a6) ;Enable
+.rsh
+	movem.l (sp)+,d0-d2/a0-a2/a6
+	rts
+	
+myafterdos
+	move.l (sp),a0
+	move.l 2(a0),a0
+	move.l a0,-(sp)
+	jsr (a0) ;jump to original InitCode
+	move.l (sp)+,a0
+	addq.l #4,sp ;remove return address
+	movem.l d0-d7/a1-a6,-(sp)
+	move.l a6,a1
+	move.l a0,d0
+	move.w #-$48,a0 ;InitCode
+	jsr -$01a4(a6) ;SetFunction (restore original)
+	
+	bsr run_afterdos
+
+	movem.l (sp)+,d0-d7/a1-a6
+	rts ;return directly to caller
+
+	cnop 0,4
+residentcodestart:
+	btst #2,d0 ;RTF_AFTERDOS?
+	beq.s resjump
+residentcodejump1
+	jsr $f00000
+resjump
+residentcodejump2
+	jmp $f00000
+	cnop 0,4
+residentcodeend:
+
+	; v39 RTF_AFTERDOS
 afterdos:
 	movem.l d2-d7/a2-a6,-(sp)
 
@@ -167,13 +244,18 @@ afterdos:
 	bsr.w getrtbase
 	move.l d1,(a0)
 	
-	bsr.w clipboard_init
-	bsr.w consolehook
-	bsr.w segtrack_init
+	bsr run_afterdos
 	
 	movem.l (sp)+,d2-d7/a2-a6
 	moveq #0,d0
 	rts
+
+run_afterdos
+	bsr.w clipboard_init
+	bsr.w consolehook
+	bsr.w segtrack_init
+	rts
+
 
 filesys_init:
 	movem.l d0-d7/a0-a6,-(sp)
@@ -790,6 +872,9 @@ kaint:
 setup_exter:
 	movem.l d0-d3/d7/a0-a2,-(sp)
 	move.l d0,d7
+
+	bsr.w afterdos_hack
+
 	move.l #RTAREA_INTREQ,d0
 	bsr.w getrtbase
 	move.l a0,a2
@@ -2892,8 +2977,7 @@ clipboard_proc:
 	move.l CLIP_EXEC(a5),a6
 
 	bsr.w createport
-	moveq #0,d1
-	move.w #52,d1
+	moveq #52,d1
 	bsr.w createio
 	move.l d0,a4
 	tst.l d0
@@ -2901,7 +2985,7 @@ clipboard_proc:
 
 cfloop2
 	moveq #0,d0
-	bset #13,d0
+	bset #13,d0 ; SIGBREAK_CTRL_D
 	jsr -$013e(a6) ;Wait
 	
 	moveq #0,d1
@@ -4342,10 +4426,10 @@ con_dev: dc.b 'console.device',0
 key_lib: dc.b 'keymap.library',0
 devsn_name: dc.b 'DEVS',0
 devs_name: dc.b 'DEVS:',0
-clip_name: dc.b 'DEVS:clipboard.device',0
+clip_name: dc.b 'DEVS:'
+clip_dev: dc.b 'clipboard.device',0
 ram_name: dc.b 'RAM:',0
 nil_name: dc.b "NIL:",0
-clip_dev: dc.b 'clipboard.device',0
  ;argghh but StartNotify()ing non-existing ENV: causes "Insert disk ENV: in any drive" dialog..
 pointer_prefs: dc.b 'RAM:Env/Sys/Pointer.prefs',0
 clname: dc.b 'UAE clipboard sharing',0
