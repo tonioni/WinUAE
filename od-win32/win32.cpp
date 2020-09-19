@@ -4158,6 +4158,21 @@ void target_fixup_options (struct uae_prefs *p)
 		nojoy = true;
 	}
 	
+	if (p->rtg_hardwaresprite && !p->gfx_api) {
+		error_log(_T("DirectDraw is not RTG hardware sprite compatible."));
+		p->rtg_hardwaresprite = false;
+	}
+	if (p->rtgboards[0].rtgmem_type >= GFXBOARD_HARDWARE) {
+		p->rtg_hardwareinterrupt = false;
+		p->rtg_hardwaresprite = false;
+		p->win32_rtgmatchdepth = false;
+		p->color_mode = 5;
+		if (p->ppc_model && !p->gfx_api) {
+			error_log(_T("Graphics board and PPC: Direct3D enabled."));
+			p->gfx_api = os_win7 ? 2 : 1;
+		}
+	}
+
 	struct MultiDisplay *md = getdisplay(p, 0);
 	for (int j = 0; j < MAX_AMIGADISPLAYS; j++) {
 		if (p->gfx_monitor[j].gfx_size_fs.special == WH_NATIVE) {
@@ -4190,22 +4205,7 @@ void target_fixup_options (struct uae_prefs *p)
 			p->color_mode = p->color_mode == 5 ? 2 : 5;
 		}
 	}
-	if (p->rtg_hardwaresprite && !p->gfx_api) {
-		error_log (_T("DirectDraw is not RTG hardware sprite compatible."));
-		p->rtg_hardwaresprite = false;
-	}
-	if (p->rtgboards[0].rtgmem_type >= GFXBOARD_HARDWARE) {
-		p->rtg_hardwareinterrupt = false;
-		p->rtg_hardwaresprite = false;
-		p->win32_rtgmatchdepth = false;
-		if (gfxboard_need_byteswap (&p->rtgboards[0]))
-			p->color_mode = 5;
-		if (p->ppc_model && !p->gfx_api) {
-			error_log (_T("Graphics board and PPC: Direct3D enabled."));
-			p->gfx_api = os_win7 ? 2 : 1;
-		}
 
-	}
 	if ((p->gfx_apmode[0].gfx_vsyncmode || p->gfx_apmode[1].gfx_vsyncmode) ) {
 		if (p->produce_sound && sound_devices[p->win32_soundcard]->type == SOUND_DEVICE_DS) {
 			p->win32_soundcard = 0;

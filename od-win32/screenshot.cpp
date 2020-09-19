@@ -21,7 +21,7 @@
 #include "drawing.h"
 #include "fsdb.h"
 #include "zfile.h"
-#include "picasso96_win.h"
+#include "gfxboard.h"
 
 #include "png.h"
 
@@ -144,8 +144,8 @@ static int screenshot_prepare(int monid, int imagemode, struct vidbuffer *vb, bo
 		int screenshot_width = 0, screenshot_height = 0;
 		int screenshot_xoffset = -1, screenshot_yoffset = -1;
 
-		if (WIN32GFX_IsPicassoScreen(mon)) {
-			src = mem = getrtgbuffer(monid, &width, &height, &spitch, &bits, pal);
+		if (gfxboard_isgfxboardscreen(monid)) {
+			src = mem = gfxboard_getrtgbuffer(monid, &width, &height, &spitch, &bits, pal);
 			needfree = true;
 			rgb_bb2 = 8;
 			rgb_gb2 = 8;
@@ -189,7 +189,7 @@ static int screenshot_prepare(int monid, int imagemode, struct vidbuffer *vb, bo
 		if (width == 0 || height == 0) {
 			if (needfree) {
 				if (WIN32GFX_IsPicassoScreen(mon))
-					freertgbuffer(0, mem);
+					gfxboard_freertgbuffer(0, mem);
 				else
 					freefilterbuffer(0, mem);
 			}
@@ -290,7 +290,7 @@ static int screenshot_prepare(int monid, int imagemode, struct vidbuffer *vb, bo
 		if (!(lpvBits = xmalloc(uae_u8, bi->bmiHeader.biSizeImage))) {
 			if (needfree) {
 				if (WIN32GFX_IsPicassoScreen(mon))
-					freertgbuffer(monid, mem);
+					gfxboard_freertgbuffer(monid, mem);
 				else
 					freefilterbuffer(monid, mem);
 			}
@@ -408,8 +408,8 @@ static int screenshot_prepare(int monid, int imagemode, struct vidbuffer *vb, bo
 			src += spitch;
 		}
 		if (needfree) {
-			if (WIN32GFX_IsPicassoScreen(mon))
-				freertgbuffer(monid, mem);
+			if (gfxboard_isgfxboardscreen(monid))
+				gfxboard_freertgbuffer(monid, mem);
 			else
 				freefilterbuffer(monid, mem);
 		}

@@ -35,6 +35,10 @@ extern bool gfxboard_init_board(struct autoconfig_info*);
 extern bool gfxboard_set(int monid, bool rtg);
 extern void gfxboard_resize(int width, int height, void *p);
 
+uae_u8 *gfxboard_getrtgbuffer(int monid, int *widthp, int *heightp, int *pitch, int *depth, uae_u8 *palette);
+void gfxboard_freertgbuffer(int monid, uae_u8 *dst);
+bool gfxboard_isgfxboardscreen(int monid);
+
 extern struct gfxboard_func a2410_func;
 extern struct gfxboard_func harlequin_func;
 

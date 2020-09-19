@@ -43,6 +43,7 @@ static bool memlogw = true;
 #include "rommgr.h"
 #include "xwin.h"
 #include "devices.h"
+#include "gfxfilter.h"
 #include "pcem/device.h"
 #include "pcem/vid_s3_virge.h"
 #include "pcem/vid_cl5429.h"
@@ -601,6 +602,8 @@ void gfxboard_free_vram(int index)
 		vram_ram_a8 = 0;
 }
 
+extern uae_u8 *getpcembuffer32(int, int, int);
+
 // PCEM
 void video_blit_memtoscreen(int x, int y, int y1, int y2, int w, int h)
 {
@@ -615,7 +618,6 @@ void video_blit_memtoscreen(int x, int y, int y1, int y2, int w, int h)
 					struct picasso_vidbuf_description *vidinfo = &picasso_vidinfo[gb->monitor_id];
 					for (int yy = y1; yy < y2 && yy < vidinfo->height; yy++) {
 						uae_u8 *d = gb->gfxboard_surface + yy * vidinfo->rowbytes;
-						extern uae_u8 *getpcembuffer32(int, int, int);
 						uae_u8 *s = getpcembuffer32(x, y, yy);
 						memcpy(d, s, vidinfo->width * vidinfo->pixbytes);
 					}
@@ -3976,7 +3978,7 @@ static uae_u32 REGPARAM2 gfxboard_lget_vram_pcem(uaecptr addr)
 	if (addr & 0x800000) {
 		v = do_byteswap_32(v);
 	} else if (addr & 0x400000) {
-		v = do_byteswap_32(v);
+		v = (v >> 16) | (v << 16);
 	} else {
 		;
 	}
@@ -4013,7 +4015,7 @@ static void REGPARAM2 gfxboard_lput_vram_pcem(uaecptr addr, uae_u32 l)
 	if (addr & 0x800000) {
 		l = do_byteswap_32(l);
 	} else if (addr & 0x400000) {
-		l = do_byteswap_32(l);
+		l = (l >> 16) | (l << 16);
 	} else {
 		;
 	}
@@ -5096,4 +5098,72 @@ int pcem_getvramsize(void)
 		}
 	}
 	return 0;
+}
+
+
+bool gfxboard_isgfxboardscreen(int monid)
+{
+	int index = rtg_visible[monid];
+	if (index < 0)
+		return false;
+	struct rtgboardconfig *rbc = &currprefs.rtgboards[index];
+	struct rtggfxboard *gb = &rtggfxboards[rbc->rtg_index];
+	return gb->active && rtg_visible[monid] >= 0;
+}
+uae_u8 *gfxboard_getrtgbuffer(int monid, int *widthp, int *heightp, int *pitch, int *depth, uae_u8 *palette)
+{
+	int index = rtg_visible[monid];
+	if (index < 0)
+		return NULL;
+	struct rtgboardconfig *rbc = &currprefs.rtgboards[index];
+
+	if (rbc->rtgmem_type < GFXBOARD_HARDWARE) {
+		return uaegfx_getrtgbuffer(monid, widthp, heightp, pitch, depth, palette);
+	}
+
+	struct rtggfxboard *gb = &rtggfxboards[rbc->rtg_index];
+	struct picasso_vidbuf_description *vidinfo = &picasso_vidinfo[monid];
+	struct picasso96_state_struct *state = &picasso96_state[monid];
+
+	if (!gb->pcemdev)
+		return NULL;
+
+	int width = state->VirtualWidth;
+	int height = state->VirtualHeight;
+	if (!width || !height)
+		return NULL;
+
+	uae_u8 *dst = xmalloc(uae_u8, width * height * 4);
+	if (!dst)
+		return NULL;
+
+	uae_u8 *d = dst;
+	for (int yy = 0; yy < height; yy++) {
+		uae_u8 *s = getpcembuffer32(32, 0, yy);
+		memcpy(d, s, width * 4);
+		d += width * 4;
+	}
+
+	*widthp = width;
+	*heightp = height;
+	*pitch = width * 4;
+	*depth = 4 * 8;
+
+	return dst;
+}
+void gfxboard_freertgbuffer(int monid, uae_u8 *dst)
+{
+	int index = rtg_visible[monid];
+	if (index < 0) {
+		uaegfx_freertgbuffer(monid, dst);
+		return;
+	}
+	struct rtgboardconfig *rbc = &currprefs.rtgboards[index];
+
+	if (rbc->rtgmem_type < GFXBOARD_HARDWARE) {
+		uaegfx_freertgbuffer(monid, dst);
+		return;
+	}
+
+	xfree(dst);
 }

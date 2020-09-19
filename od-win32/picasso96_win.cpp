@@ -5117,7 +5117,7 @@ static void copyall (int monid, uae_u8 *src, uae_u8 *dst, int pwidth, int pheigh
 	}
 }
 
-uae_u8 *getrtgbuffer(int monid, int *widthp, int *heightp, int *pitch, int *depth, uae_u8 *palette)
+uae_u8 *uaegfx_getrtgbuffer(int monid, int *widthp, int *heightp, int *pitch, int *depth, uae_u8 *palette)
 {
 	struct picasso_vidbuf_description *vidinfo = &picasso_vidinfo[monid];
 	struct picasso96_state_struct *state = &picasso96_state[monid];
@@ -5172,7 +5172,7 @@ uae_u8 *getrtgbuffer(int monid, int *widthp, int *heightp, int *pitch, int *dept
 
 	return dst;
 }
-void freertgbuffer(int monid, uae_u8 *dst)
+void uaegfx_freertgbuffer(int monid, uae_u8 *dst)
 {
 	xfree (dst);
 }
