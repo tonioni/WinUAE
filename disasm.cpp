@@ -1707,6 +1707,7 @@ uae_u32 m68k_disasm_2 (TCHAR *buf, int bufsize, uaecptr pc, uaecptr *nextpc, int
 		int illegal = 0;
 		int segid, lastsegid;
 		TCHAR *symbolpos;
+		bool skip = false;
 
 		seaddr2 = deaddr2 = 0xffffffff;
 		oldpc = pc;
@@ -2073,27 +2074,32 @@ uae_u32 m68k_disasm_2 (TCHAR *buf, int bufsize, uaecptr pc, uaecptr *nextpc, int
 		} else if ((opcode & 0xf000) == 0xa000) {
 			_tcscpy(instrname, _T("A-LINE"));
 		} else {
-			if (dp->suse) {
-				pc = ShowEA (NULL, pc, opcode, dp->sreg, dp->smode, dp->size, instrname, &seaddr2, &actualea_src, safemode);
+			if (lookup->mnemo == i_FBcc && (opcode & 0x1f) == 0 && extra == 0) {
+				_tcscpy(instrname, _T("FNOP"));
+				pc += 2;
+			} else {
+				if (dp->suse) {
+					pc = ShowEA(NULL, pc, opcode, dp->sreg, dp->smode, dp->size, instrname, &seaddr2, &actualea_src, safemode);
 
-				// JSR x(a6) / JMP x(a6)
-				if (opcode == 0x4ea8 + 6 || opcode == 0x4ee8 + 6) {
-					TCHAR sname[256];
-					if (debugger_get_library_symbol(m68k_areg(regs, 6), 0xffff0000 | extra, sname)) {
-						TCHAR *p = instrname + _tcslen(instrname);
-						_stprintf(p, _T(" %s"), sname);
-						resolve_if_jmp(instrname, m68k_areg(regs, 6) + (uae_s16)extra);
+					// JSR x(a6) / JMP x(a6)
+					if (opcode == 0x4ea8 + 6 || opcode == 0x4ee8 + 6) {
+						TCHAR sname[256];
+						if (debugger_get_library_symbol(m68k_areg(regs, 6), 0xffff0000 | extra, sname)) {
+							TCHAR *p = instrname + _tcslen(instrname);
+							_stprintf(p, _T(" %s"), sname);
+							resolve_if_jmp(instrname, m68k_areg(regs, 6) + (uae_s16)extra);
+						}
+					}
+					// show target address if JSR x(pc) + JMP xxxx combination
+					if (opcode == 0x4eba && seaddr2 && instrname[0]) { // JSR x(pc)
+						resolve_if_jmp(instrname, seaddr2);
 					}
 				}
-				// show target address if JSR x(pc) + JMP xxxx combination
-				if (opcode == 0x4eba && seaddr2 && instrname[0]) { // JSR x(pc)
-					resolve_if_jmp(instrname, seaddr2);
+				if (dp->suse && dp->duse)
+					_tcscat(instrname, _T(","));
+				if (dp->duse) {
+					pc = ShowEA(NULL, pc, opcode, dp->dreg, dp->dmode, dp->size, instrname, &deaddr2, &actualea_dst, safemode);
 				}
-			}
-			if (dp->suse && dp->duse)
-				_tcscat (instrname, _T(","));
-			if (dp->duse) {
-				pc = ShowEA (NULL, pc, opcode, dp->dreg, dp->dmode, dp->size, instrname, &deaddr2, &actualea_dst, safemode);
 			}
 		}
 
