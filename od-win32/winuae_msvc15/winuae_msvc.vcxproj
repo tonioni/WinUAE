@@ -995,6 +995,7 @@
     <ClCompile Include="..\..\support\time.cpp" />
     <ClCompile Include="..\..\tabletlibrary.cpp" />
     <ClCompile Include="..\..\test_card.cpp" />
+    <ClCompile Include="..\..\tinyxml2.cpp" />
     <ClCompile Include="..\..\uaenative.cpp" />
     <ClCompile Include="..\..\vm.cpp" />
     <ClCompile Include="..\..\x86.cpp" />

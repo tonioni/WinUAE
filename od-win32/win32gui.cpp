@@ -2633,14 +2633,15 @@ static void infofloppy (HWND hDlg, int n)
 	TCHAR tmp2[MAX_DPATH], tmp1[MAX_DPATH];
 	TCHAR text[20000];
 
-	DISK_examine_image (&workprefs, n, &di);
+	DISK_examine_image (&workprefs, n, &di, true);
 	DISK_validate_filename(&workprefs, workprefs.floppyslots[n].df, tmp1, 0, NULL, NULL, NULL);
 
 	_stprintf (tmp2,
-		_T("'%s'\r\nDisk readable: %s\r\nCRC32: %08X\r\nBoot block checksum valid: %s\r\nBoot block type: %s\r\n"),
+		_T("'%s'\r\nDisk readable: %s\r\nDisk CRC32: %08X\r\nBoot block CRC32: %08X\r\nBoot block checksum valid: %s\r\nBoot block type: %s\r\n"),
 		tmp1,
 		di.unreadable ? _T("No") : _T("Yes"),
-		di.crc32,
+		di.imagecrc32,
+		di.bootblockcrc32,
 		di.bb_crc_valid ? _T("Yes") : _T("No"),
 		di.bootblocktype == 0 ? _T("Custom") : (di.bootblocktype == 1 ? _T("Standard 1.x") : _T("Standard 2.x+"))
 	);
@@ -2651,6 +2652,20 @@ static void infofloppy (HWND hDlg, int n)
 		_tcscat (text, tmp2);
 	}
 	_tcscat (text, _T("\r\n"));
+	if (di.bootblockinfo[0]) {
+		_tcscat(text, _T("Amiga Bootblock Reader database detected:\r\n"));
+		_tcscat(text, _T("Name: '"));
+		_tcscat(text, di.bootblockinfo);
+		_tcscat(text, _T("'"));
+		_tcscat(text, _T("\r\n"));
+		if (di.bootblockclass[0]) {
+			_tcscat(text, _T("Class: '"));
+			_tcscat(text, di.bootblockclass);
+			_tcscat(text, _T("'"));
+			_tcscat(text, _T("\r\n"));
+		}
+		_tcscat(text, _T("\r\n"));
+	}
 
 	int w = 32;
 	for (int i = 0; i < 1024; i += w) {
