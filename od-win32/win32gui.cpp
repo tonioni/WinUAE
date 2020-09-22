@@ -1524,6 +1524,7 @@ static const int msi_cpuboard[] = { 0, 5, 6, 7, 8, 9, 10, 11, 12, 13 };
 #define MIN_CB_MEM 0
 #define MAX_CB_MEM_Z2 4
 #define MAX_CB_MEM_16M 5
+#define MAX_CB_MEM_32M 6
 #define MAX_CB_MEM_64M 7
 #define MAX_CB_MEM_128M 8
 #define MAX_CB_MEM_256M 9
@@ -4749,7 +4750,8 @@ static const struct miscentry misclist[] = {
 	{ 0, 1, _T("Power led dims when audio filter is disabled"), NULL, &workprefs.power_led_dim, 128, 0 },
 	{ 0, 1, _T("Automatically capture mouse when window is activated"), &workprefs.win32_capture_always },
 	{ 0, 0, _T("Debug memory space"), &workprefs.debug_mem },
-	{ 0, NULL }
+	{ 0, 1, _T("Force hard reset if CPU halted"), &workprefs.crash_auto_reset },
+	{ 0, 0, NULL }
 };
 
 static void harddisktype (TCHAR *s, struct uaedev_config_info *ci)
@@ -5172,7 +5174,7 @@ static void InitializeListView (HWND hDlg)
 				// outside or crosses 2G "border"
 				if (aci->zorro == 3 && aci->start + aci->size > 0x80000000 || aci->start + aci->size < aci->start)
 					lvstruct.lParam |= 2;
-				// outside of crosses 4G "border"
+				// outside or crosses 4G "border"
 				if (aci->zorro == 3 && aci->start == 0xffffffff)
 					lvstruct.lParam |= 4;
 				if (!full_property_sheet && (aci->zorro == 2 || aci->zorro == 3) && aci->addrbank && (aci->addrbank->flags & ABFLAG_RAM) && aci->addrbank->reserved_size) {
@@ -6513,8 +6515,8 @@ typedef struct url_info
 
 static urlinfo urls[] =
 {
-	{IDC_CLOANTOHOME, FALSE, _T("Cloanto's Amiga Forever"), _T("http://www.amigaforever.com/")},
-	{IDC_AMIGAHOME, FALSE, _T("Amiga Inc."), _T("http://www.amiga.com/")},
+	{IDC_CLOANTOHOME, FALSE, _T("Cloanto's Amiga Forever"), _T("https://www.amigaforever.com/")},
+	{IDC_AMIGAHOME, FALSE, _T("Amiga Corporation"), _T("https://amiga.com/")},
 //	{IDC_PICASSOHOME, FALSE, _T("Picasso96 Home Page"), _T("http://www.picasso96.cogito.de/")},
 //	{IDC_UAEHOME, FALSE, _T("UAE Home Page"), _T("http://www.amigaemulator.org/")},
 	{IDC_WINUAEHOME, FALSE, _T("WinUAE Home Page"), _T("http://www.winuae.net/")},
@@ -7351,10 +7353,10 @@ static void testimage (HWND hDlg, int num)
 	}
 	if (!workprefs.floppyslots[num].df[0])
 		return;
-	ret = DISK_examine_image (&workprefs, num, &di);
+	ret = DISK_examine_image (&workprefs, num, &di, false);
 	if (!ret)
 		return;
-	floppytooltip (hDlg, num, di.crc32);
+	floppytooltip (hDlg, num, di.imagecrc32);
 	if (num > 0)
 		return;
 	if (!full_property_sheet)
@@ -9670,7 +9672,11 @@ static void setcpuboardmemsize(HWND hDlg)
 	if (maxmem <= 8 * 1024 * 1024)
 		SendDlgItemMessage (hDlg, IDC_CPUBOARDMEM, TBM_SETRANGE, TRUE, MAKELONG (MIN_CB_MEM, MAX_CB_MEM_Z2));
 	else if (maxmem <= 16 * 1024 * 1024)
-		SendDlgItemMessage (hDlg, IDC_CPUBOARDMEM, TBM_SETRANGE, TRUE, MAKELONG (MIN_CB_MEM, MAX_CB_MEM_16M));
+		SendDlgItemMessage(hDlg, IDC_CPUBOARDMEM, TBM_SETRANGE, TRUE, MAKELONG(MIN_CB_MEM, MAX_CB_MEM_16M));
+	else if (maxmem <= 32 * 1024 * 1024)
+		SendDlgItemMessage(hDlg, IDC_CPUBOARDMEM, TBM_SETRANGE, TRUE, MAKELONG(MIN_CB_MEM, MAX_CB_MEM_32M));
+	else if (maxmem <= 64 * 1024 * 1024)
+		SendDlgItemMessage(hDlg, IDC_CPUBOARDMEM, TBM_SETRANGE, TRUE, MAKELONG(MIN_CB_MEM, MAX_CB_MEM_64M));
 	else if (maxmem <= 128 * 1024 * 1024)
 		SendDlgItemMessage (hDlg, IDC_CPUBOARDMEM, TBM_SETRANGE, TRUE, MAKELONG (MIN_CB_MEM, MAX_CB_MEM_128M));
 	else

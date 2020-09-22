@@ -1626,13 +1626,16 @@ static void dcache040_push_line(int index, int line, bool writethrough, bool inv
 
 static void flush_cpu_caches_040_2(int cache, int scope, uaecptr addr, bool push, bool pushinv)
 {
-
 #if VALIDATE_68040_DATACACHE
 	write_log(_T("push %d %d %d %08x %d %d\n"), cache, scope, areg, addr, push, pushinv);
 #endif
 
-	if (cache & 2)
+	if ((cache & 1) && !currprefs.cpu_data_cache) {
+		cache &= ~1;
+	}
+	if (cache & 2) {
 		regs.prefetch020addr = 0xffffffff;
+	}
 	for (int k = 0; k < 2; k++) {
 		if (cache & (1 << k)) {
 			if (scope == 3) {
@@ -2310,6 +2313,7 @@ void REGPARAM2 MakeSR (void)
 		| (GET_XFLG () << 4) | (GET_NFLG () << 3)
 		| (GET_ZFLG () << 2) | (GET_VFLG () << 1)
 		|  GET_CFLG ());
+
 }
 
 static void SetSR (uae_u16 sr)
