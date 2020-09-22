@@ -4281,6 +4281,13 @@ static TCHAR *HandleConfiguration (HWND hDlg, int flag, struct ConfigStruct *con
 						write_log(_T("deleted config '%s'\n"), path);
 						config_filename[0] = 0;
 						ok = 1;
+					} else {
+						write_log(_T("deleted config '%s' returned %x\n"), path, GetLastError());
+						if (!my_existsfile(path)) {
+							write_log(_T("deleted config '%s'\n"), path);
+							config_filename[0] = 0;
+							ok = 1;
+						}
 					}
 				}
 			}
