@@ -2167,7 +2167,7 @@ static int decode_buffer (uae_u16 *mbuf, int cyl, int drvsec, int ddhd, int file
 	int length = 2 * fwlen;
 	uae_u32 odd, even, chksum, id, dlong;
 	uae_u8 *secdata;
-	uae_u8 secbuf[544], secheadbuf[16];
+	uae_u8 secbuf[544];
 	uae_u16 *mend = mbuf + length, *mstart;
 	uae_u32 sechead[4];
 	int shift = 0;
@@ -2417,7 +2417,7 @@ static int drive_write_pcdos (drive *drv, struct zfile *zf, bool count)
 
 static int drive_write_adf_amigados (drive *drv)
 {
-	int drvsec, i;
+	int drvsec;
 	int sectable[MAX_SECTORS];
 
 	if (decode_buffer (drv->bigmfmbuf, drv->cyl, drv->num_secs, drv->ddhd, drv->filetype, &drvsec, sectable, 0))

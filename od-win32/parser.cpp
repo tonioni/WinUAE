@@ -1289,7 +1289,6 @@ void serialuartbreak (int v)
 
 void getserstat (int *pstatus)
 {
-	DWORD err;
 	DWORD stat;
 	int status = 0;
 
