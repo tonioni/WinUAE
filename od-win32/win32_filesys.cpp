@@ -30,7 +30,7 @@ static int valid_volumename (struct uaedev_mount_info *mountinfo, const TCHAR *v
 	/* if result is still good, we've passed the illegal names check, and must check for duplicates now */
 	if(result && fullcheck) {
 		for (i = 0; i < MAX_FILESYSTEM_UNITS; i++) {
-			if (mountinfo->ui[i].open && mountinfo->ui[i].volname && _tcscmp (mountinfo->ui[i].volname, volumename) == 0) {
+			if (mountinfo->ui[i].open && mountinfo->ui[i].volname && _tcsicmp (mountinfo->ui[i].volname, volumename) == 0) {
 				result = 0;
 				break;
 			}
@@ -47,19 +47,10 @@ int target_get_volume_name (struct uaedev_mount_info *mtinf, struct uaedev_confi
 
 	drivetype = GetDriveType (ci->rootdir);
 	if (inserted) {
-		if (GetVolumeInformation (ci->rootdir, ci->volname, sizeof ci->volname / sizeof (TCHAR), NULL, NULL, NULL, NULL, 0) &&
-			ci->volname[0] &&
-			valid_volumename (mtinf, ci->volname, fullcheck)) {
-				// +++Bernd Roesch
-				if(!_tcscmp (ci->volname, _T("AmigaOS35")))
-					_tcscpy (ci->volname, _T("AmigaOS3.5"));
-				if(!_tcscmp (ci->volname, _T("AmigaOS39")))
-					_tcscpy (ci->volname, _T("AmigaOS3.9"));
-				if(!_tcscmp (ci->volname, _T("AmigaOS_XL")))
-					_tcscpy (ci->volname, _T("AmigaOS XL"));
-				// ---Bernd Roesch
-				if (_tcslen (ci->volname) > 0)
-					result = 1;
+		if (GetVolumeInformation (ci->rootdir, ci->volname, sizeof ci->volname / sizeof (TCHAR), NULL, NULL, NULL, NULL, 0)) {
+			if (ci->volname[0] && valid_volumename(mtinf, ci->volname, fullcheck)) {
+				result = 1;
+			}
 		}
 	}
 
