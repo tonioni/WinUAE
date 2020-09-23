@@ -21,6 +21,11 @@ uint8_t svga_rotate[8][256];
   only SVGA device.*/
 static svga_t *svga_pri;
 
+int svga_get_vtotal(void)
+{
+    return svga_pri->vtotal;
+}
+
 void *svga_get_object(void)
 {
     return svga_pri;
@@ -713,6 +718,7 @@ int svga_poll(void *p)
 
                         if (svga->vsync_callback)
                                 svga->vsync_callback(svga);
+                        eod = 1;
                 }
                 if (svga->vc == svga->vtotal)
                 {
@@ -735,7 +741,6 @@ int svga_poll(void *p)
 //                        pclog("Latch HWcursor addr %08X\n", svga_hwcursor_latch.addr);
                         
 //                        pclog("ADDR %08X\n",hwcursor_addr);
-                        eod = 1;
                 }
                 if (svga->sc == (svga->crtc[10] & 31)) 
                         svga->con = 1;

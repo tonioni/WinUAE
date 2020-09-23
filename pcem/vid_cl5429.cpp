@@ -1156,8 +1156,11 @@ void gd5429_recalctimings(svga_t *svga)
         if (svga->seqregs[7] & 0x01)
                 svga->render = svga_render_8bpp_highres;
         
-        svga->ma_latch |= ((svga->crtc[0x1b] & 0x01) << 16) | ((svga->crtc[0x1b] & 0xc) << 15);
-//        pclog("MA now %05X %02X\n", svga->ma_latch, svga->crtc[0x1b]);
+        svga->ma_latch |= ((svga->crtc[0x1b] & 0x01) << 16) | (((svga->crtc[0x1b] >> 2) & 3) << 17);
+        if (gd5429->type >= CL_TYPE_GD5436) {
+            svga->ma_latch |= (((svga->crtc[0x1d] >> 7) & 1) << 19);
+        }
+//      pclog("MA now %05X %02X\n", svga->ma_latch, svga->crtc[0x1b]);
         
         svga->bpp = 8;
         if (gd5429->hidden_dac_reg & 0x80)

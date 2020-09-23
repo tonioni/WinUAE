@@ -643,8 +643,9 @@ static void gfxboard_hsync_handler(void)
 			gb->func->hsync(gb->userdata);
 		}
 		if (gb->pcemdev && !gb->pcem_vblank) {
+			extern int svga_get_vtotal(void);
 			static int pollcnt;
-			int pollsize = gb->vga_height * 256 / 300;
+			int pollsize = svga_get_vtotal() * 256 / 300;
 			if (pollsize < 256)
 				pollsize = 256;
 			pollcnt += pollsize;
@@ -2453,9 +2454,9 @@ static void REGPARAM2 gfxboard_wput_mem_autoconfig (uaecptr addr, uae_u32 b)
 				map_banks_z3(&gb->gfxboard_bank_special_pcem, start >> 16, PICASSOIV_REG >> 16);
 				map_banks_z3(&gb->gfxboard_bank_io_swap_pcem,   (start + PICASSOIV_REG) >> 16, 4);
 				map_banks_z3(&gb->gfxboard_bank_vram_longswap_pcem, (start + PICASSOIV_VRAM1) >> 16, 0x400000 >> 16);
-				map_banks_z3(&gb->gfxboard_bank_vram_normal_pcem, (start + PICASSOIV_VRAM1 + 0x400000) >> 16, 0x400000 >> 16);
-//				map_banks_z3(&gb->gfxboard_bank_vram_normal_pcem, (start + PICASSOIV_VRAM2) >> 16, 0x400000 >> 16);
-//				map_banks_z3(&gb->gfxboard_bank_vram_wordswap_pcem, (start + PICASSOIV_VRAM2 + 0x400000) >> 16, 0x400000 >> 16);
+				map_banks_z3(&gb->gfxboard_bank_vram_wordswap_pcem, (start + PICASSOIV_VRAM1 + 0x400000) >> 16, 0x400000 >> 16);
+				map_banks_z3(&gb->gfxboard_bank_vram_longswap_pcem, (start + PICASSOIV_VRAM2) >> 16, 0x400000 >> 16);
+				map_banks_z3(&gb->gfxboard_bank_vram_wordswap_pcem, (start + PICASSOIV_VRAM2 + 0x400000) >> 16, 0x400000 >> 16);
 				gb->pcem_mmio_offset = 0xb8000;
 				gb->pcem_mmio_mask = 0xffff;
 				gb->pcem_io_mask = 0x3fff;
@@ -3883,7 +3884,6 @@ static uae_u32 REGPARAM2 gfxboard_bget_vram_wordswap_pcem(uaecptr addr)
 	struct rtggfxboard *gb = getgfxboard(addr);
 	addr = (addr - gb->gfxboardmem_start) & gb->banksize_mask;
 	addr += gb->pcem_vram_offset;
-	addr ^= 1;
 	uae_u8 	v = pcem_linear_read_b(addr + pcem_mapping_linear_offset, pcem_mapping_linear_priv);
 	return v;
 }
@@ -3894,7 +3894,6 @@ static uae_u32 REGPARAM2 gfxboard_wget_vram_wordswap_pcem(uaecptr addr)
 	addr = (addr - gb->gfxboardmem_start) & gb->banksize_mask;
 	addr += gb->pcem_vram_offset;
 	v = pcem_linear_read_w(addr + pcem_mapping_linear_offset, pcem_mapping_linear_priv);
-	v = do_byteswap_16(v);
 	return v;
 }
 static uae_u32 REGPARAM2 gfxboard_lget_vram_wordswap_pcem(uaecptr addr)
@@ -3904,7 +3903,7 @@ static uae_u32 REGPARAM2 gfxboard_lget_vram_wordswap_pcem(uaecptr addr)
 	addr = (addr - gb->gfxboardmem_start) & gb->banksize_mask;
 	addr += gb->pcem_vram_offset;
 	v = pcem_linear_read_l(addr + pcem_mapping_linear_offset, pcem_mapping_linear_priv);
-	v = (do_byteswap_16(v >> 16) << 16) | do_byteswap_16(v);
+	v = (v >> 16) | (v << 16);
 	return v;
 }
 static void REGPARAM2 gfxboard_bput_vram_wordswap_pcem(uaecptr addr, uae_u32 b)
@@ -3913,7 +3912,6 @@ static void REGPARAM2 gfxboard_bput_vram_wordswap_pcem(uaecptr addr, uae_u32 b)
 	addr = (addr - gb->gfxboardmem_start) & gb->banksize_mask;
 	addr += gb->pcem_vram_offset;
 	addr &= gb->pcem_vram_mask;
-	addr ^= 1;
 	pcem_linear_write_b(addr + pcem_mapping_linear_offset, b, pcem_mapping_linear_priv);
 }
 static void REGPARAM2 gfxboard_wput_vram_wordswap_pcem(uaecptr addr, uae_u32 w)
@@ -3921,7 +3919,6 @@ static void REGPARAM2 gfxboard_wput_vram_wordswap_pcem(uaecptr addr, uae_u32 w)
 	struct rtggfxboard *gb = getgfxboard(addr);
 	addr = (addr - gb->gfxboardmem_start) & gb->banksize_mask;
 	addr += gb->pcem_vram_offset;
-	w = do_byteswap_16(w);
 	addr &= gb->pcem_vram_mask;
 	pcem_linear_write_w(addr + pcem_mapping_linear_offset, w, pcem_mapping_linear_priv);
 }
@@ -3930,7 +3927,7 @@ static void REGPARAM2 gfxboard_lput_vram_wordswap_pcem(uaecptr addr, uae_u32 l)
 	struct rtggfxboard *gb = getgfxboard(addr);
 	addr = (addr - gb->gfxboardmem_start) & gb->banksize_mask;
 	addr += gb->pcem_vram_offset;
-	l = (do_byteswap_16(l >> 16) << 16) | do_byteswap_16(l);
+	l = (l >> 16) | (l << 16);
 	addr &= gb->pcem_vram_mask;
 	pcem_linear_write_l(addr + pcem_mapping_linear_offset, l, pcem_mapping_linear_priv);
 }
