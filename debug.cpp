@@ -52,14 +52,6 @@
 #include "cputbl.h"
 #include "keybuf.h"
 
-#define TRACE_SKIP_INS 1
-#define TRACE_MATCH_PC 2
-#define TRACE_MATCH_INS 3
-#define TRACE_RANGE_PC 4
-#define TRACE_SKIP_LINE 5
-#define TRACE_RAM_PC 6
-#define TRACE_CHECKONLY 10
-
 static int trace_mode;
 static uae_u32 trace_param[3];
 
@@ -1153,7 +1145,7 @@ static void dumpmem (uaecptr addr, uaecptr *nxmem, int lines)
 
 static void dump_custom_regs(bool aga, bool ext)
 {
-	int len, end;
+	int len;
 	uae_u8 *p1, *p2, *p3, *p4;
 	TCHAR extra1[256], extra2[256];
 
@@ -1941,6 +1933,10 @@ static bool get_record_dma_info(struct dma_rec *dr, int hpos, int vpos, uae_u32 
 			l3[cl2++] = 'N';
 		if (dr->evt & DMA_EVENT_BLITSTARTFINISH)
 			l3[cl2++] = 'B';
+		if (dr->evt & DMA_EVENT_CPUBLITTERSTEAL)
+			l3[cl2++] = 's';
+		if (dr->evt & DMA_EVENT_CPUBLITTERSTOLEN)
+			l3[cl2++] = 'S';
 		if (dr->evt & DMA_EVENT_BLITIRQ)
 			l3[cl2++] = 'b';
 		if (dr->evt & DMA_EVENT_BPLFETCHUPDATE)
@@ -7376,6 +7372,10 @@ static uae_u32 get_value(struct dsprintfstack **stackp, uae_u32 *sizep, uaecptr 
 	} else {
 		struct dsprintfstack *stack = *stackp;
 		uae_u32 v = stack->val;
+		if (stack->size == 0)
+			v &= 0xff;
+		else if (stack->size = 1)
+			v &= 0xffff;
 		*sizep = stack->size;
 		stack++;
 		*stackp = stack;

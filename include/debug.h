@@ -219,6 +219,8 @@ struct dma_rec
 #define DMA_EVENT_INTREQ 64
 #define DMA_EVENT_COPPERWANTED 128
 #define DMA_EVENT_NOONEGETS 256
+#define DMA_EVENT_CPUBLITTERSTEAL 512
+#define DMA_EVENT_CPUBLITTERSTOLEN 1024
 #define DMA_EVENT_SPECIAL 32768
 
 #define DMARECORD_REFRESH 1
@@ -236,6 +238,14 @@ extern void record_dma_replace(int hpos, int vpos, int type, int extra);
 extern void record_dma_reset(void);
 extern void record_dma_event(int evt, int hpos, int vpos);
 extern void debug_draw(uae_u8 *buf, int bpp, int line, int width, int height, uae_u32 *xredcolors, uae_u32 *xgreencolors, uae_u32 *xbluescolors);
+
+#define TRACE_SKIP_INS 1
+#define TRACE_MATCH_PC 2
+#define TRACE_MATCH_INS 3
+#define TRACE_RANGE_PC 4
+#define TRACE_SKIP_LINE 5
+#define TRACE_RAM_PC 6
+#define TRACE_CHECKONLY 10
 
 #else
 
