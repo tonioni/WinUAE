@@ -3980,7 +3980,6 @@ static void genastore_2 (const char *from, amodes mode, const char *reg, wordsiz
 		} else if (using_ce) {
 			switch (size) {
 			case sz_byte:
-				set_last_access();
 				out("%s(%sa, %s);\n", dstbx, to, from);
 				count_writew++;
 				check_bus_error(to, 0, 1, 0, from, 1, pcoffset);
@@ -3988,7 +3987,6 @@ static void genastore_2 (const char *from, amodes mode, const char *reg, wordsiz
 			case sz_word:
 				if (cpu_level < 2 && (mode == PC16 || mode == PC8r))
 					term();
-				set_last_access();
 				out("%s(%sa, %s);\n", dstwx, to, from);
 				count_writew++;
 				check_bus_error(to, 0, 1, 1, from, 1, pcoffset);
@@ -4008,7 +4006,6 @@ static void genastore_2 (const char *from, amodes mode, const char *reg, wordsiz
 						fill_prefetch_next_after(0, NULL);
 						insn_n_cycles += 4;
 					}
-					set_last_access();
 					out("%s(%sa, %s >> 16);\n", dstwx, to, from);
 					sprintf(tmp, "%s >> 16", from);
 					count_writew++;
@@ -4021,7 +4018,6 @@ static void genastore_2 (const char *from, amodes mode, const char *reg, wordsiz
 					if (flags & GF_SECONDWORDSETFLAGS) {
 						genflags(flag_logical, g_instr->size, "src", "", "");
 					}
-					set_last_access();
 					out("%s(%sa + 2, %s);\n", dstwx, to, from);
 					count_writew++;
 					check_bus_error(to, 2, 1, 1, from, 1, pcoffset);
@@ -4033,7 +4029,6 @@ static void genastore_2 (const char *from, amodes mode, const char *reg, wordsiz
 		} else if (using_prefetch) {
 			switch (size) {
 			case sz_byte:
-				set_last_access();
 				out("%s(%sa, %s);\n", dstbx, to, from);
 				count_writew++;
 				check_bus_error(to, 0, 1, 0, from, 1, pcoffset);
@@ -4041,7 +4036,6 @@ static void genastore_2 (const char *from, amodes mode, const char *reg, wordsiz
 			case sz_word:
 				if (cpu_level < 2 && (mode == PC16 || mode == PC8r))
 					term();
-				set_last_access();
 				out("%s(%sa, %s);\n", dstwx, to, from);
 				count_writew++;
 				check_bus_error(to, 0, 1, 1, from, 1, pcoffset);
@@ -4060,7 +4054,6 @@ static void genastore_2 (const char *from, amodes mode, const char *reg, wordsiz
 					if (store_dir > 1) {
 						fill_prefetch_next_after(0, NULL);
 					}
-					set_last_access();
 					out("%s(%sa, %s >> 16); \n", dstwx, to, from);
 					sprintf(tmp, "%s >> 16", from);
 					count_writew++;
@@ -4073,7 +4066,6 @@ static void genastore_2 (const char *from, amodes mode, const char *reg, wordsiz
 					if (flags & GF_SECONDWORDSETFLAGS) {
 						genflags(flag_logical, g_instr->size, "src", "", "");
 					}
-					set_last_access();
 					out("%s(%sa + 2, %s); \n", dstwx, to, from);
 					count_writew++;
 					check_bus_error(to, 2, 1, 1, from, 1, pcoffset);
