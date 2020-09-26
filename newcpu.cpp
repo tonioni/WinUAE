@@ -4343,7 +4343,8 @@ void doint(void)
 #endif
 	if (m68k_interrupt_delay) {
 		regs.ipl_pin = intlev ();
-		set_special(SPCFLAG_INT);
+		if (regs.ipl_pin > regs.intmask || regs.ipl_pin == 7)
+			set_special(SPCFLAG_INT);
 		return;
 	}
 	if (currprefs.cpu_compatible && currprefs.cpu_model < 68020)
@@ -4550,8 +4551,8 @@ static int do_specialties (int cycles)
 	}
 
 	if (m68k_interrupt_delay) {
-		unset_special(SPCFLAG_INT);
 		if (time_for_interrupt ()) {
+			unset_special(SPCFLAG_INT);
 			do_interrupt (regs.ipl);
 		}
 	} else {
@@ -4854,7 +4855,7 @@ cont:
 					log_dma_record ();
 				}
 
-				if (r->spcflags || time_for_interrupt ()) {
+				if (r->spcflags) {
 					if (do_specialties (0))
 						exit = true;
 				}
@@ -4864,7 +4865,7 @@ cont:
 			}
 		} CATCH (prb) {
 			bus_error();
-			if (r->spcflags || time_for_interrupt()) {
+			if (r->spcflags) {
 				if (do_specialties(0))
 					exit = true;
 			}
