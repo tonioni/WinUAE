@@ -954,9 +954,11 @@ static void ncr9x_io_bput3(struct ncr9x_state *ncr, uaecptr addr, uae_u32 val, i
 			esp_dma_enable(ncr->devobject.lsistate, ncr->dma_on);
 			ncr->states[0] = val;
 			ncr->dma_cnt = 0;
+#if NCR_DEBUG
 			if (ncr->dma_on) {
 				write_log(_T("Trifecta DMA %08x %c\n"), ncr->dma_ptr, (val & 1) ? 'R' : 'W');
 			}
+#endif
 		} else if (addr == 0x402) {
 			ncr->dma_ptr &= 0xffff00;
 			ncr->dma_ptr |= val;

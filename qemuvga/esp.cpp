@@ -71,7 +71,10 @@ static void esp_raise_irq(ESPState *s)
 {
     if (!(s->rregs[ESP_RSTAT] & STAT_INT)) {
         s->rregs[ESP_RSTAT] |= STAT_INT;
-		esp_raise_ext_irq(s);
+#if ESPLOG
+        write_log("irq->1\n");
+#endif
+        esp_raise_ext_irq(s);
     }
 }
 
@@ -79,7 +82,10 @@ static void esp_lower_irq(ESPState *s)
 {
     if (s->rregs[ESP_RSTAT] & STAT_INT) {
         s->rregs[ESP_RSTAT] &= ~STAT_INT;
-		esp_lower_ext_irq(s);
+#if ESPLOG
+        write_log("irq->0\n");
+#endif
+        esp_lower_ext_irq(s);
     }
 }
 
@@ -87,6 +93,9 @@ static void fas408_raise_irq(ESPState *s)
 {
 	if (!(s->rregs[ESP_REGS + NCR_PSTAT] & NCRPSTAT_SIRQ)) {
 		s->rregs[ESP_REGS + NCR_PSTAT] |= NCRPSTAT_SIRQ;
+#if ESPLOG
+        write_log("irq408->1\n");
+#endif
 		esp_raise_ext_irq(s);
 	}
 }
@@ -95,7 +104,10 @@ static void fas408_lower_irq(ESPState *s)
 {
 	if (s->rregs[ESP_REGS + NCR_PSTAT] & NCRPSTAT_SIRQ) {
 		s->rregs[ESP_REGS + NCR_PSTAT] &= ~NCRPSTAT_SIRQ;
-		esp_lower_ext_irq(s);
+#if ESPLOG
+        write_log("irq408->0\n");
+#endif
+        esp_lower_ext_irq(s);
 	}
 }
 
@@ -855,11 +867,8 @@ void esp_reg_write(void *opaque, uint32_t saddr, uint64_t val)
             s->rregs[ESP_RINTR] = INTR_DC;
             s->rregs[ESP_RSEQ] = 0;
             //s->rregs[ESP_RFLAGS] = 0;
-			// Features enable
-			if (!(s->wregs[ESP_CFG2] & 0x40)) {
-				// Masoboshi driver expects phase=0!
-				s->rregs[ESP_RSTAT] &= ~7;
-			}
+			// Masoboshi and Trifecta drivers expects phase=0
+			s->rregs[ESP_RSTAT] &= ~7;
             esp_raise_irq(s);
             break;
         case CMD_PAD:
