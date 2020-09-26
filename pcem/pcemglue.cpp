@@ -374,8 +374,6 @@ void codegen_set_rounding_mode(int mode)
 {
 	/*SSE*/
 	cpu_state.new_fp_control = (cpu_state.old_fp_control & ~0x6000) | (mode << 13);
-	/*x87 - used for double -> i64 conversions*/
-	cpu_state.new_fp_control2 = (cpu_state.old_fp_control2 & ~0x0c00) | (mode << 10);
 }
 #endif
 

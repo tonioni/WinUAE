@@ -649,10 +649,12 @@ void svga_render_24bpp_lowres(svga_t *svga)
                 offset = (8 - (svga->scrollcache & 6)) + 24;
 
                 if (svga->swaprb) {
+                    for (x = 0; x <= svga->hdisp; x++) {
                         fg = svga->vram[svga->ma + 2] | (svga->vram[svga->ma + 1] << 8) | (svga->vram[svga->ma + 0] << 16);
                         svga->ma += 3;
                         svga->ma &= svga->vram_display_mask;
                         ((uint32_t *)buffer32->line[svga->displine])[(x << 1) + offset] = ((uint32_t *)buffer32->line[svga->displine])[(x << 1) + 1 + offset] = fg;
+                    }
                 } else {
                     for (x = 0; x <= svga->hdisp; x++)
                     {

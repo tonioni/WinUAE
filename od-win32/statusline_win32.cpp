@@ -102,7 +102,7 @@ static void create_led_font(int monid)
 						RealizePalette(hdc);
 						HFONT font = CreateFont(fontsize, 0,
 							0, 0,
-							FW_BOLD,
+							FW_MEDIUM,
 							FALSE,
 							FALSE,
 							FALSE,

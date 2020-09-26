@@ -232,7 +232,7 @@
       <OmitFramePointers>true</OmitFramePointers>
       <WholeProgramOptimization>false</WholeProgramOptimization>
       <AdditionalIncludeDirectories>..\..\include;..\..;..\;..\resources;..\osdep;..\sounddep;..\..\prowizard\include;..\..\slirp;..\..\ppc\pearpc;:%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>WINVER=0x0601;NDEBUG;_WIN32_IE=0x0700;WIN32;UAE;WINUAE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WINVER=0x0601;NDEBUG;_WIN32_IE=0x0700;WIN32;UAE;WINUAE;__i386__;_HAS_STD_BYTE=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <StringPooling>true</StringPooling>
       <ExceptionHandling>Sync</ExceptionHandling>
       <BasicRuntimeChecks>Default</BasicRuntimeChecks>
@@ -256,6 +256,7 @@
       <DisableSpecificWarnings>4996;%(DisableSpecificWarnings)</DisableSpecificWarnings>
       <ForcedIncludeFiles>%(ForcedIncludeFiles)</ForcedIncludeFiles>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <LanguageStandard>stdcpplatest</LanguageStandard>
     </ClCompile>
     <ResourceCompile>
       <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
@@ -336,6 +337,7 @@
       <DisableSpecificWarnings>4996;%(DisableSpecificWarnings)</DisableSpecificWarnings>
       <ForcedIncludeFiles>%(ForcedIncludeFiles)</ForcedIncludeFiles>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <LanguageStandard>stdcpplatest</LanguageStandard>
     </ClCompile>
     <ResourceCompile>
       <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
@@ -392,7 +394,7 @@
       <OmitFramePointers>false</OmitFramePointers>
       <WholeProgramOptimization>false</WholeProgramOptimization>
       <AdditionalIncludeDirectories>..\..\include;..\..;..\;..\resources;..\osdep;..\sounddep;..\..\prowizard\include;..\..\slirp;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>WINVER=0x0601;_WIN32_IE=0x0700;WIN32;UAE;WINUAE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WINVER=0x0601;_WIN32_IE=0x0700;WIN32;UAE;WINUAE;__i386__;_HAS_STD_BYTE=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <StringPooling>true</StringPooling>
       <ExceptionHandling>Sync</ExceptionHandling>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
@@ -416,6 +418,7 @@
       <DisableSpecificWarnings>4996;%(DisableSpecificWarnings)</DisableSpecificWarnings>
       <ForcedIncludeFiles>%(ForcedIncludeFiles)</ForcedIncludeFiles>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <LanguageStandard>stdcpplatest</LanguageStandard>
     </ClCompile>
     <ResourceCompile>
       <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
@@ -495,6 +498,7 @@
       <DisableSpecificWarnings>4996;%(DisableSpecificWarnings)</DisableSpecificWarnings>
       <ForcedIncludeFiles>%(ForcedIncludeFiles)</ForcedIncludeFiles>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <LanguageStandard>stdcpplatest</LanguageStandard>
     </ClCompile>
     <ResourceCompile>
       <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
@@ -647,6 +651,7 @@
       <DisableSpecificWarnings>4996;%(DisableSpecificWarnings)</DisableSpecificWarnings>
       <ForcedIncludeFiles>%(ForcedIncludeFiles)</ForcedIncludeFiles>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <LanguageStandard>stdcpplatest</LanguageStandard>
     </ClCompile>
     <ResourceCompile>
       <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
@@ -692,14 +697,14 @@
       <TypeLibraryName>.\Release/winuae_msvc.tlb</TypeLibraryName>
     </Midl>
     <ClCompile>
-      <Optimization>Full</Optimization>
+      <Optimization>MaxSpeed</Optimization>
       <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
       <OmitFramePointers>true</OmitFramePointers>
       <WholeProgramOptimization>true</WholeProgramOptimization>
       <AdditionalIncludeDirectories>..\..\include;..\..;..\;..\resources;..\osdep;..\sounddep;..\..\prowizard\include;..\..\slirp;..\..\ppc\pearpc;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>WINVER=0x0601;NDEBUG;_WIN32_IE=0x0700;WIN32;UAE;WINUAE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WINVER=0x0601;NDEBUG;_WIN32_IE=0x0700;WIN32;UAE;WINUAE;__i386__;_HAS_STD_BYTE=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <StringPooling>true</StringPooling>
       <ExceptionHandling>Sync</ExceptionHandling>
       <BasicRuntimeChecks>Default</BasicRuntimeChecks>
@@ -723,6 +728,7 @@
       <DisableSpecificWarnings>4996;%(DisableSpecificWarnings)</DisableSpecificWarnings>
       <ForcedIncludeFiles>%(ForcedIncludeFiles)</ForcedIncludeFiles>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <LanguageStandard>stdcpplatest</LanguageStandard>
     </ClCompile>
     <ResourceCompile>
       <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
@@ -771,14 +777,14 @@
       <TypeLibraryName>.\Release/winuae_msvc.tlb</TypeLibraryName>
     </Midl>
     <ClCompile>
-      <Optimization>Full</Optimization>
+      <Optimization>MaxSpeed</Optimization>
       <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
       <OmitFramePointers>true</OmitFramePointers>
       <WholeProgramOptimization>true</WholeProgramOptimization>
       <AdditionalIncludeDirectories>..\..\include;..\..;..\;..\resources;..\osdep;..\sounddep;..\..\slirp;..\..\ppc\pearpc;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>WINVER=0x0601;NDEBUG;_WIN32_IE=0x0700;WIN32;WIN64;PTR64;UAE;WINUAE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WINVER=0x0601;NDEBUG;_WIN32_IE=0x0700;WIN32;WIN64;PTR64;UAE;WINUAE;_HAS_STD_BYTE=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <StringPooling>true</StringPooling>
       <ExceptionHandling>Sync</ExceptionHandling>
       <BasicRuntimeChecks>Default</BasicRuntimeChecks>
@@ -802,6 +808,7 @@
       <DisableSpecificWarnings>4996;%(DisableSpecificWarnings)</DisableSpecificWarnings>
       <ForcedIncludeFiles>%(ForcedIncludeFiles)</ForcedIncludeFiles>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <LanguageStandard>stdcpplatest</LanguageStandard>
     </ClCompile>
     <ResourceCompile>
       <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
@@ -925,6 +932,7 @@
     <ClCompile Include="..\..\ncr9x_scsi.cpp" />
     <ClCompile Include="..\..\newcpu_common.cpp" />
     <ClCompile Include="..\..\pcem\386.cpp" />
+    <ClCompile Include="..\..\pcem\386_common.cpp" />
     <ClCompile Include="..\..\pcem\386_dynarec.cpp" />
     <ClCompile Include="..\..\pcem\808x.cpp" />
     <ClCompile Include="..\..\pcem\cpu.cpp" />
@@ -936,8 +944,8 @@
     <ClCompile Include="..\..\pcem\mem.cpp" />
     <ClCompile Include="..\..\pcem\mouse_ps2.cpp" />
     <ClCompile Include="..\..\pcem\mouse_serial.cpp" />
+    <ClCompile Include="..\..\pcem\nvr.cpp" />
     <ClCompile Include="..\..\pcem\pcemglue.cpp" />
-    <ClCompile Include="..\..\pcem\pcemnvr.cpp" />
     <ClCompile Include="..\..\pcem\pcemrtc.cpp" />
     <ClCompile Include="..\..\pcem\pic.cpp" />
     <ClCompile Include="..\..\pcem\pit.cpp" />
@@ -950,8 +958,15 @@
     <ClCompile Include="..\..\pcem\sound_sb_dsp.cpp" />
     <ClCompile Include="..\..\pcem\sound_speaker.cpp" />
     <ClCompile Include="..\..\pcem\timer.cpp" />
+    <ClCompile Include="..\..\pcem\vid_cl5429.cpp" />
+    <ClCompile Include="..\..\pcem\vid_s3.cpp" />
+    <ClCompile Include="..\..\pcem\vid_s3_virge.cpp" />
+    <ClCompile Include="..\..\pcem\vid_sdac_ramdac.cpp" />
+    <ClCompile Include="..\..\pcem\vid_svga.cpp" />
+    <ClCompile Include="..\..\pcem\vid_svga_render.cpp" />
     <ClCompile Include="..\..\pcem\x86seg.cpp" />
     <ClCompile Include="..\..\pcem\x87.cpp" />
+    <ClCompile Include="..\..\pcem\x87_timings.cpp" />
     <ClCompile Include="..\..\pci.cpp" />
     <ClCompile Include="..\..\ppc\ppc.cpp" />
     <ClCompile Include="..\..\ppc\ppcd.cpp" />
