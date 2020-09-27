@@ -70,7 +70,8 @@ static void create_led_font(int monid)
 
 	hdc = CreateCompatibleDC(NULL);
 	if (hdc) {
-		int fontsize = -MulDiv(8, GetDeviceCaps(hdc, LOGPIXELSY), 72);
+		int y = GetDeviceCaps(hdc, LOGPIXELSY);
+		int fontsize = -MulDiv(6, y, 72);
 		fontsize = fontsize * statusline_get_multiplier(monid) / 100;
 		lp = (LOGPALETTE *)xcalloc(uae_u8, sizeof(LOGPALETTE) + 3 * sizeof(PALETTEENTRY));
 		if (lp) {
@@ -102,7 +103,7 @@ static void create_led_font(int monid)
 						RealizePalette(hdc);
 						HFONT font = CreateFont(fontsize, 0,
 							0, 0,
-							FW_MEDIUM,
+							FW_NORMAL,
 							FALSE,
 							FALSE,
 							FALSE,
@@ -111,7 +112,7 @@ static void create_led_font(int monid)
 							CLIP_DEFAULT_PRECIS,
 							PROOF_QUALITY,
 							FIXED_PITCH | FF_DONTCARE,
-							_T("Courier New"));
+							_T("Lucida Console"));
 						if (font) {
 							SelectObject(hdc, font);
 							SetTextColor(hdc, PALETTEINDEX(2));
@@ -119,7 +120,7 @@ static void create_led_font(int monid)
 							TEXTMETRIC tm;
 							GetTextMetrics(hdc, &tm);
 							int w = 0;
-							int h = tm.tmAscent;
+							int h = tm.tmAscent + 2;
 							for (int i = 0; i < td_characters[i]; i++) {
 								SIZE sz;
 								if (GetTextExtentPoint32(hdc, &td_characters[i], 1, &sz)) {
@@ -128,7 +129,8 @@ static void create_led_font(int monid)
 								}
 							}
 							int offsetx = 10;
-							int offsety = 10 + (tm.tmDescent + 1) / 2;
+							int offsety = 10 - 1;
+							w += 1;
 							td_new_numbers = xcalloc(char, w * h * NUMBERS_NUM);
 							if (td_new_numbers) {
 								for (int i = 0; i < td_characters[i]; i++) {
@@ -290,10 +292,10 @@ void statusline_render(int monid, uae_u8 *buf, int bpp, int pitch, int width, in
 		textwidth = size.cx;
 		if (isfullscreen()) {
 			if (td_numbers_pos & TD_RIGHT) {
-				bar_xstart = width - TD_PADX - VISIBLE_LEDS * td_width;
+				bar_xstart = width - td_numbers_padx - VISIBLE_LEDS * td_width;
 				x = bar_xstart - textwidth - td_led_width;
 			} else {
-				bar_xstart = TD_PADX;
+				bar_xstart = td_numbers_padx;
 				x = bar_xstart + textwidth + td_led_width;
 			}
 		}

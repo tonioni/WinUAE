@@ -2003,7 +2003,7 @@ static bool CreateTexture(struct d3d11struct *d3d)
 
 	UpdateVertexArray(d3d, d3d->m_vertexBuffer, 0, 0, 0, 0, 0, 0, 0, 0);
 
-	d3d->statusbar_hx = d3d->statusbar_vx = statusline_set_multiplier(mon->monitor_id, d3d->m_screenWidth, d3d->m_screenHeight);
+	d3d->statusbar_hx = d3d->statusbar_vx = statusline_set_multiplier(mon->monitor_id, d3d->m_screenWidth, d3d->m_screenHeight) / 100;
 	d3d->ledwidth = d3d->m_screenWidth;
 	d3d->ledheight = TD_TOTAL_HEIGHT * d3d->statusbar_vx;
 	allocsprite(d3d, &d3d->osd, d3d->ledwidth, d3d->ledheight, true);

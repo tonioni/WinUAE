@@ -52,6 +52,8 @@ void statusline_getpos(int monid, int *x, int *y, int width, int height)
 int td_numbers_pos = TD_RIGHT | TD_BOTTOM;
 int td_numbers_width = TD_DEFAULT_NUM_WIDTH;
 int td_numbers_height = TD_DEFAULT_NUM_HEIGHT;
+int td_numbers_padx = TD_DEFAULT_PADX;
+int td_numbers_pady = TD_DEFAULT_PADY;
 const TCHAR *td_characters = _T("0123456789CHD%+-PNKV");
 int td_led_width = TD_DEFAULT_LED_WIDTH;
 static int td_led_height = TD_DEFAULT_LED_HEIGHT;
@@ -115,6 +117,8 @@ void statusline_set_font(const char *newnumbers, int width, int height)
 {
 	td_numbers_width = TD_DEFAULT_NUM_WIDTH;
 	td_numbers_height = TD_DEFAULT_NUM_HEIGHT;
+	td_numbers_padx = TD_DEFAULT_PADX;
+	td_numbers_pady = TD_DEFAULT_PADY;
 	td_led_width = TD_DEFAULT_LED_WIDTH;
 	td_led_height = TD_DEFAULT_LED_HEIGHT;
 	td_width = TD_DEFAULT_WIDTH;
@@ -125,7 +129,7 @@ void statusline_set_font(const char *newnumbers, int width, int height)
 	numbers = newnumbers;
 	td_numbers_width = width;
 	td_numbers_height = height;
-	td_led_width = td_numbers_width * 3;
+	td_led_width = td_numbers_width * 3 + td_numbers_width / 2;
 	td_width = td_led_width + 10;
 	td_custom = true;
 }
@@ -135,8 +139,8 @@ int statusline_set_multiplier(int monid, int width, int height)
 	struct amigadisplay *ad = &adisplays[monid];
 	int idx = ad->picasso_on ? 1 : 0;
 	int mult = currprefs.leds_on_screen_multiplier[idx];
-	if (mult < 100) {
-		mult = 100;
+	if (mult < 1 * 100) {
+		mult = 1 * 100;
 	}
 	if (mult > 4 * 100) {
 		mult = 4 * 100;
@@ -149,8 +153,8 @@ int statusline_get_multiplier(int monid)
 {
 	struct amigadisplay *ad = &adisplays[monid];
 	int idx = ad->picasso_on ? 1 : 0;
-	if (statusline_mult[idx] <= 0)
-		return 1;
+	if (statusline_mult[idx] < 1 * 100)
+		return 1 * 100;
 	return statusline_mult[idx];
 }
 
@@ -170,9 +174,9 @@ void draw_status_line_single(int monid, uae_u8 *buf, int bpp, int y, int totalwi
 	c2 = ledcolor (0x00000000, rc, gc, bc, alpha);
 
 	if (td_numbers_pos & TD_RIGHT)
-		x_start = totalwidth - (TD_PADX + VISIBLE_LEDS * td_width) * mult;
+		x_start = totalwidth - (td_numbers_padx + VISIBLE_LEDS * td_width) * mult;
 	else
-		x_start = TD_PADX * mult;
+		x_start = td_numbers_padx * mult;
 
 	for (led = 0; led < LED_MAX; led++) {
 		int pos, num1 = -1, num2 = -1, num3 = -1, num4 = -1;
@@ -387,21 +391,21 @@ void draw_status_line_single(int monid, uae_u8 *buf, int bpp, int y, int totalwi
 			}
 		}
 
-		if (y >= TD_PADY && y - TD_PADY < td_numbers_height) {
+		if (y >= td_numbers_pady && y - td_numbers_pady < td_numbers_height) {
 			if (num3 >= 0) {
 				x += (td_led_width - am * td_numbers_width) * mult / 2;
 				if (num1 > 0) {
-					write_tdnumber(buf, bpp, x, y - TD_PADY, num1, pen_rgb, c2, mult);
+					write_tdnumber(buf, bpp, x, y - td_numbers_pady, num1, pen_rgb, c2, mult);
 					x += td_numbers_width * mult;
 				}
 				if (num2 >= 0) {
-					write_tdnumber(buf, bpp, x, y - TD_PADY, num2, pen_rgb, c2, mult);
+					write_tdnumber(buf, bpp, x, y - td_numbers_pady, num2, pen_rgb, c2, mult);
 					x += td_numbers_width * mult;
 				}
-				write_tdnumber(buf, bpp, x, y - TD_PADY, num3, pen_rgb, c2, mult);
+				write_tdnumber(buf, bpp, x, y - td_numbers_pady, num3, pen_rgb, c2, mult);
 				x += td_numbers_width * mult;
 				if (num4 > 0)
-					write_tdnumber(buf, bpp, x, y - TD_PADY, num4, pen_rgb, c2, mult);
+					write_tdnumber(buf, bpp, x, y - td_numbers_pady, num4, pen_rgb, c2, mult);
 			}
 		}
 	}

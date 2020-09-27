@@ -3,8 +3,8 @@
 
 #include "uae/types.h"
 
-#define TD_PADX 4
-#define TD_PADY 2
+#define TD_DEFAULT_PADX 4
+#define TD_DEFAULT_PADY 2
 #define TD_DEFAULT_WIDTH 30
 #define TD_DEFAULT_LED_WIDTH 24
 #define TD_DEFAULT_LED_HEIGHT 4
@@ -14,6 +14,7 @@
 
 extern int td_numbers_pos;
 extern int td_numbers_width, td_numbers_height;
+extern int td_numbers_padx, td_numbers_pady;
 extern const TCHAR *td_characters;
 extern int td_led_width;
 extern int td_width;
@@ -21,7 +22,7 @@ extern int td_width;
 #define TD_DEFAULT_NUM_WIDTH 7
 #define TD_DEFAULT_NUM_HEIGHT 7
 
-#define TD_TOTAL_HEIGHT (TD_PADY * 2 + td_numbers_height)
+#define TD_TOTAL_HEIGHT (td_numbers_pady * 2 + td_numbers_height)
 
 #define NUMBERS_NUM 20
 

@@ -4215,7 +4215,7 @@ void picasso_statusline(int monid, uae_u8 *dst)
 	if (currprefs.gfx_api) {
 		statusline_render(monid, dst + sly * pitch, vidinfo->pixbytes, pitch, dst_width, dst_height, p96rc, p96gc, p96bc, NULL);
 	}
-	int m = statusline_get_multiplier(monid);
+	int m = statusline_get_multiplier(monid) / 100;
 	for (y = 0; y < TD_TOTAL_HEIGHT * m; y++) {
 		uae_u8 *buf = dst + (y + sly) * pitch;
 		draw_status_line_single(monid, buf, vidinfo->pixbytes, y, dst_width, p96rc, p96gc, p96bc, NULL);

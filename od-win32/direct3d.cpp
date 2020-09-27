@@ -1426,7 +1426,7 @@ static int createledtexture (struct d3dstruct *d3d)
 {
 	struct AmigaMonitor *mon = &AMonitors[d3d - d3ddata];
 
-	d3d->statusbar_hx = d3d->statusbar_vx = statusline_set_multiplier(mon->monitor_id, d3d->tout_w, d3d->tout_h);
+	d3d->statusbar_hx = d3d->statusbar_vx = statusline_set_multiplier(mon->monitor_id, d3d->tout_w, d3d->tout_h) / 100;
 	d3d->ledwidth = d3d->window_w;
 	d3d->ledheight = TD_TOTAL_HEIGHT * d3d->statusbar_vx;
 	d3d->ledtexture = createtext(d3d, d3d->ledwidth, d3d->ledheight * d3d->statusbar_vx, D3DFMT_A8R8G8B8);
