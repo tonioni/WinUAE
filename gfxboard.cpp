@@ -453,7 +453,7 @@ static const addrbank tmpl_gfxboard_bank_vram_normal_pcem = {
 	gfxboard_lput_vram_normal_pcem, gfxboard_wput_vram_normal_pcem, gfxboard_bput_vram_normal_pcem,
 	default_xlate, default_check, NULL, NULL, _T("PCem SVGA VRAM (DIRECT)"),
 	dummy_lgeti, dummy_wgeti,
-	ABFLAG_IO | ABFLAG_SAFE, S_READ, S_WRITE
+	ABFLAG_RAM | ABFLAG_THREADSAFE | ABFLAG_PPCIOSPACE, S_READ, S_WRITE
 };
 
 
@@ -462,7 +462,7 @@ static const addrbank tmpl_gfxboard_bank_vram_wordswap_pcem = {
 	gfxboard_lput_vram_wordswap_pcem, gfxboard_wput_vram_wordswap_pcem, gfxboard_bput_vram_wordswap_pcem,
 	default_xlate, default_check, NULL, NULL, _T("PCem SVGA VRAM (WORDSWAP)"),
 	dummy_lgeti, dummy_wgeti,
-	ABFLAG_IO | ABFLAG_SAFE, S_READ, S_WRITE
+	ABFLAG_RAM | ABFLAG_THREADSAFE | ABFLAG_PPCIOSPACE, S_READ, S_WRITE
 };
 
 static const addrbank tmpl_gfxboard_bank_vram_longswap_pcem = {
@@ -470,7 +470,7 @@ static const addrbank tmpl_gfxboard_bank_vram_longswap_pcem = {
 	gfxboard_lput_vram_longswap_pcem, gfxboard_wput_vram_longswap_pcem, gfxboard_bput_vram_longswap_pcem,
 	default_xlate, default_check, NULL, NULL, _T("PCem SVGA VRAM (LONGSWAP)"),
 	dummy_lgeti, dummy_wgeti,
-	ABFLAG_IO | ABFLAG_SAFE, S_READ, S_WRITE
+	ABFLAG_RAM | ABFLAG_THREADSAFE | ABFLAG_PPCIOSPACE, S_READ, S_WRITE
 };
 
 static const addrbank tmpl_gfxboard_bank_vram_cv_1_pcem = {
@@ -478,14 +478,14 @@ static const addrbank tmpl_gfxboard_bank_vram_cv_1_pcem = {
 	gfxboard_lput_vram_cv_1_pcem, gfxboard_wput_vram_cv_1_pcem, gfxboard_bput_vram_cv_1_pcem,
 	default_xlate, default_check, NULL, NULL, _T("PCem SVGA VRAM (CV64)"),
 	dummy_lgeti, dummy_wgeti,
-	ABFLAG_IO | ABFLAG_SAFE, S_READ, S_WRITE
+	ABFLAG_RAM | ABFLAG_THREADSAFE | ABFLAG_PPCIOSPACE, S_READ, S_WRITE
 };
 static const addrbank tmpl_gfxboard_bank_vram_p4z2_pcem = {
 	gfxboard_lget_vram_p4z2_pcem, gfxboard_wget_vram_p4z2_pcem, gfxboard_bget_vram_p4z2_pcem,
 	gfxboard_lput_vram_p4z2_pcem, gfxboard_wput_vram_p4z2_pcem, gfxboard_bput_vram_p4z2_pcem,
 	default_xlate, default_check, NULL, NULL, _T("PCem SVGA VRAM (PIVZ2)"),
 	dummy_lgeti, dummy_wgeti,
-	ABFLAG_IO | ABFLAG_SAFE, S_READ, S_WRITE
+	ABFLAG_RAM | ABFLAG_THREADSAFE | ABFLAG_PPCIOSPACE, S_READ, S_WRITE
 };
 
 
@@ -2452,7 +2452,7 @@ static void REGPARAM2 gfxboard_wput_mem_autoconfig (uaecptr addr, uae_u32 b)
 
 				gb->p4_special_start = start;
 				map_banks_z3(&gb->gfxboard_bank_special_pcem, start >> 16, PICASSOIV_REG >> 16);
-				map_banks_z3(&gb->gfxboard_bank_io_swap_pcem,   (start + PICASSOIV_REG) >> 16, 4);
+				map_banks_z3(&gb->gfxboard_bank_io_swap_pcem, (start + PICASSOIV_REG) >> 16, 4);
 				map_banks_z3(&gb->gfxboard_bank_vram_longswap_pcem, (start + PICASSOIV_VRAM1) >> 16, 0x400000 >> 16);
 				map_banks_z3(&gb->gfxboard_bank_vram_wordswap_pcem, (start + PICASSOIV_VRAM1 + 0x400000) >> 16, 0x400000 >> 16);
 				map_banks_z3(&gb->gfxboard_bank_vram_longswap_pcem, (start + PICASSOIV_VRAM2) >> 16, 0x400000 >> 16);
