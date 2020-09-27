@@ -3173,6 +3173,7 @@ static void updatepicasso96(struct AmigaMonitor *mon)
 	vidinfo->width = mon->currentmode.current_width;
 	vidinfo->depth = mon->currentmode.current_depth;
 	vidinfo->offset = 0;
+	vidinfo->splitypos = -1;
 #endif
 }
 
