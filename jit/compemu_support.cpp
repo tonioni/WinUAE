@@ -4181,13 +4181,8 @@ static bool read_fpu_opcode(const char **pp)
 }
 #endif
 
-static bool merge_blacklist()
+static bool merge_blacklist2(const char *blacklist)
 {
-#ifdef UAE
-	const char *blacklist = "";
-#else
-	const char *blacklist = bx_options.jit.jitblacklist;
-#endif
 #ifdef USE_JIT_FPU
 	for (unsigned int i = 0; i < (sizeof(jit_opcodes) / sizeof(jit_opcodes[0])); i++)
 		*jit_opcodes[i].disabled = false;
@@ -4195,8 +4190,40 @@ static bool merge_blacklist()
 	if (blacklist[0] != '\0') {
 		const char *p = blacklist;
 		for (;;) {
+			int len;
 			if (*p == 0)
 				return true;
+
+			const char *endp = strchr(p, ',');
+			if (endp) {
+				len = endp - p - 1;
+			} else {
+				len = strlen(p);
+			}
+
+			TCHAR *s = au(p);
+			bool found = false;
+			for (int i = 0; lookuptab[i].name; i++) {
+				if (!_tcsnicmp(s, lookuptab[i].name, len) && _tcslen(lookuptab[i].name) == len) {
+					int mnemo = lookuptab[i].mnemo;
+					for (int opcode = 0; opcode < 65536; opcode++) {
+						struct instr *table = &table68k[opcode];
+						if (table->mnemo == mnemo) {
+							reset_compop(cft_map(opcode));
+							jit_log("<JIT compiler> : blacklist opcode : %04x", opcode);
+						}
+					}
+					p += len;
+					if (*p)
+						p++;
+					found = true;
+					break;
+				}
+			}
+			xfree(s);
+			if (found) {
+				continue;
+			}
 
 			int opcode1 = read_opcode(p);
 			if (opcode1 < 0)
@@ -4237,6 +4264,20 @@ static bool merge_blacklist()
 		}
 	}
 	return true;
+}
+
+static bool merge_blacklist(void)
+{
+	bool ret;
+#ifdef UAE
+	const char *blacklist = ua(currprefs.jitblacklist);
+	ret = merge_blacklist2(blacklist);
+	xfree((void*)blacklist);
+#else
+	const char *blacklist = bx_options.jit.jitblacklist;
+	ret = merge_blacklist2(blacklist);
+#endif
+	return ret;
 }
 
 void build_comp(void)
