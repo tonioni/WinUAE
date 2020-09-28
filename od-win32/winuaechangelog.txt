@@ -1,4 +1,62 @@
 
+Beta 2:
+
+- On screen led crash fix.
+- On screen leds size and font type is more closer to old style.
+- Added support for Aranym JIT blacklist string and added also opcode name blacklist (never compile listed opcode) support. jit_blacklist=<opcode in hexadecimal> or jit_blacklist=<opcode1>-<opcode2> or jit_blacklist=opcode to disable all "opcode" variants. If you have JIT only problem: try "jit_blacklist=lsl" to work around known updated JIT bug until it gets properly fixed.
+- Fixed Picasso96 corruption when running program that opens new RTG screen. (This didn't happen if not yet released Picasso96 2.5.0 was installed)
+
+NOTE: 2 known JIT bugs: 1) If there are weird graphics corruption or similar only if JIT is enabled and Direct/Indirect makes no difference, try "jit_blacklist=lsl" (see above). 2) UAE expansions that need to call m68k code might hang if JIT is enabled, for example bsdsocket.library.
+
+Beta 1:
+
+- Fully merged latest Aranym JIT. Previously it was only partially merged because of unsolved problem that made it completely unusable. It is solved now.
+- JIT should be now trace mode (debugger) compatible. If SR register T1 or T0 bit gets set, JIT transparently drops to normal emulation mode. JIT reactivates when trace gets cleared. Very rarely used M SR bit also does same.
+- Full CPU tester 68020 test set now passes in JIT mode, including trace mode tests. (NOTE: bcc.b and bsr.b tests fail unless Hard flush is also set)
+- JIT has two known not yet fixed bugs: edge case shift condition (shift count is divisible by 32) C-flag problem and ROR/ROL does not clear V-flag.
+
+- x86 Bridgeboard update: PCem x86 core updated to v16. Update added FPU support for pre-486 CPUs. FPU checkbox added to bridgeboard expansion settings.
+- uaegfx Picasso96 2.5.0 screen dragging support added.
+
+- CV64 RTG board emulation. S3 Trio 64 chipset emulation from PCem. Roxxler chip is not (yet?) emulated. CGX4 complains if Roxxler fails to work correctly. Picasso96 does not use it.
+- CV64/3D RTG board emulation, Z2 and Z3 mode. S3 Virge chipset emulation from PCem. (S3 Virge is very different than S3 Trio)
+- All Cirrus Logic based RTG boards now use PCem Cirrus Logic SVGA chip emulation.
+- Piccolo SD64 fixed.
+- Reordered RTG board list.
+- Hardware emulated graphics board screenshot support fixed.
+- x86 Bridgeboard VGA still use QEMU Cirrus Logic emulation. I'll keep it (at least for now) because it enables simultaneous use of bridgeboard VGA and PCem RTG board.
+
+- No. Don't ask. Permedia 2 (Cyber/BlizzardVision PPC) or complete enough Voodoo 3 chip emulation does not currently exist.
+
+- Audio and disk DMA: Agnus also ignores DMACON DMAEN bit. DMAEN bit is checked inside Paula. Audio: Paula audio DMA requests are only generated if DMAEN is set when channel generates DMA request (not when transferred via DMAL). DMAEN can be cleared after request has been generated and DMA request still goes to Agnus and Agnus does DMA to AUDxDAT during channel's DMA slot in next scanline. Disk: both DMAEN and DSKEN needs to be set. Previously DMAEN was checked in Agnus side when deciding current DMA slot state. Most likely no normal program cares, this is quite extreme edge case.
+- Copper write to BPLxDAT timing fix.
+- cpu_halt_auto_reset config entry added to GUI misc panel.
+- Analog joystick multiplier/offset default adjusted.
+- Load PAL mode, OCS Agnus state file directly from GUI/command line, start emulation, on the fly switch chipset to ECS Agnus: mode was changed to NTSC.
+- Switching off display DMA when display DMA was active still had more hidden side-effects. It results in "bad state" that is not reset until bitplane DMA is switched back on, when it is back on DMA restarts from state which normally happens when DDFSTOP has been passed. Result is either 1 or 2 "bitplane blocks" (1 or 2 depends on horizontal position relative to next BPL1DAT slot when DMA was switched off) starting from DDFSTRT (if switched on before DDFSTRT). The rest of scanline is drawn using border color. Following scan line works normally. No differences between OCS/ECS. (vAmiga test case)
+- Another undocumented feature: if BPLCON0 HAM and DPF are both set, result is weird. HAM replaces R/G/B component: replacement component value is palette _index_ of current pixel in dual playfield mode! HAM selection bits zero: palette selection works like in dual playfield mode. BPLCON2 works like mode is normal dual play field (including invalid BPLCON2 priority values). OCS/ECS only. (vAmiga test case).
+- Dual playfield mode illegal BPLCON2 priorities didn't work correctly in hires mode. (bottom part of above test case)
+- Blitter nasty off cycle counting update, emulatation code wasn't exactly doing what it was supposed to do.
+- A1000 blitter busy bug was ignored if copper waited for blitter.
+- Added DMA debugger non-nasty blitter extra information: 's' (CPU will get next blitter cycle) and 'S' (CPU stole this cycle from blitter)
+- Confirmed CIA register contents at power up. CIA control register should be zero, for some reason previous reset default was $04.
+- Disassemble FBF with zero offset as FNOP.
+- Debugger fi instruction breakpoint command now accepts up to 3 opcode words.
+- Config file list wasn't refreshed when config file was deleted. (4.4.0)
+- RTF_AFTERDOS is broken in KS 2.0 , KS 2.0 now uses pre-WinUAE 3.3 hack and only KS 3.0+ use RTF_AFTERDOS. Clipboard sharing and uaenet.device work again under KS 2.0.
+- Added Amiga Bootblock Reader brainfile support (copy ABR package xml files to <winuae root>\plugins\ABR -directory). Used when clicking "?" button in quickstart and disk panels.
+- Fixed emulated floppy disk rotation speed, it was slightly too slow. This change could break some copy protections. Unexpected side-effects are always possible..
+- Copper SKIP wasn't updated when WAIT logic was updated ages ago. SKIP had wrong timing in some rare situations.
+- "Default" filter mode: PAL/NTSC switch automatically scales the image.
+- DF3: floppy led was drawn using very dark color if it was disabled and system didn't have NVRAM hardware.
+- OSD led font graphics is now generated from real Windows font and is high DPI aware. Led size multiplier config entries now also support non-integer values.
+
+- Added GVP A1230 Turbo+ Jaws. Boot ROM adds RAM outside of 24-bit address space and fake RAM autoconfig board.
+- Accelerator board RAM slider range was larger than supported range with some boards.
+- Added Trumpcard v1.5 and v3.1 ROM. Added also hardware interrupt checkbox, later trumpcard (still non-pro) variants have interrupt support. It seems 8k ROM variants don't have interrupt, 16k do have it. Setting is wrong if it hangs at boot.
+- Added A.L.F.2 OMTI variant and v2.2 boot ROM. ROM possibly also includes SCSI driver but I didn't examine how it works. A.L.F.2 OMTI IO port is exact same as in A.L.F.1.
+- Trifecta LX SCSI emulation fixed.
+
 4.4.0
 
 Beta 9 (RC2):
