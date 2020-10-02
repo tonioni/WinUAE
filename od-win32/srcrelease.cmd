@@ -6,7 +6,7 @@ cd ..
 
 del ..\winuaesrc.7z
 
-7z a -r ..\winuaesrc *.c *.cpp *.h *.sln *.vcxproj* *.ico *.rc *.bmp *.cur *.manifest *.png *.txt
+7z a -r ..\winuaesrc *.c *.cpp *.h *.sln *.vcxproj* *.ico *.rc *.bmp *.cur *.manifest *.png *.txt *.def *.asm *.hlsl *.inl *.wav
 
 copy ..\winuaesrc.7z d:\amiga\winuaepackets\winuaesrc%1.7z
 copy ..\winuaesrc.7z d:\amiga /y

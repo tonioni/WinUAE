@@ -136,6 +136,7 @@ OSVERSIONINFO osVersion;
 static SYSTEM_INFO SystemInfo;
 static int logging_started;
 static MINIDUMP_TYPE minidumpmode = MiniDumpNormal;
+static int nocrashdump;
 static int doquit;
 static int console_started;
 void *globalipc;
@@ -6588,6 +6589,10 @@ static int parseargs(const TCHAR *argx, const TCHAR *np, const TCHAR *np2)
 		resetgui_pending = true;
 		return 1;
 	}
+	if (!_tcscmp(arg, _T("nocrashdump"))) {
+		nocrashdump = 1;
+		return 1;
+	}
 	if (!np)
 		return 0;
 
@@ -7306,6 +7311,8 @@ static void create_dump (struct _EXCEPTION_POINTERS *pExceptionPointers)
 
 LONG WINAPI WIN32_ExceptionFilter (struct _EXCEPTION_POINTERS * pExceptionPointers, DWORD ec)
 {
+	if (nocrashdump || isfullscreen() > 0)
+		EXCEPTION_CONTINUE_SEARCH;
 	write_log (_T("EVALEXCEPTION %08x!\n"), ec);
 	create_dump  (pExceptionPointers);
 	return EXCEPTION_CONTINUE_SEARCH;
@@ -7329,6 +7336,9 @@ static void efix (DWORD *regp, void *p, void *ps, int *got)
 
 LONG WINAPI WIN32_ExceptionFilter (struct _EXCEPTION_POINTERS *pExceptionPointers, DWORD ec)
 {
+	if (nocrashdump)
+		EXCEPTION_CONTINUE_SEARCH;
+
 	static uae_u8 *prevpc;
 	LONG lRet = EXCEPTION_CONTINUE_SEARCH;
 	PEXCEPTION_RECORD er = pExceptionPointers->ExceptionRecord;

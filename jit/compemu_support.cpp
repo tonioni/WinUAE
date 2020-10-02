@@ -4379,7 +4379,7 @@ void build_comp(void)
 		int isaddx;
 		int cflow;
 
-		if ((instrmnem)table68k[opcode].mnemo == i_ILLG || table68k[opcode].clev > cpu_level)
+		if (table68k[opcode].mnemo == i_ILLG || table68k[opcode].clev > cpu_level)
 			continue;
 
 		if (table68k[opcode].handler != -1) {

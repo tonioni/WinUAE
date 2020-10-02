@@ -151,9 +151,6 @@ void REGPARAM2 m68k_handle_trap (unsigned int trap_num)
 	int has_retval = (trap->flags & TRAPFLAG_NO_RETVAL) == 0;
 	int implicit_rts = (trap->flags & TRAPFLAG_DORET) != 0;
 
-	if (trap->name && trap->name[0] != 0 && trace_traps)
-		write_log (_T("TRAP: %s\n"), trap->name);
-
 	if (trap_num < trap_count) {
 		if (trap->flags & TRAPFLAG_EXTRA_STACK) {
 			/* Handle an extended trap.
@@ -161,9 +158,17 @@ void REGPARAM2 m68k_handle_trap (unsigned int trap_num)
 			* space via a separate, dedicated simple trap which the trap
 			* handler causes to be invoked when it is done.
 			*/
+
+			if (trap->name && trap->name[0] != 0 && trace_traps)
+				write_log(_T("XTRAP: %s\n"), trap->name);
+
 			trap_HandleExtendedTrap (trap->handler, has_retval);
 		} else {
 			/* Handle simple trap */
+
+			if (trap->name && trap->name[0] != 0 && trace_traps)
+				write_log(_T("TRAP: %s\n"), trap->name);
+
 			retval = (trap->handler) (NULL);
 
 			if (has_retval)
@@ -334,6 +339,10 @@ static void trap_HandleExtendedTrap(TrapHandler handler_func, int has_retval)
 		* It'll do this when the trap handler is done - or when
 		* the handler wants to call 68k code. */
 		uae_sem_wait(&context->switch_to_emu_sem);
+
+		if (trace_traps) {
+			write_log(_T("Exit extended trap PC=%08x\n"), m68k_getpc());
+		}
 	}
 }
 
@@ -369,6 +378,10 @@ static uae_u32 trap_Call68k(TrapContext *ctx, uaecptr func_addr)
 		* executed when emulator context resumes. */
 		m68k_setpc(m68k_call_trapaddr);
 		fill_prefetch();
+
+		if (trace_traps) {
+			write_log(_T("Calling m68k PC=%08x %08x\n"), func_addr, m68k_call_trapaddr);
+		}
 
 		/* Switch to emulator context. */
 		uae_sem_post(&ctx->switch_to_emu_sem);
@@ -412,11 +425,11 @@ static uae_u32 REGPARAM2 m68k_call_handler(TrapContext *dummy_ctx)
 	m68k_setpc(context->call68k_func_addr);
 	fill_prefetch();
 
-	/* End critical section: allow other traps run. */
-	uae_sem_post(&trap_mutex);
-
 	/* Restore interrupts. */
 	regs.intmask = context->saved_regs.intmask;
+
+	/* End critical section: allow other traps run. */
+	uae_sem_post(&trap_mutex);
 
 	/* Dummy return value. */
 	return 0;
@@ -429,6 +442,11 @@ static uae_u32 REGPARAM2 m68k_return_handler(TrapContext *dummy_ctx)
 {
 	TrapContext *context;
 	uae_u32 sp;
+
+	if (trace_traps) {
+		write_log(_T("m68k_return_handler\n"));
+	}
+
 
 	/* One trap returning at a time, please! */
 	uae_sem_wait(&trap_mutex);
@@ -462,6 +480,10 @@ static uae_u32 REGPARAM2 m68k_return_handler(TrapContext *dummy_ctx)
 static uae_u32 REGPARAM2 exit_trap_handler(TrapContext *dummy_ctx)
 {
 	TrapContext *context = current_context;
+
+	if (trace_traps) {
+		write_log(_T("exit_trap_handler waiting PC=%08x\n"), context->saved_regs.pc);
+	}
 
 	/* Wait for trap context thread to exit. */
 	uae_wait_thread(context->thread);

@@ -70,8 +70,12 @@ ENUMDECL {
     fl_return = 3,
     fl_trap = 4,
     fl_const_jump = 8,
+#ifdef UAE
+    fl_end_block = 7
+#else
     /* Instructions that can trap don't mark the end of a block */
     fl_end_block = 3
+#endif
 } ENUMNAME (cflow_t);
 
 ENUMDECL {

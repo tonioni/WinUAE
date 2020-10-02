@@ -9750,11 +9750,11 @@ void fill_prefetch_030(void)
 
 void fill_prefetch (void)
 {
-	reset_pipeline_state();
 	if (currprefs.cachesize)
 		return;
 	if (!currprefs.cpu_compatible)
 		return;
+	reset_pipeline_state();
 	if (currprefs.cpu_model >= 68040) {
 		if (currprefs.cpu_compatible || currprefs.cpu_memory_cycle_exact) {
 			fill_icache040(m68k_getpc() + 16);
