@@ -311,12 +311,12 @@ int main(int argc, char **argv)
 		char tmp[100], *p;
 		int slen = 0;
 
-		while (isspace(*opstrp))
+		while (isspace((unsigned char)*opstrp))
 			opstrp++;
 
 		osendp = opstrp;
 		while (*osendp) {
-			if (!isspace (*osendp))
+			if (!isspace ((unsigned char)*osendp))
 				slen = osendp - opstrp + 1;
 			osendp++;
 		}
@@ -328,7 +328,7 @@ int main(int argc, char **argv)
 		strcpy (tmp, opstrp);
 		strcat (tmp, " ");
 		p = tmp;
-		while (!isspace(*p++));
+		while (!isspace((unsigned char)*p++));
 		*p = 0;
 		printf("/* %s */\n", tmp);
 		printf("{0x%04X,%2d,{", bitpattern, n_variable);
