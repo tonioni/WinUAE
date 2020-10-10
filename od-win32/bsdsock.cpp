@@ -1215,6 +1215,7 @@ void host_sendto (TrapContext *ctx, SB, uae_u32 sd, uae_u32 msg, uae_u8 *hmsg, u
 			} else {
 				realpt += sb->resultval;
 				len -= sb->resultval;
+				sb->bytestransmitted += sb->resultval;
 				if (len <= 0)
 					break;
 				else
@@ -1323,6 +1324,7 @@ void host_recvfrom(TrapContext *ctx, SB, uae_u32 sd, uae_u32 msg, uae_u8 *hmsg, 
 					int l = sb->resultval;
 					realpt += l;
 					len -= l;
+					sb->bytesreceived += l;
 					waitallgot += l;
 					if (len <= 0) {
 						sb->resultval = waitallgot;
