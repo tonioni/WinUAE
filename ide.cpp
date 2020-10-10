@@ -966,6 +966,11 @@ static void do_process_packet_command (struct ide_hdf *ide)
 	ide_fast_interrupt (ide);
 }
 
+static const TCHAR *getidemode(struct ide_hdf *ide)
+{
+	return ide->lba48 ? (ide->lba48cmd ? _T("lba48") : _T("lba48*")) : ((ide->regs.ide_select & 0x40) ? _T("lba") : _T("chs"));
+}
+
 static void do_process_rw_command (struct ide_hdf *ide)
 {
 	unsigned int cyl, head, sec, nsec, nsec_total;
@@ -983,7 +988,7 @@ static void do_process_rw_command (struct ide_hdf *ide)
 	nsec = get_nsec (ide);
 	get_lbachs (ide, &lba, &cyl, &head, &sec);
 	if (IDE_LOG > 1)
-		write_log (_T("IDE%d off=%d, nsec=%d (%d) lba48=%d\n"), ide->num, (uae_u32)lba, nsec, ide->multiple_mode, ide->lba48 + ide->lba48cmd);
+		write_log(_T("IDE%d off=%d, nsec=%d (%d) %s\n"), ide->num, (uae_u32)lba, nsec, ide->multiple_mode, getidemode(ide));
 	if (nsec > ide->max_lba - lba) {
 		nsec = ide->max_lba - lba;
 		if (IDE_LOG > 1)
@@ -1068,8 +1073,8 @@ static void ide_read_sectors (struct ide_hdf *ide, int flags)
 		return;
 	}
 	if (IDE_LOG > 0)
-		write_log (_T("IDE%d %s off=%d, sec=%d (%d) lba48=%d\n"),
-			ide->num, (flags & 4) ? _T("verify") : _T("read"), (uae_u32)lba, nsec, ide->multiple_mode, ide->lba48 + ide->lba48cmd);
+		write_log (_T("IDE%d %s off=%d, sec=%d (%d) %s\n"),
+			ide->num, (flags & 4) ? _T("verify") : _T("read"), (uae_u32)lba, nsec, ide->multiple_mode, getidemode(ide));
 	if (flags & 4) {
 		// verify
 		ide_interrupt(ide);
@@ -1106,7 +1111,7 @@ static void ide_write_sectors (struct ide_hdf *ide, int flags)
 		return;
 	}
 	if (IDE_LOG > 0)
-		write_log (_T("IDE%d write off=%d, sec=%d (%d) lba48=%d\n"), ide->num, (uae_u32)lba, nsec, ide->multiple_mode, ide->lba48 + ide->lba48cmd);
+		write_log (_T("IDE%d write off=%d, sec=%d (%d) %s\n"), ide->num, (uae_u32)lba, nsec, ide->multiple_mode, getidemode(ide));
 	if (nsec > ide->max_lba - lba)
 		nsec = ide->max_lba - lba;
 	if (nsec <= 0) {
