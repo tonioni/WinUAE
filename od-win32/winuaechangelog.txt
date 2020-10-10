@@ -1,4 +1,23 @@
 
+
+- Implemented bsdsocket.library SBTC_GET_BYTES_RECEIVED and SBTC_GET_BYTES_SENT.
+- Fixed floppy max possible write length, was slightly too short, b1 fixed read timing.
+- Hardware emulated RTG sometimes rendered outside of right border.
+- Cirrus Logic updates: CGX double scan modes fixed. Vertical multiplication by 2x CL feature supported (used if height >1023).
+- All hardware emulation modes: Fixed crash when switching 24-bit modes.
+- Added missing safe S3 Virge and S3 Trio thread kill support. (Existing PCem code simply killed it, even if it was currently processing 3D or blitter queue)
+- Picasso IV byte VRAM access address "XOR 1" was missing in byteswap bank. (OS4 graphics corruption in 16-bit modes)
+- CV64 15/16-bit non-PC modes had wrong colors, one byteswap VRAM mode was missed.
+- PCem CV64 blitter emulation didn't support source/destination base address variables and clipping rectangle worked incorrectly if coordinates were negative. Caused graphics corruption if blitter accessed second 2M VRAM bank. Pre-Virge S3 blitter is strange, addressing is based on X and Y coordinates and width of current graphics mode relative to start of VRAM (+optional base offset, 0M, 1M, 2M or 3M), there are no blitter address registers.
+- Added horizontal doubling support to PCem SVGA emulation, enabled automatically if mode is doublescanned and tall enough, keeps aspect ratio. For example CGX4 512x384 mode is doublescanned.
+- If logging is enabled and PCem RTG board is active: board status gets logged periodically.
+
+This should fix remaining known new RTG emulation issues. JIT Direct still causes problems but it might not be directly JIT problem but due to syncronization issue with threaded S3 blitter emulation.
+
+Beta 3:
+
+- JIT + bsdsocket.library (and probably some other UAE expansions) hang fixed.
+
 Beta 2:
 
 - On screen led crash fix.

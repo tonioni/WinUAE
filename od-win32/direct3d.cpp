@@ -1408,13 +1408,13 @@ static void updateleds (struct d3dstruct *d3d)
 		return;
 	}
 
-	for (int y = 0; y < TD_TOTAL_HEIGHT * d3d->statusbar_vx; y++) {
+	for (int y = 0; y < d3d->ledheight; y++) {
 		uae_u8 *buf = (uae_u8*)locked.pBits + y * locked.Pitch;
 		statusline_single_erase(d3d - d3ddata, buf, 32 / 8, y, d3d->ledwidth);
 	}
 	statusline_render(d3d - d3ddata, (uae_u8*)locked.pBits, 32 / 8, locked.Pitch, d3d->ledwidth, d3d->ledheight, rc, gc, bc, a);
 
-	for (int y = 0; y < TD_TOTAL_HEIGHT * d3d->statusbar_vx; y++) {
+	for (int y = 0; y < d3d->ledheight; y++) {
 		uae_u8 *buf = (uae_u8*)locked.pBits + y * locked.Pitch;
 		draw_status_line_single(d3d - d3ddata, buf, 32 / 8, y, d3d->ledwidth, rc, gc, bc, a);
 	}
