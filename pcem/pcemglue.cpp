@@ -425,6 +425,12 @@ void (*pcem_linear_write_b)(uint32_t addr, uint8_t  val, void *priv);
 void (*pcem_linear_write_w)(uint32_t addr, uint16_t val, void *priv);
 void (*pcem_linear_write_l)(uint32_t addr, uint32_t val, void *priv);
 
+#define MAX_PCEMMAPPINGS 10
+static mem_mapping_t *pcemmappings[MAX_PCEMMAPPINGS];
+#define PCEMMAPBLOCKSIZE 0x10000
+#define MAX_PCEMMAPBLOCKS (0x10000000 / PCEMMAPBLOCKSIZE)
+mem_mapping_t *pcemmap[MAX_PCEMMAPBLOCKS];
+
 static uint8_t dummy_bread(uint32_t addr, void *p)
 {
 	return 0;
@@ -458,6 +464,13 @@ uint64_t timer_read(void)
 void initpcemvideo(void *p, bool swapped)
 {
 	int c, d, e;
+
+	for (int i = 0; i < MAX_PCEMMAPBLOCKS; i++) {
+		pcemmap[i] = NULL;
+	}
+	for (int i = 0; i < MAX_PCEMMAPPINGS; i++) {
+		pcemmappings[i] = NULL;
+	}
 
 	gfxboard_priv = p;
 	has_vlb = 0;
@@ -628,6 +641,11 @@ int rom_init(rom_t *rom, char *fn, uint32_t address, int size, int mask, int fil
 	return 0;
 }
 
+void thread_sleep(int n)
+{
+	sleep_millis(n);
+}
+
 thread_t *thread_create(void (*thread_rout)(void *param), void *param)
 {
 	uae_thread_id tid;
@@ -636,7 +654,7 @@ thread_t *thread_create(void (*thread_rout)(void *param), void *param)
 }
 void thread_kill(thread_t *handle)
 {
-	uae_end_thread((uae_thread_id*)handle);
+	uae_end_thread((uae_thread_id*)&handle);
 }
 event_t *thread_create_event(void)
 {
@@ -661,12 +679,6 @@ void thread_destroy_event(event_t *_event)
 {
 	uae_sem_destroy((uae_sem_t*)&_event);
 }
-
-#define MAX_PCEMMAPPINGS 10
-static mem_mapping_t *pcemmappings[MAX_PCEMMAPPINGS];
-#define PCEMMAPBLOCKSIZE 0x10000
-#define MAX_PCEMMAPBLOCKS (0x10000000 / PCEMMAPBLOCKSIZE)
-mem_mapping_t *pcemmap[MAX_PCEMMAPBLOCKS];
 
 static mem_mapping_t *getmm(uaecptr *addrp)
 {
