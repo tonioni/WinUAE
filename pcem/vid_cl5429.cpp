@@ -767,10 +767,12 @@ void gd5429_out(uint16_t addr, uint8_t val, void *p)
                 svga->crtc[svga->crtcreg] = val;
 
                 if (svga->crtcreg == 0x11) {
-                    if (!(val & 0x10))
-                        gd5429->vblank_irq = -1;
-                    else if (gd5429->vblank_irq < 0)
+                    if (!(val & 0x10)) {
+                        if (gd5429->vblank_irq > 0)
+                            gd5429->vblank_irq = -1;
+                    } else if (gd5429->vblank_irq < 0) {
                         gd5429->vblank_irq = 0;
+                    }
                     gd5429_update_irqs(gd5429);
                 }
 
@@ -1153,8 +1155,14 @@ void gd5429_recalctimings(svga_t *svga)
         
         svga->interlace = svga->crtc[0x1a] & 1;
         
-        if (svga->seqregs[7] & 0x01)
+        svga->horizontal_linedbl = svga->dispend * 9 / 10 >= svga->hdisp;
+
+        if (svga->seqregs[7] & 0x01) {
+            if (svga->horizontal_linedbl)
+                svga->render = svga_render_8bpp_lowres;
+            else
                 svga->render = svga_render_8bpp_highres;
+        }
         
         svga->ma_latch |= ((svga->crtc[0x1b] & 0x01) << 16) | (((svga->crtc[0x1b] >> 2) & 3) << 17);
         if (gd5429->type >= CL_TYPE_GD5436) {
@@ -1170,23 +1178,35 @@ void gd5429_recalctimings(svga_t *svga)
                         switch (gd5429->hidden_dac_reg & 0xf)
                         {
                                 case 0x0:
-                                svga->render = svga_render_15bpp_highres;
+                                if (svga->horizontal_linedbl)
+                                    svga->render = svga_render_15bpp_lowres;
+                                else
+                                    svga->render = svga_render_15bpp_highres;
                                 svga->bpp = 15;
                                 break;
                                 case 0x1:
-                                svga->render = svga_render_16bpp_highres;
+                                if (svga->horizontal_linedbl)
+                                    svga->render = svga_render_16bpp_lowres;
+                                else
+                                    svga->render = svga_render_16bpp_highres;
                                 svga->bpp = 16;
                                 break;
                                 case 0x5:
                                 if (gd5429->type >= CL_TYPE_GD5434 && (svga->seqregs[7] & 8))
                                 {
-                                        svga->render = svga_render_32bpp_highres;
+                                        if (svga->horizontal_linedbl)
+                                            svga->render = svga_render_32bpp_lowres;
+                                        else
+                                            svga->render = svga_render_32bpp_highres;
                                         svga->bpp = 32;
                                         svga->rowoffset *= 2;
                                 }
                                 else
                                 {
-                                        svga->render = svga_render_24bpp_highres;
+                                        if (svga->horizontal_linedbl)
+                                            svga->render = svga_render_24bpp_lowres;
+                                        else
+                                            svga->render = svga_render_24bpp_highres;
                                         svga->bpp = 24;
                                 }
                                 break;
@@ -1194,7 +1214,10 @@ void gd5429_recalctimings(svga_t *svga)
                 }
                 else
                 {
-                        svga->render = svga_render_15bpp_highres; 
+                        if (svga->horizontal_linedbl)
+                            svga->render = svga_render_15bpp_lowres;
+                        else
+                            svga->render = svga_render_15bpp_highres;
                         svga->bpp = 15;
                 }
         }
@@ -1230,6 +1253,8 @@ void gd5429_hwcursor_draw(svga_t *svga, int displine)
         int xx;
         int offset = svga->hwcursor_latch.x - svga->hwcursor_latch.xoff;
         int line_offset = (svga->seqregs[0x12] & 0x04) ? 16 : 4;
+
+        offset <<= svga->horizontal_linedbl;
 
         if (svga->interlace && svga->hwcursor_oddeven)
                 svga->hwcursor_latch.addr += line_offset;
@@ -1886,23 +1911,31 @@ void gd5429_start_blit(uint32_t cpu_dat, int count, void *p)
         int fg_col = gd5429->blt.fg_col;
         int bg_col = gd5429->blt.bg_col;
         int x_max = 0;
+        int bplcnt = 0;
+        int bpp;
+        uint8_t dststore[4];
+        int maskstore = 0;
 
         switch (gd5429->blt.depth)
         {
                 case BLIT_DEPTH_8:
                 x_max = 8;
+                bpp = 1;
                 break;
                 case BLIT_DEPTH_16:
                 x_max = 16;
                 blt_mask *= 2;
+                bpp = 2;
                 break;
                 case BLIT_DEPTH_24:
                 x_max = 24;
                 blt_mask *= 3;
+                bpp = 3;
                 break;
                 case BLIT_DEPTH_32:
                 x_max = 32;
                 blt_mask *= 4;
+                bpp = 4;
                 break;
         }
                 
@@ -1924,8 +1957,8 @@ void gd5429_start_blit(uint32_t cpu_dat, int count, void *p)
                         gd5429->blt.y_count = gd5429->blt.src_addr & 7;
                 else
                         gd5429->blt.y_count = 0;
-//                pclog("gd5429_start_blit : size %i, %i %i %02x %02x %02x %02x\n",
-//                    gd5429->blt.width, gd5429->blt.height, gd5429->blt.x_count, gd5429->blt.rop, gd5429->blt.mode, gd5429->blt.extensions, gd5429->blt.mask);
+//                pclog("gd5429_start_blit : size %i, %i %i %02x %02x %02x %02x %d\n",
+//                    gd5429->blt.width, gd5429->blt.height, gd5429->blt.x_count, gd5429->blt.rop, gd5429->blt.mode, gd5429->blt.extensions, gd5429->blt.mask, gd5429->blt.depth);
 
                 if (gd5429->blt.mode & 0x04)
                 {
@@ -2135,6 +2168,40 @@ void gd5429_start_blit(uint32_t cpu_dat, int count, void *p)
                         case 0xda: dst = ~(src &  dst); break;
                 }
 
+                dststore[bplcnt++] = dst;
+                maskstore |= mask;
+                if (bplcnt >= bpp) {
+                    if (bpp == 1) {
+                        if ((gd5429->blt.width_backup - gd5429->blt.width) >= blt_mask &&
+                            !((gd5429->blt.mode & 0x08) && !mask))
+                            svga->vram[gd5429->blt.dst_addr & svga->vram_mask] = dst;
+                    } else if (bpp == 2) {
+                        if ((gd5429->blt.width_backup - gd5429->blt.width) >= blt_mask &&
+                            !((gd5429->blt.mode & 0x08) && !maskstore)) {
+                            svga->vram[(gd5429->blt.dst_addr + 0) & svga->vram_mask] = dststore[0];
+                            svga->vram[(gd5429->blt.dst_addr + 1) & svga->vram_mask] = dststore[1];
+                        }
+                    } else if (bpp == 3) {
+                        if ((gd5429->blt.width_backup - gd5429->blt.width) >= blt_mask &&
+                            !((gd5429->blt.mode & 0x08) && !maskstore)) {
+                            svga->vram[(gd5429->blt.dst_addr + 0) & svga->vram_mask] = dststore[0];
+                            svga->vram[(gd5429->blt.dst_addr + 1) & svga->vram_mask] = dststore[1];
+                            svga->vram[(gd5429->blt.dst_addr + 2) & svga->vram_mask] = dststore[2];
+                        }
+                    } else if (bpp == 3) {
+                        if ((gd5429->blt.width_backup - gd5429->blt.width) >= blt_mask &&
+                            !((gd5429->blt.mode & 0x08) && !maskstore)) {
+                            svga->vram[(gd5429->blt.dst_addr + 0) & svga->vram_mask] = dststore[0];
+                            svga->vram[(gd5429->blt.dst_addr + 1) & svga->vram_mask] = dststore[1];
+                            svga->vram[(gd5429->blt.dst_addr + 2) & svga->vram_mask] = dststore[2];
+                            svga->vram[(gd5429->blt.dst_addr + 3) & svga->vram_mask] = dststore[3];
+                        }
+                    }
+                    gd5429->blt.dst_addr += ((gd5429->blt.mode & 0x01) ? -bpp : bpp);
+                    bplcnt = 0;
+                    maskstore = 0;
+                }
+#if 0
                 if (0 && gd5429->type <= CL_TYPE_GD5428)
                 {
                         if ((gd5429->blt.width_backup - gd5429->blt.width) >= blt_mask &&
@@ -2147,8 +2214,8 @@ void gd5429_start_blit(uint32_t cpu_dat, int count, void *p)
                             !((gd5429->blt.mode & 0x08) && !mask))
                                 svga->vram[gd5429->blt.dst_addr & svga->vram_mask] = dst;
                 }
-                
                 gd5429->blt.dst_addr += ((gd5429->blt.mode & 0x01) ? -1 : 1);
+#endif           
 
                 gd5429->blt.x_count++;
                 if (gd5429->blt.x_count == x_max)

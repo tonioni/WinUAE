@@ -136,6 +136,7 @@ typedef struct virge_t
         int pixel_count, tri_count;
         
         thread_t *render_thread;
+        volatile int render_thread_state;
         event_t *wake_render_thread;
         event_t *wake_main_thread;
         event_t *not_full_event;
@@ -229,12 +230,14 @@ typedef struct virge_t
         volatile int fifo_read_idx, fifo_write_idx;
 
         thread_t *fifo_thread;
+        volatile int fifo_thread_state;
         event_t *wake_fifo_thread;
         event_t *fifo_not_full_event;
         
         int virge_busy;
         
         uint8_t subsys_stat, subsys_cntl;
+        int vblank_irq;
 } virge_t;
 
 static inline void wake_fifo_thread(virge_t *virge)
@@ -306,9 +309,16 @@ enum
 #define INT_3DF_EMP  (1 << 6)
 #define INT_MASK 0xff
 
+static int vsync_enabled(virge_t *virge)
+{
+    if ((virge->svga.crtc[0x32] & 0x10) && ((!(virge->svga.crtc[0x11] & 0x20) && virge->vblank_irq > 0) || (virge->subsys_stat & virge->subsys_cntl & INT_MASK)))
+        return 1;
+    return 0;
+}
+
 static void s3_virge_update_irqs(virge_t *virge)
 {
-        if ((virge->svga.crtc[0x32] & 0x10) && (virge->subsys_stat & virge->subsys_cntl & INT_MASK))
+        if (vsync_enabled(virge))
                 pci_set_irq(virge->card, PCI_INTA);
         else
                 pci_clear_irq(virge->card, PCI_INTA);
@@ -363,6 +373,15 @@ static void s3_virge_out(uint16_t addr, uint8_t val, void *p)
                 svga->crtc[svga->crtcreg] = val;
                 switch (svga->crtcreg)
                 {
+                        case 0x11:
+                        if (!(val & 0x10)) {
+                            if (virge->vblank_irq > 0)
+                                virge->vblank_irq = -1;
+                        } else if (virge->vblank_irq < 0) {
+                            virge->vblank_irq = 0;
+                        }
+                        s3_virge_update_irqs(virge);
+                        break;
                         case 0x31:
                         virge->ma_ext = (virge->ma_ext & 0x1c) | ((val & 0x30) >> 4);
                         break;
@@ -493,6 +512,7 @@ static uint8_t s3_virge_in(uint16_t addr, void *p)
                 case 0x3c2:
                     ret = svga_in(addr, svga);
                     ret |= (virge->subsys_stat & INT_VSY) ? 0x80 : 0x00;
+                    ret |= virge->vblank_irq > 0 ? 0x80 : 0x00;
                 break;
                 //case 0x3C6: case 0x3C7: case 0x3C8: case 0x3C9:
 //                pclog("Read RAMDAC %04X  %04X:%04X\n", addr, CS, pc);
@@ -572,6 +592,7 @@ static void s3_virge_recalctimings(svga_t *svga)
             }
         }
 
+        svga->horizontal_linedbl = svga->dispend * 9 / 10 >= svga->hdisp;
 
         if ((svga->crtc[0x67] & 0xc) != 0xc) /*VGA mode*/
         {
@@ -586,19 +607,34 @@ static void s3_virge_recalctimings(svga_t *svga)
                         switch (svga->bpp)
                         {
                                 case 8: 
-                                svga->render = svga_render_8bpp_highres; 
+                                if (svga->horizontal_linedbl)
+                                    svga->render = svga_render_8bpp_lowres;
+                                else
+                                    svga->render = svga_render_8bpp_highres;
                                 break;
                                 case 15: 
-                                svga->render = svga_render_15bpp_highres; 
+                                if (svga->horizontal_linedbl)
+                                    svga->render = svga_render_15bpp_lowres;
+                                else
+                                    svga->render = svga_render_15bpp_highres;
                                 break;
                                 case 16: 
-                                svga->render = svga_render_16bpp_highres; 
+                                if (svga->horizontal_linedbl)
+                                    svga->render = svga_render_16bpp_lowres;
+                                else
+                                    svga->render = svga_render_16bpp_highres;
                                 break;
-                                case 24: 
-                                svga->render = svga_render_24bpp_highres; 
+                                case 24:
+                                if (svga->horizontal_linedbl)
+                                    svga->render = svga_render_24bpp_lowres;
+                                else
+                                    svga->render = svga_render_24bpp_highres;
                                 break;
                                 case 32: 
-                                svga->render = svga_render_32bpp_highres; 
+                                if (svga->horizontal_linedbl)
+                                    svga->render = svga_render_32bpp_lowres;
+                                else
+                                    svga->render = svga_render_32bpp_highres;
                                 break;
                         }
                 }
@@ -772,6 +808,9 @@ static void s3_virge_vblank_start(svga_t *svga)
 {
         virge_t *virge = (virge_t *)svga->p;
 
+        if (virge->vblank_irq >= 0) {
+            virge->vblank_irq = 1;
+        }
         virge->subsys_stat |= INT_VSY;
         s3_virge_update_irqs(virge);
 }
@@ -987,7 +1026,8 @@ static void fifo_thread(void *param)
 {
         virge_t *virge = (virge_t *)param;
         
-        while (1)
+        virge->fifo_thread_state = 1;
+        while (virge->fifo_thread_state > 0)
         {
                 thread_set_event(virge->fifo_not_full_event);
                 thread_wait_event(virge->wake_fifo_thread, -1);
@@ -1333,6 +1373,7 @@ static void fifo_thread(void *param)
                 virge->subsys_stat |= INT_FIFO_EMP | INT_3DF_EMP;
                 s3_virge_update_irqs(virge);
         }
+        virge->fifo_thread_state = 0;
 }
 
 static void s3_virge_queue(virge_t *virge, uint32_t addr, uint32_t val, uint32_t type)
@@ -3368,7 +3409,8 @@ static void render_thread(void *param)
 {
         virge_t *virge = (virge_t *)param;
         
-        while (1)
+        virge->render_thread_state = 1;
+        while (virge->render_thread_state > 0)
         {
                 thread_wait_event(virge->wake_render_thread, -1);
                 thread_reset_event(virge->wake_render_thread);
@@ -3385,6 +3427,7 @@ static void render_thread(void *param)
                 virge->subsys_stat |= INT_S3D_DONE;
                 s3_virge_update_irqs(virge);
         }
+        virge->render_thread_state = 0;
 }
 
 static void queue_triangle(virge_t *virge)
@@ -3412,6 +3455,8 @@ static void s3_virge_hwcursor_draw(svga_t *svga, int displine)
         int offset = svga->hwcursor_latch.x - svga->hwcursor_latch.xoff;
         uint32_t fg, bg;
         
+        offset <<= svga->horizontal_linedbl;
+
 //        pclog("HWcursor %i %i  %08x %08x\n", svga->hwcursor_latch.x, svga->hwcursor_latch.y, virge->hwcursor_col[0],virge->hwcursor_col[1]);
         switch (svga->bpp)
         {               
@@ -4057,12 +4102,26 @@ static void s3_virge_close(void *p)
 #endif
 #endif
 
-        thread_kill(virge->render_thread);
+        if (virge->render_thread_state) {
+            virge->render_thread_state = -1;
+            thread_set_event(virge->wake_render_thread);
+            while (virge->render_thread_state == -1) {
+                thread_sleep(1);
+            }
+            thread_kill(virge->render_thread);
+        }
         thread_destroy_event(virge->not_full_event);
         thread_destroy_event(virge->wake_main_thread);
         thread_destroy_event(virge->wake_render_thread);
         
-        thread_kill(virge->fifo_thread);
+        if (virge->fifo_thread_state) {
+            virge->fifo_thread_state = -1;
+            thread_set_event(virge->wake_fifo_thread);
+            while (virge->fifo_thread_state == -1) {
+                thread_sleep(1);
+            }
+            thread_kill(virge->fifo_thread);
+        }
         thread_destroy_event(virge->wake_fifo_thread);
         thread_destroy_event(virge->fifo_not_full_event);
 

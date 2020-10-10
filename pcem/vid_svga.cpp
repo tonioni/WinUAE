@@ -23,7 +23,10 @@ static svga_t *svga_pri;
 
 int svga_get_vtotal(void)
 {
-    return svga_pri->vtotal;
+    int v = svga_pri->vtotal;
+    if (svga_pri->crtc[0x17] & 4)
+        v *= 2;
+    return v;
 }
 
 void *svga_get_object(void)
@@ -316,24 +319,34 @@ void svga_recalctimings(svga_t *svga)
         svga->split = svga->crtc[0x18];
         svga->vblankstart = svga->crtc[0x15];
 
-        if (svga->crtc[7] & 1)  svga->vtotal |= 0x100;
-        if (svga->crtc[7] & 32) svga->vtotal |= 0x200;
+        if (svga->crtc[7] & 1)
+            svga->vtotal |= 0x100;
+        if (svga->crtc[7] & 0x20)
+            svga->vtotal |= 0x200;
         svga->vtotal += 2;
 
-        if (svga->crtc[7] & 2)  svga->dispend |= 0x100;
-        if (svga->crtc[7] & 64) svga->dispend |= 0x200;
+        if (svga->crtc[7] & 2)
+            svga->dispend |= 0x100;
+        if (svga->crtc[7] & 0x40)
+            svga->dispend |= 0x200;
         svga->dispend++;
 
-        if (svga->crtc[7] & 4)   svga->vsyncstart |= 0x100;
-        if (svga->crtc[7] & 128) svga->vsyncstart |= 0x200;
+        if (svga->crtc[7] & 4)
+            svga->vsyncstart |= 0x100;
+        if (svga->crtc[7] & 0x80)
+            svga->vsyncstart |= 0x200;
         svga->vsyncstart++;
 
-        if (svga->crtc[7] & 0x10) svga->split|=0x100;
-        if (svga->crtc[9] & 0x40) svga->split|=0x200;
+        if (svga->crtc[7] & 0x10)
+            svga->split|=0x100;
+        if (svga->crtc[9] & 0x40)
+            svga->split|=0x200;
         svga->split++;
         
-        if (svga->crtc[7] & 0x08) svga->vblankstart |= 0x100;
-        if (svga->crtc[9] & 0x20) svga->vblankstart |= 0x200;
+        if (svga->crtc[7] & 0x08)
+            svga->vblankstart |= 0x100;
+        if (svga->crtc[9] & 0x20)
+            svga->vblankstart |= 0x200;
         svga->vblankstart++;
         
         svga->hdisp = svga->crtc[1];
@@ -347,6 +360,8 @@ void svga_recalctimings(svga_t *svga)
         svga->clock = (svga->vidclock) ? VGACONST2 : VGACONST1;
         
         svga->lowres = svga->attrregs[0x10] & 0x40;
+
+        svga->horizontal_linedbl = 0;
         
         svga->interlace = 0;
         
@@ -354,6 +369,7 @@ void svga_recalctimings(svga_t *svga)
 
         svga->hdisp_time = svga->hdisp;
         svga->render = svga_render_blank;
+
         if (!(svga->gdcreg[6] & 1) && !(svga->attrregs[0x10] & 1)) /*Text mode*/
         {
             if (svga->seqregs[1] & 8) /*40 column*/
@@ -600,7 +616,7 @@ int svga_poll(void *p)
                 svga->hsync_divisor = !svga->hsync_divisor;
                 
                 if (svga->hsync_divisor && (svga->crtc[0x17] & 4))
-                        return 1;
+                        return eod;
 
                 svga->vc++;
                 svga->vc &= 2047;
@@ -702,8 +718,12 @@ int svga_poll(void *p)
                                     svga->render == svga_render_15bpp_lowres ||
                                     svga->render == svga_render_16bpp_lowres ||
                                     svga->render == svga_render_24bpp_lowres ||
-                                    svga->render == svga_render_32bpp_lowres)
+                                    svga->render == svga_render_32bpp_lowres) {
+                                    if (svga->horizontal_linedbl)
+                                        svga->video_res_x *= 2;
+                                    else
                                         svga->video_res_x /= 2;
+                                }
 
                                 switch (svga->gdcreg[5] & 0x60)
                                 {
@@ -1359,20 +1379,17 @@ void svga_doblit(int y1, int y2, int wx, int wy, svga_t *svga)
         {
                 xsize=wx;
                 ysize=wy+1;
-                if (xsize<64) xsize=0;
+                if (xsize<128) xsize=0;
                 if (ysize<32) ysize=0;
 
-                if (svga->vertical_linedbl)
-                        updatewindowsize(xsize,ysize*2);
-                else
-                        updatewindowsize(xsize,ysize);
+                updatewindowsize(xsize * (svga->horizontal_linedbl ? 2 : 1), ysize * (svga->vertical_linedbl ? 2 : 1));
         }
         if (vid_resize)
         {
                 xsize = wx;
                 ysize = wy + 1;
         }
-        video_blit_memtoscreen(32, 0, y1, y2, xsize, ysize);
+        video_blit_memtoscreen(32, 0, y1, y2, xsize << svga->horizontal_linedbl, ysize);
 //        pclog("svga_doblit end\n");
 }
 

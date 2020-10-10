@@ -134,6 +134,7 @@ typedef struct s3_t
         fifo_entry_t fifo[FIFO_SIZE];
         volatile int fifo_read_idx, fifo_write_idx;
 
+        volatile int fifo_thread_state;
         thread_t *fifo_thread;
         event_t *wake_fifo_thread;
         event_t *fifo_not_full_event;
@@ -882,7 +883,8 @@ static void fifo_thread(void *param)
 {
         s3_t *s3 = (s3_t *)param;
         
-        while (1)
+        s3->fifo_thread_state = 1;
+        while (s3->fifo_thread_state > 0)
         {
                 thread_set_event(s3->fifo_not_full_event);
                 thread_wait_event(s3->wake_fifo_thread, -1);
@@ -929,6 +931,7 @@ static void fifo_thread(void *param)
                 s3->subsys_stat |= INT_FIFO_EMP;
                 s3_update_irqs(s3);
         }
+        s3->fifo_thread_state = 0;
 }
 
 static void s3_vblank_start(svga_t *svga)
@@ -1241,6 +1244,8 @@ void s3_recalctimings(svga_t *svga)
         svga->interlace = svga->crtc[0x42] & 0x20;
         //svga->clock = (cpuclock * (float)(1ull << 32)) / s3->getclock(clk_sel, s3->getclock_p);
 
+        svga->horizontal_linedbl = svga->dispend * 9 / 10 >= svga->hdisp;
+
         switch (svga->crtc[0x67] >> 4)
         {
                 case 3: case 5: case 7:
@@ -1254,22 +1259,37 @@ void s3_recalctimings(svga_t *svga)
                 switch (svga->bpp)
                 {
                         case 8: 
-                        svga->render = svga_render_8bpp_highres; 
+                        if (svga->horizontal_linedbl)
+                            svga->render = svga_render_8bpp_lowres;
+                        else
+                            svga->render = svga_render_8bpp_highres;
                         break;
                         case 15: 
-                        svga->render = svga_render_15bpp_highres; 
+                        if (svga->horizontal_linedbl)
+                            svga->render = svga_render_15bpp_lowres;
+                        else
+                            svga->render = svga_render_15bpp_highres;
                         svga->hdisp /= 2;
                         break;
                         case 16: 
-                        svga->render = svga_render_16bpp_highres; 
+                        if (svga->horizontal_linedbl)
+                            svga->render = svga_render_16bpp_lowres;
+                        else
+                            svga->render = svga_render_16bpp_highres;
                         svga->hdisp /= 2;
                         break;
                         case 24: 
-                        svga->render = svga_render_24bpp_highres; 
+                        if (svga->horizontal_linedbl)
+                            svga->render = svga_render_24bpp_lowres;
+                        else
+                            svga->render = svga_render_24bpp_highres;
                         svga->hdisp /= 3;
                         break;
                         case 32:
-                        svga->render = svga_render_32bpp_highres; 
+                        if (svga->horizontal_linedbl)
+                            svga->render = svga_render_32bpp_lowres;
+                        else
+                            svga->render = svga_render_32bpp_highres;
                         if (s3->chip != S3_TRIO32 && s3->chip != S3_TRIO64)
                                 svga->hdisp /= 4;
                         break;
@@ -1755,9 +1775,29 @@ void s3_accel_start(int count, int cpu_input, uint32_t mix_dat, uint32_t cpu_dat
         int compare_mode = (s3->accel.multifunc[0xe] >> 7) & 3;
         uint32_t rd_mask = s3->accel.rd_mask;
         int cmd = s3->accel.cmd >> 13;
+        uint32_t srcbase, dstbase;
         
         if ((s3->chip == S3_TRIO64) && (s3->accel.cmd & (1 << 11)))
                 cmd |= 8;
+
+        // SRC-BASE/DST-BASE
+        if ((s3->accel.multifunc[13] >> 4) & 7) {
+            srcbase = 0x100000 * ((s3->accel.multifunc[13] >> 4) & 3);
+        } else {
+            srcbase = 0x100000 * ((s3->accel.multifunc[14] >> 2) & 3);
+        }
+        if ((s3->accel.multifunc[13] >> 0) & 7) {
+            dstbase = 0x100000 * ((s3->accel.multifunc[13] >> 0) & 3);
+        } else {
+            dstbase = 0x100000 * ((s3->accel.multifunc[14] >> 0) & 3);
+        }
+        if (s3->bpp == 1) {
+            srcbase >>= 1;
+            dstbase >>= 1;
+        } else if (s3->bpp == 3) {
+            srcbase >>= 2;
+            dstbase >>= 2;
+        }
 
         // Amiga CGX4 driver sets all clipping values to FFF.
         if (clip_t == 0xfff)
@@ -1766,9 +1806,9 @@ void s3_accel_start(int count, int cpu_input, uint32_t mix_dat, uint32_t cpu_dat
             clip_l = 0;
 
         s3->force_busy = 1;
-//return;
-//        if (!cpu_input) pclog("Start S3 command %i  %i, %i  %i, %i (clip %i, %i to %i, %i  %i)\n", s3->accel.cmd >> 13, s3->accel.cur_x, s3->accel.cur_y, s3->accel.maj_axis_pcnt & 0xfff, s3->accel.multifunc[0]  & 0xfff, clip_l, clip_t, clip_r, clip_b, s3->accel.multifunc[0xe] & 0x20);
-//        else            pclog("      S3 command %i, %i, %08x %08x\n", s3->accel.cmd >> 13, count, mix_dat, cpu_dat);
+        //return;
+        //if (!cpu_input) pclog("Start S3 command %i  %i, %i  %i, %i (clip %i, %i to %i, %i  %i)\n", s3->accel.cmd >> 13, s3->accel.cur_x, s3->accel.cur_y, s3->accel.maj_axis_pcnt & 0xfff, s3->accel.multifunc[0]  & 0xfff, clip_l, clip_t, clip_r, clip_b, s3->accel.multifunc[0xe] & 0x20);
+        //else            pclog("      S3 command %i, %i, %08x %08x\n", s3->accel.cmd >> 13, count, mix_dat, cpu_dat);
 
         if (!cpu_input) s3->accel.dat_count = 0;
         if (cpu_input && (s3->accel.multifunc[0xa] & 0xc0) != 0x80)
@@ -1827,8 +1867,8 @@ void s3_accel_start(int count, int cpu_input, uint32_t mix_dat, uint32_t cpu_dat
                 {
                         while (count-- && s3->accel.sy >= 0)
                         {
-                                if (s3->accel.cx >= clip_l && s3->accel.cx <= clip_r &&
-                                    s3->accel.cy >= clip_t && s3->accel.cy <= clip_b)
+                                if ((s3->accel.cx & 0xfff) >= clip_l && (s3->accel.cx & 0xfff) <= clip_r &&
+                                    (s3->accel.cy & 0xfff) >= clip_t && (s3->accel.cy & 0xfff) <= clip_b)
                                 {
                                         switch ((mix_dat & mix_mask) ? frgd_mix : bkgd_mix)
                                         {
@@ -1877,8 +1917,8 @@ void s3_accel_start(int count, int cpu_input, uint32_t mix_dat, uint32_t cpu_dat
                 {
                         while (count-- && s3->accel.sy >= 0)
                         {
-                                if (s3->accel.cx >= clip_l && s3->accel.cx <= clip_r &&
-                                    s3->accel.cy >= clip_t && s3->accel.cy <= clip_b)
+                                if ((s3->accel.cx & 0xfff) >= clip_l && (s3->accel.cx & 0xfff) <= clip_r &&
+                                    (s3->accel.cy & 0xfff) >= clip_t && (s3->accel.cy & 0xfff) <= clip_b)
                                 {
                                         switch ((mix_dat & mix_mask) ? frgd_mix : bkgd_mix)
                                         {
@@ -1962,7 +2002,7 @@ void s3_accel_start(int count, int cpu_input, uint32_t mix_dat, uint32_t cpu_dat
                         s3->accel.cy   = s3->accel.cur_y;
                         if (s3->accel.cur_y & 0x1000) s3->accel.cy |= ~0xfff;
                         
-                        s3->accel.dest = s3->accel.cy * s3->width;
+                        s3->accel.dest = dstbase + s3->accel.cy * s3->width;
 
 //                        pclog("Dest %08X  (%i, %i) %04X %04X\n", s3->accel.dest, s3->accel.cx, s3->accel.cy, s3->accel.cur_x, s3->accel.cur_x & 0x1000);
                 }
@@ -1975,8 +2015,8 @@ void s3_accel_start(int count, int cpu_input, uint32_t mix_dat, uint32_t cpu_dat
                 
                 while (count-- && s3->accel.sy >= 0)
                 {
-                        if (s3->accel.cx >= clip_l && s3->accel.cx <= clip_r &&
-                            s3->accel.cy >= clip_t && s3->accel.cy <= clip_b)
+                        if ((s3->accel.cx & 0xfff) >= clip_l && (s3->accel.cx & 0xfff) <= clip_r &&
+                            (s3->accel.cy & 0xfff) >= clip_t && (s3->accel.cy & 0xfff) <= clip_b)
                         {
                                 switch ((mix_dat & mix_mask) ? frgd_mix : bkgd_mix)
                                 {
@@ -2022,7 +2062,7 @@ void s3_accel_start(int count, int cpu_input, uint32_t mix_dat, uint32_t cpu_dat
                                 if (s3->accel.cmd & 0x80) s3->accel.cy++;
                                 else                     s3->accel.cy--;
                                 
-                                s3->accel.dest = s3->accel.cy * s3->width;
+                                s3->accel.dest = dstbase + s3->accel.cy * s3->width;
                                 s3->accel.sy--;
 
                                 if (cpu_input/* && (s3->accel.multifunc[0xa] & 0xc0) == 0x80*/) return;
@@ -2052,8 +2092,8 @@ void s3_accel_start(int count, int cpu_input, uint32_t mix_dat, uint32_t cpu_dat
                         s3->accel.cy   = s3->accel.cur_y & 0xfff;
                         if (s3->accel.cur_y & 0x1000) s3->accel.cy |= ~0xfff;
 
-                        s3->accel.src  = s3->accel.cy * s3->width;
-                        s3->accel.dest = s3->accel.dy * s3->width;
+                        s3->accel.src  = srcbase + s3->accel.cy * s3->width;
+                        s3->accel.dest = dstbase + s3->accel.dy * s3->width;
                         
 //                        pclog("Source %08X Dest %08X  (%i, %i) - (%i, %i)\n", s3->accel.src, s3->accel.dest, s3->accel.cx, s3->accel.cy, s3->accel.dx, s3->accel.dy);
                 }
@@ -2072,8 +2112,8 @@ void s3_accel_start(int count, int cpu_input, uint32_t mix_dat, uint32_t cpu_dat
                 {
                         while (1)
                         {
-                                if (s3->accel.dx >= clip_l && s3->accel.dx <= clip_r &&
-                                    s3->accel.dy >= clip_t && s3->accel.dy <= clip_b)
+                                if ((s3->accel.dx & 0xfff) >= clip_l && (s3->accel.dx & 0xfff) <= clip_r &&
+                                    (s3->accel.dy & 0xfff) >= clip_t && (s3->accel.dy & 0xfff) <= clip_b)
                                 {
                                         READ_SRC(s3->accel.src + s3->accel.cx, src_dat);
                                         READ_DST(s3->accel.dest + s3->accel.dx, dest_dat);  
@@ -2095,8 +2135,8 @@ void s3_accel_start(int count, int cpu_input, uint32_t mix_dat, uint32_t cpu_dat
                                         s3->accel.cy++;
                                         s3->accel.dy++;
         
-                                        s3->accel.src  = s3->accel.cy * s3->width;
-                                        s3->accel.dest = s3->accel.dy * s3->width;
+                                        s3->accel.src  = srcbase + s3->accel.cy * s3->width;
+                                        s3->accel.dest = dstbase + s3->accel.dy * s3->width;
         
                                         s3->accel.sy--;
         
@@ -2109,8 +2149,8 @@ void s3_accel_start(int count, int cpu_input, uint32_t mix_dat, uint32_t cpu_dat
                 {                     
                         while (count-- && s3->accel.sy >= 0)
                         {
-                                if (s3->accel.dx >= clip_l && s3->accel.dx <= clip_r &&
-                                    s3->accel.dy >= clip_t && s3->accel.dy <= clip_b)
+                                if ((s3->accel.dx & 0xfff) >= clip_l && (s3->accel.dx & 0xfff) <= clip_r &&
+                                    (s3->accel.dy & 0xfff) >= clip_t && (s3->accel.dy & 0xfff) <= clip_b)
                                 {
                                         if (vram_mask)
                                         {
@@ -2183,8 +2223,8 @@ void s3_accel_start(int count, int cpu_input, uint32_t mix_dat, uint32_t cpu_dat
                                                 s3->accel.dy--;
                                         }
 
-                                        s3->accel.src  = s3->accel.cy * s3->width;
-                                        s3->accel.dest = s3->accel.dy * s3->width;
+                                        s3->accel.src  = srcbase + s3->accel.cy * s3->width;
+                                        s3->accel.dest = dstbase + s3->accel.dy * s3->width;
 
                                         s3->accel.sy--;
 
@@ -2217,12 +2257,12 @@ void s3_accel_start(int count, int cpu_input, uint32_t mix_dat, uint32_t cpu_dat
 //                        s3->accel.cy = (s3->accel.cy & ~7) | (s3->accel.dy & 7);
 
                         s3->accel.pattern  = (s3->accel.cy * s3->width) + s3->accel.cx;
-                        s3->accel.dest     = s3->accel.dy * s3->width;
+                        s3->accel.dest     = dstbase + s3->accel.dy * s3->width;
                         
                         s3->accel.cx = s3->accel.dx & 7;
                         s3->accel.cy = s3->accel.dy & 7;
                         
-                        s3->accel.src  = s3->accel.pattern + (s3->accel.cy * s3->width);
+                        s3->accel.src  = srcbase + s3->accel.pattern + (s3->accel.cy * s3->width);
 
 //                        pclog("Source %08X Dest %08X  (%i, %i) - (%i, %i)\n", s3->accel.src, s3->accel.dest, s3->accel.cx, s3->accel.cy, s3->accel.dx, s3->accel.dy);
 //                        dumpregs();
@@ -2237,8 +2277,8 @@ void s3_accel_start(int count, int cpu_input, uint32_t mix_dat, uint32_t cpu_dat
 
                 while (count-- && s3->accel.sy >= 0)
                 {
-                        if (s3->accel.dx >= clip_l && s3->accel.dx <= clip_r &&
-                            s3->accel.dy >= clip_t && s3->accel.dy <= clip_b)
+                        if ((s3->accel.dx & 0xfff) >= clip_l && (s3->accel.dx & 0xfff) <= clip_r &&
+                            (s3->accel.dy & 0xfff) >= clip_t && (s3->accel.dy & 0xfff) <= clip_b)
                         {
                                 if (vram_mask)
                                 {
@@ -2310,8 +2350,8 @@ void s3_accel_start(int count, int cpu_input, uint32_t mix_dat, uint32_t cpu_dat
                                         s3->accel.dy--;
                                 }
 
-                                s3->accel.src  = s3->accel.pattern + (s3->accel.cy * s3->width);
-                                s3->accel.dest = s3->accel.dy * s3->width;
+                                s3->accel.src  = srcbase + s3->accel.pattern + (s3->accel.cy * s3->width);
+                                s3->accel.dest = dstbase + s3->accel.dy * s3->width;
 
                                 s3->accel.sy--;
 
@@ -2344,12 +2384,12 @@ void s3_accel_start(int count, int cpu_input, uint32_t mix_dat, uint32_t cpu_dat
                                 int y = s3->accel.poly_cy;
                                 int x_count = ABS((s3->accel.poly_cx2 >> 20) - s3->accel.poly_x) + 1;
 
-                                s3->accel.dest = y * s3->width;
+                                s3->accel.dest = dstbase + y * s3->width;
                                 
                                 while (x_count-- && count--)
                                 {
-                                        if (s3->accel.poly_x >= clip_l && s3->accel.poly_x <= clip_r &&
-                                            s3->accel.poly_cy >= clip_t && s3->accel.poly_cy <= clip_b)
+                                        if ((s3->accel.poly_x & 0xfff) >= clip_l && (s3->accel.poly_x & 0xfff) <= clip_r &&
+                                            (s3->accel.poly_cy & 0xfff) >= clip_t && (s3->accel.poly_cy & 0xfff) <= clip_b)
                                         {
                                                 switch (frgd_mix)
                                                 {
@@ -2419,15 +2459,15 @@ void s3_accel_start(int count, int cpu_input, uint32_t mix_dat, uint32_t cpu_dat
                                 int y = s3->accel.poly_cy;
                                 int x_count = ABS((s3->accel.poly_cx2 >> 20) - s3->accel.poly_x) + 1;
 
-                                s3->accel.src  = s3->accel.pattern + ((y & 7) * s3->width);
-                                s3->accel.dest = y * s3->width;
+                                s3->accel.src  = srcbase + s3->accel.pattern + ((y & 7) * s3->width);
+                                s3->accel.dest = dstbase + y * s3->width;
                                 
                                 while (x_count-- && count--)
                                 {
                                         int pat_x = s3->accel.poly_x & 7;
                                         
-                                        if (s3->accel.poly_x >= clip_l && s3->accel.poly_x <= clip_r &&
-                                            s3->accel.poly_cy >= clip_t && s3->accel.poly_cy <= clip_b)
+                                        if ((s3->accel.poly_x & 0xfff) >= clip_l && (s3->accel.poly_x & 0xfff) <= clip_r &&
+                                            (s3->accel.poly_cy & 0xfff) >= clip_t && (s3->accel.poly_cy & 0xfff) <= clip_b)
                                         {
                                                 if (vram_mask)
                                                 {
@@ -2493,7 +2533,9 @@ void s3_hwcursor_draw(svga_t *svga, int displine)
         int xx;
         int offset = svga->hwcursor_latch.x - svga->hwcursor_latch.xoff;
         uint32_t fg = 0, bg = 0;
-                
+
+        offset <<= svga->horizontal_linedbl;
+
         switch (svga->bpp)
         {               
                 case 15:
@@ -2907,7 +2949,14 @@ void s3_close(void *p)
 
         svga_close(&s3->svga);
         
-        thread_kill(s3->fifo_thread);
+        if (s3->fifo_thread_state) {
+            s3->fifo_thread_state = -1;
+            wake_fifo_thread(s3);
+            while (s3->fifo_thread_state == -1) {
+                thread_sleep(1);
+            }
+            thread_kill(s3->fifo_thread);
+        }
         thread_destroy_event(s3->wake_fifo_thread);
         thread_destroy_event(s3->fifo_not_full_event);
 

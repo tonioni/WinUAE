@@ -140,6 +140,7 @@ typedef struct svga_t
         uint8_t ksc5601_sbyte_mask;
         
         int vertical_linedbl;
+        int horizontal_linedbl;
         
         /*Used to implement CRTC[0x17] bit 2 hsync divisor*/
         int hsync_divisor;
