@@ -180,14 +180,14 @@ static const struct gfxboard boards[] =
 		_T("CyberVision 64/3D Zorro II"), _T("Phase 5"), _T("CV643D_Z2"),
 		8512, 67, 0,
 		0x00000000, 0x00400000, 0x00400000, 0x00400000, 0, 2, 2, false,
-		0, 0, NULL, &s3_virge_375_device
+		0, 0, NULL, &s3_virge_device
 	},
 	{
 		GFXBOARD_ID_CV643D_Z3,
 		_T("CyberVision 64/3D Zorro III"), _T("Phase 5"), _T("CV643D_Z3"),
 		8512, 67, 0,
 		0x00000000, 0x00400000, 0x00400000, 0x10000000, 0, 3, 2, false,
-		0, 0, NULL, &s3_virge_375_device
+		0, 0, NULL, &s3_virge_device
 	},
 	{
 		GFXBOARD_ID_PICASSO2,
@@ -2416,7 +2416,7 @@ static void REGPARAM2 gfxboard_wput_mem_autoconfig (uaecptr addr, uae_u32 b)
 		gb->gfxboard_bank_memory.wput = gfxboard_wput_mem;
 		if (gb->board->pcemdev) {
 			if (boardnum == GFXBOARD_ID_CV643D_Z3) {
-				gb->gfxboardmem_start += 0x4800000;
+				gb->gfxboardmem_start += 0x4000000;
 			}
 		}
 		init_board(gb);

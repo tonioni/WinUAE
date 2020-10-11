@@ -3912,6 +3912,7 @@ static void *s3_virge_init()
                    s3_virge_in, s3_virge_out,
                    s3_virge_hwcursor_draw,
                    s3_virge_overlay_draw);
+        virge->svga.vblank_start = s3_virge_vblank_start;
 
         rom_init(&virge->bios_rom, "s3virge.bin", 0xc0000, 0x8000, 0x7fff, 0, MEM_MAPPING_EXTERNAL);
         if (PCI)
@@ -4216,7 +4217,6 @@ static device_config_t s3_virge_config[] =
 };
 #endif
 
-#ifndef UAE
 device_t s3_virge_device =
 {
         "Diamond Stealth 3D 2000 (S3 ViRGE)",
@@ -4227,10 +4227,12 @@ device_t s3_virge_device =
         s3_virge_speed_changed,
         s3_virge_force_redraw,
         s3_virge_add_status_info,
+#ifndef UAE
         s3_virge_config
-};
 #endif
+};
 
+#ifndef UAE
 device_t s3_virge_375_device =
 {
         "S3 ViRGE/DX",
@@ -4241,7 +4243,6 @@ device_t s3_virge_375_device =
         s3_virge_speed_changed,
         s3_virge_force_redraw,
         s3_virge_add_status_info,
-#ifndef UAE
         s3_virge_config
-#endif
 };
+#endif
