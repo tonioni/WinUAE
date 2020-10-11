@@ -1,4 +1,14 @@
 
+Beta 5:
+
+- If ADF started with 4 first bytes of executable (x000003f3), it was mounted as a bootable executable. Even if it was disk image and too large to fit in 880k image. Exe mounting is now only done if size is smaller than 880k and file extension is not known disk image extension. (B.A.T. II disk #4)
+- Read random data also if disk image is inserted, drive is selected but motor is stopped. Previously random data was only returned if drive was empty.
+- CV64/3D 15/16/24-bit graphics glitch fix (b4 debugging code)
+- CV64/3D emulated chip model was wrong, fixes WarpTest in perspective correct mode.
+
+CV64/3D + Picasso96 + Warp3D stuff sort of works. CV64/3D + CGX4 + Warp3D does not, reason unknown.
+
+Beta 4:
 
 - Implemented bsdsocket.library SBTC_GET_BYTES_RECEIVED and SBTC_GET_BYTES_SENT.
 - Fixed floppy max possible write length, was slightly too short, b1 fixed read timing.
