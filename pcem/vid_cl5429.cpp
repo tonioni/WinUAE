@@ -1158,10 +1158,7 @@ void gd5429_recalctimings(svga_t *svga)
         svga->horizontal_linedbl = svga->dispend * 9 / 10 >= svga->hdisp;
 
         if (svga->seqregs[7] & 0x01) {
-            if (svga->horizontal_linedbl)
-                svga->render = svga_render_8bpp_lowres;
-            else
-                svga->render = svga_render_8bpp_highres;
+            svga->render = svga_render_8bpp_highres;
         }
         
         svga->ma_latch |= ((svga->crtc[0x1b] & 0x01) << 16) | (((svga->crtc[0x1b] >> 2) & 3) << 17);
@@ -1178,35 +1175,23 @@ void gd5429_recalctimings(svga_t *svga)
                         switch (gd5429->hidden_dac_reg & 0xf)
                         {
                                 case 0x0:
-                                if (svga->horizontal_linedbl)
-                                    svga->render = svga_render_15bpp_lowres;
-                                else
-                                    svga->render = svga_render_15bpp_highres;
+                                svga->render = svga_render_15bpp_highres;
                                 svga->bpp = 15;
                                 break;
                                 case 0x1:
-                                if (svga->horizontal_linedbl)
-                                    svga->render = svga_render_16bpp_lowres;
-                                else
-                                    svga->render = svga_render_16bpp_highres;
+                                svga->render = svga_render_16bpp_highres;
                                 svga->bpp = 16;
                                 break;
                                 case 0x5:
                                 if (gd5429->type >= CL_TYPE_GD5434 && (svga->seqregs[7] & 8))
                                 {
-                                        if (svga->horizontal_linedbl)
-                                            svga->render = svga_render_32bpp_lowres;
-                                        else
-                                            svga->render = svga_render_32bpp_highres;
+                                        svga->render = svga_render_32bpp_highres;
                                         svga->bpp = 32;
                                         svga->rowoffset *= 2;
                                 }
                                 else
                                 {
-                                        if (svga->horizontal_linedbl)
-                                            svga->render = svga_render_24bpp_lowres;
-                                        else
-                                            svga->render = svga_render_24bpp_highres;
+                                        svga->render = svga_render_24bpp_highres;
                                         svga->bpp = 24;
                                 }
                                 break;
@@ -1214,10 +1199,7 @@ void gd5429_recalctimings(svga_t *svga)
                 }
                 else
                 {
-                        if (svga->horizontal_linedbl)
-                            svga->render = svga_render_15bpp_lowres;
-                        else
-                            svga->render = svga_render_15bpp_highres;
+                        svga->render = svga_render_15bpp_highres;
                         svga->bpp = 15;
                 }
         }

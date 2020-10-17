@@ -451,6 +451,19 @@ void svga_recalctimings(svga_t *svga)
         if (svga->vblankstart < svga->dispend)
                 svga->dispend = svga->vblankstart;
 
+        if (svga->horizontal_linedbl) {
+            if (svga->render == svga_render_8bpp_highres)
+                svga->render = svga_render_8bpp_lowres;
+            if (svga->render == svga_render_15bpp_highres)
+                svga->render = svga_render_15bpp_lowres;
+            if (svga->render == svga_render_16bpp_highres)
+                svga->render = svga_render_16bpp_lowres;
+            if (svga->render == svga_render_24bpp_highres)
+                svga->render = svga_render_24bpp_lowres;
+            if (svga->render == svga_render_32bpp_highres)
+                svga->render = svga_render_32bpp_lowres;
+        }
+
         crtcconst = svga->clock * svga->char_width;
 
         disptime  = svga->htotal;

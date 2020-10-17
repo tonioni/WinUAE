@@ -607,34 +607,19 @@ static void s3_virge_recalctimings(svga_t *svga)
                         switch (svga->bpp)
                         {
                                 case 8: 
-                                if (svga->horizontal_linedbl)
-                                    svga->render = svga_render_8bpp_lowres;
-                                else
-                                    svga->render = svga_render_8bpp_highres;
+                                svga->render = svga_render_8bpp_highres;
                                 break;
                                 case 15: 
-                                if (svga->horizontal_linedbl)
-                                    svga->render = svga_render_15bpp_lowres;
-                                else
-                                    svga->render = svga_render_15bpp_highres;
+                                svga->render = svga_render_15bpp_highres;
                                 break;
                                 case 16: 
-                                if (svga->horizontal_linedbl)
-                                    svga->render = svga_render_16bpp_lowres;
-                                else
-                                    svga->render = svga_render_16bpp_highres;
+                                svga->render = svga_render_16bpp_highres;
                                 break;
                                 case 24:
-                                if (svga->horizontal_linedbl)
-                                    svga->render = svga_render_24bpp_lowres;
-                                else
-                                    svga->render = svga_render_24bpp_highres;
+                                svga->render = svga_render_24bpp_highres;
                                 break;
                                 case 32: 
-                                if (svga->horizontal_linedbl)
-                                    svga->render = svga_render_32bpp_lowres;
-                                else
-                                    svga->render = svga_render_32bpp_highres;
+                                svga->render = svga_render_32bpp_highres;
                                 break;
                         }
                 }
