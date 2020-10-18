@@ -4242,7 +4242,7 @@ static uaecptr get_base (const uae_char *name, int offset)
 		if (!b || !b->check (v2, 20))
 			goto fail;
 		if ((b->flags & ABFLAG_ROM) || (b->flags & ABFLAG_RAM) || (b->flags & ABFLAG_ROMIN)) {
-			p = b->xlateaddr (v2);
+			p = get_real_address_debug(v2);
 			if (!memcmp (p, name, strlen (name) + 1))
 				return v;
 		}
