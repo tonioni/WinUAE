@@ -1,4 +1,13 @@
 
+
+Beta 6:
+
+- Fixed CV64/3D 3D vertical clipping. Fixes at least warptest corruption when test texture goes out of screen vertically.
+- Fixed CV64 and CV64/3D weird behavior (pauses, possible "hpos" error dialog) due to interrupt triggering being called from a thread.
+- Fixed possible crash if hardware mouse pointer was very near to end of VRAM.
+- Debugger TO, Te and Tf didn't fully use current mmmu mapping mode. (For example TO output was corrupted if system was A3000 with loaded superkickstart)
+- x86 bridgeboard VGA display stopped updating every time display when mode changed. (b1)
+
 Beta 5:
 
 - If ADF started with 4 first bytes of executable (x000003f3), it was mounted as a bootable executable. Even if it was disk image and too large to fit in 880k image. Exe mounting is now only done if size is smaller than 880k and file extension is not known disk image extension. (B.A.T. II disk #4)
