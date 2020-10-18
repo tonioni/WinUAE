@@ -297,7 +297,6 @@ struct rtggfxboard
 	uae_u8 p4_pci[0x44];
 	int vga_width, vga_height;
 	bool vga_refresh_active;
-	bool vga_changed;
 	int device_settings;
 
 	uae_u32 vgaioregionptr, vgavramregionptr, vgabank0regionptr, vgabank1regionptr;
@@ -603,6 +602,8 @@ void gfxboard_free_vram(int index)
 }
 
 extern uae_u8 *getpcembuffer32(int, int, int);
+extern int svga_get_vtotal(void);
+extern int svga_poll(void *p);
 
 // PCEM
 void video_blit_memtoscreen(int x, int y, int y1, int y2, int w, int h)
@@ -630,9 +631,10 @@ void video_blit_memtoscreen(int x, int y, int y1, int y2, int w, int h)
 
 static int gfxboard_pcem_poll(struct rtggfxboard *gb)
 {
-	extern int svga_poll(void *p);
 	return svga_poll(gb->pcemobject2);
 }
+
+extern int p96syncrate;
 
 static void gfxboard_hsync_handler(void)
 {
@@ -644,11 +646,9 @@ static void gfxboard_hsync_handler(void)
 			gb->func->hsync(gb->userdata);
 		}
 		if (gb->pcemdev && gb->pcemobject && !gb->pcem_vblank) {
-			extern int svga_get_vtotal(void);
 			static int pollcnt;
-			int pollsize = svga_get_vtotal() * 256 / 300;
-			if (pollsize < 256)
-				pollsize = 256;
+			int total = svga_get_vtotal();
+			int pollsize = (p96syncrate << 8) / (total ? total : 1);
 			pollcnt += pollsize;
 			while (pollcnt >= 256) {
 				if (gfxboard_pcem_poll(gb)) {
@@ -998,7 +998,6 @@ static bool gfxboard_setmode_ext(struct rtggfxboard *gb)
 	gfxboard_setmode(gb, &mode);
 	gfx_set_picasso_modeinfo(gb->monitor_id, mode.mode);
 	gfxboard_set_fullrefresh(gb, 2);
-	gb->vga_changed = false;
 	return true;
 }
 
@@ -1128,7 +1127,6 @@ void gfxboard_resize(int width, int height, void *p)
 {
 	struct rtggfxboard *gb = (struct rtggfxboard *)p;
 	if (width != gb->vga_width || gb->vga_height != height) {
-		gb->vga_changed = true;
 		gb->resolutionchange = 5;
 	}
 	gb->vga_width = width;
@@ -1139,7 +1137,7 @@ void qemu_console_resize(QemuConsole *con, int width, int height)
 {
 	struct rtggfxboard *gb = (struct rtggfxboard *)con;
 	if (width != gb->vga_width || gb->vga_height != height) {
-		gb->vga_changed = true;
+		gb->resolutionchange = 5;
 	}
 	gb->vga_width = width;
 	gb->vga_height = height;
@@ -1215,7 +1213,7 @@ uint8_t *surface_data(DisplaySurface *s)
 		return NULL;
 	if (rtg_visible[gb->monitor_id] < 0)
 		return NULL;
-	if (gb->vga_changed)
+	if (gb->resolutionchange)
 		return NULL;
 	if (s == &gb->fakesurface || !gb->vga_refresh_active)
 		return gb->fakesurface_surface;
@@ -1248,16 +1246,24 @@ void gfxboard_refresh(int monid)
 	}
 }
 
-void gfxboard_intreq(void *p, int act)
+void gfxboard_intreq(void *p, int act, bool safe)
 {
 	struct rtggfxboard *gb = (struct rtggfxboard*)p;
 	if (act) {
 		if (gb->board->irq && gb->gfxboard_intena) {
+			int irq = 0;
 			gb->gfxboard_vblank = 1;
 			if (gb->board->irq == 2 && gb->gfxboard_intena != 6)
-				INTREQ(0x8000 | 0x0008);
+				irq = 2;
 			else
-				INTREQ(0x8000 | 0x2000);
+				irq = 6;
+			if (irq) {
+				if (!safe) {
+					INTREQ(0x8000 | (irq == 6 ? 0x2000 : 0x0008));
+				} else {
+					safe_interrupt_set(IRQ_SOURCE_GFX, gb->monitor_id, irq == 6);
+				}
+			}
 		}
 	} else {
 		gb->gfxboard_vblank = 0;
@@ -1295,7 +1301,8 @@ void gfxboard_vsync_handler(bool full_redraw_required, bool redraw_required)
 			if (gb->pcemdev) {
 				static int fcount;
 				if (!gb->pcem_vblank && gb->pcemobject) {
-					for (;;) {
+					int max = svga_get_vtotal();
+					while (max-- > 0) {
 						if (gfxboard_pcem_poll(gb))
 							break;
 					}
@@ -1407,7 +1414,7 @@ void gfxboard_vsync_handler(bool full_redraw_required, bool redraw_required)
 		if (!redraw_required)
 			continue;
 
-		if (!gb->monswitch_delay && gb->monswitch_current && ad->picasso_on && ad->picasso_requested_on && !gb->vga_changed) {
+		if (!gb->monswitch_delay && gb->monswitch_current && ad->picasso_on && ad->picasso_requested_on && !gb->resolutionchange) {
 			picasso_getwritewatch(i, gb->vram_start_offset);
 			if (!gb->pcemdev) {
 				if (gb->fullrefresh)
@@ -1418,7 +1425,7 @@ void gfxboard_vsync_handler(bool full_redraw_required, bool redraw_required)
 			}
 		}
 
-		if (ad->picasso_on && !gb->vga_changed) {
+		if (ad->picasso_on && !gb->resolutionchange) {
 			if (!gb->monitor_id) {
 				if (currprefs.leds_on_screen & STATUSLINE_RTG) {
 					if (gb->gfxboard_surface == NULL) {
@@ -4451,6 +4458,9 @@ static void REGPARAM2 gfxboard_bput_mmio_pcem(uaecptr addr, uae_u32 b)
 	addr &= gb->pcem_mmio_mask;
 	addr += gb->pcem_mmio_offset;
 	addr ^= 3;
+#if 0
+	write_log(_T("gfxboard_bput_mmio_wbs_pcem(%08x, %08x)\n"), addr, b);
+#endif
 	put_mem_pcem(addr, b, 0);
 }
 static void REGPARAM2 gfxboard_wput_mmio_pcem(uaecptr addr, uae_u32 w)
@@ -4459,6 +4469,9 @@ static void REGPARAM2 gfxboard_wput_mmio_pcem(uaecptr addr, uae_u32 w)
 	addr &= gb->pcem_mmio_mask;
 	addr += gb->pcem_mmio_offset;
 	addr ^= 2;
+#if 0
+	write_log(_T("gfxboard_wput_mmio_wbs_pcem(%08x, %08x)\n"), addr, w);
+#endif
 	put_mem_pcem(addr, w, 1);
 }
 static void REGPARAM2 gfxboard_lput_mmio_pcem(uaecptr addr, uae_u32 l)
@@ -4466,6 +4479,9 @@ static void REGPARAM2 gfxboard_lput_mmio_pcem(uaecptr addr, uae_u32 l)
 	struct rtggfxboard *gb = getgfxboard(addr);
 	addr &= gb->pcem_mmio_mask;
 	addr += gb->pcem_mmio_offset;
+#if 0
+	write_log(_T("gfxboard_lput_mmio_wbs_pcem(%08x, %08x)\n"), addr, l);
+#endif
 	put_mem_pcem(addr, l, 2);
 }
 
@@ -4503,6 +4519,9 @@ static void REGPARAM2 gfxboard_bput_mmio_wbs_pcem(uaecptr addr, uae_u32 b)
 	struct rtggfxboard *gb = getgfxboard(addr);
 	addr &= gb->pcem_mmio_mask;
 	addr += gb->pcem_mmio_offset;
+#if 0
+	write_log(_T("gfxboard_bput_mmio_wbs_pcem(%08x, %08x)\n"), addr, b);
+#endif
 	put_mem_pcem(addr, b, 0);
 }
 static void REGPARAM2 gfxboard_wput_mmio_wbs_pcem(uaecptr addr, uae_u32 w)
@@ -4510,6 +4529,9 @@ static void REGPARAM2 gfxboard_wput_mmio_wbs_pcem(uaecptr addr, uae_u32 w)
 	struct rtggfxboard *gb = getgfxboard(addr);
 	addr &= gb->pcem_mmio_mask;
 	addr += gb->pcem_mmio_offset;
+#if 0
+	write_log(_T("gfxboard_wput_mmio_wbs_pcem(%08x, %08x)\n"), addr, w);
+#endif
 	w = do_byteswap_16(w);
 	put_mem_pcem(addr, w, 1);
 }
@@ -4518,6 +4540,9 @@ static void REGPARAM2 gfxboard_lput_mmio_wbs_pcem(uaecptr addr, uae_u32 l)
 	struct rtggfxboard *gb = getgfxboard(addr);
 	addr &= gb->pcem_mmio_mask;
 	addr += gb->pcem_mmio_offset;
+#if 0
+	write_log(_T("gfxboard_lput_mmio_wbs_pcem(%08x, %08x)\n"), addr, l);
+#endif
 	l = do_byteswap_32(l);
 	put_mem_pcem(addr, l, 2);
 }
@@ -4554,6 +4579,9 @@ static void REGPARAM2 gfxboard_bput_mmio_lbs_pcem(uaecptr addr, uae_u32 b)
 	struct rtggfxboard *gb = getgfxboard(addr);
 	addr &= gb->pcem_mmio_mask;
 	addr += gb->pcem_mmio_offset;
+#if 0
+	write_log(_T("gfxboard_bput_mmio_wbs_pcem(%08x, %08x)\n"), addr, b);
+#endif
 	put_mem_pcem(addr, b, 0);
 }
 static void REGPARAM2 gfxboard_wput_mmio_lbs_pcem(uaecptr addr, uae_u32 w)
@@ -4561,6 +4589,9 @@ static void REGPARAM2 gfxboard_wput_mmio_lbs_pcem(uaecptr addr, uae_u32 w)
 	struct rtggfxboard *gb = getgfxboard(addr);
 	addr &= gb->pcem_mmio_mask;
 	addr += gb->pcem_mmio_offset;
+#if 0
+	write_log(_T("gfxboard_wput_mmio_wbs_pcem(%08x, %08x)\n"), addr, w);
+#endif
 	put_mem_pcem(addr, w, 1);
 }
 static void REGPARAM2 gfxboard_lput_mmio_lbs_pcem(uaecptr addr, uae_u32 l)
@@ -4568,6 +4599,9 @@ static void REGPARAM2 gfxboard_lput_mmio_lbs_pcem(uaecptr addr, uae_u32 l)
 	struct rtggfxboard *gb = getgfxboard(addr);
 	addr &= gb->pcem_mmio_mask;
 	addr += gb->pcem_mmio_offset;
+#if 0
+	write_log(_T("gfxboard_lput_mmio_wbs_pcem(%08x, %08x)\n"), addr, l);
+#endif
 	put_mem_pcem(addr, l, 2);
 }
 

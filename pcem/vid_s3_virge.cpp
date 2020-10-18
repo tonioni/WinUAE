@@ -46,7 +46,7 @@ static int dither[4][4] =
 #define FIFO_ENTRY_SIZE (1 << 31)
 
 #define FIFO_ENTRIES (virge->fifo_write_idx - virge->fifo_read_idx)
-#define FIFO_FULL    ((virge->fifo_write_idx - virge->fifo_read_idx) >= FIFO_SIZE)
+#define FIFO_FULL    (virge->fifo_write_idx + 1 == virge->fifo_read_idx)
 #define FIFO_EMPTY   (virge->fifo_read_idx == virge->fifo_write_idx)
 
 #define FIFO_TYPE 0xff000000
@@ -227,7 +227,7 @@ typedef struct virge_t
         } streams;
 
         fifo_entry_t fifo[FIFO_SIZE];
-        volatile int fifo_read_idx, fifo_write_idx;
+        volatile uint16_t fifo_read_idx, fifo_write_idx;
 
         thread_t *fifo_thread;
         volatile int fifo_thread_state;
@@ -309,7 +309,7 @@ enum
 #define INT_3DF_EMP  (1 << 6)
 #define INT_MASK 0xff
 
-static int vsync_enabled(virge_t *virge)
+static int is_interrupt_active(virge_t *virge)
 {
     if ((virge->svga.crtc[0x32] & 0x10) && ((!(virge->svga.crtc[0x11] & 0x20) && virge->vblank_irq > 0) || (virge->subsys_stat & virge->subsys_cntl & INT_MASK)))
         return 1;
@@ -318,7 +318,7 @@ static int vsync_enabled(virge_t *virge)
 
 static void s3_virge_update_irqs(virge_t *virge)
 {
-        if (vsync_enabled(virge))
+        if (is_interrupt_active(virge))
                 pci_set_irq(virge->card, PCI_INTA);
         else
                 pci_clear_irq(virge->card, PCI_INTA);
@@ -1022,7 +1022,7 @@ static void fifo_thread(void *param)
                 {
                         uint64_t start_time = timer_read();
                         uint64_t end_time;
-                        fifo_entry_t *fifo = &virge->fifo[virge->fifo_read_idx & FIFO_MASK];
+                        fifo_entry_t *fifo = &virge->fifo[virge->fifo_read_idx];
                         uint32_t val = fifo->val;
 
                         switch (fifo->addr_type & FIFO_TYPE)
@@ -1363,7 +1363,7 @@ static void fifo_thread(void *param)
 
 static void s3_virge_queue(virge_t *virge, uint32_t addr, uint32_t val, uint32_t type)
 {
-        fifo_entry_t *fifo = &virge->fifo[virge->fifo_write_idx & FIFO_MASK];
+        fifo_entry_t *fifo = &virge->fifo[virge->fifo_write_idx];
 
         if (FIFO_FULL)
         {
@@ -1379,10 +1379,12 @@ static void s3_virge_queue(virge_t *virge, uint32_t addr, uint32_t val, uint32_t
 
         virge->fifo_write_idx++;
         
-        if (FIFO_ENTRIES > 0xe000)
-                wake_fifo_thread(virge);
-        if (FIFO_ENTRIES > 0xe000 || FIFO_ENTRIES < 8)
-                wake_fifo_thread(virge);
+        if (FIFO_ENTRIES > 0xe000) {
+            wake_fifo_thread(virge);
+        }
+        if (FIFO_ENTRIES > 0xe000 || FIFO_ENTRIES < 8) {
+            wake_fifo_thread(virge);
+        }
 }
 
 static void s3_virge_mmio_write(uint32_t addr, uint8_t val, void *p)
@@ -3468,8 +3470,8 @@ static void s3_virge_hwcursor_draw(svga_t *svga, int displine)
 
         for (x = 0; x < 64; x += 16)
         {
-                dat[0] = (svga->vram[svga->hwcursor_latch.addr]     << 8) | svga->vram[svga->hwcursor_latch.addr + 1];
-                dat[1] = (svga->vram[svga->hwcursor_latch.addr + 2] << 8) | svga->vram[svga->hwcursor_latch.addr + 3];
+                dat[0] = (svga->vram[svga->hwcursor_latch.addr & svga->vram_display_mask]     << 8) | svga->vram[(svga->hwcursor_latch.addr + 1) & svga->vram_display_mask];
+                dat[1] = (svga->vram[(svga->hwcursor_latch.addr + 2) & svga->vram_display_mask] << 8) | svga->vram[(svga->hwcursor_latch.addr + 3) & svga->vram_display_mask];
                 if (svga->crtc[0x55] & 0x10)
                 {
                         /*X11*/

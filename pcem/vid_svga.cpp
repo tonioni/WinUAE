@@ -1619,18 +1619,19 @@ void svga_add_status_info(char *s, int max_len, void *p)
         svga_t *svga = (svga_t *)p;
         char temps[128];
         
-        if (svga->chain4) strcpy(temps, "SVGA chained (possibly mode 13h)\n");
-        else              strcpy(temps, "SVGA unchained (possibly mode-X)\n");
+        if (svga->chain4) strcpy(temps, "SVGA chained ");
+        else              strcpy(temps, "SVGA unchained ");
         strncat(s, temps, max_len);
 
-        if (!svga->video_bpp) strcpy(temps, "SVGA in text mode\n");
-        else                  sprintf(temps, "SVGA colour depth : %i bpp\n", svga->video_bpp);
+        if (!svga->video_bpp) strcpy(temps, "SVGA in text mode ");
+        else                  sprintf(temps, "SVGA colour depth : %i bpp ", svga->video_bpp);
         strncat(s, temps, max_len);
         
         sprintf(temps, "SVGA resolution : %i x %i\n", svga->video_res_x, svga->video_res_y);
         strncat(s, temps, max_len);
-        
+#if 0
         sprintf(temps, "SVGA refresh rate : %i Hz\n\n", svga->frames);
         svga->frames = 0;
         strncat(s, temps, max_len);
+#endif
 }

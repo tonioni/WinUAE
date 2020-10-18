@@ -621,20 +621,20 @@ int pci_add(uint8_t(*read)(int func, int addr, void *priv), void (*write)(int fu
 	pci_card_priv = priv;
 	return 0;
 }
-extern void gfxboard_intreq(void *, int);
+extern void gfxboard_intreq(void *, int, bool);
 void pci_set_irq_routing(int card, int irq)
 {
-	write_log(_T("pci_set_irq_routing %d %d\n"), card, irq);
+	//write_log(_T("pci_set_irq_routing %d %d\n"), card, irq);
 }
 void pci_set_irq(int card, int pci_int)
 {
 	//write_log(_T("pci_set_irq %d %d\n"), card, pci_int);
-	gfxboard_intreq(gfxboard_priv, 1);
+	gfxboard_intreq(gfxboard_priv, 1, true);
 }
 void pci_clear_irq(int card, int pci_int)
 {
 	//write_log(_T("pci_clear_irq %d %d\n"), card, pci_int);
-	gfxboard_intreq(gfxboard_priv, 0);
+	gfxboard_intreq(gfxboard_priv, 0, true);
 }
 int rom_init(rom_t *rom, char *fn, uint32_t address, int size, int mask, int file_offset, uint32_t flags)
 {
@@ -672,7 +672,7 @@ void thread_reset_event(event_t *_event)
 }
 int thread_wait_event(event_t *event, int timeout)
 {
-	uae_sem_trywait_delay((uae_sem_t*)&event, timeout);
+	uae_sem_trywait_delay((uae_sem_t*)&event, timeout < 0 ? INFINITE : timeout);
 	return 0;
 }
 void thread_destroy_event(event_t *_event)
@@ -852,6 +852,10 @@ static void *port_priv[MAX_IO_PORT];
 
 void put_io_pcem(uaecptr addr, uae_u32 v, int size)
 {
+#if 0
+	write_log(_T("put_io_pcem(%08x,%08x,%d)\n"), addr, v, size);
+#endif
+
 	addr &= MAX_IO_PORT - 1;
 	if (size == 0) {
 		if (port_outb[addr])
@@ -874,6 +878,10 @@ void put_io_pcem(uaecptr addr, uae_u32 v, int size)
 }
 uae_u32 get_io_pcem(uaecptr addr, int size)
 {
+#if 0
+	write_log(_T("get_io_pcem(%08x,%d)\n"), addr, size);
+#endif
+
 	uae_u32 v = 0;
 	addr &= MAX_IO_PORT - 1;
 	if (size == 0) {

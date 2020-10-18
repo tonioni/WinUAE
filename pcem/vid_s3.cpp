@@ -2558,8 +2558,8 @@ void s3_hwcursor_draw(svga_t *svga, int displine)
 //        pclog("HWcursor %i %i\n", svga->hwcursor_latch.x, svga->hwcursor_latch.y);
         for (x = 0; x < 64; x += 16)
         {
-                dat[0] = (svga->vram[svga->hwcursor_latch.addr]     << 8) | svga->vram[svga->hwcursor_latch.addr + 1];
-                dat[1] = (svga->vram[svga->hwcursor_latch.addr + 2] << 8) | svga->vram[svga->hwcursor_latch.addr + 3];
+                dat[0] = (svga->vram[svga->hwcursor_latch.addr & svga->vram_display_mask]     << 8) | svga->vram[(svga->hwcursor_latch.addr + 1) & svga->vram_display_mask];
+                dat[1] = (svga->vram[(svga->hwcursor_latch.addr + 2) & svga->vram_display_mask] << 8) | svga->vram[(svga->hwcursor_latch.addr + 3) & svga->vram_display_mask];
                 for (xx = 0; xx < 16; xx++)
                 {
                         if (offset >= svga->hwcursor_latch.x)

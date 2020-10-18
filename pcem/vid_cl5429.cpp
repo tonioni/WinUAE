@@ -1245,8 +1245,8 @@ void gd5429_hwcursor_draw(svga_t *svga, int displine)
         {
                 for (x = 0; x < 64; x += 8)
                 {
-                        dat[0] = svga->vram[svga->hwcursor_latch.addr];
-                        dat[1] = svga->vram[svga->hwcursor_latch.addr + 8];
+                        dat[0] = svga->vram[svga->hwcursor_latch.addr & svga->vram_display_mask];
+                        dat[1] = svga->vram[(svga->hwcursor_latch.addr + 8) & svga->vram_display_mask];
                         for (xx = 0; xx < 8; xx++)
                         {
                                 if (offset >= svga->hwcursor_latch.x)
@@ -1269,8 +1269,8 @@ void gd5429_hwcursor_draw(svga_t *svga, int displine)
         {
                 for (x = 0; x < 32; x += 8)
                 {
-                        dat[0] = svga->vram[svga->hwcursor_latch.addr];
-                        dat[1] = svga->vram[svga->hwcursor_latch.addr + 0x80];
+                        dat[0] = svga->vram[svga->hwcursor_latch.addr & svga->vram_display_mask];
+                        dat[1] = svga->vram[(svga->hwcursor_latch.addr + 0x80) & svga->vram_display_mask];
                         for (xx = 0; xx < 8; xx++)
                         {
                                 if (offset >= svga->hwcursor_latch.x)
