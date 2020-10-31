@@ -272,8 +272,8 @@ void fixup_cpu (struct uae_prefs *p)
 				cpuboard_setboard(p,  BOARD_BLIZZARD, BOARD_BLIZZARD_SUB_PPC);
 			}
 		}
-		if (p->cpuboardmem1_size < 8 * 1024 * 1024)
-			p->cpuboardmem1_size = 8 * 1024 * 1024;
+		if (p->cpuboardmem1.size < 8 * 1024 * 1024)
+			p->cpuboardmem1.size = 8 * 1024 * 1024;
 	}
 
 	if (p->cpu_model < 68020 && p->cachesize) {
@@ -381,26 +381,26 @@ void fixup_prefs (struct uae_prefs *p, bool userconfig)
 
 	read_kickstart_version(p);
 
-	if (p->cpuboard_type && p->cpuboardmem1_size > cpuboard_maxmemory(p)) {
-		error_log(_T("Unsupported accelerator board memory size %d (0x%x).\n"), p->cpuboardmem1_size, p->cpuboardmem1_size);
-		p->cpuboardmem1_size = cpuboard_maxmemory(p);
+	if (p->cpuboard_type && p->cpuboardmem1.size > cpuboard_maxmemory(p)) {
+		error_log(_T("Unsupported accelerator board memory size %d (0x%x).\n"), p->cpuboardmem1.size, p->cpuboardmem1.size);
+		p->cpuboardmem1.size = cpuboard_maxmemory(p);
 	}
 	if (cpuboard_memorytype(p) == BOARD_MEMORY_HIGHMEM) {
-		p->mbresmem_high_size = p->cpuboardmem1_size;
+		p->mbresmem_high.size = p->cpuboardmem1.size;
 	} else if (cpuboard_memorytype(p) == BOARD_MEMORY_Z2) {
-		p->fastmem[0].size = p->cpuboardmem1_size;
+		p->fastmem[0].size = p->cpuboardmem1.size;
 	} else if (cpuboard_memorytype(p) == BOARD_MEMORY_25BITMEM) {
-		p->mem25bit_size = p->cpuboardmem1_size;
+		p->mem25bit.size = p->cpuboardmem1.size;
 	} else if (cpuboard_memorytype(p) == BOARD_MEMORY_CUSTOM_32) {
-		p->mem25bit_size = 0;
+		p->mem25bit.size = 0;
 	}
 
-	if (((p->chipmem_size & (p->chipmem_size - 1)) != 0 && p->chipmem_size != 0x180000)
-		|| p->chipmem_size < 0x20000
-		|| p->chipmem_size > 0x800000)
+	if (((p->chipmem.size & (p->chipmem.size - 1)) != 0 && p->chipmem.size != 0x180000)
+		|| p->chipmem.size < 0x20000
+		|| p->chipmem.size > 0x800000)
 	{
-		error_log (_T("Unsupported chipmem size %d (0x%x)."), p->chipmem_size, p->chipmem_size);
-		p->chipmem_size = 0x200000;
+		error_log (_T("Unsupported chipmem size %d (0x%x)."), p->chipmem.size, p->chipmem.size);
+		p->chipmem.size = 0x200000;
 		err = 1;
 	}
 
@@ -480,57 +480,57 @@ void fixup_prefs (struct uae_prefs *p, bool userconfig)
 	if (p->z3autoconfig_start < 0x1000000)
 		p->z3autoconfig_start = 0x1000000;
 
-	if (p->z3chipmem_size > max_z3fastmem) {
-		error_log (_T("Zorro III fake chipmem size %d (0x%x) larger than max reserved %d (0x%x)."), p->z3chipmem_size, p->z3chipmem_size, max_z3fastmem, max_z3fastmem);
-		p->z3chipmem_size = max_z3fastmem;
+	if (p->z3chipmem.size > max_z3fastmem) {
+		error_log (_T("Zorro III fake chipmem size %d (0x%x) larger than max reserved %d (0x%x)."), p->z3chipmem.size, p->z3chipmem.size, max_z3fastmem, max_z3fastmem);
+		p->z3chipmem.size = max_z3fastmem;
 		err = 1;
 	}
-	if (((p->z3chipmem_size & (p->z3chipmem_size - 1)) != 0 &&  p->z3chipmem_size != 0x18000000 && p->z3chipmem_size != 0x30000000) || (p->z3chipmem_size != 0 && p->z3chipmem_size < 0x100000))
+	if (((p->z3chipmem.size & (p->z3chipmem.size - 1)) != 0 &&  p->z3chipmem.size != 0x18000000 && p->z3chipmem.size != 0x30000000) || (p->z3chipmem.size != 0 && p->z3chipmem.size < 0x100000))
 	{
-		error_log (_T("Unsupported 32-bit chipmem size %d (0x%x)."), p->z3chipmem_size, p->z3chipmem_size);
-		p->z3chipmem_size = 0;
+		error_log (_T("Unsupported 32-bit chipmem size %d (0x%x)."), p->z3chipmem.size, p->z3chipmem.size);
+		p->z3chipmem.size = 0;
 		err = 1;
 	}
 
-	if (p->address_space_24 && (p->z3fastmem[0].size != 0 || p->z3fastmem[1].size != 0 || p->z3fastmem[2].size != 0 || p->z3fastmem[3].size != 0 || p->z3chipmem_size != 0)) {
+	if (p->address_space_24 && (p->z3fastmem[0].size != 0 || p->z3fastmem[1].size != 0 || p->z3fastmem[2].size != 0 || p->z3fastmem[3].size != 0 || p->z3chipmem.size != 0)) {
 		p->z3fastmem[0].size = p->z3fastmem[1].size = p->z3fastmem[2].size = p->z3fastmem[3].size = 0;
-		p->z3chipmem_size = 0;
+		p->z3chipmem.size = 0;
 		error_log (_T("Can't use a Z3 graphics card or 32-bit memory when using a 24 bit address space."));
 	}
 
-	if (p->bogomem_size != 0 && p->bogomem_size != 0x80000 && p->bogomem_size != 0x100000 && p->bogomem_size != 0x180000 && p->bogomem_size != 0x1c0000) {
-		error_log (_T("Unsupported bogomem size %d (0x%x)"), p->bogomem_size, p->bogomem_size);
-		p->bogomem_size = 0;
+	if (p->bogomem.size != 0 && p->bogomem.size != 0x80000 && p->bogomem.size != 0x100000 && p->bogomem.size != 0x180000 && p->bogomem.size != 0x1c0000) {
+		error_log (_T("Unsupported bogomem size %d (0x%x)"), p->bogomem.size, p->bogomem.size);
+		p->bogomem.size = 0;
 		err = 1;
 	}
 
-	if (p->bogomem_size > 0x180000 && (p->cs_fatgaryrev >= 0 || p->cs_ide || p->cs_ramseyrev >= 0)) {
-		p->bogomem_size = 0x180000;
+	if (p->bogomem.size > 0x180000 && (p->cs_fatgaryrev >= 0 || p->cs_ide || p->cs_ramseyrev >= 0)) {
+		p->bogomem.size = 0x180000;
 		error_log (_T("Possible Gayle bogomem conflict fixed."));
 	}
-	if (p->chipmem_size > 0x200000 && (p->fastmem[0].size > 262144 || p->fastmem[1].size > 262144)) {
+	if (p->chipmem.size > 0x200000 && (p->fastmem[0].size > 262144 || p->fastmem[1].size > 262144)) {
 		error_log(_T("You can't use fastmem and more than 2MB chip at the same time."));
-		p->chipmem_size = 0x200000;
+		p->chipmem.size = 0x200000;
 		err = 1;
 	}
-	if (p->mem25bit_size > 128 * 1024 * 1024 || (p->mem25bit_size & 0xfffff)) {
-		p->mem25bit_size = 0;
+	if (p->mem25bit.size > 128 * 1024 * 1024 || (p->mem25bit.size & 0xfffff)) {
+		p->mem25bit.size = 0;
 		error_log(_T("Unsupported 25bit RAM size"));
 	}
-	if (p->mbresmem_low_size > 0x04000000 || (p->mbresmem_low_size & 0xfffff)) {
-		p->mbresmem_low_size = 0;
+	if (p->mbresmem_low.size > 0x04000000 || (p->mbresmem_low.size & 0xfffff)) {
+		p->mbresmem_low.size = 0;
 		error_log (_T("Unsupported Mainboard RAM size"));
 	}
-	if (p->mbresmem_high_size > 0x08000000 || (p->mbresmem_high_size & 0xfffff)) {
-		p->mbresmem_high_size = 0;
+	if (p->mbresmem_high.size > 0x08000000 || (p->mbresmem_high.size & 0xfffff)) {
+		p->mbresmem_high.size = 0;
 		error_log (_T("Unsupported CPU Board RAM size."));
 	}
 
 	for (int i = 0; i < MAX_RTG_BOARDS; i++) {
 		struct rtgboardconfig *rbc = &p->rtgboards[i];
-		if (p->chipmem_size > 0x200000 && rbc->rtgmem_size && gfxboard_get_configtype(rbc) == 2) {
+		if (p->chipmem.size > 0x200000 && rbc->rtgmem_size && gfxboard_get_configtype(rbc) == 2) {
 			error_log(_T("You can't use Zorro II RTG and more than 2MB chip at the same time."));
-			p->chipmem_size = 0x200000;
+			p->chipmem.size = 0x200000;
 			err = 1;
 		}
 		if (rbc->rtgmem_type >= GFXBOARD_HARDWARE) {
@@ -576,13 +576,13 @@ void fixup_prefs (struct uae_prefs *p, bool userconfig)
 		err = 1;
 	}
 
-	if ((p->z3fastmem[0].size || p->z3fastmem[1].size || p->z3fastmem[2].size || p->z3fastmem[3].size || p->z3chipmem_size) && p->address_space_24) {
+	if ((p->z3fastmem[0].size || p->z3fastmem[1].size || p->z3fastmem[2].size || p->z3fastmem[3].size || p->z3chipmem.size) && p->address_space_24) {
 		error_log (_T("Z3 fast memory can't be used if address space is 24-bit."));
 		p->z3fastmem[0].size = 0;
 		p->z3fastmem[1].size = 0;
 		p->z3fastmem[2].size = 0;
 		p->z3fastmem[3].size = 0;
-		p->z3chipmem_size = 0;
+		p->z3chipmem.size = 0;
 		err = 1;
 	}
 	for (int i = 0; i < MAX_RTG_BOARDS; i++) {
@@ -646,7 +646,7 @@ void fixup_prefs (struct uae_prefs *p, bool userconfig)
 				p->cs_ramseyrev = 0x0f;
 		}
 	}
-	if (p->chipmem_size >= 0x100000)
+	if (p->chipmem.size >= 0x100000)
 		p->cs_1mchipjumper = true;
 
 	/* Can't fit genlock and A2024 or Graffiti at the same time,
@@ -731,7 +731,7 @@ void fixup_prefs (struct uae_prefs *p, bool userconfig)
 	if (p->maprom && !p->address_space_24) {
 		p->maprom = 0x0f000000;
 	}
-	if (((p->maprom & 0xff000000) && p->address_space_24) || (p->maprom && p->mbresmem_high_size >= 0x08000000)) {
+	if (((p->maprom & 0xff000000) && p->address_space_24) || (p->maprom && p->mbresmem_high.size >= 0x08000000)) {
 		p->maprom = 0x00e00000;
 	}
 	if (p->maprom && p->cpuboard_type) {

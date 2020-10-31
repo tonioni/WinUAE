@@ -9093,7 +9093,7 @@ static void values_to_chipsetdlg2 (HWND hDlg)
 	CheckDlgButton(hDlg, IDC_CS_Z3AUTOCONFIG, workprefs.cs_z3autoconfig);
 	CheckDlgButton(hDlg, IDC_CS_IDE1, workprefs.cs_ide > 0 && (workprefs.cs_ide & 1));
 	CheckDlgButton(hDlg, IDC_CS_IDE2, workprefs.cs_ide > 0 && (workprefs.cs_ide & 2));
-	CheckDlgButton(hDlg, IDC_CS_1MCHIPJUMPER, workprefs.cs_1mchipjumper || workprefs.chipmem_size >= 0x100000);
+	CheckDlgButton(hDlg, IDC_CS_1MCHIPJUMPER, workprefs.cs_1mchipjumper || workprefs.chipmem.size >= 0x100000);
 	CheckDlgButton(hDlg, IDC_CS_BYTECUSTOMWRITEBUG, workprefs.cs_bytecustomwritebug);
 	CheckDlgButton(hDlg, IDC_CS_COMPOSITECOLOR, workprefs.cs_color_burst);
 	CheckDlgButton(hDlg, IDC_CS_TOSHIBAGARY, workprefs.cs_toshibagary);
@@ -9121,7 +9121,7 @@ static void values_to_chipsetdlg2 (HWND hDlg)
 			rev |= 0x10;
 		rev |= (workprefs.chipset_mask & CSMASK_AGA) ? 0x23 : 0;
 		rev |= (currprefs.chipset_mask & CSMASK_ECS_AGNUS) ? 0x20 : 0;
-		if (workprefs.chipmem_size > 1024 * 1024 && (workprefs.chipset_mask & CSMASK_ECS_AGNUS))
+		if (workprefs.chipmem.size > 1024 * 1024 && (workprefs.chipset_mask & CSMASK_ECS_AGNUS))
 			rev |= 0x21;
 		_stprintf (txt, _T("%02X"), rev);
 	}
@@ -9275,7 +9275,7 @@ static void enable_for_chipsetdlg2 (HWND hDlg)
 	ew(hDlg, IDC_CS_RTC3, e);
 	ew(hDlg, IDC_CS_RTC4, e);
 	ew(hDlg, IDC_CS_RTCADJUST, e);
-	ew(hDlg, IDC_CS_1MCHIPJUMPER, e && workprefs.chipmem_size < 0x100000);
+	ew(hDlg, IDC_CS_1MCHIPJUMPER, e && workprefs.chipmem.size < 0x100000);
 	ew(hDlg, IDC_CS_BYTECUSTOMWRITEBUG, e);
 	ew(hDlg, IDC_CS_COMPOSITECOLOR, e);
 	ew(hDlg, IDC_CS_TOSHIBAGARY, e);
@@ -9417,12 +9417,12 @@ static void setfastram_selectmenu(HWND hDlg, int mode)
 		min = 0;
 		max = MAX_CB_MEM_128M;
 		msi = msi_cpuboard;
-		fastram_select_pointer = &workprefs.mbresmem_high_size;
+		fastram_select_pointer = &workprefs.mbresmem_high.size;
 	} else if (fastram_select == 2 * MAX_RAM_BOARDS + 1) {
 		min = 0;
 		max = MAX_CB_MEM_64M;
 		msi = msi_cpuboard;
-		fastram_select_pointer = &workprefs.mbresmem_low_size;
+		fastram_select_pointer = &workprefs.mbresmem_low.size;
 	} else {
 		return;
 	}
@@ -9604,12 +9604,12 @@ static void setfastram_selectmenu(HWND hDlg, int mode)
 			SendDlgItemMessage(hDlg, IDC_MEMORYSELECT, CB_ADDSTRING, 0, (LPARAM)tmp);
 		}
 		_tcscpy(tmp, _T("Processor Slot Fast RAM"));
-		if (workprefs.mbresmem_high_size)
-			_stprintf(tmp + _tcslen(tmp), _T(" [%dM]"), workprefs.mbresmem_high_size / (1024 * 1024));
+		if (workprefs.mbresmem_high.size)
+			_stprintf(tmp + _tcslen(tmp), _T(" [%dM]"), workprefs.mbresmem_high.size / (1024 * 1024));
 		SendDlgItemMessage(hDlg, IDC_MEMORYSELECT, CB_ADDSTRING, 0, (LPARAM)tmp);
 		_tcscpy(tmp, _T("Motherboard Fast RAM"));
-		if (workprefs.mbresmem_low_size)
-			_stprintf(tmp + _tcslen(tmp), _T(" [%dM]"), workprefs.mbresmem_low_size / (1024 * 1024));
+		if (workprefs.mbresmem_low.size)
+			_stprintf(tmp + _tcslen(tmp), _T(" [%dM]"), workprefs.mbresmem_low.size / (1024 * 1024));
 		SendDlgItemMessage(hDlg, IDC_MEMORYSELECT, CB_ADDSTRING, 0, (LPARAM)tmp);
 	} else {
 		if (fastram_select >= MAX_RAM_BOARDS)
@@ -9651,25 +9651,25 @@ static void setmax32bitram (HWND hDlg)
 
 static void setcpuboardmemsize(HWND hDlg)
 {
-	if (workprefs.cpuboardmem1_size > cpuboard_maxmemory(&workprefs))
-		workprefs.cpuboardmem1_size = cpuboard_maxmemory(&workprefs);
+	if (workprefs.cpuboardmem1.size > cpuboard_maxmemory(&workprefs))
+		workprefs.cpuboardmem1.size = cpuboard_maxmemory(&workprefs);
 
 	if (cpuboard_memorytype(&workprefs) == BOARD_MEMORY_Z2) {
-		workprefs.fastmem[0].size = workprefs.cpuboardmem1_size;
+		workprefs.fastmem[0].size = workprefs.cpuboardmem1.size;
 	}
 	if (cpuboard_memorytype(&workprefs) == BOARD_MEMORY_25BITMEM) {
-		workprefs.mem25bit_size = workprefs.cpuboardmem1_size;
+		workprefs.mem25bit.size = workprefs.cpuboardmem1.size;
 	}
 	if (workprefs.cpuboard_type == 0) {
-		workprefs.mem25bit_size = 0;
+		workprefs.mem25bit.size = 0;
 	}
 
 	if (cpuboard_memorytype(&workprefs) == BOARD_MEMORY_HIGHMEM)
-		workprefs.mbresmem_high_size = workprefs.cpuboardmem1_size;
+		workprefs.mbresmem_high.size = workprefs.cpuboardmem1.size;
 
 	int maxmem = cpuboard_maxmemory(&workprefs);
-	if (workprefs.cpuboardmem1_size > maxmem) {
-		workprefs.cpuboardmem1_size = maxmem;
+	if (workprefs.cpuboardmem1.size > maxmem) {
+		workprefs.cpuboardmem1.size = maxmem;
 	}
 	if (maxmem <= 8 * 1024 * 1024)
 		SendDlgItemMessage (hDlg, IDC_CPUBOARDMEM, TBM_SETRANGE, TRUE, MAKELONG (MIN_CB_MEM, MAX_CB_MEM_Z2));
@@ -9685,7 +9685,7 @@ static void setcpuboardmemsize(HWND hDlg)
 		SendDlgItemMessage (hDlg, IDC_CPUBOARDMEM, TBM_SETRANGE, TRUE, MAKELONG (MIN_CB_MEM, MAX_CB_MEM_256M));
 
 	int mem_size = 0;
-	switch (workprefs.cpuboardmem1_size) {
+	switch (workprefs.cpuboardmem1.size) {
 	case 0x00000000: mem_size = 0; break;
 	case 0x00100000: mem_size = 1; break;
 	case 0x00200000: mem_size = 2; break;
@@ -9726,7 +9726,7 @@ static void values_to_memorydlg (HWND hDlg)
 	uae_u32 mem_size = 0;
 	uae_u32 v;
 
-	switch (workprefs.chipmem_size) {
+	switch (workprefs.chipmem.size) {
 	case 0x00040000: mem_size = 0; break;
 	case 0x00080000: mem_size = 1; break;
 	case 0x00100000: mem_size = 2; break;
@@ -9756,7 +9756,7 @@ static void values_to_memorydlg (HWND hDlg)
 	SetDlgItemText (hDlg, IDC_FASTRAM, memsize_names[msi_fast[mem_size]]);
 
 	mem_size = 0;
-	switch (workprefs.bogomem_size) {
+	switch (workprefs.bogomem.size) {
 	case 0x00000000: mem_size = 0; break;
 	case 0x00080000: mem_size = 1; break;
 	case 0x00100000: mem_size = 2; break;
@@ -9796,7 +9796,7 @@ static void values_to_memorydlg (HWND hDlg)
 	SetDlgItemText (hDlg, IDC_Z3FASTRAM, memsize_names[msi_z3fast[mem_size]]);
 
 	mem_size = 0;
-	v = workprefs.z3chipmem_size;
+	v = workprefs.z3chipmem.size;
 	if (v < 0x01000000)
 		mem_size = 0;
 	else if (v < 0x02000000)
@@ -9856,7 +9856,7 @@ static void values_to_memorydlg (HWND hDlg)
 
 static void fix_values_memorydlg (void)
 {
-	if (workprefs.chipmem_size <= 0x200000)
+	if (workprefs.chipmem.size <= 0x200000)
 		return;
 	int total = 0;
 	for (int i = 0; i < MAX_RAM_BOARDS; i++) {
@@ -10902,7 +10902,7 @@ static INT_PTR CALLBACK Expansion2DlgProc(HWND hDlg, UINT msg, WPARAM wParam, LP
 		if (recursive > 0)
 			break;
 		recursive++;
-		workprefs.cpuboardmem1_size = memsizes[msi_cpuboard[SendMessage(GetDlgItem(hDlg, IDC_CPUBOARDMEM), TBM_GETPOS, 0, 0)]];
+		workprefs.cpuboardmem1.size = memsizes[msi_cpuboard[SendMessage(GetDlgItem(hDlg, IDC_CPUBOARDMEM), TBM_GETPOS, 0, 0)]];
 		setcpuboardmemsize(hDlg);
 		recursive--;
 		break;
@@ -11664,14 +11664,14 @@ static INT_PTR CALLBACK MemoryDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARA
 		bool change1 = false;
 		uae_u32 v;
 		v = memsizes[msi_chip[SendMessage (GetDlgItem (hDlg, IDC_CHIPMEM), TBM_GETPOS, 0, 0)]];
-		if (v != workprefs.chipmem_size) {
+		if (v != workprefs.chipmem.size) {
 			change1 = true;
-			workprefs.chipmem_size = v;
+			workprefs.chipmem.size = v;
 		}
 		v = memsizes[msi_bogo[SendMessage (GetDlgItem (hDlg, IDC_SLOWMEM), TBM_GETPOS, 0, 0)]];
-		if (v != workprefs.bogomem_size) {
+		if (v != workprefs.bogomem.size) {
 			change1 = true;
-			workprefs.bogomem_size = v;
+			workprefs.bogomem.size = v;
 		}
 		v = memsizes[msi_fast[SendMessage (GetDlgItem (hDlg, IDC_FASTMEM), TBM_GETPOS, 0, 0)]];
 		if (v != workprefs.fastmem[0].size) {
@@ -11688,9 +11688,9 @@ static INT_PTR CALLBACK MemoryDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARA
 			setfastram_selectmenu(hDlg, 0);
 		}
 		v = memsizes[msi_z3chip[SendMessage (GetDlgItem (hDlg, IDC_Z3CHIPMEM), TBM_GETPOS, 0, 0)]];
-		if (v != workprefs.z3chipmem_size) {
+		if (v != workprefs.z3chipmem.size) {
 			change1 = true;
-			workprefs.z3chipmem_size = v;
+			workprefs.z3chipmem.size = v;
 		}
 		if (!change1 && fastram_select_pointer) {
 			v = memsizes[fastram_select_msi[SendMessage(GetDlgItem(hDlg, IDC_MEMORYMEM), TBM_GETPOS, 0, 0)]];

@@ -1419,10 +1419,10 @@ void savestate_rewind (void)
 		p = restore_p96 (p);
 #endif
 	len = restore_u32_func (&p);
-	memcpy (chipmem_bank.baseaddr, p, currprefs.chipmem_size > len ? len : currprefs.chipmem_size);
+	memcpy (chipmem_bank.baseaddr, p, currprefs.chipmem.size > len ? len : currprefs.chipmem.size);
 	p += len;
 	len = restore_u32_func (&p);
-	memcpy (save_bram (&dummy), p, currprefs.bogomem_size > len ? len : currprefs.bogomem_size);
+	memcpy (save_bram (&dummy), p, currprefs.bogomem.size > len ? len : currprefs.bogomem.size);
 	p += len;
 #ifdef AUTOCONFIG
 	len = restore_u32_func (&p);

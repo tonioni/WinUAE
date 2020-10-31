@@ -41,29 +41,29 @@ void moduleripper (void)
 	int size;
 	uae_u8 *buf, *p;
 
-	size = currprefs.chipmem_size;
+	size = currprefs.chipmem.size;
 	for (int i = 0; i < MAX_RAM_BOARDS; i++) {
 		size += currprefs.fastmem[i].size;
 		size += currprefs.z3fastmem[i].size;
 	}
-	size += currprefs.bogomem_size;
-	size += currprefs.mbresmem_low_size;
-	size += currprefs.mbresmem_high_size;
+	size += currprefs.bogomem.size;
+	size += currprefs.mbresmem_low.size;
+	size += currprefs.mbresmem_high.size;
 	buf = p = xmalloc (uae_u8, size);
 	if (!buf)
 		return;
-	memcpy (p, chipmem_bank.baseaddr, currprefs.chipmem_size);
-	p += currprefs.chipmem_size;
+	memcpy (p, chipmem_bank.baseaddr, currprefs.chipmem.size);
+	p += currprefs.chipmem.size;
 	for (int i = 0; i < MAX_RAM_BOARDS; i++) {
 		mc (p, fastmem_bank[i].start, currprefs.fastmem[i].size);
 		p += currprefs.fastmem[i].size;
 	}
-	mc (p, bogomem_bank.start, currprefs.bogomem_size);
-	p += currprefs.bogomem_size;
-	mc (p, a3000lmem_bank.start, currprefs.mbresmem_low_size);
-	p += currprefs.mbresmem_low_size;
-	mc (p, a3000hmem_bank.start, currprefs.mbresmem_high_size);
-	p += currprefs.mbresmem_high_size;
+	mc (p, bogomem_bank.start, currprefs.bogomem.size);
+	p += currprefs.bogomem.size;
+	mc (p, a3000lmem_bank.start, currprefs.mbresmem_low.size);
+	p += currprefs.mbresmem_low.size;
+	mc (p, a3000hmem_bank.start, currprefs.mbresmem_high.size);
+	p += currprefs.mbresmem_high.size;
 	for (int i = 0; i < MAX_RAM_BOARDS; i++) {
 		mc (p, z3fastmem_bank[i].start, currprefs.z3fastmem[i].size);
 		p += currprefs.z3fastmem[i].size;

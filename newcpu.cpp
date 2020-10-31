@@ -3865,7 +3865,7 @@ static bool mmu_op30fake_pmove (uaecptr pc, uae_u32 opcode, uae_u16 next, uaecpt
 		write_log (_T(" PC=%08X\n"), pc);
 	}
 #endif
-	if ((currprefs.cs_mbdmac & 1) && currprefs.mbresmem_low_size > 0) {
+	if ((currprefs.cs_mbdmac & 1) && currprefs.mbresmem_low.size > 0) {
 		if (otc != fake_tc_030) {
 			a3000_fakekick (fake_tc_030 & 0x80000000);
 		}

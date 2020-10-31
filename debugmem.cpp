@@ -3549,7 +3549,7 @@ static struct debugmemallocs *ismysegment(uaecptr addr)
 		return NULL;
 	addr -= debugmem_bank.start;
 	if (addr >= debugmem_bank.allocated_size)
-		return false;
+		return NULL;
 	for (int i = 1; i <= executable_last_segment; i++) {
 		struct debugmemallocs *alloc = allocs[i];
 		if (addr >= alloc->start && addr < alloc->start + alloc->size)

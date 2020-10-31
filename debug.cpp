@@ -2884,11 +2884,11 @@ void debug_check_reg(uae_u32 addr, int write, uae_u16 v)
 
 	if (spc & CD_DMA_PTR) {
 		uae_u32 addr = (custom_storage[((reg & ~2) >> 1)].value << 16) | custom_storage[((reg | 2) >> 1)].value;
-		if (currprefs.z3chipmem_size) {
-			if (addr >= currprefs.z3chipmem_start && addr < currprefs.z3chipmem_start + currprefs.z3chipmem_size)
+		if (currprefs.z3chipmem.size) {
+			if (addr >= currprefs.z3chipmem.start_address && addr < currprefs.z3chipmem.start_address + currprefs.z3chipmem.size)
 				return;
 		}
-		if(addr >= currprefs.chipmem_size)
+		if(addr >= currprefs.chipmem.size)
 			write_log(_T("DMA pointer %04x (%s) set to invalid value %08x %s=%08x\n"), reg, cd->name, addr,
 				custom_storage[reg >> 1].pc & 1 ? _T("COP") : _T("PC"), custom_storage[reg >> 1].pc);
 	}
@@ -2923,11 +2923,11 @@ static void is_valid_dma(int reg, int ptrreg, uaecptr addr)
 		return;
 	if (reg == 0x1fe) // refresh
 		return;
-	if (currprefs.z3chipmem_size) {
-		if (addr >= currprefs.z3chipmem_start && addr < currprefs.z3chipmem_start + currprefs.z3chipmem_size)
+	if (currprefs.z3chipmem.size) {
+		if (addr >= currprefs.z3chipmem.start_address && addr < currprefs.z3chipmem.start_address + currprefs.z3chipmem.size)
 			return;
 	}
-	if (!(addr & ~(currprefs.chipmem_size - 1)))
+	if (!(addr & ~(currprefs.chipmem.size - 1)))
 		return;
 	const struct customData *cdreg = &custd[reg >> 1];
 	const struct customData *cdptr = &custd[ptrreg >> 1];
@@ -3279,7 +3279,7 @@ uae_u16 debug_wputpeekdma_chipram (uaecptr addr, uae_u32 v, uae_u32 mask, int re
 	is_valid_dma(reg, ptrreg, addr);
 	if (debug_mem_banks[addr >> 16] == NULL)
 		return v;
-	if (!currprefs.z3chipmem_size)
+	if (!currprefs.z3chipmem.size)
 		addr &= chipmem_bank.mask;
 	memwatch_func (addr & chipmem_bank.mask, 2, 2, &v, mask, reg);
 	return v;
@@ -3292,7 +3292,7 @@ uae_u16 debug_wgetpeekdma_chipram (uaecptr addr, uae_u32 v, uae_u32 mask, int re
 	is_valid_dma(reg, ptrreg, addr);
 	if (debug_mem_banks[addr >> 16] == NULL)
 		return v;
-	if (!currprefs.z3chipmem_size)
+	if (!currprefs.z3chipmem.size)
 		addr &= chipmem_bank.mask;
 	memwatch_func (addr, 1, 2, &vv, mask, reg);
 	return vv;
@@ -5874,11 +5874,11 @@ static bool debug_line (TCHAR *input)
 						_stprintf(buf, _T("0 dff000 200 NONE"));
 						pbuf = buf;
 						memwatch(&pbuf);
-						_stprintf(buf, _T("1 0 %08x NONE"), currprefs.chipmem_size);
+						_stprintf(buf, _T("1 0 %08x NONE"), currprefs.chipmem.size);
 						pbuf = buf;
 						memwatch(&pbuf);
-						if (currprefs.bogomem_size) {
-							_stprintf(buf, _T("2 c00000 %08x NONE"), currprefs.bogomem_size);
+						if (currprefs.bogomem.size) {
+							_stprintf(buf, _T("2 c00000 %08x NONE"), currprefs.bogomem.size);
 							pbuf = buf;
 							memwatch(&pbuf);
 						}

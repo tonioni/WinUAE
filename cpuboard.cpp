@@ -1717,7 +1717,7 @@ void cpuboard_reset(int hardreset)
 #endif
 	configured = false;
 	delayed_rom_protect = 0;
-	currprefs.cpuboardmem1_size = changed_prefs.cpuboardmem1_size;
+	currprefs.cpuboardmem1.size = changed_prefs.cpuboardmem1.size;
 	maprom_unwriteprotect();
 	if (hardreset || (!mapromconfigured() && (is_blizzard(&currprefs) || is_blizzard2060(&currprefs))))
 		maprom_state = 0;
@@ -1810,8 +1810,8 @@ static void memory_mirror_bank(addrbank *bank, uaecptr end_addr)
 
 static void cpuboard_custom_memory(uaecptr addr, int max, bool swap, bool alias)
 {
-	int size1 = swap ? currprefs.cpuboardmem2_size : currprefs.cpuboardmem1_size;
-	int size2 = swap ? currprefs.cpuboardmem1_size : currprefs.cpuboardmem2_size;
+	int size1 = swap ? currprefs.cpuboardmem2.size : currprefs.cpuboardmem1.size;
+	int size2 = swap ? currprefs.cpuboardmem1.size : currprefs.cpuboardmem2.size;
 	int size_low = size1;
 	max *= 1024 * 1024;
 	if (size_low > max)
@@ -1836,7 +1836,7 @@ static void cpuboard_init_2(void)
 	if (!currprefs.cpuboard_type)
 		return;
 
-	cpuboard_size = currprefs.cpuboardmem1_size;
+	cpuboard_size = currprefs.cpuboardmem1.size;
 	cpuboardmem1_bank.reserved_size = 0;
 	cpuboardmem2_bank.reserved_size = 0;
 
@@ -2151,7 +2151,7 @@ void cpuboard_init(void)
 	if (!currprefs.cpuboard_type)
 		return;
 
-	if (cpuboard_size == currprefs.cpuboardmem1_size)
+	if (cpuboard_size == currprefs.cpuboardmem1.size)
 		return;
 
 	cpuboard_cleanup();
@@ -2910,7 +2910,7 @@ bool cpuboard_autoconfig_init(struct autoconfig_info *aci)
 		if (is_blizzardppc(p)) {
 			flashtype = 0xa4;
 			f0rom_size = 524288;
-			aci->last_high_ram = BLIZZARDMK4_RAM_BASE_48 + p->cpuboardmem1_size / 2;
+			aci->last_high_ram = BLIZZARDMK4_RAM_BASE_48 + p->cpuboardmem1.size / 2;
 		} else {
 			flashtype = 0x20;
 			f0rom_size = 131072;
@@ -2959,7 +2959,7 @@ bool cpuboard_autoconfig_init(struct autoconfig_info *aci)
 				zfile_fread(blizzardea_bank.baseaddr + 0x10000, 32768, 1, autoconfig_rom);
 			}
 		}
-		aci->last_high_ram = BLIZZARDMK4_RAM_BASE_48 + p->cpuboardmem1_size / 2;
+		aci->last_high_ram = BLIZZARDMK4_RAM_BASE_48 + p->cpuboardmem1.size / 2;
 	} else if (is_blizzard1230mk2(p)) {
 		earom_size = 131072;
 		for (int i = 0; i < 32768; i++) {

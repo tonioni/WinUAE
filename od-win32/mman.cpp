@@ -353,7 +353,7 @@ static int doinit_shm (void)
 
 	if (p->cpu_model >= 68020)
 		totalsize = 0x10000000;
-	totalsize += (p->z3chipmem_size + align) & ~align;
+	totalsize += (p->z3chipmem.size + align) & ~align;
 	totalsize_z3 = totalsize;
 
 	start_rtg = 0;
@@ -367,7 +367,7 @@ static int doinit_shm (void)
 	}
 #endif
 	// 1G Z3chip?
-	if ((Z3BASE_UAE + p->z3chipmem_size > Z3BASE_REAL) ||
+	if ((Z3BASE_UAE + p->z3chipmem.size > Z3BASE_REAL) ||
 		// real wrapped around
 		(expamem_z3_highram_real == 0xffffffff) ||
 		// Real highram > 0x80000000 && UAE highram <= 0x80000000 && Automatic
@@ -596,7 +596,7 @@ bool init_shm (void)
 		if (ortgmem_type[i] != changed_prefs.rtgboards[i].rtgmem_type)
 			changed = true;
 	}
-	if (!changed && oz3chipmem_size == changed_prefs.z3chipmem_size)
+	if (!changed && oz3chipmem_size == changed_prefs.z3chipmem.size)
 		return true;
 
 	for (int i = 0; i < MAX_RAM_BOARDS;i++) {
@@ -607,7 +607,7 @@ bool init_shm (void)
 		ortgmem_size[i] = changed_prefs.rtgboards[i].rtgmem_size;
 		ortgmem_type[i] = changed_prefs.rtgboards[i].rtgmem_type;
 	}
-	oz3chipmem_size = changed_prefs.z3chipmem_size;
+	oz3chipmem_size = changed_prefs.z3chipmem.size;
 
 	if (doinit_shm () < 0)
 		return false;
@@ -735,9 +735,9 @@ bool uae_mman_info(addrbank *ab, struct uae_mman_data *md)
 	} else if (!_tcscmp(ab->label, _T("chip"))) {
 		start = 0;
 		got = true;
-		if (!expansion_get_autoconfig_by_address(&currprefs, 0x00200000, 0) && currprefs.chipmem_size == 2 * 1024 * 1024)
+		if (!expansion_get_autoconfig_by_address(&currprefs, 0x00200000, 0) && currprefs.chipmem.size == 2 * 1024 * 1024)
 			barrier = true;
-		if (currprefs.chipmem_size != 2 * 1024 * 1024)
+		if (currprefs.chipmem.size != 2 * 1024 * 1024)
 			barrier = true;
 	} else if (!_tcscmp(ab->label, _T("kick"))) {
 		start = 0xf80000;
@@ -810,7 +810,7 @@ bool uae_mman_info(addrbank *ab, struct uae_mman_data *md)
 	} else if (!_tcscmp(ab->label, _T("bogo"))) {
 		start = 0x00C00000;
 		got = true;
-		if (currprefs.bogomem_size <= 0x100000)
+		if (currprefs.bogomem.size <= 0x100000)
 			barrier = true;
 	} else if (!_tcscmp(ab->label, _T("custmem1"))) {
 		start = currprefs.custom_memory_addrs[0];
