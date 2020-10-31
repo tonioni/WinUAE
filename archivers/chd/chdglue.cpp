@@ -15,7 +15,7 @@ int core_fseek(core_file *file, INT64 offset, int whence)
 }
 file_error core_fopen(const TCHAR *filename, UINT32 openflags, core_file **file)
 {
-	TCHAR *mode;
+	const TCHAR *mode;
 
 	if (openflags & OPEN_FLAG_CREATE)
 		mode = _T("wb");

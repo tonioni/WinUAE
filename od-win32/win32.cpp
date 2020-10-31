@@ -3262,7 +3262,7 @@ int WIN32_CleanupLibraries (void)
 /* HtmlHelp Initialization - optional component */
 int WIN32_InitHtmlHelp (void)
 {
-	TCHAR *chm = _T("WinUAE.chm");
+	const TCHAR *chm = _T("WinUAE.chm");
 	int result = 0;
 	_stprintf(help_file, _T("%s%s"), start_path_data, chm);
 	if (!zfile_exists (help_file))
@@ -3348,7 +3348,7 @@ const struct winuae_lang langs[] =
 	{ 0x400, _T("guidll.dll") },
 	{ 0, NULL }
 };
-static TCHAR *getlanguagename(DWORD id)
+static const TCHAR *getlanguagename(DWORD id)
 {
 	int i;
 	for (i = 0; langs[i].name; i++) {
@@ -3383,7 +3383,7 @@ HMODULE language_load (WORD language)
 
 #if LANG_DLL > 0
 	TCHAR dllbuf[MAX_DPATH];
-	TCHAR *dllname;
+	const TCHAR *dllname;
 	dllname = getlanguagename (language);
 	if (dllname) {
 		DWORD  dwVersionHandle, dwFileVersionInfoSize;
@@ -3773,7 +3773,7 @@ uae_u8 *target_load_keyfile (struct uae_prefs *p, const TCHAR *path, int *sizep,
 	HMODULE h;
 	PFN_GetKey pfnGetKey;
 	int size;
-	TCHAR *libname = _T("amigaforever.dll");
+	const TCHAR *libname = _T("amigaforever.dll");
 
 	h = WIN32_LoadLibrary(libname);
 	if (!h) {
@@ -5191,7 +5191,7 @@ static int shell_deassociate (const TCHAR *extension)
 	return 1;
 }
 
-static int shell_associate_2 (const TCHAR *extension, TCHAR *shellcommand, TCHAR *command, struct contextcommand *cc, const TCHAR *perceivedtype,
+static int shell_associate_2 (const TCHAR *extension, const TCHAR *shellcommand, const TCHAR *command, struct contextcommand *cc, const TCHAR *perceivedtype,
 	const TCHAR *description, const TCHAR *ext2, int icon)
 {
 	TCHAR rpath1[MAX_DPATH], rpath2[MAX_DPATH], progid2[MAX_DPATH];
@@ -5292,7 +5292,7 @@ static int shell_associate_2 (const TCHAR *extension, TCHAR *shellcommand, TCHAR
 	regclosetree (fkey);
 	return 1;
 }
-static int shell_associate (const TCHAR *extension, TCHAR *command, struct contextcommand *cc, const TCHAR *perceivedtype, const TCHAR *description, const TCHAR *ext2, int icon)
+static int shell_associate (const TCHAR *extension, const TCHAR *command, struct contextcommand *cc, const TCHAR *perceivedtype, const TCHAR *description, const TCHAR *ext2, int icon)
 {
 	int v = shell_associate_2 (extension, NULL, command, cc, perceivedtype, description, ext2, icon);
 	if (!_tcscmp (extension, _T(".uae")))
@@ -5660,7 +5660,7 @@ static void WIN32_HandleRegistryStuff (void)
 }
 
 #if WINUAEPUBLICBETA > 0
-static TCHAR *BETAMESSAGE = {
+static const TCHAR *BETAMESSAGE = {
 	_T("This is unstable beta software. Click cancel if you are not comfortable using software that is incomplete and can have serious programming errors.")
 };
 #endif

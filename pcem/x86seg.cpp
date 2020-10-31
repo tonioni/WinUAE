@@ -170,25 +170,25 @@ void x86_doabrt(int x86_abrt)
                 }
         }
 }
-void x86gpf(char *s, uint16_t error)
+void x86gpf(const char *s, uint16_t error)
 {
 //        pclog("GPF %04X\n", error);
         cpu_state.abrt = ABRT_GPF;
         abrt_error = error;
 }
-void x86ss(char *s, uint16_t error)
+void x86ss(const char *s, uint16_t error)
 {
 //        pclog("SS %04X\n", error);
         cpu_state.abrt = ABRT_SS;
         abrt_error = error;
 }
-void x86ts(char *s, uint16_t error)
+void x86ts(const char *s, uint16_t error)
 {
 //        pclog("TS %04X\n", error);
         cpu_state.abrt = ABRT_TS;
         abrt_error = error;
 }
-void x86np(char *s, uint16_t error)
+void x86np(const char *s, uint16_t error)
 {
 //        pclog("NP %04X : %s\n", error, s);
         cpu_state.abrt = ABRT_NP;

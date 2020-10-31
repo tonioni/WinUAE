@@ -81,7 +81,7 @@ static struct debuggerpage dbgpage[MAXPAGES];
 static int currpage, pages;
 static int pagetype;
 
-TCHAR *pname[] = { _T("OUT1"), _T("OUT2"), _T("MEM1"), _T("MEM2"), _T("DASM1"), _T("DASM2"), _T("BRKPTS"), _T("MISC"), _T("CUSTOM") };
+const TCHAR *pname[] = { _T("OUT1"), _T("OUT2"), _T("MEM1"), _T("MEM2"), _T("DASM1"), _T("DASM2"), _T("BRKPTS"), _T("MISC"), _T("CUSTOM") };
 static int pstatuscolor[MAXPAGES];
 
 static int dbgwnd_minx = 800, dbgwnd_miny = 600;

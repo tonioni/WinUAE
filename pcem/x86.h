@@ -273,7 +273,7 @@ extern uint8_t *pccache2;
 void x86illegal();
 
 void x86seg_reset();
-void x86gpf(char *s, uint16_t error);
+void x86gpf(const char *s, uint16_t error);
 
 void resetx86();
 void softresetx86();

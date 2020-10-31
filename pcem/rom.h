@@ -2,7 +2,7 @@
 #define _ROM_H_
 
 FILE *romfopen(char *fn, char *mode);
-int rom_present(char *fn);
+int rom_present(const char *fn);
 
 typedef struct rom_t
 {

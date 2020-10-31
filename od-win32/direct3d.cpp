@@ -42,7 +42,7 @@ int forcedframelatency = -1;
 
 #include "direct3d.h"
 
-static TCHAR *D3DHEAD = _T("-");
+static const TCHAR *D3DHEAD = _T("-");
 
 static bool showoverlay = true;
 static int slicecnt;
@@ -293,7 +293,7 @@ static int ddraw_fs_hack_init (struct d3dstruct *d3d)
 	return 1;
 }
 
-static TCHAR *D3D_ErrorText (HRESULT error)
+static const TCHAR *D3D_ErrorText (HRESULT error)
 {
 	return _T("");
 }

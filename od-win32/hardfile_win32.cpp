@@ -438,7 +438,7 @@ int isharddrive (const TCHAR *name)
 	return -1;
 }
 
-static TCHAR *hdz[] = { _T("hdz"), _T("zip"), _T("rar"), _T("7z"), NULL };
+static const TCHAR *hdz[] = { _T("hdz"), _T("zip"), _T("rar"), _T("7z"), NULL };
 
 static int progressdialogreturn;
 static int progressdialogactive;
@@ -891,7 +891,7 @@ static bool hd_get_meta_hack_realtek(HWND hDlg, HANDLE h, uae_u8 *data, uae_u8 *
 	int state = 0;
 
 	memset(cmd, 0, 6); // TEST UNIT READY
-	TCHAR *infotxt;
+	const TCHAR *infotxt;
 	if (do_scsi_in(h, cmd, 6, data, 0, true) < 0) {
 		state = 1;
 		infotxt = _T("Realtek hack, insert card.");
@@ -2558,7 +2558,7 @@ static int hdf_write_2 (struct hardfiledata *hfd, void *buffer, uae_u64 offset, 
 	poscheck (hfd, len);
 	memcpy (hfd->cache, buffer, len);
 	if (hfd->handle_valid == HDF_HANDLE_WIN32_NORMAL) {
-		TCHAR *name = hfd->emptyname == NULL ? _T("<unknown>") : hfd->emptyname;
+		const TCHAR *name = hfd->emptyname == NULL ? _T("<unknown>") : hfd->emptyname;
 		if (offset == 0) {
 			if (!hfd->handle->firstwrite && (hfd->flags & HFD_FLAGS_REALDRIVE) && !(hfd->flags & HFD_FLAGS_REALDRIVEPARTITION)) {
 				hfd->handle->firstwrite = true;
@@ -3326,8 +3326,8 @@ TCHAR *hdf_getnameharddrive (int index, int flags, int *sectorsize, int *dangero
 	TCHAR tmp[32];
 	uae_u64 size = udi->size;
 	int nomedia = udi->nomedia;
-	TCHAR *dang = _T("?");
-	TCHAR *rw = _T("RW");
+	const TCHAR *dang = _T("?");
+	const TCHAR *rw = _T("RW");
 	bool noaccess = false;
 
 	if (outflags) {

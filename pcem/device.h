@@ -46,8 +46,8 @@ void device_add_status_info(char *s, int max_len);
 
 extern char *current_device_name;
 
-int device_get_config_int(char *name);
-char *device_get_config_string(char *name);
+int device_get_config_int(const char *name);
+char *device_get_config_string(const char *name);
 
 enum
 {
@@ -58,7 +58,7 @@ enum
         DEVICE_PS1 = 0x80       /*Device is only for IBM PS/1 Model 2011*/
 };
 
-int model_get_config_int(char *s);
-char *model_get_config_string(char *s);
+int model_get_config_int(const char *s);
+char *model_get_config_string(const char *s);
 
 #endif

@@ -3292,7 +3292,7 @@ void *cms_init();
 
 static int x86_global_settings;
 
-int device_get_config_int(char *s)
+int device_get_config_int(const char *s)
 {
 	if (!strcmp(s, "bilinear")) {
 		return 1;

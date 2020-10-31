@@ -2826,7 +2826,8 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
 	TCHAR file_name[MAX_DPATH] = _T("");
 	TCHAR init_path[MAX_DPATH] = _T("");
 	BOOL result = FALSE;
-	TCHAR *amiga_path = NULL, *initialdir = NULL, *defext = NULL;
+	TCHAR* amiga_path = NULL, * initialdir = NULL;
+	const TCHAR *defext = NULL;
 	TCHAR *p, *nextp;
 	int all = 1;
 	int next;
@@ -6509,8 +6510,8 @@ typedef struct url_info
 {
 	int   id;
 	BOOL  state;
-	TCHAR *display;
-	TCHAR *url;
+	const TCHAR *display;
+	const TCHAR *url;
 } urlinfo;
 
 static urlinfo urls[] =
@@ -6623,7 +6624,7 @@ static void setmultiautocomplete (HWND hDlg, int *ids)
 		setautocomplete (hDlg, ids[i]);
 }
 
-static void wsetpath (HWND hDlg, TCHAR *name, DWORD d, TCHAR *def)
+static void wsetpath (HWND hDlg, const TCHAR *name, DWORD d, const TCHAR *def)
 {
 	TCHAR tmp[MAX_DPATH];
 
@@ -8316,7 +8317,7 @@ static void init_resolution_combo (HWND hDlg)
 
 static void init_displays_combo (HWND hDlg, bool rtg)
 {
-	TCHAR *adapter = _T("");
+	const TCHAR *adapter = _T("");
 	struct MultiDisplay *md = Displays;
 	int cnt = 0, cnt2 = 0;
 	int displaynum;
@@ -8349,7 +8350,7 @@ static bool get_displays_combo (HWND hDlg, bool rtg)
 {
 	struct MultiDisplay *md = Displays;
 	LRESULT posn;
-	TCHAR *adapter = _T("");
+	const TCHAR *adapter = _T("");
 	int cnt = 0, cnt2 = 0;
 	int displaynum;
 	int id = rtg ? IDC_RTG_DISPLAYSELECT : IDC_DISPLAYSELECT;
@@ -12056,7 +12057,7 @@ static void enable_for_miscdlg (HWND hDlg)
 
 static void misc_kbled (HWND hDlg, int v, int nv)
 {
-	TCHAR *defname = v == IDC_KBLED1 ? _T("(NumLock)") : v == IDC_KBLED2 ? _T("(CapsLock)") : _T("(ScrollLock)");
+	const TCHAR *defname = v == IDC_KBLED1 ? _T("(NumLock)") : v == IDC_KBLED2 ? _T("(CapsLock)") : _T("(ScrollLock)");
 	SendDlgItemMessage (hDlg, v, CB_RESETCONTENT, 0, 0L);
 	SendDlgItemMessage (hDlg, v, CB_ADDSTRING, 0, (LPARAM)defname);
 	SendDlgItemMessage (hDlg, v, CB_ADDSTRING, 0, (LPARAM)_T("POWER"));
@@ -19276,7 +19277,7 @@ static void *filtervars2[] = {
 };
 
 struct filterpreset {
-	TCHAR *name;
+	const TCHAR *name;
 	int conf[27];
 };
 static const struct filterpreset filterpresets[] =

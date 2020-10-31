@@ -340,7 +340,7 @@ MODEL models[] =
 	{ "[386SX] AMI 386SX clone", ROM_AMI386SX, "ami386", { { "386SX", cpus_i386SX }, { "386DX", cpus_i386DX }, { "486", cpus_i486 } }, MODEL_GFX_NONE | MODEL_AT | MODEL_HAS_IDE, 512, 16384, 128, model_init, NULL },
 };
 
-int rom_present(char *s)
+int rom_present(const char *s)
 {
 	return 0;
 }

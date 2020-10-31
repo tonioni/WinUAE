@@ -794,7 +794,7 @@ int screenshotf(int monid, const TCHAR *spath, int mode, int doprepare, int imag
 	FILE *fp = NULL;
 	int failed = 0;
 	int screenshot_max = 1000; // limit 999 iterations / screenshots
-	TCHAR *format = _T("%s%s%s%03d.%s");
+	const TCHAR *format = _T("%s%s%s%03d.%s");
 	bool alpha = usealpha();
 
 	HBITMAP offscreen_bitmap = NULL; // bitmap that is converted to a DIB

@@ -56,7 +56,7 @@ int pngprint = 0;
 static const TCHAR *epsonprintername;
 static HFONT curFont;
 static float curFontHorizPoints, curFontVertPoints;
-static TCHAR *curFontName;
+static const TCHAR *curFontName;
 static HDC memHDC;
 static LPOUTLINETEXTMETRIC otm;
 #else
@@ -473,7 +473,7 @@ static void selectCodepage(Bit16u cp)
 
 static int selectfont(Bit16u style)
 {
-	static TCHAR *thisFontName;
+	static const TCHAR *thisFontName;
 	static float thisFontHorizPoints;
 	static float thisFontVertPoints;
 	static Bit16u thisStyle;
@@ -544,7 +544,7 @@ static void updateFont(void)
 {
 	Real64 horizPoints = 10.5;
 	Real64 vertPoints = 10.5;
-	TCHAR *fontName;
+	const TCHAR *fontName;
 
 	if (curFont != NULL)
 #ifdef WINFONT
