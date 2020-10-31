@@ -2429,6 +2429,10 @@ static LRESULT CALLBACK AmigaWindowProc(HWND hWnd, UINT message, WPARAM wParam, 
 				monitor_off = 1;
 			break;
 
+		case SC_KEYMENU:
+			if (HIWORD(lParam) <= 0 && isfocus() > 1)
+				return 0;
+			break;
 		default:
 		{
 			LRESULT lr;
