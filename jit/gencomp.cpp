@@ -2485,16 +2485,11 @@ gen_opcode(unsigned int opcode)
 		if (curi->smode != immi) {
 			uses_cmov;
 			start_brace();
-			comprintf("\tint cdata2 = scratchie++;\n");
-			comprintf("\tint cdata = scratchie++;\n");
+			comprintf("\tint cdata=scratchie++;\n");
 			comprintf("\tint tmpcnt=scratchie++;\n");
 			comprintf("\tmov_l_rr(tmpcnt,cnt);\n");
 			comprintf("\tand_l_ri(tmpcnt,63);\n");
 			comprintf("\tmov_l_ri(cdata, 0);\n");
-
-			comprintf("\tmov_l_ri(cdata2, 32);\n");
-			comprintf("\tcmp_l(tmpcnt, cdata2);\n");
-			comprintf("\tcmov_l_rr(tmpcnt, cdata, NATIVE_CC_EQ);\n");
 
 			switch (curi->size) {
 			case sz_byte:
@@ -2564,16 +2559,11 @@ gen_opcode(unsigned int opcode)
 		if (curi->smode != immi) {
 			uses_cmov;
 			start_brace();
-			comprintf("\tint cdata2 = scratchie++;\n");
 			comprintf("\tint cdata = scratchie++;\n");
 			comprintf("\tint tmpcnt = scratchie++;\n");
 			comprintf("\tmov_l_rr(tmpcnt,cnt);\n");
 			comprintf("\tand_l_ri(tmpcnt,63);\n");
 			comprintf("\tmov_l_ri(cdata, 0);\n");
-
-			comprintf("\tmov_l_ri(cdata2, 32);\n");
-			comprintf("\tcmp_l(tmpcnt, cdata2);\n");
-			comprintf("\tcmov_l_rr(tmpcnt, cdata, NATIVE_CC_EQ);\n");
 
 			switch (curi->size) {
 			case sz_byte:
@@ -2646,6 +2636,17 @@ gen_opcode(unsigned int opcode)
 
 		if (!noflags) {
 			comprintf("\tstart_needflags();\n");
+
+			comprintf("\tint cdata = scratchie++;\n");
+			comprintf("\tint zero = scratchie++;\n");
+			comprintf("\tint tmpcnt = scratchie++;\n");
+			comprintf("\tmov_l_rr(cdata,data);\n");
+			comprintf("\tmov_l_rr(tmpcnt,cnt);\n");
+			comprintf("\tmov_l_ri(zero,0);\n");
+			// if shift count is zero: C is always cleared
+			comprintf("\tand_l_ri(tmpcnt,63);\n");
+			comprintf("\tcmov_l_rr(cdata,zero,NATIVE_CC_EQ);\n");
+
 			/*
 			 * x86 ROL instruction does not set ZF/SF, so we need extra checks here
 			 */
@@ -2656,7 +2657,7 @@ gen_opcode(unsigned int opcode)
 			case sz_long: comprintf("\ttest_l_rr(data,data);\n"); break;
 			}
 			comprintf("}\n");
-			comprintf("\tbt_l_ri(data,0x00);\n"); /* Set C */
+			comprintf("\tbt_l_ri(cdata,0x00);\n"); /* Set C */
 			comprintf("\tlive_flags();\n");
 			comprintf("\tend_needflags();\n");
 		}
@@ -2689,6 +2690,16 @@ gen_opcode(unsigned int opcode)
 
 		if (!noflags) {
 			comprintf("\tstart_needflags();\n");
+
+			comprintf("\tint cdata = scratchie++;\n");
+			comprintf("\tint zero = scratchie++;\n");
+			comprintf("\tint tmpcnt = scratchie++;\n");
+			comprintf("\tmov_l_rr(cdata,data);\n");
+			comprintf("\tmov_l_rr(tmpcnt,cnt);\n");
+			comprintf("\tmov_l_ri(zero,0);\n");
+			// if shift count is zero: C is always cleared
+			comprintf("\tand_l_ri(tmpcnt,63);\n");
+			comprintf("\tcmov_l_rr(cdata,zero,NATIVE_CC_EQ);\n");
 			/*
 			 * x86 ROR instruction does not set ZF/SF, so we need extra checks here
 			 */
@@ -2700,9 +2711,9 @@ gen_opcode(unsigned int opcode)
 			}
 			comprintf("}\n");
 			switch (curi->size) {
-			case sz_byte: comprintf("\tbt_l_ri(data,0x07);\n"); break;
-			case sz_word: comprintf("\tbt_l_ri(data,0x0f);\n"); break;
-			case sz_long: comprintf("\tbt_l_ri(data,0x1f);\n"); break;
+			case sz_byte: comprintf("\tbt_l_ri(cdata,0x07);\n"); break;
+			case sz_word: comprintf("\tbt_l_ri(cdata,0x0f);\n"); break;
+			case sz_long: comprintf("\tbt_l_ri(cdata,0x1f);\n"); break;
 			}
 			comprintf("\tlive_flags();\n");
 			comprintf("\tend_needflags();\n");
