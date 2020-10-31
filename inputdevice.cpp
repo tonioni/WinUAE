@@ -4352,8 +4352,8 @@ static bool inputdevice_handle_inputcode2(int monid, int code, int state, const 
 #endif
 	case AKS_FLOPPY0:
 		if (s) {
-			_tcsncpy(changed_prefs.floppyslots[0].df, s, MAX_PATH);
-			changed_prefs.floppyslots[0].df[MAX_PATH - 1] = 0;
+			_tcsncpy(changed_prefs.floppyslots[0].df, s, MAX_DPATH);
+			changed_prefs.floppyslots[0].df[MAX_DPATH - 1] = 0;
 			set_config_changed();
 		} else {
 			gui_display (0);
@@ -4362,8 +4362,8 @@ static bool inputdevice_handle_inputcode2(int monid, int code, int state, const 
 		break;
 	case AKS_FLOPPY1:
 		if (s) {
-			_tcsncpy(changed_prefs.floppyslots[1].df, s, MAX_PATH);
-			changed_prefs.floppyslots[1].df[MAX_PATH - 1] = 0;
+			_tcsncpy(changed_prefs.floppyslots[1].df, s, MAX_DPATH);
+			changed_prefs.floppyslots[1].df[MAX_DPATH - 1] = 0;
 			set_config_changed();
 		} else {
 			gui_display (1);
@@ -4372,8 +4372,8 @@ static bool inputdevice_handle_inputcode2(int monid, int code, int state, const 
 		break;
 	case AKS_FLOPPY2:
 		if (s) {
-			_tcsncpy(changed_prefs.floppyslots[2].df, s, MAX_PATH);
-			changed_prefs.floppyslots[2].df[MAX_PATH - 1] = 0;
+			_tcsncpy(changed_prefs.floppyslots[2].df, s, MAX_DPATH);
+			changed_prefs.floppyslots[2].df[MAX_DPATH - 1] = 0;
 			set_config_changed();
 		} else {
 			gui_display (2);
@@ -4382,8 +4382,8 @@ static bool inputdevice_handle_inputcode2(int monid, int code, int state, const 
 		break;
 	case AKS_FLOPPY3:
 		if (s) {
-			_tcsncpy(changed_prefs.floppyslots[3].df, s, MAX_PATH);
-			changed_prefs.floppyslots[3].df[MAX_PATH - 1] = 0;
+			_tcsncpy(changed_prefs.floppyslots[3].df, s, MAX_DPATH);
+			changed_prefs.floppyslots[3].df[MAX_DPATH - 1] = 0;
 			set_config_changed();
 		} else {
 			gui_display (3);
@@ -4401,6 +4401,22 @@ static bool inputdevice_handle_inputcode2(int monid, int code, int state, const 
 		break;
 	case AKS_EFLOPPY3:
 		disk_eject (3);
+		break;
+	case AKS_CD0:
+		if (s) {
+			_tcsncpy(changed_prefs.cdslots[0].name, s, MAX_DPATH);
+			changed_prefs.cdslots[0].name[MAX_DPATH - 1] = 0;
+			changed_prefs.cdslots[0].inuse = true;
+			set_config_changed();
+		}
+		else {
+			gui_display(6);
+			setsystime();
+		}
+		break;
+	case AKS_ECD0:
+		changed_prefs.cdslots[0].name[0] = 0;
+		changed_prefs.cdslots[0].inuse = false;
 		break;
 	case AKS_IRQ7:
 		NMI_delayed ();
