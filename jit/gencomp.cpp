@@ -829,7 +829,7 @@ static void genmov16(uae_u32 opcode, struct instr *curi)
 		comprintf("\tadd_l_ri(dstreg+8,16);\n");
 
 #ifdef UAE
-	comprintf("\tif (special_mem) {\n");
+	comprintf("\tif (special_mem || jit_n_addr_unsafe) {\n");
 	comprintf("\t\tint tmp=scratchie;\n");
 	comprintf("\tscratchie+=4;\n"
 		"\treadlong(src,tmp,scratchie);\n"
@@ -877,9 +877,9 @@ genmovemel(uae_u16 opcode)
 	genamode(table68k[opcode].dmode, "dstreg", table68k[opcode].size, "src", GENA_GETV_FETCH_ALIGN, GENA_MOVEM_NO_INC);
 #ifdef UAE
 	if (table68k[opcode].size == sz_long)
-		comprintf("\tif (1 && !special_mem) {\n");
+		comprintf("\tif (1 && !special_mem && !jit_n_addr_unsafe) {\n");
 	else
-		comprintf("\tif (1 && !special_mem) {\n");
+		comprintf("\tif (1 && !special_mem && !jit_n_addr_unsafe) {\n");
 #endif
 
 	/* Fast but unsafe...  */
@@ -901,8 +901,8 @@ genmovemel(uae_u16 opcode)
 		break;
 	default: assert(0);
 	}
-	comprintf("\t\t}\n"
-		"\t}");
+	comprintf("\t\t}\n");
+	comprintf("\t}\n");
 	if (table68k[opcode].dmode == Aipi) {
 		comprintf("\t\t\tlea_l_brr(8+dstreg,srca,offset);\n");
 	}
@@ -928,8 +928,8 @@ genmovemel(uae_u16 opcode)
 	default: assert(0);
 	}
 
-	comprintf("\t\t\t}\n"
-		"\t\t}\n");
+	comprintf("\t\t\t}\n");
+	comprintf("\t\t}\n");
 	if (table68k[opcode].dmode == Aipi) {
 		comprintf("\t\tmov_l_rr(8+dstreg,tmp);\n");
 	}
@@ -956,9 +956,9 @@ genmovemle(uae_u16 opcode)
 	   act of cleverness means that movmle must pay attention to special_mem,
 	   or Genetic Species is a rather boring-looking game ;-) */
 	if (table68k[opcode].size == sz_long)
-		comprintf("\tif (1 && !special_mem) {\n");
+		comprintf("\tif (1 && !special_mem && !jit_n_addr_unsafe) {\n");
 	else
-		comprintf("\tif (1 && !special_mem) {\n");
+		comprintf("\tif (1 && !special_mem && !jit_n_addr_unsafe) {\n");
 #endif
 	comprintf("\tget_n_addr(srca,native,scratchie);\n");
 
@@ -1003,8 +1003,8 @@ genmovemle(uae_u16 opcode)
 	}
 
 
-	comprintf("\t\t}\n"
-		"\t}");
+	comprintf("\t\t}\n");
+	comprintf("\t}\n");
 	if (table68k[opcode].dmode == Apdi) {
 		comprintf("\t\t\tlea_l_brr(8+dstreg,srca,(uae_s32)offset);\n");
 	}
@@ -1043,8 +1043,8 @@ genmovemle(uae_u16 opcode)
 	}
 
 
-	comprintf("\t\t}\n"
-		"\t}");
+	comprintf("\t\t}\n");
+	comprintf("\t}\n");
 	if (table68k[opcode].dmode == Apdi) {
 		comprintf("\t\t\tmov_l_rr(8+dstreg,srca);\n");
 	}

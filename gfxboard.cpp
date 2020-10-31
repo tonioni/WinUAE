@@ -396,7 +396,7 @@ static const addrbank tmpl_gfxboard_bank_memory_nojit = {
 	gfxboard_lput_mem_nojit, gfxboard_wput_mem_nojit, gfxboard_bput_mem_nojit,
 	gfxboard_xlate, gfxboard_check, NULL, NULL, NULL,
 	gfxboard_lget_mem_nojit, gfxboard_wget_mem_nojit,
-	ABFLAG_RAM | ABFLAG_THREADSAFE | ABFLAG_CACHE_ENABLE_ALL, S_READ, S_WRITE
+	ABFLAG_RAM | ABFLAG_THREADSAFE | ABFLAG_CACHE_ENABLE_ALL, S_READ | S_N_ADDR, S_WRITE | S_N_ADDR
 };
 
 static const addrbank tmpl_gfxboard_bank_wbsmemory = {
@@ -404,7 +404,7 @@ static const addrbank tmpl_gfxboard_bank_wbsmemory = {
 	gfxboard_lput_wbsmem, gfxboard_wput_wbsmem, gfxboard_bput_wbsmem,
 	gfxboard_xlate, gfxboard_check, NULL, NULL, NULL,
 	gfxboard_lget_wbsmem, gfxboard_wget_wbsmem,
-	ABFLAG_RAM | ABFLAG_THREADSAFE | ABFLAG_PPCIOSPACE | ABFLAG_CACHE_ENABLE_ALL, S_READ, S_WRITE
+	ABFLAG_RAM | ABFLAG_THREADSAFE | ABFLAG_PPCIOSPACE | ABFLAG_CACHE_ENABLE_ALL, S_READ | S_N_ADDR, S_WRITE | S_N_ADDR
 };
 
 static const addrbank tmpl_gfxboard_bank_lbsmemory = {
@@ -412,7 +412,7 @@ static const addrbank tmpl_gfxboard_bank_lbsmemory = {
 	gfxboard_lput_lbsmem, gfxboard_wput_lbsmem, gfxboard_bput_lbsmem,
 	gfxboard_xlate, gfxboard_check, NULL, NULL, NULL,
 	gfxboard_lget_lbsmem, gfxboard_wget_lbsmem,
-	ABFLAG_RAM | ABFLAG_THREADSAFE | ABFLAG_PPCIOSPACE | ABFLAG_CACHE_ENABLE_ALL, S_READ, S_WRITE
+	ABFLAG_RAM | ABFLAG_THREADSAFE | ABFLAG_PPCIOSPACE | ABFLAG_CACHE_ENABLE_ALL, S_READ | S_N_ADDR, S_WRITE | S_N_ADDR
 };
 
 static const addrbank tmpl_gfxboard_bank_nbsmemory = {
@@ -420,7 +420,7 @@ static const addrbank tmpl_gfxboard_bank_nbsmemory = {
 	gfxboard_lput_nbsmem, gfxboard_wput_nbsmem, gfxboard_bput_bsmem,
 	gfxboard_xlate, gfxboard_check, NULL, NULL, _T("Picasso IV banked VRAM"),
 	gfxboard_lget_nbsmem, gfxboard_wget_nbsmem,
-	ABFLAG_RAM | ABFLAG_THREADSAFE | ABFLAG_PPCIOSPACE | ABFLAG_CACHE_ENABLE_ALL, S_READ, S_WRITE
+	ABFLAG_RAM | ABFLAG_THREADSAFE | ABFLAG_PPCIOSPACE | ABFLAG_CACHE_ENABLE_ALL, S_READ | S_N_ADDR, S_WRITE | S_N_ADDR
 };
 
 static const addrbank tmpl_gfxboard_bank_registers = {
@@ -442,16 +442,16 @@ static const addrbank tmpl_gfxboard_bank_special = {
 static const addrbank tmpl_gfxboard_bank_vram_pcem = {
 	gfxboard_lget_vram_pcem, gfxboard_wget_vram_pcem, gfxboard_bget_vram_pcem,
 	gfxboard_lput_vram_pcem, gfxboard_wput_vram_pcem, gfxboard_bput_vram_pcem,
-	default_xlate, default_check, NULL, NULL, _T("PCem SVGA VRAM"),
-	dummy_lgeti, dummy_wgeti,
-	ABFLAG_IO | ABFLAG_SAFE, S_READ, S_WRITE
+	gfxboard_xlate, gfxboard_check, NULL, NULL, _T("PCem SVGA VRAM"),
+	gfxboard_lget_vram_pcem, gfxboard_wget_vram_pcem,
+	ABFLAG_IO | ABFLAG_SAFE, S_READ | S_N_ADDR, S_WRITE | S_N_ADDR
 };
 
 static const addrbank tmpl_gfxboard_bank_vram_normal_pcem = {
 	gfxboard_lget_vram_normal_pcem, gfxboard_wget_vram_normal_pcem, gfxboard_bget_vram_normal_pcem,
 	gfxboard_lput_vram_normal_pcem, gfxboard_wput_vram_normal_pcem, gfxboard_bput_vram_normal_pcem,
-	default_xlate, default_check, NULL, NULL, _T("PCem SVGA VRAM (DIRECT)"),
-	dummy_lgeti, dummy_wgeti,
+	gfxboard_xlate, gfxboard_check, NULL, NULL, _T("PCem SVGA VRAM (DIRECT)"),
+	gfxboard_lget_vram_normal_pcem, gfxboard_wget_vram_normal_pcem,
 	ABFLAG_RAM | ABFLAG_THREADSAFE | ABFLAG_PPCIOSPACE, S_READ, S_WRITE
 };
 
@@ -459,32 +459,32 @@ static const addrbank tmpl_gfxboard_bank_vram_normal_pcem = {
 static const addrbank tmpl_gfxboard_bank_vram_wordswap_pcem = {
 	gfxboard_lget_vram_wordswap_pcem, gfxboard_wget_vram_wordswap_pcem, gfxboard_bget_vram_wordswap_pcem,
 	gfxboard_lput_vram_wordswap_pcem, gfxboard_wput_vram_wordswap_pcem, gfxboard_bput_vram_wordswap_pcem,
-	default_xlate, default_check, NULL, NULL, _T("PCem SVGA VRAM (WORDSWAP)"),
-	dummy_lgeti, dummy_wgeti,
-	ABFLAG_RAM | ABFLAG_THREADSAFE | ABFLAG_PPCIOSPACE, S_READ, S_WRITE
+	gfxboard_xlate, gfxboard_check, NULL, NULL, _T("PCem SVGA VRAM (WORDSWAP)"),
+	gfxboard_lget_vram_wordswap_pcem, gfxboard_wget_vram_wordswap_pcem,
+	ABFLAG_RAM | ABFLAG_THREADSAFE | ABFLAG_PPCIOSPACE, S_READ | S_N_ADDR, S_WRITE | S_N_ADDR
 };
 
 static const addrbank tmpl_gfxboard_bank_vram_longswap_pcem = {
 	gfxboard_lget_vram_longswap_pcem, gfxboard_wget_vram_longswap_pcem, gfxboard_bget_vram_longswap_pcem,
 	gfxboard_lput_vram_longswap_pcem, gfxboard_wput_vram_longswap_pcem, gfxboard_bput_vram_longswap_pcem,
-	default_xlate, default_check, NULL, NULL, _T("PCem SVGA VRAM (LONGSWAP)"),
-	dummy_lgeti, dummy_wgeti,
-	ABFLAG_RAM | ABFLAG_THREADSAFE | ABFLAG_PPCIOSPACE, S_READ, S_WRITE
+	gfxboard_xlate, gfxboard_check, NULL, NULL, _T("PCem SVGA VRAM (LONGSWAP)"),
+	gfxboard_lget_vram_longswap_pcem, gfxboard_wget_vram_longswap_pcem,
+	ABFLAG_RAM | ABFLAG_THREADSAFE | ABFLAG_PPCIOSPACE, S_READ | S_N_ADDR, S_WRITE | S_N_ADDR
 };
 
 static const addrbank tmpl_gfxboard_bank_vram_cv_1_pcem = {
 	gfxboard_lget_vram_cv_1_pcem, gfxboard_wget_vram_cv_1_pcem, gfxboard_bget_vram_cv_1_pcem,
 	gfxboard_lput_vram_cv_1_pcem, gfxboard_wput_vram_cv_1_pcem, gfxboard_bput_vram_cv_1_pcem,
-	default_xlate, default_check, NULL, NULL, _T("PCem SVGA VRAM (CV64)"),
-	dummy_lgeti, dummy_wgeti,
-	ABFLAG_RAM | ABFLAG_THREADSAFE | ABFLAG_PPCIOSPACE, S_READ, S_WRITE
+	gfxboard_xlate, gfxboard_check, NULL, NULL, _T("PCem SVGA VRAM (CV64)"),
+	gfxboard_lget_vram_cv_1_pcem, gfxboard_wget_vram_cv_1_pcem,
+	ABFLAG_RAM | ABFLAG_THREADSAFE | ABFLAG_PPCIOSPACE, S_READ | S_N_ADDR, S_WRITE | S_N_ADDR
 };
 static const addrbank tmpl_gfxboard_bank_vram_p4z2_pcem = {
 	gfxboard_lget_vram_p4z2_pcem, gfxboard_wget_vram_p4z2_pcem, gfxboard_bget_vram_p4z2_pcem,
 	gfxboard_lput_vram_p4z2_pcem, gfxboard_wput_vram_p4z2_pcem, gfxboard_bput_vram_p4z2_pcem,
-	default_xlate, default_check, NULL, NULL, _T("PCem SVGA VRAM (PIVZ2)"),
-	dummy_lgeti, dummy_wgeti,
-	ABFLAG_RAM | ABFLAG_THREADSAFE | ABFLAG_PPCIOSPACE, S_READ, S_WRITE
+	gfxboard_xlate, gfxboard_check, NULL, NULL, _T("PCem SVGA VRAM (PIVZ2)"),
+	gfxboard_lget_vram_p4z2_pcem, gfxboard_wget_vram_p4z2_pcem,
+	ABFLAG_RAM | ABFLAG_THREADSAFE | ABFLAG_PPCIOSPACE, S_READ | S_N_ADDR, S_WRITE | S_N_ADDR
 };
 
 
@@ -2040,6 +2040,9 @@ static void gfxboard_bput_vram (struct rtggfxboard *gb, uaecptr addr, uae_u8 b, 
 static struct rtggfxboard *lastgetgfxboard;
 static rtggfxboard *getgfxboard(uaecptr addr)
 {
+#ifdef JIT
+	special_mem = S_WRITE | S_READ;
+#endif
 	if (only_gfx_board)
 		return only_gfx_board;
 	if (lastgetgfxboard) {
@@ -2391,7 +2394,7 @@ static uae_u32 REGPARAM2 gfxboard_bget_mem_autoconfig (uaecptr addr)
 	return v;
 }
 
-static void copyvrambank(addrbank *dst, const addrbank *src)
+static void copyvrambank(addrbank *dst, const addrbank *src, bool unsafe)
 {
 	dst->start = src->start;
 	dst->startmask = src->startmask;
@@ -2402,6 +2405,10 @@ static void copyvrambank(addrbank *dst, const addrbank *src)
 	dst->flags = src->flags;
 	dst->jit_read_flag = src->jit_read_flag;
 	dst->jit_write_flag = src->jit_write_flag;
+	if (unsafe) {
+		dst->jit_read_flag |= S_READ | S_N_ADDR;
+		dst->jit_write_flag |= S_READ | S_N_ADDR;
+	}
 }
 
 static void REGPARAM2 gfxboard_wput_mem_autoconfig (uaecptr addr, uae_u32 b)
@@ -2427,8 +2434,8 @@ static void REGPARAM2 gfxboard_wput_mem_autoconfig (uaecptr addr, uae_u32 b)
 			}
 		}
 		init_board(gb);
-		copyvrambank(&gb->gfxboard_bank_memory, gb->gfxmem_bank);
-		copyvrambank(&gb->gfxboard_bank_vram_pcem, gb->gfxmem_bank);
+		copyvrambank(&gb->gfxboard_bank_memory, gb->gfxmem_bank, false);
+		copyvrambank(&gb->gfxboard_bank_vram_pcem, gb->gfxmem_bank, true);
 		if (ISP4() && !gb->board->pcemdev) {
 			if (validate_banks_z3(&gb->gfxboard_bank_memory, gb->gfxmem_bank->start >> 16, expamem_board_size >> 16)) {
 				// main vram
@@ -2540,7 +2547,7 @@ static void REGPARAM2 gfxboard_bput_mem_autoconfig (uaecptr addr, uae_u32 b)
 			addrbank *ab;
 			if (ISP4() && !gb->board->pcemdev) {
 				ab = &gb->gfxboard_bank_nbsmemory;
-				copyvrambank(ab, gb->gfxmem_bank);
+				copyvrambank(ab, gb->gfxmem_bank, true);
 				map_banks_z2 (ab, b, 0x00200000 >> 16);
 				if (gb->configured_mem <= 0) {
 					gb->configured_mem = b;
@@ -2557,12 +2564,12 @@ static void REGPARAM2 gfxboard_bput_mem_autoconfig (uaecptr addr, uae_u32 b)
 
 			} else if (gb->board->pcemdev) {
 				
-				copyvrambank(&gb->gfxboard_bank_vram_pcem, gb->gfxmem_bank);
+				copyvrambank(&gb->gfxboard_bank_vram_pcem, gb->gfxmem_bank, true);
 
 				if (boardnum == GFXBOARD_ID_CV643D_Z2) {
 
 					ab = &gb->gfxboard_bank_memory;
-					copyvrambank(ab, gb->gfxmem_bank);
+					copyvrambank(ab, gb->gfxmem_bank, true);
 					uaecptr start = b << 16;
 					gb->gfxboardmem_start = b << 16;
 					map_banks_z2(&gb->gfxboard_bank_vram_pcem, start >> 16, (gb->board->banksize - (0x400000 - 0x3a0000)) >> 16);
@@ -2583,7 +2590,7 @@ static void REGPARAM2 gfxboard_bput_mem_autoconfig (uaecptr addr, uae_u32 b)
 				} else if (boardnum == GFXBOARD_ID_PICASSO4_Z2) {
 
 					ab = &gb->gfxboard_bank_memory;
-					copyvrambank(ab, gb->gfxmem_bank);
+					copyvrambank(ab, gb->gfxmem_bank, true);
 					map_banks_z2(&gb->gfxboard_bank_vram_p4z2_pcem, b, 0x00200000 >> 16);
 					if (gb->configured_mem <= 0) {
 						gb->configured_mem = b;
@@ -2663,7 +2670,7 @@ static void REGPARAM2 gfxboard_bput_mem_autoconfig (uaecptr addr, uae_u32 b)
 				gb->gfxboard_bank_memory.wput = gfxboard_wput_mem;
 				gb->gfxboardmem_start = b << 16;
 				init_board (gb);
-				copyvrambank(ab, gb->gfxmem_bank);
+				copyvrambank(ab, gb->gfxmem_bank, true);
 				map_banks_z2 (ab, b, gb->board->banksize >> 16);
 				gb->configured_mem = b;
 				gb->mem_start[0] = b << 16;
@@ -3549,7 +3556,7 @@ bool gfxboard_init_memory (struct autoconfig_info *aci)
 {
 	struct rtggfxboard *gb = &rtggfxboards[aci->devnum];
 	int bank;
-	uae_u8 z2_flags, z3_flags, z3_flags2, type;
+	uae_u8 z2_flags, z3_flags, type;
 	struct uae_prefs *p = aci->prefs;
 
 	gfxboard_init (aci, gb);
@@ -3557,26 +3564,24 @@ bool gfxboard_init_memory (struct autoconfig_info *aci)
 	memset (gb->automemory, 0xff, GFXBOARD_AUTOCONFIG_SIZE);
 	
 	z2_flags = 0x05; // 1M
-	z3_flags = 0x06; // 1M
-	z3_flags2 = 0;
+	z3_flags = 0;
 	bank = gb->board->banksize;
 	bank /= 0x00100000;
 	if (bank > 16) {
 		bank /= 16;
 		while (bank > 1) {
-			z3_flags2++;
+			z3_flags++;
 			bank >>= 1;
 		}
 	} else {
 		while (bank > 1) {
 			z2_flags++;
-			z3_flags++;
 			bank >>= 1;
 		}
 	}
 	if (gb->board->configtype == 3) {
-		type = 0x00 | 0x08 | 0x80 | z3_flags2;
-		ew (gb, 0x08, z3_flags | 0x10 | 0x20);
+		type = 0x80 | z3_flags | (gb->board->model_registers ? 0x08 : 0x00);
+		ew (gb, 0x08, 0x10 | 0x20);
 	} else {
 		type = z2_flags | 0x08 | 0xc0;
 	}
@@ -4056,11 +4061,6 @@ static void REGPARAM2 gfxboard_lput_vram_pcem(uaecptr addr, uae_u32 l)
 	addr &= gb->pcem_vram_mask;
 	pcem_linear_write_l(addr + pcem_mapping_linear_offset, l, pcem_mapping_linear_priv);
 }
-
-
-
-
-
 
 static uae_u32 REGPARAM2 gfxboard_bget_vram_cv_1_pcem(uaecptr addr)
 {
