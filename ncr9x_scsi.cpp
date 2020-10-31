@@ -106,6 +106,7 @@ struct ncr9x_state
 	uaecptr dma_ptr;
 	bool dma_on;
 	int dma_cnt;
+	uae_u32 dma_mask;
 	uae_u8 states[16];
 	struct romconfig *rc;
 	struct ncr9x_state **self_ptr;
@@ -477,7 +478,7 @@ static int masoboshi_dma_read(void *opaque, uint8_t *buf, int len)
 	if (ncr->dma_on) {
 		m68k_cancel_idle();
 		while (len > 0) {
-			uae_u16 v = get_word(ncr->dma_ptr & ~1);
+			uae_u16 v = dma_get_word((ncr->dma_ptr & ~1) & ncr->dma_mask);
 			*buf++ = v >> 8;
 			len--;
 			if (len > 0) {
@@ -510,7 +511,7 @@ static int masoboshi_dma_write(void *opaque, uint8_t *buf, int len)
 				v |= *buf++;
 				len--;
 			}
-			put_word(ncr->dma_ptr & ~1, v);
+			dma_put_word((ncr->dma_ptr & ~1) & ncr->dma_mask, v);
 			ncr->dma_ptr += 2;
 		}
 		return -1;
@@ -532,7 +533,7 @@ static int trifecta_dma_read(void *opaque, uint8_t *buf, int len)
 		//write_log(_T("Trifecta DMA from %08x, %d bytes\n"), ncr->dma_ptr, len);
 		m68k_cancel_idle();
 		while (len > 0) {
-			uae_u16 v = get_word(ncr->dma_ptr & ~1);
+			uae_u16 v = dma_get_word((ncr->dma_ptr & ~1) & ncr->dma_mask);
 			*buf++ = v >> 8;
 			len--;
 			if (len > 0) {
@@ -560,7 +561,7 @@ static int trifecta_dma_write(void *opaque, uint8_t *buf, int len)
 				v |= *buf++;
 				len--;
 			}
-			put_word(ncr->dma_ptr & ~1, v);
+			dma_put_word((ncr->dma_ptr & ~1) & ncr->dma_mask, v);
 			ncr->dma_ptr += 2;
 		}
 		return -1;
@@ -578,7 +579,7 @@ static int fastlane_dma_read(void *opaque, uint8_t *buf, int len)
 	}
 	m68k_cancel_idle();
 	while (len > 0) {
-		uae_u16 v = get_word(ncr->dma_ptr & ~1);
+		uae_u16 v = dma_get_word(ncr->dma_ptr & ~1);
 		*buf++ = v >> 8;
 		len--;
 		if (len > 0) {
@@ -606,7 +607,7 @@ static int fastlane_dma_write(void *opaque, uint8_t *buf, int len)
 			v |= *buf++;
 			len--;
 		}
-		put_word(ncr->dma_ptr & ~1, v);
+		dma_put_word(ncr->dma_ptr & ~1, v);
 		ncr->dma_ptr += 2;
 	}
 	return -1;
@@ -621,7 +622,7 @@ static int cyberstorm_mk1_mk2_dma_read(void *opaque, uint8_t *buf, int len)
 	}
 	m68k_cancel_idle();
 	while (len > 0) {
-		uae_u16 v = get_word(ncr->dma_ptr & ~1);
+		uae_u16 v = dma_get_word(ncr->dma_ptr & ~1);
 		*buf++ = v >> 8;
 		len--;
 		if (len > 0) {
@@ -649,7 +650,7 @@ static int cyberstorm_mk1_mk2_dma_write(void *opaque, uint8_t *buf, int len)
 			v |= *buf++;
 			len--;
 		}
-		put_word(ncr->dma_ptr & ~1, v);
+		dma_put_word(ncr->dma_ptr & ~1, v);
 		ncr->dma_ptr += 2;
 	}
 	return -1;
@@ -664,7 +665,7 @@ static int blizzard_dma_read(void *opaque, uint8_t *buf, int len)
 	}
 	m68k_cancel_idle();
 	while (len > 0) {
-		uae_u16 v = get_word((ncr->dma_ptr & 0x7fffffff) * 2);
+		uae_u16 v = dma_get_word((ncr->dma_ptr & 0x7fffffff) * 2);
 		*buf++ = v >> 8;
 		len--;
 		if (len > 0) {
@@ -692,7 +693,7 @@ static int blizzard_dma_write(void *opaque, uint8_t *buf, int len)
 			v |= *buf++;
 			len--;
 		}
-		put_word((ncr->dma_ptr & 0x7fffffff) * 2, v);
+		dma_put_word((ncr->dma_ptr & 0x7fffffff) * 2, v);
 		ncr->dma_ptr++;
 	}
 	return -1;
@@ -2507,6 +2508,7 @@ static void ncr9x_add_scsi_unit(struct ncr9x_state **ncrp, int ch, struct uaedev
 {
 	struct ncr9x_state *ncr = allocscsi(ncrp, rc, ch);
 	if (ch >= 0 && ncr) {
+		ncr->dma_mask = rc->dma24bit ? 0x00ffffff : 0xffffffff;
 		if (ci->type == UAEDEV_CD)
 			add_ncr_scsi_cd (ncr, ch, ci->device_emu_unit, ci->uae_unitnum);
 		else if (ci->type == UAEDEV_TAPE)

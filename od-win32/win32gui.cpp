@@ -9364,6 +9364,7 @@ static void enable_for_memorydlg (HWND hDlg)
 	ew(hDlg, IDC_AUTOCONFIG_DATA,  ac && size);
 	ew(hDlg, IDC_FASTMEMAUTOCONFIGUSE, isfast);
 	ew(hDlg, IDC_FASTMEMNOAUTOCONFIG, isfast);
+	ew(hDlg, IDC_FASTMEMDMA, isfast);
 	ew(hDlg, IDC_MEMORYRAM, true);
 	ew(hDlg, IDC_MEMORYMEM, true);
 	ew(hDlg, IDC_RAM_ADDRESS, manual && size);
@@ -9477,6 +9478,7 @@ static void setfastram_selectmenu(HWND hDlg, int mode)
 	struct ramboard *rb = fastram_select_ramboard;
 	setchecked(hDlg, IDC_FASTMEMAUTOCONFIGUSE, rb && rb->autoconfig_inuse);
 	setchecked(hDlg, IDC_FASTMEMNOAUTOCONFIG, rb && rb->manual_config);
+	setchecked(hDlg, IDC_FASTMEMDMA, rb && rb->nodma == 0);
 	if (rb) {
 		if (rb->manual_config) {
 			if (rb->end_address <= rb->start_address || rb->start_address + rb->size < rb->end_address)
@@ -10256,17 +10258,9 @@ static void init_expansion2(HWND hDlg, bool init)
 		}
 	}
 
-	SendDlgItemMessage(hDlg, IDC_SCSIROMSELECTNUM, CB_RESETCONTENT, 0, 0);
-	for (int i = 0; i < MAX_DUPLICATE_EXPANSION_BOARDS; i++) {
-		TCHAR tmp[10];
-		_stprintf(tmp, _T("%d"), i + 1);
-		SendDlgItemMessage(hDlg, IDC_SCSIROMSELECTNUM, CB_ADDSTRING, 0, (LPARAM)tmp);
-	}
-
 	if (scsiromselected > 0)
 		gui_set_string_cursor(scsiromselect_table, hDlg, IDC_SCSIROMSELECT, scsiromselected);
 	SendDlgItemMessage(hDlg, IDC_SCSIROMSELECTCAT, CB_SETCURSEL, scsiromselectedcatnum, 0);
-	SendDlgItemMessage(hDlg, IDC_SCSIROMSELECTNUM, CB_SETCURSEL, scsiromselectednum, 0);
 
 	SendDlgItemMessage(hDlg, IDC_SCSIROMID, CB_RESETCONTENT, 0, 0);
 	int index;
@@ -10294,6 +10288,7 @@ static void values_to_expansion2dlg_sub(HWND hDlg)
 	SendDlgItemMessage(hDlg, IDC_SCSIROMSUBSELECT, CB_RESETCONTENT, 0, 0);
 	const struct expansionromtype *er = &expansionroms[scsiromselected];
 	const struct expansionsubromtype *srt = er->subtypes;
+	int deviceflags = er->deviceflags;
 	ew(hDlg, IDC_SCSIROMSUBSELECT, srt != NULL);
 	while (srt && srt->name) {
 		SendDlgItemMessage(hDlg, IDC_SCSIROMSUBSELECT, CB_ADDSTRING, 0, (LPARAM) srt->name);
@@ -10301,18 +10296,31 @@ static void values_to_expansion2dlg_sub(HWND hDlg)
 	}
 	int index;
 	struct boardromconfig *brc = get_device_rom(&workprefs, expansionroms[scsiromselected].romtype, scsiromselectednum, &index);
-	if (brc) {
+	if (brc && er->subtypes) {
 		SendDlgItemMessage(hDlg, IDC_SCSIROMSUBSELECT, CB_SETCURSEL, brc->roms[index].subtype, 0);
 		SendDlgItemMessage(hDlg, IDC_SCSIROMID, CB_SETCURSEL, brc->roms[index].device_id, 0);
+		deviceflags |= er->subtypes[brc->roms[index].subtype].deviceflags;
 	} else if (srt) {
 		SendDlgItemMessage(hDlg, IDC_SCSIROMSUBSELECT, CB_SETCURSEL, 0, 0);
 		SendDlgItemMessage(hDlg, IDC_SCSIROMID, CB_SETCURSEL, 0, 0);
 	}
-	if (er->zorro < 2 || er->singleonly) {
+	SendDlgItemMessage(hDlg, IDC_SCSIROMSELECTNUM, CB_RESETCONTENT, 0, 0);
+	if (deviceflags & EXPANSIONTYPE_CLOCKPORT) {
+		SendDlgItemMessage(hDlg, IDC_SCSIROMSELECTNUM, CB_ADDSTRING, 0, (LPARAM)_T("-"));
+	}
+	for (int i = 0; i < MAX_AVAILABLE_DUPLICATE_EXPANSION_BOARDS; i++) {
+		TCHAR tmp[10];
+		_stprintf(tmp, _T("%d"), i + 1);
+		SendDlgItemMessage(hDlg, IDC_SCSIROMSELECTNUM, CB_ADDSTRING, 0, (LPARAM)tmp);
+	}
+	SendDlgItemMessage(hDlg, IDC_SCSIROMSELECTNUM, CB_SETCURSEL, scsiromselectednum, 0);
+	if ((er->zorro < 2 || er->singleonly) && !(deviceflags & EXPANSIONTYPE_CLOCKPORT)) {
 		scsiromselectednum = 0;
 		SendDlgItemMessage(hDlg, IDC_SCSIROMSELECTNUM, CB_SETCURSEL, 0, 0);
 	}
-	ew(hDlg, IDC_SCSIROMSELECTNUM, er->zorro >= 2 && !er->singleonly);
+	ew(hDlg, IDC_SCSIROMSELECTNUM, (er->zorro >= 2 && !er->singleonly) || (deviceflags & EXPANSIONTYPE_CLOCKPORT));
+	hide(hDlg, IDC_SCSIROM24BITDMA, (deviceflags & EXPANSIONTYPE_DMA24) == 0);
+	ew(hDlg, IDC_SCSIROM24BITDMA, (deviceflags & EXPANSIONTYPE_DMA24) != 0);
 }
 
 static void values_from_expansion2dlg(HWND hDlg)
@@ -10340,6 +10348,7 @@ static void values_from_expansion2dlg(HWND hDlg)
 		}
 		brc->roms[index].autoboot_disabled = ischecked(hDlg, IDC_SCSIROMFILEAUTOBOOT);
 		brc->roms[index].inserted = ischecked(hDlg, IDC_SCSIROMFILEPCMCIA);
+		brc->roms[index].dma24bit = ischecked(hDlg, IDC_SCSIROM24BITDMA);
 
 		int v = SendDlgItemMessage(hDlg, IDC_SCSIROMID, CB_GETCURSEL, 0, 0L);
 		if (v != CB_ERR && !isnew)
@@ -10372,6 +10381,16 @@ static void values_from_expansion2dlg(HWND hDlg)
 		clear_device_rom(&workprefs, expansionroms[scsiromselected].romtype, scsiromselectednum, true);
 	}
 	if (changed) {
+		// singleonly check and removal
+		if (expansionroms[scsiromselected].singleonly) {
+			if (get_device_rom(&workprefs, expansionroms[scsiromselected].romtype, scsiromselectednum, &index)) {
+				for (int i = 0; i < MAX_EXPANSION_BOARDS; i++) {
+					if (i != scsiromselectednum) {
+						clear_device_rom(&workprefs, expansionroms[scsiromselected].romtype, i, true);
+					}
+				}
+			}
+		}
 		init_expansion2(hDlg, false);
 		values_to_expansion2dlg_sub(hDlg);
 	}
@@ -10400,6 +10419,7 @@ static void values_to_expansion2_expansion_roms(HWND hDlg, UAEREG *fkey)
 		const struct expansionromtype *ert = &expansionroms[scsiromselected];
 		int romtype = ert->romtype;
 		int romtype_extra = ert->romtype_extra;
+		int deviceflags = ert->deviceflags;
 
 		brc = get_device_rom(&workprefs, romtype, scsiromselectednum, &index);
 		if (brc && ert->subtypes) {
@@ -10408,6 +10428,7 @@ static void values_to_expansion2_expansion_roms(HWND hDlg, UAEREG *fkey)
 				romtype = esrt->romtype;
 				romtype_extra = 0;
 			}
+			deviceflags |= esrt->deviceflags;
 		}
 		ew(hDlg, IDC_SCSIROMFILE, true);
 		ew(hDlg, IDC_SCSIROMCHOOSER, true);
@@ -10425,7 +10446,7 @@ static void values_to_expansion2_expansion_roms(HWND hDlg, UAEREG *fkey)
 			addromfiles(fkey, hDlg, IDC_SCSIROMFILE, brc ? brc->roms[index].romfile : NULL, romtype, romtype_extra);
 			setchecked(hDlg, IDC_SCSIROMFILEAUTOBOOT, brc && brc->roms[index].autoboot_disabled);
 		}
-		if (ert->deviceflags & EXPANSIONTYPE_PCMCIA) {
+		if (deviceflags & EXPANSIONTYPE_PCMCIA) {
 			setchecked(hDlg, IDC_SCSIROMFILEPCMCIA, brc && brc->roms[index].inserted);
 			hide(hDlg, IDC_SCSIROMFILEPCMCIA, 0);
 		} else {
@@ -10433,6 +10454,9 @@ static void values_to_expansion2_expansion_roms(HWND hDlg, UAEREG *fkey)
 			if (brc)
 				brc->roms[index].inserted = false;
 		}
+		hide(hDlg, IDC_SCSIROM24BITDMA, (deviceflags & EXPANSIONTYPE_DMA24) == 0);
+		ew(hDlg, IDC_SCSIROM24BITDMA, (deviceflags & EXPANSIONTYPE_DMA24) != 0);
+		setchecked(hDlg, IDC_SCSIROM24BITDMA, brc && brc->roms[index].dma24bit);
 	} else {
 		hide(hDlg, IDC_SCSIROMCHOOSER, 0);
 		hide(hDlg, IDC_SCSIROMFILE, 0);
@@ -10445,6 +10469,8 @@ static void values_to_expansion2_expansion_roms(HWND hDlg, UAEREG *fkey)
 		SendDlgItemMessage(hDlg, IDC_SCSIROMFILE, CB_RESETCONTENT, 0, 0);
 		ew(hDlg, IDC_SCSIROMFILE, false);
 		ew(hDlg, IDC_SCSIROMCHOOSER, false);		
+		ew(hDlg, IDC_SCSIROM24BITDMA, 0);
+		hide(hDlg, IDC_SCSIROM24BITDMA, 1);
 	}
 	if (keyallocated)
 		regclosetree(fkey);
@@ -10585,7 +10611,6 @@ static void values_to_expansion2dlg (HWND hDlg, int mode)
 	load_keyring(&workprefs, NULL);
 
 	values_to_expansion2_expansion_roms(hDlg, fkey);
-
 	values_to_expansion2_expansion_settings(hDlg, mode);
 
 	if (workprefs.cpuboard_type) {
@@ -10601,8 +10626,6 @@ static void values_to_expansion2dlg (HWND hDlg, int mode)
 
 	gui_set_string_cursor(scsiromselect_table, hDlg, IDC_SCSIROMSELECT, scsiromselected);
 	values_to_expansion2dlg_sub(hDlg);
-
-
 }
 
 static void updatecpuboardsubtypes(HWND hDlg)
@@ -10749,6 +10772,7 @@ static INT_PTR CALLBACK Expansion2DlgProc(HWND hDlg, UINT msg, WPARAM wParam, LP
 				break;
 				case IDC_SCSIROMFILEAUTOBOOT:
 				case IDC_SCSIROMFILEPCMCIA:
+				case IDC_SCSIROM24BITDMA:
 				values_from_expansion2dlg(hDlg);
 				break;
 				case IDC_SOCKETS:
@@ -11521,14 +11545,20 @@ static INT_PTR CALLBACK MemoryDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARA
 			recursive++;
 			switch (LOWORD(wParam))
 			{
+			case IDC_FASTMEMDMA:
+				if (fastram_select_ramboard) {
+					struct ramboard* rb = fastram_select_ramboard;
+					rb->nodma = ischecked(hDlg, IDC_FASTMEMDMA) == 0;
+					setfastram_selectmenu(hDlg, 0);
+				}
 			case IDC_FASTMEMAUTOCONFIGUSE:
-			if (fastram_select_ramboard) {
-				struct ramboard *rb = fastram_select_ramboard;
-				rb->autoconfig_inuse = ischecked(hDlg, IDC_FASTMEMAUTOCONFIGUSE);
-				rb->manual_config = false;
-				setfastram_selectmenu(hDlg, 0);
-			}
-			break;
+				if (fastram_select_ramboard) {
+					struct ramboard* rb = fastram_select_ramboard;
+					rb->autoconfig_inuse = ischecked(hDlg, IDC_FASTMEMAUTOCONFIGUSE);
+					rb->manual_config = false;
+					setfastram_selectmenu(hDlg, 0);
+				}
+				break;
 				case IDC_FASTMEMNOAUTOCONFIG:
 				if (fastram_select_ramboard) {
 					struct ramboard *rb = fastram_select_ramboard;

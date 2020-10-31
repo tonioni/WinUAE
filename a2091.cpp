@@ -701,7 +701,7 @@ static bool do_dma_commodore_8727(struct wd_state *wd, struct scsi_data *scsi)
 			status = scsi_receive_data (scsi, &v1, true);
 			if (!status)
 				status = scsi_receive_data(scsi, &v2, true);
-			put_word((wd->cdmac.dmac_acr << 1) & 0xffffff, (v1 << 8) | v2);
+			dma_put_word((wd->cdmac.dmac_acr << 1) & wd->dma_mask, (v1 << 8) | v2);
 			if (wd->wc.wd_dataoffset < sizeof wd->wc.wd_data - 1) {
 				wd->wc.wd_data[wd->wc.wd_dataoffset++] = v1;
 				wd->wc.wd_data[wd->wc.wd_dataoffset++] = v2;
@@ -716,7 +716,7 @@ static bool do_dma_commodore_8727(struct wd_state *wd, struct scsi_data *scsi)
 				break;
 		}
 #if WD33C93_DEBUG > 0
-		write_log (_T("%s Done DMA from WD, %d/%d %08X\n"), WD33C93, scsi->offset, scsi->data_len, (odmac_acr << 1) & 0xffffff);
+		write_log (_T("%s Done DMA from WD, %d/%d %08X\n"), WD33C93, scsi->offset, scsi->data_len, (odmac_acr << 1) & dma_mask);
 #endif
 		wd->cdmac.c8727_pcsd |= 1 << 7;
 		return true;
@@ -730,7 +730,7 @@ static bool do_dma_commodore_8727(struct wd_state *wd, struct scsi_data *scsi)
 #endif
 		for (;;) {
 			int status;
-			uae_u16 v = get_word((wd->cdmac.dmac_acr << 1) & 0xffffff);
+			uae_u16 v = dma_get_word((wd->cdmac.dmac_acr << 1) & wd->dma_mask);
 			if (wd->wc.wd_dataoffset < sizeof wd->wc.wd_data - 1) {
 				wd->wc.wd_data[wd->wc.wd_dataoffset++] = v >> 8;
 				wd->wc.wd_data[wd->wc.wd_dataoffset++] = v;
@@ -748,7 +748,7 @@ static bool do_dma_commodore_8727(struct wd_state *wd, struct scsi_data *scsi)
 				break;
 		}
 #if WD33C93_DEBUG > 0
-		write_log (_T("%s Done DMA to WD, %d/%d %08x\n"), WD33C93, scsi->offset, scsi->data_len, (odmac_acr << 1) & 0xffffff);
+		write_log (_T("%s Done DMA to WD, %d/%d %08x\n"), WD33C93, scsi->offset, scsi->data_len, (odmac_acr << 1) & (currprefs.cs_z2dma32bit ? 0xffffffff : 0xffffff));
 #endif
 		wd->cdmac.c8727_pcsd |= 1 << 7;
 		return true;
@@ -768,7 +768,7 @@ static bool do_dma_commodore(struct wd_state *wd, struct scsi_data *scsi)
 		while (run) {
 			uae_u8 v;
 			int status = scsi_receive_data(scsi, &v, true);
-			put_byte(wd->cdmac.dmac_acr, v);
+			dma_put_byte(wd->cdmac.dmac_acr & wd->dma_mask, v);
 			if (wd->wc.wd_dataoffset < sizeof wd->wc.wd_data)
 				wd->wc.wd_data[wd->wc.wd_dataoffset++] = v;
 			if (decreasetc (&wd->wc))
@@ -789,7 +789,7 @@ static bool do_dma_commodore(struct wd_state *wd, struct scsi_data *scsi)
 		bool run = true;
 		while (run) {
 			int status;
-			uae_u8 v = get_byte(wd->cdmac.dmac_acr);
+			uae_u8 v = dma_get_byte(wd->cdmac.dmac_acr & wd->dma_mask);
 			if (wd->wc.wd_dataoffset < sizeof wd->wc.wd_data)
 				wd->wc.wd_data[wd->wc.wd_dataoffset++] = v;
 			status = scsi_send_data (scsi, v);
@@ -870,7 +870,7 @@ static bool do_dma_gvp_s2(struct wd_state *wd, struct scsi_data *scsi)
 		for (;;) {
 			uae_u8 v;
 			int status = scsi_receive_data(scsi, &v, true);
-			put_byte(get_gvp_s2_addr(&wd->gdmac), v);
+			dma_put_byte(get_gvp_s2_addr(&wd->gdmac) & wd->dma_mask, v);
 			if (wd->wc.wd_dataoffset < sizeof wd->wc.wd_data)
 				wd->wc.wd_data[wd->wc.wd_dataoffset++] = v;
 			wd->gdmac.addr++;
@@ -891,7 +891,7 @@ static bool do_dma_gvp_s2(struct wd_state *wd, struct scsi_data *scsi)
 		}
 		for (;;) {
 			int status;
-			uae_u8 v = get_byte(get_gvp_s2_addr(&wd->gdmac));
+			uae_u8 v = dma_get_byte(get_gvp_s2_addr(&wd->gdmac) & wd->dma_mask);
 			if (wd->wc.wd_dataoffset < sizeof wd->wc.wd_data)
 				wd->wc.wd_data[wd->wc.wd_dataoffset++] = v;
 			status = scsi_send_data (scsi, v);
@@ -3885,13 +3885,14 @@ static void scsi_thread (void *wdv)
 	wds->scsi_thread_running = -1;
 }
 
-void init_wd_scsi (struct wd_state *wd)
+void init_wd_scsi (struct wd_state *wd, bool dma24bit)
 {
 	wd->configured = 0;
 	wd->enabled = true;
 	wd->wc.wd_used = 0;
 	wd->wc.wd33c93_ver = 1;
 	wd->baseaddress = 0;
+	wd->dma_mask = dma24bit ? 0x00ffffff : 0xffffffff;
 	if (wd == wd_cdtv) {
 		wd->cdtv = true;
 	}
@@ -3924,7 +3925,7 @@ bool a3000scsi_init(struct autoconfig_info *aci)
 	struct wd_state *wd = wd_a3000;
 	if (!wd)
 		return false;
-	init_wd_scsi (wd);
+	init_wd_scsi(wd, false);
 	wd->enabled = true;
 	wd->configured = -1;
 	wd->baseaddress = 0xdd0000;
@@ -4075,7 +4076,7 @@ bool a2091_init (struct autoconfig_info *aci)
 	if (!wd)
 		return false;
 
-	init_wd_scsi(wd);
+	init_wd_scsi(wd, aci->rc->dma24bit);
 
 	wd->cdmac.old_dmac = aci->rc->subtype == 0;
 	wd->threaded = true;
@@ -4161,7 +4162,7 @@ static bool a2090x_init (struct autoconfig_info *aci, bool combitec)
 	if (!wd)
 		return false;
 
-	init_wd_scsi(wd);
+	init_wd_scsi(wd, aci->rc->dma24bit);
 
 	if (aci->rc->device_settings & 1)
 		ew(aci->autoconfig_raw, 0x30, 0x80); // SCSI only flag
@@ -4315,7 +4316,7 @@ static bool gvp_init(struct autoconfig_info *aci, bool series2, bool accel)
 	if (!wd)
 		return false;
 
-	init_wd_scsi(wd);
+	init_wd_scsi(wd, aci->rc->dma24bit);
 	wd->configured = 0;
 	wd->threaded = true;
 	memcpy(&wd->bank, &gvp_bank, sizeof addrbank);
@@ -4489,7 +4490,7 @@ bool comspec_preinit (struct autoconfig_info *aci)
 		return false;
 
 	comspec_ac(aci);
-	init_wd_scsi(wd);
+	init_wd_scsi(wd, aci->rc->dma24bit);
 	wd->configured = 0;
 	wd->dmac_type = COMSPEC_CHIP;
 	wd->autoconfig = true;

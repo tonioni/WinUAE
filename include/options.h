@@ -382,6 +382,7 @@ struct romconfig
 	uae_u32 board_ram_size;
 	bool autoboot_disabled;
 	bool inserted;
+	bool dma24bit;
 	int device_id;
 	int device_settings;
 	int subtype;
@@ -438,6 +439,7 @@ struct ramboard
 	uae_u32 end_address;
 	uae_u32 write_address;
 	bool readonly;
+	bool nodma;
 	struct boardloadfile lf;
 };
 struct expansion_params

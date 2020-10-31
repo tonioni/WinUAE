@@ -272,10 +272,10 @@ int pci_dma_rw(PCIDevice *dev, dma_addr_t addr, void *buf, dma_addr_t len, DMADi
 	uae_u8 *p = (uae_u8*)buf;
 	while (len > 0) {
 		if (!dir) {
-			*p = get_byte(addr);
+			*p = dma_get_byte(addr);
 		}
 		else {
-			put_byte(addr, *p);
+			dma_put_byte(addr, *p);
 		}
 		p++;
 		len--;
@@ -365,9 +365,9 @@ int pci710_dma_rw(PCIDevice *dev, dma_addr_t addr, void *buf, dma_addr_t len, DM
 	uae_u8 *p = (uae_u8*)buf;
 	while (len > 0) {
 		if (!dir) {
-			*p = get_byte (addr);
+			*p = dma_get_byte(addr);
 		} else {
-			put_byte (addr, *p);
+			dma_put_byte(addr, *p);
 		}
 		p++;
 		len--;

@@ -119,10 +119,11 @@ struct wd_state {
 	addrbank bank;
 	addrbank bank2;
 	void *userdata;
+	uae_u32 dma_mask;
 };
 extern wd_state *wd_cdtv;
 
-extern void init_wd_scsi (struct wd_state*);
+extern void init_wd_scsi (struct wd_state*, bool);
 extern void scsi_dmac_a2091_start_dma (struct wd_state*);
 extern void scsi_dmac_a2091_stop_dma (struct wd_state*);
 

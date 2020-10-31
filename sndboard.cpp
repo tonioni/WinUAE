@@ -1429,6 +1429,7 @@ struct snddev_data {
 	uae_u8 acmemory[128];
 	int configured;
 	uae_u32 baseaddress;
+	uae_u32 baseaddress_mask, baseaddress_value;
 	uae_u8 ad1848_index;
 	uae_u8 ad1848_index_mask;
 	uae_u8 ad1848_regs[32];
@@ -1977,18 +1978,23 @@ static void toccata_put(struct snddev_data *data, uaecptr addr, uae_u8 v)
 			hit = false;
 		}
 	} else if (data->type == SNDDEV_PRELUDE1200) {
-		if ((addr & 0x00ff) == 0x15) { // Reset FIFOs and CS4231A
-			codec_stop(data);
-			data->snddev_status = 0;
-			data->snddev_irq = 0;
-			data->fifo_write_index = 0;
-			data->fifo_read_index = 0;
-			data->data_in_fifo = 0;
-			data->snddev_status = 0;
-			data->snddev_irq = 0;
-			data->fifo_half = 0;
-		} else if ((addr & 0x00ff) == 0x19) { // ?
-			;
+
+		if ((addr & data->baseaddress_mask) == data->baseaddress_value) {
+			if ((addr & 0x00ff) == 0x15) { // Reset FIFOs and CS4231A
+				codec_stop(data);
+				data->snddev_status = 0;
+				data->snddev_irq = 0;
+				data->fifo_write_index = 0;
+				data->fifo_read_index = 0;
+				data->data_in_fifo = 0;
+				data->snddev_status = 0;
+				data->snddev_irq = 0;
+				data->fifo_half = 0;
+			} else if ((addr & 0x00ff) == 0x19) { // ?
+				;
+			} else {
+				hit = false;
+			}
 		} else {
 			hit = false;
 		}
@@ -2080,20 +2086,24 @@ static uae_u8 toccata_get(struct snddev_data *data, uaecptr addr)
 
 	} else if (data->type == SNDDEV_PRELUDE1200) {
 
-		if ((addr & 0x00ff) == 0x15) { // FIFO Status
-			if (data->data_in_fifo >= data->fifo_size / 2)
-				v |= 0x08;
-			if (!data->data_in_fifo)
-				v |= 0x04;
-			if (data->data_in_record_fifo >= data->fifo_size / 2)
-				v |= 0x02;
-			if (data->data_in_record_fifo >= data->fifo_size)
-				v |= 0x01;
-			v ^= 0xff;
-		} else if ((addr & 0x00ff) == 0x1d) { // id?
-			v = 0x05;
-		} else if ((addr & 0x00ff) == 0x19) { // ?
-			v = 0x00;
+		if ((addr & data->baseaddress_mask) == data->baseaddress_value) {
+			if ((addr & 0x00ff) == 0x15) { // FIFO Status
+				if (data->data_in_fifo >= data->fifo_size / 2)
+					v |= 0x08;
+				if (!data->data_in_fifo)
+					v |= 0x04;
+				if (data->data_in_record_fifo >= data->fifo_size / 2)
+					v |= 0x02;
+				if (data->data_in_record_fifo >= data->fifo_size)
+					v |= 0x01;
+				v ^= 0xff;
+			} else if ((addr & 0x00ff) == 0x1d) { // id?
+				v = 0x05;
+			} else if ((addr & 0x00ff) == 0x19) { // ?
+				v = 0x00;
+			} else {
+				hit = false;
+			}
 		} else {
 			hit = false;
 		}
@@ -2249,6 +2259,10 @@ bool prelude1200_init(struct autoconfig_info *aci)
 	aci->addrbank = &prelude1200_bank;
 	aci->start = 0xd80000;
 	aci->size = 0x10000;
+	if (aci->devnum > 0) {
+		aci->start = 0xd80000 + (aci->devnum - 1) * 0x4000;
+		aci->size = 0x4000;
+	}
 	device_add_reset(sndboard_reset);
 
 	if (!aci->doinit)
@@ -2258,6 +2272,12 @@ bool prelude1200_init(struct autoconfig_info *aci)
 
 	data->configured = 1;
 	data->baseaddress = 0xd80000;
+	data->baseaddress_mask = 0;
+	data->baseaddress_value = 0;
+	if (aci->devnum > 0) {
+		data->baseaddress_mask = 0xc000;
+		data->baseaddress_value = (aci->devnum - 1) * 0x4000;
+	}
 	data->type = SNDDEV_PRELUDE1200;
 	data->fifo_size = 1024;
 	data->codec_reg1_mask = 0x00ff;
