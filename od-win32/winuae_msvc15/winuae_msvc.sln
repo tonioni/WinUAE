@@ -421,7 +421,6 @@ Global
 		{EDD28611-EAD9-4EB5-A873-18160AC44434}.FullRelease|Mixed Platforms.ActiveCfg = Release|Win32
 		{EDD28611-EAD9-4EB5-A873-18160AC44434}.FullRelease|Mixed Platforms.Build.0 = Release|Win32
 		{EDD28611-EAD9-4EB5-A873-18160AC44434}.FullRelease|Win32.ActiveCfg = Release|Win32
-		{EDD28611-EAD9-4EB5-A873-18160AC44434}.FullRelease|Win32.Build.0 = Release|Win32
 		{EDD28611-EAD9-4EB5-A873-18160AC44434}.FullRelease|x64.ActiveCfg = Release|x64
 		{EDD28611-EAD9-4EB5-A873-18160AC44434}.FullRelease|x64.Build.0 = Release|x64
 		{EDD28611-EAD9-4EB5-A873-18160AC44434}.Release|Mixed Platforms.ActiveCfg = Release|Win32
@@ -439,7 +438,6 @@ Global
 		{EDD28611-EAD9-4EB5-A873-18160AC44434}.Test|Mixed Platforms.Build.0 = Release|Win32
 		{EDD28611-EAD9-4EB5-A873-18160AC44434}.Test|Win32.ActiveCfg = Test|Win32
 		{EDD28611-EAD9-4EB5-A873-18160AC44434}.Test|x64.ActiveCfg = Release|x64
-		{EDD28611-EAD9-4EB5-A873-18160AC44434}.Test|x64.Build.0 = Release|x64
 		{07609D0D-FE6B-4A84-8C87-F914A4566F6F}.Debug|Mixed Platforms.ActiveCfg = Release|Win32
 		{07609D0D-FE6B-4A84-8C87-F914A4566F6F}.Debug|Mixed Platforms.Build.0 = Release|Win32
 		{07609D0D-FE6B-4A84-8C87-F914A4566F6F}.Debug|Win32.ActiveCfg = Release|Win32
@@ -449,7 +447,6 @@ Global
 		{07609D0D-FE6B-4A84-8C87-F914A4566F6F}.FullRelease|Mixed Platforms.ActiveCfg = Release|Win32
 		{07609D0D-FE6B-4A84-8C87-F914A4566F6F}.FullRelease|Mixed Platforms.Build.0 = Release|Win32
 		{07609D0D-FE6B-4A84-8C87-F914A4566F6F}.FullRelease|Win32.ActiveCfg = Release|Win32
-		{07609D0D-FE6B-4A84-8C87-F914A4566F6F}.FullRelease|Win32.Build.0 = Release|Win32
 		{07609D0D-FE6B-4A84-8C87-F914A4566F6F}.FullRelease|x64.ActiveCfg = Release|x64
 		{07609D0D-FE6B-4A84-8C87-F914A4566F6F}.FullRelease|x64.Build.0 = Release|x64
 		{07609D0D-FE6B-4A84-8C87-F914A4566F6F}.Release|Mixed Platforms.ActiveCfg = Release|Win32
@@ -467,7 +464,6 @@ Global
 		{07609D0D-FE6B-4A84-8C87-F914A4566F6F}.Test|Mixed Platforms.Build.0 = Release|Win32
 		{07609D0D-FE6B-4A84-8C87-F914A4566F6F}.Test|Win32.ActiveCfg = Release|Win32
 		{07609D0D-FE6B-4A84-8C87-F914A4566F6F}.Test|x64.ActiveCfg = Release|x64
-		{07609D0D-FE6B-4A84-8C87-F914A4566F6F}.Test|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

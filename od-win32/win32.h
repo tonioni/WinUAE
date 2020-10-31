@@ -20,12 +20,12 @@
 #define LANG_DLL_FULL_VERSION_MATCH 1
 
 #if WINUAEPUBLICBETA
-#define WINUAEBETA _T("Beta 6")
+#define WINUAEBETA _T("Beta 7")
 #else
 #define WINUAEBETA _T("")
 #endif
 
-#define WINUAEDATE MAKEBD(2020, 10, 18)
+#define WINUAEDATE MAKEBD(2020, 10, 31)
 
 //#define WINUAEEXTRA _T("AmiKit Preview")
 //#define WINUAEEXTRA _T("Amiga Forever Edition")
@@ -169,7 +169,7 @@ extern void rawinput_alloc(void);
 struct winuae_lang
 {
     WORD id;
-    TCHAR *name;
+    const TCHAR *name;
 };
 extern const struct winuae_lang langs[];
 extern HMODULE language_load (WORD language);
@@ -205,14 +205,14 @@ extern struct sound_device *record_devices[MAX_SOUND_DEVICES];
 
 struct contextcommand
 {
-	TCHAR *shellcommand;
-	TCHAR *command;
+	const TCHAR *shellcommand;
+	const TCHAR *command;
 	int icon;
 };
 struct assext {
     TCHAR *ext;
-    TCHAR *cmd;
-    TCHAR *desc;
+    const TCHAR *cmd;
+    const TCHAR *desc;
     int icon;
 	struct contextcommand *cc;
     int enabled;

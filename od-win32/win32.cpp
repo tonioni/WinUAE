@@ -2428,7 +2428,6 @@ static LRESULT CALLBACK AmigaWindowProc(HWND hWnd, UINT message, WPARAM wParam, 
 			else if ((int)lParam > 0)
 				monitor_off = 1;
 			break;
-
 		case SC_KEYMENU:
 			if (HIWORD(lParam) <= 0 && isfocus() > 1)
 				return 0;
@@ -2542,6 +2541,7 @@ static LRESULT CALLBACK AmigaWindowProc(HWND hWnd, UINT message, WPARAM wParam, 
 			winuae_inactive(mon, hWnd, 0);
 			break;
 		}
+		break;
 	}
 
 	case WT_PROXIMITY:
@@ -2732,6 +2732,7 @@ static LRESULT CALLBACK MainWindowProc (HWND hWnd, UINT message, WPARAM wParam, 
 			SetWindowPos(hWnd, NULL, r->left, r->top, r->right - r->left, r->bottom - r->top, SWP_NOZORDER | SWP_NOACTIVATE);
 			return 0;
 		}
+		break;
 	}
 
 	case WM_GETMINMAXINFO:

@@ -1242,6 +1242,7 @@
 #define IDC_MISCLIST                    1810
 #define IDC_FASTMEMNOAUTOCONFIG         1810
 #define IDC_STATENAME                   1811
+#define IDC_FASTMEMDMA                  1811
 #define IDC_SAMPLER_STEREO              1812
 #define IDC_LISTDIALOG_LIST             1813
 #define IDC_LOGPATH                     1814
@@ -1312,6 +1313,7 @@
 #define IDC_ROM_ADDRESS2                1863
 #define IDC_CUSTOMROMFILE               1864
 #define IDC_SCSIROMFILEPCMCIA           1865
+#define IDC_SCSIROM24BITDMA             1866
 #define ID__FLOPPYDRIVES                40004
 #define ID_FLOPPYDRIVES_DF0             40005
 #define ID_ST_CONFIGURATION             40010

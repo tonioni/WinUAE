@@ -1,12 +1,29 @@
 
 
+Beta 7:
+
+- Fixed incorrect bitplane DMA overrun condition that made Zool 2 AGA flicker strangely (b1) (AGA game with 7 planes but FMODE=0. What a waste of DMA slots.)
+- JIT FPU 80-bit host mode should work again (b1)
+- Emulated clockport expansions (Prelude A1200 is currently the only one) now support 4 port clockport expander. "-" = no expander (Same device mapped to all 4 slots), "1" = expander slot 1 and so on.
+- Added Zorro 2/A500/CDTV DMA controller 24-bit DMA checkbox in Expansion panel. (Unticked = full 32 addressing capable, ticked = 24-bit access only, real world behavior) Previously some emulated 24-bit DMA controllers had full 32-bit support, some didn't.
+- All Z2/Z3 RAM banks now have DMA capable checkbox in RAM panel. If not ticked and DMA HD controller tries to access it, read returns all ones and writes do nothing. (In real world result could be memory corruption, hang etc). This can be used to quickly test if some real world DMA controller + accelerator combination with accelerator RAM set to no DMA causes similar problems in emulation. Other RAM banks only have config file support. Find RAM name in config file and then replace "*_size" with "*_options=nodma=true". For example "bogomem_options=nodma=true" makes slow ram not DMA capable. NOTE: Chipset DMA is not affected even if chip ram DMA is disabled, it only affects mainboard (CDTV and CD32) and expansion CD/HD DMA controllers.
+- Added CD image select/eject keyboard shortcut. END+F5 = select CD image, END+SHIFT+F5 = eject CD. Statefile quick restore moved to END+F6. NOTE: currently END+F5 opens even if there is no emulated CD drive.
+- If game controller was plugged in after config was loaded and loaded config had game controller configured in game ports panel, game controller was correctly remembered but type and autofire mode was set to default values.
+- Hardware emulated Z3 RTG boards had wrong autoconfig size configuration. This caused access faults if MMU was enabled.
+- SVGA chip vblank interrupt acknowledge forced unnecessary full display refresh.
+- ALT+Space does not anymore open WinUAE window standard menu when input is captured.
+- JIT + Hardware emulated RTG board should fully work again.
+- JIT MOVEM/MOVE16 direct RAM access optimization (calculate address only once, then do moves vs do separate multiple calculate address+move combinations) is now automatically disabled if hardware emulated RTG board is enabled, most have byte/word swapping logic which would cause cause graphics corruption if same MOVEM/MOVE16 copy was first used for RAM reads or writes and then later (when it was still in translated format) it was used for VRAM reads or writes. At least CGX4 does this.
+- JIT LSL/LSR fixed (temporary fix, better fix later that should also fix other shift instructions). jit_blacklist config entry should be removed now.
+
+
 Beta 6:
 
 - Fixed CV64/3D 3D vertical clipping. Fixes at least warptest corruption when test texture goes out of screen vertically.
 - Fixed CV64 and CV64/3D weird behavior (pauses, possible "hpos" error dialog) due to interrupt triggering being called from a thread.
 - Fixed possible crash if hardware mouse pointer was very near to end of VRAM.
 - Debugger TO, Te and Tf didn't fully use current mmmu mapping mode. (For example TO output was corrupted if system was A3000 with loaded superkickstart)
-- x86 bridgeboard VGA display stopped updating every time display when mode changed. (b1)
+- x86 bridgeboard VGA display stopped updating every time display mode changed. (b1)
 
 Beta 5:
 
@@ -74,7 +91,7 @@ Beta 1:
 - Switching off display DMA when display DMA was active still had more hidden side-effects. It results in "bad state" that is not reset until bitplane DMA is switched back on, when it is back on DMA restarts from state which normally happens when DDFSTOP has been passed. Result is either 1 or 2 "bitplane blocks" (1 or 2 depends on horizontal position relative to next BPL1DAT slot when DMA was switched off) starting from DDFSTRT (if switched on before DDFSTRT). The rest of scanline is drawn using border color. Following scan line works normally. No differences between OCS/ECS. (vAmiga test case)
 - Another undocumented feature: if BPLCON0 HAM and DPF are both set, result is weird. HAM replaces R/G/B component: replacement component value is palette _index_ of current pixel in dual playfield mode! HAM selection bits zero: palette selection works like in dual playfield mode. BPLCON2 works like mode is normal dual play field (including invalid BPLCON2 priority values). OCS/ECS only. (vAmiga test case).
 - Dual playfield mode illegal BPLCON2 priorities didn't work correctly in hires mode. (bottom part of above test case)
-- Blitter nasty off cycle counting update, emulatation code wasn't exactly doing what it was supposed to do.
+- Blitter nasty off cycle counting update, emulation code wasn't exactly doing what it was supposed to do.
 - A1000 blitter busy bug was ignored if copper waited for blitter.
 - Added DMA debugger non-nasty blitter extra information: 's' (CPU will get next blitter cycle) and 'S' (CPU stole this cycle from blitter)
 - Confirmed CIA register contents at power up. CIA control register should be zero, for some reason previous reset default was $04.

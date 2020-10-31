@@ -713,7 +713,7 @@ static void write_disk_history2 (int type)
 		j++;
 	}
 	while (j <= MAX_PREVIOUS_IMAGES) {
-		TCHAR *s = _T("");
+		const TCHAR *s = _T("");
 		_stprintf (tmp, _T("Image%02d"), j);
 		regsetstr (fkey, tmp, s);
 		j++;
@@ -2454,6 +2454,8 @@ void gui_display (int shortcut)
 	} else if (shortcut == 4) {
 		if (DiskSelection(mon->hAmigaWnd, IDC_DOLOADSTATE, 10, &changed_prefs, NULL, NULL))
 			savestate_state = STATE_DORESTORE;
+	} else if (shortcut == 6) {
+		DiskSelection(mon->hAmigaWnd, IDC_CD_SELECT, 17, &changed_prefs, NULL, NULL);
 	}
 	mon->manual_painting_needed--; /* So that WM_PAINT doesn't need to use custom refreshing */
 	reset_sound ();
