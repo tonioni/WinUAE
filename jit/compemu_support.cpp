@@ -808,7 +808,7 @@ static inline blockinfo* get_blockinfo_addr_new(void* addr, int /* setstate */)
 
 static void prepare_block(blockinfo* bi);
 
-/* Managment of blockinfos.
+/* Management of blockinfos.
 
    A blockinfo struct is allocated whenever a new block has to be
    compiled. If the list of free blockinfos is empty, we allocate a new
@@ -2304,11 +2304,11 @@ static void bt_l_ri_noclobber(RR4 r, IMM i)
 static void f_tomem(int r)
 {
 	if (live.fate[r].status==DIRTY) {
-#if defined(USE_LONG_DOUBLE)
-		raw_fmov_ext_mr((uintptr)live.fate[r].mem,live.fate[r].realreg);
-#else
-		raw_fmov_mr((uintptr)live.fate[r].mem,live.fate[r].realreg);
-#endif
+		if (use_long_double) {
+			raw_fmov_ext_mr((uintptr)live.fate[r].mem, live.fate[r].realreg);
+		} else {
+			raw_fmov_mr((uintptr)live.fate[r].mem, live.fate[r].realreg);
+		}
 		live.fate[r].status=CLEAN;
 	}
 }
@@ -2316,11 +2316,11 @@ static void f_tomem(int r)
 static void f_tomem_drop(int r)
 {
 	if (live.fate[r].status==DIRTY) {
-#if defined(USE_LONG_DOUBLE)
-		raw_fmov_ext_mr_drop((uintptr)live.fate[r].mem,live.fate[r].realreg);
-#else
-		raw_fmov_mr_drop((uintptr)live.fate[r].mem,live.fate[r].realreg);
-#endif
+		if (use_long_double) {
+			raw_fmov_ext_mr_drop((uintptr)live.fate[r].mem, live.fate[r].realreg);
+		} else {
+			raw_fmov_mr_drop((uintptr)live.fate[r].mem,live.fate[r].realreg);
+		}
 		live.fate[r].status=INMEM;
 	}
 }
@@ -2424,11 +2424,11 @@ static int f_alloc_reg(int r, int willclobber)
 
 	if (!willclobber) {
 		if (live.fate[r].status!=UNDEF) {
-#if defined(USE_LONG_DOUBLE)
-			raw_fmov_ext_rm(bestreg,(uintptr)live.fate[r].mem);
-#else
-			raw_fmov_rm(bestreg,(uintptr)live.fate[r].mem);
-#endif
+			if (use_long_double) {
+				raw_fmov_ext_rm(bestreg, (uintptr)live.fate[r].mem);
+			} else {
+				raw_fmov_rm(bestreg,(uintptr)live.fate[r].mem);
+			}
 		}
 		live.fate[r].status=CLEAN;
 	}
@@ -3061,7 +3061,7 @@ static void init_comp(void)
 		}
 		else if (i==FP_RESULT) {
 #ifdef UAE
-			live.fate[i].mem=(uae_u32*)(&regs.fp_result);
+			live.fate[i].mem=(uae_u32*)(&regs.fp_result.fp);
 #else
 			live.fate[i].mem=(uae_u32*)(&fpu.result);
 #endif
@@ -3491,7 +3491,7 @@ void get_n_addr(int address, int dest, int tmp)
 #if FIXED_ADDRESSING
 		lea_l_brr(dest,address,MEMBaseDiff);
 #else
-# error "Only fixed adressing mode supported"
+# error "Only fixed addressing mode supported"
 #endif
 		forget_about(tmp);
 		(void) f;
@@ -4210,7 +4210,9 @@ static bool merge_blacklist2(const char *blacklist)
 						struct instr *table = &table68k[opcode];
 						if (table->mnemo == mnemo) {
 							reset_compop(cft_map(opcode));
-							jit_log("<JIT compiler> : blacklist opcode : %04x", opcode);
+							if (currprefs.cachesize) {
+								jit_log("<JIT compiler> : blacklist opcode : %04x", opcode);
+							}
 						}
 					}
 					p += len;
@@ -4250,7 +4252,9 @@ static bool merge_blacklist2(const char *blacklist)
 			}
 
 			if (*p == 0 || *p == ',') {
-				jit_log("<JIT compiler> : blacklist opcodes : %04x-%04x", opcode1, opcode2);
+				if (currprefs.cachesize) {
+					jit_log("<JIT compiler> : blacklist opcodes : %04x-%04x", opcode1, opcode2);
+				}
 				for (int opcode = opcode1; opcode <= opcode2; opcode++)
 					reset_compop(cft_map(opcode));
 
@@ -4288,7 +4292,7 @@ void build_comp(void)
 		return;
 	}
 #endif
-	int i;
+	int i, j;
 	unsigned long opcode;
 	const struct comptbl* tbl=op_smalltbl_0_comp_ff;
 	const struct comptbl* nftbl=op_smalltbl_0_comp_nf;
@@ -4349,13 +4353,27 @@ void build_comp(void)
 			nfcompfunctbl[cft_map(nftbl[i].opcode)] = NULL;
 		else
 			nfcompfunctbl[cft_map(nftbl[i].opcode)] = nftbl[i].handler;
+		for (j = 0; nfctbl[j].handler_ff; j++) {
+			if (nfctbl[j].opcode == nftbl[i].opcode) {
 #ifdef NOFLAGS_SUPPORT_GENCOMP
 #ifdef NOFLAGS_SUPPORT_GENCPU
-		nfcpufunctbl[cft_map(nftbl[i].opcode)] = nfctbl[i].handler_nf;
+				nfcpufunctbl[cft_map(nftbl[i].opcode)] = nfctbl[j].handler_nf;
 #else
-		nfcpufunctbl[cft_map(nftbl[i].opcode)] = nfctbl[i].handler_ff;
+				nfcpufunctbl[cft_map(nftbl[i].opcode)] = nfctbl[j].handler_ff;
 #endif
 #endif
+				break;
+			}
+		}
+		if (!nfctbl[j].handler_ff && currprefs.cachesize) {
+			int mnemo = table68k[nftbl[i].opcode].mnemo;
+			struct mnemolookup *lookup;
+			for (lookup = lookuptab; lookup->mnemo != mnemo; lookup++)
+				;
+			char *s = ua(lookup->name);
+			jit_log("%04x (%s) unavailable", nftbl[i].opcode, s);
+			xfree(s);
+		}
 	}
 
 #ifdef NOFLAGS_SUPPORT_GENCOMP
