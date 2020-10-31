@@ -151,7 +151,7 @@ static void ibm_gd5428_mapping_update(gd5429_t *gd5429);
 
 static int s3_vga_vsync_enabled(gd5429_t *gd5429)
 {
-    if (!(gd5429->svga.crtc[0x11] & 0x20) && (gd5429->svga.crtc[0x11] & 0x10) && (gd5429->type < !PCI || (gd5429->svga.gdcreg[0x17] & 4)))
+    if (!(gd5429->svga.crtc[0x11] & 0x20) && (gd5429->svga.crtc[0x11] & 0x10) && (gd5429->type < PCI || (gd5429->svga.gdcreg[0x17] & 4)))
         return 1;
     return 0;
 }
@@ -774,6 +774,8 @@ void gd5429_out(uint16_t addr, uint8_t val, void *p)
                         gd5429->vblank_irq = 0;
                     }
                     gd5429_update_irqs(gd5429);
+                    if ((val & ~0x30) == (old & ~0x30))
+                        old = val;
                 }
 
                 if (old != val)

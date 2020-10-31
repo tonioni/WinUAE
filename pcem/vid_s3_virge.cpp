@@ -381,6 +381,8 @@ static void s3_virge_out(uint16_t addr, uint8_t val, void *p)
                             virge->vblank_irq = 0;
                         }
                         s3_virge_update_irqs(virge);
+                        if ((val & ~0x30) == (old & ~0x30))
+                            old = val;
                         break;
                         case 0x31:
                         virge->ma_ext = (virge->ma_ext & 0x1c) | ((val & 0x30) >> 4);

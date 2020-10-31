@@ -1026,6 +1026,8 @@ void s3_out(uint16_t addr, uint8_t val, void *p)
                         if (!(val & 0x10))
                             s3->subsys_stat &= ~INT_VSY;
                         s3_update_irqs(s3);
+                        if ((val & ~0x30) == (old & ~0x30))
+                            old = val;
                         break;
 
                         case 0x31:
