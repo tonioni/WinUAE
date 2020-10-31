@@ -2372,7 +2372,7 @@ gen_opcode(unsigned int opcode)
 			comprintf("\tlive_flags();\n");
 			comprintf("\tend_needflags();\n");
 			if (curi->smode != immi)
-				comprintf("\tsetcc_for_cntzero(tmpcnt, data, %d);\n", curi->size == sz_byte ? 1 : curi->size == sz_word ? 2 : 4);
+				comprintf("\tsetcc_for_cntzero(tmpcnt, data, %d, 0);\n", curi->size == sz_byte ? 1 : curi->size == sz_word ? 2 : 4);
 			else
 				comprintf("\tduplicate_carry();\n");
 			comprintf("if (!(needed_flags & FLAG_CZNV)) dont_care_flags();\n");
@@ -2453,7 +2453,7 @@ gen_opcode(unsigned int opcode)
 			comprintf("\tlive_flags();\n");
 			comprintf("\tend_needflags();\n");
 			if (curi->smode != immi)
-				comprintf("\tsetcc_for_cntzero(tmpcnt, data, %d);\n", curi->size == sz_byte ? 1 : curi->size == sz_word ? 2 : 4);
+				comprintf("\tsetcc_for_cntzero(tmpcnt, data, %d, 0);\n", curi->size == sz_byte ? 1 : curi->size == sz_word ? 2 : 4);
 			else
 				comprintf("\tduplicate_carry();\n");
 			comprintf("if (!(needed_flags & FLAG_CZNV)) dont_care_flags();\n");
@@ -2485,11 +2485,17 @@ gen_opcode(unsigned int opcode)
 		if (curi->smode != immi) {
 			uses_cmov;
 			start_brace();
+			comprintf("\tint cdata2 = scratchie++;\n");
 			comprintf("\tint cdata = scratchie++;\n");
 			comprintf("\tint tmpcnt=scratchie++;\n");
 			comprintf("\tmov_l_rr(tmpcnt,cnt);\n");
 			comprintf("\tand_l_ri(tmpcnt,63);\n");
 			comprintf("\tmov_l_ri(cdata, 0);\n");
+
+			comprintf("\tmov_l_ri(cdata2, 32);\n");
+			comprintf("\tcmp_l(tmpcnt, cdata2);\n");
+			comprintf("\tcmov_l_rr(tmpcnt, cdata, NATIVE_CC_EQ);\n");
+
 			switch (curi->size) {
 			case sz_byte:
 				comprintf("\ttest_l_ri(tmpcnt, 0x38);\n");
@@ -2524,10 +2530,11 @@ gen_opcode(unsigned int opcode)
 		if (!noflags) {
 			comprintf("\tlive_flags();\n");
 			comprintf("\tend_needflags();\n");
-			if (curi->smode != immi)
-				comprintf("\tsetcc_for_cntzero(tmpcnt, data, %d);\n", curi->size == sz_byte ? 1 : curi->size == sz_word ? 2 : 4);
-			else
+			if (curi->smode != immi) {
+				comprintf("\tsetcc_for_cntzero(tmpcnt, data, %d, 0);\n", curi->size == sz_byte ? 1 : curi->size == sz_word ? 2 : 4);
+			} else {
 				comprintf("\tduplicate_carry();\n");
+			}
 			comprintf("if (!(needed_flags & FLAG_CZNV)) dont_care_flags();\n");
 		}
 		genastore("data", curi->dmode, "dstreg", curi->size, "data");
@@ -2557,11 +2564,17 @@ gen_opcode(unsigned int opcode)
 		if (curi->smode != immi) {
 			uses_cmov;
 			start_brace();
+			comprintf("\tint cdata2 = scratchie++;\n");
 			comprintf("\tint cdata = scratchie++;\n");
 			comprintf("\tint tmpcnt = scratchie++;\n");
 			comprintf("\tmov_l_rr(tmpcnt,cnt);\n");
 			comprintf("\tand_l_ri(tmpcnt,63);\n");
 			comprintf("\tmov_l_ri(cdata, 0);\n");
+
+			comprintf("\tmov_l_ri(cdata2, 32);\n");
+			comprintf("\tcmp_l(tmpcnt, cdata2);\n");
+			comprintf("\tcmov_l_rr(tmpcnt, cdata, NATIVE_CC_EQ);\n");
+
 			switch (curi->size) {
 			case sz_byte:
 				comprintf("\ttest_l_ri(tmpcnt, 0x38);\n");
@@ -2596,10 +2609,12 @@ gen_opcode(unsigned int opcode)
 		if (!noflags) {
 			comprintf("\tlive_flags();\n");
 			comprintf("\tend_needflags();\n");
-			if (curi->smode != immi)
-				comprintf("\tsetcc_for_cntzero(tmpcnt, data, %d);\n", curi->size == sz_byte ? 1 : curi->size == sz_word ? 2 : 4);
-			else
+			if (curi->smode != immi) {
+				comprintf("\tsetcc_for_cntzero(tmpcnt, data, %d, 1);\n", curi->size == sz_byte ? 1 : curi->size == sz_word ? 2 : 4);
+			} else {
+				comprintf("\tclear_overflow();\n");
 				comprintf("\tduplicate_carry();\n");
+			}
 			comprintf("if (!(needed_flags & FLAG_CZNV)) dont_care_flags();\n");
 		}
 		genastore("data", curi->dmode, "dstreg", curi->size, "data");

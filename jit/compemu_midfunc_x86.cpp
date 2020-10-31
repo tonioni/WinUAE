@@ -116,7 +116,25 @@ MIDFUNC(0,duplicate_carry,(void))
 	log_vwrite(FLAGX);
 }
 
-MIDFUNC(3,setcc_for_cntzero,(RR4 /* cnt */, RR4 data, int size))
+MIDFUNC(0,clear_overflow,(void))
+{
+	make_flags_live_internal();
+	raw_pushfl();
+
+	// clear OF flag
+	// and dword [esp],~0x0800
+	emit_byte(0x81);
+	emit_byte(0x24);
+	emit_byte(0x24);
+	emit_byte(0xff);
+	emit_byte(0xf7);
+	emit_byte(0xff);
+	emit_byte(0xff);
+
+	raw_popfl();
+}
+
+MIDFUNC(3,setcc_for_cntzero,(RR4 /* cnt */, RR4 data, int size, int ov))
 {
 	uae_u8 *branchadd;
 	uae_u8 *branchadd2;
@@ -125,6 +143,19 @@ MIDFUNC(3,setcc_for_cntzero,(RR4 /* cnt */, RR4 data, int size))
 	make_flags_live_internal();
 
 	raw_pushfl();
+
+	if (ov) {
+		// clear OF flag
+		// and dword [esp],~0x0800
+		emit_byte(0x81);
+		emit_byte(0x24);
+		emit_byte(0x24);
+		emit_byte(0xff);
+		emit_byte(0xf7);
+		emit_byte(0xff);
+		emit_byte(0xff);
+	}
+
 	/*
 	 * shift count can only be in CL register; see shrl_b_rr
 	 */
