@@ -396,7 +396,7 @@ static const addrbank tmpl_gfxboard_bank_memory_nojit = {
 	gfxboard_lput_mem_nojit, gfxboard_wput_mem_nojit, gfxboard_bput_mem_nojit,
 	gfxboard_xlate, gfxboard_check, NULL, NULL, NULL,
 	gfxboard_lget_mem_nojit, gfxboard_wget_mem_nojit,
-	ABFLAG_RAM | ABFLAG_THREADSAFE | ABFLAG_CACHE_ENABLE_ALL, S_READ | S_N_ADDR, S_WRITE | S_N_ADDR
+	ABFLAG_RAM | ABFLAG_THREADSAFE | ABFLAG_PPCIOSPACE | ABFLAG_CACHE_ENABLE_ALL, S_READ | S_N_ADDR, S_WRITE | S_N_ADDR
 };
 
 static const addrbank tmpl_gfxboard_bank_wbsmemory = {
@@ -444,7 +444,7 @@ static const addrbank tmpl_gfxboard_bank_vram_pcem = {
 	gfxboard_lput_vram_pcem, gfxboard_wput_vram_pcem, gfxboard_bput_vram_pcem,
 	gfxboard_xlate, gfxboard_check, NULL, NULL, _T("PCem SVGA VRAM"),
 	gfxboard_lget_vram_pcem, gfxboard_wget_vram_pcem,
-	ABFLAG_IO | ABFLAG_SAFE, S_READ | S_N_ADDR, S_WRITE | S_N_ADDR
+	ABFLAG_RAM | ABFLAG_THREADSAFE | ABFLAG_PPCIOSPACE, S_READ | S_N_ADDR, S_WRITE | S_N_ADDR
 };
 
 static const addrbank tmpl_gfxboard_bank_vram_normal_pcem = {
@@ -454,7 +454,6 @@ static const addrbank tmpl_gfxboard_bank_vram_normal_pcem = {
 	gfxboard_lget_vram_normal_pcem, gfxboard_wget_vram_normal_pcem,
 	ABFLAG_RAM | ABFLAG_THREADSAFE | ABFLAG_PPCIOSPACE, S_READ, S_WRITE
 };
-
 
 static const addrbank tmpl_gfxboard_bank_vram_wordswap_pcem = {
 	gfxboard_lget_vram_wordswap_pcem, gfxboard_wget_vram_wordswap_pcem, gfxboard_bget_vram_wordswap_pcem,
@@ -2407,7 +2406,8 @@ static void copyvrambank(addrbank *dst, const addrbank *src, bool unsafe)
 	dst->jit_write_flag = src->jit_write_flag;
 	if (unsafe) {
 		dst->jit_read_flag |= S_READ | S_N_ADDR;
-		dst->jit_write_flag |= S_READ | S_N_ADDR;
+		dst->jit_write_flag |= S_WRITE | S_N_ADDR;
+		dst->flags |= ABFLAG_PPCIOSPACE;
 	}
 }
 

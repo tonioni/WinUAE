@@ -3202,7 +3202,7 @@ static void ppc_generate_map_banks(addrbank *bank, int start, int size)
 			baseaddr += bankaddr - bank->start;
 		}
 		// ABFLAG_PPCIOSPACE = map as indirect even if baseaddr is non-NULL
-		ppc_map_banks(bankaddr, banksize, bank->name, (bank->flags & ABFLAG_PPCIOSPACE) ? NULL: baseaddr, bank == &dummy_bank);
+		ppc_map_banks(bankaddr, banksize, bank->name, (bank->flags & ABFLAG_PPCIOSPACE) ? NULL : baseaddr, bank == &dummy_bank);
 	}
 }
 #endif
