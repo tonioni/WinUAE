@@ -1,5 +1,10 @@
 
 
+Beta 8:
+
+- Remaining JIT shift instruction bugs fixed. (I really didn't want to but I had to learn a bit more how JIT internally works..). My tester now passes all normal tests.
+- Some hardware emulated boards bypassed byte/word swapping if accessed by PPC CPU.
+
 Beta 7:
 
 - Fixed incorrect bitplane DMA overrun condition that made Zool 2 AGA flicker strangely (b1) (AGA game with 7 planes but FMODE=0. What a waste of DMA slots.)
@@ -15,7 +20,6 @@ Beta 7:
 - JIT + Hardware emulated RTG board should fully work again.
 - JIT MOVEM/MOVE16 direct RAM access optimization (calculate address only once, then do moves vs do separate multiple calculate address+move combinations) is now automatically disabled if hardware emulated RTG board is enabled, most have byte/word swapping logic which would cause cause graphics corruption if same MOVEM/MOVE16 copy was first used for RAM reads or writes and then later (when it was still in translated format) it was used for VRAM reads or writes. At least CGX4 does this.
 - JIT LSL/LSR fixed (temporary fix, better fix later that should also fix other shift instructions). jit_blacklist config entry should be removed now.
-
 
 Beta 6:
 
