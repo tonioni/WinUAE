@@ -1,4 +1,8 @@
 
+Beta 9:
+
+- 64-bit JIT used wrong flag handling mode which broke some programs (b1).
+- Improved chipset display mode frame rate timing stability in sound emulation disabled and WASAPI sound modes.
 
 Beta 8:
 
