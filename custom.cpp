@@ -8157,7 +8157,7 @@ static bool framewait (void)
 		if (!currprefs.cpu_thread) {
 			while (!currprefs.turbo_emulation) {
 				float v = rpt_vsync(clockadjust) / (syncbase / 1000.0);
-				if (v >= -2)
+				if (v >= -3)
 					break;
 				rtg_vsynccheck();
 				maybe_process_pull_audio();
@@ -8166,8 +8166,7 @@ static bool framewait (void)
 			}
 			while (rpt_vsync(clockadjust) < 0) {
 				rtg_vsynccheck();
-				if (audio_is_pull_event())
-					break;
+				maybe_process_pull_audio();
 			}
 		}
 		idletime += read_processor_time() - start;
@@ -8179,12 +8178,13 @@ static bool framewait (void)
 			t += read_processor_time () - curr_time;
 		}
 		t += frameskipt_avg;
-		vsynctimeperline = (vstb - t) / 3;
-		if (vsynctimeperline < 0)
-			vsynctimeperline = 0;
-		else if (vsynctimeperline > vstb / 3)
-			vsynctimeperline = vstb / 3;
-		
+
+		vsynctimeperline = (vstb - t) / 4;
+		if (vsynctimeperline < 1)
+			vsynctimeperline = 1;
+		else if (vsynctimeperline > vstb / 4)
+			vsynctimeperline = vstb / 4;
+
 		frame_shown = true;
 
 	}
