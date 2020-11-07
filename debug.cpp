@@ -7374,7 +7374,7 @@ static uae_u32 get_value(struct dsprintfstack **stackp, uae_u32 *sizep, uaecptr 
 		uae_u32 v = stack->val;
 		if (stack->size == 0)
 			v &= 0xff;
-		else if (stack->size = 1)
+		else if (stack->size == 1)
 			v &= 0xffff;
 		*sizep = stack->size;
 		stack++;
