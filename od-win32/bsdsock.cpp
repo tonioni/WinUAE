@@ -809,7 +809,9 @@ typedef enum
 	connect_req,
 	recvfrom_req,
 	sendto_req,
+#if 0
 	abort_req,
+#endif
 	last_req
 } threadsock_e;
 
@@ -888,7 +890,20 @@ static BOOL HandleStuff(void)
 					sockreq.sb->resultval = recv(sockreq.s, sockreq.params.recvfrom_s.realpt, sockreq.params.recvfrom_s.len,
 						sockreq.params.recvfrom_s.flags);
 				}
+				//  WinSock UDP WSAEMSGSIZE workaround
+				if (sockreq.sb->resultval == -1 && WSAGetLastError() == WSAEMSGSIZE) {
+					int v = 0, len = sizeof(v);
+					if (!getsockopt(sockreq.s, SOL_SOCKET, SO_TYPE, (char*)&v, &len)) {
+						if (v == SOCK_DGRAM) {
+							sockreq.sb->resultval = sockreq.params.recvfrom_s.len;
+						}
+					}
+					if (sockreq.sb->resultval == -1) {
+						WSASetLastError(WSAEMSGSIZE);
+					}
+				}
 				break;
+#if 0 /* unused */
 			case abort_req:
 				*(sockreq.params.abort_s.newsock) = socket(AF_INET,SOCK_STREAM,IPPROTO_TCP);
 				if (*(sockreq.params.abort_s.newsock) != sb->sockAbort) {
@@ -898,6 +913,7 @@ static BOOL HandleStuff(void)
 				}
 				handled = FALSE; /* Don't bother the SETERRNO section after the switch() */
 				break;
+#endif
 			case last_req:
 			default:
 				write_log (_T("BSDSOCK: Invalid sock-thread request!\n"));
