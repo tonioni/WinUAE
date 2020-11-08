@@ -149,16 +149,21 @@ uint8_t gd5429_read_linear(uint32_t addr, void *p);
 static void ibm_gd5428_mapping_update(gd5429_t *gd5429);
 
 
-static int s3_vga_vsync_enabled(gd5429_t *gd5429)
+static int gd5429_interrupt_enabled(gd5429_t* gd5429)
 {
-    if (!(gd5429->svga.crtc[0x11] & 0x20) && (gd5429->svga.crtc[0x11] & 0x10) && (gd5429->type < PCI || (gd5429->svga.gdcreg[0x17] & 4)))
+    return !PCI || (gd5429->svga.gdcreg[0x17] & 4);
+}
+
+static int gd5429_vga_vsync_enabled(gd5429_t *gd5429)
+{
+    if (!(gd5429->svga.crtc[0x11] & 0x20) && (gd5429->svga.crtc[0x11] & 0x10) && gd5429_interrupt_enabled(gd5429))
         return 1;
     return 0;
 }
 
 static void gd5429_update_irqs(gd5429_t *gd5429)
 {
-    if (gd5429->vblank_irq > 0 && s3_vga_vsync_enabled(gd5429))
+    if (gd5429->vblank_irq > 0 && gd5429_vga_vsync_enabled(gd5429))
         pci_set_irq(NULL, PCI_INTA);
     else
         pci_clear_irq(NULL, PCI_INTA);
@@ -396,12 +401,13 @@ static void gd5429_vblank_start(svga_t *svga)
 static void gd5429_overlay_draw(svga_t *svga, int displine)
 {
     gd5429_t *gd5429 = (gd5429_t*)svga->p;
+    int shift = gd5429->type >= CL_TYPE_GD5446 ? 2 : 0;
     int h_acc = svga->overlay_latch.h_acc;
     int r[8], g[8], b[8], ck[8];
     int x_read = 4, x_write = 4;
     int x;
     uint32_t *p;
-    uint8_t *src = &svga->vram[svga->overlay_latch.addr & svga->vram_mask];
+    uint8_t *src = &svga->vram[(svga->overlay_latch.addr << shift) & svga->vram_mask];
     int bpp = svga->bpp;
     int bytesperpix = (bpp + 7) / 8;
     uint8_t *src2 = &svga->vram[(svga->ma - (svga->hdisp * bytesperpix))  & svga->vram_display_mask];
@@ -457,7 +463,7 @@ static void gd5429_overlay_draw(svga_t *svga, int displine)
     if (svga->overlay_latch.v_acc >= 256)
     {
         svga->overlay_latch.v_acc -= 256;
-        svga->overlay_latch.addr += svga->overlay.pitch;
+        svga->overlay_latch.addr += svga->overlay.pitch << 1;
     }
 }
 
@@ -851,13 +857,13 @@ void gd5429_out(uint16_t addr, uint8_t val, void *p)
                             case 0x3c:
                                 svga->overlay.addr &= ~0x0f0000;
                                 svga->overlay.addr |= (val << 16) & 0x0f0000;
-                                svga->overlay.pitch &= ~(1 << 11);
-                                svga->overlay.pitch |= ((val >> 5) & 1) << 11;
+                                svga->overlay.pitch &= ~0x100;
+                                svga->overlay.pitch |= (val & 0x20) << 3;
                                 gd5429_update_overlay(gd5429);
                                 break;
                             case 0x3d:
-                                svga->overlay.pitch &= ~(0xff << 3);
-                                svga->overlay.pitch |= val << 3;
+                                svga->overlay.pitch &= ~0xff;
+                                svga->overlay.pitch |= val;
                                 gd5429_update_overlay(gd5429);
                                 break;
                             case 0x3e:
@@ -2128,8 +2134,8 @@ void gd5429_start_blit(uint32_t cpu_dat, int count, void *p)
                         }
                         count--;                        
                 }
-                dst = svga->vram[gd5429->blt.dst_addr & svga->vram_mask];
-                svga->changedvram[(gd5429->blt.dst_addr & svga->vram_mask) >> 12] = changeframecount;
+                dst = svga->vram[(gd5429->blt.dst_addr + bplcnt) & svga->vram_mask];
+                svga->changedvram[((gd5429->blt.dst_addr + bplcnt) & svga->vram_mask) >> 12] = changeframecount;
                
                 //pclog("Blit %i,%i %06X %06X  %06X %02X %02X  %02X %02X\n", gd5429->blt.width, gd5429->blt.height_internal, gd5429->blt.src_addr, gd5429->blt.dst_addr, gd5429->blt.src_addr & svga->vram_mask, svga->vram[gd5429->blt.src_addr & svga->vram_mask], 0x80 >> (gd5429->blt.dst_addr & 7), src, dst);
                 switch (gd5429->blt.rop)

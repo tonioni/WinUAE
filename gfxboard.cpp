@@ -16,6 +16,7 @@
 #define MEMDEBUGMASK 0x7fffff
 #define MEMDEBUGTEST 0x3fc000
 #define MEMDEBUGCLEAR 0
+#define SPCDEBUG 0
 #define PICASSOIV_DEBUG_IO 0
 
 #if MEMLOGR
@@ -110,6 +111,7 @@ struct gfxboard
 	uae_u8 er_type;
 	struct gfxboard_func *func;
 	device_t *pcemdev;
+	uae_u8 er_flags;
 };
 
 #define ISP4() (gb->rbc->rtgmem_type == GFXBOARD_ID_PICASSO4_Z2 || gb->rbc->rtgmem_type == GFXBOARD_ID_PICASSO4_Z3)
@@ -173,21 +175,21 @@ static const struct gfxboard boards[] =
 		_T("CyberVision 64 Zorro III"), _T("Phase 5"), _T("CV64_Z3"),
 		8512, 34, 0,
 		0x00000000, 0x00200000, 0x00400000, 0x20000000, 0, 3, 2, false,
-		0, 0, NULL, &s3_cybervision_trio64_device
+		0, 0, NULL, &s3_cybervision_trio64_device, 0x40
 	},
 	{
 		GFXBOARD_ID_CV643D_Z2,
 		_T("CyberVision 64/3D Zorro II"), _T("Phase 5"), _T("CV643D_Z2"),
 		8512, 67, 0,
 		0x00000000, 0x00400000, 0x00400000, 0x00400000, 0, 2, 2, false,
-		0, 0, NULL, &s3_virge_device
+		0, 0, NULL, &s3_virge_device, 0xc0
 	},
 	{
 		GFXBOARD_ID_CV643D_Z3,
 		_T("CyberVision 64/3D Zorro III"), _T("Phase 5"), _T("CV643D_Z3"),
 		8512, 67, 0,
 		0x00000000, 0x00400000, 0x00400000, 0x10000000, 0, 3, 2, false,
-		0, 0, NULL, &s3_virge_device
+		0, 0, NULL, &s3_virge_device, 0x40
 	},
 	{
 		GFXBOARD_ID_PICASSO2,
@@ -3558,6 +3560,7 @@ bool gfxboard_init_memory (struct autoconfig_info *aci)
 	int bank;
 	uae_u8 z2_flags, z3_flags, type;
 	struct uae_prefs *p = aci->prefs;
+	uae_u8 flags = 0;
 
 	gfxboard_init (aci, gb);
 
@@ -3580,22 +3583,26 @@ bool gfxboard_init_memory (struct autoconfig_info *aci)
 		}
 	}
 	if (gb->board->configtype == 3) {
-		type = 0x80 | z3_flags | (gb->board->model_registers ? 0x08 : 0x00);
-		ew (gb, 0x08, 0x10 | 0x20);
+		type = 0x80 | z3_flags;
+		flags |= 0x10 | 0x20;
 	} else {
-		type = z2_flags | 0x08 | 0xc0;
+		type = z2_flags | 0xc0;
 	}
-	ew (gb, 0x04, gb->board->model_memory);
-	ew (gb, 0x10, gb->board->manufacturer >> 8);
-	ew (gb, 0x14, gb->board->manufacturer);
+	type |= gb->board->model_registers ? 0x08 : 0x00;
+	flags |= gb->board->er_flags;
+
+	ew(gb, 0x04, gb->board->model_memory);
+	ew(gb, 0x10, gb->board->manufacturer >> 8);
+	ew(gb, 0x14, gb->board->manufacturer);
 
 	uae_u32 ser = gb->board->serial;
-	ew (gb, 0x18, ser >> 24); /* ser.no. Byte 0 */
-	ew (gb, 0x1c, ser >> 16); /* ser.no. Byte 1 */
-	ew (gb, 0x20, ser >>  8); /* ser.no. Byte 2 */
-	ew (gb, 0x24, ser >>  0); /* ser.no. Byte 3 */
+	ew(gb, 0x18, ser >> 24); /* ser.no. Byte 0 */
+	ew(gb, 0x1c, ser >> 16); /* ser.no. Byte 1 */
+	ew(gb, 0x20, ser >>  8); /* ser.no. Byte 2 */
+	ew(gb, 0x24, ser >>  0); /* ser.no. Byte 3 */
 
-	ew (gb, 0x00, type);
+	ew(gb, 0x00, type);
+	ew(gb, 0x08, flags);
 
 	if (ISP4()) {
 		int roms[] = { 91, -1 };
@@ -4611,17 +4618,20 @@ static void special_pcem_put(uaecptr addr, uae_u32 v, int size)
 	struct rtggfxboard *gb = getgfxboard(addr);
 	int boardnum = gb->rbc->rtgmem_type;
 
+#if SPCDEBUG
 //	if ((addr & 0xfffff) != 0x40021)
-//		write_log(_T("PCEM SPECIAL PUT %08x %08x %d\n"), addr, v, size);
+		write_log(_T("PCEM SPECIAL PUT %08x %08x %d PC=%08x\n"), addr, v, size, M68K_GETPC);
+#endif
 
 	if (boardnum == GFXBOARD_ID_CV643D_Z2) {
+
 		uaecptr addr2 = (addr - gb->gfxboardmem_start) & gb->banksize_mask;
 		uaecptr addrd = addr2 + gb->gfxboardmem_start;
 		if (gb->pcem_pci_configured) {
 			if (addr2 >= 0x3c0000 && addr2 < 0x3d0000) {
 				addrd &= 0x3fff;
 				if (size == 1) {
-					v = do_byteswap_16(v);
+					addrd ^= 2;
 				} else {
 					addrd ^= 3;
 				}
@@ -4634,7 +4644,7 @@ static void special_pcem_put(uaecptr addr, uae_u32 v, int size)
 			} else if (addr2 == 0x3a0000 + 8) {
 				// Z2 endian select
 				gb->pcem_data[1] = v;
-				gb->pcem_vram_offset = (v & 0x40) ? 0 : 0x800000;
+				gb->pcem_vram_offset = (v & 0xc0) << 16;
 				return;
 			} else if (addr2 == 0x3a0000 + 0) {
 				if (size == 1) {
@@ -4662,7 +4672,14 @@ static void special_pcem_put(uaecptr addr, uae_u32 v, int size)
 				return;
 			}
 		}
-		if (addr2 >= 0x3e8000 && addr2 < 0x3f0000) {
+		if (addr2 >= 0x3c8000 && addr2 < 0x3d0000) {
+			if (size == 0)
+				gfxboard_bput_mmio_pcem(addrd, v);
+			else if (size == 1)
+				gfxboard_wput_mmio_pcem(addrd, v);
+			else
+				gfxboard_lput_mmio_pcem(addrd, v);
+		} else if (addr2 >= 0x3e8000 && addr2 < 0x3f0000) {
 			if (size == 0)
 				gfxboard_bput_mmio_pcem(addrd, v);
 			else if (size == 1)
@@ -4670,26 +4687,12 @@ static void special_pcem_put(uaecptr addr, uae_u32 v, int size)
 			else
 				gfxboard_lput_mmio_pcem(addrd, v);
 		} else if (addr2 >= 0x3e0000 && addr2 < 0x3e8000) {
-			int em = (gb->pcem_data[1] >> 7) & 1;
-			switch (em)
-			{
-			case 0:
-				if (size == 0)
-					gfxboard_bput_mmio_pcem(addrd, v);
-				else if (size == 1)
-					gfxboard_wput_mmio_pcem(addrd, v);
-				else
-					gfxboard_lput_mmio_pcem(addrd, v);
-				break;
-			case 1:
-				if (size == 0)
-					gfxboard_bput_mmio_wbs_pcem(addrd, v);
-				else if (size == 1)
-					gfxboard_wput_mmio_wbs_pcem(addrd, v);
-				else
-					gfxboard_lput_mmio_wbs_pcem(addrd, v);
-				break;
-			}
+			if (size == 0)
+				gfxboard_bput_mmio_wbs_pcem(addrd, v);
+			else if (size == 1)
+				gfxboard_wput_mmio_wbs_pcem(addrd, v);
+			else
+				gfxboard_lput_mmio_wbs_pcem(addrd, v);
 		}
 
 	} else if (boardnum == GFXBOARD_ID_CV64_Z3) {
@@ -4889,8 +4892,10 @@ static uae_u32 special_pcem_get(uaecptr addr, int size)
 	int boardnum = gb->rbc->rtgmem_type;
 	uae_u32 v = 0;
 
+#if SPCDEBUG
 //	if ((addr & 0xfffff) != 0x40021)
-//	write_log(_T("PCEM SPECIAL GET %08x %d\n"), addr, size);
+	write_log(_T("PCEM SPECIAL GET %08x %d PC=%08x\n"), addr, size, M68K_GETPC);
+#endif
 
 	if (boardnum == GFXBOARD_ID_CV643D_Z2) {
 		uaecptr addr2 = (addr - gb->gfxboardmem_start) & gb->banksize_mask;
@@ -4901,11 +4906,10 @@ static uae_u32 special_pcem_get(uaecptr addr, int size)
 				addrd &= 0x3fff;
 				if (size == 0) {
 					addrd ^= 3;
+				} else if (size == 1) {
+					addrd ^= 2;
 				}
 				v = get_io_pcem(addrd, size);
-				if (size == 1) {
-					v = do_byteswap_16(v);
-				}
 			}
 		} else {
 			if (addr2 >= 0x3c0000 && addr2 < 0x3c8000) {
@@ -4917,7 +4921,14 @@ static uae_u32 special_pcem_get(uaecptr addr, int size)
 					v = gfxboard_lget_pci_pcem(addrd);
 			}
 		}
-		if (addr2 >= 0x3e8000 && addr2 < 0x3f0000) {
+		if (addr2 >= 0x3c8000 && addr2 < 0x3d0000) {
+			if (size == 0)
+				v = gfxboard_bget_mmio_pcem(addrd);
+			else if (size == 1)
+				v = gfxboard_wget_mmio_pcem(addrd);
+			else
+				v = gfxboard_lget_mmio_pcem(addrd);
+		} else if (addr2 >= 0x3e8000 && addr2 < 0x3f0000) {
 			if (size == 0)
 				v = gfxboard_bget_mmio_pcem(addrd);
 			else if (size == 1)
@@ -4925,26 +4936,12 @@ static uae_u32 special_pcem_get(uaecptr addr, int size)
 			else
 				v = gfxboard_lget_mmio_pcem(addrd);
 		} else if (addr2 >= 0x3e0000 && addr2 < 0x3e8000) {
-			int em = (gb->pcem_data[1] >> 7) & 1;
-			switch (em)
-			{
-			case 0:
-				if (size == 0)
-					v = gfxboard_bget_mmio_pcem(addrd);
-				else if (size == 1)
-					v = gfxboard_wget_mmio_pcem(addrd);
-				else
-					v = gfxboard_lget_mmio_pcem(addrd);
-				break;
-			case 1:
-				if (size == 0)
-					v = gfxboard_bget_mmio_wbs_pcem(addrd);
-				else if (size == 1)
-					v = gfxboard_wget_mmio_wbs_pcem(addrd);
-				else
-					v = gfxboard_lget_mmio_wbs_pcem(addrd);
-				break;
-			}
+			if (size == 0)
+				v = gfxboard_bget_mmio_wbs_pcem(addrd);
+			else if (size == 1)
+				v = gfxboard_wget_mmio_wbs_pcem(addrd);
+			else
+				v = gfxboard_lget_mmio_wbs_pcem(addrd);
 		}
 	} else if (boardnum == GFXBOARD_ID_CV64_Z3) {
 

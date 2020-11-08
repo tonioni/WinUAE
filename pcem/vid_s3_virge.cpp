@@ -309,20 +309,27 @@ enum
 #define INT_3DF_EMP  (1 << 6)
 #define INT_MASK 0xff
 
-static int is_interrupt_active(virge_t *virge)
+static int virge_vga_vsync_enabled(virge_t *virge)
 {
-    if ((virge->svga.crtc[0x32] & 0x10) && ((!(virge->svga.crtc[0x11] & 0x20) && virge->vblank_irq > 0) || (virge->subsys_stat & virge->subsys_cntl & INT_MASK)))
+    if ((virge->svga.crtc[0x32] & 0x10) && !(virge->svga.crtc[0x11] & 0x20) && virge->vblank_irq > 0)
         return 1;
     return 0;
 }
 
 static void s3_virge_update_irqs(virge_t *virge)
 {
-        if (is_interrupt_active(virge))
+        if (((virge->subsys_stat & virge->subsys_cntl & INT_MASK) && virge->svga.crtc[0x32] & 0x10) || virge_vga_vsync_enabled(virge))
                 pci_set_irq(virge->card, PCI_INTA);
         else
                 pci_clear_irq(virge->card, PCI_INTA);
 }
+
+static void s3_virge_update_irqs_thread(virge_t* virge, int mask)
+{
+    if ((virge->subsys_stat & virge->subsys_cntl & INT_MASK & mask) && virge->svga.crtc[0x32] & 0x10)
+        pci_set_irq(virge->card, PCI_INTA);
+}
+
 
 static void s3_virge_out(uint16_t addr, uint8_t val, void *p)
 {
@@ -360,12 +367,16 @@ static void s3_virge_out(uint16_t addr, uint8_t val, void *p)
                 svga->crtcreg = val;// & 0x7f;
                 return;
                 case 0x3d5:
-                //pclog("Write CRTC R%02X %02X  %04x(%08x):%08x\n", svga->crtcreg, val, CS, cs, pc);
+                //pclog("Write CRTC R%02X %02X  %04x(%08x):%08x\n", svga->crtcreg, val, CS, cs, 0);
                 if ((svga->crtcreg < 7) && (svga->crtc[0x11] & 0x80))
                         return;
                 if ((svga->crtcreg == 7) && (svga->crtc[0x11] & 0x80))
                         val = (svga->crtc[7] & ~0x10) | (val & 0x10);
-                if (svga->crtcreg >= 0x20 && svga->crtcreg != 0x38 && (svga->crtc[0x38] & 0xcc) != 0x48) 
+                if (svga->crtcreg >= 0x2d && svga->crtcreg <= 0x3f && svga->crtcreg != 0x38 && svga->crtcreg != 0x39 && (svga->crtc[0x38] & 0xcc) != 0x48)
+                        return;
+                if (svga->crtcreg >= 0x40 && (svga->crtc[0x39] & 0xe0) != 0xa0)
+                        return;
+                if ((svga->crtcreg == 0x36 || svga->crtcreg == 0x37 || svga->crtcreg == 0x68) && (svga->crtc[0x39] & 0xe5) != 0xa5)
                         return;
                 if (svga->crtcreg >= 0x80)
                         return;
@@ -1358,7 +1369,7 @@ static void fifo_thread(void *param)
                 }
                 virge->virge_busy = 0;
                 virge->subsys_stat |= INT_FIFO_EMP | INT_3DF_EMP;
-                s3_virge_update_irqs(virge);
+                s3_virge_update_irqs_thread(virge, INT_FIFO_EMP | INT_3DF_EMP);
         }
         virge->fifo_thread_state = 0;
 }
@@ -3414,7 +3425,7 @@ static void render_thread(void *param)
                 }
                 virge->s3d_busy = 0;
                 virge->subsys_stat |= INT_S3D_DONE;
-                s3_virge_update_irqs(virge);
+                s3_virge_update_irqs_thread(virge, INT_S3D_DONE);
         }
         virge->render_thread_state = 0;
 }

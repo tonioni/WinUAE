@@ -144,6 +144,7 @@ typedef struct s3_t
         uint64_t status_time;
         
         uint8_t subsys_cntl, subsys_stat;
+        int vblank_irq;
         
         uint32_t hwc_fg_col, hwc_bg_col;
         int hwc_col_stack_pos;
@@ -180,7 +181,7 @@ static void s3_wait_fifo_idle(s3_t *s3)
 
 static int s3_vga_vsync_enabled(s3_t *s3)
 {
-    if (!(s3->svga.crtc[0x11] & 0x20) && (s3->svga.crtc[0x11] & 0x10) && (s3->svga.crtc[0x32] & 0x10))
+    if ((s3->svga.crtc[0x32] & 0x10) && !(s3->svga.crtc[0x11] & 0x20) && s3->vblank_irq > 0)
         return 1;
     return 0;
 }
@@ -188,7 +189,7 @@ static int s3_vga_vsync_enabled(s3_t *s3)
 static void s3_update_irqs(s3_t *s3)
 {
         int enabled = s3_vga_vsync_enabled(s3);
-        if ((s3->subsys_cntl & s3->subsys_stat & INT_MASK) || (enabled && (s3->subsys_stat & INT_VSY)))
+        if (((s3->subsys_cntl & s3->subsys_stat & INT_MASK) && (s3->svga.crtc[0x32] & 0x10)) || (enabled && (s3->subsys_stat & INT_VSY)))
                 pci_set_irq(s3->card, PCI_INTA);
         else
                 pci_clear_irq(s3->card, PCI_INTA);
@@ -196,6 +197,12 @@ static void s3_update_irqs(s3_t *s3)
         if ((s3->subsys_stat & INT_VSY) && !(s3->subsys_stat & INT_VSY) && !enabled) {
             s3->subsys_stat &= ~INT_VSY;
         }
+}
+
+static void s3_update_irqs_thread(s3_t* s3, int mask)
+{
+    if ((s3->subsys_cntl & s3->subsys_stat & mask) && (s3->svga.crtc[0x32] & 0x10))
+        pci_set_irq(s3->card, PCI_INTA);
 }
 
 void s3_accel_start(int count, int cpu_input, uint32_t mix_dat, uint32_t cpu_dat, s3_t *s3);
@@ -929,7 +936,7 @@ static void fifo_thread(void *param)
                 }
                 s3->blitter_busy = 0;
                 s3->subsys_stat |= INT_FIFO_EMP;
-                s3_update_irqs(s3);
+                s3_update_irqs_thread(s3, INT_FIFO_EMP);
         }
         s3->fifo_thread_state = 0;
 }
@@ -937,6 +944,9 @@ static void fifo_thread(void *param)
 static void s3_vblank_start(svga_t *svga)
 {
         s3_t *s3 = (s3_t *)svga->p;
+        if (s3->vblank_irq >= 0) {
+            s3->vblank_irq = 1;
+        }
         if ((s3->subsys_cntl & INT_VSY) || s3_vga_vsync_enabled(s3)) {
                 s3->subsys_stat |= INT_VSY;
                 s3_update_irqs(s3);
@@ -1017,14 +1027,19 @@ void s3_out(uint16_t addr, uint8_t val, void *p)
                         return;
                 if ((svga->crtcreg == 7) && (svga->crtc[0x11] & 0x80))
                         val = (svga->crtc[7] & ~0x10) | (val & 0x10);
-                if (svga->crtcreg >= 0x20 && svga->crtcreg != 0x38 && (svga->crtc[0x38] & 0xcc) != 0x48) return;
+                if (svga->crtcreg >= 0x20 && svga->crtcreg != 0x38 && (svga->crtc[0x38] & 0xcc) != 0x48)
+                    return;
                 old = svga->crtc[svga->crtcreg];
                 svga->crtc[svga->crtcreg] = val;
                 switch (svga->crtcreg)
                 {
                         case 0x11:
-                        if (!(val & 0x10))
-                            s3->subsys_stat &= ~INT_VSY;
+                        if (!(val & 0x10)) {
+                            if (s3->vblank_irq > 0)
+                                s3->vblank_irq = -1;
+                        } else if (s3->vblank_irq < 0) {
+                            s3->vblank_irq = 0;
+                        }
                         s3_update_irqs(s3);
                         if ((val & ~0x30) == (old & ~0x30))
                             old = val;
@@ -1179,6 +1194,7 @@ uint8_t s3_in(uint16_t addr, void *p)
                 case 0x3c2:
                     ret = svga_in(addr, svga);
                     ret |= (s3->subsys_stat & INT_VSY) ? 0x80 : 0x00;
+                    ret |= s3->vblank_irq > 0 ? 0x80 : 0x00;
                     return ret;
 
                 case 0x3c5:
