@@ -290,7 +290,7 @@ struct rtggfxboard
 	int fullrefresh;
 	int resolutionchange;
 	uae_u8 *gfxboard_surface, *fakesurface_surface;
-	bool gfxboard_vblank;
+	bool gfxboard_intreq;
 	int gfxboard_intena;
 	bool vram_enabled, vram_offset_enabled;
 	hwaddr vram_offset[2];
@@ -635,6 +635,23 @@ static int gfxboard_pcem_poll(struct rtggfxboard *gb)
 	return svga_poll(gb->pcemobject2);
 }
 
+static void gfxboard_rethink(void)
+{
+	for (int i = 0; i < MAX_RTG_BOARDS; i++) {
+		struct rtggfxboard* gb = &rtggfxboards[i];
+		if (gb->pcemdev && gb->pcemobject && gb->gfxboard_intreq && gb->gfxboard_intena) {
+			int irq = 0;
+			if (gb->board->irq == 2 && gb->gfxboard_intena != 6)
+				irq = 2;
+			else
+				irq = 6;
+			if (irq) {
+				safe_interrupt_set(IRQ_SOURCE_GFX, gb->monitor_id, irq == 6);
+			}
+		}
+	}
+}
+
 extern int p96syncrate;
 
 static void gfxboard_hsync_handler(void)
@@ -748,6 +765,7 @@ static void init_board (struct rtggfxboard *gb)
 	picasso_allocatewritewatch(gb->rbc->rtg_index, gb->rbc->rtgmem_size);
 
 	device_add_hsync(gfxboard_hsync_handler);
+	device_add_rethink(gfxboard_rethink);
 }
 
 static int GetBytesPerPixel(RGBFTYPE RGBfmt)
@@ -1253,22 +1271,12 @@ void gfxboard_intreq(void *p, int act, bool safe)
 	if (act) {
 		if (gb->board->irq && gb->gfxboard_intena) {
 			int irq = 0;
-			gb->gfxboard_vblank = 1;
-			if (gb->board->irq == 2 && gb->gfxboard_intena != 6)
-				irq = 2;
-			else
-				irq = 6;
-			if (irq) {
-				if (!safe) {
-					INTREQ(0x8000 | (irq == 6 ? 0x2000 : 0x0008));
-				} else {
-					safe_interrupt_set(IRQ_SOURCE_GFX, gb->monitor_id, irq == 6);
-				}
-			}
+			gb->gfxboard_intreq = 1;
 		}
 	} else {
-		gb->gfxboard_vblank = 0;
+		gb->gfxboard_intreq = 0;
 	}
+	gfxboard_rethink();
 }
 
 void gfxboard_vsync_handler(bool full_redraw_required, bool redraw_required)
@@ -1370,7 +1378,7 @@ void gfxboard_vsync_handler(bool full_redraw_required, bool redraw_required)
 			if (!gb->pcemdev && gb->board->irq) {
 				if ((!(gb->vga.vga.cr[0x11] & 0x20) && (gb->vga.vga.cr[0x11] & 0x10) && !(gb->vga.vga.gr[0x17] & 4))) {
 					if (gb->gfxboard_intena) {
-						gb->gfxboard_vblank = true;
+						gb->gfxboard_intreq = true;
 						//write_log(_T("VGA interrupt %d\n"), gb->board->irq);
 						if (gb->board->irq == 2)
 							INTREQ(0x8000 | 0x0008);
@@ -1634,7 +1642,7 @@ static void bput_regtest (struct rtggfxboard *gb, uaecptr addr, uae_u8 v)
 	if (addr == 0x3d5) { // CRxx
 		if (gb->vga.vga.cr_index == 0x11) {
 			if (!(gb->vga.vga.cr[0x11] & 0x10)) {
-				gb->gfxboard_vblank = false;
+				gb->gfxboard_intreq = false;
 			}
 		}
 	}
@@ -1649,7 +1657,7 @@ static uae_u8 bget_regtest (struct rtggfxboard *gb, uaecptr addr, uae_u8 v)
 	addr += 0x3b0;
 	// Input Status 0
 	if (addr == 0x3c2) {
-		if (gb->gfxboard_vblank) {
+		if (gb->gfxboard_intreq) {
 			// Disable Vertical Interrupt == 0?
 			// Clear Vertical Interrupt == 1
 			// GR17 bit 2 = INTR disable
@@ -2937,7 +2945,7 @@ static void gfxboard_free_board(struct rtggfxboard *gb)
 	gb->monswitch_delay = -1;
 	gb->monswitch_reset = true;
 	gb->resolutionchange = 0;
-	gb->gfxboard_vblank = false;
+	gb->gfxboard_intreq = false;
 	gb->gfxboard_intena = 0;
 	gb->picassoiv_bank = 0;
 	gb->active = false;
@@ -3145,7 +3153,7 @@ static uae_u32 REGPARAM2 gfxboards_bget_regs (uaecptr addr)
 			if (v & 2)
 				v |= 0x80;
 		} else if (addr == 0x408) {
-			v = gb->gfxboard_vblank ? 0x80 : 0;
+			v = gb->gfxboard_intreq ? 0x80 : 0;
 		} else if (gb->p4z2 && addr >= 0x10000) {
 			addr -= 0x10000;
 			uaecptr addr2 = mungeaddr (gb, addr, true);
@@ -5068,7 +5076,7 @@ static uae_u32 special_pcem_get(uaecptr addr, int size)
 				if (v & 2)
 					v |= 0x80;
 			} else if (addr == 0x408) {
-				v = gb->gfxboard_vblank ? 0x80 : 0;
+				v = gb->gfxboard_intreq ? 0x80 : 0;
 			} else if (gb->p4z2 && addr >= 0x10000) {
 				addr -= 0x10000;
 				v = get_io_pcem(addr, size);
