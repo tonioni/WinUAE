@@ -958,9 +958,6 @@
     <ClCompile Include="..\..\pcem\vid_svga_render.cpp">
       <Filter>pcem</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\pcem\vid_cl5429.cpp">
-      <Filter>pcem</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\pcem\vid_s3.cpp">
       <Filter>pcem</Filter>
     </ClCompile>
@@ -969,6 +966,9 @@
     </ClCompile>
     <ClCompile Include="..\..\tinyxml2.cpp">
       <Filter>common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\pcem\vid_cl5429.cpp">
+      <Filter>pcem</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

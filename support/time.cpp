@@ -135,7 +135,7 @@ static void figure_processor_speed_qpf(void)
 	qpfrate = freq.QuadPart;
 	/* limit to 10MHz */
 	qpcdivisor = 0;
-	while (qpfrate >= 10000000) {
+	while (qpfrate > 10000000) {
 		qpfrate >>= 1;
 		qpcdivisor++;
 	}
@@ -147,9 +147,6 @@ static void figure_processor_speed_qpf(void)
 
 void uae_time_calibrate(void)
 {
-	if (si.dwNumberOfProcessors > 1) {
-		userdtsc = 0;
-	}
 	if (userdtsc) {
 		figure_processor_speed_rdtsc();
 	}

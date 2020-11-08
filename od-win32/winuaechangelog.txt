@@ -1,4 +1,15 @@
 
+Beta 10:
+
+- Added workaround for Windows socket behavior difference compared to Unix/Amiga. Windows return truncated data and error status if bsdsocket.library recv/recvfrom() supplied buffer is smaller than available data. Unix/Amiga sockets will also return truncated data but don't return error status.
+- Debug logging $bfff00 write truncated long words to words.
+- Log window size was not stored in ini mode.
+- ini file is now only saved if contents has been modified.
+- Fixed CV64/3D in Z2 mode. (CGX4 hang, Picasso96 wrong colors in some modes)
+- Fixed PicassoIV overlay. (Possibly can only happen with some P96 versions, at least some set overlay at VRAM address zero which accidentally worked)
+- Fixed Cirrus Logic blitter bug that was introduced few betas ago (for example some CGX4 modes had ghost shell window cursor images)
+- uaedbg invalid access message now includes information if it was caused by any chipset DMA channel. Memwatch logging must be enabled (w + return in debugger or any memwatch point enabled)
+
 Beta 9:
 
 - 64-bit JIT used wrong flag handling mode which broke some programs (b1).
