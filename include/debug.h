@@ -174,15 +174,16 @@ extern struct memwatch_node mwnodes[MEMWATCH_TOTAL];
 
 extern void memwatch_dump2 (TCHAR *buf, int bufsize, int num);
 
-uae_u16 debug_wgetpeekdma_chipram (uaecptr addr, uae_u32 v, uae_u32 mask, int reg, int ptrreg);
-uae_u16 debug_wputpeekdma_chipram (uaecptr addr, uae_u32 v, uae_u32 mask, int reg, int ptrreg);
-uae_u16 debug_wputpeekdma_chipset (uaecptr addr, uae_u32 v, uae_u32 mask, int reg);
-void debug_lgetpeek (uaecptr addr, uae_u32 v);
-void debug_wgetpeek (uaecptr addr, uae_u32 v);
-void debug_bgetpeek (uaecptr addr, uae_u32 v);
-void debug_bputpeek (uaecptr addr, uae_u32 v);
-void debug_wputpeek (uaecptr addr, uae_u32 v);
-void debug_lputpeek (uaecptr addr, uae_u32 v);
+void debug_getpeekdma_chipram(uaecptr addr, uae_u32 mask, int reg, int ptrreg);
+uae_u32 debug_getpeekdma_value(uae_u32 v);
+uae_u32 debug_putpeekdma_chipram(uaecptr addr, uae_u32 v, uae_u32 mask, int reg, int ptrreg);
+uae_u32 debug_putpeekdma_chipset(uaecptr addr, uae_u32 v, uae_u32 mask, int reg);
+void debug_lgetpeek(uaecptr addr, uae_u32 v);
+void debug_wgetpeek(uaecptr addr, uae_u32 v);
+void debug_bgetpeek(uaecptr addr, uae_u32 v);
+void debug_bputpeek(uaecptr addr, uae_u32 v);
+void debug_wputpeek(uaecptr addr, uae_u32 v);
+void debug_lputpeek(uaecptr addr, uae_u32 v);
 
 uae_u32 get_byte_debug (uaecptr addr);
 uae_u32 get_word_debug (uaecptr addr);
@@ -199,6 +200,17 @@ uae_u32 get_ilong_cache_debug(uaecptr addr, bool *cached);
 enum debugtest_item { DEBUGTEST_BLITTER, DEBUGTEST_KEYBOARD, DEBUGTEST_FLOPPY, DEBUGTEST_MAX };
 void debugtest (enum debugtest_item, const TCHAR *, ...);
 
+struct peekdma
+{
+	int type;
+	uaecptr addr;
+	uae_u32 v;
+	uae_u32 mask;
+	int reg;
+	int ptrreg;
+};
+extern struct peekdma peekdma_data;
+
 struct dma_rec
 {
     uae_u16 reg;
@@ -209,6 +221,8 @@ struct dma_rec
 	uae_u16 extra;
 	uae_s8 intlev;
 };
+
+extern struct dma_rec *last_dma_rec;
 
 #define DMA_EVENT_BLITIRQ 1
 #define DMA_EVENT_BLITNASTY 2
@@ -233,7 +247,9 @@ struct dma_rec
 #define DMARECORD_DISK 8
 #define DMARECORD_MAX 9
 
-extern struct dma_rec *record_dma(uae_u16 reg, uae_u16 dat, uae_u32 addr, int hpos, int vpos, int type, int extra);
+extern void record_dma_read(uae_u16 reg, uae_u32 addr, int hpos, int vpos, int type, int extra);
+extern void record_dma_write(uae_u16 reg, uae_u32 v, uae_u32 addr, int hpos, int vpos, int type, int extra);
+extern void record_dma_read_value(uae_u32 v);
 extern void record_dma_replace(int hpos, int vpos, int type, int extra);
 extern void record_dma_reset(void);
 extern void record_dma_event(int evt, int hpos, int vpos);

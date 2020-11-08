@@ -352,6 +352,11 @@ static void debugreport(struct debugmemdata *dm, uaecptr addr, int rwi, int size
 		!(state & (DEBUGMEM_ALLOCATED | DEBUGMEM_INUSE)) ? 'I' : (state & DEBUGMEM_WRITE) ? 'W' : 'R',
 		(state & DEBUGMEM_WRITE) ? '*' : (state & DEBUGMEM_INITIALIZED) ? '+' : '-',
 		dm->unused_start, PAGE_SIZE - dm->unused_end - 1);
+
+	if (peekdma_data.mask && (peekdma_data.addr == addr || (size > 2 && peekdma_data.addr + 2 == addr))) {
+		console_out_f(_T("DMA DAT=%04x PTR=%04x\n"), peekdma_data.reg, peekdma_data.ptrreg);
+	}
+
 	debugmem_break(1);
 }
 

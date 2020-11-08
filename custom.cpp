@@ -1479,10 +1479,19 @@ static void fetch (int nr, int fm, bool modulo, int hpos)
 			bpl1dat_written = true;
 
 #ifdef DEBUGGER
-		if (debug_dma)
-			record_dma (0x110 + nr * 2, chipmem_wget_indirect (p), p, hpos, vpos, DMARECORD_BITPLANE, nr);
-		if (memwatch_enabled)
-			debug_wgetpeekdma_chipram(p, chipmem_wget_indirect (p), MW_MASK_BPL_0 << nr, 0x110 + nr * 2, 0xe0 + nr * 4);
+		if (debug_dma) {
+			record_dma_read(0x110 + nr * 2, p, hpos, vpos, DMARECORD_BITPLANE, nr);
+		}
+		if (memwatch_enabled) {
+			debug_getpeekdma_chipram(p, MW_MASK_BPL_0 << nr, 0x110 + nr * 2, 0xe0 + nr * 4);
+		}
+		uae_u32 v = aga_mode ? chipmem_lget_indirect(p & ~3) : chipmem_wget_indirect(p);
+		if (debug_dma) {
+			record_dma_read_value(v);
+		}
+		if (memwatch_enabled) {
+			debug_getpeekdma_value(v);
+		}
 #endif
 		switch (fm)
 		{
@@ -7001,7 +7010,9 @@ STATIC_INLINE int copper_cant_read2 (int hpos, int alloc)
 #ifdef DEBUGGER
 			if (debug_dma) {
 				record_dma_event(DMA_EVENT_NOONEGETS, hpos, vpos);
-				record_dma (0x1fe, chipmem_wget_indirect (cop_state.ip), cop_state.ip, hpos, vpos, DMARECORD_COPPER, 2);
+				record_dma_read(0x1fe, cop_state.ip, hpos, vpos, DMARECORD_COPPER, 2);
+				uae_u16 v = chipmem_wget_indirect(cop_state.ip);
+				record_dma_read_value(v);
 			}
 #endif
 		}
@@ -7025,7 +7036,7 @@ static int custom_wput_copper (int hpos, uaecptr addr, uae_u32 value, int noget)
 	int v;
 
 	hpos += hack_delay_shift;
-	value = debug_wputpeekdma_chipset (0xdff000 + addr, value, MW_MASK_COPPER, 0x08c);
+	value = debug_putpeekdma_chipset(0xdff000 + addr, value, MW_MASK_COPPER, 0x08c);
 	copper_access = 1;
 	v = custom_wput_1 (hpos, addr, value, noget);
 	copper_access = 0;
@@ -7166,10 +7177,19 @@ static void update_copper (int until_hpos)
 			if (!copper_cant_read(old_hpos, 0)) {
 				alloc_cycle(old_hpos, CYCLE_COPPER);
 #ifdef DEBUGGER
-				if (debug_dma)
-					record_dma(0x8c, chipmem_wget_indirect(cop_state.ip), cop_state.ip, old_hpos, vpos, DMARECORD_COPPER, 0);
-				if (memwatch_enabled)
-					debug_wgetpeekdma_chipram(cop_state.ip, chipmem_wget_indirect(cop_state.ip), MW_MASK_COPPER, 0x8c, cop_state.last_strobe == 2 ? 0x84 : 0x80);
+				if (debug_dma) {
+					record_dma_read(0x8c, cop_state.ip, old_hpos, vpos, DMARECORD_COPPER, 0);
+				}
+				if (memwatch_enabled) {
+					debug_getpeekdma_chipram(cop_state.ip, MW_MASK_COPPER, 0x8c, cop_state.last_strobe == 2 ? 0x84 : 0x80);
+				}
+				uae_u16 v = chipmem_wget_indirect(cop_state.ip);
+				if (debug_dma) {
+					record_dma_read_value(v);
+				}
+				if (memwatch_enabled) {
+					debug_getpeekdma_value(v);
+				}
 #endif
 				// copper pointer is only increased if cycle was free
 				cop_state.ip += 2;
@@ -7194,10 +7214,21 @@ static void update_copper (int until_hpos)
 				continue;
 			alloc_cycle (old_hpos, CYCLE_COPPER);
 #ifdef DEBUGGER
-			if (debug_dma)
-				record_dma (0x1fe, chipmem_wget_indirect (cop_state.ip), cop_state.ip, old_hpos, vpos, DMARECORD_COPPER, 0);
-			if (memwatch_enabled)
-				debug_wgetpeekdma_chipram(cop_state.ip, chipmem_wget_indirect (cop_state.ip), MW_MASK_COPPER, 0x1fe, 0x1fe);
+			{
+				if (debug_dma) {
+					record_dma_read(0x1fe, cop_state.ip, old_hpos, vpos, DMARECORD_COPPER, 2);
+				}
+				if (memwatch_enabled) {
+					debug_getpeekdma_chipram(cop_state.ip, MW_MASK_COPPER, 0x1fe, 0x1fe);
+				}
+				uae_u16 v = chipmem_wget_indirect(cop_state.ip);
+				if (debug_dma) {
+					record_dma_read_value(v);
+				}
+				if (memwatch_enabled) {
+					debug_getpeekdma_value(v);
+				}
+			}
 #endif
 			cop_state.state = COP_read1;
 			// Next cycle finally reads from new pointer
@@ -7224,14 +7255,26 @@ static void update_copper (int until_hpos)
 			// If Blitter uses this cycle = Copper's PC gets copied to blitter DMA pointer..
 			if (copper_cant_read (old_hpos, 1))
 				continue;
-			if (debug_dma)
+			if (debug_dma) {
 				record_dma_event(DMA_EVENT_SPECIAL, old_hpos, vpos);
+			}
 			cycle_line[old_hpos] |= CYCLE_COPPER_SPECIAL;
 #ifdef DEBUGGER
-			if (debug_dma)
-				record_dma (0x1fe, chipmem_wget_indirect (cop_state.ip), cop_state.ip, old_hpos, vpos, DMARECORD_COPPER, 2);
-			if (memwatch_enabled)
-				debug_wgetpeekdma_chipram(cop_state.ip, chipmem_wget_indirect (cop_state.ip), MW_MASK_COPPER, 0x1fe, 0x1fe);
+			{
+				if (debug_dma) {
+					record_dma_read(0x1fe, cop_state.ip, old_hpos, vpos, DMARECORD_COPPER, 2);
+				}
+				if (memwatch_enabled) {
+					debug_getpeekdma_chipram(cop_state.ip, MW_MASK_COPPER, 0x1fe, 0x1fe);
+				}
+				uae_u16 v = chipmem_wget_indirect(cop_state.ip);
+				if (debug_dma) {
+					record_dma_read_value(v);
+				}
+				if (memwatch_enabled) {
+					debug_getpeekdma_value(v);
+				}
+			}
 #endif
 			cop_state.state = COP_read1;
 			// Next cycle finally reads from new pointer
@@ -7248,28 +7291,48 @@ static void update_copper (int until_hpos)
 			if (copper_cant_read (old_hpos, 1))
 				continue;
 			cop_state.state = COP_read1;
-			cop_state.i1 = last_custom_value1 = last_custom_value2 = chipmem_wget_indirect (cop_state.ip);
-			alloc_cycle (old_hpos, CYCLE_COPPER);
 #ifdef DEBUGGER
-			if (debug_dma)
-				record_dma (0x1fe, cop_state.i1, cop_state.ip, old_hpos, vpos, DMARECORD_COPPER, 2);
-			if (memwatch_enabled)
-				debug_wgetpeekdma_chipram(cop_state.ip, cop_state.i1, MW_MASK_COPPER, 0x1fe, 0x1fe);
+			if (debug_dma) {
+				record_dma_read(0x1fe, cop_state.ip, old_hpos, vpos, DMARECORD_COPPER, 2);
+			}
+			if (memwatch_enabled) {
+				debug_getpeekdma_chipram(cop_state.ip, MW_MASK_COPPER, 0x1fe, 0x1fe);
+			}
 #endif
+			cop_state.i1 = last_custom_value1 = last_custom_value2 = chipmem_wget_indirect(cop_state.ip);
+#ifdef DEBUGGER
+			if (debug_dma) {
+				record_dma_read_value(cop_state.i1);
+			}
+			if (memwatch_enabled) {
+				debug_getpeekdma_value(cop_state.i1);
+			}
+#endif
+			alloc_cycle(old_hpos, CYCLE_COPPER);
 			cop_state.ip = cop1lc;
 			break;
 
 		case COP_read1:
 			if (copper_cant_read (old_hpos, 1))
 				continue;
-			cop_state.i1 = last_custom_value1 = last_custom_value2 = chipmem_wget_indirect (cop_state.ip);
-			alloc_cycle (old_hpos, CYCLE_COPPER);
 #ifdef DEBUGGER
-			if (debug_dma)
-				record_dma (0x8c, cop_state.i1, cop_state.ip, old_hpos, vpos, DMARECORD_COPPER, 0);
-			if (memwatch_enabled)
-				debug_wgetpeekdma_chipram(cop_state.ip, cop_state.i1, MW_MASK_COPPER, 0x8c, cop_state.last_strobe == 2 ? 0x84 : 0x80);
+			if (debug_dma) {
+				record_dma_read(0x8c, cop_state.ip, old_hpos, vpos, DMARECORD_COPPER, 0);
+			}
+			if (memwatch_enabled) {
+				debug_getpeekdma_chipram(cop_state.ip, MW_MASK_COPPER, 0x8c, cop_state.last_strobe == 2 ? 0x84 : 0x80);
+			}
 #endif
+			cop_state.i1 = last_custom_value1 = last_custom_value2 = chipmem_wget_indirect (cop_state.ip);
+#ifdef DEBUGGER
+			if (debug_dma) {
+				record_dma_read_value(cop_state.i1);
+			}
+			if (memwatch_enabled) {
+				debug_getpeekdma_value(cop_state.i1);
+			}
+#endif
+			alloc_cycle (old_hpos, CYCLE_COPPER);
 			cop_state.ip += 2;
 			cop_state.state = COP_read2;
 			break;
@@ -7277,38 +7340,68 @@ static void update_copper (int until_hpos)
 		case COP_read2:
 			if (copper_cant_read (old_hpos, 1))
 				continue;
-			cop_state.i2 = chipmem_wget_indirect (cop_state.ip);
-			alloc_cycle (old_hpos, CYCLE_COPPER);
-			cop_state.ip += 2;
-			cop_state.saved_i1 = cop_state.i1;
-			cop_state.saved_i2 = cop_state.i2;
-			cop_state.saved_ip = cop_state.ip;
-
 			if (cop_state.i1 & 1) { // WAIT or SKIP
+
+#ifdef DEBUGGER
+				if (debug_dma) {
+					record_dma_read(0x8c, cop_state.ip - 2, old_hpos, vpos, DMARECORD_COPPER, (cop_state.i1 & 1) ? 1 : 0);
+				}
+				if (memwatch_enabled) {
+					debug_getpeekdma_chipram(cop_state.ip - 2, MW_MASK_COPPER, 0x8c, cop_state.last_strobe == 2 ? 0x84 : 0x80);
+				}
+#endif
+				cop_state.i2 = chipmem_wget_indirect(cop_state.ip);
+#ifdef DEBUGGER
+				if (debug_dma) {
+					record_dma_read_value(cop_state.i2);
+				}
+				if (memwatch_enabled) {
+					debug_getpeekdma_value(cop_state.i2);
+				}
+#endif
+				alloc_cycle(old_hpos, CYCLE_COPPER);
+				cop_state.ip += 2;
+				cop_state.saved_i1 = cop_state.i1;
+				cop_state.saved_i2 = cop_state.i2;
+				cop_state.saved_ip = cop_state.ip;
+
 				cop_state.ignore_next = 0;
 				if (cop_state.i2 & 1)
 					cop_state.state = COP_skip_in2;
 				else
 					cop_state.state = COP_wait_in2;
-#ifdef DEBUGGER
-				if (debug_dma)
-					record_dma (0x8c, cop_state.i2, cop_state.ip - 2, old_hpos, vpos, DMARECORD_COPPER, (cop_state.i1 & 1) ? 1 : 0);
-				if (memwatch_enabled)
-					debug_wgetpeekdma_chipram(cop_state.ip - 2, cop_state.i2, MW_MASK_COPPER, 0x8c, cop_state.last_strobe == 2 ? 0x84 : 0x80);
-#endif
+
 			} else { // MOVE
+#ifdef DEBUGGER
+				if (debug_dma) {
+					record_dma_read(0x8c, cop_state.ip - 2, old_hpos, vpos, DMARECORD_COPPER, 0);
+				}
+				if (memwatch_enabled) {
+					debug_getpeekdma_chipram(cop_state.ip - 2, MW_MASK_COPPER, 0x8c, cop_state.last_strobe == 2 ? 0x84 : 0x80);
+				}
+#endif
+				cop_state.i2 = chipmem_wget_indirect(cop_state.ip);
+#ifdef DEBUGGER
+				if (debug_dma) {
+					record_dma_read_value(cop_state.i2);
+				}
+				if (memwatch_enabled) {
+					debug_getpeekdma_value(cop_state.i2);
+				}
+#endif
+				alloc_cycle(old_hpos, CYCLE_COPPER);
+				cop_state.ip += 2;
+				cop_state.saved_i1 = cop_state.i1;
+				cop_state.saved_i2 = cop_state.i2;
+				cop_state.saved_ip = cop_state.ip;
+
 #ifdef DEBUGGER
 				uaecptr debugip = cop_state.ip;
 #endif
 				unsigned int reg = cop_state.i1 & 0x1FE;
 				uae_u16 data = cop_state.i2;
 				cop_state.state = COP_read1;
-#ifdef DEBUGGER
-				if (debug_dma)
-					record_dma (reg, data, cop_state.ip - 2, old_hpos, vpos, DMARECORD_COPPER, 0);
-				if (memwatch_enabled)
-					debug_wgetpeekdma_chipram(cop_state.ip - 2, data, MW_MASK_COPPER, 0x8c, cop_state.last_strobe == 2 ? 0x84 : 0x80);
-#endif
+
 				test_copper_dangerous (reg);
 				if (! copper_enabled_thisline)
 					goto out; // was "dangerous" register -> copper stopped
@@ -7340,7 +7433,7 @@ static void update_copper (int until_hpos)
 				}
 #ifdef DEBUGGER
 				if (debug_copper && !cop_state.ignore_next)
-					record_copper (debugip - 4, cop_state.saved_i1, cop_state.saved_i2, old_hpos, vpos);
+					record_copper(debugip - 4, cop_state.saved_i1, cop_state.saved_i2, old_hpos, vpos);
 #endif
 				cop_state.ignore_next = 0;
 			}
@@ -7594,15 +7687,25 @@ static uae_u16 sprite_fetch(struct sprite *s, uaecptr pt, bool dma, int hpos, in
 	if (dma) {
 		if (cycle && currprefs.cpu_memory_cycle_exact)
 			s->ptxhpos = hpos;
-		data = last_custom_value1 = chipmem_wget_indirect (pt);
-		alloc_cycle (hpos, CYCLE_SPRITE);
 #ifdef DEBUGGER
 		int num = s - &spr[0];
-		if (debug_dma)
-			record_dma (num * 8 + 0x140 + mode * 4 + cycle * 2, data, pt, hpos, vpos, DMARECORD_SPRITE, num);
-		if (memwatch_enabled)
-			debug_wgetpeekdma_chipram(pt, data, MW_MASK_SPR_0 << num, num * 8 + 0x140 + mode * 4 + cycle * 2, num * 4 + 0x120);
+		if (debug_dma) {
+			record_dma_read(num * 8 + 0x140 + mode * 4 + cycle * 2, pt, hpos, vpos, DMARECORD_SPRITE, num);
+		}
+		if (memwatch_enabled) {
+			debug_getpeekdma_chipram(pt, MW_MASK_SPR_0 << num, num * 8 + 0x140 + mode * 4 + cycle * 2, num * 4 + 0x120);
+		}
 #endif
+		data = last_custom_value1 = chipmem_wget_indirect(pt);
+#ifdef DEBUGGER
+		if (debug_dma) {
+			record_dma_read_value(data);
+		}
+		if (memwatch_enabled) {
+			debug_getpeekdma_value(data);
+		}
+#endif
+		alloc_cycle (hpos, CYCLE_SPRITE);
 	}
 	return data;
 }
@@ -8604,12 +8707,22 @@ static void dmal_emu(uae_u32 v)
 		v -= 6;
 		int nr = v / 2;
 		uaecptr pt = audio_getpt (nr, (v & 1) != 0);
+#ifdef DEBUGGER
+		if (debug_dma) {
+			record_dma_read(0xaa + nr * 16, pt, hpos, vpos, DMARECORD_AUDIO, nr);
+		}
+		if (memwatch_enabled) {
+			debug_getpeekdma_chipram(pt, MW_MASK_AUDIO_0 << nr, 0xaa + nr * 16, 0xa0 + nr * 16);
+		}
+#endif
 		uae_u16 dat = chipmem_wget_indirect (pt);
 #ifdef DEBUGGER
-		if (debug_dma)
-			record_dma (0xaa + nr * 16, dat, pt, hpos, vpos, DMARECORD_AUDIO, nr);
-		if (memwatch_enabled)
-			debug_wgetpeekdma_chipram(pt, dat, MW_MASK_AUDIO_0 << nr, 0xaa + nr * 16, 0xa0 + nr * 16);
+		if (debug_dma) {
+			record_dma_read_value(dat);
+		}
+		if (memwatch_enabled) {
+			debug_getpeekdma_value(dat);
+		}
 #endif
 		last_custom_value1 = last_custom_value2 = dat;
 		AUDxDAT (nr, dat, pt);
@@ -8621,7 +8734,23 @@ static void dmal_emu(uae_u32 v)
 		if (w) {
 			// write to disk
 			if (disk_fifostatus () <= 0) {
+#ifdef DEBUGGER
+				if (debug_dma) {
+					record_dma_read(0x26, pt, hpos, vpos, DMARECORD_DISK, v / 2);
+				}
+				if (memwatch_enabled) {
+					debug_getpeekdma_chipram(pt, MW_MASK_DISK, 0x26, 0x20);
+				}
+#endif
 				dat = chipmem_wget_indirect (pt);
+#ifdef DEBUGGER
+				if (debug_dma) {
+					record_dma_read_value(dat);
+				}
+				if (memwatch_enabled) {
+					debug_getpeekdma_value(dat);
+				}
+#endif
 				last_custom_value1 = last_custom_value2 = dat;
 				DSKDAT (dat);
 			}
@@ -8629,15 +8758,17 @@ static void dmal_emu(uae_u32 v)
 			// read from disk
 			if (disk_fifostatus () >= 0) {
 				dat = DSKDATR ();
+#ifdef DEBUGGER
+				if (debug_dma) {
+					record_dma_write(0x08, dat, pt, hpos, vpos, DMARECORD_DISK, v / 2);
+				}
+				if (memwatch_enabled) {
+					debug_putpeekdma_chipram(pt, dat, MW_MASK_DISK, 0x08, 0x20);
+				}
+#endif
 				chipmem_wput_indirect (pt, dat);
 			}
 		}
-#ifdef DEBUGGER
-		if (debug_dma)
-			record_dma (w ? 0x26 : 0x08, dat, pt, hpos, vpos, DMARECORD_DISK, v / 2);
-		if (memwatch_enabled)
-			debug_wgetpeekdma_chipram(pt, dat, MW_MASK_DISK, w ? 0x26 : 0x08, 0x20);
-#endif
 	}
 }
 
@@ -8963,7 +9094,7 @@ static bool linesync_beam_single_single(void)
 			while (!currprefs.turbo_emulation && sync_timeout_check(maxtime)) {
 				maybe_process_pull_audio();
 				vp = target_get_display_scanline(-1);
-				if (vp >= 0)
+				if (vp >= 0 && vp < vp < vsync_activeheight / 2)
 					break;
 				if (currprefs.m68k_speed < 0 && !was_syncline) {
 					is_syncline = -3;
@@ -9663,7 +9794,8 @@ static void hsync_handler_post (bool onvsync)
 					strobe = 0x38;
 				else if ((currprefs.chipset_mask & CSMASK_ECS_AGNUS) && lol)
 					strobe = 0x3e;
-				record_dma (i == 0 ? strobe : 0x1fe, 0xffff, 0xffffffff, hp, vpos, DMARECORD_REFRESH, i);
+				record_dma_read(i == 0 ? strobe : 0x1fe, 0xffffffff, hp, vpos, DMARECORD_REFRESH, i);
+				record_dma_read_value(0xffff);
 			}
 #endif
 			hp += 2;
@@ -10992,6 +11124,7 @@ uae_u8 *save_custom (int *len, uae_u8 *dstptr, int full)
 	int i, dummy;
 	uae_u32 dskpt;
 	uae_u16 dsklen, dsksync, dskbytr;
+	uae_u16 v;
 
 	DISK_save_custom (&dskpt, &dsklen, &dsksync, &dskbytr);
 
@@ -11012,7 +11145,7 @@ uae_u8 *save_custom (int *len, uae_u8 *dstptr, int full)
 	SW (ADKCONR ());		/* 010 ADKCONR */
 	SW (POT0DAT ());		/* 012 POT0DAT */
 	SW (POT1DAT ());		/* 014 POT1DAT */
-	SW (0)	;				/* 016 POTINP * */
+	SW (0);					/* 016 POTINP * */
 	SW (0);					/* 018 SERDATR * */
 	SW (dskbytr);			/* 01A DSKBYTR */
 	SW (INTENAR ());		/* 01C INTENAR */
@@ -11040,8 +11173,13 @@ uae_u8 *save_custom (int *len, uae_u8 *dstptr, int full)
 	SL (bltbpt);			/* 04C-04F BLTCPT */
 	SL (bltapt);			/* 050-053 BLTCPT */
 	SL (bltdpt);			/* 054-057 BLTCPT */
-	SW (0);					/* 058 BLTSIZE */
-	SW (0);					/* 05A BLTCON0L (use BLTCON0 instead) */
+	if (blt_info.vblitsize > 1024 || blt_info.hblitsize > 64) {
+		v = 0;
+	} else {
+		v = (blt_info.vblitsize << 6) | (blt_info.hblitsize & 63);
+	}
+	SW (v);					/* 058 BLTSIZE */
+	SW (bltcon0 & 0xff);	/* 05A BLTCON0L (use BLTCON0 instead) */
 	SW (blt_info.vblitsize);/* 05C BLTSIZV */
 	SW (blt_info.hblitsize);/* 05E BLTSIZH */
 	SW (blt_info.bltcmod);	/* 060 BLTCMOD */
@@ -11645,7 +11783,6 @@ uae_u32 wait_cpu_cycle_read (uaecptr addr, int mode)
 	x_do_cycles_pre (CYCLE_UNIT);
 
 #ifdef DEBUGGER
-	struct dma_rec *dr = NULL;
 	if (debug_dma) {
 		int reg = 0x1000;
 		if (mode < 0)
@@ -11654,9 +11791,10 @@ uae_u32 wait_cpu_cycle_read (uaecptr addr, int mode)
 			reg |= 2;
 		else
 			reg |= 1;
-		dr = record_dma (reg, v, addr, hpos, vpos, DMARECORD_CPU, mode == -2 || mode == 2 ? 0 : 1);
+		record_dma_read(reg, addr, hpos, vpos, DMARECORD_CPU, mode == -2 || mode == 2 ? 0 : 1);
 		checknasty (hpos, vpos);
 	}
+	peekdma_data.mask = 0;
 #endif
 	switch(mode)
 	{
@@ -11678,8 +11816,9 @@ uae_u32 wait_cpu_cycle_read (uaecptr addr, int mode)
 	}
 
 #ifdef DEBUGGER
-	if (debug_dma)
-		dr->dat = v;
+	if (debug_dma) {
+		record_dma_read_value(v);
+	}
 #endif
 
 	x_do_cycles_post (CYCLE_UNIT, v);
@@ -11699,7 +11838,6 @@ uae_u32 wait_cpu_cycle_read_ce020 (uaecptr addr, int mode)
 	x_do_cycles_pre (CYCLE_UNIT);
 
 #ifdef DEBUGGER
-	struct dma_rec *dr = NULL;
 	if (debug_dma) {
 		int reg = 0x1000;
 		if (mode < 0)
@@ -11708,9 +11846,10 @@ uae_u32 wait_cpu_cycle_read_ce020 (uaecptr addr, int mode)
 			reg |= 2;
 		else
 			reg |= 1;
-		dr = record_dma (reg, v, addr, hpos, vpos, DMARECORD_CPU, mode == -2 || mode == 2 ? 0 : 1);
+		record_dma_read(reg, addr, hpos, vpos, DMARECORD_CPU, mode == -2 || mode == 2 ? 0 : 1);
 		checknasty (hpos, vpos);
 	}
+	peekdma_data.mask = 0;
 #endif
 	switch (mode) {
 		case -1:
@@ -11731,8 +11870,9 @@ uae_u32 wait_cpu_cycle_read_ce020 (uaecptr addr, int mode)
 	}
 
 #ifdef DEBUGGER
-	if (debug_dma)
-		dr->dat = v;
+	if (debug_dma) {
+		record_dma_read_value(v);
+	}
 #endif
 	
 	x_do_cycles_post (CYCLE_UNIT, v);
@@ -11758,9 +11898,10 @@ void wait_cpu_cycle_write (uaecptr addr, int mode, uae_u32 v)
 			reg |= 2;
 		else
 			reg |= 1;
-		record_dma (reg, v, addr, hpos, vpos, DMARECORD_CPU, 1);
+		record_dma_write(reg, v, addr, hpos, vpos, DMARECORD_CPU, 1);
 		checknasty (hpos, vpos);
 	}
+	peekdma_data.mask = 0;
 #endif
 
 	if (mode < 0)
@@ -11793,9 +11934,10 @@ void wait_cpu_cycle_write_ce020 (uaecptr addr, int mode, uae_u32 v)
 			reg |= 2;
 		else
 			reg |= 1;
-		record_dma (reg, v, addr, hpos, vpos, DMARECORD_CPU, 1);
+		record_dma_write(reg, v, addr, hpos, vpos, DMARECORD_CPU, 1);
 		checknasty (hpos, vpos);
 	}
+	peekdma_data.mask = 0;
 #endif
 
 	if (mode < 0)

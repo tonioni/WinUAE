@@ -1825,7 +1825,44 @@ void record_dma_replace(int hpos, int vpos, int type, int extra)
 	dr->extra = extra;
 }
 
-struct dma_rec *record_dma (uae_u16 reg, uae_u16 dat, uae_u32 addr, int hpos, int vpos, int type, int extra)
+void record_dma_write(uae_u16 reg, uae_u32 dat, uae_u32 addr, int hpos, int vpos, int type, int extra)
+{
+	struct dma_rec* dr;
+
+	if (!dma_record[0]) {
+		dma_record[0] = xmalloc(struct dma_rec, NR_DMA_REC_HPOS * NR_DMA_REC_VPOS);
+		dma_record[1] = xmalloc(struct dma_rec, NR_DMA_REC_HPOS * NR_DMA_REC_VPOS);
+		dma_record_toggle = 0;
+		record_dma_reset();
+		dma_record_frame[0] = -1;
+		dma_record_frame[1] = -1;
+	}
+
+	if (hpos >= NR_DMA_REC_HPOS || vpos >= NR_DMA_REC_VPOS)
+		return;
+
+	dr = &dma_record[dma_record_toggle][vpos * NR_DMA_REC_HPOS + hpos];
+	dma_record_frame[dma_record_toggle] = timeframes;
+	if (dr->reg != 0xffff) {
+		write_log(_T("DMA conflict: v=%d h=%d OREG=%04X NREG=%04X\n"), vpos, hpos, dr->reg, reg);
+		return;
+	}
+	dr->reg = reg;
+	dr->dat = dat;
+	dr->addr = addr;
+	dr->type = type;
+	dr->extra = extra;
+	dr->intlev = regs.intmask;
+	last_dma_rec = dr;
+}
+struct dma_rec *last_dma_rec;
+void record_dma_read_value(uae_u32 v)
+{
+	if (last_dma_rec) {
+		last_dma_rec->dat = v;
+	}
+}
+void record_dma_read(uae_u16 reg, uae_u32 addr, int hpos, int vpos, int type, int extra)
 {
 	struct dma_rec *dr;
 
@@ -1839,21 +1876,21 @@ struct dma_rec *record_dma (uae_u16 reg, uae_u16 dat, uae_u32 addr, int hpos, in
 	}
 
 	if (hpos >= NR_DMA_REC_HPOS || vpos >= NR_DMA_REC_VPOS)
-		return NULL;
+		return;
 
 	dr = &dma_record[dma_record_toggle][vpos * NR_DMA_REC_HPOS + hpos];
 	dma_record_frame[dma_record_toggle] = timeframes;
 	if (dr->reg != 0xffff) {
 		write_log (_T("DMA conflict: v=%d h=%d OREG=%04X NREG=%04X\n"), vpos, hpos, dr->reg, reg);
-		return dr;
+		return;
 	}
 	dr->reg = reg;
-	dr->dat = dat;
+	dr->dat = 0;
 	dr->addr = addr;
 	dr->type = type;
 	dr->extra = extra;
 	dr->intlev = regs.intmask;
-	return dr;
+	last_dma_rec = dr;
 }
 
 
@@ -3263,39 +3300,57 @@ static uae_u8 *REGPARAM2 debug_xlate (uaecptr addr)
 	return debug_mem_banks[munge24 (addr) >> 16]->xlateaddr (addr);
 }
 
-uae_u16 debug_wputpeekdma_chipset (uaecptr addr, uae_u32 v, uae_u32 mask, int reg)
+struct peekdma peekdma_data;
+
+static void peekdma_save(int type, uaecptr addr, uae_u32 mask, int reg, int ptrreg)
 {
-	if (!memwatch_enabled)
-		return v;
-	addr &= 0x1fe;
-	addr += 0xdff000;
-	memwatch_func (addr, 2, 2, &v, mask, reg);
-	return v;
+	peekdma_data.type = type;
+	peekdma_data.addr = addr;
+	peekdma_data.mask = mask;
+	peekdma_data.reg = reg;
+	peekdma_data.ptrreg = ptrreg;
 }
-uae_u16 debug_wputpeekdma_chipram (uaecptr addr, uae_u32 v, uae_u32 mask, int reg, int ptrreg)
-{
-	if (!memwatch_enabled)
-		return v;
-	is_valid_dma(reg, ptrreg, addr);
-	if (debug_mem_banks[addr >> 16] == NULL)
-		return v;
-	if (!currprefs.z3chipmem.size)
-		addr &= chipmem_bank.mask;
-	memwatch_func (addr & chipmem_bank.mask, 2, 2, &v, mask, reg);
-	return v;
-}
-uae_u16 debug_wgetpeekdma_chipram (uaecptr addr, uae_u32 v, uae_u32 mask, int reg, int ptrreg)
+
+uae_u32 debug_getpeekdma_value(uae_u32 v)
 {
 	uae_u32 vv = v;
 	if (!memwatch_enabled)
 		return v;
-	is_valid_dma(reg, ptrreg, addr);
-	if (debug_mem_banks[addr >> 16] == NULL)
+	is_valid_dma(peekdma_data.reg, peekdma_data.ptrreg, peekdma_data.addr);
+	if (debug_mem_banks[peekdma_data.addr >> 16] == NULL)
 		return v;
 	if (!currprefs.z3chipmem.size)
-		addr &= chipmem_bank.mask;
-	memwatch_func (addr, 1, 2, &vv, mask, reg);
+		peekdma_data.addr &= chipmem_bank.mask;
+	memwatch_func(peekdma_data.addr, 1, 2, &vv, peekdma_data.mask, peekdma_data.reg);
 	return vv;
+}
+
+uae_u32 debug_putpeekdma_chipset(uaecptr addr, uae_u32 v, uae_u32 mask, int reg)
+{
+	peekdma_save(0, addr, mask, reg, 0);
+	if (!memwatch_enabled)
+		return v;
+	peekdma_data.addr &= 0x1fe;
+	peekdma_data.addr += 0xdff000;
+	memwatch_func(peekdma_data.addr, 2, 2, &v, peekdma_data.mask, peekdma_data.reg);
+	return v;
+}
+
+uae_u32 debug_putpeekdma_chipram(uaecptr addr, uae_u32 v, uae_u32 mask, int reg, int ptrreg)
+{
+	peekdma_save(1, addr, mask, reg, ptrreg);
+	if (!memwatch_enabled)
+		return v;
+	is_valid_dma(peekdma_data.reg, peekdma_data.ptrreg, peekdma_data.addr);
+	if (debug_mem_banks[peekdma_data.addr >> 16] == NULL)
+		return v;
+	if (!currprefs.z3chipmem.size)
+		peekdma_data.addr &= chipmem_bank.mask;
+	memwatch_func(peekdma_data.addr & chipmem_bank.mask, 2, 2, &v, peekdma_data.mask, peekdma_data.reg);
+}
+void debug_getpeekdma_chipram(uaecptr addr, uae_u32 mask, int reg, int ptrreg)
+{
+	peekdma_save(2, addr, mask, reg, ptrreg);
 }
 
 static void debug_putlpeek (uaecptr addr, uae_u32 v)
