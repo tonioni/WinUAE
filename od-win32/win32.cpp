@@ -7113,6 +7113,7 @@ end:
 	//_CrtSetDbgFlag ( _CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF );
 #endif
 	close_console();
+	regclosetree(NULL);
 	if (hWinUAEKey)
 		RegCloseKey(hWinUAEKey);
 	_fcloseall();

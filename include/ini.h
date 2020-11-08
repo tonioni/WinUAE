@@ -10,6 +10,7 @@ struct ini_data
 {
 	struct ini_line **inidata;
 	int inilines;
+	bool modified;
 };
 
 struct ini_context
