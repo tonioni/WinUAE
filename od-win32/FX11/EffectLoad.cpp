@@ -3,12 +3,8 @@
 //
 // Direct3D Effects file loading code
 //
-// THIS CODE AND INFORMATION IS PROVIDED "AS IS" WITHOUT WARRANTY OF
-// ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED TO
-// THE IMPLIED WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A
-// PARTICULAR PURPOSE.
-//
 // Copyright (c) Microsoft Corporation. All rights reserved.
+// Licensed under the MIT License.
 //
 // http://go.microsoft.com/fwlink/p/?LinkId=271568
 //--------------------------------------------------------------------------------------
@@ -18,11 +14,6 @@
 #include "EffectStates11.h"
 
 #define PRIVATENEW new(m_BulkHeap)
-
-typedef HRESULT(WINAPI* D3DREFLECT)(LPCVOID pSrcData, SIZE_T SrcDataSize, REFIID pInterface, void **ppReflector);
-extern D3DREFLECT pD3DReflect;
-typedef HRESULT(WINAPI *D3DGETBLOBPART)(LPCVOID pSrcData, SIZE_T SrcDataSize, D3D_BLOB_PART Part, UINT Flags, ID3DBlob** ppPart);
-extern D3DGETBLOBPART pD3DGetBlobPart;
 
 namespace D3DX11Effects
 {
@@ -191,7 +182,10 @@ inline HRESULT VerifyPointer(uint32_t oBase, uint32_t dwSize, uint32_t dwMaxSize
 // A simple class which assists in adding data to a block of memory
 //////////////////////////////////////////////////////////////////////////
 
-CEffectHeap::CEffectHeap() : m_pData(nullptr), m_dwSize(0), m_dwBufferSize(0)
+CEffectHeap::CEffectHeap() noexcept :
+    m_pData(nullptr),
+    m_dwSize(0),
+    m_dwBufferSize(0)
 {
 }
 
@@ -398,6 +392,35 @@ lExit:
 // CEffectLoader
 // A helper class which loads an effect
 //////////////////////////////////////////////////////////////////////////
+
+CEffectLoader::CEffectLoader() noexcept :
+    m_pData(nullptr),
+    m_pHeader(nullptr),
+    m_Version(0),
+    m_pEffect(nullptr),
+    m_pReflection(nullptr),
+    m_dwBufferSize(0),
+    m_pOldVars(nullptr),
+    m_pOldShaders(nullptr),
+    m_pOldDS(nullptr),
+    m_pOldAB(nullptr),
+    m_pOldRS(nullptr),
+    m_pOldCBs(nullptr),
+    m_pOldSamplers(nullptr),
+    m_OldInterfaceCount(0),
+    m_pOldInterfaces(nullptr),
+    m_pOldShaderResources(nullptr),
+    m_pOldUnorderedAccessViews(nullptr),
+    m_pOldRenderTargetViews(nullptr),
+    m_pOldDepthStencilViews(nullptr),
+    m_pOldStrings(nullptr),
+    m_pOldMemberDataBlocks(nullptr),
+    m_pvOldMemberInterfaces(nullptr),
+    m_pOldGroups(nullptr),
+    m_EffectMemory(0),
+    m_ReflectionMemory(0)
+{
+}
 
 _Use_decl_annotations_
 HRESULT CEffectLoader::GetUnstructuredDataBlock(uint32_t offset, uint32_t  *pdwSize, void **ppData)
@@ -1792,8 +1815,8 @@ HRESULT CEffectLoader::LoadAssignments( uint32_t Assignments, SAssignment **ppAs
             // Inline shader assignments must be object types
             assert(pAssignment->IsObjectAssignment());
 
-            C_ASSERT( offsetof(SBinaryAssignment::SInlineShader,oShader) == offsetof(SBinaryShaderData5,oShader) );
-            C_ASSERT( offsetof(SBinaryAssignment::SInlineShader,oSODecl) == offsetof(SBinaryShaderData5,oSODecls) );
+            static_assert(offsetof(SBinaryAssignment::SInlineShader, oShader) == offsetof(SBinaryShaderData5, oShader), "ECAT_InlineShader issue");
+            static_assert(offsetof(SBinaryAssignment::SInlineShader, oSODecl) == offsetof(SBinaryShaderData5, oSODecls), "ECAT_InlineShader5 issue");
             if( psAssignments[i].AssignmentType == ECAT_InlineShader )
             {
                 VHD( m_msUnstructured.ReadAtOffset(psAssignments[i].oInitializer, sizeof(*psInlineShader), (void**) &psInlineShader),
@@ -2050,8 +2073,8 @@ HRESULT CEffectLoader::LoadObjectVariables()
                     SBinaryShaderData5 *psInlineShader5;
                 };
 
-                C_ASSERT( offsetof(SBinaryGSSOInitializer,oShader) == 0 );
-                C_ASSERT( offsetof(SBinaryShaderData5,oShader) == 0 );
+                static_assert(offsetof(SBinaryGSSOInitializer, oShader) == 0, "Union issue");
+                static_assert(offsetof(SBinaryShaderData5, oShader) == 0, "Union issue");
 
 
                 pShaderBlock = &m_pEffect->m_pShaderBlocks[m_pEffect->m_ShaderBlockCount];
@@ -2627,7 +2650,7 @@ HRESULT CEffectLoader::GrabShaderData(SShaderBlock *pShaderBlock)
                             }
                             else
                             {
-                                DPF(0, "%s: Sampler %s[%u] does not have a texture bound to it, even though the sampler array is used in a DX9-style texture load instruction", g_szEffectLoadArea, pName, j);
+                                DPF(0, "%s: Sampler %s[%zu] does not have a texture bound to it, even though the sampler array is used in a DX9-style texture load instruction", g_szEffectLoadArea, pName, j);
                             }
                         
                             VH( E_FAIL );
@@ -3083,7 +3106,7 @@ HRESULT CEffectLoader::BuildShaderBlock(SShaderBlock *pShaderBlock)
     }
 
     // Initialize the reflection interface
-    VHD(pD3DReflect( pShaderBlock->pReflectionData->pBytecode, pShaderBlock->pReflectionData->BytecodeLength, IID_ID3D11ShaderReflection, (void**)&pShaderBlock->pReflectionData->pReflection ),
+    VHD( D3DReflect( pShaderBlock->pReflectionData->pBytecode, pShaderBlock->pReflectionData->BytecodeLength, IID_ID3D11ShaderReflection, (void**)&pShaderBlock->pReflectionData->pReflection ),
          "Internal loading error: cannot create shader reflection object." );
 
     // Get dependencies
@@ -3093,7 +3116,7 @@ HRESULT CEffectLoader::BuildShaderBlock(SShaderBlock *pShaderBlock)
     if( EOT_VertexShader == pShaderBlock->GetShaderType() )
     {
         assert( pShaderBlock->pInputSignatureBlob == nullptr );
-        VHD(pD3DGetBlobPart( pShaderBlock->pReflectionData->pBytecode, pShaderBlock->pReflectionData->BytecodeLength,
+        VHD( D3DGetBlobPart( pShaderBlock->pReflectionData->pBytecode, pShaderBlock->pReflectionData->BytecodeLength, 
                              D3D_BLOB_INPUT_SIGNATURE_BLOB, 0,
                              &pShaderBlock->pInputSignatureBlob ),
              "Internal loading error: cannot get input signature." );

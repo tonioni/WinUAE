@@ -3,12 +3,8 @@
 //
 // Effect API entry point
 //
-// THIS CODE AND INFORMATION IS PROVIDED "AS IS" WITHOUT WARRANTY OF
-// ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED TO
-// THE IMPLIED WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A
-// PARTICULAR PURPOSE.
-//
 // Copyright (c) Microsoft Corporation. All rights reserved.
+// Licensed under the MIT License.
 //
 // http://go.microsoft.com/fwlink/p/?LinkId=271568
 //--------------------------------------------------------------------------------------
@@ -23,16 +19,16 @@ using namespace D3DX11Effects;
 
 struct handle_closer { void operator()(HANDLE h) { if (h) CloseHandle(h); } };
 
-typedef public std::unique_ptr<void, handle_closer> ScopedHandle;
+typedef std::unique_ptr<void, handle_closer> ScopedHandle;
 
-inline HANDLE safe_handle( HANDLE h ) { return (h == INVALID_HANDLE_VALUE) ? 0 : h; }
+inline HANDLE safe_handle( HANDLE h ) { return (h == INVALID_HANDLE_VALUE) ? nullptr : h; }
 
 //-------------------------------------------------------------------------------------
 
 static HRESULT LoadBinaryFromFile( _In_z_ LPCWSTR pFileName, _Inout_ std::unique_ptr<uint8_t[]>& data, _Out_ uint32_t& size )
 {
     // open the file
-#if (0 && _WIN32_WINNT >= _WIN32_WINNT_WIN8)
+#if (_WIN32_WINNT >= _WIN32_WINNT_WIN8)
     ScopedHandle hFile( safe_handle( CreateFile2( pFileName,
                                                   GENERIC_READ,
                                                   FILE_SHARE_READ,
@@ -54,27 +50,20 @@ static HRESULT LoadBinaryFromFile( _In_z_ LPCWSTR pFileName, _Inout_ std::unique
     }
 
     // Get the file size
-    LARGE_INTEGER FileSize = { 0 };
-
-#if (0 && _WIN32_WINNT >= _WIN32_WINNT_VISTA)
     FILE_STANDARD_INFO fileInfo;
     if ( !GetFileInformationByHandleEx( hFile.get(), FileStandardInfo, &fileInfo, sizeof(fileInfo) ) )
     {
         return HRESULT_FROM_WIN32( GetLastError() );
     }
-    FileSize = fileInfo.EndOfFile;
-#else
-    GetFileSizeEx( hFile.get(), &FileSize );
-#endif
 
     // File is too big for 32-bit allocation or contains no data, so reject read
-    if ( !FileSize.LowPart || FileSize.HighPart > 0)
+    if ( !fileInfo.EndOfFile.LowPart || fileInfo.EndOfFile.HighPart > 0 )
     {
         return E_FAIL;
     }
 
     // create enough space for the file data
-    data.reset( new uint8_t[ FileSize.LowPart ] );
+    data.reset( new uint8_t[ fileInfo.EndOfFile.LowPart ] );
     if (!data)
     {
         return E_OUTOFMEMORY;
@@ -84,7 +73,7 @@ static HRESULT LoadBinaryFromFile( _In_z_ LPCWSTR pFileName, _Inout_ std::unique
     DWORD BytesRead = 0;
     if (!ReadFile( hFile.get(),
                    data.get(),
-                   FileSize.LowPart,
+                   fileInfo.EndOfFile.LowPart,
                    &BytesRead,
                    nullptr
                  ))
@@ -92,7 +81,7 @@ static HRESULT LoadBinaryFromFile( _In_z_ LPCWSTR pFileName, _Inout_ std::unique
         return HRESULT_FROM_WIN32( GetLastError() );
     }
 
-    if (BytesRead < FileSize.LowPart)
+    if (BytesRead < fileInfo.EndOfFile.LowPart)
     {
         return E_FAIL;
     }
@@ -179,20 +168,9 @@ lExit:
     return hr;
 }
 
-typedef HRESULT(WINAPI* D3DCOMPILE)(LPCVOID pSrcData,
-	SIZE_T SrcDataSize,
-	LPCSTR pSourceName,
-	CONST D3D_SHADER_MACRO* pDefines,
-	ID3DInclude* pInclude,
-	LPCSTR pEntrypoint,
-	LPCSTR pTarget,
-	UINT Flags1,
-	UINT Flags2,
-	ID3DBlob** ppCode,
-	ID3DBlob** ppErrorMsgs);
-extern D3DCOMPILE ppD3DCompile;
 
 //--------------------------------------------------------------------------------------
+
 _Use_decl_annotations_
 HRESULT D3DX11CompileEffectFromMemory( LPCVOID pData, SIZE_T DataLength, LPCSTR srcName,
                                        const D3D_SHADER_MACRO *pDefines, ID3DInclude *pInclude, UINT HLSLFlags, UINT FXFlags,
@@ -208,7 +186,7 @@ HRESULT D3DX11CompileEffectFromMemory( LPCVOID pData, SIZE_T DataLength, LPCSTR 
     }
 
     ID3DBlob *blob = nullptr;
-    HRESULT hr = ppD3DCompile( pData, DataLength, srcName, pDefines, pInclude, "", "fx_5_0", HLSLFlags, FXFlags, &blob, ppErrors );
+    HRESULT hr = D3DCompile( pData, DataLength, srcName, pDefines, pInclude, "", "fx_5_0", HLSLFlags, FXFlags, &blob, ppErrors );
     if ( FAILED(hr) )
     {
         DPF(0, "D3DCompile of fx_5_0 profile failed: %08X", hr );
@@ -230,18 +208,8 @@ lExit:
     }
     return hr;
 }
-//--------------------------------------------------------------------------------------
 
-typedef HRESULT(WINAPI* D3DCOMPILEFROMFILE)(LPCWSTR pFileName,
-	CONST D3D_SHADER_MACRO* pDefines,
-	ID3DInclude* pInclude,
-	LPCSTR pEntrypoint,
-	LPCSTR pTarget,
-	UINT Flags1,
-	UINT Flags2,
-	ID3DBlob** ppCode,
-	ID3DBlob** ppErrorMsgs);
-extern D3DCOMPILEFROMFILE pD3DCompileFromFile;
+//--------------------------------------------------------------------------------------
 
 _Use_decl_annotations_
 HRESULT D3DX11CompileEffectFromFile( LPCWSTR pFileName,
@@ -261,7 +229,7 @@ HRESULT D3DX11CompileEffectFromFile( LPCWSTR pFileName,
 
 #if (D3D_COMPILER_VERSION >= 46) && ( !defined(WINAPI_FAMILY) || ( (WINAPI_FAMILY != WINAPI_FAMILY_APP) && (WINAPI_FAMILY != WINAPI_FAMILY_PHONE_APP) ) )
 
-    HRESULT hr = pD3DCompileFromFile( pFileName, pDefines, pInclude, "", "fx_5_0", HLSLFlags, FXFlags, &blob, ppErrors );
+    HRESULT hr = D3DCompileFromFile( pFileName, pDefines, pInclude, "", "fx_5_0", HLSLFlags, FXFlags, &blob, ppErrors );
     if ( FAILED(hr) )
     {
         DPF(0, "D3DCompileFromFile of fx_5_0 profile failed %08X: %ls", hr, pFileName );
