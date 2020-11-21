@@ -9337,7 +9337,7 @@ static int fastram_select;
 static uae_u32 *fastram_select_pointer;
 static const int *fastram_select_msi;
 static struct ramboard *fastram_select_ramboard;
-
+#define MAX_STANDARD_RAM_BOARDS 2
 
 static void enable_for_memorydlg (HWND hDlg)
 {
@@ -9360,14 +9360,15 @@ static void enable_for_memorydlg (HWND hDlg)
 	ew (hDlg, IDC_Z3MAPPING, z3);
 	ew (hDlg, IDC_FASTTEXT, true);
 
-	bool isfast = fastram_select < 2 * MAX_RAM_BOARDS && fastram_select_ramboard && fastram_select_ramboard->size;
+	bool isfast = fastram_select >= MAX_STANDARD_RAM_BOARDS && fastram_select < MAX_STANDARD_RAM_BOARDS + 2 * MAX_RAM_BOARDS && fastram_select_ramboard && fastram_select_ramboard->size;
 	ew(hDlg, IDC_AUTOCONFIG_MANUFACTURER, isfast && !manual);
 	ew(hDlg, IDC_AUTOCONFIG_PRODUCT, isfast && !manual);
 	ew(hDlg, IDC_MEMORYBOARDSELECT, isfast);
 	ew(hDlg, IDC_AUTOCONFIG_DATA,  ac && size);
 	ew(hDlg, IDC_FASTMEMAUTOCONFIGUSE, isfast);
 	ew(hDlg, IDC_FASTMEMNOAUTOCONFIG, isfast);
-	ew(hDlg, IDC_FASTMEMDMA, isfast);
+	ew(hDlg, IDC_FASTMEMDMA, true);
+	ew(hDlg, IDC_FASTMEMFORCE16, true);
 	ew(hDlg, IDC_MEMORYRAM, true);
 	ew(hDlg, IDC_MEMORYMEM, true);
 	ew(hDlg, IDC_RAM_ADDRESS, manual && size);
@@ -9391,50 +9392,11 @@ static void setfastram_ramboard(HWND hDlg, int zram)
 	}
 }
 
-
-static void setfastram_selectmenu(HWND hDlg, int mode)
+static int getmemsize(uae_u32 size, const int *msi)
 {
-	int min;
-	int max;
-	const int *msi;
-	TCHAR tmp[200];
-	int zram = 0;
-	struct ramboard *fastram_select_ramboard_old = fastram_select_ramboard;
-
-	fastram_select_ramboard = NULL;
-	if (fastram_select < MAX_RAM_BOARDS) {
-		msi = msi_fast;
-		min = MIN_FAST_MEM;
-		max = MAX_FAST_MEM;
-		fastram_select_ramboard = &workprefs.fastmem[fastram_select];
-		fastram_select_pointer = &fastram_select_ramboard->size;
-		zram = 2;
-	} else if (fastram_select >= MAX_RAM_BOARDS && fastram_select < MAX_RAM_BOARDS * 2) {
-		msi = msi_z3fast;
-		min = MIN_Z3_MEM;
-		max = MAX_Z3_MEM;
-		fastram_select_ramboard = &workprefs.z3fastmem[fastram_select - MAX_RAM_BOARDS];
-		fastram_select_pointer = &fastram_select_ramboard->size;
-		zram = 3;
-	} else if (fastram_select == 2 * MAX_RAM_BOARDS) {
-		min = 0;
-		max = MAX_CB_MEM_128M;
-		msi = msi_cpuboard;
-		fastram_select_pointer = &workprefs.mbresmem_high.size;
-	} else if (fastram_select == 2 * MAX_RAM_BOARDS + 1) {
-		min = 0;
-		max = MAX_CB_MEM_64M;
-		msi = msi_cpuboard;
-		fastram_select_pointer = &workprefs.mbresmem_low.size;
-	} else {
-		return;
-	}
-
-	fastram_select_msi = msi;
-	uae_u32 v = *fastram_select_pointer;
 	int mem_size = 0;
 	if (msi == msi_fast) {
-		switch (v)
+		switch (size)
 		{
 		case 0x00000000: mem_size = 0; break;
 		case 0x00010000: mem_size = 1; break;
@@ -9447,32 +9409,142 @@ static void setfastram_selectmenu(HWND hDlg, int mode)
 		case 0x00800000: mem_size = 8; break;
 		case 0x01000000: mem_size = 9; break;
 		}
-	} else {
-		if (v < 0x00100000)
+	}
+	else if (msi == msi_chip) {
+		switch (size)
+		{
+		case 0x00040000: mem_size = 0; break;
+		case 0x00080000: mem_size = 1; break;
+		case 0x00100000: mem_size = 2; break;
+		case 0x00180000: mem_size = 3; break;
+		case 0x00200000: mem_size = 4; break;
+		case 0x00400000: mem_size = 5; break;
+		case 0x00800000: mem_size = 6; break;
+		}
+	}
+	else if (msi == msi_bogo) {
+		switch (size)
+		{
+		case 0x00000000: mem_size = 0; break;
+		case 0x00080000: mem_size = 1; break;
+		case 0x00100000: mem_size = 2; break;
+		case 0x00180000: mem_size = 3; break;
+		case 0x001C0000: mem_size = 4; break;
+		}
+	}
+	else {
+		if (size < 0x00100000)
 			mem_size = 0;
-		else if (v < 0x00200000)
+		else if (size < 0x00200000)
 			mem_size = 1;
-		else if (v < 0x00400000)
+		else if (size < 0x00400000)
 			mem_size = 2;
-		else if (v < 0x00800000)
+		else if (size < 0x00800000)
 			mem_size = 3;
-		else if (v < 0x01000000)
+		else if (size < 0x01000000)
 			mem_size = 4;
-		else if (v < 0x02000000)
+		else if (size < 0x02000000)
 			mem_size = 5;
-		else if (v < 0x04000000)
+		else if (size < 0x04000000)
 			mem_size = 6;
-		else if (v < 0x08000000)
+		else if (size < 0x08000000)
 			mem_size = 7;
-		else if (v < 0x10000000)
+		else if (size < 0x10000000)
 			mem_size = 8;
-		else if (v < 0x20000000)
+		else if (size < 0x20000000)
 			mem_size = 9;
-		else if (v < 0x40000000)
+		else if (size < 0x40000000)
 			mem_size = 10;
 		else // 1GB
 			mem_size = 11;
 	}
+	return mem_size;
+}
+
+static void addadvancedram(HWND hDlg, struct ramboard *rb, const TCHAR *name)
+{
+	const int* msi;
+	TCHAR tmp[200];
+	_tcscpy(tmp, name);
+	if (rb == &workprefs.chipmem) {
+		msi = msi_chip;
+	} else if (rb == &workprefs.bogomem) {
+		msi = msi_bogo;
+	} else if (rb == &workprefs.z3chipmem) {
+		msi = msi_z3chip;
+	} else {
+		return;
+	}
+	if (rb->size) {
+		int mem_size = getmemsize(rb->size, msi);
+		_tcscat(tmp, _T(" "));
+		_tcscat(tmp, memsize_names[msi[mem_size]]);
+	}
+	SendDlgItemMessage(hDlg, IDC_MEMORYSELECT, CB_ADDSTRING, 0, (LPARAM)tmp);
+}
+
+static void setfastram_selectmenu(HWND hDlg, int mode)
+{
+	int min;
+	int max;
+	const int *msi;
+	TCHAR tmp[200];
+	int zram = 0;
+	struct ramboard *fastram_select_ramboard_old = fastram_select_ramboard;
+
+	fastram_select_ramboard = NULL;
+	if (fastram_select == 0) {
+		min = 0;
+		max = MAX_CHIP_MEM;
+		msi = msi_chip;
+		fastram_select_pointer = &workprefs.chipmem.size;
+		fastram_select_ramboard = &workprefs.chipmem;
+	} else if (fastram_select == 1) {
+		min = 0;
+		max = MAX_SLOW_MEM;
+		msi = msi_bogo;
+		fastram_select_pointer = &workprefs.bogomem.size;
+		fastram_select_ramboard = &workprefs.bogomem;
+	} else if (fastram_select < MAX_STANDARD_RAM_BOARDS + MAX_RAM_BOARDS) {
+		msi = msi_fast;
+		min = MIN_FAST_MEM;
+		max = MAX_FAST_MEM;
+		fastram_select_ramboard = &workprefs.fastmem[fastram_select - MAX_STANDARD_RAM_BOARDS];
+		fastram_select_pointer = &fastram_select_ramboard->size;
+		zram = 2;
+	} else if (fastram_select >= MAX_STANDARD_RAM_BOARDS + MAX_RAM_BOARDS && fastram_select < MAX_STANDARD_RAM_BOARDS + MAX_RAM_BOARDS * 2) {
+		msi = msi_z3fast;
+		min = MIN_Z3_MEM;
+		max = MAX_Z3_MEM;
+		fastram_select_ramboard = &workprefs.z3fastmem[fastram_select - (MAX_RAM_BOARDS + MAX_STANDARD_RAM_BOARDS)];
+		fastram_select_pointer = &fastram_select_ramboard->size;
+		zram = 3;
+	} else if (fastram_select == MAX_STANDARD_RAM_BOARDS + 2 * MAX_RAM_BOARDS) {
+		min = 0;
+		max = MAX_CB_MEM_128M;
+		msi = msi_cpuboard;
+		fastram_select_pointer = &workprefs.mbresmem_high.size;
+		fastram_select_ramboard = &workprefs.mbresmem_high;
+	} else if (fastram_select == MAX_STANDARD_RAM_BOARDS + 2 * MAX_RAM_BOARDS + 1) {
+		min = 0;
+		max = MAX_CB_MEM_64M;
+		msi = msi_cpuboard;
+		fastram_select_pointer = &workprefs.mbresmem_low.size;
+		fastram_select_ramboard = &workprefs.mbresmem_low;
+	} else if (fastram_select == MAX_STANDARD_RAM_BOARDS + 2 * MAX_RAM_BOARDS + 2) {
+		min = 0;
+		max = MAX_Z3_CHIPMEM;
+		msi = msi_z3chip;
+		fastram_select_pointer = &workprefs.z3chipmem.size;
+		fastram_select_ramboard = &workprefs.z3chipmem;
+	} else {
+		return;
+	}
+
+	fastram_select_msi = msi;
+	uae_u32 v = *fastram_select_pointer;
+	int mem_size = getmemsize(v, msi);
+
 	SendDlgItemMessage(hDlg, IDC_MEMORYMEM, TBM_SETRANGE, TRUE, MAKELONG(min, max));
 	SendDlgItemMessage(hDlg, IDC_MEMORYMEM, TBM_SETPOS, TRUE, mem_size);
 	SetDlgItemText(hDlg, IDC_MEMORYRAM, memsize_names[msi[mem_size]]);
@@ -9482,6 +9554,7 @@ static void setfastram_selectmenu(HWND hDlg, int mode)
 	setchecked(hDlg, IDC_FASTMEMAUTOCONFIGUSE, rb && rb->autoconfig_inuse);
 	setchecked(hDlg, IDC_FASTMEMNOAUTOCONFIG, rb && rb->manual_config);
 	setchecked(hDlg, IDC_FASTMEMDMA, rb && rb->nodma == 0);
+	setchecked(hDlg, IDC_FASTMEMFORCE16, rb && rb->force16bit != 0);
 	if (rb) {
 		if (rb->manual_config) {
 			if (rb->end_address <= rb->start_address || rb->start_address + rb->size < rb->end_address)
@@ -9507,21 +9580,23 @@ static void setfastram_selectmenu(HWND hDlg, int mode)
 				ew(hDlg, IDC_MEMORYBOARDSELECT, FALSE);
 			}
 		}
-
-		struct autoconfig_info *aci = expansion_get_autoconfig_info(&workprefs, fastram_select < MAX_RAM_BOARDS ? ROMTYPE_RAMZ2 : ROMTYPE_RAMZ3, fastram_select % MAX_RAM_BOARDS);
-		if (!rb->autoconfig_inuse) {
-			if (aci) {
-				memcpy(rb->autoconfig, aci->autoconfig_bytes, sizeof rb->autoconfig);
-			}
-			if (rb->manufacturer) {
-				rb->autoconfig[1] = rb->product;
-				rb->autoconfig[4] = (rb->manufacturer >> 8) & 0xff;
-				rb->autoconfig[5] = rb->manufacturer & 0xff;
-			} else {
-				memset(rb->autoconfig, 0, sizeof rb->autoconfig);
-				aci = expansion_get_autoconfig_info(&workprefs, fastram_select < MAX_RAM_BOARDS ? ROMTYPE_RAMZ2 : ROMTYPE_RAMZ3, fastram_select % MAX_RAM_BOARDS);
+		struct autoconfig_info* aci = NULL;
+		if (fastram_select >= MAX_STANDARD_RAM_BOARDS && fastram_select < MAX_STANDARD_RAM_BOARDS + 2 * MAX_RAM_BOARDS) {
+			aci = expansion_get_autoconfig_info(&workprefs, fastram_select < MAX_STANDARD_RAM_BOARDS + MAX_RAM_BOARDS ? ROMTYPE_RAMZ2 : ROMTYPE_RAMZ3, fastram_select % MAX_RAM_BOARDS);
+			if (!rb->autoconfig_inuse) {
 				if (aci) {
 					memcpy(rb->autoconfig, aci->autoconfig_bytes, sizeof rb->autoconfig);
+				}
+				if (rb->manufacturer) {
+					rb->autoconfig[1] = rb->product;
+					rb->autoconfig[4] = (rb->manufacturer >> 8) & 0xff;
+					rb->autoconfig[5] = rb->manufacturer & 0xff;
+				} else {
+					memset(rb->autoconfig, 0, sizeof rb->autoconfig);
+					aci = expansion_get_autoconfig_info(&workprefs, fastram_select < MAX_RAM_BOARDS ? ROMTYPE_RAMZ2 : ROMTYPE_RAMZ3, fastram_select% MAX_RAM_BOARDS);
+					if (aci) {
+						memcpy(rb->autoconfig, aci->autoconfig_bytes, sizeof rb->autoconfig);
+					}
 				}
 			}
 		}
@@ -9581,6 +9656,8 @@ static void setfastram_selectmenu(HWND hDlg, int mode)
 	}
 
 	SendDlgItemMessage(hDlg, IDC_MEMORYSELECT, CB_RESETCONTENT, 0, 0);
+	addadvancedram(hDlg, &workprefs.chipmem, _T("Chip RAM"));
+	addadvancedram(hDlg, &workprefs.bogomem, _T("Slow RAM"));
 	for (int i = 0; i < MAX_RAM_BOARDS; i++) {
 		struct autoconfig_info *aci = expansion_get_autoconfig_info(&workprefs, ROMTYPE_RAMZ2, i);
 		_stprintf(tmp, _T("Z2 Fast Ram #%d"), i + 1);
@@ -9606,16 +9683,11 @@ static void setfastram_selectmenu(HWND hDlg, int mode)
 			}
 			SendDlgItemMessage(hDlg, IDC_MEMORYSELECT, CB_ADDSTRING, 0, (LPARAM)tmp);
 		}
-		_tcscpy(tmp, _T("Processor Slot Fast RAM"));
-		if (workprefs.mbresmem_high.size)
-			_stprintf(tmp + _tcslen(tmp), _T(" [%dM]"), workprefs.mbresmem_high.size / (1024 * 1024));
-		SendDlgItemMessage(hDlg, IDC_MEMORYSELECT, CB_ADDSTRING, 0, (LPARAM)tmp);
-		_tcscpy(tmp, _T("Motherboard Fast RAM"));
-		if (workprefs.mbresmem_low.size)
-			_stprintf(tmp + _tcslen(tmp), _T(" [%dM]"), workprefs.mbresmem_low.size / (1024 * 1024));
-		SendDlgItemMessage(hDlg, IDC_MEMORYSELECT, CB_ADDSTRING, 0, (LPARAM)tmp);
+		addadvancedram(hDlg, &workprefs.mbresmem_high, _T("Processor Slot Fast RAM"));
+		addadvancedram(hDlg, &workprefs.mbresmem_low, _T("Motherboard Fast RAM"));
+		addadvancedram(hDlg, &workprefs.z3chipmem, _T("32-bit Chip RAM"));
 	} else {
-		if (fastram_select >= MAX_RAM_BOARDS)
+		if (fastram_select >= MAX_STANDARD_RAM_BOARDS + MAX_RAM_BOARDS)
 			fastram_select = 0;
 	}
 	SendDlgItemMessage(hDlg, IDC_MEMORYSELECT, CB_SETCURSEL, fastram_select, 0);
@@ -11554,6 +11626,14 @@ static INT_PTR CALLBACK MemoryDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARA
 					rb->nodma = ischecked(hDlg, IDC_FASTMEMDMA) == 0;
 					setfastram_selectmenu(hDlg, 0);
 				}
+				break;
+			case IDC_FASTMEMFORCE16:
+				if (fastram_select_ramboard) {
+					struct ramboard* rb = fastram_select_ramboard;
+					rb->force16bit = ischecked(hDlg, IDC_FASTMEMFORCE16) != 0;
+					setfastram_selectmenu(hDlg, 0);
+				}
+				break;
 			case IDC_FASTMEMAUTOCONFIGUSE:
 				if (fastram_select_ramboard) {
 					struct ramboard* rb = fastram_select_ramboard;
@@ -11562,7 +11642,7 @@ static INT_PTR CALLBACK MemoryDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARA
 					setfastram_selectmenu(hDlg, 0);
 				}
 				break;
-				case IDC_FASTMEMNOAUTOCONFIG:
+			case IDC_FASTMEMNOAUTOCONFIG:
 				if (fastram_select_ramboard) {
 					struct ramboard *rb = fastram_select_ramboard;
 					rb->manual_config = ischecked(hDlg, IDC_FASTMEMNOAUTOCONFIG);

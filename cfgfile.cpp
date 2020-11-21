@@ -469,6 +469,15 @@ TCHAR *cfgfile_option_get(const TCHAR *s, const TCHAR *option)
 	return cfgfile_option_find_it(s, option, true);
 }
 
+bool cfgfile_option_get_bool(const TCHAR* s, const TCHAR* option)
+{
+	TCHAR *d = cfgfile_option_find_it(s, option, true);
+	bool ret = d && (!_tcsicmp(d, _T("true")) || !_tcsicmp(d, _T("1")));
+	xfree(d);
+	return ret;
+}
+
+
 static void trimwsa (char *s)
 {
 	/* Delete trailing whitespace.  */
@@ -1626,14 +1635,12 @@ static bool cfgfile_readramboard(const TCHAR *option, const TCHAR *value, const 
 			if (s)
 				rb->product = (uae_u8)_tstol(s);
 			xfree(s);
-			s = cfgfile_option_get(value, _T("no_reset_unmap"));
-			if (s)
+			if (cfgfile_option_get_bool(value, _T("no_reset_unmap")))
 				rb->no_reset_unmap = true;
-			xfree(s);
-			s = cfgfile_option_get(value, _T("nodma"));
-			if (s)
+			if (cfgfile_option_get_bool(value, _T("nodma")))
 				rb->nodma = true;
-			xfree(s);
+			if (cfgfile_option_get_bool(value, _T("force16bit")))
+				rb->force16bit = true;
 			s = cfgfile_option_get(value, _T("data"));
 			if (s && _tcslen(s) >= 3 * 16 - 1) {
 				rb->autoconfig_inuse = true;
@@ -1754,6 +1761,12 @@ static void cfgfile_writeramboard(struct uae_prefs *prefs, struct zfile *f, cons
 		if (tmp2[0])
 			*p++ = ',';
 		_tcscpy(p, _T("nodma=true"));
+		p += _tcslen(p);
+	}
+	if (rb->force16bit) {
+		if (tmp2[0])
+			*p++ = ',';
+		_tcscpy(p, _T("force16bit=true"));
 		p += _tcslen(p);
 	}
 	if (rb->autoconfig_inuse) {
@@ -6099,7 +6112,7 @@ void cfgfile_compatibility_rtg(struct uae_prefs *p)
 				for (int j = i; j < MAX_RTG_BOARDS; j++) {
 					rtgs[j] = 1;
 					if (gfxboard_get_romtype(&p->rtgboards[j]) == romtype) {
-						TCHAR *romname = NULL;
+						const TCHAR *romname = NULL;
 						if (romtype == ROMTYPE_PICASSOIV) {
 							romname = p->picassoivromfile;
 						} else if (romtype == ROMTYPE_x86_VGA) {

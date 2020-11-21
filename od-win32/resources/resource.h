@@ -1244,6 +1244,7 @@
 #define IDC_STATENAME                   1811
 #define IDC_FASTMEMDMA                  1811
 #define IDC_SAMPLER_STEREO              1812
+#define IDC_FASTMEMFORCE16              1812
 #define IDC_LISTDIALOG_LIST             1813
 #define IDC_LOGPATH                     1814
 #define IDC_MIDIROUTER                  1815
