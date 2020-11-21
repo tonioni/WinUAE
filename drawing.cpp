@@ -3868,8 +3868,8 @@ static void lightpen_update(struct vidbuffer *vb, int lpnum)
 		}
 	}
 
-	lightpen_y1[lpnum] = lightpen_y[lpnum] - LIGHTPEN_HEIGHT / 2 - 1 + min_ypos_for_screen;
-	lightpen_y2[lpnum] = lightpen_y1[lpnum] + LIGHTPEN_HEIGHT + 2;
+	lightpen_y1[lpnum] = lightpen_y[lpnum] - LIGHTPEN_HEIGHT / 2 - 1 + thisframe_y_adjust;
+	lightpen_y2[lpnum] = lightpen_y1[lpnum] + LIGHTPEN_HEIGHT + 1 + thisframe_y_adjust;
 
 	lightpen_cx[lpnum] = cx;
 	lightpen_cy[lpnum] = cy;
