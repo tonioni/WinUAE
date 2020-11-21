@@ -537,7 +537,7 @@ int svga_poll(void *p)
                         svga->hdisp_on=1;
                         
                         svga->ma &= svga->vram_display_mask;
-                        if (svga->firstline == 2000)
+                        if (svga->firstline == 4000)
                         {
                                 svga->firstline = svga->displine;
                                 video_wait_for_buffer();
@@ -581,7 +581,7 @@ int svga_poll(void *p)
                         svga->cgastat &= ~8;
                 }
                 svga->vslines++;
-                if (svga->displine > 1500)
+                if (svga->displine > 3500)
                         svga->displine = 0;
 //                pclog("Col is %08X %08X %08X   %i %i  %08X\n",((uint32_t *)buffer32->line[displine])[320],((uint32_t *)buffer32->line[displine])[321],((uint32_t *)buffer32->line[displine])[322],
 //                                                                displine, vc, ma);
@@ -684,16 +684,18 @@ int svga_poll(void *p)
 
                         wx = x;
                         wy = svga->lastline - svga->firstline;
+                        if (svga->interlace)
+                            wy /= 2;
 
                         if (!svga->override)
                                 svga_doblit(svga->firstline_draw, svga->lastline_draw + 1, wx, wy, svga);
 
                         readflash = 0;
 
-                        svga->firstline = 2000;
+                        svga->firstline = 4000;
                         svga->lastline = 0;
                         
-                        svga->firstline_draw = 2000;
+                        svga->firstline_draw = 4000;
                         svga->lastline_draw = 0;
                         
                         svga->oddeven ^= 1;

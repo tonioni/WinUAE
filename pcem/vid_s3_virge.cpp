@@ -605,8 +605,6 @@ static void s3_virge_recalctimings(svga_t *svga)
             }
         }
 
-        svga->horizontal_linedbl = svga->dispend * 9 / 10 >= svga->hdisp;
-
         if ((svga->crtc[0x67] & 0xc) != 0xc) /*VGA mode*/
         {
                 svga->ma_latch |= (virge->ma_ext << 16);
@@ -707,6 +705,7 @@ static void s3_virge_recalctimings(svga_t *svga)
 
                 svga->clock = (cpuclock * (float)(1ull << 32)) / freq;
         }
+        svga->horizontal_linedbl = svga->dispend * 9 / 10 >= svga->hdisp;
 }
 
 static void s3_virge_updatemapping(virge_t *virge)

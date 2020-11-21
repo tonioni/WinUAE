@@ -403,7 +403,7 @@ static void gd5429_overlay_draw(svga_t *svga, int displine)
     gd5429_t *gd5429 = (gd5429_t*)svga->p;
     int shift = gd5429->type >= CL_TYPE_GD5446 ? 2 : 0;
     int h_acc = svga->overlay_latch.h_acc;
-    int r[8], g[8], b[8], ck[8];
+    int r[8], g[8], b[8];
     int x_read = 4, x_write = 4;
     int x;
     uint32_t *p;

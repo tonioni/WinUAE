@@ -1262,8 +1262,6 @@ void s3_recalctimings(svga_t *svga)
         svga->interlace = svga->crtc[0x42] & 0x20;
         //svga->clock = (cpuclock * (float)(1ull << 32)) / s3->getclock(clk_sel, s3->getclock_p);
 
-        svga->horizontal_linedbl = svga->dispend * 9 / 10 >= svga->hdisp;
-
         switch (svga->crtc[0x67] >> 4)
         {
                 case 3: case 5: case 7:
@@ -1298,6 +1296,8 @@ void s3_recalctimings(svga_t *svga)
                         break;
                 }
         }
+
+        svga->horizontal_linedbl = svga->dispend * 9 / 10 >= svga->hdisp;
 }
 
 void s3_updatemapping(s3_t *s3)

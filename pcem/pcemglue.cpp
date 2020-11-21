@@ -519,10 +519,10 @@ void initpcemvideo(void *p, bool swapped)
 	}
 
 	if (!buffer32) {
-		buffer32 = (PCBITMAP *)calloc(sizeof(PCBITMAP) + sizeof(uint8_t *) * 2048, 1);
-		buffer32->dat = xcalloc(uae_u8, 2048 * 2048 * 4);
+		buffer32 = (PCBITMAP *)calloc(sizeof(PCBITMAP) + sizeof(uint8_t *) * 4096, 1);
 		buffer32->w = 2048;
-		buffer32->h = 2048;
+		buffer32->h = 4096;
+		buffer32->dat = xcalloc(uae_u8, buffer32->w * buffer32->h * 4);
 		for (int i = 0; i < buffer32->h; i++) {
 			buffer32->line[i] = buffer32->dat + buffer32->w * 4 * i;
 		}
