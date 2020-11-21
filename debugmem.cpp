@@ -3856,11 +3856,17 @@ uae_u32 debugmem_chiphit(uaecptr addr, uae_u32 v, int size)
 		}
 	} else {
 		size = -size;
+
 		// execbase?
 		if (size == 4 && addr == 4) {
 			recursive--;
-			return do_get_mem_long((uae_u32*)(chipmem_bank.baseaddr + 4));
+			return do_get_mem_long((uae_u32*)(chipmem_bank.baseaddr + addr));
 		}
+		if (size == 2 && (addr == 4 || addr == 6) && (currprefs.cpu_model < 68020 || ce_banktype[0] == CE_MEMBANK_CHIP16)) {
+			recursive--;
+			return do_get_mem_word((uae_u16*)(chipmem_bank.baseaddr + addr));
+		}
+
 		// exception vectors
 		if (regs.vbr < 0x100) {
 			// vbr == 0 so skip aligned long reads
@@ -3868,7 +3874,12 @@ uae_u32 debugmem_chiphit(uaecptr addr, uae_u32 v, int size)
 				recursive--;
 				return do_get_mem_long((uae_u32*)(chipmem_bank.baseaddr + addr));
 			}
+			if (size == 2 && addr >= regs.vbr + 8 && addr < regs.vbr + 0xe0 && (currprefs.cpu_model < 68020 || ce_banktype[0] == CE_MEMBANK_CHIP16)) {
+				recursive--;
+				return do_get_mem_word((uae_u16*)(chipmem_bank.baseaddr + addr));
+			}
 		}
+
 		if (debugmem_active && debugmem_mapped) {
 			console_out_f(_T("%s read from %08x\n"), size == 4 ? _T("Long") : (size == 2 ? _T("Word") : _T("Byte")), addr);
 			dbg = debugmem_break(7);
