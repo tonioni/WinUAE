@@ -2,6 +2,8 @@
 #include <windows.h>
 #include "resource.h"
 
+#define FX11 1
+
 #include <DXGI1_5.h>
 #include <dxgi1_6.h>
 #include <d3d11.h>
@@ -965,6 +967,7 @@ static void fxremoveline(char *s, char *dst, const char **lines)
 	*d = 0;
 }
 
+#if FX11
 
 static bool psEffect_LoadEffect(struct d3d11struct *d3d, const TCHAR *shaderfile, struct shaderdata11 *s, int num)
 {
@@ -979,6 +982,9 @@ static bool psEffect_LoadEffect(struct d3d11struct *d3d, const TCHAR *shaderfile
 	char *fx1 = NULL;
 	char *fx2 = NULL;
 	char *name = NULL;
+	int layout = 0;
+	char *fx;
+	int size;
 
 	if (!pD3DCompileFromFile || !ppD3DCompile) {
 		write_log(_T("D3D11 No shader compiler available (D3DCompiler_46.dll or D3DCompiler_47.dll).\n"));
@@ -1014,7 +1020,7 @@ static bool psEffect_LoadEffect(struct d3d11struct *d3d, const TCHAR *shaderfile
 		write_log(_T("Failed to open '%s'\n"), tmp);
 		goto end;
 	}
-	int size = zfile_size(z);
+	size = zfile_size(z);
 	fx1 = xcalloc(char, size * 4);
 	fx2 = xcalloc(char, size * 4);
 	if (zfile_fread(fx1, 1, size, z) != size) {
@@ -1025,7 +1031,7 @@ static bool psEffect_LoadEffect(struct d3d11struct *d3d, const TCHAR *shaderfile
 	zfile_fclose(z);
 	z = NULL;
 
-	char *fx = fx1;
+	fx = fx1;
 	if (fxneedconvert(fx1)) {
 		static const char *converts1[] = { "technique", "vs_3_0", "vs_2_0", "vs_1_1", "ps_3_0", "ps_2_0", NULL };
 		static const char *converts2[] = { "technique10", "vs_4_0_level_9_3", "vs_4_0_level_9_3", "vs_4_0_level_9_3", "ps_4_0_level_9_3", "ps_4_0_level_9_3", NULL };
@@ -1069,7 +1075,6 @@ static bool psEffect_LoadEffect(struct d3d11struct *d3d, const TCHAR *shaderfile
 
 	s->effect = g_pEffect;
 
-	int layout = 0;
 	s->CombineTechniqueEffectIndex = layout;
 	layout = createfxlayout(d3d, s, s->m_CombineTechniqueEffectHandle, layout);
 	s->PreprocessTechnique1EffectIndex = layout;
@@ -1115,6 +1120,16 @@ end:
 	xfree(name);
 	return false;
 }
+
+#else
+
+static bool psEffect_LoadEffect(struct d3d11struct* d3d, const TCHAR* shaderfile, struct shaderdata11* s, int num)
+{
+	write_log(_T("FX11 disabled\n"));
+	return false;
+}
+
+#endif
 
 static bool psEffect_SetMatrices(D3DXMATRIX *matProj, D3DXMATRIX *matView, D3DXMATRIX *matWorld, struct shaderdata11 *s)
 {
@@ -2472,6 +2487,7 @@ static int createmask2texture(struct d3d11struct *d3d, const TCHAR *filename)
 	ID3D11Texture2D *tx = NULL;
 	HRESULT hr;
 	TCHAR filepath[MAX_DPATH];
+	float xmult, ymult;
 
 	freesprite(&d3d->mask2texture);
 	for (int i = 0; overlayleds[i]; i++) {
@@ -2601,8 +2617,8 @@ static int createmask2texture(struct d3d11struct *d3d, const TCHAR *filename)
 		allocsprite(d3d, &d3d->blanksprite, d3d->mask2texture_offsetw + 1, d3d->m_screenHeight, false);
 	}
 
-	float xmult = d3d->mask2texture_multx;
-	float ymult = d3d->mask2texture_multy;
+	xmult = d3d->mask2texture_multx;
+	ymult = d3d->mask2texture_multy;
 
 	d3d->mask2rect.left *= xmult;
 	d3d->mask2rect.right *= xmult;

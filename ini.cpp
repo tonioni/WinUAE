@@ -403,6 +403,7 @@ bool ini_getdata_multi(struct ini_data *ini, const TCHAR *section, const TCHAR *
 	uae_u8 *outp = NULL;
 	int len;
 	bool quoted = false;
+	int j = 0;
 
 	if (!ini_getstring_multi(ini, section, key, &out2, ctx))
 		return false;
@@ -412,7 +413,6 @@ bool ini_getdata_multi(struct ini_data *ini, const TCHAR *section, const TCHAR *
 	if (!outp)
 		goto err;
 
-	int j = 0;
 	for (int i = 0; i < len; ) {
 		TCHAR c1 = _totupper(out2[i + 0]);
 		if (c1 == '\"') {
@@ -548,7 +548,7 @@ bool ini_addstring(struct ini_data *ini, const TCHAR *section, const TCHAR *key,
 			if (il->key == NULL)
 				return true;
 			if (!_tcsicmp(key, il->key)) {
-				TCHAR* v = val ? val : _T("");
+				const TCHAR *v = val ? val : _T("");
 				if (il->value && !_tcscmp(il->value, v))
 					return true;
 				xfree(il->value);

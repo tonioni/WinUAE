@@ -2119,6 +2119,8 @@ static bool debugger_load_library(const TCHAR *name)
 	bool ret = false;
 	int filelen;
 	struct zfile *zf = NULL;
+	struct libname* lvo = NULL;
+	int lvoid = 1;
 
 	if (libraries_loaded)
 		return true;
@@ -2150,8 +2152,6 @@ static bool debugger_load_library(const TCHAR *name)
 		libsymbols = xcalloc(struct libsymbol, 10000);
 	}
 
-	struct libname *lvo = NULL;
-	int lvoid = 1;
 	for (;;) {
 		if (p == file + filelen) {
 			ret = true;

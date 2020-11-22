@@ -820,24 +820,6 @@
     <ClCompile Include="..\direct3d11.cpp">
       <Filter>win32</Filter>
     </ClCompile>
-    <ClCompile Include="..\FX11\d3dxGlobal.cpp">
-      <Filter>win32\FX11</Filter>
-    </ClCompile>
-    <ClCompile Include="..\FX11\EffectLoad.cpp">
-      <Filter>win32\FX11</Filter>
-    </ClCompile>
-    <ClCompile Include="..\FX11\EffectNonRuntime.cpp">
-      <Filter>win32\FX11</Filter>
-    </ClCompile>
-    <ClCompile Include="..\FX11\EffectReflection.cpp">
-      <Filter>win32\FX11</Filter>
-    </ClCompile>
-    <ClCompile Include="..\FX11\EffectRuntime.cpp">
-      <Filter>win32\FX11</Filter>
-    </ClCompile>
-    <ClCompile Include="..\FX11\EffectAPI.cpp">
-      <Filter>win32\FX11</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\debugmem.cpp">
       <Filter>common</Filter>
     </ClCompile>
@@ -969,6 +951,24 @@
     </ClCompile>
     <ClCompile Include="..\..\pcem\vid_cl5429.cpp">
       <Filter>pcem</Filter>
+    </ClCompile>
+    <ClCompile Include="..\FX11\d3dxGlobal.cpp">
+      <Filter>win32\FX11</Filter>
+    </ClCompile>
+    <ClCompile Include="..\FX11\EffectAPI.cpp">
+      <Filter>win32\FX11</Filter>
+    </ClCompile>
+    <ClCompile Include="..\FX11\EffectLoad.cpp">
+      <Filter>win32\FX11</Filter>
+    </ClCompile>
+    <ClCompile Include="..\FX11\EffectNonRuntime.cpp">
+      <Filter>win32\FX11</Filter>
+    </ClCompile>
+    <ClCompile Include="..\FX11\EffectReflection.cpp">
+      <Filter>win32\FX11</Filter>
+    </ClCompile>
+    <ClCompile Include="..\FX11\EffectRuntime.cpp">
+      <Filter>win32\FX11</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

@@ -197,6 +197,8 @@ struct x86_bridge
 	uae_u8 vlsi_regs[0x100];
 	uae_u16 vlsi_regs_ems[64];
 	bool vlsi_config;
+	int a2386flipper;
+	bool a2386_amigapcdrive;
 };
 static int x86_found;
 
@@ -394,6 +396,7 @@ static uae_u8 x86_bridge_put_io(struct x86_bridge *xb, uaecptr addr, uae_u8 v)
 			v |= 2;
 		else if (!(v & 2))
 			v |= 1;
+		xb->a2386flipper = (v >> 5) & 3;
 #if X86_DEBUG_BRIDGE_IO
 		write_log(_T("IO_CONTROL_REGISTER %02X -> %02x\n"), old, v);
 #endif
@@ -434,8 +437,13 @@ static uae_u8 x86_bridge_put_io(struct x86_bridge *xb, uaecptr addr, uae_u8 v)
 			xb->a2386_default_video = v & 1;
 			write_log(_T("A2386 Default mode = %s\n"), xb->a2386_default_video ? _T("MDA") : _T("CGA"));
 		}
-		if (v == 6 || v == 7)
+		if (v == 6 || v == 7) {
 			xb->pc_speaker = (v & 1) != 0;
+		}
+		if (v == 10 || v == 11) {
+			xb->a2386_amigapcdrive = (v & 1) != 0;
+			write_log(_T("A2386 Flipper mode = %s\n"), xb->a2386_amigapcdrive ? _T("PC") : _T("Amiga"));
+		}
 		break;
 
 		default:
@@ -699,9 +707,9 @@ static int floppy_selected(void)
 static bool floppy_valid_rate(struct floppy_reserved *fr)
 {
 	struct x86_bridge *xb = bridges[0];
-	// A2386 BIOS sets 720k data rate for both 720k and 1.4M drives
+	// A2386 BIOS sets 720k data rate for 720k, 1.2M and 1.4M drives
 	// probably because it thinks Amiga half-speed drive is connected?
-	if (xb->type == TYPE_2386 && fr->rate == 0 && floppy_rate == 2)
+	if (xb->type == TYPE_2386 && fr->rate == 0 && (floppy_rate == 1 || floppy_rate == 2))
 		return true;
 	return fr->rate == floppy_rate || floppy_rate < 0;
 }
@@ -3186,6 +3194,8 @@ static void bridge_reset(struct x86_bridge *xb)
 	xb->pc_irq3a = xb->pc_irq3b = xb->pc_irq7 = false;
 	xb->mode_register = -1;
 	xb->video_initialized = false;
+	xb->a2386flipper = 0;
+	xb->a2386_amigapcdrive = false;
 	x86_cpu_active = false;
 	memset(xb->amiga_io, 0, 0x50000);
 	memset(xb->io_ports, 0, 0x10000);

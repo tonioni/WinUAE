@@ -30,7 +30,7 @@ extern unsigned long timeframes;
 
 // Do it this way because stupid LogitechLCDLib.lib LogiLcdInit() refuses to link.
 
-typedef bool(__cdecl *LOGILCDINIT)(wchar_t*, int);
+typedef bool(__cdecl *LOGILCDINIT)(const wchar_t*, int);
 static LOGILCDINIT pLogiLcdInit;
 typedef bool(__cdecl *LOGILCDISCONNECTED)(int);
 static LOGILCDISCONNECTED pLogiLcdIsConnected;
@@ -77,6 +77,7 @@ static int lcd_init (void)
 	DWORD type = REG_SZ;
 	DWORD size = sizeof(path) / sizeof(TCHAR);
 	HKEY key;
+	bool lcd_mono, lcd_color;
 
 	if (!logitech_lcd)
 		return 0;
@@ -104,8 +105,8 @@ static int lcd_init (void)
 	if (!pLogiLcdInit(_T("WinUAE"), LOGI_LCD_TYPE_MONO | LOGI_LCD_TYPE_COLOR))
 		goto err;
 
-	bool lcd_mono = pLogiLcdIsConnected(LOGI_LCD_TYPE_MONO);
-	bool lcd_color = pLogiLcdIsConnected(LOGI_LCD_TYPE_COLOR);
+	lcd_mono = pLogiLcdIsConnected(LOGI_LCD_TYPE_MONO);
+	lcd_color = pLogiLcdIsConnected(LOGI_LCD_TYPE_COLOR);
 	if (!lcd_mono && !lcd_color) {
 		pLogiLcdShutdown();
 		goto err;

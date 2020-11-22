@@ -901,6 +901,9 @@ static bool psEffect_LoadEffect (struct d3dstruct *d3d, const TCHAR *shaderfile,
 	int canusefile = 0, existsfile = 0;
 	bool plugin_path;
 	D3DXEFFECT_DESC EffectDesc;
+	void *bp;
+	int bplen;
+
 
 	compileflags |= EFFECTCOMPILERFLAGS;
 	plugin_path = get_plugin_path (tmp, sizeof tmp / sizeof (TCHAR), _T("filtershaders\\direct3d"));
@@ -962,8 +965,8 @@ static bool psEffect_LoadEffect (struct d3dstruct *d3d, const TCHAR *shaderfile,
 		write_log (_T("%s: CompileEffect failed: %s\n"), D3DHEAD, D3DX_ErrorString (hr, Errors));
 		goto end;
 	}
-	void *bp = BufferEffect->GetBufferPointer ();
-	int bplen = BufferEffect->GetBufferSize ();
+	bp = BufferEffect->GetBufferPointer ();
+	bplen = BufferEffect->GetBufferSize ();
 	hr = D3DXCreateEffect (d3d->d3ddev,
 		bp, bplen,
 		NULL, NULL,
@@ -1752,6 +1755,7 @@ static int createmask2texture (struct d3dstruct *d3d, const TCHAR *filename)
 	TCHAR tmp[MAX_DPATH];
 	TCHAR filepath[MAX_DPATH];
 	D3DLOCKED_RECT locked;
+	float xmult, ymult;
 
 	if (d3d->mask2texture)
 		d3d->mask2texture->Release();
@@ -1888,8 +1892,8 @@ static int createmask2texture (struct d3dstruct *d3d, const TCHAR *filename)
 	if (d3d->mask2texture_offsetw > 0)
 		d3d->blanktexture = createtext (d3d, d3d->mask2texture_offsetw + 1, d3d->window_h, D3DFMT_X8R8G8B8);
 
-	float xmult = d3d->mask2texture_multx;
-	float ymult = d3d->mask2texture_multy;
+	xmult = d3d->mask2texture_multx;
+	ymult = d3d->mask2texture_multy;
 
 	d3d->mask2rect.left *= xmult;
 	d3d->mask2rect.right *= xmult;

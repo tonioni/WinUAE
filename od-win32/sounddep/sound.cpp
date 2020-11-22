@@ -1309,6 +1309,11 @@ static int open_audio_wasapi (struct sound_data *sd, int index, int exclusive)
 	AUDCLNT_SHAREMODE sharemode;
 	REFERENCE_TIME phnsMinimumDevicePeriod, hnsDefaultDevicePeriod;
 	int v;
+	int loop;
+	REFERENCE_TIME hnsRequestedDuration;
+	UINT32 DefaultPeriodInFrames = 0, FundamentalPeriodInFrames = 0, MinPeriodInFrames = 0, MaxPeriodInFrames = 0;
+	UINT32  RequestedDuration;
+	UINT32 DefaultDevicePeriod;
 
 retry:
 	sd->devicetype = exclusive ? SOUND_DEVICE_WASAPI_EXCLUSIVE : SOUND_DEVICE_WASAPI;
@@ -1458,20 +1463,19 @@ retry:
 		sd->freq = pwfx_saved->nSamplesPerSec;
 	}
 
-	UINT32 DefaultDevicePeriod = (UINT32)( // frames =
+	DefaultDevicePeriod = (UINT32)( // frames =
 		1.0 * hnsDefaultDevicePeriod * // hns *
 		wavfmt.Format.nSamplesPerSec / // (frames / s) /
 		1000 / // (ms / s) /
 		10000 // (hns / s) /
 		+ 0.5); // rounding
-	UINT32  RequestedDuration = (UINT32)( // frames =
+	RequestedDuration = (UINT32)( // frames =
 		1.0 * phnsMinimumDevicePeriod * // hns *
 		wavfmt.Format.nSamplesPerSec / // (frames / s) /
 		1000 / // (ms / s) /
 		10000 // (hns / s) /
 		+ 0.5); // rounding
 
-	UINT32 DefaultPeriodInFrames = 0, FundamentalPeriodInFrames = 0, MinPeriodInFrames = 0, MaxPeriodInFrames = 0;
 	if (s->AudioClientVersion >= 3 && sharemode == AUDCLNT_SHAREMODE_SHARED) {
 		UINT32 CurrentPeriodInFrames;
 		WAVEFORMATEX *outwfx;
@@ -1503,7 +1507,7 @@ retry:
 	s->snd_configsize = sd->sndbufsize * sd->samplesize;
 
 	s->bufferFrameCount = sd->sndbufsize;
-	REFERENCE_TIME hnsRequestedDuration = // hns =
+	hnsRequestedDuration = // hns =
 		(REFERENCE_TIME)(
 		10000.0 * // (hns / ms) *
 		1000 * // (ms / s) *
@@ -1519,7 +1523,7 @@ retry:
 		write_log(_T("WASAPI: IsOffloadCapable() returned %d %08x\n"), cap, hr);
 	}
 
-	int loop = 0;
+	loop = 0;
 	for (;;) {
 		loop++;
 

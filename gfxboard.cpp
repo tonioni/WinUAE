@@ -1065,6 +1065,7 @@ bool gfxboard_rtg_enable_initial(int monid, int index)
 int gfxboard_toggle(int monid, int index, int log)
 {
 	bool initial = false;
+	struct rtggfxboard *gb;
 
 	if (rtg_visible[monid] < 0 && rtg_initial[monid] >= 0 && rtg_initial[monid] < MAX_RTG_BOARDS) {
 		index = rtg_initial[monid];
@@ -1078,7 +1079,7 @@ int gfxboard_toggle(int monid, int index, int log)
 	if (index < 0)
 		goto end;
 
-	struct rtggfxboard *gb = &rtggfxboards[index];
+	gb = &rtggfxboards[index];
 	if (!gb->active)
 		goto end;
 

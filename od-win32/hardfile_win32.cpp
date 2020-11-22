@@ -1402,6 +1402,8 @@ static int gethdfchs(HWND hDlg, struct uae_driveinfo *udi, HANDLE h, int *cylsp,
 	int cyls = 0, heads = 0, secs = 0;
 	uae_u8 *data = (uae_u8*)VirtualAlloc(NULL, 65536, MEM_COMMIT, PAGE_READWRITE);
 	DWORD err = 0;
+	HFONT font;
+	HWND hwnd;
 
 	memset(data, 0, 512);
 	memset(cmd, 0, sizeof(cmd));
@@ -1429,12 +1431,12 @@ static int gethdfchs(HWND hDlg, struct uae_driveinfo *udi, HANDLE h, int *cylsp,
 	}
 
 	chsdialogactive = 1;
-	HWND hwnd = CustomCreateDialog(IDD_CHSQUERY, hDlg, CHSDialogProc);
+	hwnd = CustomCreateDialog(IDD_CHSQUERY, hDlg, CHSDialogProc);
 	if (hwnd == NULL) {
 		err = -15;
 		goto end;
 	}
-	HFONT font = CreateFont(getscaledfontsize(-1), 0, 0, 0, 0, 0, 0, 0, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH | FF_DONTCARE, _T("Lucida Console"));
+	font = CreateFont(getscaledfontsize(-1), 0, 0, 0, 0, 0, 0, 0, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH | FF_DONTCARE, _T("Lucida Console"));
 	if (font)
 		SendMessage(GetDlgItem(hwnd, IDD_CHSQUERY), WM_SETFONT, WPARAM(font), FALSE);
 	while (chsdialogactive == 1) {
@@ -1533,6 +1535,8 @@ void hd_get_meta(HWND hDlg, int idx, TCHAR *geometryfile)
 	TCHAR *text, *tptr;
 	struct ini_data *ini = NULL;
 	bool atapi = false;
+	HWND hwnd;
+	bool empty = true;
 
 	geometryfile[0] = 0;
 	text = xcalloc(TCHAR, 100000);
@@ -1594,7 +1598,6 @@ void hd_get_meta(HWND hDlg, int idx, TCHAR *geometryfile)
 		goto doout;
 	}
 
-	bool empty = true;
 	for (int i = 0; i < 512; i++) {
 		if (data[i] != 0)
 			empty = false;
@@ -1661,7 +1664,7 @@ doout:
 
 	stringboxdialogactive = 1;
 	hdini = ini;
-	HWND hwnd = CustomCreateDialog (IDD_DISKINFO, hDlg, StringBoxDialogProc);
+	hwnd = CustomCreateDialog (IDD_DISKINFO, hDlg, StringBoxDialogProc);
 	if (hwnd != NULL) {
 		HFONT font = CreateFont (getscaledfontsize(-1), 0, 0, 0, 0, 0, 0, 0, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH | FF_DONTCARE, _T("Lucida Console"));
 		if (font)
@@ -2878,7 +2881,7 @@ static BOOL GetDevicePropertyFromName(const TCHAR *DevicePath, DWORD Index, DWOR
 	ULONG                               length = 0, returned = 0, returnedLength;
 	BOOL showonly = FALSE;
 	struct uae_driveinfo tmpudi = { 0 };
-
+	struct uae_driveinfo* udi2;
 	udi = &tmpudi;
 	int udiindex = *index2;
 
@@ -2974,7 +2977,7 @@ static BOOL GetDevicePropertyFromName(const TCHAR *DevicePath, DWORD Index, DWOR
 	}
 	udi = &uae_drives[udiindex < 0 ? *index2 : udiindex];
 	memcpy (udi, &tmpudi, sizeof (struct uae_driveinfo));
-	struct uae_driveinfo *udi2 = udi;
+	udi2 = udi;
 
 	_tcscpy (orgname, udi->device_name);
 	udi->bytespersector = 512;

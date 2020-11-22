@@ -3067,6 +3067,7 @@ static bool sndboard_init_capture(int freq)
 	WAVEFORMATEX wavfmtsrc;
 	WAVEFORMATEX *wavfmt2;
 	WAVEFORMATEX *wavfmt;
+	bool init = false;
 
 	wavfmt2 = NULL;
 
@@ -3091,7 +3092,6 @@ static bool sndboard_init_capture(int freq)
 	wavfmtsrc.nBlockAlign = wavfmtsrc.wBitsPerSample / 8 * wavfmtsrc.nChannels;
 	wavfmtsrc.nAvgBytesPerSec = wavfmtsrc.nBlockAlign * wavfmtsrc.nSamplesPerSec;
 
-	bool init = false;
 	AUDCLNT_SHAREMODE exc;
 	for (int mode = 0; mode < 2; mode++) {
 		exc = mode == 0 ? AUDCLNT_SHAREMODE_EXCLUSIVE : AUDCLNT_SHAREMODE_SHARED;

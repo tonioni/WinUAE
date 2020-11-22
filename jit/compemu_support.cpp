@@ -251,9 +251,11 @@ static uae_u32 raw_cputbl_count[65536] = { 0, };
 static uae_u16 opcode_nums[65536];
 
 
-static int untranslated_compfn(const void *e1, const void *e2)
+static int __cdecl untranslated_compfn(const void *e1, const void *e2)
 {
-	return raw_cputbl_count[*(const uae_u16 *)e1] < raw_cputbl_count[*(const uae_u16 *)e2];
+	int v1 = *(const uae_u16*)e1;
+	int v2 = *(const uae_u16*)e2;
+	return (int)raw_cputbl_count[v2] - (int)raw_cputbl_count[v1];
 }
 #endif
 
@@ -2958,9 +2960,9 @@ void compiler_exit(void)
 		opcode_nums[i] = i;
 		untranslated_count += raw_cputbl_count[i];
 	}
-	bug("Sorting out untranslated instructions count...");
+	bug("Sorting out untranslated instructions count, total %llu...\n", untranslated_count);
 	qsort(opcode_nums, 65536, sizeof(uae_u16), untranslated_compfn);
-	jit_log("Rank  Opc      Count Name");
+	jit_log("Rank  Opc      Count Name\n");
 	for (int i = 0; i < untranslated_top_ten; i++) {
 		uae_u32 count = raw_cputbl_count[opcode_nums[i]];
 		struct instr *dp;
@@ -2970,7 +2972,7 @@ void compiler_exit(void)
 		dp = table68k + opcode_nums[i];
 		for (lookup = lookuptab; lookup->mnemo != (instrmnem)dp->mnemo; lookup++)
 			;
-		bug("%03d: %04x %10u %s", i, opcode_nums[i], count, lookup->name);
+		bug(_T("%03d: %04x %10u %s\n"), i, opcode_nums[i], count, lookup->name);
 	}
 #endif
 

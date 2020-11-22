@@ -2880,7 +2880,6 @@ no_disk:
 		break;
 
 	default:
-no_cmd:
 		/* Command not understood. */
 		error = IOERR_NOCMD;
 		break;

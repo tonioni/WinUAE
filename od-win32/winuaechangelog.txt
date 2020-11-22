@@ -1,4 +1,20 @@
 
+
+Beta 11:
+
+- S3Trio/S3Virge double scan mode detection fixed. Calculation used size parameters before bit depth specific screen width adjustments.
+- Hardware emulated RTG boards interlace modes fixed.
+- Added DMA capable RAM checkbox to RAM GUI panel.
+- Added force 16-bit checkbox to RAM GUI panel. Affects more compatible and cycle-exact CPU modes only. If 68020+ and 16-bit: CPU always splits 32-bit accesses to two 16-bit accesses. Defaults have not changed, chip ram is 32-bit if A3000 or AGA, all other RAM is 32-bit if 68020+ CPU. Most common use case is to be able to change "slow" RAM bus width. ("Real" 16-bit "slow" ram vs 32-bit accelerator board "slow" ram)
+- Lightpen cursor left trails if vertical centering was enabled.
+- Effects 11 (FX11) updated to latest (and apparently final) version. WinUAE uses it to support D3D9 shaders in D3D11 mode.
+- Fixed HAM left border corruption if overscan HAM mode and bitplane horizontal start was earlier than current filter horizontal start. (Old bug)
+- scp disk image format support fix (keirf). Account for residual flux time at end of final revolution. Fix double replay of revolution #0 when track is initially loaded.
+- uaedbg does not anymore report word reads from execbase or exception vectors as invalid if CPU is 68000/68010 or if chip ram is 16-bit wide.
+- $bfff00 debug logging word/long behavior changed. Format string without %l (except pointers: %p, %s and %b) is now consided word even if long was written to $bfff00.
+- A2386SX 1.2M floppy error workaround. It expects to read 1.2M and 1.4M floppies using 720k floppy bit rate. 1.4M was already worked around previously. (Software thinks it is using shared Amiga 1760k drive, "Flipper" hardware is not emulated).
+
+
 Beta 10:
 
 - Added workaround for Windows socket behavior difference compared to Unix/Amiga. Windows return truncated data and error status if bsdsocket.library recv/recvfrom() supplied buffer is smaller than available data. Unix/Amiga sockets will also return truncated data but don't return error status.
