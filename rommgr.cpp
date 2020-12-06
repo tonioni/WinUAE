@@ -95,7 +95,7 @@ struct romdata *getromdatabypath (const TCHAR *path)
 	return NULL;
 }
 
-#define NEXT_ROM_ID 265
+#define NEXT_ROM_ID 267
 
 #define ALTROM(id,grp,num,size,flags,crc32,a,b,c,d,e) \
 { _T("X"), 0, 0, 0, 0, 0, size, id, 0, 0, flags, (grp << 16) | num, 0, NULL, crc32, a, b, c, d, e },
@@ -646,6 +646,10 @@ static struct romdata roms[] = {
 	0xee803484, 0x62822cb9,0x0b095efa,0x455496ea,0xd5b22740,0x77d86375, NULL, NULL },
 	{ _T("A.L.F. 2"), 0, 0, 0, 0, _T("ALF2\0"), 65536, 264, 0, 0, ROMTYPE_ALF2, 0, 0, NULL,
 	0x9cf8a7b7, 0x3df4667c,0xd3436367,0x7896da65,0x94994769,0x13bc6746, NULL, NULL },
+	{ _T("M.A.S.T. Fireball"), 0, 0, 0, 0, _T("MASTFB\0"), 8192, 265, 0, 0, ROMTYPE_MASTFB, 0, 0, NULL,
+	0xb475ff5f, 0x63609553,0x98b06812,0x23ade9ac,0x6ee31364,0x5375fce3, NULL, NULL },
+	{ _T("Hardital Synthesis"), 0, 0, 0, 0, _T("SYNTHESIS\0"), 32768, 266, 0, 0, ROMTYPE_SYNTHESIS, 0, 0, NULL,
+	0x667c7616, 0x0eb1cb38,0x3133f070,0x7cb57944,0xc516f236,0xbad4d4f6, NULL, NULL },
 
 	{ _T("CyberStorm MK I 68040"), 0, 0, 0, 0, _T("CSMKI\0"), 32768, 95, 0, 0, ROMTYPE_CB_CSMK1, 0, 0, NULL,
 	  0, 0, 0, 0, 0, 0, NULL, _T("cyberstormmk1_040.rom") },

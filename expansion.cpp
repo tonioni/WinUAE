@@ -5381,6 +5381,12 @@ const struct expansionromtype expansionroms[] = {
 		true, EXPANSIONTYPE_IDE
 	},
 	{
+		_T("synthesis"), _T("Synthesis"), _T("Hardital"),
+		NULL, synthesis_init, NULL, synthesis_add_scsi_unit, ROMTYPE_SYNTHESIS, 0, 0, BOARD_AUTOCONFIG_Z2, false,
+		NULL, 0,
+		true, EXPANSIONTYPE_SCSI
+	},
+	{
 		_T("vector"), _T("Vector Falcon 8000"), _T("HK-Computer"),
 		NULL, vector_init, NULL, vector_add_scsi_unit, ROMTYPE_VECTOR, 0, 0, BOARD_AUTOCONFIG_Z2, false,
 		NULL, 0,
@@ -5484,6 +5490,15 @@ const struct expansionromtype expansionroms[] = {
 		NULL, 0,
 		false, EXPANSIONTYPE_SCSI,
 		18260, 8, 0, true
+	},
+	{
+		_T("mastfb"), _T("Fireball"), _T("M.A.S.T."),
+		NULL, fireball_init, NULL, fireball_add_scsi_unit, ROMTYPE_MASTFB, 0, 0, BOARD_AUTOCONFIG_Z2, false,
+		NULL, 0,
+		true, EXPANSIONTYPE_SCSI,
+		0, 0, 0, false, NULL,
+		false, 0, NULL,
+		{ 0xd1, 8, 0x40, 0x00, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0xc0, 0x00 }
 	},
 	{
 		_T("scram8490"), _T("SCRAM (DP8490V)"), _T("MegaMicro"),
