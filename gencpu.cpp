@@ -157,7 +157,7 @@ static const char *do_cycles, *disp000, *disp020, *getpc;
 static int brace_level;
 
 static char outbuffer[30000];
-static int last_access_offset;
+static int last_access_offset_ipl;
 
 static void out(const char *format, ...)
 {
@@ -238,9 +238,11 @@ static void insertstring(const char *s, int offset)
 	memcpy(outbuffer + offset + brace_level, s, len);
 }
 
-static void set_last_access(void)
+static void set_last_access_ipl(void)
 {
-	last_access_offset = strlen(outbuffer);
+	if (ipl_fetched)
+		return;
+	last_access_offset_ipl = strlen(outbuffer);
 }
 
 NORETURN static void term (void)
@@ -1008,7 +1010,7 @@ static void gen_nextilong2(const char *type, const char *name, int flags, int mo
 	} else if (using_ce) {
 		/* we must do this because execution order of (something | something2) is not defined */
 		if (flags & GF_NOREFILL) {
-			set_last_access();
+			set_last_access_ipl();
 			out("%s = %s(%d) << 16;\n", name, prefetch_word, r + 2);
 			count_readw++;
 			out("%s |= regs.irc;\n", name);
@@ -1024,14 +1026,14 @@ static void gen_nextilong2(const char *type, const char *name, int flags, int mo
 			do_instruction_buserror();
 			strcpy(bus_error_code, bus_error_code2);
 			bus_error_code2[0] = 0;
-			set_last_access();
+			set_last_access_ipl();
 			out("%s |= %s(%d);\n", name, prefetch_word, r + 4);
 			count_readw++;
 			check_bus_error_ins(r + 4, -1);
 		}
 	} else if (using_prefetch) {
 		if (flags & GF_NOREFILL) {
-			set_last_access();
+			set_last_access_ipl();
 			out("%s = %s(%d) << 16;\n", name, prefetch_word, r + 2);
 			count_readw++;
 			out("%s |= regs.irc;\n", name);
@@ -1047,7 +1049,7 @@ static void gen_nextilong2(const char *type, const char *name, int flags, int mo
 			do_instruction_buserror();
 			strcpy(bus_error_code, bus_error_code2);
 			bus_error_code2[0] = 0;
-			set_last_access();
+			set_last_access_ipl();
 			out("%s |= %s(%d);\n", name, prefetch_word, r + 4);
 			count_readw++;
 			check_bus_error_ins(r + 4, -1);
@@ -1089,7 +1091,7 @@ static const char *gen_nextiword(int flags)
 		if (flags & GF_NOREFILL) {
 			strcpy(buffer, "regs.irc");
 		} else {
-			set_last_access();
+			set_last_access_ipl();
 			sprintf(buffer, "%s(%d)", prefetch_word, r + 2);
 			count_readw++;
 			check_bus_error_ins(r + 2, pcoffset);
@@ -1098,7 +1100,7 @@ static const char *gen_nextiword(int flags)
 		if (flags & GF_NOREFILL) {
 			strcpy(buffer, "regs.irc");
 		} else {
-			set_last_access();
+			set_last_access_ipl();
 			sprintf(buffer, "%s(%d)", prefetch_word, r + 2);
 			count_readw++;
 			check_bus_error_ins(r + 2, pcoffset);
@@ -1133,7 +1135,7 @@ static const char *gen_nextibyte(int flags)
 		if (flags & GF_NOREFILL) {
 			strcpy(buffer, "(uae_u8)regs.irc");
 		} else {
-			set_last_access();
+			set_last_access_ipl();
 			sprintf(buffer, "(uae_u8)%s(%d)", prefetch_word, r + 2);
 			count_readw++;
 			check_bus_error_ins(r + 2, pcoffset);
@@ -1142,7 +1144,7 @@ static const char *gen_nextibyte(int flags)
 		if (flags & GF_NOREFILL) {
 			strcpy(buffer, "(uae_u8)regs.irc");
 		} else {
-			set_last_access();
+			set_last_access_ipl();
 			sprintf(buffer, "(uae_u8)%s(%d)", prefetch_word, r + 2);
 			count_readw++;
 			check_bus_error_ins(r + 2, pcoffset);
@@ -1209,7 +1211,7 @@ static void fill_prefetch_bcc(void)
 		}
 		next_level_000();
 	}
-	set_last_access();
+	set_last_access_ipl();
 	out("%s(%d);\n", prefetch_word, m68k_pc_offset + 2);
 	count_readw++;
 	check_prefetch_bus_error(m68k_pc_offset + 2, -1, 0);
@@ -1220,7 +1222,7 @@ static void fill_prefetch_bcc(void)
 static void fill_prefetch_1(int o)
 {
 	if (using_prefetch) {
-		set_last_access();
+		set_last_access_ipl();
 		out("%s(%d);\n", prefetch_word, o);
 		if (!loopmode || using_ce) {
 			count_readw++;
@@ -1239,7 +1241,7 @@ static void fill_prefetch_1(int o)
 static void fill_prefetch_1_empty(int o)
 {
 	if (using_prefetch) {
-		set_last_access();
+		set_last_access_ipl();
 		out("%s(%d);\n", prefetch_word, o);
 		count_readw++;
 		check_prefetch_bus_error(o ? -2 : -1, 0, 0);
@@ -1405,7 +1407,7 @@ static void fill_prefetch_full_000_special(int pctype, const char *format, ...)
 		va_end(parms);
 		out(outbuf);
 	}
-	set_last_access();
+	set_last_access_ipl();
 	out("%s(%d);\n", prefetch_word, 2);
 	count_readw++;
 	if (pctype > 0) {
@@ -4006,6 +4008,7 @@ static void genastore_2 (const char *from, amodes mode, const char *reg, wordsiz
 						fill_prefetch_next_after(0, NULL);
 						insn_n_cycles += 4;
 					}
+					check_ipl();
 					out("%s(%sa, %s >> 16);\n", dstwx, to, from);
 					sprintf(tmp, "%s >> 16", from);
 					count_writew++;
@@ -4018,6 +4021,7 @@ static void genastore_2 (const char *from, amodes mode, const char *reg, wordsiz
 					if (flags & GF_SECONDWORDSETFLAGS) {
 						genflags(flag_logical, g_instr->size, "src", "", "");
 					}
+					check_ipl();
 					out("%s(%sa + 2, %s);\n", dstwx, to, from);
 					count_writew++;
 					check_bus_error(to, 2, 1, 1, from, 1, pcoffset);
@@ -4054,6 +4058,7 @@ static void genastore_2 (const char *from, amodes mode, const char *reg, wordsiz
 					if (store_dir > 1) {
 						fill_prefetch_next_after(0, NULL);
 					}
+					check_ipl();
 					out("%s(%sa, %s >> 16); \n", dstwx, to, from);
 					sprintf(tmp, "%s >> 16", from);
 					count_writew++;
@@ -4066,6 +4071,7 @@ static void genastore_2 (const char *from, amodes mode, const char *reg, wordsiz
 					if (flags & GF_SECONDWORDSETFLAGS) {
 						genflags(flag_logical, g_instr->size, "src", "", "");
 					}
+					check_ipl();
 					out("%s(%sa + 2, %s); \n", dstwx, to, from);
 					count_writew++;
 					check_bus_error(to, 2, 1, 1, from, 1, pcoffset);
@@ -5265,7 +5271,7 @@ static void gen_opcode (unsigned int opcode)
 	bus_error_code[0] = 0;
 	bus_error_code2[0] = 0;
 	opcode_nextcopy = 0;
-	last_access_offset = -1;
+	last_access_offset_ipl = -1;
 
 	loopmode = 0;
 	// 68010 loop mode available if
@@ -7302,7 +7308,7 @@ static void gen_opcode (unsigned int opcode)
 			count_readw++;
 			check_prefetch_bus_error(-1, 0, 0);
 			irc2ir();
-			set_last_access();
+			set_last_access_ipl();
 			out("%s(%d);\n", prefetch_word, 2);
 			int sp = (curi->smode == Ad16 || curi->smode == absw || curi->smode == absl || curi->smode == PC16 || curi->smode == Ad8r || curi->smode == PC8r) ? -1 : 0;
 			copy_opcode();
@@ -9061,8 +9067,8 @@ end:
 		fill_prefetch_finish();
 	sync_m68k_pc();
 	if ((using_ce || using_prefetch) && did_prefetch >= 0) {
-		if (last_access_offset > 0) {
-			insertstring("ipl_fetch();\n", last_access_offset);
+		if (last_access_offset_ipl > 0) {
+			insertstring("ipl_fetch();\n", last_access_offset_ipl);
 		} else {
 			out("// MISSING\n");
 		}
