@@ -3256,9 +3256,11 @@ static void do_present(struct d3d11struct *d3d)
 	d3d->syncinterval = syncinterval;
 	if (currprefs.turbo_emulation) {
 		static int skip;
+		static int toggle;
 		if (--skip > 0)
 			return;
-		skip = 10;
+		skip = 10 + toggle;
+		toggle = !toggle;
 		if (os_win8)
 			presentFlags |= DXGI_PRESENT_DO_NOT_WAIT;
 		syncinterval = 0;
