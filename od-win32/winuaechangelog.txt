@@ -1,5 +1,25 @@
 
 
+Beta 12:
+
+- 68000/010 cycle-exact/prefetch: If long write access, check IPL when first word of long has been written, not after last word. Fixes Made in Croatia / Binary (again).
+- Cycle-exact blitter DMA sequencer emulation now matches real hardware shift register based logic. Includes almost accurate emulation of on the fly modifications of BLTCON0/BLTCON1 (blitter cycle diagram changes). This should fix remaining A500 demos that do stupid things with the blitter. For example TLC Lotus 2 crack intro which is very broken.
+- When in warp mode, alternate between 10 and 11 skipped frames (was always 10). Previously if program showed exactly 10 frame animation, it looked like emulation had paused.
+- Reverted b1 copper skip update, it broke Tek/Rampage.
+- Added Hardital Synthesis emulation.
+- Added M.A.S.T. Fireball emulation
+
+Hardital Synthesis:
+- Clone of ICD AdSCSI (It seems to be common theme: Hardital Dotto is a clone of ICD AdIDE, Hardital TQM appears to be a clone of DKB Cobra)
+- Identical autoconfig data.
+- Driver has strings "ICDBoot.device", "ICD BootRom (C)1992" "hidden" in nibble part of boot ROM. All visible strings have been edited from "ICD" to "SYN". Different than AdSCSI ROMs, probably based on later not yet dumped AdSCSI ROM version.
+
+M.A.S.T. Fireball:
+- True DMA! Has really weird way to set up DMA controller address pointer, it needs minimum of 7*2 IO writes, max (7+6*7)*2 IO writes to configure it. Yes, amount of writes depends on DMA address value.
+- Not RDB compatible. Uses same partition table structure as A2090.
+- ROM version string: "FireBall 0.4 (10 Mar 1990)"
+
+
 Beta 11:
 
 - S3Trio/S3Virge double scan mode detection fixed. Calculation used size parameters before bit depth specific screen width adjustments.

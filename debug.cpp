@@ -3347,7 +3347,9 @@ uae_u32 debug_putpeekdma_chipram(uaecptr addr, uae_u32 v, uae_u32 mask, int reg,
 	if (!currprefs.z3chipmem.size)
 		peekdma_data.addr &= chipmem_bank.mask;
 	memwatch_func(peekdma_data.addr & chipmem_bank.mask, 2, 2, &v, peekdma_data.mask, peekdma_data.reg);
+	return v;
 }
+
 void debug_getpeekdma_chipram(uaecptr addr, uae_u32 mask, int reg, int ptrreg)
 {
 	peekdma_save(2, addr, mask, reg, ptrreg);
@@ -7430,6 +7432,8 @@ static uae_u32 get_value(struct dsprintfstack **stackp, uae_u32 *sizep, uaecptr 
 		if (stack->size == 0)
 			v &= 0xff;
 		else if (stack->size == 1)
+			v &= 0xffff;
+		if (size == 1)
 			v &= 0xffff;
 		*sizep = size;
 		stack++;
