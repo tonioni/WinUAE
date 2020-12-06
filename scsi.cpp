@@ -1994,7 +1994,6 @@ uae_u8 ncr5380_bget(struct soft_scsi *scsi, int reg)
 				if (r->bus_phase == (scsi->regs[3] & 7)) {
 					v |= 0x20;
 				}
-			} else {
 				scsi->regs[17] &= ~(3 << 1);
 			}
 		}
@@ -4656,7 +4655,7 @@ bool fireball_init(struct autoconfig_info* aci)
 
 void fireball_add_scsi_unit(int ch, struct uaedev_config_info* ci, struct romconfig* rc)
 {
-	generic_soft_scsi_add(ch, ci, rc, NCR5380_FIREBALL, 65536, 16384, ROMTYPE_MASTFB);
+	generic_soft_scsi_add(ch, ci, rc, NCR5380_FIREBALL, 65536, 32768, ROMTYPE_MASTFB);
 }
 
 
