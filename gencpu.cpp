@@ -4473,7 +4473,7 @@ static void genmovemel(uae_u16 opcode)
 		if (table68k[opcode].dmode == Aipi) {
 			out("m68k_areg(regs, dstreg) = srca;\n");
 		}
-		if (cpu_level <= 3) {
+		if (cpu_level <= 1) {
 			out("%s(srca);\n", srcw); // and final extra word fetch that goes nowhere..
 			count_readw++;
 			check_bus_error("src", 0, 0, 1, NULL, 1, 0);
