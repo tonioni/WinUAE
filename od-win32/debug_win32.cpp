@@ -1012,8 +1012,10 @@ static void ListboxEndEdit(HWND hwnd, BOOL acceptinput)
 	ignore_ws(&p);
 	if ((GetWindowTextLength(hedit) == 0) || (_tcslen(p) == 0))
 		acceptinput = FALSE;
-	while (PeekMessage(&msg, hedit, 0, 0, PM_REMOVE))
-		;
+	while (PeekMessage(&msg, hedit, 0, 0, PM_REMOVE)) {
+		TranslateMessage(&msg);
+		DispatchMessage(&msg);
+	}
 	DestroyWindow(hedit);
 	hedit = NULL;
 	if (acceptinput) {
