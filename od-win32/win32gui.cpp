@@ -1505,6 +1505,7 @@ static const int msi_z3fast[] = { 0, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 };
 static const int msi_z3chip[] = { 0, 9, 10, 11, 12, 13, 19, 14, 20, 15 };
 static const int msi_gfx[] = { 0, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 };
 static const int msi_cpuboard[] = { 0, 5, 6, 7, 8, 9, 10, 11, 12, 13 };
+static const int msi_mb[] = { 0, 5, 6, 7, 8, 9, 10, 11, 12 };
 
 #define MIN_CHIP_MEM 0
 #define MAX_CHIP_MEM 6
@@ -9461,20 +9462,10 @@ static int getmemsize(uae_u32 size, const int *msi)
 	return mem_size;
 }
 
-static void addadvancedram(HWND hDlg, struct ramboard *rb, const TCHAR *name)
+static void addadvancedram(HWND hDlg, struct ramboard *rb, const TCHAR *name, const int *msi)
 {
-	const int* msi;
 	TCHAR tmp[200];
 	_tcscpy(tmp, name);
-	if (rb == &workprefs.chipmem) {
-		msi = msi_chip;
-	} else if (rb == &workprefs.bogomem) {
-		msi = msi_bogo;
-	} else if (rb == &workprefs.z3chipmem) {
-		msi = msi_z3chip;
-	} else {
-		return;
-	}
 	if (rb->size) {
 		int mem_size = getmemsize(rb->size, msi);
 		_tcscat(tmp, _T(" "));
@@ -9656,8 +9647,8 @@ static void setfastram_selectmenu(HWND hDlg, int mode)
 	}
 
 	SendDlgItemMessage(hDlg, IDC_MEMORYSELECT, CB_RESETCONTENT, 0, 0);
-	addadvancedram(hDlg, &workprefs.chipmem, _T("Chip RAM"));
-	addadvancedram(hDlg, &workprefs.bogomem, _T("Slow RAM"));
+	addadvancedram(hDlg, &workprefs.chipmem, _T("Chip RAM"), msi_chip);
+	addadvancedram(hDlg, &workprefs.bogomem, _T("Slow RAM"), msi_bogo);
 	for (int i = 0; i < MAX_RAM_BOARDS; i++) {
 		struct autoconfig_info *aci = expansion_get_autoconfig_info(&workprefs, ROMTYPE_RAMZ2, i);
 		_stprintf(tmp, _T("Z2 Fast Ram #%d"), i + 1);
@@ -9683,9 +9674,9 @@ static void setfastram_selectmenu(HWND hDlg, int mode)
 			}
 			SendDlgItemMessage(hDlg, IDC_MEMORYSELECT, CB_ADDSTRING, 0, (LPARAM)tmp);
 		}
-		addadvancedram(hDlg, &workprefs.mbresmem_high, _T("Processor Slot Fast RAM"));
-		addadvancedram(hDlg, &workprefs.mbresmem_low, _T("Motherboard Fast RAM"));
-		addadvancedram(hDlg, &workprefs.z3chipmem, _T("32-bit Chip RAM"));
+		addadvancedram(hDlg, &workprefs.mbresmem_high, _T("Processor Slot Fast RAM"), msi_mb);
+		addadvancedram(hDlg, &workprefs.mbresmem_low, _T("Motherboard Fast RAM"), msi_mb);
+		addadvancedram(hDlg, &workprefs.z3chipmem, _T("32-bit Chip RAM"), msi_z3chip);
 	} else {
 		if (fastram_select >= MAX_STANDARD_RAM_BOARDS + MAX_RAM_BOARDS)
 			fastram_select = 0;
