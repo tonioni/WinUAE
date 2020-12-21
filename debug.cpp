@@ -1917,7 +1917,10 @@ static bool get_record_dma_info(struct dma_rec *dr, int hpos, int vpos, uae_u32 
 
 	sr = _T("    ");
 	if (dr->type == DMARECORD_COPPER) {
-		sr = _T("COP ");
+		if (dr->extra == 3)
+			sr = _T("COPW");
+		else
+			sr = _T("COP ");
 	} else if (dr->type == DMARECORD_BLITTER) {
 		if (dr->extra == 2)
 			sr = _T("BLL ");
@@ -1954,7 +1957,10 @@ static bool get_record_dma_info(struct dma_rec *dr, int hpos, int vpos, uae_u32 
 			_stprintf (l2, _T("%4s %03X"), sr, r);
 		}
 		if (l3) {
-			_stprintf (l3, longsize ? _T("%08X") : _T("    %04X"), dr->dat);
+			uae_u32 v = dr->dat;
+			if (!longsize)
+				v &= 0xffff;
+			_stprintf (l3, longsize ? _T("%08X") : _T("    %04X"), v);
 		}
 		if (l4 && dr->addr != 0xffffffff)
 			_stprintf (l4, _T("%08X"), dr->addr & 0x00ffffff);

@@ -265,12 +265,15 @@ void draw_status_line_single(int monid, uae_u8 *buf, int bpp, int y, int totalwi
 					if (fps > 999)
 						fps = 999;
 					num1 = fps / 100;
+					num1 %= 10;
 					num2 = 18;
 					num3 = (fps - num1 * 100) / 10;
 				} else {
 					num1 = fps / 100;
 					num2 = (fps - num1 * 100) / 10;
 					num3 = fps % 10;
+					num1 %= 10;
+					num2 %= 10;
 					if (num1 == 0)
 						am = 2;
 				}
@@ -300,6 +303,8 @@ void draw_status_line_single(int monid, uae_u8 *buf, int bpp, int y, int totalwi
 				num1 = idle / 100;
 				num2 = (idle - num1 * 100) / 10;
 				num3 = idle % 10;
+				num1 %= 10;
+				num2 %= 10;
 				num4 = num1 == 0 ? 13 : -1;
 				am = 3;
 			}

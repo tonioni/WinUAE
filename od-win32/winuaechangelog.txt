@@ -1,5 +1,28 @@
 
 
+Beta 13:
+
+- PCI Voodoo 3 3000 emulation from PCem.
+- Fixed existing PCI bridge emulation memory mapped space address calculations (previous PCI boards were all IO only)
+- According to Alice schematics, AGA delays blitter finished signal until last D write is done (2 cycles later, only if not line mode and D is enabled). Previous chipsets clear blitter busy (and trigger interrupt) when last D write still pending.
+- Added GVP G-Force040. Basically same as G-Force030 (same ROM, same memory config), different internal GVP hardware ID.
+- Fixed GUI debugger hang if something was selected in debugger and then focus was changed.
+- MAST Fireball DMA address pointer handling fix, some address nybbles were decoded incorrectly. (I did say it has really strange DMA address pointer setup)
+- PCem RTG boards didn't always refresh screen fully when switching modes.
+- b12 blitter fixes, start up delay was 1 cycle too long, idle cycle before final D write does not need to be free cycle.
+- b12 blitter fixes, blitter fill mode setup missed some conditions.
+- Mainboard RAM settings disappeared in b11.
+- GD5446 (Picasso IV) blitter fix, "Invert Color Expand Source Sense" bit was not handled correctly in all blitter modes. (For example caused MUI 3.8 "REGISTER NOW" window corruption)
+
+Vooodoo 3 3000 details:
+- 16M VRAM (max supported) First hardware emulated board that supports full HD at 32-bit.
+- PCI board, PCI bridgeboard must be also configured.
+- BIOS ROM seems to be required (at least Mediator Voodoo Picasso96 driver reads some data from BIOS), currently must be in ROM path and named voodoo3.rom. Must be from PCI Voodoo 3 3000.
+- Native/RTG switching is implemented by checking status of SVGA screen blank bit. Might not always work correctly.
+- Hardware accelerated 3D confirmed working.
+- PCI to PCI DMA supported, compatible with Voodoo 3 + SB128 or FM801 sound card Mediator DMA hack.
+
+
 Beta 12:
 
 - 68000/010 cycle-exact/prefetch: If long write access, check IPL when first word of long has been written, not after last word. Fixes Made in Croatia / Binary (again).
@@ -19,7 +42,6 @@ M.A.S.T. Fireball:
 - Not RDB compatible. Uses same partition table structure as A2090.
 - ROM version string: "FireBall 0.4 (10 Mar 1990)"
 
-
 Beta 11:
 
 - S3Trio/S3Virge double scan mode detection fixed. Calculation used size parameters before bit depth specific screen width adjustments.
@@ -33,7 +55,6 @@ Beta 11:
 - uaedbg does not anymore report word reads from execbase or exception vectors as invalid if CPU is 68000/68010 or if chip ram is 16-bit wide.
 - $bfff00 debug logging word/long behavior changed. Format string without %l (except pointers: %p, %s and %b) is now consided word even if long was written to $bfff00.
 - A2386SX 1.2M floppy error workaround. It expects to read 1.2M and 1.4M floppies using 720k floppy bit rate. 1.4M was already worked around previously. (Software thinks it is using shared Amiga 1760k drive, "Flipper" hardware is not emulated).
-
 
 Beta 10:
 

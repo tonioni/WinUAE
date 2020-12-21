@@ -3322,7 +3322,7 @@ bool validate_banks_z2(addrbank *bank, int start, int size)
 	}
 	for (int i = start; i < start + size; i++) {
 		addrbank *ab = &get_mem_bank(start << 16);
-		if (ab != &dummy_bank) {
+		if (ab != &dummy_bank && bank != &dummy_bank) {
 			error_log(_T("Z2 map_banks(%s) attempting to override existing memory bank '%s' at %08x!\n"), bank->name, ab->name, i << 16);
 			return false;
 		}

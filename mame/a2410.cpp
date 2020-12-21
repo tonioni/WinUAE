@@ -823,7 +823,7 @@ static void tms_hsync_handler2(struct a2410_struct *data)
 
 	if (a2410_vpos == 0) {
 		tms_vsync_handler2(data, true);
-		picasso_getwritewatch(data->a2410_gfxboard, data->a2410_vram_start_offset);
+		picasso_getwritewatch(data->a2410_gfxboard, data->a2410_vram_start_offset, NULL, NULL);
 	}
 
 	if (data->a2410_modechanged || !ad->picasso_on)

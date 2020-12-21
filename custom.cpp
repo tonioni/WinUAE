@@ -366,6 +366,7 @@ struct copper {
 	int strobe; /* COPJMP1 / COPJMP2 accessed */
 	int last_strobe;
 	int moveaddr, movedata, movedelay;
+	uaecptr moveptr;
 };
 
 static struct copper cop_state;
@@ -7039,7 +7040,7 @@ static int copper_cant_read (int hpos, int alloc)
 	return cant;
 }
 
-static int custom_wput_copper (int hpos, uaecptr addr, uae_u32 value, int noget)
+static int custom_wput_copper (int hpos, uaecptr pt, uaecptr addr, uae_u32 value, int noget)
 {
 	int v;
 
@@ -7088,11 +7089,6 @@ static int customdelay[]= {
 	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
 };
 
-static void copper_write (uae_u32 v)
-{
-	custom_wput_copper (current_hpos (), v >> 16, v & 0xffff, 0);
-}
-
 /*
 	CPU write COPJMP wakeup sequence when copper is waiting:
 	- Idle cycle (can be used by other DMA channel)
@@ -7140,7 +7136,7 @@ static void update_copper (int until_hpos)
 		if (cop_state.movedelay > 0) {
 			cop_state.movedelay--;
 			if (cop_state.movedelay == 0) {
-				custom_wput_copper (c_hpos, cop_state.moveaddr, cop_state.movedata, 0);
+				custom_wput_copper (c_hpos, cop_state.moveptr, cop_state.moveaddr, cop_state.movedata, 0);
 			}
 		}
 
@@ -7422,8 +7418,9 @@ static void update_copper (int until_hpos)
 						cop_state.moveaddr = reg;
 						cop_state.movedata = data;
 						cop_state.movedelay = customdelay[cop_state.moveaddr / 2];
+						cop_state.moveptr = cop_state.ip;
 					} else {
-						custom_wput_copper (old_hpos, reg, data, 0);
+						custom_wput_copper (old_hpos, cop_state.ip, reg, data, 0);
 					}
 #endif
 				}
@@ -11796,6 +11793,7 @@ uae_u32 wait_cpu_cycle_read (uaecptr addr, int mode)
 	}
 	peekdma_data.mask = 0;
 #endif
+
 	switch(mode)
 	{
 		case -1:

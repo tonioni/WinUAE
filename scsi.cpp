@@ -4624,6 +4624,7 @@ bool synthesis_init(struct autoconfig_info* aci)
 	load_rom_rc(aci->rc, ROMTYPE_SYNTHESIS, 32768, 0, scsi->rom, 65536, LOADROM_EVENONLY_ODDONE | LOADROM_FILL);
 	memcpy(scsi->acmemory, scsi->rom, sizeof scsi->acmemory);
 	aci->addrbank = scsi->bank;
+	return true;
 }
 
 void synthesis_add_scsi_unit(int ch, struct uaedev_config_info* ci, struct romconfig* rc)
