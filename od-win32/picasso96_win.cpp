@@ -2295,16 +2295,22 @@ void picasso_allocatewritewatch (int index, int gfxmemsize)
 
 static ULONG_PTR writewatchcount[MAX_RTG_BOARDS];
 static int watch_offset[MAX_RTG_BOARDS];
-void picasso_getwritewatch (int index, int offset)
+int picasso_getwritewatch (int index, int offset, uae_u8 ***gwwbufp, uae_u8 **startp)
 {
 	ULONG ps;
 	writewatchcount[index] = gwwbufsize[index];
 	watch_offset[index] = offset;
+	uae_u8 *start = gfxmem_banks[index]->start + natmem_offset + offset;
 	if (GetWriteWatch (WRITE_WATCH_FLAG_RESET, gfxmem_banks[index]->start + natmem_offset + offset, (gwwbufsize[index] - 1) * gwwpagesize[index], gwwbuf[index], &writewatchcount[index], &ps)) {
 		write_log (_T("picasso_getwritewatch %d\n"), GetLastError ());
 		writewatchcount[index] = 0;
-		return;
+		return -1;
 	}
+	if (gwwbufp)
+		*gwwbufp = (uae_u8**)gwwbuf[index];
+	if (startp)
+		*startp = start;
+	return writewatchcount[index];
 }
 bool picasso_is_vram_dirty (int index, uaecptr addr, int size)
 {

@@ -322,7 +322,8 @@ static void voodoo_filterline_v1(voodoo_t *voodoo, uint8_t *fil, int column, uin
 	int x;
 
 	// Scratchpad for avoiding feedback streaks
-        uint8_t fil3[(voodoo->h_disp) * 3];
+//        uint8_t fil3[(voodoo->h_disp) * 3];
+        uint8_t fil3[4096 * 3];
 
 	/* 16 to 32-bit */
         for (x=0; x<column;x++)
@@ -388,7 +389,8 @@ static void voodoo_filterline_v2(voodoo_t *voodoo, uint8_t *fil, int column, uin
 	int x;
 
 	// Scratchpad for blending filter
-        uint8_t fil3[(voodoo->h_disp) * 3];
+        //uint8_t fil3[(voodoo->h_disp) * 3];
+        uint8_t fil3[4096 * 3];
 
 	/* 16 to 32-bit */
         for (x=0; x<column;x++)
@@ -495,7 +497,8 @@ void voodoo_callback(void *p)
 
                                 if (voodoo->scrfilter && voodoo->scrfilterEnabled)
                                 {
-                                        uint8_t fil[(voodoo->h_disp) * 3];              /* interleaved 24-bit RGB */
+                                        //uint8_t fil[(voodoo->h_disp) * 3];              /* interleaved 24-bit RGB */
+                                        uint8_t fil[4096 * 3];              /* interleaved 24-bit RGB */
 
                 			if (voodoo->type == VOODOO_2)
 	                                        voodoo_filterline_v2(voodoo, fil, voodoo->h_disp, src, voodoo->line);
@@ -602,8 +605,11 @@ skip_draw:
                 voodoo->line = 0;
                 voodoo->v_retrace = 0;
         }
+
+#if 0
         if (voodoo->line_time)
 		timer_advance_u64(&voodoo->timer, voodoo->line_time);
         else
 		timer_advance_u64(&voodoo->timer, TIMER_USEC * 32);
+#endif
 }

@@ -139,4 +139,12 @@ static inline void timer_set_p(pc_timer_t *timer, void *p)
         timer->p = p;
 }
 
+#ifdef UAE
+void timer_addx(pc_timer_t* timer, void (*callback)(void* p), void* p, int start_timer);
+void timer_enablex(pc_timer_t *timer);
+void timer_disablex(pc_timer_t *timer);
+void timer_set_delay_u64x(pc_timer_t *timer, uint64_t delay);
+#endif
+
+
 #endif /*_TIMER_H_*/

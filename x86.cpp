@@ -3310,8 +3310,27 @@ int device_get_config_int(const char *s)
 	if (!strcmp(s, "dithering")) {
 		return 1;
 	}
+	if (!strcmp(s, "dacfilter")) {
+		return 1;
+	}
+	if (!strcmp(s, "recompiler")) {
+		return 1;
+	}
 	if (!strcmp(s, "memory")) {
 		return pcem_getvramsize() >> 20;
+	}
+	if (!strcmp(s, "render_threads")) {
+#ifdef _WIN32
+		SYSTEM_INFO si;
+		GetSystemInfo(&si);
+		if (si.dwNumberOfProcessors >= 8)
+			return 4;
+		if (si.dwNumberOfProcessors >= 4)
+			return 2;
+		return 1;
+#else
+		return 4;
+#endif
 	}
 
 

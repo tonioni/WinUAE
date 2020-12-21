@@ -88,6 +88,8 @@ typedef struct banshee_t
         uint32_t desktop_stride_tiled;
 
         int type;
+
+        int vblank_irq;
 } banshee_t;
 
 enum
@@ -148,6 +150,7 @@ enum
 #define VGAINIT0_EXTENDED_SHIFT_OUT (1 << 12)
 
 #define VIDPROCCFG_CURSOR_MODE (1 << 1)
+#define VIDPROCCFG_INTERLACE (1 << 3)
 #define VIDPROCCFG_HALF_MODE (1 << 4)
 #define VIDPROCCFG_OVERLAY_ENABLE (1 << 8)
 #define VIDPROCCFG_OVERLAY_CLUT_BYPASS (1 << 11)
@@ -204,6 +207,31 @@ enum
 #define VIDSERIAL_I2C_SCK_R (1 << 26)
 #define VIDSERIAL_I2C_SDA_R (1 << 27)
 
+static int banshee_vga_vsync_enabled(banshee_t *banshee)
+{
+    if (!(banshee->svga.crtc[0x11] & 0x20) && (banshee->svga.crtc[0x11] & 0x10) && ((banshee->pciInit0 >> 18) & 1) != 0)
+        return 1;
+    return 0;
+}
+
+static void banshee_update_irqs(banshee_t *banshee)
+{
+    if (banshee->vblank_irq > 0 && banshee_vga_vsync_enabled(banshee)) {
+        pci_set_irq(NULL, PCI_INTA);
+    } else {
+        pci_clear_irq(NULL, PCI_INTA);
+    }
+}
+
+static void banshee_vblank_start(svga_t* svga)
+{
+    banshee_t *banshee = (banshee_t*)svga->p;
+    if (banshee->vblank_irq >= 0) {
+        banshee->vblank_irq = 1;
+        banshee_update_irqs(banshee);
+    }
+}
+
 static uint32_t banshee_status(banshee_t *banshee);
 
 static void banshee_out(uint16_t addr, uint8_t val, void *p)
@@ -231,10 +259,21 @@ static void banshee_out(uint16_t addr, uint8_t val, void *p)
                 svga->crtc[svga->crtcreg] = val;
                 if (old != val)
                 {
-                        if (svga->crtcreg < 0xe || svga->crtcreg > 0x10)
+                        if (svga->crtcreg == 0x11) {
+                            if (!(val & 0x10)) {
+                                if (banshee->vblank_irq > 0)
+                                    banshee->vblank_irq = -1;
+                            } else if (banshee->vblank_irq < 0) {
+                                banshee->vblank_irq = 0;
+                            }
+                            banshee_update_irqs(banshee);
+                            if ((val & ~0x30) == (old & ~0x30))
+                                old = val;
+                        }
+                        if (svga->crtcreg < 0xe || svga->crtcreg > 0x11 || (svga->crtcreg == 0x11 && old != val))
                         {
-                                svga->fullchange = changeframecount;
-                                svga_recalctimings(svga);
+                            svga->fullchange = changeframecount;
+                            svga_recalctimings(svga);
                         }
                 }
                 break;
@@ -260,6 +299,8 @@ static uint8_t banshee_in(uint16_t addr, void *p)
                         temp = 0;
                 else
                         temp = 0x10;
+                if (banshee->vblank_irq > 0)
+                    temp |= 0x80;
                 break;
                 case 0x3D4:
                 temp = svga->crtcreg;
@@ -282,10 +323,10 @@ static void banshee_updatemapping(banshee_t *banshee)
         if (!(banshee->pci_regs[PCI_REG_COMMAND] & PCI_COMMAND_MEM))
         {
 //                pclog("Update mapping - PCI disabled\n");
-                mem_mapping_disable(&svga->mapping);
-                mem_mapping_disable(&banshee->linear_mapping);
-                mem_mapping_disable(&banshee->reg_mapping_low);
-                mem_mapping_disable(&banshee->reg_mapping_high);
+                mem_mapping_disablex(&svga->mapping);
+                mem_mapping_disablex(&banshee->linear_mapping);
+                mem_mapping_disablex(&banshee->reg_mapping_low);
+                mem_mapping_disablex(&banshee->reg_mapping_high);
                 return;
         }
 
@@ -293,28 +334,28 @@ static void banshee_updatemapping(banshee_t *banshee)
         switch (svga->gdcreg[6] & 0xc) /*Banked framebuffer*/
         {
                 case 0x0: /*128k at A0000*/
-                mem_mapping_set_addr(&svga->mapping, 0xa0000, 0x20000);
+                mem_mapping_set_addrx(&svga->mapping, 0xa0000, 0x20000);
                 svga->banked_mask = 0xffff;
                 break;
                 case 0x4: /*64k at A0000*/
-                mem_mapping_set_addr(&svga->mapping, 0xa0000, 0x10000);
+                mem_mapping_set_addrx(&svga->mapping, 0xa0000, 0x10000);
                 svga->banked_mask = 0xffff;
                 break;
                 case 0x8: /*32k at B0000*/
-                mem_mapping_set_addr(&svga->mapping, 0xb0000, 0x08000);
+                mem_mapping_set_addrx(&svga->mapping, 0xb0000, 0x08000);
                 svga->banked_mask = 0x7fff;
                 break;
                 case 0xC: /*32k at B8000*/
-                mem_mapping_set_addr(&svga->mapping, 0xb8000, 0x08000);
+                mem_mapping_set_addrx(&svga->mapping, 0xb8000, 0x08000);
                 svga->banked_mask = 0x7fff;
                 break;
         }
         
         pclog("Linear framebuffer %08X  ", banshee->memBaseAddr1);
-        mem_mapping_set_addr(&banshee->linear_mapping, banshee->memBaseAddr1, 32 << 20);
+        mem_mapping_set_addrx(&banshee->linear_mapping, banshee->memBaseAddr1, 32 << 20);
         pclog("registers %08X\n", banshee->memBaseAddr0);
-        mem_mapping_set_addr(&banshee->reg_mapping_low, banshee->memBaseAddr0, 8 << 20);
-        mem_mapping_set_addr(&banshee->reg_mapping_high, banshee->memBaseAddr0 + 0xc00000, 20 << 20);
+        mem_mapping_set_addrx(&banshee->reg_mapping_low, banshee->memBaseAddr0, 8 << 20);
+        mem_mapping_set_addrx(&banshee->reg_mapping_high, banshee->memBaseAddr0 + 0xc00000, 20 << 20);
 }
 
 static void banshee_render_16bpp_tiled(svga_t *svga)
@@ -388,6 +429,7 @@ static void banshee_recalctimings(svga_t *svga)
         if (svga->crtc[0x1b] & 0x40) svga->vsyncstart  += 0x400;
 //        pclog("svga->hdisp=%i\n", svga->hdisp);
 
+        svga->interlace = 0;
         if (banshee->vgaInit0 & VGAINIT0_EXTENDED_SHIFT_OUT)
         {
                 switch (VIDPROCCFG_DESKTOP_PIX_FORMAT)
@@ -436,6 +478,15 @@ static void banshee_recalctimings(svga_t *svga)
                         svga->htotal *= 2;
                 }
 
+                if (banshee->vidProcCfg & VIDPROCCFG_INTERLACE)
+                {
+                    svga->interlace = 1;
+                    svga->vtotal *= 2;
+                    svga->dispend *= 2;
+                    svga->vblankstart *= 2;
+                    svga->vsyncstart *= 2;
+                }
+
                 svga->overlay.ena = banshee->vidProcCfg & VIDPROCCFG_OVERLAY_ENABLE;
 
                 svga->overlay.x = voodoo->overlay.start_x;
@@ -475,6 +526,8 @@ static void banshee_recalctimings(svga_t *svga)
                 svga->bpp = 8;
                 svga->video_res_override = 0;
         }
+
+        svga->horizontal_linedbl = svga->dispend * 9 / 10 >= svga->hdisp;
 
         if (((svga->miscout >> 2) & 3) == 3)
         {
@@ -547,6 +600,8 @@ static void banshee_ext_outl(uint16_t addr, uint32_t val, void *p)
 
                 case Init_miscInit0:
                 banshee->miscInit0 = val;
+                extern void gfxboard_voodoo_lfb_endianswap(int);
+                gfxboard_voodoo_lfb_endianswap(val >> 30);
                 break;
                 case Init_miscInit1:
                 banshee->miscInit1 = val;
@@ -599,7 +654,7 @@ static void banshee_ext_outl(uint16_t addr, uint32_t val, void *p)
 
                 case Video_vidProcCfg:                                
                 banshee->vidProcCfg = val;
-//                pclog("vidProcCfg=%08x\n", val);
+                //pclog("vidProcCfg=%08x\n", val);
                 banshee->overlay_pix_fmt = (val & VIDPROCCFG_OVERLAY_PIX_FORMAT_MASK) >> VIDPROCCFG_OVERLAY_PIX_FORMAT_SHIFT;
                 svga->hwcursor.ena = val & VIDPROCCFG_HWCURSOR_ENA;
                 svga->fullchange = changeframecount;
@@ -613,7 +668,7 @@ static void banshee_ext_outl(uint16_t addr, uint32_t val, void *p)
                 else
                         banshee->voodoo->scrfilterEnabled = 0;
                 voodoo_threshold_check(banshee->voodoo);
-                pclog("Banshee Filter: %06x\n", val);
+                //pclog("Banshee Filter: %06x\n", val);
 
                 break;
 
@@ -647,7 +702,7 @@ static void banshee_ext_outl(uint16_t addr, uint32_t val, void *p)
                 case Video_vidSerialParallelPort:
                 banshee->vidSerialParallelPort = val;
 //                pclog("vidSerialParallelPort: write %08x %08x %04x(%08x):%08x\n", val, val & (VIDSERIAL_DDC_DCK_W | VIDSERIAL_DDC_DDA_W), CS,cs,cpu_state.pc);
-                ddc_i2c_change((val & VIDSERIAL_DDC_DCK_W) ? 1 : 0, (val & VIDSERIAL_DDC_DDA_W) ? 1 : 0);
+                //ddc_i2c_change((val & VIDSERIAL_DDC_DCK_W) ? 1 : 0, (val & VIDSERIAL_DDC_DDA_W) ? 1 : 0);
                 break;
 
                 case Video_vidScreenSize:
@@ -759,11 +814,11 @@ static uint32_t banshee_status(banshee_t *banshee)
         uint32_t ret;
 
         ret = 0;
-        if (fifo_size < 0x20)
-                ret |= fifo_size;
+        if (fifo_entries < 0x20)
+                ret |= 0x1f - fifo_entries;
         else
                 ret |= 0x1f;
-        if (fifo_size)
+        if (fifo_entries)
                 ret |= 0x20;
         if (swap_count < 7)
                 ret |= (swap_count << 28);
@@ -880,9 +935,9 @@ static uint32_t banshee_ext_inl(uint16_t addr, void *p)
 
                 case Video_vidSerialParallelPort:
                 ret = banshee->vidSerialParallelPort & ~(VIDSERIAL_DDC_DCK_R | VIDSERIAL_DDC_DDA_R);
-                if ((banshee->vidSerialParallelPort & VIDSERIAL_DDC_DCK_W) && ddc_read_clock())
+                if ((banshee->vidSerialParallelPort & VIDSERIAL_DDC_DCK_W) && 0) //ddc_read_clock())
                         ret |= VIDSERIAL_DDC_DCK_R;
-                if ((banshee->vidSerialParallelPort & VIDSERIAL_DDC_DDA_W) && ddc_read_data())
+                if ((banshee->vidSerialParallelPort & VIDSERIAL_DDC_DDA_W) && 0) //ddc_read_data())
                         ret |= VIDSERIAL_DDC_DDA_R;
                 ret = ret & ~(VIDSERIAL_I2C_SCK_R | VIDSERIAL_I2C_SDA_R);
                 if (banshee->vidSerialParallelPort & VIDSERIAL_I2C_SCK_W)
@@ -1001,6 +1056,14 @@ static uint32_t banshee_reg_readl(uint32_t addr, void *p)
                 voodoo_flush(voodoo);
                 switch (addr & 0x1fc)
                 {
+                        case SST_status:
+                        ret = banshee_status(banshee);
+                        break;
+
+                        case SST_intrCtrl:
+                        ret = banshee->intrCtrl & 0x0030003f;
+                        break;
+
                         case 0x08:
                         ret = voodoo->banshee_blt.clip0Min;
                         break;
@@ -1232,7 +1295,11 @@ static void banshee_reg_writel(uint32_t addr, uint32_t val, void *p)
                 break;
 
                 case 0x0100000: /*2D registers*/
-                voodoo_queue_command(voodoo, (addr & 0x1fc) | FIFO_WRITEL_2DREG, val);
+                    if ((addr & 0x3fc) == SST_intrCtrl) {
+                        banshee->intrCtrl = val & 0x0030003f;
+                    } else {
+                        voodoo_queue_command(voodoo, (addr & 0x1fc) | FIFO_WRITEL_2DREG, val);
+                    }
                 break;
                 
                 case 0x0200000: case 0x0300000: case 0x0400000: case 0x0500000: /*3D registers*/
@@ -1314,9 +1381,10 @@ static uint8_t banshee_read_linear(uint32_t addr, void *p)
         voodoo_t *voodoo = banshee->voodoo;
         svga_t *svga = &banshee->svga;
         
+#if 0
         cycles -= voodoo->read_time;
         cycles_lost += voodoo->read_time;
-
+#endif
         addr &= svga->decode_mask;
         if (addr >= voodoo->tile_base)
         {
@@ -1332,10 +1400,12 @@ static uint8_t banshee_read_linear(uint32_t addr, void *p)
         if (addr >= svga->vram_max)
                 return 0xff;
 
+#if 0
         egareads++;
         cycles -= video_timing_read_b;
         cycles_lost += video_timing_read_b;
-        
+#endif
+
 //        pclog("read_linear: addr=%08x val=%02x\n", addr, svga->vram[addr & svga->vram_mask]);
 
         return svga->vram[addr & svga->vram_mask];
@@ -1350,8 +1420,10 @@ static uint16_t banshee_read_linear_w(uint32_t addr, void *p)
         if (addr & 1)
                 return banshee_read_linear(addr, p) | (banshee_read_linear(addr+1, p) << 8);
 
+#if 0
         cycles -= voodoo->read_time;
         cycles_lost += voodoo->read_time;
+#endif
 
         addr &= svga->decode_mask;
         if (addr >= voodoo->tile_base)
@@ -1368,9 +1440,11 @@ static uint16_t banshee_read_linear_w(uint32_t addr, void *p)
         if (addr >= svga->vram_max)
                 return 0xff;
 
+#if 0
         egareads++;
         cycles -= video_timing_read_w;
         cycles_lost += video_timing_read_w;
+#endif
 
 //        pclog("read_linear: addr=%08x val=%02x\n", addr, svga->vram[addr & svga->vram_mask]);
 
@@ -1386,8 +1460,10 @@ static uint32_t banshee_read_linear_l(uint32_t addr, void *p)
         if (addr & 3)
                 return banshee_read_linear_w(addr, p) | (banshee_read_linear_w(addr+2, p) << 16);
 
+#if 0
         cycles -= voodoo->read_time;
         cycles_lost += voodoo->read_time;
+#endif
 
         addr &= svga->decode_mask;
         if (addr >= voodoo->tile_base)
@@ -1404,9 +1480,11 @@ static uint32_t banshee_read_linear_l(uint32_t addr, void *p)
         if (addr >= svga->vram_max)
                 return 0xff;
 
+#if 0
         egareads++;
         cycles -= video_timing_read_l;
         cycles_lost += video_timing_read_l;
+#endif
 
 //        pclog("read_linear: addr=%08x val=%02x\n", addr, svga->vram[addr & svga->vram_mask]);
 
@@ -1460,8 +1538,10 @@ static void banshee_write_linear_w(uint32_t addr, uint16_t val, void *p)
                 return;
         }
 
+#if 0
         cycles -= voodoo->write_time;
         cycles_lost += voodoo->write_time;
+#endif
 
 //        pclog("write_linear: addr=%08x val=%02x\n", addr, val);
         addr &= svga->decode_mask;
@@ -1479,10 +1559,12 @@ static void banshee_write_linear_w(uint32_t addr, uint16_t val, void *p)
         if (addr >= svga->vram_max)
                 return;
 
+#if 0
         egawrites++;
 
         cycles -= video_timing_write_w;
         cycles_lost += video_timing_write_w;
+#endif
 
         svga->changedvram[addr >> 12] = changeframecount;
         *(uint16_t *)&svga->vram[addr & svga->vram_mask] = val;
@@ -1502,12 +1584,14 @@ static void banshee_write_linear_l(uint32_t addr, uint32_t val, void *p)
                 return;
         }
 
+#if 0
         if (addr == voodoo->last_write_addr+4)
                 timing = voodoo->burst_time;
         else
                 timing = voodoo->write_time;
         cycles -= timing;
         cycles_lost += timing;
+#endif
         voodoo->last_write_addr = addr;
 
 //        /*if (val) */pclog("write_linear_l: addr=%08x val=%08x  %08x\n", addr, val, voodoo->tile_base);
@@ -1527,10 +1611,12 @@ static void banshee_write_linear_l(uint32_t addr, uint32_t val, void *p)
         if (addr >= svga->vram_max)
                 return;
 
+#if 0
         egawrites += 4;
 
         cycles -= video_timing_write_l;
         cycles_lost += video_timing_write_l;
+#endif
 
         svga->changedvram[addr >> 12] = changeframecount;
         *(uint32_t *)&svga->vram[addr & svga->vram_mask] = val;
@@ -1604,7 +1690,8 @@ void banshee_hwcursor_draw(svga_t *svga, int displine)
         svga->hwcursor_latch.addr += 16;
         
         x_off = svga->hwcursor_latch.x;
-        
+        x_off <<= svga->horizontal_linedbl;
+
         if (banshee->vidProcCfg & VIDPROCCFG_CURSOR_MODE)
         {
                 /*X11 mode*/
@@ -2060,8 +2147,11 @@ static void banshee_overlay_draw(svga_t *svga, int displine)
                         case VIDPROCCFG_FILTER_MODE_DITHER_4X4:
                         if (banshee->voodoo->scrfilter && banshee->voodoo->scrfilterEnabled)
                         {
-                                uint8_t fil[(svga->overlay_latch.xsize) * 3];
-                                uint8_t fil3[(svga->overlay_latch.xsize) * 3];
+                                //uint8_t fil[(svga->overlay_latch.xsize) * 3];
+                                //uint8_t fil3[(svga->overlay_latch.xsize) * 3];
+                                uint8_t fil[4096 * 3];
+                                uint8_t fil3[4096 * 3];
+
 
                                 if (banshee->vidProcCfg & VIDPROCCFG_H_SCALE_ENABLE) /* leilei HACK - don't know of real 4x1 hscaled behavior yet, double for now */
                                 {
@@ -2145,14 +2235,22 @@ static void banshee_overlay_draw(svga_t *svga, int displine)
                         case VIDPROCCFG_FILTER_MODE_DITHER_2X2:
                         if (banshee->voodoo->scrfilter && banshee->voodoo->scrfilterEnabled)
                         {
-                                uint8_t fil[(svga->overlay_latch.xsize) * 3];
-                                uint8_t soak[(svga->overlay_latch.xsize) * 3];
-                                uint8_t soak2[(svga->overlay_latch.xsize) * 3];
+                                //uint8_t fil[(svga->overlay_latch.xsize) * 3];
+                                //uint8_t soak[(svga->overlay_latch.xsize) * 3];
+                                //uint8_t soak2[(svga->overlay_latch.xsize) * 3];
+                                //uint8_t samp1[(svga->overlay_latch.xsize) * 3];
+                                //uint8_t samp2[(svga->overlay_latch.xsize) * 3];
+                                //uint8_t samp3[(svga->overlay_latch.xsize) * 3];
+                                //uint8_t samp4[(svga->overlay_latch.xsize) * 3];
 
-                                uint8_t samp1[(svga->overlay_latch.xsize) * 3];
-                                uint8_t samp2[(svga->overlay_latch.xsize) * 3];
-                                uint8_t samp3[(svga->overlay_latch.xsize) * 3];
-                                uint8_t samp4[(svga->overlay_latch.xsize) * 3];
+                                uint8_t fil[4096 * 3];
+                                uint8_t soak[4096 * 3];
+                                uint8_t soak2[4096 * 3];
+                                uint8_t samp1[4096 * 3];
+                                uint8_t samp2[4096 * 3];
+                                uint8_t samp3[4096 * 3];
+                                uint8_t samp4[4096 * 3];
+
 
                                 src = &svga->vram[src_addr2 & svga->vram_mask];
                                 OVERLAY_SAMPLE(banshee->overlay_buffer[1]);
@@ -2331,8 +2429,8 @@ static uint8_t banshee_pci_read(int func, int addr, void *p)
                 
                 case 0x18: ret = 0x01; break; /*ioBaseAddr*/
                 case 0x19: ret = banshee->ioBaseAddr >> 8; break;
-                case 0x1a: ret = 0x00; break;
-                case 0x1b: ret = 0x00; break;
+                case 0x1a: ret = banshee->ioBaseAddr >> 16; break;
+                case 0x1b: ret = banshee->ioBaseAddr >> 24; break;
 
                 /*Subsystem vendor ID*/
                 case 0x2c: ret = banshee->pci_regs[0x2c]; break;
@@ -2375,18 +2473,18 @@ static void banshee_pci_write(int func, int addr, uint8_t val, void *p)
                 case PCI_REG_COMMAND:
                 if (val & PCI_COMMAND_IO)
                 {
-                        io_removehandler(0x03c0, 0x0020, banshee_in, NULL, NULL, banshee_out, NULL, NULL, banshee);
+                        io_removehandlerx(0x03c0, 0x0020, banshee_in, NULL, NULL, banshee_out, NULL, NULL, banshee);
                         if (banshee->ioBaseAddr)
-                                io_removehandler(banshee->ioBaseAddr, 0x0100, banshee_ext_in, NULL, banshee_ext_inl, banshee_ext_out, NULL, banshee_ext_outl, banshee);
+                                io_removehandlerx(banshee->ioBaseAddr, 0x0100, banshee_ext_in, NULL, banshee_ext_inl, banshee_ext_out, NULL, banshee_ext_outl, banshee);
 
-                        io_sethandler(0x03c0, 0x0020, banshee_in, NULL, NULL, banshee_out, NULL, NULL, banshee);
+                        io_sethandlerx(0x03c0, 0x0020, banshee_in, NULL, NULL, banshee_out, NULL, NULL, banshee);
                         if (banshee->ioBaseAddr)
-                                io_sethandler(banshee->ioBaseAddr, 0x0100, banshee_ext_in, NULL, banshee_ext_inl, banshee_ext_out, NULL, banshee_ext_outl, banshee);
+                                io_sethandlerx(banshee->ioBaseAddr, 0x0100, banshee_ext_in, NULL, banshee_ext_inl, banshee_ext_out, NULL, banshee_ext_outl, banshee);
                 }
                 else
                 {
-                        io_removehandler(0x03c0, 0x0020, banshee_in, NULL, NULL, banshee_out, NULL, NULL, banshee);
-                        io_removehandler(banshee->ioBaseAddr, 0x0100, banshee_ext_in, NULL, banshee_ext_inl, banshee_ext_out, NULL, banshee_ext_outl, banshee);
+                        io_removehandlerx(0x03c0, 0x0020, banshee_in, NULL, NULL, banshee_out, NULL, NULL, banshee);
+                        io_removehandlerx(banshee->ioBaseAddr, 0x0100, banshee_ext_in, NULL, banshee_ext_inl, banshee_ext_out, NULL, banshee_ext_outl, banshee);
                 }
                 banshee->pci_regs[PCI_REG_COMMAND] = val & 0x27;
                 banshee_updatemapping(banshee);
@@ -2408,12 +2506,22 @@ static void banshee_pci_write(int func, int addr, uint8_t val, void *p)
                 banshee_updatemapping(banshee);
                 return;
 
+                case 0x1a:
+                    banshee->ioBaseAddr &= 0xff00ffff;
+                    banshee->ioBaseAddr |= val << 16;
+                    break;
+                case 0x1b:
+                    banshee->ioBaseAddr &= 0x00ffffff;
+                    banshee->ioBaseAddr |= val << 24;
+                    break;
+
                 case 0x19:
                 if (banshee->pci_regs[PCI_REG_COMMAND] & PCI_COMMAND_IO)
-                        io_removehandler(banshee->ioBaseAddr, 0x0100, banshee_ext_in, NULL, banshee_ext_inl, banshee_ext_out, NULL, banshee_ext_outl, banshee);
-                banshee->ioBaseAddr = val << 8;
+                        io_removehandlerx(banshee->ioBaseAddr, 0x0100, banshee_ext_in, NULL, banshee_ext_inl, banshee_ext_out, NULL, banshee_ext_outl, banshee);
+                banshee->ioBaseAddr &= 0xffff00ff;
+                banshee->ioBaseAddr |= val << 8;
                 if ((banshee->pci_regs[PCI_REG_COMMAND] & PCI_COMMAND_IO) && banshee->ioBaseAddr)
-                        io_sethandler(banshee->ioBaseAddr, 0x0100, banshee_ext_in, NULL, banshee_ext_inl, banshee_ext_out, NULL, banshee_ext_outl, banshee);
+                        io_sethandlerx(banshee->ioBaseAddr, 0x0100, banshee_ext_in, NULL, banshee_ext_inl, banshee_ext_out, NULL, banshee_ext_outl, banshee);
                 pclog("Banshee ioBaseAddr=%08x\n", banshee->ioBaseAddr);
 //                s3_virge_updatemapping(virge); 
                 return;
@@ -2424,13 +2532,13 @@ static void banshee_pci_write(int func, int addr, uint8_t val, void *p)
                 {
                         uint32_t addr = (banshee->pci_regs[0x32] << 16) | (banshee->pci_regs[0x33] << 24);
                         pclog("Banshee bios_rom enabled at %08x\n", addr);
-                        mem_mapping_set_addr(&banshee->bios_rom.mapping, addr, 0x10000);
-                        mem_mapping_enable(&banshee->bios_rom.mapping);
+                        mem_mapping_set_addrx(&banshee->bios_rom.mapping, addr, 0x10000);
+                        mem_mapping_enablex(&banshee->bios_rom.mapping);
                 }
                 else
                 {
                         pclog("Banshee bios_rom disabled\n");
-                        mem_mapping_disable(&banshee->bios_rom.mapping);
+                        mem_mapping_disablex(&banshee->bios_rom.mapping);
                 }
                 return;
                 case 0x3c: 
@@ -2445,6 +2553,7 @@ static device_config_t banshee_sgram_config[] =
                 .name = "memory",
                 .description = "Memory size",
                 .type = CONFIG_SELECTION,
+                .default_int = 16,
                 .selection =
                 {
                         {
@@ -2458,8 +2567,7 @@ static device_config_t banshee_sgram_config[] =
                         {
                                 .description = ""
                         }
-                },
-                .default_int = 16
+                }
         },
         {
                 .name = "bilinear",
@@ -2477,6 +2585,7 @@ static device_config_t banshee_sgram_config[] =
                 .name = "render_threads",
                 .description = "Render threads",
                 .type = CONFIG_SELECTION,
+                .default_int = 2,
                 .selection =
                 {
                         {
@@ -2494,8 +2603,7 @@ static device_config_t banshee_sgram_config[] =
                         {
                                 .description = ""
                         }
-                },
-                .default_int = 2
+                }
         },
 #ifndef NO_CODEGEN
         {
@@ -2528,6 +2636,7 @@ static device_config_t banshee_sdram_config[] =
                 .name = "render_threads",
                 .description = "Render threads",
                 .type = CONFIG_SELECTION,
+                .default_int = 2,
                 .selection =
                 {
                         {
@@ -2546,7 +2655,6 @@ static device_config_t banshee_sdram_config[] =
                                 .description = ""
                         }
                 },
-                .default_int = 2
         },
 #ifndef NO_CODEGEN
         {
@@ -2561,16 +2669,29 @@ static device_config_t banshee_sdram_config[] =
         }
 };
 
+void voodoo_update_vram(void *p)
+{
+    banshee_t *banshee = (banshee_t*)p;
+ 
+    banshee->voodoo->vram = banshee->svga.vram;
+    banshee->voodoo->fb_mem = banshee->svga.vram;
+    banshee->voodoo->tex_mem[0] = banshee->svga.vram;
+    banshee->voodoo->tex_mem_w[0] = (uint16_t*)banshee->svga.vram;
+    banshee->voodoo->tex_mem[1] = banshee->svga.vram;
+    banshee->voodoo->tex_mem_w[1] = (uint16_t*)banshee->svga.vram;
+}
+
 static void *banshee_init_common(char *fn, int has_sgram, int type, int voodoo_type)
 {
         int mem_size;
-        banshee_t *banshee = malloc(sizeof(banshee_t));
+        banshee_t *banshee = (banshee_t*)malloc(sizeof(banshee_t));
         memset(banshee, 0, sizeof(banshee_t));
         
         banshee->type = type;
+        banshee->intrCtrl = 0x80000000;
 
         rom_init(&banshee->bios_rom, fn, 0xc0000, 0x10000, 0xffff, 0, MEM_MAPPING_EXTERNAL);
-        mem_mapping_disable(&banshee->bios_rom.mapping);
+        mem_mapping_disablex(&banshee->bios_rom.mapping);
 
         if (has_sgram)
                 mem_size = device_get_config_int("memory");
@@ -2584,7 +2705,7 @@ static void *banshee_init_common(char *fn, int has_sgram, int type, int voodoo_t
                    banshee_overlay_draw);
         banshee->svga.vsync_callback = banshee_vsync_callback;
 
-        mem_mapping_add(&banshee->linear_mapping, 0, 0, banshee_read_linear,
+        mem_mapping_addx(&banshee->linear_mapping, 0, 0, banshee_read_linear,
                                                         banshee_read_linear_w,
                                                         banshee_read_linear_l,
                                                         banshee_write_linear,
@@ -2593,7 +2714,7 @@ static void *banshee_init_common(char *fn, int has_sgram, int type, int voodoo_t
                                                         NULL,
                                                         MEM_MAPPING_EXTERNAL,
                                                         &banshee->svga);
-        mem_mapping_add(&banshee->reg_mapping_low, 0, 0,banshee_reg_read,
+        mem_mapping_addx(&banshee->reg_mapping_low, 0, 0,banshee_reg_read,
                                                         banshee_reg_readw,
                                                         banshee_reg_readl,
                                                         banshee_reg_write,
@@ -2602,7 +2723,7 @@ static void *banshee_init_common(char *fn, int has_sgram, int type, int voodoo_t
                                                         NULL,
                                                         MEM_MAPPING_EXTERNAL,
                                                         banshee);
-        mem_mapping_add(&banshee->reg_mapping_high, 0,0,banshee_reg_read,
+        mem_mapping_addx(&banshee->reg_mapping_high, 0,0,banshee_reg_read,
                                                         banshee_reg_readw,
                                                         banshee_reg_readl,
                                                         banshee_reg_write,
@@ -2612,7 +2733,7 @@ static void *banshee_init_common(char *fn, int has_sgram, int type, int voodoo_t
                                                         MEM_MAPPING_EXTERNAL,
                                                         banshee);
 
-//        io_sethandler(0x03c0, 0x0020, banshee_in, NULL, NULL, banshee_out, NULL, NULL, banshee);
+//        io_sethandlerx(0x03c0, 0x0020, banshee_in, NULL, NULL, banshee_out, NULL, NULL, banshee);
 
         banshee->svga.bpp = 8;
         banshee->svga.miscout = 1;
@@ -2626,7 +2747,7 @@ static void *banshee_init_common(char *fn, int has_sgram, int type, int voodoo_t
 
         pci_add(banshee_pci_read, banshee_pci_write, banshee);
         
-        banshee->voodoo = voodoo_2d3d_card_init(voodoo_type);
+        banshee->voodoo = (voodoo_t*)voodoo_2d3d_card_init(voodoo_type);
         banshee->voodoo->p = banshee;
         banshee->voodoo->vram = banshee->svga.vram;
         banshee->voodoo->changedvram = banshee->svga.changedvram;
@@ -2641,7 +2762,7 @@ static void *banshee_init_common(char *fn, int has_sgram, int type, int voodoo_t
 
         banshee->vidSerialParallelPort = VIDSERIAL_DDC_DCK_W | VIDSERIAL_DDC_DDA_W;
 
-        ddc_init();
+        //ddc_init();
 
         switch (type)
         {
@@ -2676,6 +2797,8 @@ static void *banshee_init_common(char *fn, int has_sgram, int type, int voodoo_t
                 banshee->pci_regs[0x2f] = 0x00;
                 break;
         }
+
+        banshee->svga.vblank_start = banshee_vblank_start;
 
         return banshee;
 }

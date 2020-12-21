@@ -1,3 +1,6 @@
+
+#include <emmintrin.h>
+
 #include <math.h>
 #include <stddef.h>
 #include "ibm.h"
@@ -679,7 +682,7 @@ static void voodoo_half_triangle(voodoo_t *voodoo, voodoo_params_t *params, vood
         int texels;
         int c;
 #ifndef NO_CODEGEN
-        uint8_t (*voodoo_draw)(voodoo_state_t *state, voodoo_params_t *params, int x, int real_y);
+        uint8_t (__cdecl *voodoo_draw)(voodoo_state_t *state, voodoo_params_t *params, int x, int real_y);
 #endif
         int y_diff = SLI_ENABLED ? 2 : 1;
 
@@ -772,8 +775,9 @@ static void voodoo_half_triangle(voodoo_t *voodoo, voodoo_params_t *params, vood
                 }
         }
 #ifndef NO_CODEGEN
+        typedef uint8_t(__cdecl *VOODOO_DRAW)(voodoo_state_t*,voodoo_params_t*, int,int);
         if (voodoo->use_recompiler)
-                voodoo_draw = voodoo_get_block(voodoo, params, state, odd_even);
+                voodoo_draw = (VOODOO_DRAW)voodoo_get_block(voodoo, params, state, odd_even);
         else
                 voodoo_draw = NULL;
 #endif

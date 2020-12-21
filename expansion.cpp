@@ -5820,6 +5820,12 @@ const struct expansionromtype expansionroms[] = {
 		false, EXPANSIONTYPE_RTG
 	},
 	{
+		_T("vooodoo3_3k"), _T("Voodoo 3 3000"), _T("3dfx"),
+		NULL, NULL, NULL, NULL, ROMTYPE_VOODOO3 | ROMTYPE_NONE, 0, 0, BOARD_IGNORE, false,
+		NULL, 0,
+		false, EXPANSIONTYPE_RTG
+	},
+	{
 		_T("x86vga"), _T("x86 VGA"), NULL,
 		NULL, NULL, NULL, NULL, ROMTYPE_x86_VGA | ROMTYPE_NONE, 0, 0, BOARD_IGNORE, true,
 		NULL, 0,

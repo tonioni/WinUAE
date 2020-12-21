@@ -685,39 +685,39 @@ static void voodoo_recalcmapping(voodoo_set_t *set)
                         if (set->voodoos[0]->type == VOODOO_2 && set->voodoos[1]->initEnable & (1 << 23))
                         {
                                 pclog("voodoo_recalcmapping (pri) with snoop : memBaseAddr %08X\n", set->voodoos[0]->memBaseAddr);
-                                mem_mapping_disable(&set->voodoos[0]->mapping);
-                                mem_mapping_set_addr(&set->snoop_mapping, set->voodoos[0]->memBaseAddr, 0x01000000);
+                                mem_mapping_disablex(&set->voodoos[0]->mapping);
+                                mem_mapping_set_addrx(&set->snoop_mapping, set->voodoos[0]->memBaseAddr, 0x01000000);
                         }
                         else if (set->voodoos[1]->pci_enable && (set->voodoos[0]->memBaseAddr == set->voodoos[1]->memBaseAddr))
                         {
                                 pclog("voodoo_recalcmapping (pri) (sec) same addr : memBaseAddr %08X\n", set->voodoos[0]->memBaseAddr);
-                                mem_mapping_disable(&set->voodoos[0]->mapping);
-                                mem_mapping_disable(&set->voodoos[1]->mapping);
-                                mem_mapping_set_addr(&set->snoop_mapping, set->voodoos[0]->memBaseAddr, 0x01000000);
+                                mem_mapping_disablex(&set->voodoos[0]->mapping);
+                                mem_mapping_disablex(&set->voodoos[1]->mapping);
+                                mem_mapping_set_addrx(&set->snoop_mapping, set->voodoos[0]->memBaseAddr, 0x01000000);
                                 return;
                         }
                         else
                         {
                                 pclog("voodoo_recalcmapping (pri) : memBaseAddr %08X\n", set->voodoos[0]->memBaseAddr);
-                                mem_mapping_disable(&set->snoop_mapping);
-                                mem_mapping_set_addr(&set->voodoos[0]->mapping, set->voodoos[0]->memBaseAddr, 0x01000000);
+                                mem_mapping_disablex(&set->snoop_mapping);
+                                mem_mapping_set_addrx(&set->voodoos[0]->mapping, set->voodoos[0]->memBaseAddr, 0x01000000);
                         }
                 }
                 else
                 {
                         pclog("voodoo_recalcmapping (pri) : disabled\n");
-                        mem_mapping_disable(&set->voodoos[0]->mapping);
+                        mem_mapping_disablex(&set->voodoos[0]->mapping);
                 }
 
                 if (set->voodoos[1]->pci_enable && set->voodoos[1]->memBaseAddr)
                 {
                         pclog("voodoo_recalcmapping (sec) : memBaseAddr %08X\n", set->voodoos[1]->memBaseAddr);
-                        mem_mapping_set_addr(&set->voodoos[1]->mapping, set->voodoos[1]->memBaseAddr, 0x01000000);
+                        mem_mapping_set_addrx(&set->voodoos[1]->mapping, set->voodoos[1]->memBaseAddr, 0x01000000);
                 }
                 else
                 {
                         pclog("voodoo_recalcmapping (sec) : disabled\n");
-                        mem_mapping_disable(&set->voodoos[1]->mapping);
+                        mem_mapping_disablex(&set->voodoos[1]->mapping);
                 }
         }
         else
@@ -727,12 +727,12 @@ static void voodoo_recalcmapping(voodoo_set_t *set)
                 if (voodoo->pci_enable && voodoo->memBaseAddr)
                 {
                         pclog("voodoo_recalcmapping : memBaseAddr %08X\n", voodoo->memBaseAddr);
-                        mem_mapping_set_addr(&voodoo->mapping, voodoo->memBaseAddr, 0x01000000);
+                        mem_mapping_set_addrx(&voodoo->mapping, voodoo->memBaseAddr, 0x01000000);
                 }
                 else
                 {
                         pclog("voodoo_recalcmapping : disabled\n");
-                        mem_mapping_disable(&voodoo->mapping);
+                        mem_mapping_disablex(&voodoo->mapping);
                 }
         }
 }
@@ -948,7 +948,7 @@ static void voodoo_speed_changed(void *p)
 void *voodoo_card_init()
 {
         int c;
-        voodoo_t *voodoo = malloc(sizeof(voodoo_t));
+        voodoo_t *voodoo = (voodoo_t*)malloc(sizeof(voodoo_t));
         memset(voodoo, 0, sizeof(voodoo_t));
 
         voodoo->bilinear_enabled = device_get_config_int("bilinear");
@@ -983,30 +983,31 @@ void *voodoo_card_init()
         
         pci_add(voodoo_pci_read, voodoo_pci_write, voodoo);
 
-        mem_mapping_add(&voodoo->mapping, 0, 0, NULL, voodoo_readw, voodoo_readl, NULL, voodoo_writew, voodoo_writel,     NULL, MEM_MAPPING_EXTERNAL, voodoo);
+        mem_mapping_addx(&voodoo->mapping, 0, 0, NULL, voodoo_readw, voodoo_readl, NULL, voodoo_writew, voodoo_writel,     NULL, MEM_MAPPING_EXTERNAL, voodoo);
 
-        voodoo->fb_mem = malloc(4 * 1024 * 1024);
-        voodoo->tex_mem[0] = malloc(voodoo->texture_size * 1024 * 1024);
+        voodoo->fb_mem = (uint8_t*)malloc(4 * 1024 * 1024);
+        voodoo->tex_mem[0] = (uint8_t*)malloc(voodoo->texture_size * 1024 * 1024);
         if (voodoo->dual_tmus)
-                voodoo->tex_mem[1] = malloc(voodoo->texture_size * 1024 * 1024);
+                voodoo->tex_mem[1] = (uint8_t*)malloc(voodoo->texture_size * 1024 * 1024);
         voodoo->tex_mem_w[0] = (uint16_t *)voodoo->tex_mem[0];
         voodoo->tex_mem_w[1] = (uint16_t *)voodoo->tex_mem[1];
         
         for (c = 0; c < TEX_CACHE_MAX; c++)
         {
-                voodoo->texture_cache[0][c].data = malloc((256*256 + 256*256 + 128*128 + 64*64 + 32*32 + 16*16 + 8*8 + 4*4 + 2*2) * 4);
+                voodoo->texture_cache[0][c].data = (uint32_t*)malloc((256*256 + 256*256 + 128*128 + 64*64 + 32*32 + 16*16 + 8*8 + 4*4 + 2*2) * 4);
                 voodoo->texture_cache[0][c].base = -1; /*invalid*/
                 voodoo->texture_cache[0][c].refcount = 0;
                 if (voodoo->dual_tmus)
                 {
-                        voodoo->texture_cache[1][c].data = malloc((256*256 + 256*256 + 128*128 + 64*64 + 32*32 + 16*16 + 8*8 + 4*4 + 2*2) * 4);
+                        voodoo->texture_cache[1][c].data = (uint32_t*)malloc((256*256 + 256*256 + 128*128 + 64*64 + 32*32 + 16*16 + 8*8 + 4*4 + 2*2) * 4);
                         voodoo->texture_cache[1][c].base = -1; /*invalid*/
                         voodoo->texture_cache[1][c].refcount = 0;
                 }
         }
 
+#if 0
         timer_add(&voodoo->timer, voodoo_callback, voodoo, 1);
-        
+#endif   
         voodoo->svga = svga_get_pri();
         voodoo->fbiInit0 = 0;
 
@@ -1031,8 +1032,9 @@ void *voodoo_card_init()
                 voodoo->render_thread[3] = thread_create(voodoo_render_thread_4, voodoo);
         }
         voodoo->swap_mutex = thread_create_mutex();
+#if 0
         timer_add(&voodoo->wake_timer, voodoo_wake_timer, (void *)voodoo, 0);
-        
+#endif   
         for (c = 0; c < 0x100; c++)
         {
                 rgb332[c].r = c & 0xe0;
@@ -1094,7 +1096,7 @@ void *voodoo_card_init()
 void *voodoo_2d3d_card_init(int type)
 {
         int c;
-        voodoo_t *voodoo = malloc(sizeof(voodoo_t));
+        voodoo_t *voodoo = (voodoo_t*)malloc(sizeof(voodoo_t));
         memset(voodoo, 0, sizeof(voodoo_t));
 
         voodoo->bilinear_enabled = device_get_config_int("bilinear");
@@ -1112,18 +1114,18 @@ void *voodoo_2d3d_card_init(int type)
 
         for (c = 0; c < TEX_CACHE_MAX; c++)
         {
-                voodoo->texture_cache[0][c].data = malloc((256*256 + 256*256 + 128*128 + 64*64 + 32*32 + 16*16 + 8*8 + 4*4 + 2*2) * 4);
+                voodoo->texture_cache[0][c].data = (uint32_t*)malloc((256*256 + 256*256 + 128*128 + 64*64 + 32*32 + 16*16 + 8*8 + 4*4 + 2*2) * 4);
                 voodoo->texture_cache[0][c].base = -1; /*invalid*/
                 voodoo->texture_cache[0][c].refcount = 0;
                 if (voodoo->dual_tmus)
                 {
-                        voodoo->texture_cache[1][c].data = malloc((256*256 + 256*256 + 128*128 + 64*64 + 32*32 + 16*16 + 8*8 + 4*4 + 2*2) * 4);
+                        voodoo->texture_cache[1][c].data = (uint32_t*)malloc((256*256 + 256*256 + 128*128 + 64*64 + 32*32 + 16*16 + 8*8 + 4*4 + 2*2) * 4);
                         voodoo->texture_cache[1][c].base = -1; /*invalid*/
                         voodoo->texture_cache[1][c].refcount = 0;
                 }
         }
 
-        timer_add(&voodoo->timer, voodoo_callback, voodoo, 1);
+//        timer_addx(&voodoo->timer, voodoo_callback, voodoo, 1);
 
         voodoo->fbiInit0 = 0;
 
@@ -1149,7 +1151,6 @@ void *voodoo_2d3d_card_init(int type)
         }
         voodoo->swap_mutex = thread_create_mutex();
         timer_add(&voodoo->wake_timer, voodoo_wake_timer, (void *)voodoo, 0);
-
         for (c = 0; c < 0x100; c++)
         {
                 rgb332[c].r = c & 0xe0;
@@ -1210,7 +1211,7 @@ void *voodoo_2d3d_card_init(int type)
 
 void *voodoo_init()
 {
-        voodoo_set_t *voodoo_set = malloc(sizeof(voodoo_set_t));
+        voodoo_set_t *voodoo_set = (voodoo_set_t*)malloc(sizeof(voodoo_set_t));
         uint32_t tmuConfig = 1;
         int type;
         memset(voodoo_set, 0, sizeof(voodoo_set_t));
@@ -1218,11 +1219,11 @@ void *voodoo_init()
         type = device_get_config_int("type");
         
         voodoo_set->nr_cards = device_get_config_int("sli") ? 2 : 1;
-        voodoo_set->voodoos[0] = voodoo_card_init();
+        voodoo_set->voodoos[0] = (voodoo_t*)voodoo_card_init();
         voodoo_set->voodoos[0]->set = voodoo_set;
         if (voodoo_set->nr_cards == 2)
         {
-                voodoo_set->voodoos[1] = voodoo_card_init();
+                voodoo_set->voodoos[1] = (voodoo_t*)voodoo_card_init();
                                 
                 voodoo_set->voodoos[1]->set = voodoo_set;
 
@@ -1261,7 +1262,7 @@ void *voodoo_init()
         if (voodoo_set->nr_cards == 2)
                 voodoo_set->voodoos[1]->tmuConfig = tmuConfig;
 
-        mem_mapping_add(&voodoo_set->snoop_mapping, 0, 0, NULL, voodoo_snoop_readw, voodoo_snoop_readl, NULL, voodoo_snoop_writew, voodoo_snoop_writel,     NULL, MEM_MAPPING_EXTERNAL, voodoo_set);
+        mem_mapping_addx(&voodoo_set->snoop_mapping, 0, 0, NULL, voodoo_snoop_readw, voodoo_snoop_readl, NULL, voodoo_snoop_writew, voodoo_snoop_writel,     NULL, MEM_MAPPING_EXTERNAL, voodoo_set);
                 
         return voodoo_set;
 }
@@ -1273,6 +1274,7 @@ void voodoo_card_close(voodoo_t *voodoo)
 #endif
         int c;
         
+#if 0
 #ifndef RELEASE_BUILD        
         if (voodoo->tex_mem[0])
         {
@@ -1286,6 +1288,7 @@ void voodoo_card_close(voodoo_t *voodoo)
                         fclose(f);
                 }
         }
+#endif
 #endif
 
         thread_kill(voodoo->fifo_thread);
@@ -1341,6 +1344,7 @@ static device_config_t voodoo_config[] =
                 .name = "type",
                 .description = "Voodoo type",
                 .type = CONFIG_SELECTION,
+                .default_int = 0,
                 .selection =
                 {
                         {
@@ -1358,13 +1362,13 @@ static device_config_t voodoo_config[] =
                         {
                                 .description = ""
                         }
-                },
-                .default_int = 0
+                }
         },
         {
                 .name = "framebuffer_memory",
                 .description = "Framebuffer memory size",
                 .type = CONFIG_SELECTION,
+                .default_int = 2,
                 .selection =
                 {
                         {
@@ -1378,13 +1382,13 @@ static device_config_t voodoo_config[] =
                         {
                                 .description = ""
                         }
-                },
-                .default_int = 2
+                }
         },
         {
                 .name = "texture_memory",
                 .description = "Texture memory size",
                 .type = CONFIG_SELECTION,
+                .default_int = 2,
                 .selection =
                 {
                         {
@@ -1398,8 +1402,7 @@ static device_config_t voodoo_config[] =
                         {
                                 .description = ""
                         }
-                },
-                .default_int = 2
+                }
         },
         {
                 .name = "bilinear",
@@ -1417,6 +1420,7 @@ static device_config_t voodoo_config[] =
                 .name = "render_threads",
                 .description = "Render threads",
                 .type = CONFIG_SELECTION,
+                .default_int = 2,
                 .selection =
                 {
                         {
@@ -1434,8 +1438,7 @@ static device_config_t voodoo_config[] =
                         {
                                 .description = ""
                         }
-                },
-                .default_int = 2
+                }
         },
         {
                 .name = "sli",

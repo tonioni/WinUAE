@@ -1,3 +1,4 @@
+
 #if !(defined i386 || defined __i386 || defined __i386__ || defined _X86_ || defined WIN32 || defined _WIN32 || defined _WIN32) && !(defined __amd64__)
 #define NO_CODEGEN
 #endif

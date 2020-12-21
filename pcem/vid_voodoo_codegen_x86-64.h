@@ -3376,7 +3376,7 @@ static inline void *voodoo_get_block(voodoo_t *voodoo, voodoo_params_t *params, 
 {
         int c;
         int b = last_block[odd_even];
-        voodoo_x86_data_t *voodoo_x86_data = voodoo->codegen_data;
+        voodoo_x86_data_t *voodoo_x86_data = (voodoo_x86_data_t*)voodoo->codegen_data;
         voodoo_x86_data_t *data;
         
         for (c = 0; c < 8; c++)

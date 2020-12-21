@@ -22,6 +22,8 @@
 #include "vid_voodoo_banshee_blitter.h"
 #include "vid_voodoo_render.h"
 
+#define MAX(a,b) ((a) > (b) ? (a) : (b))
+
 #define COMMAND_CMD_MASK                         (0xf)
 #define COMMAND_CMD_NOP                          (0 << 0)
 #define COMMAND_CMD_SCREEN_TO_SCREEN_BLT         (1 << 0)

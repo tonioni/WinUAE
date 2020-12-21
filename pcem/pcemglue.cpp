@@ -461,6 +461,70 @@ uint64_t timer_read(void)
 	return read_processor_time();
 }
 
+static pc_timer_t *timer_head = NULL;
+
+void timer_enablex(pc_timer_t *timer)
+{
+	pc_timer_t *timer_node = timer_head;
+	if (timer->enabled)
+		timer_disablex(timer);
+	timer->enabled = 1;
+	if (!timer_head)
+	{
+		timer_head = timer;
+		timer->next = timer->prev = NULL;
+		return;
+	}
+	timer_node = timer_head;
+}
+void timer_disablex(pc_timer_t *timer)
+{
+	if (!timer->enabled)
+		return;
+	timer->enabled = 0;
+	if (timer->prev)
+		timer->prev->next = timer->next;
+	else
+		timer_head = timer->next;
+	if (timer->next)
+		timer->next->prev = timer->prev;
+	timer->prev = timer->next = NULL;
+}
+void timer_addx(pc_timer_t *timer, void (*callback)(void* p), void *p, int start_timer)
+{
+	memset(timer, 0, sizeof(pc_timer_t));
+
+	timer->callback = callback;
+	timer->p = p;
+	timer->enabled = 0;
+	timer->prev = timer->next = NULL;
+}
+void timer_set_delay_u64x(pc_timer_t *timer, uint64_t delay)
+{
+	timer_enablex(timer);
+}
+static void timer_remove_headx(void)
+{
+	if (timer_head)
+	{
+		pc_timer_t *timer = timer_head;
+		timer_head = timer->next;
+		if (timer_head) {
+			timer_head->prev = NULL;
+		}
+		timer->next = timer->prev = NULL;
+		timer->enabled = 0;
+	}
+}
+
+void pcemglue_hsync(void)
+{
+	while (timer_head) {
+		timer_head->callback(timer_head->p);
+		timer_remove_headx();
+	}
+}
+
 void initpcemvideo(void *p, bool swapped)
 {
 	int c, d, e;
@@ -536,6 +600,7 @@ void initpcemvideo(void *p, bool swapped)
 	pcem_linear_write_l = dummy_lwrite;
 	pcem_mapping_linear = NULL;
 	pcem_mapping_linear_offset = 0;
+	timer_head = NULL;
 
 }
 
@@ -678,6 +743,37 @@ int thread_wait_event(event_t *event, int timeout)
 void thread_destroy_event(event_t *_event)
 {
 	uae_sem_destroy((uae_sem_t*)&_event);
+}
+
+typedef struct win_mutex_t
+{
+	HANDLE handle;
+} win_mutex_t;
+
+mutex_t* thread_create_mutex(void)
+{
+	win_mutex_t* mutex = xcalloc(win_mutex_t,1);
+	mutex->handle = CreateSemaphore(NULL, 1, 1, NULL);
+	return mutex;
+}
+
+void thread_lock_mutex(mutex_t* _mutex)
+{
+	win_mutex_t* mutex = (win_mutex_t*)_mutex;
+	WaitForSingleObject(mutex->handle, INFINITE);
+}
+
+void thread_unlock_mutex(mutex_t* _mutex)
+{
+	win_mutex_t* mutex = (win_mutex_t*)_mutex;
+	ReleaseSemaphore(mutex->handle, 1, NULL);
+}
+
+void thread_destroy_mutex(mutex_t* _mutex)
+{
+	win_mutex_t* mutex = (win_mutex_t*)_mutex;
+	CloseHandle(mutex->handle);
+	xfree(mutex);
 }
 
 static mem_mapping_t *getmm(uaecptr *addrp)
@@ -974,3 +1070,10 @@ void mem_mapping_enablex(mem_mapping_t *mapping)
 	mapping_recalc(mapping);
 }
 
+void pcem_linear_mark(int offset)
+{
+	if (!pcem_mapping_linear)
+		return;
+	uae_u16 w = pcem_linear_read_w(offset, pcem_mapping_linear_priv);
+	pcem_linear_write_w(offset, w, pcem_mapping_linear_priv);
+}

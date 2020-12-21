@@ -483,7 +483,7 @@
       <OmitFramePointers>true</OmitFramePointers>
       <WholeProgramOptimization>false</WholeProgramOptimization>
       <AdditionalIncludeDirectories>..\..\include;..\..;..\;..\resources;..\osdep;..\sounddep;..\..\slirp;..\..\ppc\pearpc;..\..\ppc\pearpc;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>WINVER=0x0601;NDEBUG;_WIN32_IE=0x0700;WIN32;WIN64;PTR64;UAE;WINUAE;_HAS_STD_BYTE=0;SAHF_SETO_PROFITABLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WINVER=0x0601;NDEBUG;_WIN32_IE=0x0700;WIN32;WIN64;PTR64;UAE;WINUAE;_HAS_STD_BYTE=0;SAHF_SETO_PROFITABLE;__amd64__;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <StringPooling>true</StringPooling>
       <ExceptionHandling>Sync</ExceptionHandling>
       <BasicRuntimeChecks>Default</BasicRuntimeChecks>
@@ -637,7 +637,7 @@
       <OmitFramePointers>false</OmitFramePointers>
       <WholeProgramOptimization>false</WholeProgramOptimization>
       <AdditionalIncludeDirectories>..\..\include;..\..;..\;..\resources;..\osdep;..\sounddep;..\..\slirp;..\..\ppc\pearpc;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>WINVER=0x0601;NDEBUG;_WIN32_IE=0x0700;WIN32;WIN64;PTR64;UAE;WINUAE;_HAS_STD_BYTE=0;SAHF_SETO_PROFITABLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WINVER=0x0601;NDEBUG;_WIN32_IE=0x0700;WIN32;WIN64;PTR64;UAE;WINUAE;_HAS_STD_BYTE=0;SAHF_SETO_PROFITABLE;__amd64__;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <StringPooling>true</StringPooling>
       <ExceptionHandling>Sync</ExceptionHandling>
       <BasicRuntimeChecks>Default</BasicRuntimeChecks>
@@ -795,7 +795,7 @@
       <OmitFramePointers>true</OmitFramePointers>
       <WholeProgramOptimization>true</WholeProgramOptimization>
       <AdditionalIncludeDirectories>..\..\include;..\..;..\;..\resources;..\osdep;..\sounddep;..\..\slirp;..\..\ppc\pearpc;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>WINVER=0x0601;NDEBUG;_WIN32_IE=0x0700;WIN32;WIN64;PTR64;UAE;WINUAE;_HAS_STD_BYTE=0;SAHF_SETO_PROFITABLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WINVER=0x0601;NDEBUG;_WIN32_IE=0x0700;WIN32;WIN64;PTR64;UAE;WINUAE;_HAS_STD_BYTE=0;SAHF_SETO_PROFITABLE;__amd64__;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <StringPooling>true</StringPooling>
       <ExceptionHandling>Sync</ExceptionHandling>
       <BasicRuntimeChecks>Default</BasicRuntimeChecks>
@@ -976,6 +976,17 @@
     <ClCompile Include="..\..\pcem\vid_sdac_ramdac.cpp" />
     <ClCompile Include="..\..\pcem\vid_svga.cpp" />
     <ClCompile Include="..\..\pcem\vid_svga_render.cpp" />
+    <ClCompile Include="..\..\pcem\vid_voodoo.cpp" />
+    <ClCompile Include="..\..\pcem\vid_voodoo_banshee.cpp" />
+    <ClCompile Include="..\..\pcem\vid_voodoo_banshee_blitter.cpp" />
+    <ClCompile Include="..\..\pcem\vid_voodoo_blitter.cpp" />
+    <ClCompile Include="..\..\pcem\vid_voodoo_display.cpp" />
+    <ClCompile Include="..\..\pcem\vid_voodoo_fb.cpp" />
+    <ClCompile Include="..\..\pcem\vid_voodoo_fifo.cpp" />
+    <ClCompile Include="..\..\pcem\vid_voodoo_reg.cpp" />
+    <ClCompile Include="..\..\pcem\vid_voodoo_render.cpp" />
+    <ClCompile Include="..\..\pcem\vid_voodoo_setup.cpp" />
+    <ClCompile Include="..\..\pcem\vid_voodoo_texture.cpp" />
     <ClCompile Include="..\..\pcem\x86seg.cpp" />
     <ClCompile Include="..\..\pcem\x87.cpp" />
     <ClCompile Include="..\..\pcem\x87_timings.cpp" />

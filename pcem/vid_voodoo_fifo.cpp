@@ -25,7 +25,7 @@ void voodoo_wake_fifo_thread(voodoo_t *voodoo)
                   process one word and go back to sleep, requiring it to be woken on
                   almost every write. Instead, wait a short while so that the CPU
                   emulation writes more data so we have more batched-up work.*/
-		timer_set_delay_u64(&voodoo->wake_timer, WAKE_DELAY);
+		timer_set_delay_u64x(&voodoo->wake_timer, WAKE_DELAY);
         }
 }
 

@@ -970,6 +970,39 @@
     <ClCompile Include="..\FX11\EffectRuntime.cpp">
       <Filter>win32\FX11</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\pcem\vid_voodoo_banshee.cpp">
+      <Filter>pcem</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\pcem\vid_voodoo_banshee_blitter.cpp">
+      <Filter>pcem</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\pcem\vid_voodoo_display.cpp">
+      <Filter>pcem</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\pcem\vid_voodoo_fifo.cpp">
+      <Filter>pcem</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\pcem\vid_voodoo_render.cpp">
+      <Filter>pcem</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\pcem\vid_voodoo_fb.cpp">
+      <Filter>pcem</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\pcem\vid_voodoo_reg.cpp">
+      <Filter>pcem</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\pcem\vid_voodoo_setup.cpp">
+      <Filter>pcem</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\pcem\vid_voodoo_blitter.cpp">
+      <Filter>pcem</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\pcem\vid_voodoo_texture.cpp">
+      <Filter>pcem</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\pcem\vid_voodoo.cpp">
+      <Filter>pcem</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\resources\35floppy.ico">

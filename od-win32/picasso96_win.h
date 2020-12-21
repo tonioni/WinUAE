@@ -640,7 +640,7 @@ extern bool picasso_is_active(int monid);
 extern int picasso_setwincursor(int monid);
 extern int picasso_palette(struct MyCLUTEntry *MCLUT, uae_u32 *clut);
 extern void picasso_allocatewritewatch (int index, int gfxmemsize);
-extern void picasso_getwritewatch (int index, int offset);
+extern int picasso_getwritewatch(int index, int offset, uae_u8 ***gwwbufp, uae_u8 **startp);
 extern bool picasso_is_vram_dirty (int index, uaecptr addr, int size);
 extern void picasso_statusline (int monid, uae_u8 *dst);
 extern void picasso_invalidate(int monid, int x, int y, int w, int h);

@@ -3312,12 +3312,12 @@ static inline void voodoo_generate(uint8_t *code_block, voodoo_t *voodoo, voodoo
 }
 int voodoo_recomp = 0;
 
-static inline void *voodoo_get_block(voodoo_t *voodoo, voodoo_params_t *params, voodoo_state_t *state, int odd_even)
+static inline uint8_t *voodoo_get_block(voodoo_t *voodoo, voodoo_params_t *params, voodoo_state_t *state, int odd_even)
 {
         int c;
         int b = last_block[odd_even];
         voodoo_x86_data_t *data;
-        voodoo_x86_data_t *codegen_data = voodoo->codegen_data;
+        voodoo_x86_data_t *codegen_data = (voodoo_x86_data_t*)voodoo->codegen_data;
         
         for (c = 0; c < 8; c++)
         {
