@@ -2131,6 +2131,7 @@ void ncr5380_bput(struct soft_scsi *scsi, int reg, uae_u8 v)
 						scsi->dma_active = true;
 						scsi->dma_started = true;
 						dma_check(scsi);
+						scsi->dmac_address = 0xffffffff;
 #if NCR5380_DEBUG
 						write_log(_T("DMA8490 initiator recv PC=%08x\n"), M68K_GETPC);
 #endif
@@ -4036,14 +4037,17 @@ static void ncr80_bput2(struct soft_scsi *ncr, uaecptr addr, uae_u32 val, int si
 				ncr->dmac_address = 0x00777777;
 				ncr->dmac_length = 1;
 				ncr->dmac_active = 1;
+			} else if (ncr->dmac_length == 1) {
+				ncr->dmac_length++;
+				return;
 			}
-			if (!(val & 0xc0) && val && ncr->dmac_length > 0 && ncr->dmac_length <= 8) {
-				// nybbles, value 0 to 7
+			if (!(val & 0xc0) && ncr->dmac_length > 1 && ncr->dmac_length <= 9 && !(addr & 2)) {
+				// nybbles, value 0 to 6
 				for (int i = 0; i < 6; i++) {
 					int shift = i * 4;
 					int bm = 1 << i;
 					if (!(val & bm)) {
-						uae_u8 n = (ncr->dmac_length - 1) & 0x0f;
+						uae_u8 n = (ncr->dmac_length - 2) & 0x0f;
 						uae_u8 v = (ncr->dmac_address >> shift) & 0x0f;
 						if (v > n)
 							v = n;
@@ -4053,7 +4057,7 @@ static void ncr80_bput2(struct soft_scsi *ncr, uaecptr addr, uae_u32 val, int si
 				}
 				ncr->dmac_length++;
 			}
-			if (ncr->dmac_length > 8 && !(val & 0xc0) && val) {
+			if (ncr->dmac_length > 9 && !(val & 0xc0) && !(addr & 2)) {
 				// nybbles, value 8 to 15..
 				for (int i = 0; i < 6; i++) {
 					int bm = 1 << i;

@@ -5384,7 +5384,8 @@ const struct expansionromtype expansionroms[] = {
 		_T("synthesis"), _T("Synthesis"), _T("Hardital"),
 		NULL, synthesis_init, NULL, synthesis_add_scsi_unit, ROMTYPE_SYNTHESIS, 0, 0, BOARD_AUTOCONFIG_Z2, false,
 		NULL, 0,
-		true, EXPANSIONTYPE_SCSI
+		true, EXPANSIONTYPE_SCSI,
+		256, 0, 0
 	},
 	{
 		_T("vector"), _T("Vector Falcon 8000"), _T("HK-Computer"),
