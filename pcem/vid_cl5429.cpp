@@ -2048,7 +2048,7 @@ void gd5429_start_blit(uint32_t cpu_dat, int count, void *p)
                         {
                                 case 0x00:
                                 src = svga->vram[gd5429->blt.src_addr & svga->vram_mask];
-                                gd5429->blt.src_addr += ((gd5429->blt.mode & 0x01) ? -1 : 1);
+                                gd5429->blt.src_addr += (gd5429->blt.mode & 0x01) ? -1 : 1;
                                 mask = 1;
                                 break;
                                 case 0x40:
@@ -2114,18 +2114,26 @@ void gd5429_start_blit(uint32_t cpu_dat, int count, void *p)
                                         {
                                         case BLIT_DEPTH_8:
                                             mask = svga->vram[(gd5429->blt.src_addr & svga->vram_mask & ~7) | gd5429->blt.y_count] & (0x80 >> gd5429->blt.x_count);
+                                            if (gd5429->blt.extensions & 2)
+                                                mask = mask == 0;
                                             src = mask ? fg_col : bg_col;
                                             break;
                                         case BLIT_DEPTH_16:
                                             mask = svga->vram[(gd5429->blt.src_addr & svga->vram_mask & ~7) | gd5429->blt.y_count] & (0x80 >> (gd5429->blt.x_count >> 1));
+                                            if (gd5429->blt.extensions & 2)
+                                                mask = mask == 0;
                                             src = mask ? (fg_col >> shift) : (bg_col >> shift);
                                             break;
                                         case BLIT_DEPTH_24:
                                             mask = svga->vram[(gd5429->blt.src_addr & svga->vram_mask & ~7) | gd5429->blt.y_count] & (0x80 >> (gd5429->blt.x_count / 3));
+                                            if (gd5429->blt.extensions & 2)
+                                                mask = mask == 0;
                                             src = mask ? (fg_col >> shift) : (bg_col >> shift);
                                             break;
                                         case BLIT_DEPTH_32:
                                             mask = svga->vram[(gd5429->blt.src_addr & svga->vram_mask & ~7) | gd5429->blt.y_count] & (0x80 >> (gd5429->blt.x_count >> 2));
+                                            if (gd5429->blt.extensions & 2)
+                                                mask = mask == 0;
                                             src = mask ? (fg_col >> shift) : (bg_col >> shift);
                                             break;
                                         }
@@ -2135,7 +2143,6 @@ void gd5429_start_blit(uint32_t cpu_dat, int count, void *p)
                         count--;                        
                 }
                 dst = svga->vram[(gd5429->blt.dst_addr + bplcnt) & svga->vram_mask];
-                svga->changedvram[((gd5429->blt.dst_addr + bplcnt) & svga->vram_mask) >> 12] = changeframecount;
                
                 //pclog("Blit %i,%i %06X %06X  %06X %02X %02X  %02X %02X\n", gd5429->blt.width, gd5429->blt.height_internal, gd5429->blt.src_addr, gd5429->blt.dst_addr, gd5429->blt.src_addr & svga->vram_mask, svga->vram[gd5429->blt.src_addr & svga->vram_mask], 0x80 >> (gd5429->blt.dst_addr & 7), src, dst);
                 switch (gd5429->blt.rop)
@@ -2165,11 +2172,14 @@ void gd5429_start_blit(uint32_t cpu_dat, int count, void *p)
                         if ((gd5429->blt.width_backup - gd5429->blt.width) >= blt_mask &&
                             !((gd5429->blt.mode & 0x08) && !mask))
                             svga->vram[gd5429->blt.dst_addr & svga->vram_mask] = dst;
+                            svga->changedvram[((gd5429->blt.dst_addr) & svga->vram_mask) >> 12] = changeframecount;
                     } else if (bpp == 2) {
                         if ((gd5429->blt.width_backup - gd5429->blt.width) >= blt_mask &&
                             !((gd5429->blt.mode & 0x08) && !maskstore)) {
                             svga->vram[(gd5429->blt.dst_addr + 0) & svga->vram_mask] = dststore[0];
                             svga->vram[(gd5429->blt.dst_addr + 1) & svga->vram_mask] = dststore[1];
+                            svga->changedvram[((gd5429->blt.dst_addr + 0) & svga->vram_mask) >> 12] = changeframecount;
+                            svga->changedvram[((gd5429->blt.dst_addr + 1) & svga->vram_mask) >> 12] = changeframecount;
                         }
                     } else if (bpp == 3) {
                         if ((gd5429->blt.width_backup - gd5429->blt.width) >= blt_mask &&
@@ -2177,17 +2187,24 @@ void gd5429_start_blit(uint32_t cpu_dat, int count, void *p)
                             svga->vram[(gd5429->blt.dst_addr + 0) & svga->vram_mask] = dststore[0];
                             svga->vram[(gd5429->blt.dst_addr + 1) & svga->vram_mask] = dststore[1];
                             svga->vram[(gd5429->blt.dst_addr + 2) & svga->vram_mask] = dststore[2];
+                            svga->changedvram[((gd5429->blt.dst_addr + 0) & svga->vram_mask) >> 12] = changeframecount;
+                            svga->changedvram[((gd5429->blt.dst_addr + 1) & svga->vram_mask) >> 12] = changeframecount;
+                            svga->changedvram[((gd5429->blt.dst_addr + 2) & svga->vram_mask) >> 12] = changeframecount;
                         }
-                    } else if (bpp == 3) {
+                    } else if (bpp == 4) {
                         if ((gd5429->blt.width_backup - gd5429->blt.width) >= blt_mask &&
                             !((gd5429->blt.mode & 0x08) && !maskstore)) {
                             svga->vram[(gd5429->blt.dst_addr + 0) & svga->vram_mask] = dststore[0];
                             svga->vram[(gd5429->blt.dst_addr + 1) & svga->vram_mask] = dststore[1];
                             svga->vram[(gd5429->blt.dst_addr + 2) & svga->vram_mask] = dststore[2];
                             svga->vram[(gd5429->blt.dst_addr + 3) & svga->vram_mask] = dststore[3];
+                            svga->changedvram[((gd5429->blt.dst_addr + 0) & svga->vram_mask) >> 12] = changeframecount;
+                            svga->changedvram[((gd5429->blt.dst_addr + 1) & svga->vram_mask) >> 12] = changeframecount;
+                            svga->changedvram[((gd5429->blt.dst_addr + 2) & svga->vram_mask) >> 12] = changeframecount;
+                            svga->changedvram[((gd5429->blt.dst_addr + 3) & svga->vram_mask) >> 12] = changeframecount;
                         }
                     }
-                    gd5429->blt.dst_addr += ((gd5429->blt.mode & 0x01) ? -bpp : bpp);
+                    gd5429->blt.dst_addr += (gd5429->blt.mode & 0x01) ? -bpp : bpp;
                     bplcnt = 0;
                     maskstore = 0;
                 }
