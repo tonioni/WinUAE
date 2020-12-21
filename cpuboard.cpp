@@ -1012,7 +1012,8 @@ static const uae_u32 gvp_a530_maprom[7] =
 void cpuboard_gvpmaprom(int b)
 {
 	if (!ISCPUBOARDP(&currprefs, BOARD_GVP, BOARD_GVP_SUB_A530) &&
-		!ISCPUBOARDP(&currprefs, BOARD_GVP, BOARD_GVP_SUB_GFORCE030))
+		!ISCPUBOARDP(&currprefs, BOARD_GVP, BOARD_GVP_SUB_GFORCE030) && 
+		!ISCPUBOARDP(&currprefs, BOARD_GVP, BOARD_GVP_SUB_GFORCE040))
 		return;
 
 	write_log(_T("GVP MAPROM=%d\n"), b);
@@ -2606,6 +2607,7 @@ bool cpuboard_autoconfig_init(struct autoconfig_info *aci)
 			case BOARD_GVP_SUB_A530:
 			case BOARD_GVP_SUB_A1230SII:
 			case BOARD_GVP_SUB_GFORCE030:
+			case BOARD_GVP_SUB_GFORCE040:
 				aci->addrbank = &expamem_null;
 				return true;
 			case BOARD_GVP_SUB_A3001SI:

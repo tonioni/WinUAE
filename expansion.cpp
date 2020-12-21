@@ -6154,6 +6154,16 @@ static const struct cpuboardsubtype gvpboard_sub[] = {
 		gvp_init_accelerator, NULL, BOARD_AUTOCONFIG_Z2, 1
 	},
 	{
+		_T("G-Force 040"),
+		_T("GVPGFORCE040"),
+		ROMTYPE_GVPS2, ROMTYPE_GVPS12, 4,
+		gvp_s2_add_accelerator_scsi_unit, EXPANSIONTYPE_SCSI,
+		BOARD_MEMORY_25BITMEM,
+		128 * 1024 * 1024,
+		0,
+		gvp_init_accelerator, NULL, BOARD_AUTOCONFIG_Z2, 1
+	},
+	{
 		_T("Tek Magic 2040/2060"),
 		_T("TekMagic"),
 		ROMTYPE_CB_TEKMAGIC, 0, 4,

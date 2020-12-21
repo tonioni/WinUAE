@@ -4412,6 +4412,8 @@ static bool gvp_init(struct autoconfig_info *aci, bool series2, bool accel)
 			wd->gdmac.version = isscsi ? GVP_A530_SCSI : GVP_A530;
 		} else if (ISCPUBOARD(BOARD_GVP, BOARD_GVP_SUB_GFORCE030)) {
 			wd->gdmac.version = isscsi ? GVP_GFORCE_030_SCSI : GVP_GFORCE_030;
+		} else if (ISCPUBOARD(BOARD_GVP, BOARD_GVP_SUB_GFORCE040)) {
+			wd->gdmac.version = isscsi ? GVP_GFORCE_040_SCSI : GVP_GFORCE_040;
 		} else if (ISCPUBOARD(BOARD_GVP, BOARD_GVP_SUB_A1230SII)) {
 			wd->gdmac.version = (currprefs.cpuboard_settings & 2) ? GVP_A1291 : GVP_A1291_SCSI;
 			wd->wc.resetnodelay = true;
