@@ -1899,7 +1899,10 @@ static bool get_record_dma_info(struct dma_rec *dr, int hpos, int vpos, uae_u32 
 	bool longsize = false;
 	bool got = false;
 	int r = dr->reg;
+	int regsize = 3;
 	const TCHAR *sr;
+	int br = dr->extra & 7;
+	int chcnt = -1;
 
 	if (l1)
 		l1[0] = 0;
@@ -1922,19 +1925,52 @@ static bool get_record_dma_info(struct dma_rec *dr, int hpos, int vpos, uae_u32 
 		else
 			sr = _T("COP ");
 	} else if (dr->type == DMARECORD_BLITTER) {
-		if (dr->extra == 2)
-			sr = _T("BLL ");
-		else
-			sr = _T("BLT ");
+		if (dr->extra & 0x20) {
+			if (br == 0)
+				sr = _T("BLL-A");
+			if (br == 1)
+				sr = _T("BLL-B");
+			if (br == 2)
+				sr = _T("BLL-C");
+			if (br == 3)
+				sr = _T("BLL-D");
+		} else if (dr->extra & 0x10) {
+			if (br == 0)
+				sr = _T("BLF-A");
+			if (br == 1)
+				sr = _T("BLF-B");
+			if (br == 2)
+				sr = _T("BLF-C");
+			if (br == 3)
+				sr = _T("BLF-D");
+		} else {
+			if (br == 0)
+				sr = _T("BLT-A");
+			if (br == 1)
+				sr = _T("BLT-B");
+			if (br == 2)
+				sr = _T("BLT-C");
+			if (br == 3)
+				sr = _T("BLT-D");
+		}
+		regsize = 2;
 	} else if (dr->type == DMARECORD_REFRESH) {
-		sr = _T("RFS ");
+		sr = _T("RFS");
+		chcnt = br;
 	} else if (dr->type == DMARECORD_AUDIO) {
-		sr = _T("AUD ");
+		sr = _T("AUD");
+		chcnt = br;
 	} else if (dr->type == DMARECORD_DISK) {
-		sr = _T("DSK ");
+		sr = _T("DSK");
+		chcnt = br;
 	} else if (dr->type == DMARECORD_SPRITE) {
-		sr = _T("SPR ");
+		sr = _T("SPR");
+		chcnt = br;
+	} else if (dr->type == DMARECORD_BITPLANE) {
+		sr = _T("BPL");
+		chcnt = br;
 	}
+
 	_stprintf (l1, _T("[%02X %3d]"), hpos, hpos);
 	if (l4) {
 		_tcscpy (l4, _T("        "));
@@ -1954,7 +1990,17 @@ static bool get_record_dma_info(struct dma_rec *dr, int hpos, int vpos, uae_u32 
 			if ((r & 0xff) == 1)
 				l2[5] = 'B';
 		} else {
-			_stprintf (l2, _T("%4s %03X"), sr, r);
+			if (chcnt >= 0) {
+				if (regsize == 3)
+					_stprintf(l2, _T("%3s%d %03X"), sr, chcnt, r);
+				else
+					_stprintf(l2, _T("%4s%d %02X"), sr, chcnt, r);
+			} else {
+				if (regsize == 3)
+					_stprintf(l2, _T("%4s %03X"), sr, r);
+				else
+					_stprintf(l2, _T("%5s %02X"), sr, r);
+			}
 		}
 		if (l3) {
 			uae_u32 v = dr->dat;
@@ -1972,8 +2018,8 @@ static bool get_record_dma_info(struct dma_rec *dr, int hpos, int vpos, uae_u32 
 	}
 	if (l3) {
 		int cl2 = 0;
-		if (dr->evt & DMA_EVENT_BLITNASTY)
-			l3[cl2++] = 'N';
+		if (dr->evt & DMA_EVENT_BLITFINALD)
+			l3[cl2++] = 'D';
 		if (dr->evt & DMA_EVENT_BLITSTARTFINISH)
 			l3[cl2++] = 'B';
 		if (dr->evt & DMA_EVENT_CPUBLITTERSTEAL)

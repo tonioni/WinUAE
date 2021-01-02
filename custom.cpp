@@ -5724,7 +5724,7 @@ static void DMACON (int hpos, uae_u16 v)
 	if ((dmacon & DMA_BLITPRI) > (oldcon & DMA_BLITPRI) && (blt_info.blit_main || blt_info.blit_finald))
 		set_special (SPCFLAG_BLTNASTY);
 
-	if (dmaen (DMA_BLITTER) && (blt_info.blit_pending || blt_info.blit_main || blt_info.blit_finald)) {
+	if (dmaen (DMA_BLITTER) && blt_info.blit_pending) {
 		blitter_check_start ();
 	}
 
@@ -7364,12 +7364,13 @@ static void update_copper (int until_hpos)
 					cop_state.state = COP_wait_in2;
 
 			} else { // MOVE
+				unsigned int reg = cop_state.i1 & 0x1FE;
 #ifdef DEBUGGER
 				if (debug_dma) {
-					record_dma_read(0x8c, cop_state.ip - 2, old_hpos, vpos, DMARECORD_COPPER, 0);
+					record_dma_read(reg, cop_state.ip, old_hpos, vpos, DMARECORD_COPPER, 0);
 				}
 				if (memwatch_enabled) {
-					debug_getpeekdma_chipram(cop_state.ip - 2, MW_MASK_COPPER, 0x8c, cop_state.last_strobe == 2 ? 0x84 : 0x80);
+					debug_getpeekdma_chipram(cop_state.ip, MW_MASK_COPPER, 0x8c, cop_state.last_strobe == 2 ? 0x84 : 0x80);
 				}
 #endif
 				cop_state.i2 = chipmem_wget_indirect(cop_state.ip);
@@ -7390,7 +7391,6 @@ static void update_copper (int until_hpos)
 #ifdef DEBUGGER
 				uaecptr debugip = cop_state.ip;
 #endif
-				unsigned int reg = cop_state.i1 & 0x1FE;
 				uae_u16 data = cop_state.i2;
 				cop_state.state = COP_read1;
 
@@ -7398,8 +7398,9 @@ static void update_copper (int until_hpos)
 				if (! copper_enabled_thisline)
 					goto out; // was "dangerous" register -> copper stopped
 
-				if (cop_state.ignore_next)
+				if (cop_state.ignore_next) {
 					reg = 0x1fe;
+				}
 
 				if (reg == 0x88) {
 					cop_state.strobe = 1;
@@ -7596,10 +7597,31 @@ void blitter_done_notify (int hpos)
 	if (cop_state.state != COP_bltwait)
 		return;
 
+	cop_state.state = COP_wait;
+	int hp = current_hpos();
+	hp += 3;
+	hp &= ~1;
 	int vp_wait = vpos & (((cop_state.saved_i2 >> 8) & 0x7F) | 0x80);
 	int vp = vpos;
+	if (hpos >= maxhpos) {
+		hpos -= maxhpos;
+		vp++;
+	}
+	last_copper_hpos = hp;
+	cop_state.hpos = hp;
+	cop_state.vpos = vp;
+	if (dmaen(DMA_COPPER) && vp_wait >= cop_state.vcmp) {
+		copper_enabled_thisline = 1;
+		set_special(SPCFLAG_COPPER);
+	} else {
+		unset_special(SPCFLAG_COPPER);
+	}
+	return;
 
-	hpos++;
+	vp_wait = vpos & (((cop_state.saved_i2 >> 8) & 0x7F) | 0x80);
+	vp = vpos;
+
+	hpos += 1;
 	hpos &= ~1;
 	if (hpos >= maxhpos) {
 		hpos -= maxhpos;
@@ -11724,11 +11746,15 @@ static int dma_cycle(uaecptr addr, uae_u16 v, int *mode)
 				}
 				break;
 			}
+#if 0
+			decide_blitter(hpos);
+#else
 			// CPU write must be done at the same time with blitter idle cycles
 			if (decide_blitter_maybe_write(hpos, addr, v)) {
 				// inform caller that write was already done
 				*mode = -2;
 			}
+#endif
 			// copper may have been waiting for the blitter
 			sync_copper (hpos);
 		}
@@ -11736,7 +11762,7 @@ static int dma_cycle(uaecptr addr, uae_u16 v, int *mode)
 			alloc_cycle (hpos_old, CYCLE_CPU);
 			break;
 		}
-		if (debug_dma && blt_info.nasty_cnt >= BLIT_NASTY_CPU_STEAL_CYCLE_COUNT) {
+		if (debug_dma && !blitpri && blt_info.nasty_cnt >= BLIT_NASTY_CPU_STEAL_CYCLE_COUNT) {
 			record_dma_event(DMA_EVENT_CPUBLITTERSTEAL, hpos_old, vpos);
 		}
 
@@ -11746,12 +11772,6 @@ static int dma_cycle(uaecptr addr, uae_u16 v, int *mode)
 	}
 	blt_info.nasty_cnt = 0;
 	return hpos_old;
-}
-
-STATIC_INLINE void checknasty (int hpos, int vpos)
-{
-	if (blt_info.blitter_nasty >= BLIT_NASTY_CPU_STEAL_CYCLE_COUNT && !(dmacon & DMA_BLITPRI))
-		record_dma_event (DMA_EVENT_BLITNASTY, hpos, vpos);
 }
 
 static void sync_ce020 (void)
@@ -11789,7 +11809,6 @@ uae_u32 wait_cpu_cycle_read (uaecptr addr, int mode)
 		else
 			reg |= 1;
 		record_dma_read(reg, addr, hpos, vpos, DMARECORD_CPU, mode == -2 || mode == 2 ? 0 : 1);
-		checknasty (hpos, vpos);
 	}
 	peekdma_data.mask = 0;
 #endif
@@ -11845,7 +11864,6 @@ uae_u32 wait_cpu_cycle_read_ce020 (uaecptr addr, int mode)
 		else
 			reg |= 1;
 		record_dma_read(reg, addr, hpos, vpos, DMARECORD_CPU, mode == -2 || mode == 2 ? 0 : 1);
-		checknasty (hpos, vpos);
 	}
 	peekdma_data.mask = 0;
 #endif
@@ -11897,7 +11915,6 @@ void wait_cpu_cycle_write (uaecptr addr, int mode, uae_u32 v)
 		else
 			reg |= 1;
 		record_dma_write(reg, v, addr, hpos, vpos, DMARECORD_CPU, 1);
-		checknasty (hpos, vpos);
 	}
 	peekdma_data.mask = 0;
 #endif
@@ -11935,7 +11952,6 @@ void wait_cpu_cycle_write_ce020 (uaecptr addr, int mode, uae_u32 v)
 		else
 			reg |= 1;
 		record_dma_write(reg, v, addr, hpos, vpos, DMARECORD_CPU, 1);
-		checknasty (hpos, vpos);
 	}
 	peekdma_data.mask = 0;
 #endif
