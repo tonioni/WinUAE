@@ -2320,41 +2320,55 @@ gen_opcode(unsigned int opcode)
 		if (curi->smode != immi) {
 			uses_cmov;
 			start_brace();
-			comprintf("\tint zero = scratchie++;\n");
+			comprintf("\tint cdata = scratchie++;\n");
 			comprintf("\tint tmpcnt = scratchie++;\n");
-			comprintf("\tint minus1 = scratchie++;\n");
-			comprintf("\tint cdata = minus1;\n");
-			comprintf("\tmov_l_rr(tmpcnt,cnt);\n");
-			comprintf("\tand_l_ri(tmpcnt,63);\n");
-			comprintf("\tmov_l_ri(zero, 0);\n");
-			comprintf("\tmov_l_ri(minus1, -1);\n");
+			comprintf("\tint setval = scratchie++;\n");
+			if (!noflags) {
+				comprintf("\tint odata = scratchie++;\n");
+			}
+			comprintf("\tmov_l_ri(cdata, 0);\n");
+			comprintf("\tmov_l_ri(setval, 0xffffffff);\n");
+			// if high bit = 0: setval = 0x00000000, else setval = 0xffffffff
+			comprintf("\ttest_l_ri(data, 0x%08x);\n", curi->size == sz_byte ? 0x80 : (curi->size == sz_word ? 0x8000 : 0x80000000));
+			comprintf("\tcmov_l_rr(setval, cdata, NATIVE_CC_EQ);\n");
+			comprintf("\tmov_l_rr(cdata, setval);\n");
+			if (!noflags) {
+				// setval -> odata
+				comprintf("\tmov_l_rr(odata, setval);\n");
+			}
+			comprintf("\tmov_l_rr(tmpcnt, cnt);\n");
+			comprintf("\tand_l_ri(tmpcnt, 63);\n");
+			if (!noflags) {
+				// shift == 0: tmpcnt (0) -> odata (C is always zero)
+				comprintf("\tcmov_l_rr(odata, tmpcnt, NATIVE_CC_EQ);\n");
+			}
+
 			switch (curi->size) {
 			case sz_byte:
-				comprintf("\ttest_b_rr(data,data);\n");
-				comprintf("\tcmov_l_rr(zero, minus1, NATIVE_CC_MI);\n");
-				comprintf("\ttest_l_ri(tmpcnt, 0x38);\n");
-				comprintf("\tmov_l_rr(cdata,data);\n");
-				comprintf("\tcmov_l_rr(cdata, zero, NATIVE_CC_NE);\n");
-				comprintf("\tshra_b_rr(cdata,tmpcnt);\n");
-				comprintf("\tmov_b_rr(data,cdata);\n");
+				comprintf("\tcmp_b_ri(tmpcnt, 0x08);\n");
+				// shift > 8: setval -> cdata
+				comprintf("\tcmov_l_rr(cdata, setval, NATIVE_CC_HI);\n");
+				// shift <= 8: data -> cdata ("normal" shift)
+				comprintf("\tcmov_l_rr(cdata, data, NATIVE_CC_LS);\n");
+				comprintf("\tshra_b_rr(cdata, tmpcnt);\n");			
 				break;
 			case sz_word:
-				comprintf("\ttest_w_rr(data,data);\n");
-				comprintf("\tcmov_l_rr(zero, minus1, NATIVE_CC_MI);\n");
-				comprintf("\ttest_l_ri(tmpcnt, 0x30);\n");
-				comprintf("\tmov_l_rr(cdata,data);\n");
-				comprintf("\tcmov_l_rr(cdata, zero, NATIVE_CC_NE);\n");
-				comprintf("\tshra_w_rr(cdata,tmpcnt);\n");
-				comprintf("\tmov_w_rr(data,cdata);\n");
+				comprintf("\tcmp_b_ri(tmpcnt, 0x10);\n");
+				// shift > 16: setval -> cdata
+				comprintf("\tcmov_l_rr(cdata, setval, NATIVE_CC_HI);\n");
+				// shift <= 16: data -> cdata ("normal" shift)
+				comprintf("\tcmov_l_rr(cdata, data, NATIVE_CC_LS);\n");
+				comprintf("\tshra_w_rr(cdata, tmpcnt);\n");
 				break;
 			case sz_long:
-				comprintf("\ttest_l_rr(data,data);\n");
-				comprintf("\tcmov_l_rr(zero, minus1, NATIVE_CC_MI);\n");
-				comprintf("\ttest_l_ri(tmpcnt, 0x20);\n");
-				comprintf("\tmov_l_rr(cdata,data);\n");
-				comprintf("\tcmov_l_rr(cdata, zero, NATIVE_CC_NE);\n");
-				comprintf("\tshra_l_rr(cdata,tmpcnt);\n");
-				comprintf("\tmov_l_rr(data,cdata);\n");
+				comprintf("\tcmp_b_ri(tmpcnt, 0x20);\n");
+				// shift > 32: setval -> cdata
+				comprintf("\tcmov_l_rr(cdata, setval, NATIVE_CC_HI);\n");
+				// shift == 32? 0 -> cdata (x86 masks count by 31, 680x0 uses mask 63)
+				comprintf("\tcmov_l_rr(data, setval, NATIVE_CC_EQ);\n");
+				// shift <= 32: data -> cdata ("normal" shift)
+				comprintf("\tcmov_l_rr(cdata, data, NATIVE_CC_LS);\n");
+				comprintf("\tshra_l_rr(cdata, tmpcnt);\n");
 				break;
 			default: assert(0);
 			}
@@ -2371,12 +2385,22 @@ gen_opcode(unsigned int opcode)
 		if (!noflags) {
 			comprintf("\tlive_flags();\n");
 			comprintf("\tend_needflags();\n");
-			if (curi->smode != immi)
-				comprintf("\tsetcc_for_cntzero(tmpcnt, data, %d, 0);\n", curi->size == sz_byte ? 1 : curi->size == sz_word ? 2 : 4);
-			else
+			if (curi->smode != immi) {
+				comprintf("\tsetcc_for_cntzero(tmpcnt, cdata, odata, 0, %d, 0);\n", curi->size);
+			} else {
 				comprintf("\tduplicate_carry();\n");
+			}
 			comprintf("if (!(needed_flags & FLAG_CZNV)) dont_care_flags();\n");
 		}
+		if (curi->smode != immi) {
+			switch (curi->size) {
+			case sz_byte: comprintf("\tmov_b_rr(data, cdata);\n"); break;
+			case sz_word: comprintf("\tmov_w_rr(data, cdata);\n"); break;
+			case sz_long: comprintf("\tmov_l_rr(data, cdata);\n"); break;
+			default: assert(0);
+			}
+		}
+
 		genastore("data", curi->dmode, "dstreg", curi->size, "data");
 		break;
 
@@ -2414,28 +2438,51 @@ gen_opcode(unsigned int opcode)
 			uses_cmov;
 			start_brace();
 			comprintf("\tint cdata = scratchie++;\n");
-			comprintf("\tint tmpcnt=scratchie++;\n");
-			comprintf("\tmov_l_rr(tmpcnt,cnt);\n");
-			comprintf("\tand_l_ri(tmpcnt,63);\n");
+			comprintf("\tint tmpcnt = scratchie++;\n");
+			if (!noflags) {
+				comprintf("\tint odata = scratchie++;\n");
+				comprintf("\tmov_l_rr(odata, data);\n");
+			}
 			comprintf("\tmov_l_ri(cdata, 0);\n");
+			comprintf("\tmov_l_rr(tmpcnt, cnt);\n");
+			comprintf("\tand_l_ri(tmpcnt, 63);\n");
+			if (!noflags) {
+				// shift == 0? cdata (0) -> odata (C is always zero)
+				comprintf("\tcmov_l_rr(odata, cdata, NATIVE_CC_EQ);\n");
+			}
+
 			switch (curi->size) {
 			case sz_byte:
-				comprintf("\ttest_l_ri(tmpcnt, 0x38);\n");
-				comprintf("\tcmov_l_rr(cdata, data, NATIVE_CC_EQ);\n");
-				comprintf("\tshll_b_rr(cdata,tmpcnt);\n");
-				comprintf("\tmov_b_rr(data, cdata);\n");
+				// shift > 8? 0 -> odata (C is always zero)
+				comprintf("\tcmp_b_ri(tmpcnt, 0x08);\n");
+				if (!noflags) {
+					comprintf("\tcmov_l_rr(odata, cdata, NATIVE_CC_HI);\n");
+				}
+				// shift <= 8? cdata -> cdata ("normal" shift)
+				comprintf("\tcmov_l_rr(cdata, data, NATIVE_CC_LS);\n");
+				comprintf("\tshll_b_rr(cdata, tmpcnt);\n");
 				break;
 			case sz_word:
-				comprintf("\ttest_l_ri(tmpcnt, 0x30);\n");
-				comprintf("\tcmov_l_rr(cdata, data, NATIVE_CC_EQ);\n");
-				comprintf("\tshll_w_rr(cdata,tmpcnt);\n");
-				comprintf("\tmov_w_rr(data, cdata);\n");
+				// shift > 16? 0 -> odata (C is always zero)
+				comprintf("\tcmp_b_ri(tmpcnt, 0x10);\n");
+				if (!noflags) {
+					comprintf("\tcmov_l_rr(odata, cdata, NATIVE_CC_HI);\n");
+				}
+				// shift <= 16? cdata -> cdata ("normal" shift)
+				comprintf("\tcmov_l_rr(cdata, data, NATIVE_CC_LS);\n");
+				comprintf("\tshll_w_rr(cdata, tmpcnt);\n");
 				break;
 			case sz_long:
-				comprintf("\ttest_l_ri(tmpcnt, 0x20);\n");
-				comprintf("\tcmov_l_rr(cdata, data, NATIVE_CC_EQ);\n");
-				comprintf("\tshll_l_rr(cdata,tmpcnt);\n");
-				comprintf("\tmov_l_rr(data, cdata);\n");
+				// shift > 32? 0 -> odata (C is always zero)
+				comprintf("\tcmp_b_ri(tmpcnt, 0x20);\n");
+				if (!noflags) {
+					comprintf("\tcmov_l_rr(odata, cdata, NATIVE_CC_HI);\n");
+				}
+				// shift == 32? 0 -> cdata (x86 masks count by 31, 680x0 uses mask 63)
+				comprintf("\tcmov_l_rr(data, cdata, NATIVE_CC_EQ);\n");
+				// shift <= 32? cdata -> cdata ("normal" shift)
+				comprintf("\tcmov_l_rr(cdata, data, NATIVE_CC_LS);\n");
+				comprintf("\tshll_l_rr(cdata, tmpcnt);\n");
 				break;
 			default: assert(0);
 			}
@@ -2452,11 +2499,21 @@ gen_opcode(unsigned int opcode)
 		if (!noflags) {
 			comprintf("\tlive_flags();\n");
 			comprintf("\tend_needflags();\n");
-			if (curi->smode != immi)
-				comprintf("\tsetcc_for_cntzero(tmpcnt, data, %d, 0);\n", curi->size == sz_byte ? 1 : curi->size == sz_word ? 2 : 4);
-			else
+			if (curi->smode != immi) {
+				comprintf("\tsetcc_for_cntzero(tmpcnt, cdata, odata, 0, %d, 1);\n", curi->size);
+			} else {
+				comprintf("\tclear_overflow();\n");
 				comprintf("\tduplicate_carry();\n");
+			}
 			comprintf("if (!(needed_flags & FLAG_CZNV)) dont_care_flags();\n");
+		}
+		if (curi->smode != immi) {
+			switch (curi->size) {
+			case sz_byte: comprintf("\tmov_b_rr(data, cdata);\n"); break;
+			case sz_word: comprintf("\tmov_w_rr(data, cdata);\n"); break;
+			case sz_long: comprintf("\tmov_l_rr(data, cdata);\n"); break;
+			default: assert(0);
+			}
 		}
 		genastore("data", curi->dmode, "dstreg", curi->size, "data");
 		break;
@@ -2485,30 +2542,52 @@ gen_opcode(unsigned int opcode)
 		if (curi->smode != immi) {
 			uses_cmov;
 			start_brace();
-			comprintf("\tint cdata=scratchie++;\n");
-			comprintf("\tint tmpcnt=scratchie++;\n");
-			comprintf("\tmov_l_rr(tmpcnt,cnt);\n");
-			comprintf("\tand_l_ri(tmpcnt,63);\n");
+			comprintf("\tint cdata = scratchie++;\n");
+			comprintf("\tint tmpcnt = scratchie++;\n");
+			if (!noflags) {
+				comprintf("\tint odata = scratchie++;\n");
+				comprintf("\tmov_l_rr(odata, data);\n");
+			}
 			comprintf("\tmov_l_ri(cdata, 0);\n");
-
+			comprintf("\tmov_l_rr(tmpcnt, cnt);\n");
+			comprintf("\tand_l_ri(tmpcnt, 63);\n");
+			if (!noflags) {
+				// shift == 0? cdata (0) -> odata (C is always zero)
+				comprintf("\tcmov_l_rr(odata, cdata, NATIVE_CC_EQ);\n");
+			}
+			
 			switch (curi->size) {
 			case sz_byte:
-				comprintf("\ttest_l_ri(tmpcnt, 0x38);\n");
-				comprintf("\tcmov_l_rr(cdata, data, NATIVE_CC_EQ);\n");
-				comprintf("\tshrl_b_rr(cdata,tmpcnt);\n");
-				comprintf("\tmov_b_rr(data, cdata);\n");
+				// shift > 8? 0 -> odata (C is always zero)
+				comprintf("\tcmp_b_ri(tmpcnt, 0x08);\n");
+				if (!noflags) {
+					comprintf("\tcmov_l_rr(odata, cdata, NATIVE_CC_HI);\n");
+				}
+				// shift <= 8? cdata -> cdata ("normal" shift)
+				comprintf("\tcmov_l_rr(cdata, data, NATIVE_CC_LS);\n");
+				comprintf("\tshrl_b_rr(cdata, tmpcnt);\n");
 				break;
 			case sz_word:
-				comprintf("\ttest_l_ri(tmpcnt, 0x30);\n");
-				comprintf("\tcmov_l_rr(cdata, data, NATIVE_CC_EQ);\n");
-				comprintf("\tshrl_w_rr(cdata,tmpcnt);\n");
-				comprintf("\tmov_w_rr(data, cdata);\n");
+				// shift > 16? 0 -> odata (C is always zero)
+				comprintf("\tcmp_b_ri(tmpcnt, 0x10);\n");
+				if (!noflags) {
+					comprintf("\tcmov_l_rr(odata, cdata, NATIVE_CC_HI);\n");
+				}
+				// shift <= 16? cdata -> cdata ("normal" shift)
+				comprintf("\tcmov_l_rr(cdata, data, NATIVE_CC_LS);\n");
+				comprintf("\tshrl_w_rr(cdata, tmpcnt);\n");
 				break;
 			case sz_long:
-				comprintf("\ttest_l_ri(tmpcnt, 0x20);\n");
-				comprintf("\tcmov_l_rr(cdata, data, NATIVE_CC_EQ);\n");
+				// shift > 32? 0 -> odata (C is always zero)
+				comprintf("\tcmp_b_ri(tmpcnt, 0x20);\n");
+				if (!noflags) {
+					comprintf("\tcmov_l_rr(odata, cdata, NATIVE_CC_HI);\n");
+				}
+				// shift == 32? 0 -> cdata (x86 masks count by 31, 680x0 uses mask 63)
+				comprintf("\tcmov_l_rr(data, cdata, NATIVE_CC_EQ);\n");
+				// shift <= 32? cdata -> cdata ("normal" shift)
+				comprintf("\tcmov_l_rr(cdata, data, NATIVE_CC_LS);\n");
 				comprintf("\tshrl_l_rr(cdata, tmpcnt);\n");
-				comprintf("\tmov_l_rr(data, cdata);\n");
 				break;
 			default: assert(0);
 			}
@@ -2526,11 +2605,19 @@ gen_opcode(unsigned int opcode)
 			comprintf("\tlive_flags();\n");
 			comprintf("\tend_needflags();\n");
 			if (curi->smode != immi) {
-				comprintf("\tsetcc_for_cntzero(tmpcnt, data, %d, 0);\n", curi->size == sz_byte ? 1 : curi->size == sz_word ? 2 : 4);
+				comprintf("\tsetcc_for_cntzero(tmpcnt, cdata, odata, %d, %d, 1);\n", curi->size == sz_byte ? 7 : curi->size == sz_word ? 15 : 31, curi->size);
 			} else {
 				comprintf("\tduplicate_carry();\n");
 			}
 			comprintf("if (!(needed_flags & FLAG_CZNV)) dont_care_flags();\n");
+		}
+		if (curi->smode != immi) {
+			switch (curi->size) {
+			case sz_byte: comprintf("\tmov_b_rr(data, cdata);\n"); break;
+			case sz_word: comprintf("\tmov_w_rr(data, cdata);\n"); break;
+			case sz_long: comprintf("\tmov_l_rr(data, cdata);\n"); break;
+			default: assert(0);
+			}
 		}
 		genastore("data", curi->dmode, "dstreg", curi->size, "data");
 		break;
@@ -2561,28 +2648,50 @@ gen_opcode(unsigned int opcode)
 			start_brace();
 			comprintf("\tint cdata = scratchie++;\n");
 			comprintf("\tint tmpcnt = scratchie++;\n");
-			comprintf("\tmov_l_rr(tmpcnt,cnt);\n");
-			comprintf("\tand_l_ri(tmpcnt,63);\n");
+			if (!noflags) {
+				comprintf("\tint odata = scratchie++;\n");
+				comprintf("\tmov_l_rr(odata, data);\n");
+			}
 			comprintf("\tmov_l_ri(cdata, 0);\n");
+			comprintf("\tmov_l_rr(tmpcnt, cnt);\n");
+			comprintf("\tand_l_ri(tmpcnt, 63);\n");
+			if (!noflags) {
+				// shift == 0? cdata (0) -> odata (C is always zero)
+				comprintf("\tcmov_l_rr(odata, cdata, NATIVE_CC_EQ);\n");
+			}
 
 			switch (curi->size) {
 			case sz_byte:
-				comprintf("\ttest_l_ri(tmpcnt, 0x38);\n");
-				comprintf("\tcmov_l_rr(cdata, data, NATIVE_CC_EQ);\n");
-				comprintf("\tshll_b_rr(cdata,tmpcnt);\n");
-				comprintf("\tmov_b_rr(data, cdata);\n");
+				// shift > 8? 0 -> odata (C is always zero)
+				comprintf("\tcmp_b_ri(tmpcnt, 0x08);\n");
+				if (!noflags) {
+					comprintf("\tcmov_l_rr(odata, cdata, NATIVE_CC_HI);\n");
+				}
+				// shift <= 8? cdata -> cdata ("normal" shift)
+				comprintf("\tcmov_l_rr(cdata, data, NATIVE_CC_LS);\n");
+				comprintf("\tshll_b_rr(cdata, tmpcnt);\n");
 				break;
 			case sz_word:
-				comprintf("\ttest_l_ri(tmpcnt, 0x30);\n");
-				comprintf("\tcmov_l_rr(cdata, data, NATIVE_CC_EQ);\n");
-				comprintf("\tshll_w_rr(cdata,tmpcnt);\n");
-				comprintf("\tmov_w_rr(data, cdata);\n");
+				// shift > 16? 0 -> odata (C is always zero)
+				comprintf("\tcmp_b_ri(tmpcnt, 0x10);\n");
+				if (!noflags) {
+					comprintf("\tcmov_l_rr(odata, cdata, NATIVE_CC_HI);\n");
+				}
+				// shift <= 16? cdata -> cdata ("normal" shift)
+				comprintf("\tcmov_l_rr(cdata, data, NATIVE_CC_LS);\n");
+				comprintf("\tshll_w_rr(cdata, tmpcnt);\n");
 				break;
 			case sz_long:
-				comprintf("\ttest_l_ri(tmpcnt, 0x20);\n");
-				comprintf("\tcmov_l_rr(cdata, data, NATIVE_CC_EQ);\n");
-				comprintf("\tshll_l_rr(cdata,tmpcnt);\n");
-				comprintf("\tmov_l_rr(data, cdata);\n");
+				// shift > 32? 0 -> odata (C is always zero)
+				comprintf("\tcmp_b_ri(tmpcnt, 0x20);\n");
+				if (!noflags) {
+					comprintf("\tcmov_l_rr(odata, cdata, NATIVE_CC_HI);\n");
+				}
+				// shift == 32? 0 -> cdata (x86 masks count by 31, 680x0 uses mask 63)
+				comprintf("\tcmov_l_rr(data, cdata, NATIVE_CC_EQ);\n");
+				// shift <= 32? cdata -> cdata ("normal" shift)
+				comprintf("\tcmov_l_rr(cdata, data, NATIVE_CC_LS);\n");
+				comprintf("\tshll_l_rr(cdata, tmpcnt);\n");
 				break;
 			default: assert(0);
 			}
@@ -2600,12 +2709,20 @@ gen_opcode(unsigned int opcode)
 			comprintf("\tlive_flags();\n");
 			comprintf("\tend_needflags();\n");
 			if (curi->smode != immi) {
-				comprintf("\tsetcc_for_cntzero(tmpcnt, data, %d, 1);\n", curi->size == sz_byte ? 1 : curi->size == sz_word ? 2 : 4);
+				comprintf("\tsetcc_for_cntzero(tmpcnt, cdata, odata, 0, %d, 1);\n", curi->size);
 			} else {
 				comprintf("\tclear_overflow();\n");
 				comprintf("\tduplicate_carry();\n");
 			}
 			comprintf("if (!(needed_flags & FLAG_CZNV)) dont_care_flags();\n");
+		}
+		if (curi->smode != immi) {
+			switch (curi->size) {
+			case sz_byte: comprintf("\tmov_b_rr(data, cdata);\n"); break;
+			case sz_word: comprintf("\tmov_w_rr(data, cdata);\n"); break;
+			case sz_long: comprintf("\tmov_l_rr(data, cdata);\n"); break;
+			default: assert(0);
+			}
 		}
 		genastore("data", curi->dmode, "dstreg", curi->size, "data");
 		break;
