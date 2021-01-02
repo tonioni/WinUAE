@@ -87,7 +87,7 @@ void pclog(char const *format, ...)
 	va_start(parms, format);
 	char buf[256];
 	vsprintf(buf, format, parms);
-	write_log("PCEMLOG: %s", buf);
+	write_log("%s", buf);
 	va_end(parms);
 }
 
@@ -428,7 +428,7 @@ void (*pcem_linear_write_l)(uint32_t addr, uint32_t val, void *priv);
 #define MAX_PCEMMAPPINGS 10
 static mem_mapping_t *pcemmappings[MAX_PCEMMAPPINGS];
 #define PCEMMAPBLOCKSIZE 0x10000
-#define MAX_PCEMMAPBLOCKS (0x10000000 / PCEMMAPBLOCKSIZE)
+#define MAX_PCEMMAPBLOCKS (0x80000000 / PCEMMAPBLOCKSIZE)
 mem_mapping_t *pcemmap[MAX_PCEMMAPBLOCKS];
 
 static uint8_t dummy_bread(uint32_t addr, void *p)
@@ -779,7 +779,7 @@ void thread_destroy_mutex(mutex_t* _mutex)
 static mem_mapping_t *getmm(uaecptr *addrp)
 {
 	uaecptr addr = *addrp;
-	addr &= 0x0fffffff;
+	addr &= 0x7fffffff;
 	int index = addr / PCEMMAPBLOCKSIZE;
 	mem_mapping_t *m = pcemmap[index];
 	if (!m) {
@@ -790,6 +790,9 @@ static mem_mapping_t *getmm(uaecptr *addrp)
 
 void put_mem_pcem(uaecptr addr, uae_u32 v, int size)
 {
+#if 0
+	write_log("%08x %08x %d\n", addr, v, size);
+#endif
 	mem_mapping_t *m = getmm(&addr);
 	if (m) {
 		if (size == 0) {
@@ -856,7 +859,7 @@ static void mapping_recalc(mem_mapping_t *mapping)
 
 	for (uae_u32 i = 0; i < mapping->size; i += PCEMMAPBLOCKSIZE) {
 		uae_u32 addr = i + mapping->base;
-		addr &= 0x0fffffff;
+		addr &= 0x7fffffff;
 		int offset = addr / PCEMMAPBLOCKSIZE;
 		if (offset >= 0 && offset < MAX_PCEMMAPBLOCKS) {
 			if (mapping->enable) {

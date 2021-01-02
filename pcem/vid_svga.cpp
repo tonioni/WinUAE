@@ -693,8 +693,6 @@ int svga_poll(void *p)
 
                         wx = x;
                         wy = svga->lastline - svga->firstline;
-                        if (svga->interlace)
-                            wy /= 2;
 
                         if (!svga->override)
                                 svga_doblit(svga->firstline_draw, svga->lastline_draw + 1, wx, wy, svga);
@@ -1406,7 +1404,7 @@ void svga_doblit(int y1, int y2, int wx, int wy, svga_t *svga)
 //        pclog("svga_doblit %i %i\n", wx, svga->hdisp);
         if (y1 > y2) 
         {
-                video_blit_memtoscreen(32, 0, 0, 0, xsize, ysize);
+                video_blit_memtoscreen(32, 0, 0, 0, xsize << svga->horizontal_linedbl, ysize);
                 return;   
         }     
 

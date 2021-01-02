@@ -4129,6 +4129,15 @@ static const struct expansionsubromtype a2090_sub[] = {
 };
 #endif
 
+static const struct expansionboardsettings voodoo_settings[] = {
+	{
+		_T("Direct VRAM access in little endian modes"), _T("directvram")
+	},
+	{
+		NULL
+	}
+};
+
 static const struct expansionsubromtype a2091_sub[] = {
 	{
 		_T("DMAC-01"), _T("dmac01"), 0,
@@ -5824,8 +5833,28 @@ const struct expansionromtype expansionroms[] = {
 		_T("vooodoo3_3k"), _T("Voodoo 3 3000"), _T("3dfx"),
 		NULL, NULL, NULL, NULL, ROMTYPE_VOODOO3 | ROMTYPE_NONE, 0, 0, BOARD_IGNORE, false,
 		NULL, 0,
+		false, EXPANSIONTYPE_RTG,
+		0, 0, 0, false, NULL,
+		false, 0, voodoo_settings
+	},
+#if 0
+	{
+		_T("vooodoo5_5k"), _T("Voodoo 5 5500"), _T("3dfx"),
+		NULL, NULL, NULL, NULL, ROMTYPE_VOODOO5 | ROMTYPE_NONE, 0, 0, BOARD_IGNORE, false,
+		NULL, 0,
+		false, EXPANSIONTYPE_RTG,
+		0, 0, 0, false, NULL,
+		false, 0, voodoo_settings
+	},
+#endif
+#if 0
+	{
+		_T("s3virge"), _T("Virge"), _T("S3"),
+		NULL, NULL, NULL, NULL, ROMTYPE_S3VIRGE | ROMTYPE_NONE, 0, 0, BOARD_IGNORE, false,
+		NULL, 0,
 		false, EXPANSIONTYPE_RTG
 	},
+#endif
 	{
 		_T("x86vga"), _T("x86 VGA"), NULL,
 		NULL, NULL, NULL, NULL, ROMTYPE_x86_VGA | ROMTYPE_NONE, 0, 0, BOARD_IGNORE, true,

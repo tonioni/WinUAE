@@ -2708,6 +2708,7 @@ const struct pci_board fm801_pci_board =
 		{ NULL },
 		{ NULL },
 		{ NULL },
+		{ NULL }
 	}
 };
 
@@ -2723,6 +2724,7 @@ const struct pci_board fm801_pci_board_func1 =
 		{ NULL },
 		{ NULL },
 		{ NULL },
+		{ NULL }
 	}
 };
 
@@ -2816,6 +2818,7 @@ const struct pci_board solo1_pci_board =
 		{ solo1_lget, solo1_wget, solo1_bget, solo1_lput, solo1_wput, solo1_bput },
 		{ NULL },
 		{ NULL },
+		{ NULL }
 	}
 };
 

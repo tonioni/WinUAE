@@ -182,11 +182,14 @@ static void pci_hsync(void)
 
 static void pci_rethink(void)
 {
+	static int bridgenum;
+
 	for (int i = 0; i < PCI_BRIDGE_MAX; i++) {
-		struct pci_bridge *pcib = bridges[i];
+		struct pci_bridge *pcib = bridges[(i + bridgenum) % PCI_BRIDGE_MAX];
 		if (!pcib)
 			continue;
 		pcib->irq = 0;
+		bridgenum = i;
 		for (int j = 0; j < MAX_PCI_BOARDS; j++) {
 			struct pci_board_state *pcibs = &pcib->boards[j];
 			if (pcibs->board) {
@@ -197,12 +200,14 @@ static void pci_rethink(void)
 						uae_u8 irq = 1 << pin;
 						pcib->irq |= irq;
 						if (irq & pcib->intena) {
+							//write_log(_T("%02x %02x %s\n"), pin, pcib->irq, pcibs->board->label);
 							safe_interrupt_set(IRQ_SOURCE_PCI, i, (pcib->intreq_mask & 0x2000) != 0);
 						}
 					}
 				}
 			}
 		}
+		break;
 	}
 }
 
@@ -331,7 +336,7 @@ static struct pci_board_state *get_pci_board_state(struct pci_bridge *pcib, uaec
 		addr2 -= pcib->memory_start_offset;
 	}
 	struct pci_board_state *pcibs2 = &pcib->boards[stored_board];
-	if (pcibs2) {
+	if (pcibs2 && stored_bar < MAX_PCI_BARS) {
 		if (pcibs2->bar_enabled[stored_bar] && addr2 >= pcibs2->bar_start[stored_bar] && addr2 <= pcibs2->bar_end[stored_bar]) {
 			*bar = stored_bar;
 			return pcibs2;
@@ -344,6 +349,17 @@ static struct pci_board_state *get_pci_board_state(struct pci_bridge *pcib, uaec
 				*bar = j;
 				stored_board = i;
 				stored_bar = j;
+				return pcibs;
+			}
+		}
+	}
+	if (io && addr2 < 0x400) {
+		for (int i = 0; i < MAX_PCI_BOARDS; i++) {
+			struct pci_board_state *pcibs = &pcib->boards[i];
+			if (pcibs->board->bars[MAX_PCI_BARS].bget) {
+				stored_board = i;
+				stored_bar = MAX_PCI_BARS;
+				*bar = stored_bar;
 				return pcibs;
 			}
 		}
@@ -365,11 +381,11 @@ static const pci_addrbank *get_pci_io(uaecptr *addrp, struct pci_board_state **p
 	pcibs->selected_bar = bar;
 	*endianswap = pcib->endian_swap_io;
 	addr -= pcib->io_offset;
-	if (!pcibs->board->dont_mask_io) {
+	if (!pcibs->board->dont_mask_io && bar < MAX_PCI_BARS) {
 		addr &= (pcibs->bar_size[bar] & ~1) - 1;
 	}
 #if PCI_DEBUG_IO
-	write_log(_T("get_pci_io %08x=%08x %c:%d PC=%08x "), *addrp, addr, size < 0 ? 'W' : 'R', size < 0 ? -size : size, M68K_GETPC);
+	write_log(_T("get_pci_io %08x=%08x %c:%d PC=%08x\n"), *addrp, addr, size < 0 ? 'W' : 'R', size < 0 ? -size : size, M68K_GETPC);
 #endif
 	*addrp = addr;
 	return &pcibs->board->bars[bar];
@@ -569,7 +585,7 @@ static void update_pci_config(uaecptr addr, int size)
 static uaecptr beswap(int endianswap, uaecptr addr)
 {
 	if (endianswap > 0)
-		return addr ^ 3;;
+		return addr ^ 3;
 	return addr;
 }
 

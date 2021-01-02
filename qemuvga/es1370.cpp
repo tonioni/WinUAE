@@ -1207,7 +1207,8 @@ const struct pci_board es1370_pci_board =
 		{ NULL },
 		{ NULL },
 		{ NULL },
-		{ NULL },
-		{ NULL },
-	}
+        { NULL },
+        { NULL },
+        { NULL }
+    }
 };

@@ -50,7 +50,7 @@ struct pci_board
 	pci_dev_free free;
 	pci_dev_reset reset;
 	pci_dev_hsync hsync;
-	pci_addrbank bars[MAX_PCI_BARS];
+	pci_addrbank bars[MAX_PCI_BARS + 1];
 	bool dont_mask_io;
 	pci_get_config_func pci_get_config;
 	pci_put_config_func pci_put_config;

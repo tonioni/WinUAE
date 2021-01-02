@@ -194,7 +194,7 @@ static void s3_update_irqs(s3_t *s3)
         else
                 pci_clear_irq(s3->card, PCI_INTA);
 
-        if ((s3->subsys_stat & INT_VSY) && !(s3->subsys_stat & INT_VSY) && !enabled) {
+        if ((s3->subsys_stat & INT_VSY) && !(s3->subsys_cntl & INT_VSY) && !enabled) {
             s3->subsys_stat &= ~INT_VSY;
         }
 }

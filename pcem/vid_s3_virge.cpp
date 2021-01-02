@@ -237,6 +237,7 @@ typedef struct virge_t
         int virge_busy;
         
         uint8_t subsys_stat, subsys_cntl;
+        uint32_t advfunc;
         int vblank_irq;
 } virge_t;
 
@@ -473,6 +474,16 @@ static void s3_virge_out(uint16_t addr, uint8_t val, void *p)
                         break;
 
                         case 0x53:
+                            extern void gfxboard_s3virge_lfb_endianswap(int);
+                            gfxboard_s3virge_lfb_endianswap((val >> 1) & 3);
+                            s3_virge_updatemapping(virge);
+                        break;
+
+                        case 0x54:
+                            break;
+                        case 0x61:
+                            break;
+
                         case 0x58: case 0x59: case 0x5a:
                         s3_virge_updatemapping(virge);
                         break;
@@ -746,7 +757,7 @@ static void s3_virge_updatemapping(virge_t *virge)
         virge->linear_base = (svga->crtc[0x5a] << 16) | (svga->crtc[0x59] << 24);
         
         pclog("Linear framebuffer %02X ", svga->crtc[0x58] & 0x10);
-        if (svga->crtc[0x58] & 0x10) /*Linear framebuffer*/
+        if ((svga->crtc[0x58] | virge->advfunc) & 0x10) /*Linear framebuffer*/
         {
                 switch (svga->crtc[0x58] & 3)
                 {
@@ -1047,18 +1058,20 @@ static void fifo_thread(void *param)
                                 if (((fifo->addr_type & FIFO_ADDR) & 0xfffc) < 0x8000)
                                 {
                                         if (virge->s3d.cmd_set & CMD_SET_MS)
-                                                s3_virge_bitblt(virge, 16, ((val >> 8) | (val << 8)) << 16);
-                                        else
-                                                s3_virge_bitblt(virge, 16, val);
+                                            ((val >> 8) | (val << 8)) << 16;
+//                                        if ((virge->svga.crtc[0x54] & 3) == 1)
+//                                            ((val >> 8) | (val << 8)) << 16;
+                                        s3_virge_bitblt(virge, 16, val);
                                 }
                                 break;
                                 case FIFO_WRITE_DWORD:
                                 if (((fifo->addr_type & FIFO_ADDR) & 0xfffc) < 0x8000)
-                                {
+                                {       
                                         if (virge->s3d.cmd_set & CMD_SET_MS)
-                                                s3_virge_bitblt(virge, 32, ((val & 0xff000000) >> 24) | ((val & 0x00ff0000) >> 8) | ((val & 0x0000ff00) << 8) | ((val & 0x000000ff) << 24));
-                                        else
-                                                s3_virge_bitblt(virge, 32, val);
+                                                val = ((val & 0xff000000) >> 24) | ((val & 0x00ff0000) >> 8) | ((val & 0x0000ff00) << 8) | ((val & 0x000000ff) << 24);
+//                                        if ((virge->svga.crtc[0x54] & 3) == 2)
+//                                                val = ((val & 0xff000000) >> 24) | ((val & 0x00ff0000) >> 8) | ((val & 0x0000ff00) << 8) | ((val & 0x000000ff) << 24);
+                                        s3_virge_bitblt(virge, 32, val);
                                 }
                                 else
                                 {
@@ -1433,7 +1446,7 @@ static void s3_virge_mmio_write_w(uint32_t addr, uint16_t val, void *p)
 {
         virge_t *virge = (virge_t *)p;
         reg_writes++;
-//        pclog("New MMIO writew %08X %04X %04x(%08x):%08x\n", addr, val, CS, cs, pc);
+        //pclog("New MMIO writew %08X %04X %04x(%08x):%08x\n", addr, val, CS, cs, 0);
         if ((addr & 0xfffc) < 0x8000)
         {
                 s3_virge_queue(virge, addr, val, FIFO_WRITE_WORD);
@@ -1449,8 +1462,8 @@ static void s3_virge_mmio_write_l(uint32_t addr, uint32_t val, void *p)
         virge_t *virge = (virge_t *)p;
         svga_t *svga = &virge->svga;
         reg_writes++;
-//        if ((addr & 0xfffc) >= 0xb400 && (addr & 0xfffc) < 0xb800)
-//                pclog("New MMIO writel %08X %08X %04x(%08x):%08x\n", addr, val, CS, cs, pc);
+//      if ((addr & 0xfffc) >= 0xb400 && (addr & 0xfffc) < 0xb800)
+//              pclog("New MMIO writel %08X %08X %04x(%08x):%08x\n", addr, val, CS, cs, 0);
 
         if ((addr & 0xfffc) < 0x8000)
         {
@@ -1584,6 +1597,11 @@ static void s3_virge_mmio_write_l(uint32_t addr, uint32_t val, void *p)
                 virge->subsys_stat &= ~(val & 0xff);
                 virge->subsys_cntl = (val >> 8);
                 s3_virge_update_irqs(virge);
+                break;
+
+                case 0x850c:
+                virge->advfunc = val;
+                s3_virge_updatemapping(virge);
                 break;
                 
                 case 0xa000: case 0xa004: case 0xa008: case 0xa00c:
