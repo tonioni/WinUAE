@@ -9410,8 +9410,7 @@ static int getmemsize(uae_u32 size, const int *msi)
 		case 0x00800000: mem_size = 8; break;
 		case 0x01000000: mem_size = 9; break;
 		}
-	}
-	else if (msi == msi_chip) {
+	} else if (msi == msi_chip) {
 		switch (size)
 		{
 		case 0x00040000: mem_size = 0; break;
@@ -9422,8 +9421,7 @@ static int getmemsize(uae_u32 size, const int *msi)
 		case 0x00400000: mem_size = 5; break;
 		case 0x00800000: mem_size = 6; break;
 		}
-	}
-	else if (msi == msi_bogo) {
+	} else if (msi == msi_bogo) {
 		switch (size)
 		{
 		case 0x00000000: mem_size = 0; break;
@@ -9432,8 +9430,21 @@ static int getmemsize(uae_u32 size, const int *msi)
 		case 0x00180000: mem_size = 3; break;
 		case 0x001C0000: mem_size = 4; break;
 		}
-	}
-	else {
+	} else if (msi == msi_z3chip) {
+		switch (size)
+		{
+		case 0x00000000: mem_size = 0; break;
+		case 0x01000000: mem_size = 1; break;
+		case 0x02000000: mem_size = 2; break;
+		case 0x04000000: mem_size = 3; break;
+		case 0x08000000: mem_size = 4; break;
+		case 0x10000000: mem_size = 5; break;
+		case 0x18000000: mem_size = 6; break;
+		case 0x20000000: mem_size = 7; break;
+		case 0x30000000: mem_size = 8; break;
+		case 0x40000000: mem_size = 9; break;
+		}
+	} else {
 		if (size < 0x00100000)
 			mem_size = 0;
 		else if (size < 0x00200000)
@@ -9468,8 +9479,9 @@ static void addadvancedram(HWND hDlg, struct ramboard *rb, const TCHAR *name, co
 	_tcscpy(tmp, name);
 	if (rb->size) {
 		int mem_size = getmemsize(rb->size, msi);
-		_tcscat(tmp, _T(" "));
+		_tcscat(tmp, _T(" ("));
 		_tcscat(tmp, memsize_names[msi[mem_size]]);
+		_tcscat(tmp, _T(")"));
 	}
 	SendDlgItemMessage(hDlg, IDC_MEMORYSELECT, CB_ADDSTRING, 0, (LPARAM)tmp);
 }

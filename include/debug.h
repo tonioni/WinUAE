@@ -225,7 +225,7 @@ struct dma_rec
 extern struct dma_rec *last_dma_rec;
 
 #define DMA_EVENT_BLITIRQ 1
-#define DMA_EVENT_BLITNASTY 2
+#define DMA_EVENT_BLITFINALD 2
 #define DMA_EVENT_BLITSTARTFINISH 4
 #define DMA_EVENT_BPLFETCHUPDATE 8
 #define DMA_EVENT_COPPERWAKE 16

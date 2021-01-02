@@ -1,4 +1,25 @@
 
+Beta 14:
+
+- Fixed possible out of bounds array access when virtual mouse driver is installed.
+- Added more strict coordinate/size validation to uaegfx blitter functions.
+- JIT shift instruction fix rewrite, they still didn't work fully correctly and my tester didn't catch them because JIT uses registers differently in different use cases etc.. But it did break most Cirrus Logic based chipset Picasso96 drivers. Corrupt icons and text, at least with some Picasso96 versions. (Still need more optimal fix later)
+- Improved PCem RTG mode scanline based display update timing.
+- CyberVision64 (S3Trio64) vsync interrupt fix, could have caused stuck interrupt when monitor driver was started.
+- Hardware emulated RTG boards interlace modes fixed (again).
+- Gaps between on screen leds are now smaller.
+- FAS246 SCSI chip apparently has Features Enable always set (or bit does not exist anymore). DKB RapidFire tests if transfer count high register works (write something, read it back) and assumes it is enabled without modifying Configuration 2 Register. Rapidfire worked when it first implemented because transfer count high was not originally correctly conditionally emulated. Datasheet seems to be MIA.
+- Fixed 32-bit Chip RAM size string array out of bounds access if 768M or 1G was selected. (b11)
+- Voodoo 3 byteswapped modes Mediator PCI sound card DMA hack fix.
+- Yet another 2D/3D registers-only Voodoo 3 byteswap mode emulated. Some W3D drivers use it. (Without it nothing was rendered and log was mostly filled with "triangle_setup wrong order" messages)
+- Blitter line mode was partially broken in non-cycle exact modes and CE mode wasn't fully accurate (b12). Still some edge cases to fix.
+- DMA debugger blitter slots are now marked as BLT-x (normal), BLF-x (fill) or BLL-x (line). x = channel. RFS, DSK, AUD, SPR and BPL slots include channel numbers. (Easier to remember than xxxDAT register address numbers)
+
+Shift instructions are really annoying to JIT compile because flags works very differently between x86 and 680x0:
+- Shift count 0: does not modify any flags | clears C, updates Z and N. Keep original X.
+- Shift count larger or same than data size: C undefined | C (and X) always equals last bit shifted out.
+- Shift count mask: masked by 31 (except if x64 64-bit word) | masked by 63.
+- Shift count from 1 to data size-1: practically identical behavior. Only needed extra step is simple C to X copy.
 
 Beta 13:
 
@@ -21,7 +42,6 @@ Vooodoo 3 3000 details:
 - Native/RTG switching is implemented by checking status of SVGA screen blank bit. Might not always work correctly.
 - Hardware accelerated 3D confirmed working.
 - PCI to PCI DMA supported, compatible with Voodoo 3 + SB128 or FM801 sound card Mediator DMA hack.
-
 
 Beta 12:
 
@@ -275,7 +295,6 @@ CPU tester FPU trigonometric and logarithmic instructions verified. Last 16 or s
 
 Most likely no real world program was affected. Host FPU mode will also return even more different results.
 
-
 Beta 2:
 
 - Custom CPU frequency selection fixed (b1)
@@ -289,7 +308,6 @@ Beta 2:
 - "diskchange rdh0:" can be now used to eject drag&drop mounted directory/file/archive harddrive.
 
 - 68030 MMU with more compatible (prefetch) is not stable, at least in Amix (as usual..). Will be fixed later.
-
 
 Beta 1:
 

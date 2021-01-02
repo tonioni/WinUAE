@@ -163,10 +163,10 @@ int parallel_direct_read_data (uae_u8 *v) { return 0; }
 
 #include <paraport/ParaPort.h>
 
-typedef BOOL (*closePort)(HANDLE);
-typedef BOOL (*executeCycle)(HANDLE, PARAPORT_CYCLE*, int);
-typedef BOOL (*getPortInfo)(HANDLE, PARAPORT_INFO*);
-typedef HANDLE* (*openPort)(const char*);
+typedef BOOL (_stdcall* closePort)(HANDLE);
+typedef BOOL (_stdcall* executeCycle)(HANDLE, PARAPORT_CYCLE*, int);
+typedef BOOL (_stdcall* getPortInfo)(HANDLE, PARAPORT_INFO*);
+typedef HANDLE* (_stdcall* openPort)(const char*);
 static closePort pp_closeport;
 static executeCycle pp_executecycle;
 static getPortInfo pp_getportinfo;
@@ -203,6 +203,7 @@ int paraport_init (void)
 	if (!pp_openport || !pp_closeport || !pp_executecycle) {
 		write_log (_T("PARAPORT: GetProcAddress() failed\n"));
 		paraport_free ();
+		return 0;
 	}
 	write_log (_T("PARAPORT:"));
 	for (i = 0; i < 4 ; i++) {
