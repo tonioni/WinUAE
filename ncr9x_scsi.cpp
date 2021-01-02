@@ -2455,7 +2455,7 @@ static void ncr9x_esp_scsi_init(struct ncr9x_state *ncr, ESPDMAMemoryReadWriteFu
 	ncr->board_mask = 0xffff;
 	ncr->irq_func = irq_func ? irq_func : set_irq2;
 	if (!ncr->devobject.lsistate)
-		esp_scsi_init(&ncr->devobject, read, write, mode > 0);
+		esp_scsi_init(&ncr->devobject, read, write, mode > 0 ? mode : 0);
 	esp_scsi_reset(&ncr->devobject, ncr);
 }
 
@@ -2539,7 +2539,7 @@ void cpuboard_ncr9x_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct 
 void cpuboard_dkb_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc)
 {
 	ncr9x_add_scsi_unit(&ncr_dkb1200_scsi, ch, ci, rc);
-	ncr9x_esp_scsi_init(ncr_dkb1200_scsi, fake_dma_read, fake_dma_write, set_irq2_dkb1200, 0);
+	ncr9x_esp_scsi_init(ncr_dkb1200_scsi, fake_dma_read, fake_dma_write, set_irq2_dkb1200, 2);
 }
 
 void fastlane_add_scsi_unit (int ch, struct uaedev_config_info *ci, struct romconfig *rc)
@@ -2604,7 +2604,7 @@ void scram5394_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romco
 void rapidfire_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc)
 {
 	ncr9x_add_scsi_unit(&ncr_rapidfire_scsi[ci->controller_type_unit], ch, ci, rc);
-	ncr9x_esp_scsi_init(ncr_rapidfire_scsi[ci->controller_type_unit], fake_dma_read, fake_dma_write, set_irq2, 0);
+	ncr9x_esp_scsi_init(ncr_rapidfire_scsi[ci->controller_type_unit], fake_dma_read, fake_dma_write, set_irq2, 2);
 	esp_dma_enable(ncr_rapidfire_scsi[ci->controller_type_unit]->devobject.lsistate, 1);
 }
 

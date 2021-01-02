@@ -21,6 +21,7 @@ struct ESPState {
     qemu_irq irq;
 	int irq_raised;
     uint8_t chip_id;
+    uint8_t tchi_has_id;
     int32_t ti_size;
 	int32_t dma_len;
     uint32_t ti_rptr, ti_wptr;
@@ -52,7 +53,7 @@ struct ESPState {
     ESPDMAMemoryReadWriteFunc dma_memory_write;
     void *dma_opaque;
     int (*dma_cb)(ESPState *s);
-	bool fas4xxextra;
+	int fas4xxextra;
 	int fas408sig;
 	uint8_t fas408_buffer[128+1];
 	int fas408_buffer_size;
@@ -210,7 +211,7 @@ void esp_fake_dma_put(void *opaque, uint8_t v);
 void esp_request_cancelled(SCSIRequest *req);
 void esp_command_complete(SCSIRequest *req, uint32_t status, size_t resid);
 void esp_transfer_data(SCSIRequest *req, uint32_t len);
-void esp_scsi_init(DeviceState *dev, ESPDMAMemoryReadWriteFunc read, ESPDMAMemoryReadWriteFunc write, bool fas4xxextra);
+void esp_scsi_init(DeviceState *dev, ESPDMAMemoryReadWriteFunc read, ESPDMAMemoryReadWriteFunc write, int fas4xxextra);
 void esp_scsi_reset(DeviceState *dev, void *privdata);
 bool esp_dreq(DeviceState *dev);
 
