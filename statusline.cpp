@@ -130,7 +130,7 @@ void statusline_set_font(const char *newnumbers, int width, int height)
 	td_numbers_width = width;
 	td_numbers_height = height;
 	td_led_width = td_numbers_width * 3 + td_numbers_width / 2;
-	td_width = td_led_width + 10;
+	td_width = td_led_width + 6;
 	td_custom = true;
 }
 
