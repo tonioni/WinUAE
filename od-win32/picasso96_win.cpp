@@ -435,26 +435,39 @@ STATIC_INLINE bool validatecoords2(TrapContext *ctx, struct RenderInfo *ri, uae_
 	uae_u32 Height = *Heightp;
 	uae_u32 X = *Xp;
 	uae_u32 Y = *Yp;
-	if (!Width || !Height)
+	if (!Width || !Height) {
 		return true;
+	}
+	if (Width > 32767 || Height > 32767 || X > 32767 || Y > 32767) {
+		return false;
+	}
 	if (ri) {
 		int bpp = GetBytesPerPixel (ri->RGBFormat);
-		if (X * bpp >= ri->BytesPerRow)
+		if (X * bpp >= ri->BytesPerRow) {
 			return false;
+		}
 		uae_u32 X2 = X + Width;
 		if (X2 * bpp > ri->BytesPerRow) {
 			X2 = ri->BytesPerRow / bpp;
 			Width = X2 - X;
 			*Widthp = Width;
 		}
-		if (!valid_address(ri->AMemory, (Y + Height - 1) * ri->BytesPerRow + (X + Width - 1) * bpp))
+		uaecptr start = gfxmem_banks[0]->start;
+		uae_u32 size = gfxmem_banks[0]->allocated_size;
+		uaecptr mem = ri->AMemory;
+		if (mem < start || mem >= start + size) {
 			return false;
+		}
+		mem += (Y + Height - 1) * ri->BytesPerRow + (X + Width - 1) * bpp;
+		if (mem < start || mem >= start + size) {
+			return false;
+		}
 	}
 	return true;
 }
 static bool validatecoords(TrapContext *ctx, struct RenderInfo *ri, uae_u32 *X, uae_u32 *Y, uae_u32 *Width, uae_u32 *Height)
 {
-	if (trap_is_indirect() || validatecoords2(ctx, ri, X, Y, Width, Height))
+	if (validatecoords2(ctx, ri, X, Y, Width, Height))
 		return true;
 	write_log (_T("RTG invalid region: %08X:%d:%d (%dx%d)-(%dx%d)\n"), ri->AMemory, ri->BytesPerRow, ri->RGBFormat, *X, *Y, *Width, *Height);
 	return false;
