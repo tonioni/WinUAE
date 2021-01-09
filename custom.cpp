@@ -7594,39 +7594,22 @@ static void compute_spcflag_copper (int hpos)
 
 void blitter_done_notify (int hpos)
 {
+	bool nextline = false;
+
 	if (cop_state.state != COP_bltwait)
 		return;
 
-	cop_state.state = COP_wait;
-	int hp = current_hpos();
-	hp += 3;
-	hp &= ~1;
 	int vp_wait = vpos & (((cop_state.saved_i2 >> 8) & 0x7F) | 0x80);
 	int vp = vpos;
-	if (hpos >= maxhpos) {
-		hpos -= maxhpos;
-		vp++;
-	}
-	last_copper_hpos = hp;
-	cop_state.hpos = hp;
-	cop_state.vpos = vp;
-	if (dmaen(DMA_COPPER) && vp_wait >= cop_state.vcmp) {
-		copper_enabled_thisline = 1;
-		set_special(SPCFLAG_COPPER);
-	} else {
-		unset_special(SPCFLAG_COPPER);
-	}
-	return;
 
-	vp_wait = vpos & (((cop_state.saved_i2 >> 8) & 0x7F) | 0x80);
-	vp = vpos;
-
-	hpos += 1;
+	hpos += 3;
 	hpos &= ~1;
 	if (hpos >= maxhpos) {
 		hpos -= maxhpos;
 		vp++;
+		nextline = true;
 	}
+
 	cop_state.hpos = hpos;
 	cop_state.vpos = vp;
 	cop_state.state = COP_wait;
@@ -7640,11 +7623,11 @@ void blitter_done_notify (int hpos)
 		record_copper_blitwait(cop_state.ip - 4, hpos, vp);
 #endif
 
-	if (dmaen(DMA_COPPER) && vp_wait >= cop_state.vcmp) {
+	if (dmaen(DMA_COPPER) && vp_wait >= cop_state.vcmp && !nextline) {
 		copper_enabled_thisline = 1;
 		set_special(SPCFLAG_COPPER);
 	} else {
-		unset_special (SPCFLAG_COPPER);
+		unset_special(SPCFLAG_COPPER);
 	}
 }
 
