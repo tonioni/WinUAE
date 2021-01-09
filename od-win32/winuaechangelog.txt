@@ -1,4 +1,23 @@
 
+
+Beta 15:
+
+- PCI Virge emulation. Not much point but Virge emulation already existed, so... Not all byteswapping modes emulated, only what Mediator driver needs to work correctly. G-REX + Virge also works but 24-bit modes have some byteswap problems.
+- PCem PCI device config byte wide reads fixed (Voodoo/Virge + G-REX in CSPPC boot screen PCI list PCI device type is now shown correctly)
+- Voodoo 3 now works with G-REX CGX4 drivers.
+- G-REX didn't detect any PCI cards after FM801.
+- PCI RTG board native/RTG mode autoswitching improved.
+- Aranym JIT update missed move from FPU register to data register clamping (for example FPn -150.0 to Dn.B should become -128). Re-added.
+- Fixed FPU instruction JIT blacklist support.
+- Combitec HD 20 A/HD 40 A (not 100% sure it is exactly this model but very likely) emulation.
+
+Combitec HD 20 A/HD 40 A:
+- OMTI compatible HD controller. Usual OMTI IO offset 0x641. Base address is at $800000 + autoboot ROM at $f00000.
+- Autoboot ROM supports autoboot under KS 1.2 (seems to use same hack that other KS 1.2 autobootable HD controller use)
+- Boot ROM version string: "autoboot.device (autoboot.device 6.18 (27.8.89) , Rom_1.2, FFS, Bildchen, Search, New Boot Partition Programmiert von Bernhard Möllemann & Hartmut Sprave (C) Combitec 1988,1989"
+- Boot screen ("COMPUTER TOP EQUIPMENT COLOSSUS(R) HD-AutoBoot")
+
+
 Beta 14:
 
 - Fixed possible out of bounds array access when virtual mouse driver is installed.

@@ -1825,9 +1825,14 @@ void record_dma_replace(int hpos, int vpos, int type, int extra)
 	dr->extra = extra;
 }
 
+static void dma_conflict(int vpos, int hpos, struct dma_rec *dr, int reg, bool write)
+{
+	write_log(_T("DMA conflict %c: v=%d h=%d OREG=%04X NREG=%04X\n"), write ? 'W' : 'R', vpos, hpos, dr->reg, reg);
+}
+
 void record_dma_write(uae_u16 reg, uae_u32 dat, uae_u32 addr, int hpos, int vpos, int type, int extra)
 {
-	struct dma_rec* dr;
+	struct dma_rec *dr;
 
 	if (!dma_record[0]) {
 		dma_record[0] = xmalloc(struct dma_rec, NR_DMA_REC_HPOS * NR_DMA_REC_VPOS);
@@ -1844,7 +1849,7 @@ void record_dma_write(uae_u16 reg, uae_u32 dat, uae_u32 addr, int hpos, int vpos
 	dr = &dma_record[dma_record_toggle][vpos * NR_DMA_REC_HPOS + hpos];
 	dma_record_frame[dma_record_toggle] = timeframes;
 	if (dr->reg != 0xffff) {
-		write_log(_T("DMA conflict: v=%d h=%d OREG=%04X NREG=%04X\n"), vpos, hpos, dr->reg, reg);
+		dma_conflict(vpos, hpos, dr, reg, false);
 		return;
 	}
 	dr->reg = reg;
@@ -1881,7 +1886,7 @@ void record_dma_read(uae_u16 reg, uae_u32 addr, int hpos, int vpos, int type, in
 	dr = &dma_record[dma_record_toggle][vpos * NR_DMA_REC_HPOS + hpos];
 	dma_record_frame[dma_record_toggle] = timeframes;
 	if (dr->reg != 0xffff) {
-		write_log (_T("DMA conflict: v=%d h=%d OREG=%04X NREG=%04X\n"), vpos, hpos, dr->reg, reg);
+		dma_conflict(vpos, hpos, dr, reg, false);
 		return;
 	}
 	dr->reg = reg;

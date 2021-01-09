@@ -3126,8 +3126,8 @@ int enumerate_sound_devices (void)
 		if ((1 || force_directsound || !os_vista) && (sounddrivermask & SOUNDDRIVER_DS)) {
 			write_log(_T("Enumerating DirectSound devices..\n"));
 			DirectSoundEnumerate ((LPDSENUMCALLBACK)DSEnumProc, sound_devices);
+			DirectSoundCaptureEnumerate((LPDSENUMCALLBACK)DSEnumProc, record_devices);
 		}
-		DirectSoundCaptureEnumerate ((LPDSENUMCALLBACK)DSEnumProc, record_devices);
 #if USE_XAUDIO
 		if (sounddrivermask & SOUNDDRIVE_XAUDIO2)
 			xaudioenumerate (sound_devices);
