@@ -118,10 +118,12 @@ static struct pci_board *pci_board_alloc(struct pci_config *config)
 
 struct pci_board_state *pci_board_add(struct pci_bridge *pcib, const struct pci_board *pci, int slot, int func, struct autoconfig_info *aci, void *userdata)
 {
-	struct pci_board_state *pcibs = &pcib->boards[pcib->slot_cnt];
-	pcib->slot_cnt++;
+	struct pci_board_state *pcibs = &pcib->boards[pcib->log_slot_cnt];
+	pcib->log_slot_cnt++;
+	if (!func)
+		pcib->phys_slot_cnt++;
 	pcibs->board = pci;
-	pcibs->slot = slot < 0 ? pcib->slot_cnt : slot;
+	pcibs->slot = slot < 0 ? pcib->phys_slot_cnt : slot;
 	pcibs->func = func;
 	pcibs->bridge = pcib;
 	pcibs->irq_callback = pci_irq_callback;
@@ -450,6 +452,9 @@ static uae_u8 *get_pci_config(uaecptr addr, int size, uae_u32 v, int *endianswap
 				c[off + 1] = pcibs->board->pci_get_config((off ^ 2) + 0);
 				c[off + 0] = pcibs->board->pci_get_config((off ^ 2) + 1);
 			}
+			*endianswap = 0;
+		} else {
+			c[off] = pcibs->board->pci_get_config(off ^ 3);
 			*endianswap = 0;
 		}
 	} else {

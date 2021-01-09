@@ -116,7 +116,8 @@ struct pci_bridge
 	uae_u8 acmemory_2[128];
 	struct romconfig *rc;
 	uae_u16 window;
-	int slot_cnt;
+	int log_slot_cnt;
+	int phys_slot_cnt;
 };
 
 extern void pci_irq_callback(struct pci_board_state *pcibs, bool irq);
