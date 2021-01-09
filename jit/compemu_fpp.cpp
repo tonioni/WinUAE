@@ -90,8 +90,13 @@ struct jit_disable_opcodes jit_disable;
 //#define STATIC_INLINE static inline
 #define MAKE_FPSR(r) do { fmov_rr(FP_RESULT,r); } while (0)
 
+#if 0
 #define delay   nop() ;nop()  
 #define delay2  nop() ;nop()   
+#else
+#define delay
+#define delay2
+#endif
 
 #define UNKNOWN_EXTRA 0xFFFFFFFF
 #if 0
@@ -321,6 +326,15 @@ STATIC_INLINE int get_fp_value(uae_u32 opcode, uae_u16 extra)
 	return FS1;
 }
 
+static struct {
+	fpu_register b[2];
+	fpu_register w[2];
+	fpu_register l[2];
+} clamp_bounds = {
+	{ -128.0, 127.0 },
+	{ -32768.0, 32767.0 },
+	{ -2147483648.0, 2147483647.0 }
+};
 
 /* return of -1 means failure, >=0 means OK */
 STATIC_INLINE int put_fp_value(int val, uae_u32 opcode, uae_u16 extra)
@@ -352,16 +366,17 @@ STATIC_INLINE int put_fp_value(int val, uae_u32 opcode, uae_u16 extra)
 		switch (size)
 		{
 		case 6: /* byte */
-			fmovi_mr((uintptr) temp_fp, val);
+			fmovi_mrb((uintptr) temp_fp, val, clamp_bounds.b);
 			delay;
 			mov_b_rm(reg, (uintptr) temp_fp);
 			return 0;
 		case 4: /* word */
-			fmovi_mr((uintptr) temp_fp, val);
+			fmovi_mrb((uintptr) temp_fp, val, clamp_bounds.w);
 			delay;
 			mov_w_rm(reg, (uintptr) temp_fp);
 			return 0;
 		case 0: /* long */
+			fmovi_mrb((uintptr) temp_fp, val, clamp_bounds.l);
 			fmovi_mr((uintptr) temp_fp, val);
 			delay;
 			mov_l_rm(reg, (uintptr) temp_fp);
@@ -476,7 +491,7 @@ STATIC_INLINE int put_fp_value(int val, uae_u32 opcode, uae_u16 extra)
 	switch (size)
 	{
 	case 0: /* long */
-		fmovi_mr((uintptr) temp_fp, val);
+		fmovi_mrb((uintptr) temp_fp, val, clamp_bounds.l);
 		delay;
 		mov_l_rm(S2, (uintptr) temp_fp);
 		writelong_clobber(ad, S2, S3);
@@ -502,7 +517,7 @@ STATIC_INLINE int put_fp_value(int val, uae_u32 opcode, uae_u16 extra)
 	case 3: /* packed decimal static */
 		return -1;						/* Packed */
 	case 4: /* word */
-		fmovi_mr((uintptr) temp_fp, val);
+		fmovi_mrb((uintptr) temp_fp, val, clamp_bounds.w);
 		delay;
 		mov_l_rm(S2, (uintptr) temp_fp);
 		writeword_clobber(ad, S2, S3);
@@ -517,7 +532,7 @@ STATIC_INLINE int put_fp_value(int val, uae_u32 opcode, uae_u16 extra)
 		writelong_clobber(ad, S2, S3);
 		break;
 	case 6: /* byte */
-		fmovi_mr((uintptr) temp_fp, val);
+		fmovi_mrb((uintptr) temp_fp, val, clamp_bounds.b);
 		delay;
 		mov_l_rm(S2, (uintptr) temp_fp);
 		writebyte(ad, S2, S3);
