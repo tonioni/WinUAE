@@ -1,3 +1,5 @@
+#ifdef FX11
+
 //--------------------------------------------------------------------------------------
 // File: EffectRuntime.cpp
 //
@@ -716,3 +718,5 @@ void CEffect::HandleLocalTimerRollover()
 }
 
 }
+
+#endif

@@ -2,8 +2,6 @@
 #include <windows.h>
 #include "resource.h"
 
-#define FX11 1
-
 #include <DXGI1_5.h>
 #include <dxgi1_6.h>
 #include <d3d11.h>
@@ -967,7 +965,7 @@ static void fxremoveline(char *s, char *dst, const char **lines)
 	*d = 0;
 }
 
-#if FX11
+#ifdef FX11
 
 static bool psEffect_LoadEffect(struct d3d11struct *d3d, const TCHAR *shaderfile, struct shaderdata11 *s, int num)
 {

@@ -1,3 +1,5 @@
+#ifdef FX11
+
 //--------------------------------------------------------------------------------------
 // File: d3dxGlobal.cpp
 //
@@ -401,3 +403,5 @@ void __cdecl D3DXDebugPrintf(UINT lvl, LPCSTR szFormat, ...)
     OutputDebugStringA(strB);
 }
 #endif // _DEBUG
+
+#endif

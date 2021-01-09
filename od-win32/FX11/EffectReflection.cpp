@@ -1,3 +1,5 @@
+#ifdef FX11
+
 //--------------------------------------------------------------------------------------
 // File: EffectReflection.cpp
 //
@@ -2178,3 +2180,5 @@ ID3DX11EffectGroup * CEffect::GetGroupByName(_In_z_ LPCSTR Name)
 }
 
 }
+
+#endif

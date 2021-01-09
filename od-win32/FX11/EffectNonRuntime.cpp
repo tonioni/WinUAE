@@ -1,3 +1,5 @@
+#ifdef FX11
+
 //--------------------------------------------------------------------------------------
 // File: EffectNonRuntime.cpp
 //
@@ -2986,3 +2988,5 @@ HRESULT PlacementNewVariable(_In_ void *pVar, _In_ SType *pType, _In_ bool IsAnn
 }
 
 }
+
+#endif
