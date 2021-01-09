@@ -4156,26 +4156,16 @@ static struct {
 	{ "ftst", &jit_disable.ftst },
 };
 
-static bool read_fpu_opcode(const char **pp)
+static bool read_fpu_opcode(const char *p, int len)
 {
-	const char *p = *pp;
-	const char *end;
-	size_t len;
 	unsigned int i;
 	
-	end = p;
-	while (*end != '\0' && *end != ',')
-		end++;
-	len = end - p;
-	if (*end != '\0')
-		end++;
 	for (i = 0; i < (sizeof(jit_opcodes) / sizeof(jit_opcodes[0])); i++)
 	{
 		if (len == strlen(jit_opcodes[i].name) && strnicmp(jit_opcodes[i].name, p, len) == 0)
 		{
 			*jit_opcodes[i].disabled = true;
 			jit_log("<JIT compiler> : disabled %s", jit_opcodes[i].name);
-			*pp = end;
 			return true;
 		}
 	}
@@ -4198,7 +4188,7 @@ static bool merge_blacklist2(const char *blacklist)
 
 			const char *endp = strchr(p, ',');
 			if (endp) {
-				len = endp - p - 1;
+				len = endp - p;
 			} else {
 				len = strlen(p);
 			}
@@ -4208,39 +4198,41 @@ static bool merge_blacklist2(const char *blacklist)
 			for (int i = 0; lookuptab[i].name; i++) {
 				if (!_tcsnicmp(s, lookuptab[i].name, len) && _tcslen(lookuptab[i].name) == len) {
 					int mnemo = lookuptab[i].mnemo;
-					for (int opcode = 0; opcode < 65536; opcode++) {
+					for (int opcode = 0; opcode < 0xf000; opcode++) {
 						struct instr *table = &table68k[opcode];
 						if (table->mnemo == mnemo) {
 							reset_compop(cft_map(opcode));
 							if (currprefs.cachesize) {
 								jit_log("<JIT compiler> : blacklist opcode : %04x", opcode);
 							}
+							found = true;
 						}
 					}
-					p += len;
-					if (*p)
-						p++;
-					found = true;
-					break;
+					if (found) {
+						p += len;
+						if (*p)
+							p++;
+					}
 				}
 			}
 			xfree(s);
-			if (found) {
+			if (found)
+				continue;
+#ifdef USE_JIT_FPU
+			if (read_fpu_opcode(p, len)) {
+				p += len;
+				if (*p)
+					p++;
 				continue;
 			}
-
+#endif
 			int opcode1 = read_opcode(p);
 			if (opcode1 < 0)
 			{
-#ifdef USE_JIT_FPU
-				if (read_fpu_opcode(&p))
-					continue;
-#endif
 				bug("<JIT compiler> : invalid opcode %s", p);
 				return false;
 			}
 			p += 4;
-
 			int opcode2 = opcode1;
 			if (*p == '-') {
 				p++;
