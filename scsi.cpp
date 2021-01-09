@@ -79,7 +79,8 @@
 #define OMTI_ALF2 44
 #define NCR5380_SYNTHESIS 45 // clone of ICD AdSCSI
 #define NCR5380_FIREBALL 46
-#define NCR_LAST 47
+#define OMTI_HD20 47
+#define NCR_LAST 48
 
 extern int log_scsiemu;
 
@@ -3449,7 +3450,7 @@ static uae_u32 ncr80_bget2(struct soft_scsi *ncr, uaecptr addr, int size)
 		if (reg >= 0)
 			v = omti_bget(ncr, reg);
 
-	} else if (ncr->type == OMTI_ALF2) {
+	} else if (ncr->type == OMTI_ALF2 || ncr->type == OMTI_HD20) {
 
 		reg = alf2_reg(ncr, origaddr, false);
 		if (reg >= 0) {
@@ -3918,7 +3919,7 @@ static void ncr80_bput2(struct soft_scsi *ncr, uaecptr addr, uae_u32 val, int si
 		if (reg >= 0)
 			omti_bput(ncr, reg, val);
 
-	} else if (ncr->type == OMTI_ALF2) {
+	} else if (ncr->type == OMTI_ALF2 || ncr->type == OMTI_HD20) {
 
 		reg = alf2_reg(ncr, origaddr, true);
 		if (reg >= 0)
@@ -5089,6 +5090,37 @@ void alf2_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig 
 	generic_soft_scsi_add(ch, ci, rc, OMTI_ALF2, 65536, 32768, ROMTYPE_ALF2);
 }
 
+bool hd20_init(struct autoconfig_info *aci)
+{
+	aci->start = 0xf00000;
+	aci->size = 0x10000;
+	scsi_add_reset();
+	if (!aci->doinit)
+		return true;
+
+	struct soft_scsi *scsi = getscsi(aci->rc);
+	if (!scsi)
+		return false;
+
+	load_rom_rc(aci->rc, ROMTYPE_HD20A, 32768, 0, scsi->rom, 32768, 0);
+
+	scsi->baseaddress = 0xf00000;
+	scsi->baseaddress2 = 0x810000;
+	scsi->board_mask = 65535;
+
+	map_banks(scsi->bank, scsi->baseaddress >> 16, 1, 0);
+	map_banks(scsi->bank, scsi->baseaddress2 >> 16, 1, 0);
+
+	scsi->configured = 1;
+	aci->addrbank = scsi->bank;
+	return true;
+}
+
+void hd20_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc)
+{
+	generic_soft_scsi_add(ch, ci, rc, OMTI_HD20, 65536, 32768, ROMTYPE_HD20A);
+}
+
 bool promigos_init(struct autoconfig_info *aci)
 {
 	aci->start = 0xf40000;
@@ -5208,7 +5240,7 @@ bool omtiadapter_init(struct autoconfig_info *aci)
 	return true;
 }
 
-void omtiadapter_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc)
+void omtiadapter_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc)
 {
 	generic_soft_scsi_add(ch, ci, rc, OMTI_ADAPTER, 65536, 0, ROMTYPE_OMTIADAPTER);
 }

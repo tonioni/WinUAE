@@ -95,7 +95,7 @@ struct romdata *getromdatabypath (const TCHAR *path)
 	return NULL;
 }
 
-#define NEXT_ROM_ID 267
+#define NEXT_ROM_ID 268
 
 #define ALTROM(id,grp,num,size,flags,crc32,a,b,c,d,e) \
 { _T("X"), 0, 0, 0, 0, 0, size, id, 0, 0, flags, (grp << 16) | num, 0, NULL, crc32, a, b, c, d, e },
@@ -650,6 +650,8 @@ static struct romdata roms[] = {
 	0xb475ff5f, 0x63609553,0x98b06812,0x23ade9ac,0x6ee31364,0x5375fce3, NULL, NULL },
 	{ _T("Hardital Synthesis"), 0, 0, 0, 0, _T("SYNTHESIS\0"), 32768, 266, 0, 0, ROMTYPE_SYNTHESIS, 0, 0, NULL,
 	0x667c7616, 0x0eb1cb38,0x3133f070,0x7cb57944,0xc516f236,0xbad4d4f6, NULL, NULL },
+	{ _T("Combitec HD20A/HD40A"), 0, 0, 0, 0, _T("HD20A\0"), 32768, 267, 0, 0, ROMTYPE_HD20A, 0, 0, NULL,
+	0x0e7391b4, 0x7c365adb,0x3496c479,0x5e94a166,0xd834254a,0x6112d91c, NULL, NULL },
 
 	{ _T("CyberStorm MK I 68040"), 0, 0, 0, 0, _T("CSMKI\0"), 32768, 95, 0, 0, ROMTYPE_CB_CSMK1, 0, 0, NULL,
 	  0, 0, 0, 0, 0, 0, NULL, _T("cyberstormmk1_040.rom") },
