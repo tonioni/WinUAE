@@ -264,7 +264,6 @@ static const struct gfxboard boards[] =
 		0, NULL, &voodoo_5_5500_device, 0, true
 	},
 #endif
-#if 0
 	{
 		GFXBOARD_ID_S3VIRGE_PCI,
 		_T("Virge [PCI]"), _T("S3"), _T("S3VIRGE_PCI"),
@@ -272,7 +271,6 @@ static const struct gfxboard boards[] =
 		0x00000000, 0x00400000, 0x00400000, 0x10000000, 0, 0, -1, false,
 		0, 0, NULL, &s3_virge_device, 0, true
 	},
-#endif
 	{
 		GFXBOARD_ID_VGA,
 		_T("x86 bridgeboard VGA [ISA]"), _T("x86"), _T("VGA"),
@@ -378,7 +376,8 @@ struct rtggfxboard
 	struct gfxboard_func *func;
 
 	device_t *pcemdev;
-	void *pcemobject, *pcemobject2;
+	void *pcemobject; // device_t
+	void *pcemobject2; // svga_t
 	int pcem_mmio_offset;
 	int pcem_mmio_mask;
 	bool pcem_pci_configured;
@@ -391,6 +390,7 @@ struct rtggfxboard
 	uae_u8 *bios;
 	uae_u32 bios_mask;
 	int lfbbyteswapmode;
+	int mmiobyteswapmode;
 	struct pci_board_state *pcibs;
 	bool pcem_direct;
 
@@ -665,7 +665,7 @@ void gfxboard_free_vram(int index)
 }
 
 extern uae_u8 *getpcembuffer32(int, int, int);
-extern int svga_get_vtotal(void);
+extern int svga_get_vtotal(void *p);
 extern int svga_poll(void *p);
 extern void voodoo_callback(void *p);
 
@@ -765,9 +765,9 @@ static void gfxboard_hsync_handler(void)
 		if (gb->func && gb->userdata) {
 			gb->func->hsync(gb->userdata);
 		}
-		if (gb->pcemdev && gb->pcemobject && !gb->pcem_vblank) {
+		if (gb->pcemdev && gb->pcemobject2 && !gb->pcem_vblank) {
 			static int pollcnt;
-			int total = svga_get_vtotal();
+			int total = svga_get_vtotal(gb->pcemobject2);
 			if (total <= 0)
 				total = p96syncrate;
 			int pollsize = (total << 8) / p96syncrate;
@@ -1462,8 +1462,8 @@ void gfxboard_vsync_handler(bool full_redraw_required, bool redraw_required)
 
 			if (gb->pcemdev) {
 				static int fcount;
-				if (!gb->pcem_vblank && gb->pcemobject) {
-					int max = svga_get_vtotal();
+				if (!gb->pcem_vblank && gb->pcemobject2) {
+					int max = svga_get_vtotal(gb->pcemobject2);
 					while (max-- > 0) {
 						if (gfxboard_pcem_poll(gb))
 							break;
@@ -1485,8 +1485,8 @@ void gfxboard_vsync_handler(bool full_redraw_required, bool redraw_required)
 					}
 				}
 				if (gb->board->pci && gb->vram) {
-					bool svga_on(void* p);
-					set_monswitch(gb, svga_on(gb->pcemobject));
+					bool svga_on(void *p);
+					set_monswitch(gb, svga_on(gb->pcemobject2));
 				}
 			}
 
@@ -3832,6 +3832,15 @@ void gfxboard_s3virge_lfb_endianswap(int m)
 		}
 	}
 }
+void gfxboard_s3virge_lfb_endianswap2(int m)
+{
+	for (int i = 0; i < MAX_RTG_BOARDS; i++) {
+		struct rtggfxboard *gb = &rtggfxboards[i];
+		if (gb->active && gb->board->pci) {
+			gb->mmiobyteswapmode = m;
+		}
+	}
+}
 
 static int s3virgeaddr(struct pci_board_state *pcibs, uaecptr *addrp)
 {
@@ -3844,7 +3853,7 @@ static int s3virgeaddr(struct pci_board_state *pcibs, uaecptr *addrp)
 	} else if (addr >= pcibs->bar[0] + 0x03000000 && addr < pcibs->bar[0] + 0x04000000) {
 		// MMIO BE
 		addr = ((addr - pcibs->bar[0]) & 0xffff) + pcibs->bar[0] + 0x01000000;
-		swap = 1;
+		swap = addr & 0x8000 ? 1 : 2;
 	} else if (addr >= pcibs->bar[0] + 0x00000000 && addr < pcibs->bar[0] + 0x01000000) {
 		// LFB LE
 		addr = ((addr - pcibs->bar[0]) & 0x3fffff) + pcibs->bar[0];
@@ -3860,7 +3869,8 @@ static void REGPARAM2 s3virge_mb0_lput(struct pci_board_state *pcibs, uaecptr ad
 {
 	int swap = s3virgeaddr(pcibs, &addr);
 	if (swap > 0) {
-		b = do_byteswap_32(b);
+		if (swap == 1)
+			b = do_byteswap_32(b);
 	} else if (swap < 0) {
 		struct rtggfxboard *gb = getgfxboard(addr);
 		int m = gb->lfbbyteswapmode;
@@ -3881,7 +3891,8 @@ static void REGPARAM2 s3virge_mb0_wput(struct pci_board_state *pcibs, uaecptr ad
 {
 	int swap = s3virgeaddr(pcibs, &addr);
 	if (swap > 0) {
-		b = do_byteswap_16(b);
+		if (swap == 1)
+			b = do_byteswap_16(b);
 	} else if (swap < 0) {
 		struct rtggfxboard *gb = getgfxboard(addr);
 		int m = gb->lfbbyteswapmode;
@@ -3907,7 +3918,8 @@ static uae_u32 REGPARAM2 s3virge_mb0_lget(struct pci_board_state *pcibs, uaecptr
 	int swap = s3virgeaddr(pcibs, &addr);
 	uae_u32 v = get_mem_pcem(addr, 2);
 	if (swap > 0) {
-		v = do_byteswap_32(v);
+		if (swap == 1)
+			v = do_byteswap_32(v);
 	} else if (swap < 0) {
 		struct rtggfxboard *gb = getgfxboard(addr);
 		int m = gb->lfbbyteswapmode;
@@ -3929,7 +3941,8 @@ static uae_u32 REGPARAM2 s3virge_mb0_wget(struct pci_board_state *pcibs, uaecptr
 	int swap = s3virgeaddr(pcibs, &addr);
 	uae_u32 v = get_mem_pcem(addr, 1);
 	if (swap > 0) {
-		v = do_byteswap_16(v);
+		if (swap == 1)
+			v = do_byteswap_16(v);
 	} else if (swap < 0) {
 		struct rtggfxboard *gb = getgfxboard(addr);
 		int m = gb->lfbbyteswapmode;

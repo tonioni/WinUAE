@@ -480,6 +480,8 @@ static void s3_virge_out(uint16_t addr, uint8_t val, void *p)
                         break;
 
                         case 0x54:
+                            extern void gfxboard_s3virge_lfb_endianswap2(int);
+                            gfxboard_s3virge_lfb_endianswap2((val >> 0) & 3);
                             break;
                         case 0x61:
                             break;

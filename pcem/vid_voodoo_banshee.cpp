@@ -150,6 +150,7 @@ enum
 
 #define VGAINIT0_EXTENDED_SHIFT_OUT (1 << 12)
 
+#define VIDPROCCFG_VIDPROCON (1 << 0)
 #define VIDPROCCFG_CURSOR_MODE (1 << 1)
 #define VIDPROCCFG_INTERLACE (1 << 3)
 #define VIDPROCCFG_HALF_MODE (1 << 4)
@@ -431,8 +432,12 @@ static void banshee_recalctimings(svga_t *svga)
 //        pclog("svga->hdisp=%i\n", svga->hdisp);
 
         svga->interlace = 0;
-        if (banshee->vgaInit0 & VGAINIT0_EXTENDED_SHIFT_OUT)
+//        if (banshee->vgaInit0 & VGAINIT0_EXTENDED_SHIFT_OUT)
+        if (banshee->vidProcCfg & VIDPROCCFG_VIDPROCON)
         {
+                // this is some VGA-only feature? G-REX driver sets it and still expects normal 640x480 display.
+                svga->lowres = 0;
+
                 switch (VIDPROCCFG_DESKTOP_PIX_FORMAT)
                 {
                         case PIX_FORMAT_8:
@@ -587,7 +592,7 @@ static void banshee_ext_outl(uint16_t addr, uint32_t val, void *p)
                         
                 case Init_lfbMemoryConfig:
                 banshee->lfbMemoryConfig = val;
-                pclog("lfbMemoryConfig=%08x\n", val);
+//                pclog("lfbMemoryConfig=%08x\n", val);
                 voodoo->tile_base = (val & 0x1fff) << 12;
                 voodoo->tile_stride = 1024 << ((val >> 13) & 7);
                 voodoo->tile_stride_shift = 10 + ((val >> 13) & 7);

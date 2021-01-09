@@ -5853,14 +5853,12 @@ const struct expansionromtype expansionroms[] = {
 		false, 0, voodoo_settings
 	},
 #endif
-#if 0
 	{
 		_T("s3virge"), _T("Virge"), _T("S3"),
 		NULL, NULL, NULL, NULL, ROMTYPE_S3VIRGE | ROMTYPE_NONE, 0, 0, BOARD_IGNORE, false,
 		NULL, 0,
 		false, EXPANSIONTYPE_RTG
 	},
-#endif
 	{
 		_T("x86vga"), _T("x86 VGA"), NULL,
 		NULL, NULL, NULL, NULL, ROMTYPE_x86_VGA | ROMTYPE_NONE, 0, 0, BOARD_IGNORE, true,

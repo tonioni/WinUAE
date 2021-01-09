@@ -23,14 +23,15 @@ static svga_t *svga_pri;
 
 bool svga_on(void *p)
 {
-    svga_t* svga = (svga_t*)p;
-    return svga->scrblank == 0;
+    svga_t *svga = (svga_t*)p;
+    return svga->scrblank == 0 && svga->hdisp >= 128;
 }
 
-int svga_get_vtotal(void)
+int svga_get_vtotal(void *p)
 {
-    int v = svga_pri->vtotal;
-    if (svga_pri->crtc[0x17] & 4)
+    svga_t *svga = (svga_t*)p;
+    int v = svga->vtotal;
+    if (svga->crtc[0x17] & 4)
         v *= 2;
     return v;
 }
@@ -319,6 +320,7 @@ void svga_recalctimings(svga_t *svga)
 {
         double crtcconst;
         double _dispontime, _dispofftime, disptime;
+        int text = 0;
 
         svga->vtotal = svga->crtc[6];
         svga->dispend = svga->crtc[0x12];
@@ -393,6 +395,7 @@ void svga_recalctimings(svga_t *svga)
                 svga->hdisp *= (svga->seqregs[1] & 1) ? 8 : 9;
             }
             svga->hdisp_old = svga->hdisp;
+            text = 1;
         }
         else
         {
@@ -460,17 +463,32 @@ void svga_recalctimings(svga_t *svga)
         if (svga->vblankstart < svga->dispend)
                 svga->dispend = svga->vblankstart;
 
-        if (svga->horizontal_linedbl) {
-            if (svga->render == svga_render_8bpp_highres)
-                svga->render = svga_render_8bpp_lowres;
-            if (svga->render == svga_render_15bpp_highres)
-                svga->render = svga_render_15bpp_lowres;
-            if (svga->render == svga_render_16bpp_highres)
-                svga->render = svga_render_16bpp_lowres;
-            if (svga->render == svga_render_24bpp_highres)
-                svga->render = svga_render_24bpp_lowres;
-            if (svga->render == svga_render_32bpp_highres)
-                svga->render = svga_render_32bpp_lowres;
+        if (!text) {
+            if (!svga->lowres) {
+                if (svga->render == svga_render_8bpp_lowres)
+                    svga->render = svga_render_8bpp_highres;
+                if (svga->render == svga_render_15bpp_lowres)
+                    svga->render = svga_render_15bpp_highres;
+                if (svga->render == svga_render_16bpp_lowres)
+                    svga->render = svga_render_16bpp_highres;
+                if (svga->render == svga_render_24bpp_lowres)
+                    svga->render = svga_render_24bpp_highres;
+                if (svga->render == svga_render_32bpp_lowres)
+                    svga->render = svga_render_32bpp_highres;
+            }
+
+            if (svga->horizontal_linedbl) {
+                if (svga->render == svga_render_8bpp_highres)
+                    svga->render = svga_render_8bpp_lowres;
+                if (svga->render == svga_render_15bpp_highres)
+                    svga->render = svga_render_15bpp_lowres;
+                if (svga->render == svga_render_16bpp_highres)
+                    svga->render = svga_render_16bpp_lowres;
+                if (svga->render == svga_render_24bpp_highres)
+                    svga->render = svga_render_24bpp_lowres;
+                if (svga->render == svga_render_32bpp_highres)
+                    svga->render = svga_render_32bpp_lowres;
+            }
         }
 
         crtcconst = svga->clock * svga->char_width;
