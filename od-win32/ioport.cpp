@@ -369,7 +369,7 @@ int parallel_direct_read_data (uae_u8 *v)
 		return 0;
 	}
 	*v = c[0].Data;
-	para_log (_T("PARAPORT: read DATA=%02X\n"), v);
+	para_log (_T("PARAPORT: read DATA=%02X\n"), *v);
 	return ok;
 }
 
