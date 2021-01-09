@@ -8788,7 +8788,9 @@ static void events_dmal(int hp)
 {
 	if (!dmal)
 		return;
-	if (currprefs.cpu_compatible) {
+	if (currprefs.cachesize) {
+		dmal_func2(0);
+	} else if (currprefs.cpu_compatible) {
 		while (dmal) {
 			if (dmal & 3)
 				break;
@@ -8798,8 +8800,6 @@ static void events_dmal(int hp)
 		}
 		event2_newevent2(hp, dmal_hpos + ((dmal & 2) ? 1 : 0), dmal_func);
 		dmal &= ~3;
-	} else if (currprefs.cachesize) {
-		dmal_func2(0);
 	} else {
 		event2_newevent2(hp, 13, dmal_func2);
 	}
