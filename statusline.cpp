@@ -306,6 +306,9 @@ void draw_status_line_single(int monid, uae_u8 *buf, int bpp, int y, int totalwi
 				num1 %= 10;
 				num2 %= 10;
 				num4 = num1 == 0 ? 13 : -1;
+				if (!num1 && !num2) {
+					num2 = -2;
+				}
 				am = 3;
 			}
 		} else if (led == LED_SND && gui_data.sndbuf_avail) {
@@ -405,6 +408,8 @@ void draw_status_line_single(int monid, uae_u8 *buf, int bpp, int y, int totalwi
 				}
 				if (num2 >= 0) {
 					write_tdnumber(buf, bpp, x, y - td_numbers_pady, num2, pen_rgb, c2, mult);
+					x += td_numbers_width * mult;
+				} else if (num2 < -1) {
 					x += td_numbers_width * mult;
 				}
 				write_tdnumber(buf, bpp, x, y - td_numbers_pady, num3, pen_rgb, c2, mult);
