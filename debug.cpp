@@ -114,15 +114,16 @@ void activate_debugger (void)
 	if (isfullscreen() > 0)
 		return;
 
+	if (debugger_active) {
+		// already in debugger but some break point triggered
+		// during disassembly etc..
+		return;
+	}
 	debugger_load_libraries();
 
 	inside_debugger = 1;
 	debug_pc = 0xffffffff;
 	trace_mode = 0;
-	if (debugger_active) {
-		write_log(_T("Debugger already active!?\n"));
-		return;
-	}
 	debug_cycles();
 	debugger_active = 1;
 	set_special (SPCFLAG_BRK);
@@ -4811,19 +4812,33 @@ int instruction_breakpoint (TCHAR **c)
 			}
 			return 0;
 		} else if (nc == 'I') {
-			next_char (c);
+			uae_u16 opcodes[32];
+			next_char(c);
+			ignore_ws(c);
 			trace_param[1] = 0x10000;
 			trace_param[2] = 0x10000;
-			if (more_params(c)) {
-				trace_param[0] = readhex(c);
-				if (more_params(c)) {
-					trace_param[1] = readhex(c);
-				}
-				if (more_params(c)) {
-					trace_param[2] = readhex(c);
+
+			int w = m68k_asm(*c, opcodes, 0);
+			if (w > 0) {
+				trace_param[0] = opcodes[0];
+				if (w > 1) {
+					trace_param[1] = opcodes[1];
+					if (w > 2) {
+						trace_param[2] = opcodes[2];
+					}
 				}
 			} else {
-				trace_param[0] = 0x10000;
+				if (more_params(c)) {
+					trace_param[0] = readhex(c);
+					if (more_params(c)) {
+						trace_param[1] = readhex(c);
+					}
+					if (more_params(c)) {
+						trace_param[2] = readhex(c);
+					}
+				} else {
+					trace_param[0] = 0x10000;
+				}
 			}
 			trace_mode = TRACE_MATCH_INS;
 			return 1;

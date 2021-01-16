@@ -5416,7 +5416,7 @@ static void opcodedebug (uae_u32 pc, uae_u16 opcode, bool full)
 		TCHAR buf[100];
 		if (full)
 			write_log (_T("mmufixup=%d %04x %04x\n"), mmufixup[0].reg, regs.wb3_status, regs.mmu_ssw);
-		m68k_disasm_2 (buf, sizeof buf / sizeof (TCHAR), addr, NULL, 1, NULL, NULL, 0xffffffff, 0);
+		m68k_disasm_2(buf, sizeof buf / sizeof (TCHAR), addr, NULL, 0, NULL, 1, NULL, NULL, 0xffffffff, 0);
 		write_log (_T("%s\n"), buf);
 		if (full)
 			m68k_dumpstate(NULL, 0xffffffff);
@@ -6461,7 +6461,7 @@ void m68k_disasm_ea (uaecptr addr, uaecptr *nextpc, int cnt, uae_u32 *seaddr, ua
 	buf = xcalloc (TCHAR, (MAX_LINEWIDTH + 1) * cnt);
 	if (!buf)
 		return;
-	m68k_disasm_2 (buf, MAX_LINEWIDTH * cnt, addr, nextpc, cnt, seaddr, deaddr, lastpc, 1);
+	m68k_disasm_2(buf, MAX_LINEWIDTH * cnt, addr, NULL, 0, nextpc, cnt, seaddr, deaddr, lastpc, 1);
 	xfree (buf);
 }
 void m68k_disasm (uaecptr addr, uaecptr *nextpc, uaecptr lastpc, int cnt)
@@ -6471,7 +6471,7 @@ void m68k_disasm (uaecptr addr, uaecptr *nextpc, uaecptr lastpc, int cnt)
 	buf = xcalloc (TCHAR, (MAX_LINEWIDTH + 1) * cnt);
 	if (!buf)
 		return;
-	m68k_disasm_2 (buf, MAX_LINEWIDTH * cnt, addr, nextpc, cnt, NULL, NULL, lastpc, 0);
+	m68k_disasm_2(buf, MAX_LINEWIDTH * cnt, addr, NULL, 0, nextpc, cnt, NULL, NULL, lastpc, 0);
 	console_out_f (_T("%s"), buf);
 	xfree (buf);
 }
