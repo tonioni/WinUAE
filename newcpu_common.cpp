@@ -1242,7 +1242,6 @@ static void divul_divbyzero(uae_u16 extra, uae_s64 a, uaecptr oldpc)
 int m68k_divl(uae_u32 opcode, uae_u32 src, uae_u16 extra, uaecptr oldpc)
 {
 	if ((extra & 0x400) && currprefs.int_no_unimplemented && currprefs.cpu_model == 68060) {
-		op_unimpl (opcode);
 		return -1;
 	}
 
@@ -1315,7 +1314,6 @@ int m68k_divl(uae_u32 opcode, uae_u32 src, uae_u16 extra, uaecptr oldpc)
 int m68k_mull (uae_u32 opcode, uae_u32 src, uae_u16 extra)
 {
 	if ((extra & 0x400) && currprefs.int_no_unimplemented && currprefs.cpu_model == 68060) {
-		op_unimpl (opcode);
 		return -1;
 	}
 	if (extra & 0x800) {

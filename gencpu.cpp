@@ -8634,6 +8634,9 @@ bccl_not68020:
 			out("cpu_restore_fixup();\n");
 			out("}\n");
 		}
+		out("if (e < 0) {\n");
+		out("op_unimpl(opcode);\n");
+		out("}\n");
 		write_return_cycles(0);
 		out("}\n");
 		break;
@@ -8648,6 +8651,9 @@ bccl_not68020:
 			out("cpu_restore_fixup();\n");
 			out("}\n");
 		}
+		out("if (e < 0) {\n");
+		out("op_unimpl(opcode);\n");
+		out("}\n");
 		write_return_cycles(0);
 		out("}\n");
 		break;
