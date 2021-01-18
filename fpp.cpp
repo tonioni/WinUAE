@@ -377,7 +377,7 @@ static bool fp_exception_pending(bool pre)
 	if (support_exceptions && !jit_fpu()) {
 		if (regs.fp_exp_pend) {
 			if (warned > 0) {
-				write_log (_T("FPU ARITHMETIC EXCEPTION (%d) PC=%08x\n"), regs.fp_exp_pend, M68K_GETPC);
+				write_log (_T("FPU ARITHMETIC EXCEPTION (%d) PC=%08x\n"), regs.fp_exp_pend, regs.instruction_pc);
 			}
 			regs.fpu_exp_pre = pre;
 			Exception(regs.fp_exp_pend);
@@ -389,7 +389,7 @@ static bool fp_exception_pending(bool pre)
 	// no arithmetic exceptions pending, check for unimplemented datatype
 	if (regs.fp_unimp_pend) {
 		if (warned > 0) {
-			write_log (_T("FPU unimplemented datatype exception (%s) PC=%08x\n"), pre ? _T("pre") : _T("mid/post"), M68K_GETPC);
+			write_log (_T("FPU unimplemented datatype exception (%s) PC=%08x\n"), pre ? _T("pre") : _T("mid/post"), regs.instruction_pc);
 		}
 		if (fpu_mmu_fixup) {
 			m68k_areg(regs, mmufixup[0].reg) = mmufixup[0].value;
@@ -457,7 +457,7 @@ static bool fpsr_check_arithmetic_exception(uae_u32 mask, fpdata *src, uae_u32 o
 		bool nonmaskable = (regs.fp_exp_pend != fpsr_get_vector(regs.fpsr & regs.fpcr));
 		if (warned > 0) {
 			write_log(_T("FPU %s arithmetic exception pending: FPSR: %08x, FPCR: %04x (vector: %d) PC=%08x!\n"),
-				nonmaskable ? _T("nonmaskable") : _T(""), regs.fpsr, regs.fpcr, regs.fp_exp_pend, M68K_GETPC);
+				nonmaskable ? _T("nonmaskable") : _T(""), regs.fpsr, regs.fpcr, regs.fp_exp_pend, regs.instruction_pc);
 #if EXCEPTION_FPP == 0
 			warned--;
 #endif	
@@ -647,11 +647,9 @@ static uae_u32 fpsr_make_status(void)
 
 	// return exceptions that interrupt calculation
 	exception = regs.fpsr & regs.fpcr & (FPSR_SNAN | FPSR_OPERR | FPSR_DZ);
+	updateaccrued();
 	if (currprefs.cpu_model >= 68040 && currprefs.fpu_model && currprefs.fpu_no_unimplemented) {
 		exception |= regs.fpsr & (FPSR_OVFL | FPSR_UNFL);
-	}
-	if (!exception) {
-		updateaccrued();
 	}
 	return exception;
 }
@@ -2353,7 +2351,6 @@ void fpuop_save (uae_u32 opcode)
 	uaecptr pc = m68k_getpc () - 2;
 	int i;
 
-
 #if FPU_LOG
 	if (!isinrom())
 		write_log(_T("FSAVE %04x %08x\n"), opcode, M68K_GETPC);
@@ -2559,6 +2556,7 @@ void fpuop_save (uae_u32 opcode)
 	if ((opcode & 0x38) == 0x20) // predecrement
 		m68k_areg (regs, opcode & 7) = adp;
 	regs.fpu_exp_state = 0;
+	regs.fp_exp_pend = 0;
 }
 
 static bool fp_arithmetic(fpdata *src, fpdata *dst, int extra);
@@ -2591,7 +2589,6 @@ void fpuop_restore (uae_u32 opcode)
 	if (fault_if_no_fpu (opcode, 0, ad, adset, pc))
 		return;
 	ad_orig = ad;
-	regs.fpiar = pc;
 
 	// write_log(_T("FRESTORE %08x %08x\n"), M68K_GETPC, ad);
 
@@ -2614,6 +2611,7 @@ retry:
 		fsave_data.eo[2] = x_cp_get_long(ad);
 		ad += 4;
 
+		regs.fp_exp_pend = 0;
 		if (ff == 0x60) {
 			regs.fpu_state = 1;
 			regs.fpu_exp_state = 0;
@@ -2784,8 +2782,6 @@ retry:
 
 	if ((opcode & 0x38) == 0x18) /// postincrement
 		m68k_areg (regs, opcode & 7) = ad;
-
-	fp_exception_pending(false);
 }
 
 static uaecptr fmovem2mem (uaecptr ad, uae_u32 list, int incr, int regdir)
@@ -3135,12 +3131,11 @@ static bool fp_arithmetic(fpdata *src, fpdata *dst, int extra)
 	}
 
 	fpsr_set_result_always(dst);
+	fpsr_set_result(dst);
 
 	if (fpsr_make_status()) {
 		return false;
 	}
-
-	fpsr_set_result(dst);
 
 	return true;
 }
@@ -3162,14 +3157,13 @@ static void fpuop_arithmetic2 (uae_u32 opcode, uae_u16 extra)
 	if (fault_if_no_6888x(opcode, extra, pc))
 		return;
 
+	if (fp_exception_pending(true))
+		return;
+
 	switch ((extra >> 13) & 0x7)
 	{
 		case 3:
 			// FMOVE FPP->EA
-			if (fp_exception_pending(true))
-				return;
-
-			regs.fpiar = pc;
 			fpsr_clear_status();
 			src = regs.fp[(extra >> 7) & 7];
 			v = put_fp_value(&src, opcode, extra, pc, &ad, &adset);
@@ -3502,8 +3496,6 @@ static void fpuop_arithmetic2 (uae_u32 opcode, uae_u16 extra)
 
 		case 0:
 		case 2: /* Extremely common */
-			if (fp_exception_pending(true))
-				return;
 
 			reg = (extra >> 7) & 7;
 			if ((extra & 0xfc00) == 0x5c00) {
