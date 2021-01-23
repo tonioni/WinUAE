@@ -7592,23 +7592,16 @@ static void compute_spcflag_copper (int hpos)
 	set_special (SPCFLAG_COPPER);
 }
 
-void blitter_done_notify (int hpos)
+static void blitter_done_notify_wakeup(uae_u32 temp)
 {
-	bool nextline = false;
-
 	if (cop_state.state != COP_bltwait)
 		return;
 
 	int vp_wait = vpos & (((cop_state.saved_i2 >> 8) & 0x7F) | 0x80);
 	int vp = vpos;
 
-	hpos += 3;
+	int hpos = current_hpos() + 1;
 	hpos &= ~1;
-	if (hpos >= maxhpos) {
-		hpos -= maxhpos;
-		vp++;
-		nextline = true;
-	}
 
 	cop_state.hpos = hpos;
 	cop_state.vpos = vp;
@@ -7623,12 +7616,23 @@ void blitter_done_notify (int hpos)
 		record_copper_blitwait(cop_state.ip - 4, hpos, vp);
 #endif
 
-	if (dmaen(DMA_COPPER) && vp_wait >= cop_state.vcmp && !nextline) {
+	if (dmaen(DMA_COPPER) && vp_wait >= cop_state.vcmp) {
 		copper_enabled_thisline = 1;
 		set_special(SPCFLAG_COPPER);
 	} else {
 		unset_special(SPCFLAG_COPPER);
 	}
+}
+
+
+void blitter_done_notify(int blitline)
+{
+	if (cop_state.state != COP_bltwait)
+		return;
+
+	// Blitline check is a hack!
+	// Copper emulation is not correct and new blitter emulation needs this workaround.
+	event2_newevent_xx(-1, (blitline ? 4 : 2) * CYCLE_UNIT, 0, blitter_done_notify_wakeup);
 }
 
 void do_copper (void)

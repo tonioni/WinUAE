@@ -427,7 +427,7 @@ static void blitter_interrupt(int hpos, int done)
 	send_interrupt (6, (4 + 1) * CYCLE_UNIT);
 	if (debug_dma)
 		record_dma_event (DMA_EVENT_BLITIRQ, hpos, vpos);
-	blitter_done_notify(hpos);
+	blitter_done_notify(blitline);
 }
 
 static void blitter_done (int hpos)
@@ -439,7 +439,7 @@ static void blitter_done (int hpos)
 	}
 	blt_info.blit_finald = 0;
 	blitter_interrupt (hpos, 1);
-	blitter_done_notify (hpos);
+	blitter_done_notify(blitline);
 	event2_remevent (ev2_blitter);
 	unset_special (SPCFLAG_BLTNASTY);
 	if (log_blitter & 1)
