@@ -727,9 +727,9 @@ static const TCHAR *movemregs[] =
 	_T("FP5"),
 	_T("FP6"),
 	_T("FP7"),
-	_T("FPIAR"),
+	_T("FPCR"),
 	_T("FPSR"),
-	_T("FPCR")
+	_T("FPIAR")
 };
 
 static void addmovemreg (TCHAR *out, int *prevreg, int *lastreg, int *first, int reg, int fpmode)
@@ -2052,7 +2052,24 @@ uae_u32 m68k_disasm_2(TCHAR *buf, int bufsize, uaecptr pc, uae_u16 *bufpc, int b
 					_tcscat(instrname, _T(","));
 					pc = ShowEA(NULL, pc, opcode, dp->dreg, dp->dmode, dp->size, instrname, &deaddr2, &actualea_dst, safemode);
 				} else {
-					pc = ShowEA(NULL, pc, opcode, dp->dreg, dp->dmode, dp->size, instrname, &deaddr2, &actualea_dst, safemode);
+					if ((opcode & 0x3f) == 0x3c && !(extra & 0x2000)) {
+						// FMOVEM #xxx,control registers (strange one, can have up to 3 long word immediates)
+						bool entry = false;
+						if (!(extra & (0x400 | 0x800 | 0x1000)))
+							extra |= 0x400;
+						for (int i = 0; i < 3; i++) {
+							if (extra & (0x1000 >> i)) {
+								if (entry)
+									_tcscat(p, _T("/"));
+								entry = true;
+								p = instrname + _tcslen(instrname);
+								_stprintf(p, _T("#$%08x"), get_ilong_debug(pc));
+								add_disasm_word(&pc, &bufpc, &bufpcsize, 4);
+							}
+						}
+					} else {
+						pc = ShowEA(NULL, pc, opcode, dp->dreg, dp->dmode, dp->size, instrname, &deaddr2, &actualea_dst, safemode);
+					}
 					p = instrname + _tcslen(instrname);
 					if (mode & 1)
 						_stprintf(p, _T(",D%d"), dreg);
