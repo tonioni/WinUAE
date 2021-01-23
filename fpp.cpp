@@ -749,6 +749,15 @@ void fpp_set_fpsr (uae_u32 val)
 #endif
 }
 
+static void maybe_set_fpiar(uaecptr oldpc)
+{
+	// if any exception (except BSUN) is enabled: update FPIAR
+	// 68040 or 68060: always update FPIAR
+	if ((regs.fpcr & 0x00007f00) || currprefs.fpu_model == 68040 || currprefs.fpu_model == 68060) {
+		regs.fpiar = oldpc;
+	}
+}
+
 void fpp_set_fpiar(uae_u32 val)
 {
 	regs.fpiar = val;
@@ -2266,7 +2275,6 @@ void fpuop_scc (uae_u32 opcode, uae_u16 extra)
 	if (cc < 0) {
 		if (cc == -2)
 			return; // BSUN
-		regs.fpiar = pc;
 		fpu_op_illg (opcode, 0, false, regs.fpiar);
 	} else if (!mode) {
 		m68k_dreg (regs, reg) = (m68k_dreg (regs, reg) & ~0xff) | (cc ? 0xff : 0x00);
@@ -3178,6 +3186,7 @@ static void fpuop_arithmetic2 (uae_u32 opcode, uae_u16 extra)
 				return;
 			}
 			fpsr_make_status();
+			maybe_set_fpiar(pc);
 			fpsr_check_arithmetic_exception(0, &src, opcode, extra, ad, adset, pc);
 			fp_exception_pending(false); // post/mid instruction
 			return;
@@ -3511,8 +3520,8 @@ static void fpuop_arithmetic2 (uae_u32 opcode, uae_u16 extra)
 					fpu_noinst (opcode, pc);
 					return;
 				}
-				regs.fpiar = pc;
 				fpsr_clear_status();
+				maybe_set_fpiar(pc);
 				fpu_get_constant(&regs.fp[reg], extra & 0x7f);
 				fpsr_make_status();
 				fpsr_check_arithmetic_exception(0, &src, opcode, extra, ad, adset, pc);
@@ -3526,7 +3535,8 @@ static void fpuop_arithmetic2 (uae_u32 opcode, uae_u16 extra)
 
 			fpsr_clear_status();
 
-			if (currprefs.fpu_model <= 68060) {
+			// 68040 and 68060 always set FPIAR
+			if (currprefs.fpu_model == 68040 || currprefs.fpu_model == 68060) {
 				regs.fpiar = pc;
 			}
 
@@ -3556,6 +3566,8 @@ static void fpuop_arithmetic2 (uae_u32 opcode, uae_u16 extra)
 				fp_exception_pending(false);
 				return;
 			}
+
+			maybe_set_fpiar(pc);
 
 			v = fp_arithmetic(&src, &dst, extra);
 
