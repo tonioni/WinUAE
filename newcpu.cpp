@@ -3644,8 +3644,8 @@ static void m68k_reset_restore(void)
 void REGPARAM2 op_unimpl (uae_u32 opcode)
 {
 	static int warned;
-	if (warned < 20) {
-		write_log (_T("68060 unimplemented opcode %04X, PC=%08x\n"), opcode, regs.instruction_pc);
+	if (warned < 1000) {
+		write_log (_T("68060 unimplemented opcode %04X, PC=%08x SP=%08x\n"), opcode, regs.instruction_pc, regs.regs[15]);
 		warned++;
 	}
 	ExceptionL (61, regs.instruction_pc);

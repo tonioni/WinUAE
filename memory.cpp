@@ -1143,7 +1143,8 @@ uae_u8 *REGPARAM2 default_xlate (uaecptr addr)
 					}
 					write_log (_T("\n"));
 				}
-				memory_map_dump ();
+				memory_map_dump();
+				m68k_dumpstate(NULL, 0xffffffff);
 			}
 			if (0 || (gary_toenb && (gary_nonrange(addr) || (size > 1 && gary_nonrange(addr + size - 1))))) {
 				hardware_exception2(addr, 0, true, true, size);
@@ -2017,7 +2018,7 @@ static void add_shmmaps (uae_u32 start, addrbank *what)
 	shm_start = y;
 }
 
-#define MAPPED_MALLOC_DEBUG 0
+#define MAPPED_MALLOC_DEBUG 1
 
 bool mapped_malloc (addrbank *ab)
 {

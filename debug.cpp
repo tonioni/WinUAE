@@ -114,16 +114,16 @@ void activate_debugger (void)
 	if (isfullscreen() > 0)
 		return;
 
-	if (debugger_active) {
-		// already in debugger but some break point triggered
-		// during disassembly etc..
-		return;
-	}
 	debugger_load_libraries();
 
 	inside_debugger = 1;
 	debug_pc = 0xffffffff;
 	trace_mode = 0;
+	if (debugger_active) {
+		// already in debugger but some break point triggered
+		// during disassembly etc..
+		return;
+	}
 	debug_cycles();
 	debugger_active = 1;
 	set_special (SPCFLAG_BRK);

@@ -21,7 +21,7 @@
   <PropertyGroup Label="Globals">
     <ProjectName>gencpu</ProjectName>
     <ProjectGuid>{DEF7ACF7-050E-4069-BB99-5B5D93F60521}</ProjectGuid>
-    <WindowsTargetPlatformVersion>10.0.18362.0</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'" Label="Configuration">

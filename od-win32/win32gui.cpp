@@ -1882,63 +1882,7 @@ static void show_rom_list (void)
 		9, 10, -1, 107, 108, -1, -1, // CDTV-CR
 		49, 50, 75, 51, 76, 77, -1, 5, 4, -1, -2, // ARCADIA
 
-		53, 54, 55, 56, -1, -1, // A590/A2091
-		57, 58, -1, -1, // A4091
-		174, -1, -1, // a-team
-		132, -1, -1, // add500
-		129, 141, -1, -1, // adide
-		133, -1, -1, // adscsi
-		117, -1, -1, // alf
-		118, -1, -1, // alf+
-		200, -1, -1, // comspec
-		102, -1, -1, // Fastlane
-		111, -1, -1, // GVP Series I
-		109, 110, -1, -1, // GVP Series II
-		173, -1, -1, // hardframe
-		127, 140, -1, -1, // kommos
-		124, -1, -1, // kupke golem
-		157, -1, -1, // golem fast
-		201, -1, -1, // malibu
-		130, 199, -1, -1, // m-tec
-		120, -1, -1, // masoboshi
-		156, -1, -1, // multi evolution
-		139, -1, -1, // nexus
-		103, -1, -1, // Oktagon
-		131, -1, -1, // protar
-		207, -1,-1, // Rapidfire
-		138, 146, -1, -1, // roctec
-		121, 134, 135, 136, -1, -1, // supradrive
-		161, -1, -1, // trumpcard pro
-		128, -1, -2, // vector falcon
-
 		18, -1, 19, -1, 74, 23, -1, -1,  // CD32 FMV
-		91, -1, -2, // Picasso IV
-
-		105, 106, -1, -1, // A2630
-		119, -1, -1, // Apollo 1240/1260
-		110, -1, -1, // GVP A530
-		110, -1, -1, // GVP G-Force 030
-		114, -1, -1, // A3001
-		126, -1, -1, // Golem 030
-		144, -1, -1, // E-Matrix 530
-		163, -1, -1, // 1230-II
-		162, -1, -1, // 1230-III
-		89, -1, -1, // 1230-IV
-		162, -1, 167, -1, -1, // 1230-III SCSI
-		89, -1, 94, -1, -1, // 1230-IV SCSI
-		90, -1, -1, // 1260
-		90, -1, 94, -1, -1, // 1260 SCSI
-		92, -1, -1, // 2060
-		93, -1, -1, // Warp Engine
-		105, -1, -1, // TekMagic
-		112, -1, -1, // DKB 12x0
-		143, -1, -1, // DKB WildFire
-		113, -1, -1, // Fusion Forty
-		95, 101, -1, -1, // CS MK I
-		96, -1, -1, // CS MK II
-		97, -1, -1, // CS MK III
-		99, 100, -1, -1, // BPPC
-		98, -1 ,-2, // CSPPC
 
 		69, 67, 70, 115, -1, -1, // nordic power
 		65, 68, -1, -1, // x-power
@@ -1954,70 +1898,11 @@ static void show_rom_list (void)
 
 	p1 = _T("A500 Boot ROM 1.2\0A500 Boot ROM 1.3\0A500+\0A600\0A1000\0A1200\0A3000\0A4000\0A4000T\0")
 		_T("CD32\0CDTV\0CDTV-CR\0Arcadia Multi Select\0")
-
-		_T("A590/A2091 SCSI/XT\0")
-		_T("A4091 SCSI\0")
-		_T("Mainhattan A-Team IDE\0")
-		_T("Archos ADD-500\0")
-		_T("AdIDE\0")
-		_T("AdSCSI\0")
-		_T("AlfaPower/AT-BUS 508/2008 SCSI\0")
-		_T("AlfaPower Plus SCSI\0")
-		_T("Comspec SA-1000 SCSI\0")
-		_T("Fastlane SCSI\0")
-		_T("GVP Series I SCSI\0")
-		_T("GVP Series II SCSI\0")
-		_T("Microbotics HardFrame SCSI\0")
-		_T("Kommos A500/A2000 SCSI\0")
-		_T("Golem SCSI\0")
-		_T("Golem Fast SCSI/IDE\0")
-		_T("Malibu SCSI\0")
-		_T("M-Tec AT500/Megabody IDE\0")
-		_T("Masoboshi MC-302/MC-702 IDE/SCSI\0")
-		_T("Multi Evolution SCSI\0")
-		_T("Preferred Technologies Nexus\0")
-		_T("Oktagon 2008 SCSI\0")
-		_T("Protar A500HD SCSI\0")
-		_T("DKB RapidFire SCSI\0")
-		_T("Roctec RH800C\0")
-		_T("SupraDrive SCSI\0")
-		_T("IVS Trumpcard Pro/GrandSlam\0")
-		_T("Vector Falcon 8000 SCSI\0")
-
 		_T("CD32 Full Motion Video\0")
-		_T("Picasso IV\0")
-
-		_T("A2620/A2630\0")
-		_T("Apollo 1240/1260+SCSI\0")
-		_T("GVP A530\0")
-		_T("GVP G-FORCE 030\0")
-		_T("GVP A3001 Series I\0")
-		_T("Kupke Golem 030\0")
-		_T("M-Tec E-Matrix 530\0")
-		_T("Blizzard 1230-II\0")
-		_T("Blizzard 1230-III\0")
-		_T("Blizzard 1230-IV\0")
-		_T("Blizzard 1260\0")
-		_T("Blizzard 1230-III/SCSI\0")
-		_T("Blizzard 1230-IV/SCSI\0")
-		_T("Blizzard 1260/SCSI\0")
-		_T("Blizzard 2060\0")
-		_T("Warp Engine\0")
-		_T("TekMagic 2040/2060\0")
-		_T("DKB 1230/1240\0")
-		_T("DKB WildFire\0")
-		_T("Fusion Forty\0")
-		_T("CyberStorm MK I\0")
-		_T("CyberStorm MK II\0")
-		_T("CyberStorm MK III\0")
-		_T("Blizzard PPC\0")
-		_T("CyberStorm PPC\0")
-		
 		_T("Nordic Power\0X-Power Professional 500\0Action Cartridge Super IV Professional\0")
 		_T("Pro Access\0")
 		_T("Action Replay MK I\0Action Replay MK II\0Action Replay MK III\0")
 		_T("Action Replay 1200\0")
-		
 		_T("\0");
 
 	p = xmalloc (TCHAR, 100000);

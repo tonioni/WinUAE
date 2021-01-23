@@ -3857,6 +3857,7 @@ static int s3virgeaddr(struct pci_board_state *pcibs, uaecptr *addrp)
 	} else if (addr >= pcibs->bar[0] + 0x00000000 && addr < pcibs->bar[0] + 0x01000000) {
 		// LFB LE
 		addr = ((addr - pcibs->bar[0]) & 0x3fffff) + pcibs->bar[0];
+		swap = -2;
 	} else if (addr >= pcibs->bar[0] + 0x01000000 && addr < pcibs->bar[0] + 0x02000000) {
 		// MMIO LE
 		addr = ((addr - pcibs->bar[0]) & 0xffff) + pcibs->bar[0] + 0x01000000;
@@ -3871,7 +3872,7 @@ static void REGPARAM2 s3virge_mb0_lput(struct pci_board_state *pcibs, uaecptr ad
 	if (swap > 0) {
 		if (swap == 1)
 			b = do_byteswap_32(b);
-	} else if (swap < 0) {
+	} else if (swap == -1) {
 		struct rtggfxboard *gb = getgfxboard(addr);
 		int m = gb->lfbbyteswapmode;
 		switch (m)
@@ -3884,6 +3885,8 @@ static void REGPARAM2 s3virge_mb0_lput(struct pci_board_state *pcibs, uaecptr ad
 			b = (b >> 16) | (b << 16);
 			break;
 		}
+	} else if (swap < -1) {
+
 	}
 	put_mem_pcem(addr, b, 2);
 }
@@ -3893,7 +3896,7 @@ static void REGPARAM2 s3virge_mb0_wput(struct pci_board_state *pcibs, uaecptr ad
 	if (swap > 0) {
 		if (swap == 1)
 			b = do_byteswap_16(b);
-	} else if (swap < 0) {
+	} else if (swap <= -1) {
 		struct rtggfxboard *gb = getgfxboard(addr);
 		int m = gb->lfbbyteswapmode;
 		switch (m)
@@ -3905,6 +3908,8 @@ static void REGPARAM2 s3virge_mb0_wput(struct pci_board_state *pcibs, uaecptr ad
 			b = do_byteswap_16(b);
 			break;
 		}
+	} else if (swap < -1) {
+
 	}
 	put_mem_pcem(addr, b, 1);
 }
@@ -3920,7 +3925,7 @@ static uae_u32 REGPARAM2 s3virge_mb0_lget(struct pci_board_state *pcibs, uaecptr
 	if (swap > 0) {
 		if (swap == 1)
 			v = do_byteswap_32(v);
-	} else if (swap < 0) {
+	} else if (swap == -1) {
 		struct rtggfxboard *gb = getgfxboard(addr);
 		int m = gb->lfbbyteswapmode;
 		switch (m)
@@ -3933,6 +3938,8 @@ static uae_u32 REGPARAM2 s3virge_mb0_lget(struct pci_board_state *pcibs, uaecptr
 			v = do_byteswap_32(v);
 			break;
 		}
+	} else if (swap < -1) {
+
 	}
 	return v;
 }
@@ -3943,7 +3950,7 @@ static uae_u32 REGPARAM2 s3virge_mb0_wget(struct pci_board_state *pcibs, uaecptr
 	if (swap > 0) {
 		if (swap == 1)
 			v = do_byteswap_16(v);
-	} else if (swap < 0) {
+	} else if (swap == -1) {
 		struct rtggfxboard *gb = getgfxboard(addr);
 		int m = gb->lfbbyteswapmode;
 		switch (m)
@@ -3955,7 +3962,10 @@ static uae_u32 REGPARAM2 s3virge_mb0_wget(struct pci_board_state *pcibs, uaecptr
 			v = do_byteswap_16(v);
 			break;
 		}
-	}	return v;
+	} else if (swap < -1) {
+
+	}
+	return v;
 }
 static uae_u32 REGPARAM2 s3virge_mb0_bget(struct pci_board_state *pcibs, uaecptr addr)
 {
