@@ -110,6 +110,7 @@ struct AmigaMonitor {
 	RECT amigawin_rect, mainwin_rect;
 	RECT amigawinclip_rect;
 	int window_extra_width, window_extra_height;
+	int window_extra_height_bar;
 	int win_x_diff, win_y_diff;
 	int setcursoroffset_x, setcursoroffset_y;
 	int mouseposx, mouseposy;
@@ -118,7 +119,6 @@ struct AmigaMonitor {
 	int ratio_width, ratio_height;
 	int ratio_adjust_x, ratio_adjust_y;
 	bool ratio_sizing;
-	int prevsbheight;
 	bool render_ok, wait_render;
 
 	int in_sizemove;

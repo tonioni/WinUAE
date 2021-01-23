@@ -2740,9 +2740,9 @@ static LRESULT CALLBACK MainWindowProc (HWND hWnd, UINT message, WPARAM wParam, 
 			LPMINMAXINFO lpmmi;
 			lpmmi = (LPMINMAXINFO)lParam;
 			lpmmi->ptMinTrackSize.x = 160 + mon->window_extra_width;
-			lpmmi->ptMinTrackSize.y = 128 + mon->window_extra_height;
+			lpmmi->ptMinTrackSize.y = 128 + mon->window_extra_height + mon->window_extra_height_bar;
 			lpmmi->ptMaxTrackSize.x = max_uae_width + mon->window_extra_width;
-			lpmmi->ptMaxTrackSize.y = max_uae_height + mon->window_extra_height;
+			lpmmi->ptMaxTrackSize.y = max_uae_height + mon->window_extra_height + mon->window_extra_height_bar;
 		}
 		return 0;
 
@@ -2793,9 +2793,9 @@ static LRESULT CALLBACK MainWindowProc (HWND hWnd, UINT message, WPARAM wParam, 
 							int w = mon->mainwin_rect.right - mon->mainwin_rect.left;
 							int h = mon->mainwin_rect.bottom - mon->mainwin_rect.top;
 							if (w != changed_prefs.gfx_monitor[mon->monitor_id].gfx_size_win.width + mon->window_extra_width ||
-								h != changed_prefs.gfx_monitor[mon->monitor_id].gfx_size_win.height + mon->window_extra_height) {
+								h != changed_prefs.gfx_monitor[mon->monitor_id].gfx_size_win.height + mon->window_extra_height + mon->window_extra_height_bar) {
 									changed_prefs.gfx_monitor[mon->monitor_id].gfx_size_win.width = w - mon->window_extra_width;
-									changed_prefs.gfx_monitor[mon->monitor_id].gfx_size_win.height = h - mon->window_extra_height;
+									changed_prefs.gfx_monitor[mon->monitor_id].gfx_size_win.height = h - (mon->window_extra_height + mon->window_extra_height_bar);
 									set_config_changed();
 							}
 						}

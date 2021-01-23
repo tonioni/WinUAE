@@ -2249,8 +2249,11 @@ static int getstatuswindowheight(int monid, HWND hwnd)
 	if (!h)
 		return def;
 	wi.cbSize = sizeof wi;
-	if (GetWindowInfo (h, &wi))
+	if (GetWindowInfo(h, &wi)) {
+		int dpi = getdpiforwindow(h);
 		def = wi.rcWindow.bottom - wi.rcWindow.top;
+		def = def * dpi / 96;
+	}
 	DestroyWindow(h);
 	return def;
 }
@@ -3690,18 +3693,18 @@ static int create_windows_2(struct AmigaMonitor *mon)
 			else
 				ny = rc.top + (rc.bottom - rc.top - nh);
 		}
-		if (w != nw || h != nh || x != nx || y != ny || sbheight != mon->prevsbheight) {
+		if (w != nw || h != nh || x != nx || y != ny || sbheight != mon->window_extra_height_bar) {
 			w = nw;
 			h = nh;
 			x = nx;
 			y = ny;
+			mon->window_extra_height_bar = sbheight;
 			mon->in_sizemove++;
-			if (mon->hMainWnd && !fsw && !dxfs && !d3dfs && !rp_isactive ()) {
-				mon->window_extra_height += (sbheight - mon->prevsbheight);
+			if (mon->hMainWnd && !fsw && !dxfs && !d3dfs && !rp_isactive()) {
 				GetWindowRect(mon->hMainWnd, &r);
 				x = r.left;
 				y = r.top;
-				SetWindowPos(mon->hMainWnd, HWND_TOP, x, y, w + mon->window_extra_width, h + mon->window_extra_height,
+				SetWindowPos(mon->hMainWnd, HWND_TOP, x, y, w + mon->window_extra_width, h + mon->window_extra_height + mon->window_extra_height_bar,
 					SWP_NOACTIVATE | SWP_NOOWNERZORDER | SWP_NOSENDCHANGING | SWP_NOZORDER);
 				x = gap;
 				y = gap;
@@ -3725,7 +3728,6 @@ static int create_windows_2(struct AmigaMonitor *mon)
 			mon->amigawin_rect.left, mon->amigawin_rect.top, mon->amigawin_rect.right - mon->amigawin_rect.left, mon->amigawin_rect.bottom - mon->amigawin_rect.top);
 		updatemouseclip(mon);
 		rp_screenmode_changed ();
-		mon->prevsbheight = sbheight;
 		return 1;
 	}
 
@@ -3823,14 +3825,18 @@ static int create_windows_2(struct AmigaMonitor *mon)
 						rc.bottom -= sbheight;
 						rc.bottom += sbheight2;
 						sbheight = sbheight2;
+						DestroyWindow(mon->hMainWnd);
+						mon->hMainWnd = NULL;
 						continue;
 					}
 				}
 				break;
 			}
 			GetWindowRect(mon->hMainWnd, &rc2);
-			mon->window_extra_width = rc2.right - rc2.left - mon->currentmode.current_width;
-			mon->window_extra_height = rc2.bottom - rc2.top - mon->currentmode.current_height;
+			mon->window_extra_width = (rc2.right - rc2.left) - mon->currentmode.current_width;
+			mon->window_extra_height = (rc2.bottom - rc2.top) - mon->currentmode.current_height;
+			mon->window_extra_height -= sbheight;
+			mon->window_extra_height_bar = sbheight;
 			createstatuswindow(mon);
 			createstatusline(mon->monitor_id);
 		} else {
@@ -3891,7 +3897,7 @@ static int create_windows_2(struct AmigaMonitor *mon)
 	if (dxfs || d3dfs)
 		movecursor (x + w / 2, y + h / 2);
 	addnotifications (mon->hAmigaWnd, FALSE, FALSE);
-	mon->prevsbheight = sbheight;
+	mon->window_extra_height_bar = sbheight;
 
 	if (mon->monitor_id) {
 		ShowWindow(mon->hMainWnd, SW_SHOWNOACTIVATE);
