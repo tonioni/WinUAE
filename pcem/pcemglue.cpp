@@ -429,7 +429,7 @@ void (*pcem_linear_write_l)(uint32_t addr, uint32_t val, void *priv);
 static mem_mapping_t *pcemmappings[MAX_PCEMMAPPINGS];
 #define PCEMMAPBLOCKSIZE 0x10000
 #define MAX_PCEMMAPBLOCKS (0x80000000 / PCEMMAPBLOCKSIZE)
-mem_mapping_t *pcemmap[MAX_PCEMMAPBLOCKS];
+mem_mapping_t **pcemmap;
 
 static uint8_t dummy_bread(uint32_t addr, void *p)
 {
@@ -529,7 +529,15 @@ void initpcemvideo(void *p, bool swapped)
 {
 	int c, d, e;
 
-	for (int i = 0; i < MAX_PCEMMAPBLOCKS; i++) {
+	int pcemblocks = MAX_PCEMMAPBLOCKS;
+	if (!pcemmap) {
+		pcemmap = xcalloc(mem_mapping_t *, pcemblocks);
+		if (!pcemmap) {
+			gui_message(_T("out of memory for PCI mappin table\n"));
+			abort();
+		}
+	}
+	for (int i = 0; i < pcemblocks; i++) {
 		pcemmap[i] = NULL;
 	}
 	for (int i = 0; i < MAX_PCEMMAPPINGS; i++) {
@@ -601,7 +609,6 @@ void initpcemvideo(void *p, bool swapped)
 	pcem_mapping_linear = NULL;
 	pcem_mapping_linear_offset = 0;
 	timer_head = NULL;
-
 }
 
 extern void *svga_get_object(void);
@@ -752,26 +759,26 @@ typedef struct win_mutex_t
 
 mutex_t* thread_create_mutex(void)
 {
-	win_mutex_t* mutex = xcalloc(win_mutex_t,1);
+	win_mutex_t *mutex = xcalloc(win_mutex_t,1);
 	mutex->handle = CreateSemaphore(NULL, 1, 1, NULL);
 	return mutex;
 }
 
-void thread_lock_mutex(mutex_t* _mutex)
+void thread_lock_mutex(mutex_t *_mutex)
 {
-	win_mutex_t* mutex = (win_mutex_t*)_mutex;
+	win_mutex_t *mutex = (win_mutex_t*)_mutex;
 	WaitForSingleObject(mutex->handle, INFINITE);
 }
 
-void thread_unlock_mutex(mutex_t* _mutex)
+void thread_unlock_mutex(mutex_t *_mutex)
 {
-	win_mutex_t* mutex = (win_mutex_t*)_mutex;
+	win_mutex_t *mutex = (win_mutex_t*)_mutex;
 	ReleaseSemaphore(mutex->handle, 1, NULL);
 }
 
-void thread_destroy_mutex(mutex_t* _mutex)
+void thread_destroy_mutex(mutex_t *_mutex)
 {
-	win_mutex_t* mutex = (win_mutex_t*)_mutex;
+	win_mutex_t *mutex = (win_mutex_t*)_mutex;
 	CloseHandle(mutex->handle);
 	xfree(mutex);
 }
