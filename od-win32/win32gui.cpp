@@ -4751,7 +4751,7 @@ static const struct miscentry misclist[] = {
 	{ 0, 1, _T("Right Control = Right Windows key"), &workprefs.right_control_is_right_win_key },
 	{ 0, 0, _T("Windows shutdown/logoff notification"), &workprefs.win32_shutdown_notification },
 	{ 0, 1, _T("Warn when attempting to close window"), &workprefs.win32_warn_exit },
-	{ 0, 1, _T("Power led dims when audio filter is disabled"), NULL, &workprefs.power_led_dim, 128, 0 },
+	{ 0, 1, _T("Power led dims when audio filter is disabled"), NULL, &workprefs.power_led_dim, 128, 255 },
 	{ 0, 1, _T("Automatically capture mouse when window is activated"), &workprefs.win32_capture_always },
 	{ 0, 0, _T("Debug memory space"), &workprefs.debug_mem },
 	{ 0, 1, _T("Force hard reset if CPU halted"), &workprefs.crash_auto_reset },
