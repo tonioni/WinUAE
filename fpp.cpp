@@ -2655,9 +2655,7 @@ retry:
 				ad += 0x4; // offset to CU_SAVEPC field
 				tmp = x_cp_get_long(ad);
 				cusavepc = tmp >> 24;
-				ad += 0x20; // offset to FPIARCU field
-				regs.fpiar = x_cp_get_long(ad);
-				ad += 0x14; // offset to ET15 field
+				ad += 0x34; // offset to ET15 field
 				tmp = x_cp_get_long(ad);
 				et15 = (tmp & 0x10000000) >> 28;
 				ad += 0x4; // offset to CMDREG1B field
