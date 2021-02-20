@@ -3310,12 +3310,13 @@ static int xxD3D11_init2(HWND ahwnd, int monid, int w_w, int w_h, int t_w, int t
 	ComPtr<IDXGIFactory2> factory2;
 	ComPtr<IDXGIFactory4> factory4;
 	ComPtr<IDXGIFactory5> factory5;
-	IDXGIAdapter1* adapter;
-	IDXGIOutput* adapterOutput;
+	IDXGIAdapter1 *adapter;
+	IDXGIOutput *adapterOutput;
+	IDXGIOutput2 *adapterOutput2;
 	DXGI_ADAPTER_DESC1 adesc;
 	DXGI_OUTPUT_DESC odesc;
 	unsigned int numModes;
-	DXGI_MODE_DESC1* displayModeList;
+	DXGI_MODE_DESC1 *displayModeList;
 	DXGI_ADAPTER_DESC adapterDesc;
 
 	write_log(_T("D3D11 init start. (%d*%d) (%d*%d) RTG=%d Depth=%d.\n"), w_w, w_h, t_w, t_h, ad->picasso_on, depth);
@@ -3745,8 +3746,8 @@ static int xxD3D11_init2(HWND ahwnd, int monid, int w_w, int w_h, int t_w, int t
 	}
 
 	CComPtr<IDXGISwapChain3> m_swapChain3;
-	if (d3d->hdr) {
-		if (SUCCEEDED(d3d->m_swapChain->QueryInterface(&m_swapChain3))) {
+	if (SUCCEEDED(d3d->m_swapChain->QueryInterface(&m_swapChain3))) {
+		if (d3d->hdr) {
 			UINT cps;
 			result = m_swapChain3->CheckColorSpaceSupport(DXGI_COLOR_SPACE_RGB_FULL_G10_NONE_P709, &cps);
 			if (SUCCEEDED(result)) {
@@ -3759,18 +3760,30 @@ static int xxD3D11_init2(HWND ahwnd, int monid, int w_w, int w_h, int t_w, int t
 			} else {
 				write_log(_T("CheckColorSpaceSupport failed %08x\n"), result);
 			}
-		} else {
-			write_log(_T("QueryInterface(IDXGISwapChain3) failed %08x\n"), result);
+		}
+		IDXGIOutput* dxgiOutput = NULL;
+		result = m_swapChain3->GetContainingOutput(&dxgiOutput);
+		if (SUCCEEDED(result)) {
+			IDXGIOutput2* dxgiOutput2;
+			result = dxgiOutput->QueryInterface(IID_PPV_ARGS(&dxgiOutput2));
+			if (SUCCEEDED(result)) {
+				BOOL mpo = dxgiOutput2->SupportsOverlays();
+				if (mpo) {
+					write_log(_T("MultiPlane Overlays supported\n"));
+				}
+				dxgiOutput2->Release();
+			}
+			dxgiOutput->Release();
 		}
 	}
+
 
 	{
 		ComPtr<IDXGIDevice1> dxgiDevice;
 		result = d3d->m_device->QueryInterface(__uuidof(IDXGIDevice1), &dxgiDevice);
 		if (FAILED(result)) {
 			write_log(_T("QueryInterface IDXGIDevice1 %08x\n"), result);
-		}
-		else {
+		} else {
 			int f = apm->gfx_backbuffers <= 1 ? 1 : 2;
 			if (d3d->blackscreen)
 				f++;
