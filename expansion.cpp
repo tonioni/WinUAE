@@ -5788,6 +5788,14 @@ const struct expansionromtype expansionroms[] = {
 		false, 0, x86_rt1000_settings
 
 	},
+#ifndef NDEBUG
+	{
+		_T("dev_ide"), _T("DEV IDE"), NULL,
+		NULL, dev_hd_init, NULL, dev_hd_add_ide_unit, ROMTYPE_DEVHD | ROMTYPE_NOT, 0, 0, BOARD_NONAUTOCONFIG_BEFORE, true,
+		NULL, 0,
+		false, EXPANSIONTYPE_CUSTOM | EXPANSIONTYPE_IDE | EXPANSIONTYPE_SCSI
+	},
+#endif
 
 	/* PC Bridgeboards */
 

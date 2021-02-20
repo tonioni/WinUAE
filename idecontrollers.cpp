@@ -56,7 +56,8 @@
 #define TRIFECTA_IDE (IVST500AT_IDE + MAX_DUPLICATE_EXPANSION_BOARDS)
 #define TANDEM_IDE (TRIFECTA_IDE + MAX_DUPLICATE_EXPANSION_BOARDS)
 #define DOTTO_IDE (TANDEM_IDE + MAX_DUPLICATE_EXPANSION_BOARDS)
-#define TOTAL_IDE (DOTTO_IDE + MAX_DUPLICATE_EXPANSION_BOARDS)
+#define DEV_IDE (DOTTO_IDE + MAX_DUPLICATE_EXPANSION_BOARDS)
+#define TOTAL_IDE (DEV_IDE + MAX_DUPLICATE_EXPANSION_BOARDS)
 
 #define ALF_ROM_OFFSET 0x0100
 #define GVP_IDE_ROM_OFFSET 0x8000
@@ -120,12 +121,18 @@ static struct ide_board *accessx_board[MAX_DUPLICATE_EXPANSION_BOARDS];
 static struct ide_board *ivst500at_board[MAX_DUPLICATE_EXPANSION_BOARDS];
 static struct ide_board *trifecta_board[MAX_DUPLICATE_EXPANSION_BOARDS];
 static struct ide_board *tandem_board[MAX_DUPLICATE_EXPANSION_BOARDS];
-static struct ide_board *dotto_board[MAX_DUPLICATE_EXPANSION_BOARDS];
+static struct ide_board* dotto_board[MAX_DUPLICATE_EXPANSION_BOARDS];
+static struct ide_board* dev_board[MAX_DUPLICATE_EXPANSION_BOARDS];
 
 static struct ide_hdf *idecontroller_drive[TOTAL_IDE * 2];
 static struct ide_thread_state idecontroller_its;
 
 static struct ide_board *ide_boards[MAX_IDE_UNITS + 1];
+
+static int dev_hd_io_base, dev_hd_io_total;
+static int dev_hd_io_size;
+static int dev_hd_data_base;
+static int dev_hd_io_secondary;
 
 static void freencrunit(struct ide_board *ide)
 {
@@ -593,6 +600,21 @@ static int get_ivst500at_reg(uaecptr addr, struct ide_board *board, int *portnum
 	return reg;
 }
 
+static int get_dev_hd_reg(uaecptr addr, struct ide_board* board)
+{
+	int reg = -1;
+	if (addr >= dev_hd_io_base && addr < dev_hd_io_base + dev_hd_io_total) {
+		reg = (addr - dev_hd_io_base) / dev_hd_io_size;
+		reg &= 7;
+		if (addr & dev_hd_io_secondary) {
+			reg |= IDE_SECONDARY;
+		}
+	} else if (addr >= dev_hd_data_base && addr < dev_hd_data_base + 4) {
+		reg = 0;
+	}
+	return reg;
+}
+
 static int getidenum(struct ide_board *board, struct ide_board **arr)
 {
 	for (int i = 0; i < MAX_DUPLICATE_EXPANSION_BOARDS; i++) {
@@ -967,6 +989,12 @@ static uae_u32 ide_read_byte(struct ide_board *board, uaecptr addr)
 			}
 		}
 
+	} else if (board->type == DEV_IDE) {
+
+		int reg = get_dev_hd_reg(addr, board);
+		if (reg >= 0) {
+			v = get_ide_reg(board, reg);
+		}
 	}
 
 	return v;
@@ -1269,6 +1297,13 @@ static uae_u32 ide_read_word(struct ide_board *board, uaecptr addr)
 				}
 			}
 
+		} else if (board->type == DEV_IDE) {
+
+			int reg = get_dev_hd_reg(addr, board);
+			if (reg == IDE_DATA) {
+				v = get_ide_reg(board, reg);
+			}
+
 		}
 
 	}
@@ -1567,8 +1602,14 @@ static void ide_write_byte(struct ide_board *board, uaecptr addr, uae_u8 v)
 				put_ide_reg(board, regnum, v);
 			}
 
-		}
+		} else if (board->type == DEV_IDE) {
 
+			int reg = get_dev_hd_reg(addr, board);
+			if (reg >= 0) {
+				put_ide_reg(board, reg, v);
+			}
+
+		}
 	}
 }
 
@@ -1770,6 +1811,13 @@ static void ide_write_word(struct ide_board *board, uaecptr addr, uae_u16 v)
 				v = adide_encode_word(v);
 				put_ide_reg(board, regnum, v >> 8);
 			}
+		} else if (board->type == DEV_IDE) {
+
+			int reg = get_dev_hd_reg(addr, board);
+			if (reg == IDE_DATA) {
+				put_ide_reg(board, reg, v);
+			}
+
 		}
 	}
 }
@@ -1954,7 +2002,6 @@ bool gvp_ide_rom_autoconfig_init(struct autoconfig_info *aci)
 		ide->bank = &gvp_ide_rom_bank;
 		ide->rom_size = 16384;
 	}
-	ide->configured = 0;
 	ide->mask = 65536 - 1;
 	ide->type = GVP_IDE;
 	ide->configured = 0;
@@ -2896,6 +2943,39 @@ bool dotto_init(struct autoconfig_info *aci)
 void dotto_add_ide_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc)
 {
 	add_ide_standard_unit(ch, ci, rc, dotto_board, DOTTO_IDE, false, true, 2);
+}
+
+bool dev_hd_init(struct autoconfig_info* aci)
+{
+	const struct expansionromtype* ert = get_device_expansion_rom(ROMTYPE_DEVHD);
+	ide_add_reset();
+
+	// fake
+	aci->start = 0xe90000;
+	aci->size = 0x10000;
+	dev_hd_io_base = 0x4000;
+	dev_hd_io_size = 4;
+	dev_hd_data_base = 0x4800;
+	dev_hd_io_secondary = 0x1000;
+	dev_hd_io_total = 0x2000;
+	if (!aci->doinit) {
+		return true;
+	}
+	struct ide_board *ide = getide(aci);
+
+	ide->bank = &ide_bank_generic;
+	ide->mask = 65536 - 1;
+	ide->configured = 1;
+	ide->baseaddress = aci->start;
+	map_banks(ide->bank, aci->start >> 16, aci->size >> 16, 0);
+
+	aci->addrbank = ide->bank;
+	return true;
+}
+
+void dev_hd_add_ide_unit(int ch, struct uaedev_config_info* ci, struct romconfig* rc)
+{
+	add_ide_standard_unit(ch, ci, rc, dev_board, DEV_IDE, false, true, 2);
 }
 
 
