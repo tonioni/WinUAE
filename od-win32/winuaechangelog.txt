@@ -1,4 +1,18 @@
 
+Beta 17:
+
+- OSD led status bar positioning fixed (b16)
+- OSD led status bar is now DPI aware. (NOTE: moving window from monitor to another monitor with different DPI does not yet work correctly)
+- BPLCON0 UHRES-bit also disables DDFSTRT/STOP limits according to Alice schematics.
+- Sprites in right border were still not fully correct when they crossed "hidden" hpos=0 position. Sprite didn't disappear if start position was after hpos=0 wraparound and sprite wrap around if it started just before hpos=0 stopped too early, last few pixels were missing before start of hblank. (Thanks ross for test program)
+- One more blitter fix, last D write was done even if blit didn't have D channel enabled.
+- CPU Idle slider value added to GUI. (It was not very clear which end of slider disabled it)
+- Loading CD32 statefile with CD audio playback active: mute state was not always correctly restored.
+- Loading CD32 statefile with CD audio playback active but paused: pause state was ignored.
+- Loading CDTV statefile with CD audio playback active but paused: very short bit of audio was played before audio paused.
+- Added "Restart emulation" input target. Does same as GUI "Restart" button.
+- Reverted few b1 bitplane emulation changes. Complete rewrite will be planned for later because current emulation behavior is not really correct when compared against Alice schematics.
+
 Beta 16:
 
 - Hard reset leaked indirect mode allocated memory banks (outside of JIT compatible address range), for example Z3 RAM outside of partially outside of first ~2G of address space.

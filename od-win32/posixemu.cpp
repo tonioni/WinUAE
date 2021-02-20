@@ -56,7 +56,7 @@ void gettimeofday (struct timeval *tv, void *blah)
 
 	ftime (&time);
 
-	tv->tv_sec = time.time;
+	tv->tv_sec = (long)time.time;
 	tv->tv_usec = time.millitm * 1000;
 #else
 	SYSTEMTIME st;

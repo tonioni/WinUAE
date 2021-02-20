@@ -585,15 +585,15 @@ MEMORY_XLATE(blizzardmaprom);
 
 static void REGPARAM2 blizzardmaprom_lput(uaecptr addr, uae_u32 l)
 {
+#if MAPROM_DEBUG
+	write_log(_T("MAPROM LPUT %08x %08x %d %08x\n"), addr, l, maprom_state, M68K_GETPC);
+#endif
 	uae_u32 *m;
 	if (is_blizzard2060(&currprefs) && !maprom_state)
 		return;
 	addr &= blizzardmaprom_bank.mask;
 	m = (uae_u32 *)(blizzardmaprom_bank.baseaddr + addr);
 	do_put_mem_long(m, l);
-#if MAPROM_DEBUG
-	write_log(_T("LPUT %08x %08x %d %08x\n"), addr, l, maprom_state, M68K_GETPC);
-#endif
 	if (maprom_state > 0 && !(addr & 0x80000)) {
 		no_rom_protect();
 		m = (uae_u32 *)(kickmem_bank.baseaddr + addr);
@@ -602,15 +602,15 @@ static void REGPARAM2 blizzardmaprom_lput(uaecptr addr, uae_u32 l)
 }
 static void REGPARAM2 blizzardmaprom_wput(uaecptr addr, uae_u32 w)
 {
+#if MAPROM_DEBUG
+	write_log(_T("MAPROM WPUT %08x %08x %d\n"), addr, w, maprom_state);
+#endif
 	uae_u16 *m;
 	if (is_blizzard2060(&currprefs) && !maprom_state)
 		return;
 	addr &= blizzardmaprom_bank.mask;
 	m = (uae_u16 *)(blizzardmaprom_bank.baseaddr + addr);
 	do_put_mem_word(m, w);
-#if MAPROM_DEBUG
-	write_log(_T("WPUT %08x %08x %d\n"), addr, w, maprom_state);
-#endif
 	if (maprom_state > 0 && !(addr & 0x80000)) {
 		no_rom_protect();
 		m = (uae_u16 *)(kickmem_bank.baseaddr + addr);
@@ -619,13 +619,13 @@ static void REGPARAM2 blizzardmaprom_wput(uaecptr addr, uae_u32 w)
 }
 static void REGPARAM2 blizzardmaprom_bput(uaecptr addr, uae_u32 b)
 {
+#if MAPROM_DEBUG
+	write_log(_T("MAPROM LPUT %08x %08x %d\n"), addr, b, maprom_state);
+#endif
 	if (is_blizzard2060(&currprefs) && !maprom_state)
 		return;
 	addr &= blizzardmaprom_bank.mask;
 	blizzardmaprom_bank.baseaddr[addr] = b;
-#if MAPROM_DEBUG
-	write_log(_T("LPUT %08x %08x %d\n"), addr, b, maprom_state);
-#endif
 	if (maprom_state > 0 && !(addr & 0x80000)) {
 		no_rom_protect();
 		kickmem_bank.baseaddr[addr] = b;
@@ -1183,7 +1183,9 @@ void blizzardppc_irq(int id, int level)
 static uae_u32 REGPARAM2 blizzardio_bget(uaecptr addr)
 {
 	uae_u8 v = 0;
-	//write_log(_T("CS IO XBGET %08x=%02X PC=%08x\n"), addr, v & 0xff, M68K_GETPC);
+#if CPUBOARD_IO_LOG > 1
+	write_log(_T("CS IO XBGET %08x=%02X PC=%08x\n"), addr, v & 0xff, M68K_GETPC);
+#endif
 	if (is_magnum40(&currprefs)) {
 		if ((addr & 0xff0f) == 0x0c0c) {
 			int reg = (addr >> 4) & 7;
@@ -1234,6 +1236,9 @@ static uae_u32 REGPARAM2 blizzardio_bget(uaecptr addr)
 }
 static uae_u32 REGPARAM2 blizzardio_wget(uaecptr addr)
 {
+#if CPUBOARD_IO_LOG > 1
+	write_log(_T("CS IO XWGET %08x PC=%08x\n"), addr, M68K_GETPC);
+#endif
 	if (is_csmk3(&currprefs) || is_blizzardppc(&currprefs)) {
 		;//write_log(_T("CS IO WGET %08x\n"), addr);
 		//activate_debugger();
@@ -1277,7 +1282,9 @@ static uae_u32 REGPARAM2 blizzardio_wget(uaecptr addr)
 }
 static uae_u32 REGPARAM2 blizzardio_lget(uaecptr addr)
 {
+#if CPUBOARD_IO_LOG > 1
 	write_log(_T("CS IO LGET %08x PC=%08x\n"), addr, M68K_GETPC);
+#endif
 	if (is_blizzard2060(&currprefs) && mapromconfigured()) {
 		if (addr & 0x10000000) {
 			maprom_state = 0;
@@ -1504,10 +1511,12 @@ static void REGPARAM2 blizzardio_bput(uaecptr addr, uae_u32 v)
 }
 static void REGPARAM2 blizzardio_wput(uaecptr addr, uae_u32 v)
 {
+#if CPUBOARD_IO_LOG > 1
+	write_log(_T("CS IO WPUT %08x %04x PC=%08x\n"), addr, v, M68K_GETPC);
+#endif
 	if (is_fusionforty(&currprefs)) {
 		write_log(_T("FusionForty IO WPUT %08x %04x %08x\n"), addr, v, M68K_GETPC);
 	} else if (is_blizzard(&currprefs)) {
-		write_log(_T("CS IO WPUT %08x %04x\n"), addr, v);
 		if((addr & 65535) == (BLIZZARD_BOARD_DISABLE & 65535)) {
 			if (v != 0xcafe)
 				return;
@@ -1532,7 +1541,9 @@ static void REGPARAM2 blizzardio_wput(uaecptr addr, uae_u32 v)
 }
 static void REGPARAM2 blizzardio_lput(uaecptr addr, uae_u32 v)
 {
+#if CPUBOARD_IO_LOG > 1
 	write_log(_T("CPU IO LPUT %08x %08x\n"), addr, v);
+#endif
 	if (is_csmk1(&currprefs)) {
 		if (addr == 0x80f80000) {
 			maprom_state = 1;
