@@ -744,6 +744,8 @@
 #define IDC_CPUTEXT_x86                 1510
 #define IDC_SCREENRESTEXT               1511
 #define IDC_MAPDRIVES_AUTO              1511
+#define IDC_CPUTEXT2                    1511
+#define IDC_CPUIDLETEXT                 1511
 #define IDC_WIDTHTEXT                   1512
 #define IDC_WINDOWEDTEXT                1512
 #define IDC_MAPDRIVES_LIMIT             1512

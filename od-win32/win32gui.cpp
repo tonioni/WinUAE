@@ -12707,8 +12707,8 @@ static void values_to_cpudlg(HWND hDlg, WPARAM wParam)
 
 	SendDlgItemMessage (hDlg, IDC_SPEED, TBM_SETPOS, TRUE, (int)(workprefs.m68k_speed_throttle / 100));
 	_stprintf (buffer, _T("%+d%%"), (int)(workprefs.m68k_speed_throttle / 10));
-
 	SetDlgItemText (hDlg, IDC_CPUTEXT, buffer);
+
 	CheckDlgButton (hDlg, IDC_COMPATIBLE, workprefs.cpu_compatible);
 	CheckDlgButton (hDlg, IDC_COMPATIBLE24, workprefs.address_space_24);
 	CheckDlgButton (hDlg, IDC_CPUDATACACHE, workprefs.cpu_data_cache);
@@ -12717,6 +12717,8 @@ static void values_to_cpudlg(HWND hDlg, WPARAM wParam)
 	SendDlgItemMessage(hDlg, IDC_FPU_MODE, CB_SETCURSEL, workprefs.fpu_mode < 0 ? 1 : (workprefs.fpu_mode > 0 ? 2 : 0), 0);
 	CheckDlgButton (hDlg, IDC_CPU_UNIMPLEMENTED, !workprefs.int_no_unimplemented || workprefs.cachesize);
 	SendDlgItemMessage (hDlg, IDC_CPUIDLE, TBM_SETPOS, TRUE, workprefs.cpu_idle == 0 ? 0 : 12 - workprefs.cpu_idle / 15);
+	_stprintf(buffer, _T("%d%%"), (workprefs.cpu_idle == 0 ? 0 : 12 - workprefs.cpu_idle / 15) * 10);
+	SetDlgItemText(hDlg, IDC_CPUIDLETEXT, buffer);
 	SendDlgItemMessage (hDlg, IDC_PPC_CPUIDLE, TBM_SETPOS, TRUE, workprefs.ppc_cpu_idle);
 	cpu = (workprefs.cpu_model - 68000) / 10;
 	if (cpu >= 5)
