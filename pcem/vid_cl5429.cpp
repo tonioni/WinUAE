@@ -105,6 +105,7 @@ typedef struct gd5429_t
         int hidden_dac_index;
         int dac_3c6_count;
         uint32_t hwcursor_pal[2];
+        int hwcursor_extraoffset;
         
         uint8_t pci_regs[256];
         uint8_t int_line;
@@ -1212,6 +1213,14 @@ void gd5429_recalctimings(svga_t *svga)
                 }
         }
         
+        // Possible chip 5426/5428 chip bug. Not sure if this is the exact condition but Amiga Picasso96 driver
+        // has 8 pixel hwcursor offset in 15-bit and 16-bit modes and GR5 is zero but CGX4 driver
+        // does not have offset and GR5 has 256-color bit (bit 6) set.
+        gd5429->hwcursor_extraoffset = 0;
+        if (!(svga->gdcreg[5] & 0x40) && gd5429->type <= CL_TYPE_GD5428 && (svga->bpp == 15 || svga->bpp == 16)) {
+            gd5429->hwcursor_extraoffset = 8;
+        }
+
         n = svga->seqregs[0xb + clock] & 0x7f;
         d = (svga->seqregs[0x1b + clock] >> 1) & 0x1f;
         p = svga->seqregs[0x1b + clock] & 1;
@@ -1260,9 +1269,9 @@ void gd5429_hwcursor_draw(svga_t *svga, int displine)
                                 if (offset >= svga->hwcursor_latch.x)
                                 {
                                         if (dat[1] & 0x80)
-                                                ((uint32_t *)buffer32->line[displine])[offset + 32] = gd5429->hwcursor_pal[(dat[0] & 0x80) ? 1 : 0];
+                                                ((uint32_t *)buffer32->line[displine])[offset + 32 - gd5429->hwcursor_extraoffset] = gd5429->hwcursor_pal[(dat[0] & 0x80) ? 1 : 0];
                                         else if (dat[0] & 0x80)
-                                                ((uint32_t *)buffer32->line[displine])[offset + 32] ^= 0xffffff;
+                                                ((uint32_t *)buffer32->line[displine])[offset + 32 - gd5429->hwcursor_extraoffset] ^= 0xffffff;
                                 }
 
                                 offset++;
@@ -1284,9 +1293,9 @@ void gd5429_hwcursor_draw(svga_t *svga, int displine)
                                 if (offset >= svga->hwcursor_latch.x)
                                 {
                                         if (dat[1] & 0x80)
-                                                ((uint32_t *)buffer32->line[displine])[offset + 32] = gd5429->hwcursor_pal[(dat[0] & 0x80) ? 1 : 0];
+                                                ((uint32_t *)buffer32->line[displine])[offset + 32 - gd5429->hwcursor_extraoffset] = gd5429->hwcursor_pal[(dat[0] & 0x80) ? 1 : 0];
                                         else if (dat[0] & 0x80)
-                                                ((uint32_t *)buffer32->line[displine])[offset + 32] ^= 0xffffff;
+                                                ((uint32_t *)buffer32->line[displine])[offset + 32 - gd5429->hwcursor_extraoffset] ^= 0xffffff;
                                 }
 
                                 offset++;
