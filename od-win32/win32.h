@@ -226,4 +226,7 @@ BOOL SetFileAttributesSafe (const TCHAR *name, DWORD attr);
 
 void HtmlHelp(HWND a, LPCWSTR b, UINT c, const TCHAR *d);
 
+typedef BOOL(CALLBACK* ADJUSTWINDOWRECTEXFORDPI)(LPRECT, DWORD, BOOL, DWORD, UINT);
+extern ADJUSTWINDOWRECTEXFORDPI pAdjustWindowRectExForDpi;
+
 #endif

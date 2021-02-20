@@ -120,6 +120,7 @@ struct AmigaMonitor {
 	int ratio_adjust_x, ratio_adjust_y;
 	bool ratio_sizing;
 	bool render_ok, wait_render;
+	int dpi;
 
 	int in_sizemove;
 	int manual_painting_needed;

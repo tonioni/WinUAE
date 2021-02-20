@@ -979,6 +979,7 @@ static BOOL CALLBACK monitorEnumProc (HMONITOR h, HDC hdc, LPRECT rect, LPARAM d
 	while (md - Displays < MAX_DISPLAYS && md->monitorid) {
 		if (!_tcscmp (md->adapterid, lpmi.szDevice)) {
 			TCHAR tmp[1000];
+			md->monitor = h;
 			md->rect = lpmi.rcMonitor;
 			md->workrect = lpmi.rcWork;
 			adjustappbar(&md->rect, &md->workrect);
@@ -1006,6 +1007,7 @@ static BOOL CALLBACK monitorEnumProc2(HMONITOR h, HDC hdc, LPRECT rect, LPARAM d
 		struct MultiDisplay *md = &Displays[i];
 		if (!_tcscmp (md->adapterid, lpmi.szDevice) && !memcmp(&md->rect, &lpmi.rcMonitor, sizeof RECT)) {
 			md->workrect = lpmi.rcWork;
+			md->monitor = h;
 			adjustappbar(&md->rect, &md->workrect);
 			return TRUE;
 		}
@@ -2250,9 +2252,7 @@ static int getstatuswindowheight(int monid, HWND hwnd)
 		return def;
 	wi.cbSize = sizeof wi;
 	if (GetWindowInfo(h, &wi)) {
-		int dpi = getdpiforwindow(h);
 		def = wi.rcWindow.bottom - wi.rcWindow.top;
-		def = def * dpi / 96;
 	}
 	DestroyWindow(h);
 	return def;
@@ -3658,6 +3658,7 @@ static int create_windows_2(struct AmigaMonitor *mon)
 		GetWindowRect (mon->hAmigaWnd, &r);
 
 		int sbheight = currprefs.win32_statusbar ? getstatuswindowheight(mon->monitor_id, mon->hAmigaWnd) : 0;
+		int dpi = getdpiforwindow(mon->hAmigaWnd);
 
 		x = r.left;
 		y = r.top;
@@ -3693,18 +3694,34 @@ static int create_windows_2(struct AmigaMonitor *mon)
 			else
 				ny = rc.top + (rc.bottom - rc.top - nh);
 		}
-		if (w != nw || h != nh || x != nx || y != ny || sbheight != mon->window_extra_height_bar) {
+		if (w != nw || h != nh || x != nx || y != ny || sbheight != mon->window_extra_height_bar || dpi != mon->dpi) {
 			w = nw;
 			h = nh;
 			x = nx;
 			y = ny;
-			mon->window_extra_height_bar = sbheight;
 			mon->in_sizemove++;
 			if (mon->hMainWnd && !fsw && !dxfs && !d3dfs && !rp_isactive()) {
+				if (dpi != mon->dpi) {
+					mon->window_extra_height -= mon->window_extra_height_bar;
+					mon->window_extra_height += sbheight;
+				} else {
+					mon->window_extra_height += (sbheight - mon->window_extra_height_bar);
+				}
+
 				GetWindowRect(mon->hMainWnd, &r);
+#if 0
+				RECT r2;
+				GetClientRect(mon->hMainWnd, &r2);
+				if (pAdjustWindowRectExForDpi) {
+					HMONITOR mon = MonitorFromRect(&r, MONITOR_DEFAULTTONEAREST);
+					pAdjustWindowRectExForDpi(&r, borderless ? WS_POPUP : style, FALSE, exstyle, getdpiformonitor(mon));
+				} else {
+					AdjustWindowRectEx(&r, borderless ? WS_POPUP : style, FALSE, exstyle);
+				}
+#endif
 				x = r.left;
 				y = r.top;
-				SetWindowPos(mon->hMainWnd, HWND_TOP, x, y, w + mon->window_extra_width, h + mon->window_extra_height + mon->window_extra_height_bar,
+				SetWindowPos(mon->hMainWnd, HWND_TOP, x, y, w + mon->window_extra_width, h + mon->window_extra_height,
 					SWP_NOACTIVATE | SWP_NOOWNERZORDER | SWP_NOSENDCHANGING | SWP_NOZORDER);
 				x = gap;
 				y = gap;
@@ -3712,6 +3729,7 @@ static int create_windows_2(struct AmigaMonitor *mon)
 			SetWindowPos(mon->hAmigaWnd, HWND_TOP, x, y, w, h,
 				SWP_NOACTIVATE | SWP_NOOWNERZORDER | SWP_NOSENDCHANGING | SWP_NOZORDER);
 			mon->in_sizemove--;
+			mon->dpi = dpi;
 		} else {
 			w = nw;
 			h = nh;
@@ -3719,7 +3737,7 @@ static int create_windows_2(struct AmigaMonitor *mon)
 			y = ny;
 		}
 		createstatuswindow(mon);
-		createstatusline(mon->monitor_id);
+		createstatusline(mon->hAmigaWnd, mon->monitor_id);
 		updatewinrect(mon, false);
 		GetWindowRect (mon->hMainWnd, &mon->mainwin_rect);
 		if (d3dfs || dxfs)
@@ -3728,6 +3746,7 @@ static int create_windows_2(struct AmigaMonitor *mon)
 			mon->amigawin_rect.left, mon->amigawin_rect.top, mon->amigawin_rect.right - mon->amigawin_rect.left, mon->amigawin_rect.bottom - mon->amigawin_rect.top);
 		updatemouseclip(mon);
 		rp_screenmode_changed ();
+		mon->window_extra_height_bar = sbheight;
 		return 1;
 	}
 
@@ -3779,7 +3798,12 @@ static int create_windows_2(struct AmigaMonitor *mon)
 
 			oldx = rc.left;
 			oldy = rc.top;
-			AdjustWindowRect (&rc, borderless ? WS_POPUP : style, FALSE);
+			if (pAdjustWindowRectExForDpi) {
+				HMONITOR mon = MonitorFromRect(&rc, MONITOR_DEFAULTTONEAREST);
+				pAdjustWindowRectExForDpi(&rc, borderless ? WS_POPUP : style, FALSE, exstyle, getdpiformonitor(mon));
+			} else {
+				AdjustWindowRectEx(&rc, borderless ? WS_POPUP : style, FALSE, exstyle);
+			}
 			mon->win_x_diff = rc.left - oldx;
 			mon->win_y_diff = rc.top - oldy;
 
@@ -3833,12 +3857,10 @@ static int create_windows_2(struct AmigaMonitor *mon)
 				break;
 			}
 			GetWindowRect(mon->hMainWnd, &rc2);
-			mon->window_extra_width = (rc2.right - rc2.left) - mon->currentmode.current_width;
-			mon->window_extra_height = (rc2.bottom - rc2.top) - mon->currentmode.current_height;
-			mon->window_extra_height -= sbheight;
-			mon->window_extra_height_bar = sbheight;
+			mon->window_extra_width = rc2.right - rc2.left - mon->currentmode.current_width;
+			mon->window_extra_height = rc2.bottom - rc2.top - mon->currentmode.current_height;
 			createstatuswindow(mon);
-			createstatusline(mon->monitor_id);
+			createstatusline(mon->hMainWnd, mon->monitor_id);
 		} else {
 			x = rc.left;
 			y = rc.top;
@@ -3898,6 +3920,7 @@ static int create_windows_2(struct AmigaMonitor *mon)
 		movecursor (x + w / 2, y + h / 2);
 	addnotifications (mon->hAmigaWnd, FALSE, FALSE);
 	mon->window_extra_height_bar = sbheight;
+	mon->dpi = getdpiforwindow(mon->hAmigaWnd);
 
 	if (mon->monitor_id) {
 		ShowWindow(mon->hMainWnd, SW_SHOWNOACTIVATE);
@@ -4206,7 +4229,7 @@ retry:
 
 	display_param_init(mon);
 
-	createstatusline(mon->monitor_id);
+	createstatusline(mon->hAmigaWnd, mon->monitor_id);
 	picasso_refresh(mon->monitor_id);
 #ifdef RETROPLATFORM
 	rp_set_hwnd_delayed ();

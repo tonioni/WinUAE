@@ -236,6 +236,12 @@ static GETTOUCHINPUTINFO pGetTouchInputInfo;
 static CLOSETOUCHINPUTHANDLE pCloseTouchInputHandle;
 #endif
 
+ADJUSTWINDOWRECTEXFORDPI pAdjustWindowRectExForDpi;
+typedef HRESULT(CALLBACK* GETDPIFORMONITOR)(HMONITOR, MONITOR_DPI_TYPE, UINT*, UINT*);
+static GETDPIFORMONITOR pGetDpiForMonitor;
+typedef UINT(CALLBACK* GETDPIFORWINDOW)(HWND);
+static GETDPIFORWINDOW pGetDpiForWindow;
+
 int getdpiformonitor(HMONITOR mon)
 {
 	if (mon) {
@@ -243,8 +249,9 @@ int getdpiformonitor(HMONITOR mon)
 		if (!shcore)
 			shcore = LoadLibrary(_T("Shcore.dll"));
 		if (shcore) {
-			typedef HRESULT(CALLBACK *GETDPIFORMONITOR)(HMONITOR, MONITOR_DPI_TYPE, UINT *, UINT *);
-			GETDPIFORMONITOR pGetDpiForMonitor = (GETDPIFORMONITOR)GetProcAddress(shcore, "GetDpiForMonitor");
+			if (!pGetDpiForMonitor) {
+				pGetDpiForMonitor = (GETDPIFORMONITOR)GetProcAddress(shcore, "GetDpiForMonitor");
+			}
 			if (pGetDpiForMonitor) {
 				UINT x, y;
 				if (SUCCEEDED(pGetDpiForMonitor(mon, MDT_EFFECTIVE_DPI, &x, &y)))
@@ -260,8 +267,9 @@ int getdpiformonitor(HMONITOR mon)
 
 int getdpiforwindow(HWND hwnd)
 {
-	typedef UINT(CALLBACK *GETDPIFORWINDOW)(HWND);
-	GETDPIFORWINDOW pGetDpiForWindow = (GETDPIFORWINDOW)GetProcAddress(userdll, "GetDpiForWindow");
+	if (!pGetDpiForWindow) {
+		pGetDpiForWindow = (GETDPIFORWINDOW)GetProcAddress(userdll, "GetDpiForWindow");
+	}
 	if (pGetDpiForWindow)
 		return pGetDpiForWindow(hwnd);
 	HDC hdc = GetDC(NULL);
@@ -2740,9 +2748,9 @@ static LRESULT CALLBACK MainWindowProc (HWND hWnd, UINT message, WPARAM wParam, 
 			LPMINMAXINFO lpmmi;
 			lpmmi = (LPMINMAXINFO)lParam;
 			lpmmi->ptMinTrackSize.x = 160 + mon->window_extra_width;
-			lpmmi->ptMinTrackSize.y = 128 + mon->window_extra_height + mon->window_extra_height_bar;
+			lpmmi->ptMinTrackSize.y = 128 + mon->window_extra_height;
 			lpmmi->ptMaxTrackSize.x = max_uae_width + mon->window_extra_width;
-			lpmmi->ptMaxTrackSize.y = max_uae_height + mon->window_extra_height + mon->window_extra_height_bar;
+			lpmmi->ptMaxTrackSize.y = max_uae_height + mon->window_extra_height;
 		}
 		return 0;
 
@@ -2793,9 +2801,9 @@ static LRESULT CALLBACK MainWindowProc (HWND hWnd, UINT message, WPARAM wParam, 
 							int w = mon->mainwin_rect.right - mon->mainwin_rect.left;
 							int h = mon->mainwin_rect.bottom - mon->mainwin_rect.top;
 							if (w != changed_prefs.gfx_monitor[mon->monitor_id].gfx_size_win.width + mon->window_extra_width ||
-								h != changed_prefs.gfx_monitor[mon->monitor_id].gfx_size_win.height + mon->window_extra_height + mon->window_extra_height_bar) {
+								h != changed_prefs.gfx_monitor[mon->monitor_id].gfx_size_win.height + mon->window_extra_height) {
 									changed_prefs.gfx_monitor[mon->monitor_id].gfx_size_win.width = w - mon->window_extra_width;
-									changed_prefs.gfx_monitor[mon->monitor_id].gfx_size_win.height = h - (mon->window_extra_height + mon->window_extra_height_bar);
+									changed_prefs.gfx_monitor[mon->monitor_id].gfx_size_win.height = h - mon->window_extra_height;
 									set_config_changed();
 							}
 						}
@@ -7942,6 +7950,7 @@ int PASCAL wWinMain (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdL
 			}
 		}
 	}
+	pAdjustWindowRectExForDpi = (ADJUSTWINDOWRECTEXFORDPI)GetProcAddress(userdll, "AdjustWindowRectExForDpi");
 
 	InitCommonControls ();
 

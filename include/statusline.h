@@ -43,7 +43,7 @@ bool softstatusline(void);
 #define STATUSTYPE_CD 4
 #define STATUSTYPE_OTHER 5
 
-bool createstatusline(int);
+bool createstatusline(HWND, int);
 void deletestatusline(int);
 void statusline_render(int, uae_u8 *buf, int bpp, int pitch, int width, int height, uae_u32 *rc, uae_u32 *gc, uae_u32 *bc, uae_u32 *alpha);
 void statusline_add_message(int statustype, const TCHAR *format, ...);

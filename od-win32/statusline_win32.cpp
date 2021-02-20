@@ -52,7 +52,7 @@ void deletestatusline(int monid)
 	statusline_palette = NULL;
 }
 
-static void create_led_font(int monid)
+static void create_led_font(HWND parent, int monid)
 {
 	HDC hdc;
 	LPLOGPALETTE lp;
@@ -70,7 +70,7 @@ static void create_led_font(int monid)
 
 	hdc = CreateCompatibleDC(NULL);
 	if (hdc) {
-		int y = GetDeviceCaps(hdc, LOGPIXELSY);
+		int y = getdpiforwindow(parent);
 		int fontsize = -MulDiv(6, y, 72);
 		fontsize = fontsize * statusline_get_multiplier(monid) / 100;
 		lp = (LOGPALETTE *)xcalloc(uae_u8, sizeof(LOGPALETTE) + 3 * sizeof(PALETTEENTRY));
@@ -186,7 +186,7 @@ static void create_led_font(int monid)
 	}
 }
 
-bool createstatusline(int monid)
+bool createstatusline(HWND parentHwnd, int monid)
 {
 	struct AmigaMonitor *mon = &AMonitors[monid];
 	BITMAPINFO *bi;
@@ -235,7 +235,7 @@ bool createstatusline(int monid)
 	SelectObject(statusline_hdc, statusline_bitmap);
 	RealizePalette(statusline_hdc);
 
-	create_led_font(monid);
+	create_led_font(parentHwnd, monid);
 
 	statusline_font = CreateFont(-10, 0,
 		0, 0,
