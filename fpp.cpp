@@ -391,7 +391,7 @@ static bool fp_exception_pending(bool pre)
 		if (warned > 0) {
 			write_log (_T("FPU unimplemented datatype exception (%s) PC=%08x\n"), pre ? _T("pre") : _T("mid/post"), regs.instruction_pc);
 		}
-		if (fpu_mmu_fixup) {
+		if (currprefs.cpu_model == 68060 && fpu_mmu_fixup) {
 			m68k_areg(regs, mmufixup[0].reg) = mmufixup[0].value;
 			mmufixup[0].reg = -1;
 		}
@@ -410,7 +410,7 @@ static void fp_unimp_instruction_exception_pending(void)
 		if (warned > 0) {
 			write_log (_T("FPU UNIMPLEMENTED INSTRUCTION/FPU DISABLED EXCEPTION PC=%08x\n"), M68K_GETPC);
 		}
-		if (fpu_mmu_fixup) {
+		if (currprefs.cpu_model == 68060 && fpu_mmu_fixup) {
 			m68k_areg(regs, mmufixup[0].reg) = mmufixup[0].value;
 			mmufixup[0].reg = -1;
 		}
