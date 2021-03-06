@@ -622,7 +622,24 @@ int uaeser_setparams (void *vsd, int baud, int rbuffer, int bits, int sbits, int
 	dcb.fBinary = TRUE;
 	dcb.BaudRate = baud;
 	dcb.ByteSize = bits;
-	dcb.Parity = parity == 0 ? NOPARITY : (parity == 1 ? ODDPARITY : EVENPARITY);
+	switch (parity)
+	{
+	case 1:
+		dcb.Parity = ODDPARITY;
+		break;
+	case 2:
+		dcb.Parity = EVENPARITY;
+		break;
+	case 3:
+		dcb.Parity = MARKPARITY;
+		break;
+	case 4:
+		dcb.Parity = SPACEPARITY;
+		break;
+	default:
+		dcb.Parity = NOPARITY;
+		break;
+	}
 	dcb.fParity = FALSE;
 	dcb.StopBits = sbits == 1 ? ONESTOPBIT : TWOSTOPBITS;
 
