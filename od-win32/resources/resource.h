@@ -415,6 +415,7 @@
 #define IDS_QUIT_WARNING                418
 #define IDS_UNMAPPED_ADDRESS            419
 #define IDS_GENLOCK_OPTIONS             420
+#define IDS_READONLYCONFIRMATION        421
 #define IDS_QS_MODELS                   1000
 #define IDS_QS_MODEL_A500               1001
 #define IDS_QS_MODEL_A500P              1002

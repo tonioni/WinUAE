@@ -2176,6 +2176,31 @@ void target_multipath_modified(struct uae_prefs *p)
 	memcpy(&currprefs.path_rom, &p->path_rom, sizeof(struct multipath));
 }
 
+static bool cfgfile_can_write(HWND hDlg, const TCHAR *path)
+{
+	for (;;) {
+		int v = my_readonlyfile(path);
+		if (v <= 0)
+			return true;
+		TCHAR szMessage[MAX_DPATH], msg[MAX_DPATH], szTitle[MAX_DPATH];
+		WIN32GUI_LoadUIString(IDS_READONLYCONFIRMATION, szMessage, MAX_DPATH);
+		_stprintf(msg, szMessage, path);
+		WIN32GUI_LoadUIString(IDS_ERRORTITLE, szTitle, MAX_DPATH);
+		if (MessageBox(hDlg, msg, szTitle, MB_YESNO | MB_ICONWARNING | MB_APPLMODAL | MB_SETFOREGROUND) == IDYES) {
+			DWORD flags = GetFileAttributesSafe(path);
+			if (!(flags & FILE_ATTRIBUTE_READONLY)) {
+				return true;
+			}
+			flags &= ~FILE_ATTRIBUTE_READONLY;
+			SetFileAttributesSafe(path, flags);
+			continue;
+		}
+		break;
+
+	}
+	return false;
+}
+
 int target_cfgfile_load (struct uae_prefs *p, const TCHAR *filename, int type, int isdefault)
 {
 	int v, i, type2;
@@ -3124,8 +3149,10 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
 			}
 			break;
 		case IDC_SAVE:
-			SetDlgItemText (hDlg, IDC_EDITNAME, full_path);
-			cfgfile_save (&workprefs, full_path, 0);
+			if (cfgfile_can_write(hDlg, full_path)) {
+				SetDlgItemText(hDlg, IDC_EDITNAME, full_path);
+				cfgfile_save(&workprefs, full_path, 0);
+			}
 			break;
 		case IDC_ROMFILE:
 			_tcscpy (workprefs.romfile, full_path);
@@ -4086,7 +4113,7 @@ static TCHAR *HandleConfiguration (HWND hDlg, int flag, struct ConfigStruct *con
 			TCHAR szMessage[MAX_DPATH];
 			WIN32GUI_LoadUIString(IDS_MUSTENTERNAME, szMessage, MAX_DPATH);
 			pre_gui_message (szMessage);
-		} else {
+		} else if (cfgfile_can_write(hDlg, path)) {
 			_tcscpy (workprefs.description, desc);
 			cfgfile_save (&workprefs, path, configtypepanel);
 		}

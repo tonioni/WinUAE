@@ -356,6 +356,22 @@ int my_existsdir (const TCHAR *name)
 	return 0;
 }
 
+int my_readonlyfile(const TCHAR *name)
+{
+	HANDLE h;
+
+	if (!my_existsfile(name))
+		return -1;
+	h = CreateFile(name, GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+	if (h == INVALID_HANDLE_VALUE) {
+		DWORD err = GetLastError();
+		if (err == ERROR_ACCESS_DENIED || err == ERROR_WRITE_PROTECT)
+			return true;
+	}
+	CloseHandle(h);
+	return false;
+}
+
 struct my_openfile_s *my_open (const TCHAR *name, int flags)
 {
 	struct my_openfile_s *mos;
