@@ -1770,7 +1770,7 @@ static INT_PTR CALLBACK DebuggerProc (HWND hDlg, UINT message, WPARAM wParam, LP
 			HMONITOR hmon = MonitorFromWindow(hDlg, MONITOR_DEFAULTTONEAREST);
 			if (hmon && GetMonitorInfo(hmon, &mi)) {
 				xoffset = mi.rcWork.left - mi.rcMonitor.left;
-				yoffset = mi.rcWork.top - mi.rcWork.top;
+				yoffset = mi.rcWork.top - mi.rcMonitor.top;
 			}
 			if (GetWindowPlacement (hDlg, &wp)) {
 				r = &wp.rcNormalPosition;
