@@ -828,6 +828,14 @@ static void sony_serial_read(uae_u16 w)
 	if (log_ld)
 		write_log(_T("LD: INDEX OFF\n"));
 	break;
+	case 0x56: // CL
+	ld_mode = LD_MODE_STILL;
+	ld_direction = 0;
+	pausevideograb(1);
+	ack();
+	if (log_ld)
+		write_log(_T("LD: CL\n"));
+	break;
 	case 0x60: // ADDR INQ '`'
 	{
 		if (isvideograb() && ld_direction == 0) {

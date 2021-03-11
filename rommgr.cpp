@@ -1917,6 +1917,32 @@ struct zfile *read_rom (struct romdata *prd)
 					byteswap(buf, size);
 			}
 			if (ok) {
+				if (rd->id == 197) {
+					// ALG Platoon
+					uae_u8 *tmp = xmalloc(uae_u8, size);
+					if (tmp) {
+						memcpy(tmp, buf, size);
+						static const int platoon[] = { 0,8,4,12,2,10,6,14,1,9,5,13,3,11,7,15,16,24,20,28,18,26,22,30,17,25,21,29,19,27,23,31 };
+						for (int i = 0; i < 32; i++) {
+							memcpy(buf + i * 0x2000, tmp + platoon[i] * 0x2000, 0x2000);
+						}
+						xfree(tmp);
+					}
+				} else if (rd->id == 182 || rd->id == 183) {
+					// ALG Space Pirates
+					uae_u8 *tmp = xmalloc(uae_u8, size);
+					if (tmp) {
+						memcpy(tmp, buf, size);
+						static const int sp[] = { 33,32,34,35,49,48,50,51,45,44,46,47,61,60,62,63,37,36,38,39,53,52,54,55,41,40,42,43,57,56,58,59,
+						33,32,34,35,49,48,50,51,45,44,46,47,61,60,62,63,37,36,38,39,53,52,54,55,41,40,42,43,57,56,58,59 };
+						for (int i = 0; i < 64; i++) {
+							memcpy(buf + i * 0x1000, tmp + sp[i] * 0x1000, 0x1000);
+						}
+						xfree(tmp);
+					}
+				}
+			}
+			if (ok) {
 				struct zfile *zf = zfile_fopen_empty (NULL, name, size);
 				if (zf) {
 					zfile_fwrite (buf, size, 1, zf);
