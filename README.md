@@ -15,7 +15,7 @@
 	
 4) Download the zip packages include and lib "winuaeinclibs.zip" and create the directory "c:\dev" and extract all. When finished you have "c:\dev\include" and \"c:\dev\lib" 
 	 	 
-	Download Link -> http://www.winuae.net/files/b/winuaeinclibs.zip
+	Download Link -> https://download.abime.net/winuae/files/b/winuaeinclibs.zip
 		
 5) Download WinUAE source packages and extract all (anywhere you want).
 
@@ -24,7 +24,7 @@
 
 6) Download the zip package aros.rom.cpp.zip and extract into WinUAE source directory.
 
-	Download Link -> http://www.winuae.net/files/b/aros.rom.cpp.zip	
+	Download Link -> https://download.abime.net/winuae/files/b/aros.rom.cpp.zip	
 				
 7) Download and Install Nasm (Assembler Compiler) and put it in PATH
 
