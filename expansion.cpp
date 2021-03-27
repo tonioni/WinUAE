@@ -4086,6 +4086,7 @@ uae_u8 *restore_expansion_info_old(uae_u8 *src)
 void restore_expansion_finish(void)
 {
 	cardno = restore_cardno;
+	restore_cardno = 0;
 	for (int i = 0; i < cardno; i++) {
 		struct card_data *ec = &cards_set[i];
 		cards[i] = ec;
