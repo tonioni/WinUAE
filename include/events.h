@@ -60,7 +60,7 @@ struct ev2
 };
 
 enum {
-    ev_cia, ev_audio, ev_misc, ev_hsync,
+    ev_cia, ev_audio, ev_misc, ev_hsync, ev_hsynch,
     ev_max
 };
 
@@ -78,7 +78,6 @@ extern uae_s32 pissoff;
 extern struct ev eventtab[ev_max];
 extern struct ev2 eventtab2[ev2_max];
 
-extern int hpos_offset;
 extern int maxhpos;
 
 STATIC_INLINE void cycles_do_special (void)

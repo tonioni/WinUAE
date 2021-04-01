@@ -25,39 +25,33 @@
 #define AMIGA_WIDTH_MAX (752 / 2)
 #define AMIGA_HEIGHT_MAX (576 / 2)
 
-//#define NEWHSYNC
+// Cycles * 2 from start of scanline to first refresh slot (hsync strobe slot)
+#define DDF_OFFSET (2 * 4)
 
-#ifdef NEWHSYNC
-#define DIW_DDF_OFFSET 9
-/* this many cycles starting from hpos=0 are visible on right border */
-#define HBLANK_OFFSET 13
-#define DISPLAY_LEFT_SHIFT 0x40
-#else
 /* According to the HRM, pixel data spends a couple of cycles somewhere in the chips
 before it appears on-screen. (TW: display emulation now does this automatically)  */
 #define DIW_DDF_OFFSET 1
 #define DIW_DDF_OFFSET_SHRES (DIW_DDF_OFFSET << 2)
-/* this many cycles starting from hpos=0 are visible on right border */
-#define HBLANK_OFFSET 9
 /* We ignore that many lores pixels at the start of the display. These are
 * invisible anyway due to hardware DDF limits. */
-#define DISPLAY_LEFT_SHIFT 0x38
+#define DISPLAY_LEFT_SHIFT 0x3c
 #define DISPLAY_LEFT_SHIFT_SHRES (DISPLAY_LEFT_SHIFT << 2)
-#endif
 
-#define PIXEL_XPOS(HPOS) (((HPOS)*2 - DISPLAY_LEFT_SHIFT + DIW_DDF_OFFSET - 1) << lores_shift)
+#define PIXEL_XPOS(HPOS) (((HPOS) - DISPLAY_LEFT_SHIFT + DIW_DDF_OFFSET - 1) << lores_shift)
+
+extern int hsynctotal;
 
 #define min_diwlastword (0)
-#define max_diwlastword (PIXEL_XPOS(0x1d4 >> 1))
+#define max_diwlastword (PIXEL_XPOS(hsynctotal * 2 + 1))
 
 extern int lores_shift, shres_shift, interlace_seen;
-extern bool aga_mode, direct_rgb;
+extern bool aga_mode, ecs_agnus, ecs_denise, direct_rgb;
 extern int visible_left_border, visible_right_border;
 extern int detected_screen_resolution;
 
-STATIC_INLINE int shres_coord_hw_to_window_x (int x)
+STATIC_INLINE int shres_coord_hw_to_window_x(int x)
 {
-	x -= DISPLAY_LEFT_SHIFT << 2;
+	x -= DISPLAY_LEFT_SHIFT_SHRES;
 	x <<= lores_shift;
 	x >>= 2;
 	return x;
@@ -207,6 +201,7 @@ STATIC_INLINE void color_reg_cpy (struct color_entry *dst, struct color_entry *s
 #define COLOR_CHANGE_BRDBLANK 0x80000000
 #define COLOR_CHANGE_SHRES_DELAY 0x40000000
 #define COLOR_CHANGE_HSYNC_HACK 0x20000000
+#define COLOR_CHANGE_BLANK 0x10000000
 #define COLOR_CHANGE_MASK 0xf0000000
 struct color_change {
 	int linepos;

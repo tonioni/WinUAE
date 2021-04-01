@@ -1974,7 +1974,7 @@ static bool get_record_dma_info(struct dma_rec *dr, int hpos, int vpos, uae_u32 
 		chcnt = br;
 	} else if (dr->type == DMARECORD_BITPLANE) {
 		sr = _T("BPL");
-		chcnt = br;
+		chcnt = br + 1;
 	}
 
 	_stprintf (l1, _T("[%02X %3d]"), hpos, hpos);
@@ -2038,6 +2038,8 @@ static bool get_record_dma_info(struct dma_rec *dr, int hpos, int vpos, uae_u32 
 			l3[cl2++] = 'p';
 		if (dr->evt & DMA_EVENT_COPPERWAKE)
 			l3[cl2++] = 'W';
+		if (dr->evt & DMA_EVENT_COPPERSKIP)
+			l3[cl2++] = 'S';
 		if (dr->evt & DMA_EVENT_NOONEGETS) {
 			l3[cl2++] = '#';
 		} else if (dr->evt & DMA_EVENT_COPPERWANTED) {
