@@ -2292,7 +2292,7 @@ static int copper_debugger (TCHAR **c)
 	} else {
 		if (more_params (c)) {
 			maddr = readhex (c);
-			if (maddr == 1 || maddr == 2)
+			if (maddr == 1 || maddr == 2 || maddr == 3)
 				maddr = get_copper_address (maddr);
 			else if (maddr == 0)
 				maddr = get_copper_address (-1);

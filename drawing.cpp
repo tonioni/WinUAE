@@ -2093,10 +2093,10 @@ static void pfield_set_linetoscr (void)
 }
 
 // left or right AGA border sprite
-static void pfield_do_linetoscr_bordersprite_aga (int start, int stop, int blank)
+static void pfield_do_linetoscr_bordersprite_aga(int start, int stop, int blank)
 {
 	if (blank) {
-		pfield_do_fill_line (start, stop, blank);
+		pfield_do_fill_line(start, stop, blank);
 		return;
 	}
 	pfield_do_linetoscr_spriteonly(src_pixel, start, stop);
@@ -2114,7 +2114,7 @@ static unsigned int ham_lastcolor;
  * when decode_ham runs.
  *
  */
-static void init_ham_decoding (void)
+static void init_ham_decoding(void)
 {
 	int unpainted_amiga = unpainted + hamleftborderhidden;
 
@@ -2192,9 +2192,9 @@ static void init_ham_decoding (void)
 	}
 }
 
-static void decode_ham (int pix, int stoppos, int blank)
+static void decode_ham(int pix, int stoppos, int blank)
 {
-	int todraw_amiga = res_shift_from_window (stoppos - pix);
+	int todraw_amiga = res_shift_from_window(stoppos - pix);
 
 	if (!bplham) {
 		while (todraw_amiga-- > 0) {
@@ -2284,7 +2284,7 @@ static void erase_ham_right_border(int pix, int stoppos, bool blank)
 		ham_linebuf[ham_decode_pixel++] = 0;
 }
 
-static void gen_pfield_tables (void)
+static void gen_pfield_tables(void)
 {
 	int i;
 
@@ -2324,7 +2324,7 @@ static void gen_pfield_tables (void)
 
 	}
 
-	memset (all_ones, 0xff, MAX_PIXELS_PER_LINE);
+	memset(all_ones, 0xff, MAX_PIXELS_PER_LINE);
 
 }
 
@@ -2332,7 +2332,7 @@ static void gen_pfield_tables (void)
 what an optimizing compiler will do with this code.  All callers of this
 function only pass in constant arguments (except for E).  This means
 that many of the if statements will go away completely after inlining.  */
-STATIC_INLINE void draw_sprites_1 (struct sprite_entry *e, int dualpf, int has_attach)
+STATIC_INLINE void draw_sprites_1(struct sprite_entry *e, int dualpf, int has_attach)
 {
 	uae_u16 *buf = spixels + e->first_pixel;
 	uae_u8 *stbuf = spixstate.stb + e->first_pixel;
@@ -2366,31 +2366,31 @@ STATIC_INLINE void draw_sprites_1 (struct sprite_entry *e, int dualpf, int has_a
 /* See comments above.  Do not touch if you don't know what's going on.
 * (We do _not_ want the following to be inlined themselves).  */
 /* lores bitplane, lores sprites */
-static void NOINLINE draw_sprites_normal_sp_nat (struct sprite_entry *e) { draw_sprites_1 (e, 0, 0); }
-static void NOINLINE draw_sprites_normal_dp_nat (struct sprite_entry *e) { draw_sprites_1 (e, 1, 0); }
-static void NOINLINE draw_sprites_normal_sp_at (struct sprite_entry *e) { draw_sprites_1 (e, 0, 1); }
-static void NOINLINE draw_sprites_normal_dp_at (struct sprite_entry *e) { draw_sprites_1 (e, 1, 1); }
+static void NOINLINE draw_sprites_normal_sp_nat(struct sprite_entry *e) { draw_sprites_1(e, 0, 0); }
+static void NOINLINE draw_sprites_normal_dp_nat(struct sprite_entry *e) { draw_sprites_1(e, 1, 0); }
+static void NOINLINE draw_sprites_normal_sp_at(struct sprite_entry *e) { draw_sprites_1(e, 0, 1); }
+static void NOINLINE draw_sprites_normal_dp_at(struct sprite_entry *e) { draw_sprites_1(e, 1, 1); }
 
 #ifdef AGA
 /* not very optimized */
 STATIC_INLINE void draw_sprites_aga (struct sprite_entry *e)
 {
-	draw_sprites_1 (e, bpldualpf, e->has_attached);
+	draw_sprites_1(e, bpldualpf, e->has_attached);
 }
 #endif
 
-STATIC_INLINE void draw_sprites_ecs (struct sprite_entry *e)
+STATIC_INLINE void draw_sprites_ecs(struct sprite_entry *e)
 {
 	if (e->has_attached) {
 		if (bpldualpf)
-			draw_sprites_normal_dp_at (e);
+			draw_sprites_normal_dp_at(e);
 		else
-			draw_sprites_normal_sp_at (e);
+			draw_sprites_normal_sp_at(e);
 	} else {
 		if (bpldualpf)
-			draw_sprites_normal_dp_nat (e);
+			draw_sprites_normal_dp_nat(e);
 		else
-			draw_sprites_normal_sp_nat (e);
+			draw_sprites_normal_sp_nat(e);
 	}
 }
 
