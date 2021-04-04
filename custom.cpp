@@ -377,7 +377,6 @@ static int ddfstrt, ddfstop;
 static int ddfstrt_hpos, ddfstop_hpos;
 static int line_cyclebased, badmode, diw_change;
 static int bplcon1_fetch;
-static int hpos_is_zero_bplcon1_hack = -1;
 
 #define SET_LINE_CYCLEBASED line_cyclebased = 2;
 
@@ -448,7 +447,7 @@ struct copper {
 	uaecptr ip;
 	int hpos, vpos;
 	// following move does not enable COPRS
-	bool ignore_next;
+	int ignore_next;
 	int vcmp, hcmp;
 
 	int strobe; /* COPJMP1 / COPJMP2 accessed */
@@ -1021,7 +1020,8 @@ static int toscr_nr_planes, toscr_nr_planes2, toscr_nr_planes_agnus, toscr_nr_pl
 static int fetchwidth;
 static int toscr_delay[2], toscr_delay_adjusted[2], toscr_delay_sh[2];
 static bool shdelay_disabled;
-static int delay_cycles, delay_lastcycle[2], hack_delay_shift;
+static int delay_cycles, delay_lastcycle[2], delay_cycles_right_offset;
+static int hack_delay_shift;
 static bool bplcon1_written;
 
 #define PLANE_RESET_HPOS 8
@@ -1219,15 +1219,10 @@ static void compute_toscr_delay (int bplcon1)
 
 static void set_delay_lastcycle(void)
 {
-	if (HARD_DDF_LIMITS_DISABLED) {
-		delay_lastcycle[0] = (256 * 2) << (toscr_res + toscr_res_mult);
-		delay_lastcycle[1] = (256 * 2) << (toscr_res + toscr_res_mult);
-	} else {
-		delay_lastcycle[0] = ((maxhpos * 2) + 2) << (toscr_res + toscr_res_mult);
-		delay_lastcycle[1] = delay_lastcycle[0];
-		if (islinetoggle()) {
-			delay_lastcycle[1]++;
-		}
+	delay_lastcycle[0] = ((maxhpos * 2) + 2) << (toscr_res + toscr_res_mult);
+	delay_lastcycle[1] = delay_lastcycle[0];
+	if (islinetoggle()) {
+		delay_lastcycle[1]++;
 	}
 }
 
@@ -1518,7 +1513,7 @@ static bool fetch(int nr, int fm, int hpos, bool addmodulo)
 	return false;
 }
 
-STATIC_INLINE void toscr_3_ecs (int oddeven, int step, int nbits)
+STATIC_INLINE void toscr_3_ecs(int oddeven, int step, int nbits)
 {
 	int i;
 	int shift = 16 - nbits;
@@ -1528,16 +1523,21 @@ STATIC_INLINE void toscr_3_ecs (int oddeven, int step, int nbits)
 	for (i = oddeven; i < thisline_decision.nr_planes; i += step) {
 		outword[i] <<= nbits;
 	}
-
-	for (i = oddeven; i < toscr_nr_planes2; i += step) {
-		outword[i] |= todisplay2[i] >> shift;
-		todisplay2[i] <<= nbits;
+	if (shift == 16) {
+		for (i = oddeven; i < toscr_nr_planes2; i += step) {
+			todisplay2[i] <<= nbits;
+		}
+	} else {
+		for (i = oddeven; i < toscr_nr_planes2; i += step) {
+			outword[i] |= todisplay2[i] >> shift;
+			todisplay2[i] <<= nbits;
+		}
 	}
 }
 
 #ifdef AGA
 
-STATIC_INLINE void toscr_3_aga (int oddeven, int step, int nbits, int fm_size)
+STATIC_INLINE void toscr_3_aga(int oddeven, int step, int nbits, int fm_size)
 {
 	uae_u32 mask = 0xFFFF >> (16 - nbits);
 	int shift = fm_size - nbits;
@@ -1545,10 +1545,15 @@ STATIC_INLINE void toscr_3_aga (int oddeven, int step, int nbits, int fm_size)
 	for (int i = oddeven; i < thisline_decision.nr_planes; i += step) {
 		outword[i] <<= nbits;
 	}
-
-	for (int i = oddeven; i < toscr_nr_planes2; i += step) {
-		outword[i] |= (todisplay2_aga[i] >> shift) & mask;
-		todisplay2_aga[i] <<= nbits;
+	if (shift == 64) {
+		for (int i = oddeven; i < toscr_nr_planes2; i += step) {
+			todisplay2_aga[i] <<= nbits;
+		}
+	} else {
+		for (int i = oddeven; i < toscr_nr_planes2; i += step) {
+			outword[i] |= (todisplay2_aga[i] >> shift) & mask;
+			todisplay2_aga[i] <<= nbits;
+		}
 	}
 }
 
@@ -1736,7 +1741,7 @@ STATIC_INLINE void do_delays_3_aga(int nbits, int fm)
 	}
 }
 
-STATIC_INLINE void do_delays_fast_3_aga (int nbits, int fm)
+STATIC_INLINE void do_delays_fast_3_aga(int nbits, int fm)
 {
 	int delaypos = delay_cycles & fetchmode_mask;
 	int delay = toscr_delay[0];
@@ -1745,7 +1750,7 @@ STATIC_INLINE void do_delays_fast_3_aga (int nbits, int fm)
 	int diff = delay - delaypos;
 	int nbits2 = nbits;
 	if (nbits2 > diff) {
-		do_tosrc (0, 1, diff, fm);
+		do_tosrc(0, 1, diff, fm);
 		nbits2 -= diff;
 		if (todisplay_fetched[0]) {
 			for (int i = 0; i < toscr_nr_planes_shifter; i++)
@@ -1957,11 +1962,8 @@ static void toscr_right_edge(int nbits, int fm)
 	if (nbits2 > diff) {
 		do_delays(diff, fm);
 		nbits2 -= diff;
+		delay_cycles_right_offset = delay_cycles;
 		delay_cycles = 0;
-		if (hpos_is_zero_bplcon1_hack >= 0) {
-			compute_toscr_delay(hpos_is_zero_bplcon1_hack);
-			hpos_is_zero_bplcon1_hack = -1;
-		}
 		toscr_delay[0] -= 2;
 		toscr_delay[0] &= fetchmode_mask;
 		toscr_delay[1] -= 2;
@@ -1983,11 +1985,8 @@ static void toscr_right_edge_hr(int nbits, int fm)
 		else
 			do_delays_fast_hr(diff, fm);
 		nbits2 -= diff;
+		delay_cycles_right_offset = delay_cycles;
 		delay_cycles = 0;
-		if (hpos_is_zero_bplcon1_hack >= 0) {
-			compute_toscr_delay(hpos_is_zero_bplcon1_hack);
-			hpos_is_zero_bplcon1_hack = -1;
-		}
 		toscr_delay[0] -= 2 << toscr_res_mult;
 		toscr_delay[0] &= fetchmode_mask_hr;
 		toscr_delay[1] -= 2 << toscr_res_mult;
@@ -2006,7 +2005,7 @@ static void toscr_right_edge_hr(int nbits, int fm)
 static void toscr_1(int nbits, int fm)
 {
 	if (delay_cycles + nbits >= delay_lastcycle[lol]) {
-		toscr_right_edge (nbits, fm);
+		toscr_right_edge(nbits, fm);
 	} else if (!toscr_scanline_complex_bplcon1 && toscr_delay[0] == toscr_delay[1]) {
 		// Most common case.
 		do_delays_fast(nbits, fm);
@@ -2311,7 +2310,7 @@ static void update_denise_vars(void)
 static void update_denise(int hpos)
 {
 	update_denise_vars();
-	delay_cycles = ((hpos + hpos_hsync_extra) * 2 - DDF_OFFSET) << (toscr_res + toscr_res_mult);
+	delay_cycles = ((hpos + hpos_hsync_extra) * 2 - DDF_OFFSET) << (toscr_res + toscr_res_mult) - delay_cycles_right_offset;
 	if (bplcon0d_old != bplcon0d) {
 		bplcon0d_old = bplcon0d;
 		record_color_change2(hpos, 0x100 + 0x1000, bplcon0d);
@@ -2791,20 +2790,26 @@ static const int bpl_sequence_4[32] = { 4, 2, 3, 1 };
 static const int bpl_sequence_2[32] = { 2, 1 };
 static void do_copper_fetch(int hpos, uae_u16 id);
 
-static int one_fetch_cycle_0(int hpos, int dma, int fm)
+STATIC_INLINE bool islastbplseq(void)
 {
-	/* fetchstart_mask can be larger than fm_maxplane if FMODE > 0.  This means
-	that the remaining cycles are idle; we'll fall through the whole switch
-	without doing anything.  */
 	bool last = (bprun_cycle & fetchunit_mask) == fetchunit_mask;
 	// AGA stops wide fetches early.
 	if (aga_mode && fetchunit >= 16 && ddf_stopping == 2) {
 		last = (bprun_cycle & 7) == 7;
 	}
+	return last;
+}
+
+static int one_fetch_cycle_0(int hpos, int dma, int fm)
+{
+	bool last = islastbplseq();
 	if (bprun > 0) {
 		int cycle_pos = bprun_cycle & fetchstart_mask;
 		int plane = 0;
 		bool selected = false;
+		/* fetchstart_mask can be larger than fm_maxplane if FMODE > 0.  This means
+		that the remaining cycles are idle; we'll fall through the whole switch
+		without doing anything.  */
 		switch (fm_maxplane) {
 		case 8:
 			plane = bpl_sequence_8[cycle_pos];
@@ -2838,12 +2843,6 @@ static int one_fetch_cycle_0(int hpos, int dma, int fm)
 		}
 	} else {
 		bpl_select_plane(0, false);
-#if 0
-		// 226 -> 0
-		if (hpos > 0 || (hpos == 0 && ((maxhpos + lol) & 1) != 1)) {
-			bprun_cycle++;
-		}
-#endif
 	}
 	if (last && bprun > 0) {
 		if (ddf_stopping == 2) {
@@ -2955,7 +2954,7 @@ static void update_fetch(int until, int fm)
 	int hpos = last_fetch_hpos;
 	int dma = dmaen (DMA_BITPLANE);
 
-	if (nodraw() || !bprun_pipeline_flush_delay) {
+	if (1 && (nodraw() || !bprun_pipeline_flush_delay)) {
 		if (hpos < until) {
 			int diff = until - hpos;
 			rga_pipeline_bpl_read += diff;
@@ -3116,7 +3115,7 @@ static void decide_fetch_safe(int endhpos)
 		decide_dma_fetch(endhpos);
 		decide_blitter(endhpos);
 	} else {
-		int hpos = last_fetch_hpos;
+		int hpos = last_copper_hpos;
 		while (hpos < endhpos) {
 			decide_dma_fetch(hpos);
 			decide_blitter(hpos);
@@ -3931,6 +3930,7 @@ static void reset_decisions_hsync_start(void)
 	reset_dbplh_all (256);
 #endif
 	delay_cycles = 0;
+	delay_cycles_right_offset = 0;
 	compute_toscr_delay(bplcon1);
 
 	bpl_hstart = 256;
@@ -5079,7 +5079,7 @@ static void COPJMP(int num, int vblank)
 #endif
 
 	unset_special (SPCFLAG_COPPER);
-	cop_state.ignore_next = false;
+	cop_state.ignore_next = 0;
 
 	if (!oldstrobe) {
 		cop_state.state_prev = cop_state.state;
@@ -5218,12 +5218,12 @@ static void DMACON(int hpos, uae_u16 v)
 
 static int irq_nmi;
 
-void NMI_delayed (void)
+void NMI_delayed(void)
 {
 	irq_nmi = 1;
 }
 
-int intlev (void)
+int intlev(void)
 {
 	uae_u16 imask = intreq & intena;
 	if (irq_nmi) {
@@ -5730,7 +5730,7 @@ static void DIWSTRT(int hpos, uae_u16 v)
 	if (diwstrt == v && ! diwhigh_written)
 		return;
 	// if hpos matches previous hstart: it gets ignored.
-	if (diw_hstrt >= hpos * 2 - 2 && diw_hstrt <= hpos * 2 + 2) {
+	if (diw_hstrt + DDF_OFFSET >= hpos * 2 - 2 && diw_hstrt + DDF_OFFSET <= hpos * 2 + 2) {
 		diw_hstrt = max_diwlastword;
 	}
 	decide_diw(hpos);
@@ -5744,7 +5744,7 @@ static void DIWSTOP(int hpos, uae_u16 v)
 {
 	if (diwstop == v && ! diwhigh_written)
 		return;
-	if (diw_hstop >= hpos * 2 - 2 && diw_hstop <= hpos * 2 + 2) {
+	if (diw_hstop + DDF_OFFSET >= hpos * 2 - 2 && diw_hstop + DDF_OFFSET <= hpos * 2 + 2) {
 		diw_hstop = min_diwlastword;
 	}
 	decide_diw(hpos);
@@ -6544,37 +6544,30 @@ static void decide_line_decision(int endhpos)
 		if (ecs) {
 			// ECS/AGA
 
-			// BPRUN can only start if DMA, DIW or DDF state has changed since last time
-			bool hwi = dma && diw && ddf_enable_on && (!ddf_limit || HARD_DDF_LIMITS_DISABLED);
-
-			if (!bprun && dma && diw && hwi && !hwi_old) {
-				// Bitplane sequencer activated
-				bprun = -1;
-				plfstrt_sprite = hpos + 3;
-			}
-
-			hwi_old = hwi;
-
-			// DIW or DMA switched off: clear BPRUN
-			if ((!dma || !diw) && bprun) {
-				// It seems if DDF has passed, it jumps to last step.
-				// (For example Scoopex Crash landing crack intro)
-				if (ddf_stopping == 1) {
-					ddf_stopping = 2;
-				}
-				// If DDF has not passed, set is as passed.
-				if (ddf_stopping == 0) {
-					ddf_stopping = 1;
-				}
-				bprun = 0;
-				bprun_pipeline_flush_delay = -1;
-			}
-
-			// BPRUN latched
+			// BPRUN latched: on
 			if (bprun < 0) {
 				bprun = 1;
 				bprun_pipeline_flush_delay = -1;
 				bprun_cycle = 0;
+			}
+
+			// BPRUN latched: off
+			if (bprun == 2) {
+				// If DDF has passed, jumps to last step.
+				// (For example Scoopex Crash landing crack intro)
+				if (ddf_stopping == 1) {
+					ddf_stopping = 2;
+				}
+				// If DDF has not passed, set it as passed.
+				if (ddf_stopping == 0) {
+					ddf_stopping = 1;
+					// If bpl sequencer counter was all ones (last cycle of block): ddf passed jumps to last step.
+					if (islastbplseq()) {
+						ddf_stopping = 2;
+					}
+				}
+				bprun = 0;
+				bprun_pipeline_flush_delay = -1;
 			}
 
 			// DDFSTRT == DDFSTOP: BPRUN gets enabled and DDF passed state in next cycle.
@@ -6613,11 +6606,29 @@ static void decide_line_decision(int endhpos)
 				if (bprun && !ddf_stopping) {
 					ddf_stopping = 1;
 				}
-				if (ddf_enable_on) {
-					ddf_enable_on = -1;
-				} else {
-					ddf_enable_on = 0;
+				if (plfstop != plfstrt) {
+					if (ddf_enable_on) {
+						ddf_enable_on = -1;
+					} else {
+						ddf_enable_on = 0;
+					}
 				}
+			}
+
+			// BPRUN can only start if DMA, DIW or DDF state has changed since last time
+			bool hwi = dma && diw && ddf_enable_on && (!ddf_limit || HARD_DDF_LIMITS_DISABLED);
+
+			if (!bprun && dma && diw && hwi && !hwi_old) {
+				// Bitplane sequencer activated
+				bprun = -1;
+				plfstrt_sprite = hpos + 3;
+			}
+
+			hwi_old = hwi;
+
+			// DIW or DMA switched off: clear BPRUN
+			if ((!dma || !diw) && bprun == 1) {
+				bprun = 2;
 			}
 
 		} else {
@@ -6633,7 +6644,7 @@ static void decide_line_decision(int endhpos)
 			if (bprun == 2) {
 				bprun = 0;
 				bprun_pipeline_flush_delay = -1;
-				// It seems if DDF has passed, it jumps to last step.
+				// If DDF has passed, jumps to last step.
 				// (For example Scoopex Crash landing crack intro)
 				if (ddf_stopping == 1) {
 					ddf_stopping = 2;
@@ -6905,7 +6916,7 @@ static void do_copper_fetch(int hpos, uae_u16 id)
 			alloc_cycle(hpos, CYCLE_COPPER);
 			cop_state.ip += 2;
 
-			cop_state.ignore_next = false;
+			cop_state.ignore_next = 0;
 			if (cop_state.ir[1] & 1)
 				cop_state.state = COP_skip_in2;
 			else
@@ -6946,7 +6957,7 @@ static void do_copper_fetch(int hpos, uae_u16 id)
 			if (!copper_enabled_thisline)
 				return;
 
-			if (cop_state.ignore_next) {
+			if (cop_state.ignore_next > 0) {
 				reg = 0x1fe;
 			}
 
@@ -6954,8 +6965,7 @@ static void do_copper_fetch(int hpos, uae_u16 id)
 				cop_state.strobe = 1;
 				cop_state.last_strobe = 1;
 				cop_state.state = COP_strobe_delay1;
-			}
-			else if (reg == 0x8a) {
+			} else if (reg == 0x8a) {
 				cop_state.strobe = 2;
 				cop_state.last_strobe = 2;
 				cop_state.state = COP_strobe_delay1;
@@ -6972,10 +6982,16 @@ static void do_copper_fetch(int hpos, uae_u16 id)
 				}
 			}
 #ifdef DEBUGGER
-			if (debug_copper && !cop_state.ignore_next)
-				record_copper(debugip - 4, cop_state.ir[0], cop_state.ir[1], hpos, vpos);
+			if (debug_copper && !cop_state.ignore_next) {
+				uaecptr next = debugip;
+				if (reg == 0x88)
+					next = cop1lc;
+				else if (reg == 0x8a)
+					next = cop2lc;
+				record_copper(debugip - 4, next, cop_state.ir[0], cop_state.ir[1], hpos, vpos);
+			}
 #endif
-			cop_state.ignore_next = false;
+			cop_state.ignore_next = 0;
 		}
 		last_custom_value1 = last_custom_value2 = cop_state.ir[1];
 		check_copper_stop();
@@ -6986,7 +7002,7 @@ static void do_copper_fetch(int hpos, uae_u16 id)
 		if (debug_dma)
 			record_dma_event(DMA_EVENT_COPPERWAKE, hpos, vpos);
 		if (debug_copper)
-			record_copper(cop_state.ip - 4, cop_state.ir[0], cop_state.ir[1], hpos, vpos);
+			record_copper(cop_state.ip - 4, 0xffffffff, cop_state.ir[0], cop_state.ir[1], hpos, vpos);
 #endif
 
 		cop_state.state = COP_read1;
@@ -6995,10 +7011,10 @@ static void do_copper_fetch(int hpos, uae_u16 id)
 	case COP_skip_done:
 	{
 #ifdef DEBUGGER
-		if (debug_dma && cop_state.ignore_next)
+		if (debug_dma && cop_state.ignore_next > 0)
 			record_dma_event(DMA_EVENT_COPPERSKIP, hpos, vpos);
 		if (debug_copper)
-			record_copper(cop_state.ip - 4, cop_state.ir[0], cop_state.ir[1], hpos, vpos);
+			record_copper(cop_state.ip - 4, 0xffffffff, cop_state.ir[0], cop_state.ir[1], hpos, vpos);
 #endif
 		cop_state.state = COP_read1;
 	}
@@ -7022,18 +7038,23 @@ static void do_copper_fetch(int hpos, uae_u16 id)
 	}
 }
 
+static void copper_ff(int hpos)
+{
+	int diff = hpos - last_copper_hpos;
+	if (diff > 0) {
+		rga_pipeline_copper_read += diff;
+		rga_pipeline_copper_read &= RGA_PIPELINE_MASK;
+	}
+	last_copper_hpos = hpos;
+	cop_state.hpos = hpos;
+}
+
 static void update_copper(int until_hpos)
 {
 	int hpos = last_copper_hpos;
 
 	if (1 && (nocustom() || !copper_enabled_thisline)) {
-		int diff = until_hpos - hpos;
-		if (diff > 0) {
-			rga_pipeline_copper_read += diff;
-			rga_pipeline_copper_read &= RGA_PIPELINE_MASK;
-			last_copper_hpos = until_hpos;
-			cop_state.hpos = until_hpos;
-		}
+		copper_ff(until_hpos);
 		decide_line_decision(until_hpos);
 		return;
 	}
@@ -7084,7 +7105,7 @@ static void update_copper(int until_hpos)
 		}
 
 		{
-			int c = cycle_line[hpos];
+			int c = cycle_line[hpos] & CYCLE_MASK;
 			if (c && c != CYCLE_BITPLANE && c != CYCLE_COPPER) {
 				write_log(_T("Only bitplanes has higher priority can copper. Cycle conflict %d!!\n"), c);
 			}
@@ -7256,7 +7277,9 @@ static void update_copper(int until_hpos)
 				hp1 = hpos_cmp & (cop_state.ir[1] & 0xFE);
 
 				if ((vp1 > vcmp || (vp1 == vcmp && hp1 >= hcmp)) && ((cop_state.ir[1] & 0x8000) != 0 || !blit_busy())) {
-					cop_state.ignore_next = true;
+					cop_state.ignore_next = 1;
+				} else {
+					cop_state.ignore_next = -1;
 				}
 
 				copper_cant_read(cp, 0x85);
@@ -7308,8 +7331,7 @@ static void compute_spcflag_copper(int hpos)
 		hpos = (hpos + 2) & ~1;
 		if (hpos > (maxhpos_short & ~1))
 			hpos = maxhpos_short & ~1;
-		cop_state.hpos = hpos;
-		last_copper_hpos = hpos;
+		copper_ff(hpos);
 	}
 
 	copper_enabled_thisline = 1;
@@ -8579,16 +8601,6 @@ static void hsync_handlerh(bool onvsync)
 	int hpos = current_hpos();
 
 	if (!nocustom()) {
-#if 0
-		// Seven Seas scrolling quick fix hack
-		// checks if copper is going to modify BPLCON1 in next cycle.
-		if (copper_enabled_thisline && cop_state.state == COP_read2 && (cop_state.ir[0] & 0x1fe) == 0x102) {
-			// it did, pre-load value for Denise shifter emulation
-			hpos_is_zero_bplcon1_hack = chipmem_wget_indirect(cop_state.ip);
-			// following finish_decision() is going to finish this line
-			// it is too late when copper actually does the move
-		}
-#endif
 		check_sprite_collisions();
 		finish_decisions(hpos);
 		hsync_record_line_state(next_lineno, nextline_how, thisline_changed);
@@ -10009,7 +10021,7 @@ void custom_reset (bool hardreset, bool keyboardreset)
 	cop_state.state = COP_stop;
 	cop_state.movedelay = 0;
 	cop_state.strobe = 0;
-	cop_state.ignore_next = false;
+	cop_state.ignore_next = 0;
 	diwstate = DIW_waiting_start;
 
 	dmal = 0;
