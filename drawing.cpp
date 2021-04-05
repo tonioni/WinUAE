@@ -977,7 +977,7 @@ static void pfield_init_linetoscr (bool border)
 			if (playfield_end < linetoscr_diw_end && hblank_right_stop > playfield_end) {
 				playfield_end = linetoscr_diw_end;
 			}
-			int left = coord_hw_to_window_x (dp_for_drawing->plfleft * 2 - DDF_OFFSET);
+			int left = coord_hw_to_window_x(dp_for_drawing->plfleft * 2 - DDF_OFFSET);
 			if (left < visible_left_border)
 				left = visible_left_border;
 			if (left < playfield_start && left >= linetoscr_diw_start) {
@@ -1109,8 +1109,8 @@ static void pfield_init_linetoscr (bool border)
 		memset (pixdata.apixels + MAX_PIXELS_PER_LINE - size, 0, size);
 	}
 	if (linetoscr_diw_end > native_ddf_right) {
-		int pos = res_shift_from_window (native_ddf_right - native_ddf_left);
-		int size = res_shift_from_window (linetoscr_diw_end - native_ddf_right);
+		int pos = res_shift_from_window(native_ddf_right - native_ddf_left);
+		int size = res_shift_from_window(linetoscr_diw_end - native_ddf_right);
 		if (pos + size > MAX_PIXELS_PER_LINE)
 			size = MAX_PIXELS_PER_LINE - pos;
 		if (size > 0)

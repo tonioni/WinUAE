@@ -1,4 +1,5 @@
 /*
+/*
 * UAE - The Un*x Amiga Emulator
 *
 * Custom chip emulation
@@ -356,8 +357,8 @@ uae_u8 cycle_line[256 + 1];
 #endif
 
 static bool bpldmawasactive;
-static uae_s16 bpl1mod, bpl2mod, dbpl1mod, dbpl2mod;
-static int dbpl1mod_on, dbpl2mod_on;
+static uae_s16 bpl1mod, bpl2mod, bpl1mod_prev, bpl2mod_prev;
+static int bpl1mod_hpos, bpl2mod_hpos;
 static uaecptr prevbpl[2][MAXVPOS][8];
 static uaecptr bplpt[8], bplptx[8];
 #if 0
@@ -373,7 +374,7 @@ static uae_u32 bplcon0_res, bplcon0_planes, bplcon0_planes_limit;
 static int bplcon0_res_hr;
 static int diwstrt, diwstop, diwhigh;
 static int diwhigh_written;
-static int ddfstrt, ddfstop;
+static int ddfstrt, ddfstop, plfstop_prev;
 static int ddfstrt_hpos, ddfstop_hpos;
 static int line_cyclebased, badmode, diw_change;
 static int bplcon1_fetch;
@@ -427,9 +428,8 @@ enum copper_states {
 	COP_skip_in2,
 	COP_wait1,
 	COP_wait,
-	COP_wait_wake,
 	COP_skip,
-	COP_skip_done,
+	COP_skip1,
 	COP_strobe_delay1,
 	COP_strobe_delay2,
 	COP_strobe_delay1x,
@@ -445,7 +445,6 @@ struct copper {
 	enum copper_states state, state_prev;
 	/* Instruction pointer.  */
 	uaecptr ip;
-	int hpos, vpos;
 	// following move does not enable COPRS
 	int ignore_next;
 	int vcmp, hcmp;
@@ -771,59 +770,7 @@ STATIC_INLINE int GET_PLANES_LIMIT(uae_u16 bc0)
 	return real_bitplane_number[fetchmode][res][planes];
 }
 
-#if 0
-static void reset_dbplh(int hpos, int num)
-{
-	if (dbplpth_on[num] && hpos >= dbplpth_on[num]) {
-		bplpt[num] = dbplpth[num] | (bplpt[num] & 0x0000fffe);
-		dbplpth_on[num] = 0;
-		dbplpth_on2--;
-	}
-}
-
-static void reset_dbplh_all(int hpos)
-{
-	if (dbplpth_on2) {
-		for (int num = 0; num < MAX_PLANES; num++) {
-			reset_dbplh(hpos, num);
-		}
-		dbplpth_on2 = 0;
-	}
-}
-
-static void reset_dbpll(int hpos, int num)
-{
-	if (dbplptl_on[num] && hpos >= dbplptl_on[num]) {
-		bplpt[num] = (bplpt[num] & 0xffff0000) | dbplptl[num];
-		dbplptl_on[num] = 0;
-		dbplptl_on2--;
-	}
-}
-
-static void reset_dbpll_all(int hpos)
-{
-	if (dbplptl_on2) {
-		for (int num = 0; num < MAX_PLANES; num++) {
-			reset_dbpll(hpos, num);
-		}
-		dbplptl_on2 = 0;
-	}
-}
-#endif
-
-static void reset_moddelays(void)
-{
-	if (dbpl1mod_on >= 0) {
-		bpl1mod = dbpl1mod;
-		dbpl1mod_on = -1;
-	}
-	if (dbpl2mod_on >= 0) {
-		bpl2mod = dbpl2mod;
-		dbpl2mod_on = -1;
-	}
-}
-
-static void add_mod(int nr, int mod)
+static void add_mod(int nr, uae_s16 mod)
 {
 #ifdef AGA
 	if (fetchmode_fmode_bpl == 1 || fetchmode_fmode_bpl == 2) {
@@ -845,40 +792,32 @@ static void add_mod(int nr, int mod)
 
 static void add_modulo(int hpos, int nr)
 {
-	int mod;
+	uae_s16 mod, m1, m2;
 
-	if (dbpl1mod_on != hpos && dbpl1mod_on >= 0) {
-		bpl1mod = dbpl1mod;
-		dbpl1mod_on = -1;
+	m1 = bpl1mod;
+	m2 = bpl2mod;
+	if (bpl1mod_hpos == hpos) {
+		m1 = bpl1mod_prev;
 	}
-	if (dbpl2mod_on != hpos && dbpl2mod_on >= 0) {
-		bpl2mod = dbpl2mod;
-		dbpl2mod_on = -1;
+	if (bpl2mod_hpos == hpos) {
+		m2 = bpl2mod_prev;
 	}
 	if (fmode & 0x4000) {
 		if (((diwstrt >> 8) ^ vpos) & 1)
-			mod = bpl2mod;
+			mod = m2;
 		else
-			mod = bpl1mod;
+			mod = m1;
 	} else if (nr & 1)
-		mod = bpl2mod;
+		mod = m2;
 	else
-		mod = bpl1mod;
+		mod = m1;
 	add_mod(nr, mod);
-	reset_moddelays();
-#if 0
-	reset_dbpll_all(-1);
-#endif
 }
 
 static void add_modulos(void)
 {
-	int m1, m2;
+	uae_s16 m1, m2;
 
-	reset_moddelays ();
-#if 0
-	reset_dbpll_all(-1);
-#endif
 	if (fmode & 0x4000) {
 		if (((diwstrt >> 8) ^ vpos) & 1)
 			m1 = m2 = bpl2mod;
@@ -1101,20 +1040,23 @@ void notice_new_xcolors(void)
 
 static void record_color_change2(int hpos, int regno, uae_u32 value)
 {
-	int pos = ((hpos + hpos_hsync_extra) * 2) * 4;
+	int pos = ((hpos + hpos_hsync_extra) * 2 - DDF_OFFSET) * 4;
 
 	// AGA has extra hires pixel delay in color changes
 	if ((regno < 0x1000 || regno == 0x1000 + 0x10c) && aga_mode) {
-		if (currprefs.chipset_hr)
+		if (currprefs.chipset_hr) {
 			pos += 2;
+		}
 		if (regno == 0x1000 + 0x10c) {
 			// BPLCON4:
 			// Bitplane XOR change: 2 hires pixel delay
 			// Sprite bank change: 1 hires pixel delay
-			if (!currprefs.chipset_hr)
+			if (!currprefs.chipset_hr) {
 				pos += 2;
-			if (value & 0xff00)
+			}
+			if (value & 0xff00) {
 				thisline_decision.xor_seen = true;
+			}
 			pos += 2;
 			if ((value & 0x00ff) != (bplcon4 & 0x00ff)) {
 				// Sprite bank delay
@@ -1128,7 +1070,7 @@ static void record_color_change2(int hpos, int regno, uae_u32 value)
 		}
 	}
 	color_change *cc = &curr_color_changes[next_color_change];
-	cc->linepos = pos - DDF_OFFSET * 4;
+	cc->linepos = pos;
 	cc->regno = regno;
 	cc->value = value;
 	next_color_change++;
@@ -2062,7 +2004,7 @@ static void toscr_1_hr(int nbits, int fm)
 					thisline_changed = 1;
 					*dataptr64 = v;
 				}
-				outword64[i] = 0;
+//				outword64[i] = 0;
 				dataptr += MAX_WORDS_PER_LINE * 2;
 			}
 			out_offs += 2;
@@ -2310,7 +2252,7 @@ static void update_denise_vars(void)
 static void update_denise(int hpos)
 {
 	update_denise_vars();
-	delay_cycles = ((hpos + hpos_hsync_extra) * 2 - DDF_OFFSET) << (toscr_res + toscr_res_mult) - delay_cycles_right_offset;
+	delay_cycles = (((hpos + hpos_hsync_extra) * 2 - DDF_OFFSET) << (toscr_res + toscr_res_mult)) - delay_cycles_right_offset;
 	if (bplcon0d_old != bplcon0d) {
 		bplcon0d_old = bplcon0d;
 		record_color_change2(hpos, 0x100 + 0x1000, bplcon0d);
@@ -2859,7 +2801,6 @@ static int one_fetch_cycle_0(int hpos, int dma, int fm)
 	}
 	int previndex = (rga_pipeline_bpl_read - 1) & RGA_PIPELINE_MASK;
 	int prev = rga_pipeline[previndex];
-	rga_pipeline[previndex] = 0;
 	int datreg = rga_pipeline[rga_pipeline_bpl_read];
 	bool plane0 = false;
 	rga_pipeline[previndex] = 0;
@@ -3137,8 +3078,9 @@ static void record_color_change(int hpos, int regno, uae_u32 value)
 	decide_diw(hpos);
 	decide_dma_fetch(hpos);
 
-	if (thisline_decision.ctable < 0)
+	if (thisline_decision.ctable < 0) {
 		remember_ctable();
+	}
 
 	record_color_change2(hpos, regno, value);
 }
@@ -3924,11 +3866,9 @@ static void reset_decisions_hsync_start(void)
 	}
 	bpldmasetuphpos = -1;
 	bpldmawasactive = false;
-	reset_moddelays();
-#if 0
-	reset_dbpll_all (256);
-	reset_dbplh_all (256);
-#endif
+	bpl1mod_hpos = -1;
+	bpl2mod_hpos = -1;
+
 	delay_cycles = 0;
 	delay_cycles_right_offset = 0;
 	compute_toscr_delay(bplcon1);
@@ -3936,6 +3876,10 @@ static void reset_decisions_hsync_start(void)
 	bpl_hstart = 256;
 	hack_delay_shift = 0;
 	toscr_scanline_complex_bplcon1 = false;
+
+	if (line_cyclebased > 0) {
+		line_cyclebased--;
+	}
 
 	memset(outword, 0, sizeof outword);
 	// fetched[] must not be cleared (Sony VX-90 / Royal Amiga Force)
@@ -4562,7 +4506,7 @@ static void init_hz (bool checkvposw)
 	}
 }
 
-static void init_hz_vposw (void)
+static void init_hz_vposw(void)
 {
 	init_hz(true);
 }
@@ -4823,15 +4767,15 @@ static uae_u16 VPOSR (void)
 	return vp;
 }
 
-static void vposback (int oldvpos)
+static void vposback(int oldvpos)
 {
 	if (cop_state.state == COP_wait && oldvpos == cop_state.vcmp) {
 		copper_enabled_thisline = 0;
-		unset_special (SPCFLAG_COPPER);
+		unset_special(SPCFLAG_COPPER);
 	}
 }
 
-static void VPOSW (uae_u16 v)
+static void VPOSW(uae_u16 v)
 {
 	int oldvpos = vpos;
 #if 0
@@ -4844,7 +4788,7 @@ static void VPOSW (uae_u16 v)
 	}
 	if (ecs_agnus) {
 		lol = (v & 0x0080) ? 1 : 0;
-		if (!islinetoggle ())
+		if (!islinetoggle())
 			lol = 0;
 	}
 	if (lof_changing)
@@ -4860,7 +4804,7 @@ static void VPOSW (uae_u16 v)
 		vpos = oldvpos;
 }
 
-static void VHPOSW (uae_u16 v)
+static void VHPOSW(uae_u16 v)
 {
 	int oldvpos = vpos;
 	bool changed = false;
@@ -4871,7 +4815,7 @@ static void VHPOSW (uae_u16 v)
 
 	if (currprefs.cpu_memory_cycle_exact && currprefs.cpu_model == 68000) {
 		/* Special hack for Smooth Copper in CoolFridge / Upfront demo */
-		int chp = current_hpos_safe();
+		int chp = current_hpos_safe() - 4;
 		int hp = v & 0xff;
 		if (chp >= 0x21 && chp <= 0x29 && hp == 0x2d) {
 			hack_delay_shift = 4;
@@ -5005,8 +4949,6 @@ static void immediate_copper (int num)
 	int oldpos = 0;
 
 	cop_state.state = COP_stop;
-	cop_state.vpos = vpos;
-	cop_state.hpos = current_hpos () & ~1;
 	cop_state.ip = num == 1 ? cop1lc : cop2lc;
 
 	while (pos < (maxvpos << 5)) {
@@ -5064,7 +5006,7 @@ STATIC_INLINE void COP2LCL (uae_u16 v)
 	cop2lc = (cop2lc & ~0xffff) | (v & 0xfffe);
 }
 
-static void compute_spcflag_copper (int hpos);
+static void compute_spcflag_copper(void);
 
 // vblank = copper starts at hpos=2
 // normal COPJMP write: takes 2 more cycles
@@ -5073,12 +5015,7 @@ static void COPJMP(int num, int vblank)
 	int oldstrobe = cop_state.strobe;
 	bool wasstopped = cop_state.state == COP_stop && !vblank;
 
-#if CUSTOM_DEBUG > 0
-	if (dmaen (DMA_COPPER) && (cop_state.saved_i1 != 0xffff || cop_state.saved_i2 != 0xfffe))
-		write_log (_T("vblank without copper ending %08x (%08x %08x)\n"), cop_state.ip, cop1lc, cop2lc);
-#endif
-
-	unset_special (SPCFLAG_COPPER);
+	unset_special(SPCFLAG_COPPER);
 	cop_state.ignore_next = 0;
 
 	if (!oldstrobe) {
@@ -5101,19 +5038,17 @@ static void COPJMP(int num, int vblank)
 		cop_state.state = vblank ? COP_start_delay : (copper_access ? COP_strobe_delay1 : COP_strobe_extra);
 	}
 	cop_state.vblankip = cop1lc;
-	cop_state.vpos = vpos;
-	cop_state.hpos = current_hpos() & ~1;
 	copper_enabled_thisline = 0;
 	cop_state.strobe = num;
 	cop_state.last_strobe = num;
 
-	if (nocustom ()) {
+	if (nocustom()) {
 		immediate_copper(num);
 		return;
 	}
 
-	if (dmaen (DMA_COPPER)) {
-		compute_spcflag_copper(current_hpos());
+	if (dmaen(DMA_COPPER)) {
+		compute_spcflag_copper();
 	} else if (wasstopped || (oldstrobe > 0 && oldstrobe != num && cop_state.state_prev == COP_wait)) {
 		/* dma disabled, copper idle and accessed both COPxJMPs -> copper stops! */
 		cop_state.state = COP_stop;
@@ -5129,27 +5064,14 @@ static void check_copper_stop(void)
 {
 	if (copper_enabled_thisline < 0 && !((dmacon & DMA_COPPER) && (dmacon & DMA_MASTER))) {
 		copper_enabled_thisline = 0;
-		unset_special (SPCFLAG_COPPER);
+		unset_special(SPCFLAG_COPPER);
 	}
 }
 
 static void copper_stop(void)
 {
-#if 0
-	if (copper_enabled_thisline) {
-		// let MOVE to finish
-		switch (cop_state.state)
-		{
-			case COP_read2:
-			copper_enabled_thisline = -1;
-			break;
-		}
-	}
-#endif
-	if (copper_enabled_thisline) {
-		copper_enabled_thisline = 0;
-		unset_special (SPCFLAG_COPPER);
-	}
+	copper_enabled_thisline = 0;
+	unset_special(SPCFLAG_COPPER);
 }
 
 static void DMACON(int hpos, uae_u16 v)
@@ -5174,7 +5096,7 @@ static void DMACON(int hpos, uae_u16 v)
 
 	if (oldcop != newcop) {
 		if (newcop && !oldcop) {
-			compute_spcflag_copper(hpos);
+			compute_spcflag_copper();
 		} else if (!newcop) {
 			copper_stop();
 		}
@@ -5425,13 +5347,6 @@ static void BPLxPTH(int hpos, uae_u16 v, int num)
 {
 	decide_dma_fetch(hpos);
 	if (copper_access && get_bitplane_dma_rel(1) == num + 1) {
-#if 0
-		if (is_bitplane_dma(hpos + 2)) {
-			dbplpth[num] = (v << 16) & 0xffff0000;
-			dbplpth_on[num] = hpos;
-			dbplpth_on2++;
-		}
-#endif
 		SET_LINE_CYCLEBASED;
 		return;
 	}
@@ -5444,34 +5359,8 @@ static void BPLxPTH(int hpos, uae_u16 v, int num)
 static void BPLxPTL(int hpos, uae_u16 v, int num)
 {
 	decide_dma_fetch(hpos);
-#if 0
-	reset_dbplh (hpos, num);
-#endif
-	/* chipset feature:
-	 * BPLxPTL write and next cycle doing DMA fetch using same pointer register ->
-	 * next DMA cycle uses old value.
-	 * (Multiscroll / Cult)
-	 *
-	 * If following cycle is not BPL DMA: written value is lost
-	 *
-	 * last fetch block does not have this side-effect, probably due to modulo adds.
-	 * Also it seems only plane 0 fetches have this feature (because of above reason!)
-	 * (MoreNewStuffy / PlasmaForce)
-	 */
 	/* only detect copper accesses to prevent too fast CPU mode glitches */
 	if (copper_access && get_bitplane_dma_rel(1) == num + 1) {
-#if 0
-		if (num == 0 && plf_state >= plf_passed_stop) {
-			/* modulo adds use old value! Argh! (This is wrong and disabled) */
-			dbplptl[num] = v & 0x0000fffe;
-			dbplptl_on[num] = -1;
-			dbplptl_on2++;
-		} else if (is_bitplane_dma(hpos + 2)) {
-			dbplptl[num] = v & 0x0000fffe;
-			dbplptl_on[num] = hpos;
-			dbplptl_on2++;
-		}
-#endif
 		SET_LINE_CYCLEBASED;
 		return;
 	}
@@ -5600,7 +5489,7 @@ static void BPLCON2(int hpos, uae_u16 v)
 		return;
 	decide_vline(hpos);
 	bplcon2 = v;
-	record_register_change (hpos, 0x104, bplcon2);
+	record_register_change(hpos, 0x104, bplcon2);
 }
 
 #ifdef ECS_DENISE
@@ -5624,8 +5513,8 @@ static void BPLCON3(int hpos, uae_u16 v)
 		updateextblk();
 	}
 	bplcon3 = v;
-	sprres = expand_sprres (bplcon0, bplcon3);
-	record_register_change (hpos, 0x106, v);
+	sprres = expand_sprres(bplcon0, bplcon3);
+	record_register_change(hpos, 0x106, v);
 }
 #endif
 #ifdef AGA
@@ -5646,37 +5535,24 @@ static void BPL1MOD(int hpos, uae_u16 v)
 {
 	v &= ~1;
 	decide_dma_fetch(hpos);
-	// write to BPLxMOD one cycle before
-	// BPL fetch that also adds modulo:
-	// Old BPLxMOD value is added.
-	int bpl = get_bitplane_dma_rel(1);
-	if (1 && bpl && (bpl & 1)) {
-		dbpl1mod = v;
-		dbpl1mod_on = hpos + 1;
-		if (dbpl1mod_on >= maxhpos + lol) {
-			dbpl1mod_on = 0;
-		}
-	} else {
-		bpl1mod = v;
-		dbpl1mod_on = -1;
+	bpl1mod_prev = bpl1mod;
+	bpl1mod_hpos = hpos + 1;
+	if (bpl1mod_hpos >= maxhpos) {
+		bpl1mod_hpos -= maxhpos;
 	}
+	bpl1mod = v;
 }
 
 static void BPL2MOD(int hpos, uae_u16 v)
 {
 	v &= ~1;
 	decide_fetch_safe(hpos);
-	int bpl = get_bitplane_dma_rel(1);
-	if (1 && bpl && !(bpl & 1)) {
-		dbpl2mod = v;
-		dbpl2mod_on = hpos + 1;
-		if (dbpl2mod_on >= maxhpos + lol) {
-			dbpl2mod_on = 0;
-		}
-	} else {
-		bpl2mod = v;
-		dbpl2mod_on = -1;
+	bpl2mod_prev = bpl2mod;
+	bpl2mod_hpos = hpos + 1;
+	if (bpl2mod_hpos >= maxhpos) {
+		bpl2mod_hpos -= maxhpos;
 	}
+	bpl2mod = v;
 }
 
 /* Needed in special OCS/ECS "7-plane" mode,
@@ -5778,6 +5654,7 @@ static void DDFSTRT(int hpos, uae_u16 v)
 	SET_LINE_CYCLEBASED;
 	ddfstrt = v;
 	calcdiw();
+	// DDFSTRT modified when DDFSTRT==hpos: neither value matches
 	ddfstrt_hpos = hpos;
 }
 
@@ -5788,8 +5665,10 @@ static void DDFSTOP(int hpos, uae_u16 v)
 		v &= 0xfc;
 	decide_dma_fetch(hpos);
 	SET_LINE_CYCLEBASED;
+	plfstop_prev = plfstop;
 	ddfstop = v;
 	calcdiw();
+	// DDFSTOP modified when DDFSTOP==hpos: old value matches
 	ddfstop_hpos = hpos;
 }
 
@@ -5810,14 +5689,14 @@ static void FMODE(int hpos, uae_u16 v)
 	record_register_change(hpos, 0x1fc, fmode);
 }
 
-static void FNULL (uae_u16 v)
+static void FNULL(uae_u16 v)
 {
 
 }
 
-static void BLTADAT (int hpos, uae_u16 v)
+static void BLTADAT(int hpos, uae_u16 v)
 {
-	maybe_blit (hpos, 0);
+	maybe_blit(hpos, 0);
 
 	blt_info.bltadat = v;
 }
@@ -5826,9 +5705,9 @@ static void BLTADAT (int hpos, uae_u16 v)
 * be true for BLTBDAT, but not for BLTADAT - it appears the A data must be
 * loaded for every word so that AFWM and ALWM can be applied.
 */
-static void BLTBDAT (int hpos, uae_u16 v)
+static void BLTBDAT(int hpos, uae_u16 v)
 {
-	maybe_blit (hpos, 0);
+	maybe_blit(hpos, 0);
 
 	int shift = bltcon1 >> 12;
 
@@ -5840,31 +5719,31 @@ static void BLTBDAT (int hpos, uae_u16 v)
 	blt_info.bltbdat = v;
 	blt_info.bltbold = v;
 }
-static void BLTCDAT (int hpos, uae_u16 v) { maybe_blit (hpos, 0); blt_info.bltcdat = v; reset_blit (0); }
+static void BLTCDAT(int hpos, uae_u16 v) { maybe_blit(hpos, 0); blt_info.bltcdat = v; reset_blit(0); }
 
-static void BLTAMOD (int hpos, uae_u16 v) { maybe_blit (hpos, 1); blt_info.bltamod = (uae_s16)(v & 0xFFFE); reset_blit (0); }
-static void BLTBMOD (int hpos, uae_u16 v) { maybe_blit (hpos, 1); blt_info.bltbmod = (uae_s16)(v & 0xFFFE); reset_blit (0); }
-static void BLTCMOD (int hpos, uae_u16 v) { maybe_blit (hpos, 1); blt_info.bltcmod = (uae_s16)(v & 0xFFFE); reset_blit (0); }
-static void BLTDMOD (int hpos, uae_u16 v) { maybe_blit (hpos, 1); blt_info.bltdmod = (uae_s16)(v & 0xFFFE); reset_blit (0); }
+static void BLTAMOD(int hpos, uae_u16 v) { maybe_blit(hpos, 1); blt_info.bltamod = (uae_s16)(v & 0xFFFE); reset_blit(0); }
+static void BLTBMOD(int hpos, uae_u16 v) { maybe_blit(hpos, 1); blt_info.bltbmod = (uae_s16)(v & 0xFFFE); reset_blit(0); }
+static void BLTCMOD(int hpos, uae_u16 v) { maybe_blit(hpos, 1); blt_info.bltcmod = (uae_s16)(v & 0xFFFE); reset_blit(0); }
+static void BLTDMOD(int hpos, uae_u16 v) { maybe_blit(hpos, 1); blt_info.bltdmod = (uae_s16)(v & 0xFFFE); reset_blit(0); }
 
-static void BLTCON0 (int hpos, uae_u16 v) { maybe_blit (hpos, 2); bltcon0 = v; reset_blit (1); }
+static void BLTCON0(int hpos, uae_u16 v) { maybe_blit (hpos, 2); bltcon0 = v; reset_blit(1); }
 /* The next category is "Most useless hardware register".
 * And the winner is... */
-static void BLTCON0L (int hpos, uae_u16 v)
+static void BLTCON0L(int hpos, uae_u16 v)
 {
 	if (!ecs_agnus)
 		return; // ei voittoa.
-	maybe_blit (hpos, 2); bltcon0 = (bltcon0 & 0xFF00) | (v & 0xFF);
-	reset_blit (1);
+	maybe_blit(hpos, 2); bltcon0 = (bltcon0 & 0xFF00) | (v & 0xFF);
+	reset_blit(1);
 }
-static void BLTCON1 (int hpos, uae_u16 v) { maybe_blit (hpos, 2); bltcon1 = v; reset_blit (2); }
+static void BLTCON1(int hpos, uae_u16 v) { maybe_blit(hpos, 2); bltcon1 = v; reset_blit(2); }
 
-static void BLTAFWM (int hpos, uae_u16 v) { maybe_blit (hpos, 2); blt_info.bltafwm = v; reset_blit (0); }
-static void BLTALWM (int hpos, uae_u16 v) { maybe_blit (hpos, 2); blt_info.bltalwm = v; reset_blit (0); }
+static void BLTAFWM(int hpos, uae_u16 v) { maybe_blit(hpos, 2); blt_info.bltafwm = v; reset_blit(0); }
+static void BLTALWM(int hpos, uae_u16 v) { maybe_blit(hpos, 2); blt_info.bltalwm = v; reset_blit(0); }
 
-static void BLTAPTH (int hpos, uae_u16 v)
+static void BLTAPTH(int hpos, uae_u16 v)
 {
-	maybe_blit (hpos, 0);
+	maybe_blit(hpos, 0);
 	if (blt_info.blit_main && currprefs.blitter_cycle_exact && currprefs.cpu_memory_cycle_exact) {
 		bltptx = (bltapt & 0xffff) | ((uae_u32)v << 16);
 		bltptxpos = hpos;
@@ -5873,9 +5752,9 @@ static void BLTAPTH (int hpos, uae_u16 v)
 		bltapt = (bltapt & 0xffff) | ((uae_u32)v << 16);
 	}
 }
-static void BLTAPTL (int hpos, uae_u16 v)
+static void BLTAPTL(int hpos, uae_u16 v)
 {
-	maybe_blit (hpos, 0);
+	maybe_blit(hpos, 0);
 	if (blt_info.blit_main && currprefs.blitter_cycle_exact && currprefs.cpu_memory_cycle_exact) {
 		bltptx = (bltapt & ~0xffff) | (v & 0xFFFE);
 		bltptxpos = hpos;
@@ -5884,9 +5763,9 @@ static void BLTAPTL (int hpos, uae_u16 v)
 		bltapt = (bltapt & ~0xffff) | (v & 0xFFFE);
 	}
 }
-static void BLTBPTH (int hpos, uae_u16 v)
+static void BLTBPTH(int hpos, uae_u16 v)
 {
-	maybe_blit (hpos, 0);
+	maybe_blit(hpos, 0);
 	if (blt_info.blit_main && currprefs.blitter_cycle_exact && currprefs.cpu_memory_cycle_exact) {
 		bltptx = (bltbpt & 0xffff) | ((uae_u32)v << 16);
 		bltptxpos = hpos;
@@ -5895,9 +5774,9 @@ static void BLTBPTH (int hpos, uae_u16 v)
 		bltbpt = (bltbpt & 0xffff) | ((uae_u32)v << 16);
 	}
 }
-static void BLTBPTL (int hpos, uae_u16 v)
+static void BLTBPTL(int hpos, uae_u16 v)
 {
-	maybe_blit (hpos, 0);
+	maybe_blit(hpos, 0);
 	if (blt_info.blit_main && currprefs.blitter_cycle_exact && currprefs.cpu_memory_cycle_exact) {
 		bltptx = (bltbpt & ~0xffff) | (v & 0xFFFE);
 		bltptxpos = hpos;
@@ -5906,9 +5785,9 @@ static void BLTBPTL (int hpos, uae_u16 v)
 		bltbpt = (bltbpt & ~0xffff) | (v & 0xFFFE);
 	}
 }
-static void BLTCPTH (int hpos, uae_u16 v)
+static void BLTCPTH(int hpos, uae_u16 v)
 {
-	maybe_blit (hpos, 0);
+	maybe_blit(hpos, 0);
 	if (blt_info.blit_main && currprefs.blitter_cycle_exact && currprefs.cpu_memory_cycle_exact) {
 		bltptx = (bltcpt & 0xffff) | ((uae_u32)v << 16);
 		bltptxpos = hpos;
@@ -5917,9 +5796,9 @@ static void BLTCPTH (int hpos, uae_u16 v)
 		bltcpt = (bltcpt & 0xffff) | ((uae_u32)v << 16);
 	}
 }
-static void BLTCPTL (int hpos, uae_u16 v)
+static void BLTCPTL(int hpos, uae_u16 v)
 {
-	maybe_blit (hpos, 0);
+	maybe_blit(hpos, 0);
 	if (blt_info.blit_main && currprefs.blitter_cycle_exact && currprefs.cpu_memory_cycle_exact) {
 		bltptx = (bltcpt & ~0xffff) | (v & 0xFFFE);
 		bltptxpos = hpos;
@@ -5930,7 +5809,7 @@ static void BLTCPTL (int hpos, uae_u16 v)
 }
 static void BLTDPTH (int hpos, uae_u16 v)
 {
-	maybe_blit (hpos, 0);
+	maybe_blit(hpos, 0);
 	if ((blt_info.blit_main || blt_info.blit_finald) && currprefs.blitter_cycle_exact && currprefs.cpu_memory_cycle_exact) {
 		bltptx = (bltdpt & 0xffff) | ((uae_u32)v << 16);
 		bltptxpos = hpos;
@@ -5939,9 +5818,9 @@ static void BLTDPTH (int hpos, uae_u16 v)
 		bltdpt = (bltdpt & 0xffff) | ((uae_u32)v << 16);
 	}
 }
-static void BLTDPTL (int hpos, uae_u16 v)
+static void BLTDPTL(int hpos, uae_u16 v)
 {
-	maybe_blit (hpos, 0);
+	maybe_blit(hpos, 0);
 	if ((blt_info.blit_main || blt_info.blit_finald) && currprefs.blitter_cycle_exact && currprefs.cpu_memory_cycle_exact) {
 		bltptx = (bltdpt & ~0xffff) | (v & 0xFFFE);
 		bltptxpos = hpos;
@@ -5954,7 +5833,6 @@ static void BLTDPTL (int hpos, uae_u16 v)
 static void BLTSIZE(int hpos, uae_u16 v)
 {
 	maybe_blit(hpos, 0);
-
 	blt_info.vblitsize = v >> 6;
 	blt_info.hblitsize = v & 0x3F;
 	if (!blt_info.vblitsize)
@@ -5962,7 +5840,7 @@ static void BLTSIZE(int hpos, uae_u16 v)
 	if (!blt_info.hblitsize)
 		blt_info.hblitsize = 64;
 	do_blitter(hpos, copper_access, copper_access ? cop_state.ip : M68K_GETPC);
-	dcheck_is_blit_dangerous ();
+	dcheck_is_blit_dangerous();
 }
 
 static void BLTSIZV(int hpos, uae_u16 v)
@@ -6519,14 +6397,6 @@ static void decide_line_decision(int endhpos)
 	int hpos = last_decide_line_hpos;
 	while (hpos < endhpos) {
 
-		// Get these before copper write
-		bool dma = dmaen(DMA_BITPLANE) != 0;
-		bool diw = diwstate == DIW_waiting_stop;
-		// DIW latching takes one cycle
-		if (hpos == 0 && vpos == diwstate_vpos) {
-			diw = !diw;
-		}
-
 		// Do copper DMA first because we need to know
 		// new DDFSTRT etc values before bitplane decisions
 		if (cop_state.movedelay > 0) {
@@ -6539,6 +6409,13 @@ static void decide_line_decision(int endhpos)
 		if (datreg >= 0x80 && datreg <= 0x8f) {
 			do_copper_fetch(hpos, datreg);
 			rga_pipeline[rga_pipeline_bpl_read] = 0;
+		}
+
+		bool dma = dmaen(DMA_BITPLANE) != 0;
+		bool diw = diwstate == DIW_waiting_stop;
+		// DIW latching takes one cycle
+		if (hpos == 0 && vpos == diwstate_vpos) {
+			diw = !diw;
 		}
 
 		if (ecs) {
@@ -6602,7 +6479,7 @@ static void decide_line_decision(int endhpos)
 			// DDFSTOP
 			// Triggers DDFSTOP condition.
 			// Clears DDF allowed flag.
-			if (hpos == (plfstop | 0) && hpos != ddfstop_hpos) {
+			if ((hpos == (plfstop | 0) && hpos != ddfstop_hpos) || (hpos == (plfstop_prev | 0) && hpos == ddfstop_hpos)) {
 				if (bprun && !ddf_stopping) {
 					ddf_stopping = 1;
 				}
@@ -6658,7 +6535,7 @@ static void decide_line_decision(int endhpos)
 
 			// DDFSTOP
 			// Triggers DDFSTOP condition.
-			if (hpos == (plfstop | 0) && hpos != ddfstop_hpos) {
+			if ((hpos == (plfstop | 0) && hpos != ddfstop_hpos) || (hpos == (plfstop_prev | 0) && hpos == ddfstop_hpos)) {
 				if (bprun && !ddf_stopping) {
 					ddf_stopping = 1;
 				}
@@ -6673,8 +6550,7 @@ static void decide_line_decision(int endhpos)
 			}
 
 			// DDFSTRT
-			// It also looks like DDFSTRT=0 never triggers if OCS. (Nakudemo / Vision-X)
-			if (hpos == (plfstrt | 0) && hpos != ddfstrt_hpos && plfstrt > 0) {
+			if (hpos == (plfstrt | 0) && hpos != ddfstrt_hpos) {
 				ddfstrt_match = true;
 			} else {
 				ddfstrt_match = false;
@@ -6714,19 +6590,6 @@ static void decide_line_decision(int endhpos)
 	last_decide_line_hpos = endhpos;
 }
 
-
-static void dump_copper(const TCHAR *error, int until_hpos)
-{
-	write_log(_T("\n"));
-	write_log(_T("%s: vpos=%d until_hpos=%d vp=%d\n"),
-		error, vpos, until_hpos, vpos & (((cop_state.ir[1] >> 8) & 0x7F) | 0x80));
-	write_log(_T("cvcmp=%d chcmp=%d chpos=%d cvpos=%d ci1=%04X ci2=%04X\n"),
-		cop_state.vcmp, cop_state.hcmp, cop_state.hpos, cop_state.vpos, cop_state.ir[0], cop_state.ir[1]);
-	write_log(_T("cstate=%d ip=%x SPCFLAGS=%x iscline=%d\n"),
-		cop_state.state, cop_state.ip, regs.spcflags, copper_enabled_thisline);
-	write_log(_T("\n"));
-}
-
 /*
 	CPU write COPJMP wakeup sequence when copper is waiting:
 	- Idle cycle (can be used by other DMA channel)
@@ -6763,26 +6626,31 @@ static int customdelay[]= {
 
 static void do_copper_fetch(int hpos, uae_u16 id)
 {
+	if (id == 0x8f) {
+		// copper allocated cycle without DMA request
+		return;
+	}
+
 	switch (cop_state.state)
 	{
 	case COP_strobe_delay1:
 	{
+		// fake MOVE phase 1
 #ifdef DEBUGGER
-		{
-			if (debug_dma) {
-				record_dma_read(0x8c, cop_state.ip, hpos, vpos, DMARECORD_COPPER, 0);
-			}
-			if (memwatch_enabled) {
-				debug_getpeekdma_chipram(cop_state.ip, MW_MASK_COPPER, 0x8c, cop_state.last_strobe == 2 ? 0x84 : 0x80);
-			}
-			uae_u16 v = chipmem_wget_indirect(cop_state.ip);
-			if (debug_dma) {
-				record_dma_read_value(v);
-			}
-			if (memwatch_enabled) {
-				debug_getpeekdma_value(v);
-			}
-			// copper pointer is only increased if cycle was free
+		if (debug_dma) {
+			record_dma_read(0x8c, cop_state.ip, hpos, vpos, DMARECORD_COPPER, 0);
+		}
+		if (memwatch_enabled) {
+			debug_getpeekdma_chipram(cop_state.ip, MW_MASK_COPPER, 0x8c, cop_state.last_strobe == 2 ? 0x84 : 0x80);
+		}
+#endif
+		cop_state.ir[0] = last_custom_value1 = last_custom_value2 = chipmem_wget_indirect(cop_state.ip);
+#ifdef DEBUGGER
+		if (debug_dma) {
+			record_dma_read_value(cop_state.ir[0]);
+		}
+		if (memwatch_enabled) {
+			debug_getpeekdma_value(cop_state.ir[0]);
 		}
 #endif
 		cop_state.ip += 2;
@@ -6791,31 +6659,29 @@ static void do_copper_fetch(int hpos, uae_u16 id)
 		break;
 	}
 	case COP_strobe_delay2:
-#ifdef DEBUGGER
 	{
+		// fake MOVE phase 2
+#ifdef DEBUGGER
+		uae_u16 reg = cop_state.ir[0] & 0x1FE;
 		if (debug_dma) {
-			record_dma_read(0x1fe, cop_state.ip, hpos, vpos, DMARECORD_COPPER, 2);
+			record_dma_read(reg, cop_state.ip, hpos, vpos, DMARECORD_COPPER, 0);
 		}
-		if (memwatch_enabled) {
-			debug_getpeekdma_chipram(cop_state.ip, MW_MASK_COPPER, 0x1fe, 0x1fe);
-		}
-		uae_u16 v = chipmem_wget_indirect(cop_state.ip);
-		if (debug_dma) {
-			record_dma_read_value(v);
-		}
-		if (memwatch_enabled) {
-			debug_getpeekdma_value(v);
-		}
-	}
 #endif
-	cop_state.state = COP_read1;
-	// Next cycle finally reads from new pointer
-	if (cop_state.strobe == 1)
-		cop_state.ip = cop1lc;
-	else
-		cop_state.ip = cop2lc;
-	cop_state.strobe = 0;
-	alloc_cycle(hpos, CYCLE_COPPER);
+		cop_state.ir[1] = chipmem_wget_indirect(cop_state.ip);
+#ifdef DEBUGGER
+		if (debug_dma) {
+			record_dma_read_value(cop_state.ir[1]);
+		}
+#endif
+		cop_state.state = COP_read1;
+		// Next cycle finally reads from new pointer
+		if (cop_state.strobe == 1)
+			cop_state.ip = cop1lc;
+		else
+			cop_state.ip = cop2lc;
+		cop_state.strobe = 0;
+		alloc_cycle(hpos, CYCLE_COPPER);
+	}
 	break;
 	case COP_strobe_delay2x:
 		if (debug_dma) {
@@ -6922,6 +6788,9 @@ static void do_copper_fetch(int hpos, uae_u16 id)
 			else
 				cop_state.state = COP_wait_in2;
 
+			cop_state.vcmp = (cop_state.ir[0] & (cop_state.ir[1] | 0x8000)) >> 8;
+			cop_state.hcmp = (cop_state.ir[0] & cop_state.ir[1] & 0xFE);
+
 		} else {
 			// MOVE
 			uae_u16 reg = cop_state.ir[0] & 0x1FE;
@@ -6983,7 +6852,7 @@ static void do_copper_fetch(int hpos, uae_u16 id)
 			}
 #ifdef DEBUGGER
 			if (debug_copper && !cop_state.ignore_next) {
-				uaecptr next = debugip;
+				uaecptr next = 0xffffffff;
 				if (reg == 0x88)
 					next = cop1lc;
 				else if (reg == 0x8a)
@@ -6996,29 +6865,7 @@ static void do_copper_fetch(int hpos, uae_u16 id)
 		last_custom_value1 = last_custom_value2 = cop_state.ir[1];
 		check_copper_stop();
 		break;
-	case COP_wait_wake:
-	{
-#ifdef DEBUGGER
-		if (debug_dma)
-			record_dma_event(DMA_EVENT_COPPERWAKE, hpos, vpos);
-		if (debug_copper)
-			record_copper(cop_state.ip - 4, 0xffffffff, cop_state.ir[0], cop_state.ir[1], hpos, vpos);
-#endif
 
-		cop_state.state = COP_read1;
-	}
-	break;
-	case COP_skip_done:
-	{
-#ifdef DEBUGGER
-		if (debug_dma && cop_state.ignore_next > 0)
-			record_dma_event(DMA_EVENT_COPPERSKIP, hpos, vpos);
-		if (debug_copper)
-			record_copper(cop_state.ip - 4, 0xffffffff, cop_state.ir[0], cop_state.ir[1], hpos, vpos);
-#endif
-		cop_state.state = COP_read1;
-	}
-	break;
 	case COP_strobe_extra:
 		// do nothing, happens if CPU wrote to COPxJMP but copper had already requested DMA cycle
 		// Cycle will complete but nothing will happen because COPxJMP write resets copper state.
@@ -7031,6 +6878,9 @@ static void do_copper_fetch(int hpos, uae_u16 id)
 		}
 #endif
 		alloc_cycle(hpos, CYCLE_COPPER);
+		break;
+	case COP_start_delay:
+		// do nothing, this happens if copper requested new word while vblank restarted copper.
 		break;
 	default:
 		write_log(_T("copper_fetch invalid state %d! %02x\n"), cop_state.state, id);
@@ -7046,20 +6896,51 @@ static void copper_ff(int hpos)
 		rga_pipeline_copper_read &= RGA_PIPELINE_MASK;
 	}
 	last_copper_hpos = hpos;
-	cop_state.hpos = hpos;
+}
+
+static int getcoppercomp(int hpos, bool blitwait)
+{
+	int hpos_cmp = hpos + 1;
+	int vpos_cmp = vpos;
+	if (hpos_cmp >= maxhpos) {
+		hpos_cmp -= maxhpos;
+		vpos_cmp++;
+	}
+	int vp = vpos_cmp & (((cop_state.ir[1] >> 8) & 0x7F) | 0x80);
+	int hp = hpos_cmp & (cop_state.ir[1] & 0xFE);
+
+	if (vp < cop_state.vcmp) {
+		return -1;
+	}
+
+	if ((cop_state.ir[1] & 0x8000) == 0) {
+		decide_blitter(hpos + 1);
+		if (blit_busy()) {
+			if (blitwait) {
+				/* We need to wait for the blitter.  */
+				cop_state.state = COP_bltwait;
+				return -1;
+			}
+			return 1;
+		}
+	}
+
+	if (vp == cop_state.vcmp && hp < cop_state.hcmp) {
+		return 1;
+	}
+	return 0;
 }
 
 static void update_copper(int until_hpos)
 {
 	int hpos = last_copper_hpos;
 
-	if (1 && (nocustom() || !copper_enabled_thisline)) {
+	if (0 && (nocustom() || !copper_enabled_thisline)) {
 		copper_ff(until_hpos);
 		decide_line_decision(until_hpos);
 		return;
 	}
 
-	int vp = vpos & (((cop_state.ir[1] >> 8) & 0x7F) | 0x80);
 #if 0
 	if (cop_state.state == COP_wait && vp < cop_state.vcmp) {
 		dump_copper (_T("error2"), until_hpos);
@@ -7071,10 +6952,7 @@ static void update_copper(int until_hpos)
 #endif
 
 	while (hpos < until_hpos) {
-		int hp;
 		uae_u16 *cp;
-		int vpos_cmp;
-		int hpos_cmp;
 
 		decide_line_decision(hpos + 1);
 
@@ -7090,9 +6968,11 @@ static void update_copper(int until_hpos)
 			rga_pipeline[rpos] = 0;
 		}
 
+#if 1
 		if (!copper_enabled_thisline) {
 			goto next;
 		}
+#endif
 
 		if ((hpos & 1) != COPPER_CYCLE_POLARITY) {
 			goto next;
@@ -7113,20 +6993,6 @@ static void update_copper(int until_hpos)
 
 		cp = &rga_pipeline[(rga_pipeline_copper_read + 0) & RGA_PIPELINE_MASK];
 
-		hpos_cmp = hpos;
-		vpos_cmp = vpos;
-		if (hpos_cmp >= maxhpos + lol) {
-			hpos_cmp -= maxhpos + lol;
-			if (hpos_cmp > 0) {
-				vpos_cmp++;
-			}
-		} else if (hpos_cmp <= 0) {
-			vpos_cmp = vpos_prev;
-			if (hpos_cmp < 0) {
-				hpos_cmp += maxhpos + lol;
-			}
-		}
-
 		switch (cop_state.state)
 		{
 		case COP_strobe_delay1:
@@ -7145,16 +7011,14 @@ static void update_copper(int until_hpos)
 						cop_state.ip = cop2lc;
 					cop_state.strobe = 0;
 				} else {
-					*cp = 0x88;
+					copper_cant_read(cp, 0x88);
 				}
 			}
 			break;
 		case COP_strobe_delay2:
-			// Second cycle after COPJMP does dummy read to 1FE
+			// Second cycle after COPJMP does basically skipped MOVE (MOVE to 1FE)
 			// Cycle is used and needs to be free.
-			if (copper_cant_read(cp, 0x80)) {
-				goto next;
-			}
+			copper_cant_read(cp, 0x80);
 			break;
 
 		case COP_strobe_delay1x:
@@ -7171,10 +7035,7 @@ static void update_copper(int until_hpos)
 			// Second cycle fetches following word and tosses it away.
 			// Cycle can be free and copper won't allocate it.
 			// If Blitter uses this cycle = Copper's PC gets copied to blitter DMA pointer..
-			if (copper_cant_read(cp, 0)) {
-				goto next;
-			}
-			*cp = 0x89;
+			copper_cant_read(cp, 0x89);
 		break;
 
 		case COP_start_delay:
@@ -7196,98 +7057,99 @@ static void update_copper(int until_hpos)
 			break;
 
 		case COP_wait_in2:
-			if (copper_cant_read(cp, 0)) {
-				goto next;
-			}
-			cop_state.state = COP_wait1;
-			break;
-		case COP_wait1:
-			cop_state.state = COP_wait;
-
-			cop_state.vcmp = (cop_state.ir[0] & (cop_state.ir[1] | 0x8000)) >> 8;
-			cop_state.hcmp = (cop_state.ir[0] & cop_state.ir[1] & 0xFE);
-
-			vp = vpos_cmp & (((cop_state.ir[1] >> 8) & 0x7F) | 0x80);
-
-			if (cop_state.ir[0] == 0xFFFF && cop_state.ir[1] == 0xFFFE) {
-				cop_state.state = COP_waitforever;
-				copper_enabled_thisline = 0;
-				unset_special(SPCFLAG_COPPER);
-				goto next;
-			}
-			if (vp < cop_state.vcmp) {
-				copper_enabled_thisline = 0;
-				unset_special(SPCFLAG_COPPER);
-				goto next;
-			}
-
-			/* fall through */
-		case COP_wait:
 			{
-				if ((cop_state.ir[1] & 0x8000) == 0) {
-					decide_blitter(hpos + 1);
-					if (blit_busy()) {
-						/* We need to wait for the blitter.  */
-						cop_state.state = COP_bltwait;
-						copper_enabled_thisline = 0;
-						unset_special(SPCFLAG_COPPER);
-						goto next;
+				if (copper_cant_read(cp, 0x8f)) {
+					goto next;
+				}
+				cop_state.state = COP_wait1;
+
+				int comp = getcoppercomp(hpos, true);
+				if (comp < 0) {
+					if (cop_state.ir[0] == 0xFFFF && cop_state.ir[1] == 0xFFFE) {
+						cop_state.state = COP_waitforever;
 					}
+					copper_enabled_thisline = 0;
+					unset_special(SPCFLAG_COPPER);
+					goto next;
 				}
 
+			}
+			break;
+
+		case COP_wait1:
+			{
 				if (copper_cant_read(cp, 0)) {
 					goto next;
 				}
 
-				hp = hpos_cmp & (cop_state.ir[1] & 0xFE);
-				if (vp == cop_state.vcmp && hp < cop_state.hcmp) {
+				int comp = getcoppercomp(hpos, true);
+				if (comp) {
 					goto next;
 				}
 
-				cop_state.state = COP_wait_wake;
-				copper_cant_read(cp, 0x84);
+				copper_cant_read(cp, 0x8f);
+				cop_state.state = COP_wait;
+			}
+			break;
+
+		case COP_wait:
+			{
+				if (copper_cant_read(cp, 0x84)) {
+					goto next;
+				}
+
+				cop_state.state = COP_read1;
 
 #ifdef DEBUGGER
 				if (debug_dma)
-					record_dma_event(DMA_EVENT_COPPERWAKE, hpos, vp);
+					record_dma_event(DMA_EVENT_COPPERWAKE, hpos, vpos);
+				if (debug_copper)
+					record_copper(cop_state.ip - 4, 0xffffffff, cop_state.ir[0], cop_state.ir[1], hpos, vpos);
 #endif
 
 			}
 			break;
-		case COP_wait_wake:
-			break;
 
 		case COP_skip_in2:
+
+			if (copper_cant_read(cp, 0x8f)) {
+				goto next;
+			}
+			cop_state.state = COP_skip1;
+			break;
+
+		case COP_skip1:
 			if (copper_cant_read(cp, 0)) {
 				goto next;
 			}
 			cop_state.state = COP_skip;
-			break;
-		case COP_skip:
-			{
-				unsigned int vcmp, hcmp, vp1, hp1;
 
-				if (copper_cant_read(cp, 0)) {
-					goto next;
-				}
+			if (!getcoppercomp(hpos, false)) {
+				cop_state.ignore_next = 1;
+			} else {
+				cop_state.ignore_next = -1;
+			}
 
-				vcmp = (cop_state.ir[0] & (cop_state.ir[1] | 0x8000)) >> 8;
-				hcmp = (cop_state.ir[0] & cop_state.ir[1] & 0xFE);
-				vp1 = vpos_cmp & (((cop_state.ir[1] >> 8) & 0x7F) | 0x80);
-				hp1 = hpos_cmp & (cop_state.ir[1] & 0xFE);
-
-				if ((vp1 > vcmp || (vp1 == vcmp && hp1 >= hcmp)) && ((cop_state.ir[1] & 0x8000) != 0 || !blit_busy())) {
-					cop_state.ignore_next = 1;
-				} else {
-					cop_state.ignore_next = -1;
-				}
-
-				copper_cant_read(cp, 0x85);
-				cop_state.state = COP_skip_done;
+			if (copper_cant_read(cp, 0x8f)) {
+				goto next;
 			}
 			break;
-		case COP_skip_done:
+
+		case COP_skip:
+			{
+
+				cop_state.state = COP_read1;
+				copper_cant_read(cp, 0x85);
+
+#ifdef DEBUGGER
+				if (debug_dma && cop_state.ignore_next > 0)
+					record_dma_event(DMA_EVENT_COPPERSKIP, hpos, vpos);
+				if (debug_copper)
+					record_copper(cop_state.ip - 4, 0xffffffff, cop_state.ir[0], cop_state.ir[1], hpos, vpos);
+#endif
+			}
 			break;
+
 		default:
 			break;
 		}
@@ -7306,67 +7168,36 @@ next:
 		rga_pipeline_copper_read++;
 		rga_pipeline_copper_read &= RGA_PIPELINE_MASK;
 		last_copper_hpos = hpos;
-		cop_state.hpos = hpos;
 	}
 }
 
-static void compute_spcflag_copper(int hpos)
+static void compute_spcflag_copper(void)
 {
-	int wasenabled = copper_enabled_thisline;
-
-	copper_enabled_thisline = 0;
-	unset_special (SPCFLAG_COPPER);
-	if (!dmaen (DMA_COPPER) || cop_state.state == COP_stop || cop_state.state == COP_waitforever || cop_state.state == COP_bltwait || nocustom())
+	if (!dmaen(DMA_COPPER) || cop_state.state == COP_stop || cop_state.state == COP_waitforever || cop_state.state == COP_bltwait || nocustom())
 		return;
-
 	if (cop_state.state == COP_wait) {
 		int vp = vpos & (((cop_state.ir[1] >> 8) & 0x7F) | 0x80);
-
 		if (vp < cop_state.vcmp)
 			return;
 	}
-	// do not use past cycles if starting for the first time in this line
-	// (write to DMACON for example) hpos+1 for long lines
-	if (!wasenabled && cop_state.hpos < hpos && hpos < maxhpos) {
-		hpos = (hpos + 2) & ~1;
-		if (hpos > (maxhpos_short & ~1))
-			hpos = maxhpos_short & ~1;
-		copper_ff(hpos);
-	}
-
 	copper_enabled_thisline = 1;
-	set_special (SPCFLAG_COPPER);
+	set_special(SPCFLAG_COPPER);
 }
 
 static void blitter_done_notify_wakeup(uae_u32 temp)
 {
 	if (cop_state.state != COP_bltwait)
 		return;
-
-	int vp_wait = vpos & (((cop_state.ir[1] >> 8) & 0x7F) | 0x80);
-	int vp = vpos;
-
-	int hpos = current_hpos() + 1;
-	hpos &= ~1;
-
-	cop_state.hpos = hpos;
-	cop_state.vpos = vp;
 	cop_state.state = COP_wait;
-	/* No need to check blitter state again */
-	cop_state.ir[1] |= 0x8000;
-
+	compute_spcflag_copper();
+	if (copper_enabled_thisline) {
+		int hpos = current_hpos();
 #ifdef DEBUGGER
-	if (debug_dma)
-		record_dma_event(DMA_EVENT_COPPERWAKE, hpos, vp);
-	if (debug_copper)
-		record_copper_blitwait(cop_state.ip - 4, hpos, vp);
+		if (debug_dma)
+			record_dma_event(DMA_EVENT_COPPERWAKE, hpos, vpos);
+		if (debug_copper)
+			record_copper_blitwait(cop_state.ip - 4, hpos, vpos);
 #endif
-
-	if (dmaen(DMA_COPPER) && vp_wait >= cop_state.vcmp) {
-		copper_enabled_thisline = 1;
-		set_special(SPCFLAG_COPPER);
-	} else {
-		unset_special(SPCFLAG_COPPER);
 	}
 }
 
@@ -8671,14 +8502,12 @@ static void set_hpos(void)
 // this finishes current line
 static void hsync_handler_pre(bool onvsync)
 {
-	int hpos = current_hpos();
-
 	if (!nocustom()) {
 
 		// make sure decisions are done to end of scanline
-		decide_diw(hpos);
-		decide_dma_fetch(hpos);
-		decide_sprites(hpos);
+		decide_diw(maxhpos);
+		decide_dma_fetch(maxhpos);
+		decide_sprites(maxhpos);
 
 		/* reset light pen latch */
 		if (vpos == sprite_vblank_endline) {
@@ -8728,21 +8557,14 @@ static void hsync_handler_pre(bool onvsync)
 	vpos_prev = vpos;
 	vpos++;
 	vpos_count++;
-	if (vpos >= maxvpos_total)
+	if (vpos >= maxvpos_total) {
 		vpos = 0;
+	}
 	if (onvsync) {
 		vpos = 0;
 		vsync_counter++;
 	}
 	set_hpos();
-#if 0
-	static int ppp = 2;
-	if (input_record && hsync_counter == 100 * 313 + 1) {
-		ppp--;
-		if (ppp == 0)
-			activate_debugger ();
-	}
-#endif
 
 	// to record decisions correctly between end of scanline and start of hsync
 	hpos_hsync_extra = maxhpos;
@@ -9741,8 +9563,7 @@ static void hsync_handler_post (bool onvsync)
 	rethink_uae_int();
 
 	/* See if there's a chance of a copper wait ending this line.  */
-	cop_state.hpos = 0;
-	compute_spcflag_copper (maxhpos);
+	compute_spcflag_copper();
 
 	//copper_check (2);
 
@@ -9824,6 +9645,7 @@ static void hsync_handler_post (bool onvsync)
 #endif
 }
 
+static bool vsync_line;
 // executed at start of scanline
 static void hsync_handler (void)
 {
@@ -9839,21 +9661,22 @@ static void hsync_handler (void)
 		eventtab[ev_hsynch].evtime = get_cycles() + hsyncstartpos_start * CYCLE_UNIT;
 		eventtab[ev_hsynch].active = 1;
 		events_schedule();
+
 	}
+	vsync_line = vs;
 	hsync_handler_post (vs);
 }
 
 // executed at start of hsync
 static void hsync_handlerh(void)
 {
-	bool vs = is_custom_vsync();
-	if (vs) {
+	if (vsync_line) {
 		eventtab[ev_hsynch].evtime = get_cycles() + HSYNCTIME;
 		eventtab[ev_hsynch].active = 1;
 		events_schedule();
 		vposh = 0;
 	}
-	hsync_handlerh(vs);
+	hsync_handlerh(vsync_line);
 }
 
 void init_eventtab (void)
@@ -9930,22 +9753,22 @@ void custom_reset (bool hardreset, bool keyboardreset)
 		hsync_counter = 0;
 		vsync_counter = 0;
 		currprefs.chipset_mask = changed_prefs.chipset_mask;
-		update_mirrors ();
-		blitter_reset ();
+		update_mirrors();
+		blitter_reset();
 
 		if (hardreset) {
 			if (!aga_mode) {
 				uae_u16 c = ((ecs_denise && !aga_mode) || currprefs.cs_denisenoehb) ? 0xfff : 0x000;
 				for (int i = 0; i < 32; i++) {
 					current_colors.color_regs_ecs[i] = c;
-					current_colors.acolors[i] = getxcolor (c);
+					current_colors.acolors[i] = getxcolor(c);
 				}
 	#ifdef AGA
 			} else {
 				uae_u32 c = 0;
 				for (int i = 0; i < 256; i++) {
 					current_colors.color_regs_aga[i] = c;
-					current_colors.acolors[i] = getxcolor (c);
+					current_colors.acolors[i] = getxcolor(c);
 				}
 	#endif
 			}
@@ -9956,7 +9779,7 @@ void custom_reset (bool hardreset, bool keyboardreset)
 		clxdat = 0;
 
 		/* Clear the armed flags of all sprites.  */
-		memset (spr, 0, sizeof spr);
+		memset(spr, 0, sizeof spr);
 
 		dmacon = 0;
 		intreq = 0;
@@ -9980,16 +9803,16 @@ void custom_reset (bool hardreset, bool keyboardreset)
 		hdiwstate = DIW_waiting_start; // this does not reset at vblank
 
 		refptr = 0xffff;
-		FMODE (0, 0);
-		CLXCON (0);
-		CLXCON2 (0);
-		setup_fmodes (0);
+		FMODE(0, 0);
+		CLXCON(0);
+		CLXCON2(0);
+		setup_fmodes(0);
 		beamcon0 = new_beamcon0 = beamcon0_saved = currprefs.ntscmode ? 0x00 : 0x20;
 		blt_info.blit_main = 0;
 		blt_info.blit_finald = 0;
 		blt_info.blit_pending = 0;
 		blt_info.blit_interrupt = 1;
-		init_sprites ();
+		init_sprites();
 
 		maxhpos = MAXHPOS_PAL;
 		maxhpos_short = maxhpos;
@@ -10710,31 +10533,31 @@ static void REGPARAM2 custom_lput (uaecptr addr, uae_u32 value)
 
 #ifdef SAVESTATE
 
-void custom_prepare_savestate (void)
+void custom_prepare_savestate(void)
 {
 	int i;
 
 	for (i = 0; i < ev2_max; i++) {
 		if (eventtab2[i].active) {
 			eventtab2[i].active = 0;
-			eventtab2[i].handler (eventtab2[i].data);
+			eventtab2[i].handler(eventtab2[i].data);
 		}
 	}
 }
 
-#define RB restore_u8 ()
-#define SRB (uae_s8)restore_u8 ()
-#define RBB restore_u8 () != 0
-#define RW restore_u16 ()
-#define RL restore_u32 ()
+#define RB restore_u8()
+#define SRB (uae_s8)restore_u8()
+#define RBB restore_u8() != 0
+#define RW restore_u16()
+#define RL restore_u32()
 
-uae_u8 *restore_custom (uae_u8 *src)
+uae_u8 *restore_custom(uae_u8 *src)
 {
 	uae_u16 dsklen, dskbytr;
 	int dskpt;
 	int i;
 
-	audio_reset ();
+	audio_reset();
 
 	changed_prefs.chipset_mask = currprefs.chipset_mask = RL & CSMASK_MASK;
 	update_mirrors();
@@ -10760,43 +10583,43 @@ uae_u8 *restore_custom (uae_u8 *src)
 	refptr = RW;			/* 028 REFPTR */
 	i = RW; lof_store = lof_current = (i & 0x8000) ? 1 : 0; lol = (i & 0x0080) ? 1 : 0; /* 02A VPOSW */
 	RW;						/* 02C VHPOSW */
-	COPCON (RW);			/* 02E COPCON */
+	COPCON(RW);			/* 02E COPCON */
 	RW;						/* 030 SERDAT* */
 	serper = RW;			/* 032 SERPER* */
-	potgo_value = 0; POTGO (RW); /* 034 POTGO */
+	potgo_value = 0; POTGO(RW); /* 034 POTGO */
 	RW;						/* 036 JOYTEST* */
 	RW;						/* 038 STREQU */
 	RW;						/* 03A STRVHBL */
 	RW;						/* 03C STRHOR */
 	RW;						/* 03E STRLONG */
-	BLTCON0 (0, RW);		/* 040 BLTCON0 */
-	BLTCON1 (0, RW);		/* 042 BLTCON1 */
-	BLTAFWM (0, RW);		/* 044 BLTAFWM */
-	BLTALWM (0, RW);		/* 046 BLTALWM */
-	BLTCPTH (0, RW);BLTCPTL(0, RW);	/* 048-04B BLTCPT */
-	BLTBPTH (0, RW);BLTBPTL(0, RW);	/* 04C-04F BLTBPT */
-	BLTAPTH (0, RW);BLTAPTL(0, RW);	/* 050-053 BLTAPT */
-	BLTDPTH (0, RW);BLTDPTL(0, RW);	/* 054-057 BLTDPT */
+	BLTCON0(0, RW);			/* 040 BLTCON0 */
+	BLTCON1(0, RW);			/* 042 BLTCON1 */
+	BLTAFWM(0, RW);			/* 044 BLTAFWM */
+	BLTALWM(0, RW);			/* 046 BLTALWM */
+	BLTCPTH(0, RW);BLTCPTL(0, RW);	/* 048-04B BLTCPT */
+	BLTBPTH(0, RW);BLTBPTL(0, RW);	/* 04C-04F BLTBPT */
+	BLTAPTH(0, RW);BLTAPTL(0, RW);	/* 050-053 BLTAPT */
+	BLTDPTH(0, RW);BLTDPTL(0, RW);	/* 054-057 BLTDPT */
 	RW;						/* 058 BLTSIZE */
 	RW;						/* 05A BLTCON0L */
 	blt_info.vblitsize = RW;/* 05C BLTSIZV */
 	blt_info.hblitsize = RW;/* 05E BLTSIZH */
-	BLTCMOD (0, RW);		/* 060 BLTCMOD */
-	BLTBMOD (0, RW);		/* 062 BLTBMOD */
-	BLTAMOD (0, RW);		/* 064 BLTAMOD */
-	BLTDMOD (0, RW);		/* 066 BLTDMOD */
+	BLTCMOD(0, RW);			/* 060 BLTCMOD */
+	BLTBMOD(0, RW);			/* 062 BLTBMOD */
+	BLTAMOD(0, RW);			/* 064 BLTAMOD */
+	BLTDMOD(0, RW);			/* 066 BLTDMOD */
 	RW;						/* 068 ? */
 	RW;						/* 06A ? */
 	RW;						/* 06C ? */
 	RW;						/* 06E ? */
-	BLTCDAT (0, RW);		/* 070 BLTCDAT */
-	BLTBDAT (0, RW);		/* 072 BLTBDAT */
-	BLTADAT (0, RW);		/* 074 BLTADAT */
+	BLTCDAT(0, RW);			/* 070 BLTCDAT */
+	BLTBDAT(0, RW);			/* 072 BLTBDAT */
+	BLTADAT(0, RW);			/* 074 BLTADAT */
 	RW;						/* 076 ? */
 	RW;						/* 078 ? */
 	RW;						/* 07A ? */
 	RW;						/* 07C LISAID */
-	DSKSYNC (-1, RW);		/* 07E DSKSYNC */
+	DSKSYNC(-1, RW);		/* 07E DSKSYNC */
 	cop1lc = RL;			/* 080/082 COP1LC */
 	cop2lc = RL;			/* 084/086 COP2LC */
 	RW;						/* 088 ? */
@@ -10807,7 +10630,7 @@ uae_u8 *restore_custom (uae_u8 *src)
 	ddfstrt = RW;			/* 092 DDFSTRT */
 	ddfstop = RW;			/* 094 DDFSTOP */
 	dmacon = RW & ~(0x2000|0x4000); /* 096 DMACON */
-	CLXCON (RW);			/* 098 CLXCON */
+	CLXCON(RW);				/* 098 CLXCON */
 	intena = RW;			/* 09A INTENA */
 	intreq = RW;			/* 09C INTREQ */
 	adkcon = RW;			/* 09E ADKCON */
@@ -10875,14 +10698,14 @@ uae_u8 *restore_custom (uae_u8 *src)
 	beamcon0_saved = new_beamcon0;
 
 	current_colors.extra = 0;
-	if (isbrdblank (-1, bplcon0, bplcon3))
+	if (isbrdblank(-1, bplcon0, bplcon3))
 		current_colors.extra |= 1 << CE_BORDERBLANK;
 	if (issprbrd(-1, bplcon0, bplcon3))
 		current_colors.extra |= 1 << CE_BORDERSPRITE;
 	if (ecs_denise && (bplcon0 & 1) && (bplcon3 & 0x10))
 		current_colors.extra |= 1 << CE_BORDERNTRANS;
 
-	DISK_restore_custom (dskpt, dsklen, dskbytr);
+	DISK_restore_custom(dskpt, dsklen, dskbytr);
 
 	return src;
 }
