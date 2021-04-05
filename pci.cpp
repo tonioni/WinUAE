@@ -445,9 +445,12 @@ static uae_u8 *get_pci_config(uaecptr addr, int size, uae_u32 v, int *endianswap
 			c[off + 1] = pcibs->board->pci_get_config(off + 2);
 			c[off + 0] = pcibs->board->pci_get_config(off + 3);
 		} else if (size == 2 || size == -2) {
-			if (pcib->endian_swap_config) {
-				c[(off ^ (pcib->endian_swap_config > 0 ? 0 : 2)) + 0] = pcibs->board->pci_get_config(off + 0);
-				c[(off ^ (pcib->endian_swap_config > 0 ? 0 : 2)) + 1] = pcibs->board->pci_get_config(off + 1);
+			if (pcib->endian_swap_config < 0) {
+				c[(off ^ 2) + 0] = pcibs->board->pci_get_config(off + 0);
+				c[(off ^ 2) + 1] = pcibs->board->pci_get_config(off + 1);
+			} else if (pcib->endian_swap_config > 0) {
+				c[off + 0] = pcibs->board->pci_get_config(off + 0);
+				c[off + 1] = pcibs->board->pci_get_config(off + 1);
 			} else {
 				c[off + 1] = pcibs->board->pci_get_config((off ^ 2) + 0);
 				c[off + 0] = pcibs->board->pci_get_config((off ^ 2) + 1);
@@ -530,9 +533,12 @@ static void update_pci_config(uaecptr addr, int size)
 			pcibs->board->pci_put_config(off + 1, d[off + 2]);
 			pcibs->board->pci_put_config(off + 0, d[off + 3]);
 		} else if (size == 2) {
-			if (pcib->endian_swap_config) {
-				pcibs->board->pci_put_config((off ^ (pcib->endian_swap_config > 0 ? 2 : 0)) + 1, d[off + 0]);
-				pcibs->board->pci_put_config((off ^ (pcib->endian_swap_config > 0 ? 2 : 0)) + 0, d[off + 1]);
+			if (pcib->endian_swap_config < 0) {
+				pcibs->board->pci_put_config((off ^ 2) + 0, d[off + 0]);
+				pcibs->board->pci_put_config((off ^ 2) + 1, d[off + 1]);
+			} else if (pcib->endian_swap_config > 0) {
+				pcibs->board->pci_put_config(off + 0, d[off + 0]);
+				pcibs->board->pci_put_config(off + 1, d[off + 1]);
 			} else {
 				pcibs->board->pci_put_config(off + 0, d[off + 0]);
 				pcibs->board->pci_put_config(off + 1, d[off + 1]);
