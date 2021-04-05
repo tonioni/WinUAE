@@ -516,6 +516,10 @@ static TCHAR *cfgfile_escape (const TCHAR *s, const TCHAR *escstr, bool quote)
 				}
 			}
 		}
+		// always quote if starts or ends with space
+		if (c == ' ' && (s[i + 1] == 0 || i == 0)) {
+			doquote = true;
+		}
 	}
 	if (escstr == NULL && quote)
 		doquote = true;
@@ -571,12 +575,12 @@ static TCHAR *cfgfile_escape (const TCHAR *s, const TCHAR *escstr, bool quote)
 	return s2;
 }
 
-// escapy only , and "
+// escapy only , and " or if starts or ends with a space
 static TCHAR *cfgfile_escape_min(const TCHAR *s)
 {
 	for (int i = 0; s[i]; i++) {
 		TCHAR c = s[i];
-		if (c == ',' || c == '\"') {
+		if (c == ',' || c == '\"' || (c == ' ' && (i == 0 || s[i + 1] == 0))) {
 			return cfgfile_escape(s, _T(","), true);
 		}
 	}
@@ -735,11 +739,13 @@ static size_t cfg_write (const void *b, struct zfile *z)
 
 #define UTF8NAME _T(".utf8")
 
-static void cfg_dowrite (struct zfile *f, const TCHAR *option, const TCHAR *optionext, const TCHAR *value, int d, int target)
+static void cfg_dowrite(struct zfile *f, const TCHAR *option, const TCHAR *optionext, const TCHAR *value, int d, int target, int escape)
 {
 	char lf = 10;
 	TCHAR tmp[CONFIG_BLEN], tmpext[CONFIG_BLEN];
 	const TCHAR *optionp;
+	const TCHAR *new_value = NULL;
+	bool free_value = false;
 	char tmpa[CONFIG_BLEN];
 	char *tmp1, *tmp2;
 	int utf8;
@@ -747,169 +753,220 @@ static void cfg_dowrite (struct zfile *f, const TCHAR *option, const TCHAR *opti
 	if (value == NULL)
 		return;
 	if (optionext) {
-		_tcscpy (tmpext, option);
-		_tcscat (tmpext, optionext);
+		_tcscpy(tmpext, option);
+		_tcscat(tmpext, optionext);
 		optionp = tmpext;
 	} else {
 		optionp = option;
 	}
 	utf8 = 0;
-	tmp1 = ua (value);
-	tmp2 = uutf8 (value);
-	if (strcmp (tmp1, tmp2) && tmp2[0] != 0)
+	tmp1 = ua(value);
+	tmp2 = uutf8(value);
+	if (strcmp(tmp1, tmp2) && tmp2[0] != 0)
 		utf8 = 1;
-
+	if (escape) {
+		new_value = cfgfile_escape_min(value);
+		free_value = true;
+	} else {
+		new_value = value;
+	}
 	if (target)
-		_stprintf (tmp, _T("%s.%s=%s"), TARGET_NAME, optionp, value);
+		_stprintf(tmp, _T("%s.%s=%s"), TARGET_NAME, optionp, new_value);
 	else
-		_stprintf (tmp, _T("%s=%s"), optionp, value);
+		_stprintf(tmp, _T("%s=%s"), optionp, new_value);
 	if (d && isdefault (tmp))
 		goto end;
-	cfg_write (tmp, f);
+	cfg_write(tmp, f);
 	if (utf8 && !unicode_config) {
-		char *opt = ua (optionp);
+		char *opt = ua(optionp);
 		if (target) {
-			char *tna = ua (TARGET_NAME);
-			sprintf (tmpa, "%s.%s.utf8=%s", tna, opt, tmp2);
-			xfree (tna);
+			char *tna = ua(TARGET_NAME);
+			sprintf(tmpa, "%s.%s.utf8=%s", tna, opt, tmp2);
+			xfree(tna);
 		} else {
-			sprintf (tmpa, "%s.utf8=%s", opt, tmp2);
+			sprintf(tmpa, "%s.utf8=%s", opt, tmp2);
 		}
-		xfree (opt);
-		zfile_fwrite (tmpa, strlen (tmpa), 1, f);
-		zfile_fwrite (&lf, 1, 1, f);
+		xfree(opt);
+		zfile_fwrite(tmpa, strlen (tmpa), 1, f);
+		zfile_fwrite(&lf, 1, 1, f);
 	}
 end:
-	xfree (tmp2);
-	xfree (tmp1);
+	if (free_value) {
+		xfree((void*)new_value);
+	}
+	xfree(tmp2);
+	xfree(tmp1);
 }
 static void cfgfile_dwrite_coords(struct zfile *f, const TCHAR *option, int x, int y)
 {
 	if (x || y)
 		cfgfile_dwrite(f, option, _T("%d,%d"), x, y);
 }
-static void cfg_dowrite (struct zfile *f, const TCHAR *option, const TCHAR *value, int d, int target)
+static void cfg_dowrite(struct zfile *f, const TCHAR *option, const TCHAR *value, int d, int target, int escape)
 {
-	cfg_dowrite (f, option, NULL, value, d, target);
+	cfg_dowrite(f, option, NULL, value, d, target, escape);
 }
-void cfgfile_write_bool (struct zfile *f, const TCHAR *option, bool b)
+void cfgfile_write_bool(struct zfile *f, const TCHAR *option, bool b)
 {
-	cfg_dowrite (f, option, b ? _T("true") : _T("false"), 0, 0);
+	cfg_dowrite(f, option, b ? _T("true") : _T("false"), 0, 0, 0);
 }
-void cfgfile_dwrite_bool (struct zfile *f, const TCHAR *option, bool b)
+void cfgfile_dwrite_bool(struct zfile *f, const TCHAR *option, bool b)
 {
-	cfg_dowrite (f, option, b ? _T("true") : _T("false"), 1, 0);
+	cfg_dowrite(f, option, b ? _T("true") : _T("false"), 1, 0, 0);
 }
-static void cfgfile_dwrite_bool (struct zfile *f, const TCHAR *option, const TCHAR *optionext, bool b)
+static void cfgfile_dwrite_bool(struct zfile *f, const TCHAR *option, const TCHAR *optionext, bool b)
 {
-	cfg_dowrite (f, option, optionext, b ? _T("true") : _T("false"), 1, 0);
+	cfg_dowrite(f, option, optionext, b ? _T("true") : _T("false"), 1, 0, 0);
 }
-static void cfgfile_dwrite_bool (struct zfile *f, const TCHAR *option, int b)
+static void cfgfile_dwrite_bool(struct zfile *f, const TCHAR *option, int b)
 {
 	cfgfile_dwrite_bool (f, option, b != 0);
 }
-void cfgfile_write_str (struct zfile *f, const TCHAR *option, const TCHAR *value)
+void cfgfile_write_str(struct zfile *f, const TCHAR *option, const TCHAR *value)
 {
-	cfg_dowrite (f, option, value, 0, 0);
+	cfg_dowrite(f, option, value, 0, 0, 0);
 }
-static void cfgfile_write_str (struct zfile *f, const TCHAR *option, const TCHAR *optionext, const TCHAR *value)
+static void cfgfile_write_str(struct zfile *f, const TCHAR *option, const TCHAR *optionext, const TCHAR *value)
 {
-	cfg_dowrite (f, option, optionext, value, 0, 0);
+	cfg_dowrite(f, option, optionext, value, 0, 0, 0);
 }
-void cfgfile_dwrite_str (struct zfile *f, const TCHAR *option, const TCHAR *value)
+void cfgfile_dwrite_str(struct zfile *f, const TCHAR *option, const TCHAR *value)
 {
-	cfg_dowrite (f, option, value, 1, 0);
+	cfg_dowrite(f, option, value, 1, 0, 0);
 }
-static void cfgfile_dwrite_str (struct zfile *f, const TCHAR *option, const TCHAR *optionext, const TCHAR *value)
+static void cfgfile_dwrite_str(struct zfile *f, const TCHAR *option, const TCHAR *optionext, const TCHAR *value)
 {
-	cfg_dowrite (f, option, optionext, value, 1, 0);
-}
-
-void cfgfile_target_write_bool (struct zfile *f, const TCHAR *option, bool b)
-{
-	cfg_dowrite (f, option, b ? _T("true") : _T("false"), 0, 1);
-}
-void cfgfile_target_dwrite_bool (struct zfile *f, const TCHAR *option, bool b)
-{
-	cfg_dowrite (f, option, b ? _T("true") : _T("false"), 1, 1);
-}
-void cfgfile_target_write_str (struct zfile *f, const TCHAR *option, const TCHAR *value)
-{
-	cfg_dowrite (f, option, value, 0, 1);
-}
-void cfgfile_target_dwrite_str (struct zfile *f, const TCHAR *option, const TCHAR *value)
-{
-	cfg_dowrite (f, option, value, 1, 1);
+	cfg_dowrite(f, option, optionext, value, 1, 0, 0);
 }
 
-static void cfgfile_write_ext (struct zfile *f, const TCHAR *option, const TCHAR *optionext, const TCHAR *format,...)
+void cfgfile_target_write_bool(struct zfile *f, const TCHAR *option, bool b)
+{
+	cfg_dowrite(f, option, b ? _T("true") : _T("false"), 0, 1, 0);
+}
+void cfgfile_target_dwrite_bool(struct zfile *f, const TCHAR *option, bool b)
+{
+	cfg_dowrite(f, option, b ? _T("true") : _T("false"), 1, 1, 0);
+}
+void cfgfile_target_write_str(struct zfile *f, const TCHAR *option, const TCHAR *value)
+{
+	cfg_dowrite(f, option, value, 0, 1, 0);
+}
+void cfgfile_target_dwrite_str(struct zfile *f, const TCHAR *option, const TCHAR *value)
+{
+	cfg_dowrite(f, option, value, 1, 1, 0);
+}
+void cfgfile_target_dwrite_str_escape(struct zfile *f, const TCHAR *option, const TCHAR *value)
+{
+	cfg_dowrite(f, option, value, 1, 1, 1);
+}
+
+static void cfgfile_write_ext(struct zfile *f, const TCHAR *option, const TCHAR *optionext, const TCHAR *format,...)
 {
 	va_list parms;
 	TCHAR tmp[CONFIG_BLEN], tmp2[CONFIG_BLEN];
 
 	if (optionext) {
-		_tcscpy (tmp2, option);
-		_tcscat (tmp2, optionext);
+		_tcscpy(tmp2, option);
+		_tcscat(tmp2, optionext);
 	}
-	va_start (parms, format);
-	_vsntprintf (tmp, CONFIG_BLEN, format, parms);
-	cfg_dowrite (f, optionext ? tmp2 : option, tmp, 0, 0);
-	va_end (parms);
+	va_start(parms, format);
+	_vsntprintf(tmp, CONFIG_BLEN, format, parms);
+	cfg_dowrite(f, optionext ? tmp2 : option, tmp, 0, 0, 0);
+	va_end(parms);
 }
-void cfgfile_write (struct zfile *f, const TCHAR *option, const TCHAR *format,...)
+void cfgfile_write(struct zfile *f, const TCHAR *option, const TCHAR *format,...)
 {
 	va_list parms;
 	TCHAR tmp[CONFIG_BLEN];
 
-	va_start (parms, format);
-	_vsntprintf (tmp, CONFIG_BLEN, format, parms);
-	cfg_dowrite (f, option, tmp, 0, 0);
-	va_end (parms);
+	va_start(parms, format);
+	_vsntprintf(tmp, CONFIG_BLEN, format, parms);
+	cfg_dowrite(f, option, tmp, 0, 0, 0);
+	va_end(parms);
 }
+void cfgfile_write_escape(struct zfile *f, const TCHAR *option, const TCHAR *format,...)
+{
+	va_list parms;
+	TCHAR tmp[CONFIG_BLEN];
 
-static void cfgfile_dwrite_ext (struct zfile *f, const TCHAR *option, const TCHAR *optionext, const TCHAR *format,...)
+	va_start(parms, format);
+	_vsntprintf(tmp, CONFIG_BLEN, format, parms);
+	cfg_dowrite(f, option, tmp, 0, 0, 1);
+	va_end(parms);
+}
+static void cfgfile_dwrite_ext(struct zfile *f, const TCHAR *option, const TCHAR *optionext, const TCHAR *format,...)
 {
 	va_list parms;
 	TCHAR tmp[CONFIG_BLEN], tmp2[CONFIG_BLEN];
 
 	if (optionext) {
-		_tcscpy (tmp2, option);
-		_tcscat (tmp2, optionext);
+		_tcscpy(tmp2, option);
+		_tcscat(tmp2, optionext);
 	}
-	va_start (parms, format);
-	_vsntprintf (tmp, CONFIG_BLEN, format, parms);
-	cfg_dowrite (f, optionext ? tmp2 : option, tmp, 1, 0);
-	va_end (parms);
+	va_start(parms, format);
+	_vsntprintf(tmp, CONFIG_BLEN, format, parms);
+	cfg_dowrite(f, optionext ? tmp2 : option, tmp, 1, 0, 0);
+	va_end(parms);
 }
-void cfgfile_dwrite (struct zfile *f, const TCHAR *option, const TCHAR *format,...)
+void cfgfile_dwrite(struct zfile *f, const TCHAR *option, const TCHAR *format,...)
 {
 	va_list parms;
 	TCHAR tmp[CONFIG_BLEN];
 
-	va_start (parms, format);
-	_vsntprintf (tmp, CONFIG_BLEN, format, parms);
-	cfg_dowrite (f, option, tmp, 1, 0);
-	va_end (parms);
+	va_start(parms, format);
+	_vsntprintf(tmp, CONFIG_BLEN, format, parms);
+	cfg_dowrite(f, option, tmp, 1, 0, 0);
+	va_end(parms);
 }
-void cfgfile_target_write (struct zfile *f, const TCHAR *option, const TCHAR *format,...)
+void cfgfile_dwrite_escape(struct zfile *f, const TCHAR *option, const TCHAR *format,...)
 {
 	va_list parms;
 	TCHAR tmp[CONFIG_BLEN];
 
-	va_start (parms, format);
-	_vsntprintf (tmp, CONFIG_BLEN, format, parms);
-	cfg_dowrite (f, option, tmp, 0, 1);
-	va_end (parms);
+	va_start(parms, format);
+	_vsntprintf(tmp, CONFIG_BLEN, format, parms);
+	cfg_dowrite(f, option, tmp, 1, 0, 1);
+	va_end(parms);
 }
-void cfgfile_target_dwrite (struct zfile *f, const TCHAR *option, const TCHAR *format,...)
+void cfgfile_target_write(struct zfile *f, const TCHAR *option, const TCHAR *format,...)
 {
 	va_list parms;
 	TCHAR tmp[CONFIG_BLEN];
 
-	va_start (parms, format);
-	_vsntprintf (tmp, CONFIG_BLEN, format, parms);
-	cfg_dowrite (f, option, tmp, 1, 1);
-	va_end (parms);
+	va_start(parms, format);
+	_vsntprintf(tmp, CONFIG_BLEN, format, parms);
+	cfg_dowrite(f, option, tmp, 0, 1, 0);
+	va_end(parms);
+}
+void cfgfile_target_write_escape(struct zfile *f, const TCHAR *option, const TCHAR *format,...)
+{
+	va_list parms;
+	TCHAR tmp[CONFIG_BLEN];
+
+	va_start(parms, format);
+	_vsntprintf(tmp, CONFIG_BLEN, format, parms);
+	cfg_dowrite(f, option, tmp, 0, 1, 1);
+	va_end(parms);
+}
+void cfgfile_target_dwrite(struct zfile *f, const TCHAR *option, const TCHAR *format,...)
+{
+	va_list parms;
+	TCHAR tmp[CONFIG_BLEN];
+
+	va_start(parms, format);
+	_vsntprintf(tmp, CONFIG_BLEN, format, parms);
+	cfg_dowrite(f, option, tmp, 1, 1, 0);
+	va_end(parms);
+}
+void cfgfile_target_dwrite_escape(struct zfile *f, const TCHAR *option, const TCHAR *format,...)
+{
+	va_list parms;
+	TCHAR tmp[CONFIG_BLEN];
+
+	va_start(parms, format);
+	_vsntprintf(tmp, CONFIG_BLEN, format, parms);
+	cfg_dowrite(f, option, tmp, 1, 1, 1);
+	va_end(parms);
 }
 
 static void cfgfile_write_rom (struct zfile *f, struct multipath *mp, const TCHAR *romfile, const TCHAR *name)
@@ -2468,6 +2525,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	cfgfile_dwrite_bool(f, _T("z3_autoconfig"), p->cs_z3autoconfig);
 	cfgfile_dwrite_bool(f, _T("1mchipjumper"), p->cs_1mchipjumper);
 	cfgfile_dwrite_bool(f, _T("color_burst"), p->cs_color_burst);
+	cfgfile_dwrite_bool(f, _T("hsync_glitch"), p->cs_ocshsyncbug);
 	cfgfile_dwrite_bool(f, _T("toshiba_gary"), p->cs_toshibagary);
 	cfgfile_dwrite_bool(f, _T("rom_is_slow"), p->cs_romisslow);
 	cfgfile_dwrite_str(f, _T("ciaa_type"), ciatype[p->cs_ciatype[0]]);
@@ -2911,7 +2969,18 @@ static int cfgfile_strboolval (const TCHAR *option, const TCHAR *value, const TC
 	return 1;
 }
 
-int cfgfile_string (const TCHAR *option, const TCHAR *value, const TCHAR *name, TCHAR *location, int maxsz)
+int cfgfile_string_escape(const TCHAR *option, const TCHAR *value, const TCHAR *name, TCHAR *location, int maxsz)
+{
+	if (_tcscmp(option, name) != 0)
+		return 0;
+	TCHAR *s = cfgfile_unescape_min(value);
+	_tcsncpy(location, s, maxsz - 1);
+	xfree(s);
+	location[maxsz - 1] = '\0';
+	return 1;
+}
+
+int cfgfile_string(const TCHAR *option, const TCHAR *value, const TCHAR *name, TCHAR *location, int maxsz)
 {
 	if (_tcscmp (option, name) != 0)
 		return 0;
@@ -5471,6 +5540,7 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 		|| cfgfile_yesno(option, value, _T("ics_agnus"), &p->cs_dipagnus)
 		|| cfgfile_yesno(option, value, _T("z3_autoconfig"), &p->cs_z3autoconfig)
 		|| cfgfile_yesno(option, value, _T("color_burst"), &p->cs_color_burst)
+		|| cfgfile_yesno(option, value, _T("hsync_glitch"), &p->cs_ocshsyncbug)
 		|| cfgfile_yesno(option, value, _T("toshiba_gary"), &p->cs_toshibagary)
 		|| cfgfile_yesno(option, value, _T("rom_is_slow"), &p->cs_romisslow)
 		|| cfgfile_yesno(option, value, _T("1mchipjumper"), &p->cs_1mchipjumper)
@@ -7936,6 +8006,7 @@ void default_prefs (struct uae_prefs *p, bool reset, int type)
 	p->cs_ciatodbug = false;
 	p->cs_unmapped_space = 0;
 	p->cs_color_burst = false;
+	p->cs_ocshsyncbug = false;
 	p->cs_ciatype[0] = 0;
 	p->cs_ciatype[1] = 0;
 
@@ -8953,6 +9024,7 @@ int built_in_chipset_prefs (struct uae_prefs *p)
 	p->cs_1mchipjumper = false;
 	p->cs_unmapped_space = 0;
 	p->cs_color_burst = false;
+	p->cs_ocshsyncbug = false;
 	p->cs_romisslow = false;
 	p->cs_toshibagary = false;
 	p->cs_ciatype[0] = p->cs_ciatype[1] = 0;

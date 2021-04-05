@@ -4333,9 +4333,9 @@ void target_save_options (struct zfile *f, struct uae_prefs *p)
 	cfgfile_target_dwrite_bool (f, _T("map_net_drives"), p->win32_automount_netdrives);
 	cfgfile_target_dwrite_bool (f, _T("map_removable_drives"), p->win32_automount_removabledrives);
 	serdevtoname (p->sername);
-	cfgfile_target_dwrite_str (f, _T("serial_port"), p->sername[0] ? p->sername : _T("none"));
+	cfgfile_target_dwrite_str(f, _T("serial_port"), p->sername[0] ? p->sername : _T("none"));
 	sernametodev (p->sername);
-	cfgfile_target_dwrite_str (f, _T("parallel_port"), p->prtname[0] ? p->prtname : _T("none"));
+	cfgfile_target_dwrite_str_escape(f, _T("parallel_port"), p->prtname[0] ? p->prtname : _T("none"));
 
 	cfgfile_target_dwrite (f, _T("active_priority"), _T("%d"), priorities[p->win32_active_capture_priority].value);
 #if 0
@@ -4363,17 +4363,17 @@ void target_save_options (struct zfile *f, struct uae_prefs *p)
 
 	midp = getmidiport (midioutportinfo, p->win32_midioutdev);
 	if (p->win32_midioutdev < -1)
-		cfgfile_target_dwrite_str (f, _T("midiout_device_name"), _T("none"));
+		cfgfile_target_dwrite_str_escape(f, _T("midiout_device_name"), _T("none"));
 	else if (p->win32_midioutdev == -1 || midp == NULL)
-		cfgfile_target_dwrite_str (f, _T("midiout_device_name"), _T("default"));
+		cfgfile_target_dwrite_str_escape(f, _T("midiout_device_name"), _T("default"));
 	else
-		cfgfile_target_dwrite_str (f, _T("midiout_device_name"), midp->name);
+		cfgfile_target_dwrite_str_escape(f, _T("midiout_device_name"), midp->name);
 
 	midp = getmidiport (midiinportinfo, p->win32_midiindev);
 	if (p->win32_midiindev < 0 || midp == NULL)
-		cfgfile_target_dwrite_str (f, _T("midiin_device_name"), _T("none"));
+		cfgfile_target_dwrite_str_escape(f, _T("midiin_device_name"), _T("none"));
 	else
-		cfgfile_target_dwrite_str (f, _T("midiin_device_name"), midp->name);
+		cfgfile_target_dwrite_str_escape(f, _T("midiin_device_name"), midp->name);
 	cfgfile_target_dwrite_bool (f, _T("midirouter"), p->win32_midirouter);
 			
 	cfgfile_target_dwrite_bool (f, _T("rtg_match_depth"), p->win32_rtgmatchdepth);
@@ -4751,7 +4751,7 @@ int target_parse_option (struct uae_prefs *p, const TCHAR *option, const TCHAR *
 	if (cfgfile_yesno (option, value, _T("start_not_captured"), &p->win32_start_uncaptured))
 		return 1;
 
-	if (cfgfile_string (option, value, _T("serial_port"), &p->sername[0], 256)) {
+	if (cfgfile_string_escape(option, value, _T("serial_port"), &p->sername[0], 256)) {
 		sernametodev (p->sername);
 		if (p->sername[0])
 			p->use_serial = 1;
@@ -4760,7 +4760,7 @@ int target_parse_option (struct uae_prefs *p, const TCHAR *option, const TCHAR *
 		return 1;
 	}
 
-	if (cfgfile_string (option, value, _T("parallel_port"), &p->prtname[0], 256)) {
+	if (cfgfile_string_escape(option, value, _T("parallel_port"), &p->prtname[0], 256)) {
 		if (!_tcscmp (p->prtname, _T("none")))
 			p->prtname[0] = 0;
 		if (!_tcscmp (p->prtname, _T("default"))) {
@@ -4771,7 +4771,7 @@ int target_parse_option (struct uae_prefs *p, const TCHAR *option, const TCHAR *
 		return 1;
 	}
 
-	if (cfgfile_string (option, value, _T("midiout_device_name"), tmpbuf, 256)) {
+	if (cfgfile_string_escape(option, value, _T("midiout_device_name"), tmpbuf, 256)) {
 		p->win32_midioutdev = -2;
 		if (!_tcsicmp (tmpbuf, _T("default")) || (midioutportinfo[0] && !_tcsicmp (tmpbuf, midioutportinfo[0]->name)))
 			p->win32_midioutdev = -1;
@@ -4782,7 +4782,7 @@ int target_parse_option (struct uae_prefs *p, const TCHAR *option, const TCHAR *
 		}
 		return 1;
 	}
-	if (cfgfile_string (option, value, _T("midiin_device_name"), tmpbuf, 256)) {
+	if (cfgfile_string_escape(option, value, _T("midiin_device_name"), tmpbuf, 256)) {
 		p->win32_midiindev = -1;
 		for (int i = 0; i < MAX_MIDI_PORTS && midiinportinfo[i]; i++) {
 			if (!_tcsicmp (midiinportinfo[i]->name, tmpbuf)) {
