@@ -1319,6 +1319,7 @@ void record_dma_reset (void)
 			dr2 = &dr[v * NR_DMA_REC_HPOS + h];
 			memset (dr2, 0, sizeof (struct dma_rec));
 			dr2->reg = 0xffff;
+			dr2->cf_reg = 0xffff;
 			dr2->addr = 0xffffffff;
 		}
 	}
@@ -1850,6 +1851,9 @@ void record_dma_write(uae_u16 reg, uae_u32 dat, uae_u32 addr, int hpos, int vpos
 	dr = &dma_record[dma_record_toggle][vpos * NR_DMA_REC_HPOS + hpos];
 	dma_record_frame[dma_record_toggle] = timeframes;
 	if (dr->reg != 0xffff) {
+		dr->cf_reg = reg;
+		dr->cf_dat = dat;
+		dr->cf_addr = addr;
 		dma_conflict(vpos, hpos, dr, reg, false);
 		return;
 	}
@@ -1865,7 +1869,11 @@ struct dma_rec *last_dma_rec;
 void record_dma_read_value(uae_u32 v)
 {
 	if (last_dma_rec) {
-		last_dma_rec->dat = v;
+		if (last_dma_rec->cf_reg != 0xffff) {
+			last_dma_rec->cf_dat = v;
+		} else {
+			last_dma_rec->dat = v;
+		}
 	}
 }
 void record_dma_read(uae_u16 reg, uae_u32 addr, int hpos, int vpos, int type, int extra)
@@ -1888,6 +1896,8 @@ void record_dma_read(uae_u16 reg, uae_u32 addr, int hpos, int vpos, int type, in
 	dma_record_frame[dma_record_toggle] = timeframes;
 	if (dr->reg != 0xffff) {
 		dma_conflict(vpos, hpos, dr, reg, false);
+		dr->cf_reg = reg;
+		dr->cf_addr = addr;
 		return;
 	}
 	dr->reg = reg;
@@ -1909,6 +1919,7 @@ static bool get_record_dma_info(struct dma_rec *dr, int hpos, int vpos, uae_u32 
 	const TCHAR *sr;
 	int br = dr->extra & 7;
 	int chcnt = -1;
+	TCHAR srtext[10];
 
 	if (l1)
 		l1[0] = 0;
@@ -1976,6 +1987,12 @@ static bool get_record_dma_info(struct dma_rec *dr, int hpos, int vpos, uae_u32 
 		sr = _T("BPL");
 		chcnt = br + 1;
 	}
+	if (dr->cf_reg != 0xffff) {
+		_stprintf(srtext, _T("!%03x "), dr->cf_reg);
+		chcnt = -1;
+	} else {
+		_tcscpy(srtext, sr);
+	}
 
 	_stprintf (l1, _T("[%02X %3d]"), hpos, hpos);
 	if (l4) {
@@ -1998,14 +2015,14 @@ static bool get_record_dma_info(struct dma_rec *dr, int hpos, int vpos, uae_u32 
 		} else {
 			if (chcnt >= 0) {
 				if (regsize == 3)
-					_stprintf(l2, _T("%3s%d %03X"), sr, chcnt, r);
+					_stprintf(l2, _T("%3s%d %03X"), srtext, chcnt, r);
 				else
-					_stprintf(l2, _T("%4s%d %02X"), sr, chcnt, r);
+					_stprintf(l2, _T("%4s%d %02X"), srtext, chcnt, r);
 			} else {
 				if (regsize == 3)
-					_stprintf(l2, _T("%4s %03X"), sr, r);
+					_stprintf(l2, _T("%4s %03X"), srtext, r);
 				else
-					_stprintf(l2, _T("%5s %02X"), sr, r);
+					_stprintf(l2, _T("%5s %02X"), srtext, r);
 			}
 		}
 		if (l3) {

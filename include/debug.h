@@ -220,6 +220,7 @@ struct dma_rec
     uae_s16 type;
 	uae_u16 extra;
 	uae_s8 intlev;
+	uae_u16 cf_reg, cf_dat, cf_addr;
 };
 
 extern struct dma_rec *last_dma_rec;
