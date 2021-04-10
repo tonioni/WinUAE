@@ -806,14 +806,16 @@ static void add_modulo(int hpos, int nr)
 		m2 = bpl2mod_prev;
 	}
 	if (fmode & 0x4000) {
-		if (((diwstrt >> 8) ^ vpos) & 1)
+		if (((diwstrt >> 8) ^ vposh) & 1) {
 			mod = m2;
-		else
+		} else {
 			mod = m1;
-	} else if (nr & 1)
+		}
+	} else if (nr & 1) {
 		mod = m2;
-	else
+	} else {
 		mod = m1;
+	}
 	add_mod(nr, mod);
 }
 
@@ -822,10 +824,11 @@ static void add_modulos(void)
 	uae_s16 m1, m2;
 
 	if (fmode & 0x4000) {
-		if (((diwstrt >> 8) ^ vpos) & 1)
+		if (((diwstrt >> 8) ^ vposh) & 1) {
 			m1 = m2 = bpl2mod;
-		else
+		} else {
 			m1 = m2 = bpl1mod;
+		}
 	} else {
 		m1 = bpl1mod;
 		m2 = bpl2mod;
@@ -2870,59 +2873,14 @@ STATIC_INLINE int one_fetch_cycle(int pos, int dma, int fm)
 	}
 }
 
-static void update_fetch_x (int until, int fm)
-{
-	int pos;
-
-	if (nodraw ())
-		return;
-
-	pos = last_fetch_hpos;
-	update_toscr_planes (fm);
-
-	// not optimized, update_fetch_x() is extremely rarely used.
-	for (; pos < until; pos++) {
-
-		toscr_nbits += toscr_res2p;
-
-		if (toscr_nbits > 16) {
-			uae_abort (_T("xtoscr_nbits > 16 (%d)"), toscr_nbits);
-			toscr_nbits = 0;
-		}
-		if (toscr_nbits == 16)
-			flush_display (fm);
-
-	}
-
-	if (until >= maxhpos) {
-		maybe_finish_last_fetch(pos, fm);
-		return;
-	}
-
-	flush_display (fm);
-}
-
 static void update_fetch(int until, int fm)
 {
+	int dma = dmaen(DMA_BITPLANE);
 	int hpos = last_fetch_hpos;
-	int dma = dmaen (DMA_BITPLANE);
 
-	if (1 && (nodraw() || !bprun_pipeline_flush_delay)) {
-		if (hpos < until) {
-			int diff = until - hpos;
-			rga_pipeline_bpl_read += diff;
-			rga_pipeline_bpl_read &= RGA_PIPELINE_MASK;
-			rga_pipeline_bpl_write += diff;
-			rga_pipeline_bpl_write &= RGA_PIPELINE_MASK;
-			flush_display(fm);
-			last_fetch_hpos = until;
-		}
-		return;
-	}
-
-	cycle_diagram_shift = last_fetch_hpos - fetch_cycle;
 
 #if 0
+	cycle_diagram_shift = last_fetch_hpos - fetch_cycle;
 	/* First, a loop that prepares us for the speedup code.  We want to enter
 	the SPEEDUP case with fetch_state == fetch_was_plane0 or it is the very
 	first fetch cycle (which equals to same state as fetch_was_plane0)
@@ -3016,6 +2974,22 @@ static void update_fetch_2(int hpos) { update_fetch(hpos, 2); }
 
 static void decide_bpl_fetch(int endhpos)
 {
+	int hpos = last_fetch_hpos;
+
+	if (1 && (nodraw() || !bprun_pipeline_flush_delay)) {
+		if (hpos < endhpos) {
+			int diff = endhpos - hpos;
+			rga_pipeline_bpl_read += diff;
+			rga_pipeline_bpl_read &= RGA_PIPELINE_MASK;
+			rga_pipeline_bpl_write += diff;
+			rga_pipeline_bpl_write &= RGA_PIPELINE_MASK;
+			flush_display(fetchmode);
+			last_fetch_hpos = endhpos;
+		}
+		return;
+	}
+
+
 	switch (fetchmode) {
 		case 0: update_fetch_0(endhpos); break;
 #ifdef AGA
@@ -4097,7 +4071,7 @@ static void updateextblk(void)
 			}
 		}
 
-		hsyncstartpos_start = hsyncstartpos;
+		hsyncstartpos_start = hsyncstartpos + (1 << CCK_SHRES_SHIFT);
 		if (hsyncstartpos < hsyncendpos) {
 			hsyncstartpos = (maxhpos << CCK_SHRES_SHIFT) + hsyncstartpos;
 			hsynctotal = hsyncstartpos;
@@ -5718,7 +5692,7 @@ static void FMODE(int hpos, uae_u16 v)
 	SET_LINE_CYCLEBASED;
 	fmode_saved = v;
 	set_chipset_mode();
-	bpldmainitdelay (hpos);
+	bpldmainitdelay(hpos);
 	record_register_change(hpos, 0x1fc, fmode);
 }
 
@@ -7588,19 +7562,19 @@ static void rtg_vsync (void)
 {
 #ifdef PICASSO96
 	frame_time_t start, end;
-	start = read_processor_time ();
-	picasso_handle_vsync ();
-	end = read_processor_time ();
+	start = read_processor_time();
+	picasso_handle_vsync();
+	end = read_processor_time();
 	frameskiptime += end - start;
 #endif
 }
 
-static void rtg_vsynccheck (void)
+static void rtg_vsynccheck(void)
 {
 #if 0
 	if (vblank_found_rtg) {
 		vblank_found_rtg = false;
-		rtg_vsync ();
+		rtg_vsync();
 	}
 #endif
 }
@@ -7652,13 +7626,13 @@ static bool framewait (void)
 	struct amigadisplay *ad = &adisplays[0];
 	frame_time_t curr_time;
 	frame_time_t start;
-	int vs = isvsync_chipset ();
+	int vs = isvsync_chipset();
 	int status = 0;
 
 	events_reset_syncline();
 
 	static struct mavg_data ma_frameskipt;
-	int frameskipt_avg = mavg (&ma_frameskipt, frameskiptime, MAVG_VSYNC_SIZE);
+	int frameskipt_avg = mavg(&ma_frameskipt, frameskiptime, MAVG_VSYNC_SIZE);
 
 	frameskiptime = 0;
 
@@ -7668,12 +7642,12 @@ static bool framewait (void)
 		static frame_time_t vsync_time;
 		int t;
 
-		curr_time = read_processor_time ();
+		curr_time = read_processor_time();
 		vsyncwaittime = vsyncmaxtime = curr_time + vsynctimebase;
 		if (!frame_rendered && !ad->picasso_on)
 			frame_rendered = render_screen(0, 1, false);
 
-		start = read_processor_time ();
+		start = read_processor_time();
 		t = 0;
 		if ((int)start - (int)vsync_time >= 0 && (int)start - (int)vsync_time < vsynctimebase)
 			t += (int)start - (int)vsync_time;
@@ -7686,7 +7660,7 @@ static bool framewait (void)
 
 		maybe_process_pull_audio();
 
-		int legacy_avg = mavg (&ma_legacy, t, MAVG_VSYNC_SIZE);
+		int legacy_avg = mavg(&ma_legacy, t, MAVG_VSYNC_SIZE);
 		if (t > legacy_avg)
 			legacy_avg = t;
 		t = legacy_avg;
@@ -7696,7 +7670,7 @@ static bool framewait (void)
 		if (debug_vsync_forced_delay > 0)
 			t = debug_vsync_forced_delay * vsynctimebase / 100;
 
-		vsync_time = read_processor_time ();
+		vsync_time = read_processor_time();
 		if (t > vsynctimebase * 2 / 3)
 			t = vsynctimebase * 2 / 3;
 
@@ -7739,7 +7713,7 @@ static bool framewait (void)
 		if (currprefs.m68k_speed_throttle) {
 			// this delay can safely overshoot frame time by 1-2 ms, following code will compensate for it.
 			for (;;) {
-				curr_time = read_processor_time ();
+				curr_time = read_processor_time();
 				if ((int)vsyncwaittime  - (int)curr_time <= 0 || (int)vsyncwaittime  - (int)curr_time > 2 * vsynctimebase)
 					break;
 				rtg_vsynccheck ();
@@ -7749,7 +7723,7 @@ static bool framewait (void)
 				}
 			}
 		} else {
-			curr_time = read_processor_time ();
+			curr_time = read_processor_time();
 		}
 
 		int max;
@@ -7779,7 +7753,7 @@ static bool framewait (void)
 		start = read_processor_time();
 		if (!frame_rendered && !ad->picasso_on) {
 			frame_rendered = render_screen(0, 1, false);
-			t = read_processor_time () - start;
+			t = read_processor_time() - start;
 		}
 		if (!currprefs.cpu_thread) {
 			while (!currprefs.turbo_emulation) {
@@ -7797,12 +7771,12 @@ static bool framewait (void)
 			}
 		}
 		idletime += read_processor_time() - start;
-		curr_time = read_processor_time ();
+		curr_time = read_processor_time();
 		vsyncmintime = curr_time;
 		vsyncmaxtime = vsyncwaittime = curr_time + vstb;
 		if (frame_rendered) {
 			show_screen(0, 0);
-			t += read_processor_time () - curr_time;
+			t += read_processor_time() - curr_time;
 		}
 		t += frameskipt_avg;
 
@@ -7830,28 +7804,28 @@ static void reset_cpu_idle(void)
 #define FPSCOUNTER_MAVG_SIZE 10
 static struct mavg_data fps_mavg, idle_mavg;
 
-void fpscounter_reset (void)
+void fpscounter_reset(void)
 {
-	mavg_clear (&fps_mavg);
-	mavg_clear (&idle_mavg);
+	mavg_clear(&fps_mavg);
+	mavg_clear(&idle_mavg);
 	bogusframe = 2;
-	lastframetime = read_processor_time ();
+	lastframetime = read_processor_time();
 	idletime = 0;
 }
 
-static void fpscounter (bool frameok)
+static void fpscounter(bool frameok)
 {
 	frame_time_t now, last;
 
-	now = read_processor_time ();
+	now = read_processor_time();
 	last = now - lastframetime;
 	lastframetime = now;
 
 	if (bogusframe || (int)last < 0)
 		return;
 
-	mavg (&fps_mavg, last / 10, FPSCOUNTER_MAVG_SIZE);
-	mavg (&idle_mavg, idletime / 10, FPSCOUNTER_MAVG_SIZE);
+	mavg(&fps_mavg, last / 10, FPSCOUNTER_MAVG_SIZE);
+	mavg(&idle_mavg, idletime / 10, FPSCOUNTER_MAVG_SIZE);
 	idletime = 0;
 
 	frametime += last;
@@ -7923,21 +7897,21 @@ static void vsync_handler_pre (void)
 	if (bogusframe > 0)
 		bogusframe--;
 
-	config_check_vsync ();
+	config_check_vsync();
 	if (timehack_alive > 0)
 		timehack_alive--;
 
 #ifdef PICASSO96
-	if (isvsync_rtg () >= 0)
-		rtg_vsync ();
+	if (isvsync_rtg() >= 0)
+		rtg_vsync();
 #endif
 
 	if (!vsync_rendered) {
 		frame_time_t start, end;
-		start = read_processor_time ();
+		start = read_processor_time();
 		vsync_handle_redraw(lof_store, lof_changed, bplcon0, bplcon3, isvsync_chipset() >= 0);
 		vsync_rendered = true;
-		end = read_processor_time ();
+		end = read_processor_time();
 		frameskiptime += end - start;
 	}
 
@@ -7955,7 +7929,7 @@ static void vsync_handler_pre (void)
 	// GUI check here, must be after frame rendering
 	devices_vsync_pre();
 
-	fpscounter (frameok);
+	fpscounter(frameok);
 
 	bool waspaused = false;
 	while (handle_events()) {
@@ -7990,7 +7964,7 @@ static void vsync_handler_pre (void)
 	else
 		vblank_hz_state = 1;
 
-	vsync_handle_check ();
+	vsync_handle_check();
 	//checklacecount (bplcon0_interlace_seen || lof_lace);
 }
 
@@ -8001,16 +7975,16 @@ static void vsync_handler_post (void)
 	static frame_time_t prevtime;
 
 	//write_log (_T("%d %d %d\n"), vsynctimebase, read_processor_time () - vsyncmintime, read_processor_time () - prevtime);
-	prevtime = read_processor_time ();
+	prevtime = read_processor_time();
 
 #if CUSTOM_DEBUG > 1
 	if ((intreq & 0x0020) && (intena & 0x0020))
-		write_log (_T("vblank interrupt not cleared\n"));
+		write_log(_T("vblank interrupt not cleared\n"));
 #endif
 	DISK_vsync ();
 
 #ifdef WITH_LUA
-	uae_lua_run_handler ("on_uae_vsync");
+	uae_lua_run_handler("on_uae_vsync");
 #endif
 
 	if (bplcon0 & 4) {
@@ -8043,12 +8017,12 @@ static void vsync_handler_post (void)
 	lof_prev_lastline = lof_lastline;
 	lof_current = lof_store;
 	if (lof_togglecnt_lace >= LOF_TOGGLES_NEEDED) {
-		interlace_changed = notice_interlace_seen (true);
+		interlace_changed = notice_interlace_seen(true);
 		if (interlace_changed) {
 			notice_screen_contents_lost(monid);
 		}
 	} else if (lof_togglecnt_nlace >= LOF_TOGGLES_NEEDED) {
-		interlace_changed = notice_interlace_seen (false);
+		interlace_changed = notice_interlace_seen(false);
 		if (interlace_changed) {
 			notice_screen_contents_lost(monid);
 		}
@@ -8077,9 +8051,9 @@ static void vsync_handler_post (void)
 
 #ifdef DEBUGGER
 	if (debug_copper)
-		record_copper_reset ();
+		record_copper_reset();
 	if (debug_dma)
-		record_dma_reset ();
+		record_dma_reset();
 #endif
 
 #ifdef PICASSO96
@@ -8106,9 +8080,9 @@ static void vsync_handler_post (void)
 
 	COPJMP(1, 1);
 
-	init_hardware_frame ();
+	init_hardware_frame();
 
-	vsync_cycles = get_cycles ();
+	vsync_cycles = get_cycles();
 }
 
 static void copper_check (int n)
@@ -8210,6 +8184,7 @@ static void hsync_scandoubler (void)
 
 static void events_dmal(int);
 static uae_u16 dmal, dmal_hpos;
+static bool dmal_ce;
 
 static void dmal_emu(uae_u32 v)
 {
@@ -8219,23 +8194,27 @@ static void dmal_emu(uae_u32 v)
 		v -= 6;
 		int nr = v / 2;
 		uaecptr pt = audio_getpt(nr, (v & 1) != 0);
+		if (dmal_ce) {
 #ifdef DEBUGGER
-		if (debug_dma) {
-			record_dma_read(0xaa + nr * 16, pt, hpos, vpos, DMARECORD_AUDIO, nr);
-		}
-		if (memwatch_enabled) {
-			debug_getpeekdma_chipram(pt, MW_MASK_AUDIO_0 << nr, 0xaa + nr * 16, 0xa0 + nr * 16);
-		}
+			if (debug_dma) {
+				record_dma_read(0xaa + nr * 16, pt, hpos, vpos, DMARECORD_AUDIO, nr);
+			}
+			if (memwatch_enabled) {
+				debug_getpeekdma_chipram(pt, MW_MASK_AUDIO_0 << nr, 0xaa + nr * 16, 0xa0 + nr * 16);
+			}
 #endif
+		}
 		uae_u16 dat = chipmem_wget_indirect (pt);
 #ifdef DEBUGGER
-		if (debug_dma) {
-			record_dma_read_value(dat);
-		}
-		if (memwatch_enabled) {
-			debug_getpeekdma_value(dat);
-		}
+		if (dmal_ce) {
+			if (debug_dma) {
+				record_dma_read_value(dat);
+			}
+			if (memwatch_enabled) {
+				debug_getpeekdma_value(dat);
+			}
 #endif
+		}
 		last_custom_value1 = last_custom_value2 = dat;
 		AUDxDAT (nr, dat, pt);
 	} else {
@@ -8246,23 +8225,27 @@ static void dmal_emu(uae_u32 v)
 		if (w) {
 			// write to disk
 			if (disk_fifostatus () <= 0) {
+				if (dmal_ce) {
 #ifdef DEBUGGER
-				if (debug_dma) {
-					record_dma_read(0x26, pt, hpos, vpos, DMARECORD_DISK, v / 2);
-				}
-				if (memwatch_enabled) {
-					debug_getpeekdma_chipram(pt, MW_MASK_DISK, 0x26, 0x20);
-				}
+					if (debug_dma) {
+						record_dma_read(0x26, pt, hpos, vpos, DMARECORD_DISK, v / 2);
+					}
+					if (memwatch_enabled) {
+						debug_getpeekdma_chipram(pt, MW_MASK_DISK, 0x26, 0x20);
+					}
 #endif
+				}
 				dat = chipmem_wget_indirect (pt);
+				if (dmal_ce) {
 #ifdef DEBUGGER
-				if (debug_dma) {
-					record_dma_read_value(dat);
-				}
-				if (memwatch_enabled) {
-					debug_getpeekdma_value(dat);
-				}
+					if (debug_dma) {
+						record_dma_read_value(dat);
+					}
+					if (memwatch_enabled) {
+						debug_getpeekdma_value(dat);
+					}
 #endif
+				}
 				last_custom_value1 = last_custom_value2 = dat;
 				DSKDAT (dat);
 			}
@@ -8270,14 +8253,16 @@ static void dmal_emu(uae_u32 v)
 			// read from disk
 			if (disk_fifostatus () >= 0) {
 				dat = DSKDATR ();
+				if (dmal_ce) {
 #ifdef DEBUGGER
-				if (debug_dma) {
-					record_dma_write(0x08, dat, pt, hpos, vpos, DMARECORD_DISK, v / 2);
-				}
-				if (memwatch_enabled) {
-					debug_putpeekdma_chipram(pt, dat, MW_MASK_DISK, 0x08, 0x20);
-				}
+					if (debug_dma) {
+						record_dma_write(0x08, dat, pt, hpos, vpos, DMARECORD_DISK, v / 2);
+					}
+					if (memwatch_enabled) {
+						debug_putpeekdma_chipram(pt, dat, MW_MASK_DISK, 0x08, 0x20);
+					}
 #endif
+				}
 				chipmem_wput_indirect (pt, dat);
 			}
 		}
@@ -8302,6 +8287,7 @@ static void dmal_func2(uae_u32 v)
 
 static void events_dmal(int hpos)
 {
+	dmal_ce = false;
 	if (!dmal)
 		return;
 	if (currprefs.cachesize) {
@@ -8314,6 +8300,7 @@ static void events_dmal(int hpos)
 			dmal >>= 2;
 			dmal_hpos += 2;
 		}
+		dmal_ce = true;
 		event2_newevent2(hpos, dmal_hpos + ((dmal & 2) ? 1 : 0), dmal_func);
 		dmal &= ~3;
 	} else {
@@ -9620,7 +9607,7 @@ static void hsync_handler (void)
 
 	}
 	vsync_line = vs;
-	hsync_handler_post (vs);
+	hsync_handler_post(vs);
 }
 
 // executed at start of hsync
@@ -9642,7 +9629,7 @@ void init_eventtab (void)
 	nextevent = 0;
 	for (i = 0; i < ev_max; i++) {
 		eventtab[i].active = 0;
-		eventtab[i].oldcycles = get_cycles ();
+		eventtab[i].oldcycles = get_cycles();
 	}
 	for (i = 0; i < ev2_max; i++) {
 		eventtab2[i].active = 0;
