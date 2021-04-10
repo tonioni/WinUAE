@@ -2879,87 +2879,84 @@ floatx80 floatx80_rem(floatx80 a, floatx80 b, float_status *status)
 
 }
 #else // 09-01-2017: Modified version for Previous
-floatx80 floatx80_rem( floatx80 a, floatx80 b, uint64_t *q, flag *s, float_status *status )
+floatx80 floatx80_rem(floatx80 a, floatx80 b, uint64_t* q, flag* s, float_status* status)
 {
     flag aSign, bSign, zSign;
     int32_t aExp, bExp, expDiff;
     uint64_t aSig0, aSig1, bSig;
     uint64_t qTemp, term0, term1, alternateASig0, alternateASig1;
-    
-    aSig0 = extractFloatx80Frac( a );
-    aExp = extractFloatx80Exp( a );
-    aSign = extractFloatx80Sign( a );
-    bSig = extractFloatx80Frac( b );
-    bExp = extractFloatx80Exp( b );
-    bSign = extractFloatx80Sign( b );
 
-	if ( aExp == 0x7FFF ) {
-        if (    (uint64_t) ( aSig0<<1 )
-            || ( ( bExp == 0x7FFF ) && (uint64_t) ( bSig<<1 ) ) ) {
-            return propagateFloatx80NaN( a, b, status );
+    aSig0 = extractFloatx80Frac(a);
+    aExp = extractFloatx80Exp(a);
+    aSign = extractFloatx80Sign(a);
+    bSig = extractFloatx80Frac(b);
+    bExp = extractFloatx80Exp(b);
+    bSign = extractFloatx80Sign(b);
+
+    *s = 0;
+    *q = 0;
+
+    if (aExp == 0x7FFF) {
+        if ((uint64_t)(aSig0 << 1)
+            || ((bExp == 0x7FFF) && (uint64_t)(bSig << 1))) {
+            return propagateFloatx80NaN(a, b, status);
         }
         goto invalid;
     }
-    if ( bExp == 0x7FFF ) {
-        if ( (uint64_t) ( bSig<<1 ) ) return propagateFloatx80NaN( a, b, status );
+    if (bExp == 0x7FFF) {
+        if ((uint64_t)(bSig << 1)) return propagateFloatx80NaN(a, b, status);
         *s = (aSign != bSign);
-        *q = 0;
-        return a;
+        return normalizeRoundAndPackFloatx80(status->floatx80_rounding_precision, aSign, aExp, aSig0, 0, status);;
     }
-    if ( bExp == 0 ) {
-        if ( bSig == 0 ) {
+    if (bExp == 0) {
+        if (bSig == 0) {
         invalid:
-            float_raise( float_flag_invalid, status );
-			return floatx80_default_nan(status);
+            float_raise(float_flag_invalid, status);
+            return floatx80_default_nan(status);
         }
-        normalizeFloatx80Subnormal( bSig, &bExp, &bSig );
+        normalizeFloatx80Subnormal(bSig, &bExp, &bSig);
     }
-    if ( aExp == 0 ) {
-#ifdef SOFTFLOAT_68K
-        if ( aSig0 == 0 ) {
+    if (aExp == 0) {
+        if (aSig0 == 0) {
             *s = (aSign != bSign);
-            *q = 0;
             return a;
         }
-#else
-        if ( (uint64_t) ( aSig0<<1 ) == 0 ) return a;
-#endif
-        normalizeFloatx80Subnormal( aSig0, &aExp, &aSig0 );
+        normalizeFloatx80Subnormal(aSig0, &aExp, &aSig0);
     }
-    bSig |= LIT64( 0x8000000000000000 );
+    bSig |= LIT64(0x8000000000000000);
     zSign = aSign;
     expDiff = aExp - bExp;
     *s = (aSign != bSign);
     aSig1 = 0;
-    if ( expDiff < 0 ) {
-        if ( expDiff < -1 ) return a;
-        shift128Right( aSig0, 0, 1, &aSig0, &aSig1 );
+    if (expDiff < 0) {
+        if (expDiff < -1) return a;
+        shift128Right(aSig0, 0, 1, &aSig0, &aSig1);
         expDiff = 0;
     }
-    qTemp = ( bSig <= aSig0 );
-    if ( qTemp ) aSig0 -= bSig;
-    *q = ( expDiff > 63 ) ? 0 : ( qTemp<<expDiff );
+    qTemp = (bSig <= aSig0);
+    if (qTemp) aSig0 -= bSig;
+    *q = (expDiff > 63) ? 0 : (qTemp << expDiff);
     expDiff -= 64;
-    while ( 0 < expDiff ) {
-        qTemp = estimateDiv128To64( aSig0, aSig1, bSig );
-        qTemp = ( 2 < qTemp ) ? qTemp - 2 : 0;
-        mul64To128( bSig, qTemp, &term0, &term1 );
-        sub128( aSig0, aSig1, term0, term1, &aSig0, &aSig1 );
-        shortShift128Left( aSig0, aSig1, 62, &aSig0, &aSig1 );
-        *q = ( expDiff > 63 ) ? 0 : ( qTemp<<expDiff );
+    while (0 < expDiff) {
+        qTemp = estimateDiv128To64(aSig0, aSig1, bSig);
+        qTemp = (2 < qTemp) ? qTemp - 2 : 0;
+        mul64To128(bSig, qTemp, &term0, &term1);
+        sub128(aSig0, aSig1, term0, term1, &aSig0, &aSig1);
+        shortShift128Left(aSig0, aSig1, 62, &aSig0, &aSig1);
+        *q = (expDiff > 63) ? 0 : (qTemp << expDiff);
         expDiff -= 62;
     }
     expDiff += 64;
-    if ( 0 < expDiff ) {
-        qTemp = estimateDiv128To64( aSig0, aSig1, bSig );
-        qTemp = ( 2 < qTemp ) ? qTemp - 2 : 0;
+    if (0 < expDiff) {
+        qTemp = estimateDiv128To64(aSig0, aSig1, bSig);
+        qTemp = (2 < qTemp) ? qTemp - 2 : 0;
         qTemp >>= 64 - expDiff;
-        mul64To128( bSig, qTemp<<( 64 - expDiff ), &term0, &term1 );
-        sub128( aSig0, aSig1, term0, term1, &aSig0, &aSig1 );
-        shortShift128Left( 0, bSig, 64 - expDiff, &term0, &term1 );
-        while ( le128( term0, term1, aSig0, aSig1 ) ) {
+        mul64To128(bSig, qTemp << (64 - expDiff), &term0, &term1);
+        sub128(aSig0, aSig1, term0, term1, &aSig0, &aSig1);
+        shortShift128Left(0, bSig, 64 - expDiff, &term0, &term1);
+        while (le128(term0, term1, aSig0, aSig1)) {
             ++qTemp;
-            sub128( aSig0, aSig1, term0, term1, &aSig0, &aSig1 );
+            sub128(aSig0, aSig1, term0, term1, &aSig0, &aSig1);
         }
         *q += qTemp;
     }
@@ -2967,23 +2964,22 @@ floatx80 floatx80_rem( floatx80 a, floatx80 b, uint64_t *q, flag *s, float_statu
         term1 = 0;
         term0 = bSig;
     }
-    sub128( term0, term1, aSig0, aSig1, &alternateASig0, &alternateASig1 );
-    if (    lt128( alternateASig0, alternateASig1, aSig0, aSig1 )
-        || (    eq128( alternateASig0, alternateASig1, aSig0, aSig1 )
-            && ( qTemp & 1 ) )
+    sub128(term0, term1, aSig0, aSig1, &alternateASig0, &alternateASig1);
+    if (lt128(alternateASig0, alternateASig1, aSig0, aSig1)
+        || (eq128(alternateASig0, alternateASig1, aSig0, aSig1)
+            && (qTemp & 1))
         ) {
         aSig0 = alternateASig0;
         aSig1 = alternateASig1;
-        zSign = ! zSign;
-        ++*q;
+        zSign = !zSign;
+        ++* q;
     }
     return
-    normalizeRoundAndPackFloatx80(status->floatx80_rounding_precision,
-                                  zSign, bExp + expDiff, aSig0, aSig1, status );
-    
+        normalizeRoundAndPackFloatx80(status->floatx80_rounding_precision,
+            zSign, bExp + expDiff, aSig0, aSig1, status);
+
 }
 #endif // End of modification
-
 
 #ifdef SOFTFLOAT_68K // 08-01-2017: Added for Previous
 /*----------------------------------------------------------------------------
@@ -2991,93 +2987,89 @@ floatx80 floatx80_rem( floatx80 a, floatx80 b, uint64_t *q, flag *s, float_statu
  | value `a' with respect to the corresponding value `b'.
  *----------------------------------------------------------------------------*/
 
-floatx80 floatx80_mod( floatx80 a, floatx80 b, uint64_t *q, flag *s, float_status *status )
+floatx80 floatx80_mod(floatx80 a, floatx80 b, uint64_t* q, flag* s, float_status* status)
 {
     flag aSign, bSign, zSign;
     int32_t aExp, bExp, expDiff;
     uint64_t aSig0, aSig1, bSig;
     uint64_t qTemp, term0, term1;
-    
-    aSig0 = extractFloatx80Frac( a );
-    aExp = extractFloatx80Exp( a );
-    aSign = extractFloatx80Sign( a );
-    bSig = extractFloatx80Frac( b );
-    bExp = extractFloatx80Exp( b );
-    bSign = extractFloatx80Sign( b );
 
-	if ( aExp == 0x7FFF ) {
-        if (    (uint64_t) ( aSig0<<1 )
-            || ( ( bExp == 0x7FFF ) && (uint64_t) ( bSig<<1 ) ) ) {
-            return propagateFloatx80NaN( a, b, status );
+    aSig0 = extractFloatx80Frac(a);
+    aExp = extractFloatx80Exp(a);
+    aSign = extractFloatx80Sign(a);
+    bSig = extractFloatx80Frac(b);
+    bExp = extractFloatx80Exp(b);
+    bSign = extractFloatx80Sign(b);
+
+    *s = 0;
+    *q = 0;
+
+    if (aExp == 0x7FFF) {
+        if ((uint64_t)(aSig0 << 1)
+            || ((bExp == 0x7FFF) && (uint64_t)(bSig << 1))) {
+            return propagateFloatx80NaN(a, b, status);
         }
         goto invalid;
     }
-    if ( bExp == 0x7FFF ) {
-        if ( (uint64_t) ( bSig<<1 ) ) return propagateFloatx80NaN( a, b, status );
+    if (bExp == 0x7FFF) {
+        if ((uint64_t)(bSig << 1)) return propagateFloatx80NaN(a, b, status);
         *s = (aSign != bSign);
-        *q = 0;
-        return a;
+        return normalizeRoundAndPackFloatx80(status->floatx80_rounding_precision, aSign, aExp, aSig0, 0, status);
     }
-    if ( bExp == 0 ) {
-        if ( bSig == 0 ) {
+    if (bExp == 0) {
+        if (bSig == 0) {
         invalid:
-            float_raise( float_flag_invalid, status );
-			return floatx80_default_nan(status);
-		}
-        normalizeFloatx80Subnormal( bSig, &bExp, &bSig );
+            float_raise(float_flag_invalid, status);
+            return floatx80_default_nan(status);
+        }
+        normalizeFloatx80Subnormal(bSig, &bExp, &bSig);
     }
-    if ( aExp == 0 ) {
-#ifdef SOFTFLOAT_68K
-        if ( aSig0 == 0 ) {
+    if (aExp == 0) {
+        if (aSig0 == 0) {
             *s = (aSign != bSign);
-            *q = 0;
             return a;
         }
-#else
-        if ( (uint64_t) ( aSig0<<1 ) == 0 ) return a;
-#endif
-        normalizeFloatx80Subnormal( aSig0, &aExp, &aSig0 );
+        normalizeFloatx80Subnormal(aSig0, &aExp, &aSig0);
     }
-    bSig |= LIT64( 0x8000000000000000 );
+    bSig |= LIT64(0x8000000000000000);
     zSign = aSign;
     expDiff = aExp - bExp;
     *s = (aSign != bSign);
     aSig1 = 0;
-    if ( expDiff < 0 ) return a;
-    qTemp = ( bSig <= aSig0 );
-    if ( qTemp ) aSig0 -= bSig;
-    *q = ( expDiff > 63 ) ? 0 : ( qTemp<<expDiff );
+    if (expDiff < 0) return roundAndPackFloatx80(status->floatx80_rounding_precision, aSign, aExp, aSig0, 0, status);
+    qTemp = (bSig <= aSig0);
+    if (qTemp) aSig0 -= bSig;
+    *q = (expDiff > 63) ? 0 : (qTemp << expDiff);
     expDiff -= 64;
-    while ( 0 < expDiff ) {
-        qTemp = estimateDiv128To64( aSig0, aSig1, bSig );
-        qTemp = ( 2 < qTemp ) ? qTemp - 2 : 0;
-        mul64To128( bSig, qTemp, &term0, &term1 );
-        sub128( aSig0, aSig1, term0, term1, &aSig0, &aSig1 );
-        shortShift128Left( aSig0, aSig1, 62, &aSig0, &aSig1 );
-        *q = ( expDiff > 63 ) ? 0 : ( qTemp<<expDiff );
-		expDiff -= 62;
+    while (0 < expDiff) {
+        qTemp = estimateDiv128To64(aSig0, aSig1, bSig);
+        qTemp = (2 < qTemp) ? qTemp - 2 : 0;
+        mul64To128(bSig, qTemp, &term0, &term1);
+        sub128(aSig0, aSig1, term0, term1, &aSig0, &aSig1);
+        shortShift128Left(aSig0, aSig1, 62, &aSig0, &aSig1);
+        *q = (expDiff > 63) ? 0 : (qTemp << expDiff);
+        expDiff -= 62;
     }
     expDiff += 64;
-    if ( 0 < expDiff ) {
-        qTemp = estimateDiv128To64( aSig0, aSig1, bSig );
-        qTemp = ( 2 < qTemp ) ? qTemp - 2 : 0;
+    if (0 < expDiff) {
+        qTemp = estimateDiv128To64(aSig0, aSig1, bSig);
+        qTemp = (2 < qTemp) ? qTemp - 2 : 0;
         qTemp >>= 64 - expDiff;
-        mul64To128( bSig, qTemp<<( 64 - expDiff ), &term0, &term1 );
-        sub128( aSig0, aSig1, term0, term1, &aSig0, &aSig1 );
-        shortShift128Left( 0, bSig, 64 - expDiff, &term0, &term1 );
-        while ( le128( term0, term1, aSig0, aSig1 ) ) {
+        mul64To128(bSig, qTemp << (64 - expDiff), &term0, &term1);
+        sub128(aSig0, aSig1, term0, term1, &aSig0, &aSig1);
+        shortShift128Left(0, bSig, 64 - expDiff, &term0, &term1);
+        while (le128(term0, term1, aSig0, aSig1)) {
             ++qTemp;
-            sub128( aSig0, aSig1, term0, term1, &aSig0, &aSig1 );
+            sub128(aSig0, aSig1, term0, term1, &aSig0, &aSig1);
         }
         *q += qTemp;
     }
     return
         normalizeRoundAndPackFloatx80(status->floatx80_rounding_precision,
-            zSign, bExp + expDiff, aSig0, aSig1, status );
-    
+            zSign, bExp + expDiff, aSig0, aSig1, status);
+
 }
 #endif // end of addition for Previous
-
 
 /*----------------------------------------------------------------------------
 | Returns the square root of the extended double-precision floating-point
@@ -3244,7 +3236,7 @@ floatx80 floatx80_scale(floatx80 a, floatx80 b, float_status *status)
     }
     if ( aExp == 0 ) {
         if ( aSig == 0 ) return packFloatx80( aSign, 0, 0);
-        if ( bExp < 0x3FFF ) return a;
+        if (bExp < 0x3FFF) return normalizeRoundAndPackFloatx80(status->floatx80_rounding_precision, aSign, aExp, aSig, 0, status);
         normalizeFloatx80Subnormal( aSig, &aExp, &aSig );
     }
     

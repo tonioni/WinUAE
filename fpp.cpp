@@ -127,6 +127,7 @@ FPP_AB fpp_cosh;
 FPP_ABP fpp_neg;
 FPP_AB fpp_acos;
 FPP_AB fpp_cos;
+FPP_ABC fpp_sincos;
 FPP_AB fpp_getexp;
 FPP_AB fpp_getman;
 FPP_ABP fpp_div;
@@ -3109,9 +3110,7 @@ static bool fp_arithmetic(fpdata *src, fpdata *dst, int extra)
 		case 0x35: /* FSINCOS */
 		case 0x36: /* FSINCOS */
 		case 0x37: /* FSINCOS */
-			fpp_cos(dst, src);
-			regs.fp[extra & 7] = *dst;
-			fpp_sin(dst, src);
+			fpp_sincos(dst, src, &regs.fp[extra & 7]);
 			break;
 		case 0x38: /* FCMP */
 		case 0x39:

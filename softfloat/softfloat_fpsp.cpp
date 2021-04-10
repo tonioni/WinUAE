@@ -1575,6 +1575,267 @@ floatx80 floatx80_sin(floatx80 a, float_status *status)
 }
 
 /*----------------------------------------------------------------------------
+ | Sine and cosine
+ *----------------------------------------------------------------------------*/
+
+floatx80 floatx80_sincos(floatx80 a, floatx80 *c, float_status * status)
+ {
+	flag aSign, xSign, rSign, sSign;
+	int32_t aExp, xExp, rExp, sExp;
+	uint64_t aSig, rSig, sSig;
+	
+	int32_t compact, l, n, i, j1, j2;
+	floatx80 fp0, fp1, fp2, fp3, fp4, fp5, r, s, invtwopi, twopi1, twopi2;
+	float32 posneg1, twoto63;
+	flag endflag;
+	
+	aSig = extractFloatx80Frac(a);
+	aExp = extractFloatx80Exp(a);
+	aSign = extractFloatx80Sign(a);
+	
+	if (aExp == 0x7FFF) {
+		if ((uint64_t)(aSig << 1)) {
+			*c = propagateFloatx80NaNOneArg(a, status);
+			return *c;
+			
+		}
+		float_raise(float_flag_invalid, status);
+		*c = floatx80_default_nan(status);
+		return *c;
+		
+	}
+	
+	if (aExp == 0 && aSig == 0) {
+		*c = packFloatx80(0, one_exp, one_sig);
+		return packFloatx80(aSign, 0, 0);
+		
+	}
+	
+	SET_PREC;
+	
+	compact = floatx80_make_compact(aExp, aSig);
+	
+	fp0 = a;
+	
+	if (compact < 0x3FD78000 || compact > 0x4004BC7E) { // 2^(-40) > |X| > 15 PI
+		if (compact > 0x3FFF8000) { // |X| >= 15 PI
+			// REDUCEX
+			fp1 = packFloatx80(0, 0, 0);
+			if (compact == 0x7FFEFFFF) {
+				twopi1 = packFloatx80(aSign ^ 1, 0x7FFE, LIT64(0xC90FDAA200000000));
+				twopi2 = packFloatx80(aSign ^ 1, 0x7FDC, LIT64(0x85A308D300000000));
+				fp0 = floatx80_add(fp0, twopi1, status);
+				fp1 = fp0;
+				fp0 = floatx80_add(fp0, twopi2, status);
+				fp1 = floatx80_sub(fp1, fp0, status);
+				fp1 = floatx80_add(fp1, twopi2, status);
+				
+			}
+			loop:
+			xSign = extractFloatx80Sign(fp0);
+			xExp = extractFloatx80Exp(fp0);
+			xExp -= 0x3FFF;
+			if (xExp <= 28) {
+				l = 0;
+				endflag = 1;
+			} else {
+				l = xExp - 27;
+				endflag = 0;
+			}
+			invtwopi = packFloatx80(0, 0x3FFE - l, LIT64(0xA2F9836E4E44152A)); // INVTWOPI
+			twopi1 = packFloatx80(0, 0x3FFF + l, LIT64(0xC90FDAA200000000));
+			twopi2 = packFloatx80(0, 0x3FDD + l, LIT64(0x85A308D300000000));
+
+			twoto63 = 0x5F000000;
+			twoto63 |= xSign ? 0x80000000 : 0x00000000; // SIGN(INARG)*2^63 IN SGL
+
+			fp2 = floatx80_mul(fp0, invtwopi, status);
+			fp2 = floatx80_add(fp2, float32_to_floatx80(twoto63, status), status); // THE FRACTIONAL PART OF FP2 IS ROUNDED
+			fp2 = floatx80_sub(fp2, float32_to_floatx80(twoto63, status), status); // FP2 is N
+			fp4 = floatx80_mul(twopi1, fp2, status); // W = N*P1
+			fp5 = floatx80_mul(twopi2, fp2, status); // w = N*P2
+			fp3 = floatx80_add(fp4, fp5, status); // FP3 is P
+			fp4 = floatx80_sub(fp4, fp3, status); // W-P
+			fp0 = floatx80_sub(fp0, fp3, status); // FP0 is A := R - P
+			fp4 = floatx80_add(fp4, fp5, status); // FP4 is p = (W-P)+w
+			fp3 = fp0; // FP3 is A
+			fp1 = floatx80_sub(fp1, fp4, status); // FP1 is a := r - p
+			fp0 = floatx80_add(fp0, fp1, status); // FP0 is R := A+a
+			
+			if (endflag > 0) {
+				n = floatx80_to_int32(fp2, status);
+				goto sccont;
+			}
+			fp3 = floatx80_sub(fp3, fp0, status); // A-R
+			fp1 = floatx80_add(fp1, fp3, status); // FP1 is r := (A-R)+a
+			goto loop;
+		} else {
+			// SCSM
+			fp0 = float32_to_floatx80(0x3F800000, status); // 1
+			
+			RESET_PREC;
+			
+			// COSTINY
+			*c = floatx80_sub(fp0, float32_to_floatx80(0x00800000, status), status);
+			// SINTINY
+			a = floatx80_move(a, status);
+			
+			float_raise(float_flag_inexact, status);
+			
+			return a;
+		
+		}
+	} else {
+		fp1 = floatx80_mul(fp0, float64_to_floatx80(LIT64(0x3FE45F306DC9C883), status), status); // X*2/PI
+		
+		n = floatx80_to_int32(fp1, status);
+		i = 32 + n;
+		
+		fp0 = floatx80_sub(fp0, pi_tbl[i], status); // X-Y1
+		fp0 = floatx80_sub(fp0, float32_to_floatx80(pi_tbl2[i], status), status); // FP0 IS R = (X-Y1)-Y2
+		
+		sccont:
+		n &= 3; // k = N mod 4
+		if (n & 1) {
+			// NODD
+			j1 = n >> 1; // j1 = (k-1)/2
+			j2 = j1 ^ (n & 1); // j2 = j1 EOR (k mod 2)
+			
+			rSign = extractFloatx80Sign(fp0); // R
+			rExp = extractFloatx80Exp(fp0);
+			rSig = extractFloatx80Frac(fp0);
+			rSign ^= j2;
+			
+			fp0 = floatx80_mul(fp0, fp0, status); // FP0 IS S = R*R
+			fp1 = float64_to_floatx80(LIT64(0xBD6AAA77CCC994F5), status); // A7
+			fp2 = float64_to_floatx80(LIT64(0x3D2AC4D0D6011EE3), status); // B8
+			fp1 = floatx80_mul(fp1, fp0, status); // FP1 IS SA7
+			fp2 = floatx80_mul(fp2, fp0, status); // FP2 IS SB8
+			fp1 = floatx80_add(fp1, float64_to_floatx80(LIT64(0x3DE612097AAE8DA1), status), status); // A6+SA7
+			fp2 = floatx80_add(fp2, float64_to_floatx80(LIT64(0xBDA9396F9F45AC19), status), status); // B7+SB8
+			fp1 = floatx80_mul(fp1, fp0, status); // S(A6+SA7)
+			fp2 = floatx80_mul(fp2, fp0, status); // S(B7+SB8)
+			fp1 = floatx80_add(fp1, float64_to_floatx80(LIT64(0xBE5AE6452A118AE4), status), status); // A5+S(A6+SA7)
+			fp2 = floatx80_add(fp2, float64_to_floatx80(LIT64(0x3E21EED90612C972), status), status); // B6+S(B7+SB8)
+			fp1 = floatx80_mul(fp1, fp0, status); // S(A5+S(A6+SA7))
+			fp2 = floatx80_mul(fp2, fp0, status); // S(B6+S(B7+SB8))
+			
+			sSign = extractFloatx80Sign(fp0); // S
+			sExp = extractFloatx80Exp(fp0);
+			sSig = extractFloatx80Frac(fp0);
+			sSign ^= j1;
+			posneg1 = 0x3F800000;
+			posneg1 |= j1 ? 0x80000000 : 0;
+			
+			fp1 = floatx80_add(fp1, float64_to_floatx80(LIT64(0x3EC71DE3A5341531), status), status); // A4+S(A5+S(A6+SA7))
+			fp2 = floatx80_add(fp2, float64_to_floatx80(LIT64(0xBE927E4FB79D9FCF), status), status); // B5+S(B6+S(B7+SB8))
+			fp1 = floatx80_mul(fp1, fp0, status); // S(A4+...)
+			fp2 = floatx80_mul(fp2, fp0, status); // S(B5+...)
+			fp1 = floatx80_add(fp1, float64_to_floatx80(LIT64(0xBF2A01A01A018B59), status), status); // A3+S(A4+...)
+			fp2 = floatx80_add(fp2, float64_to_floatx80(LIT64(0x3EFA01A01A01D423), status), status); // B4+S(B5+...)
+			fp1 = floatx80_mul(fp1, fp0, status); // S(A3+...)
+			fp2 = floatx80_mul(fp2, fp0, status); // S(B4+...)
+			fp3 = packFloatx80(0, 0x3FF8, LIT64(0x88888888888859AF));
+			fp4 = packFloatx80(1, 0x3FF5, LIT64(0xB60B60B60B61D438));
+			fp1 = floatx80_add(fp1, fp3, status); // A2+S(A3+...)
+			fp2 = floatx80_add(fp2, fp4, status); // B3+S(B4+...)
+			fp1 = floatx80_mul(fp1, fp0, status); // S(A2+...)
+			fp2 = floatx80_mul(fp2, fp0, status); // S(B3+...)
+			fp3 = packFloatx80(1, 0x3FFC, LIT64(0xAAAAAAAAAAAAAA99));
+			fp4 = packFloatx80(0, 0x3FFA, LIT64(0xAAAAAAAAAAAAAB5E));
+			fp1 = floatx80_add(fp1, fp3, status); // A1+S(A2+...)
+			fp2 = floatx80_add(fp2, fp4, status); // B2+S(B3+...)
+			fp1 = floatx80_mul(fp1, fp0, status); // S(A1+...)
+			fp0 = floatx80_mul(fp0, fp2, status); // S(B2+...)
+			
+			r = packFloatx80(rSign, rExp, rSig);
+			fp1 = floatx80_mul(fp1, r, status); // R'S(A1+...)
+			fp0 = floatx80_add(fp0, float32_to_floatx80(0xBF000000, status), status); // B1+S(B2...)
+			
+			s = packFloatx80(sSign, sExp, sSig);
+			fp0 = floatx80_mul(fp0, s, status); // S'(B1+S(B2+...))
+			
+			RESET_PREC;
+			
+			*c = floatx80_add(fp1, r, status); // COS(X)
+			
+			a = floatx80_add(fp0, float32_to_floatx80(posneg1, status), status); // SIN(X)
+			
+			float_raise(float_flag_inexact, status);
+			
+			return a;
+		} else {
+			// NEVEN
+			j1 = n >> 1; // j1 = k/2
+			
+			rSign = extractFloatx80Sign(fp0); // R
+			rExp = extractFloatx80Exp(fp0);
+			rSig = extractFloatx80Frac(fp0);
+			rSign ^= j1;
+			
+			fp0 = floatx80_mul(fp0, fp0, status); // FP0 IS S = R*R
+			fp1 = float64_to_floatx80(LIT64(0x3D2AC4D0D6011EE3), status); // B8
+			fp2 = float64_to_floatx80(LIT64(0xBD6AAA77CCC994F5), status); // A7
+			fp1 = floatx80_mul(fp1, fp0, status); // SB8
+			fp2 = floatx80_mul(fp2, fp0, status); // SA7
+			
+			sSign = extractFloatx80Sign(fp0); // S
+			sExp = extractFloatx80Exp(fp0);
+			sSig = extractFloatx80Frac(fp0);
+			sSign ^= j1;
+			posneg1 = 0x3F800000;
+			posneg1 |= j1 ? 0x80000000 : 0;
+			
+			fp1 = floatx80_add(fp1, float64_to_floatx80(LIT64(0xBDA9396F9F45AC19), status), status); // B7+SB8
+			fp2 = floatx80_add(fp2, float64_to_floatx80(LIT64(0x3DE612097AAE8DA1), status), status); // A6+SA7
+			fp1 = floatx80_mul(fp1, fp0, status); // S(B7+SB8)
+			fp2 = floatx80_mul(fp2, fp0, status); // S(A6+SA7)
+			fp1 = floatx80_add(fp1, float64_to_floatx80(LIT64(0x3E21EED90612C972), status), status); // B6+S(B7+SB8)
+			fp2 = floatx80_add(fp2, float64_to_floatx80(LIT64(0xBE5AE6452A118AE4), status), status); // A5+S(A6+SA7)
+			fp1 = floatx80_mul(fp1, fp0, status); // S(B6+S(B7+SB8))
+			fp2 = floatx80_mul(fp2, fp0, status); // S(A5+S(A6+SA7))
+			fp1 = floatx80_add(fp1, float64_to_floatx80(LIT64(0xBE927E4FB79D9FCF), status), status); // B5+S(B6+S(B7+SB8))
+			fp2 = floatx80_add(fp2, float64_to_floatx80(LIT64(0x3EC71DE3A5341531), status), status); // A4+S(A5+S(A6+SA7))
+			fp1 = floatx80_mul(fp1, fp0, status); // S(B5+...)
+			fp2 = floatx80_mul(fp2, fp0, status); // S(A4+...)
+			fp1 = floatx80_add(fp1, float64_to_floatx80(LIT64(0x3EFA01A01A01D423), status), status); // B4+S(B5+...)
+			fp2 = floatx80_add(fp2, float64_to_floatx80(LIT64(0xBF2A01A01A018B59), status), status); // A3+S(A4+...)
+			fp1 = floatx80_mul(fp1, fp0, status); // S(B4+...)
+			fp2 = floatx80_mul(fp2, fp0, status); // S(A3+...)
+			fp3 = packFloatx80(1, 0x3FF5, LIT64(0xB60B60B60B61D438));
+			fp4 = packFloatx80(0, 0x3FF8, LIT64(0x88888888888859AF));
+			fp1 = floatx80_add(fp1, fp3, status); // B3+S(B4+...)
+			fp2 = floatx80_add(fp2, fp4, status); // A2+S(A3+...)
+			fp1 = floatx80_mul(fp1, fp0, status); // S(B3+...)
+			fp2 = floatx80_mul(fp2, fp0, status); // S(A2+...)
+			fp3 = packFloatx80(0, 0x3FFA, LIT64(0xAAAAAAAAAAAAAB5E));
+			fp4 = packFloatx80(1, 0x3FFC, LIT64(0xAAAAAAAAAAAAAA99));
+			fp1 = floatx80_add(fp1, fp3, status); // B2+S(B3+...)
+			fp2 = floatx80_add(fp2, fp4, status); // A1+S(A2+...)
+			fp1 = floatx80_mul(fp1, fp0, status); // S(B2+...)
+			fp0 = floatx80_mul(fp0, fp2, status); // S(A1+...)
+			fp1 = floatx80_add(fp1, float32_to_floatx80(0xBF000000, status), status); // B1+S(B2...)
+			
+			r = packFloatx80(rSign, rExp, rSig);
+			fp0 = floatx80_mul(fp0, r, status); // R'S(A1+...)
+			
+			s = packFloatx80(sSign, sExp, sSig);
+			fp1 = floatx80_mul(fp1, s, status); // S'(B1+S(B2+...))
+			
+			RESET_PREC;
+			
+			*c = floatx80_add(fp1, float32_to_floatx80(posneg1, status), status); // COS(X)
+			
+			a = floatx80_add(fp0, r, status); // SIN(X)
+			
+			float_raise(float_flag_inexact, status);
+			
+			return a;
+		}
+	}
+}
+
+/*----------------------------------------------------------------------------
  | Hyperbolic sine
  *----------------------------------------------------------------------------*/
 

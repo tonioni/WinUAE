@@ -511,6 +511,10 @@ static void fp_cos(fpdata *a, fpdata *b)
 {
     a->fpx = floatx80_cos(b->fpx, &fs);
 }
+static void fp_sincos(fpdata * a, fpdata * b, fpdata * c)
+{
+	a->fpx = floatx80_sincos(b->fpx, &c->fpx, &fs);
+}
 
 /* Functions for converting between float formats */
 static const fptype twoto32 = 4294967296.0;
@@ -814,6 +818,7 @@ void fp_init_softfloat(int fpu_model)
 	fpp_neg = fp_neg;
 	fpp_acos = fp_acos;
 	fpp_cos = fp_cos;
+	fpp_sincos = fp_sincos;
 	fpp_getexp = fp_getexp;
 	fpp_getman = fp_getman;
 	fpp_div = fp_div;
