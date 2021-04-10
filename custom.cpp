@@ -326,7 +326,6 @@ struct sprite {
 	int armed;
 	int dmastate;
 	int dmacycle;
-	int ptxhpos;
 	int ptxhpos2, ptxvpos2;
 	bool ignoreverticaluntilnextline;
 	int width;
@@ -6157,7 +6156,7 @@ static void SPRxPTH(int hpos, uae_u16 v, int num)
 static void SPRxPTL(int hpos, uae_u16 v, int num)
 {
 	decide_sprites(hpos);
-	if (hpos != spr[num].ptxhpos || (!copper_access && !currprefs.cpu_memory_cycle_exact)) {
+	if (get_sprite_dma_rel(-2) != num || (!copper_access && !currprefs.cpu_memory_cycle_exact)) {
 		spr[num].pt &= ~0xffff;
 		spr[num].pt |= v & ~1;
 	}
@@ -6530,6 +6529,7 @@ static void decide_line_decision(int endhpos)
 				bprun = -1;
 				if (plfstrt_sprite > hpos) {
 					plfstrt_sprite = hpos;
+					plfstrt_sprite--;
 				}
 			}
 
@@ -7173,7 +7173,7 @@ static void blitter_done_notify_wakeup(uae_u32 temp)
 {
 	if (cop_state.state != COP_bltwait)
 		return;
-	cop_state.state = COP_wait;
+	cop_state.state = COP_wait1;
 	compute_spcflag_copper();
 	if (copper_enabled_thisline) {
 		int hpos = current_hpos();
@@ -7240,8 +7240,6 @@ static uae_u16 sprite_fetch(struct sprite *s, uaecptr pt, int hpos, int slot, in
 		int num = s - &spr[0];
 		write_log(_T("Sprite %d, hpos %d wrong cycle polarity!\n"), num, hpos);
 	}
-
-	s->ptxhpos = hpos;
 #ifdef DEBUGGER
 	int num = s - &spr[0];
 	if (debug_dma) {
@@ -7329,7 +7327,6 @@ static void do_sprite_fetch(int hpos, uae_u16 dat)
 	bool slot = (dat & 8) != 0;
 	bool dmastate = (dat & 0x10) != 0;
 
-	spr[num].ptxhpos = MAXHPOS;
 	sprite_fetch_full(s, hpos, slot, false, &data, &data321, &data322);
 	int sprxp = s->xpos >> (sprite_buffer_res + 1);
 	bool start_before_dma = hpos >= sprxp && sprxp >= 16;
@@ -7410,6 +7407,7 @@ static void decide_sprite_fetch(int endhpos)
 	int hpos = last_decide_sprite_hpos;
 	while (hpos < endhpos) {
 		if (hpos >= SPR_FIRST_HPOS - RGA_SPRITE_PIPELINE_DEPTH && hpos < SPR_FIRST_HPOS + MAX_SPRITES * 4) {
+
 			int rpos = (rga_pipeline_sprite - RGA_SPRITE_PIPELINE_DEPTH) & RGA_PIPELINE_MASK;
 			bool sprite_dma = rga_pipeline[rpos] >= 0x40 && rga_pipeline[rpos] <= 0x5f;
 			if (sprite_dma) {
@@ -7417,6 +7415,7 @@ static void decide_sprite_fetch(int endhpos)
 				do_sprite_fetch(hpos, dat);
 				rga_pipeline[rpos] = 0;
 			}
+
 			if (hpos < SPR_FIRST_HPOS + MAX_SPRITES * 4 - RGA_SPRITE_PIPELINE_DEPTH) {
 				int num = (hpos - (SPR_FIRST_HPOS - RGA_SPRITE_PIPELINE_DEPTH)) / 4;
 				int slot = (hpos - (SPR_FIRST_HPOS - RGA_SPRITE_PIPELINE_DEPTH)) & 3;
@@ -7444,7 +7443,7 @@ static void decide_sprite_fetch(int endhpos)
 							s->dmacycle = 1;
 						}
 					}
-					if (dmaen(DMA_SPRITE) && hpos < plfstrt_sprite && s->dmacycle) {
+					if (dmaen(DMA_SPRITE) && hpos <= plfstrt_sprite && s->dmacycle) {
 						bool dodma = true;
 #ifdef AGA
 						if (s->dblscan && (fmode & 0x8000) && (vpos & 1) != (s->vstart & 1) && s->dmastate) {
@@ -7533,7 +7532,6 @@ static void init_hardware_frame(void)
 	autoscale_bordercolors = 0;
 
 	for (i = 0; i < MAX_SPRITES; i++) {
-		spr[i].ptxhpos = MAXHPOS;
 		spr[i].ptxvpos2 = -1;
 	}
 }
