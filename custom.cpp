@@ -8518,6 +8518,11 @@ static void hsync_handler_pre(bool onvsync)
 
 	// to record decisions correctly between end of scanline and start of hsync
 	hpos_hsync_extra = maxhpos;
+	if (!eventtab[ev_hsynch].active) {
+		eventtab[ev_hsynch].evtime = get_cycles() + (hsyncstartpos_start >> CCK_SHRES_SHIFT) * CYCLE_UNIT;
+		eventtab[ev_hsynch].active = 1;
+		events_schedule();
+	}
 }
 
 STATIC_INLINE bool is_last_line (void)
