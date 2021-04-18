@@ -226,13 +226,13 @@ void devices_reset(int hardreset)
 
 void devices_vsync_pre(void)
 {
-	audio_vsync ();
-	blkdev_vsync ();
-	CIA_vsync_prehandler ();
-	inputdevice_vsync ();
-	filesys_vsync ();
-	sampler_vsync ();
-	clipboard_vsync ();
+	audio_vsync();
+	blkdev_vsync();
+	CIA_vsync_prehandler();
+	inputdevice_vsync();
+	filesys_vsync();
+	sampler_vsync();
+	clipboard_vsync();
 	statusline_vsync();
 
 	execute_device_items(device_vsyncs_pre, device_vsync_pre_cnt);
@@ -249,8 +249,8 @@ void devices_hsync(void)
 	audio_hsync();
 	CIA_hsync_prehandler();
 
-	decide_blitter (-1);
-	serial_hsynchandler ();
+	decide_blitter(-1);
+	serial_hsynchandler();
 
 	execute_device_items(device_hsyncs, device_hsync_cnt);
 }
