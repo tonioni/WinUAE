@@ -848,7 +848,8 @@ BEGIN
     CONTROL         "Toshiba Gary",IDC_CS_TOSHIBAGARY,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,14,197,106,12
     CONTROL         "KS ROM has Chip RAM speed",IDC_CS_ROMISSLOW,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,127,197,125,12
     CONTROL         "CIA 391078-01 [] CIA revision that can't read IO pin status in output mode",IDC_CS_CIA,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,264,185,125,12
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,264,197,125,12
+    CONTROL         "OCS H-Sync glitch",IDC_CS_OCSHSYNCBUG,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,263,184,125,12
 END
 
 IDD_AVIOUTPUT DIALOGEX 0, 0, 396, 316

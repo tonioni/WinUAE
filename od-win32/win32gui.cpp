@@ -9012,6 +9012,7 @@ static void values_to_chipsetdlg2 (HWND hDlg)
 	CheckDlgButton(hDlg, IDC_CS_1MCHIPJUMPER, workprefs.cs_1mchipjumper || workprefs.chipmem.size >= 0x100000);
 	CheckDlgButton(hDlg, IDC_CS_BYTECUSTOMWRITEBUG, workprefs.cs_bytecustomwritebug);
 	CheckDlgButton(hDlg, IDC_CS_COMPOSITECOLOR, workprefs.cs_color_burst);
+	CheckDlgButton(hDlg, IDC_CS_OCSHSYNCBUG, workprefs.cs_ocshsyncbug);
 	CheckDlgButton(hDlg, IDC_CS_TOSHIBAGARY, workprefs.cs_toshibagary);
 	CheckDlgButton(hDlg, IDC_CS_ROMISSLOW, workprefs.cs_romisslow);
 	CheckDlgButton(hDlg, IDC_CS_CIA, workprefs.cs_ciatype[0]);
@@ -9104,6 +9105,7 @@ static void values_from_chipsetdlg2 (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 	workprefs.cs_1mchipjumper = ischecked(hDlg, IDC_CS_1MCHIPJUMPER);
 	workprefs.cs_bytecustomwritebug = ischecked(hDlg, IDC_CS_BYTECUSTOMWRITEBUG);
 	workprefs.cs_color_burst = ischecked(hDlg, IDC_CS_COMPOSITECOLOR);
+	workprefs.cs_ocshsyncbug = ischecked(hDlg, IDC_CS_OCSHSYNCBUG);
 	workprefs.cs_toshibagary = ischecked(hDlg, IDC_CS_TOSHIBAGARY);
 	workprefs.cs_romisslow = ischecked(hDlg, IDC_CS_ROMISSLOW);
 	workprefs.cs_ciatype[0] = workprefs.cs_ciatype[1] = ischecked(hDlg, IDC_CS_CIA);
@@ -9194,6 +9196,7 @@ static void enable_for_chipsetdlg2 (HWND hDlg)
 	ew(hDlg, IDC_CS_1MCHIPJUMPER, e && workprefs.chipmem.size < 0x100000);
 	ew(hDlg, IDC_CS_BYTECUSTOMWRITEBUG, e);
 	ew(hDlg, IDC_CS_COMPOSITECOLOR, e);
+	ew(hDlg, IDC_CS_OCSHSYNCBUG, e);
 	ew(hDlg, IDC_CS_TOSHIBAGARY, e);
 	ew(hDlg, IDC_CS_ROMISSLOW, e);
 	ew(hDlg, IDC_CS_UNMAPPED, e);
