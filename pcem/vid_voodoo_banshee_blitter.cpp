@@ -620,7 +620,9 @@ static void banshee_do_screen_to_screen_blt(voodoo_t *voodoo)
 static void banshee_do_host_to_screen_blt(voodoo_t *voodoo, int count, uint32_t data)
 {
 //        if (voodoo->banshee_blt.dstBaseAddr == 0xee5194)
-//                pclog("banshee_do_host_to_screen_blt: data=%08x host_data_count=%i src_stride_dest=%i host_data_size_dest=%i\n", data, voodoo->banshee_blt.host_data_count, voodoo->banshee_blt.src_stride_dest, voodoo->banshee_blt.host_data_size_dest);
+                pclog("banshee_do_host_to_screen_blt: x=%d ys=%d ye=%d data=%08x host_data_count=%i src_stride_dest=%i host_data_size_dest=%i\n",
+                        voodoo->banshee_blt.cur_x, voodoo->banshee_blt.cur_y, voodoo->banshee_blt.dstSizeY,
+                        data, voodoo->banshee_blt.host_data_count, voodoo->banshee_blt.src_stride_dest, voodoo->banshee_blt.host_data_size_dest);
 
         if (voodoo->banshee_blt.srcFormat & SRC_FORMAT_BYTE_SWIZZLE)
                 data = (data >> 24) | ((data >> 8) & 0xff00) | ((data << 8) & 0xff0000) | (data << 24);
@@ -662,27 +664,61 @@ static void banshee_do_host_to_screen_blt(voodoo_t *voodoo, int count, uint32_t 
         }
         else
         {
-                *(uint32_t *)&voodoo->banshee_blt.host_data[voodoo->banshee_blt.host_data_count] = data;
-                voodoo->banshee_blt.host_data_count += 4;
-                while (voodoo->banshee_blt.host_data_count >= voodoo->banshee_blt.src_stride_dest)
-                {
-                        voodoo->banshee_blt.host_data_count -= voodoo->banshee_blt.src_stride_dest;
-
-//                        pclog("  %i %i\n", voodoo->banshee_blt.cur_y, voodoo->banshee_blt.dstSizeY);
-                        if (voodoo->banshee_blt.cur_y < voodoo->banshee_blt.dstSizeY)
-                        {
-                                do_screen_to_screen_line(voodoo, voodoo->banshee_blt.host_data, 0, 0, 0);
-                                voodoo->banshee_blt.cur_y++;
-                                if (voodoo->banshee_blt.cur_y == voodoo->banshee_blt.dstSizeY)
-                                        end_command(voodoo);
-                        }
-
-                        if (voodoo->banshee_blt.host_data_count)
-                        {
-//                                pclog("  remaining=%i\n", voodoo->banshee_blt.host_data_count);
-                                *(uint32_t *)&voodoo->banshee_blt.host_data[0] = data >> (4-voodoo->banshee_blt.host_data_count)*8;
-                        }
+                // if host sends more lines than configured, following lines are flushed to display
+                // when new line is completely filled and new word arrives.
+                //
+                // Amiga Prometheus PCI bridge + Voodoo 3: for some unknown reason driver sets blit height
+                // to one and then writes multiple lines worth of graphics data.
+                // It also has off-by-one bug and renders extra garbage line that won't become visible.
+#if 1
+            *(uint32_t *)&voodoo->banshee_blt.host_data[voodoo->banshee_blt.host_data_count] = data;
+            voodoo->banshee_blt.host_data_count += 4;
+            while (voodoo->banshee_blt.host_data_count >= voodoo->banshee_blt.src_stride_dest)
+            {
+                if (voodoo->banshee_blt.cur_y + 1 == voodoo->banshee_blt.dstSizeY || voodoo->banshee_blt.host_data_count > voodoo->banshee_blt.src_stride_dest) {
+                    do_screen_to_screen_line(voodoo, voodoo->banshee_blt.host_data, 0, 0, 0);
+                    voodoo->banshee_blt.cur_y++;
+                    if (voodoo->banshee_blt.cur_y == voodoo->banshee_blt.dstSizeY)
+                        end_command(voodoo);
+                    voodoo->banshee_blt.host_data_count -= voodoo->banshee_blt.src_stride_dest;
+                    if (voodoo->banshee_blt.host_data_count == 4)
+                    {
+                        *(uint32_t *)&voodoo->banshee_blt.host_data[0] = data;
+                    }
+                    else if (voodoo->banshee_blt.host_data_count)
+                    {
+                        //pclog("  remaining=%i\n", voodoo->banshee_blt.host_data_count);
+                        *(uint32_t *)&voodoo->banshee_blt.host_data[0] = data >> (4 - voodoo->banshee_blt.host_data_count) * 8;
+                    }
+                } else {
+                    return;
                 }
+            }
+
+#else
+           
+            *(uint32_t *)&voodoo->banshee_blt.host_data[voodoo->banshee_blt.host_data_count] = data;
+            voodoo->banshee_blt.host_data_count += 4;
+            while (voodoo->banshee_blt.host_data_count >= voodoo->banshee_blt.src_stride_dest)
+            {
+                voodoo->banshee_blt.host_data_count -= voodoo->banshee_blt.src_stride_dest;
+
+                //                        pclog("  %i %i\n", voodoo->banshee_blt.cur_y, voodoo->banshee_blt.dstSizeY);
+                if (voodoo->banshee_blt.cur_y < voodoo->banshee_blt.dstSizeY)
+                {
+                    do_screen_to_screen_line(voodoo, voodoo->banshee_blt.host_data, 0, 0, 0);
+                    voodoo->banshee_blt.cur_y++;
+                    if (voodoo->banshee_blt.cur_y == voodoo->banshee_blt.dstSizeY)
+                        end_command(voodoo);
+                }
+
+                if (voodoo->banshee_blt.host_data_count)
+                {
+                    //                                pclog("  remaining=%i\n", voodoo->banshee_blt.host_data_count);
+                    *(uint32_t *)&voodoo->banshee_blt.host_data[0] = data >> (4 - voodoo->banshee_blt.host_data_count) * 8;
+                }
+            }
+#endif
         }
 }
 
