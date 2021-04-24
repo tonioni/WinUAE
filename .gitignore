@@ -69,3 +69,5 @@ packages.config
 *.db-wal
 *.o
 **/.vs
+*.7z
+*.zip

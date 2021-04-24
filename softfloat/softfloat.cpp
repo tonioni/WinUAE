@@ -2879,7 +2879,7 @@ floatx80 floatx80_rem(floatx80 a, floatx80 b, float_status *status)
 
 }
 #else // 09-01-2017: Modified version for Previous
-floatx80 floatx80_rem(floatx80 a, floatx80 b, uint64_t* q, flag* s, float_status* status)
+floatx80 floatx80_rem(floatx80 a, floatx80 b, uint64_t *q, flag *s, float_status *status)
 {
     flag aSign, bSign, zSign;
     int32_t aExp, bExp, expDiff;
@@ -2906,7 +2906,7 @@ floatx80 floatx80_rem(floatx80 a, floatx80 b, uint64_t* q, flag* s, float_status
     if (bExp == 0x7FFF) {
         if ((uint64_t)(bSig << 1)) return propagateFloatx80NaN(a, b, status);
         *s = (aSign != bSign);
-        return normalizeRoundAndPackFloatx80(status->floatx80_rounding_precision, aSign, aExp, aSig0, 0, status);;
+        return normalizeRoundAndPackFloatx80(status->floatx80_rounding_precision, aSign, aExp, aSig0, 0, status);
     }
     if (bExp == 0) {
         if (bSig == 0) {
@@ -2987,7 +2987,7 @@ floatx80 floatx80_rem(floatx80 a, floatx80 b, uint64_t* q, flag* s, float_status
  | value `a' with respect to the corresponding value `b'.
  *----------------------------------------------------------------------------*/
 
-floatx80 floatx80_mod(floatx80 a, floatx80 b, uint64_t* q, flag* s, float_status* status)
+floatx80 floatx80_mod(floatx80 a, floatx80 b, uint64_t *q, flag *s, float_status *status)
 {
     flag aSign, bSign, zSign;
     int32_t aExp, bExp, expDiff;

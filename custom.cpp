@@ -48,7 +48,7 @@
 #include "rommgr.h"
 #include "specialmonitors.h"
 
-#define CYCLE_CONFLICT_LOGGING 1
+#define CYCLE_CONFLICT_LOGGING 0
 
 #define SPEEDUP 1
 
@@ -6912,13 +6912,7 @@ static void decide_line(int endhpos)
 		}
 
 		hpos++;
-
-		//decide_line_decision_fetches(hpos);
-		//decide_sprite_fetch(hpos);
-
 	}
-
-	decide_sprite_fetch(endhpos);
 
 	last_decide_line_hpos = endhpos;
 }
@@ -8946,7 +8940,7 @@ static void hsync_handler_pre(bool onvsync)
 	}
 }
 
-STATIC_INLINE bool is_last_line (void)
+STATIC_INLINE bool is_last_line(void)
 {
 	return vpos + 1 == maxvpos + lof_store;
 }

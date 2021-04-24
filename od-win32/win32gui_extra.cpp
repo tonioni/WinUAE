@@ -1292,9 +1292,9 @@ static void boxart_init(void)
 }
 
 static const TCHAR *boxartnames[MAX_BOX_ART_TYPES] = {
-	_T("Boxart"),
 	_T("Title"),
 	_T("SShot"),
+	_T("Boxart"),
 	_T("Misc"),
 	_T("Data"),
 };

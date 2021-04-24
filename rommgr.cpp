@@ -1928,7 +1928,7 @@ struct zfile *read_rom (struct romdata *prd)
 						}
 						xfree(tmp);
 					}
-				} else if (rd->id == 182 || rd->id == 183) {
+				} else if (rd->id == 182) {
 					// ALG Space Pirates
 					uae_u8 *tmp = xmalloc(uae_u8, size);
 					if (tmp) {

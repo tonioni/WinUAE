@@ -4170,7 +4170,7 @@ retry:
 				mon->currentmode.native_width, mon->currentmode.native_height, mon->currentmode.current_depth);
 		} else {
 			allocsoftbuffer(mon->monitor_id, _T("draw"), &avidinfo->drawbuffer, mon->currentmode.flags,
-				1600, 1280, mon->currentmode.current_depth);
+				1920, 1280, mon->currentmode.current_depth);
 		}
 		if (currprefs.monitoremu || currprefs.cs_cd32fmv || (currprefs.genlock && currprefs.genlock_image) || currprefs.cs_color_burst || currprefs.gfx_grayscale) {
 			allocsoftbuffer(mon->monitor_id, _T("monemu"), &avidinfo->tempbuffer, mon->currentmode.flags,
