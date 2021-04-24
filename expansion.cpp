@@ -5073,6 +5073,25 @@ static const struct expansionboardsettings alf3_settings[] = {
 		NULL
 	}
 };
+static const struct expansionboardsettings dev_hd_settings[] = {
+	{
+		_T("Base address"),
+		_T("base")
+	},
+	{
+		_T("Register spacing"),
+		_T("spacing")
+	},
+	{
+		_T("Data port address"),
+		_T("dataport")
+	},
+	{
+		_T("Alternate register base address"),
+		_T("altbase")
+	}
+};
+
 static const struct expansionboardsettings cdtvsram_settings[] = {
 	{
 		_T("SRAM size\0") _T("64k\0") _T("128k\0") _T("256k\0"),
@@ -5794,7 +5813,10 @@ const struct expansionromtype expansionroms[] = {
 		_T("dev_ide"), _T("DEV IDE"), NULL,
 		NULL, dev_hd_init, NULL, dev_hd_add_ide_unit, ROMTYPE_DEVHD | ROMTYPE_NOT, 0, 0, BOARD_NONAUTOCONFIG_BEFORE, true,
 		NULL, 0,
-		false, EXPANSIONTYPE_CUSTOM | EXPANSIONTYPE_IDE | EXPANSIONTYPE_SCSI
+		false, EXPANSIONTYPE_CUSTOM | EXPANSIONTYPE_IDE | EXPANSIONTYPE_SCSI,
+		0, 0, 0, false, NULL,
+		false, 0, dev_hd_settings
+
 	},
 #endif
 

@@ -606,11 +606,13 @@ static int get_dev_hd_reg(uaecptr addr, struct ide_board* board)
 	if (addr >= dev_hd_io_base && addr < dev_hd_io_base + dev_hd_io_total) {
 		reg = (addr - dev_hd_io_base) / dev_hd_io_size;
 		reg &= 7;
-		if (addr & dev_hd_io_secondary) {
-			reg |= IDE_SECONDARY;
+		if (reg == 0) {
+			write_log("invalid %08x\n", addr);
 		}
-	} else if (addr >= dev_hd_data_base && addr < dev_hd_data_base + 4) {
+	} else if (addr >= dev_hd_data_base && addr < dev_hd_data_base + 0x100) {
 		reg = 0;
+	} else {
+		write_log("out of range %08x\n", addr);
 	}
 	return reg;
 }
@@ -2957,7 +2959,7 @@ bool dev_hd_init(struct autoconfig_info* aci)
 	dev_hd_io_size = 4;
 	dev_hd_data_base = 0x4800;
 	dev_hd_io_secondary = 0x1000;
-	dev_hd_io_total = 0x2000;
+	dev_hd_io_total = 8 * 4;
 	if (!aci->doinit) {
 		return true;
 	}
