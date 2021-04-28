@@ -1,4 +1,56 @@
 
+Beta 19:
+
+- Bitplane max plane limit was calculated before internal aga=true variable was set. Loading AGA statefile forced OCS/ECS limits if FMODE not updated in copper list.
+- Fixed sprite glitches in some situations.
+- Fixed graphics glitches if resolution was changed in horizontal blanking region.
+- Different bitplane delay for odd and even planes didn't work correctly in some situations.
+- Fixed memory buffer overflow when some types of file dialog was opened. (old bug)
+
+Note: "Remove interlace artifacts" Display panel option is currently not supported. It must be disabled.
+Note: Blitter cycle allocation is not yet pipelined. (Which is the real cause for 2 idle cycles after writing to BLTSIZE.) This will most likely affect copper blitter wait timing.
+
+
+Beta 18: Version bumped to 4.9. (Which will become 5.0 later this year. Probably. New chipset and Voodoo 3 emulation are big enough features.)
+
+Display emulation rewrite. Bitplane sequencer, copper (mostly) and internal pipelining is rewritten to match schematics.
+
+NOTES:
+- Performance is slower when running custom chipset heavy programs. Will be improved later.
+- There should be no visible differences when running "normal" programs.
+- Horizontal positions shown by debugger are now shifted by 4 cycles compared to previous versions. Old versions basically used wrong origin (based on DDFSTRT immediately starting BPL DMA which was not correct). I'll write more detailed notes about internal Agnus logic later.
+- Programmed mode (BEAMCON0 and friends) rewrite is still work in progress, some glitches might be visible.
+- D3D9 shaders are not currently supported in D3D11 mode.
+
+What to check:
+
+- Old bug(s) reappearing (hack removed but missing edge case wasn't reimplemented properly)
+- Other bugs.
+- Really bad performance. (But buy a new PC if you have something like pre-Sandy Bridge era CPU). New emulation is more complex but also some previous "lazy evaluation" optimizations might not be fully working.
+
+- Bitplane logic internal pipeline is accurately emulated (DDFSTRT/limit check, BPRUN latch, sequencer output, RGA output latch = 4 cycle delay from DDFSTRT decision to first possible BPLxDAT slot). All known side-effects can be easily explained now. For example bitplane/copper/sprite DMA on/off mid scanline is now fully accurate (including all side-effects) with explanation that actually makes sense.
+- Copper free cycle check uses pipelined bitplane allocation, copper decisions are done early (2 cycles).
+- Display rendering part of emulation is now from hsync to hsync. Was previously scanline to scanline which required extra hacks to support displaying early horizontal positions in right border. All of that simply work automatically now.
+- Bitplane DMA "overrun" condition special cases removed, it isn't needed anymore to handle overrun correctly. Lots of other similar hacks also become obsolete and are gone.
+- Bitplane overrun new undocumented "feature": because BPL sequencer uses horizontal counter bit 0 as a clock signal, HPOS 226 to 0 transition does not increment BPL sequencer counter: same BPL cycle gets repeated.
+- Lots of special case BEAMCON0 blanking/sync improvements. (Thanks Ross :))
+- HBSTRT/HBSTOP now supports AGA-only 140ns/70ns/35ns resolution bits.
+- BPLCON3 EXTBLKEN didn't affect blanking timing if it was changed after BEAMCON0 was written to enable programmable blanking.
+- Sprite emulation is now also pipelined but because most of sprite decision logic is in "STCMSD" black box, exact behavior is still not 100% known. No non-working programs known.
+- DMA debugger now shows DMA cycle conflicts, top/left contains string "!<register number that conflicts>" if conflict.
+- Programmed display mode vblank timing calculation fixed (usually was less than 1Hz off), also correctly uses NTSC base clock if NTSC hardware.
+- Copper debugger (od) now stores also copper jumps and copper disassembler follows jumps automatically (if not after SKIP). o3 = start from vblank (COP1LC value when vblank started).
+- Loading statefiles created with 4.4 or older and blitter was active when statefile was created: loading statefile corrupted memory. Old-style blitter active statefiles are not supported: blitter is restored in stopped state. I haven't yet decided if support gets re-implemented.
+
+- Prometheus PCI config word wide access byteswap fix. Fixes Prometheus Voodoo 3 Picasso96 driver hang. Note that 8-bit has graphics corruption, driver is buggy and has off by one error when it tries render fonts (extra line of garbage) and when rendering icons (and probably other image elements), it sets host-to-screen blit height to 1 but actually keeps writing multiple lines worth of data to blitter's CPU data input register. It seems real Voodoo 3 blits all extra lines and drops the last line. Partial workaround implemented.
+- Saving config file: Confirm overwrite (which is actually rename as configuration.backup) if it is read-only.
+- Softfloat FMOD, FREM update. FSINCOS implemented, calculates both SIN and COS simultaneously, previously FSINCOS called SIN and COS separately. (Andreas Grabher)
+- uaeserial.device CMD_WRITE with io_Length=-1 is now supported. Sends data until first zero byte.
+- uaeserial.device EOFMODE support implemented.
+- uaeserial.device io_ExtFlags Mark and Space parity support implemented.
+- American Laser Games Platoon and Space Pirates v1.4 descrambling support added.
+- Add quotes to serial, parallel and MIDI port names in config file if they begins or ends with a space. Also escape if name contains quotes.
+
 Beta 17:
 
 - OSD led status bar positioning fixed (b16)

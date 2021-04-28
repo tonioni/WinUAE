@@ -620,9 +620,9 @@ static void banshee_do_screen_to_screen_blt(voodoo_t *voodoo)
 static void banshee_do_host_to_screen_blt(voodoo_t *voodoo, int count, uint32_t data)
 {
 //        if (voodoo->banshee_blt.dstBaseAddr == 0xee5194)
-                pclog("banshee_do_host_to_screen_blt: x=%d ys=%d ye=%d data=%08x host_data_count=%i src_stride_dest=%i host_data_size_dest=%i\n",
-                        voodoo->banshee_blt.cur_x, voodoo->banshee_blt.cur_y, voodoo->banshee_blt.dstSizeY,
-                        data, voodoo->banshee_blt.host_data_count, voodoo->banshee_blt.src_stride_dest, voodoo->banshee_blt.host_data_size_dest);
+//                pclog("banshee_do_host_to_screen_blt: x=%d ys=%d ye=%d data=%08x host_data_count=%i src_stride_dest=%i host_data_size_dest=%i\n",
+//                        voodoo->banshee_blt.cur_x, voodoo->banshee_blt.cur_y, voodoo->banshee_blt.dstSizeY,
+//                        data, voodoo->banshee_blt.host_data_count, voodoo->banshee_blt.src_stride_dest, voodoo->banshee_blt.host_data_size_dest);
 
         if (voodoo->banshee_blt.srcFormat & SRC_FORMAT_BYTE_SWIZZLE)
                 data = (data >> 24) | ((data >> 8) & 0xff00) | ((data << 8) & 0xff0000) | (data << 24);

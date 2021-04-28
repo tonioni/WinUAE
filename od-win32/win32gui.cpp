@@ -2731,7 +2731,7 @@ static void setdpath (const TCHAR *name, const TCHAR *path)
 
 int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs, TCHAR *infilename, TCHAR *path_out, int *multi)
 {
-	static int previousfilter[20];
+	static int previousfilter[32];
 	TCHAR filtername[MAX_DPATH] = _T("");
 	OPENFILENAME openFileName;
 	TCHAR full_path[MAX_DPATH] = _T("");
