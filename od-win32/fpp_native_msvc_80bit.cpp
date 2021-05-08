@@ -676,6 +676,13 @@ static void fp_acos(fpdata *a, fpdata *b)
 	xfp_acos(&a->rfp, &b->rfp);
 	xfp_resetnormal(a);
 }
+static void fp_sincos(fpdata *a, fpdata *b, fpdata *c)
+{
+	xfp_setnormal();
+	xfp_cos(&a->rfp, &b->rfp);
+	xfp_sin(&c->rfp, &b->rfp);
+	xfp_resetnormal(a);
+}
 
 static void fp_intrz(fpdata *a, fpdata *b)
 {
@@ -1109,6 +1116,7 @@ void fp_init_native_80(void)
 	fpp_neg = fp_neg;
 	fpp_acos = fp_acos;
 	fpp_cos = fp_cos;
+	fpp_sincos = fp_sincos;
 	fpp_getexp = fp_getexp;
 	fpp_getman = fp_getman;
 	fpp_div = fp_div;
