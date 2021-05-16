@@ -366,7 +366,6 @@ struct netdriverdata *uaenet_enumerate (const TCHAR *name)
 	TCHAR *ss;
 	bool npcap = true;
 	TCHAR sname[MAX_DPATH];
-	int isdll;
 
 	if (enumerated) {
 		return enumit (name);

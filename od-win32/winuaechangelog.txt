@@ -1,4 +1,16 @@
 
+Beta 20:
+
+- Blitter internal RGA bus pipeline emulation implemented.
+- When blitter was started for the first time and cycle-exact mode: blitter idle time from start of scanline to BLTSIZE write position was not emulated cycle-exactly. Almost harmless previously, now it caused visible problems with statefiles that expected blitter to steal all cycles. Very old bug.
+- Copper didn't stop when both COPJMP1 and COPJMP2 was strobed without active copper DMA. (b18)
+- Copper WAIT wrong special case fixed. (Hotbleeps and EyeQlazer)
+- Blitter register modification while active update. (For example fixes Demo Mix 5 intro / Tommyknockers). Not 100% yet.
+- AGA FMODE bit 14 bitplane scandoubling odd/even scanlines were swapped. (b18)
+- Optimized mode bitplane emulation didn't do anything if scanline's bitplane pointers crossed end of chip ram. Normally never happens but really weird programs or free running bitplane pointers might not have been 100% accurately emulated ("Warning: Bad playfield pointer" message). Ancient bug with ancient comment (probably from pre-0.8 UAE) that this should be fixed someday..
+- Some more UHRES parts implemented. (Yes, this is useless but cycle usage still should match real hardware if UHRES is enabled for some weird reason!)
+- b18 FSINCOS update broke non-softfloat FSINCOS.
+
 Beta 19:
 
 - Bitplane max plane limit was calculated before internal aga=true variable was set. Loading AGA statefile forced OCS/ECS limits if FMODE not updated in copper list.
