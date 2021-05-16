@@ -919,8 +919,8 @@ static void fp_cos(fpdata *a, fpdata *b)
 static void fp_sincos(fpdata *a, fpdata *b, fpdata *c)
 {
 	fp_normal_prec();
-	a->fp = cosl(b->fp);
-	c->fp = sinl(b->fp);
+	c->fp = cosl(b->fp);
+	a->fp = sinl(b->fp);
 	fp_reset_normal_prec();
 	fp_round(a);
 	fp_round(c);
