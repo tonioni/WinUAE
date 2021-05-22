@@ -1891,56 +1891,56 @@ void CIA_reset (void)
 		tod_hack_enabled = TOD_HACK_TIME;
 #endif
 
-	kblostsynccnt = 0;
-	serbits = 0;
-	resetwarning_phase = resetwarning_timer = 0;
-	heartbeat_cnt = 0;
-	ciab_tod_event_state = 0;
+kblostsynccnt = 0;
+serbits = 0;
+resetwarning_phase = resetwarning_timer = 0;
+heartbeat_cnt = 0;
+ciab_tod_event_state = 0;
 
-	if (!savestate_state) {
-		oldovl = true;
-		kbstate = 0;
-		ciaatlatch = ciabtlatch = 0;
-		ciaapra = 0; ciaadra = 0;
-		ciaatod = ciabtod = 0; ciaatodon = ciabtodon = 0;
-		ciaaicr = ciabicr = ciaaimask = ciabimask = 0;
-		ciaacra = ciaacrb = ciabcra = ciabcrb = 0;
-		ciaala = ciaalb = ciabla = ciablb = ciaata = ciaatb = ciabta = ciabtb = 0xFFFF;
-		ciaaalarm = ciabalarm = 0;
-		ciabpra = 0x8C; ciabdra = 0;
-		div10 = 0;
-		ciaasdr_cnt = 0; ciaasdr = 0; ciaasdr_load = 0;
-		ciabsdr_cnt = 0; ciabsdr = 0; ciabsdr_buf = 0; ciabsdr_load = 0;
-		ciaata_passed = ciaatb_passed = ciabta_passed = ciabtb_passed = 0;
-		CIA_calctimers ();
-		DISK_select_set (ciabprb);
-	}
-	map_overlay (0);
-	check_led ();
+if (!savestate_state) {
+	oldovl = true;
+	kbstate = 0;
+	ciaatlatch = ciabtlatch = 0;
+	ciaapra = 0; ciaadra = 0;
+	ciaatod = ciabtod = 0; ciaatodon = ciabtodon = 0;
+	ciaaicr = ciabicr = ciaaimask = ciabimask = 0;
+	ciaacra = ciaacrb = ciabcra = ciabcrb = 0;
+	ciaala = ciaalb = ciabla = ciablb = ciaata = ciaatb = ciabta = ciabtb = 0xFFFF;
+	ciaaalarm = ciabalarm = 0;
+	ciabpra = 0x8C; ciabdra = 0;
+	div10 = 0;
+	ciaasdr_cnt = 0; ciaasdr = 0; ciaasdr_load = 0;
+	ciabsdr_cnt = 0; ciabsdr = 0; ciabsdr_buf = 0; ciabsdr_load = 0;
+	ciaata_passed = ciaatb_passed = ciabta_passed = ciabtb_passed = 0;
+	CIA_calctimers();
+	DISK_select_set(ciabprb);
+}
+map_overlay(0);
+check_led();
 #ifdef SERIAL_PORT
-	if (currprefs.use_serial && !savestate_state)
-		serial_dtr_off (); /* Drop DTR at reset */
+if (currprefs.use_serial && !savestate_state)
+serial_dtr_off(); /* Drop DTR at reset */
 #endif
-	if (savestate_state) {
-		if (currprefs.cs_ciaoverlay) {
-			oldovl = true;
-		}
-		bfe001_change ();
-		if (!currprefs.cs_ciaoverlay) {
-			map_overlay (oldovl ? 0 : 1);
-		}
+if (savestate_state) {
+	if (currprefs.cs_ciaoverlay) {
+		oldovl = true;
+	}
+	bfe001_change();
+	if (!currprefs.cs_ciaoverlay) {
+		map_overlay(oldovl ? 0 : 1);
 	}
 }
+}
 
-void dumpcia (void)
+void dumpcia(void)
 {
-	console_out_f (_T("A: CRA %02x CRB %02x ICR %02x IM %02x TA %04x (%04x) TB %04x (%04x)\n"),
+	console_out_f(_T("A: CRA %02x CRB %02x ICR %02x IM %02x TA %04x (%04x) TB %04x (%04x)\n"),
 		ciaacra, ciaacrb, ciaaicr, ciaaimask, ciaata, ciaala, ciaatb, ciaalb);
-	console_out_f (_T("TOD %06x (%06x) ALARM %06x %c%c CYC=%08X\n"),
-		ciaatod, ciaatol, ciaaalarm, ciaatlatch ? 'L' : ' ', ciaatodon ? ' ' : 'S', get_cycles ());
-	console_out_f (_T("B: CRA %02x CRB %02x ICR %02x IM %02x TA %04x (%04x) TB %04x (%04x)\n"),
+	console_out_f(_T("TOD %06x (%06x) ALARM %06x %c%c CYC=%08X\n"),
+		ciaatod, ciaatol, ciaaalarm, ciaatlatch ? 'L' : ' ', ciaatodon ? ' ' : 'S', get_cycles());
+	console_out_f(_T("B: CRA %02x CRB %02x ICR %02x IM %02x TA %04x (%04x) TB %04x (%04x)\n"),
 		ciabcra, ciabcrb, ciabicr, ciabimask, ciabta, ciabla, ciabtb, ciablb);
-	console_out_f (_T("TOD %06x (%06x) ALARM %06x %c%c CLK=%d\n"),
+	console_out_f(_T("TOD %06x (%06x) ALARM %06x %c%c CLK=%d\n"),
 		ciabtod, ciabtol, ciabalarm, ciabtlatch ? 'L' : ' ', ciabtodon ? ' ' : 'S', div10 / CYCLE_UNIT);
 }
 
@@ -1955,7 +1955,7 @@ addrbank cia_bank = {
 	ABFLAG_IO | ABFLAG_CIA, S_READ, S_WRITE, NULL, 0x3f01, 0xbfc000
 };
 
-static void cia_wait_pre (int cianummask)
+static void cia_wait_pre(int cianummask)
 {
 	if (currprefs.cachesize || currprefs.cpu_thread)
 		return;
@@ -1969,23 +1969,13 @@ static void cia_wait_pre (int cianummask)
 	}
 
 #ifndef CUSTOM_SIMPLE
-	int div = (get_cycles () - eventtab[ev_cia].oldcycles) % DIV10;
-	int cycles;
-
-	if (div >= DIV10 * ECLOCK_DATA_CYCLE / 10) {
-		cycles = DIV10 - div;
-		cycles += DIV10 * ECLOCK_DATA_CYCLE / 10;
-	} else if (div) {
-		cycles = DIV10 + DIV10 * ECLOCK_DATA_CYCLE / 10 - div;
-	} else {
-		cycles = DIV10 * ECLOCK_DATA_CYCLE / 10 - div;
-	}
-
+	int div = get_cycles() % DIV10;
+	int cycles = DIV10 - div;
 	if (cycles) {
 		if (currprefs.cpu_memory_cycle_exact)
-			x_do_cycles_pre (cycles);
+			x_do_cycles_pre(cycles);
 		else
-			do_cycles (cycles);
+			do_cycles(cycles);
 	}
 #endif
 }
