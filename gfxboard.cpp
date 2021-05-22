@@ -1109,6 +1109,10 @@ bool gfxboard_init_board(struct autoconfig_info *aci)
 	gfx_temp_bank_idx = aci->devnum;
 	gb->gfxmem_bank = aci->addrbank;
 	aci->addrbank = &gfx_temp_bank;
+
+	device_add_hsync(gfxboard_hsync_handler);
+	device_add_rethink(gfxboard_rethink);
+
 	return true;
 }
 
