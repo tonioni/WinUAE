@@ -1,4 +1,14 @@
 
+
+- Blitter line draw with B channel enabled supported. Flexible Zoom / Upfront uses it to load line pattern using DMA (undocumented feature, not really useful because it wastes lots of DMA time) instead of using static BLTBDAT 16-bit pattern.
+- Blitter got stuck in some 68020+ CE configs.
+- Copper blitter wait glitches are now accurately emulated.
+- Cycle-exact mode CPU to CIA E-clock syncronization was not accurate.
+- BPLxDAT CPU/copper write timing fix.
+- FSINCOS native FPU mode had SIN and COS values swapped.
+- If CPU reads from non-existing address space and code is executed from ROM, return all zeroes. This might not be exactly correct because it was only quickly checked on real hardware. Fixes Batman Vuelve slideshow II / Batman Group.
+- A2410 works again (broke in 4300b1)
+
 Beta 20:
 
 - Blitter internal RGA bus pipeline emulation implemented.
