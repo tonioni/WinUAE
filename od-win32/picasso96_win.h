@@ -504,10 +504,10 @@ enum {
 #define PSSO_BoardInfo_Depth			    PSSO_BoardInfo_YOffset + 2
 #define PSSO_BoardInfo_ClearMask		    PSSO_BoardInfo_Depth + 1
 #define PSSO_BoardInfo_Border			    PSSO_BoardInfo_ClearMask + 1
-#define PSSO_BoardInfo_Mask			    PSSO_BoardInfo_Border + 2 /* BOOL type is only 2-bytes! */
-#define PSSO_BoardInfo_CLUT			    PSSO_BoardInfo_Mask + 4
+#define PSSO_BoardInfo_Mask		    	    PSSO_BoardInfo_Border + 2 /* BOOL type is only 2-bytes! */
+#define PSSO_BoardInfo_CLUT	    		    PSSO_BoardInfo_Mask + 4
 #define PSSO_BoardInfo_ViewPort			    PSSO_BoardInfo_CLUT + 3*256
-#define PSSO_BoardInfo_VisibleBitMap		    PSSO_BoardInfo_ViewPort + 4
+#define PSSO_BoardInfo_VisibleBitMap		PSSO_BoardInfo_ViewPort + 4
 #define PSSO_BoardInfo_BitMapExtra		    PSSO_BoardInfo_VisibleBitMap + 4
 #define PSSO_BoardInfo_BitMapList		    PSSO_BoardInfo_BitMapExtra + 4
 #define PSSO_BoardInfo_MemList			    PSSO_BoardInfo_BitMapList + 12 /* BitMapList is 12-bytes */
@@ -521,18 +521,29 @@ enum {
 #define PSSO_BoardInfo_MousePens		    PSSO_BoardInfo_MouseImage + 4
 #define PSSO_BoardInfo_MouseRect		    PSSO_BoardInfo_MousePens + 4
 #define PSSO_BoardInfo_MouseChunky		    PSSO_BoardInfo_MouseRect + 8 /* MouseRect is 8-bytes */
-#define PSSO_BoardInfo_MouseRendered		    PSSO_BoardInfo_MouseChunky + 4
-#define PSSO_BoardInfo_MouseSaveBuffer		    PSSO_BoardInfo_MouseRendered + 4
+#define PSSO_BoardInfo_MouseRendered		PSSO_BoardInfo_MouseChunky + 4
+#define PSSO_BoardInfo_MouseSaveBuffer		PSSO_BoardInfo_MouseRendered + 4
 
 #define PSSO_BoardInfo_ChipData			    PSSO_BoardInfo_MouseSaveBuffer + 4
 #define PSSO_BoardInfo_CardData			    PSSO_BoardInfo_ChipData + 16 * 4
-#define PSSO_BoardInfo_MemorySpaceBase		    PSSO_BoardInfo_CardData + 16 * 4
-#define PSSO_BoardInfo_MemorySpaceSize		    PSSO_BoardInfo_MemorySpaceBase + 4
-#define PSSO_BoardInfo_DoubleBufferList		    PSSO_BoardInfo_MemorySpaceSize + 4
+#define PSSO_BoardInfo_MemorySpaceBase		PSSO_BoardInfo_CardData + 16 * 4
+#define PSSO_BoardInfo_MemorySpaceSize		PSSO_BoardInfo_MemorySpaceBase + 4
+#define PSSO_BoardInfo_DoubleBufferList		PSSO_BoardInfo_MemorySpaceSize + 4
 #define PSSO_BoardInfo_SyncTime			    PSSO_BoardInfo_DoubleBufferList + 4
-#define PSSO_BoardInfo_SyncPeriod		    PSSO_BoardInfo_SyncTime + 4
-#define PSSO_BoardInfo_SoftVBlankPort		    PSSO_BoardInfo_SyncPeriod + 8
-#define PSSO_BoardInfo_SizeOf			    PSSO_BoardInfo_SoftVBlankPort + 34
+#define PSSO_BoardInfo_SyncPeriod		    PSSO_BoardInfo_SyncTime + 8
+#define PSSO_BoardInfo_SoftVBlankPort		PSSO_BoardInfo_SyncPeriod + 4
+#define PSSO_BoardInfo_WaitQ                PSSO_BoardInfo_SoftVBlankPort + 34
+#define PSSO_BoardInfo_EssentialFormats     PSSO_BoardInfo_WaitQ + 3 * 4
+#define PSSO_BoardInfo_MouseImageBuffer     PSSO_BoardInfo_EssentialFormats + 4
+#define PSSO_BoardInfo_BackViewPort         PSSO_BoardInfo_MouseImageBuffer + 4
+#define PSSO_BoardInfo_BackBitMap           PSSO_BoardInfo_BackViewPort + 4
+#define PSSO_BoardInfo_BackBitMapExtra      PSSO_BoardInfo_BackBitMap + 4
+#define PSSO_BoardInfo_YSplit               PSSO_BoardInfo_BackBitMapExtra + 4
+#define PSSO_BoardInfo_MaxPlanarMemory      PSSO_BoardInfo_YSplit + 2
+#define PSSO_BoardInfo_MaxBMWidth           PSSO_BoardInfo_MaxPlanarMemory + 4
+#define PSSO_BoardInfo_MaxBMHeight          PSSO_BoardInfo_MaxBMWidth + 4
+#define PSSO_BoardInfo_SecondaryCLUT        PSSO_BoardInfo_MaxBMHeight + 4
+#define PSSO_BoardInfo_SizeOf			    PSSO_BoardInfo_SecondaryCLUT + 3 * 256
 
 /* BoardInfo flags */
 /*  0-15: hardware flags */
@@ -562,6 +573,7 @@ enum {
 #define BIB_NOBLITTER			24	/* disable all blitter functions */
 #define BIB_SYSTEM2SCREENBLITS	25	/* allow data to be written to screen memory for cpu as blitter source */
 #define BIB_GRANTDIRECTACCESS	26	/* all data on the board can be accessed at any time without bi->SetMemoryMode() */
+#define BIB_PALETTESWITCH		27
 #define BIB_OVERCLOCK			31	/* enable overclocking for some boards */
 
 #define BIB_IGNOREMASK	BIB_NOMASKBLITS
@@ -591,6 +603,7 @@ enum {
 #define BIF_NOBLITTER			(1 << BIB_NOBLITTER)
 #define BIF_SYSTEM2SCREENBLITS	(1 << BIB_SYSTEM2SCREENBLITS)
 #define BIF_GRANTDIRECTACCESS	(1 << BIB_GRANTDIRECTACCESS)
+#define BIF_PALETTESWITCH		(1 << BIB_PALETTESWITCH)
 #define BIF_OVERCLOCK			(1 << BIB_OVERCLOCK)
 
 #define BIF_IGNOREMASK 	BIF_NOMASKBLITS
@@ -623,6 +636,7 @@ struct picasso96_state_struct
     // every time windows can remove your surface from card so the mainrender place
     // must be in memory
     long		XYOffset;
+    bool        dualclut;
 };
 
 extern void InitPicasso96(int monid);
