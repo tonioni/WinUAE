@@ -19245,6 +19245,8 @@ static const int filtertypes[] = {
 	0, 0,
 	0, 0,
 	0,
+	0,
+	0, 0, 0, 0,
 	-1
 };	
 static void *filtervars[] = {
@@ -19260,6 +19262,8 @@ static void *filtervars[] = {
 	&workprefs.gf[0].gfx_filter_keep_aspect, &workprefs.gf[0].gfx_filter_aspect,
 	&workprefs.gf[0].gfx_filter_autoscale, &workprefs.gf[0].gfx_filter_bilinear,
 	&workprefs.gf[0].gfx_filter_keep_autoscale_aspect,
+	&workprefs.gf[0].gfx_filter_integerscalelimit,
+	&workprefs.gf[0].gfx_filter_left_border, &workprefs.gf[0].gfx_filter_right_border, &workprefs.gf[0].gfx_filter_top_border, &workprefs.gf[0].gfx_filter_bottom_border,
 	NULL
 };
 static void *filtervars2[] = {
@@ -19275,6 +19279,8 @@ static void *filtervars2[] = {
 	&currprefs.gf[0].gfx_filter_keep_aspect, &currprefs.gf[0].gfx_filter_aspect,
 	&currprefs.gf[0].gfx_filter_autoscale, &currprefs.gf[0].gfx_filter_bilinear,
 	&currprefs.gf[0].gfx_filter_keep_autoscale_aspect,
+	&currprefs.gf[0].gfx_filter_integerscalelimit,
+	&currprefs.gf[0].gfx_filter_left_border, &currprefs.gf[0].gfx_filter_right_border, &currprefs.gf[0].gfx_filter_top_border, &currprefs.gf[0].gfx_filter_bottom_border,
 	NULL
 };
 
