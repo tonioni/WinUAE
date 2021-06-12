@@ -2872,7 +2872,7 @@ static LRESULT CALLBACK MainWindowProc (HWND hWnd, UINT message, WPARAM wParam, 
 					SetTextColor(lpDIS->hDC, oc);
 				}
 			} else if (lpDIS->itemID > 0 && lpDIS->itemID <= window_led_joy_start) {
-				int port = lpDIS->itemID - 1;
+				int port = 1 - (lpDIS->itemID - (window_led_msg_start + 1));
 				int x = (lpDIS->rcItem.right - lpDIS->rcItem.left + 1) / 2 + lpDIS->rcItem.left - 1;
 				int y = (lpDIS->rcItem.bottom - lpDIS->rcItem.top + 1) / 2 + lpDIS->rcItem.top - 1;
 				RECT r = lpDIS->rcItem;
@@ -2886,28 +2886,28 @@ static LRESULT CALLBACK MainWindowProc (HWND hWnd, UINT message, WPARAM wParam, 
 					int m = i == 0 ? 1 : 2;
 					bool got = false;
 					if (buttons & (1 << JOYBUTTON_CD32_BLUE)) {
-						plot (lpDIS, x - 1, y,  0,  0, 0);
+						plot(lpDIS, x - 1, y,  0,  0, 0);
 						got = true;
 					}
 					if (buttons & (1 << JOYBUTTON_CD32_RED)) {
-						plot (lpDIS, x + 1, y,  0,  0, 1);
+						plot(lpDIS, x + 1, y,  0,  0, 1);
 						got = true;
 					}
 					if (buttons & (1 << JOYBUTTON_CD32_YELLOW)) {
-						plot (lpDIS, x, y - 1,  0,  0, 2);
+						plot(lpDIS, x, y - 1,  0,  0, 2);
 						got = true;
 					}
 					if (buttons & (1 << JOYBUTTON_CD32_GREEN)) {
-						plot (lpDIS, x, y + 1,  0,  0, 3);
+						plot(lpDIS, x, y + 1,  0,  0, 3);
 						got = true;
 					}
 					if (!got) {
 						if (buttons & 1)
-							plot (lpDIS, x, y,  0,  0, 1);
+							plot(lpDIS, x, y,  0,  0, 1);
 						if (buttons & 2)
-							plot (lpDIS, x, y,  0,  0, 0);
+							plot(lpDIS, x, y,  0,  0, 0);
 						if (buttons & ~(1 | 2))
-							plot (lpDIS, x, y,  0,  0, -1);
+							plot(lpDIS, x, y,  0,  0, -1);
 					}
 					for (int j = 0; j < 4; j++) {
 						int dx = 0, dy = 0;
@@ -2923,7 +2923,7 @@ static LRESULT CALLBACK MainWindowProc (HWND hWnd, UINT message, WPARAM wParam, 
 						if (axis && (dx || dy)) {
 							dx *= axis * 8 / 127;
 							dy *= axis * 8 / 127;
-							plot (lpDIS, x, y,  dx, dy, -1);
+							plot(lpDIS, x, y,  dx, dy, -1);
 						}
 					}
 				}
