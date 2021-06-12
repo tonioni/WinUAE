@@ -175,7 +175,8 @@ extern struct memwatch_node mwnodes[MEMWATCH_TOTAL];
 extern void memwatch_dump2 (TCHAR *buf, int bufsize, int num);
 
 void debug_getpeekdma_chipram(uaecptr addr, uae_u32 mask, int reg, int ptrreg);
-uae_u32 debug_getpeekdma_value(uae_u32 v);
+void debug_getpeekdma_value(uae_u32);
+void debug_getpeekdma_value_long(uae_u32, int);
 uae_u32 debug_putpeekdma_chipram(uaecptr addr, uae_u32 v, uae_u32 mask, int reg, int ptrreg);
 uae_u32 debug_putpeekdma_chipset(uaecptr addr, uae_u32 v, uae_u32 mask, int reg);
 void debug_lgetpeek(uaecptr addr, uae_u32 v);
@@ -214,7 +215,8 @@ extern struct peekdma peekdma_data;
 struct dma_rec
 {
     uae_u16 reg;
-    uae_u32 dat;
+    uae_u64 dat;
+	uae_u16 size;
     uae_u32 addr;
     uae_u16 evt;
     uae_s16 type;
@@ -252,6 +254,7 @@ extern struct dma_rec *last_dma_rec;
 extern void record_dma_read(uae_u16 reg, uae_u32 addr, int hpos, int vpos, int type, int extra);
 extern void record_dma_write(uae_u16 reg, uae_u32 v, uae_u32 addr, int hpos, int vpos, int type, int extra);
 extern void record_dma_read_value(uae_u32 v);
+extern void record_dma_read_value_wide(uae_u64 v, bool quad);
 extern void record_dma_replace(int hpos, int vpos, int type, int extra);
 extern void record_dma_reset(void);
 extern void record_dma_event(int evt, int hpos, int vpos);

@@ -126,12 +126,12 @@ struct vidbuffer
 	/* tempbuffer in use */
 	bool tempbufferinuse;
 	/* extra width, chipset hpos extra in right border */
-	int extrawidth;
+	int extrawidth, extraheight;
 
 	int xoffset; /* superhires pixels from left edge */
 	int yoffset; /* lines from top edge */
 
-	int inxoffset; /* positive if sync positioning */
+	int inxoffset; /* sync positioning */
 	int inyoffset;
 
 	int monitor_id;

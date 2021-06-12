@@ -115,8 +115,8 @@ extern uae_u16 INTREQR(void);
 #define VBLANK_ENDLINE_PAL 26
 #define VBLANK_ENDLINE_NTSC 21
 // line when sprite DMA fetches first control words
-#define VBLANK_SPRITE_PAL 25
-#define VBLANK_SPRITE_NTSC 20
+#define VBLANK_STOP_PAL 25
+#define VBLANK_STOP_NTSC 20
 #define VBLANK_HZ_PAL 50
 #define VBLANK_HZ_NTSC 60
 #define VSYNC_ENDLINE_PAL 5
@@ -125,8 +125,9 @@ extern uae_u16 INTREQR(void);
 #define EQU_ENDLINE_NTSC 10
 
 extern int maxhpos, maxhpos_short;
-extern int maxvpos, maxvpos_nom, maxvpos_display;
+extern int maxvpos, maxvpos_nom, maxvpos_display, maxvpos_display_vsync;
 extern int hsyncstartpos, hsyncendpos;
+extern int hsyncstartpos_hw, hsyncendpos_hw;
 extern int minfirstline, vblank_endline, numscrlines;
 extern float vblank_hz, fake_vblank_hz;
 extern float hblank_hz;

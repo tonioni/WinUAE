@@ -564,6 +564,7 @@ struct uae_prefs {
 	int gfx_api_options;
 	int color_mode;
 	int gfx_extrawidth;
+	int gfx_extraheight;
 	bool lightboost_strobo;
 	int lightboost_strobo_ratio;
 	bool gfx_grayscale;
@@ -684,7 +685,7 @@ struct uae_prefs {
 	int cs_hacks;
 	int cs_ciatype[2];
 	int cs_kbhandshake;
-	bool cs_ocshsyncbug;
+	bool cs_ocshblankbug;
 
 	struct boardromconfig expansionboard[MAX_EXPANSION_BOARDS];
 

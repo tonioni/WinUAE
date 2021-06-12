@@ -4211,9 +4211,10 @@ static bool inputdevice_handle_inputcode2(int monid, int code, int state, const 
 		}
 	}
 
+#if 0
 	if (vpos != 0)
-		write_log (_T("inputcode=%d but vpos = %d"), code, vpos);
-
+		write_log (_T("inputcode=%d but vpos = %d\n"), code, vpos);
+#endif
 	if (onoffstate == SET_ONOFF_ON_VALUE)
 		newstate = 1;
 	else if (onoffstate == SET_ONOFF_OFF_VALUE)
