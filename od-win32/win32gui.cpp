@@ -14203,7 +14203,7 @@ static void sethfdostype (HWND hDlg, int idx)
 	}
 }
 
-static void updatehdfinfo (HWND hDlg, bool force, bool defaults)
+static void updatehdfinfo(HWND hDlg, bool force, bool defaults, bool realdrive)
 {
 	uae_u8 id[512] = { 0 };
 	uae_u64 bsize;
@@ -14259,7 +14259,7 @@ static void updatehdfinfo (HWND hDlg, bool force, bool defaults)
 			} else {
 				getchspgeometry (bsize, &current_hfdlg.ci.pcyls, &current_hfdlg.ci.pheads, &current_hfdlg.ci.psecs, false);
 			}
-			if (defaults && !gotrdb) {
+			if (defaults && !gotrdb && !realdrive) {
 				gethdfgeometry(bsize, &current_hfdlg.ci);
 				phys = false;
 			}
@@ -14349,9 +14349,9 @@ static void hardfileselecthdf (HWND hDlg, TCHAR *newpath, bool ask, bool newhd)
 	}
 	inithardfile (hDlg, true);
 	hardfile_testrdb (&current_hfdlg);
-	updatehdfinfo (hDlg, true, true);
+	updatehdfinfo (hDlg, true, true, false);
 	get_hd_geometry (&current_hfdlg.ci);
-	updatehdfinfo (hDlg, false, false);
+	updatehdfinfo (hDlg, false, false, false);
 	sethardfile (hDlg);
 }
 
@@ -14606,7 +14606,7 @@ static INT_PTR CALLBACK HardfileSettingsProc (HWND hDlg, UINT msg, WPARAM wParam
 		inithardfile (hDlg, current_hfdlg.ci.rootdir[0] != 0);
 		addhistorymenu(hDlg, current_hfdlg.ci.rootdir, IDC_PATH_NAME, HISTORY_HDF, false);
 		addhistorymenu(hDlg, current_hfdlg.ci.filesys, IDC_PATH_FILESYS, HISTORY_FS, false);
-		updatehdfinfo (hDlg, true, false);
+		updatehdfinfo (hDlg, true, false, false);
 		sethardfile (hDlg);
 		sethfdostype (hDlg, 0);
 		setac (hDlg, IDC_PATH_NAME);
@@ -14652,7 +14652,7 @@ static INT_PTR CALLBACK HardfileSettingsProc (HWND hDlg, UINT msg, WPARAM wParam
 				if (HIWORD (wParam) == CBN_KILLFOCUS) {
 					addhistorymenu(hDlg, current_hfdlg.ci.geometry, IDC_PATH_GEOMETRY, HISTORY_GEO, false);
 					sethardfile(hDlg);
-					updatehdfinfo (hDlg, true, false);
+					updatehdfinfo (hDlg, true, false, false);
 				}
 				break;
 			case IDC_PATH_NAME:
@@ -14758,7 +14758,7 @@ static INT_PTR CALLBACK HardfileSettingsProc (HWND hDlg, UINT msg, WPARAM wParam
 			break;
 		case IDC_HDF_PHYSGEOMETRY:
 			current_hfdlg.ci.physical_geometry = ischecked(hDlg, IDC_HDF_PHYSGEOMETRY);
-			updatehdfinfo(hDlg, true, false);
+			updatehdfinfo(hDlg, true, false, false);
 			sethardfile(hDlg);
 			break;
 		case IDC_HDF_RW:
@@ -14794,7 +14794,7 @@ static INT_PTR CALLBACK HardfileSettingsProc (HWND hDlg, UINT msg, WPARAM wParam
 			if (DiskSelection (hDlg, IDC_PATH_GEOMETRY, 23, &workprefs, NULL, current_hfdlg.ci.geometry)) {
 				DISK_history_add(current_hfdlg.ci.geometry, -1, HISTORY_GEO, 1);
 				sethardfile(hDlg);
-				updatehdfinfo (hDlg, true, false);
+				updatehdfinfo (hDlg, true, false, false);
 			}
 			break;
 		case IDC_SECTORS:
@@ -14803,7 +14803,7 @@ static INT_PTR CALLBACK HardfileSettingsProc (HWND hDlg, UINT msg, WPARAM wParam
 			*p = GetDlgItemInt (hDlg, IDC_SECTORS, NULL, FALSE);
 			if (v != *p) {
 				set_phys_cyls(hDlg);
-				updatehdfinfo (hDlg, true, false);
+				updatehdfinfo (hDlg, true, false, false);
 				ew (hDlg, IDC_HDF_RDB, !is_hdf_rdb ());
 			}
 			break;
@@ -14815,7 +14815,7 @@ static INT_PTR CALLBACK HardfileSettingsProc (HWND hDlg, UINT msg, WPARAM wParam
 				if (ischecked(hDlg, IDC_HDF_PHYSGEOMETRY)) {
 					current_hfdlg.ci.physical_geometry = true;
 				}
-				updatehdfinfo (hDlg, true, false);
+				updatehdfinfo (hDlg, true, false, false);
 				ew (hDlg, IDC_HDF_RDB, !is_hdf_rdb ());
 			}
 			break;
@@ -14825,7 +14825,7 @@ static INT_PTR CALLBACK HardfileSettingsProc (HWND hDlg, UINT msg, WPARAM wParam
 			*p = GetDlgItemInt (hDlg, IDC_HEADS, NULL, FALSE);
 			if (v != *p) {
 				set_phys_cyls(hDlg);
-				updatehdfinfo (hDlg, true, false);
+				updatehdfinfo (hDlg, true, false, false);
 				ew (hDlg, IDC_HDF_RDB, !is_hdf_rdb ());
 			}
 			break;
@@ -14833,7 +14833,7 @@ static INT_PTR CALLBACK HardfileSettingsProc (HWND hDlg, UINT msg, WPARAM wParam
 			v = current_hfdlg.ci.blocksize;
 			current_hfdlg.ci.blocksize = GetDlgItemInt (hDlg, IDC_BLOCKSIZE, NULL, FALSE);
 			if (v != current_hfdlg.ci.blocksize)
-				updatehdfinfo (hDlg, true, false);
+				updatehdfinfo (hDlg, true, false, false);
 			break;
 		case IDC_HARDFILE_BOOTPRI:
 			current_hfdlg.ci.bootpri = GetDlgItemInt (hDlg, IDC_HARDFILE_BOOTPRI, NULL, TRUE);
@@ -14913,7 +14913,7 @@ static INT_PTR CALLBACK HarddriveSettingsProc (HWND hDlg, UINT msg, WPARAM wPara
 					if (HIWORD (wParam) == CBN_KILLFOCUS) {
 						addhistorymenu(hDlg, current_hfdlg.ci.geometry, IDC_PATH_GEOMETRY, HISTORY_GEO, false);
 						setharddrive(hDlg);
-						updatehdfinfo (hDlg, true, false);
+						updatehdfinfo (hDlg, true, false, true);
 					}
 					break;
 			}
@@ -14929,7 +14929,7 @@ static INT_PTR CALLBACK HarddriveSettingsProc (HWND hDlg, UINT msg, WPARAM wPara
 				break;
 			case IDC_HDF_PHYSGEOMETRY:
 				current_hfdlg.ci.physical_geometry = ischecked(hDlg, IDC_HDF_PHYSGEOMETRY);
-				updatehdfinfo(hDlg, true, false);
+				updatehdfinfo(hDlg, true, false, true);
 				setharddrive(hDlg);
 				break;
 			case IDC_HARDDRIVE_ID:
@@ -15001,7 +15001,7 @@ static INT_PTR CALLBACK HarddriveSettingsProc (HWND hDlg, UINT msg, WPARAM wPara
 						SetDlgItemText(hDlg, IDC_HDFINFO, _T(""));
 						SetDlgItemText(hDlg, IDC_HDFINFO2, _T(""));
 						SetDlgItemText(hDlg, IDC_HDFINFO3, _T(""));
-						updatehdfinfo (hDlg, true, current_hfdlg.ci.geometry[0] ? false : true);
+						updatehdfinfo (hDlg, true, current_hfdlg.ci.geometry[0] ? false : true, true);
 						hdf_getnameharddrive(posn, 1, NULL, &dang, &flags);
 						ew(hDlg, IDC_HDF_IDENTITY, ena && (flags & 1));
 						if (!(flags & 1))
@@ -15024,7 +15024,7 @@ static INT_PTR CALLBACK HarddriveSettingsProc (HWND hDlg, UINT msg, WPARAM wPara
 					SetDlgItemText(hDlg, IDC_HDFINFO, _T(""));
 					SetDlgItemText(hDlg, IDC_HDFINFO2, _T(""));
 					SetDlgItemText(hDlg, IDC_HDFINFO3, _T(""));
-					updatehdfinfo (hDlg, true, true);
+					updatehdfinfo (hDlg, true, true, true);
 					inithdcontroller(hDlg, current_hfdlg.ci.controller_type, current_hfdlg.ci.controller_type_unit, UAEDEV_HDF, current_hfdlg.ci.rootdir[0] != 0);
 					SendDlgItemMessage(hDlg, IDC_HDF_CONTROLLER_UNIT, CB_SETCURSEL, current_hfdlg.ci.controller_unit, 0);
 					sethardfiletypes(hDlg);
@@ -15053,7 +15053,7 @@ static INT_PTR CALLBACK HarddriveSettingsProc (HWND hDlg, UINT msg, WPARAM wPara
 					getcomboboxtext(hDlg, IDC_PATH_GEOMETRY, current_hfdlg.ci.geometry, sizeof  current_hfdlg.ci.geometry / sizeof(TCHAR));
 					DISK_history_add(current_hfdlg.ci.geometry, -1, HISTORY_GEO, 1);
 					setharddrive(hDlg);
-					updatehdfinfo (hDlg, true, false);
+					updatehdfinfo (hDlg, true, false, true);
 				}
 				break;
 			case IDC_SECTORS:
@@ -15062,7 +15062,7 @@ static INT_PTR CALLBACK HarddriveSettingsProc (HWND hDlg, UINT msg, WPARAM wPara
 				*p = GetDlgItemInt (hDlg, IDC_SECTORS, NULL, FALSE);
 				if (v != *p) {
 					set_phys_cyls(hDlg);
-					updatehdfinfo (hDlg, true, false);
+					updatehdfinfo (hDlg, true, false, true);
 					ew (hDlg, IDC_HDF_RDB, !is_hdf_rdb ());
 				}
 				break;
@@ -15074,7 +15074,7 @@ static INT_PTR CALLBACK HarddriveSettingsProc (HWND hDlg, UINT msg, WPARAM wPara
 					if (ischecked(hDlg, IDC_HDF_PHYSGEOMETRY)) {
 						current_hfdlg.ci.physical_geometry = true;
 					}
-					updatehdfinfo (hDlg, true, false);
+					updatehdfinfo (hDlg, true, false, true);
 					ew (hDlg, IDC_HDF_RDB, !is_hdf_rdb ());
 				}
 				break;
@@ -15084,7 +15084,7 @@ static INT_PTR CALLBACK HarddriveSettingsProc (HWND hDlg, UINT msg, WPARAM wPara
 				*p = GetDlgItemInt (hDlg, IDC_HEADS, NULL, FALSE);
 				if (v != *p) {
 					set_phys_cyls(hDlg);
-					updatehdfinfo (hDlg, true, false);
+					updatehdfinfo (hDlg, true, false, true);
 					ew (hDlg, IDC_HDF_RDB, !is_hdf_rdb ());
 				}
 				break;
@@ -21302,7 +21302,7 @@ int dragdrop (HWND hDlg, HDROP hd, struct uae_prefs *prefs, int	currentpage)
 		if (customDlgType == IDD_HARDFILE) {
 			_tcscpy (current_hfdlg.ci.rootdir, file);
 			SetDlgItemText (hDlg, IDC_PATH_NAME, current_hfdlg.ci.rootdir);
-			updatehdfinfo (customDlg, true, true);
+			updatehdfinfo (customDlg, true, true, false);
 			sethardfile (customDlg);
 			continue;
 		}
@@ -21366,7 +21366,7 @@ int dragdrop (HWND hDlg, HDROP hd, struct uae_prefs *prefs, int	currentpage)
 			} else {
 				default_hfdlg (&current_hfdlg, false);
 				_tcscpy (current_hfdlg.ci.rootdir, file);
-				updatehdfinfo (NULL, true, true);
+				updatehdfinfo (NULL, true, true, false);
 				add_filesys_config (&workprefs, -1, &current_hfdlg.ci);
 			}
 			break;
