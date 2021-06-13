@@ -4496,9 +4496,9 @@ static void updateextblk(void)
 	if (aga_mode) {
 		hbstop_v |= (hbstop >> 8) & 7;
 	}
-
-	hbstrt_v2 = hbstrt_v;
-	hbstop_v2 = hbstop_v;
+	// 1.5 hires pixel offset
+	hbstrt_v2 = hbstrt_v - 3;
+	hbstop_v2 = hbstop_v - 3;
 
 	exthblank = (bplcon0 & 1) && (bplcon3 & 1);
 
