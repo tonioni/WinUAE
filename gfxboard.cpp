@@ -3092,11 +3092,11 @@ static void gfxboard_free_board(struct rtggfxboard *gb)
 			gb->pcemobject = NULL;
 		}
 	}
-	if (gb->vram) {
+	if (gb->vram && gb->gfxmem_bank->baseaddr) {
 		gb->gfxmem_bank->baseaddr = gb->vramrealstart;
 		gfxboard_free_vram(gb->rbc->rtg_index);
-		gb->gfxmem_bank = NULL;
 	}
+	gb->gfxmem_bank = NULL;
 	gb->vram = NULL;
 	gb->vramrealstart = NULL;
 	xfree(gb->fakesurface_surface);
