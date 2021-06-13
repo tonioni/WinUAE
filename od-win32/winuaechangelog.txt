@@ -1,4 +1,53 @@
 
+Beta 22:
+
+- Copper vblank start was delayed by few cycles.
+- uaegfx used unsafe (assumes unrecoverable state if invalid address) address translation function without validating the address first. Invalid VRAM address would have crashes emulated Amiga.
+- "Add harddrive" tried to incorrectly guess logical geometry and didn't enable full drive mode if drive didn't already have RDB. (and it become weird and useless drive)
+- Picasso96 v3.0+ uaegfx screen dragging support fixed.
+- Extended window border mode joystick/mouse direction/buttons indicators fixed.
+- Overscan blanking filter settings added to filter profiles.
+- DMA debugger now shows AGA FMODE>0 bitplane and sprite fetch read values fully (both 32-bit and 64-bit). Previously it was always truncated to 16-bit.
+- Memwatch points now fully support AGA FMODE>0 bitplane and sprite fetches.
+- Memwatch log only (L) flag was not cleared when memwatch point was replaced or reset.
+- Bitplane graphics wrapping around is now emulated (BPLxDAT fetch done before hsync but it is long enough to be partially visible after hsync). Normally can't happen but it can happen in bitplane DMA overrun situations or if weird programmed mode. Not fully working yet.
+- Hard reset tried to free hardware emulated RTG VRAM twice causing memory corruption.
+
+More programmed mode/normal mode special case related updates, including really weird never before used modes (Thanks to Ross again :)) Still work to do.
+
+- Many programmed screen modes had corruption.
+- Vertical now also supports wraparound (Horizontal added in b18), if vblank starts at line 0 or later (normal PAL/NTSC vblank start is last line), they will be correctly drawn after "real" last line. More lines are shown if VB starts later than normally.
+- BPLCON3 EXTBLKEN (horizontal blanking) is now fully emulated and accurate. Note that ECS Denise works differently than AGA:
+-* ECS Denise: ECSENA=1 + EXTBLKEN=0: blanking disabled, including vertical (except tiny blanking during hsync to keep display black level detection working), ECSENA=1 + EXTBLKEN=1 and ECSENA=0: hardwired blanking. No programmed blanking, itseems HBSTRT/HBSTOP registers don't exists in ECS Denise. 
+-* AGA: ECSENA=0 and ECSENA=1 + EXTBLKEN=0: hardwired blanking. ECSENA=1 + EXTBLKEN=1: HBSTRT/HBSTOP programmed horizontal blanking.
+-* Note that display devices need blanked signals during part of hsync period (and vsync), it is used to set black levels, without blanking, image might become very dark or have strange colors, have strange brightness pulsing etc. This is not emulated.
+- Increased internal max native display width by 2 lores pixels. ECS Denise/AGA can show 1 lores pixel more in right overscan compared to OCS. (Increased by 2 to keep display width even)
+- Programmable vertical blanking is now handled accurately. VBSTOP = line when sprites are reset and first loads are done. VBSTOP+1 = first visible line. Sprites are also now emulated correctly even if VBSTRT is after vsync period. Display is now correctly blanked if vertical blank period is in visible part of display. First line of display is also adjusted depending on VBSTOP value when BEAMCON0 VARVBEN is enabled, even if other bits are not set.
+- Advanced chipset "OCS H-Blank glitch" implemented (option already existed few betas ago). When enabled, first blanked line has background color visible in right border and last visible line has right border blanked. Not emulated by default because it looks really ugly and it is usually invisible when using real hardware due to overscan.
+- Programmable horizontal (HSSTRT and HSSTOP) and vertical sync (VSSTRT and VSSTOP) emulation improved. Previously h/v-sync and h/v-blank was combined, now they are fully separate.
+
+Part of below was already known previously but this time all chipset versions have been tested one by one and fully emulated now:
+
+A1000/OCS Denise/ECS Denise last line differences:
+- When A1000 Denise gets VB strobe, vertical blanking starts next line.
+- When OCS Denise gets VB strobe, vertical blanking starts after 2 lines.
+- When ECS Denise/AGA gets VB strobe, vertical blanking starts next line.
+
+A1000 Agnus sends first VB strobe when current line is first line, line zero. (Which as a side-effect causes delayed vblank interrupt, interrupt is generated when line 1 starts) Other Agnus versions sends first VB strobe when current line is last line.
+
+Bitplane DMA vertical DIW is forced closed when VB starts and sprite DMA is inhibited during all VB lines. Unless ECS/AGA and BEAMCON0 HARDDIS=1 or VARBEAMEN=1 or VARVBEN=1. (Note: DDFSTRT/STOP limits are not same, BEAMCON0 HARDDIS=1 or VARBEAMEN=1 or SHRES=1 or UHRES=1)
+
+A1000: first blanked line is line 1. Line 0 is last visible line at the bottom of screen.
+OCS Denise: first blanked line is line 1. Line 0 is last visible line at the bottom of screen. (This was not previously emulated, some programs might suddenly have different colored last line)
+ECS Denise/AGA: first blanked line is line 0. Last line (312/313/262/263) is last visible line at the bottom of screen.
+(Back in the CRT days last line was almost always invisible)
+
+Normally only COLOR0 changes are visible during last line. All chipset versions have same first visible line. OCS Denise outputs 1 more visible line than ECS Denise/AGA in default PAL/NTSC modes.
+
+Vertical blanking in this context means RGB output DAC (after Denise/Lisa) is in blanked mode. Vertical sync usually is different than vertical blanking in programmed modes.
+
+
+Beta 21:
 
 - Blitter line draw with B channel enabled supported. Flexible Zoom / Upfront uses it to load line pattern using DMA (undocumented feature, not really useful because it wastes lots of DMA time) instead of using static BLTBDAT 16-bit pattern.
 - Blitter got stuck in some 68020+ CE configs.
