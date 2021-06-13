@@ -12,6 +12,8 @@
 #include "uae/types.h"
 #include "machdep/rpt.h"
 
+extern bool aga_mode, ecs_agnus, ecs_denise, direct_rgb;
+
 /* These are the masks that are ORed together in the chipset_mask option.
 * If CSMASK_AGA is set, the ECS bits are guaranteed to be set as well.  */
 #define CSMASK_ECS_AGNUS 1
@@ -198,14 +200,16 @@ extern int xbluecolor_s, xbluecolor_b, xbluecolor_m;
 /* get resolution from bplcon0 */
 STATIC_INLINE int GET_RES_DENISE(uae_u16 con0)
 {
-	if (!(currprefs.chipset_mask & CSMASK_ECS_DENISE))
+	if (!ecs_denise) {
 		con0 &= ~0x40; // SUPERHIRES
+	}
 	return ((con0) & 0x40) ? RES_SUPERHIRES : ((con0) & 0x8000) ? RES_HIRES : RES_LORES;
 }
 STATIC_INLINE int GET_RES_AGNUS(uae_u16 con0)
 {
-	if (!(currprefs.chipset_mask & CSMASK_ECS_AGNUS))
+	if (!ecs_agnus) {
 		con0 &= ~0x40; // SUPERHIRES
+	}
 	return ((con0) & 0x40) ? RES_SUPERHIRES : ((con0) & 0x8000) ? RES_HIRES : RES_LORES;
 }
 /* get sprite width from FMODE */

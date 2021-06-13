@@ -680,7 +680,7 @@ int get_custom_limits (int *pw, int *ph, int *pdx, int *pdy, int *prealh)
 			ddffirstword_total = min;
 		if (ddflastword_total > max)
 			ddflastword_total = max;
-		if (0 && !(currprefs.chipset_mask & CSMASK_AGA)) {
+		if (0 && !aga_mode) {
 			if (ddffirstword_total > diwfirstword_total)
 				diwfirstword_total = ddffirstword_total;
 			if (ddflastword_total < diwlastword_total)
@@ -1323,14 +1323,15 @@ static void fill_line_border(int lineno)
 {
 	struct vidbuf_description *vidinfo = &adisplays[0].gfxvidinfo;
 	int lastpos = visible_left_border;
-	int endpos = visible_left_border + vidinfo->drawbuffer.inwidth;
+	int endpos = visible_right_border;
+	int w = endpos - lastpos;
 
 	if (lineno < visible_top_start || lineno >= visible_bottom_stop) {
 		int b = hposblank;
 		hposblank = 3;
-		fill_line2(lastpos, vidinfo->drawbuffer.inwidth);
+		fill_line2(lastpos, w);
 		if (need_genlock_data) {
-			memset(xlinebuffer_genlock + lastpos, 0, vidinfo->drawbuffer.inwidth);
+			memset(xlinebuffer_genlock + lastpos, 0, w);
 		}
 		hposblank = b;
 		return;
@@ -1339,17 +1340,17 @@ static void fill_line_border(int lineno)
 	// full hblank
 	if (hposblank) {
 		hposblank = 3;
-		fill_line2(lastpos, vidinfo->drawbuffer.inwidth);
+		fill_line2(lastpos, w);
 		if (need_genlock_data) {
-			memset(xlinebuffer_genlock + lastpos, 0, vidinfo->drawbuffer.inwidth);
+			memset(xlinebuffer_genlock + lastpos, 0, w);
 		}
 		return;
 	}
 	// hblank not visible
 	if (hblank_left_start <= lastpos && hblank_right_stop >= endpos) {
-		fill_line2(lastpos, vidinfo->drawbuffer.inwidth);
+		fill_line2(lastpos, w);
 		if (need_genlock_data) {
-			memset(xlinebuffer_genlock + lastpos, 0, vidinfo->drawbuffer.inwidth);
+			memset(xlinebuffer_genlock + lastpos, 0, w);
 		}
 		return;
 	}

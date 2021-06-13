@@ -528,7 +528,7 @@ static int bprun;
 static int bprun_cycle;
 static int bprun_pipeline_flush_delay;
 static bool plane0;
-static bool harddis;
+static bool harddis_v, harddis_h;
 static uae_u16 dmal_alloc_mask;
 
 #define RGA_PIPELINE_OFFSET_BPL_WRITE 3
@@ -742,7 +742,8 @@ static void remember_ctable_for_border(void)
 	remember_ctable();
 }
 
-STATIC_INLINE int get_equ_vblank_endline(void)
+// This does not need start line check because only OCS Denise modes use this.
+static int get_equ_vblank_endline(void)
 {
 	return equ_vblank_endline + (equ_vblank_toggle ? (lof_current ? 1 : 0) : 0);
 }
@@ -1116,7 +1117,7 @@ static void estimate_last_fetch_cycle(int hpos)
 		end_estimate_last_fetch_cycle(hpos);
 
 	} else {
-		int hard_ddf_stop = harddis ? 0x100 : HARD_DDF_STOP;
+		int hard_ddf_stop = harddis_h ? 0x100 : HARD_DDF_STOP;
 		int start = bpl_hstart;
 		int adjusted_plfstop = plfstop;
 		int estimated_cycle_count;
@@ -1208,7 +1209,7 @@ static void end_estimate_last_fetch_cycle(int hpos)
 
 static void estimate_last_fetch_cycle(int hpos)
 {
-	int hard_ddf_stop = harddis ? 0x100 : HARD_DDF_STOP;
+	int hard_ddf_stop = harddis_h ? 0x100 : HARD_DDF_STOP;
 	int start = bpl_hstart;
 	int adjusted_plfstop = plfstop;
 	int estimated_cycle_count;
@@ -3216,7 +3217,7 @@ static void update_fetch(int until, int fm)
 #endif
 		&& toscr_nr_planes == toscr_nr_planes_agnus)
 	{
-		int hard_ddf_stop = harddis ? 0x100 : HARD_DDF_STOP;
+		int hard_ddf_stop = harddis_h ? 0x100 : HARD_DDF_STOP;
 		int adjusted_plfstop = plfstop;
 		int ddfstop_to_test_ddf = hard_ddf_stop;
 		if (adjusted_plfstop >= last_fetch_hpos && adjusted_plfstop < ddfstop_to_test_ddf) {
@@ -3323,14 +3324,14 @@ static void decide_vline(void)
 	/* Take care of the vertical DIW.  */
 	if (vpos == plffirstline) {
 		// Following line after VB start has bitplane DMA start inhibited (if HARDDIS=0)
-		if (vb_start_line != 2 || harddis) {
+		if (vb_start_line != 2 || harddis_v) {
 			diwstate = DIW_waiting_stop;
 			diwstate_vpos = vpos;
 			SET_LINE_CYCLEBASED;
 		}
 	}
 	// VB start line forces vertical display window off (if HARDDIS=0)
-	if (vpos == plflastline || (vb_start_line == 1 && !harddis)) {
+	if (vpos == plflastline || (vb_start_line == 1 && !harddis_v)) {
 		diwstate = DIW_waiting_start;
 		diwstate_vpos = vpos;
 		SET_LINE_CYCLEBASED;
@@ -4326,6 +4327,7 @@ static void reset_decisions_hsync_start(void)
 	thisline_decision.bordersprite_seen = issprbrd(-1, bplcon0, bplcon3);
 	thisline_decision.xor_seen = (bplcon4 & 0xff00) != 0;
 
+	// handle bitplane data wrap around
 	bool toshift = false;
 	for (int i = 0; i < thisline_decision.nr_planes; i++) {
 		if (todisplay2_aga[i] || todisplay2[i]) {
@@ -4333,10 +4335,10 @@ static void reset_decisions_hsync_start(void)
 		}
 	}
 	if (bprun > 0 || todisplay_fetched[0] || toshift) {
+		SET_LINE_CYCLEBASED;
 		int hpos = current_hpos();
-		thisline_decision.plfleft = hpos;	
+		thisline_decision.plfleft = hpos;
 		if (hpos_hsync_extra) {
-			//delay_cycles -= ((hpos_hsync_extra) * 2 - DDF_OFFSET) << (toscr_res + toscr_res_mult);
 			delay_cycles = ((hpos) * 2 - DDF_OFFSET) << (toscr_res + toscr_res_mult);
 			hpos_hsync_extra = 0;
 		}
@@ -4930,22 +4932,33 @@ static void init_hz(bool checkvposw)
 	}
 
 	if (currprefs.gfx_extraheight > 0) {
-		int mfl = minfirstline;
-		maxvpos_display_vsync += currprefs.gfx_extraheight / 2;
-		minfirstline -= currprefs.gfx_extraheight / 2;
-		if (minfirstline < maxvpos_display_vsync + 1) {
-			minfirstline = maxvpos_display_vsync + 1;
-		}
-		if (firstblankedline <= mfl && firstblankedline >= minfirstline) {
-			firstblankedline -= currprefs.gfx_extraheight / 2;
+		if (beamcon0 & (0x0200 | 0x0010)) {
+			maxvpos_display_vsync += currprefs.gfx_extraheight / 2;
+			minfirstline -= currprefs.gfx_extraheight / 2;
+			if (maxvpos_display_vsync >= vsstop) {
+				maxvpos_display_vsync = vsstop - 1;
+			}
+			if (minfirstline <= vsstop) {
+				minfirstline = vsstop + 1;
+			}
+		} else {
+			maxvpos_display_vsync = 3;
+			minfirstline -= currprefs.gfx_extraheight / 2;
+			if (minfirstline < 8) {
+				minfirstline = 8;
+			}
 		}
 	}
 
-	if (minfirstline < 2) {
-		minfirstline = 2;
+	if (maxvpos_display_vsync < 1) {
+		maxvpos_display_vsync = 1;
 	}
-	if (!(beamcon0 & 0x80) && minfirstline < 10) {
-		minfirstline = 10;
+
+	if (minfirstline < 1) {
+		minfirstline = 1;
+	}
+	if (!(beamcon0 & 0x80) && minfirstline < 8 && !currprefs.gfx_extraheight) {
+		minfirstline = 8;
 	}
 
 	if (minfirstline >= maxvpos) {
@@ -5899,7 +5912,9 @@ static void ADKCON(int hpos, uae_u16 v)
 static void check_harddis(void)
 {
 	// VARBEAMEN, HARDDIS, SHRES, UHRES
-	harddis = ecs_agnus && ((new_beamcon0 & 0x80) || (new_beamcon0 & 0x4000) || (bplcon0 & 0x40) || (bplcon0 & 0x80));
+	harddis_h = ecs_agnus && ((new_beamcon0 & 0x80) || (new_beamcon0 & 0x4000) || (bplcon0 & 0x40) || (bplcon0 & 0x80));
+	// VARBEAMEN, VARVBEN, HARDDIS
+	harddis_v = ecs_agnus && (new_beamcon0 & 0x80) || (new_beamcon0 & 0x1000) || (new_beamcon0 & 0x4000);
 }
 
 static void BEAMCON0(int hpos, uae_u16 v)
@@ -7191,7 +7206,7 @@ static void decide_line(int endhpos)
 				// Triggers DDFSTOP condition if hard limits are not disabled.
 				ddf_limit = true;
 				if (bprun && !ddf_stopping) {
-					if (!harddis) {
+					if (!harddis_h) {
 						decide_line_decision_fetches(hpos);
 						ddf_stopping = 1;
 					}
@@ -7216,7 +7231,7 @@ static void decide_line(int endhpos)
 			}
 
 			// BPRUN can only start if DMA, DIW or DDF state has changed since last time
-			bool hwi = dma && diw && ddf_enable_on && (!ddf_limit || harddis);
+			bool hwi = dma && diw && ddf_enable_on && (!ddf_limit || harddis_h);
 
 			if (!bprun && dma && diw && hwi && !hwi_old) {
 				decide_line_decision_fetches(hpos);
@@ -8272,7 +8287,7 @@ static void init_sprites(void)
 static void init_hardware_frame(void)
 {
 	first_bpl_vpos = -1;
-	if (!harddis) {
+	if (!harddis_v) {
 		diwstate = DIW_waiting_start;
 	}
 
@@ -10752,6 +10767,7 @@ void custom_reset(bool hardreset, bool keyboardreset)
 	cop_state.strobe = 0;
 	cop_state.ignore_next = 0;
 	diwstate = DIW_waiting_start;
+	check_harddis();
 
 	dmal = 0;
 	init_hz_normal();

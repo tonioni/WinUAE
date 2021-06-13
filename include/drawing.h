@@ -23,7 +23,6 @@
 #endif
 
 extern int lores_shift, shres_shift, interlace_seen;
-extern bool aga_mode, ecs_agnus, ecs_denise, direct_rgb;
 extern int visible_left_border, visible_right_border;
 extern int detected_screen_resolution;
 extern int hsync_end_left_border, hsynctotal;
