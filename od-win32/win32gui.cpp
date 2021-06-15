@@ -7600,12 +7600,13 @@ static void enable_for_displaydlg (HWND hDlg)
 #ifndef PICASSO96
 	rtg = FALSE;
 #endif
-	ew (hDlg, IDC_SCREENMODE_RTG, rtg);
-	ew (hDlg, IDC_SCREENMODE_RTG2, rtg);
-	ew (hDlg, IDC_XCENTER, TRUE);
-	ew (hDlg, IDC_YCENTER, TRUE);
-	ew (hDlg, IDC_FRAMERATE, !workprefs.cpu_memory_cycle_exact);
-	ew (hDlg, IDC_LORES, !workprefs.gfx_autoresolution);
+	ew(hDlg, IDC_SCREENMODE_RTG, rtg);
+	ew(hDlg, IDC_SCREENMODE_RTG2, rtg);
+	ew(hDlg, IDC_XCENTER, TRUE);
+	ew(hDlg, IDC_YCENTER, TRUE);
+	ew(hDlg, IDC_FRAMERATE, !workprefs.cpu_memory_cycle_exact);
+	ew(hDlg, IDC_LORES, !workprefs.gfx_autoresolution);
+	ew(hDlg, IDC_OVERSCANMODE, TRUE);
 
 	ew(hDlg, IDC_AUTORESOLUTIONVGA, workprefs.gfx_resolution >= RES_HIRES && workprefs.gfx_vresolution >= VRES_DOUBLE);
 	if (workprefs.gfx_resolution < RES_HIRES || workprefs.gfx_vresolution < VRES_DOUBLE) {
@@ -8160,9 +8161,16 @@ static void values_to_displaydlg (HWND hDlg)
 	SendDlgItemMessage(hDlg, IDC_LORES, CB_ADDSTRING, 0, (LPARAM)buffer);
 	SendDlgItemMessage (hDlg, IDC_LORES, CB_SETCURSEL, workprefs.gfx_resolution, 0);
 
+	SendDlgItemMessage(hDlg, IDC_OVERSCANMODE, CB_RESETCONTENT, 0, 0);
+	SendDlgItemMessage(hDlg, IDC_OVERSCANMODE, CB_ADDSTRING, 0, (LPARAM)_T("TV (narrow)"));
+	SendDlgItemMessage(hDlg, IDC_OVERSCANMODE, CB_ADDSTRING, 0, (LPARAM)_T("TV (standard"));
+	SendDlgItemMessage(hDlg, IDC_OVERSCANMODE, CB_ADDSTRING, 0, (LPARAM)_T("TV (wide)"));
+	SendDlgItemMessage(hDlg, IDC_OVERSCANMODE, CB_ADDSTRING, 0, (LPARAM)_T("Overscan"));
+	SendDlgItemMessage(hDlg, IDC_OVERSCANMODE, CB_ADDSTRING, 0, (LPARAM)_T("Overscan+"));
+	SendDlgItemMessage(hDlg, IDC_OVERSCANMODE, CB_ADDSTRING, 0, (LPARAM)_T("Extreme"));
+	SendDlgItemMessage(hDlg, IDC_OVERSCANMODE, CB_SETCURSEL, workprefs.gfx_overscanmode, 0);
+
 	SendDlgItemMessage(hDlg, IDC_AUTORESOLUTIONSELECT, CB_RESETCONTENT, 0, 0);
-
-
 	WIN32GUI_LoadUIString(IDS_DISABLED, buffer, sizeof buffer / sizeof (TCHAR));
 	SendDlgItemMessage(hDlg, IDC_AUTORESOLUTIONSELECT, CB_ADDSTRING, 0, (LPARAM)buffer);
 	WIN32GUI_LoadUIString(IDS_ALWAYS_ON, buffer, sizeof buffer / sizeof (TCHAR));
@@ -8517,10 +8525,14 @@ static void values_from_displaydlg (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 			init_resolution_combo (hDlg);
 			init_display_mode (hDlg);
 			return;
-		} else if (LOWORD (wParam) == IDC_LORES) {
-			posn = SendDlgItemMessage (hDlg, IDC_LORES, CB_GETCURSEL, 0, 0);
+		} else if (LOWORD(wParam) == IDC_LORES) {
+			posn = SendDlgItemMessage(hDlg, IDC_LORES, CB_GETCURSEL, 0, 0);
 			if (posn != CB_ERR)
 				workprefs.gfx_resolution = posn;
+		} else if (LOWORD(wParam) == IDC_OVERSCANMODE) {
+			posn = SendDlgItemMessage(hDlg, IDC_OVERSCANMODE, CB_GETCURSEL, 0, 0);
+			if (posn != CB_ERR)
+				workprefs.gfx_overscanmode = posn;
 		} else if ((LOWORD (wParam) == IDC_RESOLUTION || LOWORD(wParam) == IDC_RESOLUTIONDEPTH) && dmode >= 0) {
 			workprefs.gfx_monitor[0].gfx_size_fs.width  = md->DisplayModes[dmode].res.width;
 			workprefs.gfx_monitor[0].gfx_size_fs.height = md->DisplayModes[dmode].res.height;

@@ -2386,6 +2386,7 @@ int check_prefs_changed_gfx (void)
 	c |= _tcsicmp(currprefs.genlock_video_file, changed_prefs.genlock_video_file) ? (2 | 8) : 0;
 
 	c |= currprefs.gfx_lores_mode != changed_prefs.gfx_lores_mode ? (2 | 8) : 0;
+	c |= currprefs.gfx_overscanmode != changed_prefs.gfx_overscanmode ? (2 | 8) : 0;
 	c |= currprefs.gfx_scandoubler != changed_prefs.gfx_scandoubler ? (2 | 8) : 0;
 	c |= currprefs.gfx_threebitcolors != changed_prefs.gfx_threebitcolors ? (256) : 0;
 	c |= currprefs.gfx_grayscale != changed_prefs.gfx_grayscale ? (512) : 0;
@@ -2486,6 +2487,7 @@ int check_prefs_changed_gfx (void)
 		_tcscpy(currprefs.genlock_video_file, changed_prefs.genlock_video_file);
 
 		currprefs.gfx_lores_mode = changed_prefs.gfx_lores_mode;
+		currprefs.gfx_overscanmode = changed_prefs.gfx_overscanmode;
 		currprefs.gfx_scandoubler = changed_prefs.gfx_scandoubler;
 		currprefs.gfx_threebitcolors = changed_prefs.gfx_threebitcolors;
 		currprefs.gfx_grayscale = changed_prefs.gfx_grayscale;
