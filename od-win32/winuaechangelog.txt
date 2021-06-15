@@ -1,4 +1,13 @@
 
+Beta 23:
+
+- Display positioned was shifted in some programs. (b22)
+- Fixed horizontal jitter in some AGA programs. (b22)
+- Black screen in some programs. (b22)
+- Automatic scaling fixed. (b22)
+- Switching from programmed horizontal blanking back to hardwired h-blanking didn't work.
+- Added Overscan option to Display panel. Overscan selection is default from previous versions. This probably will replace will TV filter options in the future. Overscan+ and Extreme are even more larger modes, only useful if programmed blanking is enabled, more details later.
+
 Beta 22:
 
 - Copper vblank start was delayed by few cycles.
