@@ -1924,6 +1924,7 @@ static void close_hwnds(struct AmigaMonitor *mon)
 	if (mon->screen_is_initialized)
 		releasecapture(mon);
 	mon->screen_is_initialized = 0;
+	mon->screen_is_picasso = 0;
 	if (!mon->monitor_id) {
 		display_vblank_thread_kill();
 #ifdef AVIOUTPUT
@@ -3566,8 +3567,27 @@ static void movecursor (int x, int y)
 
 static void getextramonitorpos(struct AmigaMonitor *mon, RECT *r)
 {
+	TCHAR buf[100];
 	RECT r1, r2;
+	int x, y;
+	bool got = true;
 
+	_stprintf(buf, _T("MainPosX_%d"), mon->monitor_id);
+	if (!regqueryint(NULL, buf, &x)) {
+		got = false;
+	}
+	_stprintf(buf, _T("MainPosY_%d"), mon->monitor_id);
+	if (!regqueryint(NULL, buf, &y)) {
+		got = false;
+	}
+	if (got) {
+		POINT pt;
+		pt.x = x;
+		pt.y = y;
+		if (!MonitorFromPoint(pt, MONITOR_DEFAULTTONULL)) {
+			got = false;
+		}
+	}
 	// find rightmost window edge
 	int monid = MAX_AMIGAMONITORS - 1;
 	int rightmon = -1;
@@ -3586,7 +3606,7 @@ static void getextramonitorpos(struct AmigaMonitor *mon, RECT *r)
 			rightmon = monid;
 		}
 	}
-	if (rightmon < 0)
+	if (rightmon < 0 && !got)
 		return;
 	hwnd = AMonitors[rightmon].hMainWnd;
 	GetWindowRect(hwnd, &r1);
@@ -3596,8 +3616,13 @@ static void getextramonitorpos(struct AmigaMonitor *mon, RECT *r)
 	int width = r->right - r->left;
 	int height = r->bottom - r->top;
 
-	r->left = r1.right - ((r2.left - r1.left) + (r1.right - r2.right));
-	r->top = r1.top;
+	if (got) {
+		r->left = x;
+		r->top = y;
+	} else {
+		r->left = r1.right - ((r2.left - r1.left) + (r1.right - r2.right));
+		r->top = r1.top;
+	}
 	r->bottom = r->top + height;
 	r->right = r->left + width;
 }

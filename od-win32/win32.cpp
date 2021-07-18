@@ -2791,9 +2791,17 @@ static LRESULT CALLBACK MainWindowProc (HWND hWnd, UINT message, WPARAM wParam, 
 						DWORD top = rc2.top - mon->win_y_diff;
 						DWORD width = rc2.right - rc2.left;
 						DWORD height = rc2.bottom - rc2.top;
-						if (store_xy++ && !mon->monitor_id) {
-							regsetint (NULL, _T("MainPosX"), left);
-							regsetint (NULL, _T("MainPosY"), top);
+						if (store_xy++) {
+							if (!mon->monitor_id) {
+								regsetint(NULL, _T("MainPosX"), left);
+								regsetint(NULL, _T("MainPosY"), top);
+							} else {
+								TCHAR buf[100];
+								_stprintf(buf, _T("MainPosX_%d"), mon->monitor_id);
+								regsetint(NULL, buf, left);
+								_stprintf(buf, _T("MainPosY_%d"), mon->monitor_id);
+								regsetint(NULL, buf, top);
+							}
 						}
 						changed_prefs.gfx_monitor[mon->monitor_id].gfx_size_win.x = left;
 						changed_prefs.gfx_monitor[mon->monitor_id].gfx_size_win.y = top;
