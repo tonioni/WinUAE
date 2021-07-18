@@ -1,4 +1,15 @@
 
+Beta 24:
+
+- usegfx Picasso96 DISPLAYCHAIN is now only forced if uaegfx monitor is monitor id=0 (shared with native chipset). Previously DISPLAYCHAIN was always forced.
+- uaegfx in other monitor than native: uaegfx window was tiny before it resized to selected Picasso96 resolution. Now reset default is 640x480 instead of 0x0. uaegfx window also didn't re-open after reset.
+- Extra multi monitor mode window positions are now stored to registry/ini.
+- Bitplane wrap around (extreme bitplane overrun condition where BPLxDAT fetches before hsync start are visible after hsync end) is now fully supported.
+- Sprite fix (Shadow of the Beast 3 missing sprite)
+- Adjusted extreme overscan positioning and filter (for example integer scaling) support improved.
+- Two (or more) horizontal DIWSTRT/STOP regions are now supported. Previously only first region was visible.
+- Programmed mode WB modes should now have 100% correct vertical and horizontal blanking. Hardwired blanking is now correct in overscan+ modes.
+
 Beta 23:
 
 - Display positioned was shifted in some programs. (b22)
@@ -6,7 +17,7 @@ Beta 23:
 - Black screen in some programs. (b22)
 - Automatic scaling fixed. (b22)
 - Switching from programmed horizontal blanking back to hardwired h-blanking didn't work.
-- Added Overscan option to Display panel. Overscan selection is default from previous versions. This probably will replace will TV filter options in the future. Overscan+ and Extreme are even more larger modes, only useful if programmed blanking is enabled, more details later.
+- Added Overscan option to Display panel. Overscan selection is default from previous versions. This probably will replace will TV filter options in the future. Overscan+ and Extreme are even more larger modes, only useful if programmed blanking is enabled, more details later. TV options probably need some calibration.
 
 Beta 22:
 

@@ -6458,20 +6458,26 @@ void m68k_disasm_ea (uaecptr addr, uaecptr *nextpc, int cnt, uae_u32 *seaddr, ua
 {
 	TCHAR *buf;
 
-	buf = xcalloc (TCHAR, (MAX_LINEWIDTH + 1) * cnt);
+	if (!cnt)
+		return;
+	int pcnt = cnt > 0 ? cnt : -cnt;
+	buf = xcalloc (TCHAR, (MAX_LINEWIDTH + 1) * pcnt);
 	if (!buf)
 		return;
-	m68k_disasm_2(buf, MAX_LINEWIDTH * cnt, addr, NULL, 0, nextpc, cnt, seaddr, deaddr, lastpc, 1);
+	m68k_disasm_2(buf, MAX_LINEWIDTH * pcnt, addr, NULL, 0, nextpc, cnt, seaddr, deaddr, lastpc, 1);
 	xfree (buf);
 }
 void m68k_disasm (uaecptr addr, uaecptr *nextpc, uaecptr lastpc, int cnt)
 {
 	TCHAR *buf;
 
-	buf = xcalloc (TCHAR, (MAX_LINEWIDTH + 1) * cnt);
+	if (!cnt)
+		return;
+	int pcnt = cnt > 0 ? cnt : -cnt;
+	buf = xcalloc (TCHAR, (MAX_LINEWIDTH + 1) * pcnt);
 	if (!buf)
 		return;
-	m68k_disasm_2(buf, MAX_LINEWIDTH * cnt, addr, NULL, 0, nextpc, cnt, NULL, NULL, lastpc, 0);
+	m68k_disasm_2(buf, MAX_LINEWIDTH * pcnt, addr, NULL, 0, nextpc, cnt, NULL, NULL, lastpc, 0);
 	console_out_f (_T("%s"), buf);
 	xfree (buf);
 }
