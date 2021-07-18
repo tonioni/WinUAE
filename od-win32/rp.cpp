@@ -1379,7 +1379,7 @@ static LRESULT CALLBACK RPHostMsgFunction2 (UINT uMessage, WPARAM wParam, LPARAM
 					struct vidbuffer vb;
 					int w = avidinfo->drawbuffer.inwidth;
 					int h = avidinfo->drawbuffer.inheight;
-					if (!programmedmode) {
+					if (programmedmode <= 1) {
 						h = (maxvpos + lof_store - minfirstline) << currprefs.gfx_vresolution;
 					}
 					if (interlace_seen && currprefs.gfx_vresolution > 0) {
