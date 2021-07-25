@@ -676,7 +676,7 @@ static void get_a2410_surface(struct a2410_struct *data)
 	bool gotsurf = false;
 	if (ad->picasso_on) {
 		if (data->a2410_surface == NULL) {
-			data->a2410_surface = gfx_lock_picasso(monid, false, false);
+			data->a2410_surface = gfx_lock_picasso(monid, false);
 			gotsurf = true;
 		}
 		if (data->a2410_surface && gotsurf) {

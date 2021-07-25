@@ -70,7 +70,7 @@ static bool fb_get_surface(struct fb_struct *data)
 	bool gotsurf = false;
 	if (ad->picasso_on) {
 		if (data->surface == NULL) {
-			data->surface = gfx_lock_picasso(data->monitor_id, false, false);
+			data->surface = gfx_lock_picasso(data->monitor_id, false);
 			gotsurf = true;
 		}
 		if (data->surface && gotsurf) {

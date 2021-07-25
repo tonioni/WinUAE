@@ -695,7 +695,7 @@ void video_blit_memtoscreen(int x, int y, int y1, int y2, int w, int h)
 			pcem_flush(gb, i);
 			if (rtg_visible[gb->monitor_id] >= 0 && gb->monswitch_delay == 0 && gb->monswitch_current == gb->monswitch_new) {
 				if (gb->gfxboard_surface == NULL) {
-					gb->gfxboard_surface = gfx_lock_picasso(gb->monitor_id, false, false);
+					gb->gfxboard_surface = gfx_lock_picasso(gb->monitor_id, false);
 				}
 				if (gb->gfxboard_surface) {
 					struct picasso_vidbuf_description *vidinfo = &picasso_vidinfo[gb->monitor_id];
@@ -1364,7 +1364,7 @@ int surface_stride(DisplaySurface *s)
 	if (s == &gb->fakesurface || !gb->vga_refresh_active)
 		return 0;
 	if (gb->gfxboard_surface == NULL)
-		gb->gfxboard_surface = gfx_lock_picasso(gb->monitor_id, false, false);
+		gb->gfxboard_surface = gfx_lock_picasso(gb->monitor_id, false);
 	struct picasso_vidbuf_description *vidinfo = &picasso_vidinfo[gb->monitor_id];
 	return vidinfo->rowbytes;
 }
@@ -1380,7 +1380,7 @@ uint8_t *surface_data(DisplaySurface *s)
 	if (s == &gb->fakesurface || !gb->vga_refresh_active)
 		return gb->fakesurface_surface;
 	if (gb->gfxboard_surface == NULL)
-		gb->gfxboard_surface = gfx_lock_picasso(gb->monitor_id, false, false);
+		gb->gfxboard_surface = gfx_lock_picasso(gb->monitor_id, false);
 	return gb->gfxboard_surface;
 }
 
@@ -1609,7 +1609,7 @@ void gfxboard_vsync_handler(bool full_redraw_required, bool redraw_required)
 			if (!gb->monitor_id) {
 				if (currprefs.leds_on_screen & STATUSLINE_RTG) {
 					if (gb->gfxboard_surface == NULL) {
-						gb->gfxboard_surface = gfx_lock_picasso(gb->monitor_id, false, false);
+						gb->gfxboard_surface = gfx_lock_picasso(gb->monitor_id, false);
 					}
 					if (gb->gfxboard_surface) {
 						if (softstatusline())
@@ -3147,7 +3147,7 @@ void gfxboard_reset (void)
 			}
 		}
 		if (gb->monitor_id > 0) {
-			close_rtg(gb->monitor_id);
+			close_rtg(gb->monitor_id, true);
 		}
 	}
 	for (int i = 0; i < MAX_AMIGADISPLAYS; i++) {

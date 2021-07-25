@@ -1819,7 +1819,7 @@ static uae_u8 *gfx_lock_picasso2(int monid, bool fullupdate)
 		return DirectDraw_GetSurfacePointer ();
 	}
 }
-uae_u8 *gfx_lock_picasso(int monid, bool fullupdate, bool doclear)
+uae_u8 *gfx_lock_picasso(int monid, bool fullupdate)
 {
 	struct AmigaMonitor *mon = &AMonitors[monid];
 	struct picasso_vidbuf_description *vidinfo = &picasso_vidinfo[monid];
@@ -1833,13 +1833,6 @@ uae_u8 *gfx_lock_picasso(int monid, bool fullupdate, bool doclear)
 		gfx_unlock();
 	} else {
 		mon->rtg_locked = true;
-		if (doclear) {
-			uae_u8 *p2 = p;
-			for (int h = 0; h < vidinfo->height; h++) {
-				memset (p2, 0, vidinfo->width * vidinfo->pixbytes);
-				p2 += vidinfo->rowbytes;
-			}
-		}
 	}
 	return p;
 }
@@ -1924,7 +1917,6 @@ static void close_hwnds(struct AmigaMonitor *mon)
 	if (mon->screen_is_initialized)
 		releasecapture(mon);
 	mon->screen_is_initialized = 0;
-	mon->screen_is_picasso = 0;
 	if (!mon->monitor_id) {
 		display_vblank_thread_kill();
 #ifdef AVIOUTPUT
@@ -4481,9 +4473,13 @@ bool toggle_rtg (int monid, int mode)
 	return false;
 }
 
-void close_rtg(int monid)
+void close_rtg(int monid, bool reset)
 {
-	close_windows(&AMonitors[monid]);
+	struct AmigaMonitor *mon = &AMonitors[monid];
+	close_windows(mon);
+	if (reset) {
+		mon->screen_is_picasso = false;
+	}
 }
 
 void toggle_fullscreen(int monid, int mode)

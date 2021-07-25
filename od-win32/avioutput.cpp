@@ -537,7 +537,7 @@ static int AVIOutput_AllocateVideo(void)
 
 	avioutput_fps = (int)(vblank_hz + 0.5);
 	if (!avioutput_fps)
-		avioutput_fps = ispal() ? 50 : 60;
+		avioutput_fps = ispal(NULL) ? 50 : 60;
 	if (avioutput_originalsize || WIN32GFX_IsPicassoScreen(mon)) {
 		int pitch;
 		if (!gfxboard_isgfxboardscreen(0)) {
