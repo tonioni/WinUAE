@@ -1,4 +1,21 @@
 
+Beta 25:
+
+- On the fly PAL/NTSC switch (VPOSW trick or BEAMCON0) incorrectly adjusted screen width in some situations. Height is now adjusted relative to total vertical lines, some games use VPOSW trick to generate 56Hz mode which was previously scaled as NTSC.
+- Programmed mode (BEAMCON0 bit 7 set) with PAL/NTSC like parameters are not anymore considered as VGA-like.
+- Hardwired vblank end line was 1 too late.
+- Fixed repeating autoresize.
+- Yet another HBLANK related undocumented feature: HBLANK start enables border. If HBLANK start is moved to visible area and bitplanes are active during HBLANK: border gets re-activated and bitplane re-starts when next BPL1DAT write happens. This probably can't be used for anything useful because display's black level detection will get confused (weird colors, wrong black level etc) if HSYNC period is not blanked.
+- And another undocumented feature: if horizontal display window was closed due to HBLANK and next BPL1DAT access is close enough (and after HBLANK end in visible region, so probably can only happen in bitplane overun condition), display window opens 1.5 lores pixel early, showing previous BPL1DAT loaded pixel pattern.
+- Horizontal diw now works correctly even if display horizontally "wraps around" due to (much) larger than normal HSYNC position.
+- Light gun/pen fix.
+- Partial fix to cycle-exact + MMU emulation (but could also happen without MMU) weird copper behavior. Internal cycle counter was not always guaranteed to be chipset cycle aligned.
+- GUI lists (for example Hardware info) column DPI support.
+- Fixed D3D11 OSD led crash (D3D9 worked) if display moved monitors and they had different DPI.
+- Fixed RTG unexpected display size/scaling, introduces few betas ago.
+- Fixed RTG related crash when switching fullscreen modes (possibly also in other modes).
+- Fixed chipset emulation buffer overflow in some programmed modes, buffers need to be slightly larger now that vertical "overrun" is supported.
+
 Beta 24:
 
 - usegfx Picasso96 DISPLAYCHAIN is now only forced if uaegfx monitor is monitor id=0 (shared with native chipset). Previously DISPLAYCHAIN was always forced.
