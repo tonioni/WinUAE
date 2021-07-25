@@ -182,16 +182,17 @@ static bool get_aspect(int monid, float *dstratiop, float *srcratiop, float *xmu
 				if (keep_aspect == 1)
 					dstratio = dstratio * 0.93f;
 			} else {
+				bool isp = ispal(NULL);
 				if (currprefs.ntscmode) {
 					dstratio = dstratio * 1.21f;
-					if (keep_aspect == 2 && ispal())
+					if (keep_aspect == 2 && isp)
 						dstratio = dstratio * 0.93f;
-					else if (keep_aspect == 1 && !ispal())
+					else if (keep_aspect == 1 && !isp)
 						dstratio = dstratio * 0.98f;
 				} else {
-					if (keep_aspect == 2 && ispal())
+					if (keep_aspect == 2 && isp)
 						dstratio = dstratio * 0.95f;
-					else if (keep_aspect == 1 && !ispal())
+					else if (keep_aspect == 1 && !isp)
 						dstratio = dstratio * 0.95f;
 				}
 			}
@@ -578,7 +579,7 @@ void getfilterrect2(int monid, RECT *sr, RECT *dr, RECT *zr, int dst_width, int 
 					ww = currprefs.gfx_xcenter_size;
 				if (currprefs.gfx_ycenter_size >= 0)
 					hh = currprefs.gfx_ycenter_size;
-				if (scalemode == oscalemode) {
+				if (scalemode == oscalemode && !useold) {
 					int oldwinw = gmc->gfx_size_win.width;
 					int oldwinh = gmc->gfx_size_win.height;
 					gmh->gfx_size_win.width = ww;
@@ -668,22 +669,39 @@ cont:
 
 	}
 
-	if (currprefs.ntscmode) {
-		if (palntscadjust && ispal()) {
-			dstratio = dstratio * (625 / 525.0);
+	{
+		float palntscratio = dstratio;
+		int l = 0;
+		bool isp = ispal(&l);
+		if (abs(l - 262) <= 5) {
+			l = 262;
 		}
-		if (keep_aspect == 2 && ispal ())
-			dstratio = dstratio * 0.93f;
-		else if (keep_aspect == 1 && !ispal ())
-			dstratio = dstratio * 0.98f;
-	} else {
-		if (palntscadjust && !ispal()) {
-			dstratio = dstratio * (625 / 525.0);
+		if (abs(l - 312) <= 5) {
+			l = 312;
 		}
-		if (keep_aspect == 2 && ispal ())
-			dstratio = dstratio * 0.95f;
-		else if (keep_aspect == 1 && !ispal ())
-			dstratio = dstratio * 0.95f;
+		float ll = l * 2 + 1;
+		if (currprefs.ntscmode) {
+			if (palntscadjust && isp) {
+				palntscratio = palntscratio * (ll / 525.0);
+			}
+			if (keep_aspect == 2 && isp) {
+				palntscratio = palntscratio * 0.93f;
+			} else if (keep_aspect == 1 && !isp) {
+				palntscratio = palntscratio * 0.98f;
+			}
+		} else {
+			if (palntscadjust && !isp) {
+				palntscratio = palntscratio * (625.0 / ll);
+			}
+			if (keep_aspect == 2 && isp) {
+				palntscratio = palntscratio * 0.95f;
+			} else if (keep_aspect == 1 && !isp) {
+				palntscratio = palntscratio * 0.95f;
+			}
+		}
+		if (palntscratio != dstratio) {
+			ymult = ymult * palntscratio / dstratio;
+		}
 	}
 
 	if (srcratio > dstratio) {
