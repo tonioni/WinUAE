@@ -1456,6 +1456,15 @@ void REGPARAM2 mmu_set_funcs(void)
 {
 	if (currprefs.mmu_model != 68040 && currprefs.mmu_model != 68060)
 		return;
+
+	x_phys_get_iword = phys_get_word;
+	x_phys_get_ilong = phys_get_long;
+	x_phys_get_byte = phys_get_byte;
+	x_phys_get_word = phys_get_word;
+	x_phys_get_long = phys_get_long;
+	x_phys_put_byte = phys_put_byte;
+	x_phys_put_word = phys_put_word;
+	x_phys_put_long = phys_put_long;
 	if (currprefs.cpu_memory_cycle_exact || currprefs.cpu_compatible) {
 		x_phys_get_iword = get_word_icache040;
 		x_phys_get_ilong = get_long_icache040;
@@ -1473,23 +1482,7 @@ void REGPARAM2 mmu_set_funcs(void)
 			x_phys_put_byte = mem_access_delay_byte_write_c040;
 			x_phys_put_word = mem_access_delay_word_write_c040;
 			x_phys_put_long = mem_access_delay_long_write_c040;
-		} else {
-			x_phys_get_byte = phys_get_byte;
-			x_phys_get_word = phys_get_word;
-			x_phys_get_long = phys_get_long;
-			x_phys_put_byte = phys_put_byte;
-			x_phys_put_word = phys_put_word;
-			x_phys_put_long = phys_put_long;
 		}
-	} else {
-		x_phys_get_iword = phys_get_word;
-		x_phys_get_ilong = phys_get_long;
-		x_phys_get_byte = phys_get_byte;
-		x_phys_get_word = phys_get_word;
-		x_phys_get_long = phys_get_long;
-		x_phys_put_byte = phys_put_byte;
-		x_phys_put_word = phys_put_word;
-		x_phys_put_long = phys_put_long;
 	}
 }
 
