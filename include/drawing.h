@@ -256,8 +256,10 @@ struct color_change {
 #define MAX_PIXELS_PER_LINE 2048
 #endif
 
+#define MAXVPOS_WRAPLINES 10
+
 /* No divisors for MAX_PIXELS_PER_LINE; we support AGA and SHRES sprites */
-#define MAX_SPR_PIXELS (((MAXVPOS + 1) * 2 + 1) * MAX_PIXELS_PER_LINE)
+#define MAX_SPR_PIXELS (((MAXVPOS + MAXVPOS_WRAPLINES) * 2 + 1) * MAX_PIXELS_PER_LINE)
 
 struct sprite_entry
 {
@@ -284,7 +286,7 @@ extern uae_u16 spixels[MAX_SPR_PIXELS * 2];
 #endif
 
 /* Way too much... */
-#define MAX_REG_CHANGE ((MAXVPOS + 1) * 2 * MAXHPOS)
+#define MAX_REG_CHANGE ((MAXVPOS + MAXVPOS_WRAPLINES) * 2 * MAXHPOS)
 
 extern struct color_entry *curr_color_tables, *prev_color_tables;
 
@@ -326,9 +328,9 @@ struct draw_info {
 	int nr_color_changes, nr_sprites;
 };
 
-extern struct decision line_decisions[2 * (MAXVPOS + 2) + 1];
+extern struct decision line_decisions[2 * (MAXVPOS + MAXVPOS_WRAPLINES) + 1];
 
-extern uae_u8 line_data[(MAXVPOS + 2) * 2][MAX_PLANES * MAX_WORDS_PER_LINE * 2];
+extern uae_u8 line_data[(MAXVPOS + MAXVPOS_WRAPLINES) * 2][MAX_PLANES * MAX_WORDS_PER_LINE * 2];
 
 /* Functions in drawing.c.  */
 extern int coord_native_to_amiga_y (int);

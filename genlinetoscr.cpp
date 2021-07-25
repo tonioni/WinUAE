@@ -130,9 +130,15 @@ static void outlnf (const char *s, ...)
 
 static void out_linetoscr_decl (DEPTH_T bpp, HMODE_T hmode, int aga, int spr, int genlock)
 {
-	outlnf ("static int NOINLINE linetoscr_%s%s%s%s%s(int spix, int dpix, int dpix_end)",
-		get_depth_str (bpp),
-		get_hmode_str (hmode), aga ? "_aga" : "", spr > 0 ? "_spr" : (spr < 0 ? "_spronly" : ""), genlock ? "_genlock" : "");
+	if (spr < 0) {
+		outlnf("static int NOINLINE linetoscr_%s%s%s%s%s(int spix, int dpix, int dpix_end, int blank)",
+			get_depth_str(bpp),
+			get_hmode_str(hmode), aga ? "_aga" : "", "_spronly", genlock ? "_genlock" : "");
+	} else {
+		outlnf("static int NOINLINE linetoscr_%s%s%s%s%s(int spix, int dpix, int dpix_end)",
+			get_depth_str(bpp),
+			get_hmode_str(hmode), aga ? "_aga" : "", spr > 0 ? "_spr" : "", genlock ? "_genlock" : "");
+	}
 }
 
 static void out_linetoscr_do_srcpix (DEPTH_T bpp, HMODE_T hmode, int aga, CMODE_T cmode, int spr)
@@ -418,7 +424,7 @@ static void out_linetoscr_mode (DEPTH_T bpp, HMODE_T hmode, int aga, int spr, CM
 	if (spr >= 0)
 		outln (		"    out_val = dpix_val;");
 	else
-		outln (		"    out_val = p_acolors[0];");
+		outln (		"    out_val = blank ? 0 : p_acolors[0];");
 
 	if (hmode == HMODE_DOUBLE) {
 		put_dpixgenlock(0, cmode, aga, genlock, NULL);
