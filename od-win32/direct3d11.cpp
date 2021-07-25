@@ -1596,13 +1596,13 @@ static void updateleds(struct d3d11struct *d3d)
 		write_log(_T("Led Map failed %08x\n"), hr);
 		return;
 	}
-	for (int y = 0; y < TD_TOTAL_HEIGHT * d3d->statusbar_vx; y++) {
+	for (int y = 0; y < d3d->osd.height; y++) {
 		uae_u8 *buf = (uae_u8*)map.pData + y * map.RowPitch;
 		statusline_single_erase(d3d - d3d11data, buf, 32 / 8, y, d3d->ledwidth);
 	}
 	statusline_render(d3d - d3d11data, (uae_u8*)map.pData, 32 / 8, map.RowPitch, d3d->ledwidth, d3d->ledheight, rc, gc, bc, a);
 
-	for (int y = 0; y < TD_TOTAL_HEIGHT * d3d->statusbar_vx; y++) {
+	for (int y = 0; y < d3d->osd.height; y++) {
 		uae_u8 *buf = (uae_u8*)map.pData + y * map.RowPitch;
 		draw_status_line_single(d3d - d3d11data, buf, 32 / 8, y, d3d->ledwidth, rc, gc, bc, a);
 	}
