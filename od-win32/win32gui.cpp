@@ -4934,6 +4934,7 @@ static void InitializeListView (HWND hDlg)
 	int listview_column_width[HARDDISK_COLUMNS];
 	DWORD extraflags = 0;
 	int listpadding;
+	int dpi = getdpiforwindow(hDlg);
 
 	if (cachedlist) {
 		if (lv_old_type >= 0) {
@@ -5041,7 +5042,7 @@ static void InitializeListView (HWND hDlg)
 	cachedlist = list;
 
 	for(i = 0; i < listview_num_columns; i++)
-		listview_column_width[i] = ListView_GetStringWidth (list, column_heading[i]) + listpadding;
+		listview_column_width[i] = MulDiv(ListView_GetStringWidth(list, column_heading[i]), dpi, 72) + listpadding;
 
 	// If there are no columns, then insert some
 	lvcolumn.mask = LVCF_WIDTH;
@@ -5058,11 +5059,10 @@ static void InitializeListView (HWND hDlg)
 
 	if (lv_type == LV_BOARD) {
 
-		listview_column_width[0] = 20;
-		listview_column_width[1] = 200;
-		listview_column_width[2] = 90;
-		listview_column_width[3] = 90;
-		listview_column_width[4] = 90;
+		listview_column_width[1] = MulDiv(200, dpi, 72);
+		listview_column_width[2] = MulDiv(90, dpi, 72);
+		listview_column_width[3] = MulDiv(90, dpi, 72);
+		listview_column_width[4] = MulDiv(90, dpi, 72);
 		i = 0;
 		if (full_property_sheet)
 			expansion_generate_autoconfig_info(&workprefs);
@@ -5147,8 +5147,8 @@ static void InitializeListView (HWND hDlg)
 
 	} else if (lv_type == LV_MISC2) {
 
-		listview_column_width[0] = 180;
-		listview_column_width[1] = 10;
+		listview_column_width[0] = MulDiv(180, dpi, 72);
+		listview_column_width[1] = MulDiv(10, dpi, 72);
 		for (i = 0; exts[i].ext; i++) {
 			lvstruct.mask     = LVIF_TEXT | LVIF_PARAM;
 			lvstruct.pszText  = exts[i].ext;
@@ -5170,22 +5170,22 @@ static void InitializeListView (HWND hDlg)
 			lvstruct.iItem    = i;
 			lvstruct.iSubItem = 0;
 			result = ListView_InsertItem (list, &lvstruct);
-			width = ListView_GetStringWidth (list, lvstruct.pszText) + listpadding;
+			width = MulDiv(ListView_GetStringWidth (list, lvstruct.pszText), dpi, 72) + listpadding;
 			if (width > listview_column_width[0])
 				listview_column_width[0] = width;
 			entry++;
 		}
-		listview_column_width[1] = 260;
-		listview_column_width[2] = 65;
-		listview_column_width[3] = 65;
-		listview_column_width[4] = 65;
-		listview_column_width[5] = 65;
-		listview_column_width[6] = 30;
+		listview_column_width[1] = MulDiv(260, dpi, 72);
+		listview_column_width[2] = MulDiv(65, dpi, 72);
+		listview_column_width[3] = MulDiv(65, dpi, 72);
+		listview_column_width[4] = MulDiv(65, dpi, 72);
+		listview_column_width[5] = MulDiv(65, dpi, 72);
+		listview_column_width[6] = MulDiv(30, dpi, 72);
 		update_listview_input (hDlg);
 
 	} else if (lv_type == LV_INPUTMAP) {
 
-		listview_column_width[0] = 400;
+		listview_column_width[0] = MulDiv(400, dpi, 72);
 		update_listview_inputmap (hDlg, -1);
 
 	} else if (lv_type == LV_MISC1) {
@@ -5193,7 +5193,7 @@ static void InitializeListView (HWND hDlg)
 		int itemids[] = { IDS_MISCLISTITEMS1, IDS_MISCLISTITEMS2, IDS_MISCLISTITEMS3, IDS_MISCLISTITEMS4 , -1 };
 		int itemoffset = 0;
 		int itemcnt = 0;
-		listview_column_width[0] = 150;
+		listview_column_width[0] = MulDiv(150, dpi, 72);
 		for (i = 0; misclist[i].name; i++) {
 			TCHAR tmpentry[MAX_DPATH], itemname[MAX_DPATH];
 			const struct miscentry *me = &misclist[i];
@@ -5242,7 +5242,7 @@ static void InitializeListView (HWND hDlg)
 			lvstruct.iSubItem = 0;
 			result = ListView_InsertItem (list, &lvstruct);
 			ListView_SetItemState (list, i, INDEXTOSTATEIMAGEMASK(type ? 0 : (checked ? 2 : 1)), LVIS_STATEIMAGEMASK);
-			width = ListView_GetStringWidth (list, lvstruct.pszText) + listpadding;
+			width = MulDiv(ListView_GetStringWidth(list, lvstruct.pszText), dpi, 72) + listpadding;
 			if (width > listview_column_width[0])
 				listview_column_width[0] = width;
 			entry++;
@@ -5276,18 +5276,18 @@ static void InitializeListView (HWND hDlg)
 			if (drv >= 0)
 				_stprintf (tmp, _T("DF%d:"), drv);
 			ListView_SetItemText (list, result, 2, tmp);
-			width = ListView_GetStringWidth (list, lvstruct.pszText) + listpadding;
+			width = MulDiv(ListView_GetStringWidth(list, lvstruct.pszText), dpi, 72) + listpadding;
 			if (width > listview_column_width[0])
 				listview_column_width[0] = width;
 			entry++;
 		}
-		listview_column_width[0] = 30;
-		listview_column_width[1] = 336;
-		listview_column_width[2] = 50;
+		listview_column_width[0] = MulDiv(30, dpi, 72);
+		listview_column_width[1] = MulDiv(336, dpi, 72);
+		listview_column_width[2] = MulDiv(50, dpi, 72);
 
 	} else if (lv_type == LV_CD) {
 
-		listview_column_width[2] = 450;
+		listview_column_width[2] = MulDiv(450, dpi, 72);
 		for (i = 0; i < MAX_TOTAL_SCSI_DEVICES; i++) {
 			TCHAR tmp[10];
 			struct device_info di = { 0 };
@@ -5304,7 +5304,7 @@ static void InitializeListView (HWND hDlg)
 			result = ListView_InsertItem (list, &lvstruct);
 			ListView_SetItemText(list, result, 1, tmp);
 			ListView_SetItemText(list, result, 2, cds->name);
-			width = ListView_GetStringWidth(list, cds->name) + listpadding;
+			width = MulDiv(ListView_GetStringWidth(list, cds->name), dpi, 72) + listpadding;
 			if (width > listview_column_width[2])
 				listview_column_width[2] = width;
 			break;
@@ -5312,7 +5312,7 @@ static void InitializeListView (HWND hDlg)
 
 	} else if (lv_type == LV_HARDDISK) {
 #ifdef FILESYS
-		listview_column_width[1] = 80;
+		listview_column_width[1] = MulDiv(80, dpi, 72);
 		for (i = 0; i < workprefs.mountitems; i++)
 		{
 			struct uaedev_config_data *uci = &workprefs.mountconfig[i];
@@ -5453,41 +5453,41 @@ static void InitializeListView (HWND hDlg)
 			result = ListView_InsertItem (list, &lvstruct);
 			if (result != -1) {
 
-				listview_column_width[0] = 20;
+				listview_column_width[0] = MulDiv(20, dpi, 72);
 
 				ListView_SetItemText(list, result, 1, devname_str);
-				width = ListView_GetStringWidth(list, devname_str) + listpadding;
+				width = MulDiv(ListView_GetStringWidth(list, devname_str), dpi, 72) + listpadding;
 				if(width > listview_column_width[1])
 					listview_column_width[1] = width;
 
 				ListView_SetItemText(list, result, 2, volname_str);
-				width = ListView_GetStringWidth(list, volname_str) + listpadding;
+				width = MulDiv(ListView_GetStringWidth(list, volname_str), dpi, 72) + listpadding;
 				if(width > listview_column_width[2])
 					listview_column_width[2] = width;
 
 				listview_column_width[3] = 150;
 				ListView_SetItemText(list, result, 3, rootdirp);
-				width = ListView_GetStringWidth(list, rootdirp) + listpadding;
+				width = MulDiv(ListView_GetStringWidth(list, rootdirp), dpi, 72) + listpadding;
 				if(width > listview_column_width[3])
 					listview_column_width[3] = width;
 
 				ListView_SetItemText(list, result, 4, readwrite_str);
-				width = ListView_GetStringWidth(list, readwrite_str) + listpadding;
+				width = MulDiv(ListView_GetStringWidth(list, readwrite_str), dpi, 72) + listpadding;
 				if(width > listview_column_width[4])
 					listview_column_width[4] = width;
 
 				ListView_SetItemText(list, result, 5, blocksize_str);
-				width = ListView_GetStringWidth(list, blocksize_str) + listpadding;
+				width = MulDiv(ListView_GetStringWidth(list, blocksize_str), dpi, 72) + listpadding;
 				if(width > listview_column_width[5])
 					listview_column_width[5] = width;
 
 				ListView_SetItemText(list, result, 6, size_str);
-				width = ListView_GetStringWidth(list, size_str) + listpadding;
+				width = MulDiv(ListView_GetStringWidth(list, size_str), dpi, 72) + listpadding;
 				if(width > listview_column_width[6])
 					listview_column_width[6] = width;
 
 				ListView_SetItemText(list, result, 7, bootpri_str);
-				width = ListView_GetStringWidth(list, bootpri_str) + listpadding;
+				width = MulDiv(ListView_GetStringWidth(list, bootpri_str), dpi, 72) + listpadding;
 				if(width > listview_column_width[7] )
 					listview_column_width[7] = width;
 			}
@@ -5502,10 +5502,10 @@ static void InitializeListView (HWND hDlg)
 			ScreenToClient(hDlg, (LPPOINT)&rect);
 			ScreenToClient(hDlg, (LPPOINT)&rect.right);
 			if (listview_num_columns == 2) {
-				if ((temp = rect.right - rect.left - listview_column_width[0] - 30) > listview_column_width[1])
+				if ((temp = rect.right - rect.left - listview_column_width[0] - MulDiv(30, dpi, 72)) > listview_column_width[1])
 					listview_column_width[1] = temp;
 			} else if (listview_num_columns == 1) {
-				listview_column_width[0] = rect.right - rect.left - 30;
+				listview_column_width[0] = rect.right - rect.left - MulDiv(30, dpi, 72);
 			}
 		}
 
