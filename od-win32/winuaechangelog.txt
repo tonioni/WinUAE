@@ -1,4 +1,13 @@
 
+Beta 26:
+
+- Write to most programmed mode registers (ECS/AGA only) caused display emulation reinitialization, even when modified register was not in use. Now reinitialization is only done if matching BEAMCON0 bit(s) is set. Fixes BC Kid screen flashing, game updates color registers but writes too much and modifies first few programmed mode registers.
+- Remove interlace artifacts option works again but is not fully functional. (last line might flicker, copper modifications are not always accurate)
+- One the fly switch to subpixel mode caused hang in some situations.
+- Default overscan mode had one extra pixel row and line. Overscan+ size also fixed.
+- Fixed display glitches in 68020+ memory cycle exact modes (memory cycle exact only).
+- Shader files are again supported in Direct3D 11 mode. FX11 moved to separate static library.
+
 Beta 25:
 
 - On the fly PAL/NTSC switch (VPOSW trick or BEAMCON0) incorrectly adjusted screen width in some situations. Height is now adjusted relative to total vertical lines, some games use VPOSW trick to generate 56Hz mode which was previously scaled as NTSC.
@@ -6,7 +15,7 @@ Beta 25:
 - Hardwired vblank end line was 1 too late.
 - Fixed repeating autoresize.
 - Yet another HBLANK related undocumented feature: HBLANK start enables border. If HBLANK start is moved to visible area and bitplanes are active during HBLANK: border gets re-activated and bitplane re-starts when next BPL1DAT write happens. This probably can't be used for anything useful because display's black level detection will get confused (weird colors, wrong black level etc) if HSYNC period is not blanked.
-- And another undocumented feature: if horizontal display window was closed due to HBLANK and next BPL1DAT access is close enough (and after HBLANK end in visible region, so probably can only happen in bitplane overun condition), display window opens 1.5 lores pixel early, showing previous BPL1DAT loaded pixel pattern.
+- And another undocumented feature: if horizontal display window was closed due to HBLANK and next BPL1DAT access is close enough (and after HBLANK end in visible region, so probably can only happen in bitplane overun condition, normally shift registers empty and only background color is shown), display window opens 1.5 lores pixel early, showing previous BPL1DAT loaded pixel pattern.
 - Horizontal diw now works correctly even if display horizontally "wraps around" due to (much) larger than normal HSYNC position.
 - Light gun/pen fix.
 - Partial fix to cycle-exact + MMU emulation (but could also happen without MMU) weird copper behavior. Internal cycle counter was not always guaranteed to be chipset cycle aligned.
