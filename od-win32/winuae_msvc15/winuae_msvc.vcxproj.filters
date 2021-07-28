@@ -64,9 +64,6 @@
     <Filter Include="win32\Shaders">
       <UniqueIdentifier>{34d75786-02bd-43a5-b45d-934eef34e96e}</UniqueIdentifier>
     </Filter>
-    <Filter Include="win32\FX11">
-      <UniqueIdentifier>{aacd260d-3fd9-43a0-9cac-463ddd009704}</UniqueIdentifier>
-    </Filter>
     <Filter Include="nasm">
       <UniqueIdentifier>{9d6d0e7b-76b0-4b28-a9ef-0b69a02528c7}</UniqueIdentifier>
     </Filter>
@@ -951,24 +948,6 @@
     </ClCompile>
     <ClCompile Include="..\..\pcem\vid_cl5429.cpp">
       <Filter>pcem</Filter>
-    </ClCompile>
-    <ClCompile Include="..\FX11\d3dxGlobal.cpp">
-      <Filter>win32\FX11</Filter>
-    </ClCompile>
-    <ClCompile Include="..\FX11\EffectAPI.cpp">
-      <Filter>win32\FX11</Filter>
-    </ClCompile>
-    <ClCompile Include="..\FX11\EffectLoad.cpp">
-      <Filter>win32\FX11</Filter>
-    </ClCompile>
-    <ClCompile Include="..\FX11\EffectNonRuntime.cpp">
-      <Filter>win32\FX11</Filter>
-    </ClCompile>
-    <ClCompile Include="..\FX11\EffectReflection.cpp">
-      <Filter>win32\FX11</Filter>
-    </ClCompile>
-    <ClCompile Include="..\FX11\EffectRuntime.cpp">
-      <Filter>win32\FX11</Filter>
     </ClCompile>
     <ClCompile Include="..\..\pcem\vid_voodoo_banshee.cpp">
       <Filter>pcem</Filter>

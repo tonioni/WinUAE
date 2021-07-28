@@ -965,7 +965,7 @@ static void fxremoveline(char *s, char *dst, const char **lines)
 	*d = 0;
 }
 
-#ifdef FX11
+#if 1
 
 static bool psEffect_LoadEffect(struct d3d11struct *d3d, const TCHAR *shaderfile, struct shaderdata11 *s, int num)
 {
