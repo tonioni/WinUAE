@@ -3611,13 +3611,13 @@ static void center_image (void)
 		}
 #endif
 	} else if (vidinfo->drawbuffer.extrawidth > 0 || currprefs.gfx_overscanmode == OVERSCANMODE_EXTREME) {
-		// wide mode
+		// extreme wide mode
 		visible_left_border = (hsync_end_left_border * 2) << currprefs.gfx_resolution;
-	} else if (vidinfo->drawbuffer.extrawidth > 0 || ew == -1) {
+	} else if (ew == -1) {
 		// wide mode
 		visible_left_border = (hsync_end_left_border * 2) << currprefs.gfx_resolution;
 		if (visible_left_border + w < max_diwlastword) {
-			visible_left_border += (max_diwlastword - (visible_left_border + w)) / 2;
+			visible_left_border += (max_diwlastword - (visible_left_border + w) - 1) / 2;
 		}
 		if (ew > 0) {
 			visible_left_border -= (ew / 2) << currprefs.gfx_resolution;
@@ -4243,21 +4243,42 @@ void draw_lines(int end, int section)
 	vidinfo->outbuffer = vb;
 	if (!lockscr(vb, false, vb->last_drawn_line ? false : true))
 		return;
+
+	set_blanking_limits();
+
+	bool firstline = true;
+	int lastline = thisframe_y_adjust_real - (1 << linedbl);
 	while (vb->last_drawn_line < end) {
 		int i = vb->last_drawn_line;
 		int i1 = i + min_ypos_for_screen;
 		int line = i + thisframe_y_adjust_real;
 		int whereline = amiga2aspect_line_map[i1];
 		int wherenext = amiga2aspect_line_map[i1 + 1];
+
 		if (whereline >= vb->inheight) {
 			y_end = vb->inheight - 1;
 			break;
 		}
-		if (whereline < 0)
+		if (whereline < 0) {
+			lastline = line;
 			continue;
+		}
 		if (y_start < 0) {
 			y_start = whereline;
 		}
+
+		if (firstline) {
+			if (lastline >= 0) {
+				// scan line - 1 events, it might have hblank enable for next line.
+				for (int j = 0; j < 2; j++) {
+					dip_for_drawing = curr_drawinfo + lastline;
+					do_color_changes(NULL, NULL, -1);
+					lastline++;
+				}
+			}
+			firstline = false;
+		}
+
 		hposblank = 0;
 		pfield_draw_line(vb, line, whereline, wherenext);
 
