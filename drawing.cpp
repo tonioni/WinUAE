@@ -207,7 +207,6 @@ uae_u16 spixels[2 * MAX_SPR_PIXELS];
 struct sprite_stb spixstate;
 
 static uae_u32 ham_linebuf[MAX_PIXELS_PER_LINE * 2];
-static uae_u8 *real_bplpt[8];
 
 static uae_u8 all_ones[MAX_PIXELS_PER_LINE];
 static uae_u8 all_zeros[MAX_PIXELS_PER_LINE];
@@ -497,7 +496,7 @@ static void set_blanking_limits(void)
 	bool hardwired = !dp_for_drawing || !ce_is_extblankset(colors_for_drawing.extra) || !ce_is_extblankmode(colors_for_drawing.extra);
 	bool doblank = false;
 	int hbstrt = (235 << CCK_SHRES_SHIFT) - 3;
-	int hbstop = (46 << CCK_SHRES_SHIFT) - 7;
+	int hbstop = (47 << CCK_SHRES_SHIFT) - 7;
 
 	if (currprefs.gfx_overscanmode < OVERSCANMODE_OVERSCAN) {
 		int mult = (OVERSCANMODE_OVERSCAN - currprefs.gfx_overscanmode) * 4;
@@ -515,15 +514,17 @@ static void set_blanking_limits(void)
 		doblank = true;
 	} else if (currprefs.gfx_overscanmode == OVERSCANMODE_BROADCAST) {
 		hbstrt = (239 << CCK_SHRES_SHIFT) - 3;
-		hbstop = (46 << CCK_SHRES_SHIFT) - 7;
 		doblank = true;
 	}
 	if (doblank && programmedmode != 1) {
-		if (new_beamcon0 & 0x0110) {
+		// reposition to sync
+		// use hardwired hblank emulation as overscan blanking.
+		if ((new_beamcon0 & 0x0110) && !hardwired) {
 			extern uae_u16 hsstrt;
 			hbstrt += (hsstrt - 17) << CCK_SHRES_SHIFT;
 			hbstop += (hsstrt - 17) << CCK_SHRES_SHIFT;
 		}
+
 		if (currprefs.chipset_hr) {
 			hbstrt &= ~(3 >> currprefs.gfx_resolution);
 			hbstop &= ~(3 >> currprefs.gfx_resolution);
@@ -2610,7 +2611,7 @@ Don't touch this if you don't know what you are doing.  */
 #define GETLONG32(P) (*(uae_u32*)P)
 #define GETLONG64(P) (*(uae_u64*)P)
 
-STATIC_INLINE void pfield_doline32_1(uae_u32 *pixels, int wordcount, int planes)
+STATIC_INLINE void pfield_doline32_1(uae_u32 *pixels, int wordcount, int planes, uae_u8 *real_bplpt[8])
 {
 	while (wordcount-- > 0) {
 		uae_u32 b0, b1, b2, b3, b4, b5, b6, b7;
@@ -2666,7 +2667,7 @@ STATIC_INLINE void pfield_doline32_1(uae_u32 *pixels, int wordcount, int planes)
 }
 
 
-STATIC_INLINE void pfield_doline64_1(uae_u64 *pixels, int wordcount, int planes)
+STATIC_INLINE void pfield_doline64_1(uae_u64 *pixels, int wordcount, int planes, uae_u8 *real_bplpt[8])
 {
 	while (wordcount-- > 0) {
 		uae_u64 b0, b1, b2, b3, b4, b5, b6, b7;
@@ -2723,30 +2724,32 @@ STATIC_INLINE void pfield_doline64_1(uae_u64 *pixels, int wordcount, int planes)
 
 /* See above for comments on inlining.  These functions should _not_
 be inlined themselves.  */
-static void NOINLINE pfield_doline32_n1(uae_u32 *data, int count) { pfield_doline32_1(data, count, 1); }
-static void NOINLINE pfield_doline32_n2(uae_u32 *data, int count) { pfield_doline32_1(data, count, 2); }
-static void NOINLINE pfield_doline32_n3(uae_u32 *data, int count) { pfield_doline32_1(data, count, 3); }
-static void NOINLINE pfield_doline32_n4(uae_u32 *data, int count) { pfield_doline32_1(data, count, 4); }
-static void NOINLINE pfield_doline32_n5(uae_u32 *data, int count) { pfield_doline32_1(data, count, 5); }
-static void NOINLINE pfield_doline32_n6(uae_u32 *data, int count) { pfield_doline32_1(data, count, 6); }
+static void NOINLINE pfield_doline32_n1(uae_u32 *data, int count, uae_u8 *real_bplpt[8]) { pfield_doline32_1(data, count, 1, real_bplpt); }
+static void NOINLINE pfield_doline32_n2(uae_u32 *data, int count, uae_u8 *real_bplpt[8]) { pfield_doline32_1(data, count, 2, real_bplpt); }
+static void NOINLINE pfield_doline32_n3(uae_u32 *data, int count, uae_u8 *real_bplpt[8]) { pfield_doline32_1(data, count, 3, real_bplpt); }
+static void NOINLINE pfield_doline32_n4(uae_u32 *data, int count, uae_u8 *real_bplpt[8]) { pfield_doline32_1(data, count, 4, real_bplpt); }
+static void NOINLINE pfield_doline32_n5(uae_u32 *data, int count, uae_u8 *real_bplpt[8]) { pfield_doline32_1(data, count, 5, real_bplpt); }
+static void NOINLINE pfield_doline32_n6(uae_u32 *data, int count, uae_u8 *real_bplpt[8]) { pfield_doline32_1(data, count, 6, real_bplpt); }
 #ifdef AGA
-static void NOINLINE pfield_doline32_n7(uae_u32 *data, int count) { pfield_doline32_1(data, count, 7); }
-static void NOINLINE pfield_doline32_n8(uae_u32 *data, int count) { pfield_doline32_1(data, count, 8); }
+static void NOINLINE pfield_doline32_n7(uae_u32 *data, int count, uae_u8* real_bplpt[8]) { pfield_doline32_1(data, count, 7, real_bplpt); }
+static void NOINLINE pfield_doline32_n8(uae_u32 *data, int count, uae_u8 *real_bplpt[8]) { pfield_doline32_1(data, count, 8, real_bplpt); }
 #endif
 
-static void NOINLINE pfield_doline64_n1(uae_u64 *data, int count) { pfield_doline64_1(data, count, 1); }
-static void NOINLINE pfield_doline64_n2(uae_u64 *data, int count) { pfield_doline64_1(data, count, 2); }
-static void NOINLINE pfield_doline64_n3(uae_u64 *data, int count) { pfield_doline64_1(data, count, 3); }
-static void NOINLINE pfield_doline64_n4(uae_u64 *data, int count) { pfield_doline64_1(data, count, 4); }
-static void NOINLINE pfield_doline64_n5(uae_u64 *data, int count) { pfield_doline64_1(data, count, 5); }
-static void NOINLINE pfield_doline64_n6(uae_u64 *data, int count) { pfield_doline64_1(data, count, 6); }
+static void NOINLINE pfield_doline64_n1(uae_u64 *data, int count, uae_u8 *real_bplpt[8]) { pfield_doline64_1(data, count, 1, real_bplpt); }
+static void NOINLINE pfield_doline64_n2(uae_u64 *data, int count, uae_u8 *real_bplpt[8]) { pfield_doline64_1(data, count, 2, real_bplpt); }
+static void NOINLINE pfield_doline64_n3(uae_u64 *data, int count, uae_u8 *real_bplpt[8]) { pfield_doline64_1(data, count, 3, real_bplpt); }
+static void NOINLINE pfield_doline64_n4(uae_u64 *data, int count, uae_u8 *real_bplpt[8]) { pfield_doline64_1(data, count, 4, real_bplpt); }
+static void NOINLINE pfield_doline64_n5(uae_u64 *data, int count, uae_u8 *real_bplpt[8]) { pfield_doline64_1(data, count, 5, real_bplpt); }
+static void NOINLINE pfield_doline64_n6(uae_u64 *data, int count, uae_u8 *real_bplpt[8]) { pfield_doline64_1(data, count, 6, real_bplpt); }
 #ifdef AGA
-static void NOINLINE pfield_doline64_n7(uae_u64 *data, int count) { pfield_doline64_1(data, count, 7); }
-static void NOINLINE pfield_doline64_n8(uae_u64 *data, int count) { pfield_doline64_1(data, count, 8); }
+static void NOINLINE pfield_doline64_n7(uae_u64 *data, int count, uae_u8 *real_bplpt[8]) { pfield_doline64_1(data, count, 7, real_bplpt); }
+static void NOINLINE pfield_doline64_n8(uae_u64 *data, int count, uae_u8* real_bplpt[8]) { pfield_doline64_1(data, count, 8, real_bplpt); }
 #endif
 
 static void pfield_doline(int lineno)
 {
+	uae_u8 *real_bplpt[8];
+
 #if 0
 	int wordcount = (dp_for_drawing->plflinelen + 1) / 2;
 	uae_u64 *data = pixdata.apixels_q + MAX_PIXELS_PER_LINE / sizeof(uae_u64);
@@ -2766,15 +2769,15 @@ static void pfield_doline(int lineno)
 	switch (bplplanecnt) {
 	default: break;
 	case 0: memset(data, 0, wordcount * 64); break;
-	case 1: pfield_doline64_n1(data, wordcount); break;
-	case 2: pfield_doline64_n2(data, wordcount); break;
-	case 3: pfield_doline64_n3(data, wordcount); break;
-	case 4: pfield_doline64_n4(data, wordcount); break;
-	case 5: pfield_doline64_n5(data, wordcount); break;
-	case 6: pfield_doline64_n6(data, wordcount); break;
+	case 1: pfield_doline64_n1(data, wordcount, real_bplpt); break;
+	case 2: pfield_doline64_n2(data, wordcount, real_bplpt); break;
+	case 3: pfield_doline64_n3(data, wordcount, real_bplpt); break;
+	case 4: pfield_doline64_n4(data, wordcount, real_bplpt); break;
+	case 5: pfield_doline64_n5(data, wordcount, real_bplpt); break;
+	case 6: pfield_doline64_n6(data, wordcount, real_bplpt); break;
 #ifdef AGA
-	case 7: pfield_doline64_n7(data, wordcount); break;
-	case 8: pfield_doline64_n8(data, wordcount); break;
+	case 7: pfield_doline64_n7(data, wordcount, real_bplpt); break;
+	case 8: pfield_doline64_n8(data, wordcount, real_bplpt); break;
 #endif
 	}
 #else
@@ -2796,15 +2799,15 @@ static void pfield_doline(int lineno)
 	switch (bplplanecnt) {
 	default: break;
 	case 0: memset(data, 0, wordcount * 32); break;
-	case 1: pfield_doline32_n1(data, wordcount); break;
-	case 2: pfield_doline32_n2(data, wordcount); break;
-	case 3: pfield_doline32_n3(data, wordcount); break;
-	case 4: pfield_doline32_n4(data, wordcount); break;
-	case 5: pfield_doline32_n5(data, wordcount); break;
-	case 6: pfield_doline32_n6(data, wordcount); break;
+	case 1: pfield_doline32_n1(data, wordcount, real_bplpt); break;
+	case 2: pfield_doline32_n2(data, wordcount, real_bplpt); break;
+	case 3: pfield_doline32_n3(data, wordcount, real_bplpt); break;
+	case 4: pfield_doline32_n4(data, wordcount, real_bplpt); break;
+	case 5: pfield_doline32_n5(data, wordcount, real_bplpt); break;
+	case 6: pfield_doline32_n6(data, wordcount, real_bplpt); break;
 #ifdef AGA
-	case 7: pfield_doline32_n7(data, wordcount); break;
-	case 8: pfield_doline32_n8(data, wordcount); break;
+	case 7: pfield_doline32_n7(data, wordcount, real_bplpt); break;
+	case 8: pfield_doline32_n8(data, wordcount, real_bplpt); break;
 #endif
 	}
 #endif
@@ -4192,6 +4195,9 @@ static void draw_frame_extras(struct vidbuffer *vb, int y_start, int y_end)
 			int line = sly + i;
 			draw_status_line(vb->monitor_id, line, i);
 		}
+	} else {
+		statusbar_y1 = 0;
+		statusbar_y1 = 0;
 	}
 	if (debug_dma > 1 || debug_heatmap > 1) {
 		for (int i = 0; i < vb->outheight; i++) {
