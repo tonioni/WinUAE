@@ -1240,6 +1240,7 @@ static uae_u8 estimated_cycles_empty[256];
 static int estimate_cycles_empty_index = -1;
 static uae_u16 estimated_bplcon0, estimated_fm, estimated_plfstrt, estimated_plfstop;
 static uae_u8* estimated_cycles = estimated_cycles_empty;
+static bool estimated_empty;
 
 #if ESTIMATED_FETCH_MODE
 
@@ -1271,6 +1272,7 @@ static void end_estimate_last_fetch_cycle(int hpos)
 		memset(estimated_cycles + start_pos, 0, hpos - start_pos);
 	}
 #endif
+	estimated_empty = true;
 }
 
 static void estimate_last_fetch_cycle(int hpos)
@@ -1348,16 +1350,17 @@ static void estimate_last_fetch_cycle(int hpos)
 			}
 		}
 #if OPTIMIZED_ESTIMATE
-		// zero rest of buffer
-		if (end_pos != start_pos2) {
-			if (end_pos > start_pos2) {
-				memset(estimated_cycles + end_pos, 0, maxhpos - end_pos);
-				memset(estimated_cycles, 0, start_pos2);
-			} else {
-				memset(estimated_cycles + end_pos, 0, start_pos2 - end_pos);
+		if (estimated_empty && plfstrt == hpos && !ddf_stopping) {
+			estimated_empty = false;
+			// zero rest of buffer
+			if (end_pos != start_pos2) {
+				if (end_pos > start_pos2) {
+					memset(estimated_cycles + end_pos, 0, maxhpos - end_pos);
+					memset(estimated_cycles, 0, start_pos2);
+				} else {
+					memset(estimated_cycles + end_pos, 0, start_pos2 - end_pos);
+				}
 			}
-		}
-		if (plfstrt == hpos && !ddf_stopping) {
 			estimated_bplcon0 = bplcon0;
 			estimated_plfstrt = plfstrt;
 			estimated_plfstop = plfstop;
