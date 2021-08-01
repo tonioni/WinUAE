@@ -673,10 +673,10 @@ cont:
 		float palntscratio = dstratio;
 		int l = 0;
 		bool isp = ispal(&l);
-		if (abs(l - 262) <= 5) {
+		if (abs(l - 262) <= 25) {
 			l = 262;
 		}
-		if (abs(l - 312) <= 5) {
+		if (abs(l - 312) <= 25) {
 			l = 312;
 		}
 		float ll = l * 2 + 1;
