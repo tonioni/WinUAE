@@ -1232,18 +1232,20 @@ static void clear_bitplane_pipeline(int type)
 
 #define HARD_DDF_STOP 0xd8
 
+#define ESTIMATED_FETCH_MODE 1
+#define OPTIMIZED_ESTIMATE 1
+
 static uae_u8 estimated_cycles_buf[256];
 static uae_u8 estimated_cycles_empty[256];
 static int estimate_cycles_empty_index = -1;
-static uae_u8* estimated_cycles = estimated_cycles_empty;
 static uae_u16 estimated_bplcon0, estimated_fm, estimated_plfstrt, estimated_plfstop;
-#define ESTIMATED_FETCH_MODE 1
+static uae_u8* estimated_cycles = estimated_cycles_empty;
 
 #if ESTIMATED_FETCH_MODE
 
 static void end_estimate_last_fetch_cycle(int hpos)
 {
-#if 1
+#if OPTIMIZED_ESTIMATE
 	if (estimate_cycles_empty_index >= 0) {
 		for (int i = 0; i < RGA_PIPELINE_ADJUST; i++) {
 			int pos = (estimate_cycles_empty_index + i) % maxhpos;
@@ -1279,10 +1281,12 @@ static void estimate_last_fetch_cycle(int hpos)
 
 	} else {
 
+#if OPTIMIZED_ESTIMATE
 		if (estimated_bplcon0 == bplcon0 && estimated_plfstrt == plfstrt && estimated_plfstop == plfstop && estimated_fm == fetchmode) {
 			estimated_cycles = estimated_cycles_buf;
 			return;
 		}
+#endif
 
 		int hard_ddf_stop = harddis_h ? 0x100 : HARD_DDF_STOP;
 		int start = bpl_hstart;
@@ -1343,6 +1347,7 @@ static void estimate_last_fetch_cycle(int hpos)
 				off++;
 			}
 		}
+#if OPTIMIZED_ESTIMATE
 		// zero rest of buffer
 		if (end_pos != start_pos2) {
 			if (end_pos > start_pos2) {
@@ -1352,10 +1357,15 @@ static void estimate_last_fetch_cycle(int hpos)
 				memset(estimated_cycles + end_pos, 0, start_pos2 - end_pos);
 			}
 		}
-		estimated_bplcon0 = bplcon0;
-		estimated_plfstrt = plfstrt;
-		estimated_plfstop = plfstop;
-		estimated_fm = fetchmode;
+		if (plfstrt == hpos && !ddf_stopping) {
+			estimated_bplcon0 = bplcon0;
+			estimated_plfstrt = plfstrt;
+			estimated_plfstop = plfstop;
+			estimated_fm = fetchmode;
+		} else {
+			estimated_fm = 0xffff;
+		}
+#endif
 	}
 }
 
@@ -2039,7 +2049,7 @@ STATIC_INLINE void do_delays_3_ecs(int nbits)
 {
 	int delaypos = delay_cycles;
 	for (int oddeven = 0; oddeven < 2; oddeven++) {
-		int delay = toscr_delay_shifter[0];
+		int delay = toscr_delay_shifter[oddeven];
 		int diff = ((delay - delaypos) & shifter_mask) >> toscr_res_pixels_shift;
 		int nbits2 = nbits;
 		if (nbits2 > diff) {
@@ -4222,8 +4232,6 @@ static int sprites_differ(struct draw_info *dip, struct draw_info *dip_old)
 	struct sprite_entry *this_first = curr_sprite_entries + dip->first_sprite_entry;
 	struct sprite_entry *this_last = curr_sprite_entries + dip->last_sprite_entry;
 	struct sprite_entry *prev_first = prev_sprite_entries + dip_old->first_sprite_entry;
-	int npixels;
-	int i;
 
 	if (dip->nr_sprites != dip_old->nr_sprites) {
 		return 1;
@@ -4235,7 +4243,8 @@ static int sprites_differ(struct draw_info *dip, struct draw_info *dip_old)
 
 	return 1;
 #if 0
-	for (i = 0; i < dip->nr_sprites; i++) {
+	int npixels;
+	for (int i = 0; i < dip->nr_sprites; i++) {
 		if (this_first[i].pos != prev_first[i].pos
 			|| this_first[i].max != prev_first[i].max
 			|| this_first[i].has_attached != prev_first[i].has_attached) {
