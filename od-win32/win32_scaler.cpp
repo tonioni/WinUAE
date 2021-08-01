@@ -367,9 +367,11 @@ void getfilterrect2(int monid, RECT *sr, RECT *dr, RECT *zr, int dst_width, int 
 					cw -= 40 << currprefs.gfx_resolution;
 					ch -= 20 << currprefs.gfx_vresolution;
 				}
-				set_custom_limits (cw, ch, cx, cy);
-				store_custom_limits (cw, ch, cx, cy);
-				scl = true;
+				if (scalemode != AUTOSCALE_INTEGER && scalemode != AUTOSCALE_INTEGER_AUTOSCALE) {
+					set_custom_limits (cw, ch, cx, cy);
+					store_custom_limits (cw, ch, cx, cy);
+					scl = true;
+				}
 			}
 
 			if (scalemode == AUTOSCALE_INTEGER || scalemode == AUTOSCALE_INTEGER_AUTOSCALE) {
@@ -391,12 +393,14 @@ void getfilterrect2(int monid, RECT *sr, RECT *dr, RECT *zr, int dst_width, int 
 					if (ok) {
 						set_custom_limits(cw, ch, cx, cy);
 						store_custom_limits(cw, ch, cx, cy);
+						scl = true;
 					}
 				}
 				if (scalemode == AUTOSCALE_INTEGER || ok == false) {
 					getmanualpos(monid, &cx, &cy, &cw, &ch);
 					set_custom_limits(cw, ch, cx, cy);
 					store_custom_limits(cw, ch, cx, cy);
+					scl = true;
 				}
 
 #if 0
