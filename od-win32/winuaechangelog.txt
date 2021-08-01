@@ -1,9 +1,19 @@
 
+Beta 27:
+
+- Graphics glitches fixed (b26 and b25)
+- Some programs (for example Wings of Death) that use OCS compatible 60Hz hack didn't have working vblank interrupt. If write to VPOSW jumped to mid last line, vblank start line check was missed.
+- Added some optimizations (for example don't create new bitplane allocation table for current scanline if previous line had identical bitplane cycle sequence)
+- Added bitplane/audio DMA conflict emulation that can happen in bitplane overrun situations. In this situation no DMA transfer is done (neither BPL or audio).
+- Integer scale filters usually forced all scanlines to be fully redrawn, even if content didn't change.
+- VPOSW fake 60Hz now uses 60Hz height if refresh rate is >=55Hz and 50Hz height if less than 55Hz. Matches 1081/1084 etc CRT behavior better.
+- "Remove interlace artifacts" last line flickering fixed.
+
 Beta 26:
 
 - Write to most programmed mode registers (ECS/AGA only) caused display emulation reinitialization, even when modified register was not in use. Now reinitialization is only done if matching BEAMCON0 bit(s) is set. Fixes BC Kid screen flashing, game updates color registers but writes too much and modifies first few programmed mode registers.
 - Remove interlace artifacts option works again but is not fully functional. (last line might flicker, copper modifications are not always accurate)
-- One the fly switch to subpixel mode caused hang in some situations.
+- On the fly switch to subpixel mode caused hang in some situations.
 - Default overscan mode had one extra pixel row and line. Overscan+ size also fixed.
 - Fixed display glitches in 68020+ memory cycle exact modes (memory cycle exact only).
 - Shader files are again supported in Direct3D 11 mode. FX11 moved to separate static library.
