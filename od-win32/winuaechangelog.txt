@@ -1,4 +1,17 @@
 
+
+- Fixed buffer overflow if more than 9 devices were found when enumerating NPCap/WinCap devices. (Special SLIRP cases ignore max size check)
+- Mid screen HBlank change didn't force current scan line redraw. It could have caused glitches in some weird situations.
+- Fixed crash when display DMA start/stop/position was too weird. (Can happen if setup changes mid scanline with DMA already active)
+- AGA borderblank hires pixel delay is working again.
+- b27 bitplane allocation optimization fix.
+- Copper WAIT can't wake up at the start of scanline. (This was lost when custom emulation rewrite started)
+- Sprite emulation fix, vblank end sprite reset and first possible sprite DMA didn't use same line.
+- Blitter register modification while active support was partially broken few betas ago.
+- ECS Denise H/V-blank emulation updates.
+- RTS/RTE/RTR/RTD disassembly shows also return address, calculated using current stack pointer value.
+- DMA debugger now includes DDFSTRT (0), DDFSTOP (1) and hardwired DDFSTOP (2) positions if match caused bitplane DMA to start (DDFSTRT) or stop (DDFSTRT/hardwired DDFSTOP).
+
 Beta 27:
 
 - Graphics glitches fixed (b26 and b25)
