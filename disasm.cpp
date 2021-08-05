@@ -2151,6 +2151,15 @@ uae_u32 m68k_disasm_2(TCHAR *buf, int bufsize, uaecptr pc, uae_u16 *bufpc, int b
 				if (dp->duse) {
 					pc = ShowEA(NULL, pc, opcode, dp->dreg, dp->dmode, dp->size, instrname, &deaddr2, &actualea_dst, safemode);
 				}
+				if (lookup->mnemo == i_RTS || lookup->mnemo == i_RTD || lookup->mnemo == i_RTR || lookup->mnemo == i_RTE) {
+					uaecptr a = regs.regs[15];
+					TCHAR eas[100];
+					if (lookup->mnemo == i_RTE || lookup->mnemo == i_RTR) {
+						a += 2;
+					}
+					_stprintf(eas, _T(" == $%08x"), get_ilong_debug(a));
+					_tcscat(instrname, eas);
+				}
 			}
 		}
 
