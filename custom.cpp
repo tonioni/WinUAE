@@ -307,7 +307,7 @@ int hsyncendpos_hw;
 int hsynctotal;
 static int maxvpos_total = 511;
 int minfirstline = VBLANK_ENDLINE_PAL;
-int firstblankedline;
+static int firstblankedline;
 static int equ_vblank_endline = EQU_ENDLINE_PAL;
 static bool equ_vblank_toggle = true;
 float vblank_hz = VBLANK_HZ_PAL, fake_vblank_hz, vblank_hz_stored, vblank_hz_nom;
@@ -427,7 +427,7 @@ static int last_hdiw;
 static enum diw_states diwstate, hdiwstate;
 static int diwstate_vpos;
 static int bpl_hstart;
-static bool exthblank;
+static bool exthblank, exthblank_state;
 
 int first_planes_vpos, last_planes_vpos;
 static int first_bplcon0, first_bplcon0_old;
@@ -574,7 +574,7 @@ static int delay_lastcycle[2], delay_hsynccycle;
 static int hack_delay_shift;
 static bool bplcon1_written;
 static bool bplcon0_planes_changed;
-static bool sprites_enabled_this_line;
+static bool sprites_enabled_this_line, sprites_enabled_prev_line;
 static int shifter_mask, toscr_delay_shifter[2];
 static int out_subpix[2];
 static bool speedup_first;
@@ -891,6 +891,7 @@ static void record_color_change2(int hpos, int regno, uae_u32 value)
 				next_color_change++;
 				cc[1].regno = -1;
 				hblank_reset(hbstrt_v2);
+				exthblank_state = true;
 			}
 			if (chpos >= hbstop_v2 && prevpos < hbstop_v2) {
 				cc = &curr_color_changes[next_color_change];
@@ -899,6 +900,7 @@ static void record_color_change2(int hpos, int regno, uae_u32 value)
 				cc->value = 0;
 				next_color_change++;
 				cc[1].regno = -1;
+				exthblank_state = false;
 			}
 		} else {
 			if (chpos >= hbstop_v2 && prevpos < hbstop_v2) {
@@ -908,6 +910,7 @@ static void record_color_change2(int hpos, int regno, uae_u32 value)
 				cc->value = 0;
 				next_color_change++;
 				cc[1].regno = -1;
+				exthblank_state = false;
 			}
 			if (chpos >= hbstrt_v2 && prevpos < hbstrt_v2) {
 				cc = &curr_color_changes[next_color_change];
@@ -917,6 +920,7 @@ static void record_color_change2(int hpos, int regno, uae_u32 value)
 				next_color_change++;
 				cc[1].regno = -1;
 				hblank_reset(hbstrt_v2);
+				exthblank_state = true;
 			}
 		}
 	}
@@ -1284,12 +1288,23 @@ static void estimate_last_fetch_cycle(int hpos)
 	} else {
 
 #if OPTIMIZED_ESTIMATE
-		if (estimated_bplcon0 == bplcon0 && estimated_plfstrt == plfstrt && estimated_plfstop == plfstop && estimated_fm == fetchmode) {
+		if (estimated_bplcon0 == bplcon0 && plfstrt == hpos && estimated_plfstrt == plfstrt && estimated_plfstop == plfstop && estimated_fm == fetchmode) {
 			estimated_cycles = estimated_cycles_buf;
 			return;
 		}
 #endif
-
+#if 0
+		// plfstrt=24 plfstop=32 bpl_hstart=56 hard_ddf_stop=216 ddf_stopping=0 fetch_cycle=136 fetchunit=8 lastfetchunit=8
+		bpl_hstart = 56;
+		plfstrt = 24;
+		plfstop = 32;
+		bplcon0_res = 0;
+		fetchmode = 0;
+		fetch_cycle = 136;
+		ddf_stopping = 0;
+		hpos = 0;
+		curr_diagram = cycle_diagram_table[fetchmode][bplcon0_res][8];
+#endif
 		int hard_ddf_stop = harddis_h ? 0x100 : HARD_DDF_STOP;
 		int start = bpl_hstart;
 		int adjusted_plfstop = plfstop;
@@ -1308,9 +1323,21 @@ static void estimate_last_fetch_cycle(int hpos)
 				stop = adjusted_plfstop <= hpos || adjusted_plfstop > hard_ddf_stop ? hard_ddf_stop : adjusted_plfstop;
 			}
 			/* We know that fetching is up-to-date up until hpos, so we can use fetch_cycle.  */
-			int fetch_cycle_at_stop = fetch_cycle + (stop - start);
-			int starting_last_block_at = (fetch_cycle_at_stop + fetchunit - 1) & ~(fetchunit - 1);
-			estimated_cycle_count = (starting_last_block_at - fetch_cycle) + lastfetchunit;
+			if (start > stop) {
+				// weird case handling
+				if (stop < fetch_cycle) {
+					stop = hard_ddf_stop;
+				}
+				int starting_last_block_at = (stop + fetchunit - 1) & ~(fetchunit - 1);
+				estimated_cycle_count = (starting_last_block_at - fetch_cycle) + lastfetchunit;
+				if (estimated_cycle_count < 0) {
+					estimated_cycle_count += maxhpos;
+				}
+			} else {
+				int fetch_cycle_at_stop = fetch_cycle + (stop - start);
+				int starting_last_block_at = (fetch_cycle_at_stop + fetchunit - 1) & ~(fetchunit - 1);
+				estimated_cycle_count = (starting_last_block_at - fetch_cycle) + lastfetchunit;
+			}
 		} else {
 			int fc = fetch_cycle;
 			int starting_last_block_at = (fc + fetchunit - 1) & ~(fetchunit - 1);
@@ -1328,12 +1355,20 @@ static void estimate_last_fetch_cycle(int hpos)
 		int start_pos = (hpos + RGA_PIPELINE_ADJUST) % maxhpos;
 		int start_pos2 = start_pos;
 		int end_pos = (hpos + RGA_PIPELINE_ADJUST + estimated_cycle_count) % maxhpos;
-		int ce_offset = (start_pos - (bpl_hstart + RGA_PIPELINE_ADJUST)) & (fetchunit - 1);
-		int off = ce_offset;
+		int off = (start_pos - (bpl_hstart + RGA_PIPELINE_ADJUST)) & (fetchunit - 1);
 		while (start_pos != end_pos) {
 			int off2 = off & fetchstart_mask;
+
+#if 0
+			if (start_pos < 0 || start_pos > maxhpos || fetchstart > 32 || end_pos < 0 || end_pos > maxhpos) {
+				gui_message(_T("ERROR: %d %d %d %d %d %d %d %d %d %d\n%d %d %d %d %d %d %d %d %04x %d\n"),
+					hpos, bpl_hstart, estimated_cycle_count, start_pos, start_pos2, end_pos, off, off2, fetchstart, maxhpos,
+					plfstrt, plfstop, hard_ddf_stop, ddf_stopping, fetch_cycle, fetchunit, lastfetchunit, vpos, bplcon0, fmode);
+			}
+#endif
+
 			if (!off2 && start_pos + fetchstart <= end_pos) {
-				memcpy(&estimated_cycles[start_pos], curr_diagram, fetchstart);
+				memcpy(estimated_cycles + start_pos, curr_diagram, fetchstart);
 				start_pos += fetchstart;
 			} else {
 				estimated_cycles[start_pos] = curr_diagram[off2];
@@ -3578,59 +3613,36 @@ static void record_color_change(int hpos, int regno, uae_u32 value)
 
 static void setextblank(void)
 {
-	bool extblank, extblankmode;
-	if (aga_mode) {
-		extblank = true;
-		extblankmode = (bplcon0 & 1) && (bplcon3 & 0x01);
-	} else {
-		extblank = !ecs_denise || !(bplcon0 & 1) || ((bplcon0 & 1) && (bplcon3 & 0x01));
-		extblankmode = false;
-	}
+	bool extblank = (bplcon0 & 1) && (bplcon3 & 0x01);
 	current_colors.extra &= ~(1 << CE_EXTBLANKSET);
-	current_colors.extra &= ~(1 << CE_EXTBLANKMODE);
 	if (extblank) {
 		current_colors.extra |= 1 << CE_EXTBLANKSET;
-	}
-	if (extblankmode) {
-		current_colors.extra |= 1 << CE_EXTBLANKMODE;
 	}
 }
 
 static bool isbrdblank(int hpos, uae_u16 bplcon0, uae_u16 bplcon3)
 {
-	bool brdblank, brdntrans, extblank, extblankmode;
+	bool brdblank, brdntrans, extblank;
 #ifdef ECS_DENISE
 	brdblank = ecs_denise && (bplcon0 & 1) && (bplcon3 & 0x20);
 	brdntrans = ecs_denise && (bplcon0 & 1) && (bplcon3 & 0x10);
 	// ECSENA=0: hardwired horizontal, strobe vertical
-	// ECSENA=1: EXTBLKEN=0: ECS Denise: no blanking AGA: hardwired blanking, strobe vertical
-	// ECSENA=1: EXTBLKEN=1: ECS Denise: hardwired horizontal, strobe vertical AGA: programmed horizontal, strobe vertical
-	// extblank = blanking enabled
-	// extblankmode = use hardwired or programmed blanking
-	if (aga_mode) {
-		extblank = true;
-		extblankmode = (bplcon0 & 1) && (bplcon3 & 1);
-	} else {
-		extblank = !ecs_denise || !(bplcon0 & 1) || ((bplcon0 & 1) && (bplcon3 & 1));
-		extblankmode = false;
-	}
+	// ECSENA=1: EXTBLKEN=0: hardwired blanking, strobe vertical
+	// ECSENA=1: EXTBLKEN=1: blanking equals HSYNC, no vertical, AGA: programmed horizontal, strobe vertical
+	extblank = (bplcon0 & 1) && (bplcon3 & 1);
 #else
 	brdblank = false;
 	brdntrans = false;
-	extblank = true;
-	extblankmode = true;
+	extblank = false;
 #endif
-	if (hpos >= 0 && (ce_is_borderblank(current_colors.extra) != brdblank || ce_is_borderntrans(current_colors.extra) != brdntrans
-		|| ce_is_extblankset(current_colors.extra) != extblank || ce_is_extblankmode(current_colors.extra) != extblankmode)) {
-		record_color_change(hpos, 0, COLOR_CHANGE_BRDBLANK | (brdblank ? 1 : 0) | (ce_is_bordersprite(current_colors.extra) ? 2 : 0) | (brdntrans ? 4 : 0) | (extblank ? 8 : 0) | (extblankmode ? 16 : 0));
+	if (hpos >= 0 && (ce_is_borderblank(current_colors.extra) != brdblank || ce_is_borderntrans(current_colors.extra) != brdntrans || ce_is_extblankset(current_colors.extra) != extblank)) {
+		record_color_change(hpos, 0, COLOR_CHANGE_BRDBLANK | (brdblank ? 1 : 0) | (ce_is_bordersprite(current_colors.extra) ? 2 : 0) | (brdntrans ? 4 : 0) | (extblank ? 8 : 0));
 		current_colors.extra &= ~(1 << CE_BORDERBLANK);
 		current_colors.extra &= ~(1 << CE_BORDERNTRANS);
 		current_colors.extra &= ~(1 << CE_EXTBLANKSET);
-		current_colors.extra &= ~(1 << CE_EXTBLANKMODE);
 		current_colors.extra |= brdblank ? (1 << CE_BORDERBLANK) : 0;
 		current_colors.extra |= brdntrans ? (1 << CE_BORDERNTRANS) : 0;
 		current_colors.extra |= extblank ? (1 << CE_EXTBLANKSET) : 0;
-		current_colors.extra |= extblankmode ? (1 << CE_EXTBLANKMODE) : 0;
 		remembered_color_entry = -1;
 	}
 	return brdblank;
@@ -3652,7 +3664,7 @@ static bool issprbrd(int hpos, uae_u16 bplcon0, uae_u16 bplcon3)
 #endif
 	if (hpos >= 0 && ce_is_bordersprite(current_colors.extra) != brdsprt) {
 		record_color_change(hpos, 0, COLOR_CHANGE_BRDBLANK | (ce_is_borderblank(current_colors.extra) ? 1 : 0) | (brdsprt ? 2 : 0) |
-			(ce_is_borderntrans(current_colors.extra) ? 4 : 0) | (ce_is_extblankset(current_colors.extra) ? 8 : 0) | (ce_is_extblankmode(current_colors.extra) ? 16 : 0));
+			(ce_is_borderntrans(current_colors.extra) ? 4 : 0) | (ce_is_extblankset(current_colors.extra) ? 8 : 0));
 		current_colors.extra &= ~(1 << CE_BORDERSPRITE);
 		current_colors.extra |= brdsprt ? (1 << CE_BORDERSPRITE) : 0;
 		remembered_color_entry = -1;
@@ -4326,6 +4338,7 @@ static void finish_decisions(int hpos)
 	* there's a more-or-less full-screen DIW. */
 	if (hdiwstate == DIW_waiting_stop && thisline_decision.diwfirstword >= 0) {
 		thisline_decision.diwlastword = max_diwlastword;
+		thisline_decision.diwfull = true;
 	}
 	last_diwlastword = -1;
 
@@ -4333,6 +4346,9 @@ static void finish_decisions(int hpos)
 		MARK_LINE_CHANGED;
 	}
 	if (thisline_decision.diwlastword != line_decisions[next_lineno].diwlastword) {
+		MARK_LINE_CHANGED;
+	}
+	if (thisline_decision.diwfull != line_decisions[next_lineno].diwfull) {
 		MARK_LINE_CHANGED;
 	}
 
@@ -4437,6 +4453,7 @@ static void reset_decisions_hsync_start(void)
 
 	thisline_decision.diwfirstword = -2;
 	thisline_decision.diwlastword = -2;
+	thisline_decision.diwfull = false;
 	if (hdiwstate == DIW_waiting_stop) {
 		thisline_decision.diwfirstword = -1;
 		if (thisline_decision.diwfirstword != line_decisions[next_lineno].diwfirstword) {
@@ -4715,11 +4732,11 @@ static void updateextblk(void)
 		}
 		exthblank = (bplcon0 & 1) && (bplcon3 & 1);
 	} else {
-		if (new_beamcon0 & new_beamcon0 & 0x0010) { // VARCSYEN
+		if (new_beamcon0 & 0x0010) { // VARCSYEN
 			// ECS HBLANK uses CSYNC input and matches HSSYNC period.
 			hbstrt_v2 = (hsstrt & 0xff) << CCK_SHRES_SHIFT;
 			hbstop_v2 = (hsstop & 0xff) << CCK_SHRES_SHIFT;
-			exthblank = (bplcon0 & 1) && !(bplcon3 & 1);
+			exthblank = (bplcon0 & 1) && (bplcon3 & 1);
 		} else {
 			exthblank = false;
 		}
@@ -5211,8 +5228,8 @@ static void init_hz(bool checkvposw)
 		}
 	}
 
-	if (maxvpos_display_vsync < 1) {
-		maxvpos_display_vsync = 1;
+	if (maxvpos_display_vsync < 0) {
+		maxvpos_display_vsync = 0;
 	}
 
 	if (minfirstline < 1) {
@@ -6251,6 +6268,7 @@ static void varsync(int reg, bool resync)
 		return;
 	}
 #endif
+	thisline_changed = 1;
 	updateextblk();
 	if (!resync) {
 		return;
@@ -6302,9 +6320,12 @@ static void BPLxPTH(int hpos, uae_u16 v, int num)
 {
 	decide_line(hpos);
 	decide_fetch_safe(hpos);
-	if (copper_access && get_bitplane_dma_rel(hpos, 1) == num + 1) {
-		SET_LINE_CYCLEBASED;
-		return;
+	if (copper_access) {
+		int n = get_bitplane_dma_rel(hpos, 1);
+		if (n == num + 1) {
+			SET_LINE_CYCLEBASED;
+			return;
+		}
 	}
 
 	bplpt[num] = (bplpt[num] & 0x0000ffff) | ((uae_u32)v << 16);
@@ -6317,9 +6338,12 @@ static void BPLxPTL(int hpos, uae_u16 v, int num)
 	decide_line(hpos);
 	decide_fetch_safe(hpos);
 	/* only detect copper accesses to prevent too fast CPU mode glitches */
-	if (copper_access && get_bitplane_dma_rel(hpos, 1) == num + 1) {
-		SET_LINE_CYCLEBASED;
-		return;
+	if (copper_access) {
+		int n = get_bitplane_dma_rel(hpos, 1);
+		if (n == num + 1) {
+			SET_LINE_CYCLEBASED;
+			return;
+		}
 	}
 	bplpt[num] = (bplpt[num] & 0xffff0000) | (v & 0x0000fffe);
 	bplptx[num] = (bplptx[num] & 0xffff0000) | (v & 0x0000fffe);
@@ -6374,10 +6398,6 @@ static void bpldmainitdelay(int hpos)
 static void BPLCON0(int hpos, uae_u16 v);
 static void bplcon0_denise_change(int hpos, uae_u16 con0)
 {
-	// CHECKME!
-	if (bprun_cycle == 1 && !aga_mode) {
-		BPLCON0(hpos, con0);
-	}
 	int np = GET_PLANES(con0);
 	if (np == toscr_nr_planes_shifter_new) {
 		toscr_nr_planes_shifter = np;
@@ -7519,6 +7539,11 @@ static void decide_line(int endhpos)
 				if (bprun && !ddf_stopping) {
 					decide_line_decision_fetches(hpos);
 					ddf_stopping = 1;
+#ifdef DEBUGGER
+					if (debug_dma) {
+						record_dma_event(DMA_EVENT_DDFSTOP2, hpos, vpos);
+					}
+#endif
 				}
 			}
 
@@ -7540,6 +7565,11 @@ static void decide_line(int endhpos)
 					if (!harddis_h) {
 						decide_line_decision_fetches(hpos);
 						ddf_stopping = 1;
+#ifdef DEBUGGER
+						if (debug_dma) {
+							record_dma_event(DMA_EVENT_DDFSTOP2, hpos, vpos);
+						}
+#endif
 					}
 				}
 			}
@@ -7551,6 +7581,11 @@ static void decide_line(int endhpos)
 				if (bprun && !ddf_stopping) {
 					decide_line_decision_fetches(hpos);
 					ddf_stopping = 1;
+#ifdef DEBUGGER
+					if (debug_dma) {
+						record_dma_event(DMA_EVENT_DDFSTOP, hpos, vpos);
+					}
+#endif
 				}
 				if (plfstop != plfstrt) {
 					if (ddf_enable_on) {
@@ -7575,6 +7610,11 @@ static void decide_line(int endhpos)
 				if (ddf_stopping) {
 					bprun_pipeline_flush_delay = maxhpos;
 				}
+#ifdef DEBUGGER
+				if (debug_dma) {
+					record_dma_event(DMA_EVENT_DDFSTRT, hpos, vpos);
+				}
+#endif
 			}
 
 			hwi_old = hwi;
@@ -7622,6 +7662,11 @@ static void decide_line(int endhpos)
 				if (bprun && !ddf_stopping) {
 					decide_line_decision_fetches(hpos);
 					ddf_stopping = 1;
+#ifdef DEBUGGER
+					if (debug_dma) {
+						record_dma_event(DMA_EVENT_DDFSTOP, hpos, vpos);
+					}
+#endif
 				}
 			}
 
@@ -7631,6 +7676,11 @@ static void decide_line(int endhpos)
 				if (bprun && !ddf_stopping) {
 					decide_line_decision_fetches(hpos);
 					ddf_stopping = 1;
+#ifdef DEBUGGER
+					if (debug_dma) {
+						record_dma_event(DMA_EVENT_DDFSTOP2, hpos, vpos);
+					}
+#endif
 				}
 			}
 
@@ -7653,6 +7703,11 @@ static void decide_line(int endhpos)
 				if (ddf_stopping) {
 					bprun_pipeline_flush_delay = maxhpos;
 				}
+#ifdef DEBUGGER
+				if (debug_dma) {
+					record_dma_event(DMA_EVENT_DDFSTRT, hpos, vpos);
+				}
+#endif
 			}
 
 			// DMA or DIW off: clear BPRUN
@@ -8179,7 +8234,9 @@ static void update_copper(int until_hpos)
 
 					cop_state.wakecond = true;
 				}
-
+				if ((hpos == maxhpos - 1) && !(hpos & 1)) {
+					goto next;
+				}
 				if (copper_cant_read(hpos, 0)) {
 					goto next;
 				}
@@ -8552,14 +8609,14 @@ static void decide_sprite_fetch(int endhpos)
 						if (!s->dmacycle && s->dmastate) {
 							s->dmacycle = 1;
 						}
-						if (vpos == s->vstart && !vb_end_line) {
+						if (vpos == s->vstart && !vb_end_line && !vb_end_next_line) {
 							s->dmastate = 1;
 							s->dmacycle = 1;
 							if (num == 0 && slot == 0) {
 								cursorsprite();
 							}
 						}
-						if (vpos == s->vstop || vb_end_line) {
+						if (vpos == s->vstop || vb_end_next_line) {
 							s->dmastate = 0;
 							s->dmacycle = 1;
 						}
@@ -11001,6 +11058,8 @@ void custom_reset(bool hardreset, bool keyboardreset)
 	toscr_nbits = 0;
 	update_denise_vars();
 	estimated_fm = 0xffff;
+	exthblank = false;
+	exthblank_state = false;
 
 	if (!savestate_state) {
 		cia_hsync = 0;

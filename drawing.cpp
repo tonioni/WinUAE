@@ -274,7 +274,6 @@ bit fields in the hardware registers.  */
 static int bplmode, bplehb, bplham, bpldualpf, bpldualpfpri;
 static int bpldualpf2of, bplplanecnt, ecsshres;
 static int bplbypass, bplcolorburst, bplcolorburst_field;
-static bool issprites;
 static int bplres;
 static int plf1pri, plf2pri, bplxor, bplxorsp, bpland, bpldelay_sh;
 static uae_u32 plf_sprite_mask;
@@ -493,7 +492,7 @@ static void set_blanking_limits(void)
 	}
 
 	// horizontal blanking
-	bool hardwired = !dp_for_drawing || !ce_is_extblankset(colors_for_drawing.extra) || !ce_is_extblankmode(colors_for_drawing.extra);
+	bool hardwired = !dp_for_drawing || !ce_is_extblankset(colors_for_drawing.extra);
 	bool doblank = false;
 	int hbstrt = (235 << CCK_SHRES_SHIFT) - 3;
 	int hbstop = (47 << CCK_SHRES_SHIFT) - 7;
@@ -540,7 +539,9 @@ static void set_blanking_limits(void)
 		}
 	}
 
-	hardwired = (new_beamcon0 & 0x1000) == 0;
+	if (aga_mode) {
+		hardwired = (new_beamcon0 & 0x1000) == 0;
+	}
 	if (hardwired) {
 		int vbstrt = vblank_firstline_hw;
 		int vbstop = vblank_lastline_hw;
@@ -954,7 +955,8 @@ static int src_pixel;
 /* How many pixels in window coordinates which are to the left of the left border.  */
 static int unpainted;
 
-STATIC_INLINE xcolnr getbgc(int blank)
+// blank = -1: force normal border color even if borderblank is active
+static xcolnr getbgc(int blank)
 {
 #if BG_COLOR_DEBUG
 	if (exthblank)
@@ -979,7 +981,7 @@ STATIC_INLINE xcolnr getbgc(int blank)
 	}
 	bool extblken = ce_is_extblankset(colors_for_drawing.extra);
 	// extblken=1: hblank and vblank = black
-	if (!(vb_state & 1) && extblken) {
+	if (!(vb_state & 1) && extblken && aga_mode) {
 		return 0;
 	}
 	bool brdblank = ce_is_borderblank(colors_for_drawing.extra);
@@ -990,10 +992,10 @@ STATIC_INLINE xcolnr getbgc(int blank)
 	}
 #endif
 	// borderblank = black (overrides extblken)
-	if (brdblank) {
+	if (brdblank && blank >= 0) {
 		return 0;
 	}
-	if (hposblank || blank) {
+	if (hposblank || blank > 0) {
 		return 0;
 	}
 	return colors_for_drawing.acolors[0];
@@ -1020,7 +1022,6 @@ static void pfield_init_linetoscr (bool border)
 	int leftborderhidden;
 	int native_ddf_left2;
 	bool expanded = false;
-	bool fulldiw = false;
 
 	hsync_shift_hack = 0;
 	
@@ -1044,9 +1045,6 @@ static void pfield_init_linetoscr (bool border)
 	linetoscr_diw_start = dp_for_drawing->diwfirstword;
 	linetoscr_diw_end = dp_for_drawing->diwlastword;
 	if (linetoscr_diw_start < 0) {
-		if (linetoscr_diw_start == -1) {
-			fulldiw = true;
-		}
 		linetoscr_diw_start = 0;
 	}
 
@@ -1077,8 +1075,6 @@ static void pfield_init_linetoscr (bool border)
 	sprite_playfield_start = playfield_start;
 	real_playfield_end = playfield_end;
 	sprite_end = linetoscr_diw_end;
-
-	set_blanking_limits();
 
 	// Sprite hpos don't include DIW_DDF_OFFSET and can appear 1 lores pixel
 	// before first bitplane pixel appears.
@@ -1152,7 +1148,7 @@ static void pfield_init_linetoscr (bool border)
 		playfield_end_pre -= bplres;
 	}
 	// if DIW was not closed horizontally, borderblank leaves color0 stripe before bitplanes
-	if (ce_is_borderblank(colors_for_drawing.extra) && fulldiw) {
+	if (ce_is_borderblank(colors_for_drawing.extra) && dp_for_drawing->diwfull) {
 		playfield_start_pre = playfield_start - 2 * 4;
 	}
 
@@ -2976,7 +2972,6 @@ static void pfield_expand_dp_bplcon(void)
 		if (!aga_mode)
 			bplehb = -1;
 	}
-	issprites = dip_for_drawing->nr_sprites > 0;
 	bplcolorburst = (dp_for_drawing->bplcon0 & 0x200) != 0;
 	if (!bplcolorburst)
 		bplcolorburst_field = 0;
@@ -3195,7 +3190,7 @@ static void do_color_changes(line_draw_func worker_border, line_draw_func worker
 			}
 
 			// vblank + extblanken: blanked
-			if (!(vb_state & 1) && ce_is_extblankset(colors_for_drawing.extra) || vp < vblank_top_start || vp >= vblank_bottom_stop) {
+			if ((!(vb_state & 1) && ce_is_extblankset(colors_for_drawing.extra) && aga_mode) || vp < vblank_top_start || vp >= vblank_bottom_stop) {
 
 				if (nextpos_in_range > lastpos && lastpos < playfield_end) {
 					int t = nextpos_in_range <= playfield_end ? nextpos_in_range : playfield_end;
@@ -3301,12 +3296,10 @@ static void do_color_changes(line_draw_func worker_border, line_draw_func worker
 					colors_for_drawing.extra &= ~(1 << CE_BORDERNTRANS);
 					colors_for_drawing.extra &= ~(1 << CE_BORDERSPRITE);
 					colors_for_drawing.extra &= ~(1 << CE_EXTBLANKSET);
-					colors_for_drawing.extra &= ~(1 << CE_EXTBLANKMODE);
 					colors_for_drawing.extra |= (value & 1) != 0 ? (1 << CE_BORDERBLANK) : 0;
 					colors_for_drawing.extra |= (value & 3) == 2 ? (1 << CE_BORDERSPRITE) : 0;
 					colors_for_drawing.extra |= (value & 5) == 4 ? (1 << CE_BORDERNTRANS) : 0;
 					colors_for_drawing.extra |= (value & 8) == 8 ? (1 << CE_EXTBLANKSET) : 0;
-					colors_for_drawing.extra |= (value & 16) == 16 ? (1 << CE_EXTBLANKMODE) : 0;
 				} else if (value & COLOR_CHANGE_SHRES_DELAY) {
 					colors_for_drawing.extra &= ~(1 << CE_SHRES_DELAY_SHIFT);
 					colors_for_drawing.extra &= ~(1 << (CE_SHRES_DELAY_SHIFT + 1));
@@ -3432,6 +3425,7 @@ static void pfield_draw_line(struct vidbuffer *vb, int lineno, int gfx_ypos, int
 	if (border == 0) {
 
 		pfield_expand_dp_bplcon();
+		set_blanking_limits();
 		pfield_init_linetoscr(false);
 		pfield_doline(lineno);
 

@@ -2088,6 +2088,12 @@ static bool get_record_dma_info(struct dma_rec *dr, int hpos, int vpos, uae_u32 
 			l3[cl2++] = 'i';
 		if (dr->evt & DMA_EVENT_SPECIAL)
 			l3[cl2++] = 'X';
+		if (dr->evt & DMA_EVENT_DDFSTRT)
+			l3[cl2++] = '0';
+		if (dr->evt & DMA_EVENT_DDFSTOP)
+			l3[cl2++] = '1';
+		if (dr->evt & DMA_EVENT_DDFSTOP2)
+			l3[cl2++] = '2';
 	}
 	if (l5) {
 		_stprintf (l5, _T("%08X"), cycles + (vpos * maxhpos + hpos) * CYCLE_UNIT);

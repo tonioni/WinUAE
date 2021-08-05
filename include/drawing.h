@@ -123,7 +123,6 @@ STATIC_INLINE int coord_window_to_diw_x(int x)
 #define CE_BORDERNTRANS 1
 #define CE_BORDERSPRITE 2
 #define CE_EXTBLANKSET 3
-#define CE_EXTBLANKMODE 4
 #define CE_SHRES_DELAY_SHIFT 8
 
 STATIC_INLINE bool ce_is_borderblank(uae_u8 data)
@@ -133,10 +132,6 @@ STATIC_INLINE bool ce_is_borderblank(uae_u8 data)
 STATIC_INLINE bool ce_is_extblankset(uae_u8 data)
 {
 	return (data & (1 << CE_EXTBLANKSET)) != 0;
-}
-STATIC_INLINE bool ce_is_extblankmode(uae_u8 data)
-{
-	return (data & (1 << CE_EXTBLANKMODE)) != 0;
 }
 STATIC_INLINE bool ce_is_bordersprite(uae_u8 data)
 {
@@ -301,6 +296,7 @@ struct decision {
 	int plfleft, plfright, plflinelen;
 	/* Display window: native coordinates, depend on lores state.  */
 	int diwfirstword, diwlastword;
+	bool diwfull;
 	int ctable;
 
 	uae_u16 bplcon0, bplcon2;
