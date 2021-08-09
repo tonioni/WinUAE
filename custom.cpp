@@ -72,7 +72,7 @@
 #define EXTRAWIDTH_BROADCAST 15
 #define EXTRAHEIGHT_BROADCAST_TOP 0
 #define EXTRAHEIGHT_BROADCAST_BOTTOM 0
-#define EXTRAWIDTH_EXTREME 30
+#define EXTRAWIDTH_EXTREME 31
 #define EXTRAHEIGHT_EXTREME 24
 
 #define LORES_TO_SHRES_SHIFT 2
@@ -5674,10 +5674,8 @@ static void VPOSW(uae_u16 v)
 		lof_changing = lof_store ? 1 : -1;
 	}
 	if (ecs_agnus) {
-		lol = (v & 0x0080) ? 1 : 0;
-		if (!islinetoggle()) {
-			lol = 0;
-		}
+		// LOL is always reset when VPOSW is written to.
+		lol = 0;
 	}
 	if (lof_changing) {
 		return;
@@ -8057,18 +8055,23 @@ static int coppercomp(int hpos, bool blitwait)
 {
 	int hpos_cmp = hpos;
 	int vpos_cmp = vpos;
+	int hpos_cmp2 = hpos;
+	int vpos_cmp2 = vpos;
 
-	// Copper internal operations use mostly odd cycles
-	hpos_cmp += 1;
-	if (hpos_cmp >= maxhpos) {
-		hpos_cmp -= maxhpos;
-		vpos_cmp++;
+	// Copper comparison can match both odd and even cycles
+	// Important when crossing scanlines.
+	hpos_cmp2 += 1;
+	if (hpos_cmp2 >= maxhpos) {
+		hpos_cmp2 -= maxhpos;
+		vpos_cmp2++;
 	}
 
 	int vp = vpos_cmp & (((cop_state.ir[1] >> 8) & 0x7F) | 0x80);
 	int hp = hpos_cmp & (cop_state.ir[1] & 0xFE);
+	int vp2 = vpos_cmp2 & (((cop_state.ir[1] >> 8) & 0x7F) | 0x80);
+	int hp2 = hpos_cmp2 & (cop_state.ir[1] & 0xFE);
 
-	if (vp < cop_state.vcmp) {
+	if (vp < cop_state.vcmp && vp2 < cop_state.vcmp) {
 		return -1;
 	}
 
@@ -8085,6 +8088,9 @@ static int coppercomp(int hpos, bool blitwait)
 	}
 
 	if (vp == cop_state.vcmp && hp < cop_state.hcmp) {
+		return 1;
+	}
+	if (vp2 == cop_state.vcmp && hp2 < cop_state.hcmp) {
 		return 1;
 	}
 	return 0;
@@ -8233,9 +8239,6 @@ static void update_copper(int until_hpos)
 					}
 
 					cop_state.wakecond = true;
-				}
-				if ((hpos == maxhpos - 1) && !(hpos & 1)) {
-					goto next;
 				}
 				if (copper_cant_read(hpos, 0)) {
 					goto next;
@@ -8576,6 +8579,11 @@ static void do_sprite_fetch(int hpos, uae_u8 dat)
 			// which causes corrupted sprite to "wrap around" the display.
 			s->dmastate = 0;
 			sprstartstop(s);
+		}
+		// Sprite can't start if SPRxPOS/CTL DMA line matched on line after VBLANK ended
+		if (vb_end_line || vb_end_next_line) {
+			s->dmastate = 0;
+			s->dmacycle = 0;
 		}
 	}
 
@@ -9844,11 +9852,6 @@ static void hsync_handler_pre(bool onvsync)
 	refptr += 0x0200 * 4;
 	refptr_val += 0x0200 * 4;
 
-	if (islinetoggle())
-		lol ^= 1;
-	else
-		lol = 0;
-
 	vpos_prev = vpos;
 	vpos++;
 	vpos_count++;
@@ -9859,10 +9862,17 @@ static void hsync_handler_pre(bool onvsync)
 		vpos = 0;
 		vsync_counter++;
 	}
+
+	hpos_hsync_extra = maxhpos;
+
+	if (islinetoggle())
+		lol = lol ? 0 : 1;
+	else
+		lol = 0;
+
 	set_hpos();
 
 	// to record decisions correctly between end of scanline and start of hsync
-	hpos_hsync_extra = maxhpos;
 	if (!eventtab[ev_hsynch].active) {
 		eventtab[ev_hsynch].evtime = get_cycles() + hsyncstartpos_start_cycles * CYCLE_UNIT;
 		eventtab[ev_hsynch].active = 1;
@@ -10582,8 +10592,9 @@ static void hsync_handler_post (bool onvsync)
 	} else if (ciahsyncs) {
 		CIA_hsync_posthandler(true, ciahsyncs);
 		if (beamcon0 & (0x80 | 0x100)) {
-			if (hsstop < (maxhpos & ~1) && hsstrt < maxhpos)
+			if (hsstop < (maxhpos & ~1) && hsstrt < maxhpos) {
 				CIAB_tod_handler(hsstop);
+			}
 		} else {
 			CIAB_tod_handler(18);
 		}
