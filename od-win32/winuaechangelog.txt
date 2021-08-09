@@ -1,4 +1,14 @@
 
+Beta 29:
+
+- b28 copper update was wrong. Second attempt. (Hotbleeps etc. This time without breaking others.)
+- Sprite fix, sprite DMA does not start if frame's initial SPRxPOS/SPRxCTL fill loads vertical start position that matches current vertical position.
+- Added bsdsocket IoctlSocket SIOCIFADDR, SIOCIFFLAGS, SIOCIFBRDADDR, SIOCIFCONF, SIOCIFNETMASK, SIOCIFMETRIC and SIOCIFMTU support. Read-only.
+- Fixed uaegfx indirect mode BlitTemplate() harmless one byte buffer out of bounds read.
+- VPOSW register access always clears LOL bit (if it was set = NTSC long line). It can't be set to one by writing to VPOSW.
+- NTSC long/short line order was wrong after horizontal wrap around.
+
+Beta 28:
 
 - Fixed buffer overflow if more than 9 devices were found when enumerating NPCap/WinCap devices. (Special SLIRP cases ignore max size check)
 - Mid screen HBlank change didn't force current scan line redraw. It could have caused glitches in some weird situations.
