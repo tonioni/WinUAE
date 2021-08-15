@@ -7060,21 +7060,22 @@ static INT_PTR CALLBACK PathsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 struct amigamodels {
 	int compalevels;
 	int id;
+	int resetlevels[6];
 };
 static struct amigamodels amodels[] = {
-	{ 4, IDS_QS_MODEL_A500 }, // "Amiga 500"
-	{ 4, IDS_QS_MODEL_A500P }, // "Amiga 500+"
-	{ 4, IDS_QS_MODEL_A600 }, // "Amiga 600"
-	{ 4, IDS_QS_MODEL_A1000 }, // "Amiga 1000"
-	{ 5, IDS_QS_MODEL_A1200 }, // "Amiga 1200"
-	{ 2, IDS_QS_MODEL_A3000 }, // "Amiga 3000"
-	{ 1, IDS_QS_MODEL_A4000 }, // "Amiga 4000"
+	{ 4, IDS_QS_MODEL_A500, { 0, 0, 0, 0, 0, 0 } }, // "Amiga 500"
+	{ 4, IDS_QS_MODEL_A500P,  { 0, 0, 0, 0, 0, 0 } }, // "Amiga 500+"
+	{ 4, IDS_QS_MODEL_A600,  { 0, 0, 1, 0, 0, 0 } }, // "Amiga 600"
+	{ 4, IDS_QS_MODEL_A1000,  { 0, 0, 0, 0, 0, 0 } }, // "Amiga 1000"
+	{ 5, IDS_QS_MODEL_A1200,  { 0, 1, 2, 3, 4, 5 } }, // "Amiga 1200"
+	{ 2, IDS_QS_MODEL_A3000,  { 0, 0, 0, 0, 0, 0 } }, // "Amiga 3000"
+	{ 1, IDS_QS_MODEL_A4000,  { 0, 0, 1, 0, 0, 0 } }, // "Amiga 4000"
 	{ 0, }, //{ 1, IDS_QS_MODEL_A4000T }, // "Amiga 4000T"
-	{ 4, IDS_QS_MODEL_CD32 }, // "CD32"
-	{ 4, IDS_QS_MODEL_CDTV }, // "CDTV"
-	{ 4, IDS_QS_MODEL_ARCADIA }, // "Arcadia"
-	{ 1, IDS_QS_MODEL_MACROSYSTEM },
-	{ 1, IDS_QS_MODEL_UAE }, // "Expanded UAE example configuration"
+	{ 4, IDS_QS_MODEL_CD32,  { 0, 0, 1, 0, 0, 0 } }, // "CD32"
+	{ 4, IDS_QS_MODEL_CDTV,  { 0, 0, 1, 0, 0, 0 } }, // "CDTV"
+	{ 4, IDS_QS_MODEL_ARCADIA,  { 0, 0, 0, 0, 0, 0 } }, // "Arcadia"
+	{ 1, IDS_QS_MODEL_MACROSYSTEM,  { 0, 0, 0, 0, 0, 0 } },
+	{ 1, IDS_QS_MODEL_UAE,  { 0, 0, 0, 0, 0, 0 } }, // "Expanded UAE example configuration"
 	{ -1 }
 };
 
@@ -7430,20 +7431,24 @@ static INT_PTR CALLBACK QuickstartDlgProc (HWND hDlg, UINT msg, WPARAM wParam, L
 						if (quickstart)
 							load_quickstart (hDlg, 1);
 						if (quickstart && !full_property_sheet)
-							qs_request_reset = 2;
+							qs_request_reset |= 4;
 					}
 				}
 				break;
 			case IDC_QUICKSTART_CONFIGURATION:
 				val = SendDlgItemMessage (hDlg, IDC_QUICKSTART_CONFIGURATION, CB_GETCURSEL, 0, 0L);
 				if (val != CB_ERR && val != quickstart_conf) {
+					int rslevel = amodels[quickstart_model].resetlevels[quickstart_conf];
 					quickstart_conf = val;
+					if (!full_property_sheet && amodels[quickstart_model].resetlevels[quickstart_conf] != rslevel) {
+						qs_request_reset |= 4;
+					}
 					quickstart_model_confstore[quickstart_model] = quickstart_conf;
 					init_quickstartdlg (hDlg);
 					if (quickstart)
 						load_quickstart (hDlg, 1);
 					if (quickstart && !full_property_sheet)
-						qs_request_reset = 2;
+						qs_request_reset |= 2;
 				}
 				break;
 			case IDC_QUICKSTART_HOSTCONFIG:
@@ -22195,7 +22200,12 @@ gui_exit:
 	if (quit_program) {
 		psresult = -2;
 	} else if (qs_request_reset && quickstart) {
-		uae_reset(qs_request_reset == 2 ? 1 : 0, 1);
+		if (qs_request_reset & 4) {
+			copy_prefs(&changed_prefs, &currprefs);
+			uae_restart(-2, NULL);
+		} else {
+			uae_reset((qs_request_reset & 2) ? 1 : 0, 1);
+		}
 	}
 	if (psresult > 0 && config_pathfilename[0]) {
 		DISK_history_add(config_pathfilename, -1, HISTORY_CONFIGFILE, false);
