@@ -542,6 +542,7 @@ static void set_blanking_limits(void)
 	if (aga_mode) {
 		hardwired = (new_beamcon0 & 0x1000) == 0;
 	}
+	// vb_state handles programmed vblank
 	if (hardwired) {
 		int vbstrt = vblank_firstline_hw;
 		int vbstop = vblank_lastline_hw;
@@ -1014,7 +1015,7 @@ static void set_res_shift(void)
 /* Initialize the variables necessary for drawing a line.
 * This involves setting up start/stop positions and display window
 * borders.  */
-static void pfield_init_linetoscr (bool border)
+static void pfield_init_linetoscr (int lineno, bool border)
 {
 	/* First, get data fetch start/stop in DIW coordinates.  */
 	int ddf_left = dp_for_drawing->plfleft + DIW_DDF_OFFSET - DDF_OFFSET;
@@ -1146,10 +1147,6 @@ static void pfield_init_linetoscr (bool border)
 	if (currprefs.chipset_hr && aga_mode && bplres > 0) {
 		playfield_start_pre -= bplres;
 		playfield_end_pre -= bplres;
-	}
-	// if DIW was not closed horizontally, borderblank leaves color0 stripe before bitplanes
-	if (ce_is_borderblank(colors_for_drawing.extra) && dp_for_drawing->diwfull) {
-		playfield_start_pre = playfield_start - 2 * 4;
 	}
 
 	unpainted = visible_left_border < playfield_start ? 0 : visible_left_border - playfield_start;
@@ -1891,7 +1888,8 @@ static void pfield_do_linetoscr(int start, int stop, int blank)
 	if (exthblank) {
 		pfield_do_fill_line(start, stop, 1);
 	} else if (extborder) {
-		pfield_do_fill_line(start, stop, ce_is_borderblank(colors_for_drawing.extra) ? 1 : 0);
+		bool bb = ce_is_borderblank(colors_for_drawing.extra);
+		pfield_do_fill_line(start, stop, bb ? 1 : 0);
 	}
 	src_pixel = pixel;
 }
@@ -1899,8 +1897,9 @@ static void pfield_do_linetoscr_spr(int start, int stop, int blank)
 {
 	int pixel;
 	if (extborder) {
-		pfield_do_fill_line(start, stop, ce_is_borderblank(colors_for_drawing.extra) || exthblank ? 1 : 0);
-		pixel = pfield_do_linetoscr_spriteonly(src_pixel, start, stop, ce_is_borderblank(colors_for_drawing.extra) || exthblank);
+		bool bb = ce_is_borderblank(colors_for_drawing.extra);
+		pfield_do_fill_line(start, stop, bb || exthblank ? 1 : 0);
+		pixel = pfield_do_linetoscr_spriteonly(src_pixel, start, stop, bb || exthblank);
 	} else {
 		pixel = pfield_do_linetoscr_sprite(src_pixel, start, stop);
 		if (exthblank) {
@@ -2495,7 +2494,7 @@ static void NOINLINE draw_sprites_normal_dp_at(struct sprite_entry *e) { draw_sp
 
 #ifdef AGA
 /* not very optimized */
-STATIC_INLINE void draw_sprites_aga (struct sprite_entry *e)
+STATIC_INLINE void draw_sprites_aga(struct sprite_entry *e)
 {
 	draw_sprites_1(e, bpldualpf, e->has_attached);
 }
@@ -3189,8 +3188,8 @@ static void do_color_changes(line_draw_func worker_border, line_draw_func worker
 				lastpos = t;
 			}
 
-			// vblank + extblanken: blanked
-			if ((!(vb_state & 1) && ce_is_extblankset(colors_for_drawing.extra) && aga_mode) || vp < vblank_top_start || vp >= vblank_bottom_stop) {
+			// vblank + programmed vblank: blanked (hardwired is handled separately)
+			if (vb_state == 2 || vp < vblank_top_start || vp >= vblank_bottom_stop) {
 
 				if (nextpos_in_range > lastpos && lastpos < playfield_end) {
 					int t = nextpos_in_range <= playfield_end ? nextpos_in_range : playfield_end;
@@ -3426,7 +3425,7 @@ static void pfield_draw_line(struct vidbuffer *vb, int lineno, int gfx_ypos, int
 
 		pfield_expand_dp_bplcon();
 		set_blanking_limits();
-		pfield_init_linetoscr(false);
+		pfield_init_linetoscr(lineno, false);
 		pfield_doline(lineno);
 
 		adjust_drawing_colors(dp_for_drawing->ctable, dp_for_drawing->ham_seen || bplehb || ecsshres);
@@ -3509,7 +3508,7 @@ static void pfield_draw_line(struct vidbuffer *vb, int lineno, int gfx_ypos, int
 		if (dp_for_drawing->bordersprite_seen && !ce_is_borderblank(colors_for_drawing.extra) && dip_for_drawing->nr_sprites) {
 			dosprites = true;
 			pfield_expand_dp_bplcon();
-			pfield_init_linetoscr(true);
+			pfield_init_linetoscr(lineno, true);
 			pfield_erase_vborder_sprites();
 		}
 #endif
