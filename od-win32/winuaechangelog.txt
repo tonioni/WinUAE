@@ -1,4 +1,16 @@
 
+
+- BEAMCON0 LOLDIS modification was ignored unless display setup needed reinitialization (programmed refresh rate change etc..)
+- Programmed VBLANK (BEAMCON0 bit 12) didn't blank lines after VBSTRT in some situations.
+- Fixed scanline offset if resolution and BPLCON1 was changed during same scanline.
+- Sprite horizontal wrap around support was only partially implemented.
+- Horizontal display window (DIWSTRT/DIWSTOP) didn't support some wrap around/start larger than stop conditions correctly.
+- Borderblank glitch emulation improved. If HDIW is open before first BPL1DAT access, there is 1.5 lores pixel COLOR00 gap between borderblank and first bitplane pixel.
+- Reset didn't clear CIA-A/B B data port/direction.
+- Bitplane first refresh slot conflict (strobe signal) was not reported and didn't trigger simulated conflict corrupted graphics.
+- Added A590/A2091 v4.4 ROMs to ROM scanner. Probably original release version because ROMs had labels 390388-01 and 390389-01.
+- If on the fly (emulation has already been started) Quickstart model or model specific change modifies expansion devices, force internal "Restart"-button press. Without it not all expansion devices initialize correctly.
+
 Beta 29:
 
 - b28 copper update was wrong. Second attempt. (Hotbleeps etc. This time without breaking others.)
