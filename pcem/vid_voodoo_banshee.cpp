@@ -32,8 +32,7 @@ enum
 {
         TYPE_BANSHEE = 0,
         TYPE_V3_2000,
-        TYPE_V3_3000,
-        TYPE_V5_5500
+        TYPE_V3_3000
 };
 
 typedef struct banshee_t
@@ -150,7 +149,7 @@ enum
 
 #define VGAINIT0_EXTENDED_SHIFT_OUT (1 << 12)
 
-#define VIDPROCCFG_VIDPROCON (1 << 0)
+#define VIDPROCCFG_VIDPROC_ENABLE (1 << 0)
 #define VIDPROCCFG_CURSOR_MODE (1 << 1)
 #define VIDPROCCFG_INTERLACE (1 << 3)
 #define VIDPROCCFG_HALF_MODE (1 << 4)
@@ -208,6 +207,9 @@ enum
 #define VIDSERIAL_I2C_SDA_W (1 << 25)
 #define VIDSERIAL_I2C_SCK_R (1 << 26)
 #define VIDSERIAL_I2C_SDA_R (1 << 27)
+
+#define MISCINIT0_Y_ORIGIN_SWAP_SHIFT (18)
+#define MISCINIT0_Y_ORIGIN_SWAP_MASK (0xfff << MISCINIT0_Y_ORIGIN_SWAP_SHIFT)
 
 static int banshee_vga_vsync_enabled(banshee_t *banshee)
 {
@@ -433,7 +435,7 @@ static void banshee_recalctimings(svga_t *svga)
 
         svga->interlace = 0;
 //        if (banshee->vgaInit0 & VGAINIT0_EXTENDED_SHIFT_OUT)
-        if (banshee->vidProcCfg & VIDPROCCFG_VIDPROCON)
+        if (banshee->vidProcCfg & VIDPROCCFG_VIDPROC_ENABLE)
         {
                 // this is some VGA-only feature? G-REX driver sets it and still expects normal 640x480 display.
                 svga->lowres = 0;
@@ -528,6 +530,8 @@ static void banshee_recalctimings(svga_t *svga)
                 svga->bpp = 8;
                 svga->video_res_override = 0;
         }
+
+        svga->fb_only = (banshee->vidProcCfg & VIDPROCCFG_VIDPROC_ENABLE);
 
         svga->horizontal_linedbl = svga->dispend * 9 / 10 >= svga->hdisp;
 
@@ -656,7 +660,7 @@ static void banshee_ext_outl(uint16_t addr, uint32_t val, void *p)
 
                 case Video_vidProcCfg:                                
                 banshee->vidProcCfg = val;
-                //pclog("vidProcCfg=%08x\n", val);
+//                pclog("vidProcCfg=%08x\n", val);
                 banshee->overlay_pix_fmt = (val & VIDPROCCFG_OVERLAY_PIX_FORMAT_MASK) >> VIDPROCCFG_OVERLAY_PIX_FORMAT_SHIFT;
                 svga->hwcursor.ena = val & VIDPROCCFG_HWCURSOR_ENA;
                 svga->fullchange = changeframecount;
@@ -2426,7 +2430,7 @@ static uint8_t banshee_pci_read(int func, int addr, void *p)
                 case 0x00: ret = 0x1a; break; /*3DFX*/
                 case 0x01: ret = 0x12; break;
                 
-                case 0x02: ret = (banshee->type == TYPE_BANSHEE) ? 0x03 : (banshee->type == TYPE_V5_5500 ? 0x09 : 0x05); break;
+                case 0x02: ret = (banshee->type == TYPE_BANSHEE) ? 0x03 : 0x05; break;
                 case 0x03: ret = 0x00; break;
 
                 case 0x04: ret = banshee->pci_regs[0x04] & 0x27; break;
@@ -2483,7 +2487,7 @@ static void banshee_pci_write(int func, int addr, uint8_t val, void *p)
 {
         banshee_t *banshee = (banshee_t *)p;
 //        svga_t *svga = &banshee->svga;
-        uint32_t basemask = banshee->type == TYPE_V5_5500 ? 0xfc : 0xfe;
+        uint32_t basemask = 0xfe;
 
         if (func)
                 return;
@@ -2601,6 +2605,12 @@ static device_config_t banshee_sgram_config[] =
                 .default_int = 1
         },
         {
+                .name = "dithersub",
+                .description = "Dither subtraction",
+                .type = CONFIG_BINARY,
+                .default_int = 1
+        },
+        {
                 .name = "dacfilter",
                 .description = "Screen Filter",
                 .type = CONFIG_BINARY,
@@ -2648,6 +2658,12 @@ static device_config_t banshee_sdram_config[] =
         {
                 .name = "bilinear",
                 .description = "Bilinear filtering",
+                .type = CONFIG_BINARY,
+                .default_int = 1
+        },
+        {
+                .name = "dithersub",
+                .description = "Dither subtraction",
                 .type = CONFIG_BINARY,
                 .default_int = 1
         },
@@ -2821,14 +2837,6 @@ static void *banshee_init_common(char *fn, int has_sgram, int type, int voodoo_t
                 banshee->pci_regs[0x2e] = 0x3a;
                 banshee->pci_regs[0x2f] = 0x00;
                 break;
-
-                case TYPE_V5_5500:
-                banshee->pci_regs[0x2c] = 0x1a;
-                banshee->pci_regs[0x2d] = 0x12;
-                banshee->pci_regs[0x2e] = 0x09;
-                banshee->pci_regs[0x2f] = 0x00;
-                break;
-
         }
 
         banshee->svga.vblank_start = banshee_vblank_start;
@@ -2850,11 +2858,7 @@ static void *v3_2000_init()
 }
 static void *v3_3000_init()
 {
-    return banshee_init_common("voodoo3_3000/3k12sd.rom", 0, TYPE_V3_3000, VOODOO_3);
-}
-static void *v5_5500_init()
-{
-    return banshee_init_common("voodoo3_3000/3k12sd.rom", 0, TYPE_V5_5500, VOODOO_3);
+        return banshee_init_common("voodoo3_3000/3k12sd.rom", 0, TYPE_V3_3000, VOODOO_3);
 }
 
 static int banshee_available()
@@ -3032,19 +3036,6 @@ device_t voodoo_3_3000_device =
         "Voodoo 3 3000 PCI",
         DEVICE_PCI,
         v3_3000_init,
-        banshee_close,
-        v3_3000_available,
-        banshee_speed_changed,
-        banshee_force_redraw,
-        banshee_add_status_info,
-        banshee_sdram_config
-};
-
-device_t voodoo_5_5500_device =
-{
-        "Voodoo 5 5500 PCI",
-        DEVICE_PCI,
-        v5_5500_init,
         banshee_close,
         v3_3000_available,
         banshee_speed_changed,

@@ -196,7 +196,7 @@ void exec386(int cycs)
                         flags_rebuild();
 //                        pclog("Abort\n");
 //                        if (CS == 0x228) pclog("Abort at %04X:%04X - %i %i %i\n",CS,pc,notpresent,nullseg,abrt);
-                        tempi = cpu_state.abrt;
+                        tempi = cpu_state.abrt & ABRT_MASK;
                         cpu_state.abrt = 0;
                         x86_doabrt(tempi);
                         if (cpu_state.abrt)
@@ -214,12 +214,13 @@ void exec386(int cycs)
                                 }
                         }
                 }
-                ins_cycles -= cycles;
-                tsc += ins_cycles;
-                
-                cycdiff=oldcyc-cycles;
 
-                if (trap)
+                if (cpu_state.smi_pending)
+                {
+                        cpu_state.smi_pending = 0;
+                        x86_smi_enter();
+                }
+                else if (trap)
                 {
                         flags_rebuild();
 //                        oldpc=pc;
@@ -285,6 +286,11 @@ void exec386(int cycs)
 
                 ins++;
                 insc++;
+
+                ins_cycles -= cycles;
+                tsc += ins_cycles;
+
+                cycdiff=oldcyc-cycles;
 
                 if (timetolive)
                 {

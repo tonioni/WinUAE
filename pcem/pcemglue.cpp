@@ -1087,3 +1087,15 @@ void pcem_linear_mark(int offset)
 	uae_u16 w = pcem_linear_read_w(offset, pcem_mapping_linear_priv);
 	pcem_linear_write_w(offset, w, pcem_mapping_linear_priv);
 }
+
+int model_get_config_int(const char *s)
+{
+	return 0;
+}
+char *model_get_config_string(const char *s)
+{
+	return NULL;
+}
+void upc_set_mouse(void (*mouse_write)(uint8_t, void*), void *p)
+{
+}

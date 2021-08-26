@@ -41,11 +41,17 @@ extern int fpu_type;
 #define CPU_K6_3        25
 #define CPU_K6_2P       26
 #define CPU_K6_3P       27
+#define CPU_PENTIUMPRO  28
+#define CPU_PENTIUM_2   29
+#define CPU_CELERON     30
+#define CPU_CELERON_A   31
+#define CPU_CYRIX_III   32
 
 #define MANU_INTEL 0
 #define MANU_AMD   1
 #define MANU_CYRIX 2
 #define MANU_IDT   3
+#define MANU_VIA   4
 
 extern int timing_rr;
 extern int timing_mr, timing_mrl;
@@ -96,6 +102,8 @@ typedef struct
         int atclk_div;
 } CPU;
 
+extern CPU *cpu_s;
+
 extern CPU cpus_8088[];
 extern CPU cpus_8086[];
 extern CPU cpus_286[];
@@ -117,6 +125,9 @@ extern CPU cpus_6x86[];
 extern CPU cpus_6x86_SS7[];
 extern CPU cpus_K6_S7[];
 extern CPU cpus_K6_SS7[];
+extern CPU cpus_PentiumPro[];
+extern CPU cpus_Slot1_100MHz[];
+extern CPU cpus_VIA_100MHz[];
 
 extern CPU cpus_pcjr[];
 extern CPU cpus_europc[];
@@ -135,13 +146,14 @@ extern int cpu_multi;
 /*Cyrix 5x86/6x86 only has data misalignment penalties when crossing 8-byte boundaries*/
 extern int cpu_cyrix_alignment;
 
-#define CPU_FEATURE_RDTSC (1 << 0)
-#define CPU_FEATURE_MSR   (1 << 1)
-#define CPU_FEATURE_MMX   (1 << 2)
-#define CPU_FEATURE_CR4   (1 << 3)
-#define CPU_FEATURE_VME   (1 << 4)
-#define CPU_FEATURE_CX8   (1 << 5)
-#define CPU_FEATURE_3DNOW (1 << 6)
+#define CPU_FEATURE_RDTSC   (1 << 0)
+#define CPU_FEATURE_MSR     (1 << 1)
+#define CPU_FEATURE_MMX     (1 << 2)
+#define CPU_FEATURE_CR4     (1 << 3)
+#define CPU_FEATURE_VME     (1 << 4)
+#define CPU_FEATURE_CX8     (1 << 5)
+#define CPU_FEATURE_3DNOW   (1 << 6)
+#define CPU_FEATURE_SYSCALL (1 << 7)
 
 extern uint32_t cpu_features;
 static inline int cpu_has_feature(int feature)
@@ -184,10 +196,13 @@ extern uint64_t xt_cpu_multi;
 extern int isa_cycles;
 #define ISA_CYCLES(x) (x * isa_cycles)
 
+#define CPU_CLOCK_DIVIDER_MAX 16384
 void cpu_update_waitstates();
 void cpu_set();
 void cpu_set_edx();
 void cpu_set_turbo(int turbo);
+int cpu_get_turbo();
+void cpu_set_nonturbo_divider(int divider);
 int cpu_get_speed();
 
 extern int has_vlb;

@@ -3090,6 +3090,7 @@ static void gfxboard_free_board(struct rtggfxboard *gb)
 		if (gb->pcemobject) {
 			gb->pcemdev->close(gb->pcemobject);
 			gb->pcemobject = NULL;
+			gb->pcemobject2 = NULL;
 		}
 	}
 	if (gb->vram && gb->gfxmem_bank->baseaddr) {

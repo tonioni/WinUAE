@@ -237,6 +237,9 @@ typedef struct virge_t
         int virge_busy;
         
         uint8_t subsys_stat, subsys_cntl;
+
+        uint8_t serialport;
+
         uint32_t advfunc;
         int vblank_irq;
 } virge_t;
@@ -309,6 +312,11 @@ enum
 #define INT_FIFO_EMP (1 << 3)
 #define INT_3DF_EMP  (1 << 6)
 #define INT_MASK 0xff
+
+#define SERIAL_PORT_SCW (1 << 0)
+#define SERIAL_PORT_SDW (1 << 1)
+#define SERIAL_PORT_SCR (1 << 2)
+#define SERIAL_PORT_SDR (1 << 3)
 
 static int virge_vga_vsync_enabled(virge_t *virge)
 {
@@ -786,14 +794,12 @@ static void s3_virge_updatemapping(virge_t *virge)
                 }
                 else
                         mem_mapping_set_addrx(&virge->linear_mapping, virge->linear_base, virge->linear_size);
-                if (svga->fb_only >= 0)
-                    svga->fb_only = 1;
+                svga->fb_only = 1;
         }
         else
         {
                 mem_mapping_disablex(&virge->linear_mapping);
-                if (svga->fb_only >= 0)
-                    svga->fb_only = 0;
+                svga->fb_only = 0;
         }
         
         pclog("Memory mapped IO %02X\n", svga->crtc[0x53] & 0x18);
@@ -865,6 +871,16 @@ static uint8_t s3_virge_mmio_read(uint32_t addr, void *p)
                 case 0x83d8: case 0x83d9: case 0x83da: case 0x83db:
                 case 0x83dc: case 0x83dd: case 0x83de: case 0x83df:
                 return s3_virge_in(addr & 0x3ff, p);
+
+#if 0
+                case 0xff20: case 0xff21:
+                ret = virge->serialport & ~(SERIAL_PORT_SCR | SERIAL_PORT_SDR);
+                if ((virge->serialport & SERIAL_PORT_SCW) && ddc_read_clock())
+                        ret |= SERIAL_PORT_SCR;
+                if ((virge->serialport & SERIAL_PORT_SDW) && ddc_read_data())
+                        ret |= SERIAL_PORT_SDR;
+                return ret;
+#endif
         }
         return 0xff;
 }
@@ -1060,7 +1076,7 @@ static void fifo_thread(void *param)
                                 if (((fifo->addr_type & FIFO_ADDR) & 0xfffc) < 0x8000)
                                 {
                                         if (virge->s3d.cmd_set & CMD_SET_MS)
-                                            ((val >> 8) | (val << 8)) << 16;
+                                            val = ((val >> 8) | (val << 8)) << 16;
 //                                        if ((virge->svga.crtc[0x54] & 3) == 1)
 //                                            ((val >> 8) | (val << 8)) << 16;
                                         s3_virge_bitblt(virge, 16, val);
@@ -1440,9 +1456,12 @@ static void s3_virge_mmio_write(uint32_t addr, uint8_t val, void *p)
                 case 0x83dc: case 0x83dd: case 0x83de: case 0x83df:
                 s3_virge_out(addr & 0x3ff, val, p);
                 break;
-        }
-
                 
+                case 0xff20:
+                virge->serialport = val;
+                //ddc_i2c_change((val & SERIAL_PORT_SCW) ? 1 : 0, (val & SERIAL_PORT_SDW) ? 1 : 0);
+                break;
+        }
 }
 static void s3_virge_mmio_write_w(uint32_t addr, uint16_t val, void *p)
 {
@@ -1453,10 +1472,16 @@ static void s3_virge_mmio_write_w(uint32_t addr, uint16_t val, void *p)
         {
                 s3_virge_queue(virge, addr, val, FIFO_WRITE_WORD);
         } 
-        else
+        else switch (addr & 0xfffe)
         {
+                default:
                 s3_virge_mmio_write(addr, val, p);
                 s3_virge_mmio_write(addr + 1, val >> 8, p);
+                break;
+
+                case 0xff20:
+                s3_virge_mmio_write(addr, val, p);
+                break;
         }
 }
 static void s3_virge_mmio_write_l(uint32_t addr, uint32_t val, void *p)
@@ -1904,6 +1929,10 @@ static void s3_virge_mmio_write_l(uint32_t addr, uint32_t val, void *p)
                 }*/
 
 //                        s3_virge_triangle(virge);
+                break;
+
+                case 0xff20:
+                s3_virge_mmio_write(addr, val, p);
                 break;
         }
 }
@@ -4009,6 +4038,10 @@ static void *s3_virge_init()
         virge->fifo_not_full_event = thread_create_event();
         virge->fifo_thread = thread_create(fifo_thread, virge);
  
+        //ddc_init();
+
+        //TODO ViRGE does not use packed chain4
+        virge->svga.packed_chain4 = 1;
         return virge;
 }
 
@@ -4093,8 +4126,6 @@ static void *s3_virge_375_init()
         
         virge->svga.crtc[0x6c] = 0x01;
         
-        virge->svga.fb_only = -1;
-
         virge->is_375 = 1;
         
         virge->card = pci_add(s3_virge_pci_read, s3_virge_pci_write, virge);
@@ -4107,7 +4138,12 @@ static void *s3_virge_375_init()
         virge->wake_fifo_thread = thread_create_event();
         virge->fifo_not_full_event = thread_create_event();
         virge->fifo_thread = thread_create(fifo_thread, virge);
- 
+
+        //ddc_init();
+
+        //TODO ViRGE does not use packed chain4
+        virge->svga.packed_chain4 = 1;
+
         return virge;
 }
 

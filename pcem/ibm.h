@@ -215,7 +215,7 @@ enum
         ROM_PC200,
         ROM_PC1640,
         ROM_PC2086,
-        ROM_PC3086,        
+        ROM_PC3086,
         ROM_AMIXT,      /*XT Clone with AMI BIOS*/
 	ROM_LTXT,
 	ROM_LXT3,
@@ -243,6 +243,8 @@ enum
         ROM_MEGAPC,
         ROM_AMA932J,
         ROM_AMI386SX,
+        ROM_SPC6000A,
+        ROM_SPC6033P,
         ROM_AMI486,
         ROM_WIN486,
         ROM_PCI486,
@@ -294,6 +296,10 @@ enum
         ROM_LEDGE_MODELM,
         ROM_HYUNDAI_SUPER286TR,
         ROM_ITAUTEC_INFOWAYM,
+        ROM_DESKPRO,
+        ROM_VS440FX,
+        ROM_GA686BX,
+        ROM_PC5086,
 
         ROM_MAX
 };
@@ -317,13 +323,14 @@ enum
         GFX_EGA,        /*Using IBM EGA BIOS*/
         GFX_TVGA,       /*Using Trident TVGA8900D BIOS*/
         GFX_ET4000,     /*Tseng ET4000*/
+        GFX_KASAN16VGA, /*Kasan Hangulmadang-16 (Tseng ET4000AX)*/
         GFX_TGKOREANVGA, /*Trigem Korean VGA(Tseng ET4000AX)*/
         GFX_ET4000W32,  /*Tseng ET4000/W32p (Diamond Stealth 32)*/
         GFX_BAHAMAS64,  /*S3 Vision864 (Paradise Bahamas 64)*/
         GFX_N9_9FX,     /*S3 764/Trio64 (Number Nine 9FX)*/
         GFX_VIRGE,      /*S3 Virge*/
         GFX_TGUI9440,   /*Trident TGUI9440*/
-        GFX_VGA,        /*IBM VGA*/        
+        GFX_VGA,        /*IBM VGA*/
         GFX_VGAEDGE16,  /*ATI VGA Edge-16 (18800-1)*/
         GFX_ATIKOREANVGA, /*ATI Korean VGA (28800-5)*/
         GFX_VGACHARGER, /*ATI VGA Charger (28800-5)*/
@@ -333,7 +340,7 @@ enum
         GFX_VIRGEDX,    /*S3 Virge/DX*/
         GFX_PHOENIX_TRIO32, /*S3 732/Trio32 (Phoenix)*/
         GFX_PHOENIX_TRIO64, /*S3 764/Trio64 (Phoenix)*/
-       	GFX_INCOLOR,	/* Hercules InColor */ 
+       	GFX_INCOLOR,	/* Hercules InColor */
 	GFX_COLORPLUS,	/* Plantronics ColorPlus */
 	GFX_WY700,	/* Wyse 700 */
 	GFX_GENIUS,	/* MDSI Genius */
@@ -352,6 +359,11 @@ enum
 	GFX_AVGA2,      /*Acumos AVGA2 / Cirrus Logic CL-GD5402*/
         GFX_CL_GD5428,  /*Cirrus Logic CL-GD5428*/
         GFX_IBM_GD5428, /*IBM 1MB SVGA Adapter/A*/
+        GFX_TVGA9000B,  /*Trident TVGA9000B*/
+        GFX_BANSHEE,    /*Voodoo Banshee - reference PCI board with SGRAM*/
+        GFX_CL_BANSHEE, /*Creative Labs Voodoo Blaster Banshee PCI - with SDRAM*/
+        GFX_VOODOO_3_2000, /*Voodoo 3 2000*/
+        GFX_VOODOO_3_3000, /*Voodoo 3 3000*/
 
         GFX_MAX
 };
@@ -494,3 +506,5 @@ void saveconfig_global_only();
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
 
 void ide_padstr(char *str, const char *src, int len);
+
+void stop_emulation_now(void);

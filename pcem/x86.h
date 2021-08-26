@@ -39,8 +39,8 @@ typedef union
 typedef struct
 {
         uint32_t base;
-        uint32_t limit;
-        uint8_t access;
+        uint32_t limit, limit_raw;
+        uint8_t access, access2;
         uint16_t seg;
         uint32_t limit_low, limit_high;
         int checked; /*Non-zero if selector is known to be valid*/
@@ -90,6 +90,7 @@ typedef struct
         int8_t ssegs;
         int8_t ismmx;
         int8_t abrt;
+        int8_t smi_pending;
 
         int _cycles;
         int cpu_recomp_ins;
@@ -118,6 +119,8 @@ typedef struct
         } CR0;
 
         uint16_t flags, eflags;
+
+        uint32_t smbase;
 } CPU_STATE;
 
 extern CPU_STATE cpu_state;
@@ -125,6 +128,7 @@ extern CPU_STATE cpu_state;
 #define cpu_state_offset(MEMBER) ((uintptr_t)&cpu_state.MEMBER - (uintptr_t)&cpu_state - 128)
 
 #define cycles cpu_state._cycles
+extern int cycles_main;
 
 #define cr0 cpu_state.CR0.l
 #define msw cpu_state.CR0.w
@@ -177,6 +181,9 @@ extern x86seg gdt, ldt, idt, tr;
 extern uint32_t cr2, cr3, cr4;
 extern uint32_t dr[8];
 
+extern uint16_t sysenter_cs;
+extern uint32_t sysenter_eip, sysenter_esp;
+
 
 extern uint16_t cpu_cur_status;
 
@@ -186,6 +193,7 @@ extern uint16_t cpu_cur_status;
 #define CPU_STATUS_STACK32 (1 << 1)
 #define CPU_STATUS_PMODE   (1 << 2)
 #define CPU_STATUS_V86     (1 << 3)
+#define CPU_STATUS_SMM     (1 << 4)
 #define CPU_STATUS_FLAGS 0xff
 
 /*If the flags below are set in cpu_cur_status, they must be set in block->status.
@@ -260,6 +268,16 @@ enum
         ABRT_PF  = 0xE
 };
 
+#define ABRT_MASK 0x7f
+/*An 'expected' exception is one that would be expected to occur on every execution
+  of this code path; eg a GPF due to being in v86 mode. An 'unexpected' exception is
+  one that would be unlikely to occur on the next exception, eg a page fault may be
+  fixed up by the exception handler and the next execution would not hit it.
+  
+  This distinction is used by the dynarec; a block that hits an 'expected' exception
+  would be compiled, a block that hits an 'unexpected' exception would be rejected so
+  that we don't end up with an unnecessarily short block*/
+#define ABRT_EXPECTED  0x80
 extern uint32_t abrt_error;
 
 void x86_doabrt(int x86_abrt);
@@ -274,6 +292,7 @@ void x86illegal();
 
 void x86seg_reset();
 void x86gpf(const char *s, uint16_t error);
+void x86gpf_expected(const char *s, uint16_t error);
 
 void resetx86();
 void softresetx86();
@@ -296,7 +315,32 @@ void x86_int(int num);
 void x86_int_sw(int num);
 int x86_int_sw_rm(int num);
 
+void sysenter(void);
+void sysexit(void);
+
 int divl(uint32_t val);
 int idivl(int32_t val);
+
+extern int cpu_end_block_after_ins;
+
+void x86_smi_trigger(void);
+void x86_smi_enter(void);
+void x86_smi_leave(void);
+
+void cyrix_load_seg_descriptor(uint32_t addr, x86seg *seg);
+void cyrix_write_seg_descriptor(uint32_t addr, x86seg *seg);
+
+#define SMHR_VALID (1 << 0)
+#define SMHR_ADDR_MASK (0xfffffffc)
+
+struct
+{
+        struct
+        {
+                uint32_t base;
+                uint64_t size;
+        } arr[8];
+        uint32_t smhr;
+} cyrix;
 
 #endif

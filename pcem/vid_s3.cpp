@@ -1027,8 +1027,11 @@ void s3_out(uint16_t addr, uint8_t val, void *p)
                         return;
                 if ((svga->crtcreg == 7) && (svga->crtc[0x11] & 0x80))
                         val = (svga->crtc[7] & ~0x10) | (val & 0x10);
-                if (svga->crtcreg >= 0x20 && svga->crtcreg != 0x38 && (svga->crtc[0x38] & 0xcc) != 0x48)
-                    return;
+                if (svga->crtcreg >= 0x20 && svga->crtcreg != 0x38 && svga->crtcreg != 0x39 && (svga->crtc[0x38] & 0xcc) != 0x48)
+                {
+                        if (!((svga->crtc[0x39] & 0xe0) == 0xa0 && svga->crtcreg >= 0x40 && svga->crtcreg <= 0x6d))
+                                return;
+                }
                 old = svga->crtc[svga->crtcreg];
                 svga->crtc[svga->crtcreg] = val;
                 switch (svga->crtcreg)
@@ -1047,6 +1050,7 @@ void s3_out(uint16_t addr, uint8_t val, void *p)
 
                         case 0x31:
                         s3->ma_ext = (s3->ma_ext & 0x1c) | ((val & 0x30) >> 4);
+                        svga->force_dword_mode = val & 0x08;
                         break;
                         case 0x32:
                         svga->vram_display_mask = (val & 0x40) ? 0x3ffff : s3->vram_mask;
@@ -1710,15 +1714,29 @@ static void polygon_setup(s3_t *s3)
         }
 }
 
-#define READ_SRC(addr, dat) if (s3->bpp == 0)      dat = svga->vram[  (addr) & s3->vram_mask]; \
-                            else if (s3->bpp == 1) dat = vram_w[(addr) & (s3->vram_mask >> 1)]; \
-                            else                   dat = vram_l[(addr) & (s3->vram_mask >> 2)]; \
+/*Remap address for chain-4/doubleword style layout*/
+static inline uint32_t dword_remap(uint32_t in_addr)
+{
+    return in_addr;
+}
+static inline uint32_t dword_remap_w(uint32_t in_addr)
+{
+    return in_addr;
+}
+static inline uint32_t dword_remap_l(uint32_t in_addr)
+{
+    return in_addr;
+}
+
+#define READ_SRC(addr, dat) if (s3->bpp == 0)      dat = svga->vram[  dword_remap(addr) & s3->vram_mask]; \
+                            else if (s3->bpp == 1) dat = vram_w[dword_remap_w(addr) & (s3->vram_mask >> 1)]; \
+                            else                   dat = vram_l[dword_remap_l(addr) & (s3->vram_mask >> 2)]; \
                             if (vram_mask)                                           \
                                     dat = ((dat & rd_mask) == rd_mask);
 
-#define READ_DST(addr, dat) if (s3->bpp == 0)      dat = svga->vram[  (addr) & s3->vram_mask]; \
-                            else if (s3->bpp == 1) dat = vram_w[(addr) & (s3->vram_mask >> 1)]; \
-                            else                   dat = vram_l[(addr) & (s3->vram_mask >> 2)];
+#define READ_DST(addr, dat) if (s3->bpp == 0)      dat = svga->vram[  dword_remap(addr) & s3->vram_mask]; \
+                            else if (s3->bpp == 1) dat = vram_w[dword_remap_w(addr) & (s3->vram_mask >> 1)]; \
+                            else                   dat = vram_l[dword_remap_l(addr) & (s3->vram_mask >> 2)];
 
 #define MIX     {                                                                                               \
                         uint32_t old_dest_dat = dest_dat;                                                       \
@@ -1747,18 +1765,18 @@ static void polygon_setup(s3_t *s3)
 
 #define WRITE(addr)     if (s3->bpp == 0)                                                                               \
                         {                                                                                               \
-                                svga->vram[(addr) & s3->vram_mask] = dest_dat;                                          \
-                                svga->changedvram[((addr) & s3->vram_mask) >> 12] = changeframecount;                   \
+                                svga->vram[dword_remap(addr) & s3->vram_mask] = dest_dat;                                          \
+                                svga->changedvram[(dword_remap(addr) & s3->vram_mask) >> 12] = changeframecount;                   \
                         }                                                                                               \
                         else if (s3->bpp == 1)                                                                          \
                         {                                                                                               \
-                                vram_w[(addr) & (s3->vram_mask >> 1)] = dest_dat;                                       \
-                                svga->changedvram[((addr) & (s3->vram_mask >> 1)) >> 11] = changeframecount;            \
+                                vram_w[dword_remap_w(addr) & (s3->vram_mask >> 1)] = dest_dat;                                       \
+                                svga->changedvram[(dword_remap_w(addr) & (s3->vram_mask >> 1)) >> 11] = changeframecount;            \
                         }                                                                                               \
                         else                                                                                            \
                         {                                                                                               \
-                                vram_l[(addr) & (s3->vram_mask >> 2)] = dest_dat;                                       \
-                                svga->changedvram[((addr) & (s3->vram_mask >> 2)) >> 10] = changeframecount;            \
+                                vram_l[dword_remap_l(addr) & (s3->vram_mask >> 2)] = dest_dat;                                       \
+                                svga->changedvram[(dword_remap_l(addr) & (s3->vram_mask >> 2)) >> 10] = changeframecount;            \
                         }
 
 void s3_accel_start(int count, int cpu_input, uint32_t mix_dat, uint32_t cpu_dat, s3_t *s3)
@@ -2576,8 +2594,10 @@ void s3_hwcursor_draw(svga_t *svga, int displine)
 //        pclog("HWcursor %i %i\n", svga->hwcursor_latch.x, svga->hwcursor_latch.y);
         for (x = 0; x < 64; x += 16)
         {
-                dat[0] = (svga->vram[svga->hwcursor_latch.addr & svga->vram_display_mask]     << 8) | svga->vram[(svga->hwcursor_latch.addr + 1) & svga->vram_display_mask];
-                dat[1] = (svga->vram[(svga->hwcursor_latch.addr + 2) & svga->vram_display_mask] << 8) | svga->vram[(svga->hwcursor_latch.addr + 3) & svga->vram_display_mask];
+                uint32_t remapped_addr = dword_remap(svga->hwcursor_latch.addr);
+
+                dat[0] = (svga->vram[remapped_addr]     << 8) | svga->vram[remapped_addr + 1];
+                dat[1] = (svga->vram[remapped_addr + 2] << 8) | svga->vram[remapped_addr + 3];
                 for (xx = 0; xx < 16; xx++)
                 {
                         if (offset >= svga->hwcursor_latch.x)
@@ -2621,7 +2641,8 @@ static void s3_io_remove(s3_t *s3)
         io_removehandlerx(0xaee8, 0x0004, s3_accel_in, NULL, NULL, s3_accel_out, NULL, NULL,  s3);
         io_removehandlerx(0xb2e8, 0x0004, s3_accel_in, NULL, NULL, s3_accel_out, NULL, NULL,  s3);
         io_removehandlerx(0xb6e8, 0x0002, s3_accel_in, NULL, NULL, s3_accel_out, NULL, NULL,  s3);
-        io_removehandlerx(0xbae8, 0x0002, s3_accel_in, NULL, NULL, s3_accel_out, NULL, NULL,  s3);
+        io_removehandlerx(0xbae8, 0x0002, s3_accel_in, NULL, NULL, s3_accel_out, NULL, NULL, s3);
+        io_removehandlerx(0xbee8, 0x0002, s3_accel_in, NULL, NULL, s3_accel_out, NULL, NULL, s3);
         io_removehandlerx(0xe2e8, 0x0004, s3_accel_in, NULL, NULL, s3_accel_out, s3_accel_out_w, s3_accel_out_l,  s3);
 }
 

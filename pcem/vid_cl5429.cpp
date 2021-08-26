@@ -1,4 +1,5 @@
 /*Cirrus Logic CL-GD5429 emulation*/
+//SR7.0 = "true packed-pixel memory addressing"
 #include <stdlib.h>
 #include "ibm.h"
 #include "cpu.h"
@@ -128,9 +129,10 @@ typedef struct gd5429_t
         int vidsys_ena;
 } gd5429_t;
 
-#define GRB_X8_ADDRESSING (1 << 1)
-#define GRB_WRITEMODE_EXT (1 << 2)
-#define GRB_8B_LATCHES    (1 << 3)
+#define GRB_X8_ADDRESSING  (1 << 1)
+#define GRB_WRITEMODE_EXT  (1 << 2)
+#define GRB_8B_LATCHES     (1 << 3)
+#define GRB_ENHANCED_16BIT (1 << 4)
 
 static void gd5429_mmio_write(uint32_t addr, uint8_t val, void *p);
 static void gd5429_mmio_writew(uint32_t addr, uint16_t val, void *p);
@@ -554,8 +556,11 @@ void gd5429_out(uint16_t addr, uint8_t val, void *p)
                                 break;                                
                                 
                                 case 0x07:
-                                    if (gd5429->type >= CL_TYPE_GD5429)
+                                    if (gd5429->type >= CL_TYPE_GD5429) {
                                         svga->set_reset_disabled = svga->seqregs[7] & 1;
+                                    }
+                                    svga->packed_chain4 = svga->seqregs[7] & 1;
+                                    svga_recalctimings(svga);
                                 case 0x0f:
                                 case 0x17:
                                 //UAE
@@ -1411,12 +1416,19 @@ void gd5429_write_linear(uint32_t addr, uint8_t val, void *p)
 
         if (!(svga->gdcreg[6] & 1)) 
                 svga->fullchange = 2;
-        if (svga->gdcreg[0xb] & GRB_X8_ADDRESSING)
+        if (svga->gdcreg[0xb] & GRB_ENHANCED_16BIT)
+                addr <<= 4;
+        else if (svga->gdcreg[0xb] & GRB_X8_ADDRESSING)
                 addr <<= 3;
-        else if ((svga->chain4 || svga->fb_only) && (svga->writemode < 4))
+        else if (((svga->chain4 && svga->packed_chain4) || svga->fb_only) && (svga->writemode < 4))
         {
                 writemask2 = 1 << (addr & 3);
                 addr &= ~3;
+        }
+        else if (svga->chain4)
+        {
+                writemask2 = 1 << (addr & 3);
+                addr = ((addr & 0xfffc) << 2) | ((addr & 0x30000) >> 14) | (addr & ~0x3ffff);
         }
         else if (svga->chain2_write)
         {
@@ -1430,22 +1442,19 @@ void gd5429_write_linear(uint32_t addr, uint8_t val, void *p)
         {
                 addr <<= 2;
         }
-
         addr &= svga->decode_mask;
         if (addr >= svga->vram_max)
                 return;
         addr &= svga->vram_mask;
 //        if (svga_output) pclog("%08X\n", addr);
-
         svga->changedvram[addr >> 12] = changeframecount;
         
         switch (svga->writemode)
         {
                 case 4:
-                if (svga->gdcreg[0xb] & 0x10)
+                if (svga->gdcreg[0xb] & GRB_ENHANCED_16BIT)
                 {
 //                        pclog("Writemode 4 : %X ", addr);
-                        addr <<= 2;
                         svga->changedvram[addr >> 12] = changeframecount;
 //                        pclog("%X %X  %02x\n", addr, val, svga->gdcreg[0xb]);
                         if (val & svga->seqregs[2] & 0x80)
@@ -1514,10 +1523,9 @@ void gd5429_write_linear(uint32_t addr, uint8_t val, void *p)
                 break;
                         
                 case 5:
-                if (svga->gdcreg[0xb] & 0x10)
+                if (svga->gdcreg[0xb] & GRB_ENHANCED_16BIT)
                 {
 //                        pclog("Writemode 5 : %X ", addr);
-                        addr <<= 2;
                         svga->changedvram[addr >> 12] = changeframecount;
 //                        pclog("%X %X  %02x\n", addr, val, svga->gdcreg[0xb]);
                         if (svga->seqregs[2] & 0x80)
@@ -1759,19 +1767,28 @@ uint8_t gd5429_read_linear(uint32_t addr, void *p)
         egareads++;
 #endif
 
-        if (svga->gdcreg[0xb] & GRB_X8_ADDRESSING)
+        if (svga->gdcreg[0xb] & GRB_ENHANCED_16BIT)
+                latch_addr = (addr << 4) & svga->decode_mask;
+        else if (svga->gdcreg[0xb] & GRB_X8_ADDRESSING)
                 latch_addr = (addr << 3) & svga->decode_mask;
         else
                 latch_addr = (addr << 2) & svga->decode_mask;
         
-        if (svga->gdcreg[0xb] & GRB_X8_ADDRESSING)
+        if (svga->gdcreg[0xb] & GRB_ENHANCED_16BIT)
+                addr <<= 4;
+        else if (svga->gdcreg[0xb] & GRB_X8_ADDRESSING)
                 addr <<= 3;
-        else if (svga->chain4 || svga->fb_only)
+        else if ((svga->chain4 && svga->packed_chain4) || svga->fb_only)
         {
                 addr &= svga->decode_mask;
                 if (addr >= svga->vram_max)
                         return 0xff;
                 return svga->vram[addr & svga->vram_mask];
+        }
+        else if (svga->chain4)
+        {
+                readplane = addr & 3;
+                addr = ((addr & 0xfffc) << 2) | ((addr & 0x30000) >> 14) | (addr & ~0x3ffff);
         }
         else if (svga->chain2_read)
         {
