@@ -2029,19 +2029,23 @@ int hdf_open_target (struct hardfiledata *hfd, const TCHAR *pname)
 				NULL, OPEN_EXISTING, flags, NULL);
 			hfd->handle->h = h;
 			if (h == INVALID_HANDLE_VALUE && !hfd->ci.readonly) {
-				DWORD err = GetLastError ();
+				DWORD err = GetLastError();
+				write_log(_T("Real HD open (RW) error: %d\n"), err);
 				if (err == ERROR_WRITE_PROTECT || err == ERROR_SHARING_VIOLATION) {
 					h = CreateFile (udi->device_path,
 						GENERIC_READ,
 						FILE_SHARE_READ,
 						NULL, OPEN_EXISTING, flags, NULL);
-					if (h != INVALID_HANDLE_VALUE)
+					if (h != INVALID_HANDLE_VALUE) {
 						hfd->ci.readonly = true;
+						write_log(_T("Real HD open succeeded in read-only mode\n"));
+					}
 				}
 			}
 
 			if (h == INVALID_HANDLE_VALUE) {
 				DWORD err = GetLastError ();
+				write_log(_T("Real HD open error: %d\n"), err);
 				if (err == ERROR_WRITE_PROTECT)
 					ret = -2;
 				if (err == ERROR_SHARING_VIOLATION)
