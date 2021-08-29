@@ -12368,8 +12368,8 @@ static INT_PTR MiscDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 		InitializeListView (hDlg);
 		values_to_miscdlg (hDlg);
 		enable_for_miscdlg (hDlg);
-		setstatefilename (hDlg);
 		addhistorymenu(hDlg, NULL, IDC_STATENAME, HISTORY_STATEFILE, true);
+		setstatefilename(hDlg);
 		recursive--;
 		return TRUE;
 
