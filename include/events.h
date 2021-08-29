@@ -107,6 +107,7 @@ STATIC_INLINE void set_cycles (unsigned long int x)
 {
 	currcycle = x;
 	eventtab[ev_hsync].oldcycles = x;
+	eventtab[ev_hsynch].active = 0;
 #ifdef EVT_DEBUG
 	if (currcycle & (CYCLE_UNIT - 1))
 		write_log (_T("%x\n"), currcycle);

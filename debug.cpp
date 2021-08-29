@@ -1796,7 +1796,7 @@ static void memwatch_heatmap (uaecptr addr, int rwi, int size, uae_u32 accessmas
 	hm->mask |= accessmask;
 }
 
-void record_dma_event (int evt, int hpos, int vpos)
+void record_dma_event (uae_u32 evt, int hpos, int vpos)
 {
 	struct dma_rec *dr;
 
@@ -1935,6 +1935,7 @@ static bool get_record_dma_info(struct dma_rec *dr, int hpos, int vpos, uae_u32 
 	TCHAR srtext[10];
 	bool extra64 = false;
 	uae_u32 extraval;
+	bool noval = false;
 
 	if (l1)
 		l1[0] = 0;
@@ -1989,6 +1990,7 @@ static bool get_record_dma_info(struct dma_rec *dr, int hpos, int vpos, uae_u32 
 	} else if (dr->type == DMARECORD_REFRESH) {
 		sr = _T("RFS");
 		chcnt = br;
+		noval = true;
 	} else if (dr->type == DMARECORD_AUDIO) {
 		sr = _T("AUD");
 		chcnt = br;
@@ -2039,7 +2041,7 @@ static bool get_record_dma_info(struct dma_rec *dr, int hpos, int vpos, uae_u32 
 					_stprintf(l2, _T("%5s %02X"), srtext, r);
 			}
 		}
-		if (l3) {
+		if (l3 && !noval) {
 			uae_u64 v = dr->dat;
 			if (longsize == 4) {
 				_stprintf(l3, _T("%08X"), (uae_u32)v);
@@ -2094,6 +2096,48 @@ static bool get_record_dma_info(struct dma_rec *dr, int hpos, int vpos, uae_u32 
 			l3[cl2++] = '1';
 		if (dr->evt & DMA_EVENT_DDFSTOP2)
 			l3[cl2++] = '2';
+
+		if (dr->evt & DMA_EVENT_HDIWS) {
+			l3[cl2++] = '(';
+		}
+		if (dr->evt & DMA_EVENT_HDIWE) {
+			l3[cl2++] = ')';
+		}
+
+		if (dr->evt & DMA_EVENT_HBS) {
+			l3[cl2++] = '[';
+		}
+		if (dr->evt & DMA_EVENT_HBE) {
+			l3[cl2++] = ']';
+		}
+		if (dr->evt & DMA_EVENT_HSS) {
+			l3[cl2++] = '{';
+		}
+		if (dr->evt & DMA_EVENT_HSE) {
+			l3[cl2++] = '}';
+		}
+
+		if (dr->evt & (DMA_EVENT_VB | DMA_EVENT_VS | DMA_EVENT_LOL | DMA_EVENT_LOF | DMA_EVENT_VDIW)) {
+			l3[cl2++] = '*';
+		}
+		if (dr->evt & DMA_EVENT_VS) {
+			l3[cl2++] = 'S';
+		}
+		if (dr->evt & DMA_EVENT_VB) {
+			l3[cl2++] = 'B';
+		}
+		if (dr->evt & DMA_EVENT_LOL) {
+			l3[cl2++] = 'L';
+		}
+		if (dr->evt & DMA_EVENT_LOF) {
+			l3[cl2++] = 'F';
+		}
+		if (dr->evt & DMA_EVENT_VDIW) {
+			l3[cl2++] = '=';
+		}
+		if (dr->evt & (DMA_EVENT_VB | DMA_EVENT_VS | DMA_EVENT_LOL | DMA_EVENT_LOF | DMA_EVENT_VDIW)) {
+			l3[cl2++] = 0;
+		}
 	}
 	if (l5) {
 		_stprintf (l5, _T("%08X"), cycles + (vpos * maxhpos + hpos) * CYCLE_UNIT);
@@ -2109,25 +2153,25 @@ static bool get_record_dma_info(struct dma_rec *dr, int hpos, int vpos, uae_u32 
 
 static void decode_dma_record (int hpos, int vpos, int toggle, bool logfile)
 {
-	struct dma_rec *dr;
+	struct dma_rec *dr, *dr_start;
 	int h, i, maxh;
 	uae_u32 cycles;
 
 	if (!dma_record[0] || hpos < 0 || vpos < 0)
 		return;
-	dr = &dma_record[dma_record_toggle ^ toggle][vpos * NR_DMA_REC_HPOS];
+	dr_start = dr = &dma_record[dma_record_toggle ^ toggle][vpos * NR_DMA_REC_HPOS];
 	if (logfile)
 		write_dlog (_T("Line: %02X %3d HPOS %02X %3d:\n"), vpos, vpos, hpos, hpos);
 	else
 		console_out_f (_T("Line: %02X %3d HPOS %02X %3d:\n"), vpos, vpos, hpos, hpos);
 	h = hpos;
 	dr += hpos;
-	maxh = hpos + (logfile ? maxhpos : 80);
-	if (maxh > maxhpos)
-		maxh = maxhpos;
+	maxh = hpos + (logfile ? maxhpos_short : 80);
+	if (maxh > maxhpos_short)
+		maxh = maxhpos_short;
 	cycles = vsync_cycles;
 	if (toggle)
-		cycles -= maxvpos * maxhpos * CYCLE_UNIT;
+		cycles -= maxvpos * maxhpos_short * CYCLE_UNIT;
 	while (h < maxh) {
 		int cols = (logfile ? 16 : 8);
 		TCHAR l1[200];
@@ -2144,6 +2188,11 @@ static void decode_dma_record (int hpos, int vpos, int toggle, bool logfile)
 			TCHAR l1l[16], l2l[16], l3l[16], l4l[16], l5l[16];
 
 			get_record_dma_info(dr, h, vpos, cycles, l1l, l2l, l3l, l4l, l5l);
+			if (dr_start[3 + 2].evt & DMA_EVENT_LOL) {
+				if (maxh == maxhpos_short) {
+					maxh++;
+				}
+			}
 
 			TCHAR *p = l1 + _tcslen(l1);
 			_stprintf(p, _T("%9s "), l1l);
@@ -4807,11 +4856,33 @@ static void show_exec_lists (TCHAR *t)
 	}
 }
 
+static int debug_vpos = -1;
+static int debug_hpos = -1;
+
 static void breakfunc(uae_u32 v)
 {
 	write_log(_T("Cycle breakpoint hit\n"));
 	debugging = 1;
-	set_special (SPCFLAG_BRK);
+	set_special(SPCFLAG_BRK);
+}
+
+void debug_hsync(void)
+{
+	if (debug_vpos < 0) {
+		return;
+	}
+	if (debug_vpos != vpos) {
+		return;
+	}
+	if (debug_hpos <= 0) {
+		breakfunc(0);
+	} else {
+		if (current_hpos() < debug_hpos) {
+			event2_newevent_x(-1, debug_hpos - current_hpos(), 0, breakfunc);
+		} else {
+			breakfunc(0);
+		}
+	}
 }
 
 static int cycle_breakpoint(TCHAR **c)
@@ -4822,27 +4893,22 @@ static int cycle_breakpoint(TCHAR **c)
 		int count = readint(c);
 		if (nc == 's') {
 			if (more_params(c)) {
-				int mvp = maxvpos + lof_store;
-				int hp = readint(c);
-				int chp = current_hpos();
-				if (count == vpos && chp < hp) {
-					count += mvp - vpos;
-				} else if (count >= vpos) {
-					count = count - vpos;
+				debug_vpos = count;
+				debug_hpos = readint(c);
+				if (debug_vpos == vpos && debug_hpos > current_hpos()) {
+					debug_vpos = -1;
+					count = debug_hpos - current_hpos();
+					debug_hpos = -1;
 				} else {
-					count += mvp - vpos;
-				}
-				count *= maxhpos;
-				if (hp >= chp) {
-					count += hp - chp;
-				} else {
-					count += maxhpos - chp;
+					return 1;
 				}
 			} else {
 				count *= maxhpos;
 			}
 		}
-		event2_newevent_x(-1, count, 0, breakfunc);
+		if (count > 0) {
+			event2_newevent_x(-1, count, 0, breakfunc);
+		}
 		return 1;
 	}
 	return 0;

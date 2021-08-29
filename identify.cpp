@@ -366,12 +366,12 @@ const struct customData custd[] =
 	{ _T("VSSTOP"),   0xdff1CA, CD_WO | CD_ECS_AGNUS }, /* Vert line for VBLANK start */
 	{ _T("VBSTRT"),   0xdff1CC, CD_WO | CD_ECS_AGNUS }, /* Vert line for VBLANK start */
 	{ _T("VBSTOP"),   0xdff1CE, CD_WO | CD_ECS_AGNUS }, /* Vert line for VBLANK stop */
-	{ _T("-"), 0xdff1D0, CD_NONE }, /* UHRES sprite vertical start */
-	{ _T("-"), 0xdff1D2, CD_NONE }, /* UHRES sprite vertical stop */
-	{ _T("-"), 0xdff1D4, CD_NONE }, /* UHRES bit plane vertical stop */
-	{ _T("-"), 0xdff1D6, CD_NONE }, /* UHRES bit plane vertical stop */
-	{ _T("-"), 0xdff1D8, CD_NONE }, /* DUAL mode hires H beam counter write */
-	{ _T("-"), 0xdff1DA, CD_NONE }, /* DUAL mode hires H beam counter read */
+	{ _T("SPRHSTRT"), 0xdff1D0, CD_WO | CD_ECS_AGNUS }, /* UHRES sprite vertical start */
+	{ _T("SPRHSTOP"), 0xdff1D2, CD_WO | CD_ECS_AGNUS }, /* UHRES sprite vertical stop */
+	{ _T("BPLHSTRT"), 0xdff1D4, CD_WO | CD_ECS_AGNUS }, /* UHRES bit plane vertical stop */
+	{ _T("BPLHSTOP"), 0xdff1D6, CD_WO | CD_ECS_AGNUS }, /* UHRES bit plane vertical stop */
+	{ _T("HHPOSW"),	  0xdff1D8, CD_WO | CD_ECS_AGNUS }, /* DUAL mode hires H beam counter write */
+	{ _T("HHPOSR"),   0xdff1DA,     0 | CD_ECS_AGNUS }, /* DUAL mode hires H beam counter read */
 	{ _T("BEAMCON0"), 0xdff1DC, CD_WO | CD_ECS_AGNUS }, /* Beam counter control register (SHRES,UHRES,PAL) */
 	{ _T("HSSTRT"),   0xdff1DE, CD_WO | CD_ECS_DENISE }, /* Horizontal sync start (VARHSY) */
 	{ _T("VSSTRT"),   0xdff1E0, CD_WO | CD_ECS_DENISE }, /* Vertical sync start (VARVSY) */
