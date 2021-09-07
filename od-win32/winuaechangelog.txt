@@ -1,4 +1,23 @@
 
+Beta 32:
+
+- HDIW blanking could get stuck in always-on state if VPOSW was written mid screen with out of range values. (Agony Psygnosis title screen become fully border color blanked if ECS)
+- Wait 2 fields before updating visible screen after display parameter change. Hides glitches at the bottom of screen that can appear when last visible line is actually line 0 or higher. Direct 3D output is still refreshed normally, only difference is that data comes from old frame. Most "real" displays would either roll (CRT) or blank temporarily (LCD etc) in this situation.
+- On the fly config changes are again checked and processed before vertical position 0 starts. Previous display updates moved it to line 1 or later, depending on mode. This might have caused unexpected side-effects.
+- Hardwired vertical blanking didn't work correctly if OCS Denise was configured.
+- Removed OCS Denise H-blank bug advanced chipset option. It is now always enabled (if OCS Denise configured) but "buggy" top and bottom line is only visible if overscan mode is Overscan+ or Extreme.
+- Switching from some other config to/from ECS Agnus 512k/512k configuration where Agnus sees 1M chip RAM (Agnus sees upper half of chip RAM at usual $800000 address but CPU sees it at $c00000) didn't always change config correctly. For example loading statefile that uses ECS 512k/512k config when current config is OCS 512k/512k, didn't switch config correctly. (Very old bug)
+- ECS Denise + EXTHBLANK=1: vertical blanking (display blanking only) is fully disabled.
+- New undocumented feature: DIGHIGH bits 3 and 11 are vertical start/stop bit 11 in ECS Agnus. AGA replaces them with horizontal H0 bits. It is not documented in HRM ECS chapter documents them, officially V10 bit is highest (and even V10 is almost totally useless). VPOSR/W V11 does not exist and vertical counter is only 11 bits (0 to 10) which makes DIWHIGH V11 feature that makes no sense.
+- CIA/CPU timing fix in b21 was partically broken.
+- Programmed mode vertical display start/end calculation adjustments.
+- Bitplane refresh slot conflict emulation was "too random". Internal behavior is still unknown. (First demo / Starline corruption if ECS)
+- INTREQ write that clears interrupt(s) didn't use cycle accurate (delayed) code path. (La Weird / Cave)
+- Vblank interrupt horizontal start was not adjusted to new custom chipset emulation (Spectre Party / Phenomena and others)
+- VHPOSR was not adjusted to new chipset emulation (hpos=0 reads previous vertical line)
+- CD32 NVRAM write that wraps around caused NVRAM file size to increase.
+
+Beta 31:
 
 - Sprite right overscan fixes.
 - Programmed mode adjustments. HSSTOP does not affect display position. HSSTRT - HSSTOP only needs to be long enough for display device to detect it. Note that WinUAE will accept invalid HSSTOP and other impossible in real world programmed modes, there is no validation against real world video signal standards.
