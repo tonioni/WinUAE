@@ -497,15 +497,23 @@ static void set_vblanking_limits(void)
 		vblank_bottom_stop = visible_bottom_stop;
 	}
 
-	bool hardwired = false;
+	bool hardwired = true;
 	if (ecs_agnus) {
 		hardwired = (new_beamcon0 & 0x1000) == 0;
 	}
 	if (hardwired) {
 		int vbstrt = vblank_firstline_hw;
+		if (!ecs_denise) {
+			vbstrt--;
+		}
 		int vbstop = maxvpos + lof_store;
-		if (currprefs.cs_dipagnus) {
+		if (!ecs_denise && !ecs_agnus) {
 			vbstop++;
+		} else if (ecs_agnus && !ecs_denise) {
+			// hide hblank bug by faking vblank start 1 line earlier
+			if (currprefs.gfx_overscanmode < OVERSCANMODE_BROADCAST) {
+				vbstop--;
+			}
 		}
 		if (currprefs.gfx_overscanmode < OVERSCANMODE_OVERSCAN) {
 			int mult = (OVERSCANMODE_OVERSCAN - currprefs.gfx_overscanmode) * 5;
@@ -3210,6 +3218,7 @@ static void do_color_changes(line_draw_func worker_border, line_draw_func worker
 	int lastpos = visible_left_border;
 	int endpos = visible_left_border + vidinfo->drawbuffer.inwidth;
 
+	extborder = false; // reset here because it always have start and end in same scanline
 	for (i = dip_for_drawing->first_color_change; i <= dip_for_drawing->last_color_change; i++) {
 		int regno = curr_color_changes[i].regno;
 		uae_u32 value = curr_color_changes[i].value;
@@ -4288,7 +4297,7 @@ void draw_lines(int end, int section)
 	int section_color_cnt = 4;
 
 	vidinfo->outbuffer = vb;
-	if (!lockscr(vb, false, vb->last_drawn_line ? false : true))
+	if (!lockscr(vb, false, vb->last_drawn_line ? false : true, display_reset > 0))
 		return;
 
 	set_vblanking_limits();
@@ -4435,7 +4444,7 @@ static void finish_drawing_frame(bool drawlines)
 		return;
 	}
 
-	if (!lockscr(vb, false, true)) {
+	if (!lockscr(vb, false, true, display_reset > 0)) {
 		notice_screen_contents_lost(monid);
 		return;
 	}
@@ -4455,7 +4464,7 @@ static void finish_drawing_frame(bool drawlines)
 		bool locked = true;
 		bool multimon = currprefs.monitoremu_mon != 0;
 		if (multimon) {
-			locked = lockscr(out, false, true);
+			locked = lockscr(out, false, true, display_reset > 0);
 			outvi->xchange = vidinfo->xchange;
 			outvi->ychange = vidinfo->ychange;
 		} else {
@@ -4530,7 +4539,7 @@ static void finish_drawing_frame(bool drawlines)
 		vidinfo->drawbuffer.tempbufferinuse = true;
 	}
 
-	unlockscr(vb, -1, -1);
+	unlockscr(vb, display_reset ? -2 : -1, -1);
 }
 
 void check_prefs_picasso(void)
@@ -4881,6 +4890,7 @@ void reset_drawing(void)
 	exthblank = false;
 	exthblanken = false;
 	extborder = false;
+	display_reset = 1;
 
 	lores_reset ();
 

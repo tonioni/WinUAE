@@ -691,7 +691,6 @@ struct uae_prefs {
 	int cs_hacks;
 	int cs_ciatype[2];
 	int cs_kbhandshake;
-	bool cs_ocshblankbug;
 
 	struct boardromconfig expansionboard[MAX_EXPANSION_BOARDS];
 

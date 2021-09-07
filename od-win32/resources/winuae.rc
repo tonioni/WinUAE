@@ -851,7 +851,6 @@ BEGIN
     CONTROL         "KS ROM has Chip RAM speed",IDC_CS_ROMISSLOW,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,127,197,125,12
     CONTROL         "CIA 391078-01 [] CIA revision that can't read IO pin status in output mode",IDC_CS_CIA,
                     "Button",BS_AUTOCHECKBOX | WS_TABSTOP,264,197,125,12
-    CONTROL         "OCS H-Blank glitch",IDC_CS_OCSHBLANKBUG,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,264,184,125,12
 END
 
 IDD_AVIOUTPUT DIALOGEX 0, 0, 396, 316

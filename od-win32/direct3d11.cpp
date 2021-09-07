@@ -47,7 +47,7 @@ void(*D3D_refresh)(int);
 bool(*D3D_renderframe)(int, int,bool);
 void(*D3D_showframe)(int);
 void(*D3D_showframe_special)(int, int);
-uae_u8* (*D3D_locktexture)(int, int*, int*, bool);
+uae_u8* (*D3D_locktexture)(int, int*, int*, int);
 void (*D3D_unlocktexture)(int, int, int);
 void (*D3D_flushtexture)(int, int miny, int maxy);
 void (*D3D_guimode)(int, int);
@@ -1998,7 +1998,7 @@ static bool CreateTexture(struct d3d11struct *d3d)
 		return false;
 	}
 
-	ID3D11Texture2D* pSurface;
+	ID3D11Texture2D *pSurface;
 	hr = d3d->m_swapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), reinterpret_cast< void** >(&pSurface));
 	if (SUCCEEDED(hr)) {
 		memset(&desc, 0, sizeof desc);
@@ -4788,7 +4788,7 @@ static bool xD3D11_alloctexture(int monid, int w, int h)
 	return true;
 }
 
-static uae_u8 *xD3D11_locktexture(int monid, int *pitch, int *height, bool fullupdate)
+static uae_u8 *xD3D11_locktexture(int monid, int *pitch, int *height, int fullupdate)
 {
 	struct d3d11struct *d3d = &d3d11data[monid];
 
@@ -4821,6 +4821,10 @@ static void xD3D11_unlocktexture(int monid, int y_start, int y_end)
 	d3d->texturelocked--;
 
 	d3d->m_deviceContext->Unmap(d3d->texture2dstaging, 0);
+
+	if (y_start < -1 || y_end < -1) {
+		return;
+	}
 
 	bool rtg = WIN32GFX_IsPicassoScreen(mon);
 	if (((currprefs.leds_on_screen & STATUSLINE_CHIPSET) && !rtg) || ((currprefs.leds_on_screen & STATUSLINE_RTG) && rtg)) {

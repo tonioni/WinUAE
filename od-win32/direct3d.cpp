@@ -157,7 +157,7 @@ struct d3dstruct
 	IDirect3DDevice9 *d3ddev;
 	IDirect3DDevice9Ex *d3ddevex;
 	D3DSURFACE_DESC dsdbb;
-	LPDIRECT3DTEXTURE9 texture, sltexture, ledtexture, blanktexture;
+	LPDIRECT3DTEXTURE9 texture1, texture2, usetexture, sltexture, ledtexture, blanktexture;
 	LPDIRECT3DTEXTURE9 mask2texture, mask2textureleds[9], mask2textureled_power_dim;
 	int mask2textureledoffsets[9 * 2];
 	IDirect3DQuery9 *query;
@@ -181,6 +181,7 @@ struct d3dstruct
 
 	volatile bool fakemode;
 	uae_u8 *fakebitmap;
+	int fakelock;
 	uae_thread_id fakemodetid;
 
 	D3DXMATRIXA16 m_matProj, m_matProj2, m_matProj_out;
@@ -1289,8 +1290,9 @@ static int createamigatexture (struct d3dstruct *d3d, int w, int h)
 {
 	HRESULT hr;
 
-	d3d->texture = createtext (d3d, w, h, d3d->tformat);
-	if (!d3d->texture)
+	d3d->texture1 = createtext(d3d, w, h, d3d->tformat);
+	d3d->texture2 = createtext(d3d, w, h, d3d->tformat);
+	if (!d3d->texture1 || !d3d->texture2)
 		return 0;
 	write_log (_T("%s: %d*%d main texture, depth %d\n"), D3DHEAD, w, h, d3d->t_depth);
 	if (d3d->psActive) {
@@ -2359,9 +2361,13 @@ static void settransform2 (struct d3dstruct *d3d, struct shaderdata *s)
 
 static void freetextures (struct d3dstruct *d3d)
 {
-	if (d3d->texture) {
-		d3d->texture->Release ();
-		d3d->texture = NULL;
+	if (d3d->texture2) {
+		d3d->texture2->Release();
+		d3d->texture2 = NULL;
+	}
+	if (d3d->texture1) {
+		d3d->texture1->Release();
+		d3d->texture1 = NULL;
 	}
 	for (int i = 0; i < MAX_SHADERS; i++) {
 		struct shaderdata *s = &d3d->shaders[i];
@@ -3424,10 +3430,10 @@ static void D3D_render2(struct d3dstruct *d3d, int mode)
 {
 	struct AmigaMonitor *mon = &AMonitors[d3d - d3ddata];
 	HRESULT hr;
-	LPDIRECT3DTEXTURE9 srctex = d3d->texture;
+	LPDIRECT3DTEXTURE9 srctex = d3d->usetexture;
 	UINT uPasses, uPass;
 
-	if (!isd3d (d3d) || !d3d->texture)
+	if (!isd3d (d3d) || !srctex)
 		return;
 
 	bool normalrender = mode < 0 || (mode & 1);
@@ -3776,7 +3782,7 @@ static void xD3D_flushtexture(int monid, int miny, int maxy)
 {
 	struct d3dstruct *d3d = &d3ddata[monid];
 
-	if (d3d->fakemode || d3d->fulllocked || !d3d->texture || d3d->renderdisabled)
+	if (d3d->fakemode || d3d->fulllocked || !d3d->texture1 || d3d->renderdisabled)
 		return;
 	if (miny >= 0 && maxy >= 0) {
 		RECT r;
@@ -3786,7 +3792,7 @@ static void xD3D_flushtexture(int monid, int miny, int maxy)
 		r.top = miny <= 0 ? 0 : miny;
 		r.bottom = maxy <= d3d->tin_h ? maxy : d3d->tin_h;
 		if (r.top <= r.bottom) {
-			HRESULT hr = d3d->texture->AddDirtyRect (&r);
+			HRESULT hr = d3d->texture1->AddDirtyRect (&r);
 			if (FAILED (hr))
 				write_log (_T("%s: AddDirtyRect(): %s\n"), D3DHEAD, D3D_ErrorString (hr));
 			//write_log (_T("%d %d\n"), r.top, r.bottom);
@@ -3799,13 +3805,22 @@ static void xD3D_unlocktexture(int monid, int y_start, int y_end)
 	struct d3dstruct *d3d = &d3ddata[monid];
 	HRESULT hr;
 
-	if (!isd3d(d3d) || !d3d->texture)
+	if (!isd3d(d3d) || !d3d->texture1)
 		return;
 
+	if (d3d->fakelock) {
+		d3d->fakelock--;
+		return;
+	}
+
 	if (d3d->locked) {
+		LPDIRECT3DTEXTURE9 tex = d3d->texture1;
+		if (d3d->locked == 2) {
+			tex = d3d->texture2;
+		}
 		if (currprefs.leds_on_screen & (STATUSLINE_CHIPSET | STATUSLINE_RTG))
 			updateleds(d3d);
-		hr = d3d->texture->UnlockRect(0);
+		hr = tex->UnlockRect(0);
 		if (y_start >= 0)
 			xD3D_flushtexture(monid, y_start, y_end);
 	}
@@ -3813,7 +3828,7 @@ static void xD3D_unlocktexture(int monid, int y_start, int y_end)
 	d3d->fulllocked = 0;
 }
 
-static uae_u8 *xD3D_locktexture (int monid, int *pitch, int *height, bool fullupdate)
+static uae_u8 *xD3D_locktexture (int monid, int *pitch, int *height, int fullupdate)
 {
 	struct d3dstruct *d3d = &d3ddata[monid];
 	D3DLOCKED_RECT lock;
@@ -3824,10 +3839,28 @@ static uae_u8 *xD3D_locktexture (int monid, int *pitch, int *height, bool fullup
 		return d3d->fakebitmap;
 	}
 
+	if (fullupdate < 0) {
+		if (d3d->usetexture == d3d->texture1) {
+			LPDIRECT3DTEXTURE9 tex1 = d3d->texture1;
+			LPDIRECT3DTEXTURE9 tex2 = d3d->texture2;
+			IDirect3DSurface9* s1, * s2;
+			if (SUCCEEDED(tex1->GetSurfaceLevel(0, &s1))) {
+				if (SUCCEEDED(tex2->GetSurfaceLevel(0, &s2))) {
+					HRESULT hr = d3d->d3ddev->StretchRect(s1, NULL, s2, NULL, D3DTEXF_NONE);
+					s2->Release();
+					d3d->usetexture = tex2;
+				}
+				s1->Release();
+			}
+		}
+	} else {
+		d3d->usetexture = d3d->texture1;
+	}
+
 	if (D3D_needreset (d3d) > 0) {
 		return NULL;
 	}
-	if (!isd3d (d3d) || !d3d->texture)
+	if (!isd3d (d3d))
 		return NULL;
 
 	if (d3d->locked) {
@@ -3835,9 +3868,15 @@ static uae_u8 *xD3D_locktexture (int monid, int *pitch, int *height, bool fullup
 		return NULL;
 	}
 
+	if (!d3d->texture1) {
+		*pitch = 0;
+		d3d->fakelock++;
+		return d3d->fakebitmap;
+	}
+
 	lock.pBits = NULL;
 	lock.Pitch = 0;
-	hr = d3d->texture->LockRect (0, &lock, NULL, fullupdate ? D3DLOCK_DISCARD : D3DLOCK_NO_DIRTY_UPDATE);
+	hr = d3d->texture1->LockRect (0, &lock, NULL, fullupdate > 0 ? D3DLOCK_DISCARD : D3DLOCK_NO_DIRTY_UPDATE);
 	if (FAILED (hr)) {
 		write_log (_T("%s: LockRect failed: %s\n"), D3DHEAD, D3D_ErrorString (hr));
 		return NULL;
@@ -3848,7 +3887,7 @@ static uae_u8 *xD3D_locktexture (int monid, int *pitch, int *height, bool fullup
 		D3D_unlocktexture(monid, -1, -1);
 		return NULL;
 	}
-	d3d->fulllocked = fullupdate;
+	d3d->fulllocked = fullupdate > 0;
 	*pitch = lock.Pitch;
 	if (height)
 		*height = d3d->tin_h;
@@ -3886,7 +3925,7 @@ static bool xD3D_renderframe(int monid, int mode, bool immediate)
 	if (d3d->fakemode)
 		return true;
 
-	if (!isd3d (d3d) || !d3d->texture)
+	if (!isd3d (d3d) || !d3d->texture1 || !d3d->texture2)
 		return false;
 
 	if (d3d->filenotificationhandle != NULL) {
@@ -4071,7 +4110,7 @@ LPDIRECT3DSURFACE9 D3D_capture(int monid, int *w, int *h, int *bits, bool render
 		}
 		ret = d3d->screenshotsurface;
 	} else {
-		hr = d3d->texture->GetSurfaceLevel(0, &ret);
+		hr = d3d->texture1->GetSurfaceLevel(0, &ret);
 		if (FAILED(hr)) {
 			write_log(_T("%s: D3D_capture() GetSurfaceLevel() failed: %s\n"), D3DHEAD, D3D_ErrorString(hr));
 			return NULL;

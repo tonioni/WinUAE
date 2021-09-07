@@ -1601,7 +1601,7 @@ void unlockscr3d(struct vidbuffer *vb)
 	}
 }
 
-int lockscr(struct vidbuffer *vb, bool fullupdate, bool first)
+int lockscr(struct vidbuffer *vb, bool fullupdate, bool first, bool skip)
 {
 	struct AmigaMonitor *mon = &AMonitors[vb->monitor_id];
 	int ret = 0;
@@ -1620,7 +1620,7 @@ int lockscr(struct vidbuffer *vb, bool fullupdate, bool first)
 			ret = 1;
 		} else {
 			ret = 0;
-			vb->bufmem = D3D_locktexture(vb->monitor_id, &vb->rowbytes, NULL, fullupdate);
+			vb->bufmem = D3D_locktexture(vb->monitor_id, &vb->rowbytes, NULL, skip ? -1 : (fullupdate ? 1 : 0));
 			if (vb->bufmem) {
 				if (first)
 					init_row_map();
@@ -1661,7 +1661,7 @@ void flush_clear_screen (struct vidbuffer *vb)
 {
 	if (!vb)
 		return;
-	if (lockscr(vb, true, true)) {
+	if (lockscr(vb, true, true, false)) {
 		int y;
 		for (y = 0; y < vb->height_allocated; y++) {
 			memset(vb->bufmem + y * vb->rowbytes, 0, vb->width_allocated * vb->pixbytes);

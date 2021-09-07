@@ -14,7 +14,7 @@ extern void(*D3D_refresh)(int);
 extern bool(*D3D_renderframe)(int, int,bool);
 extern void(*D3D_showframe)(int);
 extern void(*D3D_showframe_special)(int, int);
-extern uae_u8* (*D3D_locktexture)(int, int*, int*, bool);
+extern uae_u8* (*D3D_locktexture)(int, int*, int*, int);
 extern void(*D3D_unlocktexture)(int, int, int);
 extern void(*D3D_flushtexture)(int, int miny, int maxy);
 extern void(*D3D_guimode)(int, int);

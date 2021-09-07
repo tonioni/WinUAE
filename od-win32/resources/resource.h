@@ -1149,7 +1149,6 @@
 #define IDC_DBG_MEM                     1756
 #define IDC_CS_COMPOSITECOLOR           1756
 #define IDC_DBG_DASM                    1757
-#define IDC_CS_OCSHBLANKBUG             1757
 #define IDC_DBG_MEMDOWNFAST             1758
 #define IDC_CS_TOSHIBAGARY              1758
 #define IDC_DBG_MEMTOPC                 1759
