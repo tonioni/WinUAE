@@ -333,8 +333,18 @@ static void bitbang_i2c_enter_stop(bitbang_i2c_interface *i2c)
 #if EEPROM_LOG
     write_log(_T("I2C STOP\n"));
 #endif
-	if (i2c->write_offset >= 0)
-		nvram_write(i2c, i2c->write_offset, 16);
+	if (i2c->write_offset >= 0) {
+		int len = i2c->size - i2c->write_offset;
+		if (len > 16) {
+			len = 16;
+		}
+		if (len > 0) {
+			nvram_write(i2c, i2c->write_offset, len);
+		}
+		if (len < 16) {
+			nvram_write(i2c, 0, 16 - len);
+		}
+	}
 	i2c->write_offset = -1;
     i2c->current_addr = -1;
     i2c->state = STOPPED;
