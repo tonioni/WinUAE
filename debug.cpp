@@ -4863,6 +4863,8 @@ static void breakfunc(uae_u32 v)
 {
 	write_log(_T("Cycle breakpoint hit\n"));
 	debugging = 1;
+	debug_vpos = -1;
+	debug_hpos = -1;
 	set_special(SPCFLAG_BRK);
 }
 
