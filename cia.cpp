@@ -1971,7 +1971,7 @@ static void cia_wait_pre(int cianummask)
 	}
 
 #ifndef CUSTOM_SIMPLE
-	int div = get_cycles() % DIV10;
+	int div = (get_cycles() - eventtab[ev_cia].oldcycles) % DIV10;
 	int cycles = DIV10 - div;
 	if (cycles) {
 		if (currprefs.cpu_memory_cycle_exact)
