@@ -34,6 +34,7 @@ extern int debug_bpl_mask, debug_bpl_mask_one;
 extern int debugger_active;
 extern int debug_illegal;
 extern uae_u64 debug_illegal_mask;
+extern int debugger_used;
 
 extern void debug (void);
 extern void debugger_change (int mode);

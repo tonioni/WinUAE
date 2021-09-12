@@ -104,6 +104,8 @@
 #include "fsdb.h"
 #include "uae/time.h"
 #include "specialmonitors.h"
+#include "debug.h"
+#include "disasm.h"
 
 const static GUID GUID_DEVINTERFACE_HID =  { 0x4D1E55B2L, 0xF16F, 0x11CF,
 { 0x88, 0xCB, 0x00, 0x11, 0x11, 0x00, 0x00, 0x30 } };
@@ -5538,6 +5540,42 @@ static void resetgui(void)
 	resetgui_pending = false;
 }
 
+static void target_load_debugger_config(void)
+{
+	int size;
+
+	disasm_flags = DISASM_FLAG_LC_MNEMO | DISASM_FLAG_LC_REG | DISASM_FLAG_LC_SIZE | DISASM_FLAG_LC_HEX | DISASM_FLAG_CC | DISASM_FLAG_EA | DISASM_FLAG_VAL | DISASM_FLAG_WORDS;
+	disasm_min_words = 5;
+	disasm_max_words = 16;
+	disasm_hexprefix[0] = '$';
+	disasm_hexprefix[1] = 0;
+
+	UAEREG *fkey = regcreatetree(NULL, _T("Debugger"));
+	if (fkey) {
+		regqueryint(fkey, _T("Disasm_flags"), &disasm_flags);
+		regqueryint(fkey, _T("Disasm_min_words"), &disasm_min_words);
+		regqueryint(fkey, _T("Disasm_max_words"), &disasm_max_words);
+		size = sizeof(disasm_hexprefix) / sizeof(TCHAR);
+		regquerystr(fkey, _T("Hex_prefix"), disasm_hexprefix, &size);
+		regclosetree(fkey);
+	}
+}
+
+static void target_save_debugger_config(void)
+{
+	if (!debugger_used) {
+		return;
+	}
+	UAEREG *fkey = regcreatetree(NULL, _T("Debugger"));
+	if (fkey) {
+		regsetint(fkey, _T("Disasm_flags"), disasm_flags);
+		regsetint(fkey, _T("Disasm_min_words"), disasm_min_words);
+		regsetint(fkey, _T("Disasm_max_words"), disasm_max_words);
+		regsetstr(fkey, _T("Hex_prefix"), disasm_hexprefix);
+		regclosetree(fkey);
+	}
+}
+
 static void WIN32_HandleRegistryStuff (void)
 {
 	RGBFTYPE colortype = RGBFB_NONE;
@@ -5678,6 +5716,7 @@ static void WIN32_HandleRegistryStuff (void)
 	associate_init_extensions ();
 	read_rom_list ();
 	load_keyring (NULL, NULL);
+	target_load_debugger_config();
 }
 
 #if WINUAEPUBLICBETA > 0
@@ -7106,6 +7145,7 @@ end:
 	closeIPC (globalipc);
 	shmem_serial_delete();
 	write_disk_history ();
+	target_save_debugger_config();
 	timeend ();
 #ifdef AVIOUTPUT
 	AVIOutput_Release ();
