@@ -216,6 +216,11 @@ void reopen_console (void)
 			newpos = 0;
 		if (newpos) {
 			RECT rc;
+			int dpi = getdpiforwindow(hwnd);
+			x = x * dpi / 96;
+			y = y * dpi / 96;
+			w = w * dpi / 96;
+			h = h * dpi / 96;
 			rc.left = x;
 			rc.top = y;
 			rc.right = x + w;
@@ -242,6 +247,11 @@ void close_console (void)
 			if (GetWindowRect (hwnd, &r)) {
 				r.bottom -= r.top;
 				r.right -= r.left;
+				int dpi = getdpiforwindow(hwnd);
+				r.left = r.left * 96 / dpi;
+				r.right = r.right * 96 / dpi;
+				r.top = r.top * 96 / dpi;
+				r.bottom = r.bottom * 96 / dpi;
 				regsetint (NULL, _T("LoggerPosX"), r.left);
 				regsetint (NULL, _T("LoggerPosY"), r.top);
 				regsetint (NULL, _T("LoggerPosW"), r.right);

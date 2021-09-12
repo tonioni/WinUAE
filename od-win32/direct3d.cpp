@@ -1294,6 +1294,7 @@ static int createamigatexture (struct d3dstruct *d3d, int w, int h)
 	d3d->texture2 = createtext(d3d, w, h, d3d->tformat);
 	if (!d3d->texture1 || !d3d->texture2)
 		return 0;
+	d3d->usetexture = d3d->texture1;
 	write_log (_T("%s: %d*%d main texture, depth %d\n"), D3DHEAD, w, h, d3d->t_depth);
 	if (d3d->psActive) {
 		for (int i = 0; i < MAX_SHADERS; i++) {
@@ -2361,6 +2362,7 @@ static void settransform2 (struct d3dstruct *d3d, struct shaderdata *s)
 
 static void freetextures (struct d3dstruct *d3d)
 {
+	d3d->usetexture = NULL;
 	if (d3d->texture2) {
 		d3d->texture2->Release();
 		d3d->texture2 = NULL;

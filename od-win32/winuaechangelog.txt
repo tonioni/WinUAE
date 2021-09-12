@@ -1,4 +1,19 @@
 
+
+Beta 33:
+
+- DMACONR blitter busy bit state is 1 cycle later than copper waking up from blitter finished. (Circle Scroller / United Force)
+- Direct3D9 mode crash was possible when switching screen modes (b32).
+- Disassembler configuration (upper/lower case options, show calculated EA, show data pointed by EA, condition true/false), hex number prefix, min and max number of opcode/opwords. Currently only available via direct ini or registry editing, first enter debugger, then quit emulator to create default entries. Debugger sub section, debug_disasm_flags is bit mask, bits 0 to 4 are lower case bits (0=instruction name, 1=registers, 2=hex values, 3=instruction size), 4=show T/F, 5=show EA, 6=show EA contents, 7=show instruction opcode/opwords. Currently they only affect disassembler output. Defaults changed to lower case.
+- Don't log flood "DMAL error" messages if (totally unusable) programmed mode with HTOTAL smaller than last audio DMA slot.
+- DMAL (Serial DMA slot allocation information from Paula to Agnus) start cycle was not updated to match new custom chipset emulation.
+- Small audio period causing repeated samples is now fully accurate, including 1 extra cycle delay if DMA request includes pointer reset (sample restart).
+- Very strange programmed modes could have made it impossible to quit emulator normally.
+- Adjusted behavior of CPU reads from write-only custom registers (Bozebobs / Area08)
+- Fixed crash when loading some old A500 statefiles with CD32 CD incorrectly enabled.
+- Adjusted "Smooth Copper" hack to work with new custom chipset emulation (not fully correct yet).
+- Console log/debugger DPI adjustment.
+
 Beta 32:
 
 - HDIW blanking could get stuck in always-on state if VPOSW was written mid screen with out of range values. (Agony Psygnosis title screen become fully border color blanked if ECS)
