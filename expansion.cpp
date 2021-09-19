@@ -3582,6 +3582,12 @@ static void expansion_add_autoconfig(struct uae_prefs *p)
 					cards_set[cardno].zorro = 2;
 					cards_set[cardno++].initnum = gfxboard_init_registers;
 				}
+				if (gfxboard_is_registers(rbc) > 1) {
+					cards_set[cardno].flags = (i << 16) | CARD_FLAG_CHILD;
+					cards_set[cardno].name = _T("Gfxboard Registers #2");
+					cards_set[cardno].zorro = 2;
+					cards_set[cardno++].initnum = gfxboard_init_registers2;
+				}
 			}
 		}
 	}

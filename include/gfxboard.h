@@ -6,11 +6,12 @@
 extern bool gfxboard_init_memory (struct autoconfig_info*);
 extern bool gfxboard_init_memory_p4_z2(struct autoconfig_info*);
 extern bool gfxboard_init_registers(struct autoconfig_info*);
+extern bool gfxboard_init_registers2(struct autoconfig_info*);
 extern void gfxboard_free (void);
 extern void gfxboard_reset (void);
 extern void gfxboard_vsync_handler (bool, bool);
 extern int gfxboard_get_configtype (struct rtgboardconfig*);
-extern bool gfxboard_is_registers (struct rtgboardconfig*);
+extern int gfxboard_is_registers (struct rtgboardconfig*);
 extern int gfxboard_get_vram_min (struct rtgboardconfig*);
 extern int gfxboard_get_vram_max (struct rtgboardconfig*);
 extern bool gfxboard_need_byteswap (struct rtgboardconfig*);
@@ -78,8 +79,8 @@ int pcem_getvramsize(void);
 #define GFXBOARD_ID_CV64_Z3 17
 #define GFXBOARD_ID_VOODOO3_PCI 18
 #define GFXBOARD_ID_S3VIRGE_PCI 19
-#define GFXBOARD_ID_VOODOO5_PCI 20
-
+#define GFXBOARD_ID_PIXEL64 20
+#define GFXBOARD_ID_VOODOO5_PCI 21
 
 struct gfxboard_mode
 {
