@@ -1,4 +1,17 @@
 
+Beta 34:
+
+- Harmnless bug causing "Negative nr_color_changes.. " log messages fixed.
+- Copper VBLANK startup was 2 cycles too early. (Previous fix was not correct)
+- Partially reverted b9 sound update that caused worse sound stability on some systems. It also makes FPS value slightly less stable.
+- Audio volume (from AUDxVOL) is only loaded to internal volume register when period counter is loaded. Volume changes during period counting don't affect audio until next period load.
+- Copper writes to AUDxDAT in non-cycle exact modes had inaccurate timing.
+- AUDxDAT undocumented feature: AUDxDAT write has 1 cycle delay, state machine==3 INTREQ test is done when period counter==1, not when it is zero.  (Thanks to ross again, another weird test set :))
+- RTG screen was not fully cleared in some situations when switching modes (b25)
+- Changed debugger "dp" to "dppc" (switch to PPC disassembly mode)
+- Ateo Pixel 64 RTG board emulation. Another Cirrus Logic based RTG board. Very quickly done, only works with recent Picasso96 versions, does not work with drivers that need ateobus.library (will be done if someone disassembles it, I am too lazy, as usual). 256 color mode has wrong colors and right edge wraps around. Does not autoswitch.
+- "Smooth Copper" works correctly again.
+
 
 Beta 33:
 

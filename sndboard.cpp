@@ -261,7 +261,7 @@ MEMORY_FUNCTIONS(uaesndboard_ram);
 static addrbank uaesndboard_ram_bank = {
 	uaesndboard_ram_lget, uaesndboard_ram_wget, uaesndboard_ram_bget,
 	uaesndboard_ram_lput, uaesndboard_ram_wput, uaesndboard_ram_bput,
-	uaesndboard_ram_xlate, uaesndboard_ram_check, NULL, _T("*"), _T("USESND memory"),
+	uaesndboard_ram_xlate, uaesndboard_ram_check, NULL, _T("*"), _T("UAESND memory"),
 	uaesndboard_ram_lget, uaesndboard_ram_wget,
 	ABFLAG_RAM | ABFLAG_THREADSAFE, 0, 0
 };
