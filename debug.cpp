@@ -5872,7 +5872,7 @@ static bool debug_line (TCHAR *input)
 				} else {
 					uae_u32 daddr;
 					int count;
-					if (*inptr == 'p') {
+					if (*inptr == 'p' && inptr[1] == 'p' && inptr[2] == 'c') {
 						ppcmode = true;
 						next_char(&inptr);
 					} else if(*inptr == 'o') {
