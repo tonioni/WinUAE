@@ -107,7 +107,7 @@ static void uae_abort (const TCHAR *format,...)
 	nomore = 1;
 }
 
-static unsigned int total_skipped = 0;
+static uae_u32 total_skipped = 0;
 
 extern int cpu_last_stop_vpos, cpu_stopped_lines;
 static int cpu_sleepmode, cpu_sleepmode_cnt;
@@ -117,7 +117,7 @@ extern float vsync_vblank, vsync_hblank;
 
 /* Events */
 
-unsigned long int vsync_cycles;
+uae_u32 vsync_cycles;
 static int extra_cycle;
 
 static int rpt_did_reset;
@@ -13408,7 +13408,7 @@ void wait_cpu_cycle_write_ce020(uaecptr addr, int mode, uae_u32 v)
 
 }
 
-void do_cycles_ce(unsigned long cycles)
+void do_cycles_ce(uae_u32 cycles)
 {
 	cycles += extra_cycle;
 	while (cycles >= CYCLE_UNIT) {
@@ -13425,7 +13425,7 @@ void do_cycles_ce(unsigned long cycles)
 	extra_cycle = cycles;
 }
 
-void do_cycles_ce020(unsigned long cycles)
+void do_cycles_ce020(uae_u32 cycles)
 {
 	unsigned long c;
 	int extra;

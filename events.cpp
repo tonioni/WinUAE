@@ -22,12 +22,12 @@
 
 static const int pissoff_nojit_value = 256 * CYCLE_UNIT;
 
-unsigned long int event_cycles, nextevent, currcycle;
+uae_u32 event_cycles, nextevent, currcycle;
 int is_syncline, is_syncline_end;
-long cycles_to_next_event;
-long max_cycles_to_next_event;
-long cycles_to_hsync_event;
-unsigned long start_cycles;
+int cycles_to_next_event;
+int max_cycles_to_next_event;
+int cycles_to_hsync_event;
+uae_u32 start_cycles;
 bool event_wait;
 
 frame_time_t vsyncmintime, vsyncmintimepre;
@@ -50,10 +50,10 @@ void events_schedule (void)
 {
 	int i;
 
-	unsigned long int mintime = ~0L;
+	uae_u32 mintime = ~0L;
 	for (i = 0; i < ev_max; i++) {
 		if (eventtab[i].active) {
-			unsigned long int eventtime = eventtab[i].evtime - currcycle;
+			uae_u32 eventtime = eventtab[i].evtime - currcycle;
 			if (eventtime < mintime)
 				mintime = eventtime;
 		}
@@ -251,7 +251,7 @@ static bool event_check_vsync(void)
 	return false;
 }
 
-void do_cycles_slow (unsigned long cycles_to_add)
+void do_cycles_slow (uae_u32 cycles_to_add)
 {
 #ifdef WITH_X86
 #if 0

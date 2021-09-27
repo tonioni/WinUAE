@@ -223,9 +223,9 @@ static uae_u32 (*x2_get_byte)(uaecptr);
 static void (*x2_put_long)(uaecptr,uae_u32);
 static void (*x2_put_word)(uaecptr,uae_u32);
 static void (*x2_put_byte)(uaecptr,uae_u32);
-static void (*x2_do_cycles)(unsigned long);
-static void (*x2_do_cycles_pre)(unsigned long);
-static void (*x2_do_cycles_post)(unsigned long, uae_u32);
+static void (*x2_do_cycles)(uae_u32);
+static void (*x2_do_cycles_pre)(uae_u32);
+static void (*x2_do_cycles_post)(uae_u32, uae_u32);
 
 uae_u32 (*x_prefetch)(int);
 uae_u32 (*x_next_iword)(void);
@@ -250,9 +250,9 @@ void (*x_cp_put_word)(uaecptr,uae_u32);
 void (*x_cp_put_byte)(uaecptr,uae_u32);
 uae_u32 (REGPARAM3 *x_cp_get_disp_ea_020)(uae_u32 base, int idx) REGPARAM;
 
-void (*x_do_cycles)(unsigned long);
-void (*x_do_cycles_pre)(unsigned long);
-void (*x_do_cycles_post)(unsigned long, uae_u32);
+void (*x_do_cycles)(uae_u32);
+void (*x_do_cycles_pre)(uae_u32);
+void (*x_do_cycles_post)(uae_u32, uae_u32);
 
 uae_u32(*x_phys_get_iword)(uaecptr);
 uae_u32(*x_phys_get_ilong)(uaecptr);
@@ -675,7 +675,7 @@ static void cputracefunc2_x_put_byte (uaecptr o, uae_u32 val)
 		write_log (_T("cputracefunc2_x_put_byte %d <> %d\n"), v, val);
 }
 
-static void cputracefunc_x_do_cycles (unsigned long cycles)
+static void cputracefunc_x_do_cycles (uae_u32 cycles)
 {
 	while (cycles >= CYCLE_UNIT) {
 		cputrace.cyclecounter += CYCLE_UNIT;
@@ -688,7 +688,7 @@ static void cputracefunc_x_do_cycles (unsigned long cycles)
 	}
 }
 
-static void cputracefunc2_x_do_cycles (unsigned long cycles)
+static void cputracefunc2_x_do_cycles (uae_u32 cycles)
 {
 	if (cputrace.cyclecounter > cycles) {
 		cputrace.cyclecounter -= cycles;
@@ -702,7 +702,7 @@ static void cputracefunc2_x_do_cycles (unsigned long cycles)
 		x_do_cycles (cycles);
 }
 
-static void cputracefunc_x_do_cycles_pre (unsigned long cycles)
+static void cputracefunc_x_do_cycles_pre (uae_u32 cycles)
 {
 	cputrace.cyclecounter_post = 0;
 	cputrace.cyclecounter_pre = 0;
@@ -719,7 +719,7 @@ static void cputracefunc_x_do_cycles_pre (unsigned long cycles)
 }
 // cyclecounter_pre = how many cycles we need to SWALLOW
 // -1 = rerun whole access
-static void cputracefunc2_x_do_cycles_pre (unsigned long cycles)
+static void cputracefunc2_x_do_cycles_pre (uae_u32 cycles)
 {
 	if (cputrace.cyclecounter_pre == -1) {
 		cputrace.cyclecounter_pre = 0;
@@ -739,7 +739,7 @@ static void cputracefunc2_x_do_cycles_pre (unsigned long cycles)
 		x_do_cycles (cycles);
 }
 
-static void cputracefunc_x_do_cycles_post (unsigned long cycles, uae_u32 v)
+static void cputracefunc_x_do_cycles_post (uae_u32 cycles, uae_u32 v)
 {
 	if (cputrace.memoryoffset < 1) {
 #if CPUTRACE_DEBUG
@@ -763,7 +763,7 @@ static void cputracefunc_x_do_cycles_post (unsigned long cycles, uae_u32 v)
 	cputrace.cyclecounter_post = 0;
 }
 // cyclecounter_post = how many cycles we need to WAIT
-static void cputracefunc2_x_do_cycles_post (unsigned long cycles, uae_u32 v)
+static void cputracefunc2_x_do_cycles_post (uae_u32 cycles, uae_u32 v)
 {
 	uae_u32 c;
 	if (cputrace.cyclecounter_post) {
@@ -777,15 +777,15 @@ static void cputracefunc2_x_do_cycles_post (unsigned long cycles, uae_u32 v)
 		x_do_cycles (c);
 }
 
-static void do_cycles_post (unsigned long cycles, uae_u32 v)
+static void do_cycles_post (uae_u32 cycles, uae_u32 v)
 {
 	do_cycles (cycles);
 }
-static void do_cycles_ce_post (unsigned long cycles, uae_u32 v)
+static void do_cycles_ce_post (uae_u32 cycles, uae_u32 v)
 {
 	do_cycles_ce (cycles);
 }
-static void do_cycles_ce020_post (unsigned long cycles, uae_u32 v)
+static void do_cycles_ce020_post (uae_u32 cycles, uae_u32 v)
 {
 	do_cycles_ce020 (cycles);
 }
@@ -1771,7 +1771,7 @@ void set_cpu_caches (bool flush)
 	flush_cpu_caches(flush);
 }
 
-STATIC_INLINE void count_instr (unsigned int opcode)
+STATIC_INLINE void count_instr (uae_u32 opcode)
 {
 }
 
@@ -1836,7 +1836,7 @@ const struct cputbl *getjitcputbl(int cpulvl, int direct)
 static void build_cpufunctbl (void)
 {
 	int i, opcnt;
-	unsigned long opcode;
+	uae_u32 opcode;
 	const struct cputbl *tbl = NULL;
 	int lvl, mode, jit;
 
@@ -2035,7 +2035,7 @@ static void build_cpufunctbl (void)
 }
 
 #define CYCLES_DIV 8192
-static unsigned long cycles_mult;
+static uae_u32 cycles_mult;
 
 static void update_68k_cycles (void)
 {
@@ -2058,9 +2058,9 @@ static void update_68k_cycles (void)
 	} else {
 		if (currprefs.m68k_speed >= 0 && !currprefs.cpu_cycle_exact && !currprefs.cpu_compatible) {
 			if (currprefs.m68k_speed_throttle < 0) {
-				cycles_mult = (unsigned long)(CYCLES_DIV * 1000 / (1000 + currprefs.m68k_speed_throttle));
+				cycles_mult = (uae_u32)(CYCLES_DIV * 1000 / (1000 + currprefs.m68k_speed_throttle));
 			} else if (currprefs.m68k_speed_throttle > 0) {
-				cycles_mult = (unsigned long)(CYCLES_DIV * 1000 / (1000 + currprefs.m68k_speed_throttle));
+				cycles_mult = (uae_u32)(CYCLES_DIV * 1000 / (1000 + currprefs.m68k_speed_throttle));
 			}
 		}
 	}
