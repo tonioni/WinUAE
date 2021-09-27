@@ -486,17 +486,17 @@ static bool isprefetch020(void)
 
 static void check_ipl(void)
 {
-	if (ipl_fetched)
-		return;
-	if (using_ce || isce020() || using_prefetch_020)
-		out("ipl_fetch();\n");
-	ipl_fetched = 1;
+	set_last_access_ipl();
 }
 
 static void check_ipl_always(void)
 {
-	if (using_ce || isce020())
+	if (using_ce) {
 		out("ipl_fetch();\n");
+	}
+	if (isce020()) {
+		out("ipl_fetch();\n");
+	}
 }
 
 static void addcycles_020(int cycles)
@@ -532,7 +532,6 @@ static void get_prefetch_020 (void)
 {
 	if (!isprefetch020() || no_prefetch_ce020)
 		return;
-	check_ipl();
 	out("regs.irc = %s(%d);\n", prefetch_opcode, m68k_pc_offset);
 }
 static void get_prefetch_020_continue(void)
@@ -1188,6 +1187,7 @@ static void irc2ir (bool dozero)
 	out("regs.ir = regs.irc;\n");
 	if (dozero)
 		out("regs.irc = 0;\n");
+	check_ipl();
 }
 static void irc2ir (void)
 {
@@ -1211,7 +1211,6 @@ static void fill_prefetch_bcc(void)
 		}
 		next_level_000();
 	}
-	set_last_access_ipl();
 	out("%s(%d);\n", prefetch_word, m68k_pc_offset + 2);
 	count_readw++;
 	check_prefetch_bus_error(m68k_pc_offset + 2, -1, 0);
@@ -1388,6 +1387,7 @@ static void fill_prefetch_full_000_special(int pctype, const char *format, ...)
 	}
 	check_prefetch_bus_error(-1, -1, -1);
 	irc2ir();
+	check_ipl_always();
 	if (using_bus_error) {
 		copy_opcode();
 		if (cpu_level == 0) {
@@ -1407,7 +1407,6 @@ static void fill_prefetch_full_000_special(int pctype, const char *format, ...)
 		va_end(parms);
 		out(outbuf);
 	}
-	set_last_access_ipl();
 	out("%s(%d);\n", prefetch_word, 2);
 	count_readw++;
 	if (pctype > 0) {
@@ -4008,7 +4007,6 @@ static void genastore_2 (const char *from, amodes mode, const char *reg, wordsiz
 						fill_prefetch_next_after(0, NULL);
 						insn_n_cycles += 4;
 					}
-					check_ipl();
 					out("%s(%sa, %s >> 16);\n", dstwx, to, from);
 					sprintf(tmp, "%s >> 16", from);
 					count_writew++;
@@ -4021,7 +4019,6 @@ static void genastore_2 (const char *from, amodes mode, const char *reg, wordsiz
 					if (flags & GF_SECONDWORDSETFLAGS) {
 						genflags(flag_logical, g_instr->size, "src", "", "");
 					}
-					check_ipl();
 					out("%s(%sa + 2, %s);\n", dstwx, to, from);
 					count_writew++;
 					check_bus_error(to, 2, 1, 1, from, 1, pcoffset);
@@ -4058,7 +4055,6 @@ static void genastore_2 (const char *from, amodes mode, const char *reg, wordsiz
 					if (store_dir > 1) {
 						fill_prefetch_next_after(0, NULL);
 					}
-					check_ipl();
 					out("%s(%sa, %s >> 16); \n", dstwx, to, from);
 					sprintf(tmp, "%s >> 16", from);
 					count_writew++;
@@ -4071,7 +4067,6 @@ static void genastore_2 (const char *from, amodes mode, const char *reg, wordsiz
 					if (flags & GF_SECONDWORDSETFLAGS) {
 						genflags(flag_logical, g_instr->size, "src", "", "");
 					}
-					check_ipl();
 					out("%s(%sa + 2, %s); \n", dstwx, to, from);
 					count_writew++;
 					check_bus_error(to, 2, 1, 1, from, 1, pcoffset);
@@ -7477,7 +7472,6 @@ static void gen_opcode (unsigned int opcode)
 		if (using_prefetch) {
 			incpc ("(uae_s32)src + 2");
 			fill_prefetch_full_000_special(2, NULL);
-			check_ipl_always();
 			if (using_ce)
 				out("return;\n");
 			else
@@ -7485,8 +7479,8 @@ static void gen_opcode (unsigned int opcode)
 		} else {
 			incpc ("(uae_s32)src + 2");
 			add_head_cycs (6);
-			fill_prefetch_full_020();
 			check_ipl_always();
+			fill_prefetch_full_020();
 			returncycles (10);
 		}
 		pop_ins_cnt();

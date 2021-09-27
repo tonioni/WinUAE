@@ -4502,11 +4502,6 @@ static int do_specialties (int cycles)
 			cputrace.cyclecounter = cputrace.cyclecounter_pre = cputrace.cyclecounter_post = 0;
 			cputrace.readcounter = cputrace.writecounter = 0;
 		}
-		if (!first)
-			x_do_cycles (currprefs.cpu_cycle_exact ? 2 * CYCLE_UNIT : 4 * CYCLE_UNIT);
-		first = false;
-		if (regs.spcflags & SPCFLAG_COPPER)
-			do_copper ();
 
 		if (m68k_interrupt_delay) {
 			unset_special(SPCFLAG_INT);
@@ -4532,6 +4527,12 @@ static int do_specialties (int cycles)
 #endif
 			}
 		}
+
+		if (!first)
+			x_do_cycles(currprefs.cpu_cycle_exact ? 2 * CYCLE_UNIT : 4 * CYCLE_UNIT);
+		first = false;
+		if (regs.spcflags & SPCFLAG_COPPER)
+			do_copper();
 
 		if (regs.spcflags & SPCFLAG_MODE_CHANGE) {
 			m68k_resumestopped();
