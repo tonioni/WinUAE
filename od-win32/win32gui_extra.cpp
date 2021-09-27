@@ -751,15 +751,28 @@ void x_DestroyWindow(HWND hwnd, struct newresource *res)
 	for (int i = 0; res->hwndcnt; i++) {
 		struct newreswnd *pr = &res->hwnds[i];
 		if (res->hwnds[i].hwnd == hwnd) {
-			res->hwndcnt--;
-			int tomove = res->hwndcnt - i;
-			if (tomove > 0) {
-				memmove(&res->hwnds[i], &res->hwnds[i + 1], tomove * sizeof(newreswnd));
+			while (i + 1 < res->hwndcnt) {
+				res->hwnds[i] = res->hwnds[i + 1];
+				i++;
 			}
+			res->hwndcnt--;
+			res->hwnds[res->hwndcnt].hwnd = NULL;
+			res->hwnds[res->hwndcnt].x = res->hwnds[res->hwndcnt].y = res->hwnds[res->hwndcnt].w = res->hwnds[res->hwndcnt].h = 0;
 			break;
 		}
 	}
 	DestroyWindow(hwnd);
+	if (res->child) {
+		struct newresource *cres = res->child;
+		if (cres->dinfo.hUserFont) {
+			DeleteObject(cres->dinfo.hUserFont);
+			cres->dinfo.hUserFont = NULL;
+		}
+		if (cres->dinfo.hMenu) {
+			DeleteObject(cres->dinfo.hMenu);
+			cres->dinfo.hMenu = NULL;
+		}
+	}
 }
 
 static int align (double f)
