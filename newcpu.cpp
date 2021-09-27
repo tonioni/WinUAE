@@ -7536,21 +7536,27 @@ void exception2_fetch(uae_u32 opcode, int offset, int pcoffset)
 }
 
 
-void cpureset (void)
+bool cpureset (void)
 {
     /* RESET hasn't increased PC yet, 1 word offset */
 	uaecptr pc;
 	uaecptr ksboot = 0xf80002 - 2;
 	uae_u16 ins;
 	addrbank *ab;
+	bool extreset = false;
 
 	maybe_disable_fpu();
 	m68k_reset_delay = currprefs.reset_delay;
 	set_special(SPCFLAG_CHECK);
 	send_internalevent(INTERNALEVENT_CPURESET);
+	if (cpuboard_forced_hardreset()) {
+		custom_reset_cpu(false, false);
+		m68k_reset();
+		return true;
+	}
 	if ((currprefs.cpu_compatible || currprefs.cpu_memory_cycle_exact) && currprefs.cpu_model <= 68020) {
 		custom_reset_cpu(false, false);
-		return;
+		return false;
 	}
 	pc = m68k_getpc () + 2;
 	ab = &get_mem_bank (pc);
@@ -7560,7 +7566,7 @@ void cpureset (void)
 		custom_reset_cpu(false, false);
 		// did memory disappear under us?
 		if (ab == &get_mem_bank (pc))
-			return;
+			return false;
 		// it did
 		if ((ins & ~7) == 0x4ed0) {
 			int reg = ins & 7;
@@ -7569,7 +7575,7 @@ void cpureset (void)
 				addr += 0xf80000;
 			write_log (_T("reset/jmp (ax) combination at %08x emulated -> %x\n"), pc, addr);
 			m68k_setpc_normal (addr - 2);
-			return;
+			return false;
 		}
 	}
 	// the best we can do, jump directly to ROM entrypoint
@@ -7577,6 +7583,7 @@ void cpureset (void)
 	write_log (_T("CPU Reset PC=%x (%s), invalid memory -> %x.\n"), pc, ab->name, ksboot + 2);
 	custom_reset_cpu(false, false);
 	m68k_setpc_normal (ksboot);
+	return false;
 }
 
 

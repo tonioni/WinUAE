@@ -6599,8 +6599,11 @@ static void gen_opcode (unsigned int opcode)
 		next_level_000();
 		break;
 	case i_RESET:
-		out("cpureset();\n");
+		out("bool r = cpureset();\n");
 		addcycles000(128);
+		out("if (r) {\n");
+		write_return_cycles(0);
+		out("}\n");
 		fill_prefetch_next_t();
 		break;
 	case i_NOP:

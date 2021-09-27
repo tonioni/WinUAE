@@ -1721,6 +1721,14 @@ void cpuboard_map(void)
 	}
 }
 
+bool cpuboard_forced_hardreset(void)
+{
+	if (is_blizzardppc(&currprefs)) {
+		return true;
+	}
+	return false;
+}
+
 void cpuboard_reset(int hardreset)
 {
 #if 0
@@ -1743,6 +1751,7 @@ void cpuboard_reset(int hardreset)
 	}
 	if (hardreset || is_keyboardreset())
 		a2630_io = 0;
+
 	flash_unlocked = 0;
 	cpuboard_non_byte_ea = false;
 
