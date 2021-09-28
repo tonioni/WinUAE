@@ -5817,7 +5817,7 @@ const struct expansionromtype expansionroms[] = {
 #ifndef NDEBUG
 	{
 		_T("dev_ide"), _T("DEV IDE"), NULL,
-		NULL, dev_hd_init, NULL, dev_hd_add_ide_unit, ROMTYPE_DEVHD | ROMTYPE_NOT, 0, 0, BOARD_NONAUTOCONFIG_BEFORE, true,
+		NULL, dev_hd_init, NULL, dev_hd_add_ide_unit, ROMTYPE_DEVHD | ROMTYPE_NONE, 0, 0, BOARD_AUTOCONFIG_Z2, true,
 		NULL, 0,
 		false, EXPANSIONTYPE_CUSTOM | EXPANSIONTYPE_IDE | EXPANSIONTYPE_SCSI,
 		0, 0, 0, false, NULL,

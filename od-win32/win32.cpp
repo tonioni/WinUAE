@@ -2729,6 +2729,7 @@ static LRESULT CALLBACK MainWindowProc (HWND hWnd, UINT message, WPARAM wParam, 
 		return 0;
 
 	case WM_POWERBROADCAST:
+		write_log("POWERBROADCAST: %08x %08x %08x\n", message, lParam, wParam);
 		if (wParam == PBT_APMRESUMEAUTOMATIC) {
 			setsystime ();
 			return TRUE;

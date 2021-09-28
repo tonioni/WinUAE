@@ -1,4 +1,12 @@
 
+Beta 35:
+
+- Adjusted 68000 IPL sampling timing. (Spectre Party / Phenomena, F1GP by MicroValue. Not Microprose!)
+- Blizzard PPC: if RESET m68k instruction executed, apparently board logic also forces external CPU reset.
+- Fixed GDI handle leak (GUI panel change always leaked 2 font handles)
+- Updated GUI tab order.
+- If emulator was started by selecting statefile and GUI was opened after starting emulation, every time GUI Misc panel was opened, selected statefile was set to reload when GUI exited. (b31?)
+
 Beta 34:
 
 - Harmnless bug causing "Negative nr_color_changes.. " log messages fixed.

@@ -603,6 +603,9 @@ static int get_ivst500at_reg(uaecptr addr, struct ide_board *board, int *portnum
 static int get_dev_hd_reg(uaecptr addr, struct ide_board* board)
 {
 	int reg = -1;
+	if (addr & 0x8000) {
+		return -1;
+	}
 	if (addr >= dev_hd_io_base && addr < dev_hd_io_base + dev_hd_io_total) {
 		reg = (addr - dev_hd_io_base) / dev_hd_io_size;
 		reg &= 7;
@@ -993,9 +996,30 @@ static uae_u32 ide_read_byte(struct ide_board *board, uaecptr addr)
 
 	} else if (board->type == DEV_IDE) {
 
-		int reg = get_dev_hd_reg(addr, board);
-		if (reg >= 0) {
-			v = get_ide_reg(board, reg);
+		if (addr == 0x88) {
+			v = 0xff;
+		} else if (addr == 0x86 || addr == 0x90 || addr == 0x92 || addr == 0x94 || addr == 0x96) {
+			if (addr == 0x86) {
+				board->dma_ptr = 0x80;
+				board->dma_cnt = 1;
+			}
+			v = board->rom[board->dma_ptr * 2 + 0x8000];
+			board->dma_ptr++;
+			if (board->dma_cnt == 1) {
+				uae_u8 v2 = board->rom[board->dma_ptr * 2 + 0x8000];
+				board->dma_ptr++;
+				if (v != (v2 ^ 0xff)) {
+					write_log("error!\n");
+				}
+				board->dma_cnt = 0;
+			}
+		} else {
+			int reg = get_dev_hd_reg(addr, board);
+			if (reg >= 0) {
+				v = get_ide_reg(board, reg);
+			} else {
+				v = board->rom[addr];
+			}
 		}
 	}
 
@@ -1606,9 +1630,18 @@ static void ide_write_byte(struct ide_board *board, uaecptr addr, uae_u8 v)
 
 		} else if (board->type == DEV_IDE) {
 
-			int reg = get_dev_hd_reg(addr, board);
-			if (reg >= 0) {
-				put_ide_reg(board, reg, v);
+			if (addr == 0x86) {
+				board->dma_ptr = 0;
+				board->dma_cnt = 0;
+			} else if (addr == 0x90 || addr == 0x92 || addr == 0x94 || addr == 0x96) {
+				board->dma_ptr <<= 8;
+				board->dma_ptr |= v;
+				board->dma_ptr &= 0xffffff;
+			} else {
+				int reg = get_dev_hd_reg(addr, board);
+				if (reg >= 0) {
+					put_ide_reg(board, reg, v);
+				}
 			}
 
 		}
@@ -2947,29 +2980,57 @@ void dotto_add_ide_unit(int ch, struct uaedev_config_info *ci, struct romconfig 
 	add_ide_standard_unit(ch, ci, rc, dotto_board, DOTTO_IDE, false, true, 2);
 }
 
+static const uae_u8 dev_autoconfig[16] = { 0xd1, 1, 0x00, 0x00, 0x77, 0x77, 0x00, 0x00, 0x00, 0x00, 0x80, 0x00 };
+
 bool dev_hd_init(struct autoconfig_info* aci)
 {
+	bool ac = true;
 	const struct expansionromtype* ert = get_device_expansion_rom(ROMTYPE_DEVHD);
 	ide_add_reset();
 
-	// fake
-	aci->start = 0xe90000;
-	aci->size = 0x10000;
+	uae_u8 *rom = xcalloc(uae_u8, 65536);
+	load_rom_rc(aci->rc, ROMTYPE_DEVHD, 32768, 0, rom, 65536, LOADROM_EVENONLY_ODDONE);
+	memcpy(rom + 0x8000, rom, 0x8000);
+
+	if (!ac) {
+		// fake
+		aci->start = 0xe90000;
+		aci->size = 0x10000;
+	}
 	dev_hd_io_base = 0x4000;
 	dev_hd_io_size = 4;
 	dev_hd_data_base = 0x4800;
 	dev_hd_io_secondary = 0x1000;
 	dev_hd_io_total = 8 * 4;
+
 	if (!aci->doinit) {
+		if (ac) {
+			aci->autoconfigp = dev_autoconfig;
+		}
+		xfree(rom);
 		return true;
 	}
+
 	struct ide_board *ide = getide(aci);
+
+	if (ac) {
+		for (int i = 0; i < 16; i++) {
+			uae_u8 b = dev_autoconfig[i];
+			ew(ide, i * 4, b);
+		}
+	}
 
 	ide->bank = &ide_bank_generic;
 	ide->mask = 65536 - 1;
-	ide->configured = 1;
-	ide->baseaddress = aci->start;
-	map_banks(ide->bank, aci->start >> 16, aci->size >> 16, 0);
+	ide->keepautoconfig = true;
+	ide->rom = rom;
+	memcpy(ide->rom, ide->acmemory, 128);
+
+	if (!ac) {
+		ide->baseaddress = aci->start;
+		ide->configured = 1;
+		map_banks(ide->bank, aci->start >> 16, aci->size >> 16, 0);
+	}
 
 	aci->addrbank = ide->bank;
 	return true;

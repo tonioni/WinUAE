@@ -12353,6 +12353,7 @@ static INT_PTR MiscDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
 	int v, i;
 	static int recursive;
+	TCHAR tmp[MAX_DPATH];
 
 	if (recursive)
 		return FALSE;
@@ -12438,27 +12439,30 @@ static INT_PTR MiscDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 				switch (LOWORD (wParam))
 				{
 				case IDC_STATENAME:
-					if (HIWORD(wParam) != CBN_EDITCHANGE && getcomboboxtext(hDlg, IDC_STATENAME, savestate_fname, sizeof savestate_fname / sizeof(TCHAR))) {
-						if (savestate_fname[0]) {
-							parsefilepath(savestate_fname, sizeof savestate_fname / sizeof(TCHAR));
-							savestate_state = STATE_DORESTORE;
-							if (!my_existsfile(savestate_fname)) {
-								TCHAR t[MAX_DPATH];
-								_tcscpy(t, savestate_fname);
-								_tcscat(savestate_fname, _T(".uss"));
+					if (HIWORD(wParam) != CBN_EDITCHANGE && getcomboboxtext(hDlg, IDC_STATENAME, tmp, sizeof tmp / sizeof(TCHAR))) {
+						if (tmp[0]) {
+							parsefilepath(tmp, sizeof tmp / sizeof(TCHAR));
+							if (_tcscmp(tmp, savestate_fname)) {
+								_tcscpy(savestate_fname, tmp);
+								savestate_state = STATE_DORESTORE;
 								if (!my_existsfile(savestate_fname)) {
-									fetch_statefilepath(savestate_fname, sizeof(t) / sizeof(MAX_DPATH));
-									_tcscat(savestate_fname, t);
+									TCHAR t[MAX_DPATH];
+									_tcscpy(t, savestate_fname);
+									_tcscat(savestate_fname, _T(".uss"));
 									if (!my_existsfile(savestate_fname)) {
-										_tcscat(savestate_fname, _T(".uss"));
+										fetch_statefilepath(savestate_fname, sizeof(t) / sizeof(MAX_DPATH));
+										_tcscat(savestate_fname, t);
 										if (!my_existsfile(savestate_fname)) {
-											_tcscpy(savestate_fname, t);
+											_tcscat(savestate_fname, _T(".uss"));
+											if (!my_existsfile(savestate_fname)) {
+												_tcscpy(savestate_fname, t);
+											}
 										}
 									}
 								}
+								_tcscpy(workprefs.statefile, savestate_fname);
+								setstatefilename(hDlg);
 							}
-							_tcscpy(workprefs.statefile, savestate_fname);
-							setstatefilename(hDlg);
 						}
 					}
 					break;

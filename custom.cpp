@@ -11018,7 +11018,7 @@ static void hsync_handler_post(bool onvsync)
 	// vblank interrupt = next line after VBSTRT
 	if (vb_start_line == 1) {
 		// first refresh (strobe) slot triggers vblank interrupt
-		send_interrupt(5, (REFRESH_FIRST_HPOS - 1) * CYCLE_UNIT);
+		send_interrupt(5, (REFRESH_FIRST_HPOS + 1) * CYCLE_UNIT);
 	}
 	// lastline - 1?
 	if (vpos + 1 == maxvpos + lof_store || vpos + 1 == maxvpos + lof_store + 1) {
