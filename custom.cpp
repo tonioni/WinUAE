@@ -13427,7 +13427,7 @@ void do_cycles_ce(uae_u32 cycles)
 
 void do_cycles_ce020(uae_u32 cycles)
 {
-	unsigned long c;
+	uae_u32 c;
 	int extra;
 
 	if (!cycles) {
