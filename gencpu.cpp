@@ -3716,6 +3716,7 @@ static void genamode2x (amodes mode, const char *reg, wordsizes size, const char
 					out("uae_s32 %s = %s(%sa + 2);\n", name, srcwx, name);
 					count_readw++;
 					check_bus_error(name, 0, 0, 1, NULL, 1, 0);
+					set_last_access_ipl_prev();
 					out("%s |= %s(%sa) << 16; \n", name, srcwx, name);
 					count_readw++;
 					check_bus_error(name, -2, 0, 1, NULL, 1, 0);
@@ -3723,6 +3724,7 @@ static void genamode2x (amodes mode, const char *reg, wordsizes size, const char
 					out("uae_s32 %s = %s(%sa) << 16;\n", name, srcwx, name);
 					count_readw++;
 					check_bus_error(name, 0, 0, 1, NULL, 1, 0);
+					set_last_access_ipl_prev();
 					out("%s |= %s(%sa + 2); \n", name, srcwx, name);
 					count_readw++;
 					check_bus_error(name, 2, 0, 1, NULL, 1, 0);
@@ -3900,8 +3902,6 @@ static void genastore_2 (const char *from, amodes mode, const char *reg, wordsiz
 		check_address_error(to, mode, reg, size, 2, 0, flags);
 	}
 
-	set_last_access_ipl_prev();
-
 	switch (mode) {
 	case Dreg:
 		switch (size) {
@@ -3943,6 +3943,8 @@ static void genastore_2 (const char *from, amodes mode, const char *reg, wordsiz
 		const char *dstbx = !(flags & GF_FC) ? dstb : "dfc_nommu_put_byte";
 		const char *dstwx = !(flags & GF_FC) ? dstw : "dfc_nommu_put_word";
 		const char *dstlx = !(flags & GF_FC) ? dstl : "dfc_nommu_put_long";
+
+		set_last_access_ipl_prev();
 		if (!(flags & GF_NOFAULTPC))
 			gen_set_fault_pc (false, false);
 		if (using_mmu) {
@@ -4493,6 +4495,7 @@ static void genmovemel(uae_u16 opcode)
 		if (table68k[opcode].dmode == Aipi) {
 			out("m68k_areg(regs, dstreg) = srca;\n");
 		}
+		set_last_access_ipl_prev();
 		if (cpu_level <= 1) {
 			out("%s(srca);\n", srcw); // and final extra word fetch that goes nowhere..
 			count_readw++;
@@ -4568,6 +4571,7 @@ static void genmovemel_ce(uae_u16 opcode)
 		out("amask = movem_next[amask];\n");
 		out("}\n");
 	}
+	set_last_access_ipl_prev();
 	out("%s(srca);\n", srcw); // and final extra word fetch that goes nowhere..
 	count_readw++;
 	check_bus_error("src", 0, 0, 1, NULL, 1, -1);
@@ -4675,6 +4679,7 @@ static void genmovemle(uae_u16 opcode)
 			next_level_020_to_010();
 	}
 	count_ncycles++;
+	set_last_access_ipl_prev();
 	fill_prefetch_next_t();
 	get_prefetch_020();
 }
@@ -4783,6 +4788,7 @@ static void genmovemle_ce (uae_u16 opcode)
 		}
 	}
 	count_ncycles++;
+	set_last_access_ipl_prev();
 	fill_prefetch_next_t();
 }
 
