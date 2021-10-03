@@ -1,4 +1,13 @@
 
+Beta 36:
+
+- Lores Display panel resolution mode: horizontal DIW values had wrong masking, bitplane left/right edge missed 1 pixel row or had 1 pixel row too much. (b29)
+- 68000 IPL timing adjustment, IPL copy seems to be done when CPU is going to do read/write data during second part of memory cycle if followed by prefetch memory access. Previously it was after memory access which seems to be too late.
+- Horizontal mid screen HAM mode enable/disable combined with resolution change didn't anymore work correctly (Runaway / 2000AD, "Use joystick to move scroller!!" part) 
+- Fixed "box art" window image filehandle leak.
+- Warp mode was much slower in Direct3D 9 compared to Direct3D 11.
+- Don't emulate chipset emulation interrupt delays if not approximate/more compatible CPU speed. Delays are far too large in fast modes where chipset/chip ram accesses have unrestricted speeds. Fixes random hangs when formatting/writing to floppies.
+
 Beta 35:
 
 - Adjusted 68000 IPL sampling timing. (Spectre Party / Phenomena, F1GP by MicroValue. Not Microprose!)
