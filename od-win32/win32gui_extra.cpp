@@ -5,6 +5,7 @@
 #include <commctrl.h>
 #include <Dwmapi.h>
 #include <shellscalingapi.h>
+#include <shlwapi.h>
 
 #include "sysconfig.h"
 #include "sysdeps.h"
@@ -1620,7 +1621,6 @@ bool show_box_art(const TCHAR *path, const TCHAR *configpath)
 			if (total_images >= MAX_BOX_ART_IMAGES)
 				break;
 			images[cnt] = NULL;
-			Gdiplus::Image *image;
 			TCHAR metafile[MAX_DPATH];
 			metafile[0] = 0;
 
@@ -1671,33 +1671,50 @@ bool show_box_art(const TCHAR *path, const TCHAR *configpath)
 				_tcscat(tmp1, _T(".png"));
 			}
 
-			image = Gdiplus::Image::FromFile(tmp1);
-			// above returns out of memory if file does not exist!
-			if (image->GetLastStatus() != Gdiplus::Ok) {
-				_tcscpy(tmp1 + _tcslen(tmp1) - 3, _T("jpg"));
-				image = Gdiplus::Image::FromFile(tmp1);
+			Gdiplus::Image *image = NULL;
+			for (int imgtype = 0; imgtype < 2 && !image; imgtype++) {
+				if (imgtype == 1) {
+					_tcscpy(tmp1 + _tcslen(tmp1) - 3, _T("jpg"));
+				}
+				int outlen = 0;
+				uae_u8 *filedata = zfile_load_file(tmp1, &outlen);
+				if (filedata) {
+					IStream *stream = SHCreateMemStream(filedata, outlen);
+					if (stream) {
+						image = Gdiplus::Image::FromStream(stream);
+						if (image && image->GetLastStatus() != Gdiplus::Ok) {
+							delete image;
+							image = NULL;
+						}
+						stream->Release();
+					}
+					xfree(filedata);
+				}
 			}
-			if (image->GetLastStatus() == Gdiplus::Ok) {
+			if (image) {
 				int w = image->GetWidth();
 				int h = image->GetHeight();
 				write_log(_T("Image '%s' loaded %d*%d\n"), tmp1, w, h);
 				struct imagedata *img = xcalloc(struct imagedata, 1);
-				img->image = image;
-				if (metafile[0]) {
-					img->metafile = my_strdup(metafile);
+				if (img) {
+					img->image = image;
+					if (metafile[0]) {
+						img->metafile = my_strdup(metafile);
+					}
+					images[cnt++] = img;
+					if (total_images < max_visible_boxart_images) {
+						if (w > max_width)
+							max_width = w;
+						total_height += h;
+						total_images++;
+					}
+					image = NULL;
 				}
-				images[cnt++] = img;
-				if (total_images < max_visible_boxart_images) {
-					if (w > max_width)
-						max_width = w;
-					total_height += h;
-					total_images++;
+				if (image) {
+					delete image;
+					break;
 				}
-			} else {
-				delete image;
-				break;
 			}
-			image = NULL;
 		}
 	}
 	images[cnt] = NULL;
@@ -1796,8 +1813,8 @@ LRESULT CALLBACK BoxArtWindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM
 			HDC hDC = BeginPaint(hWnd, &ps);
 			boxartpaint(hDC, hWnd);
 			EndPaint(hWnd, &ps);
+			return 0;
 		}
-		break;
 		case WM_CLOSE:
 			close_box_art_window();
 		return 0;
