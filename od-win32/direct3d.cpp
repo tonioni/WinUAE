@@ -3963,14 +3963,12 @@ static void xD3D_showframe (int monid)
 	if (!isd3d (d3d))
 		return;
 	if (currprefs.turbo_emulation) {
-		if ((!(d3d->dpp.PresentationInterval & D3DPRESENT_INTERVAL_IMMEDIATE) || d3d->variablerefresh) && d3d->wasstilldrawing_broken) {
-			static int frameskip;
-			static int toggle;
-			if (currprefs.turbo_emulation && frameskip-- > 0)
-				return;
-			frameskip = 10 + toggle;
-			toggle = !toggle;
-		}
+		static int frameskip;
+		static int toggle;
+		if (frameskip-- > 0)
+			return;
+		frameskip = 10 + toggle;
+		toggle = !toggle;
 		D3D_showframe2 (d3d, false);
 	} else {
 		D3D_showframe2 (d3d, true);
