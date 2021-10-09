@@ -927,6 +927,7 @@
     <ClCompile Include="..\..\ethernet.cpp" />
     <ClCompile Include="..\..\events.cpp" />
     <ClCompile Include="..\..\flashrom.cpp" />
+    <ClCompile Include="..\..\floppybridge\floppybridge_lib.cpp" />
     <ClCompile Include="..\..\fpp_native.cpp" />
     <ClCompile Include="..\..\fpp_softfloat.cpp" />
     <ClCompile Include="..\..\framebufferboards.cpp" />

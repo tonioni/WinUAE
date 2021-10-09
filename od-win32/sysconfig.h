@@ -106,6 +106,7 @@
 #define WITH_PCI
 #define WITH_X86
 #define WITH_THREADED_CPU
+#define FLOPPYBRIDGE
 
 
 #else

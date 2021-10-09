@@ -233,7 +233,7 @@ static int quickstart_ok, quickstart_ok_floppy;
 static bool firstautoloadconfig = false;
 static void addfloppytype (HWND hDlg, int n);
 static void addfloppyhistory (HWND hDlg);
-static void addhistorymenu (HWND hDlg, const TCHAR*, int f_text, int type, bool manglepath);
+static void addhistorymenu (HWND hDlg, const TCHAR*, int f_text, int type, bool manglepath, int num);
 static void addcdtype (HWND hDlg, int id);
 static void getfloppyname (HWND hDlg, int n, int cd, int f_text);
 
@@ -2538,28 +2538,41 @@ void gui_infotextbox(HWND hDlg, const TCHAR *text)
 		if (stringboxdialogactive == -1)
 			break;
 	}
-	DeleteObject (font);
+	if (font) {
+		DeleteObject(font);
+	}
 }
 
 static void infofloppy (HWND hDlg, int n)
 {
 	struct diskinfo di;
-	TCHAR tmp2[MAX_DPATH], tmp1[MAX_DPATH];
+	TCHAR tmp2[MAX_DPATH], tmp1[MAX_DPATH], tmp3[MAX_DPATH];
 	TCHAR text[20000];
 
-	DISK_examine_image (&workprefs, n, &di, true);
-	DISK_validate_filename(&workprefs, workprefs.floppyslots[n].df, tmp1, 0, NULL, NULL, NULL);
+	DISK_examine_image (&workprefs, n, &di, true, tmp3);
+	DISK_validate_filename(&workprefs, workprefs.floppyslots[n].df, n, tmp1, 0, NULL, NULL, NULL);
 
-	_stprintf (tmp2,
-		_T("'%s'\r\nDisk readable: %s\r\nDisk CRC32: %08X\r\nBoot block CRC32: %08X\r\nBoot block checksum valid: %s\r\nBoot block type: %s\r\n"),
-		tmp1,
-		di.unreadable ? _T("No") : _T("Yes"),
-		di.imagecrc32,
+	text[0] = 0;
+	if (tmp3[0]) {
+		_tcscpy(text, tmp3);
+		_tcscat(text, _T("\r\n\r\n"));
+	}
+	tmp2[0] = 0;
+	if (tmp1[0]) {
+		_stprintf(tmp2, _T("'%s'\r\n"), tmp1);
+	}
+	_stprintf (tmp2 + _tcslen(tmp2), _T("Disk readable: %s\r\n"), di.unreadable ? _T("No") : _T("Yes"));
+	if (di.image_crc_value) {
+		_stprintf(tmp2 + _tcslen(tmp2), _T("Disk CRC32: %08X\r\n"), di.imagecrc32);
+	}
+	_stprintf(tmp2 + _tcslen(tmp2),
+		_T("Boot block CRC32: %08X\r\nBoot block checksum valid: %s\r\nBoot block type: %s\r\n"),
 		di.bootblockcrc32,
 		di.bb_crc_valid ? _T("Yes") : _T("No"),
 		di.bootblocktype == 0 ? _T("Custom") : (di.bootblocktype == 1 ? _T("Standard 1.x") : _T("Standard 2.x+"))
 	);
-	_tcscpy (text, tmp2);
+
+	_tcscat(text, tmp2);
 	if (di.diskname[0]) {
 		_stprintf (tmp2,
 			_T("Label: '%s'\r\n"), di.diskname);
@@ -5966,7 +5979,7 @@ static int LoadConfigTreeView (HWND hDlg, int idx, HTREEITEM parent)
 
 static void InitializeConfig (HWND hDlg, struct ConfigStruct *config)
 {
-	addhistorymenu(hDlg, config == NULL ? _T("") : config->Name, IDC_EDITNAME, HISTORY_CONFIGFILE, false);
+	addhistorymenu(hDlg, config == NULL ? _T("") : config->Name, IDC_EDITNAME, HISTORY_CONFIGFILE, false, -1);
 	if (config == NULL) {
 		SetDlgItemText (hDlg, IDC_EDITDESCRIPTION, _T(""));
 	} else {
@@ -7270,7 +7283,7 @@ static void testimage (HWND hDlg, int num)
 	}
 	if (!workprefs.floppyslots[num].df[0])
 		return;
-	ret = DISK_examine_image (&workprefs, num, &di, false);
+	ret = DISK_examine_image (&workprefs, num, &di, false, NULL);
 	if (!ret)
 		return;
 	floppytooltip (hDlg, num, di.imagecrc32);
@@ -8822,9 +8835,9 @@ static void setgenlock(HWND hDlg)
 {
 	setautocomplete(hDlg, IDC_GENLOCKFILE);
 	if (workprefs.genlock_image == 3) {
-		addhistorymenu(hDlg, workprefs.genlock_image_file, IDC_GENLOCKFILE, HISTORY_GENLOCK_IMAGE, true);
+		addhistorymenu(hDlg, workprefs.genlock_image_file, IDC_GENLOCKFILE, HISTORY_GENLOCK_IMAGE, true, -1);
 	} else if (workprefs.genlock_image == 4 || workprefs.genlock_image >= 6) {
-		addhistorymenu(hDlg, workprefs.genlock_video_file, IDC_GENLOCKFILE, HISTORY_GENLOCK_VIDEO, true);
+		addhistorymenu(hDlg, workprefs.genlock_video_file, IDC_GENLOCKFILE, HISTORY_GENLOCK_VIDEO, true, -1);
 	}
 }
 
@@ -8924,7 +8937,7 @@ static INT_PTR CALLBACK ChipsetDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPAR
 					TCHAR *p = workprefs.genlock_image == 3 ? workprefs.genlock_image_file : workprefs.genlock_video_file;
 					getcomboboxtext(hDlg, IDC_GENLOCKFILE, p, MAX_DPATH);
 					parsefilepath(p, MAX_DPATH);
-					addhistorymenu(hDlg, p, IDC_GENLOCKFILE, workprefs.genlock_image == 3 ? HISTORY_GENLOCK_IMAGE : HISTORY_GENLOCK_VIDEO, true);
+					addhistorymenu(hDlg, p, IDC_GENLOCKFILE, workprefs.genlock_image == 3 ? HISTORY_GENLOCK_IMAGE : HISTORY_GENLOCK_VIDEO, true, -1);
 					break;
 				}
 			}
@@ -12366,7 +12379,7 @@ static INT_PTR MiscDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 		InitializeListView (hDlg);
 		values_to_miscdlg (hDlg);
 		enable_for_miscdlg (hDlg);
-		addhistorymenu(hDlg, NULL, IDC_STATENAME, HISTORY_STATEFILE, true);
+		addhistorymenu(hDlg, NULL, IDC_STATENAME, HISTORY_STATEFILE, true, -1);
 		setstatefilename(hDlg);
 		recursive--;
 		return TRUE;
@@ -13825,7 +13838,7 @@ static INT_PTR CALLBACK VolumeSettingsProc (HWND hDlg, UINT msg, WPARAM wParam, 
 				archivehd = 0;
 			recursive++;
 			setautocomplete (hDlg, IDC_PATH_NAME);
-			addhistorymenu(hDlg, current_fsvdlg.ci.rootdir, IDC_PATH_NAME, HISTORY_DIR, false);
+			addhistorymenu(hDlg, current_fsvdlg.ci.rootdir, IDC_PATH_NAME, HISTORY_DIR, false, -1);
 			SetDlgItemText (hDlg, IDC_VOLUME_NAME, current_fsvdlg.ci.volname);
 			SetDlgItemText (hDlg, IDC_VOLUME_DEVICE, current_fsvdlg.ci.devname);
 			SetDlgItemInt (hDlg, IDC_VOLUME_BOOTPRI, current_fsvdlg.ci.bootpri, TRUE);
@@ -14408,7 +14421,7 @@ static INT_PTR CALLBACK TapeDriveSettingsProc (HWND hDlg, UINT msg, WPARAM wPara
 		inithdcontroller(hDlg, current_tapedlg.ci.controller_type, current_tapedlg.ci.controller_type_unit, UAEDEV_TAPE, current_tapedlg.ci.rootdir[0] != 0);
 		SendDlgItemMessage(hDlg, IDC_HDF_CONTROLLER_UNIT, CB_SETCURSEL, current_tapedlg.ci.controller_unit, 0);
 		setautocomplete (hDlg, IDC_PATH_NAME);
-		addhistorymenu(hDlg, current_tapedlg.ci.rootdir, IDC_PATH_NAME, HISTORY_TAPE, false);
+		addhistorymenu(hDlg, current_tapedlg.ci.rootdir, IDC_PATH_NAME, HISTORY_TAPE, false, -1);
 		readonly = !tape_can_write(current_tapedlg.ci.rootdir);
 		CheckDlgButton (hDlg, IDC_TAPE_RW, current_tapedlg.ci.readonly == 0 && !readonly);
 		ew (hDlg, IDC_TAPE_RW, !readonly);
@@ -14620,10 +14633,10 @@ static INT_PTR CALLBACK HardfileSettingsProc (HWND hDlg, UINT msg, WPARAM wParam
 		setautocomplete (hDlg, IDC_PATH_NAME);
 		setautocomplete (hDlg, IDC_PATH_FILESYS);
 		setautocomplete (hDlg, IDC_PATH_GEOMETRY);
-		addhistorymenu(hDlg, current_hfdlg.ci.geometry, IDC_PATH_GEOMETRY, HISTORY_GEO, false);
+		addhistorymenu(hDlg, current_hfdlg.ci.geometry, IDC_PATH_GEOMETRY, HISTORY_GEO, false, -1);
 		inithardfile (hDlg, current_hfdlg.ci.rootdir[0] != 0);
-		addhistorymenu(hDlg, current_hfdlg.ci.rootdir, IDC_PATH_NAME, HISTORY_HDF, false);
-		addhistorymenu(hDlg, current_hfdlg.ci.filesys, IDC_PATH_FILESYS, HISTORY_FS, false);
+		addhistorymenu(hDlg, current_hfdlg.ci.rootdir, IDC_PATH_NAME, HISTORY_HDF, false, -1);
+		addhistorymenu(hDlg, current_hfdlg.ci.filesys, IDC_PATH_FILESYS, HISTORY_FS, false, -1);
 		updatehdfinfo (hDlg, true, false, false);
 		sethardfile (hDlg);
 		sethfdostype (hDlg, 0);
@@ -14668,7 +14681,7 @@ static INT_PTR CALLBACK HardfileSettingsProc (HWND hDlg, UINT msg, WPARAM wParam
 			case IDC_PATH_GEOMETRY:
 				getcomboboxtext(hDlg, IDC_PATH_GEOMETRY, current_hfdlg.ci.geometry, sizeof  current_hfdlg.ci.geometry / sizeof(TCHAR));
 				if (HIWORD (wParam) == CBN_KILLFOCUS) {
-					addhistorymenu(hDlg, current_hfdlg.ci.geometry, IDC_PATH_GEOMETRY, HISTORY_GEO, false);
+					addhistorymenu(hDlg, current_hfdlg.ci.geometry, IDC_PATH_GEOMETRY, HISTORY_GEO, false, -1);
 					sethardfile(hDlg);
 					updatehdfinfo (hDlg, true, false, false);
 				}
@@ -14683,13 +14696,13 @@ static INT_PTR CALLBACK HardfileSettingsProc (HWND hDlg, UINT msg, WPARAM wParam
 					}
 				}
 				if (HIWORD (wParam) == CBN_KILLFOCUS) {
-					addhistorymenu(hDlg, current_hfdlg.ci.rootdir, IDC_PATH_NAME, HISTORY_HDF, false);
+					addhistorymenu(hDlg, current_hfdlg.ci.rootdir, IDC_PATH_NAME, HISTORY_HDF, false, -1);
 				}
 				break;
 			case IDC_PATH_FILESYS:
 				getcomboboxtext(hDlg, IDC_PATH_FILESYS, current_hfdlg.ci.filesys, sizeof current_hfdlg.ci.filesys / sizeof(TCHAR));
 				if (HIWORD(wParam) == CBN_KILLFOCUS) {
-					addhistorymenu(hDlg, current_hfdlg.ci.filesys, IDC_PATH_FILESYS, HISTORY_FS, false);
+					addhistorymenu(hDlg, current_hfdlg.ci.filesys, IDC_PATH_FILESYS, HISTORY_FS, false, -1);
 				}
 				break;
 			}
@@ -14892,7 +14905,7 @@ static INT_PTR CALLBACK HarddriveSettingsProc (HWND hDlg, UINT msg, WPARAM wPara
 			hdf_init_target ();
 			recursive++;
 			setautocomplete (hDlg, IDC_PATH_GEOMETRY);
-			addhistorymenu(hDlg, current_hfdlg.ci.geometry, IDC_PATH_GEOMETRY, HISTORY_GEO, false);
+			addhistorymenu(hDlg, current_hfdlg.ci.geometry, IDC_PATH_GEOMETRY, HISTORY_GEO, false, -1);
 			setchecked(hDlg, IDC_HDF_PHYSGEOMETRY, current_hfdlg.ci.physical_geometry);
 			setharddrive(hDlg);
 			inithdcontroller(hDlg, current_hfdlg.ci.controller_type, current_hfdlg.ci.controller_type_unit, UAEDEV_HDF, current_hfdlg.ci.rootdir[0] != 0);
@@ -14929,7 +14942,7 @@ static INT_PTR CALLBACK HarddriveSettingsProc (HWND hDlg, UINT msg, WPARAM wPara
 				case IDC_PATH_GEOMETRY:
 					getcomboboxtext(hDlg, IDC_PATH_GEOMETRY, current_hfdlg.ci.geometry, sizeof  current_hfdlg.ci.geometry / sizeof(TCHAR));
 					if (HIWORD (wParam) == CBN_KILLFOCUS) {
-						addhistorymenu(hDlg, current_hfdlg.ci.geometry, IDC_PATH_GEOMETRY, HISTORY_GEO, false);
+						addhistorymenu(hDlg, current_hfdlg.ci.geometry, IDC_PATH_GEOMETRY, HISTORY_GEO, false, -1);
 						setharddrive(hDlg);
 						updatehdfinfo (hDlg, true, false, true);
 					}
@@ -15448,7 +15461,7 @@ static INT_PTR CALLBACK HarddiskDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPA
 		CheckDlgButton (hDlg, IDC_CD_SPEED, workprefs.cd_speed == 0);
 		InitializeListView (hDlg);
 		setautocomplete (hDlg, IDC_CD_TEXT);
-		addhistorymenu (hDlg, workprefs.cdslots[0].name, IDC_CD_TEXT, HISTORY_CD, true);
+		addhistorymenu (hDlg, workprefs.cdslots[0].name, IDC_CD_TEXT, HISTORY_CD, true, -1);
 		addcdtype (hDlg, IDC_CD_TYPE);
 		hilitehd (hDlg);
 		break;
@@ -15481,7 +15494,7 @@ static INT_PTR CALLBACK HarddiskDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPA
 			if (full_property_sheet)
 				workprefs.cdslots[0].type = SCSI_UNIT_DEFAULT;
 			addcdtype (hDlg, IDC_CD_TYPE);
-			addhistorymenu (hDlg, workprefs.cdslots[0].name, IDC_CD_TEXT, HISTORY_CD, true);
+			addhistorymenu (hDlg, workprefs.cdslots[0].name, IDC_CD_TEXT, HISTORY_CD, true, -1);
 			InitializeListView (hDlg);
 			hilitehd (hDlg);
 			break;
@@ -15511,7 +15524,7 @@ static INT_PTR CALLBACK HarddiskDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPA
 					}
 				}
 				addcdtype (hDlg, IDC_CD_TYPE);
-				addhistorymenu (hDlg, workprefs.cdslots[0].name, IDC_CD_TEXT, HISTORY_CD, true);
+				addhistorymenu (hDlg, workprefs.cdslots[0].name, IDC_CD_TEXT, HISTORY_CD, true, -1);
 				InitializeListView (hDlg);
 				hilitehd (hDlg);
 			}
@@ -15580,6 +15593,14 @@ static const int floppybuttonsq[][BUTTONSPERFLOPPY] = {
 	{ -1,-1,-1,-1,-1,-1,-1,-1 }
 };
 
+static int isfloppybridge(int type)
+{
+	if (type >= DRV_FB_A_35_DD) {
+		return type - DRV_FB_A_35_DD;
+	}
+	return -1;
+}
+
 static void floppytooltip (HWND hDlg, int num, uae_u32 crc32)
 {
 	TOOLINFO ti;
@@ -15606,7 +15627,20 @@ static void floppytooltip (HWND hDlg, int num, uae_u32 crc32)
 	SendMessage (ToolTipHWND, TTM_ADDTOOL, 0, (LPARAM) (LPTOOLINFO) &ti);
 }
 
-static void addhistorymenu(HWND hDlg, const TCHAR *text, int f_text, int type, bool manglepath)
+static void updatedfname(HWND hDlg, const TCHAR *text, int f_text, int type, int num)
+{
+	if (type == HISTORY_FLOPPY && DISK_isfloppybridge(&workprefs, num)) {
+		TCHAR text2[MAX_DPATH];
+		DISK_get_path_text(&workprefs, num, text2);
+		if (text)
+			SendDlgItemMessage(hDlg, f_text, WM_SETTEXT, 0, (LPARAM)text2);
+	} else {
+		if (text)
+			SendDlgItemMessage(hDlg, f_text, WM_SETTEXT, 0, (LPARAM)text);
+	}
+}
+
+static void addhistorymenu(HWND hDlg, const TCHAR *text, int f_text, int type, bool manglepath, int num)
 {
 	int i, j;
 	TCHAR *s;
@@ -15616,9 +15650,7 @@ static void addhistorymenu(HWND hDlg, const TCHAR *text, int f_text, int type, b
 
 	if (f_text < 0)
 		return;
-	SendDlgItemMessage (hDlg, f_text, CB_RESETCONTENT, 0, 0);
-	if (text)
-		SendDlgItemMessage (hDlg, f_text, WM_SETTEXT, 0, (LPARAM)text);
+	SendDlgItemMessage(hDlg, f_text, CB_RESETCONTENT, 0, 0);
 	fkey = read_disk_history (type);
 	if (fkey == NULL)
 		return;
@@ -15660,8 +15692,12 @@ static void addhistorymenu(HWND hDlg, const TCHAR *text, int f_text, int type, b
 		if (text && !_tcscmp (text, s))
 			curidx = i - 1;
 	}
-	if (f_text >= 0 && curidx >= 0)
-		SendDlgItemMessage (hDlg, f_text, CB_SETCURSEL, curidx, 0);
+	if (f_text >= 0) {
+		if (curidx >= 0)
+			SendDlgItemMessage(hDlg, f_text, CB_SETCURSEL, curidx, 0);
+		else 
+			updatedfname(hDlg, text, f_text, type, num);
+	}
 	regclosetree (fkey);
 }
 
@@ -15688,7 +15724,7 @@ static void addfloppyhistory (HWND hDlg)
 			TCHAR *name = workprefs.floppyslots[n].df;
 			if (iscd(n))
 				name = workprefs.cdslots[0].name;
-			addhistorymenu (hDlg, name, f_text, iscd (n) ? HISTORY_CD : HISTORY_FLOPPY, true);
+			addhistorymenu(hDlg, name, f_text, iscd(n) ? HISTORY_CD : HISTORY_FLOPPY, true, n);
 		}
 	}
 }
@@ -15723,39 +15759,133 @@ static void addcdtype (HWND hDlg, int id)
 	SendDlgItemMessage (hDlg, id, CB_SETCURSEL, cdtype, 0);
 }
 
-static int fromdfxtype(int dfx)
+static int fromdfxtype(int num, int dfx)
 {
-	if (dfx == 7)
-		dfx = 3;
-	else if (dfx >= 3)
-		dfx++;
-	dfx++;
-	return dfx;
+	switch (dfx)
+	{
+	case DRV_35_DD:
+		return 1;
+	case DRV_35_HD:
+		return 2;
+	case DRV_525_SD:
+		return 3;
+	case DRV_525_DD:
+		return 4;
+	case DRV_35_DD_ESCOM:
+		return 5;
+	}
+	if (num < 2) {
+		switch (dfx)
+		{
+		case DRV_FB_A_35_DD:
+			if (!floppybridge_has()) {
+				return 1;
+			}
+			return 6;
+		case DRV_FB_A_35_HD:
+			if (!floppybridge_has()) {
+				return 1;
+			}
+			return 7;
+		case DRV_FB_B_35_DD:
+		if (!floppybridge_has()) {
+			return 1;
+		}
+		return 8;
+		case DRV_FB_B_35_HD:
+		if (!floppybridge_has()) {
+			return 1;
+		}
+		return 9;
+	}
+} else {
+		switch (dfx)
+		{
+		case DRV_PC_525_ONLY_40:
+			return 6;
+		case DRV_PC_525_40_80:
+			return 7;
+		case DRV_PC_35_ONLY_80:
+			return 8;
+		case DRV_FB_A_35_DD:
+			if (!floppybridge_has()) {
+				return 1;
+			}
+			return 9;
+		case DRV_FB_A_35_HD:
+			if (!floppybridge_has()) {
+				return 1;
+			}
+			return 10;
+		case DRV_FB_B_35_DD:
+			if (!floppybridge_has()) {
+				return 1;
+			}
+			return 11;
+		case DRV_FB_B_35_HD:
+			if (!floppybridge_has()) {
+				return 1;
+			}
+			return 11;
+		}
+	}
+	return 0;
 }
 
-static int todfxtype(int val)
+static int todfxtype(int num, int dfx)
 {
-	val--;
-	if (val == 3)
-		val = 7;
-	else if (val > 3)
-		val--;
-	return val;
-}
-
-static int swapdrives(int v)
-{
-	if (v == 7)
-		v = 8;
-	else if (v == 8)
-		v = 7;
-	return v;
+	switch (dfx)
+	{
+	case 1:
+		return DRV_35_DD;
+	case 2:
+		return DRV_35_HD;
+	case 3:
+		return DRV_525_SD;
+	case 4:
+		return DRV_525_DD;
+	case 5:
+		return DRV_35_DD_ESCOM;
+	}
+	if (num < 2) {
+		switch (dfx)
+		{
+		case 6:
+			return DRV_FB_A_35_DD;
+		case 7:
+			return DRV_FB_A_35_HD;
+		case 8:
+			return DRV_FB_B_35_DD;
+		case 9:
+			return DRV_FB_B_35_HD;
+		}
+	} else {
+		switch (dfx)
+		{
+		case 6:
+			return DRV_PC_525_ONLY_40;
+		case 7:
+			return DRV_PC_525_40_80;
+		case 8:
+			return DRV_PC_35_ONLY_80;
+		case 9:
+			return DRV_FB_A_35_DD;
+		case 10:
+			return DRV_FB_A_35_HD;
+		case 11:
+			return DRV_FB_A_35_DD;
+		case 12:
+			return DRV_FB_A_35_HD;
+		}
+	}
+	return -1;
 }
 
 static void addfloppytype (HWND hDlg, int n)
 {
 	int state, chk;
-	int nn = fromdfxtype(workprefs.floppyslots[n].dfxtype);
+	int nn = fromdfxtype(n, workprefs.floppyslots[n].dfxtype);
+	int fb = DISK_isfloppybridge(&workprefs, n);
 	int showcd = 0;
 	TCHAR *text;
 
@@ -15816,7 +15946,7 @@ static void addfloppytype (HWND hDlg, int n)
 	else
 		state = TRUE;
 	if (f_type >= 0) {
-		SendDlgItemMessage(hDlg, f_type, CB_SETCURSEL, swapdrives(nn), 0);
+		SendDlgItemMessage(hDlg, f_type, CB_SETCURSEL, nn, 0);
 	}
 	if (f_si >= 0) {
 		TCHAR *path = DISK_get_saveimagepath(text, -2);
@@ -15824,11 +15954,11 @@ static void addfloppytype (HWND hDlg, int n)
 		xfree(path);
 	}
 	if (f_text >= 0)
-		ew (hDlg, f_text, state);
+		ew (hDlg, f_text, state && !fb);
 	if (f_eject >= 0)
-		ew (hDlg, f_eject, text[0] != 0);
+		ew (hDlg, f_eject, text[0] != 0 && !fb);
 	if (f_drive >= 0)
-		ew (hDlg, f_drive, state);
+		ew (hDlg, f_drive, state && !fb);
 	if (f_enable >= 0) {
 		if (currentpage == QUICKSTART_ID) {
 			ew (hDlg, f_enable, (n > 0 && workprefs.nr_floppies > 0) && !showcd);
@@ -15848,12 +15978,14 @@ static void addfloppytype (HWND hDlg, int n)
 		if (tmp[0])
 			SetWindowText(GetDlgItem(hDlg, f_enable), tmp);
 	}
-	chk = !showcd && disk_getwriteprotect (&workprefs, text) && state == TRUE ? BST_CHECKED : 0;
-	if (f_wp >= 0)
-		CheckDlgButton (hDlg, f_wp, chk);
+	chk = !showcd && disk_getwriteprotect (&workprefs, text, n) && state == TRUE ? BST_CHECKED : 0;
+	if (f_wp >= 0) {
+		CheckDlgButton(hDlg, f_wp, chk);
+		ew(hDlg, f_wp, !fb);
+	}
 	if (f_info >= 0)
-		ew (hDlg, f_info, text[0] != 0);
-	chk = !showcd && state && DISK_validate_filename (&workprefs, text, NULL, 0, NULL, NULL, NULL) ? TRUE : FALSE;
+		ew (hDlg, f_info, text[0] != 0 || fb);
+	chk = !showcd && state && DISK_validate_filename (&workprefs, text, n, NULL, 0, NULL, NULL, NULL) ? TRUE : FALSE;
 	if (f_wp >= 0) {
 		ew (hDlg, f_wp, chk && !workprefs.floppy_read_only);
 		if (f_wptext >= 0)
@@ -15861,16 +15993,24 @@ static void addfloppytype (HWND hDlg, int n)
 	}
 }
 
-static void getfloppytype (HWND hDlg, int n)
+static void getfloppytype(HWND hDlg, int n)
 {
+	int f_text = floppybuttons[n][0];
 	int f_type = floppybuttons[n][3];
-	LRESULT val = SendDlgItemMessage (hDlg, f_type, CB_GETCURSEL, 0, 0L);
+	LRESULT val = SendDlgItemMessage(hDlg, f_type, CB_GETCURSEL, 0, 0L);
 
-	val = swapdrives(val);
-
-	if (val != CB_ERR && workprefs.floppyslots[n].dfxtype != todfxtype(val)) {
-		workprefs.floppyslots[n].dfxtype = todfxtype(val);
-		addfloppytype (hDlg, n);
+	if (val != CB_ERR && workprefs.floppyslots[n].dfxtype != todfxtype(n, val)) {
+		workprefs.floppyslots[n].dfxtype = todfxtype(n, val);
+		workprefs.floppyslots[n].config[0] = 0;
+		for (int i = 0; i < 4; i++) {
+			if (i != n && DISK_isfloppybridge(&workprefs, i) && DISK_isfloppybridge(&workprefs, n)) {
+				workprefs.floppyslots[n].dfxtype = DRV_35_DD;
+			}
+		}
+		floppybridge_init(&workprefs);
+		addfloppytype(hDlg, n);
+		addhistorymenu(hDlg, NULL, f_text, HISTORY_FLOPPY, true, n);
+		updatedfname(hDlg, workprefs.floppyslots[n].df, f_text, HISTORY_FLOPPY, n);
 	}
 }
 static void getfloppytypeq (HWND hDlg, int n)
@@ -15896,33 +16036,42 @@ static void getfloppytypeq (HWND hDlg, int n)
 	}
 }
 
-static int getfloppybox (HWND hDlg, int f_text, TCHAR *out, int maxlen, int type)
+static int getfloppybox (HWND hDlg, int f_text, TCHAR *out, int maxlen, int type, int num)
 {
 	LRESULT val;
 	TCHAR *p;
 	int i;
 
-	out[0] = 0;
-	val = SendDlgItemMessage (hDlg, f_text, CB_GETCURSEL, 0, 0L);
-	if (val != CB_ERR) {
-		int len = SendDlgItemMessage(hDlg, f_text, CB_GETLBTEXTLEN, (WPARAM)val, 0);
-		if (len < maxlen) {
-			val = SendDlgItemMessage (hDlg, f_text, CB_GETLBTEXT, (WPARAM)val, (LPARAM)out);
-		}
+	if (num >= 0 && DISK_isfloppybridge(&workprefs, num)) {
+
+		out[0] = 0;
+
 	} else {
-		SendDlgItemMessage (hDlg, f_text, WM_GETTEXT, (WPARAM)maxlen, (LPARAM)out);
-	}
 
-	parsefilepath(out, maxlen);
-
-	i = 0;
-	while ((p = DISK_history_get (i, type))) {
-		if (!_tcscmp (p, out)) {
-			DISK_history_add (out, -1, type, 0);
-			break;
+		out[0] = 0;
+		val = SendDlgItemMessage(hDlg, f_text, CB_GETCURSEL, 0, 0L);
+		if (val != CB_ERR) {
+			int len = SendDlgItemMessage(hDlg, f_text, CB_GETLBTEXTLEN, (WPARAM)val, 0);
+			if (len < maxlen) {
+				val = SendDlgItemMessage(hDlg, f_text, CB_GETLBTEXT, (WPARAM)val, (LPARAM)out);
+			}
+		} else {
+			SendDlgItemMessage(hDlg, f_text, WM_GETTEXT, (WPARAM)maxlen, (LPARAM)out);
 		}
-		i++;
+
+		parsefilepath(out, maxlen);
+
+		i = 0;
+		while ((p = DISK_history_get(i, type))) {
+			if (!_tcscmp(p, out)) {
+				DISK_history_add(out, -1, type, 0);
+				break;
+			}
+			i++;
+		}
+
 	}
+
 	return out[0] ? 1 : 0;
 }
 
@@ -15939,7 +16088,7 @@ static void getfloppyname (HWND hDlg, int n, int cd, int f_text)
 {
 	TCHAR tmp[MAX_DPATH];
 
-	if (getfloppybox (hDlg, f_text, tmp, sizeof (tmp) / sizeof (TCHAR), cd ? HISTORY_CD : HISTORY_FLOPPY)) {
+	if (getfloppybox (hDlg, f_text, tmp, sizeof (tmp) / sizeof (TCHAR), cd ? HISTORY_CD : HISTORY_FLOPPY, n)) {
 		if (!cd) {
 			disk_insert (n, tmp);
 			_tcscpy (workprefs.floppyslots[n].df, tmp);
@@ -16094,9 +16243,16 @@ static INT_PTR CALLBACK FloppyDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARA
 				SendDlgItemMessage (hDlg, f_type, CB_ADDSTRING, 0, (LPARAM)_T("5.25\" (80)"));
 				SendDlgItemMessage (hDlg, f_type, CB_ADDSTRING, 0, (LPARAM)ft35ddescom);
 				if (i >= 2) {
-					SendDlgItemMessage(hDlg, f_type, CB_ADDSTRING, 0, (LPARAM)_T("Bridge 5.25\" 40"));
-					SendDlgItemMessage(hDlg, f_type, CB_ADDSTRING, 0, (LPARAM)_T("Bridge 5.25\" 80"));
-					SendDlgItemMessage(hDlg, f_type, CB_ADDSTRING, 0, (LPARAM)_T("Bridge 3.5\"  80"));
+					SendDlgItemMessage(hDlg, f_type, CB_ADDSTRING, 0, (LPARAM)_T("Bridgeboard 5.25\" 40"));
+					SendDlgItemMessage(hDlg, f_type, CB_ADDSTRING, 0, (LPARAM)_T("Bridgeboard 5.25\" 80"));
+					SendDlgItemMessage(hDlg, f_type, CB_ADDSTRING, 0, (LPARAM)_T("Bridgeboard 3.5\"  80"));
+				}
+				if (floppybridge_has()) {
+					floppybridge_init(&workprefs);
+					SendDlgItemMessage(hDlg, f_type, CB_ADDSTRING, 0, (LPARAM)_T("FloppyBridge A: 3.5\" DD"));
+					SendDlgItemMessage(hDlg, f_type, CB_ADDSTRING, 0, (LPARAM)_T("FloppyBridge A: 3.5\" HD"));
+					SendDlgItemMessage(hDlg, f_type, CB_ADDSTRING, 0, (LPARAM)_T("FloppyBridge B: 3.5\" DD"));
+					SendDlgItemMessage(hDlg, f_type, CB_ADDSTRING, 0, (LPARAM)_T("FloppyBridge B: 3.5\" HD"));
 				}
 			}
 			setmultiautocomplete (hDlg, df0texts);
@@ -16527,7 +16683,7 @@ static INT_PTR CALLBACK SwapperDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPAR
 
 			case IDC_DISKLISTINSERT:
 				if (entry >= 0) {
-					if (getfloppybox (hDlg, IDC_DISKTEXT, tmp, sizeof (tmp) / sizeof (TCHAR), HISTORY_FLOPPY)) {
+					if (getfloppybox (hDlg, IDC_DISKTEXT, tmp, sizeof (tmp) / sizeof (TCHAR), HISTORY_FLOPPY, -1)) {
 						_tcscpy (workprefs.dfxlist[entry], tmp);
 						addfloppyhistory (hDlg);
 						InitializeListView (hDlg);

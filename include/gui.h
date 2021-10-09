@@ -57,6 +57,7 @@ struct gui_info_drive {
 	TCHAR df[256];			/* inserted image */
 	uae_u32 crc32;			/* crc32 of image */
 	bool floppy_protected;	/* image is write protected */
+	bool floppy_inserted;   /* disk inserted */
 };
 
 struct gui_info

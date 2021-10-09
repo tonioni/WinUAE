@@ -833,6 +833,10 @@ static void cfgfile_write_str(struct zfile *f, const TCHAR *option, const TCHAR 
 {
 	cfg_dowrite(f, option, optionext, value, 0, 0, 0);
 }
+static void cfgfile_write_str_escape(struct zfile *f, const TCHAR *option, const TCHAR *value)
+{
+	cfg_dowrite(f, option, value, 0, 0, 1);
+}
 void cfgfile_dwrite_str(struct zfile *f, const TCHAR *option, const TCHAR *value)
 {
 	cfg_dowrite(f, option, value, 1, 0, 0);
@@ -1981,6 +1985,10 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 			cfgfile_write (f, tmp, _T("%d"), p->dfxclickvolume_disk[i]);
 			_stprintf (tmp, _T("floppy%dsoundvolume_empty"), i);
 			cfgfile_write (f, tmp, _T("%d"), p->dfxclickvolume_empty[i]);
+		}
+		if (p->floppyslots[i].config[0]) {
+			_stprintf(tmp, _T("floppy%dconfig"), i);
+			cfgfile_write_str_escape(f, tmp, p->floppyslots[i].config);
 		}
 		if (p->floppyslots[i].dfxtype < 0 && p->nr_floppies > i)
 			p->nr_floppies = i;
@@ -5920,6 +5928,10 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 		if (cfgfile_string(option, value, tmpbuf, p->floppyslots[i].df, sizeof p->floppyslots[i].df / sizeof(TCHAR))) {
 			if (!_tcscmp(p->floppyslots[i].df, _T(".")))
 				p->floppyslots[i].df[0] = 0;
+			return 1;
+		}
+		_stprintf(tmpbuf, _T("floppy%dconfig"), i);
+		if (cfgfile_string_escape(option, value, tmpbuf, p->floppyslots[i].config, sizeof p->floppyslots[i].config / sizeof(TCHAR))) {
 			return 1;
 		}
 	}

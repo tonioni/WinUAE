@@ -982,6 +982,9 @@
     <ClCompile Include="..\..\pcem\vid_voodoo.cpp">
       <Filter>pcem</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\floppybridge\floppybridge_lib.cpp">
+      <Filter>common</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\resources\35floppy.ico">
