@@ -5,9 +5,11 @@
 *
 * Copyright 1995 Hannu Rummukainen
 * Copyright 1995-2001 Bernd Schmidt
-* Copyright 2000-2003 Toni Wilen
+* Copyright 2000-2021 Toni Wilen
 *
 * Original High Density Drive Handling by Dr. Adil Temel (C) 2001 [atemel1@hotmail.com]
+*
+* Small modifications to support abstracted Floppy Disk "Bridges" to hardware, Copyright 2021 Robert Smith, https://amiga.robsmithdev.co.uk
 *
 */
 
@@ -3874,6 +3876,8 @@ static void disk_doupdate_predict (int startcycle)
 			continue;
 		if ((selected | disabled) & (1 << dr))
 			continue;
+		bool isempty = drive_empty(drv);
+		bool isunformatted = unformatted(drv);
 		int mfmpos = drv->mfmpos;
 		if (drv->tracktiming[0])
 			updatetrackspeed (drv, mfmpos);
@@ -3888,8 +3892,8 @@ static void disk_doupdate_predict (int startcycle)
 			countcycle += drv->trackspeed;
 			if (dskdmaen != DSKDMA_WRITE || (dskdmaen == DSKDMA_WRITE && !dma_enable)) {
 				tword <<= 1;
-				if (!drive_empty (drv)) {
-					if (unformatted (drv))
+				if (!isempty) {
+					if (isunformatted)
 						tword |= (uaerand () & 0x1000) ? 1 : 0;
 					else
 						tword |= getonebit(drv, drv->bigmfmbuf, mfmpos, &inc);
@@ -4087,6 +4091,8 @@ static void disk_doupdate_read (drive * drv, int floppybits)
 	mfmbuf[6] = 0x4444;
 	mfmbuf[7] = 0x4444;
 	*/
+	bool isempty = drive_empty(drv);
+	bool isunformatted = unformatted(drv);
 	while (floppybits >= drv->trackspeed) {
 		bool skipbit = false;
 		int inc = nextbit(drv);
@@ -4096,8 +4102,8 @@ static void disk_doupdate_read (drive * drv, int floppybits)
 
 		word <<= 1;
 
-		if (!drive_empty (drv)) {
-			if (unformatted (drv))
+		if (!isempty) {
+			if (isunformatted)
 				word |= (uaerand () & 0x1000) ? 1 : 0;
 			else
 				word |= getonebit(drv, drv->bigmfmbuf, drv->mfmpos, &inc);
@@ -4934,7 +4940,7 @@ static void floppybridge_init2(struct uae_prefs *p)
 					}
 					if (!configConfigured) {
 						bridge->setComPortAutoDetect(true);
-						bridge->setDriveCableSelection(type == DRV_FB_A_35_DD || type == DRV_FB_A_35_HD);  // on A
+						bridge->setDriveCableSelection(type == DRV_FB_B_35_DD || type == DRV_FB_B_35_HD);
 					}
 					if (!bridge->initialise()) {
 						const char *errorMessage = bridge->getLastErrorMessage();
