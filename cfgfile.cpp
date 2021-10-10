@@ -8334,11 +8334,11 @@ static void set_68020_compa (struct uae_prefs *p, int compa, int cd32)
 	switch (compa)
 	{
 	case 0:
-		p->blitter_cycle_exact = 1;
 		p->m68k_speed = 0;
 		if ((p->cpu_model == 68020 || p->cpu_model == 68030) && p->cachesize == 0) {
 			p->cpu_cycle_exact = 1;
 			p->cpu_memory_cycle_exact = 1;
+			p->blitter_cycle_exact = 1;
 			if (p->cpu_model == 68020)
 				p->cpu_clock_multiplier = 4 << 8;
 			else
@@ -8346,9 +8346,9 @@ static void set_68020_compa (struct uae_prefs *p, int compa, int cd32)
 		}
 	break;
 	case 1:
-		p->blitter_cycle_exact = 1;
 		p->m68k_speed = 0;
 		if ((p->cpu_model == 68020 || p->cpu_model == 68030) && p->cachesize == 0) {
+			p->blitter_cycle_exact = 1;
 			p->cpu_memory_cycle_exact = 1;
 			if (p->cpu_model == 68020)
 				p->cpu_clock_multiplier = 4 << 8;

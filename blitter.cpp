@@ -364,28 +364,6 @@ static void markidlecycle(int hpos)
 	}
 }
 
-static void reset_channel_mods (void)
-{
-	if (bltptxpos < 0)
-		return;
-	bltptxpos = -1;
-	switch (bltptxc)
-	{
-		case 1:
-		bltapt = bltptx;
-		break;
-		case 2:
-		bltbpt = bltptx;
-		break;
-		case 3:
-		bltcpt = bltptx;
-		break;
-		case 4:
-		bltdpt = bltptx;
-		break;
-	}
-}
-
 static void check_channel_mods(int hpos, int ch, uaecptr *pt)
 {
 	static int blit_warned = 100;
@@ -394,7 +372,14 @@ static void check_channel_mods(int hpos, int ch, uaecptr *pt)
 		return;
 	if (bltptxpos != hpos)
 		return;
-	if (ch == bltptxc) {
+	// if CPU write and non-CE: skip
+	if (bltptxc < 0) {
+		if (currprefs.cpu_model >= 68020 || !currprefs.cpu_cycle_exact) {
+			bltptxpos = -1;
+			return;
+		}
+	}
+	if (ch == bltptxc || ch == -bltptxc) {
 		if (blit_warned > 0) {
 			write_log(_T("BLITTER: %08X -> %08X write to %cPT ignored! %08x\n"), bltptx, *pt, ch + 'A' - 1, m68k_getpc());
 			blit_warned--;
@@ -1326,8 +1311,7 @@ static bool decide_blitter_maybe_write2(int until_hpos, uaecptr addr, uae_u32 va
 {
 	bool written = false;
 	int hsync = until_hpos < 0;
-	int hpos = last_blitter_hpos;
-
+	
 	if (hsync && blt_delayed_irq) {
 		if (blt_delayed_irq > 0)
 			blt_delayed_irq--;
@@ -1337,8 +1321,16 @@ static bool decide_blitter_maybe_write2(int until_hpos, uaecptr addr, uae_u32 va
 		}
 	}
 
-	if (until_hpos < 0) {
+	if (until_hpos < 0 || until_hpos > maxhpos) {
 		until_hpos = maxhpos;
+	}
+
+	if (last_blitter_hpos > until_hpos) {
+		goto end;
+	}
+
+	if (last_blitter_hpos == until_hpos) {
+		goto end;
 	}
 
 	if (immediate_blits) {
@@ -1346,9 +1338,9 @@ static bool decide_blitter_maybe_write2(int until_hpos, uaecptr addr, uae_u32 va
 			return false;
 		}
 		if (dmaen(DMA_BLITTER)) {
-			blitter_doit(hpos);
+			blitter_doit(last_blitter_hpos);
 		}
-		return false;
+		goto end;
 	}
 
 	if (log_blitter && blitter_delayed_debug) {
@@ -1357,11 +1349,11 @@ static bool decide_blitter_maybe_write2(int until_hpos, uaecptr addr, uae_u32 va
 	}
 
 	if (!blitter_cycle_exact) {
-		return false;
+		goto end;
 	}
 
-
-	while (hpos < until_hpos) {
+	while (last_blitter_hpos < until_hpos) {
+		int hpos = last_blitter_hpos;
 
 		// dma transfers and processing
 		for (;;) {
@@ -1493,22 +1485,22 @@ static bool decide_blitter_maybe_write2(int until_hpos, uaecptr addr, uae_u32 va
 
 			blt_info.blit_queued = BLITTER_MAX_PIPELINED_CYCLES;
 
-			// copper bltsize write needs one cycle (any cycle) delay
-			// does not need free bus
-			if (blit_waitcyclecounter > 0) {
-				blit_waitcyclecounter--;
-				markidlecycle(hpos);
-				break;
-			}
-
-			// final D idle cycle
-			// does not need free bus
-			if (blt_info.blit_finald > 1) {
-				blt_info.blit_finald--;
-			}
-
 			// cycle allocations
 			for (;;) {
+				// copper bltsize write needs one cycle (any cycle) delay
+				// does not need free bus
+				if (blit_waitcyclecounter > 0) {
+					blit_waitcyclecounter--;
+					markidlecycle(hpos);
+					break;
+				}
+
+				// final D idle cycle
+				// does not need free bus
+				if (blt_info.blit_finald > 1) {
+					blt_info.blit_finald--;
+				}
+
 				bool cant = blitter_cant_access(hpos);
 				if (cant) {
 					blit_misscyclecounter++;
@@ -1516,10 +1508,10 @@ static bool decide_blitter_maybe_write2(int until_hpos, uaecptr addr, uae_u32 va
 				}
 
 				// CPU steals the cycle if CPU has waited long enough and current cyle is not free.
-				if (!(dmacon & DMA_BLITPRI) && blt_info.nasty_cnt >= BLIT_NASTY_CPU_STEAL_CYCLE_COUNT && ((cycle_line_slot[hpos] & CYCLE_MASK) != 0 || bitplane_dma_access(hpos, 0) != 0)) {
+				if (!(dmacon & DMA_BLITPRI) && blt_info.nasty_cnt >= BLIT_NASTY_CPU_STEAL_CYCLE_COUNT && currprefs.cpu_memory_cycle_exact && ((cycle_line_slot[hpos] & CYCLE_MASK) != 0 || bitplane_dma_access(hpos, 0) != 0)) {
 					int offset = get_rga_pipeline(hpos, RGA_PIPELINE_OFFSET_BLITTER);
+					blitter_pipe[offset] = CYCLE_PIPE_BLITTER | CYCLE_PIPE_CPUSTEAL;
 					cycle_line_pipe[offset] = CYCLE_PIPE_BLITTER | CYCLE_PIPE_CPUSTEAL;
-					blitter_pipe[offset] = cycle_line_pipe[offset];
 					blt_info.nasty_cnt = -1;
 					break;
 				}
@@ -1528,7 +1520,7 @@ static bool decide_blitter_maybe_write2(int until_hpos, uaecptr addr, uae_u32 va
 					// final D write
 					int offset = get_rga_pipeline(hpos, RGA_PIPELINE_OFFSET_BLITTER);
 					cycle_line_pipe[offset] = CYCLE_PIPE_BLITTER;
-					blitter_pipe[offset] = cycle_line_pipe[offset] | 4 | BLITTER_PIPELINE_ADDMOD | BLITTER_PIPELINE_LASTD;
+					blitter_pipe[offset] = CYCLE_PIPE_BLITTER | 4 | BLITTER_PIPELINE_ADDMOD | BLITTER_PIPELINE_LASTD;
 					if (currprefs.chipset_mask & CSMASK_AGA) {
 						blitter_done_all(hpos);
 					}
@@ -1589,7 +1581,6 @@ static bool decide_blitter_maybe_write2(int until_hpos, uaecptr addr, uae_u32 va
 					}
 
 					// finished?
-					uae_u16 clv = CYCLE_PIPE_BLITTER;
 					if (blit_cyclecounter < -CYCLECOUNT_START) {
 						v |= BLITTER_PIPELINE_FINISHED;
 						if (!blt_info.blit_main) {
@@ -1605,7 +1596,7 @@ static bool decide_blitter_maybe_write2(int until_hpos, uaecptr addr, uae_u32 va
 						}
 					}
 
-					cycle_line_pipe[offset] = clv;
+					cycle_line_pipe[offset] = CYCLE_PIPE_BLITTER;
 					blitter_pipe[offset] = v;
 				}
 				break;
@@ -1613,11 +1604,12 @@ static bool decide_blitter_maybe_write2(int until_hpos, uaecptr addr, uae_u32 va
 
 		}
 
-		hpos++;
+		last_blitter_hpos++;
 		bltptxpos = -1;
 	}
 
-	last_blitter_hpos = until_hpos;
+end:
+	bltptxpos = -1;
 	if (hsync) {
 		last_blitter_hpos = 0;
 	}
@@ -2018,6 +2010,8 @@ void blitter_slowdown (int ddfstrt, int ddfstop, int totalcycles, int freecycles
 void blitter_reset (void)
 {
 	bltptxpos = -1;
+	blitter_cycle_exact = currprefs.blitter_cycle_exact;
+	immediate_blits = currprefs.immediate_blits;
 }
 
 #ifdef SAVESTATE
