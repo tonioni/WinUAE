@@ -2079,10 +2079,8 @@ static bool get_record_dma_info(struct dma_rec *dr, int hpos, int vpos, uae_u32 
 			l3[cl2++] = 'b';
 		if (dr->evt & DMA_EVENT_BPLFETCHUPDATE)
 			l3[cl2++] = 'p';
-		if (dr->evt & DMA_EVENT_COPPERWAKE)
+		if (dr->evt & (DMA_EVENT_COPPERWAKE | DMA_EVENT_COPPERSKIP))
 			l3[cl2++] = 'W';
-		if (dr->evt & DMA_EVENT_COPPERSKIP)
-			l3[cl2++] = 'S';
 		if (dr->evt & DMA_EVENT_NOONEGETS) {
 			l3[cl2++] = '#';
 		} else if (dr->evt & DMA_EVENT_COPPERWANTED) {

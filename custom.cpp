@@ -8113,25 +8113,6 @@ static void do_copper_fetch(int hpos, uae_u8 id)
 {
 	if (id == COPPER_CYCLE_IDLE) {
 		// copper allocated cycle without DMA request
-		switch (cop_state.state)
-		{
-			case COP_wait:
-#ifdef DEBUGGER
-			if (debug_dma)
-				record_dma_event(DMA_EVENT_COPPERWAKE, hpos, vpos);
-			if (debug_copper)
-				record_copper(cop_state.ip - 4, 0xffffffff, cop_state.ir[0], cop_state.ir[1], hpos, vpos);
-#endif
-			break;
-			case COP_skip:
-#ifdef DEBUGGER
-			if (debug_dma && cop_state.ignore_next > 0)
-				record_dma_event(DMA_EVENT_COPPERSKIP, hpos, vpos);
-			if (debug_copper)
-				record_copper(cop_state.ip - 4, 0xffffffff, cop_state.ir[0], cop_state.ir[1], hpos, vpos);
-#endif
-			break;
-		}
 		alloc_cycle(hpos, CYCLE_COPPER);
 		return;
 	}
@@ -8514,14 +8495,14 @@ static void update_copper(int until_hpos)
 					}
 					cop_state.strobe = 0;
 				} else {
-					copper_cant_read(hpos, 0x88);
+					copper_cant_read(hpos, CYCLE_PIPE_COPPER | 0x08);
 				}
 			}
 			break;
 		case COP_strobe_delay2:
 			// Second cycle after COPJMP does basically skipped MOVE (MOVE to 1FE)
 			// Cycle is used and needs to be free.
-			copper_cant_read(hpos, 0x80);
+			copper_cant_read(hpos, CYCLE_PIPE_COPPER);
 			break;
 
 		case COP_strobe_delay1x:
@@ -8538,22 +8519,22 @@ static void update_copper(int until_hpos)
 			// Second cycle fetches following word and tosses it away.
 			// Cycle can be free and copper won't allocate it.
 			// If Blitter uses this cycle = Copper's PC gets copied to blitter DMA pointer..
-			copper_cant_read(hpos, 0x89);
+			copper_cant_read(hpos, CYCLE_PIPE_COPPER | 0x09);
 		break;
 
 		case COP_start_delay:
 			// cycle after vblank strobe fetches word from old pointer first
-			copper_cant_read(hpos, 0x81);
+			copper_cant_read(hpos, CYCLE_PIPE_COPPER | 0x01);
 			break;
 
 			// Request IR1
 		case COP_read1:
-			copper_cant_read(hpos, 0x82);
+			copper_cant_read(hpos, CYCLE_PIPE_COPPER | 0x02);
 			break;
 
 			// Request IR2
 		case COP_read2:
-			copper_cant_read(hpos, 0x83);
+			copper_cant_read(hpos, CYCLE_PIPE_COPPER | 0x03);
 			break;
 
 			// WAIT: Got IR2, first idle cycle.
@@ -8601,7 +8582,13 @@ static void update_copper(int until_hpos)
 			// Wait finished, request IR1.
 		case COP_wait:
 			{
-				if (copper_cant_read(hpos, 0x84)) {
+#ifdef DEBUGGER
+				if (debug_dma)
+					record_dma_event(DMA_EVENT_COPPERWAKE, hpos, vpos);
+				if (debug_copper)
+					record_copper(cop_state.ip - 4, 0xffffffff, cop_state.ir[0], cop_state.ir[1], hpos, vpos);
+#endif
+				if (copper_cant_read(hpos, CYCLE_PIPE_COPPER | 0x04)) {
 					goto next;
 				}
 
@@ -8628,6 +8615,14 @@ static void update_copper(int until_hpos)
 
 			if (!coppercomp(hpos, false)) {
 				cop_state.ignore_next = 1;
+
+#ifdef DEBUGGER
+				if (debug_dma && cop_state.ignore_next > 0)
+					record_dma_event(DMA_EVENT_COPPERSKIP, hpos, vpos);
+				if (debug_copper)
+					record_copper(cop_state.ip - 4, 0xffffffff, cop_state.ir[0], cop_state.ir[1], hpos, vpos);
+#endif
+
 			} else {
 				cop_state.ignore_next = -1;
 			}
@@ -8637,7 +8632,7 @@ static void update_copper(int until_hpos)
 
 			// SKIP finished. Request IR1.
 		case COP_skip:
-			if (copper_cant_read(hpos, 0x85)) {
+			if (copper_cant_read(hpos, CYCLE_PIPE_COPPER | 0x005)) {
 				goto next;
 			}
 			cop_state.state = COP_read1;
