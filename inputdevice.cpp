@@ -168,6 +168,7 @@ static int autopause;
 #define HANDLE_IE_FLAG_PLAYBACKEVENT 2
 #define HANDLE_IE_FLAG_AUTOFIRE 4
 #define HANDLE_IE_FLAG_ABSOLUTE 8
+#define HANDLE_IE_FLAG_ALLOWOPPOSITE 16
 
 static int handle_input_event (int nr, int state, int max, int flags);
 
@@ -4714,6 +4715,7 @@ static int handle_input_event2(int nr, int state, int max, int flags, int extra)
 	const struct inputevent *ie;
 	int joy;
 	bool isaks = false;
+	bool allowoppositestick = false;
 	int autofire = (flags & HANDLE_IE_FLAG_AUTOFIRE) ? 1 : 0;
 
 	if (nr <= 0 || nr == INPUTEVENT_SPC_CUSTOM_EVENT)
@@ -4753,6 +4755,13 @@ static int handle_input_event2(int nr, int state, int max, int flags, int extra)
 		}
 		if (!(flags & HANDLE_IE_FLAG_PLAYBACKEVENT) && input_play)
 			return 0;
+	}
+
+	if (flags & HANDLE_IE_FLAG_ALLOWOPPOSITE) {
+		if (ie->unit >= 1 && ie->unit <= 4) {
+			if ((ie->data & (DIR_LEFT | DIR_RIGHT)) != (DIR_LEFT | DIR_RIGHT) && (ie->data & (DIR_UP | DIR_DOWN)) != (DIR_UP | DIR_DOWN))
+			allowoppositestick = true;
+		}
 	}
 
 	if ((inputdevice_logging & 1) || input_record || input_play)
@@ -5098,14 +5107,30 @@ static int handle_input_event2(int nr, int state, int max, int flags, int extra)
 			mouse_deltanoreset[joy][0] = 1;
 			mouse_deltanoreset[joy][1] = 1;
 			joydir[joy] = 0;
-			if (left)
+			if (left) {
+				if (!allowoppositestick) {
+					joydir[joy] &= ~DIR_RIGHT;
+				}
 				joydir[joy] |= DIR_LEFT;
-			if (right)
+			}
+			if (right) {
+				if (!allowoppositestick) {
+					joydir[joy] &= ~DIR_LEFT;
+				}
 				joydir[joy] |= DIR_RIGHT;
-			if (top)
+			}
+			if (top) {
+				if (!allowoppositestick) {
+					joydir[joy] &= ~DIR_DOWN;
+				}
 				joydir[joy] |= DIR_UP;
-			if (bot)
+			}
+			if (bot) {
+				if (!allowoppositestick) {
+					joydir[joy] &= ~DIR_UP;
+				}
 				joydir[joy] |= DIR_DOWN;
+			}
 			if (joy == 0 || joy == 1)
 				joymousecounter (joy); 
 
@@ -5789,6 +5814,7 @@ static void setbuttonstateall (struct uae_input_device *id, struct uae_input_dev
 			int setval = setvalval == (ID_FLAG_SET_ONOFF_VAL1 | ID_FLAG_SET_ONOFF_VAL2) ? SET_ONOFF_PRESSREL_VALUE :
 				(setvalval == ID_FLAG_SET_ONOFF_VAL2 ? SET_ONOFF_PRESS_VALUE : (setvalval == ID_FLAG_SET_ONOFF_VAL1 ? SET_ONOFF_ON_VALUE : SET_ONOFF_OFF_VALUE));
 			int state;
+			int ie_flags = id->port[ID_BUTTON_OFFSET + button][sub] == 0 ? HANDLE_IE_FLAG_ALLOWOPPOSITE : 0;
 
 			 if (buttonstate < 0) {
 				state = buttonstate;
@@ -5814,7 +5840,7 @@ static void setbuttonstateall (struct uae_input_device *id, struct uae_input_dev
 			if (state < 0) {
 				if (!checkqualifiers (evt, flags, qualmask, NULL))
 					continue;
-				handle_input_event (evt, 1, 1, HANDLE_IE_FLAG_CANSTOPPLAYBACK);
+				handle_input_event (evt, 1, 1, HANDLE_IE_FLAG_CANSTOPPLAYBACK | ie_flags);
 				didcustom |= process_custom_event (id, ID_BUTTON_OFFSET + button, state, qualmask, 0, i);
 			} else if (inverttoggle) {
 				/* pressed = firebutton, not pressed = autofire */
@@ -5822,7 +5848,7 @@ static void setbuttonstateall (struct uae_input_device *id, struct uae_input_dev
 					queue_input_event (evt, NULL, -1, 0, 0, 1);
 					handle_input_event (evt, 2, 1, HANDLE_IE_FLAG_CANSTOPPLAYBACK);
 				} else {
-					handle_input_event (evt, 2, 1, (autofire ? HANDLE_IE_FLAG_AUTOFIRE : 0) | HANDLE_IE_FLAG_CANSTOPPLAYBACK);
+					handle_input_event (evt, 2, 1, (autofire ? HANDLE_IE_FLAG_AUTOFIRE : 0) | HANDLE_IE_FLAG_CANSTOPPLAYBACK | ie_flags);
 				}
 				didcustom |= process_custom_event (id, ID_BUTTON_OFFSET + button, state, qualmask, autofire, i);
 			} else if (toggle) {
@@ -5834,7 +5860,7 @@ static void setbuttonstateall (struct uae_input_device *id, struct uae_input_dev
 					continue;
 				*flagsp ^= ID_FLAG_TOGGLED;
 				int toggled = (*flagsp & ID_FLAG_TOGGLED) ? 2 : 0;
-				handle_input_event (evt, toggled, 1, (autofire ? HANDLE_IE_FLAG_AUTOFIRE : 0) | HANDLE_IE_FLAG_CANSTOPPLAYBACK);
+				handle_input_event (evt, toggled, 1, (autofire ? HANDLE_IE_FLAG_AUTOFIRE : 0) | HANDLE_IE_FLAG_CANSTOPPLAYBACK | ie_flags);
 				didcustom |= process_custom_event (id, ID_BUTTON_OFFSET + button, toggled, qualmask, autofire, i);
 			} else {
 				if (!checkqualifiers (evt, flags, qualmask, NULL)) {
@@ -5850,7 +5876,7 @@ static void setbuttonstateall (struct uae_input_device *id, struct uae_input_dev
 				else
 					*flagsp |= ID_FLAG_CANRELEASE;
 				if ((omask ^ nmask) & mask) {
-					handle_input_event (evt, state, 1, (autofire ? HANDLE_IE_FLAG_AUTOFIRE : 0) | HANDLE_IE_FLAG_CANSTOPPLAYBACK);
+					handle_input_event (evt, state, 1, (autofire ? HANDLE_IE_FLAG_AUTOFIRE : 0) | HANDLE_IE_FLAG_CANSTOPPLAYBACK | ie_flags);
 					if (state)
 						didcustom |= process_custom_event (id, ID_BUTTON_OFFSET + button, state, qualmask, autofire, i);
 				}
@@ -7700,6 +7726,7 @@ static int inputdevice_translatekeycode_2 (int keyboard, int scancode, int keyst
 					(setvalval == ID_FLAG_SET_ONOFF_VAL2 ? SET_ONOFF_PRESS_VALUE : (setvalval == ID_FLAG_SET_ONOFF_VAL1 ? SET_ONOFF_ON_VALUE : SET_ONOFF_OFF_VALUE));
 				int toggled;
 				int state;
+				int ie_flags = na->port[j][sublevdir[keystate == 0 ? 1 : 0][k]] == 0 ? HANDLE_IE_FLAG_ALLOWOPPOSITE : 0;
 
 				if (keystate < 0) {
 					state = keystate;
@@ -7718,7 +7745,7 @@ static int inputdevice_translatekeycode_2 (int keyboard, int scancode, int keyst
 				if (qualifiercheckonly) {
 					if (!state && (flags & ID_FLAG_CANRELEASE)) {
 						*flagsp &= ~ID_FLAG_CANRELEASE;
-						handle_input_event (evt, state, 1, (autofire ? HANDLE_IE_FLAG_AUTOFIRE : 0) | HANDLE_IE_FLAG_CANSTOPPLAYBACK);
+						handle_input_event (evt, state, 1, (autofire ? HANDLE_IE_FLAG_AUTOFIRE : 0) | HANDLE_IE_FLAG_CANSTOPPLAYBACK | ie_flags);
 						if (k == 0) {
 							process_custom_event (na, j, state, qualmask, autofire, k);
 						}
@@ -7749,9 +7776,9 @@ static int inputdevice_translatekeycode_2 (int keyboard, int scancode, int keyst
 					na->flags[j][sublevdir[state == 0 ? 1 : 0][k]] &= ~ID_FLAG_TOGGLED;
 					if (state) {
 						queue_input_event (evt, NULL, -1, 0, 0, 1);
-						handled |= handle_input_event (evt, 2, 1, HANDLE_IE_FLAG_CANSTOPPLAYBACK);
+						handled |= handle_input_event (evt, 2, 1, HANDLE_IE_FLAG_CANSTOPPLAYBACK | ie_flags);
 					} else {
-						handled |= handle_input_event (evt, 2, 1, (autofire ? HANDLE_IE_FLAG_AUTOFIRE : 0) | HANDLE_IE_FLAG_CANSTOPPLAYBACK);
+						handled |= handle_input_event (evt, 2, 1, (autofire ? HANDLE_IE_FLAG_AUTOFIRE : 0) | HANDLE_IE_FLAG_CANSTOPPLAYBACK | ie_flags);
 					}
 					didcustom |= process_custom_event (na, j, state, qualmask, autofire, k);
 				} else if (toggle) {
@@ -7761,7 +7788,7 @@ static int inputdevice_translatekeycode_2 (int keyboard, int scancode, int keyst
 						continue;
 					*flagsp ^= ID_FLAG_TOGGLED;
 					toggled = (*flagsp & ID_FLAG_TOGGLED) ? 2 : 0;
-					handled |= handle_input_event (evt, toggled, 1, (autofire ? HANDLE_IE_FLAG_AUTOFIRE : 0) | HANDLE_IE_FLAG_CANSTOPPLAYBACK);
+					handled |= handle_input_event (evt, toggled, 1, (autofire ? HANDLE_IE_FLAG_AUTOFIRE : 0) | HANDLE_IE_FLAG_CANSTOPPLAYBACK | ie_flags);
 					if (k == 0) {
 						didcustom |= process_custom_event (na, j, state, qualmask, autofire, k);
 					}
@@ -7786,7 +7813,7 @@ static int inputdevice_translatekeycode_2 (int keyboard, int scancode, int keyst
 							continue;
 						*flagsp &= ~ID_FLAG_CANRELEASE;
 					}
-					handled |= handle_input_event (evt, state, 1, (autofire ? HANDLE_IE_FLAG_AUTOFIRE : 0) | HANDLE_IE_FLAG_CANSTOPPLAYBACK);
+					handled |= handle_input_event (evt, state, 1, (autofire ? HANDLE_IE_FLAG_AUTOFIRE : 0) | HANDLE_IE_FLAG_CANSTOPPLAYBACK | ie_flags);
 					didcustom |= process_custom_event (na, j, state, qualmask, autofire, k);
 				}
 			}
