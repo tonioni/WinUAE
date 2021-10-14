@@ -1,4 +1,19 @@
 
+Beta 37:
+
+- "Copper wake up" (W) and "Copper wanted this cycle but couldn't get it" (c) markers in DMA debugger had disappeared. Skip also shows 'W' if SKIP skipped.
+- Do not allow cycle-exact blitter without at least memory cycle-exact CPU. It is not anymore compatible with faster modes.
+- Fixed random corruption when cycle-exact blitter was enabled and CPU was (memory) cycle-exact and CPU config was fast.
+- Do not allow opposite joystick directions at the same time (some games crash..) if mapped using Game Ports panel. It is still allowed if configured using Input panel and it was mapped to left/right/up/down events (not horiz/vert).
+- Added official WinUAE FloppyBridge support.
+- Added basic floppy type selection to Quickstart panel (3.5" DD, 3.5" HD and FloppyBridge). Selection is not remembered yet.
+
+FloppyBridge details:
+- https://amiga.robsmithdev.co.uk/winuae
+- DLLs go to <winuae path>/plugins
+- Simple and flexible UI implementation. Different than in unofficial WinUAE floppybridge versions.
+- Drive type select menus have "Configure Floppybridge" option if floppybridge DLL is detected. Selecting the option opens floppybridge configuration UI (which is located in floppybridge DLL, it is not part of WinUAE UI), use it configure one or more drive profiles. Select profile to enable floppybridge mode for selected emulated drive.
+
 Beta 36:
 
 - Lores Display panel resolution mode: horizontal DIW values had wrong masking, bitplane left/right edge missed 1 pixel row or had 1 pixel row too much. (b29)
@@ -28,7 +43,6 @@ Beta 34:
 - Changed debugger "dp" to "dppc" (switch to PPC disassembly mode)
 - Ateo Pixel 64 RTG board emulation. Another Cirrus Logic based RTG board. Very quickly done, only works with recent Picasso96 versions, does not work with drivers that need ateobus.library (will be done if someone disassembles it, I am too lazy, as usual). 256 color mode has wrong colors and right edge wraps around. Does not autoswitch.
 - "Smooth Copper" works correctly again.
-
 
 Beta 33:
 

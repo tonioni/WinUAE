@@ -1498,7 +1498,8 @@ void gfxboard_vsync_handler(bool full_redraw_required, bool redraw_required)
 				}
 				if (gb->board->pci && gb->vram) {
 					bool svga_on(void *p);
-					set_monswitch(gb, svga_on(gb->pcemobject2));
+					bool on = svga_on(gb->pcemobject2);
+					set_monswitch(gb, on);
 				}
 			}
 

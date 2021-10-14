@@ -3447,12 +3447,14 @@ static void scandoubler_bpl_dma_start(void)
 {
 	if (!scandoubled_line && doflickerfix() && interlace_seen > 0) {
 		int lof = 1 - lof_current;
-		for (int i = 0; i < 8; i++) {
+		for (int i = 0; i < MAX_PLANES; i++) {
 			prevbpl[lof][vpos][i] = bplptx[i];
-			if (!lof && (bplcon0 & 4))
+			if (!lof && (bplcon0 & 4)) {
 				bplpt[i] = prevbpl[1 - lof][vpos][i];
-			if (!(bplcon0 & 4) || interlace_seen < 0)
+			}
+			if (!(bplcon0 & 4) || interlace_seen < 0) {
 				prevbpl[1 - lof][vpos][i] = prevbpl[lof][vpos][i] = 0;
+			}
 		}
 	}
 }
@@ -13214,8 +13216,8 @@ static int dma_cycle(uaecptr addr, uae_u32 value, int *mode)
 
 static void sync_cycles(void)
 {
-	unsigned long c;
-	int extra;
+	uae_u32 c;
+	uae_u32 extra;
 
 	c = get_cycles();
 	extra = c & (CYCLE_UNIT - 1);
