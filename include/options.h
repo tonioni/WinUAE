@@ -161,10 +161,11 @@ struct floppyslot
 {
 	TCHAR df[MAX_DPATH];
 	int dfxtype;
+	int dfxsubtype;
+	TCHAR dfxsubtypeid[32];
 	int dfxclick;
 	TCHAR dfxclickexternal[256];
 	bool forcedwriteprotect;
-	TCHAR config[256];
 };
 
 #define ASPECTMULT 1024

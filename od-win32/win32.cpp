@@ -5584,6 +5584,7 @@ static void WIN32_HandleRegistryStuff (void)
 	DWORD dwDisplayInfoSize = sizeof (colortype);
 	int size;
 	TCHAR path[MAX_DPATH] = _T("");
+	TCHAR tmp[MAX_DPATH];
 	TCHAR version[100];
 
 	initpath (_T("FloppyPath"), start_path_data);
@@ -5692,6 +5693,15 @@ static void WIN32_HandleRegistryStuff (void)
 
 	if (!regqueryint (NULL, _T("QuickStartMode"), &quickstart))
 		quickstart = 1;
+
+	tmp[0] = 0;
+	size = sizeof(tmp) / sizeof(TCHAR);
+	if (regquerystr(NULL, _T("FloppyBridge"), tmp, &size)) {
+		char *c = ua(tmp);
+		floppybridge_set_config(c);
+		xfree(c);
+	}
+
 	reopen_console ();
 	fetch_path (_T("ConfigurationPath"), path, sizeof (path) / sizeof (TCHAR));
 	if (path[0])
@@ -7944,7 +7954,7 @@ static SETPROCESSMITIGATIONPOLICY pSetProcessMitigationPolicy;
 #endif
 
 int PASCAL wWinMain (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int nCmdShow)
-{
+ {
 	DWORD_PTR sys_aff;
 	HANDLE thread;
 

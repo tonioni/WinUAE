@@ -12,8 +12,7 @@
 #include "uae/types.h"
 
 typedef enum {
-	DRV_NONE = -1, DRV_35_DD = 0, DRV_35_HD, DRV_525_SD, DRV_35_DD_ESCOM, DRV_PC_525_ONLY_40, DRV_PC_35_ONLY_80, DRV_PC_525_40_80, DRV_525_DD,
-	DRV_FB_A_35_DD, DRV_FB_A_35_HD, DRV_FB_B_35_DD, DRV_FB_B_35_HD,
+	DRV_NONE = -1, DRV_35_DD = 0, DRV_35_HD, DRV_525_SD, DRV_35_DD_ESCOM, DRV_PC_525_ONLY_40, DRV_PC_35_ONLY_80, DRV_PC_525_40_80, DRV_525_DD, DRV_FB,
 } drive_type;
 
 #define HISTORY_FLOPPY 0
@@ -119,8 +118,13 @@ extern int disk_debug_track;
 
 #define MAX_PREVIOUS_IMAGES 50
 
-void floppybridge_init(struct uae_prefs *p);
+#ifdef FLOPPYBRIDGE
 bool floppybridge_has(void);
 bool DISK_isfloppybridge(struct uae_prefs*, int);
+void floppybridge_init(struct uae_prefs *p);
+void floppybridge_reload_profiles(void);
+void floppybridge_set_config(const char*);
+extern bool floppybridge_available;
+#endif
 
 #endif /* UAE_DISK_H */

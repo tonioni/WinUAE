@@ -113,12 +113,13 @@ public:
 	virtual bool isMotorRunning()  = 0;
 
 	// Turn on and off the motor
-	virtual void setMotorStatus(bool turnOn, bool side)  = 0;
+	virtual void setMotorStatus(bool side, bool turnOn)  = 0;
 
 	// Returns TRUE if the drive is ready (ie: the motor has spun up to speed to speed)
 	virtual bool isReady()  = 0;
 
-
+	// Returns the currently selected side
+	virtual bool getCurrentSide() = 0;
 
 	/////////////////////// Disk Detection ///////////////////////////////////////////////////
 	// Return TRUE if there is a disk in the drive.  This is usually called after gotoCylinder

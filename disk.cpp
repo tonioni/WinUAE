@@ -565,16 +565,17 @@ static int createimagefromexe (struct zfile *src, struct zfile *dst)
 static FloppyBridgeAPI *bridges[4];
 static int bridge_type[4];
 static const FloppyDiskBridge::BridgeDriver *bridge_driver[4];
-static bool floppybridge_available;
 static FloppyBridgeAPI::BridgeInformation bridgeinfo;
-static bool bridgeinfoloaded;
+static int bridgeinfoloaded;
 static std::vector<FloppyBridgeAPI::DriverInformation> bridgedriverinfo;
 static void floppybridge_read_track(drive *drv);
+bool floppybridge_available;
+std::vector<FloppyBridgeAPI::FloppyBridgeProfileInformation> bridgeprofiles;
+static char *floppybridge_config = NULL;
 
 bool DISK_isfloppybridge(struct uae_prefs *p, int num)
 {
-	int v = p->floppyslots[num].dfxtype;
-	return v == DRV_FB_A_35_DD || v == DRV_FB_A_35_HD || v == DRV_FB_B_35_DD || v == DRV_FB_B_35_HD;
+	return p->floppyslots[num].dfxtype == DRV_FB;
 }
 #endif
 
@@ -643,18 +644,21 @@ static const TCHAR *drive_id_name(drive *drv)
 */
 static void drive_settype_id (drive *drv)
 {
-	int t = currprefs.floppyslots[drv - &floppy[0]].dfxtype;
+	int drvnum = drv - &floppy[0];
+	int t = currprefs.floppyslots[drvnum].dfxtype;
 
 #ifdef FLOPPYBRIDGE
 	if (drv->bridge)
 	{
 		if (drv->bridge->isDiskInDrive()) {
+			FloppyBridgeAPI::BridgeDensityMode mode = FloppyBridgeAPI::BridgeDensityMode::bdmDDOnly;
+			bridges[drvnum]->getBridgeDensityMode(&mode);
 			switch (drv->bridge->getDriveTypeID()) {
 			case FloppyDiskBridge::DriveTypeID::dti35DD:
 				drv->drive_id = DRIVE_ID_35DD;
 				break;
 			case FloppyDiskBridge::DriveTypeID::dti35HD:
-				if (t == DRV_35_HD) {
+				if (t == DRV_35_HD && mode != FloppyBridgeAPI::BridgeDensityMode::bdmDDOnly) {
 					drv->drive_id = DRIVE_ID_35HD;
 				} else {
 					drv->drive_id = DRIVE_ID_35DD;
@@ -878,9 +882,11 @@ void DISK_get_path_text(struct uae_prefs *p, int n, TCHAR *text)
 #ifdef FLOPPYBRIDGE
 	if (DISK_isfloppybridge(p, n) && floppybridge_available) {
 		if (!bridgeinfoloaded) {
-			FloppyBridgeAPI::getBridgeDriverInformation(bridgeinfo);
+			FloppyBridgeAPI::getBridgeDriverInformation(false, bridgeinfo);
+			bridgeinfoloaded = 1;
 		}
 		_tcscpy(text, bridgeinfo.about);
+		floppybridge_init(p);
 		if (bridge_driver[n]) {
 			_tcscat(text, _T(", "));
 			TCHAR *name = au(bridge_driver[n]->name);
@@ -4829,7 +4835,7 @@ static void floppybridge_read_track(drive *drv)
 			}
 			sleep_millis(10);
 		}
-		while (!b->isReady()) {
+		while (!b->isReady() && b->isDiskInDrive()) {
 			if (timeout-- < 0) {
 				break;
 			}
@@ -4864,7 +4870,33 @@ static void floppybridge_read_track(drive *drv)
 		}
 		break;
 	}
+	b->gotoCylinder(0, false);
 	b->setMotorStatus(false, side);
+}
+
+static void floppybridge_update_config(void)
+{
+	if (floppybridge_available && floppybridge_config) {
+		FloppyBridgeAPI::importProfilesFromString(floppybridge_config);
+		xfree(floppybridge_config);
+		floppybridge_config = NULL;
+	}
+}
+
+void floppybridge_set_config(const char *c)
+{
+	xfree(floppybridge_config);
+	floppybridge_config = strdup(c);
+	floppybridge_update_config();
+}
+
+void floppybridge_reload_profiles(void)
+{
+	if (floppybridge_available) {
+		floppybridge_update_config();
+		bridgeprofiles.clear();
+		FloppyBridgeAPI::getAllProfiles(bridgeprofiles);
+	}
 }
 
 static void floppybridge_init3(void)
@@ -4877,6 +4909,7 @@ static void floppybridge_init3(void)
 	if (FloppyBridgeAPI::isAvailable()) {
 		floppybridge_available = true;
 		FloppyBridgeAPI::getDriverList(bridgedriverinfo);
+		floppybridge_reload_profiles();
 	}
 }
 
@@ -4888,10 +4921,11 @@ bool floppybridge_has(void)
 
 static void floppybridge_init2(struct uae_prefs *p)
 {
+	floppybridge_init3();
 	bool needbridge = false;
 	for (int i = 0; i < MAX_FLOPPY_DRIVES; i++) {
 		int type = p->floppyslots[i].dfxtype;
-		if (type == DRV_FB_A_35_DD || type == DRV_FB_A_35_HD || type == DRV_FB_B_35_DD || type == DRV_FB_B_35_HD) {
+		if (type >= DRV_FB) {
 			needbridge = true;
 		}
 	}
@@ -4905,10 +4939,9 @@ static void floppybridge_init2(struct uae_prefs *p)
 		}
 		return;
 	}
-	floppybridge_init3();
 	for (int dr = 0; dr < MAX_FLOPPY_DRIVES; dr++) {
 		int type = p->floppyslots[dr].dfxtype;
-		if (type == DRV_FB_A_35_DD || type == DRV_FB_A_35_HD || type == DRV_FB_B_35_DD || type == DRV_FB_B_35_HD) {
+		if (type == DRV_FB) {
 			if (floppy[dr].bridge == NULL || type != bridge_type[dr]) {
 				if (bridges[dr]) {
 					bridges[dr]->shutdown();
@@ -4919,29 +4952,31 @@ static void floppybridge_init2(struct uae_prefs *p)
 				bridge_driver[dr] = NULL;
 				bridge_type[dr] = type;
 				FloppyBridgeAPI *bridge = NULL;
-				bool configConfigured = true;
-				if (p->floppyslots[dr].config[0]) {
-					char *c = ua(p->floppyslots[dr].config);
-					bridge = FloppyBridgeAPI::createDriverFromString(c);
-					xfree(c);
+				int id = _tstol(p->floppyslots[dr].dfxsubtypeid);
+				const TCHAR *name = _tcschr(p->floppyslots[dr].dfxsubtypeid, ':');
+				if (name) {
+					name++;
+					for (int i = 0; i < bridgeprofiles.size(); i++) {
+						FloppyBridgeAPI::FloppyBridgeProfileInformation fbpi = bridgeprofiles.at(i);
+						if (fbpi.profileID == id && !_tcscmp(fbpi.name, name)) {
+							bridge = FloppyBridgeAPI::createDriverFromProfileID(id);
+							break;
+						}
+					}
+					if (!bridge) {
+						for (int i = 0; i < bridgeprofiles.size(); i++) {
+							FloppyBridgeAPI::FloppyBridgeProfileInformation fbpi = bridgeprofiles.at(i);
+							if (!_tcscmp(fbpi.name, name)) {
+								bridge = FloppyBridgeAPI::createDriverFromProfileID(fbpi.profileID);
+								break;
+							}
+						}
+					}
 				}
 				if (!bridge) {
-					configConfigured = false;
-					bridge = FloppyBridgeAPI::createDriver(1);
-					p->floppyslots[dr].config[0] = 0;
-					changed_prefs.floppyslots[dr].config[0] = 0;
+					bridge = FloppyBridgeAPI::createDriverFromProfileID(id);
 				}
 				if (bridge) {
-					bridge->setBridgeDensityMode(FloppyBridgeAPI::BridgeDensityMode::bdmAuto);
-					if (p->floppy_speed == 0) {
-						bridge->setBridgeMode(FloppyBridgeAPI::BridgeMode::bmTurboAmigaDOS);
-					} else {
-						bridge->setBridgeMode(FloppyBridgeAPI::BridgeMode::bmFast);
-					}
-					if (!configConfigured) {
-						bridge->setComPortAutoDetect(true);
-						bridge->setDriveCableSelection(type == DRV_FB_B_35_DD || type == DRV_FB_B_35_HD);
-					}
 					if (!bridge->initialise()) {
 						const char *errorMessage = bridge->getLastErrorMessage();
 						const char *name = bridge->getDriverInfo()->name;
@@ -4953,10 +4988,6 @@ static void floppybridge_init2(struct uae_prefs *p)
 						xfree(tname);
 						xfree(terrorMessage);
 					} else {
-						char *config = NULL;
-						bridge->getConfigAsString(&config);
-						au_copy(p->floppyslots[dr].config, sizeof(p->floppyslots[dr].config) / sizeof(TCHAR), config);
-						_tcscpy(changed_prefs.floppyslots[dr].config, p->floppyslots[dr].config);
 						bridge_driver[dr] = bridge->getDriverInfo();
 					}
 				}
@@ -4979,6 +5010,7 @@ static void floppybridge_init2(struct uae_prefs *p)
 void floppybridge_init(struct uae_prefs *p)
 {
 	floppybridge_init2(p);
+	floppybridge_reload_profiles();
 }
 
 void DISK_init (void)
@@ -5165,10 +5197,15 @@ static void abrcheck(struct diskinfo *di)
 	}
 }
 
-static void get_floppybridgeinfo(TCHAR *infotext, int num)
+static void get_floppybridgeinfo(struct uae_prefs *prefs, TCHAR *infotext, int num)
 {
 	if (!infotext) {
 		return;
+	}
+	floppybridge_init(prefs);
+	if (bridgeinfoloaded <= 1) {
+		FloppyBridgeAPI::getBridgeDriverInformation(true, bridgeinfo);
+		bridgeinfoloaded = 2;
 	}
 	TCHAR *p = infotext;
 	_tcscat(p, bridgeinfo.about);
@@ -5214,7 +5251,7 @@ int DISK_examine_image(struct uae_prefs *p, int num, struct diskinfo *di, bool d
 	memset (di, 0, sizeof (struct diskinfo));
 
 	if (fb) {
-		get_floppybridgeinfo(infotext, num);
+		get_floppybridgeinfo(p, infotext, num);
 	}
 
 	di->unreadable = true;
@@ -5287,17 +5324,19 @@ int DISK_examine_image(struct uae_prefs *p, int num, struct diskinfo *di, bool d
 		di->bootblocktype = 2;
 	}
 end:
-	load_track(num, 40, 0, sectable);
-	if (sectable[0]) {
-		if (!disk_checksum (writebuffer, NULL) &&
-			writebuffer[0] == 0 && writebuffer[1] == 0 && writebuffer[2] == 0 && writebuffer[3] == 2 &&
-			writebuffer[508] == 0 && writebuffer[509] == 0 && writebuffer[510] == 0 && writebuffer[511] == 1) {
-			writebuffer[512 - 20 * 4 + 1 + writebuffer[512 - 20 * 4]] = 0;
-			TCHAR *n = au ((const char*)(writebuffer + 512 - 20 * 4 + 1));
-			if (_tcslen (n) >= sizeof (di->diskname))
-				n[sizeof (di->diskname) - 1] = 0;
-			_tcscpy (di->diskname, n);
-			xfree (n);
+	if (!fb || (fb && infotext)) {
+		load_track(num, 40, 0, sectable);
+		if (sectable[0]) {
+			if (!disk_checksum(writebuffer, NULL) &&
+				writebuffer[0] == 0 && writebuffer[1] == 0 && writebuffer[2] == 0 && writebuffer[3] == 2 &&
+				writebuffer[508] == 0 && writebuffer[509] == 0 && writebuffer[510] == 0 && writebuffer[511] == 1) {
+				writebuffer[512 - 20 * 4 + 1 + writebuffer[512 - 20 * 4]] = 0;
+				TCHAR *n = au((const char *)(writebuffer + 512 - 20 * 4 + 1));
+				if (_tcslen(n) >= sizeof(di->diskname))
+					n[sizeof(di->diskname) - 1] = 0;
+				_tcscpy(di->diskname, n);
+				xfree(n);
+			}
 		}
 	}
 end2:

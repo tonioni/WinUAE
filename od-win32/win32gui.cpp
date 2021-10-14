@@ -100,6 +100,10 @@
 #include "ini.h"
 #include "specialmonitors.h"
 #include "gayle.h"
+#ifdef FLOPPYBRIDGE
+#include "floppybridge/floppybridge_abstract.h"
+#include "floppybridge/floppybridge_lib.h"
+#endif
 
 #define GUI_SCALE_DEFAULT 100
 
@@ -166,6 +170,8 @@ static TCHAR config_search[MAX_DPATH];
 static TCHAR stored_path[MAX_DPATH];
 static int gui_size_changed;
 static int filterstackpos = 2 * MAX_FILTERSHADERS;
+
+extern std::vector<FloppyBridgeAPI::FloppyBridgeProfileInformation> bridgeprofiles;
 
 bool isguiactive(void)
 {
@@ -7283,6 +7289,7 @@ static void testimage (HWND hDlg, int num)
 	}
 	if (!workprefs.floppyslots[num].df[0])
 		return;
+	floppybridge_init(&workprefs);
 	ret = DISK_examine_image (&workprefs, num, &di, false, NULL);
 	if (!ret)
 		return;
@@ -7337,6 +7344,124 @@ static INT_PTR CALLBACK FloppyDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARA
 static int diskselectmenu (HWND hDlg, WPARAM wParam);
 static void addallfloppies (HWND hDlg);
 
+#define BUTTONSPERFLOPPY 9
+static const int floppybuttons[][BUTTONSPERFLOPPY] = {
+	{ IDC_DF0TEXT,IDC_DF0,IDC_EJECT0,IDC_DF0TYPE,IDC_DF0WP,-1,IDC_SAVEIMAGE0,IDC_DF0ENABLE, IDC_INFO0 },
+	{ IDC_DF1TEXT,IDC_DF1,IDC_EJECT1,IDC_DF1TYPE,IDC_DF1WP,-1,IDC_SAVEIMAGE1,IDC_DF1ENABLE, IDC_INFO1 },
+	{ IDC_DF2TEXT,IDC_DF2,IDC_EJECT2,IDC_DF2TYPE,IDC_DF2WP,-1,IDC_SAVEIMAGE2,IDC_DF2ENABLE, IDC_INFO2 },
+	{ IDC_DF3TEXT,IDC_DF3,IDC_EJECT3,IDC_DF3TYPE,IDC_DF3WP,-1,IDC_SAVEIMAGE3,IDC_DF3ENABLE, IDC_INFO3 }
+};
+static const int floppybuttonsq[][BUTTONSPERFLOPPY] = {
+	{ IDC_DF0TEXTQ,IDC_DF0QQ,IDC_EJECT0Q,IDC_DF0TYPE,IDC_DF0WPQ,IDC_DF0WPTEXTQ,-1,IDC_DF0QENABLE, IDC_INFO0Q },
+	{ IDC_DF1TEXTQ,IDC_DF1QQ,IDC_EJECT1Q,IDC_DF1TYPE,IDC_DF1WPQ,IDC_DF1WPTEXTQ,-1,IDC_DF1QENABLE, IDC_INFO1Q },
+	{ -1,-1,-1,-1,-1,-1,-1,-1 },
+	{ -1,-1,-1,-1,-1,-1,-1,-1 }
+};
+
+static int fromdfxtype(int num, int dfx, int subtype)
+{
+	if (currentpage == QUICKSTART_ID) {
+		switch (dfx)
+		{
+		case DRV_35_DD:
+			return 0;
+		case DRV_35_HD:
+			return 1;
+		}
+		if (dfx == DRV_FB) {
+			return 2 + subtype;
+		}
+		return -1;
+	}
+
+	switch (dfx)
+	{
+	case DRV_35_DD:
+		return 0;
+	case DRV_35_HD:
+		return 1;
+	case DRV_525_SD:
+		return 2;
+	case DRV_525_DD:
+		return 3;
+	case DRV_35_DD_ESCOM:
+		return 4;
+	}
+	if (num < 2) {
+		if (dfx == DRV_FB) {
+			return 5 + subtype;
+		}
+	} else {
+		switch (dfx)
+		{
+		case DRV_PC_525_ONLY_40:
+			return 5;
+		case DRV_PC_525_40_80:
+			return 6;
+		case DRV_PC_35_ONLY_80:
+			return 7;
+		}
+		if (dfx == DRV_FB) {
+			return 8 + subtype;
+		}
+	}
+	return -1;
+}
+
+static int todfxtype(int num, int dfx, int *subtype)
+{
+	*subtype = 0;
+	if (currentpage == QUICKSTART_ID) {
+		switch (dfx)
+		{
+		case 0:
+			return DRV_35_DD;
+		case 1:
+			return DRV_35_HD;
+		}
+		if (dfx >= 2) {
+			*subtype = dfx - 2;
+			return DRV_FB;
+		}
+		return -1;
+	}
+
+	switch (dfx)
+	{
+	case 0:
+		return DRV_35_DD;
+	case 1:
+		return DRV_35_HD;
+	case 2:
+		return DRV_525_SD;
+	case 3:
+		return DRV_525_DD;
+	case 4:
+		return DRV_35_DD_ESCOM;
+	}
+	if (num < 2) {
+		if (dfx >= 5) {
+			*subtype = dfx - 5;
+			return DRV_FB;
+		}
+	} else {
+		switch (dfx)
+		{
+		case 5:
+			return DRV_PC_525_ONLY_40;
+		case 6:
+			return DRV_PC_525_40_80;
+		case 7:
+			return DRV_PC_35_ONLY_80;
+		}
+		if (dfx >= 8) {
+			*subtype = dfx - 8;
+			return DRV_FB;
+		}
+	}
+	return -1;
+}
+
 static void setfloppytexts (HWND hDlg, int qs)
 {
 	SetDlgItemText (hDlg, IDC_DF0TEXT, workprefs.floppyslots[0].df);
@@ -7348,6 +7473,55 @@ static void setfloppytexts (HWND hDlg, int qs)
 	if (!qs)
 		addallfloppies (hDlg);
 }
+
+static void updatefloppytypes(HWND hDlg)
+{
+	TCHAR ft35dd[20], ft35hd[20], ft525sd[20], ftdis[20], ft35ddescom[20];
+	bool qs = currentpage == QUICKSTART_ID;
+
+	WIN32GUI_LoadUIString(IDS_FLOPPYTYPE35DD, ft35dd, sizeof ft35dd / sizeof(TCHAR));
+	WIN32GUI_LoadUIString(IDS_FLOPPYTYPE35HD, ft35hd, sizeof ft35hd / sizeof(TCHAR));
+	WIN32GUI_LoadUIString(IDS_FLOPPYTYPE525SD, ft525sd, sizeof ft525sd / sizeof(TCHAR));
+	WIN32GUI_LoadUIString(IDS_FLOPPYTYPE35DDESCOM, ft35ddescom, sizeof ft35ddescom / sizeof(TCHAR));
+	WIN32GUI_LoadUIString(IDS_FLOPPYTYPEDISABLED, ftdis, sizeof ftdis / sizeof(TCHAR));
+
+	for (int i = 0; i < (qs ? 2 : 4); i++) {
+		int f_type;
+		if (qs) {
+			f_type = floppybuttonsq[i][3];
+		} else {
+			f_type = floppybuttons[i][3];
+		}
+		SendDlgItemMessage(hDlg, f_type, CB_RESETCONTENT, 0, 0L);
+		//SendDlgItemMessage(hDlg, f_type, CB_ADDSTRING, 0, (LPARAM)ftdis);
+		SendDlgItemMessage(hDlg, f_type, CB_ADDSTRING, 0, (LPARAM)ft35dd);
+		SendDlgItemMessage(hDlg, f_type, CB_ADDSTRING, 0, (LPARAM)ft35hd);
+		if (!qs) {
+			SendDlgItemMessage(hDlg, f_type, CB_ADDSTRING, 0, (LPARAM)ft525sd);
+			SendDlgItemMessage(hDlg, f_type, CB_ADDSTRING, 0, (LPARAM)_T("5.25\" (80)"));
+			SendDlgItemMessage(hDlg, f_type, CB_ADDSTRING, 0, (LPARAM)ft35ddescom);
+			if (i >= 2) {
+				SendDlgItemMessage(hDlg, f_type, CB_ADDSTRING, 0, (LPARAM)_T("Bridgeboard 5.25\" 40"));
+				SendDlgItemMessage(hDlg, f_type, CB_ADDSTRING, 0, (LPARAM)_T("Bridgeboard 5.25\" 80"));
+				SendDlgItemMessage(hDlg, f_type, CB_ADDSTRING, 0, (LPARAM)_T("Bridgeboard 3.5\"  80"));
+			}
+		}
+		if (floppybridge_available) {
+			SendDlgItemMessage(hDlg, f_type, CB_ADDSTRING, 0, (LPARAM)_T("Configure FloppyBridge"));
+			for (int j = 0; j < bridgeprofiles.size(); j++) {
+				FloppyBridgeAPI::FloppyBridgeProfileInformation fbpi = bridgeprofiles.at(j);
+				TCHAR tmp[256];
+				if (_tcslen(fbpi.name) < sizeof(tmp) - 10) {
+					_stprintf(tmp, _T("FB: %s"), fbpi.name);
+					SendDlgItemMessage(hDlg, f_type, CB_ADDSTRING, 0, (LPARAM)tmp);
+				}
+			}
+		}
+		int nn = fromdfxtype(i, workprefs.floppyslots[i].dfxtype, workprefs.floppyslots[i].dfxsubtype);
+		SendDlgItemMessage(hDlg, f_type, CB_SETCURSEL, nn, 0L);
+	}
+}
+
 
 static INT_PTR CALLBACK QuickstartDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
@@ -7372,6 +7546,8 @@ static INT_PTR CALLBACK QuickstartDlgProc (HWND hDlg, UINT msg, WPARAM wParam, L
 			currentpage = QUICKSTART_ID;
 			enable_for_quickstart (hDlg);
 			setfloppytexts (hDlg, true);
+			floppybridge_init(&workprefs);
+			updatefloppytypes(hDlg);
 			setmultiautocomplete (hDlg, ids);
 			doinit = 1;
 			break;
@@ -7512,6 +7688,8 @@ static INT_PTR CALLBACK QuickstartDlgProc (HWND hDlg, UINT msg, WPARAM wParam, L
 		case IDC_DF1QENABLE:
 		case IDC_INFO0Q:
 		case IDC_INFO1Q:
+		case IDC_DF0TYPE:
+		case IDC_DF1TYPE:
 			if (currentpage == QUICKSTART_ID)
 				ret = FloppyDlgProc (hDlg, msg, wParam, lParam);
 			break;
@@ -15579,24 +15757,10 @@ static void out_floppyspeed (HWND hDlg)
 	SetDlgItemText (hDlg, IDC_FLOPPYSPDTEXT, txt);
 }
 
-#define BUTTONSPERFLOPPY 9
-static const int floppybuttons[][BUTTONSPERFLOPPY] = {
-	{ IDC_DF0TEXT,IDC_DF0,IDC_EJECT0,IDC_DF0TYPE,IDC_DF0WP,-1,IDC_SAVEIMAGE0,IDC_DF0ENABLE, IDC_INFO0 },
-	{ IDC_DF1TEXT,IDC_DF1,IDC_EJECT1,IDC_DF1TYPE,IDC_DF1WP,-1,IDC_SAVEIMAGE1,IDC_DF1ENABLE, IDC_INFO1 },
-	{ IDC_DF2TEXT,IDC_DF2,IDC_EJECT2,IDC_DF2TYPE,IDC_DF2WP,-1,IDC_SAVEIMAGE2,IDC_DF2ENABLE, IDC_INFO2 },
-	{ IDC_DF3TEXT,IDC_DF3,IDC_EJECT3,IDC_DF3TYPE,IDC_DF3WP,-1,IDC_SAVEIMAGE3,IDC_DF3ENABLE, IDC_INFO3 }
-};
-static const int floppybuttonsq[][BUTTONSPERFLOPPY] = {
-	{ IDC_DF0TEXTQ,IDC_DF0QQ,IDC_EJECT0Q,-1,IDC_DF0WPQ,IDC_DF0WPTEXTQ,-1,IDC_DF0QENABLE, IDC_INFO0Q },
-	{ IDC_DF1TEXTQ,IDC_DF1QQ,IDC_EJECT1Q,-1,IDC_DF1WPQ,IDC_DF1WPTEXTQ,-1,IDC_DF1QENABLE, IDC_INFO1Q },
-	{ -1,-1,-1,-1,-1,-1,-1,-1 },
-	{ -1,-1,-1,-1,-1,-1,-1,-1 }
-};
-
 static int isfloppybridge(int type)
 {
-	if (type >= DRV_FB_A_35_DD) {
-		return type - DRV_FB_A_35_DD;
+	if (type >= DRV_FB) {
+		return type - DRV_FB;
 	}
 	return -1;
 }
@@ -15632,8 +15796,7 @@ static void updatedfname(HWND hDlg, const TCHAR *text, int f_text, int type, int
 	if (type == HISTORY_FLOPPY && DISK_isfloppybridge(&workprefs, num)) {
 		TCHAR text2[MAX_DPATH];
 		DISK_get_path_text(&workprefs, num, text2);
-		if (text)
-			SendDlgItemMessage(hDlg, f_text, WM_SETTEXT, 0, (LPARAM)text2);
+		SendDlgItemMessage(hDlg, f_text, WM_SETTEXT, 0, (LPARAM)text2);
 	} else {
 		if (text)
 			SendDlgItemMessage(hDlg, f_text, WM_SETTEXT, 0, (LPARAM)text);
@@ -15759,132 +15922,10 @@ static void addcdtype (HWND hDlg, int id)
 	SendDlgItemMessage (hDlg, id, CB_SETCURSEL, cdtype, 0);
 }
 
-static int fromdfxtype(int num, int dfx)
-{
-	switch (dfx)
-	{
-	case DRV_35_DD:
-		return 1;
-	case DRV_35_HD:
-		return 2;
-	case DRV_525_SD:
-		return 3;
-	case DRV_525_DD:
-		return 4;
-	case DRV_35_DD_ESCOM:
-		return 5;
-	}
-	if (num < 2) {
-		switch (dfx)
-		{
-		case DRV_FB_A_35_DD:
-			if (!floppybridge_has()) {
-				return 1;
-			}
-			return 6;
-		case DRV_FB_A_35_HD:
-			if (!floppybridge_has()) {
-				return 1;
-			}
-			return 7;
-		case DRV_FB_B_35_DD:
-		if (!floppybridge_has()) {
-			return 1;
-		}
-		return 8;
-		case DRV_FB_B_35_HD:
-		if (!floppybridge_has()) {
-			return 1;
-		}
-		return 9;
-	}
-} else {
-		switch (dfx)
-		{
-		case DRV_PC_525_ONLY_40:
-			return 6;
-		case DRV_PC_525_40_80:
-			return 7;
-		case DRV_PC_35_ONLY_80:
-			return 8;
-		case DRV_FB_A_35_DD:
-			if (!floppybridge_has()) {
-				return 1;
-			}
-			return 9;
-		case DRV_FB_A_35_HD:
-			if (!floppybridge_has()) {
-				return 1;
-			}
-			return 10;
-		case DRV_FB_B_35_DD:
-			if (!floppybridge_has()) {
-				return 1;
-			}
-			return 11;
-		case DRV_FB_B_35_HD:
-			if (!floppybridge_has()) {
-				return 1;
-			}
-			return 11;
-		}
-	}
-	return 0;
-}
-
-static int todfxtype(int num, int dfx)
-{
-	switch (dfx)
-	{
-	case 1:
-		return DRV_35_DD;
-	case 2:
-		return DRV_35_HD;
-	case 3:
-		return DRV_525_SD;
-	case 4:
-		return DRV_525_DD;
-	case 5:
-		return DRV_35_DD_ESCOM;
-	}
-	if (num < 2) {
-		switch (dfx)
-		{
-		case 6:
-			return DRV_FB_A_35_DD;
-		case 7:
-			return DRV_FB_A_35_HD;
-		case 8:
-			return DRV_FB_B_35_DD;
-		case 9:
-			return DRV_FB_B_35_HD;
-		}
-	} else {
-		switch (dfx)
-		{
-		case 6:
-			return DRV_PC_525_ONLY_40;
-		case 7:
-			return DRV_PC_525_40_80;
-		case 8:
-			return DRV_PC_35_ONLY_80;
-		case 9:
-			return DRV_FB_A_35_DD;
-		case 10:
-			return DRV_FB_A_35_HD;
-		case 11:
-			return DRV_FB_A_35_DD;
-		case 12:
-			return DRV_FB_A_35_HD;
-		}
-	}
-	return -1;
-}
-
 static void addfloppytype (HWND hDlg, int n)
 {
 	int state, chk;
-	int nn = fromdfxtype(n, workprefs.floppyslots[n].dfxtype);
+	int nn = fromdfxtype(n, workprefs.floppyslots[n].dfxtype, workprefs.floppyslots[n].dfxsubtype);
 	int fb = DISK_isfloppybridge(&workprefs, n);
 	int showcd = 0;
 	TCHAR *text;
@@ -15904,7 +15945,7 @@ static void addfloppytype (HWND hDlg, int n)
 		TCHAR tmp[MAX_DPATH];
 		f_text = floppybuttonsq[n][0];
 		f_drive = floppybuttonsq[n][1];
-		f_type = -1;
+		f_type = floppybuttonsq[n][3];
 		f_eject = floppybuttonsq[n][2];
 		f_wp = floppybuttonsq[n][4];
 		f_wptext = floppybuttonsq[n][5];
@@ -15941,7 +15982,7 @@ static void addfloppytype (HWND hDlg, int n)
 		hide (hDlg, IDC_CD0Q_TYPE, 1);
 	}
 
-	if (nn <= 0)
+	if (nn < 0)
 		state = FALSE;
 	else
 		state = TRUE;
@@ -15981,33 +16022,71 @@ static void addfloppytype (HWND hDlg, int n)
 	chk = !showcd && disk_getwriteprotect (&workprefs, text, n) && state == TRUE ? BST_CHECKED : 0;
 	if (f_wp >= 0) {
 		CheckDlgButton(hDlg, f_wp, chk);
-		ew(hDlg, f_wp, !fb);
 	}
 	if (f_info >= 0)
 		ew (hDlg, f_info, text[0] != 0 || fb);
 	chk = !showcd && state && DISK_validate_filename (&workprefs, text, n, NULL, 0, NULL, NULL, NULL) ? TRUE : FALSE;
 	if (f_wp >= 0) {
-		ew (hDlg, f_wp, chk && !workprefs.floppy_read_only);
+		ew (hDlg, f_wp, chk && !workprefs.floppy_read_only && !fb);
 		if (f_wptext >= 0)
 			ew (hDlg, f_wptext, chk);
+	}
+	if (f_type >= 0) {
+		ew(hDlg, f_type, workprefs.floppyslots[n].dfxtype >= 0);
 	}
 }
 
 static void getfloppytype(HWND hDlg, int n)
 {
-	int f_text = floppybuttons[n][0];
-	int f_type = floppybuttons[n][3];
-	LRESULT val = SendDlgItemMessage(hDlg, f_type, CB_GETCURSEL, 0, 0L);
+	int f_text;
+	int f_type;
 
-	if (val != CB_ERR && workprefs.floppyslots[n].dfxtype != todfxtype(n, val)) {
-		workprefs.floppyslots[n].dfxtype = todfxtype(n, val);
-		workprefs.floppyslots[n].config[0] = 0;
-		for (int i = 0; i < 4; i++) {
-			if (i != n && DISK_isfloppybridge(&workprefs, i) && DISK_isfloppybridge(&workprefs, n)) {
-				workprefs.floppyslots[n].dfxtype = DRV_35_DD;
+	if (currentpage == QUICKSTART_ID) {
+		f_text = floppybuttonsq[n][0];
+		f_type = floppybuttonsq[n][3];
+	} else {
+		f_text = floppybuttons[n][0];
+		f_type = floppybuttons[n][3];
+	}
+	LRESULT val = SendDlgItemMessage(hDlg, f_type, CB_GETCURSEL, 0, 0L);
+	int sub;
+	
+	if (val != CB_ERR && (workprefs.floppyslots[n].dfxtype != todfxtype(n, val, &sub) || workprefs.floppyslots[n].dfxsubtype != sub)) {
+		workprefs.floppyslots[n].dfxtype = todfxtype(n, val, &sub);
+		workprefs.floppyslots[n].dfxsubtype = sub;
+		workprefs.floppyslots[n].dfxsubtypeid[0] = 0;
+		if (workprefs.floppyslots[n].dfxtype == DRV_FB) {
+			if (sub == 0) {
+				FloppyBridgeAPI::showProfileConfigDialog(hDlg);
+				floppybridge_reload_profiles();
+				updatefloppytypes(hDlg);
+				char *c = NULL;
+				FloppyBridgeAPI::exportProfilesToString(&c);
+				TCHAR *cc = au(c);
+				regsetstr(NULL, _T("FloppyBridge"), cc);
+				xfree(cc);
+				workprefs.floppyslots[n].dfxtype = DRV_FB;
+				sub = 1;
+				workprefs.floppyslots[n].dfxsubtype = sub;
+				if (bridgeprofiles.size() == 0) {
+					workprefs.floppyslots[n].dfxtype = DRV_35_DD;
+					workprefs.floppyslots[n].dfxsubtype = 0;
+					sub = 0;
+				}
+			}
+			if (sub > 0) {
+				if (sub - 1 < bridgeprofiles.size()) {
+					int nsub = sub - 1;
+					_stprintf(workprefs.floppyslots[n].dfxsubtypeid, _T("%d:%s"), bridgeprofiles.at(nsub).profileID, bridgeprofiles.at(nsub).name);
+				}
 			}
 		}
-		floppybridge_init(&workprefs);
+		for (int i = 0; i < 4; i++) {
+			if (i != n && workprefs.floppyslots[i].dfxtype == DRV_FB && sub == workprefs.floppyslots[i].dfxsubtype) {
+				workprefs.floppyslots[n].dfxtype = DRV_35_DD;
+				workprefs.floppyslots[n].dfxsubtype = 0;
+			}
+		}
 		addfloppytype(hDlg, n);
 		addhistorymenu(hDlg, NULL, f_text, HISTORY_FLOPPY, true, n);
 		updatedfname(hDlg, workprefs.floppyslots[n].df, f_text, HISTORY_FLOPPY, n);
@@ -16196,10 +16275,10 @@ static int diskselectmenu (HWND hDlg, WPARAM wParam)
 	return 0;
 }
 
+
 static INT_PTR CALLBACK FloppyDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
 	static int recursive = 0;
-	int i;
 	static TCHAR diskname[40] = { _T("") };
 	static int dropopen;
 
@@ -16210,7 +16289,7 @@ static INT_PTR CALLBACK FloppyDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARA
 	{
 	case WM_INITDIALOG:
 		{
-			TCHAR ft35dd[20], ft35hd[20], ft35ddpc[20], ft35hdpc[20],  ft525sd[20], ftdis[20], ft35ddescom[20];
+			TCHAR ft35dd[20], ft35hd[20], ft35ddpc[20], ft35hdpc[20],  ft525sd[20];
 			int df0texts[] = { IDC_DF0TEXT, IDC_DF1TEXT, IDC_DF2TEXT, IDC_DF3TEXT, -1 };
 
 			WIN32GUI_LoadUIString (IDS_FLOPPYTYPE35DD, ft35dd, sizeof ft35dd / sizeof (TCHAR));
@@ -16218,8 +16297,6 @@ static INT_PTR CALLBACK FloppyDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARA
 			WIN32GUI_LoadUIString (IDS_FLOPPYTYPE35DDPC, ft35ddpc, sizeof ft35ddpc / sizeof (TCHAR));
 			WIN32GUI_LoadUIString (IDS_FLOPPYTYPE35HDPC, ft35hdpc, sizeof ft35hdpc / sizeof (TCHAR));
 			WIN32GUI_LoadUIString (IDS_FLOPPYTYPE525SD, ft525sd, sizeof ft525sd / sizeof (TCHAR));
-			WIN32GUI_LoadUIString (IDS_FLOPPYTYPE35DDESCOM, ft35ddescom, sizeof ft35ddescom / sizeof (TCHAR));
-			WIN32GUI_LoadUIString (IDS_FLOPPYTYPEDISABLED, ftdis, sizeof ftdis / sizeof (TCHAR));
 			pages[FLOPPY_ID] = hDlg;
 			if (workprefs.floppy_speed > 0 && workprefs.floppy_speed < 10)
 				workprefs.floppy_speed = 100;
@@ -16233,28 +16310,8 @@ static INT_PTR CALLBACK FloppyDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARA
 			SendDlgItemMessage(hDlg, IDC_FLOPPYTYPE, CB_ADDSTRING, 0, (LPARAM)ft35hdpc);
 			SendDlgItemMessage(hDlg, IDC_FLOPPYTYPE, CB_ADDSTRING, 0, (LPARAM)ft525sd);
 			SendDlgItemMessage (hDlg, IDC_FLOPPYTYPE, CB_SETCURSEL, 0, 0);
-			for (i = 0; i < 4; i++) {
-				int f_type = floppybuttons[i][3];
-				SendDlgItemMessage (hDlg, f_type, CB_RESETCONTENT, 0, 0L);
-				SendDlgItemMessage (hDlg, f_type, CB_ADDSTRING, 0, (LPARAM)ftdis);
-				SendDlgItemMessage (hDlg, f_type, CB_ADDSTRING, 0, (LPARAM)ft35dd);
-				SendDlgItemMessage (hDlg, f_type, CB_ADDSTRING, 0, (LPARAM)ft35hd);
-				SendDlgItemMessage (hDlg, f_type, CB_ADDSTRING, 0, (LPARAM)ft525sd);
-				SendDlgItemMessage (hDlg, f_type, CB_ADDSTRING, 0, (LPARAM)_T("5.25\" (80)"));
-				SendDlgItemMessage (hDlg, f_type, CB_ADDSTRING, 0, (LPARAM)ft35ddescom);
-				if (i >= 2) {
-					SendDlgItemMessage(hDlg, f_type, CB_ADDSTRING, 0, (LPARAM)_T("Bridgeboard 5.25\" 40"));
-					SendDlgItemMessage(hDlg, f_type, CB_ADDSTRING, 0, (LPARAM)_T("Bridgeboard 5.25\" 80"));
-					SendDlgItemMessage(hDlg, f_type, CB_ADDSTRING, 0, (LPARAM)_T("Bridgeboard 3.5\"  80"));
-				}
-				if (floppybridge_has()) {
-					floppybridge_init(&workprefs);
-					SendDlgItemMessage(hDlg, f_type, CB_ADDSTRING, 0, (LPARAM)_T("FloppyBridge A: 3.5\" DD"));
-					SendDlgItemMessage(hDlg, f_type, CB_ADDSTRING, 0, (LPARAM)_T("FloppyBridge A: 3.5\" HD"));
-					SendDlgItemMessage(hDlg, f_type, CB_ADDSTRING, 0, (LPARAM)_T("FloppyBridge B: 3.5\" DD"));
-					SendDlgItemMessage(hDlg, f_type, CB_ADDSTRING, 0, (LPARAM)_T("FloppyBridge B: 3.5\" HD"));
-				}
-			}
+			floppybridge_init(&workprefs);
+			updatefloppytypes(hDlg);
 			setmultiautocomplete (hDlg, df0texts);
 			dropopen = 0;
 		}

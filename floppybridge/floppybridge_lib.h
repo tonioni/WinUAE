@@ -17,6 +17,11 @@
 #pragma once
 
 #include "floppybridge_abstract.h"
+#ifdef _WIN32
+#include <windows.h>
+#endif
+#include <vector>
+#include <string>
 
 #define BRIDGE_STRING_MAX_LENGTH 255
 typedef TCHAR TCharString[BRIDGE_STRING_MAX_LENGTH];
@@ -64,6 +69,7 @@ public:
 	static const unsigned int ConfigOption_ComPort				= 0x02;	// The driver requires a COM port selection
 	static const unsigned int ConfigOption_AutoDetectComport	= 0x04;	// The driver supports automatic com port detection and selection
 	static const unsigned int ConfigOption_DriveABCable			= 0x08;	// The driver allows you to specify using cable select for Drive A or Drive B
+	static const unsigned int ConfigOption_SmartSpeed			= 0x10;	// The driver supports dynamically switching between normal and Turbo hopefully without breaking copy protection
 
 	// Information about a Bridge Driver (eg: DrawBridge, Greaseweazle etc)
 	struct DriverInformation {
@@ -79,6 +85,25 @@ public:
 		// A bitmask of which options in configuration the driver can support, aside from the standard ones. See the ConfigOption_ consts above
 		unsigned int configOptions;
 	};
+
+	// Information about a floppy bridge profile
+	struct FloppyBridgeProfileInformation {
+		// Unique ID of this profile
+		unsigned int profileID;
+
+		// Driver Index, incase it's shown on the GUI
+		unsigned int driverIndex;
+
+		// Some basic information
+		FloppyBridgeAPI::BridgeMode bridgeMode;
+		FloppyBridgeAPI::BridgeDensityMode bridgeDensityMode;
+
+		// Profile name
+		TCharString name;
+
+		// Pointer to the Configuration data for this profile. - Be careful. Assume this pointer is invalid after calling *any* of the *profile* functions apart from getAllProfiles
+		const char* profileConfig;
+	};
 	
 	//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -91,7 +116,25 @@ public:
 
 	// Populares bridgeInformation with information about the Bridge DLL. This should be called and shown somewhere
 	// As it contains update and support information too.  If this returns FALSE it will still contain basic information such as a URL to get the DLL from.
-	static bool getBridgeDriverInformation(BridgeInformation& bridgeInformation);
+	static bool getBridgeDriverInformation(bool allowCheckForUpdates, BridgeInformation& bridgeInformation);
+
+	// Creates a driver instance.  If it fails, it will return NULL.  It should only fail if the index is invalid.
+	static FloppyBridgeAPI* createDriver(unsigned int driverIndex);
+
+	// Create a driver instance from a config string previously saved.  This will auto-select the driverIndex.
+	static FloppyBridgeAPI* createDriverFromString(const char* config);
+
+	// Creates the driver instance from a profile ID.  You need to call importProfilesFromString() before using this function
+	static FloppyBridgeAPI* createDriverFromProfileID(unsigned int profileID);
+
+	//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// Direct management
 
 	// Populates driverList with a list of available floppy bridge drivers that could be created
 	static void getDriverList(std::vector<DriverInformation>& driverList);
@@ -100,11 +143,46 @@ public:
 	// NOTE: The TCHARs in the vector are only valid until this function is called again
 	static void enumCOMPorts(std::vector<const TCHAR*>& portList);
 
-	// Creates a driver.  If it fails, it will return NULL.  It should only fail if the index is invalid.
-	static FloppyBridgeAPI* createDriver(unsigned int driverIndex);
+	//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// Profile based management
 
-	// Createw a driver from a config string previously saved.  This will auto-select the driverIndex.
-	static FloppyBridgeAPI* createDriverFromString(const char* config);
+	// Displays the config dialog (modal) for Floppy Bridge profiles.  
+	// *If* you pass a profile ID, the dialog will jump to editing that profile, or return FALSE if it was not found.
+	// Returns FALSE if cancel was pressed
+#ifdef _WIN32
+	static bool showProfileConfigDialog(HWND hwndParent, unsigned int* profileID = nullptr);
+#endif
+
+	// Retrieve a list of all of the profiles currently loaded that can be used.
+	static bool getAllProfiles(std::vector<FloppyBridgeProfileInformation>& profileList);
+
+	// Imports all profiles into memory from the supplied string.  This will erase any currently in memory
+	static bool importProfilesFromString(const char* profilesString);
+
+	// Exports all profiles and returns a pointer to the string.  This pointer is only valid while the driver is loaded and until this is called again
+	static bool exportProfilesToString(char** profilesString);
+
+	// Returns a pointer to a string containing the details for a profile
+	static bool getProfileConfigAsString(unsigned int profileID, char** config);
+
+	// Updates a profile from the supplied string
+	static bool setProfileConfigFromString(unsigned int profileID, const char* config);
+
+	// Updates a profile name the supplied string
+	static bool setProfileName(unsigned int profileID, const char* name);
+
+	// Creates a new profile and returns its unique ID
+	static bool createNewProfile(unsigned int driverIndex, unsigned int* profileID);
+
+	// Deletes a profile by ID.
+	static bool deleteProfile(unsigned int profileID);
+
 
 	//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -159,12 +237,12 @@ public:
 	// Sets if the driver should use a drive connected as Drive B (true) on the cable rather than Drive A (false)
 	bool setDriveCableSelection(bool connectToDriveB);
 
-
-
-
-
-
-
+	//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// These require ConfigOption_SmartSpeed bit set in DriverInformation::configOptions
+	// Returns if the driver currently has Smart Speed enabled which can dynamically switch between normal and turbo disk speed without breaking copy protection
+	bool getSmartSpeedEnabled(bool* enabled);
+	//  Sets if the driver can dynamically switch between normal and turbo disk speed without breaking copy protectionThis can be set while the bridge is in use
+	bool setSmartSpeedEnabled(bool enabled);
 
 
 
@@ -191,10 +269,11 @@ public:
 	virtual void handleNoClickStep(bool side) override;
 	virtual unsigned char getCurrentCylinderNumber() override;
 	virtual bool isMotorRunning() override;
-	virtual void setMotorStatus(bool turnOn, bool side) override;
+	virtual void setMotorStatus(bool side, bool turnOn) override;
 	virtual bool isReady() override;
 	virtual bool isDiskInDrive() override;
 	virtual bool hasDiskChanged() override;
+	virtual bool getCurrentSide() override;
 	virtual bool isMFMPositionAtIndex(int mfmPositionBits) override;
 	virtual bool isMFMDataAvailable() override;
 	virtual bool getMFMBit(const int mfmPositionBits) override;
