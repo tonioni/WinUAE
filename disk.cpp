@@ -652,18 +652,12 @@ static void drive_settype_id (drive *drv)
 	if (drv->bridge)
 	{
 		if (drv->bridge->isDiskInDrive()) {
-			FloppyBridgeAPI::BridgeDensityMode mode = FloppyBridgeAPI::BridgeDensityMode::bdmDDOnly;
-			bridges[drvnum]->getBridgeDensityMode(&mode);
 			switch (drv->bridge->getDriveTypeID()) {
 			case FloppyDiskBridge::DriveTypeID::dti35DD:
 				drv->drive_id = DRIVE_ID_35DD;
 				break;
 			case FloppyDiskBridge::DriveTypeID::dti35HD:
-				if (mode != FloppyBridgeAPI::BridgeDensityMode::bdmDDOnly) {
-					drv->drive_id = DRIVE_ID_35HD;
-				} else {
-					drv->drive_id = DRIVE_ID_35DD;
-				}
+				drv->drive_id = DRIVE_ID_35HD;
 				break;
 			case FloppyDiskBridge::DriveTypeID::dti5255SD:
 				drv->drive_id = DRIVE_ID_525SD;
@@ -4647,6 +4641,7 @@ void DSKLEN (uae_u16 v, int hpos)
 					} else
 						if (drv->bridge->isWriteComplete()) {
 							done = 2;
+							drv->writepending = false;
 						}
 				} else
 #endif
