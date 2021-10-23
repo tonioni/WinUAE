@@ -508,6 +508,8 @@ FSIN_chip_done
 	rts
 	EREM
 
+	; d1 = stacksize
+	; d2 = priority
 createproc
 	movem.l d2-d5/a2/a6,-(sp)
 	moveq #0,d5
@@ -674,7 +676,16 @@ EXTT_notificationhack:
 	bra.w EXTT_loop
 EXTT_shellexec
 	cmp.w #6,d0
+	bgt.s EXTT_shellexec2
+	bsr.s doshellexecute
+	bra.w EXTT_loop
+EXTT_shellexec2
+	cmp.w #7,d0
 	bgt.w EXTT_loop
+	bsr.s doshellexecute2
+	bra.w EXTT_loop
+
+doshellexecute
 	lea shellexecname(pc),a0
 	lea shellexecproc(pc),a1
 	moveq #1,d0
@@ -685,7 +696,215 @@ EXTT_shellexec
 	bsr.w getrtbaselocal
 	moveq #20,d0
 	jsr (a0)
-	bra.w EXTT_loop
+	rts
+
+doshellexecute2
+	movem.l d2-d4/a2-a4,-(sp)	
+	sub.l a4,a4
+	moveq #0,d3
+	move.w #$FF50,d0 ; exter_int_helper
+	bsr.w getrtbaselocal
+	move.l a0,a3
+	moveq #30,d0
+	jsr (a3)
+	; returns requested data size in D0
+	move.l d0,d2
+	beq.s .end1
+	move.l #65536+1,d1
+	jsr AllocMem(a6)
+	move.l d0,a4
+	tst.l d0
+	beq.s .she1
+	move.l d2,(a4)
+	lea shellexecname(pc),a0
+	lea shellexecproc2(pc),a1
+	moveq #1,d0
+	move.l #4096,d1
+	bsr.w createproc
+	move.l d0,d3
+	beq.s .she1
+	sub.l #92,d3
+.she1
+	moveq #31,d0
+	move.l a4,a0
+	; send process struct and data
+	move.l d3,d1
+	jsr (a3)
+	tst.l d3
+	beq.s .end2
+	move.l a4,d0
+	beq.s .end2
+	move.l d3,a1 ; Task
+	moveq #0,d0	
+	bset #13,d0 ; SIGBREAK_CTRL_D
+	jsr -$144(a6) ; Signal
+	bra.s .end1
+.end2
+	move.l a4,d0
+	beq.s .end1
+	move.l a4,a1
+	move.l (a4),d0
+	jsr FreeMem(a6)
+.end1
+	movem.l (sp)+,d2-d4/a2-a4
+	rts
+	
+	cnop 0,4
+	dc.l 16
+shellexecproc2
+	dc.l 0
+
+	move.l 4.w,a6
+	lea doslibname(pc),a1
+	moveq #0,d0
+	jsr -$228(a6) ; OpenLibrary
+	move.l d0,d6
+	
+	moveq #0,d0	
+	bset #13,d0 ; SIGBREAK_CTRL_D
+	jsr -$013e(a6) ;Wait
+
+	move.w #$FF50,d0 ; exter_int_helper
+	bsr.w getrtbaselocal
+	moveq #32,d0
+	; get data
+	jsr (a0)
+	move.l d0,a4 ;data
+	
+	;  0 L size (including this field)
+	;  4 PT command
+	;  8 PT params
+	; 12 PT dir
+	; 16 PT command + params
+	; 20 L stack size
+	; 24 L priority
+	; 28 L flags
+	; 32 L id
+	; 36 L datasize
+	; 40 PT data
+
+	exg d6,a6
+
+	move.l sp,a3
+	lea -8*8(sp),sp
+	move.l sp,d5
+	move.l d5,a2
+
+	; SYS_Input
+	move.l #$80000000+32+1,(a2)+
+	lea nil_name(pc),a0
+	move.l a0,d1
+	move.l #1005,d2
+	jsr -$1e(a6) ;Open
+	move.l d0,(a2)+
+
+	; SYS_Output
+	move.l #$80000000+32+2,(a2)+
+	lea nil_name(pc),a0
+	move.l a0,d1
+	jsr -$1e(a6) ;Open
+	move.l d0,(a2)+
+
+	; NP_CurrentDir
+	moveq #1,d0 ; TAG_IGNORE
+	move.l d0,(a2)+
+	moveq #0,d0
+	move.l d0,(a2)+
+	move.l 12(a4),a0
+	tst.b (a0)
+	beq.s .nodir1
+	move.l a0,d1
+	moveq #-2,d2
+	jsr -$0054(a6) ;Lock
+	tst.l d0
+	beq.s .nodir1
+	subq.l #8,a2
+	move.l #$80000000+1000+10,(a2)+
+	move.l d0,(a2)+
+.nodir1
+
+	; NP_StackSize
+	move.l 20(a4),d0
+	beq.s .stk1
+	move.l #$80000000+1000+11,(a2)+
+	move.l d0,(a2)+
+.stk1
+
+	; NP_Priority
+	move.l #$80000000+1000+13,(a2)+
+	move.l 24(a4),(a2)+
+
+	; NP_WindowPtr
+	moveq #1,d0 ; TAG_IGNORE
+	move.l d0,(a2)+
+	moveq #0,d0
+	move.l d0,(a2)+
+	move.l 28(a4),d0
+	btst #2,d0
+	beq.s .nowp1
+	subq.l #8,a2
+	move.l #$80000000+1000+15,(a2)+
+	moveq #-1,d0
+	move.l d0,(a2)+
+.nowp1
+
+	clr.l (a2)+
+	clr.l (a2)
+	move.l d5,a2
+
+	cmp.w #36,20(a6)
+	bcc.s .seproc5
+
+	move.l 16(a4),d1 ; Command
+	moveq #0,d2 ;Input
+	move.l 1*8+4(a2),d3 ;Output
+	jsr -$de(a6) ;Execute
+
+	bra.s .seproc4
+
+.seproc5
+	move.l 16(a4),d1
+	move.l a2,d2
+	jsr -$25e(a6) ; SystemTagList	
+
+.seproc4
+	move.l d0,d2
+
+	move.l 0*8+4(a2),d1
+	beq.s .nof2
+	jsr -$24(a6) ;Close
+.nof2
+	move.l 1*8+4(a2),d1
+	beq.s .nof3
+	jsr -$24(a6) ;Close
+.nof3
+	cmp.l #-1,d2
+	bne.s .nof1
+	move.l 2*8+4(a2),d1
+	beq.s .nof1
+	jsr -$5a(a6) ;Unlock
+.nof1
+
+	move.l a3,sp
+
+	exg d6,a6
+
+	move.w #$FF50,d0 ; exter_int_helper
+	bsr.w getrtbaselocal
+	moveq #33,d0
+	move.l d2,d1
+	move.l a4,a1
+	; return status
+	jsr (a0)
+
+	move.l d6,a1
+	jsr -$19e(a6)
+
+	move.l a4,a1
+	move.l (a4),d0
+	jsr FreeMem(a6)
+	moveq #0,d0
+	rts
 
 exter_server_new:
 	moveq #0,d0

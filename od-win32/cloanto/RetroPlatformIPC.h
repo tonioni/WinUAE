@@ -2,14 +2,14 @@
  Name    : RetroPlatformIPC.h
  Project : RetroPlatform Player
  Support : http://www.retroplatform.com
- Legal   : Copyright 2007-2019 Cloanto Corporation - All rights reserved. This
+ Legal   : Copyright 2007-2021 Cloanto Corporation - All rights reserved. This
          : file is multi-licensed under the terms of the Mozilla Public License
          : version 2.0 as published by Mozilla Corporation and the GNU General
          : Public License, version 2 or later, as published by the Free
          : Software Foundation.
  Authors : os, m
  Created : 2007-08-27 13:55:49
- Updated : 2019-01-27 10:47:18
+ Updated : 2021-10-17 10:43:32
  Comment : RetroPlatform Player interprocess communication include file
  *****************************************************************************/
 
@@ -18,9 +18,9 @@
 
 #include <windows.h>
 
-#define RETROPLATFORM_API_VER       "7.6"
-#define RETROPLATFORM_API_VER_MAJOR  7
-#define RETROPLATFORM_API_VER_MINOR  6
+#define RETROPLATFORM_API_VER       "10.0"
+#define RETROPLATFORM_API_VER_MAJOR  10
+#define RETROPLATFORM_API_VER_MINOR  0
 
 #define RPIPC_HostWndClass   "RetroPlatformHost%s"
 #define RPIPC_GuestWndClass  "RetroPlatformGuest%d"
@@ -68,6 +68,10 @@
 #define RP_IPC_TO_HOST_MOUSEMOVE            (WM_APP + 38) // introduced in RetroPlatform API 7.5
 #define RP_IPC_TO_HOST_MOUSEBUTTON          (WM_APP + 39) // introduced in RetroPlatform API 7.5
 #define RP_IPC_TO_HOST_PRIVATE_MENUEVENT    (WM_APP + 40) // introduced in RetroPlatform API 7.5
+#define RP_IPC_TO_HOST_PRIVATE_DOCKKBDWIN   (WM_APP + 41) // introduced in RetroPlatform API 7.7
+#define RP_IPC_TO_HOST_TEXT_CURSOR_INFO     (WM_APP + 42) // introduced in RetroPlatform API 7.9
+#define RP_IPC_TO_HOST_SET_MOUSE_CURSOR     (WM_APP + 43) // introduced in RetroPlatform API 7.10
+#define RP_IPC_TO_HOST_EXECUTE_RESULT       (WM_APP + 44) // introduced in RetroPlatform API 10.0
 
 // ****************************************************************************
 //  Host-to-Guest Messages
@@ -107,6 +111,17 @@
 #define RP_IPC_TO_GUEST_PRIVATE_MENUMODE     (WM_APP + 235) // introduced in RetroPlatform API 7.5
 #define RP_IPC_TO_GUEST_PRIVATE_SETFRGWINDOW (WM_APP + 236) // introduced in RetroPlatform API 7.5
 #define	RP_IPC_TO_GUEST_SHOWDEBUGGER         (WM_APP + 237) // introduced in RetroPlatform API 7.6
+#define	RP_IPC_TO_GUEST_PRIVATE_SETWINDOWPOS (WM_APP + 238) // introduced in RetroPlatform API 7.8
+#define	RP_IPC_TO_GUEST_PRIVATE_SHOWWINDOW   (WM_APP + 239) // introduced in RetroPlatform API 7.8
+#define	RP_IPC_TO_GUEST_PRIVATE_SETWINDOWTEXT (WM_APP + 240) // introduced in RetroPlatform API 7.8
+#define	RP_IPC_TO_GUEST_PRIVATE_SETWINDOWLONG (WM_APP + 241) // introduced in RetroPlatform API 7.8
+#define RP_IPC_TO_GUEST_PRIVATE_SHAREDEVENT  (WM_APP + 242) // introduced in RetroPlatform API 7.9
+#define RP_IPC_TO_GUEST_WRITESTRING			 (WM_APP + 243) // introduced in RetroPlatform API 7.9
+#define RP_IPC_TO_GUEST_TRIGGER_TRAP		 (WM_APP + 244) // introduced in RetroPlatform API 7.9
+#define RP_IPC_TO_GUEST_PRIVATE_COPYTEXT     (WM_APP + 245) // introduced in RetroPlatform API 7.9
+#define RP_IPC_TO_GUEST_SETCURSORPOSITION	 (WM_APP + 246) // introduced in RetroPlatform API 7.9
+#define RP_IPC_TO_GUEST_PRIVATE_TEXTSELMENU  (WM_APP + 247) // introduced in RetroPlatform API 7.10
+#define RP_IPC_TO_GUEST_EXECUTE              (WM_APP + 248) // introduced in RetroPlatform API 10.0
 
 // ****************************************************************************
 //  Message Data Structures and Defines
@@ -119,7 +134,7 @@
 #define RP_FEATURE_SCREEN3X        			0x00000008 // 3x mode is available
 #define RP_FEATURE_SCREEN4X        			0x00000010 // 4x mode is available
 #define RP_FEATURE_FULLSCREEN      			0x00000020 // fullscreen display is available
-#define RP_FEATURE_RESERVED   			    0x00000040 // unused - reserved for future use (to not cause side effects during screen capture changes in 201303 beta)
+#define RP_FEATURE_WRITESTRING			    0x00000040 // RP_IPC_TO_GUEST_WRITESTRING is supported
 #define RP_FEATURE_PAUSE           			0x00000080 // pause functionality is available (see RP_IPC_TO_GUEST_PAUSE message)
 #define RP_FEATURE_TURBO_CPU       			0x00000100 // turbo CPU functionality is available (see RP_IPC_TO_GUEST_TURBO message)
 #define RP_FEATURE_VOLUME          			0x00000200 // volume adjustment is possible (see RP_IPC_TO_GUEST_VOLUME message)
@@ -194,6 +209,7 @@ typedef struct RPScreenMode
 #define RP_SCREENMODE_SCANLINES     		0x00080000 // show video scan lines
 #define RP_SCREENMODE_SCALING_SUBPIXEL 		0x00100000 // use sub-pixel (non-integer) scaling in RP_SCREENMODE_SCALE_TARGET or RP_SCREENMODE_SCALE_MAX modes; if not set, up to four black bars may be added; if set, up to two black bars may be added
 #define RP_SCREENMODE_SCALING_STRETCH  		0x00200000 // "stretch to fill" (do not preserve original ratio) in RP_SCREENMODE_SCALE_TARGET or RP_SCREENMODE_SCALE_MAX modes; if set, no black bars are added
+#define RP_SCREENMODE_PIXEL_ORIGINAL_RATIO	0x00400000 // use pixel original ratio (when not set, square pixel ratio or a multiple thereof is used, which grants optimal sharpness and avoids screen distortions)
 
 // Clip Flags (used only from host to guest, never from guest to host)
 #define RP_CLIPFLAGS_AUTOCLIP				0x00000001 // ignore all 4 Clip values (same as all values = -1) and use "smart" offset and size
@@ -491,16 +507,10 @@ typedef struct RPScreenCapture
 #define RP_MAKE_HOSTVERSION(major,minor,build) ((LPARAM) (((LPARAM)((major) & 0xFFF)<<20) | ((LPARAM)((minor) & 0x3FF)<<10) | ((LPARAM)((build) & 0x3FF))))
 
 
-// RP_IPC_TO_HOST_PRIVATE_SHAREDEVENT wParam
-#define RP_SHARED_EVENT_ESCAPE				1
-#define	RP_SHARED_EVENT_TURBO				2
-#define	RP_SHARED_EVENT_PAUSE				3
-#define	RP_SHARED_EVENT_SCREENCAPTURECLIP	4
-#define	RP_SHARED_EVENT_SCREENCAPTUREFILE	5
-#define	RP_SHARED_EVENT_PLUGINOPTIONS		6
-// RP_IPC_TO_HOST_PRIVATE_SHAREDEVENT lParam
-#define	RP_SHARED_EVENT_PRESSED			0x0000
-#define	RP_SHARED_EVENT_RELEASED		0x0001
+// RP_IPC_TO_HOST_PRIVATE_SHAREDEVENT LOWORD lParam
+#define	RP_SHARED_EVENT_PRESSED			 0x0000
+#define RP_SHARED_EVENT_PRESSED_DEFERRED 0x0002
+#define	RP_SHARED_EVENT_RELEASED		 0x0001
 
 // RP_IPC_TO_GUEST_PRIVATE_TYPECLIP return code
 #define PRIVATETYPECLIP_NOTIMPL		0
@@ -533,6 +543,94 @@ typedef struct RPScreenOverlay
 #define RP_MENU_EVENT_UP		4
 #define RP_MENU_EVENT_SELECT	5	
 #define RP_MENU_EVENT_BACK		6
+
+
+// RPTextCursorInfo (used by RP_IPC_TO_HOST_TEXT_CURSOR_INFO)
+
+typedef struct RPTextCursorInfo
+{
+	DWORD dwCursorColumn; // current cursor column or RP_NO_COLUMN
+	DWORD dwCursorRow;    // current cursor row or RP_NO_ROW
+	DWORD dwColumns;      // total number of columns
+	DWORD dwRows;         // total number of rows
+	RECT  rcCursor;       // text cursor position (in window coordinates) (empty rectangle, if mouse is outside of text area)
+	RECT  rcTextArea;     // text area (in window coordinates)
+	DWORD dwMouseButtons; // RP_MOUSE_BUTTON_* flags
+	POINT ptMousePosition;// mouse coordinates relative to the emulation window (or -1,-1, when mouse is moved outside the emulation window)
+} RPTEXTCURSORINFO;
+
+#define RP_NO_COLUMN  ((DWORD)-1) // mouse is outside of text area
+#define RP_NO_ROW     ((DWORD)-1) // mouse is outside of text area
+
+
+// RP_IPC_TO_HOST_MOUSEBUTTON and RP_IPC_TO_HOST_TEXT_CURSOR_INFO
+#define RP_MOUSE_BUTTON_LEFT	0x0001
+#define RP_MOUSE_BUTTON_RIGHT	0x0002
+#define RP_MOUSE_BUTTON_MIDDLE	0x0004
+
+
+// RP_IPC_TO_GUEST_TRIGGER_TRAP
+typedef HRESULT (CALLBACK *RP_READ_MEMORY_CALLBACK)(DWORD dwAddress, DWORD dwSize, DWORD *pdwValue, LPARAM lParam1, LPARAM lParam2);
+typedef HRESULT (CALLBACK *RP_WRITE_MEMORY_CALLBACK)(DWORD dwAddress, DWORD dwSize, DWORD dwValue, LPARAM lParam1, LPARAM lParam2);
+typedef void (CALLBACK *RP_TRAP_CALLBACK)(RP_READ_MEMORY_CALLBACK pfnReadMemory, RP_WRITE_MEMORY_CALLBACK pfnWriteMemory, DWORD dwFlags, LPARAM lParam1, LPARAM lParam2);
+typedef struct RPTrapData
+{
+	DWORD dwFlags; // see RP_TRAPF_* defines below
+	RP_TRAP_CALLBACK pfnCallback;
+	LPARAM lCallbackParam;
+} RPTRAPDATA;
+// RPTRAPDATA dwFlags
+#define RP_TRAPF_READ_ACCESS  0x00000001
+#define RP_TRAPF_WRITE_ACCESS 0x00000002
+#define RP_TRAPF_SYNC_MODE    0x00000004
+#define RP_TRAPF_ASYNC_MODE   0x00000008
+// RP_IPC_TO_GUEST_TRIGGER_TRAP return code
+#define RP_TRAP_UNSUPPORTED			0
+#define RP_TRAP_OK_SYNC				1
+#define RP_TRAP_OK_ASYNC			2
+#define RP_TRAP_SYNC_NOT_POSSIBLE   3
+#define RP_TRAP_ASYNC_NOT_POSSIBLE  4
+#define RP_TRAP_ERROR				5
+
+
+// RP_IPC_TO_HOST_SET_MOUSE_CURSOR return codes
+#define RP_SMC_UNSUPPORTED		0
+#define RP_SMC_CURSOR_NOT_SET	1
+#define RP_SMC_CURSOR_SET		2
+
+
+// RPExecuteInfo (used by RP_IPC_TO_GUEST_EXECUTE)
+
+typedef struct RPExecuteInfo
+{
+	DWORD cbSize;            // the size of this structure, in bytes
+	WCHAR szFile[260];       // program to be executed (may include a path), or an empty string (if dwFileDataSize is != 0)
+	WCHAR szParameters[260]; // command line parameters
+	WCHAR szDirectory[260];  // program current directory
+	DWORD dwStackSize;       // stack size of the new process (0 = default stack size)
+	LONG  lPriority;         // process priority (0 = default priority)
+	DWORD dwFlags;           // RP_EXECUTE_* flags (see below)
+	DWORD dwExecuteID;       // unique ID of this execute request (used by guest to later send a RP_IPC_TO_HOST_EXECUTE_RESULT message)
+	DWORD dwFileDataSize;    // size, in bytes, of the file binary data (set to 0, if szFile contains a valid program file string)
+	DWORD dwFileDataOffset;  // offset, relative from the beginning of this structure, where file data begins
+} RPEXECUTEINFO;
+
+#define RP_EXECUTE_RETURN_EXIT_CODE  0x00000001 // wait for the program to finish and return its exit code
+#define RP_EXECUTE_RETURN_OUTPUT     0x00000002 // wait for the program to finish and return its output
+#define RP_EXECUTE_SILENT            0x00000004 // error messages and other UI interactions should be suppressed
+
+
+// RPExecutionResult (used by RP_IPC_TO_HOST_EXECUTE_RESULT)
+
+typedef struct RPExecuteResult
+{
+	DWORD cbSize;            // the size of this structure, in bytes (not including the extra size of the szOutput array)
+	DWORD dwExecuteID;       // execute request ID (see dwExecuteID in RPExecuteInfo)
+	HRESULT hrExecuteResult; // if != NOERROR, the program was not launched (S_FALSE for generic error, or detailed HRESULT error code)
+	DWORD dwExitCode;        // program exit code
+	DWORD dwOutputLength;    // length of the output string (not including the terminating null character)
+	WCHAR szOutput[1];       // output string (variable-sized array)
+} RPEXECUTERESULT;
 
 
 // Legacy Compatibility

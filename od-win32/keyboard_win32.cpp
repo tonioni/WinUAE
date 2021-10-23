@@ -404,15 +404,8 @@ bool my_kbd_handler (int keyboard, int scancode, int newstate, bool alwaysreleas
 #if 0
 	if (scancode == DIK_F1) {
 		if (newstate) {
-			char msg[20000];
-			FILE *f = fopen("test.txt", "rb");
-			memset(msg, 0, sizeof msg);
-			fread(msg, 1, sizeof msg, f);
-			void parse_guest_event(const TCHAR *ss);
-			TCHAR *txt = au(msg);
-			parse_guest_event(txt);
-			free(txt);
-			fclose(f);
+			extern void rp_test(void);
+			rp_test();
 		}
 		return true;
 	}

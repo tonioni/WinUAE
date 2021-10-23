@@ -23,6 +23,7 @@ extern USHORT rp_rawbuttons(LPARAM lParam, USHORT usButtonFlags);
 extern bool rp_mouseevent(int x, int y, int buttons, int buttonmask);
 extern bool rp_ismouseevent(void);
 extern void rp_reset(void);
+extern void rp_test(void);
 
 extern TCHAR *rp_param;
 extern int rp_rpescapekey;

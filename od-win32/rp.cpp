@@ -135,6 +135,7 @@ static const TCHAR *getmsg (int msg)
 	case RP_IPC_TO_HOST_KEYBOARDLAYOUT: return _T("RP_IPC_TO_HOST_KEYBOARDLAYOUT");
 	case RP_IPC_TO_HOST_MOUSEMOVE: return _T("RP_IPC_TO_HOST_MOUSEMOVE");
 	case RP_IPC_TO_HOST_MOUSEBUTTON: return _T("RP_IPC_TO_HOST_MOUSEBUTTON");
+	case RP_IPC_TO_HOST_EXECUTE_RESULT: return _T("RP_IPC_TO_HOST_EXECUTE_RESULT");
 
 	case RP_IPC_TO_GUEST_CLOSE: return _T("RP_IPC_TO_GUEST_CLOSE");
 	case RP_IPC_TO_GUEST_SCREENMODE: return _T("RP_IPC_TO_GUEST_SCREENMODE");
@@ -161,6 +162,7 @@ static const TCHAR *getmsg (int msg)
 	case RP_IPC_TO_GUEST_MOVESCREENOVERLAY: return _T("RP_IPC_TO_GUEST_MOVESCREENOVERLAY");
 	case RP_IPC_TO_GUEST_SENDMOUSEEVENTS: return _T("RP_IPC_TO_GUEST_SENDMOUSEEVENTS");
 	case RP_IPC_TO_GUEST_SHOWDEBUGGER: return _T("RP_IPC_TO_GUEST_SHOWDEBUGGER");
+	case RP_IPC_TO_GUEST_EXECUTE: return _T("RP_IPC_TO_GUEST_EXECUTE");
 	default: return _T("UNKNOWN");
 	}
 }
@@ -1251,6 +1253,42 @@ static int screenoverlay(LPCVOID pData)
 	return D3D_extoverlay(&eo);
 }
 
+static void dos_execute_callback(uae_u32 id, uae_u32 status, uae_u32 flags)
+{
+	RPExecuteResult *er;
+	int size = sizeof(RPExecuteResult);
+
+	if (flags & (RP_EXECUTE_RETURN_EXIT_CODE | RP_EXECUTE_RETURN_OUTPUT)) {
+		er = (RPExecuteResult *)xcalloc(uae_u8, size);
+		if (er) {
+			er->cbSize = size;
+			er->dwExecuteID = id;
+			er->dwExitCode = status;
+			er->dwOutputLength = 0;
+			er->hrExecuteResult = S_OK;
+			er->szOutput[0] = 0;
+			RPSendMessagex(RP_IPC_TO_HOST_EXECUTE_RESULT, 0, 0, er, size, &guestinfo, NULL);
+			xfree(er);
+		}
+	}
+}
+
+static int dosexecute(TCHAR *file, TCHAR *currentdir, TCHAR *parms, uae_u32 stack, uae_s32 priority, uae_u32 id, uae_u32 flags, uae_u8 *bin, uae_u32 binsize)
+{
+	if (flags & RP_EXECUTE_RETURN_OUTPUT) {
+		return 0;
+	}
+	int ret = filesys_shellexecute2(file, currentdir, parms, stack, priority, id, flags, bin, binsize, dos_execute_callback);
+	return ret;
+}
+
+static int execute(LPCVOID pData)
+{
+	struct RPExecuteInfo *ei = (struct RPExecuteInfo*)pData;
+	int v = dosexecute(ei->szFile, ei->szDirectory, ei->szParameters, ei->dwStackSize, ei->lPriority, ei->dwExecuteID, ei->dwFlags, ei->dwFileDataOffset ? (uae_u8*)pData + ei->dwFileDataOffset : NULL , ei->dwFileDataSize);
+	return v;
+}
+
 extern int screenshotf(int monid, const TCHAR *spath, int mode, int doprepare, int imagemode, struct vidbuffer *vb);
 extern int screenshotmode;
 static int screencap(LPCVOID pData, struct AmigaMonitor *mon)
@@ -1487,6 +1525,8 @@ static LRESULT CALLBACK RPHostMsgFunction2 (UINT uMessage, WPARAM wParam, LPARAM
 	case RP_IPC_TO_GUEST_SHOWDEBUGGER:
 		activate_debugger();
 		return 1;
+	case RP_IPC_TO_GUEST_EXECUTE:
+		return execute(pData);
 	}
 	return FALSE;
 }
@@ -2330,4 +2370,20 @@ void rp_reset(void)
 	if (!initialized)
 		return;
 	device_add_vsync_pre(rp_vsync);
+}
+
+void rp_test(void)
+{
+#if 0
+	struct AmigaMonitor *mon = &AMonitors[0];
+	struct RPScreenCapture rpsc = { 0 };
+
+	_tcscpy(rpsc.szScreenRaw, _T("c:\\temp\\test.png"));
+	
+	screencap((void*)&rpsc, mon);
+#endif
+#if 1
+	dosexecute(_T("c:list"), _T("sys:"), _T(""), 4000, 3, 0x12345678, 0, NULL, 0);
+
+#endif
 }

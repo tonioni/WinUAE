@@ -4,12 +4,12 @@
  Client  : Cloanto Corporation
  Support : http://www.retroplatform.com
  Legal   : CONFIDENTIAL TRADE SECRET PROPERTY OF CLOANTO CORPORATION
-         : Copyright © Cloanto Corporation 2007-2019.
+         : Copyright © Cloanto Corporation 2007-2021.
          : All rights reserved, except where licensed,
          : assigned or transferred by contract.
  Authors : os, m
  Created : 2007-08-23 10:08:25
- Updated : 2019-01-27 10:56:32
+ Updated : 2021-10-14 11:42:34
  Comment : Reference for RetroPlatformIPC.h (RP Player interprocess communication include file)
  *****************************************************************************/
 
@@ -329,6 +329,8 @@ Description:
    that the appropriate data can be sent to the host (e.g. Content set to
    "KeyboardCustom Left=0x4B Right=0x4D Up=0x48 Down=0x50 Fire=0x52"), which in
    turn may need to display it in the user interface.
+   In the user interface, a device (drive) icon, perhaps with an empty state,
+   may persist even for devices like empty drives (floppy, CD).
 Data sent:
    pData = a RPDEVICECONTENT structure (see RetroPlatformIPC.h);
            the szContent field of the structure
@@ -523,21 +525,47 @@ Description:
    (e.g. lLeft and lTop fields of the RPSCREENOVERLAY structure)
 Data sent:
    WPARAM = mouse buttons state
-            (bit 0 = left button state, bit 1 = right button state, ...)
+            (flags: RP_MOUSE_BUTTON_LEFT, RP_MOUSE_BUTTON_RIGHT, RP_MOUSE_BUTTON_MIDDLE)
    LPARAM = screen coordinates combined with the MAKELONG macro (i.e. MAKELONG(x,y))
 Response:
    none
 
 
+Message:
+   RP_IPC_TO_HOST_TEXT_CURSOR_INFO
+Description:
+   when virtual mouse is enabled, the guest send RP_IPC_TO_HOST_TEXT_CURSOR_INFO
+   messages to the host, in order to provide information about the text cursor
+   and some cursor-related screen and mouse data;
+   this information is not sent at every mouse move, but only when the mouse
+   hovers a new character position (e.g. dwCursorColumn and/or dwCursorRow field
+   is different, compared to the previously sent data), or when the mouse
+   is moved outside of the text area
+Data sent:
+   pData = a RPTEXTCURSORINFO structure (see RetroPlatformIPC.h)
+Response:
+   none
+
+
+Message:
+   RP_IPC_TO_HOST_EXECUTE_RESULT
+Description:
+   this message notifies the host that a program, previously launched via
+   the RP_IPC_TO_GUEST_EXECUTE message, has terminated its execution;
+   this notification is only sent when one of the
+   RP_EXECUTE_RETURN_EXIT_CODE and RP_EXECUTE_RETURN_OUTPUT flags is set
+   in the RPEXECUTEINFO structure of the RP_IPC_TO_GUEST_EXECUTE message;
+   the dwExecuteID field of the structure sent with this notification
+   references the ID that the host specified in the
+   RP_IPC_TO_GUEST_EXECUTE message
+Data sent:
+   pData = a RPEXECUTERESULT structure (see RetroPlatformIPC.h)
+Response:
+   none
+
+
 Messages:
-	RP_IPC_TO_HOST_PRIVATE_REGISTER
-	RP_IPC_TO_HOST_PRIVATE_SHAREDEVENT
-	RP_IPC_TO_HOST_PRIVATE_TYPECLIPDONE
-	RP_IPC_TO_HOST_PRIVATE_KEYEVENT
-	RP_IPC_TO_HOST_PRIVATE_GUESTEVENT
-	RP_IPC_TO_HOST_PRIVATE_KEYPROMPT
-	RP_IPC_TO_HOST_PRIVATE_CLOSEKBDWIN
-	RP_IPC_TO_HOST_PRIVATE_MENUEVENT
+   RP_IPC_TO_HOST_PRIVATE_*
 Description:
    these are private messages, sent by code in RPGuest.dll
 
@@ -911,17 +939,89 @@ Response:
    LRESULT = 1 if the guest acknowledged the command or 0 otherwise
 
 
+Message:
+   RP_IPC_TO_GUEST_WRITESTRING
+Description:
+   The host sends this message to ask the guest to write a string
+   (e.g. by calling an output function or by inserting the string
+   in the system keyboard buffer).
+Data sent:
+   pData = an null-terminated string based on the emulated system character set (typically 8-bit)
+Response:
+   LRESULT = 1 if the guest acknowledged the command or 0 otherwise
+
+
+Message:
+   RP_IPC_TO_GUEST_TRIGGER_TRAP
+Description:
+   The host sends this message to ask the guest to execute a callback function
+   where it is possible to read and/or write the memory of the emulated system.
+   Based on the guest implementation and on the specified RP_TRAPF_* flags,
+   the callback function may by called synchronously or asynchronously.
+Callback function:
+   When the function is called, its dwFlags argument contain only one of the
+   RP_TRAPF_SYNC_MODE and RP_TRAPF_ASYNC_MODE flags (stating how the function has been called)
+   and the lParam1 argument contains the value specified in the lCallbackParam field
+   of the RPTRAPDATA structure.
+   The code can read the emulated system memory (if RP_TRAPF_READ_ACCESS was specified)
+   calling pfnReadMemory(dwAddress, dwSize, pdwValue, lParam1, lParam2)
+   (where dwAddress is the memory address to read from,
+    dwSize is the bit size of the value to read - e.g. 8 for 8-bit value,
+    pdwValue is the address receiving the read result,
+    lParam1 is an optional guest-specific custom value (e.g. memory bank),
+    lParam2 is the lParam2 argument passed to the callback function)
+   or can write memory (if RP_TRAPF_WRITE_ACCESS was specified)
+   calling pfnWriteMemory(dwAddress, dwSize, dwValue, lParam1, lParam2)
+   (where dwAddress is the memory address to write to,
+    dwSize is the bit size of the value to write - e.g. 8 for 8-bit value,
+    dwValue is the value to write to the specified address,
+    lParam1 is an optional guest-specific custom value (e.g. memory bank),
+    lParam2 is the lParam2 argument passed to the callback function)
+Data sent:
+   pData = an RPTRAPDATA structure where
+           dwFlags contains a combination of RP_TRAPF_* flags,
+           pfnCallback is the address of the function to be called,
+           lCallbackParam is the value passed as lParam1 to the callback function
+Response:
+   LRESULT = RP_TRAP_UNSUPPORTED (this functionality is not supported) or
+             RP_TRAP_OK_SYNC (the function was called synchronously) or
+             RP_TRAP_OK_ASYNC (the function was called asynchronously) or
+             RP_TRAP_SYNC_NOT_POSSIBLE (RP_TRAPF_SYNC_MODE only was requested, but it is not allowed) or
+			 RP_TRAP_ASYNC_NOT_POSSIBLE (RP_TRAPF_ASYNC_MODE only was requested, but it is not allowed) or
+             RP_TRAP_ERROR (an unspecified orror occurred)
+          
+
 Messages:
-	RP_IPC_TO_GUEST_PRIVATE_STARTUP
-	RP_IPC_TO_GUEST_PRIVATE_TYPECLIP
-	RP_IPC_TO_GUEST_PRIVATE_RELEASEKEYS
-	RP_IPC_TO_GUEST_PRIVATE_CANESCAPE
-	RP_IPC_TO_GUEST_PRIVATE_LOGGING
-	RP_IPC_TO_GUEST_PRIVATE_INPUTDEVICES
-	RP_IPC_TO_GUEST_PRIVATE_NOKEYPROMPT
-	RP_IPC_TO_GUEST_PRIVATE_KEYBOARDWINDOW
-	RP_IPC_TO_GUEST_PRIVATE_MENUMODE
-	RP_IPC_TO_GUEST_PRIVATE_SETFRGWINDOW
+   RP_IPC_TO_GUEST_SET_CURSOR_POSITION
+Description:
+   This message is sent to ask the guest to move the text cursor
+Data sent:
+   WPARAM = cursor column and row combined with the MAKELONG macro;
+            e.g. MAKELONG(0, 1) to set the cursor at the first column
+            of the second screen row
+Response:
+   LRESULT = 1 if the guest acknowledged the command or 0 otherwise
+
+
+Message:
+   RP_IPC_TO_GUEST_EXECUTE
+Description:
+   The host sends this message to execute a program on the emulated system.
+   In case the RP_EXECUTE_RETURN_EXIT_CODE flag or the RP_EXECUTE_RETURN_OUTPUT flag
+   is set, the guest will send a RP_IPC_TO_HOST_EXECUTE_RESULT notification to the host,
+   when the launched program terminates.
+   The program can either be referenced via the szFile array, or its data may follow
+   the RPEXECUTEINFO structure in the data of this message (in such a case,
+   the dwFileDataSize and dwFileDataOffset fields are properly set to
+   reach the program binary data).
+Data sent:
+   pData = a RPEXECUTEINFO structure, optionally followed by program binary data.
+Response:
+   LRESULT = 1, if the guest successfully executed the command, or 0 otherwise
+
+
+Messages:
+   RP_IPC_TO_GUEST_PRIVATE_*
 Description:
    these are private messages, received by code in RPGuest.dll;
-   they never reach the message function in guest code
+   they never reach the message function in guest code.
