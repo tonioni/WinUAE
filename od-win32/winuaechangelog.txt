@@ -1,4 +1,16 @@
 
+Beta 38:
+
+- b33 audio update missed one condition, when DMA sample playback ended, last sample was played twice before audio channel entered idle state.
+- FloppyBridge HD support fix. Fixed unreliable "turbo" writing and unreliable "?" button boot and root block reads.
+- Quickstart floppy drive type is now remembered.
+- Internal display buffer allocation was too small if image width was not divisible by 8. Could have caused crashes in some windowed mode configurations, for example when saving screenshots (very old bug).
+- Screenshot height was always total internal size, even if it was partically blanked. (OCS Denise and mode was not Overscan+ or higher)
+- OCS Denise last line "bug" was only visible in short field modes.
+- Virtual mouse driver enabled, load new config that does not use virtual mouse: possible crash when restarting emulation.
+- Fixed weird blitter behavior in some 68020+ memory cycle-exact modes if blitter nasty was also set.
+- Fixed "Remove interlace artifact" display corruption in some programmed modes introduced in earlier betas. (Copper was partially enabled during "scandoubled" line processing).
+
 Beta 37:
 
 - "Copper wake up" (W) and "Copper wanted this cycle but couldn't get it" (c) markers in DMA debugger had disappeared. Skip also shows 'W' if SKIP skipped.
