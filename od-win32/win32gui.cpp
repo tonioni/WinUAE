@@ -232,6 +232,8 @@ void WIN32GUI_LoadUIString (DWORD id, TCHAR *string, DWORD dwStringLen)
 static int quickstart_model = 0, quickstart_conf = 0, quickstart_compa = 1;
 static int quickstart_model_confstore[16];
 static int quickstart_floppy = 1, quickstart_cd = 0, quickstart_ntsc = 0;
+static int quickstart_floppytype[2], quickstart_floppysubtype[2];
+static TCHAR quickstart_floppysubtypeid[2][32];
 static int quickstart_cdtype = 0;
 static TCHAR quickstart_cddrive[16];
 static int quickstart_ok, quickstart_ok_floppy;
@@ -3502,14 +3504,14 @@ static void FreeConfigStore (void)
 	}
 	xfree(configstore);
 	configstoresize = configstoreallocated = 0;
-	configstore = 0;
+	configstore = NULL;
 
 	for (int i = 0; i < categorystoresize; i++) {
 		xfree(categorystore[i]);
 	}
 	xfree(categorystore);
 	categorystoresize = 0;
-	categorystore = 0;
+	categorystore = NULL;
 }
 
 static void sortcategories(void)
@@ -4044,7 +4046,7 @@ static struct ConfigStruct *GetConfigs (struct ConfigStruct *configparent, int u
 
 static struct ConfigStruct *CreateConfigStore (struct ConfigStruct *oldconfig, int flushcache)
 {
-	int level, i;
+	int level;
 	TCHAR path[MAX_DPATH], name[MAX_DPATH];
 	struct ConfigStruct *cs;
 
@@ -4055,7 +4057,7 @@ static struct ConfigStruct *CreateConfigStore (struct ConfigStruct *oldconfig, i
 	level = 0;
 	GetConfigs (NULL, 1, &level, flushcache);
 	if (oldconfig) {
-		for (i = 0; i < configstoresize; i++) {
+		for (int i = 0; i < configstoresize; i++) {
 			cs = configstore[i];
 			if (!cs->Directory && !_tcscmp (path, cs->Path) && !_tcscmp (name, cs->Name))
 				return cs;
@@ -6000,10 +6002,10 @@ static void InitializeConfig (HWND hDlg, struct ConfigStruct *config)
 
 static void DeleteConfigTree (HWND hDlg)
 {
-	int i;
 	HWND TVhDlg = GetDlgItem(hDlg, IDC_CONFIGTREE);
-	for (i = 0; i < configstoresize; i++)
+	for (int i = 0; i < configstoresize; i++) {
 		configstore[i]->item = NULL;
+	}
 	TreeView_DeleteAllItems (TVhDlg);
 }
 
@@ -7112,6 +7114,24 @@ static void load_quickstart (HWND hDlg, int romcheck)
 	quickstart_ok = built_in_prefs (&workprefs, quickstart_model, quickstart_conf, quickstart_compa, romcheck);
 	workprefs.ntscmode = quickstart_ntsc != 0;
 	quickstart_cd = workprefs.floppyslots[1].dfxtype == DRV_NONE && (quickstart_model == 8 || quickstart_model == 9);
+	// DF0: HD->DD
+	if (quickstart_model <= 4) {
+		if (quickstart_floppytype[0] == 1) {
+			quickstart_floppytype[0] = 0;
+		}
+	}
+	for (int i = 0; i < 2; i++) {
+		if (i < quickstart_floppy) {
+			workprefs.floppyslots[i].dfxtype = quickstart_floppytype[i];
+			workprefs.floppyslots[i].dfxsubtype = quickstart_floppysubtype[i];
+			_tcscpy(workprefs.floppyslots[i].dfxsubtypeid, quickstart_floppysubtypeid[i]);
+		} else {
+			workprefs.floppyslots[i].dfxtype = DRV_NONE;
+			workprefs.floppyslots[i].dfxsubtype = 0;
+			workprefs.floppyslots[i].dfxsubtypeid[0] = 0;
+		}
+	}
+	floppybridge_init(&workprefs);
 	enable_for_quickstart (hDlg);
 	addfloppytype (hDlg, 0);
 	addfloppytype (hDlg, 1);
@@ -7158,15 +7178,24 @@ static void init_quickstartdlg (HWND hDlg)
 	qssize = sizeof (tmp1) / sizeof (TCHAR);
 	regquerystr (NULL, _T("QuickStartHostConfig"), hostconf, &qssize);
 	if (firsttime == 0 && workprefs.start_gui) {
-		regqueryint (NULL, _T("QuickStartModel"), &quickstart_model);
-		regqueryint (NULL, _T("QuickStartConfiguration"), &quickstart_conf);
+		int size;
+		regqueryint(NULL, _T("QuickStartModel"), &quickstart_model);
+		regqueryint(NULL, _T("QuickStartConfiguration"), &quickstart_conf);
 		quickstart_model_confstore[quickstart_model] = quickstart_conf;
-		regqueryint (NULL, _T("QuickStartCompatibility"), &quickstart_compa);
-		regqueryint (NULL, _T("QuickStartFloppies"), &quickstart_floppy);
-		regqueryint (NULL, _T("QuickStartCDType"), &quickstart_cdtype);
-		int size = sizeof quickstart_cddrive / sizeof (TCHAR);
-		regquerystr (NULL, _T("QuickStartCDDrive"), quickstart_cddrive, &size);
-		regqueryint (NULL, _T("QuickStartNTSC"), &quickstart_ntsc);
+		regqueryint(NULL, _T("QuickStartCompatibility"), &quickstart_compa);
+		regqueryint(NULL, _T("QuickStartFloppies"), &quickstart_floppy);
+		regqueryint(NULL, _T("QuickStartDF0Type"), &quickstart_floppytype[0]);
+		regqueryint(NULL, _T("QuickStartDF1Type"), &quickstart_floppytype[1]);
+		regqueryint(NULL, _T("QuickStartDF0SubType"), &quickstart_floppysubtype[0]);
+		regqueryint(NULL, _T("QuickStartDF1SubType"), &quickstart_floppysubtype[1]);
+		size = 30;
+		regquerystr(NULL, _T("QuickStartDF0SubTypeID"), quickstart_floppysubtypeid[0], &size);
+		size = 30;
+		regquerystr(NULL, _T("QuickStartDF1SubTypeID"), quickstart_floppysubtypeid[1], &size);
+		regqueryint(NULL, _T("QuickStartCDType"), &quickstart_cdtype);
+		size = sizeof quickstart_cddrive / sizeof (TCHAR);
+		regquerystr(NULL, _T("QuickStartCDDrive"), quickstart_cddrive, &size);
+		regqueryint(NULL, _T("QuickStartNTSC"), &quickstart_ntsc);
 		if (quickstart) {
 			workprefs.floppyslots[0].df[0] = 0;
 			workprefs.floppyslots[1].df[0] = 0;
@@ -7476,14 +7505,13 @@ static void setfloppytexts (HWND hDlg, int qs)
 
 static void updatefloppytypes(HWND hDlg)
 {
-	TCHAR ft35dd[20], ft35hd[20], ft525sd[20], ftdis[20], ft35ddescom[20];
+	TCHAR ft35dd[20], ft35hd[20], ft525sd[20], ft35ddescom[20];
 	bool qs = currentpage == QUICKSTART_ID;
 
 	WIN32GUI_LoadUIString(IDS_FLOPPYTYPE35DD, ft35dd, sizeof ft35dd / sizeof(TCHAR));
 	WIN32GUI_LoadUIString(IDS_FLOPPYTYPE35HD, ft35hd, sizeof ft35hd / sizeof(TCHAR));
 	WIN32GUI_LoadUIString(IDS_FLOPPYTYPE525SD, ft525sd, sizeof ft525sd / sizeof(TCHAR));
 	WIN32GUI_LoadUIString(IDS_FLOPPYTYPE35DDESCOM, ft35ddescom, sizeof ft35ddescom / sizeof(TCHAR));
-	WIN32GUI_LoadUIString(IDS_FLOPPYTYPEDISABLED, ftdis, sizeof ftdis / sizeof(TCHAR));
 
 	for (int i = 0; i < (qs ? 2 : 4); i++) {
 		int f_type;
@@ -7493,7 +7521,6 @@ static void updatefloppytypes(HWND hDlg)
 			f_type = floppybuttons[i][3];
 		}
 		SendDlgItemMessage(hDlg, f_type, CB_RESETCONTENT, 0, 0L);
-		//SendDlgItemMessage(hDlg, f_type, CB_ADDSTRING, 0, (LPARAM)ftdis);
 		SendDlgItemMessage(hDlg, f_type, CB_ADDSTRING, 0, (LPARAM)ft35dd);
 		SendDlgItemMessage(hDlg, f_type, CB_ADDSTRING, 0, (LPARAM)ft35hd);
 		if (!qs) {
@@ -7517,7 +7544,12 @@ static void updatefloppytypes(HWND hDlg)
 				}
 			}
 		}
-		int nn = fromdfxtype(i, workprefs.floppyslots[i].dfxtype, workprefs.floppyslots[i].dfxsubtype);
+		int nn;
+		if (qs) {
+			nn = fromdfxtype(i, quickstart_floppytype[i], quickstart_floppysubtype[i]);
+		} else {
+			nn = fromdfxtype(i, workprefs.floppyslots[i].dfxtype, workprefs.floppyslots[i].dfxsubtype);
+		}
 		SendDlgItemMessage(hDlg, f_type, CB_SETCURSEL, nn, 0L);
 	}
 }
@@ -7547,7 +7579,6 @@ static INT_PTR CALLBACK QuickstartDlgProc (HWND hDlg, UINT msg, WPARAM wParam, L
 			enable_for_quickstart (hDlg);
 			setfloppytexts (hDlg, true);
 			floppybridge_init(&workprefs);
-			updatefloppytypes(hDlg);
 			setmultiautocomplete (hDlg, ids);
 			doinit = 1;
 			break;
@@ -7561,6 +7592,7 @@ static INT_PTR CALLBACK QuickstartDlgProc (HWND hDlg, UINT msg, WPARAM wParam, L
 			addfloppytype (hDlg, 1);
 			addfloppyhistory (hDlg);
 			init_quickstartdlg (hDlg);
+			updatefloppytypes(hDlg);
 		}
 		doinit = 0;
 		recursive--;
@@ -15925,10 +15957,12 @@ static void addcdtype (HWND hDlg, int id)
 static void addfloppytype (HWND hDlg, int n)
 {
 	int state, chk;
-	int nn = fromdfxtype(n, workprefs.floppyslots[n].dfxtype, workprefs.floppyslots[n].dfxsubtype);
+	int nn;
 	int fb = DISK_isfloppybridge(&workprefs, n);
 	int showcd = 0;
 	TCHAR *text;
+	bool qs = currentpage == QUICKSTART_ID;
+
 
 	int f_text = floppybuttons[n][0];
 	int f_drive = floppybuttons[n][1];
@@ -15941,7 +15975,7 @@ static void addfloppytype (HWND hDlg, int n)
 	int f_info = floppybuttons[n][8];
 
 	text = workprefs.floppyslots[n].df;
-	if (currentpage == QUICKSTART_ID) {
+	if (qs) {
 		TCHAR tmp[MAX_DPATH];
 		f_text = floppybuttonsq[n][0];
 		f_drive = floppybuttonsq[n][1];
@@ -15956,24 +15990,33 @@ static void addfloppytype (HWND hDlg, int n)
 			showcd = 1;
 		if (showcd) {
 			nn = 1;
-			hide (hDlg, f_wp, 1);
-			hide (hDlg, f_wptext, 1);
-			hide (hDlg, f_info, 1);
+			hide(hDlg, f_wp, 1);
+			hide(hDlg, f_wptext, 1);
+			hide(hDlg, f_info, 1);
+			hide(hDlg, f_type, 1);
 			ew (hDlg, f_enable, FALSE);
 			WIN32GUI_LoadUIString (IDS_QS_CD, tmp, sizeof tmp / sizeof (TCHAR));
 			SetWindowText (GetDlgItem (hDlg, f_enable), tmp);
 			addcdtype (hDlg, IDC_CD0Q_TYPE);
-			hide (hDlg, IDC_CD0Q_TYPE, 0);
+			hide(hDlg, IDC_CD0Q_TYPE, 0);
 			text = workprefs.cdslots[0].name;
 			regsetstr (NULL, _T("QuickStartCDDrive"), quickstart_cdtype >= 2 ? quickstart_cddrive : _T(""));
 			regsetint (NULL, _T("QuickStartCDType"), quickstart_cdtype >= 2 ? 2 : quickstart_cdtype);
 		} else {
-			hide (hDlg, f_wp, 0);
-			hide (hDlg, f_wptext, 0);
-			hide (hDlg, f_info, 0);
+			hide(hDlg, f_wp, 0);
+			hide(hDlg, f_wptext, 0);
+			hide(hDlg, f_info, 0);
+			hide(hDlg, f_type, 0);
+			if (n >= workprefs.nr_floppies) {
+				nn = -1;
+			} else {
+				nn = fromdfxtype(n, quickstart_floppytype[n], quickstart_floppysubtype[n]);
+			}
 		}
+	} else {
+		nn = fromdfxtype(n, workprefs.floppyslots[n].dfxtype, workprefs.floppyslots[n].dfxsubtype);
 	}
-	if (!showcd && f_enable > 0 && n == 1 && currentpage == QUICKSTART_ID) {
+	if (!showcd && f_enable > 0 && n == 1 && qs) {
 		static TCHAR drivedf1[MAX_DPATH];
 		if (drivedf1[0] == 0)
 			GetDlgItemText(hDlg, f_enable, drivedf1, sizeof drivedf1 / sizeof (TCHAR));
@@ -15986,7 +16029,7 @@ static void addfloppytype (HWND hDlg, int n)
 		state = FALSE;
 	else
 		state = TRUE;
-	if (f_type >= 0) {
+	if (f_type >= 0 && nn >= 0) {
 		SendDlgItemMessage(hDlg, f_type, CB_SETCURSEL, nn, 0);
 	}
 	if (f_si >= 0) {
@@ -16001,7 +16044,7 @@ static void addfloppytype (HWND hDlg, int n)
 	if (f_drive >= 0)
 		ew (hDlg, f_drive, state && !fb);
 	if (f_enable >= 0) {
-		if (currentpage == QUICKSTART_ID) {
+		if (qs) {
 			ew (hDlg, f_enable, (n > 0 && workprefs.nr_floppies > 0) && !showcd);
 		} else {
 			ew (hDlg, f_enable, TRUE);
@@ -16024,7 +16067,7 @@ static void addfloppytype (HWND hDlg, int n)
 		CheckDlgButton(hDlg, f_wp, chk);
 	}
 	if (f_info >= 0)
-		ew (hDlg, f_info, text[0] != 0 || fb);
+		ew (hDlg, f_info, (text[0] != 0 || fb) && nn >= 0);
 	chk = !showcd && state && DISK_validate_filename (&workprefs, text, n, NULL, 0, NULL, NULL, NULL) ? TRUE : FALSE;
 	if (f_wp >= 0) {
 		ew (hDlg, f_wp, chk && !workprefs.floppy_read_only && !fb);
@@ -16032,16 +16075,31 @@ static void addfloppytype (HWND hDlg, int n)
 			ew (hDlg, f_wptext, chk);
 	}
 	if (f_type >= 0) {
-		ew(hDlg, f_type, workprefs.floppyslots[n].dfxtype >= 0);
+		ew(hDlg, f_type, workprefs.floppyslots[n].dfxtype >= 0 && (!qs || n < workprefs.nr_floppies));
 	}
 }
 
-static void getfloppytype(HWND hDlg, int n)
+static void floppyquickstartsave(void)
+{
+	bool qs = currentpage == QUICKSTART_ID;
+	if (qs) {
+		regsetint(NULL, _T("QuickStartFloppies"), quickstart_floppy);
+		regsetint(NULL, _T("QuickStartDF0Type"), quickstart_floppytype[0]);
+		regsetint(NULL, _T("QuickStartDF1Type"), quickstart_floppytype[1]);
+		regsetint(NULL, _T("QuickStartDF0SubType"), quickstart_floppysubtype[0]);
+		regsetint(NULL, _T("QuickStartDF1SubType"), quickstart_floppysubtype[1]);
+		regsetstr(NULL, _T("QuickStartDF0SubTypeID"), quickstart_floppysubtypeid[0]);
+		regsetstr(NULL, _T("QuickStartDF1SubTypeID"), quickstart_floppysubtypeid[1]);
+	}
+}
+
+static void getfloppytype(HWND hDlg, int n, bool change)
 {
 	int f_text;
 	int f_type;
+	bool qs = currentpage == QUICKSTART_ID;
 
-	if (currentpage == QUICKSTART_ID) {
+	if (qs) {
 		f_text = floppybuttonsq[n][0];
 		f_type = floppybuttonsq[n][3];
 	} else {
@@ -16051,8 +16109,9 @@ static void getfloppytype(HWND hDlg, int n)
 	LRESULT val = SendDlgItemMessage(hDlg, f_type, CB_GETCURSEL, 0, 0L);
 	int sub;
 	
-	if (val != CB_ERR && (workprefs.floppyslots[n].dfxtype != todfxtype(n, val, &sub) || workprefs.floppyslots[n].dfxsubtype != sub)) {
-		workprefs.floppyslots[n].dfxtype = todfxtype(n, val, &sub);
+	int dfxtype = todfxtype(n, val, &sub);
+	if (change && val != CB_ERR && (workprefs.floppyslots[n].dfxtype != dfxtype || workprefs.floppyslots[n].dfxsubtype != sub || (dfxtype == DRV_FB && sub == 0))) {
+		workprefs.floppyslots[n].dfxtype = dfxtype;
 		workprefs.floppyslots[n].dfxsubtype = sub;
 		workprefs.floppyslots[n].dfxsubtypeid[0] = 0;
 		if (workprefs.floppyslots[n].dfxtype == DRV_FB) {
@@ -16073,12 +16132,24 @@ static void getfloppytype(HWND hDlg, int n)
 					workprefs.floppyslots[n].dfxsubtype = 0;
 					sub = 0;
 				}
+				if (qs && quickstart_floppy > n) {
+					quickstart_floppytype[n] = workprefs.floppyslots[n].dfxtype;
+					quickstart_floppysubtype[n] = workprefs.floppyslots[n].dfxsubtype;
+				}
 			}
 			if (sub > 0) {
 				if (sub - 1 < bridgeprofiles.size()) {
 					int nsub = sub - 1;
-					_stprintf(workprefs.floppyslots[n].dfxsubtypeid, _T("%d:%s"), bridgeprofiles.at(nsub).profileID, bridgeprofiles.at(nsub).name);
+					TCHAR tmp[32];
+					_stprintf(tmp, _T("%d:%s"), bridgeprofiles.at(nsub).profileID, bridgeprofiles.at(nsub).name);
+					_tcscpy(workprefs.floppyslots[n].dfxsubtypeid, tmp);
+					if (qs && quickstart_floppy > n) {
+						_tcscpy(quickstart_floppysubtypeid[n], tmp);
+					}
 				}
+			}
+			if (qs && quickstart_floppy > n) {
+				floppyquickstartsave();
 			}
 		}
 		for (int i = 0; i < 4; i++) {
@@ -16092,26 +16163,79 @@ static void getfloppytype(HWND hDlg, int n)
 		updatedfname(hDlg, workprefs.floppyslots[n].df, f_text, HISTORY_FLOPPY, n);
 	}
 }
-static void getfloppytypeq (HWND hDlg, int n)
+static void getfloppytypeq(HWND hDlg, int n, bool type)
 {
-	int f_enable = currentpage == QUICKSTART_ID ? floppybuttonsq[n][7] : floppybuttons[n][7];
-	int chk;
+	bool qs = currentpage == QUICKSTART_ID;
+	int f_enable = qs ? floppybuttonsq[n][7] : floppybuttons[n][7];
+	int f_type = qs ? floppybuttonsq[n][3] : floppybuttons[n][3];
+	int f_text = qs ? floppybuttonsq[n][0] : floppybuttons[n][0];
+	struct floppyslot *fs = &workprefs.floppyslots[n];
 
-	if (f_enable <= 0 || (n == 0 && currentpage == QUICKSTART_ID))
+	if (f_enable <= 0)
 		return;
-	if (iscd (n))
+	if (iscd(n))
 		return;
-	chk = ischecked (hDlg, f_enable) ? 0 : -1;
-	if (chk != workprefs.floppyslots[n].dfxtype) {
-		workprefs.floppyslots[n].dfxtype = chk;
-		addfloppytype (hDlg, n);
+	int chk = ischecked(hDlg, f_enable) ? 0 : -1;
+	int sub = qs ? quickstart_floppysubtype[n] : fs->dfxsubtype;
+	if (!chk) {
+		int res = SendDlgItemMessage(hDlg, f_type, CB_GETCURSEL, 0, 0);
+		if (res == CB_ERR) {
+			if (qs) {
+				res = quickstart_floppytype[n];
+			} else {
+				res = DRV_NONE;
+			}
+			if (res == DRV_NONE) {
+				res = DRV_35_DD;
+			}
+			if (qs) {
+				quickstart_floppytype[n] = DRV_NONE;
+			}
+		}
+		chk = todfxtype(n, res, &sub);
 	}
-	if (currentpage == QUICKSTART_ID) {
-		if (chk == 0)
-			quickstart_floppy = 2;
-		else
-			quickstart_floppy = 1;
-		regsetint (NULL, _T("QuickStartFloppies"), quickstart_floppy);
+	if ((qs && (chk != quickstart_floppytype[n] || sub != quickstart_floppysubtype[n])) || (!qs && (chk != fs->dfxtype || sub != fs->dfxsubtype)) || type) {
+		if (chk >= 0) {
+			if (qs) {
+				quickstart_floppytype[n] = chk;
+				quickstart_floppysubtype[n] = sub;
+			}
+			fs->dfxtype = chk;
+			fs->dfxsubtype = sub;
+			if (chk == DRV_FB && sub - 1 < bridgeprofiles.size()) {
+				TCHAR tmp[32];
+				int nsub = sub - 1;
+				_stprintf(tmp, _T("%d:%s"), bridgeprofiles.at(nsub).profileID, bridgeprofiles.at(nsub).name);
+				if (qs) {
+					_tcscpy(quickstart_floppysubtypeid[n], tmp);
+				}
+				_tcscpy(fs->dfxsubtypeid, tmp);
+			}
+			if (qs) {
+				if (n == 1) {
+					quickstart_floppy = 2;
+				} else {
+					quickstart_floppy = 1;
+				}
+				workprefs.nr_floppies = quickstart_floppy;
+			}
+		} else {
+			if (qs) {
+				if (n == 1) {
+					quickstart_floppy = 1;
+				}
+				workprefs.nr_floppies = quickstart_floppy;
+			}
+			fs->dfxtype = DRV_NONE;
+			fs->dfxsubtype = 0;
+			fs->dfxsubtypeid[0] = 0;
+		}
+
+		floppybridge_init(&workprefs);
+		addfloppytype(hDlg, n);
+		updatedfname(hDlg, fs->df, f_text, HISTORY_FLOPPY, n);
+
+		floppyquickstartsave();
 	}
 }
 
@@ -16375,16 +16499,16 @@ static INT_PTR CALLBACK FloppyDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARA
 				}
 				break;
 			case IDC_DF0TYPE:
-				getfloppytype (hDlg, 0);
+				getfloppytype (hDlg, 0, HIWORD(wParam) == CBN_SELCHANGE);
 				break;
 			case IDC_DF1TYPE:
-				getfloppytype (hDlg, 1);
+				getfloppytype (hDlg, 1, HIWORD(wParam) == CBN_SELCHANGE);
 				break;
 			case IDC_DF2TYPE:
-				getfloppytype (hDlg, 2);
+				getfloppytype (hDlg, 2, HIWORD(wParam) == CBN_SELCHANGE);
 				break;
 			case IDC_DF3TYPE:
-				getfloppytype (hDlg, 3);
+				getfloppytype (hDlg, 3, HIWORD(wParam) == CBN_SELCHANGE);
 				break;
 			case IDC_FLOPPYTYPE:
 				int val = SendDlgItemMessage (hDlg, IDC_FLOPPYTYPE, CB_GETCURSEL, 0, 0L);
@@ -16403,17 +16527,23 @@ static INT_PTR CALLBACK FloppyDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARA
 		{
 		case IDC_DF0ENABLE:
 		case IDC_DF0QENABLE:
-			getfloppytypeq (hDlg, 0);
+			getfloppytypeq(hDlg, 0, true);
 			break;
 		case IDC_DF1ENABLE:
 		case IDC_DF1QENABLE:
-			getfloppytypeq (hDlg, 1);
+			getfloppytypeq(hDlg, 1, true);
+			break;
+		case IDC_DF0TYPE:
+			getfloppytypeq(hDlg, 0, false);
+			break;
+		case IDC_DF1TYPE:
+			getfloppytypeq(hDlg, 1, false);
 			break;
 		case IDC_DF2ENABLE:
-			getfloppytypeq (hDlg, 2);
+			getfloppytypeq(hDlg, 2, true);
 			break;
 		case IDC_DF3ENABLE:
-			getfloppytypeq (hDlg, 3);
+			getfloppytypeq(hDlg, 3, true);
 			break;
 		case IDC_DF0WP:
 		case IDC_DF0WPQ:
