@@ -3776,14 +3776,18 @@ static void decide_line_decision_fetches(int endhpos)
 
 static void decide_fetch_safe(int endhpos)
 {
-	if (copper_enabled_thisline) {
-		update_copper(endhpos);
-		decide_blitter(endhpos);
-	} else if (!blt_info.blitter_dangerous_bpl) {
+	int hpos = last_fetch_hpos;
+	if (!blt_info.blitter_dangerous_bpl && !copper_enabled_thisline) {
 		decide_line_decision_fetches(endhpos);
 		decide_blitter(endhpos);
+	} else if (copper_enabled_thisline && blt_info.blitter_dangerous_bpl) {
+		while (hpos <= endhpos) {
+			decide_line_decision_fetches(hpos);
+			update_copper(hpos);
+			decide_blitter(hpos);
+			hpos++;
+		}
 	} else {
-		int hpos = last_fetch_hpos;
 		while (hpos <= endhpos) {
 			decide_line_decision_fetches(hpos);
 			decide_blitter(hpos);
@@ -8113,6 +8117,9 @@ static const int customdelay[]= {
 
 static void do_copper_fetch(int hpos, uae_u8 id)
 {
+	if (scandoubled_line) {
+		return;
+	}
 	if (id == COPPER_CYCLE_IDLE) {
 		// copper allocated cycle without DMA request
 		alloc_cycle(hpos, CYCLE_COPPER);
@@ -9727,8 +9734,8 @@ static void reset_scandoubler_sync(int hpos)
 	last_decide_sprite_hpos = hpos;
 	last_fetch_hpos = hpos;
 	last_copper_hpos = hpos;
-	last_diw_hpos = 0;
-	last_diw_hpos2 = 0;
+	last_diw_hpos = hpos;
+	last_diw_hpos2 = hpos;
 	sprites_enabled_this_line = false;
 	plfstrt_sprite = 0x100;
 }
@@ -9755,6 +9762,7 @@ static void reset_scandoubler_sync(int hpos)
 static void hsync_scandoubler(int hpos)
 {
 	uae_u16 odmacon = dmacon;
+	int ocop = copper_enabled_thisline;
 	uaecptr bpltmp[MAX_PLANES], bpltmpx[MAX_PLANES];
 
 	if (vb_start_line > 1) {
@@ -9765,9 +9773,6 @@ static void hsync_scandoubler(int hpos)
 	next_lineno++;
 	scandoubled_line = 1;
 	last_hdiw = 0 - 1;
-#ifdef DEBUGGER
-	debug_dma = 0;
-#endif
 
 	for (int i = 0; i < MAX_PLANES; i++) {
 		int diff;
@@ -9792,17 +9797,18 @@ static void hsync_scandoubler(int hpos)
 		}
 	}
 
+	reset_decisions_scanline_start();
+	reset_scandoubler_sync(hpos);
+	reset_decisions_hsync_start();
+
 	// Bitplane only
 	dmacon = odmacon & (DMA_MASTER | DMA_BITPLANE);
 	// Blank last line
 	if (vpos >= maxvpos - 1) {
 		dmacon = 0;
 	}
-	copper_enabled_thisline = 0;
 
-	reset_decisions_scanline_start();
-	reset_scandoubler_sync(hpos);
-	reset_decisions_hsync_start();
+	copper_enabled_thisline = 0;
 
 	// copy color changes
 	struct draw_info *dip1 = curr_drawinfo + next_lineno - 1;
@@ -9822,13 +9828,14 @@ static void hsync_scandoubler(int hpos)
 	scandoubled_line = 0;
 
 	dmacon = odmacon;
-	compute_spcflag_copper();
+	copper_enabled_thisline = ocop;
 
 	for (int i = 0; i < MAX_PLANES; i++) {
 		bplpt[i] = bpltmp[i];
 		bplptx[i] = bpltmpx[i];
 	}
 
+	reset_decisions_scanline_start();
 	reset_scandoubler_sync(hpos);
 }
 
@@ -10955,7 +10962,7 @@ void vsync_event_done(void)
 // this prepares for new line
 static void hsync_handler_post(bool onvsync)
 {
-	memset(cycle_line_slot, 0, maxhpos);
+	memset(cycle_line_slot, 0, maxhpos + 1);
 
 	// genlock active:
 	// vertical: interlaced = toggles every other field, non-interlaced = both fields (normal)
@@ -11432,8 +11439,10 @@ static void audio_evhandler2(void)
 {
 	// update copper first
 	// if copper had written to audio registers
-	int hpos = current_hpos();
-	sync_copper(hpos);
+	if (copper_enabled_thisline) {
+		int hpos = current_hpos();
+		sync_copper(hpos);
+	}
 	audio_evhandler();
 }
 

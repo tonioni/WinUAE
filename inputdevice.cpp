@@ -2180,7 +2180,7 @@ static void mousehack_reset (void)
 	tablet_data = 0;
 	if (rtarea_bank.baseaddr) {
 		put_long_host(rtarea_bank.baseaddr + RTAREA_INTXY, 0xffffffff);
-		if (mousehack_address)
+		if (mousehack_address && mousehack_address >= rtarea_bank.baseaddr && mousehack_address < rtarea_bank.baseaddr + 0x10000)
 			put_byte_host(mousehack_address + MH_E, 0);
 	}
 	mousehack_address = 0;
