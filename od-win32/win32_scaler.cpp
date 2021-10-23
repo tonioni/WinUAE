@@ -788,6 +788,7 @@ uae_u8 *getfilterbuffer(int monid, int *widthp, int *heightp, int *pitch, int *d
 	struct vidbuf_description *avidinfo = &adisplays[monid].gfxvidinfo;
 	struct vidbuffer *vb = avidinfo->outbuffer;
 	struct uae_filter *usedfilter = mon->usedfilter;
+	int w, h;
 
 	*widthp = 0;
 	*heightp = 0;
@@ -799,10 +800,16 @@ uae_u8 *getfilterbuffer(int monid, int *widthp, int *heightp, int *pitch, int *d
 			return NULL;
 		}
 	}
-	*widthp = vb->outwidth;
-	*heightp = vb->outheight;
+	w = vb->outwidth;
+	h = vb->outheight;
+	if (!monid) {
+		// if native screen: do not include vertical blank
+		h = get_vertical_visible_height();
+	}
 	if (pitch)
 		*pitch = vb->rowbytes;
+	*widthp = w;
+	*heightp = h;
 	*depth = vb->pixbytes * 8;
 	return vb->bufmem;
 #if 0

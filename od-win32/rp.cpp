@@ -1251,6 +1251,51 @@ static int screenoverlay(LPCVOID pData)
 	return D3D_extoverlay(&eo);
 }
 
+extern int screenshotf(int monid, const TCHAR *spath, int mode, int doprepare, int imagemode, struct vidbuffer *vb);
+extern int screenshotmode;
+static int screencap(LPCVOID pData, struct AmigaMonitor *mon)
+{
+	struct RPScreenCapture *rpsc = (struct RPScreenCapture *)pData;
+	if (rpsc->szScreenFiltered[0] || rpsc->szScreenRaw[0]) {
+		int ossm = screenshotmode;
+		DWORD ret = 0;
+		int ok = 0;
+		screenshotmode = 0;
+		if (log_rp & 2)
+			write_log(_T("'%s' '%s'\n"), rpsc->szScreenFiltered, rpsc->szScreenRaw);
+		if (rpsc->szScreenFiltered[0])
+			ok = screenshotf(0, rpsc->szScreenFiltered, 1, 1, 0, NULL);
+		if (rpsc->szScreenRaw[0]) {
+			struct vidbuf_description *avidinfo = &adisplays[0].gfxvidinfo;
+			struct vidbuffer vb;
+			int w = avidinfo->drawbuffer.inwidth;
+			int h = get_vertical_visible_height();
+			allocvidbuffer(0, &vb, w, h, avidinfo->drawbuffer.pixbytes * 8);
+			set_custom_limits(0, 0, 0, 0);
+			draw_frame(&vb);
+			ok |= screenshotf(0, rpsc->szScreenRaw, 1, 1, 1, &vb);
+			if (log_rp & 2)
+				write_log(_T("Rawscreenshot %dx%d\n"), w, h);
+			//ok |= screenshotf (_T("c:\\temp\\1.bmp"), 1, 1, 1, &vb);
+			freevidbuffer(0, &vb);
+		}
+		screenshotmode = ossm;
+		if (log_rp & 2)
+			write_log(_T("->%d\n"), ok);
+		if (!ok)
+			return RP_SCREENCAPTURE_ERROR;
+		if (WIN32GFX_IsPicassoScreen(mon)) {
+			ret |= RP_GUESTSCREENFLAGS_MODE_DIGITAL;
+		} else {
+			ret |= currprefs.gfx_resolution == RES_LORES ? RP_GUESTSCREENFLAGS_HORIZONTAL_LORES : ((currprefs.gfx_resolution == RES_SUPERHIRES) ? RP_GUESTSCREENFLAGS_HORIZONTAL_SUPERHIRES : 0);
+			ret |= currprefs.ntscmode ? RP_GUESTSCREENFLAGS_MODE_NTSC : RP_GUESTSCREENFLAGS_MODE_PAL;
+			ret |= currprefs.gfx_vresolution ? RP_GUESTSCREENFLAGS_VERTICAL_INTERLACED : 0;
+		}
+		return ret;
+	}
+	return RP_SCREENCAPTURE_ERROR;
+}
+
 static LRESULT CALLBACK RPHostMsgFunction2 (UINT uMessage, WPARAM wParam, LPARAM lParam,
 	LPCVOID pData, DWORD dwDataSize, LPARAM lMsgFunctionParam)
 {
@@ -1362,53 +1407,7 @@ static LRESULT CALLBACK RPHostMsgFunction2 (UINT uMessage, WPARAM wParam, LPARAM
 		}
 	case RP_IPC_TO_GUEST_SCREENCAPTURE:
 		{
-			extern int screenshotf(int monid, const TCHAR *spath, int mode, int doprepare, int imagemode, struct vidbuffer *vb);
-			extern int screenshotmode;
-			struct RPScreenCapture *rpsc = (struct RPScreenCapture*)pData;
-			if (rpsc->szScreenFiltered[0] || rpsc->szScreenRaw[0]) {
-				int ossm = screenshotmode;
-				DWORD ret = 0;
-				int ok = 0;
-				screenshotmode = 0;
-				if (log_rp & 2)
-					write_log (_T("'%s' '%s'\n"), rpsc->szScreenFiltered, rpsc->szScreenRaw);
-				if (rpsc->szScreenFiltered[0])
-					ok = screenshotf(0, rpsc->szScreenFiltered, 1, 1, 0, NULL);
-				if (rpsc->szScreenRaw[0]) {
-					struct vidbuf_description *avidinfo = &adisplays[0].gfxvidinfo;
-					struct vidbuffer vb;
-					int w = avidinfo->drawbuffer.inwidth;
-					int h = avidinfo->drawbuffer.inheight;
-					if (programmedmode <= 1) {
-						h = (maxvpos + lof_store - minfirstline) << currprefs.gfx_vresolution;
-					}
-					if (interlace_seen && currprefs.gfx_vresolution > 0) {
-						h -= 1 << (currprefs.gfx_vresolution - 1);
-					}
-					allocvidbuffer (0, &vb, w, h, avidinfo->drawbuffer.pixbytes * 8);
-					set_custom_limits(0, 0, 0, 0);
-					draw_frame (&vb);
-					ok |= screenshotf(0, rpsc->szScreenRaw, 1, 1, 1, &vb);
-					if (log_rp & 2)
-						write_log (_T("Rawscreenshot %dx%d\n"), w, h);
-					//ok |= screenshotf (_T("c:\\temp\\1.bmp"), 1, 1, 1, &vb);
-					freevidbuffer(0, &vb);
-				}
-				screenshotmode = ossm;
-				if (log_rp & 2)
-					write_log (_T("->%d\n"), ok);
-				if (!ok)
-					return RP_SCREENCAPTURE_ERROR;
-				if (WIN32GFX_IsPicassoScreen(mon)) {
-					ret |= RP_GUESTSCREENFLAGS_MODE_DIGITAL;
-				} else {
-					ret |= currprefs.gfx_resolution == RES_LORES ? RP_GUESTSCREENFLAGS_HORIZONTAL_LORES : ((currprefs.gfx_resolution == RES_SUPERHIRES) ? RP_GUESTSCREENFLAGS_HORIZONTAL_SUPERHIRES : 0);
-					ret |= currprefs.ntscmode ? RP_GUESTSCREENFLAGS_MODE_NTSC : RP_GUESTSCREENFLAGS_MODE_PAL;
-					ret |= currprefs.gfx_vresolution ? RP_GUESTSCREENFLAGS_VERTICAL_INTERLACED : 0;
-				}
-				return ret;
-			}
-			return RP_SCREENCAPTURE_ERROR;
+			return screencap(pData, mon);
 		}
 	case RP_IPC_TO_GUEST_SAVESTATE:
 		{
