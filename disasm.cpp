@@ -1960,7 +1960,7 @@ uae_u32 m68k_disasm_2(TCHAR *buf, int bufsize, uaecptr pc, uae_u16 *bufpc, int b
 				}
 			} else {
 				_tcsncpy(ccpt, ccnames[dp->cc], 2);
-				if (dp->cc == 0) {
+				if (dp->mnemo == i_Bcc && dp->cc == 0) {
 					_tcscpy(ccpt, _T("RA")); // BT -> BRA
 				}
 			}
