@@ -31,8 +31,11 @@ using Microsoft::WRL::ComPtr;
 #include "d3dx.h"
 
 #include "shaders/PixelShaderPlain.h"
+#include "shaders/PixelShaderPlain_HDR.h"
 #include "shaders/PixelShaderAlpha.h"
+#include "shaders/PixelShaderAlpha_HDR.h"
 #include "shaders/PixelShaderMask.h"
+#include "shaders/PixelShaderMask_HDR.h"
 #include "shaders/VertexShader.h"
 
 #include "FX11/d3dx11effect.h"
@@ -231,6 +234,7 @@ struct d3d11struct
 	D3D11_VIEWPORT viewport;
 	ID3D11Buffer *m_vertexBuffer, *m_indexBuffer;
 	ID3D11Buffer *m_matrixBuffer;
+	ID3D11Buffer *m_psBuffer;
 	int m_screenWidth, m_screenHeight;
 	int m_bitmapWidth, m_bitmapHeight;
 	int m_bitmapWidth2, m_bitmapHeight2;
@@ -342,6 +346,14 @@ struct MatrixBufferType
 	D3DXMATRIX world;
 	D3DXMATRIX view;
 	D3DXMATRIX projection;
+};
+
+struct PSBufferType
+{
+	float brightness;
+	float contrast;
+	float d2;
+	float d3;
 };
 
 static struct d3d11struct d3d11data[MAX_AMIGAMONITORS];
@@ -1871,7 +1883,11 @@ static bool allocsprite(struct d3d11struct *d3d, struct d3d11sprite *s, int widt
 	if (!InitializeBuffers(d3d, &s->vertexbuffer, &s->indexbuffer))
 		goto err;
 
-	hr = d3d->m_device->CreatePixelShader(PS_PostPlain, sizeof(PS_PostPlain), NULL, &s->pixelshader);
+	if (gfx_hdr) {
+		hr = d3d->m_device->CreatePixelShader(PS_PostPlain_HDR, sizeof(PS_PostPlain_HDR), NULL, &s->pixelshader);
+	} else {
+		hr = d3d->m_device->CreatePixelShader(PS_PostPlain, sizeof(PS_PostPlain), NULL, &s->pixelshader);
+	}
 	if (FAILED(hr))
 		goto err;
 
@@ -1999,7 +2015,7 @@ static bool CreateTexture(struct d3d11struct *d3d)
 	}
 
 	ID3D11Texture2D *pSurface;
-	hr = d3d->m_swapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), reinterpret_cast< void** >(&pSurface));
+	hr = d3d->m_swapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), reinterpret_cast<void**>(&pSurface));
 	if (SUCCEEDED(hr)) {
 		memset(&desc, 0, sizeof desc);
 		pSurface->GetDesc(&desc);
@@ -2570,7 +2586,13 @@ static int createmask2texture(struct d3d11struct *d3d, const TCHAR *filename)
 	if (FAILED(hr))
 		goto end;
 	for (int i = 0; i < img.height; i++) {
-		memcpy((uae_u8*)map.pData + i * map.RowPitch, img.data + i * img.pitch, img.width * 4);
+		for (int j = 0; j < img.width; j++) {
+			uae_u32 v;
+			uae_u32 *sptr = (uae_u32*)((uae_u8*)img.data + i * img.pitch + j * 4);
+			uae_u32 *ptr = (uae_u32*)((uae_u8*)map.pData + i * map.RowPitch + j * 4);
+			v = *sptr;
+			*ptr = v;
+		}
 	}
 	d3d->m_deviceContext->Unmap(d3d->mask2texture.texture, 0);
 
@@ -2800,7 +2822,7 @@ static int createmasktexture(struct d3d11struct *d3d, const TCHAR *filename, str
 	srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
 	srvDesc.Texture2D.MostDetailedMip = 0;
 	srvDesc.Texture2D.MipLevels = desc.MipLevels;
-	srvDesc.Format = d3d->scrformat;
+	srvDesc.Format = d3d->texformat;
 
 	hr = d3d->m_device->CreateShaderResourceView(sd->masktexture, &srvDesc, &sd->masktexturerv);
 	if (FAILED(hr)) {
@@ -2861,26 +2883,50 @@ static bool TextureShaderClass_InitializeShader(struct d3d11struct *d3d)
 		int BufferSize = 0;
 		char *name;
 
-		switch (i)
-		{
-		case 0:
-			name = "PS_PostPlain";
-			ps = &d3d->m_pixelShader;
-			Buffer = PS_PostPlain;
-			BufferSize = sizeof(PS_PostPlain);
-			break;
-		case 1:
-			name = "PS_PostMask";
-			ps = &d3d->m_pixelShaderMask;
-			Buffer = PS_PostMask;
-			BufferSize = sizeof(PS_PostMask);
-			break;
-		case 2:
-			name = "PS_PostAlpha";
-			ps = &d3d->m_pixelShaderSL;
-			Buffer = PS_PostAlpha;
-			BufferSize = sizeof(PS_PostAlpha);
-			break;
+		if (gfx_hdr) {
+			switch (i)
+			{
+			case 0:
+				name = "PS_PostPlain_HDR";
+				ps = &d3d->m_pixelShader;
+				Buffer = PS_PostPlain_HDR;
+				BufferSize = sizeof(PS_PostPlain_HDR);
+				break;
+			case 1:
+				name = "PS_PostMask_HDR";
+				ps = &d3d->m_pixelShaderMask;
+				Buffer = PS_PostMask_HDR;
+				BufferSize = sizeof(PS_PostMask_HDR);
+				break;
+			case 2:
+				name = "PS_PostAlpha_HDR";
+				ps = &d3d->m_pixelShaderSL;
+				Buffer = PS_PostAlpha_HDR;
+				BufferSize = sizeof(PS_PostAlpha_HDR);
+				break;
+			}
+		} else {
+			switch (i)
+			{
+			case 0:
+				name = "PS_PostPlain";
+				ps = &d3d->m_pixelShader;
+				Buffer = PS_PostPlain;
+				BufferSize = sizeof(PS_PostPlain);
+				break;
+			case 1:
+				name = "PS_PostMask";
+				ps = &d3d->m_pixelShaderMask;
+				Buffer = PS_PostMask;
+				BufferSize = sizeof(PS_PostMask);
+				break;
+			case 2:
+				name = "PS_PostAlpha";
+				ps = &d3d->m_pixelShaderSL;
+				Buffer = PS_PostAlpha;
+				BufferSize = sizeof(PS_PostAlpha);
+				break;
+			}
 		}
 		// Create the pixel shader from the buffer.
 		result = d3d->m_device->CreatePixelShader(Buffer, BufferSize, NULL, ps);
@@ -2898,6 +2944,21 @@ static bool TextureShaderClass_InitializeShader(struct d3d11struct *d3d)
 			pixelShaderBuffer->Release();
 			pixelShaderBuffer = 0;
 		}
+
+		D3D11_BUFFER_DESC psBufferDesc;
+		psBufferDesc.Usage = D3D11_USAGE_DYNAMIC;
+		psBufferDesc.ByteWidth = sizeof(PSBufferType);
+		psBufferDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+		psBufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+		psBufferDesc.MiscFlags = 0;
+		psBufferDesc.StructureByteStride = 0;
+		result = d3d->m_device->CreateBuffer(&psBufferDesc, NULL, &d3d->m_psBuffer);
+		if (FAILED(result))
+		{
+			write_log(_T("ID3D11Device CreateBuffer(ps) %08x\n"), result);
+			return false;
+		}
+
 	}
 
 	if (!createvertexshader(d3d, &d3d->m_vertexShader, &d3d->m_matrixBuffer, &d3d->m_layout))
@@ -3466,13 +3527,18 @@ static int xxD3D11_init2(HWND ahwnd, int monid, int w_w, int w_h, int t_w, int t
 				desc1.WhitePoint[0], desc1.WhitePoint[1]);
 			write_log(_T("MinL=%f MaxL=%f MaxFFL=%f\n"),
 				desc1.MinLuminance, desc1.MaxLuminance, desc1.MaxFullFrameLuminance);
-			d3d->hdr = desc1.ColorSpace == DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020 && currprefs.gfx_hdr;
+			d3d->hdr = desc1.ColorSpace == DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020;
+			if (currprefs.gfx_api < 3) {
+				d3d->hdr = false;
+			}
 		}
 		adapterOutputx = adapterOutput6;
 	}
 
 	if (d3d->hdr) {
+		//d3d->scrformat = DXGI_FORMAT_R10G10B10A2_UNORM;
 		d3d->scrformat = DXGI_FORMAT_R16G16B16A16_FLOAT;
+		gfx_hdr = true;
 	}
 
 	// Get the number of modes that fit the display format for the adapter output (monitor).
@@ -3748,17 +3814,34 @@ static int xxD3D11_init2(HWND ahwnd, int monid, int w_w, int w_h, int t_w, int t
 	CComPtr<IDXGISwapChain3> m_swapChain3;
 	if (SUCCEEDED(d3d->m_swapChain->QueryInterface(&m_swapChain3))) {
 		if (d3d->hdr) {
-			UINT cps;
-			result = m_swapChain3->CheckColorSpaceSupport(DXGI_COLOR_SPACE_RGB_FULL_G10_NONE_P709, &cps);
-			if (SUCCEEDED(result)) {
-				if (!(cps & DXGI_SWAP_CHAIN_COLOR_SPACE_SUPPORT_FLAG_PRESENT))
-					write_log(_T("CheckColorSpaceSupport(DXGI_COLOR_SPACE_RGB_FULL_G10_NONE_P709) not supported!?\n"));
-				result = m_swapChain3->SetColorSpace1(DXGI_COLOR_SPACE_RGB_FULL_G10_NONE_P709);
-				if (FAILED(result)) {
-					write_log(_T("SetColorSpace1 failed %08x\n"), result);
+			if (d3d->scrformat == DXGI_FORMAT_R10G10B10A2_UNORM) {
+				DXGI_COLOR_SPACE_TYPE type = DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020;
+				UINT cps;
+				result = m_swapChain3->CheckColorSpaceSupport(type, &cps);
+				if (SUCCEEDED(result)) {
+					if (!(cps & DXGI_SWAP_CHAIN_COLOR_SPACE_SUPPORT_FLAG_PRESENT))
+						write_log(_T("CheckColorSpaceSupport(DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020) not supported!?\n"));
+					result = m_swapChain3->SetColorSpace1(type);
+					if (FAILED(result)) {
+						write_log(_T("SetColorSpace1 failed %08x\n"), result);
+					}
+				} else {
+					write_log(_T("CheckColorSpaceSupport failed %08x\n"), result);
 				}
 			} else {
-				write_log(_T("CheckColorSpaceSupport failed %08x\n"), result);
+				DXGI_COLOR_SPACE_TYPE type = DXGI_COLOR_SPACE_RGB_FULL_G10_NONE_P709;;
+				UINT cps;
+				result = m_swapChain3->CheckColorSpaceSupport(type, &cps);
+				if (SUCCEEDED(result)) {
+					if (!(cps & DXGI_SWAP_CHAIN_COLOR_SPACE_SUPPORT_FLAG_PRESENT))
+						write_log(_T("CheckColorSpaceSupport(DXGI_COLOR_SPACE_RGB_FULL_G10_NONE_P709) not supported!?\n"));
+					result = m_swapChain3->SetColorSpace1(type);
+					if (FAILED(result)) {
+						write_log(_T("SetColorSpace1 failed %08x\n"), result);
+					}
+				} else {
+					write_log(_T("CheckColorSpaceSupport failed %08x\n"), result);
+				}
 			}
 		}
 		IDXGIOutput* dxgiOutput = NULL;
@@ -3901,6 +3984,10 @@ static void freed3d(struct d3d11struct *d3d)
 		d3d->m_matrixBuffer->Release();
 		d3d->m_matrixBuffer = 0;
 	}
+	if (d3d->m_psBuffer) {
+		d3d->m_psBuffer->Release();
+		d3d->m_psBuffer = 0;
+	}
 
 	FreeTextures(d3d);
 	FreeTexture2D(&d3d->sltexture, &d3d->sltexturerv);
@@ -3993,6 +4080,32 @@ static const TCHAR *xD3D11_init(HWND ahwnd, int monid, int w_w, int w_h, int dep
 	if (v <= 0)
 		return _T("");
 	return _T("D3D11 INITIALIZATION ERROR");
+}
+
+static void setpsbuffer(struct d3d11struct *d3d, ID3D11Buffer *psbuffer)
+{
+	HRESULT result;
+	PSBufferType *dataPtr;
+	D3D11_MAPPED_SUBRESOURCE mappedResource;
+
+	// Lock the constant buffer so it can be written to.
+	result = d3d->m_deviceContext->Map(psbuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
+	if (FAILED(result))
+	{
+		write_log(_T("ID3D11DeviceContext map(ps) %08x\n"), result);
+		return;
+	}
+
+	float bri = ((float)(currprefs.gfx_luminance)) * (1.0f / 2000.0f) + 1.0;
+	float con = ((float)(currprefs.gfx_contrast + 2000)) / 2000.0f;
+
+	// Get a pointer to the data in the constant buffer.
+	dataPtr = (PSBufferType *)mappedResource.pData;
+	dataPtr->brightness = bri;
+	dataPtr->contrast = con;
+
+	// Unlock the constant buffer.
+	d3d->m_deviceContext->Unmap(psbuffer, 0);
 }
 
 static bool setmatrix(struct d3d11struct *d3d, ID3D11Buffer *matrixbuffer, D3DXMATRIX worldMatrix, D3DXMATRIX viewMatrix, D3DXMATRIX projectionMatrix)
@@ -4310,6 +4423,10 @@ static bool renderframe(struct d3d11struct *d3d)
 	// Now set the constant buffer in the vertex shader with the updated values.
 	d3d->m_deviceContext->VSSetConstantBuffers(0, 1, &d3d->m_matrixBuffer);
 
+	setpsbuffer(d3d, d3d->m_psBuffer);
+
+	d3d->m_deviceContext->PSSetConstantBuffers(0, 1, &d3d->m_psBuffer);
+
 	ID3D11RenderTargetView *lpRenderTarget = NULL;
 
 	// Bind the render target view and depth stencil buffer to the output render pipeline.
@@ -4516,7 +4633,7 @@ static bool restore(struct d3d11struct *d3d)
 			desc.Height = 16;
 			desc.Depth = 256;
 			desc.MipLevels = 1;
-			desc.Format = d3d->scrformat;
+			desc.Format = d3d->texformat;
 			desc.Usage = D3D11_USAGE_DYNAMIC;
 			desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
 			desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
@@ -4539,7 +4656,7 @@ static bool restore(struct d3d11struct *d3d)
 			srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE3D;
 			srvDesc.Texture2D.MostDetailedMip = 0;
 			srvDesc.Texture2D.MipLevels = 1;
-			srvDesc.Format = d3d->scrformat;
+			srvDesc.Format = d3d->texformat;
 			hr = d3d->m_device->CreateShaderResourceView(d3d->shaders[i].lpHq2xLookupTexture, &srvDesc, &d3d->shaders[i].lpHq2xLookupTexturerv);
 			if (FAILED(hr)) {
 				write_log(_T("D3D11 Failed to create volume texture resource view: %08x:%d\n"), hr, i);
@@ -5260,7 +5377,7 @@ void d3d11_select(void)
 
 void d3d_select(struct uae_prefs *p)
 {
-	if (p->gfx_api == 2)
+	if (p->gfx_api >= 2)
 		d3d11_select();
 	else
 		d3d9_select();

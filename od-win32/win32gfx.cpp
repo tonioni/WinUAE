@@ -104,6 +104,7 @@ int vsync_modechangetimeout = 10;
 int vsync_activeheight, vsync_totalheight;
 float vsync_vblank, vsync_hblank;
 bool beamracer_debug;
+bool gfx_hdr;
 
 int reopen(struct AmigaMonitor *, int, bool);
 
@@ -1955,6 +1956,7 @@ static void close_hwnds(struct AmigaMonitor *mon)
 		DestroyWindow(mon->hMainWnd);
 		mon->hMainWnd = 0;
 	}
+	gfx_hdr = false;
 }
 
 static bool canmatchdepth(void)
@@ -2813,7 +2815,7 @@ int picasso_palette(struct MyCLUTEntry *CLUT, uae_u32 *clut)
 		uae_u32 v = (doMask256 (r, red_bits, red_shift)
 			| doMask256 (g, green_bits, green_shift)
 			| doMask256 (b, blue_bits, blue_shift))
-			| doMask256 (0xff, alpha_bits, alpha_shift);
+			| doMask256 ((1 << alpha_bits) - 1, alpha_bits, alpha_shift);
 		if (v != clut[i]) {
 			//write_log (_T("%d:%08x\n"), i, v);
 			clut[i] = v;
@@ -4200,7 +4202,6 @@ retry:
 
 		init_row_map ();
 	}
-	init_colors(mon->monitor_id);
 
 	S2X_free(mon->monitor_id);
 	for (int i = 0; i < MAX_AMIGAMONITORS; i++) {
@@ -4215,7 +4216,8 @@ retry:
 		const TCHAR *err = D3D_init(mon->hAmigaWnd, mon->monitor_id, mon->currentmode.native_width, mon->currentmode.native_height,
 			mon->currentmode.current_depth, &mon->currentmode.freq, fmh, fmv);
 		if (err) {
-			if (currprefs.gfx_api == 2) {
+			gfx_hdr = false;
+			if (currprefs.gfx_api >= 2) {
 				D3D_free(0, true);
 				if (err[0] == 0 && currprefs.color_mode != 5) {
 					changed_prefs.color_mode = currprefs.color_mode = 5;
@@ -4243,6 +4245,7 @@ retry:
 		target_graphics_buffer_update(mon->monitor_id);
 		updatewinrect(mon, true);
 	}
+	init_colors(mon->monitor_id);
 
 	mon->screen_is_initialized = 1;
 

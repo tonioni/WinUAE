@@ -12444,7 +12444,7 @@ static void values_to_miscdlg_dx(HWND hDlg)
 		SendDlgItemMessage(hDlg, IDC_DXMODE_OPTIONS, CB_ADDSTRING, 0, (LPARAM)_T("LocalVRAM"));
 		SendDlgItemMessage(hDlg, IDC_DXMODE_OPTIONS, CB_ADDSTRING, 0, (LPARAM)_T("SystemRAM"));
 		SendDlgItemMessage(hDlg, IDC_DXMODE_OPTIONS, CB_SETCURSEL, ddforceram, 0);
-	} else if (workprefs.gfx_api == 2) {
+	} else if (workprefs.gfx_api >= 2) {
 		SendDlgItemMessage(hDlg, IDC_DXMODE_OPTIONS, CB_ADDSTRING, 0, (LPARAM)_T("Hardware D3D11"));
 		SendDlgItemMessage(hDlg, IDC_DXMODE_OPTIONS, CB_ADDSTRING, 0, (LPARAM)_T("Software D3D11"));
 		SendDlgItemMessage(hDlg, IDC_DXMODE_OPTIONS, CB_SETCURSEL, workprefs.gfx_api_options, 0);
@@ -12472,6 +12472,7 @@ static void values_to_miscdlg (HWND hDlg)
 		SendDlgItemMessage(hDlg, IDC_DXMODE, CB_ADDSTRING, 0, (LPARAM)_T("DirectDraw"));
 		SendDlgItemMessage(hDlg, IDC_DXMODE, CB_ADDSTRING, 0, (LPARAM)_T("Direct3D 9"));
 		SendDlgItemMessage(hDlg, IDC_DXMODE, CB_ADDSTRING, 0, (LPARAM)_T("Direct3D 11"));
+		SendDlgItemMessage(hDlg, IDC_DXMODE, CB_ADDSTRING, 0, (LPARAM)_T("Direct3D 11 HDR (experimental)"));
 		SendDlgItemMessage(hDlg, IDC_DXMODE, CB_SETCURSEL, workprefs.gfx_api, 0);
 		values_to_miscdlg_dx(hDlg);
 
@@ -12729,7 +12730,7 @@ static INT_PTR MiscDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 				case IDC_DXMODE_OPTIONS:
 					v = SendDlgItemMessage (hDlg, IDC_DXMODE_OPTIONS, CB_GETCURSEL, 0, 0L);
 					if (v != CB_ERR) {
-						if (workprefs.gfx_api == 2) {
+						if (workprefs.gfx_api >= 2) {
 							workprefs.gfx_api_options = v;
 						} else if (!workprefs.gfx_api) {
 							ddforceram = v;
@@ -19894,7 +19895,7 @@ static void values_to_hw3ddlg (HWND hDlg, bool initdialog)
 				TCHAR *ext = _tcsrchr(fname, '.');
 				if (ext && (
 					!_tcsicmp(ext, _T(".png")) ||
-					(!_tcsicmp(ext, _T(".bmp")) && workprefs.gfx_api != 2)))
+					(!_tcsicmp(ext, _T(".bmp")) && workprefs.gfx_api < 2)))
 				{
 					for (;;) {
 						if (!overlaytype && _tcslen(fname) > 4 + 1 + 3 && !_tcsnicmp(fname + _tcslen(fname) - (4 + 1 + 3), _T("_led"), 4))
@@ -21392,7 +21393,7 @@ static bool dodialogmousemove(void)
 		return false;
 	if (isfullscreen () > 0 && currprefs.gfx_monitor[monid].gfx_size_fs.width > gui_width && currprefs.gfx_monitor[monid].gfx_size.height > gui_height)
 		return false;
-	if (currprefs.gfx_api == 2)
+	if (currprefs.gfx_api >= 2)
 		return false;
 	struct MultiDisplay *mdc = getdisplay(&currprefs, monid);
 	for (int i = 0; Displays[i].monitorid; i++) {

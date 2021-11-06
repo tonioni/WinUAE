@@ -1481,6 +1481,64 @@
       <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='FullRelease|x64'">
       </ObjectFileOutput>
     </FxCompile>
+    <FxCompile Include="..\shaders\PixelShaderAlpha_HDR.hlsl">
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">4.0_level_9_3</ShaderModel>
+      <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">PS_PostAlpha_HDR</EntryPointName>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">Pixel</ShaderType>
+      <VariableName Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">PS_PostAlpha_HDR</VariableName>
+      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">../Shaders/PixelShaderAlpha_HDR.h</HeaderFileOutput>
+      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">
+      </ObjectFileOutput>
+      <VariableName Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">PS_PostAlpha_HDR</VariableName>
+      <VariableName Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">PS_PostAlpha_HDR</VariableName>
+      <VariableName Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">PS_PostAlpha_HDR</VariableName>
+      <VariableName Condition="'$(Configuration)|$(Platform)'=='Test|x64'">PS_PostAlpha_HDR</VariableName>
+      <VariableName Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|x64'">PS_PostAlpha_HDR</VariableName>
+      <VariableName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">PS_PostAlpha_HDR</VariableName>
+      <VariableName Condition="'$(Configuration)|$(Platform)'=='FullRelease|x64'">PS_PostAlpha_HDR</VariableName>
+      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">../Shaders/PixelShaderAlpha_HDR.h</HeaderFileOutput>
+      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">
+      </ObjectFileOutput>
+      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">../Shaders/PixelShaderAlpha_HDR.h</HeaderFileOutput>
+      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+      </ObjectFileOutput>
+      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">../Shaders/PixelShaderAlpha_HDR.h</HeaderFileOutput>
+      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">
+      </ObjectFileOutput>
+      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Test|x64'">../Shaders/PixelShaderAlpha_HDR.h</HeaderFileOutput>
+      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Test|x64'">
+      </ObjectFileOutput>
+      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|x64'">../Shaders/PixelShaderAlpha_HDR.h</HeaderFileOutput>
+      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|x64'">
+      </ObjectFileOutput>
+      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|x64'">../Shaders/PixelShaderAlpha_HDR.h</HeaderFileOutput>
+      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+      </ObjectFileOutput>
+      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='FullRelease|x64'">../Shaders/PixelShaderAlpha_HDR.h</HeaderFileOutput>
+      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='FullRelease|x64'">
+      </ObjectFileOutput>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">Pixel</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">4.0_level_9_3</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Pixel</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">4.0_level_9_3</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">Pixel</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">4.0_level_9_3</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Test|x64'">Pixel</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Test|x64'">4.0_level_9_3</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|x64'">Pixel</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|x64'">4.0_level_9_3</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">4.0_level_9_3</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='FullRelease|x64'">Pixel</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='FullRelease|x64'">4.0_level_9_3</ShaderModel>
+      <EntryPointName Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">PS_PostAlpha_HDR</EntryPointName>
+      <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">PS_PostAlpha_HDR</EntryPointName>
+      <EntryPointName Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">PS_PostAlpha_HDR</EntryPointName>
+      <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Test|x64'">PS_PostAlpha_HDR</EntryPointName>
+      <EntryPointName Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|x64'">PS_PostAlpha_HDR</EntryPointName>
+      <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">PS_PostAlpha_HDR</EntryPointName>
+      <EntryPointName Condition="'$(Configuration)|$(Platform)'=='FullRelease|x64'">PS_PostAlpha_HDR</EntryPointName>
+    </FxCompile>
     <FxCompile Include="..\shaders\PixelShaderMask.hlsl">
       <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">PS_PostMask</EntryPointName>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">Pixel</ShaderType>
@@ -1553,6 +1611,64 @@
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='FullRelease|x64'">Pixel</ShaderType>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='FullRelease|x64'">4.0_level_9_1</ShaderModel>
     </FxCompile>
+    <FxCompile Include="..\shaders\PixelShaderMask_HDR.hlsl">
+      <VariableName Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">PS_PostMask_HDR</VariableName>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">4.0_level_9_3</ShaderModel>
+      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">../Shaders/PixelShaderMask_HDR.h</HeaderFileOutput>
+      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">
+      </ObjectFileOutput>
+      <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">PS_PostMask_HDR</EntryPointName>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">Pixel</ShaderType>
+      <EntryPointName Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">PS_PostMask_HDR</EntryPointName>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">Pixel</ShaderType>
+      <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">PS_PostMask_HDR</EntryPointName>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Pixel</ShaderType>
+      <EntryPointName Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">PS_PostMask_HDR</EntryPointName>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">Pixel</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">4.0_level_9_3</ShaderModel>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">4.0_level_9_3</ShaderModel>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">4.0_level_9_3</ShaderModel>
+      <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Test|x64'">PS_PostMask_HDR</EntryPointName>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Test|x64'">Pixel</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Test|x64'">4.0_level_9_3</ShaderModel>
+      <EntryPointName Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|x64'">PS_PostMask_HDR</EntryPointName>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|x64'">Pixel</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|x64'">4.0_level_9_3</ShaderModel>
+      <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">PS_PostMask_HDR</EntryPointName>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">4.0_level_9_3</ShaderModel>
+      <EntryPointName Condition="'$(Configuration)|$(Platform)'=='FullRelease|x64'">PS_PostMask_HDR</EntryPointName>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='FullRelease|x64'">Pixel</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='FullRelease|x64'">4.0_level_9_3</ShaderModel>
+      <VariableName Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">PS_PostMask_HDR</VariableName>
+      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">
+      </ObjectFileOutput>
+      <VariableName Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">PS_PostMask_HDR</VariableName>
+      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+      </ObjectFileOutput>
+      <VariableName Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">PS_PostMask_HDR</VariableName>
+      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">
+      </ObjectFileOutput>
+      <VariableName Condition="'$(Configuration)|$(Platform)'=='Test|x64'">PS_PostMask_HDR</VariableName>
+      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Test|x64'">
+      </ObjectFileOutput>
+      <VariableName Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|x64'">PS_PostMask_HDR</VariableName>
+      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|x64'">
+      </ObjectFileOutput>
+      <VariableName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">PS_PostMask_HDR</VariableName>
+      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+      </ObjectFileOutput>
+      <VariableName Condition="'$(Configuration)|$(Platform)'=='FullRelease|x64'">PS_PostMask_HDR</VariableName>
+      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='FullRelease|x64'">
+      </ObjectFileOutput>
+      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">../Shaders/PixelShaderMask_HDR.h</HeaderFileOutput>
+      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">../Shaders/PixelShaderMask_HDR.h</HeaderFileOutput>
+      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">../Shaders/PixelShaderMask_HDR.h</HeaderFileOutput>
+      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Test|x64'">../Shaders/PixelShaderMask_HDR.h</HeaderFileOutput>
+      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|x64'">../Shaders/PixelShaderMask_HDR.h</HeaderFileOutput>
+      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|x64'">../Shaders/PixelShaderMask_HDR.h</HeaderFileOutput>
+      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='FullRelease|x64'">../Shaders/PixelShaderMask_HDR.h</HeaderFileOutput>
+    </FxCompile>
     <FxCompile Include="..\shaders\PixelShaderPlain.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">Pixel</ShaderType>
       <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">PS_PostPlain</EntryPointName>
@@ -1624,6 +1740,82 @@
       <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='FullRelease|x64'">../Shaders/PixelShaderPlain.h</HeaderFileOutput>
       <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='FullRelease|x64'">
       </ObjectFileOutput>
+    </FxCompile>
+    <FxCompile Include="..\shaders\PixelShaderPlain_HDR.hlsl">
+      <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">PS_PostPlain_HDR</EntryPointName>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">Pixel</ShaderType>
+      <VariableName Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">PS_PostPlain_HDR</VariableName>
+      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">../Shaders/PixelShaderPlain_HDR.h</HeaderFileOutput>
+      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">
+      </ObjectFileOutput>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">4.0_level_9_3</ShaderModel>
+      <VariableName Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">PS_PostPlain_HDR</VariableName>
+      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">
+      </ObjectFileOutput>
+      <VariableName Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">PS_PostPlain_HDR</VariableName>
+      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+      </ObjectFileOutput>
+      <VariableName Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">PS_PostPlain_HDR</VariableName>
+      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">
+      </ObjectFileOutput>
+      <VariableName Condition="'$(Configuration)|$(Platform)'=='Test|x64'">PS_PostPlain_HDR</VariableName>
+      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Test|x64'">
+      </ObjectFileOutput>
+      <VariableName Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|x64'">PS_PostPlain_HDR</VariableName>
+      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|x64'">
+      </ObjectFileOutput>
+      <VariableName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">PS_PostPlain_HDR</VariableName>
+      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+      </ObjectFileOutput>
+      <VariableName Condition="'$(Configuration)|$(Platform)'=='FullRelease|x64'">PS_PostPlain_HDR</VariableName>
+      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='FullRelease|x64'">
+      </ObjectFileOutput>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">Pixel</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">4.0_level_9_3</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Pixel</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">4.0_level_9_3</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">Pixel</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">4.0_level_9_3</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Test|x64'">Pixel</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Test|x64'">4.0_level_9_3</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|x64'">Pixel</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|x64'">4.0_level_9_3</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">4.0_level_9_3</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='FullRelease|x64'">Pixel</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='FullRelease|x64'">4.0_level_9_3</ShaderModel>
+      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">../Shaders/PixelShaderPlain_HDR.h</HeaderFileOutput>
+      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">../Shaders/PixelShaderPlain_HDR.h</HeaderFileOutput>
+      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">../Shaders/PixelShaderPlain_HDR.h</HeaderFileOutput>
+      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Test|x64'">../Shaders/PixelShaderPlain_HDR.h</HeaderFileOutput>
+      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|x64'">../Shaders/PixelShaderPlain_HDR.h</HeaderFileOutput>
+      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|x64'">../Shaders/PixelShaderPlain_HDR.h</HeaderFileOutput>
+      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='FullRelease|x64'">../Shaders/PixelShaderPlain_HDR.h</HeaderFileOutput>
+      <EntryPointName Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">PS_PostPlain_HDR</EntryPointName>
+      <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">PS_PostPlain_HDR</EntryPointName>
+      <EntryPointName Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">PS_PostPlain_HDR</EntryPointName>
+      <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Test|x64'">PS_PostPlain_HDR</EntryPointName>
+      <EntryPointName Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|x64'">PS_PostPlain_HDR</EntryPointName>
+      <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">PS_PostPlain_HDR</EntryPointName>
+      <EntryPointName Condition="'$(Configuration)|$(Platform)'=='FullRelease|x64'">PS_PostPlain_HDR</EntryPointName>
+    </FxCompile>
+    <FxCompile Include="..\shaders\PixelShader_HDR.hlsl">
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">4.0_level_9_3</ShaderModel>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">true</ExcludedFromBuild>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">4.0_level_9_3</ShaderModel>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">4.0_level_9_3</ShaderModel>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">4.0_level_9_3</ShaderModel>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Test|x64'">4.0_level_9_3</ShaderModel>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|x64'">4.0_level_9_3</ShaderModel>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">4.0_level_9_3</ShaderModel>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='FullRelease|x64'">4.0_level_9_3</ShaderModel>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Test|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='FullRelease|x64'">true</ExcludedFromBuild>
     </FxCompile>
     <FxCompile Include="..\shaders\VertexShader.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">Vertex</ShaderType>

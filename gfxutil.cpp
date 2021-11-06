@@ -42,7 +42,7 @@ float getvsyncrate(int monid, float hz, int *mult)
 #define GRN	1
 #define BLU	2
 
-unsigned int doMask (int p, int bits, int shift)
+uae_u32 doMask(uae_u32 p, int bits, int shift)
 {
 	/* scale to 0..255, shift to align msb with mask, and apply mask */
 	uae_u32 val;
@@ -80,34 +80,35 @@ int mask_shift (unsigned long mask)
 	return n;
 }
 
-unsigned int doMask256 (int p, int bits, int shift)
+uae_u32 doMask256 (int p, int bits, int shift)
 {
 	/* p is a value from 0 to 255 (Amiga color value)
 	* shift to align msb with mask, and apply mask */
 
-	unsigned long val = p * 0x01010101UL;
+	uae_u32 val = p;
 	if (bits == 0)
 		return 0;
+	val <<= 24;
 	val >>= (32 - bits);
 	val <<= shift;
 
 	return val;
 }
 
-static unsigned int doColor (int i, int bits, int shift)
+static uae_u32 doColor (int i, int bits, int shift)
 {
 	int shift2;
 
 	if (flashscreen)
 		i ^= 0xffffffff;
-	if(bits >= 8)
+	if (bits >= 8)
 		shift2 = 0;
 	else
 		shift2 = 8 - bits;
 	return (i >> shift2) << shift;
 }
 
-static unsigned int doAlpha (int alpha, int bits, int shift)
+static uae_u32 doAlpha (int alpha, int bits, int shift)
 {
 	return (alpha & ((1 << bits) - 1)) << shift;
 }
@@ -139,10 +140,18 @@ static void video_calc_gammatable(int monid)
 {
 	struct amigadisplay *ad = &adisplays[monid];
 	float bri, con, gam, gams[3];
+	float max = 255;
 
-	bri = ((float)(currprefs.gfx_luminance)) * (128.0f / 1000.0f);
-	con = ((float)(currprefs.gfx_contrast + 1000)) / 1000.0f;
-	gam = ((float)(1000 - currprefs.gfx_gamma)) / 1000.0f - 1.0;
+	if (gfx_hdr) {
+		bri = 0.0;
+		con = 1.0;
+		gam = 0.0;
+	} else {
+		bri = ((float)(currprefs.gfx_luminance)) * (128.0f / 1000.0f);
+		con = ((float)(currprefs.gfx_contrast + 1000)) / 1000.0f;
+		gam = ((float)(1000 - currprefs.gfx_gamma)) / 1000.0f - 1.0;
+	}
+
 	gams[0] = gam + ((float)(1000 - currprefs.gfx_gamma_ch[0])) / 1000.0f;
 	gams[1] = gam + ((float)(1000 - currprefs.gfx_gamma_ch[1])) / 1000.0f;
 	gams[2] = gam + ((float)(1000 - currprefs.gfx_gamma_ch[2])) / 1000.0f;
@@ -163,8 +172,8 @@ static void video_calc_gammatable(int monid)
 				val = (val * 252.0) / 238.0;
 			}
 
-			if (currprefs.gfx_luminance == 0 && currprefs.gfx_contrast == 0 && currprefs.gfx_gamma == 0 &&
-				currprefs.gfx_gamma_ch[0] == 0 && currprefs.gfx_gamma_ch[1] == 0 && currprefs.gfx_gamma_ch[2] == 0) {
+			if (gfx_hdr || (currprefs.gfx_luminance == 0 && currprefs.gfx_contrast == 0 && currprefs.gfx_gamma == 0 &&
+				currprefs.gfx_gamma_ch[0] == 0 && currprefs.gfx_gamma_ch[1] == 0 && currprefs.gfx_gamma_ch[2] == 0)) {
 				v = val;
 			} else {
 				v = video_gamma(val, gams[j], bri, con);
@@ -172,8 +181,8 @@ static void video_calc_gammatable(int monid)
 
 			if (v < 0.0)
 				v = 0.0;
-			if (v > 255.0)
-				v = 255.0;
+			if (v > max)
+				v = max;
 
 			gamma[i][j] = (uae_u32)(v + 0.5);
 		}
@@ -183,7 +192,9 @@ static void video_calc_gammatable(int monid)
 static uae_u32 limit256(int monid, double v)
 {
 	struct amigadisplay *ad = &adisplays[monid];
-	v = v * (double)(currprefs.gf[ad->picasso_on].gfx_filter_contrast + 1000) / 1000.0 + currprefs.gf[ad->picasso_on].gfx_filter_luminance / 10.0;
+	if (!gfx_hdr) {
+		v = v * (double)(currprefs.gf[ad->picasso_on].gfx_filter_contrast + 1000) / 1000.0 + currprefs.gf[ad->picasso_on].gfx_filter_luminance / 10.0;
+	}
 	if (v < 0)
 		v = 0;
 	if (v > 255)
@@ -193,7 +204,9 @@ static uae_u32 limit256(int monid, double v)
 static uae_u32 limit256rb(int monid, double v)
 {
 	struct amigadisplay *ad = &adisplays[monid];
-	v *= (double)(currprefs.gf[ad->picasso_on].gfx_filter_saturation + 1000) / 1000.0;
+	if (!gfx_hdr) {
+		v *= (double)(currprefs.gf[ad->picasso_on].gfx_filter_saturation + 1000) / 1000.0;
+	}
 	if (v < -128)
 		v = -128;
 	if (v > 127)
@@ -337,16 +350,17 @@ void alloc_colors_rgb (int rw, int gw, int bw, int rs, int gs, int bs, int aw, i
 	for(i = 0; i < 256; i++) {
 		int j;
 
-		if (currprefs.gfx_blackerthanblack) {
+		if (!gfx_hdr && currprefs.gfx_blackerthanblack) {
 			j = i * 15 / 16 + 15;
-		} else {  
+		} else {
 			j = i;
 		}
 		j += 256;
 
-		rc[i] = doColor (gamma[j][0], rw, rs) | doAlpha (alpha, aw, as);
-		gc[i] = doColor (gamma[j][1], gw, gs) | doAlpha (alpha, aw, as);
-		bc[i] = doColor (gamma[j][2], bw, bs) | doAlpha (alpha, aw, as);
+		rc[i] = doColor(gamma[j][0], rw, rs) | doAlpha(alpha, aw, as);
+		gc[i] = doColor(gamma[j][1], gw, gs) | doAlpha(alpha, aw, as);
+		bc[i] = doColor(gamma[j][2], bw, bs) | doAlpha(alpha, aw, as);
+
 		if (byte_swap) {
 			if (bpp <= 16) {
 				rc[i] = bswap_16 (rc[i]);
@@ -380,12 +394,11 @@ void alloc_colors64k(int monid, int rw, int gw, int bw, int rs, int gs, int bs, 
 		int g = (((i >> 4) & 0xf) << 4) | ((i >> 4) & 0x0f);
 		int b = ((i & 0xf) << 4) | (i & 0x0f);
 
-		if (currprefs.gfx_blackerthanblack) {
+		if (!gfx_hdr && currprefs.gfx_blackerthanblack) {
 			r = (r * (255 - 8) / 255) + 8;
 			g = (g * (255 - 8) / 255) + 8;
 			b = (b * (255 - 8) / 255) + 8;
 		}
-
 		r = gamma[r + j][0];
 		g = gamma[g + j][1];
 		b = gamma[b + j][2];
@@ -403,6 +416,11 @@ void alloc_colors64k(int monid, int rw, int gw, int bw, int rs, int gs, int bs, 
 			xcolors[i] |= xcolors[i] * 0x00010001;
 		}
 	}
+	fullblack = xcolors[0];
+	if (gfx_hdr) {
+		fullblack = doAlpha(1, aw, as);
+	}
+
 #if defined(AGA) || defined(GFXFILTER)
 	alloc_colors_rgb (rw, gw, bw, rs, gs, bs, aw, as, alpha, byte_swap, xredcolors, xgreencolors, xbluecolors);
 	/* copy original color table */

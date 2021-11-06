@@ -180,6 +180,7 @@ int xgreencolor_s, xgreencolor_b, xgreencolor_m;
 int xbluecolor_s, xbluecolor_b, xbluecolor_m;
 
 struct color_entry colors_for_drawing;
+xcolnr fullblack;
 static struct color_entry direct_colors_for_drawing;
 
 static xcolnr *p_acolors;
@@ -1041,12 +1042,12 @@ static xcolnr getbgc(int blank)
 	return xcolors[0xf0f];
 #endif
 	if (exthblank) {
-		return 0;
+		return fullblack;
 	}
 	bool extblken = ce_is_extblankset(colors_for_drawing.extra);
 	// extblken=1: hblank and vblank = black
 	if (!(vb_state & 1) && extblken && aga_mode) {
-		return 0;
+		return fullblack;
 	}
 	bool brdblank = ce_is_borderblank(colors_for_drawing.extra);
 #if 0
@@ -1057,10 +1058,10 @@ static xcolnr getbgc(int blank)
 #endif
 	// borderblank = black (overrides extblken)
 	if (brdblank && blank >= 0) {
-		return 0;
+		return fullblack;
 	}
 	if (hposblank || blank > 0) {
-		return 0;
+		return fullblack;
 	}
 	return colors_for_drawing.acolors[0];
 }
