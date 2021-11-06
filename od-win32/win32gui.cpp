@@ -16118,6 +16118,7 @@ static void getfloppytype(HWND hDlg, int n, bool change)
 			if (sub == 0) {
 				FloppyBridgeAPI::showProfileConfigDialog(hDlg);
 				floppybridge_reload_profiles();
+				floppybridge_modified(-1);
 				updatefloppytypes(hDlg);
 				char *c = NULL;
 				FloppyBridgeAPI::exportProfilesToString(&c);
@@ -16210,6 +16211,7 @@ static void getfloppytypeq(HWND hDlg, int n, bool type)
 					_tcscpy(quickstart_floppysubtypeid[n], tmp);
 				}
 				_tcscpy(fs->dfxsubtypeid, tmp);
+				floppybridge_modified(n);
 			}
 			if (qs) {
 				if (n == 1) {
