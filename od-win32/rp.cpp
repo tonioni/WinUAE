@@ -1253,20 +1253,27 @@ static int screenoverlay(LPCVOID pData)
 	return D3D_extoverlay(&eo);
 }
 
-static void dos_execute_callback(uae_u32 id, uae_u32 status, uae_u32 flags)
+static void dos_execute_callback(uae_u32 id, uae_u32 status, uae_u32 flags, const char *outbuf, void *userdata)
 {
 	RPExecuteResult *er;
 	int size = sizeof(RPExecuteResult);
 
 	if (flags & (RP_EXECUTE_RETURN_EXIT_CODE | RP_EXECUTE_RETURN_OUTPUT)) {
+		int outsize = 0;
+		if (outbuf) {
+			outsize = strlen(outbuf);
+		}
+		size += (outsize + 1) * sizeof(TCHAR);
 		er = (RPExecuteResult *)xcalloc(uae_u8, size);
 		if (er) {
-			er->cbSize = size;
+			er->cbSize = sizeof(RPExecuteResult);
 			er->dwExecuteID = id;
 			er->dwExitCode = status;
-			er->dwOutputLength = 0;
+			er->dwOutputLength = outsize;
 			er->hrExecuteResult = S_OK;
-			er->szOutput[0] = 0;
+			if (outbuf) {
+				au_copy(er->szOutput, outsize, outbuf);
+			}
 			RPSendMessagex(RP_IPC_TO_HOST_EXECUTE_RESULT, 0, 0, er, size, &guestinfo, NULL);
 			xfree(er);
 		}
@@ -1275,10 +1282,7 @@ static void dos_execute_callback(uae_u32 id, uae_u32 status, uae_u32 flags)
 
 static int dosexecute(TCHAR *file, TCHAR *currentdir, TCHAR *parms, uae_u32 stack, uae_s32 priority, uae_u32 id, uae_u32 flags, uae_u8 *bin, uae_u32 binsize)
 {
-	if (flags & RP_EXECUTE_RETURN_OUTPUT) {
-		return 0;
-	}
-	int ret = filesys_shellexecute2(file, currentdir, parms, stack, priority, id, flags, bin, binsize, dos_execute_callback);
+	int ret = filesys_shellexecute2(file, currentdir, parms, stack, priority, id, flags, bin, binsize, dos_execute_callback, NULL);
 	return ret;
 }
 
@@ -2382,8 +2386,12 @@ void rp_test(void)
 	
 	screencap((void*)&rpsc, mon);
 #endif
-#if 1
-	dosexecute(_T("c:list"), _T("sys:"), _T(""), 4000, 3, 0x12345678, 0, NULL, 0);
+#if 0
+	FILE *f = fopen("c:\\temp\\amiga.bin", "rb");
+	uae_u8 buf[100000];
+	int size = fread(buf, 1, sizeof(buf), f);
+	fclose(f);
+	dosexecute(_T("c:list"), _T("sys:"), _T(""), 4000, 3, 0x12345678, 3, buf, size);
 
 #endif
 }

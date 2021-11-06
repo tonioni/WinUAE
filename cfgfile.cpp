@@ -7533,6 +7533,18 @@ end:
 	return err;
 }
 
+static void shellexec_cb(uae_u32 id, uae_u32 status, uae_u32 flags, const char *outbuf, void *userdata)
+{
+	if (flags & 1) {
+		write_log("Return status code: %d\n", status);
+	}
+	if (flags & 2) {
+		if (outbuf) {
+			write_log("%s\n", outbuf);
+		}
+	}
+}
+
 static int execcmdline(struct uae_prefs *prefs, int argv, TCHAR **argc, TCHAR *out, int outsize, bool confonly)
 {
 	int ret = 0;
@@ -7541,7 +7553,19 @@ static int execcmdline(struct uae_prefs *prefs, int argv, TCHAR **argc, TCHAR *o
 		if (i + 2 <= argv) {
 			if (!confonly) {
 				if (!_tcsicmp(argc[i], _T("shellexec"))) {
-					uae_ShellExecute(argc[i + 1]);
+					TCHAR *cmd = argc[i + 1];
+					uae_u32 flags = 0;
+					i++;
+					while (argv > i + 1) {
+						TCHAR *next = argc[i + 1];
+						if (!_tcsicmp(next, _T("out"))) {
+							flags |= 2;
+						}
+						if (!_tcsicmp(next, _T("res"))) {
+							flags |= 1;
+						}
+					}
+					filesys_shellexecute2(cmd, NULL, NULL, 0, 0, 0, flags, NULL, 0, shellexec_cb, NULL);
 				} else if (!_tcsicmp(argc[i], _T("dbg"))) {
 					debug_parser(argc[i + 1], out, outsize);
 				} else if (!inputdevice_uaelib(argc[i], argc[i + 1])) {
