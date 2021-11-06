@@ -1307,7 +1307,7 @@ static int screencap(LPCVOID pData, struct AmigaMonitor *mon)
 			struct vidbuf_description *avidinfo = &adisplays[0].gfxvidinfo;
 			struct vidbuffer vb;
 			int w = avidinfo->drawbuffer.inwidth;
-			int h = get_vertical_visible_height();
+			int h = get_vertical_visible_height(true);
 			allocvidbuffer(0, &vb, w, h, avidinfo->drawbuffer.pixbytes * 8);
 			set_custom_limits(0, 0, 0, 0);
 			draw_frame(&vb);

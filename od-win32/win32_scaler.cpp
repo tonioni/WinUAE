@@ -804,7 +804,7 @@ uae_u8 *getfilterbuffer(int monid, int *widthp, int *heightp, int *pitch, int *d
 	h = vb->outheight;
 	if (!monid) {
 		// if native screen: do not include vertical blank
-		h = get_vertical_visible_height();
+		h = get_vertical_visible_height(false);
 	}
 	if (pitch)
 		*pitch = vb->rowbytes;
