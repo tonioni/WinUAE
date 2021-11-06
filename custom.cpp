@@ -3750,6 +3750,11 @@ static void decide_vline(void)
 {
 	bool forceoff = (vb_start_line == 1 && !harddis_v);
 
+	// we need last line if scandoubler (even if it does not exist in real world)
+	if (doflickerfix() && interlace_seen > 0 && diwstate == DIW_waiting_stop && vpos + 1 == plflastline) {
+		forceoff = false;
+	}
+
 	/* Take care of the vertical DIW.  */
 	if (vpos == plffirstline && !forceoff) {
 		diwstate = DIW_waiting_stop;
@@ -6464,7 +6469,7 @@ static void doint_delay_do(uae_u32 v)
 static void doint_delay(void)
 {
 	if (m68k_interrupt_delay) {
-		event2_newevent_xx(-1, CYCLE_UNIT + CYCLE_UNIT / 2, 0, doint_delay_do);
+		event2_newevent_xx(-1, 3 * CYCLE_UNIT + CYCLE_UNIT / 2, 0, doint_delay_do);
 	} else {
 		doint_delay_do(0);
 	}
@@ -6891,35 +6896,30 @@ static void BPL2MOD(int hpos, uae_u16 v)
 /* Needed in special OCS/ECS "7-plane" mode,
  * also handles CPU generated bitplane data
  */
-static void BPLxDAT_next(uae_u32 v)
+static void BPLxDAT_next(int hpos, int num, uae_u16 data)
 {
-	int num = v >> 16;
-	uae_u16 vv = (uae_u16)v;
-	uae_u16 data = (uae_u16)v;
-	int hpos = current_hpos();
-
 	// only BPL1DAT access can do anything visible
 	if (num == 0 && hpos >= hsyncstartpos_start_cycles) {
 		decide_line(hpos);
 		decide_fetch_safe(hpos);
 	}
 	flush_display(fetchmode);
-	fetched[num] = vv;
+	fetched[num] = data;
 	if ((fmode & 3) == 3) {
-		fetched_aga[num] = ((uae_u64)last_custom_value << 48) | ((uae_u64)vv << 32) | (vv << 16) | vv;
+		fetched_aga[num] = ((uae_u64)last_custom_value << 48) | ((uae_u64)data << 32) | (data << 16) | data;
 	} else if ((fmode & 3) == 2) {
-		fetched_aga[num] = (last_custom_value << 16) | vv;
+		fetched_aga[num] = (last_custom_value << 16) | data;
 	} else if ((fmode & 3) == 1) {
-		fetched_aga[num] = (vv << 16) | vv;
+		fetched_aga[num] = (data << 16) | data;
 	} else {
-		fetched_aga[num] = vv;
+		fetched_aga[num] = data;
 	}
 }
 
 static void BPLxDAT(int hpos, int num, uae_u16 v)
 {
 	uae_u32 vv = (num << 16) | v;
-	BPLxDAT_next(vv);
+	BPLxDAT_next(hpos, num, v);
 
 	if (num == 0 && hpos >= hsyncstartpos_start_cycles) {
 		if (thisline_decision.plfleft < 0) {
@@ -9775,13 +9775,12 @@ static void hsync_scandoubler(int hpos)
 	last_hdiw = 0 - 1;
 
 	for (int i = 0; i < MAX_PLANES; i++) {
-		int diff;
 		bpltmp[i] = bplpt[i];
 		bpltmpx[i] = bplptx[i];
 		uaecptr pb1 = prevbpl[lof][vpos][i];
 		uaecptr pb2 = prevbpl[1 - lof][vpos][i];
 		if (pb1 && pb2) {
-			diff = pb1 - pb2;
+			int diff = pb1 - pb2;
 			if (lof) {
 				if (bplcon0 & 4) {
 					bplpt[i] = pb1 - diff;
@@ -9803,11 +9802,6 @@ static void hsync_scandoubler(int hpos)
 
 	// Bitplane only
 	dmacon = odmacon & (DMA_MASTER | DMA_BITPLANE);
-	// Blank last line
-	if (vpos >= maxvpos - 1) {
-		dmacon = 0;
-	}
-
 	copper_enabled_thisline = 0;
 
 	// copy color changes
