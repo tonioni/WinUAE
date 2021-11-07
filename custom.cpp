@@ -3750,9 +3750,9 @@ static void decide_vline(void)
 {
 	bool forceoff = (vb_start_line == 1 && !harddis_v);
 
-	// we need last line if scandoubler (even if it does not exist in real world)
-	if (doflickerfix() && interlace_seen > 0 && diwstate == DIW_waiting_stop && vpos + 1 == plflastline) {
-		forceoff = false;
+	// if scandoubler mode: stop display before possible last non-paired line
+	if (doflickerfix() && interlace_seen > 0 && vpos + 1 >= maxvpos && lof_current && diwstate == DIW_waiting_stop) {
+		forceoff = true;
 	}
 
 	/* Take care of the vertical DIW.  */
