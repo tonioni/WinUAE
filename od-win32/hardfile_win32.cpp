@@ -3544,10 +3544,12 @@ int win32_hardfile_media_change (const TCHAR *drvname, int inserted)
 		int reopen = 0;
 		if (!hfd || !(hfd->flags & HFD_FLAGS_REALDRIVE))
 			continue;
-		for (j = 0; j < currprefs.mountitems; j++) {
-			if (currprefs.mountconfig[j].configoffset == i) {
-				hmc_check (hfd, &currprefs.mountconfig[j], &rescanned, &reopen, &gotinsert, drvname, inserted);
-				break;
+		if (hfd->ci.lock || hfd->ci.controller_type != HD_CONTROLLER_TYPE_UAE) {
+			for (j = 0; j < currprefs.mountitems; j++) {
+				if (currprefs.mountconfig[j].configoffset == i) {
+					hmc_check(hfd, &currprefs.mountconfig[j], &rescanned, &reopen, &gotinsert, drvname, inserted);
+					break;
+				}
 			}
 		}
 	}
@@ -3555,9 +3557,11 @@ int win32_hardfile_media_change (const TCHAR *drvname, int inserted)
 		extern struct hd_hardfiledata *pcmcia_disk;
 		int reopen = 0;
 		struct uaedev_config_data *uci = &currprefs.mountconfig[i];
-		const struct expansionromtype *ert = get_unit_expansion_rom(uci->ci.controller_type);
-		if (ert && (ert->deviceflags & EXPANSIONTYPE_PCMCIA) && pcmcia_disk) {
-			hmc_check (&pcmcia_disk->hfd, uci, &rescanned, &reopen, &gotinsert, drvname, inserted);
+		if (uci->ci.lock || uci->ci.controller_type != HD_CONTROLLER_TYPE_UAE) {
+			const struct expansionromtype *ert = get_unit_expansion_rom(uci->ci.controller_type);
+			if (ert && (ert->deviceflags & EXPANSIONTYPE_PCMCIA) && pcmcia_disk) {
+				hmc_check(&pcmcia_disk->hfd, uci, &rescanned, &reopen, &gotinsert, drvname, inserted);
+			}
 		}
 	}
 	//write_log (_T("win32_hardfile_media_change returned %d\n"), gotinsert);
