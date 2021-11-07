@@ -1,4 +1,29 @@
 
+Beta 39:
+
+- Executable as a disk image mounting now supports FFS and HD disks. Uses DD+OFS if selected file fits (like previously), then DD+FFS, finally HD+FFS (if drive is HD).
+- Fixed empty formatted standard HD ADF creation, broken in 4.3.0 (bitmap block used DD size)
+- If A1200 config had PCMCIA emulation and 4M or larger Z2 RAM enabled, end of Z2 RAM didn't have "safety barrier" which caused long or word access that crosses end of RAM to crash the emulator.
+- Some audio debugging was accidentally left enabled in b38
+- Adjusted UAE Boot ROM variable locations, freeing more space for ROM code.
+- UAE Boot ROM level 2 interrupt server priority changed to -1 if KS 1.x, workaround for old SoundTracker (and clones) broken keyboard handling that breaks completely if KS ROM level 2 interrupt server isn't first in chain.
+- Fixed last line of bitmap missing or flickering if very tall interlace mode and interlace artifact removal was enabled.
+- Blitter line mode didn't clear BLTZERO if line pixel was skipped because of onedot mode. (vAmiga test case)
+- Blitter line mode didn't update global state of shift values and SIGN bit. (vAmiga test case where next blit is started without updating BLTCON0/1)
+- Yet another small interrupt timing adjustment.
+- Chipset emulation could get confused in non-ce configurations when BPL1DAT was modified with a copper.
+- Reinitialize all selected FloppyBridges when exiting FloppyBridge UI.
+- Change to memory card (CF/SD/etc) added as a harddrive: if you wanted to use same config with Amiga formatted cards and FAT formatted cards and Windows/driver allowed direct access even when FAT formatted card (without partition table) was inserted (oddly enough Windows 10 and older didn't allow it on my PC but after updating to Windows 11, direct access is possible), FAT card wasn't anymore mounted as a directory drive after re-insert because direct access has priority and it did succeed. Now direct harddrive mode is only used if drive does not have any PC partitions (no drive letter) or if Lock option is ticked.
+- Experimental HDR support added. (This is not going to be fully implemented in next official release, it is only side project)
+
+HDR mode details:
+- Requirements: HDR capable monitor. Windows HDR mode enabled. Direct 3D 11.
+- New Graphics API option: "Direct3D 11 HDR".
+- Original 8-bit RGB values are converted to HDR color space using shaders.
+- Brightness/contrast adjustments are now done in shader code which prevents usual SDR black crush or white clipping. (Work more like CRT). Gamma adjustment is not yet supported.
+- "Blacker than black" option behavior is also changed, because HDR by design support blacker than SDR black, it does not need to affect normal color range like in SDR mode. It is also always enabled in HDR mode.
+
+
 Beta 38:
 
 - b33 audio update missed one condition, when DMA sample playback ended, last sample was played twice before audio channel entered idle state.
