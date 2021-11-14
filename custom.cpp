@@ -131,7 +131,7 @@ static int vpos_count, vpos_count_diff;
 int lof_store; // real bit in custom registers
 static int lof_current; // what display device thinks
 static bool lof_lastline, lof_prev_lastline;
-static int lol;
+static int lol, lol_prev;
 static int next_lineno;
 static enum nln_how nextline_how;
 static int lof_changed = 0, lof_changing = 0, interlace_changed = 0;
@@ -299,8 +299,8 @@ static int maxhpos_display = AMIGA_WIDTH_MAX;
 int maxvpos_display_vsync; // extra lines from top visible in bottom
 static int vblank_extraline;
 static int maxhposm1;
-static bool maxhposeven;
-int hsyncendpos, hsyncstartpos;
+static bool maxhposeven, maxhposeven_prev;
+static int hsyncendpos, hsyncstartpos;
 int hsync_end_left_border;
 static int hsyncstartpos_start, hsyncstartpos_start_cycles;
 
@@ -4928,6 +4928,7 @@ static void dumpsync(void)
 		hsyncendpos >> CCK_SHRES_SHIFT, hsyncendpos & ((1 << CCK_SHRES_SHIFT) - 1));
 	write_log(_T(" Lines=%d-%d\n"),
 		minfirstline, maxvpos_display + maxvpos_display_vsync);
+	write_log(_T("PC=%08x COP=%08x\n"), M68K_GETPC, cop_state.ip);
 }
 
 int current_maxvpos(void)
@@ -5448,9 +5449,12 @@ static void init_hz(bool checkvposw)
 	}
 
 	// after vsync, it seems earlier possible visible line is vsync+3.
-	int vsync_startline = vsstrt + 3;
-	if (vsync_startline >= maxvpos) {
-		vsync_startline -= maxvpos;
+	int vsync_startline = 3;
+	if ((beamcon0 & 0x1000) && (beamcon0 & (0x0200 | 0x0010))) {
+		vsync_startline += vsstrt;
+		if (vsync_startline >= maxvpos / 2) {
+			vsync_startline = 3;
+		}
 	}
 
 	maxhpos_display = AMIGA_WIDTH_MAX;
@@ -6480,7 +6484,7 @@ static void INTENA(uae_u16 v)
 	uae_u16 old = intena;
 	setclr(&intena, v);
 
-	if ((v & 0x8000) && old != intena) {
+	if (old != intena) {
 		doint_delay();
 	}
 }
@@ -7172,6 +7176,15 @@ static void BLTCPTL(int hpos, uae_u16 v)
 static void BLTDPTH (int hpos, uae_u16 v)
 {
 	maybe_blit(hpos, 0);
+
+	if (blt_info.blit_finald && copper_access) {
+		static int warned = 100;
+		if (warned > 0) {
+			warned--;
+			write_log("Possible Copper Blitter wait bug detected COP=%08x\n", cop_state.ip);
+		}
+	}
+
 	bltptx = bltdpt;
 	bltptxpos = hpos;
 	bltptxc = copper_access ? 4 : -4;
@@ -7180,6 +7193,15 @@ static void BLTDPTH (int hpos, uae_u16 v)
 static void BLTDPTL(int hpos, uae_u16 v)
 {
 	maybe_blit(hpos, 0);
+
+	if (blt_info.blit_finald && copper_access) {
+		static int warned = 100;
+		if (warned > 0) {
+			warned--;
+			write_log("Possible Copper Blitter wait bug detected COP=%08x\n", cop_state.ip);
+		}
+	}
+
 	bltptx = bltdpt;
 	bltptxpos = hpos;
 	bltptxc = copper_access ? 4 : -4;
@@ -7774,7 +7796,7 @@ static bool copper_cant_read(int hpos, uae_u16 alloc)
 	int offset = get_rga_pipeline(hpos, coffset);
 
 	uae_u16 v = cycle_line_pipe[offset];
-	if (v != 0) {
+	if (v != 0 && !(v & CYCLE_PIPE_COPPER)) {
 #if CYCLE_CONFLICT_LOGGING
 		if ((v & CYCLE_PIPE_BLITTER) || (v & CYCLE_PIPE_CPUSTEAL) || (v & CYCLE_PIPE_SPRITE)) {
 			write_log(_T("Copper's cycle stolen by lower priority channel %04x!?\n"), v);
@@ -8471,8 +8493,8 @@ static void update_copper(int until_hpos)
 			goto next;
 		}
 
-		// cycle 0 is not available
-		if (hpos == 0 && cop_state.state != COP_start_delay) {
+		// cycle 0 is only available if previous line ends to odd cycle
+		if (hpos == 0 && !maxhposeven_prev && cop_state.state != COP_start_delay) {
 			goto next;
 		}
 
@@ -10177,6 +10199,7 @@ static void hsync_handlerh(bool onvsync)
 
 static void set_hpos(void)
 {
+	maxhposeven_prev = maxhposeven;
 	maxhpos = maxhpos_short + lol;
 	maxhposm1 = maxhpos - 1;
 	maxhposeven = (maxhpos & 1) == 0;
@@ -10247,6 +10270,7 @@ static void hsync_handler_pre(bool onvsync)
 
 	hpos_hsync_extra = maxhpos;
 
+	lol_prev = lol;
 	if (islinetoggle())
 		lol = lol ? 0 : 1;
 	else
@@ -11539,15 +11563,15 @@ void custom_reset(bool hardreset, bool keyboardreset)
 		if (hardreset) {
 			vtotal = MAXVPOS_LINES_ECS - 1;
 			htotal = MAXHPOS_ROWS - 1;
-			hbstrt = htotal;
-			hbstop = htotal;
-			hsstrt = htotal;
-			hsstop = htotal;
-			vbstrt = vtotal;
-			vbstop = vtotal;
-			vsstrt = vtotal;
-			vsstop = vtotal;
-			hcenter = htotal;
+			hbstrt = 0;
+			hbstop = 0;
+			hsstrt = 0;
+			hsstop = 0;
+			vbstrt = 0;
+			vbstop = 0;
+			vsstrt = 0;
+			vsstop = 0;
+			hcenter = 0;
 			if (!aga_mode) {
 				uae_u16 c = ((ecs_denise && !aga_mode) || currprefs.cs_denisenoehb) ? 0xfff : 0x000;
 				for (int i = 0; i < 32; i++) {
