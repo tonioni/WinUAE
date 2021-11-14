@@ -1,4 +1,14 @@
 
+Beta 40 (RC1):
+
+- A2065 emulation quit/reset crash fix, A2065 RAM was freed too early, when it was still possible to receive new ethernet frames.
+- Blitter final D write does not happen if D channel gets disabled, line mode gets enabled or new blit starts before pending D write has finished. This mainly affects copper blitter wait bug behavior, if new blit is setup before blitter gets its last cycle, last D write never happens which can prevent the glitch from happening. (Last write getting skipped might not cause any visible glitches) Fixes Andy & Blondie / Finity second to last part's glitch. Note that final part has many glitches, happens also on real A500 if system does not have any real Fast RAM.
+- Log warning message if BLTDPTx is written to while blitter final D write is still pending.
+- Removed wrong INTENA write optimization. Fixes Expiration / Mayhem cube corruption. (Problem wasn't directly blitter related)
+- If programmed mode was in use that didn't require configured VSSTRT/VSSTOP registers, display was blank. (Contactro / Illusion)
+- Screen mode with even horizontal cycle length (programmed and normal NTSC mode) copper timing fix. Copper can use cycle 0 (previously incorrectly calculated as cycle $e0) if previous line's last cycle was odd cycle (even total length). (Contactro / Illusion)
+- Programmed mode registers are again zeroed at startup (was all ones) because JtxRules / Illusion only sets VBSTOP and HBSTOP and expects zeroed HBSTRT and VBSTRT. (Programmed mode comparators don't have reset line connected but they still power up with zeroed contents. At least usually..)
+
 Beta 39:
 
 - Executable as a disk image mounting now supports FFS and HD disks. Uses DD+OFS if selected file fits (like previously), then DD+FFS, finally HD+FFS (if drive is HD).
@@ -22,7 +32,6 @@ HDR mode details:
 - Original 8-bit RGB values are converted to HDR color space using shaders.
 - Brightness/contrast adjustments are now done in shader code which prevents usual SDR black crush or white clipping. (Work more like CRT). Gamma adjustment is not yet supported.
 - "Blacker than black" option behavior is also changed, because HDR by design support blacker than SDR black, it does not need to affect normal color range like in SDR mode. It is also always enabled in HDR mode.
-
 
 Beta 38:
 
