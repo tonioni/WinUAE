@@ -293,6 +293,8 @@ static void gotfunc (void *devv, const uae_u8 *databuf, int len)
 	const uae_u8 *dstmac, *srcmac;
 	struct s2devstruct *dev = (struct s2devstruct*)devv;
 
+	if (!am_initialized)
+		return;
 	if (!am_rdr_rlen)
 		return;
 
@@ -455,6 +457,8 @@ static int getfunc (void *devv, uae_u8 *d, int *len)
 {
 	struct s2devstruct *dev = (struct s2devstruct*)devv;
 
+	if (!am_initialized)
+		return 0;
 	if (transmitlen <= 0)
 		return 0;
 	if (transmitlen > *len) {
@@ -1019,6 +1023,9 @@ static uae_u32 REGPARAM2 a2065_lgeti (uaecptr addr)
 static void a2065_reset(int hardreset)
 {
 	am_initialized = 0;
+
+	ethernet_close(td, sysdata);
+
 	for (int i = 0; i < RAP_SIZE; i++)
 		csr[i] = 0;
 	csr[0] = CSR0_STOP;
@@ -1029,7 +1036,6 @@ static void a2065_reset(int hardreset)
 
 	free_expansion_bank(&a2065_bank);
 	boardram = NULL;
-	ethernet_close(td, sysdata);
 	xfree(sysdata);
 	sysdata = NULL;
 	td = NULL;
