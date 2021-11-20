@@ -4361,7 +4361,8 @@ static void decide_sprites(int hpos, bool usepointx, bool quick)
 		int hw_xp = sprxp >> sprite_buffer_res;
 		int pointx = usepointx && (s->ctl & sprite_sprctlmask) ? 0 : 1;
 
-		if (hw_xp <= 0 || hw_xp > maxhpos * 2 + 1) {
+		// Sprite does not start if X=0 but SSCAN2 sprite does. Don't do X == 0 check here.
+		if (sprxp < 0 || hw_xp > maxhpos * 2 + 1) {
 			continue;
 		}
 
@@ -4379,7 +4380,7 @@ static void decide_sprites(int hpos, bool usepointx, bool quick)
 			hw_xp = sprxp >> sprite_buffer_res;
 		}
 
-		if (hw_xp > last_sprite_point && hw_xp <= point + pointx) {
+		if (hw_xp > 0 && hw_xp > last_sprite_point && hw_xp <= point + pointx) {
 			add_sprite(&count, i, sprxp, posns, nrs);
 		}
 
