@@ -1,4 +1,12 @@
 
+Beta 41 (RC2):
+
+- Sprite processing was exited early if sprite horizontal start was zero (which is correct normally). But when combined with FMODE SSCAN2-bit, only "original" sprite is invisible but "doubled" sprite is still visible. Fixes Fantastic Dizzy CD32 background glitch.
+- Improve Denise/Lisa internal bitplane pipeline logic, previously undocumented combined plane change + bitplane shift changes mid scanline are now working correctly.
+- Above behavior also revealed yet another undocumented chipset feature/bug: if ECS Denise or AGA and bitplane plane count is lowered mid scan line and disabled plane's last bit out of bitplane shifter was one: last pixel appears twice. OCS Denise is unaffected. This is emulated only in subpixel mode.
+- Clear all internal display emulation buffers at reset, previously some of them was not cleared. (Possibly could have caused temporary on screen garbage when loading statefile on the fly)
+
+
 Beta 40 (RC1):
 
 - A2065 emulation quit/reset crash fix, A2065 RAM was freed too early, when it was still possible to receive new ethernet frames.

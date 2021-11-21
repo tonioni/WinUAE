@@ -8175,7 +8175,7 @@ void mem_access_delay_long_write_ce020 (uaecptr addr, uae_u32 v)
 		wait_cpu_cycle_write_ce020 (addr + 2, 1, (v >>  0) & 0xffff);
 		break;
 	case CE_MEMBANK_CHIP32:
-		if ((addr & 3) == 3) {
+		if ((addr & 3) != 0) {
 			wait_cpu_cycle_write_ce020 (addr + 0, 1, (v >> 16) & 0xffff);
 			wait_cpu_cycle_write_ce020 (addr + 2, 1, (v >>  0) & 0xffff);
 		} else {
