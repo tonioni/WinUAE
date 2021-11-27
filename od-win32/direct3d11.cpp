@@ -4814,7 +4814,7 @@ static bool D3D11_resize_do(struct d3d11struct *d3d)
 
 	d3d->fsresizedo = false;
 
-	write_log(_T("D3D11 resize do\n"));
+	write_log(_T("D3D11 resize do %d %d\n"), d3d->fsmodechange, d3d->fsmode);
 
 	if (d3d->fsmodechange && d3d->fsmode > 0) {
 		write_log(_T("D3D11_resize -> fullscreen\n"));
@@ -4838,6 +4838,9 @@ static bool D3D11_resize_do(struct d3d11struct *d3d)
 		d3d->invalidmode = true;
 		d3d->fsmodechange = 0;
 	} else {
+		d3d->fsmode = 0;
+		d3d->invalidmode = false;
+		d3d->fsmodechange = 0;
 		write_log(_T("D3D11_resize -> none\n"));
 	}
 
@@ -5043,7 +5046,7 @@ static void xD3D11_resize(int monid, int activate)
 		d3d->fsmode = activate;
 		d3d->fsmodechange = true;
 		ShowWindow(d3d->ahwnd, d3d->fsmode > 0 ? SW_SHOWNORMAL : SW_MINIMIZE);
-		write_log(_T("D3D11 resize activate\n"));
+		write_log(_T("D3D11 resize activate %d\n"), activate);
 	}
 
 	d3d->fsresizedo = true;
