@@ -891,11 +891,12 @@ static void hblank_reset(int hblankpos)
 static void record_color_change2(int hpos, int regno, uae_u32 value)
 {
 	color_change *cc;
-	int pos = hpos < 0 ? -hpos : hpos_to_diw(hpos);
 
-	if (scandoubled_line || line_hidden()) {
+	if (scandoubled_line || line_hidden() || nocustom()) {
 		return;
 	}
+
+	int pos = hpos < 0 ? -hpos : hpos_to_diw(hpos);
 
 	// AGA has extra hires pixel delay in color changes
 	if ((regno < RECORDED_REGISTER_CHANGE_OFFSET || regno == RECORDED_REGISTER_CHANGE_OFFSET + 0x10c) && aga_mode) {
