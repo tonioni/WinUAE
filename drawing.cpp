@@ -429,7 +429,7 @@ extern int diwfirstword_total, diwlastword_total;
 extern int ddffirstword_total, ddflastword_total;
 extern bool vertical_changed, horizontal_changed;
 extern int firstword_bplcon1;
-extern int lof_store;
+extern int lof_display;
 
 #define MIN_DISPLAY_W 256
 #define MIN_DISPLAY_H 192
@@ -490,7 +490,7 @@ static void get_vblanking_limits(int *vbstrtp, int *vbstopp, bool overscanonly)
 	if (!ecs_denise) {
 		vbstrt--;
 	}
-	int vbstop = maxvpos + lof_store;
+	int vbstop = maxvpos + lof_display;
 	if (!ecs_denise && !ecs_agnus) {
 		vbstop++;
 	} else if (ecs_agnus && !ecs_denise) {
@@ -772,13 +772,13 @@ int get_custom_limits (int *pw, int *ph, int *pdx, int *pdy, int *prealh)
 	if (interlace_seen) {
 		static int interlace_count;
 		// interlace = only use long frames
-		if (lof_store && (interlace_count & 1) == 0)
+		if (lof_display && (interlace_count & 1) == 0)
 			interlace_count++;
-		if (!lof_store && (interlace_count & 1) != 0)
+		if (!lof_display && (interlace_count & 1) != 0)
 			interlace_count++;
 		if (interlace_count < 3)
 			return ret;
-		if (!lof_store)
+		if (!lof_display)
 			return ret;
 		interlace_count = 0;
 		/* program may have set last visible line as last possible line (CD32 boot screen) */
@@ -1447,7 +1447,7 @@ static void fill_line_border(int lineno)
 	int endpos = visible_left_border + vidinfo->drawbuffer.inwidth;
 	int w = endpos - lastpos;
 
-	if (lineno < visible_top_start || lineno < vblank_top_start || lineno >= visible_bottom_stop || lineno >= vblank_bottom_stop) {
+	if (lineno < visible_top_start || lineno < vblank_top_start || lineno >= visible_bottom_stop || lineno >= vblank_bottom_stop || vb_state >= 4) {
 		int b = hposblank;
 		hposblank = 3;
 		fill_line2(lastpos, w);
@@ -3299,8 +3299,11 @@ static void do_color_changes(line_draw_func worker_border, line_draw_func worker
 			}
 
 			// vblank + programmed vblank / hardwired vblank
-			if (vb_state == 2 || vbarea) {
+			if (vb_state == 2 || vb_state >= 4 || vbarea) {
 
+				if (vbarea || vb_state >= 4) {
+					hposblank = 3;
+				}
 				if (nextpos_in_range > lastpos && lastpos < playfield_end) {
 					int t = nextpos_in_range <= playfield_end ? nextpos_in_range : playfield_end;
 					(*worker_border)(lastpos, t, 1);
@@ -4772,6 +4775,8 @@ void hsync_record_line_state (int lineno, enum nln_how how, int changed)
 	if (ad->framecnt != 0)
 		return;
 
+	//write_log("%d:%d:%d ", lineno, how, lof_display);
+
 	state = linestate + lineno;
 	changed |= ad->frame_redraw_necessary != 0 || refresh_indicator_buffer != NULL ||
 		((lineno >= lightpen_y1[0] && lineno < lightpen_y2[0]) ||
@@ -4794,7 +4799,7 @@ void hsync_record_line_state (int lineno, enum nln_how how, int changed)
 		}
 		break;
 	case nln_lower:
-		if (lineno > 0 && state[-1] == LINE_UNDECIDED) {
+		if (state[-1] == LINE_UNDECIDED) {
 			state[-1] = LINE_DECIDED; //LINE_BLACK;
 		}
 		*state = changed ? LINE_DECIDED : LINE_DONE;
@@ -4809,34 +4814,20 @@ void hsync_record_line_state (int lineno, enum nln_how how, int changed)
 	case nln_lower_black_always:
 		state[1] = LINE_BLACK;
 		*state = LINE_DECIDED;
-//		if (lineno == (maxvpos + lof_store) * 2 - 1)
-//			*state = LINE_BLACK;
 		break;
 	case nln_lower_black:
 		changed |= state[0] != LINE_DONE;
-		state[1] = LINE_DONE;
 		*state = changed ? LINE_DECIDED : LINE_DONE;
-//		if (lineno == (maxvpos + lof_store) * 2 - 1)
-//			*state = LINE_BLACK;
+		state[1] = LINE_DONE;
 		break;
 	case nln_upper_black_always:
 		*state = LINE_DECIDED;
-		if (lineno > 0) {
-			state[-1] = LINE_BLACK;
-		}
-		if (!interlace_seen && lineno == (maxvpos + lof_store) * 2 - 2) {
-			state[1] = LINE_BLACK;
-		}
+		state[-1] = LINE_BLACK;
 		break;
 	case nln_upper_black:
 		changed |= state[0] != LINE_DONE;
 		*state = changed ? LINE_DECIDED : LINE_DONE;
-		if (lineno > 0) {
-			state[-1] = LINE_DONE;
-		}
-		if (!interlace_seen && lineno == (maxvpos + lof_store) * 2 - 2) {
-			state[1] = LINE_DONE;
-		}
+		state[-1] = LINE_DONE;
 		break;
 	}
 }

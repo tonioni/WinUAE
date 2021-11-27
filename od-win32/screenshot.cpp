@@ -959,7 +959,7 @@ uae_u8 *save_screenshot(int monid, int *len)
 	int w = avidinfo->drawbuffer.inwidth;
 	int h = avidinfo->drawbuffer.inheight;
 	if (!programmedmode) {
-		h = (maxvpos + lof_store - minfirstline) << currprefs.gfx_vresolution;
+		h = (maxvpos + lof_display - minfirstline) << currprefs.gfx_vresolution;
 	}
 	if (interlace_seen && currprefs.gfx_vresolution > 0) {
 		h -= 1 << (currprefs.gfx_vresolution - 1);
