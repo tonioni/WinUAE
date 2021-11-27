@@ -4799,7 +4799,7 @@ void hsync_record_line_state (int lineno, enum nln_how how, int changed)
 		}
 		break;
 	case nln_lower:
-		if (state[-1] == LINE_UNDECIDED) {
+		if (lineno > 0 && state[-1] == LINE_UNDECIDED) {
 			state[-1] = LINE_DECIDED; //LINE_BLACK;
 		}
 		*state = changed ? LINE_DECIDED : LINE_DONE;
@@ -4822,12 +4822,16 @@ void hsync_record_line_state (int lineno, enum nln_how how, int changed)
 		break;
 	case nln_upper_black_always:
 		*state = LINE_DECIDED;
-		state[-1] = LINE_BLACK;
+		if (lineno > 0) {
+			state[-1] = LINE_BLACK;
+		}
 		break;
 	case nln_upper_black:
 		changed |= state[0] != LINE_DONE;
 		*state = changed ? LINE_DECIDED : LINE_DONE;
-		state[-1] = LINE_DONE;
+		if (lineno > 0) {
+			state[-1] = LINE_DONE;
+		}
 		break;
 	}
 }
