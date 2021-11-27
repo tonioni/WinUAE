@@ -1,4 +1,14 @@
 
+
+- Switching from D3D11 fullscreen mode to windowed mode using GUI caused windowed mode to keep-reinitializing continuously. (CTRL+F12 switch worked normally)
+- Blitter line mode with C disabled also disables C-channel pointer modulo add operations. b39 update was not complete. (Methylate / Focus Design).
+- Interlace mode last 2 lines (if Overscan+ or Extreme) had swapped long/short line (last line/line zero "wrap around" point), LOF toggles at this point but display device does not see it until few lines later.
+- Fixed buffer overflow that caused unexpected crash due to internal variables getting corrupted. It happened if mode was RTG (native chipset not active) and native mode had copper list that writes to custom registers that can affect colors or blanking, state change was unnecessarily recorded to a buffer that is not in use if RTG mode and after long time (can be 100 minutes or more), it finally overflowed. Recent blanking updates introduced this.
+- Programmed blanking change was not always fully detected, leaving partially blanked border in some situations.
+- Enabled Remove interlace arfifact option without interlace mode: bitplane overrun emulation was not possible.
+- Remove interlace artifact option last line flickering/garbage is really gone now. (Blanks extra line(s), this is not really the correct way but too late to fix it properly)
+- Bitplane pointer pointing to upper 512k chip ram in ECS 0.5M+0.5M config didn't use indirect read routines. (Fixes Cen / Rare ECS 0.5M+0.5M config corrupted vector objects)
+
 Beta 41 (RC2):
 
 - Sprite processing was exited early if sprite horizontal start was zero (which is correct normally). But when combined with FMODE SSCAN2-bit, only "original" sprite is invisible but "doubled" sprite is still visible. Fixes Fantastic Dizzy CD32 background glitch.
