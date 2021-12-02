@@ -20344,15 +20344,23 @@ static INT_PTR CALLBACK hw3dDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 		switch (wParam)
 		{
 		case IDC_FILTERDEFAULT:
-			currprefs.gf[filter_nativertg].gfx_filter_horiz_zoom = workprefs.gf[filter_nativertg].gfx_filter_horiz_zoom = 0;
-			currprefs.gf[filter_nativertg].gfx_filter_vert_zoom = workprefs.gf[filter_nativertg].gfx_filter_vert_zoom = 0;
-			currprefs.gf[filter_nativertg].gfx_filter_horiz_offset = workprefs.gf[filter_nativertg].gfx_filter_horiz_offset = 0;
-			currprefs.gf[filter_nativertg].gfx_filter_vert_offset = workprefs.gf[filter_nativertg].gfx_filter_vert_offset = 0;
-			currprefs.gf[filter_nativertg].gfx_filter_horiz_zoom_mult = workprefs.gf[filter_nativertg].gfx_filter_horiz_zoom_mult = 1.0;
-			currprefs.gf[filter_nativertg].gfx_filter_vert_zoom_mult = workprefs.gf[filter_nativertg].gfx_filter_vert_zoom_mult = 1.0;
-			values_to_hw3ddlg (hDlg, false);
+		{
+			struct gfx_filterdata *fd = &currprefs.gf[filter_nativertg];
+			struct gfx_filterdata *fdw = &workprefs.gf[filter_nativertg];
+			fd->gfx_filter_horiz_zoom = fdw->gfx_filter_horiz_zoom = 0;
+			fd->gfx_filter_vert_zoom = fdw->gfx_filter_vert_zoom = 0;
+			fd->gfx_filter_horiz_offset = fdw->gfx_filter_horiz_offset = 0;
+			fd->gfx_filter_vert_offset = fdw->gfx_filter_vert_offset = 0;
+			fd->gfx_filter_horiz_zoom_mult = fdw->gfx_filter_horiz_zoom_mult = 1.0;
+			fd->gfx_filter_vert_zoom_mult = fdw->gfx_filter_vert_zoom_mult = 1.0;
+			fd->gfx_filter_left_border = fdw->gfx_filter_left_border = -1;
+			fd->gfx_filter_top_border = fdw->gfx_filter_top_border = -1;
+			fd->gfx_filter_right_border = fdw->gfx_filter_right_border = 0;
+			fd->gfx_filter_bottom_border = fdw->gfx_filter_bottom_border = 0;
+			values_to_hw3ddlg(hDlg, false);
 			updatedisplayarea(-1);
 			break;
+		}
 		case IDC_FILTERPRESETLOAD:
 		case IDC_FILTERPRESETSAVE:
 		case IDC_FILTERPRESETDELETE:

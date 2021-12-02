@@ -1,6 +1,16 @@
 
 
+Beta 43 (RC4):
+
+- CDFS mounting used wrong character set translation functions, file names with character codes larger than 128 could not be opened depending on Windows regional settings.
+- Vertical centering sometimes decided to use max offset, pushing the image down as much as possible.
+- Filter Overscan blanking used old horizontal origin (which changed to earlier, "true" horizontal=0 position, due to chipset updates). Workaround added.
+- Blacker than black in non-HDR mode was not RGB=000000 black.
+
+Beta 42 (RC3):
+
 - Switching from D3D11 fullscreen mode to windowed mode using GUI caused windowed mode to keep-reinitializing continuously. (CTRL+F12 switch worked normally)
+- Fixed wrong condition in check if Denise side BPLCON0 parameters needs updating, broke for example HAM enable/disable until next line (b41)
 - Blitter line mode with C disabled also disables C-channel pointer modulo add operations. b39 update was not complete. (Methylate / Focus Design).
 - Interlace mode last 2 lines (if Overscan+ or Extreme) had swapped long/short line (last line/line zero "wrap around" point), LOF toggles at this point but display device does not see it until few lines later.
 - Fixed buffer overflow that caused unexpected crash due to internal variables getting corrupted. It happened if mode was RTG (native chipset not active) and native mode had copper list that writes to custom registers that can affect colors or blanking, state change was unnecessarily recorded to a buffer that is not in use if RTG mode and after long time (can be 100 minutes or more), it finally overflowed. Recent blanking updates introduced this.
