@@ -4349,6 +4349,7 @@ static void updatedisplayarea2(int monid)
 
 void updatedisplayarea(int monid)
 {
+	set_custom_limits(-1, -1, -1, -1);
 	if (monid >= 0) {
 		updatedisplayarea2(monid);
 	} else {
