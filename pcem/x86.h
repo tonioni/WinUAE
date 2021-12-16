@@ -333,7 +333,7 @@ void cyrix_write_seg_descriptor(uint32_t addr, x86seg *seg);
 #define SMHR_VALID (1 << 0)
 #define SMHR_ADDR_MASK (0xfffffffc)
 
-struct
+struct cyrixs
 {
         struct
         {
@@ -341,6 +341,6 @@ struct
                 uint64_t size;
         } arr[8];
         uint32_t smhr;
-} cyrix;
-
+};
+extern struct cyrixs cyrix;
 #endif

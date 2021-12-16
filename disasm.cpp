@@ -95,7 +95,7 @@ static const TCHAR *disasm_lc_hex2(const TCHAR *s, bool noprefix)
 				if (!s2) {
 					break;
 				}
-				tmp[0] = 'x';
+				tmp[s2 - tmp] = 'x';
 			}
 		}
 	}

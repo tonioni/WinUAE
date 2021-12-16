@@ -3249,10 +3249,10 @@ static void fpuop_arithmetic2 (uae_u32 opcode, uae_u16 extra)
 					return;
 				}
 				if (extra & 0x2000) {
-					// An -> FPIAR
+					// FPIAR -> An
 					m68k_areg (regs, opcode & 7) = regs.fpiar;
 				} else {
-					// FPIAR -> An
+					// An -> FPIAR
 					regs.fpiar = m68k_areg (regs, opcode & 7);
 				}
 			} else if ((opcode & 0x3f) == 0x3c) {

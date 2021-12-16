@@ -203,7 +203,7 @@ static int CheckLineLimit(HWND hWnd, const TCHAR *out)
 
 	tmp = (TCHAR *)out;
 	lines_have = SendMessage(hWnd, EM_GETLINECOUNT, 0, 0);
-	while (_tcslen(tmp) > 0 && (p = _tcschr(tmp, '\n')) > 0) {
+	while (_tcslen(tmp) > 0 && (p = _tcschr(tmp, '\n'))) {
 		lines_new++;
 		tmp = p + 1;
 	}

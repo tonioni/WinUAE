@@ -21,6 +21,8 @@ int isa_cycles;
 int has_vlb;
 static uint8_t ccr0, ccr1, ccr2, ccr3, ccr4, ccr5, ccr6;
 
+struct cyrixs cyrix;
+
 OpFn *x86_dynarec_opcodes;
 OpFn *x86_dynarec_opcodes_0f;
 OpFn *x86_dynarec_opcodes_d8_a16;
