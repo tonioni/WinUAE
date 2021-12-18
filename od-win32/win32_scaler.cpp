@@ -368,7 +368,7 @@ void getfilterrect2(int monid, RECT *sr, RECT *dr, RECT *zr, int dst_width, int 
 					ch -= 20 << currprefs.gfx_vresolution;
 				}
 				if (scalemode != AUTOSCALE_INTEGER && scalemode != AUTOSCALE_INTEGER_AUTOSCALE) {
-					set_custom_limits (cw, ch, cx, cy);
+					set_custom_limits (cw, ch, cx, cy, true);
 					store_custom_limits (cw, ch, cx, cy);
 					scl = true;
 				}
@@ -391,14 +391,14 @@ void getfilterrect2(int monid, RECT *sr, RECT *dr, RECT *zr, int dst_width, int 
 				if (scalemode == AUTOSCALE_INTEGER_AUTOSCALE) {
 					ok = get_custom_limits (&cw, &ch, &cx, &cy, &crealh) != 0;
 					if (ok) {
-						set_custom_limits(cw, ch, cx, cy);
+						set_custom_limits(cw, ch, cx, cy, true);
 						store_custom_limits(cw, ch, cx, cy);
 						scl = true;
 					}
 				}
 				if (scalemode == AUTOSCALE_INTEGER || ok == false) {
 					getmanualpos(monid, &cx, &cy, &cw, &ch);
-					set_custom_limits(cw, ch, cx, cy);
+					set_custom_limits(cw, ch, cx, cy, true);
 					store_custom_limits(cw, ch, cx, cy);
 					scl = true;
 				}
@@ -459,7 +459,7 @@ void getfilterrect2(int monid, RECT *sr, RECT *dr, RECT *zr, int dst_width, int 
 			//write_log (_T("%dx%d %dx%d\n"), cx, cy, currprefs.gfx_resolution, currprefs.gfx_vresolution);
 
 			getmanualpos(monid, &cx, &cy, &cw, &ch);
-			set_custom_limits(cw, ch, cx, cy);
+			set_custom_limits(cw, ch, cx, cy, false);
 			store_custom_limits(cw, ch, cx, cy);
 			scl = true;
 
@@ -478,7 +478,7 @@ void getfilterrect2(int monid, RECT *sr, RECT *dr, RECT *zr, int dst_width, int 
 
 			cv = get_custom_limits (&cw, &ch, &cx, &cy, &crealh);
 			if (cv) {
-				set_custom_limits(cw, ch, cx, cy);
+				set_custom_limits(cw, ch, cx, cy, false);
 				store_custom_limits(cw, ch, cx, cy);
 				scl = true;
 			}
@@ -487,7 +487,7 @@ void getfilterrect2(int monid, RECT *sr, RECT *dr, RECT *zr, int dst_width, int 
 
 			cv = get_custom_limits (&cw, &ch, &cx, &cy, &crealh);
 			if (cv) {
-				set_custom_limits (cw, ch, cx, cy);
+				set_custom_limits (cw, ch, cx, cy, true);
 				store_custom_limits (cw, ch, cx, cy);
 				scl = true;
 			}
@@ -495,7 +495,7 @@ void getfilterrect2(int monid, RECT *sr, RECT *dr, RECT *zr, int dst_width, int 
 		}
 
 		if (!scl) {
-			set_custom_limits (0, 0, 0, 0);
+			set_custom_limits (0, 0, 0, 0, false);
 		}
 	
 		if (!autoaspect_done) {
