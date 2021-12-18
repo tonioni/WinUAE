@@ -34,7 +34,7 @@ extern bool gfxboard_rtg_enable_initial(int monid, int);
 extern void gfxboard_rtg_disable(int monid, int);
 extern bool gfxboard_init_board(struct autoconfig_info*);
 extern bool gfxboard_set(int monid, bool rtg);
-extern void gfxboard_resize(int width, int height, void *p);
+extern void gfxboard_resize(int width, int height, int hmult, int vmult, void *p);
 
 uae_u8 *gfxboard_getrtgbuffer(int monid, int *widthp, int *heightp, int *pitch, int *depth, uae_u8 *palette);
 void gfxboard_freertgbuffer(int monid, uae_u8 *dst);
@@ -88,6 +88,7 @@ struct gfxboard_mode
 	int height;
 	RGBFTYPE mode;
 	bool redraw_required;
+	int hlinedbl, vlinedbl;
 };
 
 typedef bool(*GFXBOARD_INIT)(struct autoconfig_info*);

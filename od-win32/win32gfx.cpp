@@ -1799,8 +1799,12 @@ void getrtgfilterrect2(int monid, RECT *sr, RECT *dr, RECT *zr, int dst_width, i
 	}
 
 	OffsetRect (zr, picasso_offset_x, picasso_offset_y);
-	picasso_offset_mx = (float)srcwidth * mx / (dr->right - dr->left);
-	picasso_offset_my = (float)srcheight * my / (dr->bottom - dr->top);
+
+	picasso_offset_x /= state->HLineDBL;
+	picasso_offset_y /= state->VLineDBL;
+
+	picasso_offset_mx = (float)(srcwidth * mx * state->HLineDBL) / (dr->right - dr->left);
+	picasso_offset_my = (float)(srcheight * my * state->VLineDBL) / (dr->bottom - dr->top);
 }
 
 static uae_u8 *gfx_lock_picasso2(int monid, bool fullupdate)

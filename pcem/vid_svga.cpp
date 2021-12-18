@@ -1457,7 +1457,7 @@ void svga_doblit(int y1, int y2, int wx, int wy, svga_t *svga)
                 if (xsize<128) xsize=0;
                 if (ysize<32) ysize=0;
 
-                updatewindowsize(xsize * (svga->horizontal_linedbl ? 2 : 1), ysize * (svga->vertical_linedbl ? 2 : 1));
+                updatewindowsize(xsize,  svga->horizontal_linedbl ? 2 : 1, ysize, svga->linedbl ? 2 : 1);
         }
         if (vid_resize)
         {

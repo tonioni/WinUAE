@@ -359,6 +359,8 @@ static bool harlequin_vsync(void *userdata, struct gfxboard_mode *mode)
 		mode->width = data->width;
 		mode->height = data->height;
 		mode->mode = data->rgbtype;
+		mode->hlinedbl = 1;
+		mode->vlinedbl = 1;
 
 		if (fb_get_surface(data)) {
 			if (data->fb_modified || data->modechanged || mode->redraw_required) {

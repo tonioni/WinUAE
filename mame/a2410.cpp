@@ -796,6 +796,8 @@ static bool tms_vsync(void *userdata, struct gfxboard_mode *mode)
 	if (data->a2410_visible) {
 		mode->width = data->a2410_width;
 		mode->height = data->a2410_height;
+		mode->hlinedbl = 1;
+		mode->vlinedbl = 1;
 		mode->mode = RGBFB_CLUT;
 	}
 

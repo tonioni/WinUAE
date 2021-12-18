@@ -330,7 +330,7 @@ struct rtggfxboard
 	uae_u8 cirrus_pci[0x44];
 	uae_u8 p4i2c;
 	uae_u8 p4_pci[0x44];
-	int vga_width, vga_height;
+	int vga_width, vga_height, vga_width_mult, vga_height_mult;
 	bool vga_refresh_active;
 	int device_settings;
 
@@ -852,6 +852,7 @@ static void init_board (struct rtggfxboard *gb)
 	gb->gfxmem_bank->reserved_size = vramsize;
 	gb->gfxmem_bank->start = gb->gfxboardmem_start;
 	if (gb->board->manufacturer) {
+		gb->gfxmem_bank->flags |= ABFLAG_ALLOCINDIRECT | ABFLAG_PPCIOSPACE;
 		gb->gfxmem_bank->label = _T("*");
 		mapped_malloc(gb->gfxmem_bank);
 	} else if (gb->board->pci) {
@@ -859,6 +860,7 @@ static void init_board (struct rtggfxboard *gb)
 		// PCI display card's BARs have been initialized
 		;
 	} else {
+		gb->gfxmem_bank->flags |= ABFLAG_ALLOCINDIRECT | ABFLAG_PPCIOSPACE;
 		gb->gfxmem_bank->label = _T("*");
 		gb->vram_back = xmalloc(uae_u8, vramsize);
 		if (&get_mem_bank(0x800000) == &dummy_bank)
@@ -962,6 +964,8 @@ static bool gfxboard_setmode(struct rtggfxboard *gb, struct gfxboard_mode *mode)
 	state->Height = mode->height;
 	state->VirtualWidth = state->Width;
 	state->VirtualHeight = state->Height;
+	state->HLineDBL = mode->hlinedbl ? mode->hlinedbl : 1;
+	state->VLineDBL = mode->vlinedbl ? mode->vlinedbl : 1;
 	int bpp = GetBytesPerPixel(mode->mode);
 	state->BytesPerPixel = bpp;
 	state->BytesPerRow = mode->width * bpp;
@@ -1156,6 +1160,8 @@ static bool gfxboard_setmode_ext(struct rtggfxboard *gb)
 	struct gfxboard_mode mode;
 	mode.width = gb->vga_width;
 	mode.height = gb->vga_height;
+	mode.hlinedbl = gb->vga_width_mult ? gb->vga_width_mult : 1;
+	mode.vlinedbl = gb->vga_height_mult ? gb->vga_height_mult : 1;
 	mode.mode = RGBFB_NONE;
 	for (int i = 0; i < RGBFB_MaxFormats; i++) {
 		RGBFTYPE t = (RGBFTYPE)i;
@@ -1293,7 +1299,7 @@ DisplaySurface *qemu_console_surface(QemuConsole *con)
 	return &gb->gfxsurface;
 }
 
-void gfxboard_resize(int width, int height, void *p)
+void gfxboard_resize(int width, int height, int hmult, int vmult, void *p)
 {
 	struct rtggfxboard *gb = (struct rtggfxboard *)p;
 	if (width != gb->vga_width || gb->vga_height != height) {
@@ -1301,6 +1307,8 @@ void gfxboard_resize(int width, int height, void *p)
 	}
 	gb->vga_width = width;
 	gb->vga_height = height;
+	gb->vga_width_mult = hmult;
+	gb->vga_height_mult = vmult;
 }
 
 void qemu_console_resize(QemuConsole *con, int width, int height)
@@ -1311,6 +1319,8 @@ void qemu_console_resize(QemuConsole *con, int width, int height)
 	}
 	gb->vga_width = width;
 	gb->vga_height = height;
+	gb->vga_width_mult = 1;
+	gb->vga_height_mult = 1;
 }
 
 void linear_memory_region_set_dirty(MemoryRegion *mr, hwaddr addr, hwaddr size)
@@ -2589,7 +2599,7 @@ static void copyvrambank(addrbank *dst, const addrbank *src, bool unsafe)
 	if (unsafe) {
 		dst->jit_read_flag |= S_READ | S_N_ADDR;
 		dst->jit_write_flag |= S_WRITE | S_N_ADDR;
-		dst->flags |= ABFLAG_PPCIOSPACE;
+		dst->flags |= ABFLAG_ALLOCINDIRECT | ABFLAG_PPCIOSPACE;
 	}
 }
 
@@ -2616,7 +2626,7 @@ static void REGPARAM2 gfxboard_wput_mem_autoconfig (uaecptr addr, uae_u32 b)
 			}
 		}
 		init_board(gb);
-		copyvrambank(&gb->gfxboard_bank_memory, gb->gfxmem_bank, false);
+		copyvrambank(&gb->gfxboard_bank_memory, gb->gfxmem_bank, true);
 		copyvrambank(&gb->gfxboard_bank_vram_pcem, gb->gfxmem_bank, true);
 		if (ISP4() && !gb->board->pcemdev) {
 			if (validate_banks_z3(&gb->gfxboard_bank_memory, gb->gfxmem_bank->start >> 16, expamem_board_size >> 16)) {

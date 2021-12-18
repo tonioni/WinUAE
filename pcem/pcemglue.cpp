@@ -662,9 +662,10 @@ void video_wait_for_buffer(void)
 {
 	//write_log(_T("video_wait_for_buffer\n"));
 }
-void updatewindowsize(int x, int y)
+void updatewindowsize(int x, int mx, int y, int my)
 {
-	gfxboard_resize(x, y, gfxboard_priv);
+	x *= mx;
+	gfxboard_resize(x, y, mx, my, gfxboard_priv);
 }
 
 static void (*pci_card_write)(int func, int addr, uint8_t val, void *priv);

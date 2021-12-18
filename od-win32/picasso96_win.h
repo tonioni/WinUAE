@@ -637,6 +637,7 @@ struct picasso96_state_struct
     // must be in memory
     long		XYOffset;
     bool        dualclut;
+    int         HLineDBL, VLineDBL;
 };
 
 extern void InitPicasso96(int monid);

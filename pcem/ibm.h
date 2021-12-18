@@ -489,7 +489,7 @@ void endblit();
 
 void set_window_title(const char *s);
 
-void updatewindowsize(int x, int y);
+void updatewindowsize(int x, int mx, int y, int my);
 
 void initpc(int argc, char *argv[]);
 void runpc();

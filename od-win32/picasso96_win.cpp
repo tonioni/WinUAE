@@ -2806,6 +2806,8 @@ static uae_u32 REGPARAM2 picasso_SetSwitch (TrapContext *ctx)
 		state->GC_Depth = 8;
 		state->GC_Flags = 0;
 		state->BytesPerPixel = 1;
+		state->HLineDBL = 1;
+		state->VLineDBL = 1;
 		state->HostAddress = NULL;
 		delayed_set_switch = true;
 		atomic_or(&vidinfo->picasso_state_change, PICASSO_STATE_SETGC);
@@ -2992,6 +2994,9 @@ static uae_u32 REGPARAM2 picasso_SetGC (TrapContext *ctx)
 
 	state->GC_Depth = trap_get_byte(ctx, modeinfo + PSSO_ModeInfo_Depth);
 	state->GC_Flags = trap_get_byte(ctx, modeinfo + PSSO_ModeInfo_Flags);
+
+	state->HLineDBL = 1;
+	state->VLineDBL = 1;
 
 	P96TRACE_SETUP((_T("SetGC(%d,%d,%d,%d)\n"), state->Width, state->Height, state->GC_Depth, border));
 
@@ -6668,6 +6673,8 @@ uae_u8 *restore_p96 (uae_u8 *src)
 		}
 	}
 	state->HostAddress = NULL;
+	state->HLineDBL = 1;
+	state->VLineDBL = 1;
 	picasso_SetPanningInit(state);
 	state->Extent = state->Address + state->BytesPerRow * state->VirtualHeight;
 	return src;
