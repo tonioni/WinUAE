@@ -1,5 +1,28 @@
 
 
+Beta 1:
+
+4.9.0 bugs:
+
+- JIT indirect safe mode MOVEM.W from memory didn't sign extend registers (very, very old bug but apparently it was almost invisible until now because previously indirect MOVEM wasn't used unless VRAM wasn't indirect capable and direct MOVEM was still incorrectly used even when indirect mode was enabled. This was fixed in 4.9.0.)
+- Really force all emulated gfx board VRAM accesses to use indirect JIT. Previously used method still allowed direct JIT if code first accessed plain RAM and later (after it was translated) same code accessed VRAM. Fixes graphics corruption in some situations when JIT mode is direct and using emulated RTG boards. Only uaegfx is always fully JIT direct compatible.
+- JIT MOVEM.x <regs>,-(An) and <regs> includes An: use MOVEM indirect safe mode. Tester does not complain anymore.
+- PCem RTG board 15 and 16-bit lores modes didn't horizontally double correctly.
+- HBSTRT very near end of scanline was detected as missed, opening left border.
+- Programmed HBLANK end mid screen + bitplanes active (=totally broken situation) caused random graphics corruption.
+- ECS Denise horizontal blanking logic updated, it is quite complex and previous was not complete. Note that in real world it can only work if display uses H/V sync (not composite sync) = VGA monitor. CSYNC vs HSYNC/VSYNC "monitor cable" option will be added later.
+- Programmed Denise/Lisa side vertical blank ended 1 line too early. It takes 1 more line before Denise/Lisa ends it.
+- Programmed vertical blank generated blank scanline wasn't always drawn fully to end of scanline.
+
+Other updates and earlier version bug fixes:
+
+- If warp mode and non-qualifier key is pressed: send release event immediately. It is now possible to type normally in warp mode. Note that physical key release will generate another, almost always harmless, key release event.
+- PCem Cirrus Logic SVGA emulation planar support enabled. Picasso96 supports 4bit/16 color planar mode.
+- Hardware emulated RTG mode + horizontal or vertical doubling + magic mouse: mouse position calculation incorrectly used doubled coordinates.
+- Only process mouse/keyboad input Windows events during mid frame (used to reduce input lag) and process other events during vblank.
+
+4.9.0
+
 Beta 43 (RC4):
 
 - CDFS mounting used wrong character set translation functions, file names with character codes larger than 128 could not be opened depending on Windows regional settings.
