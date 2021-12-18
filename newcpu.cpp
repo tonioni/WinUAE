@@ -5269,7 +5269,7 @@ void execute_normal(void)
 		/* Take note: This is the do-it-normal loop */
 		r->opcode = get_jit_opcode();
 
-		special_mem = DISTRUST_CONSISTENT_MEM;
+		special_mem = special_mem_default;
 		pc_hist[blocklen].location = (uae_u16*)r->pc_p;
 
 		(*cpufunctbl[r->opcode])(r->opcode);

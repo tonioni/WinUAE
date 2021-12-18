@@ -524,9 +524,6 @@ extern void compile_block(cpu_history* pc_hist, int blocklen, int totcyles);
 #define MAXCYCLES (1000 * CYCLE_UNIT)
 #define scaled_cycles(x) (currprefs.m68k_speed<0?(((x)/SCALE)?(((x)/SCALE<MAXCYCLES?((x)/SCALE):MAXCYCLES)):1):(x))
 
-/* Flags for Bernie during development/debugging. Should go away eventually */
-#define DISTRUST_CONSISTENT_MEM 0
-
 struct op_properties {
 	uae_u8 use_flags;
 	uae_u8 set_flags;

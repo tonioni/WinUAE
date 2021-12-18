@@ -64,7 +64,7 @@
  #define DISABLE_I_SWAP
  #define DISABLE_I_EXG
  #define DISABLE_I_EXT
- #define DISABLE_I_MVEL
+ #define DISABLE_I_MVMEL
  #define DISABLE_I_MVMLE
  #define DISABLE_I_RTD
  #define DISABLE_I_LINK
@@ -923,6 +923,7 @@ genmovemel(uae_u16 opcode)
 		break;
 	case sz_word:
 		comprintf("\t\t\t\treadword(tmp,i,scratchie);\n"
+			"\t\t\t\tsign_extend_16_rr(i,i);\n"
 			"\t\t\t\tadd_l_ri(tmp,2);\n");
 		break;
 	default: assert(0);
@@ -955,15 +956,18 @@ genmovemle(uae_u16 opcode)
 	   on her, but unfortunately, gfx mem isn't "real" mem, and thus that
 	   act of cleverness means that movmle must pay attention to special_mem,
 	   or Genetic Species is a rather boring-looking game ;-) */
-	if (table68k[opcode].size == sz_long)
+	if (table68k[opcode].dmode != Apdi) {
 		comprintf("\tif (1 && !special_mem && !jit_n_addr_unsafe) {\n");
-	else
-		comprintf("\tif (1 && !special_mem && !jit_n_addr_unsafe) {\n");
+	} else {
+		// if Apdi and dstreg is included with mask: use indirect mode.
+		comprintf("\tif (1 && !special_mem && !jit_n_addr_unsafe && !(mask & (1 << (7 - dstreg)))) {\n");
+	}
 #endif
+
 	comprintf("\tget_n_addr(srca,native,scratchie);\n");
 
 	if (table68k[opcode].dmode != Apdi) {
-		comprintf("\tfor (i=0;i<16;i++) {\n"
+		comprintf("\tfor (i=0;i<16 && mask;i++) {\n"
 			"\t\tif ((mask>>i)&1) {\n");
 		switch (table68k[opcode].size) {
 		case sz_long:
@@ -981,7 +985,7 @@ genmovemle(uae_u16 opcode)
 		default: assert(0);
 		}
 	} else {  /* Pre-decrement */
-		comprintf("\tfor (i=0;i<16;i++) {\n"
+		comprintf("\tfor (i=0;i<16 && mask;i++) {\n"
 			"\t\tif ((mask>>i)&1) {\n");
 		switch (table68k[opcode].size) {
 		case sz_long:
@@ -1002,7 +1006,6 @@ genmovemle(uae_u16 opcode)
 		}
 	}
 
-
 	comprintf("\t\t}\n");
 	comprintf("\t}\n");
 	if (table68k[opcode].dmode == Apdi) {
@@ -1013,7 +1016,7 @@ genmovemle(uae_u16 opcode)
 
 	if (table68k[opcode].dmode != Apdi) {
 		comprintf("\tmov_l_rr(tmp,srca);\n");
-		comprintf("\tfor (i=0;i<16;i++) {\n"
+		comprintf("\tfor (i=0;i<16 && mask;i++) {\n"
 			"\t\tif ((mask>>i)&1) {\n");
 		switch (table68k[opcode].size) {
 		case sz_long:
@@ -1027,7 +1030,7 @@ genmovemle(uae_u16 opcode)
 		default: assert(0);
 		}
 	} else {  /* Pre-decrement */
-		comprintf("\tfor (i=0;i<16;i++) {\n"
+		comprintf("\tfor (i=0;i<16 && mask;i++) {\n"
 			"\t\tif ((mask>>i)&1) {\n");
 		switch (table68k[opcode].size) {
 		case sz_long:
@@ -1041,7 +1044,6 @@ genmovemle(uae_u16 opcode)
 		default: assert(0);
 		}
 	}
-
 
 	comprintf("\t\t}\n");
 	comprintf("\t}\n");
@@ -1841,7 +1843,7 @@ gen_opcode(unsigned int opcode)
 		break;
 
 	case i_MVMEL:
-#ifdef DISABLE_I_MVEL
+#ifdef DISABLE_I_MVMEL
 		failure;
 #endif
 		genmovemel(opcode);
