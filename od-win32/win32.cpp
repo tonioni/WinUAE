@@ -3068,15 +3068,19 @@ static LRESULT CALLBACK BlankWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 	return DefWindowProc (hWnd, message, wParam, lParam);
 }
 
-int handle_msgpump (void)
+int handle_msgpump(bool vblank)
 {
-	int got = 0;
 	MSG msg;
+	int got = 0;
 
-	while (PeekMessage (&msg, 0, 0, 0, PM_REMOVE)) {
+	UINT wRemoveMsg = PM_REMOVE | PM_NOYIELD | PM_QS_INPUT;
+	if (vblank) {
+		wRemoveMsg |= PM_QS_PAINT | PM_QS_POSTMESSAGE | PM_QS_SENDMESSAGE;
+	}
+	while (PeekMessage(&msg, 0, 0, 0, wRemoveMsg)) {
 		got = 1;
-		TranslateMessage (&msg);
-		DispatchMessage (&msg);
+		TranslateMessage(&msg);
+		DispatchMessage(&msg);
 	}
 	while (checkIPC (globalipc, &currprefs));
 	return got;

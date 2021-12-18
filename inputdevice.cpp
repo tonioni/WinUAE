@@ -2254,7 +2254,7 @@ static bool get_mouse_position(int *xp, int *yp, int inx, int iny)
 	x = inx;
 	y = iny;
 
-	getgfxoffset(0, &fdx, &fdy, &fmx, &fmy);
+	getgfxoffset(monid, &fdx, &fdy, &fmx, &fmy);
 
 	//write_log("%.2f*%.2f %.2f*%.2f\n", fdx, fdy, fmx, fmy);
 
@@ -3206,17 +3206,22 @@ static void joymousecounter (int joy)
 
 static int inputread;
 
-static void inputdevice_read(void)
+void inputdevice_read_msg(bool vblank)
 {
-//	if ((inputdevice_logging & (2 | 4)))
-//		write_log(_T("INPUTREAD\n"));
 	int got2 = 0;
 	for (;;) {
-		int got = handle_msgpump();
+		int got = handle_msgpump(vblank);
 		if (!got)
 			break;
 		got2 = 1;
 	}
+}
+
+static void inputdevice_read(void)
+{
+//	if ((inputdevice_logging & (2 | 4)))
+//		write_log(_T("INPUTREAD\n"));
+	inputdevice_read_msg(false);
 	if (inputread <= 0) {
 		idev[IDTYPE_MOUSE].read();
 		idev[IDTYPE_JOYSTICK].read();
@@ -3957,7 +3962,7 @@ void inputdevice_hsync (bool forceread)
 		while (inprec_playevent (&nr, &state, &max, &autofire))
 			handle_input_event (nr, state, max, (autofire ? HANDLE_IE_FLAG_AUTOFIRE : 0) | HANDLE_IE_FLAG_PLAYBACKEVENT);
 		if (vpos == 0)
-			handle_msgpump ();
+			handle_msgpump(true);
 	}
 	if (!input_record && !input_play) {
 		if (forceread) {
