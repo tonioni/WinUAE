@@ -466,6 +466,10 @@ void svga_recalctimings(svga_t *svga)
 
         if (!text) {
             if (!svga->lowres) {
+                if (svga->render == svga_render_2bpp_lowres)
+                    svga->render = svga_render_2bpp_highres;
+                if (svga->render == svga_render_4bpp_lowres)
+                    svga->render = svga_render_4bpp_highres;
                 if (svga->render == svga_render_8bpp_lowres)
                     svga->render = svga_render_8bpp_highres;
                 if (svga->render == svga_render_15bpp_lowres)
@@ -479,6 +483,10 @@ void svga_recalctimings(svga_t *svga)
             }
 
             if (svga->horizontal_linedbl) {
+                if (svga->render == svga_render_2bpp_highres)
+                    svga->render = svga_render_2bpp_lowres;
+                if (svga->render == svga_render_4bpp_highres)
+                    svga->render = svga_render_4bpp_lowres;
                 if (svga->render == svga_render_8bpp_highres)
                     svga->render = svga_render_8bpp_lowres;
                 if (svga->render == svga_render_15bpp_highres)

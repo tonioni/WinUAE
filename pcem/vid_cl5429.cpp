@@ -2788,7 +2788,7 @@ static void *cl_init(int type, char *fn, int pci_card, uint32_t force_vram_size)
                 gd5429->pci_regs[0x33] = 0x00;
         }
 
-        gd5429->svga.fb_only = -1;
+        gd5429->svga.fb_only = 0;
         
         return gd5429;
 }
