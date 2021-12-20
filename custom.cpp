@@ -5382,7 +5382,7 @@ void compute_framesync(void)
 		int stop = hsyncendpos >> CCK_SHRES_SHIFT;
 		int w;
 
-		int minhsync = 21;
+		int minhsync = 23;
 
 		if (start > maxhpos) {
 			int hssize = stop - (start - maxhpos);
@@ -5400,7 +5400,7 @@ void compute_framesync(void)
 
 		vidinfo->drawbuffer.inwidth = (w * 2) << res2;
 
-		vidinfo->drawbuffer.inxoffset = (stop * 2) << eres;
+		vidinfo->drawbuffer.inxoffset = ((stop + 7) * 2) << eres;
 		
 		vidinfo->drawbuffer.extrawidth = 0;
 		vidinfo->drawbuffer.inwidth2 = vidinfo->drawbuffer.inwidth;
