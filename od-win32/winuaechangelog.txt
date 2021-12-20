@@ -1,5 +1,13 @@
 
 
+Beta 2:
+
+- Adjusted programmed mode size/position calculation.
+- Adjusted copper emulation, waits for too large horizontal position woke up normally.
+- Delay warp mode automatic key release by few frames, some programs might not like immediate keypress/release pair.
+- Windows event processing change fix.
+- Border "bug" emulated (ECS Denise and AGA, does not affect OCS Denise). If bitplane DMA (BPL1DAT) happens inside VBLANK, border state gets disabled, when first non-VB line starts, line stripe from HDIW start to first BPL1DAT is still in "not border" state: sprites are visible and borderblank does not affect it. This happens because border state normally gets enabled when HBLANK goes from inactive to active stae but it looks like HBLANK does not affect border state inside VBLANK. It can also happen during later scanlines if programmed HBLANK starts too early, before last BPL1DAT access. (HBLANK enables border, BPL1DAT access disables it again).
+
 Beta 1:
 
 4.9.0 bugs:
