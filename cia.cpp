@@ -969,6 +969,7 @@ void CIA_vsync_prehandler (void)
 
 	led_vsync ();
 	CIA_handler ();
+	keybuf_vsync();
 	if (kblostsynccnt > 0) {
 		kblostsynccnt -= maxvpos;
 		if (kblostsynccnt <= 0) {
