@@ -3073,9 +3073,9 @@ int handle_msgpump(bool vblank)
 	MSG msg;
 	int got = 0;
 
-	UINT wRemoveMsg = PM_REMOVE | PM_NOYIELD | PM_QS_INPUT;
-	if (vblank) {
-		wRemoveMsg |= PM_QS_PAINT | PM_QS_POSTMESSAGE | PM_QS_SENDMESSAGE;
+	UINT wRemoveMsg = PM_REMOVE | PM_NOYIELD;
+	if (!vblank) {
+		wRemoveMsg |= PM_QS_INPUT;
 	}
 	while (PeekMessage(&msg, 0, 0, 0, wRemoveMsg)) {
 		got = 1;
