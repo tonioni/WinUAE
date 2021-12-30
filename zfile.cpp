@@ -271,6 +271,7 @@ int zfile_gettype (struct zfile *z)
 {
 	uae_u8 buf[8];
 	TCHAR *ext;
+	bool hdf = false;
 
 	if (!z || !z->name)
 		return ZFILE_UNKNOWN;
@@ -299,6 +300,14 @@ int zfile_gettype (struct zfile *z)
 		if (strcasecmp(ext, _T("cue")) == 0 || strcasecmp(ext, _T("iso")) == 0 || strcasecmp(ext, _T("ccd")) == 0 ||
 			strcasecmp(ext, _T("mds")) == 0 || strcasecmp(ext, _T("chd")) == 0 || strcasecmp(ext, _T("nrg")) == 0)
 			return ZFILE_CDIMAGE;
+		if (ext != NULL) {
+			if (strcasecmp(ext, _T("hdf")) == 0)
+				hdf = true;
+			if (strcasecmp(ext, _T("hdz")) == 0)
+				hdf = true;
+			if (strcasecmp(ext, _T("vhd")) == 0)
+				hdf = true;
+		}
 	}
 	memset (buf, 0, sizeof (buf));
 	zfile_fread (buf, 8, 1, z);
@@ -318,18 +327,12 @@ int zfile_gettype (struct zfile *z)
 	if (!memcmp (buf, "RDSK", 4))
 		return ZFILE_HDFRDB;
 	if (!memcmp (buf, "DOS", 3)) {
-		if (z->size < 4 * 1024 * 1024)
-			return ZFILE_DISKIMAGE;
-		else
+		if (hdf || z->size >= 4 * 1024 * 1024)
 			return ZFILE_HDF;
+		return ZFILE_DISKIMAGE;
 	}
-	if (ext != NULL) {
-		if (strcasecmp (ext, _T("hdf")) == 0)
-			return ZFILE_HDF;
-		if (strcasecmp (ext, _T("hdz")) == 0)
-			return ZFILE_HDF;
-		if (strcasecmp (ext, _T("vhd")) == 0)
-			return ZFILE_HDF;
+	if (hdf) {
+		return ZFILE_HDF;
 	}
 	return ZFILE_UNKNOWN;
 }
