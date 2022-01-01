@@ -1,4 +1,22 @@
 
+Beta 3
+
+- "Manual" BPL1DAT write disabling border timing updated. Also OCS Denise limit was not checked, OCS Denise ignores BPL1DAT writes until hblank end. (OCS Denise: border is forced to enabled state during hblank start to hblank end, ECS Denise/AGA: border is enabled when hblank starts).
+- "Manual" BPL1DAT write between hblank start and hsync start: border didn't open. Now it does. ECS Denise/AGA only.
+- If Remove interlace artifacts is enabled, last border lines now have correct color (border color or black). 4.9.0 had temporary hack that always used black.
+- OCS Denise topmost line (Line that is mostly black, except tiny part of border color in right border) had off by one line bug.
+- Reset blitter before loading state file. 4.9 new blitter emulation didn't reset all registers fully, loading state file on the fly might have caused corruption due to blitter not being fully reset.
+- Programmed mode display size calculation modified. 4.4 and earlier used both horizontal sync and horizontal blank to calculate internal width and horizonta position. 4.9.0 used only more accurate way but only used horizontal sync. This caused some modes to be too wide internally (wrong aspect ratio) and/or have horizontal offset. Horizontal blank and sync is again used to calculate width and position if normal overscan mode. Higher overscan modes use only hsync (allows glitch-free emulation of hblank "effects", if something someday does it.. Hblank can be moved without causing display resync.)
+- 4.9.0b40 blitter final D update was incomplete, final D is not skipped immediately when BLTSIZE is written to but when apparently blitter when sequencer starts.
+- Hardfile images less than 4M are now mounted correctly as hardfiles when drag and dropped if file has common HDF extension (HDF/HDZ/VHD).
+- Removed "PAL" filter preset. It has been unsupported since long time ago..
+- Epson printer emulation does not anymore print each page as a separate document.
+- Added IDE scsi.device disable hack. Removes ROM scsi.device from exec ResModules list, does not modify ROM. UAE boot ROM must be enabled. Config file only scsidevice_disable=true. Disabling is not done if any IDE device is added to A600/A1200/A4000 IDE or indirect ROM mode is enabled. Makes booting noticeably quicker on OS39 and newer KS versions if mainboard IDE is not needed.
+
+If BPL1DAT write disables border and active sprite was hidden behind the border:
+- OCS Denise: sprite is visible 1 lores pixel (2 hires) earlier than bitplane first pixel.
+- ECS Denise: sprite is visible 2 lores pixels (4 hires) earlier than bitplane first pixel.
+- AGA: sprite is visible 1.5 lores pixels (3 hires) earlier than bitplane first pixel. (This requires subpixel mode, without subpixel it becomes 1 lores pixel)
 
 Beta 2:
 
@@ -6,7 +24,7 @@ Beta 2:
 - Adjusted copper emulation, waits for too large horizontal position woke up normally.
 - Delay warp mode automatic key release by few frames, some programs might not like immediate keypress/release pair.
 - Windows event processing change fix.
-- Border "bug" emulated (ECS Denise and AGA, does not affect OCS Denise). If bitplane DMA (BPL1DAT) happens inside VBLANK, border state gets disabled, when first non-VB line starts, line stripe from HDIW start to first BPL1DAT is still in "not border" state: sprites are visible and borderblank does not affect it. This happens because border state normally gets enabled when HBLANK goes from inactive to active stae but it looks like HBLANK does not affect border state inside VBLANK. It can also happen during later scanlines if programmed HBLANK starts too early, before last BPL1DAT access. (HBLANK enables border, BPL1DAT access disables it again).
+- Border "bug" emulated (ECS Denise and AGA, does not affect OCS Denise). If bitplane DMA (BPL1DAT) happens inside VBLANK, border state gets disabled, when first non-VB line starts, line stripe from HDIW start to first BPL1DAT is still in "not border" state: sprites are visible and borderblank does not affect it. This happens because border state normally gets enabled when HBLANK goes from inactive to active state but it looks like HBLANK does not affect border state inside VBLANK. It can also happen during later scanlines if programmed HBLANK starts too early, before last BPL1DAT access. (HBLANK enables border, BPL1DAT access disables it again).
 
 Beta 1:
 

@@ -1423,7 +1423,7 @@ BEGIN
             VALUE "FileDescription", "WinUAE"
             VALUE "FileVersion", "4.9.1.0"
             VALUE "InternalName", "WinUAE"
-            VALUE "LegalCopyright", "© 1996-2021 under the GNU Public License (GPL)"
+            VALUE "LegalCopyright", "© 1996-2022 under the GNU Public License (GPL)"
             VALUE "OriginalFilename", "WinUAE.exe"
             VALUE "ProductName", "WinUAE"
             VALUE "ProductVersion", "4.9.1.0"

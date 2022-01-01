@@ -19654,7 +19654,6 @@ struct filterpreset {
 };
 static const struct filterpreset filterpresets[] =
 {
-	{ _T("PAL"),				UAE_FILTER_PAL,		0, 0, 0, 0, 0, 0, 0, 50, 0, 0, 1, 1, 0, 0, 0, 10, 0, 0, 0, 300, 30, 0,  0, 0, 0, 0 },
 	{ _T("D3D Autoscale"),		UAE_FILTER_NULL,	0, 0, 0, 0, 0, 0, 0,  0, 0, 0, 1, 1, 0, 0, 0,  0, 0, 0, 0,   0,  0, 0, -1, 4, 0, 0 },
 	{ _T("D3D Full Scaling"),	UAE_FILTER_NULL,	0, 0, 0, 0, 0, 0, 0,  0, 0, 0, 1, 1, 0, 0, 0,  0, 0, 0, 0,   0,  0, 0, -1, 0, 0, 0 },
 	{ NULL }
