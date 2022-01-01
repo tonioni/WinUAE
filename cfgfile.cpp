@@ -1964,8 +1964,9 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 		cfgfile_write_str (f, _T("cart"), p->cartident);
 	cfgfile_dwrite_path (f, &p->path_rom, _T("picassoiv_rom_file"), p->picassoivromfile);
 
-	cfgfile_write_bool (f, _T("kickshifter"), p->kickshifter);
-	cfgfile_dwrite_bool (f, _T("ks_write_enabled"), p->rom_readwrite);
+	cfgfile_write_bool(f, _T("kickshifter"), p->kickshifter);
+	cfgfile_write_bool(f, _T("scsidevice_disable"), p->scsidevicedisable);
+	cfgfile_dwrite_bool(f, _T("ks_write_enabled"), p->rom_readwrite);
 
 	cfgfile_write (f, _T("floppy_volume"), _T("%d"), p->dfxclickvolume_disk[0]);
 	p->nr_floppies = 4;
@@ -5580,10 +5581,11 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 		|| cfgfile_coords(option, value, _T("lightpen_offset"), &p->lightpen_offset[0], &p->lightpen_offset[1])
 		|| cfgfile_yesno(option, value, _T("lightpen_crosshair"), &p->lightpen_crosshair)
 
-		|| cfgfile_yesno (option, value, _T("kickshifter"), &p->kickshifter)
-		|| cfgfile_yesno (option, value, _T("ks_write_enabled"), &p->rom_readwrite)
-		|| cfgfile_yesno (option, value, _T("ntsc"), &p->ntscmode)
-		|| cfgfile_yesno (option, value, _T("sana2"), &p->sana2)
+		|| cfgfile_yesno(option, value, _T("kickshifter"), &p->kickshifter)
+		|| cfgfile_yesno(option, value, _T("scsidevice_disable"), &p->scsidevicedisable)
+		|| cfgfile_yesno(option, value, _T("ks_write_enabled"), &p->rom_readwrite)
+		|| cfgfile_yesno(option, value, _T("ntsc"), &p->ntscmode)
+		|| cfgfile_yesno(option, value, _T("sana2"), &p->sana2)
 		|| cfgfile_yesno(option, value, _T("genlock"), &p->genlock)
 		|| cfgfile_yesno(option, value, _T("genlock_alpha"), &p->genlock_alpha)
 		|| cfgfile_yesno(option, value, _T("genlock_aspect"), &p->genlock_aspect)
@@ -5593,14 +5595,14 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 		|| cfgfile_yesno(option, value, _T("cpu_reset_pause"), &p->reset_delay)
 		|| cfgfile_yesno(option, value, _T("cpu_halt_auto_reset"), &p->crash_auto_reset)
 		|| cfgfile_yesno(option, value, _T("parallel_on_demand"), &p->parallel_demand)
-		|| cfgfile_yesno (option, value, _T("parallel_postscript_emulation"), &p->parallel_postscript_emulation)
-		|| cfgfile_yesno (option, value, _T("parallel_postscript_detection"), &p->parallel_postscript_detection)
-		|| cfgfile_yesno (option, value, _T("serial_on_demand"), &p->serial_demand)
-		|| cfgfile_yesno (option, value, _T("serial_hardware_ctsrts"), &p->serial_hwctsrts)
-		|| cfgfile_yesno (option, value, _T("serial_direct"), &p->serial_direct)
-		|| cfgfile_yesno (option, value, _T("fpu_strict"), &p->fpu_strict)
-		|| cfgfile_yesno (option, value, _T("comp_nf"), &p->compnf)
-		|| cfgfile_yesno (option, value, _T("comp_constjump"), &p->comp_constjump)
+		|| cfgfile_yesno(option, value, _T("parallel_postscript_emulation"), &p->parallel_postscript_emulation)
+		|| cfgfile_yesno(option, value, _T("parallel_postscript_detection"), &p->parallel_postscript_detection)
+		|| cfgfile_yesno(option, value, _T("serial_on_demand"), &p->serial_demand)
+		|| cfgfile_yesno(option, value, _T("serial_hardware_ctsrts"), &p->serial_hwctsrts)
+		|| cfgfile_yesno(option, value, _T("serial_direct"), &p->serial_direct)
+		|| cfgfile_yesno(option, value, _T("fpu_strict"), &p->fpu_strict)
+		|| cfgfile_yesno(option, value, _T("comp_nf"), &p->compnf)
+		|| cfgfile_yesno(option, value, _T("comp_constjump"), &p->comp_constjump)
 		|| cfgfile_yesno(option, value, _T("comp_catchfault"), &p->comp_catchfault)
 #ifdef USE_JIT_FPU
 		|| cfgfile_yesno (option, value, _T("compfpu"), &p->compfpu)

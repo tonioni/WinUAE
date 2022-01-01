@@ -778,6 +778,7 @@ struct uae_prefs {
 	int uaeboard_order;
 
 	bool kickshifter;
+	bool scsidevicedisable;
 	bool filesys_no_uaefsdb;
 	bool filesys_custom_uaefsdb;
 	bool mmkeyboard;
