@@ -113,7 +113,7 @@ static int pins = 24;
 
 static void printCharBuffer(void);
 
-static Bit8u colors[] = {
+static const Bit8u colors[] = {
 	0x00, 0x00, 0x00, // 0 black
 	0xff, 0x00, 0xff, // 1 magenta (/green)
 	0x00, 0xff, 0xff, // 2 cyan (/red)
@@ -713,194 +713,260 @@ STATIC_INLINE void getcolor (uae_u8 *Tpage, uae_u8 *Tcpage, int x, int y, int Tp
 	*b = 255 - color_b;
 }
 
+struct printdata
+{
+	volatile struct printdata *next;
+	volatile int page_w;
+	volatile int page_h;
+	volatile int page_pitch;
+	volatile uae_u8 *page;
+	volatile uae_u8 *cpage;
+	volatile int colorprinted;
+};
+
+static volatile struct printdata *queue;
+static uae_sem_t queue_sem, queue_sem2;
+
 static void prt_thread(void *p) 
 {
-	Bit16u x, y;
-	HDC TprinterDC = printerDC;
-	HDC TmemHDC = memHDC;
-	int Tpage_w = page_w;
-	int Tpage_h = page_h;
-	int Tpage_pitch = page_pitch;
-	uae_u8 *Tpage = page;
-	uae_u8 *Tcpage = cpage;
-	int TcolorPrinter = colorPrinted;
-
-	write_log (_T("EPSONPRINTER: background print thread started\n"));
 	prt_thread_mode = 1;
-	SetThreadPriority (GetCurrentThread (), THREAD_PRIORITY_BELOW_NORMAL);
+	write_log(_T("EPSONPRINTER: background print thread started\n"));
+	while (prt_thread_mode) {
 
-	if (TprinterDC)
-	{
-		int hz = GetDeviceCaps (TprinterDC, PHYSICALWIDTH);
-		int vz = GetDeviceCaps (TprinterDC, PHYSICALHEIGHT);
-		int topmargin = GetDeviceCaps (TprinterDC, PHYSICALOFFSETX);
-		int leftmargin = GetDeviceCaps (TprinterDC, PHYSICALOFFSETY);
-		HDC dc = NULL;
-
-		write_log (_T("EPSONPRINTER: HP=%d WP=%d TM=%d LM=%d W=%d H=%d\n"),
-			hz, vz, topmargin, leftmargin, Tpage_w, Tpage_h);
-
-		if (TcolorPrinter)
-			dc = GetDC (NULL);
-		HBITMAP bitmap = CreateCompatibleBitmap (dc ? dc : TmemHDC, Tpage_w, Tpage_h);
-		SelectObject (TmemHDC, bitmap);
-		BitBlt (TmemHDC, 0, 0, Tpage_w, Tpage_h, NULL, 0, 0, WHITENESS);
-
-		// Start new printer job?
-		if (outputHandle == NULL)
-		{
-			DOCINFO docinfo;
-			docinfo.cbSize = sizeof (docinfo);
-			docinfo.lpszDocName = _T("WinUAE Epson Printer");
-			docinfo.lpszOutput = NULL;
-			docinfo.lpszDatatype = NULL;
-			docinfo.fwType = 0;
-
-			StartDoc (TprinterDC, &docinfo);
-			multiPageCounter = 1;
+		uae_sem_wait(&queue_sem);
+		volatile struct printdata *pd = queue;
+		if (pd) {
+			queue = pd->next;
 		}
+		uae_sem_post(&queue_sem);
 
-		StartPage (TprinterDC);
-
-		// this really needs to use something else than SetPixel()..
-		for (y=0; y<Tpage_h; y++)
-		{
-			for (x=0; x<Tpage_w; x++)
-			{
-				Bit8u r, g, b;
-				getcolor (Tpage, Tcpage, x, y, Tpage_pitch, &r, &g, &b);
-				if (r != 255 || g != 255 || b != 255)
-					SetPixel (TmemHDC, x, y, RGB(r, g, b));
-			}
-		}
-
-		BitBlt (TprinterDC, leftmargin, topmargin, Tpage_w, Tpage_h, TmemHDC, 0, 0, SRCCOPY);
-
-		EndPage (TprinterDC);
-		EndDoc (TprinterDC);
-
-		DeleteObject (bitmap);
-		if (dc)
-			ReleaseDC (NULL, dc);
-
-	}
-#ifdef C_LIBPNG
-	else
-	{
-		png_structp png_ptr;
-		png_infop info_ptr;
-		png_bytep * row_pointers;
-		png_color palette[256];
-		Bitu i;
-		TCHAR fname[MAX_DPATH];
-		FILE *fp;
-		Bit8u *bm = NULL;
-
-		getfname (fname);
-		/* Open the actual file */
-		fp = uae_tfopen(fname, _T("wb"));
-		if (!fp) 
-		{
-			write_log(_T("EPSONPRINTER: Can't open file %s for printer output\n"), fname);
-			goto end;
-		}
-
-		/* First try to alloacte the png structures */
-		png_ptr = png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL,NULL, NULL);
-		if (!png_ptr)
-			goto end;
-		info_ptr = png_create_info_struct(png_ptr);
-		if (!info_ptr) {
-			png_destroy_write_struct(&png_ptr,(png_infopp)NULL);
-			goto end;
-		}
-
-		/* Finalize the initing of png library */
-		png_init_io(png_ptr, fp);
-		png_set_compression_level(png_ptr,Z_BEST_COMPRESSION);
-
-		/* set other zlib parameters */
-		png_set_compression_mem_level(png_ptr, 8);
-		png_set_compression_strategy(png_ptr,Z_DEFAULT_STRATEGY);
-		png_set_compression_window_bits(png_ptr, 15);
-		png_set_compression_method(png_ptr, 8);
-		png_set_compression_buffer_size(png_ptr, 8192);
-
-		// Allocate an array of scanline pointers
-		row_pointers = (png_bytep*)malloc(Tpage_h*sizeof(png_bytep));
-
-		if (TcolorPrinter) {
-			png_set_IHDR(png_ptr, info_ptr, Tpage_w, Tpage_h,
-				8, PNG_COLOR_TYPE_RGB, PNG_INTERLACE_NONE,
-				PNG_COMPRESSION_TYPE_DEFAULT, PNG_FILTER_TYPE_DEFAULT);
-			bm = xcalloc (Bit8u, Tpage_w * Tpage_h * 3);
-			for (i=0; i<Tpage_h; i++) 
-				row_pointers[i] = bm + i * Tpage_w * 3;
-			for (int y = 0; y < Tpage_h; y++) {
-				for (int x = 0; x < Tpage_w; x++) {
-					Bit8u r, g, b;
-					getcolor (Tpage, Tcpage, x, y, Tpage_pitch, &r, &g, &b);
-					bm[y * Tpage_w * 3 + x * 3 + 0] = r;
-					bm[y * Tpage_w * 3 + x * 3 + 1] = g;
-					bm[y * Tpage_w * 3 + x * 3 + 2] = b;
+		if (!pd) {
+			if (prt_thread_mode < 0 && !queue) {
+				write_log(_T("EPSONPRINTER: background thread end request %p %d\n"), printerDC, multiPageCounter);
+				if (printerDC) {
+					if (multiPageCounter > 0) {
+						write_log(_T("EPSONPRINTER end document\n"));
+						EndDoc(printerDC);
+					}
+					DeleteDC(printerDC);
 				}
+				printerDC = NULL;
+				if (memHDC)
+					DeleteDC(memHDC);
+				memHDC = NULL;
+				multiPageCounter = 0;
+				break;
 			}
-		} else {
-			png_set_IHDR(png_ptr, info_ptr, Tpage_w, Tpage_h,
-				8, PNG_COLOR_TYPE_PALETTE, PNG_INTERLACE_NONE,
-				PNG_COMPRESSION_TYPE_DEFAULT, PNG_FILTER_TYPE_DEFAULT);
-			for (i=0;i<256;i++) 
+			Sleep(10);
+		} else if (pd) {
+			Bit16u x, y;
+			HDC TmemHDC = memHDC;
+			int Tpage_w = pd->page_w;
+			int Tpage_h = pd->page_h;
+			int Tpage_pitch = pd->page_pitch;
+			uae_u8 *Tpage = (uae_u8*)pd->page;
+			uae_u8 *Tcpage = (uae_u8*)pd->cpage;
+			int TcolorPrinter = pd->colorprinted;
+
+			if (!multiPageCounter) {
+				DOCINFO docinfo;
+				docinfo.cbSize = sizeof(docinfo);
+				docinfo.lpszDocName = _T("WinUAE Epson Printer");
+				docinfo.lpszOutput = NULL;
+				docinfo.lpszDatatype = NULL;
+				docinfo.fwType = 0;
+
+				StartDoc(printerDC, &docinfo);
+				multiPageCounter = 1;
+				write_log(_T("EPSONPRINTER new document\n"));
+			} else {
+				multiPageCounter++;
+			}
+			HDC TprinterDC = printerDC;
+
+			if (TprinterDC)
 			{
-				palette[i].red = 255 - i;
-				palette[i].green = 255 - i;
-				palette[i].blue = 255 - i;
+				int hz = GetDeviceCaps (TprinterDC, PHYSICALWIDTH);
+				int vz = GetDeviceCaps (TprinterDC, PHYSICALHEIGHT);
+				int topmargin = GetDeviceCaps (TprinterDC, PHYSICALOFFSETX);
+				int leftmargin = GetDeviceCaps (TprinterDC, PHYSICALOFFSETY);
+				HDC dc = NULL;
+
+				write_log (_T("EPSONPRINTER: page=%d, HP=%d WP=%d TM=%d LM=%d W=%d H=%d\n"),
+					multiPageCounter,
+					hz, vz, topmargin, leftmargin, Tpage_w, Tpage_h);
+
+				if (TcolorPrinter)
+					dc = GetDC (NULL);
+				HBITMAP bitmap = CreateCompatibleBitmap (dc ? dc : TmemHDC, Tpage_w, Tpage_h);
+				SelectObject (TmemHDC, bitmap);
+				BitBlt (TmemHDC, 0, 0, Tpage_w, Tpage_h, NULL, 0, 0, WHITENESS);
+
+				StartPage (TprinterDC);
+
+				// this really needs to use something else than SetPixel()..
+				for (y=0; y<Tpage_h; y++)
+				{
+					for (x=0; x<Tpage_w; x++)
+					{
+						Bit8u r, g, b;
+						getcolor (Tpage, Tcpage, x, y, Tpage_pitch, &r, &g, &b);
+						if (r != 255 || g != 255 || b != 255)
+							SetPixel (TmemHDC, x, y, RGB(r, g, b));
+					}
+				}
+
+				BitBlt (TprinterDC, leftmargin, topmargin, Tpage_w, Tpage_h, TmemHDC, 0, 0, SRCCOPY);
+
+				EndPage (TprinterDC);
+
+				DeleteObject (bitmap);
+				if (dc)
+					ReleaseDC (NULL, dc);
+
 			}
-			png_set_PLTE(png_ptr, info_ptr, palette,256);
-			for (i=0; i<Tpage_h; i++) 
-				row_pointers[i] = ((Bit8u*)Tpage+(i*Tpage_pitch));
+			else
+			{
+				png_structp png_ptr;
+				png_infop info_ptr;
+				png_bytep * row_pointers;
+				png_color palette[256];
+				Bitu i;
+				TCHAR fname[MAX_DPATH];
+				FILE *fp;
+				Bit8u *bm = NULL;
+
+				getfname (fname);
+				/* Open the actual file */
+				fp = uae_tfopen(fname, _T("wb"));
+				if (!fp) 
+				{
+					write_log(_T("EPSONPRINTER: Can't open file %s for printer output\n"), fname);
+					goto end;
+				}
+
+				/* First try to alloacte the png structures */
+				png_ptr = png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL,NULL, NULL);
+				if (!png_ptr)
+					goto end;
+				info_ptr = png_create_info_struct(png_ptr);
+				if (!info_ptr) {
+					png_destroy_write_struct(&png_ptr,(png_infopp)NULL);
+					goto end;
+				}
+
+				/* Finalize the initing of png library */
+				png_init_io(png_ptr, fp);
+				png_set_compression_level(png_ptr,Z_BEST_COMPRESSION);
+
+				/* set other zlib parameters */
+				png_set_compression_mem_level(png_ptr, 8);
+				png_set_compression_strategy(png_ptr,Z_DEFAULT_STRATEGY);
+				png_set_compression_window_bits(png_ptr, 15);
+				png_set_compression_method(png_ptr, 8);
+				png_set_compression_buffer_size(png_ptr, 8192);
+
+				// Allocate an array of scanline pointers
+				row_pointers = (png_bytep*)malloc(Tpage_h*sizeof(png_bytep));
+
+				if (TcolorPrinter) {
+					png_set_IHDR(png_ptr, info_ptr, Tpage_w, Tpage_h,
+						8, PNG_COLOR_TYPE_RGB, PNG_INTERLACE_NONE,
+						PNG_COMPRESSION_TYPE_DEFAULT, PNG_FILTER_TYPE_DEFAULT);
+					bm = xcalloc (Bit8u, Tpage_w * Tpage_h * 3);
+					for (i=0; i<Tpage_h; i++) 
+						row_pointers[i] = bm + i * Tpage_w * 3;
+					for (int y = 0; y < Tpage_h; y++) {
+						for (int x = 0; x < Tpage_w; x++) {
+							Bit8u r, g, b;
+							getcolor (Tpage, Tcpage, x, y, Tpage_pitch, &r, &g, &b);
+							bm[y * Tpage_w * 3 + x * 3 + 0] = r;
+							bm[y * Tpage_w * 3 + x * 3 + 1] = g;
+							bm[y * Tpage_w * 3 + x * 3 + 2] = b;
+						}
+					}
+				} else {
+					png_set_IHDR(png_ptr, info_ptr, Tpage_w, Tpage_h,
+						8, PNG_COLOR_TYPE_PALETTE, PNG_INTERLACE_NONE,
+						PNG_COMPRESSION_TYPE_DEFAULT, PNG_FILTER_TYPE_DEFAULT);
+					for (i=0;i<256;i++) 
+					{
+						palette[i].red = 255 - i;
+						palette[i].green = 255 - i;
+						palette[i].blue = 255 - i;
+					}
+					png_set_PLTE(png_ptr, info_ptr, palette,256);
+					for (i=0; i<Tpage_h; i++) 
+						row_pointers[i] = ((Bit8u*)Tpage+(i*Tpage_pitch));
+				}
+
+				// tell the png library what to encode.
+				png_set_rows(png_ptr, info_ptr, row_pointers);
+
+				// Write image to file
+				png_write_png(png_ptr, info_ptr, 0, NULL);
+
+				/*close file*/
+				fclose(fp);
+
+				/*Destroy PNG structs*/
+				png_destroy_write_struct(&png_ptr, &info_ptr);
+
+				/*clean up dynamically allocated RAM.*/
+				xfree (row_pointers);
+				xfree (bm);
+				ShellExecute (NULL, _T("open"), fname, NULL, NULL, SW_SHOWNORMAL);
+			end:;
+			}
+			xfree(Tpage);
+			xfree(Tcpage);
+			xfree((void*)pd);
 		}
-
-		// tell the png library what to encode.
-		png_set_rows(png_ptr, info_ptr, row_pointers);
-
-		// Write image to file
-		png_write_png(png_ptr, info_ptr, 0, NULL);
-
-		/*close file*/
-		fclose(fp);
-
-		/*Destroy PNG structs*/
-		png_destroy_write_struct(&png_ptr, &info_ptr);
-
-		/*clean up dynamically allocated RAM.*/
-		xfree (row_pointers);
-		xfree (bm);
-		ShellExecute (NULL, _T("open"), fname, NULL, NULL, SW_SHOWNORMAL);
 	}
-#endif
-end:
-	xfree (Tpage);
-	xfree (Tcpage);
-	if (TprinterDC)
-		DeleteObject (TprinterDC);
-	DeleteObject (TmemHDC);
-	write_log (_T("EPSONPRINTER: background thread finished\n"));
+	write_log(_T("EPSONPRINTER: background thread finished\n"));
+	prt_thread_mode = 0;
 }
 
 static void outputPage(void)
 {
-	prt_thread_mode = 0;
-	if (uae_start_thread (_T("epson"), prt_thread, NULL, NULL)) {
-		while (prt_thread_mode == 0)
-			Sleep(5);
-		memHDC = NULL;
-		printerDC = NULL;
+	// Start new printer job?
+	if (!prt_thread_mode) {
+		if (uae_start_thread(_T("epson"), prt_thread, NULL, NULL)) {
+			while (prt_thread_mode == 0) {
+				Sleep(5);
+			}
+		}
+	}
+	uae_sem_wait(&queue_sem);
+	volatile struct printdata *pd = xcalloc(struct printdata, 1);
+	if (pd) {
+		pd->page_w = page_w;
+		pd->page_h = page_h;
+		pd->page_pitch = page_pitch;
+		pd->page = page;
+		pd->cpage = cpage;
+		pd->colorprinted = colorPrinted;
+		if (queue == NULL) {
+			queue = pd;
+		} else {
+			volatile struct printdata *pdx = queue;
+			while (pdx->next) {
+				pdx = pdx->next;
+			}
+			pdx->next = pd;
+		}
 		page = NULL;
 		cpage = NULL;
-		if (curFont)
-			DeleteObject (curFont);
-		curFont = NULL;
 	}
+	uae_sem_post(&queue_sem);
+
+	xfree(page);
+	page = NULL;
+	xfree(cpage);
+	cpage = NULL;
+	if (curFont)
+		DeleteObject (curFont);
+	curFont = NULL;
 }
 
 static void newPage(int save)
@@ -909,10 +975,8 @@ static void newPage(int save)
 	if (save)
 		outputPage ();
 	if (page == NULL) {
-		page = xcalloc (uae_u8, pagesize);
-		cpage = xcalloc (uae_u8, pagesize);
-		printerDC = CreateDC (NULL, epsonprintername, NULL, NULL);
-		memHDC = CreateCompatibleDC (NULL);
+		page = xcalloc(uae_u8, pagesize);
+		cpage = xcalloc(uae_u8, pagesize);
 	}
 	curY = topMargin;
 	memset (page, 0, pagesize);
@@ -966,6 +1030,8 @@ static void initPrinter(void)
 	numHorizTabs = 32;
 
 	numVertTabs = 255;
+
+	uae_sem_init(&queue_sem, 0, 1);
 }
 
 static void resetPrinterHard(void)
@@ -1068,12 +1134,9 @@ static void printer_close(void)
 	if (curFont)
 		DeleteObject (curFont);
 	curFont = NULL;
-	if (printerDC)
-		DeleteDC(printerDC);
-	printerDC = NULL;
-	if (memHDC)
-		DeleteDC(memHDC);
-	memHDC = NULL;
+	if (prt_thread_mode) {
+		prt_thread_mode = -1;
+	}
 };
 
 
