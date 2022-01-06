@@ -272,7 +272,7 @@ static int first_drawn_line, last_drawn_line;
 each line that needs to be drawn.  These are basically extracted out of
 bit fields in the hardware registers.  */
 static int bplmode, bplehb, bplham, bpldualpf, bpldualpfpri;
-static int bpldualpf2of, bplplanecnt, ecsshres;
+static int bpldualpf2of, bplplanecnt, bplmaxplanecnt, ecsshres;
 static int bplbypass, bplcolorburst, bplcolorburst_field;
 static int bplres;
 static int plf1pri, plf2pri, bplxor, bplxorsp, bpland, bpldelay_sh;
@@ -1119,6 +1119,7 @@ static void pfield_init_linetoscr (int lineno, bool border)
 	bool expanded = false;
 
 	hsync_shift_hack = 0;
+	bplmaxplanecnt = dp_for_drawing->max_planes;
 	
 	if (border)
 		ddf_left = DISPLAY_LEFT_SHIFT;
@@ -2879,7 +2880,7 @@ static void pfield_doline(int lineno)
 	real_bplpt[7] = DATA_POINTER(7);
 #endif
 
-	switch (bplplanecnt) {
+	switch (bplmaxplanecnt) {
 	default: break;
 	case 0: memset(data, 0, wordcount * 64); break;
 	case 1: pfield_doline64_n1(data, wordcount, real_bplpt); break;
@@ -2909,7 +2910,7 @@ static void pfield_doline(int lineno)
 	real_bplpt[7] = DATA_POINTER(7);
 #endif
 
-	switch (bplplanecnt) {
+	switch (bplmaxplanecnt) {
 	default: break;
 	case 0: memset(data, 0, wordcount * 32); break;
 	case 1: pfield_doline32_n1(data, wordcount, real_bplpt); break;

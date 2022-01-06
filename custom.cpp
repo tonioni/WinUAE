@@ -2149,7 +2149,7 @@ STATIC_INLINE void toscr_3_ecs(int oddeven, int step, int nbits)
 {
 	int shift = 16 - nbits;
 
-	for (int i = oddeven; i < toscr_nr_planes2; i += step) {
+	for (int i = oddeven; i < toscr_nr_planes2 && nbits; i += step) {
 		outword[i] <<= nbits;
 		outword[i] |= todisplay2[i] >> shift;
 		todisplay2[i] <<= nbits;
@@ -2169,7 +2169,7 @@ STATIC_INLINE void toscr_3_aga(int oddeven, int step, int nbits, int fm_size)
 			todisplay2_aga[i] <<= nbits;
 		}
 	} else {
-		for (int i = oddeven; i < toscr_nr_planes2; i += step) {
+		for (int i = oddeven; i < toscr_nr_planes2 && bits; i += step) {
 			outword[i] <<= nbits;
 			outword[i] |= (todisplay2_aga[i] >> shift) & mask;
 			todisplay2_aga[i] <<= nbits;
@@ -2899,16 +2899,9 @@ static void update_denise(int hpos)
 	}
 }
 
-STATIC_INLINE void clear_fetchbuffer(uae_u32* ptr, int nwords)
+STATIC_INLINE void clear_fetchbuffer(uae_u32 *ptr, int nwords)
 {
-	if (!thisline_changed) {
-		for (int i = 0; i < nwords; i++) {
-			if (ptr[i]) {
-				thisline_changed = 1;
-				break;
-			}
-		}
-	}
+	thisline_changed = 1;
 	memset(ptr, 0, nwords * 4);
 }
 
@@ -3580,6 +3573,14 @@ STATIC_INLINE void one_fetch_cycle_0(int hpos, int fm)
 		}
 	}
 
+	if (bplcon0_planes_changed) {
+		if (!bprun && hpos == last_bpl1dat_hpos) {
+			flush_display(fm);
+			toscr_nr_planes_shifter = toscr_nr_planes_shifter_new;
+			bplcon0_planes_changed = false;
+		}
+	}
+
 	fetch_cycle++;
 	toscr_nbits += toscr_res2p;
 
@@ -3591,7 +3592,13 @@ STATIC_INLINE void one_fetch_cycle_0(int hpos, int fm)
 
 	// BPLCON0 modification immediately after BPL1DAT can affect BPL1DAT finished plane block
 	if (bplcon0_planes_changed) {
-		if (((hpos - bpl_hstart) & fetchstart_mask) < fetchstart_mask) {
+		if (bprun) {
+			if (((hpos - bpl_hstart) & fetchstart_mask) < fetchstart_mask) {
+				flush_display(fm);
+				toscr_nr_planes_shifter = toscr_nr_planes_shifter_new;
+				bplcon0_planes_changed = false;
+			}
+		} else {
 			flush_display(fm);
 			toscr_nr_planes_shifter = toscr_nr_planes_shifter_new;
 			bplcon0_planes_changed = false;
@@ -4803,6 +4810,7 @@ static void reset_decisions_hsync_start(void)
 	thisline_decision.bordersprite_seen = issprbrd(-1, bplcon0, bplcon3);
 	thisline_decision.xor_seen = (bplcon4 & 0xff00) != 0;
 	thisline_decision.nr_planes = toscr_nr_planes_agnus;
+	thisline_decision.max_planes = toscr_nr_planes_agnus;
 
 	toscr_nr_planes2 = GET_PLANES(bplcon0d);
 	if (isocs7planes()) {
@@ -6663,7 +6671,7 @@ bool INTREQ_0(uae_u16 v)
 		serial_rbf_clear();
 	}
 
-	if (old != v) {
+	if (old != intreq) {
 		doint_delay();
 	}
 	return true;
@@ -6925,6 +6933,7 @@ static void bplcon0_denise_change(int hpos, uae_u16 con0)
 	if (np > toscr_nr_planes2) {
 		update_toscr_planes(np, fetchmode);
 		toscr_nr_planes2 = np;
+		thisline_decision.max_planes = np;
 	}
 
 	if (isocs7planes()) {
@@ -7115,12 +7124,9 @@ static void BPLxDAT_next(uae_u32 vv)
 
 	int hpos = current_hpos();
 
-	// only BPL1DAT access can do anything visible immediately
-	if (num == 0) {
-		decide_line(hpos);
-		decide_fetch_safe(hpos);
-		flush_display(fetchmode);
-	}
+	decide_line(hpos);
+	decide_fetch_safe(hpos);
+	flush_display(fetchmode);
 
 	fetched[num] = data;
 	if ((fmode & 3) == 3) {
@@ -7137,7 +7143,6 @@ static void BPLxDAT_next(uae_u32 vv)
 		if (ecs_denise || (!ecs_denise && hpos >= 0x2e)) {
 			beginning_of_plane_block(hpos);
 			bprun_pipeline_flush_delay = maxhpos;
-			SET_LINE_CYCLEBASED;
 		}
 	}
 }
@@ -7145,6 +7150,9 @@ static void BPLxDAT_next(uae_u32 vv)
 static void BPLxDAT(int hpos, int num, uae_u16 data)
 {
 	uae_u32 vv = (num << 16) | data;
+	if (!num) {
+		SET_LINE_CYCLEBASED;
+	}
 	event2_newevent_xx(-1, 1 * CYCLE_UNIT, vv, BPLxDAT_next);
 }
 
