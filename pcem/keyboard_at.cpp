@@ -481,7 +481,7 @@ void keyboard_at_write(uint16_t port, uint8_t val, void *priv)
                 speaker_enable = val & 2;
                 if (speaker_enable) 
                         was_speaker_enable = 1;
-                pit_set_gate(&pit, 2, val & 1);
+                pit_set_gate((PIT*)priv, 2, val & 1);
 
                 if (romset == ROM_XI8088)
                 {
@@ -823,7 +823,7 @@ void keyboard_at_init()
 {
         //return;
         memset(&keyboard_at, 0, sizeof(keyboard_at));
-        io_sethandler(0x0060, 0x0005, keyboard_at_read, NULL, NULL, keyboard_at_write, NULL, NULL,  NULL);
+        io_sethandler(0x0060, 0x0005, keyboard_at_read, NULL, NULL, keyboard_at_write, NULL, NULL,  &pit);
         keyboard_at_reset();
         keyboard_send = keyboard_at_adddata_keyboard;
         keyboard_poll = keyboard_at_poll;
