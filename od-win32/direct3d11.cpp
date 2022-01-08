@@ -696,6 +696,10 @@ static bool allocfxdata(struct d3d11struct *d3d, struct shaderdata11 *s)
 		write_log(_T("ID3D11Device CreateBuffer(fxvertex) %08x\n"), hr);
 		return false;
 	}
+#ifndef NDEBUG
+	static const char vname[] = "fxvertexbuffer";
+	s->vertexBuffer->SetPrivateData(WKPDID_D3DDebugObjectName, sizeof(vname) - 1, vname);
+#endif
 
 	static const uae_u16 indexes[INDEXCOUNT * 2] = {
 		2, 1, 0, 2, 3, 1,
@@ -730,6 +734,10 @@ static bool allocfxdata(struct d3d11struct *d3d, struct shaderdata11 *s)
 		write_log(_T("ID3D11Device CreateBuffer(index) %08x\n"), hr);
 		return false;
 	}
+#ifndef NDEBUG
+	static const char iname[] = "fxindexbuffer";
+	s->indexBuffer->SetPrivateData(WKPDID_D3DDebugObjectName, sizeof(iname) - 1, iname);
+#endif
 
 	return true;
 }
@@ -1636,6 +1644,10 @@ static bool createvertexshader(struct d3d11struct *d3d, ID3D11VertexShader **ver
 		write_log(_T("ID3D11Device CreateVertexShader %08x\n"), hr);
 		return false;
 	}
+#ifndef NDEBUG
+	static const char vname[] = "vertexbuffer";
+	(*vertexshader)->SetPrivateData(WKPDID_D3DDebugObjectName, sizeof(vname) - 1, vname);
+#endif
 	// Create the vertex input layout description.
 	// This setup needs to match the VertexType stucture in the ModelClass and in the shader.
 	polygonLayout[0].SemanticName = "POSITION";
@@ -1688,6 +1700,11 @@ static bool createvertexshader(struct d3d11struct *d3d, ID3D11VertexShader **ver
 		write_log(_T("ID3D11Device CreateBuffer(matrix) %08x\n"), hr);
 		return false;
 	}
+
+#ifndef NDEBUG
+	static const char mname[] = "matrixbuffer";
+	(*matrixbuffer)->SetPrivateData(WKPDID_D3DDebugObjectName, sizeof(mname) - 1, mname);
+#endif
 	return true;
 }
 
@@ -1838,6 +1855,10 @@ static bool InitializeBuffers(struct d3d11struct *d3d, ID3D11Buffer **vertexBuff
 		write_log(_T("ID3D11Device CreateBuffer(vertex) %08x\n"), result);
 		return false;
 	}
+#ifndef NDEBUG
+	static const char vname[] = "mvertexbuffer";
+	(*vertexBuffer)->SetPrivateData(WKPDID_D3DDebugObjectName, sizeof(vname) - 1, vname);
+#endif
 
 	// Set up the description of the static index buffer.
 	indexBufferDesc.Usage = D3D11_USAGE_DEFAULT;
@@ -1859,6 +1880,10 @@ static bool InitializeBuffers(struct d3d11struct *d3d, ID3D11Buffer **vertexBuff
 		write_log(_T("ID3D11Device CreateBuffer(index) %08x\n"), result);
 		return false;
 	}
+#ifndef NDEBUG
+	static const char iname[] = "mindexbuffer";
+	(*indexBuffer)->SetPrivateData(WKPDID_D3DDebugObjectName, sizeof(iname) - 1, iname);
+#endif
 
 	return true;
 }
@@ -2877,7 +2902,6 @@ static bool TextureShaderClass_InitializeShader(struct d3d11struct *d3d)
 	D3D11_SAMPLER_DESC samplerDesc;
 
 	for (int i = 0; i < 3; i++) {
-		ID3D10Blob* pixelShaderBuffer = NULL;
 		ID3D11PixelShader **ps = NULL;
 		const BYTE *Buffer = NULL;
 		int BufferSize = 0;
@@ -2886,19 +2910,19 @@ static bool TextureShaderClass_InitializeShader(struct d3d11struct *d3d)
 		if (gfx_hdr) {
 			switch (i)
 			{
-			case 0:
+				case 0:
 				name = "PS_PostPlain_HDR";
 				ps = &d3d->m_pixelShader;
 				Buffer = PS_PostPlain_HDR;
 				BufferSize = sizeof(PS_PostPlain_HDR);
 				break;
-			case 1:
+				case 1:
 				name = "PS_PostMask_HDR";
 				ps = &d3d->m_pixelShaderMask;
 				Buffer = PS_PostMask_HDR;
 				BufferSize = sizeof(PS_PostMask_HDR);
 				break;
-			case 2:
+				case 2:
 				name = "PS_PostAlpha_HDR";
 				ps = &d3d->m_pixelShaderSL;
 				Buffer = PS_PostAlpha_HDR;
@@ -2908,19 +2932,19 @@ static bool TextureShaderClass_InitializeShader(struct d3d11struct *d3d)
 		} else {
 			switch (i)
 			{
-			case 0:
+				case 0:
 				name = "PS_PostPlain";
 				ps = &d3d->m_pixelShader;
 				Buffer = PS_PostPlain;
 				BufferSize = sizeof(PS_PostPlain);
 				break;
-			case 1:
+				case 1:
 				name = "PS_PostMask";
 				ps = &d3d->m_pixelShaderMask;
 				Buffer = PS_PostMask;
 				BufferSize = sizeof(PS_PostMask);
 				break;
-			case 2:
+				case 2:
 				name = "PS_PostAlpha";
 				ps = &d3d->m_pixelShaderSL;
 				Buffer = PS_PostAlpha;
@@ -2933,33 +2957,31 @@ static bool TextureShaderClass_InitializeShader(struct d3d11struct *d3d)
 		if (FAILED(result))
 		{
 			write_log(_T("ID3D11Device CreatePixelShader %08x\n"), result);
-			if (pixelShaderBuffer) {
-				pixelShaderBuffer->Release();
-				pixelShaderBuffer = 0;
-			}
 			return false;
 		}
-
-		if (pixelShaderBuffer) {
-			pixelShaderBuffer->Release();
-			pixelShaderBuffer = 0;
-		}
-
-		D3D11_BUFFER_DESC psBufferDesc;
-		psBufferDesc.Usage = D3D11_USAGE_DYNAMIC;
-		psBufferDesc.ByteWidth = sizeof(PSBufferType);
-		psBufferDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
-		psBufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-		psBufferDesc.MiscFlags = 0;
-		psBufferDesc.StructureByteStride = 0;
-		result = d3d->m_device->CreateBuffer(&psBufferDesc, NULL, &d3d->m_psBuffer);
-		if (FAILED(result))
-		{
-			write_log(_T("ID3D11Device CreateBuffer(ps) %08x\n"), result);
-			return false;
-		}
-
+#ifndef NDEBUG
+		static const char psname[] = "shader";
+		(*ps)->SetPrivateData(WKPDID_D3DDebugObjectName, sizeof(psname) - 1, psname);
+#endif
 	}
+
+	D3D11_BUFFER_DESC psBufferDesc;
+	psBufferDesc.Usage = D3D11_USAGE_DYNAMIC;
+	psBufferDesc.ByteWidth = sizeof(PSBufferType);
+	psBufferDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+	psBufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+	psBufferDesc.MiscFlags = 0;
+	psBufferDesc.StructureByteStride = 0;
+	result = d3d->m_device->CreateBuffer(&psBufferDesc, NULL, &d3d->m_psBuffer);
+	if (FAILED(result))
+	{
+		write_log(_T("ID3D11Device CreateBuffer(ps) %08x\n"), result);
+		return false;
+	}
+#ifndef NDEBUG
+	static const char pname[] = "psbuffer";
+	d3d->m_psBuffer->SetPrivateData(WKPDID_D3DDebugObjectName, sizeof(pname) - 1, pname);
+#endif
 
 	if (!createvertexshader(d3d, &d3d->m_vertexShader, &d3d->m_matrixBuffer, &d3d->m_layout))
 		return false;
@@ -3022,7 +3044,7 @@ static bool TextureShaderClass_InitializeShader(struct d3d11struct *d3d)
 static bool initd3d(struct d3d11struct *d3d)
 {
 	HRESULT result;
-	ID3D11Texture2D* backBufferPtr;
+	ID3D11Texture2D *backBufferPtr;
 	D3D11_RASTERIZER_DESC rasterDesc;
 
 	if (d3d->d3dinit_done)
@@ -3043,12 +3065,13 @@ static bool initd3d(struct d3d11struct *d3d)
 	if (FAILED(result))
 	{
 		write_log(_T("ID3D11Device CreateRenderTargetView %08x\n"), result);
+		backBufferPtr->Release();
 		return false;
 	}
 
 	// Release pointer to the back buffer as we no longer need it.
 	backBufferPtr->Release();
-	backBufferPtr = 0;
+	backBufferPtr = NULL;
 
 	// Setup the raster description which will determine how and what polygons will be drawn.
 	rasterDesc.AntialiasedLineEnable = false;
@@ -3702,6 +3725,13 @@ static int xxD3D11_init2(HWND ahwnd, int monid, int w_w, int w_h, int t_w, int t
 			return 0;
 		}
 	}
+#ifndef NDEBUG
+	static const char dname[] = "device";
+	static const char cname[] = "context";
+	d3d->m_device->SetPrivateData(WKPDID_D3DDebugObjectName, sizeof(dname) - 1, dname);
+	d3d->m_deviceContext->SetPrivateData(WKPDID_D3DDebugObjectName, sizeof(cname) - 1, cname);
+#endif
+
 	write_log(_T("D3D11CreateDevice succeeded with level %d.%d. %s.\n"), outlevel >> 12, (outlevel >> 8) & 15,
 		currprefs.gfx_api_options ? _T("Software WARP driver") : _T("Hardware accelerated"));
 	d3d11_feature_level = outlevel;
@@ -3811,52 +3841,54 @@ static int xxD3D11_init2(HWND ahwnd, int monid, int w_w, int w_h, int t_w, int t
 		return 0;
 	}
 
-	CComPtr<IDXGISwapChain3> m_swapChain3;
-	if (SUCCEEDED(d3d->m_swapChain->QueryInterface(&m_swapChain3))) {
-		if (d3d->hdr) {
-			if (d3d->scrformat == DXGI_FORMAT_R10G10B10A2_UNORM) {
-				DXGI_COLOR_SPACE_TYPE type = DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020;
-				UINT cps;
-				result = m_swapChain3->CheckColorSpaceSupport(type, &cps);
-				if (SUCCEEDED(result)) {
-					if (!(cps & DXGI_SWAP_CHAIN_COLOR_SPACE_SUPPORT_FLAG_PRESENT))
-						write_log(_T("CheckColorSpaceSupport(DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020) not supported!?\n"));
-					result = m_swapChain3->SetColorSpace1(type);
-					if (FAILED(result)) {
-						write_log(_T("SetColorSpace1 failed %08x\n"), result);
+	{
+		CComPtr<IDXGISwapChain3> m_swapChain3;
+		if (SUCCEEDED(d3d->m_swapChain->QueryInterface(&m_swapChain3))) {
+			if (d3d->hdr) {
+				if (d3d->scrformat == DXGI_FORMAT_R10G10B10A2_UNORM) {
+					DXGI_COLOR_SPACE_TYPE type = DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020;
+					UINT cps;
+					result = m_swapChain3->CheckColorSpaceSupport(type, &cps);
+					if (SUCCEEDED(result)) {
+						if (!(cps & DXGI_SWAP_CHAIN_COLOR_SPACE_SUPPORT_FLAG_PRESENT))
+							write_log(_T("CheckColorSpaceSupport(DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020) not supported!?\n"));
+						result = m_swapChain3->SetColorSpace1(type);
+						if (FAILED(result)) {
+							write_log(_T("SetColorSpace1 failed %08x\n"), result);
+						}
+					} else {
+						write_log(_T("CheckColorSpaceSupport failed %08x\n"), result);
 					}
 				} else {
-					write_log(_T("CheckColorSpaceSupport failed %08x\n"), result);
-				}
-			} else {
-				DXGI_COLOR_SPACE_TYPE type = DXGI_COLOR_SPACE_RGB_FULL_G10_NONE_P709;;
-				UINT cps;
-				result = m_swapChain3->CheckColorSpaceSupport(type, &cps);
-				if (SUCCEEDED(result)) {
-					if (!(cps & DXGI_SWAP_CHAIN_COLOR_SPACE_SUPPORT_FLAG_PRESENT))
-						write_log(_T("CheckColorSpaceSupport(DXGI_COLOR_SPACE_RGB_FULL_G10_NONE_P709) not supported!?\n"));
-					result = m_swapChain3->SetColorSpace1(type);
-					if (FAILED(result)) {
-						write_log(_T("SetColorSpace1 failed %08x\n"), result);
+					DXGI_COLOR_SPACE_TYPE type = DXGI_COLOR_SPACE_RGB_FULL_G10_NONE_P709;;
+					UINT cps;
+					result = m_swapChain3->CheckColorSpaceSupport(type, &cps);
+					if (SUCCEEDED(result)) {
+						if (!(cps & DXGI_SWAP_CHAIN_COLOR_SPACE_SUPPORT_FLAG_PRESENT))
+							write_log(_T("CheckColorSpaceSupport(DXGI_COLOR_SPACE_RGB_FULL_G10_NONE_P709) not supported!?\n"));
+						result = m_swapChain3->SetColorSpace1(type);
+						if (FAILED(result)) {
+							write_log(_T("SetColorSpace1 failed %08x\n"), result);
+						}
+					} else {
+						write_log(_T("CheckColorSpaceSupport failed %08x\n"), result);
 					}
-				} else {
-					write_log(_T("CheckColorSpaceSupport failed %08x\n"), result);
 				}
 			}
-		}
-		IDXGIOutput* dxgiOutput = NULL;
-		result = m_swapChain3->GetContainingOutput(&dxgiOutput);
-		if (SUCCEEDED(result)) {
-			IDXGIOutput2* dxgiOutput2;
-			result = dxgiOutput->QueryInterface(IID_PPV_ARGS(&dxgiOutput2));
+			IDXGIOutput *dxgiOutput = NULL;
+			result = m_swapChain3->GetContainingOutput(&dxgiOutput);
 			if (SUCCEEDED(result)) {
-				BOOL mpo = dxgiOutput2->SupportsOverlays();
-				if (mpo) {
-					write_log(_T("MultiPlane Overlays supported\n"));
+				IDXGIOutput2 *dxgiOutput2 = NULL;
+				result = dxgiOutput->QueryInterface(IID_PPV_ARGS(&dxgiOutput2));
+				if (SUCCEEDED(result)) {
+					BOOL mpo = dxgiOutput2->SupportsOverlays();
+					if (mpo) {
+						write_log(_T("MultiPlane Overlays supported\n"));
+					}
+					dxgiOutput2->Release();
 				}
-				dxgiOutput2->Release();
+				dxgiOutput->Release();
 			}
-			dxgiOutput->Release();
 		}
 	}
 
@@ -4047,6 +4079,7 @@ static void xD3D11_free(int monid, bool immediate)
 		d3d->m_debugInfoQueue = NULL;
 	}
 	if (d3d->m_debug) {
+		d3d->m_debug->ReportLiveDeviceObjects(D3D11_RLDO_SUMMARY | D3D11_RLDO_DETAIL);
 		d3d->m_debug->Release();
 		d3d->m_debug = NULL;
 	}
@@ -4426,8 +4459,6 @@ static bool renderframe(struct d3d11struct *d3d)
 	setpsbuffer(d3d, d3d->m_psBuffer);
 
 	d3d->m_deviceContext->PSSetConstantBuffers(0, 1, &d3d->m_psBuffer);
-
-	ID3D11RenderTargetView *lpRenderTarget = NULL;
 
 	// Bind the render target view and depth stencil buffer to the output render pipeline.
 	if (after >= 0) {
