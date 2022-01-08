@@ -1,4 +1,21 @@
 
+Beta 4:
+
+- uaegfx overlay wasn't synced with screen dragging. It still works strangely if screen with overlay is not in front screen because Picasso96 does not yet support overlay fully during screen dragging.
+- Reset filter button didn't reset manual filter settings.
+- Added IDE scsi.device disable option to misc panel list.
+- if number of planes changed mid scanline, whole line was drawn using planecount that was active when line started. If plane count was increased mid scanline, line was still drawn using lower plane count. If plane count was lowered, output was correct. (vAmiga test)
+- Fixed x86 bridgeboard (AT variants only) boot crash if optimized build. Not sure if it was compiler bug or something else but I found a way to work around it. I think this exact same bug has happened previously.
+- A1000 left hblank ends 3 lores pixels later than other models.
+
+Later 4.9.0 beta series introduced bugs:
+
+- If VSYNC starts after vertical wraparound (can happen in programmed modes), lines after wraparound before VSYNC was not drawn.
+- HCENTER (ECS Denise only) "blanking" didn't work.
+- Left side didn't open far enough in extreme overscan mode.
+- OCS Agnus + OCS Denise: last blanked line bug on top of screen was not visible if line also had bitplane enabled.
+- Direct 3D 11 mode shader buffer leak fixed. Caused crash after few dozens or so display mode switches. (4.9.0)
+
 Beta 3
 
 - "Manual" BPL1DAT write disabling border timing updated. Also OCS Denise limit was not checked, OCS Denise ignores BPL1DAT writes until hblank end. (OCS Denise: border is forced to enabled state during hblank start to hblank end, ECS Denise/AGA: border is enabled when hblank starts).

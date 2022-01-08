@@ -727,6 +727,8 @@ struct printdata
 static volatile struct printdata *queue;
 static uae_sem_t queue_sem, queue_sem2;
 
+static DOCINFO docinfo;
+
 static void prt_thread(void *p) 
 {
 	prt_thread_mode = 1;
@@ -769,7 +771,6 @@ static void prt_thread(void *p)
 			int TcolorPrinter = pd->colorprinted;
 
 			if (!multiPageCounter) {
-				DOCINFO docinfo;
 				docinfo.cbSize = sizeof(docinfo);
 				docinfo.lpszDocName = _T("WinUAE Epson Printer");
 				docinfo.lpszOutput = NULL;
@@ -799,7 +800,7 @@ static void prt_thread(void *p)
 				if (TcolorPrinter)
 					dc = GetDC (NULL);
 				HBITMAP bitmap = CreateCompatibleBitmap (dc ? dc : TmemHDC, Tpage_w, Tpage_h);
-				SelectObject (TmemHDC, bitmap);
+				HGDIOBJ hobj = SelectObject (TmemHDC, bitmap);
 				BitBlt (TmemHDC, 0, 0, Tpage_w, Tpage_h, NULL, 0, 0, WHITENESS);
 
 				StartPage (TprinterDC);
@@ -819,6 +820,8 @@ static void prt_thread(void *p)
 				BitBlt (TprinterDC, leftmargin, topmargin, Tpage_w, Tpage_h, TmemHDC, 0, 0, SRCCOPY);
 
 				EndPage (TprinterDC);
+
+				SelectObject(TmemHDC, hobj);
 
 				DeleteObject (bitmap);
 				if (dc)

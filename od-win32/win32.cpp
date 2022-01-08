@@ -6780,6 +6780,11 @@ static int parseargs(const TCHAR *argx, const TCHAR *np, const TCHAR *np2)
 		p96skipmode = getval (np);
 		return 2;
 	}
+	if (!_tcscmp (arg, _T("p96test"))) {
+		extern int picasso96_test;
+		picasso96_test = getval (np);
+		return 2;
+	}
 	if (!_tcscmp (arg, _T("minidumpmode"))) {
 		minidumpmode = (MINIDUMP_TYPE)getval (np);
 		return 2;
@@ -7414,7 +7419,7 @@ static void efix (DWORD *regp, void *p, void *ps, int *got)
 LONG WINAPI WIN32_ExceptionFilter (struct _EXCEPTION_POINTERS *pExceptionPointers, DWORD ec)
 {
 	if (nocrashdump)
-		EXCEPTION_CONTINUE_SEARCH;
+		return EXCEPTION_CONTINUE_SEARCH;
 
 	static uae_u8 *prevpc;
 	LONG lRet = EXCEPTION_CONTINUE_SEARCH;

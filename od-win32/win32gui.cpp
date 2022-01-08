@@ -4688,6 +4688,7 @@ static const struct miscentry misclist[] = {
 	{ 0, 1, _T("Automatically capture mouse when window is activated"), &workprefs.win32_capture_always },
 	{ 0, 0, _T("Debug memory space"), &workprefs.debug_mem },
 	{ 0, 1, _T("Force hard reset if CPU halted"), &workprefs.crash_auto_reset },
+	{ 0, 0, _T("A600/A1200/A4000 IDE scsi.device disable"), &workprefs.scsidevicedisable },
 	{ 0, 0, NULL }
 };
 
@@ -20356,6 +20357,14 @@ static INT_PTR CALLBACK hw3dDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 			fd->gfx_filter_top_border = fdw->gfx_filter_top_border = -1;
 			fd->gfx_filter_right_border = fdw->gfx_filter_right_border = 0;
 			fd->gfx_filter_bottom_border = fdw->gfx_filter_bottom_border = 0;
+			currprefs.gfx_xcenter_pos = -1;
+			workprefs.gfx_xcenter_pos = -1;
+			currprefs.gfx_ycenter_pos = -1;
+			workprefs.gfx_ycenter_pos = -1;
+			currprefs.gfx_xcenter_size = -1;
+			workprefs.gfx_xcenter_size = -1;
+			currprefs.gfx_ycenter_size = -1;
+			workprefs.gfx_ycenter_size = -1;
 			values_to_hw3ddlg(hDlg, false);
 			updatedisplayarea(-1);
 			break;

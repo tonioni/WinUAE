@@ -4349,8 +4349,9 @@ void doint(void)
 	if (m68k_interrupt_delay) {
 		int il = intlev();
 		regs.ipl_pin = il;
-		if (regs.ipl_pin > regs.intmask || regs.ipl_pin == 7)
+		if (regs.ipl_pin > regs.intmask || regs.ipl_pin == 7) {
 			set_special(SPCFLAG_INT);
+		}
 		return;
 	}
 	if (currprefs.cpu_compatible && currprefs.cpu_model < 68020)
