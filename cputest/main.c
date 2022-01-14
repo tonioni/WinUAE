@@ -2401,7 +2401,7 @@ static uae_u8 *validate_test(uae_u8 *p, short ignore_errors, short ignore_sr, st
 	if ((sregs->sr & test_ccrignoremask & 0xff00) != (tregs->sr & test_ccrignoremask & 0xff00)) {
 		sr_changed = 1;
 	}
-	if ((sregs->sr & test_ccrignoremask & 0x00ff) != (tregs->sr & test_ccrignoremask & 0x00ff)) {
+	if ((sregs->sr & test_ccrignoremask & ccr_mask & 0x00ff) != (tregs->sr & test_ccrignoremask & ccr_mask & 0x00ff)) {
 		ccr_changed = 1;
 	}
 	if (sregs->pc + opcodeendsizeextra != tregs->pc) {
@@ -2559,7 +2559,7 @@ static uae_u8 *validate_test(uae_u8 *p, short ignore_errors, short ignore_sr, st
 			// High 16 bit: ignore mask, low 16 bit: SR/CCR
 			p = restore_value(p, &val, &size);
 			test_ccrignoremask = ~(val >> 16);
-			if ((val & (sr_undefined_mask & test_ccrignoremask)) != (tregs->sr & (sr_undefined_mask & test_ccrignoremask)) && !ignore_errors && !ignore_sr) {
+			if ((val & ccr_mask & (sr_undefined_mask & test_ccrignoremask)) != (tregs->sr & ccr_mask & (sr_undefined_mask & test_ccrignoremask)) && !ignore_errors && !ignore_sr) {
 				if (dooutput) {
 					sprintf(outbp, "SR: expected %04x -> %04x but got %04x", sregs->sr & 0xffff, val & 0xffff, tregs->sr & 0xffff);
 					outbp += strlen(outbp);
@@ -2743,7 +2743,7 @@ static uae_u8 *validate_test(uae_u8 *p, short ignore_errors, short ignore_sr, st
 					outbp += strlen(outbp);
 				}
 				errflag |= 1 << 2;
-			} else if (ccr_changed && !skipccrchange && (tregs->sr & 0xff) != (lregs->sr & 0xff)) {
+			} else if (ccr_changed && !skipccrchange && (tregs->sr & ccr_mask & 0xff) != (lregs->sr & ccr_mask & 0xff)) {
 				if (dooutput) {
 					sprintf(outbp, "SR: modified %04x -> %04x but expected %04x\n", sregs->sr & 0xffff, tregs->sr & 0xffff, lregs->sr & 0xffff);
 					outbp += strlen(outbp);
