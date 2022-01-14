@@ -503,7 +503,7 @@ void alloc_colors64k(int monid, int rw, int gw, int bw, int rs, int gs, int bs, 
 	xredcolor_s = rs;
 	xgreencolor_s = gs;
 	xbluecolor_s = bs;
-	xredcolor_m = ((1 << rw) - 1) << xredcolor_s;
-	xgreencolor_m = ((1 << gw) - 1) << xgreencolor_s;
-	xbluecolor_m = ((1 << bw) - 1) << xbluecolor_s;
+	xredcolor_m = (1 << rw) - 1;
+	xgreencolor_m = (1 << gw) - 1;
+	xbluecolor_m = (1 << bw) - 1;
 }
