@@ -58,6 +58,7 @@ aros.rom.cpp
 /jit/compstbl.cpp
 /jit/comptbl.h
 /cputest/data
+/cputest/cputest
 /linetoscr.cpp
 *.iobj
 *.ipdb
