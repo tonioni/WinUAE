@@ -1,4 +1,15 @@
 
+Beta 5:
+
+- Filtered lores had wrong colors if host graphics mode was 16-bit.
+- Horizontal DIWSTOP = last possible horizontal position (+1 more would cause always on hdiw) didn't ignore DIWHIGH AGA H0/H1 bits, if either (or both) were set, always on diw was detected.
+- Disk not in ADKCON FAST mode and normal 2us MFM disk in drive: disk index was unreliable.
+- Some normal programmed WB modes unnecessarily enabled slower cycle-based custom chipset emulation.
+- Another HBLANK fix, if previous line ends in border closed state and without hblank start, next line also starts in border closed state. Programmed HBLANK + AGA only, ECS Denise CSYNC blanking always resets border state when HSYNC starts.
+- Previous A1000 3 lores pixel earlier change was not accurate, it is OCS Denise feature (including A1000 Denise) and it isn't hblank end difference but for some only bitplane data is not possible in first 3 pixels, border works normally (Previous test used black border color which hide the 3 lores pixel border stripe). This is now fixed.
+- In some situations old bitplane data was not properly cleared when number of planes decreased mid scanline (including change hidden in invisible part of scanline). b4 number of bitplane change side-effect.
+- Adjusted overscan+/extreme positioning.
+
 Beta 4:
 
 - uaegfx overlay wasn't synced with screen dragging. It still works strangely if screen with overlay is not in front screen because Picasso96 does not yet support overlay fully during screen dragging.
@@ -14,7 +25,7 @@ Later 4.9.0 beta series introduced bugs:
 - HCENTER (ECS Denise only) "blanking" didn't work.
 - Left side didn't open far enough in extreme overscan mode.
 - OCS Agnus + OCS Denise: last blanked line bug on top of screen was not visible if line also had bitplane enabled.
-- Direct 3D 11 mode shader buffer leak fixed. Caused crash after few dozens or so display mode switches. (4.9.0)
+- Direct 3D 11 mode shader buffer leak fixed. Caused crash after few dozens or so display mode switches.
 
 Beta 3
 
