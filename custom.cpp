@@ -4785,8 +4785,22 @@ static void reset_decisions_hsync_start(void)
 	// 0 = vb, 1 = vb off, 3 = vb off, previous line was bitplane + vb on
 	//bool t = thisline_decision.plfleft >= 0 && (thisline_decision.vb & 1) == 0 && !vb_state && !vb_end_line;
 	if (!aga_mode && ecs_denise && exthblank) {
-		// ECS Denise + EXTHBLANK: VBLANK blanking is always disabled
+		// ECS Denise + EXTHBLANK: VBLANK blanking is different
 		thisline_decision.vb = VB_NOVB;
+		if (beamcon0 & BEAMCON0_BLANKEN) {
+			// blanking working same as AGA
+			thisline_decision.vb = vb_start_line > 1 + vblank_extraline || vb_end_next_line ? 0 : VB_NOVB;
+		} else {
+			if (!(beamcon0 & BEAMCON0_VARBEAMEN)) {
+				if (beamcon0 & BEAMCON0_PAL) {
+					thisline_decision.vb = vpos >= 3 && vpos <= 5 ? 0 : VB_NOVB;
+				} else {
+					thisline_decision.vb = vpos >= 3 && vpos <= 6 ? 0 : VB_NOVB;
+				}
+			} else {
+				thisline_decision.vb = vs_state ? 0 : VB_NOVB;
+			}
+		}
 	} else {
 		// Visible vblank end is delayed by 1 line
 		thisline_decision.vb = vb_start_line > 1 + vblank_extraline || vb_end_next_line ? 0 : VB_NOVB;
@@ -4800,8 +4814,10 @@ static void reset_decisions_hsync_start(void)
 
 	// doublescan last line garbage workaround
 	if (doflickerfix_active()) {
-		if (vpos < maxvpos_display_vsync || (!lof_display && vpos >= maxvpos - 1) || (lof_display && vpos >= maxvpos - 1)) {
-			thisline_decision.vb |= VB_XBORDER;
+		if (!(thisline_decision.vb & VB_PRGVB)) {
+			if ((vpos < maxvpos_display_vsync) || (lof_display && vpos >= maxvpos - 1) || (!lof_display && vpos >= maxvpos - 1)) {
+				thisline_decision.vb = VB_XBORDER;
+			}
 		}
 	}
 
@@ -5435,6 +5451,8 @@ void compute_framesync(void)
 	vidinfo->drawbuffer.inheight = (maxvpos_display + maxvpos_display_vsync - minfirstline) << vres2;
 	vidinfo->drawbuffer.inheight2 = vidinfo->drawbuffer.inheight;
 	vidinfo->drawbuffer.inxoffset = 0;
+
+	//write_log(_T("Width %d Height %d\n"), vidinfo->drawbuffer.inwidth, vidinfo->drawbuffer.inheight);
 
 	if (vidinfo->drawbuffer.inwidth < 16)
 		vidinfo->drawbuffer.inwidth = 16;
@@ -9218,6 +9236,7 @@ static void decide_sprites_fetch(int endhpos)
 		last_decide_sprite_hpos = endhpos;
 		return;
 	}
+
 	while (hpos < endhpos) {
 		if (hpos >= SPR_FIRST_HPOS - RGA_SPRITE_PIPELINE_DEPTH && hpos < SPR_FIRST_HPOS + MAX_SPRITES * 4) {
 
@@ -9309,8 +9328,8 @@ static int calculate_lineno(int vp)
 	nextline_how = nln_normal;
 	if (doflickerfix_active()) {
 		lineno *= 2;
-	}
-	else if (!interlace_seen && doublescan <= 0 && currprefs.gfx_vresolution && currprefs.gfx_pscanlines > 1) {
+		lineno++;
+	} else if (!interlace_seen && doublescan <= 0 && currprefs.gfx_vresolution && currprefs.gfx_pscanlines > 1) {
 		lineno *= 2;
 		if (timeframes & 1) {
 			lineno++;
@@ -10041,13 +10060,12 @@ static void hsync_scandoubler(int hpos)
 	uae_u16 odmacon = dmacon;
 	int ocop = copper_enabled_thisline;
 	uaecptr bpltmp[MAX_PLANES], bpltmpx[MAX_PLANES];
+	int lof = lof_display;
 
-	if (vb_start_line > 1) {
+	if (vb_start_line > 2) {
 		return;
 	}
 
-	int lof = lof_display;
-	next_lineno++;
 	scandoubled_line = 1;
 	line_disabled |= 8;
 	last_hdiw = 0 - 1;
@@ -10077,8 +10095,8 @@ static void hsync_scandoubler(int hpos)
 	reset_scandoubler_sync(hpos);
 	reset_decisions_hsync_start();
 
-	// Bitplane only
-	dmacon = odmacon & (DMA_MASTER | DMA_BITPLANE);
+	// Bitplane and sprites only
+	dmacon = odmacon & (DMA_MASTER | DMA_BITPLANE | DMA_SPRITE);
 	copper_enabled_thisline = 0;
 
 	// copy color changes
@@ -10425,6 +10443,7 @@ static void hsync_handlerh(bool onvsync)
 		if (doflickerfix_active()) {
 			finish_decisions(hpos);
 			hsync_record_line_state(next_lineno, nextline_how, thisline_changed);
+			next_lineno++;
 			hsync_scandoubler(hpos);
 		} else {
 			finish_decisions(hpos);
