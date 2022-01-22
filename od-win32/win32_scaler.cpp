@@ -686,7 +686,7 @@ cont:
 		float ll = l * 2 + 1;
 		if (currprefs.ntscmode) {
 			if (palntscadjust && isp) {
-				palntscratio = palntscratio * (ll / 525.0);
+				palntscratio = palntscratio * (525.0 / ll);
 			}
 			if (keep_aspect == 2 && isp) {
 				palntscratio = palntscratio * 0.93f;
