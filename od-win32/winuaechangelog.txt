@@ -1,4 +1,11 @@
 
+
+- Use pre-430b5 lagless vsync behavior by default if Windows 7. -beamrace 0 command line will force 430b5+ behavior and -beamrace 1 will force pre-430b5 behavior.
+- ECS Denise CSYNC blanking fixes. Denise ignores vblank strobes when deciding blanking if EXTBLKEN=1.
+- Remove interlace artifact option enabled: bitplanes and sprites had 1 scanline offset. (introduced in some 490 beta)
+- NTSC mode and software switch to PAL: display was incorrectly vertically stretched.
+- Integer scaling only worked correctly if horizontal and vertical resolution matched (correct aspect ratio). Now also other combinations work correctly (for example superhires + any or lores + doubled)
+
 Beta 5:
 
 - Filtered lores had wrong colors if host graphics mode was 16-bit.
@@ -6,7 +13,7 @@ Beta 5:
 - Disk not in ADKCON FAST mode and normal 2us MFM disk in drive: disk index was unreliable.
 - Some normal programmed WB modes unnecessarily enabled slower cycle-based custom chipset emulation.
 - Another HBLANK fix, if previous line ends in border closed state and without hblank start, next line also starts in border closed state. Programmed HBLANK + AGA only, ECS Denise CSYNC blanking always resets border state when HSYNC starts.
-- Previous A1000 3 lores pixel earlier change was not accurate, it is OCS Denise feature (including A1000 Denise) and it isn't hblank end difference but for some only bitplane data is not possible in first 3 pixels, border works normally (Previous test used black border color which hide the 3 lores pixel border stripe). This is now fixed.
+- Previous A1000 3 lores pixel earlier change was not accurate, it is OCS Denise feature (including A1000 Denise) and it isn't hblank end difference but for some reason only bitplane data is not allowed until first 3 pixels, border works normally (Previous test used black border color which hide the 3 lores pixel border stripe). This is now fixed.
 - In some situations old bitplane data was not properly cleared when number of planes decreased mid scanline (including change hidden in invisible part of scanline). b4 number of bitplane change side-effect.
 - Adjusted overscan+/extreme positioning.
 
