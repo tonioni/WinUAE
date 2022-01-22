@@ -425,6 +425,20 @@ void getfilterrect2(int monid, RECT *sr, RECT *dr, RECT *zr, int dst_width, int 
 				filter_horiz_zoom_mult = 1.0;
 				filter_vert_zoom_mult = 1.0;
 
+				if (currprefs.gfx_vresolution == VRES_NONDOUBLE) {
+					if (currprefs.gfx_resolution == RES_HIRES) {
+						maxw *= 2;
+					} else if (currprefs.gfx_resolution == RES_SUPERHIRES) {
+						maxw *= 4;
+					}
+				} else {
+					if (currprefs.gfx_resolution == RES_LORES) {
+						maxw /= 2;
+					} else if (currprefs.gfx_resolution == RES_SUPERHIRES) {
+						maxw *= 2;
+					}
+				}
+
 				double multadd = 1.0 / (1 << currprefs.gf[ad->picasso_on].gfx_filter_integerscalelimit);
 				if (cw2 > maxw || ch2 > maxh) {
 					while (cw2 / mult > maxw || ch2 / mult > maxh)
