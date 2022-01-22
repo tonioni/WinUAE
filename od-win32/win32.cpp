@@ -359,10 +359,10 @@ void target_calibrate_spin(void)
 	if (!ap->gfx_vsyncmode)
 		return;
 	if (busywait || calculated_scanline) {
-		write_log(_T("target_calibrate_spin() skipped\n"));
+		write_log(_T("target_calibrate_spin() skipped (%d)\n"), calculated_scanline);
 		return;
 	}
-	write_log(_T("target_calibrate_spin() start\n"));
+	write_log(_T("target_calibrate_spin() start (%d)\n"), calculated_scanline);
 	sc = 0x800000000000;
 	for (int i = 0; i < 50; i++) {
 		for (;;) {
@@ -5901,18 +5901,27 @@ static int osdetect (void)
 		pGetNativeSystemInfo (&SystemInfo);
 	osVersion.dwOSVersionInfoSize = sizeof (OSVERSIONINFO);
 	if (GetVersionEx (&osVersion)) {
-		if (osVersion.dwMajorVersion >= 6)
+		if (osVersion.dwMajorVersion >= 6) {
 			os_vista = 1;
-		if (osVersion.dwMajorVersion >= 7 || (osVersion.dwMajorVersion == 6 && osVersion.dwMinorVersion >= 1))
+		}
+		if (osVersion.dwMajorVersion >= 7 || (osVersion.dwMajorVersion == 6 && osVersion.dwMinorVersion >= 1)) {
 			os_win7 = 1;
-		if (osVersion.dwMajorVersion >= 7 || (osVersion.dwMajorVersion == 6 && osVersion.dwMinorVersion >= 2))
+		}
+		if (osVersion.dwMajorVersion >= 7 || (osVersion.dwMajorVersion == 6 && osVersion.dwMinorVersion >= 2)) {
 			os_win8 = 1;
-		if (osVersion.dwMajorVersion >= 7 || (osVersion.dwMajorVersion == 6 && osVersion.dwMinorVersion >= 3))
+		}
+		if (osVersion.dwMajorVersion >= 7 || (osVersion.dwMajorVersion == 6 && osVersion.dwMinorVersion >= 3)) {
 			os_win8 = 2;
-		if (osVersion.dwMajorVersion >= 10)
+		}
+		if (osVersion.dwMajorVersion >= 10) {
 			os_win10 = 1;
-		if (SystemInfo.wProcessorArchitecture == PROCESSOR_ARCHITECTURE_AMD64)
+		}
+		if (SystemInfo.wProcessorArchitecture == PROCESSOR_ARCHITECTURE_AMD64) {
 			os_64bit = 1;
+		}
+		if (os_win7 && !os_win8) {
+			calculated_scanline = false;
+		}
 	}
 	cpu_number = SystemInfo.dwNumberOfProcessors;
 	os_admin = isadminpriv ();
@@ -5946,7 +5955,6 @@ static int osdetect (void)
 			FreeLibrary(dwmapihandle);
 		}
 	}
-
 
 	return 1;
 }
@@ -6834,6 +6842,15 @@ static int parseargs(const TCHAR *argx, const TCHAR *np, const TCHAR *np2)
 		hrtmon_lang = getval(np);
 		return 2;
 	}
+	if (!_tcscmp(arg, _T("beamrace"))) {
+		if (getval(np) == 0) {
+			calculated_scanline = true;
+		} else if (getval(np) == 1) {
+			calculated_scanline = false;
+		}
+		return 2;
+	}
+
 #endif
 	return 0;
 }

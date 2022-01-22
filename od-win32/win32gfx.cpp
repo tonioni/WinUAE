@@ -380,7 +380,7 @@ static int target_get_display_scanline2(int displayindex)
 }
 
 extern uae_u64 spincount;
-bool calculated_scanline = 1;
+bool calculated_scanline = true;
 
 int target_get_display_scanline(int displayindex)
 {
@@ -525,7 +525,7 @@ static void display_vblank_thread(struct AmigaMonitor *mon)
 		unsigned int th;
 		_beginthreadex(NULL, 0, waitvblankthread, 0, 0, &th);
 	} else {
-		calculated_scanline = 0;
+		calculated_scanline = false;
 	}
 }
 
