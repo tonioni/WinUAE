@@ -1,4 +1,11 @@
 
+Beta 7:
+
+- 68020/030 CE mode too long interrupt delay fix.
+- Possible fix for mouse counter overflow after emulator has been running many hours.
+- Weird programmed mode blanking position calculation fix.
+
+Beta 6:
 
 - Use pre-430b5 lagless vsync behavior by default if Windows 7. -beamrace 0 command line will force 430b5+ behavior and -beamrace 1 will force pre-430b5 behavior.
 - ECS Denise CSYNC blanking fixes. Denise ignores vblank strobes when deciding blanking if EXTBLKEN=1.
