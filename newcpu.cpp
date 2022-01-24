@@ -4848,6 +4848,7 @@ static void m68k_run_1_ce (void)
 				}
 
 				r->instruction_pc = m68k_getpc ();
+
 				(*cpufunctbl[r->opcode])(r->opcode);
 				if (!regs.loop_mode)
 					regs.ird = regs.opcode;
@@ -5666,12 +5667,11 @@ insretry:
 				} else {
 
 					regs.instruction_cnt++;
+					regs.ipl = regs.ipl_pin;
 					if (regs.spcflags || time_for_interrupt ()) {
 						if (do_specialties (0))
 							return;
 					}
-
-					regs.ipl = regs.ipl_pin;
 
 				}
 
@@ -5923,21 +5923,21 @@ static void m68k_run_2ce (void)
 				regs.instruction_cnt++;
 
 		cont:
+				regs.ipl = regs.ipl_pin;
 				if (r->spcflags || time_for_interrupt ()) {
 					if (do_specialties (0))
 						exit = true;
 				}
 
-				regs.ipl = regs.ipl_pin;
 
 			}
 		} CATCH(prb) {
 			bus_error();
+			regs.ipl = regs.ipl_pin;
 			if (r->spcflags || time_for_interrupt()) {
 				if (do_specialties(0))
 					exit = true;
 			}
-			regs.ipl = regs.ipl_pin;
 		} ENDTRY
 	}
 }
