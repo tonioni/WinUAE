@@ -938,7 +938,7 @@ static void record_color_change2(int hpos, int regno, uae_u32 value)
 	}
 
 	// HCENTER blanking (ECS Denise only)
-	if (hcenter_v2 && vs_state_on && vpos < maxvpos_display_vsync && lof_display) {
+	if (hcenter_v2 && vs_state_on && vpos < maxvpos_display_vsync) {
 		int chpos = pos;
 		if (!hcenterblank_state && hcenter_v2 < chpos && hcenter_v2 >= last_recorded_diw_hpos) {
 			hcenterblank_state = true;
@@ -4786,27 +4786,22 @@ static void reset_decisions_hsync_start(void)
 	//bool t = thisline_decision.plfleft >= 0 && (thisline_decision.vb & 1) == 0 && !vb_state && !vb_end_line;
 	if (!aga_mode && ecs_denise && exthblank) {
 		// ECS Denise + EXTHBLANK: VBLANK blanking is different
-		thisline_decision.vb = VB_NOVB;
-		if (beamcon0 & BEAMCON0_BLANKEN) {
+		if (new_beamcon0 & BEAMCON0_VARCSYEN) {
+			// programmed vsync
+			thisline_decision.vb = vs_state_on ? 0 : VB_NOVB;
+		} else if (new_beamcon0 & BEAMCON0_BLANKEN) {
 			// blanking working same as AGA
 			thisline_decision.vb = vb_start_line > 1 + vblank_extraline || vb_end_next_line ? 0 : VB_NOVB;
 		} else {
-			if (!(beamcon0 & BEAMCON0_VARBEAMEN)) {
-				if (beamcon0 & BEAMCON0_PAL) {
-					thisline_decision.vb = vpos >= 3 && vpos <= 5 ? 0 : VB_NOVB;
-				} else {
-					thisline_decision.vb = vpos >= 3 && vpos <= 6 ? 0 : VB_NOVB;
-				}
-			} else {
-				thisline_decision.vb = vs_state ? 0 : VB_NOVB;
-			}
+			// hardwired vsync
+			thisline_decision.vb = vs_state_hw ? 0 : VB_NOVB;
 		}
 	} else {
 		// Visible vblank end is delayed by 1 line
 		thisline_decision.vb = vb_start_line > 1 + vblank_extraline || vb_end_next_line ? 0 : VB_NOVB;
 	}
 	// if programmed vblank
-	if ((beamcon0 & BEAMCON0_VARVBEN) && ecs_agnus) {
+	if ((new_beamcon0 & BEAMCON0_VARVBEN) && ecs_agnus) {
 		if (!thisline_decision.vb) {
 			thisline_decision.vb |= VB_PRGVB;
 		}
@@ -5624,12 +5619,17 @@ static void init_hz(bool checkvposw)
 			hsstop_detect = 22;
 			maxvpos_display_vsync++;
 		} else {
-			int hb = 0;
 			if (exthblank) {
-				if (hbstrt > maxhpos / 2 && hbstop < maxhpos / 2) {
-					hb = (maxhpos - hbstrt) + hbstop;
-				} else if (hbstop < maxhpos / 2 && hbstrt < hbstop) {
-					hb = hbstop - hbstrt;
+				int hb = 0;
+				int hbstrtx = hbstrt & 0xff;
+				int hbstopx = hbstop & 0xff;
+				if (hbstrtx > maxhpos / 2 && hbstopx < maxhpos / 2) {
+					hb = (maxhpos - hbstrtx) + hbstopx;
+				} else if (hbstopx < maxhpos / 2 && hbstrtx < hbstopx) {
+					hb = hbstopx - hbstrtx;
+				}
+				if (hb < 4) {
+					hb = 4;
 				}
 				maxhpos_display = maxhpos - (hb - 2);
 				int hsadj = 10;
@@ -5644,7 +5644,7 @@ static void init_hz(bool checkvposw)
 				if (hsz >= 12) {
 					hsadj = 15;
 				}
-				hsstop_detect = (hbstop - (hsstrt - hsadj));
+				hsstop_detect = (hbstopx - (hsstrt - hsadj));
 			} else {
 				maxhpos_display = maxhpos - 15;
 				hsstop_detect = 15;
