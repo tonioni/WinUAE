@@ -949,9 +949,6 @@ static void set_x_funcs (void)
 				x_get_ibyte = NULL;
 				x_next_iword = next_iword_mmu030c_state;
 				x_next_ilong = next_ilong_mmu030c_state;
-				x_do_cycles = do_cycles;
-				x_do_cycles_pre = do_cycles;
-				x_do_cycles_post = do_cycles_post;
 			} else if (currprefs.cpu_compatible) {
 				x_prefetch = get_iword_mmu030c_state;
 				x_get_ilong = get_ilong_mmu030c_state;
@@ -959,9 +956,6 @@ static void set_x_funcs (void)
 				x_get_ibyte = NULL;
 				x_next_iword = next_iword_mmu030c_state;
 				x_next_ilong = next_ilong_mmu030c_state;
-				x_do_cycles = do_cycles;
-				x_do_cycles_pre = do_cycles;
-				x_do_cycles_post = do_cycles_post;
 			} else {
 				x_prefetch = get_iword_mmu030;
 				x_get_ilong = get_ilong_mmu030;
@@ -985,15 +979,10 @@ static void set_x_funcs (void)
 				x_get_byte = get_byte_dc030;
 			}
 		}
-		if (currprefs.cpu_cycle_exact) {
-			x_do_cycles = do_cycles_ce020;
-			x_do_cycles_pre = do_cycles_ce020;
-			x_do_cycles_post = do_cycles_ce020_post;
-		} else {
-			x_do_cycles = do_cycles;
-			x_do_cycles_pre = do_cycles;
-			x_do_cycles_post = do_cycles_post;
-		}
+		x_do_cycles = do_cycles;
+		x_do_cycles_pre = do_cycles;
+		x_do_cycles_post = do_cycles_post;
+
 	} else if (currprefs.cpu_model < 68020) {
 		// 68000/010
 		if (currprefs.cpu_cycle_exact) {
