@@ -1,4 +1,14 @@
 
+Beta 8:
+
+- Sprite collision bitplane end position calculation was not updated to 4.9.0+ chipset emulation. Probably didn't cause problems because it was too large and it most likely  could not cause any spurious collisions.
+- b6 ECS Denise CSYNC fix broke vertical blanking when EXTBLANKEN=1. Made only visible difference if mode was weird (not WB monitor driver)
+- If programmed mode HSYNC start is later than normal, use it instead of standard VGA-like config. (More correct horizontal position if weird mode)
+- Yet another Copper comparator update. WAIT and SKIP timing change again, all my statefile tests still work (and one that didn't also works now). SKIP comparison check timing is not same as WAIT, SKIP seems to check comparison result just before next copper instruction gets loaded (SKIP comparison active as long as IR1 and IR2 bits 0 are set)
+- b4 bitplane number update fix, if number of bitplane was increased after hsync start but before hsync end, sometimes bitplane count change was ignored until next line.
+- "Default" filter mode now also auto-adjusts if horizontal size does not match vertical (for example if horizontal is hires but vertical is nondoubled: double vertical automatically using filter scaling). Other modes are not yet updated because it can break existing configs.
+- Reverted 490b25 68030+ MMU "CE" mode cycle count update that made it too slow compared to matching non-MMU mode.
+
 Beta 7:
 
 - 68020/030 CE mode too long interrupt delay fix.
