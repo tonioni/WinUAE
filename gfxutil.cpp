@@ -199,9 +199,9 @@ static uae_u32 limit256(int monid, double v)
 		v = 0;
 	if (v > 255)
 		v = 255;
-	return ((uae_u32)v) & 0xff;
+	return (uae_u32)v;
 }
-static uae_u32 limit256rb(int monid, double v)
+static uae_s32 limit256rb(int monid, double v)
 {
 	struct amigadisplay *ad = &adisplays[monid];
 	if (!gfx_hdr) {
@@ -211,7 +211,7 @@ static uae_u32 limit256rb(int monid, double v)
 		v = -128;
 	if (v > 127)
 		v = 127;
-	return ((uae_u32)v) & 0xff;
+	return (uae_s32)v;
 }
 static double get_y(int r, int g, int b)
 {
@@ -225,11 +225,11 @@ static uae_u32 get_yl(int monid, int r, int g, int b)
 {
 	return limit256(monid, get_y (r, g, b) * lf / 256);
 }
-static uae_u32 get_cb(int monid, int r, int g, int b)
+static uae_s32 get_cb(int monid, int r, int g, int b)
 {
 	return limit256rb(monid, -0.168736f * r - 0.331264f * g + 0.5f * b);
 }
-static uae_u32 get_cr(int monid, int r, int g, int b)
+static uae_s32 get_cr(int monid, int r, int g, int b)
 {
 	return limit256rb(monid, 0.5f * r - 0.418688f * g - 0.081312f * b);
 }
