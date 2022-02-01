@@ -1,4 +1,10 @@
 
+Beta 9:
+
+- b8 "default" filter update was not complete. Now image is automatically integer scaled if original image is half (or less) size of host window/fullscreen size.
+- b8 MMU change didn't change much because MMU + CE isn't "real" CE mode but normal MMU + some timing adjustments. (Because there is not much point). Timing adjustments adjusted, now MMU + CE shouldn't be much slower than non-MMU CE mode.
+- PAL filter (and probably some other software filters that internally use YUV) had wrong colors since 4.3.0, 32-bit version only.
+
 Beta 8:
 
 - Sprite collision bitplane end position calculation was not updated to 4.9.0+ chipset emulation. Probably didn't cause problems because it was too large and it most likely  could not cause any spurious collisions.
