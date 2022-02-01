@@ -261,6 +261,7 @@ void getfilterrect2(int monid, RECT *sr, RECT *dr, RECT *zr, int dst_width, int 
 	int keep_aspect = currprefs.gf[ad->picasso_on].gfx_filter_keep_aspect;
 	int filter_aspect = currprefs.gf[ad->picasso_on].gfx_filter_aspect;
 	int palntscadjust = 1;
+	int autoselect = 0;
 
 	float filter_horiz_zoom = currprefs.gf[ad->picasso_on].gfx_filter_horiz_zoom / 1000.0f;
 	float filter_vert_zoom = currprefs.gf[ad->picasso_on].gfx_filter_vert_zoom / 1000.0f;
@@ -326,13 +327,22 @@ void getfilterrect2(int monid, RECT *sr, RECT *dr, RECT *zr, int dst_width, int 
 	srcratio = 4.0f / 3.0f;
 
 	if (!specialmode && scalemode == AUTOSCALE_STATIC_AUTO) {
-		int w = (dst_width / 2) << currprefs.gfx_resolution;
-		int h = (dst_height / 2) << currprefs.gfx_vresolution;
 		filter_aspect = 0;
 		keep_aspect = 0;
 		palntscadjust = 1;
-		if (w >= 640 && w <= 800 && h >= 480 && h <= 600) {
+		if (dst_width >= 640 && dst_width <= 800 && dst_height >= 480 && dst_height <= 600) {
+			autoselect = 1;
 			scalemode = AUTOSCALE_NONE;
+			int m = 1;
+			int w = AMIGA_WIDTH_MAX << currprefs.gfx_resolution;
+			int h = AMIGA_HEIGHT_MAX << currprefs.gfx_vresolution;
+			for (;;) {
+				if (w * (m * 2) > dst_width || h * (m * 2) > dst_height) {
+					break;
+				}
+				m *= 2;
+			}
+			autoselect = m;
 		} else {
 			float dstratio = 1.0f * dst_width / dst_height;
 			scalemode = AUTOSCALE_STATIC_NOMINAL;
@@ -340,7 +350,6 @@ void getfilterrect2(int monid, RECT *sr, RECT *dr, RECT *zr, int dst_width, int 
 				filter_aspect = -1;
 			}
 		}
-		w = res_match(w);
 	}
 
 	if (filter_aspect > 0) {
@@ -380,7 +389,7 @@ void getfilterrect2(int monid, RECT *sr, RECT *dr, RECT *zr, int dst_width, int 
 				cw = avidinfo->drawbuffer.inwidth;
 				ch = avidinfo->drawbuffer.inheight;
 				cv = 1;
-				if (!(beamcon0 & 0x80) && (scalemode == AUTOSCALE_STATIC_NOMINAL)) { // || scalemode == AUTOSCALE_INTEGER)) {
+				if (!(beamcon0 & BEAMCON0_VARBEAMEN) && (scalemode == AUTOSCALE_STATIC_NOMINAL)) { // || scalemode == AUTOSCALE_INTEGER)) {
 					cx = 28 << currprefs.gfx_resolution;
 					cy = 10 << currprefs.gfx_vresolution;
 					cw -= 40 << currprefs.gfx_resolution;
@@ -692,6 +701,24 @@ cont:
 			dstratio = dstratio * m;
 		}
 
+	}
+
+	if (autoselect) {
+		xmult *= autoselect;
+		ymult *= autoselect;
+		if (currprefs.gfx_vresolution == VRES_NONDOUBLE) {
+			if (currprefs.gfx_resolution == RES_HIRES) {
+				ymult *= 2;
+			} else if (currprefs.gfx_resolution == RES_SUPERHIRES) {
+				xmult /= 2;
+			}
+		} else {
+			if (currprefs.gfx_resolution == RES_LORES) {
+				xmult *= 2;
+			} else if (currprefs.gfx_resolution == RES_SUPERHIRES) {
+				xmult /= 2;
+			}
+		}
 	}
 
 	{
