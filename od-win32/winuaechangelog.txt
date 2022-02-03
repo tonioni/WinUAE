@@ -1,4 +1,6 @@
 
+4.9.1
+
 Beta 9:
 
 - b8 "default" filter update was not complete. Now image is automatically integer scaled if original image is half (or less) size of host window/fullscreen size.
@@ -7,7 +9,7 @@ Beta 9:
 
 Beta 8:
 
-- Sprite collision bitplane end position calculation was not updated to 4.9.0+ chipset emulation. Probably didn't cause problems because it was too large and it most likely  could not cause any spurious collisions.
+- Sprite collision bitplane end position calculation was not updated to 4.9.0+ chipset emulation. Probably didn't cause problems because it was too large and it most likely could not cause any spurious collisions.
 - b6 ECS Denise CSYNC fix broke vertical blanking when EXTBLANKEN=1. Made only visible difference if mode was weird (not WB monitor driver)
 - If programmed mode HSYNC start is later than normal, use it instead of standard VGA-like config. (More correct horizontal position if weird mode)
 - Yet another Copper comparator update. WAIT and SKIP timing change again, all my statefile tests still work (and one that didn't also works now). SKIP comparison check timing is not same as WAIT, SKIP seems to check comparison result just before next copper instruction gets loaded (SKIP comparison active as long as IR1 and IR2 bits 0 are set)
