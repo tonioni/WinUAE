@@ -70,6 +70,8 @@ static int feature_usp = 0;
 static int feature_exception_vectors = 0;
 static int feature_interrupts = 0;
 static int feature_instruction_size = 0;
+static int fpu_min_exponent, fpu_max_exponent;
+static int rnd_seed;
 static TCHAR *feature_instruction_size_text = NULL;
 static uae_u32 feature_addressing_modes[2];
 static int feature_gzip = 0;
@@ -169,8 +171,10 @@ static int interrupt_count;
 static int interrupt_cycle_cnt, interrupt_delay_cnt;
 static int interrupt_level;
 static uaecptr test_instruction_end_pc;
-static uaecptr lm_safe_address;
+static uaecptr lm_safe_address1, lm_safe_address2;
 static uae_u8 ccr_cnt;
+static int condition_cnt;
+static int subtest_count;
 
 struct uae_prefs currprefs;
 
@@ -226,9 +230,10 @@ static int is_superstack_use_required(void)
 
 static bool valid_address(uaecptr addr, int size, int rwp)
 {
-	int w = rwp == 2;
+	int w = (rwp & 0x7fff) == 2;
 	addr &= addressing_mask;
 	size--;
+
 	if (low_memory_size != 0xffffffff && addr + size < low_memory_size) {
 		if (addr < test_low_memory_start || test_low_memory_start == 0xffffffff)
 			goto oob;
@@ -280,7 +285,7 @@ static bool valid_address(uaecptr addr, int size, int rwp)
 	}
 	if (addr >= test_memory_start && addr + size < test_memory_end) {
 		// make sure we don't modify our test instruction
-		if (testing_active && w) {
+		if ((testing_active && w) || (rwp > 0 && (rwp & 0x8000))) {
 			if (addr >= opcode_memory_start && addr + size < opcode_memory_start + OPCODE_AREA)
 				goto oob;
 		}
@@ -300,9 +305,9 @@ oob:
 
 static bool check_valid_addr(uaecptr addr, int size, int rwp)
 {
-	if (!valid_address(addr, 1, rwp))
+	if (!valid_address(addr, 1, rwp | 0x8000))
 		return false;
-	if (!valid_address(addr + size - 1, 1, rwp))
+	if (!valid_address(addr + size, 1, rwp | 0x8000))
 		return false;
 	return true;
 }
@@ -336,7 +341,7 @@ static uae_u8 *get_addr(uaecptr addr, int size, int rwp)
 	size--;
 
 	// if loop mode: loop mode buffer can be only accessed by loop mode store instruction
-	if (feature_loop_mode_jit && testing_active && addr >= test_memory_start && addr + size < test_memory_start + LM_BUFFER && lm_safe_address != regs.pc) {
+	if (feature_loop_mode_jit && testing_active && addr >= test_memory_start && addr + size < test_memory_start + LM_BUFFER && (lm_safe_address1 != regs.pc && lm_safe_address2 != regs.pc)) {
 		goto oob;
 	}
 
@@ -368,7 +373,7 @@ static void count_interrupt_cycles(int cycles)
 	interrupt_cycle_cnt -= cycles;
 	if (interrupt_cycle_cnt <= 0) {
 		interrupt_cycle_cnt = 0;
-		interrupt_level = 6;
+		Exception(24 + 6);
 	}
 }
 
@@ -841,7 +846,7 @@ uae_u32(*x_cp_next_ilong)(void);
 
 uae_u32(*x_next_iword)(void);
 uae_u32(*x_next_ilong)(void);
-void (*x_do_cycles)(unsigned long);
+void (*x_do_cycles)(uae_u32);
 
 uae_u32(REGPARAM3 *x_cp_get_disp_ea_020)(uae_u32 base, int idx) REGPARAM;
 
@@ -1017,9 +1022,10 @@ void check_t0_trace(void)
 	}
 }
 
-void cpureset(void)
+bool cpureset(void)
 {
 	cpu_halted = -1;
+	return false;
 }
 
 static void doexcstack2(void)
@@ -2017,7 +2023,7 @@ static uae_u8 *store_rel(uae_u8 *dst, uae_u8 mode, uae_u32 s, uae_u32 d, int ord
 	if (diff >= -128 && diff < 128) {
 		*dst++ = mode | CT_RELATIVE_START_BYTE;
 		*dst++ = diff & 0xff;
-	} else if (diff >= -32768 && diff < 32767) {
+	} else if (diff >= -32768 && diff < 32768) {
 		*dst++ = mode | CT_RELATIVE_START_WORD;
 		*dst++ = (diff >> 8) & 0xff;
 		*dst++ = diff & 0xff;
@@ -2358,7 +2364,7 @@ static void save_data(uae_u8 *dst, const TCHAR *dir, int size)
 		pl(data, feature_exception_vectors);
 		fwrite(data, 1, 4, f);
 		data[0] = data[1] = data[2] = 0;
-		pl(data, feature_loop_mode_cnt);
+		pl(data, feature_loop_mode_cnt | (feature_loop_mode_jit << 8));
 		fwrite(&data[0], 1, 4, f);
 		fwrite(&data[1], 1, 4, f);
 		fwrite(&data[2], 1, 4, f);
@@ -2688,7 +2694,7 @@ static int create_ea_random(uae_u16 *opcodep, uaecptr pc, int mode, int reg, str
 					addr = pc + 2 - 2;
 				} else {
 					addr = cur_regs.regs[reg + 8];
-					if (reg == 7) {
+					if (reg == 7 && flagsp) {
 						*flagsp |= EAFLAG_SP;
 					}
 				}
@@ -2760,7 +2766,7 @@ static int create_ea_random(uae_u16 *opcodep, uaecptr pc, int mode, int reg, str
 			uaecptr pce = pc;
 			pc += 2;
 			// calculate lenght of extension
-			if (mode == Ad8r && reg == 7) {
+			if (mode == Ad8r && reg == 7 && flagsp) {
 				*flagsp |= EAFLAG_SP;
 			}
 			*eap = ShowEA_disp(&pce, mode == Ad8r ? regs.regs[reg + 8] : pce, NULL, NULL, false);
@@ -3036,6 +3042,12 @@ static int create_ea_random(uae_u16 *opcodep, uaecptr pc, int mode, int reg, str
 					v &= 0x00ff;
 				} else if ((imm16_cnt & 15) == 0) {
 					v = 0;
+				}
+				// clear A7 from register mask
+				if (dp->mnemo == i_MVMEL) {
+					v &= ~0x8000;
+				} else if (dp->mnemo == i_MVMLE) {
+					v &= ~0x0001;
 				}
 				imm16_cnt++;
 				put_word_test(pc, v);
@@ -3864,20 +3876,20 @@ static bool check_interrupts(void)
 		int ic = interrupt_count & 15;
 		int lvl = interrupt_levels[ic];
 		if (lvl > 0 && lvl > feature_min_interrupt_mask) {
-			Exception(lvl + 24);
+			Exception(24 + lvl);
 			return true;
 		}
 	}
 	return false;
 }
 
-static void execute_ins(uaecptr endpc, uaecptr targetpc, struct instr *dp)
+static void execute_ins(uaecptr endpc, uaecptr targetpc, struct instr *dp, bool fpumode)
 {
 	uae_u16 opc = regs.ir;
 	uae_u16 opw1 = (opcode_memory[2] << 8) | (opcode_memory[3] << 0);
 	uae_u16 opw2 = (opcode_memory[4] << 8) | (opcode_memory[5] << 0);
-	if (opc == 0x4c58
-		&& opw1 == 0xf756
+	if (opc == 0xf208
+		&& opw1 == 0xa000
 		//&& opw2 == 0x4afc
 		)
 		printf("");
@@ -3930,7 +3942,7 @@ static void execute_ins(uaecptr endpc, uaecptr targetpc, struct instr *dp)
 		cnt = 100;
 	}
 	if (feature_interrupts == 2) {
-		interrupt_cycle_cnt = 10;
+		interrupt_cycle_cnt = SERPER * 10 - 20;
 	}
 
 	for (;;) {
@@ -3973,6 +3985,21 @@ static void execute_ins(uaecptr endpc, uaecptr targetpc, struct instr *dp)
 		}
 
 		(*cpufunctbl[opc])(opc);
+
+		if (fpumode) {
+			// skip result has too large or small exponent
+			for (int i = 0; i < 8; i++) {
+				if (regs.fp[i].fpx.high != cur_regs.fp[i].fpx.high || regs.fp[i].fpx.low != cur_regs.fp[i].fpx.low) {
+					int exp = regs.fp[i].fpx.high & 0x7fff;
+					if (exp != 0x0000) {
+						if (exp < fpu_min_exponent || exp > fpu_max_exponent) {
+							test_exception = -1;
+							break;
+						}
+					}
+				}
+			}
+		}
 
 		if (test_ins) {
 			// skip if test instruction modified loop mode register
@@ -4367,6 +4394,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 			xorshiftstate ^= ovrfilename[i];
 		}
 	}
+	xorshiftstate ^= rnd_seed;
 
 	int pathlen = _tcslen(path);
 	_stprintf(dir, _T("%s%s"), path, mns);
@@ -4416,11 +4444,12 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 
 	int quick = 0;
 	int rounds = feature_test_rounds;
-	int subtest_count = 0;
 	int data_saved = 0;
 	int first_cycles = 1;
 
 	int count = 0;
+
+	subtest_count = 0;
 
 	if (feature_loop_mode_jit) {
 		registers[8 + 3] = test_memory_start; // A3 = start of test memory
@@ -4545,8 +4574,8 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 		for (int i = 0; i < MAX_REGISTERS; i++) {
 			dst = store_reg(dst, CT_DREG + i, 0, cur_regs.regs[i], -1);
 		}
-		for (int i = 0; i < 8; i++) {
-			if (fpumode) {
+		if (fpumode) {
+			for (int i = 0; i < 8; i++) {
 				dst = store_fpureg(dst, CT_FPREG + i, NULL, cur_regs.fp[i].fpx, 1);
 			}
 			dst = store_reg(dst, CT_FPIAR, 0, cur_regs.fpiar, -1);
@@ -4561,6 +4590,11 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 		uae_u32 instructionendpc_old = opcode_memory_start;
 		uae_u32 startpc_old = opcode_memory_start;
 		int branch_target_swap_mode_old = 0;
+		int doopcodeswap = 1;
+
+		if (feature_interrupts == 2) {
+			doopcodeswap = 0;
+		}
 
 		if (verbose) {
 			if (target_ea[0] != 0xffffffff)
@@ -4691,7 +4725,8 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 					fpuopsize = -1;
 					test_exception = 0;
 					test_exception_extra = 0;
-					lm_safe_address = 0xffffffff;
+					lm_safe_address1 = 0xffffffff;
+					lm_safe_address2 = 0xffffffff;
 
 					target_ea[0] = target_ea_bak[0];
 					target_ea[1] = target_ea_bak[1];
@@ -4736,10 +4771,15 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 					// interrupt timing test mode
 					if (feature_interrupts == 2) {
 						pc -= 2;
-						put_word_test(pc + 0, 0x7000 | interrupt_delay_cnt); // moveq #x,d0 (4 cycles)
-						put_word_test(pc + 2, 0xe0b9); // ror.l d0,d1 (4 + 4 + d0 * 2 cycles)
-						put_word_test(pc + 4, NOP_OPCODE);
-						pc += 6;
+						// move.w #x,0xdff032 (SERDAT) (20 cycles)
+						put_long_test(pc + 0, (0x33fc << 16) | 0x100 | '!');
+						put_long_test(pc + 4, 0x00dff030);
+//						// moveq #x,d0 (4 cycles)
+//						put_word_test(pc + 8, 0x7000 | interrupt_delay_cnt);
+						// ror.l d0,d0 (4 + 4 + d0 * 2 cycles)
+						put_word_test(pc + 8, 0xe0b8);
+						put_word_test(pc + 10, NOP_OPCODE); // (4 cycles)
+						pc += 12;
 						opcode_memory_address = startpc = pc;
 						pc += 2;
 					}
@@ -4751,7 +4791,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 						put_long_test(pc, 0x4e500004 | (dp->sreg << 16));
 						pc += 4;
 						opcode_memory_address = pc;
-						loopmode_jump_offset = -4;
+						loopmode_jump_offset = 4;
 						pc += 2;
 					}
 
@@ -4908,11 +4948,37 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
  					if (feature_loop_mode_jit || feature_loop_mode_68010) {
 						int cctype = isccinst(dp);
 						// dbf dn, opcode_memory_start
-						if (feature_loop_mode_jit) {
+						if (feature_loop_mode_jit == 1 || feature_loop_mode_jit == 2) {
 							// move ccr,(a3)+
-							lm_safe_address = pc;
+							lm_safe_address1 = pc;
 							put_word(pc, LM_OPCODE);
 							pc += 2;
+						} else if (feature_loop_mode_jit == 3) {
+							static const int consts[] = { 5, 7, 9, 11, 0 };
+							int c = condition_cnt % 5;
+							int cond = consts[c];
+							if (cond == 0) {
+								// X
+								put_long(pc, 0x91c8c188); // SUBA.L A0,A0 ; EXG.L D0,A0
+								pc += 4;
+								put_word(pc, 0x4040); // NEGX.W D0
+								pc += 2;
+							} else {
+								// CZVN
+								put_word(pc, (cond << 8) | 0x50c0); // Scc D0
+								pc += 2;
+							}
+							put_word(pc, 0x3040); // MOVE.W D0,A0
+							pc += 2;
+							lm_safe_address1 = pc;
+							put_word(pc, 0x36c8); // MOVE.W A0,(A3)+
+							pc += 2;
+							put_long(pc, 0x307c0000 | c); // MOVEA.W #x,A0
+							pc += 4;
+							lm_safe_address2 = pc;
+							put_word(pc, 0x36c8); // MOVE.W A0,(A3)+
+							pc += 2;
+							condition_cnt++;
 						}
 						// dbf dn,label
 						put_long_test(pc, ((0x51c8 | feature_loop_mode_register) << 16) | ((opcode_memory_address - pc - loopmode_jump_offset - 2) & 0xffff));
@@ -4937,7 +5003,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 								// bra.s start
 								put_word(pc, 0x6000 + (0xfe - pc - opcode_memory_address));
 								pc += 2;
-							} else if (feature_loop_mode_jit == 2) {
+							} else if (feature_loop_mode_jit == 2 || feature_loop_mode_jit == 4) {
 								// generate extra round with randomized CCR
 								// tst.l dx
 								put_word(pc, 0x4a80 | feature_loop_mode_register);
@@ -4970,7 +5036,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 
 					// end word, needed to detect if instruction finished normally when
 					// running on real hardware.
-					uae_u32 originalendopcode = (ILLG_OPCODE << 16) | NOP_OPCODE;
+					uae_u32 originalendopcode = (NOP_OPCODE << 16) | ILLG_OPCODE;
 					uae_u32 endopcode = originalendopcode;
 					uae_u32 actualendpc = pc;
 					uae_u32 instruction_end_pc = pc;
@@ -5019,7 +5085,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 					uaecptr nextpc;
 					srcaddr = 0xffffffff;
 					dstaddr = 0xffffffff;
-					uae_u32 dflags = m68k_disasm_2(out, sizeof(out) / sizeof(TCHAR), opcode_memory_address, &nextpc, 1, &srcaddr, &dstaddr, 0xffffffff, 0);
+					uae_u32 dflags = m68k_disasm_2(out, sizeof(out) / sizeof(TCHAR), opcode_memory_address, NULL, 0, &nextpc, 1, &srcaddr, &dstaddr, 0xffffffff, 0);
 					if (verbose) {
 						my_trim(out);
 						wprintf(_T("%08u %s"), subtest_count, out);
@@ -5035,7 +5101,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 								out_of_test_space = false;
 								if (get_word_test(nextpc) == ILLG_OPCODE)
 									break;
-								m68k_disasm_2(out, sizeof(out) / sizeof(TCHAR), nextpc, &nextpc, 1, NULL, NULL, 0xffffffff, 0);
+								m68k_disasm_2(out, sizeof(out) / sizeof(TCHAR), nextpc, NULL, 0, &nextpc, 1, NULL, NULL, 0xffffffff, 0);
 								my_trim(out);
 								wprintf(_T("%08u %s\n"), subtest_count, out);
 							}
@@ -5043,7 +5109,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 					}
 					
 					// disassembler may set this
-					out_of_test_space = false;
+ 					out_of_test_space = false;
 
 					if ((dflags & 1) && target_ea[0] != 0xffffffff && srcaddr != 0xffffffff && srcaddr != target_ea[0]) {
 						if (verbose) {
@@ -5152,8 +5218,13 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 					if (bc) {
 						if (feature_loop_mode_jit) {
 							if (srcaddr != test_instruction_end_pc) {
-								// addq.w #2,a3, jmp xxx
-								put_long_test(srcaddr, 0x544b4ef9);
+								if (feature_loop_mode_jit >= 3) {
+									// addq.w #4,a3, jmp xxx
+									put_long_test(srcaddr, 0x584b4ef9);
+								} else {
+									// addq.w #2,a3, jmp xxx
+									put_long_test(srcaddr, 0x544b4ef9);
+								}
 								put_long_test(srcaddr + 4, test_instruction_end_pc);
 							}
 						} else {
@@ -5180,6 +5251,9 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 							}
 						}
 					}
+
+					if (subtest_count == 8192)
+						printf("");
 
 					// save opcode memory
 					dst = store_mem_bytes(dst, opcode_memory_start, instruction_end_pc - opcode_memory_start, oldcodebytes, true);
@@ -5220,6 +5294,12 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 						dst = store_reg(dst, CT_AREG + 7, 0, target_usp_address, sz_long);
 					}
 
+					if (feature_interrupts == 2) {
+						*dst++ = CT_EDATA;
+						*dst++ = CT_EDATA_IRQ_CYCLES;
+						*dst++ = interrupt_delay_cnt;
+					}
+
 					// pre-test data end
 					*dst++ = CT_END_INIT;
 
@@ -5236,6 +5316,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 					int t_cnt = 0;
 
 					int extraccr = 0;
+					interrupt_delay_cnt = -1;
 
 					// extra loops for supervisor and trace
 					uae_u16 sr_allowed_mask = feature_sr_mask & 0xf000;
@@ -5245,24 +5326,31 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 						uae_u16 sr_mask = 0;
 
 						int maxflag;
+						int maxflagcnt;
+						int maxflagshift;
 						int flagmode = 0;
 						if (fpumode) {
 							if (fpuopcode == FPUOPP_ILLEGAL || feature_flag_mode > 1) {
 								// Illegal FPU instruction: all on/all off only (*2)
 								maxflag = 2;
+								maxflagshift = 1;
 							} else if (dp->mnemo == i_FDBcc || dp->mnemo == i_FScc || dp->mnemo == i_FTRAPcc || dp->mnemo == i_FBcc) {
 								// FXXcc-instruction: FPU condition codes (*16)
 								maxflag = 16;
+								maxflagshift = 4;
 								flagmode = 1;
 							} else {
 								// Other FPU instructions: FPU rounding and precision (*16)
 								maxflag = 16;
+								maxflagshift = 4;
 							}
 						} else {
 							maxflag = 32; // all flag combinations (*32)
+							maxflagshift = 5;
 							if (feature_flag_mode > 1 || (feature_flag_mode == 1 && (dp->mnemo == i_ILLG || !isccinst(dp)))) {
 								// if not cc instruction or illegal or forced: all on/all off (*2)
 								maxflag = 2;
+								maxflagshift = 1;
 							}
 						}
 
@@ -5283,10 +5371,16 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 						}
 						*dst++ = (uae_u8)(maxflag | (fpumode ? 0x80 : 0x00) | (flagmode ? 0x40 : 0x00));
 
+						maxflagcnt = maxflag;
+						if (feature_interrupts == 2) {
+							maxflagcnt *= 64;
+						}
+
 						// Test every CPU CCR or FPU SR/rounding/precision combination
-						for (int ccr = 0; ccr < maxflag; ccr++) {
+						for (int ccrcnt = 0; ccrcnt < maxflagcnt; ccrcnt++) {
 
 							bool skipped = false;
+							int ccr = ccrcnt & ((1 << maxflagshift) - 1);
 
 							out_of_test_space = 0;
 							test_exception = 0;
@@ -5306,7 +5400,9 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 
 							// swap end opcode illegal/nop
 							noaccesshistory++;
-							endopcode = (endopcode >> 16) | (endopcode << 16);
+							if (doopcodeswap) {
+								endopcode = (endopcode >> 16) | (endopcode << 16);
+							}
 							int extraopcodeendsize = ((endopcode >> 16) == NOP_OPCODE) ? 2 : 0;
 							int endopcodesize = 0;
 							if (!is_nowrite_address(pc - 4, 4)) {
@@ -5406,6 +5502,10 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 							}
 							regs.sr |= feature_min_interrupt_mask << 8;
 
+							if (feature_interrupts == 2) {
+								regs.regs[0] = ccrcnt >> maxflagshift;
+							}
+
 							// override special register values
 							for (int i = 0; i < regdatacnt; i++) {
 								struct regdata *rd = &regdatas[i];
@@ -5430,11 +5530,11 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 							if (regs.sr & 0x2000)
 								prev_s_cnt++;
 
-							if (subtest_count == 2052)
-								printf("");
+							if (subtest_count == 20609)
+ 								printf("");
 
 							// execute test instruction(s)
-							execute_ins(pc - endopcodesize, branch_target_pc, dp);
+							execute_ins(pc - endopcodesize, branch_target_pc, dp, fpumode);
 
 							if (regs.s)
 								s_cnt++;
@@ -5704,6 +5804,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 							// undo any test instruction generated memory modifications
 							undo_memory(ahist, ahcnt_start);
 						}
+
 					nextextra:
 						extraccr++;
 						if (extraccr >= 16)
@@ -5757,7 +5858,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 						}
 					}
 					if (verbose) {
-						wprintf(_T(" OK=%d OB=%d S=%d/%d T=%d STP=%d"), ok, exception_array[0], prev_s_cnt, s_cnt, t_cnt, cnt_stopped);
+						wprintf(_T(" OK=%d OB=%d S=%d/%d T=%d STP=%d I=%d"), ok, exception_array[0], prev_s_cnt, s_cnt, t_cnt, cnt_stopped, interrupt_delay_cnt);
 						if (!ccr_done)
 							wprintf(_T(" X"));
 						for (int i = 2; i < 128; i++) {
@@ -5847,14 +5948,18 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 			nextround = true;
 		}
 
+#if 0
+		// interrupt delay test from 0 to 63
 		if (feature_interrupts == 2) {
 			interrupt_delay_cnt++;
 			if (interrupt_delay_cnt >= 64) {
-				nextround = false;
+				break;
 			} else {
 				nextround = true;
+				rounds = 1;
 			}
 		}
+#endif
 
 		if (target_opcode_address != 0xffffffff || target_usp_address != 0xffffffff) {
 			nextround = false;
@@ -6279,6 +6384,12 @@ static int test(struct ini_data *ini, const TCHAR *sections, const TCHAR *testna
 		addressing_mask = 0xffffffff;
 	}
 
+	currprefs.int_no_unimplemented = true;
+	ini_getvalx(ini, sections, _T("cpu_unimplemented"), &v);
+	if (v) {
+		currprefs.int_no_unimplemented = false;
+	}
+
 	currprefs.fpu_model = 0;
 	currprefs.fpu_mode = 1;
 	ini_getvalx(ini, sections, _T("fpu"), &currprefs.fpu_model);
@@ -6302,6 +6413,29 @@ static int test(struct ini_data *ini, const TCHAR *sections, const TCHAR *testna
 			return 0;
 		}
 	}
+
+	currprefs.fpu_no_unimplemented = true;
+	if (ini_getvalx(ini, sections, _T("fpu_unimplemented"), &v)) {
+		if (v) {
+			currprefs.fpu_no_unimplemented = false;
+		}
+	}
+
+	fpu_min_exponent = 0;
+	fpu_max_exponent = 32768;
+	if (ini_getvalx(ini, sections, _T("fpu_min_exponent"), &v)) {
+		if (v >= 0) {
+			fpu_min_exponent = v;
+		}
+	}
+	if (ini_getvalx(ini, sections, _T("fpu_max_exponent"), &v)) {
+		if (v >= 0) {
+			fpu_max_exponent = v;
+		}
+	}
+
+	rnd_seed = 0;
+	ini_getvalx(ini, sections, _T("seed"), &rnd_seed);
 
 	verbose = 1;
 	ini_getvalx(ini, sections, _T("verbose"), &verbose);
@@ -6802,9 +6936,6 @@ static int test(struct ini_data *ini, const TCHAR *sections, const TCHAR *testna
 		cpudatatbl[opcode].branch = tbl[i].branch;
 	}
 
-	currprefs.int_no_unimplemented = true;
-	currprefs.fpu_no_unimplemented = true;
-
 	for (int opcode = 0; opcode < 65536; opcode++) {
 		cpuop_func *f;
 		instr *table = &table68k[opcode];
@@ -6993,6 +7124,8 @@ int __cdecl main(int argc, char *argv[])
 		wprintf(_T("Couldn't open cputestgen.ini\n"));
 		return 0;
 	}
+
+	disasm_init();
 
 	TCHAR *sptr = sections;
 	_tcscpy(sections, INISECTION);

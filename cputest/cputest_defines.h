@@ -1,5 +1,5 @@
 
-#define DATA_VERSION 21
+#define DATA_VERSION 22
 
 #define CT_FPREG 0
 #define CT_DREG 0
@@ -11,6 +11,7 @@
 #define CT_FPIAR 20
 #define CT_FPSR 21
 #define CT_FPCR 22
+#define CT_EDATA 23
 #define CT_CYCLES 25
 #define CT_ENDPC 26
 #define CT_BRANCHTARGET 27
@@ -20,6 +21,8 @@
 #define CT_MEMWRITES 31
 #define CT_DATA_MASK 31
 #define CT_EXCEPTION_MASK 63
+
+#define CT_EDATA_IRQ_CYCLES 1
 
 #define CT_SIZE_BYTE (0 << 5)
 #define CT_SIZE_WORD (1 << 5)
@@ -54,3 +57,5 @@
 #define NOP_OPCODE 0x2048
 #define ILLG_OPCODE 0x4afc
 #define LM_OPCODE 0x42db
+
+#define SERPER 8

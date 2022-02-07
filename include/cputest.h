@@ -66,4 +66,4 @@ void m68k_do_jsr_ce(uaecptr oldpc, uaecptr dest);
 void m68k_setstopped(void);
 void check_t0_trace(void);
 
-void cpureset(void);
+bool cpureset(void);

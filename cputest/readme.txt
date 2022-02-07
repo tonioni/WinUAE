@@ -218,3 +218,7 @@ Only test generator was updated. Data structures or m68k tester has not been cha
 - Interrupt testing (Amiga only, INTREQ bits set one by one, validate correct exception).
 - Multiple test sets can be generated and tested in single step.
 - Stack usage reduced, gzip decompression works with default 4096 byte stack.
+
+06.12.2021
+
+- FPU testing improvements

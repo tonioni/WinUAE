@@ -25,6 +25,7 @@
 	.globl _cyclereg_address5
 	.globl _cyclereg_address6
 	.globl _berrcopy
+	.globl _fpucomp
 
 | must match main.c
 S_DREG = 0
@@ -49,6 +50,20 @@ S_FPSR = S_FPCR+4
 S_FSAVE = S_FPSR+4
 S_NEXT = S_FSAVE+216
 
+	| v1, v2, limit
+	| abs((v2 - v1) / v1) > limit
+_fpucomp:
+	move.l 4(sp),a0
+	fmovem.x (a0),fp0-fp2
+	fsub.x fp0,fp1
+	fdiv.x fp0,fp1
+	fabs.x fp1
+	moveq #1,d0
+	fcmp.x fp1,fp2
+	fbgt .larger
+	moveq #0,d0
+.larger:
+	rts
 
 	| src, dst, size, >68000
 _berrcopy:
@@ -214,7 +229,7 @@ _execute_test010:
 _cyclereg_address2:
 	move.w CYCLEREG,cycles
 	| pre set data output buffer.
-	| we don't want random DOB contents in bus/address error frame
+	| we dont want random DOB contents in bus/address error frame
 	move.w #0xf00d,dummy
 	rte
 
