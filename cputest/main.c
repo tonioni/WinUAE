@@ -282,7 +282,7 @@ static struct accesshistory ahist[MAX_ACCESSHIST];
 static int is_valid_test_addr_read(uae_u32 a)
 {
 	a &= addressing_mask;
-	if ((uae_u8 *)a >= safe_memory_start && (uae_u8 *)a < safe_memory_end && (safe_memory_mode & 1))
+	if ((uae_u8*)a >= safe_memory_start && (uae_u8*)a < safe_memory_end && (safe_memory_mode & 1))
 		return 0;
 	return (a >= test_low_memory_start && a < test_low_memory_end && test_low_memory_start != 0xffffffff) ||
 		(a >= test_high_memory_start && a < test_high_memory_end && test_high_memory_start != 0xffffffff) ||
@@ -292,7 +292,7 @@ static int is_valid_test_addr_read(uae_u32 a)
 static int is_valid_test_addr_readwrite(uae_u32 a)
 {
 	a &= addressing_mask;
-	if ((uae_u8 *)a >= safe_memory_start && (uae_u8 *)a < safe_memory_end)
+	if ((uae_u8*)a >= safe_memory_start && (uae_u8*)a < safe_memory_end)
 		return 0;
 	return (a >= test_low_memory_start && a < test_low_memory_end && test_low_memory_start != 0xffffffff) ||
 		(a >= test_high_memory_start && a < test_high_memory_end && test_high_memory_start != 0xffffffff) ||
@@ -1056,7 +1056,7 @@ static uae_u8 *get_memory_addr(uae_u8 *p, uae_u8 **addrp)
 #ifndef M68K
 				uae_u8 *addr = low_memory + val;
 #else
-				uae_u8 *addr = (uae_u8 *)val;
+				uae_u8 *addr = (uae_u8*)val;
 #endif
 				validate_mode(p[0], CT_MEMWRITE);
 				*addrp = addr;
@@ -1065,7 +1065,7 @@ static uae_u8 *get_memory_addr(uae_u8 *p, uae_u8 **addrp)
 #ifndef M68K
 				uae_u8 *addr = test_memory + (val - test_memory_addr);
 #else
-				uae_u8 *addr = (uae_u8 *)val;
+				uae_u8 *addr = (uae_u8*)val;
 #endif
 				validate_mode(p[0], CT_MEMWRITE);
 				*addrp = addr;
@@ -1448,18 +1448,18 @@ static void addinfo(void)
 	if (disasm) {
 		out_disasm(opcode_memory);
 		if (r->branchtarget != 0xffffffff && !(r->branchtarget & 1)) {
-			out_disasm((uae_u8 *)r->branchtarget);
+			out_disasm((uae_u8*)r->branchtarget);
 		}
 	}
 
 	uae_u16 *code = (uae_u16*)opcode_memory;
 	if (code[0] == 0x4e73 || code[0] == 0x4e74 || code[0] == 0x4e75 || code[0] == 0x4e77) {
 		addinfo_bytes("P", stackaddr, stackaddr_ptr, -SIZE_STORED_ADDRESS_OFFSET, SIZE_STORED_ADDRESS);
-		addinfo_bytes(" ", (uae_u8 *)stackaddr_ptr - SIZE_STORED_ADDRESS_OFFSET, stackaddr_ptr, -SIZE_STORED_ADDRESS_OFFSET, SIZE_STORED_ADDRESS);
+		addinfo_bytes(" ", (uae_u8*)stackaddr_ptr - SIZE_STORED_ADDRESS_OFFSET, stackaddr_ptr, -SIZE_STORED_ADDRESS_OFFSET, SIZE_STORED_ADDRESS);
 	}
 	if (r->srcaddr != 0xffffffff) {
 		uae_u8 *a = srcaddr;
-		uae_u8 *b = (uae_u8 *)r->srcaddr - SIZE_STORED_ADDRESS_OFFSET;
+		uae_u8 *b = (uae_u8*)r->srcaddr - SIZE_STORED_ADDRESS_OFFSET;
 		addinfo_bytes("S", a, r->srcaddr, -SIZE_STORED_ADDRESS_OFFSET, SIZE_STORED_ADDRESS);
 		if (addr_diff(a, b, SIZE_STORED_ADDRESS)) {
 			addinfo_bytes(" ", b, r->srcaddr, -SIZE_STORED_ADDRESS_OFFSET, SIZE_STORED_ADDRESS);
@@ -1474,7 +1474,7 @@ static void addinfo(void)
 		}
 	}
 	if (r->branchtarget != 0xffffffff && r->srcaddr != r->branchtarget && r->dstaddr != r->branchtarget) {
-		uae_u8 *b = (uae_u8 *)r->branchtarget - SIZE_STORED_ADDRESS_OFFSET;
+		uae_u8 *b = (uae_u8*)r->branchtarget - SIZE_STORED_ADDRESS_OFFSET;
 		addinfo_bytes("B", b, r->branchtarget, -SIZE_STORED_ADDRESS_OFFSET, SIZE_STORED_ADDRESS);
 	}
 //	sprintf(outbp, "STARTPC=%08x ENDPC=%08x\n", startpc, endpc);
@@ -1675,7 +1675,7 @@ static int compare_exception(uae_u8 *s1, uae_u8 *s2, int len, int domask, uae_u8
 
 static uae_u8 *get_exceptionframe(struct registers *regs, short excnum, int *sizep)
 {
-	uae_u8 *frame = (uae_u8 *)regs->excframe;
+	uae_u8 *frame = (uae_u8*)regs->excframe;
 	short size = 0;
 	if (cpu_lvl == 0) {
 		if (excnum == 2 || excnum == 3) {
@@ -1809,7 +1809,7 @@ static uae_u8 *validate_exception(struct registers *regs, uae_u8 *p, short excnu
 		}
 		// trace only
 		if (excnum == 9 && *gotexcnum == 4) {
-			sp = (uae_u8 *)regs->tracedata;
+			sp = (uae_u8*)regs->tracedata;
 			*gotexcnum = 9;
 		}
 	}
@@ -2919,6 +2919,10 @@ static uae_u8 *validate_test(uae_u8 *p, short ignore_errors, short ignore_sr, st
 		errflag = 0;
 	}
 
+	if (exitcnt == 0 && !errflag) {
+		errflag = 1;
+	}
+
 	if (errflag && dooutput) {
 		outbp = outbuffer;
 		addinfo();
@@ -3001,7 +3005,7 @@ static void store_addr(uae_u32 s, uae_u8 *d)
 	for (int i = 0; i < SIZE_STORED_ADDRESS; i++) {
 		uae_u32 ss = s + (i - SIZE_STORED_ADDRESS_OFFSET);
 		if (is_valid_test_addr_read(ss)) {
-			*d++ = *((uae_u8 *)ss);
+			*d++ = *((uae_u8*)ss);
 		} else {
 			*d++ = 0;
 		}
@@ -3056,9 +3060,9 @@ static void process_test(uae_u8 *p)
 	clear_interrupt();
 #endif
 	ahcnt = 0;
-	
+
 	short doopcodeswap = 1;
-	
+
 	if (interrupttest == 2) {
 		doopcodeswap = 0;
 	}
@@ -3138,7 +3142,7 @@ static void process_test(uae_u8 *p)
 			}
 			testcntsubmax = maxccr;
 			testcntsub = 0;
-			for (short ccrcnt = 0;  ccrcnt < maxccr; ccrcnt++, testcntsub++) {
+			for (short ccrcnt = 0; ccrcnt < maxccr; ccrcnt++, testcntsub++) {
 				short ccr = ccrcnt & (maxccr - 1);
 				fpu_approx = 0;
 
@@ -3158,12 +3162,12 @@ static void process_test(uae_u8 *p)
 						bv = (bv >> 16) | (bv << 16);
 						pl((uae_u8*)cur_regs.branchtarget, bv);
 					} else if (cur_regs.branchtarget_mode == 2) {
-						uae_u16 bv = gw((uae_u8 *)cur_regs.branchtarget);
+						uae_u16 bv = gw((uae_u8*)cur_regs.branchtarget);
 						if (bv == NOP_OPCODE)
 							bv = ILLG_OPCODE;
 						else
 							bv = NOP_OPCODE;
-						pw((uae_u8 *)cur_regs.branchtarget, bv);
+						pw((uae_u8*)cur_regs.branchtarget, bv);
 					}
 				}
 
@@ -3255,7 +3259,7 @@ static void process_test(uae_u8 *p)
 				}
 
 				test_regs.expsr = test_regs.sr | 0x2000;
-				
+
 				if (interrupttest == 2) {
 					interrupt_delay_cnt = ccrcnt >> ccrshift;
 					cur_regs.regs[0] = test_regs.regs[0] = interrupt_delay_cnt;
@@ -3283,23 +3287,6 @@ static void process_test(uae_u8 *p)
 
 				if (exitcnt >= 0) {
 					exitcnt--;
-					if (exitcnt == -1) {
-						volatile UWORD *cp = (volatile UWORD*)0x100;
-						*cp = 0x1234;
-#if 0
-						addinfo();
-						strcat(outbp, "Registers before:\n");
-						outbp += strlen(outbp);
-						out_regs(&cur_regs, &test_regs, &last_regs, &cur_regs, 1, 0);
-						end_test();
-						printf(outbuffer);
-						printf("\nExit count expired\n");
-						if (interrupttest == 2) {
-							interrupt_results();
-						}
-						exit(0);
-#endif
-					}
 				}
 
 				if ((*p) == CT_END_SKIP) {
@@ -3320,7 +3307,7 @@ static void process_test(uae_u8 *p)
 						*tn = testcnt;
 #endif
 #if 0
-						uae_u32 *sx = (uae_u32 *)startpc;
+						uae_u32 *sx = (uae_u32*)startpc;
 						if (*sx == 0xf2364c98) {
 							volatile uae_u16 *tn = (volatile uae_u16*)0x70000;
 							*tn = 0x1234;
@@ -3439,7 +3426,7 @@ static void process_test(uae_u8 *p)
 		}
 
 		restoreahist();
-		
+
 		// increase count when interrupt test returns different results
 		if (interrupttest == 2) {
 			if (memcmp(irqresults, irqresults2, sizeof(irqresults))) {
@@ -3711,7 +3698,9 @@ static int test_mnemo(const char *opcode)
 		out_endinfo();
 		printf("%s", outbuffer);
 	}
-
+	if (exitcnt == 0) {
+		printf("Exit count expired\n");
+	}
 	if (!errors && !quit) {
 		printf("All tests complete (total %u).\n", testcnt);
 	}
@@ -3766,8 +3755,8 @@ int main(int argc, char *argv[])
 
 	strcpy(path, "data/");
 
-	low_memory = (uae_u8 *)0;
-	high_memory = (uae_u8 *)0xffff8000;
+	low_memory = (uae_u8*)0;
+	high_memory = (uae_u8*)0xffff8000;
 
 	cpu_lvl = get_cpu_model();
 
@@ -3807,7 +3796,7 @@ int main(int argc, char *argv[])
 		printf("-askifmissing = ask for new path if dat file is missing.\n");
 		printf("-exit n = exit after n tests.\n");
 		printf("-fpuadj <exp> 16-bit exponent range value. (16383 = 1.0)\n");
-		printf("-fpsrmask = ignore FPSR bits that are not set.");
+		printf("-fpsrmask = ignore FPSR bits that are not set.\n");
 		printf("-cycles [range adjust] = check cycle counts.\n");
 		printf("-cyclecnt <address>. Use custom hardware cycle counter.\n");
 #ifdef AMIGA
