@@ -498,7 +498,7 @@ static bool iscancel (int counter)
 static bool isoperator(TCHAR **cp)
 {
 	TCHAR c = **cp;
-	return c == '+' || c == '-' || c == '/' || c == '*' || c == '(' || c == ')';
+	return c == '+' || c == '-' || c == '/' || c == '*' || c == '(' || c == ')' || c == '|' || c == '&' || c == '^';
 }
 
 static void ignore_ws (TCHAR **c)
