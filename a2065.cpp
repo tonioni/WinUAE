@@ -54,7 +54,7 @@ static int rap;
 static int configured;
 static int romtype;
 static bool AM79C960;
-static int byteswap;
+static int abyteswap;
 
 static struct netdriverdata *td;
 static void *sysdata;
@@ -435,7 +435,7 @@ static void gotfunc (void *devv, const uae_u8 *databuf, int len)
 		size = 65536 - rmd2;
 		uae_u8 *pr = boardram + addr;
 		for (i = 0; i < size && insize < len; i++, insize++) {
-			pr[(i ^ byteswap) & RAM_MASK] = data[insize];
+			pr[(i ^ abyteswap) & RAM_MASK] = data[insize];
 		}
 		if (insize >= len) {
 			rmd1 |= RX_ENP;
@@ -525,7 +525,7 @@ static void do_transmit (void)
 				size = MAX_PACKET_SIZE;
 			uae_u8 *pm = boardram + addr;
 			for (i = 0; i < size; i++) {
-				transmitbuffer[outsize++] = pm[(i ^ byteswap) & RAM_MASK];
+				transmitbuffer[outsize++] = pm[(i ^ abyteswap) & RAM_MASK];
 			}
 			if (size < 60 && (csr[4] & 0x0800)) { // APAD_XMT
 				while (size < 60) {
@@ -936,7 +936,7 @@ static uae_u32 REGPARAM2 a2065_bget (uaecptr addr)
 {
 	uae_u32 v;
 	addr &= 65535;
-	v = a2065_bget2 (addr ^ byteswap);
+	v = a2065_bget2 (addr ^ abyteswap);
 	if (log_a2065 > 3 && addr < MEM_MIN)
 		write_log (_T("7990_BGET: %08X -> %02X PC=%08X\n"), addr, v & 0xff, M68K_GETPC);
 	return v;
@@ -1003,7 +1003,7 @@ static void REGPARAM2 a2065_bput (uaecptr addr, uae_u32 b)
 	addr &= 65535;
 	if (log_a2065 > 3 && addr < MEM_MIN)
 		write_log (_T("7990_BPUT: %08X <- %02X PC=%08X\n"), addr, b & 0xff, M68K_GETPC);
-	a2065_bput2 (addr ^ byteswap, b);
+	a2065_bput2 (addr ^ abyteswap, b);
 }
 
 static uae_u32 REGPARAM2 a2065_wgeti (uaecptr addr)
@@ -1074,7 +1074,7 @@ static bool a2065_config (struct autoconfig_info *aci)
 		addr_rdp = A2065_RDP;
 		rap_mask = 3;
 		AM79C960 = false;
-		byteswap = 0;
+		abyteswap = 0;
 		break;
 		case ROMTYPE_ARIADNE:
 		maco[0] = 0x00;
@@ -1085,7 +1085,7 @@ static bool a2065_config (struct autoconfig_info *aci)
 		addr_rdp = ARIADNE_RDP;
 		rap_mask = 127;
 		AM79C960 = true;
-		byteswap = 1;
+		abyteswap = 1;
 		break;
 		default:
 		return false;
