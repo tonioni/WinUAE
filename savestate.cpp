@@ -832,30 +832,31 @@ void savestate_restore_final(void)
 
 bool savestate_restore_finish(void)
 {
-	if (!isrestore ())
+	if (!isrestore())
 		return false;
-	zfile_fclose (savestate_file);
+	zfile_fclose(savestate_file);
 	savestate_file = 0;
-	restore_cpu_finish ();
-	restore_audio_finish ();
-	restore_disk_finish ();
-	restore_blitter_finish ();
+	restore_cpu_finish();
+	restore_audio_finish();
+	restore_disk_finish();
+	restore_blitter_finish();
 	restore_expansion_finish();
-	restore_akiko_finish ();
+	restore_akiko_finish();
+	restore_custom_finish();
 #ifdef CDTV
-	restore_cdtv_finish ();
+	restore_cdtv_finish();
 #endif
 #ifdef PICASSO96
-	restore_p96_finish ();
+	restore_p96_finish();
 #endif
 #ifdef A2065
-	restore_a2065_finish ();
+	restore_a2065_finish();
 #endif
-	restore_cia_finish ();
+	restore_cia_finish();
 #ifdef ACTION_REPLAY
 	restore_ar_finish();
 #endif
-	restore_debug_memwatch_finish ();
+	restore_debug_memwatch_finish();
 	savestate_state = 0;
 	init_hz_normal();
 	audio_activate();

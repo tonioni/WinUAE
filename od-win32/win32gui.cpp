@@ -8397,6 +8397,7 @@ static void values_to_displaydlg (HWND hDlg)
 	SendDlgItemMessage(hDlg, IDC_OVERSCANMODE, CB_ADDSTRING, 0, (LPARAM)_T("Overscan"));
 	SendDlgItemMessage(hDlg, IDC_OVERSCANMODE, CB_ADDSTRING, 0, (LPARAM)_T("Overscan+"));
 	SendDlgItemMessage(hDlg, IDC_OVERSCANMODE, CB_ADDSTRING, 0, (LPARAM)_T("Extreme"));
+	SendDlgItemMessage(hDlg, IDC_OVERSCANMODE, CB_ADDSTRING, 0, (LPARAM)_T("Ultra extreme debug"));
 	SendDlgItemMessage(hDlg, IDC_OVERSCANMODE, CB_SETCURSEL, workprefs.gfx_overscanmode, 0);
 
 	SendDlgItemMessage(hDlg, IDC_AUTORESOLUTIONSELECT, CB_RESETCONTENT, 0, 0);
@@ -8926,6 +8927,8 @@ static void values_to_chipsetdlg (HWND hDlg)
 	CheckDlgButton(hDlg, IDC_BLITWAIT, workprefs.waiting_blits);
 	CheckDlgButton(hDlg, IDC_KEYBOARD_CONNECTED, workprefs.keyboard_connected);
 	CheckDlgButton(hDlg, IDC_SUBPIXEL, workprefs.chipset_hr);
+	SendDlgItemMessage(hDlg, IDC_CS_HVCSYNC, CB_SETCURSEL, workprefs.cs_hvcsync, 0);
+
 	CheckRadioButton(hDlg, IDC_COLLISION0, IDC_COLLISION3, IDC_COLLISION0 + workprefs.collision_level);
 	CheckDlgButton(hDlg, IDC_CYCLEEXACT, workprefs.cpu_cycle_exact);
 	CheckDlgButton(hDlg, IDC_CYCLEEXACTMEMORY, workprefs.cpu_memory_cycle_exact);
@@ -8955,6 +8958,9 @@ static void values_from_chipsetdlg (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 	workprefs.waiting_blits = ischecked (hDlg, IDC_BLITWAIT) ? 1 : 0;
 	workprefs.chipset_hr = ischecked(hDlg, IDC_SUBPIXEL);
 	workprefs.keyboard_connected = ischecked(hDlg, IDC_KEYBOARD_CONNECTED) ? 1 : 0;
+	LRESULT val = SendDlgItemMessage(hDlg, IDC_CS_HVCSYNC, CB_GETCURSEL, 0, 0L);
+	if (val != CB_ERR)
+		workprefs.cs_hvcsync = val;
 
 	n2 = ischecked (hDlg, IDC_CYCLEEXACTMEMORY);
 	n1 = ischecked (hDlg, IDC_CYCLEEXACT);
@@ -9120,6 +9126,11 @@ static INT_PTR CALLBACK ChipsetDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPAR
 			_stprintf(buffer, _T("%d"), i + 1);
 			SendDlgItemMessage(hDlg, IDC_MONITOREMU_MON, CB_ADDSTRING, 0, (LPARAM)buffer);
 		}
+
+		SendDlgItemMessage(hDlg, IDC_CS_HVCSYNC, CB_RESETCONTENT, 0, 0);
+		SendDlgItemMessage(hDlg, IDC_CS_HVCSYNC, CB_ADDSTRING, 0, (LPARAM)_T("Combined"));
+		SendDlgItemMessage(hDlg, IDC_CS_HVCSYNC, CB_ADDSTRING, 0, (LPARAM)_T("Composite Sync"));
+		SendDlgItemMessage(hDlg, IDC_CS_HVCSYNC, CB_ADDSTRING, 0, (LPARAM)_T("H/V Sync"));
 
 #ifndef	AGA
 		ew(hDlg, IDC_AGA, FALSE);

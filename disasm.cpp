@@ -674,7 +674,7 @@ uaecptr ShowEA(void *f, uaecptr pc, uae_u16 opcode, int reg, amodes mode, wordsi
 
 static const TCHAR *ccnames[] =
 {
-	_T("T "),_T("F "),_T("HI"),_T("LS"),_T("CC"),_T("CS"),_T("NE"),_T("EQ"),
+	_T("T"), _T("F"), _T("HI"),_T("LS"),_T("CC"),_T("CS"),_T("NE"),_T("EQ"),
 	_T("VC"),_T("VS"),_T("PL"),_T("MI"),_T("GE"),_T("LT"),_T("GT"),_T("LE")
 };
 static const TCHAR *fpccnames[] =
@@ -1959,7 +1959,7 @@ uae_u32 m68k_disasm_2(TCHAR *buf, int bufsize, uaecptr pc, uae_u16 *bufpc, int b
 					_tcscpy(ccpt, fpccnames[extra & 0x1f]);
 				}
 			} else {
-				_tcsncpy(ccpt, ccnames[dp->cc], 2);
+				_tcsncpy(ccpt, ccnames[dp->cc], _tcslen(ccnames[dp->cc]));
 				if (dp->mnemo == i_Bcc && dp->cc == 0) {
 					_tcscpy(ccpt, _T("RA")); // BT -> BRA
 				}

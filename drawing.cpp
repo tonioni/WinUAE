@@ -548,6 +548,10 @@ static void set_vblanking_limits(void)
 		vblank_bottom_stop = visible_bottom_stop;
 	}
 
+	if (currprefs.gfx_overscanmode == OVERSCANMODE_ULTRA) {
+		return;
+	}
+
 	bool hardwired = true;
 	if (ecs_agnus) {
 		hardwired = (new_beamcon0 & BEAMCON0_VARVBEN) == 0;
@@ -603,6 +607,10 @@ int get_vertical_visible_height(bool useoldsize)
 
 static void set_hblanking_limits(void)
 {
+	if (currprefs.gfx_overscanmode == OVERSCANMODE_ULTRA) {
+		return;
+	}
+
 	// horizontal blanking
 	bool hardwired = !dp_for_drawing || !ce_is_extblankset(colors_for_drawing.extra);
 	bool doblank = false;
@@ -631,7 +639,7 @@ static void set_hblanking_limits(void)
 	if (doblank && programmedmode != 1) {
 		// reposition to sync
 		// use hardwired hblank emulation as overscan blanking.
-		if ((new_beamcon0 & (BEAMCON0_VARHSYEN | BEAMCON0_VARCSYEN)) && !hardwired) {
+		if ((new_beamcon0 & bemcon0_hsync_mask) && !hardwired) {
 			extern uae_u16 hsstrt;
 			hbstrt += (hsstrt - 18) << CCK_SHRES_SHIFT;
 			hbstop += (hsstrt - 18) << CCK_SHRES_SHIFT;
@@ -2027,8 +2035,8 @@ static void pfield_do_linetoscr_spr(int start, int stop, int blank)
 	int pixel;
 	if (extborder) {
 		bool bb = ce_is_borderblank(colors_for_drawing.extra);
-		pfield_do_fill_line(start, stop, bb || exthblank ? 1 : 0);
-		pixel = pfield_do_linetoscr_spriteonly(src_pixel, start, stop, bb || exthblank);
+		pixel = pfield_do_linetoscr_sprite(src_pixel, start, stop);
+		pfield_do_fill_line(start, stop, bb || exthblank);
 	} else {
 		pixel = pfield_do_linetoscr_sprite(src_pixel, start, stop);
 		if (exthblank) {
@@ -3227,7 +3235,9 @@ static void pfield_expand_dp_bplconx (int regno, int v, int hp, int vp)
 		break;
 	case 0x200: // hblank
 		if (v) {
-			exthblanken = true;
+			if (currprefs.gfx_overscanmode < OVERSCANMODE_ULTRA) {
+				exthblanken = true;
+			}
 			if (vp >= 0) {
 				extblankcheck();
 			} else {
@@ -3751,6 +3761,7 @@ static void center_image (void)
 	int w = vidinfo->drawbuffer.inwidth;
 	int ew = vidinfo->drawbuffer.extrawidth;
 	int maxdiw = max_diwlastword;
+
 	if (currprefs.gfx_overscanmode <= OVERSCANMODE_OVERSCAN && currprefs.gfx_xcenter && !currprefs.gf[0].gfx_filter_autoscale && max_diwstop > 0) {
 
 		if (max_diwstop - min_diwstart < w && currprefs.gfx_xcenter == 2)

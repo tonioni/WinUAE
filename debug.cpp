@@ -89,9 +89,9 @@ static uaecptr debug_copper_pc;
 extern int audio_channel_mask;
 extern int inputdevice_logging;
 
-static void debug_cycles(void)
+static void debug_cycles(int mode)
 {
-	trace_cycles = 1;
+	trace_cycles = mode;
 	last_cycles2 = get_cycles();
 	last_vpos2 = vpos;
 	last_hpos2 = current_hpos();
@@ -128,7 +128,7 @@ void activate_debugger (void)
 		// during disassembly etc..
 		return;
 	}
-	debug_cycles();
+	debug_cycles(1);
 	debugger_active = 1;
 	set_special (SPCFLAG_BRK);
 	debugging = 1;
@@ -1388,7 +1388,7 @@ static bool debug_colors_set;
 
 static void set_dbg_color(int index, int extra, uae_u8 r, uae_u8 g, uae_u8 b, int max, const TCHAR *name)
 {
-	if (extra == 0) {
+	if (extra <= 0) {
 		debug_colors[index].r = r;
 		debug_colors[index].g = g;
 		debug_colors[index].b = b;
@@ -1398,7 +1398,13 @@ static void set_dbg_color(int index, int extra, uae_u8 r, uae_u8 g, uae_u8 b, in
 		debug_colors[index].name = name;
 	if (max > 0)
 		debug_colors[index].max = max;
-	debug_colors[index].l[extra] = lc((r << 16) | (g << 8) | (b << 0));
+	if (extra >= 0) {
+		debug_colors[index].l[extra] = lc((r << 16) | (g << 8) | (b << 0));
+	} else {
+		for (int i = 0; i < DMARECORD_MAX; i++) {
+			debug_colors[index].l[i] = lc((r << 16) | (g << 8) | (b << 0));
+		}
+	}
 }
 
 static void set_debug_colors(void)
@@ -1415,6 +1421,7 @@ static void set_debug_colors(void)
 	set_dbg_color(DMARECORD_BITPLANE,		0, 0x00, 0x00, 0xff, 8, _T("Bitplane"));
 	set_dbg_color(DMARECORD_SPRITE,			0, 0xff, 0x00, 0xff, 8, _T("Sprite"));
 	set_dbg_color(DMARECORD_DISK,			0, 0xff, 0xff, 0xff, 3, _T("Disk"));
+	set_dbg_color(DMARECORD_CONFLICT,		0, 0xff, 0xb8, 0x40, 0, _T("Conflict"));
 
 	for (int i = 0; i < DMARECORD_MAX; i++) {
 		for (int j = 1; j < DMARECORD_SUBITEMS; j++) {
@@ -1428,6 +1435,8 @@ static void set_debug_colors(void)
 	set_dbg_color(DMARECORD_BLITTER,		1, 0x00, 0x88, 0xff, 0, NULL); // fill
 	set_dbg_color(DMARECORD_BLITTER,		2, 0x00, 0xff, 0x00, 0, NULL); // line
 }
+
+static int cycles_toggle;
 
 static void debug_draw_cycles (uae_u8 *buf, int bpp, int line, int width, int height, uae_u32 *xredcolors, uae_u32 *xgreencolors, uae_u32 *xbluescolors)
 {
@@ -1467,6 +1476,9 @@ static void debug_draw_cycles (uae_u8 *buf, int bpp, int line, int width, int he
 		dr = &dma_record[t][y * NR_DMA_REC_HPOS + x];
 		if (dr->reg != 0xffff && debug_colors[dr->type].enabled) {
 			c = debug_colors[dr->type].l[dr->extra];
+			if (dr->cf_reg != 0xffff && ((cycles_toggle ^ line) & 1)) {
+				c = debug_colors[DMARECORD_CONFLICT].l[0];
+			}
 		}
 		if (dr->intlev > intlev)
 			intlev = dr->intlev;
@@ -1739,7 +1751,7 @@ static void init_heatmap(void)
 		heatmap = xcalloc(struct memory_heatmap, max_heatmap / HEATMAP_DIV);
 }
 
-static void memwatch_heatmap (uaecptr addr, int rwi, int size, uae_u32 accessmask)
+static void memwatch_heatmap(uaecptr addr, int rwi, int size, uae_u32 accessmask)
 {
 	if (addr >= max_heatmap || !heatmap)
 		return;
@@ -1798,6 +1810,73 @@ static void memwatch_heatmap (uaecptr addr, int rwi, int size, uae_u32 accessmas
 	hm->type = type;
 	hm->extra = extra;
 	hm->mask |= accessmask;
+}
+
+struct refdata
+{
+	uae_u32 c;
+	uae_u32 cnt;
+};
+static struct refdata refreshtable[1024];
+static int refcheck_count;
+#define REFRESH_LINES 64
+
+static void check_refreshed(void)
+{
+	int max = ecs_agnus ? 512 : 256;
+	int reffail = 0;
+	uae_u32 c = get_cycles();
+	for (int i = 0; i < max; i++) {
+		struct refdata *rd = &refreshtable[i];
+		if (rd->cnt < 10) {
+			rd->cnt++;
+		}
+		if (rd->cnt == 10) {
+			reffail++;
+			rd->cnt = 0;
+		}
+		if (rd->c && (int)c - (int)rd->c >= CYCLE_UNIT * maxhpos * REFRESH_LINES) {
+			reffail++;
+			rd->c = 0;
+			rd->cnt = 0;
+		}
+		if (reffail) {
+			write_log("%03u ", i);
+		}
+	}
+	if (reffail) {
+		write_log("%d memory rows not refreshed fast enough!\n", reffail);
+	}
+}
+
+void debug_mark_refreshed(uaecptr rp)
+{
+	int ras;
+	if (ecs_agnus && currprefs.chipmem.size > 0x100000) {
+		ras = (rp >> 9) & 0x3ff;
+	} else if (ecs_agnus) {
+		ras = (rp >> 9) & 0x1ff;
+	} else {
+		ras = (rp >> 1) & 0xff;
+	}
+	struct refdata *rd = &refreshtable[ras];
+	uae_u32 c = get_cycles();
+	rd->c = c;
+	rd->cnt = 0;
+}
+
+void record_dma_hsync(void)
+{
+	if (vpos == 0) {
+		cycles_toggle = cycles_toggle ? 0 : 1;
+	}
+#if 0
+	refcheck_count++;
+	if (refcheck_count >= REFRESH_LINES / 8) {
+		refcheck_count = 0;
+		check_refreshed();
+	}
+#endif
 }
 
 void record_dma_event (uae_u32 evt, int hpos, int vpos)
@@ -1869,6 +1948,7 @@ void record_dma_write(uae_u16 reg, uae_u32 dat, uae_u32 addr, int hpos, int vpos
 	dr->intlev = regs.intmask;
 	dr->size = 2;
 	last_dma_rec = dr;
+	debug_mark_refreshed(dr->addr);
 }
 struct dma_rec *last_dma_rec;
 void record_dma_read_value(uae_u32 v)
@@ -1893,15 +1973,39 @@ void record_dma_read_value_wide(uae_u64 v, bool quad)
 		last_dma_rec->size = quad ? 8 : 4;
 	}
 }
+bool record_dma_check(int hpos, int vpos)
+{
+	if (!dma_record[0]) {
+		return false;
+	}
+	if (hpos >= NR_DMA_REC_HPOS || vpos >= NR_DMA_REC_VPOS) {
+		return false;
+	}
+	struct dma_rec *dr = &dma_record[dma_record_toggle][vpos * NR_DMA_REC_HPOS + hpos];
+	return dr->reg != 0xffff;
+}
+void record_dma_clear(int hpos, int vpos)
+{
+	if (!dma_record[0]) {
+		return;
+	}
+	if (hpos >= NR_DMA_REC_HPOS || vpos >= NR_DMA_REC_VPOS) {
+		return;
+	}
+	struct dma_rec *dr = &dma_record[dma_record_toggle][vpos * NR_DMA_REC_HPOS + hpos];
+	dr->reg = 0xffff;
+	dr->cf_reg = 0xffff;
+}
+
 void record_dma_read(uae_u16 reg, uae_u32 addr, int hpos, int vpos, int type, int extra)
 {
 	struct dma_rec *dr;
 
 	if (!dma_record[0]) {
-		dma_record[0] = xmalloc (struct dma_rec, NR_DMA_REC_HPOS * NR_DMA_REC_VPOS);
-		dma_record[1] = xmalloc (struct dma_rec, NR_DMA_REC_HPOS * NR_DMA_REC_VPOS);
+		dma_record[0] = xmalloc(struct dma_rec, NR_DMA_REC_HPOS * NR_DMA_REC_VPOS);
+		dma_record[1] = xmalloc(struct dma_rec, NR_DMA_REC_HPOS * NR_DMA_REC_VPOS);
 		dma_record_toggle = 0;
-		record_dma_reset ();
+		record_dma_reset();
 		dma_record_frame[0] = -1;
 		dma_record_frame[1] = -1;
 	}
@@ -1926,8 +2030,8 @@ void record_dma_read(uae_u16 reg, uae_u32 addr, int hpos, int vpos, int type, in
 	dr->extra = extra;
 	dr->intlev = regs.intmask;
 	last_dma_rec = dr;
+	debug_mark_refreshed(dr->addr);
 }
-
 
 static bool get_record_dma_info(struct dma_rec *dr, int hpos, int vpos, uae_u32 cycles, TCHAR *l1, TCHAR *l2, TCHAR *l3, TCHAR *l4, TCHAR *l5)
 {
@@ -2144,7 +2248,18 @@ static bool get_record_dma_info(struct dma_rec *dr, int hpos, int vpos, uae_u32 
 		}
 	}
 	if (l5) {
-		_stprintf (l5, _T("%08X"), cycles + (vpos * maxhpos + hpos) * CYCLE_UNIT);
+		if (dr->addr != 0xffffffff) {
+			int ras, cas;
+			TCHAR xtra = ' ';
+			bool ret = get_ras_cas(dr->addr, &ras, &cas);
+			if (ret) {
+				xtra = '+';
+			}
+			_stprintf(l5, _T("%c%03X %03X"), xtra, ras, cas);
+		} else {
+			l5[0] = 0;
+		}
+		//_stprintf (l5, _T("%08X"), cycles + (vpos * maxhpos + hpos) * CYCLE_UNIT);
 	}
 	if (extra64) {
 		_tcscpy(l5, l4);
@@ -2162,6 +2277,8 @@ static void decode_dma_record (int hpos, int vpos, int toggle, bool logfile)
 	uae_u32 cycles;
 
 	if (!dma_record[0] || hpos < 0 || vpos < 0)
+		return;
+	if (hpos >= NR_DMA_REC_HPOS || vpos >= NR_DMA_REC_VPOS)
 		return;
 	dr_start = dr = &dma_record[dma_record_toggle ^ toggle][vpos * NR_DMA_REC_HPOS];
 	if (logfile)
@@ -2453,7 +2570,7 @@ static void listcheater(int mode, int size)
 	if (!trainerdata)
 		return;
 	if (mode)
-		skip = 6;
+		skip = 4;
 	else
 		skip = 8;
 	for(i = 0; i < totaltrainers; i++) {
@@ -3336,7 +3453,7 @@ static int memwatch_func (uaecptr addr, int rwi, int size, uae_u32 *valp, uae_u3
 		if (!m->nobreak && !m->reportonly) {
 			debugging = 1;
 			debug_pc = M68K_GETPC;
-			debug_cycles();
+			debug_cycles(1);
 			set_special(SPCFLAG_BRK);
 		}
 		return 1;
@@ -4869,6 +4986,7 @@ static void breakfunc(uae_u32 v)
 	debugging = 1;
 	debug_vpos = -1;
 	debug_hpos = -1;
+	debug_cycles(2);
 	set_special(SPCFLAG_BRK);
 }
 
@@ -5431,8 +5549,8 @@ static void debug_sprite (TCHAR **inptr)
 					int vv1 = ww1 & 1;
 					int vv2 = ww2 & 1;
 					int vv = vv1 * 2 + vv2;
-					vv1 >>= 1;
-					vv2 >>= 1;
+					ww1 >>= 1;
+					ww2 >>= 1;
 					v *= 4;
 					v += vv;
 					tmp[width - (x + 1)] = v >= 10 ? 'A' + v - 10 : v + '0';
@@ -5785,6 +5903,7 @@ static bool debug_line (TCHAR *input)
 			} else if (more_params(&inptr)) {
 				m68k_modify(&inptr);
 			} else {
+				custom_dumpstate(0);
 				m68k_dumpstate(&nextpc, 0xffffffff);
 			}
 		}
@@ -5905,7 +6024,7 @@ static bool debug_line (TCHAR *input)
 			break;
 		case 't':
 			no_trace_exceptions = 0;
-			debug_cycles();
+			debug_cycles(2);
 			trace_param[0] = trace_param[1] = 0;
 			if (*inptr == 't') {
 				no_trace_exceptions = 1;
@@ -5955,7 +6074,7 @@ static bool debug_line (TCHAR *input)
 			trace_mode = TRACE_MATCH_PC;
 			trace_param[0] = nextpc;
 			exception_debugging = 1;
-			debug_cycles();
+			debug_cycles(2);
 			return true;
 
 		case 'f':
@@ -5967,14 +6086,15 @@ static bool debug_line (TCHAR *input)
 				if (process_breakpoint (&inptr))
 					return true;
 			} else if (inptr[0] == 'c' || inptr[0] == 's') {
-				if (cycle_breakpoint(&inptr))
+				if (cycle_breakpoint(&inptr)) {
 					return true;
+				}
 			} else if (inptr[0] == 'e' && inptr[1] == 'n') {
 				break_if_enforcer = break_if_enforcer ? false : true;
 				console_out_f(_T("Break when enforcer hit: %s\n"), break_if_enforcer ? _T("enabled") : _T("disabled"));
 			} else {
 				if (instruction_breakpoint(&inptr)) {
-					debug_cycles();
+					debug_cycles(1);
 					return true;
 				}
 			}
@@ -6323,6 +6443,7 @@ static void debug_1 (void)
 {
 	TCHAR input[MAX_LINEWIDTH];
 
+	custom_dumpstate(0);
 	m68k_dumpstate(&nextpc, debug_pc);
 	debug_pc = 0xffffffff;
 	nxdis = nextpc; nxmem = 0;
@@ -6537,7 +6658,7 @@ void debug (void)
 			}
 			if (bp > 0)
 				console_out_f(_T("Breakpoint %d triggered.\n"), bp - 1);
-			debug_cycles();
+			debug_cycles(1);
 		}
 	} else {
 		memwatch_hit_msg(memwatch_triggered - 1);
@@ -6565,7 +6686,7 @@ void debug (void)
 	debugmem_disable();
 
 	if (trace_cycles && last_frame >= 0) {
-		if (last_frame + 2 >= timeframes) {
+		if (last_frame + 2 >= timeframes || trace_cycles > 1) {
 			console_out_f(_T("Cycles: %d Chip, %d CPU. (V=%d H=%d -> V=%d H=%d)\n"),
 				(last_cycles2 - last_cycles1) / CYCLE_UNIT,
 				(last_cycles2 - last_cycles1) / cpucycleunit,

@@ -266,7 +266,8 @@ extern struct dma_rec *last_dma_rec;
 #define DMARECORD_BITPLANE 6
 #define DMARECORD_SPRITE 7
 #define DMARECORD_DISK 8
-#define DMARECORD_MAX 9
+#define DMARECORD_CONFLICT 9
+#define DMARECORD_MAX 10
 
 extern void record_dma_read(uae_u16 reg, uae_u32 addr, int hpos, int vpos, int type, int extra);
 extern void record_dma_write(uae_u16 reg, uae_u32 v, uae_u32 addr, int hpos, int vpos, int type, int extra);
@@ -275,6 +276,10 @@ extern void record_dma_read_value_wide(uae_u64 v, bool quad);
 extern void record_dma_replace(int hpos, int vpos, int type, int extra);
 extern void record_dma_reset(void);
 extern void record_dma_event(uae_u32 evt, int hpos, int vpos);
+extern void record_dma_clear(int hpos, int vpos);
+extern bool record_dma_check(int hpos, int vpos);
+extern void record_dma_hsync(void);
+extern void debug_mark_refreshed(uaecptr);
 extern void debug_draw(uae_u8 *buf, int bpp, int line, int width, int height, uae_u32 *xredcolors, uae_u32 *xgreencolors, uae_u32 *xbluescolors);
 
 #define TRACE_SKIP_INS 1
