@@ -1305,10 +1305,10 @@
 #define IDC_GENLOCKFILESELECT           1854
 #define IDC_PATH_GEOMETRY               1855
 #define IDC_PATH_GEOMETRY_SELECTOR      1856
-#define IDC_EDIT1                       1857
 #define IDC_EXPANSIONBOARDSTRINGBOX     1857
 #define IDC_CS_UNMAPPED                 1858
 #define IDC_CHS_CYLINDERS               1859
+#define IDC_CS_HVCSYNC                  1859
 #define IDC_CHS_HEADS                   1860
 #define IDC_CONFIGCATEGORY              1860
 #define IDC_CHS_SECTORS                 1861

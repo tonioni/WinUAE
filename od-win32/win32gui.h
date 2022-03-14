@@ -102,9 +102,12 @@ struct newresource
 #define MIN_GUI_INTERNAL_WIDTH 512
 #define MIN_GUI_INTERNAL_HEIGHT 400
 
-#define GUI_INTERNAL_WIDTH 800
-#define GUI_INTERNAL_HEIGHT 600
-#define GUI_INTERNAL_FONT 8
+#define GUI_INTERNAL_WIDTH_OLD 800
+#define GUI_INTERNAL_HEIGHT_OLD 600
+#define GUI_INTERNAL_FONT_OLD 8
+#define GUI_INTERNAL_WIDTH_NEW 1280
+#define GUI_INTERNAL_HEIGHT_NEW 960
+#define GUI_INTERNAL_FONT_NEW 10
 
 extern struct uae_prefs workprefs;
 extern int dialog_inhibit;

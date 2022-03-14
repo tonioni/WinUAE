@@ -19,7 +19,8 @@
 #include "zfile.h"
 
 #define MAX_GUI_FONTS 2
-#define DEFAULT_FONTSIZE 8
+#define DEFAULT_FONTSIZE_OLD 8
+#define DEFAULT_FONTSIZE_NEW 9
 
 static float multx, multy;
 static int scaleresource_width, scaleresource_height;
@@ -27,8 +28,9 @@ static int scaleresource_reset;
 static int dux, duy;
 
 static TCHAR fontname_gui[32], fontname_list[32];
-static int fontsize_gui = DEFAULT_FONTSIZE;
-static int fontsize_list = DEFAULT_FONTSIZE;
+static int fontsize_default = DEFAULT_FONTSIZE_OLD;
+static int fontsize_gui = DEFAULT_FONTSIZE_OLD;
+static int fontsize_list = DEFAULT_FONTSIZE_OLD;
 static int fontstyle_gui = 0;
 static int fontstyle_list = 0;
 static int fontweight_gui = FW_REGULAR;
@@ -1120,12 +1122,21 @@ void scalaresource_listview_font_info(int *w)
 
 static void setdeffont (void)
 {
+	int fs = DEFAULT_FONTSIZE_OLD;
+	int w = GetSystemMetrics(SM_CXVIRTUALSCREEN);
+	int h = GetSystemMetrics(SM_CYVIRTUALSCREEN);
+
+	if (w >= 1600 && h >= 1024) {
+		fs = DEFAULT_FONTSIZE_NEW;
+	}
+	fontsize_default = fs;
+
 	_tcscpy (fontname_gui, font_vista_ok ? wfont_vista : wfont_xp);
-	fontsize_gui = DEFAULT_FONTSIZE;
+	fontsize_gui = fontsize_default;
 	fontstyle_gui = 0;
 	fontweight_gui = FW_REGULAR;
 	_tcscpy (fontname_list, font_vista_ok ? wfont_vista : wfont_xp);
-	fontsize_list = DEFAULT_FONTSIZE;
+	fontsize_list = fontsize_default;
 	fontstyle_list = 0;
 	fontweight_list = FW_REGULAR;
 }
@@ -1173,7 +1184,7 @@ static void regqueryfont (UAEREG *reg, const TCHAR *prefix, const TCHAR *name, T
 	fontweight = _tstoi (p3);
 
 	if (fontsize == 0)
-		fontsize = DEFAULT_FONTSIZE;
+		fontsize = fontsize_default;
 	if (fontsize < 5)
 		fontsize = 5;
 	if (fontsize > 30)

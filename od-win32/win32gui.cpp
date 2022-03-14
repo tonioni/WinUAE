@@ -2288,8 +2288,8 @@ int target_cfgfile_load (struct uae_prefs *p, const TCHAR *filename, int type, i
 static int gui_width, gui_height;
 int gui_fullscreen;
 static RECT gui_fullscreen_rect;
-static bool gui_resize_enabled;
-static bool gui_resize_allowed;
+static bool gui_resize_enabled = true;
+static bool gui_resize_allowed = true;
 
 // Internal panel max size: 396, 318
 
@@ -9359,6 +9359,7 @@ static void values_from_chipsetdlg2 (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 	workprefs.cs_toshibagary = ischecked(hDlg, IDC_CS_TOSHIBAGARY);
 	workprefs.cs_romisslow = ischecked(hDlg, IDC_CS_ROMISSLOW);
 	workprefs.cs_ciatype[0] = workprefs.cs_ciatype[1] = ischecked(hDlg, IDC_CS_CIA);
+
 	LRESULT val = SendDlgItemMessage(hDlg, IDC_CS_UNMAPPED, CB_GETCURSEL, 0, 0L);
 	if (val != CB_ERR)
 		workprefs.cs_unmapped_space = val;
@@ -12536,15 +12537,29 @@ static void setstatefilename (HWND hDlg)
 	setchecked (hDlg, IDC_STATECLEAR, workprefs.statefile[0] != 0);
 }
 
+static void getguidefaultsize(int *wp, int *hp)
+{
+	int w = GetSystemMetrics(SM_CXVIRTUALSCREEN);
+	int h = GetSystemMetrics(SM_CYVIRTUALSCREEN);
+
+	if (w >= 1600 && h >= 1024) {
+		*wp = GUI_INTERNAL_WIDTH_NEW;
+		*hp = GUI_INTERNAL_HEIGHT_NEW;
+	} else {
+		*wp = GUI_INTERNAL_WIDTH_OLD;
+		*hp = GUI_INTERNAL_HEIGHT_OLD;
+	}
+}
+
 static void setdefaultguisize(int skipdpi)
 {
 	int dpi = skipdpi ? 96 : getdpiformonitor(NULL);
+	int w, h;
 
-	gui_width = MulDiv(GUI_INTERNAL_WIDTH, dpi, 96);
-	gui_height = MulDiv(GUI_INTERNAL_HEIGHT, dpi, 96);
+	getguidefaultsize(&w, &h);
 
-	int w = GetSystemMetrics(SM_CXVIRTUALSCREEN);
-	int h = GetSystemMetrics(SM_CYVIRTUALSCREEN);
+	gui_width = MulDiv(w, dpi, 96);
+	gui_height = MulDiv(h, dpi, 96);
 
 	if ((dpi > 96) && (gui_width > w || gui_height > h)) {
 		gui_width = w;
@@ -12778,8 +12793,10 @@ static INT_PTR MiscDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 					v--;
 					v = 200 - v * 10;
 				}
-				gui_width = (int)(GUI_INTERNAL_WIDTH * v / 100);
-				gui_height = (int)(GUI_INTERNAL_HEIGHT * v / 100);
+				int w, h;
+				getguidefaultsize(&w, &h);
+				gui_width = (int)(w * v / 100);
+				gui_height = (int)(h * v / 100);
 				int dpi = getdpiforwindow(hDlg);
 				gui_width = MulDiv(gui_width, dpi, 96);
 				gui_height = MulDiv(gui_height, dpi, 96);
@@ -22808,7 +22825,9 @@ void gui_led (int led, int on, int brightness)
 		ptr = drive_text + pos * LED_STRING_WIDTH;
 		if (fps > 9999.9)
 			fps = 9999.9;
-		if (fps < 1000) {
+		if (gui_data.fps_color == 2) {
+			_tcscpy(ptr, _T("No Sync"));
+		} else if (fps < 1000) {
 			if (ad->picasso_on)
 				_stprintf (ptr, _T("%.1f [%.1f]"), p96vblank, fps);
 			else

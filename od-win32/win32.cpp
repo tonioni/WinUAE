@@ -7979,8 +7979,7 @@ typedef BOOL(WINAPI* SETPROCESSMITIGATIONPOLICY)(DWORD, PVOID, SIZE_T);
 static SETPROCESSMITIGATIONPOLICY pSetProcessMitigationPolicy;
 #endif
 
-int PASCAL wWinMain (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int nCmdShow)
- {
+int PASCAL wWinMain (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int nCmdShow) {
 	DWORD_PTR sys_aff;
 	HANDLE thread;
 
