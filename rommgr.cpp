@@ -95,7 +95,7 @@ struct romdata *getromdatabypath (const TCHAR *path)
 	return NULL;
 }
 
-#define NEXT_ROM_ID 269
+#define NEXT_ROM_ID 274
 
 #define ALTROM(id,grp,num,size,flags,crc32,a,b,c,d,e) \
 { _T("X"), 0, 0, 0, 0, 0, size, id, 0, 0, flags, (grp << 16) | num, 0, NULL, crc32, a, b, c, d, e },
@@ -786,6 +786,12 @@ static struct romdata roms[] = {
 	0x09c2cfcb, 0x93ad6a25,0x77fa7870,0x971890f2,0x6af11382, 0xa433f80b },
 	ALTROMPN(183, 1, 1, 131072, ROMTYPE_EVEN  | ROMTYPE_8BIT, NULL, 0x10d162a2, 0x26833d5b,0xe1057be8,0x639c00a7,0xbe18be33,0x404ea751)
 	ALTROMPN(183, 1, 2, 131072, ROMTYPE_ODD | ROMTYPE_8BIT, NULL, 0xc0975188, 0xfd7643dc,0x972e7861,0x249ab7e7,0x61999759,0x84888ae4)
+	// sp_14b_u1.bin, sp_14b_u2.bin
+	{ _T("American Laser Games Space Pirates v1.4 (Rev B PCB hack)"), 0, 0, 0, 0, _T("ALG\0"), 262144, 271, 0, 0, ROMTYPE_ALG, 0, 0, NULL,
+	0x024092d3, 0xd5e04a80, 0xabeb1ffe, 0xff089539, 0x01e398d8, 0xadce9bb2 },
+	ALTROMPN(271, 1, 1, 131072, ROMTYPE_EVEN | ROMTYPE_8BIT, NULL, 0x0b77952b, 0xc1497f16, 0xe042a248, 0x224f8527, 0xdff69d7a, 0xdc00f46c)
+	ALTROMPN(271, 1, 2, 131072, ROMTYPE_ODD | ROMTYPE_8BIT, NULL, 0x1e6ec8d6, 0x9472613e, 0x209cab7d, 0xc73940f8, 0x1030c857, 0xd3d6a47c)
+
 	// johnny_01.bin, johnny_02.bin
 	{ _T("American Laser Games Who Shot Johnny Rock? v1.6"), 0, 0, 0, 0, _T("ALG\0"), 131072, 184, 0, 0, ROMTYPE_ALG, 0, 0, NULL,
 	0xaeda7df4, 0xa612c4b9,0x2bd81ab9,0x564e58da,0x9a6a4d81,0x93c59acf },
@@ -796,6 +802,18 @@ static struct romdata roms[] = {
 	0x50eb4827, 0x72568673,0x4163aa16,0xd0ad3177,0xbd720187,0x125a63ec },
 	ALTROMPN(185, 1, 1, 65536, ROMTYPE_EVEN | ROMTYPE_8BIT, NULL, 0x8ab626dd, 0xe45561f7,0x7fc279b7,0x1dc1dd2e,0x15a0870c,0xb5c1cd89)
 	ALTROMPN(185, 1, 2, 65536, ROMTYPE_ODD  | ROMTYPE_8BIT, NULL, 0x9beeb1d7, 0x3fe0265e,0x5d36103d,0x3d9557d7,0x5e5e3728,0xe0b30da7)
+	// wsjrU1A.bin,wsjrU2A.bin
+	{_T("American Laser Games Who Shot Johnny Rock? v1.6 (Maddog Rev A PCB hack)"), 0, 0, 0, 0, _T("ALG\0"), 131072, 272, 0, 0, ROMTYPE_ALG, 0, 0, NULL,
+	0xaa413638, 0x387e9613, 0xf7034ac2, 0x509f90dc, 0x796da9ca, 0x39e506f9
+	},
+	ALTROMPN(272, 1, 1, 65536, ROMTYPE_EVEN | ROMTYPE_8BIT, NULL, 0x2a9225a7, 0x644428b2, 0x000ce281, 0xbc0247dd, 0xa9276355, 0x92849717)
+	ALTROMPN(272, 1, 2, 65536, ROMTYPE_ODD | ROMTYPE_8BIT, NULL, 0x1e10eb58, 0x80cd169e, 0xf1959852, 0xf5b1ec3b, 0x2e2f995d, 0x588cf1df)
+	// wsjrU1B.bin,wsjrU2B.bin
+	{_T("American Laser Games Who Shot Johnny Rock? v1.6 (Rev B PCB hack)"), 0, 0, 0, 0, _T("ALG\0"), 262144, 273, 0, 0, ROMTYPE_ALG, 0, 0, NULL,
+	0xa8cb412c, 0x2059d37c, 0xf63fdeaf, 0x9c0fc83e, 0xad018a8f, 0x982dc11f
+	},
+	ALTROMPN(273, 1, 1, 131072, ROMTYPE_EVEN | ROMTYPE_8BIT, NULL, 0x0848dc29, 0x9b70ac17, 0x705f06d3, 0x8c8285bb, 0x7edead7d, 0x2b286fd2)
+	ALTROMPN(273, 1, 2, 131072, ROMTYPE_ODD | ROMTYPE_8BIT, NULL, 0xc6634148, 0x5c99ca64, 0x7b421383, 0xdf6e3391, 0xac685b35, 0x4a1a5539)
 	// gg_1.dat,gg_2.dat
 	{ _T("American Laser Games Gallagher's Gallery v2.2"), 0, 0, 0, 0, _T("ALG\0"), 262144, 186, 0, 0, ROMTYPE_ALG, 0, 0, NULL,
 	0xcbe791de, 0x17aa6f16,0x7e138409,0xe1ef039e,0x928fee5a,0xf43e91cb },
@@ -806,6 +824,12 @@ static struct romdata roms[] = {
 	0x9bfe35bb, 0x76c8cad8,0xd0f4758f,0x1adc0fc9,0x7cb6ad30,0x44b54d47 },
 	ALTROMPN(187, 1, 1, 131072, ROMTYPE_EVEN | ROMTYPE_8BIT, NULL, 0x70f887e5, 0xcd6cedc8,0x5bbe6767,0x4dfd140f,0xed901877,0x8f8cd8db)
 	ALTROMPN(187, 1, 2, 131072, ROMTYPE_ODD  | ROMTYPE_8BIT, NULL, 0x4109f39e, 0x42d06de4,0x2c56f21e,0x4899b4c4,0x252baabb,0x51f24fda)
+	// gg_20_rom1.bin,gg_20_rom2.bin
+	{ _T("American Laser Games Gallagher's Gallery v2.0"), 0, 0, 0, 0, _T("ALG\0"), 262144, 269, 0, 0, ROMTYPE_ALG, 0, 0, NULL,
+			0xec0a948f, 0x97942bdf, 0x14e2bbe5, 0x5114c973, 0xd7d5bd98, 0x84795a51
+	},
+	ALTROMPN(269, 1, 1, 131072, ROMTYPE_EVEN | ROMTYPE_8BIT, NULL, 0x229dd4b8, 0x982b3c95, 0x4bbd6aeb, 0x71e7cfa0, 0xe1074264, 0x5d726332)
+	ALTROMPN(269, 1, 2, 131072, ROMTYPE_ODD | ROMTYPE_8BIT, NULL,  0xb7e96e7b, 0x7bfc5600, 0x15c94edc, 0x2c57b533, 0x95eebae4, 0x51c644ff)		
 	// fd_131_u1.bin,fd_131_u2.bin
 	{ _T("American Laser Games Fast Draw Showdown v1.31"), 0, 0, 0, 0, _T("ALG\0"), 262144, 188, 0, 0, ROMTYPE_ALG, 0, 0, NULL,
 	0x6977addf, 0xdc845431,0xbb1a39bd,0x615afe5f,0x7cb7c8d0,0x3433ef8c },
@@ -841,6 +865,12 @@ static struct romdata roms[] = {
 	0x63e9f444, 0x6f2624a5,0x6a672f97,0xc751ae51,0xb4b834a5,0x097a855a },
 	ALTROMPN(194, 1, 1, 131072, ROMTYPE_EVEN | ROMTYPE_8BIT, NULL, 0x475e847a, 0x82fd1608,0x35758cd5,0x1ea22f90,0xb08921a4,0x0409f94d)
 	ALTROMPN(194, 1, 2, 131072, ROMTYPE_ODD  | ROMTYPE_8BIT, NULL, 0x814f5777, 0x341a1d7b,0x64112af3,0xe8243bdb,0xfec72e7f,0xa85aa903)
+	// cp_10_rom1.bin, cp_10_rom2.bin
+	{ _T("American Laser Games Crime Patrol v1.0"), 0, 0, 0, 0, _T("ALG\0"), 262144, 270, 0, 0, ROMTYPE_ALG, 0, 0, NULL,
+		0xb3846a9f, 0x0157ff74, 0xb10b0bc2, 0x576ddcab, 0x80af6466, 0x6d49afc9
+	},
+	ALTROMPN(270, 1, 1, 131072, ROMTYPE_EVEN | ROMTYPE_8BIT, NULL, 0x6e4614cd, 0x0f73f477, 0xe13b3f18, 0x4e9a55f4, 0xbe954746, 0x61c912d5)
+	ALTROMPN(270, 1, 2, 131072, ROMTYPE_ODD  | ROMTYPE_8BIT, NULL, 0xaac76488, 0xfabf4700, 0x610480a2, 0x8dad6e14, 0x83e58ec2, 0x27e465ff)
 	// cp2_1.3_1.bin, cp2_1.3_2.bin
 	{ _T("American Laser Games Crime Patrol 2: Drug Wars v1.3"), 0, 0, 0, 0, _T("ALG\0"), 262144, 195, 0, 0, ROMTYPE_ALG, 0, 0, NULL,
 	0x57d1f606, 0xffbee51c,0x9c52a9c6,0x6440cbf8,0x34144321,0x75036282 },
@@ -1922,7 +1952,7 @@ struct zfile *read_rom (struct romdata *prd)
 			}
 			if (ok) {
 				if (rd->id == 197) {
-					// ALG Platoon
+					// NOVA Platoon (Uses ALG Rev B board, but their own PAL)
 					uae_u8 *tmp = xmalloc(uae_u8, size);
 					if (tmp) {
 						memcpy(tmp, buf, size);
@@ -1933,7 +1963,7 @@ struct zfile *read_rom (struct romdata *prd)
 						xfree(tmp);
 					}
 				} else if (rd->id == 182) {
-					// ALG Space Pirates
+					// ALG Space Pirates (PAL R4?)
 					uae_u8 *tmp = xmalloc(uae_u8, size);
 					if (tmp) {
 						memcpy(tmp, buf, size);
@@ -1941,6 +1971,30 @@ struct zfile *read_rom (struct romdata *prd)
 						33,32,34,35,49,48,50,51,45,44,46,47,61,60,62,63,37,36,38,39,53,52,54,55,41,40,42,43,57,56,58,59 };
 						for (int i = 0; i < 64; i++) {
 							memcpy(buf + i * 0x1000, tmp + sp[i] * 0x1000, 0x1000);
+						}
+						xfree(tmp);
+					}
+				}
+				else if ((rd->id == 184) || (rd->id == 185)) {
+					// ALG Johnny Rock (PAL R3)
+					uae_u8* tmp = xmalloc(uae_u8, size);
+					if (tmp) {
+						memcpy(tmp, buf, size);
+						static const int wsjr[] = { 0,1,3,2,4,5,7,6,8,9,11,10,12,13,15,14,16,17,19,18,20,21,23,22,24,25,27,26,28,29,31,30 };
+						for (int i = 0; i < 32; i++) {
+							memcpy(buf + i * 0x1000, tmp + wsjr[i] * 0x1000, 0x1000);
+						}
+						xfree(tmp);
+					}
+				}
+				else if ((rd->id == 175) || (rd->id == 272)) {
+					// ALG Mad Dog (Original Rev A board, PAL R1)
+					uae_u8* tmp = xmalloc(uae_u8, size);
+					if (tmp) {
+						memcpy(tmp, buf, size);
+						static const int mdm[] = { 0,1,3,2,4,5,7,6,12,13,15,14,8,9,11,10,16,17,19,18,20,21,23,22,28,29,31,30,24,25,27,26 };
+						for (int i = 0; i < 32; i++) {
+							memcpy(buf + i * 0x1000, tmp + mdm[i] * 0x1000, 0x1000);
 						}
 						xfree(tmp);
 					}

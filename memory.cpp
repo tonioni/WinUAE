@@ -1060,7 +1060,10 @@ static int extendedkickmem_type;
 #define EXTENDED_ROM_CDTV 2
 #define EXTENDED_ROM_KS 3
 #define EXTENDED_ROM_ARCADIA 4
-#define EXTENDED_ROM_ALG 5
+#define EXTENDED_ROM_ALG_A 5
+#define EXTENDED_ROM_ALG_B 6
+
+bool alg_r2_override = false;
 
 static void REGPARAM3 extendedkickmem_lput (uaecptr, uae_u32) REGPARAM;
 static void REGPARAM3 extendedkickmem_wput (uaecptr, uae_u32) REGPARAM;
@@ -1420,12 +1423,20 @@ void a3000_fakekick (int map)
 	protect_roms (true);
 }
 
-static bool is_alg_rom(const TCHAR *name)
+static bool is_alg_a_rom(const TCHAR *name)
 {
 	struct romdata *rd = getromdatabypath(name);
 	if (!rd)
 		return false;
-	return (rd->type & ROMTYPE_ALG) != 0;
+	return ((rd->type & ROMTYPE_ALG) != 0 && (rd->size == 0x10000));
+}
+
+static bool is_alg_b_rom(const TCHAR* name)
+{
+	struct romdata* rd = getromdatabypath(name);
+	if (!rd)
+		return false;
+	return ((rd->type & ROMTYPE_ALG) != 0 && (rd->size == 0x20000));
 }
 
 static void descramble_alg(uae_u8 *data, int size)
@@ -1568,9 +1579,17 @@ static bool load_extendedkickstart (const TCHAR *romextfile, int type)
 		extendedkickmem_type = EXTENDED_ROM_ARCADIA;
 		return false;
 	}
-	if (is_alg_rom(romextfile)) {
-		type = EXTENDED_ROM_ALG;
+	if (is_alg_a_rom(romextfile)) {
+		type = EXTENDED_ROM_ALG_A;
 
+	}
+	else if (is_alg_b_rom(romextfile)) {
+		type = EXTENDED_ROM_ALG_B;
+		alg_r2_override = false;
+		struct romdata* rd = getromdatabypath(romextfile);
+		if ( (rd->id == 182) || (rd->id == 273)) {
+			alg_r2_override = true;
+		}
 	}
 	f = read_rom_name (romextfile);
 	if (!f) {
@@ -1615,16 +1634,24 @@ static bool load_extendedkickstart (const TCHAR *romextfile, int type)
 			mapped_malloc (&extendedkickmem_bank);
 			extendedkickmem_bank.start = 0xe00000;
 			break;
-		case EXTENDED_ROM_ALG:
+		case EXTENDED_ROM_ALG_A:
+			extendedkickmem_bank.label = _T("rom_f0");
+			mapped_malloc(&extendedkickmem_bank);
+			extendedkickmem_bank.start = 0xf00000;
+			break;
+		case EXTENDED_ROM_ALG_B:
 			extendedkickmem_bank.label = _T("rom_f0");
 			mapped_malloc(&extendedkickmem_bank);
 			extendedkickmem_bank.start = 0xf00000;
 			break;
 		}
-		if (extendedkickmem_bank.baseaddr) {
+	if (extendedkickmem_bank.baseaddr) {
 			read_kickstart (f, extendedkickmem_bank.baseaddr, extendedkickmem_bank.allocated_size, 0, 1);
-			if (extendedkickmem_type == EXTENDED_ROM_ALG)
+			if (extendedkickmem_type == EXTENDED_ROM_ALG_A)
+				descramble_alg(extendedkickmem_bank.baseaddr, 131072);
+			else if (extendedkickmem_type == EXTENDED_ROM_ALG_B)
 				descramble_alg(extendedkickmem_bank.baseaddr, 262144);
+
 			extendedkickmem_bank.mask = extendedkickmem_bank.allocated_size - 1;
 			ret = true;
 		}
@@ -2895,10 +2922,15 @@ void memory_reset (void)
 		map_banks_set(&extendedkickmem_bank, 0xE0, 8, 0);
 		break;
 #endif
-	case EXTENDED_ROM_ALG:
-		map_banks_set(&extendedkickmem_bank, 0xF0, 4, 0);
-		alg_map_banks();
+	case EXTENDED_ROM_ALG_A:
+		map_banks_set(&extendedkickmem_bank, 0xF0, 2, 0);
+		alg_map_banks(true);
 		break;
+	case EXTENDED_ROM_ALG_B:
+		map_banks_set(&extendedkickmem_bank, 0xF0, 4, 0);
+		alg_map_banks(alg_r2_override); // If true, this is Space PIrates 1.4 or the Rev A -> B hack that uses the old NVRAM location
+		break;
+
 	}
 
 #ifdef AUTOCONFIG
