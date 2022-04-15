@@ -5317,6 +5317,8 @@ int DISK_examine_image(struct uae_prefs *p, int num, struct diskinfo *di, bool d
 	di->unreadable = true;
 	oldcyl = drv->cyl;
 	oldside = side;
+	drv->cyl = 0;
+	side = 0;
 	if (!drive_insert (drv, p, num, p->floppyslots[num].df, true, true) || (!drv->diskfile && !drv->bridge)) {
 		drv->cyl = oldcyl;
 		side = oldside;
