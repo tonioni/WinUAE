@@ -50,6 +50,8 @@ S_FPSR = S_FPCR+4
 S_FSAVE = S_FPSR+4
 S_NEXT = S_FSAVE+216
 
+asm_start:
+
 	| v1, v2, limit
 	| abs((v2 - v1) / v1) > limit
 _fpucomp:
@@ -356,6 +358,21 @@ exception:
 _cyclereg_address4:
 	move.w CYCLEREG,cycles+2
 	move.w #0,ACTIVITYREG
+	| exception start inside this assembly code?
+	cmp.l #asm_start,2+4+2(sp)
+	bcs.s .okpc
+	cmp.l #asm_end,2+4+2(sp)
+	bhi.s .okpc
+	| interrupt?
+	cmp.l #_exceptiontable000+24*2,2(sp)
+	bcs.s .okpc
+	cmp.l #_exceptiontable000+(24+8)*2,2(sp)
+	bcc.s .okpc
+	| possibly IPL tester spurious interrupt
+	| ignore it
+	addq.l #2+4,sp
+	rte
+.okpc:
 	move.l a0,-(sp)
 	move.l datapointer(pc),a0
 	movem.l d0-d7/a0-a6,(a0)
@@ -377,6 +394,18 @@ _cyclereg_address4:
 	move.w (sp),S_EXC+0(a0)
 	addq.w #8,sp
 .noaddresserror:
+	cmp.w #24,d0
+	bcs.s .nointerrupt
+	cmp.w #24+8,d0
+	bcc.s .nointerrupt
+	| possible IPL test run, delay a bit
+	| to make sure tester hardware is not pulling
+	| IPL line down anymore
+	moveq #16-1,d1
+.delay1:
+	dbf d1,.delay1
+.nointerrupt:
+
 	move.w (sp)+,S_SR+2(a0)
 	move.l (sp)+,S_PC(a0)
 
@@ -753,3 +782,4 @@ temp:
 	dc.l 0
 nullframe:
 	dc.l 0,0,0
+asm_end:

@@ -795,6 +795,7 @@ struct uae_prefs {
 	bool obs_sound_toccata_mixer;
 	bool obs_sound_es1370;
 	bool obs_sound_fm801;
+	bool cputester;
 
 	int mountitems;
 	struct uaedev_config_data mountconfig[MOUNT_CONFIG_SIZE];

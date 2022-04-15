@@ -2497,6 +2497,11 @@ static uae_u32 REGPARAM2 clock_bget (uaecptr addr)
 	return getclockreg (addr, ct);
 }
 
+static void cputester_event(uae_u32 v)
+{
+	IRQ_forced(1, 64 / 2);
+}
+
 static void REGPARAM2 clock_lput (uaecptr addr, uae_u32 value)
 {
 	if ((addr & 0xffff) >= 0x8000 && currprefs.cs_fatgaryrev >= 0) {
@@ -2522,6 +2527,10 @@ static void REGPARAM2 clock_wput (uaecptr addr, uae_u32 value)
 static void REGPARAM2 clock_bput (uaecptr addr, uae_u32 value)
 {
 //	write_log(_T("W: %x (%x): %x, PC=%08x\n"), addr, (addr & 0xff) >> 2, value & 0xff, M68K_GETPC);
+
+	if (currprefs.cputester && (addr & 65535) == 0) {
+		event2_newevent_xx(-1, CYCLE_UNIT * (64 / 2), 0, cputester_event);
+	}
 
 	if ((addr & 0xffff) >= 0x8000 && currprefs.cs_fatgaryrev >= 0) {
 		dummy_put(addr, 1, value);

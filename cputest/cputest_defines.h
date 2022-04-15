@@ -58,4 +58,6 @@
 #define ILLG_OPCODE 0x4afc
 #define LM_OPCODE 0x42db
 
-#define SERPER 8
+#define INTERRUPT_CYCLES 64
+#define MAX_INTERRUPT_DELAY 64
+#define IPL_TRIGGER_ADDR 0xdc0000

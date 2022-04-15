@@ -7325,20 +7325,29 @@ static void DMACON(int hpos, uae_u16 v)
 	}
 }
 
-static int irq_nmi;
+static int irq_forced, irq_delay;
 
-void NMI_delayed(void)
+void IRQ_forced(int lvl, int delay)
 {
-	irq_nmi = 1;
+	irq_forced = lvl;
+	irq_delay = -1;
+	if (delay > 0 && currprefs.cpu_compatible) {
+		irq_delay = get_cycles() + irq_delay * CYCLE_UNIT;
+	}
+	doint();
 }
 
 int intlev(void)
 {
-	uae_u16 imask = intreq & intena;
-	if (irq_nmi) {
-		irq_nmi = 0;
-		return 7;
+	if (irq_forced) {
+		int lvl = irq_forced;
+		if (irq_delay == -1 || ((int)get_cycles()) - irq_delay > 0) {
+			irq_forced = 0;
+			irq_delay = -1;
+		}
+		return lvl;
 	}
+	uae_u16 imask = intreq & intena;
 	if (!(imask && (intena & 0x4000)))
 		return -1;
 	if (imask & (0x4000 | 0x2000))						// 13 14

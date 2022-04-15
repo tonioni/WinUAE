@@ -686,7 +686,7 @@ extern void REGPARAM3 Exception_cpu(int) REGPARAM;
 extern void REGPARAM3 Exception_cpu_oldpc(int, uaecptr) REGPARAM;
 extern void REGPARAM3 ExceptionL (int, uaecptr) REGPARAM;
 extern void NMI (void);
-extern void NMI_delayed (void);
+extern void IRQ_forced(int, int);
 extern void prepare_interrupt (uae_u32);
 extern void doint (void);
 extern void dump_counts (void);

@@ -142,6 +142,7 @@ static uae_u32 trace_store_pc;
 static uae_u16 trace_store_sr;
 static int generate_address_mode;
 static int test_memory_access_mask;
+static uae_u32 opcode_memory_address;
 
 static uae_u8 imm8_cnt;
 static uae_u16 imm16_cnt;
@@ -372,8 +373,8 @@ static void count_interrupt_cycles(int cycles)
 		return;
 	interrupt_cycle_cnt -= cycles;
 	if (interrupt_cycle_cnt <= 0) {
+		regs.ipl_pin = 1;
 		interrupt_cycle_cnt = 0;
-		Exception(24 + 6);
 	}
 }
 
@@ -473,8 +474,9 @@ uae_u32 get_ilong_test(uaecptr addr)
 uae_u16 get_word_test_prefetch(int o)
 {
 	// no real prefetch
-	if (cpu_lvl < 2)
+	if (cpu_lvl < 2) {
 		o -= 2;
+	}
 	add_memory_cycles(-1);
 	regs.irc = get_iword_test(m68k_getpci() + o + 2);
 	read_buffer_prev = regs.read_buffer;
@@ -517,6 +519,11 @@ void put_byte_test(uaecptr addr, uae_u32 v)
 {
 	if (!testing_active && is_nowrite_address(addr, 1))
 		return;
+	if (feature_interrupts == 2 && addr == IPL_TRIGGER_ADDR) {
+		add_memory_cycles(1);
+		interrupt_cycle_cnt = INTERRUPT_CYCLES - 2;
+		return;
+	}
 	check_bus_error(addr, 1, regs.s ? 5 : 1);
 	uae_u8 *p = get_addr(addr, 1, 2);
 	if (!out_of_test_space && !noaccesshistory && !hardware_bus_error_fake) {
@@ -821,6 +828,9 @@ bool is_cycle_ce(uaecptr addr)
 
 void ipl_fetch(void)
 {
+	if (regs.ipl_pin) {
+		regs.ipl = regs.ipl_pin;
+	}
 }
 
 int intlev(void)
@@ -3925,6 +3935,7 @@ static void execute_ins(uaecptr endpc, uaecptr targetpc, struct instr *dp, bool 
 	cpu_cycles = 0;
 	regs.loop_mode = 0;
 	regs.ipl_pin = 0;
+	regs.ipl = 0;
 	interrupt_level = 0;
 	interrupt_cycle_cnt = 0;
 
@@ -3942,7 +3953,7 @@ static void execute_ins(uaecptr endpc, uaecptr targetpc, struct instr *dp, bool 
 		cnt = 100;
 	}
 	if (feature_interrupts == 2) {
-		interrupt_cycle_cnt = SERPER * 10 - 20;
+		interrupt_cycle_cnt = INTERRUPT_CYCLES;
 	}
 
 	for (;;) {
@@ -4048,6 +4059,18 @@ static void execute_ins(uaecptr endpc, uaecptr targetpc, struct instr *dp, bool 
 			break;
 		}
 
+		if (feature_interrupts == 2) {
+			if (regs.ipl > regs.intmask) {
+				Exception(24 + regs.ipl);
+				break;
+			}
+		} else {
+			if (regs.ipl_pin > regs.intmask) {
+				Exception(24 + regs.ipl_pin);
+				break;
+			}
+		}
+
 		if (regs.pc == endpc || regs.pc == targetpc) {
 			// Trace is only added as an exception if there was no other exceptions
 			// Trace stacked with other exception is handled later
@@ -4063,11 +4086,6 @@ static void execute_ins(uaecptr endpc, uaecptr targetpc, struct instr *dp, bool 
 
 		if (!valid_address(regs.pc, 2, 0))
 			break;
-
-		if (regs.ipl_pin > regs.intmask) {
-			Exception(24 + regs.ipl_pin);
-			break;
-		}
 
 		if (!feature_loop_mode_jit && !feature_loop_mode_68010) {
 			// trace after NOP
@@ -4108,6 +4126,24 @@ static void execute_ins(uaecptr endpc, uaecptr targetpc, struct instr *dp, bool 
 			regs.irc = get_iword_test(regs.pc + 2);
 		}
 		opc = regs.ir;
+	}
+
+	if (feature_interrupts == 2) {
+		// IPL test must cause some exception
+		if (!test_exception) {
+			test_exception = -1;
+		}
+		// Interrupt start must be before test instruction,
+		// after test instruction
+		// or after end NOP instruction
+		if (test_exception >= 24 && test_exception <= 24 + 8) {
+			if (test_exception_addr != opcode_memory_address &&
+				test_exception_addr != opcode_memory_address - 2 &&
+				test_exception_addr != test_instruction_end_pc)
+			{
+				test_exception = -1;
+			}
+		}
 	}
 
 	testing_active = 0;
@@ -4532,6 +4568,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 	full_format_cnt = 0;
 	last_exception_len = -1;
 	interrupt_count = 0;
+	interrupt_delay_cnt = 0;
 
 	int sr_override = 0;
 
@@ -4546,7 +4583,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 		target_address_bak = target_address;
 		target_opcode_address_bak = target_opcode_address;
 
-		uae_u32 opcode_memory_address = opcode_memory_start;
+		opcode_memory_address = opcode_memory_start;
 		uae_u8 *opcode_memory_ptr = opcode_memory;
 		if (target_opcode_address != 0xffffffff) {
 			opcode_memory_address += target_opcode_address;
@@ -4591,10 +4628,6 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 		uae_u32 startpc_old = opcode_memory_start;
 		int branch_target_swap_mode_old = 0;
 		int doopcodeswap = 1;
-
-		if (feature_interrupts == 2) {
-			doopcodeswap = 0;
-		}
 
 		if (verbose) {
 			if (target_ea[0] != 0xffffffff)
@@ -4771,16 +4804,16 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 					// interrupt timing test mode
 					if (feature_interrupts == 2) {
 						pc -= 2;
-						// move.w #x,0xdff032 (SERDAT) (20 cycles)
-						put_long_test(pc + 0, (0x33fc << 16) | 0x100 | '!');
-						put_long_test(pc + 4, 0x00dff030);
-//						// moveq #x,d0 (4 cycles)
-//						put_word_test(pc + 8, 0x7000 | interrupt_delay_cnt);
+						// moveq #x,d0 (4)
+						put_word_test(pc + 0, 0x7000 | interrupt_delay_cnt);
+						// move.b d0,0xdcfffc (RTCW) (8 + 4 + 4)
+						put_word_test(pc + 2, 0x13c0);
+						put_long_test(pc + 4, IPL_TRIGGER_ADDR);
 						// ror.l d0,d0 (4 + 4 + d0 * 2 cycles)
 						put_word_test(pc + 8, 0xe0b8);
 						put_word_test(pc + 10, NOP_OPCODE); // (4 cycles)
 						pc += 12;
-						opcode_memory_address = startpc = pc;
+						opcode_memory_address = pc;
 						pc += 2;
 					}
 
@@ -5095,8 +5128,9 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 						if (dstaddr != 0xffffffff && srcaddr != dstaddr) {
 							outbytes(_T("D"), dstaddr);
 						}
-						if (feature_loop_mode_jit || feature_loop_mode_68010) {
+						if (feature_loop_mode_jit || feature_loop_mode_68010) { // || feature_interrupts == 2) {
 							wprintf(_T("\n"));
+							nextpc = opcode_memory_start;
 							for (int i = 0; i < 20; i++) {
 								out_of_test_space = false;
 								if (get_word_test(nextpc) == ILLG_OPCODE)
@@ -5294,12 +5328,6 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 						dst = store_reg(dst, CT_AREG + 7, 0, target_usp_address, sz_long);
 					}
 
-					if (feature_interrupts == 2) {
-						*dst++ = CT_EDATA;
-						*dst++ = CT_EDATA_IRQ_CYCLES;
-						*dst++ = interrupt_delay_cnt;
-					}
-
 					// pre-test data end
 					*dst++ = CT_END_INIT;
 
@@ -5316,7 +5344,6 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 					int t_cnt = 0;
 
 					int extraccr = 0;
-					interrupt_delay_cnt = -1;
 
 					// extra loops for supervisor and trace
 					uae_u16 sr_allowed_mask = feature_sr_mask & 0xf000;
@@ -5372,9 +5399,6 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 						*dst++ = (uae_u8)(maxflag | (fpumode ? 0x80 : 0x00) | (flagmode ? 0x40 : 0x00));
 
 						maxflagcnt = maxflag;
-						if (feature_interrupts == 2) {
-							maxflagcnt *= 64;
-						}
 
 						// Test every CPU CCR or FPU SR/rounding/precision combination
 						for (int ccrcnt = 0; ccrcnt < maxflagcnt; ccrcnt++) {
@@ -5501,10 +5525,6 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 								regs.sr = ((ccr & 1) ? 31 : 0) | sr_mask;
 							}
 							regs.sr |= feature_min_interrupt_mask << 8;
-
-							if (feature_interrupts == 2) {
-								regs.regs[0] = ccrcnt >> maxflagshift;
-							}
 
 							// override special register values
 							for (int i = 0; i < regdatacnt; i++) {
@@ -5858,7 +5878,8 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 						}
 					}
 					if (verbose) {
-						wprintf(_T(" OK=%d OB=%d S=%d/%d T=%d STP=%d I=%d"), ok, exception_array[0], prev_s_cnt, s_cnt, t_cnt, cnt_stopped, interrupt_delay_cnt);
+						wprintf(_T(" OK=%d OB=%d S=%d/%d T=%d STP=%d I=%d/%d %08x"), ok, exception_array[0],
+							prev_s_cnt, s_cnt, t_cnt, cnt_stopped, interrupt_delay_cnt, interrupt_cycle_cnt, test_exception_addr);
 						if (!ccr_done)
 							wprintf(_T(" X"));
 						for (int i = 2; i < 128; i++) {
@@ -5948,18 +5969,16 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 			nextround = true;
 		}
 
-#if 0
-		// interrupt delay test from 0 to 63
+		// interrupt delay test
 		if (feature_interrupts == 2) {
 			interrupt_delay_cnt++;
-			if (interrupt_delay_cnt >= 64) {
+			if (interrupt_delay_cnt >= MAX_INTERRUPT_DELAY) {
 				break;
 			} else {
 				nextround = true;
 				rounds = 1;
 			}
 		}
-#endif
 
 		if (target_opcode_address != 0xffffffff || target_usp_address != 0xffffffff) {
 			nextround = false;

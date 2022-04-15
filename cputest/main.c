@@ -61,15 +61,6 @@ struct registers
 	uae_u16 fpeaset;
 };
 
-
-struct irqresult
-{
-	uae_u32 pc;
-	uae_u16 sr;
-};
-
-static struct irqresult irqresults[64 + 1], irqresults2[64 + 1];
-
 static short continue_on_error;
 static struct registers test_regs;
 static struct registers last_regs;
@@ -316,29 +307,6 @@ uae_u32 llu(uae_u16 *p)
 uae_s32 lls(uae_u16 *p)
 {
 	return (uae_s32)llu(p);
-}
-
-static void interrupt_results(void)
-{
-	if (interrupttest == 2) {
-		short pvcnt = 0;
-		for(short i = 0; i < 64; i++) {
-			struct irqresult *irq1 = &irqresults[i];
-			struct irqresult *irq2 = &irqresults[i + 1];
-			if (irq1->pc == irq2->pc && irq1->sr == irq2->sr && i < 63) {
-				pvcnt++;
-			}
-			if (irq1->pc != irq2->pc || irq1->sr != irq2->sr || i == 63) {
-				if (irq1->sr == 0x6000) {
-					printf("S%02d-%02d: %08x ", i - pvcnt, i, irq1->pc);
-				} else {
-					printf("U%02d-%02d: %08x ", i - pvcnt, i, irq1->pc);
-				}
-				pvcnt = 0;
-			}
-		}
-		printf("\n");
-	}
 }
 
 static void endinfo(void)
@@ -2176,16 +2144,6 @@ static int get_cycles_amiga(void)
 
 static uae_u16 test_intena, test_intreq;
 
-static void set_interrupt_sertest(void)
-{
-	volatile uae_u16 *intena = (uae_u16 *)0xdff09a;
-	volatile uae_u16 *serper = (uae_u16 *)0xdff032;
-	// enable serial receive interrupt
-	*intena = 0x8000 | 0x4000 | 0x0800;
-	// serial period
-	*serper = SERPER;
-}
-
 static void set_interrupt(void)
 {
 	if (interrupt_count < 15) {
@@ -2425,12 +2383,6 @@ static uae_u8 *validate_test(uae_u8 *p, short ignore_errors, short ignore_sr, st
 	uae_u8 sr_changed = 0, ccr_changed = 0, pc_changed = 0;
 	uae_u8 fpiar_changed = 0, fpsr_changed = 0, fpcr_changed = 0;
 	short exc = -1;
-
-	if (interrupttest == 2) {
-		struct irqresult *irq = &irqresults[interrupt_delay_cnt];
-		irq->pc = tregs->pc;
-		irq->sr = tregs->sr & 0xff00;
-	}
 
 	if (loop_mode_jit) {
 		memset(lmtable1, 0xff, sizeof(lmtable1));
@@ -2934,7 +2886,7 @@ static uae_u8 *validate_test(uae_u8 *p, short ignore_errors, short ignore_sr, st
 		outbp += strlen(outbp);
 		out_regs(tregs, tregs, lregs, sregs, 0, branched2);
 #ifdef AMIGA
-		if (interrupttest) {
+		if (interrupttest == 1) {
 			sprintf(outbp, "INTREQ: %04x INTENA: %04x\n", test_intreq, test_intena);
 			outbp += strlen(outbp);
 		}
@@ -3063,16 +3015,7 @@ static void process_test(uae_u8 *p)
 
 	short doopcodeswap = 1;
 
-	if (interrupttest == 2) {
-		doopcodeswap = 0;
-	}
-
 	for (;;) {
-
-		if (interrupttest == 2) {
-			memcpy(irqresults2, irqresults, sizeof(irqresults));
-			memset(irqresults, 0, sizeof(irqresults));
-		}
 
 		cur_regs.endpc = endpc;
 		cur_regs.pc = startpc;
@@ -3137,9 +3080,6 @@ static void process_test(uae_u8 *p)
 				ccrshift++;
 			}
 			ccrshift--;
-			if (interrupttest == 2) {
-				maxccr *= 64;
-			}
 			testcntsubmax = maxccr;
 			testcntsub = 0;
 			for (short ccrcnt = 0; ccrcnt < maxccr; ccrcnt++, testcntsub++) {
@@ -3260,11 +3200,6 @@ static void process_test(uae_u8 *p)
 
 				test_regs.expsr = test_regs.sr | 0x2000;
 
-				if (interrupttest == 2) {
-					interrupt_delay_cnt = ccrcnt >> ccrshift;
-					cur_regs.regs[0] = test_regs.regs[0] = interrupt_delay_cnt;
-				}
-
 				// internally modified registers become part of cur_regs
 				cur_regs.sr = test_regs.sr;
 				cur_regs.expsr = test_regs.expsr;
@@ -3318,8 +3253,6 @@ static void process_test(uae_u8 *p)
 #ifdef AMIGA
 						if (interrupttest == 1) {
 							set_interrupt();
-						} else  if (interrupttest == 2) {
-							set_interrupt_sertest();
 						}
 #endif
 						if (cpu_lvl == 1) {
@@ -3384,29 +3317,26 @@ static void process_test(uae_u8 *p)
 					fpu_approxcnt++;
 				}
 
-				if (interrupttest != 2) {
-
-					if (quit || errors) {
-						if (!quit && errorcnt > 0 && totalerrors < errorcnt) {
-							if (totalerrors > 0) {
-								strcat(stored_outbuffer, "----------------------------------------\n");
-							}
-							if (strlen(stored_outbuffer) + strlen(outbuffer) + 40 >= outbuffer_size) {
-								goto end;
-							}
-							strcat(stored_outbuffer, outbuffer);
-							outbp = stored_outbuffer + strlen(stored_outbuffer);
-							out_endinfo();
-							infoadded = 0;
-							errors = 0;
-							outbuffer[0] = 0;
-							outbuffer2[0] = 0;
-							outbp = outbuffer2;
-						} else {
+				if (quit || errors) {
+					if (!quit && errorcnt > 0 && totalerrors < errorcnt) {
+						if (totalerrors > 0) {
+							strcat(stored_outbuffer, "----------------------------------------\n");
+						}
+						if (strlen(stored_outbuffer) + strlen(outbuffer) + 40 >= outbuffer_size) {
 							goto end;
 						}
-						totalerrors++;
+						strcat(stored_outbuffer, outbuffer);
+						outbp = stored_outbuffer + strlen(stored_outbuffer);
+						out_endinfo();
+						infoadded = 0;
+						errors = 0;
+						outbuffer[0] = 0;
+						outbuffer2[0] = 0;
+						outbp = outbuffer2;
+					} else {
+						goto end;
 					}
+					totalerrors++;
 				}
 			}
 
@@ -3426,21 +3356,6 @@ static void process_test(uae_u8 *p)
 		}
 
 		restoreahist();
-
-		// increase count when interrupt test returns different results
-		if (interrupttest == 2) {
-			if (memcmp(irqresults, irqresults2, sizeof(irqresults))) {
-				interrupttest_diff_cnt++;
-				if (interrupttest_diff_cnt == irqcnt) {
-					end_test();
-					printf(outbuffer);
-					printf("Interrupt test count expired\n");
-					interrupt_results();
-					exit(0);
-				}
-			}
-		}
-
 	}
 
 end:
@@ -3454,9 +3369,6 @@ end:
 			printf("\n");
 			printf("%s", outbuffer);
 		}
-	}
-	if (interrupttest == 2) {
-		interrupt_results();
 	}
 }
 
@@ -3710,7 +3622,7 @@ static int test_mnemo(const char *opcode)
 
 static int getparamval(const char *p)
 {
-	ULONG inv = 0;
+	uae_u32 inv = 0;
 	if (p[0] == '~') {
 		inv = 0xffffffff;
 		p++;
