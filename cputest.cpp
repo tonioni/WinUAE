@@ -520,7 +520,7 @@ void put_byte_test(uaecptr addr, uae_u32 v)
 {
 	if (!testing_active && is_nowrite_address(addr, 1))
 		return;
-	if (feature_interrupts == 2 && addr == IPL_TRIGGER_ADDR) {
+	if (feature_interrupts >= 2 && addr == IPL_TRIGGER_ADDR) {
 		add_memory_cycles(1);
 		interrupt_cycle_cnt = INTERRUPT_CYCLES - 2;
 		return;
@@ -3044,7 +3044,8 @@ static int create_ea_random(uae_u16 *opcodep, uaecptr pc, int mode, int reg, str
 					else
 						*isconstant = -1;
 				} else {
-					put_word_test(pc, imm16_cnt++);
+					put_word_test(pc, imm16_cnt);
+					imm16_cnt += 0x100; // STOP hack
 					if (imm16_cnt == 0)
 						*isconstant = 0; 
 					else
@@ -3900,8 +3901,9 @@ static bool check_interrupts(void)
 static void execute_ins(uaecptr endpc, uaecptr targetpc, struct instr *dp, bool fpumode)
 {
 	uae_u16 opc = regs.ir;
-	uae_u16 opw1 = (opcode_memory[2] << 8) | (opcode_memory[3] << 0);
-	uae_u16 opw2 = (opcode_memory[4] << 8) | (opcode_memory[5] << 0);
+	int off = opcode_memory_address - opcode_memory_start + 2;
+	uae_u16 opw1 = (opcode_memory[off + 0] << 8) | (opcode_memory[off + 1] << 0);
+	uae_u16 opw2 = (opcode_memory[off + 2] << 8) | (opcode_memory[off + 2] << 0);
 	if (opc == 0x4e72
 		&& opw1 == 0xa000
 		//&& opw2 == 0x4afc
@@ -3956,7 +3958,7 @@ static void execute_ins(uaecptr endpc, uaecptr targetpc, struct instr *dp, bool 
 	if (multi_mode) {
 		cnt = 100;
 	}
-	if (feature_interrupts == 2) {
+	if (feature_interrupts >= 2) {
 		interrupt_cycle_cnt = INTERRUPT_CYCLES;
 	}
 
@@ -4042,12 +4044,12 @@ static void execute_ins(uaecptr endpc, uaecptr targetpc, struct instr *dp, bool 
 			break;
 		}
 		// CPU stopped or was reset: skip
-		if (cpu_stopped && feature_interrupts != 2) {
+		if (cpu_stopped && feature_interrupts < 2) {
 			break;
 		}
 
 		// Supervisor mode and A7 was modified and not RTE+stack mode: skip this test round.
-		if (s && regs.regs[15] != a7 && (dp->mnemo != i_RTE || feature_usp < 3)) {
+		if (s && regs.s && regs.regs[15] != a7 && (dp->mnemo != i_RTE || feature_usp < 3)) {
 			// but not if RTE
 			if (!is_superstack_use_required()) {
 				test_exception = -1;
@@ -4076,7 +4078,7 @@ static void execute_ins(uaecptr endpc, uaecptr targetpc, struct instr *dp, bool 
 			break;
 		}
 
-		if (feature_interrupts == 2) {
+		if (feature_interrupts >= 2) {
 			if (!test_exception && regs.ipl > regs.intmask) {
 				if (cpu_stopped) {
 					do_cycles_test(4);
@@ -4148,7 +4150,7 @@ static void execute_ins(uaecptr endpc, uaecptr targetpc, struct instr *dp, bool 
 		opc = regs.ir;
 	}
 
-	if (feature_interrupts == 2) {
+	if (feature_interrupts >= 2) {
 		// IPL test must cause some exception
 		if (!test_exception || test_exception == 8) {
 			test_exception = -1;
@@ -4591,6 +4593,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 	full_format_cnt = 0;
 	last_exception_len = -1;
 	interrupt_count = 0;
+
 	interrupt_delay_cnt = 0;
 
 	int sr_override = 0;
@@ -4801,8 +4804,8 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 
 					if (opc == 0xf27c)
 						printf("");
-					if (subtest_count >= 700)
-						printf("");
+					//if (subtest_count >= 700)
+					//	printf("");
 
 
 					uaecptr startpc = opcode_memory_start;
@@ -4825,7 +4828,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 					}
 
 					// interrupt IPL timing test mode
-					if (feature_interrupts == 2) {
+					if (feature_interrupts >= 2) {
 						pc -= 2;
 						// save CCR
 						if (cpu_lvl == 0) {
@@ -4846,8 +4849,15 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 						// move d7,ccr
 						put_word_test(pc + 12, 0x44c7); // 12 cycles
 						put_word_test(pc + 14, NOP_OPCODE); // 4 cycles
-						put_word_test(pc + 16, NOP_OPCODE); // 4 cycles
-						pc += 18;
+						pc += 16;
+						if (feature_interrupts >= 3) {
+							// or #$8000,sr
+							put_long_test(pc, 0x007c8000);
+							pc += 4;
+						} else {
+							put_word_test(pc, NOP_OPCODE); // 4 cycles
+							pc += 2;
+						}
 						opcode_memory_address = pc;
 						pc += 2;
 					}
@@ -5321,7 +5331,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 						}
 					}
 
-					if (subtest_count == 8192)
+					if (subtest_count == 262144)
 						printf("");
 
 					// save opcode memory
@@ -5971,7 +5981,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 		}
 		dst = storage_buffer;
 
-		if (feature_interrupts != 2 && opcodecnt == 1 && target_address == 0xffffffff &&
+		if (feature_interrupts < 2 && opcodecnt == 1 && target_address == 0xffffffff &&
 			target_opcode_address == 0xffffffff && target_usp_address == 0xffffffff && subtest_count >= feature_test_rounds_opcode)
 			break;
 
@@ -6007,7 +6017,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 		}
 
 		// interrupt delay test
-		if (feature_interrupts == 2) {
+		if (feature_interrupts >= 2) {
 			interrupt_delay_cnt++;
 			if (interrupt_delay_cnt >= MAX_INTERRUPT_DELAY) {
 				break;

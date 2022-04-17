@@ -689,6 +689,7 @@ extern void NMI (void);
 extern void IRQ_forced(int, int);
 extern void prepare_interrupt (uae_u32);
 extern void doint (void);
+extern void intlev_load(void);
 extern void dump_counts (void);
 extern int m68k_move2c (int, uae_u32 *);
 extern int m68k_movec2 (int, uae_u32 *);

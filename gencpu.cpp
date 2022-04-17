@@ -1184,7 +1184,7 @@ static void makefromsr(void)
 {
 	out("MakeFromSR();\n");
 	if (using_ce || isce020())
-		out("regs.ipl_pin = intlev();\n");
+		out("intlev_load(); \n");
 }
 
 static void makefromsr_t0(void)
@@ -1195,7 +1195,7 @@ static void makefromsr_t0(void)
 		out("MakeFromSR_T0();\n");
 	}
 	if (using_ce || isce020())
-		out("regs.ipl_pin = intlev();\n");
+		out("intlev_load();\n");
 }
 
 static void irc2ir (bool dozero)
