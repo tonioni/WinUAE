@@ -145,7 +145,8 @@ static short skipregchange;
 static short skipccrchange;
 static short askifmissing;
 static short nextall;
-static int exitcnt, irqcnt;
+static short exitmode;
+static int exitcnt, exitcnt2, irqcnt;
 static short cycles, cycles_range, cycles_adjust;
 static short gotcycles;
 static short interrupttest;
@@ -2125,10 +2126,10 @@ static int get_cycles_amiga(void)
 	}
 
 	// hpos 0-1: vertical count hasn't been increased yet
-	if (hstart <= 1) {
+	if (hstart <= 0) {
 		vstart++;
 	}
-	if (hend <= 1) {
+	if (hend <= 0) {
 		vend++;
 	}
 
@@ -2502,12 +2503,15 @@ static uae_u8 *validate_test(uae_u8 *p, short ignore_errors, short ignore_sr, st
 				if (dooutput) {
 					if (cpuexc == 4 && lregs->pc + opcodeendsizeextra == tregs->pc) {
 						sprintf(outbp, "Exception: expected %d but got no exception.\n", exc);
+						outbp += strlen(outbp);
 					} else if (cpuexc == 4) {
 						sprintf(outbp, "Exception: expected %d but got %d (or no exception)\n", exc, cpuexc);
+						outbp += strlen(outbp);
 					} else {
 						int excsize;
 						uae_u8 *excp;
 						sprintf(outbp, "Exception: expected %d but got %d\n", exc, cpuexc);
+						outbp += strlen(outbp);
 						excp = get_exceptionframe(&test_regs, cpuexc, &excsize);
 						if (excp && excsize) {
 							hexdump(excp, excsize, 1);
@@ -2515,7 +2519,6 @@ static uae_u8 *validate_test(uae_u8 *p, short ignore_errors, short ignore_sr, st
 					}
 					experr = 1;
 				}
-				outbp += strlen(outbp);
 				errflag |= 1 << 16;
 			}
 			break;
@@ -2871,7 +2874,7 @@ static uae_u8 *validate_test(uae_u8 *p, short ignore_errors, short ignore_sr, st
 		errflag = 0;
 	}
 
-	if (exitcnt == 0 && !errflag) {
+	if (exitcnt == 0 && !exitmode && !errflag) {
 		errflag = 1;
 	}
 
@@ -3222,6 +3225,9 @@ static void process_test(uae_u8 *p)
 
 				if (exitcnt >= 0) {
 					exitcnt--;
+					if (!exitcnt && exitmode) {
+						goto end;
+					}
 				}
 
 				if ((*p) == CT_END_SKIP) {
@@ -3369,6 +3375,9 @@ end:
 			printf("\n");
 			printf("%s", outbuffer);
 		}
+	}
+	if (exitcnt == 0 && exitmode) {
+		printf("Exit count expired\n");
 	}
 }
 
@@ -3533,6 +3542,7 @@ static int test_mnemo(const char *opcode)
 	fpu_approxcnt = 0;
 	memset(exceptioncount, 0, sizeof(exceptioncount));
 	supercnt = 0;
+	exitcnt = exitcnt2;
 
 	uae_u8 *test_data_prealloc = NULL;
 
@@ -3598,7 +3608,7 @@ static int test_mnemo(const char *opcode)
 		}
 		test_data = NULL;
 
-		if (errors || quit || last) {
+		if (errors || quit || last || (!exitcnt && exitmode)) {
 			break;
 		}
 
@@ -3610,7 +3620,7 @@ static int test_mnemo(const char *opcode)
 		out_endinfo();
 		printf("%s", outbuffer);
 	}
-	if (exitcnt == 0) {
+	if (exitcnt == 0 && !exitmode) {
 		printf("Exit count expired\n");
 	}
 	if (!errors && !quit) {
@@ -3707,6 +3717,7 @@ int main(int argc, char *argv[])
 		printf("-skipreg = do not validate registers.\n");
 		printf("-askifmissing = ask for new path if dat file is missing.\n");
 		printf("-exit n = exit after n tests.\n");
+		printf("-exitok n = exit after n tests, continue normally.\n");
 		printf("-fpuadj <exp> 16-bit exponent range value. (16383 = 1.0)\n");
 		printf("-fpsrmask = ignore FPSR bits that are not set.\n");
 		printf("-cycles [range adjust] = check cycle counts.\n");
@@ -3724,7 +3735,8 @@ int main(int argc, char *argv[])
 	ccr_mask = 0xff;
 	fpsr_ignore_mask = 0xffffffff;
 	disasm = 1;
-	exitcnt = -1;
+	exitcnt2 = -1;
+	exitmode = 0;
 	cyclecounter_addr = 0xffffffff;
 	cycles_range = 2;
 	fpu_adjust_exp = -1;
@@ -3786,7 +3798,14 @@ int main(int argc, char *argv[])
 			nextall = 1;
 		} else if (!_stricmp(s, "-exit")) {
 			if (next) {
-				exitcnt = atoi(next);
+				exitcnt2 = atoi(next);
+				exitmode = 0;
+				i++;
+			}
+		} else if (!_stricmp(s, "-exitok")) {
+			if (next) {
+				exitcnt2 = atoi(next);
+				exitmode = 1;
 				i++;
 			}
 		} else if (!_stricmp(s, "-irqcnt")) {
@@ -3926,7 +3945,7 @@ int main(int argc, char *argv[])
 			}
 		}
 
-		if (!_stricmp(opcode, "all")) {
+		if (!_stricmp(opcode, "all") || (opcode[0] && opcode[strlen(opcode) - 1] == '*')) {
 			DIR *d = opendir(path);
 			if (!d) {
 				printf("Couldn't list directory '%s'\n", path);
@@ -3940,6 +3959,7 @@ int main(int argc, char *argv[])
 			if (!dirs)
 				return 0;
 
+			// get directory
 			for (;;) {
 				struct dirent *dr = readdir(d);
 				if (!dr)
@@ -3947,6 +3967,7 @@ int main(int argc, char *argv[])
 				int d = isdir(path, dr->d_name);
 				if (d && dr->d_name[0] != '.') {
 					strcpy(dirs + diroff, dr->d_name);
+					printf("%s\n", dr->d_name);
 					dircnt++;
 					diroff += MAX_FILE_LEN;
 					if (dircnt >= MAX_FILES) {
@@ -3957,6 +3978,7 @@ int main(int argc, char *argv[])
 			}
 			closedir(d);
 
+			// sort directory
 			for (int i = 0; i < diroff; i += MAX_FILE_LEN) {
 				for (int j = i + MAX_FILE_LEN; j < diroff; j += MAX_FILE_LEN) {
 					if (_stricmp(dirs + i, dirs + j) > 0) {
@@ -3985,12 +4007,25 @@ int main(int argc, char *argv[])
 			if (nextall) {
 				first += MAX_FILE_LEN;
 			}
+
 			int err = 0;
-			for (int i = first; i < diroff; i += MAX_FILE_LEN) {
-				if (test_mnemo(dirs + i)) {
-					err = 1;
-					if (stop_on_error)
-						break;
+			if (!_stricmp(opcode, "all")) {
+				for (int i = first; i < diroff; i += MAX_FILE_LEN) {
+					if (test_mnemo(dirs + i)) {
+						err = 1;
+						if (stop_on_error)
+							break;
+					}
+				}
+			} else {
+				for (int i = first; i < diroff; i += MAX_FILE_LEN) {
+					char *name = dirs + i;
+					if (!strnicmp(name, opcode, strlen(opcode) - 1)) {
+						if (test_mnemo(name)) {
+							if (stop_on_error)
+								break;
+						}
+					}
 				}
 			}
 
@@ -3998,29 +4033,6 @@ int main(int argc, char *argv[])
 
 			if (err && stop_on_error)
 				break;
-
-		} else if (opcode[0] && opcode[strlen(opcode) - 1] == '*') {
-			DIR *d = opendir(path);
-			if (!d) {
-				printf("Couldn't list directory '%s'\n", path);
-				return 0;
-			}
-			for (;;) {
-				struct dirent *dr = readdir(d);
-				if (!dr)
-					break;
-				if (!strnicmp(dr->d_name, opcode, strlen(opcode) - 1)) {
-					int d = isdir(path, dr->d_name);
-					if (d) {
-						if (test_mnemo(dr->d_name)) {
-							if (stop_on_error)
-								break;
-						}
-					}
-				}
-			}
-			closedir(d);
-
 
 		} else {
 			if (test_mnemo(opcode)) {

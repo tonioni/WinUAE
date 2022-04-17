@@ -374,6 +374,7 @@ static void count_interrupt_cycles(int cycles)
 	interrupt_cycle_cnt -= cycles;
 	if (interrupt_cycle_cnt <= 0) {
 		regs.ipl_pin = 1;
+		interrupt_level = 1;
 		interrupt_cycle_cnt = 0;
 	}
 }
@@ -1474,6 +1475,9 @@ void REGPARAM2 Exception(int n)
 	test_exception_addr = m68k_getpci();
 	test_exception_opcode = -1;
 	doexcstack();
+	if (n >= 24 && n < 24 + 8) {
+		cpu_stopped = 0;
+	}
 }
 void REGPARAM2 Exception_cpu_oldpc(int n, uaecptr oldpc)
 {
@@ -3898,7 +3902,7 @@ static void execute_ins(uaecptr endpc, uaecptr targetpc, struct instr *dp, bool 
 	uae_u16 opc = regs.ir;
 	uae_u16 opw1 = (opcode_memory[2] << 8) | (opcode_memory[3] << 0);
 	uae_u16 opw2 = (opcode_memory[4] << 8) | (opcode_memory[5] << 0);
-	if (opc == 0xf208
+	if (opc == 0x4e72
 		&& opw1 == 0xa000
 		//&& opw2 == 0x4afc
 		)
@@ -3974,7 +3978,7 @@ static void execute_ins(uaecptr endpc, uaecptr targetpc, struct instr *dp, bool 
 			abort();
 		}
 
-		if (SPCFLAG_TRACE) {
+		if (SPCFLAG_TRACE && !cpu_stopped) {
 			do_trace();
 		}
 
@@ -3995,7 +3999,17 @@ static void execute_ins(uaecptr endpc, uaecptr targetpc, struct instr *dp, bool 
 			}
 		}
 
-		(*cpufunctbl[opc])(opc);
+		if (cpu_stopped) {
+			if (!interrupt_cycle_cnt) {
+				test_exception = -1;
+				break;
+			}
+			do_cycles_test(2);
+			ipl_fetch();
+			do_cycles_test(2);
+		} else {
+			(*cpufunctbl[opc])(opc);
+		}
 
 		if (fpumode) {
 			// skip result has too large or small exponent
@@ -4023,9 +4037,12 @@ static void execute_ins(uaecptr endpc, uaecptr targetpc, struct instr *dp, bool 
 		}
 
 
-		// Test did one or more out of bounds memory accesses
-		// or CPU stopped or was reset: skip
-		if (out_of_test_space || cpu_stopped) {
+		// One or more out of bounds memory accesses: skip
+		if (out_of_test_space) {
+			break;
+		}
+		// CPU stopped or was reset: skip
+		if (cpu_stopped && feature_interrupts != 2) {
 			break;
 		}
 
@@ -4060,18 +4077,21 @@ static void execute_ins(uaecptr endpc, uaecptr targetpc, struct instr *dp, bool 
 		}
 
 		if (feature_interrupts == 2) {
-			if (regs.ipl > regs.intmask) {
+			if (!test_exception && regs.ipl > regs.intmask) {
+				if (cpu_stopped) {
+					do_cycles_test(4);
+				}
 				Exception(24 + regs.ipl);
 				break;
 			}
 		} else {
-			if (regs.ipl_pin > regs.intmask) {
+			if (!test_exception && regs.ipl_pin > regs.intmask) {
 				Exception(24 + regs.ipl_pin);
 				break;
 			}
 		}
 
-		if (regs.pc == endpc || regs.pc == targetpc) {
+		if ((regs.pc == endpc || regs.pc == targetpc) && !cpu_stopped) {
 			// Trace is only added as an exception if there was no other exceptions
 			// Trace stacked with other exception is handled later
 			if (SPCFLAG_DOTRACE && !test_exception && trace_store_pc == 0xffffffffff) {
@@ -4130,7 +4150,10 @@ static void execute_ins(uaecptr endpc, uaecptr targetpc, struct instr *dp, bool 
 
 	if (feature_interrupts == 2) {
 		// IPL test must cause some exception
-		if (!test_exception) {
+		if (!test_exception || test_exception == 8) {
+			test_exception = -1;
+		}
+		if (cpu_stopped) {
 			test_exception = -1;
 		}
 		// Interrupt start must be before test instruction,
@@ -4801,18 +4824,30 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 						startpc = opcode_memory_address;
 					}
 
-					// interrupt timing test mode
+					// interrupt IPL timing test mode
 					if (feature_interrupts == 2) {
 						pc -= 2;
-						// moveq #x,d0 (4)
-						put_word_test(pc + 0, 0x7000 | interrupt_delay_cnt);
-						// move.b d0,0xdcfffc (RTCW) (8 + 4 + 4)
-						put_word_test(pc + 2, 0x13c0);
-						put_long_test(pc + 4, IPL_TRIGGER_ADDR);
+						// save CCR
+						if (cpu_lvl == 0) {
+							// move sr,d7
+							put_word_test(pc + 0, 0x40c7); // 4 cycles
+						} else {
+							// move ccr,d7
+							put_word_test(pc + 0, 0x42c7); // 4 cycles
+						}
+						// moveq #x,d0 (4 cycles)
+						put_word_test(pc + 2, 0x7000 | interrupt_delay_cnt);
+						// move.b d0,0xdc0000 (RTCW) (8 + 4 + 4)
+						put_word_test(pc + 4, 0x13c0);
+						put_long_test(pc + 6, IPL_TRIGGER_ADDR);
 						// ror.l d0,d0 (4 + 4 + d0 * 2 cycles)
-						put_word_test(pc + 8, 0xe0b8);
-						put_word_test(pc + 10, NOP_OPCODE); // (4 cycles)
-						pc += 12;
+						put_word_test(pc + 10, 0xe0b8);
+						// restore CCR
+						// move d7,ccr
+						put_word_test(pc + 12, 0x44c7); // 12 cycles
+						put_word_test(pc + 14, NOP_OPCODE); // 4 cycles
+						put_word_test(pc + 16, NOP_OPCODE); // 4 cycles
+						pc += 18;
 						opcode_memory_address = pc;
 						pc += 2;
 					}
@@ -5128,7 +5163,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 						if (dstaddr != 0xffffffff && srcaddr != dstaddr) {
 							outbytes(_T("D"), dstaddr);
 						}
-						if (feature_loop_mode_jit || feature_loop_mode_68010) { // || feature_interrupts == 2) {
+						if (feature_loop_mode_jit || feature_loop_mode_68010 || verbose >= 3) {
 							wprintf(_T("\n"));
 							nextpc = opcode_memory_start;
 							for (int i = 0; i < 20; i++) {
@@ -5550,7 +5585,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 							if (regs.sr & 0x2000)
 								prev_s_cnt++;
 
-							if (subtest_count == 20609)
+							if (subtest_count == 433)
  								printf("");
 
 							// execute test instruction(s)
@@ -5936,8 +5971,10 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 		}
 		dst = storage_buffer;
 
-		if (opcodecnt == 1 && target_address == 0xffffffff && target_opcode_address == 0xffffffff && target_usp_address == 0xffffffff && subtest_count >= feature_test_rounds_opcode)
+		if (feature_interrupts != 2 && opcodecnt == 1 && target_address == 0xffffffff &&
+			target_opcode_address == 0xffffffff && target_usp_address == 0xffffffff && subtest_count >= feature_test_rounds_opcode)
 			break;
+
 		if (lookup->mnemo == i_ILLG || fpuopcode == FPUOPP_ILLEGAL)
 			break;
 
@@ -5977,6 +6014,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 			} else {
 				nextround = true;
 				rounds = 1;
+				quick = 0;
 			}
 		}
 
