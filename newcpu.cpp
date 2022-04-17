@@ -4475,7 +4475,7 @@ static int do_specialties (int cycles)
 	}
 
 	bool first = true;
-	while ((regs.spcflags & SPCFLAG_STOP) && !(regs.spcflags & SPCFLAG_BRK)) {
+	while (regs.spcflags & SPCFLAG_STOP) {
 	isstopped:
 		check_uae_int_request();
 		{
@@ -4496,9 +4496,13 @@ static int do_specialties (int cycles)
 
 		if (m68k_interrupt_delay) {
 			unset_special(SPCFLAG_INT);
-			ipl_fetch ();
-			if (time_for_interrupt ()) {
-				do_interrupt (regs.ipl);
+			if (first) {
+				ipl_fetch();
+			}
+			if (time_for_interrupt()) {
+				x_do_cycles(4 * cpucycleunit);
+				do_interrupt(regs.ipl);
+				break;
 			}
 		} else {
 			if (regs.spcflags & (SPCFLAG_INT | SPCFLAG_DOINT)) {
@@ -4511,23 +4515,39 @@ static int do_specialties (int cycles)
 				}
 				if (m68kint) {
 #endif
-					if (intr > 0 && intr > regs.intmask)
-						do_interrupt (intr);
+					if (intr > 0 && intr > regs.intmask) {
+						do_interrupt(intr);
+						break;
+					}
 #ifdef WITH_PPC
 				}
 #endif
 			}
 		}
 
-		if (!first)
-			x_do_cycles(currprefs.cpu_cycle_exact ? 2 * CYCLE_UNIT : 4 * CYCLE_UNIT);
+		if (!first) {
+			if (currprefs.cpu_compatible) {
+				x_do_cycles(2 * cpucycleunit);
+				ipl_fetch();
+				x_do_cycles(2 * cpucycleunit);
+			} else {
+				x_do_cycles(4 * cpucycleunit);
+				ipl_fetch();
+			}
+		}
 		first = false;
+
 		if (regs.spcflags & SPCFLAG_COPPER)
 			do_copper();
 
 		if (regs.spcflags & SPCFLAG_MODE_CHANGE) {
 			m68k_resumestopped();
 			return 1;
+		}
+
+		if (regs.spcflags & SPCFLAG_BRK) {
+			stopped_debug = false;
+			goto dodebug;
 		}
 
 #ifdef WITH_PPC
@@ -4567,6 +4587,7 @@ static int do_specialties (int cycles)
 	}
 
 	if ((regs.spcflags & SPCFLAG_BRK) || stopped_debug) {
+dodebug:
 		unset_special(SPCFLAG_BRK);
 #ifdef DEBUGGER
 		if (stopped_debug && !regs.stopped) {
