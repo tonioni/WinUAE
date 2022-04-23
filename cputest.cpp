@@ -373,8 +373,8 @@ static void count_interrupt_cycles(int cycles)
 		return;
 	interrupt_cycle_cnt -= cycles;
 	if (interrupt_cycle_cnt <= 0) {
-		regs.ipl_pin = 1;
-		interrupt_level = 1;
+		regs.ipl_pin = IPL_TEST_IPL_LEVEL;
+		interrupt_level = regs.ipl_pin;
 		interrupt_cycle_cnt = 0;
 	}
 }
@@ -3045,7 +3045,10 @@ static int create_ea_random(uae_u16 *opcodep, uaecptr pc, int mode, int reg, str
 						*isconstant = -1;
 				} else {
 					put_word_test(pc, imm16_cnt);
-					imm16_cnt += 0x100; // STOP hack
+					if (dp->mnemo == i_STOP && feature_interrupts > 0) {
+						// STOP hack to keep STOP test size smaller.
+						imm16_cnt += 0x0100;
+					}
 					if (imm16_cnt == 0)
 						*isconstant = 0; 
 					else
@@ -3948,6 +3951,7 @@ static void execute_ins(uaecptr endpc, uaecptr targetpc, struct instr *dp, bool 
 	int cnt = 2;
 	uaecptr first_pc = regs.pc;
 	uae_u32 loop_mode_reg = 0;
+
 	if (feature_loop_mode_68010) {
 		// 68010 loop mode
 		cnt = (feature_loop_mode_cnt + 1) * 2;
