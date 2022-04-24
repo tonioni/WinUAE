@@ -670,10 +670,6 @@ static uae_u32 REGPARAM2 blizzardf0_bget(uaecptr addr)
 		addr &= 65535;
 		addr += 65536;
 		return flash_read(flashrom, addr);
-	} else if (is_csmk1(&currprefs)) {
-		addr &= 65535;
-		addr += 65536;
-		return flash_read(flashrom, addr);
 	} else if (is_dkb_wildfire(&currprefs)) {
 		if (flash_unlocked) {
 			if (addr & 1)
@@ -727,10 +723,6 @@ static void REGPARAM2 blizzardf0_bput(uaecptr addr, uae_u32 b)
 		addr += 65536;
 		addr &= ~3;
 		addr |= csmk2_flashaddressing;
-		flash_write(flashrom, addr, b);
-	} else if (is_csmk1(&currprefs)) {
-		addr &= 65535;
-		addr += 65536;
 		flash_write(flashrom, addr, b);
 	} else if (is_dkb_wildfire(&currprefs)) {
 		if (flash_unlocked) {
@@ -803,13 +795,10 @@ static uae_u32 REGPARAM2 blizzardea_bget(uaecptr addr)
 		else
 			v = blizzardea_bank.baseaddr[addr];
 	} else if (is_csmk1(&currprefs)) {
-		if (addr >= CYBERSTORM_MK1_SCSI_OFFSET) {
+		if (addr >= CYBERSTORM_MK1_SCSI_OFFSET)
 			v = cpuboard_ncr9x_scsi_get(addr);
-		} else if (flash_active(flashrom, addr)) {
-			v = flash_read(flashrom, addr);
-		} else {
+		else
 			v = blizzardea_bank.baseaddr[addr];
-		}
 	} else if (is_csmk2(&currprefs)) {
 		if (addr >= CYBERSTORM_MK2_SCSI_OFFSET) {
 			v = cpuboard_ncr9x_scsi_get(addr);
@@ -860,8 +849,6 @@ static void REGPARAM2 blizzardea_bput(uaecptr addr, uae_u32 b)
 	} else if (is_csmk1(&currprefs)) {
 		if (addr >= CYBERSTORM_MK1_SCSI_OFFSET) {
 			cpuboard_ncr9x_scsi_put(addr, b);
-		} else {
-			flash_write(flashrom, addr, b);
 		}
 	} else if (is_csmk2(&currprefs)) {
 		if (addr >= CYBERSTORM_MK2_SCSI_OFFSET) {
@@ -2092,8 +2079,8 @@ static void cpuboard_init_2(void)
 		blizzardf0_bank.mask = blizzardf0_bank.reserved_size - 1;
 		mapped_malloc(&blizzardf0_bank);
 
-		blizzardea_bank.reserved_size = 2 * 65536;
-		blizzardea_bank.mask = 65535 - 1;
+		blizzardea_bank.reserved_size = 65536;
+		blizzardea_bank.mask = blizzardea_bank.reserved_size - 1;
 		mapped_malloc(&blizzardea_bank);
 
 		blizzardmaprom_bank.reserved_size = 524288;
@@ -2496,6 +2483,7 @@ bool cpuboard_autoconfig_init(struct autoconfig_info *aci)
 	struct boardromconfig *brc;
 	bool autoconf = true;
 	bool autoconf_stop = false;
+	bool autoconfig_nomandatory = false;
 	const TCHAR *defaultromname = NULL;
 	const TCHAR *romname = NULL;
 	bool isflashrom = false;
@@ -2503,7 +2491,6 @@ bool cpuboard_autoconfig_init(struct autoconfig_info *aci)
 	const TCHAR *boardname;
 	struct uae_prefs *p = aci->prefs;
 	uae_u32 romtype = 0, romtype2 = 0;
-	bool cpucheck = false;
 
 	boardname = cpuboards[p->cpuboard_type].subtypes[p->cpuboard_subtype].name;
 	aci->label = boardname;
@@ -2651,8 +2638,8 @@ bool cpuboard_autoconfig_init(struct autoconfig_info *aci)
 		{
 			case BOARD_CYBERSTORM_SUB_MK1:
 				romtype = ROMTYPE_CB_CSMK1;
-				cpucheck = true;
-				isflashrom = true;
+				romtype2 = ROMTYPE_CSMK1SCSI;
+				autoconfig_nomandatory = true;
 				break;
 			case BOARD_CYBERSTORM_SUB_MK2:
 				romtype = ROMTYPE_CB_CSMK2;
@@ -2692,7 +2679,6 @@ bool cpuboard_autoconfig_init(struct autoconfig_info *aci)
 				break;
 			case BOARD_BLIZZARD_SUB_PPC:
 				romtype = ROMTYPE_CB_BLIZPPC;
-				cpucheck = true;
 				isflashrom = true;
 				break;
 		}
@@ -2772,18 +2758,20 @@ bool cpuboard_autoconfig_init(struct autoconfig_info *aci)
 		}
 	}
 	
-	if (!autoconfig_rom && romtype) {
-		if (aci->doinit)
-			romwarning(romtype);
-		write_log (_T("ROM id %08X not found for CPUBoard '%s' emulation\n"), romtype, boardname);
-		return false;
-	}
-	if (!autoconfig_rom) {
-		write_log(_T("Couldn't open CPUBoard '%s' rom '%s'\n"), boardname, defaultromname);
-		return false;
-	}
+	if (!autoconfig_nomandatory) {
+		if (!autoconfig_rom && romtype) {
+			if (aci->doinit)
+				romwarning(romtype);
+			write_log(_T("ROM id %08X not found for CPUBoard '%s' emulation\n"), romtype, boardname);
+			return false;
+		}
+		if (!autoconfig_rom) {
+			write_log(_T("Couldn't open CPUBoard '%s' rom '%s'\n"), boardname, defaultromname);
+			return false;
+		}
 
-	write_log(_T("CPUBoard '%s' ROM '%s' %lld loaded\n"), boardname, zfile_getname(autoconfig_rom), zfile_size(autoconfig_rom));
+		write_log(_T("CPUBoard '%s' ROM '%s' %lld loaded\n"), boardname, zfile_getname(autoconfig_rom), zfile_size(autoconfig_rom));
+	}
 
 	uae_u8 *blizzardea_tmp = blizzardea_bank.baseaddr;
 	uae_u8 *blizzardf0_tmp = blizzardf0_bank.baseaddr;
@@ -2901,25 +2889,35 @@ bool cpuboard_autoconfig_init(struct autoconfig_info *aci)
 			blizzardea_bank.baseaddr[i * 2 + 0] = b;
 		}
 	} else if (is_csmk1(p)) {
-		earom_size = 131072; // really 64k but ea and f0 use same space
+		earom_size = 65536;
 		f0rom_size = 65536;
-		for (int i = 0; i < 32768; i++) {
-			uae_u8 b = 0xff;
-			zfile_fread(&b, 1, 1, autoconfig_rom);
-			blizzardea_bank.baseaddr[i * 2 + 0] = b;
-			blizzardea_bank.baseaddr[i * 2 + 1] = 0xff;
-		}
-		zfile_fread(blizzardea_bank.baseaddr + 65536, 65536, 1, autoconfig_rom);
-		if (zfile_needwrite(autoconfig_rom)) {
-			flashrom_file = autoconfig_rom;
+		aci->start = 0xf00000;
+		aci->size = f0rom_size;
+		if (autoconfig_rom) {
+			zfile_fread(blizzardf0_bank.baseaddr, 1, f0rom_size, autoconfig_rom);
+			zfile_fclose(autoconfig_rom);
 			autoconfig_rom = NULL;
 		}
-		flashrom = flash_new(blizzardea_bank.baseaddr, earom_size, earom_size, 0x01, 0x20, flashrom_file, 0);
-		memcpy(blizzardf0_bank.baseaddr, blizzardea_bank.baseaddr + 65536, 65536);
+		if (romtype2) {
+			int idx2;
+			struct boardromconfig *brc2 = get_device_rom(p, romtype2, 0, &idx2);
+			if (brc2 && brc2->roms[idx2].romfile[0])
+				autoconfig_rom = board_rom_open(romtype2, brc2->roms[idx2].romfile);
+			if (autoconfig_rom) {
+				memset(blizzardea_bank.baseaddr, 0xff, 65536);
+				for (int i = 0; i < 32768; i++) {
+					uae_u8 b = 0xff;
+					zfile_fread(&b, 1, 1, autoconfig_rom);
+					blizzardea_bank.baseaddr[i * 2 + 0] = b;
+				}
+			}
+		} else {
+			autoconf = false;
+		}
 	} else if (is_csmk2(p)) {
 		earom_size = 131072;
 		f0rom_size = 65536;
-		zfile_fread(blizzardea_bank.baseaddr, earom_size, 1, autoconfig_rom);
+		zfile_fread(blizzardea_bank.baseaddr, 1,earom_size, autoconfig_rom);
 		if (zfile_needwrite(autoconfig_rom)) {
 			flashrom_file = autoconfig_rom;
 			autoconfig_rom = NULL;

@@ -5252,6 +5252,12 @@ const struct expansionromtype expansionroms[] = {
 		false, EXPANSIONTYPE_SCSI
 	},
 	{
+		_T("csmk1cyberscsi"), _T("CyberSCSI module"), _T("Phase 5"),
+		NULL, NULL, NULL, cpuboard_ncr9x_add_scsi_unit, ROMTYPE_CSMK1SCSI, 0, 0, 0, true,
+		NULL, 0,
+		false, EXPANSIONTYPE_SCSI
+	},
+	{
 		_T("accessx"), _T("AccessX"), _T("Breitfeld Computersysteme"),
 		NULL, accessx_init, NULL, accessx_add_ide_unit, ROMTYPE_ACCESSX, 0, 0, BOARD_AUTOCONFIG_Z2, false,
 		accessx_sub, 0,
@@ -6350,10 +6356,13 @@ static const struct cpuboardsubtype cyberstormboard_sub[] = {
 	{
 		_T("CyberStorm MK I"),
 		_T("CyberStormMK1"),
-		ROMTYPE_CB_CSMK1, 0, 4,
-		cpuboard_ncr9x_add_scsi_unit, EXPANSIONTYPE_SCSI,
+		ROMTYPE_CB_CSMK1 | ROMTYPE_NONE, 0, 4,
+		NULL, 0,
 		BOARD_MEMORY_HIGHMEM,
-		128 * 1024 * 1024
+		128 * 1024 * 1024,
+		0,
+		NULL, NULL, 0, 0,
+		NULL
 	},
 	{
 		_T("CyberStorm MK II"),
