@@ -386,7 +386,7 @@ int target_get_display_scanline(int displayindex)
 {
 	if (!scanlinecalibrating && calculated_scanline) {
 		static int lastline;
-		float diff = read_processor_time() - wait_vblank_timestamp;
+		float diff = (float)(read_processor_time() - wait_vblank_timestamp);
 		if (diff < 0)
 			return -1;
 		int sl = (int)(diff * (vsync_activeheight + (vsync_totalheight - vsync_activeheight) / 10) * vsync_vblank / syncbase);
@@ -546,11 +546,11 @@ static void display_param_init(struct AmigaMonitor *mon)
 	vsync_hblank = 0;
 	get_display_vblank_params(-1, &vsync_activeheight, &vsync_totalheight, &vsync_vblank, &vsync_hblank);
 	if (vsync_vblank <= 0)
-		vsync_vblank = mon->currentmode.freq;
+		vsync_vblank = (float)mon->currentmode.freq;
 	// GPU scaled mode?
 	if (vsync_activeheight > mon->currentmode.current_height) {
 		float m = (float)vsync_activeheight / mon->currentmode.current_height;
-		vsync_hblank = (int)(vsync_hblank / m + 0.5);
+		vsync_hblank = vsync_hblank / m + 0.5f;
 		vsync_activeheight = mon->currentmode.current_height;
 	}
 
@@ -630,8 +630,8 @@ void getgfxoffset(int monid, float *dxp, float *dyp, float *mxp, float *myp)
 
 	*dxp = dx;
 	*dyp = dy;
-	*mxp = 1.0 / mx;
-	*myp = 1.0 / my;
+	*mxp = 1.0f / mx;
+	*myp = 1.0f / my;
 }
 
 void DX_Fill(struct AmigaMonitor *mon, int dstx, int dsty, int width, int height, uae_u32 color)
@@ -3360,7 +3360,7 @@ static void createstatuswindow(struct AmigaMonitor *mon)
 	wi.cbSize = sizeof wi;
 	GetWindowInfo(mon->hMainWnd, &wi);
 	extra = wi.rcClient.top - wi.rcWindow.top;
-	scale = getdpiforwindow(mon->hStatusWnd) / 96.0;
+	scale = getdpiforwindow(mon->hStatusWnd) / 96.0f;
 	drive_width = (int)(24 * scale);
 	hd_width = (int)(24 * scale);
 	cd_width = (int)(24 * scale);

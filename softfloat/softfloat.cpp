@@ -500,7 +500,7 @@ static int32_t roundAndPackInt32(flag zSign, uint64_t absZ, float_status *status
     roundBits = absZ & 0x7F;
     absZ = ( absZ + roundIncrement )>>7;
     absZ &= ~ ( ( ( roundBits ^ 0x40 ) == 0 ) & roundNearestEven );
-    z = absZ;
+    z = (int32_t)absZ;
     if ( zSign ) z = - z;
     if ( ( absZ>>32 ) || ( z && ( ( z < 0 ) ^ zSign ) ) ) {
         float_raise(float_flag_invalid, status);
@@ -542,7 +542,7 @@ static int16_t roundAndPackInt16( flag zSign, uint64_t absZ, float_status *statu
     roundBits = absZ & 0x7F;
     absZ = ( absZ + roundIncrement )>>7;
     absZ &= ~ ( ( ( roundBits ^ 0x40 ) == 0 ) & roundNearestEven );
-    z = absZ;
+    z = (int16_t)absZ;
     if ( zSign ) z = - z;
     z = (int16_t) z;
     if ( ( absZ>>16 ) || ( z && ( ( z < 0 ) ^ zSign ) ) ) {
@@ -581,7 +581,7 @@ static int8_t roundAndPackInt8( flag zSign, uint64_t absZ, float_status *status 
     roundBits = absZ & 0x7F;
     absZ = ( absZ + roundIncrement )>>7;
     absZ &= ~ ( ( ( roundBits ^ 0x40 ) == 0 ) & roundNearestEven );
-    z = absZ;
+    z = (int8_t)absZ;
     if ( zSign ) z = - z;
     z = (int8_t) z;
     if ( ( absZ>>8 ) || ( z && ( ( z < 0 ) ^ zSign ) ) ) {
@@ -1875,7 +1875,7 @@ int32_t floatx80_to_int32_round_to_zero(floatx80 a, float_status *status)
     shiftCount = 0x403E - aExp;
     savedASig = aSig;
     aSig >>= shiftCount;
-    z = aSig;
+    z = (int32_t)aSig;
     if ( aSign ) z = - z;
     if ( ( z < 0 ) ^ aSign ) {
  invalid:
@@ -1966,7 +1966,7 @@ float32 floatx80_to_float32(floatx80 a, float_status *status)
     shift64RightJamming( aSig, 33, &aSig );
     if ( aExp || aSig ) aExp -= 0x3F81;
 #endif
-    return roundAndPackFloat32(aSign, aExp, aSig, status);
+    return roundAndPackFloat32(aSign, aExp, (uint32_t)aSig, status);
 
 }
 
@@ -2138,7 +2138,7 @@ floatx80 floatx80_normalize( floatx80 a )
     
     shiftCount = countLeadingZeros64( aSig );
     
-    if ( shiftCount > aExp ) shiftCount = aExp;
+    if ( shiftCount > aExp ) shiftCount = (int8_t)aExp;
     
     aExp -= shiftCount;
     aSig <<= shiftCount;
@@ -3253,7 +3253,7 @@ floatx80 floatx80_scale(floatx80 a, floatx80 b, float_status *status)
     
     shiftCount = 0x403E - bExp;
     bSig >>= shiftCount;
-    aExp = bSign ? ( aExp - bSig ) : ( aExp + bSig );
+    aExp = (int32_t)(bSign ? ( aExp - bSig ) : ( aExp + bSig ));
     
     return roundAndPackFloatx80(
                 status->floatx80_rounding_precision, aSign, aExp, aSig, 0, status);

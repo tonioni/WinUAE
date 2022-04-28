@@ -1038,7 +1038,7 @@ static bool psEffect_LoadEffect(struct d3d11struct *d3d, const TCHAR *shaderfile
 		write_log(_T("Failed to open '%s'\n"), tmp);
 		goto end;
 	}
-	size = zfile_size(z);
+	size = zfile_size32(z);
 	fx1 = xcalloc(char, size * 4);
 	fx2 = xcalloc(char, size * 4);
 	if (zfile_fread(fx1, 1, size, z) != size) {
@@ -1261,8 +1261,8 @@ static int psEffect_SetTextures(ID3D11Texture2D *lpSourceTex, ID3D11ShaderResour
 	}
 	if (s->m_TargetDimsEffectHandle) {
 		D3DXVECTOR4 fDimsTarget;
-		fDimsTarget.x = s->targettex_width;
-		fDimsTarget.y = s->targettex_height;
+		fDimsTarget.x = (float)s->targettex_width;
+		fDimsTarget.y = (float)s->targettex_height;
 		fDimsTarget.z = 1;
 		fDimsTarget.w = 1;
 		s->m_TargetDimsEffectHandle->SetFloatVector((float*)&fDimsTarget);
@@ -1272,8 +1272,8 @@ static int psEffect_SetTextures(ID3D11Texture2D *lpSourceTex, ID3D11ShaderResour
 	}
 	if (s->m_ScaleEffectHandle) {
 		D3DXVECTOR4 fScale;
-		fScale.x = 1 << currprefs.gfx_resolution;
-		fScale.y = 1 << currprefs.gfx_vresolution;
+		fScale.x = (float)(1 << currprefs.gfx_resolution);
+		fScale.y = (float)(1 << currprefs.gfx_vresolution);
 		fScale.w = fScale.z = 1;
 		s->m_ScaleEffectHandle->SetFloatVector((float*)&fScale);
 	}
@@ -1491,14 +1491,14 @@ static bool UpdateBuffers(struct d3d11struct *d3d)
 	positionY = (sh - bh) / 2 + d3d->yoffset;
 
 	// Calculate the screen coordinates of the left side of the bitmap.
-	left = (sw + 1) / -2;
+	left = (sw + 1.0f) / -2.0f;
 	left += positionX;
 
 	// Calculate the screen coordinates of the right side of the bitmap.
 	right = left + bw;
 
 	// Calculate the screen coordinates of the top of the bitmap.
-	top = (sh + 1) / 2;
+	top = (sh + 1.0f) / 2.0f;
 	top -= positionY;
 
 	// Calculate the screen coordinates of the bottom of the bitmap.
@@ -1549,10 +1549,10 @@ static void setupscenecoords(struct d3d11struct *d3d, bool normalrender)
 	d3d->dr2 = dr;
 	d3d->zr2 = zr;
 
-	float dw = dr.right - dr.left;
-	float dh = dr.bottom - dr.top;
-	float w = sr.right - sr.left;
-	float h = sr.bottom - sr.top;
+	float dw = (float)dr.right - dr.left;
+	float dh = (float)dr.bottom - dr.top;
+	float w = (float)sr.right - sr.left;
+	float h = (float)sr.bottom - sr.top;
 
 	int tx = ((dr.right - dr.left) * d3d->m_bitmapWidth) / (d3d->m_screenWidth * 2);
 	int ty = ((dr.bottom - dr.top) * d3d->m_bitmapHeight) / (d3d->m_screenHeight * 2);
@@ -1580,7 +1580,7 @@ static void setupscenecoords(struct d3d11struct *d3d, bool normalrender)
 	UpdateBuffers(d3d);
 
 	xD3DXMatrixOrthoOffCenterLH(&d3d->m_matProj_out, 0, w + 0.05f, 0, h + 0.05f, 0.0f, 1.0f);
-	xD3DXMatrixTranslation(&d3d->m_matView_out, tx, ty, 1.0f);
+	xD3DXMatrixTranslation(&d3d->m_matView_out, (float)tx, (float)ty, 1.0f);
 	sw *= d3d->m_bitmapWidth;
 	sh *= d3d->m_bitmapHeight;
 	xD3DXMatrixScaling(&d3d->m_matWorld_out, sw + 0.5f / sw, sh + 0.5f / sh, 1.0f);
@@ -1608,8 +1608,8 @@ static void updateleds(struct d3d11struct *d3d)
 		return;
 
 	statusline_getpos(d3d - d3d11data, &osdx, &osdy, d3d->m_screenWidth, d3d->m_screenHeight);
-	d3d->osd.x = osdx;
-	d3d->osd.y = osdy;
+	d3d->osd.x = (float)osdx;
+	d3d->osd.y = (float)osdy;
 
 	hr = d3d->m_deviceContext->Map(d3d->osd.texture, 0, D3D11_MAP_WRITE_DISCARD, 0, &map);
 	if (FAILED(hr)) {
@@ -2601,8 +2601,8 @@ static int createmask2texture(struct d3d11struct *d3d, const TCHAR *filename)
 		write_log(_T("Overlay texture '%s' load failed.\n"), filename);
 		goto end;
 	}
-	d3d->mask2texture_w = img.width;
-	d3d->mask2texture_h = img.height;
+	d3d->mask2texture_w = (float)img.width;
+	d3d->mask2texture_h = (float)img.height;
 	if (!allocsprite(d3d, &d3d->mask2texture, img.width, img.height, true))
 		goto end;
 
@@ -2623,19 +2623,19 @@ static int createmask2texture(struct d3d11struct *d3d, const TCHAR *filename)
 
 	d3d->mask2rect.left = 0;
 	d3d->mask2rect.top = 0;
-	d3d->mask2rect.right = d3d->mask2texture_w;
-	d3d->mask2rect.bottom = d3d->mask2texture_h;
+	d3d->mask2rect.right = (LONG)d3d->mask2texture_w;
+	d3d->mask2rect.bottom = (LONG)d3d->mask2texture_h;
 
-	d3d->mask2rect.left = findedge(&img, d3d->mask2texture_w, d3d->mask2texture_h, -1, 0);
-	d3d->mask2rect.right = findedge(&img, d3d->mask2texture_w, d3d->mask2texture_h, 1, 0);
-	d3d->mask2rect.top = findedge(&img, d3d->mask2texture_w, d3d->mask2texture_h, 0, -1);
-	d3d->mask2rect.bottom = findedge(&img, d3d->mask2texture_w, d3d->mask2texture_h, 0, 1);
+	d3d->mask2rect.left = findedge(&img, (int)d3d->mask2texture_w, (int)d3d->mask2texture_h, -1, 0);
+	d3d->mask2rect.right = findedge(&img, (int)d3d->mask2texture_w, (int)d3d->mask2texture_h, 1, 0);
+	d3d->mask2rect.top = findedge(&img, (int)d3d->mask2texture_w, (int)d3d->mask2texture_h, 0, -1);
+	d3d->mask2rect.bottom = findedge(&img, (int)d3d->mask2texture_w, (int)d3d->mask2texture_h, 0, 1);
 	if (d3d->mask2rect.left >= d3d->mask2texture_w / 2 || d3d->mask2rect.top >= d3d->mask2texture_h / 2 ||
 		d3d->mask2rect.right <= d3d->mask2texture_w / 2 || d3d->mask2rect.bottom <= d3d->mask2texture_h / 2) {
 		d3d->mask2rect.left = 0;
 		d3d->mask2rect.top = 0;
-		d3d->mask2rect.right = d3d->mask2texture_w;
-		d3d->mask2rect.bottom = d3d->mask2texture_h;
+		d3d->mask2rect.right = (LONG)d3d->mask2texture_w;
+		d3d->mask2rect.bottom = (LONG)d3d->mask2texture_h;
 	}
 	d3d->mask2texture_multx = (float)d3d->m_screenWidth / d3d->mask2texture_w;
 	d3d->mask2texture_multy = (float)d3d->m_screenHeight / d3d->mask2texture_h;
@@ -2643,8 +2643,8 @@ static int createmask2texture(struct d3d11struct *d3d, const TCHAR *filename)
 
 	if (isfs(d3d) > 0) {
 		struct MultiDisplay *md = getdisplay(&currprefs, mon->monitor_id);
-		float deskw = md->rect.right - md->rect.left;
-		float deskh = md->rect.bottom - md->rect.top;
+		float deskw = (float)md->rect.right - md->rect.left;
+		float deskh = (float)md->rect.bottom - md->rect.top;
 		//deskw = 800; deskh = 600;
 		float dstratio = deskw / deskh;
 		float srcratio = d3d->mask2texture_w / d3d->mask2texture_h;
@@ -2653,35 +2653,35 @@ static int createmask2texture(struct d3d11struct *d3d, const TCHAR *filename)
 		d3d->mask2texture_multx = d3d->mask2texture_multy;
 	}
 
-	d3d->mask2texture_wh = d3d->m_screenHeight;
-	d3d->mask2texture_ww = d3d->mask2texture_w * d3d->mask2texture_multx;
+	d3d->mask2texture_wh = (float)d3d->m_screenHeight;
+	d3d->mask2texture_ww = (float)d3d->mask2texture_w * d3d->mask2texture_multx;
 
 	d3d->mask2texture_offsetw = (d3d->m_screenWidth - d3d->mask2texture_ww) / 2;
 
 	if (d3d->mask2texture_offsetw > 0) {
-		allocsprite(d3d, &d3d->blanksprite, d3d->mask2texture_offsetw + 1, d3d->m_screenHeight, false);
+		allocsprite(d3d, &d3d->blanksprite, (int)d3d->mask2texture_offsetw + 1, d3d->m_screenHeight, false);
 	}
 
 	xmult = d3d->mask2texture_multx;
 	ymult = d3d->mask2texture_multy;
 
-	d3d->mask2rect.left *= xmult;
-	d3d->mask2rect.right *= xmult;
-	d3d->mask2rect.top *= ymult;
-	d3d->mask2rect.bottom *= ymult;
+	d3d->mask2rect.left *= (int)xmult;
+	d3d->mask2rect.right *= (int)xmult;
+	d3d->mask2rect.top *= (int)ymult;
+	d3d->mask2rect.bottom *= (int)ymult;
 	d3d->mask2texture_wwx = d3d->mask2texture_w * xmult;
 	if (d3d->mask2texture_wwx > d3d->m_screenWidth)
-		d3d->mask2texture_wwx = d3d->m_screenWidth;
+		d3d->mask2texture_wwx = (float)d3d->m_screenWidth;
 	if (d3d->mask2texture_wwx < d3d->mask2rect.right - d3d->mask2rect.left)
-		d3d->mask2texture_wwx = d3d->mask2rect.right - d3d->mask2rect.left;
+		d3d->mask2texture_wwx = (float)d3d->mask2rect.right - d3d->mask2rect.left;
 	if (d3d->mask2texture_wwx > d3d->mask2texture_ww)
 		d3d->mask2texture_wwx = d3d->mask2texture_ww;
 
-	d3d->mask2texture_minusx = -((d3d->m_screenWidth - d3d->mask2rect.right) + d3d->mask2rect.left);
+	d3d->mask2texture_minusx = (float)(-((d3d->m_screenWidth - d3d->mask2rect.right) + d3d->mask2rect.left));
 	if (d3d->mask2texture_offsetw > 0)
 		d3d->mask2texture_minusx += d3d->mask2texture_offsetw * xmult;
 
-	d3d->mask2texture_minusy = -(d3d->m_screenHeight - (d3d->mask2rect.bottom - d3d->mask2rect.top));
+	d3d->mask2texture_minusy = (float)(-(d3d->m_screenHeight - (d3d->mask2rect.bottom - d3d->mask2rect.top)));
 
 	d3d->mask2texture_hhx = d3d->mask2texture_h * ymult;
 
@@ -3396,7 +3396,6 @@ static int xxD3D11_init2(HWND ahwnd, int monid, int w_w, int w_h, int t_w, int t
 	ComPtr<IDXGIFactory5> factory5;
 	IDXGIAdapter1 *adapter;
 	IDXGIOutput *adapterOutput;
-	IDXGIOutput2 *adapterOutput2;
 	DXGI_ADAPTER_DESC1 adesc;
 	DXGI_OUTPUT_DESC odesc;
 	unsigned int numModes;
@@ -3645,7 +3644,7 @@ static int xxD3D11_init2(HWND ahwnd, int monid, int w_w, int w_h, int t_w, int t
 				d3d->fsSwapChainDesc.RefreshRate.Denominator = m->RefreshRate.Denominator;
 				d3d->fsSwapChainDesc.RefreshRate.Numerator = m->RefreshRate.Numerator;
 				if (!currprefs.gfx_variable_sync) {
-					*freq = nfreq;
+					*freq = (int)nfreq;
 				}
 			}
 		}
@@ -3811,7 +3810,7 @@ static int xxD3D11_init2(HWND ahwnd, int monid, int w_w, int w_h, int t_w, int t
 	if (!monid && isvsync()) {
 		int vsync = isvsync();
 		int hzmult = 0;
-		getvsyncrate(monid, *freq, &hzmult);
+		getvsyncrate(monid, (float)*freq, &hzmult);
 		if (hzmult < 0 && !currprefs.gfx_variable_sync && apm->gfx_vsyncmode == 0) {
 			if (!apm->gfx_strobo) {
 				d3d->vblankintervals = 2;
@@ -3825,7 +3824,7 @@ static int xxD3D11_init2(HWND ahwnd, int monid, int w_w, int w_h, int t_w, int t
 				d3d->blackscreen = true;
 			d3d->vblankintervals = 1;
 			int hzmult;
-			getvsyncrate(monid, hz, &hzmult);
+			getvsyncrate(monid, (float)hz, &hzmult);
 			if (hzmult < 0) {
 				d3d->vblankintervals = 1 + (-hzmult) - (d3d->blackscreen ? 1 : 0);
 			}
@@ -4129,8 +4128,8 @@ static void setpsbuffer(struct d3d11struct *d3d, ID3D11Buffer *psbuffer)
 		return;
 	}
 
-	float bri = ((float)(currprefs.gfx_luminance)) * (1.0f / 2000.0f) + 1.0;
-	float con = ((float)(currprefs.gfx_contrast + 2000)) / 2000.0f;
+	float bri = (currprefs.gfx_luminance) * (1.0f / 2000.0f) + 1.0f;
+	float con = (currprefs.gfx_contrast + 2000.0f) / 2000.0f;
 
 	// Get a pointer to the data in the constant buffer.
 	dataPtr = (PSBufferType *)mappedResource.pData;
@@ -4241,9 +4240,9 @@ static void RenderSprite(struct d3d11struct *d3d, struct d3d11sprite *spr)
 	if (!spr->enabled)
 		return;
 	
-	left = (d3d->m_screenWidth + 1) / -2;
+	left = (d3d->m_screenWidth + 1.0f) / -2.0f;
 	left += spr->x;
-	top = (d3d->m_screenHeight + 1) / 2;
+	top = (d3d->m_screenHeight + 1.0f) / 2.0f;
 	top -= spr->y;
 
 	if (spr->outwidth) {
@@ -4287,8 +4286,8 @@ static void RenderSprite(struct d3d11struct *d3d, struct d3d11sprite *spr)
 
 static void setspritescaling(struct d3d11sprite *spr, float w, float h)
 {
-	spr->outwidth = (int)(w * spr->width + 0.5);
-	spr->outheight = (int)(h * spr->height + 0.5);
+	spr->outwidth = w * spr->width + 0.5f;
+	spr->outheight = h * spr->height + 0.5f;
 }
 
 static void renderoverlay(struct d3d11struct *d3d)
@@ -5203,8 +5202,8 @@ static bool xD3D_setcursor(int monid, int x, int y, int width, int height, bool 
 	if (width && height) {
 		d3d->cursor_offset2_x = d3d->cursor_offset_x * d3d->m_screenWidth / width;
 		d3d->cursor_offset2_y = d3d->cursor_offset_y * d3d->m_screenHeight / height;
-		d3d->cursor_x = x * d3d->m_screenWidth / width;
-		d3d->cursor_y = y * d3d->m_screenHeight / height;
+		d3d->cursor_x = (float)x * d3d->m_screenWidth / width;
+		d3d->cursor_y = (float)y * d3d->m_screenHeight / height;
 	} else {
 		d3d->cursor_x = d3d->cursor_y = 0;
 		d3d->cursor_offset2_x = d3d->cursor_offset2_y = 0;
@@ -5212,13 +5211,13 @@ static bool xD3D_setcursor(int monid, int x, int y, int width, int height, bool 
 
 	//write_log(_T("%.1fx%.1f %dx%d\n"), d3d->cursor_x, d3d->cursor_y, d3d->cursor_offset2_x, d3d->cursor_offset2_y);
 
-	float multx = 1.0;
-	float multy = 1.0;
+	float multx = 1.0f;
+	float multy = 1.0f;
 	if (d3d->cursor_scale) {
 		multx = ((float)(d3d->m_screenWidth) / ((d3d->m_bitmapWidth * d3d->dmult) + 2 * d3d->cursor_offset2_x));
 		multy = ((float)(d3d->m_screenHeight) / ((d3d->m_bitmapHeight * d3d->dmult) + 2 * d3d->cursor_offset2_y));
 	}
-	setspritescaling(&d3d->hwsprite, 1.0 / multx, 1.0 / multy);
+	setspritescaling(&d3d->hwsprite, 1.0f / multx, 1.0f / multy);
 
 	d3d->hwsprite.x = d3d->cursor_x * multx + d3d->cursor_offset2_x * multx;
 	d3d->hwsprite.y = d3d->cursor_y * multy + d3d->cursor_offset2_y * multy;
@@ -5258,8 +5257,8 @@ static bool xD3D11_getscalerect(int monid, float *mx, float *my, float *sx, floa
 	if (!d3d->mask2texture.enabled)
 		return false;
 
-	float mw = d3d->mask2rect.right - d3d->mask2rect.left;
-	float mh = d3d->mask2rect.bottom - d3d->mask2rect.top;
+	float mw = (float)(d3d->mask2rect.right - d3d->mask2rect.left);
+	float mh = (float)(d3d->mask2rect.bottom - d3d->mask2rect.top);
 
 	float mxt = (float)mw / width;
 	float myt = (float)mh / height;
@@ -5313,8 +5312,8 @@ static bool xD3D11_extoverlay(struct extoverlay *ext)
 		return false;
 
 	if (!ext->data && s && (ext->width == 0 || ext->height == 0)) {
-		s->x = ext->xpos;
-		s->y = ext->ypos;
+		s->x = (float)ext->xpos;
+		s->y = (float)ext->ypos;
 		return true;
 	}
 
@@ -5361,8 +5360,8 @@ static bool xD3D11_extoverlay(struct extoverlay *ext)
 	}
 
 	s->enabled = true;
-	s->x = ext->xpos;
-	s->y = ext->ypos;
+	s->x = (float)ext->xpos;
+	s->y = (float)ext->ypos;
 
 	hr = d3d->m_deviceContext->Map(s->texture, 0, D3D11_MAP_WRITE_DISCARD, 0, &map);
 	if (SUCCEEDED(hr)) {

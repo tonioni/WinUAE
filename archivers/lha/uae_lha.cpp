@@ -60,7 +60,7 @@ struct zvolume *archive_directory_lha (struct zfile *zf)
 		} else {
 			zn = zvolume_addfile_abs (zv, &zai);
 			if (zn) {
-				zn->offset = zfile_ftell(zf);
+				zn->offset = zfile_ftell32(zf);
 				zn->packedsize = hdr.packed_size;
 				zn->method = method;
 			}

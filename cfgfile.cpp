@@ -2855,15 +2855,6 @@ int cfgfile_yesno (const TCHAR *option, const TCHAR *value, const TCHAR *name, b
 	return cfgfile_yesno (option, value, name, location, true);
 }
 
-static int cfgfile_doubleval (const TCHAR *option, const TCHAR *value, const TCHAR *name, double *location)
-{
-	TCHAR *endptr;
-	if (name != NULL && _tcscmp (option, name) != 0)
-		return 0;
-	*location = _tcstod (value, &endptr);
-	return 1;
-}
-
 static int cfgfile_floatval (const TCHAR *option, const TCHAR *value, const TCHAR *name, const TCHAR *nameext, float *location)
 {
 	TCHAR *endptr;
@@ -3762,14 +3753,14 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 		while (s) {
 			if (!_tcschr (s, ':'))
 				break;
-			p->osd_pos.x =  (int)(_tstof (s) * 10.0);
+			p->osd_pos.x =  (int)(_tstof (s) * 10.0f);
 			s = _tcschr (s, ':');
 			if (!s)
 				break;
 			if (s[-1] == '%')
 				p->osd_pos.x += 30000;
 			s++;
-			p->osd_pos.y = (int)(_tstof (s) * 10.0);
+			p->osd_pos.y = (int)(_tstof (s) * 10.0f);
 			s += _tcslen (s);
 			if (s[-1] == '%')
 				p->osd_pos.y += 30000;
@@ -4173,7 +4164,7 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 		int vert = -1, horiz = -1, lace = -1, ntsc = -1, framelength = -1, vsync = -1, hres = 0;
 		bool locked = false, rtg = false, exit = false;
 		bool cmdmode = false, defaultdata = false;
-		double rate = -1;
+		float rate = -1;
 		int rpct = 0;
 		TCHAR cmd[MAX_DPATH], filter[64] = { 0 }, label[16] = { 0 };
 		TCHAR *tmpp = tmpbuf;
@@ -4202,7 +4193,7 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 					tmpp += 4;
 				}
 				if (rate < 0)
-					rate = _tstof(tmpp);
+					rate = (float)_tstof(tmpp);
 				else if (!_tcsnicmp(tmpp, _T("v="), 2))
 					vert = _tstol(equals);
 				else if (!_tcsnicmp(tmpp, _T("h="), 2))
@@ -5407,12 +5398,12 @@ static bool cfgfile_read_board_rom(struct uae_prefs *p, const TCHAR *option, con
 					}
 					p = cfgfile_option_get(buf2, _T("mid"));
 					if (p) {
-						brc->roms[idx].manufacturer = _tstol(p);
+						brc->roms[idx].manufacturer = (uae_u16)_tstol(p);
 						xfree(p);
 					}
 					p = cfgfile_option_get(buf2, _T("pid"));
 					if (p) {
-						brc->roms[idx].product = _tstol(p);
+						brc->roms[idx].product = (uae_u8)_tstol(p);
 						xfree(p);
 					}
 					p = cfgfile_option_get(buf2, _T("data"));
@@ -5628,7 +5619,7 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 		|| cfgfile_intval(option, value, _T("fpu_revision"), &p->fpu_revision, 1)
 		|| cfgfile_intval(option, value, _T("fatgary"), &p->cs_fatgaryrev, 1)
 		|| cfgfile_intval(option, value, _T("ramsey"), &p->cs_ramseyrev, 1)
-		|| cfgfile_doubleval(option, value, _T("chipset_refreshrate"), &p->chipset_refreshrate)
+		|| cfgfile_floatval(option, value, _T("chipset_refreshrate"), &p->chipset_refreshrate)
 		|| cfgfile_intval(option, value, _T("cpuboardmem1_size"), &p->cpuboardmem1.size, 0x100000)
 		|| cfgfile_intval(option, value, _T("cpuboardmem2_size"), &p->cpuboardmem2.size, 0x100000)
 		|| cfgfile_intval(option, value, _T("debugmem_size"), &p->debugmem_size, 0x100000)
@@ -6081,10 +6072,10 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 		p->m68k_speed *= CYCLE_UNIT;
 		return 1;
 	}
-	if (cfgfile_doubleval(option, value, _T("cpu_throttle"), &p->m68k_speed_throttle)) {
+	if (cfgfile_floatval(option, value, _T("cpu_throttle"), &p->m68k_speed_throttle)) {
 		return 1;
 	}
-	if (cfgfile_doubleval(option, value, _T("cpu_x86_throttle"), &p->x86_speed_throttle)) {
+	if (cfgfile_floatval(option, value, _T("cpu_x86_throttle"), &p->x86_speed_throttle)) {
 		return 1;
 	}
 	if (cfgfile_intval (option, value, _T("finegrain_cpu_speed"), &p->m68k_speed, 1)) {
@@ -6096,7 +6087,7 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 			p->m68k_speed = -1;
 		return 1;
 	}
-	if (cfgfile_doubleval(option, value, _T("blitter_throttle"), &p->blitter_speed_throttle)) {
+	if (cfgfile_floatval(option, value, _T("blitter_throttle"), &p->blitter_speed_throttle)) {
 		return 1;
 	}
 

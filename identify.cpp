@@ -262,7 +262,7 @@ const struct customData custd[] =
 	{ _T("BPL7PTL"),  0xdff0FA, CD_WO | CD_AGA | CD_DMA_PTR }, /* Bit plane pointer 7 (low 15 bits) */
 	{ _T("BPL8PTH"),  0xdff0FC, CD_WO | CD_AGA | CD_DMA_PTR }, /* Bit plane pointer 8 (high 5 bits) */
 	{ _T("BPL8PTL"),  0xdff0FE, CD_WO | CD_AGA | CD_DMA_PTR }, /* Bit plane pointer 8 (low 15 bits) */
-	{ _T("BPLCON0"),  0xdff100, CD_WO, { ~0x00f1, ~0x00b0, ~0x0080 } }, /* Bit plane control reg (misc control bits) */
+	{ _T("BPLCON0"),  0xdff100, CD_WO, { (uae_u16)~0x00f1,  (uae_u16)~0x00b0,  (uae_u16)~0x0080}}, /* Bit plane control reg (misc control bits) */
 	{ _T("BPLCON1"),  0xdff102, CD_WO }, /* Bit plane control reg (scroll val PF1,PF2) */
 	{ _T("BPLCON2"),  0xdff104, CD_WO, { 0x007f, 0x01ff, 0x7fff } }, /* Bit plane control reg (priority control) */
 	{ _T("BPLCON3"),  0xdff106, CD_WO | CD_ECS_DENISE, { 0x003f, 0x003f, 0xffff } }, /* Bit plane control reg (enhanced features) */

@@ -55,6 +55,7 @@ extern TCHAR *restore_path_full_func(uae_u8 **);
 #define save_u8(x) save_u8_func (&dst, (x))
 
 #define restore_u64() restore_u64_func (&src)
+#define restore_u64to32() (uae_u32)restore_u64_func (&src)
 #define restore_u32() restore_u32_func (&src)
 #define restore_u16() restore_u16_func (&src)
 #define restore_u8() restore_u8_func (&src)

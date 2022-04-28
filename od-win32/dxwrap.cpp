@@ -426,7 +426,7 @@ HRESULT DirectDraw_SetDisplayMode (int width, int height, int bits, int freq)
 		dxdata.depth == bits && dxdata.freq == freq)
 		return DD_OK;
 
-	getvsyncrate(0, freq, &dxdata.vblank_skip);
+	getvsyncrate(0, (float)freq, &dxdata.vblank_skip);
 	dxdata.vblank_skip_cnt = 0;
 	ddrval = IDirectDraw7_SetDisplayMode (dxdata.maindd, width, height, bits, freq, 0);
 	if (FAILED (ddrval)) {
@@ -1330,7 +1330,7 @@ bool DD_getvblankpos (int *vpos)
 	return true;
 }
 
-void DD_vblank_reset (double freq)
+void DD_vblank_reset(float freq)
 {
 	getvsyncrate(0, freq, &dxdata.vblank_skip);
 	dxdata.vblank_skip_cnt = 0;

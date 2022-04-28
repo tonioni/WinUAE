@@ -274,7 +274,7 @@ local uLong unzlocal_SearchCentralDir(struct zfile *fin)
 		return 0;
 
 
-	uSizeFile = zfile_ftell( fin );
+	uSizeFile = zfile_ftell32( fin );
 
 	if (uMaxBack>uSizeFile)
 		uMaxBack = uSizeFile;

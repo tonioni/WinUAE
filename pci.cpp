@@ -228,9 +228,9 @@ static void create_config_data(struct pci_board_state *s)
 
 	// big endian, get/put functions will swap if needed.
 	d[0] = c->device >> 8;
-	d[1] = c->device;
+	d[1] = (uae_u8)c->device;
 	d[2] = c->vendor >> 8;
-	d[3] = c->vendor;
+	d[3] = (uae_u8)c->vendor;
 
 	d[8] = c->deviceclass >> 16;
 	d[9] = c->deviceclass >> 8;
@@ -248,9 +248,9 @@ static void create_config_data(struct pci_board_state *s)
 	}
 
 	d[0x2c] = c->subsystem >> 8;
-	d[0x2d] = c->subsystem;
+	d[0x2d] = (uae_u8)c->subsystem;
 	d[0x2e] = c->subsystenvendor >> 8;
-	d[0x2f] = c->subsystenvendor;
+	d[0x2f] = (uae_u8)c->subsystenvendor;
 
 	d[0x3c] = c->max_latency;
 	d[0x3d] = c->min_grant;
@@ -1153,7 +1153,7 @@ static void mediator_set_window_offset(struct pci_bridge *pcib, uae_u16 v)
 		pcib->memory_start_offset = pcib->window << 16;
 		offset = pcib->memory_start_offset;
 		pcib->memory_start_offset -= pcib->baseaddress;
-		pcib->memory_start_offset = -pcib->memory_start_offset;
+		pcib->memory_start_offset = 0 - pcib->memory_start_offset;
 	}
 #if 0
 	write_log(_T"Mediator window: %08x %04x PC=%08x\n"), offset, v, M68K_GETPC);
@@ -1175,7 +1175,7 @@ static uae_u32 REGPARAM2 pci_bridge_bget_2(uaecptr addr)
 		if (pcib->bank_2_zorro == 3) {
 			int offset = addr & 0x7fffff;
 			if (offset == 0) {
-				v = pcib->window;
+				v = (uae_u8)pcib->window;
 				v |= 8; // id
 			}
 			if (offset == 4) {

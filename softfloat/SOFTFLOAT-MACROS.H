@@ -511,9 +511,9 @@ static inline void mul64To128( uint64_t a, uint64_t b, uint64_t *z0Ptr, uint64_t
     uint32_t aHigh, aLow, bHigh, bLow;
     uint64_t z0, zMiddleA, zMiddleB, z1;
 
-    aLow = a;
+    aLow = (uint32_t)a;
     aHigh = a>>32;
-    bLow = b;
+    bLow = (uint32_t)b;
     bHigh = b>>32;
     z1 = ( (uint64_t) aLow ) * bLow;
     zMiddleA = ( (uint64_t) aLow ) * bHigh;
@@ -735,7 +735,7 @@ static inline int8_t countLeadingZeros64( uint64_t a )
     else {
         a >>= 32;
     }
-    shiftCount += countLeadingZeros32( a );
+    shiftCount += countLeadingZeros32( (uint32_t)a );
     return shiftCount;
 #endif
 }

@@ -106,7 +106,7 @@ static inline uint32_t timer_get_remaining_us(pc_timer_t *timer)
 
 		if (remaining < 0)
 			return 0;
-		return remaining / TIMER_USEC;
+		return (uint32_t)(remaining / TIMER_USEC);
 	}
 
 	return 0;

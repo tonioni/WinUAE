@@ -1505,10 +1505,10 @@ static int initpcmcia (const TCHAR *path, int readonly, int type, int reset, str
 
 		if (!pcmcia_disk->hfd.drive_empty) {
 			int extrasize = 0;
-			pcmcia_common_size = pcmcia_disk->hfd.virtsize;
+			pcmcia_common_size = (int)pcmcia_disk->hfd.virtsize;
 			if (pcmcia_disk->hfd.virtsize > 4 * 1024 * 1024) {
 				write_log (_T("PCMCIA SRAM: too large device, %llu bytes\n"), pcmcia_disk->hfd.virtsize);
-				extrasize = pcmcia_disk->hfd.virtsize - 4 * 1024 * 1024;
+				extrasize = (int)pcmcia_disk->hfd.virtsize - 4 * 1024 * 1024;
 				if (extrasize > 262144)
 					extrasize = 262144;
 				extrasize &= ~511;

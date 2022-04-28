@@ -1873,7 +1873,7 @@ uae_u8 vga_io_get(int board, int portnum)
 	if (!gb->vgaio)
 		return v;
 	portnum -= 0x3b0;
-	v = gb->vgaio->read(&gb->vga, portnum, 1);
+	v = (uae_u8)gb->vgaio->read(&gb->vga, portnum, 1);
 	v = bget_regtest(gb, portnum, v);
 	return v;
 }
@@ -1891,7 +1891,7 @@ uae_u8 vga_ram_get(int board, int offset)
 	if (!gb->vgalowram)
 		return 0xff;
 	offset -= 0xa0000;
-	return gb->vgalowram->read(&gb->vga, offset, 1);
+	return (uae_u8)gb->vgalowram->read(&gb->vga, offset, 1);
 }
 void vgalfb_ram_put(int board, int offset, uae_u8 v)
 {
@@ -1905,7 +1905,7 @@ uae_u8 vgalfb_ram_get(int board, int offset)
 	struct rtggfxboard *gb = &rtggfxboards[board];
 	if (!gb->vgaram)
 		return 0xff;
-	return gb->vgaram->read(&gb->vga, offset, 1);
+	return (uae_u8)gb->vgaram->read(&gb->vga, offset, 1);
 }
 
 void *memory_region_get_ram_ptr(MemoryRegion *mr)
@@ -2035,22 +2035,22 @@ static uae_u32 gfxboard_lget_vram (struct rtggfxboard *gb, uaecptr addr, int bs)
 {
 	uae_u32 v;
 	if (!gb->vram_enabled) {
-		const MemoryRegionOps *bank = getvgabank (gb, &addr);
+		const MemoryRegionOps *bank = getvgabank(gb, &addr);
 		if (bs < 0) { // WORD
-			v  = bank->read (&gb->vga, addr + 1, 1) << 24;
-			v |= bank->read (&gb->vga, addr + 0, 1) << 16;
-			v |= bank->read (&gb->vga, addr + 3, 1) <<  8;
-			v |= bank->read (&gb->vga, addr + 2, 1) <<  0;
+			v  = ((uae_u8)bank->read(&gb->vga, addr + 1, 1)) << 24;
+			v |= ((uae_u8)bank->read(&gb->vga, addr + 0, 1)) << 16;
+			v |= ((uae_u8)bank->read(&gb->vga, addr + 3, 1)) <<  8;
+			v |= ((uae_u8)bank->read(&gb->vga, addr + 2, 1)) <<  0;
 		} else if (bs > 0) { // LONG
-			v  = bank->read (&gb->vga, addr + 3, 1) << 24;
-			v |= bank->read (&gb->vga, addr + 2, 1) << 16;
-			v |= bank->read (&gb->vga, addr + 1, 1) <<  8;
-			v |= bank->read (&gb->vga, addr + 0, 1) <<  0;
+			v  = ((uae_u8)bank->read(&gb->vga, addr + 3, 1)) << 24;
+			v |= ((uae_u8)bank->read(&gb->vga, addr + 2, 1)) << 16;
+			v |= ((uae_u8)bank->read(&gb->vga, addr + 1, 1)) <<  8;
+			v |= ((uae_u8)bank->read(&gb->vga, addr + 0, 1)) <<  0;
 		} else {
-			v  = bank->read (&gb->vga, addr + 0, 1) << 24;
-			v |= bank->read (&gb->vga, addr + 1, 1) << 16;
-			v |= bank->read (&gb->vga, addr + 2, 1) <<  8;
-			v |= bank->read (&gb->vga, addr + 3, 1) <<  0;
+			v  = ((uae_u8)bank->read(&gb->vga, addr + 0, 1)) << 24;
+			v |= ((uae_u8)bank->read(&gb->vga, addr + 1, 1)) << 16;
+			v |= ((uae_u8)bank->read(&gb->vga, addr + 2, 1)) <<  8;
+			v |= ((uae_u8)bank->read(&gb->vga, addr + 3, 1)) <<  0;
 		}
 	} else {
 		uae_u8 *m = gb->vram + addr;
@@ -2060,7 +2060,7 @@ static uae_u32 gfxboard_lget_vram (struct rtggfxboard *gb, uaecptr addr, int bs)
 		} else if (bs > 0) {
 			v = *((uae_u32*)m);
 		} else {
-			v = do_get_mem_long ((uae_u32*)m);
+			v = do_get_mem_long((uae_u32*)m);
 		}
 	}
 #if MEMLOGR
@@ -2078,11 +2078,11 @@ static uae_u16 gfxboard_wget_vram (struct rtggfxboard *gb, uaecptr addr, int bs)
 	if (!gb->vram_enabled) {
 		const MemoryRegionOps *bank = getvgabank (gb, &addr);
 		if (bs) {
-			v  = bank->read (&gb->vga, addr + 0, 1) <<  0;
-			v |= bank->read (&gb->vga, addr + 1, 1) <<  8;
+			v  = ((uae_u8)bank->read(&gb->vga, addr + 0, 1)) <<  0;
+			v |= ((uae_u8)bank->read(&gb->vga, addr + 1, 1)) <<  8;
 		} else {
-			v  = bank->read (&gb->vga, addr + 0, 1) <<  8;
-			v |= bank->read (&gb->vga, addr + 1, 1) <<  0;
+			v  = ((uae_u8)bank->read(&gb->vga, addr + 0, 1)) <<  8;
+			v |= ((uae_u8)bank->read(&gb->vga, addr + 1, 1)) <<  0;
 		}
 	} else {
 		uae_u8 *m = gb->vram + addr;
@@ -2106,9 +2106,9 @@ static uae_u8 gfxboard_bget_vram (struct rtggfxboard *gb, uaecptr addr, int bs)
 	if (!gb->vram_enabled) {
 		const MemoryRegionOps *bank = getvgabank (gb, &addr);
 		if (bs)
-			v = bank->read (&gb->vga, addr ^ 1, 1);
+			v = (uae_u8)bank->read(&gb->vga, addr ^ 1, 1);
 		else
-			v = bank->read (&gb->vga, addr + 0, 1);
+			v = (uae_u8)bank->read(&gb->vga, addr + 0, 1);
 	} else {
 		if (bs)
 			v = gb->vram[addr ^ 1];
@@ -2184,11 +2184,11 @@ static void gfxboard_wput_vram (struct rtggfxboard *gb, uaecptr addr, uae_u16 w,
 	if (!gb->vram_enabled) {
 		const MemoryRegionOps *bank = getvgabank (gb, &addr);
 		if (bs) {
-			bank->write (&gb->vga, addr + 0, (w >> 0) & 0xff, 1);
-			bank->write (&gb->vga, addr + 1, w >> 8, 1);
+			bank->write(&gb->vga, addr + 0, (w >> 0) & 0xff, 1);
+			bank->write(&gb->vga, addr + 1, w >> 8, 1);
 		} else {
-			bank->write (&gb->vga, addr + 0, w >> 8, 1);
-			bank->write (&gb->vga, addr + 1, (w >> 0) & 0xff, 1);
+			bank->write(&gb->vga, addr + 0, w >> 8, 1);
+			bank->write(&gb->vga, addr + 1, (w >> 0) & 0xff, 1);
 		}
 	} else {
 		uae_u8 *m = gb->vram + addr;
@@ -2217,9 +2217,9 @@ static void gfxboard_bput_vram (struct rtggfxboard *gb, uaecptr addr, uae_u8 b, 
 		special_mem |= S_WRITE;
 #endif
 		if (bs)
-			bank->write (&gb->vga, addr ^ 1, b, 1);
+			bank->write(&gb->vga, addr ^ 1, b, 1);
 		else
-			bank->write (&gb->vga, addr, b, 1);
+			bank->write(&gb->vga, addr, b, 1);
 	} else {
 		if (bs)
 			gb->vram[addr ^ 1] = b;
@@ -2946,7 +2946,7 @@ static uae_u32 REGPARAM2 gfxboard_lget_regs (uaecptr addr)
 	uae_u32 v = 0xffffffff;
 	addr = mungeaddr (gb, addr, false);
 	if (addr)
-		v = gb->vgaio->read (&gb->vga, addr, 4);
+		v = (uae_u32)gb->vgaio->read (&gb->vga, addr, 4);
 	return v;
 }
 static uae_u32 REGPARAM2 gfxboard_wget_regs (uaecptr addr)
@@ -2956,9 +2956,9 @@ static uae_u32 REGPARAM2 gfxboard_wget_regs (uaecptr addr)
 	addr = mungeaddr (gb, addr, false);
 	if (addr) {
 		uae_u8 v1, v2;
-		v1  = gb->vgaio->read (&gb->vga, addr + 0, 1);
+		v1 = (uae_u8)gb->vgaio->read (&gb->vga, addr + 0, 1);
 		v1 = bget_regtest (gb, addr + 0, v1);
-		v2 = gb->vgaio->read (&gb->vga, addr + 1, 1);
+		v2 = (uae_u8)gb->vgaio->read (&gb->vga, addr + 1, 1);
 		v2 = bget_regtest (gb, addr + 1, v2);
 		v = (v1 << 8) | v2;
 	}
@@ -2975,7 +2975,7 @@ static uae_u32 REGPARAM2 gfxboard_bget_regs (uaecptr addr)
 	}
 	addr = mungeaddr (gb, addr, false);
 	if (addr) {
-		v = gb->vgaio->read (&gb->vga, addr, 1);
+		v = (uae_u8)gb->vgaio->read (&gb->vga, addr, 1);
 		v = bget_regtest (gb, addr, v);
 #if REGDEBUG
 		write_log(_T("GFX VGA BYTE GET IO %04X = %02X PC=%08x\n"), addr & 65535, v & 0xff, M68K_GETPC);
@@ -3226,10 +3226,10 @@ static uae_u32 REGPARAM2 gfxboards_lget_regs (uaecptr addr)
 		// memory mapped io
 		if (addr >= gb->p4_mmiobase && addr < gb->p4_mmiobase + 0x8000) {
 			uae_u32 addr2 = addr - gb->p4_mmiobase;
-			v  = gb->vgammio->read(&gb->vga, addr2 + 0, 1) << 24;
-			v |= gb->vgammio->read(&gb->vga, addr2 + 1, 1) << 16;
-			v |= gb->vgammio->read(&gb->vga, addr2 + 2, 1) <<  8;
-			v |= gb->vgammio->read(&gb->vga, addr2 + 3, 1) <<  0;
+			v  = ((uae_u8)gb->vgammio->read(&gb->vga, addr2 + 0, 1)) << 24;
+			v |= ((uae_u8)gb->vgammio->read(&gb->vga, addr2 + 1, 1)) << 16;
+			v |= ((uae_u8)gb->vgammio->read(&gb->vga, addr2 + 2, 1)) <<  8;
+			v |= ((uae_u8)gb->vgammio->read(&gb->vga, addr2 + 3, 1)) <<  0;
 #if PICASSOIV_DEBUG_IO
 			write_log (_T("PicassoIV MMIO LGET %08x %08x\n"), addr, v);
 #endif
@@ -3270,8 +3270,8 @@ static uae_u32 REGPARAM2 gfxboards_wget_regs (uaecptr addr)
 		// memory mapped io
 		if (addr >= gb->p4_mmiobase && addr < gb->p4_mmiobase + 0x8000) {
 			uae_u32 addr2 = addr - gb->p4_mmiobase;
-			v  = gb->vgammio->read(&gb->vga, addr2 + 0, 1) << 8;
-			v |= gb->vgammio->read(&gb->vga, addr2 + 1, 1) << 0;
+			v  = ((uae_u8)gb->vgammio->read(&gb->vga, addr2 + 0, 1)) << 8;
+			v |= ((uae_u8)gb->vgammio->read(&gb->vga, addr2 + 1, 1)) << 0;
 #if PICASSOIV_DEBUG_IO
 			write_log (_T("PicassoIV MMIO WGET %08x %04x\n"), addr, v & 0xffff);
 #endif
@@ -3323,7 +3323,7 @@ static uae_u32 REGPARAM2 gfxboards_bget_regs (uaecptr addr)
 		// memory mapped io
 		if (addr >= gb->p4_mmiobase && addr < gb->p4_mmiobase + 0x8000) {
 			uae_u32 addr2 = addr - gb->p4_mmiobase;
-			v = gb->vgammio->read(&gb->vga, addr2, 1);
+			v = (uae_u8)gb->vgammio->read(&gb->vga, addr2, 1);
 #if PICASSOIV_DEBUG_IO
 			write_log (_T("PicassoIV MMIO BGET %08x %02x\n"), addr, v & 0xff);
 #endif
@@ -3360,8 +3360,8 @@ static uae_u32 REGPARAM2 gfxboards_bget_regs (uaecptr addr)
 			addr -= 0x10000;
 			uaecptr addr2 = mungeaddr (gb, addr, true);
 			if (addr2) {
-				v = gb->vgaio->read (&gb->vga, addr2, 1);
-				v = bget_regtest (gb, addr2, v);
+				v = (uae_u8)gb->vgaio->read(&gb->vga, addr2, 1);
+				v = bget_regtest(gb, addr2, v);
 				//write_log(_T("P4 VGA read %08X=%02X PC=%08x\n"), addr2, v, M68K_GETPC);
 			}
 			//write_log (_T("PicassoIV IO %08x %02x\n"), addr, v);

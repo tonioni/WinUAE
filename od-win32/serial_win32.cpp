@@ -176,7 +176,7 @@ static int serial_period_hsyncs, serial_period_hsync_counter;
 static int ninebit;
 static int lastbitcycle_active_hsyncs;
 static bool gotlogwrite;
-static unsigned int lastbitcycle;
+static evt_t lastbitcycle;
 static int serial_recv_previous, serial_send_previous;
 static int serdatr_last_got;
 int serdev;
@@ -594,7 +594,7 @@ static void serdatcopy(void)
 		per = ((serper & 0x7fff) + 1) * (bits - 1);
 		if (lastbitcycle_active_hsyncs) {
 			// if last bit still transmitting, add remaining time.
-			int extraper = lastbitcycle - get_cycles();
+			int extraper = (int)(lastbitcycle - get_cycles());
 			if (extraper > 0)
 				per += extraper / CYCLE_UNIT;
 		}
@@ -1034,6 +1034,7 @@ static void enet_service (int serveronly)
 				switch (evt.type)
 				{
 					default:
+					case 0:
 					write_log (_T("ENET_CLIENT: %d\n"), evt.type);
 					break;
 				}

@@ -79,7 +79,7 @@ static int trace_cycles;
 static int last_hpos1, last_hpos2;
 static int last_vpos1, last_vpos2;
 static int last_frame = -1;
-static uae_u32 last_cycles1, last_cycles2;
+static evt_t last_cycles1, last_cycles2;
 
 static uaecptr processptr;
 static uae_char *processname;
@@ -1814,7 +1814,7 @@ static void memwatch_heatmap(uaecptr addr, int rwi, int size, uae_u32 accessmask
 
 struct refdata
 {
-	uae_u32 c;
+	evt_t c;
 	uae_u32 cnt;
 };
 static struct refdata refreshtable[1024];
@@ -1825,7 +1825,7 @@ static void check_refreshed(void)
 {
 	int max = ecs_agnus ? 512 : 256;
 	int reffail = 0;
-	uae_u32 c = get_cycles();
+	evt_t c = get_cycles();
 	for (int i = 0; i < max; i++) {
 		struct refdata *rd = &refreshtable[i];
 		if (rd->cnt < 10) {
@@ -1860,7 +1860,7 @@ void debug_mark_refreshed(uaecptr rp)
 		ras = (rp >> 1) & 0xff;
 	}
 	struct refdata *rd = &refreshtable[ras];
-	uae_u32 c = get_cycles();
+	evt_t c = get_cycles();
 	rd->c = c;
 	rd->cnt = 0;
 }
@@ -1966,7 +1966,7 @@ void record_dma_read_value_wide(uae_u64 v, bool quad)
 {
 	if (last_dma_rec) {
 		if (last_dma_rec->cf_reg != 0xffff) {
-			last_dma_rec->cf_dat = v;
+			last_dma_rec->cf_dat = (uae_u16)v;
 		} else {
 			last_dma_rec->dat = v;
 		}
@@ -2033,7 +2033,7 @@ void record_dma_read(uae_u16 reg, uae_u32 addr, int hpos, int vpos, int type, in
 	debug_mark_refreshed(dr->addr);
 }
 
-static bool get_record_dma_info(struct dma_rec *dr, int hpos, int vpos, uae_u32 cycles, TCHAR *l1, TCHAR *l2, TCHAR *l3, TCHAR *l4, TCHAR *l5)
+static bool get_record_dma_info(struct dma_rec *dr, int hpos, int vpos, evt_t cycles, TCHAR *l1, TCHAR *l2, TCHAR *l3, TCHAR *l4, TCHAR *l5)
 {
 	int longsize = dr->size;
 	bool got = false;
@@ -2274,7 +2274,7 @@ static void decode_dma_record (int hpos, int vpos, int toggle, bool logfile)
 {
 	struct dma_rec *dr, *dr_start;
 	int h, i, maxh;
-	uae_u32 cycles;
+	evt_t cycles;
 
 	if (!dma_record[0] || hpos < 0 || vpos < 0)
 		return;
@@ -5474,9 +5474,9 @@ static void debug_sprite (TCHAR **inptr)
 			console_out_f (_T("%04X "), get_word_debug (addr + i * 2));
 		console_out_f (_T("\n"));
 
-		ypos = w1 >> 8;
+		ypos = (int)(w1 >> 8);
 		xpos = w1 & 255;
-		ypose = w2 >> 8;
+		ypose = (int)(w2 >> 8);
 		attach = (w2 & 0x80) ? 1 : 0;
 		if (w2 & 4)
 			ypos |= 256;
@@ -7679,7 +7679,7 @@ struct dsprintfstack
 };
 static dsprintfstack debugsprintf_stack[DEBUGSPRINTF_SIZE];
 static uae_u16 debugsprintf_latch, debugsprintf_latched;
-static uae_u32 debugsprintf_cycles, debugsprintf_cycles_set;
+static evt_t debugsprintf_cycles, debugsprintf_cycles_set;
 static uaecptr debugsprintf_va;
 static int debugsprintf_mode;
 
@@ -7731,7 +7731,7 @@ static void parse_custom(char *out, int buffersize, char *format, char *p, char 
 	char s[256];
 	if (!strcmp(p, "CYCLES")) {
 		if (debugsprintf_cycles_set) {
-			v = (get_cycles() - debugsprintf_cycles) / CYCLE_UNIT;
+			v = (uae_u32)((get_cycles() - debugsprintf_cycles) / CYCLE_UNIT);
 		} else {
 			v = 0xffffffff;
 		}

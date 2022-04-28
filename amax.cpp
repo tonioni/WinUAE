@@ -152,7 +152,7 @@ void amax_init (void)
 		z = read_device_rom(&currprefs, ROMTYPE_AMAX, 0, NULL);
 	if (z) {
 		zfile_fseek (z, 0, SEEK_END);
-		amax_rom_size = zfile_ftell (z);
+		amax_rom_size = zfile_ftell32(z);
 		zfile_fseek (z, 0, SEEK_SET);
 	} else {
 		write_log (_T("AMAX: failed to load rom\n"));

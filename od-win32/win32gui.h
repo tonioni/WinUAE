@@ -70,7 +70,7 @@ typedef struct
 struct newreswnd
 {
 	HWND hwnd;
-	uae_s16 x, y, w, h;
+	LONG x, y, w, h;
 };
 
 struct newresource

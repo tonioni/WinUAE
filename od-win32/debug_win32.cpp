@@ -1548,7 +1548,7 @@ static BOOL CALLBACK childenumproc (HWND hwnd, LPARAM lParam)
 	adjust = height_adjust / count;
 	remainder = height_adjust % count;
 	if (randidx < 0) {
-		srand(time(NULL));
+		srand((unsigned int)time(NULL));
 		randidx = rand() % count;
 	}
 	while (id3y[j] >= 0) {

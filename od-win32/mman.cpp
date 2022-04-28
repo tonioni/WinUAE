@@ -197,7 +197,7 @@ bool preinit_shm (void)
 	if (size64 < 8 * 1024 * 1024)
 		size64 = 8 * 1024 * 1024;
 	if ((uae_u64)max_allowed_mman * 1024 * 1024 > size64)
-		max_allowed_mman = size64 / (1024 * 1024);
+		max_allowed_mman = (uae_u32)(size64 / (1024 * 1024));
 
 	uae_u32 natmem_size = (max_allowed_mman + 1) * 1024 * 1024;
 	if (natmem_size < 17 * 1024 * 1024)

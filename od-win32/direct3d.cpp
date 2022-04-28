@@ -1138,8 +1138,8 @@ static int psEffect_SetTextures (LPDIRECT3DTEXTURE9 lpSource, struct shaderdata 
 	}
 	if (s->m_TargetDimsEffectHandle) {
 		D3DXVECTOR4 fDimsTarget;
-		fDimsTarget.x = s->targettex_width;
-		fDimsTarget.y = s->targettex_height;
+		fDimsTarget.x = (FLOAT)s->targettex_width;
+		fDimsTarget.y = (FLOAT)s->targettex_height;
 		fDimsTarget.z = 1;
 		fDimsTarget.w = 1;
 		hr = s->pEffect->SetVector(s->m_TargetDimsEffectHandle, &fDimsTarget);
@@ -1157,8 +1157,8 @@ static int psEffect_SetTextures (LPDIRECT3DTEXTURE9 lpSource, struct shaderdata 
 	}
 	if (s->m_ScaleEffectHandle) {
 		D3DXVECTOR4 fScale;
-		fScale.x = 1 << currprefs.gfx_resolution;
-		fScale.y = 1 << currprefs.gfx_vresolution;
+		fScale.x = (float)(1 << currprefs.gfx_resolution);
+		fScale.y = (float)(1 << currprefs.gfx_vresolution);
 		fScale.w = fScale.z = 1;
 		hr = s->pEffect->SetVector(s->m_ScaleEffectHandle, &fScale);
 		if (FAILED(hr)) {
@@ -1167,7 +1167,7 @@ static int psEffect_SetTextures (LPDIRECT3DTEXTURE9 lpSource, struct shaderdata 
 		}
 	}
 	if (s->framecounterHandle)
-		s->pEffect->SetFloat(s->framecounterHandle, timeframes);
+		s->pEffect->SetFloat(s->framecounterHandle, (FLOAT)timeframes);
 
 	return 1;
 }
@@ -1845,8 +1845,8 @@ static int createmask2texture (struct d3dstruct *d3d, const TCHAR *filename)
 		goto end;
 	}
 
-	d3d->mask2texture_w = img.width;
-	d3d->mask2texture_h = img.height;
+	d3d->mask2texture_w = (float)img.width;
+	d3d->mask2texture_h = (float)img.height;
 	d3d->mask2texture = tx;
 
 	hr = tx->LockRect(0, &locked, NULL, 0);
@@ -1859,17 +1859,17 @@ static int createmask2texture (struct d3dstruct *d3d, const TCHAR *filename)
 	}
 	tx->UnlockRect(0);
 
-	d3d->mask2rect.left = findedge(&img, d3d->mask2texture_w, d3d->mask2texture_h, -1, 0);
-	d3d->mask2rect.right = findedge(&img, d3d->mask2texture_w, d3d->mask2texture_h, 1, 0);
-	d3d->mask2rect.top = findedge(&img, d3d->mask2texture_w, d3d->mask2texture_h, 0, -1);
-	d3d->mask2rect.bottom = findedge(&img, d3d->mask2texture_w, d3d->mask2texture_h, 0, 1);
+	d3d->mask2rect.left = findedge(&img, (int)d3d->mask2texture_w, (int)d3d->mask2texture_h, -1, 0);
+	d3d->mask2rect.right = findedge(&img, (int)d3d->mask2texture_w, (int)d3d->mask2texture_h, 1, 0);
+	d3d->mask2rect.top = findedge(&img, (int)d3d->mask2texture_w, (int)d3d->mask2texture_h, 0, -1);
+	d3d->mask2rect.bottom = findedge(&img, (int)d3d->mask2texture_w, (int)d3d->mask2texture_h, 0, 1);
 
 	if (d3d->mask2rect.left >= d3d->mask2texture_w / 2 || d3d->mask2rect.top >= d3d->mask2texture_h / 2 ||
 		d3d->mask2rect.right <= d3d->mask2texture_w / 2 || d3d->mask2rect.bottom <= d3d->mask2texture_h / 2) {
 		d3d->mask2rect.left = 0;
 		d3d->mask2rect.top = 0;
-		d3d->mask2rect.right = d3d->mask2texture_w;
-		d3d->mask2rect.bottom = d3d->mask2texture_h;
+		d3d->mask2rect.right = (LONG)d3d->mask2texture_w;
+		d3d->mask2rect.bottom = (LONG)d3d->mask2texture_h;
 	}
 	d3d->mask2texture_multx = (float)d3d->window_w / d3d->mask2texture_w;
 	d3d->mask2texture_multy = (float)d3d->window_h / d3d->mask2texture_h;
@@ -1877,8 +1877,8 @@ static int createmask2texture (struct d3dstruct *d3d, const TCHAR *filename)
 
 	if (isfullscreen () > 0) {
 		struct MultiDisplay *md = getdisplay(&currprefs, mon->monitor_id);
-		float deskw = md->rect.right - md->rect.left;
-		float deskh = md->rect.bottom - md->rect.top;
+		float deskw = (float)md->rect.right - md->rect.left;
+		float deskh = (float)md->rect.bottom - md->rect.top;
 		//deskw = 800; deskh = 600;
 		float dstratio = deskw / deskh;
 		float srcratio = d3d->mask2texture_w / d3d->mask2texture_h;
@@ -1887,35 +1887,35 @@ static int createmask2texture (struct d3dstruct *d3d, const TCHAR *filename)
 		d3d->mask2texture_multx = d3d->mask2texture_multy;
 	}
 
-	d3d->mask2texture_wh = d3d->window_h;
+	d3d->mask2texture_wh = (float)d3d->window_h;
 	d3d->mask2texture_ww = d3d->mask2texture_w * d3d->mask2texture_multx; 
 
 	d3d->mask2texture_offsetw = (d3d->window_w - d3d->mask2texture_ww) / 2;
 
 	if (d3d->mask2texture_offsetw > 0)
-		d3d->blanktexture = createtext (d3d, d3d->mask2texture_offsetw + 1, d3d->window_h, D3DFMT_X8R8G8B8);
+		d3d->blanktexture = createtext(d3d, (int)(d3d->mask2texture_offsetw + 1), d3d->window_h, D3DFMT_X8R8G8B8);
 
 	xmult = d3d->mask2texture_multx;
 	ymult = d3d->mask2texture_multy;
 
-	d3d->mask2rect.left *= xmult;
-	d3d->mask2rect.right *= xmult;
-	d3d->mask2rect.top *= ymult;
-	d3d->mask2rect.bottom *= ymult;
+	d3d->mask2rect.left *= (LONG)xmult;
+	d3d->mask2rect.right *= (LONG)xmult;
+	d3d->mask2rect.top *= (LONG)ymult;
+	d3d->mask2rect.bottom *= (LONG)ymult;
 	d3d->mask2texture_wwx = d3d->mask2texture_w * xmult;
 	if (d3d->mask2texture_wwx > d3d->window_w)
-		d3d->mask2texture_wwx = d3d->window_w;
+		d3d->mask2texture_wwx = (float)d3d->window_w;
 	if (d3d->mask2texture_wwx < d3d->mask2rect.right - d3d->mask2rect.left)
-		d3d->mask2texture_wwx = d3d->mask2rect.right - d3d->mask2rect.left;
+		d3d->mask2texture_wwx = (float)d3d->mask2rect.right - d3d->mask2rect.left;
 	if (d3d->mask2texture_wwx > d3d->mask2texture_ww)
 		d3d->mask2texture_wwx = d3d->mask2texture_ww;
 
-	d3d->mask2texture_minusx = - ((d3d->window_w - d3d->mask2rect.right) + d3d->mask2rect.left);
+	d3d->mask2texture_minusx = (float)(-((d3d->window_w - d3d->mask2rect.right) + d3d->mask2rect.left));
 	if (d3d->mask2texture_offsetw > 0)
 		d3d->mask2texture_minusx += d3d->mask2texture_offsetw * xmult;
 	
 
-	d3d->mask2texture_minusy = -(d3d->window_h - (d3d->mask2rect.bottom - d3d->mask2rect.top));
+	d3d->mask2texture_minusy = (float)(-(d3d->window_h - (d3d->mask2rect.bottom - d3d->mask2rect.top)));
 
 	d3d->mask2texture_hhx = d3d->mask2texture_h * ymult;
 
@@ -2021,10 +2021,10 @@ static int createmasktexture (struct d3dstruct *d3d, const TCHAR *filename, stru
 			return 0;
 		}
 	}
-	size = zfile_size (zf);
-	buf = xmalloc (uae_u8, size);
-	zfile_fread (buf, size, 1, zf);
-	zfile_fclose (zf);
+	size = zfile_size32(zf);
+	buf = xmalloc(uae_u8, size);
+	zfile_fread(buf, size, 1, zf);
+	zfile_fclose(zf);
 	hr = D3DXCreateTextureFromFileInMemoryEx (d3d->d3ddev, buf, size,
 		 D3DX_DEFAULT_NONPOW2, D3DX_DEFAULT_NONPOW2, 1, D3DUSAGE_DYNAMIC, D3DFMT_X8R8G8B8,
 		 D3DPOOL_DEFAULT, D3DX_FILTER_NONE, D3DX_FILTER_NONE, 0, &dinfo, NULL, &tx);
@@ -2122,8 +2122,8 @@ static bool xD3D_getscalerect(int monid, float *mx, float *my, float *sx, float 
 	if (!d3d->mask2texture)
 		return false;
 
-	float mw = d3d->mask2rect.right - d3d->mask2rect.left;
-	float mh = d3d->mask2rect.bottom - d3d->mask2rect.top;
+	float mw = (float)d3d->mask2rect.right - d3d->mask2rect.left;
+	float mh = (float)d3d->mask2rect.bottom - d3d->mask2rect.top;
 
 	float mxt = (float)mw / width;
 	float myt = (float)mh / height;
@@ -2166,10 +2166,10 @@ static void setupscenecoords (struct d3dstruct *d3d, bool normalrender)
 		zr2[monid] = zr;
 	}
 
-	dw = dr.right - dr.left;
-	dh = dr.bottom - dr.top;
-	w = sr.right - sr.left;
-	h = sr.bottom - sr.top;
+	dw = (float)dr.right - dr.left;
+	dh = (float)dr.bottom - dr.top;
+	w = (float)sr.right - sr.left;
+	h = (float)sr.bottom - sr.top;
 
 	d3d->fakesize.x = w;
 	d3d->fakesize.y = h;
@@ -2183,14 +2183,14 @@ static void setupscenecoords (struct d3dstruct *d3d, bool normalrender)
 
 	if (0 && d3d->mask2texture) {
 
-		float mw = d3d->mask2rect.right - d3d->mask2rect.left;
-		float mh = d3d->mask2rect.bottom - d3d->mask2rect.top;
+		float mw = (float)d3d->mask2rect.right - d3d->mask2rect.left;
+		float mh = (float)d3d->mask2rect.bottom - d3d->mask2rect.top;
 
 		tx = -0.5f + dw * d3d->tin_w / mw / 2;
 		ty = +0.5f + dh * d3d->tin_h / mh / 2;
 
-		float xshift = -zr.left;
-		float yshift = -zr.top;
+		float xshift = (float)-zr.left;
+		float yshift = (float)-zr.top;
 
 		sw = dw * d3d->tin_w / vidinfo->outbuffer->inwidth2;
 		sw *= mw / d3d->window_w;
@@ -2210,8 +2210,8 @@ static void setupscenecoords (struct d3dstruct *d3d, bool normalrender)
 		tx = -0.5f + dw * d3d->tin_w / d3d->window_w / 2;
 		ty = +0.5f + dh * d3d->tin_h / d3d->window_h / 2;
 
-		float xshift = - zr.left - sr.left; // - (tin_w - 2 * zr.left - w),
-		float yshift = + zr.top + sr.top - (d3d->tin_h - h);
+		float xshift = (float)(- zr.left - sr.left); // - (tin_w - 2 * zr.left - w),
+		float yshift = (float)(+ zr.top + sr.top - (d3d->tin_h - h));
 	
 		sw = dw * d3d->tin_w / d3d->window_w;
 		sh = dh * d3d->tin_h / d3d->window_h;
@@ -2823,7 +2823,7 @@ static const TCHAR *D3D_init2 (struct d3dstruct *d3d, HWND ahwnd, int w_w, int w
 		d3d->modeex.RefreshRate = d3d->dpp.FullScreen_RefreshRateInHz;
 		if (vsync > 0) {
 			d3d->dpp.PresentationInterval = D3DPRESENT_INTERVAL_ONE;
-			getvsyncrate(monid, d3d->dpp.FullScreen_RefreshRateInHz, &hzmult);
+			getvsyncrate(monid, (float)d3d->dpp.FullScreen_RefreshRateInHz, &hzmult);
 			if (hzmult < 0) {
 				if (!ap.gfx_strobo) {
 					if (d3dCaps.PresentationIntervals & D3DPRESENT_INTERVAL_TWO)
@@ -2840,7 +2840,7 @@ static const TCHAR *D3D_init2 (struct d3dstruct *d3d, HWND ahwnd, int w_w, int w
 		if (mode.RefreshRate > 0) {
 			if (vsync > 0) {
 				d3d->dpp.PresentationInterval = D3DPRESENT_INTERVAL_ONE;
-				getvsyncrate(monid, mode.RefreshRate, &hzmult);
+				getvsyncrate(monid, (float)mode.RefreshRate, &hzmult);
 				if (hzmult < 0) {
 					if (!ap.gfx_strobo) {
 						if ((d3dCaps.PresentationIntervals & D3DPRESENT_INTERVAL_TWO) && isfullscreen() > 0)
@@ -2858,7 +2858,7 @@ static const TCHAR *D3D_init2 (struct d3dstruct *d3d, HWND ahwnd, int w_w, int w
 
 	if (vsync < 0) {
 		d3d->vsync2 = 0;
-		getvsyncrate(monid, isfullscreen() > 0 ? d3d->dpp.FullScreen_RefreshRateInHz : mode.RefreshRate, &hzmult);
+		getvsyncrate(monid, (float)(isfullscreen() > 0 ? d3d->dpp.FullScreen_RefreshRateInHz : mode.RefreshRate), &hzmult);
 		if (hzmult > 0) {
 			d3d->vsync2 = 1;
 		} else if (hzmult < 0) {
@@ -3510,7 +3510,7 @@ static void D3D_render2(struct d3dstruct *d3d, int mode)
 		texelsize.z = 1; texelsize.w = 1;
 		hr = postEffect->SetVector (d3d->postTexelSize, &texelsize);
 		if (d3d->postFramecounterHandle)
-			postEffect->SetFloat(d3d->postFramecounterHandle, timeframes);
+			postEffect->SetFloat(d3d->postFramecounterHandle, (FLOAT)timeframes);
 
 		if (masktexture) {
 			if (FAILED (hr = postEffect->SetTechnique (d3d->postTechnique)))
@@ -3543,8 +3543,8 @@ static void D3D_render2(struct d3dstruct *d3d, int mode)
 		}
 		if (s->m_TargetDimsEffectHandle) {
 			D3DXVECTOR4 fDimsTarget;
-			fDimsTarget.x = s->targettex_width;
-			fDimsTarget.y = s->targettex_height;
+			fDimsTarget.x = (FLOAT)s->targettex_width;
+			fDimsTarget.y = (FLOAT)s->targettex_height;
 			fDimsTarget.z = 1; fDimsTarget.w = 1;
 			hr = postEffect->SetVector(s->m_TargetDimsEffectHandle, &fDimsTarget);
 			if (FAILED(hr)) {
@@ -3625,9 +3625,9 @@ static void D3D_render2(struct d3dstruct *d3d, int mode)
 				MatrixScaling(&t, ((float)(d3d->window_w) / (d3d->tout_w + 2 * d3d->cursor_offset2_x)), ((float)(d3d->window_h) / (d3d->tout_h + 2 * d3d->cursor_offset2_y)), 0);
 			else
 				MatrixScaling(&t, 1.0f, 1.0f, 0);
-			v.x = d3d->cursor_x + d3d->cursor_offset2_x;
-			v.y = d3d->cursor_y + d3d->cursor_offset2_y;
-			v.z = 0;
+			v.x = (float)d3d->cursor_x + d3d->cursor_offset2_x;
+			v.y = (float)d3d->cursor_y + d3d->cursor_offset2_y;
+			v.z = 0.0f;
 			d3d->sprite->SetTransform(&t);
 			d3d->sprite->Draw(d3d->cursorsurfaced3d, NULL, NULL, &v, 0xffffffff);
 			MatrixScaling(&t, 1, 1, 0);
@@ -3664,19 +3664,19 @@ static void D3D_render2(struct d3dstruct *d3d, int mode)
 
 			v.x = 0;
 			if (d3d->filterd3d->gfx_filteroverlay_pos.x == -1)
-				v.x = (d3d->window_w - (d3d->mask2texture_w * w)) / 2;
+				v.x = (d3d->window_w - (d3d->mask2texture_w * w)) / 2.0f;
 			else if (d3d->filterd3d->gfx_filteroverlay_pos.x > -24000)
-				v.x = d3d->filterd3d->gfx_filteroverlay_pos.x;
+				v.x = (float)d3d->filterd3d->gfx_filteroverlay_pos.x;
 			else
-				v.x = (d3d->window_w - (d3d->mask2texture_w * w)) / 2 + (-d3d->filterd3d->gfx_filteroverlay_pos.x - 30100) * d3d->window_w / 100.0;
+				v.x = (d3d->window_w - (d3d->mask2texture_w * w)) / 2 + (-d3d->filterd3d->gfx_filteroverlay_pos.x - 30100) * d3d->window_w / 100.0f;
 
 			v.y = 0;
 			if (d3d->filterd3d->gfx_filteroverlay_pos.y == -1)
-				v.y = (d3d->window_h - (d3d->mask2texture_h * h)) / 2;
+				v.y = (d3d->window_h - (d3d->mask2texture_h * h)) / 2.0f;
 			else if (d3d->filterd3d->gfx_filteroverlay_pos.y > -24000)
-				v.y = d3d->filterd3d->gfx_filteroverlay_pos.y;
+				v.y = (float)d3d->filterd3d->gfx_filteroverlay_pos.y;
 			else
-				v.y = (d3d->window_h - (d3d->mask2texture_h * h)) / 2 + (-d3d->filterd3d->gfx_filteroverlay_pos.y - 30100) * d3d->window_h / 100.0;
+				v.y = (d3d->window_h - (d3d->mask2texture_h * h)) / 2 + (-d3d->filterd3d->gfx_filteroverlay_pos.y - 30100) * d3d->window_h / 100.0f;
 
 			v.x /= w;
 			v.y /= h;
@@ -3686,8 +3686,8 @@ static void D3D_render2(struct d3dstruct *d3d, int mode)
 
 			r.left = 0;
 			r.top = 0;
-			r.right = d3d->mask2texture_w;
-			r.bottom = d3d->mask2texture_h;
+			r.right = (LONG)d3d->mask2texture_w;
+			r.bottom = (LONG)d3d->mask2texture_h;
 			if (showoverlay) {
 				d3d->sprite->SetTransform(&t);
 				d3d->sprite->Draw(d3d->mask2texture, &r, NULL, &v, 0xffffffff);
@@ -3699,8 +3699,8 @@ static void D3D_render2(struct d3dstruct *d3d, int mode)
 						if (!led && ledtypes[i] == LED_POWER && currprefs.power_led_dim)
 							spr = d3d->mask2textureled_power_dim;
 						if (spr) {
-							v.x = d3d->mask2texture_offsetw / w + d3d->mask2textureledoffsets[i * 2 + 0];
-							v.y = d3d->mask2textureledoffsets[i * 2 + 1];
+							v.x = (FLOAT)(d3d->mask2texture_offsetw / w + d3d->mask2textureledoffsets[i * 2 + 0]);
+							v.y = (FLOAT)d3d->mask2textureledoffsets[i * 2 + 1];
 							v.z = 0;
 							d3d->sprite->Draw(spr, NULL, NULL, &v, 0xffffffff);
 							d3d->sprite->Flush();
@@ -3717,7 +3717,7 @@ static void D3D_render2(struct d3dstruct *d3d, int mode)
 				v.y = 0;
 				r.left = 0;
 				r.top = 0;
-				r.right = d3d->mask2texture_offsetw + 1;
+				r.right = (LONG)d3d->mask2texture_offsetw + 1;
 				r.bottom = d3d->window_h;
 				d3d->sprite->Draw (d3d->blanktexture, &r, NULL, &v, 0xffffffff);
 				if (d3d->window_w > d3d->mask2texture_offsetw + d3d->mask2texture_ww) {
@@ -3725,8 +3725,8 @@ static void D3D_render2(struct d3dstruct *d3d, int mode)
 					v.y = 0;
 					r.left = 0;
 					r.top = 0;
-					r.right = d3d->window_w - (d3d->mask2texture_offsetw + d3d->mask2texture_ww) + 1;
-					r.bottom = d3d->window_h;
+					r.right = (LONG)(d3d->window_w - (d3d->mask2texture_offsetw + d3d->mask2texture_ww) + 1);
+					r.bottom = (LONG)d3d->window_h;
 					d3d->sprite->Draw(d3d->blanktexture, &r, NULL, &v, 0xffffffff);
 				}
 			}
@@ -3735,17 +3735,17 @@ static void D3D_render2(struct d3dstruct *d3d, int mode)
 		if (d3d->ledtexture && (((currprefs.leds_on_screen & STATUSLINE_RTG) && WIN32GFX_IsPicassoScreen(mon)) || ((currprefs.leds_on_screen & STATUSLINE_CHIPSET) && !WIN32GFX_IsPicassoScreen(mon)))) {
 			int slx, sly;
 			statusline_getpos(d3d - d3ddata, &slx, &sly, d3d->window_w, d3d->window_h);
-			v.x = slx;
-			v.y = sly;
-			v.z = 0;
+			v.x = (float)slx;
+			v.y = (float)sly;
+			v.z = 0.0f;
 			d3d->sprite->Draw(d3d->ledtexture, NULL, NULL, &v, 0xffffffff);
 		}
 		struct d3d9overlay *ov = d3d->extoverlays;
 		while (ov) {
 			if (ov->tex) {
-				v.x = ov->x;
-				v.y = ov->y;
-				v.z = 0;
+				v.x = (float)ov->x;
+				v.y = (float)ov->y;
+				v.z = 0.0f;
 				d3d->sprite->Draw(ov->tex, NULL, NULL, &v, 0xffffffff);
 			}
 			ov = ov->next;
@@ -4060,11 +4060,11 @@ static float xD3D_getrefreshrate(int monid)
 
 	waitfakemode (d3d);
 	if (!isd3d (d3d))
-		return -1;
+		return -1.0f;
 	hr = d3d->d3ddev->GetDisplayMode (0, &dmode);
 	if (FAILED (hr))
-		return -1;
-	return dmode.RefreshRate;
+		return -1.0f;
+	return (float)dmode.RefreshRate;
 }
 
 static void xD3D_guimode(int monid, int guion)

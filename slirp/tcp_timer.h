@@ -133,6 +133,6 @@ struct tcpcb;
 void tcp_fasttimo(void);
 void tcp_slowtimo(void);
 void tcp_canceltimers(struct tcpcb *);
-struct tcpcb * tcp_timers(register struct tcpcb *, int);
+struct tcpcb * tcp_timers(struct tcpcb *, int);
 
 #endif

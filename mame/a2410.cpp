@@ -138,7 +138,7 @@ static uaecptr makeaddr(UINT32 a, int *bank)
 
 static uae_u8 get_a2410_control(struct a2410_struct *data)
 {
-	uae_u8 v = data->a2410_control;
+	uae_u8 v = (uae_u8)data->a2410_control;
 	v &= ~(0x10 | 0x40 | 0x80);
 	v |= 0x20;
 	if (v & 0x08) // SBR
@@ -152,7 +152,7 @@ static uae_u8 get_a2410_control(struct a2410_struct *data)
 
 UINT32 total_cycles(void)
 {
-	return get_cycles() / CYCLE_UNIT;
+	return (UINT32)(get_cycles() / CYCLE_UNIT);
 }
 
 void m_to_shiftreg_cb(address_space space, offs_t offset, UINT16 *shiftreg)
@@ -481,7 +481,7 @@ void address_space::write_word(UINT32 a, UINT16 b)
 		break;
 		case A2410_BANK_RAMDAC:
 		//write_log(_T("RAMDAC WRITE %08x = %04x IDX=%d/%d PC=%08x\n"), aa, b, a2410_palette_index / 4, a2410_palette_index & 3, M68K_GETPC);
-		write_ramdac(data, addr, b);
+		write_ramdac(data, addr, (uae_u8)b);
 		break;
 		case A2410_BANK_CONTROL:
 		write_log(_T("CONTROL WRITE %08x = %04x PC=%08x\n"), aa, b, M68K_GETPC);

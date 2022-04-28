@@ -132,8 +132,8 @@ struct sound_dp
 	int xextrasamples;
 #endif
 
-	double avg_correct;
-	double cnt_correct;
+	float avg_correct;
+	float cnt_correct;
 };
 
 #define SND_STATUSCNT 10
@@ -183,16 +183,16 @@ float sound_sync_multiplier = 1.0;
 float scaled_sample_evtime_orig;
 extern float sampler_evtime;
 
-void update_sound (double clk)
+void update_sound (float clk)
 {
 	if (!have_sound)
 		return;
-	scaled_sample_evtime_orig = clk * CYCLE_UNIT * sound_sync_multiplier / sdp->obtainedfreq;
+	scaled_sample_evtime_orig = clk * (float)CYCLE_UNIT * sound_sync_multiplier / sdp->obtainedfreq;
 	scaled_sample_evtime = scaled_sample_evtime_orig;
 	sampler_evtime = clk * CYCLE_UNIT * sound_sync_multiplier;
 }
 
-extern int vsynctimebase_orig;
+extern frame_time_t vsynctimebase_orig;
 
 #ifndef AVIOUTPUT
 static int avioutput_audio;
@@ -201,7 +201,7 @@ static int avioutput_audio;
 #define ADJUST_LIMIT 6
 #define ADJUST_LIMIT2 1
 
-void sound_setadjust (double v)
+void sound_setadjust (float v)
 {
 	float mult;
 
@@ -210,23 +210,23 @@ void sound_setadjust (double v)
 	if (v > ADJUST_LIMIT)
 		v = ADJUST_LIMIT;
 
-	mult = (1000.0 + v);
+	mult = (1000.0f + v);
 	if (avioutput_audio && avioutput_enabled && avioutput_nosoundsync)
-		mult = 1000.0;
+		mult = 1000.0f;
 	if (isvsync_chipset () || (avioutput_audio && avioutput_enabled && !currprefs.cachesize)) {
 		vsynctimebase = vsynctimebase_orig;
-		scaled_sample_evtime = scaled_sample_evtime_orig * mult / 1000.0;
+		scaled_sample_evtime = scaled_sample_evtime_orig * mult / 1000.0f;
 	} else if (currprefs.cachesize || currprefs.m68k_speed != 0) {
-		vsynctimebase = (int)(((double)vsynctimebase_orig) * mult / 1000.0);
+		vsynctimebase = (int)(vsynctimebase_orig * mult / 1000.0f);
 		scaled_sample_evtime = scaled_sample_evtime_orig;
 	} else {
-		vsynctimebase = (int)(((double)vsynctimebase_orig) * mult / 1000.0);
+		vsynctimebase = (int)(vsynctimebase_orig * mult / 1000.0f);
 		scaled_sample_evtime = scaled_sample_evtime_orig;
 	}
 }
 
 
-static void docorrection (struct sound_dp *s, int sndbuf, double sync, int granulaty)
+static void docorrection (struct sound_dp *s, int sndbuf, float sync, int granulaty)
 {
 	static int tfprev;
 
@@ -237,11 +237,11 @@ static void docorrection (struct sound_dp *s, int sndbuf, double sync, int granu
 		granulaty = 10;
 
 	if (tfprev != timeframes) {
-		double skipmode, avgskipmode;
-		double avg = s->avg_correct / s->cnt_correct;
+		float skipmode, avgskipmode;
+		float avg = s->avg_correct / s->cnt_correct;
 
-		skipmode = sync / 100.0;
-		avgskipmode = avg / (10000.0 / granulaty);
+		skipmode = sync / 100.0f;
+		avgskipmode = avg / (10000.0f / granulaty);
 
 		if ((0 || sound_debug) && (tfprev % 10) == 0) {
 			write_log (_T("%+05d S=%7.1f AVG=%7.1f (IMM=%7.1f + AVG=%7.1f = %7.1f)\n"), sndbuf, sync, avg, skipmode, avgskipmode, skipmode + avgskipmode);
@@ -259,12 +259,12 @@ static void docorrection (struct sound_dp *s, int sndbuf, double sync, int granu
 }
 
 
-static double sync_sound (double m)
+static float sync_sound (float m)
 {
-	double skipmode;
+	float skipmode;
 	if (isvsync ()) {
 
-		skipmode = pow (m < 0 ? -m : m, EXPVS) / 2;
+		skipmode = (float)pow(m < 0 ? -m : m, EXPVS) / 2.0f;
 		if (m < 0)
 			skipmode = -skipmode;
 		if (skipmode < -ADJUST_VSSIZE)
@@ -274,7 +274,7 @@ static double sync_sound (double m)
 
 	} else if (1) {
 
-		skipmode = pow (m < 0 ? -m : m, EXP) / 2;
+		skipmode = (float)pow(m < 0 ? -m : m, EXP) / 2.0f;
 		if (m < 0)
 			skipmode = -skipmode;
 		if (skipmode < -ADJUST_SIZE)
@@ -496,18 +496,6 @@ static int restore_ds (struct sound_data *sd, DWORD hr)
 	return 1;
 }
 
-static LARGE_INTEGER qpfc, qpf;
-static void storeqpf (void)
-{
-	QueryPerformanceCounter (&qpfc);
-}
-static double getqpf (void)
-{
-	LARGE_INTEGER qpfc2;
-	QueryPerformanceCounter (&qpfc2);
-	return (qpfc2.QuadPart - qpfc.QuadPart) / (qpf.QuadPart / 1000.0);
-}
-
 static void close_audio_ds (struct sound_data *sd)
 {
 	struct sound_dp *s = sd->data;
@@ -533,9 +521,9 @@ void set_volume_sound_device (struct sound_data *sd, int volume, int mute)
 	struct sound_dp *s = sd->data;
 	HRESULT hr;
 	if (sd->devicetype == SOUND_DEVICE_AL) {
-		float vol = 0.0;
-		if (volume < 100 && !mute)
-			vol = (100 - volume) / 100.0;
+		float vol = 0.0f;
+		if (volume < 100.0f && !mute)
+			vol = (100.0f - volume) / 100.0f;
 		alSourcef (s->al_Source, AL_GAIN, vol);
 	} else if (sd->devicetype == SOUND_DEVICE_DS) {
 		LONG vol = DSBVOLUME_MIN;
@@ -571,7 +559,7 @@ void set_volume_sound_device (struct sound_data *sd, int volume, int mute)
 		if (FAILED (hr))
 			write_log (_T("AudioVolume->SetMasterVolume(1.0) failed: %08Xs\n"), hr);
 		if (volume < 100 && !mute) {
-			sd->softvolume = (100 - volume) * 32768 / 100.0;
+			sd->softvolume = (int)((100.0f - volume) * 32768.0f / 100.0f);
 			if (sd->softvolume >= 32768)
 				sd->softvolume = -1;
 		}
@@ -821,7 +809,7 @@ fixfreq:
 				continue;
 			}
 			if (freq != di->defaultSampleRate && err == paInvalidSampleRate && !defaultrate) {
-				freq = di->defaultSampleRate;
+				freq = (int)di->defaultSampleRate;
 				sd->freq = freq;
 				defaultrate = 1;
 				continue;
@@ -2201,7 +2189,7 @@ static void finish_sound_buffer_al (struct sound_data *sd, uae_u16 *sndbuffer)
 		alcheck (sd, 7);
 		v -= s->al_offset;
 
-		docorrection (s, 100 * v / sd->sndbufsize, v / sd->samplesize, 100);
+		docorrection (s, (int)(100.0f * v / sd->sndbufsize), v / (float)sd->samplesize, 100);
 
 #if 0
 		gui_data.sndbuf = 100 * v / sd->sndbufsize;
@@ -2331,7 +2319,7 @@ static void finish_sound_buffer_wasapi_push(struct sound_data *sd, uae_u16 *sndb
 		oldpadding = numFramesPadding;
 	}
 
-	docorrection (s, (s->wasapigoodsize - avail) * 1000 / s->wasapigoodsize, s->wasapigoodsize - avail, 100);
+	docorrection (s, (s->wasapigoodsize - avail) * 1000 / s->wasapigoodsize, (float)(s->wasapigoodsize - avail), 100);
 
 	hr = s->pRenderClient->GetBuffer (sd->sndbufframes, &pData);
 	wasapi_check_state(sd, hr);
@@ -2560,17 +2548,17 @@ static void finish_sound_buffer_ds (struct sound_data *sd, uae_u16 *sndbuffer)
 	s->lpDSBsecondary->Unlock (b1, s1, b2, s2);
 
 	if (sd == sdp) {
-		double vdiff, m, skipmode;
+		float vdiff, m, skipmode;
 
-		vdiff = (diff - s->snd_writeoffset) / sd->samplesize;
-		m = 100.0 * vdiff / (s->max_sndbufsize / sd->samplesize);
+		vdiff = (diff - s->snd_writeoffset) / (float)sd->samplesize;
+		m = 100.0f * vdiff / (s->max_sndbufsize / sd->samplesize);
 		skipmode = sync_sound (m);
 
 		if (tfprev != timeframes) {
-			gui_data.sndbuf = vdiff * 1000 / (s->snd_maxoffset - s->snd_writeoffset);
+			gui_data.sndbuf = (int)(vdiff * 1000.0f / (s->snd_maxoffset - s->snd_writeoffset));
 			s->avg_correct += vdiff;
 			s->cnt_correct++;
-			double adj = (s->avg_correct / s->cnt_correct) / 50.0;
+			float adj = (s->avg_correct / s->cnt_correct) / 50.0f;
 			if ((0 || sound_debug) && !(tfprev % 10))
 				write_log (_T("%d,%d,%d,%d d%5d vd%5.0f s%+02.1f %.0f %+02.1f\n"),
 				sd->sndbufsize / sd->samplesize, s->snd_configsize / sd->samplesize, s->max_sndbufsize / sd->samplesize,
@@ -2580,7 +2568,7 @@ static void finish_sound_buffer_ds (struct sound_data *sd, uae_u16 *sndbuffer)
 				skipmode = ADJUST_LIMIT2;
 			if (skipmode < -ADJUST_LIMIT2)
 				skipmode = -ADJUST_LIMIT2;
-			sound_setadjust (skipmode + adj);
+			sound_setadjust(skipmode + adj);
 		}
 	}
 
@@ -2676,7 +2664,7 @@ bool audio_is_event_frame_possible(int ms)
 		int bufsize = (uae_u8*)paula_sndbufpt - (uae_u8*)paula_sndbuffer;
 		bufsize /= sdp->samplesize;
 		int todo = s->bufferFrameCount - bufsize;
-		int samplesperframe = sdp->obtainedfreq / vblank_hz;
+		int samplesperframe = (int)(sdp->obtainedfreq / vblank_hz);
 		return samplesperframe >= todo - samplesperframe;
 	}
 	return false;
@@ -3239,7 +3227,7 @@ static int setget_master_volume_vista (int setvolume, int *volume, int *mute)
 				float vol;
 				if (SUCCEEDED (endpointVolume->GetMasterVolumeLevelScalar (&vol))) {
 					ok++;
-					*volume = vol * 65535.0;
+					*volume = (int)(vol * 65535.0f);
 				}
 				if (SUCCEEDED (endpointVolume->GetMute (mute))) {
 					ok++;

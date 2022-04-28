@@ -51,8 +51,8 @@
                         IS_BORDER(R),IS_BORDER(T),IS_BORDER(RT), \
                         texture+((x+(border%16)*HQ2X_RESOLUTION+y*16*HQ2X_RESOLUTION+(border&~15)*HQ2X_RESOLUTION*HQ2X_RESOLUTION)*4))
 
-static double sign(double a) {
-    return (a < 0?-1:1);
+static float sign(float a) {
+    return (a < 0.0f ? -1.0f : 1.0f);
 }
 
 /*
@@ -60,15 +60,15 @@ static double sign(double a) {
  cordinate system. It is mathematically exact, and well-tested for xcenter > 0 and ycenter > 0 (it's only
  used that way). It should be correct for other cases as well, but well... famous last words :)
 */
-static double intersect_any(double xcenter, double ycenter, double xsize, double ysize, double yoffset, double gradient) {
-    double g = fabs(gradient)*xsize/ysize;
-    double o = -((yoffset-ycenter) + gradient*xcenter)/ysize*sign(ycenter)*sign(yoffset)-g*0.5+0.5;
-    double yl = o, yr = o+g, xb = -o/g, xt = (1-o)/g;
-    double area = 1.0;
+static float intersect_any(float xcenter, float ycenter, float xsize, float ysize, float yoffset, float gradient) {
+    float g = (float)fabs(gradient)*xsize/ysize;
+    float o = -((yoffset-ycenter) + gradient*xcenter)/ysize*sign(ycenter)*sign(yoffset)-g*0.5f+0.5f;
+    float yl = o, yr = o+g, xb = -o/g, xt = (1-o)/g;
+    float area = 1.0;
 
     if (yl >= 1.0) xt = xb = area = 0.0;
     else if (yl > 0.0) {
-        area = 1.0-yl;
+        area = 1.0f-yl;
         xb = 0.0;
     }
     else if (yr <= 0.0) yl = yr = area = 1.0;
@@ -87,53 +87,53 @@ static double intersect_any(double xcenter, double ycenter, double xsize, double
     return area;
 }
 
-static double intersect_h(double xcenter, double ycenter, double xsize, double ysize) {
-    return fmax(0.0,fmin(1.0,(.55-fabs(xcenter)+xsize/2.0)/xsize));
+static float intersect_h(float xcenter, float ycenter, float xsize, float ysize) {
+    return (float)fmax(0.0f,fmin(1.0f,(0.55f-fabs(xcenter)+xsize/2.0f)/xsize));
 }
 
-static double intersect_any_h(double xcenter, double ycenter, double xsize, double ysize, double yoffset, double gradient) {
-    double hinside = intersect_h(xcenter,ycenter,xsize,ysize);
+static float intersect_any_h(float xcenter, float ycenter, float xsize, float ysize, float yoffset, float gradient) {
+    float hinside = intersect_h(xcenter,ycenter,xsize,ysize);
     return hinside*hinside*intersect_any(xcenter,ycenter,xsize,ysize,yoffset,gradient);
 }
 
-static double intersect_v(double xcenter, double ycenter, double xsize, double ysize) {
-    return fmax(0.0,fmin(1.0,(.55-fabs(ycenter)+ysize/2.0)/ysize));
+static float intersect_v(float xcenter, float ycenter, float xsize, float ysize) {
+    return (float)fmax(0.0f,fmin(1.0f,(0.55f-fabs(ycenter)+ysize/2.0f)/ysize));
 }
 
-static double intersect_any_v(double xcenter, double ycenter, double xsize, double ysize, double yoffset, double gradient) {
-    double vinside = intersect_v(xcenter,ycenter,xsize,ysize);
+static float intersect_any_v(float xcenter, float ycenter, float xsize, float ysize, float yoffset, float gradient) {
+    float vinside = intersect_v(xcenter,ycenter,xsize,ysize);
     return vinside*vinside*intersect_any(xcenter,ycenter,xsize,ysize,yoffset,gradient);
 }
 
-static double intersect_hv(double xcenter, double ycenter, double xsize, double ysize) {
-    double hinside = intersect_h(xcenter,ycenter,xsize,ysize);
-    double vinside = intersect_v(xcenter,ycenter,xsize,ysize);
+static float intersect_hv(float xcenter, float ycenter, float xsize, float ysize) {
+    float hinside = intersect_h(xcenter,ycenter,xsize,ysize);
+    float vinside = intersect_v(xcenter,ycenter,xsize,ysize);
     return (1-hinside)*(1-vinside)+hinside*vinside;
 }
 
 /* FIXME: not sure if this is correct, but it is rare enough and most likely near enough. fixes welcome :) */
-static double intersect_any_hv(double xcenter, double ycenter, double xsize, double ysize, double yoffset, double gradient) {
-    double hvinside = intersect_hv(xcenter,ycenter,xsize,ysize);
+static float intersect_any_hv(float xcenter, float ycenter, float xsize, float ysize, float yoffset, float gradient) {
+    float hvinside = intersect_hv(xcenter,ycenter,xsize,ysize);
     return hvinside*hvinside*intersect_any(xcenter,ycenter,xsize,ysize,yoffset,gradient);
 }
 
-static double intersect_hvd(double xcenter, double ycenter, double xsize, double ysize) {
+static float intersect_hvd(float xcenter, float ycenter, float xsize, float ysize) {
     return intersect_h(xcenter,ycenter,xsize,ysize)*intersect_v(xcenter,ycenter,xsize,ysize);
 }
 
-static void setinterp(double xcenter, double ycenter, double percentage_inside, int i1, int i2, int i3, int o1, int o2, int o3, unsigned char *factors) {
-    double d0, d1, d2, d3, percentage_outside, totaldistance_i, totaldistance_o;
-    xcenter = fabs(xcenter);
-    ycenter = fabs(ycenter);
+static void setinterp(float xcenter, float ycenter, float percentage_inside, int i1, int i2, int i3, int o1, int o2, int o3, unsigned char *factors) {
+    float d0, d1, d2, d3, percentage_outside, totaldistance_i, totaldistance_o;
+    xcenter = (float)fabs(xcenter);
+    ycenter = (float)fabs(ycenter);
     d0 = (1-xcenter)*(1-ycenter);
     d1 = xcenter*(1-ycenter);
     d2 = (1-xcenter)*ycenter;
     d3 = xcenter*ycenter;
     if (i1 && i2) i3 = 0;
     if (o1 && o2) o3 = 0;
-    percentage_outside = 1.0-percentage_inside;
+    percentage_outside = 1.0f-percentage_inside;
     totaldistance_i = d0+i1*d1+i2*d2+i3*d3;
-    totaldistance_o = o1*d1+o2*d2+o3*d3+1e-12; /* +1e-12: prevent division by zero */
+    totaldistance_o = o1*d1+o2*d2+o3*d3+1e-12f; /* +1e-12: prevent division by zero */
 
     factors[1] = (unsigned char)(((d1/totaldistance_i*percentage_inside*i1)+(d1/totaldistance_o*percentage_outside*o1))*255+.5);
     factors[2] = (unsigned char)(((d2/totaldistance_i*percentage_inside*i2)+(d2/totaldistance_o*percentage_outside*o2))*255+.5);
@@ -152,18 +152,18 @@ static int swap_bits(int num, int bit1, int bit2) {
 // outwidth, outheight == width, height
 void BuildHq2xLookupTexture(int outWidth, int outHeight, int rwidth, int rheight, unsigned char* texture)
 {
-    double xsize, ysize;
+    float xsize, ysize;
     int border, y, x;
     unsigned char table[4096] = HQ2X_D3D_TABLE_DATA;
 
-    xsize = (double)rwidth / (double)outWidth;
-    ysize = (double)rheight / (double)outHeight;
+    xsize = (float)rwidth / (float)outWidth;
+    ysize = (float)rheight / (float)outHeight;
 
     for (border = 0; border < 4096; border++) {
 	for (y = 0; y < HQ2X_RESOLUTION; y++) {
             for (x = 0; x < HQ2X_RESOLUTION; x++) {
-                double xcenter = fabs((((double)x)+0.5) / (double)(HQ2X_RESOLUTION)-0.5)/0.958;
-                double ycenter = fabs((((double)y)+0.5) / (double)(HQ2X_RESOLUTION)-0.5)/0.958;
+                float xcenter = (float)(fabs((((float)x)+0.5f) / (float)(HQ2X_RESOLUTION)-0.5f)/0.958f);
+                float ycenter = (float)(fabs((((float)y)+0.5f) / (float)(HQ2X_RESOLUTION)-0.5f)/0.958f);
                 int sx = (x < HQ2X_RESOLUTION/2?-1:1);
                 int sy = (y < HQ2X_RESOLUTION/2?-1:1);
                 int b = (sy > 0?(sx > 0?border:hmirror(border)):(sx > 0?vmirror(border):vmirror(hmirror(border))));
@@ -182,8 +182,8 @@ void BuildHq2xLookupTexture(int outWidth, int outHeight, int rwidth, int rheight
                         SETINTERP(1.0);
                     }
                 } else {
-                    double yoff = (table[b]&4?1:-1)*(((table[b] >> 3) & 3) + 1)/4.0;
-                    double grad = (table[b]&32?1:-1)*(((table[b] >> 6) & 3) + 1)/2.0;
+                    float yoff = (float)((table[b]&4?1:-1)*(((table[b] >> 3) & 3) + 1.0f)/4.0f);
+                    float grad = (float)((table[b]&32?1:-1)*(((table[b] >> 6) & 3) + 1.0f)/2.0f);
                     if (table[b] & H) {
                         if (table[b] & V) {
                             SETINTERP(intersect_any_hv(xcenter,ycenter,xsize,ysize,yoff,grad));

@@ -1674,7 +1674,7 @@ int action_replay_load (void)
 		}
 	}
 	zfile_fseek(f, 0, SEEK_END);
-	ar_rom_file_size = zfile_ftell(f);
+	ar_rom_file_size = zfile_ftell32(f);
 	zfile_fseek(f, 0, SEEK_SET);
 	zfile_fread (header, 1, sizeof header, f);
 	zfile_fseek (f, 0, SEEK_SET);

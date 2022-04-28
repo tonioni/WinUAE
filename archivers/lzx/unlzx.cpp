@@ -147,7 +147,7 @@ static const unsigned char table_four[34]=
 
 static void crc_calc(struct lzxdata *d, unsigned char *memory, unsigned int length)
 {
- register unsigned int temp;
+ unsigned int temp;
 
  if(length)
  {
@@ -168,8 +168,8 @@ static void crc_calc(struct lzxdata *d, unsigned char *memory, unsigned int leng
 static int make_decode_table(struct lzxdata *d, short number_symbols, short table_size,
 		      unsigned char *length, unsigned short *table)
 {
- register unsigned char bit_num = 0;
- register short symbol;
+ unsigned char bit_num = 0;
+ short symbol;
  unsigned short leaf; /* could be a register */
  unsigned short bit_mask, fill, next_symbol, reverse;
  unsigned int table_mask, pos;
@@ -291,8 +291,8 @@ static int make_decode_table(struct lzxdata *d, short number_symbols, short tabl
 
 static int read_literal_table(struct lzxdata *d)
 {
- register unsigned int control;
- register short shift;
+ unsigned int control;
+ short shift;
  unsigned short temp; /* could be a register */
  unsigned short symbol, pos, count, fix, max_symbol;
 #if LZX_ERROR_CHECK
@@ -531,8 +531,8 @@ static int read_literal_table(struct lzxdata *d)
 
 static void decrunch(struct lzxdata *d)
 {
- register unsigned int control;
- register short shift;
+ unsigned int control;
+ short shift;
  unsigned short temp; /* could be a register */
  unsigned short symbol, count;
  unsigned char *string;
@@ -850,7 +850,7 @@ struct zvolume *archive_directory_lzx (struct zfile *in_file)
 	  {
 	   merge_size = 0;
 	   if (zn) {
-		   zn->offset = zfile_ftell(in_file);
+		   zn->offset = zfile_ftell32(in_file);
 		   zn->packedsize = pack_size;
 	   }
 	   if(!zfile_fseek(in_file, pack_size, SEEK_CUR))

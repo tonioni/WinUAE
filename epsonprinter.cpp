@@ -506,7 +506,7 @@ static int selectfont(Bit16u style)
 	int lx = GetDeviceCaps (memHDC, LOGPIXELSX);
 	int rounds = 0;
 	while (rounds < 2) {
-		curFont = CreateFont (thisFontVertPoints * dpiY / ly + 0.5, thisFontHorizPoints * dpiX / lx + 0.5,
+		curFont = CreateFont ((int)(thisFontVertPoints * dpiY / ly + 0.5), (int)(thisFontHorizPoints * dpiX / lx + 0.5),
 			0, 0,
 			FW_NORMAL,
 			(style & STYLE_ITALICS) ? TRUE : FALSE,
@@ -1029,7 +1029,7 @@ static void initPrinter(void)
 
 	// Default tabs => Each eight characters
 	for (i = 0; i < 32; i++)
-		horiztabs[i] = i * 8 * (1.0 / (Real64)cpi);
+		horiztabs[i] = i * 8.0f * (1.0f / (Real64)cpi);
 	numHorizTabs = 32;
 
 	numVertTabs = 255;
@@ -1492,7 +1492,7 @@ static int processCommandChar(Bit8u ch)
 			}
 			break;
 		case 0x21: // Master select (ESC !)
-			cpi = params[0] & 0x01 ? 12:10;
+			cpi = (params[0] & 0x01 ? 12:10) + 0.0f;
 
 			// Reset first seven bits
 			style &= 0xFF80;
@@ -2275,7 +2275,7 @@ static void printSingleChar(Bit8u ch, int doprint)
 	else
 	{
 		if (hmi < 0)
-			curX += 1.0/(Real64)actcpi;
+			curX += 1.0f / (Real64)actcpi;
 		else
 			curX += hmi;
 	}
@@ -2294,7 +2294,7 @@ static void printSingleChar(Bit8u ch, int doprint)
 		if (style & STYLE_STRIKETHROUGH)
 			lineY = PIXY + deltaY + ascender / 2;
 		if (style & STYLE_OVERSCORE)
-			lineY = PIXY + deltaY - otm->otmTextMetrics.tmDescent - ((score == SCORE_DOUBLE || score == SCORE_DOUBLEBROKEN) ? 5 : 0);
+			lineY = (uae_u16)(PIXY + deltaY - otm->otmTextMetrics.tmDescent - ((score == SCORE_DOUBLE || score == SCORE_DOUBLEBROKEN) ? 5 : 0));
 
 		drawLine(lineStart, xEnd, lineY, score == SCORE_SINGLEBROKEN || score == SCORE_DOUBLEBROKEN);
 		if (score == SCORE_DOUBLE || score == SCORE_DOUBLEBROKEN)

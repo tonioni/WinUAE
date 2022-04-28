@@ -482,7 +482,7 @@ static int masoboshi_dma_read(void *opaque, uint8_t *buf, int len)
 			*buf++ = v >> 8;
 			len--;
 			if (len > 0) {
-				*buf++ = v;
+				*buf++ = (uint8_t)v;
 				len--;
 			}
 			ncr->dma_ptr += 2;
@@ -537,7 +537,7 @@ static int trifecta_dma_read(void *opaque, uint8_t *buf, int len)
 			*buf++ = v >> 8;
 			len--;
 			if (len > 0) {
-				*buf++ = v;
+				*buf++ = (uint8_t)v;
 				len--;
 			}
 			ncr->dma_ptr += 2;
@@ -583,7 +583,7 @@ static int fastlane_dma_read(void *opaque, uint8_t *buf, int len)
 		*buf++ = v >> 8;
 		len--;
 		if (len > 0) {
-			*buf++ = v;
+			*buf++ = (uint8_t)v;
 			len--;
 		}
 		ncr->dma_ptr += 2;
@@ -626,7 +626,7 @@ static int cyberstorm_mk1_mk2_dma_read(void *opaque, uint8_t *buf, int len)
 		*buf++ = v >> 8;
 		len--;
 		if (len > 0) {
-			*buf++ = v;
+			*buf++ = (uint8_t)v;
 			len--;
 		}
 		ncr->dma_ptr += 2;
@@ -669,7 +669,7 @@ static int blizzard_dma_read(void *opaque, uint8_t *buf, int len)
 		*buf++ = v >> 8;
 		len--;
 		if (len > 0) {
-			*buf++ = v;
+			*buf++ = (uint8_t)v;
 			len--;
 		}
 		ncr->dma_ptr++;
@@ -1452,7 +1452,7 @@ static uae_u32 ncr9x_io_bget3(struct ncr9x_state *ncr, uaecptr addr, int *reg)
 	} else if (ISCPUBOARD(BOARD_BLIZZARD, BOARD_BLIZZARD_SUB_1230III)) {
 		addr &= 0xffff;
 		if (addr >= 0x10 && addr < 0x20) {
-			v = fas408_read_fifo(ncr->devobject.lsistate);
+			v = (uae_u8)fas408_read_fifo(ncr->devobject.lsistate);
 			return v;
 		}
 		if (addr >= 0x20) {
@@ -1578,7 +1578,7 @@ static uae_u32 ncr9x_io_bget3(struct ncr9x_state *ncr, uaecptr addr, int *reg)
 		return v;
 	addr >>= reg_shift;
 	addr &= IO_MASK;
-	v = esp_reg_read(ncr->devobject.lsistate, (addr));
+	v = (uae_u8)esp_reg_read(ncr->devobject.lsistate, (addr));
 	*reg = addr;
 	return v;
 }

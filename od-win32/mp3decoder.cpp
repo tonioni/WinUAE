@@ -69,7 +69,7 @@ static int get_header(struct zfile *zf, struct mpegaudio_header *head, bool keep
 			return 0;
 		}
 		if (head->firstframe < 0)
-			head->firstframe = zfile_ftell(zf);
+			head->firstframe = zfile_ftell32(zf);
 
 		head->ver = (header[1] >> 3) & 3;
 		if (head->ver == 1) {
@@ -407,7 +407,7 @@ uae_u32 mp3decoder::getsize (struct zfile *zf)
 		}
 		if (sameframes == 0 && frames > 100) {
 			// assume this is CBR MP3
-			size = mh.samplerate * 2 * (mh.isstereo ? 2 : 1) * ((zfile_size(zf) - firstframe) / ((mh.samplerate / 8 * mh.bitrate) / mh.freq));
+			size = mh.samplerate * 2 * (mh.isstereo ? 2 : 1) * ((zfile_size32(zf) - firstframe) / ((mh.samplerate / 8 * mh.bitrate) / mh.freq));
 			break;
 		}
 	}

@@ -115,7 +115,7 @@ static uae_u32 doAlpha (int alpha, int bits, int shift)
 
 static float video_gamma (float value, float gamma, float bri, float con)
 {
-	double factor;
+	float factor;
 	float ret;
 
 	value += bri;
@@ -124,7 +124,7 @@ static float video_gamma (float value, float gamma, float bri, float con)
 	if (value <= 0.0f)
 		return 0.0f;
 
-	factor = pow(255.0f, 1.0f - gamma);
+	factor = (float)pow(255.0f, 1.0f - gamma);
 	ret = (float)(factor * pow(value, gamma));
 
 	if (ret < 0.0f)
@@ -149,7 +149,7 @@ static void video_calc_gammatable(int monid)
 	} else {
 		bri = ((float)(currprefs.gfx_luminance)) * (128.0f / 1000.0f);
 		con = ((float)(currprefs.gfx_contrast + 1000)) / 1000.0f;
-		gam = ((float)(1000 - currprefs.gfx_gamma)) / 1000.0f - 1.0;
+		gam = ((float)(1000 - currprefs.gfx_gamma)) / 1000.0f - 1.0f;
 	}
 
 	gams[0] = gam + ((float)(1000 - currprefs.gfx_gamma_ch[0])) / 1000.0f;
@@ -161,15 +161,15 @@ static void video_calc_gammatable(int monid)
 
 	for (int i = 0; i < (256 * 3); i++) {
 		for (int j = 0; j < 3; j++) {
-			float val = i - 256;
+			float val = i - 256.0f;
 			float v;
 
 			if (currprefs.gfx_threebitcolors == 2) {
 				val *= 2;
 			} else if (currprefs.gfx_threebitcolors == 3) {
-				val = (val * 252.0) / 119.0;
+				val = (float)((val * 252.0) / 119.0);
 			} else if (currprefs.gfx_threebitcolors == 1) {
-				val = (val * 252.0) / 238.0;
+				val = (float)((val * 252.0) / 238.0);
 			}
 
 			if (gfx_hdr || (currprefs.gfx_luminance == 0 && currprefs.gfx_contrast == 0 && currprefs.gfx_gamma == 0 &&
@@ -189,11 +189,11 @@ static void video_calc_gammatable(int monid)
 	}
 }
 
-static uae_u32 limit256(int monid, double v)
+static uae_u32 limit256(int monid, float v)
 {
 	struct amigadisplay *ad = &adisplays[monid];
 	if (!gfx_hdr) {
-		v = v * (double)(currprefs.gf[ad->picasso_on].gfx_filter_contrast + 1000) / 1000.0 + currprefs.gf[ad->picasso_on].gfx_filter_luminance / 10.0;
+		v = v * (float)(currprefs.gf[ad->picasso_on].gfx_filter_contrast + 1000) / 1000.0f + currprefs.gf[ad->picasso_on].gfx_filter_luminance / 10.0f;
 	}
 	if (v < 0)
 		v = 0;
@@ -201,11 +201,11 @@ static uae_u32 limit256(int monid, double v)
 		v = 255;
 	return (uae_u32)v;
 }
-static uae_s32 limit256rb(int monid, double v)
+static uae_s32 limit256rb(int monid, float v)
 {
 	struct amigadisplay *ad = &adisplays[monid];
 	if (!gfx_hdr) {
-		v *= (double)(currprefs.gf[ad->picasso_on].gfx_filter_saturation + 1000) / 1000.0;
+		v *= (float)(currprefs.gf[ad->picasso_on].gfx_filter_saturation + 1000) / 1000.0f;
 	}
 	if (v < -128)
 		v = -128;
@@ -213,7 +213,7 @@ static uae_s32 limit256rb(int monid, double v)
 		v = 127;
 	return (uae_s32)v;
 }
-static double get_y(int r, int g, int b)
+static float get_y(int r, int g, int b)
 {
 	return 0.2989f * r + 0.5866f * g + 0.1145f * b;
 }

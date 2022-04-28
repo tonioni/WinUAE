@@ -387,7 +387,7 @@ static void save_chunk (struct zfile *f, uae_u8 *chunk, unsigned int len, const 
 	s = ua (name);
 	zfile_fwrite (s, 1, 4, f);
 	xfree (s);
-	pos = zfile_ftell (f);
+	pos = zfile_ftell32(f);
 	/* chunk size */
 	dst = &tmp[0];
 	chunklen = len + 4 + 4 + 4;
@@ -404,7 +404,7 @@ static void save_chunk (struct zfile *f, uae_u8 *chunk, unsigned int len, const 
 		size_t opos;
 		dst = &tmp[0];
 		save_u32 (len);
-		opos = zfile_ftell (f);
+		opos = zfile_ftell32(f);
 		zfile_fwrite (&tmp[0], 1, 4, f);
 		len = zfile_zcompress (f, chunk, len);
 		if (len > 0) {
@@ -457,7 +457,7 @@ static uae_u8 *restore_chunk (struct zfile *f, TCHAR *name, unsigned int *len, u
 		len2 = 0;
 	*len = len2;
 	if (len2 == 0) {
-		*filepos = zfile_ftell (f);
+		*filepos = zfile_ftell32(f);
 		return 0;
 	}
 
@@ -472,11 +472,11 @@ static uae_u8 *restore_chunk (struct zfile *f, TCHAR *name, unsigned int *len, u
 	if (flags & 1) {
 		zfile_fread (tmp, 1, 4, f);
 		src = tmp;
-		*totallen = restore_u32 ();
-		*filepos = zfile_ftell (f) - 4 - 4 - 4;
+		*totallen = restore_u32();
+		*filepos = zfile_ftell32(f) - 4 - 4 - 4;
 		len2 -= 4;
 	} else {
-		*filepos = zfile_ftell (f) - 4 - 4;
+		*filepos = zfile_ftell32(f) - 4 - 4;
 	}
 	/* chunk data.  RAM contents will be loaded during the reset phase,
 	   no need to malloc multiple megabytes here.  */
@@ -586,7 +586,7 @@ void restore_state (const TCHAR *filename)
 	if (!f)
 		goto error;
 	zfile_fseek (f, 0, SEEK_END);
-	filesize = zfile_ftell (f);
+	filesize = zfile_ftell32(f);
 	zfile_fseek (f, 0, SEEK_SET);
 	savestate_state = STATE_RESTORE;
 	savestate_init ();
@@ -1222,12 +1222,12 @@ int save_state (const TCHAR *filename, const TCHAR *description)
 		size_t pos;
 		if (savestate_specialdump == 2)
 			write_wavheader (f, 0, 22050);
-		pos = zfile_ftell (f);
+		pos = zfile_ftell32(f);
 		save_rams (f, -1);
 		if (savestate_specialdump == 2) {
 			int len, len2, i;
 			uae_u8 *tmp;
-			len = zfile_ftell (f) - pos;
+			len = zfile_ftell32(f) - pos;
 			tmp = xmalloc (uae_u8, len);
 			zfile_fseek(f, pos, SEEK_SET);
 			len2 = zfile_fread (tmp, 1, len, f);
@@ -1912,13 +1912,13 @@ void statefile_save_recording (const TCHAR *filename)
 {
 	if (!staterecord_statefile)
 		return;
-	struct zfile *zf = zfile_fopen (filename, _T("wb"), 0);
+	struct zfile *zf = zfile_fopen(filename, _T("wb"), 0);
 	if (zf) {
-		int len = zfile_size (staterecord_statefile);
-		uae_u8 *data = zfile_getdata (staterecord_statefile, 0, len, NULL);
-		zfile_fwrite (data, len, 1, zf);
+		int len = zfile_size32(staterecord_statefile);
+		uae_u8 *data = zfile_getdata(staterecord_statefile, 0, len, NULL);
+		zfile_fwrite(data, len, 1, zf);
 		xfree (data);
-		zfile_fclose (zf);
+		zfile_fclose(zf);
 		write_log (_T("input statefile '%s' saved\n"), filename);
 	}
 }

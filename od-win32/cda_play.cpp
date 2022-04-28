@@ -439,7 +439,7 @@ static bool cdda_play2(struct cda_play *ciw, int *outpos)
 
 			if (*outpos < 0) {
 				_ftime(&tb2);
-				int diff = (tb2.time * (uae_s64)1000 + tb2.millitm) - (tb1.time * (uae_s64)1000 + tb1.millitm);
+				int diff = (int)((tb2.time * (uae_s64)1000 + tb2.millitm) - (tb1.time * (uae_s64)1000 + tb1.millitm));
 				diff -= ciw->cdda_delay;
 				if (idleframes >= 0 && diff < 0 && ciw->cdda_play > 0)
 					sleep_millis(-diff);

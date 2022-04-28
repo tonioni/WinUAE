@@ -4558,7 +4558,7 @@ static bool inputdevice_handle_inputcode2(int monid, int code, int state, const 
 			if (cr) {
 				int dir = code == AKS_INCREASEREFRESHRATE ? 5 : -5;
 				if (cr->rate == 0)
-					cr->rate = currprefs.ntscmode ? 60 : 50;
+					cr->rate = currprefs.ntscmode ? 60.0f : 50.0f;
 				cr->locked = true;
 				cr->rate += dir;
 				if (cr->rate < 10)

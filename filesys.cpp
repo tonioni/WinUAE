@@ -1483,8 +1483,8 @@ struct hardfiledata *get_hardfile_data (int nr)
 
 static uae_u32 a_uniq, key_uniq;
 
-#define PUT_PCK_RES1(p,v) do { put_long_host((p)->packet_data + dp_Res1, (v)); } while (0)
-#define PUT_PCK_RES2(p,v) do { put_long_host((p)->packet_data + dp_Res2, (v)); } while (0)
+#define PUT_PCK_RES1(p,v) do { put_long_host((p)->packet_data + dp_Res1, ((uae_u32)v)); } while (0)
+#define PUT_PCK_RES2(p,v) do { put_long_host((p)->packet_data + dp_Res2, ((uae_u32)v)); } while (0)
 #define GET_PCK_TYPE(p) ((uae_s32)(get_long_host((p)->packet_data + dp_Type)))
 #define GET_PCK_RES1(p) ((uae_s32)(get_long_host((p)->packet_data + dp_Res1)))
 #define GET_PCK_RES2(p) ((uae_s32)(get_long_host((p)->packet_data + dp_Res2)))
@@ -1641,11 +1641,11 @@ void timeval_to_amiga (struct mytimeval *tv, int *days, int *mins, int *ticks, i
 	t -= diff;
 	if (t < 0)
 		t = 0;
-	*days = t / msecs_per_day;
+	*days = (int)(t / msecs_per_day);
 	t -= *days * msecs_per_day;
-	*mins = t / (60 * 1000);
+	*mins = (int)(t / (60 * 1000));
 	t -= *mins * (60 * 1000);
-	*ticks = t / (1000 / tickcount);
+	*ticks = (int)(t / (1000 / tickcount));
 }
 
 void amiga_to_timeval (struct mytimeval *tv, int days, int mins, int ticks, int tickcount)
@@ -1754,7 +1754,7 @@ static unsigned int fs_read (struct fs_filehandle *fsf, void *b, unsigned int si
 	else if (fsf->fstype == FS_DIRECTORY)
 		return my_read (fsf->of, b, size);
 	else if (fsf->fstype == FS_CDFS)
-		return isofs_read (fsf->isof, b, size);
+		return (unsigned int)isofs_read (fsf->isof, b, size);
 	return 0;
 }
 static unsigned int fs_write (struct fs_filehandle *fsf, void *b, unsigned int size)
@@ -1775,7 +1775,7 @@ static uae_s64 fs_lseek64 (struct fs_filehandle *fsf, uae_s64 offset, int whence
 		return isofs_lseek (fsf->isof, offset, whence);
 	return -1;
 }
-static uae_s32 fs_lseek (struct fs_filehandle *fsf, uae_s32 offset, int whence)
+static uae_s32 fs_lseek (struct fs_filehandle *fsf, uae_s64 offset, int whence)
 {
 	uae_s64 v = fs_lseek64 (fsf, offset, whence);
 	if (v < 0 || v > 0x7fffffff)
@@ -3630,7 +3630,7 @@ static a_inode *find_aino(TrapContext* ctx, Unit *unit, uaecptr lock, const TCHA
 	return a;
 }
 
-static uaecptr make_lock(TrapContext *ctx, Unit *unit, uae_u32 uniq, long mode)
+static uaecptr make_lock(TrapContext *ctx, Unit *unit, uae_u32 uniq, uae_u32 mode)
 {
 	/* allocate lock from the list kept by the assembly code */
 	uaecptr lock;
@@ -4227,7 +4227,7 @@ static void get_fileinfo(TrapContext *ctx, Unit *unit, dpacket *packet, uaecptr 
 
 	blocksize = (unit->volflags & MYVOLUMEINFO_CDFS) ? 2048 : 512;
 	numblocks = (statbuf.size + blocksize - 1) / blocksize;
-	put_long_host(buf + 128, numblocks > MAXFILESIZE32 ? MAXFILESIZE32 : numblocks);
+	put_long_host(buf + 128, (uae_u32)(numblocks > MAXFILESIZE32 ? MAXFILESIZE32 : numblocks));
 
 	if (longfilesize) {
 		/* MorphOS 64-bit file length support */
@@ -4305,7 +4305,7 @@ static struct lockrecord *new_record (dpacket *packet, uae_u64 pos, uae_u64 len,
 	lr->pos = pos;
 	lr->len = len;
 	lr->mode = mode;
-	lr->timeout = timeout * vblank_hz / 50;
+	lr->timeout = (uae_u32)(timeout * vblank_hz / 50);
 	lr->msg = msg;
 	return lr;
 }
@@ -4596,7 +4596,7 @@ static int exalldo(TrapContext *ctx, uaecptr exalldata, uae_u32 exalldatasize, u
 	if (type >= 2)
 		trap_put_long(ctx, exp + 8, entrytype);
 	if (type >= 3)
-		trap_put_long(ctx, exp + 12, statbuf.size > MAXFILESIZE32 ? MAXFILESIZE32 : statbuf.size);
+		trap_put_long(ctx, exp + 12, (uae_u32)(statbuf.size > MAXFILESIZE32 ? MAXFILESIZE32 : statbuf.size));
 	if (type >= 4)
 		trap_put_long(ctx, exp + 16, flags);
 	if (type >= 5) {
@@ -4606,7 +4606,7 @@ static int exalldo(TrapContext *ctx, uaecptr exalldata, uae_u32 exalldatasize, u
 	}
 	if (type >= 6) {
 		trap_put_long(ctx, exp + 32, exp + size2);
-		trap_put_byte(ctx, exp + size2, strlen (comment));
+		trap_put_byte(ctx, exp + size2, (uae_u8)strlen(comment));
 		for (i = 0; i <= strlen (comment); i++) {
 			trap_put_byte(ctx, exp + size2, comment[i]);
 			size2++;
@@ -5414,7 +5414,7 @@ static void	action_read(TrapContext *ctx, Unit *unit, dpacket *packet)
 		filesize = key_filesize(k);
 		cur = k->file_pos;
 		if (size > filesize - cur)
-			size = filesize - cur;
+			size = (uae_u32)(filesize - cur);
 
 		if (size == 0) {
 			PUT_PCK_RES1 (packet, 0);
@@ -7129,7 +7129,7 @@ static int filesys_iteration(UnitInfo *ui)
 		{ TRAPCMD_GET_LONG, { ui->self->locklist }, 2, 1 },
 		{ TRAPCMD_PUT_LONG },
 		{ TRAPCMD_PUT_LONG, { ui->self->locklist, morelocks }},
-		{ ui->self->volume ? TRAPCMD_GET_BYTE : TRAPCMD_NOP, { ui->self->volume + 64 }},
+		{ (uae_u16)(ui->self->volume ? TRAPCMD_GET_BYTE : TRAPCMD_NOP), { ui->self->volume + 64 }},
 	};
 	trap_multi(ctx, md, sizeof md / sizeof(struct trapmd));
 
@@ -8101,7 +8101,7 @@ static uae_u32 REGPARAM2 filesys_dev_remember (TrapContext *ctx)
 		trap_put_bytes(ctx, fs, addr, fssize);
 		// filesystem debugging, negative FSSIZE = debug mode.
 		if (segtrack_mode & 2) {
-			trap_put_long(ctx, parmpacket + PP_FSSIZE, -trap_get_long(ctx, parmpacket + PP_FSSIZE));
+			trap_put_long(ctx, parmpacket + PP_FSSIZE, 0 - trap_get_long(ctx, parmpacket + PP_FSSIZE));
 		}
 	}
 
@@ -8144,7 +8144,7 @@ static int rdb_checksum (const uae_char *id, uae_u8 *p, int block)
 		return 0;
 	for (i = 0; i < blocksize; i++)
 		sum += rl (p + i * 4);
-	sum = -sum;
+	sum = 0 - sum;
 	if (sum) {
 		TCHAR *s = au (id);
 		write_log (_T("RDB: block %d ('%s') checksum error\n"), block, s);
@@ -8863,7 +8863,7 @@ static int dofakefilesys (TrapContext *ctx, UnitInfo *uip, uaecptr parmpacket, s
 	}
 
 	zfile_fseek (zf, 0, SEEK_END);
-	size = zfile_ftell (zf);
+	size = zfile_ftell32(zf);
 	if (size > 0) {
 		zfile_fseek (zf, 0, SEEK_SET);
 		uip->rdb_filesysstore = xmalloc (uae_u8, size);
@@ -9061,7 +9061,7 @@ static uae_u32 REGPARAM2 filesys_dev_storeinfo (TrapContext *ctx)
 			}
 			memset(buf, 0, sizeof buf);
 			char *s = ua_fs(uip[unit_no].devname, -1);
-			buf[36] = strlen(s);
+			buf[36] = (uae_u8)strlen(s);
 			for (int i = 0; i < buf[36]; i++)
 				buf[37 + i] = s[i];
 			xfree(s);
@@ -9645,11 +9645,11 @@ static uae_u8 *restore_aino (UnitInfo *ui, Unit *u, uae_u8 *src)
 
 	missing = 0;
 	a = xcalloc (a_inode, 1);
-	a->uniq = restore_u64 ();
-	a->locked_children = restore_u32 ();
-	a->exnext_count = restore_u32 ();
-	a->shlock = restore_u32 ();
-	flags = restore_u32 ();
+	a->uniq = restore_u64to32();
+	a->locked_children = restore_u32();
+	a->exnext_count = restore_u32();
+	a->shlock = restore_u32();
+	flags = restore_u32();
 	if (flags & 1)
 		a->elock = 1;
 	if (flags & 4)
@@ -9726,15 +9726,15 @@ static uae_u8 *restore_key (UnitInfo *ui, Unit *u, uae_u8 *src)
 
 	missing = 0;
 	k = xcalloc (Key, 1);
-	k->uniq = restore_u64 ();
-	k->file_pos = restore_u32 ();
-	k->createmode = restore_u32 ();
-	k->dosmode = restore_u32 ();
-	savedsize = restore_u32 ();
-	uniq = restore_u64 ();
-	p = restore_string ();
-	pos = restore_u64 ();
-	size = restore_u64 ();
+	k->uniq = restore_u64to32();
+	k->file_pos = restore_u32();
+	k->createmode = restore_u32();
+	k->dosmode = restore_u32();
+	savedsize = restore_u32();
+	uniq = restore_u64to32();
+	p = restore_string();
+	pos = restore_u64();
+	size = restore_u64();
 	if (size) {
 		savedsize = size;
 		k->file_pos = pos;
@@ -9761,8 +9761,8 @@ static uae_u8 *restore_key (UnitInfo *ui, Unit *u, uae_u8 *src)
 					uae_u8 *buf = xcalloc (uae_u8, 10000);
 					uae_u64 sp = savedsize;
 					while (sp) {
-						uae_u32 s = sp >= 10000 ? 10000 : sp;
-						fs_write (k->fd, buf, s);
+						uae_s64 s = sp >= 10000 ? 10000 : sp;
+						fs_write (k->fd, buf, (uae_u32)s);
 						sp -= s;
 					}
 					xfree(buf);
@@ -9838,34 +9838,34 @@ static uae_u8 *restore_filesys_virtual (UnitInfo *ui, uae_u8 *src, int num)
 	Unit *u = startup_create_unit(NULL, ui, num);
 	int cnt;
 
-	u->dosbase = restore_u32 ();
-	u->volume = restore_u32 ();
-	u->port = restore_u32 ();
-	u->locklist = restore_u32 ();
-	u->dummy_message = restore_u32 ();
-	u->cmds_sent = restore_u64 ();
-	u->cmds_complete = restore_u64 ();
-	u->cmds_acked = restore_u64 ();
-	u->next_exkey = restore_u32 ();
-	u->total_locked_ainos = restore_u32 ();
+	u->dosbase = restore_u32();
+	u->volume = restore_u32();
+	u->port = restore_u32();
+	u->locklist = restore_u32();
+	u->dummy_message = restore_u32();
+	u->cmds_sent = restore_u64to32();
+	u->cmds_complete = restore_u64to32();
+	u->cmds_acked = restore_u64to32();
+	u->next_exkey = restore_u32();
+	u->total_locked_ainos = restore_u32();
 	u->volflags = ui->volflags;
 
-	cnt = restore_u32 ();
+	cnt = restore_u32();
 	write_log (_T("FS: restoring %d locks\n"), cnt);
 	while (cnt-- > 0)
 		src = restore_aino (ui, u, src);
 
-	cnt = restore_u32 ();
+	cnt = restore_u32();
 	write_log (_T("FS: restoring %d open files\n"), cnt);
 	while (cnt-- > 0)
 		src = restore_key (ui, u, src);
 
-	cnt = restore_u32 ();
+	cnt = restore_u32();
 	write_log (_T("FS: restoring %d notifications\n"), cnt);
 	while (cnt-- > 0)
 		src = restore_notify (ui, u, src);
 
-	cnt = restore_u32 ();
+	cnt = restore_u32();
 	write_log (_T("FS: restoring %d exkeys\n"), cnt);
 	while (cnt-- > 0)
 		src = restore_exkey (ui, u, src);
@@ -10063,8 +10063,8 @@ uae_u8 *restore_filesys_common (uae_u8 *src)
 	cd_unit_number = 0;
 	filesys_prepare_reset2 ();
 	filesys_reset2 ();
-	a_uniq = restore_u64 ();
-	key_uniq = restore_u64 ();
+	a_uniq = restore_u64to32();
+	key_uniq = restore_u64to32();
 
 	xfree(new_filesys_root_path);
 	xfree(new_filesys_fs_path);

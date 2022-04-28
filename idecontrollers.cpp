@@ -849,7 +849,7 @@ static uae_u32 ide_read_byte(struct ide_board *board, uaecptr addr)
 		} else if (board->configured) {
 			int regnum = get_adide_reg(addr, board);
 			v = get_ide_reg(board, regnum);
-			v = adide_decode_word(v);
+			v = (uae_u8)adide_decode_word(v);
 		}
 
 	} else if (board->type == MTEC_IDE) {
@@ -990,7 +990,7 @@ static uae_u32 ide_read_byte(struct ide_board *board, uaecptr addr)
 			int regnum = get_adide_reg(addr, board);
 			if (regnum >= 0) {
 				v = get_ide_reg(board, regnum);
-				v = adide_decode_word(v);
+				v = (uae_u8)adide_decode_word(v);
 			}
 		}
 
@@ -1527,7 +1527,7 @@ static void ide_write_byte(struct ide_board *board, uaecptr addr, uae_u8 v)
 
 			if (board->configured) {
 				int regnum = get_adide_reg(addr, board);
-				v = adide_encode_word(v);
+				v = (uae_u8)adide_encode_word(v);
 				put_ide_reg(board, regnum, v);
 			}
 
@@ -1624,7 +1624,7 @@ static void ide_write_byte(struct ide_board *board, uaecptr addr, uae_u8 v)
 
 			if (board->configured) {
 				int regnum = get_adide_reg(addr, board);
-				v = adide_encode_word(v);
+				v = (uae_u8)adide_encode_word(v);
 				put_ide_reg(board, regnum, v);
 			}
 
@@ -1668,7 +1668,7 @@ static void ide_write_word(struct ide_board *board, uaecptr addr, uae_u16 v)
 					put_ide_reg_multi(board, IDE_DATA, v, portnum, 1);
 			} else {
 				ide_write_byte(board, addr, v >> 8);
-				ide_write_byte(board, addr + 1, v);
+				ide_write_byte(board, addr + 1, (uae_u8)v);
 			}
 
 		} else if (board->type == ALF_IDE || board->type == TANDEM_IDE) {
@@ -1691,11 +1691,11 @@ static void ide_write_word(struct ide_board *board, uaecptr addr, uae_u16 v)
 					put_ide_reg(board, IDE_DATA, v);
 				} else {
 					ide_write_byte(board, addr, v >> 8);
-					ide_write_byte(board, addr + 1, v);
+					ide_write_byte(board, addr + 1, (uae_u8)v);
 				}
 			} else {
 				ide_write_byte(board, addr, v >> 8);
-				ide_write_byte(board, addr + 1, v);
+				ide_write_byte(board, addr + 1, (uae_u8)v);
 			}
 		
 		} else if (board->type == MASOBOSHI_IDE) {
@@ -1705,7 +1705,7 @@ static void ide_write_word(struct ide_board *board, uaecptr addr, uae_u16 v)
 				put_ide_reg(board, IDE_DATA, v);
 			} else {
 				ide_write_byte(board, addr, v >> 8);
-				ide_write_byte(board, addr + 1, v);
+				ide_write_byte(board, addr + 1, (uae_u8)v);
 			}
 #if DEBUG_IDE_MASOBOSHI
 			write_log(_T("MASOBOSHI IO WORD WRITE %08x %04x %08x\n"), addr, v, M68K_GETPC);
@@ -1717,14 +1717,14 @@ static void ide_write_word(struct ide_board *board, uaecptr addr, uae_u16 v)
 				put_ide_reg(board, IDE_DATA, v);
 			} else {
 				ide_write_byte(board, addr, v >> 8);
-				ide_write_byte(board, addr + 1, v);
+				ide_write_byte(board, addr + 1, (uae_u8)v);
 			}
 
 		} else if (board->type == APOLLO_IDE) {
 
 			if ((addr & 0xc000) == 0x4000) {
 				apollo_scsi_bput(addr, v >> 8, board->userdata);
-				apollo_scsi_bput(addr + 1, v, board->userdata);
+				apollo_scsi_bput(addr + 1, (uae_u8)v, board->userdata);
 			} else if (addr < 0x4000) {
 				int regnum = get_apollo_reg(addr, board);
 				if (regnum == IDE_DATA) {
@@ -2209,7 +2209,7 @@ static bool apollo_init(struct autoconfig_info *aci, bool cpuboard)
 		ide->mask = 131072 - 1;
 		struct zfile *z = read_device_from_romconfig(aci->rc, ROMTYPE_APOLLO);
 		if (z) {
-			int len = zfile_size(z);
+			int len = zfile_size32(z);
 			// skip 68060 $f0 ROM block
 			if (len >= 65536)
 				zfile_fseek(z, 32768, SEEK_SET);
@@ -2982,15 +2982,15 @@ void dotto_add_ide_unit(int ch, struct uaedev_config_info *ci, struct romconfig 
 
 static const uae_u8 dev_autoconfig[16] = { 0xd1, 1, 0x00, 0x00, 0x77, 0x77, 0x00, 0x00, 0x00, 0x00, 0x80, 0x00 };
 
-bool dev_hd_init(struct autoconfig_info* aci)
+bool dev_hd_init(struct autoconfig_info *aci)
 {
 	bool ac = true;
-	const struct expansionromtype* ert = get_device_expansion_rom(ROMTYPE_DEVHD);
+	const struct expansionromtype *ert = get_device_expansion_rom(ROMTYPE_DEVHD);
 	ide_add_reset();
 
-	uae_u8 *rom = xcalloc(uae_u8, 65536);
-	load_rom_rc(aci->rc, ROMTYPE_DEVHD, 32768, 0, rom, 65536, LOADROM_EVENONLY_ODDONE);
-	memcpy(rom + 0x8000, rom, 0x8000);
+	uae_u8 *rom = xcalloc(uae_u8, 262144);
+	load_rom_rc(aci->rc, ROMTYPE_DEVHD, 131072, 0, rom, 262144, LOADROM_EVENONLY_ODDONE);
+	memmove(rom + 0x8000, rom, 262144 - 0x8000);
 
 	if (!ac) {
 		// fake

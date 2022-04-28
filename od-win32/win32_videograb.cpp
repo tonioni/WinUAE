@@ -360,7 +360,7 @@ void setvolumevideograb(int volume)
 {
 	if (!audio)
 		return;
-	long vol = log10((float)volume / 100.0) * 4000.0;
+	long vol = (long)(log10((float)volume / 100.0) * 4000.0);
 	audio->put_Volume(vol);
 }
 

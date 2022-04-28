@@ -85,7 +85,7 @@ static int loadsample (TCHAR *path, struct drvsample *ds)
 		}
 	}
 	zfile_fseek (f, 0, SEEK_END);
-	size = zfile_ftell (f);
+	size = zfile_ftell32(f);
 	buf = xmalloc (uae_u8, size);
 	zfile_fseek (f, 0, SEEK_SET);
 	zfile_fread (buf, size, 1, f);

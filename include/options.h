@@ -321,7 +321,7 @@ struct chipset_refresh
 	int ntsc;
 	int vsync;
 	int framelength;
-	double rate;
+	float rate;
 	TCHAR label[16];
 	TCHAR commands[256];
 	TCHAR filterprofile[64];
@@ -589,7 +589,7 @@ struct uae_prefs {
 
 	bool immediate_blits;
 	int waiting_blits;
-	double blitter_speed_throttle;
+	float blitter_speed_throttle;
 	unsigned int chipset_mask;
 	bool chipset_hr;
 	bool keyboard_connected;
@@ -604,7 +604,7 @@ struct uae_prefs {
 	TCHAR genlock_video_file[MAX_DPATH];
 	int monitoremu;
 	int monitoremu_mon;
-	double chipset_refreshrate;
+	float chipset_refreshrate;
 	struct chipset_refresh cr[MAX_CHIPSET_REFRESH + 2];
 	int cr_selected;
 	int collision_level;
@@ -730,8 +730,8 @@ struct uae_prefs {
 	struct multipath path_cd;
 
 	int m68k_speed;
-	double m68k_speed_throttle;
-	double x86_speed_throttle;
+	float m68k_speed_throttle;
+	float x86_speed_throttle;
 	int cpu_model;
 	int mmu_model;
 	bool mmu_ec;

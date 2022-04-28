@@ -80,7 +80,7 @@ static void(*port_outw[MAX_IO_PORT])(uint16_t addr, uint16_t val, void *priv);
 static void(*port_outl[MAX_IO_PORT])(uint16_t addr, uint32_t val, void *priv);
 static void *port_priv[MAX_IO_PORT];
 
-static double x86_base_event_clock;
+static float x86_base_event_clock;
 static int x86_sndbuffer_playpos;
 static int x86_sndbuffer_playindex;
 static int sound_handlers_num;
@@ -1677,7 +1677,7 @@ static uae_u8 vlsi_in(struct x86_bridge *xb, int portnum)
 		v = xb->scamp_idx1 | 0x80;
 		break;
 		case 0xea:
-		v = xb->vlsi_regs_ems[xb->scamp_idx1 & 0x3f];
+		v = (uae_u8)xb->vlsi_regs_ems[xb->scamp_idx1 & 0x3f];
 		break;
 		case 0xeb:
 		v = xb->vlsi_regs_ems[xb->scamp_idx1 & 0x3f] >> 8;
@@ -2082,7 +2082,7 @@ void portout16(uint16_t portnum, uint16_t value)
 		if (port_outw[portnum]) {
 			port_outw[portnum](portnum, value, port_priv[portnum]);
 		} else {
-			portout(portnum, value);
+			portout(portnum, (uae_u8)value);
 			portout(portnum + 1, value >> 8);
 		}
 		break;
@@ -2392,7 +2392,7 @@ uint8_t portin(uint16_t portnum)
 		case 0x176:
 		case 0x177:
 		case 0x376:
-		v = x86_ide_hd_get(portnum, 0);
+		v = (uae_u8)x86_ide_hd_get(portnum, 0);
 		break;
 		// at ide 0
 		case 0x1f0:
@@ -2404,7 +2404,7 @@ uint8_t portin(uint16_t portnum)
 		case 0x1f6:
 		case 0x1f7:
 		case 0x3f6:
-		v = x86_ide_hd_get(portnum, 0);
+		v = (uae_u8)x86_ide_hd_get(portnum, 0);
 		break;
 
 		// universal xt bios
@@ -2424,7 +2424,7 @@ uint8_t portin(uint16_t portnum)
 		case 0x30d:
 		case 0x30e:
 		case 0x30f:
-		v = x86_ide_hd_get(portnum, 0);
+		v = (uae_u8)x86_ide_hd_get(portnum, 0);
 		break;
 
 		// led debug (a2286 bios uses this)
@@ -2829,7 +2829,7 @@ static void vga_writeb(uint32_t addr, uint8_t val, void *priv)
 }
 static void vga_writew(uint32_t addr, uint16_t val, void *priv)
 {
-	vga_ram_put(x86_vga_board, addr, val);
+	vga_ram_put(x86_vga_board, addr, (uae_u8)val);
 	vga_ram_put(x86_vga_board, addr + 1, val >> 8);
 }
 static void vga_writel(uint32_t addr, uint32_t val, void *priv)
@@ -2858,7 +2858,7 @@ static void vgalfb_writeb(uint32_t addr, uint8_t val, void *priv)
 }
 static void vgalfb_writew(uint32_t addr, uint16_t val, void *priv)
 {
-	vgalfb_ram_put(x86_vga_board, addr, val);
+	vgalfb_ram_put(x86_vga_board, addr, (uae_u8)val);
 	vgalfb_ram_put(x86_vga_board, addr + 1, val >> 8);
 }
 static void vgalfb_writel(uint32_t addr, uint32_t val, void *priv)
@@ -2948,7 +2948,7 @@ static void mem_write_romextw3(uint32_t addr, uint16_t val, void *priv)
 	} else if (addr >= 0x3800) {
 		int reg = to53c400reg(addr + 0, true);
 		if (reg >= 0)
-			x86_rt1000_bput(reg, val);
+			x86_rt1000_bput(reg, (uae_u8)val);
 		reg = to53c400reg(addr + 1, true);
 		if (reg >= 0)
 			x86_rt1000_bput(reg, val >> 8);
@@ -3133,7 +3133,7 @@ static void x86_bridge_vsync(void)
 	if (rc) {
 		xb->mouse_port = (rc->device_settings & 3) + 1;
 	}
-	xb->audeventtime = x86_base_event_clock * CYCLE_UNIT / currprefs.sound_freq + 1;
+	xb->audeventtime = (int)(x86_base_event_clock * CYCLE_UNIT / currprefs.sound_freq + 1);
 }
 
 static void x86_bridge_hsync(void)
@@ -3148,7 +3148,7 @@ static void x86_bridge_hsync(void)
 		xb->sound_initialized = true;
 		if (xb->sound_emu) {
 			write_log(_T("x86 sound init\n"));
-			xb->audeventtime = x86_base_event_clock * CYCLE_UNIT / currprefs.sound_freq + 1;
+			xb->audeventtime = (int)(x86_base_event_clock * CYCLE_UNIT / currprefs.sound_freq + 1);
 			timer_add(&sound_poll_timer, sound_poll, NULL, 0);
 			xb->audstream = audio_enable_stream(true, -1, 2, audio_state_sndboard_x86, NULL);
 			sound_speed_changed(true);
@@ -3701,7 +3701,7 @@ bool x86_bridge_init(struct autoconfig_info *aci, uae_u32 romtype, int type)
 					} else if (cputype == CPU_286 && fpu_type != FPU_NONE) {
 						fpu_type = FPU_287;
 					} else if (cputype == CPU_8088 && fpu_type != FPU_NONE) {
-						fpu_type == FPU_8087;
+						fpu_type = FPU_8087;
 					}
 					write_log(_T("CPU override = %s\n"), cpuname);
 				}
@@ -3955,7 +3955,7 @@ void sound_add_handler(void(*get_buffer)(int32_t *buffer, int len, void *p), voi
 void sound_speed_changed(bool enable)
 {
 	if (sound_poll_timer.enabled || enable) {
-		sound_poll_latch = (uae_u64)((double)TIMER_USEC * (1000000.0 / currprefs.sound_freq));
+		sound_poll_latch = (uae_u64)((float)TIMER_USEC * (1000000.0f / currprefs.sound_freq));
 		timer_set_delay_u64(&sound_poll_timer, sound_poll_latch);
 	}
 }
@@ -3999,12 +3999,12 @@ void sound_set_cd_volume(unsigned int l, unsigned int r)
 
 }
 
-void x86_update_sound(double clk)
+void x86_update_sound(float clk)
 {
 	struct x86_bridge *xb = bridges[0];
 	x86_base_event_clock = clk;
 	if (xb) {
-		xb->audeventtime = x86_base_event_clock * CYCLE_UNIT / currprefs.sound_freq + 1;
+		xb->audeventtime = (int)(x86_base_event_clock * CYCLE_UNIT / currprefs.sound_freq + 1);
 		sound_speed_changed(false);
 	}
 }

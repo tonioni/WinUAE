@@ -137,12 +137,12 @@ int caps_loadimage (struct zfile *zf, int drv, int *num_tracks)
 	struct CapsDateTimeExt *cdt;
 	int type;
 
-	if (!caps_init ())
+	if (!caps_init())
 		return 0;
-	caps_unloadimage (drv);
-	zfile_fseek (zf, 0, SEEK_END);
-	len = zfile_ftell (zf);
-	zfile_fseek (zf, 0, SEEK_SET);
+	caps_unloadimage(drv);
+	zfile_fseek(zf, 0, SEEK_END);
+	len = zfile_ftell32(zf);
+	zfile_fseek(zf, 0, SEEK_SET);
 	if (len <= 0)
 		return 0;
 	buf = xmalloc (uae_u8, len);

@@ -277,11 +277,11 @@ static void tochs(uae_u8 *data, uae_s64 offset, int *cp, int *hp, int *sp)
 	s = (data[6 * 2 + 0] << 8) | (data[6 * 2 + 1] << 0);
 	if (offset >= 0) {
 		offset /= 512;
-		c = offset / (h * s);
+		c = (int)(offset / (h * s));
 		offset -= c * h * s;
-		h = offset / s;
+		h = (int)(offset / s);
 		offset -= h * s;
-		s = offset + 1;
+		s = (int)offset + 1;
 	}
 	*cp = c;
 	*hp = h;
@@ -2844,8 +2844,8 @@ static bool getstorageinfo(uae_driveinfo *udi, STORAGE_DEVICE_NUMBER sdnp)
 	SetupDiDestroyDeviceInfoList(hIntDevInfo);
 	if (vpm[0] == 0xffffffff || vpm[1] == 0xffffffff)
 		return false;
-	udi->usb_vid = vpm[0];
-	udi->usb_pid = vpm[1];
+	udi->usb_vid = (uae_u16)vpm[0];
+	udi->usb_pid = (uae_u16)vpm[1];
 	return true;
 }
 
@@ -3720,7 +3720,7 @@ int harddrive_to_hdf (HWND hDlg, struct uae_prefs *p, int idx)
 		} else {
 			get = COPY_CACHE_SIZE;
 			if (sizecnt + get > size)
-				get = size - sizecnt;
+				get = (DWORD)(size - sizecnt);
 			if (!ReadFile(h, cache, get, &got, NULL)) {
 				progressdialogreturn = 4;
 				break;
@@ -3732,7 +3732,7 @@ int harddrive_to_hdf (HWND hDlg, struct uae_prefs *p, int idx)
 		}
 		if (got > 0) {
 			if (written + got > size)
-				got = size - written;
+				got = (DWORD)(size - written);
 			if (!WriteFile (hdst, cache, got, &gotdst, NULL))  {
 				progressdialogreturn = 5;
 				break;

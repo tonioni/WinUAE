@@ -92,8 +92,8 @@ static _inline uae_u32 INTERPOLATE(uae_u32 A, uae_u32 B) {
 }
 
 static _inline uae_u32 Q_INTERPOLATE(uae_u32 A, uae_u32 B, uae_u32 C, uae_u32 D) {
-	register uae_u32 x = ((A & qcolorMask) >> 2) + ((B & qcolorMask) >> 2) + ((C & qcolorMask) >> 2) + ((D & qcolorMask) >> 2);
-	register uae_u32 y = ((A & qlowpixelMask) + (B & qlowpixelMask) + (C & qlowpixelMask) + (D & qlowpixelMask)) >> 2;
+	uae_u32 x = ((A & qcolorMask) >> 2) + ((B & qcolorMask) >> 2) + ((C & qcolorMask) >> 2) + ((D & qcolorMask) >> 2);
+	uae_u32 y = ((A & qlowpixelMask) + (B & qlowpixelMask) + (C & qlowpixelMask) + (D & qlowpixelMask)) >> 2;
 
 	y &= qlowpixelMask;
 	return x + y;
@@ -148,7 +148,7 @@ void Super2xSaI_16(const uae_u8 *srcPtr, uae_u32 srcPitch, uae_u8 *dstPtr, uae_u
 			} else if (color5 == color3 && color2 != color6) {
 				product2b = product1b = color5;
 			} else if (color5 == color3 && color2 == color6) {
-				register int r = 0;
+				int r = 0;
 
 				r += GetResult(color6, color5, color1, colorA1);
 				r += GetResult(color6, color5, color4, colorB1);
@@ -255,7 +255,7 @@ void Super2xSaI_32(const uae_u8 *srcPtr, uae_u32 srcPitch, uae_u8 *dstPtr, uae_u
 			} else if (color5 == color3 && color2 != color6) {
 				product2b = product1b = color5;
 			} else if (color5 == color3 && color2 == color6) {
-				register int r = 0;
+				int r = 0;
 
 				r += GetResult(color6, color5, color1, colorA1);
 				r += GetResult(color6, color5, color4, colorB1);
@@ -396,7 +396,7 @@ void SuperEagle_16(const uae_u8 *srcPtr, uae_u32 srcPitch, uae_u8 *dstPtr, uae_u
 				}
 				else	//if (color2 != color6)
 				{
-					register int r = 0;
+					int r = 0;
 
 					r += GetResult(color6, color5, color1, colorA1);
 					r += GetResult(color6, color5, color4, colorB1);
@@ -514,7 +514,7 @@ void SuperEagle_32(const uae_u8 *srcPtr, uae_u32 srcPitch, uae_u8 *dstPtr, uae_u
 				}
 				else	//if (color2 != color6)
 				{
-					register int r = 0;
+					int r = 0;
 
 					r += GetResult(color6, color5, color1, colorA1);
 					r += GetResult(color6, color5, color4, colorB1);
@@ -559,7 +559,7 @@ void _2xSaI_16(const uae_u8 *srcPtr, uae_u32 srcPitch, uae_u8 *dstPtr, uae_u32 d
 
 		for (i = 0; i < width; ++i) {
 
-			register uae_u32 colorA, colorB;
+			uae_u32 colorA, colorB;
 			uae_u32 colorC, colorD,
 				colorE, colorF, colorG, colorH, colorI, colorJ, colorK, colorL, colorM, colorN, colorO, colorP;
 			uae_u32 product, product1, product2;
@@ -625,7 +625,7 @@ void _2xSaI_16(const uae_u8 *srcPtr, uae_u32 srcPitch, uae_u8 *dstPtr, uae_u32 d
 					product1 = colorA;
 					product2 = colorA;
 				} else {
-					register int r = 0;
+					int r = 0;
 
 					product1 = INTERPOLATE(colorA, colorC);
 					product = INTERPOLATE(colorA, colorB);
@@ -693,7 +693,7 @@ void _2xSaI_32(const uae_u8 *srcPtr, uae_u32 srcPitch, uae_u8 *dstPtr, uae_u32 d
 
 		for (i = 0; i < width; ++i) {
 
-			register uae_u32 colorA, colorB;
+			uae_u32 colorA, colorB;
 			uae_u32 colorC, colorD,
 				colorE, colorF, colorG, colorH, colorI, colorJ, colorK, colorL, colorM, colorN, colorO, colorP;
 			uae_u32 product, product1, product2;
@@ -759,7 +759,7 @@ void _2xSaI_32(const uae_u8 *srcPtr, uae_u32 srcPitch, uae_u8 *dstPtr, uae_u32 d
 					product1 = colorA;
 					product2 = colorA;
 				} else {
-					register int r = 0;
+					int r = 0;
 
 					product1 = INTERPOLATE(colorA, colorC);
 					product = INTERPOLATE(colorA, colorB);

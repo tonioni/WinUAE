@@ -320,7 +320,7 @@ struct zvolume *archive_directory_tar (struct zfile *z)
 			} else {
 				zn = zvolume_addfile_abs (zv, &zai);
 				if (zn)
-					zn->offset = zfile_ftell (z);
+					zn->offset = zfile_ftell32(z);
 			}
 			xfree (zai.name);
 		}
@@ -451,7 +451,7 @@ static struct zfile *archive_do_zip (struct znode *zn, struct zfile *z, int flag
 		int err = -1;
 		if (!(flags & FILE_DELAYEDOPEN) || z->size <= PEEK_BYTES) {
 			unpack_log (_T("ZIP: unpacking %s, flags=%d\n"), name, flags);
-			err = unzReadCurrentFile (uz, z->data, z->datasize);
+			err = unzReadCurrentFile (uz, z->data, (size_t)z->datasize);
 			unpack_log (_T("ZIP: unpacked, code=%d\n"), err);
 		} else {
 			z->archiveparent = zfile_dup (zn->volume->archive);
@@ -460,11 +460,11 @@ static struct zfile *archive_do_zip (struct znode *zn, struct zfile *z, int flag
 				xfree (z->archiveparent->name);
 				z->archiveparent->name = my_strdup (tmp);
 				z->datasize = PEEK_BYTES;
-				err = unzReadCurrentFile (uz, z->data, z->datasize);
+				err = unzReadCurrentFile (uz, z->data, (size_t)z->datasize);
 				unpack_log (_T("ZIP: unpacked, code=%d\n"), err);
 			} else {
 				unpack_log (_T("ZIP: unpacking %s (failed DELAYEDOPEN)\n"), name);
-				err = unzReadCurrentFile (uz, z->data, z->datasize);
+				err = unzReadCurrentFile (uz, z->data, (size_t)z->datasize);
 				unpack_log (_T("ZIP: unpacked, code=%d\n"), err);
 			}
 		}
@@ -639,7 +639,7 @@ static struct zfile *archive_access_7z (struct znode *zn)
 		&offset, &outSizeProcessed,
 		&allocImp, &allocTempImp);
 	if (res == SZ_OK) {
-		zfile_fwrite (ctx->outBuffer + offset, zn->size, 1, z);
+		zfile_fwrite (ctx->outBuffer + offset, (size_t)zn->size, 1, z);
 	} else {
 		write_log (_T("7Z: SzExtract %s returned %d\n"), zn->fullname, res);
 		zfile_fclose (z);
@@ -1099,14 +1099,14 @@ static struct zfile *archive_access_plain (struct znode *zn)
 		z = zfile_fopen_empty (zn->volume->archive, zn->fullname, zn->size);
 		zf = zfile_fopen (zfile_getname (zn->volume->archive), _T("rb"), zn->volume->archive->zfdmask & ~ZFD_ADF, zn->offset - 1);
 		if (zf) {
-			zfile_fread (z->data, zn->size, 1, zf);
+			zfile_fread (z->data, (size_t)zn->size, 1, zf);
 			zfile_fclose (zf);
 		}
 	} else {
 		z = zfile_fopen_empty (zn->volume->archive, zn->fullname, zn->size);
 		if (z) {
 			zfile_fseek (zn->volume->archive, 0, SEEK_SET);
-			zfile_fread (z->data, zn->size, 1, zn->volume->archive);
+			zfile_fread (z->data, (size_t)zn->size, 1, zn->volume->archive);
 		}
 	}
 	return z;
@@ -1358,7 +1358,7 @@ struct zvolume *archive_directory_adf (struct znode *parent, struct zfile *z)
 
 	adf = xcalloc (struct adfhandle, 1);
 	zfile_fseek (z, 0, SEEK_END);
-	adf->size = zfile_ftell (z);
+	adf->size = zfile_ftell32(z);
 	zfile_fseek (z, 0, SEEK_SET);
 
 	adf->blocksize = 512;
@@ -1574,7 +1574,7 @@ static struct zfile *archive_access_adf (struct znode *zn)
 					zfile_fseek (adf->z, block * adf->blocksize, SEEK_SET);
 				else
 					zfile_fseek (adf->z, block * adf->blocksize + 24, SEEK_SET);
-				zfile_fread (dst, bsize, 1, adf->z);
+				zfile_fread (dst, (size_t)bsize, 1, adf->z);
 				size -= bsize;
 				dst += bsize;
 				if (size <= 0)
@@ -1629,7 +1629,7 @@ static struct zfile *archive_access_adf (struct znode *zn)
 			zfile_fseek (adf->z, block * adf->blocksize, SEEK_SET);
 			if (bsize > size)
 				bsize = size;
-			zfile_fread (dst, bsize, 1, adf->z);
+			zfile_fread (dst, (size_t)bsize, 1, adf->z);
 			dst += bsize;
 			size -= bsize; 
 		}
@@ -2062,7 +2062,7 @@ static struct zfile *archive_access_fat (struct znode *zn)
 		uae_s64 left = size > sectorspercluster * 512 ? sectorspercluster * 512 : size;
 		int sector = dataregion + (cluster - 2) * sectorspercluster;
 		zfile_fseek (sz, sector * 512, SEEK_SET);
-		zfile_fread (dz->data + offset, 1, left, sz);
+		zfile_fread (dz->data + offset, 1, (size_t)left, sz);
 		size -= left;
 		offset += left;
 		cluster = getcluster (sz, cluster, reserved, fatbits);

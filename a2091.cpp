@@ -733,11 +733,11 @@ static bool do_dma_commodore_8727(struct wd_state *wd, struct scsi_data *scsi)
 			uae_u16 v = dma_get_word((wd->cdmac.dmac_acr << 1) & wd->dma_mask);
 			if (wd->wc.wd_dataoffset < sizeof wd->wc.wd_data - 1) {
 				wd->wc.wd_data[wd->wc.wd_dataoffset++] = v >> 8;
-				wd->wc.wd_data[wd->wc.wd_dataoffset++] = v;
+				wd->wc.wd_data[wd->wc.wd_dataoffset++] = (uae_u8)v;
 			}
 			status = scsi_send_data (scsi, v >> 8);
 			if (!status)
-				status = scsi_send_data (scsi, v);
+				status = scsi_send_data (scsi, (uae_u8)v);
 			if (decreasetc (&wd->wc))
 				break;
 			if (decreasetc (&wd->wc))
@@ -4098,7 +4098,7 @@ bool a2091_init (struct autoconfig_info *aci)
 	if (!aci->rc->autoboot_disabled) {
 		struct zfile *z = read_device_from_romconfig(aci->rc, ROMTYPE_A2091);
 		if (z) {
-			wd->rom_size = zfile_size (z);
+			wd->rom_size = zfile_size32(z);
 			zfile_fread (wd->rom, wd->rom_size, 1, z);
 			zfile_fclose (z);
 			if (wd->rom_size == 32768) {
@@ -4185,7 +4185,7 @@ static bool a2090x_init (struct autoconfig_info *aci, bool combitec)
 	if (!aci->rc->autoboot_disabled && !combitec) {
 		struct zfile *z = read_device_from_romconfig(aci->rc, ROMTYPE_A2090);
 		if (z) {
-			wd->rom_size = zfile_size (z);
+			wd->rom_size = zfile_size32(z);
 			zfile_fread (wd->rom, wd->rom_size, 1, z);
 			zfile_fclose (z);
 			for (int i = 1; i < slotsize / wd->rom_size; i++) {
@@ -4353,11 +4353,11 @@ static bool gvp_init(struct autoconfig_info *aci, bool series2, bool accel)
 	if (!autoboot_disabled) {
 		struct zfile *z = read_device_from_romconfig(aci->rc, ROMTYPE_GVPS2);
 		if (z) {
-			int size = zfile_size(z);
+			int size = zfile_size32(z);
 			if (series2) {
 				int total = 0;
 				int seekpos = 0;
-				size = zfile_size(z);
+				size = zfile_size32(z);
 				if (size > 16384 + 4096) {
 					zfile_fread(wd->rom, 64, 1, z);
 					zfile_fseek(z, 16384, SEEK_SET);
@@ -4511,7 +4511,7 @@ bool comspec_preinit (struct autoconfig_info *aci)
 	wd->rom_mask = wd->rom_size - 1;
 	struct zfile *z = read_device_from_romconfig(aci->rc, ROMTYPE_COMSPEC);
 	if (z) {
-		wd->rom_size = zfile_size (z);
+		wd->rom_size = zfile_size32(z);
 		zfile_fread (wd->rom, wd->rom_size, 1, z);
 		zfile_fclose (z);
 		wd->rom_mask = wd->rom_size - 1;

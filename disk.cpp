@@ -127,7 +127,7 @@ static uae_u16 fifo[3];
 static int fifo_inuse[3];
 static int dma_enable, bitoffset, syncoffset;
 static uae_u16 word, dsksync;
-static unsigned long dsksync_cycles;
+static evt_t dsksync_cycles;
 #define WORDSYNC_TIME 11
 /* Always carried through to the next line.  */
 int disk_hpos;
@@ -203,7 +203,7 @@ typedef struct {
 	int dskready_down_time;
 	int writtento;
 	int steplimit;
-	frame_time_t steplimitcycle;
+	evt_t steplimitcycle;
 	int indexhack, indexhackmode;
 	int ddhd; /* 1=DD 2=HD */
 	int drive_id_scnt; /* drive id shift counter */
@@ -1722,7 +1722,7 @@ static void set_steplimit (drive *drv)
 	if (currprefs.m68k_speed != 0)
 		return;
 	drv->steplimit = 4;
-	drv->steplimitcycle = get_cycles ();
+	drv->steplimitcycle = get_cycles();
 }
 
 static bool drive_empty (drive * drv)
@@ -4240,7 +4240,7 @@ uae_u16 DSKBYTR (int hpos)
 	DISK_update (hpos);
 	v = dskbytr_val;
 	dskbytr_val &= ~0x8000;
-	if (word == dsksync && cycles_in_range (dsksync_cycles)) {
+	if (word == dsksync && cycles_in_range(dsksync_cycles)) {
 		v |= 0x1000;
 		if (disk_debug_logging > 1) {
 			dumpdisk(_T("DSKBYTR SYNC"));

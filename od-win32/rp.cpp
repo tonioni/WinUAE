@@ -688,7 +688,7 @@ static void fixup_size (struct uae_prefs *prefs)
 		int hres = prefs->gfx_resolution;
 		if (prefs->gf[0].gfx_filter) {
 			if (prefs->gf[0].gfx_filter_horiz_zoom_mult)
-				hres += prefs->gf[0].gfx_filter_horiz_zoom_mult - 1;
+				hres += (int)prefs->gf[0].gfx_filter_horiz_zoom_mult - 1;
 			hres += uaefilters[prefs->gf[0].gfx_filter].intmul - 1;
 		}
 		if (hres > max_horiz_dbl)
@@ -700,7 +700,7 @@ static void fixup_size (struct uae_prefs *prefs)
 		int vres = prefs->gfx_vresolution;
 		if (prefs->gf[0].gfx_filter) {
 			if (prefs->gf[0].gfx_filter_vert_zoom_mult)
-				vres += prefs->gf[0].gfx_filter_vert_zoom_mult - 1;
+				vres += (int)prefs->gf[0].gfx_filter_vert_zoom_mult - 1;
 			vres += uaefilters[prefs->gf[0].gfx_filter].intmul - 1;
 		}
 		if (vres > max_vert_dbl)
@@ -748,7 +748,7 @@ static void get_screenmode (struct RPScreenMode *sm, struct uae_prefs *p, bool g
 	int full = 0;
 	int hres, vres;
 	int totalhdbl = -1, totalvdbl = -1;
-	int hmult, vmult;
+	float hmult, vmult;
 	bool half;
 	bool rtg;
 
@@ -963,13 +963,13 @@ static void set_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 
 			hres = hdbl;
 			if (hres > max_horiz_dbl) {
-				hmult = 1 << (hres - max_horiz_dbl);
+				hmult = (float)(1 << (hres - max_horiz_dbl));
 				hres = max_horiz_dbl;
 			}
 
 			vres = vdbl;
 			if (vres > max_vert_dbl) {
-				vmult = 1 << (vres - max_vert_dbl);
+				vmult = (float)(1 << (vres - max_vert_dbl));
 				vres = max_vert_dbl;
 			}
 		}
@@ -1032,7 +1032,7 @@ static void set_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 			m = 4;
 		}
 	}
-	p->rtg_horiz_zoom_mult = p->rtg_vert_zoom_mult = m;
+	p->rtg_horiz_zoom_mult = p->rtg_vert_zoom_mult = (float)m;
 
 	if (WIN32GFX_IsPicassoScreen(mon)) {
 
@@ -1053,8 +1053,8 @@ static void set_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 		gm->gfx_size_win.width = vidinfo->width * m;
 		gm->gfx_size_win.height = vidinfo->height * m;
 
-		hmult = m;
-		vmult = m;
+		hmult = (float)m;
+		vmult = (float)m;
 
 	} else {
 

@@ -398,7 +398,7 @@ bool mmu_op30_pmove (uaecptr pc, uae_u32 opcode, uae_u16 next, uaecptr extra)
         case 0x12: // SRP
             if (rw) {
                 x_put_long (extra, srp_030 >> 32);
-                x_put_long (extra + 4, srp_030);
+                x_put_long (extra + 4, (uae_u32)srp_030);
             } else {
                 srp_030 = (uae_u64)x_get_long (extra) << 32;
                 srp_030 |= x_get_long (extra + 4);
@@ -409,7 +409,7 @@ bool mmu_op30_pmove (uaecptr pc, uae_u32 opcode, uae_u16 next, uaecptr extra)
         case 0x13: // CRP
             if (rw) {
                 x_put_long (extra, crp_030 >> 32);
-                x_put_long (extra + 4, crp_030);
+                x_put_long (extra + 4, (uae_u32)crp_030);
             } else {
                 crp_030 = (uae_u64)x_get_long (extra) << 32;
                 crp_030 |= x_get_long (extra + 4);
@@ -989,7 +989,7 @@ bool mmu030_decode_tc(uae_u32 TC, bool check)
 
 bool mmu030_decode_rp(uae_u64 RP) {
     
-    uae_u8 descriptor_type = (RP & RP_DESCR_MASK) >> 32;
+    uae_u8 descriptor_type = (uae_u8)((RP & RP_DESCR_MASK) >> 32);
     if (!descriptor_type) { /* If descriptor type is invalid */
         write_log(_T("MMU Configuration Exception: Root Pointer is invalid!\n"));
         Exception(56); /* MMU Configuration Exception */
@@ -2912,7 +2912,7 @@ void m68k_do_rte_mmu030 (uaecptr a7)
 		uae_u32 mmu030_state_1 = get_word_mmu030(a7 + 0x32);
 		uae_u32 mmu030_state_2 = get_word_mmu030(a7 + 0x34);
 
-		uae_u32 mmu030_opcode_v = (ps & 0x80000000) ? -1U : (oc & 0xffff);
+		uae_u32 mmu030_opcode_v = (ps & 0x80000000) ? 0xffffffff : (oc & 0xffff);
 
 		uae_u32 mmu030_fmovem_store_0 = 0;
 		uae_u32 mmu030_fmovem_store_1 = 0;
@@ -2956,7 +2956,7 @@ void m68k_do_rte_mmu030 (uaecptr a7)
 		// did we have ins fault and RB bit cleared?
 		if ((ssw & MMU030_SSW_FB) && !(ssw & MMU030_SSW_RB)) {
 			uae_u16 stageb = get_word_mmu030(a7 + 0x0e);
-			if (mmu030_opcode_v == -1U) {
+			if (mmu030_opcode_v == 0xffffffff) {
 				mmu030_opcode_stageb = stageb;
 				write_log(_T("Software fixed stage B! opcode = %04x\n"), stageb);
 			} else {
@@ -3360,7 +3360,7 @@ void m68k_do_rte_mmu030c (uaecptr a7)
 		uae_u32 mmu030_state_1 = get_word_mmu030c(a7 + 0x32);
 		uae_u32 mmu030_state_2 = get_word_mmu030c(a7 + 0x34);
 
-		uae_u32 mmu030_opcode_v = (ps & 0x80000000) ? -1U : (oc & 0xffff);
+		uae_u32 mmu030_opcode_v = (ps & 0x80000000) ? 0xffffffff : (oc & 0xffff);
 
 		uae_u32 mmu030_fmovem_store_0 = 0;
 		uae_u32 mmu030_fmovem_store_1 = 0;

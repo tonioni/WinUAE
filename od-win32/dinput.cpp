@@ -1806,7 +1806,7 @@ static bool initialize_rawinput (void)
 				if (rdim->dwNumberOfButtons >= ID_BUTTON_TOTAL) {
 					write_log (_T("bogus number of buttons, ignored\n"));
 				} else {
-					did->buttons_real = did->buttons = rdim->dwNumberOfButtons;
+					did->buttons_real = did->buttons = (uae_s16)rdim->dwNumberOfButtons;
 					for (j = 0; j < did->buttons; j++) {
 						did->buttonsort[j] = j;
 						did->buttonmappings[j] = j;
@@ -2922,7 +2922,7 @@ static BOOL CALLBACK EnumObjectsCallback (const DIDEVICEOBJECTINSTANCE* pdidoi, 
 		else if (did->type == DID_MOUSE)
 			did->axissort[did->axles] = makesort_mouse (&pdidoi->guidType, &did->axismappings[did->axles]);
 		for (i = 0; i < 2; i++) {
-			did->axismappings[did->axles + i] = DIJOFS_POV(numpov);
+			did->axismappings[did->axles + i] = (uae_s16)DIJOFS_POV(numpov);
 			_stprintf (tmp, _T("%s (%c)"), pdidoi->tszName, i ? 'Y' : 'X');
 			did->axisname[did->axles + i] = my_strdup (tmp);
 			did->axissort[did->axles + i] = did->axissort[did->axles];

@@ -847,21 +847,13 @@ static void scalechildwindows(struct newresource *nr)
 	for (int i = 0; i < nr->hwndcnt; i++) {
 		struct newreswnd *nw = &nr->hwnds[i];
 
-		int x = nw->x;
-		x *= multx;
-		x /= 100;
+		int x = (int)(nw->x * multx / 100);
 
-		int y = nw->y;
-		y *= multy;
-		y /= 100;
+		int y = (int)(nw->y * multy / 100);
 
-		int w = nw->w;
-		w *= multx;
-		w /= 100;
+		int w = (int)(nw->w * multx / 100);
 
-		int h = nw->h;
-		h *= multy;
-		h /= 100;
+		int h = (int)(nw->h * multy / 100);
 
 		if (nr->fontchanged) {
 			SendMessage(nw->hwnd, WM_SETFONT, (WPARAM)nr->dinfo.hUserFont, 0);
@@ -928,13 +920,13 @@ void rescaleresource(struct newresource *nr, bool full)
 	pwi.cbSize = sizeof(WINDOWINFO);
 	GetWindowInfo(nr->hwnd, &pwi);
 
-	float neww = scaleresource_width - pwi.cxWindowBorders * 2;
-	float oldw = (530.0 * nr->unitx) / 8.0;
-	multx = neww * 100.0 / oldw;
+	float neww = (float)scaleresource_width - pwi.cxWindowBorders * 2;
+	float oldw = (530.0f * nr->unitx) / 8.0f;
+	multx = neww * 100.0f / oldw;
 
-	float newh = scaleresource_height - height - pwi.cyWindowBorders * 2;
-	float oldh = (345.0 * nr->unity) / 8.0;
-	multy = newh * 100.0 / oldh;
+	float newh = (float)scaleresource_height - height - pwi.cyWindowBorders * 2;
+	float oldh = (345.0f * nr->unity) / 8.0f;
+	multy = newh * 100.0f / oldh;
 
 	HMONITOR m = MonitorFromWindow(nr->hwnd, MONITOR_DEFAULTTOPRIMARY);
 	int dpi = getdpiformonitor(m);

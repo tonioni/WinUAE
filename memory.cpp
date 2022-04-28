@@ -1468,10 +1468,10 @@ static int read_kickstart (struct zfile *f, uae_u8 *mem, int size, int dochecksu
 
 	if (size < 0) {
 		zfile_fseek (f, 0, SEEK_END);
-		size = zfile_ftell (f) & ~0x3ff;
+		size = zfile_ftell32(f) & ~0x3ff;
 		zfile_fseek (f, 0, SEEK_SET);
 	}
-	oldpos = zfile_ftell (f);
+	oldpos = zfile_ftell32(f);
 	i = zfile_fread (buffer, 1, sizeof(buffer), f);
 	if (i < sizeof(buffer))
 		return 0;
@@ -1578,7 +1578,7 @@ static bool load_extendedkickstart (const TCHAR *romextfile, int type)
 		return false;
 	}
 	zfile_fseek (f, 0, SEEK_END);
-	size = zfile_ftell (f);
+	size = zfile_ftell32(f);
 	extendedkickmem_bank.reserved_size = ROM_SIZE_512;
 	off = 0;
 	if (type == 0) {
@@ -1831,11 +1831,11 @@ static int load_kickstart (void)
 			(tmp[0] == 0x7f && tmp[1] == 'E' && tmp[2] == 'L' && tmp[3] == 'F')) {
 			struct zfile *zf = read_executable_rom(f, ROM_SIZE_512, 3);
 			if (zf) {
-				int size = zfile_size(zf);
+				int size = zfile_size32(zf);
 				zfile_fclose(f);
 				f = zf;
 				if (size > ROM_SIZE_512) {
-					maxsize = zfile_size(zf);
+					maxsize = zfile_size32(zf);
 					singlebigrom = true;
 					extendedkickmem2a_bank.reserved_size = 524288;
 					extendedkickmem2a_bank.mask = extendedkickmem2a_bank.allocated_size - 1;
@@ -1857,7 +1857,7 @@ static int load_kickstart (void)
 
 		if (!singlebigrom) {
 			zfile_fseek(f, 0, SEEK_END);
-			filesize = zfile_ftell(f);
+			filesize = zfile_ftell32(f);
 			zfile_fseek(f, 0, SEEK_SET);
 			if (!singlebigrom) {
 				if (filesize == 1760 * 512) {

@@ -1559,9 +1559,9 @@ static struct romdata *scan_single_rom_2 (struct zfile *f)
 	int cl = 0, size;
 	struct romdata *rd = 0;
 
-	zfile_fseek (f, 0, SEEK_END);
-	size = zfile_ftell (f);
-	zfile_fseek (f, 0, SEEK_SET);
+	zfile_fseek(f, 0, SEEK_END);
+	size = zfile_ftell32(f);
+	zfile_fseek(f, 0, SEEK_SET);
 	if (size > 524288 * 2)  {/* don't skip KICK disks or 1M ROMs */
 		write_log (_T("'%s': too big %d, ignored\n"), zfile_getname(f), size);
 		return 0;
@@ -3194,7 +3194,7 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
 				if (rb->start_address) {
 					struct zfile *zf = zfile_fopen(rb->lf.loadfile, _T("rb"));
 					if (zf) {
-						rb->end_address = rb->start_address + zfile_size(zf);
+						rb->end_address = rb->start_address + zfile_size32(zf);
 						rb->end_address = ((rb->end_address + 65535) & ~65535) - 1;
 						rb->size = rb->end_address - rb->start_address + 1;
 						zfile_fclose(zf);
@@ -8656,26 +8656,26 @@ static void values_from_displaydlg (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 		if (msg == WM_HSCROLL) {
 			i = SendDlgItemMessage (hDlg, IDC_FRAMERATE2, TBM_GETPOS, 0, 0);
 			if (i != (int)cr->rate)
-				cr->rate = (double)i;
+				cr->rate = (float)i;
 			updaterate = true;
 		} else if (LOWORD (wParam) == IDC_RATE2TEXT && HIWORD (wParam) == EN_KILLFOCUS) {
 			if (GetDlgItemText(hDlg, IDC_RATE2TEXT, tmp, sizeof tmp / sizeof (TCHAR))) {
-				cr->rate = _tstof (tmp);
+				cr->rate = (float)_tstof(tmp);
 				updaterate = true;
 				updateslider = true;
 			}
 		}
 	} else if (i == CHIPSET_REFRESH_PAL) {
-		cr->rate = 50.0;
+		cr->rate = 50.0f;
 	} else if (i == CHIPSET_REFRESH_NTSC) {
-		cr->rate = 60.0;
+		cr->rate = 60.0f;
 	}
 	if (cr->rate > 0 && cr->rate < 1) {
-		cr->rate = currprefs.ntscmode ? 60.0 : 50.0;
+		cr->rate = currprefs.ntscmode ? 60.0f : 50.0f;
 		updaterate = true;
 	}
 	if (cr->rate > 300) {
-		cr->rate = currprefs.ntscmode ? 60.0 : 50.0;
+		cr->rate = currprefs.ntscmode ? 60.0f : 50.0f;
 		updaterate = true;
 	}
 	if (updaterate) {
@@ -11870,9 +11870,9 @@ static INT_PTR CALLBACK MemoryDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARA
 					case IDC_AUTOCONFIG_PRODUCT:
 					if (fastram_select_ramboard) {
 						GetDlgItemText(hDlg, IDC_AUTOCONFIG_MANUFACTURER, tmp, sizeof tmp / sizeof(TCHAR));
-						fastram_select_ramboard->manufacturer = _tstol(tmp);
+						fastram_select_ramboard->manufacturer = (uae_u16)_tstol(tmp);
 						GetDlgItemText(hDlg, IDC_AUTOCONFIG_PRODUCT, tmp, sizeof tmp / sizeof(TCHAR));
-						fastram_select_ramboard->product = _tstol(tmp);
+						fastram_select_ramboard->product = (uae_u8)_tstol(tmp);
 						setfastram_selectmenu(hDlg, 1);
 					}
 					break;
@@ -12989,12 +12989,12 @@ static void enable_for_cpudlg (HWND hDlg)
 	SendDlgItemMessage(hDlg, IDC_SPEED_x86, TBM_SETPAGESIZE, 0, 10);
 }
 
-static double getcpufreq (int m)
+static float getcpufreq (int m)
 {
-	double f;
+	float f;
 
-	f = workprefs.ntscmode ? 28636360.0 : 28375160.0;
-	return f * (m >> 8) / 8.0;
+	f = workprefs.ntscmode ? 28636360.0f : 28375160.0f;
+	return f * (m >> 8) / 8.0f;
 }
 
 static void values_to_cpudlg(HWND hDlg, WPARAM wParam)
@@ -13070,10 +13070,10 @@ static void values_from_cpudlg(HWND hDlg, WPARAM wParam)
 	workprefs.int_no_unimplemented = ischecked (hDlg, IDC_CPU_UNIMPLEMENTED) ? 0 : 1;
 	workprefs.address_space_24 = ischecked (hDlg, IDC_COMPATIBLE24) ? 1 : 0;
 	workprefs.m68k_speed = ischecked (hDlg, IDC_CS_HOST) ? -1 : 0;
-	workprefs.m68k_speed_throttle = SendMessage (GetDlgItem (hDlg, IDC_SPEED), TBM_GETPOS, 0, 0) * 100;
+	workprefs.m68k_speed_throttle = (float)SendMessage (GetDlgItem (hDlg, IDC_SPEED), TBM_GETPOS, 0, 0) * 100;
 	if (workprefs.m68k_speed_throttle > 0 && workprefs.m68k_speed < 0)
 		workprefs.m68k_speed_throttle = 0;
-	workprefs.x86_speed_throttle = SendMessage(GetDlgItem(hDlg, IDC_SPEED_x86), TBM_GETPOS, 0, 0) * 100;
+	workprefs.x86_speed_throttle = (float)SendMessage(GetDlgItem(hDlg, IDC_SPEED_x86), TBM_GETPOS, 0, 0) * 100;
 	idx = SendDlgItemMessage(hDlg, IDC_FPU_MODE, CB_GETCURSEL, 0, 0);
 	if (idx == 0)
 		workprefs.fpu_mode = 0;
@@ -14558,13 +14558,13 @@ static void updatehdfinfo(HWND hDlg, bool force, bool defaults, bool realdrive)
 	int heads = phys ? current_hfdlg.ci.pheads : current_hfdlg.ci.surfaces;
 	int secs = phys ? current_hfdlg.ci.psecs : current_hfdlg.ci.sectors;
 	if (!cyls && current_hfdlg.ci.blocksize && secs && heads) {
-		cyls = bsize / ((uae_u64)current_hfdlg.ci.blocksize * secs * heads);
+		cyls = (uae_u32)(bsize / ((uae_u64)current_hfdlg.ci.blocksize * secs * heads));
 	}
 	blocks = cyls * (secs * heads);
 	if (!blocks && current_hfdlg.ci.blocksize)
-		blocks = bsize / current_hfdlg.ci.blocksize;
+		blocks = (uae_u32)(bsize / current_hfdlg.ci.blocksize);
 	if (current_hfdlg.ci.max_lba)
-		blocks = current_hfdlg.ci.max_lba;
+		blocks = (uae_u32)current_hfdlg.ci.max_lba;
 
 	for (i = 0; i < sizeof (idtmp) / sizeof (TCHAR) - 1; i++) {
 		TCHAR c = id[i];
@@ -14825,7 +14825,7 @@ static void set_phys_cyls(HWND hDlg)
 {
 	if (ischecked(hDlg, IDC_HDF_PHYSGEOMETRY)) {
 		int v = (current_hfdlg.ci.pheads * current_hfdlg.ci.psecs * current_hfdlg.ci.blocksize);
-		current_hfdlg.ci.pcyls = v ? current_hfdlg.size / v : 0;
+		current_hfdlg.ci.pcyls = (int)(v ? current_hfdlg.size / v : 0);
 		current_hfdlg.ci.physical_geometry = true;
 		SetDlgItemInt (hDlg, IDC_RESERVED, current_hfdlg.ci.pcyls, FALSE);
 	}
@@ -20067,20 +20067,20 @@ static void values_to_hw3ddlg (HWND hDlg, bool initdialog)
 
 	float ho, vo, hz, vz;
 	if (workprefs.gf[filter_nativertg].gfx_filter_autoscale == AUTOSCALE_MANUAL) {
-		hz = workprefs.gfx_xcenter_size;
-		vz = workprefs.gfx_ycenter_size;
-		ho = workprefs.gfx_xcenter_pos;
-		vo = workprefs.gfx_ycenter_pos;
+		hz = (float)workprefs.gfx_xcenter_size;
+		vz = (float)workprefs.gfx_ycenter_size;
+		ho = (float)workprefs.gfx_xcenter_pos;
+		vo = (float)workprefs.gfx_ycenter_pos;
 	} else if (workprefs.gf[filter_nativertg].gfx_filter_autoscale == AUTOSCALE_OVERSCAN_BLANK) {
-		hz = workprefs.gf[filter_nativertg].gfx_filter_left_border;
-		vz = workprefs.gf[filter_nativertg].gfx_filter_right_border;
-		ho = workprefs.gf[filter_nativertg].gfx_filter_top_border;
-		vo = workprefs.gf[filter_nativertg].gfx_filter_bottom_border;
+		hz = (float)workprefs.gf[filter_nativertg].gfx_filter_left_border;
+		vz = (float)workprefs.gf[filter_nativertg].gfx_filter_right_border;
+		ho = (float)workprefs.gf[filter_nativertg].gfx_filter_top_border;
+		vo = (float)workprefs.gf[filter_nativertg].gfx_filter_bottom_border;
 	} else {
-		hz = workprefs.gf[filter_nativertg].gfx_filter_horiz_zoom;
-		vz = workprefs.gf[filter_nativertg].gfx_filter_vert_zoom;
-		ho = workprefs.gf[filter_nativertg].gfx_filter_horiz_offset;
-		vo = workprefs.gf[filter_nativertg].gfx_filter_vert_offset;
+		hz = (float)workprefs.gf[filter_nativertg].gfx_filter_horiz_zoom;
+		vz = (float)workprefs.gf[filter_nativertg].gfx_filter_vert_zoom;
+		ho = (float)workprefs.gf[filter_nativertg].gfx_filter_horiz_offset;
+		vo = (float)workprefs.gf[filter_nativertg].gfx_filter_vert_offset;
 	}
 
 	SendDlgItemMessage (hDlg, IDC_FILTERHZ, TBM_SETPOS, TRUE, (int)hz);
@@ -20569,20 +20569,20 @@ static INT_PTR CALLBACK hw3dDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 				}
 			} else {
 				if (h == hz) {
-					fd->gfx_filter_horiz_zoom = fdwp->gfx_filter_horiz_zoom = (int)SendMessage (hz, TBM_GETPOS, 0, 0);
+					fd->gfx_filter_horiz_zoom = fdwp->gfx_filter_horiz_zoom = (float)SendMessage (hz, TBM_GETPOS, 0, 0);
 					if (fdwp->gfx_filter_keep_aspect) {
 						fd->gfx_filter_vert_zoom = fdwp->gfx_filter_vert_zoom = currprefs.gf[filter_nativertg].gfx_filter_horiz_zoom;
-						SendDlgItemMessage (hDlg, IDC_FILTERVZ, TBM_SETPOS, TRUE, fdwp->gfx_filter_vert_zoom);
+						SendDlgItemMessage (hDlg, IDC_FILTERVZ, TBM_SETPOS, TRUE, (int)fdwp->gfx_filter_vert_zoom);
 					}
 				} else if (h == vz) {
-					fd->gfx_filter_vert_zoom = fdwp->gfx_filter_vert_zoom = (int)SendMessage (vz, TBM_GETPOS, 0, 0);
+					fd->gfx_filter_vert_zoom = fdwp->gfx_filter_vert_zoom = (float)SendMessage (vz, TBM_GETPOS, 0, 0);
 					if (fdwp->gfx_filter_keep_aspect) {
 						fd->gfx_filter_horiz_zoom = fdwp->gfx_filter_horiz_zoom = currprefs.gf[filter_nativertg].gfx_filter_vert_zoom;
-						SendDlgItemMessage (hDlg, IDC_FILTERHZ, TBM_SETPOS, TRUE, fdwp->gfx_filter_horiz_zoom);
+						SendDlgItemMessage (hDlg, IDC_FILTERHZ, TBM_SETPOS, TRUE, (int)fdwp->gfx_filter_horiz_zoom);
 					}
 				}
-				fd->gfx_filter_horiz_offset = fdwp->gfx_filter_horiz_offset = (int)SendMessage (GetDlgItem (hDlg, IDC_FILTERHO), TBM_GETPOS, 0, 0);
-				fd->gfx_filter_vert_offset = fdwp->gfx_filter_vert_offset = (int)SendMessage (GetDlgItem (hDlg, IDC_FILTERVO), TBM_GETPOS, 0, 0);
+				fd->gfx_filter_horiz_offset = fdwp->gfx_filter_horiz_offset = (float)SendMessage (GetDlgItem (hDlg, IDC_FILTERHO), TBM_GETPOS, 0, 0);
+				fd->gfx_filter_vert_offset = fdwp->gfx_filter_vert_offset = (float)SendMessage (GetDlgItem (hDlg, IDC_FILTERVO), TBM_GETPOS, 0, 0);
 				SetDlgItemInt (hDlg, IDC_FILTERHOV, (int)workprefs.gf[filter_nativertg].gfx_filter_horiz_offset, TRUE);
 				SetDlgItemInt (hDlg, IDC_FILTERVOV, (int)workprefs.gf[filter_nativertg].gfx_filter_vert_offset, TRUE);
 				SetDlgItemInt (hDlg, IDC_FILTERHZV, (int)workprefs.gf[filter_nativertg].gfx_filter_horiz_zoom, TRUE);

@@ -47,7 +47,7 @@ static int CmdSeek (HANDLE h_, BYTE cyl_)
 static int CmdSpecify (HANDLE h_, BYTE srt_, BYTE hut_, BYTE hlt_, BYTE nd_)
 {
 	DWORD dwRet;
-	FD_SPECIFY_PARAMS sp = { (srt_ << 4) | (hut_ & 0x0f), (hlt_ << 1) | (nd_ & 1) };
+	FD_SPECIFY_PARAMS sp = { (BYTE)((srt_ << 4) | (hut_ & 0x0f)), (BYTE)((hlt_ << 1) | (nd_ & 1)) };
 	if (h == INVALID_HANDLE_VALUE)
 		return 0;
 	return !!DeviceIoControl(h_, IOCTL_FDCMD_SPECIFY, &sp, sizeof(sp), NULL, 0, &dwRet, NULL);

@@ -195,7 +195,7 @@ int DirectDraw_BlitRect (LPDIRECTDRAWSURFACE7 dst, RECT *dstrect, LPDIRECTDRAWSU
 void DirectDraw_Fill (RECT *rect, uae_u32 color);
 void DirectDraw_FillPrimary (void);
 bool DD_getvblankpos (int *vpos);
-void DD_vblank_reset (double freq);
+void DD_vblank_reset (float freq);
 
 void dx_check (void);
 int dx_islost (void);

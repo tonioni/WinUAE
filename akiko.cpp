@@ -1461,13 +1461,13 @@ static void AKIKO_hsync_handler (void)
 		} else {
 			cdrom_seek_delay--;
 		}
-		framecounter1 += (float)maxvpos * vblank_hz / (75.0 * cdrom_speed);
+		framecounter1 += (float)maxvpos * vblank_hz / (75.0f * cdrom_speed);
 		if (currprefs.cd_speed == 0 || currprefs.turbo_emulation)
 			framecounter1 = 1;
 	}
 	framecounter2--;
 	if (framecounter2 <= 0) {
-		framecounter2 += (float)maxvpos * vblank_hz / (75.0 * cdrom_speed);
+		framecounter2 += (float)maxvpos * vblank_hz / (75.0f * cdrom_speed);
 		framesync = true;
 	}
 
@@ -1499,7 +1499,7 @@ static void AKIKO_hsync_handler (void)
 			}
 			uae_sem_post (&sub_sem);
 		}
-		subcodecounter = maxvpos * vblank_hz / (75 * cdrom_speed) - 5;
+		subcodecounter = (int)(maxvpos * vblank_hz / (75 * cdrom_speed) - 5);
 	}
 
 	if (frame2counter > 0)
