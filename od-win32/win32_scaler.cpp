@@ -151,15 +151,15 @@ static bool get_auto_aspect_ratio(int monid, int cw, int ch, int crealh, int sca
 	*autoaspectratio = 0;
 	if (currprefs.gf[ad->picasso_on].gfx_filter_keep_autoscale_aspect && cw > 0 && ch > 0 && crealh > 0 && (scalemode == AUTOSCALE_NORMAL ||
 		scalemode == AUTOSCALE_INTEGER_AUTOSCALE || scalemode == AUTOSCALE_MANUAL)) {
-		float cw2 = cw;
-		float ch2 = ch;
+		float cw2 = (float)cw;
+		float ch2 = (float)ch;
 		int res = currprefs.gfx_resolution - currprefs.gfx_vresolution;
 
 		if (res < 0)
 			cw2 *= 1 << (-res);
 		else if (res > 0)
 			cw2 /= 1 << res;
-		*autoaspectratio = (cw2 / ch2) / (4.0 / 3.0);
+		*autoaspectratio = (cw2 / ch2) / (4.0f / 3.0f);
 		return true;
 	}
 	return false;
@@ -281,8 +281,8 @@ void getfilterrect2(int monid, RECT *sr, RECT *dr, RECT *zr, int dst_width, int 
 	if (mon->screen_is_picasso) {
 		getrtgfilterrect2(monid, sr, dr, zr, dst_width, dst_height);
 		if (D3D_getscalerect && D3D_getscalerect(monid, &mrmx, &mrmy, &mrsx, &mrsy, dst_width, dst_height)) {
-			sizeoffset(dr, zr, mrmx, mrmy);
-			OffsetRect(dr, mrsx, mrsy);
+			sizeoffset(dr, zr, (int)mrmx, (int)mrmy);
+			OffsetRect(dr, (int)mrsx, (int)mrsy);
 		}
 		return;
 	}
@@ -293,12 +293,12 @@ void getfilterrect2(int monid, RECT *sr, RECT *dr, RECT *zr, int dst_width, int 
 	aws = aw * scale;
 	ahs = ah * scale;
 	//write_log (_T("%d %d %d\n"), dst_width, temp_width, aws);
-	extraw = -aws * (filter_horiz_zoom - currprefs.gf[ad->picasso_on].gfx_filteroverlay_overscan * 10) / 2.0f;
-	extrah = -ahs * (filter_vert_zoom - currprefs.gf[ad->picasso_on].gfx_filteroverlay_overscan * 10) / 2.0f;
+	extraw = (int)(-aws * (filter_horiz_zoom - currprefs.gf[ad->picasso_on].gfx_filteroverlay_overscan * 10) / 2.0f);
+	extrah = (int)(-ahs * (filter_vert_zoom - currprefs.gf[ad->picasso_on].gfx_filteroverlay_overscan * 10) / 2.0f);
 
 	extraw2 = 0;
 	if (D3D_getscalerect && D3D_getscalerect(monid, &mrmx, &mrmy, &mrsx, &mrsy, avidinfo->outbuffer->inwidth2, avidinfo->outbuffer->inheight2)) {
-		extraw2 = mrmx;
+		extraw2 = (int)mrmx;
 		//extrah -= mrmy;
 	}
 
@@ -372,8 +372,8 @@ void getfilterrect2(int monid, RECT *sr, RECT *dr, RECT *zr, int dst_width, int 
 		int cw, ch, cx, cy, cv, crealh = 0;
 		static int oxmult, oymult;
 
-		filterxmult = scale;
-		filterymult = scale;
+		filterxmult = (float)scale;
+		filterymult = (float)scale;
 
 		if (scalemode == AUTOSCALE_STATIC_MAX || scalemode == AUTOSCALE_STATIC_NOMINAL ||
 			scalemode == AUTOSCALE_INTEGER || scalemode == AUTOSCALE_INTEGER_AUTOSCALE) {
@@ -405,7 +405,7 @@ void getfilterrect2(int monid, RECT *sr, RECT *dr, RECT *zr, int dst_width, int 
 			if (scalemode == AUTOSCALE_INTEGER || scalemode == AUTOSCALE_INTEGER_AUTOSCALE) {
 				int maxw = gmc->gfx_size.width;
 				int maxh = gmc->gfx_size.height;
-				double mult = 1;
+				float mult = 1.0f;
 				bool ok = true;
 
 				if (currprefs.gfx_xcenter_pos >= 0 || currprefs.gfx_ycenter_pos >= 0) {
@@ -441,8 +441,8 @@ void getfilterrect2(int monid, RECT *sr, RECT *dr, RECT *zr, int dst_width, int 
 				}
 #endif
 
-				int cw2 = cw + cw * filter_horiz_zoom;
-				int ch2 = ch + ch * filter_vert_zoom;
+				int cw2 = cw + (int)(cw * filter_horiz_zoom);
+				int ch2 = ch + (int)(ch * filter_vert_zoom);
 
 				extraw = 0;
 				extrah = 0;
@@ -455,17 +455,17 @@ void getfilterrect2(int monid, RECT *sr, RECT *dr, RECT *zr, int dst_width, int 
 
 				maxw = res_match(maxw);
 
-				double multadd = 1.0 / (1 << currprefs.gf[ad->picasso_on].gfx_filter_integerscalelimit);
+				float multadd = 1.0f / (1 << currprefs.gf[ad->picasso_on].gfx_filter_integerscalelimit);
 				if (cw2 > maxw || ch2 > maxh) {
 					while (cw2 / mult > maxw || ch2 / mult > maxh)
 						mult += multadd;
-					maxw = maxw * mult;
-					maxh = maxh * mult;
+					maxw = (int)(maxw * mult);
+					maxh = (int)(maxh * mult);
 				} else {
 					while (cw2 * (mult + multadd) <= maxw && ch2 * (mult + multadd) <= maxh)
 						mult += multadd;
-					maxw = (maxw + mult - multadd) / mult;
-					maxh = (maxh + mult - multadd) / mult;
+					maxw = (int)((maxw + mult - multadd) / mult);
+					maxh = (int)((maxh + mult - multadd) / mult);
 				}
 
 				width_aspect = cw;
@@ -601,14 +601,14 @@ void getfilterrect2(int monid, RECT *sr, RECT *dr, RECT *zr, int dst_width, int 
 				}
 				float scalex = currprefs.gf[ad->picasso_on].gfx_filter_horiz_zoom_mult > 0 ? currprefs.gf[ad->picasso_on].gfx_filter_horiz_zoom_mult : 1.0f;
 				float scaley = currprefs.gf[ad->picasso_on].gfx_filter_vert_zoom_mult > 0 ? currprefs.gf[ad->picasso_on].gfx_filter_vert_zoom_mult : 1.0f;
-				SetRect (sr, 0, 0, cw * scale * scalex, ch * scale * scaley);
+				SetRect (sr, 0, 0, (int)(cw * scale * scalex), (int)(ch * scale * scaley));
 				dr->left = (temp_width - aws) /2;
 				dr->top = (temp_height - ahs) / 2;
 				dr->right = dr->left + cw * scale;
 				dr->bottom = dr->top + ch * scale;
 				OffsetRect (zr, cx * scale, cy * scale);
-				int ww = (dr->right - dr->left) * scalex;
-				int hh = (dr->bottom - dr->top) * scaley;
+				int ww = (int)((dr->right - dr->left) * scalex);
+				int hh = (int)((dr->bottom - dr->top) * scaley);
 				if (currprefs.gfx_xcenter_size >= 0)
 					ww = currprefs.gfx_xcenter_size;
 				if (currprefs.gfx_ycenter_size >= 0)
@@ -623,8 +623,8 @@ void getfilterrect2(int monid, RECT *sr, RECT *dr, RECT *zr, int dst_width, int 
 						set_config_changed ();
 				}
 				OffsetRect (zr, -(gmh->gfx_size_win.width - ww + 1) / 2, -(gmh->gfx_size_win.height - hh + 1) / 2);
-				filteroffsetx = -zr->left / scale;
-				filteroffsety = -zr->top / scale;
+				filteroffsetx = (float)-zr->left / scale;
+				filteroffsety = (float)-zr->top / scale;
 				goto end;
 			}
 
@@ -640,8 +640,8 @@ void getfilterrect2(int monid, RECT *sr, RECT *dr, RECT *zr, int dst_width, int 
 			dr->right -= (dst_width - cw) * scale;
 			dr->bottom -= (dst_height - ch) * scale;
 
-			filteroffsetx = -zr->left / scale;
-			filteroffsety = -zr->top / scale;
+			filteroffsetx = (float)-zr->left / scale;
+			filteroffsety = (float)-zr->top / scale;
 
 			bool aspect = false;
 
@@ -659,11 +659,11 @@ void getfilterrect2(int monid, RECT *sr, RECT *dr, RECT *zr, int dst_width, int 
 			}
 
 			if (get_aspect(monid, &dstratio, &srcratio, &xmult, &ymult, doautoaspect, autoaspectratio, keep_aspect, filter_aspect)) {
-				diff = diffx - diffx * xmult;
+				diff = diffx - (int)(diffx * xmult);
 				sizeoffset(dr, zr, diff, 0);
 				filteroffsetx += -diff / 2;
 
-				diff = diffy - diffy * ymult;
+				diff = diffy - (int)(diffy * ymult);
 				sizeoffset(dr, zr, 0, diff);
 				filteroffsety += -diff / 2;
 			}
@@ -689,15 +689,15 @@ cont:
 		if (keep_aspect) {
 			float xm, ym, m;
 
-			xm = aws / dst_width;
-			ym = ahs / dst_height;
+			xm = (float)aws / dst_width;
+			ym = (float)ahs / dst_height;
 			if (xm < ym)
 				xm = ym;
 			else
 				ym = xm;
 			xmult = ymult = xm;
 
-			m = (aws * dst_width) / (ahs * dst_height);
+			m = (float)(aws * dst_width) / (ahs * dst_height);
 			dstratio = dstratio * m;
 		}
 
@@ -731,10 +731,10 @@ cont:
 		if (abs(l - 312) <= 25) {
 			l = 312;
 		}
-		float ll = l * 2 + 1;
+		float ll = l * 2.0f + 1.0f;
 		if (currprefs.ntscmode) {
 			if (palntscadjust && isp) {
-				palntscratio = palntscratio * (525.0 / ll);
+				palntscratio = palntscratio * (525.0f / ll);
 			}
 			if (keep_aspect == 2 && isp) {
 				palntscratio = palntscratio * 0.93f;
@@ -743,7 +743,7 @@ cont:
 			}
 		} else {
 			if (palntscadjust && !isp) {
-				palntscratio = palntscratio * (625.0 / ll);
+				palntscratio = palntscratio * (625.0f / ll);
 			}
 			if (keep_aspect == 2 && isp) {
 				palntscratio = palntscratio * 0.95f;
@@ -782,10 +782,10 @@ cont:
 
 	xs = dst_width;
 	if (xmult)
-		xs -= dst_width / xmult;
+		xs -= dst_width / (int)xmult;
 	ys = dst_height;
 	if (ymult)
-		ys -= dst_height / ymult;
+		ys -= dst_height / (int)ymult;
 	sizeoffset (dr, zr, xs, ys);
 
 	filterxmult = xmult;
@@ -796,8 +796,8 @@ cont:
 end:
 
 	if (D3D_getscalerect && D3D_getscalerect(monid, &mrmx, &mrmy, &mrsx, &mrsy, avidinfo->outbuffer->inwidth2, avidinfo->outbuffer->inheight2)) {
-		sizeoffset (dr, zr, mrmx, mrmy);
-		OffsetRect (dr, mrsx, mrsy);
+		sizeoffset(dr, zr, (int)mrmx, (int)mrmy);
+		OffsetRect(dr, (int)mrsx, (int)mrsy);
 	}
 
 	check_custom_limits();

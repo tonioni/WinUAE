@@ -2039,7 +2039,6 @@ gen_opcode(unsigned int opcode)
 #ifdef DISABLE_I_BCC
 		failure;
 #endif
-		comprintf("\tuae_u32 v,v1,v2;\n");
 		genamode(curi->smode, "srcreg", curi->size, "src", GENA_GETV_FETCH, GENA_MOVEM_DO_INC);
 		/* That source is an immediate, so we can clobber it with abandon */
 		switch (curi->size) {
@@ -2058,8 +2057,8 @@ gen_opcode(unsigned int opcode)
 		comprintf("\tm68k_pc_offset=0;\n");
 
 		if (curi->cc >= 2) {
-			comprintf("\tv1=get_const(PC_P);\n"
-				"\tv2=get_const(src);\n"
+			comprintf("\tuae_u32 v1=get_const(PC_P);\n"
+				"\tuae_u32 v2=get_const(src);\n"
 				"\tregister_branch(v1,v2,%d);\n",
 				cond_codes[curi->cc]);
 			comprintf("\tmake_flags_live();\n"); /* Load the flags */
@@ -2161,7 +2160,7 @@ gen_opcode(unsigned int opcode)
 			comprintf("\tsub_w_ri(src,1);\n");
 			comprintf("\tend_needflags();\n");
 			start_brace();
-			comprintf("\tuae_u32 v2,v;\n"
+			comprintf("\tuae_u32 v2;\n"
 				"\tuae_u32 v1=get_const(PC_P);\n");
 			comprintf("\tv2=get_const(offs);\n"
 				"\tregister_branch(v1,v2,%d);\n", NATIVE_CC_CC);

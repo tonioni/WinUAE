@@ -6505,14 +6505,14 @@ static void url_handler (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 			if(msg == WM_LBUTTONDOWN)
 			{
 				ShellExecute (NULL, NULL, urls[i].url , NULL, NULL, SW_SHOWNORMAL);
-				SetCursor (LoadCursor(NULL, MAKEINTRESOURCE (IDC_ARROW)));
+				SetCursor(LoadCursor(NULL, IDC_ARROW));
 			}
 			else
 			{
 				if(i != last_rectangle)
 				{
 					// try and load the system hand (Win2000+)
-					m_hCursor = LoadCursor (NULL, MAKEINTRESOURCE (IDC_HAND) );
+					m_hCursor = LoadCursor (NULL, IDC_HAND);
 					if (!m_hCursor)
 					{
 						// retry with our fallback hand
@@ -6537,7 +6537,7 @@ static void url_handler (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 
 	if(!found && last_rectangle >= 0)
 	{
-		SetCursor (LoadCursor (NULL, MAKEINTRESOURCE (IDC_ARROW)));
+		SetCursor (LoadCursor (NULL, IDC_ARROW));
 		urls[last_rectangle].state = FALSE;
 		SetupRichText (hDlg, &urls[last_rectangle]);
 		last_rectangle = -1;
