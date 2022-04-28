@@ -66,15 +66,15 @@
 
  */
 
-/* e-clock is 10 CPU cycles, 4 cycles high, 6 low
+/* e-clock is 10 CPU cycles, 6 cycles low, 4 high
 * data transfer happens during 4 high cycles
 */
-#define ECLOCK_DATA_CYCLE 4
 #define ECLOCK_WAIT_CYCLE 6
+#define ECLOCK_DATA_CYCLE 4
 
-#define DIV10 ((ECLOCK_DATA_CYCLE + ECLOCK_WAIT_CYCLE) * CYCLE_UNIT / 2) /* Yes, a bad identifier. */
-#define CIASTARTCYCLESHI 3
-#define CIASTARTCYCLESCRA 2
+#define DIV10 ((ECLOCK_WAIT_CYCLE + ECLOCK_DATA_CYCLE) * CYCLE_UNIT / 2) /* Yes, a bad identifier. */
+#define CIASTARTCYCLESHI 2
+#define CIASTARTCYCLESCRA 1
 
 static uae_u32 ciaaicr, ciaaimask, ciabicr, ciabimask;
 static uae_u32 ciaacra, ciaacrb, ciabcra, ciabcrb;
@@ -90,7 +90,7 @@ static int ciaatlatch, ciabtlatch;
 static bool oldovl;
 static bool led;
 static int led_old_brightness;
-static uae_u32 led_cycles_on, led_cycles_off, led_cycle;
+static evt_t led_cycles_on, led_cycles_off, led_cycle;
 
 uae_u32 ciabpra;
 
@@ -98,9 +98,8 @@ static uae_u32 ciaala, ciaalb, ciabla, ciablb;
 static int ciaatodon, ciabtodon;
 static uae_u32 ciaapra, ciaaprb, ciaadra, ciaadrb, ciaasdr, ciaasdr_buf, ciaasdr_load, ciaasdr_cnt;
 static uae_u32 ciabprb, ciabdra, ciabdrb, ciabsdr, ciabsdr_buf, ciabsdr_load, ciabsdr_cnt;
-static int div10;
 static int kbstate, kblostsynccnt;
-static uae_u32 kbhandshakestart;
+static evt_t kbhandshakestart;
 static uae_u8 kbcode;
 
 static uae_u8 serbits;
@@ -215,8 +214,11 @@ last call of CIA_calctimers.  */
 
 static void compute_passed_time (void)
 {
-	uae_u32 ccount = (get_cycles () - eventtab[ev_cia].oldcycles + div10);
-	uae_u32 ciaclocks = ccount / DIV10;
+	evt_t ccount = get_cycles() - eventtab[ev_cia].oldcycles;
+	if (ccount > MAXINT) {
+		ccount = MAXINT;
+	}
+	uae_u32 ciaclocks = (uae_u32)(ccount / DIV10);
 
 	ciaata_passed = ciaatb_passed = ciabta_passed = ciabtb_passed = 0;
 
@@ -267,13 +269,14 @@ in the same cycle.  */
 
 static int CIA_update_check (void)
 {
-	uae_u32 ccount = (get_cycles () - eventtab[ev_cia].oldcycles + div10);
-	uae_u32 ciaclocks = ccount / DIV10;
+	evt_t ccount = get_cycles() - eventtab[ev_cia].oldcycles;
+	if (ccount > MAXINT) {
+		ccount = MAXINT;
+	}
+	uae_u32 ciaclocks = (uae_u32)(ccount / DIV10);
 
 	int aovfla = 0, aovflb = 0, asp = 0, bovfla = 0, bovflb = 0, bsp = 0;
 	int icr = 0;
-
-	div10 = ccount % DIV10;
 
 	/* CIA A timers */
 	// A INMODE=0
@@ -449,9 +452,9 @@ static void CIA_update (void)
 static void CIA_calctimers (void)
 {
 	uae_s32 ciaatimea = -1, ciaatimeb = -1, ciabtimea = -1, ciabtimeb = -1;
-	int div10diff = DIV10 - div10;
+	int div10diff = DIV10;
 
-	eventtab[ev_cia].oldcycles = get_cycles ();
+	eventtab[ev_cia].oldcycles = get_cycles();
 
 	if ((ciaacra & 0x21) == 0x01) {
 		ciaatimea = div10diff + DIV10 * (ciaata + ciaastarta);
@@ -495,20 +498,22 @@ static void CIA_calctimers (void)
 		ciabtimeb = div10diff + DIV10 * (ciabtb + ciabstartb);
 	}
 
-	eventtab[ev_cia].active = (ciaatimea != -1 || ciaatimeb != -1
-		|| ciabtimea != -1 || ciabtimeb != -1);
-	if (eventtab[ev_cia].active) {
-		uae_u32 ciatime = ~0L;
-		if (ciaatimea != -1)
-			ciatime = ciaatimea;
-		if (ciaatimeb != -1 && ciaatimeb < ciatime)
-			ciatime = ciaatimeb;
-		if (ciabtimea != -1 && ciabtimea < ciatime)
-			ciatime = ciabtimea;
-		if (ciabtimeb != -1 && ciabtimeb < ciatime)
-			ciatime = ciabtimeb;
-		eventtab[ev_cia].evtime = ciatime + get_cycles ();
+	uae_s32 ciatime = INT_MAX;
+	if (ciaatimea > 0)
+		ciatime = ciaatimea;
+	if (ciaatimeb > 0 && ciaatimeb < ciatime)
+		ciatime = ciaatimeb;
+	if (ciabtimea > 0 && ciabtimea < ciatime)
+		ciatime = ciabtimea;
+	if (ciabtimeb > 0 && ciabtimeb < ciatime)
+		ciatime = ciabtimeb;
+	if (ciatime < INT_MAX) {
+		eventtab[ev_cia].evtime = get_cycles() + ciatime;
+		eventtab[ev_cia].active = true;
+	} else {
+		eventtab[ev_cia].active = false;
 	}
+
 	events_schedule();
 }
 
@@ -550,7 +555,7 @@ static bool checkalarm (uae_u32 tod, uae_u32 alarm, bool inc, int ab)
 	return false;
 }
 
-STATIC_INLINE bool ciab_checkalarm (bool inc, bool irq)
+static bool ciab_checkalarm (bool inc, bool irq)
 {
 	// hack: do not trigger alarm interrupt if KS code and both
 	// tod and alarm == 0. This incorrectly triggers on non-cycle exact
@@ -576,7 +581,7 @@ STATIC_INLINE bool ciab_checkalarm (bool inc, bool irq)
 	return false;
 }
 
-STATIC_INLINE void ciaa_checkalarm (bool inc)
+static void ciaa_checkalarm (bool inc)
 {
 	if (checkalarm (ciaatod, ciaaalarm, inc, 0)) {
 #if CIAA_DEBUG_IRQ
@@ -781,54 +786,67 @@ static void keyreq (void)
 
 static int ciab_tod_hoffset;
 static int ciab_tod_event_state;
-// TOD increase has extra 14-16 E-clock delay
-// Possibly TICK input pin has built-in debounce circuit
-#define TOD_INC_DELAY (14 * (ECLOCK_DATA_CYCLE + ECLOCK_WAIT_CYCLE) / 2)
+// TOD increase has extra delay
+#define TOD_INC_DELAY (13 * DIV10)
 
-static void CIAB_tod_inc (bool irq)
+static void CIAB_tod_inc(bool irq)
 {
 	ciab_tod_event_state = 3; // done
 	if (!ciabtodon)
 		return;
 	ciabtod++;
 	ciabtod &= 0xFFFFFF;
-	ciab_checkalarm (true, irq);
+	ciab_checkalarm(true, irq);
 }
 
-static void CIAB_tod_inc_event (uae_u32 v)
+static void CIAB_tod_inc_event(uae_u32 v)
 {
 	if (ciab_tod_event_state != 2)
 		return;
-	CIAB_tod_inc (true);
+	CIAB_tod_inc(true);
+}
+
+static void CIAB_tod_event_check(void)
+{
+	if (ciab_tod_event_state == 1) {
+		int hpos = current_hpos();
+		if (hpos >= ciab_tod_hoffset) {
+			CIAB_tod_inc(false);
+			ciab_tod_event_state = 0;
+		}
+	}
 }
 
 // Someone reads or writes TOD registers, sync TOD increase
-static void CIAB_tod_check (void)
+static void CIAB_tod_check(void)
 {
-	if (ciab_tod_event_state != 1 || !ciabtodon)
+	CIAB_tod_event_check();
+	if (!ciabtodon)
 		return;
-	int hpos = current_hpos ();
+	int hpos = current_hpos();
 	hpos -= ciab_tod_hoffset;
 	if (hpos >= 0 || currprefs.m68k_speed < 0) {
 		// Program should see the changed TOD
-		CIAB_tod_inc (true);
+		CIAB_tod_inc(true);
 		return;
 	}
 	// Not yet, add event to guarantee exact TOD inc position
 	ciab_tod_event_state = 2; // event active
-	event2_newevent_xx (-1, -hpos, 0, CIAB_tod_inc_event);
+	event2_newevent_xx(-1, -hpos * CYCLE_UNIT, 0, CIAB_tod_inc_event);
 }
 
-void CIAB_tod_handler (int hoffset)
+void CIAB_tod_handler(int hoffset)
 {
-	if (!ciabtodon)
+	if (!ciabtodon || ciab_tod_event_state)
 		return;
-	ciab_tod_hoffset = hoffset + TOD_INC_DELAY;
+	ciab_tod_hoffset = hoffset;
+	ciab_tod_hoffset += TOD_INC_DELAY / CYCLE_UNIT;
+	//ciab_tod_hoffset += ((total_ciaclocks % 4) * DIV10) / CYCLE_UNIT;
 	ciab_tod_event_state = 1; // TOD inc needed
 	if (checkalarm ((ciabtod + 1) & 0xffffff, ciabalarm, true, 1)) {
 		// causes interrupt on this line, add event
 		ciab_tod_event_state = 2; // event active
-		event2_newevent_xx (-1, ciab_tod_hoffset, 0, CIAB_tod_inc_event);
+		event2_newevent_xx (-1, ciab_tod_hoffset * CYCLE_UNIT, 0, CIAB_tod_inc_event);
 	}
 }
 
@@ -878,13 +896,12 @@ static void check_keyboard(void)
 void CIA_hsync_posthandler (bool ciahsync, bool dotod)
 {
 	if (ciahsync) {
-		// cia hysnc
+		// cia hsync
 		// Previous line was supposed to increase TOD but
 		// no one cared. Do it now.
 		if (ciab_tod_event_state == 1)
 			CIAB_tod_inc (false);
 		ciab_tod_event_state = 0;
-
 		if (currprefs.tod_hack && ciaatodon)
 			do_tod_hack (dotod);
 	} else if (currprefs.keyboard_connected) {
@@ -906,8 +923,8 @@ void CIA_hsync_posthandler (bool ciahsync, bool dotod)
 
 static void calc_led (int old_led)
 {
-	uae_u32 c = get_cycles ();
-	uae_u32 t = (c - led_cycle) / CYCLE_UNIT;
+	evt_t c = get_cycles ();
+	evt_t t = (c - led_cycle) / CYCLE_UNIT;
 	if (old_led)
 		led_cycles_on += t;
 	else
@@ -925,7 +942,7 @@ static void led_vsync (void)
 	else if (led_cycles_off && !led_cycles_on)
 		v = 0;
 	else if (led_cycles_off)
-		v = led_cycles_on * 255 / (led_cycles_on + led_cycles_off);
+		v = (int)(led_cycles_on * 255 / (led_cycles_on + led_cycles_off));
 	else
 		v = 255;
 	if (v < 0)
@@ -968,7 +985,6 @@ void CIA_vsync_prehandler (void)
 	}
 
 	led_vsync ();
-	CIA_handler ();
 	keybuf_vsync();
 	if (kblostsynccnt > 0) {
 		kblostsynccnt -= maxvpos;
@@ -1096,9 +1112,9 @@ static uae_u8 ReadCIAA (uae_u32 addr, uae_u32 *flags)
 
 		if (inputrecord_debug & 2) {
 			if (input_record > 0)
-				inprec_recorddebug_cia (v, div10, m68k_getpc ());
+				inprec_recorddebug_cia (v, 0, m68k_getpc ());
 			else if (input_play > 0)
-				inprec_playdebug_cia (v, div10, m68k_getpc ());
+				inprec_playdebug_cia (v, 0, m68k_getpc ());
 		}
 
 		return v;
@@ -1911,7 +1927,6 @@ void CIA_reset (void)
 		ciaaalarm = ciabalarm = 0;
 		ciabpra = 0x8C; ciabdra = 0;
 		ciabprb = 0; ciabdrb = 0;
-		div10 = 0;
 		ciaasdr_cnt = 0; ciaasdr = 0; ciaasdr_load = 0;
 		ciabsdr_cnt = 0; ciabsdr = 0; ciabsdr_buf = 0; ciabsdr_load = 0;
 		ciaata_passed = ciaatb_passed = ciabta_passed = ciabtb_passed = 0;
@@ -1943,8 +1958,8 @@ void dumpcia(void)
 		ciaatod, ciaatol, ciaaalarm, ciaatlatch ? 'L' : ' ', ciaatodon ? ' ' : 'S', get_cycles());
 	console_out_f(_T("B: CRA %02x CRB %02x ICR %02x IM %02x TA %04x (%04x) TB %04x (%04x)\n"),
 		ciabcra, ciabcrb, ciabicr, ciabimask, ciabta, ciabla, ciabtb, ciablb);
-	console_out_f(_T("TOD %06x (%06x) ALARM %06x %c%c CLK=%d\n"),
-		ciabtod, ciabtol, ciabalarm, ciabtlatch ? 'L' : ' ', ciabtodon ? ' ' : 'S', div10 / CYCLE_UNIT);
+	console_out_f(_T("TOD %06x (%06x) ALARM %06x %c%c\n"),
+		ciabtod, ciabtol, ciabalarm, ciabtlatch ? 'L' : ' ', ciabtodon ? ' ' : 'S');
 }
 
 /* CIA memory access */
@@ -1972,15 +1987,18 @@ static void cia_wait_pre(int cianummask)
 	}
 
 #ifndef CUSTOM_SIMPLE
-	uae_u32 diff = get_cycles() - eventtab[ev_cia].oldcycles;
-	int div = diff % DIV10;
-	int cycles = DIV10 - div;
-	if (cycles) {
-		if (currprefs.cpu_memory_cycle_exact)
-			x_do_cycles_pre(cycles);
-		else
-			do_cycles(cycles);
+	evt_t c = get_cycles();
+	int div10 = c % DIV10;
+	int add = 0;
+	if (div10 == 0) {
+		add = CYCLE_UNIT;
+	} else if (div10 > CYCLE_UNIT) {
+		add = DIV10 - div10;
+		add += CYCLE_UNIT;
 	}
+	// sync + 4 first cycles of E-clock
+	add += 4 * CYCLE_UNIT / 2;
+	x_do_cycles_pre(add);
 #endif
 }
 
@@ -1995,11 +2013,8 @@ static void cia_wait_post (int cianummask, uae_u32 value)
 	if (currprefs.cachesize) {
 		do_cycles (8 * CYCLE_UNIT /2);
 	} else {
-		int c = 6 * CYCLE_UNIT / 2;
-		if (currprefs.cpu_memory_cycle_exact)
-			x_do_cycles_post (c, value);
-		else
-			do_cycles (c);
+		// Last 4 cycles of E-clock
+		x_do_cycles_post(4 * CYCLE_UNIT / 2, value);
 		if (currprefs.cpu_memory_cycle_exact) {
 			cia_interrupt_disabled &= ~cianummask;
 			if ((cia_interrupt_delay & cianummask) & 1) {
@@ -2499,7 +2514,7 @@ static uae_u32 REGPARAM2 clock_bget (uaecptr addr)
 
 static void cputester_event(uae_u32 v)
 {
-	IRQ_forced(1, 64 / 2);
+	IRQ_forced(4, 64 / 2);
 }
 
 static void REGPARAM2 clock_lput (uaecptr addr, uae_u32 value)
@@ -2584,7 +2599,6 @@ void restore_cia_finish (void)
 	CIA_update ();
 	CIA_calctimers ();
 	compute_passed_time ();
-	eventtab[ev_cia].oldcycles -= div10;
 	//dumpcia ();
 	DISK_select_set (ciabprb);
 }
@@ -2645,8 +2659,8 @@ uae_u8 *restore_cia (int num, uae_u8 *src)
 	if (num) ciabtodon = b & 2; else ciaatodon = b & 2;		/* is TOD stopped? */
 	if (num) ciaasdr_load = b & 4; else ciaasdr_load = b & 4; /* SP data pending */
 	b = restore_u8 ();
-	if (num)
-		div10 = CYCLE_UNIT * b;
+//	if (num)
+//		div10 = CYCLE_UNIT * b;
 	b = restore_u8 ();
 	if (num) ciabsdr_cnt = b; else ciaasdr_cnt = b;
 	b = restore_u8();
@@ -2733,7 +2747,7 @@ uae_u8 *save_cia (int num, int *len, uae_u8 *dstptr)
 	else
 		b |= ciaasdr_load ? 2 : 0;   /* TOD stopped? */
 	save_u8(b);
-	save_u8(num ? div10 / CYCLE_UNIT : 0);
+	save_u8(0); // save_u8(num ? div10 / CYCLE_UNIT : 0);
 	save_u8(num ? ciabsdr_cnt : ciaasdr_cnt);
 	save_u8(num ? ciabsdr_buf : ciaasdr_buf);
 	*len = dst - dstbak;
