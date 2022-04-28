@@ -18,43 +18,44 @@
 
 #include "machdep/rpt.h"
 
+#define EVT_MAX 0x7fffffffffffffff
+
 extern frame_time_t vsyncmintime, vsyncmintimepre;
 extern frame_time_t vsyncmaxtime, vsyncwaittime;
-extern int vsynctimebase, syncbase;
-extern void reset_frame_rate_hack (void);
-extern uae_u32 vsync_cycles;
-extern uae_u32 start_cycles;
+extern frame_time_t vsynctimebase, syncbase;
+extern void reset_frame_rate_hack(void);
+extern evt_t vsync_cycles;
+extern evt_t start_cycles;
 extern int event2_count;
 extern bool event_wait;
 
-extern void compute_vsynctime (void);
-extern void init_eventtab (void);
-extern void do_cycles_ce (uae_u32 cycles);
-extern void do_cycles_ce020 (uae_u32 cycles);
-extern void events_schedule (void);
-extern void do_cycles_slow (uae_u32 cycles_to_add);
+extern void compute_vsynctime(void);
+extern void init_eventtab(void);
+extern void do_cycles_ce(int cycles);
+extern void do_cycles_ce020(int cycles);
+extern void events_schedule(void);
+extern void do_cycles_slow(int cycles_to_add);
 extern void events_reset_syncline(void);
 
 extern bool is_cycle_ce(uaecptr);
 
-extern uae_u32 currcycle, nextevent;
-extern int is_syncline, is_syncline_end;
+extern evt_t currcycle, nextevent;
+extern int is_syncline;
+extern evt_t is_syncline_end;
 typedef void (*evfunc)(void);
 typedef void (*evfunc2)(uae_u32);
-
-typedef unsigned int evt;
 
 struct ev
 {
     bool active;
-    evt evtime, oldcycles;
+	evt_t evtime, oldcycles;
     evfunc handler;
 };
 
 struct ev2
 {
     bool active;
-    evt evtime;
+	evt_t evtime;
     uae_u32 data;
     evfunc2 handler;
 };
@@ -70,7 +71,7 @@ enum {
 };
 
 extern int pissoff_value;
-extern uae_s32 pissoff;
+extern int pissoff;
 
 #define countdown pissoff
 #define do_cycles do_cycles_slow
@@ -93,17 +94,17 @@ STATIC_INLINE void cycles_do_special (void)
 	}
 }
 
-STATIC_INLINE void do_extra_cycles (uae_u32 cycles_to_add)
+STATIC_INLINE void do_extra_cycles(int cycles_to_add)
 {
 	pissoff -= cycles_to_add;
 }
 
-STATIC_INLINE uae_u32 get_cycles (void)
+STATIC_INLINE evt_t get_cycles(void)
 {
 	return currcycle;
 }
 
-STATIC_INLINE void set_cycles (uae_u32 x)
+STATIC_INLINE void set_cycles (evt_t x)
 {
 	currcycle = x;
 	eventtab[ev_hsync].oldcycles = x;
@@ -114,43 +115,43 @@ STATIC_INLINE void set_cycles (uae_u32 x)
 #endif
 }
 
-STATIC_INLINE int current_hpos_safe (void)
+STATIC_INLINE int current_hpos_safe(void)
 {
-    int hp = (get_cycles () - eventtab[ev_hsync].oldcycles) / CYCLE_UNIT;
+    int hp = (int)((get_cycles () - eventtab[ev_hsync].oldcycles)) / CYCLE_UNIT;
 	return hp;
 }
 
 extern int current_hpos(void);
 
-STATIC_INLINE bool cycles_in_range (uae_u32 endcycles)
+STATIC_INLINE bool cycles_in_range(evt_t endcycles)
 {
-	uae_s32 c = get_cycles ();
-	return (uae_s32)endcycles - c > 0;
+	evt_t c = get_cycles();
+	return endcycles > c;
 }
 
-extern void MISC_handler (void);
-extern void event2_newevent_xx (int no, evt t, uae_u32 data, evfunc2 func);
-extern void event2_newevent_x_replace(evt t, uae_u32 data, evfunc2 func);
+extern void MISC_handler(void);
+extern void event2_newevent_xx(int no, evt_t t, uae_u32 data, evfunc2 func);
+extern void event2_newevent_x_replace(evt_t t, uae_u32 data, evfunc2 func);
 
-STATIC_INLINE void event2_newevent_x (int no, evt t, uae_u32 data, evfunc2 func)
+STATIC_INLINE void event2_newevent_x(int no, evt_t t, uae_u32 data, evfunc2 func)
 {
-	if (((int)t) <= 0) {
-		func (data);
+	if (t <= 0) {
+		func(data);
 		return;
 	}
-	event2_newevent_xx (no, t * CYCLE_UNIT, data, func);
+	event2_newevent_xx(no, t * CYCLE_UNIT, data, func);
 }
 
-STATIC_INLINE void event2_newevent (int no, evt t, uae_u32 data)
+STATIC_INLINE void event2_newevent(int no, evt_t t, uae_u32 data)
 {
-	event2_newevent_x (no, t, data, eventtab2[no].handler);
+	event2_newevent_x(no, t, data, eventtab2[no].handler);
 }
-STATIC_INLINE void event2_newevent2 (evt t, uae_u32 data, evfunc2 func)
+STATIC_INLINE void event2_newevent2(evt_t t, uae_u32 data, evfunc2 func)
 {
-	event2_newevent_x (-1, t, data, func);
+	event2_newevent_x(-1, t, data, func);
 }
 
-STATIC_INLINE void event2_remevent (int no)
+STATIC_INLINE void event2_remevent(int no)
 {
 	eventtab2[no].active = 0;
 }

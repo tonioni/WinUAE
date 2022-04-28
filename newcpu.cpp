@@ -223,9 +223,9 @@ static uae_u32 (*x2_get_byte)(uaecptr);
 static void (*x2_put_long)(uaecptr,uae_u32);
 static void (*x2_put_word)(uaecptr,uae_u32);
 static void (*x2_put_byte)(uaecptr,uae_u32);
-static void (*x2_do_cycles)(uae_u32);
-static void (*x2_do_cycles_pre)(uae_u32);
-static void (*x2_do_cycles_post)(uae_u32, uae_u32);
+static void (*x2_do_cycles)(int);
+static void (*x2_do_cycles_pre)(int);
+static void (*x2_do_cycles_post)(int, uae_u32);
 
 uae_u32 (*x_prefetch)(int);
 uae_u32 (*x_next_iword)(void);
@@ -250,9 +250,9 @@ void (*x_cp_put_word)(uaecptr,uae_u32);
 void (*x_cp_put_byte)(uaecptr,uae_u32);
 uae_u32 (REGPARAM3 *x_cp_get_disp_ea_020)(uae_u32 base, int idx) REGPARAM;
 
-void (*x_do_cycles)(uae_u32);
-void (*x_do_cycles_pre)(uae_u32);
-void (*x_do_cycles_post)(uae_u32, uae_u32);
+void (*x_do_cycles)(int);
+void (*x_do_cycles_pre)(int);
+void (*x_do_cycles_post)(int, uae_u32);
 
 uae_u32(*x_phys_get_iword)(uaecptr);
 uae_u32(*x_phys_get_ilong)(uaecptr);
@@ -421,7 +421,7 @@ static bool check_trace (void)
 	x_do_cycles_pre = x2_do_cycles_pre;
 	x_do_cycles_post = x2_do_cycles_post;
 	set_x_cp_funcs();
-	write_log(_T("CPU tracer playback complete. STARTCYCLES=%08x NOWCYCLES=%08x\n"), cputrace.startcycles, get_cycles());
+	write_log(_T("CPU tracer playback complete. STARTCYCLES=%016llx NOWCYCLES=%016llx\n"), cputrace.startcycles, get_cycles());
 	cputrace.needendcycles = 1;
 	cpu_tracer = 0;
 	return true;
@@ -675,7 +675,7 @@ static void cputracefunc2_x_put_byte (uaecptr o, uae_u32 val)
 		write_log (_T("cputracefunc2_x_put_byte %d <> %d\n"), v, val);
 }
 
-static void cputracefunc_x_do_cycles (uae_u32 cycles)
+static void cputracefunc_x_do_cycles(int cycles)
 {
 	while (cycles >= CYCLE_UNIT) {
 		cputrace.cyclecounter += CYCLE_UNIT;
@@ -688,7 +688,7 @@ static void cputracefunc_x_do_cycles (uae_u32 cycles)
 	}
 }
 
-static void cputracefunc2_x_do_cycles (uae_u32 cycles)
+static void cputracefunc2_x_do_cycles(int cycles)
 {
 	if (cputrace.cyclecounter > cycles) {
 		cputrace.cyclecounter -= cycles;
@@ -702,7 +702,7 @@ static void cputracefunc2_x_do_cycles (uae_u32 cycles)
 		x_do_cycles (cycles);
 }
 
-static void cputracefunc_x_do_cycles_pre (uae_u32 cycles)
+static void cputracefunc_x_do_cycles_pre(int cycles)
 {
 	cputrace.cyclecounter_post = 0;
 	cputrace.cyclecounter_pre = 0;
@@ -719,7 +719,7 @@ static void cputracefunc_x_do_cycles_pre (uae_u32 cycles)
 }
 // cyclecounter_pre = how many cycles we need to SWALLOW
 // -1 = rerun whole access
-static void cputracefunc2_x_do_cycles_pre (uae_u32 cycles)
+static void cputracefunc2_x_do_cycles_pre (int cycles)
 {
 	if (cputrace.cyclecounter_pre == -1) {
 		cputrace.cyclecounter_pre = 0;
@@ -739,7 +739,7 @@ static void cputracefunc2_x_do_cycles_pre (uae_u32 cycles)
 		x_do_cycles (cycles);
 }
 
-static void cputracefunc_x_do_cycles_post (uae_u32 cycles, uae_u32 v)
+static void cputracefunc_x_do_cycles_post (int cycles, uae_u32 v)
 {
 	if (cputrace.memoryoffset < 1) {
 #if CPUTRACE_DEBUG
@@ -763,9 +763,9 @@ static void cputracefunc_x_do_cycles_post (uae_u32 cycles, uae_u32 v)
 	cputrace.cyclecounter_post = 0;
 }
 // cyclecounter_post = how many cycles we need to WAIT
-static void cputracefunc2_x_do_cycles_post (uae_u32 cycles, uae_u32 v)
+static void cputracefunc2_x_do_cycles_post (int cycles, uae_u32 v)
 {
-	uae_u32 c;
+	int c;
 	if (cputrace.cyclecounter_post) {
 		c = cputrace.cyclecounter_post;
 		cputrace.cyclecounter_post = 0;
@@ -777,15 +777,15 @@ static void cputracefunc2_x_do_cycles_post (uae_u32 cycles, uae_u32 v)
 		x_do_cycles (c);
 }
 
-static void do_cycles_post (uae_u32 cycles, uae_u32 v)
+static void do_cycles_post (int cycles, uae_u32 v)
 {
 	do_cycles (cycles);
 }
-static void do_cycles_ce_post (uae_u32 cycles, uae_u32 v)
+static void do_cycles_ce_post (int cycles, uae_u32 v)
 {
 	do_cycles_ce (cycles);
 }
-static void do_cycles_ce020_post (uae_u32 cycles, uae_u32 v)
+static void do_cycles_ce020_post (int cycles, uae_u32 v)
 {
 	do_cycles_ce020 (cycles);
 }
@@ -979,10 +979,15 @@ static void set_x_funcs (void)
 				x_get_byte = get_byte_dc030;
 			}
 		}
-		x_do_cycles = do_cycles;
-		x_do_cycles_pre = do_cycles;
-		x_do_cycles_post = do_cycles_post;
-
+		if (currprefs.cpu_cycle_exact) {
+			x_do_cycles = do_cycles_ce020;
+			x_do_cycles_pre = do_cycles_ce020;
+			x_do_cycles_post = do_cycles_ce020_post;
+		} else {
+			x_do_cycles = do_cycles;
+			x_do_cycles_pre = do_cycles;
+			x_do_cycles_post = do_cycles_post;
+		}
 	} else if (currprefs.cpu_model < 68020) {
 		// 68000/010
 		if (currprefs.cpu_cycle_exact) {
@@ -2033,15 +2038,24 @@ static void update_68k_cycles (void)
 	if (currprefs.m68k_speed == 0) { // approximate
 		cycles_mult = CYCLES_DIV;
 		if (currprefs.cpu_model >= 68040) {
-			cycles_mult = CYCLES_DIV / 12;
+			if (currprefs.mmu_model) {
+				cycles_mult = CYCLES_DIV / 20;
+			} else {
+				cycles_mult = CYCLES_DIV / 12;
+			}
 		} else if (currprefs.cpu_model >= 68020) {
-			cycles_mult = CYCLES_DIV / 6;
+			if (currprefs.mmu_model) {
+				cycles_mult = CYCLES_DIV / 10;
+			} else {
+				cycles_mult = CYCLES_DIV / 6;
+			}
 		}
+
 		if (!currprefs.cpu_cycle_exact) {
 			if (currprefs.m68k_speed_throttle < 0) {
-				cycles_mult = (cycles_mult * 1000) / (1000 + currprefs.m68k_speed_throttle);
+				cycles_mult = (uae_u32)((cycles_mult * 1000) / (1000 + currprefs.m68k_speed_throttle));
 			} else if (currprefs.m68k_speed_throttle > 0) {
-				cycles_mult = (cycles_mult * 1000) / (1000 + currprefs.m68k_speed_throttle);
+				cycles_mult = (uae_u32)((cycles_mult * 1000) / (1000 + currprefs.m68k_speed_throttle));
 			}
 		}
 	} else {
@@ -4179,7 +4193,7 @@ int cpu_sleep_millis(int ms)
 // 1-9 = wait, levels
 // 10 = max wait
 
-static bool haltloop_do(int vsynctimeline, int rpt_end, int lines)
+static bool haltloop_do(int vsynctimeline, frame_time_t rpt_end, int lines)
 {
 	int ovpos = vpos;
 	while (lines-- >= 0) {
@@ -4215,7 +4229,7 @@ static bool haltloop_do(int vsynctimeline, int rpt_end, int lines)
 #endif
 			if (event_wait)
 				break;
-			int d = read_processor_time() - rpt_end;
+			frame_time_t d = read_processor_time() - rpt_end;
 			if (d < -2 * vsynctimeline || d >= 0)
 				break;
 		}
@@ -4231,10 +4245,10 @@ static bool haltloop(void)
 		int ovpos = vpos;
 
 		while (regs.halted) {
-			int vsynctimeline = vsynctimebase / (maxvpos_display + 1);
+			int vsynctimeline = (int)(vsynctimebase / (maxvpos_display + 1));
 			int lines;
-			int rpt_scanline = read_processor_time();
-			int rpt_end = rpt_scanline + vsynctimeline;
+			frame_time_t rpt_scanline = read_processor_time();
+			frame_time_t rpt_end = rpt_scanline + vsynctimeline;
 
 			// See expansion handling.
 			// Dialog must be opened from main thread.
@@ -4265,7 +4279,7 @@ static bool haltloop(void)
 				check_uae_int_request();
 				uae_ppc_execute_check();
 
-				lines = (read_processor_time() - rpt_scanline) / vsynctimeline + 1;
+				lines = (int)(read_processor_time() - rpt_scanline) / vsynctimeline + 1;
 
 			} else {
 
@@ -4875,7 +4889,7 @@ static void m68k_run_1_ce (void)
 cont:
 				if (cputrace.needendcycles) {
 					cputrace.needendcycles = 0;
-					write_log(_T("STARTCYCLES=%08x ENDCYCLES=%08x\n"), cputrace.startcycles, get_cycles());
+					write_log(_T("STARTCYCLES=%016llx ENDCYCLES=%016llx\n"), cputrace.startcycles, get_cycles());
 					log_dma_record ();
 				}
 
@@ -6909,7 +6923,7 @@ uae_u8 *save_cpu_trace (int *len, uae_u8 *dstptr)
 	else
 		dstbak = dst = xmalloc (uae_u8, 10000);
 
-	save_u32 (2 | 4 | 16 | 32 | 64);
+	save_u32 (2 | 4 | 16 | 32 | 64 | 128);
 	save_u16 (cputrace.opcode);
 	for (int i = 0; i < 16; i++)
 		save_u32 (cputrace.regs[i]);
@@ -6928,7 +6942,7 @@ uae_u8 *save_cpu_trace (int *len, uae_u8 *dstptr)
 	save_u32 (cputrace.readcounter);
 	save_u32 (cputrace.writecounter);
 	save_u32 (cputrace.memoryoffset);
-	write_log (_T("CPUT SAVE: PC=%08x C=%08X %08x %08x %08x %d %d %d\n"),
+	write_log (_T("CPUT SAVE: PC=%08x C=%016llX %08x %08x %08x %d %d %d\n"),
 		cputrace.pc, cputrace.startcycles,
 		cputrace.cyclecounter, cputrace.cyclecounter_pre, cputrace.cyclecounter_post,
 		cputrace.readcounter, cputrace.writecounter, cputrace.memoryoffset);
@@ -6938,7 +6952,7 @@ uae_u8 *save_cpu_trace (int *len, uae_u8 *dstptr)
 		save_u32 (cputrace.ctm[i].mode);
 		write_log (_T("CPUT%d: %08x %08x %08x\n"), i, cputrace.ctm[i].addr, cputrace.ctm[i].data, cputrace.ctm[i].mode);
 	}
-	save_u32 (cputrace.startcycles);
+	save_u32 ((uae_u32)cputrace.startcycles);
 
 	if (currprefs.cpu_model == 68020) {
 		for (int i = 0; i < CACHELINES020; i++) {
@@ -6967,6 +6981,8 @@ uae_u8 *save_cpu_trace (int *len, uae_u8 *dstptr)
 	save_u16(cputrace.ird);
 	save_u16(cputrace.read_buffer);
 	save_u16(cputrace.writecounter);
+
+	save_u32(cputrace.startcycles >> 32);
 
 	*len = dst - dstbak;
 	cputrace.needendcycles = 1;
@@ -7003,7 +7019,7 @@ uae_u8 *restore_cpu_trace (uae_u8 *src)
 		cputrace.ctm[i].data = restore_u32 ();
 		cputrace.ctm[i].mode = restore_u32 ();
 	}
-	cputrace.startcycles = restore_u32 ();
+	cputrace.startcycles = restore_u32();
 
 	if (v & 4) {
 		if (currprefs.cpu_model == 68020) {
@@ -7060,6 +7076,10 @@ uae_u8 *restore_cpu_trace (uae_u8 *src)
 				cputrace.read_buffer = restore_u16();
 				cputrace.write_buffer = restore_u16();
 			}
+		}
+
+		if (v & 128) {
+			cputrace.startcycles |= ((uae_u64)restore_u32()) << 32;
 		}
 	}
 

@@ -89,8 +89,8 @@ static int blitter_hcounter;
 static int blitter_vcounter;
 #endif
 
-static long blit_firstline_cycles;
-static long blit_first_cycle;
+static evt_t blit_firstline_cycles;
+static evt_t blit_first_cycle;
 static int blit_last_cycle, blit_dmacount, blit_cyclecount;
 static int blit_linecycles, blit_extracycles;
 static int blit_faulty;
@@ -429,6 +429,7 @@ static void blitter_end(void)
 	if (log_blitter & 1) {
 		write_log(_T("cycles %d, missed %d, total %d\n"),
 			blit_totalcyclecounter, blit_misscyclecounter, blit_totalcyclecounter + blit_misscyclecounter);
+
 	}
 	blt_info.blitter_dangerous_bpl = 0;
 }
@@ -1976,7 +1977,7 @@ void maybe_blit (int hpos, int hack)
 		goto end;
 	}
 
-	if (hack == 1 && (int)get_cycles() - (int)blit_firstline_cycles < 0)
+	if (hack == 1 && get_cycles() < blit_firstline_cycles)
 		goto end;
 
 	blitter_handler(0);
@@ -2013,7 +2014,7 @@ int blitnasty (void)
 	}
 	if (blit_last_cycle >= blit_cyclecount && blit_dmacount == blit_cyclecount)
 		return 0;
-	cycles = (get_cycles() - blit_first_cycle) / CYCLE_UNIT;
+	cycles = int((get_cycles() - blit_first_cycle) / CYCLE_UNIT);
 	ccnt = 0;
 	while (blit_last_cycle + blit_cyclecount < cycles) {
 		ccnt += blit_dmacount;
@@ -2204,6 +2205,7 @@ uae_u8 *restore_blitter_new(uae_u8 *src)
 	restore_u8();
 	restore_u8();
 	restore_u8();
+	restore_u8();
 
 	if (restore_u16() != 0x1234) {
 		write_log(_T("blitter state restore error\n"));
@@ -2277,12 +2279,12 @@ uae_u8 *save_blitter_new(int *len, uae_u8 *dstptr)
 			blitter_dump();
 	}
 
-	save_u32(blit_first_cycle);
+	save_u32((uae_u32)blit_first_cycle);
 	save_u32(blit_last_cycle);
 	save_u32(blit_waitcyclecounter);
 	save_u32(0); //(blit_startcycles);
 	save_u32(blit_maxcyclecounter);
-	save_u32(blit_firstline_cycles);
+	save_u32((uae_u32)blit_firstline_cycles);
 	save_u32(blit_cyclecounter);
 	save_u32(blit_slowdown);
 	save_u32(blit_misscyclecounter);
@@ -2336,6 +2338,9 @@ uae_u8 *save_blitter_new(int *len, uae_u8 *dstptr)
 	save_u8((shifter[0] ? 1 : 0) | (shifter[1] ? 2 : 0) | (shifter[2] ? 4 : 0) | (shifter[3] ? 8 : 0));
 	save_u8(blt_info.blit_finald);
 	save_u8(blit_ovf);
+
+	save_u32(blit_first_cycle >> 32);
+	save_u32(blit_firstline_cycles >> 32);
 
 	*len = dst - dstbak;
 	return dstbak;

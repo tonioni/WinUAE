@@ -161,7 +161,7 @@ static struct teststore testmode_data[TESTMODE_MAX];
 static struct teststore testmode_wait[TESTMODE_MAX];
 
 static int bouncy;
-static signed long bouncy_cycles;
+static frame_time_t bouncy_cycles;
 static int autopause;
 
 #define HANDLE_IE_FLAG_CANSTOPPLAYBACK 1

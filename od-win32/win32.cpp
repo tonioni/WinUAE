@@ -314,7 +314,7 @@ int target_sleep_nanos(int nanos)
 		if (nanos < 0)
 			return 800;
 		LARGE_INTEGER interval;
-		int start = read_processor_time();
+		frame_time_t start = read_processor_time();
 		nanos *= 10;
 		if (nanos < ActualTimerResolution)
 			nanos = ActualTimerResolution;
@@ -471,7 +471,7 @@ extern HANDLE waitvblankevent;
 static int sleep_millis2 (int ms, bool main)
 {
 	UINT TimerEvent;
-	int start = 0;
+	frame_time_t start = 0;
 	int cnt;
 	HANDLE sound_event = get_sound_event();
 	bool wasneg = ms < 0;
