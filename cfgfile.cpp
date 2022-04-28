@@ -2291,7 +2291,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	cfgfile_dwrite(f, _T("gfx_frame_slices"), _T("%d"), p->gfx_display_sections);
 	cfgfile_dwrite_bool(f, _T("gfx_vrr_monitor"), p->gfx_variable_sync != 0);
 	cfgfile_dwrite_str(f, _T("gfx_overscanmode"), overscanmodes[p->gfx_overscanmode]);
-	cfgfile_dwrite(f, _T("gfx_monitorblankdelay"), _T("%d"), p->monitorblankdelay);
+	cfgfile_dwrite(f, _T("gfx_monitorblankdelay"), _T("%d"), p->gfx_monitorblankdelay);
 
 #ifdef GFXFILTER
 	for (int j = 0; j < 2; j++) {
@@ -3434,7 +3434,7 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 		|| cfgfile_floatval(option, value, _T("rtg_horiz_zoom_multf"), &p->rtg_horiz_zoom_mult)
 		|| cfgfile_intval(option, value, _T("gfx_horizontal_extra"), &p->gfx_extrawidth, 1)
 		|| cfgfile_intval(option, value, _T("gfx_vertical_extra"), &p->gfx_extraheight, 1)
-		|| cfgfile_intval(option, value, _T("gfx_monitorblankdelay"), &p->monitorblankdelay, 1)
+		|| cfgfile_intval(option, value, _T("gfx_monitorblankdelay"), &p->gfx_monitorblankdelay, 1)
 
 		|| cfgfile_intval (option, value, _T("floppy0sound"), &p->floppyslots[0].dfxclick, 1)
 		|| cfgfile_intval (option, value, _T("floppy1sound"), &p->floppyslots[1].dfxclick, 1)
@@ -8040,7 +8040,7 @@ void default_prefs (struct uae_prefs *p, bool reset, int type)
 	p->clipboard_sharing = false;
 	p->native_code = false;
 	p->lightpen_crosshair = true;
-	p->monitorblankdelay = 1000;
+	p->gfx_monitorblankdelay = 0;
 
 	p->cs_compatible = CP_GENERIC;
 	p->cs_rtc = 2;

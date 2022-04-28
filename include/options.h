@@ -581,6 +581,7 @@ struct uae_prefs {
 	int gfx_variable_sync;
 	bool gfx_windowed_resize;
 	int gfx_overscanmode;
+	int gfx_monitorblankdelay;
 
 	struct gfx_filterdata gf[2];
 
@@ -649,7 +650,6 @@ struct uae_prefs {
 	int uaescsidevmode;
 	bool reset_delay;
 	bool crash_auto_reset;
-	int monitorblankdelay;
 
 	int cs_compatible;
 	int cs_ciaatod;

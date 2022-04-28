@@ -2389,6 +2389,7 @@ int check_prefs_changed_gfx (void)
 	c |= currprefs.gfx_scandoubler != changed_prefs.gfx_scandoubler ? (2 | 8) : 0;
 	c |= currprefs.gfx_threebitcolors != changed_prefs.gfx_threebitcolors ? (256) : 0;
 	c |= currprefs.gfx_grayscale != changed_prefs.gfx_grayscale ? (512) : 0;
+	c |= currprefs.gfx_monitorblankdelay != changed_prefs.gfx_monitorblankdelay ? (512) : 0;
 
 	c |= currprefs.gfx_display_sections != changed_prefs.gfx_display_sections ? (512) : 0;
 	c |= currprefs.gfx_variable_sync != changed_prefs.gfx_variable_sync ? 1 : 0;
@@ -2490,6 +2491,7 @@ int check_prefs_changed_gfx (void)
 		currprefs.gfx_scandoubler = changed_prefs.gfx_scandoubler;
 		currprefs.gfx_threebitcolors = changed_prefs.gfx_threebitcolors;
 		currprefs.gfx_grayscale = changed_prefs.gfx_grayscale;
+		currprefs.gfx_monitorblankdelay = changed_prefs.gfx_monitorblankdelay;
 
 		currprefs.gfx_display_sections = changed_prefs.gfx_display_sections;
 		currprefs.gfx_variable_sync = changed_prefs.gfx_variable_sync;

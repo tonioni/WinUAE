@@ -512,6 +512,7 @@
 #define IDC_GRAYSCALE                   1183
 #define IDC_OVERSCANMODE                1184
 #define IDC_FRAMERATE                   1185
+#define IDC_RESYNCBLANK                 1186
 #define IDC_XSIZE                       1187
 #define IDC_YSIZE                       1188
 #define IDC_INPUTAUTOFIRERATE           1188
