@@ -2234,10 +2234,10 @@ static int bplsprchipsetbug(int nr, int fm, int hpos)
 	uae_u16 v2;
 	if (fm == 0) {
 		v = fetch16(px, -1);
-		v2 = v;
+		v2 = (uae_u16)v;
 	} else if (fm == 1) {
 		v = fetch32(px);
-		v2 = v >> 16;
+		v2 = (uae_u16)(v >> 16);
 	} else {
 		v = fetch64(px);
 		v2 = v >> 48;
@@ -3949,8 +3949,8 @@ STATIC_INLINE int bpl_select_plane(int hpos, int plane, bool modulo)
 	}
 	return false;
 }
-static void do_copper_fetch(int hpos, uae_u8 id);
-static void do_sprite_fetch(int hpos, uae_u8 dat);
+static void do_copper_fetch(int hpos, uae_u16 id);
+static void do_sprite_fetch(int hpos, uae_u16 dat);
 
 static void scandoubler_bpl_dma_start(void)
 {
@@ -6722,8 +6722,8 @@ static void vhpos_adj(uae_u16 *hpp, uae_u16 *vpp)
 {
 	uae_u16 hp = *hpp;
 	uae_u16 vp = *vpp;
-	if (hp == 0) {
-		// HP=0: VP = previous line.
+	if (hp <= 1) {
+		// HP=0-1: VP = previous line.
 		vp = vpos_prev;
 	}
 	*hpp = hp;
@@ -9178,7 +9178,7 @@ static const int customdelay[]= {
 	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
 };
 
-static void do_copper_fetch(int hpos, uae_u8 id)
+static void do_copper_fetch(int hpos, uae_u16 id)
 {
 	if (scandoubled_line) {
 		return;
@@ -9392,6 +9392,7 @@ static void do_copper_fetch(int hpos, uae_u8 id)
 			if (!copper_enabled_thisline)
 				return;
 
+			// Previous instruction was SKIP that skipped
 			if (cop_state.ignore_next > 0) {
 				reg = 0x1fe;
 			}
@@ -9919,7 +9920,7 @@ static void sprite_fetch_full(struct sprite *s, int hpos, int slot, int mode, ua
 	*v2 = data322;
 }
 
-static void do_sprite_fetch(int hpos, uae_u8 dat)
+static void do_sprite_fetch(int hpos, uae_u16 dat)
 {
 	int num = dat & 7;
 	struct sprite *s = &spr[num];
@@ -10841,9 +10842,9 @@ static void vsync_handler_post(void)
 	}
 	if (nosignal_trigger) {
 		nosignal_trigger = false;
-		if (currprefs.monitorblankdelay > 0) {
+		if (currprefs.gfx_monitorblankdelay > 0) {
 			nosignal_status = 1;
-			nosignal_cnt = currprefs.monitorblankdelay / (1000 / vblank_hz);
+			nosignal_cnt = (int)(currprefs.gfx_monitorblankdelay / (1000.0f / vblank_hz));
 			if (nosignal_cnt <= 0) {
 				nosignal_cnt = 1;
 			}
@@ -12139,15 +12140,15 @@ static void hsync_handler_post(bool onvsync)
 	CIA_hsync_posthandler(false, false);
 	if (currprefs.cs_cd32cd) {
 		CIA_hsync_posthandler(true, true);
-		CIAB_tod_handler(18);
+		CIAB_tod_handler(35);
 	} else if (ciahsyncs) {
 		CIA_hsync_posthandler(true, ciahsyncs);
 		if (beamcon0 & BEAMCON0_VARHSYEN) {
 			if (hsstop < (maxhpos & ~1) && hsstrt < maxhpos) {
-				CIAB_tod_handler(hsstrt);
+				CIAB_tod_handler(hsstop);
 			}
 		} else {
-			CIAB_tod_handler(18); // hsync start
+			CIAB_tod_handler(35); // hsync end
 		}
 	}
 
