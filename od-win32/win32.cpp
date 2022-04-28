@@ -4290,6 +4290,10 @@ void target_default_options (struct uae_prefs *p, int type)
 		p->win32_rtgscaleaspectratio = -1;
 		p->win32_rtgvblankrate = 0;
 		p->rtg_hardwaresprite = true;
+		p->rtg_overlay = true;
+		p->rtg_vgascreensplit = true;
+		p->rtg_paletteswitch = true;
+		p->rtg_dacswitch = true;
 		p->win32_commandpathstart[0] = 0;
 		p->win32_commandpathend[0] = 0;
 		p->win32_statusbar = 1;
@@ -6789,8 +6793,6 @@ static int parseargs(const TCHAR *argx, const TCHAR *np, const TCHAR *np2)
 		return 2;
 	}
 	if (!_tcscmp (arg, _T("p96test"))) {
-		extern int picasso96_test;
-		picasso96_test = getval (np);
 		return 2;
 	}
 	if (!_tcscmp (arg, _T("minidumpmode"))) {

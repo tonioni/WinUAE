@@ -40,9 +40,13 @@
 #define MULTIDISPLAY 0
 #define WINCURSOR 1
 #define NEWTRAP 1
-#define OVERLAY 1
 
+#define USE_OVERLAY 1
 #define USE_HARDWARESPRITE 1
+#define USE_PALETTESWITCH 1
+#define USE_VGASCREENSPLIT 1
+#define USE_DACSWITCH 1
+
 #define P96TRACING_ENABLED 0
 #define P96TRACING_LEVEL 0
 #define P96TRACING_SETUP_ENABLED 0
@@ -229,7 +233,6 @@ static uaecptr oldscr = 0;
 extern addrbank gfxmem_bank;
 extern addrbank *gfxmem_banks[MAX_RTG_BOARDS];
 extern int rtg_index;
-int picasso96_test;
 
 void lockrtg(void)
 {
@@ -1218,7 +1221,7 @@ static void picasso_handle_vsync2(struct AmigaMonitor *mon)
 #endif
 	}
 
-	getvsyncrate(monid, currprefs.chipset_refreshrate, &mult);
+	getvsyncrate(monid, (float)currprefs.chipset_refreshrate, &mult);
 	if (vsync && mult < 0) {
 		vsynccnt++;
 		if (vsynccnt < 2)
@@ -1431,10 +1434,10 @@ static void picasso_handle_hsync(void)
 #define BLT_FUNC(s,d) *d = (*s) | (*d)
 #include "../p96_blit.cpp"
 #define BLT_NAME BLIT_TRUE_24
-#define BLT_FUNC(s,d) *d = 0xffffffff
+#define BLT_FUNC(s,d) *d = 0xff
 #include "../p96_blit.cpp"
 #define BLT_NAME BLIT_SWAP_24
-#define BLT_FUNC(s,d) tmp = *d ; *d = *s; *s = tmp;
+#define BLT_FUNC(s,d) tmp = *d; *d = *s; *s = tmp;
 #define BLT_TEMP
 #include "../p96_blit.cpp"
 #undef BLT_SIZE
@@ -1482,10 +1485,10 @@ static void picasso_handle_hsync(void)
 #define BLT_FUNC(s,d) *d = (*s) | (*d)
 #include "../p96_blit.cpp"
 #define BLT_NAME BLIT_TRUE_16
-#define BLT_FUNC(s,d) *d = 0xffffffff
+#define BLT_FUNC(s,d) *d = 0xffff
 #include "../p96_blit.cpp"
 #define BLT_NAME BLIT_SWAP_16
-#define BLT_FUNC(s,d) tmp = *d ; *d = *s; *s = tmp;
+#define BLT_FUNC(s,d) tmp = *d; *d = *s; *s = tmp;
 #define BLT_TEMP
 #include "../p96_blit.cpp"
 #undef BLT_SIZE
@@ -1533,10 +1536,10 @@ static void picasso_handle_hsync(void)
 #define BLT_FUNC(s,d) *d = (*s) | (*d)
 #include "../p96_blit.cpp"
 #define BLT_NAME BLIT_TRUE_8
-#define BLT_FUNC(s,d) *d = 0xffffffff
+#define BLT_FUNC(s,d) *d = 0xff
 #include "../p96_blit.cpp"
 #define BLT_NAME BLIT_SWAP_8
-#define BLT_FUNC(s,d) tmp = *d ; *d = *s; *s = tmp;
+#define BLT_FUNC(s,d) tmp = *d; *d = *s; *s = tmp;
 #define BLT_TEMP
 #include "../p96_blit.cpp"
 #undef BLT_SIZE
@@ -2652,12 +2655,20 @@ static void inituaegfx(TrapContext *ctx, uaecptr ABI)
 			flags |= BIF_INDISPLAYCHAIN;
 		}
 	}
-#if OVERLAY
-	flags |= BIF_VIDEOWINDOW;
-#endif
-	flags |= BIF_VGASCREENSPLIT;
-	flags |= BIF_PALETTESWITCH;
-	flags |= (1 << 28);
+
+	if (USE_OVERLAY && currprefs.rtg_overlay) {
+		flags |= BIF_VIDEOWINDOW;
+	}
+	if (USE_VGASCREENSPLIT && currprefs.rtg_vgascreensplit) {
+		flags |= BIF_VGASCREENSPLIT;
+	}
+	if (USE_PALETTESWITCH && currprefs.rtg_paletteswitch) {
+		flags |= BIF_PALETTESWITCH;
+	}
+	if (USE_DACSWITCH && currprefs.rtg_dacswitch) {
+		flags |= BIF_DACSWITCH;
+	}
+
 	trap_put_long(ctx, ABI + PSSO_BoardInfo_Flags, flags);
 	if (debug_rtg_blitter != 3)
 		write_log (_T("P96: Blitter mode = %x!\n"), debug_rtg_blitter);
@@ -2901,7 +2912,7 @@ static int updateclut(TrapContext *ctx, uaecptr clut, int start, int count, int 
 		state->CLUT[coffset].Green = g;
 		state->CLUT[coffset].Blue = b;
 	}
-	if (offset) {
+	if (offset && currprefs.rtg_paletteswitch) {
 		state->dualclut = true;
 	}
 	changed |= picasso_palette(state->CLUT, vidinfo->clut);
@@ -3126,8 +3137,8 @@ static uae_u32 REGPARAM2 picasso_SetPanning (TrapContext *ctx)
 	state->Address = start_of_screen; /* Amiga-side address */
 	state->XOffset = (uae_s16)(trap_get_dreg(ctx, 1) & 0xFFFF);
 	state->YOffset = (uae_s16)(trap_get_dreg(ctx, 2) & 0xFFFF);
-	trap_put_word(ctx, bi + PSSO_BoardInfo_XOffset, state->XOffset);
-	trap_put_word(ctx, bi + PSSO_BoardInfo_YOffset, state->YOffset);
+	trap_put_word(ctx, bi + PSSO_BoardInfo_XOffset, (uae_u16)state->XOffset);
+	trap_put_word(ctx, bi + PSSO_BoardInfo_YOffset, (uae_u16)state->YOffset);
 	state->VirtualWidth = bme_width;
 	state->VirtualHeight = bme_height;
 	state->RGBFormat = (RGBFTYPE)trap_get_dreg(ctx, 7);
@@ -3967,13 +3978,13 @@ void init_hz_p96(int monid)
 	} else if (currprefs.win32_rtgvblankrate == 0) {
 		p96vblank = vblank_hz;
 	} else {
-		p96vblank = currprefs.win32_rtgvblankrate;
+		p96vblank = (float)currprefs.win32_rtgvblankrate;
 	}
 	if (p96vblank <= 0)
 		p96vblank = 60;
 	if (p96vblank >= 300)
 		p96vblank = 300;
-	p96syncrate = maxvpos_nom * vblank_hz / p96vblank;
+	p96syncrate = (int)(maxvpos_nom * vblank_hz / p96vblank);
 	write_log (_T("RTGFREQ: %d*%.4f = %.4f / %.1f = %d\n"), maxvpos_nom, vblank_hz, maxvpos_nom * vblank_hz, p96vblank, p96syncrate);
 }
 
@@ -5686,7 +5697,7 @@ static uae_u32 REGPARAM2 picasso_SetMemoryMode(TrapContext *ctx)
 	return 0;
 }
 
-#if OVERLAY
+#if USE_OVERLAY
 
 #define OVERLAY_COOKIE 0x12345678
 
@@ -6186,7 +6197,7 @@ static void inituaegfxfuncs(TrapContext *ctx, uaecptr start, uaecptr ABI)
 	*/
 	PUTABI (PSSO_BoardInfo_GetCompatibleFormats);
 	dw (0x203c);
-	dl (RGBMASK_8BIT | RGBMASK_15BIT | RGBMASK_16BIT | RGBMASK_24BIT | RGBMASK_32BIT | (OVERLAY ? (RGBFF_Y4U2V2 | RGBFF_Y4U1V1) : 0));
+	dl (RGBMASK_8BIT | RGBMASK_15BIT | RGBMASK_16BIT | RGBMASK_24BIT | RGBMASK_32BIT | (USE_OVERLAY ? (RGBFF_Y4U2V2 | RGBFF_Y4U1V1) : 0));
 	dw (RTS);
 
 	/* CalculateBytesPerRow (optimized) */
@@ -6318,24 +6329,29 @@ static void inituaegfxfuncs(TrapContext *ctx, uaecptr start, uaecptr ABI)
 	RTGCALL2(PSSO_BoardInfo_SetPanning, picasso_SetPanning);
 	RTGCALL2(PSSO_BoardInfo_SetDisplay, picasso_SetDisplay);
 
-	RTGCALL2(PSSO_BoardInfo_SetSprite, picasso_SetSprite);
-	RTGCALL2(PSSO_BoardInfo_SetSpritePosition, picasso_SetSpritePosition);
-	RTGCALL2(PSSO_BoardInfo_SetSpriteImage, picasso_SetSpriteImage);
-	RTGCALL2(PSSO_BoardInfo_SetSpriteColor, picasso_SetSpriteColor);
+	if (USE_HARDWARESPRITE && currprefs.rtg_hardwaresprite) {
+		RTGCALL2(PSSO_BoardInfo_SetSprite, picasso_SetSprite);
+		RTGCALL2(PSSO_BoardInfo_SetSpritePosition, picasso_SetSpritePosition);
+		RTGCALL2(PSSO_BoardInfo_SetSpriteImage, picasso_SetSpriteImage);
+		RTGCALL2(PSSO_BoardInfo_SetSpriteColor, picasso_SetSpriteColor);
+	}
 
 	RTGCALLDEFAULT(PSSO_BoardInfo_ScrollPlanar, PSSO_BoardInfo_ScrollPlanarDefault);
 	RTGCALLDEFAULT(PSSO_BoardInfo_UpdatePlanar, PSSO_BoardInfo_UpdatePlanarDefault);
 	RTGCALLDEFAULT(PSSO_BoardInfo_DrawLine, PSSO_BoardInfo_DrawLineDefault);
 
-#if OVERLAY
-	RTGCALL2(PSSO_BoardInfo_GetFeatureAttrs, picasso_GetFeatureAttrs);
-	RTGCALL2(PSSO_BoardInfo_SetFeatureAttrs, picasso_SetFeatureAttrs);
-	RTGCALL2X(PSSO_BoardInfo_CreateFeature, picasso_CreateFeature);
-	RTGCALL2X(PSSO_BoardInfo_DeleteFeature, picasso_DeleteFeature);
-#endif
+	if (USE_OVERLAY && currprefs.rtg_overlay) {
+		RTGCALL2(PSSO_BoardInfo_GetFeatureAttrs, picasso_GetFeatureAttrs);
+		RTGCALL2(PSSO_BoardInfo_SetFeatureAttrs, picasso_SetFeatureAttrs);
+		RTGCALL2X(PSSO_BoardInfo_CreateFeature, picasso_CreateFeature);
+		RTGCALL2X(PSSO_BoardInfo_DeleteFeature, picasso_DeleteFeature);
+	}
 
-	RTGCALL2(PSSO_SetSplitPosition, picasso_SetSplitPosition);
-	if (picasso96_test) {
+	if (USE_VGASCREENSPLIT && currprefs.rtg_vgascreensplit) {
+		RTGCALL2(PSSO_SetSplitPosition, picasso_SetSplitPosition);
+	}
+
+	if (USE_DACSWITCH && currprefs.rtg_dacswitch) {
 		RTGCALL2(PSSO_BoardInfo_GetCompatibleDACFormats, picasso_GetCompatibleDACFormats);
 		RTGCALL2(PSSO_BoardInfo_CoerceMode, picasso_CoerceMode);
 	}
@@ -6734,8 +6750,8 @@ uae_u8 *save_p96 (int *len, uae_u8 *dstptr)
 	save_u16 (state->Height);
 	save_u16 (state->VirtualWidth);
 	save_u16 (state->VirtualHeight);
-	save_u16 (state->XOffset);
-	save_u16 (state->YOffset);
+	save_u16 ((uae_u16)state->XOffset);
+	save_u16 ((uae_u16)state->YOffset);
 	save_u8 (state->GC_Depth);
 	save_u8 (state->GC_Flags);
 	save_u16 (state->BytesPerRow);
