@@ -493,13 +493,13 @@ static int read_literal_table(struct lzxdata *d)
       }
       symbol = table_four[d->literal_len[pos] + 17 - symbol];
       while((pos < max_symbol) && (count--))
-       d->literal_len[pos++] = symbol;
+       d->literal_len[pos++] = (unsigned char)symbol;
       break;
      }
      default:
      {
       symbol = table_four[d->literal_len[pos] + 17 - symbol];
-      d->literal_len[pos++] = symbol;
+      d->literal_len[pos++] = (unsigned char)symbol;
       break;
      }
     }
@@ -576,7 +576,7 @@ static void decrunch(struct lzxdata *d)
   }
   if(symbol < 256)
   {
-   *d->destination++ = symbol;
+   *d->destination++ = (unsigned char)symbol;
   }
   else
   {
@@ -656,12 +656,12 @@ struct zfile *archive_access_lzx (struct znode *zn)
 		if (!zt || zt->offset != 0)
 			break;
 		znfirst = zt;
-		unpsize += znfirst->size;
+		unpsize += (unsigned int)znfirst->size;
     }
     /* find last file in compressed block */
     znlast = zn;
     while (znlast) {
-		unpsize += znlast->size;
+		unpsize += (unsigned int)znlast->size;
 		if (znlast->offset != 0)
 			break;
 		znlast = znlast->next;
@@ -765,7 +765,7 @@ struct zvolume *archive_directory_lzx (struct zfile *in_file)
  do
  {
   abort = 1; /* assume an error */
-  actual = zfile_fread(archive_header, 1, 31, in_file);
+  actual = (int)zfile_fread(archive_header, 1, 31, in_file);
   if(!zfile_ferror(in_file))
   {
    if(actual) /* 0 is normal and means EOF */
@@ -780,7 +780,7 @@ struct zvolume *archive_directory_lzx (struct zfile *in_file)
      archive_header[26] = 0;
      crc_calc(&d, archive_header, 31);
      temp = archive_header[30]; /* filename length */
-     actual = zfile_fread(header_filename, 1, temp, in_file);
+     actual = (int)zfile_fread(header_filename, 1, temp, in_file);
      if(!zfile_ferror(in_file))
      {
       if(actual == temp)
@@ -788,7 +788,7 @@ struct zvolume *archive_directory_lzx (struct zfile *in_file)
        header_filename[temp] = 0;
        crc_calc(&d, (unsigned char*)header_filename, temp);
        temp = archive_header[14]; /* comment length */
-       actual = zfile_fread(header_comment, 1, temp, in_file);
+       actual = (int)zfile_fread(header_comment, 1, temp, in_file);
        if(!zfile_ferror(in_file))
        {
 	if(actual == temp)

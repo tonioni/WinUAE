@@ -25,7 +25,9 @@ extern void activate_debugger(void);
 typedef unsigned long offs_t;
 
 #define FALSE 0
+#ifndef TRUE
 #define TRUE 1
+#endif
 
 #define TIMER_CALLBACK_MEMBER(x) int x(void *p, int param, int param2)
 extern void standard_irq_callback(int);

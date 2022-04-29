@@ -53,7 +53,7 @@ bool astring::ensure_room(int length)
 	// swap in the new buffer and free the old one
 	char *oldbuf = (m_text == m_smallbuf) ? NULL : m_text;
 	m_text = strcpy(newbuf, m_text);
-	m_len = strlen(m_text);
+	m_len = uaestrlen(m_text);
 	m_alloclen = alloclen;
 	delete[] oldbuf;
 

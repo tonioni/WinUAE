@@ -84,7 +84,7 @@ struct zfile *archive_access_lha (struct znode *zn)
     lhinterface.dicbit = 13;	/* method + 8; -lh5- */
     lhinterface.infile = zf;
     lhinterface.outfile = out;
-    lhinterface.original = zn->size;
+    lhinterface.original = (unsigned long)zn->size;
     lhinterface.packed = zn->packedsize;
 
     switch (zn->method) {

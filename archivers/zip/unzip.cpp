@@ -138,7 +138,7 @@ typedef	struct
 local int unzlocal_getByte(struct zfile *fin,int *pi)
 {
     unsigned char c;
-	int err = zfile_fread(&c, 1, 1, fin);
+	int err = (int)zfile_fread(&c, 1, 1, fin);
     if (err==1)
     {
 	*pi = (int)c;

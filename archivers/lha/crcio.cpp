@@ -152,7 +152,7 @@ putbits(n, x)			/* Write rightmost n bits of x */
 int
 fread_crc(unsigned char *p, int n, struct zfile *fp)
 {
-	n = zfile_fread(p, 1, n, fp);
+	n = (int)zfile_fread(p, 1, n, fp);
 
 	calccrc(p, n);
 	return n;

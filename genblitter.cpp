@@ -58,16 +58,19 @@ static void generate_func(void)
 		printf("uae_u32 dstd=0;\n");
 		printf("uaecptr dstp = 0;\n");
 		printf("for (j = 0; j < b->vblitsize; j++) {\n");
-		printf("\tfor (i = 0; i < b->hblitsize; i++) {\n\t\tuae_u32 bltadat, srca;\n\n");
-		if (c_is_on) printf("\t\tif (ptc) { srcc = chipmem_wget_indirect (ptc); ptc += 2; }\n");
-		if (b_is_on) printf("\t\tif (ptb) {\n\t\t\tuae_u32 bltbdat = b->bltbdat = chipmem_wget_indirect (ptb); ptb += 2;\n");
+		printf("\tfor (i = 0; i < b->hblitsize; i++) {\n");
+		if (a_is_on) {
+			printf("\t\tuae_u32 bltadat, srca;\n");
+		}
+		if (c_is_on) printf("\t\tif (ptc) { srcc = chipmem_wget_indirect(ptc); ptc += 2; }\n");
+		if (b_is_on) printf("\t\tif (ptb) {\n\t\t\tuae_u32 bltbdat = b->bltbdat = chipmem_wget_indirect(ptb); ptb += 2;\n");
 		if (b_is_on) printf("\t\t\tsrcb = (((uae_u32)b->bltbold << 16) | bltbdat) >> bshift;\n");
 		if (b_is_on) printf("\t\t\tb->bltbold = bltbdat;\n\t\t}\n");
-		if (a_is_on) printf("\t\tif (pta) { bltadat = b->bltadat = chipmem_wget_indirect (pta); pta += 2; } else { bltadat = b->bltadat; }\n");
+		if (a_is_on) printf("\t\tif (pta) { bltadat = b->bltadat = chipmem_wget_indirect(pta); pta += 2; } else { bltadat = b->bltadat; }\n");
 		if (a_is_on) printf("\t\tbltadat &= blit_masktable[i];\n");
 		if (a_is_on) printf("\t\tsrca = (((uae_u32)b->bltaold << 16) | bltadat) >> ashift;\n");
 		if (a_is_on) printf("\t\tb->bltaold = bltadat;\n");
-		printf("\t\tif (dstp) chipmem_wput_indirect (dstp, dstd);\n");
+		printf("\t\tif (dstp) chipmem_wput_indirect(dstp, dstd);\n");
 		printf("\t\tdstd = (%s) & 0xFFFF;\n", blitops[blttbl[i]].s);
 		printf("\t\ttotald |= dstd;\n");
 		printf("\t\tif (ptd) { dstp = ptd; ptd += 2; }\n");
@@ -79,7 +82,7 @@ static void generate_func(void)
 		printf("}\n");
 		if (b_is_on) printf("b->bltbhold = srcb;\n");
 		if (c_is_on) printf("b->bltcdat = srcc;\n");
-		printf("\t\tif (dstp) chipmem_wput_indirect (dstp, dstd);\n");
+		printf("\t\tif (dstp) chipmem_wput_indirect(dstp, dstd);\n");
 		printf("if (totald != 0) b->blitzero = 0;\n");
 		printf("}\n");
 
@@ -94,16 +97,19 @@ static void generate_func(void)
 		printf("uae_u32 dstd = 0;\n");
 		printf("uaecptr dstp = 0;\n");
 		printf("for (j = 0; j < b->vblitsize; j++) {\n");
-		printf("\tfor (i = 0; i < b->hblitsize; i++) {\n\t\tuae_u32 bltadat, srca;\n");
-		if (c_is_on) printf("\t\tif (ptc) { srcc = chipmem_wget_indirect (ptc); ptc -= 2; }\n");
-		if (b_is_on) printf("\t\tif (ptb) {\n\t\t\tuae_u32 bltbdat = b->bltbdat = chipmem_wget_indirect (ptb); ptb -= 2;\n");
+		printf("\tfor (i = 0; i < b->hblitsize; i++) {\n");
+		if (a_is_on) {
+			printf("\t\tuae_u32 bltadat, srca;\n");
+		}
+		if (c_is_on) printf("\t\tif (ptc) { srcc = chipmem_wget_indirect(ptc); ptc -= 2; }\n");
+		if (b_is_on) printf("\t\tif (ptb) {\n\t\t\tuae_u32 bltbdat = b->bltbdat = chipmem_wget_indirect(ptb); ptb -= 2;\n");
 		if (b_is_on) printf("\t\t\tsrcb = ((bltbdat << 16) | b->bltbold) >> bshift;\n");
 		if (b_is_on) printf("\t\t\tb->bltbold = bltbdat;\n\t\t}\n");
-		if (a_is_on) printf("\t\tif (pta) { bltadat = b->bltadat = chipmem_wget_indirect (pta); pta -= 2; } else { bltadat = b->bltadat; }\n");
+		if (a_is_on) printf("\t\tif (pta) { bltadat = b->bltadat = chipmem_wget_indirect(pta); pta -= 2; } else { bltadat = b->bltadat; }\n");
 		if (a_is_on) printf("\t\tbltadat &= blit_masktable[i];\n");
 		if (a_is_on) printf("\t\tsrca = (((uae_u32)bltadat << 16) | b->bltaold) >> ashift;\n");
 		if (a_is_on) printf("\t\tb->bltaold = bltadat;\n");
-		printf("\t\tif (dstp) chipmem_wput_indirect (dstp, dstd);\n");
+		printf("\t\tif (dstp) chipmem_wput_indirect(dstp, dstd);\n");
 		printf("\t\tdstd = (%s) & 0xFFFF;\n", blitops[blttbl[i]].s);
 		printf("\t\ttotald |= dstd;\n");
 		printf("\t\tif (ptd) { dstp = ptd; ptd -= 2; }\n");
@@ -115,7 +121,7 @@ static void generate_func(void)
 		printf("}\n");
 		if (b_is_on) printf("b->bltbhold = srcb;\n");
 		if (c_is_on) printf("b->bltcdat = srcc;\n");
-		printf("\t\tif (dstp) chipmem_wput_indirect (dstp, dstd);\n");
+		printf("\t\tif (dstp) chipmem_wput_indirect(dstp, dstd);\n");
 		printf("if (totald != 0) b->blitzero = 0;\n");
 		printf("}\n");
     }
