@@ -170,7 +170,7 @@ static const TCHAR *getmsg (int msg)
 static void trimws (TCHAR *s)
 {
 	/* Delete trailing whitespace.  */
-	int len = _tcslen (s);
+	size_t len = _tcslen (s);
 	while (len > 0 && _tcscspn (s + len - 1, _T("\t \r\n")) == 0)
 		s[--len] = '\0';
 }
@@ -250,7 +250,7 @@ static LRESULT deviceactivity(WPARAM wParam, LPARAM lParam)
 {
 	int num = HIBYTE(wParam);
 	int cat = LOBYTE(wParam);
-	uae_u32 mask = lParam;
+	uae_u32 mask = (uae_u32)lParam;
 	write_log(_T("DEVICEACTIVITY %04x %08x (%d,%d)\n"), wParam, lParam, num, cat);
 	if (cat != RP_DEVICECATEGORY_INPUTPORT && cat != RP_DEVICECATEGORY_MULTITAPPORT) {
 		write_log(_T("DEVICEACTIVITY Not RP_DEVICECATEGORY_INPUTPORT or RP_DEVICECATEGORY_MULTITAPPORT.\n"));
@@ -1212,7 +1212,7 @@ static int movescreenoverlay(WPARAM wParam, LPARAM lParam)
 	struct extoverlay eo = { 0 };
 	if (!D3D_extoverlay)
 		return 0;
-	eo.idx = wParam;
+	eo.idx = (int)wParam;
 	eo.xpos = LOWORD(lParam);
 	eo.ypos = HIWORD(lParam);
 	int ret = D3D_extoverlay(&eo);
@@ -1229,7 +1229,7 @@ static int deletescreenoverlay(WPARAM wParam)
 	if (!D3D_extoverlay)
 		return 0;
 	delayed_refresh = gett();
-	eo.idx = wParam;
+	eo.idx = (int)wParam;
 	eo.width = -1;
 	eo.height = -1;
 	return D3D_extoverlay(&eo);
@@ -2119,7 +2119,7 @@ void rp_mouse_magic (int magic)
 	rp_mouse ();
 }
 
-void rp_activate (int active, LPARAM lParam)
+void rp_activate (WPARAM active, LPARAM lParam)
 {
 	if (!cando ())
 		return;

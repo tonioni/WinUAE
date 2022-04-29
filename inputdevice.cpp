@@ -441,7 +441,7 @@ uae_u8 *restore_input (uae_u8 *src)
 	}
 	return src;
 }
-uae_u8 *save_input (int *len, uae_u8 *dstptr)
+uae_u8 *save_input (size_t *len, uae_u8 *dstptr)
 {
 	uae_u8 *dstbak, *dst;
 
@@ -9623,7 +9623,7 @@ void inputdevice_fix_prefs(struct uae_prefs *p, bool userconfig)
 
 // for state recorder use only!
 
-uae_u8 *save_inputstate (int *len, uae_u8 *dstptr)
+uae_u8 *save_inputstate (size_t *len, uae_u8 *dstptr)
 {
 	uae_u8 *dstbak, *dst;
 

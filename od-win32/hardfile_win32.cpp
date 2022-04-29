@@ -2852,7 +2852,7 @@ static bool getstorageinfo(uae_driveinfo *udi, STORAGE_DEVICE_NUMBER sdnp)
 static void checkhdname(struct uae_driveinfo *udi)
 {
 	int cnt = 1;
-	int off = _tcslen(udi->device_name);
+	size_t off = _tcslen(udi->device_name);
 	TCHAR tmp[MAX_DPATH];
 	_tcscpy(tmp, udi->device_name);
 	udi->device_name[0] = 0;

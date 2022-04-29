@@ -46,6 +46,8 @@ typedef uae_u32 uintptr;
 #define USE_JIT
 #endif
 
+#define JITPTR (uae_u32)(uintptr)
+
 #ifdef USE_JIT
 
 #ifdef JIT_DEBUG

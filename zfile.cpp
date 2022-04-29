@@ -2111,11 +2111,11 @@ struct zfile *zfile_fopen_data (const TCHAR *name, uae_u64 size, const uae_u8 *d
 }
 
 /* dump file use only */
-uae_u8 *zfile_get_data_pointer(struct zfile *z, int *len)
+uae_u8 *zfile_get_data_pointer(struct zfile *z, size_t *len)
 {
 	if (!z->data)
 		return NULL;
-	*len = (int)z->size;
+	*len = z->size;
 	return z->data;
 }
 
@@ -2485,7 +2485,7 @@ int zfile_zuncompress (void *dst, int dstsize, struct zfile *src, int srcsize)
 	return 0;
 }
 
-int zfile_zcompress (struct zfile *f, void *src, int size)
+int zfile_zcompress(struct zfile *f, void *src, size_t size)
 {
 	int v;
 	z_stream zs;

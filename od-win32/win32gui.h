@@ -42,7 +42,7 @@ typedef struct
 	HMENU     hMenu;       /* Dialog menu */
 	UINT      xBaseUnit;   /* Dialog units (depends on the font) */
 	UINT      yBaseUnit;
-	INT       idResult;    /* EndDialog() result / default pushbutton ID */
+	LONG_PTR  idResult;    /* EndDialog() result / default pushbutton ID */
 	UINT      flags;       /* EndDialog() called for this dialog */
 } DIALOGINFO;
 

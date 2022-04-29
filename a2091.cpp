@@ -4355,7 +4355,7 @@ static bool gvp_init(struct autoconfig_info *aci, bool series2, bool accel)
 		if (z) {
 			int size = zfile_size32(z);
 			if (series2) {
-				int total = 0;
+				size_t total = 0;
 				int seekpos = 0;
 				size = zfile_size32(z);
 				if (size > 16384 + 4096) {
@@ -4368,7 +4368,7 @@ static bool gvp_init(struct autoconfig_info *aci, bool series2, bool accel)
 						seekpos = 16384;
 				}
 				while (total < 32768 - 4096) {
-					int prevtotal = total;
+					size_t prevtotal = total;
 					zfile_fseek(z, seekpos, SEEK_SET);
 					total += zfile_fread(wd->rom + total, 1, wd->rom_size - total >= wd->rom_size ? wd->rom_size : wd->rom_size - total, z);
 					if (prevtotal == total)

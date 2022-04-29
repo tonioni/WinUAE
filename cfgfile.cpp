@@ -6573,9 +6573,9 @@ static void subst (TCHAR *p, TCHAR *f, int n)
 	free (str);
 }
 
-const TCHAR *cfgfile_getconfigdata(int *len)
+const TCHAR *cfgfile_getconfigdata(size_t *len)
 {
-	*len = -1;
+	*len = 0;
 	if (!configstore)
 		return NULL;
 	return (TCHAR*)zfile_get_data_pointer(configstore, len);
@@ -7802,7 +7802,7 @@ uae_u8 *restore_configuration (uae_u8 *src)
 	}
 }
 
-uae_u8 *save_configuration (int *len, bool fullconfig)
+uae_u8 *save_configuration (size_t *len, bool fullconfig)
 {
 	int tmpsize = 100000;
 	uae_u8 *dstbak, *dst, *p;

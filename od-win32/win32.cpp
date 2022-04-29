@@ -1807,7 +1807,7 @@ static void processtouch(struct AmigaMonitor *mon, HWND hwnd, WPARAM wParam, LPA
 }
 #endif
 
-static void resizing(struct AmigaMonitor *mon, int mode, RECT *r)
+static void resizing(struct AmigaMonitor *mon, WPARAM mode, RECT *r)
 {
 	int nw = (r->right - r->left) + mon->ratio_adjust_x;
 	int nh = (r->bottom - r->top) + mon->ratio_adjust_y;
@@ -3650,7 +3650,7 @@ void logging_cleanup (void)
 	debugfile = 0;
 }
 
-uae_u8 *save_log (int bootlog, int *len)
+uae_u8 *save_log(int bootlog, size_t *len)
 {
 	FILE *f;
 	uae_u8 *dst = NULL;
@@ -7285,7 +7285,7 @@ static void savedump (MINIDUMPWRITEDUMP dump, HANDLE f, struct _EXCEPTION_POINTE
 	MINIDUMP_USER_STREAM_INFORMATION musi, *musip;
 	MINIDUMP_USER_STREAM mus[3], *musp;
 	uae_u8 *log;
-	int len;
+	size_t len;
 
 	musip = NULL;
 	musi.UserStreamArray = mus;

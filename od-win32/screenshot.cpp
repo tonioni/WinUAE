@@ -948,7 +948,7 @@ void screenshot_reset(void)
 	screenshot_free();
 }
 
-uae_u8 *save_screenshot(int monid, int *len)
+uae_u8 *save_screenshot(int monid, size_t *len)
 {
 #if 0
 	struct amigadisplay *ad = &adisplays[monid];

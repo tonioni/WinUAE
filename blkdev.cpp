@@ -2410,7 +2410,7 @@ void restore_blkdev_start(void)
 	}
 }
 
-uae_u8 *save_cd (int num, int *len)
+uae_u8 *save_cd (int num, size_t *len)
 {
 	struct blkdevstate *st = &state[num];
 	uae_u8 *dstbak, *dst;

@@ -2292,7 +2292,7 @@ static uae_u8 get_noise(void)
 struct png_cb
 {
 	uae_u8 *ptr;
-	int size;
+	size_t size;
 };
 
 static void __cdecl readcallback(png_structp png_ptr, png_bytep out, png_size_t count)

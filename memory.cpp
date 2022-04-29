@@ -3439,7 +3439,7 @@ void map_banks_nojitdirect (addrbank *bank, int start, int size, int realsize)
 
 /* memory save/restore code */
 
-uae_u8 *save_bootrom (int *len)
+uae_u8 *save_bootrom(size_t *len)
 {
 	if (!uae_boot_rom_type)
 		return 0;
@@ -3447,66 +3447,66 @@ uae_u8 *save_bootrom (int *len)
 	return rtarea_bank.baseaddr;
 }
 
-uae_u8 *save_cram (int *len)
+uae_u8 *save_cram(size_t *len)
 {
 	*len = chipmem_bank.allocated_size;
 	return chipmem_bank.baseaddr;
 }
 
-uae_u8 *save_bram (int *len)
+uae_u8 *save_bram(size_t *len)
 {
 	*len = bogomem_bank.allocated_size;
 	return bogomem_bank.baseaddr;
 }
 
-static uae_u8 *save_mem25bitram (int *len)
+static uae_u8 *save_mem25bitram(size_t *len)
 {
 	*len = mem25bit_bank.allocated_size;
 	return mem25bit_bank.baseaddr;
 }
 
-uae_u8 *save_a3000lram (int *len)
+uae_u8 *save_a3000lram(size_t *len)
 {
 	*len = a3000lmem_bank.allocated_size;
 	return a3000lmem_bank.baseaddr;
 }
 
-uae_u8 *save_a3000hram (int *len)
+uae_u8 *save_a3000hram(size_t *len)
 {
 	*len = a3000hmem_bank.allocated_size;
 	return a3000hmem_bank.baseaddr;
 }
 
-void restore_bootrom (int len, size_t filepos)
+void restore_bootrom(int len, size_t filepos)
 {
 	bootrom_filepos = filepos;
 }
 
-void restore_cram (int len, size_t filepos)
+void restore_cram(int len, size_t filepos)
 {
 	chip_filepos = filepos;
 	changed_prefs.chipmem.size = len;
 }
 
-void restore_bram (int len, size_t filepos)
+void restore_bram(int len, size_t filepos)
 {
 	bogo_filepos = filepos;
 	changed_prefs.bogomem.size = len;
 }
 
-void restore_a3000lram (int len, size_t filepos)
+void restore_a3000lram(int len, size_t filepos)
 {
 	a3000lmem_filepos = filepos;
 	changed_prefs.mbresmem_low.size = len;
 }
 
-void restore_a3000hram (int len, size_t filepos)
+void restore_a3000hram(int len, size_t filepos)
 {
 	a3000hmem_filepos = filepos;
 	changed_prefs.mbresmem_high.size = len;
 }
 
-uae_u8 *restore_rom (uae_u8 *src)
+uae_u8 *restore_rom(uae_u8 *src)
 {
 	uae_u32 crc32, mem_start, mem_size, mem_type, version;
 	TCHAR *s, *romn;
@@ -3564,7 +3564,7 @@ uae_u8 *restore_rom (uae_u8 *src)
 	return src;
 }
 
-uae_u8 *save_rom (int first, int *len, uae_u8 *dstptr)
+uae_u8 *save_rom(int first, size_t *len, uae_u8 *dstptr)
 {
 	static int count;
 	uae_u8 *dst, *dstbak;

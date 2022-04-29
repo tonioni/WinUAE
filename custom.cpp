@@ -13797,7 +13797,7 @@ uae_u8 *restore_custom(uae_u8 *src)
 #define SW save_u16
 #define SL save_u32
 
-uae_u8 *save_custom(int *len, uae_u8 *dstptr, int full)
+uae_u8 *save_custom(size_t *len, uae_u8 *dstptr, int full)
 {
 	uae_u8 *dstbak, *dst;
 	int i, dummy;
@@ -13995,7 +13995,7 @@ uae_u8 *restore_custom_agacolors(uae_u8 *src)
 	return src;
 }
 
-uae_u8 *save_custom_agacolors(int *len, uae_u8 *dstptr)
+uae_u8 *save_custom_agacolors(size_t *len, uae_u8 *dstptr)
 {
 	uae_u8 *dstbak, *dst;
 
@@ -14042,7 +14042,7 @@ uae_u8 *restore_custom_sprite(int num, uae_u8 *src)
 	return src;
 }
 
-uae_u8 *save_custom_sprite(int num, int *len, uae_u8 *dstptr)
+uae_u8 *save_custom_sprite(int num, size_t *len, uae_u8 *dstptr)
 {
 	uae_u8 *dstbak, *dst;
 	struct sprite *s = &spr[num];
@@ -14129,7 +14129,7 @@ uae_u8 *restore_custom_extra(uae_u8 *src)
 	return src;
 }
 
-uae_u8 *save_custom_extra(int *len, uae_u8 *dstptr)
+uae_u8 *save_custom_extra(size_t *len, uae_u8 *dstptr)
 {
 	uae_u8 *dstbak, *dst;
 
@@ -14204,7 +14204,7 @@ uae_u8 *restore_custom_event_delay(uae_u8 *src)
 	}
 	return src;
 }
-uae_u8 *save_custom_event_delay(int *len, uae_u8 *dstptr)
+uae_u8 *save_custom_event_delay(size_t *len, uae_u8 *dstptr)
 {
 	uae_u8 *dstbak, *dst;
 	int cnt = 0;
@@ -14240,7 +14240,7 @@ uae_u8 *save_custom_event_delay(int *len, uae_u8 *dstptr)
 }
 
 
-uae_u8 *save_cycles(int *len, uae_u8 *dstptr)
+uae_u8 *save_cycles(size_t *len, uae_u8 *dstptr)
 {
 	uae_u8 *dstbak, *dst;
 	if (dstptr)

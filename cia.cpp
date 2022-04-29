@@ -2668,7 +2668,7 @@ uae_u8 *restore_cia (int num, uae_u8 *src)
 	return src;
 }
 
-uae_u8 *save_cia (int num, int *len, uae_u8 *dstptr)
+uae_u8 *save_cia (int num, size_t *len, uae_u8 *dstptr)
 {
 	uae_u8 *dstbak,*dst, b;
 	uae_u16 t;
@@ -2754,7 +2754,7 @@ uae_u8 *save_cia (int num, int *len, uae_u8 *dstptr)
 	return dstbak;
 }
 
-uae_u8 *save_keyboard (int *len, uae_u8 *dstptr)
+uae_u8 *save_keyboard (size_t *len, uae_u8 *dstptr)
 {
 	uae_u8 *dst, *dstbak;
 	if (dstptr)

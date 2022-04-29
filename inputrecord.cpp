@@ -816,7 +816,7 @@ static void savelog (const TCHAR *path, const TCHAR *file)
 	_tcscat (tmp, _T(".log.txt"));
 	struct zfile *zfd = zfile_fopen (tmp, _T("wb"));
 	if (zfd) {
-		int loglen;
+		size_t loglen;
 		uae_u8 *log;
 		loglen = 0;
 		log = save_log (TRUE, &loglen);

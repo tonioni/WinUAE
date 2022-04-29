@@ -137,29 +137,39 @@ static void state_incompatible_warn (void)
 * format independent of host machine's endianness */
 
 static uae_u8 *storepos;
-void save_store_pos_func (uae_u8 **dstp)
+void save_store_pos_func(uae_u8 **dstp)
 {
 	storepos = *dstp;
 	*dstp += 4;
 }
-void save_store_size_func (uae_u8 **dstp)
+void save_store_size_func(uae_u8 **dstp)
 {
 	uae_u8 *p = storepos;
-	save_u32_func (&p, *dstp - storepos);
+	save_u32t_func(&p, *dstp - storepos);
 }
-void restore_store_pos_func (uae_u8 **srcp)
+void restore_store_pos_func(uae_u8 **srcp)
 {
 	storepos = *srcp;
 	*srcp += 4;
 }
-void restore_store_size_func (uae_u8 **srcp)
+void restore_store_size_func(uae_u8 **srcp)
 {
 	uae_u8 *p = storepos;
 	uae_u32 len = restore_u32_func (&p);
 	*srcp = storepos + len;
 }
 
-void save_u32_func (uae_u8 **dstp, uae_u32 v)
+void save_u32t_func(uae_u8** dstp, size_t vv)
+{
+	uae_u32 v = (uae_u32)vv;
+	uae_u8* dst = *dstp;
+	*dst++ = (uae_u8)(v >> 24);
+	*dst++ = (uae_u8)(v >> 16);
+	*dst++ = (uae_u8)(v >> 8);
+	*dst++ = (uae_u8)(v >> 0);
+	*dstp = dst;
+}
+void save_u32_func(uae_u8 **dstp, uae_u32 v)
 {
 	uae_u8 *dst = *dstp;
 	*dst++ = (uae_u8)(v >> 24);
@@ -168,19 +178,19 @@ void save_u32_func (uae_u8 **dstp, uae_u32 v)
 	*dst++ = (uae_u8)(v >> 0);
 	*dstp = dst;
 }
-void save_u64_func (uae_u8 **dstp, uae_u64 v)
+void save_u64_func(uae_u8 **dstp, uae_u64 v)
 {
 	save_u32_func (dstp, (uae_u32)(v >> 32));
 	save_u32_func (dstp, (uae_u32)v);
 }
-void save_u16_func (uae_u8 **dstp, uae_u16 v)
+void save_u16_func(uae_u8 **dstp, uae_u16 v)
 {
 	uae_u8 *dst = *dstp;
 	*dst++ = (uae_u8)(v >> 8);
 	*dst++ = (uae_u8)(v >> 0);
 	*dstp = dst;
 }
-void save_u8_func (uae_u8 **dstp, uae_u8 v)
+void save_u8_func(uae_u8 **dstp, uae_u8 v)
 {
 	uae_u8 *dst = *dstp;
 	*dst++ = v;
@@ -366,13 +376,13 @@ TCHAR *restore_path_full_func(uae_u8 **dstp)
 
 /* read and write IFF-style hunks */
 
-static void save_chunk (struct zfile *f, uae_u8 *chunk, unsigned int len, const TCHAR *name, int compress)
+static void save_chunk (struct zfile *f, uae_u8 *chunk, size_t len, const TCHAR *name, int compress)
 {
 	uae_u8 tmp[8], *dst;
 	uae_u8 zero[4]= { 0, 0, 0, 0 };
 	uae_u32 flags;
-	unsigned int pos;
-	unsigned int chunklen, len2;
+	size_t pos;
+	size_t chunklen, len2;
 	char *s;
 
 	if (!chunk)
@@ -391,26 +401,26 @@ static void save_chunk (struct zfile *f, uae_u8 *chunk, unsigned int len, const 
 	/* chunk size */
 	dst = &tmp[0];
 	chunklen = len + 4 + 4 + 4;
-	save_u32 (chunklen);
+	save_u32t(chunklen);
 	zfile_fwrite (&tmp[0], 1, 4, f);
 	/* chunk flags */
 	flags = 0;
 	dst = &tmp[0];
-	save_u32 (flags | compress);
+	save_u32(flags | compress);
 	zfile_fwrite (&tmp[0], 1, 4, f);
 	/* chunk data */
 	if (compress) {
-		int tmplen = len;
+		size_t tmplen = len;
 		size_t opos;
 		dst = &tmp[0];
-		save_u32 (len);
+		save_u32t(len);
 		opos = zfile_ftell32(f);
-		zfile_fwrite (&tmp[0], 1, 4, f);
-		len = zfile_zcompress (f, chunk, len);
+		zfile_fwrite(&tmp[0], 1, 4, f);
+		len = zfile_zcompress(f, chunk, len);
 		if (len > 0) {
 			zfile_fseek (f, pos, SEEK_SET);
 			dst = &tmp[0];
-			save_u32 (len + 4 + 4 + 4 + 4);
+			save_u32t(len + 4 + 4 + 4 + 4);
 			zfile_fwrite (&tmp[0], 1, 4, f);
 			zfile_fseek (f, 0, SEEK_END);
 		} else {
@@ -887,7 +897,7 @@ void savestate_initsave (const TCHAR *filename, int mode, int nodialogs, bool sa
 static void save_rams (struct zfile *f, int comp)
 {
 	uae_u8 *dst;
-	int len;
+	size_t len;
 
 	dst = save_cram (&len);
 	save_chunk (f, dst, len, _T("CRAM"), comp);
@@ -926,7 +936,8 @@ static int save_state_internal (struct zfile *f, const TCHAR *description, int c
 	TCHAR tmp[100];
 	uae_u8 *dst;
 	TCHAR name[5];
-	int i, len;
+	int i;
+	size_t len;
 
 	write_log (_T("STATESAVE (%s):\n"), f ? zfile_getname (f) : _T("<internal>"));
 	dst = header;
@@ -1225,7 +1236,7 @@ int save_state (const TCHAR *filename, const TCHAR *description)
 		pos = zfile_ftell32(f);
 		save_rams (f, -1);
 		if (savestate_specialdump == 2) {
-			int len, len2, i;
+			size_t len, len2, i;
 			uae_u8 *tmp;
 			len = zfile_ftell32(f) - pos;
 			tmp = xmalloc (uae_u8, len);
@@ -1356,11 +1367,12 @@ void savestate_listrewind (void)
 
 void savestate_rewind (void)
 {
-	int len, i, dummy;
+	int len, i;
 	uae_u8 *p, *p2;
 	struct staterecord *st;
 	int pos;
 	bool rewind = false;
+	size_t dummy;
 
 	if (hsync_counter % currprefs.statecapturerate <= 25 && rewindmode <= -2) {
 		pos = replaycounter - 2;
@@ -1481,7 +1493,7 @@ void savestate_rewind (void)
 
 #define BS 10000
 
-STATIC_INLINE int bufcheck (struct staterecord *sr, uae_u8 *p, int len)
+STATIC_INLINE int bufcheck(struct staterecord *sr, uae_u8 *p, size_t len)
 {
 	if (p - sr->data + BS + len >= sr->len)
 		return 1;
@@ -1501,7 +1513,8 @@ void savestate_memorysave (void)
 void savestate_capture (int force)
 {
 	uae_u8 *p, *p2, *p3, *dst;
-	int i, len, tlen, retrycnt;
+	size_t len, tlen;
+	int i, retrycnt;
 	struct staterecord *st;
 	bool firstcapture = false;
 
@@ -1653,7 +1666,7 @@ retry2:
 	for (i = 0; i < 8; i++) {
 		if (bufcheck (st, p, 0))
 			goto retry;
-		save_custom_sprite (i, &len, p);
+		save_custom_sprite(i, &len, p);
 		tlen += len;
 		p += len;
 	}
@@ -1666,25 +1679,25 @@ retry2:
 		p += len;
 	}
 
-	if (bufcheck (st, p, len))
+	if (bufcheck(st, p, len))
 		goto retry;
 	save_cia (0, &len, p);
 	tlen += len;
 	p += len;
 
-	if (bufcheck (st, p, len))
+	if (bufcheck(st, p, len))
 		goto retry;
 	save_cia (1, &len, p);
 	tlen += len;
 	p += len;
 
-	if (bufcheck (st, p, len))
+	if (bufcheck(st, p, len))
 		goto retry;
 	save_keyboard (&len, p);
 	tlen += len;
 	p += len;
 
-	if (bufcheck (st, p, len))
+	if (bufcheck(st, p, len))
 		goto retry;
 	save_inputstate (&len, p);
 	tlen += len;
@@ -1711,33 +1724,33 @@ retry2:
 	}
 #endif
 
-	dst = save_cram (&len);
-	if (bufcheck (st, p, len))
+	dst = save_cram(&len);
+	if (bufcheck(st, p, len))
 		goto retry;
-	save_u32_func (&p, len);
-	memcpy (p, dst, len);
+	save_u32t_func(&p, len);
+	memcpy(p, dst, len);
 	tlen += len + 4;
 	p += len;
-	dst = save_bram (&len);
-	if (bufcheck (st, p, len))
+	dst = save_bram(&len);
+	if (bufcheck(st, p, len))
 		goto retry;
-	save_u32_func (&p, len);
-	memcpy (p, dst, len);
+	save_u32t_func(&p, len);
+	memcpy(p, dst, len);
 	tlen += len + 4;
 	p += len;
 #ifdef AUTOCONFIG
-	dst = save_fram (&len, 0);
-	if (bufcheck (st, p, len))
+	dst = save_fram(&len, 0);
+	if (bufcheck(st, p, len))
 		goto retry;
-	save_u32_func (&p, len);
-	memcpy (p, dst, len);
+	save_u32t_func(&p, len);
+	memcpy(p, dst, len);
 	tlen += len + 4;
 	p += len;
-	dst = save_zram (&len, 0);
-	if (bufcheck (st, p, len))
+	dst = save_zram(&len, 0);
+	if (bufcheck(st, p, len))
 		goto retry;
-	save_u32_func (&p, len);
-	memcpy (p, dst, len);
+	save_u32t_func(&p, len);
+	memcpy(p, dst, len);
 	tlen += len + 4;
 	p += len;
 #endif
@@ -1841,7 +1854,7 @@ retry2:
 			p += len;
 		}
 	}
-	save_u32_func (&p, tlen);
+	save_u32t_func(&p, tlen);
 	st->end = p;
 	st->inuse = 1;
 	st->inprecoffset = inprec_getposition ();

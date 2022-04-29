@@ -362,7 +362,8 @@ static uae_u32 gw(uae_u8 *p, int off)
 }
 static void ShowCustomSmall(HWND hwnd)
 {
-	int len, i, j, cnt;
+	int i, j, cnt;
+	size_t len;
 	uae_u8 *p1, *p2, *p3, *p4;
 	TCHAR out[MAX_LINEWIDTH + 1];
 
@@ -412,7 +413,8 @@ static void ShowMisc(void)
 {
 	int line = 0;
 	HWND hMisc;
-	int len, i;
+	int i;
+	size_t len;
 	uae_u8 *p, *p2;
 
 	hMisc = GetDlgItem(hDbgWnd, IDC_DBG_MISC);
@@ -460,7 +462,8 @@ static void ShowMisc(void)
 
 static void ShowCustom(void)
 {
-	int len, i, j, end;
+	int i, j, end;
+	size_t len;
 	uae_u8 *p1, *p2, *p3, *p4;
 
 	ULBSINIT(GetDlgItem(hDbgWnd, IDC_DBG_CUSTOM));

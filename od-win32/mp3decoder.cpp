@@ -307,7 +307,7 @@ uae_u8 *mp3decoder::get (struct zfile *zf, uae_u8 *outbuf, int maxsize)
 	}
 	zfile_fseek(zf, 0, SEEK_SET);
 	for (;;) {
-		int count = zfile_fread(mp3buf, 1, MP3_BLOCK_SIZE, zf);
+		size_t count = zfile_fread(mp3buf, 1, MP3_BLOCK_SIZE, zf);
 		if (count != MP3_BLOCK_SIZE)
 			break;
 		// convert the data

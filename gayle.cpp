@@ -2202,7 +2202,7 @@ static void gayle_init(void)
 	device_add_exit(gayle_free);
 }
 
-uae_u8 *save_gayle (int *len, uae_u8 *dstptr)
+uae_u8 *save_gayle(size_t *len, uae_u8 *dstptr)
 {
 	uae_u8 *dstbak, *dst;
 
@@ -2222,7 +2222,7 @@ uae_u8 *save_gayle (int *len, uae_u8 *dstptr)
 	return dstbak;
 }
 
-uae_u8 *save_gayle_ide (int num, int *len, uae_u8 *dstptr)
+uae_u8 *save_gayle_ide(int num, size_t *len, uae_u8 *dstptr)
 {
 	uae_u8 *dstbak, *dst;
 	struct ide_hdf *ide;

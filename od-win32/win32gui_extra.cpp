@@ -896,7 +896,7 @@ static void scaleresource_setfont(struct newresource *nr, HWND hDlg)
 		for (int i = 0; i < nr->setparamcnt; i++) {
 			HWND hwnd = GetDlgItem(hDlg, nr->setparam_id[i]);
 			if (hwnd) {
-				int v = SendMessage(hwnd, CB_GETITEMHEIGHT, -1, NULL);
+				int v = (int)SendMessage(hwnd, CB_GETITEMHEIGHT, -1, NULL);
 				if (v > 0 && mmy(v) > v)
 					SendMessage(hwnd, CB_SETITEMHEIGHT, -1, mmy(v));
 			}

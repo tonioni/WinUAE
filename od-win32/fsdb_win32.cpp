@@ -53,7 +53,7 @@ static TCHAR evilchars[NUM_EVILCHARS] = { '\\', '*', '?', '\"', '<', '>', '|' };
 
 static TCHAR *make_uaefsdbpath (const TCHAR *dir, const TCHAR *name)
 {
-	int len;
+	size_t len;
 	TCHAR *p;
 
 	len = _tcslen (dir) + 1 + 1;
@@ -304,14 +304,15 @@ static a_inode *aino_from_buf (a_inode *base, uae_u8 *buf, int *winmode)
 /* Return nonzero for any name we can't create on the native filesystem.  */
 static int fsdb_name_invalid_2x (const TCHAR *n, int dir)
 {
-	int i;
+	size_t i;
 	static char s1[MAX_DPATH];
 	static WCHAR s2[MAX_DPATH];
 	TCHAR a = n[0];
 	TCHAR b = (a == '\0' ? a : n[1]);
 	TCHAR c = (b == '\0' ? b : n[2]);
 	TCHAR d = (c == '\0' ? c : n[3]);
-	int l = _tcslen (n), ll;
+	size_t l = _tcslen(n);
+	int ll;
 
 	/* the reserved fsdb filename */
 	if (_tcscmp (n, FSDB_FILE) == 0)

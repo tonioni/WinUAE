@@ -1210,19 +1210,19 @@ static inline void raw_jnz_l_oponly(void)
 static inline void raw_jl(uae_u32 t)
 {
 	raw_jcc_l_oponly(NATIVE_CC_LT);
-	emit_long(t-(uintptr)target-4);
+	emit_long(t-(uae_u32)(uintptr)target-4);
 }
 
 static inline void raw_jz(uae_u32 t)
 {
 	raw_jz_l_oponly();
-	emit_long(t-(uintptr)target-4);
+	emit_long(t-(uae_u32)(uintptr)target-4);
 }
 
 static inline void raw_jnz(uae_u32 t)
 {
 	raw_jnz_l_oponly();
-	emit_long(t-(uintptr)target-4);
+	emit_long(t-(uae_u32)(uintptr)target-4);
 }
 
 static inline void raw_jcc_b_oponly(int cc)

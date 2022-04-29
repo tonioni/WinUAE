@@ -994,7 +994,7 @@ static uae_u32 readhex (TCHAR **c, int *size)
 	return readnum (c, size, '$');
 }
 
-static int next_string (TCHAR **c, TCHAR *out, int max, int forceupper)
+static size_t next_string (TCHAR **c, TCHAR *out, int max, int forceupper)
 {
 	TCHAR *p = out;
 	int startmarker = 0;
@@ -1150,7 +1150,7 @@ static void dumpmem (uaecptr addr, uaecptr *nxmem, int lines)
 
 static void dump_custom_regs(bool aga, bool ext)
 {
-	int len;
+	size_t len;
 	uae_u8 *p1, *p2, *p3, *p4;
 	TCHAR extra1[256], extra2[256];
 
@@ -3075,7 +3075,7 @@ static void smc_detector (uaecptr addr, int rwi, int size, uae_u32 *valp)
 	}
 }
 
-uae_u8 *save_debug_memwatch (int *len, uae_u8 *dstptr)
+uae_u8 *save_debug_memwatch (size_t *len, uae_u8 *dstptr)
 {
 	uae_u8 *dstbak, *dst;
 	int total;

@@ -6656,7 +6656,7 @@ static void copylog (const TCHAR *name, const TCHAR *path, FILE *f)
 }
 static void saveconfig (FILE *f)
 {
-	int len;
+	size_t len;
 	uae_u8 *s;
 	
 	s = save_configuration (&len, true);
@@ -6704,7 +6704,7 @@ static void ziplog(const char *name, const TCHAR *path, zipFile zf)
 }
 static void zipconfig(const char *name, zipFile zf)
 {
-	int len;
+	size_t len;
 	uae_u8 *s;
 	zip_fileinfo zi;
 	

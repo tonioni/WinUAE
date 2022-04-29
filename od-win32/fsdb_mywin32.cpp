@@ -557,7 +557,7 @@ FILE *my_opentext (const TCHAR *name)
 {
 	FILE *f;
 	uae_u8 tmp[4];
-	int v;
+	size_t v;
 
 	f = _tfopen (name, _T("rb"));
 	if (!f)
@@ -821,7 +821,8 @@ int my_issamevolume(const TCHAR *path1, const TCHAR *path2, TCHAR *path)
 {
 	TCHAR p1[MAX_DPATH];
 	TCHAR p2[MAX_DPATH];
-	int len, cnt;
+	int cnt;
+	size_t len;
 
 	my_canonicalize_path(path1, p1, sizeof p1 / sizeof (TCHAR));
 	my_canonicalize_path(path2, p2, sizeof p2 / sizeof (TCHAR));

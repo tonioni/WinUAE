@@ -10042,7 +10042,7 @@ static uae_u8 *save_filesys_virtual (UnitInfo *ui, uae_u8 *dst)
 
 static TCHAR *new_filesys_root_path, *new_filesys_fs_path;
 
-uae_u8 *save_filesys_common (int *len)
+uae_u8 *save_filesys_common(size_t *len)
 {
 	uae_u8 *dstbak, *dst;
 	if (nr_units () == 0)
@@ -10055,7 +10055,7 @@ uae_u8 *save_filesys_common (int *len)
 	return dstbak;
 }
 
-uae_u8 *restore_filesys_common (uae_u8 *src)
+uae_u8 *restore_filesys_common(uae_u8 *src)
 {
 	if (restore_u32 () != 2)
 		return src;
@@ -10073,7 +10073,7 @@ uae_u8 *restore_filesys_common (uae_u8 *src)
 	return src;
 }
 
-uae_u8 *save_filesys_paths(int num, int *len)
+uae_u8 *save_filesys_paths(int num, size_t *len)
 {
 	uae_u8 *dstbak, *dst;
 	UnitInfo *ui;
@@ -10104,7 +10104,7 @@ uae_u8 *save_filesys_paths(int num, int *len)
 	return dstbak;
 }
 
-uae_u8 *save_filesys (int num, int *len)
+uae_u8 *save_filesys(int num, size_t *len)
 {
 	uae_u8 *dstbak, *dst;
 	UnitInfo *ui;
@@ -10156,7 +10156,7 @@ uae_u8 *restore_filesys_paths(uae_u8 *src)
 	return src;
 }
 
-uae_u8 *restore_filesys (uae_u8 *src)
+uae_u8 *restore_filesys(uae_u8 *src)
 {
 	int type, devno;
 	UnitInfo *ui;

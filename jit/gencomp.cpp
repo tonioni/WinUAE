@@ -565,7 +565,7 @@ static void genamode(amodes mode, const char *reg, wordsizes size, const char *n
 
 	case PC16:
 		comprintf("\tint %sa = scratchie++;\n", name);
-		comprintf("\tuae_u32 address = start_pc + ((char *)comp_pc_p - (char *)start_pc_p) + m68k_pc_offset;\n");
+		comprintf("\tuae_u32 address = (uae_u32)(start_pc + ((char *)comp_pc_p - (char *)start_pc_p) + m68k_pc_offset);\n");
 		comprintf("\tuae_s32 PC16off = (uae_s32)(uae_s16)%s;\n", gen_nextiword());
 		comprintf("\tmov_l_ri(%sa, address + PC16off);\n", name);
 		break;
@@ -573,7 +573,7 @@ static void genamode(amodes mode, const char *reg, wordsizes size, const char *n
 	case PC8r:
 		comprintf("\tint pctmp = scratchie++;\n");
 		comprintf("\tint %sa = scratchie++;\n", name);
-		comprintf("\tuae_u32 address = start_pc + ((char *)comp_pc_p - (char *)start_pc_p) + m68k_pc_offset;\n");
+		comprintf("\tuae_u32 address = (uae_u32)(start_pc + ((char *)comp_pc_p - (char *)start_pc_p) + m68k_pc_offset);\n");
 		start_brace();
 		comprintf("\tmov_l_ri(pctmp,address);\n");
 
@@ -1874,9 +1874,9 @@ gen_opcode(unsigned int opcode)
 		comprintf("    int srca = scratchie++;\n");
 		comprintf("    mov_l_rm(srca, (uintptr)&regs.vbr);\n");
 		comprintf("    mov_l_brR(srca, srca, MEMBaseDiff + trapno * 4); mid_bswap_32(srca);\n");
-		comprintf("    mov_l_mr((uintptr)&regs.pc, srca);\n");
+		comprintf("    mov_l_mr(JITPTR &regs.pc, srca);\n");
 		comprintf("    get_n_addr_jmp(srca, PC_P, scratchie);\n");
-		comprintf("    mov_l_mr((uintptr)&regs.pc_oldp, PC_P);\n");
+		comprintf("    mov_l_mr(JITPTR &regs.pc_oldp, PC_P);\n");
 		gen_update_next_handler();
 		disasm_this_inst(); /* for debugging only */
 		/*
@@ -1923,9 +1923,9 @@ gen_opcode(unsigned int opcode)
 		start_brace();
 		comprintf("\tint newad=scratchie++;\n"
 			"\treadlong(SP_REG,newad,scratchie);\n"
-			"\tmov_l_mr((uintptr)&regs.pc,newad);\n"
+			"\tmov_l_mr(JITPTR &regs.pc,newad);\n"
 			"\tget_n_addr_jmp(newad,PC_P,scratchie);\n"
-			"\tmov_l_mr((uintptr)&regs.pc_oldp,PC_P);\n"
+			"\tmov_l_mr(JITPTR &regs.pc_oldp,PC_P);\n"
 			"\tm68k_pc_offset=0;\n"
 			"\tadd_l(SP_REG,offs);\n");
 		gen_update_next_handler();
@@ -1964,9 +1964,9 @@ gen_opcode(unsigned int opcode)
 #endif
 		comprintf("\tint newad=scratchie++;\n"
 			"\treadlong(SP_REG,newad,scratchie);\n"
-			"\tmov_l_mr((uintptr)&regs.pc,newad);\n"
+			"\tmov_l_mr(JITPTR &regs.pc,newad);\n"
 			"\tget_n_addr_jmp(newad,PC_P,scratchie);\n"
-			"\tmov_l_mr((uintptr)&regs.pc_oldp,PC_P);\n"
+			"\tmov_l_mr(JITPTR &regs.pc_oldp,PC_P);\n"
 			"\tm68k_pc_offset=0;\n"
 			"\tlea_l_brr(SP_REG,SP_REG,4);\n");
 		gen_update_next_handler();
@@ -1990,14 +1990,14 @@ gen_opcode(unsigned int opcode)
 		isjump;
 		genamode(curi->smode, "srcreg", curi->size, "src", GENA_GETV_NO_FETCH, GENA_MOVEM_DO_INC);
 		start_brace();
-		comprintf("\tuae_u32 retadd=start_pc+((char *)comp_pc_p-(char *)start_pc_p)+m68k_pc_offset;\n");
+		comprintf("\tuae_u32 retadd=(uae_u32)(start_pc+((char *)comp_pc_p-(char *)start_pc_p)+m68k_pc_offset);\n");
 		comprintf("\tint ret=scratchie++;\n"
 			"\tmov_l_ri(ret,retadd);\n"
 			"\tsub_l_ri(SP_REG,4);\n"
 			"\twritelong_clobber(SP_REG,ret,scratchie);\n");
-		comprintf("\tmov_l_mr((uintptr)&regs.pc,srca);\n"
+		comprintf("\tmov_l_mr(JITPTR &regs.pc,srca);\n"
 			"\tget_n_addr_jmp(srca,PC_P,scratchie);\n"
-			"\tmov_l_mr((uintptr)&regs.pc_oldp,PC_P);\n"
+			"\tmov_l_mr(JITPTR &regs.pc_oldp,PC_P);\n"
 			"\tm68k_pc_offset=0;\n");
 		gen_update_next_handler();
 		break;
@@ -2008,9 +2008,9 @@ gen_opcode(unsigned int opcode)
 #endif
 		isjump;
 		genamode(curi->smode, "srcreg", curi->size, "src", GENA_GETV_NO_FETCH, GENA_MOVEM_DO_INC);
-		comprintf("\tmov_l_mr((uintptr)&regs.pc,srca);\n"
+		comprintf("\tmov_l_mr(JITPTR &regs.pc,srca);\n"
 			"\tget_n_addr_jmp(srca,PC_P,scratchie);\n"
-			"\tmov_l_mr((uintptr)&regs.pc_oldp,PC_P);\n"
+			"\tmov_l_mr(JITPTR &regs.pc_oldp,PC_P);\n"
 			"\tm68k_pc_offset=0;\n");
 		gen_update_next_handler();
 		break;
@@ -2022,7 +2022,7 @@ gen_opcode(unsigned int opcode)
 		is_const_jump;
 		genamode(curi->smode, "srcreg", curi->size, "src", GENA_GETV_FETCH, GENA_MOVEM_DO_INC);
 		start_brace();
-		comprintf("\tuae_u32 retadd=start_pc+((char *)comp_pc_p-(char *)start_pc_p)+m68k_pc_offset;\n");
+		comprintf("\tuae_u32 retadd=(uae_u32)(start_pc+((char *)comp_pc_p-(char *)start_pc_p)+m68k_pc_offset);\n");
 		comprintf("\tint ret=scratchie++;\n"
 			"\tmov_l_ri(ret,retadd);\n"
 			"\tsub_l_ri(SP_REG,4);\n"
@@ -2049,8 +2049,8 @@ gen_opcode(unsigned int opcode)
 		comprintf("\tsub_l_ri(src,m68k_pc_offset-m68k_pc_offset_thisinst-2);\n");
 		/* Leave the following as "add" --- it will allow it to be optimized
 		   away due to src being a constant ;-) */
-		comprintf("\tadd_l_ri(src,(uintptr)comp_pc_p);\n");
-		comprintf("\tmov_l_ri(PC_P,(uintptr)comp_pc_p);\n");
+		comprintf("\tadd_l_ri(src,JITPTR comp_pc_p);\n");
+		comprintf("\tmov_l_ri(PC_P,JITPTR comp_pc_p);\n");
 		/* Now they are both constant. Might as well fold in m68k_pc_offset */
 		comprintf("\tadd_l_ri(src,m68k_pc_offset);\n");
 		comprintf("\tadd_l_ri(PC_P,m68k_pc_offset);\n");
@@ -2134,7 +2134,7 @@ gen_opcode(unsigned int opcode)
 		default: assert(0);  /* Seems this only comes in word flavour */
 		}
 		comprintf("\tsub_l_ri(offs,m68k_pc_offset-m68k_pc_offset_thisinst-2);\n");
-		comprintf("\tadd_l_ri(offs,(uintptr)comp_pc_p);\n"); /* New PC,
+		comprintf("\tadd_l_ri(offs,JITPTR comp_pc_p);\n"); /* New PC,
 									once the
 									offset_68k is
 									* also added */

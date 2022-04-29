@@ -1,7 +1,7 @@
 #ifndef UAE_ROMMGR_H
 #define UAE_ROMMGR_H
 
-extern int decode_cloanto_rom_do (uae_u8 *mem, int size, int real_size);
+extern int decode_cloanto_rom_do(uae_u8 *mem, int size, int real_size);
 
 #define ROMTYPE_SUB_MASK    0x000000ff
 #define ROMTYPE_GROUP_MASK  0x003fff00

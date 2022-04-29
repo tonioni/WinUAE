@@ -2117,7 +2117,7 @@ uae_u8 *restore_blitter (uae_u8 *src)
 	return src;
 }
 
-uae_u8 *save_blitter (int *len, uae_u8 *dstptr)
+uae_u8 *save_blitter (size_t *len, uae_u8 *dstptr)
 {
 	uae_u8 *dstbak,*dst;
 	int forced;
@@ -2254,7 +2254,7 @@ uae_u8 *restore_blitter_new(uae_u8 *src)
 	return src;
 }
 
-uae_u8 *save_blitter_new(int *len, uae_u8 *dstptr)
+uae_u8 *save_blitter_new(size_t *len, uae_u8 *dstptr)
 {
 	uae_u8 *dstbak,*dst;
 	if (dstptr)

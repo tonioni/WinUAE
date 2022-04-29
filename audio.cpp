@@ -169,10 +169,10 @@ struct ripped_sample
 
 static struct ripped_sample *ripped_samples;
 
-void write_wavheader (struct zfile *wavfile, uae_u32 size, uae_u32 freq)
+void write_wavheader (struct zfile *wavfile, size_t size, uae_u32 freq)
 {
 	uae_u16 tw;
-	uae_u32 tl;
+	size_t tl;
 	int bits = 8, channels = 1;
 
 	zfile_fseek (wavfile, 0, SEEK_SET);
@@ -2672,7 +2672,7 @@ uae_u8 *restore_audio (int nr, uae_u8 *src)
 	return src;
 }
 
-uae_u8 *save_audio (int nr, int *len, uae_u8 *dstptr)
+uae_u8 *save_audio (int nr, size_t *len, uae_u8 *dstptr)
 {
 	struct audio_channel_data *acd = audio_channel + nr;
 	uae_u8 *dst, *dstbak;

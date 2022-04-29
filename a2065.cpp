@@ -1136,7 +1136,7 @@ static bool a2065_config (struct autoconfig_info *aci)
 	return true;
 }
 
-uae_u8 *save_a2065 (int *len, uae_u8 *dstptr)
+uae_u8 *save_a2065 (size_t *len, uae_u8 *dstptr)
 {
 	uae_u8 *dstbak,*dst;
 

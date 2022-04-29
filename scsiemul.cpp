@@ -1537,7 +1537,7 @@ void scsidev_reset (void)
 	dev_reset ();
 }
 
-uae_u8 *save_scsidev (int num, int *len, uae_u8 *dstptr)
+uae_u8 *save_scsidev (int num, size_t *len, uae_u8 *dstptr)
 {
 	uae_u8 *dstbak, *dst;
 	struct priv_devstruct *pdev;

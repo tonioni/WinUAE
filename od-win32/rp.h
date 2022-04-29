@@ -4,7 +4,7 @@ extern void rp_free (void);
 extern int rp_close (void);
 extern void rp_fixup_options (struct uae_prefs*);
 extern void rp_pause (int paused);
-extern void rp_activate (int, LPARAM);
+extern void rp_activate (WPARAM, LPARAM);
 extern void rp_mouse_capture (int);
 extern void rp_mouse_magic (int);
 extern void rp_turbo_cpu (int);

@@ -228,7 +228,7 @@ static void nvram_read (void)
 	if (!cd32_flashfile)
 		cd32_flashfile = zfile_fopen (path, _T("wb"), 0);
 	if (cd32_flashfile) {
-		int size = zfile_fread(cd32_nvram, 1, currprefs.cs_cd32nvram_size, cd32_flashfile);
+		size_t size = zfile_fread(cd32_nvram, 1, currprefs.cs_cd32nvram_size, cd32_flashfile);
 		if (size == currprefs.cs_cd32nvram_size && maxlen > currprefs.cs_cd32nvram_size)
 			size += zfile_fread(cubo_nvram, 1, maxlen - currprefs.cs_cd32nvram_size, cd32_flashfile);
 		if (size < maxlen)
@@ -2162,7 +2162,7 @@ int akiko_init (void)
 
 #ifdef SAVESTATE
 
-uae_u8 *save_akiko (int *len, uae_u8 *dstptr)
+uae_u8 *save_akiko (size_t *len, uae_u8 *dstptr)
 {
 	uae_u8 *dstbak, *dst;
 	int i;

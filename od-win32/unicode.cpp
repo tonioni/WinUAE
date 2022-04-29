@@ -231,7 +231,7 @@ char *ua_fs_copy (char *dst, int maxlen, const TCHAR *src, int defchar)
 
 WCHAR *au_fs (const char *s)
 {
-	int i, len;
+	size_t i, len;
 	WCHAR *d;
 	
 	len = strlen (s);
