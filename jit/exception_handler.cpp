@@ -470,7 +470,7 @@ static int handle_access(uintptr_t fault_addr, CONTEXT_T context)
 		}
 	}
 	for (int i = 0; i < 5; i++) {
-		raw_mov_b_mi(CONTEXT_PC(context) + i, vecbuf[i]);
+		raw_mov_b_mi(JITPTR CONTEXT_PC(context) + i, vecbuf[i]);
 	}
 	raw_mov_l_mi(uae_p32(&in_handler), 0);
 	raw_jmp(uae_p32(CONTEXT_PC(context)) + len);

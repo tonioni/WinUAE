@@ -1151,7 +1151,7 @@ static void fp_from_pack (fpdata *src, uae_u32 *wrd, int kfactor)
 	strp[1] = strp[0];
 	strp++;
 	// add trailing zeros
-	i = strlen (strp);
+	i = uaestrlen(strp);
 	cp = strp + i;
 	while (i < ndigits) {
 		*cp++ = '0';

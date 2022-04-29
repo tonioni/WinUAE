@@ -968,9 +968,10 @@ static uint64_t es1370_read(void *opaque, hwaddr addr,
     }
 }
 
-static void es1370_write(void *opaque, hwaddr addr, uint64_t val,
+static void es1370_write(void *opaque, hwaddr addr, uint64_t val64,
                       unsigned size)
 {
+    uint32_t val = (uint32_t)val64;
     switch (size) {
     case 1:
         es1370_writeb(opaque, addr, val);

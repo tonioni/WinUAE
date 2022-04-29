@@ -239,6 +239,8 @@ extern TCHAR *utf8u (const char *s);
 extern void unicode_init (void);
 extern void to_lower (TCHAR *s, int len);
 extern void to_upper (TCHAR *s, int len);
+extern int uaestrlen(const char*);
+extern int uaetcslen(const TCHAR*);
 
 #define ENUMDECL typedef enum
 #define ENUMNAME(name) name

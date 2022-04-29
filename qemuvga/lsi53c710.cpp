@@ -227,7 +227,7 @@ typedef struct {
     uint32_t dsa;
     uint32_t temp;
     uint32_t dnad;
-    uint32_t dbc;
+    int32_t dbc;
     uint8_t istat;
     uint8_t dcmd;
     uint8_t dstat;
@@ -2160,7 +2160,7 @@ void lsi710_mmio_write(void *opaque, hwaddr addr,
 {
     LSIState710 *s = (LSIState710*)opaque;
 
-    lsi_reg_writeb(s, addr & 0xff, val);
+    lsi_reg_writeb(s, addr & 0xff, (uint8_t)val);
 }
 
 uint64_t lsi710_mmio_read(void *opaque, hwaddr addr,

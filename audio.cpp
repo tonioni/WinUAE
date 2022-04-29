@@ -214,7 +214,7 @@ static void namesplit (TCHAR *s)
 {
 	int l;
 
-	l = _tcslen (s) - 1;
+	l = uaetcslen(s) - 1;
 	while (l >= 0) {
 		if (s[l] == '.')
 			s[l] = 0;

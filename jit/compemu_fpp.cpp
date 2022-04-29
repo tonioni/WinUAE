@@ -139,25 +139,25 @@ STATIC_INLINE int get_fp_value(uae_u32 opcode, uae_u16 extra)
 		{
 		case 6: /* byte */
 			sign_extend_8_rr(S1, reg);
-			mov_l_mr((uintptr) temp_fp, S1);
+			mov_l_mr(JITPTR temp_fp, S1);
 			delay2;
-			fmovi_rm(FS1, (uintptr) temp_fp);
+			fmovi_rm(FS1, JITPTR temp_fp);
 			return FS1;
 		case 4: /* word */
 			sign_extend_16_rr(S1, reg);
-			mov_l_mr((uintptr) temp_fp, S1);
+			mov_l_mr(JITPTR temp_fp, S1);
 			delay2;
-			fmovi_rm(FS1, (uintptr) temp_fp);
+			fmovi_rm(FS1, JITPTR temp_fp);
 			return FS1;
 		case 0: /* long */
-			mov_l_mr((uintptr) temp_fp, reg);
+			mov_l_mr(JITPTR temp_fp, reg);
 			delay2;
-			fmovi_rm(FS1, (uintptr) temp_fp);
+			fmovi_rm(FS1, JITPTR temp_fp);
 			return FS1;
 		case 1: /* single precision */
-			mov_l_mr((uintptr) temp_fp, reg);
+			mov_l_mr(JITPTR temp_fp, reg);
 			delay2;
-			fmovs_rm(FS1, (uintptr) temp_fp);
+			fmovs_rm(FS1, JITPTR temp_fp);
 			return FS1;
 		default:
 			return -1;
@@ -240,7 +240,7 @@ STATIC_INLINE int get_fp_value(uae_u32 opcode, uae_u16 extra)
 			break;
 		case 2: /* d16(pc) */
 			{
-				uae_u32 address = start_pc + ((char *) comp_pc_p - (char *) start_pc_p) + m68k_pc_offset;
+				uae_u32 address = (uae_u32)(start_pc + ((char *) comp_pc_p - (char *) start_pc_p) + m68k_pc_offset);
 				uae_s32 PC16off = (uae_s32) (uae_s16) comp_get_iword((m68k_pc_offset += 2) - 2);
 
 				ad = S1;
@@ -251,7 +251,7 @@ STATIC_INLINE int get_fp_value(uae_u32 opcode, uae_u16 extra)
 			return -1;
 		case 4: /* #imm */
 			{
-				uae_u32 address = start_pc + ((char *) comp_pc_p - (char *) start_pc_p) + m68k_pc_offset;
+				uae_u32 address = (uae_u32)(start_pc + ((char *) comp_pc_p - (char *) start_pc_p) + m68k_pc_offset);
 
 				ad = S1;
 				// Immediate addressing mode && Operation Length == Byte -> 
@@ -271,54 +271,54 @@ STATIC_INLINE int get_fp_value(uae_u32 opcode, uae_u16 extra)
 	{
 	case 0: /* long */
 		readlong(ad, S2, S3);
-		mov_l_mr((uintptr) temp_fp, S2);
+		mov_l_mr(JITPTR temp_fp, S2);
 		delay2;
-		fmovi_rm(FS1, (uintptr) temp_fp);
+		fmovi_rm(FS1, JITPTR temp_fp);
 		break;
 	case 1: /* single precision */
 		readlong(ad, S2, S3);
-		mov_l_mr((uintptr) temp_fp, S2);
+		mov_l_mr(JITPTR temp_fp, S2);
 		delay2;
-		fmovs_rm(FS1, (uintptr) temp_fp);
+		fmovs_rm(FS1, JITPTR temp_fp);
 		break;
 	case 2: /* extended precision */
 		readword(ad, S2, S3);
-		mov_w_mr(((uintptr) temp_fp) + 8, S2);
+		mov_w_mr((JITPTR temp_fp) + 8, S2);
 		add_l_ri(ad, 4);
 		readlong(ad, S2, S3);
 		// always set the explicit integer bit.
 		or_l_ri(S2, 0x80000000);
-		mov_l_mr((uintptr) (temp_fp) + 4, S2);
+		mov_l_mr(JITPTR (temp_fp) + 4, S2);
 		add_l_ri(ad, 4);
 		readlong(ad, S2, S3);
-		mov_l_mr((uintptr) (temp_fp), S2);
+		mov_l_mr(JITPTR (temp_fp), S2);
 		delay2;
-		fmov_ext_rm(FS1, (uintptr) (temp_fp));
+		fmov_ext_rm(FS1, JITPTR (temp_fp));
 		break;
 	case 3: /* packed decimal static */
 		return -1;						/* Some silly "packed" stuff */
 	case 4: /* word */
 		readword(ad, S2, S3);
 		sign_extend_16_rr(S2, S2);
-		mov_l_mr((uintptr) temp_fp, S2);
+		mov_l_mr(JITPTR temp_fp, S2);
 		delay2;
-		fmovi_rm(FS1, (uintptr) temp_fp);
+		fmovi_rm(FS1, JITPTR temp_fp);
 		break;
 	case 5: /* double precision */
 		readlong(ad, S2, S3);
-		mov_l_mr(((uintptr) temp_fp) + 4, S2);
+		mov_l_mr((JITPTR temp_fp) + 4, S2);
 		add_l_ri(ad, 4);
 		readlong(ad, S2, S3);
-		mov_l_mr((uintptr) (temp_fp), S2);
+		mov_l_mr(JITPTR (temp_fp), S2);
 		delay2;
-		fmov_rm(FS1, (uintptr) (temp_fp));
+		fmov_rm(FS1, JITPTR (temp_fp));
 		break;
 	case 6: /* byte */
 		readbyte(ad, S2, S3);
 		sign_extend_8_rr(S2, S2);
-		mov_l_mr((uintptr) temp_fp, S2);
+		mov_l_mr(JITPTR temp_fp, S2);
 		delay2;
-		fmovi_rm(FS1, (uintptr) temp_fp);
+		fmovi_rm(FS1, JITPTR temp_fp);
 		break;
 	default:
 		return -1;
@@ -366,25 +366,25 @@ STATIC_INLINE int put_fp_value(int val, uae_u32 opcode, uae_u16 extra)
 		switch (size)
 		{
 		case 6: /* byte */
-			fmovi_mrb((uintptr) temp_fp, val, clamp_bounds.b);
+			fmovi_mrb(JITPTR temp_fp, val, clamp_bounds.b);
 			delay;
-			mov_b_rm(reg, (uintptr) temp_fp);
+			mov_b_rm(reg, JITPTR temp_fp);
 			return 0;
 		case 4: /* word */
-			fmovi_mrb((uintptr) temp_fp, val, clamp_bounds.w);
+			fmovi_mrb(JITPTR temp_fp, val, clamp_bounds.w);
 			delay;
-			mov_w_rm(reg, (uintptr) temp_fp);
+			mov_w_rm(reg, JITPTR temp_fp);
 			return 0;
 		case 0: /* long */
-			fmovi_mrb((uintptr) temp_fp, val, clamp_bounds.l);
-			fmovi_mr((uintptr) temp_fp, val);
+			fmovi_mrb(JITPTR temp_fp, val, clamp_bounds.l);
+			fmovi_mr(JITPTR temp_fp, val);
 			delay;
-			mov_l_rm(reg, (uintptr) temp_fp);
+			mov_l_rm(reg, JITPTR temp_fp);
 			return 0;
 		case 1: /* single precision */
-			fmovs_mr((uintptr) temp_fp, val);
+			fmovs_mr(JITPTR temp_fp, val);
 			delay;
-			mov_l_rm(reg, (uintptr) temp_fp);
+			mov_l_rm(reg, JITPTR temp_fp);
 			return 0;
 		default:
 			return -1;
@@ -465,7 +465,7 @@ STATIC_INLINE int put_fp_value(int val, uae_u32 opcode, uae_u16 extra)
 			break;
 		case 2: /* d16(pc) */
 			{
-				uae_u32 address = start_pc + ((char *) comp_pc_p - (char *) start_pc_p) + m68k_pc_offset;
+				uae_u32 address = (uae_u32)(start_pc + ((char *) comp_pc_p - (char *) start_pc_p) + m68k_pc_offset);
 				uae_s32 PC16off = (uae_s32) (uae_s16) comp_get_iword((m68k_pc_offset += 2) - 2);
 
 				ad = S1;
@@ -476,7 +476,7 @@ STATIC_INLINE int put_fp_value(int val, uae_u32 opcode, uae_u16 extra)
 			return -1;
 		case 4: /* #imm */
 			{
-				uae_u32 address = start_pc + ((char *) comp_pc_p - (char *) start_pc_p) + m68k_pc_offset;
+				uae_u32 address = (uae_u32)(start_pc + ((char *) comp_pc_p - (char *) start_pc_p) + m68k_pc_offset);
 
 				ad = S1;
 				mov_l_ri(ad, address);
@@ -491,50 +491,50 @@ STATIC_INLINE int put_fp_value(int val, uae_u32 opcode, uae_u16 extra)
 	switch (size)
 	{
 	case 0: /* long */
-		fmovi_mrb((uintptr) temp_fp, val, clamp_bounds.l);
+		fmovi_mrb(JITPTR temp_fp, val, clamp_bounds.l);
 		delay;
-		mov_l_rm(S2, (uintptr) temp_fp);
+		mov_l_rm(S2, JITPTR temp_fp);
 		writelong_clobber(ad, S2, S3);
 		break;
 	case 1: /* single precision */
-		fmovs_mr((uintptr) temp_fp, val);
+		fmovs_mr(JITPTR temp_fp, val);
 		delay;
-		mov_l_rm(S2, (uintptr) temp_fp);
+		mov_l_rm(S2, JITPTR temp_fp);
 		writelong_clobber(ad, S2, S3);
 		break;
 	case 2: /* extended precision */
-		fmov_ext_mr((uintptr) temp_fp, val);
+		fmov_ext_mr(JITPTR temp_fp, val);
 		delay;
-		mov_w_rm(S2, (uintptr) temp_fp + 8);
+		mov_w_rm(S2, JITPTR temp_fp + 8);
 		writeword_clobber(ad, S2, S3);
 		add_l_ri(ad, 4);
-		mov_l_rm(S2, (uintptr) temp_fp + 4);
+		mov_l_rm(S2, JITPTR temp_fp + 4);
 		writelong_clobber(ad, S2, S3);
 		add_l_ri(ad, 4);
-		mov_l_rm(S2, (uintptr) temp_fp);
+		mov_l_rm(S2, JITPTR temp_fp);
 		writelong_clobber(ad, S2, S3);
 		break;
 	case 3: /* packed decimal static */
 		return -1;						/* Packed */
 	case 4: /* word */
-		fmovi_mrb((uintptr) temp_fp, val, clamp_bounds.w);
+		fmovi_mrb(JITPTR temp_fp, val, clamp_bounds.w);
 		delay;
-		mov_l_rm(S2, (uintptr) temp_fp);
+		mov_l_rm(S2, JITPTR temp_fp);
 		writeword_clobber(ad, S2, S3);
 		break;
 	case 5: /* double precision */
-		fmov_mr((uintptr) temp_fp, val);
+		fmov_mr(JITPTR temp_fp, val);
 		delay;
-		mov_l_rm(S2, (uintptr) temp_fp + 4);
+		mov_l_rm(S2, JITPTR temp_fp + 4);
 		writelong_clobber(ad, S2, S3);
 		add_l_ri(ad, 4);
-		mov_l_rm(S2, (uintptr) temp_fp);
+		mov_l_rm(S2, JITPTR temp_fp);
 		writelong_clobber(ad, S2, S3);
 		break;
 	case 6: /* byte */
-		fmovi_mrb((uintptr) temp_fp, val, clamp_bounds.b);
+		fmovi_mrb(JITPTR temp_fp, val, clamp_bounds.b);
 		delay;
-		mov_l_rm(S2, (uintptr) temp_fp);
+		mov_l_rm(S2, JITPTR temp_fp);
 		writebyte(ad, S2, S3);
 		break;
 	default:
@@ -583,7 +583,7 @@ STATIC_INLINE int get_fp_ad(uae_u32 opcode)
 			mov_l_ri(S1, off);
 			return S1;
 		case 2: /* d16(pc) */
-			off = start_pc + ((char *) comp_pc_p - (char *) start_pc_p) + m68k_pc_offset;
+			off = (uae_s32)(start_pc + ((char *) comp_pc_p - (char *) start_pc_p) + m68k_pc_offset);
 			off += (uae_s32) (uae_s16) comp_get_iword((m68k_pc_offset += 2) - 2);
 			mov_l_ri(S1, off);
 			return S1;
@@ -753,8 +753,8 @@ void comp_fbcc_opp(uae_u32 opcode)
 	{
 		off = comp_get_ilong((m68k_pc_offset += 4) - 4);
 	}
-	mov_l_ri(S1, (uintptr) (comp_pc_p + off - (m68k_pc_offset - start_68k_offset)));
-	mov_l_ri(PC_P, (uintptr) comp_pc_p);
+	mov_l_ri(S1, JITPTR (comp_pc_p + off - (m68k_pc_offset - start_68k_offset)));
+	mov_l_ri(PC_P, JITPTR comp_pc_p);
 
 	/* Now they are both constant. Might as well fold in m68k_pc_offset */
 	add_l_ri(S1, m68k_pc_offset);
@@ -1182,16 +1182,16 @@ void comp_fpp_opp(uae_u32 opcode, uae_u16 extra)
 					{
 						if (list & 0x80)
 						{
-							fmov_ext_mr((uintptr) temp_fp, reg);
+							fmov_ext_mr(JITPTR temp_fp, reg);
 							delay;
 							sub_l_ri(ad, 4);
-							mov_l_rm(S2, (uintptr) temp_fp);
+							mov_l_rm(S2, JITPTR temp_fp);
 							writelong_clobber(ad, S2, S3);
 							sub_l_ri(ad, 4);
-							mov_l_rm(S2, (uintptr) temp_fp + 4);
+							mov_l_rm(S2, JITPTR temp_fp + 4);
 							writelong_clobber(ad, S2, S3);
 							sub_l_ri(ad, 4);
-							mov_w_rm(S2, (uintptr) temp_fp + 8);
+							mov_w_rm(S2, JITPTR temp_fp + 8);
 							writeword_clobber(ad, S2, S3);
 						}
 						list <<= 1;
@@ -1202,15 +1202,15 @@ void comp_fpp_opp(uae_u32 opcode, uae_u16 extra)
 					{
 						if (list & 0x80)
 						{
-							fmov_ext_mr((uintptr) temp_fp, reg);
+							fmov_ext_mr(JITPTR temp_fp, reg);
 							delay;
-							mov_w_rm(S2, (uintptr) temp_fp + 8);
+							mov_w_rm(S2, JITPTR temp_fp + 8);
 							writeword_clobber(ad, S2, S3);
 							add_l_ri(ad, 4);
-							mov_l_rm(S2, (uintptr) temp_fp + 4);
+							mov_l_rm(S2, JITPTR temp_fp + 4);
 							writelong_clobber(ad, S2, S3);
 							add_l_ri(ad, 4);
-							mov_l_rm(S2, (uintptr) temp_fp);
+							mov_l_rm(S2, JITPTR temp_fp);
 							writelong_clobber(ad, S2, S3);
 							add_l_ri(ad, 4);
 						}
@@ -1269,15 +1269,15 @@ void comp_fpp_opp(uae_u32 opcode, uae_u16 extra)
 						{
 							sub_l_ri(ad, 4);
 							readlong(ad, S2, S3);
-							mov_l_mr((uintptr) (temp_fp), S2);
+							mov_l_mr(JITPTR (temp_fp), S2);
 							sub_l_ri(ad, 4);
 							readlong(ad, S2, S3);
-							mov_l_mr((uintptr) (temp_fp) + 4, S2);
+							mov_l_mr(JITPTR (temp_fp) + 4, S2);
 							sub_l_ri(ad, 4);
 							readword(ad, S2, S3);
-							mov_w_mr(((uintptr) temp_fp) + 8, S2);
+							mov_w_mr((JITPTR temp_fp) + 8, S2);
 							delay2;
-							fmov_ext_rm(reg, (uintptr) (temp_fp));
+							fmov_ext_rm(reg, JITPTR (temp_fp));
 						}
 						list <<= 1;
 					}
@@ -1288,16 +1288,16 @@ void comp_fpp_opp(uae_u32 opcode, uae_u16 extra)
 						if (list & 0x80)
 						{
 							readword(ad, S2, S3);
-							mov_w_mr(((uintptr) temp_fp) + 8, S2);
+							mov_w_mr((JITPTR temp_fp) + 8, S2);
 							add_l_ri(ad, 4);
 							readlong(ad, S2, S3);
-							mov_l_mr((uintptr) (temp_fp) + 4, S2);
+							mov_l_mr(JITPTR (temp_fp) + 4, S2);
 							add_l_ri(ad, 4);
 							readlong(ad, S2, S3);
-							mov_l_mr((uintptr) (temp_fp), S2);
+							mov_l_mr(JITPTR(temp_fp), S2);
 							add_l_ri(ad, 4);
 							delay2;
-							fmov_ext_rm(reg, (uintptr) (temp_fp));
+							fmov_ext_rm(reg, JITPTR (temp_fp));
 						}
 						list <<= 1;
 					}
@@ -1343,9 +1343,9 @@ void comp_fpp_opp(uae_u32 opcode, uae_u16 extra)
 				{
 					/* FPIAR: fixme; we cannot correctly return the address from compiled code */
 #ifdef UAE
-					mov_l_rm(opcode & 15, (uintptr)&regs.fpiar);
+					mov_l_rm(opcode & 15, JITPTR &regs.fpiar);
 #else
-					mov_l_rm(opcode & 15, (uintptr) & fpu.instruction_address);
+					mov_l_rm(opcode & 15, JITPTR &fpu.instruction_address);
 #endif
 					return;
 				}
@@ -1380,9 +1380,9 @@ void comp_fpp_opp(uae_u32 opcode, uae_u16 extra)
 				{
 					/* FPIAR: does that make sense at all? */
 #ifdef UAE
-					mov_l_mr((uintptr)&regs.fpiar, opcode & 15);
+					mov_l_mr(JITPTR &regs.fpiar, opcode & 15);
 #else
-					mov_l_mr((uintptr) & fpu.instruction_address, opcode & 15);
+					mov_l_mr(JITPTR &fpu.instruction_address, opcode & 15);
 #endif
 				}
 				return;
@@ -1422,9 +1422,9 @@ void comp_fpp_opp(uae_u32 opcode, uae_u16 extra)
 				{
 					uae_u32 val = comp_get_ilong((m68k_pc_offset += 4) - 4);
 #ifdef UAE
-					mov_l_mi((uintptr)&regs.fpiar, val);
+					mov_l_mi(JITPTR &regs.fpiar, val);
 #else
-					mov_l_mi((uintptr) & fpu.instruction_address, val);
+					mov_l_mi(JITPTR &fpu.instruction_address, val);
 #endif
 				}
 				return;
@@ -1582,14 +1582,14 @@ void comp_fpp_opp(uae_u32 opcode, uae_u16 extra)
 				return;
 			}
 			mov_l_ri(S1, 16);			/* Switch to "round to zero" mode */
-			fldcw_m_indexed(S1, (uintptr) x86_fpucw);
+			fldcw_m_indexed(S1, JITPTR x86_fpucw);
 
 			frndint_rr(reg, src);
 
 			/* restore control word */
-			mov_l_rm(S1, (uintptr) & regs.fpcr);
+			mov_l_rm(S1, JITPTR &regs.fpcr);
 			and_l_ri(S1, 0x000000f0);
-			fldcw_m_indexed(S1, (uintptr) x86_fpucw);
+			fldcw_m_indexed(S1, JITPTR x86_fpucw);
 
 			MAKE_FPSR(reg);
 			break;

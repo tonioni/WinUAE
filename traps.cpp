@@ -1063,6 +1063,16 @@ void trap_put_long(TrapContext *ctx, uaecptr addr, uae_u32 v)
 		put_long(addr, v);
 	}
 }
+void trap_put_longt(TrapContext* ctx, uaecptr addr, size_t v)
+{
+	if (trap_is_indirect_null(ctx)) {
+		call_hardware_trap_back(ctx, TRAPCMD_PUT_LONG, addr, (uae_u32)v, 0, 0);
+	}
+	else {
+		put_long(addr, (uae_u32)v);
+	}
+}
+
 void trap_put_word(TrapContext *ctx, uaecptr addr, uae_u16 v)
 {
 	if (trap_is_indirect_null(ctx)) {

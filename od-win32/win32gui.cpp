@@ -22776,7 +22776,7 @@ void gui_led (int led, int on, int brightness)
 		else
 			_stprintf (ptr , _T("%02d"), gui_data.drives[led - 1].drive_track);
 		p = gui_data.drives[led - 1].df;
-		j = _tcslen (p) - 1;
+		j = uaetcslen(p) - 1;
 		if (j < 0)
 			j = 0;
 		while (j > 0) {
@@ -22786,7 +22786,7 @@ void gui_led (int led, int on, int brightness)
 		}
 		tt = dfx[led - 1];
 		tt[0] = 0;
-		if (_tcslen (p + j) > 0)
+		if (uaetcslen(p + j) > 0)
 			_stprintf (tt, _T("%s [CRC=%08X]"), p + j, gui_data.drives[led - 1].crc32);
 		center = 1;
 		if (gui_data.drives[led - 1].drive_writing)

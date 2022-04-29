@@ -487,7 +487,7 @@ bool cfgfile_option_get_bool(const TCHAR* s, const TCHAR* option)
 static void trimwsa (char *s)
 {
 	/* Delete trailing whitespace.  */
-	int len = strlen (s);
+	int len = uaestrlen(s);
 	while (len > 0 && strcspn (s + len - 1, "\t \r\n") == 0)
 		s[--len] = '\0';
 }
@@ -619,14 +619,14 @@ static TCHAR *cfgfile_subst_path2 (const TCHAR *path, const TCHAR *subst, const 
 		int l;
 		TCHAR *p2, *p = xmalloc (TCHAR, _tcslen (file) + _tcslen (subst) + 2);
 		_tcscpy (p, subst);
-		l = _tcslen (p);
+		l = uaetcslen(p);
 		while (l > 0 && p[l - 1] == '/')
 			p[--l] = '\0';
-		l = _tcslen (path);
+		l = uaetcslen(path);
 		while (file[l] == '/')
 			l++;
-		_tcscat (p, _T("/"));
-		_tcscat (p, file + l);
+		_tcscat(p, _T("/"));
+		_tcscat(p, file + l);
 		p2 = target_expand_environment (p, NULL, 0);
 		xfree (p);
 		if (p2 && p2[0] == '$') {
@@ -4610,7 +4610,7 @@ static void get_filesys_controller (const TCHAR *hdc, int *type, int *typenum, i
 		const TCHAR *ext = _tcsrchr(control, '_');
 		if (ext) {
 			ext++;
-			int len = _tcslen(ext);
+			int len = uaetcslen(ext);
 			if (len > 2 && ext[len - 2] == '-' && ext[len - 1] >= '2' && ext[len - 1] <= '9') {
 				idx = ext[len - 1] - '1';
 				len -= 2;
@@ -6418,13 +6418,13 @@ static int cfgfile_separate_linea (const TCHAR *filename, char *line, TCHAR *lin
 	*line2++ = '\0';
 
 	/* Get rid of whitespace.  */
-	i = strlen (line2);
+	i = uaestrlen(line2);
 	while (i > 0 && (line2[i - 1] == '\t' || line2[i - 1] == ' '
 		|| line2[i - 1] == '\r' || line2[i - 1] == '\n'))
 		line2[--i] = '\0';
 	line2 += strspn (line2, "\t \r\n");
 
-	i = strlen (line);
+	i = uaestrlen(line);
 	while (i > 0 && (line[i - 1] == '\t' || line[i - 1] == ' '
 		|| line[i - 1] == '\r' || line[i - 1] == '\n'))
 		line[--i] = '\0';
@@ -6459,13 +6459,13 @@ static int cfgfile_separate_line (TCHAR *line, TCHAR *line1b, TCHAR *line2b)
 	*line2++ = '\0';
 
 	/* Get rid of whitespace.  */
-	i = _tcslen (line2);
+	i = uaetcslen(line2);
 	while (i > 0 && (line2[i - 1] == '\t' || line2[i - 1] == ' '
 		|| line2[i - 1] == '\r' || line2[i - 1] == '\n'))
 		line2[--i] = '\0';
 	line2 += _tcsspn (line2, _T("\t \r\n"));
 	_tcscpy (line2b, line2);
-	i = _tcslen (line);
+	i = uaetcslen(line);
 	while (i > 0 && (line[i - 1] == '\t' || line[i - 1] == ' '
 		|| line[i - 1] == '\r' || line[i - 1] == '\n'))
 		line[--i] = '\0';
@@ -7462,7 +7462,7 @@ int cfgfile_searchconfig(const TCHAR *in, int index, TCHAR *out, int outsize)
 {
 	TCHAR tmp[CONFIG_BLEN];
 	int j = 0;
-	int inlen = _tcslen (in);
+	int inlen = uaetcslen(in);
 	int joker = 0;
 	uae_u32 err = 0;
 	bool configsearchfound = false;
@@ -7717,7 +7717,7 @@ uae_u32 cfgfile_uaelib_modify(TrapContext *ctx, uae_u32 index, uae_u32 parms, ua
 	xfree (parms_in);
 	if (out && outsize > 0) {
 		parms_out = ua (out_p);
-		if (!trap_valid_address(ctx, out, strlen(parms_out) + 1 > outsize ? outsize : strlen(parms_out) + 1))
+		if (!trap_valid_address(ctx, out, strlen(parms_out) + 1 > outsize ? outsize : uaestrlen(parms_out) + 1))
 			return 0;
 		trap_put_string(ctx, parms_out, out, outsize - 1);
 	}
@@ -9366,7 +9366,7 @@ TCHAR *get_error_log (void)
 	strlist *sl;
 	int len = 0;
 	for (sl = error_lines; sl; sl = sl->next) {
-		len += _tcslen (sl->option) + 1;
+		len += uaetcslen(sl->option) + 1;
 	}
 	if (!len)
 		return NULL;

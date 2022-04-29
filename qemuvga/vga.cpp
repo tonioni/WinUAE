@@ -324,7 +324,7 @@ static uint8_t vga_precise_retrace(VGACommonState *s)
 
         cur_tick = qemu_get_clock_ns(vm_clock);
 
-        cur_char = (cur_tick / r->ticks_per_char) % r->total_chars;
+        cur_char = (int)((cur_tick / r->ticks_per_char) % r->total_chars);
         cur_line = cur_char / r->htotal;
 
         if (cur_line >= r->vstart && cur_line <= r->vend) {
@@ -1985,8 +1985,8 @@ static void vga_draw_graphic(VGACommonState *s, int full_update)
 		uint32_t r2sz = s->cr[0x34] | (((s->cr[0x36] >> 2) & 3) << 8);
 		uint32_t r2adjust = (s->cr[0x5d] >> 4) & 3;
 		uint32_t r2dsz = s->cr[0x35] | (((s->cr[0x36] >> 4) & 3) << 8);
-		uint32_t wvs = s->cr[0x37] | (((s->cr[0x39] >> 0) & 3) << 8);
-		uint32_t wve = s->cr[0x38] | (((s->cr[0x39] >> 2) & 3) << 8);
+		int32_t wvs = s->cr[0x37] | (((s->cr[0x39] >> 0) & 3) << 8);
+		int32_t wve = s->cr[0x38] | (((s->cr[0x39] >> 2) & 3) << 8);
 		bool occlusion = ((s->cr[0x3e] >> 7) & 1) != 0 && bits < 24;
 		uint32_t region1size = 32 * r1sz / gfxbpp + (r1adjust * 8 / gfxbpp);
 		uint32_t region2size = 32 * r2sz / gfxbpp + (r2adjust * 8 / gfxbpp);
@@ -2401,7 +2401,7 @@ static void vga_mem_write(void *opaque, hwaddr addr,
 {
     VGACommonState *s = (VGACommonState*)opaque;
 
-    return vga_mem_writeb(s, addr, data);
+    return vga_mem_writeb(s, addr, (uint32_t)data);
 }
 
 const MemoryRegionOps vga_mem_ops = {

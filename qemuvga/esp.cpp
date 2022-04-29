@@ -522,7 +522,7 @@ bool esp_dreq(DeviceState *dev)
 
 static int handle_ti(ESPState *s)
 {
-    uint32_t dmalen, minlen;
+    int32_t dmalen, minlen;
 
 	s->fifo_on = 1;
 	s->transfer_complete = 0;
@@ -776,9 +776,10 @@ void fas408_write_fifo(void *opaque, uint64_t val)
 }
 
 
-void esp_reg_write(void *opaque, uint32_t saddr, uint64_t val)
+void esp_reg_write(void *opaque, uint32_t saddr, uint64_t val64)
 {
 	ESPState *s = (ESPState*)opaque;
+    uint32_t val = (uint32_t)val64;
 
 	if ((s->fas4xxextra & 1) && (s->wregs[ESP_RES3] & 0x80)) {
 		saddr += ESP_REGS;

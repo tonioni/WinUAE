@@ -95,7 +95,7 @@ static int l_uae_write_config(lua_State *L)
     const char *s = luaL_checkstring(L, 1);
 	TCHAR *ts = au(s);
 	TCHAR out[MAX_DPATH];
-	cfgfile_modify(-1, ts, _tcslen(ts), out, sizeof out / sizeof(TCHAR));
+	cfgfile_modify(-1, ts, uaetcslen(ts), out, sizeof out / sizeof(TCHAR));
 	char *c = ua(out);
 	lua_pushstring(L, c);
 	xfree(c);

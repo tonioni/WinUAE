@@ -1646,13 +1646,13 @@ static struct zfile *openzip (const TCHAR *pname)
 
 	zippath[0] = 0;
 	_tcscpy (name, pname);
-	i = _tcslen (name) - 2;
+	i = uaetcslen (name) - 2;
 	while (i > 0) {
 		if ((name[i] == '/' || name[i] == '\\') && i > 4) {
 			v = name[i];
 			name[i] = 0;
 			for (j = 0; plugins_7z[j]; j++) {
-				int len = _tcslen (plugins_7z[j]);
+				int len = uaetcslen (plugins_7z[j]);
 				if (name[i - len - 1] == '.' && !strcasecmp (name + i - len, plugins_7z[j])) {
 					struct zfile *f = zfile_fopen_nozip (name, _T("rb"));
 					if (f) {
@@ -2378,9 +2378,9 @@ TCHAR *zfile_fgets (TCHAR *s, int size, struct zfile *z)
 			p++;
 		}
 		*p = 0;
-		if (size > strlen (s2) + 1)
-			size = strlen (s2) + 1;
-		au_copy (s, size, s2);
+		if (size > uaestrlen(s2) + 1)
+			size = uaestrlen(s2) + 1;
+		au_copy(s, size, s2);
 		return s + size;
 	} else {
 		bool alloc = false;
@@ -2401,9 +2401,9 @@ TCHAR *zfile_fgets (TCHAR *s, int size, struct zfile *z)
 			}
 			return NULL;
 		}
-		if (size > strlen (s2) + 1)
-			size = strlen (s2) + 1;
-		au_copy (s, size, s2);
+		if (size > uaestrlen(s2) + 1)
+			size = uaestrlen(s2) + 1;
+		au_copy(s, size, s2);
 		if (alloc) {
 			xfree(s2);
 		}
@@ -2523,7 +2523,7 @@ TCHAR *zfile_getfilename (struct zfile *f)
 	int i;
 	if (f->name == NULL)
 		return NULL;
-	for (i = _tcslen (f->name) - 1; i >= 0; i--) {
+	for (i = uaetcslen(f->name) - 1; i >= 0; i--) {
 		if (f->name[i] == '\\' || f->name[i] == '/' || f->name[i] == ':') {
 			i++;
 			return &f->name[i];
@@ -2591,11 +2591,11 @@ static struct znode *znode_alloc (struct znode *parent, const TCHAR *name)
 			if (ext && ext > tmpname + 2 && ext[-2] == '.') {
 				ext[-1]++;
 			} else if (ext) {
-				memmove (ext + 2, ext, (_tcslen (ext) + 1) * sizeof (TCHAR));
+				memmove (ext + 2, ext, (uaetcslen(ext) + 1) * sizeof (TCHAR));
 				ext[0] = '.';
 				ext[1] = '1';
 			} else {
-				int len = _tcslen (tmpname);
+				int len = uaetcslen(tmpname);
 				tmpname[len] = '.';
 				tmpname[len + 1] = '1';
 				tmpname[len + 2] = 0;
@@ -2687,7 +2687,7 @@ static struct zvolume *zvolume_alloc_2 (const TCHAR *name, struct zfile *z, unsi
 	i = 0;
 	if (name[0] != '/' && name[0] != '\\' && _tcsncmp(name, _T(".\\"), 2) != 0 && _tcsncmp(name, _T("..\\"), 3) != 0) {
 		if (_tcschr (name, ':') == 0) {
-			for (i = _tcslen (name) - 1; i > 0; i--) {
+			for (i = uaetcslen (name) - 1; i > 0; i--) {
 				if (name[i] == FSDB_DIR_SEPARATOR) {
 					i++;
 					break;
@@ -2982,8 +2982,8 @@ static struct znode *get_znode (struct zvolume *zv, const TCHAR *ppath, int recu
 			if (!_tcsicmp (zpath, path))
 				return zn;
 		} else {
-			int len = _tcslen (zpath);
-			if (_tcslen (path) >= len && (path[len] == 0 || path[len] == FSDB_DIR_SEPARATOR) && !_tcsnicmp (zpath, path, len)) {
+			int len = uaetcslen(zpath);
+			if (uaetcslen(path) >= len && (path[len] == 0 || path[len] == FSDB_DIR_SEPARATOR) && !_tcsnicmp (zpath, path, len)) {
 				if (path[len] == 0)
 					return zn;
 				if (zn->vchild) {

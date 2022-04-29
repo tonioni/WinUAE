@@ -87,19 +87,19 @@ public:
 	astring &cpy(const char *src, int count);
 	astring &cpysubstr(const astring &src, int start, int count = -1);
 	astring &cpy(const astring &src) { return cpy(src.cstr(), src.len()); }
-	astring &cpy(const char *src) { return cpy(src, strlen(src)); }
+	astring &cpy(const char *src) { return cpy(src, uaestrlen(src)); }
 
 	// insertion helpers
 	astring &ins(int insbefore, const char *src, int count);
 	astring &inssubstr(int insbefore, const astring &src, int start, int count = -1);
 	astring &ins(int insbefore, const astring &src) { return ins(insbefore, src.cstr(), src.len()); }
-	astring &ins(int insbefore, const char *src) { return ins(insbefore, src, strlen(src)); }
+	astring &ins(int insbefore, const char *src) { return ins(insbefore, src, uaestrlen(src)); }
 
 	// concatenation helpers (== insert at end)
 	astring &cat(const char *src, int count) { return ins(-1, src, count); }
 	astring &catsubstr(const astring &src, int start, int count = -1) { return inssubstr(-1, src, start, count); }
 	astring &cat(const astring &src) { return ins(-1, src.cstr(), src.len()); }
-	astring &cat(const char *src) { return ins(-1, src, strlen(src)); }
+	astring &cat(const char *src) { return ins(-1, src, uaestrlen(src)); }
 	astring &cat(char ch) { return ins(-1, &ch, 1); }
 
 	// substring helpers
@@ -118,13 +118,13 @@ public:
 	int cmp(const char *str2, int count) const;
 	int cmpsubstr(const astring &str2, int start, int count = -1) const;
 	int cmp(const astring &str2) const { return cmp(str2.cstr(), str2.len()); }
-	int cmp(const char *str2) const { return cmp(str2, strlen(str2)); }
+	int cmp(const char *str2) const { return cmp(str2, uaestrlen(str2)); }
 
 	// case-insensitive comparison helpers
 	int icmp(const char *str2, int count) const;
 	int icmpsubstr(const astring &str2, int start, int count = -1) const;
 	int icmp(const astring &str2) const { return icmp(str2.cstr(), str2.len()); }
-	int icmp(const char *str2) const { return icmp(str2, strlen(str2)); }
+	int icmp(const char *str2) const { return icmp(str2, uaestrlen(str2)); }
 
 	// character searching helpers
 	int chr(int start, int ch) const;

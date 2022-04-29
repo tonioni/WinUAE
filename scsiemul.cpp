@@ -228,7 +228,7 @@ static uae_u32 REGPARAM2 dev_open_2(TrapContext *ctx, int type)
 		pdev->unit = unit;
 		pdev->flags = flags;
 		pdev->inuse = 1;
-		trap_put_long(ctx, ioreq + 24, pdev - pdevst);
+		trap_put_longt(ctx, ioreq + 24, pdev - pdevst);
 		start_thread (dev);
 	} else {
 		for (i = 0; i < MAX_OPEN_DEVICES; i++) {
@@ -237,7 +237,7 @@ static uae_u32 REGPARAM2 dev_open_2(TrapContext *ctx, int type)
 		}
 		if (i == MAX_OPEN_DEVICES)
 			return openfail(ctx, ioreq, IOERR_OPENFAIL);
-		trap_put_long(ctx, ioreq + 24, pdev - pdevst);
+		trap_put_longt(ctx, ioreq + 24, pdev - pdevst);
 	}
 	dev->opencnt++;
 

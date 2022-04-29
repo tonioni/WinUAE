@@ -1171,22 +1171,22 @@ void addkeyfile (const TCHAR *path)
 	zfile_fclose (f);
 }
 
-void addkeydir (const TCHAR *path)
+void addkeydir(const TCHAR *path)
 {
 	TCHAR tmp[MAX_DPATH];
 
-	_tcscpy (tmp, path);
-	if (zfile_exists (tmp)) {
+	_tcscpy(tmp, path);
+	if (zfile_exists(tmp)) {
 		int i;
-		for (i = _tcslen (tmp) - 1; i > 0; i--) {
+		for (i = uaetcslen(tmp) - 1; i > 0; i--) {
 			if (tmp[i] == '\\' || tmp[i] == '/')
 				break;
 		}
 		tmp[i] = 0;
 	}
-	_tcscat (tmp, _T("/"));
-	_tcscat (tmp, _T("rom.key"));
-	addkeyfile (tmp);
+	_tcscat(tmp, _T("/"));
+	_tcscat(tmp, _T("rom.key"));
+	addkeyfile(tmp);
 }
 
 int get_keyring (void)
@@ -2081,7 +2081,7 @@ struct zfile *read_rom_name_guess (const TCHAR *filename, TCHAR *out)
 	struct zfile *f;
 	const TCHAR *name;
 
-	for (i = _tcslen (filename) - 1; i >= 0; i--) {
+	for (i = uaetcslen(filename) - 1; i >= 0; i--) {
 		if (filename[i] == '/' || filename[i] == '\\')
 			break;
 	}
@@ -2091,13 +2091,13 @@ struct zfile *read_rom_name_guess (const TCHAR *filename, TCHAR *out)
 
 	for (i = 0; i < romlist_cnt; i++) {
 		TCHAR *n = rl[i].path;
-		for (j = _tcslen (n) - 1; j >= 0; j--) {
+		for (j = uaetcslen(n) - 1; j >= 0; j--) {
 			if (n[j] == '/' || n[j] == '\\')
 				break;
 		}
 		if (j < 0)
 			continue;
-		if (!_tcsicmp (name, n + j)) {
+		if (!_tcsicmp(name, n + j)) {
 			struct romdata *rd = rl[i].rd;
 			f = read_rom (rd);
 			if (f) {

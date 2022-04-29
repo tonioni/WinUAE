@@ -286,10 +286,10 @@ static int dirhash (const uae_char *name)
 	uae_u32 hash;
 	int i;
 
-	hash = strlen (name);
-	for(i = 0; i < strlen (name); i++) {
+	hash = uaestrlen(name);
+	for(i = 0; i < uaestrlen(name); i++) {
 		hash = hash * 13;
-		hash = hash + toupper (name[i]);
+		hash = hash + toupper(name[i]);
 		hash = hash & 0x7ff;
 	}
 	hash = hash % ((FS_FLOPPY_BLOCKSIZE / 4) - 56);
@@ -1037,7 +1037,7 @@ static void saveimagecutpathpart(TCHAR *name)
 {
 	int i;
 
-	i = _tcslen (name) - 1;
+	i = uaetcslen(name) - 1;
 	while (i > 0) {
 		if (name[i] == '/' || name[i] == '\\') {
 			name[i] = 0;
@@ -1064,7 +1064,7 @@ static void saveimagecutfilepart(TCHAR *name)
 	int i;
 
 	_tcscpy(tmp, name);
-	i = _tcslen (tmp) - 1;
+	i = uaetcslen(tmp) - 1;
 	while (i > 0) {
 		if (tmp[i] == '/' || tmp[i] == '\\') {
 			_tcscpy(name, tmp + i + 1);

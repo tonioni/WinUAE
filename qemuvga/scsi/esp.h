@@ -24,7 +24,7 @@ struct ESPState {
     uint8_t tchi_has_id;
     int32_t ti_size;
 	int32_t dma_len;
-    uint32_t ti_rptr, ti_wptr;
+    int32_t ti_rptr, ti_wptr;
     uint32_t status;
     uint32_t dma;
     uint8_t ti_buf[TI_BUFSZ];
@@ -40,13 +40,13 @@ struct ESPState {
 	uint32_t dma_pending; // fakedma pending count
     /* The size of the current DMA transfer.  Zero if no transfer is in
        progress.  */
-    uint32_t dma_counter;
+    int32_t dma_counter;
     int dma_enabled;
 	int pio_on;
 	int fifo_on;
 	int transfer_complete;
 
-    uint32_t async_len;
+    int32_t async_len;
     uint8_t *async_buf;
 
     ESPDMAMemoryReadWriteFunc dma_memory_read;

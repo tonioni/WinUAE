@@ -143,6 +143,7 @@ struct d3d9overlay
 
 struct d3dstruct
 {
+	int num;
 	int psEnabled, psActive;
 	struct shaderdata shaders[MAX_SHADERS];
 	LPDIRECT3DTEXTURE9 lpPostTempTexture;
@@ -346,7 +347,7 @@ static TCHAR *D3DX_ErrorString (HRESULT hr, LPD3DXBUFFER Errors)
 
 	if (Errors)
 		s = au ((char*)Errors->GetBufferPointer ());
-	size = (s == NULL ? 0 : _tcslen (s)) + 1000;
+	size = (s == NULL ? 0 : uaetcslen (s)) + 1000;
 	if (size + 1000 > buffersize) {
 		xfree (buffer);
 		buffer = xmalloc (TCHAR, size);
@@ -932,7 +933,7 @@ static bool psEffect_LoadEffect (struct d3dstruct *d3d, const TCHAR *shaderfile,
 		}
 		if (FAILED (hr)) {
 			const char *str = d3d->psEnabled ? fx20 : fx10;
-			int len = strlen (str);
+			int len = uaestrlen(str);
 			if (!existsfile && plugin_path) {
 				struct zfile *z = zfile_fopen (tmp, _T("w"));
 				if (z) {
@@ -1416,13 +1417,13 @@ static void updateleds (struct d3dstruct *d3d)
 
 	for (int y = 0; y < d3d->ledheight; y++) {
 		uae_u8 *buf = (uae_u8*)locked.pBits + y * locked.Pitch;
-		statusline_single_erase(d3d - d3ddata, buf, 32 / 8, y, d3d->ledwidth);
+		statusline_single_erase(d3d->num, buf, 32 / 8, y, d3d->ledwidth);
 	}
-	statusline_render(d3d - d3ddata, (uae_u8*)locked.pBits, 32 / 8, locked.Pitch, d3d->ledwidth, d3d->ledheight, rc, gc, bc, a);
+	statusline_render(d3d->num, (uae_u8*)locked.pBits, 32 / 8, locked.Pitch, d3d->ledwidth, d3d->ledheight, rc, gc, bc, a);
 
 	for (int y = 0; y < d3d->ledheight; y++) {
 		uae_u8 *buf = (uae_u8*)locked.pBits + y * locked.Pitch;
-		draw_status_line_single(d3d - d3ddata, buf, 32 / 8, y, d3d->ledwidth, rc, gc, bc, a);
+		draw_status_line_single(d3d->num, buf, 32 / 8, y, d3d->ledwidth, rc, gc, bc, a);
 	}
 
 	d3d->ledtexture->UnlockRect (0);
@@ -1537,7 +1538,7 @@ struct uae_image
 struct png_cb
 {
 	uae_u8 *ptr;
-	int size;
+	size_t size;
 };
 
 static void __cdecl readcallback(png_structp png_ptr, png_bytep out, png_size_t count)
@@ -2006,7 +2007,7 @@ static int createmasktexture (struct d3dstruct *d3d, const TCHAR *filename, stru
 	D3DXIMAGE_INFO dinfo;
 	TCHAR tmp[MAX_DPATH];
 	int maskwidth, maskheight;
-	int idx = sd - &d3d->shaders[0];
+	int idx = (int)(sd - &d3d->shaders[0]);
 
 	if (filename[0] == 0)
 		return 0;
@@ -2142,7 +2143,7 @@ static bool xD3D_getscalerect(int monid, float *mx, float *my, float *sx, float 
 
 static void setupscenecoords (struct d3dstruct *d3d, bool normalrender)
 {
-	int monid = d3d - d3ddata;
+	int monid = d3d->num;
 	struct vidbuf_description *vidinfo = &adisplays[monid].gfxvidinfo;
 	RECT sr, dr, zr;
 	float w, h;
@@ -2691,7 +2692,7 @@ static int getd3dadapter (IDirect3D9 *id3d)
 
 static const TCHAR *D3D_init2 (struct d3dstruct *d3d, HWND ahwnd, int w_w, int w_h, int depth, int *freq, int mmulth, int mmultv)
 {
-	int monid = d3d - d3ddata;
+	int monid = d3d->num;
 	struct amigadisplay *ad = &adisplays[monid];
 	HRESULT ret, hr;
 	static TCHAR errmsg[300] = { 0 };
@@ -2990,7 +2991,7 @@ static const TCHAR *D3D_init2 (struct d3dstruct *d3d, HWND ahwnd, int w_w, int w
 
 	d3d->dmultxh = mmulth;
 	d3d->dmultxv = mmultv;
-	d3d->dmult = S2X_getmult(d3d - d3ddata);
+	d3d->dmult = S2X_getmult(d3d->num);
 
 	d3d->window_w = w_w;
 	d3d->window_h = w_h;
@@ -3734,7 +3735,7 @@ static void D3D_render2(struct d3dstruct *d3d, int mode)
 		}
 		if (d3d->ledtexture && (((currprefs.leds_on_screen & STATUSLINE_RTG) && WIN32GFX_IsPicassoScreen(mon)) || ((currprefs.leds_on_screen & STATUSLINE_CHIPSET) && !WIN32GFX_IsPicassoScreen(mon)))) {
 			int slx, sly;
-			statusline_getpos(d3d - d3ddata, &slx, &sly, d3d->window_w, d3d->window_h);
+			statusline_getpos(d3d->num, &slx, &sly, d3d->window_w, d3d->window_h);
 			v.x = (float)slx;
 			v.y = (float)sly;
 			v.z = 0.0f;
@@ -4289,6 +4290,9 @@ static bool xD3D_extoverlay(struct extoverlay *ext)
 
 void d3d9_select(void)
 {
+	for (int i = 0; i < MAX_AMIGAMONITORS; i++) {
+		d3ddata[i].num = i;
+	}
 	D3D_free = xD3D_free;
 	D3D_init = xD3D_init;
 	D3D_alloctexture = xD3D_alloctexture;

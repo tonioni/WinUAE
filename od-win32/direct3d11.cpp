@@ -209,6 +209,7 @@ struct d3doverlay
 
 struct d3d11struct
 {
+	int num;
 	IDXGISwapChain1 *m_swapChain;
 	ID3D11Device *m_device;
 	ID3D11DeviceContext *m_deviceContext;
@@ -871,7 +872,7 @@ static bool islf(char c)
 static bool fxneedconvert(char *s)
 {
 	char *t = s;
-	int len = strlen(s);
+	int len = uaestrlen(s);
 	while (len > 0) {
 		if (t != s && isws(t[-1]) && (!strnicmp(t, "technique10", 11) || !strnicmp(t, "technique11", 11)) && isws(t[11])) {
 			return false;
@@ -887,7 +888,7 @@ static void fxspecials(char *s, char *dst)
 	char *t = s;
 	char *d = dst;
 	*d = 0;
-	int len = strlen(s);
+	int len = uaestrlen(s);
 	while (len > 0) {
 		bool found = false;
 		if (t != s && !strnicmp(t, "minfilter", 9) && (isws(t[9]) || t[9] == '=') && isws(t[-1])) {
@@ -897,12 +898,12 @@ static void fxspecials(char *s, char *dst)
 			while (!islf(*t) && len > 0) {
 				if (!strnicmp(t, "point", 5)) {
 					strcpy(d, "Filter=MIN_MAG_MIP_POINT");
-					d += strlen(d);
+					d += uaestrlen(d);
 					write_log("FX: 'minfilter' -> 'Filter=MIN_MAG_MIP_POINT'\n");
 				}
 				if (!strnicmp(t, "linear", 6)) {
 					strcpy(d, "Filter=MIN_MAG_MIP_LINEAR");
-					d += strlen(d);
+					d += uaestrlen(d);
 					write_log("FX: 'minfiler' -> 'Filter=MIN_MAG_MIP_LINEAR'\n");
 				}
 				t++;
@@ -921,12 +922,12 @@ static void fxconvert(char *s, char *dst, const char **convert1, const char **co
 {
 	char *t = s;
 	char *d = dst;
-	int len = strlen(s);
+	int len = uaestrlen(s);
 	while (len > 0) {
 		bool found = false;
 		for (int i = 0; convert1[i]; i++) {
-			int slen = strlen(convert1[i]);
-			int dlen = strlen(convert2[i]);
+			int slen = uaestrlen(convert1[i]);
+			int dlen = uaestrlen(convert2[i]);
 			if (len > slen && !strnicmp(t, convert1[i], slen)) {
 				if ((t == s || isws(t[-1])) && isws(t[slen])) {
 					memcpy(d, convert2[i], dlen);
@@ -950,11 +951,11 @@ static void fxremoveline(char *s, char *dst, const char **lines)
 {
 	char *t = s;
 	char *d = dst;
-	int len = strlen(s);
+	int len = uaestrlen(s);
 	while (len > 0) {
 		bool found = false;
 		for (int i = 0; lines[i]; i++) {
-			int slen = strlen(lines[i]);
+			int slen = uaestrlen(lines[i]);
 			if (len > slen && !strnicmp(t, lines[i], slen)) {
 				d--;
 				while (d != dst) {
@@ -1530,7 +1531,7 @@ static void setupscenecoords(struct d3d11struct *d3d, bool normalrender)
 	if (!normalrender)
 		return;
 
-	getfilterrect2(d3d - d3d11data, &dr, &sr, &zr, d3d->m_screenWidth, d3d->m_screenHeight, d3d->m_bitmapWidth / d3d->dmult, d3d->m_bitmapHeight / d3d->dmult, d3d->dmult, d3d->m_bitmapWidth, d3d->m_bitmapHeight);
+	getfilterrect2(d3d->num, &dr, &sr, &zr, d3d->m_screenWidth, d3d->m_screenHeight, d3d->m_bitmapWidth / d3d->dmult, d3d->m_bitmapHeight / d3d->dmult, d3d->dmult, d3d->m_bitmapWidth, d3d->m_bitmapHeight);
 
 	if (!memcmp(&sr, &d3d->sr2, sizeof RECT) && !memcmp(&dr, &d3d->dr2, sizeof RECT) && !memcmp(&zr, &d3d->zr2, sizeof RECT)) {
 		return;
@@ -1607,7 +1608,7 @@ static void updateleds(struct d3d11struct *d3d)
 	if (!d3d->osd.texture || d3d != d3d11data)
 		return;
 
-	statusline_getpos(d3d - d3d11data, &osdx, &osdy, d3d->m_screenWidth, d3d->m_screenHeight);
+	statusline_getpos(d3d->num, &osdx, &osdy, d3d->m_screenWidth, d3d->m_screenHeight);
 	d3d->osd.x = (float)osdx;
 	d3d->osd.y = (float)osdy;
 
@@ -1618,13 +1619,13 @@ static void updateleds(struct d3d11struct *d3d)
 	}
 	for (int y = 0; y < d3d->osd.height; y++) {
 		uae_u8 *buf = (uae_u8*)map.pData + y * map.RowPitch;
-		statusline_single_erase(d3d - d3d11data, buf, 32 / 8, y, d3d->ledwidth);
+		statusline_single_erase(d3d->num, buf, 32 / 8, y, d3d->ledwidth);
 	}
-	statusline_render(d3d - d3d11data, (uae_u8*)map.pData, 32 / 8, map.RowPitch, d3d->ledwidth, d3d->ledheight, rc, gc, bc, a);
+	statusline_render(d3d->num, (uae_u8*)map.pData, 32 / 8, map.RowPitch, d3d->ledwidth, d3d->ledheight, rc, gc, bc, a);
 
 	for (int y = 0; y < d3d->osd.height; y++) {
 		uae_u8 *buf = (uae_u8*)map.pData + y * map.RowPitch;
-		draw_status_line_single(d3d - d3d11data, buf, 32 / 8, y, d3d->ledwidth, rc, gc, bc, a);
+		draw_status_line_single(d3d->num, buf, 32 / 8, y, d3d->ledwidth, rc, gc, bc, a);
 	}
 
 	d3d->m_deviceContext->Unmap(d3d->osd.texture, 0);
@@ -1960,20 +1961,20 @@ err:
 static void erasetexture(struct d3d11struct *d3d)
 {
 	int pitch;
-	uae_u8 *p = D3D_locktexture(d3d - &d3d11data[0], &pitch, NULL, true);
+	uae_u8 *p = D3D_locktexture(d3d->num, &pitch, NULL, true);
 	if (p) {
 		for (int i = 0; i < d3d->m_bitmapHeight; i++) {
 			memset(p, 255, d3d->m_bitmapWidth * d3d->texdepth / 8);
 			p += pitch;
 		}
-		D3D_unlocktexture(d3d - &d3d11data[0], -1, -1);
+		D3D_unlocktexture(d3d->num, -1, -1);
 	}
 }
 #endif
 
 static bool CreateTexture(struct d3d11struct *d3d)
 {
-	struct AmigaMonitor *mon = &AMonitors[d3d - d3d11data];
+	struct AmigaMonitor *mon = &AMonitors[d3d->num];
 	D3D11_TEXTURE2D_DESC desc;
 	D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc;
 	HRESULT hr;
@@ -2119,12 +2120,13 @@ static bool allocshadertex(struct d3d11struct *d3d, struct shadertex *t, int w, 
 
 static bool allocextratextures(struct d3d11struct *d3d, struct shaderdata11 *s, int w, int h)
 {
-	if (!allocshadertex(d3d, &s->lpWorkTexture1, w, h, s - &d3d->shaders[0]))
+	int scnt = (int)(s - &d3d->shaders[0]);
+	if (!allocshadertex(d3d, &s->lpWorkTexture1, w, h, scnt))
 		return false;
-	if (!allocshadertex(d3d, &s->lpWorkTexture2, w, h, s - &d3d->shaders[0]))
+	if (!allocshadertex(d3d, &s->lpWorkTexture2, w, h, scnt))
 		return false;
 
-	write_log(_T("D3D11 %d*%d working texture:%d\n"), w, h, s - &d3d->shaders[0]);
+	write_log(_T("D3D11 %d*%d working texture:%d\n"), w, h, scnt);
 	return true;
 }
 
@@ -2166,7 +2168,7 @@ static bool createextratextures(struct d3d11struct *d3d, int ow, int oh, int win
 			}
 			d3d->shaders[i].targettex_width = w2;
 			d3d->shaders[i].targettex_height = h2;
-			if (!allocshadertex(d3d, &s->lpTempTexture, w2, h2, s - &d3d->shaders[0]))
+			if (!allocshadertex(d3d, &s->lpTempTexture, w2, h2, (int)(s - &d3d->shaders[0])))
 				return false;
 			write_log(_T("D3D11 %d*%d temp texture:%d:%d\n"), w2, h2, i, d3d->shaders[i].type);
 			d3d->shaders[i].worktex_width = w;
@@ -2305,7 +2307,7 @@ struct uae_image
 struct png_cb
 {
 	uae_u8 *ptr;
-	int size;
+	size_t size;
 };
 
 static void __cdecl readcallback(png_structp png_ptr, png_bytep out, png_size_t count)
@@ -2520,7 +2522,7 @@ static uae_u8 dimming(uae_u8 v)
 
 static int createmask2texture(struct d3d11struct *d3d, const TCHAR *filename)
 {
-	struct AmigaMonitor *mon = &AMonitors[d3d - d3d11data];
+	struct AmigaMonitor *mon = &AMonitors[d3d->num];
 	struct zfile *zf;
 	TCHAR tmp[MAX_DPATH];
 	ID3D11Texture2D *tx = NULL;
@@ -3170,7 +3172,7 @@ static bool initd3d(struct d3d11struct *d3d)
 
 static void setswapchainmode(struct d3d11struct *d3d, int fs)
 {
-	struct amigadisplay *ad = &adisplays[d3d - d3d11data];
+	struct amigadisplay *ad = &adisplays[d3d->num];
 	struct apmode *apm = ad->picasso_on ? &currprefs.gfx_apmode[APMODE_RTG] : &currprefs.gfx_apmode[APMODE_NATIVE];
 	// It is recommended to always use the tearing flag when it is supported.
 	d3d->swapChainDesc.Flags &= ~DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING;
@@ -3317,7 +3319,7 @@ static void do_black(struct d3d11struct *d3d)
 
 static void do_present(struct d3d11struct *d3d)
 {
-	struct amigadisplay *ad = &adisplays[d3d - d3d11data];
+	struct amigadisplay *ad = &adisplays[d3d->num];
 	struct apmode *apm = ad->picasso_on ? &currprefs.gfx_apmode[APMODE_RTG] : &currprefs.gfx_apmode[APMODE_NATIVE];
 	HRESULT hr;
 	UINT presentFlags = 0;
@@ -3326,7 +3328,7 @@ static void do_present(struct d3d11struct *d3d)
 	UINT syncinterval = d3d->vblankintervals;
 	// only if no vsync or low latency vsync
 	if (d3d->m_tearingSupport && (d3d->swapChainDesc.Flags & DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING) && (!vsync || apm->gfx_vsyncmode)) {
-		if (apm->gfx_vsyncmode || d3d - d3d11data > 0 || currprefs.turbo_emulation || currprefs.gfx_variable_sync) {
+		if (apm->gfx_vsyncmode || d3d->num > 0 || currprefs.turbo_emulation || currprefs.gfx_variable_sync) {
 			presentFlags |= DXGI_PRESENT_ALLOW_TEARING;
 			syncinterval = 0;
 		}
@@ -4852,7 +4854,7 @@ static bool D3D11_resize_do(struct d3d11struct *d3d)
 		hr = d3d->m_swapChain->SetFullscreenState(TRUE, d3d->outputAdapter);
 		if (FAILED(hr)) {
 			write_log(_T("SetFullscreenState(TRUE) failed %08X\n"), hr);
-			toggle_fullscreen(d3d - d3d11data, 10);
+			toggle_fullscreen(d3d->num, 10);
 		} else {
 			d3d->fsmode = 0;
 		}
@@ -4893,11 +4895,11 @@ static bool recheck(struct d3d11struct *d3d)
 	}
 	if (!d3d->delayedfs)
 		return r;
-	xD3D11_free(d3d - d3d11data, true);
+	xD3D11_free(d3d->num, true);
 	d3d->delayedfs = 0;
 	ShowWindow(d3d->ahwnd, SW_SHOWNORMAL);
 	int freq = 0;
-	if (!xxD3D11_init2(d3d->ahwnd, d3d - d3d11data, d3d->m_screenWidth, d3d->m_screenHeight, d3d->m_bitmapWidth2, d3d->m_bitmapHeight2, 32, &freq, d3d->dmultxh, d3d->dmultxv))
+	if (!xxD3D11_init2(d3d->ahwnd, d3d->num, d3d->m_screenWidth, d3d->m_screenHeight, d3d->m_bitmapWidth2, d3d->m_bitmapHeight2, 32, &freq, d3d->dmultxh, d3d->dmultxv))
 		d3d->invalidmode = true;
 	return false;
 }
@@ -5045,11 +5047,11 @@ static void resizemode(struct d3d11struct *d3d)
 		}
 		if (!d3d->invalidmode) {
 			if (!initd3d(d3d)) {
-				xD3D11_free(d3d - d3d11data, true);
+				xD3D11_free(d3d->num, true);
 				gui_message(_T("D3D11 Resize failed."));
 				d3d->invalidmode = true;
 			} else {
-				xD3D11_alloctexture(d3d - d3d11data, d3d->m_bitmapWidth, d3d->m_bitmapHeight);
+				xD3D11_alloctexture(d3d->num, d3d->m_bitmapWidth, d3d->m_bitmapHeight);
 			}
 		}
 		write_log(_T("D3D11 resizemode end\n"));
@@ -5094,7 +5096,7 @@ static void xD3D11_guimode(int monid, int guion)
 	write_log(_T("fs guimode %d\n"), guion);
 	d3d->guimode = guion;
 	if (guion > 0) {
-		xD3D11_free(d3d - d3d11data, true);
+		xD3D11_free(d3d->num, true);
 		ShowWindow(d3d->ahwnd, SW_HIDE);
 	} else if (guion == 0) {
 		d3d->delayedfs = 1;
@@ -5410,6 +5412,9 @@ void d3d11_select(void)
 
 void d3d_select(struct uae_prefs *p)
 {
+	for (int i = 0; i < MAX_AMIGAMONITORS; i++) {
+		d3d11data[i].num = i;
+	}
 	if (p->gfx_api >= 2)
 		d3d11_select();
 	else

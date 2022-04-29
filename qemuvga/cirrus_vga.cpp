@@ -177,6 +177,7 @@
 static void check_blit(int32_t addr, uint32_t mask, int pitch, int width, int *height, int depth, int dir)
 {
 	int h = *height;
+    int maskp1 = mask + 1;
 	int32_t off;
 	if (!h || !width || (!addr && !mask))
 		return;
@@ -187,9 +188,9 @@ static void check_blit(int32_t addr, uint32_t mask, int pitch, int width, int *h
 	} else {
 		off -= width * (depth / 8);
 	}
-	if (off > mask + 1) {
+	if (off > maskp1) {
 		if (pitch)
-			h -= (off - (mask + 1) + pitch - 1) / pitch;
+			h -= (off - maskp1 + pitch - 1) / pitch;
 		else
 			h = 0;
 	} else if (off < 0) {
@@ -1173,10 +1174,10 @@ static void cirrus_get_resolution(VGACommonState *s, int *pwidth, int *pheight)
  *
  ***************************************/
 
-static void cirrus_update_bank_ptr(CirrusVGAState * s, unsigned bank_index)
+static void cirrus_update_bank_ptr(CirrusVGAState * s, uint32_t bank_index)
 {
-    unsigned offset;
-    unsigned limit;
+    int32_t offset;
+    int32_t limit;
 
     if ((s->vga.gr[0x0b] & 0x01) != 0)	/* dual bank */
 	offset = s->vga.gr[0x09 + bank_index];
@@ -2123,7 +2124,7 @@ static void cirrus_vga_mem_write(void *opaque,
 		return;
 
     if ((s->vga.sr[0x07] & 0x01) == 0) {
-        vga_mem_writeb(&s->vga, addr, mem_value);
+        vga_mem_writeb(&s->vga, addr, (uint32_t)mem_value);
         return;
     }
 
@@ -2148,18 +2149,18 @@ static void cirrus_vga_mem_write(void *opaque,
 		bank_offset &= s->cirrus_addr_mask;
 		mode = s->vga.gr[0x05] & 0x7;
 		if (mode < 4 || mode > 5 || ((s->vga.gr[0x0B] & 0x4) == 0)) {
-		    *(s->vga.vram_ptr + bank_offset) = mem_value;
+		    *(s->vga.vram_ptr + bank_offset) = (uint8_t)mem_value;
                     linear_memory_region_set_dirty(&s->vga.vram, bank_offset,
                                             sizeof(mem_value));
 		} else {
 		    if ((s->vga.gr[0x0B] & 0x14) != 0x14) {
 			cirrus_mem_writeb_mode4and5_8bpp(s, mode,
 							 bank_offset,
-							 mem_value);
+							 (uint32_t)mem_value);
 		    } else {
 			cirrus_mem_writeb_mode4and5_16bpp(s, mode,
 							  bank_offset,
-							  mem_value);
+							  (uint32_t)mem_value);
 		    }
 		}
 	    }
@@ -2167,7 +2168,7 @@ static void cirrus_vga_mem_write(void *opaque,
     } else if (addr >= 0x18000 && addr < 0x18100) {
 	/* memory-mapped I/O */
 	if ((s->vga.sr[0x17] & 0x44) == 0x04) {
-	    cirrus_mmio_blt_write(s, addr & 0xff, mem_value);
+	    cirrus_mmio_blt_write(s, addr & 0xff, (uint8_t)mem_value);
 	}
     } else {
 #ifdef DEBUG_CIRRUS
@@ -2410,10 +2411,11 @@ static uint64_t cirrus_linear_read(void *opaque, hwaddr addr,
 }
 
 static void cirrus_linear_write(void *opaque, hwaddr addr,
-                                uint64_t val, unsigned size)
+                                uint64_t val64, unsigned size)
 {
     CirrusVGAState *s = (CirrusVGAState*)opaque;
     unsigned mode;
+    uint32_t val = (uint32_t)val64;
 
     addr &= s->cirrus_addr_mask;
 
@@ -2668,12 +2670,13 @@ static uint64_t cirrus_vga_ioport_read(void *opaque, hwaddr addr,
     return val;
 }
 
-static void cirrus_vga_ioport_write(void *opaque, hwaddr addr, uint64_t val,
+static void cirrus_vga_ioport_write(void *opaque, hwaddr addr, uint64_t val64,
                                     unsigned size)
 {
     CirrusVGAState *c = (CirrusVGAState*)opaque;
     VGACommonState *s = &c->vga;
     int index;
+    uint32_t val = (uint32_t)val64;
 
     qemu_flush_coalesced_mmio_buffer();
     addr += 0x3b0;
@@ -2814,7 +2817,7 @@ static void cirrus_mmio_write(void *opaque, hwaddr addr,
     CirrusVGAState *s = (CirrusVGAState*)opaque;
 
     if (addr >= 0x100) {
-	cirrus_mmio_blt_write(s, addr - 0x100, val);
+	cirrus_mmio_blt_write(s, addr - 0x100, (uint8_t)val);
     } else {
         cirrus_vga_ioport_write(s, addr + 0x10, val, size);
     }

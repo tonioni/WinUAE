@@ -57,14 +57,14 @@ static inline void glue(vga_draw_glyph_line_, DEPTH)(uint8_t *d,
         ((uint32_t *)d)[2] = (dmask4[(font_data >> 2) & 3] & xorcol) ^ bgcol;
         ((uint32_t *)d)[3] = (dmask4[(font_data >> 0) & 3] & xorcol) ^ bgcol;
 #else
-        ((uint32_t *)d)[0] = (-((font_data >> 7)) & xorcol) ^ bgcol;
-        ((uint32_t *)d)[1] = (-((font_data >> 6) & 1) & xorcol) ^ bgcol;
-        ((uint32_t *)d)[2] = (-((font_data >> 5) & 1) & xorcol) ^ bgcol;
-        ((uint32_t *)d)[3] = (-((font_data >> 4) & 1) & xorcol) ^ bgcol;
-        ((uint32_t *)d)[4] = (-((font_data >> 3) & 1) & xorcol) ^ bgcol;
-        ((uint32_t *)d)[5] = (-((font_data >> 2) & 1) & xorcol) ^ bgcol;
-        ((uint32_t *)d)[6] = (-((font_data >> 1) & 1) & xorcol) ^ bgcol;
-        ((uint32_t *)d)[7] = (-((font_data >> 0) & 1) & xorcol) ^ bgcol;
+        ((uint32_t *)d)[0] = (0-((font_data >> 7)) & xorcol) ^ bgcol;
+        ((uint32_t *)d)[1] = (0-((font_data >> 6) & 1) & xorcol) ^ bgcol;
+        ((uint32_t *)d)[2] = (0-((font_data >> 5) & 1) & xorcol) ^ bgcol;
+        ((uint32_t *)d)[3] = (0-((font_data >> 4) & 1) & xorcol) ^ bgcol;
+        ((uint32_t *)d)[4] = (0-((font_data >> 3) & 1) & xorcol) ^ bgcol;
+        ((uint32_t *)d)[5] = (0-((font_data >> 2) & 1) & xorcol) ^ bgcol;
+        ((uint32_t *)d)[6] = (0-((font_data >> 1) & 1) & xorcol) ^ bgcol;
+        ((uint32_t *)d)[7] = (0-((font_data >> 0) & 1) & xorcol) ^ bgcol;
 #endif
 }
 
@@ -132,14 +132,14 @@ static void glue(vga_draw_glyph9_, DEPTH)(uint8_t *d, int linesize,
         else
             ((uint16_t *)d)[8] = bgcol;
 #else
-        ((uint32_t *)d)[0] = (-((font_data >> 7)) & xorcol) ^ bgcol;
-        ((uint32_t *)d)[1] = (-((font_data >> 6) & 1) & xorcol) ^ bgcol;
-        ((uint32_t *)d)[2] = (-((font_data >> 5) & 1) & xorcol) ^ bgcol;
-        ((uint32_t *)d)[3] = (-((font_data >> 4) & 1) & xorcol) ^ bgcol;
-        ((uint32_t *)d)[4] = (-((font_data >> 3) & 1) & xorcol) ^ bgcol;
-        ((uint32_t *)d)[5] = (-((font_data >> 2) & 1) & xorcol) ^ bgcol;
-        ((uint32_t *)d)[6] = (-((font_data >> 1) & 1) & xorcol) ^ bgcol;
-        v = (-((font_data >> 0) & 1) & xorcol) ^ bgcol;
+        ((uint32_t *)d)[0] = (0-((font_data >> 7)) & xorcol) ^ bgcol;
+        ((uint32_t *)d)[1] = (0-((font_data >> 6) & 1) & xorcol) ^ bgcol;
+        ((uint32_t *)d)[2] = (0-((font_data >> 5) & 1) & xorcol) ^ bgcol;
+        ((uint32_t *)d)[3] = (0-((font_data >> 4) & 1) & xorcol) ^ bgcol;
+        ((uint32_t *)d)[4] = (0-((font_data >> 3) & 1) & xorcol) ^ bgcol;
+        ((uint32_t *)d)[5] = (0-((font_data >> 2) & 1) & xorcol) ^ bgcol;
+        ((uint32_t *)d)[6] = (0-((font_data >> 1) & 1) & xorcol) ^ bgcol;
+        v = (0-((font_data >> 0) & 1) & xorcol) ^ bgcol;
         ((uint32_t *)d)[7] = v;
         if (dup9)
             ((uint32_t *)d)[8] = v;

@@ -91,13 +91,13 @@ uae_u32 uaerandgetseed (void)
 	return randseed;
 }
 
-void my_trim (TCHAR *s)
+void my_trim(TCHAR *s)
 {
 	int len;
-	while (_tcslen (s) > 0 && _tcscspn (s, _T("\t \r\n")) == 0)
-		memmove (s, s + 1, (_tcslen (s + 1) + 1) * sizeof (TCHAR));
-	len = _tcslen (s);
-	while (len > 0 && _tcscspn (s + len - 1, _T("\t \r\n")) == 0)
+	while (uaetcslen(s) > 0 && _tcscspn(s, _T("\t \r\n")) == 0)
+		memmove (s, s + 1, (uaetcslen(s + 1) + 1) * sizeof (TCHAR));
+	len = uaetcslen(s);
+	while (len > 0 && _tcscspn(s + len - 1, _T("\t \r\n")) == 0)
 		s[--len] = '\0';
 }
 
@@ -108,13 +108,13 @@ TCHAR *my_strdup_trim (const TCHAR *s)
 
 	if (s[0] == 0)
 		return my_strdup(s);
-	while (_tcscspn (s, _T("\t \r\n")) == 0)
+	while (_tcscspn(s, _T("\t \r\n")) == 0)
 		s++;
-	len = _tcslen (s);
-	while (len > 0 && _tcscspn (s + len - 1, _T("\t \r\n")) == 0)
+	len = uaetcslen(s);
+	while (len > 0 && _tcscspn(s + len - 1, _T("\t \r\n")) == 0)
 		len--;
-	out = xmalloc (TCHAR, len + 1);
-	memcpy (out, s, len * sizeof (TCHAR));
+	out = xmalloc(TCHAR, len + 1);
+	memcpy(out, s, len * sizeof (TCHAR));
 	out[len] = 0;
 	return out;
 }

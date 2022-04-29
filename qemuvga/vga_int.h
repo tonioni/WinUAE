@@ -142,13 +142,13 @@ typedef struct VGACommonState {
     uint8_t double_scan;
 	uint8_t double_scan2;
     uint32_t line_offset;
-    uint32_t line_compare;
+    int32_t line_compare;
     uint32_t start_addr;
     uint32_t plane_updated;
     uint32_t last_line_offset;
     uint8_t last_cw, last_ch;
-    uint32_t last_width, last_height; /* in chars or pixels */
-    uint32_t last_scr_width, last_scr_height; /* in pixels */
+    int32_t last_width, last_height; /* in chars or pixels */
+    int32_t last_scr_width, last_scr_height; /* in pixels */
     uint32_t last_depth; /* in bits */
     uint8_t cursor_start, cursor_end;
     bool cursor_visible_phase;
