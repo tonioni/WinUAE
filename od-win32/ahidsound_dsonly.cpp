@@ -676,7 +676,7 @@ uae_u32 REGPARAM2 ahi_demux (TrapContext *context)
 		if (OpenClipboard (0)) {
 			clipdat = (TCHAR*)GetClipboardData (CF_UNICODETEXT);
 			if (clipdat) {
-				clipsize = _tcslen (clipdat);
+				clipsize = uaetcslen(clipdat);
 				clipsize++;
 				return clipsize;
 			}
@@ -710,7 +710,7 @@ uae_u32 REGPARAM2 ahi_demux (TrapContext *context)
 
 			if (OpenClipboard (0)) {
 				EmptyClipboard();
-				slen = _tcslen (s);
+				slen = uaetcslen(s);
 				if (p)
 					GlobalFree (p);
 				p = (LPTSTR)GlobalAlloc (GMEM_MOVEABLE, (slen + 1) * sizeof (TCHAR));

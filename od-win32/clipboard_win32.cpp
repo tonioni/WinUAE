@@ -99,8 +99,8 @@ static uae_char *pctoamiga (const uae_char *txt)
 	uae_char *txt2;
 	int i, j;
 
-	len = strlen (txt) + 1;
-	txt2 = xmalloc (uae_char, len);
+	len = uaestrlen(txt) + 1;
+	txt2 = xmalloc(uae_char, len);
 	j = 0;
 	for (i = 0; i < len; i++) {
 		uae_char c = txt[i];
@@ -137,7 +137,7 @@ static TCHAR *amigatopc (const char *txt)
 
 	pc = 0;
 	cnt = 0;
-	len = strlen (txt) + 1;
+	len = uaestrlen(txt) + 1;
 	for (i = 0; i < len; i++) {
 		uae_char c = txt[i];
 		if (c == 13)
@@ -179,7 +179,7 @@ static void to_iff_text(TrapContext *ctx, const TCHAR *pctxt)
 
 	s = ua (pctxt);
 	txt = pctoamiga (s);
-	txtlen = strlen (txt);
+	txtlen = uaestrlen(txt);
 	xfree (to_amiga);
 	size = txtlen + sizeof b + (txtlen & 1) - 8;
 	b[4] = size >> 24;
@@ -415,7 +415,7 @@ static void to_iff_ilbm(TrapContext *ctx, HBITMAP hbmp)
 		}
 	}
 
-	tsize = p - iff - 8;
+	tsize = (int)(p - iff - 8);
 	p = iff + 4;
 	p[0] = tsize >> 24;
 	p[1] = tsize >> 16;

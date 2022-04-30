@@ -48,7 +48,7 @@ int regsetstr (UAEREG *root, const TCHAR *name, const TCHAR *str)
 		HKEY rk = gr (root);
 		if (!rk)
 			return 0;
-		return RegSetValueEx (rk, name, 0, REG_SZ, (CONST BYTE *)str, (_tcslen (str) + 1) * sizeof (TCHAR)) == ERROR_SUCCESS;
+		return RegSetValueEx (rk, name, 0, REG_SZ, (CONST BYTE *)str, (uaetcslen(str) + 1) * sizeof (TCHAR)) == ERROR_SUCCESS;
 	}
 }
 
@@ -138,7 +138,7 @@ int regquerystr (UAEREG *root, const TCHAR *name, TCHAR *str, int *size)
 			if (_tcslen(tmp) >= *size)
 				tmp[(*size) - 1] = 0;
 			_tcscpy (str, tmp);
-			*size = _tcslen(str);
+			*size = uaetcslen(str);
 			ret = 1;
 		}
 		xfree (tmp);
@@ -195,7 +195,7 @@ int regquerydatasize (UAEREG *root, const TCHAR *name, int *size)
 		int csize = 65536;
 		TCHAR *tmp = xmalloc (TCHAR, csize);
 		if (regquerystr (root, name, tmp, &csize)) {
-			*size = _tcslen (tmp) / 2;
+			*size = uaetcslen (tmp) / 2;
 			ret = 1;
 		}
 		xfree (tmp);

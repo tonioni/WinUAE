@@ -1406,7 +1406,7 @@ static bool read_slot (const TCHAR *parm, int num, int joystick, int button, str
 	if (joystick < 0) {
 		if (!(ie->allow_mask & AM_K))
 			return false;
-		id->eventid[keynum][subnum] = ie - events;
+		id->eventid[keynum][subnum] = (int)(ie - events);
 		id->flags[keynum][subnum] = flags;
 		id->port[keynum][subnum] = port;
 		xfree (id->custom[keynum][subnum]);
@@ -1418,7 +1418,7 @@ static bool read_slot (const TCHAR *parm, int num, int joystick, int button, str
 			mask = AM_MOUSE_BUT;
 		if (!(ie->allow_mask & mask))
 			return false;
-		id->eventid[num + ID_BUTTON_OFFSET][subnum] = ie - events;
+		id->eventid[num + ID_BUTTON_OFFSET][subnum] = (int)(ie - events);
 		id->flags[num + ID_BUTTON_OFFSET][subnum] = flags;
 		id->port[num + ID_BUTTON_OFFSET][subnum] = port;
 		xfree (id->custom[num + ID_BUTTON_OFFSET][subnum]);
@@ -1430,7 +1430,7 @@ static bool read_slot (const TCHAR *parm, int num, int joystick, int button, str
 			mask = AM_MOUSE_AXIS;
 		if (!(ie->allow_mask & mask))
 			return false;
-		id->eventid[num + ID_AXIS_OFFSET][subnum] = ie - events;
+		id->eventid[num + ID_AXIS_OFFSET][subnum] = (int)(ie - events);
 		id->flags[num + ID_AXIS_OFFSET][subnum] = flags;
 		id->port[num + ID_AXIS_OFFSET][subnum] = port;
 		xfree (id->custom[num + ID_AXIS_OFFSET][subnum]);
@@ -1997,7 +1997,7 @@ void inputdevice_parse_jport_custom(struct uae_prefs *pr, int index, int port, T
 					goto skip;
 			}
 			if (outname == NULL) {
-				int evt = ie - &events[0];
+				int evt = (int)(ie - &events[0]);
 				if (joystick < 0) {
 					if (port >= 0) {
 						// all active keyboards
@@ -3663,7 +3663,7 @@ static void inject_events (const TCHAR *str)
 			const TCHAR *s2 = s;
 			while (*s && *s != ' ')
 				s++;
-			int s2len = s - s2;
+			int s2len = (int)(s - s2);
 			if (!s2len)
 				break;
 			for (int i = 1; events[i].name; i++) {
@@ -8212,7 +8212,7 @@ int inputdevice_iterate (int devnum, int num, TCHAR *name, int *af)
 		if (ie->allow_mask & AM_INFO) {
 			const struct inputevent *ie2 = ie + 1;
 			while (!(ie2->allow_mask & AM_INFO)) {
-				if (is_event_used (idf, devindex, ie2 - ie, -1)) {
+				if (is_event_used (idf, devindex, (int)(ie2 - ie), -1)) {
 					ie2++;
 					continue;
 				}

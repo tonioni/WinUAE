@@ -488,7 +488,7 @@ static int setchannelevent (struct DSAHI *dsahip, struct dschannel *dc)
 {
 	uae_u32 audioctrl = dsahip->audioctrl;
 	uae_u32 puaebase = get_long (audioctrl + ahiac_DriverData);
-	int ch = dc - &dsahip->channel[0];
+	int ch = (int)(dc - &dsahip->channel[0]);
 	uae_u32 mask;
 
 	if (!dsahip->playing || ahi_paused || !dc->al_source || !get_long (audioctrl + ahiac_SoundFunc))
@@ -537,7 +537,7 @@ static void setevent (struct DSAHI *dsahip)
 	dsahip->evttime = t;
 	if (t < 10)
 		return;
-	event2_newevent2 (t, dsahip - &dsahi[0], evtfunc);
+	event2_newevent2(t, (int)(dsahip - &dsahi[0]), evtfunc);
 }
 
 static void alClear (void)
@@ -981,7 +981,7 @@ static void dorecord (struct DSAHI *dsahip)
 	if (recordbuf == 0 || !valid_address (recordbuf, bytes))
 		return;
 	alClear ();
-	alcCaptureSamples (dsahip->al_recorddev, (void*)recordbuf, dsahip->record_samples);
+	alcCaptureSamples(dsahip->al_recorddev, (void*)recordbuf, dsahip->record_samples);
 	if (alGetError () != AL_NO_ERROR)
 		return;
 	put_word (pbase + pub_RecordHookDone, 0);
@@ -1355,7 +1355,7 @@ static uae_u32 AHIsub_AllocAudio (TrapContext *ctx)
 		write_log (_T("AHI: corrupted memory\n"));
 		return AHISF_ERROR;
 	}
-	put_long (pbase + pub_Index, dsahip - dsahi);
+	put_long(pbase + pub_Index, (int)(dsahip - dsahi));
 	dsahip->audioctrl = audioctrl;
 
 	dsahip->maxplaysamples = UAE_MAXPLAYSAMPLES;

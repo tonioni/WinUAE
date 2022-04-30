@@ -451,7 +451,7 @@ static struct zfile *archive_do_zip (struct znode *zn, struct zfile *z, int flag
 		int err = -1;
 		if (!(flags & FILE_DELAYEDOPEN) || z->size <= PEEK_BYTES) {
 			unpack_log (_T("ZIP: unpacking %s, flags=%d\n"), name, flags);
-			err = unzReadCurrentFile (uz, z->data, (size_t)z->datasize);
+			err = unzReadCurrentFile (uz, z->data, (unsigned int)z->datasize);
 			unpack_log (_T("ZIP: unpacked, code=%d\n"), err);
 		} else {
 			z->archiveparent = zfile_dup (zn->volume->archive);
@@ -460,11 +460,11 @@ static struct zfile *archive_do_zip (struct znode *zn, struct zfile *z, int flag
 				xfree (z->archiveparent->name);
 				z->archiveparent->name = my_strdup (tmp);
 				z->datasize = PEEK_BYTES;
-				err = unzReadCurrentFile (uz, z->data, (size_t)z->datasize);
+				err = unzReadCurrentFile (uz, z->data, (unsigned int)z->datasize);
 				unpack_log (_T("ZIP: unpacked, code=%d\n"), err);
 			} else {
 				unpack_log (_T("ZIP: unpacking %s (failed DELAYEDOPEN)\n"), name);
-				err = unzReadCurrentFile (uz, z->data, (size_t)z->datasize);
+				err = unzReadCurrentFile (uz, z->data, (unsigned int)z->datasize);
 				unpack_log (_T("ZIP: unpacked, code=%d\n"), err);
 			}
 		}
@@ -903,7 +903,7 @@ static HRESULT __stdcall readCallback (int StreamID, uae_u64 offset, uae_u32 cou
 	int ret;
 
 	zfile_fseek (f, (long)offset, SEEK_SET);
-	ret = zfile_fread (buf, 1, count, f);
+	ret = (int)zfile_fread (buf, 1, count, f);
 	if (processedSize)
 		*processedSize = ret;
 	return 0;
@@ -913,7 +913,7 @@ static HRESULT __stdcall writeCallback (int StreamID, uae_u64 offset, uae_u32 co
 	struct zfile *f = arcacc_stack[StreamID];
 	int ret;
 
-	ret = zfile_fwrite ((void*)buf, 1, count, f);
+	ret = (int)zfile_fwrite ((void*)buf, 1, count, f);
 	if (processedSize)
 		*processedSize = ret;
 	if (ret != count)

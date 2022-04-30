@@ -78,7 +78,7 @@ static int getunitnum (struct dev_info_ioctl *ciw)
 {
 	if (!ciw)
 		return -1;
-	int idx = ciw - &ciw32[0];
+	int idx = (int)(ciw - &ciw32[0]);
 	for (int i = 0; i < MAX_TOTAL_SCSI_DEVICES; i++) {
 		if (unittable[i] - 1 == idx)
 			return i;
@@ -689,7 +689,7 @@ static int ioctl_command_rawread (int unitnum, uae_u8 *data, int sector, int siz
 					memcpy (data + blocksize, p + readblocksize, SUB_CHANNEL_SIZE);
 					data += blocksize + SUB_CHANNEL_SIZE;
 				}
-				ret += data - odata;
+				ret += (int)(data - odata);
 				sector++;
 			}
 		}

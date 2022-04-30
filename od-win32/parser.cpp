@@ -344,7 +344,7 @@ static void DoSomeWeirdPrintingStuff (uae_char val)
 			psbuffer[0] = 0;
 			psbuffers = 0;
 			strcpy (prtbuf, "%!PS");
-			prtbufbytes = strlen (prtbuf);
+			prtbufbytes = uaestrlen(prtbuf);
 			flushprtbuf ();
 			write_log (_T("PostScript start detected..\n"));
 			return;
@@ -957,7 +957,7 @@ static int opentcp (const TCHAR *sername)
 		write_log(_T("SERIAL_TCP: socket() failed, %s:%s: %d\n"), name, port, WSAGetLastError ());
 		goto end;
 	}
-	err = bind (serialsocket, socketinfo->ai_addr, socketinfo->ai_addrlen);
+	err = bind (serialsocket, socketinfo->ai_addr, (int)socketinfo->ai_addrlen);
 	if (err < 0) {
 		write_log(_T("SERIAL_TCP: bind() failed, %s:%s: %d\n"), name, port, WSAGetLastError ());
 		goto end;

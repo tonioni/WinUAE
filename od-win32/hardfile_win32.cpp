@@ -2145,7 +2145,7 @@ emptyreal:
 		}
 		
 		hfd->handle->h = h;
-		i = _tcslen (name) - 1;
+		i = uaetcslen(name) - 1;
 		while (i >= 0) {
 			if ((i > 0 && (name[i - 1] == '/' || name[i - 1] == '\\')) || i == 0) {
 				_tcsncpy (hfd->product_id, name + i, 15);
@@ -2483,7 +2483,7 @@ static int hdf_read_2 (struct hardfiledata *hfd, void *buffer, uae_u64 offset, i
 	if (hfd->handle_valid == HDF_HANDLE_WIN32_NORMAL) {
 		ReadFile(hfd->handle->h, hfd->cache, CACHE_SIZE, &outlen, NULL);
 	} else if (hfd->handle_valid == HDF_HANDLE_ZFILE) {
-		outlen = zfile_fread(hfd->cache, 1, CACHE_SIZE, hfd->handle->zf);
+		outlen = (DWORD)zfile_fread(hfd->cache, 1, CACHE_SIZE, hfd->handle->zf);
 	}
 	hfd->cache_valid = 0;
 	if (outlen != CACHE_SIZE)
@@ -2531,7 +2531,7 @@ int hdf_read_target (struct hardfiledata *hfd, void *buffer, uae_u64 offset, int
 				ReadFile (hfd->handle->h, hfd->cache, len, &ret, NULL);
 				memcpy (buffer, hfd->cache, ret);
 			} else if (hfd->handle_valid == HDF_HANDLE_ZFILE) {
-				ret = zfile_fread (buffer, 1, len, hfd->handle->zf);
+				ret = (DWORD)zfile_fread (buffer, 1, len, hfd->handle->zf);
 			}
 			maxlen = len;
 		} else {
@@ -2593,7 +2593,7 @@ static int hdf_write_2 (struct hardfiledata *hfd, void *buffer, uae_u64 offset, 
 			}
 		}
 	} else if (hfd->handle_valid == HDF_HANDLE_ZFILE) {
-		outlen = zfile_fwrite (hfd->cache, 1, len, hfd->handle->zf);
+		outlen = (DWORD)zfile_fwrite (hfd->cache, 1, len, hfd->handle->zf);
 	}
 	return outlen;
 }

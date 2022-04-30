@@ -1838,7 +1838,7 @@ int scsi_hd_emulate (struct hardfiledata *hfd, struct hd_hardfiledata *hdhfd, ua
 				p += bdlen;
 			}
 			for (;;) {
-				int rem = plen - (p - scsi_data);
+				int rem = (int)(plen - (p - scsi_data));
 				if (!rem)
 					break;
 				if (rem < 2)
@@ -3025,7 +3025,7 @@ static void hardfile_thread (void *devs)
 			uae_sem_post (&hfpd->sync_sem);
 			uae_sem_post (&change_sem);
 			return;
-		} else if (hardfile_do_io(ctx, get_hardfile_data_controller(hfpd - &hardfpd[0]), hfpd, iobuf, request) == 0) {
+		} else if (hardfile_do_io(ctx, get_hardfile_data_controller((int)(hfpd - &hardfpd[0])), hfpd, iobuf, request) == 0) {
 			put_byte_host(iobuf + 30, get_byte_host(iobuf + 30) & ~1);
 			trap_put_bytes(ctx, iobuf + 8, request + 8, 48 - 8);
 			release_async_request(hfpd, request);

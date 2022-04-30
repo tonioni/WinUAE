@@ -836,7 +836,7 @@ static void es1370_transfer_audio (ES1370State *s, struct chan *d, int loop_sel,
     int left = ((size - cnt + 1) << 2) + d->leftover;
     int transferred = 0;
     int temp = audio_MIN (max, audio_MIN (left, csc_bytes));
-    int index = d - &s->chan[0];
+    int index = (int)(d - &s->chan[0]);
 
     addr += (cnt << 2) + d->leftover;
 

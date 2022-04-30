@@ -1412,12 +1412,12 @@ static void AVIOutput_Begin2(bool fullstart, bool immediate)
 	} else {
 		ext1 = _T(".avi"); ext2 = _T(".wav");
 	}
-	if (_tcslen (avioutput_filename_inuse) >= 4 && !_tcsicmp (avioutput_filename_inuse + _tcslen (avioutput_filename_inuse) - 4, ext2))
-		avioutput_filename_inuse[_tcslen (avioutput_filename_inuse) - 4] = 0;
-	if (_tcslen (avioutput_filename_inuse) >= 4 && _tcsicmp (avioutput_filename_inuse + _tcslen (avioutput_filename_inuse) - 4, ext1))
+	if (uaetcslen(avioutput_filename_inuse) >= 4 && !_tcsicmp (avioutput_filename_inuse + uaetcslen(avioutput_filename_inuse) - 4, ext2))
+		avioutput_filename_inuse[uaetcslen(avioutput_filename_inuse) - 4] = 0;
+	if (uaetcslen(avioutput_filename_inuse) >= 4 && _tcsicmp (avioutput_filename_inuse + uaetcslen(avioutput_filename_inuse) - 4, ext1))
 		_tcscat (avioutput_filename_inuse, ext1);
 	_tcscpy (avioutput_filename_tmp, avioutput_filename_inuse);
-	i = _tcslen (avioutput_filename_tmp) - 1;
+	i = uaetcslen(avioutput_filename_tmp) - 1;
 	while (i > 0 && avioutput_filename_tmp[i] != '.') i--;
 	if (i > 0)
 		avioutput_filename_tmp[i] = 0;

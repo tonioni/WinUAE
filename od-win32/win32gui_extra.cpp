@@ -1060,7 +1060,7 @@ static int scaleresource2 (struct newresource *res, HWND parent, int resize, int
 	p = skiptextone (p);
 	p = todword (p);
 
-	int remain = ps2 - (BYTE*)res->sourceresource;
+	size_t remain = ps2 - (BYTE*)res->sourceresource;
 	memcpy (p, ps2, res->sourcesize - remain);
 
 	int id2 = 0;
@@ -1603,10 +1603,10 @@ bool show_box_art(const TCHAR *path, const TCHAR *configpath)
 		_tcscpy(config_path, configpath);
 	}
 
-	int len = _tcslen(config_path);
+	int len = uaetcslen(config_path);
 	if (len > 4 && !_tcsicmp(config_path + len - 4, _T(".uae")))
 		config_path[len - 4] = 0;
-	if (_tcslen(config_path) > 0)
+	if (uaetcslen(config_path) > 0)
 		SetWindowText(boxarthwnd, config_path);
 
 	if (max_visible_boxart_images < 1) {

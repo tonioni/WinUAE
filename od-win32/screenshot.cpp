@@ -42,7 +42,7 @@ static void namesplit (TCHAR *s)
 {
 	int l;
 
-	l = _tcslen (s) - 1;
+	l = uaetcslen(s) - 1;
 	while (l >= 0) {
 		if (s[l] == '.')
 			s[l] = 0;
@@ -53,7 +53,7 @@ static void namesplit (TCHAR *s)
 		l--;
 	}
 	if (l > 0)
-		memmove (s, s + l, (_tcslen (s + l) + 1) * sizeof (TCHAR));
+		memmove (s, s + l, (uaetcslen(s + l) + 1) * sizeof (TCHAR));
 }
 
 static int toclipboard (BITMAPINFO *bi, void *bmp)

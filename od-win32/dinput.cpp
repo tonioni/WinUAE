@@ -2956,8 +2956,8 @@ static BOOL CALLBACK EnumObjectsCallback (const DIDEVICEOBJECTINSTANCE* pdidoi, 
 static void trimws (TCHAR *s)
 {
 	/* Delete trailing whitespace.  */
-	int len = _tcslen (s);
-	while (len > 0 && _tcscspn (s + len - 1, _T("\t \r\n")) == 0)
+	int len = uaetcslen(s);
+	while (len > 0 && _tcscspn(s + len - 1, _T("\t \r\n")) == 0)
 		s[--len] = '\0';
 }
 
@@ -3014,7 +3014,7 @@ static BOOL di_enumcallback2 (LPCDIDEVICEINSTANCE lpddi, int joy)
 
 	cleardid (did);
 	if (lpddi->tszInstanceName) {
-		len = _tcslen (lpddi->tszInstanceName) + 5 + 1;
+		len = uaetcslen(lpddi->tszInstanceName) + 5 + 1;
 		did->name = xmalloc (TCHAR, len);
 		_tcscpy (did->name, lpddi->tszInstanceName);
 	} else {

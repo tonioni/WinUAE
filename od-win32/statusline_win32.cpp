@@ -288,7 +288,7 @@ void statusline_render(int monid, uae_u8 *buf, int bpp, int pitch, int width, in
 	BitBlt(statusline_hdc, 0, 0, statusline_width, statusline_height, NULL, 0, 0, BLACKNESS);
 
 	SIZE size;
-	if (GetTextExtentPoint32(statusline_hdc, text, _tcslen(text), &size)) {
+	if (GetTextExtentPoint32(statusline_hdc, text, uaetcslen(text), &size)) {
 		textwidth = size.cx;
 		if (isfullscreen()) {
 			if (td_numbers_pos & TD_RIGHT) {
@@ -302,7 +302,7 @@ void statusline_render(int monid, uae_u8 *buf, int bpp, int pitch, int width, in
 	}
 	if (x < 0)
 		x = 0;
-	TextOut(statusline_hdc, x, y, text, _tcslen(text));
+	TextOut(statusline_hdc, x, y, text, uaetcslen(text));
 
 	for (int y = 0; y < height && y < statusline_height; y++) {
 		uae_u8 *src = (uae_u8*)statusline_bm + y * statusline_width;

@@ -2361,7 +2361,7 @@ int picasso_getwritewatch (int index, int offset, uae_u8 ***gwwbufp, uae_u8 **st
 		*gwwbufp = (uae_u8**)gwwbuf[index];
 	if (startp)
 		*startp = start;
-	return writewatchcount[index];
+	return (int)writewatchcount[index];
 }
 bool picasso_is_vram_dirty (int index, uaecptr addr, int size)
 {
@@ -3183,7 +3183,7 @@ static uae_u32 picasso_SetSplitPosition(TrapContext *ctx)
 #ifdef CPU_64_BIT
 static void do_xor8 (uae_u8 *p, int w, uae_u32 v)
 {
-	while (ALIGN_POINTER_TO32 (p) != 7 && w) {
+	while (ALIGN_POINTER_TO32(p) != 7 && w) {
 		*p ^= v;
 		p++;
 		w--;
@@ -3205,7 +3205,7 @@ static void do_xor8 (uae_u8 *p, int w, uae_u32 v)
 #else
 static void do_xor8 (uae_u8 *p, int w, uae_u32 v)
 {
-	while (ALIGN_POINTER_TO32 (p) != 3 && w) {
+	while (ALIGN_POINTER_TO32(p) != 3 && w) {
 		*p ^= v;
 		p++;
 		w--;
@@ -5356,7 +5356,7 @@ static void picasso_flushpixels(int index, uae_u8 *src, int off, bool render)
 
 
 		for (int split = 0; split < 2; split++) {
-			uae_u32 regionsize = src_end[split] - src_start[split];
+			uae_u32 regionsize = (uae_u32)(src_end[split] - src_start[split]);
 			if (src_start[split] == 0 && src_end[split] == 0) {
 				break;
 			}
@@ -5373,7 +5373,7 @@ static void picasso_flushpixels(int index, uae_u8 *src, int off, bool render)
 					continue;
 			}
 
-			matchcount += gwwcnt;
+			matchcount += (int)gwwcnt;
 
 			if (gwwcnt == 0) {
 				continue;
@@ -5441,7 +5441,7 @@ static void picasso_flushpixels(int index, uae_u8 *src, int off, bool render)
 					int y, x, realoffset;
 
 					if (p >= src + off) {
-						realoffset = p - (src + off);
+						realoffset = (int)(p - (src + off));
 					} else {
 						realoffset = 0;
 					}

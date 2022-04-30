@@ -1261,7 +1261,7 @@ static void dos_execute_callback(uae_u32 id, uae_u32 status, uae_u32 flags, cons
 	if (flags & (RP_EXECUTE_RETURN_EXIT_CODE | RP_EXECUTE_RETURN_OUTPUT)) {
 		int outsize = 0;
 		if (outbuf) {
-			outsize = strlen(outbuf);
+			outsize = uaestrlen(outbuf);
 		}
 		size += (outsize + 1) * sizeof(TCHAR);
 		er = (RPExecuteResult *)xcalloc(uae_u8, size);
@@ -1462,7 +1462,7 @@ static LRESULT CALLBACK RPHostMsgFunction2 (UINT uMessage, WPARAM wParam, LPARAM
 				savestate_initsave (NULL, 0, TRUE, true);
 				return 1;
 			}
-			if (vpos == 0) {
+			if (vpos == maxvpos_display_vsync) {
 				savestate_initsave (_T(""), 1, TRUE, true);
 				save_state (s, _T("AmigaForever"));
 				ret = 1;

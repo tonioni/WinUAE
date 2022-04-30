@@ -2879,7 +2879,7 @@ static LRESULT CALLBACK MainWindowProc (HWND hWnd, UINT message, WPARAM wParam, 
 				if (txt) {
 					SetBkMode(lpDIS->hDC, TRANSPARENT);
 					oc = SetTextColor(lpDIS->hDC, RGB(0x00, 0x00, 0x00));
-					DrawText(lpDIS->hDC, txt, _tcslen(txt), &lpDIS->rcItem, flags);
+					DrawText(lpDIS->hDC, txt, uaetcslen(txt), &lpDIS->rcItem, flags);
 					SetTextColor(lpDIS->hDC, oc);
 				}
 			} else if (lpDIS->itemID > 0 && lpDIS->itemID <= window_led_joy_start) {
@@ -2966,7 +2966,7 @@ static LRESULT CALLBACK MainWindowProc (HWND hWnd, UINT message, WPARAM wParam, 
 					lpDIS->rcItem.right--;
 					lpDIS->rcItem.left += 2;
 				}
-				DrawText (lpDIS->hDC, txt, _tcslen (txt), &lpDIS->rcItem, flags);
+				DrawText (lpDIS->hDC, txt, uaetcslen(txt), &lpDIS->rcItem, flags);
 				SetTextColor (lpDIS->hDC, oc);
 			}
 		}
@@ -3654,23 +3654,23 @@ uae_u8 *save_log(int bootlog, size_t *len)
 {
 	FILE *f;
 	uae_u8 *dst = NULL;
-	int size;
+	size_t size;
 
 	if (!logging_started)
 		return NULL;
-	f = _tfopen (bootlog ? LOG_BOOT : LOG_NORMAL, _T("rb"));
+	f = _tfopen(bootlog ? LOG_BOOT : LOG_NORMAL, _T("rb"));
 	if (!f)
 		return NULL;
-	fseek (f, 0, SEEK_END);
-	size = ftell (f);
-	fseek (f, 0, SEEK_SET);
+	fseek(f, 0, SEEK_END);
+	size = ftell(f);
+	fseek(f, 0, SEEK_SET);
 	if (*len > 0 && size > *len)
 		size = *len;
 	if (size > 0) {
-		dst = xcalloc (uae_u8, size + 1);
+		dst = xcalloc(uae_u8, size + 1);
 		if (dst)
-			fread (dst, 1, size, f);
-		fclose (f);
+			fread(dst, 1, size, f);
+		fclose(f);
 		*len = size + 1;
 	}
 	return dst;
@@ -4091,7 +4091,7 @@ static void shellexecute (const TCHAR *command)
 	TCHAR **arg;
 	int i, j, k, stop;
 
-	if (_tcslen (command) == 0)
+	if (uaetcslen(command) == 0)
 		return;
 	i = j = 0;
 	stop = 0;
@@ -4101,14 +4101,14 @@ static void shellexecute (const TCHAR *command)
 		int len = 1;
 		j = i;
 		while (arg[i] && _tcscmp (arg[i], L";")) {
-			len += _tcslen (arg[i]) + 3;
+			len += uaetcslen(arg[i]) + 3;
 			i++;
 		}
 		exec = NULL;
 		cmd = xcalloc (TCHAR, len);
 		for (k = j; k < i; k++) {
 			int quote = 0;
-			if (_tcslen (cmd) > 0)
+			if (uaetcslen(cmd) > 0)
 				_tcscat (cmd, L" ");
 			if (_tcschr (arg[k], ' '))
 				quote = 1;
@@ -4649,8 +4649,8 @@ int target_parse_option (struct uae_prefs *p, const TCHAR *option, const TCHAR *
 			for (i = 0; i < MAX_SOUND_DEVICES && sound_devices[i]; i++) {
 				if (!sound_devices[i]->prefix)
 					continue;
-				int prefixlen = _tcslen(sound_devices[i]->prefix);
-				int tmplen = _tcslen(tmpbuf);
+				int prefixlen = uaetcslen(sound_devices[i]->prefix);
+				int tmplen = uaetcslen(tmpbuf);
 				if (prefixlen > 0 && tmplen >= prefixlen &&
 					!_tcsncmp(sound_devices[i]->prefix, tmpbuf, prefixlen) &&
 					((tmplen > prefixlen && tmpbuf[prefixlen] == ':')
@@ -5441,7 +5441,7 @@ static void associate_init_extensions (void)
 				RegSetValueEx (key1, _T("UseUrl"), 0, REG_DWORD, (LPBYTE)&val, sizeof val);
 				_tcscpy (rpath, start_path_exe);
 				rpath[_tcslen (rpath) - 1] = 0;
-				RegSetValueEx (key1, _T("Path"), 0, REG_SZ, (CONST BYTE *)rpath, (_tcslen (rpath) + 1) * sizeof (TCHAR));
+				RegSetValueEx (key1, _T("Path"), 0, REG_SZ, (CONST BYTE *)rpath, (uaetcslen(rpath) + 1) * sizeof (TCHAR));
 				RegCloseKey (key1);
 				SHChangeNotify (SHCNE_ASSOCCHANGED, 0, 0, 0); 
 			}
@@ -6261,7 +6261,6 @@ static void getstartpaths (void)
 	setpathmode (path_type);
 }
 
-extern void test (void);
 extern int screenshotmode, postscript_print_debugging, sound_debug, log_uaeserial, clipboard_debug;
 extern int force_direct_catweasel, sound_mode_skip, maxmem;
 extern int pngprint, log_sercon, midi_inbuflen;
@@ -7060,7 +7059,7 @@ static bool singleprocess (void)
 		goto end;
 	buf[0] = 0xfeff;
 	_tcscpy (buf + 1, _T("IPC_QUIT"));
-	if (!WriteFile(p, (void*)buf, (_tcslen (buf) + 1) * sizeof (TCHAR), &ret, NULL))
+	if (!WriteFile(p, (void*)buf, (uaetcslen(buf) + 1) * sizeof (TCHAR), &ret, NULL))
 		goto end;
 	if (!PeekNamedPipe(p, NULL, 0, NULL, &avail, NULL))
 		goto end;
@@ -7298,7 +7297,7 @@ static void savedump (MINIDUMPWRITEDUMP dump, HANDLE f, struct _EXCEPTION_POINTE
 		musi.UserStreamCount++;
 		musp->Type = LastReservedStream + musi.UserStreamCount;
 		musp->Buffer = log;
-		musp->BufferSize = len;
+		musp->BufferSize = (ULONG)len;
 		len = 30000;
 		log = save_log (FALSE, &len);
 		if (log) {
@@ -7306,7 +7305,7 @@ static void savedump (MINIDUMPWRITEDUMP dump, HANDLE f, struct _EXCEPTION_POINTE
 			musi.UserStreamCount++;
 			musp->Type = LastReservedStream + musi.UserStreamCount;
 			musp->Buffer = log;
-			musp->BufferSize = len;
+			musp->BufferSize = (ULONG)len;
 		}
 	}
 
@@ -7316,7 +7315,7 @@ static void savedump (MINIDUMPWRITEDUMP dump, HANDLE f, struct _EXCEPTION_POINTE
 		musi.UserStreamCount++;
 		musp->Type = LastReservedStream + musi.UserStreamCount;
 		musp->Buffer = (void*)config;
-		musp->BufferSize = len;
+		musp->BufferSize = (ULONG)len;
 	}
 
 	if (musi.UserStreamCount > 0)

@@ -782,10 +782,10 @@ cont:
 
 	xs = dst_width;
 	if (xmult)
-		xs -= dst_width / (int)xmult;
+		xs -= (int)(dst_width / xmult);
 	ys = dst_height;
 	if (ymult)
-		ys -= dst_height / (int)ymult;
+		ys -= (int)(dst_height / ymult);
 	sizeoffset (dr, zr, xs, ys);
 
 	filterxmult = xmult;

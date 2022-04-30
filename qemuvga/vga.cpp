@@ -2379,7 +2379,7 @@ static void vga_update_text(void *opaque, console_ch_t *chardata)
     for (dst = chardata, i = 0; i < s->last_width * height; i ++)
         console_write_ch(dst ++, ' ');
 
-    size = strlen(msg_buffer);
+    size = (int)strlen(msg_buffer);
     width = (s->last_width - size) / 2;
     dst = chardata + s->last_width + width;
     for (i = 0; i < size; i ++)

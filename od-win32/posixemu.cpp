@@ -140,7 +140,7 @@ void uae_sem_destroy (uae_sem_t * event)
 
 uae_thread_id uae_thread_get_id(void)
 {
-	return (uae_thread_id)GetCurrentThreadId();
+	return (uae_thread_id)(INT_PTR)GetCurrentThreadId();
 }
 
 #ifndef _CONSOLE

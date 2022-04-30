@@ -150,7 +150,8 @@ void HtmlHelp(HWND a, LPCWSTR b, UINT c, const TCHAR *d)
 		(*pHtmlHelp)(a, b, c, (LPDWORD)d);
 	} else {
 		if (gui_message_multibutton(1, _T("Help file is not installed locally, do you want to open online version? (http://www.winuae.net/help/)")) == 1) {
-			if ((int)ShellExecute(NULL, _T("open"), _T("http://www.winuae.net/help/"), NULL, NULL, SW_SHOWNORMAL) <= 32) {
+			HINSTANCE h = ShellExecute(NULL, _T("open"), _T("http://www.winuae.net/help/"), NULL, NULL, SW_SHOWNORMAL);
+			if ((INT_PTR)h <= 32) {
 				TCHAR szMessage[MAX_DPATH];
 				WIN32GUI_LoadUIString(IDS_NOHELP, szMessage, MAX_DPATH);
 				gui_message(szMessage);
@@ -936,7 +937,7 @@ static void addeditmenu (HMENU menu, struct favitems *fitem)
 	mii.fType = MFT_STRING;
 	mii.fState = MFS_ENABLED;
 	mii.dwTypeData = _T("Add New");
-	mii.cch = _tcslen (mii.dwTypeData);
+	mii.cch = uaetcslen(mii.dwTypeData);
 	mii.wID = 1000;
 	InsertMenuItem (emenu, -1, TRUE, &mii);
 	i = 0;
@@ -948,7 +949,7 @@ static void addeditmenu (HMENU menu, struct favitems *fitem)
 			mii.wID = 1001 + i;
 			_stprintf (newpath, _T("Remove '%s'"), fitem[i].value);
 			mii.dwTypeData = newpath;
-			mii.cch = _tcslen (mii.dwTypeData);
+			mii.cch = uaetcslen(mii.dwTypeData);
 			InsertMenuItem (emenu, -1, TRUE, &mii);
 		}
 		i++;
@@ -958,7 +959,7 @@ static void addeditmenu (HMENU menu, struct favitems *fitem)
 	mii.fType = MFT_STRING;
 	mii.fState = MFS_ENABLED;
 	mii.dwTypeData = _T("Edit");
-	mii.cch = _tcslen (mii.dwTypeData);
+	mii.cch = uaetcslen(mii.dwTypeData);
 	mii.hSubMenu = emenu;
 	InsertMenuItem (menu, -1, TRUE, &mii);
 }
@@ -981,7 +982,7 @@ static int popupmenu (HWND hwnd, struct favitems *items, int morefiles)
 			mii.fState = MFS_ENABLED;
 			mii.wID = items[i].type == 2 ? 1 + i : 990 - 3 + items[i].type;
 			mii.dwTypeData = items[i].value;
-			mii.cch = _tcslen (mii.dwTypeData);
+			mii.cch = uaetcslen(mii.dwTypeData);
 			InsertMenuItem (menu, -1, TRUE, &mii);
 			got = 1;
 		}
@@ -995,7 +996,7 @@ static int popupmenu (HWND hwnd, struct favitems *items, int morefiles)
 		mii.fState = MFS_ENABLED;
 		mii.wID = 999;
 		mii.dwTypeData = _T("[Directory scan]");
-		mii.cch = _tcslen (mii.dwTypeData);
+		mii.cch = uaetcslen(mii.dwTypeData);
 		InsertMenuItem (menu, -1, TRUE, &mii);
 		got = 1;
 	}
@@ -1017,7 +1018,7 @@ static int popupmenu (HWND hwnd, struct favitems *items, int morefiles)
 			mii.fState = MFS_ENABLED;
 			mii.wID = 1 + i;
 			mii.dwTypeData = items[i].value;
-			mii.cch = _tcslen (mii.dwTypeData);
+			mii.cch = uaetcslen(mii.dwTypeData);
 			InsertMenuItem (menu, -1, TRUE, &mii);
 		}
 		i++;
@@ -3302,13 +3303,13 @@ static int loopmulti (const TCHAR *s, TCHAR *out)
 	static int index;
 
 	if (!out) {
-		index = _tcslen (s) + 1;
+		index = uaetcslen(s) + 1;
 		return 1;
 	}
 	if (index < 0)
 		return 0;
 	if (!s[index]) {
-		if (s[_tcslen (s) + 1] == 0) {
+		if (s[uaetcslen(s) + 1] == 0) {
 			_tcscpy (out, s);
 			index = -1;
 			return 1;
@@ -3316,7 +3317,7 @@ static int loopmulti (const TCHAR *s, TCHAR *out)
 		return 0;
 	}
 	_stprintf (out, _T("%s\\%s"), s, s + index);
-	index += _tcslen (s + index) + 1;
+	index += uaetcslen(s + index) + 1;
 	return 1;
 }
 
@@ -5282,7 +5283,7 @@ static void InitializeListView (HWND hDlg)
 			lvstruct.iSubItem = 0;
 			result = ListView_InsertItem (list, &lvstruct);
 			_tcscpy (tmp2, workprefs.dfxlist[i]);
-			j = _tcslen (tmp2) - 1;
+			j = uaetcslen(tmp2) - 1;
 			if (j < 0)
 				j = 0;
 			while (j > 0) {
@@ -19151,7 +19152,7 @@ static int genericpopupmenu (HWND hwnd, TCHAR **items, int *flags, int num)
 			mii.fState |= MFS_CHECKED;
 		mii.wID = i + 1;
 		mii.dwTypeData = items[i];
-		mii.cch = _tcslen (mii.dwTypeData);
+		mii.cch = uaetcslen(mii.dwTypeData);
 		InsertMenuItem (menu, -1, TRUE, &mii);
 	}
 	GetCursorPos (&pt);

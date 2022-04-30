@@ -2757,11 +2757,11 @@ kludge:
 		// compute total size of hostent
 		size = 28;
 		if (h->h_name != NULL)
-			size += strlen(h->h_name) + 1;
+			size += uaestrlen(h->h_name) + 1;
 
 		if (h->h_aliases != NULL)
 			while (h->h_aliases[numaliases])
-				size += strlen(h->h_aliases[numaliases++]) + 5;
+				size += uaestrlen(h->h_aliases[numaliases++]) + 5;
 
 		if (h->h_addr_list != NULL) {
 			while (h->h_addr_list[numaddr]) numaddr++;
@@ -2861,11 +2861,11 @@ void host_getprotobyname(TrapContext *ctx, SB, uae_u32 name)
 		// compute total size of protoent
 		size = 16;
 		if (p->p_name != NULL)
-			size += strlen(p->p_name)+1;
+			size += uaestrlen(p->p_name)+1;
 
 		if (p->p_aliases != NULL)
 			while (p->p_aliases[numaliases])
-				size += strlen(p->p_aliases[numaliases++])+5;
+				size += uaestrlen(p->p_aliases[numaliases++])+5;
 
 		if (sb->protoent) {
 			uae_FreeMem(ctx, sb->protoent, sb->protoentsize, sb->sysbase);
@@ -2969,13 +2969,13 @@ void host_getservbynameport(TrapContext *ctx, SB, uae_u32 nameport, uae_u32 prot
 		// compute total size of servent
 		size = 20;
 		if (s->s_name != NULL)
-			size += strlen(s->s_name)+1;
+			size += uaestrlen(s->s_name)+1;
 		if (s->s_proto != NULL)
-			size += strlen(s->s_proto)+1;
+			size += uaestrlen(s->s_proto)+1;
 
 		if (s->s_aliases != NULL)
 			while (s->s_aliases[numaliases])
-				size += strlen(s->s_aliases[numaliases++])+5;
+				size += uaestrlen(s->s_aliases[numaliases++])+5;
 
 		if (sb->servent) {
 			uae_FreeMem(ctx, sb->servent, sb->serventsize, sb->sysbase);

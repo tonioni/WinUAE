@@ -2661,7 +2661,7 @@ bool audio_is_event_frame_possible(int ms)
 		return false;
 	if (type == SOUND_DEVICE_WASAPI || type == SOUND_DEVICE_WASAPI_EXCLUSIVE || type == SOUND_DEVICE_PA) {
 		struct sound_dp *s = sdp->data;
-		int bufsize = (uae_u8*)paula_sndbufpt - (uae_u8*)paula_sndbuffer;
+		int bufsize = (int)((uae_u8*)paula_sndbufpt - (uae_u8*)paula_sndbuffer);
 		bufsize /= sdp->samplesize;
 		int todo = s->bufferFrameCount - bufsize;
 		int samplesperframe = (int)(sdp->obtainedfreq / vblank_hz);
@@ -2695,7 +2695,7 @@ int audio_pull_buffer(void)
 		struct sound_dp *s = sdp->data;
 		if (s->pullbufferlen > 0) {
 			cnt++;
-			int size = (uae_u8*)paula_sndbufpt - (uae_u8*)paula_sndbuffer;
+			int size = (int)((uae_u8*)paula_sndbufpt - (uae_u8*)paula_sndbuffer);
 			if (size > sdp->sndbufsize * 2 / 3)
 				cnt++;
 		}
@@ -2770,7 +2770,7 @@ static void handle_reset(void)
 void finish_sound_buffer (void)
 {
 	static unsigned long tframe;
-	int bufsize = (uae_u8*)paula_sndbufpt - (uae_u8*)paula_sndbuffer;
+	int bufsize = (int)((uae_u8*)paula_sndbufpt - (uae_u8*)paula_sndbuffer);
 
 	if (sdp->reset) {
 		handle_reset();

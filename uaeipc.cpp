@@ -84,10 +84,10 @@ static void parsemessage(TCHAR *in, struct uae_prefs *p, TCHAR *out, int outsize
 		for (;;) {
 			int ret;
 			tmpout[0] = 0;
-			ret = cfgfile_modify (index, in, _tcslen (in), tmpout, sizeof (tmpout) / sizeof (TCHAR));
+			ret = cfgfile_modify (index, in, uaetcslen(in), tmpout, sizeof (tmpout) / sizeof (TCHAR));
 			index++;
-			if (_tcslen (tmpout) > 0) {
-				if (_tcslen (out) == 0)
+			if (uaetcslen(tmpout) > 0) {
+				if (uaetcslen(out) == 0)
 					_tcscat (out, _T("200 "));
 				_tcsncat (out, _T("\n"), outsize);
 				_tcsncat (out, tmpout, outsize);
@@ -261,7 +261,7 @@ int checkIPC (void *vipc, struct uae_prefs *p)
 		if (ipc->binary) {
 			ok = WriteFile (ipc->hipc, &ipc->outbin[ipc->outmessages][0], ipc->outbinlen[ipc->outmessages], &ret, &ipc->ol);
 		} else {
-			ok = WriteFile (ipc->hipc, ipc->outmsg[ipc->outmessages], (_tcslen (ipc->outmsg[ipc->outmessages]) + 1) * sizeof (TCHAR), &ret, &ipc->ol);
+			ok = WriteFile (ipc->hipc, ipc->outmsg[ipc->outmessages], (uaetcslen(ipc->outmsg[ipc->outmessages]) + 1) * sizeof (TCHAR), &ret, &ipc->ol);
 		}
 		xfree (ipc->outmsg[ipc->outmessages--]);
 		err = GetLastError ();
@@ -338,16 +338,16 @@ int checkIPC (void *vipc, struct uae_prefs *p)
 		if (type == 1) {
 			char *outp = uutf8 (out);
 			strcpy ((char*)ipc->outbuf, outp);
-			outlen = strlen ((char*)ipc->outbuf) + sizeof (char);
+			outlen = uaestrlen((char*)ipc->outbuf) + sizeof (char);
 			xfree (outp);
 		} else if (type == 2) {
 			if (_tcslen (out) >= IPC_BUFFER_SIZE)
 				out[IPC_BUFFER_SIZE - 1] = 0;
 			_tcscpy ((TCHAR*)ipc->outbuf, out);
-			outlen = (_tcsclen ((TCHAR*)ipc->outbuf) + 1) * sizeof (TCHAR);
+			outlen = (uaetcslen((TCHAR*)ipc->outbuf) + 1) * sizeof (TCHAR);
 		} else {
 			ua_copy ((uae_char*)ipc->outbuf, sizeof ipc->outbuf, out);
-			outlen = strlen ((char*)ipc->outbuf) + sizeof (char);
+			outlen = uaestrlen((char*)ipc->outbuf) + sizeof (char);
 		}
 		memset (&ipc->ol, 0, sizeof (OVERLAPPED));
 		ipc->ol.hEvent = ipc->olevent;
