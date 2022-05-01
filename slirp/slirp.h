@@ -3,7 +3,7 @@
 
 #define CONFIG_QEMU
 
-#define DEBUG 1
+//#define DEBUG 1
 
 #ifndef CONFIG_QEMU
 #include "version.h"
@@ -306,7 +306,7 @@ void lprint(const char *, ...);
 #define DEFAULT_BAUD 115200
 
 /* cksum.c */
-int cksum(struct mbuf *m, int len);
+u_short cksum(struct mbuf *m, int len);
 
 /* if.c */
 void if_init(void);

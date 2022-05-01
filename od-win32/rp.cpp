@@ -485,11 +485,11 @@ int port_insert_custom (int inputmap_port, int devicetype, DWORD flags, const TC
 			if (!p3 || p3 >= p2) {
 				p3 = NULL;
 				if (eventlen < 0)
-					eventlen = p2 - p;
+					eventlen = (int)(p2 - p);
 				break;
 			}
 			if (eventlen < 0)
-				eventlen = p3 - p;
+				eventlen = (int)(p3 - p);
 			if (!_tcsnicmp (p3 + 1, L"autorepeat", 10))
 				flags |= IDEV_MAPPED_AUTOFIRE_SET;
 			p4 = p3 + 1;
@@ -1388,8 +1388,8 @@ static LRESULT CALLBACK RPHostMsgFunction2 (UINT uMessage, WPARAM wParam, LPARAM
 		}
 		return 1;
 	case RP_IPC_TO_GUEST_VOLUME:
-		currprefs.sound_volume_master = changed_prefs.sound_volume_master = 100 - wParam;
-		currprefs.sound_volume_cd = changed_prefs.sound_volume_cd = 100 - wParam;
+		currprefs.sound_volume_master = changed_prefs.sound_volume_master = 100 - (int)wParam;
+		currprefs.sound_volume_cd = changed_prefs.sound_volume_cd = 100 - (int)wParam;
 		set_volume (currprefs.sound_volume_master, 0);
 		return TRUE;
 #if 0
@@ -1523,7 +1523,7 @@ static LRESULT CALLBACK RPHostMsgFunction2 (UINT uMessage, WPARAM wParam, LPARAM
 	case RP_IPC_TO_GUEST_MOVESCREENOVERLAY:
 		return movescreenoverlay(wParam, lParam);
 	case RP_IPC_TO_GUEST_SENDMOUSEEVENTS:
-		sendmouseevents = wParam;
+		sendmouseevents = (int)wParam;
 		if (sendmouseevents) {
 			LPARAM lp = MAKELONG(mouseevent_x, mouseevent_y);
 			RPPostMessagex(RP_IPC_TO_HOST_MOUSEMOVE, 0, lp, &guestinfo);

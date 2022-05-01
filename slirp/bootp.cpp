@@ -218,7 +218,7 @@ static void bootp_reply(struct bootp_t *bp)
         q += 4;
 
         if (*slirp_hostname) {
-            val = strlen(slirp_hostname);
+            val = uaestrlen(slirp_hostname);
             *q++ = RFC1533_HOSTNAME;
             *q++ = val;
             memcpy(q, slirp_hostname, val);

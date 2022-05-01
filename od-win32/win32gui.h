@@ -21,6 +21,8 @@ void write_disk_history (void);
 #define MAX_GUIIDPARAMS 16
 #define MAX_DLGID 100
 
+#define xSendDlgItemMessage(a, b, c, d, e) (int)SendDlgItemMessage(a, b, c, (WPARAM)d, (LPARAM)e)
+
 struct dlgstore
 {
 	RECT r;

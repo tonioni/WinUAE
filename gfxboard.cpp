@@ -688,7 +688,7 @@ static void pcem_flush(struct rtggfxboard* gb, int index)
 			gb->pcemdev->force_redraw(gb->pcemobject);
 		} else {
 			for (int i = 0; i < cnt; i++) {
-				int offset = buf[i] - start;
+				int offset = (int)(buf[i] - start);
 				pcem_linear_mark(offset);
 			}
 		}
@@ -1345,7 +1345,7 @@ DisplaySurface* qemu_create_displaysurface_from(int width, int height, int bpp,
 		struct rtggfxboard *gb = &rtggfxboards[i];
 		if (data >= gb->vram && data < gb->vramend) {
 			struct picasso96_state_struct *state = &picasso96_state[gb->monitor_id];
-			state->XYOffset = (gb->vram - data) + gfxmem_banks[gb->rtg_index]->start;
+			state->XYOffset = (int)((gb->vram - data) + gfxmem_banks[gb->rtg_index]->start);
 			gb->resolutionchange = 1;
 			return &gb->fakesurface;
 		}
@@ -4074,7 +4074,8 @@ int gfxboard_get_index_from_id(int id)
 	if (id == GFXBOARD_UAE_Z3)
 		return GFXBOARD_UAE_Z3;
 	const struct gfxboard *b = find_board(id);
-	return b - &boards[0] + GFXBOARD_HARDWARE;}
+	return (int)(b - &boards[0] + GFXBOARD_HARDWARE);
+}
 
 int gfxboard_get_id_from_index(int index)
 {
@@ -4469,7 +4470,7 @@ bool gfxboard_init_memory (struct autoconfig_info *aci)
 		if (zf) {
 			gb->bios = xcalloc(uae_u8, 65536);
 			gb->bios_mask = 65535;
-			int size = zfile_fread(gb->bios, 1, 65536, zf);
+			int size = (int)zfile_fread(gb->bios, 1, 65536, zf);
 			zfile_fclose(zf);
 			write_log(_T("PCI RTG board BIOS load, %d bytes\n"), size);
 		} else {

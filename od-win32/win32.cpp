@@ -2569,7 +2569,7 @@ static LRESULT CALLBACK AmigaWindowProc(HWND hWnd, UINT message, WPARAM wParam, 
 			tablet = NULL;
 			return 0;
 		}
-		if (pWTPacket((HCTX)lParam, wParam, &pkt)) {
+		if (pWTPacket((HCTX)lParam, (UINT)wParam, &pkt)) {
 			int x, y, z, pres, proxi;
 			DWORD buttons;
 			ORIENTATION ori;
@@ -5250,9 +5250,9 @@ static int shell_associate_2 (const TCHAR *extension, const TCHAR *shellcommand,
 	_tcscat (rpath2, extension);
 	if (RegCreateKeyEx (rkey, rpath2, 0, NULL, REG_OPTION_NON_VOLATILE,
 		KEY_WRITE | KEY_READ, NULL, &key1, &disposition) == ERROR_SUCCESS) {
-			RegSetValueEx (key1, _T(""), 0, REG_SZ, (CONST BYTE *)defprogid, (_tcslen (defprogid) + 1) * sizeof (TCHAR));
+			RegSetValueEx (key1, _T(""), 0, REG_SZ, (CONST BYTE *)defprogid, (uaetcslen(defprogid) + 1) * sizeof (TCHAR));
 			if (perceivedtype)
-				RegSetValueEx (key1, _T("PerceivedType"), 0, REG_SZ, (CONST BYTE *)perceivedtype, (_tcslen (perceivedtype) + 1) * sizeof (TCHAR));
+				RegSetValueEx (key1, _T("PerceivedType"), 0, REG_SZ, (CONST BYTE *)perceivedtype, (uaetcslen(perceivedtype) + 1) * sizeof (TCHAR));
 			RegCloseKey (key1);
 	}
 	_tcscpy (rpath2, rpath1);
@@ -5262,12 +5262,12 @@ static int shell_associate_2 (const TCHAR *extension, const TCHAR *shellcommand,
 	if (description) {
 		if (RegCreateKeyEx (rkey, rpath2, 0, NULL, REG_OPTION_NON_VOLATILE, KEY_WRITE | KEY_READ, NULL, &key1, &disposition) == ERROR_SUCCESS) {
 			TCHAR tmp[MAX_DPATH];
-			RegSetValueEx (key1, _T(""), 0, REG_SZ, (CONST BYTE *)description, (_tcslen (description) + 1) * sizeof (TCHAR));
-			RegSetValueEx (key1, _T("AppUserModelID"), 0, REG_SZ, (CONST BYTE *)WINUAEAPPNAME, (_tcslen (WINUAEAPPNAME) + 1) * sizeof (TCHAR));
+			RegSetValueEx (key1, _T(""), 0, REG_SZ, (CONST BYTE *)description, (uaetcslen(description) + 1) * sizeof (TCHAR));
+			RegSetValueEx (key1, _T("AppUserModelID"), 0, REG_SZ, (CONST BYTE *)WINUAEAPPNAME, (uaetcslen(WINUAEAPPNAME) + 1) * sizeof (TCHAR));
 			_tcscpy (tmp, rpath2);
 			_tcscat (tmp, _T("\\CurVer"));
 			if (RegCreateKeyEx (rkey, tmp, 0, NULL, REG_OPTION_NON_VOLATILE, KEY_WRITE | KEY_READ, NULL, &key2, &disposition) == ERROR_SUCCESS) {
-				RegSetValueEx (key2, _T(""), 0, REG_SZ, (CONST BYTE *)defprogid, (_tcslen (defprogid) + 1) * sizeof (TCHAR));
+				RegSetValueEx (key2, _T(""), 0, REG_SZ, (CONST BYTE *)defprogid, (uaetcslen(defprogid) + 1) * sizeof (TCHAR));
 				RegCloseKey (key2);
 			}
 			if (icon) {
@@ -5275,7 +5275,7 @@ static int shell_associate_2 (const TCHAR *extension, const TCHAR *shellcommand,
 				_tcscat (tmp, _T("\\DefaultIcon"));
 				if (RegCreateKeyEx (rkey, tmp, 0, NULL, REG_OPTION_NON_VOLATILE, KEY_WRITE | KEY_READ, NULL, &key2, &disposition) == ERROR_SUCCESS) {
 					_stprintf (tmp, _T("%s,%d"), executable_path, -icon);
-					RegSetValueEx (key2, _T(""), 0, REG_SZ, (CONST BYTE *)tmp, (_tcslen (tmp) + 1) * sizeof (TCHAR));
+					RegSetValueEx (key2, _T(""), 0, REG_SZ, (CONST BYTE *)tmp, (uaetcslen(tmp) + 1) * sizeof (TCHAR));
 					RegCloseKey (key2);
 				}
 			}
@@ -5305,7 +5305,7 @@ static int shell_associate_2 (const TCHAR *extension, const TCHAR *shellcommand,
 					KEY_WRITE | KEY_READ, NULL, &key1, &disposition) == ERROR_SUCCESS) {
 						TCHAR tmp[MAX_DPATH];
 						_stprintf (tmp, _T("%s,%d"), executable_path, -cc[i].icon);
-						RegSetValueEx (key1, _T("Icon"), 0, REG_SZ, (CONST BYTE *)tmp, (_tcslen (tmp) + 1) * sizeof (TCHAR));
+						RegSetValueEx (key1, _T("Icon"), 0, REG_SZ, (CONST BYTE *)tmp, (uaetcslen(tmp) + 1) * sizeof (TCHAR));
 						RegCloseKey (key1);
 				}
 			}
@@ -5314,7 +5314,7 @@ static int shell_associate_2 (const TCHAR *extension, const TCHAR *shellcommand,
 				KEY_WRITE | KEY_READ, NULL, &key1, &disposition) == ERROR_SUCCESS) {
 					TCHAR path[MAX_DPATH];
 					_stprintf (path, _T("\"%sWinUAE.exe\" %s"), start_path_exe, cc[i].command);
-					RegSetValueEx (key1, _T(""), 0, REG_SZ, (CONST BYTE *)path, (_tcslen (path) + 1) * sizeof (TCHAR));
+					RegSetValueEx (key1, _T(""), 0, REG_SZ, (CONST BYTE *)path, (uaetcslen(path) + 1) * sizeof (TCHAR));
 					RegCloseKey (key1);
 			}
 		}
@@ -5437,10 +5437,10 @@ static void associate_init_extensions (void)
 		if (setit) {
 			if (RegCreateKeyEx (rkey, rpath, 0, NULL, REG_OPTION_NON_VOLATILE, KEY_READ | KEY_WRITE, NULL, &key1, &disposition) == ERROR_SUCCESS) {
 				DWORD val = 1;
-				RegSetValueEx (key1, _T(""), 0, REG_SZ, (CONST BYTE *)executable_path, (_tcslen (executable_path) + 1) * sizeof (TCHAR));
+				RegSetValueEx (key1, _T(""), 0, REG_SZ, (CONST BYTE *)executable_path, (uaetcslen(executable_path) + 1) * sizeof (TCHAR));
 				RegSetValueEx (key1, _T("UseUrl"), 0, REG_DWORD, (LPBYTE)&val, sizeof val);
 				_tcscpy (rpath, start_path_exe);
-				rpath[_tcslen (rpath) - 1] = 0;
+				rpath[uaetcslen(rpath) - 1] = 0;
 				RegSetValueEx (key1, _T("Path"), 0, REG_SZ, (CONST BYTE *)rpath, (uaetcslen(rpath) + 1) * sizeof (TCHAR));
 				RegCloseKey (key1);
 				SHChangeNotify (SHCNE_ASSOCCHANGED, 0, 0, 0); 

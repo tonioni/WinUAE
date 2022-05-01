@@ -137,7 +137,7 @@ extern void zfile_resetdir_archive (struct zdirectory *);
 extern int zfile_fill_file_attrs_archive (const TCHAR *path, int *isdir, int *flags, TCHAR **comment);
 extern uae_s64 zfile_lseek_archive (struct zfile *d, uae_s64 offset, int whence);
 extern uae_s64 zfile_fsize_archive (struct zfile *d);
-extern unsigned int zfile_read_archive (struct zfile *d, void *b, unsigned int size);
+extern int zfile_read_archive (struct zfile *d, void *b, unsigned int size);
 extern void zfile_close_archive (struct zfile *d);
 extern struct zfile *zfile_open_archive (const TCHAR *path, int flags);
 extern int zfile_exists_archive (const TCHAR *path, const TCHAR *rel);

@@ -612,7 +612,7 @@ static struct zfile *zfile_gunzip (struct zfile *z, int *retcode)
 	ret = Z_STREAM_ERROR;
 	do {
 		zs.next_in = buffer;
-		zs.avail_in = zfile_fread (buffer, 1, sizeof (buffer), z);
+		zs.avail_in = (uInt)zfile_fread (buffer, 1, sizeof (buffer), z);
 		if (first) {
 			if (inflateInit2_ (&zs, -MAX_WBITS, ZLIB_VERSION, sizeof (z_stream)) != Z_OK)
 				break;
@@ -1174,7 +1174,7 @@ static struct zfile *xz (struct zfile *z, int *retcode)
 	int towrite = 0;
 	bool first = true;
 	for (;;) {
-		int read = zfile_fread (in, 1, XZ_IN_SIZE, z);
+		int read = (int)zfile_fread (in, 1, XZ_IN_SIZE, z);
 		if (first) {
 			if (!(in[0] == 0xfd && in[1] == 0x37 && in[2] == 0x7a && in[3] == 0x58 && in[4] == 0x5a && in[5] == 0))
 				break;
@@ -1211,7 +1211,7 @@ static struct zfile *xz (struct zfile *z, int *retcode)
 			if (srclen == read)
 				break;
 			inp += srclen;
-			read -= srclen;
+			read -= (int)srclen;
 		}
 	}
 	XzUnpacker_Free (&cx);
@@ -2102,11 +2102,13 @@ struct zfile *zfile_fopen_data (const TCHAR *name, uae_u64 size, const uae_u8 *d
 		return NULL;
 	}
 	l = zfile_create (NULL, name);
-	l->name = my_strdup (name ? name : _T(""));
-	l->data = xmalloc (uae_u8, (size_t)size);
-	l->size = size;
-	l->datasize = size;
-	memcpy (l->data, data, (size_t)size);
+	if (l) {
+		l->name = my_strdup(name ? name : _T(""));
+		l->data = xmalloc(uae_u8, (size_t)size);
+		l->size = size;
+		l->datasize = size;
+		memcpy(l->data, data, (size_t)size);
+	}
 	return l;
 }
 
@@ -2115,7 +2117,7 @@ uae_u8 *zfile_get_data_pointer(struct zfile *z, size_t *len)
 {
 	if (!z->data)
 		return NULL;
-	*len = z->size;
+	*len = (size_t)z->size;
 	return z->data;
 }
 
@@ -2242,7 +2244,7 @@ uae_s64 zfile_fseek (struct zfile *z, uae_s64 offset, int mode)
 	return 1;
 }
 
-size_t zfile_fread  (void *b, size_t l1, size_t l2, struct zfile *z)
+size_t zfile_fread(void *b, size_t l1, size_t l2, struct zfile *z)
 {
 	if (z->zfileread)
 		return (size_t)z->zfileread(b, l1, l2, z);
@@ -2288,7 +2290,7 @@ size_t zfile_fread  (void *b, size_t l1, size_t l2, struct zfile *z)
 	return fread (b, l1, l2, z->f);
 }
 
-size_t zfile_fwrite (const void *b, size_t l1, size_t l2, struct zfile *z)
+size_t zfile_fwrite(const void *b, size_t l1, size_t l2, struct zfile *z)
 {
 	if (z->archiveparent)
 		return 0;
@@ -2476,7 +2478,7 @@ int zfile_zuncompress (void *dst, int dstsize, struct zfile *src, int srcsize)
 			if (left > sizeof (inbuf))
 				left = sizeof (inbuf);
 			zs.next_in = inbuf;
-			zs.avail_in = zfile_fread (inbuf, 1, left, src);
+			zs.avail_in = (uInt)zfile_fread (inbuf, 1, left, src);
 			incnt += left;
 		}
 		v = inflate (&zs, 0);
@@ -2495,7 +2497,7 @@ int zfile_zcompress(struct zfile *f, void *src, size_t size)
 	if (deflateInit_ (&zs, Z_DEFAULT_COMPRESSION, ZLIB_VERSION, sizeof (z_stream)) != Z_OK)
 		return 0;
 	zs.next_in = (Bytef*)src;
-	zs.avail_in = size;
+	zs.avail_in = (uInt)size;
 	v = Z_OK;
 	while (v == Z_OK) {
 		zs.next_out = outbuf;
@@ -3481,9 +3483,9 @@ uae_s64 zfile_fsize_archive (struct zfile *d)
 	return zfile_size (d);
 }
 
-unsigned int zfile_read_archive (struct zfile *d, void *b, unsigned int size)
+int zfile_read_archive (struct zfile *d, void *b, unsigned int size)
 {
-	return zfile_fread (b, 1, size, d);
+	return (int)zfile_fread (b, 1, size, d);
 }
 
 void zfile_close_archive (struct zfile *d)

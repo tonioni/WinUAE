@@ -414,7 +414,7 @@ int tcp_fconnect(struct socket *so)
       addr.sin_addr = so->so_faddr;
     addr.sin_port = so->so_fport;
     
-	char addrstr[INET_ADDRSTRLEN];
+	//char addrstr[INET_ADDRSTRLEN];
     DEBUG_MISC((" connect()ing, addr.sin_port=%d, addr.sin_addr.s_addr=%.16s\n", 
 		ntohs(addr.sin_port), inet_ntop(AF_INET, &addr.sin_addr,
 			addrstr, sizeof(addrstr))));

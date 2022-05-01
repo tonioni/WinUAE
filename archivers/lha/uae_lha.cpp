@@ -90,7 +90,7 @@ struct zfile *archive_access_lha (struct znode *zn)
     switch (zn->method) {
 	case LZHUFF0_METHOD_NUM:
 	case LARC4_METHOD_NUM:
-	    zfile_fread(out->data, zn->size, 1, zf);
+	    zfile_fread(out->data, (size_t)zn->size, 1, zf);
 	break;
 	case LARC_METHOD_NUM:		/* -lzs- */
 	    lhinterface.dicbit = 11;

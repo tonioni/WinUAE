@@ -575,7 +575,7 @@ void lprint(const char *format, ...)
 		 * Remove \r's
 		 * otherwise you'll get ^M all over the file
 		 */
-		int len = strlen(format);
+		int len = uaestrlen(format);
 		char *bptr1, *bptr2;
 		
 		bptr1 = bptr2 = strdup(format);

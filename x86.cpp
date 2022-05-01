@@ -3488,7 +3488,7 @@ static void load_vga_bios(void)
 		return;
 	struct zfile *zf = read_device_rom(&currprefs, ROMTYPE_x86_VGA, 0, NULL);
 	if (zf) {
-		int size = zfile_fread(romext, 1, 32768, zf);
+		int size = (int)zfile_fread(romext, 1, 32768, zf);
 		write_log(_T("X86 VGA BIOS '%s' loaded, %08x %d bytes\n"), zfile_getname(zf), 0xc0000, size);
 		zfile_fclose(zf);
 		mem_mapping_add(&bios_mapping[4], 0xc0000, 0x8000, mem_read_romext, mem_read_romextw, mem_read_romextl, mem_write_null, mem_write_nullw, mem_write_nulll, romext, MEM_MAPPING_EXTERNAL | MEM_MAPPING_ROM, 0);

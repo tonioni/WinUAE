@@ -5,7 +5,7 @@
  * terms and conditions of the copyright.
  */
 
-#define SLIRP_DEBUG 1
+#define SLIRP_DEBUG 0
 
 #define PRN_STDERR	1
 #define PRN_SPRINTF	2

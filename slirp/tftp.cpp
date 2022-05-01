@@ -241,7 +241,7 @@ static void tftp_handle_rrq(struct tftp_t *tp, int pktlen)
 
   src = tp->x.tp_buf;
   dst = (u_int8_t *)spt->filename;
-  n = pktlen - ((uint8_t *)&tp->x.tp_buf[0] - (uint8_t *)tp);
+  n = (int)(pktlen - ((uint8_t *)&tp->x.tp_buf[0] - (uint8_t *)tp));
 
   /* get name */
 
@@ -324,11 +324,11 @@ void tftp_input(struct mbuf *m)
 
   switch(ntohs(tp->tp_op)) {
   case TFTP_RRQ:
-    tftp_handle_rrq(tp, m->m_len);
+    tftp_handle_rrq(tp, (int)m->m_len);
     break;
 
   case TFTP_ACK:
-    tftp_handle_ack(tp, m->m_len);
+    tftp_handle_ack(tp, (int)m->m_len);
     break;
   }
 }

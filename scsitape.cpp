@@ -327,7 +327,7 @@ static int tape_read (struct scsi_data_tape *tape, uae_u8 *scsi_data, int len, b
 	if (tape->zf) {
 		zfile_fseek(tape->zf, tape->file_offset, SEEK_SET);
 		if (scsi_data) {
-			got = zfile_fread(scsi_data, 1, len, tape->zf);
+			got = (int)zfile_fread(scsi_data, 1, len, tape->zf);
 			uae_s64 pos = zfile_ftell(tape->zf);
 			if (log_tapeemu)
 				write_log(_T("TAPEEMU READ: Requested %ld, read %ld, pos %lld, %lld remaining.\n"), len, got, pos, zfile_size(tape->zf) - pos);
@@ -336,7 +336,7 @@ static int tape_read (struct scsi_data_tape *tape, uae_u8 *scsi_data, int len, b
 			if (len > 0) {
 				uae_u8 *data = xmalloc(uae_u8, len);
 				if (data) {
-					got = zfile_fread(data, 1, len, tape->zf);
+					got = (int)zfile_fread(data, 1, len, tape->zf);
 					xfree(data);
 				}
 			}
@@ -364,7 +364,7 @@ static int tape_write (struct scsi_data_tape *tape, uae_u8 *scsi_data, int len)
 	if (!zf)
 		return -1;
 	zfile_fseek (zf, 0, SEEK_END);
-	len = zfile_fwrite (scsi_data, 1, len, zf);
+	len = (int)zfile_fwrite (scsi_data, 1, len, zf);
 	zfile_fclose (zf);
 	if (!exists) {
 		if (tape->index) {

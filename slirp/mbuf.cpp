@@ -146,7 +146,7 @@ void m_cat(struct mbuf *m, struct mbuf *n)
 	 * If there's no room, realloc
 	 */
 	if (M_FREEROOM(m) < n->m_len)
-		m_inc(m,m->m_size+MINCSIZE);
+		m_inc(m,(int)(m->m_size+MINCSIZE));
 	
 	memcpy(m->m_data+m->m_len, n->m_data, n->m_len);
 	m->m_len += n->m_len;
@@ -164,7 +164,7 @@ void m_inc(struct mbuf *m, int size)
         if(m->m_size>size) return;
 
         if (m->m_flags & M_EXT) {
-         datasize = m->m_data - m->m_ext;
+         datasize = (int)(m->m_data - m->m_ext);
 	  m->m_ext = (char *)realloc(m->m_ext,size);
 /*		if (m->m_ext == NULL)
  *			return (struct mbuf *)NULL;
@@ -172,7 +172,7 @@ void m_inc(struct mbuf *m, int size)
          m->m_data = m->m_ext + datasize;
         } else {
 	  char *dat;
-	  datasize = m->m_data - m->m_dat;
+	  datasize = (int)(m->m_data - m->m_dat);
 	  dat = (char *)malloc(size);
 /*		if (dat == NULL)
  *			return (struct mbuf *)NULL;

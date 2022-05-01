@@ -44,7 +44,7 @@
 #define ADDCARRY(x)  (x > 65535 ? x -= 65535 : x)
 #define REDUCE {l_util.l = sum; sum = l_util.s[0] + l_util.s[1]; ADDCARRY(sum);}
 
-int cksum(struct mbuf *m, int len)
+u_short cksum(struct mbuf *m, int len)
 {
 	u_int16_t *w;
 	int sum = 0;
@@ -64,7 +64,7 @@ int cksum(struct mbuf *m, int len)
 	   goto cont;
 	w = mtod(m, u_int16_t *);
 	
-	mlen = m->m_len;
+	mlen = (int)m->m_len;
 	
 	if (len < mlen)
 	   mlen = len;

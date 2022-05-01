@@ -209,7 +209,7 @@ void icmp_input(struct mbuf *m, int hlen)
 	addr.sin_addr = so->so_faddr;
       }
       addr.sin_port = so->so_fport;
-      if(sendto(so->s, icmp_ping_msg, strlen(icmp_ping_msg), 0,
+      if(sendto(so->s, icmp_ping_msg, uaestrlen(icmp_ping_msg), 0,
 		(struct sockaddr *)&addr, sizeof(addr)) == -1) {
 	DEBUG_MISC(("icmp_input udp sendto tx errno = %d-%s\n",
 		    errno,strerror(errno)));
@@ -299,7 +299,7 @@ void icmp_error(struct mbuf *msrc, u_char type, u_char code, int minsize, const 
   /* make a copy */
   if(!(m=m_get())) goto end_error;               /* get mbuf */
   { u_int new_m_size;
-    new_m_size=sizeof(struct ip )+ICMP_MINLEN+msrc->m_len+ICMP_MAXDATALEN;
+    new_m_size=(u_int)(sizeof(struct ip )+ICMP_MINLEN+msrc->m_len+ICMP_MAXDATALEN);
     if(new_m_size>m->m_size) m_inc(m, new_m_size);
   }
   memcpy(m->m_data, msrc->m_data, msrc->m_len);
@@ -337,7 +337,7 @@ void icmp_error(struct mbuf *msrc, u_char type, u_char code, int minsize, const 
   if(message) {           /* DEBUG : append message to ICMP packet */
     int message_len;
     char *cpnt;
-    message_len=strlen(message);
+    message_len=uaestrlen(message);
     if(message_len>ICMP_MAXDATALEN) message_len=ICMP_MAXDATALEN;
     cpnt=(char *)m->m_data+m->m_len;
     memcpy(cpnt, message, message_len);
@@ -346,7 +346,7 @@ void icmp_error(struct mbuf *msrc, u_char type, u_char code, int minsize, const 
 #endif
 
   icp->icmp_cksum = 0;
-  icp->icmp_cksum = cksum(m, m->m_len);
+  icp->icmp_cksum = cksum(m, (int)m->m_len);
 
   m->m_data -= hlen;
   m->m_len += hlen;

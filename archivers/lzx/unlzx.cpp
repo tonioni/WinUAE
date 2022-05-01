@@ -715,7 +715,7 @@ struct zfile *archive_access_lzx (struct znode *zn)
 		if (!znfirst->f) {
 			dstf = zfile_fopen_empty (zf, znfirst->name, znfirst->size);
 			if (znfirst->size) {
-				zfile_fwrite(dbuf + znfirst->offset2, znfirst->size, 1, dstf);
+				zfile_fwrite(dbuf + znfirst->offset2, (size_t)znfirst->size, 1, dstf);
 			}
 			znfirst->f = dstf;
 			if (znfirst == zn)

@@ -135,7 +135,7 @@ void ip_input(struct mbuf *m)
 	}
 	/* Should drop packet if mbuf too long? hmmm... */
 	if (m->m_len > ip->ip_len)
-	   m_adj(m, ip->ip_len - m->m_len);
+	   m_adj(m, (int)(ip->ip_len - m->m_len));
 
 	/* check ip_ttl for a correct ICMP reply */
 	if(ip->ip_ttl==0 || ip->ip_ttl==1) {
@@ -371,7 +371,7 @@ insert:
 	 */
 	if (m->m_flags & M_EXT) {
 	  int delta;
-	  delta = (char *)q - m->m_dat;
+	  delta = (int)((char *)q - m->m_dat);
 	  q = (struct ipasfrag *)(m->m_ext + delta);
 	}
 
@@ -685,7 +685,7 @@ void ip_stripoptions(struct mbuf *m, struct mbuf *mopt)
 
 	olen = (ip->ip_hl<<2) - sizeof (struct ip);
 	opts = (caddr_t)(ip + 1);
-	i = m->m_len - (sizeof (struct ip) + olen);
+	i = (int)(m->m_len - (sizeof (struct ip) + olen));
 	memcpy(opts, opts  + olen, (unsigned)i);
 	m->m_len -= olen;
 	

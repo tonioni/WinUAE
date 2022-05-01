@@ -2656,21 +2656,21 @@ static int createmask2texture(struct d3d11struct *d3d, const TCHAR *filename)
 	}
 
 	d3d->mask2texture_wh = (float)d3d->m_screenHeight;
-	d3d->mask2texture_ww = (float)d3d->mask2texture_w * d3d->mask2texture_multx;
+	d3d->mask2texture_ww = d3d->mask2texture_w * d3d->mask2texture_multx;
 
 	d3d->mask2texture_offsetw = (d3d->m_screenWidth - d3d->mask2texture_ww) / 2;
 
 	if (d3d->mask2texture_offsetw > 0) {
-		allocsprite(d3d, &d3d->blanksprite, (int)d3d->mask2texture_offsetw + 1, d3d->m_screenHeight, false);
+		allocsprite(d3d, &d3d->blanksprite, (int)(d3d->mask2texture_offsetw + 1), d3d->m_screenHeight, false);
 	}
 
 	xmult = d3d->mask2texture_multx;
 	ymult = d3d->mask2texture_multy;
 
-	d3d->mask2rect.left *= (int)xmult;
-	d3d->mask2rect.right *= (int)xmult;
-	d3d->mask2rect.top *= (int)ymult;
-	d3d->mask2rect.bottom *= (int)ymult;
+	d3d->mask2rect.left = (int)(d3d->mask2rect.left * xmult);
+	d3d->mask2rect.right = (int)(d3d->mask2rect.right * xmult);
+	d3d->mask2rect.top = (int)(d3d->mask2rect.top * ymult);
+	d3d->mask2rect.bottom = (int)(d3d->mask2rect.bottom * ymult);
 	d3d->mask2texture_wwx = d3d->mask2texture_w * xmult;
 	if (d3d->mask2texture_wwx > d3d->m_screenWidth)
 		d3d->mask2texture_wwx = (float)d3d->m_screenWidth;
@@ -4242,9 +4242,9 @@ static void RenderSprite(struct d3d11struct *d3d, struct d3d11sprite *spr)
 	if (!spr->enabled)
 		return;
 	
-	left = (d3d->m_screenWidth + 1.0f) / -2.0f;
+	left = (float)((d3d->m_screenWidth + 1) / -2);
 	left += spr->x;
-	top = (d3d->m_screenHeight + 1.0f) / 2.0f;
+	top = (float)((d3d->m_screenHeight + 1) / 2);
 	top -= spr->y;
 
 	if (spr->outwidth) {

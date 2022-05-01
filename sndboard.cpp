@@ -642,7 +642,7 @@ static bool audio_state_sndboard_uae(int streamid, void *params)
 	if (!s)
 		return false;
 	int highestch = s->ch;
-	int streamnum = s - data->stream;
+	int streamnum = (int)(s - data->stream);
 	if (s->play && (data->streammask & (1 << streamnum))) {
 		uaecptr addr;
 		int len;
@@ -851,7 +851,7 @@ static void uaesnd_timer(uae_u32 v)
 	if (s->timer_cnt > 0 && data->enabled) {
 		s->timer_event_time = uaesnd_timer_period(s->timer_cnt);
 		if (s->timer_event_time > 0) {
-			event2_newevent_xx(-1, s->timer_event_time, s - &data->stream[0], uaesnd_timer);
+			event2_newevent_xx(-1, s->timer_event_time, (int)(s - &data->stream[0]), uaesnd_timer);
 			uaesnd_irq(s, 0x10);
 		}
 	}
@@ -880,7 +880,7 @@ static void uaesnd_put(struct uaesndboard_data *data, struct uaesndboard_stream 
 				s->timer_event_time = uaesnd_timer_period(timer_cnt);
 				if (s->timer_event_time > 0) {
 					s->timer_cnt = timer_cnt;
-					event2_newevent_xx(-1, s->timer_event_time, ((data - &uaesndboard[0]) << 16) | (s - &data->stream[0]), uaesnd_timer);
+					event2_newevent_xx(-1, s->timer_event_time, (((int)(data - &uaesndboard[0])) << 16) | ((int)(s - &data->stream[0])), uaesnd_timer);
 				}
 			}
 		}

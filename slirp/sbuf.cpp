@@ -96,7 +96,7 @@ void sbappend(struct socket *so, struct mbuf *m)
 	 * ottherwise it'll arrive out of order, and hence corrupt
 	 */
 	if (!so->so_rcv.sb_cc)
-	   ret = send(so->s, m->m_data, m->m_len, 0);
+	   ret = send(so->s, m->m_data, (int)m->m_len, 0);
 	
 	if (ret <= 0) {
 		/* 
@@ -127,21 +127,21 @@ void sbappendsb(struct sbuf *sb, struct mbuf *m)
 {
 	int len, n,  nn;
 	
-	len = m->m_len;
+	len = (int)m->m_len;
 
 	if (sb->sb_wptr < sb->sb_rptr) {
-		n = sb->sb_rptr - sb->sb_wptr;
+		n = (int)(sb->sb_rptr - sb->sb_wptr);
 		if (n > len) n = len;
 		memcpy(sb->sb_wptr, m->m_data, n);
 	} else {
 		/* Do the right edge first */
-		n = sb->sb_data + sb->sb_datalen - sb->sb_wptr;
+		n = (int)(sb->sb_data + sb->sb_datalen - sb->sb_wptr);
 		if (n > len) n = len;
 		memcpy(sb->sb_wptr, m->m_data, n);
 		len -= n;
 		if (len) {
 			/* Now the left edge */
-			nn = sb->sb_rptr - sb->sb_data;
+			nn = (int)(sb->sb_rptr - sb->sb_data);
 			if (nn > len) nn = len;
 			memcpy(sb->sb_data,m->m_data+n,nn);
 			n += nn;
@@ -172,7 +172,7 @@ void sbcopy(struct sbuf *sb, int off, int len, char *to)
 		memcpy(to,from,len);
 	} else {
 		/* re-use off */
-		off = (sb->sb_data + sb->sb_datalen) - from;
+		off = (int)((sb->sb_data + sb->sb_datalen) - from);
 		if (off > len) off = len;
 		memcpy(to,from,off);
 		len -= off;

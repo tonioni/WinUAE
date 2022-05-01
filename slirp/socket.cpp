@@ -121,20 +121,20 @@ int soread(struct socket *so)
 		iov[0].iov_len = (sb->sb_data + sb->sb_datalen) - sb->sb_wptr;
 		/* Should never succeed, but... */
 		if (iov[0].iov_len > len) iov[0].iov_len = len;
-		len -= iov[0].iov_len;
+		len -= (int)iov[0].iov_len;
 		if (len) {
 			iov[1].iov_base = sb->sb_data;
 			iov[1].iov_len = sb->sb_rptr - sb->sb_data;
 			if(iov[1].iov_len > len)
 			   iov[1].iov_len = len;
-			total = iov[0].iov_len + iov[1].iov_len;
+			total = (int)(iov[0].iov_len + iov[1].iov_len);
 			if (total > mss) {
 				lss = total%mss;
 				if (iov[1].iov_len > lss) {
 					iov[1].iov_len -= lss;
 					n = 2;
 				} else {
-					lss -= iov[1].iov_len;
+					lss -= (int)iov[1].iov_len;
 					iov[0].iov_len -= lss;
 					n = 1;
 				}
@@ -151,7 +151,7 @@ int soread(struct socket *so)
 	nn = readv(so->s, (struct iovec *)iov, n);
 	DEBUG_MISC((" ... read nn = %d bytes\n", nn));
 #else
-	nn = recv(so->s, iov[0].iov_base, iov[0].iov_len,0);
+	nn = recv(so->s, iov[0].iov_base, (int)iov[0].iov_len,0);
 #endif	
 	if (nn <= 0) {
 		int error = WSAGetLastError();
@@ -177,7 +177,7 @@ int soread(struct socket *so)
 	 */
 	if (n == 2 && nn == iov[0].iov_len) {
             int ret;
-            ret = recv(so->s, iov[1].iov_base, iov[1].iov_len,0);
+            ret = recv(so->s, iov[1].iov_base, (int)iov[1].iov_len,0);
             if (ret > 0)
                 nn += ret;
         }
@@ -252,12 +252,12 @@ int sosendoob(struct socket *so)
 		 * we must copy all data to a linear buffer then
 		 * send it all
 		 */
-		len = (sb->sb_data + sb->sb_datalen) - sb->sb_rptr;
+		len = (int)((sb->sb_data + sb->sb_datalen) - sb->sb_rptr);
 		if (len > so->so_urgc) len = so->so_urgc;
 		memcpy(buff, sb->sb_rptr, len);
 		so->so_urgc -= len;
 		if (so->so_urgc) {
-			n = sb->sb_wptr - sb->sb_data;
+			n = (int)(sb->sb_wptr - sb->sb_data);
 			if (n > so->so_urgc) n = so->so_urgc;
 			memcpy((buff + len), sb->sb_data, n);
 			so->so_urgc -= n;
@@ -315,7 +315,7 @@ int sowrite(struct socket *so)
 	} else {
 		iov[0].iov_len = (sb->sb_data + sb->sb_datalen) - sb->sb_rptr;
 		if (iov[0].iov_len > len) iov[0].iov_len = len;
-		len -= iov[0].iov_len;
+		len -= (int)iov[0].iov_len;
 		if (len) {
 			iov[1].iov_base = sb->sb_data;
 			iov[1].iov_len = sb->sb_wptr - sb->sb_data;
@@ -331,7 +331,7 @@ int sowrite(struct socket *so)
 	
 	DEBUG_MISC(("  ... wrote nn = %d bytes\n", nn));
 #else
-	nn = send(so->s, iov[0].iov_base, iov[0].iov_len,0);
+	nn = send(so->s, iov[0].iov_base, (int)iov[0].iov_len,0);
 #endif
 	/* This should never happen, but people tell me it does *shrug* */
 	if (nn < 0) {
@@ -351,7 +351,7 @@ int sowrite(struct socket *so)
 #ifndef HAVE_READV
 	if (n == 2 && nn == iov[0].iov_len) {
             int ret;
-            ret = send(so->s, iov[1].iov_base, iov[1].iov_len,0);
+            ret = send(so->s, iov[1].iov_base, (int)iov[1].iov_len,0);
             if (ret > 0)
                 nn += ret;
         }
@@ -421,14 +421,14 @@ void sorecvfrom(struct socket *so)
 	   * XXX Shouldn't FIONREAD packets destined for port 53,
 	   * but I don't know the max packet size for DNS lookups
 	   */
-	  len = M_FREEROOM(m);
+	  len = (int)M_FREEROOM(m);
 	  /* if (so->so_fport != htons(53)) { */
 	  ioctlsocket(so->s, FIONREAD, &n);
 	  
 	  if (n > len) {
-	    n = (m->m_data - m->m_dat) + m->m_len + n + 1;
+	    n = (int)((m->m_data - m->m_dat) + m->m_len + n + 1);
 	    m_inc(m, n);
-	    len = M_FREEROOM(m);
+	    len = (int)M_FREEROOM(m);
 	  }
 	  /* } */
 		
@@ -503,12 +503,12 @@ int sosendto(struct socket *so, struct mbuf *m)
 	  addr.sin_addr = so->so_faddr;
 	addr.sin_port = so->so_fport;
 
-	char addrstr[INET_ADDRSTRLEN];
+	//char addrstr[INET_ADDRSTRLEN];
 	DEBUG_MISC((" sendto()ing, addr.sin_port=%d, addr.sin_addr.s_addr=%.16s\n",
 		ntohs(addr.sin_port), inet_ntop(AF_INET, &addr.sin_addr, addrstr, sizeof(addrstr))));
 	
 	/* Don't care what port we get */
-	ret = sendto(so->s, m->m_data, m->m_len, 0,
+	ret = sendto(so->s, m->m_data, (int)m->m_len, 0,
 		     (struct sockaddr *)&addr, sizeof (struct sockaddr));
 	if (ret < 0)
 		return -1;

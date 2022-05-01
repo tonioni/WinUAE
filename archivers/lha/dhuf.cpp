@@ -280,7 +280,7 @@ decode_c_dyn(void)
 			cnt = 0;
 		}
 	} while (c > 0);
-	fillbuf(cnt);
+	fillbuf((unsigned char)cnt);
 	c = ~c;
 	update_c(c);
 	if (c == n1)
@@ -312,7 +312,7 @@ decode_p_dyn(void)
 			cnt = 0;
 		}
 	}
-	fillbuf(cnt);
+	fillbuf((unsigned char)cnt);
 	c = (~c) - N_CHAR;
 	update_p(c);
 

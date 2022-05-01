@@ -291,7 +291,7 @@ int udp_output2(struct socket *so, struct mbuf *m,
 	 */
 	ui->ui_sum = 0;
 	if (udpcksum) {
-	    if ((ui->ui_sum = cksum(m, /* sizeof (struct udpiphdr) + */ m->m_len)) == 0)
+	    if ((ui->ui_sum = cksum(m, /* sizeof (struct udpiphdr) + */ (int)m->m_len)) == 0)
 		ui->ui_sum = 0xffff;
 	}
 	((struct ip *)ui)->ip_len = (u_int16_t)m->m_len;

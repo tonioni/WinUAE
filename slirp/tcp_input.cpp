@@ -394,8 +394,8 @@ findso:
 			goto dropwithreset;
 		}
 		
-		sbreserve(&so->so_snd, tcp_sndspace);
-		sbreserve(&so->so_rcv, tcp_rcvspace);
+		sbreserve(&so->so_snd, (int)tcp_sndspace);
+		sbreserve(&so->so_rcv, (int)tcp_rcvspace);
 	  
 		/*		tcp_last_so = so; */  /* XXX ? */
 		/*		tp = sototcpcb(so);    */
@@ -1694,7 +1694,7 @@ u_int tcp_mss(struct tcpcb *tp, u_int offer)
 	DEBUG_ARG("tp = %p", tp);
 	DEBUG_ARG("offer = %d", offer);
 	
-	mss = min(if_mtu, if_mru) - sizeof(struct tcpiphdr);
+	mss = (u_int)(min(if_mtu, if_mru) - sizeof(struct tcpiphdr));
 	if (offer)
 		mss = min(mss, offer);
 	mss = max(mss, 32);
@@ -1703,8 +1703,8 @@ u_int tcp_mss(struct tcpcb *tp, u_int offer)
 	
 	tp->snd_cwnd = mss;
 	
-	sbreserve(&so->so_snd, tcp_sndspace+((tcp_sndspace%mss)?(mss-(tcp_sndspace%mss)):0));
-	sbreserve(&so->so_rcv, tcp_rcvspace+((tcp_rcvspace%mss)?(mss-(tcp_rcvspace%mss)):0));
+	sbreserve(&so->so_snd, (int)(tcp_sndspace+((tcp_sndspace%mss)?(mss-(tcp_sndspace%mss)):0)));
+	sbreserve(&so->so_rcv, (int)(tcp_rcvspace+((tcp_rcvspace%mss)?(mss-(tcp_rcvspace%mss)):0)));
 	
 	DEBUG_MISC((" returning mss = %d\n", mss));
 	
