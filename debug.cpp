@@ -3796,23 +3796,24 @@ static void memwatch_remap (uaecptr addr)
 	}
 }
 
-static void memwatch_setup (void)
+static void memwatch_setup(void)
 {
-	memwatch_reset ();
+	memwatch_reset();
 	mwnodes_start = MEMWATCH_TOTAL - 1;
 	mwnodes_end = 0;
 	for (int i = 0; i < MEMWATCH_TOTAL; i++) {
 		struct memwatch_node *m = &mwnodes[i];
-		uae_u32 size = 0;
 		if (!m->size)
 			continue;
 		if (mwnodes_start > i)
 			mwnodes_start = i;
 		if (mwnodes_end < i)
 			mwnodes_end = i;
-		while (size < m->size) {
-			memwatch_remap (m->addr + size);
-			size += 65536;
+		int addr = m->addr & ~65535;
+		int eaddr = (m->addr + m->size + 65535) & ~65535;
+		while (addr < eaddr) {
+			memwatch_remap(addr);
+			addr += 65536;
 		}
 	}
 }
