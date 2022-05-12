@@ -4484,17 +4484,19 @@ static int do_specialties (int cycles)
 		Exception (3);
 	}
 
-	if ((regs.spcflags & SPCFLAG_STOP) && regs.s == 0 && currprefs.cpu_model <= 68010) {
-		// 68000/68010 undocumented special case:
-		// if STOP clears S-bit and T was not set:
-		// cause privilege violation exception, PC pointing to following instruction.
-		// If T was set before STOP: STOP works as documented.
-		m68k_unset_stop();
-		Exception(8);
-	}
-
 	bool first = true;
 	while (regs.spcflags & SPCFLAG_STOP) {
+
+		if (regs.s == 0 && currprefs.cpu_model <= 68010) {
+			// 68000/68010 undocumented special case:
+			// if STOP clears S-bit and T was not set:
+			// cause privilege violation exception, PC pointing to following instruction.
+			// If T was set before STOP: STOP works as documented.
+			m68k_unset_stop();
+			Exception(8);
+			break;
+		}
+
 	isstopped:
 		check_uae_int_request();
 		{
@@ -4515,11 +4517,12 @@ static int do_specialties (int cycles)
 
 		if (m68k_interrupt_delay) {
 			unset_special(SPCFLAG_INT);
-			if (first) {
-				ipl_fetch();
-			}
 			if (time_for_interrupt()) {
-				x_do_cycles(4 * cpucycleunit);
+				if (!first) {
+					// extra loop because even after higher ipl detection,
+					// stop needs to do one more loop before it exits.
+					x_do_cycles(4 * cpucycleunit);
+				}
 				do_interrupt(regs.ipl);
 				break;
 			}
@@ -4544,23 +4547,16 @@ static int do_specialties (int cycles)
 			}
 		}
 
-		if (!first) {
-			if (currprefs.cpu_compatible) {
-				x_do_cycles(2 * cpucycleunit);
-				ipl_fetch();
-				x_do_cycles(2 * cpucycleunit);
-			} else {
-				x_do_cycles(4 * cpucycleunit);
-				ipl_fetch();
-			}
-		}
 		first = false;
+		ipl_fetch();
+		x_do_cycles(4 * cpucycleunit);
 
 		if (regs.spcflags & SPCFLAG_COPPER)
 			do_copper();
 
 		if (regs.spcflags & SPCFLAG_MODE_CHANGE) {
 			m68k_resumestopped();
+			fill_prefetch();
 			return 1;
 		}
 
@@ -7634,18 +7630,14 @@ void m68k_setstopped (void)
 	if ((regs.spcflags & SPCFLAG_DOTRACE) == 0) {
 		m68k_set_stop();
 	} else {
-		m68k_resumestopped ();
+		m68k_resumestopped();
 	}
 }
 
-void m68k_resumestopped (void)
+void m68k_resumestopped(void)
 {
 	if (!regs.stopped)
 		return;
-	if (currprefs.cpu_cycle_exact && currprefs.cpu_model == 68000) {
-		x_do_cycles (6 * cpucycleunit);
-	}
-	fill_prefetch ();
 	m68k_unset_stop();
 }
 

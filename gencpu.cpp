@@ -6669,9 +6669,6 @@ static void gen_opcode (unsigned int opcode)
 		// 68000/68010: Traced STOP runs 4 cycles faster.
 		// 68020 68030 68040: STOP works normally
 		// 68060: Immediate privilege violation exception
-		if ((cpu_level == 0 || cpu_level == 1) && using_ce) {
-			out("%s(regs.t1 ? 4 : 8);\n", do_cycles);
-		}
 		if (cpu_level >= 5) {
 			out("if (!(sr & 0x2000)) {\n");
 			out("Exception(8);\n");
@@ -6681,6 +6678,9 @@ static void gen_opcode (unsigned int opcode)
 		out("regs.sr = sr;\n");
 		makefromsr();
 		out("m68k_setstopped();\n");
+		if ((cpu_level == 0 || cpu_level == 1) && (using_ce || using_prefetch)) {
+			out("%s(4);\n", do_cycles);
+		}
 		sync_m68k_pc();
 		// STOP does not prefetch anything
 		did_prefetch = -1;
