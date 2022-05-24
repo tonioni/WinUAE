@@ -11848,10 +11848,24 @@ static INT_PTR CALLBACK MemoryDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARA
 					case IDC_MEMORYBOARDSELECT:
 					if (fastram_select_ramboard) {
 						const struct memoryboardtype *mbt = getmemoryboardselect(hDlg);
+
+						// Various issues with RAM board selection since when
+						// selecting a generic RAM board, mbt will be NULL.
+						fastram_select_ramboard->manufacturer = 0;
+						fastram_select_ramboard->product = 0;
+
 						if (mbt) {
 							if (mbt->manufacturer != 0xffff) {
-								fastram_select_ramboard->manufacturer = mbt->manufacturer;
-								fastram_select_ramboard->product = mbt->product;
+								// Fix crash when changing between AutoConfig and manually
+								// configurable boards.  WinUAE may have a buffer overflow
+								// if custom AutoConfig conflicts with custom memory
+								// range (these must be mutually exclusive).
+								fastram_select_ramboard->manual_config = false;
+
+								if (mbt->manufacturer) {
+									fastram_select_ramboard->manufacturer = mbt->manufacturer;
+									fastram_select_ramboard->product = mbt->product;
+								}
 							} else {
 								fastram_select_ramboard->autoconfig_inuse = false;
 								fastram_select_ramboard->manual_config = true;
@@ -11860,9 +11874,10 @@ static INT_PTR CALLBACK MemoryDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARA
 								fastram_select_ramboard->start_address = mbt->address;
 								fastram_select_ramboard->end_address = mbt->address + fastram_select_ramboard->size - 1;
 							}
-							setfastram_selectmenu(hDlg, 0);
-							break;
+						} else {
+							fastram_select_ramboard->manual_config = false;
 						}
+						setfastram_selectmenu(hDlg, 0);
 					}
 					break;
 				}
@@ -17483,7 +17498,7 @@ static void init_portsdlg (HWND hDlg)
 	xSendDlgItemMessage(hDlg, IDC_DONGLELIST, CB_ADDSTRING, 0, (LPARAM)_T("Leader Board"));
 	xSendDlgItemMessage(hDlg, IDC_DONGLELIST, CB_ADDSTRING, 0, (LPARAM)_T("B.A.T. II"));
 	xSendDlgItemMessage(hDlg, IDC_DONGLELIST, CB_ADDSTRING, 0, (LPARAM)_T("Italy '90 Soccer"));
-	xSendDlgItemMessage(hDlg, IDC_DONGLELIST, CB_ADDSTRING, 0, (LPARAM)_T("Dames Grand-Maître"));
+	xSendDlgItemMessage(hDlg, IDC_DONGLELIST, CB_ADDSTRING, 0, (LPARAM)_T("Dames Grand-MaÃ®tre"));
 	xSendDlgItemMessage(hDlg, IDC_DONGLELIST, CB_ADDSTRING, 0, (LPARAM)_T("Rugby Coach"));
 	xSendDlgItemMessage(hDlg, IDC_DONGLELIST, CB_ADDSTRING, 0, (LPARAM)_T("Cricket Captain"));
 	xSendDlgItemMessage(hDlg, IDC_DONGLELIST, CB_ADDSTRING, 0, (LPARAM)_T("Leviathan"));
@@ -22258,8 +22273,8 @@ static void dialogmousemove (HWND hDlg)
 #if 0
 static void blah(void)
 {
-	char *str1 = "äöå€õãñëÿüïñç";
-	TCHAR *str2 = _T("äöå€õãñëÿüïñç");
+	char *str1 = "Ã¤Ã¶Ã¥Â€ÃµÃ£Ã±Ã«Ã¿Ã¼Ã¯Ã±Ã§";
+	TCHAR *str2 = _T("Ã¤Ã¶Ã¥Â€ÃµÃ£Ã±Ã«Ã¿Ã¼Ã¯Ã±Ã§");
 	TCHAR *s1;
 	char *s2;
 	MessageBoxA(NULL, str1, "Test1 ANSI", MB_OK);
