@@ -135,7 +135,6 @@ static int global_mayfail;
 static int global_fpu;
 
 static char endstr[1000];
-static char lines[100000];
 
 #include "flags_x86.h"
 
