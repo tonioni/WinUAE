@@ -3112,10 +3112,15 @@ static void pfield_expand_dp_bplcon(void)
 	bplplanecnt = dp_for_drawing->nr_planes;
 	bplham = dp_for_drawing->ham_seen;
 	bplehb = dp_for_drawing->ehb_seen;
-	if (ecs_denise && (dp_for_drawing->bplcon2 & 0x0200)) {
-		bplehb = 0;
-		if (!aga_mode)
-			bplehb = -1;
+	if (ecs_denise) {
+		// Check for KillEHB bit in ECS/AGA
+		if (dp_for_drawing->bplcon2 & 0x0200) {
+			bplehb = 0;
+			if (!aga_mode)
+				bplehb = -1;
+		}
+	} else if ((currprefs.cs_denisenoehb)) {
+		bplehb = -1;
 	}
 	bplcolorburst = (dp_for_drawing->bplcon0 & 0x200) != 0;
 	if (!bplcolorburst)
