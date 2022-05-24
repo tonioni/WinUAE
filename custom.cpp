@@ -14433,11 +14433,12 @@ static int dma_cycle(uaecptr addr, uae_u32 value, int *mode)
 
 static void sync_cycles(void)
 {
-	evt_t c;
-	uae_u32 extra;
-
-	c = get_cycles();
-	extra = c & (CYCLE_UNIT - 1);
+	if (extra_cycle) {
+		do_cycles(extra_cycle);
+		extra_cycle = 0;
+	}
+	evt_t c = get_cycles();
+	int extra = c & (CYCLE_UNIT - 1);
 	if (extra) {
 		extra = CYCLE_UNIT - extra;
 		do_cycles(extra);
