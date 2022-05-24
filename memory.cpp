@@ -2501,7 +2501,7 @@ static void fill_ce_banks (void)
 	}
 
 	if (currprefs.cs_romisslow) {
-		if (aga_mode && !amy16_mode && !currprefs.cs_cd32cd) {
+		if (aga_mode && !currprefs.cs_cd32cd) {
 			for (i = (0xe00000 >> 16); i < (0xe80000 >> 16); i++)
 				ce_banktype[i] = CE_MEMBANK_CHIP32;
 			for (i = (0xf80000 >> 16); i < (0x1000000 >> 16); i++)
