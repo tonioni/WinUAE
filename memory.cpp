@@ -2612,7 +2612,7 @@ void memory_clear (void)
 	//   0:even 1:odd on columns for even rows,
 	//   1:even 0:odd on columns for odd rows.
 	if (chipmem_bank.baseaddr) {
-		if (aga_mode && !amy16_mode) {
+		if (aga_mode) {
 			uae_u32 fillval = 0;
 			for (int fillbank = 0; fillbank < chipmem_bank.allocated_size / 2048; fillbank++) {
 				for (int fillrow = fillbank * 2048; fillrow < (fillbank + 1) * 2048; fillrow += 4) {
