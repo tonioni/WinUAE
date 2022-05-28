@@ -402,21 +402,21 @@ bool my_kbd_handler (int keyboard, int scancode, int newstate, bool alwaysreleas
 	}
 #endif
 #if 0
-	if (scancode == DIK_F1) {
+	if (scancode == DIK_F8) {
 		if (newstate) {
-			extern void rp_test(void);
-			rp_test();
+			extern int blop2;
+			blop2++;
 		}
 		return true;
 	}
 #endif
-#if 0
-	if (scancode == DIK_F2) {
+#if 1
+	if (scancode == DIK_F9 && specialpressed()) {
 		if (newstate) {
-			extern int paska;
-			paska--;
+			extern int blop;
+			blop++;
 		}
-		return;
+		return true;
 	}
 #endif
 

@@ -225,6 +225,10 @@ struct dma_rec
 	uae_u16 extra;
 	uae_s8 intlev;
 	uae_u16 cf_reg, cf_dat, cf_addr;
+	int ciareg;
+	int ciamask;
+	bool ciarw;
+	uae_u16 ciavalue;
 };
 
 extern struct dma_rec *last_dma_rec;
@@ -245,18 +249,19 @@ extern struct dma_rec *last_dma_rec;
 #define DMA_EVENT_DDFSTOP 8192
 #define DMA_EVENT_DDFSTOP2 16384
 #define DMA_EVENT_SPECIAL 32768
-#define DMA_EVENT_VB 0x10000
-#define DMA_EVENT_VS 0x20000
-#define DMA_EVENT_LOF 0x40000
-#define DMA_EVENT_LOL 0x80000
-#define DMA_EVENT_HBS 0x100000
-#define DMA_EVENT_HBE 0x200000
-#define DMA_EVENT_HDIWS 0x400000
-#define DMA_EVENT_HDIWE 0x800000
-#define DMA_EVENT_VDIW 0x1000000
-#define DMA_EVENT_HSS 0x2000000
-#define DMA_EVENT_HSE 0x4000000
-
+#define DMA_EVENT_VB		0x00010000
+#define DMA_EVENT_VS		0x00020000
+#define DMA_EVENT_LOF		0x00040000
+#define DMA_EVENT_LOL		0x00080000
+#define DMA_EVENT_HBS		0x00100000
+#define DMA_EVENT_HBE		0x00200000
+#define DMA_EVENT_HDIWS		0x00400000
+#define DMA_EVENT_HDIWE		0x00800000
+#define DMA_EVENT_VDIW		0x01000000
+#define DMA_EVENT_HSS		0x02000000
+#define DMA_EVENT_HSE		0x04000000
+#define DMA_EVENT_CIAA_IRQ	0x08000000
+#define DMA_EVENT_CIAB_IRQ	0x10000000
 
 #define DMARECORD_REFRESH 1
 #define DMARECORD_CPU 2
@@ -279,6 +284,7 @@ extern void record_dma_event(uae_u32 evt, int hpos, int vpos);
 extern void record_dma_clear(int hpos, int vpos);
 extern bool record_dma_check(int hpos, int vpos);
 extern void record_dma_hsync(void);
+extern void record_cia_access(int r, int mask, uae_u16 value, bool rw, int hpos, int vpos);
 extern void debug_mark_refreshed(uaecptr);
 extern void debug_draw(uae_u8 *buf, int bpp, int line, int width, int height, uae_u32 *xredcolors, uae_u32 *xgreencolors, uae_u32 *xbluescolors);
 

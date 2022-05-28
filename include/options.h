@@ -695,6 +695,7 @@ struct uae_prefs {
 	int cs_ciatype[2];
 	int cs_kbhandshake;
 	int cs_hvcsync;
+	int cs_eclockphase;
 
 	struct boardromconfig expansionboard[MAX_EXPANSION_BOARDS];
 
