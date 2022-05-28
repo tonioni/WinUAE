@@ -21,7 +21,7 @@
 #include "rommgr.h"
 
 #define hfd_log write_log
-#define hdf_log2
+#define hfd_log2
 //#define hdf_log2 write_log
 
 #ifdef WINDDK
@@ -177,7 +177,7 @@ static int getsignfromhandle (HANDLE h, DWORD *sign, DWORD *pstyle)
 		*pstyle = dli->PartitionStyle;
 		ok = 1;
 	} else {
-		hdf_log2 (_T("IOCTL_DISK_GET_DRIVE_LAYOUT_EX() returned %08x\n"), GetLastError ());
+		hfd_log(_T("IOCTL_DISK_GET_DRIVE_LAYOUT_EX() returned %08x\n"), GetLastError());
 	}
 	if (!ok) {
 		if (DeviceIoControl (h, IOCTL_DISK_GET_DRIVE_LAYOUT, NULL, 0, dli, outsize, &written, NULL)) {
@@ -186,10 +186,10 @@ static int getsignfromhandle (HANDLE h, DWORD *sign, DWORD *pstyle)
 			*pstyle = PARTITION_STYLE_MBR;
 			ok = 1;
 		} else {
-			hdf_log2 (_T("IOCTL_DISK_GET_DRIVE_LAYOUT() returned %08x\n"), GetLastError ());
+			hfd_log(_T("IOCTL_DISK_GET_DRIVE_LAYOUT() returned %08x\n"), GetLastError());
 		}
 	}
-	hdf_log2 (_T("getsignfromhandle(signature=%08X,pstyle=%d)\n"), *sign, *pstyle);
+	hfd_log2(_T("getsignfromhandle(signature=%08X,pstyle=%d)\n"), *sign, *pstyle);
 	xfree (dli);
 	return ok;
 }
@@ -201,8 +201,8 @@ static int ismounted (const TCHAR *name, HANDLE hd)
 	int mounted;
 	DWORD sign, pstyle;
 
-	hdf_log2 (_T("\n"));
-	hdf_log2 (_T("Name='%s'\n"), name);
+	hfd_log2(_T("\n"));
+	hfd_log2(_T("Name='%s'\n"), name);
 	if (!getsignfromhandle (hd, &sign, &pstyle))
 		return 0;
 	if (pstyle == PARTITION_STYLE_GPT)
@@ -217,30 +217,30 @@ static int ismounted (const TCHAR *name, HANDLE hd)
 			volname[_tcslen (volname) - 1] = 0;
 		d = CreateFile (volname, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE,
 			NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
-		hdf_log2 (_T("volname='%s' %08x\n"), volname, d);
+		hfd_log2(_T("volname='%s' %08x\n"), volname, d);
 		if (d != INVALID_HANDLE_VALUE) {
 			DWORD isntfs, outsize, written;
 			isntfs = 0;
 			if (DeviceIoControl (d, FSCTL_IS_VOLUME_MOUNTED, NULL, 0, NULL, 0, &written, NULL)) {
 				VOLUME_DISK_EXTENTS *vde;
 				NTFS_VOLUME_DATA_BUFFER ntfs;
-				hdf_log2 (_T("FSCTL_IS_VOLUME_MOUNTED returned is mounted\n"));
+				hfd_log(_T("FSCTL_IS_VOLUME_MOUNTED returned is mounted\n"));
 				if (DeviceIoControl (d, FSCTL_GET_NTFS_VOLUME_DATA, NULL, 0, &ntfs, sizeof ntfs, &written, NULL)) {
 					isntfs = 1;
 				}
-				hdf_log2 (_T("FSCTL_GET_NTFS_VOLUME_DATA returned %d\n"), isntfs);
-				outsize = sizeof (VOLUME_DISK_EXTENTS) + sizeof (DISK_EXTENT) * 32;
-				vde = (VOLUME_DISK_EXTENTS*)xmalloc (uae_u8, outsize);
-				if (DeviceIoControl (d, IOCTL_VOLUME_GET_VOLUME_DISK_EXTENTS, NULL, 0, vde, outsize, &written, NULL)) {
-					int i;
-					hdf_log2 (_T("IOCTL_VOLUME_GET_VOLUME_DISK_EXTENTS returned %d extents\n"), vde->NumberOfDiskExtents);
-					for (i = 0; i < vde->NumberOfDiskExtents; i++) {
+				hfd_log(_T("FSCTL_GET_NTFS_VOLUME_DATA returned %d\n"), isntfs);
+				const int maxextends = 30;
+				outsize = sizeof (VOLUME_DISK_EXTENTS) + sizeof (DISK_EXTENT) * (maxextends + 1);
+				vde = (VOLUME_DISK_EXTENTS*)xcalloc(uae_u8, outsize);
+				if (vde && DeviceIoControl(d, IOCTL_VOLUME_GET_VOLUME_DISK_EXTENTS, NULL, 0, vde, outsize, &written, NULL)) {
+					hfd_log(_T("IOCTL_VOLUME_GET_VOLUME_DISK_EXTENTS returned %d extents\n"), vde->NumberOfDiskExtents);
+					for (int i = 0; i < vde->NumberOfDiskExtents && i < maxextends; i++) {
 						TCHAR pdrv[MAX_DPATH];
 						HANDLE ph;
 						_stprintf (pdrv, _T("\\\\.\\PhysicalDrive%d"), vde->Extents[i].DiskNumber);
 						ph = CreateFile (pdrv, 0, FILE_SHARE_READ | FILE_SHARE_WRITE,
 							NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
-						hdf_log2 (_T("PhysicalDrive%d: Extent %d Start=%I64X Len=%I64X\n"), i,
+						hfd_log(_T("PhysicalDrive%d: Extent %d Start=%I64X Len=%I64X\n"), i,
 							vde->Extents[i].DiskNumber, vde->Extents[i].StartingOffset.QuadPart, vde->Extents[i].ExtentLength.QuadPart);
 						if (ph != INVALID_HANDLE_VALUE) {
 							DWORD sign2;
@@ -252,20 +252,20 @@ static int ismounted (const TCHAR *name, HANDLE hd)
 						}
 					}
 				} else {
-					hdf_log2 (_T("IOCTL_VOLUME_GET_VOLUME_DISK_EXTENTS returned %08x\n"), GetLastError ());
+					hfd_log(_T("IOCTL_VOLUME_GET_VOLUME_DISK_EXTENTS returned %08x\n"), GetLastError());
 				}
 			} else {
-				hdf_log2 (_T("FSCTL_IS_VOLUME_MOUNTED returned not mounted\n"));
+				hfd_log(_T("FSCTL_IS_VOLUME_MOUNTED returned not mounted\n"));
 			}
 			CloseHandle (d);
 		} else {
-			hdf_log2 (_T("'%s': %d\n"), volname, GetLastError ());
+			hfd_log(_T("'%s': %08x\n"), volname, GetLastError());
 		}
 		if (!FindNextVolume (h, volname, sizeof volname / sizeof (TCHAR)))
 			break;
 	}
 	FindVolumeClose (h);
-	hdf_log2 (_T("\n"));
+	hfd_log2(_T("\n"));
 	return mounted;
 }
 
