@@ -857,7 +857,7 @@ uae_u32(*x_cp_next_ilong)(void);
 
 uae_u32(*x_next_iword)(void);
 uae_u32(*x_next_ilong)(void);
-void (*x_do_cycles)(uae_u32);
+void (*x_do_cycles)(int);
 
 uae_u32(REGPARAM3 *x_cp_get_disp_ea_020)(uae_u32 base, int idx) REGPARAM;
 
@@ -1006,6 +1006,10 @@ void REGPARAM2 MakeFromSR(void)
 }
 
 void REGPARAM2 MakeFromSR_intmask(uae_u16 oldsr, uae_u16 newsr)
+{
+}
+
+void intlev_load(void)
 {
 }
 
@@ -3048,6 +3052,8 @@ static int create_ea_random(uae_u16 *opcodep, uaecptr pc, int mode, int reg, str
 					if (dp->mnemo == i_STOP && feature_interrupts > 0) {
 						// STOP hack to keep STOP test size smaller.
 						imm16_cnt += 0x0100;
+					} else {
+						imm16_cnt += 0x0001;
 					}
 					if (imm16_cnt == 0)
 						*isconstant = 0; 
@@ -4006,13 +4012,20 @@ static void execute_ins(uaecptr endpc, uaecptr targetpc, struct instr *dp, bool 
 		}
 
 		if (cpu_stopped) {
-			if (!interrupt_cycle_cnt) {
+			if (feature_interrupts && !interrupt_cycle_cnt) {
 				test_exception = -1;
 				break;
 			}
-			do_cycles_test(2);
 			ipl_fetch();
-			do_cycles_test(2);
+			do_cycles_test(4);
+			if (!SPCFLAG_DOTRACE && regs.s == 0 && currprefs.cpu_model <= 68010) {
+				// 68000/68010 undocumented special case:
+				// if STOP clears S-bit and T was not set:
+				// cause privilege violation exception, PC pointing to following instruction.
+				// If T was set before STOP: STOP works as documented.
+				cpu_stopped = 0;
+				Exception(8);
+			}
 		} else {
 			(*cpufunctbl[opc])(opc);
 		}
@@ -4067,34 +4080,15 @@ static void execute_ins(uaecptr endpc, uaecptr targetpc, struct instr *dp, bool 
 			break;
 		}
 
-		if (!SPCFLAG_DOTRACE && cpu_stopped && regs.s == 0 && currprefs.cpu_model <= 68010) {
-			// 68000/68010 undocumented special case:
-			// if STOP clears S-bit and T was not set:
-			// cause privilege violation exception, PC pointing to following instruction.
-			// If T was set before STOP: STOP works as documented.
-			cpu_stopped = 0;
-			Exception(8);
-		}
-
 		// Amiga Chip ram does not support TAS or MOVE16
 		if ((dp->mnemo == i_TAS || dp->mnemo == i_MOVE16) && low_memory_accessed) {
 			test_exception = -1;
 			break;
 		}
 
-		if (feature_interrupts >= 2) {
-			if (!test_exception && regs.ipl > regs.intmask) {
-				if (cpu_stopped) {
-					do_cycles_test(4);
-				}
-				Exception(24 + regs.ipl);
-				break;
-			}
-		} else {
-			if (!test_exception && regs.ipl_pin > regs.intmask) {
-				Exception(24 + regs.ipl_pin);
-				break;
-			}
+		if (!test_exception && regs.ipl > regs.intmask) {
+			Exception(24 + regs.ipl);
+			break;
 		}
 
 		if ((regs.pc == endpc || regs.pc == targetpc) && !cpu_stopped) {

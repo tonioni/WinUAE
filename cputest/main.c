@@ -2126,10 +2126,10 @@ static int get_cycles_amiga(void)
 	}
 
 	// hpos 0-1: vertical count hasn't been increased yet
-	if (hstart <= 0) {
+	if (hstart <= 1) {
 		vstart++;
 	}
-	if (hend <= 0) {
+	if (hend <= 1) {
 		vend++;
 	}
 
@@ -3967,7 +3967,6 @@ int main(int argc, char *argv[])
 				int d = isdir(path, dr->d_name);
 				if (d && dr->d_name[0] != '.') {
 					strcpy(dirs + diroff, dr->d_name);
-					printf("%s\n", dr->d_name);
 					dircnt++;
 					diroff += MAX_FILE_LEN;
 					if (dircnt >= MAX_FILES) {
