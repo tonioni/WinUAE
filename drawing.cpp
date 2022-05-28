@@ -254,6 +254,7 @@ static int visible_top_start, visible_bottom_stop;
 /* same for blank */
 static int vblank_top_start, vblank_bottom_stop;
 static int hblank_left_start, hblank_right_stop;
+static int hblank_left_start_hard, hblank_right_stop_hard;
 static bool exthblank, extborder, exthblanken;
 
 static int linetoscr_x_adjust_pixbytes, linetoscr_x_adjust_pixels;
@@ -609,13 +610,18 @@ int get_vertical_visible_height(bool useoldsize)
 static void set_hblanking_limits(void)
 {
 	if (currprefs.gfx_overscanmode == OVERSCANMODE_ULTRA) {
+		hblank_left_start_hard = visible_left_start;
+		hblank_right_stop_hard = visible_right_stop;
 		return;
 	}
+
+	hblank_left_start_hard = hblank_left_start;
+	hblank_right_stop_hard = hblank_right_stop;
 
 	// horizontal blanking
 	bool hardwired = !dp_for_drawing || !ce_is_extblankset(colors_for_drawing.extra);
 	bool doblank = false;
-	int hbstrt = (235 << CCK_SHRES_SHIFT) - 3;
+	int hbstrt = ((maxhpos + 8) << CCK_SHRES_SHIFT) - 3;
 	int hbstop = (47 << CCK_SHRES_SHIFT) - 7;
 
 	if (currprefs.gfx_overscanmode < OVERSCANMODE_OVERSCAN) {
@@ -628,6 +634,14 @@ static void set_hblanking_limits(void)
 		}
 	}
 
+	// programmed mode with hardwired hblanking
+	if (hblank_left_start_hard < coord_hw_to_window_x_shres(hbstop)) {
+		hblank_left_start_hard = coord_hw_to_window_x_shres(hbstop);
+	}
+	if (hblank_right_stop_hard > coord_hw_to_window_x_shres(hbstrt)) {
+		hblank_right_stop_hard = coord_hw_to_window_x_shres(hbstrt);
+	}
+
 	if (hardwired) {
 		doblank = true;
 	} else if (currprefs.gfx_overscanmode <= OVERSCANMODE_OVERSCAN) {
@@ -638,6 +652,7 @@ static void set_hblanking_limits(void)
 	}
 
 	if (doblank && programmedmode != 1) {
+		// programmed mode with programmed hblanking
 		// reposition to sync
 		// use hardwired hblank emulation as overscan blanking.
 		if ((new_beamcon0 & bemcon0_hsync_mask) && !hardwired) {
@@ -1509,6 +1524,9 @@ static void fill_line_border(int lineno)
 	int endpos = visible_left_border + vidinfo->drawbuffer.inwidth;
 	int w = endpos - lastpos;
 
+	int hblank_left = exthblank ? hblank_left_start : hblank_left_start_hard;
+	int hblank_right = exthblank ? hblank_right_stop : hblank_right_stop_hard;
+
 	if (lineno < visible_top_start || lineno < vblank_top_start || lineno >= visible_bottom_stop || lineno >= vblank_bottom_stop || full_blank) {
 		int b = hposblank;
 		hposblank = 3;
@@ -1530,7 +1548,7 @@ static void fill_line_border(int lineno)
 		return;
 	}
 	// hblank not visible
-	if (hblank_left_start <= lastpos && hblank_right_stop >= endpos) {
+	if (hblank_left <= lastpos && hblank_right >= endpos) {
 		fill_line2(lastpos, w);
 		if (need_genlock_data) {
 			memset(xlinebuffer_genlock + lastpos, 0, w);
@@ -1539,13 +1557,13 @@ static void fill_line_border(int lineno)
 	}
 
 	// left, right or both hblanks visible
-	if (lastpos < hblank_left_start) {
-		int t = hblank_left_start < endpos ? hblank_left_start : endpos;
+	if (lastpos < hblank_left) {
+		int t = hblank_left < endpos ? hblank_left : endpos;
 		pfield_do_fill_line(lastpos, t, true);
 		lastpos = t;
 	}
-	if (lastpos < hblank_right_stop) {
-		int t = hblank_right_stop < endpos ? hblank_right_stop : endpos;
+	if (lastpos < hblank_right) {
+		int t = hblank_right < endpos ? hblank_right : endpos;
 		pfield_do_fill_line(lastpos, t, false);
 		lastpos = t;
 	}
@@ -3377,9 +3395,11 @@ static void do_color_changes(line_draw_func worker_border, line_draw_func worker
 			} else {
 				// non-vblank scanline
 
+				int hblank_left = exthblank ? hblank_left_start : hblank_left_start_hard;
+
 				// left hblank (left edge to hblank end)
-				if (nextpos_in_range > lastpos && lastpos < hblank_left_start) {
-					int t = nextpos_in_range <= hblank_left_start ? nextpos_in_range : hblank_left_start;
+				if (nextpos_in_range > lastpos && lastpos < hblank_left) {
+					int t = nextpos_in_range <= hblank_left ? nextpos_in_range : hblank_left;
 					(*worker_border)(lastpos, t, 1);
 					lastpos = t;
 				}
@@ -3442,16 +3462,18 @@ static void do_color_changes(line_draw_func worker_border, line_draw_func worker
 					}
 				}
 
+				int hblank_right = exthblank ? hblank_right_stop : hblank_right_stop_hard;
+
 				// right border (playfield end to hblank start)
 				if (nextpos_in_range > lastpos && lastpos >= playfield_end_pre) {
-					int t = nextpos_in_range <= hblank_right_stop ? nextpos_in_range : hblank_right_stop;
+					int t = nextpos_in_range <= hblank_right ? nextpos_in_range : hblank_right;
 					(*worker_border)(lastpos, t, 0);
 					lastpos = t;
 				}
 
 				// right hblank (hblank start to right edge, hblank start may be earlier than playfield end)
-				if (nextpos_in_range > hblank_right_stop) {
-					(*worker_border) (hblank_right_stop, nextpos_in_range, 1);
+				if (nextpos_in_range > hblank_right) {
+					(*worker_border) (hblank_right, nextpos_in_range, 1);
 					lastpos = nextpos_in_range;
 				}
 			}
