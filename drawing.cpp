@@ -1216,6 +1216,10 @@ static void pfield_init_linetoscr (int lineno, bool border)
 			if (playfield_end < linetoscr_diw_end && hblank_right_stop > playfield_end) {
 				playfield_end = linetoscr_diw_end;
 			}
+			// A1000 shows extra sprite pixel after hdiw end TODO: Denise feature, not Agnus.
+			if (currprefs.cs_dipagnus) {
+				sprite_end += 1 << lores_shift;
+			}
 			int plfleft = dp_for_drawing->plfleft - DDF_OFFSET;
 			int left = coord_hw_to_window_x_lores(plfleft);
 			if (aga_mode) {
@@ -2248,6 +2252,77 @@ static void pfield_set_linetoscr (void)
 		}
 	}
 #endif
+	// A1000 Denise right border "bordersprite" bug
+	if (currprefs.cs_dipagnus) {
+		if (res_shift == 0) {
+			switch (vidinfo->drawbuffer.pixbytes) {
+				case 2:
+				pfield_do_linetoscr_spriteonly = linetoscr_16_aga_spronly;
+				break;
+				case 4:
+				pfield_do_linetoscr_spriteonly = linetoscr_32_aga_spronly;
+				break;
+			}
+		} else if (res_shift == 2) {
+			switch (vidinfo->drawbuffer.pixbytes) {
+				case 2:
+				pfield_do_linetoscr_spriteonly = linetoscr_16_stretch2_aga_spronly;
+				break;
+				case 4:
+				pfield_do_linetoscr_spriteonly = linetoscr_32_stretch2_aga_spronly;
+				break;
+			}
+		} else if (res_shift == 1) {
+			switch (vidinfo->drawbuffer.pixbytes) {
+				case 2:
+				pfield_do_linetoscr_spriteonly = linetoscr_16_stretch1_aga_spronly;
+				break;
+				case 4:
+				pfield_do_linetoscr_spriteonly = linetoscr_32_stretch1_aga_spronly;
+				break;
+			}
+		} else if (res_shift == -1) {
+			if (currprefs.gfx_lores_mode) {
+				switch (vidinfo->drawbuffer.pixbytes) {
+					case 2:
+					pfield_do_linetoscr_spriteonly = linetoscr_16_shrink1f_aga_spronly;
+					break;
+					case 4:
+					pfield_do_linetoscr_spriteonly = linetoscr_32_shrink1f_aga_spronly;
+					break;
+				}
+			} else {
+				switch (vidinfo->drawbuffer.pixbytes) {
+					case 2:
+					pfield_do_linetoscr_spriteonly = linetoscr_16_shrink1_aga_spronly;
+					break;
+					case 4:
+					pfield_do_linetoscr_spriteonly = linetoscr_32_shrink1_aga_spronly;
+					break;
+				}
+			}
+		} else if (res_shift == -2) {
+			if (currprefs.gfx_lores_mode) {
+				switch (vidinfo->drawbuffer.pixbytes) {
+					case 2:
+					pfield_do_linetoscr_spriteonly = linetoscr_16_shrink2f_aga_spronly;
+					break;
+					case 4:
+					pfield_do_linetoscr_spriteonly = linetoscr_32_shrink2f_aga_spronly;
+					break;
+				}
+			} else {
+				switch (vidinfo->drawbuffer.pixbytes) {
+					case 2:
+					pfield_do_linetoscr_spriteonly = linetoscr_16_shrink2_aga_spronly;
+					break;
+					case 4:
+					pfield_do_linetoscr_spriteonly = linetoscr_32_shrink2_aga_spronly;
+					break;
+				}
+			}
+		}
+	}
 #ifdef ECS_DENISE
 	if (!aga_mode && ecsshres) {
 		// TODO: genlock support
@@ -2375,6 +2450,26 @@ static void pfield_set_linetoscr (void)
 	}
 	pfield_do_linetoscr_normal2 = pfield_do_linetoscr_normal;
 	pfield_do_linetoscr_sprite2 = pfield_do_linetoscr_sprite2;
+}
+
+// A1000 Denise right border bug: sprites have 1 extra lores pixel visible
+static void pfield_do_linetoscr_bordersprite_a1000(int start, int stop, int blank)
+{
+	if (blank || exthblank || extborder) {
+		pfield_do_fill_line(start, stop, blank);
+		return;
+	}
+	pfield_do_fill_line(start, stop, blank);
+	if (start < sprite_playfield_start) {
+		return;
+	}
+	if (stop > sprite_end) {
+		stop = sprite_end;
+		if (start >= stop) {
+			return;
+		}
+	}
+	pfield_do_linetoscr_spriteonly(src_pixel, start, stop, false);
 }
 
 // left or right AGA border sprite
@@ -3684,12 +3779,17 @@ static void pfield_draw_line(struct vidbuffer *vb, int lineno, int gfx_ypos, int
 			}
 		}
 
-#ifdef AGA
-		if (dip_for_drawing->nr_sprites && ce_is_bordersprite(colors_for_drawing.extra) && !ce_is_borderblank(colors_for_drawing.extra) && dp_for_drawing->bordersprite_seen)
-			do_color_changes(pfield_do_linetoscr_bordersprite_aga, pfield_do_linetoscr_spr, lineno);
-		else
-#endif
+		if (dip_for_drawing->nr_sprites) {
+			if (ce_is_bordersprite(colors_for_drawing.extra) && !ce_is_borderblank(colors_for_drawing.extra) && dp_for_drawing->bordersprite_seen) {
+				do_color_changes(pfield_do_linetoscr_bordersprite_aga, pfield_do_linetoscr_spr, lineno);
+			} else if (currprefs.cs_dipagnus) {
+				do_color_changes(pfield_do_linetoscr_bordersprite_a1000, pfield_do_linetoscr_spr, lineno);
+			} else {
+				do_color_changes(pfield_do_fill_line, dip_for_drawing->nr_sprites ? pfield_do_linetoscr_spr : pfield_do_linetoscr, lineno);
+			}
+		} else {
 			do_color_changes(pfield_do_fill_line, dip_for_drawing->nr_sprites ? pfield_do_linetoscr_spr : pfield_do_linetoscr, lineno);
+		}
 
 		if (dh == dh_emerg)
 			memcpy(row_map[gfx_ypos], xlinebuffer + linetoscr_x_adjust_pixbytes, vidinfo->drawbuffer.pixbytes * vidinfo->drawbuffer.inwidth);
