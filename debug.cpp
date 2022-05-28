@@ -2601,7 +2601,7 @@ static int totaltrainers;
 static void clearcheater(void)
 {
 	if (!trainerdata)
-		trainerdata =  xmalloc(struct trainerstruct, MAX_CHEAT_VIEW);
+		trainerdata = xmalloc(struct trainerstruct, MAX_CHEAT_VIEW);
 	memset(trainerdata, 0, sizeof (struct trainerstruct) * MAX_CHEAT_VIEW);
 	totaltrainers = 0;
 }
@@ -2629,20 +2629,20 @@ static void listcheater(int mode, int size)
 		uae_u16 b;
 
 		if (size) {
-			b = get_byte_debug (ts->addr);
+			b = get_byte_debug(ts->addr);
 		} else {
-			b = get_word_debug (ts->addr);
+			b = get_word_debug(ts->addr);
 		}
 		if (mode)
-			console_out_f (_T("%08X=%04X "), ts->addr, b);
+			console_out_f(_T("%08X=%04X "), ts->addr, b);
 		else
-			console_out_f (_T("%08X "), ts->addr);
+			console_out_f(_T("%08X "), ts->addr);
 		if ((i % skip) == skip)
-			console_out (_T("\n"));
+			console_out(_T("\n"));
 	}
 }
 
-static void deepcheatsearch (TCHAR **c)
+static void deepcheatsearch(TCHAR **c)
 {
 	static int first = 1;
 	static uae_u8 *memtmp;
@@ -2655,7 +2655,7 @@ static void deepcheatsearch (TCHAR **c)
 	int addrcnt, cnt;
 	TCHAR v;
 
-	v = _totupper (**c);
+	v = _totupper(**c);
 
 	if(!memtmp || v == 'S') {
 		maxdiff = 0x10000;
@@ -2666,36 +2666,36 @@ static void deepcheatsearch (TCHAR **c)
 
 	if (**c)
 		(*c)++;
-	ignore_ws (c);
+	ignore_ws(c);
 	if ((**c) == '1' || (**c) == '2') {
 		size = **c - '0';
 		(*c)++;
 	}
-	if (more_params (c))
-		maxdiff = readint (c);
+	if (more_params(c))
+		maxdiff = readint(c);
 
 	if (!memtmp || v == 'S') {
 		first = 1;
 		xfree (memtmp);
 		memsize = 0;
 		addr = 0xffffffff;
-		while ((addr = nextaddr (addr, 0, &end, false)) != 0xffffffff)  {
+		while ((addr = nextaddr(addr, 0, &end, false)) != 0xffffffff)  {
 			memsize += end - addr;
 			addr = end - 1;
 		}
 		memsize2 = (memsize + 7) / 8;
-		memtmp = xmalloc (uae_u8, memsize + memsize2);
+		memtmp = xmalloc(uae_u8, memsize + memsize2);
 		if (!memtmp)
 			return;
-		memset (memtmp + memsize, 0xff, memsize2);
+		memset(memtmp + memsize, 0xff, memsize2);
 		p1 = memtmp;
 		addr = 0xffffffff;
-		while ((addr = nextaddr (addr, 0, &end, true)) != 0xffffffff) {
+		while ((addr = nextaddr(addr, 0, &end, true)) != 0xffffffff) {
 			for (i = addr; i < end; i++)
-				*p1++ = get_byte_debug (i);
+				*p1++ = get_byte_debug(i);
 			addr = end - 1;
 		}
-		console_out (_T("Deep trainer first pass complete.\n"));
+		console_out(_T("Deep trainer first pass complete.\n"));
 		return;
 	}
 	inconly = deconly = 0;
@@ -2710,20 +2710,22 @@ static void deepcheatsearch (TCHAR **c)
 	addrcnt = 0;
 	cnt = 0;
 	addr = 0xffffffff;
-	while ((addr = nextaddr (addr, 0, NULL, true)) != 0xffffffff) {
+	while ((addr = nextaddr(addr, 0, NULL, true)) != 0xffffffff) {
 		uae_s32 b, b2;
 		int doremove = 0;
-		int addroff = addrcnt >> 3;
+		int addroff;
 		int addrmask ;
 
 		if (size == 1) {
-			b = (uae_s8)get_byte_debug (addr);
+			b = (uae_s8)get_byte_debug(addr);
 			b2 = (uae_s8)p1[addrcnt];
+			addroff = addrcnt >> 3;
 			addrmask = 1 << (addrcnt & 7);
 		} else {
-			b = (uae_s16)get_word_debug (addr);
+			b = (uae_s16)get_word_debug(addr);
 			b2 = (uae_s16)((p1[addrcnt] << 8) | p1[addrcnt + 1]);
-			addrmask = 3 << (addrcnt & 7);
+			addroff = addrcnt >> 2;
+			addrmask = 3 << (addrcnt & 3);
 		}
 
 		if (p2[addroff] & addrmask) {
@@ -2753,36 +2755,42 @@ static void deepcheatsearch (TCHAR **c)
 		} else {
 			p1[addrcnt] = b >> 8;
 			p1[addrcnt + 1] = b >> 0;
-			addr = nextaddr (addr, 0, NULL, true);
+			addr = nextaddr(addr, 0, NULL, true);
 			if (addr == 0xffffffff)
 				break;
-			addrcnt += 2;
+			addrcnt++;
 		}
-		if  (iscancel (65536)) {
-			console_out_f (_T("Aborted at %08X\n"), addr);
+		if  (iscancel(65536)) {
+			console_out_f(_T("Aborted at %08X\n"), addr);
 			break;
 		}
 	}
 
-	console_out_f (_T("%d addresses found\n"), cnt);
+	console_out_f(_T("%d addresses found\n"), cnt);
 	if (cnt <= MAX_CHEAT_VIEW) {
-		clearcheater ();
+		clearcheater();
 		cnt = 0;
 		addrcnt = 0;
 		addr = 0xffffffff;
 		while ((addr = nextaddr(addr, 0, NULL, true)) != 0xffffffff) {
-			int addroff = addrcnt >> 3;
-			int addrmask = (size == 1 ? 1 : 3) << (addrcnt & 7);
+			int addroff = addrcnt >> (size == 1 ? 3 : 2);
+			int addrmask = (size == 1 ? 1 : 3) << (addrcnt & (size == 1 ? 7 : 3));
 			if (p2[addroff] & addrmask)
-				addcheater (addr, size);
-			addrcnt += size;
+				addcheater(addr, size);
+			if (size == 2) {
+				addr = nextaddr(addr, 0, NULL, true);
+				if (addr == 0xffffffff) {
+					break;
+				}
+			}
+			addrcnt++;
 			cnt++;
 		}
 		if (cnt > 0)
-			console_out (_T("\n"));
-		listcheater (1, size);
+			console_out(_T("\n"));
+		listcheater(1, size);
 	} else {
-		console_out (_T("Now continue with 'g' and use 'D' again after you have lost another life\n"));
+		console_out(_T("Now continue with 'g' and use 'D' again after you have lost another life\n"));
 	}
 }
 
@@ -3052,30 +3060,44 @@ static void smc_free (void)
 	smc_table = NULL;
 }
 
-static void initialize_memwatch (int mode);
-static void smc_detect_init (TCHAR **c)
+static void initialize_memwatch(int mode);
+static void smc_detect_init(TCHAR **c)
 {
-	int v, i;
+	int v;
 
-	ignore_ws (c);
-	v = readint (c);
-	smc_free ();
+	ignore_ws(c);
+	v = readint(c);
+	smc_free();
 	smc_size = 1 << 24;
 	if (currprefs.z3fastmem[0].size)
 		smc_size = currprefs.z3autoconfig_start + currprefs.z3fastmem[0].size;
 	smc_size += 4;
-	smc_table = xmalloc (struct smc_item, smc_size);
+	smc_table = xmalloc(struct smc_item, smc_size);
 	if (!smc_table)
 		return;
-	for (i = 0; i < smc_size; i++) {
-		smc_table[i].addr = 0xffffffff;
-		smc_table[i].cnt = 0;
+	for (int i = 0; i < smc_size; i++) {
+		struct smc_item *si = &smc_table[i];
+		si->addr = 0xffffffff;
+		si->cnt = 0;
 	}
 	if (!memwatch_enabled)
-		initialize_memwatch (0);
+		initialize_memwatch(0);
 	if (v)
 		smc_mode = 1;
-	console_out_f (_T("SMCD enabled. Break=%d\n"), smc_mode);
+	console_out_f(_T("SMCD enabled. Break=%d\n"), smc_mode);
+}
+
+void debug_smc_clear(uaecptr addr, int size)
+{
+	if (!smc_table)
+		return;
+	for (int i = 0; i < smc_size; i++) {
+		struct smc_item *si = &smc_table[i];
+		if (size < 0 || (si->addr >= addr && si->addr < addr + size)) {
+			si->addr = 0xffffffff;
+			si->cnt = 0;
+		}
+	}
 }
 
 #define SMC_MAXHITS 8

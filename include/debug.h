@@ -79,6 +79,8 @@ extern void debug_trainer_match(void);
 extern bool debug_opcode_watch;
 extern bool debug_trainer_event(int evt, int state);
 
+extern void debug_smc_clear(uaecptr addr, int size);
+
 #define BREAKPOINT_TOTAL 20
 #define BREAKPOINT_REG_Dx 0
 #define BREAKPOINT_REG_Ax 8
