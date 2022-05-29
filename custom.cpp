@@ -7066,6 +7066,7 @@ static void VPOSW(uae_u16 v)
 	}
 	vpos |= v << 8;
 	if (vpos != oldvpos) {
+		cia_adjust_eclock_phase((vpos - oldvpos) * maxhpos);
 		vposw_change++;
 	}
 	if (vpos < oldvpos) {
@@ -7093,10 +7094,14 @@ static void VHPOSW(uae_u16 v)
 		}
 	}
 
+	int hdiff = (v & 0xff) - current_hpos();
+	cia_adjust_eclock_phase(hdiff);
+
 	v >>= 8;
 	vpos &= 0xff00;
 	vpos |= v;
 	if (vpos != oldvpos) {
+		cia_adjust_eclock_phase((vpos - oldvpos) * maxhpos);
 		vposw_change++;
 	}
 	if (vpos < oldvpos) {
@@ -12473,8 +12478,9 @@ static void hsync_handler_post(bool onvsync)
 	} else if (currprefs.cs_ciaatod == 0 && ciavsyncs) {
 		// CIA-A TOD counter increases when vsync pulse ends
 		if (beamcon0 & BEAMCON0_VARVSYEN) {
-			if (vpos == vsstop && vs_state == true) {
-				CIAA_tod_handler(lof_store ? hsstop : hsstop + hcenter);
+			if (vsstop == vpos) {
+				// Always uses HCENTER and HSSTRT registers. Even if VARHSYEN=0.
+				CIAA_tod_handler(lof_store ? hcenter : hsstrt);
 			}
 		} else {
 			if (vpos == (currprefs.ntscmode ? VSYNC_ENDLINE_NTSC : VSYNC_ENDLINE_PAL)) {

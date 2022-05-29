@@ -151,22 +151,36 @@ static int warned = 100;
 static struct rtc_msm_data rtc_msm;
 static struct rtc_ricoh_data rtc_ricoh;
 
+static int internaleclockphase;
+
 static bool acc_mode(void)
 {
 	return currprefs.m68k_speed >= 0 && currprefs.cpu_compatible;
 }
 
 int blop;
-// temporary e-clock phase shortcut
+
+void cia_adjust_eclock_phase(int diff)
+{
+	internaleclockphase += diff;
+	if (internaleclockphase < 0) {
+		internaleclockphase += ((-internaleclockphase) / 20) * 20;
+		internaleclockphase += 20;
+	}
+	internaleclockphase %= 20;
+}
+
 static evt_t get_e_cycles(void)
 {
-	if (blop > 4) {
+	// temporary e-clock phase shortcut
+	if (blop) {
+		cia_adjust_eclock_phase(1);
 		blop = 0;
 	}
 
 	evt_t c = get_cycles();
 	c += currprefs.cs_eclockphase * E_CYCLE_UNIT;
-	c += blop * 2 * E_CYCLE_UNIT;
+	c += internaleclockphase * 2 * E_CYCLE_UNIT;
 	return c;
 }
 
@@ -652,6 +666,8 @@ static void CIA_synced_interrupt(uae_u32 v)
 	CIA_calctimers();
 }
 
+#define CIA_IRQ_PHASE (6 * E_CYCLE_UNIT)
+
 static void CIA_sync_interrupt(int num, uae_u8 icr)
 {
 	struct CIA *c = &cia[num];
@@ -667,11 +683,19 @@ static void CIA_sync_interrupt(int num, uae_u8 icr)
 		}
 		c->icr_change = true;
 		evt_t evt = get_e_cycles();
-		int div10 = evt % DIV10;
 		int delay = 0;
+		int div10 = evt % DIV10;
+#if 0
+		if (div10 > CIA_IRQ_PHASE) {
+			delay = DIV10 - div10;
+		} else if (div10 < CIA_IRQ_PHASE) {
+			delay = CIA_IRQ_PHASE - div10;
+		}
+#else
 		if (div10 > 0) {
 			delay += DIV10 - div10;
 		}
+#endif
 		event2_newevent_xx(-1, DIV10 + delay, num, CIA_synced_interrupt);
 	} else {
 		c->icr1 |= icr;
@@ -689,7 +713,7 @@ void cia_parallelack(void)
 	CIA_sync_interrupt(0, ICR_FLAG);
 }
 
-static bool checkalarm(uae_u32 tod, uae_u32 alarm, bool inc, int ab)
+static bool checkalarm(uae_u32 tod, uae_u32 alarm, bool inc)
 {
 	if (tod == alarm)
 		return true;
@@ -708,9 +732,9 @@ static bool checkalarm(uae_u32 tod, uae_u32 alarm, bool inc, int ab)
 	return false;
 }
 
-static bool ciab_checkalarm(bool inc, bool irq)
+static bool cia_checkalarm(bool inc, bool irq, int num)
 {
-	struct CIA *c = &cia[1];
+	struct CIA *c = &cia[num];
 
 	// hack: do not trigger alarm interrupt if KS code and both
 	// tod and alarm == 0. This incorrectly triggers on non-cycle exact
@@ -718,46 +742,23 @@ static bool ciab_checkalarm(bool inc, bool irq)
 	// at least 1 or larger due to bus cycle delays when reading
 	// old value.
 #if 1
-	if (!currprefs.cpu_compatible && (munge24(m68k_getpc()) & 0xFFF80000) != 0xF80000) {
-		if (c->tod == 0 && c->alarm == 0)
-			return false;
+	if (num) {
+		if (!currprefs.cpu_compatible && (munge24(m68k_getpc()) & 0xFFF80000) != 0xF80000) {
+			if (c->tod == 0 && c->alarm == 0)
+				return false;
+		}
 	}
 #endif
-	if (checkalarm(c->tod, c->alarm, inc, 1)) {
+	if (checkalarm(c->tod, c->alarm, inc)) {
 #if CIAB_DEBUG_IRQ
 		write_log(_T("CIAB tod %08x %08x\n"), c->tod, c->alarm);
 #endif
 		if (irq) {
-			CIA_sync_interrupt(1, ICR_ALARM);
+			CIA_sync_interrupt(num, ICR_ALARM);
 		}
 		return true;
 	}
 	return false;
-}
-
-static void ciaa_checkalarm(bool inc)
-{
-	struct CIA *c = &cia[0];
-
-	if (checkalarm(c->tod, c->alarm, inc, 0)) {
-#if CIAA_DEBUG_IRQ
-		write_log(_T("CIAA tod %08x %08x\n"), c->tod, c->alarm);
-#endif
-		CIA_sync_interrupt(0, ICR_ALARM);
-	}
-}
-
-static void cia_checkalarm(int num, bool inc)
-{
-	switch (num)
-	{
-	case 0:
-		ciaa_checkalarm(inc);
-		break;
-	case 1:
-		ciab_checkalarm(inc, true);
-		break;
-	}
 }
 
 #ifdef TOD_HACK
@@ -856,7 +857,7 @@ static void do_tod_hack(int dotod)
 		cia[0].tod++;
 		cia[0].tod &= 0x00ffffff;
 		tod_hack_tod_last = cia[0].tod;
-		ciaa_checkalarm(false);
+		cia_checkalarm(false, false, 0);
 	}
 }
 
@@ -951,12 +952,12 @@ static void keyreq (void)
  * causes interrupt (ALARM) or program is reading or writing TOD registers
  */
 
-// TOD increase has extra delay. CCKs.
+// TOD increase has extra delay.
 #define TOD_INC_DELAY (12 * E_CLOCK_LENGTH / 2)
 
 static int tod_inc_delay(int hoffset)
 {
-	int hoff = hoffset + 1; // 1 = HSYNC Agnus pin output is delayed by 1 CCK
+	int hoff = hoffset + 1; // 1 = HSYNC/VSYNC Agnus pin output is delayed by 1 CCK
 	evt_t c = get_e_cycles() + 2 * E_CYCLE_UNIT + hoff * CYCLE_UNIT;
 	int offset = hoff;
 	offset += TOD_INC_DELAY;
@@ -966,94 +967,86 @@ static int tod_inc_delay(int hoffset)
 	return offset;
 }
 
-static void CIAA_tod_inc(uae_u32 v)
+static void CIA_tod_inc(bool irq, int num)
 {
-	if (!cia[0].todon)
+	struct CIA *c = &cia[num];
+	c->tod_event_state = 3; // done
+	if (!c->todon)
 		return;
-	cia[0].tod++;
-	cia[0].tod &= 0xFFFFFF;
-	ciaa_checkalarm(true);
+	c->tod++;
+	c->tod &= 0xFFFFFF;
+	cia_checkalarm(true, irq, num);
 }
 
-void CIAA_tod_handler(int hoffset)
+static void CIA_tod_inc_event(uae_u32 num)
 {
-#ifdef TOD_HACK
-	if (currprefs.tod_hack && tod_hack_enabled == 1)
+	struct CIA *c = &cia[num];
+	if (c->tod_event_state != 2)
 		return;
-#endif
-	if (!cia[0].todon)
-		return;
-	int delay = tod_inc_delay(hoffset);
-	event2_newevent_xx(-1, delay * CYCLE_UNIT, 0, CIAA_tod_inc);
+	CIA_tod_inc(true, num);
 }
 
-static void CIAB_tod_inc(bool irq)
+static void CIA_tod_event_check(int num)
 {
-	cia[1].tod_event_state = 3; // done
-	if (!cia[1].todon)
-		return;
-	cia[1].tod++;
-	cia[1].tod &= 0xFFFFFF;
-	ciab_checkalarm(true, irq);
-}
-
-static void CIAB_tod_inc_event(uae_u32 v)
-{
-	int hpos = current_hpos();
-	if (cia[1].tod_event_state != 2)
-		return;
-	CIAB_tod_inc(true);
-}
-
-static void CIAB_tod_event_check(void)
-{
-	if (cia[1].tod_event_state == 1) {
+	struct CIA *c = &cia[num];
+	if (c->tod_event_state == 1) {
 		int hpos = current_hpos();
-		if (hpos >= cia[1].tod_offset) {
-			CIAB_tod_inc(false);
-			cia[1].tod_event_state = 0;
+		if (hpos >= c->tod_offset) {
+			CIA_tod_inc(false, num);
+			c->tod_event_state = 0;
 		}
 	}
 }
 
 // Someone reads or writes TOD registers, sync TOD increase
-static void CIAB_tod_check(void)
+static void CIA_tod_check(int num)
 {
-	CIAB_tod_event_check();
-	if (!cia[1].todon || cia[1].tod_event_state > 1 || cia[1].tod_offset < 0)
+	struct CIA *c = &cia[num];
+
+	CIA_tod_event_check(num);
+	if (!c->todon || c->tod_event_state > 1 || c->tod_offset < 0)
 		return;
 	int hpos = current_hpos();
-	hpos -= cia[1].tod_offset;
+	hpos -= c->tod_offset;
 	if (hpos >= 0 || currprefs.m68k_speed < 0) {
 		// Program should see the changed TOD
-		CIAB_tod_inc(true);
+		CIA_tod_inc(true, num);
 		return;
 	}
 	// Not yet, add event to guarantee exact TOD inc position
-	cia[1].tod_event_state = 2; // event active
-	event2_newevent_xx(-1, -hpos * CYCLE_UNIT, 0, CIAB_tod_inc_event);
+	c->tod_event_state = 2; // event active
+	event2_newevent_xx(-1, -hpos * CYCLE_UNIT, num, CIA_tod_inc_event);
 }
 
-void CIAB_tod_handler(int hoffset)
+static void CIA_tod_handler(int hoffset, int num)
 {
-	cia[1].tod_event_state = 0;
-	cia[1].tod_offset = tod_inc_delay(hoffset);
-	if (cia[1].tod_offset >= maxhpos) {
+	struct CIA *c = &cia[num];
+	c->tod_event_state = 0;
+	c->tod_offset = tod_inc_delay(hoffset);
+	if (c->tod_offset >= maxhpos) {
 		return;
 	}
-	cia[1].tod_event_state = 1; // TOD inc needed
-	if (checkalarm((cia[1].tod + 1) & 0xffffff, cia[1].alarm, true, 1)) {
+	c->tod_event_state = 1; // TOD inc needed
+	if (checkalarm((c->tod + 1) & 0xffffff, c->alarm, true)) {
 		// causes interrupt on this line, add event
-		cia[1].tod_event_state = 2; // event active
-		event2_newevent_xx(-1, cia[1].tod_offset * CYCLE_UNIT, 0, CIAB_tod_inc_event);
+		c->tod_event_state = 2; // event active
+		event2_newevent_xx(-1, c->tod_offset * CYCLE_UNIT, num, CIA_tod_inc_event);
 	}
 }
 
-static void CIA_tod_check(int num)
+void CIAA_tod_handler(int hoffset)
 {
-	if (num == 1) {
-		CIAB_tod_check();
+#ifdef TOD_HACK
+	if (currprefs.tod_hack && tod_hack_enabled == 1) {
+		cia[0].tod_event_state = 0;
+		return;
 	}
+#endif
+	CIA_tod_handler(hoffset, 0);
+}
+void CIAB_tod_handler(int hoffset)
+{
+	CIA_tod_handler(hoffset, 1);
 }
 
 void keyboard_connected(bool connect)
@@ -1099,17 +1092,21 @@ static void check_keyboard(void)
 	}
 }
 
-void CIA_hsync_posthandler (bool ciahsync, bool dotod)
+static void cia_delayed_tod(int num)
+{
+	struct CIA *c = &cia[num];
+	if (c->tod_event_state == 1)
+		CIA_tod_inc(false, num);
+	c->tod_event_state = 0;
+	c->tod_offset = -1;
+}
+
+void CIA_hsync_posthandler(bool ciahsync, bool dotod)
 {
 	if (ciahsync) {
-		// CIA HSync pulse
+		// CIA-B HSync pulse
 		// Delayed previous line TOD increase.
-		if (cia[1].tod_event_state == 1)
-			CIAB_tod_inc(false);
-		cia[1].tod_event_state = 0;
-		cia[1].tod_offset = -1;
-		if (currprefs.tod_hack && cia[0].todon)
-			do_tod_hack(dotod);
+		cia_delayed_tod(1);
 	} else if (currprefs.keyboard_connected) {
 		// custom hsync
 		if (resetwarning_phase) {
@@ -1123,6 +1120,13 @@ void CIA_hsync_posthandler (bool ciahsync, bool dotod)
 	} else {
 		while (keys_available()) {
 			get_next_key();
+		}
+	}
+	if (!ciahsync) {
+		// Delayed CIA-A VSync pulse
+		cia_delayed_tod(0);
+		if (currprefs.tod_hack && cia[0].todon) {
+			do_tod_hack(dotod);
 		}
 	}
 }
@@ -1451,7 +1455,7 @@ static void WriteCIAReg(int num, int reg, uae_u8 val)
 		} else {
 			setciatod(&c->tod, (getciatod(c->tod) & ~0xff) | val);
 			c->todon = 1;
-			cia_checkalarm(num, false);
+			cia_checkalarm(false, true, num);
 			CIA_tod_check(num);
 		}
 		break;
@@ -1990,6 +1994,7 @@ void CIA_reset(void)
 	serbits = 0;
 	resetwarning_phase = resetwarning_timer = 0;
 	heartbeat_cnt = 0;
+	cia[0].tod_event_state = 0;
 	cia[1].tod_event_state = 0;
 
 	if (!savestate_state) {
@@ -2005,6 +2010,7 @@ void CIA_reset(void)
 		cia[1].t[0].latch = 0xffff;
 		cia[1].t[1].latch = 0xffff;
 		cia[1].pra = 0x8c;
+		internaleclockphase = 0;
 		CIA_calctimers();
 		DISK_select_set(cia[1].prb);
 	}
@@ -2053,6 +2059,23 @@ addrbank cia_bank = {
 	ABFLAG_IO | ABFLAG_CIA, S_READ, S_WRITE, NULL, 0x3f01, 0xbfc000
 };
 
+static int get_cia_sync_cycles(void)
+{
+	evt_t c = get_e_cycles();
+	int div10 = c % DIV10;
+	int add = 0;
+	int synccycle = E_CLOCK_SYNC * E_CYCLE_UNIT;
+	if (div10 < synccycle) {
+		add += synccycle - div10;
+	} else if (div10 > synccycle) {
+		add += DIV10 - div10;
+		add += synccycle;
+	}
+	// sync + 4 first cycles of E-clock
+	add += E_CLOCK_1 * E_CYCLE_UNIT;
+	return add;
+}
+
 static void cia_wait_pre(int cianummask)
 {
 	if (currprefs.cachesize || currprefs.cpu_thread)
@@ -2069,19 +2092,8 @@ static void cia_wait_pre(int cianummask)
 #endif
 
 #ifndef CUSTOM_SIMPLE
-	evt_t c = get_e_cycles();
-	int div10 = c % DIV10;
-	int add = 0;
-	int synccycle = E_CLOCK_SYNC * E_CYCLE_UNIT;
-	if (div10 < synccycle) {
-		add += synccycle - div10;
-	} else if (div10 > synccycle) {
-		add += DIV10 - div10;
-		add += synccycle;
-	}
-	// sync + 4 first cycles of E-clock
-	add += E_CLOCK_1 * E_CYCLE_UNIT;
-	x_do_cycles_pre(add);
+	int delay = get_cia_sync_cycles();
+	x_do_cycles_pre(delay);
 #endif
 }
 
@@ -2767,6 +2779,8 @@ uae_u8 *restore_cia(int num, uae_u8 *src)
 		c->t[1].inputpipe = restore_u16();
 		c->t[0].loaddelay = restore_u32();
 		c->t[1].loaddelay = restore_u32();
+		changed_prefs.cs_eclockphase = currprefs.cs_eclockphase = restore_u16();
+		internaleclockphase = restore_u16();
 
 	}
 
@@ -2834,6 +2848,8 @@ uae_u8 *save_cia(int num, size_t *len, uae_u8 *dstptr)
 	save_u16(c->t[1].inputpipe);
 	save_u32(c->t[0].loaddelay);
 	save_u32(c->t[1].loaddelay);
+	save_u16(currprefs.cs_eclockphase);
+	save_u16(internaleclockphase);
 
 	*len = dst - dstbak;
 	return dstbak;

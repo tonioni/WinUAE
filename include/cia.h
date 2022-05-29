@@ -21,6 +21,7 @@ extern void CIAB_tod_handler(int);
 
 extern void cia_parallelack (void);
 extern void cia_diskindex (void);
+extern void cia_adjust_eclock_phase(int);
 
 extern void dumpcia(void);
 extern void rethink_cias(void);
