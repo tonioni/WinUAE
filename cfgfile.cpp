@@ -249,6 +249,7 @@ static const TCHAR *unmapped[] = { _T("floating"), _T("zero"), _T("one"), 0 };
 static const TCHAR *ciatype[] = { _T("default"), _T("391078-01"), 0 };
 static const TCHAR *debugfeatures[] = { _T("segtracker"), _T("fsdebug"), 0 };
 static const TCHAR *hvcsync[] = { _T("hvcsync"), _T("csync"), _T("hvsync"), 0 };
+static const TCHAR* eclocksync[] = { _T("default"), _T("68000"), _T("Gayle"), _T("68000_opt"), 0 };
 
 struct hdcontrollerconfig
 {
@@ -2558,6 +2559,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	cfgfile_dwrite(f, _T("keyboard_handshake"), _T("%d"), currprefs.cs_kbhandshake);
 	cfgfile_dwrite(f, _T("chipset_hacks"), _T("0x%x"), p->cs_hacks);
 	cfgfile_dwrite(f, _T("eclockphase"), _T("%d"), p->cs_eclockphase);
+	cfgfile_dwrite_str(f, _T("eclocksync"), eclocksync[p->cs_eclocksync]);
 
 	if (is_board_enabled(p, ROMTYPE_CD32CART, 0)) {
 		cfgfile_dwrite_bool(f, _T("cd32fmv"), true);
@@ -5689,7 +5691,8 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 		|| cfgfile_strval(option, value, _T("unmapped_address_space"), &p->cs_unmapped_space, unmapped, 0)
 		|| cfgfile_strval(option, value, _T("ciaa_type"), &p->cs_ciatype[0], ciatype, 0)
 		|| cfgfile_strval(option, value, _T("ciab_type"), &p->cs_ciatype[1], ciatype, 0)
-		|| cfgfile_strboolval (option, value, _T("comp_flushmode"), &p->comp_hardflush, flushmode, 0))
+		|| cfgfile_strboolval (option, value, _T("comp_flushmode"), &p->comp_hardflush, flushmode, 0)
+		|| cfgfile_strval(option, value, _T("eclocksync"), &p->cs_eclocksync, eclocksync, 0))
 		return 1;
 
 	if (cfgfile_strval(option, value, _T("uaeboard"), &p->uaeboard, uaeboard_off, 1)) {
@@ -9112,6 +9115,7 @@ int built_in_chipset_prefs (struct uae_prefs *p)
 	p->cs_color_burst = false;
 	p->cs_romisslow = false;
 	p->cs_toshibagary = false;
+	p->cs_eclocksync = 0;
 	p->cs_ciatype[0] = p->cs_ciatype[1] = 0;
 
 	switch (p->cs_compatible)
@@ -9164,6 +9168,7 @@ int built_in_chipset_prefs (struct uae_prefs *p)
 		p->cs_ciaoverlay = 0;
 		p->cs_resetwarning = 0;
 		p->cs_unmapped_space = 1;
+		p->cs_eclocksync = 2;
 		if (has_expansion_with_rtc(p, 0x200000))
 			p->cs_rtc = 1;
 		break;
@@ -9187,6 +9192,7 @@ int built_in_chipset_prefs (struct uae_prefs *p)
 		p->cs_resetwarning = 0;
 		p->cs_ciatodbug = true;
 		p->cs_ciatype[0] = p->cs_ciatype[1] = 1;
+		p->cs_eclocksync = 2;
 		if (has_expansion_with_rtc(p, 0x100000))
 			p->cs_rtc = 1;
 		break;
@@ -9212,6 +9218,7 @@ int built_in_chipset_prefs (struct uae_prefs *p)
 		p->cs_pcmcia = 1;
 		p->cs_ksmirror_a8 = 1;
 		p->cs_ciaoverlay = 0;
+		p->cs_eclocksync = 2;
 		if (has_expansion_with_rtc(p, 0x200000))
 			p->cs_rtc = 1;
 		break;
@@ -9251,6 +9258,7 @@ int built_in_chipset_prefs (struct uae_prefs *p)
 		p->cs_ksmirror_e0 = 0;
 		p->cs_z3autoconfig = true;
 		p->cs_unmapped_space = 1;
+		p->cs_eclocksync = 2;
 		break;
 	case CP_A4000T: // A4000T
 		p->cs_rtc = 2;
@@ -9262,6 +9270,7 @@ int built_in_chipset_prefs (struct uae_prefs *p)
 		p->cs_ksmirror_e0 = 0;
 		p->cs_z3autoconfig = true;
 		p->cs_unmapped_space = 1;
+		p->cs_eclocksync = 2;
 		break;
 	case CP_CASABLANCA:
 		break;

@@ -40,7 +40,6 @@
 #include "sampler.h"
 #include "dongle.h"
 #include "inputrecord.h"
-#include "autoconf.h"
 #include "uae/ppc.h"
 #include "rommgr.h"
 #include "scsi.h"
@@ -94,19 +93,35 @@
 
  */
 
-#define E_CLOCK_SYNC 2
-#define E_CLOCK_1 4
-#define E_CLOCK_2 6
+#define E_CLOCK_SYNC_N 2
+#define E_CLOCK_START_N 4
+#define E_CLOCK_END_N 6
+#define E_CLOCK_TOD_N -2
 
-#define E_CLOCK_LENGTH (E_CLOCK_1 + E_CLOCK_2)
+#define E_CLOCK_SYNC_N2 4
+#define E_CLOCK_START_N2 6
+#define E_CLOCK_END_N2 6
+#define E_CLOCK_TOD_N2 0
+
+#define E_CLOCK_SYNC_X 4
+#define E_CLOCK_START_X 2
+#define E_CLOCK_END_X 6
+#define E_CLOCK_TOD_X 0
+
+static int e_clock_sync = E_CLOCK_SYNC_N;
+static int e_clock_start = E_CLOCK_START_N;
+static int e_clock_end = E_CLOCK_END_N;
+static int e_clock_tod = E_CLOCK_TOD_N;
+
+#define E_CLOCK_LENGTH 10
 #define E_CYCLE_UNIT (CYCLE_UNIT / 2)
-#define DIV10 ((E_CLOCK_LENGTH) * E_CYCLE_UNIT) /* Yes, a bad identifier. */
+#define DIV10 (E_CLOCK_LENGTH * E_CYCLE_UNIT) /* Yes, a bad identifier. */
 
 
 struct CIATimer
 {
-	uae_u16 timer;
-	uae_u16 latch;
+	uae_u32 timer;
+	uae_u32 latch;
 	uae_u32 passed;
 	uae_u16 inputpipe;
 	uae_u32 loaddelay;
@@ -158,7 +173,7 @@ static bool acc_mode(void)
 	return currprefs.m68k_speed >= 0 && currprefs.cpu_compatible;
 }
 
-int blop;
+int blop, blop2;
 
 void cia_adjust_eclock_phase(int diff)
 {
@@ -168,6 +183,27 @@ void cia_adjust_eclock_phase(int diff)
 		internaleclockphase += 20;
 	}
 	internaleclockphase %= 20;
+	write_log("CIA E-clock phase %d\n", internaleclockphase);
+}
+
+static void set_eclockphase(void)
+{
+	if (currprefs.cs_eclocksync == 3) {
+		e_clock_sync = E_CLOCK_SYNC_X;
+		e_clock_start = E_CLOCK_START_X;
+		e_clock_end = E_CLOCK_END_X;
+		e_clock_tod = E_CLOCK_TOD_X;
+	} else if (currprefs.cs_eclocksync == 2) {
+		e_clock_sync = E_CLOCK_SYNC_N2;
+		e_clock_start = E_CLOCK_START_N2;
+		e_clock_end = E_CLOCK_END_N2;
+		e_clock_tod = E_CLOCK_TOD_N2;
+	} else {
+		e_clock_sync = E_CLOCK_SYNC_N;
+		e_clock_start = E_CLOCK_START_N;
+		e_clock_end = E_CLOCK_END_N;
+		e_clock_tod = E_CLOCK_TOD_N;
+	}
 }
 
 static evt_t get_e_cycles(void)
@@ -176,6 +212,19 @@ static evt_t get_e_cycles(void)
 	if (blop) {
 		cia_adjust_eclock_phase(1);
 		blop = 0;
+	}
+	if (blop2) {
+		if (currprefs.cs_eclocksync == 0) {
+			currprefs.cs_eclocksync = 1;
+		}
+		currprefs.cs_eclocksync += 1;
+		if (currprefs.cs_eclocksync >= 4) {
+			currprefs.cs_eclocksync = 1;
+		}
+		changed_prefs.cs_eclocksync = currprefs.cs_eclocksync;
+		set_eclockphase();
+		write_log("CIA elock timing mode %d\n", currprefs.cs_eclocksync);
+		blop2 = 0;
 	}
 
 	evt_t c = get_cycles();
@@ -439,7 +488,6 @@ static void CIA_update_check(void)
 		c->icr2 = 0;
 		c->icr_change = false;
 
-
 		ovfl[0] = 0;
 		ovfl[1] = 0;
 		sp = 0;
@@ -660,13 +708,29 @@ void CIA_handler(void)
 	CIA_calctimers();
 }
 
+static int get_cia_sync_cycles(void)
+{
+	evt_t c = get_e_cycles();
+	int div10 = c % DIV10;
+	int add = 0;
+	int synccycle = e_clock_sync * E_CYCLE_UNIT;
+	if (div10 < synccycle) {
+		add += synccycle - div10;
+	}
+	else if (div10 > synccycle) {
+		add += DIV10 - div10;
+		add += synccycle;
+	}
+	// sync + 4 first cycles of E-clock
+	add += e_clock_start * E_CYCLE_UNIT;
+	return add;
+}
+
 static void CIA_synced_interrupt(uae_u32 v)
 {
 	CIA_update();
 	CIA_calctimers();
 }
-
-#define CIA_IRQ_PHASE (6 * E_CYCLE_UNIT)
 
 static void CIA_sync_interrupt(int num, uae_u8 icr)
 {
@@ -681,25 +745,10 @@ static void CIA_sync_interrupt(int num, uae_u8 icr)
 			c->icr1 |= icr;
 			return;
 		}
-		c->icr_change = true;
-		evt_t evt = get_e_cycles();
-		int delay = 0;
-		int div10 = evt % DIV10;
-#if 0
-		if (div10 > CIA_IRQ_PHASE) {
-			delay = DIV10 - div10;
-		} else if (div10 < CIA_IRQ_PHASE) {
-			delay = CIA_IRQ_PHASE - div10;
-		}
-#else
-		if (div10 > 0) {
-			delay += DIV10 - div10;
-		}
-#endif
+		int delay = get_cia_sync_cycles();
 		event2_newevent_xx(-1, DIV10 + delay, num, CIA_synced_interrupt);
 	} else {
 		c->icr1 |= icr;
-		c->icr_change = true;
 		CIA_check_ICR();
 	}
 }
@@ -958,12 +1007,13 @@ static void keyreq (void)
 static int tod_inc_delay(int hoffset)
 {
 	int hoff = hoffset + 1; // 1 = HSYNC/VSYNC Agnus pin output is delayed by 1 CCK
-	evt_t c = get_e_cycles() + 2 * E_CYCLE_UNIT + hoff * CYCLE_UNIT;
+	evt_t c = get_e_cycles() + 6 * E_CYCLE_UNIT + hoff * CYCLE_UNIT;
 	int offset = hoff;
 	offset += TOD_INC_DELAY;
 	int unit = (E_CLOCK_LENGTH * 4) / 2; // 4 E-clocks
 	int div10 = (c / CYCLE_UNIT) % unit;
 	offset += unit - div10;
+	offset += e_clock_tod;
 	return offset;
 }
 
@@ -2014,6 +2064,7 @@ void CIA_reset(void)
 		CIA_calctimers();
 		DISK_select_set(cia[1].prb);
 	}
+	set_eclockphase();
 	map_overlay(0);
 	check_led();
 #ifdef SERIAL_PORT
@@ -2059,23 +2110,6 @@ addrbank cia_bank = {
 	ABFLAG_IO | ABFLAG_CIA, S_READ, S_WRITE, NULL, 0x3f01, 0xbfc000
 };
 
-static int get_cia_sync_cycles(void)
-{
-	evt_t c = get_e_cycles();
-	int div10 = c % DIV10;
-	int add = 0;
-	int synccycle = E_CLOCK_SYNC * E_CYCLE_UNIT;
-	if (div10 < synccycle) {
-		add += synccycle - div10;
-	} else if (div10 > synccycle) {
-		add += DIV10 - div10;
-		add += synccycle;
-	}
-	// sync + 4 first cycles of E-clock
-	add += E_CLOCK_1 * E_CYCLE_UNIT;
-	return add;
-}
-
 static void cia_wait_pre(int cianummask)
 {
 	if (currprefs.cachesize || currprefs.cpu_thread)
@@ -2114,10 +2148,10 @@ static void cia_wait_post(int cianummask, uaecptr addr, uae_u32 value, bool rw)
 	if (currprefs.cpu_thread)
 		return;
 	if (currprefs.cachesize) {
-		do_cycles(8 * E_CYCLE_UNIT);
+		do_cycles(12 * E_CYCLE_UNIT);
 	} else {
 		// Last 6 cycles of E-clock
-		x_do_cycles_post(E_CLOCK_2 * E_CYCLE_UNIT, value);
+		x_do_cycles_post(e_clock_end * E_CYCLE_UNIT, value);
 #if CIA_IRQ_PROCESS_DELAY
 		if (currprefs.cpu_memory_cycle_exact) {
 			cia_interrupt_disabled &= ~cianummask;

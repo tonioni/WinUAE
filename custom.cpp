@@ -7094,8 +7094,13 @@ static void VHPOSW(uae_u16 v)
 		}
 	}
 
-	int hdiff = (v & 0xff) - current_hpos();
-	cia_adjust_eclock_phase(hdiff);
+	int hpos = current_hpos();
+	int hnew = v & 0xff;
+	int hdiff = hnew - hpos;
+	if (copper_access && (hdiff & 1)) {
+		write_log("VHPOSW write with odd horizontal change. Possible copper confusion possible.\n");
+	}
+	modify_eventcounter(-(hdiff - 2));
 
 	v >>= 8;
 	vpos &= 0xff00;
@@ -7736,7 +7741,7 @@ bool INTREQ_0(uae_u16 v)
 	uae_u16 old = intreq;
 	setclr(&intreq, v);
 
-	//write_log("%04x -> %04x %08x\n", old, intreq, M68K_GETPC);
+	//write_log("%04x %04x -> %04x %08x\n", v, old, intreq, M68K_GETPC);
 
 	if ((old & 0x0800) && !(intreq & 0x0800)) {
 		serial_rbf_clear();
@@ -14612,6 +14617,8 @@ void check_prefs_changed_custom(void)
 	currprefs.cs_romisslow = changed_prefs.cs_romisslow;
 	currprefs.cs_toshibagary = changed_prefs.cs_toshibagary;
 	currprefs.cs_unmapped_space = changed_prefs.cs_unmapped_space;
+	currprefs.cs_eclockphase = changed_prefs.cs_eclockphase;
+	currprefs.cs_eclocksync = changed_prefs.cs_eclocksync;
 	currprefs.cs_ciatype[0] = changed_prefs.cs_ciatype[0];
 	currprefs.cs_ciatype[1] = changed_prefs.cs_ciatype[1];
 

@@ -9271,6 +9271,7 @@ static void values_to_chipsetdlg2 (HWND hDlg)
 	CheckDlgButton(hDlg, IDC_CS_ROMISSLOW, workprefs.cs_romisslow);
 	CheckDlgButton(hDlg, IDC_CS_CIA, workprefs.cs_ciatype[0]);
 	xSendDlgItemMessage(hDlg, IDC_CS_UNMAPPED, CB_SETCURSEL, workprefs.cs_unmapped_space, 0);
+	xSendDlgItemMessage(hDlg, IDC_CS_CIASYNC, CB_SETCURSEL, workprefs.cs_eclocksync, 0);
 	txt[0] = 0;
 	_stprintf (txt, _T("%d"), workprefs.cs_rtc_adjust);
 	SetDlgItemText(hDlg, IDC_CS_RTCADJUST, txt);
@@ -9367,6 +9368,10 @@ static void values_from_chipsetdlg2 (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 	if (val != CB_ERR)
 		workprefs.cs_unmapped_space = val;
 
+	val = xSendDlgItemMessage(hDlg, IDC_CS_CIASYNC, CB_GETCURSEL, 0, 0L);
+	if (val != CB_ERR)
+		workprefs.cs_eclocksync = val;
+
 	cfgfile_compatibility_romtype(&workprefs);
 
 	if (workprefs.cs_rtc) {
@@ -9453,6 +9458,7 @@ static void enable_for_chipsetdlg2 (HWND hDlg)
 	ew(hDlg, IDC_CS_TOSHIBAGARY, e);
 	ew(hDlg, IDC_CS_ROMISSLOW, e);
 	ew(hDlg, IDC_CS_UNMAPPED, e);
+	ew(hDlg, IDC_CS_CIASYNC, e);
 	ew(hDlg, IDC_CS_CIA, e);
 }
 
@@ -9470,6 +9476,11 @@ static INT_PTR CALLBACK ChipsetDlgProc2 (HWND hDlg, UINT msg, WPARAM wParam, LPA
 		pages[CHIPSET2_ID] = hDlg;
 		currentpage = CHIPSET2_ID;
 		cs_compatible = workprefs.cs_compatible;
+		xSendDlgItemMessage(hDlg, IDC_CS_CIASYNC, CB_RESETCONTENT, 0, 0L);
+		xSendDlgItemMessage(hDlg, IDC_CS_CIASYNC, CB_ADDSTRING, 0, (LPARAM)_T("Autoselect"));
+		xSendDlgItemMessage(hDlg, IDC_CS_CIASYNC, CB_ADDSTRING, 0, (LPARAM)_T("68000"));
+		xSendDlgItemMessage(hDlg, IDC_CS_CIASYNC, CB_ADDSTRING, 0, (LPARAM)_T("Gayle"));
+		xSendDlgItemMessage(hDlg, IDC_CS_CIASYNC, CB_ADDSTRING, 0, (LPARAM)_T("68000 Alternate"));
 		xSendDlgItemMessage(hDlg, IDC_CS_UNMAPPED, CB_RESETCONTENT, 0, 0L);
 		WIN32GUI_LoadUIString(IDS_UNMAPPED_ADDRESS, tmp, sizeof tmp / sizeof(TCHAR));
 		TCHAR *p1 = tmp;

@@ -36,6 +36,7 @@ extern void do_cycles_ce020(int cycles);
 extern void events_schedule(void);
 extern void do_cycles_slow(int cycles_to_add);
 extern void events_reset_syncline(void);
+extern void modify_eventcounter(int diff);
 
 extern bool is_cycle_ce(uaecptr);
 
@@ -117,7 +118,7 @@ STATIC_INLINE void set_cycles (evt_t x)
 
 STATIC_INLINE int current_hpos_safe(void)
 {
-    int hp = (int)((get_cycles () - eventtab[ev_hsync].oldcycles)) / CYCLE_UNIT;
+    int hp = (int)((get_cycles() - eventtab[ev_hsync].oldcycles)) / CYCLE_UNIT;
 	return hp;
 }
 
