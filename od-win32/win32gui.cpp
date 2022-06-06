@@ -22848,7 +22848,7 @@ void gui_led (int led, int on, int brightness)
 		if (on > 1)
 			writing = 1;
 	} else if (led == LED_FPS) {
-		double fps = (double)gui_data.fps / 10.0;
+		float fps = gui_data.fps / 10.0f;
 		extern float p96vblank;
 		pos = 2;
 		ptr = drive_text + pos * LED_STRING_WIDTH;
@@ -22856,6 +22856,8 @@ void gui_led (int led, int on, int brightness)
 			fps = 9999.9;
 		if (gui_data.fps_color == 2) {
 			_tcscpy(ptr, _T("No Sync"));
+		} else if (gui_data.fps_color == 3) {
+			_tcscpy(ptr, _T("FPS: ----"));
 		} else if (fps < 1000) {
 			if (ad->picasso_on)
 				_stprintf (ptr, _T("%.1f [%.1f]"), p96vblank, fps);

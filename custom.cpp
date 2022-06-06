@@ -137,6 +137,7 @@ static int lof_changed = 0, lof_changing = 0, interlace_changed = 0;
 static int lof_changed_previous_field;
 static int vposw_change;
 static bool lof_lace;
+static bool prevlofs[3];
 static bool bplcon0_interlace_seen;
 static int scandoubled_line;
 static bool vsync_rendered, frame_rendered, frame_shown;
@@ -5600,7 +5601,7 @@ static void reset_decisions_hsync_start(void)
 	if (currprefs.gfx_overscanmode == OVERSCANMODE_ULTRA) {
 		thisline_decision.vb = VB_NOVB;
 	}
-	if (nosignal_status > 0 || nosignal_status) {
+	if (nosignal_status == 1) {
 		thisline_decision.vb = VB_XBLANK;
 		MARK_LINE_CHANGED;
 	} else if (nosignal_status < 0) {
@@ -7057,6 +7058,7 @@ static void VPOSW(uae_u16 v)
 		lol = 0;
 	}
 	if (lof_changing) {
+		bool newlof = (v & 0x8000) != 0;
 		return;
 	}
 	vpos &= 0x00ff;
@@ -10821,9 +10823,9 @@ static void fpscounter(bool frameok)
 			idle = 100 * 10;
 		gui_data.fps = fps;
 		gui_data.idle = (int)idle;
-		gui_data.fps_color = nosignal_status ? 2 : (frameok ? 0 : 1);
+		gui_data.fps_color = nosignal_status == 1 ? 2 : (nosignal_status == 2 ? 3 : (frameok ? 0 : 1));
 		if ((timeframes & 15) == 0) {
-			gui_fps (fps, (int)idle, gui_data.fps_color);
+			gui_fps(fps, (int)idle, gui_data.fps_color);
 		}
 	}
 }
@@ -11065,6 +11067,12 @@ static void vsync_handler_post(void)
 		}
 	}
 	if (lof_changing) {
+
+		if (lof_store != (prevlofs[0] ? 1 : 0) && prevlofs[0] == prevlofs[1] && prevlofs[1] == prevlofs[2]) {
+			// resync if LOF was not toggling previously
+			nosignal_trigger = true;
+		}
+
 		// still same? Trigger change now.
 		if ((!lof_store && lof_changing < 0) || (lof_store && lof_changing > 0)) {
 			lof_changed_previous_field++;
@@ -11087,6 +11095,10 @@ static void vsync_handler_post(void)
 		lof_changed_previous_field = 0;
 		lof_lace = false;
 	}
+
+	prevlofs[2] = prevlofs[1];
+	prevlofs[1] = prevlofs[0];
+	prevlofs[0] = lof_store;
 
 #ifdef DEBUGGER
 	if (debug_copper) {
@@ -11145,6 +11157,9 @@ static void vsync_handler_post(void)
 			if (nosignal_cnt <= 0) {
 				nosignal_cnt = 1;
 			}
+		} else {
+			nosignal_status = 2;
+			nosignal_cnt = (int)(vblank_hz / 2);
 		}
 	}
 
