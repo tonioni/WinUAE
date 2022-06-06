@@ -6425,8 +6425,8 @@ static void init_hz(bool checkvposw)
 	if (beamcon0 & BEAMCON0_VARBEAMEN) {
 		// assume VGA-like monitor if VARBEAMEN
 		if (currprefs.gfx_overscanmode >= OVERSCANMODE_ULTRA) {
-			maxhpos_display = maxhpos - 2;
-			hsstop_detect = 0;
+			maxhpos_display = maxhpos;
+			hsstop_detect = 8;
 			maxvpos_display_vsync += 2;
 		} else if (currprefs.gfx_overscanmode >= OVERSCANMODE_EXTREME) {
 			maxhpos_display = maxhpos - 2;
@@ -6469,7 +6469,7 @@ static void init_hz(bool checkvposw)
 			}
 		}
 		maxhpos_display *= 2;
-		if (hsstop_detect2 > hsstop_detect + 5) {
+		if (currprefs.gfx_overscanmode < OVERSCANMODE_ULTRA && hsstop_detect2 > hsstop_detect + 5) {
 			hsstop_detect = hsstop_detect2;
 		}
 
@@ -6487,6 +6487,7 @@ static void init_hz(bool checkvposw)
 				maxhpos_display += EXTRAWIDTH_ULTRA;
 				maxvpos_display_vsync += 2;
 				minfirstline = 0;
+				hsstop_detect = hsyncstartpos_start_cycles - 1;
 			}
 		} else {
 
@@ -6529,6 +6530,7 @@ static void init_hz(bool checkvposw)
 
 	int minfirstline_hw = minfirstline;
 	if (currprefs.gfx_overscanmode == OVERSCANMODE_ULTRA) {
+		minfirstline = 0;
 		minfirstline_hw = 0;
 	} else if (currprefs.gfx_overscanmode == OVERSCANMODE_EXTREME) {
 		minfirstline_hw -= EXTRAHEIGHT_EXTREME / 2;
