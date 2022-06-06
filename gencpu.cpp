@@ -6656,6 +6656,7 @@ static void gen_opcode (unsigned int opcode)
 		trace_t0_68040_only();
 		break;
 	case i_STOP:
+	{
 		if (using_prefetch) {
 			out("uae_u16 sr = regs.irc;\n");
 			m68k_pc_offset += 2;
@@ -6675,11 +6676,21 @@ static void gen_opcode (unsigned int opcode)
 			write_return_cycles(0);
 			out("}\n");
 		}
+		bool accstop = (cpu_level == 0 || cpu_level == 1) && (using_ce || using_prefetch);
+		if (accstop) {
+			// if interrupt is pending before SR change: STOP finishes in 4 cycles
+			out("bool irq = stop_interrupt_pending();\n");
+		}
 		out("regs.sr = sr;\n");
+		check_ipl_always();
 		makefromsr();
-		out("m68k_setstopped();\n");
-		if ((cpu_level == 0 || cpu_level == 1) && (using_ce || using_prefetch)) {
-			out("%s(4);\n", do_cycles);
+		if (accstop) {
+			out("do_cycles_stop(4);\n");
+			out("if (!irq) {\n");
+			out("m68k_setstopped();\n");
+			out("}\n");
+		} else {
+			out("m68k_setstopped();\n");
 		}
 		sync_m68k_pc();
 		// STOP does not prefetch anything
@@ -6687,6 +6698,7 @@ static void gen_opcode (unsigned int opcode)
 		next_cpu_level = cpu_level - 1;
 		next_level_000();
 		break;
+	}
 	case i_LPSTOP: /* 68060 */
 		out("uae_u16 sw = %s;\n", gen_nextiword(0));
 		out("if (sw != 0x01c0) {\n");

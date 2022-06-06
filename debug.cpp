@@ -2221,6 +2221,10 @@ static bool get_record_dma_info(struct dma_rec *dr, int hpos, int vpos, evt_t cy
 		}
 		if (dr->evt & DMA_EVENT_CPUIRQ)
 			l3[cl2++] = 'I';
+		if (dr->evt & DMA_EVENT_CPUSTOP)
+			l3[cl2++] = '|';
+		if (dr->evt & DMA_EVENT_CPUSTOPIPL)
+			l3[cl2++] = '+';
 		if (dr->evt & DMA_EVENT_INTREQ)
 			l3[cl2++] = 'i';
 		if (dr->evt & DMA_EVENT_SPECIAL)
@@ -6246,7 +6250,7 @@ static bool debug_line (TCHAR *input)
 							lastframes = history[temp].fp;
 							lastvpos = history[temp].vpos;
 							lasthpos = history[temp].hpos;
-							console_out_f(_T("%2d "), regs.intmask ? regs.intmask : (regs.s ? -1 : 0));
+							console_out_f(_T("%2d %03d/%03d "), regs.intmask ? regs.intmask : (regs.s ? -1 : 0), lasthpos, lastvpos);
 							m68k_disasm (regs.pc, NULL, 0xffffffff, 1);
 						}
 						if (addr && regs.pc == addr)
@@ -6544,6 +6548,9 @@ static void debug_1 (void)
 
 static void addhistory (void)
 {
+	if (regs.stopped)
+		return;
+
 	uae_u32 pc = currprefs.cpu_model >= 68020 && currprefs.cpu_compatible ? regs.instruction_pc : m68k_getpc();
 	history[lasthist].regs = regs;
 	history[lasthist].regs.pc = pc;

@@ -60,7 +60,7 @@
 bool check_prefs_changed_comp (bool checkonly) { return false; }
 #endif
 /* For faster JIT cycles handling */
-uae_s32 pissoff = 0;
+int pissoff = 0;
 
 /* Opcode of faulting instruction */
 static uae_u32 last_op_for_exception_3;
@@ -4355,6 +4355,20 @@ void intlev_load(void)
 	doint();
 }
 
+bool stop_interrupt_pending(void)
+{
+	if (m68k_interrupt_delay) {
+		int il = intlev();
+		regs.ipl_pin = il;
+		if (regs.ipl_pin > regs.intmask || regs.ipl_pin == 7) {
+			if (regs.spcflags & SPCFLAG_INT) {
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
 void doint(void)
 {
 #ifdef WITH_PPC
@@ -4386,6 +4400,14 @@ static void check_debugger(void)
 			debug();
 		}
 #endif
+	}
+}
+
+static void debug_cpu_stop(void)
+{
+	record_dma_event(DMA_EVENT_CPUSTOP, current_hpos(), vpos);
+	if (time_for_interrupt()) {
+		record_dma_event(DMA_EVENT_CPUSTOPIPL, current_hpos(), vpos);
 	}
 }
 
@@ -4493,7 +4515,6 @@ static int do_specialties (int cycles)
 		Exception (3);
 	}
 
-	bool first = true;
 	while (regs.spcflags & SPCFLAG_STOP) {
 
 		if (regs.s == 0 && currprefs.cpu_model <= 68010) {
@@ -4527,9 +4548,13 @@ static int do_specialties (int cycles)
 		if (m68k_interrupt_delay) {
 			unset_special(SPCFLAG_INT);
 			if (time_for_interrupt()) {
-				if (!first) {
-					// extra loop because even after higher ipl detection,
-					// stop needs to do one more loop before it exits.
+				// extra STOP "round"
+				if (debug_dma) {
+					debug_cpu_stop();
+					x_do_cycles(2 * cpucycleunit);
+					debug_cpu_stop();
+					x_do_cycles(2 * cpucycleunit);
+				} else {
 					x_do_cycles(4 * cpucycleunit);
 				}
 				do_interrupt(regs.ipl);
@@ -4556,12 +4581,20 @@ static int do_specialties (int cycles)
 			}
 		}
 
-		first = false;
 		ipl_fetch();
-		x_do_cycles(4 * cpucycleunit);
 
-		if (regs.spcflags & SPCFLAG_COPPER)
+		if (debug_dma) {
+			debug_cpu_stop();
+			x_do_cycles(2 * cpucycleunit);
+			debug_cpu_stop();
+			x_do_cycles(2 * cpucycleunit);
+		} else {
+			x_do_cycles(4 * cpucycleunit);
+		}
+
+		if (regs.spcflags & SPCFLAG_COPPER) {
 			do_copper();
+		}
 
 		if (regs.spcflags & SPCFLAG_MODE_CHANGE) {
 			m68k_resumestopped();
@@ -7637,6 +7670,18 @@ bool cpureset (void)
 	return false;
 }
 
+void do_cycles_stop(int c)
+{
+	if (debug_dma) {
+		while (c >= 2) {
+			debug_cpu_stop();
+			do_cycles_ce000_internal(2);
+			c -= 2;
+		}
+	} else {
+		do_cycles_ce000_internal(c);
+	}
+}
 
 void m68k_setstopped (void)
 {
