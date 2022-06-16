@@ -1,4 +1,5 @@
 /*
+/*
 * UAE - The Un*x Amiga Emulator
 *
 * Win32 Drawing and DirectX interface
@@ -16,7 +17,6 @@
 
 #include <windows.h>
 #include <commctrl.h>
-#include <ddraw.h>
 #include <shellapi.h>
 #include <dwmapi.h>
 #include <D3dkmthk.h>
@@ -37,7 +37,7 @@
 #include "xwin.h"
 #include "keyboard.h"
 #include "drawing.h"
-#include "dxwrap.h"
+#include "render.h"
 #include "picasso96_win.h"
 #include "registry.h"
 #include "win32.h"
@@ -67,8 +67,6 @@
 #define DM_W_FULLSCREEN 2
 #define DM_D3D_FULLSCREEN 16
 #define DM_PICASSO96 32
-#define DM_DDRAW 64
-#define DM_DC 128
 #define DM_D3D 256
 #define DM_SWSCALE 1024
 
@@ -129,11 +127,6 @@ static int isscreen(struct AmigaMonitor *mon)
 {
 	return mon->hMainWnd ? 1 : 0;
 }
-
-static void clearscreen (void)
-{
-	DirectDraw_FillPrimary ();
-}    
 
 static int isfullscreen_2(struct uae_prefs *p)
 {
@@ -634,17 +627,6 @@ void getgfxoffset(int monid, float *dxp, float *dyp, float *mxp, float *myp)
 	*myp = 1.0f / my;
 }
 
-void DX_Fill(struct AmigaMonitor *mon, int dstx, int dsty, int width, int height, uae_u32 color)
-{
-	RECT dstrect;
-	if (width < 0)
-		width = mon->currentmode.current_width;
-	if (height < 0)
-		height = mon->currentmode.current_height;
-	SetRect (&dstrect, dstx, dsty, dstx + width, dsty + height);
-	DirectDraw_Fill (&dstrect, color);
-}
-
 static int rgbformat_bits (RGBFTYPE t)
 {
 	unsigned long f = 1 << t;
@@ -679,86 +661,6 @@ int getrefreshrate(int monid, int width, int height)
 	}
 	write_log (_T("Refresh rate %d not supported, using %d\n"), ap->gfx_refreshrate, freq);
 	return freq;
-}
-
-static int set_ddraw_2(struct AmigaMonitor *mon)
-{
-	struct amigadisplay *ad = &adisplays[mon->monitor_id];
-	struct picasso96_state_struct *state = &picasso96_state[mon->monitor_id];
-
-	HRESULT ddrval;
-	int bits = (mon->currentmode.current_depth + 7) & ~7;
-	int width = mon->currentmode.native_width;
-	int height = mon->currentmode.native_height;
-	int dxfullscreen, wfullscreen, dd;
-	struct apmode *ap = ad->picasso_on ? &currprefs.gfx_apmode[APMODE_RTG] : &currprefs.gfx_apmode[APMODE_NATIVE];
-	int freq = ap->gfx_refreshrate;
-
-	dxfullscreen = (mon->currentmode.flags & DM_DX_FULLSCREEN) ? TRUE : FALSE;
-	wfullscreen = (mon->currentmode.flags & DM_W_FULLSCREEN) ? TRUE : FALSE;
-	dd = (mon->currentmode.flags & DM_DDRAW) ? TRUE : FALSE;
-
-	if (WIN32GFX_IsPicassoScreen(mon) && (state->Width > width || state->Height > height)) {
-		width = state->Width;
-		height = state->Height;
-	}
-
-	DirectDraw_FreeMainSurface ();
-
-	if (!dd && !dxfullscreen)
-		return 1;
-
-	ddrval = DirectDraw_SetCooperativeLevel (mon->hAmigaWnd, dxfullscreen, TRUE);
-	if (FAILED (ddrval))
-		goto oops;
-
-	if (dxfullscreen)  {
-		for (;;) {
-			HRESULT olderr;
-			freq = getrefreshrate(mon->monitor_id, width, height);
-			write_log (_T("set_ddraw: trying %dx%d, bits=%d, refreshrate=%d\n"), width, height, bits, freq);
-			ddrval = DirectDraw_SetDisplayMode (width, height, bits, freq);
-			if (SUCCEEDED (ddrval))
-				break;
-			olderr = ddrval;
-			if (freq) {
-				write_log (_T("set_ddraw: failed, trying without forced refresh rate\n"));
-				freq = 0;
-				DirectDraw_SetCooperativeLevel (mon->hAmigaWnd, dxfullscreen, TRUE);
-				ddrval = DirectDraw_SetDisplayMode (width, height, bits, freq);
-				if (SUCCEEDED (ddrval))
-					break;
-			}
-			if (olderr != DDERR_INVALIDMODE  && olderr != 0x80004001 && olderr != DDERR_UNSUPPORTEDMODE)
-				goto oops;
-			return -1;
-		}
-		mon->currentmode.freq = freq;
-		updatewinrect(mon, true);
-	}
-
-	if (dd) {
-		ddrval = DirectDraw_CreateClipper ();
-		if (FAILED (ddrval))
-			goto oops;
-		ddrval = DirectDraw_CreateMainSurface (width, height);
-		if (FAILED(ddrval)) {
-			write_log (_T("set_ddraw: couldn't CreateSurface() for primary because %s.\n"), DXError (ddrval));
-			goto oops;
-		}
-		ddrval = DirectDraw_SetClipper(mon->hAmigaWnd);
-		if (FAILED (ddrval))
-			goto oops;
-		if (DirectDraw_SurfaceLock ()) {
-			mon->currentmode.pitch = DirectDraw_GetSurfacePitch ();
-			DirectDraw_SurfaceUnlock ();
-		}
-	}
-
-	write_log (_T("set_ddraw: %dx%d@%d-bytes\n"), width, height, bits);
-	return 1;
-oops:
-	return 0;
 }
 
 static void addmode (struct MultiDisplay *md, DEVMODE *dm, int rawmode)
@@ -1363,7 +1265,7 @@ bool render_screen(int monid, int mode, bool immediate)
 	int cnt;
 
 	mon->render_ok = false;
-	if (minimized || ad->picasso_on || monitor_off || dx_islost ()) {
+	if (minimized || ad->picasso_on || monitor_off) {
 		return mon->render_ok;
 	}
 	cnt = 0;
@@ -1381,8 +1283,6 @@ bool render_screen(int monid, int mode, bool immediate)
 		v = D3D_renderframe(monid, mode, immediate);
 	} else if (mon->currentmode.flags & DM_SWSCALE) {
 		S2X_render(monid, -1, -1);
-		v = true;
-	} else if (mon->currentmode.flags & DM_DDRAW) {
 		v = true;
 	}
 	mon->render_ok = v;
@@ -1552,31 +1452,9 @@ void show_screen(int monid, int mode)
 				D3D_showframe_special(0, 2);
 			}
 		}
-#ifdef GFXFILTER
-	} else if (mon->currentmode.flags & DM_SWSCALE) {
-		if (!dx_islost () && !ad->picasso_on)
-			DirectDraw_Flip(1);
-#endif
-	} else if (mon->currentmode.flags & DM_DDRAW) {
-		if (!dx_islost () && !ad->picasso_on)
-			DirectDraw_Flip(1);
 	}
 	gfx_unlock();
 	mon->render_ok = false;
-}
-
-static uae_u8 *ddraw_dolock (void)
-{
-	struct vidbuf_description *avidinfo = &adisplays[0].gfxvidinfo;
-	if (!DirectDraw_SurfaceLock ()) {
-		dx_check ();
-		return 0;
-	}
-	avidinfo->outbuffer->bufmem = DirectDraw_GetSurfacePointer ();
-	avidinfo->outbuffer->rowbytes = DirectDraw_GetSurfacePitch ();
-	init_row_map ();
-	clear_inhibit_frame(0, IHF_WINDOWHIDDEN);
-	return avidinfo->outbuffer->bufmem;
 }
 
 bool lockscr3d(struct vidbuffer *vb)
@@ -1631,8 +1509,6 @@ int lockscr(struct vidbuffer *vb, bool fullupdate, bool first, bool skip)
 #endif
 	} else if (mon->currentmode.flags & DM_SWSCALE) {
 		ret = 1;
-	} else if (mon->currentmode.flags & DM_DDRAW) {
-		ret = ddraw_dolock() != 0;
 	}
 	gfx_unlock();
 	return ret;
@@ -1649,11 +1525,6 @@ void unlockscr(struct vidbuffer *vb, int y_start, int y_end)
 			vb->bufmem = NULL;
 		}
 		D3D_unlocktexture(vb->monitor_id, y_start, y_end);
-	} else if (mon->currentmode.flags & DM_SWSCALE) {
-		return;
-	} else if (mon->currentmode.flags & DM_DDRAW) {
-		DirectDraw_SurfaceUnlock();
-		vb->bufmem = NULL;
 	}
 	gfx_unlock();
 }
@@ -1718,10 +1589,8 @@ static void DX_Blit96(struct AmigaMonitor *mon, int x, int y, int w, int h)
 		}
 		picasso_offset_mx = (float)state->Width / (dr.right - dr.left);
 		picasso_offset_my = (float)state->Height / (dr.bottom - dr.top);
-		DirectDraw_BlitToPrimaryScale (&dr, &sr);
 	} else {
 		SetRect (&sr, x, y, x + w, y + h);
-		DirectDraw_BlitToPrimary (&sr);
 	}
 }
 
@@ -1810,19 +1679,10 @@ void getrtgfilterrect2(int monid, RECT *sr, RECT *dr, RECT *zr, int dst_width, i
 static uae_u8 *gfx_lock_picasso2(int monid, bool fullupdate)
 {
 	struct picasso_vidbuf_description *vidinfo = &picasso_vidinfo[monid];
-	if (currprefs.gfx_api) {
-		int pitch;
-		uae_u8 *p = D3D_locktexture(monid, &pitch, NULL, fullupdate);
-		vidinfo->rowbytes = pitch;
-		return p;
-	} else {
-		if (!DirectDraw_SurfaceLock ()) {
-			dx_check ();
-			return 0;
-		}
-		vidinfo->rowbytes = DirectDraw_GetSurfacePitch ();
-		return DirectDraw_GetSurfacePointer ();
-	}
+	int pitch;
+	uae_u8 *p = D3D_locktexture(monid, &pitch, NULL, fullupdate);
+	vidinfo->rowbytes = pitch;
+	return p;
 }
 uae_u8 *gfx_lock_picasso(int monid, bool fullupdate)
 {
@@ -1848,35 +1708,22 @@ void gfx_unlock_picasso(int monid, bool dorender)
 	if (!mon->rtg_locked)
 		gfx_lock();
 	mon->rtg_locked = false;
-	if (currprefs.gfx_api) {
-		if (dorender) {
-			if (mon->p96_double_buffer_needs_flushing) {
-				D3D_flushtexture(monid, mon->p96_double_buffer_first, mon->p96_double_buffer_last);
-				mon->p96_double_buffer_needs_flushing = 0;
-			}
+	if (dorender) {
+		if (mon->p96_double_buffer_needs_flushing) {
+			D3D_flushtexture(monid, mon->p96_double_buffer_first, mon->p96_double_buffer_last);
+			mon->p96_double_buffer_needs_flushing = 0;
 		}
-		D3D_unlocktexture(monid, -1, -1);
-		if (dorender) {
-			if (D3D_renderframe(monid, true, false)) {
-				gfx_unlock();
-				mon->render_ok = true;
-				show_screen_maybe(monid, true);
-			} else {
-				gfx_unlock();
-			}
+	}
+	D3D_unlocktexture(monid, -1, -1);
+	if (dorender) {
+		if (D3D_renderframe(monid, true, false)) {
+			gfx_unlock();
+			mon->render_ok = true;
+			show_screen_maybe(monid, true);
 		} else {
 			gfx_unlock();
 		}
 	} else {
-		DirectDraw_SurfaceUnlock ();
-		if (dorender) {
-			if (mon->p96_double_buffer_needs_flushing) {
-				DX_Blit96(mon, mon->p96_double_buffer_firstx, mon->p96_double_buffer_first,
-					mon->p96_double_buffer_lastx - mon->p96_double_buffer_firstx + 1,
-					mon->p96_double_buffer_last - mon->p96_double_buffer_first + 1);
-				mon->p96_double_buffer_needs_flushing = 0;
-			}
-		}
 		gfx_unlock();
 	}
 }
@@ -1975,10 +1822,9 @@ static bool canmatchdepth(void)
 static void updatemodes(struct AmigaMonitor *mon)
 {
 	struct uae_filter *usedfilter = mon->usedfilter;
-	DWORD flags;
+	DWORD flags = 0;
 
 	mon->currentmode.fullfill = 0;
-	flags = DM_DDRAW;
 	if (isfullscreen () > 0)
 		flags |= DM_DX_FULLSCREEN;
 	else if (isfullscreen () < 0)
@@ -1990,13 +1836,10 @@ static void updatemodes(struct AmigaMonitor *mon)
 			mon->currentmode.current_depth = 16;
 	}
 #endif
-	if (currprefs.gfx_api) {
-		flags |= DM_D3D;
-		if (flags & DM_DX_FULLSCREEN) {
-			flags &= ~DM_DX_FULLSCREEN;
-			flags |= DM_D3D_FULLSCREEN;
-		}
-		flags &= ~DM_DDRAW;
+	flags |= DM_D3D;
+	if (flags & DM_DX_FULLSCREEN) {
+		flags &= ~DM_DX_FULLSCREEN;
+		flags |= DM_D3D_FULLSCREEN;
 	}
 	mon->currentmode.flags = flags;
 	if (flags & DM_SWSCALE)
@@ -2157,8 +2000,6 @@ static int open_windows(struct AmigaMonitor *mon, bool mousecapture, bool starte
 	D3D_free(mon->monitor_id, false);
 	gfx_unlock();
 #endif
-	if (!DirectDraw_Start())
-		return 0;
 
 	int init_round = 0;
 	ret = -2;
@@ -2170,14 +2011,11 @@ static int open_windows(struct AmigaMonitor *mon, bool mousecapture, bool starte
 		ret = doInit(mon);
 		init_round++;
 		if (ret < -9) {
-			DirectDraw_Release();
-			if (!DirectDraw_Start())
-				return 0;
+			return 0;
 		}
 	} while (ret < 0);
 
 	if (!ret) {
-		DirectDraw_Release();
 		return ret;
 	}
 
@@ -2233,8 +2071,6 @@ static int open_windows(struct AmigaMonitor *mon, bool mousecapture, bool starte
 static void reopen_gfx(struct AmigaMonitor *mon)
 {
 	open_windows(mon, false, true);
-	if (isfullscreen () <= 0)
-		DirectDraw_FillPrimary ();
 	render_screen(mon->monitor_id, 1, true);
 }
 
@@ -2528,8 +2364,6 @@ int check_prefs_changed_gfx (void)
 					inputdevice_unacquire();
 					unacquired = true;
 				}
-				DirectDraw_Fill(NULL, 0);
-				DirectDraw_BlitToPrimary(NULL);
 			}
 			if (c & 256) {
 				init_colors(mon->monitor_id);
@@ -2772,19 +2606,8 @@ void init_colors(int monid)
 {
 	struct AmigaMonitor *mon = &AMonitors[monid];
 	/* init colors */
-	if (mon->currentmode.flags & DM_D3D) {
-		D3D_getpixelformat (mon->currentmode.current_depth,
-			&red_bits, &green_bits, &blue_bits, &red_shift, &green_shift, &blue_shift, &alpha_bits, &alpha_shift, &alpha);
-	} else {
-		red_bits = bits_in_mask (DirectDraw_GetPixelFormatBitMask (red_mask));
-		green_bits = bits_in_mask (DirectDraw_GetPixelFormatBitMask (green_mask));
-		blue_bits = bits_in_mask (DirectDraw_GetPixelFormatBitMask (blue_mask));
-		red_shift = mask_shift (DirectDraw_GetPixelFormatBitMask (red_mask));
-		green_shift = mask_shift (DirectDraw_GetPixelFormatBitMask (green_mask));
-		blue_shift = mask_shift (DirectDraw_GetPixelFormatBitMask (blue_mask));
-		alpha_bits = 0;
-		alpha_shift = 0;
-	}
+	D3D_getpixelformat (mon->currentmode.current_depth,
+		&red_bits, &green_bits, &blue_bits, &red_shift, &green_shift, &blue_shift, &alpha_bits, &alpha_shift, &alpha);
 
 	if (!(mon->currentmode.flags & (DM_D3D))) {
 		if (mon->currentmode.current_depth != mon->currentmode.native_depth) {
@@ -3085,8 +2908,6 @@ static int modeswitchneeded(struct AmigaMonitor *mon, struct winuae_currentmode 
 		return -1;
 	} else {
 		/* fullwindow to fullwindow */
-		DirectDraw_Fill (NULL, 0);
-		DirectDraw_BlitToPrimary (NULL);
 		if (mon->screen_is_picasso) {
 			if (currprefs.gf[1].gfx_filter_autoscale && ((wc->native_width > state->Width && wc->native_height >= state->Height) || (wc->native_height > state->Height && wc->native_width >= state->Width)))
 				return -1;
@@ -3124,7 +2945,6 @@ void gfx_set_picasso_state(int monid, int on)
 
 	updatemodes(mon);
 	update_gfxparams(mon);
-	clearscreen();
 
 	// if filter changes, need to reset
 	mode = 0;
@@ -3189,7 +3009,6 @@ void gfx_set_picasso_modeinfo(int monid, RGBFTYPE rgbfmt)
 	int need;
 	if (!mon->screen_is_picasso)
 		return;
-	clearscreen();
 	gfx_set_picasso_colors(monid, rgbfmt);
 	updatemodes(mon);
 	need = modeswitchneeded(mon, &mon->currentmode);
@@ -3326,7 +3145,6 @@ void close_windows(struct AmigaMonitor *mon)
 #endif
 	freevidbuffer(mon->monitor_id, &avidinfo->drawbuffer);
 	freevidbuffer(mon->monitor_id, &avidinfo->tempbuffer);
-	DirectDraw_Release();
 	close_hwnds(mon);
 }
 
@@ -3552,10 +3370,8 @@ float target_getcurrentvblankrate(int monid)
 		return (float)mon->currentmode.freq;
 	if (get_display_vblank_params(-1, NULL, NULL, &vb, NULL)) {
 		return vb;
-	} else if (currprefs.gfx_api) {
-		return D3D_getrefreshrate(0);
 	} else {
-		return (float)DirectDraw_CurrentRefreshRate();
+		return D3D_getrefreshrate(0);
 	}
 }
 
@@ -3627,7 +3443,7 @@ static void getextramonitorpos(struct AmigaMonitor *mon, RECT *r)
 	r->right = r->left + width;
 }
 
-static int create_windows_2(struct AmigaMonitor *mon)
+static int create_windows(struct AmigaMonitor *mon)
 {
 	static bool firstwindow = true;
 	int dxfs = mon->currentmode.flags & (DM_DX_FULLSCREEN);
@@ -3985,26 +3801,6 @@ static int create_windows_2(struct AmigaMonitor *mon)
 	return 1;
 }
 
-static int set_ddraw(struct AmigaMonitor *mon)
-{
-	int cnt, ret;
-
-	cnt = 3;
-	for (;;) {
-		ret = set_ddraw_2(mon);
-		if (cnt-- <= 0)
-			return 0;
-		if (ret < 0) {
-			getbestmode(mon, 1);
-			continue;
-		}
-		if (ret == 0)
-			return 0;
-		break;
-	}
-	return 1;
-}
-
 static void allocsoftbuffer(int monid, const TCHAR *name, struct vidbuffer *buf, int flags, int width, int height, int depth)
 {
 	struct vidbuf_description *vidinfo = &adisplays[monid].gfxvidinfo;
@@ -4042,14 +3838,6 @@ static void allocsoftbuffer(int monid, const TCHAR *name, struct vidbuffer *buf,
 	}
 }
 
-static int create_windows(struct AmigaMonitor *mon)
-{
-	if (!create_windows_2(mon))
-		return 0;
-
-	return set_ddraw(mon);
-}
-
 static int oldtex_w[MAX_AMIGAMONITORS], oldtex_h[MAX_AMIGAMONITORS], oldtex_rtg[MAX_AMIGAMONITORS];
 
 static BOOL doInit(struct AmigaMonitor *mon)
@@ -4079,43 +3867,6 @@ retry:
 			mon->currentmode.native_width = rc.right - rc.left;
 			mon->currentmode.native_height = rc.bottom - rc.top;
 		}
-
-		if (isfullscreen() <= 0 && !(mon->currentmode.flags & (DM_D3D))) {
-			mon->currentmode.current_depth = DirectDraw_GetCurrentDepth ();
-			updatemodes(mon);
-		}
-		if (!(mon->currentmode.flags & (DM_D3D)) && DirectDraw_GetCurrentDepth () == mon->currentmode.current_depth) {
-			updatemodes(mon);
-		}
-#if 0
-		TCHAR tmpstr[300];
-		int fs_warning = -1;
-		if (!rp_isactive () && (mon->currentmode.current_width > GetSystemMetrics(SM_CXVIRTUALSCREEN) ||
-			mon->currentmode.current_height > GetSystemMetrics(SM_CYVIRTUALSCREEN))) {
-				if (!console_logging)
-					fs_warning = IDS_UNSUPPORTEDSCREENMODE_3;
-		}
-		if (fs_warning >= 0 && isfullscreen () <= 0) {
-			TCHAR szMessage[MAX_DPATH], szMessage2[MAX_DPATH];
-			WIN32GUI_LoadUIString(IDS_UNSUPPORTEDSCREENMODE, szMessage, MAX_DPATH);
-			WIN32GUI_LoadUIString(fs_warning, szMessage2, MAX_DPATH);
-			// Temporarily drop the DirectDraw stuff
-			DirectDraw_Release ();
-			_stprintf (tmpstr, szMessage, szMessage2);
-			gui_message (tmpstr);
-			DirectDraw_Start ();
-			if (mon->screen_is_picasso)
-				changed_prefs.gfx_apmode[1].gfx_fullscreen = currprefs.gfx_apmode[1].gfx_fullscreen = GFX_FULLSCREEN;
-			else
-				changed_prefs.gfx_apmode[0].gfx_fullscreen = currprefs.gfx_apmode[0].gfx_fullscreen = GFX_FULLSCREEN;
-			updatewinfsmode(mon->monitor_id, &currprefs);
-			updatewinfsmode(mon->monitor_id, &changed_prefs);
-			mon->currentmode.current_depth = tmp_depth;
-			updatemodes(mon);
-			ret = -2;
-			goto oops;
-		}
-#endif
 		if (!create_windows(mon))
 			goto oops;
 #ifdef PICASSO96
@@ -4238,12 +3989,16 @@ retry:
 			}
 			if (err) {
 				D3D_free(0, true);
-				error_log(_T("Direct3D9 failed to initialize ('%s'), falling back to DirectDraw."), err);
-				changed_prefs.gfx_api = currprefs.gfx_api = 0;
-				changed_prefs.gf[ad->picasso_on].gfx_filter = currprefs.gf[ad->picasso_on].gfx_filter = 1;
+				if (isfullscreen() > 0) {
+					int idx = mon->screen_is_picasso ? 1 : 0;
+					changed_prefs.gfx_apmode[idx].gfx_fullscreen = currprefs.gfx_apmode[idx].gfx_fullscreen = GFX_FULLWINDOW;
+				} else if (currprefs.gfx_api > 0) {
+					error_log(_T("Direct3D9 failed to initialize ('%s'), falling back to GDI."), err);
+					changed_prefs.gfx_api = currprefs.gfx_api = 0;
+					changed_prefs.gf[ad->picasso_on].gfx_filter = currprefs.gf[ad->picasso_on].gfx_filter = 1;
+				}
 				mon->currentmode.current_depth = mon->currentmode.native_depth;
 				gfxmode_reset(mon->monitor_id);
-				DirectDraw_Start();
 				ret = -1;
 				goto oops;
 			}
@@ -4305,13 +4060,9 @@ bool target_graphics_buffer_update(int monid)
 	}
 
 	S2X_free(mon->monitor_id);
-	if (mon->currentmode.flags & DM_D3D) {
-		if (!D3D_alloctexture(mon->monitor_id, w, h)) {
-			graphicsbuffer_retry = true;
-			return false;
-		}
-	} else {
-		DirectDraw_ClearSurface (NULL);
+	if (!D3D_alloctexture(mon->monitor_id, w, h)) {
+		graphicsbuffer_retry = true;
+		return false;
 	}
 
 	oldtex_w[monid] = w;
@@ -4333,24 +4084,7 @@ static void updatedisplayarea2(int monid)
 	struct amigadisplay *ad = &adisplays[monid];
 	if (!mon->screen_is_initialized)
 		return;
-	if (dx_islost())
-		return;
-#if defined (GFXFILTER)
-	if (mon->currentmode.flags & DM_D3D) {
-#if defined (D3D)
-		D3D_refresh(monid);
-#endif
-	} else
-#endif
-		if (mon->currentmode.flags & DM_DDRAW) {
-#if defined (GFXFILTER)
-			if (!ad->picasso_on) {
-				if (mon->currentmode.flags & DM_SWSCALE)
-					S2X_refresh(monid);
-			}
-#endif
-			DirectDraw_Flip(0);
-		}
+	D3D_refresh(monid);
 }
 
 void updatedisplayarea(int monid)
@@ -4553,22 +4287,38 @@ HDC gethdc(int monid)
 {
 	HDC hdc = 0;
 
-#ifdef D3D
 	if (D3D_isenabled(0))
 		return D3D_getDC(monid, 0);
-#endif
-	if(FAILED(DirectDraw_GetDC(&hdc)))
-		hdc = 0;
 	return hdc;
 }
 
 void releasehdc(int monid, HDC hdc)
 {
-#ifdef D3D
 	if (D3D_isenabled(0)) {
 		D3D_getDC(monid, hdc);
 		return;
 	}
-#endif
-	DirectDraw_ReleaseDC(hdc);
+}
+
+TCHAR *outGUID(const GUID *guid)
+{
+	static TCHAR gb[64];
+	if (guid == NULL)
+		return _T("NULL");
+	_stprintf(gb, _T("{%08X-%04X-%04X-%02X%02X-%02X%02X%02X%02X%02X%02X}"),
+		guid->Data1, guid->Data2, guid->Data3,
+		guid->Data4[0], guid->Data4[1], guid->Data4[2], guid->Data4[3],
+		guid->Data4[4], guid->Data4[5], guid->Data4[6], guid->Data4[7]);
+	return gb;
+}
+
+const TCHAR *DXError(HRESULT ddrval)
+{
+	static TCHAR dderr[1000];
+	_stprintf(dderr, _T("%08X S=%d F=%04X C=%04X (%d)"),
+		ddrval, (ddrval & 0x80000000) ? 1 : 0,
+		HRESULT_FACILITY(ddrval),
+		HRESULT_CODE(ddrval),
+		HRESULT_CODE(ddrval));
+	return dderr;
 }

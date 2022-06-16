@@ -21,7 +21,6 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include <mmsystem.h>
-#include <ddraw.h>
 #include <stdio.h>
 #include <fcntl.h>
 #include <sys/stat.h>

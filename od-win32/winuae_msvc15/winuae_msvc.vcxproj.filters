@@ -112,9 +112,6 @@
     <ClCompile Include="..\driveclick_win32.cpp">
       <Filter>win32</Filter>
     </ClCompile>
-    <ClCompile Include="..\dxwrap.cpp">
-      <Filter>win32</Filter>
-    </ClCompile>
     <ClCompile Include="..\fsdb_mywin32.cpp">
       <Filter>win32</Filter>
     </ClCompile>
@@ -984,6 +981,9 @@
     </ClCompile>
     <ClCompile Include="..\..\floppybridge\floppybridge_lib.cpp">
       <Filter>common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\gdirender.cpp">
+      <Filter>win32</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

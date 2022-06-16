@@ -12,7 +12,7 @@
 #include "custom.h"
 #include "sampler.h"
 
-#include "dxwrap.h"
+#include "render.h"
 
 #include <dsound.h>
 

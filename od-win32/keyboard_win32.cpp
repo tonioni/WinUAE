@@ -401,8 +401,8 @@ bool my_kbd_handler (int keyboard, int scancode, int newstate, bool alwaysreleas
 		return;
 	}
 #endif
-#if 0
-	if (scancode == DIK_F8) {
+#if 1
+	if (scancode == DIK_F8 && specialpressed()) {
 		if (newstate) {
 			extern int blop2;
 			blop2++;

@@ -33,7 +33,7 @@
 #include "newcpu.h"
 #include "traps.h"
 #include "sounddep/sound.h"
-#include "dxwrap.h"
+#include "render.h"
 #include "win32.h"
 #include "parser.h"
 #include "enforcer.h"

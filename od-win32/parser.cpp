@@ -18,7 +18,6 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include <mmsystem.h>
-#include <ddraw.h>
 #include <commctrl.h>
 #include <commdlg.h>
 #include <stdio.h>

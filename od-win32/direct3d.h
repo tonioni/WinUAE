@@ -43,6 +43,7 @@ void D3D_getpixelformat(int depth, int *rb, int *gb, int *bb, int *rs, int *gs, 
 
 void d3d9_select(void);
 void d3d11_select(void);
+void gdi_select(void);
 void d3d_select(struct uae_prefs *p);
 int can_D3D11(bool checkdevice);
 

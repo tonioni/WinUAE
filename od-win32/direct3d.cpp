@@ -23,7 +23,7 @@
 #include "xwin.h"
 #include "custom.h"
 #include "drawing.h"
-#include "dxwrap.h"
+#include "render.h"
 #include "win32.h"
 #include "win32gfx.h"
 #include "gfxfilter.h"
@@ -221,10 +221,6 @@ struct d3dstruct
 
 	float m_scale;
 	LPCSTR m_strName;
-
-	int ddraw_fs;
-	int ddraw_fs_attempt;
-	LPDIRECTDRAW7 ddraw;
 };
 
 static struct d3dstruct d3ddata[MAX_AMIGAMONITORS];
@@ -236,64 +232,6 @@ struct TLVERTEX {
 	D3DCOLOR    diffuse;
 	D3DXVECTOR2 texcoord;       // texture coords
 };
-
-
-static void ddraw_fs_hack_free (struct d3dstruct *d3d)
-{
-	HRESULT hr;
-
-	if (!d3d->ddraw_fs)
-		return;
-	if (d3d->ddraw_fs == 2)
-		d3d->ddraw->RestoreDisplayMode ();
-	hr = d3d->ddraw->SetCooperativeLevel (d3d->d3dhwnd, DDSCL_NORMAL);
-	if (FAILED (hr)) {
-		write_log (_T("IDirectDraw7_SetCooperativeLevel CLEAR: %s\n"), DXError (hr));
-	}
-	d3d->ddraw->Release ();
-	d3d->ddraw = NULL;
-	d3d->ddraw_fs = 0;
-}
-
-static int ddraw_fs_hack_init (struct d3dstruct *d3d)
-{
-	HRESULT hr;
-	struct MultiDisplay *md;
-
-	ddraw_fs_hack_free(d3d);
-	DirectDraw_get_GUIDs();
-	md = getdisplay(&currprefs, 0);
-	if (!md)
-		return 0;
-	hr = DirectDrawCreateEx(md->primary ? NULL : &md->ddguid, (LPVOID*)&d3d->ddraw, IID_IDirectDraw7, NULL);
-	if (FAILED (hr)) {
-		write_log (_T("DirectDrawCreateEx failed, %s\n"), DXError (hr));
-		return 0;
-	}
-	d3d->ddraw_fs = 1;
-	hr = d3d->ddraw->SetCooperativeLevel(d3d->d3dhwnd, DDSCL_ALLOWREBOOT | DDSCL_EXCLUSIVE | DDSCL_FULLSCREEN);
-	if (FAILED (hr)) {
-		write_log (_T("IDirectDraw7_SetCooperativeLevel SET: %s\n"), DXError (hr));
-		ddraw_fs_hack_free (d3d);
-		return 0;
-	}
-	hr = d3d->ddraw->SetDisplayMode(d3d->dpp.BackBufferWidth, d3d->dpp.BackBufferHeight, d3d->t_depth, d3d->dpp.FullScreen_RefreshRateInHz, 0);
-	if (FAILED (hr)) {
-		write_log (_T("1:IDirectDraw7_SetDisplayMode: %s\n"), DXError (hr));
-		if (d3d->dpp.FullScreen_RefreshRateInHz && isvsync_chipset () < 0) {
-			hr = d3d->ddraw->SetDisplayMode(d3d->dpp.BackBufferWidth, d3d->dpp.BackBufferHeight, d3d->t_depth, 0, 0);
-			if (FAILED (hr))
-				write_log (_T("2:IDirectDraw7_SetDisplayMode: %s\n"), DXError (hr));
-		}
-		if (FAILED (hr)) {
-			write_log (_T("IDirectDraw7_SetDisplayMode: %s\n"), DXError (hr));
-			ddraw_fs_hack_free(d3d);
-			return 0;
-		}
-	}
-	d3d->ddraw_fs = 2;
-	return 1;
-}
 
 static const TCHAR *D3D_ErrorText (HRESULT error)
 {
@@ -2623,7 +2561,6 @@ void xD3D_free (int monid, bool immediate)
 	if (!fakemodewaitms || immediate) {
 		waitfakemode (d3d);
 		D3D_free2 (d3d);
-		ddraw_fs_hack_free (d3d);
 		return;
 	}
 }
@@ -2912,16 +2849,6 @@ static const TCHAR *D3D_init2 (struct d3dstruct *d3d, HWND ahwnd, int w_w, int w
 
 	if (FAILED (ret)) {
 		_stprintf (errmsg, _T("%s failed, %s\n"), d3d->d3d_ex && D3DEX ? _T("CreateDeviceEx") : _T("CreateDevice"), D3D_ErrorString (ret));
-		if (ret == D3DERR_INVALIDCALL && d3d->dpp.Windowed == 0 && d3d->dpp.FullScreen_RefreshRateInHz && !d3d->ddraw_fs) {
-			write_log (_T("%s\n"), errmsg);
-			write_log (_T("%s: Retrying fullscreen with DirectDraw\n"), D3DHEAD);
-			if (ddraw_fs_hack_init (d3d)) {
-				const TCHAR *err2 = D3D_init (ahwnd, monid, w_w, w_h, depth, freq, mmulth, mmultv);
-				if (err2)
-					ddraw_fs_hack_free (d3d);
-				return err2;
-			}
-		}
 		if (d3d->d3d_ex && D3DEX) {
 			write_log (_T("%s\n"), errmsg);
 			D3DEX = 0;
@@ -3180,7 +3107,6 @@ static HRESULT reset (void)
 static int D3D_needreset (struct d3dstruct *d3d)
 {
 	HRESULT hr;
-	bool do_dd = false;
 
 	if (!d3d->devicelost)
 		return -1;
@@ -3220,23 +3146,11 @@ static int D3D_needreset (struct d3dstruct *d3d)
 		alloctextures (d3d);
 		return -1;
 	} else if (hr == S_PRESENT_MODE_CHANGED) {
-		write_log (_T("%s: S_PRESENT_MODE_CHANGED (%d,%d)\n"), D3DHEAD, d3d->ddraw_fs, d3d->ddraw_fs_attempt);
-#if 0
-		if (!d3d->ddraw_fs) {
-			d3d->ddraw_fs_attempt++;
-			if (d3d->ddraw_fs_attempt >= 5) {
-				do_dd = true;
-			}
-		}
-#endif
+		write_log (_T("%s: S_PRESENT_MODE_CHANGED\n"), D3DHEAD);
 	}
 	if (SUCCEEDED (hr)) {
 		d3d->devicelost = 0;
 		invalidatedeviceobjects (d3d);
-		if (do_dd) {
-			write_log (_T("%s: S_PRESENT_MODE_CHANGED, Retrying fullscreen with DirectDraw\n"), D3DHEAD);
-			ddraw_fs_hack_init (d3d);
-		}
 		hr = reset ();
 		if (FAILED (hr))
 			write_log (_T("%s: Reset failed %s\n"), D3DHEAD, D3D_ErrorString (hr));
@@ -3280,8 +3194,6 @@ static void D3D_showframe2 (struct d3dstruct *d3d, bool dowait)
 				d3d->renderdisabled = true;
 				write_log (_T("%s: mode changed or fullscreen focus lost\n"), D3DHEAD);
 			}
-		} else {
-			d3d->ddraw_fs_attempt = 0;
 		}
 		return;
 	}

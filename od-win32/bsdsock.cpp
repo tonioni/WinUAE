@@ -40,7 +40,6 @@
 #include "wininet.h"
 #include "mmsystem.h"
 #include "win32.h"
-#include "dxwrap.h"
 
 int rawsockets = 0;
 static int hWndSelector = 0; /* Set this to zero to get hSockWnd */
@@ -2419,29 +2418,6 @@ uae_u32 host_inet_addr(TrapContext *ctx, uae_u32 cp)
 	return addr;
 }
 
-int isfullscreen (void);
-static BOOL CheckOnline(SB)
-{
-	struct AmigaMonitor *mon = &AMonitors[0];
-	DWORD dwFlags;
-	BOOL bReturn = TRUE;
-
-	hAmigaSockWnd = mon->hAmigaWnd;
-	if (InternetGetConnectedState(&dwFlags,0) == FALSE) { // Internet is offline
-		if (InternetAttemptConnect(0) != ERROR_SUCCESS) { // Show Dialer window
-			sb->sb_errno = 10001;
-			sb->sb_herrno = 1;
-			bReturn = FALSE;
-			// No success or aborted
-		}
-		if (isfullscreen() > 0) {
-			ShowWindow(mon->hAmigaWnd, SW_RESTORE);
-			SetActiveWindow(mon->hAmigaWnd);
-		}
-	}
-	return bReturn;
-}
-
 #define GET_STATE_FREE 0
 #define GET_STATE_ACTIVE 1
 #define GET_STATE_CANCEL 2
@@ -2489,25 +2465,22 @@ static unsigned int thread_get2 (void *indexp)
 				else
 					name_rp = "";
 
-				if (strchr (name_rp, '.') == 0 || CheckOnline(sb) == TRUE) {
-					// Local Address or Internet Online ?
-					BSDTRACE((_T("tg2_0a %d:%d -> "),addrtype,wscnt));
-					if (addrtype == -1) {
-						host = gethostbyname (name_rp);
+				BSDTRACE((_T("tg2_0a %d:%d -> "),addrtype,wscnt));
+				if (addrtype == -1) {
+					host = gethostbyname (name_rp);
+				} else {
+					host = gethostbyaddr (name_rp, namelen, addrtype);
+				}
+				BSDTRACE((_T("tg2_0b %d -> "), wscnt));
+				if (bsd->threadGetargs_inuse[index] != GET_STATE_CANCEL) {
+					// No CTRL-C Signal
+					if (host == 0) {
+						// Error occurred
+						SETERRNO;
+						BSDTRACE((_T("tg2_0 failed %d:%d -> "), sb->sb_errno,wscnt));
 					} else {
-						host = gethostbyaddr (name_rp, namelen, addrtype);
-					}
-					BSDTRACE((_T("tg2_0b %d -> "), wscnt));
-					if (bsd->threadGetargs_inuse[index] != GET_STATE_CANCEL) {
-						// No CTRL-C Signal
-						if (host == 0) {
-							// Error occurred
-							SETERRNO;
-							BSDTRACE((_T("tg2_0 failed %d:%d -> "), sb->sb_errno,wscnt));
-						} else {
-							bsdsocklib_seterrno(ctx, sb, 0);
-							memcpy((void*)args->buf, host, sizeof(HOSTENT));
-						}
+						bsdsocklib_seterrno(ctx, sb, 0);
+						memcpy((void*)args->buf, host, sizeof(HOSTENT));
 					}
 				}
 

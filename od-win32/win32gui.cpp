@@ -27,7 +27,6 @@
 #include <shellapi.h>
 #include <Shlobj.h>
 #include <shlwapi.h>
-#include <ddraw.h>
 #include <shobjidl.h>
 #include <dbt.h>
 #include <Cfgmgr32.h>
@@ -59,7 +58,7 @@
 #include "drawing.h"
 #include "fsdb.h"
 #include "blkdev.h"
-#include "dxwrap.h"
+#include "render.h"
 #include "win32.h"
 #include "registry.h"
 #include "picasso96_win.h"
@@ -2313,7 +2312,7 @@ static void flipgui(int opengui)
 	if (full_property_sheet)
 		return;
 	if (opengui) {
-		DirectDraw_FlipToGDISurface();
+		;
 	} else {
 		if (quit_program)
 			return;
@@ -12480,13 +12479,7 @@ static void misc_gui_font (HWND hDlg, int fonttype)
 static void values_to_miscdlg_dx(HWND hDlg)
 {
 	xSendDlgItemMessage(hDlg, IDC_DXMODE_OPTIONS, CB_RESETCONTENT, 0, 0);
-	if (workprefs.gfx_api == 0) {
-		xSendDlgItemMessage(hDlg, IDC_DXMODE_OPTIONS, CB_ADDSTRING, 0, (LPARAM)_T("NonLocalVRAM"));
-		xSendDlgItemMessage(hDlg, IDC_DXMODE_OPTIONS, CB_ADDSTRING, 0, (LPARAM)_T("DefaultRAM *"));
-		xSendDlgItemMessage(hDlg, IDC_DXMODE_OPTIONS, CB_ADDSTRING, 0, (LPARAM)_T("LocalVRAM"));
-		xSendDlgItemMessage(hDlg, IDC_DXMODE_OPTIONS, CB_ADDSTRING, 0, (LPARAM)_T("SystemRAM"));
-		xSendDlgItemMessage(hDlg, IDC_DXMODE_OPTIONS, CB_SETCURSEL, ddforceram, 0);
-	} else if (workprefs.gfx_api >= 2) {
+	if (workprefs.gfx_api >= 2) {
 		xSendDlgItemMessage(hDlg, IDC_DXMODE_OPTIONS, CB_ADDSTRING, 0, (LPARAM)_T("Hardware D3D11"));
 		xSendDlgItemMessage(hDlg, IDC_DXMODE_OPTIONS, CB_ADDSTRING, 0, (LPARAM)_T("Software D3D11"));
 		xSendDlgItemMessage(hDlg, IDC_DXMODE_OPTIONS, CB_SETCURSEL, workprefs.gfx_api_options, 0);
@@ -12511,7 +12504,7 @@ static void values_to_miscdlg (HWND hDlg)
 		misc_lang (hDlg);
 
 		xSendDlgItemMessage(hDlg, IDC_DXMODE, CB_RESETCONTENT, 0, 0);
-		xSendDlgItemMessage(hDlg, IDC_DXMODE, CB_ADDSTRING, 0, (LPARAM)_T("DirectDraw"));
+		xSendDlgItemMessage(hDlg, IDC_DXMODE, CB_ADDSTRING, 0, (LPARAM)_T("GDI"));
 		xSendDlgItemMessage(hDlg, IDC_DXMODE, CB_ADDSTRING, 0, (LPARAM)_T("Direct3D 9"));
 		xSendDlgItemMessage(hDlg, IDC_DXMODE, CB_ADDSTRING, 0, (LPARAM)_T("Direct3D 11"));
 		xSendDlgItemMessage(hDlg, IDC_DXMODE, CB_ADDSTRING, 0, (LPARAM)_T("Direct3D 11 HDR (experimental)"));
@@ -12585,12 +12578,15 @@ static void setdefaultguisize(int skipdpi)
 	int dpi = skipdpi ? 96 : getdpiformonitor(NULL);
 	int w, h;
 
+	int dw = GetSystemMetrics(SM_CXVIRTUALSCREEN);
+	int dh = GetSystemMetrics(SM_CYVIRTUALSCREEN);
+
 	getguidefaultsize(&w, &h);
 
 	gui_width = MulDiv(w, dpi, 96);
 	gui_height = MulDiv(h, dpi, 96);
 
-	if ((dpi > 96) && (gui_width > w || gui_height > h)) {
+	if ((dpi > 96) && (gui_width >= dw * 9 / 10 || gui_height > dh * 9 / 10)) {
 		gui_width = w;
 		gui_height = h;
 	}
@@ -12788,9 +12784,6 @@ static INT_PTR MiscDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 					if (v != CB_ERR) {
 						if (workprefs.gfx_api >= 2) {
 							workprefs.gfx_api_options = v;
-						} else if (!workprefs.gfx_api) {
-							ddforceram = v;
-							regsetint(NULL, _T("DirectDraw_Secondary"), ddforceram);
 						}
 					}
 					break;
@@ -22375,7 +22368,6 @@ static int GetSettings (int all_options, HWND hwnd)
 		regexists = regqueryint (NULL, _T("GUIResize"), &v);
 		gui_fullscreen = 0;
 		gui_resize_allowed = true;
-		gui_resize_enabled = v != 0;
 		v = 0;
 		regqueryint(NULL, _T("GUIFullscreen"), &v);
 		if (v) {
@@ -22395,7 +22387,7 @@ static int GetSettings (int all_options, HWND hwnd)
 			regsetint (NULL, _T("GUIResize"), 0);
 			regsetint (NULL, _T("GUIFullscreen"), 0);
 		} else {
-			if (gui_width < MIN_GUI_INTERNAL_WIDTH || gui_width > 4096 || gui_height < MIN_GUI_INTERNAL_HEIGHT || gui_height > 4096) {
+			if (gui_width < MIN_GUI_INTERNAL_WIDTH || gui_width > 8192 || gui_height < MIN_GUI_INTERNAL_HEIGHT || gui_height > 8192) {
 				scaleresource_setdefaults(hwnd);
 				setdefaultguisize(resetcount > 0);
 				resetcount++;
@@ -22421,7 +22413,7 @@ static int GetSettings (int all_options, HWND hwnd)
 				int w = md->rect.right - md->rect.left;
 				int h = md->rect.bottom - md->rect.top;
 				write_log(_T("GUI Fullscreen, screen size %dx%d (%dx%d)\n"), w, h, start_gui_width, start_gui_height);
-				if (w < (start_gui_width / 10 * 9) || h < (start_gui_height / 10 * 9)) {
+				if (w < (start_gui_width * 9 / 10) || h < (start_gui_height * 9 / 10)) {
 					gui_width = start_gui_width;
 					gui_height = start_gui_height;
 					write_log(_T("GUI Fullscreen %dx%d, closing fullscreen.\n"), gui_width, gui_height);
@@ -22986,16 +22978,6 @@ static int fsdialog (HWND *hwnd, DWORD *flags)
 	*flags |= MB_SETFOREGROUND;
 	*flags |= MB_TOPMOST;
 	return 0;
-	/*
-	HRESULT hr;
-	hr = DirectDraw_FlipToGDISurface();
-	if (FAILED(hr)) {
-	write_log (_T("FlipToGDISurface failed, %s\n"), DXError (hr));
-	return 0;
-	}
-	*hwnd = NULL;
-	return 1;
-	*/
 }
 
 int gui_message_multibutton (int flags, const TCHAR *format,...)

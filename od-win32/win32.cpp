@@ -28,7 +28,6 @@
 #include <commdlg.h>
 #include <shellapi.h>
 #include <zmouse.h>
-#include <ddraw.h>
 #include <dbt.h>
 #include <math.h>
 #include <mmsystem.h>
@@ -64,7 +63,7 @@
 #include "inputdevice.h"
 #include "keybuf.h"
 #include "drawing.h"
-#include "dxwrap.h"
+#include "render.h"
 #include "picasso96_win.h"
 #include "bsdsocket.h"
 #include "win32.h"
@@ -1914,7 +1913,6 @@ static LRESULT CALLBACK AmigaWindowProc(HWND hWnd, UINT message, WPARAM wParam, 
 		//write_log(_T("WM_SETFOCUS\n"));
 		winuae_active(mon, hWnd, minimized);
 		unsetminimized(mon->monitor_id);
-		dx_check();
 		return 0;
 	case WM_EXITSIZEMOVE:
 		if (wParam == SC_MOVE) {
@@ -1950,7 +1948,6 @@ static LRESULT CALLBACK AmigaWindowProc(HWND hWnd, UINT message, WPARAM wParam, 
 				unsetminimized(mon->monitor_id);
 			winuae_inactive(mon, hWnd, minimized);
 		}
-		dx_check();
 		return 0;
 	case WM_MOUSEACTIVATE:
 		if (isfocus() == 0)
@@ -1972,7 +1969,6 @@ static LRESULT CALLBACK AmigaWindowProc(HWND hWnd, UINT message, WPARAM wParam, 
 #ifdef RETROPLATFORM
 		rp_activate(wParam, lParam);
 #endif
-		dx_check();
 		return 0;
 
 	case WM_KEYDOWN:
@@ -4188,7 +4184,7 @@ void target_fixup_options (struct uae_prefs *p)
 	}
 	
 	if (p->rtg_hardwaresprite && !p->gfx_api) {
-		error_log(_T("DirectDraw is not RTG hardware sprite compatible."));
+		error_log(_T("GDI is not RTG hardware sprite compatible."));
 		p->rtg_hardwaresprite = false;
 	}
 	if (p->rtgboards[0].rtgmem_type >= GFXBOARD_HARDWARE) {
@@ -5627,8 +5623,8 @@ static void WIN32_HandleRegistryStuff (void)
 		int x = GetSystemMetrics (SM_CXSCREEN);
 		int y = GetSystemMetrics (SM_CYSCREEN);
 		int dpi = getdpiformonitor(NULL);
-		x = (x - (800 * dpi / 96)) / 2;
-		y = (y - (600 * dpi / 96)) / 2;
+		x = (x - (GUI_INTERNAL_WIDTH_NEW * dpi / 96)) / 2;
+		y = (y - (GUI_INTERNAL_HEIGHT_NEW * dpi / 96)) / 2;
 		if (x < 10)
 			x = 10;
 		if (y < 10)
@@ -5650,7 +5646,6 @@ static void WIN32_HandleRegistryStuff (void)
 			forceroms = 1;
 	}
 
-	regqueryint (NULL, _T("DirectDraw_Secondary"), &ddforceram);
 	if (regexists (NULL, _T("SoundDriverMask"))) {
 		regqueryint (NULL, _T("SoundDriverMask"), &sounddrivermask);
 	} else {
@@ -6749,10 +6744,6 @@ static int parseargs(const TCHAR *argx, const TCHAR *np, const TCHAR *np2)
 		return 2;
 	}
 	if (!_tcscmp (arg, _T("ddforcemode"))) {
-		extern int ddforceram;
-		ddforceram = getval (np);
-		if (ddforceram < 0 || ddforceram > 3)
-			ddforceram = 0;
 		return 2;
 	}
 	if (!_tcscmp (arg, _T("affinity"))) {
@@ -7161,7 +7152,6 @@ static int PASCAL WinMain2 (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR
 #endif
 		WIN32_InitLang ();
 		WIN32_InitHtmlHelp ();
-		DirectDraw_Release ();
 		unicode_init ();
 		can_D3D11(false);
 		if (betamessage ()) {

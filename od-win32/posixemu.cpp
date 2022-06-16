@@ -12,7 +12,6 @@
 #include <windows.h>
 #include <stdlib.h>
 #include <stdarg.h>
-#include <ddraw.h>
 #include <commctrl.h>
 #include <commdlg.h>
 #include <stdio.h>

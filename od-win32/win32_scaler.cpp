@@ -7,11 +7,10 @@
 #include "options.h"
 #include "custom.h"
 #include "xwin.h"
-#include "dxwrap.h"
 #include "win32.h"
 #include "win32gfx.h"
 #include "gfxfilter.h"
-#include "dxwrap.h"
+#include "render.h"
 #include "statusline.h"
 #include "drawing.h"
 #include "direct3d.h"
@@ -48,12 +47,10 @@ static int dst_width, dst_height, amiga_width, amiga_height, amiga_depth, dst_de
 static int dst_width2, dst_height2, amiga_width2, amiga_height2, amiga_depth2, dst_depth2;
 static int temp_width, temp_height;
 uae_u8 *bufmem_ptr;
-static LPDIRECTDRAWSURFACE7 tempsurf;
 static uae_u8 *tempsurf2, *tempsurf3;
 static int cleartemp;
 static uae_u32 rc[256], gc[256], bc[256];
 static int deskw, deskh;
-static int d3d;
 static bool inited;
 
 void getfilteroffset(int monid, float *dx, float *dy, float *mx, float *my)
@@ -881,34 +878,6 @@ uae_u8 *getfilterbuffer(int monid, int *widthp, int *heightp, int *pitch, int *d
 #endif
 }
 
-static void statusline(int monid)
-{
-	DDSURFACEDESC2 desc;
-	RECT sr, dr;
-	int y;
-	int lx, ly;
-	int slx, sly;
-
-	if (!(currprefs.leds_on_screen & STATUSLINE_CHIPSET) || !tempsurf)
-		return;
-	statusline_getpos(monid, &slx, &sly, dst_width, dst_height);
-	int m = statusline_get_multiplier(monid) / 100;
-	lx = dst_width;
-	ly = dst_height;
-	SetRect(&sr, slx, 0, slx + lx, TD_TOTAL_HEIGHT * m);
-	SetRect(&dr, slx, sly, slx + lx, sly + TD_TOTAL_HEIGHT * m);
-	DirectDraw_BlitRect(tempsurf, &sr, NULL, &dr);
-	if (DirectDraw_LockSurface(tempsurf, &desc)) {
-		statusline_render(0, (uae_u8*)desc.lpSurface, dst_depth / 8, desc.lPitch, lx, ly, rc, gc, bc, NULL);
-		for (y = 0; y < TD_TOTAL_HEIGHT * m; y++) {
-			uae_u8 *buf = (uae_u8*)desc.lpSurface + y * desc.lPitch;
-			draw_status_line_single(monid, buf, dst_depth / 8, y, lx, rc, gc, bc, NULL);
-		}
-		DirectDraw_UnlockSurface(tempsurf);
-		DirectDraw_BlitRect(NULL, &dr, tempsurf, &sr);
-	}
-}
-
 void S2X_configure(int monid, int rb, int gb, int bb, int rs, int gs, int bs)
 {
 	if (monid)
@@ -936,8 +905,6 @@ void S2X_free(int monid)
 	changed_prefs.leds_on_screen &= ~STATUSLINE_TARGET;
 	currprefs.leds_on_screen &= ~STATUSLINE_TARGET;
 
-	freesurface (tempsurf);
-	tempsurf = 0;
 	xfree (tempsurf2);
 	tempsurf2 = 0;
 	xfree (tempsurf3);
@@ -970,13 +937,11 @@ bool S2X_init(int monid, int dw, int dh, int dd)
 	amiga_depth2 = vb->pixbytes * 8;
 
 	S2X_free(monid);
-	d3d = currprefs.gfx_api;
 	changed_prefs.leds_on_screen |= STATUSLINE_TARGET;
 	currprefs.leds_on_screen |= STATUSLINE_TARGET;
 	statusline_set_multiplier(monid, dw, dh);
 
-	if (d3d)
-		dd = amiga_depth2;
+	dd = amiga_depth2;
 
 	if (dd == 32)
 		alloc_colors_rgb (8, 8, 8, 16, 8, 0, 0, 0, 0, 0, rc, gc, bc);
@@ -1014,60 +979,20 @@ bool S2X_init(int monid, int dw, int dh, int dd)
 	amiga_height = vb->outheight;
 	amiga_depth = vb->pixbytes * 8;
 
-	if (d3d) {
-		int mh = currprefs.gf[ad->picasso_on].gfx_filter_filtermodeh + 1;
-		if (mh < scale)
-			mh = scale;
-		temp_width = dst_width * mh;
-		int mv = currprefs.gf[ad->picasso_on].gfx_filter_filtermodev + 1;
-		if (mv < scale)
-			mv = scale;
-		temp_height = dst_height * mv;
-	} else {
-		temp_width = dst_width * 2;
-		temp_height = dst_height * 2;
-	}
+	int mh = currprefs.gf[ad->picasso_on].gfx_filter_filtermodeh + 1;
+	if (mh < scale)
+		mh = scale;
+	temp_width = dst_width * mh;
+	int mv = currprefs.gf[ad->picasso_on].gfx_filter_filtermodev + 1;
+	if (mv < scale)
+		mv = scale;
+	temp_height = dst_height * mv;
 
 	if (usedfilter->type == UAE_FILTER_HQ2X || usedfilter->type == UAE_FILTER_HQ3X || usedfilter->type == UAE_FILTER_HQ4X) {
 		int w = amiga_width > dst_width ? amiga_width : dst_width;
 		int h = amiga_height > dst_height ? amiga_height : dst_height;
 		tempsurf2 = xmalloc (uae_u8, w * h * (amiga_depth / 8) * ((scale + 1) / 2));
 		tempsurf3 = xmalloc (uae_u8, w * h *(dst_depth / 8) * 4 * scale);
-	}
-	if (!d3d) {
-		for (;;) {
-			if (temp_width > dxcaps.maxwidth)
-				temp_width = dxcaps.maxwidth;
-			if (temp_height > dxcaps.maxheight)
-				temp_height = dxcaps.maxheight;
-			if (temp_width < dst_width)
-				temp_width = dst_width;
-			if (temp_height < dst_height)
-				temp_height = dst_height;
-			tempsurf = allocsurface(temp_width, temp_height);
-			if (tempsurf)
-				break;
-			if (temp_width >= 2 * dst_width || temp_height >= 2 * dst_height) {
-				temp_width = dst_width * 3 / 2;
-				temp_height = dst_height * 3 / 2;
-				continue;
-			}
-			if (temp_width == dst_width * 3 / 2 || temp_height == dst_height * 2) {
-				temp_width = dst_width * 4 / 3;
-				temp_height = dst_height * 4 / 3;
-				continue;
-			}
-			if (temp_width > dst_width || temp_height > dst_height) {
-				temp_width = dst_width;
-				temp_height = dst_height;
-				continue;
-			}
-			break;
-		}
-	}
-	if (!tempsurf && !d3d) {
-		write_log (_T("DDRAW: failed to create temp surface (%dx%d)\n"), temp_width, temp_height);
-		return false;
 	}
 	inited = true;
 	return true;
@@ -1083,8 +1008,6 @@ void S2X_render(int monid, int y_start, int y_end)
 	int aw, ah, aws, ahs;
 	uae_u8 *dptr, *enddptr, *sptr, *endsptr;
 	int ok = 0;
-	RECT sr, dr, zr;
-	DDSURFACEDESC2 desc;
 	int pitch, surf_height;
 	uae_u8 *surfstart;
 
@@ -1104,30 +1027,14 @@ void S2X_render(int monid, int y_start, int y_end)
 	endsptr = vb->bufmemend;
 	bufmem_ptr = sptr;
 
-	if (d3d) {
-		if (D3D_restore)
-			D3D_restore(monid, true);
-		surfstart = D3D_locktexture(monid, &pitch, &surf_height, y_start < -1 ? -1 : (y_start < 0 ? 1 : 0));
-		if (surfstart == NULL)
-			return;
-	} else {
-		if (tempsurf == NULL)
-			return;
-		if (cleartemp) {
-			DirectDraw_ClearSurface (tempsurf);
-			cleartemp = 0;
-		}
-		if (!DirectDraw_LockSurface (tempsurf, &desc))
-			return;
-		pitch = desc.lPitch;
-		surfstart = (uae_u8*)desc.lpSurface;
-		surf_height = desc.dwHeight;
+	if (D3D_restore)
+		D3D_restore(monid, true);
+	surfstart = D3D_locktexture(monid, &pitch, &surf_height, y_start < -1 ? -1 : (y_start < 0 ? 1 : 0));
+	if (surfstart == NULL) {
+		return;
 	}
 	dptr = surfstart;
 	enddptr = dptr + pitch * surf_height;
-	if (!d3d) {
-		dptr = getfilterrect1 (&sr, &dr, dst_width, dst_height, dst_depth, aw, ah, scale, temp_width, temp_height, dptr, pitch);
-	}
 
 	if (!dptr) /* weird things can happen */
 		goto end;
@@ -1275,33 +1182,13 @@ void S2X_render(int monid, int y_start, int y_end)
 		usedfilter = &uaefilters[0];
 		changed_prefs.gf[ad->picasso_on].gfx_filter = usedfilter->type;
 	}
-
-end:
-	if (d3d) {
-		;//D3D_unlocktexture (); unlock in win32gfx.c
-	} else {
-		DirectDraw_UnlockSurface (tempsurf);
-	
-		getfilterrect2(monid, &dr, &sr, &zr, dst_width, dst_height, aw, ah, scale, temp_width, temp_height);
-		//write_log (_T("(%d %d %d %d) - (%d %d %d %d) (%d %d)\n"), dr.left, dr.top, dr.right, dr.bottom, sr.left, sr.top, sr.right, sr.bottom, zr.left, zr.top);
-		OffsetRect (&sr, zr.left, zr.top);
-		if (sr.left < 0)
-			sr.left = 0;
-		if (sr.top < 0)
-			sr.top = 0;
-		if (sr.right <= temp_width && sr.bottom <= temp_height) {
-			if (sr.left < sr.right && sr.top < sr.bottom)
-				DirectDraw_BlitRect (NULL, &dr, tempsurf, &sr);
-		}
-		statusline(monid);
-	}
+end:;
 }
 
 void S2X_refresh(int monid)
 {
 	if (monid)
 		return;
-	DirectDraw_ClearSurface(NULL);
 	S2X_render(monid, -1, -1);
 }
 

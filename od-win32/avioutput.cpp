@@ -10,8 +10,6 @@ Copyright(c) 2001 - 2002; §ane
 
 #include <windows.h>
 
-#include <ddraw.h>
-
 #include <mmsystem.h>
 #include <vfw.h>
 #include <msacm.h>
@@ -29,7 +27,7 @@ Copyright(c) 2001 - 2002; §ane
 #include "memory.h"
 #include "newcpu.h"
 #include "picasso96.h"
-#include "dxwrap.h"
+#include "render.h"
 #include "win32.h"
 #include "win32gfx.h"
 #include "direct3d.h"

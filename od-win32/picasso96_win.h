@@ -10,7 +10,7 @@
 
 #ifdef PICASSO96
 
-#include "dxwrap.h"
+#include "render.h"
 
 #define NOSIGNAL 0xFFFFFFFF
 

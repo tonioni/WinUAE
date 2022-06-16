@@ -67,7 +67,7 @@
 #include "inputdevice.h"
 #include "debug.h"
 #include "registry.h"
-#include "dxwrap.h"
+#include "render.h"
 #ifdef RETROPLATFORM
 #include "rp.h"
 #endif
@@ -77,7 +77,6 @@
 #include "clipboard.h"
 #include "gfxboard.h"
 #include "gfxfilter.h"
-#include "dxwrap.h"
 #include "devices.h"
 
 int debug_rtg_blitter = 3;
@@ -1063,11 +1062,7 @@ static void setconvert(int monid)
 	} else {
 		vidinfo->picasso_convert[0] = vidinfo->picasso_convert[1] = getconvert(state->RGBFormat, picasso_vidinfo[monid].pixbytes);
 	}
-	if (currprefs.gfx_api) {
-		vidinfo->host_mode = picasso_vidinfo[monid].pixbytes == 4 ? RGBFB_B8G8R8A8 : RGBFB_B5G6R5PC;
-	} else {
-		vidinfo->host_mode = DirectDraw_GetSurfacePixelFormat(NULL);
-	}
+	vidinfo->host_mode = picasso_vidinfo[monid].pixbytes == 4 ? RGBFB_B8G8R8A8 : RGBFB_B5G6R5PC;
 	if (picasso_vidinfo[monid].pixbytes == 4)
 		alloc_colors_rgb(8, 8, 8, 16, 8, 0, 0, 0, 0, 0, p96rc, p96gc, p96bc);
 	else
@@ -1134,11 +1129,6 @@ void picasso_refresh(int monid)
 				state->VirtualWidth : state->Width;
 			height = (state->VirtualHeight < state->Height) ?
 				state->VirtualHeight : state->Height;
-			// Let's put a black-border around the case where we've got a sub-screen...
-			if (!state->BigAssBitmap) {
-				if (state->XOffset || state->YOffset)
-					DX_Fill(mon, 0, 0, state->Width, state->Height, 0);
-			}
 		} else {
 			width = state->Width;
 			height = state->Height;

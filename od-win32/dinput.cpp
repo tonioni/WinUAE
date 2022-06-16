@@ -48,7 +48,7 @@ int no_windowsmouse = 0;
 #include "catweasel.h"
 #include "keyboard.h"
 #include "custom.h"
-#include "dxwrap.h"
+#include "render.h"
 #include "akiko.h"
 #include "clipboard.h"
 #include "tabletlibrary.h"

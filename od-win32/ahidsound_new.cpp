@@ -34,7 +34,7 @@
 #include "win32.h"
 #include "sounddep/sound.h"
 #include "ahidsound_new.h"
-#include "dxwrap.h"
+#include "render.h"
 
 #include <al.h>
 #include <alc.h>

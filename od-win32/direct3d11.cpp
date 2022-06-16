@@ -15,7 +15,7 @@ using Microsoft::WRL::ComPtr;
 
 #include "options.h"
 #include "xwin.h"
-#include "dxwrap.h"
+#include "render.h"
 #include "win32.h"
 #include "win32gfx.h"
 #include "direct3d.h"
@@ -5415,7 +5415,9 @@ void d3d_select(struct uae_prefs *p)
 	for (int i = 0; i < MAX_AMIGAMONITORS; i++) {
 		d3d11data[i].num = i;
 	}
-	if (p->gfx_api >= 2)
+	if (p->gfx_api == 0)
+		gdi_select();
+	else if (p->gfx_api >= 2)
 		d3d11_select();
 	else
 		d3d9_select();

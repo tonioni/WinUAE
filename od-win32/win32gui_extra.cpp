@@ -1556,7 +1556,7 @@ static void boxartpaint(HDC hdc, HWND hwnd)
 			Gdiplus::Rect d(x1, y1, x2, y2);
 			graphics.DrawImage(img, d);
 
-			Gdiplus::Rect d2(x1 - 1, y1 - 1, x2 + 1, y2 + 1);
+			Gdiplus::Rect d2(x1 - 1, y1 - 1, x2 + 2, y2 + 2);
 			if (im->metafile) {
 				graphics.DrawRectangle(&pen2, d2);
 			} else {

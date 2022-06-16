@@ -22,7 +22,7 @@
 #include "threaddep/thread.h"
 #include "avioutput.h"
 #include "gui.h"
-#include "dxwrap.h"
+#include "render.h"
 #include "win32.h"
 #include "savestate.h"
 #include "driveclick.h"
