@@ -7110,11 +7110,12 @@ static void enable_for_quickstart (HWND hDlg)
 
 static void load_quickstart (HWND hDlg, int romcheck)
 {
+	bool cdmodel = quickstart_model == 8 || quickstart_model == 9;
 	ew (guiDlg, IDC_RESETAMIGA, FALSE);
 	workprefs.nr_floppies = quickstart_floppy;
 	quickstart_ok = built_in_prefs (&workprefs, quickstart_model, quickstart_conf, quickstart_compa, romcheck);
 	workprefs.ntscmode = quickstart_ntsc != 0;
-	quickstart_cd = workprefs.floppyslots[1].dfxtype == DRV_NONE && (quickstart_model == 8 || quickstart_model == 9);
+	quickstart_cd = workprefs.floppyslots[1].dfxtype == DRV_NONE && cdmodel;
 	// DF0: HD->DD
 	if (quickstart_model <= 4) {
 		if (quickstart_floppytype[0] == 1) {
@@ -7122,6 +7123,20 @@ static void load_quickstart (HWND hDlg, int romcheck)
 		}
 	}
 	for (int i = 0; i < 2; i++) {
+		if (cdmodel) {
+			quickstart_floppytype[i] = DRV_NONE;
+			quickstart_floppysubtype[i] = 0;
+			quickstart_floppysubtypeid[i][0] = 0;
+		} else {
+			if (quickstart_floppy < 1) {
+				quickstart_floppy = 1;
+			}
+			if (i == 0 && quickstart_floppytype[i] != DRV_35_DD && quickstart_floppytype[i] != DRV_35_HD) {
+				quickstart_floppytype[i] = DRV_35_DD;
+				quickstart_floppysubtype[i] = 0;
+				quickstart_floppysubtypeid[i][0] = 0;
+			}
+		}
 		if (i < quickstart_floppy) {
 			workprefs.floppyslots[i].dfxtype = quickstart_floppytype[i];
 			workprefs.floppyslots[i].dfxsubtype = quickstart_floppysubtype[i];
@@ -7731,6 +7746,7 @@ static INT_PTR CALLBACK QuickstartDlgProc (HWND hDlg, UINT msg, WPARAM wParam, L
 			break;
 		}
 		recursive--;
+		break;
 	case WM_HSCROLL:
 		if (recursive > 0)
 			break;
@@ -16015,7 +16031,6 @@ static void addfloppytype (HWND hDlg, int n)
 	TCHAR *text;
 	bool qs = currentpage == QUICKSTART_ID;
 
-
 	int f_text = floppybuttons[n][0];
 	int f_drive = floppybuttons[n][1];
 	int f_eject = floppybuttons[n][2];
@@ -16097,7 +16112,11 @@ static void addfloppytype (HWND hDlg, int n)
 		ew (hDlg, f_drive, state && !fb);
 	if (f_enable >= 0) {
 		if (qs) {
-			ew (hDlg, f_enable, (n > 0 && workprefs.nr_floppies > 0) && !showcd);
+			if (quickstart_cd && n == 0 && currentpage == QUICKSTART_ID) {
+				ew(hDlg, f_enable, TRUE);
+			} else {
+				ew(hDlg, f_enable, (n > 0 && workprefs.nr_floppies > 0) && !showcd);
+			}
 		} else {
 			ew (hDlg, f_enable, TRUE);
 		}
@@ -16277,6 +16296,9 @@ static void getfloppytypeq(HWND hDlg, int n, bool type)
 			if (qs) {
 				if (n == 1) {
 					quickstart_floppy = 1;
+				}
+				if (quickstart_cd && n == 0) {
+					quickstart_floppy = 0;
 				}
 				workprefs.nr_floppies = quickstart_floppy;
 			}
