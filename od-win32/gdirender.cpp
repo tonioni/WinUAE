@@ -30,6 +30,7 @@ struct gdibm
 
 struct gdistruct
 {
+	int enabled;
 	int num;
 	int width, height, depth;
 	int wwidth, wheight;
@@ -200,7 +201,8 @@ static uae_u8 *gdi_locktexture(int monid, int *pitch, int *height, int fullupdat
 	struct gdistruct *gdi = &gdidata[monid];
 	if (gdi->bits) {
 		*pitch = gdi->pitch;
-		*height = gdi->height;
+		if (height)
+			*height = gdi->height;
 		return (uae_u8*)gdi->bits;
 	}
 	return NULL;
@@ -239,17 +241,14 @@ static void gdi_showframe(int monid)
 		StretchBlt(gdi->hdc, 0, 0, gdi->wwidth, gdi->wheight, gdi->thdc, 0, 0, gdi->width, gdi->height, SRCCOPY);
 	}
 	if (gdi->osd.active && gdi->osd.hbm) {
-		BLENDFUNCTION bf = { 0 };
-		bf.BlendOp = AC_SRC_OVER;
-		bf.SourceConstantAlpha = 255;
-		bf.AlphaFormat = AC_SRC_ALPHA;
-		AlphaBlend(gdi->hdc, gdi->osd.x, gdi->osd.y, gdi->ledwidth, gdi->ledheight, gdi->osd.thdc, 0, 0, gdi->ledwidth, gdi->ledheight, bf);
+		TransparentBlt(gdi->hdc, gdi->osd.x, gdi->osd.y, gdi->ledwidth, gdi->ledheight, gdi->osd.thdc, 0, 0, gdi->ledwidth, gdi->ledheight, 0x000000);
 	}
 }
 
 void gdi_free(int monid, bool immediate)
 {
 	struct gdistruct *gdi = &gdidata[monid];
+	gdi->enabled = 0;
 	freetexture(monid);
 }
 
@@ -271,9 +270,31 @@ static const TCHAR *gdi_init(HWND ahwnd, int monid, int w_w, int w_h, int depth,
 	gdi->ledheight = TD_TOTAL_HEIGHT * gdi->statusbar_vx;
 	allocsprite(gdi, &gdi->osd, gdi->ledwidth, gdi->ledheight);
 
+	gdi->enabled = 1;
+
 	return NULL;
 }
 
+static HDC gdi_getDC(int monid, HDC hdc)
+{
+	struct gdistruct *gdi = &gdidata[monid];
+
+	if (!hdc) {
+		return gdi->hdc;
+	}
+	return NULL;
+}
+
+static int gdi_isenabled(int monid)
+{
+	struct gdistruct *gdi = &gdidata[monid];
+	return gdi->enabled ? -1 : 0;
+}
+
+static void gdi_clear(int monid)
+{
+	struct gdistruct *gdi = &gdidata[monid];
+}
 
 void gdi_select(void)
 {
@@ -296,9 +317,9 @@ void gdi_select(void)
 	D3D_showframe = gdi_showframe;
 	D3D_showframe_special = NULL;
 	D3D_guimode = gdi_guimode;
-	D3D_getDC = NULL;
-	D3D_isenabled = NULL;
-	D3D_clear = NULL;
+	D3D_getDC = gdi_getDC;
+	D3D_isenabled = gdi_isenabled;
+	D3D_clear = gdi_clear;
 	D3D_canshaders = NULL;
 	D3D_goodenough = NULL;
 	D3D_setcursor = NULL;

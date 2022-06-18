@@ -90,9 +90,9 @@ static void write_tdnumber(uae_u8 *buf, int bpp, int x, int y, int num, uae_u32 
 	for (j = 0; j < td_numbers_width; j++) {
 		for (int k = 0; k < mult; k++) {
 			if (*numptr == 'x')
-				putpixel(buf, NULL, bpp, x + j * mult + k, c1, 1);
+				putpixel(buf, NULL, bpp, x + j * mult + k, c1);
 			else if (*numptr == '+')
-				putpixel(buf, NULL, bpp, x + j * mult + k, c2, 0);
+				putpixel(buf, NULL, bpp, x + j * mult + k, c2);
 		}
 		numptr++;
 	}
@@ -171,7 +171,7 @@ void draw_status_line_single(int monid, uae_u8 *buf, int bpp, int y, int totalwi
 	y /= mult;
 
 	c1 = ledcolor (0x00ffffff, rc, gc, bc, alpha);
-	c2 = ledcolor (0x00000000, rc, gc, bc, alpha);
+	c2 = ledcolor (0x00111111, rc, gc, bc, alpha);
 
 	if (td_numbers_pos & TD_RIGHT)
 		x_start = totalwidth - (td_numbers_padx + VISIBLE_LEDS * td_width) * mult;
@@ -252,12 +252,12 @@ void draw_status_line_single(int monid, uae_u8 *buf, int bpp, int y, int totalwi
 				num2 = -1;
 				num3 = 16;
 				on_rgb = 0xcccccc;
-				off_rgb = 0x000000;
+				off_rgb = 0x111111;
 				am = 2;
 			} else {
 				int fps = (gui_data.fps + 5) / 10;
-				on_rgb = 0x000000;
-				off_rgb = gui_data.fps_color == 1 ? 0xcccc00 : (gui_data.fps_color == 2 ? 0x0000cc : 0x000000);
+				on_rgb = 0x111111;
+				off_rgb = gui_data.fps_color == 1 ? 0xcccc00 : (gui_data.fps_color == 2 ? 0x0000cc : 0x111111);
 				am = 3;
 				if (gui_data.fps_color >= 2) {
 					num1 = -1;
@@ -289,12 +289,12 @@ void draw_status_line_single(int monid, uae_u8 *buf, int bpp, int y, int totalwi
 			int idle = (gui_data.idle + 5) / 10;
 			pos = 1;
 			on_rgb = 0xcc0000;
-			off_rgb = 0x000000;
+			off_rgb = 0x111111;
 			if (gui_data.cpu_halted) {
 				idle = 0;
 				on = 1;
 				if (gui_data.cpu_halted < 0) {
-					on_rgb = 0x000000;
+					on_rgb = 0x111111;
 					num1 = 16; // PPC
 					num2 = 16;
 					num3 = 10;
@@ -329,14 +329,14 @@ void draw_status_line_single(int monid, uae_u8 *buf, int bpp, int y, int totalwi
 				num2 = snd / 10;
 				num3 = snd % 10;
 			}
-			on_rgb = 0x000000;
+			on_rgb = 0x111111;
 			if (on < 0)
 				on_rgb = 0xcccc00; // underflow
 			else if (on == 2)
 				on_rgb = 0xcc0000; // really big overflow
 			else if (on == 1)
 				on_rgb = 0x0000cc; // "normal" overflow
-			off_rgb = 0x000000;
+			off_rgb = 0x111111;
 			am = 3;
 		} else if (led == LED_MD) {
 			// DF3 reused as internal non-volatile ram led (cd32/cdtv)
@@ -362,7 +362,7 @@ void draw_status_line_single(int monid, uae_u8 *buf, int bpp, int y, int totalwi
 					on_rgb |= 0x00cc00;
 				if (on & 2)
 					on_rgb |= 0xcc0000;
-				off_rgb = 0x000000;
+				off_rgb = 0x111111;
 				num1 = -1;
 				num2 = -1;
 				num3 = 17;
@@ -371,8 +371,8 @@ void draw_status_line_single(int monid, uae_u8 *buf, int bpp, int y, int totalwi
 		} else {
 			continue;
 		}
-		on_rgb |= 0x33000000;
-		off_rgb |= 0x33000000;
+		on_rgb |= 0x33111111;
+		off_rgb |= 0x33111111;
 		if (half > 0) {
 			int halfon = y >= TD_TOTAL_HEIGHT / 2;
 			c = ledcolor(on ? (halfon ? on_rgb2 : on_rgb) : off_rgb, rc, gc, bc, alpha);
@@ -396,13 +396,13 @@ void draw_status_line_single(int monid, uae_u8 *buf, int bpp, int y, int totalwi
 		x = x_start + pos * td_width * mult;
 		for (int xx = 0; xx < mult; xx++) {
 			if (!border) {
-				putpixel(buf, NULL, bpp, x - mult + xx, cb, 0);
+				putpixel(buf, NULL, bpp, x - mult + xx, cb);
 			}
 			for (j = 0; j < td_led_width * mult; j += mult) {
-				putpixel(buf, NULL, bpp, x + j + xx, c, 0);
+				putpixel(buf, NULL, bpp, x + j + xx, c);
 			}
 			if (!border) {
-				putpixel(buf, NULL, bpp, x + j + xx, cb, 0);
+				putpixel(buf, NULL, bpp, x + j + xx, cb);
 			}
 		}
 
