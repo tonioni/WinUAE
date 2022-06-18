@@ -804,7 +804,7 @@ static void disablemouse (void)
 		return;
 	if (!currprefs.gfx_api)
 		return;
-	D3D_setcursor(0, 0, 0, 0, 0, false, true);
+	D3D_setcursor(0, 0, 0, 0, 0, 0, 0, false, true);
 }
 
 static void mouseupdate(struct AmigaMonitor *mon)
@@ -812,6 +812,8 @@ static void mouseupdate(struct AmigaMonitor *mon)
 	struct picasso96_state_struct *state = &picasso96_state[mon->monitor_id];
 	int x = newcursor_x;
 	int y = newcursor_y;
+	float mx = currprefs.gf[1].gfx_filter_horiz_zoom_mult;
+	float my = currprefs.gf[1].gfx_filter_vert_zoom_mult;
 	int forced = 0;
 
 	if (!hwsprite)
@@ -827,9 +829,9 @@ static void mouseupdate(struct AmigaMonitor *mon)
 	if (!currprefs.gfx_api)
 		return;
 	if (currprefs.gf[1].gfx_filter_autoscale == RTG_MODE_CENTER) {
-		D3D_setcursor(mon->monitor_id, x, y, WIN32GFX_GetWidth(mon), WIN32GFX_GetHeight(mon), cursorvisible, mon->scalepicasso == 2);
+		D3D_setcursor(mon->monitor_id, x, y, WIN32GFX_GetWidth(mon), WIN32GFX_GetHeight(mon), mx, my, cursorvisible, mon->scalepicasso == 2);
 	} else {
-		D3D_setcursor(mon->monitor_id, x, y, state->Width, state->Height, cursorvisible, false);
+		D3D_setcursor(mon->monitor_id, x, y, state->Width, state->Height, mx, my, cursorvisible, false);
 	}
 }
 
@@ -2628,7 +2630,7 @@ static void inituaegfx(TrapContext *ctx, uaecptr ABI)
 	flags |= BIF_NOMEMORYMODEMIX;
 	flags |= BIF_GRANTDIRECTACCESS;
 	flags &= ~BIF_HARDWARESPRITE;
-	if (currprefs.gfx_api && D3D_goodenough () > 0 && D3D_setcursor(0, -1, -1, -1, -1, false, false) && USE_HARDWARESPRITE && currprefs.rtg_hardwaresprite) {
+	if (currprefs.gfx_api && D3D_goodenough () > 0 && D3D_setcursor && D3D_setcursor(0, -1, -1, -1, -1, 0, 0, false, false) && USE_HARDWARESPRITE && currprefs.rtg_hardwaresprite) {
 		hwsprite = 1;
 		flags |= BIF_HARDWARESPRITE;
 		write_log (_T("P96: Hardware sprite support enabled\n"));

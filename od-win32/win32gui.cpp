@@ -19583,7 +19583,7 @@ static void enable_for_hw3ddlg (HWND hDlg)
 {
 	int v = workprefs.gf[filter_nativertg].gfx_filter ? TRUE : FALSE;
 	int scalemode = workprefs.gf[filter_nativertg].gfx_filter_autoscale;
-	int vv = FALSE, vv2 = FALSE, vv3 = FALSE;
+	int vv = FALSE, vv2 = FALSE, vv3 = FALSE, vv4 = FALSE;
 	int as = FALSE;
 	struct uae_filter *uf;
 	int i, isfilter;
@@ -19599,14 +19599,18 @@ static void enable_for_hw3ddlg (HWND hDlg)
 		}
 		i++;
 	}
-	if (v && uf->intmul)
+	if (v && uf->intmul) {
 		vv = TRUE;
-	if (v && uf->yuv)
+	}
+	if (v && uf->yuv) {
 		vv2 = TRUE;
-	if (workprefs.gfx_api)
-		v = vv = vv2 = vv3 = TRUE;
-	if (filter_nativertg)
-		v = FALSE;
+	}
+	if (workprefs.gfx_api) {
+		v = vv = vv2 = vv3 = vv4 = TRUE;
+	}
+	if (filter_nativertg) {
+		vv4 = FALSE;
+	}
 	if (scalemode == AUTOSCALE_STATIC_AUTO || scalemode == AUTOSCALE_STATIC_NOMINAL || scalemode == AUTOSCALE_STATIC_MAX)
 		as = TRUE;
 
@@ -19614,8 +19618,8 @@ static void enable_for_hw3ddlg (HWND hDlg)
 	ew(hDlg, IDC_FILTERVZMULT, v && !as);
 	ew(hDlg, IDC_FILTERHZ, v);
 	ew(hDlg, IDC_FILTERVZ, v);
-	ew(hDlg, IDC_FILTERHO, v);
-	ew(hDlg, IDC_FILTERVO, v);
+	ew(hDlg, IDC_FILTERHO, v && vv4);
+	ew(hDlg, IDC_FILTERVO, v && vv4);
 	ew(hDlg, IDC_FILTERSLR, vv3);
 	ew(hDlg, IDC_FILTERXL, vv2);
 	ew(hDlg, IDC_FILTERXLV, vv2);
@@ -20540,10 +20544,12 @@ static INT_PTR CALLBACK hw3dDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 					break;
 				case IDC_FILTERHZMULT:
 					currprefs.gf[filter_nativertg].gfx_filter_horiz_zoom_mult = workprefs.gf[filter_nativertg].gfx_filter_horiz_zoom_mult = getfiltermult (hDlg, IDC_FILTERHZMULT);
+					workprefs.gf[filter_nativertg].changed = true;
 					updatedisplayarea(-1);
 					break;
 				case IDC_FILTERVZMULT:
 					currprefs.gf[filter_nativertg].gfx_filter_vert_zoom_mult = workprefs.gf[filter_nativertg].gfx_filter_vert_zoom_mult = getfiltermult (hDlg, IDC_FILTERVZMULT);
+					workprefs.gf[filter_nativertg].changed = true;
 					updatedisplayarea(-1);
 					break;
 				case IDC_FILTERASPECT:
@@ -20613,20 +20619,30 @@ static INT_PTR CALLBACK hw3dDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 				}
 			} else {
 				if (h == hz) {
-					fd->gfx_filter_horiz_zoom = fdwp->gfx_filter_horiz_zoom = (float)SendMessage (hz, TBM_GETPOS, 0, 0);
+					fd->gfx_filter_horiz_zoom = (float)SendMessage (hz, TBM_GETPOS, 0, 0);
 					if (fdwp->gfx_filter_keep_aspect) {
-						fd->gfx_filter_vert_zoom = fdwp->gfx_filter_vert_zoom = currprefs.gf[filter_nativertg].gfx_filter_horiz_zoom;
+						fd->gfx_filter_vert_zoom = currprefs.gf[filter_nativertg].gfx_filter_horiz_zoom;
 						xSendDlgItemMessage (hDlg, IDC_FILTERVZ, TBM_SETPOS, TRUE, (int)fdwp->gfx_filter_vert_zoom);
 					}
 				} else if (h == vz) {
-					fd->gfx_filter_vert_zoom = fdwp->gfx_filter_vert_zoom = (float)SendMessage (vz, TBM_GETPOS, 0, 0);
+					fd->gfx_filter_vert_zoom = (float)SendMessage (vz, TBM_GETPOS, 0, 0);
 					if (fdwp->gfx_filter_keep_aspect) {
-						fd->gfx_filter_horiz_zoom = fdwp->gfx_filter_horiz_zoom = currprefs.gf[filter_nativertg].gfx_filter_vert_zoom;
+						fd->gfx_filter_horiz_zoom = currprefs.gf[filter_nativertg].gfx_filter_vert_zoom;
 						xSendDlgItemMessage (hDlg, IDC_FILTERHZ, TBM_SETPOS, TRUE, (int)fdwp->gfx_filter_horiz_zoom);
 					}
 				}
-				fd->gfx_filter_horiz_offset = fdwp->gfx_filter_horiz_offset = (float)SendMessage (GetDlgItem (hDlg, IDC_FILTERHO), TBM_GETPOS, 0, 0);
-				fd->gfx_filter_vert_offset = fdwp->gfx_filter_vert_offset = (float)SendMessage (GetDlgItem (hDlg, IDC_FILTERVO), TBM_GETPOS, 0, 0);
+				if (fd->gfx_filter_horiz_zoom != fdwp->gfx_filter_horiz_zoom) {
+					fdwp->gfx_filter_horiz_zoom = fd->gfx_filter_horiz_zoom;
+					fdwp->changed = true;
+				}
+				if (fd->gfx_filter_vert_zoom != fdwp->gfx_filter_vert_zoom) {
+					fdwp->gfx_filter_vert_zoom = fd->gfx_filter_vert_zoom;
+					fdwp->changed = true;
+				}
+				fdwp->gfx_filter_horiz_offset = (float)SendMessage (GetDlgItem (hDlg, IDC_FILTERHO), TBM_GETPOS, 0, 0);
+				fdwp->gfx_filter_vert_offset = (float)SendMessage(GetDlgItem(hDlg, IDC_FILTERVO), TBM_GETPOS, 0, 0);
+				fd->gfx_filter_horiz_offset = fdwp->gfx_filter_horiz_offset;
+				fd->gfx_filter_vert_offset = fdwp->gfx_filter_vert_offset;
 				SetDlgItemInt (hDlg, IDC_FILTERHOV, (int)workprefs.gf[filter_nativertg].gfx_filter_horiz_offset, TRUE);
 				SetDlgItemInt (hDlg, IDC_FILTERVOV, (int)workprefs.gf[filter_nativertg].gfx_filter_vert_offset, TRUE);
 				SetDlgItemInt (hDlg, IDC_FILTERHZV, (int)workprefs.gf[filter_nativertg].gfx_filter_horiz_zoom, TRUE);

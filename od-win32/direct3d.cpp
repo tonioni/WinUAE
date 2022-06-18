@@ -202,7 +202,8 @@ struct d3dstruct
 	int required_sl_texture_w, required_sl_texture_h;
 	int vsync2, guimode, maxscanline, variablerefresh;
 	int resetcount;
-	double cursor_x, cursor_y;
+	float cursor_x, cursor_y;
+	float cursor_mx, cursor_my;
 	bool cursor_v, cursor_scale;
 	int statusbar_vx, statusbar_hx;
 
@@ -3533,13 +3534,16 @@ static void D3D_render2(struct d3dstruct *d3d, int mode)
 		d3d->sprite->Begin(D3DXSPRITE_ALPHABLEND);
 		if (d3d->cursorsurfaced3d && d3d->cursor_v) {
 			D3DXMATRIXA16 t;
-
+			int bl = d3d->filterd3d->gfx_filter_bilinear ? D3DTEXF_LINEAR : D3DTEXF_POINT;
+			d3d->d3ddev->SetSamplerState(0, D3DSAMP_MAGFILTER, bl);
+			d3d->d3ddev->SetSamplerState(0, D3DSAMP_MINFILTER, bl);
+			d3d->d3ddev->SetSamplerState(0, D3DSAMP_MIPFILTER, bl);
 			if (d3d->cursor_scale)
-				MatrixScaling(&t, ((float)(d3d->window_w) / (d3d->tout_w + 2 * d3d->cursor_offset2_x)), ((float)(d3d->window_h) / (d3d->tout_h + 2 * d3d->cursor_offset2_y)), 0);
+				MatrixScaling(&t, ((float)(d3d->window_w) / (d3d->tout_w + 2 * d3d->cursor_offset2_x)) * d3d->cursor_mx, ((float)(d3d->window_h) / (d3d->tout_h + 2 * d3d->cursor_offset2_y)) * d3d->cursor_my, 0);
 			else
-				MatrixScaling(&t, 1.0f, 1.0f, 0);
-			v.x = (float)d3d->cursor_x + d3d->cursor_offset2_x;
-			v.y = (float)d3d->cursor_y + d3d->cursor_offset2_y;
+				MatrixScaling(&t, d3d->cursor_mx, d3d->cursor_my, 0);
+			v.x = (float)d3d->cursor_x / d3d->cursor_mx + d3d->cursor_offset2_x;
+			v.y = (float)d3d->cursor_y / d3d->cursor_my + d3d->cursor_offset2_y;
 			v.z = 0.0f;
 			d3d->sprite->SetTransform(&t);
 			d3d->sprite->Draw(d3d->cursorsurfaced3d, NULL, NULL, &v, 0xffffffff);
@@ -3672,7 +3676,7 @@ static void D3D_render2(struct d3dstruct *d3d, int mode)
 		write_log (_T("%s: EndScene() %s\n"), D3DHEAD, D3D_ErrorString (hr));
 }
 
-static bool xD3D_setcursor(int monid, int x, int y, int width, int height, bool visible, bool noscale)
+static bool xD3D_setcursor(int monid, int x, int y, int width, int height, float mx, float my, bool visible, bool noscale)
 {
 	struct d3dstruct *d3d = &d3ddata[monid];
 
@@ -3682,8 +3686,10 @@ static bool xD3D_setcursor(int monid, int x, int y, int width, int height, bool 
 	if (width && height) {
 		d3d->cursor_offset2_x = d3d->cursor_offset_x * d3d->window_w / width;
 		d3d->cursor_offset2_y = d3d->cursor_offset_y * d3d->window_h / height;
-		d3d->cursor_x = x * d3d->window_w / width;
-		d3d->cursor_y = y * d3d->window_h / height;
+		d3d->cursor_x = (float)x * d3d->window_w / width;
+		d3d->cursor_y = (float)y * d3d->window_h / height;
+		d3d->cursor_mx = mx;
+		d3d->cursor_my = my;
 	} else {
 		d3d->cursor_x = d3d->cursor_y = 0;
 		d3d->cursor_offset2_x = d3d->cursor_offset2_y = 0;

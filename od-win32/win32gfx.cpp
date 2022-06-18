@@ -1542,58 +1542,6 @@ void flush_clear_screen (struct vidbuffer *vb)
 	}
 }
 
-static void DX_Blit96(struct AmigaMonitor *mon, int x, int y, int w, int h)
-{
-	struct picasso96_state_struct *state = &picasso96_state[mon->monitor_id];
-	RECT dr, sr;
-
-	picasso_offset_x = 0;
-	picasso_offset_y = 0;
-	picasso_offset_mx = 1.0;
-	picasso_offset_my = 1.0;
-	if (mon->scalepicasso) {
-		int srcratio, dstratio;
-		int srcwidth, srcheight;
-
-		if (mon->scalepicasso < 0 || mon->scalepicasso > 1) {
-			srcwidth = state->Width;
-			srcheight = state->Height;
-		} else {
-			srcwidth = mon->currentmode.native_width;
-			srcheight = mon->currentmode.native_height;
-		}
-
-		SetRect (&sr, 0, 0, state->Width, state->Height);
-		if (currprefs.win32_rtgscaleaspectratio < 0) {
-			// automatic
-			srcratio = state->Width * ASPECTMULT / state->Height;
-			dstratio = srcwidth * ASPECTMULT / srcheight;
-		} else if (currprefs.win32_rtgscaleaspectratio == 0) {
-			// none
-			srcratio = dstratio = 0;
-		} else {
-			// manual
-			srcratio = currprefs.win32_rtgscaleaspectratio;
-			dstratio = srcwidth * ASPECTMULT / srcheight;
-		}
-		if (srcratio == dstratio) {
-			SetRect (&dr, 0, 0, srcwidth, srcheight);
-		} else if (srcratio > dstratio) {
-			int yy = srcheight - srcheight * dstratio / srcratio;
-			SetRect (&dr, 0, yy / 2, srcwidth, srcheight - yy / 2);
-			picasso_offset_y = yy / 2;
-		} else {
-			int xx = srcwidth - srcwidth * srcratio / dstratio;
-			SetRect (&dr, xx / 2, 0,srcwidth - xx / 2, srcheight);
-			picasso_offset_x = xx / 2;
-		}
-		picasso_offset_mx = (float)state->Width / (dr.right - dr.left);
-		picasso_offset_my = (float)state->Height / (dr.bottom - dr.top);
-	} else {
-		SetRect (&sr, x, y, x + w, y + h);
-	}
-}
-
 void getrtgfilterrect2(int monid, RECT *sr, RECT *dr, RECT *zr, int dst_width, int dst_height)
 {
 	struct AmigaMonitor *mon = &AMonitors[monid];
@@ -1611,6 +1559,14 @@ void getrtgfilterrect2(int monid, RECT *sr, RECT *dr, RECT *zr, int dst_width, i
 
 	if (!ad->picasso_on)
 		return;
+
+	if (currprefs.gf[1].gfx_filter_horiz_zoom_mult > 0) {
+		picasso_offset_mx *= currprefs.gf[1].gfx_filter_horiz_zoom_mult * currprefs.gf[1].gfx_filter_horiz_zoom / 1000.0f;
+	}
+	if (currprefs.gf[1].gfx_filter_vert_zoom_mult > 0) {
+		picasso_offset_my *= currprefs.gf[1].gfx_filter_vert_zoom_mult * currprefs.gf[1].gfx_filter_vert_zoom / 1000.0f;
+	}
+
 	if (!mon->scalepicasso)
 		return;
 
@@ -1864,8 +1820,18 @@ static void update_gfxparams(struct AmigaMonitor *mon)
 #ifdef PICASSO96
 	mon->currentmode.vsync = 0;
 	if (mon->screen_is_picasso) {
-		mon->currentmode.current_width = (int)(state->Width * currprefs.rtg_horiz_zoom_mult);
-		mon->currentmode.current_height = (int)(state->Height * currprefs.rtg_vert_zoom_mult);
+		float mx = 1.0;
+		float my = 1.0;
+		if (currprefs.gf[1].gfx_filter_horiz_zoom_mult > 0) {
+			mx *= currprefs.gf[1].gfx_filter_horiz_zoom_mult;
+		}
+		if (currprefs.gf[1].gfx_filter_vert_zoom_mult > 0) {
+			my *= currprefs.gf[1].gfx_filter_vert_zoom_mult;
+		}
+		mx = mx + mx * currprefs.gf[1].gfx_filter_horiz_zoom / 1000.0f;
+		my = my + my * currprefs.gf[1].gfx_filter_vert_zoom / 1000.0f;
+		mon->currentmode.current_width = (int)(state->Width * currprefs.rtg_horiz_zoom_mult * mx);
+		mon->currentmode.current_height = (int)(state->Height * currprefs.rtg_vert_zoom_mult * my);
 		currprefs.gfx_apmode[1].gfx_interlaced = false;
 		if (currprefs.win32_rtgvblankrate == 0) {
 			currprefs.gfx_apmode[1].gfx_refreshrate = currprefs.gfx_apmode[0].gfx_refreshrate;
@@ -2107,12 +2073,12 @@ void graphics_reset(bool forced)
 	}
 }
 
-void WIN32GFX_DisplayChangeRequested (int mode)
+void WIN32GFX_DisplayChangeRequested(int mode)
 {
 	display_change_requested = mode;
 }
 
-int check_prefs_changed_gfx (void)
+int check_prefs_changed_gfx(void)
 {
 	int c = 0;
 	bool monitors[MAX_AMIGAMONITORS];
@@ -2132,6 +2098,13 @@ int check_prefs_changed_gfx (void)
 		if (c2) {
 			c |= c2;
 			monitors[i] = true;
+		}
+		if (WIN32GFX_IsPicassoScreen(&AMonitors[i])) {
+			struct gfx_filterdata *gfc = &changed_prefs.gf[1];
+			if (gfc->changed) {
+				gfc->changed = false;
+				c |= 16;
+			}
 		}
 	}
 	monitors[0] = true;

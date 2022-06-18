@@ -59,7 +59,7 @@ int (*D3D_isenabled)(int);
 void (*D3D_clear)(int);
 int (*D3D_canshaders)(void);
 int (*D3D_goodenough)(void);
-bool (*D3D_setcursor)(int, int x, int y, int width, int height, bool visible, bool noscale);
+bool (*D3D_setcursor)(int, int x, int y, int width, int height, float mx, float my, bool visible, bool noscale);
 uae_u8* (*D3D_setcursorsurface)(int, int *pitch);
 float (*D3D_getrefreshrate)(int);
 void(*D3D_restore)(int, bool);
@@ -5192,7 +5192,7 @@ bool D3D11_capture(int monid, void **data, int *w, int *h, int *pitch, bool rend
 	return false;
 }
 
-static bool xD3D_setcursor(int monid, int x, int y, int width, int height, bool visible, bool noscale)
+static bool xD3D_setcursor(int monid, int x, int y, int width, int height, float mx, float my, bool visible, bool noscale)
 {
 	struct d3d11struct *d3d = &d3d11data[monid];
 
@@ -5219,7 +5219,8 @@ static bool xD3D_setcursor(int monid, int x, int y, int width, int height, bool 
 		multx = ((float)(d3d->m_screenWidth) / ((d3d->m_bitmapWidth * d3d->dmult) + 2 * d3d->cursor_offset2_x));
 		multy = ((float)(d3d->m_screenHeight) / ((d3d->m_bitmapHeight * d3d->dmult) + 2 * d3d->cursor_offset2_y));
 	}
-	setspritescaling(&d3d->hwsprite, 1.0f / multx, 1.0f / multy);
+
+	setspritescaling(&d3d->hwsprite, mx / multx, my / multy);
 
 	d3d->hwsprite.x = d3d->cursor_x * multx + d3d->cursor_offset2_x * multx;
 	d3d->hwsprite.y = d3d->cursor_y * multy + d3d->cursor_offset2_y * multy;
@@ -5229,6 +5230,7 @@ static bool xD3D_setcursor(int monid, int x, int y, int width, int height, bool 
 	d3d->cursor_scale = !noscale;
 	d3d->cursor_v = visible;
 	d3d->hwsprite.enabled = visible;
+	d3d->hwsprite.bilinear = d3d->filterd3d->gfx_filter_bilinear;
 	return true;
 }
 
