@@ -1401,7 +1401,7 @@ static void set_dbg_color(int index, int extra, uae_u8 r, uae_u8 g, uae_u8 b, in
 	if (extra >= 0) {
 		debug_colors[index].l[extra] = lc((r << 16) | (g << 8) | (b << 0));
 	} else {
-		for (int i = 0; i < DMARECORD_MAX; i++) {
+		for (int i = 0; i < DMARECORD_SUBITEMS; i++) {
 			debug_colors[index].l[i] = lc((r << 16) | (g << 8) | (b << 0));
 		}
 	}
@@ -1417,7 +1417,7 @@ static void set_debug_colors(void)
 	set_dbg_color(DMARECORD_CPU,			0, 0xa2, 0x53, 0x42, 2, _T("CPU")); // code
 	set_dbg_color(DMARECORD_COPPER,			0, 0xee, 0xee, 0x00, 3, _T("Copper"));
 	set_dbg_color(DMARECORD_AUDIO,			0, 0xff, 0x00, 0x00, 4, _T("Audio"));
-	set_dbg_color(DMARECORD_BLITTER,		0, 0x00, 0x88, 0x88, 2, _T("Blitter"));
+	set_dbg_color(DMARECORD_BLITTER,		0, 0x00, 0x88, 0x88, 2, _T("Blitter")); // blit A
 	set_dbg_color(DMARECORD_BITPLANE,		0, 0x00, 0x00, 0xff, 8, _T("Bitplane"));
 	set_dbg_color(DMARECORD_SPRITE,			0, 0xff, 0x00, 0xff, 8, _T("Sprite"));
 	set_dbg_color(DMARECORD_DISK,			0, 0xff, 0xff, 0xff, 3, _T("Disk"));
@@ -1432,8 +1432,11 @@ static void set_debug_colors(void)
 	set_dbg_color(DMARECORD_CPU,			1, 0xad, 0x98, 0xd6, 0, NULL); // data
 	set_dbg_color(DMARECORD_COPPER,			1, 0xaa, 0xaa, 0x22, 0, NULL); // wait
 	set_dbg_color(DMARECORD_COPPER,			2, 0x66, 0x66, 0x44, 0, NULL); // special
-	set_dbg_color(DMARECORD_BLITTER,		1, 0x00, 0x88, 0xff, 0, NULL); // fill
-	set_dbg_color(DMARECORD_BLITTER,		2, 0x00, 0xff, 0x00, 0, NULL); // line
+	set_dbg_color(DMARECORD_BLITTER,		1, 0x00, 0x88, 0x88, 0, NULL); // blit B
+	set_dbg_color(DMARECORD_BLITTER,		2, 0x00, 0x88, 0x88, 0, NULL); // blit C
+	set_dbg_color(DMARECORD_BLITTER,		3, 0x00, 0xaa, 0x88, 0, NULL); // blit D (write)
+	set_dbg_color(DMARECORD_BLITTER,		4, 0x00, 0x88, 0xff, 0, NULL); // fill A-D
+	set_dbg_color(DMARECORD_BLITTER,		6, 0x00, 0xff, 0x00, 0, NULL); // line A-D
 }
 
 static int cycles_toggle;
@@ -1474,10 +1477,20 @@ static void debug_draw_cycles (uae_u8 *buf, int bpp, int line, int width, int he
 		uae_u32 c = debug_colors[0].l[0];
 		xx = x * xplus + dx;
 		dr = &dma_record[t][y * NR_DMA_REC_HPOS + x];
+
 		if (dr->reg != 0xffff && debug_colors[dr->type].enabled) {
-			c = debug_colors[dr->type].l[dr->extra];
+			// General DMA slots
+			c = debug_colors[dr->type].l[dr->extra & 7];
+
+			// Special cases
 			if (dr->cf_reg != 0xffff && ((cycles_toggle ^ line) & 1)) {
 				c = debug_colors[DMARECORD_CONFLICT].l[0];
+			} else if (dr->extra > 0xF) {
+				// High bits of "extra" contain additional blitter state.
+				if (dr->extra & 0x10)
+					c = debug_colors[dr->type].l[4]; // blit fill, channels A-D
+				else if (dr->extra & 0x20)
+					c = debug_colors[dr->type].l[6]; // blit line, channels A-D
 			}
 		}
 		if (dr->intlev > intlev)
@@ -2090,7 +2103,9 @@ static bool get_record_dma_info(struct dma_rec *dr, int hpos, int vpos, evt_t cy
 
 	sr = _T("    ");
 	if (dr->type == DMARECORD_COPPER) {
-		if (dr->extra == 3)
+		if (br == 2)
+			sr = _T("COPS");
+		else if (br == 1)
 			sr = _T("COPW");
 		else
 			sr = _T("COP ");

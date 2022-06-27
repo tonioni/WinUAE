@@ -9779,7 +9779,7 @@ static void setfastram_selectmenu(HWND hDlg, int mode)
 		}
 		struct autoconfig_info* aci = NULL;
 		if (fastram_select >= MAX_STANDARD_RAM_BOARDS && fastram_select < MAX_STANDARD_RAM_BOARDS + 2 * MAX_RAM_BOARDS) {
-			aci = expansion_get_autoconfig_info(&workprefs, fastram_select < MAX_STANDARD_RAM_BOARDS + MAX_RAM_BOARDS ? ROMTYPE_RAMZ2 : ROMTYPE_RAMZ3, fastram_select % MAX_RAM_BOARDS);
+			aci = expansion_get_autoconfig_info(&workprefs, fastram_select < MAX_STANDARD_RAM_BOARDS + MAX_RAM_BOARDS ? ROMTYPE_RAMZ2 : ROMTYPE_RAMZ3, (fastram_select - MAX_STANDARD_RAM_BOARDS) % MAX_RAM_BOARDS);
 			if (!rb->autoconfig_inuse) {
 				if (aci) {
 					memcpy(rb->autoconfig, aci->autoconfig_bytes, sizeof rb->autoconfig);
@@ -9790,7 +9790,7 @@ static void setfastram_selectmenu(HWND hDlg, int mode)
 					rb->autoconfig[5] = rb->manufacturer & 0xff;
 				} else {
 					memset(rb->autoconfig, 0, sizeof rb->autoconfig);
-					aci = expansion_get_autoconfig_info(&workprefs, fastram_select < MAX_RAM_BOARDS ? ROMTYPE_RAMZ2 : ROMTYPE_RAMZ3, fastram_select% MAX_RAM_BOARDS);
+					aci = expansion_get_autoconfig_info(&workprefs, fastram_select < MAX_STANDARD_RAM_BOARDS + MAX_RAM_BOARDS ? ROMTYPE_RAMZ2 : ROMTYPE_RAMZ3, (fastram_select - MAX_STANDARD_RAM_BOARDS) % MAX_RAM_BOARDS);
 					if (aci) {
 						memcpy(rb->autoconfig, aci->autoconfig_bytes, sizeof rb->autoconfig);
 					}
@@ -11758,15 +11758,22 @@ static const struct memoryboardtype* getmemoryboardselect(HWND hDlg)
 	int v = xSendDlgItemMessage(hDlg, IDC_MEMORYBOARDSELECT, CB_GETCURSEL, 0, 0L);
 	if (v == CB_ERR)
 		return NULL;
-	int idx = 1;
+	int idx_z2 = 1;
+	int idx_z3 = 1;
 	for (int i = 0; memoryboards[i].name; i++) {
 		const struct memoryboardtype *mbt = &memoryboards[i];
-		if ((fastram_select < MAX_RAM_BOARDS && mbt->z == 2) || (fastram_select >= MAX_RAM_BOARDS && mbt->z == 3)) {
-			if (idx == v) {
+		if (fastram_select < MAX_STANDARD_RAM_BOARDS + MAX_RAM_BOARDS && mbt->z == 2) {
+			if (idx_z2 == v) {
 				return mbt;
 			}
+			idx_z2++;
 		}
-		idx++;
+		if (fastram_select >= MAX_STANDARD_RAM_BOARDS + MAX_RAM_BOARDS && mbt->z == 3) {
+			if (idx_z3 == v) {
+				return mbt;
+			}
+			idx_z3++;
+		}
 	}
 	return NULL;
 }
@@ -11972,14 +11979,14 @@ static INT_PTR CALLBACK MemoryDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARA
 		if (v != workprefs.fastmem[0].size) {
 			change1 = true;
 			workprefs.fastmem[0].size = v;
-			fastram_select = 0;
+			fastram_select = MAX_STANDARD_RAM_BOARDS;
 			setfastram_selectmenu(hDlg, 0);
 		}
 		v = memsizes[msi_z3fast[SendMessage (GetDlgItem (hDlg, IDC_Z3FASTMEM), TBM_GETPOS, 0, 0)]];
 		if (v != workprefs.z3fastmem[0].size) {
 			change1 = true;
 			workprefs.z3fastmem[0].size = v;
-			fastram_select = MAX_RAM_BOARDS;
+			fastram_select = MAX_STANDARD_RAM_BOARDS + MAX_RAM_BOARDS;
 			setfastram_selectmenu(hDlg, 0);
 		}
 		v = memsizes[msi_z3chip[SendMessage (GetDlgItem (hDlg, IDC_Z3CHIPMEM), TBM_GETPOS, 0, 0)]];
