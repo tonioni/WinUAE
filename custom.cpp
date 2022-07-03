@@ -5601,7 +5601,7 @@ static void reset_decisions_hsync_start(void)
 	if (currprefs.gfx_overscanmode == OVERSCANMODE_ULTRA) {
 		thisline_decision.vb = VB_NOVB;
 	}
-	if (nosignal_status == 1) {
+	if (nosignal_status >= 1) {
 		thisline_decision.vb = VB_XBLANK;
 		MARK_LINE_CHANGED;
 	} else if (nosignal_status < 0) {
@@ -10997,9 +10997,11 @@ static void vsync_handler_post(void)
 	if ((bplcon0 & 2) && !currprefs.genlock) {
 		nosignal_trigger = true;
 	}
+	// Inverted CSYNC
 	if ((beamcon0 & BEAMCON0_CSYTRUE) && currprefs.cs_hvcsync == 1) {
 		nosignal_trigger = true;
 	}
+	// BLANKEN set: horizontal blanking is merged with CSYNC
 	if ((beamcon0 & BEAMCON0_BLANKEN) && currprefs.cs_hvcsync == 1) {
 		nosignal_trigger = true;
 	}
@@ -11007,13 +11009,19 @@ static void vsync_handler_post(void)
 		nosignal_trigger = true;
 	}
 	if (beamcon0 & BEAMCON0_VARBEAMEN) {
-		if (htotal < 100 || htotal > 250) {
+		if (htotal < 50 || htotal > 250) {
 			nosignal_trigger = true;
 		}
 		if (vtotal < 100 || vtotal > 1000) {
 			nosignal_trigger = true;
 		}
+		// CSY output is invalid (no vsync part included) if HTOTAL is too small + hardwired CSYNC.
+		int csyh = (beamcon0 & 0x20) ? 0x8c : 0x8d;
+		if (htotal < csyh && !(beamcon0 & BEAMCON0_VARCSYEN) && currprefs.cs_hvcsync == 1) {
+			nosignal_trigger = true;
+		}
 	}
+	// Too small or large HSYNC
 	if (beamcon0 & (BEAMCON0_VARHSYEN | BEAMCON0_VARCSYEN)) {
 		if (hsstop < hsstrt) {
 			hsstop += maxhpos;
@@ -11022,6 +11030,7 @@ static void vsync_handler_post(void)
 			nosignal_trigger = true;
 		}
 	}
+	// Too small or large VSYNC
 	if (beamcon0 & (BEAMCON0_VARVSYEN | BEAMCON0_VARCSYEN)) {
 		if (vsstop < vsstrt) {
 			vsstop += maxvpos;
@@ -14584,6 +14593,8 @@ uae_u8 *restore_cycles(uae_u8 *src)
 
 void check_prefs_changed_custom(void)
 {
+	bool syncchange = false;
+
 	if (!config_changed)
 		return;
 	currprefs.gfx_framerate = changed_prefs.gfx_framerate;
@@ -14656,6 +14667,11 @@ void check_prefs_changed_custom(void)
 				diwhigh_written = 0;
 				bplcon0 &= ~(0x10 | 0x01);
 			}
+			if (currprefs.cs_hvcsync != changed_prefs.cs_hvcsync) {
+				syncchange = true;
+				nosignal_trigger = false;
+				nosignal_status = 0;
+			}
 			currprefs.chipset_mask = changed_prefs.chipset_mask;
 			currprefs.cs_dipagnus = changed_prefs.cs_dipagnus;
 			currprefs.cs_hvcsync = changed_prefs.cs_hvcsync;
@@ -14665,6 +14681,9 @@ void check_prefs_changed_custom(void)
 	if (currprefs.chipset_hr != changed_prefs.chipset_hr) {
 		currprefs.chipset_hr = changed_prefs.chipset_hr;
 		init_custom();
+	}
+	if (syncchange) {
+		varsync_changed = 2;
 	}
 
 #ifdef GFXFILTER
