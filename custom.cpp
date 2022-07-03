@@ -11180,8 +11180,6 @@ static void vsync_handler_post(void)
 	vposw_change = 0;
 	bplcon0_interlace_seen = false;
 
-	COPJMP(1, 1);
-
 	vsync_handle_check();
 
 	init_hardware_frame();
@@ -12444,6 +12442,17 @@ void vsync_event_done(void)
 	}
 }
 
+static void delayed_copjmp(uae_u32 v)
+{
+	COPJMP(1, 1);
+}
+
+static void delayed_framestart(uae_u32 v)
+{
+	COPJMP(1, 1);
+	send_interrupt(5, 2 * CYCLE_UNIT); // total REFRESH_FIRST_HPOS + 1
+}
+
 // this prepares for new line
 static void hsync_handler_post(bool onvsync)
 {
@@ -12531,11 +12540,18 @@ static void hsync_handler_post(bool onvsync)
 		vsync_handler_post();
 		vpos_count = 0;
 	}
+
 	// vblank interrupt = next line after VBSTRT
-	if (vb_start_line == 1) {
+	if (vpos == 0 && vb_start_line == 1) {
 		// first refresh (strobe) slot triggers vblank interrupt
+		// copper and vblank trigger in same line
+		event2_newevent_xx(-1, 2 * CYCLE_UNIT, 0, delayed_framestart);
+	} else if (vb_start_line == 1) {
 		send_interrupt(5, (REFRESH_FIRST_HPOS + 1) * CYCLE_UNIT);
+	} else if (vpos == 0) {
+		event2_newevent_xx(-1, 2 * CYCLE_UNIT, 0, delayed_copjmp);
 	}
+
 	// lastline - 1?
 	if (vpos + 1 == maxvpos + lof_store || vpos + 1 == maxvpos + lof_store + 1) {
 		lof_lastline = lof_store != 0;
