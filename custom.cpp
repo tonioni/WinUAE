@@ -8472,20 +8472,23 @@ static void BLTALWM(int hpos, uae_u16 v) {
 	blt_info.bltalwm = v;
 	reset_blit(0);
 }
+static void setblitx(int hpos, int n)
+{
+	bltptxpos = (hpos + 1) % maxhpos;
+	bltptxc = copper_access ? n : -n;
+}
 static void BLTAPTH(int hpos, uae_u16 v)
 {
 	maybe_blit(hpos, 0);
 	bltptx = bltapt;
-	bltptxpos = hpos;
-	bltptxc = copper_access ? 1 : -1;
+	setblitx(hpos, 1);
 	bltapt = (bltapt & 0xffff) | ((uae_u32)v << 16);
 }
 static void BLTAPTL(int hpos, uae_u16 v)
 {
 	maybe_blit(hpos, 0);
 	bltptx = bltapt;
-	bltptxpos = hpos;
-	bltptxc = copper_access ? 1 : -1;
+	setblitx(hpos, 1);
 	bltapt = (bltapt & ~0xffff) | (v & 0xFFFE);
 }
 static void BLTBPTH(int hpos, uae_u16 v)
@@ -8500,24 +8503,21 @@ static void BLTBPTL(int hpos, uae_u16 v)
 {
 	maybe_blit(hpos, 0);
 	bltptx = bltbpt;
-	bltptxpos = hpos;
-	bltptxc = copper_access ? 2 : -2;
+	setblitx(hpos, 2);
 	bltbpt = (bltbpt & ~0xffff) | (v & 0xFFFE);
 }
 static void BLTCPTH(int hpos, uae_u16 v)
 {
 	maybe_blit(hpos, 0);
 	bltptx = bltcpt;
-	bltptxpos = hpos;
-	bltptxc = copper_access ? 3 : -3;
+	setblitx(hpos, 3);
 	bltcpt = (bltcpt & 0xffff) | ((uae_u32)v << 16);
 }
 static void BLTCPTL(int hpos, uae_u16 v)
 {
 	maybe_blit(hpos, 0);
 	bltptx = bltcpt;
-	bltptxpos = hpos;
-	bltptxc = copper_access ? 3 : -3;
+	setblitx(hpos, 3);
 	bltcpt = (bltcpt & ~0xffff) | (v & 0xFFFE);
 }
 static void BLTDPTH (int hpos, uae_u16 v)
@@ -8531,10 +8531,8 @@ static void BLTDPTH (int hpos, uae_u16 v)
 			write_log("Possible Copper Blitter wait bug detected COP=%08x\n", cop_state.ip);
 		}
 	}
-
 	bltptx = bltdpt;
-	bltptxpos = hpos;
-	bltptxc = copper_access ? 4 : -4;
+	setblitx(hpos, 4);
 	bltdpt = (bltdpt & 0xffff) | ((uae_u32)v << 16);
 }
 static void BLTDPTL(int hpos, uae_u16 v)
@@ -8550,8 +8548,7 @@ static void BLTDPTL(int hpos, uae_u16 v)
 	}
 
 	bltptx = bltdpt;
-	bltptxpos = hpos;
-	bltptxc = copper_access ? 4 : -4;
+	setblitx(hpos, 4);
 	bltdpt = (bltdpt & ~0xffff) | (v & 0xFFFE);
 }
 
@@ -14721,7 +14718,7 @@ static int dma_cycle(uaecptr addr, uae_u32 value, int *mode)
 		decide_fetch_ce(hpos_next);
 		int bpldma = bitplane_dma_access(hpos_old, 0);
 		if (blt_info.blit_queued) {
-#if 0
+#if 1
 			decide_blitter(hpos_next);
 #else
 			// CPU write must be done at the same time with blitter idle cycles
