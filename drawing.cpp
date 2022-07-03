@@ -255,7 +255,7 @@ static int visible_top_start, visible_bottom_stop;
 static int vblank_top_start, vblank_bottom_stop;
 static int hblank_left_start, hblank_right_stop;
 static int hblank_left_start_hard, hblank_right_stop_hard;
-static bool exthblank, extborder, exthblanken;
+static bool exthblank, extborder, exthblanken, exthblankon;
 
 static int linetoscr_x_adjust_pixbytes, linetoscr_x_adjust_pixels;
 static int thisframe_y_adjust;
@@ -482,10 +482,11 @@ static void expand_vb_state(void)
 
 static void extblankcheck(void)
 {
-	if (exthblanken && ((dp_for_drawing->bplcon3 & 1) && (dp_for_drawing->bplcon0 & 1))) {
+	exthblankon = dp_for_drawing && (dp_for_drawing->bplcon3 & 1) && (dp_for_drawing->bplcon0 & 1);
+	if (exthblanken && exthblankon) {
 		exthblank = true;
 	}
-	if (exthblanken && (!(dp_for_drawing->bplcon3 & 1) || !(dp_for_drawing->bplcon0 & 1))) {
+	if (exthblanken && !exthblankon) {
 		exthblank = false;
 	}
 }
@@ -3490,7 +3491,7 @@ static void do_color_changes(line_draw_func worker_border, line_draw_func worker
 			} else {
 				// non-vblank scanline
 
-				int hblank_left = exthblank ? hblank_left_start : hblank_left_start_hard;
+				int hblank_left = exthblankon ? hblank_left_start : hblank_left_start_hard;
 
 				// left hblank (left edge to hblank end)
 				if (nextpos_in_range > lastpos && lastpos < hblank_left) {
@@ -3557,7 +3558,7 @@ static void do_color_changes(line_draw_func worker_border, line_draw_func worker
 					}
 				}
 
-				int hblank_right = exthblank ? hblank_right_stop : hblank_right_stop_hard;
+				int hblank_right = exthblankon ? hblank_right_stop : hblank_right_stop_hard;
 
 				// right border (playfield end to hblank start)
 				if (nextpos_in_range > lastpos && lastpos >= playfield_end_pre) {
@@ -5135,6 +5136,7 @@ void reset_drawing(void)
 	vb_state = 0;
 	exthblank = false;
 	exthblanken = false;
+	exthblankon = false;
 	extborder = false;
 	display_reset = 1;
 
