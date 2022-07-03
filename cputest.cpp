@@ -2897,7 +2897,7 @@ static int create_ea_random(uae_u16 *opcodep, uaecptr pc, int mode, int reg, str
 			put_word_test(pc, v);
 			uaecptr pce = pc;
 			pc += 2;
-			// calculate lenght of extension
+			// calculate length of extension
 			if (mode == Ad8r && reg == 7 && flagsp) {
 				*flagsp |= EAFLAG_SP;
 			}
@@ -3153,7 +3153,7 @@ static int create_ea_random(uae_u16 *opcodep, uaecptr pc, int mode, int reg, str
 				} else if (dp->mnemo == i_BSR || dp->mnemo == i_DBcc || dp->mnemo == i_Bcc ||
 					dp->mnemo == i_ORSR || dp->mnemo == i_ANDSR || dp->mnemo == i_EORSR ||
 					dp->mnemo == i_RTD) {
-					// don't try to test all 65536 possibilies..
+					// don't try to test all 65536 possibilities..
 					uae_u16 i16 = imm16_cnt;
 					put_word_test(pc, imm16_cnt);
 					imm16_cnt += rand16() & 127;
