@@ -5357,7 +5357,7 @@ static void finish_decisions(int hpos)
 	/* Large DIWSTOP values can cause the stop position never to be
 	* reached, so the state machine always stays in the same state and
 	* there's a more-or-less full-screen DIW. */
-	if (hdiwstate == diw_states::DIW_waiting_stop && thisline_decision.diwfirstword >= 0) {
+	if ((hdiwstate == diw_states::DIW_waiting_stop && thisline_decision.diwfirstword >= 0) || hstrobe_conflict) {
 		thisline_decision.diwlastword = max_diwlastword;
 	}
 
