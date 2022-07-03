@@ -70,7 +70,6 @@
 #include "target.h"
 #include "savestate.h"
 #include "avioutput.h"
-#include "opengl.h"
 #include "direct3d.h"
 #include "akiko.h"
 #include "cdtv.h"

@@ -1,8 +1,6 @@
 #ifndef __WIN32GFX_H__
 #define __WIN32GFX_H__
 
-#include <ddraw.h>
-
 #define RTG_MODE_SCALE 1
 #define RTG_MODE_CENTER 2
 #define RTG_MODE_INTEGER_SCALE 3

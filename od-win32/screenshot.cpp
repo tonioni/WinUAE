@@ -2,7 +2,6 @@
 #define PNG_SCREENSHOTS 1
 
 #include <windows.h>
-#include <ddraw.h>
 
 #include <stdio.h>
 
@@ -14,7 +13,6 @@
 #include "win32.h"
 #include "win32gfx.h"
 #include "direct3d.h"
-#include "opengl.h"
 #include "registry.h"
 #include "gfxfilter.h"
 #include "xwin.h"

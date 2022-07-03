@@ -31,7 +31,6 @@ Copyright(c) 2001 - 2002; §ane
 #include "win32.h"
 #include "win32gfx.h"
 #include "direct3d.h"
-#include "opengl.h"
 #include "sound.h"
 #include "gfxfilter.h"
 #include "xwin.h"
