@@ -31,7 +31,6 @@
 #include "inputdevice.h"
 #include "serial.h"
 #include "autoconf.h"
-#include "autoconf.h"
 #include "traps.h"
 #include "gui.h"
 #include "picasso96.h"
