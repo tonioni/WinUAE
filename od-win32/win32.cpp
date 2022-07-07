@@ -397,7 +397,7 @@ void target_calibrate_spin(void)
 			if (vp2 > vp + cntlines * 2)
 				break;
 		}
-trynext:;
+trynext:
 	}
 	if (sc == 0x800000000000) {
 		write_log(_T("Spincount calculation error, spinloop not used.\n"), sc);
@@ -7385,9 +7385,11 @@ static void create_dump (struct _EXCEPTION_POINTERS *pExceptionPointers)
 					ShowCursor(TRUE);
 					if (debugfile)
 						log_close(debugfile);
-					if (isfullscreen () <= 0) {
-						_stprintf (msg, _T("Crash detected. MiniDump saved as:\n%s\n"), path3);
-						MessageBox (NULL, msg, _T("Crash"), MB_OK | MB_ICONWARNING | MB_TASKMODAL | MB_SETFOREGROUND);
+					if (isfullscreen() <= 0) {
+						all_events_disabled = 0;
+						struct AmigaMonitor *mon = &AMonitors[0];
+						_stprintf(msg, _T("Crash detected. MiniDump saved as:\n%s\n"), path3);
+						MessageBox(mon->hStatusWnd ? mon->hStatusWnd : NULL, msg, _T("Crash"), MB_OK | MB_ICONWARNING | MB_TASKMODAL | MB_SETFOREGROUND);
 					}
 					ExitProcess(0);
 				}
@@ -7402,7 +7404,7 @@ static void create_dump (struct _EXCEPTION_POINTERS *pExceptionPointers)
 LONG WINAPI WIN32_ExceptionFilter (struct _EXCEPTION_POINTERS * pExceptionPointers, DWORD ec)
 {
 	if (nocrashdump || isfullscreen() > 0)
-		EXCEPTION_CONTINUE_SEARCH;
+		return EXCEPTION_CONTINUE_SEARCH;
 	write_log (_T("EVALEXCEPTION %08x!\n"), ec);
 	create_dump  (pExceptionPointers);
 	return EXCEPTION_CONTINUE_SEARCH;
