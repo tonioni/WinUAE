@@ -2,47 +2,10 @@
 #define __DXWRAP_H__
 
 #include "rtgmodes.h"
-#include <ddraw.h>
 #include <d3d9.h>
 #include <D3dkmthk.h>
 
 #define MAX_DISPLAYS 10
-
-extern int ddforceram;
-extern int useoverlay;
-
-struct ddstuff
-{
-	int ddinit;
-	int ddzeroguid;
-	GUID ddguid;
-	LPDIRECTDRAW7 maindd;
-	LPDIRECTDRAWCLIPPER dclip;
-	LPDIRECTDRAWSURFACE7 primary, secondary, flipping[2];
-	DDOVERLAYFX overlayfx;
-	DWORD overlayflags;
-	int fsmodeset, backbuffers;
-	int width, height, depth, freq;
-	int vblank_skip, vblank_skip_cnt;
-	int swidth, sheight;
-	DDSURFACEDESC2 native;
-	DDSURFACEDESC2 locksurface;
-	int lockcnt;
-	DWORD pitch;
-	HWND hwnd;
-	uae_u32 colorkey;
-	int islost, isoverlay;
-
-	LPDIRECTDRAWSURFACE7 statussurface;
-};
-struct ddcaps
-{
-	int maxwidth, maxheight;
-	int cancolorkey;
-	int cannonlocalvidmem;
-};
-extern struct ddstuff dxdata;
-extern struct ddcaps dxcaps;
 
 struct ScreenResolution
 {

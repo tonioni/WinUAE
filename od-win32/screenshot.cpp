@@ -784,7 +784,7 @@ static int filenumber = 0;
 static int dirnumber = 1;
 
 /*
-Captures the Amiga display (GDI, D3D or OpenGL) surface and saves it to file as a 24bit bitmap.
+Captures the Amiga display (GDI, D3D) surface and saves it to file as a 24bit bitmap.
 */
 int screenshotf(int monid, const TCHAR *spath, int mode, int doprepare, int imagemode, struct vidbuffer *vb)
 {

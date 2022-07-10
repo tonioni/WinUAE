@@ -19,7 +19,6 @@
 #define IDS_CPU                         12
 #define IDS_CHIPSET                     13
 #define IDS_INPUT                       14
-#define IDS_OPENGL                      15
 #define IDS_FILTER                      15
 #define IDS_MISC2                       16
 #define IDS_PATHS                       17
@@ -132,7 +131,6 @@
 #define IDI_AVIOUTPUT                   158
 #define IDS_ERRORTITLE                  159
 #define IDS_SELECTFILESYSROOT           160
-#define IDD_OPENGL                      160
 #define IDD_FILTER                      160
 #define IDS_DEFAULTMIDIOUT              161
 #define IDS_DEFAULTMIDIIN               162
@@ -1225,7 +1223,6 @@
 #define IDC_INPUTMAPLIST                1797
 #define IDC_RTG_HWSPRITE                1797
 #define IDC_PORT1_REMAP                 1798
-#define IDC_RTG_SCALE_ALLOW2            1798
 #define IDC_RTG_CENTER                  1798
 #define IDC_PORT0_REMAP                 1799
 #define IDC_RTG_Z2Z4                    1799
