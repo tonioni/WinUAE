@@ -376,6 +376,7 @@ struct gfx_filterdata
 	int gfx_filter_autoscale;
 	int gfx_filter_integerscalelimit;
 	int gfx_filter_keep_autoscale_aspect;
+	bool changed;
 };
 
 #define MAX_DUPLICATE_EXPANSION_BOARDS 5

@@ -1558,10 +1558,10 @@ void getrtgfilterrect2(int monid, RECT *sr, RECT *dr, RECT *zr, int dst_width, i
 		return;
 
 	if (currprefs.gf[1].gfx_filter_horiz_zoom_mult > 0) {
-		picasso_offset_mx *= currprefs.gf[1].gfx_filter_horiz_zoom_mult * currprefs.gf[1].gfx_filter_horiz_zoom / 1000.0f;
+		picasso_offset_mx *= currprefs.gf[1].gfx_filter_horiz_zoom_mult;
 	}
 	if (currprefs.gf[1].gfx_filter_vert_zoom_mult > 0) {
-		picasso_offset_my *= currprefs.gf[1].gfx_filter_vert_zoom_mult * currprefs.gf[1].gfx_filter_vert_zoom / 1000.0f;
+		picasso_offset_my *= currprefs.gf[1].gfx_filter_vert_zoom_mult;
 	}
 
 	if (!mon->scalepicasso)
@@ -1580,17 +1580,18 @@ void getrtgfilterrect2(int monid, RECT *sr, RECT *dr, RECT *zr, int dst_width, i
 		int divx = mon->currentmode.native_width / srcwidth;
 		int divy = mon->currentmode.native_height / srcheight;
 		int mul = divx > divy ? divy : divx;
-		int xx = srcwidth * mul;
-		int yy = srcheight * mul;
 		SetRect (dr, 0, 0, mon->currentmode.native_width / mul, mon->currentmode.native_height / mul);
-		//picasso_offset_x = -(state->Width - xx) / 2;
-		//picasso_offset_y = -(mon->currentmode.native_height - srcheight) / 2;
+		int xx = (mon->currentmode.native_width / mul - srcwidth) / 2;
+		int yy = (mon->currentmode.native_height / mul  - srcheight) / 2;
+		picasso_offset_x = -xx;
+		picasso_offset_y = -yy;
 		mx = my = 1.0;
 	} else if (mon->scalepicasso == RTG_MODE_CENTER) {
 		int xx = (mon->currentmode.native_width - srcwidth) / 2;
 		int yy = (mon->currentmode.native_height - srcheight) / 2;
 		picasso_offset_x = -xx;
 		picasso_offset_y = -yy;
+		SetRect (sr, 0, 0, mon->currentmode.native_width, mon->currentmode.native_height);
 		SetRect (dr, 0, 0, mon->currentmode.native_width, mon->currentmode.native_height);
 		mx = my = 1.0;
 	} else {
@@ -1825,8 +1826,6 @@ static void update_gfxparams(struct AmigaMonitor *mon)
 		if (currprefs.gf[1].gfx_filter_vert_zoom_mult > 0) {
 			my *= currprefs.gf[1].gfx_filter_vert_zoom_mult;
 		}
-		mx = mx + mx * currprefs.gf[1].gfx_filter_horiz_zoom / 1000.0f;
-		my = my + my * currprefs.gf[1].gfx_filter_vert_zoom / 1000.0f;
 		mon->currentmode.current_width = (int)(state->Width * currprefs.rtg_horiz_zoom_mult * mx);
 		mon->currentmode.current_height = (int)(state->Height * currprefs.rtg_vert_zoom_mult * my);
 		currprefs.gfx_apmode[1].gfx_interlaced = false;
@@ -1906,7 +1905,7 @@ static void update_gfxparams(struct AmigaMonitor *mon)
 						mon->currentmode.current_height = currprefs.gfx_monitor[mon->monitor_id].gfx_size.height;
 					}
 				} else {
-					mon->scalepicasso = 2;
+					mon->scalepicasso = RTG_MODE_CENTER;
 					mon->currentmode.current_width = currprefs.gfx_monitor[mon->monitor_id].gfx_size.width;
 					mon->currentmode.current_height = currprefs.gfx_monitor[mon->monitor_id].gfx_size.height;
 				}

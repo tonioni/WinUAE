@@ -11212,6 +11212,7 @@ static void enable_for_expansiondlg(HWND hDlg)
 	ew(hDlg, IDC_RTG_MATCH_DEPTH, rtg3);
 	ew(hDlg, IDC_RTG_SCALE, rtg2);
 	ew(hDlg, IDC_RTG_CENTER, rtg2);
+	ew(hDlg, IDC_RTG_INTEGERSCALE, rtg2);
 	ew(hDlg, IDC_RTG_SCALE_ALLOW, rtg2);
 	ew(hDlg, IDC_RTG_SCALE_ASPECTRATIO, rtg2);
 	ew(hDlg, IDC_RTG_VBLANKRATE, rtg2);
@@ -11325,9 +11326,9 @@ static void values_to_expansiondlg(HWND hDlg)
 		xSendDlgItemMessage(hDlg, IDC_RTG_VBLANKRATE, WM_SETTEXT, 0, (LPARAM) tmp);
 	}
 
-
 	CheckDlgButton(hDlg, IDC_RTG_SCALE, workprefs.gf[1].gfx_filter_autoscale == RTG_MODE_SCALE);
 	CheckDlgButton(hDlg, IDC_RTG_CENTER, workprefs.gf[1].gfx_filter_autoscale == RTG_MODE_CENTER);
+	CheckDlgButton(hDlg, IDC_RTG_INTEGERSCALE, workprefs.gf[1].gfx_filter_autoscale == RTG_MODE_INTEGER_SCALE);
 	CheckDlgButton(hDlg, IDC_RTG_SCALE_ALLOW, workprefs.win32_rtgallowscaling);
 	CheckDlgButton(hDlg, IDC_RTG_MATCH_DEPTH, workprefs.win32_rtgmatchdepth);
 	CheckDlgButton(hDlg, IDC_RTG_VBINTERRUPT, workprefs.rtg_hardwareinterrupt);
@@ -11455,21 +11456,28 @@ static INT_PTR CALLBACK ExpansionDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 			switch (LOWORD (wParam))
 			{
 			case IDC_RTG_MATCH_DEPTH:
-				workprefs.win32_rtgmatchdepth = ischecked (hDlg, IDC_RTG_MATCH_DEPTH);
+				workprefs.win32_rtgmatchdepth = ischecked(hDlg, IDC_RTG_MATCH_DEPTH);
 				break;
 			case IDC_RTG_SCALE:
 				workprefs.gf[1].gfx_filter_autoscale = ischecked(hDlg, IDC_RTG_SCALE) ? RTG_MODE_SCALE : 0;
-				setchecked (hDlg, IDC_RTG_CENTER,  false);
+				setchecked(hDlg, IDC_RTG_CENTER,  false);
+				setchecked(hDlg, IDC_RTG_INTEGERSCALE, false);
 				break;
 			case IDC_RTG_CENTER:
 				workprefs.gf[1].gfx_filter_autoscale = ischecked(hDlg, IDC_RTG_CENTER) ? RTG_MODE_CENTER : 0;
-				setchecked (hDlg, IDC_RTG_SCALE,  false);
+				setchecked(hDlg, IDC_RTG_SCALE, false);
+				setchecked(hDlg, IDC_RTG_INTEGERSCALE, false);
+				break;
+			case IDC_RTG_INTEGERSCALE:
+				workprefs.gf[1].gfx_filter_autoscale = ischecked(hDlg, IDC_RTG_INTEGERSCALE) ? RTG_MODE_INTEGER_SCALE : 0;
+				setchecked(hDlg, IDC_RTG_SCALE, false);
+				setchecked(hDlg, IDC_RTG_CENTER, false);
 				break;
 			case IDC_RTG_SCALE_ALLOW:
-				workprefs.win32_rtgallowscaling = ischecked (hDlg, IDC_RTG_SCALE_ALLOW);
+				workprefs.win32_rtgallowscaling = ischecked(hDlg, IDC_RTG_SCALE_ALLOW);
 				break;
 			case IDC_RTG_VBINTERRUPT:
-				workprefs.rtg_hardwareinterrupt = ischecked (hDlg, IDC_RTG_VBINTERRUPT);
+				workprefs.rtg_hardwareinterrupt = ischecked(hDlg, IDC_RTG_VBINTERRUPT);
 				break;
 			case IDC_RTG_HWSPRITE:
 				workprefs.rtg_hardwaresprite = ischecked(hDlg, IDC_RTG_HWSPRITE);
@@ -19839,10 +19847,8 @@ static void values_to_hw3ddlg (HWND hDlg, bool initdialog)
 		xSendDlgItemMessage(hDlg, IDC_FILTERAUTOSCALE, CB_ADDSTRING, 0, (LPARAM)txt);
 		WIN32GUI_LoadUIString(IDS_AUTOSCALE_CENTER, txt, sizeof (txt) / sizeof (TCHAR));
 		xSendDlgItemMessage(hDlg, IDC_FILTERAUTOSCALE, CB_ADDSTRING, 0, (LPARAM)txt);
-#if 0
 		WIN32GUI_LoadUIString(IDS_AUTOSCALE_INTEGER, txt, sizeof (txt) / sizeof (TCHAR));
 		xSendDlgItemMessage(hDlg, IDC_FILTERAUTOSCALE, CB_ADDSTRING, 0, (LPARAM)txt);
-#endif
 	}
 	xSendDlgItemMessage (hDlg, IDC_FILTERAUTOSCALE, CB_SETCURSEL, workprefs.gf[filter_nativertg].gfx_filter_autoscale, 0);
 	xSendDlgItemMessage (hDlg, IDC_FILTERINTEGER, CB_SETCURSEL, workprefs.gf[filter_nativertg].gfx_filter_integerscalelimit, 0);

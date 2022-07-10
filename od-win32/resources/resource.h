@@ -1231,6 +1231,7 @@
 #define IDC_RTG_THREAD                  1800
 #define IDC_PORT3_REMAP                 1801
 #define IDC_INPUTMAPOUT                 1801
+#define IDC_RTG_INTEGERSCALE            1801
 #define IDC_INFOBOX_TEXT2               1802
 #define IDC_INPUTMAPOUTM                1802
 #define IDC_INFOBOX_TEXT1               1803
