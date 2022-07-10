@@ -26,9 +26,7 @@ static char *td_new_numbers;
 
 bool softstatusline(void)
 {
-	if (currprefs.gfx_api > 0)
-		return false;
-	return (currprefs.leds_on_screen & STATUSLINE_TARGET) == 0;
+	return false;
 }
 
 void deletestatusline(int monid)
@@ -279,8 +277,6 @@ void statusline_render(int monid, uae_u8 *buf, int bpp, int pitch, int width, in
 	if (monid)
 		return;
 
-	if (currprefs.gf[WIN32GFX_IsPicassoScreen(mon)].gfx_filter == 0 && !currprefs.gfx_api)
-		return;
 	text = statusline_fetch();
 	//text = _T("Testing string 123!");
 	if (!text)

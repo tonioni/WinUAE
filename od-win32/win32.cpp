@@ -2098,18 +2098,17 @@ static LRESULT CALLBACK AmigaWindowProc(HWND hWnd, UINT message, WPARAM wParam, 
 
 	case WM_PAINT:
 	{
-		static int recursive = 0;
-		if (recursive == 0) {
-			PAINTSTRUCT ps;
-			recursive++;
-			notice_screen_contents_lost(mon->monitor_id);
-			hDC = BeginPaint(hWnd, &ps);
-			/* Check to see if this WM_PAINT is coming while we've got the GUI visible */
-			if (mon->manual_painting_needed)
-				updatedisplayarea(mon->monitor_id);
-			EndPaint(hWnd, &ps);
-			recursive--;
+		PAINTSTRUCT ps;
+		hDC = BeginPaint(hWnd, &ps);
+		if (D3D_paint) {
+			D3D_paint();
 		}
+		/* Check to see if this WM_PAINT is coming while we've got the GUI visible */
+		if (mon->manual_painting_needed) {
+			updatedisplayarea(mon->monitor_id);
+		}
+		mon->manual_painting_needed = 0;
+		EndPaint(hWnd, &ps);
 	}
 	return 0;
 
@@ -4183,19 +4182,11 @@ void target_fixup_options (struct uae_prefs *p)
 		nojoy = true;
 	}
 	
-	if (p->rtg_hardwaresprite && !p->gfx_api) {
-		error_log(_T("GDI is not RTG hardware sprite compatible."));
-		p->rtg_hardwaresprite = false;
-	}
 	if (p->rtgboards[0].rtgmem_type >= GFXBOARD_HARDWARE) {
 		p->rtg_hardwareinterrupt = false;
 		p->rtg_hardwaresprite = false;
 		p->win32_rtgmatchdepth = false;
 		p->color_mode = 5;
-		if (p->ppc_model && !p->gfx_api) {
-			error_log(_T("Graphics board and PPC: Direct3D enabled."));
-			p->gfx_api = os_win7 ? 2 : 1;
-		}
 	}
 
 	struct MultiDisplay *md = getdisplay(p, 0);
@@ -4296,9 +4287,9 @@ void target_default_options (struct uae_prefs *p, int type)
 		p->gfx_api = os_win7 ? 2 : (os_vista ? 1 : 0);
 		if (p->gfx_api > 1)
 			p->color_mode = 5;
-		if (p->gf[APMODE_NATIVE].gfx_filter == 0 && p->gfx_api)
+		if (p->gf[APMODE_NATIVE].gfx_filter == 0)
 			p->gf[APMODE_NATIVE].gfx_filter = 1;
-		if (p->gf[APMODE_RTG].gfx_filter == 0 && p->gfx_api)
+		if (p->gf[APMODE_RTG].gfx_filter == 0)
 			p->gf[APMODE_RTG].gfx_filter = 1;
 		WIN32GUI_LoadUIString (IDS_INPUT_CUSTOM, buf, sizeof buf / sizeof (TCHAR));
 		for (int i = 0; i < GAMEPORT_INPUT_SETTINGS; i++)

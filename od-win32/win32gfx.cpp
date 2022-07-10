@@ -72,9 +72,6 @@
 
 #define SM_WINDOW 0
 #define SM_FULLSCREEN_DX 2
-#define SM_OPENGL_WINDOW 3
-#define SM_OPENGL_FULLWINDOW 9
-#define SM_OPENGL_FULLSCREEN_DX 4
 #define SM_D3D_WINDOW 5
 #define SM_D3D_FULLWINDOW 10
 #define SM_D3D_FULLSCREEN_DX 6
@@ -3916,13 +3913,8 @@ retry:
 
 	if (!mon->screen_is_picasso) {
 
-		if (currprefs.gfx_api == 0 && currprefs.gf[0].gfx_filter == 0) {
-			allocsoftbuffer(mon->monitor_id, _T("draw"), &avidinfo->drawbuffer, mon->currentmode.flags,
-				mon->currentmode.native_width, mon->currentmode.native_height, mon->currentmode.current_depth);
-		} else {
-			allocsoftbuffer(mon->monitor_id, _T("draw"), &avidinfo->drawbuffer, mon->currentmode.flags,
-				1920, 1280, mon->currentmode.current_depth);
-		}
+		allocsoftbuffer(mon->monitor_id, _T("draw"), &avidinfo->drawbuffer, mon->currentmode.flags,
+			1920, 1280, mon->currentmode.current_depth);
 		if (currprefs.monitoremu || currprefs.cs_cd32fmv || (currprefs.genlock && currprefs.genlock_image) || currprefs.cs_color_burst || currprefs.gfx_grayscale) {
 			allocsoftbuffer(mon->monitor_id, _T("monemu"), &avidinfo->tempbuffer, mon->currentmode.flags,
 				mon->currentmode.amiga_width > 1024 ? mon->currentmode.amiga_width : 1024,

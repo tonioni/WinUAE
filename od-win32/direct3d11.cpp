@@ -71,6 +71,7 @@ int(*D3D_debug)(int, int);
 void(*D3D_led)(int, int, int);
 bool(*D3D_getscanline)(int*, bool*);
 bool(*D3D_extoverlay)(struct extoverlay*);
+void(*D3D_paint)(void);
 
 static HMODULE hd3d11, hdxgi, hd3dcompiler, dwmapi;
 
@@ -5410,6 +5411,7 @@ void d3d11_select(void)
 	D3D_led = xD3D11_led;
 	D3D_getscanline = NULL;
 	D3D_extoverlay = xD3D11_extoverlay;
+	D3D_paint = NULL;
 }
 
 void d3d_select(struct uae_prefs *p)

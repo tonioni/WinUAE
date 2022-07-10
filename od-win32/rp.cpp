@@ -1698,8 +1698,7 @@ static void sendfeatures (void)
 	if (currprefs.gfx_api)
 		feat |= RP_FEATURE_SCREENOVERLAY;
 	if (WIN32GFX_IsPicassoScreen(mon)) {
-		if (currprefs.gfx_api)
-			feat |= RP_FEATURE_SCREEN2X | RP_FEATURE_SCREEN3X | RP_FEATURE_SCREEN4X;
+		feat |= RP_FEATURE_SCREEN2X | RP_FEATURE_SCREEN3X | RP_FEATURE_SCREEN4X;
 	} else {
 		feat |= RP_FEATURE_SCREEN2X | RP_FEATURE_SCREEN3X | RP_FEATURE_SCREEN4X;
 		feat |= RP_FEATURE_SCALING_SUBPIXEL | RP_FEATURE_SCALING_STRETCH | RP_FEATURE_SCANLINES;
@@ -1763,8 +1762,7 @@ void rp_fixup_options (struct uae_prefs *p)
 	rp_filter_default = rp_filter = currprefs.gf[0].gfx_filter;
 	if (rp_filter == 0) {
 		rp_filter = UAE_FILTER_NULL;
-		if (currprefs.gfx_api)
-			changed_prefs.gf[0].gfx_filter = currprefs.gf[0].gfx_filter = rp_filter;
+		changed_prefs.gf[0].gfx_filter = currprefs.gf[0].gfx_filter = rp_filter;
 	}
 
 	fixup_size (p);

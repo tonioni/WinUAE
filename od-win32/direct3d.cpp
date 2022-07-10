@@ -3680,8 +3680,9 @@ static bool xD3D_setcursor(int monid, int x, int y, int width, int height, float
 {
 	struct d3dstruct *d3d = &d3ddata[monid];
 
-	if (width < 0 || height < 0)
-		return true;
+	if (width < 0 || height < 0) {
+		return xD3D_goodenough() > 0;
+	}
 
 	if (width && height) {
 		d3d->cursor_offset2_x = d3d->cursor_offset_x * d3d->window_w / width;
@@ -4239,6 +4240,7 @@ void d3d9_select(void)
 	D3D_led = xD3D_led;
 	D3D_getscanline = xD3D_getscanline;
 	D3D_extoverlay = xD3D_extoverlay;
+	D3D_paint = NULL;
 }
 
 #endif

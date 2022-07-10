@@ -199,7 +199,7 @@ void fixup_prefs_dimensions (struct uae_prefs *prefs)
 			if (ap->gfx_backbuffers >= 2)
 				ap->gfx_vflip = -1;
 		}
-		if (prefs->gf[i].gfx_filter == 0 && ((prefs->gf[i].gfx_filter_autoscale && !prefs->gfx_api) || (prefs->gfx_apmode[APMODE_NATIVE].gfx_vsyncmode))) {
+		if (prefs->gf[i].gfx_filter == 0) {
 			prefs->gf[i].gfx_filter = 1;
 		}
 		if (i == 0) {
@@ -422,10 +422,6 @@ void fixup_prefs (struct uae_prefs *p, bool userconfig)
 
 #ifdef _WIN32
 	if (p->monitoremu && p->monitoremu_mon > 0) {
-		if (!p->gfx_api) {
-			p->monitoremu_mon = 0;
-			error_log(_T("Multi virtual monitor support requires Direct3D mode."));
-		}
 		if (isfullscreen() != 0) {
 			p->monitoremu_mon = 0;
 			error_log(_T("Multi virtual monitor support requires windowed mode."));
