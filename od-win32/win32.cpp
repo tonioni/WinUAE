@@ -397,7 +397,7 @@ void target_calibrate_spin(void)
 			if (vp2 > vp + cntlines * 2)
 				break;
 		}
-trynext:
+trynext:;
 	}
 	if (sc == 0x800000000000) {
 		write_log(_T("Spincount calculation error, spinloop not used.\n"), sc);
