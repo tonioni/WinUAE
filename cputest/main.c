@@ -128,6 +128,7 @@ static int errors;
 static int totalerrors;
 static int testcnt;
 static short testcntsub, testcntsubmax;
+static int invalidcycles;
 static int fpu_approx, fpu_approxcnt;
 static short dooutput = 1;
 static short quit;
@@ -1696,7 +1697,6 @@ static uae_u8 *validate_exception(struct registers *regs, uae_u8 *p, short excnu
 	uae_u8 *sp = (uae_u8*)regs->excframe;
 	uae_u32 v;
 	uae_u8 excdatalen = *p++;
-	int size;
 	int excrwp = 0;
 	int alts = 0;
 
@@ -2172,6 +2172,13 @@ static int check_cycles(int exc, short extratrace, short extrag2w1, struct regis
 {
 	int gotcycles = 0;
 
+	if ((test_regs.cycles >> 16) == 0xffff) {
+		// cycle counter got exception (interrupt) during exception handling
+		// -> cycle counter was invalidated. Ignore cycle count.
+		invalidcycles++;
+		return 1;
+	}
+
 	if (cyclecounter_addr != 0xffffffff) {
 		gotcycles = (test_regs.cycles & 0xffff) - (test_regs.cycles >> 16);
 		if (gotcycles == 0) {
@@ -2257,7 +2264,7 @@ static int check_cycles(int exc, short extratrace, short extrag2w1, struct regis
 
 	if (0 || abs(gotcycles - expectedcycles) > cycles_range) {
 		addinfo();
-		sprintf(outbp, "Got %d cycles (%d + %d) but expected %d (%d + %d) cycles\n",
+		sprintf(outbp, "Got %d cycles (%d + %d) but expected %d (%d + %d)\n",
 			gotcycles, gotcycles - exceptioncycles, exceptioncycles,
 			expectedcycles, expectedcycles - exceptioncycles, exceptioncycles);
 		outbp += strlen(outbp);
@@ -2944,6 +2951,10 @@ static void out_endinfo(void)
 			outbp += strlen(outbp);
 		}
 	}
+	if (invalidcycles) {
+		sprintf(outbp, " INVCYC=%d", invalidcycles);
+		outbp += strlen(outbp);
+	}
 	strcat(outbp, "\n");
 	outbp += strlen(outbp);
 	if (fpu_approxcnt) {
@@ -3017,6 +3028,10 @@ static void process_test(uae_u8 *p)
 	ahcnt = 0;
 
 	short doopcodeswap = 1;
+
+	if (interrupttest >= 1) {
+		doopcodeswap = 0;
+	}
 
 	for (;;) {
 
@@ -3403,7 +3418,7 @@ static int test_mnemo(const char *opcode)
 	int size;
 	uae_u8 data[4] = { 0 };
 	uae_u32 v;
-	char fname[256], tfname[256];
+	char tfname[256];
 	int filecnt = 1;
 	uae_u32 starttimeid;
 	int lvl;

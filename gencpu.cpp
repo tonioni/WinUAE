@@ -6657,16 +6657,19 @@ static void gen_opcode (unsigned int opcode)
 		break;
 	case i_STOP:
 	{
+		const char *reg = cpu_level <= 1 ? "irc" : "ir";
+		out("if (!regs.stopped) {\n");
 		if (using_prefetch) {
-			out("uae_u16 sr = regs.irc;\n");
-			m68k_pc_offset += 2;
+			out("uae_u16 src = regs.%s;\n", reg);
 		} else {
 			genamode(curi, curi->smode, "srcreg", curi->size, "src", 1, 0, 0);
-			out("uae_u16 sr = src;\n");
 		}
+		out("regs.%s = src;\n", reg);
+		out("}\n");
+		out("uae_u16 sr = regs.%s;\n", reg);
 		// STOP undocumented features:
 		// if new SR S-bit is not set:
-		// 68000/68010: Update SR, increase PC and then cause privilege violation exception (handled in newcpu)
+		// 68000/68010: Update SR, increase PC and then cause privilege violation exception
 		// 68000/68010: Traced STOP runs 4 cycles faster.
 		// 68020 68030 68040: STOP works normally
 		// 68060: Immediate privilege violation exception
@@ -6676,25 +6679,14 @@ static void gen_opcode (unsigned int opcode)
 			write_return_cycles(0);
 			out("}\n");
 		}
-		bool accstop = (cpu_level == 0 || cpu_level == 1) && (using_ce || using_prefetch);
-		if (accstop) {
-			// if interrupt is pending before SR change: STOP finishes in 4 cycles
-			out("bool irq = stop_interrupt_pending();\n");
-		}
 		out("regs.sr = sr;\n");
 		check_ipl_always();
-		makefromsr();
-		if (accstop) {
-			out("do_cycles_stop(4);\n");
-			out("if (!irq) {\n");
-			out("m68k_setstopped();\n");
-			out("}\n");
-		} else {
-			out("m68k_setstopped();\n");
-		}
-		sync_m68k_pc();
+		out("MakeFromSR();\n");
+		out("do_cycles_stop(4);\n");
+		out("m68k_setstopped();\n");
 		// STOP does not prefetch anything
 		did_prefetch = -1;
+		m68k_pc_offset = 0;
 		next_cpu_level = cpu_level - 1;
 		next_level_000();
 		break;

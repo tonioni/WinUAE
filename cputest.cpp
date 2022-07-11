@@ -126,7 +126,7 @@ static int max_storage_buffer;
 static bool out_of_test_space;
 static uaecptr out_of_test_space_addr;
 static int forced_immediate_mode;
-static int test_exception;
+static int test_exception, test_exception_orig;
 static int test_exception_extra;
 static int exception_stack_frame_size;
 static uae_u8 exception_extra_frame[100];
@@ -522,7 +522,7 @@ void put_byte_test(uaecptr addr, uae_u32 v)
 		return;
 	if (feature_interrupts >= 2 && addr == IPL_TRIGGER_ADDR) {
 		add_memory_cycles(1);
-		interrupt_cycle_cnt = INTERRUPT_CYCLES - 2;
+		interrupt_cycle_cnt = INTERRUPT_CYCLES;
 		return;
 	}
 	check_bus_error(addr, 1, regs.s ? 5 : 1);
@@ -830,13 +830,18 @@ bool is_cycle_ce(uaecptr addr)
 void ipl_fetch(void)
 {
 	if (regs.ipl_pin) {
-		regs.ipl = regs.ipl_pin;
+		regs.ipl[0] = regs.ipl_pin;
 	}
 }
 
 int intlev(void)
 {
 	return interrupt_level;
+}
+
+void do_cycles_stop(int c)
+{
+	do_cycles_test(c);
 }
 
 uae_u32(*x_get_long)(uaecptr);
@@ -905,6 +910,10 @@ static void activate_trace(void)
 
 static void do_trace(void)
 {
+	if (cpu_stopped) {
+		m68k_incpci(4);
+		cpu_stopped = 0;
+	}
 	regs.trace_pc = regs.pc;
 	if (regs.t0 && !regs.t1 && currprefs.cpu_model >= 68020) {
 		// this is obsolete
@@ -1020,13 +1029,7 @@ void cpu_halt(int halt)
 
 void m68k_setstopped(void)
 {
-	/* A traced STOP instruction drops through immediately without
-	actually stopping.  */
-	if (SPCFLAG_DOTRACE == 0) {
-		cpu_stopped = 1;
-	} else {
-		cpu_stopped = 0;
-	}
+	cpu_stopped = 1;
 }
 
 void check_t0_trace(void)
@@ -1475,13 +1478,15 @@ uae_u16 exception3_word_read(uaecptr addr)
 
 void REGPARAM2 Exception(int n)
 {
+	if (cpu_stopped) {
+		m68k_incpci(4);
+		cpu_stopped = 0;
+	}
+
 	test_exception = n;
 	test_exception_addr = m68k_getpci();
 	test_exception_opcode = -1;
 	doexcstack();
-	if (n >= 24 && n < 24 + 8) {
-		cpu_stopped = 0;
-	}
 }
 void REGPARAM2 Exception_cpu_oldpc(int n, uaecptr oldpc)
 {
@@ -2085,25 +2090,25 @@ static uae_u8 *store_fpureg(uae_u8 *dst, uae_u8 mode, floatx80 *s, floatx80 d, i
 	}
 	uae_u8 fs[10], fd[10];
 	fs[0] = s->high >> 8;
-	fs[1] = s->high;
-	fs[2] = s->low >> 56;
-	fs[3] = s->low >> 48;
-	fs[4] = s->low >> 40;
-	fs[5] = s->low >> 32;
-	fs[6] = s->low >> 24;
-	fs[7] = s->low >> 16;
-	fs[8] = s->low >> 8;
-	fs[9] = s->low >> 0;
+	fs[1] = (uae_u8)s->high;
+	fs[2] = (uae_u8)(s->low >> 56);
+	fs[3] = (uae_u8)(s->low >> 48);
+	fs[4] = (uae_u8)(s->low >> 40);
+	fs[5] = (uae_u8)(s->low >> 32);
+	fs[6] = (uae_u8)(s->low >> 24);
+	fs[7] = (uae_u8)(s->low >> 16);
+	fs[8] = (uae_u8)(s->low >> 8);
+	fs[9] = (uae_u8)(s->low >> 0);
 	fd[0] = d.high >> 8;
-	fd[1] = d.high;
-	fd[2] = d.low >> 56;
-	fd[3] = d.low >> 48;
-	fd[4] = d.low >> 40;
-	fd[5] = d.low >> 32;
-	fd[6] = d.low >> 24;
-	fd[7] = d.low >> 16;
-	fd[8] = d.low >> 8;
-	fd[9] = d.low >> 0;
+	fd[1] = (uae_u8)d.high;
+	fd[2] = (uae_u8)(d.low >> 56);
+	fd[3] = (uae_u8)(d.low >> 48);
+	fd[4] = (uae_u8)(d.low >> 40);
+	fd[5] = (uae_u8)(d.low >> 32);
+	fd[6] = (uae_u8)(d.low >> 24);
+	fd[7] = (uae_u8)(d.low >> 16);
+	fd[8] = (uae_u8)(d.low >> 8);
+	fd[9] = (uae_u8)(d.low >> 0);
 	*dst++ = mode | CT_SIZE_FPU;
 	if (fs[4] != fd[4] || fs[5] != fd[5]) {
 		*dst++ = 0xff;
@@ -2460,7 +2465,7 @@ static int putfpuimm(uaecptr addr, int opcodesize, int *isconstant)
 		fpu_imm_cnt++;
 		put_long_test(addr + 0, v.high);
 		put_long_test(addr + 4, v.low >> 32);
-		put_long_test(addr + 8, v.low);
+		put_long_test(addr + 8, (uae_u32)v.low);
 		addr += 12;
 		break;
 	}
@@ -2492,7 +2497,7 @@ static int putfpuimm(uaecptr addr, int opcodesize, int *isconstant)
 		fpu_imm_cnt++;
 		float64 v2 = floatx80_to_float64(v, &fpustatus);
 		put_long_test(addr + 0, v2 >> 32);
-		put_long_test(addr + 4, v2);
+		put_long_test(addr + 4, (uae_u32)v2);
 		addr += 8;
 		break;
 	}
@@ -3051,7 +3056,11 @@ static int create_ea_random(uae_u16 *opcodep, uaecptr pc, int mode, int reg, str
 					put_word_test(pc, imm16_cnt);
 					if (dp->mnemo == i_STOP && feature_interrupts > 0) {
 						// STOP hack to keep STOP test size smaller.
-						imm16_cnt += 0x0100;
+						if (feature_interrupts > 1) {
+							imm16_cnt += 0x0100;
+						} else {
+							imm16_cnt += 0x0001;
+						}
 					} else {
 						imm16_cnt += 0x0001;
 					}
@@ -3907,6 +3916,14 @@ static bool check_interrupts(void)
 	return false;
 }
 
+static int get_ipl(void)
+{
+	if (cpu_cycles + 4 > regs.ipl_time) {
+		return regs.ipl[0];
+	}
+	return regs.ipl[1];
+}
+
 static void execute_ins(uaecptr endpc, uaecptr targetpc, struct instr *dp, bool fpumode)
 {
 	uae_u16 opc = regs.ir;
@@ -3950,13 +3967,16 @@ static void execute_ins(uaecptr endpc, uaecptr targetpc, struct instr *dp, bool 
 	cpu_cycles = 0;
 	regs.loop_mode = 0;
 	regs.ipl_pin = 0;
-	regs.ipl = 0;
+	regs.ipl[0] = regs.ipl[1] = 0;
+	regs.ipl_time = 0;
 	interrupt_level = 0;
 	interrupt_cycle_cnt = 0;
+	test_exception_orig = 0;
 
 	int cnt = 2;
 	uaecptr first_pc = regs.pc;
 	uae_u32 loop_mode_reg = 0;
+	int stop_count = 0;
 
 	if (feature_loop_mode_68010) {
 		// 68010 loop mode
@@ -3990,7 +4010,7 @@ static void execute_ins(uaecptr endpc, uaecptr targetpc, struct instr *dp, bool 
 			abort();
 		}
 
-		if (SPCFLAG_TRACE && !cpu_stopped) {
+		if (SPCFLAG_TRACE) {
 			do_trace();
 		}
 
@@ -4012,23 +4032,13 @@ static void execute_ins(uaecptr endpc, uaecptr targetpc, struct instr *dp, bool 
 		}
 
 		if (cpu_stopped) {
-			if (feature_interrupts && !interrupt_cycle_cnt) {
-				test_exception = -1;
+			stop_count++;
+			if (stop_count > 256) {
 				break;
 			}
-			ipl_fetch();
-			do_cycles_test(4);
-			if (!SPCFLAG_DOTRACE && regs.s == 0 && currprefs.cpu_model <= 68010) {
-				// 68000/68010 undocumented special case:
-				// if STOP clears S-bit and T was not set:
-				// cause privilege violation exception, PC pointing to following instruction.
-				// If T was set before STOP: STOP works as documented.
-				cpu_stopped = 0;
-				Exception(8);
-			}
-		} else {
-			(*cpufunctbl[opc])(opc);
 		}
+
+		(*cpufunctbl[opc])(opc);
 
 		if (fpumode) {
 			// skip result has too large or small exponent
@@ -4060,6 +4070,7 @@ static void execute_ins(uaecptr endpc, uaecptr targetpc, struct instr *dp, bool 
 		if (out_of_test_space) {
 			break;
 		}
+
 		// CPU stopped or was reset: skip
 		if (cpu_stopped && feature_interrupts < 2) {
 			break;
@@ -4086,17 +4097,18 @@ static void execute_ins(uaecptr endpc, uaecptr targetpc, struct instr *dp, bool 
 			break;
 		}
 
-		if (!test_exception && regs.ipl > regs.intmask) {
-			Exception(24 + regs.ipl);
+		if (get_ipl() > regs.intmask) {
+			Exception(24 + get_ipl());
 			break;
 		}
 
-		if ((regs.pc == endpc || regs.pc == targetpc) && !cpu_stopped) {
+		if ((regs.pc == endpc || regs.pc == targetpc) && !cpu_stopped && feature_interrupts < 2) {
 			// Trace is only added as an exception if there was no other exceptions
 			// Trace stacked with other exception is handled later
 			if (SPCFLAG_DOTRACE && !test_exception && trace_store_pc == 0xffffffffff) {
 				Exception(9);
 			}
+
 			break;
 		}
 
@@ -4116,11 +4128,6 @@ static void execute_ins(uaecptr endpc, uaecptr targetpc, struct instr *dp, bool 
 					trace_store_pc = regs.pc;
 					trace_store_sr = regs.sr;
 					SPCFLAG_DOTRACE = 0;
-				}
-				// STOP can only end with exception, fake prefetch here.
-				if (dp->mnemo == i_STOP) {
-					regs.ir = get_iword_test(regs.pc + 0);
-					regs.irc = get_iword_test(regs.pc + 2);
 				}
 			}
 			if (currprefs.cpu_model >= 68020) {
@@ -4148,12 +4155,20 @@ static void execute_ins(uaecptr endpc, uaecptr targetpc, struct instr *dp, bool 
 		opc = regs.ir;
 	}
 
+	test_exception_orig = test_exception;
+
+	// if still stopped: skip test
+	if (cpu_stopped) {
+		test_exception = -1;
+	}
+
 	if (feature_interrupts >= 2) {
-		// IPL test must cause some exception
-		if (!test_exception || test_exception == 8) {
+		// Skip test if end exception
+		if (regs.pc == endpc || regs.pc == targetpc) {
 			test_exception = -1;
 		}
-		if (cpu_stopped) {
+		// Skip test if no exception
+		if (!test_exception) {
 			test_exception = -1;
 		}
 		// Interrupt start must be before test instruction,
@@ -4198,7 +4213,7 @@ static uae_u8 *save_exception(uae_u8 *p, struct instr *dp)
 	// Separate, non-stacked Trace
 	if (test_exception_extra & 0x80) {
 		*p++ = trace_store_sr >> 8;
-		*p++ = trace_store_sr;
+		*p++ = (uae_u8)trace_store_sr;
 		p = store_rel(p, 0, opcode_memory_start, trace_store_pc, 1);
 	}
 	uae_u8 *sf = NULL;
@@ -4221,7 +4236,7 @@ static uae_u8 *save_exception(uae_u8 *p, struct instr *dp)
 				*p++ = sf[7];
 				if (st & 0x20) {
 					*p++ = regs.opcode >> 8;
-					*p++ = regs.opcode;
+					*p++ = (uae_u8)regs.opcode;
 				}
 				// access address
 				p = store_rel(p, 0, opcode_memory_start, gl(sf + 2), 1);
@@ -4281,7 +4296,7 @@ static uae_u8 *save_exception(uae_u8 *p, struct instr *dp)
 				*p++ = sf[25];
 				// optional data input (some hardware does real memory fetch when CPU does the dummy fetch, some don't)
 				*p++ = read_buffer_prev >> 8;
-				*p++ = read_buffer_prev;
+				*p++ = (uae_u8)read_buffer_prev;
 				break;
 			case 0x0a: // 68020/030 address error.
 			case 0x0b: // Don't save anything extra, too many undefined fields and bits..
@@ -4652,6 +4667,10 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 		uae_u32 startpc_old = opcode_memory_start;
 		int branch_target_swap_mode_old = 0;
 		int doopcodeswap = 1;
+
+		if (feature_interrupts >= 2) {
+			doopcodeswap = 0;
+		}
 
 		if (verbose) {
 			if (target_ea[0] != 0xffffffff)
@@ -5593,7 +5612,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 							if (regs.sr & 0x2000)
 								prev_s_cnt++;
 
-							if (subtest_count == 433)
+							if (subtest_count == 19)
  								printf("");
 
 							// execute test instruction(s)
@@ -5627,7 +5646,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 							}
 
 							// exception check disabled
-							if (!exceptionenabletable[test_exception]) {
+							if (test_exception < 0 || !exceptionenabletable[test_exception]) {
 								skipped = 1;
 							}
 
@@ -5921,8 +5940,10 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 						}
 					}
 					if (verbose) {
-						wprintf(_T(" OK=%d OB=%d S=%d/%d T=%d STP=%d I=%d/%d %08x"), ok, exception_array[0],
-							prev_s_cnt, s_cnt, t_cnt, cnt_stopped, interrupt_delay_cnt, interrupt_cycle_cnt, test_exception_addr);
+						wprintf(_T(" OK=%d OB=%d S=%d/%d T=%d STP=%d I=%d/%d EX=%d %08x %08x"), ok, exception_array[0],
+							prev_s_cnt, s_cnt, t_cnt, cnt_stopped, interrupt_delay_cnt, interrupt_cycle_cnt,
+							test_exception_orig,
+							test_exception_addr, regs.pc);
 						if (!ccr_done)
 							wprintf(_T(" X"));
 						for (int i = 2; i < 128; i++) {

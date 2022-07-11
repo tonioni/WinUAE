@@ -201,7 +201,8 @@ struct regstruct
 	int halted;
 	int exception;
 	int intmask;
-	int ipl, ipl_pin;
+	int ipl[2], ipl_pin;
+	evt_t ipl_time;
 
 	uae_u32 vbr, sfc, dfc;
 
@@ -689,9 +690,8 @@ extern void REGPARAM3 ExceptionL (int, uaecptr) REGPARAM;
 extern void NMI (void);
 extern void IRQ_forced(int, int);
 extern void prepare_interrupt (uae_u32);
-extern void doint (void);
+extern void doint(void);
 extern void intlev_load(void);
-extern bool stop_interrupt_pending(void);
 extern void dump_counts (void);
 extern int m68k_move2c (int, uae_u32 *);
 extern int m68k_movec2 (int, uae_u32 *);

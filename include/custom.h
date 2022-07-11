@@ -81,7 +81,6 @@ STATIC_INLINE int dmaen(unsigned int dmamask)
 	return (dmamask & dmacon) && (dmacon & 0x200);
 }
 
-#define SPCFLAG_STOP 2
 #define SPCFLAG_COPPER 4
 #define SPCFLAG_INT 8
 #define SPCFLAG_BRK 16

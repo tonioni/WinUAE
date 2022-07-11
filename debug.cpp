@@ -179,6 +179,7 @@ static const TCHAR help[] = {
 	_T("  a <address>           Assembler.\n")
 	_T("  d <address> [<lines>] Disassembly starting at <address>.\n")
 	_T("  t [instructions]      Step one or more instructions.\n")
+	_T("  tx                    Break when any exception.\n")
 	_T("  z                     Step through one instruction - useful for JSR, DBRA etc.\n")
 	_T("  f                     Step forward until PC in RAM (\"boot block finder\").\n")
 	_T("  f <address>           Add/remove breakpoint.\n")
@@ -1401,7 +1402,7 @@ static void set_dbg_color(int index, int extra, uae_u8 r, uae_u8 g, uae_u8 b, in
 	if (extra >= 0) {
 		debug_colors[index].l[extra] = lc((r << 16) | (g << 8) | (b << 0));
 	} else {
-		for (int i = 0; i < DMARECORD_SUBITEMS; i++) {
+		for (int i = 0; i < DMARECORD_MAX; i++) {
 			debug_colors[index].l[i] = lc((r << 16) | (g << 8) | (b << 0));
 		}
 	}
@@ -1417,7 +1418,7 @@ static void set_debug_colors(void)
 	set_dbg_color(DMARECORD_CPU,			0, 0xa2, 0x53, 0x42, 2, _T("CPU")); // code
 	set_dbg_color(DMARECORD_COPPER,			0, 0xee, 0xee, 0x00, 3, _T("Copper"));
 	set_dbg_color(DMARECORD_AUDIO,			0, 0xff, 0x00, 0x00, 4, _T("Audio"));
-	set_dbg_color(DMARECORD_BLITTER,		0, 0x00, 0x88, 0x88, 2, _T("Blitter")); // blit A
+	set_dbg_color(DMARECORD_BLITTER,		0, 0x00, 0x88, 0x88, 2, _T("Blitter"));
 	set_dbg_color(DMARECORD_BITPLANE,		0, 0x00, 0x00, 0xff, 8, _T("Bitplane"));
 	set_dbg_color(DMARECORD_SPRITE,			0, 0xff, 0x00, 0xff, 8, _T("Sprite"));
 	set_dbg_color(DMARECORD_DISK,			0, 0xff, 0xff, 0xff, 3, _T("Disk"));
@@ -1432,11 +1433,8 @@ static void set_debug_colors(void)
 	set_dbg_color(DMARECORD_CPU,			1, 0xad, 0x98, 0xd6, 0, NULL); // data
 	set_dbg_color(DMARECORD_COPPER,			1, 0xaa, 0xaa, 0x22, 0, NULL); // wait
 	set_dbg_color(DMARECORD_COPPER,			2, 0x66, 0x66, 0x44, 0, NULL); // special
-	set_dbg_color(DMARECORD_BLITTER,		1, 0x00, 0x88, 0x88, 0, NULL); // blit B
-	set_dbg_color(DMARECORD_BLITTER,		2, 0x00, 0x88, 0x88, 0, NULL); // blit C
-	set_dbg_color(DMARECORD_BLITTER,		3, 0x00, 0xaa, 0x88, 0, NULL); // blit D (write)
-	set_dbg_color(DMARECORD_BLITTER,		4, 0x00, 0x88, 0xff, 0, NULL); // fill A-D
-	set_dbg_color(DMARECORD_BLITTER,		6, 0x00, 0xff, 0x00, 0, NULL); // line A-D
+	set_dbg_color(DMARECORD_BLITTER,		1, 0x00, 0x88, 0xff, 0, NULL); // fill
+	set_dbg_color(DMARECORD_BLITTER,		2, 0x00, 0xff, 0x00, 0, NULL); // line
 }
 
 static int cycles_toggle;
@@ -1477,20 +1475,10 @@ static void debug_draw_cycles (uae_u8 *buf, int bpp, int line, int width, int he
 		uae_u32 c = debug_colors[0].l[0];
 		xx = x * xplus + dx;
 		dr = &dma_record[t][y * NR_DMA_REC_HPOS + x];
-
 		if (dr->reg != 0xffff && debug_colors[dr->type].enabled) {
-			// General DMA slots
-			c = debug_colors[dr->type].l[dr->extra & 7];
-
-			// Special cases
+			c = debug_colors[dr->type].l[dr->extra];
 			if (dr->cf_reg != 0xffff && ((cycles_toggle ^ line) & 1)) {
 				c = debug_colors[DMARECORD_CONFLICT].l[0];
-			} else if (dr->extra > 0xF) {
-				// High bits of "extra" contain additional blitter state.
-				if (dr->extra & 0x10)
-					c = debug_colors[dr->type].l[4]; // blit fill, channels A-D
-				else if (dr->extra & 0x20)
-					c = debug_colors[dr->type].l[6]; // blit line, channels A-D
 			}
 		}
 		if (dr->intlev > intlev)
@@ -2103,9 +2091,7 @@ static bool get_record_dma_info(struct dma_rec *dr, int hpos, int vpos, evt_t cy
 
 	sr = _T("    ");
 	if (dr->type == DMARECORD_COPPER) {
-		if (br == 2)
-			sr = _T("COPS");
-		else if (br == 1)
+		if (dr->extra == 3)
 			sr = _T("COPW");
 		else
 			sr = _T("COP ");
@@ -6153,6 +6139,11 @@ static bool debug_line (TCHAR *input)
 					trace_param[1] = debugmem_get_sourceline(M68K_GETPC, NULL, 0);
 					return true;
 				}
+			} else if (*inptr == 'x') {
+				trace_mode = TRACE_SKIP_INS;
+				trace_param[0] = 0xffffffff;
+				exception_debugging = 1;
+				return true;
 			} else {
 				if (more_params(&inptr))
 					trace_param[0] = readint(&inptr);
@@ -6561,28 +6552,45 @@ static void debug_1 (void)
 	}
 }
 
-static void addhistory (void)
+static void addhistory(void)
 {
-	if (regs.stopped)
-		return;
-
 	uae_u32 pc = currprefs.cpu_model >= 68020 && currprefs.cpu_compatible ? regs.instruction_pc : m68k_getpc();
+	int prevhist = lasthist == 0 ? MAX_HIST - 1 : lasthist - 1;
+	if (history[prevhist].regs.pc == pc) {
+		return;
+	}
 	history[lasthist].regs = regs;
 	history[lasthist].regs.pc = pc;
 	history[lasthist].vpos = vpos;
 	history[lasthist].hpos = current_hpos();
 	history[lasthist].fp = timeframes;
 
-	if (++lasthist == MAX_HIST)
+	if (++lasthist == MAX_HIST) {
 		lasthist = 0;
+	}
 	if (lasthist == firsthist) {
-		if (++firsthist == MAX_HIST) firsthist = 0;
+		if (++firsthist == MAX_HIST) {
+			firsthist = 0;
+		}
 	}
 }
 
 static void debug_continue(void)
 {
 	set_special (SPCFLAG_BRK);
+}
+
+void debug_exception(int nr)
+{
+	if (debug_illegal) {
+		if (nr <= 63 && (debug_illegal_mask & ((uae_u64)1 << nr))) {
+			write_log(_T("Exception %d breakpoint\n"), nr);
+			activate_debugger();
+		}
+	}
+	if (trace_param[0] == 0xffffffff && trace_mode == TRACE_SKIP_INS) {
+		activate_debugger();
+	}
 }
 
 void debug (void)
@@ -6726,7 +6734,7 @@ void debug (void)
 						}
 					}
 				} else if (trace_mode == TRACE_SKIP_INS) {
-					if (trace_param[0] != 0)
+					if (trace_param[0] != 0 && trace_param[0] != 0xffffffff)
 						trace_param[0]--;
 					if (trace_param[0] == 0) {
 						bp = -1;
@@ -6783,9 +6791,16 @@ void debug (void)
 
 	if (trace_cycles && last_frame >= 0) {
 		if (last_frame + 2 >= timeframes || trace_cycles > 1) {
+			evt_t c = last_cycles2 - last_cycles1;
+			uae_u32 cc;
+			if (c >= 0x7fffffff) {
+				cc = 0x7fffffff;
+			} else {
+				cc = (uae_u32)c;
+			}
 			console_out_f(_T("Cycles: %d Chip, %d CPU. (V=%d H=%d -> V=%d H=%d)\n"),
-				(last_cycles2 - last_cycles1) / CYCLE_UNIT,
-				(last_cycles2 - last_cycles1) / cpucycleunit,
+				cc / CYCLE_UNIT,
+				cc / cpucycleunit,
 				last_vpos1, last_hpos1,
 				last_vpos2, last_hpos2);
 		}

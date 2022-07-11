@@ -104,6 +104,7 @@ static int cachedsets04060, cachedsets04060mask, cachedtag04060mask;
 
 static int cpu_prefs_changed_flag;
 
+int cpuipldelay;
 int cpucycleunit;
 int cpu_tracer;
 
@@ -2030,6 +2031,12 @@ static void build_cpufunctbl (void)
 	}
 	write_log(_T("\n"));
 
+	if (m68k_interrupt_delay) {
+		cpuipldelay = 4 * cpucycleunit;
+	} else {
+		cpuipldelay = 0;
+	}
+
 	set_cpu_caches (true);
 	target_cpu_speed();
 }
@@ -2290,7 +2297,6 @@ static void m68k_set_stop(void)
 	if (regs.stopped)
 		return;
 	regs.stopped = 1;
-	set_special(SPCFLAG_STOP);
 	if (cpu_last_stop_vpos >= 0) {
 		cpu_last_stop_vpos = vpos;
 	}
@@ -2299,7 +2305,6 @@ static void m68k_set_stop(void)
 static void m68k_unset_stop(void)
 {
 	regs.stopped = 0;
-	unset_special(SPCFLAG_STOP);
 	if (cpu_last_stop_vpos >= 0) {
 		cpu_stopped_lines += vpos - cpu_last_stop_vpos;
 		cpu_last_stop_vpos = vpos;
@@ -3327,12 +3332,10 @@ static void ExceptionX (int nr, uaecptr address, uaecptr oldpc)
 	if (oldpc != 0xffffffff) {
 		regs.instruction_pc = oldpc;
 	}
-	if (debug_illegal && !in_rom(pc)) {
-		if (nr <= 63 && (debug_illegal_mask & ((uae_u64)1 << nr))) {
-			write_log(_T("Exception %d breakpoint\n"), nr);
-			activate_debugger();
-		}
-	}
+#ifdef DEBUGGER
+	debug_exception(nr);
+#endif
+	m68k_resumestopped();
 
 #ifdef CPUEMU_13
 	if (currprefs.cpu_cycle_exact && currprefs.cpu_model <= 68010)
@@ -3396,6 +3399,14 @@ static void bus_error(void)
 	} ENDTRY
 }
 
+static int get_ipl(void)
+{
+	if (get_cycles() - cpuipldelay > regs.ipl_time) {
+		return regs.ipl[0];
+	}
+	return regs.ipl[1];
+}
+
 static void do_interrupt (int nr)
 {
 	if (debug_dma)
@@ -3408,7 +3419,6 @@ static void do_interrupt (int nr)
 			inprec_playdebug_cpu (2);
 	}
 
-	m68k_unset_stop();
 	assert (nr < 8 && nr >= 0);
 
 	for (;;) {
@@ -3416,7 +3426,7 @@ static void do_interrupt (int nr)
 		if (!currprefs.cpu_compatible || currprefs.cpu_model == 68060)
 			break;
 		if (m68k_interrupt_delay)
-			nr = regs.ipl;
+			nr = get_ipl();
 		else
 			nr = intlev();
 		if (nr <= 0 || regs.intmask >= nr)
@@ -3471,7 +3481,7 @@ static void m68k_reset2(bool hardreset)
 
 	regs.spcflags = 0;
 	m68k_reset_delay = 0;
-	regs.ipl = regs.ipl_pin = 0;
+	regs.ipl[0] = regs.ipl[1] = regs.ipl_pin = 0;
 	for (int i = 0; i < IRQ_SOURCE_MAX; i++) {
 		uae_interrupts2[i] = 0;
 		uae_interrupts6[i] = 0;
@@ -4345,28 +4355,15 @@ static bool uae_ppc_poll_check_halt(void)
 
 
 // handle interrupt delay (few cycles)
-STATIC_INLINE bool time_for_interrupt (void)
+static bool time_for_interrupt(void)
 {
-	return regs.ipl > regs.intmask || regs.ipl == 7;
+	int ipl = get_ipl();
+	return ipl > regs.intmask || ipl == 7;
 }
 
 void intlev_load(void)
 {
 	doint();
-}
-
-bool stop_interrupt_pending(void)
-{
-	if (m68k_interrupt_delay) {
-		int il = intlev();
-		regs.ipl_pin = il;
-		if (regs.ipl_pin > regs.intmask || regs.ipl_pin == 7) {
-			if (regs.spcflags & SPCFLAG_INT) {
-				return true;
-			}
-		}
-	}
-	return false;
 }
 
 void doint(void)
@@ -4413,7 +4410,7 @@ static void debug_cpu_stop(void)
 
 static int do_specialties (int cycles)
 {
-	bool stopped_debug = false;
+	uaecptr pc = m68k_getpc();
 
 	if (regs.spcflags & SPCFLAG_MODE_CHANGE)
 		return 1;
@@ -4447,15 +4444,15 @@ static int do_specialties (int cycles)
 #ifdef ACTION_REPLAY
 #ifdef ACTION_REPLAY_HRTMON
 	if ((regs.spcflags & SPCFLAG_ACTION_REPLAY) && hrtmon_flag != ACTION_REPLAY_INACTIVE) {
-		int isinhrt = (m68k_getpc () >= hrtmem_start && m68k_getpc () < hrtmem_start + hrtmem_size);
+		int isinhrt = pc >= hrtmem_start && pc < hrtmem_start + hrtmem_size;
 		/* exit from HRTMon? */
 		if (hrtmon_flag == ACTION_REPLAY_ACTIVE && !isinhrt)
-			hrtmon_hide ();
+			hrtmon_hide();
 		/* HRTMon breakpoint? (not via IRQ7) */
 		if (hrtmon_flag == ACTION_REPLAY_IDLE && isinhrt)
-			hrtmon_breakenter ();
+			hrtmon_breakenter();
 		if (hrtmon_flag == ACTION_REPLAY_ACTIVATE)
-			hrtmon_enter ();
+			hrtmon_enter();
 	}
 #endif
 	if ((regs.spcflags & SPCFLAG_ACTION_REPLAY) && action_replay_flag != ACTION_REPLAY_INACTIVE) {
@@ -4463,14 +4460,14 @@ static int do_specialties (int cycles)
 		/*	write_log (_T("PC:%p\n"), m68k_getpc ());*/
 
 		if (action_replay_flag == ACTION_REPLAY_ACTIVATE || action_replay_flag == ACTION_REPLAY_DORESET)
-			action_replay_enter ();
-		if ((action_replay_flag == ACTION_REPLAY_HIDE || action_replay_flag == ACTION_REPLAY_ACTIVE) && !is_ar_pc_in_rom ()) {
-			action_replay_hide ();
+			action_replay_enter();
+		if ((action_replay_flag == ACTION_REPLAY_HIDE || action_replay_flag == ACTION_REPLAY_ACTIVE) && !is_ar_pc_in_rom()) {
+			action_replay_hide();
 			unset_special (SPCFLAG_ACTION_REPLAY);
 		}
 		if (action_replay_flag == ACTION_REPLAY_WAIT_PC) {
 			/*write_log (_T("Waiting for PC: %p, current PC= %p\n"), wait_for_pc, m68k_getpc ());*/
-			if (m68k_getpc () == wait_for_pc) {
+			if (pc == wait_for_pc) {
 				action_replay_flag = ACTION_REPLAY_ACTIVATE; /* Activate after next instruction. */
 			}
 		}
@@ -4478,14 +4475,14 @@ static int do_specialties (int cycles)
 #endif
 
 	if (regs.spcflags & SPCFLAG_COPPER)
-		do_copper ();
+		do_copper();
 
 #ifdef JIT
-	unset_special (SPCFLAG_END_COMPILE);   /* has done its job */
+	unset_special(SPCFLAG_END_COMPILE);   /* has done its job */
 #endif
 
 	while ((regs.spcflags & SPCFLAG_BLTNASTY) && dmaen (DMA_BLITTER) && cycles > 0 && ((currprefs.waiting_blits && currprefs.cpu_model >= 68020) || !currprefs.blitter_cycle_exact)) {
-		int c = blitnasty ();
+		int c = blitnasty();
 		if (c < 0) {
 			break;
 		} else if (c > 0) {
@@ -4495,9 +4492,9 @@ static int do_specialties (int cycles)
 		} else {
 			c = 4;
 		}
-		x_do_cycles (c * CYCLE_UNIT);
+		x_do_cycles(c * CYCLE_UNIT);
 		if (regs.spcflags & SPCFLAG_COPPER)
-			do_copper ();
+			do_copper();
 #ifdef WITH_PPC
 		if (ppc_state)  {
 			if (uae_ppc_poll_check_halt())
@@ -4508,116 +4505,15 @@ static int do_specialties (int cycles)
 	}
 
 	if (regs.spcflags & SPCFLAG_DOTRACE)
-		Exception (9);
+		Exception(9);
 
 	if (regs.spcflags & SPCFLAG_TRAP) {
 		unset_special (SPCFLAG_TRAP);
-		Exception (3);
-	}
-
-	while (regs.spcflags & SPCFLAG_STOP) {
-
-		if (regs.s == 0 && currprefs.cpu_model <= 68010) {
-			// 68000/68010 undocumented special case:
-			// if STOP clears S-bit and T was not set:
-			// cause privilege violation exception, PC pointing to following instruction.
-			// If T was set before STOP: STOP works as documented.
-			m68k_unset_stop();
-			Exception(8);
-			break;
-		}
-
-	isstopped:
-		check_uae_int_request();
-		{
-			if (bsd_int_requested)
-				bsdsock_fake_int_handler ();
-		}
-
-		if (cpu_tracer > 0) {
-			cputrace.stopped = regs.stopped;
-			cputrace.intmask = regs.intmask;
-			cputrace.sr = regs.sr;
-			cputrace.state = 1;
-			cputrace.pc = m68k_getpc ();
-			cputrace.memoryoffset = 0;
-			cputrace.cyclecounter = cputrace.cyclecounter_pre = cputrace.cyclecounter_post = 0;
-			cputrace.readcounter = cputrace.writecounter = 0;
-		}
-
-		if (m68k_interrupt_delay) {
-			unset_special(SPCFLAG_INT);
-			if (time_for_interrupt()) {
-				// extra STOP "round"
-				if (debug_dma) {
-					debug_cpu_stop();
-					x_do_cycles(2 * cpucycleunit);
-					debug_cpu_stop();
-					x_do_cycles(2 * cpucycleunit);
-				} else {
-					x_do_cycles(4 * cpucycleunit);
-				}
-				do_interrupt(regs.ipl);
-				break;
-			}
-		} else {
-			if (regs.spcflags & (SPCFLAG_INT | SPCFLAG_DOINT)) {
-				int intr = intlev ();
-				unset_special (SPCFLAG_INT | SPCFLAG_DOINT);
-#ifdef WITH_PPC
-				bool m68kint = true;
-				if (ppc_state) {
-					m68kint = ppc_interrupt(intr);
-				}
-				if (m68kint) {
-#endif
-					if (intr > 0 && intr > regs.intmask) {
-						do_interrupt(intr);
-						break;
-					}
-#ifdef WITH_PPC
-				}
-#endif
-			}
-		}
-
-		ipl_fetch();
-
-		if (debug_dma) {
-			debug_cpu_stop();
-			x_do_cycles(2 * cpucycleunit);
-			debug_cpu_stop();
-			x_do_cycles(2 * cpucycleunit);
-		} else {
-			x_do_cycles(4 * cpucycleunit);
-		}
-
-		if (regs.spcflags & SPCFLAG_COPPER) {
-			do_copper();
-		}
-
-		if (regs.spcflags & SPCFLAG_MODE_CHANGE) {
-			m68k_resumestopped();
-			fill_prefetch();
-			return 1;
-		}
-
-		if (regs.spcflags & SPCFLAG_BRK) {
-			stopped_debug = false;
-			goto dodebug;
-		}
-
-#ifdef WITH_PPC
-		if (ppc_state) {
-			uae_ppc_execute_check();
-			uae_ppc_poll_check_halt();
-		}
-#endif
-
+		Exception(3);
 	}
 
 	if (regs.spcflags & SPCFLAG_TRACE)
-		do_trace ();
+		do_trace();
 
 	if (regs.spcflags & SPCFLAG_UAEINT) {
 		check_uae_int_request();
@@ -4625,49 +4521,40 @@ static int do_specialties (int cycles)
 	}
 
 	if (m68k_interrupt_delay) {
-		if (time_for_interrupt ()) {
+		if (time_for_interrupt()) {
 			unset_special(SPCFLAG_INT);
-			do_interrupt (regs.ipl);
+			do_interrupt(get_ipl());
 		}
 	} else {
 		if (regs.spcflags & SPCFLAG_INT) {
-			int intr = intlev ();
+			int intr = intlev();
 			unset_special (SPCFLAG_INT | SPCFLAG_DOINT);
 			if (intr > 0 && (intr > regs.intmask || intr == 7))
-				do_interrupt (intr);
+				do_interrupt(intr);
 		}
 	}
 
 	if (regs.spcflags & SPCFLAG_DOINT) {
-		unset_special (SPCFLAG_DOINT);
-		set_special (SPCFLAG_INT);
+		unset_special(SPCFLAG_DOINT);
+		set_special(SPCFLAG_INT);
 	}
 
-	if ((regs.spcflags & SPCFLAG_BRK) || stopped_debug) {
-dodebug:
+	if (regs.spcflags & SPCFLAG_BRK) {
 		unset_special(SPCFLAG_BRK);
 #ifdef DEBUGGER
-		if (stopped_debug && !regs.stopped) {
-			if (debugging) {
-				debugger_active = 1;
-				stopped_debug = false;
-			}
-		}
 		if (debugging) {
-			if (!stopped_debug)
-				debug();
-			if (regs.stopped) {
-				stopped_debug = true;
-				if (debugging) {
-					debugger_active = 0;
-				}
-				goto isstopped;
-			}
+			debug();
 		}
 #endif
 	}
 
 	return 0;
+}
+
+
+uaecptr m68kpc(void)
+{
+	return m68k_getpc();
 }
 
 //static uae_u32 pcs[1000];
@@ -4806,7 +4693,7 @@ static void m68k_run_1 (void)
 					if (do_specialties (cpu_cycles))
 						exit = true;
 				}
-				regs.ipl = regs.ipl_pin;
+				regs.ipl[0] = regs.ipl_pin;
 				if (!currprefs.cpu_compatible || (currprefs.cpu_cycle_exact && currprefs.cpu_model <= 68010))
 					exit = true;
 			}
@@ -4816,7 +4703,7 @@ static void m68k_run_1 (void)
 				if (do_specialties(cpu_cycles))
 					exit = true;
 			}
-			regs.ipl = regs.ipl_pin;
+			regs.ipl[0] = regs.ipl[1] = regs.ipl_pin;
 		} ENDTRY
 	}
 }
@@ -4867,8 +4754,6 @@ static void m68k_run_1_ce (void)
 					} else {
 						write_log (_T("CPU TRACE: STOPPED\n"));
 					}
-					if (r->stopped)
-						set_special (SPCFLAG_STOP);
 					set_cpu_tracer (false);
 					goto cont;
 				}
@@ -5031,10 +4916,7 @@ static int do_specialties_thread(void)
 			do_interrupt(ilvl);
 		}
 
-		if (!(regs.spcflags & SPCFLAG_STOP))
-			break;
-
-		uae_sem_wait(&cpu_wakeup_sema);
+		break;
 	}
 
 	return 0;
@@ -5741,7 +5623,7 @@ insretry:
 				} else {
 
 					regs.instruction_cnt++;
-					regs.ipl = regs.ipl_pin;
+					regs.ipl[0] = regs.ipl_pin;
 					if (regs.spcflags || time_for_interrupt ()) {
 						if (do_specialties(0)) {
 							STOPTRY;
@@ -5915,8 +5797,6 @@ static void m68k_run_2ce (void)
 						else if (cputrace.state == 1)
 							(*cpufunctbl[cputrace.opcode])(cputrace.opcode);
 					}
-					if (regs.stopped)
-						set_special (SPCFLAG_STOP);
 					set_cpu_tracer (false);
 					goto cont;
 				}
@@ -5999,7 +5879,7 @@ static void m68k_run_2ce (void)
 				regs.instruction_cnt++;
 
 		cont:
-				regs.ipl = regs.ipl_pin;
+				regs.ipl[0] = regs.ipl_pin;
 				if (r->spcflags || time_for_interrupt ()) {
 					if (do_specialties (0))
 						exit = true;
@@ -6009,7 +5889,7 @@ static void m68k_run_2ce (void)
 			}
 		} CATCH(prb) {
 			bus_error();
-			regs.ipl = regs.ipl_pin;
+			regs.ipl[0] = regs.ipl_pin;
 			if (r->spcflags || time_for_interrupt()) {
 				if (do_specialties(0))
 					exit = true;
@@ -6060,8 +5940,6 @@ static void m68k_run_2p (void)
 						else if (cputrace.state == 1)
 							(*cpufunctbl[cputrace.opcode])(cputrace.opcode);
 					}
-					if (regs.stopped)
-						set_special (SPCFLAG_STOP);
 					set_cpu_tracer (false);
 					goto cont;
 				}
@@ -6950,8 +6828,6 @@ void restore_cpu_finish (void)
 	fill_prefetch_quick ();
 	set_cycles (start_cycles);
 	events_schedule ();
-	if (regs.stopped)
-		set_special (SPCFLAG_STOP);
 	//activate_debugger ();
 }
 
@@ -7672,32 +7548,31 @@ bool cpureset (void)
 
 void do_cycles_stop(int c)
 {
-	if (debug_dma) {
-		while (c >= 2) {
-			debug_cpu_stop();
-			do_cycles_ce000_internal(2);
-			c -= 2;
-		}
+	if (!currprefs.cpu_compatible) {
+		do_cycles(c);
 	} else {
-		do_cycles_ce000_internal(c);
+		if (debug_dma) {
+			while (c >= 2) {
+				debug_cpu_stop();
+				do_cycles_ce000_internal(2);
+				c -= 2;
+			}
+		} else {
+			do_cycles_ce000_internal(c);
+		}
 	}
 }
 
 void m68k_setstopped (void)
 {
-	/* A traced STOP instruction drops through immediately without
-	actually stopping.  */
-	if ((regs.spcflags & SPCFLAG_DOTRACE) == 0) {
-		m68k_set_stop();
-	} else {
-		m68k_resumestopped();
-	}
+	m68k_set_stop();
 }
 
 void m68k_resumestopped(void)
 {
 	if (!regs.stopped)
 		return;
+	m68k_incpci(4);
 	m68k_unset_stop();
 }
 

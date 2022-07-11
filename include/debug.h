@@ -73,6 +73,7 @@ extern int memwatch_access_validator;
 extern bool debug_sprintf(uaecptr, uae_u32, int);
 extern bool debug_get_prefetch(int idx, uae_u16 *opword);
 extern void debug_hsync(void);
+extern void debug_exception(int);
 
 extern void debug_init_trainer(const TCHAR*);
 extern void debug_trainer_match(void);

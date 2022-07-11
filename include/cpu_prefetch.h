@@ -386,7 +386,9 @@ STATIC_INLINE void do_cycles_ce000 (int clocks)
 
 STATIC_INLINE void ipl_fetch (void)
 {
-	regs.ipl = regs.ipl_pin;
+	regs.ipl[1] = regs.ipl[0];
+	regs.ipl[0] = regs.ipl_pin;
+	regs.ipl_time = get_cycles();
 }
 
 uae_u32 mem_access_delay_word_read (uaecptr addr);

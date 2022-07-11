@@ -2747,7 +2747,7 @@ static void REGPARAM2 clock_bput(uaecptr addr, uae_u32 value)
 //	write_log(_T("W: %x (%x): %x, PC=%08x\n"), addr, (addr & 0xff) >> 2, value & 0xff, M68K_GETPC);
 
 	if (currprefs.cputester && (addr & 65535) == 0) {
-		event2_newevent_xx(-1, CYCLE_UNIT * (62 / 2), 0, cputester_event);
+		event2_newevent_xx(-1, CYCLE_UNIT * (64 / 2 - 1), 0, cputester_event);
 	}
 
 	if ((addr & 0xffff) >= 0x8000 && currprefs.cs_fatgaryrev >= 0) {
