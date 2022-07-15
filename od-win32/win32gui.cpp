@@ -9010,10 +9010,10 @@ static void values_from_chipsetdlg (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 		workprefs.cpu_cycle_exact = n1;
 		workprefs.cpu_memory_cycle_exact = workprefs.blitter_cycle_exact = n2;
 		if (n2) {
-			if (workprefs.cpu_model == 68000)
-				workprefs.cpu_compatible = 1;
-			if (workprefs.cpu_model <= 68030)
+			if (workprefs.cpu_model <= 68030) {
 				workprefs.m68k_speed = 0;
+				workprefs.cpu_compatible = 1;
+			}
 			if (workprefs.immediate_blits) {
 				workprefs.immediate_blits = false;
 				CheckDlgButton (hDlg, IDC_BLITIMM, FALSE);
