@@ -61,7 +61,7 @@ static struct uae_input_device_kbr_default keytrans_amiga[] = {
 	{  DIK_F6,  INPUTEVENT_KEY_F6, 0, INPUTEVENT_SPC_STATERESTOREDIALOG, ID_FLAG_QUALIFIER_SPECIAL, INPUTEVENT_SPC_STATESAVEDIALOG, ID_FLAG_QUALIFIER_SPECIAL | ID_FLAG_QUALIFIER_SHIFT },
 	{  DIK_F7,  INPUTEVENT_KEY_F7 },
 	{  DIK_F8,  INPUTEVENT_KEY_F8 },
-	{  DIK_F9,  INPUTEVENT_KEY_F9 },
+	{  DIK_F9,  INPUTEVENT_KEY_F9, 0, INPUTEVENT_SPC_TOGGLERTG, ID_FLAG_QUALIFIER_SPECIAL },
 	{ DIK_F10, INPUTEVENT_KEY_F10 },
 
 	{ DIK_1, INPUTEVENT_KEY_1 },
@@ -401,7 +401,7 @@ bool my_kbd_handler (int keyboard, int scancode, int newstate, bool alwaysreleas
 		return;
 	}
 #endif
-#if 1
+#if 0
 	if (scancode == DIK_F8 && specialpressed()) {
 		if (newstate) {
 			extern int blop2;
@@ -410,7 +410,7 @@ bool my_kbd_handler (int keyboard, int scancode, int newstate, bool alwaysreleas
 		return true;
 	}
 #endif
-#if 1
+#if 0
 	if (scancode == DIK_F9 && specialpressed()) {
 		if (newstate) {
 			extern int blop;
@@ -430,11 +430,10 @@ bool my_kbd_handler (int keyboard, int scancode, int newstate, bool alwaysreleas
 	if (scancode == DIK_F9 && specialpressed ()) {
 		extern bool toggle_3d_debug(void);
 		if (newstate) {
-			if (!toggle_3d_debug()) {
-				toggle_rtg(0, MAX_RTG_BOARDS + 1);
+			if (toggle_3d_debug()) {
+				return true;
 			}
 		}
-		return true;
 	}
 
 	scancode_new = scancode;
