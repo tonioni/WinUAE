@@ -1935,7 +1935,6 @@ static int sound_prefs_changed (void)
 		|| changed_prefs.sound_volume_board != currprefs.sound_volume_board
 		|| changed_prefs.sound_stereo_swap_paula != currprefs.sound_stereo_swap_paula
 		|| changed_prefs.sound_stereo_swap_ahi != currprefs.sound_stereo_swap_ahi
-		|| changed_prefs.sound_cdaudio != currprefs.sound_cdaudio
 		|| changed_prefs.sound_filter != currprefs.sound_filter
 		|| changed_prefs.sound_filter_type != currprefs.sound_filter_type)
 		return -1;
@@ -2023,7 +2022,6 @@ void set_audio (void)
 	currprefs.sound_volume_master = changed_prefs.sound_volume_master;
 	currprefs.sound_volume_board = changed_prefs.sound_volume_board;
 	currprefs.sound_volume_cd = changed_prefs.sound_volume_cd;
-	currprefs.sound_cdaudio = changed_prefs.sound_cdaudio;
 	currprefs.sound_stereo_swap_paula = changed_prefs.sound_stereo_swap_paula;
 	currprefs.sound_stereo_swap_ahi = changed_prefs.sound_stereo_swap_ahi;
 

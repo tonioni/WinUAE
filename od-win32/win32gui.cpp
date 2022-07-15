@@ -13665,7 +13665,6 @@ static void values_to_sounddlg (HWND hDlg)
 	CheckRadioButton (hDlg, IDC_SOUND0, IDC_SOUND2, which_button);
 
 	CheckDlgButton (hDlg, IDC_SOUND_AUTO, workprefs.sound_auto);
-	CheckDlgButton(hDlg, IDC_SOUND_CDPAULAMIX, workprefs.sound_cdaudio);
 	CheckDlgButton(hDlg, IDC_SOUND_VOLCNT, workprefs.sound_volcnt);
 
 	if (workprefs.sound_maxbsiz < SOUND_BUFFER_MULTIPLIER)
@@ -13749,7 +13748,6 @@ static void values_from_sounddlg (HWND hDlg)
 		: ischecked (hDlg, IDC_SOUND1) ? 1 : 3);
 
 	workprefs.sound_auto = ischecked (hDlg, IDC_SOUND_AUTO);
-	workprefs.sound_cdaudio = ischecked(hDlg, IDC_SOUND_CDPAULAMIX);
 	workprefs.sound_volcnt = ischecked(hDlg, IDC_SOUND_VOLCNT);
 
 	idx = xSendDlgItemMessage (hDlg, IDC_SOUNDSTEREO, CB_GETCURSEL, 0, 0);

@@ -1074,9 +1074,7 @@
 #define IDC_FILTERKEEPASPECT            1709
 #define IDC_CS_RTC                      1710
 #define IDC_FILTERKEEPAUTOSCALEASPECT   1710
-#define IDC_SOUND_CDPAULAMIX            1710
 #define IDC_CS_CIAA_TOD1                1711
-#define IDC_SOUND_CDPAULAMIX2           1711
 #define IDC_SOUND_VOLCNT                1711
 #define IDC_CS_CIAA_TOD2                1712
 #define IDC_CS_EXT                      1712
