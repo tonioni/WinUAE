@@ -26,7 +26,7 @@ extern int arcadia_flag, arcadia_coin[2];
 #define ARCADIA_GAME 2
 
 extern int alg_flag;
-extern void alg_map_banks(void);
+extern void alg_map_banks(bool is_rev_a);
 extern bool alg_ld_active(void);
 
 extern int alg_get_player(uae_u16);

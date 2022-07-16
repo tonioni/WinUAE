@@ -1028,14 +1028,19 @@ uae_u8 alg_joystick_buttons(uae_u8 pra, uae_u8 dra, uae_u8 v)
 	return v;
 }
 
-void alg_map_banks(void)
+void alg_map_banks(bool is_rev_a)
 {
 	alg_flag = 1;
 	if (!algmemory_initialized) {
 		alg_nvram_read();
 		algmemory_initialized = 1;
 	}
-	map_banks(&alg_ram_bank, 0xf4, 4, 0);
+	if (is_rev_a) {
+		map_banks(&alg_ram_bank, 0xf5, 1, 0);
+	}
+	else {
+		map_banks(&alg_ram_bank, 0xf7, 1, 0);
+	}
 	pausevideograb(1);
 	ld_audio = 0;
 	ld_mode = 0;
