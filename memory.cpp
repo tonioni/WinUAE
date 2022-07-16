@@ -1420,14 +1420,6 @@ void a3000_fakekick (int map)
 	protect_roms (true);
 }
 
-static bool is_alg_rom(const TCHAR *name)
-{
-	struct romdata *rd = getromdatabypath(name);
-	if (!rd)
-		return false;
-	return (rd->type & ROMTYPE_ALG) != 0;
-}
-
 static void descramble_alg(uae_u8 *data, int size)
 {
 	uae_u8 *tbuf = xmalloc(uae_u8, size);
@@ -1568,10 +1560,6 @@ static bool load_extendedkickstart (const TCHAR *romextfile, int type)
 		extendedkickmem_type = EXTENDED_ROM_ARCADIA;
 		return false;
 	}
-	if (is_alg_rom(romextfile)) {
-		type = EXTENDED_ROM_ALG;
-
-	}
 	f = read_rom_name (romextfile);
 	if (!f) {
 		notify_user (NUMSG_NOEXTROM);
@@ -1580,6 +1568,11 @@ static bool load_extendedkickstart (const TCHAR *romextfile, int type)
 	zfile_fseek (f, 0, SEEK_END);
 	size = zfile_ftell32(f);
 	extendedkickmem_bank.reserved_size = ROM_SIZE_512;
+	struct romdata *rd = get_alg_rom(romextfile);
+	if (rd) {
+		size = rd->size;
+		type = EXTENDED_ROM_ALG;
+	}
 	off = 0;
 	if (type == 0) {
 		if (currprefs.cs_cd32cd) {
@@ -1624,7 +1617,7 @@ static bool load_extendedkickstart (const TCHAR *romextfile, int type)
 		if (extendedkickmem_bank.baseaddr) {
 			read_kickstart (f, extendedkickmem_bank.baseaddr, extendedkickmem_bank.allocated_size, 0, 1);
 			if (extendedkickmem_type == EXTENDED_ROM_ALG)
-				descramble_alg(extendedkickmem_bank.baseaddr, 262144);
+				descramble_alg(extendedkickmem_bank.baseaddr, size);
 			extendedkickmem_bank.mask = extendedkickmem_bank.allocated_size - 1;
 			ret = true;
 		}
