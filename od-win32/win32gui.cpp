@@ -331,7 +331,7 @@ static void parsefilepath(TCHAR *path, int maxlen)
 	xfree(tmp);
 }
 
-static int scsiromselect_table[300];
+static int scsiromselect_table[MAX_ROMMGR_ROMS];
 
 static bool getcomboboxtext(HWND hDlg, int id, TCHAR *out, int maxlen)
 {
@@ -10140,6 +10140,12 @@ static void fix_values_memorydlg (void)
 	}
 }
 
+struct romdataentry
+{
+	TCHAR *name;
+	int priority;
+};
+
 static void addromfiles(UAEREG *fkey, HWND hDlg, DWORD d, const TCHAR *path, int type1, int type2)
 {
 	int idx;
@@ -10147,9 +10153,9 @@ static void addromfiles(UAEREG *fkey, HWND hDlg, DWORD d, const TCHAR *path, int
 	TCHAR tmp2[MAX_DPATH];
 	TCHAR seltmp[MAX_DPATH];
 	struct romdata *rdx = NULL;
-
-	xSendDlgItemMessage(hDlg, d, CB_RESETCONTENT, 0, 0);
-	xSendDlgItemMessage(hDlg, d, CB_ADDSTRING, 0, (LPARAM) _T(""));
+	struct romdataentry *rde = xcalloc(struct romdataentry, MAX_ROMMGR_ROMS);
+	int ridx = 0;
+	
 	if (path)
 		rdx = scan_single_rom(path);
 	idx = 0;
@@ -10175,8 +10181,17 @@ static void addromfiles(UAEREG *fkey, HWND hDlg, DWORD d, const TCHAR *path, int
 						if (rd && ((((rd->type & ROMTYPE_GROUP_MASK) & (type & ROMTYPE_GROUP_MASK)) && ((rd->type & ROMTYPE_SUB_MASK) == (type & ROMTYPE_SUB_MASK) || !(type & ROMTYPE_SUB_MASK))) ||
 								   (rd->type & type) == ROMTYPE_NONE || (rd->type & type) == ROMTYPE_NOT)) {
 							getromname(rd, tmp);
-							if (xSendDlgItemMessage(hDlg, d, CB_FINDSTRING, (WPARAM) -1, (LPARAM) tmp) < 0)
-								xSendDlgItemMessage(hDlg, d, CB_ADDSTRING, 0, (LPARAM) tmp);
+							int j;
+							for (j = 0; j < ridx; j++) {
+								if (!_tcsicmp(rde[j].name, tmp)) {
+									break;
+								}
+							}
+							if (j >= ridx) {
+								rde[ridx].name = my_strdup(tmp);
+								rde[ridx].priority = rd->sortpriority;
+								ridx++;
+							}
 							if (rd == rdx)
 								_tcscpy(seltmp, tmp);
 							break;
@@ -10187,10 +10202,35 @@ static void addromfiles(UAEREG *fkey, HWND hDlg, DWORD d, const TCHAR *path, int
 		}
 		idx++;
 	}
+
+	for (int i = 0; i < ridx; i++) {
+		for (int j = i + 1; j < ridx; j++) {
+			int ipri = rde[i].priority;
+			const TCHAR *iname = rde[i].name;
+			int jpri = rde[j].priority;
+			const TCHAR *jname = rde[j].name;
+			if ((ipri > jpri) || (ipri == jpri && _tcsicmp(iname, jname) > 0)) {
+				struct romdataentry rdet;
+				memcpy(&rdet, &rde[i], sizeof(struct romdataentry));
+				memcpy(&rde[i], &rde[j], sizeof(struct romdataentry));
+				memcpy(&rde[j], &rdet, sizeof(struct romdataentry));
+			}
+		}
+	}
+
+	xSendDlgItemMessage(hDlg, d, CB_RESETCONTENT, 0, 0);
+	xSendDlgItemMessage(hDlg, d, CB_ADDSTRING, 0, (LPARAM)_T(""));
+	for (int i = 0; i < ridx; i++) {
+		struct romdataentry *rdep = &rde[i];
+		xSendDlgItemMessage(hDlg, d, CB_ADDSTRING, 0, (LPARAM)rdep->name);
+		xfree(rdep->name);
+	}
 	if (seltmp[0])
 		xSendDlgItemMessage(hDlg, d, CB_SELECTSTRING, (WPARAM) -1, (LPARAM) seltmp);
 	else
 		SetDlgItemText(hDlg, d, path);
+
+	xfree(rde);
 }
 
 static void getromfile(HWND hDlg, DWORD d, TCHAR *path, int size)

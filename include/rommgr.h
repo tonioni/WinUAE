@@ -1,6 +1,8 @@
 #ifndef UAE_ROMMGR_H
 #define UAE_ROMMGR_H
 
+#define MAX_ROMMGR_ROMS 300
+
 extern int decode_cloanto_rom_do(uae_u8 *mem, int size, int real_size);
 
 #define ROMTYPE_SUB_MASK    0x000000ff
@@ -240,6 +242,7 @@ struct romdata {
 	uae_u32 sha1[5];
 	const TCHAR *configname;
 	const TCHAR *defaultfilename;
+	int sortpriority;
 };
 
 struct romlist {
