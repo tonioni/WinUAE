@@ -6679,9 +6679,16 @@ static void gen_opcode (unsigned int opcode)
 			write_return_cycles(0);
 			out("}\n");
 		}
-		out("regs.sr = sr;\n");
 		check_ipl_always();
-		out("MakeFromSR();\n");
+		if (cpu_level <= 1) {
+			out("checkint();\n");
+			out("regs.sr = sr;\n");
+			out("MakeFromSR_STOP();\n");
+		} else {
+			out("regs.sr = sr;\n");
+			out("checkint();\n");
+			out("MakeFromSR_STOP();\n");
+		}
 		out("do_cycles_stop(4);\n");
 		out("m68k_setstopped();\n");
 		// STOP does not prefetch anything

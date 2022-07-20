@@ -2318,7 +2318,7 @@ static void activate_trace(void)
 }
 
 // make sure interrupt is checked immediately after current instruction
-static void doint_imm(void)
+void checkint(void)
 {
 	doint();
 	if (!currprefs.cachesize && !(regs.spcflags & SPCFLAG_INT) && (regs.spcflags & SPCFLAG_DOINT))
@@ -2368,7 +2368,7 @@ static void MakeFromSR_x(int t0trace)
 	regs.t1 = (regs.sr >> 15) & 1;
 	regs.t0 = (regs.sr >> 14) & 1;
 	regs.s  = (regs.sr >> 13) & 1;
-	regs.m  = (regs.sr >> 12) & 1;
+	regs.m = (regs.sr >> 12) & 1;
 	regs.intmask = (regs.sr >> 8) & 7;
 
 	if (currprefs.cpu_model >= 68020) {
@@ -2419,7 +2419,10 @@ static void MakeFromSR_x(int t0trace)
 	}
 #endif
 
-	doint_imm();
+	if (t0trace >= 0) {
+		checkint();
+	}
+
 	if (regs.t1 || regs.t0) {
 		set_special (SPCFLAG_TRACE);
 	} else {
@@ -2442,6 +2445,10 @@ void REGPARAM2 MakeFromSR_T0(void)
 void REGPARAM2 MakeFromSR(void)
 {
 	MakeFromSR_x(0);
+}
+void REGPARAM2 MakeFromSR_STOP(void)
+{
+	MakeFromSR_x(-1);
 }
 
 void REGPARAM2 MakeFromSR_intmask(uae_u16 oldsr, uae_u16 newsr)
