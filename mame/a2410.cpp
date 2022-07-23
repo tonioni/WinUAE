@@ -673,15 +673,9 @@ static void get_a2410_surface(struct a2410_struct *data)
 	int monid = currprefs.rtgboards[data->a2410_gfxboard].monitor_id;
 	struct amigadisplay *ad = &adisplays[monid];
 
-	bool gotsurf = false;
 	if (ad->picasso_on) {
 		if (data->a2410_surface == NULL) {
 			data->a2410_surface = gfx_lock_picasso(monid, false);
-			gotsurf = true;
-		}
-		if (data->a2410_surface && gotsurf) {
-			if (softstatusline())
-				picasso_statusline(monid, data->a2410_surface);
 		}
 	}
 }

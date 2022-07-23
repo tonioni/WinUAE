@@ -1625,17 +1625,6 @@ void gfxboard_vsync_handler(bool full_redraw_required, bool redraw_required)
 		}
 
 		if (ad->picasso_on && !gb->resolutionchange) {
-			if (!gb->monitor_id) {
-				if (currprefs.leds_on_screen & STATUSLINE_RTG) {
-					if (gb->gfxboard_surface == NULL) {
-						gb->gfxboard_surface = gfx_lock_picasso(gb->monitor_id, false);
-					}
-					if (gb->gfxboard_surface) {
-						if (softstatusline())
-							picasso_statusline(gb->monitor_id, gb->gfxboard_surface);
-					}
-				}
-			}
 			if (gb->fullrefresh > 0)
 				gb->fullrefresh--;
 		}

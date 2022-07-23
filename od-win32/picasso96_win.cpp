@@ -5682,9 +5682,6 @@ static void picasso_flushpixels(int index, uae_u8 *src, int off, bool render)
 			dstp = gfx_lock_picasso(monid, false);
 		}
 		if (dstp) {
-			if (softstatusline()) {
-				picasso_statusline(monid, dstp);
-			}
 			maxy = vidinfo->height;
 			if (miny > vidinfo->height - TD_TOTAL_HEIGHT)
 				miny = vidinfo->height - TD_TOTAL_HEIGHT;

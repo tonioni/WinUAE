@@ -24,11 +24,6 @@ static HPALETTE statusline_palette;
 static bool statusline_was_updated;
 static char *td_new_numbers;
 
-bool softstatusline(void)
-{
-	return false;
-}
-
 void deletestatusline(int monid)
 {
 	if (monid)

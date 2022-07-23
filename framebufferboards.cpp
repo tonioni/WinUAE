@@ -67,15 +67,9 @@ static struct fb_struct *fb_last;
 static bool fb_get_surface(struct fb_struct *data)
 {
 	struct amigadisplay *ad = &adisplays[data->monitor_id];
-	bool gotsurf = false;
 	if (ad->picasso_on) {
 		if (data->surface == NULL) {
 			data->surface = gfx_lock_picasso(data->monitor_id, false);
-			gotsurf = true;
-		}
-		if (data->surface && gotsurf) {
-			if (softstatusline())
-				picasso_statusline(data->monitor_id, data->surface);
 		}
 	}
 	return data->surface != NULL;
