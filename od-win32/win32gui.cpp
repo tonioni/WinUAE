@@ -7094,6 +7094,7 @@ static struct amigamodels amodels[] = {
 	{ 0, }, //{ 1, IDS_QS_MODEL_A4000T }, // "Amiga 4000T"
 	{ 4, IDS_QS_MODEL_CD32,  { 0, 0, 1, 0, 0, 0 } }, // "CD32"
 	{ 4, IDS_QS_MODEL_CDTV,  { 0, 0, 1, 0, 0, 0 } }, // "CDTV"
+	{ 4, IDS_QS_MODEL_ALG,  { 0, 0, 0, 0, 0, 0 } }, // "American Laser Games"
 	{ 4, IDS_QS_MODEL_ARCADIA,  { 0, 0, 0, 0, 0, 0 } }, // "Arcadia"
 	{ 1, IDS_QS_MODEL_MACROSYSTEM,  { 0, 0, 0, 0, 0, 0 } },
 	{ 1, IDS_QS_MODEL_UAE,  { 0, 0, 0, 0, 0, 0 } }, // "Expanded UAE example configuration"
@@ -7252,7 +7253,14 @@ static void init_quickstartdlg (HWND hDlg)
 	total = 0;
 	xSendDlgItemMessage (hDlg, IDC_QUICKSTART_CONFIGURATION, CB_RESETCONTENT, 0, 0L);
 	if (amodels[quickstart_model].id == IDS_QS_MODEL_ARCADIA) {
-		struct romlist **rl = getarcadiaroms ();
+		struct romlist** rl = getarcadiaroms(0);
+		for (i = 0; rl[i]; i++) {
+			xSendDlgItemMessage(hDlg, IDC_QUICKSTART_CONFIGURATION, CB_ADDSTRING, 0, (LPARAM)rl[i]->rd->name);
+			total++;
+		}
+		xfree(rl);
+	} else if (amodels[quickstart_model].id == IDS_QS_MODEL_ALG) {
+		struct romlist **rl = getarcadiaroms(1);
 		for (i = 0; rl[i]; i++) {
 			xSendDlgItemMessage (hDlg, IDC_QUICKSTART_CONFIGURATION, CB_ADDSTRING, 0, (LPARAM)rl[i]->rd->name);
 			total++;

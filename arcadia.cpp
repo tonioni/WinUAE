@@ -548,25 +548,25 @@ uae_u8 arcadia_parport (int port, uae_u8 pra, uae_u8 dra)
 	return v;
 }
 
-struct romdata *scan_arcadia_rom (TCHAR *path, int cnt)
+struct romdata *scan_arcadia_rom(TCHAR *path, int cnt)
 {
 	struct romdata *rd = 0;
 	struct romlist **arc_rl;
 	struct arcadiarom *arcadia_rom;
 	int i;
 
-	arcadia_rom = is_arcadia (path, cnt);
+	arcadia_rom = is_arcadia(path, cnt);
 	if (arcadia_rom) {
-		arc_rl = getarcadiaroms();
+		arc_rl = getarcadiaroms(0);
 		for (i = 0; arc_rl[i]; i++) {
 			if (arc_rl[i]->rd->id == arcadia_rom->romid) {
 				rd = arc_rl[i]->rd;
-				_tcscat (path, FSDB_DIR_SEPARATOR_S);
-				_tcscat (path, arcadia_rom->romid1);
+				_tcscat(path, FSDB_DIR_SEPARATOR_S);
+				_tcscat(path, arcadia_rom->romid1);
 				break;
 			}
 		}
-		xfree (arc_rl);
+		xfree(arc_rl);
 	}
 	return rd;
 }

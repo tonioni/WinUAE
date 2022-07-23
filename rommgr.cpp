@@ -1085,15 +1085,24 @@ struct romdata *getarcadiarombyname (const TCHAR *name)
 	return NULL;
 }
 
-struct romlist **getarcadiaroms (void)
+struct romlist **getarcadiaroms(int type)
 {
 	int i, out, max;
 	void *buf;
 	struct romlist **rdout, *rltmp;
+	int romtype1, romtype2;
+
+	if (type) {
+		romtype1 = ROMTYPE_ALG;
+		romtype2 = ROMTYPE_ALG;
+	} else {
+		romtype1 = ROMTYPE_ARCADIABIOS;
+		romtype2 = ROMTYPE_ARCADIAGAME;
+	}
 
 	max = 0;
 	for (i = 0; roms[i].name; i++) {
-		if (roms[i].group == 0 && (roms[i].type == ROMTYPE_ARCADIABIOS || roms[i].type == ROMTYPE_ARCADIAGAME))
+		if (roms[i].group == 0 && (roms[i].type == romtype1 || roms[i].type == romtype2))
 			max++;
 	}
 	buf = xmalloc (uae_u8, (sizeof (struct romlist*) + sizeof (struct romlist)) * (max + 1));
@@ -1101,7 +1110,7 @@ struct romlist **getarcadiaroms (void)
 	rltmp = (struct romlist*)((uae_u8*)buf + (max + 1) * sizeof (struct romlist*));
 	out = 0;
 	for (i = 0; roms[i].name; i++) {
-		if (roms[i].group == 0 && (roms[i].type == ROMTYPE_ARCADIABIOS || roms[i].type == ROMTYPE_ARCADIAGAME)) {
+		if (roms[i].group == 0 && (roms[i].type == romtype1 || roms[i].type == romtype2)) {
 			rdout[out++] = rltmp;
 			rltmp->path = NULL;
 			rltmp->rd = &roms[i];
@@ -2242,6 +2251,13 @@ int configure_rom (struct uae_prefs *p, const int *rom, int msg)
 		_tcscpy (p->cartfile, path);
 	if (rd->type & ROMTYPE_CPUBOARD)
 		set_device_rom(p, path, ROMTYPE_CPUBOARD, 0);
+
+	if (rd->type & (ROMTYPE_ARCADIAGAME | ROMTYPE_ALG)) {
+		_stprintf(p->flashfile, _T("%s.nvr"), rd->name);
+	}
+	if (rd->type & ROMTYPE_ALG) {
+		_stprintf(p->genlock_video_file, _T("%s.avi"), rd->name);
+	}
 	return 1;
 }
 

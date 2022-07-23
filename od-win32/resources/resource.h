@@ -428,6 +428,7 @@
 #define IDS_QS_MODEL_A4000              1011
 #define IDS_QS_MODEL_A4000T             1012
 #define IDS_QS_MODEL_MACROSYSTEM        1013
+#define IDS_QS_MODEL_ALG                1014
 #define IDC_RESOLUTION                  1021
 #define IDC_SERIAL                      1022
 #define IDC_REFRESHRATE                 1022
