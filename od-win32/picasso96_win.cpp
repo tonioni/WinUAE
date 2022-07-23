@@ -4047,23 +4047,29 @@ static void PlanarToChunky(TrapContext *ctx, struct RenderInfo *ri, struct BitMa
 	}
 	uae_u32 mask32 = (mask << 24) | (mask << 16) | (mask << 8) | mask;
 	int eol_offset = bm->BytesPerRow - ((width + 7) >> 3);
+	bool needin = false;
+	if ((minterm != BLIT_FALSE && minterm != BLIT_TRUE && minterm != BLIT_NOTSRC && minterm != BLIT_SRC) || mask != 0xff) {
+		needin = true;
+	}
 	for (int rows = 0; rows < height; rows++, image += ri->BytesPerRow) {
 
 		for (int cols = 0; cols < width; cols += 8) {
 			uae_u32 a = 0, b = 0;
-			uae_u32 amask = 0xffffffff, bmask = 0xffffffff;
+			uae_u32 amask = 0, bmask = 0;
 			uae_u32 msk = 0xFF;
 			int tmp = cols + 8 - width;
 			if (tmp > 0) {
 				msk <<= tmp;
-				b = do_get_mem_long((uae_u32*)(image + cols + 4));
 				if (tmp < 4) {
-					bmask = 0xFFFFFFFF >> (32 - tmp * 8);
-					b &= bmask;
+					bmask = 0xffffffff >> (32 - tmp * 8);
+					needin = true;
 				} else if (tmp > 4) {
-					amask = 0xFFFFFFFF >> (64 - tmp * 8);
-					a = do_get_mem_long((uae_u32*)(image + cols));
-					a &= amask;
+					amask = 0xffffffff >> (64 - tmp * 8);
+					bmask = 0xffffffff;
+					needin = true;
+				} else {
+					bmask = 0xffffffff;
+					needin = true;
 				}
 			}
 			for (int k = 0; k < Depth; k++) {
@@ -4093,9 +4099,11 @@ static void PlanarToChunky(TrapContext *ctx, struct RenderInfo *ri, struct BitMa
 			}
 
 			uae_u32 inval0 = 0, inval1 = 0;
-			if ((minterm != BLIT_FALSE && minterm != BLIT_TRUE && minterm != BLIT_NOTSRC && minterm != BLIT_SRC) || mask != 0xff) {
+			if (needin) {
 				inval0 = do_get_mem_long((uae_u32*)(image + cols));
-				inval1 = do_get_mem_long((uae_u32*)(image + cols + 4));
+				if (bmask != 0xffffffff) {
+					inval1 = do_get_mem_long((uae_u32 *)(image + cols + 4));
+				}
 			}
 			uae_u32 invali0 = inval0 ^ rgbfmasks[ri->RGBFormat];
 			uae_u32 invali1 = inval1 ^ rgbfmasks[ri->RGBFormat];
@@ -4176,11 +4184,13 @@ static void PlanarToChunky(TrapContext *ctx, struct RenderInfo *ri, struct BitMa
 				out1 = (out1 & mask32) | (inval1 & ~mask32);
 			}
 
-			out0 = (out0 & amask) | (inval0 & (~amask));
-			out1 = (out1 & bmask) | (inval1 & (~bmask));
+			out0 = (out0 & ~amask) | (inval0 & amask);
+			out1 = (out1 & ~bmask) | (inval1 & bmask);
 
 			do_put_mem_long((uae_u32*)(image + cols), out0);
-			do_put_mem_long((uae_u32*)(image + cols + 4), out1);
+			if (bmask != 0xffffffff) {
+				do_put_mem_long((uae_u32 *)(image + cols + 4), out1);
+			}
 		}
 		for (int j = 0; j < Depth; j++) {
 			if (!specialplane[j]) {
@@ -4255,6 +4265,7 @@ static uae_u32 REGPARAM2 picasso_BlitPlanar2Chunky (TrapContext *ctx)
 
 	if (NOBLITTER)
 		return 0;
+
 	if (CopyRenderInfoStructureA2U(ctx, ri, &local_ri) && CopyBitMapStructureA2U(ctx, bm, &local_bm)) {
 		P96TRACE((_T("BlitPlanar2Chunky(%d, %d, %d, %d, %d, %d) Minterm 0x%x, Mask 0x%x, Depth %d\n"),
 			srcx, srcy, dstx, dsty, width, height, minterm, mask, local_bm.Depth));
