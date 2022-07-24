@@ -6512,14 +6512,14 @@ static void init_hz(bool checkvposw)
 				maxhpos_display += EXTRAWIDTH_ULTRA;
 				maxvpos_display_vsync += 2;
 				minfirstline = 0;
-				hsstop_detect = hsyncstartpos_start_cycles - 1;
+				hsstop_detect = hsyncstartpos_start_cycles - 2;
 			}
 		} else {
 
 			if (currprefs.gfx_overscanmode == OVERSCANMODE_ULTRA) {
 				maxhpos_display += EXTRAWIDTH_ULTRA;
 				maxvpos_display_vsync += 2;
-				hsstop_detect = 8;
+				hsstop_detect = 16;
 				minfirstline = 0;
 			}
 		}
@@ -14916,7 +14916,7 @@ uae_u32 wait_cpu_cycle_read(uaecptr addr, int mode)
 #endif
 
 	regs.chipset_latch_rw = regs.chipset_latch_read = v;
-		
+
 	x_do_cycles_post(CYCLE_UNIT, v);
 
 	return v;
@@ -14973,7 +14973,7 @@ uae_u32 wait_cpu_cycle_read_ce020(uaecptr addr, int mode)
 #endif
 
 	regs.chipset_latch_rw = regs.chipset_latch_read = v;
-		
+
 	x_do_cycles_post(CYCLE_UNIT, v);
 
 	return v;
@@ -15017,7 +15017,7 @@ void wait_cpu_cycle_write(uaecptr addr, int mode, uae_u32 v)
 	}
 
 	regs.chipset_latch_rw = regs.chipset_latch_write = v;
-		
+
 	x_do_cycles_post(CYCLE_UNIT, v);
 
 }
@@ -15055,7 +15055,7 @@ void wait_cpu_cycle_write_ce020(uaecptr addr, int mode, uae_u32 v)
 	}
 
 	regs.chipset_latch_rw = regs.chipset_latch_write = v;
-		
+
 	// chipset buffer latches the write, CPU does
 	// not need to wait for the chipset cycle to finish.
 	x_do_cycles_post(cpucycleunit, v);
