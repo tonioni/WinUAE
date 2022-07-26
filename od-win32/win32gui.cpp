@@ -7113,8 +7113,8 @@ static void load_quickstart (HWND hDlg, int romcheck)
 	bool cdmodel = quickstart_model == 8 || quickstart_model == 9;
 	ew (guiDlg, IDC_RESETAMIGA, FALSE);
 	workprefs.nr_floppies = quickstart_floppy;
-	quickstart_ok = built_in_prefs (&workprefs, quickstart_model, quickstart_conf, quickstart_compa, romcheck);
 	workprefs.ntscmode = quickstart_ntsc != 0;
+	quickstart_ok = built_in_prefs (&workprefs, quickstart_model, quickstart_conf, quickstart_compa, romcheck);
 	quickstart_cd = workprefs.floppyslots[1].dfxtype == DRV_NONE && cdmodel;
 	// DF0: HD->DD
 	if (quickstart_model <= 4) {
@@ -9209,6 +9209,9 @@ static INT_PTR CALLBACK ChipsetDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPAR
 				workprefs.waiting_blits = false;
 				CheckDlgButton (hDlg, IDC_BLITWAIT, FALSE);
 			}
+			break;
+			case IDC_NTSC:
+				quickstart_ntsc = ischecked(hDlg, IDC_NTSC);
 			break;
 		}
 		values_from_chipsetdlg(hDlg, msg, wParam, lParam);
