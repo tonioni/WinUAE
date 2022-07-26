@@ -1452,7 +1452,7 @@ static void debug_draw_cycles (uae_u8 *buf, int bpp, int line, int width, int he
 		yplus = 2;
 	else
 		yplus = 1;
-	if (debug_dma >= 5)
+	if (debug_dma >= 5 && (((maxhpos_short + 1) * 3) + 4) < width)
 		xplus = 3;
 	else if (debug_dma >= 3)
 		xplus = 2;
@@ -1471,10 +1471,16 @@ static void debug_draw_cycles (uae_u8 *buf, int bpp, int line, int width, int he
 	if (y >= height)
 		return;
 
-	dx = width - xplus * ((maxhpos + 1) & ~1) - 16;
+	// Note: maxhpos is unreliable here as we are being called at the end of each frame,
+	// and not per scanline.  Use maxhpos_short as the base for calculating line lengths.
+	int linelen = maxhpos_short;
+	if (dma_record[t][y * NR_DMA_REC_HPOS + 3 + 2].evt & DMA_EVENT_LOL) {
+		linelen++;
+	}
+	dx = width - xplus * maxhpos_short - 17;
 
 	uae_s8 intlev = 0;
-	for (x = 0; x < maxhpos; x++) {
+	for (x = 0; x < linelen; x++) {
 		uae_u32 c = debug_colors[0].l[0];
 		xx = x * xplus + dx;
 		dr = &dma_record[t][y * NR_DMA_REC_HPOS + x];
@@ -1496,11 +1502,11 @@ static void debug_draw_cycles (uae_u8 *buf, int bpp, int line, int width, int he
 		}
 		if (dr->intlev > intlev)
 			intlev = dr->intlev;
-		putpixel (buf, bpp, xx + 4, c);
-		if (xplus)
-			putpixel (buf, bpp, xx + 4 + 1, c);
-		if (debug_dma >= 6)
-			putpixel (buf, bpp, xx + 4 + 2, c);
+		putpixel(buf, bpp, xx + 4, c);
+		if (xplus > 1)
+			putpixel(buf, bpp, xx + 4 + 1, c);
+		if (xplus > 2)
+			putpixel(buf, bpp, xx + 4 + 2, c);
 	}
 	putpixel (buf, bpp, dx + 0, 0);
 	putpixel (buf, bpp, dx + 1, lc(intlevc[intlev]));
