@@ -2339,6 +2339,13 @@ static struct modeids mi[] =
 	1152, 648, 173,
 	1776,1000, 174,
 	2560,1440, 175,
+	2560,1920, 176,
+	3440,1440, 177,
+	3840,1600, 178,
+	3840,2160, 179,
+	5120,1440, 180,
+	5120,2160, 181,
+	1280, 600, 182,
 	-1,-1,0
 };
 
@@ -3823,6 +3830,7 @@ static uae_u32 REGPARAM2 picasso_BlitTemplate(TrapContext *ctx)
 
 	if (NOBLITTER)
 		return 0;
+
 	if (CopyRenderInfoStructureA2U(ctx, rinf, &ri) && CopyTemplateStructureA2U(ctx, tmpl, &tmp)) {
 		if (!validatecoords(ctx, &ri, RGBFmt, &X, &Y, &W, &H))
 			return 1;
@@ -3961,7 +3969,7 @@ static uae_u32 REGPARAM2 picasso_BlitTemplate(TrapContext *ctx)
 * This function calculates the amount of bytes needed for a line of
 * "Width" pixels in the given RGBFormat.
 */
-static uae_u32 REGPARAM2 picasso_CalculateBytesPerRow (TrapContext *ctx)
+static uae_u32 REGPARAM2 picasso_CalculateBytesPerRow(TrapContext *ctx)
 {
 	uae_u16 width = trap_get_dreg(ctx, 0);
 	uae_u32 type = trap_get_dreg(ctx, 7);
@@ -3978,7 +3986,7 @@ static uae_u32 REGPARAM2 picasso_CalculateBytesPerRow (TrapContext *ctx)
 *
 * NOTE: return the opposite of the state
 */
-static uae_u32 REGPARAM2 picasso_SetDisplay (TrapContext *ctx)
+static uae_u32 REGPARAM2 picasso_SetDisplay(TrapContext* ctx)
 {
 	int monid = currprefs.rtgboards[0].monitor_id;
 	struct picasso96_state_struct *state = &picasso96_state[monid];
@@ -3992,7 +4000,7 @@ static uae_u32 REGPARAM2 picasso_SetDisplay (TrapContext *ctx)
 
 void init_hz_p96(int monid)
 {
-	if (currprefs.win32_rtgvblankrate < 0 || isvsync_rtg ())  {
+	if (currprefs.win32_rtgvblankrate < 0 || isvsync_rtg()) {
 		float rate = target_getcurrentvblankrate(monid);
 		if (rate < 0)
 			p96vblank = vblank_hz;
@@ -4008,7 +4016,7 @@ void init_hz_p96(int monid)
 	if (p96vblank >= 300)
 		p96vblank = 300;
 	p96syncrate = (int)(maxvpos_nom * vblank_hz / p96vblank);
-	write_log (_T("RTGFREQ: %d*%.4f = %.4f / %.1f = %d\n"), maxvpos_nom, vblank_hz, maxvpos_nom * vblank_hz, p96vblank, p96syncrate);
+	write_log(_T("RTGFREQ: %d*%.4f = %.4f / %.1f = %d\n"), maxvpos_nom, vblank_hz, maxvpos_nom * vblank_hz, p96vblank, p96syncrate);
 }
 
 /* NOTE: Watch for those planeptrs of 0x00000000 and 0xFFFFFFFF for all zero / all one bitmaps !!!! */
