@@ -1,4 +1,6 @@
 
+/* Direct3D 9 graphics renderer */
+
 #include <windows.h>
 #include "resource.h"
 
@@ -198,12 +200,13 @@ struct d3dstruct
 	int ledwidth, ledheight;
 	int max_texture_w, max_texture_h;
 	int tin_w, tin_h, tout_w, tout_h, window_h, window_w;
-	int t_depth, dmult, dmultxh, dmultxv;
+	int t_depth, dmult, dmultxh, dmultxv, dmode;
 	int required_sl_texture_w, required_sl_texture_h;
 	int vsync2, guimode, maxscanline, variablerefresh;
 	int resetcount;
 	float cursor_x, cursor_y;
 	float cursor_mx, cursor_my;
+	float xmult, ymult;
 	bool cursor_v, cursor_scale;
 	int statusbar_vx, statusbar_hx;
 
@@ -2080,7 +2083,7 @@ static bool xD3D_getscalerect(int monid, float *mx, float *my, float *sx, float 
 	return true;
 }
 
-static void setupscenecoords (struct d3dstruct *d3d, bool normalrender)
+static void setupscenecoords(struct d3dstruct *d3d, bool normalrender)
 {
 	int monid = d3d->num;
 	struct vidbuf_description *vidinfo = &adisplays[monid].gfxvidinfo;
@@ -2094,7 +2097,7 @@ static void setupscenecoords (struct d3dstruct *d3d, bool normalrender)
 
 	//write_log (_T("%dx%d %dx%d %dx%d\n"), tin_w, tin_h, tin_w, tin_h, window_w, window_h);
 
-	getfilterrect2 (monid, &dr, &sr, &zr, d3d->window_w, d3d->window_h, d3d->tin_w / d3d->dmult, d3d->tin_h / d3d->dmult, d3d->dmult, d3d->tin_w, d3d->tin_h);
+	getfilterrect2 (monid, &dr, &sr, &zr, d3d->window_w, d3d->window_h, d3d->tin_w / d3d->dmult, d3d->tin_h / d3d->dmult, d3d->dmult, &d3d->dmode, d3d->tin_w, d3d->tin_h);
 
 	if (memcmp (&sr, &sr2[monid], sizeof RECT) || memcmp (&dr, &dr2[monid], sizeof RECT) || memcmp (&zr, &zr2[monid], sizeof RECT)) {
 		write_log (_T("POS (%d %d %d %d) - (%d %d %d %d)[%d,%d] (%d %d)\n"),
@@ -2147,8 +2150,8 @@ static void setupscenecoords (struct d3dstruct *d3d, bool normalrender)
 
 	} else {
 
-		tx = -0.5f + dw * d3d->tin_w / d3d->window_w / 2;
-		ty = +0.5f + dh * d3d->tin_h / d3d->window_h / 2;
+		tx = dw * d3d->tin_w / d3d->window_w / 2;
+		ty = dh * d3d->tin_h / d3d->window_h / 2;
 
 		float xshift = (float)(- zr.left - sr.left); // - (tin_w - 2 * zr.left - w),
 		float yshift = (float)(+ zr.top + sr.top - (d3d->tin_h - h));
@@ -2162,7 +2165,12 @@ static void setupscenecoords (struct d3dstruct *d3d, bool normalrender)
 		tx += xshift;
 		ty += yshift;
 
+		tx = (float)(int)(tx + 0.0f);
+		ty = (float)(int)(ty + 0.0f);
 	}
+
+	d3d->xmult = filterrectmult(d3d->window_w, w, d3d->dmode);
+	d3d->ymult = filterrectmult(d3d->window_h, h, d3d->dmode);
 
 	MatrixTranslation (&d3d->m_matView_out, tx, ty, 1.0f);
 
@@ -2853,7 +2861,7 @@ static const TCHAR *D3D_init2 (struct d3dstruct *d3d, HWND ahwnd, int w_w, int w
 		if (d3d->d3d_ex && D3DEX) {
 			write_log (_T("%s\n"), errmsg);
 			D3DEX = 0;
-			return D3D_init(ahwnd, monid, w_w, w_h, depth, freq, mmulth, mmultv);
+			return D3D_init2(d3d, ahwnd, w_w, w_h, depth, freq, mmulth, mmultv);
 		}
 		D3D_free(monid, true);
 		return errmsg;
@@ -3043,12 +3051,17 @@ static void D3D_init_start (void *p)
 	d3d->fakemode = false;
 }
 
-static const TCHAR *xD3D_init (HWND ahwnd, int monid, int w_w, int w_h, int depth, int *freq, int mmulth, int mmultv)
+static const TCHAR *xD3D_init (HWND ahwnd, int monid, int w_w, int w_h, int depth, int *freq, int mmulth, int mmultv, int *errp)
 {
 	struct d3dstruct *d3d = &d3ddata[monid];
 
-	if (!fakemodewaitms)
-		return D3D_init2 (d3d, ahwnd, w_w, w_h, depth, freq, mmulth, mmultv);
+	if (!fakemodewaitms) {
+		const TCHAR *v = D3D_init2(d3d, ahwnd, w_w, w_h, depth, freq, mmulth, mmultv);
+		if (v != NULL) {
+			*errp = 1;
+		}
+		return v;
+	}
 	d3d->fakemode = true;
 	d3dargs.hwnd = ahwnd;
 	d3dargs.w = w_w;
@@ -3542,8 +3555,8 @@ static void D3D_render2(struct d3dstruct *d3d, int mode)
 				MatrixScaling(&t, ((float)(d3d->window_w) / (d3d->tout_w + 2 * d3d->cursor_offset2_x)) * d3d->cursor_mx, ((float)(d3d->window_h) / (d3d->tout_h + 2 * d3d->cursor_offset2_y)) * d3d->cursor_my, 0);
 			else
 				MatrixScaling(&t, d3d->cursor_mx, d3d->cursor_my, 0);
-			v.x = (float)d3d->cursor_x / d3d->cursor_mx + d3d->cursor_offset2_x;
-			v.y = (float)d3d->cursor_y / d3d->cursor_my + d3d->cursor_offset2_y;
+			v.x = (float)d3d->cursor_x + d3d->cursor_offset2_x;
+			v.y = (float)d3d->cursor_y + d3d->cursor_offset2_y;
 			v.z = 0.0f;
 			d3d->sprite->SetTransform(&t);
 			d3d->sprite->Draw(d3d->cursorsurfaced3d, NULL, NULL, &v, 0xffffffff);
@@ -3685,17 +3698,17 @@ static bool xD3D_setcursor(int monid, int x, int y, int width, int height, float
 	}
 
 	if (width && height) {
-		d3d->cursor_offset2_x = d3d->cursor_offset_x * d3d->window_w / width;
-		d3d->cursor_offset2_y = d3d->cursor_offset_y * d3d->window_h / height;
-		d3d->cursor_x = (float)x * d3d->window_w / width;
-		d3d->cursor_y = (float)y * d3d->window_h / height;
-		d3d->cursor_mx = mx;
-		d3d->cursor_my = my;
+		d3d->cursor_offset2_x = d3d->cursor_offset_x;
+		d3d->cursor_offset2_y = d3d->cursor_offset_y;
+		d3d->cursor_x = (float)x;
+		d3d->cursor_y = (float)y;
+		d3d->cursor_mx = mx * d3d->xmult;
+		d3d->cursor_my = my * d3d->ymult;
 	} else {
 		d3d->cursor_x = d3d->cursor_y = 0;
 		d3d->cursor_offset2_x = d3d->cursor_offset2_y = 0;
 	}
-	d3d->cursor_scale = !noscale;
+	d3d->cursor_scale = false; // !noscale;
 	d3d->cursor_v = visible;
 	return true;
 }

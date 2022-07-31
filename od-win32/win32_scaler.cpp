@@ -237,7 +237,7 @@ static int res_match(int w)
 	return w;
 }
 
-void getfilterrect2(int monid, RECT *sr, RECT *dr, RECT *zr, int dst_width, int dst_height, int aw, int ah, int scale, int temp_width, int temp_height)
+void getfilterrect2(int monid, RECT *sr, RECT *dr, RECT *zr, int dst_width, int dst_height, int aw, int ah, int scale, int *mode, int temp_width, int temp_height)
 {
 	struct AmigaMonitor *mon = &AMonitors[monid];
 	struct amigadisplay *ad = &adisplays[monid];
@@ -268,9 +268,10 @@ void getfilterrect2(int monid, RECT *sr, RECT *dr, RECT *zr, int dst_width, int 
 	float filter_vert_offset = currprefs.gf[ad->picasso_on].gfx_filter_vert_offset / 10000.0f;
 
 	store_custom_limits (-1, -1, -1, -1);
+	*mode = 0;
 
 	if (mon->screen_is_picasso) {
-		getrtgfilterrect2(monid, sr, dr, zr, dst_width, dst_height);
+		getrtgfilterrect2(monid, sr, dr, zr, mode, dst_width, dst_height);
 		if (D3D_getscalerect && D3D_getscalerect(monid, &mrmx, &mrmy, &mrsx, &mrsy, dst_width, dst_height)) {
 			sizeoffset(dr, zr, (int)mrmx, (int)mrmy);
 			OffsetRect(dr, (int)mrsx, (int)mrsy);
@@ -458,6 +459,8 @@ void getfilterrect2(int monid, RECT *sr, RECT *dr, RECT *zr, int dst_width, int 
 					maxw = (int)((maxw + mult - multadd) / mult);
 					maxh = (int)((maxh + mult - multadd) / mult);
 				}
+
+				*mode = 1;
 
 				width_aspect = cw;
 				height_aspect = ch;

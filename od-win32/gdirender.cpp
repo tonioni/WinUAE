@@ -1,4 +1,6 @@
 
+/* GDI graphics renderer */
+
 #include <windows.h>
 #include "resource.h"
 
@@ -50,10 +52,10 @@ struct gdistruct
 	bool cursor_v, cursor_scale;
 
 	RECT sr2, dr2, zr2;
-	int dmult, dmultxh, dmultxv;
+	int dmult, dmultxh, dmultxv, dmode;
 	int xoffset, yoffset;
 	float xmult, ymult;
-	int cursor_offset_x, cursor_offset_y, cursor_offset2_x, cursor_offset2_y;
+	int cursor_offset_x, cursor_offset_y;
 
 	int bmxoffset, bmyoffset;
 	int bmwidth, bmheight;
@@ -72,9 +74,9 @@ static void setupscenecoords(struct gdistruct *gdi)
 {
 	RECT sr, dr, zr;
 
-	getfilterrect2(gdi->num, &dr, &sr, &zr, gdi->wwidth, gdi->wheight, gdi->bm.width / gdi->dmult, gdi->bm.height / gdi->dmult, gdi->dmult, gdi->bm.width, gdi->bm.height);
+	getfilterrect2(gdi->num, &dr, &sr, &zr, gdi->wwidth, gdi->wheight, gdi->bm.width / gdi->dmult, gdi->bm.height / gdi->dmult, gdi->dmult, &gdi->dmode, gdi->bm.width, gdi->bm.height);
 
-	if (0 && !memcmp(&sr, &gdi->sr2, sizeof RECT) && !memcmp(&dr, &gdi->dr2, sizeof RECT) && !memcmp(&zr, &gdi->zr2, sizeof RECT)) {
+	if (!memcmp(&sr, &gdi->sr2, sizeof RECT) && !memcmp(&dr, &gdi->dr2, sizeof RECT) && !memcmp(&zr, &gdi->zr2, sizeof RECT)) {
 		return;
 	}
 	if (1) {
@@ -91,30 +93,61 @@ static void setupscenecoords(struct gdistruct *gdi)
 	gdi->dr2 = dr;
 	gdi->zr2 = zr;
 
-	int w = sr.right - sr.left;
-	int h = sr.bottom - sr.top;
+	float dw = (float)dr.right - dr.left;
+	float dh = (float)dr.bottom - dr.top;
+	float w = (float)sr.right - sr.left;
+	float h = (float)sr.bottom - sr.top;
 
-	int dw = dr.right - dr.left;
-	int dh = dr.bottom - dr.top;
+	int tx = ((dr.right - dr.left) * gdi->bm.width) / (gdi->wwidth * 2);
+	int ty = ((dr.bottom - dr.top) * gdi->bm.height) / (gdi->wheight * 2);
 
-	gdi->xmult = (float)gdi->wwidth / w;
-	gdi->ymult = (float)gdi->wheight / h;
+	float sw = dw / gdi->wwidth;
+	float sh = dh / gdi->wheight;
 
-	gdi->bmwidth = gdi->bm.width * gdi->xmult;
-	gdi->bmheight = gdi->bm.height * gdi->ymult;
+	int xshift = -zr.left - sr.left;
+	int yshift = -zr.top - sr.top;
 
-	gdi->bmxoffset = (gdi->wwidth - gdi->bm.width) / 2;
-	gdi->bmyoffset = (gdi->wheight - gdi->bm.height) / 2;
+	xshift -= ((sr.right - sr.left) - gdi->wwidth) / 2;
+	yshift -= ((sr.bottom - sr.top) - gdi->wheight) / 2;
 
-//	gdi->bmxoffset -= zr.left / gdi->xmult;
-//	gdi->bmxoffset = (gdi->wwidth - w * gdi->xmult) / 2;
-//	gdi->bmyoffset = (gdi->wheight - h * gdi->ymult) / 2;
+	gdi->xoffset = tx + xshift - gdi->wwidth / 2;
+	gdi->yoffset = ty + yshift - gdi->wheight / 2;
 
-	//gdi->bmxoffset += (dw - gdi->wwidth) / gdi->xmult / 2;
+	gdi->xmult = filterrectmult(gdi->wwidth, w, gdi->dmode);
+	gdi->ymult = filterrectmult(gdi->wheight, h, gdi->dmode);
 
-//	gdi->bmxoffset += zr.left * gdi->xmult - ((sr.right - sr.left) - gdi->wwidth);
-//	gdi->bmyoffset = (gdi->wheight - gdi->bm.height) / 2;
-//	gdi->bmyoffset += zr.top * gdi->ymult - ((sr.bottom - sr.top) - gdi->wheight);
+	gdi->cursor_offset_x = -zr.left;
+	gdi->cursor_offset_y = -zr.top;
+
+	sw *= gdi->wwidth;
+	sh *= gdi->wheight;
+
+	gdi->bmwidth = (int)(gdi->bm.width * gdi->xmult);
+	gdi->bmheight = (int)(gdi->bm.height * gdi->ymult);
+
+	int positionX, positionY;
+	int bw2 = gdi->bm.width;
+	int bh2 = gdi->bm.height;
+	int sw2 = gdi->wwidth;
+	int sh2 = gdi->wheight;
+
+	positionX = (sw2 - bw2) / 2 + gdi->xoffset;
+	positionY = (sh2 - bh2) / 2 + gdi->yoffset;
+
+	float left = sw2 / -2.0f;
+	left += positionX;
+
+	float top = sh2 / -2.0f;
+	top += positionY;
+
+	left *= gdi->xmult;
+	top *= gdi->ymult;
+
+	left += gdi->wwidth / 2.0f;
+	top += gdi->wheight / 2.0f;
+
+	gdi->bmxoffset = (int)left;
+	gdi->bmyoffset = (int)top;
 
 	gdi->eraseneeded = true;
 }
@@ -149,6 +182,10 @@ static void freetexture(int monid)
 {
 	struct gdistruct *gdi = &gdidata[monid];
 	freesprite(gdi, &gdi->bm);
+	if (gdi->hdc) {
+		ReleaseDC(gdi->hwnd, gdi->hdc);
+		gdi->hdc = NULL;
+	}
 }
 
 static bool allocsprite(struct gdistruct *gdi, struct gdibm *bm, int w, int h)
@@ -298,7 +335,7 @@ static void gdi_paint(void)
 			StretchBlt(gdi->buf.thdc, gdi->bmxoffset, gdi->bmyoffset, gdi->bmwidth, gdi->bmheight, gdi->bm.thdc, 0, 0, gdi->bm.width, gdi->bm.height, SRCCOPY);
 		}
 		if (gdi->cursor.active && gdi->cursor.hbm) {
-			TransparentBlt(gdi->buf.thdc, gdi->cursor.x, gdi->cursor.y, CURSORMAXWIDTH, CURSORMAXHEIGHT, gdi->cursor.thdc, 0, 0, CURSORMAXWIDTH, CURSORMAXHEIGHT, 0x000000);
+			TransparentBlt(gdi->buf.thdc, gdi->cursor.x, gdi->cursor.y, (int)(CURSORMAXWIDTH * gdi->xmult), (int)(CURSORMAXHEIGHT * gdi->ymult), gdi->cursor.thdc, 0, 0, CURSORMAXWIDTH, CURSORMAXHEIGHT, 0xfe00fe);
 		}
 		if (gdi->osd.active && gdi->osd.hbm) {
 			TransparentBlt(gdi->buf.thdc, gdi->osd.x, gdi->osd.y, gdi->ledwidth, gdi->ledheight, gdi->osd.thdc, 0, 0, gdi->ledwidth, gdi->ledheight, 0x000000);
@@ -334,11 +371,12 @@ void gdi_free(int monid, bool immediate)
 	freesprite(gdi, &gdi->cursor);
 }
 
-static const TCHAR *gdi_init(HWND ahwnd, int monid, int w_w, int w_h, int depth, int *freq, int mmulth, int mmultv)
+static const TCHAR *gdi_init(HWND ahwnd, int monid, int w_w, int w_h, int depth, int *freq, int mmulth, int mmultv, int *errp)
 {
 	struct gdistruct *gdi = &gdidata[monid];
 
 	if (isfullscreen() > 0) {
+		*errp = -1;
 		return _T("GDI fullscreen not supported");
 	}
 
@@ -356,6 +394,7 @@ static const TCHAR *gdi_init(HWND ahwnd, int monid, int w_w, int w_h, int depth,
 		return NULL;
 	}
 
+	*errp = 1;
 	return _T("failed to allocate buffer");
 }
 
@@ -384,21 +423,20 @@ static bool gdi_setcursor(int monid, int x, int y, int width, int height, float 
 	}
 
 	if (width && height) {
-		gdi->cursor_offset2_x = gdi->cursor_offset_x * gdi->wwidth / width;
-		gdi->cursor_offset2_y = gdi->cursor_offset_y * gdi->wheight / height;
-		gdi->cursor_x = (float)x * gdi->wwidth / width;
-		gdi->cursor_y = (float)y * gdi->wheight / height;
-		gdi->cursor_mx = mx;
-		gdi->cursor_my = my;
+		gdi->cursor.x = (int)((float)x * mx * gdi->xmult + gdi->cursor_offset_x * gdi->ymult + 0.5f);
+		gdi->cursor.y = (int)((float)y * my * gdi->ymult + gdi->cursor_offset_y * gdi->xmult + 0.5f);
 	} else {
-		gdi->cursor_x = gdi->cursor_y = 0;
-		gdi->cursor_offset2_x = gdi->cursor_offset2_y = 0;
+		gdi->cursor.x = gdi->cursor.y = 0;
+	}
+	if (gdi->cursor.x < 0) {
+		gdi->cursor.x = 0;
+	}
+	if (gdi->cursor.y < 0) {
+		gdi->cursor.y = 0;
 	}
 	gdi->cursor_scale = !noscale;
 	gdi->cursor.active = visible;
 	return true;
-
-	return false;
 }
 
 static uae_u8 *gdi_setcursorsurface(int monid, int *pitch)
@@ -409,6 +447,18 @@ static uae_u8 *gdi_setcursorsurface(int monid, int *pitch)
 		*pitch = gdi->cursor.pitch;
 		return (uae_u8*)gdi->cursor.bits;
 	}
+	for (int y = 0; y < CURSORMAXHEIGHT; y++) {
+		for (int x = 0; x < CURSORMAXWIDTH; x++) {
+			uae_u32 *p = (uae_u32*)((uae_u8*)gdi->cursor.bits + gdi->cursor.pitch * y + x * 4);
+			uae_u32 v = *p;
+			if ((v & 0xff000000) == 0x00000000) {
+				*p = 0xfe00fe;
+			} else {
+				*p = v & 0xffffff;
+			}
+		}
+	}
+
 	return NULL;
 }
 

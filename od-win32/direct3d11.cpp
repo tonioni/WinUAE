@@ -1,4 +1,6 @@
 
+/* Direct3D 11 graphics renderer */
+
 #include <windows.h>
 #include "resource.h"
 
@@ -44,7 +46,7 @@ using Microsoft::WRL::ComPtr;
 #include <Dwmapi.h>
 
 void (*D3D_free)(int, bool immediate);
-const TCHAR* (*D3D_init)(HWND ahwnd, int, int w_w, int h_h, int depth, int *freq, int mmulth, int mmultv);
+const TCHAR *(*D3D_init)(HWND ahwnd, int, int w_w, int h_h, int depth, int *freq, int mmulth, int mmultv, int *err);
 bool (*D3D_alloctexture)(int, int, int);
 void(*D3D_refresh)(int);
 bool(*D3D_renderframe)(int, int,bool);
@@ -261,7 +263,7 @@ struct d3d11struct
 	DXGI_FORMAT scrformat;
 	DXGI_FORMAT texformat;
 	bool m_tearingSupport;
-	int dmult, dmultxh, dmultxv;
+	int dmult, dmultxh, dmultxv, dmode;
 	int xoffset, yoffset;
 	float xmult, ymult;
 	DXGI_SWAP_CHAIN_DESC1 swapChainDesc;
@@ -1493,14 +1495,14 @@ static bool UpdateBuffers(struct d3d11struct *d3d)
 	positionY = (sh - bh) / 2 + d3d->yoffset;
 
 	// Calculate the screen coordinates of the left side of the bitmap.
-	left = (sw + 1.0f) / -2.0f;
+	left = (sw + 0.5f) / -2.0f;
 	left += positionX;
 
 	// Calculate the screen coordinates of the right side of the bitmap.
 	right = left + bw;
 
 	// Calculate the screen coordinates of the top of the bitmap.
-	top = (sh + 1.0f) / 2.0f;
+	top = (sh + 0.5f) / 2.0f;
 	top -= positionY;
 
 	// Calculate the screen coordinates of the bottom of the bitmap.
@@ -1532,7 +1534,7 @@ static void setupscenecoords(struct d3d11struct *d3d, bool normalrender)
 	if (!normalrender)
 		return;
 
-	getfilterrect2(d3d->num, &dr, &sr, &zr, d3d->m_screenWidth, d3d->m_screenHeight, d3d->m_bitmapWidth / d3d->dmult, d3d->m_bitmapHeight / d3d->dmult, d3d->dmult, d3d->m_bitmapWidth, d3d->m_bitmapHeight);
+	getfilterrect2(d3d->num, &dr, &sr, &zr, d3d->m_screenWidth, d3d->m_screenHeight, d3d->m_bitmapWidth / d3d->dmult, d3d->m_bitmapHeight / d3d->dmult, d3d->dmult, &d3d->dmode, d3d->m_bitmapWidth, d3d->m_bitmapHeight);
 
 	if (!memcmp(&sr, &d3d->sr2, sizeof RECT) && !memcmp(&dr, &d3d->dr2, sizeof RECT) && !memcmp(&zr, &d3d->zr2, sizeof RECT)) {
 		return;
@@ -1571,8 +1573,8 @@ static void setupscenecoords(struct d3d11struct *d3d, bool normalrender)
 	d3d->xoffset = tx + xshift - d3d->m_screenWidth / 2;
 	d3d->yoffset = ty + yshift - d3d->m_screenHeight / 2;
 
-	d3d->xmult = d3d->m_screenWidth / w;
-	d3d->ymult = d3d->m_screenHeight / h;
+	d3d->xmult = filterrectmult(d3d->m_screenWidth, w, d3d->dmode);
+	d3d->ymult = filterrectmult(d3d->m_screenHeight, h, d3d->dmode);
 
 	d3d->cursor_offset_x = -zr.left;
 	d3d->cursor_offset_y = -zr.top;
@@ -3413,11 +3415,13 @@ static int xxD3D11_init2(HWND ahwnd, int monid, int w_w, int w_h, int t_w, int t
 	d3d->delayedfs = 0;
 	d3d->device_errors = 0;
 
-	if (depth != 32)
+	if (depth != 32) {
 		return 0;
+	}
 
-	if (!can_D3D11(false))
+	if (!can_D3D11(false)) {
 		return 0;
+	}
 
 	d3d->m_bitmapWidth = t_w;
 	d3d->m_bitmapHeight = t_h;
@@ -3452,7 +3456,7 @@ static int xxD3D11_init2(HWND ahwnd, int monid, int w_w, int w_h, int t_w, int t
 			if (!os_win8) {
 				gui_message(_T("WinUAE Direct3D 11 mode requires Windows 7 Platform Update (KB2670838). Check Windows Update optional updates or download it from: https://www.microsoft.com/en-us/download/details.aspx?id=36805"));
 			}
-			return false;
+			return 0;
 		}
 	} else {
 		BOOL allowTearing = FALSE;
@@ -4104,16 +4108,21 @@ static int xxD3D11_init(HWND ahwnd, int monid, int w_w, int w_h, int depth, int 
 	return xxD3D11_init2(ahwnd, monid, w_w, w_h, w_w, w_h, depth, freq, mmulth, mmultv);
 }
 
-static const TCHAR *xD3D11_init(HWND ahwnd, int monid, int w_w, int w_h, int depth, int *freq, int mmulth, int mmultv)
+static const TCHAR *xD3D11_init(HWND ahwnd, int monid, int w_w, int w_h, int depth, int *freq, int mmulth, int mmultv, int *errp)
 {
-	if (!can_D3D11(false))
+	if (!can_D3D11(false)) {
+		*errp = 1;
 		return _T("D3D11 FAILED TO INIT");
+	}
 	int v = xxD3D11_init(ahwnd, monid, w_w, w_h, depth, freq, mmulth, mmultv);
-	if (v > 0)
+	if (v > 0) {
 		return NULL;
+	}
 	xD3D11_free(monid, true);
-	if (v <= 0)
+	*errp = 1;
+	if (v <= 0) {
 		return _T("");
+	}
 	return _T("D3D11 INITIALIZATION ERROR");
 }
 
@@ -5203,10 +5212,10 @@ static bool xD3D_setcursor(int monid, int x, int y, int width, int height, float
 		return true;
 
 	if (width && height) {
-		d3d->cursor_offset2_x = d3d->cursor_offset_x * d3d->m_screenWidth / width;
-		d3d->cursor_offset2_y = d3d->cursor_offset_y * d3d->m_screenHeight / height;
-		d3d->cursor_x = (float)x * d3d->m_screenWidth / width;
-		d3d->cursor_y = (float)y * d3d->m_screenHeight / height;
+		d3d->cursor_offset2_x = d3d->cursor_offset_x;
+		d3d->cursor_offset2_y = d3d->cursor_offset_y;
+		d3d->cursor_x = (float)x;
+		d3d->cursor_y = (float)y;
 	} else {
 		d3d->cursor_x = d3d->cursor_y = 0;
 		d3d->cursor_offset2_x = d3d->cursor_offset2_y = 0;
@@ -5214,21 +5223,16 @@ static bool xD3D_setcursor(int monid, int x, int y, int width, int height, float
 
 	//write_log(_T("%.1fx%.1f %dx%d\n"), d3d->cursor_x, d3d->cursor_y, d3d->cursor_offset2_x, d3d->cursor_offset2_y);
 
-	float multx = 1.0f;
-	float multy = 1.0f;
-	if (d3d->cursor_scale) {
-		multx = ((float)(d3d->m_screenWidth) / ((d3d->m_bitmapWidth * d3d->dmult) + 2 * d3d->cursor_offset2_x));
-		multy = ((float)(d3d->m_screenHeight) / ((d3d->m_bitmapHeight * d3d->dmult) + 2 * d3d->cursor_offset2_y));
-	}
+	float multx = d3d->xmult;
+	float multy = d3d->ymult;
 
-	setspritescaling(&d3d->hwsprite, mx / multx, my / multy);
+	setspritescaling(&d3d->hwsprite, mx * multx, my * multy);
 
 	d3d->hwsprite.x = d3d->cursor_x * multx + d3d->cursor_offset2_x * multx;
 	d3d->hwsprite.y = d3d->cursor_y * multy + d3d->cursor_offset2_y * multy;
 
 	//write_log(_T("-> %.1fx%.1f %.1f %.1f\n"), d3d->hwsprite.x, d3d->hwsprite.y, multx, multy);
 
-	d3d->cursor_scale = !noscale;
 	d3d->cursor_v = visible;
 	d3d->hwsprite.enabled = visible;
 	d3d->hwsprite.bilinear = d3d->filterd3d->gfx_filter_bilinear;
