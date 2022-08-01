@@ -4815,46 +4815,54 @@ static void createdir (const TCHAR *path)
 	CreateDirectory (path, NULL);
 }
 
-void fetch_saveimagepath (TCHAR *out, int size, int dir)
+void fetch_saveimagepath(TCHAR *out, int size, int dir)
 {
-	fetch_path (_T("SaveimagePath"), out, size);
+	fetch_path(_T("SaveimagePath"), out, size);
 	if (dir) {
 		out[_tcslen (out) - 1] = 0;
-		createdir (out);
-		fetch_path (_T("SaveimagePath"), out, size);
+		createdir(out);
+		fetch_path(_T("SaveimagePath"), out, size);
 	}
 }
-void fetch_configurationpath (TCHAR *out, int size)
+void fetch_configurationpath(TCHAR *out, int size)
 {
-	fetch_path (_T("ConfigurationPath"), out, size);
+	fetch_path(_T("ConfigurationPath"), out, size);
 }
-void fetch_luapath (TCHAR *out, int size)
+void fetch_luapath(TCHAR *out, int size)
 {
-	fetch_path (_T("LuaPath"), out, size);
+	fetch_path(_T("LuaPath"), out, size);
 }
-void fetch_screenshotpath (TCHAR *out, int size)
+void fetch_nvrampath(TCHAR *out, int size)
 {
-	fetch_path (_T("ScreenshotPath"), out, size);
+	fetch_path(_T("NVRAMPath"), out, size);
 }
-void fetch_ripperpath (TCHAR *out, int size)
+void fetch_screenshotpath(TCHAR *out, int size)
 {
-	fetch_path (_T("RipperPath"), out, size);
+	fetch_path(_T("ScreenshotPath"), out, size);
 }
-void fetch_statefilepath (TCHAR *out, int size)
+void fetch_ripperpath(TCHAR *out, int size)
 {
-	fetch_path (_T("StatefilePath"), out, size);
+	fetch_path(_T("RipperPath"), out, size);
 }
-void fetch_inputfilepath (TCHAR *out, int size)
+void fetch_statefilepath(TCHAR *out, int size)
 {
-	fetch_path (_T("InputPath"), out, size);
+	fetch_path(_T("StatefilePath"), out, size);
 }
-void fetch_datapath (TCHAR *out, int size)
+void fetch_inputfilepath(TCHAR *out, int size)
 {
-	fetch_path (NULL, out, size);
+	fetch_path(_T("InputPath"), out, size);
 }
-void fetch_rompath (TCHAR *out, int size)
+void fetch_datapath(TCHAR *out, int size)
 {
-	fetch_path (_T("KickstartPath"), out, size);
+	fetch_path(NULL, out, size);
+}
+void fetch_rompath(TCHAR* out, int size)
+{
+	fetch_path(_T("KickstartPath"), out, size);
+}
+void fetch_videopath(TCHAR* out, int size)
+{
+	fetch_path(_T("VideoPath"), out, size);
 }
 static int isfilesindir (const TCHAR *p)
 {
@@ -4882,37 +4890,41 @@ static int isfilesindir (const TCHAR *p)
 	return 0;
 }
 
-void fetch_path (const TCHAR *name, TCHAR *out, int size)
+void fetch_path(const TCHAR *name, TCHAR *out, int size)
 {
 	int size2 = size;
 
-	_tcscpy (out, start_path_data);
+	_tcscpy(out, start_path_data);
 	if (!name) {
 		fullpath (out, size);
 		return;
 	}
-	if (!_tcscmp (name, _T("FloppyPath")))
-		_tcscat (out, _T("..\\shared\\adf\\"));
-	if (!_tcscmp (name, _T("CDPath")))
-		_tcscat (out, _T("..\\shared\\cd\\"));
-	if (!_tcscmp (name, _T("TapePath")))
-		_tcscat (out, _T("..\\shared\\tape\\"));
-	if (!_tcscmp (name, _T("hdfPath")))
-		_tcscat (out, _T("..\\shared\\hdf\\"));
-	if (!_tcscmp (name, _T("KickstartPath")))
-		_tcscat (out, _T("..\\shared\\rom\\"));
-	if (!_tcscmp (name, _T("ConfigurationPath")))
-		_tcscat (out, _T("Configurations\\"));
-	if (!_tcscmp (name, _T("LuaPath")))
-		_tcscat (out, _T("lua\\"));
-	if (!_tcscmp (name, _T("StatefilePath")))
-		_tcscat (out, _T("Savestates\\"));
-	if (!_tcscmp (name, _T("InputPath")))
-		_tcscat (out, _T("Inputrecordings\\"));
+	if (!_tcscmp(name, _T("FloppyPath")))
+		_tcscat(out, _T("..\\shared\\adf\\"));
+	if (!_tcscmp(name, _T("CDPath")))
+		_tcscat(out, _T("..\\shared\\cd\\"));
+	if (!_tcscmp(name, _T("TapePath")))
+		_tcscat(out, _T("..\\shared\\tape\\"));
+	if (!_tcscmp(name, _T("hdfPath")))
+		_tcscat(out, _T("..\\shared\\hdf\\"));
+	if (!_tcscmp(name, _T("KickstartPath")))
+		_tcscat(out, _T("..\\shared\\rom\\"));
+	if (!_tcscmp(name, _T("ConfigurationPath")))
+		_tcscat(out, _T("Configurations\\"));
+	if (!_tcscmp(name, _T("NVRAMPath")))
+		_tcscat(out, _T("NVRAMs\\"));
+	if (!_tcscmp(name, _T("LuaPath")))
+		_tcscat(out, _T("lua\\"));
+	if (!_tcscmp(name, _T("StatefilePath")))
+		_tcscat(out, _T("Savestates\\"));
+	if (!_tcscmp(name, _T("InputPath")))
+		_tcscat(out, _T("Inputrecordings\\"));
+	if (!_tcscmp(name, _T("VideoPath")))
+		_tcscat(out, _T("Videos\\"));
 	if (start_data >= 0)
-		regquerystr (NULL, name, out, &size); 
-	if (GetFileAttributes (out) == INVALID_FILE_ATTRIBUTES)
-		_tcscpy (out, start_path_data);
+		regquerystr(NULL, name, out, &size); 
+	if (GetFileAttributes(out) == INVALID_FILE_ATTRIBUTES)
+		_tcscpy(out, start_path_data);
 #if 0
 	if (out[0] == '\\' && (_tcslen (out) >= 2 && out[1] != '\\')) { /* relative? */
 		_tcscpy (out, start_path_data);
@@ -4922,14 +4934,14 @@ void fetch_path (const TCHAR *name, TCHAR *out, int size)
 		}
 	}
 #endif
-	stripslashes (out);
-	if (!_tcscmp (name, _T("KickstartPath"))) {
-		DWORD v = GetFileAttributes (out);
+	stripslashes(out);
+	if (!_tcscmp(name, _T("KickstartPath"))) {
+		DWORD v = GetFileAttributes(out);
 		if (v == INVALID_FILE_ATTRIBUTES || !(v & FILE_ATTRIBUTE_DIRECTORY))
-			_tcscpy (out, start_path_data);
+			_tcscpy(out, start_path_data);
 	}
-	fixtrailing (out);
-	fullpath (out, size2);
+	fixtrailing(out);
+	fullpath(out, size2);
 }
 
 int get_rom_path (TCHAR *out, pathtype mode)
@@ -5019,24 +5031,26 @@ void set_path (const TCHAR *name, TCHAR *path, pathtype mode)
 	TCHAR tmp[MAX_DPATH];
 
 	if (!path) {
-		if (!_tcscmp (start_path_data, start_path_exe))
-			_tcscpy (tmp, _T(".\\"));
+		if (!_tcscmp(start_path_data, start_path_exe))
+			_tcscpy(tmp, _T(".\\"));
 		else
-			_tcscpy (tmp, start_path_data);
-		if (!_tcscmp (name, _T("KickstartPath")))
-			_tcscat (tmp, _T("Roms"));
-		if (!_tcscmp (name, _T("ConfigurationPath")))
-			_tcscat (tmp, _T("Configurations"));
-		if (!_tcscmp (name, _T("LuaPath")))
-			_tcscat (tmp, _T("lua"));
-		if (!_tcscmp (name, _T("ScreenshotPath")))
-			_tcscat (tmp, _T("Screenshots"));
-		if (!_tcscmp (name, _T("StatefilePath")))
-			_tcscat (tmp, _T("Savestates"));
-		if (!_tcscmp (name, _T("SaveimagePath")))
-			_tcscat (tmp, _T("SaveImages"));
-		if (!_tcscmp (name, _T("InputPath")))
-			_tcscat (tmp, _T("Inputrecordings"));
+			_tcscpy(tmp, start_path_data);
+		if (!_tcscmp(name, _T("KickstartPath")))
+			_tcscat(tmp, _T("ROMs"));
+		if (!_tcscmp(name, _T("ConfigurationPath")))
+			_tcscat(tmp, _T("Configurations"));
+		if (!_tcscmp(name, _T("NVRAMPath")))
+			_tcscat(tmp, _T("NVRAMs"));
+		if (!_tcscmp(name, _T("LuaPath")))
+			_tcscat(tmp, _T("lua"));
+		if (!_tcscmp(name, _T("ScreenshotPath")))
+			_tcscat(tmp, _T("Screenshots"));
+		if (!_tcscmp(name, _T("StatefilePath")))
+			_tcscat(tmp, _T("Savestates"));
+		if (!_tcscmp(name, _T("SaveimagePath")))
+			_tcscat(tmp, _T("SaveImages"));
+		if (!_tcscmp(name, _T("InputPath")))
+			_tcscat(tmp, _T("Inputrecordings"));
 	} else {
 		_tcscpy (tmp, path);
 	}

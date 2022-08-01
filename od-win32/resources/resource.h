@@ -1037,12 +1037,14 @@
 #define IDC_LOGOPEN                     1681
 #define IDC_CONFIGAUTO                  1682
 #define IDC_CD0Q_TYPE                   1682
+#define IDC_PATHS_NVRAM                 1682
 #define IDC_DF0TEXTQ                    1683
 #define IDC_CONFIGNOLINK                1683
+#define IDC_PATHS_NVRAMS                1683
 #define IDC_DF0WPQ                      1684
-#define IDC_LOGOPEN2                    1684
 #define IDC_LOGSAVE                     1684
 #define IDC_EJECT0Q                     1685
+#define IDC_PATHS_NVRAML                1685
 #define IDC_DF1WPQ                      1686
 #define IDC_EJECT1Q                     1687
 #define IDC_DF1TEXTQ                    1688

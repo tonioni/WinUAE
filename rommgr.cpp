@@ -2336,10 +2336,12 @@ int configure_rom (struct uae_prefs *p, const int *rom, int msg)
 		set_device_rom(p, path, ROMTYPE_CPUBOARD, 0);
 
 	if (rd->type & (ROMTYPE_ARCADIAGAME | ROMTYPE_ALG)) {
-		_stprintf(p->flashfile, _T("%s.nvr"), rd->name);
+		fetch_nvrampath(p->flashfile, sizeof(p->flashfile) / sizeof(TCHAR));
+		_stprintf(p->flashfile + _tcslen(p->flashfile), _T("%s.nvr"), rd->name);
 	}
 	if (rd->type & ROMTYPE_ALG) {
-		_stprintf(p->genlock_video_file, _T("%s.avi"), rd->name);
+		fetch_videopath(p->genlock_video_file, sizeof(p->genlock_video_file) / sizeof(TCHAR));
+		_stprintf(p->genlock_video_file + _tcslen(p->genlock_video_file), _T("%s.avi"), rd->name);
 	}
 	return 1;
 }

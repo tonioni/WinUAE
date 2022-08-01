@@ -2438,7 +2438,8 @@ static const GUID diskselectionguids[] = {
 	{ 0x05aa5db2, 0x470b, 0x4725, { 0x96, 0x03, 0xee, 0x61, 0x30, 0xfc, 0x54, 0x99 } },
 	{ 0x68366188, 0xa6d4, 0x4278, { 0xb7, 0x55, 0x6a, 0xb8, 0x17, 0xa6, 0x71, 0xd9 } },
 	{ 0xe990bee1, 0xd7cc, 0x4768, { 0xaf, 0x34, 0xef, 0x39, 0x87, 0x48, 0x09, 0x50 } },
-	{ 0x12c53317, 0xd99c, 0x4494, { 0x8d, 0x81, 0x00, 0x6d, 0x8c, 0x62, 0x7d, 0x83 } }
+	{ 0x12c53317, 0xd99c, 0x4494, { 0x8d, 0x81, 0x00, 0x6d, 0x8c, 0x62, 0x7d, 0x83 } },
+	{ 0x406859ac, 0x5283, 0x4f7e, { 0xb7, 0xee, 0x0c, 0x2b, 0x78, 0x3d, 0x1d, 0xcc } }
 };
 
 static void getfilter (int num, const TCHAR *name, int *filter, TCHAR *fname)
@@ -2797,7 +2798,6 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
 			break;
 		case 6:
 		case 7:
-		case 11:
 			getfilter (flag, _T("KickstartPath"), previousfilter, filtername);
 			fetch_path (_T("KickstartPath"), init_path, sizeof (init_path) / sizeof (TCHAR));
 			guid = &diskselectionguids[2];
@@ -2835,6 +2835,12 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
 				}
 				guid = &diskselectionguids[4];
 			}
+			break;
+		case 11:
+		case 19:
+			getfilter(flag, _T("NVRAMPath"), previousfilter, filtername);
+			fetch_path(_T("NVRAMPath"), init_path, sizeof(init_path) / sizeof(TCHAR));
+			guid = &diskselectionguids[10];
 			break;
 		case 15:
 		case 16:
@@ -6571,18 +6577,20 @@ static void wsetpath (HWND hDlg, const TCHAR *name, DWORD d, const TCHAR *def)
 
 static void values_to_pathsdialog (HWND hDlg)
 {
-	wsetpath (hDlg, _T("KickstartPath"), IDC_PATHS_ROM, _T("Roms"));
-	wsetpath (hDlg, _T("ConfigurationPath"), IDC_PATHS_CONFIG, _T("Configurations"));
-	wsetpath (hDlg, _T("ScreenshotPath"), IDC_PATHS_SCREENSHOT, _T("ScreenShots"));
-	wsetpath (hDlg, _T("StatefilePath"), IDC_PATHS_SAVESTATE, _T("Savestates"));
-	wsetpath (hDlg, _T("SaveimagePath"), IDC_PATHS_SAVEIMAGE, _T("SaveImages"));
-	wsetpath (hDlg, _T("VideoPath"), IDC_PATHS_AVIOUTPUT, _T("Videos"));
-	wsetpath (hDlg, _T("RipperPath"), IDC_PATHS_RIP, _T(".\\"));
+	wsetpath(hDlg, _T("KickstartPath"), IDC_PATHS_ROM, _T("ROMs"));
+	wsetpath(hDlg, _T("ConfigurationPath"), IDC_PATHS_CONFIG, _T("Configurations"));
+	wsetpath(hDlg, _T("NVRAMPath"), IDC_PATHS_NVRAM, _T("NVRAMs"));
+	wsetpath(hDlg, _T("ScreenshotPath"), IDC_PATHS_SCREENSHOT, _T("ScreenShots"));
+	wsetpath(hDlg, _T("StatefilePath"), IDC_PATHS_SAVESTATE, _T("Savestates"));
+	wsetpath(hDlg, _T("SaveimagePath"), IDC_PATHS_SAVEIMAGE, _T("SaveImages"));
+	wsetpath(hDlg, _T("VideoPath"), IDC_PATHS_AVIOUTPUT, _T("Videos"));
+	wsetpath(hDlg, _T("RipperPath"), IDC_PATHS_RIP, _T(".\\"));
 }
 
 static const TCHAR *pathnames[] = {
 	_T("KickstartPath"),
 	_T("ConfigurationPath"),
+	_T("NVRAMPath"),
 	_T("ScreenshotPath"),
 	_T("StatefilePath"),
 	_T("SaveimagePath"),
@@ -6612,6 +6620,7 @@ static void resetregistry (void)
 	regdelete(NULL, _T("ConfigFileHardware_Auto"));
 	regdelete(NULL, _T("ConfigFileHost_Auto"));
 	regdelete(NULL, _T("ConfigurationPath"));
+	regdelete(NULL, _T("NVRAMPath"));
 	regdelete(NULL, _T("SaveimagePath"));
 	regdelete(NULL, _T("ScreenshotPath"));
 	regdelete(NULL, _T("StatefilePath"));
@@ -6809,13 +6818,14 @@ static INT_PTR CALLBACK PathsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 	case WM_INITDIALOG:
 		recursive++;
 		pages[PATHS_ID] = hDlg;
-		setac (hDlg, IDC_PATHS_ROM);
-		setac (hDlg, IDC_PATHS_CONFIG);
-		setac (hDlg, IDC_PATHS_SCREENSHOT);
-		setac (hDlg, IDC_PATHS_SAVESTATE);
-		setac (hDlg, IDC_PATHS_SAVEIMAGE);
-		setac (hDlg, IDC_PATHS_AVIOUTPUT);
-		setac (hDlg, IDC_PATHS_RIP);
+		setac(hDlg, IDC_PATHS_ROM);
+		setac(hDlg, IDC_PATHS_CONFIG);
+		setac(hDlg, IDC_PATHS_NVRAM);
+		setac(hDlg, IDC_PATHS_SCREENSHOT);
+		setac(hDlg, IDC_PATHS_SAVESTATE);
+		setac(hDlg, IDC_PATHS_SAVEIMAGE);
+		setac(hDlg, IDC_PATHS_AVIOUTPUT);
+		setac(hDlg, IDC_PATHS_RIP);
 		CheckDlgButton(hDlg, IDC_PATHS_RECURSIVEROMS, recursiveromscan);
 		CheckDlgButton(hDlg, IDC_PATHS_CONFIGCACHE, configurationcache);
 		CheckDlgButton(hDlg, IDC_PATHS_ARTCACHE, artcache);
@@ -6951,6 +6961,18 @@ static INT_PTR CALLBACK PathsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 				set_path (_T("ConfigurationPath"), tmp);
 				FreeConfigStore ();
 				break;
+			case IDC_PATHS_NVRAMS:
+				fetch_path (_T("NVRAMPath"), tmp, sizeof (tmp) / sizeof (TCHAR));
+				if (DirectorySelection (hDlg, &pathsguid, tmp)) {
+					set_path (_T("NVRAMPath"), tmp);
+					values_to_pathsdialog (hDlg);
+					FreeConfigStore ();
+				}
+				break;
+			case IDC_PATHS_NVRAM:
+				GetWindowText(GetDlgItem(hDlg, IDC_PATHS_NVRAM), tmp, sizeof(tmp) / sizeof(TCHAR));
+				set_path(_T("NVRAMPath"), tmp);
+				break;
 			case IDC_PATHS_SCREENSHOTS:
 				fetch_path (_T("ScreenshotPath"), tmp, sizeof (tmp) / sizeof (TCHAR));
 				if (DirectorySelection (hDlg, &pathsguid, tmp)) {
@@ -7027,14 +7049,15 @@ static INT_PTR CALLBACK PathsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 					}
 					SetCurrentDirectory (start_path_data);
 					setpathmode (path_type);
-					set_path (_T("KickstartPath"), NULL, path_type);
-					set_path (_T("ConfigurationPath"), NULL, path_type);
-					set_path (_T("ScreenshotPath"), NULL, path_type);
-					set_path (_T("StatefilePath"), NULL, path_type);
-					set_path (_T("SaveimagePath"), NULL, path_type);
-					set_path (_T("VideoPath"), NULL, path_type);
-					set_path (_T("RipperPath"), NULL, path_type);
-					set_path (_T("InputPath"), NULL, path_type);
+					set_path(_T("KickstartPath"), NULL, path_type);
+					set_path(_T("ConfigurationPath"), NULL, path_type);
+					set_path(_T("NVRAMPath"), NULL, path_type);
+					set_path(_T("ScreenshotPath"), NULL, path_type);
+					set_path(_T("StatefilePath"), NULL, path_type);
+					set_path(_T("SaveimagePath"), NULL, path_type);
+					set_path(_T("VideoPath"), NULL, path_type);
+					set_path(_T("RipperPath"), NULL, path_type);
+					set_path(_T("InputPath"), NULL, path_type);
 					values_to_pathsdialog (hDlg);
 					FreeConfigStore ();
 				}
@@ -21156,7 +21179,7 @@ static const int ignorewindows[] = {
 	-1,
 	IDD_MISC1, IDC_LANGUAGE, IDC_STATENAME,
 	-1,
-	IDD_PATHS, IDC_PATHS_ROM, IDC_PATHS_CONFIG, IDC_PATHS_SCREENSHOT, IDC_PATHS_SAVESTATE, IDC_PATHS_AVIOUTPUT, IDC_PATHS_SAVEIMAGE, IDC_PATHS_RIP, IDC_LOGPATH,
+	IDD_PATHS, IDC_PATHS_ROM, IDC_PATHS_CONFIG, IDC_PATHS_NVRAM, IDC_PATHS_SCREENSHOT, IDC_PATHS_SAVESTATE, IDC_PATHS_AVIOUTPUT, IDC_PATHS_SAVEIMAGE, IDC_PATHS_RIP, IDC_LOGPATH,
 	-1,
 	IDD_IOPORTS, IDC_PRINTERLIST, IDC_SAMPLERLIST, IDC_PS_PARAMS, IDC_SERIAL, IDC_MIDIOUTLIST, IDC_MIDIINLIST, IDC_DONGLELIST,
 	-1,

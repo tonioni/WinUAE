@@ -8947,8 +8947,8 @@ static int bip_arcadia (struct uae_prefs *p, int config, int compa, int romcheck
 	set_68000_compa (p, compa);
 	p->cs_compatible = CP_A500;
 	built_in_chipset_prefs (p);
-	fetch_datapath (p->flashfile, sizeof (p->flashfile) / sizeof (TCHAR));
-	_tcscat (p->flashfile, _T("arcadia.nvr"));
+	fetch_nvrampath(p->flashfile, sizeof (p->flashfile) / sizeof (TCHAR));
+	_tcscat(p->flashfile, _T("arcadia.nvr"));
 	roms[0] = 5;
 	roms[1] = 4;
 	roms[2] = -1;
@@ -8988,7 +8988,7 @@ static int bip_alg(struct uae_prefs* p, int config, int compa, int romcheck)
 	set_68000_compa(p, compa);
 	p->cs_compatible = CP_A500;
 	built_in_chipset_prefs(p);
-	fetch_datapath(p->flashfile, sizeof(p->flashfile) / sizeof(TCHAR));
+	fetch_nvrampath(p->flashfile, sizeof(p->flashfile) / sizeof(TCHAR));
 	_tcscat(p->flashfile, _T("alg.nvr"));
 	roms[0] = 5;
 	roms[1] = 4;
