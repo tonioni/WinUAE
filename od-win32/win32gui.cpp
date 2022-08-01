@@ -13360,7 +13360,7 @@ static void values_from_cpudlg(HWND hDlg, WPARAM wParam)
 		int m = workprefs.cpu_clock_multiplier;
 		workprefs.cpu_frequency = 0;
 		workprefs.cpu_clock_multiplier = 0;
-		if (idx < 4) {
+		if (idx < 5) {
 			workprefs.cpu_clock_multiplier = (1 << 8) << idx;
 			if (workprefs.cpu_cycle_exact || workprefs.cpu_compatible) {
 				TCHAR txt[20];
@@ -13400,18 +13400,19 @@ static INT_PTR CALLBACK CPUDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 		recursive++;
 		pages[CPU_ID] = hDlg;
 		currentpage = CPU_ID;
-		xSendDlgItemMessage (hDlg, IDC_CACHE, TBM_SETRANGE, TRUE, MAKELONG (MIN_CACHE_SIZE, MAX_CACHE_SIZE));
-		xSendDlgItemMessage (hDlg, IDC_CACHE, TBM_SETPAGESIZE, 0, 1);
-		xSendDlgItemMessage (hDlg, IDC_CPUIDLE, TBM_SETRANGE, TRUE, MAKELONG (0, 10));
-		xSendDlgItemMessage (hDlg, IDC_CPUIDLE, TBM_SETPAGESIZE, 0, 1);
-		xSendDlgItemMessage (hDlg, IDC_PPC_CPUIDLE, TBM_SETRANGE, TRUE, MAKELONG (0, 10));
-		xSendDlgItemMessage (hDlg, IDC_PPC_CPUIDLE, TBM_SETPAGESIZE, 0, 1);
+		xSendDlgItemMessage(hDlg, IDC_CACHE, TBM_SETRANGE, TRUE, MAKELONG(MIN_CACHE_SIZE, MAX_CACHE_SIZE));
+		xSendDlgItemMessage(hDlg, IDC_CACHE, TBM_SETPAGESIZE, 0, 1);
+		xSendDlgItemMessage(hDlg, IDC_CPUIDLE, TBM_SETRANGE, TRUE, MAKELONG(0, 10));
+		xSendDlgItemMessage(hDlg, IDC_CPUIDLE, TBM_SETPAGESIZE, 0, 1);
+		xSendDlgItemMessage(hDlg, IDC_PPC_CPUIDLE, TBM_SETRANGE, TRUE, MAKELONG(0, 10));
+		xSendDlgItemMessage(hDlg, IDC_PPC_CPUIDLE, TBM_SETPAGESIZE, 0, 1);
 
-		xSendDlgItemMessage (hDlg, IDC_CPU_FREQUENCY, CB_RESETCONTENT, 0, 0);
-		xSendDlgItemMessage (hDlg, IDC_CPU_FREQUENCY, CB_ADDSTRING, 0, (LPARAM)_T("1x"));
-		xSendDlgItemMessage (hDlg, IDC_CPU_FREQUENCY, CB_ADDSTRING, 0, (LPARAM)_T("2x (A500)"));
-		xSendDlgItemMessage (hDlg, IDC_CPU_FREQUENCY, CB_ADDSTRING, 0, (LPARAM)_T("4x (A1200)"));
-		xSendDlgItemMessage (hDlg, IDC_CPU_FREQUENCY, CB_ADDSTRING, 0, (LPARAM)_T("8x"));
+		xSendDlgItemMessage(hDlg, IDC_CPU_FREQUENCY, CB_RESETCONTENT, 0, 0);
+		xSendDlgItemMessage(hDlg, IDC_CPU_FREQUENCY, CB_ADDSTRING, 0, (LPARAM)_T("1x"));
+		xSendDlgItemMessage(hDlg, IDC_CPU_FREQUENCY, CB_ADDSTRING, 0, (LPARAM)_T("2x (A500)"));
+		xSendDlgItemMessage(hDlg, IDC_CPU_FREQUENCY, CB_ADDSTRING, 0, (LPARAM)_T("4x (A1200)"));
+		xSendDlgItemMessage(hDlg, IDC_CPU_FREQUENCY, CB_ADDSTRING, 0, (LPARAM)_T("8x"));
+		xSendDlgItemMessage(hDlg, IDC_CPU_FREQUENCY, CB_ADDSTRING, 0, (LPARAM)_T("16x"));
 		if (workprefs.cpu_cycle_exact) {
 			xSendDlgItemMessage(hDlg, IDC_CPU_FREQUENCY, CB_ADDSTRING, 0, (LPARAM)_T("Custom"));
 		}
@@ -13421,10 +13422,10 @@ static INT_PTR CALLBACK CPUDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 		xSendDlgItemMessage(hDlg, IDC_FPU_MODE, CB_ADDSTRING, 0, (LPARAM)_T("Host (80-bit)"));
 		xSendDlgItemMessage(hDlg, IDC_FPU_MODE, CB_ADDSTRING, 0, (LPARAM)_T("Softfloat (80-bit)"));
 
-		idx = 4;
+		idx = 5;
 		if (workprefs.cpu_clock_multiplier >= 1 << 8) {
 			idx = 0;
-			while (idx < 3) {
+			while (idx < 4) {
 				if (workprefs.cpu_clock_multiplier <= (1 << 8) << idx)
 					break;
 				idx++;
