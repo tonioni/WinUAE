@@ -2043,7 +2043,7 @@ int scan_roms (HWND hDlg, int show)
 	infoboxdialogstate = true;
 	infoboxhwnd = NULL;
 	if (!rp_isactive ()) {
-		HWND hwnd = CreateDialog (hUIDLL ? hUIDLL : hInst, MAKEINTRESOURCE (IDD_INFOBOX), hDlg, InfoBoxDialogProc);
+		HWND hwnd = CustomCreateDialog(IDD_INFOBOX, hDlg, InfoBoxDialogProc);
 		if (!hwnd)
 			goto end;
 		infoboxhwnd = hwnd;
