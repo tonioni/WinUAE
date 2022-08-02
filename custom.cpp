@@ -11717,6 +11717,11 @@ static void set_hpos(void)
 	maxhposeven = (maxhpos & 1) == 0;
 	eventtab[ev_hsync].evtime = get_cycles() + HSYNCTIME;
 	eventtab[ev_hsync].oldcycles = get_cycles();
+#ifdef DEBUGGER
+	if (debug_dma) {
+		record_dma_hsync(maxhpos);
+	}
+#endif
 }
 
 // this finishes current line
@@ -11775,6 +11780,11 @@ static void hsync_handler_pre(bool onvsync)
 		vpos = 0;
 	}
 	if (onvsync) {
+#ifdef DEBUGGER
+		if (debug_dma) {
+			record_dma_vsync(vpos);
+		}
+#endif
 		vpos = 0;
 		vsync_counter++;
 	}
@@ -12768,7 +12778,6 @@ static void hsync_handler_post(bool onvsync)
 		if (lol) {
 			record_dma_event(DMA_EVENT_LOL, REFRESH_FIRST_HPOS + 2, vpos);
 		}
-		record_dma_hsync();
 	}
 
 

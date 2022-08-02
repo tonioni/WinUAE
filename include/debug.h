@@ -232,6 +232,7 @@ struct dma_rec
 	int ciamask;
 	bool ciarw;
 	uae_u16 ciavalue;
+	bool end;
 };
 
 extern struct dma_rec *last_dma_rec;
@@ -289,7 +290,8 @@ extern void record_dma_reset(void);
 extern void record_dma_event(uae_u32 evt, int hpos, int vpos);
 extern void record_dma_clear(int hpos, int vpos);
 extern bool record_dma_check(int hpos, int vpos);
-extern void record_dma_hsync(void);
+extern void record_dma_hsync(int);
+extern void record_dma_vsync(int);
 extern void record_cia_access(int r, int mask, uae_u16 value, bool rw, int hpos, int vpos);
 extern void debug_mark_refreshed(uaecptr);
 extern void debug_draw(uae_u8 *buf, int bpp, int line, int width, int height, uae_u32 *xredcolors, uae_u32 *xgreencolors, uae_u32 *xbluescolors);
