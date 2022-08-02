@@ -7136,8 +7136,8 @@ static void load_quickstart (HWND hDlg, int romcheck)
 	bool cdmodel = quickstart_model == 8 || quickstart_model == 9;
 	ew (guiDlg, IDC_RESETAMIGA, FALSE);
 	workprefs.nr_floppies = quickstart_floppy;
-	quickstart_ok = built_in_prefs (&workprefs, quickstart_model, quickstart_conf, quickstart_compa, romcheck);
 	workprefs.ntscmode = quickstart_ntsc != 0;
+	quickstart_ok = built_in_prefs (&workprefs, quickstart_model, quickstart_conf, quickstart_compa, romcheck);
 	quickstart_cd = workprefs.floppyslots[1].dfxtype == DRV_NONE && cdmodel;
 	// DF0: HD->DD
 	if (quickstart_model <= 4) {
