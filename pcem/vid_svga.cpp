@@ -498,6 +498,16 @@ void svga_recalctimings(svga_t *svga)
                 if (svga->render == svga_render_32bpp_highres)
                     svga->render = svga_render_32bpp_lowres;
             }
+            if (svga->swaprb) {
+                if (svga->render == svga_render_24bpp_lowres)
+                    svga->render = svga_render_24bpp_lowres_swaprb;
+                if (svga->render == svga_render_24bpp_highres)
+                    svga->render = svga_render_24bpp_highres_swaprb;
+                if (svga->render == svga_render_32bpp_lowres)
+                    svga->render = svga_render_32bpp_lowres_swaprb;
+                if (svga->render == svga_render_32bpp_highres)
+                    svga->render = svga_render_32bpp_highres_swaprb;
+            }
         }
 
         crtcconst = svga->clock * svga->char_width;

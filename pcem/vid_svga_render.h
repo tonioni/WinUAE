@@ -28,9 +28,13 @@ void svga_render_15bpp_highres(svga_t *svga);
 void svga_render_16bpp_lowres(svga_t *svga);
 void svga_render_16bpp_highres(svga_t *svga);
 void svga_render_24bpp_lowres(svga_t *svga);
+void svga_render_24bpp_lowres_swaprb(svga_t *svga);
 void svga_render_24bpp_highres(svga_t *svga);
+void svga_render_24bpp_highres_swaprb(svga_t *svga);
 void svga_render_32bpp_lowres(svga_t *svga);
+void svga_render_32bpp_lowres_swaprb(svga_t *svga);
 void svga_render_32bpp_highres(svga_t *svga);
+void svga_render_32bpp_highres_swaprb(svga_t *svga);
 void svga_render_ABGR8888_highres(svga_t *svga);
 void svga_render_RGBA8888_highres(svga_t *svga);
 
