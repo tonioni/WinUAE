@@ -193,7 +193,7 @@ const struct customData custd[] =
 	{ _T("BLTCDAT"),  0xdff070, CD_WO }, /* Blitter source C data reg */
 	{ _T("BLTBDAT"),  0xdff072, CD_WO }, /* Blitter source B data reg */
 	{ _T("BLTADAT"),  0xdff074, CD_WO }, /* Blitter source A data reg */
-	{ _T("BLTDDAT"),  0xdff076, CD_WO }, /* Blitter destination reg */
+	{ _T("-"),  0xdff076, CD_NONE }, /* Unknown or Unused */
 	{ _T("-"),  0xdff078, CD_NONE }, /* Ext logic UHRES sprite pointer and data identifier */
 	{ _T("-"),  0xdff07A, CD_NONE }, /* Ext logic UHRES bit plane identifier */
 	{ _T("LISAID"),   0xdff07C, CD_ECS_DENISE }, /* Chip revision level for Denise/Lisa */
