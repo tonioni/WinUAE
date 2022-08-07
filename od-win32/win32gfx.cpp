@@ -1597,6 +1597,9 @@ void getrtgfilterrect2(int monid, RECT *sr, RECT *dr, RECT *zr, int *mode, int d
 
 	float mx = (float)mon->currentmode.native_width / srcwidth;
 	float my = (float)mon->currentmode.native_height / srcheight;
+	int outwidth;
+	int outheight;
+
 	if (mon->scalepicasso == RTG_MODE_INTEGER_SCALE) {
 		int divx = mon->currentmode.native_width / srcwidth;
 		int divy = mon->currentmode.native_height / srcheight;
@@ -1606,7 +1609,10 @@ void getrtgfilterrect2(int monid, RECT *sr, RECT *dr, RECT *zr, int *mode, int d
 		int yy = (mon->currentmode.native_height / mul - srcheight) / 2;
 		picasso_offset_x = -xx;
 		picasso_offset_y = -yy;
-		mx = my = 1.0;
+		mx = mul;
+		my = mul;
+		outwidth = srcwidth;
+		outheight = srcheight;
 		*mode = 1;
 	} else if (mon->scalepicasso == RTG_MODE_CENTER) {
 		int xx = (mon->currentmode.native_width - srcwidth) / 2;
@@ -1615,6 +1621,8 @@ void getrtgfilterrect2(int monid, RECT *sr, RECT *dr, RECT *zr, int *mode, int d
 		picasso_offset_y = -yy;
 		SetRect (sr, 0, 0, mon->currentmode.native_width, mon->currentmode.native_height);
 		SetRect (dr, 0, 0, mon->currentmode.native_width, mon->currentmode.native_height);
+		outwidth = dr->right - dr->left;
+		outheight = dr->bottom - dr->top;
 		mx = my = 1.0;
 	} else {
 		if (currprefs.win32_rtgscaleaspectratio < 0) {
@@ -1641,6 +1649,8 @@ void getrtgfilterrect2(int monid, RECT *sr, RECT *dr, RECT *zr, int *mode, int d
 			SetRect (dr, 0, 0, xx, srcheight);
 			picasso_offset_x = (state->Width - xx) / 2;
 		}
+		outwidth = dr->right - dr->left;
+		outheight = dr->bottom - dr->top;
 	}
 
 	OffsetRect (zr, picasso_offset_x, picasso_offset_y);
@@ -1648,8 +1658,8 @@ void getrtgfilterrect2(int monid, RECT *sr, RECT *dr, RECT *zr, int *mode, int d
 	picasso_offset_x /= state->HLineDBL;
 	picasso_offset_y /= state->VLineDBL;
 
-	picasso_offset_mx = (float)(srcwidth * mx * state->HLineDBL) / (dr->right - dr->left);
-	picasso_offset_my = (float)(srcheight * my * state->VLineDBL) / (dr->bottom - dr->top);
+	picasso_offset_mx = (float)(srcwidth * mx * state->HLineDBL) / outwidth;
+	picasso_offset_my = (float)(srcheight * my * state->VLineDBL) / outheight;
 }
 
 static uae_u8 *gfx_lock_picasso2(int monid, bool fullupdate)
