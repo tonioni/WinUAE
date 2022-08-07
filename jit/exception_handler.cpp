@@ -135,19 +135,6 @@ typedef void *CONTEXT_T;
 
 #define CONTEXT_PC(context) CONTEXT_RIP(context)
 
-/* FIXME: replace usage with bswap16, move fallback defition to header */
-static inline uae_u16 swap16(uae_u16 x)
-{
-	return ((x & 0xff00) >> 8) | ((x & 0x00ff) << 8);
-}
-
-/* FIXME: replace usage with bswap32, move fallback defition to header */
-static inline uae_u32 swap32(uae_u32 x)
-{
-	return ((x & 0x0000ff00) << 8) | ((x & 0x00ff0000) << 24) |
-		   ((x & 0x00ff0000) >> 8) | ((x & 0xff000000) >> 24);
-}
-
 static int delete_trigger(blockinfo *bi, void *pc)
 {
 	while (bi) {
@@ -366,6 +353,111 @@ static void log_unhandled_access(uae_u8 *fault_pc)
 	}
 }
 
+#ifdef WIN32
+
+static int handle_access(uintptr_t fault_addr, CONTEXT_T context)
+{
+	uae_u8 *fault_pc = (uae_u8 *) CONTEXT_PC(context);
+#ifdef CPU_64_BIT
+#if 0
+	if ((fault_addr & 0xffffffff00000000) == 0xffffffff00000000) {
+		fault_addr &= 0xffffffff;
+	}
+#endif
+	if (fault_addr > (uintptr_t) 0xffffffff) {
+		return 0;
+	}
+#endif
+
+#ifdef DEBUG_ACCESS
+	write_log(_T("JIT: Fault address is 0x%lx at PC=%p\n"), fault_addr, fault_pc);
+#endif
+	if (!canbang || !currprefs.cachesize)
+		return 0;
+
+	if (in_handler)
+		write_log(_T("JIT: Argh --- Am already in a handler. Shouldn't happen!\n"));
+
+	if (fault_pc < compiled_code || fault_pc > current_compile_p) {
+		return 0;
+	}
+
+	int r = -1, size = 4, dir = -1, len = 0, rex = 0;
+	decode_instruction(fault_pc, &r, &dir, &size, &len, &rex);
+	if (r == -1) {
+		log_unhandled_access(fault_pc);
+		return 0;
+	}
+
+#ifdef DEBUG_ACCESS
+	write_log (_T("JIT: Register was %d, direction was %d, size was %d\n"),
+			   r, dir, size);
+#endif
+
+	void *pr = get_pr_from_context(context, r, size, rex);
+	if (pr == NULL) {
+		log_unhandled_access(fault_pc);
+		return 0;
+	}
+
+	uae_u32 addr = uae_p32(fault_addr) - uae_p32(NATMEM_OFFSET);
+#ifdef DEBUG_ACCESS
+	if (addr >= 0x80000000) {
+		write_log (_T("JIT: Suspicious address 0x%x in SEGV handler.\n"), addr);
+	}
+	addrbank *ab = &get_mem_bank(addr);
+	if (ab)
+		write_log(_T("JIT: Address bank: %s, address %08x\n"), ab->name ? ab->name : _T("NONE"), addr);
+#endif
+
+	if (dir == SIG_READ) {
+		switch (size) {
+		case 1:
+			*((uae_u8*)pr) = get_byte(addr);
+			break;
+		case 2:
+			*((uae_u16*)pr) = do_byteswap_16(get_word(addr));
+			break;
+		case 4:
+			*((uae_u32*)pr) = do_byteswap_32(get_long(addr));
+			break;
+		default:
+			abort();
+		}
+	} else {
+		switch (size) {
+		case 1:
+			put_byte(addr, *((uae_u8 *) pr));
+			break;
+		case 2:
+			put_word(addr, do_byteswap_16(*((uae_u16 *) pr)));
+			break;
+		case 4:
+			put_long(addr, do_byteswap_32(*((uae_u32 *) pr)));
+			break;
+		default: abort();
+		}
+	}
+	CONTEXT_PC(context) += len;
+
+	if (delete_trigger(active, fault_pc)) {
+		return 1;
+	}
+	/* Not found in the active list. Might be a rom routine that
+	 * is in the dormant list */
+	if (delete_trigger(dormant, fault_pc)) {
+		return 1;
+	}
+#ifdef DEBUG_ACCESS
+	// Can happen if MOVEM causes multiple faults
+	write_log (_T("JIT: Huh? Could not find trigger!\n"));
+#endif
+	set_special(0);
+	return 1;
+}
+
+#else
+
 /*
  * Try to handle faulted memory access in compiled code
  *
@@ -426,18 +518,17 @@ static int handle_access(uintptr_t fault_addr, CONTEXT_T context)
 		write_log(_T("JIT: Address bank: %s, address %08x\n"), ab->name ? ab->name : _T("NONE"), addr);
 #endif
 
-	uae_u8* original_target = target;
+	uae_u8 *original_target = target;
 	target = (uae_u8*) CONTEXT_PC(context);
 
 	uae_u8 vecbuf[5];
-	for (int i = 0; i < 5; i++) {
+	for (int i = 0; i < sizeof(vecbuf); i++) {
 		vecbuf[i] = target[i];
 	}
 	raw_jmp(uae_p32(veccode));
 
 #ifdef DEBUG_ACCESS
 	write_log(_T("JIT: Create jump to %p\n"), veccode);
-	write_log(_T("JIT: Handled one access!\n"));
 #endif
 
 	target = veccode;
@@ -447,10 +538,10 @@ static int handle_access(uintptr_t fault_addr, CONTEXT_T context)
 			raw_mov_b_ri(r, get_byte(addr));
 			break;
 		case 2:
-			raw_mov_w_ri(r, swap16(get_word(addr)));
+			raw_mov_w_ri(r, do_byteswap_16(get_word(addr)));
 			break;
 		case 4:
-			raw_mov_l_ri(r, swap32(get_long(addr)));
+			raw_mov_l_ri(r, do_byteswap_32(get_long(addr)));
 			break;
 		default:
 			abort();
@@ -461,15 +552,15 @@ static int handle_access(uintptr_t fault_addr, CONTEXT_T context)
 			put_byte(addr, *((uae_u8 *) pr));
 			break;
 		case 2:
-			put_word(addr, swap16(*((uae_u16 *) pr)));
+			put_word(addr, do_byteswap_16(*((uae_u16 *) pr)));
 			break;
 		case 4:
-			put_long(addr, swap32(*((uae_u32 *) pr)));
+			put_long(addr, do_byteswap_32(*((uae_u32 *) pr)));
 			break;
 		default: abort();
 		}
 	}
-	for (int i = 0; i < 5; i++) {
+	for (int i = 0; i < sizeof(vecbuf); i++) {
 		raw_mov_b_mi(JITPTR CONTEXT_PC(context) + i, vecbuf[i]);
 	}
 	raw_mov_l_mi(uae_p32(&in_handler), 0);
@@ -488,8 +579,10 @@ static int handle_access(uintptr_t fault_addr, CONTEXT_T context)
 #ifdef DEBUG_ACCESS
 	write_log (_T("JIT: Huh? Could not find trigger!\n"));
 #endif
+	set_special(0);
 	return 1;
 }
+#endif
 
 #endif /* CONTEXT_T */
 
