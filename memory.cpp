@@ -2162,6 +2162,7 @@ bool mapped_malloc (addrbank *ab)
 			if (md.hasbarrier) {
 				// fill end of ram with ILLEGAL to catch direct PC falling out of RAM.
 				put_long_host(ab->baseaddr + ab->reserved_size, 0x4afc4afc);
+				ab->barrier = true;
 			}
 			ab->allocated_size = ab->reserved_size;
 		}

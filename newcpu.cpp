@@ -2163,6 +2163,7 @@ static void prefs_changed_cpu (void)
 	currprefs.int_no_unimplemented = changed_prefs.int_no_unimplemented;
 	currprefs.fpu_no_unimplemented = changed_prefs.fpu_no_unimplemented;
 	currprefs.blitter_cycle_exact = changed_prefs.blitter_cycle_exact;
+	mman_set_barriers(false);
 }
 
 static int check_prefs_changed_cpu2(void)
@@ -6360,8 +6361,9 @@ void m68k_go (int may_quit)
 
 		set_x_funcs();
 		if (startup) {
-			custom_prepare ();
-			protect_roms (true);
+			custom_prepare();
+			mman_set_barriers(false);
+			protect_roms(true);
 		}
 		startup = 0;
 		event_wait = true;
@@ -6417,7 +6419,8 @@ void m68k_go (int may_quit)
 #endif
 		run_func();
 	}
-	protect_roms (false);
+	protect_roms(false);
+	mman_set_barriers(true);
 	in_m68k_go--;
 }
 
