@@ -482,10 +482,11 @@ static void blitter_done_except_d(void)
 static void blit_chipmem_agnus_wput(uaecptr addr, uae_u32 w, uae_u32 typemask)
 {
 	if (!(log_blitter & 4)) {
-		if (!blit_dof) {
-			debug_putpeekdma_chipram(addr, w, typemask, 0x000, 0x054);
-			chipmem_wput_indirect(addr, w);
+		if (blit_dof) {
+			w = regs.chipset_latch_rw;
 		}
+		debug_putpeekdma_chipram(addr, w, typemask, 0x000, 0x054);
+		chipmem_wput_indirect(addr, w);
 		regs.chipset_latch_rw = w;
 	}
 }
