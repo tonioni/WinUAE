@@ -2326,26 +2326,25 @@ void checkint(void)
 		set_special(SPCFLAG_INT);
 }
 
-void REGPARAM2 MakeSR (void)
+void REGPARAM2 MakeSR(void)
 {
 	regs.sr = ((regs.t1 << 15) | (regs.t0 << 14)
 		| (regs.s << 13) | (regs.m << 12) | (regs.intmask << 8)
-		| (GET_XFLG () << 4) | (GET_NFLG () << 3)
-		| (GET_ZFLG () << 2) | (GET_VFLG () << 1)
-		|  GET_CFLG ());
-
+		| (GET_XFLG() << 4) | (GET_NFLG() << 3)
+		| (GET_ZFLG() << 2) | (GET_VFLG() << 1)
+		|  GET_CFLG());
 }
 
-static void SetSR (uae_u16 sr)
+static void SetSR(uae_u16 sr)
 {
 	regs.sr &= 0xff00;
 	regs.sr |= sr;
 
-	SET_XFLG ((regs.sr >> 4) & 1);
-	SET_NFLG ((regs.sr >> 3) & 1);
-	SET_ZFLG ((regs.sr >> 2) & 1);
-	SET_VFLG ((regs.sr >> 1) & 1);
-	SET_CFLG (regs.sr & 1);
+	SET_XFLG((regs.sr >> 4) & 1);
+	SET_NFLG((regs.sr >> 3) & 1);
+	SET_ZFLG((regs.sr >> 2) & 1);
+	SET_VFLG((regs.sr >> 1) & 1);
+	SET_CFLG(regs.sr & 1);
 }
 
 static void MakeFromSR_x(int t0trace)
@@ -2355,11 +2354,11 @@ static void MakeFromSR_x(int t0trace)
 	int oldt0 = regs.t0;
 	int oldt1 = regs.t1;
 
-	SET_XFLG ((regs.sr >> 4) & 1);
-	SET_NFLG ((regs.sr >> 3) & 1);
-	SET_ZFLG ((regs.sr >> 2) & 1);
-	SET_VFLG ((regs.sr >> 1) & 1);
-	SET_CFLG (regs.sr & 1);
+	SET_XFLG((regs.sr >> 4) & 1);
+	SET_NFLG((regs.sr >> 3) & 1);
+	SET_ZFLG((regs.sr >> 2) & 1);
+	SET_VFLG((regs.sr >> 1) & 1);
+	SET_CFLG(regs.sr & 1);
 	if (regs.t1 == ((regs.sr >> 15) & 1) &&
 		regs.t0 == ((regs.sr >> 14) & 1) &&
 		regs.s  == ((regs.sr >> 13) & 1) &&
@@ -2370,7 +2369,13 @@ static void MakeFromSR_x(int t0trace)
 	regs.t0 = (regs.sr >> 14) & 1;
 	regs.s  = (regs.sr >> 13) & 1;
 	regs.m = (regs.sr >> 12) & 1;
-	regs.intmask = (regs.sr >> 8) & 7;
+
+	if (regs.intmask != ((regs.sr >> 8) & 7)) {
+		regs.intmask = (regs.sr >> 8) & 7;
+		if (m68k_interrupt_delay && (regs.ipl[0] > 0 || regs.ipl[1] > 0)) {
+			set_special(SPCFLAG_INT);
+		}
+	}
 
 	if (currprefs.cpu_model >= 68020) {
 		/* 68060 does not have MSP but does have M-bit.. */
@@ -2419,10 +2424,6 @@ static void MakeFromSR_x(int t0trace)
 		set_special(SPCFLAG_END_COMPILE);
 	}
 #endif
-
-	if (t0trace >= 0) {
-		checkint();
-	}
 
 	if (regs.t1 || regs.t0) {
 		set_special (SPCFLAG_TRACE);
@@ -2841,7 +2842,7 @@ kludge_me_do:
 	regs.ird = regs.ir;
 	x_do_cycles (2 * cpucycleunit);
 	regs.ipl_pin = intlev();
-	ipl_fetch();
+	ipl_fetch_now();
 	regs.irc = x_get_word (m68k_getpc () + 2); // prefetch 2
 	if (hardware_bus_error) {
 		if (nr == 2 || nr == 3) {
@@ -3320,7 +3321,7 @@ kludge_me_do:
 #endif
 	branch_stack_push(currpc, nextpc);
 	regs.ipl_pin = intlev();
-	ipl_fetch();
+	ipl_fetch_now();
 	fill_prefetch ();
 	exception_check_trace (nr);
 }
@@ -3409,10 +3410,7 @@ static void bus_error(void)
 
 static int get_ipl(void)
 {
-	if (get_cycles() - cpuipldelay > regs.ipl_time) {
-		return regs.ipl[0];
-	}
-	return regs.ipl[1];
+	return regs.ipl[0];
 }
 
 static void do_interrupt (int nr)
@@ -4185,8 +4183,11 @@ void safe_interrupt_set(int num, int id, bool i6)
 		atomic_or(p, 1 << id);
 		atomic_or(&uae_interrupt, 1);
 	} else {
-		uae_u16 v = i6 ? 0x2000 : 0x0008;
-		if (currprefs.cpu_cycle_exact || (!(intreq & v) && !currprefs.cpu_cycle_exact)) {
+		int inum = i6 ? 13 : 3;
+		uae_u16 v = 1 << inum;
+		if (currprefs.cpu_cycle_exact || currprefs.cpu_compatible) {
+			INTREQ_INT(inum, 0);
+		} else if (!(intreq & v)) {
 			INTREQ_0(0x8000 | v);
 		}
 	}
@@ -4362,11 +4363,29 @@ static bool uae_ppc_poll_check_halt(void)
 #endif
 
 
-// handle interrupt delay (few cycles)
+// check if interrupt active
 static bool time_for_interrupt(void)
 {
 	int ipl = get_ipl();
 	return ipl > regs.intmask || ipl == 7;
+}
+
+// ipl check was early enough, interrupt possible after current instruction
+void ipl_fetch_now(void)
+{
+	if (regs.ipl[0] != regs.ipl_pin) {
+		regs.ipl[0] = regs.ipl_pin;
+		regs.ipl[1] = 0;
+		set_special(SPCFLAG_INT);
+	}
+}
+// ipl check was too late, interrupt possible after following instruction
+void ipl_fetch_next(void)
+{
+	if (regs.ipl[1] != regs.ipl_pin) {
+		regs.ipl[1] = regs.ipl_pin;
+		set_special(SPCFLAG_INT);
+	}
 }
 
 void intlev_load(void)
@@ -4385,7 +4404,7 @@ void doint(void)
 	if (m68k_interrupt_delay) {
 		int il = intlev();
 		regs.ipl_pin = il;
-		if (regs.ipl_pin > regs.intmask || regs.ipl_pin == 7) {
+		if (regs.ipl_pin > 0) {
 			set_special(SPCFLAG_INT);
 		}
 		return;
@@ -4532,6 +4551,13 @@ static int do_specialties (int cycles)
 		if (time_for_interrupt()) {
 			unset_special(SPCFLAG_INT);
 			do_interrupt(get_ipl());
+		} else {
+			if (regs.ipl[0] == regs.ipl[1]) {
+				unset_special(SPCFLAG_INT);
+			} else {
+				regs.ipl[0] = regs.ipl[1];
+				regs.ipl[1] = 0;
+			}
 		}
 	} else {
 		if (regs.spcflags & SPCFLAG_INT) {
@@ -6034,7 +6060,7 @@ cont:
 					if (do_specialties (cpu_cycles))
 						exit = true;
 				}
-				ipl_fetch ();
+				ipl_fetch_now();
 			}
 		} CATCH(prb) {
 			bus_error();
@@ -6042,7 +6068,7 @@ cont:
 				if (do_specialties(cpu_cycles))
 					exit = true;
 			}
-			ipl_fetch();
+			ipl_fetch_now();
 		} ENDTRY
 	}
 }
@@ -7558,17 +7584,18 @@ bool cpureset (void)
 
 void do_cycles_stop(int c)
 {
+	c *= cpucycleunit;
 	if (!currprefs.cpu_compatible) {
 		do_cycles(c);
 	} else {
 		if (debug_dma) {
-			while (c >= 2) {
+			while (c > 0) {
 				debug_cpu_stop();
-				do_cycles_ce000_internal(2);
-				c -= 2;
+				x_do_cycles(c > CYCLE_UNIT ? CYCLE_UNIT : c);
+				c -= CYCLE_UNIT;
 			}
 		} else {
-			do_cycles_ce000_internal(c);
+			x_do_cycles(c);
 		}
 	}
 }
@@ -9574,7 +9601,7 @@ void fill_prefetch_030_ntx(void)
 		idx = add_prefetch_030(idx, regs.cacheholdingdata020 >>	16, pc2);
 	}
 
-	ipl_fetch();
+	ipl_fetch_now();
 	if (currprefs.cpu_cycle_exact)
 		regs.irc = get_word_ce030_prefetch_opcode (0);
 	else
@@ -9673,7 +9700,7 @@ void fill_prefetch_030_ntx_continue (void)
 		}
 	}
 
-	ipl_fetch();
+	ipl_fetch_now();
 	if (currprefs.cpu_cycle_exact)
 		regs.irc = get_word_ce030_prefetch_opcode(0);
 	else
@@ -9705,7 +9732,7 @@ void fill_prefetch_020_ntx(void)
 		idx = add_prefetch_030(idx, regs.cacheholdingdata020 >>	16, pc);
 	}
 
-	ipl_fetch();
+	ipl_fetch_now();
 	if (currprefs.cpu_cycle_exact)
 		regs.irc = get_word_ce020_prefetch_opcode (0);
 	else

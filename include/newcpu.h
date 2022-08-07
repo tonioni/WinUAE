@@ -202,7 +202,6 @@ struct regstruct
 	int exception;
 	int intmask;
 	int ipl[2], ipl_pin;
-	evt_t ipl_time;
 
 	uae_u32 vbr, sfc, dfc;
 
@@ -694,6 +693,8 @@ extern void prepare_interrupt (uae_u32);
 extern void doint(void);
 extern void checkint(void);
 extern void intlev_load(void);
+extern void ipl_fetch_now(void);
+extern void ipl_fetch_next(void);
 extern void dump_counts (void);
 extern int m68k_move2c (int, uae_u32 *);
 extern int m68k_movec2 (int, uae_u32 *);

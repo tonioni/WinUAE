@@ -161,6 +161,8 @@ static int brace_level;
 static char outbuffer[30000];
 static int last_access_offset_ipl;
 static int last_access_offset_ipl_prev;
+static int ipl_fetch_cycles;
+static int ipl_fetch_cycles_prev;
 
 static void out(const char *format, ...)
 {
@@ -241,11 +243,17 @@ static void insertstring(const char *s, int offset)
 	memcpy(outbuffer + offset + brace_level, s, len);
 }
 
+static int get_current_cycles(void)
+{
+	return (count_readw + count_writew) * 4 + (count_readl + count_writel) * 8 + count_cycles;
+}
+
 static void set_last_access_ipl(void)
 {
 	if (ipl_fetched)
 		return;
 	last_access_offset_ipl = strlen(outbuffer);
+	ipl_fetch_cycles = get_current_cycles();
 }
 
 static void set_last_access_ipl_prev(void)
@@ -253,6 +261,7 @@ static void set_last_access_ipl_prev(void)
 	if (ipl_fetched < 0)
 		return;
 	last_access_offset_ipl_prev = strlen(outbuffer);
+	ipl_fetch_cycles_prev = get_current_cycles();
 }
 
 
@@ -507,16 +516,27 @@ static void check_ipl(void)
 		// if memory cycle happened previously: use it.
 		last_access_offset_ipl = last_access_offset_ipl_prev;
 		ipl_fetched = 1;
+		ipl_fetch_cycles = ipl_fetch_cycles_prev;
+	}
+}
+
+static void check_ipl_next(void)
+{
+	if (using_ce) {
+		out("ipl_fetch_next();\n");
+	}
+	if (isce020()) {
+		out("ipl_fetch_next();\n");
 	}
 }
 
 static void check_ipl_always(void)
 {
 	if (using_ce) {
-		out("ipl_fetch();\n");
+		out("ipl_fetch_now();\n");
 	}
 	if (isce020()) {
-		out("ipl_fetch();\n");
+		out("ipl_fetch_now();\n");
 	}
 }
 
@@ -1189,13 +1209,15 @@ static void makefromsr(void)
 
 static void makefromsr_t0(void)
 {
+	out("intlev_load();\n");
+	if (using_ce || isce020()) {
+		out("ipl_fetch_now();\n");
+	}
 	if (using_prefetch || using_ce) {
 		out("MakeFromSR();\n");
 	} else {
 		out("MakeFromSR_T0();\n");
 	}
-	if (using_ce || isce020())
-		out("intlev_load();\n");
 }
 
 static void irc2ir (bool dozero)
@@ -3723,7 +3745,7 @@ static void genamode2x (amodes mode, const char *reg, wordsizes size, const char
 					if (!(flags & GF_NOLIPL)) {
 						set_last_access_ipl_prev();
 					}
-					out("%s |= %s(%sa) << 16; \n", name, srcwx, name);
+					out("%s |= %s(%sa) << 16;\n", name, srcwx, name);
 					count_readw++;
 					check_bus_error(name, -2, 0, 1, NULL, 1, 0);
 				} else {
@@ -3733,7 +3755,7 @@ static void genamode2x (amodes mode, const char *reg, wordsizes size, const char
 					if (!(flags & GF_NOLIPL)) {
 						set_last_access_ipl_prev();
 					}
-					out("%s |= %s(%sa + 2); \n", name, srcwx, name);
+					out("%s |= %s(%sa + 2);\n", name, srcwx, name);
 					count_readw++;
 					check_bus_error(name, 2, 0, 1, NULL, 1, 0);
 				}
@@ -4039,7 +4061,7 @@ static void genastore_2 (const char *from, amodes mode, const char *reg, wordsiz
 						insn_n_cycles += 4;
 					}
 					if (!(flags & GF_NOLIPL)) {
-						set_last_access_ipl_prev();
+						//set_last_access_ipl_prev();
 					}
 					out("%s(%sa, %s >> 16);\n", dstwx, to, from);
 					sprintf(tmp, "%s >> 16", from);
@@ -4054,7 +4076,7 @@ static void genastore_2 (const char *from, amodes mode, const char *reg, wordsiz
 						genflags(flag_logical, g_instr->size, "src", "", "");
 					}
 					if (!(flags & GF_NOLIPL)) {
-						set_last_access_ipl_prev();
+						//set_last_access_ipl_prev();
 					}
 					out("%s(%sa + 2, %s);\n", dstwx, to, from);
 					count_writew++;
@@ -5311,6 +5333,8 @@ static void gen_opcode (unsigned int opcode)
 	opcode_nextcopy = 0;
 	last_access_offset_ipl = -1;
 	last_access_offset_ipl_prev = -1;
+	ipl_fetch_cycles = -1;
+	ipl_fetch_cycles_prev = -1;
 
 	loopmode = 0;
 	// 68010 loop mode available if
@@ -6679,7 +6703,7 @@ static void gen_opcode (unsigned int opcode)
 			write_return_cycles(0);
 			out("}\n");
 		}
-		check_ipl_always();
+		check_ipl_next();
 		if (cpu_level <= 1) {
 			out("checkint();\n");
 			out("regs.sr = sr;\n");
@@ -9131,7 +9155,16 @@ end:
 	sync_m68k_pc();
 	if ((using_ce || using_prefetch) && did_prefetch >= 0) {
 		if (last_access_offset_ipl > 0) {
-			insertstring("ipl_fetch();\n", last_access_offset_ipl);
+			char iplfetch[100];
+			int tc = get_current_cycles();
+			if (tc - ipl_fetch_cycles > 4) {
+				strcpy(iplfetch, "ipl_fetch_now();\n");
+				//sprintf(iplfetch, "ipl_fetch_now(); // %d %d\n", tc, ipl_fetch_cycles);
+			} else {
+				strcpy(iplfetch, "ipl_fetch_next();\n");
+				//sprintf(iplfetch, "ipl_fetch_next(); // %d %d\n", tc, ipl_fetch_cycles);
+			}
+			insertstring(iplfetch, last_access_offset_ipl);
 		} else {
 			out("// MISSING\n");
 		}

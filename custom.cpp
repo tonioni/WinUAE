@@ -7723,34 +7723,78 @@ static void rethink_intreq(void)
 	devices_rethink();
 }
 
-static void send_interrupt_do(uae_u32 v)
+static void intreq_checks(uae_u16 old)
 {
-	INTREQ_0(0x8000 | (1 << v));
-}
-
-// external delayed interrupt (4 CCKs minimum)
-void send_interrupt(int num, int delay)
-{
-	if (delay > 0 && m68k_interrupt_delay) {
-		event2_newevent_xx(-1, delay, num, send_interrupt_do);
-	} else {
-		send_interrupt_do(num);
+	if ((old & 0x0800) && !(intreq & 0x0800)) {
+		serial_rbf_clear();
 	}
 }
 
-static void doint_delay_do(uae_u32 v)
+static void doint_delay_do_ext(uae_u32 v)
 {
+	uae_u16 old = intreq;
+	setclr(&intreq, (1 << v) | 0x8000);
+	intreq_checks(old);
+
 	doint();
 }
 
-static void doint_delay(void)
+static void send_interrupt_do_ext(uae_u32 v)
+{
+	//uae_u16 old = intreq;
+	//setclr(&intreq, (1 << v) | 0x8000);
+	//intreq_checks(old);
+
+	event2_newevent_xx(-1, 1 * CYCLE_UNIT, v, doint_delay_do_ext);
+}
+
+// external delayed interrupt
+void INTREQ_INT(int num, int delay)
+{
+	if (m68k_interrupt_delay) {
+		if (delay < CYCLE_UNIT) {
+			delay *= CYCLE_UNIT;
+		}
+		event2_newevent_xx(-1, delay + CYCLE_UNIT, num, doint_delay_do_ext);
+	} else {
+		doint_delay_do_ext(num);
+	}
+}
+
+static void doint_delay_do_intreq(uae_u32 v)
+{
+	uae_u16 old = intreq;
+	setclr(&intreq, v);
+	intreq_checks(old);
+
+	doint();
+}
+
+static void doint_delay_intreq(uae_u16 v)
 {
 	if (m68k_interrupt_delay) {
 		// INTREQ or INTENA write: IPL line changes 0.5 CCKs later.
 		// 68000 needs one more CPU clock (0.5 CCK) before it detects it.
-		event2_newevent_xx(-1, 1 * CYCLE_UNIT, 0, doint_delay_do);
+		event2_newevent_xx(-1, 1 * CYCLE_UNIT, v, doint_delay_do_intreq);
 	} else {
-		doint_delay_do(0);
+		doint_delay_do_intreq(v);
+	}
+}
+
+static void doint_delay_do_intena(uae_u32 v)
+{
+	doint();
+}
+
+static void doint_delay_intena(uae_u16 v)
+{
+	if (m68k_interrupt_delay) {
+		// INTREQ or INTENA write: IPL line changes 0.5 CCKs later.
+		// 68000 needs one more CPU clock (0.5 CCK) before it detects it.
+		event2_newevent_xx(-1, 1 * CYCLE_UNIT, v, doint_delay_do_intena);
+	}
+	else {
+		doint_delay_do_intena(v);
 	}
 }
 
@@ -7760,13 +7804,15 @@ static void INTENA(uae_u16 v)
 	setclr(&intena, v);
 
 	if (old != intena) {
-		doint_delay();
+		doint_delay_intena(v);
 	}
 }
 
 static void INTREQ_nodelay(uae_u16 v)
 {
+	uae_u16 old = intreq;
 	setclr(&intreq, v);
+	intreq_checks(old);
 	doint();
 }
 
@@ -7774,9 +7820,7 @@ void INTREQ_f(uae_u16 v)
 {
 	uae_u16 old = intreq;
 	setclr(&intreq, v);
-	if ((old & 0x0800) && !(intreq & 0x0800)) {
-		serial_rbf_clear();
-	}
+	intreq_checks(old);
 }
 
 bool INTREQ_0(uae_u16 v)
@@ -7786,12 +7830,10 @@ bool INTREQ_0(uae_u16 v)
 
 	//write_log("%04x %04x -> %04x %08x\n", v, old, intreq, M68K_GETPC);
 
-	if ((old & 0x0800) && !(intreq & 0x0800)) {
-		serial_rbf_clear();
-	}
+	intreq_checks(old);
 
 	if (old != intreq) {
-		doint_delay();
+		doint_delay_intreq(v);
 	}
 	return true;
 }
@@ -12520,7 +12562,7 @@ static void check_vblank_copjmp(uae_u32 v)
 static void delayed_framestart(uae_u32 v)
 {
 	check_vblank_copjmp(0);
-	send_interrupt(5, 2 * CYCLE_UNIT); // total REFRESH_FIRST_HPOS + 1
+	INTREQ_INT(5, 2); // total REFRESH_FIRST_HPOS + 1
 }
 
 // this prepares for new line
@@ -12617,7 +12659,7 @@ static void hsync_handler_post(bool onvsync)
 		// copper and vblank trigger in same line
 		event2_newevent_xx(-1, 2 * CYCLE_UNIT, 0, delayed_framestart);
 	} else if (vb_start_line == 1) {
-		send_interrupt(5, (REFRESH_FIRST_HPOS + 1) * CYCLE_UNIT);
+		INTREQ_INT(5, REFRESH_FIRST_HPOS + 1);
 	} else if (vpos == 0) {
 		event2_newevent_xx(-1, 2 * CYCLE_UNIT, 0, check_vblank_copjmp);
 	}
@@ -14607,7 +14649,7 @@ uae_u8 *restore_custom_event_delay(uae_u8 *src)
 		evt_t e = restore_u64();
 		uae_u32 data = restore_u32();
 		if (type == 1)
-			event2_newevent_xx(-1, e, data, send_interrupt_do);
+			event2_newevent_xx(-1, e, data, send_interrupt_do_ext);
 	}
 	return src;
 }
@@ -14618,7 +14660,7 @@ uae_u8 *save_custom_event_delay(size_t *len, uae_u8 *dstptr)
 
 	for (int i = ev2_misc; i < ev2_max; i++) {
 		struct ev2 *e = &eventtab2[i];
-		if (e->active && e->handler == send_interrupt_do) {
+		if (e->active && e->handler == send_interrupt_do_ext) {
 			cnt++;
 		}
 	}
@@ -14634,7 +14676,7 @@ uae_u8 *save_custom_event_delay(size_t *len, uae_u8 *dstptr)
 	save_u8(cnt);
 	for (int i = ev2_misc; i < ev2_max; i++) {
 		struct ev2 *e = &eventtab2[i];
-		if (e->active && e->handler == send_interrupt_do) {
+		if (e->active && e->handler == send_interrupt_do_ext) {
 			save_u8(1);
 			save_u64(e->evtime - get_cycles());
 			save_u32(e->data);
