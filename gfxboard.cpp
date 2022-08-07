@@ -393,6 +393,8 @@ struct rtggfxboard
 	struct pci_board_state *pcibs;
 	bool pcem_direct;
 
+	int width_redraw, height_redraw;
+
 	void *userdata;
 };
 
@@ -707,6 +709,22 @@ void video_blit_memtoscreen(int x, int y, int y1, int y2, int w, int h)
 				}
 				if (gb->gfxboard_surface) {
 					struct picasso_vidbuf_description *vidinfo = &picasso_vidinfo[gb->monitor_id];
+					if (w != gb->width_redraw || h != gb->height_redraw) {
+						for (int y = 0; y < vidinfo->height; y++) {
+							uae_u8 *d = gb->gfxboard_surface + y * vidinfo->rowbytes;
+							if (y < h) {
+								if (vidinfo->width > w) {
+									memset(d + w * vidinfo->pixbytes, 0, (vidinfo->width - w) * vidinfo->pixbytes);
+								}
+							} else {
+								memset(d, 0, vidinfo->width * vidinfo->pixbytes);
+							}
+						}
+						gb->width_redraw = w;
+						gb->height_redraw = h;
+						y1 = 0;
+						y2 = h;
+					}
 					for (int yy = y1; yy < y2 && yy < vidinfo->height; yy++) {
 						uae_u8 *d = gb->gfxboard_surface + yy * vidinfo->rowbytes;
 						uae_u8 *s = getpcembuffer32(x, y, yy);
