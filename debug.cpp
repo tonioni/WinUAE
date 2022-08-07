@@ -2392,9 +2392,13 @@ static void decode_dma_record (int hpos, int vpos, int toggle, bool logfile)
 		maxh++;
 		dr++;
 	}
-	dr = dr_start;
+	dr = dr_start + hpos;
 	if (!logfile && maxh - h > 80) {
+		int maxh2 = maxh;
 		maxh = h + 80;
+		if (maxh > maxh2) {
+			maxh = maxh2;
+		}
 	}
 	while (h < maxh) {
 		int cols = (logfile ? 16 : 8);
