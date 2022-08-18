@@ -181,6 +181,7 @@ static uae_u8 color_regs_genlock[256];
 static uae_u16 cregs[256];
 
 uae_u16 intena, intreq;
+static uae_u16 intena2, intreq2;
 uae_u16 dmacon;
 uae_u16 adkcon; /* used by audio code */
 uae_u16 last_custom_value;
@@ -7670,8 +7671,8 @@ int intlev(void)
 		}
 		return lvl;
 	}
-	uae_u16 imask = intreq & intena;
-	if (!(imask && (intena & 0x4000)))
+	uae_u16 imask = intreq2 & intena2;
+	if (!(imask && (intena2 & 0x4000)))
 		return -1;
 	if (imask & (0x4000 | 0x2000))						// 13 14
 		return 6;
@@ -7723,18 +7724,19 @@ static void rethink_intreq(void)
 	devices_rethink();
 }
 
-static void intreq_checks(uae_u16 old)
+static void intreq_checks(uae_u16 oldreq, uae_u16 newreq)
 {
-	if ((old & 0x0800) && !(intreq & 0x0800)) {
+	if ((oldreq & 0x0800) && !(newreq & 0x0800)) {
 		serial_rbf_clear();
 	}
 }
 
 static void doint_delay_do_ext(uae_u32 v)
 {
-	uae_u16 old = intreq;
+	uae_u16 old = intreq2;
 	setclr(&intreq, (1 << v) | 0x8000);
-	intreq_checks(old);
+	setclr(&intreq2, (1 << v) | 0x8000);
+	intreq_checks(old, intreq2);
 
 	doint();
 }
@@ -7763,9 +7765,9 @@ void INTREQ_INT(int num, int delay)
 
 static void doint_delay_do_intreq(uae_u32 v)
 {
-	uae_u16 old = intreq;
-	setclr(&intreq, v);
-	intreq_checks(old);
+	uae_u16 old = intreq2;
+	setclr(&intreq2, v);
+	intreq_checks(old, intreq2);
 
 	doint();
 }
@@ -7783,6 +7785,8 @@ static void doint_delay_intreq(uae_u16 v)
 
 static void doint_delay_do_intena(uae_u32 v)
 {
+	setclr(&intena2, v);
+
 	doint();
 }
 
@@ -7812,7 +7816,8 @@ static void INTREQ_nodelay(uae_u16 v)
 {
 	uae_u16 old = intreq;
 	setclr(&intreq, v);
-	intreq_checks(old);
+	intreq2 = intreq;
+	intreq_checks(old, intreq);
 	doint();
 }
 
@@ -7820,17 +7825,14 @@ void INTREQ_f(uae_u16 v)
 {
 	uae_u16 old = intreq;
 	setclr(&intreq, v);
-	intreq_checks(old);
+	intreq2 = intreq;
+	intreq_checks(old, intreq);
 }
 
 bool INTREQ_0(uae_u16 v)
 {
 	uae_u16 old = intreq;
 	setclr(&intreq, v);
-
-	//write_log("%04x %04x -> %04x %08x\n", v, old, intreq, M68K_GETPC);
-
-	intreq_checks(old);
 
 	if (old != intreq) {
 		doint_delay_intreq(v);
@@ -9812,7 +9814,7 @@ static void do_copper_fetch(int hpos, uae_u16 id)
 				}
 			}
 #ifdef DEBUGGER
-			if (debug_copper && !cop_state.ignore_next) {
+			if (debug_copper && cop_state.ignore_next <= 0) {
 				uaecptr next = 0xffffffff;
 				if (reg == 0x88) {
 					next = cop1lc;
@@ -10044,16 +10046,15 @@ static void update_copper(int until_hpos)
 			// Wait finished, request IR1.
 		case COP_wait:
 			{
+				if (copper_cant_read(hpos, CYCLE_PIPE_COPPER | 0x04)) {
+					goto next;
+				}
 #ifdef DEBUGGER
 				if (debug_dma)
 					record_dma_event(DMA_EVENT_COPPERWAKE, hpos, vpos);
 				if (debug_copper)
 					record_copper(cop_state.ip - 4, 0xffffffff, cop_state.ir[0], cop_state.ir[1], hpos, vpos);
 #endif
-				if (copper_cant_read(hpos, CYCLE_PIPE_COPPER | 0x04)) {
-					goto next;
-				}
-
 				cop_state.state = COP_read1;
 			}
 			break;
@@ -10087,17 +10088,16 @@ static void update_copper(int until_hpos)
 
 			if (!coppercomp(hpos, false)) {
 				cop_state.ignore_next = 1;
-
-#ifdef DEBUGGER
-				if (debug_dma && cop_state.ignore_next > 0)
-					record_dma_event(DMA_EVENT_COPPERSKIP, hpos, vpos);
-				if (debug_copper)
-					record_copper(cop_state.ip - 4, 0xffffffff, cop_state.ir[0], cop_state.ir[1], hpos, vpos);
-#endif
-
 			} else {
 				cop_state.ignore_next = -1;
 			}
+
+#ifdef DEBUGGER
+			if (debug_dma && cop_state.ignore_next > 0)
+				record_dma_event(DMA_EVENT_COPPERSKIP, hpos, vpos);
+			if (debug_copper)
+				record_copper(cop_state.ip - 4, 0xffffffff, cop_state.ir[0], cop_state.ir[1], hpos, vpos);
+#endif
 
 			cop_state.state = COP_read1;
 			break;
@@ -13102,6 +13102,8 @@ void custom_cpuchange(void)
 	// after CPU mode changes
 	intreq = intreq | 0x8000;
 	intena = intena | 0x8000;
+	intreq2 = intreq;
+	intena2 = intena;
 }
 
 
@@ -13206,8 +13208,8 @@ void custom_reset(bool hardreset, bool keyboardreset)
 		memset(spr, 0, sizeof spr);
 
 		dmacon = 0;
-		intreq = 0;
-		intena = 0;
+		intreq = intreq2 = 0;
+		intena = intena2 = 0;
 
 		copcon = 0;
 		DSKLEN (0, 0);
@@ -14220,6 +14222,9 @@ uae_u8 *restore_custom(uae_u8 *src)
 	bplcon0d_old = 0;
 	bitplane_dma_change(dmacon);
 	vdiw_change(vdiwstate == diw_states::DIW_waiting_stop);
+
+	intreq2 = intreq;
+	intena2 = intena;
 
 	current_colors.extra = 0;
 	if (isbrdblank(-1, bplcon0, bplcon3)) {

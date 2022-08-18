@@ -1930,6 +1930,19 @@ void record_dma_hsync(int lasthpos)
 #endif
 }
 
+void record_dma_ipl(int hpos, int vpos)
+{
+	struct dma_rec *dr;
+
+	if (!dma_record[0])
+		return;
+	if (hpos >= NR_DMA_REC_HPOS || vpos >= NR_DMA_REC_VPOS)
+		return;
+	dr = &dma_record[dma_record_toggle][vpos * NR_DMA_REC_HPOS + hpos];
+	dr->intlev = regs.intmask;
+	dr->ipl = regs.ipl_pin;
+}
+
 void record_dma_event(uae_u32 evt, int hpos, int vpos)
 {
 	struct dma_rec *dr;
@@ -1940,6 +1953,22 @@ void record_dma_event(uae_u32 evt, int hpos, int vpos)
 		return;
 	dr = &dma_record[dma_record_toggle][vpos * NR_DMA_REC_HPOS + hpos];
 	dr->evt |= evt;
+	dr->ipl = regs.ipl_pin;
+}
+
+void record_dma_event_data(uae_u32 evt, int hpos, int vpos, uae_u32 data)
+{
+	struct dma_rec *dr;
+
+	if (!dma_record[0])
+		return;
+	if (hpos >= NR_DMA_REC_HPOS || vpos >= NR_DMA_REC_VPOS)
+		return;
+	dr = &dma_record[dma_record_toggle][vpos * NR_DMA_REC_HPOS + hpos];
+	dr->evt |= evt;
+	dr->evtdata = data;
+	dr->evtdataset = true;
+	dr->ipl = regs.ipl_pin;
 }
 
 void record_dma_replace(int hpos, int vpos, int type, int extra)
@@ -1997,6 +2026,7 @@ void record_dma_write(uae_u16 reg, uae_u32 dat, uae_u32 addr, int hpos, int vpos
 	dr->type = type;
 	dr->extra = extra;
 	dr->intlev = regs.intmask;
+	dr->ipl = regs.ipl_pin;
 	dr->size = 2;
 	last_dma_rec = dr;
 	debug_mark_refreshed(dr->addr);
@@ -2103,11 +2133,13 @@ void record_dma_read(uae_u16 reg, uae_u32 addr, int hpos, int vpos, int type, in
 	dr->type = type;
 	dr->extra = extra;
 	dr->intlev = regs.intmask;
+	dr->ipl = regs.ipl_pin;
+
 	last_dma_rec = dr;
 	debug_mark_refreshed(dr->addr);
 }
 
-static bool get_record_dma_info(struct dma_rec *dr, int hpos, int vpos, TCHAR *l1, TCHAR *l2, TCHAR *l3, TCHAR *l4, TCHAR *l5, TCHAR *l6)
+static bool get_record_dma_info(struct dma_rec *dr, int hpos, int vpos, TCHAR *l1, TCHAR *l2, TCHAR *l3, TCHAR *l4, TCHAR *l5, TCHAR *l6, uae_u32 *split, int *iplp)
 {
 	int longsize = dr->size;
 	bool got = false;
@@ -2133,6 +2165,12 @@ static bool get_record_dma_info(struct dma_rec *dr, int hpos, int vpos, TCHAR *l
 		l5[0] = 0;
 	if (l6)
 		l6[0] = 0;
+
+	if (split) {
+		if ((dr->evt & DMA_EVENT_CPUINS) && dr->evtdataset) {
+			*split = dr->evtdata;
+		}
+	}
 
 	if (dr->type != 0 || dr->reg != 0xffff || dr->evt)
 		got = true;
@@ -2198,7 +2236,23 @@ static bool get_record_dma_info(struct dma_rec *dr, int hpos, int vpos, TCHAR *l
 	} else {
 		_tcscpy(srtext, sr);
 	}
-	_stprintf (l1, _T("[%02X %3d]"), hpos, hpos);
+	int ipl = 0;
+	if (iplp) {
+		ipl = *iplp;
+		if (dr->ipl > 0) {
+			ipl = dr->ipl;
+		} else if (dr->ipl < 0) {
+			ipl = 0;
+		}
+		*iplp = ipl;
+	}
+	if (ipl >= 0) {
+		_stprintf(l1, _T("[%02X   %d]"), hpos, ipl);
+	} else if (ipl == -2) {
+		_stprintf(l1, _T("[%02X   -]"), hpos);
+	} else {
+		_stprintf(l1, _T("[%02X    ]"), hpos);
+	}
 	if (l4) {
 		_tcscpy(l4, _T("        "));
 	}
@@ -2400,6 +2454,7 @@ static void decode_dma_record (int hpos, int vpos, int toggle, bool logfile)
 			maxh = maxh2;
 		}
 	}
+	int ipl = -2;
 	while (h < maxh) {
 		int cols = (logfile ? 16 : 8);
 		TCHAR l1[200];
@@ -2416,8 +2471,9 @@ static void decode_dma_record (int hpos, int vpos, int toggle, bool logfile)
 		l6[0] = 0;
 		for (i = 0; i < cols && h < maxh; i++, h++, dr++) {
 			TCHAR l1l[16], l2l[16], l3l[16], l4l[16], l5l[16], l6l[16];
+			uae_u32 split = 0xffffffff;
 
-			get_record_dma_info(dr, h, vpos, l1l, l2l, l3l, l4l, l5l, l6l);
+			get_record_dma_info(dr, h, vpos, l1l, l2l, l3l, l4l, l5l, l6l, &split, &ipl);
 
 			TCHAR *p = l1 + _tcslen(l1);
 			_stprintf(p, _T("%9s "), l1l);
@@ -2431,6 +2487,39 @@ static void decode_dma_record (int hpos, int vpos, int toggle, bool logfile)
 			_stprintf(p, _T("%9s "), l5l);
 			p = l6 + _tcslen(l6);
 			_stprintf(p, _T("%9s "), l6l);
+
+			if (split != 0xffffffff) {
+				if (split < 0x10000) {
+					struct instr *dp = table68k + split;
+					if (dp->mnemo == i_ILLG) {
+						split = 0x4AFC;
+						dp = table68k + split;
+					}
+					struct mnemolookup *lookup;
+					for (lookup = lookuptab; lookup->mnemo != dp->mnemo; lookup++)
+						;
+					const TCHAR *opcodename = lookup->friendlyname;
+					if (!opcodename) {
+						opcodename = lookup->name;
+					}
+					TCHAR *ptrs[7];
+					ptrs[0] = &l1[_tcslen(l1)];
+					ptrs[1] = &l2[_tcslen(l2)];
+					ptrs[2] = &l3[_tcslen(l3)];
+					ptrs[3] = &l4[_tcslen(l4)];
+					ptrs[4] = &l5[_tcslen(l5)];
+					ptrs[5] = &l6[_tcslen(l6)];
+					for (int i = 0; i < 6; i++) {
+						if (!opcodename[i]) {
+							break;
+						}
+						TCHAR *p = ptrs[i];
+						p[-1] = opcodename[i];
+					}
+				} else {
+					l1[_tcslen(l1) - 1] = '*';
+				}
+			}
 		}
 		if (logfile) {
 			write_dlog(_T("%s\n"), l1);
@@ -5922,7 +6011,7 @@ static void dma_disasm(int frames, int vp, int hp, int frames_end, int vp_end, i
 		if (!dr)
 			return;
 		TCHAR l1[16], l2[16], l3[16], l4[16];
-		if (get_record_dma_info(dr, hp, vp, l1, l2, l3, l4, NULL, NULL)) {
+		if (get_record_dma_info(dr, hp, vp, l1, l2, l3, l4, NULL, NULL, NULL, NULL)) {
 			console_out_f(_T(" - %02X %s %s %s\n"), hp, l2, l3, l4);
 		}
 		hp++;

@@ -3332,6 +3332,10 @@ static void ExceptionX (int nr, uaecptr address, uaecptr oldpc)
 	uaecptr pc = m68k_getpc();
 	regs.exception = nr;
 	regs.loop_mode = 0;
+
+	if (debug_dma) {
+		record_dma_event_data(DMA_EVENT_CPUINS, current_hpos(), vpos, 0x20000);
+	}
 	if (cpu_tracer) {
 		cputrace.state = nr;
 	}
@@ -3416,7 +3420,7 @@ static int get_ipl(void)
 static void do_interrupt (int nr)
 {
 	if (debug_dma)
-		record_dma_event (DMA_EVENT_CPUIRQ, current_hpos (), vpos);
+		record_dma_event(DMA_EVENT_CPUIRQ, current_hpos (), vpos);
 
 	if (inputrecord_debug & 2) {
 		if (input_record > 0)
@@ -4401,9 +4405,14 @@ void doint(void)
 			return;
 	}
 #endif
+	int il = intlev();
+	regs.ipl_pin = il;
+#ifdef DEBUGGER
+	if (debug_dma) {
+		record_dma_ipl(current_hpos(), vpos);
+	}
+#endif
 	if (m68k_interrupt_delay) {
-		int il = intlev();
-		regs.ipl_pin = il;
 		if (regs.ipl_pin > 0) {
 			set_special(SPCFLAG_INT);
 		}
@@ -4834,6 +4843,9 @@ static void m68k_run_1_ce (void)
 				}
 
 				r->instruction_pc = m68k_getpc ();
+				if (debug_dma) {
+					record_dma_event_data(DMA_EVENT_CPUINS, current_hpos(), vpos, r->opcode);
+				}
 
 				(*cpufunctbl[r->opcode])(r->opcode);
 				if (!regs.loop_mode)
