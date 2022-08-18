@@ -1758,7 +1758,7 @@ static void close_hwnds(struct AmigaMonitor *mon)
 	if (!mon->monitor_id) {
 		display_vblank_thread_kill();
 #ifdef AVIOUTPUT
-		AVIOutput_Restart();
+		AVIOutput_Restart(true);
 #endif
 #ifdef RETROPLATFORM
 		rp_set_hwnd(NULL);

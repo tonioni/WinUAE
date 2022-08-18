@@ -1972,7 +1972,7 @@ void check_prefs_changed_audio (void)
 		ch = sound_prefs_changed ();
 		if (ch > 0) {
 #ifdef AVIOUTPUT
-			AVIOutput_Restart ();
+			AVIOutput_Restart(true);
 #endif
 			clear_sound_buffers ();
 		}

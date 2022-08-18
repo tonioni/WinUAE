@@ -2319,6 +2319,7 @@ static void flipgui(int opengui)
 	}
 }
 
+static bool get_avioutput_file(HWND);
 static int GetSettings (int all_options, HWND hwnd);
 /* if drive is -1, show the full GUI, otherwise file-requester for DF[drive] */
 void gui_display (int shortcut)
@@ -2374,6 +2375,21 @@ void gui_display (int shortcut)
 			savestate_state = STATE_DORESTORE;
 	} else if (shortcut == 6) {
 		DiskSelection(mon->hAmigaWnd, IDC_CD_SELECT, 17, &changed_prefs, NULL, NULL);
+	} else if (shortcut == 7) {
+		if (get_avioutput_file(mon->hAmigaWnd)) {
+			_tcscpy(avioutput_filename_inuse, avioutput_filename_gui);
+			AVIOutput_SetSettings();
+			if (!avioutput_requested) {
+				AVIOutput_Toggle(true, false);
+				if (avioutput_audio != AVIAUDIO_WAV) {
+					TCHAR tmp[MAX_DPATH];
+					avioutput_audio = AVIOutput_GetAudioCodec(tmp, sizeof tmp / sizeof(TCHAR));
+					avioutput_video = AVIOutput_GetVideoCodec(tmp, sizeof tmp / sizeof(TCHAR));
+				} 
+			} else {
+				AVIOutput_Restart(false);
+			}
+		}
 	}
 	mon->manual_painting_needed--; /* So that WM_PAINT doesn't need to use custom refreshing */
 	reset_sound ();
@@ -20830,6 +20846,47 @@ static void enable_for_avioutputdlg (HWND hDlg)
 	ew (hDlg, IDC_STATEREC_PLAY, input_record != INPREC_RECORD_RERECORD);
 }
 
+static bool get_avioutput_file(HWND hDlg)
+{
+	OPENFILENAME ofn;
+
+	ZeroMemory(&ofn, sizeof(OPENFILENAME));
+	ofn.lStructSize = sizeof(OPENFILENAME);
+	ofn.hwndOwner = hDlg;
+	ofn.hInstance = hInst;
+	ofn.Flags = OFN_EXTENSIONDIFFERENT | OFN_EXPLORER | OFN_PATHMUSTEXIST | OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT | OFN_NOCHANGEDIR;
+	ofn.lpstrCustomFilter = NULL;
+	ofn.nMaxCustFilter = 0;
+	ofn.nFilterIndex = avioutput_audio == AVIAUDIO_WAV ? 2 : 0;
+	ofn.lpstrFile = avioutput_filename_gui;
+	ofn.nMaxFile = MAX_DPATH;
+	ofn.lpstrFileTitle = NULL;
+	ofn.nMaxFileTitle = 0;
+	ofn.lpstrInitialDir = NULL;
+	ofn.lpfnHook = NULL;
+	ofn.lpTemplateName = NULL;
+	ofn.lCustData = 0;
+	ofn.lpstrFilter = _T("Video Clip (*.avi)\0*.avi\0Wave Sound (*.wav)\0");
+
+	if (!GetSaveFileName(&ofn))
+		return false;
+
+	if (ofn.nFilterIndex == 2) {
+		avioutput_audio = AVIAUDIO_WAV;
+		avioutput_video = 0;
+		if (_tcslen(avioutput_filename_gui) > 4 && !_tcsicmp(avioutput_filename_gui + _tcslen(avioutput_filename_gui) - 4, _T(".avi")))
+			_tcscpy(avioutput_filename_gui + _tcslen(avioutput_filename_gui) - 4, _T(".wav"));
+		_tcscpy(avioutput_filename_auto, avioutput_filename_gui);
+	} else if (avioutput_audio == AVIAUDIO_WAV) {
+		avioutput_audio = 0;
+		avioutput_video = 0;
+		if (_tcslen(avioutput_filename_gui) > 4 && !_tcsicmp(avioutput_filename_gui + _tcslen(avioutput_filename_gui) - 4, _T(".wav")))
+			_tcscpy(avioutput_filename_gui + _tcslen(avioutput_filename_gui) - 4, _T(".avi"));
+		_tcscpy(avioutput_filename_auto, avioutput_filename_gui);
+	}
+	return true;
+}
+
 static INT_PTR CALLBACK AVIOutputDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
 	static int recursive = 0;
@@ -21013,42 +21070,9 @@ static INT_PTR CALLBACK AVIOutputDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 			}
 		case IDC_AVIOUTPUT_FILE:
 			{
-				OPENFILENAME ofn;
-
-				ZeroMemory (&ofn, sizeof (OPENFILENAME));
-				ofn.lStructSize = sizeof (OPENFILENAME);
-				ofn.hwndOwner = hDlg;
-				ofn.hInstance = hInst;
-				ofn.Flags = OFN_EXTENSIONDIFFERENT | OFN_EXPLORER | OFN_PATHMUSTEXIST | OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT | OFN_NOCHANGEDIR;
-				ofn.lpstrCustomFilter = NULL;
-				ofn.nMaxCustFilter = 0;
-				ofn.nFilterIndex = avioutput_audio == AVIAUDIO_WAV ? 2 : 0;
-				ofn.lpstrFile = avioutput_filename_gui;
-				ofn.nMaxFile = MAX_DPATH;
-				ofn.lpstrFileTitle = NULL;
-				ofn.nMaxFileTitle = 0;
-				ofn.lpstrInitialDir = NULL;
-				ofn.lpfnHook = NULL;
-				ofn.lpTemplateName = NULL;
-				ofn.lCustData = 0;
-				ofn.lpstrFilter = _T("Video Clip (*.avi)\0*.avi\0Wave Sound (*.wav)\0");
-
-				if(!GetSaveFileName (&ofn))
-					break;
-				if (ofn.nFilterIndex == 2) {
-					avioutput_audio = AVIAUDIO_WAV;
-					avioutput_video = 0;
-					if (_tcslen (avioutput_filename_gui) > 4 && !_tcsicmp (avioutput_filename_gui + _tcslen (avioutput_filename_gui) - 4, _T(".avi")))
-						_tcscpy (avioutput_filename_gui + _tcslen (avioutput_filename_gui) - 4, _T(".wav"));
-					_tcscpy (avioutput_filename_auto, avioutput_filename_gui);
-				} else if (avioutput_audio == AVIAUDIO_WAV) {
-					avioutput_audio = 0;
-					avioutput_video = 0;
-					if (_tcslen(avioutput_filename_gui) > 4 && !_tcsicmp(avioutput_filename_gui + _tcslen(avioutput_filename_gui) - 4, _T(".wav")))
-						_tcscpy(avioutput_filename_gui + _tcslen(avioutput_filename_gui) - 4, _T(".avi"));
-					_tcscpy(avioutput_filename_auto, avioutput_filename_gui);
+				if (get_avioutput_file(hDlg)) {
+					AVIOutput_SetSettings();
 				}
-				AVIOutput_SetSettings();
 				break;
 			}
 		}

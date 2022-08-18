@@ -758,7 +758,7 @@ static void AVIOutput_End2(bool);
 
 uae_s64 max_avi_size = MAX_AVI_SIZE;
 
-static void checkAVIsize(int force)
+static void checkAVIsize(bool force, bool split)
 {
 	int tmp_avioutput_video = avioutput_video;
 	int tmp_avioutput_audio = avioutput_audio;
@@ -768,13 +768,16 @@ static void checkAVIsize(int force)
 		return;
 	if (total_avi_size == 0)
 		return;
-	if (!avioutput_split_files)
-		return;
-	partcnt++;
-	_tcscpy (fn, avioutput_filename_tmp);
-	_stprintf (avioutput_filename_inuse, _T("%s_%d.avi"), fn, partcnt);
-	write_log (_T("AVI split %d at %lld bytes, %d frames\n"),
-		partcnt, total_avi_size, frame_count);
+	if (split) {
+		if (!avioutput_split_files)
+			return;
+		partcnt++;
+		_tcscpy(fn, avioutput_filename_tmp);
+		_stprintf(avioutput_filename_inuse, _T("%s_%d.avi"), fn, partcnt);
+		write_log(_T("AVI split %d at %lld bytes, %d frames\n"), partcnt, total_avi_size, frame_count);
+	} else {
+		write_log(_T("AVI restart at %lld bytes, %d frames\n"), total_avi_size, frame_count);
+	}
 	AVIOutput_End2(false);
 	total_avi_size = 0;
 	avioutput_video = tmp_avioutput_video;
@@ -783,11 +786,11 @@ static void checkAVIsize(int force)
 	_tcscpy (avioutput_filename_tmp, fn);
 }
 
-static void dorestart (void)
+static void dorestart(void)
 {
 	write_log (_T("AVIOutput: parameters changed, restarting..\n"));
+	checkAVIsize(true, avioutput_needs_restart > 0);
 	avioutput_needs_restart = 0;
-	checkAVIsize (1);
 }
 
 static void AVIOuput_AVIWriteAudio (uae_u8 *sndbuffer, int sndbufsize, int expectedsize)
@@ -800,7 +803,7 @@ static void AVIOuput_AVIWriteAudio (uae_u8 *sndbuffer, int sndbufsize, int expec
 	}
 	if (!sndbufsize)
 		return;
-	checkAVIsize (0);
+	checkAVIsize(false, true);
 	if (avioutput_needs_restart)
 		dorestart ();
 	waitqueuefull ();
@@ -1202,7 +1205,7 @@ static void AVIOutput_WriteVideo(void)
 		return;
 	}
 
-	checkAVIsize (0);
+	checkAVIsize(false, true);
 	if (avioutput_needs_restart)
 		dorestart ();
 	waitqueuefull ();
@@ -1311,11 +1314,11 @@ static void writewavheader (uae_u32 size)
 	fwrite (&tl, 1, 4, wavfile);
 }
 
-void AVIOutput_Restart (void)
+void AVIOutput_Restart(bool split)
 {
 	if (first_frame)
 		return;
-	avioutput_needs_restart = 1;
+	avioutput_needs_restart = split ? 1 : -1;
 }
 
 static void AVIOutput_End2(bool fullrestart)
