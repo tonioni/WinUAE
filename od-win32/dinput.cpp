@@ -1803,39 +1803,41 @@ static bool initialize_rawinput (void)
 				PRID_DEVICE_INFO_MOUSE rdim = &rdi->mouse;
 				write_log (_T("id=%d buttons=%d hw=%d rate=%d\n"),
 					rdim->dwId, rdim->dwNumberOfButtons, rdim->fHasHorizontalWheel, rdim->dwSampleRate);
-				if (rdim->dwNumberOfButtons >= ID_BUTTON_TOTAL) {
-					write_log (_T("bogus number of buttons, ignored\n"));
-				} else {
-					did->buttons_real = did->buttons = (uae_s16)rdim->dwNumberOfButtons;
-					for (j = 0; j < did->buttons; j++) {
-						did->buttonsort[j] = j;
-						did->buttonmappings[j] = j;
-						_stprintf (tmp, _T("Button %d"), j + 1);
-						did->buttonname[j] = my_strdup (tmp);
-					}
-					did->axles = 3;
-					did->axissort[0] = 0;
-					did->axismappings[0] = 0;
-					did->axisname[0] = my_strdup (_T("X Axis"));
-					did->axissort[1] = 1;
-					did->axismappings[1] = 1;
-					did->axisname[1] = my_strdup (_T("Y Axis"));
-					did->axissort[2] = 2;
-					did->axismappings[2] = 2;
-					did->axisname[2] = my_strdup (_T("Wheel"));
-					addplusminus (did, 2);
-					if (1 || rdim->fHasHorizontalWheel) { // why is this always false?
-						did->axissort[3] = 3;
-						did->axisname[3] = my_strdup (_T("HWheel"));
-						did->axismappings[3] = 3;
-						did->axles++;
-						addplusminus (did, 3);
-					}
-					if (num_mouse == 1)
-						did->priority = -1;
-					else
-						did->priority = -2;
+				int buttons = rdim->dwNumberOfButtons;
+				// limit to 20, can only have 32 buttons and it also includes [-][+] axis events.
+				if (buttons > 20) {
+					write_log(_T("too many buttons (%d > 20)\n"), buttons);
+					buttons = 20;
 				}
+				did->buttons_real = did->buttons = (uae_s16)buttons;
+				for (j = 0; j < did->buttons; j++) {
+					did->buttonsort[j] = j;
+					did->buttonmappings[j] = j;
+					_stprintf (tmp, _T("Button %d"), j + 1);
+					did->buttonname[j] = my_strdup (tmp);
+				}
+				did->axles = 3;
+				did->axissort[0] = 0;
+				did->axismappings[0] = 0;
+				did->axisname[0] = my_strdup (_T("X Axis"));
+				did->axissort[1] = 1;
+				did->axismappings[1] = 1;
+				did->axisname[1] = my_strdup (_T("Y Axis"));
+				did->axissort[2] = 2;
+				did->axismappings[2] = 2;
+				did->axisname[2] = my_strdup (_T("Wheel"));
+				addplusminus (did, 2);
+				if (1 || rdim->fHasHorizontalWheel) { // why is this always false?
+					did->axissort[3] = 3;
+					did->axisname[3] = my_strdup (_T("HWheel"));
+					did->axismappings[3] = 3;
+					did->axles++;
+					addplusminus (did, 3);
+				}
+				if (num_mouse == 1)
+					did->priority = -1;
+				else
+					did->priority = -2;
 			} else if (type == RIM_TYPEKEYBOARD) {
 				PRID_DEVICE_INFO_KEYBOARD rdik = &rdi->keyboard;
 				write_log (_T("type=%d sub=%d mode=%d fkeys=%d indicators=%d tkeys=%d\n"),
