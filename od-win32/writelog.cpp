@@ -120,6 +120,7 @@ static void getconsole (void)
 		}
 	}
 	SetConsoleCtrlHandler(ctrlchandler, TRUE);
+	SetConsoleCtrlHandler(NULL, TRUE);
 }
 
 static void flushmsgpump(void)
