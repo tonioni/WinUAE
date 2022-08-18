@@ -4299,6 +4299,7 @@ bool gfxboard_init_memory (struct autoconfig_info *aci)
 	uae_u8 z2_flags, z3_flags, type;
 	struct uae_prefs *p = aci->prefs;
 	uae_u8 flags = 0;
+	bool ext_size = false;
 
 	gfxboard_init (aci, gb);
 
@@ -4308,7 +4309,8 @@ bool gfxboard_init_memory (struct autoconfig_info *aci)
 	z3_flags = 0;
 	bank = gb->board->banksize;
 	bank /= 0x00100000;
-	if (bank > 16) {
+	if (bank >= 16) {
+		ext_size = true;
 		bank /= 16;
 		while (bank > 1) {
 			z3_flags++;
@@ -4319,10 +4321,17 @@ bool gfxboard_init_memory (struct autoconfig_info *aci)
 			z2_flags++;
 			bank >>= 1;
 		}
+		z2_flags &= 7;
 	}
 	if (gb->board->configtype == 3) {
-		type = 0x80 | z3_flags;
-		flags |= 0x10 | 0x20;
+		type = 0x80;
+		if (ext_size) {
+			type |= 0x20;
+			type |= z3_flags;
+		} else {
+			type |= z2_flags;
+		}
+		flags |= 0x10;
 	} else {
 		type = z2_flags | 0xc0;
 	}
