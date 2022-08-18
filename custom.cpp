@@ -8906,6 +8906,7 @@ static void SPRxPOS(int hpos, uae_u16 v, int num)
 
 static void SPRxPTH(int hpos, uae_u16 v, int num)
 {
+	decide_line(hpos);
 	decide_fetch_safe(hpos);
 	decide_sprites(hpos);
 	if (get_sprite_dma_rel(hpos, 1) != num || (!copper_access && !currprefs.cpu_memory_cycle_exact)) {
@@ -8924,6 +8925,7 @@ static void SPRxPTH(int hpos, uae_u16 v, int num)
 }
 static void SPRxPTL(int hpos, uae_u16 v, int num)
 {
+	decide_line(hpos);
 	decide_fetch_safe(hpos);
 	decide_sprites(hpos);
 	if (get_sprite_dma_rel(hpos, 1) != num || (!copper_access && !currprefs.cpu_memory_cycle_exact)) {
