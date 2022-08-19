@@ -1900,6 +1900,8 @@ void record_dma_vsync(int vp)
 	dr = &dma_record[dma_record_toggle][vp * NR_DMA_REC_HPOS];
 	dr->end = true;
 
+	record_dma_maxvpos = vp;
+
 	cycles_toggle = cycles_toggle ? 0 : 1;
 }
 
@@ -1914,11 +1916,16 @@ void record_dma_hsync(int lasthpos)
 
 	dr = &dma_record[dma_record_toggle][vpos * NR_DMA_REC_HPOS + lasthpos];
 	dr->end = true;
-	if (lasthpos > record_dma_maxhpos) {
+
+	if (vpos == 0) {
 		record_dma_maxhpos = lasthpos;
-	}
-	if (vpos > record_dma_maxvpos) {
-		record_dma_maxvpos = vpos;
+	} else {
+		if (lasthpos > record_dma_maxhpos) {
+			record_dma_maxhpos = lasthpos;
+		}
+		if (vpos > record_dma_maxvpos) {
+			record_dma_maxvpos = vpos;
+		}
 	}
 
 #if 0
@@ -2028,6 +2035,7 @@ void record_dma_write(uae_u16 reg, uae_u32 dat, uae_u32 addr, int hpos, int vpos
 	dr->intlev = regs.intmask;
 	dr->ipl = regs.ipl_pin;
 	dr->size = 2;
+	dr->end = false;
 	last_dma_rec = dr;
 	debug_mark_refreshed(dr->addr);
 }
@@ -2134,6 +2142,7 @@ void record_dma_read(uae_u16 reg, uae_u32 addr, int hpos, int vpos, int type, in
 	dr->extra = extra;
 	dr->intlev = regs.intmask;
 	dr->ipl = regs.ipl_pin;
+	dr->end = false;
 
 	last_dma_rec = dr;
 	debug_mark_refreshed(dr->addr);
