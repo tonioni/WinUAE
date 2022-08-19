@@ -1643,7 +1643,7 @@ static uint8_t lsi_reg_readb2(LSIState710 *s, int offset)
     case addr + 2: return (s->name >> 16) & 0xff; \
     case addr + 3: return (s->name >> 24) & 0xff;
 
-    switch (offset)
+    switch (offset & 0x3f)
 	{
     case 0x00: /* SCNTL0 */
         return s->scntl0;
@@ -1775,7 +1775,7 @@ static void lsi_reg_writeb(LSIState710 *s, int offset, uint8_t val)
 #ifdef DEBUG_LSI_REG
     DPRINTF("Write reg %x = %02x\n", offset, val);
 #endif
-    switch (offset) {
+    switch (offset & 0x3f) {
     case 0x00: /* SCNTL0 */
         s->scntl0 = val;
         if (val & LSI_SCNTL0_START) {
