@@ -328,7 +328,7 @@ int target_sleep_nanos(int nanos)
 	return 0;
 }
 
-uae_u64 spincount;
+uae_s64 spincount;
 extern bool calculated_scanline;
 
 void target_spin(int total)
@@ -338,9 +338,9 @@ void target_spin(int total)
 	if (total > 10)
 		total = 10;
 	while (total-- >= 0) {
-		uae_u64 v1 = __rdtsc();
+		uae_s64 v1 = read_processor_time_rdtsc();
 		v1 += spincount;
-		while (v1 > __rdtsc());
+		while (v1 > read_processor_time_rdtsc());
 	}
 }
 

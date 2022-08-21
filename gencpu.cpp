@@ -2383,7 +2383,7 @@ static void check_bus_error(const char *name, int offset, int write, int size, c
 				out("opcode |= 0x80000;\n");
 			} else if (g_instr->mnemo == i_CLR) {
 				if (g_instr->smode < Ad16) {
-					out("regflags.cznv = oldflags;\n");
+					out("regflags.cznv = oldflags.cznv;\n");
 				}
 				// (an)+ and -(an) is done later
 				if (g_instr->smode == Aipi || g_instr->smode == Apdi) {
@@ -3036,7 +3036,7 @@ static void move_68010_address_error(int size, int *setapdi, int *fcmodeflags)
 			out("regs.irc = dsta >> 16;\n");
 		}
 		if (reset_ccr) {
-			out("regflags.cznv = oldflags;\n");
+			out("regflags.cznv = oldflags.cznv;\n");
 		}
 		if (set_ccr) {
 			out("ccr_68000_word_move_ae_normal((uae_s16)(src));\n");
@@ -5998,7 +5998,8 @@ static void gen_opcode (unsigned int opcode)
 				genastore_rev("0", curi->smode, "srcreg", curi->size, "src");
 			}
 		} else if (cpu_level == 1) {
-			out("uae_u16 oldflags = regflags.cznv;\n");
+			out("struct flag_struct oldflags;\n");
+			out("oldflags.cznv = regflags.cznv;\n");
 			genamode(curi, curi->smode, "srcreg", curi->size, "src", 3, 0, GF_CLR68010);
 			if (isreg(curi->smode) && curi->size == sz_long) {
 				addcycles000(2);
@@ -6461,7 +6462,8 @@ static void gen_opcode (unsigned int opcode)
 
 				if (curi->mnemo == i_MOVE) {
 					if (cpu_level == 1 && (isreg(curi->smode) || curi->smode == imm)) {
-						out("uae_u16 oldflags = regflags.cznv;\n");
+						out("struct flag_struct oldflags;\n");
+						out("oldflags.cznv = regflags.cznv;\n");
 					}
 					if (curi->size == sz_long && (using_prefetch || using_ce) && curi->dmode >= Aind) {
 						// to support bus error exception correct flags, flags needs to be set

@@ -27,23 +27,13 @@ static frame_time_t read_processor_time_qpf(void)
 	return t;
 }
 
-static frame_time_t read_processor_time_rdtsc(void)
+uae_s64 read_processor_time_rdtsc(void)
 {
-	uae_u32 foo = 0;
-#if defined(X86_MSVC_ASSEMBLY)
-	uae_u32 bar;
-	__asm
-	{
-		rdtsc
-			mov foo, eax
-			mov bar, edx
-	}
-	/* very high speed CPU's RDTSC might overflow without this.. */
-	frame_time_t out;
-	out = ((uae_u64)foo << 32) | bar;
-	out >>= 6;
+#ifdef __arm__
+	return read_processor_time_qpf();
+#else
+	return __rdtsc();
 #endif
-	return foo;
 }
 
 uae_time_t uae_time(void)

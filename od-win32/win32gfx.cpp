@@ -369,7 +369,7 @@ static int target_get_display_scanline2(int displayindex)
 	return -13;
 }
 
-extern uae_u64 spincount;
+extern uae_s64 spincount;
 bool calculated_scanline = true;
 
 int target_get_display_scanline(int displayindex)
@@ -384,18 +384,18 @@ int target_get_display_scanline(int displayindex)
 			sl = -1;
 		return sl;
 	} else {
-		static uae_u64 lastrdtsc;
+		static uae_s64 lastrdtsc;
 		static int lastvpos;
 		if (spincount == 0 || currprefs.m68k_speed >= 0) {
 			lastrdtsc = 0;
 			lastvpos = target_get_display_scanline2(displayindex);
 			return lastvpos;
 		}
-		uae_u64 v = __rdtsc();
+		uae_s64 v = read_processor_time_rdtsc();
 		if (lastrdtsc > v)
 			return lastvpos;
 		lastvpos = target_get_display_scanline2(displayindex);
-		lastrdtsc = __rdtsc() + spincount * 4;
+		lastrdtsc = read_processor_time_rdtsc() + spincount * 4;
 		return lastvpos;
 	}
 }

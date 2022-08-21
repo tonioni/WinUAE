@@ -12,11 +12,16 @@
 
 #define DRIVESOUND
 #define GFXFILTER
+#if defined(_M_ARM64) || defined(_M_ARM64EC)
+#define __arm__
+#define MSVC_LONG_DOUBLE
+#else
 #define X86_MSVC_ASSEMBLY
 //#define OPTIMIZED_FLAGS
 #define MSVC_LONG_DOUBLE
 #ifndef __i386__
 #define __i386__
+#endif
 #endif
 #define WINDOWS
 #define ZLIB_WINAPI
