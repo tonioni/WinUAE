@@ -926,17 +926,15 @@ void reenumeratemonitors(void)
 
 static void getd3dmonitornames (void)
 {
-	struct MultiDisplay *md = Displays;
-	IDirect3D9 *d3d;
-	int max;
-
 	// XP does not support hybrid displays, don't load Direct3D
-	if (!os_vista)
+	// Windows 10+ seems to use same names by default
+	if (!os_vista || os_win10)
 		return;
-	d3d = Direct3DCreate9 (D3D_SDK_VERSION);
+	IDirect3D9 *d3d = Direct3DCreate9 (D3D_SDK_VERSION);
 	if (!d3d)
 		return;
-	max = d3d->GetAdapterCount ();
+	int max = d3d->GetAdapterCount ();
+	struct MultiDisplay* md = Displays;
 	while (md - Displays < MAX_DISPLAYS && md->monitorid) {
 		POINT pt;
 		HMONITOR winmon;
