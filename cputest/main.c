@@ -3668,7 +3668,6 @@ static int test_mnemo(const char *opcode)
 	}
 
 	int otestcnt = -1;
-	printf("offset = %d\n", foffset);
 	for (;;) {
 		if (otestcnt != testcnt) {
 			printf("%s (%s). %u...\n", tfname, group, testcnt);
@@ -3679,8 +3678,6 @@ static int test_mnemo(const char *opcode)
 
 		test_data_size = 0;
 		test_data = load_file(path, tfname, test_data_prealloc, &test_data_size, &foffset, 0, 1);
-
-		printf("%p %d\n", test_data, foffset);
 
 		if (!test_data) {
 			if (foffset < 0) {
