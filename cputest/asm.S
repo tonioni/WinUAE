@@ -357,6 +357,7 @@ exception:
 	move.w sr,-(sp)
 _cyclereg_address4:
 	move.w CYCLEREG,cycles+2
+	move.w #0x2700,sr
 	move.w #0,ACTIVITYREG
 	| exception start inside this assembly code?
 	cmp.l #asm_start,2+4+2(sp)
@@ -369,7 +370,11 @@ _cyclereg_address4:
 	cmp.l #_exceptiontable000+(24+8)*2,2(sp)
 	bcc.s .okpc
 	| possibly IPL tester spurious interrupt
-	| ignore it
+	| ignore it. Mark cycle count as invalid.
+#ifdef AMIGA
+	move.w #0x0800,0xdff09c
+#endif
+	move.l #0xffffffff,cycles
 	addq.l #2+4,sp
 	rte
 .okpc:
@@ -398,12 +403,9 @@ _cyclereg_address4:
 	bcs.s .nointerrupt
 	cmp.w #24+8,d0
 	bcc.s .nointerrupt
-	| possible IPL test run, delay a bit
-	| to make sure tester hardware is not pulling
-	| IPL line down anymore
-	moveq #16-1,d1
-.delay1:
-	dbf d1,.delay1
+#ifdef AMIGA
+	move.w #0x0800,0xdff09c
+#endif
 .nointerrupt:
 
 	move.w (sp)+,S_SR+2(a0)

@@ -173,6 +173,10 @@ static uae_u8 stackaddr[SIZE_STORED_ADDRESS];
 static uae_u32 stackaddr_ptr;
 static uae_u8 *opcode_memory_end;
 
+#define MAX_IPL_PC_VALUES 4
+static uae_u32 ipl_pc[MAX_IPL_PC_VALUES];
+static int ipl_pc_cnt[MAX_IPL_PC_VALUES];
+
 static char opcode[32], group[32], cpustr[10];
 
 #ifndef M68K
@@ -608,25 +612,63 @@ static int set_berr(int mask, int ask)
 	return getchar();
 }
 
-static uae_u8 *load_file(const char *path, const char *file, uae_u8 *p, int *sizep, int exiterror, int candirect)
+static int load_file_offset(FILE *f, int *foffsetp)
+{
+	int size = -1;
+	unsigned char buf[4] = { 0 };
+	fseek(f, *foffsetp, SEEK_SET);
+	fread(buf, 1, sizeof(buf), f);
+	if (buf[0] == 0xff && buf[1] == 0xff && buf[2] == 0xff && buf[3] == 0xff) {
+		fread(buf, 1, sizeof(buf), f);
+		size = (buf[0] << 24) | (buf[1] << 16) | (buf[2] << 8) | (buf[3] << 0);
+		if (size == 0) {
+			*foffsetp = -1;
+			return 0;
+		}
+		*foffsetp = *foffsetp + size + 8;
+		return size;
+	}
+	*foffsetp = -1;
+	return -1;
+}
+
+static uae_u8 *load_file(const char *path, const char *file, uae_u8 *p, int *sizep, int *foffsetp, int exiterror, int candirect)
 {
 	char fname[256];
 	uae_u8 *unpack = NULL;
 	int unpackoffset = 0;
 	int size = 0;
+	int foffset = foffsetp ? *foffsetp : 0;
 
-	strcpy(fname, path);
-	strcat(fname, file);
-	if (strchr(file, '.')) {
-		fname[strlen(fname) - 1] = 'z';
+	if (path) {
+		strcpy(fname, path);
+		strcat(fname, file);
+		if (strchr(file, '.')) {
+			fname[strlen(fname) - 1] = 'z';
+		} else {
+			strcat(fname, ".gz");
+		}
 	} else {
-		strcat(fname, ".gz");
+		strcpy(fname, file);
 	}
 	FILE *f = fopen(fname, "rb");
 	if (f) {
-		fseek(f, 0, SEEK_END);
-		int gsize = ftell(f);
-		fseek(f, 0, SEEK_SET);
+		int gsize;
+		if (foffsetp) {
+			gsize = load_file_offset(f, foffsetp);
+			if (gsize == 0) {
+				return NULL;
+			}
+			if (gsize > 0) {
+				*sizep = gsize;
+			}
+		}
+		if (*sizep <= 0) {
+			fseek(f, 0, SEEK_END);
+			gsize = ftell(f);
+			fseek(f, 0, SEEK_SET);
+		}
+
 		uae_u8 *gzbuf = NULL;
 		if (prealloc) {
 			if (!prealloc_gzip) {
@@ -698,7 +740,11 @@ static uae_u8 *load_file(const char *path, const char *file, uae_u8 *p, int *siz
 		}
 	}
 	if (!unpack) {
-		sprintf(fname, "%s%s", path, file);
+		if (path) {
+			sprintf(fname, "%s%s", path, file);
+		} else {
+			strcpy(fname, file);
+		}
 		f = fopen(fname, "rb");
 		if (!f) {
 			if (exiterror) {
@@ -707,8 +753,17 @@ static uae_u8 *load_file(const char *path, const char *file, uae_u8 *p, int *siz
 			}
 			return NULL;
 		}
+		if (foffsetp) {
+			size = load_file_offset(f, foffsetp);
+			if (size == 0) {
+				return NULL;
+			}
+			if (size > 0) {
+				*sizep = size;
+			}
+		}
 		size = *sizep;
-		if (size < 0) {
+		if (size <= 0) {
 			fseek(f, 0, SEEK_END);
 			size = ftell(f);
 			fseek(f, 0, SEEK_SET);
@@ -2147,21 +2202,31 @@ static uae_u16 test_intena, test_intreq;
 
 static void set_interrupt(void)
 {
-	if (interrupt_count < 15) {
-		volatile uae_u16 *intena = (uae_u16 *)0xdff09a;
-		volatile uae_u16 *intreq = (uae_u16 *)0xdff09c;
-		uae_u16 mask = 1 << interrupt_count;
-		test_intena = mask | 0x8000 | 0x4000;
-		test_intreq = mask | 0x8000;
-		*intena = test_intena;
-		*intreq = test_intreq;
+	if (interrupttest == 1) {
+		if (interrupt_count < 15) {
+			volatile uae_u16 *intena = (uae_u16*)0xdff09a;
+			volatile uae_u16 *intreq = (uae_u16*)0xdff09c;
+			uae_u16 mask = 1 << interrupt_count;
+			test_intena = mask | 0x8000 | 0x4000;
+			test_intreq = mask | 0x8000;
+			*intena = test_intena;
+			*intreq = test_intreq;
+		}
+	}
+	if (interrupttest == 2) {
+		volatile uae_u16 *intena = (uae_u16*)0xdff09a;
+		volatile uae_u16 *intreq = (uae_u16*)0xdff09c;
+		volatile uae_u16 *serper = (uae_u16*)0xdff032;
+		*serper = IPL_TRIGGER_SERPER;
+		*intena = 0x8000 | 0x4000 | IPL_TRIGGER_INTMASK;
+		*intreq = IPL_TRIGGER_INTMASK;
 	}
 }
 
 static void clear_interrupt(void)
 {
-	volatile uae_u16 *intena = (uae_u16 *)0xdff09a;
-	volatile uae_u16 *intreq = (uae_u16 *)0xdff09c;
+	volatile uae_u16 *intena = (uae_u16*)0xdff09a;
+	volatile uae_u16 *intreq = (uae_u16*)0xdff09c;
 	*intena = 0x7fff;
 	*intreq = 0x7fff;
 }
@@ -2941,7 +3006,7 @@ static void out_endinfo(void)
 	outbp += strlen(outbp);
 	sprintf(outbp, "S=%d", supercnt);
 	outbp += strlen(outbp);
-	for (int i = 0; i < 128; i++) {
+	for (short i = 0; i < 128; i++) {
 		if (exceptioncount[0][i] || exceptioncount[1][i] || exceptioncount[2][i]) {
 			if (i == 2 || i == 3) {
 				sprintf(outbp, " E%02d=%d/%d/%d", i, exceptioncount[0][i], exceptioncount[1][i], exceptioncount[2][i]);
@@ -2957,6 +3022,16 @@ static void out_endinfo(void)
 	}
 	strcat(outbp, "\n");
 	outbp += strlen(outbp);
+	if (interrupttest == 2) {
+		for (short i = 0; i < MAX_IPL_PC_VALUES; i++) {
+			if (ipl_pc[i]) {
+				sprintf(outbp, "%08x:%d ", ipl_pc[i], ipl_pc_cnt[i]);
+				outbp += strlen(outbp);
+			}
+		}
+		strcat(outbp, "\n");
+		outbp += strlen(outbp);
+	}
 	if (fpu_approxcnt) {
 		sprintf(outbp, "FPU approximate matches: %d\n", fpu_approxcnt);
 	}
@@ -3272,10 +3347,11 @@ static void process_test(uae_u8 *p)
 
 
 #ifdef AMIGA
-						if (interrupttest == 1) {
+						if (interrupttest) {
 							set_interrupt();
 						}
 #endif
+
 						if (cpu_lvl == 1) {
 							execute_test010(&test_regs);
 						} else if (cpu_lvl >= 2) {
@@ -3321,6 +3397,26 @@ static void process_test(uae_u8 *p)
 #endif
 
 					p = validate_test(p, ignore_errors, ignore_sr, &cur_regs, &test_regs, &last_regs, opcodeendsizeextra);
+
+					if (interrupttest == 2) {
+						short found = 0;
+						for (short i = 0; i < MAX_IPL_PC_VALUES; i++) {
+							if (ipl_pc[i] == test_regs.pc) {
+								ipl_pc_cnt[i]++;
+								found = 1;
+
+							}
+						}
+						if (!found) {
+							for (short i = 0; i < MAX_IPL_PC_VALUES; i++) {
+								if (ipl_pc[i] == 0) {
+									ipl_pc[i] = test_regs.pc;
+									ipl_pc_cnt[i] = 1;
+									break;
+								}
+							}
+						}
+					}
 
 					testcnt++;
 					if (super)
@@ -3419,7 +3515,7 @@ static int test_mnemo(const char *opcode)
 	uae_u8 data[4] = { 0 };
 	uae_u32 v;
 	char tfname[256];
-	int filecnt = 1;
+	int filecnt = 0;
 	uae_u32 starttimeid;
 	int lvl;
 
@@ -3429,8 +3525,10 @@ static int test_mnemo(const char *opcode)
 
 	sprintf(tfname, "%s/0000.dat", opcode);
 	size = -1;
-	uae_u8 *headerfile = load_file(path, tfname, NULL, &size, 1, 1);
+	int foffset = 0;
+	uae_u8 *headerfile = load_file(path, tfname, NULL, &size, &foffset, 1, 1);
 	if (!headerfile) {
+		printf("Data file failed to open\n");
 		exit(0);
 	}
 	int headoffset = 0;
@@ -3536,7 +3634,7 @@ static int test_mnemo(const char *opcode)
 	}
 
 	size = test_memory_size;
-	load_file(path, "tmem.dat", test_memory, &size, 1, 0);
+	load_file(path, "tmem.dat", test_memory, &size, NULL, 1, 0);
 	if (size != test_memory_size) {
 		printf("tmem.dat size mismatch\n");
 		exit(0);
@@ -3569,14 +3667,27 @@ static int test_mnemo(const char *opcode)
 		}
 	}
 
+	int otestcnt = -1;
+	printf("offset = %d\n", foffset);
 	for (;;) {
-		printf("%s (%s). %u...\n", tfname, group, testcnt);
+		if (otestcnt != testcnt) {
+			printf("%s (%s). %u...\n", tfname, group, testcnt);
+			otestcnt = testcnt;
+		}
 
 		sprintf(tfname, "%s/%04d.dat", opcode, filecnt);
 
-		test_data_size = -1;
-		test_data = load_file(path, tfname, test_data_prealloc, &test_data_size, 0, 1);
+		test_data_size = 0;
+		test_data = load_file(path, tfname, test_data_prealloc, &test_data_size, &foffset, 0, 1);
+
+		printf("%p %d\n", test_data, foffset);
+
 		if (!test_data) {
+			if (foffset < 0) {
+				filecnt++;
+				foffset = 0;
+				continue;
+			}
 			if (askifmissing) {
 				printf("Couldn't open '%s%s'. Type new path and press enter.\n", path, tfname);
 				path[0] = 0;
@@ -3627,7 +3738,9 @@ static int test_mnemo(const char *opcode)
 			break;
 		}
 
-		filecnt++;
+		if (foffset <= 0) {
+			filecnt++;
+		}
 	}
 
 	if (errorcnt == 0) {
@@ -3929,9 +4042,9 @@ int main(int argc, char *argv[])
 		}
 
 		low_memory_size = -1;
-		low_memory_temp = load_file(path, "lmem.dat", NULL, &low_memory_size, 0, 1);
+		low_memory_temp = load_file(path, "lmem.dat", NULL, &low_memory_size, NULL, 0, 1);
 		high_memory_size = -1;
-		high_memory_temp = load_file(path, "hmem.dat", NULL, &high_memory_size, 0, 1);
+		high_memory_temp = load_file(path, "hmem.dat", NULL, &high_memory_size, NULL, 0, 1);
 
 #ifndef M68K
 		low_memory = calloc(1, 32768);
