@@ -23,6 +23,7 @@
 #include "scsi.h"
 #include "filesys.h"
 #include "zfile.h"
+#include "zarchive.h"
 #include "blkdev.h"
 #include "cpuboard.h"
 #include "qemuvga/qemuuaeglue.h"
@@ -37,7 +38,7 @@
 
 #define A4091_ROM_VECTOR 0x0200
 #define A4091_ROM_OFFSET 0x0000
-#define A4091_ROM_SIZE 32768
+#define A4091_ROM_SIZE (z->size)
 #define A4091_ROM_MASK (A4091_ROM_SIZE - 1)
 
 #define A4091_IO_OFFSET 0x00800000
