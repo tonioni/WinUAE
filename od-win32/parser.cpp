@@ -1604,6 +1604,13 @@ int enumserialports (void)
 		comports[cnt]->name = my_strdup (_T("WinUAE inter-process serial port"));
 		cnt++;
 	}
+	if (cnt < MAX_SERPAR_PORTS) {
+		comports[cnt] = xcalloc(struct serparportinfo, 1);
+		comports[cnt]->dev = my_strdup (SERIAL_LOOPBACK);
+		comports[cnt]->cfgname = my_strdup (comports[cnt]->dev);
+		comports[cnt]->name = my_strdup (_T("WinUAE loopback serial port"));
+		cnt++;
+	}
 
 	if (cnt < MAX_SERPAR_PORTS) {
 		comports[cnt] = xcalloc(struct serparportinfo, 1);

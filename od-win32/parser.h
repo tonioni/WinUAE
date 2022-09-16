@@ -32,6 +32,7 @@ bool shmem_serial_create(void);
 int shmem_serial_state(void);
 
 #define SERIAL_INTERNAL _T("INTERNAL_SERIAL")
+#define SERIAL_LOOPBACK _T("LOOPBACK_SERIAL")
 
 #define TIOCM_CAR 1
 #define TIOCM_DSR 2

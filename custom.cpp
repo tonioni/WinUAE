@@ -7720,7 +7720,7 @@ void rethink_uae_int(void)
 
 static void rethink_intreq(void)
 {
-	serial_check_irq();
+	serial_rethink();
 	devices_rethink();
 }
 
