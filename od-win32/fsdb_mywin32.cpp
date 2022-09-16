@@ -882,7 +882,7 @@ static int my_resolvessymboliclink2(TCHAR *linkfile, int size)
 	if (h == INVALID_HANDLE_VALUE)
 		return -1;
 	FindClose(h);
-	if (fd.dwReserved0 != IO_REPARSE_TAG_SYMLINK || !(fd.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT))
+	if (!(fd.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) || fd.dwReserved0 != IO_REPARSE_TAG_SYMLINK)
 		return -1;
 	h = CreateFile (linkfile, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, NULL,
 		OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS | FILE_ATTRIBUTE_REPARSE_POINT | FILE_FLAG_OPEN_REPARSE_POINT , NULL);
@@ -991,40 +991,42 @@ bool my_resolveshortcut(TCHAR *linkfile, int size)
 // http://msdn.microsoft.com/en-us/library/aa969393.aspx
 bool my_createshortcut(const TCHAR *source, const TCHAR *target, const TCHAR *description) 
 { 
-    HRESULT hres; 
-    IShellLink* psl;
-	TCHAR tmp[MAX_DPATH];
+	HRESULT hres; 
+	IShellLink *psl;
  
-    // Get a pointer to the IShellLink interface. It is assumed that CoInitialize
-    // has already been called.
-    hres = CoCreateInstance(CLSID_ShellLink, NULL, CLSCTX_INPROC_SERVER, IID_IShellLink, (LPVOID*)&psl); 
-    if (SUCCEEDED(hres)) 
-    { 
-        IPersistFile* ppf; 
+	// Get a pointer to the IShellLink interface. It is assumed that CoInitialize
+	// has already been called.
+	hres = CoCreateInstance(CLSID_ShellLink, NULL, CLSCTX_INPROC_SERVER, IID_IShellLink, (LPVOID*)&psl); 
+	if (SUCCEEDED(hres)) 
+	{ 
+		IPersistFile *ppf; 
  
-        // Set the path to the shortcut target and add the description. 
-        psl->SetPath(target); 
-        psl->SetDescription(description); 
+		// Set the path to the shortcut target and add the description. 
+		TCHAR target2[MAX_DPATH];
+		my_canonicalize_path(target, target2, sizeof(target2) / sizeof(TCHAR));
+		psl->SetPath(target2);
+		psl->SetDescription(description); 
  
-        // Query IShellLink for the IPersistFile interface, used for saving the 
-        // shortcut in persistent storage. 
-        hres = psl->QueryInterface(IID_IPersistFile, (LPVOID*)&ppf); 
+		// Query IShellLink for the IPersistFile interface, used for saving the 
+		// shortcut in persistent storage. 
+		hres = psl->QueryInterface(IID_IPersistFile, (LPVOID*)&ppf); 
  
-        if (SUCCEEDED(hres)) 
-        { 
-            // Save the link by calling IPersistFile::Save. 
-			_tcscpy (tmp, source);
+		if (SUCCEEDED(hres)) 
+		{ 
+			// Save the link by calling IPersistFile::Save. 
+			TCHAR tmp[MAX_DPATH];
+			my_canonicalize_path(source, tmp, sizeof(tmp) / sizeof(TCHAR));
 			const TCHAR *ext = _tcsrchr (tmp, '.');
-			if (!ext || _tcsicmp (ext, _T(".lnk")) != 0)
-				_tcscat (tmp, _T(".lnk"));
-            hres = ppf->Save(tmp, TRUE); 
-            ppf->Release(); 
-        } 
-        psl->Release(); 
-    }
+			if (!ext || _tcsicmp(ext, _T(".lnk")) != 0) {
+				_tcscat(tmp, _T(".lnk"));
+			}
+			hres = ppf->Save(tmp, TRUE); 
+			ppf->Release(); 
+		}
+		psl->Release(); 
+	}
 	return SUCCEEDED(hres);
 }
-
 
 bool my_resolvesoftlink(TCHAR *linkfile, int size, bool linkonly)
 {

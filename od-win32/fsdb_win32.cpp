@@ -635,7 +635,7 @@ TCHAR *fsdb_create_unique_nname (a_inode *base, const TCHAR *suggestion)
 	}
 }
 
-TCHAR *fsdb_search_dir (const TCHAR *dirname, TCHAR *rel)
+TCHAR *fsdb_search_dir(const TCHAR *dirname, TCHAR *rel, TCHAR **relalt)
 {
 	WIN32_FIND_DATA fd;
 	HANDLE h;
@@ -643,6 +643,7 @@ TCHAR *fsdb_search_dir (const TCHAR *dirname, TCHAR *rel)
 	const TCHAR *namep;
 	TCHAR path[MAX_DPATH];
 	
+	*relalt = NULL;
 	tmp = build_nname (dirname, rel);
 	if (!tmp)
 		return NULL;
@@ -660,6 +661,32 @@ TCHAR *fsdb_search_dir (const TCHAR *dirname, TCHAR *rel)
 		else
 			p = my_strdup (fd.cFileName);
 		FindClose (h);
+	} else {
+		// check if it is *.lnk shortcut
+		TCHAR tmp[MAX_DPATH];
+		_tcscpy(tmp, namep);
+		_tcscat(tmp, _T(".lnk"));
+		DWORD flags = GetFileAttributesSafe(tmp);
+		if (flags != INVALID_FILE_ATTRIBUTES && !(flags & FILE_ATTRIBUTE_SYSTEM) && !(flags & FILE_ATTRIBUTE_DIRECTORY)) {
+			h = FindFirstFile(tmp, &fd);
+			if (h != INVALID_HANDLE_VALUE) {
+				TCHAR tmp2[MAX_DPATH];
+				_tcscpy(tmp2, tmp);
+				if (my_resolvesoftlink(tmp2, sizeof tmp2 / sizeof(TCHAR), false)) {
+					if (_tcslen(fd.cFileName) > 4 && !_tcsicmp(fd.cFileName + _tcslen(fd.cFileName) - 4, _T(".lnk"))) {
+						fd.cFileName[_tcslen(fd.cFileName) - 4] = 0;
+					}
+					if (_tcscmp(fd.cFileName, rel) == 0)
+						p = rel;
+					else
+						p = my_strdup(fd.cFileName);
+					_tcscpy(tmp2, p);
+					_tcscat(tmp2, _T(".lnk"));
+					*relalt = my_strdup(tmp2);
+				}
+				FindClose(h);
+			}
+		}
 	}
 	xfree (tmp);
 	return p;
