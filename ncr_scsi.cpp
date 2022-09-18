@@ -33,12 +33,10 @@
 #include "devices.h"
 
 #define BOARD_SIZE 16777216
-#define IO_MASK 0x7f
 
 #define A4091_ROM_VECTOR 0x0200
 #define A4091_ROM_OFFSET 0x0000
-#define A4091_ROM_SIZE 32768
-#define A4091_ROM_MASK (A4091_ROM_SIZE - 1)
+#define A4091_ROM_SIZE 65536
 
 #define A4091_IO_OFFSET 0x00800000
 #define A4091_IO_ALT 0x00840000
@@ -70,7 +68,7 @@ struct ncr_state
 	int configured;
 	bool enabled;
 	int rom_start, rom_end, rom_offset;
-	int io_start, io_end;
+	int io_start, io_end, io_mask;
 	uae_u8 state[8];
 	addrbank *bank;
 	bool irq;
@@ -426,13 +424,13 @@ static void ncr_io_bput(struct ncr_state *ncr, uaecptr addr, uae_u32 val)
 		cyberstorm_scsi_ram_put(addr, val);
 		return;
 	}
-	addr &= IO_MASK;
+	addr &= ncr->io_mask;
 	lsi_mmio_write(ncr->devobject.lsistate, beswap(addr), val, 1);
 }
 
 static void ncr710_io_bput(struct ncr_state *ncr, uaecptr addr, uae_u32 val)
 {
-	addr &= IO_MASK;
+	addr &= ncr->io_mask;
 	lsi710_mmio_write(ncr->devobject.lsistate, beswap(addr), val, 1);
 }
 
@@ -444,7 +442,7 @@ void cpuboard_ncr710_io_bput(uaecptr addr, uae_u32 v)
 void cpuboard_ncr720_io_bput(uaecptr addr, uae_u32 v)
 {
 	struct ncr_state *ncr = ncr_cpuboard;
-	addr &= IO_MASK;
+	addr &= ncr->io_mask;
 	lsi_mmio_write(ncr->devobject.lsistate, beswap(addr), v, 1);
 }
 
@@ -503,13 +501,13 @@ static uae_u32 ncr_io_bget(struct ncr_state *ncr, uaecptr addr)
 {
 	if (addr >= CYBERSTORM_SCSI_RAM_OFFSET && ncr->ramsize)
 		return cyberstorm_scsi_ram_get(addr);
-	addr &= IO_MASK;
+	addr &= ncr->io_mask;
 	return (uae_u32)lsi_mmio_read(ncr->devobject.lsistate, beswap(addr), 1);
 }
 
 static uae_u32 ncr710_io_bget(struct ncr_state *ncr, uaecptr addr)
 {
-	addr &= IO_MASK;
+	addr &= ncr->io_mask;
 	return (uae_u32)lsi710_mmio_read(ncr->devobject.lsistate, beswap(addr), 1);
 }
 
@@ -521,7 +519,7 @@ uae_u32 cpuboard_ncr710_io_bget(uaecptr addr)
 uae_u32 cpuboard_ncr720_io_bget(uaecptr addr)
 {
 	struct ncr_state *ncr = ncr_cpuboard;
-	addr &= IO_MASK;
+	addr &= ncr->io_mask;
 	return (uae_u32)lsi_mmio_read(ncr->devobject.lsistate, beswap(addr), 1);
 }
 
@@ -907,6 +905,7 @@ bool ncr710_warpengine_autoconfig_init(struct autoconfig_info *aci)
 	ncr->rom_end = WARP_ENGINE_ROM_SIZE * 4;
 	ncr->io_start = WARP_ENGINE_IO_OFFSET;
 	ncr->io_end = WARP_ENGINE_IO_END;
+	ncr->io_mask = 0x7f;
 
 	for (int i = 0; i < 16; i++) {
 		uae_u8 b = warpengine_a4000_autoconfig[i];
@@ -946,8 +945,13 @@ bool ncr710_a4091_autoconfig_init (struct autoconfig_info *aci)
 	if (z) {
 		rom = xcalloc(uae_u8, A4091_ROM_SIZE * 4);
 		for (int i = 0; i < A4091_ROM_SIZE; i++) {
-			uae_u8 b;
-			zfile_fread(&b, 1, 1, z);
+			uae_u8 b = 0xff;
+			if (zfile_fread(&b, 1, 1, z) == 0) {
+				if (i == 32768) {
+					zfile_fseek(z, 0, SEEK_SET);
+					zfile_fread(&b, 1, 1, z);
+				}
+			}
 			rom[i * 4 + 0] = b | 0x0f;
 			rom[i * 4 + 1] = 0xff;
 			rom[i * 4 + 2] = (b << 4) | 0x0f;
@@ -981,6 +985,7 @@ bool ncr710_a4091_autoconfig_init (struct autoconfig_info *aci)
 	ncr->rom_end = A4091_IO_OFFSET;
 	ncr->io_start = A4091_IO_OFFSET;
 	ncr->io_end = A4091_IO_END;
+	ncr->io_mask = 0x3f;
 
 	ncr_reset_board(ncr);
 
@@ -1013,6 +1018,7 @@ bool ncr710_zeus040_autoconfig_init(struct autoconfig_info *aci)
 	ncr->rom_end = 0x10000;
 	ncr->io_start = 0x4000;
 	ncr->io_end = 0x8000;
+	ncr->io_mask = 0x7f;
 
 	for (int i = 0; i < 16; i++) {
 		uae_u8 b = zeus040_autoconfig[i];
@@ -1051,7 +1057,7 @@ bool ncr710_magnum40_autoconfig_init(struct autoconfig_info *aci)
 	ncr->rom_end = 0x8000;
 	ncr->io_start = 0x8000;
 	ncr->io_end = 0x9000;
-
+	ncr->io_mask = 0x7f;
 
 	ncr->rom = xcalloc(uae_u8, 32768);
 	load_rom_rc(aci->rc, ROMTYPE_CB_MAGNUM40, 65536, 0, ncr->rom, 32768, 0);
