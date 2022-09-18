@@ -14582,6 +14582,8 @@ uae_u8 *restore_custom_extra(uae_u8 *src)
 	currprefs.cs_ciatype[0] = changed_prefs.cs_ciatype[0] = RBB;
 	currprefs.cs_ciatype[1] = changed_prefs.cs_ciatype[1] = RBB;
 
+	currprefs.cs_memorypatternfill = changed_prefs.cs_memorypatternfill = RBB;
+
 	return src;
 }
 
@@ -14641,6 +14643,7 @@ uae_u8 *save_custom_extra(size_t *len, uae_u8 *dstptr)
 	SB(currprefs.cs_romisslow ? 1 : 0);
 	SB(currprefs.cs_ciatype[0]);
 	SB(currprefs.cs_ciatype[1]);
+	SB(currprefs.cs_memorypatternfill);
 
 	*len = dst - dstbak;
 	return dstbak;
@@ -14782,6 +14785,7 @@ void check_prefs_changed_custom(void)
 	currprefs.cs_eclocksync = changed_prefs.cs_eclocksync;
 	currprefs.cs_ciatype[0] = changed_prefs.cs_ciatype[0];
 	currprefs.cs_ciatype[1] = changed_prefs.cs_ciatype[1];
+	currprefs.cs_memorypatternfill = changed_prefs.cs_memorypatternfill;
 
 	if (currprefs.chipset_mask != changed_prefs.chipset_mask ||
 		currprefs.cs_dipagnus != changed_prefs.cs_dipagnus ||

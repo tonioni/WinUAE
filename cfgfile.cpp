@@ -2555,6 +2555,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	cfgfile_dwrite_str(f, _T("ciaa_type"), ciatype[p->cs_ciatype[0]]);
 	cfgfile_dwrite_str(f, _T("ciab_type"), ciatype[p->cs_ciatype[1]]);
 	cfgfile_dwrite_str(f, _T("unmapped_address_space"), unmapped[p->cs_unmapped_space]);
+	cfgfile_dwrite_bool(f, _T("memory_pattern"), p->cs_memorypatternfill);
 	cfgfile_dwrite(f, _T("keyboard_handshake"), _T("%d"), currprefs.cs_kbhandshake);
 	cfgfile_dwrite(f, _T("chipset_hacks"), _T("0x%x"), p->cs_hacks);
 	cfgfile_dwrite(f, _T("eclockphase"), _T("%d"), p->cs_eclockphase);
@@ -5687,6 +5688,7 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 		|| cfgfile_strval (option, value,  _T("serial_translate"), &p->serial_crlf, serialcrlf, 0)
 		|| cfgfile_strval(option, value, _T("hvcsync"), &p->cs_hvcsync, hvcsync, 0)
 		|| cfgfile_strval(option, value, _T("unmapped_address_space"), &p->cs_unmapped_space, unmapped, 0)
+		|| cfgfile_yesno(option, value, _T("memory_pattern"), &p->cs_memorypatternfill)
 		|| cfgfile_strval(option, value, _T("ciaa_type"), &p->cs_ciatype[0], ciatype, 0)
 		|| cfgfile_strval(option, value, _T("ciab_type"), &p->cs_ciatype[1], ciatype, 0)
 		|| cfgfile_strboolval (option, value, _T("comp_flushmode"), &p->comp_hardflush, flushmode, 0)
@@ -8079,6 +8081,7 @@ void default_prefs (struct uae_prefs *p, bool reset, int type)
 	p->cs_hvcsync = false;
 	p->cs_ciatype[0] = 0;
 	p->cs_ciatype[1] = 0;
+	p->cs_memorypatternfill = true;
 
 	for (int i = APMODE_NATIVE; i <= APMODE_RTG; i++) {
 		struct gfx_filterdata *f = &p->gf[i];

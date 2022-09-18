@@ -1156,6 +1156,7 @@
 #define IDC_DBG_MEMUPFAST               1760
 #define IDC_CS_CIA                      1760
 #define IDC_DA_RESET                    1761
+#define IDC_CS_MEMORYPATTERN            1761
 #define IDC_DBG_STATUS                  1762
 #define IDC_DBG_BRKPTS                  1763
 #define IDC_DBG_MCUSTOM                 1764

@@ -9331,6 +9331,7 @@ static void values_to_chipsetdlg2 (HWND hDlg)
 	CheckDlgButton(hDlg, IDC_CS_TOSHIBAGARY, workprefs.cs_toshibagary);
 	CheckDlgButton(hDlg, IDC_CS_ROMISSLOW, workprefs.cs_romisslow);
 	CheckDlgButton(hDlg, IDC_CS_CIA, workprefs.cs_ciatype[0]);
+	CheckDlgButton(hDlg, IDC_CS_MEMORYPATTERN, workprefs.cs_memorypatternfill);
 	xSendDlgItemMessage(hDlg, IDC_CS_UNMAPPED, CB_SETCURSEL, workprefs.cs_unmapped_space, 0);
 	xSendDlgItemMessage(hDlg, IDC_CS_CIASYNC, CB_SETCURSEL, workprefs.cs_eclocksync, 0);
 	txt[0] = 0;
@@ -9424,6 +9425,7 @@ static void values_from_chipsetdlg2 (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 	workprefs.cs_toshibagary = ischecked(hDlg, IDC_CS_TOSHIBAGARY);
 	workprefs.cs_romisslow = ischecked(hDlg, IDC_CS_ROMISSLOW);
 	workprefs.cs_ciatype[0] = workprefs.cs_ciatype[1] = ischecked(hDlg, IDC_CS_CIA);
+	workprefs.cs_memorypatternfill = ischecked(hDlg, IDC_CS_MEMORYPATTERN);
 
 	int val = xSendDlgItemMessage(hDlg, IDC_CS_UNMAPPED, CB_GETCURSEL, 0, 0L);
 	if (val != CB_ERR)
@@ -9521,6 +9523,7 @@ static void enable_for_chipsetdlg2 (HWND hDlg)
 	ew(hDlg, IDC_CS_UNMAPPED, e);
 	ew(hDlg, IDC_CS_CIASYNC, e);
 	ew(hDlg, IDC_CS_CIA, e);
+	ew(hDlg, IDC_CS_MEMORYPATTERN, e);
 }
 
 static INT_PTR CALLBACK ChipsetDlgProc2 (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)

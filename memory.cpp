@@ -2596,64 +2596,63 @@ void map_overlay (int chip)
 		m68k_setpc_normal (m68k_getpc ());
 }
 
+// Set a default pattern for uninitialized memory after hard reset.
+//   0:even 1:odd on columns for even rows,
+//   1:even 0:odd on columns for odd rows.
+static void fillpattern(addrbank *ab)
+{
+	if (currprefs.cs_memorypatternfill && aga_mode) {
+		uae_u32 fillval = 0;
+		for (int fillbank = 0; fillbank < ab->allocated_size / 2048; fillbank++) {
+			fillval = ~fillval;
+			for (int fillrow = fillbank * 2048; fillrow < (fillbank + 1) * 2048; fillrow += 4) {
+				// Chip emulated: NEC PD42S4260 (A1200 R1).  Spec says 512x512x16.
+				*((uae_u32 *)(ab->baseaddr + fillrow)) = fillval;
+				if ((fillrow & 7) == 4) {
+					fillval = ~fillval;
+				}
+			}
+		}
+	} else if (currprefs.cs_memorypatternfill && (currprefs.chipset_mask & CSMASK_ECS_AGNUS)) {
+		uae_u32 fillval = 0;
+		for (int fillbank = 0; fillbank < ab->allocated_size / 1024; fillbank++) {
+			fillval = ~fillval;
+			for (int fillrow = fillbank * 1024; fillrow < (fillbank + 1) * 1024; fillrow += 4) {
+				// Chip emulated: Generic 4256.  4 * 512x4.
+				*((uae_u32 *)(ab->baseaddr + fillrow)) = fillval;
+				if ((fillrow & 7) == 0) {
+					fillval = ~fillval;
+				}
+			}
+		}
+	} else if (currprefs.cs_memorypatternfill) {
+		// OCS Agnus has swapped row and column compared to ECS and AGA.
+		uae_u16 fillval = 0;
+		for (int fillbank = 0; fillbank < ab->allocated_size / 256; fillbank++) {
+			fillval = ~fillval;
+			for (int fillrow = 0; fillrow < 256; fillrow += 2) {
+				// Chip emulated: Generic 4256.  16 * 512x1.
+				*((uae_u16 *)(ab->baseaddr + fillbank * 256 + fillrow)) = fillval;
+			}
+		}
+	} else {
+		memset(ab->baseaddr, 0, ab->allocated_size);
+	}
+}
+
 void memory_clear (void)
 {
 	mem_hardreset = 0;
 	if (savestate_state == STATE_RESTORE)
 		return;
 	
-	// Set a default pattern for uninitialized memory after hard reset.
-	//   0:even 1:odd on columns for even rows,
-	//   1:even 0:odd on columns for odd rows.
 	if (chipmem_bank.baseaddr) {
-		if (aga_mode) {
-			uae_u32 fillval = 0;
-			for (int fillbank = 0; fillbank < chipmem_bank.allocated_size / 2048; fillbank++) {
-				for (int fillrow = fillbank * 2048; fillrow < (fillbank + 1) * 2048; fillrow += 4) {
-					// Chip emulated: NEC PD42S4260 (A1200 R1).  Spec says 512x512x16.
-					*((uae_u32*)(chipmem_bank.baseaddr + fillrow)) = fillval;
-					fillval = ~fillval;
-				}
-				fillval = ~fillval;
-			}
-		} else {
-			uae_u16 fillval = 0;
-			for (int fillbank = 0; fillbank < chipmem_bank.allocated_size / 1024; fillbank++) {
-				for (int fillrow = fillbank * 1024; fillrow < (fillbank + 1) * 1024; fillrow += 2) {
-					// Chip emulated: Generic 4256.  Should apply to both 512x512x1 and 512x512x4.
-					*((uae_u16*)(chipmem_bank.baseaddr + fillrow)) = fillval;
-					fillval = ~fillval;
-				}
-				fillval = ~fillval;
-			}
-		}
+		fillpattern(&chipmem_bank);
 	}
 
 	if (bogomem_bank.baseaddr) {
-		// NOTE: At reset, WinUAE maps "slow" memory to fast before later re-assigning to chip.
-		if (ce_banktype[0xC0] == CE_MEMBANK_FAST32) {
-			uae_u32 fillval = 0;
-			for (int fillbank = 0; fillbank < bogomem_bank.allocated_size / 2048; fillbank++) {
-				for (int fillrow = fillbank * 2048; fillrow < (fillbank + 1) * 2048; fillrow += 4) {
-					// Chip emulated: 512x512x16 (A1200 R1)
-					*((uae_u32*)(bogomem_bank.baseaddr + fillrow)) = fillval;
-					fillval = ~fillval;
-				}
-				fillval = ~fillval;
-			}
-		} else if (ce_banktype[0xC0] == CE_MEMBANK_FAST16) {
-			uae_u16 fillval = 0;
-			for (int fillbank = 0; fillbank < bogomem_bank.allocated_size / 1024; fillbank++) {
-				for (int fillrow = fillbank * 1024; fillrow < (fillbank + 1) * 1024; fillrow += 2) {
-					// Chip emulated: Generic 4256
-					*((uae_u16*)(bogomem_bank.baseaddr + fillrow)) = fillval;
-					fillval = ~fillval;
-				}
-				fillval = ~fillval;
-			}
-		} else {
-			memset(bogomem_bank.baseaddr, 0, bogomem_bank.allocated_size);
-		}
+		// TODO: slow RAM can have 16x chips even if Agnus is ECS.
+		fillpattern(&bogomem_bank);
 	}
 	
 	if (mem25bit_bank.baseaddr)
