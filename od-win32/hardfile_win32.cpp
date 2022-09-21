@@ -424,7 +424,7 @@ static int safetycheck (HANDLE h, const TCHAR *name, uae_u64 offset, uae_u8 *buf
 
 static void trim (TCHAR *s)
 {
-	while(_tcslen(s) > 0 && s[_tcslen(s) - 1] == ' ')
+	while(s[0] != '\0' && s[_tcslen(s) - 1] == ' ')
 		s[_tcslen(s) - 1] = 0;
 }
 
@@ -2734,7 +2734,7 @@ static int getstorageproperty (PUCHAR outBuf, int returnedLength, struct uae_dri
 		_tcscpy (udi->device_name, udi->device_path);
 	}
 	udi->removablemedia = devDesc->RemovableMedia;
-	while (_tcslen(udi->device_name) > 0 && udi->device_name[_tcslen(udi->device_name) - 1] == ':')
+	while (udi->device_name[0] != '\0' && udi->device_name[_tcslen(udi->device_name) - 1] == ':')
 		udi->device_name[_tcslen(udi->device_name) - 1] = 0;
 	for (int i = 0; i < _tcslen(udi->device_name); i++) {
 		if (udi->device_name[i] == ':')
