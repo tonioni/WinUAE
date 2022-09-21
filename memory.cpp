@@ -2060,6 +2060,7 @@ static void add_shmmaps (uae_u32 start, addrbank *what)
 		write_log (_T("NATMEM: Failure to map existing at %08x (%p)\n"), start, base);
 		dumplist ();
 		nocanbang ();
+		xfree(y);
 		return;
 	}
 	y->next = shm_start;

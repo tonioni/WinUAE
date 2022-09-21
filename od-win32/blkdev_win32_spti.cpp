@@ -870,8 +870,10 @@ static void scanscsi (void)
 			OPEN_EXISTING, // No special create flags
 			0, // No special attributes
 			NULL);
-		if (h == INVALID_HANDLE_VALUE)
+		if (h == INVALID_HANDLE_VALUE) {
+			xfree(AdapterInfo);
 			return;
+		}
 
 		if(!DeviceIoControl (h,
 			IOCTL_SCSI_RESCAN_BUS,

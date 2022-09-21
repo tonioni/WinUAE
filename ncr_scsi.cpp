@@ -972,8 +972,10 @@ bool ncr710_a4091_autoconfig_init (struct autoconfig_info *aci)
 	}
 
 	struct ncr_state *ncr = getscsi(aci->rc);
-	if (!ncr)
+	if (!ncr) {
+		xfree(rom);
 		return false;
+	}
 
 	xfree(ncr->rom);
 	ncr->rom = rom;

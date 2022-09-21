@@ -113,6 +113,7 @@ void Depack_AmBk ( void )
   if ( j > 1 )
   {
     printf ( "\n!!! unsupported feature in depack_AmBk() - send this file to asle@free.fr !\n" );
+    free(Whatever);
     return;
   }
   j = ((in_data[Where+2]*256*256*256)+(in_data[Where+3]*256*256)+(in_data[Where+4]*256)+in_data[Where+5]);

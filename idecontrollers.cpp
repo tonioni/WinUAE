@@ -2308,6 +2308,7 @@ bool trifecta_init(struct autoconfig_info *aci)
 	ide_add_reset();
 	if (!aci->doinit) {
 		aci->autoconfigp = aci->ert->autoconfig;
+		xfree(rom);
 		return true;
 	}
 

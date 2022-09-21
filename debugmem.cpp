@@ -1574,6 +1574,9 @@ static uae_u8 *loadhunkfile(uae_u8 *file, int filelen, uae_u32 seglist, int segm
 					int relochunk = gl(p);
 					p += 4;
 					if (relochunk > last) {
+						xfree(hunkoffsets);
+						xfree(hunklens);
+						xfree(out);
 						return 0;
 					}
 					uaecptr hunkptr = hunkoffsets[relochunk] + relocate_base;
@@ -2983,9 +2986,13 @@ static uae_u8 *loadelffile(uae_u8 *file, int filelen, uae_u8 *dbgfile, int debug
 #endif
 
 end:
-	xfree(lelfs);
+	
 	if (startp && startseg >= 0)
-		*startp = lelfs[startseg].dma->start;
+		if (lelfs)
+			*startp = lelfs[startseg].dma->start;
+
+	xfree(lelfs);
+
 	if (parentidp)
 		*parentidp = parentid;
 	return outp;
