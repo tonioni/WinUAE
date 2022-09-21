@@ -1971,8 +1971,6 @@ static void toccata_put(struct snddev_data *data, uaecptr addr, uae_u8 v)
 			data->fifo_write_index = 0;
 			data->fifo_read_index = 0;
 			data->data_in_fifo = 0;
-			data->snddev_status = 0;
-			data->snddev_irq = 0;
 			data->fifo_half = 0;
 		} else if (addr < 0x90 || addr >= 0xc0) {
 			hit = false;
@@ -1987,8 +1985,6 @@ static void toccata_put(struct snddev_data *data, uaecptr addr, uae_u8 v)
 				data->fifo_write_index = 0;
 				data->fifo_read_index = 0;
 				data->data_in_fifo = 0;
-				data->snddev_status = 0;
-				data->snddev_irq = 0;
 				data->fifo_half = 0;
 			} else if ((addr & 0x00ff) == 0x19) { // ?
 				;

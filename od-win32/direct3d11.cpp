@@ -3543,7 +3543,7 @@ static int xxD3D11_init2(HWND ahwnd, int monid, int w_w, int w_h, int t_w, int t
 			write_log(_T("IDXGIOutput QueryInterface %08x\n"), result);
 			return 0;
 		}
-		adapterOutputx = adapterOutput1;
+		adapterOutputx = std::move(adapterOutput1);
 	} else {
 		DXGI_OUTPUT_DESC1 desc1;
 		result = adapterOutput6->GetDesc1(&desc1);

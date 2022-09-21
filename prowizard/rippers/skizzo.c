@@ -60,7 +60,6 @@ void Depack_Skizzo ( void )
 {
   Uchar *Whatever;
   long i=0,k=0;
-  Ushort Pattern_Addresses_Table[128];
   short BODYaddy, SAMPaddy, nbr_sample, siz_patlist, nbr_patstored;
   long Total_Sample_Size=0;
   long Where = PW_Start_Address;

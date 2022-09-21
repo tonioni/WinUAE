@@ -176,7 +176,6 @@ void mouse_ps2_write(uint8_t val, void *p)
 void mouse_ps2_poll(int x, int y, int z, int b, void *p)
 {
         mouse_ps2_t *mouse = (mouse_ps2_t *)p;
-        uint8_t packet[3] = {0x08, 0, 0};
 
         if (!x && !y && !z && b == mouse->b)
                 return;        
@@ -190,6 +189,7 @@ void mouse_ps2_poll(int x, int y, int z, int b, void *p)
         if (mouse->mode == MOUSE_STREAM && (mouse->flags & MOUSE_ENABLE) &&
             ((mouse_queue_end - mouse_queue_start) & 0xf) < 13)
         {
+                uint8_t packet[3] = { 0x08, 0, 0 };
                 mouse->b = b;
                // pclog("Send packet : %i %i\n", ps2_x, ps2_y);
                 if (mouse->x > 255)

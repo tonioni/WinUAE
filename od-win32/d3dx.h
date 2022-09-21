@@ -12,9 +12,7 @@ class D3DXVECTOR2
 {
 public:
 	float x, y;
-	D3DXVECTOR2()
-	{
-	}
+	D3DXVECTOR2() = default;
 	D3DXVECTOR2(float x, float y)
 	{
 		this->x = x;
@@ -26,9 +24,7 @@ class D3DXVECTOR3
 {
 public:
 	float x, y, z;
-	D3DXVECTOR3()
-	{
-	}
+	D3DXVECTOR3() = default;
 	D3DXVECTOR3(float x, float y, float z)
 	{
 		this->x = x;
@@ -45,9 +41,7 @@ class D3DXVECTOR4
 {
 public:
 	float x, y, z, w;
-	D3DXVECTOR4()
-	{
-	}
+	D3DXVECTOR4() = default;
 	D3DXVECTOR4(float x, float y, float z, float w)
 	{
 		this->x = x;
