@@ -42,7 +42,7 @@ void pic_reset()
         pic.read=1;
         pic2.icw=0;
         pic2.mask=0xFF;
-        pic.mask2=0;
+        pic2.mask2=0;
         pic2.pend=pic2.ins=0;
         pic_intpending = 0;
         pic.level_sensitive = 0;

@@ -2665,7 +2665,7 @@ static void REGPARAM2 gfxboard_wput_mem_autoconfig (uaecptr addr, uae_u32 b)
 				gb->configured_regs = gb->gfxmem_bank->start >> 16;
 				gb->pcem_vram_mask = 0x3fffff;
 
-			} if (boardnum == GFXBOARD_ID_CV643D_Z3) {
+			} else if (boardnum == GFXBOARD_ID_CV643D_Z3) {
 
 				map_banks_z3(&gb->gfxboard_bank_vram_pcem, (start + 0x4000000) >> 16, gb->gfxboard_bank_vram_pcem.allocated_size >> 16);
 				map_banks_z3(&gb->gfxboard_bank_vram_pcem, (start + 0x4400000) >> 16, gb->gfxboard_bank_vram_pcem.allocated_size >> 16);
