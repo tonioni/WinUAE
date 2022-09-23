@@ -289,7 +289,7 @@ extern void record_dma_write(uae_u16 reg, uae_u32 v, uae_u32 addr, int hpos, int
 extern void record_dma_read_value(uae_u32 v);
 extern void record_dma_read_value_wide(uae_u64 v, bool quad);
 extern void record_dma_replace(int hpos, int vpos, int type, int extra);
-extern void record_dma_reset(void);
+extern void record_dma_reset(int);
 extern void record_dma_event(uae_u32 evt, int hpos, int vpos);
 extern void record_dma_event_data(uae_u32 evt, int hpos, int vpos, uae_u32 data);
 extern void record_dma_clear(int hpos, int vpos);

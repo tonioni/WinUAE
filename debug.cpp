@@ -1310,13 +1310,29 @@ static int nr_cop_records[2], curr_cop_set, selected_cop_set;
 static struct dma_rec *dma_record[2];
 static int dma_record_toggle, dma_record_frame[2];
 
-void record_dma_reset (void)
+static void dma_record_init(void)
+{
+	if (!dma_record[0]) {
+		dma_record[0] = xmalloc(struct dma_rec, NR_DMA_REC_HPOS * NR_DMA_REC_VPOS);
+		dma_record[1] = xmalloc(struct dma_rec, NR_DMA_REC_HPOS * NR_DMA_REC_VPOS);
+		record_dma_reset(0);
+		dma_record_toggle = 0;
+		dma_record_frame[0] = -1;
+		dma_record_frame[1] = -1;
+	}
+}
+
+void record_dma_reset(int start)
 {
 	int v, h;
 	struct dma_rec *dr, *dr2;
 
-	if (!dma_record[0])
+	if (start && !dma_record[0]) {
+		dma_record_init();
+	}
+	if (!dma_record[0]) {
 		return;
+	}
 	dma_record_toggle ^= 1;
 	dr = dma_record[dma_record_toggle];
 	for (v = 0; v < NR_DMA_REC_VPOS; v++) {
@@ -1327,6 +1343,9 @@ void record_dma_reset (void)
 			dr2->cf_reg = 0xffff;
 			dr2->addr = 0xffffffff;
 		}
+	}
+	if (start && !debug_dma) {
+		debug_dma = start;
 	}
 }
 
@@ -2007,12 +2026,7 @@ void record_dma_write(uae_u16 reg, uae_u32 dat, uae_u32 addr, int hpos, int vpos
 	struct dma_rec *dr;
 
 	if (!dma_record[0]) {
-		dma_record[0] = xmalloc(struct dma_rec, NR_DMA_REC_HPOS * NR_DMA_REC_VPOS);
-		dma_record[1] = xmalloc(struct dma_rec, NR_DMA_REC_HPOS * NR_DMA_REC_VPOS);
-		dma_record_toggle = 0;
-		record_dma_reset();
-		dma_record_frame[0] = -1;
-		dma_record_frame[1] = -1;
+		dma_record_init();
 	}
 
 	if (hpos >= NR_DMA_REC_HPOS || vpos >= NR_DMA_REC_VPOS)
@@ -2084,18 +2098,6 @@ void record_dma_clear(int hpos, int vpos)
 	struct dma_rec *dr = &dma_record[dma_record_toggle][vpos * NR_DMA_REC_HPOS + hpos];
 	dr->reg = 0xffff;
 	dr->cf_reg = 0xffff;
-}
-
-static void dma_record_init(void)
-{
-	if (!dma_record[0]) {
-		dma_record[0] = xmalloc(struct dma_rec, NR_DMA_REC_HPOS * NR_DMA_REC_VPOS);
-		dma_record[1] = xmalloc(struct dma_rec, NR_DMA_REC_HPOS * NR_DMA_REC_VPOS);
-		dma_record_toggle = 0;
-		record_dma_reset();
-		dma_record_frame[0] = -1;
-		dma_record_frame[1] = -1;
-	}
 }
 
 void record_cia_access(int r, int mask, uae_u16 value, bool rw, int hpos, int vpos)
@@ -6531,7 +6533,7 @@ static bool debug_line (TCHAR *input)
 				} else if (*inptr == 'o') {
 					if (debug_dma) {
 						console_out_f (_T("DMA debugger disabled\n"), debug_dma);
-						record_dma_reset();
+						record_dma_reset(0);
 						reset_drawing();
 						debug_dma = 0;
 					}
@@ -6586,7 +6588,7 @@ static bool debug_line (TCHAR *input)
 							decode_dma_record (v2, v1, cmd == 'v', nextcmd == 'l');
 						} else {
 							if (debug_dma) {
-								record_dma_reset();
+								record_dma_reset(0);
 								reset_drawing();
 							}
 							debug_dma = v1 < 0 ? -v1 : 1;

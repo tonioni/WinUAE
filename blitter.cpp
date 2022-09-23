@@ -2170,8 +2170,8 @@ void restore_blitter_start(void)
 
 void restore_blitter_finish (void)
 {
-	record_dma_reset();
-	record_dma_reset();
+	record_dma_reset(0);
+	record_dma_reset(0);
 	blitter_cycle_exact = currprefs.blitter_cycle_exact;
 	immediate_blits = currprefs.immediate_blits;
 	if (blt_statefile_type == 0) {

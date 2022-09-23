@@ -11217,7 +11217,7 @@ static void vsync_handler_post(void)
 		record_copper_reset();
 	}
 	if (debug_dma) {
-		record_dma_reset();
+		record_dma_reset(0);
 	}
 #endif
 
@@ -13391,6 +13391,10 @@ void custom_reset(bool hardreset, bool keyboardreset)
 	// must be last
 #ifdef AUTOCONFIG
 	expamem_reset(hardreset);
+#endif
+
+#if 0
+	record_dma_reset(-1);
 #endif
 
 }

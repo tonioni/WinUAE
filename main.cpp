@@ -763,8 +763,8 @@ static int default_config;
 void uae_reset (int hardreset, int keyboardreset)
 {
 	if (debug_dma) {
-		record_dma_reset ();
-		record_dma_reset ();
+		record_dma_reset(0);
+		record_dma_reset(0);
 	}
 	currprefs.quitstatefile[0] = changed_prefs.quitstatefile[0] = 0;
 

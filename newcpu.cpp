@@ -6331,8 +6331,8 @@ void m68k_go (int may_quit)
 			/* We may have been restoring state, but we're done now.  */
 			if (isrestore ()) {
 				if (debug_dma) {
-					record_dma_reset ();
-					record_dma_reset ();
+					record_dma_reset(0);
+					record_dma_reset(0);
 				}
 				restored = savestate_restore_finish ();
 				memory_map_dump ();
