@@ -360,6 +360,8 @@ static const TCHAR *obsolete[] = {
 
 	_T("gfx_hdr"),
 
+	_T("bogomem_fast"),
+
 	NULL
 };
 
@@ -476,7 +478,7 @@ TCHAR *cfgfile_option_get(const TCHAR *s, const TCHAR *option)
 	return cfgfile_option_find_it(s, option, true);
 }
 
-bool cfgfile_option_get_bool(const TCHAR* s, const TCHAR* option)
+bool cfgfile_option_get_bool(const TCHAR *s, const TCHAR *option)
 {
 	TCHAR *d = cfgfile_option_find_it(s, option, true);
 	bool ret = d && (!_tcsicmp(d, _T("true")) || !_tcsicmp(d, _T("1")));
@@ -484,6 +486,13 @@ bool cfgfile_option_get_bool(const TCHAR* s, const TCHAR* option)
 	return ret;
 }
 
+bool cfgfile_option_get_nbool(const TCHAR *s, const TCHAR *option)
+{
+	TCHAR *d = cfgfile_option_find_it(s, option, true);
+	bool ret = d && (!_tcsicmp(d, _T("false")) || !_tcsicmp(d, _T("0")));
+	xfree(d);
+	return ret;
+}
 
 static void trimwsa (char *s)
 {
@@ -1668,8 +1677,13 @@ static bool cfgfile_readramboard(const TCHAR *option, const TCHAR *value, const 
 			_stprintf(tmp1, _T("%s_size"), name);
 		if (!_tcsicmp(option, tmp1)) {
 			v = 0;
-			if (!_tcsicmp(tmp1, _T("chipmem_size")))
+			if (!_tcsicmp(tmp1, _T("chipmem_size"))) {
+				rb->chipramtiming = true;
 				return false;
+			}
+			if (!_tcsicmp(tmp1, _T("bogomem_size"))) {
+				rb->chipramtiming = true;
+			}
 			cfgfile_intval(option, value, tmp1, &v, 0x100000);
 			rb->size = v;
 			return true;
@@ -1709,6 +1723,10 @@ static bool cfgfile_readramboard(const TCHAR *option, const TCHAR *value, const 
 				rb->nodma = true;
 			if (cfgfile_option_get_bool(value, _T("force16bit")))
 				rb->force16bit = true;
+			if (cfgfile_option_get_bool(value, _T("slow")))
+				rb->chipramtiming = true;
+			else if (cfgfile_option_get_nbool(value, _T("slow")))
+				rb->chipramtiming = false;
 			s = cfgfile_option_get(value, _T("data"));
 			if (s && _tcslen(s) >= 3 * 16 - 1) {
 				rb->autoconfig_inuse = true;
@@ -1836,6 +1854,21 @@ static void cfgfile_writeramboard(struct uae_prefs *prefs, struct zfile *f, cons
 			*p++ = ',';
 		_tcscpy(p, _T("force16bit=true"));
 		p += _tcslen(p);
+	}
+	if (!_tcsicmp(tmp1, _T("chipmem_options")) || !_tcsicmp(tmp1, _T("bogomem_options"))) {
+		if (!rb->chipramtiming) {
+			if (tmp2[0])
+				*p++ = ',';
+			_tcscpy(p, _T("slow=false"));
+			p += _tcslen(p);
+		}
+	} else {
+		if (rb->chipramtiming) {
+			if (tmp2[0])
+				*p++ = ',';
+			_tcscpy(p, _T("slow=true"));
+			p += _tcslen(p);
+		}
 	}
 	if (rb->autoconfig_inuse) {
 		uae_u8 *ac = rb->autoconfig;
@@ -2539,7 +2572,6 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	cfgfile_dwrite(f, _T("fatgary"), _T("%d"), p->cs_fatgaryrev);
 	cfgfile_dwrite(f, _T("ramsey"), _T("%d"), p->cs_ramseyrev);
 	cfgfile_dwrite_bool(f, _T("pcmcia"), p->cs_pcmcia);
-	cfgfile_dwrite_bool(f, _T("bogomem_fast"), p->cs_slowmemisfast);
 	cfgfile_dwrite_bool(f, _T("resetwarning"), p->cs_resetwarning);
 	cfgfile_dwrite_bool(f, _T("denise_noehb"), p->cs_denisenoehb);
 	cfgfile_dwrite_bool(f, _T("agnus_bltbusybug"), p->cs_agnusbltbusybug);
@@ -5562,7 +5594,6 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 		|| cfgfile_yesno(option, value, _T("cdtvram"), &p->cs_cdtvram)
 		|| cfgfile_yesno(option, value, _T("a1000ram"), &p->cs_a1000ram)
 		|| cfgfile_yesno(option, value, _T("cia_overlay"), &p->cs_ciaoverlay)
-		|| cfgfile_yesno(option, value, _T("bogomem_fast"), &p->cs_slowmemisfast)
 		|| cfgfile_yesno(option, value, _T("ksmirror_e0"), &p->cs_ksmirror_e0)
 		|| cfgfile_yesno(option, value, _T("ksmirror_a8"), &p->cs_ksmirror_a8)
 		|| cfgfile_yesno(option, value, _T("resetwarning"), &p->cs_resetwarning)
@@ -5691,7 +5722,7 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 		|| cfgfile_yesno(option, value, _T("memory_pattern"), &p->cs_memorypatternfill)
 		|| cfgfile_strval(option, value, _T("ciaa_type"), &p->cs_ciatype[0], ciatype, 0)
 		|| cfgfile_strval(option, value, _T("ciab_type"), &p->cs_ciatype[1], ciatype, 0)
-		|| cfgfile_strboolval (option, value, _T("comp_flushmode"), &p->comp_hardflush, flushmode, 0)
+		|| cfgfile_strboolval(option, value, _T("comp_flushmode"), &p->comp_hardflush, flushmode, 0)
 		|| cfgfile_strval(option, value, _T("eclocksync"), &p->cs_eclocksync, eclocksync, 0))
 		return 1;
 
@@ -8073,7 +8104,6 @@ void default_prefs (struct uae_prefs *p, bool reset, int type)
 	p->cs_ciaoverlay = 1;
 	p->cs_ciaatod = 0;
 	p->cs_df0idhw = 1;
-	p->cs_slowmemisfast = 0;
 	p->cs_resetwarning = 1;
 	p->cs_ciatodbug = false;
 	p->cs_unmapped_space = 0;
@@ -8164,7 +8194,9 @@ void default_prefs (struct uae_prefs *p, bool reset, int type)
 
 	p->z3autoconfig_start = 0x10000000;
 	p->chipmem.size = 0x00080000;
+	p->chipmem.chipramtiming = true;
 	p->bogomem.size = 0x00080000;
+	p->bogomem.chipramtiming = true;
 	for (int i = 0; i < MAX_RTG_BOARDS; i++) {
 		p->rtgboards[i].rtg_index = i;
 	}
@@ -8332,7 +8364,9 @@ static void buildin_default_prefs (struct uae_prefs *p)
 	p->cpuboard_subtype = 0;
 
 	p->chipmem.size = 0x00080000;
+	p->chipmem.chipramtiming = true;
 	p->bogomem.size = 0x00080000;
+	p->bogomem.chipramtiming = true;
 	p->z3chipmem.size = 0;
 	for (int i = 0; i < MAX_RAM_BOARDS; i++) {
 		memset(p->fastmem, 0, sizeof(struct ramboard));
@@ -8587,7 +8621,7 @@ static void bip_velvet(struct uae_prefs *p, int config, int compa, int romcheck)
 	set_68000_compa (p, compa);
 	p->floppyslots[1].dfxtype = DRV_NONE;
 	p->cs_compatible = CP_VELVET;
-	p->cs_slowmemisfast = 1;
+	p->bogomem.chipramtiming = false;
 	p->cs_dipagnus = 1;
 	p->cs_agnusbltbusybug = 1;
 	built_in_chipset_prefs (p);
@@ -8608,7 +8642,7 @@ static int bip_a1000 (struct uae_prefs *p, int config, int compa, int romcheck)
 	set_68000_compa (p, compa);
 	p->floppyslots[1].dfxtype = DRV_NONE;
 	p->cs_compatible = CP_A1000;
-	p->cs_slowmemisfast = 1;
+	p->bogomem.chipramtiming = false;
 	p->cs_dipagnus = 1;
 	p->cs_agnusbltbusybug = 1;
 	built_in_chipset_prefs (p);
@@ -9151,7 +9185,6 @@ int built_in_chipset_prefs (struct uae_prefs *p)
 	p->cs_rtc_adjust_mode = p->cs_rtc_adjust = 0;
 	p->cs_df0idhw = 1;
 	p->cs_resetwarning = 1;
-	p->cs_slowmemisfast = 0;
 	p->cs_ciatodbug = false;
 	p->cs_z3autoconfig = false;
 	p->cs_bytecustomwritebug = false;

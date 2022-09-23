@@ -2434,13 +2434,18 @@ static void setmemorywidth(struct ramboard *mb, addrbank *ab)
 {
 	if (!ab || !ab->allocated_size)
 		return;
-	if (!mb->force16bit)
-		return;
-	for (int i = (ab->start >> 16); i < ((ab->start + ab->allocated_size) >> 16); i++) {
-		if (ce_banktype[i] == CE_MEMBANK_FAST32)
-			ce_banktype[i] = CE_MEMBANK_FAST16;
-		if (ce_banktype[i] == CE_MEMBANK_CHIP32)
-			ce_banktype[i] = CE_MEMBANK_CHIP16;
+	if (mb->force16bit) {
+		for (int i = (ab->start >> 16); i < ((ab->start + ab->allocated_size) >> 16); i++) {
+			if (ce_banktype[i] == CE_MEMBANK_FAST32)
+				ce_banktype[i] = CE_MEMBANK_FAST16;
+			if (ce_banktype[i] == CE_MEMBANK_CHIP32)
+				ce_banktype[i] = CE_MEMBANK_CHIP16;
+		}
+	}
+	if (mb->chipramtiming) {
+		for (int i = (ab->start >> 16); i < ((ab->start + ab->allocated_size) >> 16); i++) {
+			ce_banktype[i] = ce_banktype[0];
+		}
 	}
 }
 
@@ -2459,12 +2464,6 @@ static void fill_ce_banks (void)
 		for (i = 0; i < (0x200000 >> 16); i++) {
 			ce_banktype[i] = (currprefs.cs_mbdmac || (currprefs.chipset_mask & CSMASK_AGA)) ? CE_MEMBANK_CHIP32 : CE_MEMBANK_CHIP16;
 		}
-	}
-	if (!currprefs.cs_slowmemisfast) {
-		for (i = (0xc00000 >> 16); i < (0xe00000 >> 16); i++)
-			ce_banktype[i] = ce_banktype[0];
-		for (i = (bogomem_bank.start >> 16); i < ((bogomem_bank.start + bogomem_bank.allocated_size) >> 16); i++)
-			ce_banktype[i] = ce_banktype[0];
 	}
 	for (i = (0xd00000 >> 16); i < (0xe00000 >> 16); i++) {
 		ce_banktype[i] = CE_MEMBANK_CHIP16;

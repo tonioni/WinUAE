@@ -9320,7 +9320,6 @@ static void values_to_chipsetdlg2 (HWND hDlg)
 	CheckDlgButton(hDlg, IDC_CS_DMAC, workprefs.cs_mbdmac & 1);
 	CheckDlgButton(hDlg, IDC_CS_DMAC2, workprefs.cs_mbdmac & 2);
 	CheckDlgButton(hDlg, IDC_CS_PCMCIA, workprefs.cs_pcmcia);
-	CheckDlgButton(hDlg, IDC_CS_SLOWISFAST, workprefs.cs_slowmemisfast);
 	CheckDlgButton(hDlg, IDC_CS_CIATODBUG, workprefs.cs_ciatodbug);
 	CheckDlgButton(hDlg, IDC_CS_Z3AUTOCONFIG, workprefs.cs_z3autoconfig);
 	CheckDlgButton(hDlg, IDC_CS_IDE1, workprefs.cs_ide > 0 && (workprefs.cs_ide & 1));
@@ -9412,7 +9411,6 @@ static void values_from_chipsetdlg2 (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 	workprefs.cs_mbdmac = ischecked (hDlg, IDC_CS_DMAC) ? 1 : 0;
 	workprefs.cs_mbdmac |= ischecked (hDlg, IDC_CS_DMAC2) ? 2 : 0;
 	workprefs.cs_pcmcia = ischecked (hDlg, IDC_CS_PCMCIA) ? 1 : 0;
-	workprefs.cs_slowmemisfast = ischecked (hDlg, IDC_CS_SLOWISFAST) ? 1 : 0;
 	workprefs.cs_z3autoconfig = ischecked (hDlg, IDC_CS_Z3AUTOCONFIG) ? 1 : 0;
 	workprefs.cs_ide = ischecked (hDlg, IDC_CS_IDE1) ? 1 : (ischecked (hDlg, IDC_CS_IDE2) ? 2 : 0);
 	workprefs.cs_ciaatod = ischecked (hDlg, IDC_CS_CIAA_TOD1) ? 0
@@ -9490,7 +9488,6 @@ static void enable_for_chipsetdlg2 (HWND hDlg)
 	ew(hDlg, IDC_CS_DMAC, e);
 	ew(hDlg, IDC_CS_DMAC2, e);
 	ew(hDlg, IDC_CS_PCMCIA, e);
-	ew(hDlg, IDC_CS_SLOWISFAST, e);
 	ew(hDlg, IDC_CS_CD32CD, e);
 	ew(hDlg, IDC_CS_CD32NVRAM, e);
 	ew(hDlg, IDC_CS_CD32C2P, e);
@@ -9613,6 +9610,7 @@ static void enable_for_memorydlg (HWND hDlg)
 	ew(hDlg, IDC_FASTMEMNOAUTOCONFIG, isfast);
 	ew(hDlg, IDC_FASTMEMDMA, true);
 	ew(hDlg, IDC_FASTMEMFORCE16, true);
+	ew(hDlg, IDC_FASTMEMSLOW, fastram_select > 0);
 	ew(hDlg, IDC_MEMORYRAM, true);
 	ew(hDlg, IDC_MEMORYMEM, true);
 	ew(hDlg, IDC_RAM_ADDRESS, manual && size);
@@ -9801,6 +9799,7 @@ static void setfastram_selectmenu(HWND hDlg, int mode)
 	setchecked(hDlg, IDC_FASTMEMNOAUTOCONFIG, rb && rb->manual_config);
 	setchecked(hDlg, IDC_FASTMEMDMA, rb && rb->nodma == 0);
 	setchecked(hDlg, IDC_FASTMEMFORCE16, rb && rb->force16bit != 0);
+	setchecked(hDlg, IDC_FASTMEMSLOW, rb && (rb->chipramtiming != 0 || rb == &workprefs.chipmem));
 	if (rb) {
 		if (rb->manual_config) {
 			if (rb->end_address <= rb->start_address || rb->start_address + rb->size < rb->end_address)
@@ -11919,21 +11918,28 @@ static INT_PTR CALLBACK MemoryDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARA
 			{
 			case IDC_FASTMEMDMA:
 				if (fastram_select_ramboard) {
-					struct ramboard* rb = fastram_select_ramboard;
+					struct ramboard *rb = fastram_select_ramboard;
 					rb->nodma = ischecked(hDlg, IDC_FASTMEMDMA) == 0;
 					setfastram_selectmenu(hDlg, 0);
 				}
 				break;
 			case IDC_FASTMEMFORCE16:
 				if (fastram_select_ramboard) {
-					struct ramboard* rb = fastram_select_ramboard;
+					struct ramboard *rb = fastram_select_ramboard;
 					rb->force16bit = ischecked(hDlg, IDC_FASTMEMFORCE16) != 0;
+					setfastram_selectmenu(hDlg, 0);
+				}
+				break;
+			case IDC_FASTMEMSLOW:
+				if (fastram_select_ramboard) {
+					struct ramboard *rb = fastram_select_ramboard;
+					rb->chipramtiming = ischecked(hDlg, IDC_FASTMEMSLOW) != 0;
 					setfastram_selectmenu(hDlg, 0);
 				}
 				break;
 			case IDC_FASTMEMAUTOCONFIGUSE:
 				if (fastram_select_ramboard) {
-					struct ramboard* rb = fastram_select_ramboard;
+					struct ramboard *rb = fastram_select_ramboard;
 					rb->autoconfig_inuse = ischecked(hDlg, IDC_FASTMEMAUTOCONFIGUSE);
 					rb->manual_config = false;
 					setfastram_selectmenu(hDlg, 0);

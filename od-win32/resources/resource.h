@@ -1119,7 +1119,6 @@
 #define IDC_CS_DENISEREV                1738
 #define IDC_DBG_OUTPUT1                 1739
 #define IDC_CS_PCMCIA                   1739
-#define IDC_CS_SLOWISFAST               1740
 #define IDC_DBG_HELP                    1740
 #define IDC_DBG_INPUT                   1741
 #define IDC_CS_KSMIRROR_A8              1741
@@ -1251,6 +1250,7 @@
 #define IDC_SAMPLER_STEREO              1812
 #define IDC_FASTMEMFORCE16              1812
 #define IDC_LISTDIALOG_LIST             1813
+#define IDC_FASTMEMSLOW                 1813
 #define IDC_LOGPATH                     1814
 #define IDC_MIDIROUTER                  1815
 #define IDC_CDLIST                      1815

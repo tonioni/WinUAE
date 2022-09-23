@@ -14538,7 +14538,6 @@ uae_u8 *restore_custom_extra(uae_u8 *src)
 	RL; // currprefs.cs_rtc_adjust = changed_prefs.cs_rtc_adjust = RL;
 
 	currprefs.cs_a1000ram = changed_prefs.cs_a1000ram = RBB;
-	currprefs.cs_slowmemisfast = changed_prefs.cs_slowmemisfast = RBB;
 
 	//currprefs.a2091rom.enabled = changed_prefs.a2091rom.enabled = RBB;
 	//currprefs.a4091rom.enabled = changed_prefs.a4091rom.enabled = RBB;
@@ -14602,7 +14601,6 @@ uae_u8 *save_custom_extra(size_t *len, uae_u8 *dstptr)
 	SL(currprefs.cs_rtc_adjust);
 
 	SB(currprefs.cs_a1000ram ? 1 : 0);
-	SB(currprefs.cs_slowmemisfast ? 1 : 0);
 
 	SB(is_board_enabled(&currprefs, ROMTYPE_A2091, 0) ? 1 : 0);
 	SB(is_board_enabled(&currprefs, ROMTYPE_A4091, 0) ? 1 : 0);
@@ -14773,7 +14771,6 @@ void check_prefs_changed_custom(void)
 	currprefs.cs_deniserev = changed_prefs.cs_deniserev;
 	currprefs.cs_mbdmac = changed_prefs.cs_mbdmac;
 	currprefs.cs_df0idhw = changed_prefs.cs_df0idhw;
-	currprefs.cs_slowmemisfast = changed_prefs.cs_slowmemisfast;
 	currprefs.cs_denisenoehb = changed_prefs.cs_denisenoehb;
 	currprefs.cs_z3autoconfig = changed_prefs.cs_z3autoconfig;
 	currprefs.cs_bytecustomwritebug = changed_prefs.cs_bytecustomwritebug;

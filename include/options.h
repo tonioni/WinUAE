@@ -450,6 +450,7 @@ struct ramboard
 	bool readonly;
 	bool nodma;
 	bool force16bit;
+	bool chipramtiming;
 	struct boardloadfile lf;
 };
 struct expansion_params
@@ -676,7 +677,6 @@ struct uae_prefs {
 	int cs_mbdmac;
 	bool cs_cdtvcr;
 	bool cs_df0idhw;
-	bool cs_slowmemisfast;
 	bool cs_resetwarning;
 	bool cs_denisenoehb;
 	bool cs_dipagnus;
