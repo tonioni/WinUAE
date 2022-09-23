@@ -17,7 +17,7 @@ struct m68k_exception {
 #define SAVE_EXCEPTION
 #define RESTORE_EXCEPTION
 #define TRY(var) try
-#define CATCH(var) catch([[maybe_unused]] m68k_exception var)
+#define CATCH(var) catch([[maybe_unused]] m68k_exception &var)
 #define THROW(n) throw m68k_exception(n)
 #define THROW_AGAIN(var) throw
 #define ENDTRY

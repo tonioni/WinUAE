@@ -203,7 +203,7 @@ static int CheckLineLimit(HWND hWnd, const TCHAR *out)
 
 	tmp = (TCHAR *)out;
 	lines_have = SendMessage(hWnd, EM_GETLINECOUNT, 0, 0);
-	while (_tcslen(tmp) > 0 && (p = _tcschr(tmp, '\n'))) {
+	while (tmp[0] != '\0' && (p = _tcschr(tmp, '\n'))) {
 		lines_new++;
 		tmp = p + 1;
 	}
@@ -245,7 +245,7 @@ void WriteOutput(const TCHAR *out, int len)
 			buf = xcalloc(TCHAR, pos + 2);
 			_tcsncpy(buf, tmp, pos - 1);
 			_tcscat(buf, linebreak);
-		} else if (_tcslen(tmp) == 0) {
+		} else if (tmp[0] == '\0') {
 			leave = 1;
 		} else {
 			count = SendMessage(hOutput, EM_GETLINECOUNT, 0, 0);
@@ -1013,7 +1013,7 @@ static void ListboxEndEdit(HWND hwnd, BOOL acceptinput)
 	GetWindowText(hedit, txt, MAX_LINEWIDTH + 1);
 	p = txt;
 	ignore_ws(&p);
-	if ((GetWindowTextLength(hedit) == 0) || (_tcslen(p) == 0))
+	if ((GetWindowTextLength(hedit) == 0) || (p[0] == '\0'))
 		acceptinput = FALSE;
 	while (PeekMessage(&msg, hedit, 0, 0, PM_REMOVE)) {
 		TranslateMessage(&msg);
@@ -1038,7 +1038,7 @@ static void ListboxEndEdit(HWND hwnd, BOOL acceptinput)
 			double value;
 			errno = 0;
 			value = _tcstod(txt, &stopstr);
-			if (_tcslen(stopstr) == 0 && errno == 0)
+			if (stopstr[0] == '\0' && errno == 0)
 				regs.fp[index].fp = _tcstod(txt, &stopstr);
 		}
 		else {

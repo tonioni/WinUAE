@@ -197,6 +197,7 @@ void *createIPC (const TCHAR *name, int binary)
 				cnt++;
 				continue;
 			}
+			xfree(ipc);
 			return 0;
 		}
 		break;

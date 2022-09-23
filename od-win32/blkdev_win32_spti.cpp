@@ -532,7 +532,6 @@ static void checkcapabilities (struct dev_info_spti *di)
 static int inquiry (struct dev_info_spti *di, int unitnum, uae_u8 *inquirydata)
 {
 	uae_u8 cmd[6] = { 0x12,0,0,0,36,0 }; /* INQUIRY */
-	uae_u8 out[INQUIRY_SIZE] = { 0 };
 	int outlen = sizeof (out);
 	uae_u8 *p = execscsicmd_in_internal (di, unitnum, cmd, sizeof (cmd), &outlen, 0);
 	int inqlen = 0;
@@ -870,8 +869,10 @@ static void scanscsi (void)
 			OPEN_EXISTING, // No special create flags
 			0, // No special attributes
 			NULL);
-		if (h == INVALID_HANDLE_VALUE)
+		if (h == INVALID_HANDLE_VALUE) {
+			xfree(AdapterInfo);
 			return;
+		}
 
 		if(!DeviceIoControl (h,
 			IOCTL_SCSI_RESCAN_BUS,

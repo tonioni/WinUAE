@@ -1764,6 +1764,7 @@ bool dkb_wildfire_pci_init(struct autoconfig_info *aci)
 
 	device_add_reset(pci_reset);
 	if (!aci->doinit) {
+		xfree(pcib);
 		return true;
 	}
 
@@ -1883,6 +1884,7 @@ static bool grex_pci_init(struct autoconfig_info *aci)
 
 	device_add_reset(pci_reset);
 	if (!aci->doinit) {
+		xfree(pcib);
 		return true;
 	}
 

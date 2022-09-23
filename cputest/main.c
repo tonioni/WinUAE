@@ -3512,7 +3512,6 @@ static uae_u32 read_u32(uae_u8 *headerfile, int *poffset)
 static int test_mnemo(const char *opcode)
 {
 	int size;
-	uae_u8 data[4] = { 0 };
 	uae_u32 v;
 	char tfname[256];
 	int filecnt = 0;

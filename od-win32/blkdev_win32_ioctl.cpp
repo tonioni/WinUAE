@@ -978,7 +978,7 @@ static void update_device_info (int unitnum)
 
 static void trim (TCHAR *s)
 {
-	while (_tcslen (s) > 0 && s[_tcslen (s) - 1] == ' ')
+	while (s[0] != '\0' && s[_tcslen (s) - 1] == ' ')
 		s[_tcslen (s) - 1] = 0;
 }
 

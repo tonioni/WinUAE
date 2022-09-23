@@ -349,5 +349,6 @@ void Depack_TMK ( void )
   /*fclose ( info );*/
 
   printf ( "done\n" );
+  free( samplesizes );
   return; /* useless ... but */
 }

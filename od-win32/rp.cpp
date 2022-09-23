@@ -563,7 +563,7 @@ static int port_insert (int inputmap_port, int devicetype, DWORD flags, const TC
 	
 	inputdevice_compa_clear (&changed_prefs, inputmap_port);
 	
-	if (_tcslen (name) == 0) {
+	if (name[0] == '\0') {
 		inputdevice_joyport_config (&changed_prefs, _T("none"), NULL, inputmap_port, 0, 0, 0, true);
 		return TRUE;
 	}
@@ -1638,7 +1638,7 @@ static void sendenum (void)
 	cnt = 0;
 	while (max--) {
 		p2 = _tcschr (p1, '\n');
-		if (p2 && _tcslen (p2) > 0) {
+		if (p2 && p2[0] != '\0') {
 			TCHAR tmp2[100];
 			*p2++ = 0;
 			memset (&desc, 0, sizeof desc);

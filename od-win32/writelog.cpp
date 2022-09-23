@@ -571,7 +571,7 @@ void write_dlog (const TCHAR *format, ...)
 		_ftprintf (debugfile, _T("%s"), bufp);
 	}
 	lfdetected = 0;
-	if (_tcslen (bufp) > 0 && bufp[_tcslen (bufp) - 1] == '\n')
+	if (bufp[0] != '\0' && bufp[_tcslen(bufp) - 1] == '\n')
 		lfdetected = 1;
 	va_end (parms);
 	if (bufp != buffer)
@@ -628,7 +628,7 @@ void write_logx(const TCHAR *format, ...)
 		_ftprintf (debugfile, _T("%s"), bufp);
 	}
 	lfdetected = 0;
-	if (_tcslen (bufp) > 0 && bufp[_tcslen (bufp) - 1] == '\n')
+	if (bufp[0] != '\0' && bufp[_tcslen (bufp) - 1] == '\n')
 		lfdetected = 1;
 	va_end (parms);
 	if (bufp != buffer)
@@ -697,7 +697,7 @@ void write_log (const TCHAR *format, ...)
 #endif
 
 	lfdetected = 0;
-	if (_tcslen (bufp) > 0 && bufp[_tcslen (bufp) - 1] == '\n')
+	if (bufp[0] != '\0' && bufp[_tcslen (bufp) - 1] == '\n')
 		lfdetected = 1;
 	va_end (parms);
 	if (bufp != buffer)

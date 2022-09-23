@@ -880,8 +880,8 @@ static void tms_hsync_handler2(struct a2410_struct *data)
 	bool overlay0color = !(data->a2410_palette_control[6 - 4] & 0x40);
 	uae_u16 bitmap_mask = data->a2410_palette_control[4 - 4];
 
-	uae_u8 overlay_mask[2] = { data->a2410_overlay_mask[0], data->a2410_overlay_mask[1] };
 	if (data->a2410_overlay_blink_cnt >= data->a2410_overlay_blink_rate_on) {
+		uae_u8 overlay_mask[2] = { data->a2410_overlay_mask[0], data->a2410_overlay_mask[1] };
 		if (data->a2410_palette_control[6 - 4] & 4)
 			overlay_mask[0] = 0;
 		if (data->a2410_palette_control[6 - 4] & 8)

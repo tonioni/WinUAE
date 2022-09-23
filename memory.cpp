@@ -1554,7 +1554,7 @@ static bool load_extendedkickstart (const TCHAR *romextfile, int type)
 	int size, off;
 	bool ret = false;
 
-	if (_tcslen (romextfile) == 0)
+	if (romextfile[0] == '\0')
 		return false;
 	if (is_arcadia_rom (romextfile) == ARCADIA_BIOS) {
 		extendedkickmem_type = EXTENDED_ROM_ARCADIA;
@@ -2060,6 +2060,7 @@ static void add_shmmaps (uae_u32 start, addrbank *what)
 		write_log (_T("NATMEM: Failure to map existing at %08x (%p)\n"), start, base);
 		dumplist ();
 		nocanbang ();
+		xfree(y);
 		return;
 	}
 	y->next = shm_start;
@@ -2690,7 +2691,7 @@ static void restore_roms(void)
 	load_extendedkickstart (currprefs.romextfile2, EXTENDED_ROM_CDTV);
 	kickmem_bank.mask = ROM_SIZE_512 - 1;
 	if (!load_kickstart ()) {
-		if (_tcslen (currprefs.romfile) > 0) {
+		if (currprefs.romfile[0] != '\0') {
 			error_log (_T("Failed to open '%s'\n"), currprefs.romfile);
 			notify_user (NUMSG_NOROM);
 		}
