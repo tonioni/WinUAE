@@ -532,7 +532,7 @@ static void checkcapabilities (struct dev_info_spti *di)
 static int inquiry (struct dev_info_spti *di, int unitnum, uae_u8 *inquirydata)
 {
 	uae_u8 cmd[6] = { 0x12,0,0,0,36,0 }; /* INQUIRY */
-	int outlen = sizeof (out);
+	int outlen = INQUIRY_SIZE;
 	uae_u8 *p = execscsicmd_in_internal (di, unitnum, cmd, sizeof (cmd), &outlen, 0);
 	int inqlen = 0;
 
