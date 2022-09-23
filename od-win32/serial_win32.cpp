@@ -54,6 +54,7 @@ static bool sermap_master;
 static bool sermap_enabled;
 static bool serloop_enabled;
 static bool serempty_enabled;
+static bool serxdevice_enabled;
 static uae_u8 serstatus;
 
 #define SER_MEMORY_MAPPING _T("WinUAE_Serial")
@@ -171,6 +172,7 @@ static evt_t data_in_serdat_delay;
 static evt_t serper_tx_evt;
 static int serper_tx_per, serper_tx_bits, serper_tx_cycles;
 static int data_in_serdatr; /* new data received */
+static evt_t data_in_serdatr_evt;
 static int data_in_sershift; /* data transferred from SERDAT to shift register */
 static int break_in_serdatr; /* break state */
 static int break_delay;
@@ -296,10 +298,14 @@ void SERPER (uae_u16 w)
 
 static void serial_rx_irq(void)
 {
+	int delay = 9;
 	// Data in receive buffer
-	data_in_serdatr = 1;
+	if (!data_in_serdatr) {
+		data_in_serdatr = 1;
+		data_in_serdatr_evt = get_cycles() + delay * CYCLE_UNIT;
+	}
 	if (currprefs.cpu_memory_cycle_exact) {
-		INTREQ_INT(11, 9);
+		INTREQ_INT(11, delay);
 	} else {
 		INTREQ_INT(11, 0);
 	}
@@ -307,10 +313,8 @@ static void serial_rx_irq(void)
 
 void serial_rethink(void)
 {
-	if (!currprefs.cpu_memory_cycle_exact) {
-		if (data_in_serdatr) {
-			INTREQ_0(0x8000 | (1 << 11));
-		}
+	if (data_in_serdatr && ((currprefs.cpu_memory_cycle_exact && get_cycles() > data_in_serdatr_evt) || !currprefs.cpu_memory_cycle_exact)) {
+		INTREQ_INT(11, 0);
 	}
 }
 
@@ -536,7 +540,7 @@ static void checksend(void)
 	if (cubo_enabled) {
 		touch_serial_read(serdatshift);
 	}
-	if (serempty_enabled) {
+	if (serempty_enabled && !serxdevice_enabled) {
 		return;
 	}
 #ifdef SERIAL_MAP
@@ -681,7 +685,7 @@ static void serdatcopy(void)
 		serper_tx_cycles = per;
 
 		// not connected, emulate only TX
-		if (serempty_enabled) {
+		if (serempty_enabled && !serxdevice_enabled) {
 			event2_newevent_xx(-1, per * CYCLE_UNIT, 0, sersend_end);
 			return;
 		}
@@ -720,7 +724,10 @@ void serial_hsynchandler (void)
 	hsyncstuff();
 #endif
 #ifdef ARCADIA
-	if ((alg_flag || currprefs.genlock_image >= 7) && !data_in_serdatr) {
+	if (alg_flag || currprefs.genlock_image >= 7) {
+		if (data_in_serdatr) {
+			return;
+		}
 		int ch = ld_serial_write();
 		if (ch >= 0) {
 			serdatr = ch | 0x100;
@@ -729,7 +736,10 @@ void serial_hsynchandler (void)
 		}
 	}
 #endif
-	if (cubo_enabled && !data_in_serdatr) {
+	if (cubo_enabled) {
+		if (data_in_serdatr) {
+			return;
+		}
 		int ch = touch_serial_write();
 		if (ch >= 0) {
 			serdatr = ch | 0x100;
@@ -790,7 +800,7 @@ static void SERDAT_send(uae_u32 v)
 		serdat = w;
 		data_in_serdat = 1;
 		if (!data_in_sershift) {
-			if (serloop_enabled || serempty_enabled) {
+			if (serloop_enabled || serempty_enabled || serxdevice_enabled) {
 				data_in_sershift = -1;
 				INTREQ_INT(0, 1);
 			}
@@ -1084,6 +1094,9 @@ void serial_open (void)
 			return;
 		}
 	}
+	if (alg_flag || currprefs.genlock_image >= 7 || cubo_enabled) {
+		serxdevice_enabled = true;
+	}
 	serdev = 1;
 #endif
 }
@@ -1102,6 +1115,7 @@ void serial_close(void)
 #endif
 	serloop_enabled = false;
 	serempty_enabled = false;
+	serxdevice_enabled = false;
 	serper_set = false;
 }
 
