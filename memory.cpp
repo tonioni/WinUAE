@@ -2625,7 +2625,7 @@ static void fillpattern(addrbank *ab)
 				}
 			}
 		}
-	} else if (currprefs.cs_memorypatternfill) {
+	} else if (currprefs.cs_memorypatternfill && !currprefs.cs_dipagnus) {
 		// OCS Agnus has swapped row and column compared to ECS and AGA.
 		uae_u16 fillval = 0;
 		for (int fillbank = 0; fillbank < ab->allocated_size / 256; fillbank++) {
@@ -2633,6 +2633,19 @@ static void fillpattern(addrbank *ab)
 			for (int fillrow = 0; fillrow < 256; fillrow += 2) {
 				// Chip emulated: Generic 4256.  16 * 512x1.
 				*((uae_u16 *)(ab->baseaddr + fillbank * 256 + fillrow)) = fillval;
+			}
+		}
+	} else if (currprefs.cs_memorypatternfill) {
+		// A1000
+		uae_u16 fillval = 0;
+		for (int fillbank = 0; fillbank < ab->allocated_size / 512; fillbank++) {
+			fillval = ~fillval;
+			for (int fillrow = 0; fillrow < 512; fillrow += 2) {
+				// Chip emulated: Generic 4256.  16 * 512x1.
+				*((uae_u16 *)(ab->baseaddr + fillbank * 512 + fillrow)) = fillval;
+				if (((fillrow >> 1) & 15) == 15) {
+					fillval = ~fillval;
+				}
 			}
 		}
 	} else {
