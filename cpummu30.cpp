@@ -2347,7 +2347,8 @@ void mmu030_put_generic(uaecptr addr, uae_u32 val, uae_u32 fc, int size, int fla
  	mmu030_cache_state = CACHE_ENABLE_ALL;
 
 	if (flags & MMU030_SSW_RM) {
-		return mmu030_put_generic_lrmw(addr, val, fc, size, flags);
+		mmu030_put_generic_lrmw(addr, val, fc, size, flags);
+		return;
 	}
 
 	if (fc != 7 && (!tt_enabled || !mmu030_match_ttr_access(addr,fc,true)) && mmu030.enabled) {

@@ -9462,7 +9462,7 @@ void put_word_cache_040(uaecptr addr, uae_u32 v)
 }
 void put_byte_cache_040(uaecptr addr, uae_u32 v)
 {
-	return write_dcache040(addr, v, 0, dcache_bput);
+	write_dcache040(addr, v, 0, dcache_bput);
 }
 
 uae_u32 get_long_cache_040(uaecptr addr)
