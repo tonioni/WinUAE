@@ -1429,6 +1429,67 @@ STATIC_INLINE uae_u32 merge_2pixel32 (uae_u32 p1, uae_u32 p2)
 	return v;
 }
 
+static bool get_genlock_very_rare_and_complex_case(uae_u8 v)
+{
+	if (ecs_genlock_features_colorkey) {
+		if (currprefs.genlock_effects) {
+			if (v < 64 && (currprefs.ecs_genlock_features_colorkey_mask[0] & (1LL << v))) {
+				return false;
+			}
+			if (v >= 64 && v < 128 && (currprefs.ecs_genlock_features_colorkey_mask[1] & (1LL << (v - 64)))) {
+				return false;
+			}
+			if (v >= 128 && v < 192 && (currprefs.ecs_genlock_features_colorkey_mask[2] & (1LL << (v - 128)))) {
+				return false;
+			}
+			if (v >= 192 && v < 256 && (currprefs.ecs_genlock_features_colorkey_mask[3] & (1LL << (v - 192)))) {
+				return false;
+			}
+		} else {
+			// color key match?
+			if (aga_mode) {
+				if (colors_for_drawing.color_regs_aga[v] & 0x80000000)
+					return false;
+			} else {
+				if (colors_for_drawing.color_regs_ecs[v] & 0x8000)
+					return false;
+			}
+		}
+	}
+	// plane mask match?
+	if (currprefs.genlock_effects) {
+		if (v & currprefs.ecs_genlock_features_plane_mask)
+			return false;
+	} else {
+		if (v & ecs_genlock_features_mask)
+			return false;
+	}
+	return true;
+}
+// false = transparent
+STATIC_INLINE bool get_genlock_transparency(uae_u8 v)
+{
+	if (!ecs_genlock_features_active) {
+		if (v == 0)
+			return false;
+		return true;
+	} else {
+		return get_genlock_very_rare_and_complex_case(v);
+	}
+}
+
+STATIC_INLINE bool get_genlock_transparency_border(void)
+{
+	if (!ecs_genlock_features_active) {
+		return false;
+	} else {
+		// border color with BRDNTRAN bit set = not transparent
+		if (ce_is_borderntrans(colors_for_drawing.extra))
+			return true;
+		return get_genlock_very_rare_and_complex_case(0);
+	}
+}
+
 STATIC_INLINE void fill_line_16 (uae_u8 *buf, int start, int stop, int blank)
 {
 	uae_u16 *b = (uae_u16 *)buf;
@@ -1470,7 +1531,7 @@ static void pfield_do_fill_line (int start, int stop, int blank)
 	case 4: fill_line_32 (xlinebuffer, start, stop, blank); break;
 	}
 	if (need_genlock_data) {
-		memset(xlinebuffer_genlock + start, 0, stop - start);
+		memset(xlinebuffer_genlock + start, get_genlock_transparency_border(), stop - start);
 	}
 }
 
@@ -1537,7 +1598,7 @@ static void fill_line_border(int lineno)
 		hposblank = 3;
 		fill_line2(lastpos, w);
 		if (need_genlock_data) {
-			memset(xlinebuffer_genlock + lastpos, 0, w);
+			memset(xlinebuffer_genlock + lastpos, get_genlock_transparency_border(), w);
 		}
 		hposblank = b;
 		return;
@@ -1548,7 +1609,7 @@ static void fill_line_border(int lineno)
 		hposblank = 3;
 		fill_line2(lastpos, w);
 		if (need_genlock_data) {
-			memset(xlinebuffer_genlock + lastpos, 0, w);
+			memset(xlinebuffer_genlock + lastpos, get_genlock_transparency_border(), w);
 		}
 		return;
 	}
@@ -1556,7 +1617,7 @@ static void fill_line_border(int lineno)
 	if (hblank_left <= lastpos && hblank_right >= endpos) {
 		fill_line2(lastpos, w);
 		if (need_genlock_data) {
-			memset(xlinebuffer_genlock + lastpos, 0, w);
+			memset(xlinebuffer_genlock + lastpos, get_genlock_transparency_border(), w);
 		}
 		return;
 	}
@@ -1668,38 +1729,6 @@ static uae_u8 render_sprites(int pos, int dualpf, uae_u8 apixel, int aga)
 	}
 
 	return 0;
-}
-
-static bool get_genlock_very_rare_and_complex_case(uae_u8 v)
-{
-	// border color without BRDNTRAN bit set = transparent
-	if (v == 0 && !ce_is_borderntrans(colors_for_drawing.extra))
-		return false;
-	if (ecs_genlock_features_colorkey) {
-		// color key match?
-		if (aga_mode) {
-			if (colors_for_drawing.color_regs_aga[v] & 0x80000000)
-				return false;
-		} else {
-			if (colors_for_drawing.color_regs_ecs[v] & 0x8000)
-				return false;
-		}
-	}
-	// plane mask match?
-	if (v & ecs_genlock_features_mask)
-		return false;
-	return true;
-}
-// false = transparent
-STATIC_INLINE bool get_genlock_transparency(uae_u8 v)
-{
-	if (!ecs_genlock_features_active) {
-		if (v == 0)
-			return false;
-		return true;
-	} else {
-		return get_genlock_very_rare_and_complex_case(v);
-	}
 }
 
 #include "linetoscr.cpp"
@@ -3282,14 +3311,16 @@ static void pfield_expand_dp_bplcon(void)
 		sprite_smaller_than_64_inuse = true;
 	sprite_smaller_than_64 = (dp_for_drawing->fmode & 0x0c) != 0x0c;
 #endif
-	ecs_genlock_features_active = ecs_denise && ((dp_for_drawing->bplcon2 & 0x0c00) || ce_is_borderntrans(colors_for_drawing.extra)) ? 1 : 0;
+	ecs_genlock_features_active = (ecs_denise && ((dp_for_drawing->bplcon2 & 0x0c00) || ce_is_borderntrans(colors_for_drawing.extra))) || (currprefs.genlock_effects ? 1 : 0);
 	if (ecs_genlock_features_active) {
-		ecs_genlock_features_colorkey = false;
-		ecs_genlock_features_mask = 0;
-		if (dp_for_drawing->bplcon3 & 0x0800) {
-			ecs_genlock_features_mask = 1 << ((dp_for_drawing->bplcon2 >> 12) & 7);
-		} 
-		if (dp_for_drawing->bplcon3 & 0x0400) {
+		uae_u16 bc2 = dp_for_drawing->bplcon2;
+		ecs_genlock_features_colorkey = currprefs.ecs_genlock_features_colorkey_mask[0] || currprefs.ecs_genlock_features_colorkey_mask[1] ||
+			currprefs.ecs_genlock_features_colorkey_mask[2] || currprefs.ecs_genlock_features_colorkey_mask[3];
+		ecs_genlock_features_mask = currprefs.ecs_genlock_features_plane_mask;
+		if (bc2 & 0x0800) {
+			ecs_genlock_features_mask = 1 << ((bc2 >> 12) & 7);
+		}
+		if (bc2 & 0x0400) {
 			ecs_genlock_features_colorkey = true;
 		}
 	}
@@ -4741,7 +4772,7 @@ static void finish_drawing_frame(bool drawlines)
 	}
 
 	// genlock
-	if (currprefs.genlock_image && currprefs.genlock && !currprefs.monitoremu && vidinfo->tempbuffer.bufmem_allocated) {
+	if (currprefs.genlock_image && (currprefs.genlock || currprefs.genlock_effects) && !currprefs.monitoremu && vidinfo->tempbuffer.bufmem_allocated) {
 		setspecialmonitorpos(&vidinfo->tempbuffer);
 		if (init_genlock_data != specialmonitor_need_genlock()) {
 			need_genlock_data = init_genlock_data = specialmonitor_need_genlock();

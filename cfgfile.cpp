@@ -2429,6 +2429,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	cfgfile_dwrite_str (f, _T("waiting_blits"), waitblits[p->waiting_blits]);
 	cfgfile_dwrite (f, _T("blitter_throttle"), _T("%.8f"), p->blitter_speed_throttle);
 	cfgfile_write_bool (f, _T("ntsc"), p->ntscmode);
+
 	cfgfile_write_bool(f, _T("genlock"), p->genlock);
 	cfgfile_dwrite_bool(f, _T("genlock_alpha"), p->genlock_alpha);
 	cfgfile_dwrite_bool(f, _T("genlock_aspect"), p->genlock_aspect);
@@ -2437,6 +2438,38 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	cfgfile_dwrite_str(f, _T("genlock_video"), p->genlock_video_file);
 	cfgfile_dwrite(f, _T("genlock_mix"), _T("%d"), p->genlock_mix);
 	cfgfile_dwrite(f, _T("genlock_scale"), _T("%d"), p->genlock_scale);
+	if (p->genlock_effects) {
+		tmp[0] = 0;
+		if (p->genlock_effects & (1 << 4)) {
+			_tcscat(tmp, _T("brdntran"));
+		}
+		if (p->genlock_effects & (1 << 5)) {
+			if (tmp[0]) {
+				_tcscat(tmp, _T(","));
+			}
+			_tcscat(tmp, _T("brdrblnk"));
+		}
+		for (int i = 0; i < 256; i++) {
+			uae_u64 v = p->ecs_genlock_features_colorkey_mask[i / 64];
+			if (v & (1LL << (i & 63))) {
+				if (tmp[0]) {
+					_tcscat(tmp, _T(","));
+				}
+				_stprintf(tmp + _tcslen(tmp), _T("%d"), i);
+			}
+		}
+		for (int i = 0; i < 8; i++) {
+			if (p->ecs_genlock_features_plane_mask & (1 << i)) {
+				if (tmp[0]) {
+					_tcscat(tmp, _T(","));
+				}
+				_stprintf(tmp + _tcslen(tmp), _T("p%d"), i);
+			}
+		}
+		cfgfile_dwrite_str(f, _T("genlock_effects"), tmp);
+	}
+
+
 	cfgfile_dwrite_str(f, _T("monitoremu"), specialmonitorconfignames[p->monitoremu]);
 	cfgfile_dwrite(f, _T("monitoremu_monitor"), _T("%d"), p->monitoremu_mon);
 	cfgfile_dwrite_coords(f, _T("lightpen_offset"), p->lightpen_offset[0], p->lightpen_offset[1]);
@@ -6155,6 +6188,44 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 				int config = _tstol (tmpp);
 				built_in_prefs (p, model, config, 0, 0);
 			}
+		}
+		return 1;
+	}
+
+	if (cfgfile_string(option, value, _T("genlock_effects"), tmpbuf, sizeof(tmpbuf) / sizeof(TCHAR))) {
+		TCHAR *s = tmpbuf;
+		TCHAR *endptr;
+		if (cfgfile_option_get(value, _T("brdntran"))) {
+			p->genlock_effects |= 1 << 4;
+		}
+		if (cfgfile_option_get(value, _T("brdrblnk"))) {
+			p->genlock_effects |= 1 << 5;
+		}
+		while (s && s[0]) {
+			TCHAR *tmpp = _tcschr (s, ',');
+			if (tmpp) {
+				*tmpp++ = 0;
+			}
+			int plane = 0;
+			if (s[0] == 'p' || s[0] == 'P') {
+				s++;
+				plane = 1;
+			}
+			int val = _tcstol(s, &endptr, 10);
+			if (val > 0 || (val == 0 && s[0] == '0')) {
+				if (plane == 1) {
+					p->ecs_genlock_features_plane_mask |= 1 << val;
+					p->genlock_effects |= 2;
+				} else {
+					for (int i = 0; i < 4 && val >= 0; i++, val -= 64) {
+						if (val < 64) {
+							p->ecs_genlock_features_colorkey_mask[i] |= 1LL << val;
+							p->genlock_effects |= 1;
+						}
+					}
+				}
+			}
+			s = tmpp;
 		}
 		return 1;
 	}

@@ -3626,7 +3626,7 @@ bool specialmonitor_need_genlock(void)
 	case MONITOREMU_COLORBURST:
 	return true;
 	}
-	if (currprefs.genlock_image && currprefs.genlock)
+	if (currprefs.genlock_image && (currprefs.genlock || currprefs.genlock_effects))
 		return true;
 	return false;
 }

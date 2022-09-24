@@ -4586,8 +4586,8 @@ static bool isbrdblank(int hpos, uae_u16 bplcon0, uae_u16 bplcon3)
 {
 	bool brdblank, brdntrans, extblank;
 #ifdef ECS_DENISE
-	brdblank = ecs_denise && (bplcon0 & 1) && (bplcon3 & 0x20);
-	brdntrans = ecs_denise && (bplcon0 & 1) && (bplcon3 & 0x10);
+	brdblank = (ecs_denise && (bplcon0 & 1) && (bplcon3 & 0x20)) || (currprefs.genlock_effects & (1 << 5));
+	brdntrans = (ecs_denise && (bplcon0 & 1) && (bplcon3 & 0x10)) || (currprefs.genlock_effects & (1 << 4));
 	// ECSENA=0: hardwired horizontal, strobe vertical
 	// ECSENA=1: EXTBLKEN=0: hardwired blanking, strobe vertical
 	// ECSENA=1: EXTBLKEN=1: blanking equals HSYNC if VARCSYEN=1, blanking equals HBSTRT-HBSTOP if VARCSYEN=0, no vertical, AGA: programmed horizontal, strobe vertical
@@ -6948,7 +6948,7 @@ STATIC_INLINE int islightpentriggered(void)
 }
 STATIC_INLINE int issyncstopped(void)
 {
-	return (bplcon0 & 2) && !currprefs.genlock;
+	return (bplcon0 & 2) && (!currprefs.genlock || currprefs.genlock_effects);
 }
 
 STATIC_INLINE int GETVPOS(void)
@@ -6963,7 +6963,7 @@ STATIC_INLINE int GETHPOS(void)
 // fake changing hpos when rom genlock test runs and genlock is connected
 static bool hsyncdelay(void)
 {
-	if (!currprefs.genlock) {
+	if (!currprefs.genlock || currprefs.genlock_effects) {
 		return false;
 	}
 	if (currprefs.cpu_memory_cycle_exact || currprefs.m68k_speed >= 0) {
@@ -11098,7 +11098,7 @@ static void vsync_handler_post(void)
 		genlockvtoggle = lof_store ? 1 : 0;
 	}
 
-	if ((bplcon0 & 2) && !currprefs.genlock) {
+	if ((bplcon0 & 2) && (!currprefs.genlock || currprefs.genlock_effects)) {
 		nosignal_trigger = true;
 	}
 	// Inverted CSYNC

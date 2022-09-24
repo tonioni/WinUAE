@@ -3954,7 +3954,7 @@ retry:
 
 		allocsoftbuffer(mon->monitor_id, _T("draw"), &avidinfo->drawbuffer, mon->currentmode.flags,
 			1920, 1280, mon->currentmode.current_depth);
-		if (currprefs.monitoremu || currprefs.cs_cd32fmv || (currprefs.genlock && currprefs.genlock_image) || currprefs.cs_color_burst || currprefs.gfx_grayscale) {
+		if (currprefs.monitoremu || currprefs.cs_cd32fmv || ((currprefs.genlock || currprefs.genlock_effects) && currprefs.genlock_image) || currprefs.cs_color_burst || currprefs.gfx_grayscale) {
 			allocsoftbuffer(mon->monitor_id, _T("monemu"), &avidinfo->tempbuffer, mon->currentmode.flags,
 				mon->currentmode.amiga_width > 1024 ? mon->currentmode.amiga_width : 1024,
 				mon->currentmode.amiga_height > 1024 ? mon->currentmode.amiga_height : 1024,

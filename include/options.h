@@ -601,6 +601,9 @@ struct uae_prefs {
 	int genlock_mix;
 	int genlock_scale;
 	int genlock_aspect;
+	int genlock_effects;
+	uae_u64 ecs_genlock_features_colorkey_mask[4];
+	uae_u8 ecs_genlock_features_plane_mask;
 	bool genlock_alpha;
 	TCHAR genlock_image_file[MAX_DPATH];
 	TCHAR genlock_video_file[MAX_DPATH];
