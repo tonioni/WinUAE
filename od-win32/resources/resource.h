@@ -972,7 +972,6 @@
 #define IDC_UPBM                        1650
 #define IDC_DISKLISTINSERT              1650
 #define IDC_DF1QENABLE                  1650
-#define IDC_AVIOUTPUT_ORIGINALSIZE2     1650
 #define IDC_SCREENSHOT_ORIGINALSIZE     1650
 #define IDC_SOUNDCARDLIST               1651
 #define IDC_STATE_BUFFERSIZE2           1651
@@ -981,9 +980,9 @@
 #define IDC_SOUNDFREQ                   1652
 #define IDC_STATEREC_AUTOPLAY           1652
 #define IDC_SOUNDFREQTXT                1653
-#define IDC_SCREENSHOT_ORIGINALSIZE2    1653
 #define IDC_SCREENSHOT_CLIP             1653
 #define IDC_SOUNDFILTERTXT              1654
+#define IDC_SCREENSHOT_PALETTED         1654
 #define IDC_SOUNDSTEREO                 1655
 #define IDC_CONFIGTYPE                  1655
 #define IDC_SOUNDDRIVETXT               1656

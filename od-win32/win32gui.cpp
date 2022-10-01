@@ -7933,6 +7933,7 @@ static void enable_for_displaydlg (HWND hDlg)
 static void enable_for_chipsetdlg (HWND hDlg)
 {
 	int enable = workprefs.cpu_memory_cycle_exact ? FALSE : TRUE;
+	int genlock = workprefs.genlock || workprefs.genlock_effects;
 
 #if !defined (CPUEMU_13)
 	ew (hDlg, IDC_CYCLEEXACT, FALSE);
@@ -7945,12 +7946,12 @@ static void enable_for_chipsetdlg (HWND hDlg)
 	}
 	ew(hDlg, IDC_BLITIMM, !workprefs.cpu_cycle_exact);
 
-	ew(hDlg, IDC_GENLOCKMODE, workprefs.genlock ? TRUE : FALSE);
-	ew(hDlg, IDC_GENLOCKMIX, workprefs.genlock ? TRUE : FALSE);
-	ew(hDlg, IDC_GENLOCK_ALPHA, workprefs.genlock ? TRUE : FALSE);
-	ew(hDlg, IDC_GENLOCK_KEEP_ASPECT, workprefs.genlock ? TRUE : FALSE);
-	ew(hDlg, IDC_GENLOCKFILE, workprefs.genlock && (workprefs.genlock_image >= 6 || (workprefs.genlock_image >= 3 && workprefs.genlock_image < 5)) ? TRUE : FALSE);
-	ew(hDlg, IDC_GENLOCKFILESELECT, workprefs.genlock && (workprefs.genlock_image >= 6 || (workprefs.genlock_image >= 3 && workprefs.genlock_image < 5)) ? TRUE : FALSE);
+	ew(hDlg, IDC_GENLOCKMODE, genlock ? TRUE : FALSE);
+	ew(hDlg, IDC_GENLOCKMIX, genlock ? TRUE : FALSE);
+	ew(hDlg, IDC_GENLOCK_ALPHA, genlock ? TRUE : FALSE);
+	ew(hDlg, IDC_GENLOCK_KEEP_ASPECT, genlock ? TRUE : FALSE);
+	ew(hDlg, IDC_GENLOCKFILE, genlock && (workprefs.genlock_image >= 6 || (workprefs.genlock_image >= 3 && workprefs.genlock_image < 5)) ? TRUE : FALSE);
+	ew(hDlg, IDC_GENLOCKFILESELECT, genlock && (workprefs.genlock_image >= 6 || (workprefs.genlock_image >= 3 && workprefs.genlock_image < 5)) ? TRUE : FALSE);
 
 	ew(hDlg, IDC_MONITOREMU_MON, workprefs.monitoremu != 0);
 }
@@ -20775,6 +20776,7 @@ static void values_to_avioutputdlg (HWND hDlg)
 	CheckDlgButton (hDlg, IDC_AVIOUTPUT_ORIGINALSIZE, avioutput_originalsize ? TRUE : FALSE);
 	CheckDlgButton (hDlg, IDC_AVIOUTPUT_ACTIVATED, avioutput_requested ? BST_CHECKED : BST_UNCHECKED);
 	CheckDlgButton(hDlg, IDC_SCREENSHOT_ORIGINALSIZE, screenshot_originalsize ? TRUE : FALSE);
+	CheckDlgButton(hDlg, IDC_SCREENSHOT_PALETTED, screenshot_paletteindexed ? TRUE : FALSE);
 	CheckDlgButton(hDlg, IDC_SCREENSHOT_CLIP, screenshot_clipmode ? TRUE : FALSE);
 	CheckDlgButton (hDlg, IDC_SAMPLERIPPER_ACTIVATED, sampleripper_enabled ? BST_CHECKED : BST_UNCHECKED);
 	CheckDlgButton (hDlg, IDC_STATEREC_RECORD, input_record ? BST_CHECKED : BST_UNCHECKED);
@@ -20911,6 +20913,7 @@ static INT_PTR CALLBACK AVIOutputDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 		currentpage = AVIOUTPUT_ID;
 		AVIOutput_GetSettings ();
 		regqueryint(NULL, _T("Screenshot_Original"), &screenshot_originalsize);
+		regqueryint(NULL, _T("Screenshot_PaletteIndexed"), &screenshot_paletteindexed);
 		regqueryint(NULL, _T("Screenshot_ClipMode"), &screenshot_clipmode);
 		enable_for_avioutputdlg (hDlg);
 		if (!avioutput_filename_gui[0]) {
@@ -20986,6 +20989,11 @@ static INT_PTR CALLBACK AVIOutputDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 		case IDC_SCREENSHOT_ORIGINALSIZE:
 			screenshot_originalsize = ischecked(hDlg, IDC_SCREENSHOT_ORIGINALSIZE) ? 1 : 0;
 			regsetint(NULL, _T("Screenshot_Original"), screenshot_originalsize);
+			screenshot_reset();
+			break;
+		case IDC_SCREENSHOT_PALETTED:
+			screenshot_paletteindexed = ischecked(hDlg, IDC_SCREENSHOT_PALETTED) ? 1 : 0;
+			regsetint(NULL, _T("Screenshot_PaletteIndexed"), screenshot_paletteindexed);
 			screenshot_reset();
 			break;
 		case IDC_SCREENSHOT_CLIP:

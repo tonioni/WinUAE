@@ -1,5 +1,6 @@
 
 #define PNG_SCREENSHOTS 1
+#define IFF_SCREENSHOTS 2
 
 #include <windows.h>
 
@@ -25,6 +26,7 @@
 
 int screenshotmode = PNG_SCREENSHOTS;
 int screenshot_originalsize = 0;
+int screenshot_paletteindexed = 0;
 int screenshot_clipmode = 0;
 int screenshot_multi = 0;
 
@@ -123,7 +125,9 @@ static int screenshot_prepare(int monid, int imagemode, struct vidbuffer *vb, bo
 
 	if (!standard) {
 		regqueryint(NULL, _T("Screenshot_Original"), &screenshot_originalsize);
+		regqueryint(NULL, _T("Screenshot_PaletteIndexed"), &screenshot_paletteindexed);
 		regqueryint(NULL, _T("Screenshot_ClipMode"), &screenshot_clipmode);
+		regqueryint(NULL, _T("Screenshot_Mode"), &screenshotmode);
 	} else {
 		screenshot_originalsize = 1;
 		screenshot_clipmode = 0;
@@ -624,6 +628,168 @@ void Screenshot_RGBinfo (int rb, int gb, int bb, int ab, int rs, int gs, int bs,
 	rgb_as = as;
 }
 
+extern bool get_custom_color_reg(int colreg, uae_u8 *r, uae_u8 *g, uae_u8 *b);
+
+static uae_u32 uniquecolors[256] = { 0 };
+static int uniquecolorcount, uniquecolordepth;
+static uae_u8 *palettebm;
+
+static void count_colors(bool alpha)
+{
+	int h = bi->bmiHeader.biHeight;
+	int w = bi->bmiHeader.biWidth;
+	int d = bi->bmiHeader.biBitCount;
+	uae_u32 customcolors[256] = { 0 };
+	bool uniquecolorsa[256] = { 0 };
+	bool palettea[256] = { 0 };
+	uae_u32 palette[256] = { 0 };
+	uae_u8 indextab[256] = { 0 };
+	int palettecount = 0;
+
+	uniquecolorcount = 0;
+	if (d <= 8 || !screenshot_paletteindexed) {
+		return;
+	}
+	if (alpha) {
+		uniquecolorcount = -1;
+		return;
+	}
+	palettebm = xcalloc(uae_u8, w * h);
+	if (!palettebm) {
+		return;
+	}
+	for (int i = 0; i < h; i++) {
+		uae_u8 *p = (uae_u8*)lpvBits + i * ((((w * 24) + 31) & ~31) / 8);
+		for (int j = 0; j < w; j++) {
+			uae_u32 co = (p[0] << 16) | (p[1] << 8) | (p[2] << 0);
+			p += 3;
+			int c = 0;
+			if (palettecount >= 1 && co == palette[palettecount - 1]) {
+				c = palettecount - 1;
+			} else {
+				for (c = 0; c < palettecount; c++) {
+					if (palette[c] == co) {
+						break;
+					}
+				}
+			}
+			if (c >= palettecount) {
+				if (palettecount >= 256) {
+					// run out of palette slots
+					write_log("Run out of palette slots when counting colors.");
+					uniquecolorcount = -1;
+					xfree(palettebm);
+					palettebm = NULL;
+					return;
+				}
+				palettea[palettecount] = true;
+				c = palettecount++;
+				palette[c] = co;
+			}
+		}
+	}
+	write_log("Screenshot color count: %d\n", palettecount);
+
+	// get custom colors
+	int customcolorcnt = 0;
+	for (int i = 0; i < 256; i++) {
+		uniquecolors[i] = 0;
+		uniquecolorsa[i] = false;
+		uae_u8 r, g, b;
+		if (get_custom_color_reg(i, &r, &g, &b)) {
+			uniquecolors[i] = (b << 16) | (g << 8) | r;
+			customcolorcnt = i + 1;
+		}
+	}
+	// find matching colors from bitmap and allocate colors
+	int match = 0;
+	for (int i = 0; i < palettecount; i++) {
+		if (palettea[i]) {
+			uae_u32 cc = palette[i];
+			for (int j = 0; j < customcolorcnt; j++) {
+				uae_u32 cc2 = uniquecolors[j];
+				if (!uniquecolorsa[i] && cc == cc2) {
+					uniquecolorsa[i] = true;
+					if (i >= uniquecolorcount) {
+						uniquecolorcount = i + 1;
+					}
+					palettea[i] = false;
+					match++;
+					break;
+				}
+			}
+		}
+	}
+	write_log("Screenshot custom register color matches: %d\n", match);
+	// add remaining colors not yet matched
+	match = 0;
+	// use all unused colors if IFF mode to keep total colors as small as possible
+	// if not iff: try to preserve first 32 colors.
+	int safecolors = screenshotmode == 2 ? 0 : 32;
+	if (uniquecolorcount < safecolors) {
+		uniquecolorcount = safecolors;
+	}
+	for (int i = 0; i < 256; i++) {
+		if (palettea[i]) {
+			int j = 0;
+			for (j = safecolors; j < 256 + safecolors; j++) {
+				int jj = j & 255;
+				if (!uniquecolorsa[jj]) {
+					uniquecolors[jj] = palette[i];
+					uniquecolorsa[jj] = true;
+					palettea[i] = false;
+					if (jj > uniquecolorcount) {
+						uniquecolorcount = jj + 1;
+					}
+					match++;
+					break;
+				}
+			}
+			if (j >= 256 + safecolors) {
+				// run out of palette slots
+				write_log("Run out of palette slots when adding remaining colors.");
+				uniquecolorcount = -1;
+				xfree(palettebm);
+				palettebm = NULL;
+				return;
+			}
+		}
+	}
+	write_log("Screenshot non-custom register matched colors: %d\n", match);
+	// create image
+	int prevc = -1;
+	for (int i = 0; i < h; i++) {
+		uae_u8 *p = (uae_u8 *)lpvBits + i * ((((w * 24) + 31) & ~31) / 8);
+		uae_u8 *dp = palettebm + w * i;
+		for (int j = 0; j < w; j++) {
+			uae_u32 co = (p[0] << 16) | (p[1] << 8) | (p[2] << 0);
+			p += 3;
+			int c = 0;
+			if (prevc >= 0 && co == uniquecolors[prevc]) {
+				c = prevc;
+			} else {
+				for (c = 0; c < uniquecolorcount; c++) {
+					if (uniquecolors[c] == co) {
+						prevc = c;
+						break;
+					}
+				}
+				if (c >= uniquecolorcount) {
+					c++;
+				}
+			}
+			*dp++ = (uae_u8)c;
+		}
+	}
+	// select depth
+	uniquecolordepth = 1;
+	for (int i = 0; i < 8; i++) {
+		if (uniquecolorcount > (1 << i)) {
+			uniquecolordepth = i + 1;
+		}
+	}
+}
+
 #if PNG_SCREENSHOTS > 0
 
 static void _cdecl pngtest_blah (png_structp png_ptr, png_const_charp message)
@@ -661,28 +827,44 @@ static int savepng(FILE *fp, bool alpha)
 		return 3;
 	}
 
+	count_colors(alpha);
 	png_init_io (png_ptr, fp);
 	png_set_filter (png_ptr, 0, PNG_FILTER_NONE);
 	png_set_IHDR (png_ptr, info_ptr,
-		w, h, 8, d <= 8 ? PNG_COLOR_TYPE_PALETTE : (alpha ? PNG_COLOR_TYPE_RGB_ALPHA : PNG_COLOR_TYPE_RGB),
+		w, h, 8, uniquecolorcount <= 256 && uniquecolorcount >= 0 ? PNG_COLOR_TYPE_PALETTE : (alpha ? PNG_COLOR_TYPE_RGB_ALPHA : PNG_COLOR_TYPE_RGB),
 		PNG_INTERLACE_NONE, PNG_COMPRESSION_TYPE_DEFAULT, PNG_FILTER_TYPE_DEFAULT);
-	if (d <= 8) {
-		for (i = 0; i < (1 << d); i++) {
-			pngpal[i].red = bi->bmiColors[i].rgbRed;
-			pngpal[i].green = bi->bmiColors[i].rgbGreen;
-			pngpal[i].blue = bi->bmiColors[i].rgbBlue;
-		}
-		png_set_PLTE (png_ptr, info_ptr, pngpal, 1 << d);
-	}
 	row_pointers = xmalloc (png_bytep, h);
-	for (i = 0; i < h; i++) {
-		int j = h - i - 1;
-		row_pointers[i] = (uae_u8*)lpvBits + j * (((w * (d <= 8 ? 8 : (alpha ? 32 : 24)) + 31) & ~31) / 8);
+	if (palettebm) {
+		for (i = 0; i < (1 << uniquecolordepth); i++) {
+			pngpal[i].red = (uniquecolors[i] >> 0) & 0xff;
+			pngpal[i].green = (uniquecolors[i] >> 8) & 0xff;
+			pngpal[i].blue = (uniquecolors[i] >> 16) & 0xff;
+		}
+		png_set_PLTE(png_ptr, info_ptr, pngpal, 1 << uniquecolordepth);
+		for (i = 0; i < h; i++) {
+			int j = h - i - 1;
+			row_pointers[i] = palettebm + j * w;
+		}
+	} else {
+		if (d <= 8) {
+			for (i = 0; i < (1 << d); i++) {
+				pngpal[i].red = bi->bmiColors[i].rgbRed;
+				pngpal[i].green = bi->bmiColors[i].rgbGreen;
+				pngpal[i].blue = bi->bmiColors[i].rgbBlue;
+			}
+			png_set_PLTE(png_ptr, info_ptr, pngpal, 1 << d);
+		}
+		for (i = 0; i < h; i++) {
+			int j = h - i - 1;
+			row_pointers[i] = (uae_u8 *)lpvBits + j * (((w * (d <= 8 ? 8 : (alpha ? 32 : 24)) + 31) & ~31) / 8);
+		}
 	}
 	png_set_rows (png_ptr, info_ptr, row_pointers);
 	png_write_png (png_ptr,info_ptr, PNG_TRANSFORM_BGR, NULL);
 	png_destroy_write_struct (&png_ptr, &info_ptr);
 	xfree (row_pointers);
+	xfree(palettebm);
+	palettebm = NULL;
 	return 0;
 }
 
@@ -693,6 +875,123 @@ static void __cdecl write_data_fn(png_structp p, png_bytep data, png_size_t len)
 }
 static void __cdecl output_flush_fn(png_structp p)
 {
+}
+
+static int saveiff(FILE *fp, bool alpha)
+{
+	const uae_u8 iffilbm[] = {
+	'F','O','R','M',0,0,0,0,'I','L','B','M',
+	'B','M','H','D',0,0,0,20, 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+	'C','A','M','G',0,0,0, 4,  0,0,0,0,
+	};
+
+	count_colors(alpha);
+
+	int h = bi->bmiHeader.biHeight;
+	int w = bi->bmiHeader.biWidth;
+	int iffbpp = uniquecolordepth;
+	if (uniquecolorcount < 0 || uniquecolorcount > 256) {
+		iffbpp = 24;
+	}
+
+	int bodysize = (((w + 15) & ~15) / 8) * h * iffbpp;
+
+	int iffsize = sizeof(iffilbm) + (8 + 256 * 3 + 1) + (4 + 4) + bodysize;
+	uae_u8 *iff = xcalloc(uae_u8, iffsize);
+	memcpy(iff, iffilbm, sizeof(iffilbm));
+	if (!iff) {
+		return 1;
+	}
+	uae_u8 *p = iff + 5 * 4;
+	// BMHD
+	p[0] = w >> 8;
+	p[1] = w;
+	p[2] = h >> 8;
+	p[3] = h;
+	p[8] = iffbpp;
+	p[14] = 1;
+	p[15] = 1;
+	p[16] = w >> 8;
+	p[17] = w;
+	p[18] = h >> 8;
+	p[19] = h;
+	p = iff + sizeof iffilbm - 4;
+	// CAMG
+	if (w > 400)
+		p[2] |= 0x80; // HIRES
+	if (h > 300)
+		p[3] |= 0x04; // LACE
+	p += 4;
+	if (iffbpp <= 8) {
+		int cols = 1 << iffbpp;
+		int cnt = 0;
+		memcpy(p, "CMAP", 4);
+		p[4] = 0;
+		p[5] = 0;
+		p[6] = (cols * 3) >> 8;
+		p[7] = (cols * 3);
+		p += 8;
+		for (int i = 0; i < cols; i++) {
+			*p++ = uniquecolors[i] >> 0;
+			*p++ = uniquecolors[i] >> 8;
+			*p++ = uniquecolors[i] >> 16;
+			cnt += 3;
+		}
+		if (cnt & 1)
+			*p++ = 0;
+	}
+	memcpy(p, "BODY", 4);
+	p[4] = bodysize >> 24;
+	p[5] = bodysize >> 16;
+	p[6] = bodysize >> 8;
+	p[7] = bodysize >> 0;
+	p += 8;
+
+	if (iffbpp <= 8) {
+		for (int y = 0; y < h; y++) {
+			uae_u8 *s = palettebm + ((h - 1) - y) * w;
+			int b;
+			for (b = 0; b < iffbpp; b++) {
+				int mask2 = 1 << b;
+				for (int x = 0; x < w; x++) {
+					int off = x / 8;
+					int mask = 1 << (7 - (x & 7));
+					uae_u8 v = s[x]; 
+					if (v & mask2)
+						p[off] |= mask;
+				}
+				p += ((w + 15) & ~15) / 8;
+			}
+		}
+	} else {
+		for (int y = 0; y < h; y++) {
+			uae_u32 *s = (uae_u32*)(((uae_u8*)lpvBits) + ((h - 1) - y) * ((w * (alpha ? 32 : 24) + 31) & ~31) / 8);
+			int b, bb;
+			for (bb = 0; bb < 3; bb++) {
+				for (b = 0; b < 8; b++) {
+					int mask2 = 1 << (((2 - bb) * 8) + b);
+					for (int x = 0; x < w; x++) {
+						int off = x / 8;
+						int mask = 1 << (7 - (x & 7));
+						uae_u32 v = s[x];
+						if (v & mask2)
+							p[off] |= mask;
+					}
+					p += ((w + 15) & ~15) / 8;
+				}
+			}
+		}
+	}
+
+	int tsize = (int)(p - iff - 8);
+	p = iff + 4;
+	p[0] = tsize >> 24;
+	p[1] = tsize >> 16;
+	p[2] = tsize >> 8;
+	p[3] = tsize >> 0;
+	fwrite(iff, 1, 8 + tsize + (tsize & 1), fp);
+	xfree(iff);
+	return 0;
 }
 
 static struct zfile *savepngzfile(bool alpha)
@@ -726,10 +1025,11 @@ static struct zfile *savepngzfile(bool alpha)
 		return NULL;
 	}
 
+	count_colors(alpha);
 	png_set_write_fn(png_ptr, zf, write_data_fn, output_flush_fn);
 	png_set_filter(png_ptr, 0, PNG_FILTER_NONE);
 	png_set_IHDR(png_ptr, info_ptr,
-		w, h, 8, d <= 8 ? PNG_COLOR_TYPE_PALETTE : (alpha ? PNG_COLOR_TYPE_RGB_ALPHA : PNG_COLOR_TYPE_RGB),
+		w, h, 8, uniquecolorcount <= 256 && uniquecolorcount >= 0 ? PNG_COLOR_TYPE_PALETTE : (alpha ? PNG_COLOR_TYPE_RGB_ALPHA : PNG_COLOR_TYPE_RGB),
 		PNG_INTERLACE_NONE, PNG_COMPRESSION_TYPE_DEFAULT, PNG_FILTER_TYPE_DEFAULT);
 	if (d <= 8) {
 		for (i = 0; i < (1 << d); i++) {
@@ -740,14 +1040,37 @@ static struct zfile *savepngzfile(bool alpha)
 		png_set_PLTE(png_ptr, info_ptr, pngpal, 1 << d);
 	}
 	row_pointers = xmalloc(png_bytep, h);
-	for (i = 0; i < h; i++) {
-		int j = h - i - 1;
-		row_pointers[i] = (uae_u8*)lpvBits + j * (((w * (d <= 8 ? 8 : (alpha ? 32 : 24)) + 31) & ~31) / 8);
+	if (palettebm) {
+		for (i = 0; i < (1 << uniquecolordepth); i++) {
+			pngpal[i].red = (uniquecolors[i] >> 0) & 0xff;
+			pngpal[i].green = (uniquecolors[i] >> 8) & 0xff;
+			pngpal[i].blue = (uniquecolors[i] >> 16) & 0xff;
+		}
+		png_set_PLTE(png_ptr, info_ptr, pngpal, 1 << uniquecolordepth);
+		for (i = 0; i < h; i++) {
+			int j = h - i - 1;
+			row_pointers[i] = palettebm + j * w;
+		}
+	} else {
+		if (d <= 8) {
+			for (i = 0; i < (1 << d); i++) {
+				pngpal[i].red = bi->bmiColors[i].rgbRed;
+				pngpal[i].green = bi->bmiColors[i].rgbGreen;
+				pngpal[i].blue = bi->bmiColors[i].rgbBlue;
+			}
+			png_set_PLTE(png_ptr, info_ptr, pngpal, 1 << d);
+		}
+		for (i = 0; i < h; i++) {
+			int j = h - i - 1;
+			row_pointers[i] = (uae_u8 *)lpvBits + j * (((w * (d <= 8 ? 8 : (alpha ? 32 : 24)) + 31) & ~31) / 8);
+		}
 	}
 	png_set_rows(png_ptr, info_ptr, row_pointers);
 	png_write_png(png_ptr, info_ptr, PNG_TRANSFORM_BGR, NULL);
 	png_destroy_write_struct(&png_ptr, &info_ptr);
 	xfree(row_pointers);
+	xfree(palettebm);
+	palettebm = NULL;
 	return zf;
 }
 
@@ -823,10 +1146,12 @@ int screenshotf(int monid, const TCHAR *spath, int mode, int doprepare, int imag
 			fp = _tfopen (spath, _T("wb"));
 			if (fp) {
 #if PNG_SCREENSHOTS > 0
-				if (screenshotmode)
+				if (screenshotmode == 1)
 					failed = savepng (fp, alpha);
-				else
 #endif
+				if (screenshotmode == 2)
+					failed = saveiff(fp, alpha);
+				if (screenshotmode == 0)
 					failed = savebmp (fp, alpha);
 				fclose(fp);
 				fp = NULL;
@@ -872,7 +1197,7 @@ int screenshotf(int monid, const TCHAR *spath, int mode, int doprepare, int imag
 
 		while(++filenumber < screenshot_max)
 		{
-			_stprintf (filename, format, path, name, underline, filenumber, screenshotmode ? _T("png") : _T("bmp"));
+			_stprintf (filename, format, path, name, underline, filenumber, screenshotmode == 2 ? _T("iff") : (screenshotmode ? _T("png") : _T("bmp")));
 			if ((fp = _tfopen (filename, _T("rb"))) == NULL) // does file not exist?
 			{
 				int nok = 0;
@@ -881,10 +1206,12 @@ int screenshotf(int monid, const TCHAR *spath, int mode, int doprepare, int imag
 					goto oops; // error
 				}
 #if PNG_SCREENSHOTS > 0
-				if (screenshotmode)
+				if (screenshotmode == 1)
 					nok = savepng (fp, alpha);
-				else
 #endif
+				if (screenshotmode == 2)
+					nok = saveiff(fp, alpha);
+				if (screenshotmode == 0)
 					nok = savebmp (fp, alpha);
 				fclose(fp);
 				if (nok && fp) {

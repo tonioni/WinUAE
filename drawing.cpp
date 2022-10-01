@@ -284,6 +284,7 @@ static int hposblank;
 static bool ecs_genlock_features_active;
 static uae_u8 ecs_genlock_features_mask;
 static bool ecs_genlock_features_colorkey;
+static bool aga_genlock_features_zdclken;
 static int hsync_shift_hack;
 static bool sprite_smaller_than_64, sprite_smaller_than_64_inuse;
 static bool full_blank;
@@ -3311,17 +3312,21 @@ static void pfield_expand_dp_bplcon(void)
 		sprite_smaller_than_64_inuse = true;
 	sprite_smaller_than_64 = (dp_for_drawing->fmode & 0x0c) != 0x0c;
 #endif
-	ecs_genlock_features_active = (ecs_denise && ((dp_for_drawing->bplcon2 & 0x0c00) || ce_is_borderntrans(colors_for_drawing.extra))) || (currprefs.genlock_effects ? 1 : 0);
+	ecs_genlock_features_active = (ecs_denise && ((dp_for_drawing->bplcon2 & 0x0c00) || ce_is_borderntrans(colors_for_drawing.extra))) ||
+		(currprefs.genlock_effects ? 1 : 0) || (aga_mode && (dp_for_drawing->bplcon3 & 0x004) && (dp_for_drawing->bplcon0 & 1));
 	if (ecs_genlock_features_active) {
-		uae_u16 bc2 = dp_for_drawing->bplcon2;
 		ecs_genlock_features_colorkey = currprefs.ecs_genlock_features_colorkey_mask[0] || currprefs.ecs_genlock_features_colorkey_mask[1] ||
 			currprefs.ecs_genlock_features_colorkey_mask[2] || currprefs.ecs_genlock_features_colorkey_mask[3];
 		ecs_genlock_features_mask = currprefs.ecs_genlock_features_plane_mask;
-		if (bc2 & 0x0800) {
-			ecs_genlock_features_mask = 1 << ((bc2 >> 12) & 7);
+		aga_genlock_features_zdclken = false;
+		if (dp_for_drawing->bplcon2 & 0x0800) {
+			ecs_genlock_features_mask = 1 << ((dp_for_drawing->bplcon2 >> 12) & 7);
 		}
-		if (bc2 & 0x0400) {
+		if (dp_for_drawing->bplcon2 & 0x0400) {
 			ecs_genlock_features_colorkey = true;
+		}
+		if ((dp_for_drawing->bplcon3 & 0x0004) && (dp_for_drawing->bplcon0 & 1)) {
+			aga_genlock_features_zdclken = true;
 		}
 	}
 
@@ -4779,7 +4784,7 @@ static void finish_drawing_frame(bool drawlines)
 			init_row_map();
 			pfield_set_linetoscr();
 		}
-		emulate_genlock(vb, &vidinfo->tempbuffer);
+		emulate_genlock(vb, &vidinfo->tempbuffer, aga_genlock_features_zdclken);
 		vb = vidinfo->outbuffer = &vidinfo->tempbuffer;
 		if (vb->nativepositioning)
 			setnativeposition(vb);
@@ -5189,6 +5194,9 @@ void reset_drawing(void)
 	ad->specialmonitoron = false;
 	bplcolorburst_field = 1;
 	hsync_shift_hack = 0;
+	ecs_genlock_features_active = false;
+	aga_genlock_features_zdclken = false;
+	ecs_genlock_features_colorkey = false;
 }
 
 static void gen_direct_drawing_table(void)

@@ -12,6 +12,7 @@ extern int avioutput_width, avioutput_height, avioutput_bits;
 extern int avioutput_framelimiter, avioutput_nosoundoutput;
 extern int avioutput_nosoundsync, avioutput_originalsize;
 extern int screenshot_originalsize;
+extern int screenshot_paletteindexed;
 extern int screenshot_clipmode;
 extern int screenshot_multi;
 

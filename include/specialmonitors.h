@@ -10,7 +10,7 @@ void specialmonitor_reset(void);
 bool specialmonitor_need_genlock(void);
 bool specialmonitor_uses_control_lines(void);
 bool specialmonitor_autoconfig_init(struct autoconfig_info*);
-bool emulate_genlock(struct vidbuffer*, struct vidbuffer*);
+bool emulate_genlock(struct vidbuffer*, struct vidbuffer*, bool);
 bool emulate_grayscale(struct vidbuffer*, struct vidbuffer*);
 bool specialmonitor_linebased(void);
 

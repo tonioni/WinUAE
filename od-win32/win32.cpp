@@ -6567,6 +6567,10 @@ static int parseargs(const TCHAR *argx, const TCHAR *np, const TCHAR *np2)
 		screenshotmode = 0;
 		return 1;
 	}
+	if (!_tcscmp(arg, _T("screenshotiff"))) {
+		screenshotmode = 2;
+		return 1;
+	}
 	if (!_tcscmp(arg, _T("psprintdebug"))) {
 		postscript_print_debugging = 1;
 		return 1;

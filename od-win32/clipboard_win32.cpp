@@ -383,7 +383,7 @@ static void to_iff_ilbm(TrapContext *ctx, HBITMAP hbmp)
 		for (y = 0; y < h; y++) {
 			uae_u8 *s = (uae_u8*)(((uae_u8*)bmp.bmBits) + y * bmpw);
 			int b;
-			for (b = 0; b < 8; b++) {
+			for (b = 0; b < iffbpp; b++) {
 				int mask2 = 1 << b;
 				for (x = 0; x < w; x++) {
 					int off = x / 8;

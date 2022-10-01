@@ -9046,6 +9046,29 @@ static void checkautoscalecol0(void)
 	}
 }
 
+bool get_custom_color_reg(int colreg, uae_u8 *r, uae_u8 *g, uae_u8 *b)
+{
+	if (colreg >= 32 && !aga_mode) {
+		return false;
+	}
+	if (colreg >= 256 || colreg < 0) {
+		return false;
+	}
+	if (aga_mode) {
+		*r = (current_colors.color_regs_aga[colreg] >> 16) & 0xFF;
+		*g = (current_colors.color_regs_aga[colreg] >> 8) & 0xFF;
+		*b = current_colors.color_regs_aga[colreg] & 0xFF;
+	} else {
+		*r = (current_colors.color_regs_ecs[colreg] >> 8) & 15;
+		*r |= (*r) << 4;
+		*g = (current_colors.color_regs_ecs[colreg] >> 4) & 15;
+		*g |= (*g) << 4;
+		*b = (current_colors.color_regs_ecs[colreg] >> 0) & 15;
+		*b |= (*b) << 4;
+	}
+	return true;
+}
+
 static void COLOR_WRITE(int hpos, uae_u16 v, int num)
 {
 	bool colzero = false;
