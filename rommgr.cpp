@@ -2294,6 +2294,17 @@ int kickstart_checksum (uae_u8 *mem, int size)
 	return 1;
 }
 
+static void clean_path(TCHAR *s)
+{
+	for (;;) {
+		int v = _tcscspn(s, _T("?:\t\r\n"));
+		if (s[v] == 0) {
+			break;
+		}
+		memmove(s + v, s + v + 1, (uaetcslen(s + v + 1) + 1) * sizeof(TCHAR));
+	}
+}
+
 int configure_rom (struct uae_prefs *p, const int *rom, int msg)
 {
 	struct romdata *rd;
@@ -2338,10 +2349,12 @@ int configure_rom (struct uae_prefs *p, const int *rom, int msg)
 	if (rd->type & (ROMTYPE_ARCADIAGAME | ROMTYPE_ALG)) {
 		fetch_nvrampath(p->flashfile, sizeof(p->flashfile) / sizeof(TCHAR));
 		_stprintf(p->flashfile + _tcslen(p->flashfile), _T("%s.nvr"), rd->name);
+		clean_path(p->flashfile);
 	}
 	if (rd->type & ROMTYPE_ALG) {
 		fetch_videopath(p->genlock_video_file, sizeof(p->genlock_video_file) / sizeof(TCHAR));
 		_stprintf(p->genlock_video_file + _tcslen(p->genlock_video_file), _T("%s.avi"), rd->name);
+		clean_path(p->genlock_video_file);
 	}
 	return 1;
 }
