@@ -202,6 +202,7 @@ struct regstruct
 	int exception;
 	int intmask;
 	int ipl[2], ipl_pin;
+	evt_t ipl_evt_pre;
 
 	uae_u32 vbr, sfc, dfc;
 
@@ -693,6 +694,7 @@ extern void prepare_interrupt (uae_u32);
 extern void doint(void);
 extern void checkint(void);
 extern void intlev_load(void);
+extern void ipl_fetch_pre(void);
 extern void ipl_fetch_now(void);
 extern void ipl_fetch_next(void);
 extern void dump_counts (void);
@@ -703,7 +705,8 @@ extern int m68k_mull (uae_u32, uae_u32, uae_u16);
 extern void init_m68k (void);
 extern void m68k_go (int);
 extern void m68k_dumpstate(uaecptr *, uaecptr);
-extern void m68k_dumpcache (bool);
+extern void m68k_dumpcache(bool);
+extern bool m68k_readcache(uaecptr memaddr, bool dc, uae_u32* valp);
 extern int getMulu68kCycles(uae_u16 src);
 extern int getMuls68kCycles(uae_u16 src);
 extern int getDivu68kCycles (uae_u32 dividend, uae_u16 divisor);
