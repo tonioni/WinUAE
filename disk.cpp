@@ -4056,6 +4056,7 @@ static void wordsync_detected(bool startup)
 
 static void disk_doupdate_read_reallynothing(int floppybits, bool state)
 {
+	bool done = false;
 	// Only because there is at least one demo that checks wrong bit
 	// and hangs unless DSKSYNC bit it set with zero DSKSYNC value...
 	if (INTREQR() & 0x1000)
@@ -4079,8 +4080,9 @@ static void disk_doupdate_read_reallynothing(int floppybits, bool state)
 			dskbytr_val = word & 0xff;
 			dskbytr_val |= 0x8000;
 		}
-		if (!(adkcon & 0x200) && word == dsksync) {
+		if (!done && !(adkcon & 0x200) && word == dsksync) {
 			INTREQ(0x8000 | 0x1000);
+			done = true;
 		}
 		bitoffset++;
 		bitoffset &= 15;
