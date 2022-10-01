@@ -313,8 +313,17 @@ static void serial_rx_irq(void)
 
 void serial_rethink(void)
 {
-	if (data_in_serdatr && ((currprefs.cpu_memory_cycle_exact && get_cycles() > data_in_serdatr_evt) || !currprefs.cpu_memory_cycle_exact)) {
-		INTREQ_INT(11, 0);
+	if (data_in_serdatr) {
+		if (currprefs.cpu_memory_cycle_exact && get_cycles() > data_in_serdatr_evt) {
+			data_in_serdatr = 0;
+		}
+		if (serloop_enabled) {
+			data_in_serdatr = 0;
+		}
+		// RBF bit is not "sticky" but without it data can be lost when using fast emulation modes and physical serial port.
+		if (data_in_serdatr) {
+			INTREQ_INT(11, 0);
+		}
 	}
 }
 
