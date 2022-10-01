@@ -1260,7 +1260,7 @@ bool render_screen(int monid, int mode, bool immediate)
 	int cnt;
 
 	mon->render_ok = false;
-	if (minimized || ad->picasso_on || monitor_off) {
+	if (ad->picasso_on || monitor_off) {
 		return mon->render_ok;
 	}
 	cnt = 0;
@@ -1607,8 +1607,8 @@ void getrtgfilterrect2(int monid, RECT *sr, RECT *dr, RECT *zr, int *mode, int d
 		int yy = (mon->currentmode.native_height / mul - srcheight) / 2;
 		picasso_offset_x = -xx;
 		picasso_offset_y = -yy;
-		mx = mul;
-		my = mul;
+		mx = (float)mul;
+		my = (float)mul;
 		outwidth = srcwidth;
 		outheight = srcheight;
 		*mode = 1;

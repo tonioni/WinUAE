@@ -2543,27 +2543,27 @@ void map_overlay (int chip)
 	if (bogomem_aliasing)
 		size = 8;
 	cb = &chipmem_bank;
-#ifdef AGA
-#if 0
+	#ifdef AGA
+	#if 0
 	if (currprefs.cpu_cycle_exact && currprefs.cpu_model >= 68020)
-		cb = &chipmem_bank_ce2;
-#endif
-#endif
+	cb = &chipmem_bank_ce2;
+	#endif
+	#endif
 	if (chip) {
-		map_banks (&dummy_bank, 0, size, 0);
-		if (!isdirectjit ()) {
+		map_banks(&dummy_bank, 0, size, 0);
+		if (!isdirectjit()) {
 			if ((currprefs.chipset_mask & CSMASK_ECS_AGNUS) && bogomem_bank.allocated_size == 0) {
 				map_banks(cb, 0, size, chipmem_bank.allocated_size);
 				int start = chipmem_bank.allocated_size >> 16;
 				if (chipmem_bank.allocated_size < 0x100000) {
 					if (currprefs.cs_1mchipjumper) {
 						int dummy = (0x100000 - chipmem_bank.allocated_size) >> 16;
-						map_banks (&chipmem_dummy_bank, start, dummy, 0);
-						map_banks (&chipmem_dummy_bank, start + 16, dummy, 0);
+						map_banks(&chipmem_dummy_bank, start, dummy, 0);
+						map_banks(&chipmem_dummy_bank, start + 16, dummy, 0);
 					}
 				} else if (chipmem_bank.allocated_size < 0x200000 && chipmem_bank.allocated_size > 0x100000) {
 					int dummy = (0x200000 - chipmem_bank.allocated_size) >> 16;
-					map_banks (&chipmem_dummy_bank, start, dummy, 0);
+					map_banks(&chipmem_dummy_bank, start, dummy, 0);
 				}
 			} else {
 				int mapsize = 32;
@@ -2572,28 +2572,29 @@ void map_overlay (int chip)
 				map_banks(cb, 0, mapsize, chipmem_bank.allocated_size);
 			}
 		} else {
-			map_banks (cb, 0, chipmem_bank.allocated_size >> 16, 0);
+			map_banks(cb, 0, chipmem_bank.allocated_size >> 16, 0);
 		}
 	} else {
 		addrbank *rb = NULL;
 		if (size < 32 && bogomem_aliasing == 0)
 			size = 32;
 		cb = get_mem_bank_real(0xf00000);
-		if (!rb && cb && (cb->flags & ABFLAG_ROM) && get_word (0xf00000) == 0x1114)
+		if (!rb && cb && (cb->flags & ABFLAG_ROM) && get_word(0xf00000) == 0x1114)
 			rb = cb;
 		cb = get_mem_bank_real(0xe00000);
-		if (!rb && cb && (cb->flags & ABFLAG_ROM) && get_word (0xe00000) == 0x1114)
+		if (!rb && cb && (cb->flags & ABFLAG_ROM) && get_word(0xe00000) == 0x1114)
 			rb = cb;
 		if (!rb)
 			rb = &kickmem_bank;
-		map_banks (rb, 0, size, 0x80000);
+		map_banks(rb, 0, size, 0x80000);
 	}
 	initramboard(&chipmem_bank, &currprefs.chipmem);
 	overlay_state = chip;
-	fill_ce_banks ();
+	fill_ce_banks();
 	cpuboard_overlay_override();
-	if (!isrestore () && valid_address (regs.pc, 4))
-		m68k_setpc_normal (m68k_getpc ());
+	if (!isrestore() && valid_address(regs.pc, 4)) {
+		m68k_setpc_normal(m68k_getpc());
+	}
 }
 
 // Set a default pattern for uninitialized memory after hard reset.

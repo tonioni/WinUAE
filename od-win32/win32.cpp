@@ -750,7 +750,6 @@ void setminimized(int monid)
 {
 	if (!minimized)
 		minimized = 1;
-	set_inhibit_frame(monid, IHF_WINDOWHIDDEN);
 	if (isfullscreen() > 0 && D3D_resize) {
 		write_log(_T("setminimized\n"));
 		D3D_resize(monid, -1);
@@ -764,7 +763,6 @@ void unsetminimized(int monid)
 	else if (minimized > 0)
 		full_redraw_all();
 	minimized = 0;
-	clear_inhibit_frame(monid, IHF_WINDOWHIDDEN);
 }
 
 void refreshtitle(void)

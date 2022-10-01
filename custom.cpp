@@ -13029,6 +13029,11 @@ static void hsync_handler_post(bool onvsync)
 			skip = 0;
 	}
 #endif
+
+#if 0
+	if (vpos == 300 && get_cycles() < 312 * 227 * CYCLE_UNIT)
+		activate_debugger();
+#endif
 }
 
 static bool vsync_line;
@@ -13090,7 +13095,7 @@ void init_eventtab (void)
 {
 	int i;
 
-	nextevent = 0;
+	nextevent = EVT_MAX;
 	for (i = 0; i < ev_max; i++) {
 		eventtab[i].active = 0;
 		eventtab[i].oldcycles = get_cycles();
@@ -13143,6 +13148,8 @@ void custom_reset(bool hardreset, bool keyboardreset)
 	write_log(_T("Reset at %08X. Chipset mask = %08X\n"), M68K_GETPC, currprefs.chipset_mask);
 	memory_map_dump();
 
+	bool ntsc = currprefs.ntscmode;
+
 	lightpen_active = 0;
 	lightpen_triggered = 0;
 	lightpen_cx[0] = lightpen_cy[0] = -1;
@@ -13176,7 +13183,6 @@ void custom_reset(bool hardreset, bool keyboardreset)
 	display_reset = 1;
 
 	if (hardreset || savestate_state) {
-		bool ntsc = currprefs.ntscmode;
 		maxhpos = ntsc ? MAXHPOS_NTSC : MAXHPOS_PAL;
 		maxhpos_short = ntsc ? MAXHPOS_NTSC : MAXHPOS_PAL;
 		maxvpos = ntsc ? MAXVPOS_NTSC : MAXVPOS_PAL;
@@ -13270,7 +13276,7 @@ void custom_reset(bool hardreset, bool keyboardreset)
 		blt_info.blit_queued = 0;
 		init_sprites();
 
-		maxhpos = MAXHPOS_PAL;
+		maxhpos = ntsc ? MAXHPOS_NTSC : MAXHPOS_PAL;
 		maxhpos_short = maxhpos;
 		updateextblk();
 	}
@@ -13563,24 +13569,24 @@ static uae_u32 REGPARAM2 custom_wget_1(int hpos, uaecptr addr, int noput, bool i
 	addr &= 0xfff;
 
 	switch (addr & 0x1fe) {
-	case 0x002: v = DMACONR (hpos); break;
-	case 0x004: v = VPOSR (); break;
-	case 0x006: v = VHPOSR (); break;
+	case 0x002: v = DMACONR(hpos); break;
+	case 0x004: v = VPOSR(); break;
+	case 0x006: v = VHPOSR(); break;
 
-	case 0x00A: v = JOY0DAT (); break;
-	case 0x00C: v = JOY1DAT (); break;
-	case 0x00E: v = CLXDAT (hpos); break;
-	case 0x010: v = ADKCONR (); break;
+	case 0x00A: v = JOY0DAT(); break;
+	case 0x00C: v = JOY1DAT(); break;
+	case 0x00E: v = CLXDAT(hpos); break;
+	case 0x010: v = ADKCONR(); break;
 
-	case 0x012: v = POT0DAT (); break;
-	case 0x014: v = POT1DAT (); break;
-	case 0x016: v = POTGOR (); break;
-	case 0x018: v = SERDATR (); break;
-	case 0x01A: v = DSKBYTR (hpos); break;
-	case 0x01C: v = INTENAR (); break;
-	case 0x01E: v = INTREQR (); break;
+	case 0x012: v = POT0DAT(); break;
+	case 0x014: v = POT1DAT(); break;
+	case 0x016: v = POTGOR(); break;
+	case 0x018: v = SERDATR(); break;
+	case 0x01A: v = DSKBYTR(hpos); break;
+	case 0x01C: v = INTENAR(); break;
+	case 0x01E: v = INTREQR(); break;
 	case 0x07C:
-		v = DENISEID (&missing);
+		v = DENISEID(&missing);
 		if (missing)
 			goto writeonly;
 		break;
@@ -13600,7 +13606,7 @@ static uae_u32 REGPARAM2 custom_wget_1(int hpos, uaecptr addr, int noput, bool i
 	case 0x1BC: case 0x1BE:
 		if (!aga_mode)
 			goto writeonly;
-		v = COLOR_READ ((addr & 0x3E) / 2);
+		v = COLOR_READ((addr & 0x3E) / 2);
 		break;
 #endif
 
@@ -13706,7 +13712,7 @@ static uae_u32 REGPARAM2 custom_wget(uaecptr addr)
 		v |= custom_wget2(addr + 2, false) >> 8;
 		return v;
 	}
-	return custom_wget2 (addr, false);
+	return custom_wget2(addr, false);
 }
 
 static uae_u32 REGPARAM2 custom_bget(uaecptr addr)
@@ -13715,7 +13721,7 @@ static uae_u32 REGPARAM2 custom_bget(uaecptr addr)
 	if ((addr & 0xffff) < 0x8000 && currprefs.cs_fatgaryrev >= 0)
 		return dummy_get(addr, 1, false, 0);
 	debug_invalid_reg(addr, 1, 0);
-	v = custom_wget2 (addr & ~1, true);
+	v = custom_wget2(addr & ~1, true);
 	v >>= (addr & 1 ? 0 : 8);
 	return v;
 }

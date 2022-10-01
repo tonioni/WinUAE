@@ -116,7 +116,7 @@ static float firmem[2 * FIR_WIDTH + 1];
 
 struct audio_channel_data
 {
-	unsigned int evtime;
+	uae_u32 evtime;
 	bool dmaenstore;
 	bool intreq2;
 	int irqcheck;
