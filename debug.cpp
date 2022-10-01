@@ -4478,19 +4478,21 @@ static void writeintomem (TCHAR **c)
 	if (!more_params (c))
 		return;
 	TCHAR *cb = *c;
-	cc = peekchar (c);
 	uae_u32 addrc = addr;
 	for(;;) {
+		cc = peekchar(c);
 		uae_u32 addrb = addr;
-		*c = cb;
 		if (cc == '\'' || cc == '\"') {
+			TCHAR quoted = cc;
 			next_char2(c);
 			while (more_params2(c)) {
 				TCHAR str[2];
 				char *astr;
 				cc = next_char2(c);
-				if (cc == '\'' || cc == '\"')
+				if (quoted == cc) {
+					ignore_ws(c);
 					break;
+				}
 				str[0] = cc;
 				str[1] = 0;
 				astr = ua (str);
@@ -4526,8 +4528,12 @@ static void writeintomem (TCHAR **c)
 					break;
 			}
 		}
+		if (more_params(c)) {
+			continue;
+		}
 		if (eaddr == 0xffffffff || addr <= addrb || addr >= eaddr)
 			break;
+		*c = cb;
 	}
 	if (eaddr != 0xffffffff)
 		console_out_f(_T("Wrote data to %08x - %08x\n"), addrc, addr);
@@ -5510,41 +5516,55 @@ static void searchmem (TCHAR **cc)
 	sslen = 0;
 	stringmode = 0;
 	ignore_ws (cc);
-	if (**cc == '"') {
-		stringmode = 1;
-		(*cc)++;
-		while (**cc != '"' && **cc != 0) {
-			ss[sslen++] = tolower (**cc);
+	while(more_params(cc)) {
+		if (**cc == '"' || **cc == '\'') {
+			TCHAR quoted = **cc;
+			stringmode = 1;
 			(*cc)++;
+			while (**cc != quoted && **cc != 0) {
+				ss[sslen++] = tolower(**cc);
+				(*cc)++;
+			}
+			if (**cc != 0) {
+				(*cc)++;
+			}
+		} else {
+			for (;;) {
+				if (**cc == 32 || **cc == 0) {
+					break;
+				}
+				if (**cc == '"' || **cc == '\'') {
+					break;
+				}
+				nc = _totupper(next_char(cc));
+				if (isspace(nc))
+					break;
+				if (isdigit(nc))
+					val = nc - '0';
+				else
+					val = nc - 'A' + 10;
+				if (val < 0 || val > 15)
+					return;
+				val *= 16;
+				if (**cc == 32 || **cc == 0)
+					break;
+				nc = _totupper(next_char(cc));
+				if (isspace(nc))
+					break;
+				if (isdigit(nc))
+					val += nc - '0';
+				else
+					val += nc - 'A' + 10;
+				if (val < 0 || val > 255)
+					return;
+				ss[sslen++] = (uae_u8)val;
+			}
 		}
-		if (**cc != 0)
+		if (**cc == 0 || **cc == 32) {
+			break;
+		}
+		if (**cc != '"' && **cc != '\'') {
 			(*cc)++;
-	} else {
-		for (;;) {
-			if (**cc == 32 || **cc == 0)
-				break;
-			nc = _totupper (next_char (cc));
-			if (isspace (nc))
-				break;
-			if (isdigit(nc))
-				val = nc - '0';
-			else
-				val = nc - 'A' + 10;
-			if (val < 0 || val > 15)
-				return;
-			val *= 16;
-			if (**cc == 32 || **cc == 0)
-				break;
-			nc = _totupper (next_char (cc));
-			if (isspace (nc))
-				break;
-			if (isdigit(nc))
-				val += nc - '0';
-			else
-				val += nc - 'A' + 10;
-			if (val < 0 || val > 255)
-				return;
-			ss[sslen++] = (uae_u8)val;
 		}
 	}
 	if (sslen == 0)
