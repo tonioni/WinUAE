@@ -837,10 +837,13 @@ static void ncr_init_board(struct ncr_state *ncr)
 		else
 			lsi710_scsi_init (&ncr->devobject);
 	}
-	if (ncr->newncr)
+	if (ncr->newncr) {
+		ncr->io_mask = 0x7f;
 		lsi_scsi_reset(&ncr->devobject, ncr);
-	else
-		lsi710_scsi_reset (&ncr->devobject, ncr);
+	} else {
+		ncr->io_mask = 0x3f;
+		lsi710_scsi_reset(&ncr->devobject, ncr);
+	}
 	ncr->board_mask = 0xffff;
 	ncr->irq_func = set_irq2;
 	ncr->bank = &ncr_bank_generic;
