@@ -4325,13 +4325,13 @@ bool gfxboard_init_memory (struct autoconfig_info *aci)
 	}
 	if (gb->board->configtype == 3) {
 		type = 0x80;
+		flags |= 0x10;
 		if (ext_size) {
-			type |= 0x20;
+			flags |= 0x20;
 			type |= z3_flags;
 		} else {
 			type |= z2_flags;
 		}
-		flags |= 0x10;
 	} else {
 		type = z2_flags | 0xc0;
 	}
