@@ -5603,7 +5603,7 @@ static void reset_decisions_hsync_start(void)
 	if (currprefs.gfx_overscanmode == OVERSCANMODE_ULTRA) {
 		thisline_decision.vb = VB_NOVB;
 	}
-	if (nosignal_status >= 1) {
+	if (nosignal_status == 1) {
 		thisline_decision.vb = VB_XBLANK;
 		MARK_LINE_CHANGED;
 	} else if (nosignal_status < 0) {

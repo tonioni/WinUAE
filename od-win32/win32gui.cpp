@@ -8619,7 +8619,7 @@ static void values_from_displaydlg (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 	workprefs.gfx_blackerthanblack = ischecked (hDlg, IDC_BLACKER_THAN_BLACK);
 	workprefs.gfx_autoresolution_vga = ischecked(hDlg, IDC_AUTORESOLUTIONVGA);
 	workprefs.gfx_grayscale = ischecked(hDlg, IDC_GRAYSCALE);
-	workprefs.gfx_monitorblankdelay = CheckDlgButton(hDlg, IDC_RESYNCBLANK, workprefs.gfx_monitorblankdelay) ? 1000 : 0;
+	workprefs.gfx_monitorblankdelay = ischecked(hDlg, IDC_RESYNCBLANK) ? 1000 : 0;
 
 	int vres = workprefs.gfx_vresolution;
 	int viscan = workprefs.gfx_iscanlines;
