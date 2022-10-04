@@ -1259,7 +1259,7 @@ static void ru_fill_ea(regusage *ru, int reg, amodes mode,
 		ru_set(write_mode ? &ru->wmask : &ru->rmask, reg);
 		break;
 	case Ad16:
-		/* skip displacment */
+		/* skip displacement */
 		m68k_pc_offset += 2;
 	case Aind:
 	case Aipi:
