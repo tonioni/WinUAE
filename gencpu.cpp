@@ -71,7 +71,7 @@ static int pre_ipl;
 static int opcode_nextcopy;
 static int disable_noflags;
 static int do_always_dynamic_cycles;
-
+static int func_noret;
 
 #define GF_APDI		0x00001
 #define GF_AD8R		0x00002
@@ -666,7 +666,7 @@ static void returncycles(int cycles)
 		out("return 0;\n");
 		return;
 	}
-	if (using_ce || using_ce020) {
+	if (func_noret) {
 #if 0
 		if (tail_ce020 == 0)
 			out("regs.ce020memcycles -= 2 * cpucycleunit; /* T=0 */ \n");
@@ -697,7 +697,7 @@ static void returncycles(int cycles)
 
 static void write_return_cycles_none(void)
 {
-	if (using_ce || using_ce020) {
+	if (func_noret) {
 		out("return;\n");
 	} else {
 		out("return 0;\n");
@@ -9484,29 +9484,43 @@ static void generate_one_opcode (int rp, const char *extra)
 		char *name = ua (lookuptab[idx].name);
 		if (generate_stbl) {
 #ifdef NOFLAGS_SUPPORT_GENCPU
-			fprintf(stblfile, "{ %sop_%04x_%d%s_ff, %sop_%04x_%d%s_%s, 0x%04x, %d, { %d, %d }, %d }, /* %s */\n",
-				(using_ce || using_ce020) ? "(cpuop_func*)" : "", opcode, opcode_last_postfix[rp], extra,
-				(using_ce || using_ce020) ? "(cpuop_func*)" : "", opcode, opcode_last_postfix[rp], extra, cputbltmp[opcode].nf ? "nf" : "ff",
-				opcode,
-				cputbltmp[opcode].length, cputbltmp[opcode].disp020[0], cputbltmp[opcode].disp020[1], cputbltmp[opcode].branch, name);
+			if (func_noret) {
+				fprintf(stblfile, "{ NULL, NULL, op_%04x_%d%s_ff, op_%04x_%d%s_%s, 0x%04x, %d, { %d, %d }, %d }, /* %s */\n",
+					opcode, opcode_last_postfix[rp], extra,
+					opcode, opcode_last_postfix[rp], extra, cputbltmp[opcode].nf ? "nf" : "ff",
+					opcode,
+					cputbltmp[opcode].length, cputbltmp[opcode].disp020[0], cputbltmp[opcode].disp020[1], cputbltmp[opcode].branch, name);
+			} else {
+				fprintf(stblfile, "{ op_%04x_%d%s_ff, op_%04x_%d%s_%s, NULL, NULL, 0x%04x, %d, { %d, %d }, %d }, /* %s */\n",
+					opcode, opcode_last_postfix[rp], extra,
+					opcode, opcode_last_postfix[rp], extra, cputbltmp[opcode].nf ? "nf" : "ff",
+					opcode,
+					cputbltmp[opcode].length, cputbltmp[opcode].disp020[0], cputbltmp[opcode].disp020[1], cputbltmp[opcode].branch, name);
+			}
 #else
-			fprintf(stblfile, "{ %sop_%04x_%d%s_ff, 0x%04x, %d, { %d, %d }, %d }, /* %s */\n",
-				(using_ce || using_ce020) ? "(cpuop_func*)" : "", opcode, opcode_last_postfix[rp], extra,
-				opcode,
-				cputbltmp[opcode].length, cputbltmp[opcode].disp020[0], cputbltmp[opcode].disp020[1], cputbltmp[opcode].branch, name);
+			if (func_noret) {
+				fprintf(stblfile, "{ NULL, op_%04x_%d%s_ff, 0x%04x, %d, { %d, %d }, %d }, /* %s */\n",
+					opcode, opcode_last_postfix[rp], extra, opcode,
+					cputbltmp[opcode].length, cputbltmp[opcode].disp020[0], cputbltmp[opcode].disp020[1], cputbltmp[opcode].branch, name);
+			} else {
+				fprintf(stblfile, "{ op_%04x_%d%s_ff, NULL, 0x%04x, %d, { %d, %d }, %d }, /* %s */\n",
+					opcode, opcode_last_postfix[rp], extra, opcode,
+					cputbltmp[opcode].length, cputbltmp[opcode].disp020[0], cputbltmp[opcode].disp020[1], cputbltmp[opcode].branch, name);
+			}
 #endif
 		}
 		xfree (name);
 		return;
 	}
 	fprintf(headerfile, "extern %s op_%04x_%d%s_nf;\n",
-		(using_ce || using_ce020) ? "cpuop_func_ce" : "cpuop_func", opcode, postfix, extra);
+		func_noret ? "cpuop_func_noret" : "cpuop_func", opcode, postfix, extra);
+
 	fprintf(headerfile, "extern %s op_%04x_%d%s_ff;\n",
-		(using_ce || using_ce020) ? "cpuop_func_ce" : "cpuop_func", opcode, postfix, extra);
+		func_noret ? "cpuop_func_noret" : "cpuop_func", opcode, postfix, extra);
 	out("/* %s */\n", outopcode (opcode));
 	if (i68000)
 		out("#ifndef CPUEMU_68000_ONLY\n");
-	out("%s REGPARAM2 op_%04x_%d%s_ff(uae_u32 opcode)\n{\n", (using_ce || using_ce020) ? "void" : "uae_u32", opcode, postfix, extra);
+	out("%s REGPARAM2 op_%04x_%d%s_ff(uae_u32 opcode)\n{\n", func_noret ? "void" : "uae_u32", opcode, postfix, extra);
 	if ((using_simple_cycles || do_always_dynamic_cycles) && !using_nocycles)
 		out("int count_cycles = 0;\n");
 
@@ -9620,16 +9634,29 @@ static void generate_one_opcode (int rp, const char *extra)
 		if (i68000)
 			fprintf(stblfile, "#ifndef CPUEMU_68000_ONLY\n");
 #ifdef NOFLAGS_SUPPORT_GENCPU
-		fprintf(stblfile, "{ %sop_%04x_%d%s_ff, %sop_%04x_%d%s_%s, 0x%04x, %d, { %d, %d }, %d }, /* %s */\n",
-			(using_ce || using_ce020) ? "(cpuop_func*)" : "", opcode, postfix, extra,
-			(using_ce || using_ce020) ? "(cpuop_func*)" : "", opcode, postfix, extra, nfgenerated ? "nf" : "ff",
-			opcode,
-			cputbltmp[opcode].length, cputbltmp[opcode].disp020[0], cputbltmp[opcode].disp020[1], cputbltmp[opcode].branch, name);
+		if (func_noret) {
+			fprintf(stblfile, "{ NULL, NULL, op_%04x_%d%s_ff, op_%04x_%d%s_%s, 0x%04x, %d, { %d, %d }, %d }, /* %s */\n",
+				opcode, postfix, extra,
+				opcode, postfix, extra, nfgenerated ? "nf" : "ff",
+				opcode,
+				cputbltmp[opcode].length, cputbltmp[opcode].disp020[0], cputbltmp[opcode].disp020[1], cputbltmp[opcode].branch, name);
+		} else {
+			fprintf(stblfile, "{ op_%04x_%d%s_ff, op_%04x_%d%s_%s, NULL, NULL, 0x%04x, %d, { %d, %d }, %d }, /* %s */\n",
+				opcode, postfix, extra,
+				opcode, postfix, extra, nfgenerated ? "nf" : "ff",
+				opcode,
+				cputbltmp[opcode].length, cputbltmp[opcode].disp020[0], cputbltmp[opcode].disp020[1], cputbltmp[opcode].branch, name);
+		}
 #else
-		fprintf(stblfile, "{ %sop_%04x_%d%s_ff, 0x%04x, %d, { %d, %d }, %d }, /* %s */\n",
-			(using_ce || using_ce020) ? "(cpuop_func*)" : "", opcode, postfix, extra,
-			opcode,
-			cputbltmp[opcode].length, cputbltmp[opcode].disp020[0], cputbltmp[opcode].disp020[1], cputbltmp[opcode].branch, name);
+		if (func_noret) {
+			fprintf(stblfile, "{ NULL, op_%04x_%d%s_ff, 0x%04x, %d, { %d, %d }, %d }, /* %s */\n",
+				opcode, postfix, extra, opcode,
+				cputbltmp[opcode].length, cputbltmp[opcode].disp020[0], cputbltmp[opcode].disp020[1], cputbltmp[opcode].branch, name);
+		} else {
+			fprintf(stblfile, "{ op_%04x_%d%s_ff, NULL, 0x%04x, %d, { %d, %d }, %d }, /* %s */\n",
+				opcode, postfix, extra, opcode,
+				cputbltmp[opcode].length, cputbltmp[opcode].disp020[0], cputbltmp[opcode].disp020[1], cputbltmp[opcode].branch, name);
+		}
 #endif
 		if (i68000)
 			fprintf(stblfile, "#endif\n");
@@ -9945,6 +9972,7 @@ static void generate_cpu (int id, int mode)
 	}
  
 	do_always_dynamic_cycles = !using_simple_cycles && !using_prefetch && using_always_dynamic_cycles;
+	func_noret = using_ce || using_ce020;
 
 	if (!using_indirect)
 		using_indirect = using_ce || using_ce020 || using_prefetch_020 || id >= 50;

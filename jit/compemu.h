@@ -76,7 +76,7 @@ struct cpu_history {
 };
 
 union cacheline {
-	cpuop_func* handler;
+	cpuop_func *handler;
 	blockinfo_t * bi;
 };
 

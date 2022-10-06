@@ -54,13 +54,17 @@ extern int fpp_movem_next[256];
 
 extern int hardware_bus_error;
 
-typedef uae_u32 REGPARAM3 cpuop_func (uae_u32) REGPARAM;
-typedef void REGPARAM3 cpuop_func_ce (uae_u32) REGPARAM;
+typedef uae_u32 REGPARAM3 cpuop_func(uae_u32) REGPARAM;
+typedef void REGPARAM3 cpuop_func_noret(uae_u32) REGPARAM;
 
 struct cputbl {
 	cpuop_func *handler_ff;
 #ifdef NOFLAGS_SUPPORT_GENCPU
-	cpuop_func *handler_nf;
+	cpuop_func_ret *handler_nf;
+#endif
+	cpuop_func_noret *handler_ff_noret;
+#ifdef NOFLAGS_SUPPORT_GENCPU
+	cpuop_func_ret *handler_nf_noret;
 #endif
 	uae_u16 opcode;
 	uae_s8 length;
@@ -824,7 +828,8 @@ extern const struct cputbl op_smalltbl_55[];
 extern const struct cputbl op_smalltbl_12[]; // prefetch
 extern const struct cputbl op_smalltbl_14[]; // CE
 
-extern cpuop_func *cpufunctbl[65536] ASM_SYM_FOR_FUNC ("cpufunctbl");
+extern cpuop_func_noret *cpufunctbl_noret[65536] ASM_SYM_FOR_FUNC("cpufunctbl_noret");
+extern cpuop_func *cpufunctbl[65536] ASM_SYM_FOR_FUNC("cpufunctbl");
 
 #ifdef JIT
 extern void (*flush_icache)(int);

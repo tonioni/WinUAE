@@ -116,6 +116,7 @@ int movem_index2[256];
 int movem_next[256];
 
 cpuop_func *cpufunctbl[65536];
+cpuop_func_noret *cpufunctbl_noret[65536];
 cpuop_func *loop_mode_table[65536];
 
 struct cputbl_data
@@ -1783,11 +1784,15 @@ static uae_u32 opcode_swap(uae_u16 opcode)
 	return do_byteswap_16(opcode);
 }
 
-uae_u32 REGPARAM2 op_illg_1 (uae_u32 opcode)
+uae_u32 REGPARAM2 op_illg_1(uae_u32 opcode)
 {
 	opcode = opcode_swap(opcode);
 	op_illg(opcode);
 	return 4;
+}
+void REGPARAM2 op_illg_1_noret(uae_u32 opcode)
+{
+	op_illg_1(opcode);
 }
 uae_u32 REGPARAM2 op_unimpl_1 (uae_u32 opcode)
 {
@@ -1798,6 +1803,11 @@ uae_u32 REGPARAM2 op_unimpl_1 (uae_u32 opcode)
 		op_unimpl(opcode);
 	return 4;
 }
+void REGPARAM2 op_unimpl_1_noret(uae_u32 opcode)
+{
+	op_unimpl_1(opcode);
+}
+
 
 // generic+direct, generic+direct+jit, generic+indirect, more compatible, cycle-exact, mmu, mmu+more compatible, mmu+mc+ce
 static const struct cputbl *cputbls[6][8] =
@@ -1877,11 +1887,14 @@ static void build_cpufunctbl (void)
 		abort ();
 	}
 
-	for (opcode = 0; opcode < 65536; opcode++)
+	for (opcode = 0; opcode < 65536; opcode++) {
 		cpufunctbl[opcode] = op_illg_1;
-	for (i = 0; tbl[i].handler_ff != NULL; i++) {
+		cpufunctbl_noret[opcode] = op_illg_1_noret;
+	}
+	for (i = 0; tbl[i].handler_ff != NULL || tbl[i].handler_ff_noret != NULL; i++) {
 		opcode = tbl[i].opcode;
 		cpufunctbl[opcode] = tbl[i].handler_ff;
+		cpufunctbl_noret[opcode] = tbl[i].handler_ff_noret;
 		cpudatatbl[opcode].length = tbl[i].length;
 		cpudatatbl[opcode].disp020[0] = tbl[i].disp020[0];
 		cpudatatbl[opcode].disp020[1] = tbl[i].disp020[1];
@@ -1891,9 +1904,10 @@ static void build_cpufunctbl (void)
 	/* hack fpu to 68000/68010 mode */
 	if (currprefs.fpu_model && currprefs.cpu_model < 68020) {
 		tbl = op_smalltbl_3;
-		for (i = 0; tbl[i].handler_ff != NULL; i++) {
+		for (i = 0; tbl[i].handler_ff != NULL || tbl[i].handler_ff_noret != NULL; i++) {
 			if ((tbl[i].opcode & 0xfe00) == 0xf200) {
 				cpufunctbl[tbl[i].opcode] = tbl[i].handler_ff;
+				cpufunctbl_noret[tbl[i].opcode] = tbl[i].handler_ff_noret;
 				cpudatatbl[tbl[i].opcode].length = tbl[i].length;
 				cpudatatbl[tbl[i].opcode].disp020[0] = tbl[i].disp020[0];
 				cpudatatbl[tbl[i].opcode].disp020[1] = tbl[i].disp020[1];
@@ -1904,7 +1918,6 @@ static void build_cpufunctbl (void)
 
 	opcnt = 0;
 	for (opcode = 0; opcode < 65536; opcode++) {
-		cpuop_func *f;
 		struct instr *table = &table68k[opcode];
 
 		if (table->mnemo == i_ILLG)
@@ -1918,6 +1931,7 @@ static void build_cpufunctbl (void)
 				// generates unimplemented instruction exception.
 				if (currprefs.int_no_unimplemented && table->unimpclev == 5) {
 					cpufunctbl[opcode] = op_unimpl_1;
+					cpufunctbl_noret[opcode] = op_unimpl_1_noret;
 					continue;
 				}
 				// remove unimplemented instruction that were removed in previous models,
@@ -1926,10 +1940,12 @@ static void build_cpufunctbl (void)
 				// clev=4: implemented in 68040 or later. unimpclev=5: not in 68060
 				if (table->unimpclev < 5 || (table->clev == 4 && table->unimpclev == 5)) {
 					cpufunctbl[opcode] = op_illg_1;
+					cpufunctbl_noret[opcode] = op_illg_1_noret;
 					continue;
 				}
 			} else {
 				cpufunctbl[opcode] = op_illg_1;
+				cpufunctbl_noret[opcode] = op_illg_1_noret;
 				continue;
 			}
 		}
@@ -1944,10 +1960,10 @@ static void build_cpufunctbl (void)
 
 		if (table->handler != -1) {
 			int idx = table->handler;
-			f = cpufunctbl[idx];
-			if (f == op_illg_1)
+			if (cpufunctbl[idx] == op_illg_1 || cpufunctbl_noret[idx] == op_illg_1_noret)
 				abort ();
-			cpufunctbl[opcode] = f;
+			cpufunctbl[opcode] = cpufunctbl[idx];
+			cpufunctbl_noret[opcode] = cpufunctbl_noret[idx];
 			memcpy(&cpudatatbl[opcode], &cpudatatbl[idx], sizeof(struct cputbl_data));
 			opcnt++;
 		}
@@ -4816,7 +4832,7 @@ static void m68k_run_1_ce (void)
 							Exception (cputrace.state);
 						} else if (cputrace.state == 1) {
 							write_log (_T("CPU TRACE: %04X\n"), cputrace.opcode);
-							(*cpufunctbl[cputrace.opcode])(cputrace.opcode);
+							(*cpufunctbl_noret[cputrace.opcode])(cputrace.opcode);
 						}
 					} else {
 						write_log (_T("CPU TRACE: STOPPED\n"));
@@ -4871,7 +4887,7 @@ static void m68k_run_1_ce (void)
 					record_dma_event_data(DMA_EVENT_CPUINS, current_hpos(), vpos, r->opcode);
 				}
 
-				(*cpufunctbl[r->opcode])(r->opcode);
+				(*cpufunctbl_noret[r->opcode])(r->opcode);
 				if (!regs.loop_mode)
 					regs.ird = regs.opcode;
 				regs.instruction_cnt++;
@@ -5661,7 +5677,7 @@ insretry:
 
 					} else {
 						
-						(*cpufunctbl[regs.opcode])(regs.opcode);
+						(*cpufunctbl_noret[regs.opcode])(regs.opcode);
 
 						wait_memory_cycles();
 					}
@@ -5757,7 +5773,7 @@ static void m68k_run_3ce (void)
 					debug_trainer_match();
 				}
 
-				(*cpufunctbl[r->opcode])(r->opcode);
+				(*cpufunctbl_noret[r->opcode])(r->opcode);
 
 				if (r->spcflags) {
 					if (do_specialties (0))
@@ -5804,7 +5820,7 @@ static void m68k_run_3p(void)
 					debug_trainer_match();
 				}
 
-				(*cpufunctbl[r->opcode])(r->opcode);
+				(*cpufunctbl_noret[r->opcode])(r->opcode);
 
 				cpu_cycles = 1 * CYCLE_UNIT;
 				cycles = adjust_cycles(cpu_cycles);
@@ -5865,7 +5881,7 @@ static void m68k_run_2ce (void)
 						if (cputrace.state > 1)
 							Exception (cputrace.state);
 						else if (cputrace.state == 1)
-							(*cpufunctbl[cputrace.opcode])(cputrace.opcode);
+							(*cpufunctbl_noret[cputrace.opcode])(cputrace.opcode);
 					}
 					set_cpu_tracer (false);
 					goto cont;
@@ -5943,7 +5959,7 @@ static void m68k_run_2ce (void)
 					debug_trainer_match();
 				}
 
-				(*cpufunctbl[r->opcode])(r->opcode);
+				(*cpufunctbl_noret[r->opcode])(r->opcode);
 		
 				wait_memory_cycles();
 				regs.instruction_cnt++;
