@@ -512,7 +512,7 @@ static int match_string (const TCHAR *table[], const TCHAR *str)
 }
 
 // escape config file separators and control characters
-static TCHAR *cfgfile_escape (const TCHAR *s, const TCHAR *escstr, bool quote)
+static TCHAR *cfgfile_escape (const TCHAR *s, const TCHAR *escstr, bool quote, bool min)
 {
 	bool doquote = false;
 	int cnt = 0;
@@ -547,7 +547,7 @@ static TCHAR *cfgfile_escape (const TCHAR *s, const TCHAR *escstr, bool quote)
 		TCHAR c = s[i];
 		if (c == 0)
 			break;
-		if (c == '\\' || c == '\"' || c == '\'') {
+		if ((c == '\\' && !min) || c == '\"' || c == '\'') {
 			*p++ = '\\';
 			*p++ = c;
 		} else if (c >= 32 && !quote) {
@@ -562,7 +562,7 @@ static TCHAR *cfgfile_escape (const TCHAR *s, const TCHAR *escstr, bool quote)
 			}
 			if (!escaped)
 				*p++ = c;
-		} else if (c < 32) {
+		} else if (c < 32 && !min) {
 			*p++ = '\\';
 			switch (c)
 			{
@@ -597,7 +597,7 @@ static TCHAR *cfgfile_escape_min(const TCHAR *s)
 	for (int i = 0; s[i]; i++) {
 		TCHAR c = s[i];
 		if (c == ',' || c == '\"' || (c == ' ' && (i == 0 || s[i + 1] == 0))) {
-			return cfgfile_escape(s, _T(","), true);
+			return cfgfile_escape(s, _T(","), true, true);
 		}
 	}
 	return my_strdup(s);
@@ -1210,9 +1210,9 @@ static void write_filesys_config (struct uae_prefs *p, struct zfile *f)
 		if (ci->controller_type_unit > 0)
 			_stprintf(hdcs + _tcslen(hdcs), _T("-%d"), ci->controller_type_unit + 1);
 
-		str1b = cfgfile_escape (str1, _T(":,"), true);
+		str1b = cfgfile_escape (str1, _T(":,"), true, false);
 		str1c = cfgfile_escape_min(str1);
-		str2b = cfgfile_escape (str2, _T(":,"), true);
+		str2b = cfgfile_escape (str2, _T(":,"), true, false);
 		if (ci->type == UAEDEV_DIR) {
 			_stprintf (tmp, _T("%s,%s:%s:%s,%d"), ci->readonly ? _T("ro") : _T("rw"),
 				ci->devname ? ci->devname : _T(""), ci->volname, str1c, bp);
@@ -1227,7 +1227,7 @@ static void write_filesys_config (struct uae_prefs *p, struct zfile *f)
 			TCHAR filesyspath[MAX_DPATH];
 			cfgfile_to_path_save(ci->filesys, filesyspath, PATH_HDF);
 			TCHAR *sfilesys = cfgfile_escape_min(filesyspath);
-			TCHAR *sgeometry = cfgfile_escape(ci->geometry, NULL, true);
+			TCHAR *sgeometry = cfgfile_escape(ci->geometry, NULL, true, false);
 			_stprintf (tmp, _T("%s,%s:%s,%d,%d,%d,%d,%d,%s,%s"),
 				ci->readonly ? _T("ro") : _T("rw"),
 				ci->devname ? ci->devname : _T(""), str1c,
@@ -1803,7 +1803,7 @@ static void cfgfile_writeromboard(struct uae_prefs *prefs, struct zfile *f, int 
 	if (rb->lf.loadfile[0]) {
 		_tcscat(p, _T(","));
 		p += _tcslen(p);
-		TCHAR *path = cfgfile_escape(rb->lf.loadfile, NULL, true);
+		TCHAR *path = cfgfile_escape(rb->lf.loadfile, NULL, true, false);
 		if (rb->lf.loadoffset || rb->lf.fileoffset || rb->lf.filesize) {
 			_stprintf(p, _T("offset=%u,fileoffset=%u,filesize=%u,"), rb->lf.loadoffset, rb->lf.fileoffset, rb->lf.filesize);
 			p += _tcslen(p);
@@ -1894,7 +1894,7 @@ static void cfgfile_writeramboard(struct uae_prefs *prefs, struct zfile *f, cons
 			_tcscat(p, _T(","));
 			p += _tcslen(p);
 		}
-		TCHAR *path = cfgfile_escape(rb->lf.loadfile, NULL, true);
+		TCHAR *path = cfgfile_escape(rb->lf.loadfile, NULL, true, false);
 		_stprintf(p, _T("offset=%u,fileoffset=%u,filesize=%u,file=%s"), rb->lf.loadoffset, rb->lf.fileoffset, rb->lf.filesize, path);
 		xfree(path);
 	}
@@ -2048,10 +2048,14 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 			_stprintf (tmp, _T("cdimage%d"), i);
 			cfgfile_to_path_save(p->cdslots[i].name, tmp2, PATH_CD);
 			if (p->cdslots[i].type != SCSI_UNIT_DEFAULT || _tcschr (p->cdslots[i].name, ',') || p->cdslots[i].delayed) {
-				_tcscat (tmp2, _T(","));
+				//for escaping some day..
+				//TCHAR *n = cfgfile_escape(tmp2, _T(","), true, true);
+				//_tcscpy(tmp2, n);
+				//xfree(n);
+				_tcscat(tmp2, _T(","));
 				if (p->cdslots[i].delayed) {
-					_tcscat (tmp2, _T("delay"));
-					_tcscat (tmp2, _T(":"));
+					_tcscat(tmp2, _T("delay"));
+					_tcscat(tmp2, _T(":"));
 				}
 				if (p->cdslots[i].type != SCSI_UNIT_DEFAULT) {
 					_tcscat (tmp2, cdmodes[p->cdslots[i].type + 1]);
@@ -2561,7 +2565,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 		if (cr->defaultdata)
 			_tcscat(s, _T(",default"));
 		if (cr->filterprofile[0]) {
-			TCHAR *se = cfgfile_escape(cr->filterprofile, _T(","), true);
+			TCHAR *se = cfgfile_escape(cr->filterprofile, _T(","), true, false);
 			s += _stprintf(s, _T(",filter=%s"), se);
 			xfree(se);
 		}
@@ -3357,7 +3361,24 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 				p->cdslots[i].name[0] = 0;
 			} else {
 				p->cdslots[i].delayed = false;
-				TCHAR *next = _tcsrchr (value, ',');
+				TCHAR *path = value;
+				TCHAR *next = _tcsrchr(value, ',');
+				if (value[0] == '\"') {
+					const TCHAR *end;
+					TCHAR *n = cfgfile_unescape(value, &end, 0, true);
+					if (n) {
+						path = n;
+						next = _tcsrchr(value + (end - value), ',');
+					}
+				} else {
+					if (next) {
+						TCHAR *dot = _tcsrchr(value, '.');
+						// assume '.' = file extension, if ',' is earlier, assume it is part of file name, not extra string.
+						if (dot && dot > value && dot > next) {
+							next = NULL;
+						}
+					}
+				}
 				int type = SCSI_UNIT_DEFAULT;
 				int mode = 0;
 				int unitnum = 0;
@@ -3399,16 +3420,18 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 						*next2++ = 0;
 					cfgfile_intval (option, next, tmp, &unitnum, 1);
 				}
-				if (_tcslen (value) > 0) {
-					_tcsncpy (p->cdslots[i].name, value, sizeof(p->cdslots[i].name) / sizeof (TCHAR));
+				if (_tcslen(path) > 0) {
+					_tcsncpy (p->cdslots[i].name, path, sizeof(p->cdslots[i].name) / sizeof (TCHAR));
 				}
 				p->cdslots[i].name[sizeof(p->cdslots[i].name) / sizeof(TCHAR) - 1] = 0;
 				p->cdslots[i].inuse = true;
 				p->cdslots[i].type = type;
-				if (value[0] == 0 || !_tcsicmp(value, _T("empty")) || !_tcscmp(value, _T("."))) {
-					value[0] = 0;
+				if (path[0] == 0 || !_tcsicmp(path, _T("empty")) || !_tcscmp(path, _T("."))) {
 					p->cdslots[i].name[0] = 0;
 					p->cdslots[i].inuse = false;
+				}
+				if (path != value) {
+					xfree(path);
 				}
 			}
 			// disable all following units
@@ -6859,9 +6882,11 @@ static int cfgfile_load_2 (struct uae_prefs *p, const TCHAR *filename, bool real
 						if (se)
 							tmp[se - tmp] = 0;
 					} else {
-						const TCHAR *se = _tcschr(s, ',');
-						if (se)
+						const TCHAR *se = _tcsrchr(s, ',');
+						const TCHAR *se2 = _tcsrchr(s, '.');
+						if (se && (se2 == NULL || se > se2)) {
 							tmp[se - tmp] = 0;
+						}
 					}
 					_tcscpy(p->cdslots[0].name, s);
 					cfgfile_resolve_path_load(p->cdslots[0].name, MAX_DPATH, PATH_CD);
