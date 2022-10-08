@@ -1052,7 +1052,7 @@ static void romlist_cleanup (void)
 			while (i < j) {
 				struct romlist *rl2 = romlist_getrl (&roms[i]);
 				if (rl2) {
-					int cnt = romlist_cnt - (rl2 - rl) - 1;
+					size_t cnt = romlist_cnt - (rl2 - rl) - 1;
 					write_log (_T("%s '%s' removed from romlist\n"), roms[k].name, rl2->path);
 					xfree (rl2->path);
 					if (cnt > 0)
@@ -2297,7 +2297,7 @@ int kickstart_checksum (uae_u8 *mem, int size)
 static void clean_path(TCHAR *s)
 {
 	for (;;) {
-		int v = _tcscspn(s, _T("?:\t\r\n"));
+		size_t v = _tcscspn(s, _T("?:\t\r\n"));
 		if (s[v] == 0) {
 			break;
 		}

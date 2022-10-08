@@ -820,7 +820,7 @@ void init_traps(void)
 {
 	trap_count = 0;
 	if (!trap_thread_id[0] && trap_is_indirect()) {
-		for (int i = 0; i < TRAP_THREADS; i++) {
+		for (size_t i = 0; i < TRAP_THREADS; i++) {
 			init_comm_pipe(&trap_thread_pipe[i], 100, 1);
 			hardware_trap_kill[i] = 1;
 			uae_start_thread_fast(hardware_trap_thread, (void *)i, &trap_thread_id[i]);

@@ -30,6 +30,7 @@
 #ifndef UAE_MINI
 
 #define DEBUGGER
+//#define GDBSERVER
 #define FILESYS /* filesys emulation */
 #define UAE_FILESYS_THREADS
 #define AUTOCONFIG /* autoconfig support, fast ram, harddrives etc.. */
