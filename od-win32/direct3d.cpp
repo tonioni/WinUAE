@@ -2670,12 +2670,8 @@ static const TCHAR *D3D_init2 (struct d3dstruct *d3d, HWND ahwnd, int w_w, int w
 	if (d3dx == NULL) {
 		static bool warned;
 		if (!warned) {
-			if (os_vista)
-				_tcscpy(errmsg, _T("Direct3D: Optional DirectX9 components are not installed.\n")
-					_T("\nhttps://www.microsoft.com/en-us/download/details.aspx?id=8109"));
-			else
-				_tcscpy (errmsg, _T("Direct3D: Newer DirectX Runtime required or optional DirectX9 components are not installed.\n")
-					_T("\nhttps://www.microsoft.com/en-us/download/details.aspx?id=8109"));
+			_tcscpy(errmsg, _T("Direct3D: Optional DirectX9 components are not installed.\n")
+				_T("\nhttps://www.microsoft.com/en-us/download/details.aspx?id=8109"));
 			warned = true;
 		}
 		return errmsg;

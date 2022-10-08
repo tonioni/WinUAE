@@ -4008,6 +4008,8 @@ retry:
 					error_log(_T("Direct3D9 failed to initialize ('%s'), falling back to GDI."), err);
 					changed_prefs.gfx_api = currprefs.gfx_api = 0;
 					changed_prefs.gf[ad->picasso_on].gfx_filter = currprefs.gf[ad->picasso_on].gfx_filter = 1;
+					d3d_select(&currprefs);
+					goto retry;
 				}
 				mon->currentmode.current_depth = mon->currentmode.native_depth;
 				gfxmode_reset(mon->monitor_id);
