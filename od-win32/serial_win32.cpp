@@ -314,14 +314,19 @@ static void serial_rx_irq(void)
 void serial_rethink(void)
 {
 	if (data_in_serdatr) {
+		int sdr = data_in_serdatr;
 		if (currprefs.cpu_memory_cycle_exact && get_cycles() > data_in_serdatr_evt) {
-			data_in_serdatr = 0;
+			sdr = 0;
 		}
 		if (serloop_enabled) {
-			data_in_serdatr = 0;
+			sdr = 0;
 		}
-		// RBF bit is not "sticky" but without it data can be lost when using fast emulation modes and physical serial port.
-		if (data_in_serdatr) {
+		if (serxdevice_enabled) {
+			sdr = 1;
+		}
+		// RBF bit is not "sticky" but without it data can be lost when using fast emulation modes
+		// and physical serial port or internally emulated serial devices.
+		if (sdr) {
 			INTREQ_INT(11, 0);
 		}
 	}
@@ -842,7 +847,7 @@ static void SERDAT_send(uae_u32 v)
 uae_u16 SERDATR(void)
 {
 	serdatr &= 0x03ff;
-	if (!data_in_serdat && get_cycles() >= data_in_serdat_delay) {
+	if (!data_in_serdat || get_cycles() >= data_in_serdat_delay) {
 		serdatr |= 0x2000; // TBE (Transmit buffer empty)
 	}
 	if (!data_in_sershift && (serdatr & 0x2000)) {
