@@ -14091,6 +14091,7 @@ static void hardfile_testrdb (struct hfdlg_vals *hdf)
 	memset (&hfd, 0, sizeof hfd);
 	hfd.ci.readonly = true;
 	hfd.ci.blocksize = 512;
+	hdf->rdb = 0;
 	if (hdf_open (&hfd, current_hfdlg.ci.rootdir) > 0) {
 		for (i = 0; i < 16; i++) {
 			hdf_read_rdb (&hfd, id, i * 512, 512);
@@ -14115,6 +14116,7 @@ static void hardfile_testrdb (struct hfdlg_vals *hdf)
 				hdf->ci.devname[0] = 0;
 				if (blocksize >= 512)
 					hdf->ci.blocksize = blocksize;
+				hdf->rdb = 1;
 				break;
 			}
 		}
@@ -14405,6 +14407,7 @@ static void sethardfile (HWND hDlg)
 	bool rdb = is_hdf_rdb ();
 	bool physgeo = rdb && ischecked(hDlg, IDC_HDF_PHYSGEOMETRY);
 	bool disables = !rdb || (rdb && current_hfdlg.ci.controller_type == HD_CONTROLLER_TYPE_UAE);
+	bool rdsk = current_hfdlg.rdb;
 
 	sethd(hDlg);
 	if (!disables)
@@ -14420,7 +14423,6 @@ static void sethardfile (HWND hDlg)
 	CheckDlgButton (hDlg, IDC_HDF_RW, !current_hfdlg.ci.readonly);
 	CheckDlgButton (hDlg, IDC_HDF_AUTOBOOT, ISAUTOBOOT(&current_hfdlg.ci));
 	CheckDlgButton (hDlg, IDC_HDF_DONOTMOUNT, !ISAUTOMOUNT(&current_hfdlg.ci));
-	ew (hDlg, IDC_HDF_RDB, !rdb);
 	ew (hDlg, IDC_HDF_AUTOBOOT, disables);
 	ew (hDlg, IDC_HDF_DONOTMOUNT, disables);
 	hide (hDlg, IDC_HDF_AUTOBOOT, !disables);
@@ -14428,8 +14430,16 @@ static void sethardfile (HWND hDlg)
 	hide (hDlg, IDC_HARDFILE_BOOTPRI, !disables);
 	hide (hDlg, IDC_HARDFILE_BOOTPRI_TEXT, !disables);
 	hide (hDlg, IDC_HDF_PHYSGEOMETRY, !rdb);
-	if (!rdb)
+	if (rdb) {
+		ew(hDlg, IDC_HDF_RDB, !rdsk);
+		setchecked(hDlg, IDC_HDF_RDB, true);
+	} else {
+		ew(hDlg, IDC_HDF_RDB, TRUE);
+		setchecked(hDlg, IDC_HDF_RDB, false);
+	}
+	if (!rdb) {
 		setchecked(hDlg, IDC_HDF_PHYSGEOMETRY, false);
+	}
 	hide(hDlg, IDC_RESERVED_TEXT, rdb);
 	hide(hDlg, IDC_CYLINDERS_TEXT, !rdb);
 	gui_set_string_cursor(hdmenutable, hDlg, IDC_HDF_CONTROLLER, current_hfdlg.ci.controller_type +  current_hfdlg.ci.controller_type_unit * HD_CONTROLLER_NEXT_UNIT);
@@ -15200,11 +15210,18 @@ static INT_PTR CALLBACK HardfileSettingsProc (HWND hDlg, UINT msg, WPARAM wParam
 			SetDlgItemInt (hDlg, IDC_HARDFILE_BOOTPRI, current_hfdlg.ci.bootpri, TRUE);
 			break;
 		case IDC_HDF_RDB:
-			SetDlgItemText (hDlg, IDC_PATH_FILESYS, _T(""));
-			SetDlgItemText (hDlg, IDC_HARDFILE_DEVICE, _T(""));
-			current_hfdlg.ci.sectors = current_hfdlg.ci.reserved = current_hfdlg.ci.surfaces = 0;
-			current_hfdlg.ci.bootpri = 0;
-			sethardfile (hDlg);
+			if (ischecked(hDlg, IDC_HDF_RDB)) {
+				SetDlgItemText(hDlg, IDC_PATH_FILESYS, _T(""));
+				SetDlgItemText(hDlg, IDC_HARDFILE_DEVICE, _T(""));
+				current_hfdlg.ci.sectors = current_hfdlg.ci.reserved = current_hfdlg.ci.surfaces = 0;
+				current_hfdlg.ci.bootpri = 0;
+			} else {
+				TCHAR tmp[MAX_DPATH];
+				_tcscpy(tmp, current_hfdlg.ci.rootdir);
+				default_hfdlg(&current_hfdlg, false);
+				_tcscpy(current_hfdlg.ci.rootdir, tmp);
+			}
+			sethardfile(hDlg);
 			break;
 		case IDC_PATH_GEOMETRY_SELECTOR:
 			if (DiskSelection (hDlg, IDC_PATH_GEOMETRY, 23, &workprefs, NULL, current_hfdlg.ci.geometry)) {
@@ -15220,7 +15237,7 @@ static INT_PTR CALLBACK HardfileSettingsProc (HWND hDlg, UINT msg, WPARAM wParam
 			if (v != *p) {
 				set_phys_cyls(hDlg);
 				updatehdfinfo (hDlg, true, false, false);
-				ew (hDlg, IDC_HDF_RDB, !is_hdf_rdb ());
+				setchecked(hDlg, IDC_HDF_RDB, !is_hdf_rdb());
 			}
 			break;
 		case IDC_RESERVED:
@@ -15232,7 +15249,7 @@ static INT_PTR CALLBACK HardfileSettingsProc (HWND hDlg, UINT msg, WPARAM wParam
 					current_hfdlg.ci.physical_geometry = true;
 				}
 				updatehdfinfo (hDlg, true, false, false);
-				ew (hDlg, IDC_HDF_RDB, !is_hdf_rdb ());
+				setchecked(hDlg, IDC_HDF_RDB, !is_hdf_rdb());
 			}
 			break;
 		case IDC_HEADS:
@@ -15242,7 +15259,7 @@ static INT_PTR CALLBACK HardfileSettingsProc (HWND hDlg, UINT msg, WPARAM wParam
 			if (v != *p) {
 				set_phys_cyls(hDlg);
 				updatehdfinfo (hDlg, true, false, false);
-				ew (hDlg, IDC_HDF_RDB, !is_hdf_rdb ());
+				setchecked(hDlg, IDC_HDF_RDB, !is_hdf_rdb());
 			}
 			break;
 		case IDC_BLOCKSIZE:
@@ -15479,7 +15496,7 @@ static INT_PTR CALLBACK HarddriveSettingsProc (HWND hDlg, UINT msg, WPARAM wPara
 				if (v != *p) {
 					set_phys_cyls(hDlg);
 					updatehdfinfo (hDlg, true, false, true);
-					ew (hDlg, IDC_HDF_RDB, !is_hdf_rdb ());
+					setchecked(hDlg, IDC_HDF_RDB, !is_hdf_rdb());
 				}
 				break;
 			case IDC_RESERVED:
@@ -15491,7 +15508,7 @@ static INT_PTR CALLBACK HarddriveSettingsProc (HWND hDlg, UINT msg, WPARAM wPara
 						current_hfdlg.ci.physical_geometry = true;
 					}
 					updatehdfinfo (hDlg, true, false, true);
-					ew (hDlg, IDC_HDF_RDB, !is_hdf_rdb ());
+					setchecked(hDlg, IDC_HDF_RDB, !is_hdf_rdb());
 				}
 				break;
 			case IDC_HEADS:
@@ -15501,7 +15518,7 @@ static INT_PTR CALLBACK HarddriveSettingsProc (HWND hDlg, UINT msg, WPARAM wPara
 				if (v != *p) {
 					set_phys_cyls(hDlg);
 					updatehdfinfo (hDlg, true, false, true);
-					ew (hDlg, IDC_HDF_RDB, !is_hdf_rdb ());
+					setchecked(hDlg, IDC_HDF_RDB, !is_hdf_rdb());
 				}
 				break;
 		}
