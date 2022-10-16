@@ -647,11 +647,11 @@ static void count_colors(bool alpha)
 	int palettecount = 0;
 
 	uniquecolorcount = 0;
-	if (d <= 8 || !screenshot_paletteindexed) {
+	if (!screenshot_paletteindexed || alpha) {
+		uniquecolorcount = -1;
 		return;
 	}
-	if (alpha) {
-		uniquecolorcount = -1;
+	if (d <= 8) {
 		return;
 	}
 	palettebm = xcalloc(uae_u8, w * h);
