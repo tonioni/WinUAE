@@ -3211,9 +3211,6 @@ int can_D3D11(bool checkdevice)
 
 	detected = true;
 
-	if (!os_win7)
-		return 0;
-
 	if (!hd3d11)
 		hd3d11 = LoadLibrary(_T("D3D11.dll"));
 	if (!hdxgi)
@@ -3285,6 +3282,7 @@ int can_D3D11(bool checkdevice)
 		HRESULT hr = pD3D11CreateDevice(NULL, currprefs.gfx_api_options == 0 ? D3D_DRIVER_TYPE_HARDWARE : D3D_DRIVER_TYPE_WARP,
 			NULL, cdflags, levels, 1, D3D11_SDK_VERSION, &m_device, NULL, &m_deviceContext);
 		if (FAILED(hr)) {
+			write_log(_T("D3D11 check failed. %08x\n"), hr);
 			return 0;
 		}
 		m_deviceContext->Release();

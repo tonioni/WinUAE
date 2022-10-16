@@ -83,12 +83,9 @@ typedef struct {
 } DLGITEMTEMPLATEEX;
 #include <poppack.h>
 
-static int font_vista_ok;
 static const wchar_t wfont_vista[] = _T("Segoe UI");
-static const wchar_t wfont_xp[] = _T("Tahoma");
 static const wchar_t wfont_old[] = _T("MS Sans Serif");
 static const TCHAR font_vista[] = _T("Segoe UI");
-static const TCHAR font_xp[] = _T("Tahoma");
 
 #define WNDS_DIALOGWINDOW 0X00010000
 #define CW_USEDEFAULT16 ((short)0x8000)
@@ -892,14 +889,12 @@ static void scaleresource_setfont(struct newresource *nr, HWND hDlg)
 {
 	if (!nr)
 		return;
-	if (os_vista) {
-		for (int i = 0; i < nr->setparamcnt; i++) {
-			HWND hwnd = GetDlgItem(hDlg, nr->setparam_id[i]);
-			if (hwnd) {
-				int v = (int)SendMessage(hwnd, CB_GETITEMHEIGHT, -1, NULL);
-				if (v > 0 && mmy(v) > v)
-					SendMessage(hwnd, CB_SETITEMHEIGHT, -1, mmy(v));
-			}
+	for (int i = 0; i < nr->setparamcnt; i++) {
+		HWND hwnd = GetDlgItem(hDlg, nr->setparam_id[i]);
+		if (hwnd) {
+			int v = (int)SendMessage(hwnd, CB_GETITEMHEIGHT, -1, NULL);
+			if (v > 0 && mmy(v) > v)
+				SendMessage(hwnd, CB_SETITEMHEIGHT, -1, mmy(v));
 		}
 	}
 }
@@ -1123,11 +1118,11 @@ static void setdeffont (void)
 	}
 	fontsize_default = fs;
 
-	_tcscpy (fontname_gui, font_vista_ok ? wfont_vista : wfont_xp);
+	_tcscpy (fontname_gui, wfont_vista);
 	fontsize_gui = fontsize_default;
 	fontstyle_gui = 0;
 	fontweight_gui = FW_REGULAR;
-	_tcscpy (fontname_list, font_vista_ok ? wfont_vista : wfont_xp);
+	_tcscpy (fontname_list, wfont_vista);
 	fontsize_list = fontsize_default;
 	fontstyle_list = 0;
 	fontweight_list = FW_REGULAR;
@@ -1204,9 +1199,6 @@ void scaleresource_modification(HWND hwnd)
 
 void scaleresource_init(const TCHAR *prefix, int fullscreen)
 {
-	if (os_vista)
-		font_vista_ok = 1;
-
 	fontprefix = prefix;
 
 	setdeffont();
@@ -1325,7 +1317,7 @@ extern int gui_fullscreen;
 
 void getextendedframebounds(HWND hwnd, RECT *r)
 {
-	if (!pDwmGetWindowAttribute && !dwmapihandle && os_vista) {
+	if (!pDwmGetWindowAttribute && !dwmapihandle) {
 		dwmapihandle = LoadLibrary(_T("dwmapi.dll"));
 		if (dwmapihandle)
 			pDwmGetWindowAttribute = (DWMGETWINDOWATTRIBUTE)GetProcAddress(dwmapihandle, "DwmGetWindowAttribute");

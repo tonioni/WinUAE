@@ -3108,10 +3108,10 @@ int enumerate_sound_devices (void)
 {
 	if (!num_sound_devices) {
 		HMODULE l = NULL;
-		if (os_vista && (sounddrivermask & SOUNDDRIVER_WASAPI)) {
+		if (sounddrivermask & SOUNDDRIVER_WASAPI) {
 			wasapi_enum(sound_devices);
 		}
-		if ((1 || force_directsound || !os_vista) && (sounddrivermask & SOUNDDRIVER_DS)) {
+		if ((1 || force_directsound) && (sounddrivermask & SOUNDDRIVER_DS)) {
 			write_log(_T("Enumerating DirectSound devices..\n"));
 			DirectSoundEnumerate ((LPDSENUMCALLBACK)DSEnumProc, sound_devices);
 			DirectSoundCaptureEnumerate((LPDSENUMCALLBACK)DSEnumProc, record_devices);
@@ -3327,19 +3327,13 @@ static int setget_master_volume_xp (int setvolume, int *volume, int *mute)
 
 static int set_master_volume (int volume, int mute)
 {
-	if (os_vista)
-		return setget_master_volume_vista (1, &volume, &mute);
-	else
-		return setget_master_volume_xp (1, &volume, &mute);
+	return setget_master_volume_vista (1, &volume, &mute);
 }
 static int get_master_volume (int *volume, int *mute)
 {
 	*volume = 0;
 	*mute = 0;
-	if (os_vista)
-		return setget_master_volume_vista (0, volume, mute);
-	else
-		return setget_master_volume_xp (0, volume, mute);
+	return setget_master_volume_vista (0, volume, mute);
 }
 
 void sound_mute (int newmute)

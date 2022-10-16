@@ -1276,62 +1276,48 @@ static int drag_start (HWND hWnd, HWND hListView, LPARAM lParam)
 			RECT rc2;
 			GetClientRect(hListView, &rc2);
 
-			if (!os_vista) {
+			// ListView_CreateDragImage replacement hack follows..
+			RECT rc;
+			// Get Rectangle of selected ListView Item
+			ListView_GetItemRect(hListView, iPos, &rc, LVIR_BOUNDS);
+			if (rc.left < 0)
+				rc.left = 0;
+			if (rc.bottom < 0)
+				rc.bottom = 0;
+			width = rc.right - rc.left;
+			height = rc.bottom - rc.top;
+			if (width <= 0 || height <= 0)
+				return 0;
+			// Image becomes blank bar if visible part
+			// is smaller than complete width of item.
+			if (width > rc2.right - rc2.left)
+				width = rc2.right - rc2.left;
+			if (height > rc2.bottom - rc2.top)
+				height = rc2.bottom - rc2.top;
 
-				IMAGEINFO imf;
-				POINT p;
-				// For the first selected item,
-				// we simply create a single-line drag image
-				hDragImageList = ListView_CreateDragImage(hListView, iPos, &p);
-				ImageList_GetImageInfo(hDragImageList, 0, &imf);
-				width = imf.rcImage.right;
-				height = imf.rcImage.bottom;
+			// Create HBITMAP of selected ListView Item
+			HDC hDC = GetDC(hListView);
+			if (hDC) {
+				HDC hMemDC = CreateCompatibleDC(hDC);
+				if (hMemDC) {
 
-			} else {
-
-				// ListView_CreateDragImage replacement hack follows..
-				RECT rc;
-				// Get Rectangle of selected ListView Item
-				ListView_GetItemRect(hListView, iPos, &rc, LVIR_BOUNDS);
-				if (rc.left < 0)
-					rc.left = 0;
-				if (rc.bottom < 0)
-					rc.bottom = 0;
-				width = rc.right - rc.left;
-				height = rc.bottom - rc.top;
-				if (width <= 0 || height <= 0)
-					return 0;
-				// Image becomes blank bar if visible part
-				// is smaller than complete width of item.
-				if (width > rc2.right - rc2.left)
-					width = rc2.right - rc2.left;
-				if (height > rc2.bottom - rc2.top)
-					height = rc2.bottom - rc2.top;
-
-				// Create HBITMAP of selected ListView Item
-				HDC hDC = GetDC(hListView);
-				if (hDC) {
-					HDC hMemDC = CreateCompatibleDC(hDC);
-					if (hMemDC) {
-
-						HBITMAP hBMP = CreateCompatibleBitmap(hDC, width, height);
-						if (hBMP) {
-							HGDIOBJ o = SelectObject(hMemDC, hBMP);
-							BitBlt(hMemDC, 0, 0, width, height, hDC, rc.left, rc.top, SRCCOPY);
-							SelectObject(hMemDC, o);
-						}
-
-						// Create ImageList, add HBITMAP to ImageList.
-						hDragImageList = ImageList_Create(width, height, ILC_COLOR24, 1, 1);
-						if (hBMP && hDragImageList) {
-							ImageList_Add(hDragImageList, hBMP, NULL);
-							DeleteObject(hBMP);
-						}
-
-						DeleteDC(hMemDC);
+					HBITMAP hBMP = CreateCompatibleBitmap(hDC, width, height);
+					if (hBMP) {
+						HGDIOBJ o = SelectObject(hMemDC, hBMP);
+						BitBlt(hMemDC, 0, 0, width, height, hDC, rc.left, rc.top, SRCCOPY);
+						SelectObject(hMemDC, o);
 					}
-					ReleaseDC(hListView, hDC);
+
+					// Create ImageList, add HBITMAP to ImageList.
+					hDragImageList = ImageList_Create(width, height, ILC_COLOR24, 1, 1);
+					if (hBMP && hDragImageList) {
+						ImageList_Add(hDragImageList, hBMP, NULL);
+						DeleteObject(hBMP);
+					}
+					
+					DeleteDC(hMemDC);
 				}
+				ReleaseDC(hListView, hDC);
 			}
 
 			offset.x = rc2.left;
@@ -6414,7 +6400,7 @@ static INT_PTR CALLBACK ErrorLogProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 		xSendDlgItemMessage (hDlg, IDC_ERRORLOGMESSAGE, EM_GETCHARFORMAT, 0, (LPARAM) & CharFormat);
 		CharFormat.dwMask |= CFM_SIZE | CFM_FACE;
 		CharFormat.yHeight = 8 * 20; /* height in twips, where a twip is 1/20th of a point - for a pt.size of 18 */
-		_tcscpy (CharFormat.szFaceName, os_vista ? _T("Segoe UI") : _T("Tahoma"));
+		_tcscpy (CharFormat.szFaceName, _T("Segoe UI"));
 		xSendDlgItemMessage (hDlg, IDC_ERRORLOGMESSAGE, EM_SETCHARFORMAT, SCF_ALL, (LPARAM) & CharFormat);
 		return TRUE;
 	}
@@ -6451,7 +6437,7 @@ static INT_PTR CALLBACK ContributorsProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 		CharFormat.dwMask |= CFM_SIZE | CFM_FACE;
 		CharFormat.yHeight = 8 * 20; /* height in twips, where a twip is 1/20th of a point - for a pt.size of 18 */
 
-		_tcscpy (CharFormat.szFaceName, os_vista ? _T("Segoe UI") : _T("Tahoma"));
+		_tcscpy (CharFormat.szFaceName, _T("Segoe UI"));
 		xSendDlgItemMessage (hDlg, IDC_CONTRIBUTORS, EM_SETCHARFORMAT, SCF_ALL, (LPARAM) & CharFormat);
 		return TRUE;
 	}
@@ -6500,7 +6486,7 @@ static void SetupRichText(HWND hDlg, urlinfo *url)
 	CharFormat.yHeight = 10 * 20; /* height in twips, where a twip is 1/20th of a point - for a pt.size of 18 */
 
 	CharFormat.crTextColor = GetSysColor (COLOR_ACTIVECAPTION);
-	_tcscpy (CharFormat.szFaceName, os_vista ? _T("Segoe UI") : _T("Tahoma"));
+	_tcscpy (CharFormat.szFaceName, _T("Segoe UI"));
 	xSendDlgItemMessage (hDlg, url->id, EM_SETCHARFORMAT, SCF_ALL, (LPARAM)&CharFormat);
 	xSendDlgItemMessage (hDlg, url->id, EM_SETBKGNDCOLOR, 0, GetSysColor (COLOR_3DFACE));
 }
@@ -7840,7 +7826,7 @@ static void init_aboutdlg (HWND hDlg)
 	CharFormat.dwEffects = CFE_BOLD;
 	CharFormat.yHeight = 24 * 20; /* height in twips, where a twip is 1/20th of a point */
 
-	_tcscpy (CharFormat.szFaceName,  os_vista ? _T("Segoe UI") : _T("Tahoma"));
+	_tcscpy (CharFormat.szFaceName,  _T("Segoe UI"));
 	xSendDlgItemMessage (hDlg, IDC_RICHEDIT1, EM_SETCHARFORMAT, SCF_ALL, (LPARAM) & CharFormat);
 	xSendDlgItemMessage (hDlg, IDC_RICHEDIT1, EM_SETBKGNDCOLOR, 0, GetSysColor (COLOR_3DFACE));
 
@@ -7848,7 +7834,7 @@ static void init_aboutdlg (HWND hDlg)
 	xSendDlgItemMessage (hDlg, IDC_RICHEDIT2, EM_GETCHARFORMAT, 0, (LPARAM) & CharFormat);
 	CharFormat.dwMask |= CFM_SIZE | CFM_FACE;
 	CharFormat.yHeight = 12 * 20;
-	_tcscpy (CharFormat.szFaceName,  os_vista ? _T("Segoe UI") : _T("Tahoma"));
+	_tcscpy (CharFormat.szFaceName, _T("Segoe UI"));
 	xSendDlgItemMessage (hDlg, IDC_RICHEDIT2, EM_SETCHARFORMAT, SCF_ALL, (LPARAM) & CharFormat);
 	xSendDlgItemMessage (hDlg, IDC_RICHEDIT2, EM_SETBKGNDCOLOR, 0, GetSysColor (COLOR_3DFACE));
 
