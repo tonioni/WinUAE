@@ -4518,8 +4518,10 @@ static void writeintomem (TCHAR **c)
 		return;
 	TCHAR *cb = *c;
 	uae_u32 addrc = addr;
+	bool retry = false;
 	for(;;) {
 		cc = peekchar(c);
+		retry = false;
 		uae_u32 addrb = addr;
 		if (cc == '\'' || cc == '\"') {
 			TCHAR quoted = cc;
@@ -4530,16 +4532,28 @@ static void writeintomem (TCHAR **c)
 				cc = next_char2(c);
 				if (quoted == cc) {
 					ignore_ws(c);
+					retry = true;
+					break;
+				}
+				if (addr >= eaddr) {
 					break;
 				}
 				str[0] = cc;
 				str[1] = 0;
-				astr = ua (str);
-				put_byte (addr, astr[0]);
-				xfree (astr);
+				astr = ua(str);
+				put_byte(addr, astr[0]);
+				if (!fillmode) {
+					char c = astr[0];
+					if (c < 32) {
+						c = '.';
+					}
+					console_out_f(_T("Wrote '%c' (%02X, %02u) at %08X.B\n"), c, c, c, addr);
+				}
+				xfree(astr);
 				addr++;
-				if (addr >= eaddr)
-					break;
+			}
+			if (fillmode && peekchar(c) == 0) {
+				*c = cb;
 			}
 		} else {
 			for (;;) {
@@ -4558,21 +4572,32 @@ static void writeintomem (TCHAR **c)
 					put_byte (addr, val);
 					cc = 'B';
 				} else {
+					cc = peekchar(c);
+					if (cc == '\'' || cc == '\"') {
+						retry = true;
+					} else {
+						next_char(c);
+						retry = true;
+					}
 					break;
 				}
-				if (!fillmode)
-					console_out_f (_T("Wrote %X (%u) at %08X.%c\n"), val, val, addr, cc);
+				if (!fillmode) {
+					console_out_f(_T("Wrote %X (%u) at %08X.%c\n"), val, val, addr, cc);
+				}
 				addr += len;
 				if (addr >= eaddr)
 					break;
 			}
 		}
-		if (more_params(c)) {
+		if (retry) {
 			continue;
 		}
-		if (eaddr == 0xffffffff || addr <= addrb || addr >= eaddr)
+		if (addr >= eaddr) {
 			break;
-		*c = cb;
+		}
+		if (eaddr == 0xffffffff || addr <= addrb) {
+			break;
+		}
 	}
 	if (eaddr != 0xffffffff)
 		console_out_f(_T("Wrote data to %08x - %08x\n"), addrc, addr);
@@ -5833,13 +5858,13 @@ static void debug_sprite (TCHAR **inptr)
 			for (x = 0; x < width; x++) {
 				int v1 = w1 & 1;
 				int v2 = w2 & 1;
-				int v = v1 * 2 + v2;
+				int v = v2 * 2 + v1;
 				w1 >>= 1;
 				w2 >>= 1;
 				if (addr2) {
 					int vv1 = ww1 & 1;
 					int vv2 = ww2 & 1;
-					int vv = vv1 * 2 + vv2;
+					int vv = vv2 * 2 + vv1;
 					ww1 >>= 1;
 					ww2 >>= 1;
 					v *= 4;
@@ -6082,7 +6107,12 @@ static void dma_disasm(int frames, int vp, int hp, int frames_end, int vp_end, i
 			return;
 		TCHAR l1[16], l2[16], l3[16], l4[16];
 		if (get_record_dma_info(dr, hp, vp, l1, l2, l3, l4, NULL, NULL, NULL, NULL)) {
-			console_out_f(_T(" - %02X %s %s %s\n"), hp, l2, l3, l4);
+			TCHAR tmp[256];
+			_stprintf(tmp, _T(" - %02d %02X %s"), dr->ipl, hp, l2);
+			while (_tcslen(tmp) < 18) {
+				_tcscat(tmp, _T(" "));
+			}
+			console_out_f(_T("%s %s %s\n"), tmp, l3, l4);
 		}
 		hp++;
 		if (dr->end) {
