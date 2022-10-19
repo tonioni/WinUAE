@@ -156,6 +156,7 @@ static bool oldovl;
 static bool led;
 static int led_old_brightness;
 static evt_t led_cycles_on, led_cycles_off, led_cycle;
+static evt_t cia_now_evt;
 
 static int kbstate, kblostsynccnt;
 static evt_t kbhandshakestart;
@@ -721,7 +722,7 @@ void CIA_handler(void)
 	CIA_calctimers();
 }
 
-static int get_cia_sync_cycles(void)
+static int get_cia_sync_cycles(int *syncdelay)
 {
 	evt_t c = get_e_cycles();
 	int div10 = c % DIV10;
@@ -729,13 +730,13 @@ static int get_cia_sync_cycles(void)
 	int synccycle = e_clock_sync * E_CYCLE_UNIT;
 	if (div10 < synccycle) {
 		add += synccycle - div10;
-	}
-	else if (div10 > synccycle) {
+	} else if (div10 > synccycle) {
 		add += DIV10 - div10;
 		add += synccycle;
 	}
-	// sync + 4 first cycles of E-clock
-	add += e_clock_start * E_CYCLE_UNIT;
+	*syncdelay = add;
+	// 4 first cycles of E-clock
+	add = e_clock_start * E_CYCLE_UNIT;
 	return add;
 }
 
@@ -758,7 +759,9 @@ static void CIA_sync_interrupt(int num, uae_u8 icr)
 			c->icr1 |= icr;
 			return;
 		}
-		int delay = get_cia_sync_cycles();
+		int syncdelay = 0;
+		int delay = get_cia_sync_cycles(&syncdelay);
+		delay += syncdelay;
 		event2_newevent_xx(-1, DIV10 + delay, num, CIA_synced_interrupt);
 	} else {
 		c->icr1 |= icr;
@@ -2172,6 +2175,36 @@ addrbank cia_bank = {
 	ABFLAG_IO | ABFLAG_CIA, S_READ, S_WRITE, NULL, 0x3f01, 0xbfc000
 };
 
+static int cia_cycles(int delay, int phase, int val, int post)
+{
+#ifdef DEBUGGER
+	if (currprefs.cpu_memory_cycle_exact && debug_dma) {
+		while (delay > 0) {
+			int hpos = current_hpos();
+			record_cia_access(0xfffff, 0, 0, 0, hpos, vpos, phase + 1);
+			phase += 2;
+			if (post) {
+				x_do_cycles_post(CYCLE_UNIT, val);
+			} else {
+				x_do_cycles_pre(CYCLE_UNIT);
+			}
+			delay -= CYCLE_UNIT;
+		}
+	} else {
+#endif
+		if (delay > 0) {
+			if (post) {
+				x_do_cycles_post(delay, val);
+			} else {
+				x_do_cycles_pre(delay);
+			}
+		}
+#ifdef DEBUGGER
+	}
+#endif
+	return phase;
+}
+
 static void cia_wait_pre(int cianummask)
 {
 	if (currprefs.cachesize || currprefs.cpu_thread)
@@ -2188,8 +2221,15 @@ static void cia_wait_pre(int cianummask)
 #endif
 
 #ifndef CUSTOM_SIMPLE
-	int delay = get_cia_sync_cycles();
-	x_do_cycles_pre(delay);
+	cia_now_evt = get_cycles();
+	int syncdelay = 0;
+	int delay = get_cia_sync_cycles(&syncdelay);
+	if (debug_dma) {
+		cia_cycles(syncdelay, 100, 0, 0);
+		cia_cycles(delay, 0, 0, 0);
+	} else {
+		cia_cycles(syncdelay + delay, 0, 0, 0);
+	}
 #endif
 }
 
@@ -2199,7 +2239,7 @@ static void cia_wait_post(int cianummask, uaecptr addr, uae_u32 value, bool rw)
 	if (currprefs.cpu_memory_cycle_exact && debug_dma) {
 		int r = (addr & 0xf00) >> 8;
 		int hpos = current_hpos();
-		record_cia_access(r, cianummask, value, rw, hpos, vpos);
+		record_cia_access(r, cianummask, value, rw, hpos, vpos, -1);
 	}
 #endif
 
@@ -2213,7 +2253,14 @@ static void cia_wait_post(int cianummask, uaecptr addr, uae_u32 value, bool rw)
 		do_cycles(12 * E_CYCLE_UNIT);
 	} else {
 		// Last 6 cycles of E-clock
-		x_do_cycles_post(e_clock_end * E_CYCLE_UNIT, value);
+		// IPL fetch that got delayed by CIA access?
+		if (cia_now_evt == regs.ipl_evt) {
+			int phase = cia_cycles((e_clock_end - 2) * E_CYCLE_UNIT, 4, value, 1);
+			regs.ipl[0] = regs.ipl_pin;
+			cia_cycles(2 * E_CYCLE_UNIT, phase, value, 1);
+		} else {
+			cia_cycles(e_clock_end * E_CYCLE_UNIT, 4, value, 1);
+		}
 #if CIA_IRQ_PROCESS_DELAY
 		if (currprefs.cpu_memory_cycle_exact) {
 			cia_interrupt_disabled &= ~cianummask;
