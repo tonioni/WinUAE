@@ -372,8 +372,6 @@ static int fsdb_name_invalid_2 (a_inode *aino, const TCHAR *n, int dir)
 	int v = fsdb_name_invalid_2x(n, dir);
 	if (v <= 1 || !aino)
 		return v;
-	if (!os_win7)
-		return 1;
 	TCHAR *p = build_nname(aino->nname, n);
 	HANDLE h = CreateFile(p, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_BACKUP_SEMANTICS, NULL);
 	DWORD err = -1;

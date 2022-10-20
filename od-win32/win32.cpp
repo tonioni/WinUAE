@@ -1195,7 +1195,7 @@ static void winuae_active(struct AmigaMonitor *mon, HWND hwnd, int minimized)
 #endif
 	clipboard_active(mon->hAmigaWnd, 1);
 #if USETHREADCHARACTERICS
-	if (os_vista && AVTask == NULL) {
+	if (AVTask == NULL) {
 		typedef HANDLE(WINAPI* AVSETMMTHREADCHARACTERISTICS)(LPCTSTR, LPDWORD);
 		DWORD taskIndex = 0;
 		AVSETMMTHREADCHARACTERISTICS pAvSetMmThreadCharacteristics =
@@ -4282,7 +4282,7 @@ void target_default_options (struct uae_prefs *p, int type)
 		p->win32_commandpathstart[0] = 0;
 		p->win32_commandpathend[0] = 0;
 		p->win32_statusbar = 1;
-		p->gfx_api = os_win7 ? 2 : (os_vista ? 1 : 0);
+		p->gfx_api = 2;
 		if (p->gfx_api > 1)
 			p->color_mode = 5;
 		if (p->gf[APMODE_NATIVE].gfx_filter == 0)

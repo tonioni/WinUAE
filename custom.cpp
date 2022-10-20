@@ -14887,12 +14887,13 @@ STATIC_INLINE void decide_fetch_ce(int hpos)
 // blitter idle cycles do count!)
 
 extern int cpu_tracer;
-static int dma_cycle(uaecptr addr, uae_u32 value, int *mode)
+static int dma_cycle(uaecptr addr, uae_u32 value, int *mode, int *ipl)
 {
 	int hpos_next, hpos_old;
 
 	blt_info.nasty_cnt = 1;
 	blt_info.wait_nasty = 0;
+	*ipl = regs.ipl_pin;
 	if (cpu_tracer < 0) {
 		return current_hpos_safe();
 	}
@@ -14926,6 +14927,7 @@ static int dma_cycle(uaecptr addr, uae_u32 value, int *mode)
 		if (blt_info.nasty_cnt > 0) {
 			blt_info.nasty_cnt++;
 		}
+		*ipl = regs.ipl_pin;
 		do_cycles(1 * CYCLE_UNIT);
 		/* bus was allocated to dma channel, wait for next cycle.. */
 	}
@@ -14957,13 +14959,14 @@ void do_copper(void)
 uae_u32 wait_cpu_cycle_read(uaecptr addr, int mode)
 {
 	uae_u32 v = 0;
-	int hpos;
+	int hpos, ipl;
+	evt_t now = get_cycles();
 
 	sync_cycles();
 
 	x_do_cycles_pre(CYCLE_UNIT);
 
-	hpos = dma_cycle(addr, 0xffffffff, &mode);
+	hpos = dma_cycle(addr, 0xffffffff, &mode, &ipl);
 
 #ifdef DEBUGGER
 	if (debug_dma) {
@@ -15012,75 +15015,25 @@ uae_u32 wait_cpu_cycle_read(uaecptr addr, int mode)
 
 	x_do_cycles_post(CYCLE_UNIT, v);
 
-	return v;
-}
-
-uae_u32 wait_cpu_cycle_read_ce020(uaecptr addr, int mode)
-{
-	uae_u32 v = 0;
-	int hpos;
-
-	sync_cycles();
-
-	x_do_cycles_pre(CYCLE_UNIT);
-
-	hpos = dma_cycle(0xffffffff, 0xffff, NULL);
-
-#ifdef DEBUGGER
-	if (debug_dma) {
-		int reg = 0x1000;
-		if (mode < 0) {
-			reg |= 4;
-		} else if (mode > 0) {
-			reg |= 2;
-		} else {
-			reg |= 1;
-		}
-		record_dma_read(reg, addr, hpos, vpos, DMARECORD_CPU, mode == -2 || mode == 2 ? 0 : 1);
+	// if IPL fetch was pending and CPU had wait states
+	// Use ipl_pin value from previous cycle
+	if (now == regs.ipl_evt && regs.ipl_pin_change_evt > now + cpuipldelay2) {
+		regs.ipl[0] = ipl;
 	}
-	peekdma_data.mask = 0;
-#endif
-
-	switch (mode) {
-		case -1:
-		v = get_long(addr);
-		break;
-		case -2:
-		v = get_longi(addr);
-		break;
-		case 1:
-		v = get_word(addr);
-		break;
-		case 2:
-		v = get_wordi(addr);
-		break;
-		case 0:
-		v = get_byte(addr);
-		break;
-	}
-
-#ifdef DEBUGGER
-	if (debug_dma) {
-		record_dma_read_value(v);
-	}
-#endif
-
-	regs.chipset_latch_rw = regs.chipset_latch_read = v;
-
-	x_do_cycles_post(CYCLE_UNIT, v);
 
 	return v;
 }
 
 void wait_cpu_cycle_write(uaecptr addr, int mode, uae_u32 v)
 {
-	int hpos;
+	int hpos, ipl;
+	evt_t now = get_cycles();
 
 	sync_cycles();
 
 	x_do_cycles_pre(CYCLE_UNIT);
 
-	hpos = dma_cycle(addr, v, &mode);
+	hpos = dma_cycle(addr, v, &mode, &ipl);
 
 #ifdef DEBUGGER
 	if (debug_dma) {
@@ -15113,17 +15066,80 @@ void wait_cpu_cycle_write(uaecptr addr, int mode, uae_u32 v)
 
 	x_do_cycles_post(CYCLE_UNIT, v);
 
+	// if IPL fetch was pending and CPU had wait states:
+	// Use ipl_pin value from previous cycle
+	if (now == regs.ipl_evt && regs.ipl_pin_change_evt > now + cpuipldelay2) {
+		regs.ipl[0] = ipl;
+	}
 }
 
-void wait_cpu_cycle_write_ce020(uaecptr addr, int mode, uae_u32 v)
+
+uae_u32 wait_cpu_cycle_read_ce020(uaecptr addr, int mode)
 {
-	int hpos;
+	uae_u32 v = 0;
+	int hpos, ipl;
 
 	sync_cycles();
 
 	x_do_cycles_pre(CYCLE_UNIT);
 
-	hpos = dma_cycle(0xffffffff, 0xffff, NULL);
+	hpos = dma_cycle(0xffffffff, 0xffff, NULL, &ipl);
+
+#ifdef DEBUGGER
+	if (debug_dma) {
+		int reg = 0x1000;
+		if (mode < 0) {
+			reg |= 4;
+		} else if (mode > 0) {
+			reg |= 2;
+		} else {
+			reg |= 1;
+		}
+		record_dma_read(reg, addr, hpos, vpos, DMARECORD_CPU, mode == -2 || mode == 2 ? 0 : 1);
+	}
+	peekdma_data.mask = 0;
+#endif
+
+	switch (mode) {
+		case -1:
+			v = get_long(addr);
+			break;
+		case -2:
+			v = get_longi(addr);
+			break;
+		case 1:
+			v = get_word(addr);
+			break;
+		case 2:
+			v = get_wordi(addr);
+			break;
+		case 0:
+			v = get_byte(addr);
+			break;
+	}
+
+#ifdef DEBUGGER
+	if (debug_dma) {
+		record_dma_read_value(v);
+	}
+#endif
+
+	regs.chipset_latch_rw = regs.chipset_latch_read = v;
+
+	x_do_cycles_post(CYCLE_UNIT, v);
+
+	return v;
+}
+
+void wait_cpu_cycle_write_ce020(uaecptr addr, int mode, uae_u32 v)
+{
+	int hpos, ipl;
+
+	sync_cycles();
+
+	x_do_cycles_pre(CYCLE_UNIT);
+
+	hpos = dma_cycle(0xffffffff, 0xffff, NULL, &ipl);
 
 #ifdef DEBUGGER
 	if (debug_dma) {
