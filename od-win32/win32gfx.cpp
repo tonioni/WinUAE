@@ -828,8 +828,6 @@ static void modesList (struct MultiDisplay *md)
 
 static void adjustappbar(RECT *monitor, RECT *workrect)
 {
-	if (!os_vista)
-		return;
 	APPBARDATA abd;
 	// Isn't this ugly API?
 	for (int i = 0; i < 4; i++) {
@@ -928,7 +926,7 @@ static void getd3dmonitornames (void)
 {
 	// XP does not support hybrid displays, don't load Direct3D
 	// Windows 10+ seems to use same names by default
-	if (!os_vista || os_win10)
+	if (os_win10)
 		return;
 	IDirect3D9 *d3d = Direct3DCreate9 (D3D_SDK_VERSION);
 	if (!d3d)
@@ -3132,8 +3130,6 @@ uae_u32 OSDEP_minimize_uae (void)
 typedef HRESULT (CALLBACK* DWMENABLEMMCSS)(BOOL);
 static void setDwmEnableMMCSS (bool state)
 {
-	if (!os_vista)
-		return;
 	HMODULE hm = GetModuleHandle(_T("dwmapi.dll"));
 	if (hm) {
 		DWMENABLEMMCSS pDwmEnableMMCSS;

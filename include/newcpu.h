@@ -94,8 +94,9 @@ struct comptbl {
 
 extern cpuop_func *loop_mode_table[];
 
-extern uae_u32 REGPARAM3 op_illg (uae_u32) REGPARAM;
-extern void REGPARAM3 op_unimpl (uae_u32) REGPARAM;
+extern uae_u32 REGPARAM3 op_illg(uae_u32) REGPARAM;
+extern void REGPARAM3 op_illg_noret(uae_u32) REGPARAM;
+extern void REGPARAM3 op_unimpl(uae_u32) REGPARAM;
 
 typedef uae_u8 flagtype;
 
@@ -206,7 +207,9 @@ struct regstruct
 	int exception;
 	int intmask;
 	int ipl[2], ipl_pin;
-	evt_t ipl_evt_pre;
+	evt_t ipl_pin_change_evt;
+	evt_t ipl_evt, ipl_evt_pre;
+	int ipl_evt_pre_mode;
 
 	uae_u32 vbr, sfc, dfc;
 
@@ -313,7 +316,7 @@ STATIC_INLINE uae_u32 munge24 (uae_u32 x)
 
 extern int mmu_enabled, mmu_triggered;
 extern int cpu_cycles;
-extern int cpucycleunit;
+extern int cpucycleunit, cpuipldelay2, cpuipldelay4;
 extern int m68k_pc_indirect;
 extern bool m68k_interrupt_delay;
 
@@ -698,6 +701,8 @@ extern void prepare_interrupt (uae_u32);
 extern void doint(void);
 extern void checkint(void);
 extern void intlev_load(void);
+extern void ipl_fetch_now_pre(void);
+extern void ipl_fetch_next_pre(void);
 extern void ipl_fetch_pre(void);
 extern void ipl_fetch_now(void);
 extern void ipl_fetch_next(void);
@@ -714,7 +719,7 @@ extern bool m68k_readcache(uaecptr memaddr, bool dc, uae_u32* valp);
 extern int getMulu68kCycles(uae_u16 src);
 extern int getMuls68kCycles(uae_u16 src);
 extern int getDivu68kCycles (uae_u32 dividend, uae_u16 divisor);
-extern int getDivs68kCycles (uae_s32 dividend, uae_s16 divisor);
+extern int getDivs68kCycles (uae_s32 dividend, uae_s16 divisor, int *extra);
 extern void divbyzero_special(bool issigned, uae_s32 dst);
 extern void setdivuflags(uae_u32 dividend, uae_u16 divisor);
 extern void setdivsflags(uae_s32 dividend, uae_s16 divisor);

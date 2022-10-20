@@ -91,7 +91,7 @@ extern int pause_emulation;
 extern int sound_available;
 extern TCHAR VersionStr[256];
 extern TCHAR BetaStr[64];
-extern int os_admin, os_64bit, os_vista, os_win7, os_win8, os_win10, cpu_number, os_touch;
+extern int os_admin, os_64bit, os_win8, os_win10, cpu_number, os_touch;
 extern BOOL os_dwm_enabled, dpi_aware_v2;
 extern OSVERSIONINFO osVersion;
 extern int paraport_mask;

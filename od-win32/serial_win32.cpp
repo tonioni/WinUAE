@@ -56,6 +56,7 @@ static bool serloop_enabled;
 static bool serempty_enabled;
 static bool serxdevice_enabled;
 static uae_u8 serstatus;
+static bool ser_accurate;
 
 #define SER_MEMORY_MAPPING _T("WinUAE_Serial")
 
@@ -276,7 +277,7 @@ void SERPER (uae_u16 w)
 #endif
 
 	// mid transmit period change
-	if ((serloop_enabled || serempty_enabled) && currprefs.cpu_memory_cycle_exact) {
+	if ((serloop_enabled || serempty_enabled) && ser_accurate) {
 		evt_t c = get_cycles();
 		evt_t n = serper_tx_evt + serper_tx_cycles * CYCLE_UNIT;
 		if (n > c) {
@@ -304,7 +305,7 @@ static void serial_rx_irq(void)
 		data_in_serdatr = 1;
 		data_in_serdatr_evt = get_cycles() + delay * CYCLE_UNIT;
 	}
-	if (currprefs.cpu_memory_cycle_exact) {
+	if (ser_accurate) {
 		INTREQ_INT(11, delay);
 	} else {
 		INTREQ_INT(11, 0);
@@ -315,7 +316,7 @@ void serial_rethink(void)
 {
 	if (data_in_serdatr) {
 		int sdr = data_in_serdatr;
-		if (currprefs.cpu_memory_cycle_exact && get_cycles() > data_in_serdatr_evt) {
+		if (ser_accurate && get_cycles() > data_in_serdatr_evt) {
 			sdr = 0;
 		}
 		if (serloop_enabled) {
@@ -689,7 +690,7 @@ static void serdatcopy(void)
 	}
 
 	// if someone uses serial port as some kind of timer..
-	if (currprefs.cpu_memory_cycle_exact) {
+	if (ser_accurate) {
 		int sper = (serper & 0x7fff) + 1;
 		int per = sper * (serdatshift_bits + 1);
 
@@ -810,7 +811,7 @@ static void SERDAT_send(uae_u32 v)
 	write_log(_T("SERIAL: SERDAT write 0x%04x (%c) PC=%x\n"), w, dochar(w), M68K_GETPC);
 #endif
 
-	if (currprefs.cpu_memory_cycle_exact) {
+	if (ser_accurate) {
 		serdat = w;
 		data_in_serdat = 1;
 		if (!data_in_sershift) {
@@ -890,7 +891,7 @@ uae_u16 SERDATR(void)
 
 void SERDAT(uae_u16 w)
 {
-	if (currprefs.cpu_memory_cycle_exact) {
+	if (ser_accurate) {
 		event2_newevent_xx(-1, 1 * CYCLE_UNIT, w, SERDAT_send);
 	} else {
 		SERDAT_send(w);
@@ -1112,6 +1113,7 @@ void serial_open (void)
 		serxdevice_enabled = true;
 	}
 	serdev = 1;
+	ser_accurate = currprefs.cpu_memory_cycle_exact || (currprefs.cpu_model <= 68020 && currprefs.cpu_compatible && currprefs.m68k_speed == 0);
 #endif
 }
 
@@ -1131,6 +1133,7 @@ void serial_close(void)
 	serempty_enabled = false;
 	serxdevice_enabled = false;
 	serper_set = false;
+	ser_accurate = false;
 }
 
 void serial_init(void)

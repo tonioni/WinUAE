@@ -238,12 +238,6 @@ bool preinit_shm (void)
 	}
 	if (!natmem_reserved) {
 		DWORD vaflags = MEM_RESERVE | MEM_WRITE_WATCH;
-#ifdef _WIN32
-#ifndef _WIN64
-		if (!os_vista)
-			vaflags |= MEM_TOP_DOWN;
-#endif
-#endif
 		for (;;) {
 			natmem_reserved = (uae_u8*)VirtualAlloc (NULL, natmem_size, vaflags, PAGE_READWRITE);
 			if (natmem_reserved)
