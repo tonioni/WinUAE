@@ -2458,7 +2458,7 @@ static void MakeFromSR_x(int t0trace)
 	}
 	// Stop SR-modification does not generate T0
 	// If this SR modification set Tx bit, no trace until next instruction.
-	if ((oldt0 && t0trace && currprefs.cpu_model >= 68020) || oldt1) {
+	if (!regs.stopped && ((oldt0 && t0trace && currprefs.cpu_model >= 68020) || oldt1)) {
 		// Always trace if Tx bits were already set, even if this SR modification cleared them.
 		activate_trace();
 	}
@@ -4155,8 +4155,11 @@ void mmu_op (uae_u32 opcode, uae_u32 extra)
 
 #endif
 
-static void do_trace (void)
+static void do_trace(void)
 {
+	if (regs.stopped) {
+		return;
+	}
 	// need to store PC because of branch instructions
 	regs.trace_pc = m68k_getpc();
 	if (regs.t0 && !regs.t1 && currprefs.cpu_model >= 68020) {
