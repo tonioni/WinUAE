@@ -2791,9 +2791,10 @@ static void Exception_ce000 (int nr)
 		}
 		exception_in_exception = 1;
 		x_put_word (m68k_areg (regs, 7) + 4, currpc); // write low address
-		if (interrupt)
+		if (interrupt) {
 			vector_nr = iack_cycle(nr);
-		x_do_cycles(4 * cpucycleunit);
+			x_do_cycles(4 * cpucycleunit);
+		}
 		x_put_word (m68k_areg (regs, 7) + 0, regs.sr); // write SR
 		x_put_word (m68k_areg (regs, 7) + 2, currpc >> 16); // write high address
 		x_put_word (m68k_areg (regs, 7) + 6, (frame_id << 12) | (vector_nr * 4));
@@ -2805,9 +2806,10 @@ static void Exception_ce000 (int nr)
 		}
 		exception_in_exception = 1;
 		x_put_word (m68k_areg (regs, 7) + 4, currpc); // write low address
-		if (interrupt)
+		if (interrupt) {
 			vector_nr = iack_cycle(nr);
-		x_do_cycles(4 * cpucycleunit);
+			x_do_cycles(4 * cpucycleunit);
+		}
 		x_put_word (m68k_areg (regs, 7) + 0, regs.sr); // write SR
 		x_put_word (m68k_areg (regs, 7) + 2, currpc >> 16); // write high address
 	}
