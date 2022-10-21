@@ -4432,33 +4432,21 @@ void ipl_fetch_now_pre(void)
 // ipl check was early enough, interrupt possible after current instruction
 void ipl_fetch_now(void)
 {
-	if (regs.ipl[0] != regs.ipl_pin) {
-		regs.ipl_evt = get_cycles();
-		regs.ipl[0] = regs.ipl_pin;
-		regs.ipl[1] = 0;
-#ifdef DEBUGGER
-		if (debug_dma && regs.ipl[0] > regs.intmask) {
-			record_dma_ipl_sample(current_hpos(), vpos);
-		}
-#endif
-	}
+	regs.ipl_evt = get_cycles();
+	regs.ipl[0] = regs.ipl_pin;
+	regs.ipl[1] = 0;
 }
+
 // ipl check max 4 cycles before end of instruction.
 // interrupt starts after current instruction if IPL was changed earlier.
 // if not early enough: interrupt starts after following instruction.
 void ipl_fetch_next(void)
 {
-	if (regs.ipl[1] != regs.ipl_pin) {
-		if (get_cycles() - regs.ipl_pin_change_evt >= cpuipldelay4) {
-			regs.ipl[0] = regs.ipl_pin;
-		} else {
-			regs.ipl[1] = regs.ipl_pin;
-		}
-#ifdef DEBUGGER
-		if (debug_dma && regs.ipl[0] > regs.intmask) {
-			record_dma_ipl_sample(current_hpos(), vpos);
-		}
-#endif
+	if (get_cycles() - regs.ipl_pin_change_evt >= cpuipldelay4) {
+		regs.ipl[0] = regs.ipl_pin;
+		regs.ipl[1] = 0;
+	} else {
+		regs.ipl[1] = regs.ipl_pin;
 	}
 }
 
@@ -4816,7 +4804,7 @@ static void m68k_run_1 (void)
 				cpu_cycles = adjust_cycles (cpu_cycles);
 				do_cycles(cpu_cycles);
 				regs.instruction_cnt++;
-				if (r->spcflags) {
+				if (r->spcflags || regs.ipl[0]) {
 					if (do_specialties (cpu_cycles))
 						exit = true;
 				}
@@ -6012,17 +6000,17 @@ static void m68k_run_2ce (void)
 				regs.instruction_cnt++;
 
 		cont:
-				regs.ipl[0] = regs.ipl_pin;
-				if (r->spcflags || time_for_interrupt ()) {
+				if (r->spcflags || regs.ipl[0]) {
 					if (do_specialties (0))
 						exit = true;
 				}
+				ipl_fetch_now();
 
 
 			}
 		} CATCH(prb) {
 			bus_error();
-			regs.ipl[0] = regs.ipl_pin;
+			ipl_fetch_now();
 			if (r->spcflags || time_for_interrupt()) {
 				if (do_specialties(0))
 					exit = true;
@@ -6155,7 +6143,7 @@ static void m68k_run_2p (void)
 					x_do_cycles(cpu_cycles);
 
 cont:
-				if (r->spcflags) {
+				if (r->spcflags || regs.ipl[0]) {
 					if (do_specialties (cpu_cycles))
 						exit = true;
 				}
@@ -6918,18 +6906,26 @@ uae_u8 *restore_cpu (uae_u8 *src)
 
 	regs.pipeline_pos = -1;
 	regs.pipeline_stop = 0;
-	if (flags & 0x4000000 && currprefs.cpu_model == 68020) {
+	if ((flags & 0x4000000) && currprefs.cpu_model == 68020) {
 		regs.pipeline_pos = restore_u16();
 		regs.pipeline_r8[0] = restore_u16();
 		regs.pipeline_r8[1] = restore_u16();
 		regs.pipeline_stop = restore_u16();
 	}
 
-	if (flags & 0x2000000 && currprefs.cpu_model <= 68010) {
-		restore_u32();
+	if ((flags & 0x2000000) && currprefs.cpu_model <= 68010) {
+		int v = restore_u32();
 		regs.ird = restore_u16();
 		regs.read_buffer = restore_u16();
 		regs.write_buffer = restore_u16();
+		if (v & 1) {
+			regs.ipl[0] = restore_u8();
+			regs.ipl[1] = restore_u8();
+			regs.ipl_pin = (uae_s32)restore_u8();
+			regs.ipl_evt = restore_u64();
+			regs.ipl_evt_pre = restore_u64();
+			regs.ipl_pin_change_evt = restore_u64();
+		}
 	}
 
 	m68k_reset_sr();
@@ -7359,10 +7355,16 @@ uae_u8 *save_cpu(size_t *len, uae_u8 *dstptr)
 		save_u16(regs.pipeline_stop);
 	}
 	if (currprefs.cpu_model <= 68010) {
-		save_u32(0);
+		save_u32(1);
 		save_u16(regs.ird);
 		save_u16(regs.read_buffer);
 		save_u16(regs.write_buffer);
+		save_u8(regs.ipl[0]);
+		save_u8(regs.ipl[1]);
+		save_u8(regs.ipl_pin);
+		save_u64(regs.ipl_evt);
+		save_u64(regs.ipl_evt_pre);
+		save_u64(regs.ipl_pin_change_evt);
 	}
 	*len = dst - dstbak;
 	return dstbak;
