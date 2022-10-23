@@ -703,7 +703,6 @@ extern void checkint(void);
 extern void intlev_load(void);
 extern void ipl_fetch_now_pre(void);
 extern void ipl_fetch_next_pre(void);
-extern void ipl_fetch_pre(void);
 extern void ipl_fetch_now(void);
 extern void ipl_fetch_next(void);
 extern void dump_counts (void);

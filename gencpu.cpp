@@ -259,7 +259,7 @@ static void set_ipl_pre(void)
 {
 	if (using_ce) {
 		pre_ipl = 1;
-		out("ipl_fetch_pre();\n");
+		out("ipl_fetch_next_pre();\n");
 	} else if (using_prefetch) {
 		pre_ipl = 1;
 		//out("ipl_fetch_prefetch(%d);\n", get_current_cycles() + 2);
@@ -4956,7 +4956,7 @@ static void shift_ce(amodes dmode, int size)
 			out("{\n");
 			out("int cycles = %d;\n", c);
 			out("cycles += 2 * ccnt;\n");
-			addcycles000_3(false);
+			addcycles000_3(true);
 			out("}\n");
 		}
 		next_level_020_to_010();
@@ -6797,9 +6797,9 @@ static void gen_opcode (unsigned int opcode)
 		if (curi->size == sz_byte) {
 			// MOVE TO CCR
 			addcycles000(4);
-			set_ipl();
 			out("MakeSR();\nregs.sr &= 0xFF00;\nregs.sr |= src & 0xFF;\n");
 			makefromsr();
+			set_ipl();
 		} else {
 			// MOVE TO SR
 			check_trace();

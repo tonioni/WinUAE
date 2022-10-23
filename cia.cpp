@@ -2254,7 +2254,7 @@ static void cia_wait_post(int cianummask, uaecptr addr, uae_u32 value, bool rw)
 	} else {
 		// Last 6 cycles of E-clock
 		// IPL fetch that got delayed by CIA access?
-		if (cia_now_evt == regs.ipl_evt) {
+		if (cia_now_evt == regs.ipl_evt && currprefs.cpu_model <= 68010) {
 			int phase = cia_cycles((e_clock_end - 2) * E_CYCLE_UNIT, 4, value, 1);
 			regs.ipl[0] = regs.ipl_pin;
 			cia_cycles(2 * E_CYCLE_UNIT, phase, value, 1);

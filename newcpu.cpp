@@ -2685,9 +2685,9 @@ static int iack_cycle(int nr)
 		// non-autovectored
 		// this is basically normal memory access and takes 4 cycles (without wait states).
 		vector = x_get_byte(0x00fffff1 | ((nr - 24) << 1));
+		x_do_cycles(4 * cpucycleunit);
 	} else {
 		// autovectored
-		x_do_cycles(4 * cpucycleunit);
 	}
 	return vector;
 }
@@ -2793,7 +2793,6 @@ static void Exception_ce000 (int nr)
 		x_put_word (m68k_areg (regs, 7) + 4, currpc); // write low address
 		if (interrupt) {
 			vector_nr = iack_cycle(nr);
-			x_do_cycles(4 * cpucycleunit);
 		}
 		x_put_word (m68k_areg (regs, 7) + 0, regs.sr); // write SR
 		x_put_word (m68k_areg (regs, 7) + 2, currpc >> 16); // write high address
@@ -2808,7 +2807,6 @@ static void Exception_ce000 (int nr)
 		x_put_word (m68k_areg (regs, 7) + 4, currpc); // write low address
 		if (interrupt) {
 			vector_nr = iack_cycle(nr);
-			x_do_cycles(4 * cpucycleunit);
 		}
 		x_put_word (m68k_areg (regs, 7) + 0, regs.sr); // write SR
 		x_put_word (m68k_areg (regs, 7) + 2, currpc >> 16); // write high address
@@ -4416,15 +4414,15 @@ static int time_for_interrupt(void)
 }
 
 // ipl check mid next memory cycle
-void ipl_fetch_pre(void)
+void ipl_fetch_next_pre(void)
 {
-	ipl_fetch_next();
 	regs.ipl_evt_pre = get_cycles();
 	regs.ipl_evt_pre_mode = 1;
 }
 
 void ipl_fetch_now_pre(void)
 {
+	regs.ipl[1] = regs.ipl_pin;
 	regs.ipl_evt_pre = get_cycles();
 	regs.ipl_evt_pre_mode = 0;
 }
@@ -4432,7 +4430,8 @@ void ipl_fetch_now_pre(void)
 // ipl check was early enough, interrupt possible after current instruction
 void ipl_fetch_now(void)
 {
-	regs.ipl_evt = get_cycles();
+	evt_t c = get_cycles();
+	regs.ipl_evt = c;
 	regs.ipl[0] = regs.ipl_pin;
 	regs.ipl[1] = 0;
 }
@@ -4442,7 +4441,8 @@ void ipl_fetch_now(void)
 // if not early enough: interrupt starts after following instruction.
 void ipl_fetch_next(void)
 {
-	if (get_cycles() - regs.ipl_pin_change_evt >= cpuipldelay4) {
+	evt_t c = get_cycles();
+	if (c - regs.ipl_pin_change_evt >= cpuipldelay4) {
 		regs.ipl[0] = regs.ipl_pin;
 		regs.ipl[1] = 0;
 	} else {
@@ -4636,9 +4636,6 @@ static int do_specialties (int cycles)
 		if (ipl) {
 			unset_special(SPCFLAG_INT);
 			do_interrupt(ipl);
-		} else {
-			regs.ipl[0] = regs.ipl[1];
-			regs.ipl[1] = 0;
 		}
 	} else {
 		if (regs.spcflags & SPCFLAG_INT) {

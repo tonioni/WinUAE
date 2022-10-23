@@ -14890,10 +14890,10 @@ extern int cpu_tracer;
 static int dma_cycle(uaecptr addr, uae_u32 value, int *mode, int *ipl)
 {
 	int hpos_next, hpos_old;
+	int ws = 0;
 
 	blt_info.nasty_cnt = 1;
 	blt_info.wait_nasty = 0;
-	*ipl = regs.ipl_pin;
 	if (cpu_tracer < 0) {
 		return current_hpos_safe();
 	}
@@ -14927,7 +14927,10 @@ static int dma_cycle(uaecptr addr, uae_u32 value, int *mode, int *ipl)
 		if (blt_info.nasty_cnt > 0) {
 			blt_info.nasty_cnt++;
 		}
-		*ipl = regs.ipl_pin;
+		if (!ws) {
+			*ipl = regs.ipl_pin;
+			ws = 1;
+		}
 		do_cycles(1 * CYCLE_UNIT);
 		/* bus was allocated to dma channel, wait for next cycle.. */
 	}
@@ -14959,7 +14962,8 @@ void do_copper(void)
 uae_u32 wait_cpu_cycle_read(uaecptr addr, int mode)
 {
 	uae_u32 v = 0;
-	int hpos, ipl;
+	int hpos;
+	int ipl = regs.ipl_pin;
 	evt_t now = get_cycles();
 
 	sync_cycles();
@@ -15017,7 +15021,7 @@ uae_u32 wait_cpu_cycle_read(uaecptr addr, int mode)
 
 	// if IPL fetch was pending and CPU had wait states
 	// Use ipl_pin value from previous cycle
-	if (now == regs.ipl_evt && regs.ipl_pin_change_evt > now + cpuipldelay2) {
+	if (now == regs.ipl_evt) {
 		regs.ipl[0] = ipl;
 	}
 
@@ -15026,7 +15030,8 @@ uae_u32 wait_cpu_cycle_read(uaecptr addr, int mode)
 
 void wait_cpu_cycle_write(uaecptr addr, int mode, uae_u32 v)
 {
-	int hpos, ipl;
+	int hpos;
+	int ipl = regs.ipl_pin;
 	evt_t now = get_cycles();
 
 	sync_cycles();
@@ -15068,7 +15073,7 @@ void wait_cpu_cycle_write(uaecptr addr, int mode, uae_u32 v)
 
 	// if IPL fetch was pending and CPU had wait states:
 	// Use ipl_pin value from previous cycle
-	if (now == regs.ipl_evt && regs.ipl_pin_change_evt > now + cpuipldelay2) {
+	if (now == regs.ipl_evt) {
 		regs.ipl[0] = ipl;
 	}
 }
