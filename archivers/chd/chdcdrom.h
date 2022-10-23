@@ -87,6 +87,7 @@ struct cdrom_track_info
 	UINT32 logframeofs; /* logical frame of actual track data - offset by pregap size if pregap not physically present */
 	UINT32 physframeofs; /* physical frame of actual track data in CHD data */
 	UINT32 chdframeofs; /* frame number this track starts at on the CHD */
+	UINT32 logframes; /* number of frames from logframeofs until end of track data */
 };
 
 
