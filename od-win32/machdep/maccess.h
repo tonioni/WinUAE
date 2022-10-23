@@ -11,7 +11,11 @@
   * Copyright 1996 Bernd Schmidt
   */
 
-#define ALIGN_POINTER_TO32(p) ((~(unsigned long)(p)) & 3)
+#ifdef CPU_64_BIT
+#define ALIGN_POINTER_TO32(p) ((~(uae_u64)(p)) & 3)
+#else
+#define ALIGN_POINTER_TO32(p) ((~(uae_u32)(p)) & 3)
+#endif
 
 STATIC_INLINE uae_u64 do_get_mem_quad(uae_u64 *a)
 {
