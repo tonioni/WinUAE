@@ -2284,20 +2284,20 @@ static bool get_record_dma_info(struct dma_rec *dr, int hpos, int vpos, TCHAR *l
 		}
 	}
 	if (ipl >= 0) {
-		_stprintf(l1, _T("[%02X   %d]"), hpos, ipl);
+		_stprintf(l1, _T("[%02X     %d]"), hpos, ipl);
 	} else if (ipl == -2) {
-		_stprintf(l1, _T("[%02X   -]"), hpos);
+		_stprintf(l1, _T("[%02X     -]"), hpos);
 	} else {
-		_stprintf(l1, _T("[%02X    ]"), hpos);
+		_stprintf(l1, _T("[%02X      ]"), hpos);
 	}
 	if (l4) {
-		_tcscpy(l4, _T("        "));
+		_tcscpy(l4, _T("          "));
 	}
 	if (l2) {
-		_tcscpy(l2, _T("        "));
+		_tcscpy(l2, _T("          "));
 	}
 	if (l3) {
-		_tcscpy(l3, _T("        "));
+		_tcscpy(l3, _T("          "));
 	}
 	if (r != 0xffff) {
 		if (r & 0x1000) {
@@ -2316,14 +2316,14 @@ static bool get_record_dma_info(struct dma_rec *dr, int hpos, int vpos, TCHAR *l
 		} else {
 			if (chcnt >= 0) {
 				if (regsize == 3)
-					_stprintf(l2, _T("%3s%d %03X"), srtext, chcnt, r);
+					_stprintf(l2, _T("%3s%d   %03X"), srtext, chcnt, r);
 				else
-					_stprintf(l2, _T("%4s%d %02X"), srtext, chcnt, r);
+					_stprintf(l2, _T("%4s%d   %02X"), srtext, chcnt, r);
 			} else {
 				if (regsize == 3)
-					_stprintf(l2, _T("%4s %03X"), srtext, r);
+					_stprintf(l2, _T("%4s   %03X"), srtext, r);
 				else
-					_stprintf(l2, _T("%5s %02X"), srtext, r);
+					_stprintf(l2, _T("%5s   %02X"), srtext, r);
 			}
 		}
 		if (l3 && !noval) {
@@ -2335,7 +2335,7 @@ static bool get_record_dma_info(struct dma_rec *dr, int hpos, int vpos, TCHAR *l
 				extra64 = true;
 				extraval = (uae_u32)v;
 			} else {
-				_stprintf(l3, _T("    %04X"), (uae_u32)(v & 0xffff));
+				_stprintf(l3, _T("     %04X"), (uae_u32)(v & 0xffff));
 			}
 		}
 		if (l4 && dr->addr != 0xffffffff)
@@ -2439,7 +2439,7 @@ static bool get_record_dma_info(struct dma_rec *dr, int hpos, int vpos, TCHAR *l
 	if (l5) {
 		if (dr->ciaphase) {
 			if (dr->ciamask) {
-				_stprintf(l5, _T("%c%s%X %04X"), dr->ciarw ? 'W' : 'R',
+				_stprintf(l5, _T("%c%s%X   %04X"), dr->ciarw ? 'W' : 'R',
 					dr->ciamask == 1 ? _T("A") : (dr->ciamask == 2 ? _T("B") : _T("X")),
 					dr->ciareg, dr->ciavalue);
 			} else {
@@ -2460,11 +2460,10 @@ static bool get_record_dma_info(struct dma_rec *dr, int hpos, int vpos, TCHAR *l
 			if (ret) {
 				xtra = '+';
 			}
-			_stprintf(l6, _T("%c%03X %03X"), xtra, ras, cas);
+			_stprintf(l6, _T("%c%03X   %03X"), xtra, ras, cas);
 		} else {
 			l6[0] = 0;
 		}
-		//_stprintf (l5, _T("%08X"), cycles + (vpos * maxhpos + hpos) * CYCLE_UNIT);
 	}
 	if (extra64) {
 		_tcscpy(l6, l4);
@@ -2475,7 +2474,7 @@ static bool get_record_dma_info(struct dma_rec *dr, int hpos, int vpos, TCHAR *l
 
 
 
-static void decode_dma_record (int hpos, int vpos, int toggle, bool logfile)
+static void decode_dma_record(int hpos, int vpos, int toggle, bool logfile)
 {
 	struct dma_rec *dr, *dr_start;
 	int h, i, maxh = 0;
@@ -2526,17 +2525,17 @@ static void decode_dma_record (int hpos, int vpos, int toggle, bool logfile)
 			get_record_dma_info(dr, h, vpos, l1l, l2l, l3l, l4l, l5l, l6l, &split, &ipl);
 
 			TCHAR *p = l1 + _tcslen(l1);
-			_stprintf(p, _T("%9s "), l1l);
+			_stprintf(p, _T("%11s  "), l1l);
 			p = l2 + _tcslen(l2);
-			_stprintf(p, _T("%9s "), l2l);
+			_stprintf(p, _T("%11s  "), l2l);
 			p = l3 + _tcslen(l3);
-			_stprintf(p, _T("%9s "), l3l);
+			_stprintf(p, _T("%11s  "), l3l);
 			p = l4 + _tcslen(l4);
-			_stprintf(p, _T("%9s "), l4l);
+			_stprintf(p, _T("%11s  "), l4l);
 			p = l5 + _tcslen(l5);
-			_stprintf(p, _T("%9s "), l5l);
+			_stprintf(p, _T("%11s  "), l5l);
 			p = l6 + _tcslen(l6);
-			_stprintf(p, _T("%9s "), l6l);
+			_stprintf(p, _T("%11s  "), l6l);
 
 			if (split != 0xffffffff) {
 				if (split < 0x10000) {
@@ -5478,19 +5477,19 @@ int instruction_breakpoint (TCHAR **c)
 	return 1;
 }
 
-static int process_breakpoint (TCHAR **c)
+static int process_breakpoint(TCHAR **c)
 {
 	processptr = 0;
-	xfree (processname);
+	xfree(processname);
 	processname = NULL;
-	if (!more_params (c))
+	if (!more_params(c))
 		return 0;
 	if (**c == '\"') {
 		TCHAR pn[200];
-		next_string (c, pn, 200, 0);
-		processname = ua (pn);
+		next_string(c, pn, sizeof(pn) / sizeof(TCHAR), 0);
+		processname = ua(pn);
 	} else {
-		processptr = readhex (c);
+		processptr = readhex(c);
 	}
 	trace_mode = TRACE_CHECKONLY;
 	return 1;
