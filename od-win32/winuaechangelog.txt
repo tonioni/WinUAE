@@ -1,5 +1,44 @@
 
 
+- 68000 IPL check position is now almost fully accurate (Still some special cases to check and test). Very big thanks to fx68k author!
+- W debugger command hang fixed.
+- Full drive/RDB mode is now normal checbox. Hopefully it is now less confusing than button that didn't really look like a button. If selected HDF already has RDSK identifer, checkbox is ticked and disabled. Checkbox can be only ticked/unticked if selected HDF does not have RDSK identifier.
+- GDI mode didn't force 32-bit screen depth mode.
+- FloppyBridge uae-configuration change now really updates all internal variables.
+- Screenshots didn't work if 256 color checkbox was not ticked (tried to create 24-bit palette indexed image)
+- DMACONR blitter status 1 cycle delay was broken (Circle scroller / UFO)
+- Enabling DMA debugger and then returning to emulator continuously reported conflicts until next frame had finished. DMA debugger init was changed but tables were not fully initialized.
+- Keyboard reset now behaves more like real hardware. Press keys, hardware gets reset (if keyboard reset warning is not active), reset continues only when at least 1 key is released. If all keys are kept pressed more than 5 seconds: do hard reset.
+- DMA debugger CIA access line includes also E-clock state (0, 2, <data access info>, 6, 8) and any "wasted" cycles needed to sync with E-clock are marked with "-".
+- DMA debugger is wider. More space for future features.
+- New cputester tests done, for example all SR modification instructions (including STOP) tested with both trace + pending interrupt. No errors found.
+- If STOP was executed without trace active and STOP enabled trace, STOP still stops normally and only interrupt can wake it up. (b1)
+- Blitter busy bit read incorrectly as blit not busy if blitter was in non-nasty mode and not line mode and CPU stole second to last D channel slot.
+- Removed all remaining Windows 7/Vista checks (from days when XP and Vista was still supported).
+- "Remove interlace artifacts" is broken. Will be fixed later.
+
+68000 IPL notes:
+
+"IPL check/sample position" = when 68000 microcode detects if IPL line has changed, this depends on instruction and addressing mode. This affects when new interrupt starts, if it happens early enough during current instruction, interrupt can start when current instruction ends but if it happens later, following instruction is executed first.
+
+This can affect programs that for example enable interrupts and interrupt is already pending. Depending on current and following instruction, interrupt can start immediately or after next instruction. It can even break bad programs.
+
+IPL check is most commonly at the beginning of instruction after EA calculations or when last prefetch starts.
+- MOVEM.x <regs>,(An)+ checks IPL at the beginning of instruction. All other MOVEM addressing modes check it at the end of instruction.
+- MUL check IPL at the beginning of instruction, DIV check it at the end of instruction.
+- DIVS is special, if dividend is negative and divisor is positive, IPL check position is 2 cycles earlier (4 vs 6 cycles counted from end of instruction).
+- MOVEs are quite complex, common fetch position is when data is read but it really depends on source and destination EA and size. One exception are absolute short/long destinations which always have IPL check at the same position. Word moves are also mostly similar except immediate source and (an), (an)+ and -(an) destinations.
+- If instruction generates exception (including trap, divide by zero, chk), IPL is not checked. IPL check is always after exception checks.
+- Interrupt exception processing seems to check IPL at least 2 cycles earlier than non-interrupt exceptions.
+- If IPL check is at mid memory access, any wait state (DMA channel steals cycles from CPU) will also delay IPL check. Same also happens if memory access is using 6800 cycle (CIA access), IPL check is at the end of CIA access cycle.
+
+This finally makes 68000 emulation complete. Everything observable (that Amiga uses) outside of 68000 should be 100% cycle-accurate now.
+
+Usual suspects (Spectreparty aka Dots demo / Phenomena and Expiration / Mayhem cube) still have problems which means there are still something else wrong.
+
+
+Beta 2:
+
 - Display resync blanking was stuck enabled (~1s blank screen when mode switches)
 - Internal emulated serial devices (for example laserdisc player) data transfer was unstable.
 - Z3 hardware emulated RTG board autoconfig size data was fixed and then was broken again.
@@ -14,7 +53,6 @@ Pre-4.9.2 fixes:
 
 - Box art path detection didn't parse cdimage0 paths correctly if path had "," character. ("," needs special case because path can be optionally followed by ",delay")
 - If only one autoconfig device was enabled and it was removed when emulator was running and then system was hard reset: old autoconfig data was not cleared causing disabled device to get misdetected by AmigaOS which usually caused hang.
-
 
 Beta 1:
 
