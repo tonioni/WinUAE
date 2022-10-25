@@ -8419,36 +8419,56 @@ static void fill_icache030(uae_u32 addr)
 			// instruction cache not frozen and enabled
 			update_icache030 (c, data, tag, lws);
 		}
-		if ((mmu030_cache_state & CACHE_ENABLE_INS_BURST) && (regs.cacr & 0x11) == 0x11 && (c->valid[0] + c->valid[1] + c->valid[2] + c->valid[3] == 1)) {
-			// do burst fetch if cache enabled, not frozen, all slots invalid, no chip ram
-			int i;
-			for (i = 0; i < 4; i++) {
-				if (c->valid[i])
-					break;
-			}
-			uaecptr baddr = addr & ~15;
-			if (currprefs.mmu_model) {
-				TRY (prb) {
-					if (currprefs.cpu_cycle_exact)
-						do_cycles_ce020(3 * (CPU020_MEM_CYCLE - 1));
-					for (int j = 0; j < 3; j++) {
-						i++;
-						i &= 3;
-						c->data[i] = icache_fetch(baddr + i * 4);
-						c->valid[i] = true;
-					}
-				} CATCH (prb) {
-					; // abort burst fetch if bus error, do not report it.
-				} ENDTRY
-			} else {
-				for (int j = 0; j < 3; j++) {
-					i++;
-					i &= 3;
-					c->data[i] = icache_fetch(baddr + i * 4);
-					c->valid[i] = true;
+
+		// Do burst fetch if enabled, cache is not frozen, all line slots invalid, and 32-bit CPU local bus (no chip ram).
+		//
+		// Burst cycles 2-4 are handled by the 030 bus controller rather than the sequencing unit.
+		// The MMU only translates the first cache fetch (above) and the following 3 fetches increment
+		// address lines A2-A3 (optionally via external hardware).  If a bus error occurs, no exception
+		// is generated and the remaining cache line slots are left invalid.
+		//
+		if ((mmu030_cache_state & CACHE_ENABLE_INS_BURST) && (regs.cacr & 0x11) == 0x11) {
+			if (c->valid[0] + c->valid[1] + c->valid[2] + c->valid[3] == 1) {
+				uaecptr physaddr = addr;
+				if (currprefs.mmu_model) {
+					physaddr = mmu030_translate(addr, regs.s != 0, false, false);
 				}
-				if (currprefs.cpu_cycle_exact)
-					do_cycles_ce020_mem (3 * (CPU020_MEM_CYCLE - 1), c->data[3]);
+
+				if (ce_banktype[physaddr >> 16] == CE_MEMBANK_FAST32) {
+					int i;
+					for (i = 0; i < 4; i++) {
+						if (c->valid[i])
+							break;
+					}
+					uaecptr baddr = physaddr & ~15;
+
+					if (currprefs.mmu_model) {
+						TRY (prb) {
+							// TODO: Need memory functions for burst row and burst column access.
+							for (int j = 0; j < 3; j++) {
+								i++;
+								i &= 3;
+								c->data[i] = get_longi(baddr + i * 4);
+								c->valid[i] = true;
+
+								if (currprefs.cpu_cycle_exact)
+									do_cycles_ce020_mem(1 * (CPU020_MEM_CYCLE - 1), c->data[i]);
+							}
+						} CATCH (prb) {
+							; // abort burst fetch if bus error, do not report it.
+						} ENDTRY
+					} else {
+						for (int j = 0; j < 3; j++) {
+							i++;
+							i &= 3;
+							c->data[i] = get_longi(baddr + i * 4);
+							c->valid[i] = true;
+
+							if (currprefs.cpu_cycle_exact)
+								do_cycles_ce020_mem(1 * (CPU020_MEM_CYCLE - 1), c->data[i]);
+						}
+					}
+				}
 			}
 		}
 	}
@@ -8586,36 +8606,48 @@ void write_dcache030_retry(uaecptr addr, uae_u32 v, uae_u32 fc, int size, int fl
 
 static void dcache030_maybe_burst(uaecptr addr, struct cache030 *c, int lws)
 {
-	if ((c->valid[0] + c->valid[1] + c->valid[2] + c->valid[3] == 1) && ce_banktype[addr >> 16] == CE_MEMBANK_FAST32) {
-		// do burst fetch if cache enabled, not frozen, all slots invalid, no chip ram
-		int i;
-		uaecptr baddr = addr & ~15;
-		for (i = 0; i < 4; i++) {
-			if (c->valid[i])
-				break;
-		}
+	// Do burst fetch if enabled, cache not frozen, all line slots invalid, and 32-bit CPU local bus (no chip ram).
+	// (See notes about burst fetches in icache routines)
+	if (c->valid[0] + c->valid[1] + c->valid[2] + c->valid[3] == 1) {
+		uaecptr physaddr = addr;
 		if (currprefs.mmu_model) {
-			TRY (prb) {
-				if (currprefs.cpu_cycle_exact)
-					do_cycles_ce020(3 * (CPU020_MEM_CYCLE - 1));
+			physaddr = mmu030_translate(addr, regs.s != 0, false, false);
+		}
+
+		if (ce_banktype[physaddr >> 16] == CE_MEMBANK_FAST32) {
+			int i;
+			for (i = 0; i < 4; i++) {
+				if (c->valid[i])
+					break;
+			}
+			uaecptr baddr = physaddr & ~15;
+
+			if (currprefs.mmu_model) {
+				TRY (prb) {
+					// TODO: Need memory functions for burst row and burst column access.
+					for (int j = 0; j < 3; j++) {
+						i++;
+						i &= 3;
+						c->data[i] = get_long(baddr + i * 4);
+						c->valid[i] = true;
+
+						if (currprefs.cpu_cycle_exact)
+							do_cycles_ce020_mem(1 * (CPU020_MEM_CYCLE - 1), c->data[i]);
+					}
+				} CATCH (prb) {
+					; // abort burst fetch if bus error
+				} ENDTRY
+			} else {
 				for (int j = 0; j < 3; j++) {
 					i++;
 					i &= 3;
-					c->data[i] = dcache_lget (baddr + i * 4);
+					c->data[i] = get_long(baddr + i * 4);
 					c->valid[i] = true;
+
+					if (currprefs.cpu_cycle_exact)
+						do_cycles_ce020_mem(1 * (CPU020_MEM_CYCLE - 1), c->data[i]);
 				}
-			} CATCH (prb) {
-				; // abort burst fetch if bus error
-			} ENDTRY
-		} else {
-			for (int j = 0; j < 3; j++) {
-				i++;
-				i &= 3;
-				c->data[i] = dcache_lget (baddr + i * 4);
-				c->valid[i] = true;
 			}
-			if (currprefs.cpu_cycle_exact)
-				do_cycles_ce020_mem (3 * (CPU020_MEM_CYCLE - 1), c->data[i]);
 		}
 #if VALIDATE_68030_DATACACHE
 		validate_dcache030();
