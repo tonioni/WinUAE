@@ -206,8 +206,8 @@ struct regstruct
 	int halted;
 	int exception;
 	int intmask;
-	int ipl[2], ipl_pin;
-	evt_t ipl_pin_change_evt;
+	int ipl[2], ipl_pin, ipl_pin_p;
+	evt_t ipl_pin_change_evt, ipl_pin_change_evt_p;
 	evt_t ipl_evt, ipl_evt_pre;
 	int ipl_evt_pre_mode;
 
@@ -703,7 +703,6 @@ extern void checkint(void);
 extern void intlev_load(void);
 extern void ipl_fetch_now_pre(void);
 extern void ipl_fetch_next_pre(void);
-extern void ipl_fetch_pre(void);
 extern void ipl_fetch_now(void);
 extern void ipl_fetch_next(void);
 extern void dump_counts (void);

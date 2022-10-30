@@ -17,6 +17,7 @@ extern void gui_message_id (int id);
 int dragdrop (HWND hDlg, HDROP hd, struct uae_prefs *prefs, int currentpage);
 UAEREG *read_disk_history (int type);
 void write_disk_history (void);
+void HtmlHelp(const TCHAR*);
 
 #define MAX_GUIIDPARAMS 16
 #define MAX_DLGID 100

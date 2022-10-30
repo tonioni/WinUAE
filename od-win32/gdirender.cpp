@@ -391,6 +391,7 @@ static const TCHAR *gdi_init(HWND ahwnd, int monid, int w_w, int w_h, int depth,
 		allocsprite(gdi, &gdi->osd, gdi->ledwidth, gdi->ledheight);
 		allocsprite(gdi, &gdi->cursor, CURSORMAXWIDTH, CURSORMAXHEIGHT);
 		gdi->enabled = 1;
+		write_log(_T("GDI mode initialized %d*%d*%d\n"), w_w, w_h, depth);
 		return NULL;
 	}
 
@@ -418,6 +419,10 @@ static bool gdi_setcursor(int monid, int x, int y, int width, int height, float 
 {
 	struct gdistruct *gdi = &gdidata[monid];
 
+	if (gdi->depth < 32) {
+		return false;
+	}
+
 	if (width < 0 || height < 0) {
 		return true;
 	}
@@ -442,6 +447,10 @@ static bool gdi_setcursor(int monid, int x, int y, int width, int height, float 
 static uae_u8 *gdi_setcursorsurface(int monid, int *pitch)
 {
 	struct gdistruct* gdi = &gdidata[monid];
+
+	if (gdi->depth < 32) {
+		return NULL;
+	}
 
 	if (pitch) {
 		*pitch = gdi->cursor.pitch;

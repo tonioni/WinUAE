@@ -143,7 +143,7 @@ static void slirp_receive_func(void *arg)
 	while (slirp_thread_active) {
 		// Wait for packets to arrive
 		fd_set rfds, wfds, xfds;
-		int nfds;
+		INT_PTR nfds;
 		int ret, timeout;
 
 		// ... in the output queue

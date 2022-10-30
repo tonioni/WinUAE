@@ -213,7 +213,7 @@ void PAL_1x1_32(uae_u32 *src, int pitchs, uae_u32 *trg, int pitcht, int width, i
 		wend = 0;
 	} else {
 		/* alignment: 8 pixels*/
-		wstart = (unsigned int)(8 - ((unsigned long)trg & 7));
+		wstart = (unsigned int)(8 - ((size_t)trg & 7));
 		wfast = (width - wstart) >> 3; /* fast loop for 8 pixel segments*/
 		wend = (width - wstart) & 0x07; /* do not forget the rest*/
 	}
@@ -313,7 +313,7 @@ void PAL_1x1_16(uae_u16 *src, int pitchs, uae_u16 *trg, int pitcht, int width, i
 		wend = 0;
 	} else {
 		/* alignment: 8 pixels*/
-		wstart = (unsigned int)(8 - ((unsigned long)trg & 7));
+		wstart = (unsigned int)(8 - ((size_t)trg & 7));
 		wfast = (width - wstart) >> 3; /* fast loop for 8 pixel segments*/
 		wend = (width - wstart) & 0x07; /* do not forget the rest*/
 	}

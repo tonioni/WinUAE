@@ -8333,9 +8333,9 @@ static void BPLxDAT_next(uae_u32 vv)
 	if ((fmode & 3) == 3) {
 		fetched_aga[num] = ((uae_u64)last_custom_value << 48) | ((uae_u64)data << 32) | ((uae_u64)data << 16) | data;
 	} else if ((fmode & 3) == 2) {
-		fetched_aga[num] = (last_custom_value << 16) | data;
+		fetched_aga[num] = ((uae_u32)last_custom_value << 16) | data;
 	} else if ((fmode & 3) == 1) {
-		fetched_aga[num] = (data << 16) | data;
+		fetched_aga[num] = ((uae_u32)data << 16) | data;
 	} else {
 		fetched_aga[num] = data;
 	}
@@ -14893,7 +14893,6 @@ static int dma_cycle(uaecptr addr, uae_u32 value, int *mode, int *ipl)
 
 	blt_info.nasty_cnt = 1;
 	blt_info.wait_nasty = 0;
-	*ipl = regs.ipl_pin;
 	if (cpu_tracer < 0) {
 		return current_hpos_safe();
 	}
@@ -14959,7 +14958,8 @@ void do_copper(void)
 uae_u32 wait_cpu_cycle_read(uaecptr addr, int mode)
 {
 	uae_u32 v = 0;
-	int hpos, ipl;
+	int hpos;
+	int ipl = regs.ipl[0];
 	evt_t now = get_cycles();
 
 	sync_cycles();
@@ -15017,7 +15017,7 @@ uae_u32 wait_cpu_cycle_read(uaecptr addr, int mode)
 
 	// if IPL fetch was pending and CPU had wait states
 	// Use ipl_pin value from previous cycle
-	if (now == regs.ipl_evt && regs.ipl_pin_change_evt > now + cpuipldelay2) {
+	if (now == regs.ipl_evt) {
 		regs.ipl[0] = ipl;
 	}
 
@@ -15026,7 +15026,8 @@ uae_u32 wait_cpu_cycle_read(uaecptr addr, int mode)
 
 void wait_cpu_cycle_write(uaecptr addr, int mode, uae_u32 v)
 {
-	int hpos, ipl;
+	int hpos;
+	int ipl = regs.ipl[0];
 	evt_t now = get_cycles();
 
 	sync_cycles();
@@ -15068,7 +15069,7 @@ void wait_cpu_cycle_write(uaecptr addr, int mode, uae_u32 v)
 
 	// if IPL fetch was pending and CPU had wait states:
 	// Use ipl_pin value from previous cycle
-	if (now == regs.ipl_evt && regs.ipl_pin_change_evt > now + cpuipldelay2) {
+	if (now == regs.ipl_evt) {
 		regs.ipl[0] = ipl;
 	}
 }

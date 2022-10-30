@@ -151,7 +151,6 @@ int max_uae_height;
 
 HINSTANCE hInst = NULL;
 HMODULE hUIDLL = NULL;
-HWND (WINAPI *pHtmlHelp)(HWND, LPCWSTR, UINT, LPDWORD);
 HWND hHiddenWnd, hGUIWnd;
 #if KBHOOK
 static HHOOK hhook;
@@ -208,7 +207,6 @@ TCHAR start_path_exe[MAX_DPATH];
 TCHAR start_path_plugins[MAX_DPATH];
 TCHAR start_path_new1[MAX_DPATH]; /* AF2005 */
 TCHAR start_path_new2[MAX_DPATH]; /* AMIGAFOREVERDATA */
-TCHAR help_file[MAX_DPATH];
 TCHAR bootlogpath[MAX_DPATH];
 TCHAR logpath[MAX_DPATH];
 bool winuaelog_temporary_enable;
@@ -3006,7 +3004,7 @@ static LRESULT CALLBACK HiddenWindowProc (HWND hWnd, UINT message, WPARAM wParam
 			inputdevice_add_inputcode (AKS_ENTERGUI, 1, NULL);
 			break;
 		case ID_ST_HELP:
-			HtmlHelp (NULL, help_file, 0, NULL);
+			HtmlHelp(NULL);
 			break;
 		case ID_ST_QUIT:
 			uae_quit ();
@@ -3264,37 +3262,12 @@ static int WIN32_RegisterClasses (void)
 	return 1;
 }
 
-static HINSTANCE hRichEdit = NULL, hHtmlHelp = NULL;
-
-int WIN32_CleanupLibraries (void)
+static int WIN32_CleanupLibraries(void)
 {
-	if (hRichEdit)
-		FreeLibrary (hRichEdit);
-
-	if (hHtmlHelp)
-		FreeLibrary (hHtmlHelp);
-
 	if (hUIDLL)
-		FreeLibrary (hUIDLL);
-	CoUninitialize ();
+		FreeLibrary(hUIDLL);
+	CoUninitialize();
 	return 1;
-}
-
-/* HtmlHelp Initialization - optional component */
-int WIN32_InitHtmlHelp (void)
-{
-	const TCHAR *chm = _T("WinUAE.chm");
-	int result = 0;
-	_stprintf(help_file, _T("%s%s"), start_path_data, chm);
-	if (!zfile_exists (help_file))
-		_stprintf(help_file, _T("%s%s"), start_path_exe, chm);
-	if (zfile_exists (help_file)) {
-		if (hHtmlHelp = LoadLibrary (_T("HHCTRL.OCX"))) {
-			pHtmlHelp = (HWND(WINAPI *)(HWND, LPCWSTR, UINT, LPDWORD))GetProcAddress (hHtmlHelp, "HtmlHelpW");
-			result = 1;
-		}
-	}
-	return result;
 }
 
 const struct winuae_lang langs[] =
@@ -3515,7 +3488,6 @@ static int WIN32_InitLibraries (void)
 	if (pSetCurrentProcessExplicitAppUserModelID)
 		pSetCurrentProcessExplicitAppUserModelID (WINUAEAPPNAME);
 
-	hRichEdit = LoadLibrary (_T("RICHED32.DLL"));
 	return 1;
 }
 
@@ -5652,7 +5624,7 @@ static void WIN32_HandleRegistryStuff (void)
 	if (regexists (NULL, _T("SoundDriverMask"))) {
 		regqueryint (NULL, _T("SoundDriverMask"), &sounddrivermask);
 	} else {
-		sounddrivermask = 3;
+		sounddrivermask = 2;
 		regsetint (NULL, _T("SoundDriverMask"), sounddrivermask);
 	}
 
@@ -5825,7 +5797,7 @@ static int betamessage (void)
 	return 1;
 }
 
-int os_admin, os_64bit, os_win7, os_win8, os_win10, os_vista, cpu_number, os_touch;
+int os_admin, os_64bit, os_win7, os_win8, os_win10, cpu_number, os_touch;
 BOOL os_dwm_enabled;
 BOOL dpi_aware_v2;
 
@@ -5903,9 +5875,6 @@ static int osdetect (void)
 		pGetNativeSystemInfo (&SystemInfo);
 	osVersion.dwOSVersionInfoSize = sizeof (OSVERSIONINFO);
 	if (GetVersionEx (&osVersion)) {
-		if (osVersion.dwMajorVersion >= 6) {
-			os_vista = 1;
-		}
 		if (osVersion.dwMajorVersion >= 7 || (osVersion.dwMajorVersion == 6 && osVersion.dwMinorVersion >= 1)) {
 			os_win7 = 1;
 		}
@@ -5944,18 +5913,16 @@ static int osdetect (void)
 		}
 	}
 
-	if (os_vista) {
-		typedef HRESULT(CALLBACK* DWMISCOMPOSITIONENABLED)(BOOL*);
-		HMODULE dwmapihandle;
-		DWMISCOMPOSITIONENABLED pDwmIsCompositionEnabled;
-		dwmapihandle = LoadLibrary(_T("dwmapi.dll"));
-		if (dwmapihandle) {
-			pDwmIsCompositionEnabled = (DWMISCOMPOSITIONENABLED)GetProcAddress(dwmapihandle, "DwmIsCompositionEnabled");
-			if (pDwmIsCompositionEnabled) {
-				pDwmIsCompositionEnabled(&os_dwm_enabled);
-			}
-			FreeLibrary(dwmapihandle);
+	typedef HRESULT(CALLBACK* DWMISCOMPOSITIONENABLED)(BOOL*);
+	HMODULE dwmapihandle;
+	DWMISCOMPOSITIONENABLED pDwmIsCompositionEnabled;
+	dwmapihandle = LoadLibrary(_T("dwmapi.dll"));
+	if (dwmapihandle) {
+		pDwmIsCompositionEnabled = (DWMISCOMPOSITIONENABLED)GetProcAddress(dwmapihandle, "DwmIsCompositionEnabled");
+		if (pDwmIsCompositionEnabled) {
+			pDwmIsCompositionEnabled(&os_dwm_enabled);
 		}
+		FreeLibrary(dwmapihandle);
 	}
 
 	return 1;
@@ -7078,13 +7045,8 @@ static int PASCAL WinMain2 (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR
 	if (!osdetect ())
 		return 0;
 
-	if (os_vista) {
-		max_uae_width = 8192;
-		max_uae_height = 8192;
-	} else {
-		max_uae_width = 3072;
-		max_uae_height = 2048;
-	}
+	max_uae_width = 8192;
+	max_uae_height = 8192;
 
 	hInst = hInstance;
 	hMutex = CreateMutex (NULL, FALSE, _T("WinUAE Instantiated")); // To tell the installer we're running
@@ -7158,7 +7120,6 @@ static int PASCAL WinMain2 (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR
 		}
 #endif
 		WIN32_InitLang ();
-		WIN32_InitHtmlHelp ();
 		unicode_init ();
 		can_D3D11(false);
 		if (betamessage ()) {
@@ -7654,7 +7615,7 @@ static void systraymenu (HWND hwnd)
 	menu2 = GetSubMenu (menu, 0);
 	drvmenu = GetSubMenu (menu2, 1);
 	cdmenu = GetSubMenu (menu2, 2);
-	EnableMenuItem (menu2, ID_ST_HELP, pHtmlHelp ? MF_ENABLED : MF_GRAYED);
+	EnableMenuItem (menu2, ID_ST_HELP, MF_ENABLED);
 	i = 0;
 	while (drvs[i] >= 0) {
 		TCHAR s[MAX_DPATH];

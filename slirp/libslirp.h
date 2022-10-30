@@ -12,7 +12,7 @@ int inet_aton(const char *cp, struct in_addr *ia);
 int slirp_init(void);
 void slirp_cleanup(void);
 
-int slirp_select_fill(int *pnfds, 
+int slirp_select_fill(INT_PTR *pnfds, 
 					  fd_set *readfds, fd_set *writefds, fd_set *xfds);
 
 void slirp_select_poll(fd_set *readfds, fd_set *writefds, fd_set *xfds);

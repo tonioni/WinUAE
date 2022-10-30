@@ -20,12 +20,12 @@
 #define LANG_DLL_FULL_VERSION_MATCH 0
 
 #if WINUAEPUBLICBETA
-#define WINUAEBETA _T("Beta 2")
+#define WINUAEBETA _T("Beta 4")
 #else
 #define WINUAEBETA _T("")
 #endif
 
-#define WINUAEDATE MAKEBD(2022, 10, 8)
+#define WINUAEDATE MAKEBD(2022, 10, 30)
 
 //#define WINUAEEXTRA _T("AmiKit Preview")
 //#define WINUAEEXTRA _T("Amiga Forever Edition")
@@ -57,9 +57,7 @@ extern int getcapslock (void);
 
 void releasecapture (struct AmigaMonitor*);
 int WIN32_RegisterClasses (void);
-int WIN32_InitHtmlHelp (void);
 int WIN32_InitLibraries (void);
-int WIN32_CleanupLibraries (void);
 void WIN32_HandleRegistryStuff (void);
 extern void setup_brkhandler (void);
 extern void remove_brkhandler (void);

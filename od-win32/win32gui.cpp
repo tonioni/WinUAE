@@ -134,27 +134,49 @@ static int qs_override;
 int gui_active, gui_left;
 static struct newresource *panelresource;
 int dialog_inhibit;
+static HMODULE hHtmlHelp;
 
-#undef HtmlHelp
-#ifndef HH_DISPLAY_TOPIC
-#define HH_DISPLAY_TOPIC 0
-#endif
-
-extern HWND(WINAPI *pHtmlHelp)(HWND, LPCWSTR, UINT, LPDWORD);
-
-void HtmlHelp(HWND a, LPCWSTR b, UINT c, const TCHAR *d)
+void HtmlHelp(const TCHAR *panel)
 {
-	if (pHtmlHelp) {
-		(*pHtmlHelp)(a, b, c, (LPDWORD)d);
-	} else {
-		if (gui_message_multibutton(1, _T("Help file is not installed locally, do you want to open online version? (http://www.winuae.net/help/)")) == 1) {
-			HINSTANCE h = ShellExecute(NULL, _T("open"), _T("http://www.winuae.net/help/"), NULL, NULL, SW_SHOWNORMAL);
-			if ((INT_PTR)h <= 32) {
-				TCHAR szMessage[MAX_DPATH];
-				WIN32GUI_LoadUIString(IDS_NOHELP, szMessage, MAX_DPATH);
-				gui_message(szMessage);
+	TCHAR help_file[MAX_DPATH];
+	int found = -1;
+	const TCHAR *ext[] = { _T("chm"), _T("pdf"), NULL };
+	const TCHAR *chm = _T("WinUAE");
+	for (int i = 0; ext[i] != NULL; i++) {
+		_stprintf(help_file, _T("%s%s.%s"), start_path_data, chm, ext[i]);
+		if (!zfile_exists(help_file)) {
+			_stprintf(help_file, _T("%s%s.%s"), start_path_exe, chm, ext[i]);
+		}
+		if (zfile_exists(help_file)) {
+			found = i;
+			break;
+		}
+	}
+	if (found == 0) {
+		if (!hHtmlHelp) {
+			hHtmlHelp = LoadLibrary(_T("HHCTRL.OCX"));
+		}
+		if (hHtmlHelp) {
+			HWND(WINAPI * pHtmlHelp)(HWND, LPCWSTR, UINT, LPDWORD);
+			pHtmlHelp = (HWND(WINAPI *)(HWND, LPCWSTR, UINT, LPDWORD))GetProcAddress(hHtmlHelp, "HtmlHelpW");
+			if (pHtmlHelp) {
+				pHtmlHelp(NULL, help_file, 0, (LPDWORD)panel);
+				return;
 			}
 		}
+	}
+	if (found <= 0) {
+		_tcscpy(help_file, _T("https://www.winuae.net/help/"));
+		if (panel) {
+			_tcscat(help_file, _T("#"));
+			_tcscat(help_file, panel);
+		}
+	}
+	HINSTANCE h = ShellExecute(NULL, _T("open"), help_file, NULL, NULL, SW_SHOWNORMAL);
+	if ((INT_PTR)h <= 32) {
+		TCHAR szMessage[MAX_DPATH];
+		WIN32GUI_LoadUIString(IDS_NOHELP, szMessage, MAX_DPATH);
+		gui_message(szMessage);
 	}
 }
 
@@ -21433,7 +21455,7 @@ static HWND updatePanel (int id, UINT action)
 	ShowWindow (GetDlgItem (hDlg, IDC_PANEL_FRAME_OUTER), !fullpanel ? SW_SHOW : SW_HIDE);
 	ShowWindow (GetDlgItem (hDlg, IDC_PANELTREE), !fullpanel ? SW_SHOW : SW_HIDE);
 	ShowWindow (panelDlg, SW_SHOW);
-	ew (hDlg, IDHELP, (pHtmlHelp && ppage[currentpage].help) || !pHtmlHelp ? TRUE : FALSE);
+	ew (hDlg, IDHELP, TRUE);
 
 	ToolTipHWND = CreateWindowEx (WS_EX_TOPMOST,
 		TOOLTIPS_CLASS, NULL,
@@ -22203,8 +22225,7 @@ static INT_PTR CALLBACK DialogProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 				exit_gui (1);
 				return TRUE;
 			case IDHELP:
-				if ((pHtmlHelp && ppage[currentpage].help) || !pHtmlHelp)
-					HtmlHelp(NULL, help_file, HH_DISPLAY_TOPIC, ppage[currentpage].help);
+				HtmlHelp(ppage[currentpage].help);
 				return TRUE;
 			case IDOK:
 				updatePanel (-1, 0);
