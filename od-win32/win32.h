@@ -57,9 +57,7 @@ extern int getcapslock (void);
 
 void releasecapture (struct AmigaMonitor*);
 int WIN32_RegisterClasses (void);
-int WIN32_InitHtmlHelp (void);
 int WIN32_InitLibraries (void);
-int WIN32_CleanupLibraries (void);
 void WIN32_HandleRegistryStuff (void);
 extern void setup_brkhandler (void);
 extern void remove_brkhandler (void);
