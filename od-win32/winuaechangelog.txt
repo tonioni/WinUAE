@@ -1,5 +1,20 @@
 
 
+- Remaining IPL fixes (LINK, UNLK, MOVE to SR/CCR, AND/EOR/OR SR/CCR, CPU wait state IPL fix).
+- Emulated Paula side-effect that affects IPL timing. IPLx line state changes from low to high (IPL is active low) are about 0.5 CCK later than high to low transitions. This delays CPU IPL change detection by 2 CPU clocks if any IPL line had low to high transition. CPU accepts IPL change only if has been stable for 2 CPU clocks. (for example 3 to 5 has delay, 4 to 5 does not)
+- Enable only WASAPI audio by default.
+- Debugger break point command accepts number of hits before breaking to debugger (f Nxx <address> where xx is number of hits required)
+- uaegfx overlay limit checks compared Amiga side VRAM end against physical host side bitmap end which accidentally passed if 64-bit Windows. Overlay window was usually empty if 32-bit Windows. (It might have worked in some configurations when using Z2 uaegfx)
+- GUI Help button is now always available and opens if exists: (in priority order) winuae.chm, winuae.pdf. If neither is found, help web page is opened (without asking first like previously)
+- It is still possible to run windowed WinUAE if desktop is 16-bit but it can cause graphics problems. Not sure if this needs to be supported anymore.
+
+68000 based A500 like unexpanded (Fast RAM expansion is supported) configurations should be now 100% cycle-accurate. (If there are no bugs, many edge cases need complex and very carefully timed cycle accurate tests that are not easy to do)
+
+Note that this does not mean all features are fully emulated, for example OCS and ECS Denise mid-screen resolution changes are not pixel accurate. Accurate as in if resolution change is not carefully coded, there can be few extra or missing pixels when resolution changes. AGA does not have this side-effect.
+
+
+Beta 3:
+
 - 68000 IPL check position is now almost fully accurate (Still some special cases to check and test). Very big thanks to fx68k author!
 - W debugger command hang fixed.
 - Full drive/RDB mode is now normal checbox. Hopefully it is now less confusing than button that didn't really look like a button. If selected HDF already has RDSK identifer, checkbox is ticked and disabled. Checkbox can be only ticked/unticked if selected HDF does not have RDSK identifier.
@@ -33,9 +48,6 @@ IPL check is most commonly at the beginning of instruction after EA calculations
 - If IPL check is at mid memory access, any wait state (DMA channel steals cycles from CPU) will also delay IPL check. Same also happens if memory access is using 6800 cycle (CIA access), IPL check is at the end of CIA access cycle.
 
 This finally makes 68000 emulation complete. Everything observable (that Amiga uses) outside of 68000 should be 100% cycle-accurate now.
-
-Usual suspects (Spectreparty aka Dots demo / Phenomena and Expiration / Mayhem cube) still have problems which means there are still something else wrong.
-
 
 Beta 2:
 

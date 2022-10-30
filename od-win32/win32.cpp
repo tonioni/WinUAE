@@ -5624,7 +5624,7 @@ static void WIN32_HandleRegistryStuff (void)
 	if (regexists (NULL, _T("SoundDriverMask"))) {
 		regqueryint (NULL, _T("SoundDriverMask"), &sounddrivermask);
 	} else {
-		sounddrivermask = 3;
+		sounddrivermask = 2;
 		regsetint (NULL, _T("SoundDriverMask"), sounddrivermask);
 	}
 
@@ -5797,7 +5797,7 @@ static int betamessage (void)
 	return 1;
 }
 
-int os_admin, os_64bit, os_win7, os_win8, os_win10, os_vista, cpu_number, os_touch;
+int os_admin, os_64bit, os_win7, os_win8, os_win10, cpu_number, os_touch;
 BOOL os_dwm_enabled;
 BOOL dpi_aware_v2;
 
@@ -5875,9 +5875,6 @@ static int osdetect (void)
 		pGetNativeSystemInfo (&SystemInfo);
 	osVersion.dwOSVersionInfoSize = sizeof (OSVERSIONINFO);
 	if (GetVersionEx (&osVersion)) {
-		if (osVersion.dwMajorVersion >= 6) {
-			os_vista = 1;
-		}
 		if (osVersion.dwMajorVersion >= 7 || (osVersion.dwMajorVersion == 6 && osVersion.dwMinorVersion >= 1)) {
 			os_win7 = 1;
 		}
@@ -5916,18 +5913,16 @@ static int osdetect (void)
 		}
 	}
 
-	if (os_vista) {
-		typedef HRESULT(CALLBACK* DWMISCOMPOSITIONENABLED)(BOOL*);
-		HMODULE dwmapihandle;
-		DWMISCOMPOSITIONENABLED pDwmIsCompositionEnabled;
-		dwmapihandle = LoadLibrary(_T("dwmapi.dll"));
-		if (dwmapihandle) {
-			pDwmIsCompositionEnabled = (DWMISCOMPOSITIONENABLED)GetProcAddress(dwmapihandle, "DwmIsCompositionEnabled");
-			if (pDwmIsCompositionEnabled) {
-				pDwmIsCompositionEnabled(&os_dwm_enabled);
-			}
-			FreeLibrary(dwmapihandle);
+	typedef HRESULT(CALLBACK* DWMISCOMPOSITIONENABLED)(BOOL*);
+	HMODULE dwmapihandle;
+	DWMISCOMPOSITIONENABLED pDwmIsCompositionEnabled;
+	dwmapihandle = LoadLibrary(_T("dwmapi.dll"));
+	if (dwmapihandle) {
+		pDwmIsCompositionEnabled = (DWMISCOMPOSITIONENABLED)GetProcAddress(dwmapihandle, "DwmIsCompositionEnabled");
+		if (pDwmIsCompositionEnabled) {
+			pDwmIsCompositionEnabled(&os_dwm_enabled);
 		}
+		FreeLibrary(dwmapihandle);
 	}
 
 	return 1;
@@ -7050,13 +7045,8 @@ static int PASCAL WinMain2 (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR
 	if (!osdetect ())
 		return 0;
 
-	if (os_vista) {
-		max_uae_width = 8192;
-		max_uae_height = 8192;
-	} else {
-		max_uae_width = 3072;
-		max_uae_height = 2048;
-	}
+	max_uae_width = 8192;
+	max_uae_height = 8192;
 
 	hInst = hInstance;
 	hMutex = CreateMutex (NULL, FALSE, _T("WinUAE Instantiated")); // To tell the installer we're running
