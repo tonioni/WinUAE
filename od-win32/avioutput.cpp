@@ -719,13 +719,13 @@ int AVIOutput_ChooseVideoCodec (HWND hwnd, TCHAR *s, int len)
 	pcompvars->dwFlags = 0;
 	if (ICCompressorChoose (hwnd, ICMF_CHOOSE_DATARATE | ICMF_CHOOSE_KEYFRAME, lpbi, NULL, pcompvars, "Choose Video Codec") == TRUE) {
 		UAEREG *avikey;
-		int ss;
+		LRESULT ss;
 		uae_u8 *state;
 
 		compressorallocated = TRUE;
 		ss = ICGetState (pcompvars->hic, NULL, 0);
 		if (ss > 0) {
-			DWORD err;
+			LRESULT err;
 			state = xmalloc (uae_u8, ss);
 			err = ICGetState (pcompvars->hic, state, ss);
 			if (err < 0) {
@@ -739,7 +739,7 @@ int AVIOutput_ChooseVideoCodec (HWND hwnd, TCHAR *s, int len)
 			state = xcalloc (uae_u8, 1);
 		avikey = openavikey ();
 		if (avikey) {
-			regsetdata (avikey, _T("VideoConfigurationState"), state, ss);
+			regsetdata (avikey, _T("VideoConfigurationState"), state, (DWORD)ss);
 			regsetdata (avikey, _T("VideoConfigurationVars"), pcompvars, pcompvars->cbSize);
 			storesettings (avikey);
 			regclosetree (avikey);
@@ -1909,7 +1909,7 @@ static int SrcLinear(HWORD X[], HWORD Y[], float factor, ULWORD *Time, UHWORD Nx
 		*Y++ = WordToHword(v, Np);   /* Deposit output */
 		*Time += dtb;               /* Move to next sample by time increment */
 	}
-	return (Y - Ystart);            /* Return number of output samples */
+	return (int)(Y - Ystart);            /* Return number of output samples */
 }
 
 #define IBUFFSIZE 4096                         /* Input buffer size */

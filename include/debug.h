@@ -120,7 +120,8 @@ struct breakpoint_node {
 	uae_u32 mask;
 	int type;
 	int oper;
-    int enabled;
+	int enabled;
+	int cnt;
 };
 extern struct breakpoint_node bpnodes[BREAKPOINT_TOTAL];
 

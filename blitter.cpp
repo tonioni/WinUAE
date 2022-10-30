@@ -471,9 +471,14 @@ static void blitter_done_all(int hpos)
 	}
 }
 
-static void blitter_done_except_d(void)
+static void blitter_done_except_d(int hpos)
 {
 	blt_info.blit_main = 0;
+	if (m68k_interrupt_delay && hpos >= 0) {
+		blt_info.finishhpos = hpos;
+	} else {
+		blt_info.finishhpos = -1;
+	}
 	blitter_interrupt();
 	blitter_done_notify(blitline);
 }
@@ -1005,20 +1010,24 @@ static void blit_bltset(int con)
 			if ((bltcon1 & BLTLINE) && !blitline_started) {
 				write_log(_T("BLITTER: linedraw enabled when blitter is active! %08x\n"), M68K_GETPC);
 				blit_warned--;
-				//activate_debugger();
+				if (log_blitter & 16)
+					activate_debugger();
 			} else if (!(bltcon1 & BLTLINE) && blitline_started) {
 				write_log(_T("BLITTER: linedraw disabled when blitter is active! %08x\n"), M68K_GETPC);
 				blit_warned--;
-				//activate_debugger();
+				if (log_blitter & 16)
+					activate_debugger();
 			}
 			if ((bltcon1 & BLTFILL) && !(bltcon1_old & BLTFILL)) {
 				write_log(_T("BLITTER: fill enabled when blitter is active! %08x\n"), M68K_GETPC);
 				blit_warned--;
-				//activate_debugger();
+				if (log_blitter & 16)
+					activate_debugger();
 			} else if (!(bltcon1 & BLTFILL) && (bltcon1_old & BLTFILL)) {
 				write_log(_T("BLITTER: fill disabled when blitter is active! %08x\n"), M68K_GETPC);
 				blit_warned--;
-				//activate_debugger();
+				if (log_blitter & 16)
+					activate_debugger();
 			}
 		}
 	}
@@ -1030,11 +1039,11 @@ static void blit_bltset(int con)
 			//blitter_dump();
 			blitshifterdebug(bltcon0_old, false);
 			blit_warned--;
-			//activate_debugger();
+			if (log_blitter & 16)
+				activate_debugger();
 		}
 		bltcon0_old = bltcon0;
 		bltcon1_old = bltcon1;
-		//activate_debugger();
 	}
 
 	blit_ch = (bltcon0 & 0x0f00) >> 8;
@@ -1741,7 +1750,7 @@ static bool decide_blitter_maybe_write2(int until_hpos, uaecptr addr, uae_u32 va
 						// has final D write?
 						if (blt_info.blit_finald) {
 							if (!(currprefs.chipset_mask & CSMASK_AGA)) {
-								blitter_done_except_d();
+								blitter_done_except_d(hpos);
 							}
 						} else {
 							blitter_done_all(hpos);

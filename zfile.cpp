@@ -2244,6 +2244,15 @@ uae_s64 zfile_fseek (struct zfile *z, uae_s64 offset, int mode)
 	return 1;
 }
 
+uae_s32 zfile_fread32(void *b, size_t l1, size_t l2, struct zfile *z)
+{
+	size_t s = zfile_fread(b, l1, l2, z);
+	if (s >= (1 << 31)) {
+		return 0;
+	}
+	return (int)s;
+}
+
 size_t zfile_fread(void *b, size_t l1, size_t l2, struct zfile *z)
 {
 	if (z->zfileread)

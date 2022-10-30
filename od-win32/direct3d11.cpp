@@ -3401,7 +3401,7 @@ static int xxD3D11_init2(HWND ahwnd, int monid, int w_w, int w_h, int t_w, int t
 	IDXGIOutput *adapterOutput;
 	DXGI_ADAPTER_DESC1 adesc;
 	DXGI_OUTPUT_DESC odesc;
-	unsigned int numModes;
+	unsigned int numModes = 0;
 	DXGI_MODE_DESC1 *displayModeList;
 	DXGI_ADAPTER_DESC adapterDesc;
 
@@ -3734,6 +3734,14 @@ static int xxD3D11_init2(HWND ahwnd, int monid, int w_w, int w_h, int t_w, int t
 	static const char cname[] = "context";
 	d3d->m_device->SetPrivateData(WKPDID_D3DDebugObjectName, sizeof(dname) - 1, dname);
 	d3d->m_deviceContext->SetPrivateData(WKPDID_D3DDebugObjectName, sizeof(cname) - 1, cname);
+	d3d->m_device->QueryInterface(IID_ID3D11InfoQueue, (void **)&d3d->m_debugInfoQueue);
+	if (0 && d3d->m_debugInfoQueue)
+	{
+		d3d->m_debugInfoQueue->SetBreakOnSeverity(D3D11_MESSAGE_SEVERITY_CORRUPTION, TRUE);
+		d3d->m_debugInfoQueue->SetBreakOnSeverity(D3D11_MESSAGE_SEVERITY_ERROR, TRUE);
+		d3d->m_debugInfoQueue->SetBreakOnSeverity(D3D11_MESSAGE_SEVERITY_WARNING, TRUE);
+	}
+	d3d->m_device->QueryInterface(IID_ID3D11Debug, (void **)&d3d->m_debug);
 #endif
 
 	write_log(_T("D3D11CreateDevice succeeded with level %d.%d. %s.\n"), outlevel >> 12, (outlevel >> 8) & 15,
@@ -3752,17 +3760,6 @@ static int xxD3D11_init2(HWND ahwnd, int monid, int w_w, int w_h, int t_w, int t
 		write_log(_T("Direct3D11: Retrying in 32-bit mode\n"), result);
 		return -1;
 	}
-
-#ifndef NDEBUG
-	d3d->m_device->QueryInterface(IID_ID3D11InfoQueue, (void**)&d3d->m_debugInfoQueue);
-	if (0 && d3d->m_debugInfoQueue)
-	{
-		d3d->m_debugInfoQueue->SetBreakOnSeverity(D3D11_MESSAGE_SEVERITY_CORRUPTION, TRUE);
-		d3d->m_debugInfoQueue->SetBreakOnSeverity(D3D11_MESSAGE_SEVERITY_ERROR, TRUE);
-		d3d->m_debugInfoQueue->SetBreakOnSeverity(D3D11_MESSAGE_SEVERITY_WARNING, TRUE);
-	}
-	d3d->m_device->QueryInterface(IID_ID3D11Debug, (void**)&d3d->m_debug);
-#endif
 
 	// Initialize the swap chain description.
 	ZeroMemory(&d3d->swapChainDesc, sizeof(d3d->swapChainDesc));

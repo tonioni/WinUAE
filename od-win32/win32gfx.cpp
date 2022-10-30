@@ -3992,6 +3992,7 @@ retry:
 				changed_prefs.gfx_api = currprefs.gfx_api = 1;
 				d3d_select(&currprefs);
 				error_log(_T("Direct3D11 failed to initialize ('%s'), falling back to Direct3D9."), err);
+				errv = 0;
 				err = D3D_init(mon->hAmigaWnd, mon->monitor_id, mon->currentmode.native_width, mon->currentmode.native_height,
 					mon->currentmode.current_depth, &mon->currentmode.freq, fmh, fmv, &errv);
 			}
@@ -4000,12 +4001,20 @@ retry:
 				if (isfullscreen() > 0) {
 					int idx = mon->screen_is_picasso ? 1 : 0;
 					changed_prefs.gfx_apmode[idx].gfx_fullscreen = currprefs.gfx_apmode[idx].gfx_fullscreen = GFX_FULLWINDOW;
-				} else if (currprefs.gfx_api > 0) {
-					error_log(_T("Direct3D9 failed to initialize ('%s'), falling back to GDI."), err);
-					changed_prefs.gfx_api = currprefs.gfx_api = 0;
-					changed_prefs.gf[ad->picasso_on].gfx_filter = currprefs.gf[ad->picasso_on].gfx_filter = 1;
-					d3d_select(&currprefs);
 					goto retry;
+				} else if (currprefs.gfx_api > 0) {
+					changed_prefs.gfx_api = currprefs.gfx_api = 0;
+					changed_prefs.color_mode = currprefs.color_mode = 5;
+					changed_prefs.gf[ad->picasso_on].gfx_filter = currprefs.gf[ad->picasso_on].gfx_filter = 1;
+					update_gfxparams(mon);
+					d3d_select(&currprefs);
+					error_log(_T("Direct3D9/11 failed to initialize ('%s'), falling back to GDI."), err);
+					errv = 0;
+					err = D3D_init(mon->hAmigaWnd, mon->monitor_id, mon->currentmode.native_width, mon->currentmode.native_height,
+						mon->currentmode.current_depth, &mon->currentmode.freq, fmh, fmv, &errv);
+					if (errv) {
+						error_log(_T("Failed to initialize any rendering modes."));
+					}
 				}
 				mon->currentmode.current_depth = mon->currentmode.native_depth;
 				gfxmode_reset(mon->monitor_id);
