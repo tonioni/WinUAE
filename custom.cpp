@@ -14890,7 +14890,6 @@ extern int cpu_tracer;
 static int dma_cycle(uaecptr addr, uae_u32 value, int *mode, int *ipl)
 {
 	int hpos_next, hpos_old;
-	int ws = 0;
 
 	blt_info.nasty_cnt = 1;
 	blt_info.wait_nasty = 0;
@@ -14927,10 +14926,7 @@ static int dma_cycle(uaecptr addr, uae_u32 value, int *mode, int *ipl)
 		if (blt_info.nasty_cnt > 0) {
 			blt_info.nasty_cnt++;
 		}
-		if (!ws) {
-			*ipl = regs.ipl_pin;
-			ws = 1;
-		}
+		*ipl = regs.ipl_pin;
 		do_cycles(1 * CYCLE_UNIT);
 		/* bus was allocated to dma channel, wait for next cycle.. */
 	}
@@ -14963,7 +14959,7 @@ uae_u32 wait_cpu_cycle_read(uaecptr addr, int mode)
 {
 	uae_u32 v = 0;
 	int hpos;
-	int ipl = regs.ipl_pin;
+	int ipl = regs.ipl[0];
 	evt_t now = get_cycles();
 
 	sync_cycles();
@@ -15031,7 +15027,7 @@ uae_u32 wait_cpu_cycle_read(uaecptr addr, int mode)
 void wait_cpu_cycle_write(uaecptr addr, int mode, uae_u32 v)
 {
 	int hpos;
-	int ipl = regs.ipl_pin;
+	int ipl = regs.ipl[0];
 	evt_t now = get_cycles();
 
 	sync_cycles();
