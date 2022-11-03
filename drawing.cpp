@@ -595,15 +595,17 @@ int get_vertical_visible_height(bool useoldsize)
 	if (interlace_seen && currprefs.gfx_vresolution > 0) {
 		h -= 1 << (currprefs.gfx_vresolution - 1);
 	}
-	bool hardwired = true;
-	if (ecs_agnus) {
-		hardwired = (new_beamcon0 & BEAMCON0_VARVBEN) == 0;
-	}
-	if (hardwired) {
-		get_vblanking_limits(&vbstrt, &vbstop, true);
-		int hh = vbstop - vbstrt;
-		if (h > hh) {
-			h = hh;
+	if (currprefs.gfx_overscanmode < OVERSCANMODE_ULTRA) {
+		bool hardwired = true;
+		if (ecs_agnus) {
+			hardwired = (new_beamcon0 & BEAMCON0_VARVBEN) == 0;
+		}
+		if (hardwired) {
+			get_vblanking_limits(&vbstrt, &vbstop, true);
+			int hh = vbstop - vbstrt;
+			if (h > hh) {
+				h = hh;
+			}
 		}
 	}
 	return h;
