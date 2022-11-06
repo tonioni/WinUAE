@@ -11203,12 +11203,12 @@ static void vsync_handler_post(void)
 	}
 	lof_prev_lastline = lof_lastline;
 	if (lof_togglecnt_lace >= LOF_TOGGLES_NEEDED) {
-		interlace_changed = notice_interlace_seen(true);
+		interlace_changed = notice_interlace_seen(monid, true);
 		if (interlace_changed) {
 			notice_screen_contents_lost(monid);
 		}
 	} else if (lof_togglecnt_nlace >= LOF_TOGGLES_NEEDED) {
-		interlace_changed = notice_interlace_seen(false);
+		interlace_changed = notice_interlace_seen(monid, false);
 		if (interlace_changed) {
 			notice_screen_contents_lost(monid);
 		}

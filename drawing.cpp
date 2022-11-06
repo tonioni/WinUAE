@@ -5104,13 +5104,17 @@ void notice_resolution_seen (int res, bool lace)
 		frame_res_lace = lace;
 }
 
-bool notice_interlace_seen (bool lace)
+bool notice_interlace_seen (int monid, bool lace)
 {
+	struct amigadisplay *ad = &adisplays[0];
 	bool changed = false;
+	bool interlace_on = false;
+
 	// non-lace to lace switch (non-lace active at least one frame)?
 	if (lace) {
 		if (interlace_seen == 0) {
 			changed = true;
+			interlace_on = true;
 			//write_log (_T("->lace PC=%x\n"), m68k_getpc ());
 		}
 		interlace_seen = currprefs.gfx_vresolution ? 1 : -1;
@@ -5121,6 +5125,18 @@ bool notice_interlace_seen (bool lace)
 		}
 		interlace_seen = 0;
 	}
+
+	if (changed) {
+		if (currprefs.gf[2].enable && memcmp(&currprefs.gf[0], &currprefs.gf[2], sizeof(struct gfx_filterdata))) {
+			changed_prefs.gf[0].changed = true;
+			changed_prefs.gf[2].changed = true;
+			ad->interlace_on = interlace_on;
+			set_config_changed();
+		} else {
+			ad->interlace_on = false;
+		}
+	}
+
 	return changed;
 }
 
