@@ -13225,20 +13225,36 @@ void custom_reset(bool hardreset, bool keyboardreset)
 			vsstop = 0;
 			hcenter = 0;
 
-			if (!aga_mode) {
-				uae_u16 c = ((ecs_denise && !aga_mode) || currprefs.cs_denisenoehb) ? 0xfff : 0x000;
-				for (int i = 0; i < 32; i++) {
-					current_colors.color_regs_ecs[i] = c;
-					current_colors.acolors[i] = getxcolor(c);
+			for (int i = 0; i < 32; i++) {
+				uae_u16 c;
+				if (i == 0) {
+					c = ((ecs_denise && !aga_mode) || currprefs.cs_denisenoehb) ? 0xfff : 0x000;
+				} else {
+					c |= uaerand();
+					c |= uaerand();
 				}
-	#ifdef AGA
-			} else {
+				c &= 0xfff;
+				current_colors.color_regs_ecs[i] = c;
+			}
+			for (int i = 0; i < 256; i++) {
 				uae_u32 c = 0;
-				for (int i = 0; i < 256; i++) {
-					current_colors.color_regs_aga[i] = c;
-					current_colors.acolors[i] = getxcolor(c);
+				if (i > 0) {
+					c |= uaerand();
+					c |= uaerand();
 				}
-	#endif
+				c &= 0xffffff;
+				current_colors.color_regs_aga[i] = c;
+			}
+			if (!aga_mode) {
+				for (int i = 0; i < 32; i++) {
+					current_colors.acolors[i] = getxcolor(current_colors.color_regs_ecs[i]);
+				}
+#ifdef AGA
+			} else {
+				for (int i = 0; i < 256; i++) {
+					current_colors.acolors[i] = getxcolor(current_colors.color_regs_aga[i]);
+				}
+#endif
 			}
 			lof_store = lof_display = 0;
 			lof_lace = false;
