@@ -68,25 +68,33 @@ TCHAR optionsfile[256];
 static uae_u32 randseed;
 static int oldhcounter;
 
-uae_u32 uaesrand (uae_u32 seed)
+static uae_u32 xorshiftstate = 1;
+static uae_u32 xorshift32(void)
+{
+	uae_u32 x = xorshiftstate;
+	x ^= x << 13;
+	x ^= x >> 17;
+	x ^= x << 5;
+	xorshiftstate = x;
+	return xorshiftstate;
+}
+
+uae_u32 uaesrand(uae_u32 seed)
 {
 	oldhcounter = -1;
 	randseed = seed;
-	//randseed = 0x12345678;
-	//write_log (_T("seed=%08x\n"), randseed);
 	return randseed;
 }
-uae_u32 uaerand (void)
+uae_u32 uaerand(void)
 {
 	if (oldhcounter != hsync_counter) {
-		srand (hsync_counter ^ randseed);
+		xorshiftstate = (hsync_counter ^ randseed) | 1;
 		oldhcounter = hsync_counter;
 	}
-	uae_u32 r = rand ();
-	//write_log (_T("rand=%08x\n"), r);
+	uae_u32 r = xorshift32();
 	return r;
 }
-uae_u32 uaerandgetseed (void)
+uae_u32 uaerandgetseed(void)
 {
 	return randseed;
 }
