@@ -256,6 +256,7 @@ static int vblank_top_start, vblank_bottom_stop;
 static int hblank_left_start, hblank_right_stop;
 static int hblank_left_start_hard, hblank_right_stop_hard;
 static bool exthblank, extborder, exthblanken, exthblankon;
+static bool ehb_enable;
 
 static int linetoscr_x_adjust_pixbytes, linetoscr_x_adjust_pixels;
 static int thisframe_y_adjust;
@@ -3257,7 +3258,7 @@ static void pfield_expand_dp_bplcon(void)
 	bplres = dp_for_drawing->bplres;
 	bplplanecnt = dp_for_drawing->nr_planes;
 	bplham = dp_for_drawing->ham_seen;
-	bplehb = dp_for_drawing->ehb_seen;
+	bplehb = dp_for_drawing->ehb_seen && ehb_enable;
 	if (ecs_denise) {
 		// Check for KillEHB bit in ECS/AGA
 		if (dp_for_drawing->bplcon2 & 0x0200) {
@@ -3378,6 +3379,9 @@ static void pfield_expand_dp_bplconx (int regno, int v, int hp, int vp)
 		dp_for_drawing->bplcon0 |= v & (0x0800 | 0x0400 | 0x0080 | 0x0001);
 		dp_for_drawing->ham_seen = isham(v);
 		extblankcheck();
+		break;
+	case 0x201: // AGA EHB immediate change
+		ehb_enable = (v & 0x7010) == 0x6000;
 		break;
 	case 0x104: // BPLCON2
 		dp_for_drawing->bplcon2 = v;
@@ -5160,6 +5164,7 @@ void reset_drawing(void)
 	exthblankon = false;
 	extborder = false;
 	display_reset = 1;
+	ehb_enable = true;
 
 	lores_reset ();
 

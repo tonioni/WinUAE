@@ -948,8 +948,12 @@ static void record_color_change2(int hpos, int regno, uae_u32 value)
 	int pos = hpos < 0 ? -hpos : hpos_to_diwx(hpos);
 
 	// AGA has extra hires pixel delay in color changes
-	if ((regno < RECORDED_REGISTER_CHANGE_OFFSET || regno == RECORDED_REGISTER_CHANGE_OFFSET + 0x10c) && aga_mode) {
+	if ((regno < RECORDED_REGISTER_CHANGE_OFFSET || regno == RECORDED_REGISTER_CHANGE_OFFSET + 0x10c || regno == RECORDED_REGISTER_CHANGE_OFFSET + 0x201) && aga_mode) {
 		if (currprefs.chipset_hr) {
+			pos += 2;
+		}
+		if (regno == RECORDED_REGISTER_CHANGE_OFFSET + 0x201) {
+			// EHB delay
 			pos += 2;
 		}
 		if (regno == RECORDED_REGISTER_CHANGE_OFFSET + 0x10c) {
@@ -4645,11 +4649,11 @@ static void record_register_change(int hpos, int regno, uae_u16 value)
 	if (regno == 0x0100 || regno == 0x0101) { // BPLCON0
 		if (value & 0x800)
 			thisline_decision.ham_seen = 1;
-		thisline_decision.ehb_seen = isehb(value, bplcon2);
+		thisline_decision.ehb_seen |= isehb(value, bplcon2);
 		isbrdblank(hpos, value, bplcon3);
 		issprbrd(hpos, value, bplcon3);
 	} else if (regno == 0x104) { // BPLCON2
-		thisline_decision.ehb_seen = isehb(bplcon0, value);
+		thisline_decision.ehb_seen |= isehb(bplcon0, value);
 	} else if (regno == 0x106) { // BPLCON3
 		isbrdblank(hpos, bplcon0, value);
 		issprbrd(hpos, bplcon0, value);
@@ -5616,9 +5620,9 @@ static void reset_decisions_hsync_start(void)
 	thisline_decision.plfleft = -1;
 	thisline_decision.plflinelen = -1;
 	thisline_decision.plfright = -1;
-	thisline_decision.ham_seen = !!(bplcon0 & 0x800);
-	thisline_decision.ehb_seen = !!isehb(bplcon0, bplcon2);
-	thisline_decision.ham_at_start = !!(bplcon0 & 0x800);
+	thisline_decision.ham_seen = (bplcon0 & 0x800) != 0;
+	thisline_decision.ehb_seen = isehb(bplcon0, bplcon2);
+	thisline_decision.ham_at_start = (bplcon0 & 0x800) != 0;
 	thisline_decision.bordersprite_seen = issprbrd(-1, bplcon0, bplcon3);
 	thisline_decision.xor_seen = (bplcon4 & 0xff00) != 0;
 	thisline_decision.nr_planes = toscr_nr_planes_agnus;
@@ -8058,6 +8062,14 @@ static void bplcon0_denise_change_early(int hpos, uae_u16 con0)
 	decide_hdiw(hpos);
 	decide_line(hpos);
 	decide_fetch_safe(hpos);
+
+	if (aga_mode) {
+		int e1 = isehb(dcon0, bplcon2);
+		int e2 = isehb(dcon0o, bplcon2);
+		if (e1 ^ e2) {
+			record_register_change(hpos, 0x201, dcon0);
+		}
+	}
 
 	toscr_nr_planes_shifter_new = np;
 	if (ecs_denise || aga_mode) {
