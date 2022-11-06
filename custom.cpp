@@ -2568,7 +2568,7 @@ static bool fetch(int nr, int fm, int hpos, bool addmodulo)
 	uae_u8 dmaslot = cycle_line_slot[hpos];
 	uaecptr p = bplpt[nr];
 
-	if (dmaslot) {
+	if (dmaslot > CYCLE_BITPLANE) {
 		if (dmaslot == CYCLE_STROBE) {
 			// strobe refresh conflict
 			fetch_strobe_conflict(nr, fm, hpos, addmodulo);
@@ -11381,6 +11381,9 @@ static void reset_scandoubler_sync(int hpos)
 	last_diw_hpos2 = hpos;
 	sprites_enabled_this_line = false;
 	plfstrt_sprite = 0x100;
+	bprun = 0;
+	bprun_cycle = 0;
+	ddf_stopping = 0;
 }
 
 
@@ -11437,7 +11440,6 @@ static void hsync_scandoubler(int hpos)
 			}
 		}
 	}
-
 	reset_decisions_scanline_start();
 	reset_scandoubler_sync(hpos);
 	reset_decisions_hsync_start();
@@ -11449,8 +11451,8 @@ static void hsync_scandoubler(int hpos)
 	// copy color changes
 	struct draw_info *dip1 = curr_drawinfo + next_lineno - 1;
 	for (int idx1 = dip1->first_color_change; idx1 < dip1->last_color_change; idx1++) {
-		struct color_change* cs2 = &curr_color_changes[idx1];
-		struct color_change* cs1 = &curr_color_changes[next_color_change];
+		struct color_change *cs2 = &curr_color_changes[idx1];
+		struct color_change *cs1 = &curr_color_changes[next_color_change];
 		memcpy(cs1, cs2, sizeof(struct color_change));
 		next_color_change++;
 	}
@@ -11461,6 +11463,7 @@ static void hsync_scandoubler(int hpos)
 	hpos_hsync_extra = maxhpos;
 	finish_decisions(hpos);
 	hsync_record_line_state(next_lineno, nln_normal, thisline_changed);
+
 	scandoubled_line = 0;
 	line_disabled &= ~8;
 
