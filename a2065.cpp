@@ -24,6 +24,7 @@
 #include "rommgr.h"
 #include "debug.h"
 #include "devices.h"
+#include "threaddep/thread.h"
 
 #define DUMPPACKET 0
 
@@ -55,11 +56,12 @@ static int configured;
 static int romtype;
 static bool AM79C960;
 static int abyteswap;
+static uae_sem_t sync_sem;
 
 static struct netdriverdata *td;
 static void *sysdata;
 
-static int am_initialized;
+static volatile int am_initialized;
 static volatile int transmitnow;
 static uae_u16 am_mode;
 static uae_u64 am_ladrf;
@@ -281,7 +283,7 @@ static void put_ram_word(uae_u32 offset, uae_u16 v)
 	put_ram_byte(offset + 1, (uae_u8)v);
 }
 
-static void gotfunc (void *devv, const uae_u8 *databuf, int len)
+static void gotfunc2(void *devv, const uae_u8 *databuf, int len)
 {
 	int i;
 	int size, insize, first;
@@ -292,11 +294,6 @@ static void gotfunc (void *devv, const uae_u8 *databuf, int len)
 	uae_u8 tmp[MAX_PACKET_SIZE], *data;
 	const uae_u8 *dstmac, *srcmac;
 	struct s2devstruct *dev = (struct s2devstruct*)devv;
-
-	if (!am_initialized)
-		return;
-	if (!am_rdr_rlen)
-		return;
 
 	dstmac = databuf;
 	srcmac = databuf + 6;
@@ -451,6 +448,18 @@ static void gotfunc (void *devv, const uae_u8 *databuf, int len)
 
 	csr[0] |= CSR0_RINT;
 	devices_rethink_all(rethink_a2065);
+}
+
+static void gotfunc(void *devv, const uae_u8 *databuf, int len)
+{
+	if (!am_initialized)
+		return;
+	if (!am_rdr_rlen)
+		return;
+
+	uae_sem_wait(&sync_sem);
+	gotfunc2(devv, databuf, len);
+	uae_sem_post(&sync_sem);
 }
 
 static int getfunc (void *devv, uae_u8 *d, int *len)
@@ -1022,6 +1031,12 @@ static uae_u32 REGPARAM2 a2065_lgeti (uaecptr addr)
 
 static void a2065_reset(int hardreset)
 {
+	if (!sync_sem) {
+		return;
+	}
+
+	uae_sem_wait(&sync_sem);
+
 	am_initialized = 0;
 
 	ethernet_close(td, sysdata);
@@ -1039,6 +1054,8 @@ static void a2065_reset(int hardreset)
 	xfree(sysdata);
 	sysdata = NULL;
 	td = NULL;
+
+	uae_sem_post(&sync_sem);
 }
 
 static void a2065_free(void)
@@ -1050,8 +1067,13 @@ static bool a2065_config (struct autoconfig_info *aci)
 {
 	uae_u8 maco[3];
 
-	if (!aci)
+	if (!sync_sem) {
+		uae_sem_init(&sync_sem, 0, 1);
+	}
+
+	if (!aci) {
 		return false;
+	}
 
 	device_add_reset(a2065_reset);
 
