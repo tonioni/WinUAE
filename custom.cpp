@@ -7532,7 +7532,7 @@ static void COPJMP(int num, int vblank)
 			}
 		}
 		int hp = current_hpos();
-		if ((hp & 1) && currprefs.cpu_model == 68000 && currprefs.cpu_cycle_exact) {
+		if (0 && (hp & 1) && currprefs.cpu_model == 68000 && currprefs.cpu_cycle_exact) {
 			// CPU unaligned COPJMP while waiting
 			cop_state.state = COP_strobe_delay1x;
 			copper_bad_cycle_start = get_cycles();
@@ -10047,10 +10047,7 @@ static void update_copper(int until_hpos)
 			// If Blitter uses this cycle = Copper's new PC gets copied to blitter DMA pointer..
 			if (!copper_cant_read(hpos, CYCLE_PIPE_COPPER | 0x09)) {
 				copper_bad_cycle = get_cycles();
-				// conflict also does not happen if previous cycle was used by bitplane
-				// (if bitplane DMA is allocated, copper internal operations are also stopped)
-				int bpl = 0;// get_bitplane_dma_rel(hpos, -1);
-				if (copper_bad_cycle - copper_bad_cycle_start != 3 * CYCLE_UNIT || bpl) {
+				if (copper_bad_cycle - copper_bad_cycle_start != 3 * CYCLE_UNIT) {
 					copper_bad_cycle = 0;
 				} else {
 					if (debug_dma) {
