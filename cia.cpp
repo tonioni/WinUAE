@@ -155,8 +155,9 @@ static struct CIA cia[2];
 static bool oldovl;
 static bool led;
 static int led_old_brightness;
-static evt_t led_cycles_on, led_cycles_off, led_cycle;
+static evt_t led_cycle;
 static evt_t cia_now_evt;
+static int led_cycles_on, led_cycles_off;
 
 static int kbstate, kblostsynccnt;
 static evt_t kbhandshakestart;
@@ -1205,7 +1206,7 @@ void CIA_hsync_posthandler(bool ciahsync, bool dotod)
 static void calc_led(int old_led)
 {
 	evt_t c = get_cycles();
-	evt_t t = (c - led_cycle) / CYCLE_UNIT;
+	int t = (int)((c - led_cycle) / CYCLE_UNIT);
 	if (old_led)
 		led_cycles_on += t;
 	else
@@ -2111,6 +2112,9 @@ void CIA_reset(void)
 	heartbeat_cnt = 0;
 	cia[0].tod_event_state = 0;
 	cia[1].tod_event_state = 0;
+	led_cycles_off = 0;
+	led_cycles_on = 0;
+	led_cycle = get_cycles();
 
 	if (!savestate_state) {
 		oldovl = true;
