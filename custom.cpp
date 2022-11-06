@@ -9272,6 +9272,16 @@ static bool copper_cant_read(int hpos, uae_u16 alloc)
 
 	int coffset = RGA_PIPELINE_OFFSET_COPPER;
 	if (hpos == maxhposm1 && maxhposeven == COPPER_CYCLE_POLARITY) {
+		// if copper used last cycle of scanline and it is even cycle and
+		// it wants next available copper cycle:
+		// next scanline's cycles 1 and 2 gets allocated.
+		// cycle 1 is not used and also not usable by CPU or blitter.
+		// cycle 2 is used by the copper.
+		int offset = get_rga_pipeline(hpos, coffset);
+		if (alloc && !bitplane_dma_access(hpos, coffset) && !cycle_line_pipe[offset]) {
+			cycle_line_pipe[offset] = CYCLE_PIPE_NONE | CYCLE_PIPE_COPPER;
+			blitter_pipe[offset] = CYCLE_PIPE_COPPER;
+		}
 		coffset++;
 	}
 
