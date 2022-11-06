@@ -1,4 +1,20 @@
 
+Beta 5:
+
+- If copper used last cycle in scanline and last cycle was even cycle (PAL 226) and it wanted next possible copper cycle and it was free: copper will allocate cycle 1 (Copper won't use it, neither can CPU or blitter. Cycle is allocated because it is 2 cycles from 226 but it is unusable because it isn't even cycle) and cycle 2 (copper uses this normally) of next scanline. This was implemented before 4.9 but was lost when custom emulation cycle allocation rewrite was done.
+- Reading from non-existing register always returned FFFF instead of data that previous cycle's possible DMA access transferred. (Equipose / Complex hang)
+- Don't keep "interrupt active" flag set if IPL is >0 but CPU interrupt mask is higher or same as current interrupt level. Only check it if mask gets lowered. Prevents unnecessary status flag checks between each emulated instruction.
+- Fill color palette entries with pseudo-random contents at power up. (Except COLOR0 to not get annoying color flash at startup. Which does randomly happen on real HW.)
+- EHB mode OCS/ECS vs AGA difference emulated. OCS/ECS number of active plane does not affect EHB (only HAM, DPF or KILLEHB disables EHB). For example if plane count changes mid scanline from 6 to 5, EHB stays active and remaining data in plane 6's shifters still appear as EHB plane. But on AGA plane count change causes switch to normal color mode immediately, plane 6's remaining data selects color palette entries 32 to 63. (G.Rowdy / Desire)
+- In some situations if same scan line enabled and disabled EHB, whole scan line was drawn without EHB. (G.Rowdy / Desire)
+- Replaced C-library pseudo-random number generator with simple xorshift algorithm.
+- Ultra extreme overscan mode screenshot was vertically clipped.
+- Remove interlace artifacts option fixed. (b1)
+- Added optional chipset interlace mode filter panel settings. If enabled and at least one entry is different than normal native mode filter panel, filter is selected when current native is interlaced and switched back to normal native filter when mode switches back to non-interlaced.
+- Added semaphore locking to A2065 emulation, previously it was possible to free A2065 resources while some other thread (for example slirp) was currently accessing its on-board RAM.
+- Fixed serial port MIDI emulation hang. (b1)
+
+Beta 4:
 
 - Remaining IPL fixes (LINK, UNLK, MOVE to SR/CCR, AND/EOR/OR SR/CCR, CPU wait state IPL fix).
 - Emulated Paula side-effect that affects IPL timing. IPLx line state changes from low to high (IPL is active low) are about 0.5 CCK later than high to low transitions. This delays CPU IPL change detection by 2 CPU clocks if any IPL line had low to high transition. CPU accepts IPL change only if has been stable for 2 CPU clocks. (for example 3 to 5 has delay, 4 to 5 does not)

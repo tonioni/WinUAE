@@ -9262,8 +9262,6 @@ bool blitter_cant_access(int hpos)
 	return false;
 }
 
-#define COPPER_CYCLE_IDLE 0x8f
-
 static bool copper_cant_read(int hpos, uae_u16 alloc)
 {
 	if (!dmaen(DMA_COPPER)) {
