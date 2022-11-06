@@ -13727,8 +13727,9 @@ writeonly:
 			// - if last cycle was DMA cycle: DMA cycle data
 			// - if last cycle was not DMA cycle: FFFF or some ANDed old data.
 			//
-			c = cycle_line_slot[hpos] & CYCLE_MASK;
-			bmdma = bitplane_dma_access(hpos, 0);
+			int hp = (hpos - 1) % maxhpos;
+			c = cycle_line_slot[hp] & CYCLE_MASK;
+			bmdma = bitplane_dma_access(hp, 0);
 			if (aga_mode) {
 				if (bmdma || (c > CYCLE_REFRESH && c < CYCLE_CPU)) {
 					v = regs.chipset_latch_rw;
