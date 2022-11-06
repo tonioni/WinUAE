@@ -511,6 +511,10 @@ struct copper {
 
 static struct copper cop_state;
 static int copper_enabled_thisline;
+static evt_t copper_bad_cycle;
+static uaecptr copper_bad_cycle_pc_old;
+static evt_t copper_bad_cycle_start;
+static uaecptr copper_bad_cycle_pc_new;
 
 /*
 * Statistics
@@ -771,18 +775,27 @@ void alloc_cycle_ext(int hpos, int type)
 	alloc_cycle(hpos, type);
 }
 
-void alloc_cycle_blitter(int hpos, uaecptr *ptr, int chnum)
+uaecptr alloc_cycle_blitter_conflict_or(void)
 {
-	if (cycle_line_slot[hpos] & CYCLE_COPPER_SPECIAL) {
-		if ((currprefs.cs_hacks & 1) && currprefs.cpu_model == 68000) {
-			uaecptr srcptr = cop_state.strobe == 1 ? cop1lc : cop2lc;
-			//if (currprefs.cpu_model == 68000 && currprefs.cpu_cycle_exact && currprefs.blitter_cycle_exact) {
-			// batman group / batman vuelve triggers this incorrectly. More testing needed.
-			*ptr = srcptr;
-			//activate_debugger();
-		}
+	uaecptr orptr = 0;
+	if (get_cycles() == copper_bad_cycle) {
+		orptr = copper_bad_cycle_pc_old;
+	}
+	return orptr;
+}
+
+bool alloc_cycle_blitter(int hpos, uaecptr *ptr, int chnum, int add)
+{
+	bool skipadd = false;
+	if (get_cycles() == copper_bad_cycle) {
+		write_log("Copper PT=%08x %08x. Blitter CH=%d PT=%08x bug!\n", copper_bad_cycle_pc_old, copper_bad_cycle_pc_new, chnum, *ptr);
+		cop_state.ip += add;
+		*ptr = copper_bad_cycle_pc_new;
+		skipadd = true;
+		//activate_debugger();
 	}
 	alloc_cycle(hpos, CYCLE_BLITTER);
+	return skipadd;
 }
 
 static int expand_sprres(uae_u16 con0, uae_u16 con3)
@@ -7518,8 +7531,11 @@ static void COPJMP(int num, int vblank)
 				warned--;
 			}
 		}
-		if (current_hpos() & 1) {
-			cop_state.state = COP_strobe_delay1x; // CPU unaligned COPJMP while waiting
+		int hp = current_hpos();
+		if ((hp & 1) && currprefs.cpu_model == 68000 && currprefs.cpu_cycle_exact) {
+			// CPU unaligned COPJMP while waiting
+			cop_state.state = COP_strobe_delay1x;
+			copper_bad_cycle_start = get_cycles();
 		} else {
 			cop_state.state = COP_strobe_delay1;
 		}
@@ -9600,8 +9616,8 @@ static void do_copper_fetch(int hpos, uae_u16 id)
 	if (scandoubled_line) {
 		return;
 	}
-	if (id == COPPER_CYCLE_IDLE) {
-		// copper allocated cycle without DMA request
+
+	if (id & CYCLE_PIPE_NONE) {
 		alloc_cycle(hpos, CYCLE_COPPER);
 		return;
 	}
@@ -9672,9 +9688,6 @@ static void do_copper_fetch(int hpos, uae_u16 id)
 	}
 	break;
 	case COP_strobe_delay2x:
-		if (debug_dma) {
-			record_dma_event(DMA_EVENT_SPECIAL, hpos, vpos);
-		}
 #ifdef DEBUGGER
 		{
 			if (debug_dma) {
@@ -9700,9 +9713,7 @@ static void do_copper_fetch(int hpos, uae_u16 id)
 			cop_state.ip = cop2lc;
 		}
 		cop_state.strobe = 0;
-
 		alloc_cycle(hpos, CYCLE_COPPER);
-		cycle_line_slot[hpos] |= CYCLE_COPPER_SPECIAL;
 		break;
 	case COP_start_delay:
 		cop_state.state = COP_read1;
@@ -10023,9 +10034,31 @@ static void update_copper(int until_hpos)
 		case COP_strobe_delay2x:
 			// Second cycle fetches following word and tosses it away.
 			// Cycle can be free and copper won't allocate it.
-			// If Blitter uses this cycle = Copper's PC gets copied to blitter DMA pointer..
-			copper_cant_read(hpos, CYCLE_PIPE_COPPER | 0x09);
-		break;
+			// If Blitter uses this cycle = Copper's new PC gets copied to blitter DMA pointer..
+			if (!copper_cant_read(hpos, CYCLE_PIPE_COPPER | 0x09)) {
+				copper_bad_cycle = get_cycles();
+				// conflict also does not happen if previous cycle was used by bitplane
+				// (if bitplane DMA is allocated, copper internal operations are also stopped)
+				int bpl = 0;// get_bitplane_dma_rel(hpos, -1);
+				if (copper_bad_cycle - copper_bad_cycle_start != 3 * CYCLE_UNIT || bpl) {
+					copper_bad_cycle = 0;
+				} else {
+					if (debug_dma) {
+						record_dma_event(DMA_EVENT_SPECIAL, hpos, vpos);
+					}
+					// early COPJMP processing
+					cop_state.state = COP_read1;
+					copper_bad_cycle_pc_old = cop_state.ip;
+					if (cop_state.strobe == 1) {
+						cop_state.ip = cop1lc;
+					} else {
+						cop_state.ip = cop2lc;
+					}
+					copper_bad_cycle_pc_new = cop_state.ip;
+					cop_state.strobe = 0;
+				}
+			}
+			break;
 
 		case COP_start_delay:
 			// cycle after vblank strobe fetches word from old pointer first
@@ -13193,6 +13226,7 @@ void custom_reset(bool hardreset, bool keyboardreset)
 	hcenter_v2 = 0;
 	set_hcenter();
 	display_reset = 1;
+	copper_bad_cycle = 0;
 
 	if (hardreset || savestate_state) {
 		maxhpos = ntsc ? MAXHPOS_NTSC : MAXHPOS_PAL;
@@ -13331,10 +13365,9 @@ void custom_reset(bool hardreset, bool keyboardreset)
 	toscr_delay_sh[0] = 0;
 	toscr_delay_sh[1] = 0;
 
+	memset(&cop_state, 0, sizeof(cop_state));
 	cop_state.state = COP_stop;
-	cop_state.movedelay = 0;
-	cop_state.strobe = 0;
-	cop_state.ignore_next = 0;
+
 	vdiwstate = diw_states::DIW_waiting_start;
 	vdiw_change(0);
 	check_harddis();
