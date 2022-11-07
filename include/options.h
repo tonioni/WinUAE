@@ -351,8 +351,10 @@ struct apmode
 #define MAX_LUA_STATES 16
 
 
+#define MAX_FILTERDATA 3
 struct gfx_filterdata
 {
+	int enable;
 	int gfx_filter;
 	TCHAR gfx_filtershader[2 * MAX_FILTERSHADERS + 1][MAX_DPATH];
 	TCHAR gfx_filtermask[2 * MAX_FILTERSHADERS + 1][MAX_DPATH];
@@ -585,7 +587,7 @@ struct uae_prefs {
 	int gfx_overscanmode;
 	int gfx_monitorblankdelay;
 
-	struct gfx_filterdata gf[2];
+	struct gfx_filterdata gf[3];
 
 	float rtg_horiz_zoom_mult;
 	float rtg_vert_zoom_mult;

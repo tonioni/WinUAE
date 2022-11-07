@@ -6124,7 +6124,7 @@ static void dma_disasm(int frames, int vp, int hp, int frames_end, int vp_end, i
 			console_out_f(_T("%s %s %s\n"), tmp, l3, l4);
 		}
 		hp++;
-		if (dr->end) {
+		if (dr->end || hp >= NR_DMA_REC_HPOS) {
 			hp = 0;
 			vp++;
 			if (vp >= maxvpos + 1) {

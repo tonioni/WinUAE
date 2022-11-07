@@ -256,6 +256,7 @@ static int vblank_top_start, vblank_bottom_stop;
 static int hblank_left_start, hblank_right_stop;
 static int hblank_left_start_hard, hblank_right_stop_hard;
 static bool exthblank, extborder, exthblanken, exthblankon;
+static bool ehb_enable;
 
 static int linetoscr_x_adjust_pixbytes, linetoscr_x_adjust_pixels;
 static int thisframe_y_adjust;
@@ -595,15 +596,17 @@ int get_vertical_visible_height(bool useoldsize)
 	if (interlace_seen && currprefs.gfx_vresolution > 0) {
 		h -= 1 << (currprefs.gfx_vresolution - 1);
 	}
-	bool hardwired = true;
-	if (ecs_agnus) {
-		hardwired = (new_beamcon0 & BEAMCON0_VARVBEN) == 0;
-	}
-	if (hardwired) {
-		get_vblanking_limits(&vbstrt, &vbstop, true);
-		int hh = vbstop - vbstrt;
-		if (h > hh) {
-			h = hh;
+	if (currprefs.gfx_overscanmode < OVERSCANMODE_ULTRA) {
+		bool hardwired = true;
+		if (ecs_agnus) {
+			hardwired = (new_beamcon0 & BEAMCON0_VARVBEN) == 0;
+		}
+		if (hardwired) {
+			get_vblanking_limits(&vbstrt, &vbstop, true);
+			int hh = vbstop - vbstrt;
+			if (h > hh) {
+				h = hh;
+			}
 		}
 	}
 	return h;
@@ -3255,7 +3258,7 @@ static void pfield_expand_dp_bplcon(void)
 	bplres = dp_for_drawing->bplres;
 	bplplanecnt = dp_for_drawing->nr_planes;
 	bplham = dp_for_drawing->ham_seen;
-	bplehb = dp_for_drawing->ehb_seen;
+	bplehb = dp_for_drawing->ehb_seen && ehb_enable;
 	if (ecs_denise) {
 		// Check for KillEHB bit in ECS/AGA
 		if (dp_for_drawing->bplcon2 & 0x0200) {
@@ -3376,6 +3379,9 @@ static void pfield_expand_dp_bplconx (int regno, int v, int hp, int vp)
 		dp_for_drawing->bplcon0 |= v & (0x0800 | 0x0400 | 0x0080 | 0x0001);
 		dp_for_drawing->ham_seen = isham(v);
 		extblankcheck();
+		break;
+	case 0x201: // AGA EHB immediate change
+		ehb_enable = (v & 0x7010) == 0x6000;
 		break;
 	case 0x104: // BPLCON2
 		dp_for_drawing->bplcon2 = v;
@@ -5098,13 +5104,17 @@ void notice_resolution_seen (int res, bool lace)
 		frame_res_lace = lace;
 }
 
-bool notice_interlace_seen (bool lace)
+bool notice_interlace_seen (int monid, bool lace)
 {
+	struct amigadisplay *ad = &adisplays[0];
 	bool changed = false;
+	bool interlace_on = false;
+
 	// non-lace to lace switch (non-lace active at least one frame)?
 	if (lace) {
 		if (interlace_seen == 0) {
 			changed = true;
+			interlace_on = true;
 			//write_log (_T("->lace PC=%x\n"), m68k_getpc ());
 		}
 		interlace_seen = currprefs.gfx_vresolution ? 1 : -1;
@@ -5115,6 +5125,18 @@ bool notice_interlace_seen (bool lace)
 		}
 		interlace_seen = 0;
 	}
+
+	if (changed) {
+		if (currprefs.gf[2].enable && memcmp(&currprefs.gf[0], &currprefs.gf[2], sizeof(struct gfx_filterdata))) {
+			changed_prefs.gf[0].changed = true;
+			changed_prefs.gf[2].changed = true;
+			ad->interlace_on = interlace_on;
+			set_config_changed();
+		} else {
+			ad->interlace_on = false;
+		}
+	}
+
 	return changed;
 }
 
@@ -5158,6 +5180,7 @@ void reset_drawing(void)
 	exthblankon = false;
 	extborder = false;
 	display_reset = 1;
+	ehb_enable = true;
 
 	lores_reset ();
 

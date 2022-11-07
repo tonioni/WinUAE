@@ -149,8 +149,10 @@ int d3ddebug = 0;
 int max_uae_width;
 int max_uae_height;
 
+static HINSTANCE hRichEdit;
 HINSTANCE hInst = NULL;
 HMODULE hUIDLL = NULL;
+
 HWND hHiddenWnd, hGUIWnd;
 #if KBHOOK
 static HHOOK hhook;
@@ -3266,6 +3268,8 @@ static int WIN32_CleanupLibraries(void)
 {
 	if (hUIDLL)
 		FreeLibrary(hUIDLL);
+	if (hRichEdit)
+		FreeLibrary(hRichEdit);
 	CoUninitialize();
 	return 1;
 }
@@ -3487,6 +3491,8 @@ static int WIN32_InitLibraries (void)
 		GetModuleHandle (_T("shell32.dll")), "SetCurrentProcessExplicitAppUserModelID");
 	if (pSetCurrentProcessExplicitAppUserModelID)
 		pSetCurrentProcessExplicitAppUserModelID (WINUAEAPPNAME);
+
+	hRichEdit = LoadLibrary(_T("RICHED32.DLL"));
 
 	return 1;
 }

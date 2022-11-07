@@ -848,7 +848,7 @@ static void SERDAT_send(uae_u32 v)
 uae_u16 SERDATR(void)
 {
 	serdatr &= 0x03ff;
-	if (!data_in_serdat || get_cycles() >= data_in_serdat_delay) {
+	if (!data_in_serdat || (ser_accurate && get_cycles() >= data_in_serdat_delay)) {
 		serdatr |= 0x2000; // TBE (Transmit buffer empty)
 	}
 	if (!data_in_sershift && (serdatr & 0x2000)) {
@@ -1101,10 +1101,10 @@ void serial_open (void)
 #endif
 	} else if (!_tcsicmp(currprefs.sername, SERIAL_LOOPBACK)) {
 		serloop_enabled = true;
-	} else if (!currprefs.sername[0]) {
+	} else if (!currprefs.sername[0] && currprefs.win32_midioutdev < -1 && currprefs.win32_midiindev < 0) {
 		serempty_enabled = true;
 	} else {
-		if(!openser (currprefs.sername)) {
+		if(currprefs.sername[0] && !openser(currprefs.sername)) {
 			write_log (_T("SERIAL: Could not open device %s\n"), currprefs.sername);
 			return;
 		}
