@@ -3407,7 +3407,7 @@ static int xxD3D11_init2(HWND ahwnd, int monid, int w_w, int w_h, int t_w, int t
 
 	write_log(_T("D3D11 init start. (%d*%d) (%d*%d) RTG=%d Depth=%d.\n"), w_w, w_h, t_w, t_h, ad->picasso_on, depth);
 
-	d3d->filterd3didx = ad->picasso_on;
+	d3d->filterd3didx = ad->picasso_on ? 1 : (ad->interlace_on ? 2 : 0);
 	d3d->filterd3d = &currprefs.gf[d3d->filterd3didx];
 
 	d3d->delayedfs = 0;

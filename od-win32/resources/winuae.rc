@@ -968,6 +968,7 @@ BEGIN
     PUSHBUTTON      "Load",IDC_FILTERPRESETLOAD,205,280,55,14
     PUSHBUTTON      "Save",IDC_FILTERPRESETSAVE,265,280,55,14
     PUSHBUTTON      "Delete",IDC_FILTERPRESETDELETE,325,280,55,14
+    CONTROL         "Enabled",IDC_FILTERENABLE,"Button",BS_AUTOCHECKBOX | BS_LEFT | WS_GROUP | WS_TABSTOP,9,22,126,11
 END
 
 IDD_HARDDRIVE DIALOGEX 0, 0, 397, 219
@@ -2181,6 +2182,7 @@ BEGIN
     IDS_GENLOCK_OPTIONS     "Noise (built-in)\nTest card (built-in)\nImage file (png)\nVideo file\nCapture device\nAmerican Laser Games LaserDisc Player\nSony LaserDisc Player\nPioneer LaserDisc Player\n"
     IDS_READONLYCONFIRMATION 
                             "Selected configuration file is write protected.\nDo you want to overwrite it?\n%s\n"
+    IDS_SCREEN_NATIVELACE   "Native (Interlaced)"
 END
 
 STRINGTABLE

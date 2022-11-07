@@ -19713,7 +19713,8 @@ static int filter_nativertg;
 
 static void enable_for_hw3ddlg (HWND hDlg)
 {
-	int v = workprefs.gf[filter_nativertg].gfx_filter ? TRUE : FALSE;
+	struct gfx_filterdata *gf = &workprefs.gf[filter_nativertg];
+	int v = gf->gfx_filter ? TRUE : FALSE;
 	int scalemode = workprefs.gf[filter_nativertg].gfx_filter_autoscale;
 	int vv = FALSE, vv2 = FALSE, vv3 = FALSE, vv4 = FALSE;
 	int as = FALSE;
@@ -19738,11 +19739,19 @@ static void enable_for_hw3ddlg (HWND hDlg)
 		vv2 = TRUE;
 	}
 	v = vv = vv2 = vv3 = vv4 = TRUE;
-	if (filter_nativertg) {
+	if (filter_nativertg == 1) {
 		vv4 = FALSE;
 	}
 	if (scalemode == AUTOSCALE_STATIC_AUTO || scalemode == AUTOSCALE_STATIC_NOMINAL || scalemode == AUTOSCALE_STATIC_MAX)
 		as = TRUE;
+
+	if (filter_nativertg == 2) {
+		ew(hDlg, IDC_FILTERENABLE, TRUE);
+		setchecked(hDlg, IDC_FILTERENABLE, gf->enable);
+	} else {
+		ew(hDlg, IDC_FILTERENABLE, FALSE);
+		setchecked(hDlg, IDC_FILTERENABLE, TRUE);
+	}
 
 	ew(hDlg, IDC_FILTERHZMULT, v && !as);
 	ew(hDlg, IDC_FILTERVZMULT, v && !as);
@@ -19941,7 +19950,7 @@ static void values_to_hw3ddlg (HWND hDlg, bool initdialog)
 	xSendDlgItemMessage (hDlg, IDC_FILTERAUTOSCALE, CB_RESETCONTENT, 0, 0L);
 	WIN32GUI_LoadUIString (IDS_AUTOSCALE_DISABLED, txt, sizeof (txt) / sizeof (TCHAR));
 	xSendDlgItemMessage (hDlg, IDC_FILTERAUTOSCALE, CB_ADDSTRING, 0, (LPARAM)txt);
-	if (!filter_nativertg) {
+	if (filter_nativertg != 1) {
 		WIN32GUI_LoadUIString (IDS_AUTOSCALE_DEFAULT, txt, sizeof (txt) / sizeof (TCHAR));
 		xSendDlgItemMessage (hDlg, IDC_FILTERAUTOSCALE, CB_ADDSTRING, 0, (LPARAM)txt);
 		WIN32GUI_LoadUIString (IDS_AUTOSCALE_TV, txt, sizeof (txt) / sizeof (TCHAR));
@@ -20028,7 +20037,15 @@ static void values_to_hw3ddlg (HWND hDlg, bool initdialog)
 	xSendDlgItemMessage (hDlg, IDC_FILTERVO, TBM_SETRANGE, TRUE, MAKELONG (yrange1, yrange2));
 	xSendDlgItemMessage (hDlg, IDC_FILTERVO, TBM_SETPAGESIZE, 0, 1);
 
-	xSendDlgItemMessage (hDlg, IDC_FILTER_NATIVERTG, CB_SETCURSEL, filter_nativertg, 0);
+	int v = 0;
+	if (filter_nativertg == 0) {
+		v = 0;
+	} else if (filter_nativertg == 1) {
+		v = 2;
+	} else {
+		v = 1;
+	}
+	xSendDlgItemMessage (hDlg, IDC_FILTER_NATIVERTG, CB_SETCURSEL, v, 0);
 
 	xSendDlgItemMessage (hDlg, IDC_FILTERMODE, CB_RESETCONTENT, 0, 0L);
 	WIN32GUI_LoadUIString (IDS_NONE, tmp, MAX_DPATH);
@@ -20037,7 +20054,7 @@ static void values_to_hw3ddlg (HWND hDlg, bool initdialog)
 	fltnum = 0;
 	i = 0; j = 1;
 	while (uaefilters[i].name) {
-		if (filter_nativertg && uaefilters[i].type > 1) {
+		if (filter_nativertg >= 2 && uaefilters[i].type > 1) {
 			i++;
 			continue;
 		}
@@ -20499,7 +20516,9 @@ static INT_PTR CALLBACK hw3dDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 
 		xSendDlgItemMessage (hDlg, IDC_FILTER_NATIVERTG, CB_RESETCONTENT, 0, 0L);
 		WIN32GUI_LoadUIString (IDS_SCREEN_NATIVE, tmp, sizeof tmp / sizeof (TCHAR));
-		xSendDlgItemMessage (hDlg, IDC_FILTER_NATIVERTG, CB_ADDSTRING, 0, (LPARAM)tmp);
+		xSendDlgItemMessage(hDlg, IDC_FILTER_NATIVERTG, CB_ADDSTRING, 0, (LPARAM)tmp);
+		WIN32GUI_LoadUIString(IDS_SCREEN_NATIVELACE, tmp, sizeof tmp / sizeof(TCHAR));
+		xSendDlgItemMessage(hDlg, IDC_FILTER_NATIVERTG, CB_ADDSTRING, 0, (LPARAM)tmp);
 		WIN32GUI_LoadUIString (IDS_SCREEN_RTG, tmp, sizeof tmp / sizeof (TCHAR));
 		xSendDlgItemMessage (hDlg, IDC_FILTER_NATIVERTG, CB_ADDSTRING, 0, (LPARAM)tmp);
 
@@ -20585,6 +20604,7 @@ static INT_PTR CALLBACK hw3dDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 				enable_for_hw3ddlg (hDlg);
 				values_to_hw3ddlg (hDlg, false);
 				updatedisplayarea(-1);
+				break;
 			}
 		case IDC_FILTERKEEPAUTOSCALEASPECT:
 			{
@@ -20594,6 +20614,11 @@ static INT_PTR CALLBACK hw3dDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 				updatedisplayarea(-1);
 			}
 			break;
+		case IDC_FILTERENABLE:
+			if (filter_nativertg == 2) {
+				workprefs.gf[filter_nativertg].enable = ischecked(hDlg, IDC_FILTERENABLE);
+			}
+			break;
 		default:
 			if (HIWORD (wParam) == CBN_SELCHANGE || HIWORD (wParam) == CBN_KILLFOCUS)  {
 				switch (LOWORD (wParam))
@@ -20601,7 +20626,13 @@ static INT_PTR CALLBACK hw3dDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 				case IDC_FILTER_NATIVERTG:
 					item = xSendDlgItemMessage (hDlg, IDC_FILTER_NATIVERTG, CB_GETCURSEL, 0, 0L);
 					if (item != CB_ERR) {
-						filter_nativertg = item;
+						if (item == 0) {
+							filter_nativertg = 0;
+						} else if (item == 1) {
+							filter_nativertg = 2;
+						} else {
+							filter_nativertg = 1;
+						}
 						values_to_hw3ddlg (hDlg, false);
 						enable_for_hw3ddlg (hDlg);
 					}

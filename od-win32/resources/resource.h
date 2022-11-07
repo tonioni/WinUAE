@@ -414,6 +414,7 @@
 #define IDS_UNMAPPED_ADDRESS            419
 #define IDS_GENLOCK_OPTIONS             420
 #define IDS_READONLYCONFIRMATION        421
+#define IDS_SCREEN_NATIVELACE           422
 #define IDS_QS_MODELS                   1000
 #define IDS_QS_MODEL_A500               1001
 #define IDS_QS_MODEL_A500P              1002
@@ -1078,6 +1079,7 @@
 #define IDC_FILTERKEEPAUTOSCALEASPECT   1710
 #define IDC_CS_CIAA_TOD1                1711
 #define IDC_SOUND_VOLCNT                1711
+#define IDC_FILTERENABLE                1711
 #define IDC_CS_CIAA_TOD2                1712
 #define IDC_CS_EXT                      1712
 #define IDC_CS_CIAA_TOD3                1713
