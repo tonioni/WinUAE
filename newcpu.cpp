@@ -7912,7 +7912,7 @@ static void fill_icache020 (uae_u32 addr, bool opcode)
 		// cache hit
 		regs.cacheholdingaddr020 = addr;
 		regs.cacheholdingdata020 = c->data;
-		regs.cacheholdingdata_valid = true;
+		regs.cacheholdingdata_valid = 1;
 		return;
 	}
 
@@ -7941,7 +7941,7 @@ static void fill_icache020 (uae_u32 addr, bool opcode)
 	}
 	regs.cacheholdingaddr020 = addr;
 	regs.cacheholdingdata020 = data;
-	regs.cacheholdingdata_valid = true;
+	regs.cacheholdingdata_valid = 1;
 }
 
 #if MORE_ACCURATE_68020_PIPELINE
@@ -9565,7 +9565,7 @@ static void write_dcache040(uae_u32 addr, uae_u32 val, int size, void (*store)(u
 	// Cache miss
 	// 040+ always caches whole line
 	// Writes misses in write-through mode don't allocate new cache lines
-	if (!(cs & CACHE_ENABLE_DATA) || (cs & CACHE_DISABLE_MMU) || (cs & CACHE_DISABLE_ALLOCATE) || !(cs & CACHE_ENABLE_COPYBACK) || (regs.cacr & 0x400000000)) {
+	if (!(cs & CACHE_ENABLE_DATA) || (cs & CACHE_DISABLE_MMU) || (cs & CACHE_DISABLE_ALLOCATE) || !(cs & CACHE_ENABLE_COPYBACK) || (regs.cacr & 0x40000000)) {
 nocache:
 		store(addr_o, val);
 		return;
