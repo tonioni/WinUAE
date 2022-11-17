@@ -407,7 +407,6 @@ static uae_u8 cia_inmode_cnt(int num)
 
 	// A INMODE=1 (count CNT pulses)
 	if ((c->t[0].cr & (CR_INMODE | CR_START)) == (CR_INMODE | CR_START)) {
-		c->t[0].timer--;
 		if (c->t[0].timer == 0) {
 			icr |= ICR_A;
 			timer_reset(&c->t[0]);
@@ -418,6 +417,8 @@ static uae_u8 cia_inmode_cnt(int num)
 			if ((c->t[1].cr & (CR_INMODE1 | CR_START)) == (CR_INMODE1 | CR_START)) {
 				decb = true;
 			}
+		} else {
+			c->t[0].timer--;
 		}
 	}
 	// B INMODE=01 (count CNT pulses)
@@ -426,13 +427,14 @@ static uae_u8 cia_inmode_cnt(int num)
 	}
 
 	if (decb) {
-		c->t[1].timer--;
 		if (c->t[1].timer == 0) {
 			icr |= ICR_B;
 			timer_reset(&c->t[1]);
 			if (c->t[1].cr & CR_RUNMODE) {
 				c->t[1].cr &= ~CR_START;
 			}
+		} else {
+			c->t[1].timer--;
 		}
 	}
 	return icr;
@@ -513,6 +515,7 @@ static void CIA_update_check(void)
 					t->timer = t->latch;
 					t->inputpipe &= ~CIA_PIPE_CLR1;
 				}
+
 				if ((t->loaddelay & 0x0100) && t->timer != 0) {
 					loaded2[tn] = true;
 				}
@@ -531,12 +534,11 @@ static void CIA_update_check(void)
 				t->loaddelay >>= 1;
 				t->loaddelay &= 0x7f7f7f7f;
 			}
-
 		}
 
 		// Timer A
 		int cc = 0;
-		if ((c->t[0].cr& (CR_INMODE | CR_START)) == CR_START || c->t[0].inputpipe) {
+		if ((c->t[0].cr & (CR_INMODE | CR_START)) == CR_START || c->t[0].inputpipe) {
 			cc = process_pipe(&c->t[0], ciaclocks, CR_INMODE | CR_START, &ovfl[0]);
 		}
 		if (cc > 0) {
@@ -555,10 +557,6 @@ static void CIA_update_check(void)
 					}
 				}
 				ovfl[0] = 1;
-				// B INMODE=10 or 11
-				if ((c->t[1].cr & (CR_INMODE | CR_INMODE1 | CR_START)) == (CR_INMODE1 | CR_START) || (c->t[1].cr & (CR_INMODE | CR_INMODE1 | CR_START)) == (CR_INMODE | CR_INMODE1 | CR_START)) {
-					c->t[1].inputpipe |= CIA_PIPE_INPUT;
-				}
 			}
 		}
 		assert(c->t[0].timer < 0x10000);
@@ -569,12 +567,21 @@ static void CIA_update_check(void)
 			cc = process_pipe(&c->t[1], ciaclocks, CR_INMODE | CR_INMODE1 | CR_START, &ovfl[1]);
 		}
 		if (cc > 0) {
-			c->t[1].timer -= cc;
-			if (c->t[1].timer == 0) {
+			if ((c->t[1].timer == 0 && (c->t[1].cr & (CR_INMODE | CR_INMODE1)))) {
 				ovfl[1] = 1;
+			} else {
+				c->t[1].timer -= cc;
+				if ((c->t[1].timer == 0 && !(c->t[1].cr & (CR_INMODE | CR_INMODE1)))) {
+					ovfl[1] = 1;
+				}
 			}
 		}
 		assert(c->t[1].timer < 0x10000);
+
+		// B INMODE=10 or 11
+		if (ovfl[0] && ((c->t[1].cr & (CR_INMODE | CR_INMODE1 | CR_START)) == (CR_INMODE1 | CR_START) || (c->t[1].cr & (CR_INMODE | CR_INMODE1 | CR_START)) == (CR_INMODE | CR_INMODE1 | CR_START))) {
+			c->t[1].inputpipe |= CIA_PIPE_INPUT;
+		}
 
 		for (int tn = 0; tn < 2; tn++) {
 			struct CIATimer *t = &c->t[tn];
@@ -674,6 +681,7 @@ static void CIA_calctimers(void)
 		for (int tn = 0; tn < 2; tn++) {
 			struct CIATimer *t = &c->t[tn];
 			bool timerspecial = t->loaddelay != 0;
+			int tnidx = idx + tn;
 			if (t->cr & CR_START) {
 				if (t->inputpipe != CIA_PIPE_ALL_MASK) {
 					timerspecial = true;
@@ -683,8 +691,8 @@ static void CIA_calctimers(void)
 					timerspecial = true;
 				}
 			}
-			if (timerspecial && (timevals[idx] < 0 || timevals[idx] > DIV10)) {
-				timevals[idx + tn] = DIV10;
+			if (timerspecial && (timevals[tnidx] < 0 || timevals[tnidx] > DIV10)) {
+				timevals[tnidx] = DIV10;
 			}
 		}
 
@@ -692,7 +700,7 @@ static void CIA_calctimers(void)
 			timevals[idx] = DIV10;
 		}
 
-#if CIA_EVERY_CYCLE_DEBUG		
+#if CIA_EVERY_CYCLE_DEBUG
 		timevals[idx] = DIV10;
 #endif
 
