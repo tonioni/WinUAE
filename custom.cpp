@@ -11484,7 +11484,7 @@ static void hsync_scandoubler(int hpos)
 	reset_scandoubler_sync(hpos);
 }
 
-static void dmal_emu(uae_u32 v)
+static void dmal_emu(uae_u32 val)
 {
 	// Disk and Audio DMA bits are ignored by Agnus. Including DMA master bit.
 	int hpos = current_hpos();
@@ -11495,11 +11495,13 @@ static void dmal_emu(uae_u32 v)
 			return;
 		}
 	}
+	int dmalbits = val & 3;
+	int dmalpos = val >> 8;
 
-	if (v >= 6 && v < 14) {
-		v -= 6;
-		int nr = v / 2;
-		uaecptr pt = audio_getpt(nr, (v & 1) != 0);
+	if (dmalpos >= 6 && dmalpos < 14) {
+		dmalpos -= 6;
+		int nr = dmalpos / 2;
+		uaecptr pt = audio_getpt(nr, (dmalbits & 1) != 0);
 		if (dmal_ce) {
 #ifdef DEBUGGER
 			if (debug_dma) {
@@ -11523,9 +11525,9 @@ static void dmal_emu(uae_u32 v)
 		}
 		regs.chipset_latch_rw = last_custom_value = dat;
 		AUDxDAT(nr, dat, pt);
-	} else if (v >= 0 && v < 6) {
+	} else if (dmalpos >= 0 && dmalpos < 6) {
 		uae_u16 dat = 0;
-		int w = v & 1;
+		int w = (dmalbits & 3) == 3;
 		// disk_fifostatus() needed in >100% disk speed modes
 		if (w) {
 			// write to disk
@@ -11534,7 +11536,7 @@ static void dmal_emu(uae_u32 v)
 				if (dmal_ce) {
 #ifdef DEBUGGER
 					if (debug_dma) {
-						record_dma_read(0x26, pt, hpos, vpos, DMARECORD_DISK, v / 2);
+						record_dma_read(0x26, pt, hpos, vpos, DMARECORD_DISK, dmalpos / 2);
 					}
 					if (memwatch_enabled) {
 						debug_getpeekdma_chipram(pt, MW_MASK_DISK, 0x26, 0x20);
@@ -11563,7 +11565,7 @@ static void dmal_emu(uae_u32 v)
 				if (dmal_ce) {
 #ifdef DEBUGGER
 					if (debug_dma) {
-						record_dma_write(0x08, dat, pt, hpos, vpos, DMARECORD_DISK, v / 2);
+						record_dma_write(0x08, dat, pt, hpos, vpos, DMARECORD_DISK, dmalpos / 2);
 					}
 					if (memwatch_enabled) {
 						debug_putpeekdma_chipram(pt, dat, MW_MASK_DISK, 0x08, 0x20);
@@ -11575,7 +11577,7 @@ static void dmal_emu(uae_u32 v)
 			}
 		}
 	} else {
-		write_log(_T("invalid DMAL position %d\n"), v);
+		write_log(_T("invalid DMAL position %d\n"), dmalpos);
 	}
 }
 
@@ -11589,7 +11591,7 @@ static void dmal_func2(uae_u32 v)
 {
 	while (dmal) {
 		if (dmal & 3) {
-			dmal_emu(dmal_hpos + ((dmal & 2) ? 1 : 0));
+			dmal_emu((dmal_hpos << 8) | (dmal & 3));
 		}
 		dmal_hpos += 2;
 		dmal >>= 2;
@@ -11612,10 +11614,10 @@ static void events_dmal(int hpos)
 			dmal_hpos += 2;
 		}
 		dmal_ce = true;
-		event2_newevent2(hpos, dmal_hpos + ((dmal & 2) ? 1 : 0), dmal_func);
+		event2_newevent2(hpos, (dmal_hpos << 8) | (dmal & 3), dmal_func);
 		dmal &= ~3;
 	} else {
-		event2_newevent2(hpos, dmal_hpos, dmal_func2);
+		event2_newevent2(hpos, 0, dmal_func2);
 	}
 }
 
