@@ -3502,6 +3502,7 @@ static void do_color_changes(line_draw_func worker_border, line_draw_func worker
 		// used for OCS Denise blanking bug when not ECS Denise or AGA.
 		exthblank = false;
 	}
+	ehb_enable = true;
 	for (i = dip_for_drawing->first_color_change; i <= dip_for_drawing->last_color_change; i++) {
 		int regno = curr_color_changes[i].regno;
 		uae_u32 value = curr_color_changes[i].value;
