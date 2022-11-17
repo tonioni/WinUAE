@@ -19786,7 +19786,7 @@ static const TCHAR *filtermultnames[] = {
 static const float filtermults[] = { 0, 0.25f, 0.5f, 1.0f, 1.5f, 2.0f, 2.5f, 3.0f, 3.5f, 4.0f, 6.0f, 8.0f };
 struct filterxtra {
 	const TCHAR *label;
-	int *varw[2], *varc[2];
+	int *varw[3], *varc[3];
 	int min, max, step;
 };
 static struct filterxtra *filter_extra[4], *filter_selected;
@@ -19794,21 +19794,54 @@ static int filter_selected_num;
 
 static struct filterxtra filter_pal_extra[] =
 {
-	_T("Brightness"), &workprefs.gf[0].gfx_filter_luminance, NULL, &currprefs.gf[0].gfx_filter_luminance, NULL, -1000, 1000, 10,
-	_T("Contrast"), &workprefs.gf[0].gfx_filter_contrast, NULL, &currprefs.gf[0].gfx_filter_contrast, NULL, -1000, 1000, 10,
-	_T("Saturation"), &workprefs.gf[0].gfx_filter_saturation, NULL, &currprefs.gf[0].gfx_filter_saturation, NULL, -1000, 1000, 10,
-	_T("Gamma"), &workprefs.gfx_gamma, NULL, &currprefs.gfx_gamma, NULL, -1000, 1000, 10,
-	_T("Scanlines"), &workprefs.gf[0].gfx_filter_scanlines, NULL, &currprefs.gf[0].gfx_filter_scanlines, NULL, 0, 100, 1,
-	_T("Blurriness"), &workprefs.gf[0].gfx_filter_blur, NULL, &currprefs.gf[0].gfx_filter_blur, NULL, 0, 2000, 10,
-	_T("Noise"), &workprefs.gf[0].gfx_filter_noise, NULL, &currprefs.gf[0].gfx_filter_noise, NULL, 0, 100, 10,
+	_T("Brightness"),
+		&workprefs.gf[0].gfx_filter_luminance, NULL, &workprefs.gf[2].gfx_filter_luminance,
+		&currprefs.gf[0].gfx_filter_luminance, NULL, &currprefs.gf[2].gfx_filter_luminance,
+		-1000, 1000, 10,
+	_T("Contrast"),
+		&workprefs.gf[0].gfx_filter_contrast, NULL, &workprefs.gf[2].gfx_filter_contrast,
+		&currprefs.gf[0].gfx_filter_contrast, NULL, &currprefs.gf[2].gfx_filter_contrast,
+		-1000, 1000, 10,
+	_T("Saturation"),
+		&workprefs.gf[0].gfx_filter_saturation, NULL, &workprefs.gf[2].gfx_filter_saturation,
+		&currprefs.gf[0].gfx_filter_saturation, NULL, &currprefs.gf[2].gfx_filter_saturation,
+		-1000, 1000, 10,
+	_T("Gamma"),
+		&workprefs.gfx_gamma, NULL, &workprefs.gfx_gamma,
+		&currprefs.gfx_gamma, NULL, &currprefs.gfx_gamma,
+		-1000, 1000, 10,
+	_T("Scanlines"),
+		&workprefs.gf[0].gfx_filter_scanlines, NULL, &workprefs.gf[2].gfx_filter_scanlines,
+		&currprefs.gf[0].gfx_filter_scanlines, NULL, &currprefs.gf[2].gfx_filter_scanlines,
+		0, 100, 1,
+	_T("Blurriness"),
+		&workprefs.gf[0].gfx_filter_blur, NULL, &workprefs.gf[2].gfx_filter_blur,
+		&currprefs.gf[0].gfx_filter_blur, NULL, &currprefs.gf[2].gfx_filter_blur,
+		0, 2000, 10,
+	_T("Noise"),
+		&workprefs.gf[0].gfx_filter_noise, NULL, &workprefs.gf[2].gfx_filter_noise,
+		&currprefs.gf[0].gfx_filter_noise, NULL, &currprefs.gf[2].gfx_filter_noise,
+		0, 100, 10,
 	NULL
 };
 static struct filterxtra filter_3d_extra[] =
 {
-	_T("Point/Bilinear"), &workprefs.gf[0].gfx_filter_bilinear, &workprefs.gf[1].gfx_filter_bilinear, &currprefs.gf[0].gfx_filter_bilinear, &currprefs.gf[1].gfx_filter_bilinear, 0, 1, 1,
-	_T("Scanline opacity"), &workprefs.gf[0].gfx_filter_scanlines, &workprefs.gf[1].gfx_filter_scanlines, &currprefs.gf[0].gfx_filter_scanlines, &currprefs.gf[1].gfx_filter_scanlines, 0, 100, 10,
-	_T("Scanline level"), &workprefs.gf[0].gfx_filter_scanlinelevel, &workprefs.gf[1].gfx_filter_scanlinelevel, &currprefs.gf[0].gfx_filter_scanlinelevel, &currprefs.gf[1].gfx_filter_scanlinelevel, 0, 100, 10,
-	_T("Scanline offset"), &workprefs.gf[0].gfx_filter_scanlineoffset, &workprefs.gf[1].gfx_filter_scanlineoffset, &currprefs.gf[0].gfx_filter_scanlineoffset, &currprefs.gf[1].gfx_filter_scanlineoffset, 0, 3, 1,
+	_T("Point/Bilinear"),
+		&workprefs.gf[0].gfx_filter_bilinear, &workprefs.gf[1].gfx_filter_bilinear, &workprefs.gf[2].gfx_filter_bilinear,
+		&currprefs.gf[0].gfx_filter_bilinear, &currprefs.gf[1].gfx_filter_bilinear, &currprefs.gf[2].gfx_filter_bilinear,
+		0, 1, 1,
+	_T("Scanline opacity"),
+		&workprefs.gf[0].gfx_filter_scanlines, &workprefs.gf[1].gfx_filter_scanlines, &workprefs.gf[2].gfx_filter_scanlines,
+		&currprefs.gf[0].gfx_filter_scanlines, &currprefs.gf[1].gfx_filter_scanlines, &currprefs.gf[2].gfx_filter_scanlines,
+		0, 100, 10,
+	_T("Scanline level"),
+		&workprefs.gf[0].gfx_filter_scanlinelevel, &workprefs.gf[1].gfx_filter_scanlinelevel, &workprefs.gf[2].gfx_filter_scanlinelevel,
+		&currprefs.gf[0].gfx_filter_scanlinelevel, &currprefs.gf[1].gfx_filter_scanlinelevel, &currprefs.gf[2].gfx_filter_scanlinelevel,
+		0, 100, 10,
+	_T("Scanline offset"),
+		&workprefs.gf[0].gfx_filter_scanlineoffset, &workprefs.gf[1].gfx_filter_scanlineoffset, &workprefs.gf[2].gfx_filter_scanlineoffset,
+		&currprefs.gf[0].gfx_filter_scanlineoffset, &currprefs.gf[1].gfx_filter_scanlineoffset, &currprefs.gf[2].gfx_filter_scanlineoffset,
+		0, 3, 1,
 	NULL
 };
 static int dummy_in, dummy_out;
