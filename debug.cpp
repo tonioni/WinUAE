@@ -2074,6 +2074,13 @@ void record_dma_write(uae_u16 reg, uae_u32 dat, uae_u32 addr, int hpos, int vpos
 	debug_mark_refreshed(dr->addr);
 }
 struct dma_rec *last_dma_rec;
+void record_dma_read_value_pos(uae_u32 v, int hpos, int vpos)
+{
+	struct dma_rec *dr = &dma_record[dma_record_toggle][vpos * NR_DMA_REC_HPOS + hpos];
+	last_dma_rec = dr;
+	record_dma_read_value(v);
+}
+
 void record_dma_read_value(uae_u32 v)
 {
 	if (last_dma_rec) {

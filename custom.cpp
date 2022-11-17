@@ -15079,7 +15079,7 @@ uae_u32 wait_cpu_cycle_read(uaecptr addr, int mode)
 
 #ifdef DEBUGGER
 	if (debug_dma) {
-		record_dma_read_value(v);
+		record_dma_read_value_pos(v, hpos, vpos);
 	}
 #endif
 
@@ -15193,7 +15193,7 @@ uae_u32 wait_cpu_cycle_read_ce020(uaecptr addr, int mode)
 
 #ifdef DEBUGGER
 	if (debug_dma) {
-		record_dma_read_value(v);
+		record_dma_read_value_pos(v, hpos, vpos);
 	}
 #endif
 
