@@ -151,6 +151,7 @@ static int toscr_hend;
 static int nosignal_cnt, nosignal_status;
 static bool nosignal_trigger;
 int display_reset;
+static evt_t line_start_cycles;
 
 #define LOF_TOGGLES_NEEDED 3
 //#define NLACE_CNT_NEEDED 50
@@ -775,10 +776,10 @@ void alloc_cycle_ext(int hpos, int type)
 	alloc_cycle(hpos, type);
 }
 
-uaecptr alloc_cycle_blitter_conflict_or(void)
+uaecptr alloc_cycle_blitter_conflict_or(int hpos)
 {
 	uaecptr orptr = 0;
-	if (get_cycles() == copper_bad_cycle) {
+	if (copper_bad_cycle && line_start_cycles + hpos * CYCLE_UNIT == copper_bad_cycle) {
 		orptr = copper_bad_cycle_pc_old;
 	}
 	return orptr;
@@ -787,11 +788,12 @@ uaecptr alloc_cycle_blitter_conflict_or(void)
 bool alloc_cycle_blitter(int hpos, uaecptr *ptr, int chnum, int add)
 {
 	bool skipadd = false;
-	if (get_cycles() == copper_bad_cycle) {
-		write_log("Copper PT=%08x %08x. Blitter CH=%d PT=%08x bug!\n", copper_bad_cycle_pc_old, copper_bad_cycle_pc_new, chnum, *ptr);
+	if (copper_bad_cycle && line_start_cycles + hpos * CYCLE_UNIT == copper_bad_cycle) {
+		write_log("Copper PT=%08x/%08x. Blitter CH=%d PT=%08x. Conflict bug!\n", copper_bad_cycle_pc_old, copper_bad_cycle_pc_new, chnum, *ptr);
 		cop_state.ip += add;
-		*ptr = copper_bad_cycle_pc_new;
+		*ptr = copper_bad_cycle_pc_old;
 		skipadd = true;
+		copper_bad_cycle = 0;
 		//activate_debugger();
 	}
 	alloc_cycle(hpos, CYCLE_BLITTER);
@@ -7527,12 +7529,12 @@ static void COPJMP(int num, int vblank)
 		if (blt_info.blit_main) {
 			static int warned = 100;
 			if (warned > 0) {
-				write_log(_T("possible buggy copper cycle conflict with blitter PC=%08x\n"), M68K_GETPC);
+				write_log(_T("Potential buggy copper cycle conflict with blitter PC=%08x, COP=%08x\n"), M68K_GETPC, cop_state.ip);
 				warned--;
 			}
 		}
 		int hp = current_hpos();
-		if (0 && (hp & 1) && currprefs.cpu_model == 68000 && currprefs.cpu_cycle_exact) {
+		if ((hp & 1) && currprefs.cpu_model == 68000 && currprefs.cpu_cycle_exact && currprefs.blitter_cycle_exact && currprefs.m68k_speed == 0 && !(currprefs.cs_hacks & 16)) {
 			// CPU unaligned COPJMP while waiting
 			cop_state.state = COP_strobe_delay1x;
 			copper_bad_cycle_start = get_cycles();
@@ -11833,12 +11835,13 @@ static void hsync_handlerh(bool onvsync)
 
 static void set_hpos(void)
 {
+	line_start_cycles = get_cycles();
 	maxhposeven_prev = maxhposeven;
 	maxhpos = maxhpos_short + lol;
 	maxhposm1 = maxhpos - 1;
 	maxhposeven = (maxhpos & 1) == 0;
-	eventtab[ev_hsync].evtime = get_cycles() + HSYNCTIME;
-	eventtab[ev_hsync].oldcycles = get_cycles();
+	eventtab[ev_hsync].evtime = line_start_cycles + HSYNCTIME;
+	eventtab[ev_hsync].oldcycles = line_start_cycles;
 #ifdef DEBUGGER
 	if (debug_dma) {
 		record_dma_hsync(maxhpos);
