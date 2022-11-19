@@ -8602,7 +8602,7 @@ static void BLTAPTL(int hpos, uae_u16 v)
 	maybe_blit(hpos, 0);
 	bltptx = bltapt;
 	setblitx(hpos, 1);
-	bltapt = (bltapt & ~0xffff) | (v & 0xFFFE);
+	bltapt = (bltapt & ~0xffff) | (v & 0xfffe);
 }
 static void BLTBPTH(int hpos, uae_u16 v)
 {
@@ -8617,7 +8617,7 @@ static void BLTBPTL(int hpos, uae_u16 v)
 	maybe_blit(hpos, 0);
 	bltptx = bltbpt;
 	setblitx(hpos, 2);
-	bltbpt = (bltbpt & ~0xffff) | (v & 0xFFFE);
+	bltbpt = (bltbpt & ~0xffff) | (v & 0xfffe);
 }
 static void BLTCPTH(int hpos, uae_u16 v)
 {
@@ -8631,7 +8631,7 @@ static void BLTCPTL(int hpos, uae_u16 v)
 	maybe_blit(hpos, 0);
 	bltptx = bltcpt;
 	setblitx(hpos, 3);
-	bltcpt = (bltcpt & ~0xffff) | (v & 0xFFFE);
+	bltcpt = (bltcpt & ~0xffff) | (v & 0xfffe);
 }
 static void BLTDPTH (int hpos, uae_u16 v)
 {
@@ -8662,7 +8662,7 @@ static void BLTDPTL(int hpos, uae_u16 v)
 
 	bltptx = bltdpt;
 	setblitx(hpos, 4);
-	bltdpt = (bltdpt & ~0xffff) | (v & 0xFFFE);
+	bltdpt = (bltdpt & ~0xffff) | (v & 0xfffe);
 }
 
 static void BLTSIZE(int hpos, uae_u16 v)
@@ -13797,7 +13797,7 @@ static uae_u32 REGPARAM2 custom_bget(uaecptr addr)
 		return dummy_get(addr, 1, false, 0);
 	debug_invalid_reg(addr, 1, 0);
 	v = custom_wget2(addr & ~1, true);
-	v >>= (addr & 1 ? 0 : 8);
+	v >>= (addr & 1) ? 0 : 8;
 	return v;
 }
 

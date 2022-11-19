@@ -1317,7 +1317,6 @@ static void record_dma_clear(int r)
 		for (int h = 0; h < NR_DMA_REC_HPOS; h++) {
 			struct dma_rec *dr2 = &dr[v * NR_DMA_REC_HPOS + h];
 			memset(dr2, 0, sizeof(struct dma_rec));
-			dr->reg = 0xffff;
 			dr2->reg = 0xffff;
 			dr2->cf_reg = 0xffff;
 			dr2->addr = 0xffffffff;
@@ -2129,7 +2128,7 @@ void record_dma_clear(int hpos, int vpos)
 
 void record_cia_access(int r, int mask, uae_u16 value, bool rw, int hpos, int vpos, int phase)
 {
-	struct dma_rec* dr;
+	struct dma_rec *dr;
 
 	dma_record_init();
 

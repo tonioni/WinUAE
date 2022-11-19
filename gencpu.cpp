@@ -9445,7 +9445,7 @@ end:
 	if ((using_ce || using_prefetch) && did_prefetch >= 0) {
 		int ipladd = 0;
 		if (last_access_offset_ipl > 0) {
-			char iplfetch[100], iplfetchp[100];
+			char iplfetch[100];
 			int tc = get_current_cycles();
 			if (tc - ipl_fetch_cycles > 4 || ipl_fetched == 3) {
 				if (pre_ipl >= 2) {
@@ -9456,12 +9456,9 @@ end:
 			} else {
 				strcpy(iplfetch, "ipl_fetch_next();\n");
 			}
-			//sprintf(iplfetchp, "ipl_fetch_prefetch(%d);\n", ipl_fetch_cycles + (pre_ipl >= 2 ? 2 : 0));
 			if (pre_ipl !=  1) {
 				if (using_ce) {
 					ipladd = insertstring(iplfetch, last_access_offset_ipl);
-				} else {
-					//ipladd = insertstring(iplfetchp, last_access_offset_ipl);
 				}
 			}
 		} else if (ipl_fetched < 10) {
