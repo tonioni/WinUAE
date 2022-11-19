@@ -14962,7 +14962,7 @@ STATIC_INLINE void decide_fetch_ce(int hpos)
 // blitter idle cycles do count!)
 
 extern int cpu_tracer;
-static int dma_cycle(uaecptr addr, uae_u32 value, int *mode, int *ipl)
+static int dma_cycle(int *mode, int *ipl)
 {
 	int hpos_next, hpos_old;
 
@@ -14982,15 +14982,7 @@ static int dma_cycle(uaecptr addr, uae_u32 value, int *mode, int *ipl)
 		decide_fetch_ce(hpos_next);
 		int bpldma = bitplane_dma_access(hpos_old, 0);
 		if (blt_info.blit_queued) {
-#if 1
 			decide_blitter(hpos_next);
-#else
-			// CPU write must be done at the same time with blitter idle cycles
-			if (decide_blitter_maybe_write(hpos_next, addr, value)) {
-				// inform caller that write was already done
-				*mode = -3;
-			}
-#endif
 			// copper may have been waiting for the blitter
 			sync_copper(hpos_next);
 		}
@@ -15041,7 +15033,7 @@ uae_u32 wait_cpu_cycle_read(uaecptr addr, int mode)
 
 	x_do_cycles_pre(CYCLE_UNIT);
 
-	hpos = dma_cycle(addr, 0xffffffff, &mode, &ipl);
+	hpos = dma_cycle(&mode, &ipl);
 
 #ifdef DEBUGGER
 	if (debug_dma) {
@@ -15109,7 +15101,7 @@ void wait_cpu_cycle_write(uaecptr addr, int mode, uae_u32 v)
 
 	x_do_cycles_pre(CYCLE_UNIT);
 
-	hpos = dma_cycle(addr, v, &mode, &ipl);
+	hpos = dma_cycle(&mode, &ipl);
 
 #ifdef DEBUGGER
 	if (debug_dma) {
@@ -15159,7 +15151,7 @@ uae_u32 wait_cpu_cycle_read_ce020(uaecptr addr, int mode)
 
 	x_do_cycles_pre(CYCLE_UNIT);
 
-	hpos = dma_cycle(0xffffffff, 0xffff, NULL, &ipl);
+	hpos = dma_cycle(NULL, &ipl);
 
 #ifdef DEBUGGER
 	if (debug_dma) {
@@ -15215,7 +15207,7 @@ void wait_cpu_cycle_write_ce020(uaecptr addr, int mode, uae_u32 v)
 
 	x_do_cycles_pre(CYCLE_UNIT);
 
-	hpos = dma_cycle(0xffffffff, 0xffff, NULL, &ipl);
+	hpos = dma_cycle(NULL, &ipl);
 
 #ifdef DEBUGGER
 	if (debug_dma) {
