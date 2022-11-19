@@ -8965,9 +8965,9 @@ bccl_not68020:
 		}
 		break;
 	case i_BKPT:		/* only needed for hardware emulators */
-		sync_m68k_pc();
 		addcycles000(4);
 		illg();
+		clear_m68k_offset();
 		did_prefetch = -1;
 		ipl_fetched = -1;
 		break;
