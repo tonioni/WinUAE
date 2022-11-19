@@ -4635,6 +4635,16 @@ static int do_specialties (int cycles)
 	}
 #endif
 
+	while ((regs.spcflags & SPCFLAG_CPUINRESET)) {
+		x_do_cycles(4 * CYCLE_UNIT);
+		if (regs.spcflags & SPCFLAG_COPPER) {
+			do_copper();
+		}
+		if (!(regs.spcflags & SPCFLAG_CPUINRESET) || (regs.spcflags & SPCFLAG_BRK) || (regs.spcflags & SPCFLAG_MODE_CHANGE)) {
+			break;
+		}
+	}
+
 	while ((regs.spcflags & SPCFLAG_BLTNASTY) && dmaen (DMA_BLITTER) && cycles > 0 && ((currprefs.waiting_blits && currprefs.cpu_model >= 68020) || !currprefs.blitter_cycle_exact)) {
 		int c = blitnasty();
 		if (c < 0) {
@@ -5551,7 +5561,15 @@ static void check_halt(void)
 		do_specialties (0);
 }
 
-void cpu_halt (int id)
+void cpu_inreset(void)
+{
+	set_special(SPCFLAG_CPUINRESET);
+	regs.s = 1;
+	regs.intmask = 7;
+	MakeSR();
+}
+
+void cpu_halt(int id)
 {
 	// id < 0: m68k halted, PPC active.
 	// id > 0: emulation halted.
@@ -7691,6 +7709,7 @@ bool cpureset (void)
 	maybe_disable_fpu();
 	m68k_reset_delay = currprefs.reset_delay;
 	set_special(SPCFLAG_CHECK);
+	unset_special(SPCFLAG_CPUINRESET);
 	send_internalevent(INTERNALEVENT_CPURESET);
 	if (cpuboard_forced_hardreset()) {
 		custom_reset_cpu(false, false);
