@@ -4873,11 +4873,12 @@ uae_u16 disk_dmal (void)
 	}
 	return dmal;
 }
-uaecptr disk_getpt (void)
+
+uaecptr disk_getpt(void)
 {
 	uaecptr pt = dskpt;
 	dskpt += 2;
-	return pt;
+	return pt & ~1;
 }
 void DSKPTH (uae_u16 v)
 {
