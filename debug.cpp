@@ -3275,8 +3275,10 @@ static void smc_detect_init(TCHAR **c)
 		smc_size = currprefs.z3autoconfig_start + currprefs.z3fastmem[0].size;
 	smc_size += 4;
 	smc_table = xmalloc(struct smc_item, smc_size);
-	if (!smc_table)
+	if (!smc_table) {
+		console_out_f(_T("Failed to allocated SMCD buffers, %d bytes needed\n."), sizeof(struct smc_item) * smc_size);
 		return;
+	}
 	for (int i = 0; i < smc_size; i++) {
 		struct smc_item *si = &smc_table[i];
 		si->addr = 0xffffffff;
@@ -3303,26 +3305,30 @@ void debug_smc_clear(uaecptr addr, int size)
 }
 
 #define SMC_MAXHITS 8
-static void smc_detector (uaecptr addr, int rwi, int size, uae_u32 *valp)
+static void smc_detector(uaecptr addr, int rwi, int size, uae_u32 *valp)
 {
-	int i, hitcnt;
+	int hitcnt;
 	uaecptr hitaddr, hitpc;
 
 	if (!smc_table)
 		return;
-	if (addr >= smc_size)
+	if (addr + size > smc_size)
 		return;
 	if (rwi == 2) {
-		for (i = 0; i < size; i++) {
+		for (int i = 0; i < size; i++) {
 			if (smc_table[addr + i].cnt < SMC_MAXHITS) {
-				smc_table[addr + i].addr = m68k_getpc ();
+				smc_table[addr + i].addr = m68k_getpc();
 			}
 		}
 		return;
 	}
-	hitpc = smc_table[addr].addr;
-	if (hitpc == 0xffffffff)
+	hitpc = 0xffffffff;
+	for (int i = 0; i < size && hitpc == 0xffffffff && addr + i < smc_size; i += 2) {
+		hitpc = smc_table[addr + i].addr;
+	}
+	if (hitpc == 0xffffffff) {
 		return;
+	}
 	hitaddr = addr;
 	hitcnt = 0;
 	while (addr < smc_size && smc_table[addr].addr != 0xffffffff) {
@@ -3331,7 +3337,7 @@ static void smc_detector (uaecptr addr, int rwi, int size, uae_u32 *valp)
 	}
 	if ((hitpc & 0xFFF80000) == 0xF80000)
 		return;
-	if (currprefs.cpu_model == 68000 && currprefs.cpu_compatible) {
+	if (currprefs.cpu_model <= 68010 && currprefs.cpu_compatible) {
 		/* ignore single-word unconditional jump instructions
 		* (instruction prefetch from PC+2 can cause false positives) */
 		if (regs.irc == 0x4e75 || regs.irc == 4e74 || regs.irc == 0x4e72 || regs.irc == 0x4e77)
