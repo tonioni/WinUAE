@@ -2355,6 +2355,7 @@ uae_u32 m68k_disasm_2(TCHAR *buf, int bufsize, uaecptr pc, uae_u16 *bufpc, int b
 				if (lookup->mnemo == i_RTS || lookup->mnemo == i_RTD || lookup->mnemo == i_RTR || lookup->mnemo == i_RTE) {
 					uaecptr a = regs.regs[15];
 					TCHAR eas[100];
+					eas[0] = 0;
 					if (lookup->mnemo == i_RTE || lookup->mnemo == i_RTR) {
 						a += 2;
 					}
@@ -2387,20 +2388,28 @@ uae_u32 m68k_disasm_2(TCHAR *buf, int bufsize, uaecptr pc, uae_u16 *bufpc, int b
 				*deaddr = pc;
 			if ((opcode & 0xf000) == 0xf000) {
 				if (currprefs.fpu_model) {
-					buf = buf_out(buf, &bufsize, disasm_lc_hex(_T(" == $%08X")), addr2);
-					if (fpp_cond(dp->cc)) {
-						buf = buf_out(buf, &bufsize, _T(" (T)"));
-					} else {
-						buf = buf_out(buf, &bufsize, _T(" (F)"));
+					if (disasm_flags & DISASM_FLAG_EA) {
+						buf = buf_out(buf, &bufsize, disasm_lc_hex(_T(" == $%08X")), addr2);
+					}
+					if (disasm_flags & DISASM_FLAG_CC) {
+						if (fpp_cond(dp->cc)) {
+							buf = buf_out(buf, &bufsize, _T(" (T)"));
+						} else {
+							buf = buf_out(buf, &bufsize, _T(" (F)"));
+						}
 					}
 				}
 			} else {
 				if (dp->mnemo == i_Bcc || dp->mnemo == i_DBcc) {
-					buf = buf_out(buf, &bufsize, disasm_lc_hex(_T(" == $%08X")), addr2);
-					if (cctrue(dp->cc)) {
-						buf = buf_out(buf, &bufsize, _T(" (T)"));
-					} else {
-						buf = buf_out(buf, &bufsize, _T(" (F)"));
+					if (disasm_flags & DISASM_FLAG_EA) {
+						buf = buf_out(buf, &bufsize, disasm_lc_hex(_T(" == $%08X")), addr2);
+					}
+					if (disasm_flags & DISASM_FLAG_CC) {
+						if (cctrue(dp->cc)) {
+							buf = buf_out(buf, &bufsize, _T(" (T)"));
+						} else {
+							buf = buf_out(buf, &bufsize, _T(" (F)"));
+						}
 					}
 				} else {
 					if (disasm_flags & DISASM_FLAG_CC) {
