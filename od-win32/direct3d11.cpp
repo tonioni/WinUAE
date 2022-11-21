@@ -1437,7 +1437,7 @@ static bool UpdateVertexArray(struct d3d11struct *d3d, ID3D11Buffer *vertexbuffe
 	float left, float top, float right, float bottom,
 	float slleft, float sltop, float slright, float slbottom)
 {
-	VertexType* verticesPtr;
+	VertexType *verticesPtr;
 	D3D11_MAPPED_SUBRESOURCE mappedResource;
 	HRESULT result;
 	VertexType vertices[4];
