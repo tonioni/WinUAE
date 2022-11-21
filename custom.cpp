@@ -151,6 +151,7 @@ static int toscr_hend;
 static int nosignal_cnt, nosignal_status;
 static bool nosignal_trigger;
 int display_reset;
+static evt_t line_start_cycles;
 
 #define LOF_TOGGLES_NEEDED 3
 //#define NLACE_CNT_NEEDED 50
@@ -775,10 +776,10 @@ void alloc_cycle_ext(int hpos, int type)
 	alloc_cycle(hpos, type);
 }
 
-uaecptr alloc_cycle_blitter_conflict_or(void)
+uaecptr alloc_cycle_blitter_conflict_or(int hpos)
 {
 	uaecptr orptr = 0;
-	if (get_cycles() == copper_bad_cycle) {
+	if (copper_bad_cycle && line_start_cycles + hpos * CYCLE_UNIT == copper_bad_cycle) {
 		orptr = copper_bad_cycle_pc_old;
 	}
 	return orptr;
@@ -787,11 +788,12 @@ uaecptr alloc_cycle_blitter_conflict_or(void)
 bool alloc_cycle_blitter(int hpos, uaecptr *ptr, int chnum, int add)
 {
 	bool skipadd = false;
-	if (get_cycles() == copper_bad_cycle) {
-		write_log("Copper PT=%08x %08x. Blitter CH=%d PT=%08x bug!\n", copper_bad_cycle_pc_old, copper_bad_cycle_pc_new, chnum, *ptr);
+	if (copper_bad_cycle && line_start_cycles + hpos * CYCLE_UNIT == copper_bad_cycle) {
+		write_log("Copper PT=%08x/%08x. Blitter CH=%d PT=%08x. Conflict bug!\n", copper_bad_cycle_pc_old, copper_bad_cycle_pc_new, chnum, *ptr);
 		cop_state.ip += add;
-		*ptr = copper_bad_cycle_pc_new;
+		*ptr = copper_bad_cycle_pc_old;
 		skipadd = true;
+		copper_bad_cycle = 0;
 		//activate_debugger();
 	}
 	alloc_cycle(hpos, CYCLE_BLITTER);
@@ -7527,12 +7529,12 @@ static void COPJMP(int num, int vblank)
 		if (blt_info.blit_main) {
 			static int warned = 100;
 			if (warned > 0) {
-				write_log(_T("possible buggy copper cycle conflict with blitter PC=%08x\n"), M68K_GETPC);
+				write_log(_T("Potential buggy copper cycle conflict with blitter PC=%08x, COP=%08x\n"), M68K_GETPC, cop_state.ip);
 				warned--;
 			}
 		}
 		int hp = current_hpos();
-		if (0 && (hp & 1) && currprefs.cpu_model == 68000 && currprefs.cpu_cycle_exact) {
+		if ((hp & 1) && currprefs.cpu_model == 68000 && currprefs.cpu_cycle_exact && currprefs.blitter_cycle_exact && currprefs.m68k_speed == 0 && !(currprefs.cs_hacks & 16)) {
 			// CPU unaligned COPJMP while waiting
 			cop_state.state = COP_strobe_delay1x;
 			copper_bad_cycle_start = get_cycles();
@@ -8600,7 +8602,7 @@ static void BLTAPTL(int hpos, uae_u16 v)
 	maybe_blit(hpos, 0);
 	bltptx = bltapt;
 	setblitx(hpos, 1);
-	bltapt = (bltapt & ~0xffff) | (v & 0xFFFE);
+	bltapt = (bltapt & ~0xffff) | (v & 0xfffe);
 }
 static void BLTBPTH(int hpos, uae_u16 v)
 {
@@ -8615,7 +8617,7 @@ static void BLTBPTL(int hpos, uae_u16 v)
 	maybe_blit(hpos, 0);
 	bltptx = bltbpt;
 	setblitx(hpos, 2);
-	bltbpt = (bltbpt & ~0xffff) | (v & 0xFFFE);
+	bltbpt = (bltbpt & ~0xffff) | (v & 0xfffe);
 }
 static void BLTCPTH(int hpos, uae_u16 v)
 {
@@ -8629,7 +8631,7 @@ static void BLTCPTL(int hpos, uae_u16 v)
 	maybe_blit(hpos, 0);
 	bltptx = bltcpt;
 	setblitx(hpos, 3);
-	bltcpt = (bltcpt & ~0xffff) | (v & 0xFFFE);
+	bltcpt = (bltcpt & ~0xffff) | (v & 0xfffe);
 }
 static void BLTDPTH (int hpos, uae_u16 v)
 {
@@ -8660,7 +8662,7 @@ static void BLTDPTL(int hpos, uae_u16 v)
 
 	bltptx = bltdpt;
 	setblitx(hpos, 4);
-	bltdpt = (bltdpt & ~0xffff) | (v & 0xFFFE);
+	bltdpt = (bltdpt & ~0xffff) | (v & 0xfffe);
 }
 
 static void BLTSIZE(int hpos, uae_u16 v)
@@ -11833,12 +11835,13 @@ static void hsync_handlerh(bool onvsync)
 
 static void set_hpos(void)
 {
+	line_start_cycles = get_cycles();
 	maxhposeven_prev = maxhposeven;
 	maxhpos = maxhpos_short + lol;
 	maxhposm1 = maxhpos - 1;
 	maxhposeven = (maxhpos & 1) == 0;
-	eventtab[ev_hsync].evtime = get_cycles() + HSYNCTIME;
-	eventtab[ev_hsync].oldcycles = get_cycles();
+	eventtab[ev_hsync].evtime = line_start_cycles + HSYNCTIME;
+	eventtab[ev_hsync].oldcycles = line_start_cycles;
 #ifdef DEBUGGER
 	if (debug_dma) {
 		record_dma_hsync(maxhpos);
@@ -13794,7 +13797,7 @@ static uae_u32 REGPARAM2 custom_bget(uaecptr addr)
 		return dummy_get(addr, 1, false, 0);
 	debug_invalid_reg(addr, 1, 0);
 	v = custom_wget2(addr & ~1, true);
-	v >>= (addr & 1 ? 0 : 8);
+	v >>= (addr & 1) ? 0 : 8;
 	return v;
 }
 
@@ -14959,7 +14962,7 @@ STATIC_INLINE void decide_fetch_ce(int hpos)
 // blitter idle cycles do count!)
 
 extern int cpu_tracer;
-static int dma_cycle(uaecptr addr, uae_u32 value, int *mode, int *ipl)
+static int dma_cycle(int *mode, int *ipl)
 {
 	int hpos_next, hpos_old;
 
@@ -14979,15 +14982,7 @@ static int dma_cycle(uaecptr addr, uae_u32 value, int *mode, int *ipl)
 		decide_fetch_ce(hpos_next);
 		int bpldma = bitplane_dma_access(hpos_old, 0);
 		if (blt_info.blit_queued) {
-#if 1
 			decide_blitter(hpos_next);
-#else
-			// CPU write must be done at the same time with blitter idle cycles
-			if (decide_blitter_maybe_write(hpos_next, addr, value)) {
-				// inform caller that write was already done
-				*mode = -3;
-			}
-#endif
 			// copper may have been waiting for the blitter
 			sync_copper(hpos_next);
 		}
@@ -15038,7 +15033,7 @@ uae_u32 wait_cpu_cycle_read(uaecptr addr, int mode)
 
 	x_do_cycles_pre(CYCLE_UNIT);
 
-	hpos = dma_cycle(addr, 0xffffffff, &mode, &ipl);
+	hpos = dma_cycle(&mode, &ipl);
 
 #ifdef DEBUGGER
 	if (debug_dma) {
@@ -15106,7 +15101,7 @@ void wait_cpu_cycle_write(uaecptr addr, int mode, uae_u32 v)
 
 	x_do_cycles_pre(CYCLE_UNIT);
 
-	hpos = dma_cycle(addr, v, &mode, &ipl);
+	hpos = dma_cycle(&mode, &ipl);
 
 #ifdef DEBUGGER
 	if (debug_dma) {
@@ -15156,7 +15151,7 @@ uae_u32 wait_cpu_cycle_read_ce020(uaecptr addr, int mode)
 
 	x_do_cycles_pre(CYCLE_UNIT);
 
-	hpos = dma_cycle(0xffffffff, 0xffff, NULL, &ipl);
+	hpos = dma_cycle(NULL, &ipl);
 
 #ifdef DEBUGGER
 	if (debug_dma) {
@@ -15212,7 +15207,7 @@ void wait_cpu_cycle_write_ce020(uaecptr addr, int mode, uae_u32 v)
 
 	x_do_cycles_pre(CYCLE_UNIT);
 
-	hpos = dma_cycle(0xffffffff, 0xffff, NULL, &ipl);
+	hpos = dma_cycle(NULL, &ipl);
 
 #ifdef DEBUGGER
 	if (debug_dma) {
