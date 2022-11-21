@@ -1,4 +1,26 @@
 
+Beta 6:
+
+- Interlace mode filter crash fix (b5).
+- Disk read DMA started (without DSKSYNC) and reading "nothing" (no drives connected): disk DMA never finished. (CDTV boot hang without DF0:)
+- CIA B timer counting timer A underflows or CNT: generated interrupt was 1 timer count too early.
+- 68060 without FPU and executing FPU instruction that uses -(an) or (an)+ addressing mode: address register's original value was restored twice when F-line exception stack frame was being created. Second time it used invalid register value causing D7 to be modified.
+- Audio interrupts and AUDxDAT processing delays fixed. They were too long (2 CCK) when correct delay is only 1 CCK. 2 CCK appeared to be correct because previously interrupt timing was wrong.
+- Keep CPU halted when keyboard reset keys are kept pressed. (b3 reset change update)
+- EHB mode was unreliable in AGA mode (b5)
+- 68010+ BKPT illegal instruction exception had stacked PC pointing to next instruction but it should point to BKPT.
+- 68010 DIVU overflow condition undefined N flag behavior updated. (DIVS overflow undefined flags are still not fully correct)
+- Copper/blitter bug tested, updated and confirmed and is enabled by default again (only if 68000 and cycle-exact). This is the infamous chipset bug that can cause copper pointer to blitter pointer copy if copper was waiting, CPU wrote to COPJMPx and blitter was active. Not 100% accurate (modulos are not added correctly when glitch happens) in line mode because line mode internal "micro-operations" are not fully correct (exactly when pointers change, modulo is added etc, invisible operations that don't affect line mode output).
+
+Conditions that are needed to trigger this bug:
+- Copper is waiting.
+- CPU writes to COPJMP, using odd cycle. (Odd cycle seems to mess up copper COPJMP cycle allocation logic)
+- 3rd cycle after COPJMP is blitter DMA transfer cycle. (1st and 2nd cycle can be used by CPU or any DMA channel)
+If above conditions are true:
+- Blitter DMA accesses address: blitter pointer OR current copper pointer (Copper pointer before COPJMP updates it)
+- Old copper pointer gets copied to blitter address pointer. The very nasty part of this bug.
+- New copper pointer is increase by blitter modulo (if this blitter access would have added modulo)
+
 Beta 5:
 
 - If copper used last cycle in scanline and last cycle was even cycle (PAL 226) and it wanted next possible copper cycle and it was free: copper will allocate cycle 1 (Copper won't use it, neither can CPU or blitter. Cycle is allocated because it is 2 cycles from 226 but it is unusable because it isn't even cycle) and cycle 2 (copper uses this normally) of next scanline. This was implemented before 4.9 but was lost when custom emulation cycle allocation rewrite was done.

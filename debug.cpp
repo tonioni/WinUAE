@@ -1317,7 +1317,6 @@ static void record_dma_clear(int r)
 		for (int h = 0; h < NR_DMA_REC_HPOS; h++) {
 			struct dma_rec *dr2 = &dr[v * NR_DMA_REC_HPOS + h];
 			memset(dr2, 0, sizeof(struct dma_rec));
-			dr->reg = 0xffff;
 			dr2->reg = 0xffff;
 			dr2->cf_reg = 0xffff;
 			dr2->addr = 0xffffffff;
@@ -2074,6 +2073,13 @@ void record_dma_write(uae_u16 reg, uae_u32 dat, uae_u32 addr, int hpos, int vpos
 	debug_mark_refreshed(dr->addr);
 }
 struct dma_rec *last_dma_rec;
+void record_dma_read_value_pos(uae_u32 v, int hpos, int vpos)
+{
+	struct dma_rec *dr = &dma_record[dma_record_toggle][vpos * NR_DMA_REC_HPOS + hpos];
+	last_dma_rec = dr;
+	record_dma_read_value(v);
+}
+
 void record_dma_read_value(uae_u32 v)
 {
 	if (last_dma_rec) {
@@ -2122,7 +2128,7 @@ void record_dma_clear(int hpos, int vpos)
 
 void record_cia_access(int r, int mask, uae_u16 value, bool rw, int hpos, int vpos, int phase)
 {
-	struct dma_rec* dr;
+	struct dma_rec *dr;
 
 	dma_record_init();
 
@@ -3268,8 +3274,10 @@ static void smc_detect_init(TCHAR **c)
 		smc_size = currprefs.z3autoconfig_start + currprefs.z3fastmem[0].size;
 	smc_size += 4;
 	smc_table = xmalloc(struct smc_item, smc_size);
-	if (!smc_table)
+	if (!smc_table) {
+		console_out_f(_T("Failed to allocated SMCD buffers, %d bytes needed\n."), sizeof(struct smc_item) * smc_size);
 		return;
+	}
 	for (int i = 0; i < smc_size; i++) {
 		struct smc_item *si = &smc_table[i];
 		si->addr = 0xffffffff;
@@ -3296,26 +3304,30 @@ void debug_smc_clear(uaecptr addr, int size)
 }
 
 #define SMC_MAXHITS 8
-static void smc_detector (uaecptr addr, int rwi, int size, uae_u32 *valp)
+static void smc_detector(uaecptr addr, int rwi, int size, uae_u32 *valp)
 {
-	int i, hitcnt;
+	int hitcnt;
 	uaecptr hitaddr, hitpc;
 
 	if (!smc_table)
 		return;
-	if (addr >= smc_size)
+	if (addr + size > smc_size)
 		return;
 	if (rwi == 2) {
-		for (i = 0; i < size; i++) {
+		for (int i = 0; i < size; i++) {
 			if (smc_table[addr + i].cnt < SMC_MAXHITS) {
-				smc_table[addr + i].addr = m68k_getpc ();
+				smc_table[addr + i].addr = m68k_getpc();
 			}
 		}
 		return;
 	}
-	hitpc = smc_table[addr].addr;
-	if (hitpc == 0xffffffff)
+	hitpc = 0xffffffff;
+	for (int i = 0; i < size && hitpc == 0xffffffff && addr + i < smc_size; i += 2) {
+		hitpc = smc_table[addr + i].addr;
+	}
+	if (hitpc == 0xffffffff) {
 		return;
+	}
 	hitaddr = addr;
 	hitcnt = 0;
 	while (addr < smc_size && smc_table[addr].addr != 0xffffffff) {
@@ -3324,7 +3336,7 @@ static void smc_detector (uaecptr addr, int rwi, int size, uae_u32 *valp)
 	}
 	if ((hitpc & 0xFFF80000) == 0xF80000)
 		return;
-	if (currprefs.cpu_model == 68000 && currprefs.cpu_compatible) {
+	if (currprefs.cpu_model <= 68010 && currprefs.cpu_compatible) {
 		/* ignore single-word unconditional jump instructions
 		* (instruction prefetch from PC+2 can cause false positives) */
 		if (regs.irc == 0x4e75 || regs.irc == 4e74 || regs.irc == 0x4e72 || regs.irc == 0x4e77)

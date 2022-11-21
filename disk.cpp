@@ -4080,14 +4080,11 @@ static void wordsync_detected(bool startup)
 static void disk_doupdate_read_reallynothing(int floppybits, bool state)
 {
 	bool done = false;
-	// Only because there is at least one demo that checks wrong bit
-	// and hangs unless DSKSYNC bit it set with zero DSKSYNC value...
-	if (INTREQR() & 0x1000)
-		return;
 	while (floppybits >= get_floppy_speed()) {
 		bool skipbit = false;
 		word <<= 1;
 		word |= (state ? 1 : 0);
+		doreaddma();
 		// MSBSYNC
 		if (adkcon & 0x200) {
 			if ((word & 0x0001) == 0 && bitoffset == 0) {
@@ -4103,7 +4100,9 @@ static void disk_doupdate_read_reallynothing(int floppybits, bool state)
 			dskbytr_val = word & 0xff;
 			dskbytr_val |= 0x8000;
 		}
-		if (!done && !(adkcon & 0x200) && word == dsksync) {
+		// Only because there is at least one demo that checks wrong bit
+		// and hangs unless DSKSYNC bit it set with zero DSKSYNC value...
+		if (!(INTREQR() & 0x1000) && !done && !(adkcon & 0x200) && word == dsksync) {
 			INTREQ(0x8000 | 0x1000);
 			done = true;
 		}
@@ -4811,34 +4810,35 @@ void DISK_update_adkcon (int hpos, uae_u16 v)
 		bitoffset = 0;
 }
 
-void DSKSYNC (int hpos, uae_u16 v)
+void DSKSYNC(int hpos, uae_u16 v)
 {
 	if (v == dsksync)
 		return;
-	DISK_update (hpos);
+	DISK_update(hpos);
 	dsksync = v;
 }
 
-STATIC_INLINE bool iswrite (void)
+STATIC_INLINE bool iswrite(void)
 {
 	return dskdmaen == DSKDMA_WRITE;
 }
 
-void DSKDAT (uae_u16 v)
+void DSKDAT(uae_u16 v)
 {
 	if (fifo_inuse[2]) {
-		write_log (_T("DSKDAT: FIFO overflow!\n"));
+		write_log(_T("DSKDAT: FIFO overflow!\n"));
 		return;
 	}
 	fifo_inuse[2] = fifo_inuse[1];
 	fifo[2] = fifo[1];
 	fifo_inuse[1] = fifo_inuse[0];
 	fifo[1] = fifo[0];
-	fifo_inuse[0] = iswrite () ? 2 : 1;
+	fifo_inuse[0] = iswrite() ? 2 : 1;
 	fifo[0] = v;
 	fifo_filled = 1;
 }
-uae_u16 DSKDATR (void)
+
+uae_u16 DSKDATR(void)
 {
 	int i;
 	uae_u16 v = 0;
@@ -4850,14 +4850,14 @@ uae_u16 DSKDATR (void)
 		}
 	}
 	if (i < 0) {
-		write_log (_T("DSKDATR: FIFO underflow!\n"));
-	} else 	if (dskdmaen > 0 && dskdmaen < 3 && dsklength <= 0 && disk_fifostatus () < 0) {
-		disk_dmafinished ();
+		write_log(_T("DSKDATR: FIFO underflow!\n"));
+	} else 	if (dskdmaen > 0 && dskdmaen < 3 && dsklength <= 0 && disk_fifostatus() < 0) {
+		disk_dmafinished();
 	}
 	return v;
 }
 
-uae_u16 disk_dmal (void)
+uae_u16 disk_dmal(void)
 {
 	uae_u16 dmal = 0;
 	if (dskdmaen) {
@@ -4874,27 +4874,29 @@ uae_u16 disk_dmal (void)
 	}
 	return dmal;
 }
-uaecptr disk_getpt (void)
+
+uaecptr disk_getpt(void)
 {
 	uaecptr pt = dskpt;
 	dskpt += 2;
-	return pt;
-}
-void DSKPTH (uae_u16 v)
-{
-	dskpt = (dskpt & 0xffff) | ((uae_u32) v << 16);
+	return pt & ~1;
 }
 
-void DSKPTL (uae_u16 v)
+void DSKPTH(uae_u16 v)
 {
-	dskpt = (dskpt & ~0xffff) | (v);
+	dskpt = (dskpt & 0x0000ffff) | ((uae_u32) v << 16);
 }
 
-void DISK_free (void)
+void DSKPTL(uae_u16 v)
+{
+	dskpt = (dskpt & 0xffff0000) | (v & 0x0000fffe);
+}
+
+void DISK_free(void)
 {
 	for (int dr = 0; dr < MAX_FLOPPY_DRIVES; dr++) {
 		drive *drv = &floppy[dr];
-		drive_image_free (drv);
+		drive_image_free(drv);
 	}
 }
 
