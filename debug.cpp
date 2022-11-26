@@ -2001,6 +2001,19 @@ void record_dma_event(uae_u32 evt, int hpos, int vpos)
 	dr->ipl = regs.ipl_pin;
 }
 
+void record_dma_event2(uae_u32 evt2, int hpos, int vpos)
+{
+	struct dma_rec *dr;
+
+	if (!dma_record[0])
+		return;
+	if (hpos >= NR_DMA_REC_HPOS || vpos >= NR_DMA_REC_VPOS)
+		return;
+	dr = &dma_record[dma_record_toggle][vpos * NR_DMA_REC_HPOS + hpos];
+	dr->evt2 |= evt2;
+	dr->ipl = regs.ipl_pin;
+}
+
 void record_dma_event_data(uae_u32 evt, int hpos, int vpos, uae_u32 data)
 {
 	struct dma_rec *dr;
@@ -2446,6 +2459,9 @@ static bool get_record_dma_info(struct dma_rec *dr, int hpos, int vpos, TCHAR *l
 
 		if (dr->evt2 & DMA_EVENT2_IPLSAMPLE) {
 			l3[cl2++] = '^';
+		}
+		if (dr->evt2 & DMA_EVENT2_COPPERUSE) {
+			l3[cl2++] = 'C';
 		}
 
 	}

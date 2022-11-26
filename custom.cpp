@@ -9281,6 +9281,9 @@ static bool copper_cant_read(int hpos, uae_u16 alloc)
 		if (alloc && !bitplane_dma_access(hpos, coffset) && !cycle_line_pipe[offset]) {
 			cycle_line_pipe[offset] = CYCLE_PIPE_NONE | CYCLE_PIPE_COPPER;
 			blitter_pipe[offset] = CYCLE_PIPE_COPPER;
+#ifdef DEBUGGER
+			record_dma_event2(DMA_EVENT2_COPPERUSE, offset, vpos);
+#endif
 		}
 		coffset++;
 	}
@@ -9694,6 +9697,7 @@ static void do_copper_fetch(int hpos, uae_u16 id)
 	{
 		// COPJMP when previous instruction is mid-cycle
 		cop_state.state = COP_read1;
+		record_dma_event2(DMA_EVENT2_COPPERUSE, hpos, vpos);
 		alloc_cycle(hpos, CYCLE_COPPER);
 	}
 	break;
