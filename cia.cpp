@@ -760,12 +760,12 @@ static void CIA_sync_interrupt(int num, uae_u8 icr)
 	struct CIA *c = &cia[num];
 
 	if (acc_mode()) {
-		c->icr2 |= icr;
-		if ((c->icr1 & ICR_MASK) == (c->icr2 & ICR_MASK)) {
-			return;
-		}
 		if (!(icr & c->imask)) {
 			c->icr1 |= icr;
+			return;
+		}
+		c->icr2 |= icr;
+		if ((c->icr1 & ICR_MASK) == (c->icr2 & ICR_MASK)) {
 			return;
 		}
 		int syncdelay = 0;
