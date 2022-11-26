@@ -2149,6 +2149,11 @@ int check_prefs_changed_gfx(void)
 			}
 		}
 	}
+	if (currprefs.gf[2].enable != changed_prefs.gf[2].enable) {
+		currprefs.gf[2].enable = changed_prefs.gf[2].enable;
+		c |= 512;
+	}
+
 	monitors[0] = true;
 
 #if 0
@@ -2461,7 +2466,9 @@ int check_prefs_changed_gfx(void)
 		return 1;
 	}
 
-	if (currprefs.gf[0].gfx_filter_autoscale != changed_prefs.gf[0].gfx_filter_autoscale ||
+	if (
+		currprefs.gf[0].gfx_filter_autoscale != changed_prefs.gf[0].gfx_filter_autoscale ||
+		currprefs.gf[2].gfx_filter_autoscale != changed_prefs.gf[2].gfx_filter_autoscale ||
 		currprefs.gfx_xcenter_pos != changed_prefs.gfx_xcenter_pos ||
 		currprefs.gfx_ycenter_pos != changed_prefs.gfx_ycenter_pos ||
 		currprefs.gfx_xcenter_size != changed_prefs.gfx_xcenter_size ||
@@ -2476,6 +2483,7 @@ int check_prefs_changed_gfx(void)
 		currprefs.gfx_xcenter = changed_prefs.gfx_xcenter;
 		currprefs.gfx_ycenter = changed_prefs.gfx_ycenter;
 		currprefs.gf[0].gfx_filter_autoscale = changed_prefs.gf[0].gfx_filter_autoscale;
+		currprefs.gf[2].gfx_filter_autoscale = changed_prefs.gf[2].gfx_filter_autoscale;
 
 		get_custom_limits (NULL, NULL, NULL, NULL, NULL);
 		fixup_prefs_dimensions (&changed_prefs);
@@ -3057,10 +3065,10 @@ static void gfxmode_reset(int monid)
 
 #ifdef GFXFILTER
 	*usedfilter = NULL;
-	if (currprefs.gf[ad->picasso_on].gfx_filter > 0) {
+	if (currprefs.gf[ad->gf_index].gfx_filter > 0) {
 		int i = 0;
 		while (uaefilters[i].name) {
-			if (uaefilters[i].type == currprefs.gf[ad->picasso_on].gfx_filter) {
+			if (uaefilters[i].type == currprefs.gf[ad->gf_index].gfx_filter) {
 				*usedfilter = &uaefilters[i];
 				break;
 			}
@@ -3974,9 +3982,9 @@ retry:
 		oldtex_w[i] = oldtex_h[i] = -1;
 	}
 	if (mon->currentmode.flags & DM_D3D) {
-		int fmh = mon->screen_is_picasso ? 1 : currprefs.gf[ad->picasso_on].gfx_filter_filtermodeh + 1;
-		int fmv = mon->screen_is_picasso ? 1 : currprefs.gf[ad->picasso_on].gfx_filter_filtermodev + 1 - 1;
-		if (currprefs.gf[ad->picasso_on].gfx_filter_filtermodev == 0) {
+		int fmh = mon->screen_is_picasso ? 1 : currprefs.gf[ad->gf_index].gfx_filter_filtermodeh + 1;
+		int fmv = mon->screen_is_picasso ? 1 : currprefs.gf[ad->gf_index].gfx_filter_filtermodev + 1 - 1;
+		if (currprefs.gf[ad->gf_index].gfx_filter_filtermodev == 0) {
 			fmv = fmh;
 		}
 		int errv = 0;
@@ -4014,7 +4022,7 @@ retry:
 				} else if (currprefs.gfx_api > 0) {
 					changed_prefs.gfx_api = currprefs.gfx_api = 0;
 					changed_prefs.color_mode = currprefs.color_mode = 5;
-					changed_prefs.gf[ad->picasso_on].gfx_filter = currprefs.gf[ad->picasso_on].gfx_filter = 1;
+					changed_prefs.gf[ad->gf_index].gfx_filter = currprefs.gf[ad->gf_index].gfx_filter = 1;
 					update_gfxparams(mon);
 					d3d_select(&currprefs);
 					error_log(_T("Direct3D9/11 failed to initialize ('%s'), falling back to GDI."), err);

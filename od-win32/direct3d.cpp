@@ -2654,7 +2654,7 @@ static const TCHAR *D3D_init2 (struct d3dstruct *d3d, HWND ahwnd, int w_w, int w
 	struct apmode ap;
 	D3DADAPTER_IDENTIFIER9 did;
 
-	d3d->filterd3didx = ad->picasso_on ? 1 : (ad->interlace_on ? 2 : 0);
+	d3d->filterd3didx = ad->gf_index;
 	d3d->filterd3d = &currprefs.gf[d3d->filterd3didx];
 
 	D3D_free2 (d3d);
