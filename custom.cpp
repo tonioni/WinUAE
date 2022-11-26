@@ -4520,20 +4520,21 @@ static void vdiw_change(uae_u32 v)
 	vdiwstate_bpl = v != 0;
 }
 
+/* Take care of the vertical DIW.  */
 static void decide_vline(void)
 {
 	bool forceoff = (vb_start_line == 1 && !harddis_v);
+	bool start = vpos == plffirstline && !forceoff;
+	// VB start line forces vertical display window off (if HARDDIS=0)
+	bool end = vpos == plflastline || forceoff;
 
-	/* Take care of the vertical DIW.  */
-	if (vpos == plffirstline && !forceoff) {
+	if (start && !end) {
 		if (vdiwstate != diw_states::DIW_waiting_stop) {
 			event2_newevent_xx(-1, CYCLE_UNIT, 1, vdiw_change);
 		}
 		vdiwstate = diw_states::DIW_waiting_stop;
 		SET_LINE_CYCLEBASED;
-	}
-	// VB start line forces vertical display window off (if HARDDIS=0)
-	if (vpos == plflastline || forceoff) {
+	} else if (end) {
 		if (vdiwstate != diw_states::DIW_waiting_start) {
 			event2_newevent_xx(-1, CYCLE_UNIT, 0, vdiw_change);
 		}
