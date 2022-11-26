@@ -2308,17 +2308,24 @@ static bool get_record_dma_info(struct dma_rec *dr, int hpos, int vpos, TCHAR *l
 	if (r != 0xffff) {
 		if (r & 0x1000) {
 			if ((r & 0x0100) == 0x0000)
-				_tcscpy (l2, _T("CPU-R "));
+				_tcscpy(l2, _T("CPU-R  "));
 			else if ((r & 0x0100) == 0x0100)
-				_tcscpy (l2, _T("CPU-W "));
+				_tcscpy(l2, _T("CPU-W  "));
 			if ((r & 0xff) == 4) {
 				l2[5] = 'L';
 				longsize = 4;
 			}
-			if ((r & 0xff) == 2)
+			if ((r & 0xff) == 2) {
 				l2[5] = 'W';
-			if ((r & 0xff) == 1)
+			}
+			if ((r & 0xff) == 1) {
 				l2[5] = 'B';
+			}
+			if (br) {
+				l2[6] = 'D';
+			} else {
+				l2[6] = 'I';
+			}
 		} else {
 			if (chcnt >= 0) {
 				if (regsize == 3)
