@@ -1448,7 +1448,7 @@ static bool UpdateVertexArray(struct d3d11struct *d3d, ID3D11Buffer *vertexbuffe
 	float left, float top, float right, float bottom,
 	float slleft, float sltop, float slright, float slbottom)
 {
-	VertexType *verticesPtr;
+	VertexType* verticesPtr;
 	D3D11_MAPPED_SUBRESOURCE mappedResource;
 	HRESULT result;
 	VertexType vertices[4];
@@ -1506,14 +1506,14 @@ static bool UpdateBuffers(struct d3d11struct *d3d)
 	positionY = (sh - bh) / 2 + d3d->yoffset;
 
 	// Calculate the screen coordinates of the left side of the bitmap.
-	left = (sw + 0.5f) / -2.0f;
+	left = sw / -2.0f;
 	left += positionX;
 
 	// Calculate the screen coordinates of the right side of the bitmap.
 	right = left + bw;
 
 	// Calculate the screen coordinates of the top of the bitmap.
-	top = (sh + 0.5f) / 2.0f;
+	top = sh / 2.0f;
 	top -= positionY;
 
 	// Calculate the screen coordinates of the bottom of the bitmap.
