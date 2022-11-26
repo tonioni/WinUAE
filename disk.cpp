@@ -4309,9 +4309,14 @@ static void DISK_start (void)
 		dumpdisk(_T("DSKLEN"));
 	}
 
-	for (int i = 0; i < 3; i++)
+	for (int i = 0; i < 3; i++) {
 		fifo_inuse[i] = false;
+	}
 	fifo_filled = 0;
+
+	if (dskdmaen == DSKDMA_WRITE) {
+		word = 0;
+	}
 
 	for (dr = 0; dr < MAX_FLOPPY_DRIVES; dr++) {
 		drive *drv = &floppy[dr];
@@ -4332,7 +4337,6 @@ static void DISK_start (void)
 			}
 
 			if (dskdmaen == DSKDMA_WRITE) {
-				word = 0;
 				drv->tracklen = floppy_writemode > 0 ? FLOPPY_WRITE_MAXLEN : FLOPPY_WRITE_LEN * drv->ddhd * 8 * 2;
 				drv->trackspeed = get_floppy_speed ();
 				drv->skipoffset = -1;
@@ -4505,8 +4509,12 @@ void DISK_update (int tohpos)
 			}
 		}
 		/* no floppy selected and no DMA */
-		if ((selected | disabled) == 15 && dskdmaen < DSKDMA_WRITE) {
-			disk_doupdate_read_reallynothing(cycles, false);
+		if ((selected | disabled) == 15) {
+			if (dskdmaen < DSKDMA_WRITE) {
+				disk_doupdate_read_reallynothing(cycles, false);
+			} else if (dskdmaen == DSKDMA_WRITE) {
+				disk_doupdate_write(cycles, get_floppy_speed());
+			}
 		}
 	}
 
@@ -4861,13 +4869,21 @@ uae_u16 disk_dmal(void)
 {
 	uae_u16 dmal = 0;
 	if (dskdmaen) {
-		if (dskdmaen == 3) {
+		if (dskdmaen == DSKDMA_WRITE) {
+			if (vpos == 123)
+				write_log("1");
 			dmal = (1 + 2) * (fifo_inuse[0] ? 1 : 0) + (4 + 8) * (fifo_inuse[1] ? 1 : 0) + (16 + 32) * (fifo_inuse[2] ? 1 : 0);
 			dmal ^= 63;
-			if (dsklength == 2)
+			dmal = (((dmal >> 4) & 3) << 0) | (((dmal >> 2) & 3) << 2) | (((dmal >> 0) & 3) << 4);
+			if (dsklength == 2) {
 				dmal &= ~(16 + 32);
-			if (dsklength == 1)
+			}
+			if (dsklength == 1 && dmal) {
 				dmal &= ~(16 + 32 + 4 + 8);
+			}
+			while (dmal && !(dmal & (1 + 2))) {
+				dmal >>= 2;
+			}
 		} else {
 			dmal = 16 * (fifo_inuse[0] ? 1 : 0) + 4 * (fifo_inuse[1] ? 1 : 0) + 1 * (fifo_inuse[2] ? 1 : 0);
 		}
