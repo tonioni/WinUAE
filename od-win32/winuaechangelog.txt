@@ -1,4 +1,23 @@
 
+
+Beta 7:
+
+- When on the fly changing floppy type from FloppyBridge drive to normal or vice versa, disk change is now simulated automatically.
+- floppyXprofile (x=drive number) config file entry can be used to change drive type on the fly using uae-configuration. Replaces floppyXtype which uses magic number parameters (it is still supported). Floppy type can be for example "35dd" or "35hd" or "floppybridge". (TODO: floppybridge:<parameters> support)
+- CPU instruction prefetches are marked with "I" and data accesses with "D" in DMA debugger (for example "CPU-RWI")
+- Do not allow JIT FPU option if no FPU is selected.
+- If copper used last cycle of frame: following copper instruction (=very last instruction of copper before it restarts) was shown incorrectly in DMA debugger (visual bug only).
+- Special empty copper cycles where copper allocates the cycle but leaves it unused are now marked with "C" in DMA debugger.
+- Disk DMA write to nowhere (no drives selected) never finished. This (and reading which was fixed in b6) was working in older version, probably broke in b1.
+- Disk DMA write DMA slots now have correct order (Read DMA: slots are filled from right to left, write DMA: filled from left to right).
+- Floppy index sync (CIA-B flag) CIA interrupt bit was "sticky" in some situations. (b1)
+- CHD CD audio sync fix. (Always use logical block access method)
+- Some filter options still used non-interlace filter mode settings when interlace mode filter was active.
+- D3D11 mode integer scaling artifacts fixed. (b1)
+- D3D11 shader support code leaked ID3D11RenderTargetView, causing problems when shader or parameters were changed on the fly.
+- Double clicking windowed mode window title bar always switched to fullscreen mode (should only switch if Shift pressed=Fullscreen or Control pressed=Fullwindow is pressed). Possibly Windows version dependant.
+- DIWSTRT and DIWSTOP same vertical start and end was unreliable (James Pond 2 intro glitch)
+
 Beta 6:
 
 - Interlace mode filter crash fix (b5).
@@ -10,7 +29,7 @@ Beta 6:
 - EHB mode was unreliable in AGA mode (b5)
 - 68010+ BKPT illegal instruction exception had stacked PC pointing to next instruction but it should point to BKPT.
 - 68010 DIVU overflow condition undefined N flag behavior updated. (DIVS overflow undefined flags are still not fully correct)
-- Copper/blitter bug tested, updated and confirmed and is enabled by default again (only if 68000 and cycle-exact). This is the infamous chipset bug that can cause copper pointer to blitter pointer copy if copper was waiting, CPU wrote to COPJMPx and blitter was active. Not 100% accurate (modulos are not added correctly when glitch happens) in line mode because line mode internal "micro-operations" are not fully correct (exactly when pointers change, modulo is added etc, invisible operations that don't affect line mode output).
+- Copper/blitter bug tested, updated and confirmed and is enabled by default again (only if 68000 and cycle-exact). This is the infamous chipset bug that can cause copper pointer to blitter pointer copy if copper was waiting, CPU wrote to COPJMPx during odd cycle and blitter was active. Not 100% accurate (modulos are not added correctly when glitch happens) in line mode because line mode internal "micro-operations" are not fully correct (exactly when pointers change, modulo is added etc, invisible operations that don't affect line mode output).
 
 Conditions that are needed to trigger this bug:
 - Copper is waiting.

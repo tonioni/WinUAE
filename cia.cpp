@@ -187,7 +187,7 @@ void cia_adjust_eclock_phase(int diff)
 		internaleclockphase += 20;
 	}
 	internaleclockphase %= 20;
-	write_log("CIA E-clock phase %d\n", internaleclockphase);
+	//write_log("CIA E-clock phase %d\n", internaleclockphase);
 }
 
 static void set_eclockphase(void)
