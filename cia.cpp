@@ -1179,6 +1179,10 @@ static void check_keyboard(void)
 static void cia_delayed_tod(int num)
 {
 	struct CIA *c = &cia[num];
+	if (c->tod_event_state == 4) {
+		c->tod_event_state = 1;
+		return;
+	}
 	if (c->tod_event_state == 1) {
 		CIA_tod_inc(false, num);
 	}
@@ -1212,10 +1216,6 @@ void CIA_hsync_posthandler(bool ciahsync, bool dotod)
 
 	if (!ciahsync) {
 		// Increase CIA-A TOD if delayed from previous line
-		struct CIA *c = &cia[0];
-		if (c->tod_event_state == 4) {
-			c->tod_event_state = 1;
-		}
 		cia_delayed_tod(0);
 		if (currprefs.tod_hack && cia[0].todon) {
 			do_tod_hack();
