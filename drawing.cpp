@@ -4862,10 +4862,10 @@ void check_prefs_picasso(void)
 
 		if (!ad->picasso_on) {
 			clear_inhibit_frame(monid, IHF_PICASSO);
-			ad->gf_index = ad->interlace_on ? 2 : 1;
+			ad->gf_index = ad->interlace_on ? GF_INTERLACE : GF_NORMAL;
 		} else {
 			set_inhibit_frame(monid, IHF_PICASSO);
-			ad->gf_index = 1;
+			ad->gf_index = GF_RTG;
 		}
 
 		gfx_set_picasso_state(monid, ad->picasso_on);
@@ -5134,9 +5134,9 @@ bool notice_interlace_seen (int monid, bool lace)
 	}
 
 	if (changed) {
-		if (currprefs.gf[2].enable && memcmp(&currprefs.gf[0], &currprefs.gf[2], sizeof(struct gfx_filterdata))) {
-			changed_prefs.gf[0].changed = true;
-			changed_prefs.gf[2].changed = true;
+		if (currprefs.gf[GF_INTERLACE].enable && memcmp(&currprefs.gf[GF_NORMAL], &currprefs.gf[GF_INTERLACE], sizeof(struct gfx_filterdata))) {
+			changed_prefs.gf[GF_NORMAL].changed = true;
+			changed_prefs.gf[GF_INTERLACE].changed = true;
 			if (ad->interlace_on != interlace_on) {
 				ad->interlace_on = interlace_on;
 				set_config_changed();
@@ -5148,12 +5148,12 @@ bool notice_interlace_seen (int monid, bool lace)
 
 	if (!ad->picasso_on) {
 		if (ad->interlace_on) {
-			ad->gf_index = 2;
+			ad->gf_index = GF_INTERLACE;
 		} else {
-			ad->gf_index = 0;
+			ad->gf_index = GF_NORMAL;
 		}
 	} else {
-		ad->gf_index = 1;
+		ad->gf_index = GF_RTG;
 	}
 
 	return changed;
@@ -5269,7 +5269,7 @@ void drawing_init (void)
 	if (!isrestore ()) {
 		ad->picasso_on = 0;
 		ad->picasso_requested_on = 0;
-		ad->gf_index = 0;
+		ad->gf_index = GF_NORMAL;
 		gfx_set_picasso_state(0, 0);
 	}
 #endif
