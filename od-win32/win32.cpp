@@ -2837,10 +2837,10 @@ static LRESULT CALLBACK MainWindowProc (HWND hWnd, UINT message, WPARAM wParam, 
 
 	case WM_NCLBUTTONDBLCLK:
 		if (wParam == HTCAPTION) {
-			if (GetKeyState (VK_SHIFT)) {
+			if (GetKeyState(VK_SHIFT) & 0x8000) {
 				toggle_fullscreen(0, 0);
 				return 0;
-			} else if (GetKeyState (VK_CONTROL)) {
+			} else if (GetKeyState(VK_CONTROL) & 0x8000) {
 				toggle_fullscreen(0, 2);
 				return 0;
 			}
