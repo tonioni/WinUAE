@@ -41,8 +41,8 @@ void PAL_init(int monid)
 		xx2 = 5;
 		xx3 = 7;
 	}
-	pal_noise_mask = (1 << (currprefs.gf[ad->picasso_on].gfx_filter_noise * 7 / 100)) - 1;
-	scanlinelevel = 128 - currprefs.gf[ad->picasso_on].gfx_filter_scanlines * 128 / 100;
+	pal_noise_mask = (1 << (currprefs.gf[ad->gf_index].gfx_filter_noise * 7 / 100)) - 1;
+	scanlinelevel = 128 - currprefs.gf[ad->gf_index].gfx_filter_scanlines * 128 / 100;
 }
 
 #if 0

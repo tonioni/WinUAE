@@ -139,6 +139,7 @@ static int lf, hf;
 static void video_calc_gammatable(int monid)
 {
 	struct amigadisplay *ad = &adisplays[monid];
+	struct gfx_filterdata *fd = &currprefs.gf[ad->gf_index];
 	float bri, con, gam, gams[3];
 	float max = 255;
 
@@ -156,7 +157,7 @@ static void video_calc_gammatable(int monid)
 	gams[1] = gam + ((float)(1000 - currprefs.gfx_gamma_ch[1])) / 1000.0f;
 	gams[2] = gam + ((float)(1000 - currprefs.gfx_gamma_ch[2])) / 1000.0f;
 
-	lf = 64 * currprefs.gf[ad->picasso_on].gfx_filter_blur / 1000;
+	lf = 64 * currprefs.gf[ad->gf_index].gfx_filter_blur / 1000;
 	hf = 256 - lf * 2;
 
 	for (int i = 0; i < (256 * 3); i++) {
@@ -193,7 +194,7 @@ static uae_u32 limit256(int monid, float v)
 {
 	struct amigadisplay *ad = &adisplays[monid];
 	if (!gfx_hdr) {
-		v = v * (float)(currprefs.gf[ad->picasso_on].gfx_filter_contrast + 1000) / 1000.0f + currprefs.gf[ad->picasso_on].gfx_filter_luminance / 10.0f;
+		v = v * (float)(currprefs.gf[ad->gf_index].gfx_filter_contrast + 1000) / 1000.0f + currprefs.gf[ad->gf_index].gfx_filter_luminance / 10.0f;
 	}
 	if (v < 0)
 		v = 0;
@@ -205,7 +206,7 @@ static uae_s32 limit256rb(int monid, float v)
 {
 	struct amigadisplay *ad = &adisplays[monid];
 	if (!gfx_hdr) {
-		v *= (float)(currprefs.gf[ad->picasso_on].gfx_filter_saturation + 1000) / 1000.0f;
+		v *= (float)(currprefs.gf[ad->gf_index].gfx_filter_saturation + 1000) / 1000.0f;
 	}
 	if (v < -128)
 		v = -128;

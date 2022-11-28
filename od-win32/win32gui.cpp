@@ -13084,9 +13084,6 @@ static void enable_for_cpudlg (HWND hDlg)
 
 	ew(hDlg, IDC_SPEED, !workprefs.cpu_cycle_exact);
 	ew(hDlg, IDC_COMPATIBLE24, workprefs.cpu_model <= 68030);
-	//ew(hDlg, IDC_CS_HOST, !workprefs.cpu_cycle_exact);
-	//ew(hDlg, IDC_CS_68000, !workprefs.cpu_cycle_exact);
-	//ew(hDlg, IDC_CS_ADJUSTABLE, !workprefs.cpu_cycle_exact);
 	ew(hDlg, IDC_CPUIDLE, workprefs.m68k_speed != 0 ? TRUE : FALSE);
 	ew(hDlg, IDC_PPC_CPUIDLE, workprefs.ppc_mode != 0);
 	ew(hDlg, IDC_SPEED_x86, is_x86_cpu(&workprefs));
@@ -13112,7 +13109,7 @@ static void enable_for_cpudlg (HWND hDlg)
 	ew(hDlg, IDC_TRUST1, enable);
 	ew(hDlg, IDC_HARDFLUSH, enable);
 	ew(hDlg, IDC_CONSTJUMP, enable);
-	ew(hDlg, IDC_JITFPU, enable);
+	ew(hDlg, IDC_JITFPU, enable && workprefs.fpu_model > 0);
 	ew(hDlg, IDC_JITCRASH, enable);
 	ew(hDlg, IDC_NOFLAGS, enable);
 	ew(hDlg, IDC_CS_CACHE_TEXT, enable);
@@ -13199,7 +13196,7 @@ static void values_to_cpudlg(HWND hDlg, WPARAM wParam)
 
 	CheckDlgButton(hDlg, IDC_JITCRASH, workprefs.comp_catchfault);
 	CheckDlgButton(hDlg, IDC_NOFLAGS, workprefs.compnf);
-	CheckDlgButton(hDlg, IDC_JITFPU, workprefs.compfpu);
+	CheckDlgButton(hDlg, IDC_JITFPU, workprefs.compfpu && workprefs.fpu_model > 0);
 	CheckDlgButton(hDlg, IDC_HARDFLUSH, workprefs.comp_hardflush);
 	CheckDlgButton(hDlg, IDC_CONSTJUMP, workprefs.comp_constjump);
 	CheckDlgButton(hDlg, IDC_JITENABLE, workprefs.cachesize > 0);
