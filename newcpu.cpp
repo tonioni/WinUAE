@@ -2480,22 +2480,6 @@ void REGPARAM2 MakeFromSR_STOP(void)
 	MakeFromSR_x(-1);
 }
 
-void REGPARAM2 MakeFromSR_intmask(uae_u16 oldsr, uae_u16 newsr)
-{
-#if 0
-	int oldlvl = (oldsr >> 8) & 7;
-	int newlvl = (newsr >> 8) & 7;
-	int ilvl = intlev();
-
-	// interrupt mask lowered and allows new interrupt to start?
-	if (newlvl < oldlvl && ilvl > 0 && ilvl > newlvl && ilvl <= oldlvl) {
-		if (currprefs.cpu_model >= 68020) {
-			unset_special(SPCFLAG_INT);
-		}
-	}
-#endif
-}
-
 static bool internalexception(int nr)
 {
 	return nr == 5 || nr == 6 || nr == 7 || (nr >= 32 && nr <= 47);
