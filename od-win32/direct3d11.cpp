@@ -1357,7 +1357,7 @@ static bool psEffect_End(struct d3d11struct *d3d, struct shaderdata11 *s)
 static bool processshader(struct d3d11struct *d3d, struct shadertex *st, struct shaderdata11 *s, bool rendertarget)
 {
 	int uPasses, uPass, uIndex;
-	ID3D11RenderTargetView *lpRenderTarget;
+	ID3D11RenderTargetView *lpRenderTarget = NULL;
 	ID3D11RenderTargetView *lpNewRenderTarget;
 	struct shadertex *lpWorkTexture;
 
@@ -1391,8 +1391,9 @@ pass2:
 			psEffect_End(d3d, s);
 		}
 
-		if (lpRenderTarget)
+		if (lpRenderTarget) {
 			d3d->m_deviceContext->OMSetRenderTargets(1, &lpRenderTarget, NULL);
+		}
 		lpNewRenderTarget = NULL;
 
 		if (psEffect_hasPreProcess2(s) && lpWorkTexture == &s->lpWorkTexture1) {
@@ -1400,7 +1401,10 @@ pass2:
 			goto pass2;
 		}
 		
-		lpRenderTarget = NULL;
+		if (lpRenderTarget) {
+			lpRenderTarget->Release();
+			lpRenderTarget = NULL;
+		}
 	}
 
 	psEffect_SetMatrices(&d3d->m_matProj2, &d3d->m_matView2, &d3d->m_matWorld2, s);
@@ -1415,8 +1419,12 @@ pass2:
 	uPasses = 0;
 	if (psEffect_Begin(d3d, psEffect_Combine, &uPasses, &uIndex, s)) {
 		for (uPass = 0; uPass < uPasses; uPass++) {
-			if (!psEffect_BeginPass(d3d, s, uPass, uIndex))
-				return NULL;
+			if (!psEffect_BeginPass(d3d, s, uPass, uIndex)) {
+				if (lpRenderTarget) {
+					lpRenderTarget->Release();
+				}
+				return false;
+			}
 			d3d->m_deviceContext->DrawIndexed(6, 0, 0);
 			psEffect_EndPass(d3d, s);
 		}
@@ -1424,8 +1432,11 @@ pass2:
 	}
 
 	if (rendertarget) {
-
 		d3d->m_deviceContext->OMSetRenderTargets(1, &lpRenderTarget, NULL);
+	}
+
+	if (lpRenderTarget) {
+		lpRenderTarget->Release();
 	}
 
 	memcpy(st, &s->lpTempTexture, sizeof(struct shadertex));
@@ -1437,7 +1448,7 @@ static bool UpdateVertexArray(struct d3d11struct *d3d, ID3D11Buffer *vertexbuffe
 	float left, float top, float right, float bottom,
 	float slleft, float sltop, float slright, float slbottom)
 {
-	VertexType *verticesPtr;
+	VertexType* verticesPtr;
 	D3D11_MAPPED_SUBRESOURCE mappedResource;
 	HRESULT result;
 	VertexType vertices[4];
@@ -1495,14 +1506,14 @@ static bool UpdateBuffers(struct d3d11struct *d3d)
 	positionY = (sh - bh) / 2 + d3d->yoffset;
 
 	// Calculate the screen coordinates of the left side of the bitmap.
-	left = (sw + 0.5f) / -2.0f;
+	left = sw / -2.0f;
 	left += positionX;
 
 	// Calculate the screen coordinates of the right side of the bitmap.
 	right = left + bw;
 
 	// Calculate the screen coordinates of the top of the bitmap.
-	top = (sh + 0.5f) / 2.0f;
+	top = sh / 2.0f;
 	top -= positionY;
 
 	// Calculate the screen coordinates of the bottom of the bitmap.
@@ -3407,7 +3418,7 @@ static int xxD3D11_init2(HWND ahwnd, int monid, int w_w, int w_h, int t_w, int t
 
 	write_log(_T("D3D11 init start. (%d*%d) (%d*%d) RTG=%d Depth=%d.\n"), w_w, w_h, t_w, t_h, ad->picasso_on, depth);
 
-	d3d->filterd3didx = ad->picasso_on ? 1 : (ad->interlace_on ? 2 : 0);
+	d3d->filterd3didx = ad->gf_index;
 	d3d->filterd3d = &currprefs.gf[d3d->filterd3didx];
 
 	d3d->delayedfs = 0;

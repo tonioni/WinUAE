@@ -2150,8 +2150,8 @@ static void setupscenecoords(struct d3dstruct *d3d, bool normalrender)
 
 	} else {
 
-		tx = dw * d3d->tin_w / d3d->window_w / 2;
-		ty = dh * d3d->tin_h / d3d->window_h / 2;
+		tx = -0.5f + dw * d3d->tin_w / d3d->window_w / 2;
+		ty = +0.5f + dh * d3d->tin_h / d3d->window_h / 2;
 
 		float xshift = (float)(- zr.left - sr.left); // - (tin_w - 2 * zr.left - w),
 		float yshift = (float)(+ zr.top + sr.top - (d3d->tin_h - h));
@@ -2159,14 +2159,9 @@ static void setupscenecoords(struct d3dstruct *d3d, bool normalrender)
 		sw = dw * d3d->tin_w / d3d->window_w;
 		sh = dh * d3d->tin_h / d3d->window_h;
 
-		//sw -= 0.5f;
-		//sh += 0.5f;
-
 		tx += xshift;
 		ty += yshift;
 
-		tx = (float)(int)(tx + 0.0f);
-		ty = (float)(int)(ty + 0.0f);
 	}
 
 	d3d->xmult = filterrectmult(d3d->window_w, w, d3d->dmode);
@@ -2184,9 +2179,6 @@ static void setupscenecoords(struct d3dstruct *d3d, bool normalrender)
 	// ratio between Amiga texture and overlay mask texture
 	float sw2 = dw * d3d->tin_w / d3d->window_w;
 	float sh2 = dh * d3d->tin_h / d3d->window_h;
-
-	//sw2 -= 0.5f;
-	//sh2 += 0.5f;
 
 	d3d->maskmult.x = sw2 * d3d->maskmult_x / w;
 	d3d->maskmult.y = sh2 * d3d->maskmult_y / h;
@@ -2654,7 +2646,7 @@ static const TCHAR *D3D_init2 (struct d3dstruct *d3d, HWND ahwnd, int w_w, int w
 	struct apmode ap;
 	D3DADAPTER_IDENTIFIER9 did;
 
-	d3d->filterd3didx = ad->picasso_on ? 1 : (ad->interlace_on ? 2 : 0);
+	d3d->filterd3didx = ad->gf_index;
 	d3d->filterd3d = &currprefs.gf[d3d->filterd3didx];
 
 	D3D_free2 (d3d);

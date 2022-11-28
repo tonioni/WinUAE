@@ -142,11 +142,10 @@ static void getmanualpos(int monid, int *cxp, int *cyp, int *cwp, int *chp)
 	*chp = ch;
 }
 
-static bool get_auto_aspect_ratio(int monid, int cw, int ch, int crealh, int scalemode, float *autoaspectratio)
+static bool get_auto_aspect_ratio(int monid, int cw, int ch, int crealh, int scalemode, float *autoaspectratio, int idx)
 {
-	struct amigadisplay *ad = &adisplays[monid];
 	*autoaspectratio = 0;
-	if (currprefs.gf[ad->picasso_on].gfx_filter_keep_autoscale_aspect && cw > 0 && ch > 0 && crealh > 0 && (scalemode == AUTOSCALE_NORMAL ||
+	if (currprefs.gf[idx].gfx_filter_keep_autoscale_aspect && cw > 0 && ch > 0 && crealh > 0 && (scalemode == AUTOSCALE_NORMAL ||
 		scalemode == AUTOSCALE_INTEGER_AUTOSCALE || scalemode == AUTOSCALE_MANUAL)) {
 		float cw2 = (float)cw;
 		float ch2 = (float)ch;
@@ -255,17 +254,18 @@ void getfilterrect2(int monid, RECT *sr, RECT *dr, RECT *zr, int dst_width, int 
 	int extraw2;
 	bool doautoaspect = false;
 	float autoaspectratio;
-	int keep_aspect = currprefs.gf[ad->picasso_on].gfx_filter_keep_aspect;
-	int filter_aspect = currprefs.gf[ad->picasso_on].gfx_filter_aspect;
+	int idx = ad->gf_index;
+	int keep_aspect = currprefs.gf[idx].gfx_filter_keep_aspect;
+	int filter_aspect = currprefs.gf[idx].gfx_filter_aspect;
 	int palntscadjust = 1;
 	int autoselect = 0;
 
-	float filter_horiz_zoom = currprefs.gf[ad->picasso_on].gfx_filter_horiz_zoom / 1000.0f;
-	float filter_vert_zoom = currprefs.gf[ad->picasso_on].gfx_filter_vert_zoom / 1000.0f;
-	float filter_horiz_zoom_mult = currprefs.gf[ad->picasso_on].gfx_filter_horiz_zoom_mult;
-	float filter_vert_zoom_mult = currprefs.gf[ad->picasso_on].gfx_filter_vert_zoom_mult;
-	float filter_horiz_offset = currprefs.gf[ad->picasso_on].gfx_filter_horiz_offset / 10000.0f;
-	float filter_vert_offset = currprefs.gf[ad->picasso_on].gfx_filter_vert_offset / 10000.0f;
+	float filter_horiz_zoom = currprefs.gf[idx].gfx_filter_horiz_zoom / 1000.0f;
+	float filter_vert_zoom = currprefs.gf[idx].gfx_filter_vert_zoom / 1000.0f;
+	float filter_horiz_zoom_mult = currprefs.gf[idx].gfx_filter_horiz_zoom_mult;
+	float filter_vert_zoom_mult = currprefs.gf[idx].gfx_filter_vert_zoom_mult;
+	float filter_horiz_offset = currprefs.gf[idx].gfx_filter_horiz_offset / 10000.0f;
+	float filter_vert_offset = currprefs.gf[idx].gfx_filter_vert_offset / 10000.0f;
 
 	store_custom_limits (-1, -1, -1, -1);
 	*mode = 0;
@@ -285,8 +285,8 @@ void getfilterrect2(int monid, RECT *sr, RECT *dr, RECT *zr, int dst_width, int 
 	aws = aw * scale;
 	ahs = ah * scale;
 	//write_log (_T("%d %d %d\n"), dst_width, temp_width, aws);
-	extraw = (int)(-aws * (filter_horiz_zoom - currprefs.gf[ad->picasso_on].gfx_filteroverlay_overscan * 10) / 2.0f);
-	extrah = (int)(-ahs * (filter_vert_zoom - currprefs.gf[ad->picasso_on].gfx_filteroverlay_overscan * 10) / 2.0f);
+	extraw = (int)(-aws * (filter_horiz_zoom - currprefs.gf[idx].gfx_filteroverlay_overscan * 10) / 2.0f);
+	extrah = (int)(-ahs * (filter_vert_zoom - currprefs.gf[idx].gfx_filteroverlay_overscan * 10) / 2.0f);
 
 	extraw2 = 0;
 	if (D3D_getscalerect && D3D_getscalerect(monid, &mrmx, &mrmy, &mrsx, &mrsy, avidinfo->outbuffer->inwidth2, avidinfo->outbuffer->inheight2)) {
@@ -310,8 +310,8 @@ void getfilterrect2(int monid, RECT *sr, RECT *dr, RECT *zr, int dst_width, int 
 	float xmult = filter_horiz_zoom_mult;
 	float ymult = filter_vert_zoom_mult;
 
-	int scalemode = currprefs.gf[ad->picasso_on].gfx_filter_autoscale;
-	int oscalemode = changed_prefs.gf[ad->picasso_on].gfx_filter_autoscale;
+	int scalemode = currprefs.gf[idx].gfx_filter_autoscale;
+	int oscalemode = changed_prefs.gf[idx].gfx_filter_autoscale;
 	if (scalemode == AUTOSCALE_OVERSCAN_BLANK) {
 		oscalemode = scalemode = AUTOSCALE_NONE;
 	}
@@ -401,8 +401,8 @@ void getfilterrect2(int monid, RECT *sr, RECT *dr, RECT *zr, int dst_width, int 
 				bool ok = true;
 
 				if (currprefs.gfx_xcenter_pos >= 0 || currprefs.gfx_ycenter_pos >= 0) {
-					changed_prefs.gf[ad->picasso_on].gfx_filter_horiz_offset = currprefs.gf[ad->picasso_on].gfx_filter_horiz_offset = 0.0;
-					changed_prefs.gf[ad->picasso_on].gfx_filter_vert_offset = currprefs.gf[ad->picasso_on].gfx_filter_vert_offset = 0.0;
+					changed_prefs.gf[idx].gfx_filter_horiz_offset = currprefs.gf[idx].gfx_filter_horiz_offset = 0.0;
+					changed_prefs.gf[idx].gfx_filter_vert_offset = currprefs.gf[idx].gfx_filter_vert_offset = 0.0;
 					filter_horiz_offset = 0.0;
 					filter_vert_offset = 0.0;
 					get_custom_topedge (&cx, &cy, false);
@@ -447,7 +447,7 @@ void getfilterrect2(int monid, RECT *sr, RECT *dr, RECT *zr, int dst_width, int 
 
 				maxw = res_match(maxw);
 
-				float multadd = 1.0f / (1 << currprefs.gf[ad->picasso_on].gfx_filter_integerscalelimit);
+				float multadd = 1.0f / (1 << currprefs.gf[idx].gfx_filter_integerscalelimit);
 				if (cw2 > maxw || ch2 > maxh) {
 					while (cw2 / mult > maxw || ch2 / mult > maxh)
 						mult += multadd;
@@ -474,8 +474,8 @@ void getfilterrect2(int monid, RECT *sr, RECT *dr, RECT *zr, int dst_width, int 
 
 		} else if (scalemode == AUTOSCALE_MANUAL) {
 
-			changed_prefs.gf[ad->picasso_on].gfx_filter_horiz_offset = currprefs.gf[ad->picasso_on].gfx_filter_horiz_offset = 0.0;
-			changed_prefs.gf[ad->picasso_on].gfx_filter_vert_offset = currprefs.gf[ad->picasso_on].gfx_filter_vert_offset = 0.0;
+			changed_prefs.gf[idx].gfx_filter_horiz_offset = currprefs.gf[idx].gfx_filter_horiz_offset = 0.0;
+			changed_prefs.gf[idx].gfx_filter_vert_offset = currprefs.gf[idx].gfx_filter_vert_offset = 0.0;
 			filter_horiz_offset = 0.0;
 			filter_vert_offset = 0.0;
 
@@ -523,7 +523,7 @@ void getfilterrect2(int monid, RECT *sr, RECT *dr, RECT *zr, int dst_width, int 
 		}
 	
 		if (!autoaspect_done) {
-			doautoaspect = get_auto_aspect_ratio(monid, cw, ch, crealh, scalemode, &autoaspectratio);
+			doautoaspect = get_auto_aspect_ratio(monid, cw, ch, crealh, scalemode, &autoaspectratio, idx);
 		}
 
 		if (cv) {
@@ -545,7 +545,7 @@ void getfilterrect2(int monid, RECT *sr, RECT *dr, RECT *zr, int dst_width, int 
 				OffsetRect (zr, cx * scale - (dst_width - ww) / 2, cy * scale - (dst_height - hh) / 2);
 				goto cont;
 
-			} else if (scalemode == AUTOSCALE_RESIZE && isfullscreen() == 0 && !currprefs.gf[ad->picasso_on].gfx_filteroverlay[0]) {
+			} else if (scalemode == AUTOSCALE_RESIZE && isfullscreen() == 0 && !currprefs.gf[idx].gfx_filteroverlay[0]) {
 
 				static int lastresize = 0;
 				static int lastdelay = 1;
@@ -586,8 +586,8 @@ void getfilterrect2(int monid, RECT *sr, RECT *dr, RECT *zr, int dst_width, int 
 					lastresize = AUTORESIZE_FRAME_DELAY;
 					lastdelay = 0;
 				}
-				float scalex = currprefs.gf[ad->picasso_on].gfx_filter_horiz_zoom_mult > 0 ? currprefs.gf[ad->picasso_on].gfx_filter_horiz_zoom_mult : 1.0f;
-				float scaley = currprefs.gf[ad->picasso_on].gfx_filter_vert_zoom_mult > 0 ? currprefs.gf[ad->picasso_on].gfx_filter_vert_zoom_mult : 1.0f;
+				float scalex = currprefs.gf[idx].gfx_filter_horiz_zoom_mult > 0 ? currprefs.gf[idx].gfx_filter_horiz_zoom_mult : 1.0f;
+				float scaley = currprefs.gf[idx].gfx_filter_vert_zoom_mult > 0 ? currprefs.gf[idx].gfx_filter_vert_zoom_mult : 1.0f;
 				SetRect (sr, 0, 0, (int)(cw * scale * scalex), (int)(ch * scale * scaley));
 				dr->left = (temp_width - aws) /2;
 				dr->top = (temp_height - ahs) / 2;
@@ -917,6 +917,7 @@ bool S2X_init(int monid, int dw, int dh, int dd)
 	struct vidbuffer *vb = avidinfo->outbuffer;
 	struct AmigaMonitor *mon = &AMonitors[monid];
 	struct uae_filter *usedfilter = mon->usedfilter;
+	int idx = ad->gf_index;
 	int flags = 0;
 
 	dst_width2 = dw;
@@ -941,7 +942,7 @@ bool S2X_init(int monid, int dw, int dh, int dd)
 	if (WIN32GFX_IsPicassoScreen(mon))
 		return true;
 
-	if (!currprefs.gf[ad->picasso_on].gfx_filter || !usedfilter) {
+	if (!currprefs.gf[idx].gfx_filter || !usedfilter) {
 		usedfilter = &uaefilters[0];
 		scale = 1;
 	} else {
@@ -950,7 +951,7 @@ bool S2X_init(int monid, int dw, int dh, int dd)
 		if ((amiga_depth2 == 16 && !(flags & UAE_FILTER_MODE_16)) || (amiga_depth2 == 32 && !(flags & UAE_FILTER_MODE_32))) {
 			usedfilter = &uaefilters[0];
 			scale = 1;
-			changed_prefs.gf[ad->picasso_on].gfx_filter = usedfilter->type;
+			changed_prefs.gf[idx].gfx_filter = usedfilter->type;
 		}
 	}
 #if 0
@@ -969,11 +970,11 @@ bool S2X_init(int monid, int dw, int dh, int dd)
 	amiga_height = vb->outheight;
 	amiga_depth = vb->pixbytes * 8;
 
-	int mh = currprefs.gf[ad->picasso_on].gfx_filter_filtermodeh + 1;
+	int mh = currprefs.gf[idx].gfx_filter_filtermodeh + 1;
 	if (mh < scale)
 		mh = scale;
 	temp_width = dst_width * mh;
-	int mv = currprefs.gf[ad->picasso_on].gfx_filter_filtermodev + 1;
+	int mv = currprefs.gf[idx].gfx_filter_filtermodev + 1;
 	if (mv < scale)
 		mv = scale;
 	temp_height = dst_height * mv;
@@ -995,6 +996,7 @@ void S2X_render(int monid, int y_start, int y_end)
 	struct uae_filter *usedfilter = mon->usedfilter;
 	struct vidbuf_description *avidinfo = &adisplays[monid].gfxvidinfo;
 	struct vidbuffer *vb = avidinfo->outbuffer;
+	int idx = ad->gf_index;
 	int aw, ah, aws, ahs;
 	uae_u8 *dptr, *enddptr, *sptr, *endsptr;
 	int ok = 0;
@@ -1168,9 +1170,9 @@ void S2X_render(int monid, int y_start, int y_end)
 
 	}
 
-	if (ok == 0 && currprefs.gf[ad->picasso_on].gfx_filter) {
+	if (ok == 0 && currprefs.gf[idx].gfx_filter) {
 		usedfilter = &uaefilters[0];
-		changed_prefs.gf[ad->picasso_on].gfx_filter = usedfilter->type;
+		changed_prefs.gf[idx].gfx_filter = usedfilter->type;
 	}
 end:;
 }
