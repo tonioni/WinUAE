@@ -5422,6 +5422,13 @@ const struct expansionromtype expansionroms[] = {
 		2017, 10, 0
 	},
 	{
+		_T("gvpa1208"), _T("GVP A1208"), _T("Great Valley Products"),
+		NULL, gvp_init_a1208, NULL, gvp_a1208_add_scsi_unit, ROMTYPE_GVPA1208 | ROMTYPE_NONE, ROMTYPE_GVPS2, 0, BOARD_AUTOCONFIG_Z2, false,
+		NULL, 0,
+		true, EXPANSIONTYPE_SCSI | EXPANSIONTYPE_DMA24,
+		2017, 9, 0
+	},
+	{
 		_T("dotto"), _T("Dotto"), _T("Hardital"),
 		NULL, dotto_init, NULL, dotto_add_ide_unit, ROMTYPE_DOTTO, 0, 0, BOARD_AUTOCONFIG_Z2, false,
 		NULL, 0,
