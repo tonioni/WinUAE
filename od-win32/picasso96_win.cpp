@@ -81,7 +81,7 @@ int debug_rtg_blitter = 3;
 
 #define NOBLITTER (0 || !(debug_rtg_blitter & 1))
 #define NOBLITTER_BLIT (0 || !(debug_rtg_blitter & 2))
-#define NOBLITTER_ALL 1
+#define NOBLITTER_ALL 0
 
 static int hwsprite = 0;
 static int picasso96_BT = BT_uaegfx;
