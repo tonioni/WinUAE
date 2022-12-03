@@ -1,4 +1,20 @@
 
+Beta 8:
+
+- RTG to chipset mode (non-interlaced) switch didn't enable native mode filter (b7)
+- If CIA-A TOD counting was PSU tick based, ticks that were delayed until next scan line (due to CIA internal TOD counting delays) were lost. (b1)
+- Added GVP A1208 Z2 RAM + SCSI board. It is basically GVP Series II Z2 SCSI controller + RAM expansion in different form. Uses usual GVP Series 2 SCSI ROMs. If A1208 is emulated and Z2 RAM is enabled, Z2 RAM gets GVP A1208 Z2 RAM autoconfig data. A1208 GVP internal device ID is 0x97.
+- JIT mode interrupt handling restored, JIT needs "different" interrupt handling than non-JIT modes for best performance. (b5)
+- uaegfx blitter emulation was accidentally disabled since b4.
+- uaegfx b1 update had wrong operator in masked 8-bit DST=SRC blitter function (Turbotext scrolling in 8-bit) (b1)
+- uaegfx non-basic blitter functions (for example mask set or not commomly used) didn't handle overlapping source and destination correctly. (Turbotext scrolling in 8-bit mode)
+- gfx_left_windowed and gfx_top_windowed config file entries replaced with gfx_x_windowed and gfx_y_windowed. Reason was swapped coordinates but to keep backwards compatibility, new config entries have been added instead of fixing it by swapping them. Old config entries still work.
+- A4000 Quickstart mode set PSU tick CIA-A TOD timing but A4000 does not have PSU tick hardware.
+- 68020 cycle-exact timing adjustment (Lionheart whdload slave v2.3)
+- Increased A1200 68020 approximate speed slightly. (Many AGA demos had slowdowns). CE mode is not changed.
+- Rare SupraDrive 2000DMA boot ROM was finally dumped. Support added.
+- Debugger memwatch command parsing changed. Some parameters got skipped. Value match is now V<value>.
+- Debugger string ot integer parser error condition support added. Potentially dangerous commands are now aborted if expected address can't be parsed (like 'g <typo in hex address that does not parse>'), previously failed string to integer conversion returned zero value.
 
 Beta 7:
 
