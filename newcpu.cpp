@@ -2398,8 +2398,11 @@ static void MakeFromSR_x(int t0trace)
 				regs.ipl[0] = 0;
 			}
 		} else {
-			if (regs.ipl_pin <= regs.intmask && regs.ipl_pin > newimask) {
-				set_special(SPCFLAG_INT);
+			if (!currprefs.cachesize && regs.ipl_pin <= regs.intmask && regs.ipl_pin > newimask) {
+				if (currprefs.cpu_compatible && currprefs.cpu_model < 68020)
+					set_special(SPCFLAG_INT);
+				else
+					set_special(SPCFLAG_DOINT);
 			}
 		}
 		regs.intmask = newimask;
@@ -4511,13 +4514,15 @@ void doint(void)
 
 		update_ipl(ipl);
 	}
+
 	if (m68k_interrupt_delay) {
 		if (!m68k_accurate_ipl && regs.ipl_pin > regs.intmask) {
 			set_special(SPCFLAG_INT);
 		}
 		return;
 	}
-	if (regs.ipl_pin > regs.intmask) {
+
+	if (regs.ipl_pin > regs.intmask || currprefs.cachesize) {
 		if (currprefs.cpu_compatible && currprefs.cpu_model < 68020)
 			set_special(SPCFLAG_INT);
 		else
@@ -6043,6 +6048,7 @@ static void m68k_run_2ce (void)
 		
 				wait_memory_cycles();
 				regs.instruction_cnt++;
+				regs.ce020extracycles++;
 
 		cont:
 				if (r->spcflags || regs.ipl[0] > 0) {
