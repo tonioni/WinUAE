@@ -24,12 +24,16 @@ extern bool rp_mouseevent(int x, int y, int buttons, int buttonmask);
 extern bool rp_ismouseevent(void);
 extern void rp_reset(void);
 extern void rp_test(void);
+extern bool rp_isprinter(void);
+extern bool rp_isprinteropen(void);
+extern void rp_writeprinter(uae_char*, int);
 
 extern TCHAR *rp_param;
 extern int rp_rpescapekey;
 extern int rp_rpescapeholdtime;
 extern int rp_screenmode;
 extern int rp_inputmode;
+extern int rp_printer;
 extern int log_rp;
 
 extern void rp_input_change (int num);

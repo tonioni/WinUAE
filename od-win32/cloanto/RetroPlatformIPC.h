@@ -2,14 +2,14 @@
  Name    : RetroPlatformIPC.h
  Project : RetroPlatform Player
  Support : http://www.retroplatform.com
- Legal   : Copyright 2007-2021 Cloanto Corporation - All rights reserved. This
+ Legal   : Copyright 2007-2022 Cloanto Corporation - All rights reserved. This
          : file is multi-licensed under the terms of the Mozilla Public License
          : version 2.0 as published by Mozilla Corporation and the GNU General
          : Public License, version 2 or later, as published by the Free
          : Software Foundation.
  Authors : os, m
  Created : 2007-08-27 13:55:49
- Updated : 2021-10-17 10:43:32
+ Updated : 2022-12-03 11:27:12
  Comment : RetroPlatform Player interprocess communication include file
  *****************************************************************************/
 
@@ -18,9 +18,9 @@
 
 #include <windows.h>
 
-#define RETROPLATFORM_API_VER       "10.0"
+#define RETROPLATFORM_API_VER       "10.1"
 #define RETROPLATFORM_API_VER_MAJOR  10
-#define RETROPLATFORM_API_VER_MINOR  0
+#define RETROPLATFORM_API_VER_MINOR  1
 
 #define RPIPC_HostWndClass   "RetroPlatformHost%s"
 #define RPIPC_GuestWndClass  "RetroPlatformGuest%d"
@@ -72,6 +72,12 @@
 #define RP_IPC_TO_HOST_TEXT_CURSOR_INFO     (WM_APP + 42) // introduced in RetroPlatform API 7.9
 #define RP_IPC_TO_HOST_SET_MOUSE_CURSOR     (WM_APP + 43) // introduced in RetroPlatform API 7.10
 #define RP_IPC_TO_HOST_EXECUTE_RESULT       (WM_APP + 44) // introduced in RetroPlatform API 10.0
+#define RP_IPC_TO_HOST_DEVICEOPEN           (WM_APP + 45) // introduced in RetroPlatform API 10.0
+#define RP_IPC_TO_HOST_DEVICECLOSE          (WM_APP + 46) // introduced in RetroPlatform API 10.0
+#define RP_IPC_TO_HOST_DEVICEREADBYTE       (WM_APP + 47) // introduced in RetroPlatform API 10.0
+#define RP_IPC_TO_HOST_DEVICEWRITEBYTE      (WM_APP + 48) // introduced in RetroPlatform API 10.0
+#define RP_IPC_TO_HOST_PRIVATE_CANTYPECLIPB (WM_APP + 49) // introduced in RetroPlatform API 10.0
+#define RP_IPC_TO_HOST_DEVICEWRITEBYTES     (WM_APP + 50) // introduced in RetroPlatform API 10.1
 
 // ****************************************************************************
 //  Host-to-Guest Messages
@@ -322,16 +328,18 @@ typedef struct RPDeviceContent
 
 
 // Device Categories
-#define RP_DEVICECATEGORY_FLOPPY         0 // floppy disk drive
-#define RP_DEVICECATEGORY_HD             1 // hard disk drive
-#define RP_DEVICECATEGORY_CD             2 // CD/DVD drive
-#define RP_DEVICECATEGORY_NET            3 // network card
-#define RP_DEVICECATEGORY_TAPE           4 // cassette tape drive
-#define RP_DEVICECATEGORY_CARTRIDGE      5 // expansion cartridge
-#define RP_DEVICECATEGORY_INPUTPORT      6 // input port (hosts an INPUTDEVICE: mouse, joystick, etc.)
-#define RP_DEVICECATEGORY_KEYBOARD       7 // keyboard
-#define RP_DEVICECATEGORY_MULTITAPPORT   8 // multitap port (e.g. input port on Amiga parallel port joystick adapter)
-#define RP_DEVICECATEGORY_COUNT          9 // total number of device categories
+#define RP_DEVICECATEGORY_FLOPPY         0  // floppy disk drive
+#define RP_DEVICECATEGORY_HD             1  // hard disk drive
+#define RP_DEVICECATEGORY_CD             2  // CD/DVD drive
+#define RP_DEVICECATEGORY_NET            3  // network card
+#define RP_DEVICECATEGORY_TAPE           4  // cassette tape drive
+#define RP_DEVICECATEGORY_CARTRIDGE      5  // expansion cartridge
+#define RP_DEVICECATEGORY_INPUTPORT      6  // input port (hosts an INPUTDEVICE: mouse, joystick, etc.)
+#define RP_DEVICECATEGORY_KEYBOARD       7  // keyboard
+#define RP_DEVICECATEGORY_MULTITAPPORT   8  // multitap port (e.g. input port on Amiga parallel port joystick adapter)
+#define RP_DEVICECATEGORY_MODEM          9  // virtual modem
+#define RP_DEVICECATEGORY_PRINTER        10 // printer
+#define RP_DEVICECATEGORY_COUNT          11 // total number of device categories
 
 #define RP_ALL_DEVICES             32 // constant for the RP_IPC_TO_HOST_DEVICEACTIVITY message (to turn on/off all LEDs for a device category)
 
@@ -631,6 +639,11 @@ typedef struct RPExecuteResult
 	DWORD dwOutputLength;    // length of the output string (not including the terminating null character)
 	WCHAR szOutput[1];       // output string (variable-sized array)
 } RPEXECUTERESULT;
+
+
+// RP_IPC_TO_HOST_DEVICEREADBYTE returned flag
+#define RP_READBYTE_OK        0x80000000 // a byte was read from the specified device
+#define RP_READBYTE_BYTEMASK  0x000000FF // byte mask
 
 
 // Legacy Compatibility
