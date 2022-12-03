@@ -2069,15 +2069,15 @@ static void update_68k_cycles (void)
 		cycles_mult = CYCLES_DIV;
 		if (currprefs.cpu_model >= 68040) {
 			if (currprefs.mmu_model) {
-				cycles_mult = CYCLES_DIV / 20;
+				cycles_mult = CYCLES_DIV / 24;
 			} else {
-				cycles_mult = CYCLES_DIV / 12;
+				cycles_mult = CYCLES_DIV / 16;
 			}
 		} else if (currprefs.cpu_model >= 68020) {
 			if (currprefs.mmu_model) {
-				cycles_mult = CYCLES_DIV / 10;
+				cycles_mult = CYCLES_DIV / 12;
 			} else {
-				cycles_mult = CYCLES_DIV / 6;
+				cycles_mult = CYCLES_DIV / 8;
 			}
 		}
 
@@ -2089,7 +2089,7 @@ static void update_68k_cycles (void)
 			}
 		}
 	} else if (currprefs.m68k_speed < 0) {
-		cycles_mult = CYCLES_DIV / 20;
+		cycles_mult = CYCLES_DIV / 21;
 	} else {
 		if (currprefs.m68k_speed >= 0 && !currprefs.cpu_cycle_exact && !currprefs.cpu_compatible) {
 			if (currprefs.m68k_speed_throttle < 0) {
@@ -2099,6 +2099,7 @@ static void update_68k_cycles (void)
 			}
 		}
 	}
+	cycles_mult &= ~0x7f;
 
 	currprefs.cpu_clock_multiplier = changed_prefs.cpu_clock_multiplier;
 	currprefs.cpu_frequency = changed_prefs.cpu_frequency;
@@ -2292,7 +2293,7 @@ STATIC_INLINE void wait_memory_cycles (void)
 	}
 	if (regs.ce020extracycles >= 16) {
 		regs.ce020extracycles = 0;
-		x_do_cycles(4 * CYCLE_UNIT);
+		x_do_cycles(2 * cpucycleunit);
 	}
 }
 
@@ -6166,13 +6167,13 @@ static void m68k_run_2p (void)
 
 				if (currprefs.cpu_memory_cycle_exact) {
 
+					evt_t c = get_cycles();
 					(*cpufunctbl[r->opcode])(r->opcode);
-					// 0% = no extra cycles
-					cpu_cycles = 4 * CYCLE_UNIT * cycles_mult;
-					cpu_cycles /= CYCLES_DIV;
-					cpu_cycles -= CYCLE_UNIT;
-					if (cpu_cycles <= 0)
+					c = get_cycles() - c;
+					cpu_cycles = 0;
+					if (c <= cpucycleunit) {
 						cpu_cycles = cpucycleunit;
+					}
 					regs.instruction_cnt++;
 
 				} else {
