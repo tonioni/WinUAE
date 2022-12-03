@@ -211,7 +211,7 @@ static const TCHAR help[] = {
 	_T("  W <addr> 'string'     Write into Amiga memory.\n")
 	_T("  Wf <addr> <endaddr> <bytes or string like above>, fill memory.\n")
 	_T("  Wc <addr> <endaddr> <destaddr>, copy memory.\n")
-	_T("  w <num> <address> <length> <R/W/I> <F/C/L/N> [<value>[.x]] (read/write/opcode) (freeze/mustchange/logonly/nobreak).\n")
+	_T("  w <num> <address> <length> <R/W/I> <F/C/L/N> [V<value>[.x]] (read/write/opcode) (freeze/mustchange/logonly/nobreak).\n")
 	_T("                        Add/remove memory watchpoints.\n")
 	_T("  wd [<0-1>]            Enable illegal access logger. 1 = enable break.\n")
 	_T("  L <file> <addr> [<n>] Load a block of Amiga memory.\n")
@@ -1035,12 +1035,13 @@ static void converter (TCHAR **c)
 	console_out_f (_T("0x%08X = %%%s = %u = %d\n"), v, s, v, (uae_s32)v);
 }
 
-int notinrom (void)
+static bool isrom(uaecptr addr)
 {
-	uaecptr pc = munge24 (m68k_getpc ());
-	if (pc < 0x00e00000 || pc > 0x00ffffff)
-		return 1;
-	return 0;
+	addrbank *ab = &get_mem_bank(addr);
+	if (ab->flags & ABFLAG_ROM) {
+		return true;
+	}
+	return false;
 }
 
 static uae_u32 lastaddr (void)
@@ -3738,8 +3739,6 @@ static int memwatch_func (uaecptr addr, int rwi, int size, uae_u32 *valp, uae_u3
 			}
 			return 0;
 		}
-		//	if (!notinrom ())
-		//	    return 1;
 		mwhit.addr = addr;
 		mwhit.rwi = rwi;
 		mwhit.size = size;
@@ -4449,26 +4448,23 @@ static void memwatch (TCHAR **c)
 						mwn->reportonly = true;
 					if (nc == 'N')
 						mwn->nobreak = true;
-					if (ncc == ' ' || ncc == 0)
-						break;
 					if (nc == 'P' && ncc == 'C') {
 						next_char(c);
 						mwn->pc = readhex(c, NULL);
+					}
+					if (_totupper(**c) == 'M') {
+						mwn->modval_written = 1;
+					} else if (_totupper(**c) == 'C') {
+						mwn->mustchange = 1;
+					} else if (_totupper(**c) == 'V') {
+						next_char(c);
+						mwn->val = readhex(c, &mwn->val_size);
+						mwn->val_enabled = 1;
 					}
 					if (!more_params(c))
 						break;
 				}
 				ignore_ws (c);
-			}
-			if (more_params (c)) {
-				if (_totupper (**c) == 'M') {
-					mwn->modval_written = 1;
-				} else if (_totupper (**c) == 'C') {
-					mwn->mustchange = 1;
-				} else {
-					mwn->val = readhex (c, &mwn->val_size);
-					mwn->val_enabled = 1;
-				}
 			}
 		}
 	}
@@ -6975,7 +6971,7 @@ void debug (void)
 						}
 					}
 				}
-				if ((processptr || processname) && notinrom()) {
+				if ((processptr || processname) && !isrom(m68k_getpc())) {
 					uaecptr execbase = get_long_debug (4);
 					uaecptr activetask = get_long_debug (execbase + 276);
 					int process = get_byte_debug (activetask + 8) == 13 ? 1 : 0;
