@@ -3285,11 +3285,13 @@ static int debug_mem_off (uaecptr *addrp)
 
 struct smc_item {
 	uae_u32 addr;
+	uae_u16 version;
 	uae_u8 cnt;
 };
 
-static int smc_size, smc_mode;
+static uae_u32 smc_size, smc_mode;
 static struct smc_item *smc_table;
+static uae_u16 smc_version;
 
 static void smc_free (void)
 {
@@ -3309,35 +3311,41 @@ static void smc_detect_init(TCHAR **c)
 	v = readint(c, NULL);
 	smc_free();
 	smc_size = 1 << 24;
-	if (currprefs.z3fastmem[0].size)
-		smc_size = currprefs.z3autoconfig_start + currprefs.z3fastmem[0].size;
-	smc_size += 4;
-	smc_table = xmalloc(struct smc_item, smc_size);
+	if (highest_ram > smc_size) {
+		smc_size = highest_ram;
+	}
+	smc_table = xcalloc(struct smc_item, smc_size + 4);
 	if (!smc_table) {
-		console_out_f(_T("Failed to allocated SMCD buffers, %d bytes needed\n."), sizeof(struct smc_item) * smc_size);
+		console_out_f(_T("Failed to allocated SMCD buffers, %d bytes needed\n."), sizeof(struct smc_item) * smc_size + 4);
 		return;
 	}
-	for (int i = 0; i < smc_size; i++) {
-		struct smc_item *si = &smc_table[i];
-		si->addr = 0xffffffff;
-		si->cnt = 0;
-	}
+	smc_version = 0xffff;
+	debug_smc_clear(-1, 0);
 	if (!memwatch_enabled)
 		initialize_memwatch(0);
 	if (v)
 		smc_mode = 1;
-	console_out_f(_T("SMCD enabled. Break=%d\n"), smc_mode);
+	console_out_f(_T("SMCD enabled. Break=%d. Last address=%08x\n"), smc_mode, smc_size);
 }
 
 void debug_smc_clear(uaecptr addr, int size)
 {
 	if (!smc_table)
 		return;
-	for (int i = 0; i < smc_size; i++) {
-		struct smc_item *si = &smc_table[i];
-		if (size < 0 || (si->addr >= addr && si->addr < addr + size)) {
-			si->addr = 0xffffffff;
-			si->cnt = 0;
+	smc_version++;
+	if (smc_version == 0) {
+		for (uae_u32 i = 0; i < smc_size; i += 65536) {
+			addrbank *ab = &get_mem_bank(i);
+			if (ab->flags & (ABFLAG_RAM | ABFLAG_ROM)) {
+				for (uae_u32 j = 0; j < 65536; j++) {
+					struct smc_item *si = &smc_table[i + j];
+					if (size < 0 || (si->addr >= addr && si->addr < addr + size)) {
+						si->addr = 0xffffffff;
+						si->cnt = 0;
+						si->version = smc_version;
+					}
+				}
+			}
 		}
 	}
 }
@@ -3352,29 +3360,48 @@ static void smc_detector(uaecptr addr, int rwi, int size, uae_u32 *valp)
 		return;
 	if (addr + size > smc_size)
 		return;
+
+	if (addr < 0x100 || addr > 0x200)
+		return;
+
 	if (rwi == 2) {
 		for (int i = 0; i < size; i++) {
-			if (smc_table[addr + i].cnt < SMC_MAXHITS) {
-				smc_table[addr + i].addr = m68k_getpc();
+			struct smc_item *si = &smc_table[addr + i];
+			if (si->version != smc_version) {
+				si->version = smc_version;
+				si->addr = 0xffffffff;
+				si->cnt = 0;
+			}	
+			if (si->cnt < SMC_MAXHITS) {
+				si->addr = m68k_getpc();
 			}
 		}
 		return;
 	}
 	hitpc = 0xffffffff;
 	for (int i = 0; i < size && hitpc == 0xffffffff && addr + i < smc_size; i += 2) {
-		hitpc = smc_table[addr + i].addr;
+		struct smc_item *si = &smc_table[addr + i];
+		if (si->version == smc_version) {
+			hitpc = si->addr;
+		}
 	}
 	if (hitpc == 0xffffffff) {
 		return;
 	}
+	if ((hitpc & 0xFFF80000) == 0xF80000) {
+		return;
+	}
 	hitaddr = addr;
 	hitcnt = 0;
-	while (addr < smc_size && smc_table[addr].addr != 0xffffffff) {
-		smc_table[addr++].addr = 0xffffffff;
+	while (addr < smc_size) {
+		struct smc_item *si = &smc_table[addr];
+		if (si->addr == 0xffffffff || si->version != smc_version) {
+			break;
+		}
+		si->addr = 0xffffffff;
 		hitcnt++;
+		addr++;
 	}
-	if ((hitpc & 0xFFF80000) == 0xF80000)
-		return;
 	if (currprefs.cpu_model <= 68010 && currprefs.cpu_compatible) {
 		/* ignore single-word unconditional jump instructions
 		* (instruction prefetch from PC+2 can cause false positives) */
@@ -3384,13 +3411,15 @@ static void smc_detector(uaecptr addr, int rwi, int size, uae_u32 *valp)
 			return; /* BRA.B */
 	}
 	if (hitcnt < 100) {
-		smc_table[hitaddr].cnt++;
-		console_out_f (_T("SMC at %08X - %08X (%d) from %08X\n"),
-			hitaddr, hitaddr + hitcnt, hitcnt, hitpc);
-		if (smc_mode)
+		struct smc_item *si = &smc_table[hitaddr];
+		si->cnt++;
+		console_out_f(_T("SMC at %08X - %08X (%d) from %08X\n"), hitaddr, hitaddr + hitcnt, hitcnt, hitpc);
+		if (smc_mode) {
 			activate_debugger_new();
-		if (smc_table[hitaddr].cnt >= SMC_MAXHITS)
-			console_out_f (_T("* hit count >= %d, future hits ignored\n"), SMC_MAXHITS);
+		}
+		if (si->cnt >= SMC_MAXHITS) {
+			console_out_f(_T("* hit count >= %d, future hits ignored\n"), SMC_MAXHITS);
+		}
 	}
 }
 
