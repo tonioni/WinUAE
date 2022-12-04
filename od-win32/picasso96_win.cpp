@@ -81,7 +81,7 @@ int debug_rtg_blitter = 3;
 
 #define NOBLITTER (0 || !(debug_rtg_blitter & 1))
 #define NOBLITTER_BLIT (0 || !(debug_rtg_blitter & 2))
-#define NOBLITTER_ALL 1
+#define NOBLITTER_ALL 0
 
 static int hwsprite = 0;
 static int picasso96_BT = BT_uaegfx;
@@ -1555,7 +1555,7 @@ static void picasso_handle_hsync(void)
 #define BLT_NAME BLIT_SRC_8
 #define BLT_NAME_MASK BLIT_SRC_MASK_8
 #define BLT_FUNC(s,d) *d = *s
-#define BLT_FUNC_MASK(s,d,mask) *d = ((*d) & ~mask) | (((*s) | (*d)) & mask)
+#define BLT_FUNC_MASK(s,d,mask) *d = ((*d) & ~mask) | ((*s) & mask)
 #include "../p96_blit.cpp"
 #define BLT_NAME BLIT_NOTONLYDST_8
 #define BLT_NAME_MASK BLIT_NOTONLYDST_MASK_8

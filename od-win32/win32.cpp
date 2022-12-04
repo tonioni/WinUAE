@@ -6654,6 +6654,11 @@ static int parseargs(const TCHAR *argx, const TCHAR *np, const TCHAR *np2)
 		nocrashdump = 1;
 		return 1;
 	}
+	if (!_tcscmp(arg, _T("rpprinter"))) {
+		rp_printer = 1;
+		return 1;
+	}
+
 	if (!np)
 		return 0;
 

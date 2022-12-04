@@ -136,6 +136,7 @@ extern bool a2091_init (struct autoconfig_info *aci);
 extern bool gvp_init_s1(struct autoconfig_info *aci);
 extern bool gvp_init_s2(struct autoconfig_info *aci);
 extern bool gvp_init_accelerator(struct autoconfig_info *aci);
+extern bool gvp_init_a1208(struct autoconfig_info *aci);
 
 extern bool comspec_init (struct autoconfig_info *aci);
 extern bool comspec_preinit (struct autoconfig_info *aci);
@@ -160,6 +161,7 @@ extern void a2091_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct ro
 extern void gvp_s1_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
 extern void gvp_s2_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
 extern void gvp_s2_add_accelerator_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
+extern void gvp_a1208_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
 extern void a3000_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
 extern void comspec_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc);
 
