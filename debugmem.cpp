@@ -512,13 +512,21 @@ void branch_stack_pop_rts(uaecptr oldpc)
 
 void branch_stack_push(uaecptr oldpc, uaecptr newpc)
 {
-	if (!stackframes)
+	if (!stackframes) {
 		return;
+	}
 	if (!stackframemode) {
-		if (debug_waiting || (!regs.s && get_long_host(exec_thistask) != debug_task))
+		if (debug_waiting || (!regs.s && get_long_host(exec_thistask) != debug_task)) {
 			return;
+		}
 	}
 	int cnt = regs.s ? stackframecntsuper : stackframecnt;
+	if (cnt >= MAX_STACKFRAMES) {
+		write_log(_T("Stack frame %c max limit reached!\n"), regs.s ? 'S' : 'U');
+		stackframecntsuper = 0;
+		stackframecnt = 0;
+		return;
+	}
 	struct debugstackframe *sf = regs.s ? &stackframessuper[cnt] : &stackframes[cnt];
 	sf->current_pc = regs.instruction_pc;
 	sf->next_pc = newpc;

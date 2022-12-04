@@ -47,8 +47,10 @@ int rp_rpescapekey = 0x01;
 int rp_rpescapeholdtime = 600;
 int rp_screenmode = 0;
 int rp_inputmode = 0;
+int rp_printer = 0;
 int log_rp = 2;
 static int rp_revision, rp_version, rp_build;
+static int rp_printeropen = 0;
 static int max_horiz_dbl = RES_HIRES;
 static int max_vert_dbl = VRES_DOUBLE;
 
@@ -2375,6 +2377,36 @@ void rp_reset(void)
 	if (!initialized)
 		return;
 	device_add_vsync_pre(rp_vsync);
+}
+
+
+bool rp_isprinter(void)
+{
+	return rp_printer != 0;
+}
+bool rp_isprinteropen(void)
+{
+	return rp_printer != 0 && rp_printeropen != 0;
+}
+void rp_writeprinter(uae_char *b, int len)
+{
+	if (!initialized)
+		return;
+	WPARAM unit = MAKEWORD(RP_DEVICECATEGORY_PRINTER, 0);
+	if (!b) {
+		if (rp_printeropen) {
+			write_log(_T("RP: printer close\n"));
+			RPSendMessagex(RP_IPC_TO_HOST_DEVICECLOSE, unit, 0, NULL, 0, &guestinfo, NULL);
+		}
+		rp_printeropen = 0;
+		return;
+	}
+	if (!rp_printeropen) {
+		write_log(_T("RP: printer open\n"));
+		RPSendMessagex(RP_IPC_TO_HOST_DEVICEOPEN, unit, 0, NULL, 0, &guestinfo, NULL);
+		rp_printeropen = 1;
+	}
+	RPSendMessagex(RP_IPC_TO_HOST_DEVICEWRITEBYTES, unit, 0, b, len, &guestinfo, NULL);
 }
 
 void rp_test(void)

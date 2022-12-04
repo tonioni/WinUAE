@@ -87,6 +87,7 @@
 #define GVP_A1291_SCSI		0x47
 #define GVP_COMBO_R4		0x60
 #define GVP_COMBO_R4_SCSI	0x70
+#define GVP_A1208			0x97
 #define GVP_IO_EXTENDER		0x98
 #define GVP_GFORCE_030		0xa0
 #define GVP_GFORCE_030_SCSI	0xb0
@@ -276,6 +277,7 @@ static struct wd_state *wd_a2090[MAX_DUPLICATE_EXPANSION_BOARDS];
 static struct wd_state *wd_a3000;
 static struct wd_state *wd_gvps1[MAX_DUPLICATE_EXPANSION_BOARDS];
 static struct wd_state *wd_gvps2[MAX_DUPLICATE_EXPANSION_BOARDS];
+static struct wd_state *wd_gvpa1208[MAX_DUPLICATE_EXPANSION_BOARDS];
 static struct wd_state *wd_gvps2accel;
 static struct wd_state *wd_comspec[MAX_DUPLICATE_EXPANSION_BOARDS];
 struct wd_state *wd_cdtv;
@@ -1548,6 +1550,7 @@ static void scsi_hsync(void)
 		scsi_hsync2_a2091(wd_a2090[i]);
 		scsi_hsync2_gvp(wd_gvps1[i]);
 		scsi_hsync2_gvp(wd_gvps2[i]);
+		scsi_hsync2_gvp(wd_gvpa1208[i]);
 		scsi_hsync2_comspec(wd_comspec[i]);
 	}
 	scsi_hsync2_gvp(wd_gvps2accel);
@@ -3998,6 +4001,14 @@ void gvp_s2_add_accelerator_scsi_unit(int ch, struct uaedev_config_info *ci, str
 	add_scsi_device(&wd->scsis[ch], ch, ci, rc);
 }
 
+void gvp_a1208_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc)
+{
+	struct wd_state *wd = allocscsi(&wd_gvpa1208[ci->controller_type_unit], rc, ch);
+	if (!wd || ch < 0)
+		return;
+	add_scsi_device(&wd->scsis[ch], ch, ci, rc);
+}
+
 static void a2091_free_device (struct wd_state *wd)
 {
 	freencrunit(wd);
@@ -4243,6 +4254,7 @@ static void gvp_free(void)
 	for (int i = 0; i < MAX_DUPLICATE_EXPANSION_BOARDS; i++) {
 		gvp_free_device(wd_gvps1[i]);
 		gvp_free_device(wd_gvps2[i]);
+		gvp_free_device(wd_gvpa1208[i]);
 	}
 	gvp_free_device(wd_gvps2accel);
 }
@@ -4266,6 +4278,7 @@ static void gvp_reset(int hardreset)
 	for (int i = 0; i < MAX_DUPLICATE_EXPANSION_BOARDS; i++) {
 		gvp_reset_device(wd_gvps1[i]);
 		gvp_reset_device(wd_gvps2[i]);
+		gvp_reset_device(wd_gvpa1208[i]);
 	}
 	gvp_reset_device(wd_gvps2accel);
 }
@@ -4280,7 +4293,7 @@ static bool is_gvp_accelerator(void)
 	return ISCPUBOARD(BOARD_GVP, -1);
 }
 
-static bool gvp_init(struct autoconfig_info *aci, bool series2, bool accel)
+static bool gvp_init(struct autoconfig_info *aci, bool series2, bool accel, uae_u8 gvp_id)
 {
 	int romtype;
 	bool autoboot_disabled = false;
@@ -4406,7 +4419,7 @@ static bool gvp_init(struct autoconfig_info *aci, bool series2, bool accel)
 	}
 
 	if (series2) {
-		wd->gdmac.version = GVP_SERIESII;
+		wd->gdmac.version = gvp_id;
 		wd->gdmac.addr_mask = 0x00ffffff;
 		if (ISCPUBOARD(BOARD_GVP, BOARD_GVP_SUB_A530)) {
 			wd->gdmac.version = isscsi ? GVP_A530_SCSI : GVP_A530;
@@ -4434,15 +4447,19 @@ static bool gvp_init(struct autoconfig_info *aci, bool series2, bool accel)
 
 bool gvp_init_s1(struct autoconfig_info *aci)
 {
-	return gvp_init(aci, false, false);
+	return gvp_init(aci, false, false, 0);
 }
 bool gvp_init_s2(struct autoconfig_info *aci)
 {
-	return gvp_init(aci, true, false);
+	return gvp_init(aci, true, false, GVP_SERIESII);
 }
 bool gvp_init_accelerator(struct autoconfig_info *aci)
 {
-	return gvp_init(aci, true, true);
+	return gvp_init(aci, true, true, 0);
+}
+bool gvp_init_a1208(struct autoconfig_info *aci)
+{
+	return gvp_init(aci, true, true, GVP_A1208);
 }
 
 void cdtv_add_scsi_unit (int ch, struct uaedev_config_info *ci, struct romconfig *rc)
