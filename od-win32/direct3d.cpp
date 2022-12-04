@@ -1841,10 +1841,10 @@ static int createmask2texture (struct d3dstruct *d3d, const TCHAR *filename)
 	xmult = d3d->mask2texture_multx;
 	ymult = d3d->mask2texture_multy;
 
-	d3d->mask2rect.left *= (LONG)xmult;
-	d3d->mask2rect.right *= (LONG)xmult;
-	d3d->mask2rect.top *= (LONG)ymult;
-	d3d->mask2rect.bottom *= (LONG)ymult;
+	d3d->mask2rect.left = (LONG)(d3d->mask2rect.left * xmult);
+	d3d->mask2rect.right = (LONG)(d3d->mask2rect.right * xmult);
+	d3d->mask2rect.top = (LONG)(d3d->mask2rect.top * ymult);
+	d3d->mask2rect.bottom = (LONG)(d3d->mask2rect.bottom * ymult);
 	d3d->mask2texture_wwx = d3d->mask2texture_w * xmult;
 	if (d3d->mask2texture_wwx > d3d->window_w)
 		d3d->mask2texture_wwx = (float)d3d->window_w;
