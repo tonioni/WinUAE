@@ -1034,7 +1034,7 @@ void romlist_clear (void)
 }
 
 /* remove rom entries that need 2 or more roms but not everything required is present */
-static void romlist_cleanup (void)
+static void romlist_cleanup(void)
 {
 	int i = 0;
 	while (roms[i].name) {
@@ -1044,21 +1044,21 @@ static void romlist_cleanup (void)
 		int j = i;
 		int k = i;
 		while (rd->name && (rd->group >> 16) == grp && grp > 0) {
-			struct romlist *rl = romlist_getrl (rd);
+			struct romlist *rl = romlist_getrl(rd);
 			if (!rl)
 				ok = 0;
 			rd++;
 			j++;
 		}
 		if (ok == 0) {
-			while (i < j) {
-				struct romlist *rl2 = romlist_getrl (&roms[i]);
+			while (i < j && roms[i].name) {
+				struct romlist *rl2 = romlist_getrl(&roms[i]);
 				if (rl2) {
 					size_t cnt = romlist_cnt - (rl2 - rl) - 1;
-					write_log (_T("%s '%s' removed from romlist\n"), roms[k].name, rl2->path);
-					xfree (rl2->path);
+					write_log(_T("%s '%s' removed from romlist\n"), roms[k].name, rl2->path);
+					xfree(rl2->path);
 					if (cnt > 0)
-						memmove (rl2, rl2 + 1, cnt * sizeof (struct romlist));
+						memmove(rl2, rl2 + 1, cnt * sizeof (struct romlist));
 					romlist_cnt--;
 				}
 				i++;
