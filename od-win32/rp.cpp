@@ -48,9 +48,11 @@ int rp_rpescapeholdtime = 600;
 int rp_screenmode = 0;
 int rp_inputmode = 0;
 int rp_printer = 0;
+int rp_modem = 0;
 int log_rp = 2;
 static int rp_revision, rp_version, rp_build;
 static int rp_printeropen = 0;
+static int rp_modemopen = 0;
 static int max_horiz_dbl = RES_HIRES;
 static int max_vert_dbl = VRES_DOUBLE;
 
@@ -165,6 +167,8 @@ static const TCHAR *getmsg (int msg)
 	case RP_IPC_TO_GUEST_SENDMOUSEEVENTS: return _T("RP_IPC_TO_GUEST_SENDMOUSEEVENTS");
 	case RP_IPC_TO_GUEST_SHOWDEBUGGER: return _T("RP_IPC_TO_GUEST_SHOWDEBUGGER");
 	case RP_IPC_TO_GUEST_EXECUTE: return _T("RP_IPC_TO_GUEST_EXECUTE");
+	case RP_IPC_TO_GUEST_DEVICEWRITEBYTE: return _T("RP_IPC_TO_GUEST_DEVICEWRITEBYTE");
+	case RP_IPC_TO_GUEST_DEVICESETSIGNALS: return _T("RP_IPC_TO_GUEST_DEVICESETSIGNALS");
 	default: return _T("UNKNOWN");
 	}
 }
@@ -1282,6 +1286,47 @@ static void dos_execute_callback(uae_u32 id, uae_u32 status, uae_u32 flags, cons
 	}
 }
 
+extern bool serreceive_external(uae_u16);
+static int rp_readmodemint(WPARAM wp, LPARAM lp)
+{
+	if (wp != MAKEWORD(RP_DEVICECATEGORY_MODEM, 0)) {
+		return 0;
+	}
+	uae_u8 b = (uae_u8)lp;
+	bool v = serreceive_external(b | 0x100);
+	return v ? 1 : -1;
+}
+
+static bool modem_cts, modem_cd, modem_ri, modem_dsr;
+void rp_readmodemstatus(bool *dsr, bool *cd, bool *cts, bool *ri)
+{
+	*dsr = modem_dsr;
+	*cd = modem_cd;
+	*cts = modem_cts;
+	*ri = modem_ri;
+}
+static int rp_readmodemstatusint(WPARAM wp, LPARAM lp)
+{
+	if (wp != MAKEWORD(RP_DEVICECATEGORY_MODEM, 0)) {
+		return 0;
+	}
+	uae_u16 mask = LOWORD(lp);
+	uae_u16 val = HIWORD(lp);
+	if (mask & RP_SIGNAL_CTS) {
+		modem_cts = (val & RP_SIGNAL_CTS) != 0;
+	}
+	if (mask & RP_SIGNAL_RI) {
+		modem_ri = (val & RP_SIGNAL_RI) != 0;
+	}
+	if (mask & RP_SIGNAL_DSR) {
+		modem_dsr = (val & RP_SIGNAL_DSR) != 0;
+	}
+	if (mask & RP_SIGNAL_CD) {
+		modem_cd = (val & RP_SIGNAL_CD) != 0;
+	}
+	return 1;
+}
+
 static int dosexecute(TCHAR *file, TCHAR *currentdir, TCHAR *parms, uae_u32 stack, uae_s32 priority, uae_u32 id, uae_u32 flags, uae_u8 *bin, uae_u32 binsize)
 {
 	int ret = filesys_shellexecute2(file, currentdir, parms, stack, priority, id, flags, bin, binsize, dos_execute_callback, NULL);
@@ -1536,6 +1581,10 @@ static LRESULT CALLBACK RPHostMsgFunction2 (UINT uMessage, WPARAM wParam, LPARAM
 		return 1;
 	case RP_IPC_TO_GUEST_EXECUTE:
 		return execute(pData);
+	case RP_IPC_TO_GUEST_DEVICEWRITEBYTE:
+		return rp_readmodemint(wParam, lParam);
+	case RP_IPC_TO_GUEST_DEVICESETSIGNALS:
+		return rp_readmodemstatusint(wParam, lParam);
 	}
 	return FALSE;
 }
@@ -2379,6 +2428,49 @@ void rp_reset(void)
 	device_add_vsync_pre(rp_vsync);
 }
 
+bool rp_ismodem(void)
+{
+	return rp_modem != 0;
+}
+void rp_writemodem(uae_u8 v)
+{
+	if (!initialized) {
+		return;
+	}
+	if (!rp_modemopen) {
+		rp_modemstate(1);
+	}
+	WPARAM unit = MAKEWORD(RP_DEVICECATEGORY_MODEM, 0);
+	RPSendMessagex(RP_IPC_TO_HOST_DEVICEWRITEBYTE, unit, v, NULL, 0, &guestinfo, NULL);
+}
+void rp_modemstate(int state)
+{
+	if (!initialized) {
+		return;
+	}
+	if (state == rp_modemopen) {
+		return;
+	}
+	WPARAM unit = MAKEWORD(RP_DEVICECATEGORY_MODEM, 0);
+	if (state) {
+		write_log(_T("RP: modem open\n"));
+		RPSendMessagex(RP_IPC_TO_HOST_DEVICEOPEN, unit, 0, NULL, 0, &guestinfo, NULL);
+	} else {
+		write_log(_T("RP: modem close\n"));
+		RPSendMessagex(RP_IPC_TO_HOST_DEVICECLOSE, unit, 0, NULL, 0, &guestinfo, NULL);
+	}
+	rp_modemopen = state;
+}
+void rp_writemodemstatus(bool rts, bool rtschanged, bool dtr, bool dtrchanged)
+{
+	if (!initialized) {
+		return;
+	}
+	WPARAM unit = MAKEWORD(RP_DEVICECATEGORY_MODEM, 0);
+	LPARAM l = MAKELONG((rtschanged ? RP_SIGNAL_RTS :0) | (dtrchanged ? RP_SIGNAL_DTR : 0), (rts ? RP_SIGNAL_RTS : 0) | (dtr ? RP_SIGNAL_DTR : 0));
+	RPSendMessagex(RP_IPC_TO_HOST_DEVICESETSIGNALS, unit, l, NULL, 0, &guestinfo, NULL);
+
+}
 
 bool rp_isprinter(void)
 {
@@ -2390,8 +2482,9 @@ bool rp_isprinteropen(void)
 }
 void rp_writeprinter(uae_char *b, int len)
 {
-	if (!initialized)
+	if (!initialized) {
 		return;
+	}
 	WPARAM unit = MAKEWORD(RP_DEVICECATEGORY_PRINTER, 0);
 	if (!b) {
 		if (rp_printeropen) {

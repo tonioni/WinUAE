@@ -1797,10 +1797,7 @@ static uae_u8 ReadCIAB(uae_u32 addr, uae_u32 *flags)
 	case 0:
 		tmp = (c->pra & c->dra) | (c->dra ^ 0xff);
 #ifdef SERIAL_PORT
-		if (currprefs.use_serial) {
-			tmp &= 7;
-			tmp |= serial_readstatus(c->dra) & 0xf8;
-		}
+		tmp |= serial_readstatus(tmp, c->dra);
 #endif
 #ifdef PARALLEL_PORT
 		if (isprinter() > 0) {
@@ -2049,8 +2046,7 @@ static void WriteCIAB(uae_u16 addr, uae_u8 val, uae_u32 *flags)
 		write_ciab_serial(val, c->pra, c->dra, c->dra);
 		c->pra = val;
 #ifdef SERIAL_PORT
-		if (currprefs.use_serial)
-			serial_writestatus(c->pra, c->dra);
+		serial_writestatus(c->pra, c->dra);
 #endif
 #ifdef PARALLEL_PORT
 		if (isprinter() < 0) {
