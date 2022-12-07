@@ -353,12 +353,15 @@ void fixup_cpu (struct uae_prefs *p)
 		error_log (_T("Immediate blitter and waiting blits can't be enabled simultaneously.\n"));
 		p->waiting_blits = 0;
 	}
+	if (p->cpu_memory_cycle_exact && p->cpu_model <= 68010 && p->waiting_blits) {
+		error_log(_T("Wait for blitter is not available in 68000/68010 cycle exact modes.\n"));
+		p->waiting_blits = 0;
+	}
 
 	if (p->blitter_cycle_exact && !p->cpu_memory_cycle_exact) {
 		error_log(_T("Blitter cycle-exact requires at least CPU memory cycle-exact.\n"));
 		p->blitter_cycle_exact = 0;
 	}
-
 	if (p->cpu_memory_cycle_exact)
 		p->cpu_compatible = true;
 
