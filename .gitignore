@@ -42,7 +42,6 @@ decompress
 *.htm
 *.orig
 *.rej
-aros.rom.cpp
 /blit.h
 /blitfunc.cpp
 /blitfunc.h
