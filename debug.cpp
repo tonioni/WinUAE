@@ -3361,9 +3361,6 @@ static void smc_detector(uaecptr addr, int rwi, int size, uae_u32 *valp)
 	if (addr + size > smc_size)
 		return;
 
-	if (addr < 0x100 || addr > 0x200)
-		return;
-
 	if (rwi == 2) {
 		for (int i = 0; i < size; i++) {
 			struct smc_item *si = &smc_table[addr + i];
@@ -3405,7 +3402,7 @@ static void smc_detector(uaecptr addr, int rwi, int size, uae_u32 *valp)
 	if (currprefs.cpu_model <= 68010 && currprefs.cpu_compatible) {
 		/* ignore single-word unconditional jump instructions
 		* (instruction prefetch from PC+2 can cause false positives) */
-		if (regs.irc == 0x4e75 || regs.irc == 4e74 || regs.irc == 0x4e72 || regs.irc == 0x4e77)
+		if (regs.irc == 0x4e75 || regs.irc == 0x4e74 || regs.irc == 0x4e73 || regs.irc == 0x4e77)
 			return; /* RTS, RTD, RTE, RTR */
 		if ((regs.irc & 0xff00) == 0x6000 && (regs.irc & 0x00ff) != 0 && (regs.irc & 0x00ff) != 0xff)
 			return; /* BRA.B */
@@ -7332,7 +7329,9 @@ void mmu_do_hit (void)
 	m68k_areg (regs, 7) -= 2;
 	put_word (m68k_areg (regs, 7), mmur.sr);
 #ifdef JIT
-	set_special(SPCFLAG_END_COMPILE);
+	if (currprefs.cachesize) {
+		set_special(SPCFLAG_END_COMPILE);
+	}
 #endif
 }
 

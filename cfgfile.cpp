@@ -9252,7 +9252,7 @@ int built_in_prefs (struct uae_prefs *p, int model, int config, int compa, int r
 		v = bip_super (p, config, compa, romcheck);
 		break;
 	}
-	if ((p->cpu_model >= 68020 || !p->cpu_cycle_exact || !p->cpu_memory_cycle_exact) && !p->immediate_blits)
+	if ((p->cpu_model >= 68020 || !p->cpu_memory_cycle_exact) && !p->immediate_blits)
 		p->waiting_blits = 1;
 	if (p->sound_filter_type == FILTER_SOUND_TYPE_A500 && (p->chipset_mask & CSMASK_AGA))
 		p->sound_filter_type = FILTER_SOUND_TYPE_A1200;

@@ -303,7 +303,7 @@ int maxvpos_display_vsync; // extra lines from top visible in bottom
 static int vblank_extraline;
 static int maxhposm1;
 static bool maxhposeven, maxhposeven_prev;
-static int hsyncendpos, hsyncstartpos, hsyncendpos2;
+static int hsyncendpos, hsyncstartpos;
 int hsync_end_left_border;
 static int hsyncstartpos_start, hsyncstartpos_start_cycles;
 
@@ -5993,7 +5993,6 @@ static void updateextblk(void)
 		if (hsstop_detect2 >= maxhpos * 2) {
 			hsstop_detect2 -= maxhpos * 2;
 		}
-		hsyncendpos2 = hsstop_detect2;
 
 		hsyncstartpos_start = hsyncstartpos;
 		if (hsyncstartpos < maxhpos / 2) {
@@ -6007,17 +6006,10 @@ static void updateextblk(void)
 			hsyncstartpos_start = REFRESH_FIRST_HPOS + 1;
 		}
 
-		hsyncendpos2 -= 1;
-
-		if (hsyncendpos2 < 2) {
-			hsyncendpos2 = 2;
-		}
-
 	} else {
 
 		hsyncstartpos_start = hsyncstartpos_start_hw;
 		hsyncstartpos = hsyncstartpos_hw;
-		hsyncendpos2 = hsyncendpos = hsyncendpos_hw;
 		denisehtotal = 227 + 7;
 		hsstop_detect2 = (35 + 9) * 2;
 
@@ -6080,7 +6072,6 @@ static void updateextblk(void)
 	hsyncstartpos_start <<= CCK_SHRES_SHIFT;
 	hsyncstartpos <<= CCK_SHRES_SHIFT;
 	hsyncendpos <<= CCK_SHRES_SHIFT;
-	hsyncendpos2 <<= CCK_SHRES_SHIFT;
 
 	denisehtotal <<= CCK_SHRES_SHIFT;
 
@@ -11782,8 +11773,8 @@ static void hautoscale_check(void)
 			}
 			if (diwfirstword_lores < diwfirstword_total) {
 				diwfirstword_total = diwfirstword_lores;
-				if (diwfirstword_total < coord_diw_shres_to_window_x(hsyncendpos2)) {
-					diwfirstword_total = coord_diw_shres_to_window_x(hsyncendpos2);
+				if (diwfirstword_total < coord_diw_shres_to_window_x(hsyncendpos)) {
+					diwfirstword_total = coord_diw_shres_to_window_x(hsyncendpos);
 				}
 				firstword_bplcon1 = bplcon1;
 			}

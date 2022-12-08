@@ -2398,11 +2398,12 @@ static void MakeFromSR_x(int t0trace)
 				regs.ipl[0] = 0;
 			}
 		} else {
-			if (!currprefs.cachesize && regs.ipl_pin <= regs.intmask && regs.ipl_pin > newimask) {
-				if (currprefs.cpu_compatible && currprefs.cpu_model < 68020)
+			if (regs.ipl_pin <= regs.intmask && regs.ipl_pin > newimask) {
+				if (currprefs.cpu_compatible && currprefs.cpu_model < 68020) {
 					set_special(SPCFLAG_INT);
-				else
+				} else {
 					set_special(SPCFLAG_DOINT);
+				}
 			}
 		}
 		regs.intmask = newimask;
@@ -4620,7 +4621,7 @@ static int do_specialties (int cycles)
 		do_copper();
 
 #ifdef JIT
-	if (currprefs.cachesize) {
+	if (regs.spcflags & SPCFLAG_END_COMPILE) {
 		unset_special(SPCFLAG_END_COMPILE);
 	}
 #endif

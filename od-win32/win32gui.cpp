@@ -7948,9 +7948,12 @@ static void enable_for_chipsetdlg (HWND hDlg)
 #else
 	ew (hDlg, IDC_CYCLEEXACTMEMORY, workprefs.cpu_model >= 68020);
 #endif
-	if (workprefs.immediate_blits && workprefs.waiting_blits) {
+	if ((workprefs.immediate_blits || (workprefs.cpu_memory_cycle_exact && workprefs.cpu_model <= 68010))) {
 		workprefs.waiting_blits = 0;
-		CheckDlgButton (hDlg, IDC_BLITWAIT, FALSE);
+		CheckDlgButton(hDlg, IDC_BLITWAIT, FALSE);
+		ew(hDlg, IDC_BLITWAIT, false);
+	} else {
+		ew(hDlg, IDC_BLITWAIT, TRUE);
 	}
 	ew(hDlg, IDC_BLITIMM, !workprefs.cpu_cycle_exact);
 
