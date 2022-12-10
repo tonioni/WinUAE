@@ -9,7 +9,7 @@
          : Software Foundation.
  Authors : os, m
  Created : 2007-08-27 13:55:49
- Updated : 2022-12-03 11:27:12
+ Updated : 2022-12-06 12:23:10
  Comment : RetroPlatform Player interprocess communication include file
  *****************************************************************************/
 
@@ -78,6 +78,7 @@
 #define RP_IPC_TO_HOST_DEVICEWRITEBYTE      (WM_APP + 48) // introduced in RetroPlatform API 10.0
 #define RP_IPC_TO_HOST_PRIVATE_CANTYPECLIPB (WM_APP + 49) // introduced in RetroPlatform API 10.0
 #define RP_IPC_TO_HOST_DEVICEWRITEBYTES     (WM_APP + 50) // introduced in RetroPlatform API 10.1
+#define RP_IPC_TO_HOST_DEVICESETSIGNALS     (WM_APP + 51) // introduced in RetroPlatform API 10.1
 
 // ****************************************************************************
 //  Host-to-Guest Messages
@@ -128,6 +129,8 @@
 #define RP_IPC_TO_GUEST_SETCURSORPOSITION	 (WM_APP + 246) // introduced in RetroPlatform API 7.9
 #define RP_IPC_TO_GUEST_PRIVATE_TEXTSELMENU  (WM_APP + 247) // introduced in RetroPlatform API 7.10
 #define RP_IPC_TO_GUEST_EXECUTE              (WM_APP + 248) // introduced in RetroPlatform API 10.0
+#define RP_IPC_TO_GUEST_DEVICEWRITEBYTE      (WM_APP + 249) // introduced in RetroPlatform API 10.1
+#define RP_IPC_TO_GUEST_DEVICESETSIGNALS     (WM_APP + 250) // introduced in RetroPlatform API 10.1
 
 // ****************************************************************************
 //  Message Data Structures and Defines
@@ -644,6 +647,16 @@ typedef struct RPExecuteResult
 // RP_IPC_TO_HOST_DEVICEREADBYTE returned flag
 #define RP_READBYTE_OK        0x80000000 // a byte was read from the specified device
 #define RP_READBYTE_BYTEMASK  0x000000FF // byte mask
+
+
+// RP_IPC_TO_GUEST_DEVICESETSIGNALS flags
+#define RP_SIGNAL_CTS  0x00000001 // Clear To Send
+#define RP_SIGNAL_CD   0x00000002 // Carrier Detect
+#define RP_SIGNAL_DSR  0x00000004 // Data Set Ready
+#define RP_SIGNAL_RI   0x00000008 // Ring Indicator
+// RP_IPC_TO_HOST_DEVICESETSIGNALS flags
+#define RP_SIGNAL_RTS  0x00000010 // Request To Send
+#define RP_SIGNAL_DTR  0x00000020 // Data Terminal Ready
 
 
 // Legacy Compatibility

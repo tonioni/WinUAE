@@ -449,8 +449,10 @@ uaecptr ShowEA_disp(uaecptr *pcp, uaecptr base, TCHAR *buffer, const TCHAR *name
 		addr = base + outer;
 
 		if (buffer) {
-			_stprintf(p, disasm_lc_hex(_T(" == $%08X")), addr);
-			p += _tcslen(p);
+			if (disasm_flags & DISASM_FLAG_VAL) {
+				_stprintf(p, disasm_lc_hex(_T(" == $%08X")), addr);
+				p += _tcslen(p);
+			}
 		}
 
 	} else {
@@ -470,9 +472,17 @@ uaecptr ShowEA_disp(uaecptr *pcp, uaecptr base, TCHAR *buffer, const TCHAR *name
 		addr = base + (uae_s32)((uae_s8)disp8) + dispreg;
 		if (buffer) {
 			if (pcrel) {
-				_stprintf(buffer, _T("(%s%s%s,$%02x=$%08x) == $%08x"), name, regstr, mult, (uae_u8)disp8, (*pcp) += disp8, addr);
+				if (disasm_flags & DISASM_FLAG_VAL) {
+					_stprintf(buffer, _T("(%s%s%s,$%02x=$%08x) == $%08x"), name, regstr, mult, (uae_u8)disp8, (*pcp) += disp8, addr);
+				} else {
+					_stprintf(buffer, _T("(%s%s%s,$%02x=$%08x)"), name, regstr, mult, (uae_u8)disp8, (*pcp) += disp8);
+				}
 			} else {
-				_stprintf(buffer, _T("(%s%s%s,$%02x) == $%08x"), name, regstr, mult, (uae_u8)disp8, addr);
+				if (disasm_flags & DISASM_FLAG_VAL) {
+					_stprintf(buffer, _T("(%s%s%s,$%02x) == $%08x"), name, regstr, mult, (uae_u8)disp8, addr);
+				} else {
+					_stprintf(buffer, _T("(%s%s%s,$%02x)"), name, regstr, mult, (uae_u8)disp8);
+				}
 			}
 			if (((dp & 0x0100) || m != 1) && currprefs.cpu_model < 68020) {
 				_tcscat(buffer, _T(" (68020+)"));
@@ -1683,7 +1693,10 @@ static void resolve_if_jmp(TCHAR *s, uae_u32 addr)
 	if (opcode == 0x4ef9) { // JMP x.l
 		TCHAR *p = s + _tcslen(s);
 		uae_u32 addr2 = get_long_debug(addr + 2);
-		_stprintf(p, disasm_lc_hex(_T(" == $%08X ")), addr2);
+		if (disasm_flags & DISASM_FLAG_VAL) {
+			_stprintf(p, disasm_lc_hex(_T(" == $%08X ")), addr2);
+			
+		}
 		showea_val(p + _tcslen(p), opcode, addr2, 4);
 		TCHAR txt[256];
 		bool ext;

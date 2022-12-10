@@ -27,6 +27,11 @@ extern void rp_test(void);
 extern bool rp_isprinter(void);
 extern bool rp_isprinteropen(void);
 extern void rp_writeprinter(uae_char*, int);
+extern bool rp_ismodem(void);
+extern void rp_writemodem(uae_u8);
+extern void rp_modemstate(int);
+extern void rp_writemodemstatus(bool, bool, bool, bool);
+extern void rp_readmodemstatus(bool*,bool*,bool*,bool*);
 
 extern TCHAR *rp_param;
 extern int rp_rpescapekey;
@@ -34,6 +39,7 @@ extern int rp_rpescapeholdtime;
 extern int rp_screenmode;
 extern int rp_inputmode;
 extern int rp_printer;
+extern int rp_modem;
 extern int log_rp;
 
 extern void rp_input_change (int num);

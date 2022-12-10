@@ -24,6 +24,10 @@
 #include "serial.h"
 #include "enforcer.h"
 #include "arcadia.h"
+#include "parallel.h"
+#ifdef RETROPLATFORM
+#include "rp.h"
+#endif
 
 #include "parser.h"
 
@@ -57,6 +61,8 @@ static bool serempty_enabled;
 static bool serxdevice_enabled;
 static uae_u8 serstatus;
 static bool ser_accurate;
+static uae_u16 *receive_buf;
+static int receive_buf_size, receive_buf_count;
 
 #define SER_MEMORY_MAPPING _T("WinUAE_Serial")
 
@@ -312,6 +318,39 @@ static void serial_rx_irq(void)
 	}
 }
 
+bool serreceive_external(uae_u16 v)
+{
+	if (data_in_serdatr) {
+		if (!receive_buf) {
+			receive_buf_size = 200;
+			receive_buf = xcalloc(uae_u16, receive_buf_size);
+			if (!receive_buf) {
+				return false;
+			}
+		}
+		if (receive_buf_count >= receive_buf_size) {
+			return false;
+		}
+		receive_buf[receive_buf_count++] = v;
+		return true;
+	}
+	serdatr = v;
+	serial_rx_irq();
+	return true;
+}
+
+static void receive_next_buffered(void)
+{
+	if (receive_buf && receive_buf_count > 0 && !(intreq & (1 << 11))) {
+		uae_u16 v = receive_buf[0];
+		receive_buf_count--;
+		if (receive_buf_count > 0) {
+			memmove(receive_buf, receive_buf + 1, receive_buf_count * sizeof(uae_u16));
+		}
+		serreceive_external(v);
+	}
+}
+
 void serial_rethink(void)
 {
 	if (data_in_serdatr) {
@@ -331,6 +370,7 @@ void serial_rethink(void)
 			INTREQ_INT(11, 0);
 		}
 	}
+	receive_next_buffered();
 }
 
 static TCHAR docharlog(int v)
@@ -555,6 +595,11 @@ static void checksend(void)
 	if (cubo_enabled) {
 		touch_serial_read(serdatshift);
 	}
+#ifdef RETROPLATFORM
+	if (rp_ismodem()) {
+		rp_writemodem(serdatshift & 0xff);
+	}
+#endif
 	if (serempty_enabled && !serxdevice_enabled) {
 		return;
 	}
@@ -630,7 +675,6 @@ static void sersend_serloop(uae_u32 v)
 	serial_rx_irq();
 	event2_newevent_xx(-1, v * CYCLE_UNIT, 0, sersend_end);
 }
-
 
 static void sersend_ce(uae_u32 v)
 {
@@ -886,6 +930,7 @@ uae_u16 SERDATR(void)
 	write_log (_T("SERIAL: read 0x%04x (%c) %x\n"), serdatr, dochar (serdatr), M68K_GETPC);
 #endif
 	data_in_serdatr = 0;
+	receive_next_buffered();
 	return serdatr;
 }
 
@@ -903,28 +948,38 @@ void serial_rbf_clear(void)
 	ovrun = 0;
 }
 
-void serial_dtr_on (void)
+void serial_dtr_on(void)
 {
 #if SERIALHSDEBUG > 0
 	write_log ( "SERIAL: DTR on\n" );
 #endif
+#ifdef RETROPLATFORM
+	if (rp_ismodem()) {
+		rp_modemstate(1);
+	}
+#endif
 	dtr = 1;
 	if (currprefs.serial_demand)
-		serial_open ();
+		serial_open();
 #ifdef SERIAL_PORT
 	setserstat(TIOCM_DTR, dtr);
 #endif
 }
 
-void serial_dtr_off (void)
+void serial_dtr_off(void)
 {
 #if SERIALHSDEBUG > 0
 	write_log ( "SERIAL: DTR off\n" );
 #endif
+#ifdef RETROPLATFORM
+	if (rp_ismodem()) {
+		rp_modemstate(0);
+	}
+#endif
 	dtr = 0;
 #ifdef SERIAL_PORT
 	if (currprefs.serial_demand)
-		serial_close ();
+		serial_close();
 	setserstat(TIOCM_DTR, dtr);
 #endif
 }
@@ -944,7 +999,7 @@ static void serial_status_debug(const TCHAR *s)
 #endif
 }
 
-uae_u8 serial_readstatus (uae_u8 dir)
+uae_u8 serial_readstatus(uae_u8 v, uae_u8 dir)
 {
 	int status = 0;
 	uae_u8 serbits = oldserbits;
@@ -956,10 +1011,27 @@ uae_u8 serial_readstatus (uae_u8 dir)
 		if (serstatus & 0x10) { // RTS -> CTS
 			status |= TIOCM_CTS;
 		}
-	} else {
+	} else if (rp_ismodem()) {
+		bool dsr, cd, cts, ri;
+		rp_readmodemstatus(&dsr, &cd, &cts, &ri);
+		if (dsr) {
+			status |= TIOCM_DSR;
+		}
+		if (cd) {
+			status |= TIOCM_CAR;
+		}
+		if (cts) {
+			status |= TIOCM_CTS;
+		}
+		if (ri) {
+			status |= TIOCM_RI;
+		}
+	} else if (currprefs.use_serial) {
 #ifdef SERIAL_PORT
 		getserstat(&status);
 #endif
+	} else {
+		return v;
 	}
 
 	if (!(status & TIOCM_CAR)) {
@@ -1010,13 +1082,31 @@ uae_u8 serial_readstatus (uae_u8 dir)
 		}
 	}
 
-	serbits &= 0x08 | 0x10 | 0x20;
-	oldserbits &= ~(0x08 | 0x10 | 0x20);
+	if (!isprinter()) {
+		// SEL == RI
+		v |= 4;
+		serbits |= 0x04;
+	} else {
+		serbits &= ~0x04;
+		serbits |= v & 0x04;
+	}
+
+	if (status & TIOCM_RI) {
+		if (serbits & 0x04) {
+			serbits &= ~0x04;
+#if SERIALHSDEBUG > 0
+			write_log("SERIAL: RI on\n");
+#endif
+		}
+	}
+
+	serbits &= 0x04 | 0x08 | 0x10 | 0x20;
+	oldserbits &= ~(0x04 | 0x08 | 0x10 | 0x20);
 	oldserbits |= serbits;
 
 	serial_status_debug (_T("read"));
 
-	return oldserbits;
+	return (v & (0x80 | 0x40 | 0x02 | 0x01)) | serbits;
 }
 
 uae_u8 serial_writestatus (uae_u8 newstate, uae_u8 dir)
@@ -1026,28 +1116,30 @@ uae_u8 serial_writestatus (uae_u8 newstate, uae_u8 dir)
 	serstatus = newstate & dir;
 
 #ifdef SERIAL_PORT
-	if (((oldserbits ^ newstate) & 0x80) && (dir & 0x80)) {
-		if (newstate & 0x80)
-			serial_dtr_off();
-		else
-			serial_dtr_on();
-	}
-
-	if (!currprefs.serial_hwctsrts && (dir & 0x40)) {
-		if ((oldserbits ^ newstate) & 0x40) {
-			if (newstate & 0x40) {
-				setserstat (TIOCM_RTS, 0);
+	if (currprefs.use_serial) {
+		if (((oldserbits ^ newstate) & 0x80) && (dir & 0x80)) {
+			if (newstate & 0x80)
+				serial_dtr_off();
+			else
+				serial_dtr_on();
+		}
+		if (!currprefs.serial_hwctsrts && (dir & 0x40)) {
+			if ((oldserbits ^ newstate) & 0x40) {
+				if (newstate & 0x40) {
+					setserstat(TIOCM_RTS, 0);
 #if SERIALHSDEBUG > 0
-				write_log (_T("SERIAL: RTS cleared\n"));
+					write_log(_T("SERIAL: RTS cleared\n"));
 #endif
-			} else {
-				setserstat (TIOCM_RTS, 1);
+				} else {
+					setserstat(TIOCM_RTS, 1);
 #if SERIALHSDEBUG > 0
-				write_log (_T("SERIAL: RTS set\n"));
+					write_log(_T("SERIAL: RTS set\n"));
 #endif
+				}
 			}
 		}
 	}
+#endif
 
 #if 0 /* CIA io-pins can be read even when set to output.. */
 	if ((newstate & 0x20) != (oldserbits & 0x20) && (dir & 0x20))
@@ -1060,21 +1152,28 @@ uae_u8 serial_writestatus (uae_u8 newstate, uae_u8 dir)
 
 	if (logcnt > 0) {
 		if (((newstate ^ oldserbits) & 0x40) && !(dir & 0x40)) {
-			write_log (_T("SERIAL: warning, program tries to use RTS as an input! PC=%x\n"), M68K_GETPC);
+			write_log(_T("SERIAL: warning, program tries to use RTS as an input! PC=%x\n"), M68K_GETPC);
 			logcnt--;
 		}
 		if (((newstate ^ oldserbits) & 0x80) && !(dir & 0x80)) {
-			write_log (_T("SERIAL: warning, program tries to use DTR as an input! PC=%x\n"), M68K_GETPC);
+			write_log(_T("SERIAL: warning, program tries to use DTR as an input! PC=%x\n"), M68K_GETPC);
 			logcnt--;
 		}
 	}
 
-#endif
+	if (rp_ismodem()) {
+		if ((oldserbits & (0x80 | 0x40)) != (newstate & (0x80 | 0x40))) {
+			rp_writemodemstatus(
+				(newstate & 0x40) != 0, (oldserbits & 0x40) != (newstate & 0x40),
+				(newstate & 0x80) != 0, (oldserbits & 0x80) != (newstate & 0x80));
+		}
+	}
 
 	oldserbits &= ~(0x80 | 0x40);
 	newstate &= 0x80 | 0x40;
 	oldserbits |= newstate;
-	serial_status_debug (_T("write"));
+
+	serial_status_debug(_T("write"));
 
 	return oldserbits;
 }
@@ -1129,6 +1228,18 @@ void serial_close(void)
 	sermap_deactivate();
 #endif
 #endif
+#ifdef RETROPLATFORM
+	if (rp_ismodem()) {
+		rp_modemstate(0);
+	}
+#endif
+	if (receive_buf) {
+		xfree(receive_buf);
+		receive_buf = NULL;
+	}
+	receive_buf_size = 0;
+	receive_buf_count = 0;
+
 	serloop_enabled = false;
 	serempty_enabled = false;
 	serxdevice_enabled = false;
