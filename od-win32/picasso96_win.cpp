@@ -2412,8 +2412,12 @@ int picasso_getwritewatch (int index, int offset, uae_u8 ***gwwbufp, uae_u8 **st
 	ULONG ps;
 	writewatchcount[index] = gwwbufsize[index];
 	watch_offset[index] = offset;
+	if (gfxmem_banks[index]->start + offset >= max_physmem) {
+		writewatchcount[index] = 0;
+		return -1;
+	}
 	uae_u8 *start = gfxmem_banks[index]->start + natmem_offset + offset;
-	if (GetWriteWatch (WRITE_WATCH_FLAG_RESET, gfxmem_banks[index]->start + natmem_offset + offset, (gwwbufsize[index] - 1) * gwwpagesize[index], gwwbuf[index], &writewatchcount[index], &ps)) {
+	if (GetWriteWatch (WRITE_WATCH_FLAG_RESET, start, (gwwbufsize[index] - 1) * gwwpagesize[index], gwwbuf[index], &writewatchcount[index], &ps)) {
 		write_log (_T("picasso_getwritewatch %d\n"), GetLastError ());
 		writewatchcount[index] = 0;
 		return -1;
