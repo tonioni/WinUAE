@@ -5811,12 +5811,12 @@ void compute_vsynctime(void)
 
 	if (currprefs.turbo_emulation) {
 		if (currprefs.turbo_emulation_limit > 0) {
-			vsynctimebase = (int)(syncbase / currprefs.turbo_emulation_limit);
+			vsynctimebase = (frame_time_t)(syncbase / currprefs.turbo_emulation_limit);
 		} else {
 			vsynctimebase = 1;
 		}
 	} else {
-		vsynctimebase = (int)(syncbase / fake_vblank_hz);
+		vsynctimebase = (frame_time_t)(syncbase / fake_vblank_hz);
 	}
 	vsynctimebase_orig = vsynctimebase;
 
