@@ -1084,20 +1084,14 @@ uae_u8 serial_readstatus(uae_u8 v, uae_u8 dir)
 
 	if (!isprinter()) {
 		// SEL == RI
-		v |= 4;
 		serbits |= 0x04;
 	} else {
 		serbits &= ~0x04;
 		serbits |= v & 0x04;
 	}
 
-	if (status & TIOCM_RI) {
-		if (serbits & 0x04) {
-			serbits &= ~0x04;
-#if SERIALHSDEBUG > 0
-			write_log("SERIAL: RI on\n");
-#endif
-		}
+	if (!(status & TIOCM_RI)) {
+		serbits &= ~0x04;
 	}
 
 	serbits &= 0x04 | 0x08 | 0x10 | 0x20;
@@ -1106,7 +1100,8 @@ uae_u8 serial_readstatus(uae_u8 v, uae_u8 dir)
 
 	serial_status_debug (_T("read"));
 
-	return (v & (0x80 | 0x40 | 0x02 | 0x01)) | serbits;
+	v = (v & (0x80 | 0x40 | 0x02 | 0x01)) | serbits;
+	return v;
 }
 
 uae_u8 serial_writestatus (uae_u8 newstate, uae_u8 dir)
@@ -1164,8 +1159,8 @@ uae_u8 serial_writestatus (uae_u8 newstate, uae_u8 dir)
 	if (rp_ismodem()) {
 		if ((oldserbits & (0x80 | 0x40)) != (newstate & (0x80 | 0x40))) {
 			rp_writemodemstatus(
-				(newstate & 0x40) != 0, (oldserbits & 0x40) != (newstate & 0x40),
-				(newstate & 0x80) != 0, (oldserbits & 0x80) != (newstate & 0x80));
+				(newstate & 0x40) == 0, (oldserbits & 0x40) != (newstate & 0x40),
+				(newstate & 0x80) == 0, (oldserbits & 0x80) != (newstate & 0x80));
 		}
 	}
 

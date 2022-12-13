@@ -1796,9 +1796,6 @@ static uae_u8 ReadCIAB(uae_u32 addr, uae_u32 *flags)
 	switch (reg) {
 	case 0:
 		tmp = (c->pra & c->dra) | (c->dra ^ 0xff);
-#ifdef SERIAL_PORT
-		tmp |= serial_readstatus(tmp, c->dra);
-#endif
 #ifdef PARALLEL_PORT
 		if (isprinter() > 0) {
 			tmp &= ~3; // clear BUSY and PAPEROUT
@@ -1819,6 +1816,9 @@ static uae_u8 ReadCIAB(uae_u32 addr, uae_u32 *flags)
 			}
 			tmp = handle_parport_joystick(1, tmp);
 		}
+#endif
+#ifdef SERIAL_PORT
+		tmp = serial_readstatus(tmp, c->dra);
 #endif
 		tmp = dongle_cia_read(1, reg, c->pra, tmp);
 #if DONGLE_DEBUG > 0

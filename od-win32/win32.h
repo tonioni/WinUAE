@@ -20,18 +20,18 @@
 #define LANG_DLL_FULL_VERSION_MATCH 0
 
 #if WINUAEPUBLICBETA
-#define WINUAEBETA _T("Beta 8")
+#define WINUAEBETA _T("Beta 10")
 #else
 #define WINUAEBETA _T("")
 #endif
 
-#define WINUAEDATE MAKEBD(2022, 12, 3)
+#define WINUAEDATE MAKEBD(2022, 12, 10)
 
 //#define WINUAEEXTRA _T("AmiKit Preview")
 //#define WINUAEEXTRA _T("Amiga Forever Edition")
 
 #ifndef WINUAEEXTRA
-#define WINUAEEXTRA _T("")
+#define WINUAEEXTRA _T("RC2")
 #endif
 #ifndef WINUAEREV
 #define WINUAEREV _T("")
@@ -221,8 +221,6 @@ void associate_file_extensions (void);
 #define PATHPREFIX _T("\\\\?\\")
 DWORD GetFileAttributesSafe (const TCHAR *name);
 BOOL SetFileAttributesSafe (const TCHAR *name, DWORD attr);
-
-void HtmlHelp(HWND a, LPCWSTR b, UINT c, const TCHAR *d);
 
 typedef BOOL(CALLBACK* ADJUSTWINDOWRECTEXFORDPI)(LPRECT, DWORD, BOOL, DWORD, UINT);
 extern ADJUSTWINDOWRECTEXFORDPI pAdjustWindowRectExForDpi;

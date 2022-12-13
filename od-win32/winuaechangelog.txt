@@ -1,4 +1,24 @@
 
+Beta 10 (RC2):
+
+- Bumped version to 4.10.0
+- 64-bit natmem limit increased to support G-REX PCI VRAM modification detection (Only draw lines that have been modified). Previously Voodoo 3 + G-REX always forced whole screen refresh. G-REX PCI memory space is above 2G "limit". Check also current limit to prevent "picasso_getwritewatch 87" log messages when running 32-bit version.
+- SupraDrive AMAB5 and AMAB6 are also 8k. Removed extra duplicated 8k. Previous SupraDrive 2000DMA ROM is called "44-25B" (Hand written text on ROM label did say 44-25B but I thought it was some kind of checksum or something but SupraRomChk on SupraBoot3.8B install disk does detect it as "44-25B"). Updated 2000DMA ROM mapping, SupraRomChck now detects supported ROMs correctly. Remaining undumped official Supra ROMs are "33-11B" and AMAB1, listed inside SupraRomChk executable. (Also some AMAB5 and AMAB6 beta roms are listed)
+- Added Hardital Synthesis/Super Big Bang v48.5 (previous was v53.1)
+- Serial port ring indicator (RI) signal support (RI is shared with printer port SELECT line)
+- Fix out of bounds buffer access when checking what should be written to write-only register that was read. (b5)
+
+Beta 9 (RC1):
+
+- Direct3D9 mode overlay mode didn't show Amiga screen in most configurations.
+- JIT interrupt handling fix part 2.
+- Debugger SMC detector cache flush does not anymore clear whole SMC state array (which can be huge if Amiga RAM is located in Z3 space). When state array needs to be reset, reset only RAM and ROM regions. Max SMC array size is now automatically same as highest RAM address.
+- Autoresolution didn't do anything unless gfx_windowed_multi or gfx_fullscreen_multi had non-zero values (b1)
+- Autoscale worked incorrectly in programmed modes. (b1)
+- Disable GUI Wait for blitter checkbox in 68000/010 cycle-exact modes. Previously it was allowed but did nothing.
+- CDTV/CD32 Quickstart didn't use new NVRAM Files -path (b1)
+- Added Supra AMAB2 ROM to ROM scanner. (Seems to support at least 2000DMA and AutoBoot models). AMAB1 is still missing, previously added 2000DMA ROM most likely isn't AMAB1 because it only supports 2000DMA. 2000DMA ROM selection now also lists all AMAB roms because AMAB2-4 have 2000DMA support (AMAB5/6 dropped 2000DMA support) and ROM scanner selection logic does not support filtering ROMs that have same type.
+
 Beta 8:
 
 - RTG to chipset mode (non-interlaced) switch didn't enable native mode filter (b7)

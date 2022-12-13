@@ -19,7 +19,7 @@ static frame_time_t read_processor_time_qpf(void)
 	frame_time_t t;
 	QueryPerformanceCounter(&counter);
 	if (qpcdivisor == 0)
-		t = (frame_time_t) (counter.LowPart);
+		t = (frame_time_t) (counter.QuadPart);
 	else
 		t = (frame_time_t) (counter.QuadPart >> qpcdivisor);
 	if (!t)
