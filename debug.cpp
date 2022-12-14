@@ -4425,6 +4425,7 @@ static void memwatch (TCHAR **c)
 	mwn->mustchange = 0;
 	mwn->bus_error = 0;
 	mwn->reportonly = false;
+	mwn->nobreak = false;
 	ignore_ws (c);
 	if (more_params (c)) {
 		mwn->size = readhex(c, NULL);
