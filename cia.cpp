@@ -860,7 +860,7 @@ void cia_heartbeat(void)
 	heartbeat_cnt = 10;
 }
 
-static void do_tod_hack(void)
+static void do_tod_hack(bool dotod)
 {
 	struct timeval tv;
 	static int oldrate;
@@ -908,7 +908,7 @@ static void do_tod_hack(void)
 		docount = 1;
 	}
 
-	if (currprefs.cs_ciaatod == 0)
+	if (!dotod && currprefs.cs_ciaatod == 0)
 		return;
 
 	if (tod_hack_delay > 0) {
@@ -1196,6 +1196,9 @@ void CIA_hsync_posthandler(bool ciahsync, bool dotod)
 		// CIA-B HSync pulse
 		// Delayed previous line TOD increase.
 		cia_delayed_tod(1);
+		if (currprefs.tod_hack && cia[0].todon) {
+			do_tod_hack(dotod);
+		}
 	} else if (currprefs.keyboard_connected) {
 		// custom hsync
 		if (resetwarning_phase) {
@@ -1217,9 +1220,6 @@ void CIA_hsync_posthandler(bool ciahsync, bool dotod)
 	if (!ciahsync) {
 		// Increase CIA-A TOD if delayed from previous line
 		cia_delayed_tod(0);
-		if (currprefs.tod_hack && cia[0].todon) {
-			do_tod_hack();
-		}
 	}
 
 }
