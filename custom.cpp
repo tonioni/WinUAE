@@ -29,7 +29,9 @@
 #include "blitter.h"
 #include "xwin.h"
 #include "inputdevice.h"
+#ifdef SERIAL_PORT
 #include "serial.h"
+#endif
 #include "autoconf.h"
 #include "traps.h"
 #include "gui.h"
@@ -87,7 +89,9 @@
 
 #define LORES_TO_SHRES_SHIFT 2
 
+#ifdef SERIAL_PORT
 extern uae_u16 serper;
+#endif
 
 static void uae_abort (const TCHAR *format,...)
 {
@@ -1009,9 +1013,11 @@ static void record_color_change2(int hpos, int regno, uae_u32 value)
 				next_color_change++;
 				cc[1].regno = -1;
 				last_recorded_diw_hpos = cc->linepos;
+#ifdef DEBUGGER
 				if (debug_dma) {
 					record_dma_event(DMA_EVENT_HBS, diw_to_hpos(cc->linepos), vpos);
 				}
+#endif
 				thisline_changed = 1;
 			}
 		}
@@ -1025,9 +1031,11 @@ static void record_color_change2(int hpos, int regno, uae_u32 value)
 				next_color_change++;
 				cc[1].regno = -1;
 				last_recorded_diw_hpos = cc->linepos;
+#ifdef DEBUGGER
 				if (debug_dma) {
 					record_dma_event(DMA_EVENT_HBE, diw_to_hpos(cc->linepos), vpos);
 				}
+#endif
 				thisline_changed = 1;
 			}
 		}
@@ -1048,9 +1056,11 @@ static void record_color_change2(int hpos, int regno, uae_u32 value)
 				exthblank_state = true;
 				last_recorded_diw_hpos = cc->linepos;
 				last_hblank_start = cc->linepos;
+#ifdef DEBUGGER
 				if (debug_dma) {
 					record_dma_event(DMA_EVENT_HBS, diw_to_hpos(cc->linepos), vpos);
 				}
+#endif
 			}
 			if (hbstop_v2 < chpos && hbstop_v2 >= last_recorded_diw_hpos) {
 				// do_color_changes() HBLANK workaround
@@ -1069,9 +1079,11 @@ static void record_color_change2(int hpos, int regno, uae_u32 value)
 				cc[1].regno = -1;
 				exthblank_state = false;
 				last_recorded_diw_hpos = cc->linepos;
+#ifdef DEBUGGER
 				if (debug_dma) {
 					record_dma_event(DMA_EVENT_HBE, diw_to_hpos(cc->linepos), vpos);
 				}
+#endif
 			}
 		} else  if (hbstrt_v2 > hbstop_v2) { // equal: blank disable wins
 			if (hbstop_v2 < chpos && hbstop_v2 >= last_recorded_diw_hpos) {
@@ -1090,9 +1102,11 @@ static void record_color_change2(int hpos, int regno, uae_u32 value)
 				cc[1].regno = -1;
 				exthblank_state = false;
 				last_recorded_diw_hpos = cc->linepos;
+#ifdef DEBUGGER
 				if (debug_dma) {
 					record_dma_event(DMA_EVENT_HBE, diw_to_hpos(cc->linepos), vpos);
 				}
+#endif
 			}
 			if (hbstrt_v2 < chpos && hbstrt_v2 >= last_recorded_diw_hpos) {
 				cc = &curr_color_changes[next_color_change];
@@ -1105,9 +1119,11 @@ static void record_color_change2(int hpos, int regno, uae_u32 value)
 				exthblank_state = true;
 				last_recorded_diw_hpos = cc->linepos;
 				last_hblank_start = cc->linepos;
+#ifdef DEBUGGER
 				if (debug_dma) {
 					record_dma_event(DMA_EVENT_HBS, diw_to_hpos(cc->linepos), vpos);
 				}
+#endif
 			}
 		}
 	}
@@ -1274,9 +1290,11 @@ static void decide_hdiw_check_start(int start_diw_hpos, int end_diw_hpos, int ex
 				// was closed previously in same line: blank closed part.
 				hdiw_restart(last_diwlastword, first2);
 				last_diwlastword = -1;
+#ifdef DEBUGGER
 				if (debug_dma) {
 					record_dma_event(DMA_EVENT_HDIWS, diw_to_hpos(first2), vpos);
 				}
+#endif
 			}
 			if (thisline_decision.diwfirstword < 0) {
 				thisline_decision.diwfirstword = adjust_hr2(first);
@@ -1284,9 +1302,11 @@ static void decide_hdiw_check_start(int start_diw_hpos, int end_diw_hpos, int ex
 				if (!plane0_first_done) {
 					plane0p_enabled = ecs_denise && (bplcon0 & 1) && (bplcon3 & 0x20);
 				}
+#ifdef DEBUGGER
 				if (debug_dma) {
 					record_dma_event(DMA_EVENT_HDIWS, diw_to_hpos(first), vpos);
 				}
+#endif
 			}
 			hdiwstate = diw_states::DIW_waiting_stop;
 		}
@@ -1302,9 +1322,11 @@ static void decide_hdiw_check_stop(int start_diw_hpos, int end_diw_hpos, int ext
 				// if HDIW opens again in same line
 				int v = thisline_decision.diwlastword * 2;
 				last_diwlastword = adjust_hr(v);
+#ifdef DEBUGGER
 				if (debug_dma) {
 					record_dma_event(DMA_EVENT_HDIWE, diw_to_hpos(last), vpos);
 				}
+#endif
 			}
 			hdiwstate = diw_states::DIW_waiting_start;
 		}
@@ -5766,10 +5788,12 @@ static void reset_decisions_hsync_start(void)
 #endif
 	}
 
+#ifdef DEBUGGER
 	if (debug_dma && (new_beamcon0 & bemcon0_hsync_mask)) {
 		record_dma_event(DMA_EVENT_HSS, hpos, vpos);
 		record_dma_event(DMA_EVENT_HSE, hsstop, vpos);
 	}
+#endif
 
 	toscr_hend = 0;
 	last_bpl1dat_hpos = -1;
@@ -7738,7 +7762,9 @@ void rethink_uae_int(void)
 
 static void rethink_intreq(void)
 {
+#ifdef SERIAL_PORT
 	serial_rethink();
+#endif
 	devices_rethink();
 }
 
@@ -7874,9 +7900,11 @@ static void ADKCON(int hpos, uae_u16 v)
 	DISK_update_adkcon(hpos, v);
 	setclr(&adkcon, v);
 	audio_update_adkmasks();
+#ifdef SERIAL_PORT
 	if ((v >> 11) & 1) {
 		serial_uartbreak((adkcon >> 11) & 1);
 	}
+#endif
 }
 
 static void check_harddis(void)
@@ -9325,7 +9353,9 @@ static int custom_wput_copper(int hpos, uaecptr pt, uaecptr addr, uae_u32 value,
 {
 	int v;
 
+#ifdef DEBUGGER
 	value = debug_putpeekdma_chipset(0xdff000 + addr, value, MW_MASK_COPPER, 0x08c);
+#endif
 	copper_access = 1;
 	v = custom_wput_1(hpos, addr, value, noget);
 	copper_access = 0;
@@ -9704,7 +9734,9 @@ static void do_copper_fetch(int hpos, uae_u16 id)
 	{
 		// COPJMP when previous instruction is mid-cycle
 		cop_state.state = COP_read1;
+#ifdef DEBUGGER
 		record_dma_event2(DMA_EVENT2_COPPERUSE, hpos, vpos);
+#endif
 		alloc_cycle(hpos, CYCLE_COPPER);
 	}
 	break;
@@ -9816,7 +9848,9 @@ static void do_copper_fetch(int hpos, uae_u16 id)
 			cop_state.vcmp = (cop_state.ir[0] & (cop_state.ir[1] | 0x8000)) >> 8;
 			cop_state.hcmp = (cop_state.ir[0] & cop_state.ir[1] & 0xFE);
 
+#ifdef DEBUGGER
 			record_copper(debugip - 4, debugip, cop_state.ir[0], cop_state.ir[1], hpos, vpos);
+#endif
 
 		} else {
 			// MOVE
@@ -10062,9 +10096,11 @@ static void update_copper(int until_hpos)
 				if (copper_bad_cycle - copper_bad_cycle_start != 3 * CYCLE_UNIT) {
 					copper_bad_cycle = 0;
 				} else {
+#ifdef DEBUGGER
 					if (debug_dma) {
 						record_dma_event(DMA_EVENT_SPECIAL, hpos, vpos);
 					}
+#endif
 					// early COPJMP processing
 					cop_state.state = COP_read1;
 					copper_bad_cycle_pc_old = cop_state.ip;
@@ -10768,8 +10804,9 @@ static frame_time_t mavg(struct mavg_data *md, frame_time_t newval, int size)
 }
 
 #define MAVG_VSYNC_SIZE 128
-
+#ifdef DEBUGGER
 extern int log_vsync, debug_vsync_min_delay, debug_vsync_forced_delay;
+#endif
 static bool framewait(void)
 {
 	struct amigadisplay *ad = &adisplays[0];
@@ -10818,12 +10855,14 @@ static bool framewait(void)
 		}
 		t = legacy_avg;
 
+#ifdef DEBUGGER
 		if (debug_vsync_min_delay && t < debug_vsync_min_delay * vsynctimebase / 100) {
 			t = debug_vsync_min_delay * vsynctimebase / 100;
 		}
 		if (debug_vsync_forced_delay > 0) {
 			t = debug_vsync_forced_delay * vsynctimebase / 100;
 		}
+#endif
 
 		vsync_time = read_processor_time();
 		if (t > vsynctimebase * 2 / 3) {
@@ -10840,9 +10879,11 @@ static bool framewait(void)
 			vsynctimeperline = 1;
 		}
 
+#ifdef DEBUGGER
 		if (0 || (log_vsync & 2)) {
 			write_log (_T("%06d %06d/%06d %03d%%\n"), t, vsynctimeperline, vsynctimebase, t * 100 / vsynctimebase);
 		}
+#endif
 
 		frame_shown = true;
 		return 1;
@@ -11958,7 +11999,9 @@ static void hsync_handler_pre(bool onvsync)
 		}
 	}
 
+#ifdef DEBUGGER
 	debug_hsync();
+#endif
 }
 
 STATIC_INLINE bool is_last_line(void)
@@ -12900,6 +12943,7 @@ static void hsync_handler_post(bool onvsync)
 	refresh_handled_slot = 0;
 	refptr_preupdated = true;
 
+#ifdef DEBUGGER
 	if (debug_dma) {
 		if (vs_state_on) {
 			record_dma_event(DMA_EVENT_VS, REFRESH_FIRST_HPOS, vpos);
@@ -12917,7 +12961,7 @@ static void hsync_handler_post(bool onvsync)
 			record_dma_event(DMA_EVENT_LOL, REFRESH_FIRST_HPOS + 2, vpos);
 		}
 	}
-
+#endif
 
 	events_dmal_hsync();
 #if 0
@@ -13411,7 +13455,9 @@ void custom_reset(bool hardreset, bool keyboardreset)
 	if (!isrestore()) {
 		/* must be called after audio_reset */
 		adkcon = 0;
+#ifdef SERIAL_PORT
 		serial_uartbreak(0);
+#endif
 		audio_update_adkmasks();
 	}
 
@@ -13462,9 +13508,11 @@ void custom_reset(bool hardreset, bool keyboardreset)
 		CLXCON(-1, clxcon);
 		CLXCON2(-1, clxcon2);
 		calcdiw();
+#ifdef SERIAL_PORT
 		v = serper;
 		serper = 0;
 		SERPER(v);
+#endif
 		for (int i = 0; i < 8; i++) {
 			SPRxCTLPOS(i);
 			nr_armed += spr[i].armed != 0;
@@ -13650,8 +13698,10 @@ static uae_u32 REGPARAM2 custom_wget_1(int hpos, uaecptr addr, int noput, bool i
 #if CUSTOM_DEBUG > 2
 	write_log (_T("%d:%d:wget: %04X=%04X pc=%p\n"), current_hpos(), vpos, addr, addr & 0x1fe, m68k_getpc ());
 #endif
+#ifdef DEBUGGER
 	if (memwatch_access_validator)
 		debug_check_reg(addr, 0, 0);
+#endif
 
 	addr &= 0xfff;
 
@@ -13668,7 +13718,11 @@ static uae_u32 REGPARAM2 custom_wget_1(int hpos, uaecptr addr, int noput, bool i
 	case 0x012: v = POT0DAT(); break;
 	case 0x014: v = POT1DAT(); break;
 	case 0x016: v = POTGOR(); break;
+#ifdef SERIAL_PORT
 	case 0x018: v = SERDATR(); break;
+#else
+	case 0x018: v = 0x3000 /* no data */; break;
+#endif
 	case 0x01A: v = DSKBYTR(hpos); break;
 	case 0x01C: v = INTENAR(); break;
 	case 0x01E: v = INTREQR(); break;
@@ -13733,7 +13787,9 @@ writeonly:
 			decide_line(hpos);
 			decide_fetch_safe(hpos);
 			decide_blitter(hpos);
+#ifdef DEBUGGER
 			debug_wputpeek(0xdff000 + addr, l);
+#endif
 			r = custom_wput_1(hpos, addr, l, 1);
 			
 			// CPU gets back (OCS/ECS only):
@@ -13799,7 +13855,9 @@ static uae_u32 REGPARAM2 custom_wget(uaecptr addr)
 	if ((addr & 0xffff) < 0x8000 && currprefs.cs_fatgaryrev >= 0)
 		return dummy_get(addr, 2, false, 0);
 	if (addr & 1) {
+#ifdef DEBUGGER
 		debug_invalid_reg(addr, 2, 0);
+#endif
 		/* think about move.w $dff005,d0.. (68020+ only) */
 		addr &= ~1;
 		v = custom_wget2(addr, false) << 8;
@@ -13814,7 +13872,9 @@ static uae_u32 REGPARAM2 custom_bget(uaecptr addr)
 	uae_u32 v;
 	if ((addr & 0xffff) < 0x8000 && currprefs.cs_fatgaryrev >= 0)
 		return dummy_get(addr, 1, false, 0);
+#ifdef DEBUGGER
 	debug_invalid_reg(addr, 1, 0);
+#endif
 	v = custom_wget2(addr & ~1, true);
 	v >>= (addr & 1) ? 0 : 8;
 	return v;
@@ -13839,9 +13899,11 @@ static int REGPARAM2 custom_wput_1 (int hpos, uaecptr addr, uae_u32 value, int n
 	ar_custom[addr + 1]=(uae_u8)(value);
 #endif
 #endif
+#ifdef DEBUGGER
 	if (memwatch_access_validator) {
 		debug_check_reg(oaddr, 1, value);
 	}
+#endif
 
 	switch (addr) {
 	case 0x00E: CLXDAT(hpos); break;
@@ -13854,8 +13916,13 @@ static int REGPARAM2 custom_wput_1 (int hpos, uaecptr addr, uae_u32 value, int n
 	case 0x02A: VPOSW(value); break;
 	case 0x02C: VHPOSW(value); break;
 	case 0x02E: COPCON(value); break;
+#ifdef SERIAL_PORT
 	case 0x030: SERDAT(value); break;
 	case 0x032: SERPER(value); break;
+#else
+	case 0x030: break;
+	case 0x032: break;
+#endif
 	case 0x034: POTGO(value); break;
 
 	case 0x040: BLTCON0(hpos, value); break;
@@ -14121,7 +14188,9 @@ static void REGPARAM2 custom_wput(uaecptr addr, uae_u32 value)
 #endif
 	sync_copper(hpos);
 	if (addr & 1) {
+#ifdef DEBUGGER
 		debug_invalid_reg(addr, -2, value);
+#endif
 		addr &= ~1;
 		custom_wput_1(hpos, addr, (value >> 8) | (value & 0xff00), 0);
 		custom_wput_1(hpos, addr + 2, (value << 8) | (value & 0x00ff), 0);
@@ -14138,7 +14207,9 @@ static void REGPARAM2 custom_bput (uaecptr addr, uae_u32 value)
 		dummy_put(addr, 1, value);
 		return;
 	}
+#ifdef DEBUGGER
 	debug_invalid_reg(addr, -1, value);
+#endif
 	if (aga_mode) {
 		if (addr & 1) {
 			rval = value & 0xff;
@@ -14212,8 +14283,8 @@ uae_u8 *restore_custom(uae_u8 *src)
 	RW;						/* 004 VPOSR */
 	RW;						/* 006 VHPOSR */
 	RW;						/* 008 DSKDATR (dummy register) */
-	JOYSET(0, RW);		/* 00A JOY0DAT */
-	JOYSET(1, RW);		/* 00C JOY1DAT */
+	JOYSET(0, RW);			/* 00A JOY0DAT */
+	JOYSET(1, RW);			/* 00C JOY1DAT */
 	clxdat = RW;			/* 00E CLXDAT */
 	RW;						/* 010 ADKCONR */
 	RW;						/* 012 POT0DAT* */
@@ -14231,17 +14302,21 @@ uae_u8 *restore_custom(uae_u8 *src)
 	RW;						/* 02C VHPOSW */
 	COPCON(RW);			/* 02E COPCON */
 	RW;						/* 030 SERDAT* */
+#ifdef SERIAL_PORT
 	serper = RW;			/* 032 SERPER* */
+#else
+	RW;						/* 032 SERPER* */
+#endif
 	potgo_value = 0; POTGO(RW); /* 034 POTGO */
 	RW;						/* 036 JOYTEST* */
 	RW;						/* 038 STREQU */
 	RW;						/* 03A STRVHBL */
 	RW;						/* 03C STRHOR */
 	RW;						/* 03E STRLONG */
-	BLTCON0(0, RW);	/* 040 BLTCON0 */
-	BLTCON1(0, RW);	/* 042 BLTCON1 */
-	BLTAFWM(0, RW);	/* 044 BLTAFWM */
-	BLTALWM(0, RW);	/* 046 BLTALWM */
+	BLTCON0(0, RW);			/* 040 BLTCON0 */
+	BLTCON1(0, RW);			/* 042 BLTCON1 */
+	BLTAFWM(0, RW);			/* 044 BLTAFWM */
+	BLTALWM(0, RW);			/* 046 BLTALWM */
 	BLTCPTH(0, RW);BLTCPTL(0, RW);	/* 048-04B BLTCPT */
 	BLTBPTH(0, RW);BLTBPTL(0, RW);	/* 04C-04F BLTBPT */
 	BLTAPTH(0, RW);BLTAPTL(0, RW);	/* 050-053 BLTAPT */
@@ -14250,17 +14325,17 @@ uae_u8 *restore_custom(uae_u8 *src)
 	RW;						/* 05A BLTCON0L */
 	blt_info.vblitsize = RW;/* 05C BLTSIZV */
 	blt_info.hblitsize = RW;/* 05E BLTSIZH */
-	BLTCMOD(0, RW);	/* 060 BLTCMOD */
-	BLTBMOD(0, RW);	/* 062 BLTBMOD */
-	BLTAMOD(0, RW);	/* 064 BLTAMOD */
-	BLTDMOD(0, RW);	/* 066 BLTDMOD */
+	BLTCMOD(0, RW);			/* 060 BLTCMOD */
+	BLTBMOD(0, RW);			/* 062 BLTBMOD */
+	BLTAMOD(0, RW);			/* 064 BLTAMOD */
+	BLTDMOD(0, RW);			/* 066 BLTDMOD */
 	RW;						/* 068 ? */
 	RW;						/* 06A ? */
 	RW;						/* 06C ? */
 	RW;						/* 06E ? */
-	BLTCDAT(0, RW);	/* 070 BLTCDAT */
-	BLTBDAT(0, RW);	/* 072 BLTBDAT */
-	BLTADAT(0, RW);	/* 074 BLTADAT */
+	BLTCDAT(0, RW);			/* 070 BLTCDAT */
+	BLTBDAT(0, RW);			/* 072 BLTBDAT */
+	BLTADAT(0, RW);			/* 074 BLTADAT */
 	RW;						/* 076 ? */
 	RW;						/* 078 ? */
 	RW;						/* 07A ? */
@@ -14276,7 +14351,7 @@ uae_u8 *restore_custom(uae_u8 *src)
 	ddfstrt = RW;			/* 092 DDFSTRT */
 	ddfstop = RW;			/* 094 DDFSTOP */
 	dmacon = RW & ~(0x2000|0x4000); /* 096 DMACON */
-	CLXCON(-1, RW);	/* 098 CLXCON */
+	CLXCON(-1, RW);			/* 098 CLXCON */
 	intena = RW;			/* 09A INTENA */
 	intreq = RW;			/* 09C INTREQ */
 	adkcon = RW;			/* 09E ADKCON */
@@ -14307,10 +14382,10 @@ uae_u8 *restore_custom(uae_u8 *src)
 	vsstop = RW;			/* 1CA VSSTOP */
 	vbstrt = RW;			/* 1CC VBSTRT */
 	vbstop = RW;			/* 1CE VBSTOP */
-	SPRHSTRT(-1, RW);	/* 1D0 SPRHSTART */
-	SPRHSTOP(-1, RW);	/* 1D2 SPRHSTOP */
-	BPLHSTRT(-1, RW);	/* 1D4 BPLHSTRT */
-	BPLHSTOP(-1, RW);	/* 1D6 BPLHSTOP */
+	SPRHSTRT(-1, RW);		/* 1D0 SPRHSTART */
+	SPRHSTOP(-1, RW);		/* 1D2 SPRHSTOP */
+	BPLHSTRT(-1, RW);		/* 1D4 BPLHSTRT */
+	BPLHSTOP(-1, RW);		/* 1D6 BPLHSTOP */
 	hhpos = RW;				/* 1D8 HHPOSW */
 	RW;						/* 1DA HHPOSR */
 	new_beamcon0 = RW;		/* 1DC BEAMCON0 */
@@ -14420,8 +14495,13 @@ uae_u8 *save_custom(size_t *len, uae_u8 *dstptr, int full)
 	SW((lof_store ? 0x8001 : 0) | (lol ? 0x0080 : 0));/* 02A VPOSW */
 	SW(0);					/* 02C VHPOSW */
 	SW(copcon);				/* 02E COPCON */
+#ifdef SERIAL_PORT
 	SW(serdat);				/* 030 SERDAT * */
 	SW(serper);				/* 032 SERPER * */
+#else
+	SW(0);					/* 030 SERDAT * */
+	SW(0);					/* 032 SERPER * */
+#endif
 	SW(potgo_value);		/* 034 POTGO */
 	SW(0);					/* 036 JOYTEST * */
 	SW(0);					/* 038 STREQU */

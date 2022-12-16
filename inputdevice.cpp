@@ -5,7 +5,7 @@
 *
 * Copyright 2001-2016 Toni Wilen
 *
-* new fetures:
+* new features:
 * - very configurable (and very complex to configure :)
 * - supports multiple native input devices (joysticks and mice)
 * - supports mapping joystick/mouse buttons to keys and vice versa
@@ -4126,7 +4126,9 @@ static bool inputdevice_handle_inputcode_immediate(int code, int state)
 	switch(code)
 	{
 		case AKS_ENTERDEBUGGER:
+#ifdef DEBUGGER
 			activate_debugger ();
+#endif
 			return true;
 	}
 	return false;
@@ -4589,7 +4591,9 @@ static bool inputdevice_handle_inputcode2(int monid, int code, int state, const 
 		set_config_changed ();
 		break;
 	case AKS_ENTERDEBUGGER:
+#ifdef DEBUGGER
 		activate_debugger ();
+#endif
 		break;
 	case AKS_STATESAVEDIALOG:
 		if (s) {

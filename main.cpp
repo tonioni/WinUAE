@@ -18,7 +18,9 @@
 #include "events.h"
 #include "memory.h"
 #include "custom.h"
+#ifdef SERIAL_PORT
 #include "serial.h"
+#endif
 #include "newcpu.h"
 #include "disk.h"
 #include "debug.h"
@@ -41,7 +43,9 @@
 #include "cpuboard.h"
 #include "uae/ppc.h"
 #include "devices.h"
+#ifdef JIT
 #include "jit/compemu.h"
+#endif
 #ifdef RETROPLATFORM
 #include "rp.h"
 #endif
@@ -332,11 +336,14 @@ void fixup_cpu (struct uae_prefs *p)
 		error_log(_T("Bad value for comptrustnaddr parameter: value must be within 0..2."));
 		p->comptrustnaddr = 1;
 	}
+#ifdef JIT
 	if (p->cachesize < 0 || p->cachesize > MAX_JIT_CACHE || (p->cachesize > 0 && p->cachesize < MIN_JIT_CACHE)) {
 		error_log(_T("JIT Bad value for cachesize parameter: value must zero or within %d..%d."), MIN_JIT_CACHE, MAX_JIT_CACHE);
 		p->cachesize = 0;
 	}
-
+#else
+	p->cachesize = 0;
+#endif
 
 #if 0
 	if (p->cpu_cycle_exact && p->m68k_speed < 0 && currprefs.cpu_model <= 68020)
@@ -776,10 +783,12 @@ static int default_config;
 
 void uae_reset (int hardreset, int keyboardreset)
 {
+#ifdef DEBUGGER
 	if (debug_dma) {
 		record_dma_reset(0);
 		record_dma_reset(0);
 	}
+#endif
 	currprefs.quitstatefile[0] = changed_prefs.quitstatefile[0] = 0;
 
 	if (quit_program == 0) {
@@ -794,7 +803,9 @@ void uae_reset (int hardreset, int keyboardreset)
 
 void uae_quit (void)
 {
+#ifdef DEBUGGER
 	deactivate_debugger ();
+#endif
 	if (quit_program != -UAE_QUIT)
 		quit_program = -UAE_QUIT;
 	target_quit ();
@@ -1151,7 +1162,9 @@ static int real_main2 (int argc, TCHAR **argv)
 	logging_init (); /* Yes, we call this twice - the first case handles when the user has loaded
 						 a config using the cmd-line.  This case handles loads through the GUI. */
 
+#ifdef JIT
 	compiler_init();
+#endif
 #ifdef NATMEM_OFFSET
 	if (!init_shm ()) {
 		if (currprefs.start_gui)
@@ -1203,10 +1216,11 @@ static int real_main2 (int argc, TCHAR **argv)
 	gui_update ();
 
 	if (graphics_init (true)) {
+#ifdef DEBUGGER
 		setup_brkhandler ();
 		if (currprefs.start_debugger && debuggable ())
 			activate_debugger ();
-
+#endif
 		if (!init_audio ()) {
 			if (sound_available && currprefs.produce_sound > 1) {
 				write_log (_T("Sound driver unavailable: Sound output disabled\n"));

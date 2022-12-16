@@ -629,6 +629,7 @@ static bool isdataflyerscsiplus(uaecptr addr, uae_u32 *v, int size)
 
 static bool isa4000t (uaecptr *paddr)
 {
+#ifdef NCR
 	if (!is_a4000t_scsi())
 		return false;
 	uaecptr addr = *paddr;
@@ -637,6 +638,9 @@ static bool isa4000t (uaecptr *paddr)
 	addr &= 0xff;
 	*paddr = addr;
 	return true;
+#else
+	return false;
+#endif
 }
 
 static uae_u32 REGPARAM2 gayle_lget (uaecptr addr)
@@ -734,6 +738,7 @@ static void REGPARAM2 gayle_lput (uaecptr addr, uae_u32 value)
 		return;
 	}
 	if (isa4000t(&addr)) {
+#ifdef NCR
 		if (addr >= NCR_ALT_OFFSET) {
 			addr &= NCR_MASK;
 			ncr710_io_bput_a4000t(addr + 3, value >> 0);
@@ -747,6 +752,7 @@ static void REGPARAM2 gayle_lput (uaecptr addr, uae_u32 value)
 			ncr710_io_bput_a4000t(addr + 1, value >> 16);
 			ncr710_io_bput_a4000t(addr + 0, value >> 24);
 		}
+#endif
 		return;
 	}
 	ide_reg = get_gayle_ide_reg (addr, &ide);
