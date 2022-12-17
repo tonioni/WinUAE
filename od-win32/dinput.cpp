@@ -17,6 +17,7 @@ int tablet_log = 0;
 int no_rawinput = 0;
 int no_directinput = 0;
 int no_windowsmouse = 0;
+int winekeyboard = 0;
 
 #define _WIN32_WINNT 0x501 /* enable RAWINPUT support */
 
@@ -2470,7 +2471,9 @@ static void handle_rawinput_2 (RAWINPUT *raw, LPARAM lParam)
 				write_log (_T("VK->CODE: %x\n"), scancode);
 
 		}
-		if (rk->VKey == 0xff || (rk->Flags & RI_KEY_E0))
+		if (rk->VKey == 0xff || ((rk->Flags & RI_KEY_E0) && !(winekeyboard && rk->VKey == VK_NUMLOCK)))
+			scancode |= 0x80;
+		if (winekeyboard && rk->VKey == VK_PAUSE)
 			scancode |= 0x80;
 		if (rk->MakeCode == KEYBOARD_OVERRUN_MAKE_CODE)
 			return;

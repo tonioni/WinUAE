@@ -114,7 +114,7 @@ const static GUID GUID_DEVINTERFACE_MOUSE = { 0x378de44c, 0x56ef, 0x11d1,
 { 0xbc, 0x8c, 0x00, 0xa0, 0xc9, 0x14, 0x05, 0xdd } };
 
 extern int harddrive_dangerous, do_rdbdump;
-extern int no_rawinput, no_directinput, no_windowsmouse;
+extern int no_rawinput, no_directinput, no_windowsmouse, winekeyboard;
 extern int force_directsound;
 extern int log_a2065, a2065_promiscuous, log_ethernet;
 extern int rawinput_enabled_hid, rawinput_log;
@@ -6427,6 +6427,10 @@ static int parseargs(const TCHAR *argx, const TCHAR *np, const TCHAR *np2)
 	}
 	if (!_tcscmp(arg, _T("nowindowsmouse"))) {
 		no_windowsmouse = 1;
+		return 1;
+	}
+	if (!_tcscmp(arg, _T("winekeyboard"))) {
+		winekeyboard = 1;
 		return 1;
 	}
 	if (!_tcscmp(arg, _T("rawhid"))) {
