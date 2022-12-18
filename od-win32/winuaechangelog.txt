@@ -1,4 +1,12 @@
 
+
+Beta 11 (RC3):
+
+- Fixed magic mouse without virtual mouse driver installed in RTG modes. (4.9.0)
+- Memwatch N flag was not cleared when watchpoint was reset.
+- Syncronize clock option was broken, when active, CIA-A TOD was stopped. Broken when CIA emulation was refactored (b1).
+- Small 68040+ "cycle-exact" adjustments.
+
 Beta 10 (RC2):
 
 - Bumped version to 4.10.0
