@@ -2166,6 +2166,8 @@ void update_debug_info(void)
 	UpdateListboxString(hwnd, 0, out, TRUE);
 	_stprintf(out, _T("ISP: %08X"), regs.isp);
 	UpdateListboxString(hwnd, 1, out, TRUE);
+	_stprintf(out, _T("SR:  %04X"), regs.sr);
+	UpdateListboxString(hwnd, 2, out, TRUE);
 
 	ShowMiscCPU(GetDlgItem(hDbgWnd, IDC_DBG_MISCCPU));
 

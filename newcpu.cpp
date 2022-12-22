@@ -6659,10 +6659,10 @@ void m68k_dumpstate(uaecptr *nextpc, uaecptr prevpc)
 	}
 	if (j > 0)
 		console_out_f (_T("\n"));
-		console_out_f (_T("T=%d%d S=%d M=%d X=%d N=%d Z=%d V=%d C=%d IMASK=%d STP=%d\n"),
-		regs.t1, regs.t0, regs.s, regs.m,
-		GET_XFLG (), GET_NFLG (), GET_ZFLG (),
-		GET_VFLG (), GET_CFLG (),
+		console_out_f (_T("SR=%04X T=%d%d S=%d M=%d X=%d N=%d Z=%d V=%d C=%d IM=%d STP=%d\n"),
+		regs.sr, regs.t1, regs.t0, regs.s, regs.m,
+		GET_XFLG(), GET_NFLG(), GET_ZFLG(),
+		GET_VFLG(), GET_CFLG(),
 		regs.intmask, regs.stopped);
 #ifdef FPUEMU
 	if (currprefs.fpu_model) {
