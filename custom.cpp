@@ -3101,7 +3101,8 @@ STATIC_INLINE void do_delays_3_aga_hr(int nbits, int fm)
 			if (cmd & TOSCR_SPC_HIRES_END) {
 				toscr_res_pixels_mask_hr = 1 >> toscr_res_pixels_shift_hr;
 			}
-			toscr_special_skip_ptr += 1 << toscr_res_pixels_shift_hr;
+			int sh = 1 << toscr_res_pixels_shift_hr;
+			toscr_special_skip_ptr += sh;
 			if (*toscr_special_skip_ptr == 0) {
 				toscr_special_skip_ptr = NULL;
 				break;
@@ -5663,8 +5664,8 @@ static void reset_decisions_hsync_start(void)
 	// workaround for glitches in faster modes
 	// update Denise state immediately if bitplane DMA is idle and shifters are empty
 	if (!bprun && !plane0 && !plane0p) {
-		bplcon0d = BPLCON0_Denise_mask(bplcon0);
-		toscr_nr_planes_shifter = GET_PLANES(bplcon0d);
+		uae_u16 bcon0 = BPLCON0_Denise_mask(bplcon0);
+		toscr_nr_planes_shifter = GET_PLANES(bcon0);
 	}
 
 	toscr_nr_planes2 = GET_PLANES(bplcon0d);

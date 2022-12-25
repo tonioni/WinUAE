@@ -58,6 +58,7 @@
 #undef YieldProcessor
 #endif
 
+#if 0
 #ifndef YieldProcessor
 #ifdef __GNUC__
 INLINE void YieldProcessor(void)
@@ -71,7 +72,7 @@ INLINE void YieldProcessor(void)
 }
 #endif
 #endif
-
+#endif
 
 
 //============================================================
