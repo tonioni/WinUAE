@@ -316,6 +316,7 @@ void fixup_cpu (struct uae_prefs *p)
 		p->fpu_mode = 0;
 	}
 
+#ifdef JIT
 	if (p->comptrustbyte < 0 || p->comptrustbyte > 3) {
 		error_log(_T("Bad value for comptrustbyte parameter: value must be within 0..2."));
 		p->comptrustbyte = 1;
@@ -336,6 +337,7 @@ void fixup_cpu (struct uae_prefs *p)
 		error_log(_T("JIT Bad value for cachesize parameter: value must zero or within %d..%d."), MIN_JIT_CACHE, MAX_JIT_CACHE);
 		p->cachesize = 0;
 	}
+#endif
 
 
 #if 0
@@ -1151,7 +1153,9 @@ static int real_main2 (int argc, TCHAR **argv)
 	logging_init (); /* Yes, we call this twice - the first case handles when the user has loaded
 						 a config using the cmd-line.  This case handles loads through the GUI. */
 
+#ifdef JIT
 	compiler_init();
+#endif
 #ifdef NATMEM_OFFSET
 	if (!init_shm ()) {
 		if (currprefs.start_gui)

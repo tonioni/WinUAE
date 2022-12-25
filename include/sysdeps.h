@@ -40,7 +40,11 @@ using namespace std;
 #define UAE
 #endif
 
-#if defined(__arm__) || defined(_M_ARM) || defined(_M_ARM64) || defined(_M_ARM64EC)
+#if defined(_M_ARM64) || defined(_M_ARM64EC) 
+#define CPU_arm 1
+#define ARM_ASSEMBLY 1
+#define CPU_64_BIT 1
+#elif defined(__arm__) || defined(_M_ARM)
 #define CPU_arm 1
 #define ARM_ASSEMBLY 1
 #elif defined(__x86_64__) || defined(_M_AMD64)

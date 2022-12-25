@@ -13213,8 +13213,11 @@ static void values_to_cpudlg(HWND hDlg, WPARAM wParam)
 
 static void values_from_cpudlg(HWND hDlg, WPARAM wParam)
 {
-	int newcpu, oldcpu, newfpu, newtrust, oldcache, jitena, idx;
+	int newcpu, oldcpu, newfpu, newtrust, idx;
 	static int cachesize_prev, trust_prev;
+#ifdef JIT
+	int jitena, oldcache;
+#endif
 
 	workprefs.cpu_compatible = workprefs.cpu_memory_cycle_exact | (ischecked (hDlg, IDC_COMPATIBLE) ? 1 : 0);
 	workprefs.fpu_strict = ischecked (hDlg, IDC_COMPATIBLE_FPU) ? 1 : 0;

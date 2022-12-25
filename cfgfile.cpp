@@ -8620,7 +8620,9 @@ static void set_68020_compa (struct uae_prefs *p, int compa, int cd32)
 	case 4:
 		p->cpu_compatible = 0;
 		p->address_space_24 = 0;
+#ifdef JIT
 		p->cachesize = MAX_JIT_CACHE;
+#endif
 		break;
 	}
 	if (p->cpu_model >= 68030)
@@ -8669,10 +8671,13 @@ static int bip_a3000 (struct uae_prefs *p, int config, int compa, int romcheck)
 	p->cpu_model = 68030;
 	p->fpu_model = 68882;
 	p->fpu_no_unimplemented = true;
-	if (compa == 0)
+	if (compa == 0) {
 		p->mmu_model = 68030;
-	else
+	} else {
+#ifdef JIT
 		p->cachesize = MAX_JIT_CACHE;
+#endif
+	}
 	p->chipset_mask = CSMASK_ECS_AGNUS | CSMASK_ECS_DENISE;
 	p->cpu_compatible = p->address_space_24 = 0;
 	p->m68k_speed = -1;
@@ -8723,7 +8728,9 @@ static int bip_a4000 (struct uae_prefs *p, int config, int compa, int romcheck)
 	p->m68k_speed = -1;
 	p->immediate_blits = 0;
 	p->produce_sound = 2;
+#ifdef JIT
 	p->cachesize = MAX_JIT_CACHE;
+#endif
 	p->floppyslots[0].dfxtype = DRV_35_HD;
 	p->floppyslots[1].dfxtype = DRV_35_HD;
 	p->floppy_speed = 0;
@@ -8756,7 +8763,9 @@ static int bip_a4000t (struct uae_prefs *p, int config, int compa, int romcheck)
 	p->m68k_speed = -1;
 	p->immediate_blits = 0;
 	p->produce_sound = 2;
+#ifdef JIT
 	p->cachesize = MAX_JIT_CACHE;
+#endif
 	p->floppyslots[0].dfxtype = DRV_35_HD;
 	p->floppyslots[1].dfxtype = DRV_35_HD;
 	p->floppy_speed = 0;
@@ -9104,7 +9113,9 @@ static int bip_super (struct uae_prefs *p, int config, int compa, int romcheck)
 	p->m68k_speed = -1;
 	p->immediate_blits = 1;
 	p->produce_sound = 2;
+#ifdef JIT
 	p->cachesize = MAX_JIT_CACHE;
+#endif
 	p->floppyslots[0].dfxtype = DRV_35_HD;
 	p->floppyslots[1].dfxtype = DRV_35_HD;
 	p->floppy_speed = 0;
