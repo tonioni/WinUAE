@@ -1,5 +1,5 @@
 
-#include <emmintrin.h>
+#include <intrin.h>
 
 #include <math.h>
 #include <stddef.h>
