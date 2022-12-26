@@ -415,7 +415,11 @@ static void *bswap_buffer = NULL;
 static uae_u32 bswap_buffer_size = 0;
 static float syncdivisor;
 
+#if CPU_64_BIT
+#define FAKE_HANDLE_WINLAUNCH 0xfffffffeLL
+#else
 #define FAKE_HANDLE_WINLAUNCH 0xfffffffe
+#endif
 
 typedef uae_u32 (*fake_func_get)(struct fake_handle_struct*, const char*);
 typedef uae_u32 (*fake_func_exec)(struct fake_handle_struct*, TrapContext*);
@@ -455,7 +459,7 @@ static uae_u32 fake_winlaunch_exec(struct fake_handle_struct *me, TrapContext *c
 	uae_u32 showcmdval = m68k_dreg(regs, 3);
 	if (showcmdval > 11)
 		return 0;
-	uae_u32 ret = (uae_u32)ShellExecuteA(NULL, NULL, (char*)fileptr, (char*)parmsptr, "", fake_winlaunch_cmdval[showcmdval]);
+	uae_u32 ret = (uae_u32)(uae_u64)ShellExecuteA(NULL, NULL, (char*)fileptr, (char*)parmsptr, "", fake_winlaunch_cmdval[showcmdval]);
 	uae_u32 aret = 0;
 	switch (ret) {
 		case 0:
@@ -563,7 +567,6 @@ uae_u32 REGPARAM2 ahi_demux (TrapContext *context)
 
 	switch (opcode)
 	{
-		uae_u32 src, num_vars;
 		static int cap_pos, clipsize;
 		static TCHAR *clipdat;
 
@@ -753,10 +756,7 @@ uae_u32 REGPARAM2 ahi_demux (TrapContext *context)
 			TCHAR *dllname;
 			uaecptr dllptr;
 			HMODULE h = NULL;
-			TCHAR dpath[MAX_DPATH];
-			TCHAR newdllpath[MAX_DPATH];
 			int ok = 0;
-			TCHAR *filepart;
 			DWORD err = 0;
 
 			dllptr = m68k_areg (regs, 0);
@@ -766,6 +766,9 @@ uae_u32 REGPARAM2 ahi_demux (TrapContext *context)
 			h = native_override(dllname, context);
 #if defined(X86_MSVC_ASSEMBLY)
 			if (h == 0) {
+				TCHAR *filepart;
+				TCHAR dpath[MAX_DPATH];
+				TCHAR newdllpath[MAX_DPATH];
 				dpath[0] = 0;
 				GetFullPathName (dllname, sizeof dpath / sizeof (TCHAR), dpath, &filepart);
 				if (_tcslen (dpath) > _tcslen (start_path_data) && !_tcsncmp (dpath, start_path_data, _tcslen (start_path_data))) {
@@ -795,7 +798,7 @@ uae_u32 REGPARAM2 ahi_demux (TrapContext *context)
 #endif
 			xfree (dllname);
 			syncdivisor = (3580000.0f * CYCLE_UNIT) / (float)syncbase;
-			return (uae_u32)h;
+			return (uae_u32)(uae_u64)h;
 		}
 
 	case 101:	//get dll label
@@ -880,11 +883,12 @@ uae_u32 REGPARAM2 ahi_demux (TrapContext *context)
 		return (uae_u32) get_real_address (0);
 
 	case 106:   //byteswap 16bit vars
+	{
 		//a0 = start address
 		//d1 = number of 16bit vars
 		//returns address of new array
-		src = m68k_areg (regs, 0);
-		num_vars = m68k_dreg (regs, 1);
+		uae_u32 src = m68k_areg (regs, 0);
+		uae_u32 num_vars = m68k_dreg (regs, 1);
 
 		if (bswap_buffer_size < num_vars * 2) {
 			bswap_buffer_size = (num_vars + 1024) * 2;
@@ -944,13 +948,15 @@ BSWAP_WORD_4X_LOOP:
 BSWAP_WORD_END:
 		}
 		return (uae_u32) bswap_buffer;
+	}
 
 	case 107:   //byteswap 32bit vars - see case 106
+	{
 		//a0 = start address
 		//d1 = number of 32bit vars
 		//returns address of new array
-		src = m68k_areg (regs, 0);
-		num_vars = m68k_dreg (regs, 1);
+		uae_u32 src = m68k_areg (regs, 0);
+		uae_u32 num_vars = m68k_dreg (regs, 1);
 		if (bswap_buffer_size < num_vars * 4) {
 			bswap_buffer_size = (num_vars + 16384) * 4;
 			free(bswap_buffer);
@@ -999,6 +1005,7 @@ BSWAP_DWORD_4X_LOOP:
 BSWAP_DWORD_END:
 		}
 		return (uae_u32) bswap_buffer;
+	}
 
 	case 108: //frees swap array
 		bswap_buffer_size = 0;

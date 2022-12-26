@@ -1278,7 +1278,7 @@ static void initscideattr (int readonly)
 	strcpy ((char*)p, "Generic Emulated PCMCIA IDE");
 	p += strlen ((char*)p) + 1;
 	*p++= 0xff;
-	*rp = addrdiff(p, rp - 1);
+	*rp = addrdiff(p, rp) - 1;
 
 	/* CISTPL_FUNCID */
 	*p++ = 0x21;
@@ -1380,7 +1380,7 @@ static void initsramattr (int size, int readonly)
 	sprintf ((char*)p, "Generic Emulated %dKB PCMCIA SRAM Card", size >> 10);
 	p += strlen ((char*)p) + 1;
 	*p++= 0xff;
-	*rp = addrdiff(p, rp - 1);
+	*rp = addrdiff(p, rp) - 1;
 
 	/* CISTPL_FUNCID */
 	*p++ = 0x21;

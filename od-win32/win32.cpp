@@ -7920,7 +7920,8 @@ void *uaenative_get_uaevar (void)
 #ifdef _WIN32
     uaevar.amigawnd = mon->hAmigaWnd;
 #endif
-    uaevar.z3offset = (uae_u32)get_real_address (z3fastmem_bank[0].start) - z3fastmem_bank[0].start;
+	// WARNING: not 64-bit safe!
+    uaevar.z3offset = (uae_u32)(uae_u64)get_real_address(z3fastmem_bank[0].start) - z3fastmem_bank[0].start;
     return &uaevar;
 }
 

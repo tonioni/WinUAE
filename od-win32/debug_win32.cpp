@@ -241,7 +241,7 @@ void WriteOutput(const TCHAR *out, int len)
 	for(;;) {
 		p = _tcschr(tmp, '\n');
 		if (p) {
-			pos = addrdiff(p, tmp + 1);
+			pos = addrdiff(p, tmp) + 1;
 			if (pos > (MAX_LINEWIDTH + 1))
 				pos = MAX_LINEWIDTH + 1;
 			buf = xcalloc(TCHAR, pos + 2);
