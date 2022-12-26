@@ -338,11 +338,11 @@ static int getsub_deinterleaved (uae_u8 *dst, struct cdunit *cdu, struct cdtoc *
 		// regenerate Q-subchannel
 		uae_u8 *s = dst + SUB_ENTRY_SIZE;
 		s[0] = (t->ctrl << 4) | (t->adr << 0);
-		s[1] = tobcd(addrdiff(t, &cdu->toc[0] + 1));
+		s[1] = tobcd(addrdiff(t, &cdu->toc[0]) + 1);
 		s[2] = tobcd(1);
 		int msf = lsn2msf(sector);
 		tolongbcd(s + 7, msf);
-		msf = lsn2msf(addrdiff(sector, t->address - 150));
+		msf = lsn2msf(addrdiff(sector, t->address) - 150);
 		tolongbcd(s + 3, msf);
 		ret = 2;
 	}
