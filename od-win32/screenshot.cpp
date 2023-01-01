@@ -1106,6 +1106,15 @@ static void screenshot_prepare_multi(void)
 static int filenumber = 0;
 static int dirnumber = 1;
 
+static void getscreenshotfilename(TCHAR *name)
+{
+	if (currprefs.floppyslots[0].dfxtype >= 0 && currprefs.floppyslots[0].df[0]) {
+		_tcscpy(name, currprefs.floppyslots[0].df);
+	} else if (currprefs.cdslots[0].inuse) {
+		_tcscpy(name, currprefs.cdslots[0].name);
+	}
+}
+
 /*
 Captures the Amiga display (GDI, D3D) surface and saves it to file as a 24bit bitmap.
 */
@@ -1185,12 +1194,8 @@ int screenshotf(int monid, const TCHAR *spath, int mode, int doprepare, int imag
 			CreateDirectory(path, NULL);
 		}
 
-
 		name[0] = 0;
-		if (currprefs.floppyslots[0].dfxtype >= 0)
-			_tcscpy (name, currprefs.floppyslots[0].df);
-		else if (currprefs.cdslots[0].inuse)
-			_tcscpy (name, currprefs.cdslots[0].name);
+		getscreenshotfilename(name);
 		if (!name[0])
 			underline[0] = 0;
 		namesplit (name);
