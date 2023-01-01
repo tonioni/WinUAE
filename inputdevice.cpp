@@ -4182,6 +4182,7 @@ void inputdevice_do_keyboard(int code, int state)
 				}
 				keyboard_reset_seq = 0;
 			}
+			return;
 		}
 
 		if (key == AK_RESETWARNING) {
