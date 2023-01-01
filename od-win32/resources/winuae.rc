@@ -553,7 +553,7 @@ BEGIN
     COMBOBOX        IDC_PORT1_JOYSMODE,136,86,106,130,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
     PUSHBUTTON      "Remap / Test [] Remap or test Port 2 configuration.",IDC_PORT1_REMAP,310,86,78,14
     PUSHBUTTON      "Swap ports [] Swap ports 1 and 2.",IDC_SWAP,45,112,78,14
-    CONTROL         "Mouse/Joystick autoswitching [] Press button to automatically insert inactive input device in to joystick/mouse port",IDC_PORT_AUTOSWITCH,
+    CONTROL         "Mouse/Joystick autoswitching [] Press button to automatically insert inactive input device in to joystick/mouse port. Joy button 1 = joy port, button 2 = mouse port. Mouse button 1 = mouse port, mouse button 2 = joy port. Long press swaps port selection.",IDC_PORT_AUTOSWITCH,
                     "Button",BS_AUTOCHECKBOX | WS_TABSTOP,136,114,172,11
     LTEXT           "Emulated parallel port joystick adapter",IDC_STATIC,10,136,179,15,SS_CENTERIMAGE
     COMBOBOX        IDC_PORT2_JOYS,45,154,342,130,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
@@ -1435,7 +1435,7 @@ BEGIN
             VALUE "FileDescription", "WinUAE"
             VALUE "FileVersion", "4.10.0.0"
             VALUE "InternalName", "WinUAE"
-            VALUE "LegalCopyright", "© 1996-2022 under the GNU Public License (GPL)"
+            VALUE "LegalCopyright", "© 1996-2023 under the GNU Public License (GPL)"
             VALUE "OriginalFilename", "WinUAE.exe"
             VALUE "ProductName", "WinUAE"
             VALUE "ProductVersion", "4.10.0.0"

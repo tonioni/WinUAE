@@ -3599,7 +3599,7 @@ void logging_init (void)
 		SystemInfo.wProcessorArchitecture, SystemInfo.wProcessorLevel, SystemInfo.wProcessorRevision,
 		SystemInfo.dwNumberOfProcessors, filedate, os_touch);
 	write_log (_T("\n(c) 1995-2001 Bernd Schmidt   - Core UAE concept and implementation.")
-		_T("\n(c) 1998-2022 Toni Wilen      - Win32 port, core code updates.")
+		_T("\n(c) 1998-2023 Toni Wilen      - Win32 port, core code updates.")
 		_T("\n(c) 1996-2001 Brian King      - Win32 port, Picasso96 RTG, and GUI.")
 		_T("\n(c) 1996-1999 Mathias Ortmann - Win32 port and bsdsocket support.")
 		_T("\n(c) 2000-2001 Bernd Meyer     - JIT engine.")
@@ -4467,7 +4467,7 @@ static const TCHAR *obsolete[] = {
 	_T("file_path"), _T("iconified_nospeed"), _T("activepriority"), _T("magic_mouse"),
 	_T("filesystem_codepage"), _T("aspi"), _T("no_overlay"), _T("soundcard_exclusive"),
 	_T("specialkey"), _T("sound_speed_tweak"), _T("sound_lag"),
-	0
+	NULL
 };
 
 static int target_parse_option_hardware(struct uae_prefs *p, const TCHAR *option, const TCHAR *value)
