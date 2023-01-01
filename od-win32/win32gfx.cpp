@@ -1334,7 +1334,7 @@ static void CALLBACK blackinsertion_cb(
 
 		while (strobo_active) {
 			frame_time_t ct = read_processor_time();
-			int diff = (int)strobo_time - (int)ct;
+			frame_time_t diff = strobo_time - ct;
 			if (diff < -vsynctimebase / 2) {
 				break;
 			}
