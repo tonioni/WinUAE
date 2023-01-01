@@ -983,7 +983,7 @@ static int saveiff(FILE *fp, bool alpha)
 		}
 	}
 
-	int tsize = (int)(p - iff - 8);
+	int tsize = addrdiff(p, iff) - 8;
 	p = iff + 4;
 	p[0] = tsize >> 24;
 	p[1] = tsize >> 16;
