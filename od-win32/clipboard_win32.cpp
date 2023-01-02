@@ -415,7 +415,7 @@ static void to_iff_ilbm(TrapContext *ctx, HBITMAP hbmp)
 		}
 	}
 
-	tsize = (int)(p - iff - 8);
+	tsize = addrdiff(p, iff) - 8;
 	p = iff + 4;
 	p[0] = tsize >> 24;
 	p[1] = tsize >> 16;

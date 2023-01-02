@@ -2297,8 +2297,9 @@ static bool get_record_dma_info(struct dma_rec *dr, int hpos, int vpos, TCHAR *l
 		chcnt = br + 1;
 	}
 	if (dr->cf_reg != 0xffff) {
-		_stprintf(srtext, _T("!%03x "), dr->cf_reg);
+		_stprintf(srtext, _T("!%03x"), dr->cf_reg);
 		chcnt = -1;
+		regsize--;
 	} else {
 		_tcscpy(srtext, sr);
 	}
@@ -2355,13 +2356,17 @@ static bool get_record_dma_info(struct dma_rec *dr, int hpos, int vpos, TCHAR *l
 			if (chcnt >= 0) {
 				if (regsize == 3)
 					_stprintf(l2, _T("%3s%d   %03X"), srtext, chcnt, r);
-				else
+				else if (regsize == 2)
 					_stprintf(l2, _T("%4s%d   %02X"), srtext, chcnt, r);
+				else
+					_stprintf(l2, _T("%5s%d   %02X"), srtext, chcnt, r);
 			} else {
 				if (regsize == 3)
 					_stprintf(l2, _T("%4s   %03X"), srtext, r);
-				else
+				else if (regsize == 2)
 					_stprintf(l2, _T("%5s   %02X"), srtext, r);
+				else
+					_stprintf(l2, _T("%6s   %02X"), srtext, r);
 			}
 		}
 		if (l3 && !noval) {

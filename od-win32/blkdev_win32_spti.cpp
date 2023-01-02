@@ -77,7 +77,7 @@ static int getunitnum (struct dev_info_spti *di)
 {
 	if (!di)
 		return -1;
-	int idx = (int)(di - &dev_info[0]);
+	int idx = addrdiff(di, &dev_info[0]);
 	for (int i = 0; i < MAX_TOTAL_SCSI_DEVICES; i++) {
 		if (unittable[i] - 1 == idx)
 			return i;

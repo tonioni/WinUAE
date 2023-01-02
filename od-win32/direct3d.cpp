@@ -1949,7 +1949,7 @@ static int createmasktexture (struct d3dstruct *d3d, const TCHAR *filename, stru
 	D3DXIMAGE_INFO dinfo;
 	TCHAR tmp[MAX_DPATH];
 	int maskwidth, maskheight;
-	int idx = (int)(sd - &d3d->shaders[0]);
+	int idx = addrdiff(sd, &d3d->shaders[0]);
 
 	if (filename[0] == 0)
 		return 0;

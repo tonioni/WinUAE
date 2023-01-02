@@ -2134,7 +2134,7 @@ static bool allocshadertex(struct d3d11struct *d3d, struct shadertex *t, int w, 
 
 static bool allocextratextures(struct d3d11struct *d3d, struct shaderdata11 *s, int w, int h)
 {
-	int scnt = (int)(s - &d3d->shaders[0]);
+	int scnt = addrdiff(s, &d3d->shaders[0]);
 	if (!allocshadertex(d3d, &s->lpWorkTexture1, w, h, scnt))
 		return false;
 	if (!allocshadertex(d3d, &s->lpWorkTexture2, w, h, scnt))

@@ -3599,7 +3599,7 @@ void logging_init (void)
 		SystemInfo.wProcessorArchitecture, SystemInfo.wProcessorLevel, SystemInfo.wProcessorRevision,
 		SystemInfo.dwNumberOfProcessors, filedate, os_touch);
 	write_log (_T("\n(c) 1995-2001 Bernd Schmidt   - Core UAE concept and implementation.")
-		_T("\n(c) 1998-2022 Toni Wilen      - Win32 port, core code updates.")
+		_T("\n(c) 1998-2023 Toni Wilen      - Win32 port, core code updates.")
 		_T("\n(c) 1996-2001 Brian King      - Win32 port, Picasso96 RTG, and GUI.")
 		_T("\n(c) 1996-1999 Mathias Ortmann - Win32 port and bsdsocket support.")
 		_T("\n(c) 2000-2001 Bernd Meyer     - JIT engine.")
@@ -4467,13 +4467,37 @@ static const TCHAR *obsolete[] = {
 	_T("file_path"), _T("iconified_nospeed"), _T("activepriority"), _T("magic_mouse"),
 	_T("filesystem_codepage"), _T("aspi"), _T("no_overlay"), _T("soundcard_exclusive"),
 	_T("specialkey"), _T("sound_speed_tweak"), _T("sound_lag"),
-	0
+	NULL
 };
 
-int target_parse_option (struct uae_prefs *p, const TCHAR *option, const TCHAR *value)
+static int target_parse_option_hardware(struct uae_prefs *p, const TCHAR *option, const TCHAR *value)
 {
 	TCHAR tmpbuf[CONFIG_BLEN];
-	int i, v;
+
+	if (cfgfile_string(option, value, _T("rtg_vblank"), tmpbuf, sizeof tmpbuf / sizeof(TCHAR))) {
+		if (!_tcscmp(tmpbuf, _T("real"))) {
+			p->win32_rtgvblankrate = -1;
+			return 1;
+		}
+		if (!_tcscmp(tmpbuf, _T("disabled"))) {
+			p->win32_rtgvblankrate = -2;
+			return 1;
+		}
+		if (!_tcscmp(tmpbuf, _T("chipset"))) {
+			p->win32_rtgvblankrate = 0;
+			return 1;
+		}
+		p->win32_rtgvblankrate = _tstol(tmpbuf);
+		return 1;
+	}
+
+	return 0;
+}
+
+static int target_parse_option_host(struct uae_prefs *p, const TCHAR *option, const TCHAR *value)
+{
+	TCHAR tmpbuf[CONFIG_BLEN];
+	int v;
 	bool tbool;
 
 	if (cfgfile_yesno(option, value, _T("middle_mouse"), &tbool)) {
@@ -4513,12 +4537,12 @@ int target_parse_option (struct uae_prefs *p, const TCHAR *option, const TCHAR *
 		|| cfgfile_yesno(option, value, _T("always_on_top"), &p->win32_main_alwaysontop)
 		|| cfgfile_yesno(option, value, _T("gui_always_on_top"), &p->win32_gui_alwaysontop)
 		|| cfgfile_yesno(option, value, _T("powersavedisabled"), &p->win32_powersavedisabled)
-		|| cfgfile_string(option, value, _T("exec_before"), p->win32_commandpathstart, sizeof p->win32_commandpathstart / sizeof (TCHAR))
+		|| cfgfile_string(option, value, _T("exec_before"), p->win32_commandpathstart, sizeof p->win32_commandpathstart / sizeof(TCHAR))
 		|| cfgfile_string(option, value, _T("exec_after"), p->win32_commandpathend, sizeof p->win32_commandpathend / sizeof (TCHAR))
-		|| cfgfile_string(option, value, _T("parjoyport0"), p->win32_parjoyport0, sizeof p->win32_parjoyport0 / sizeof (TCHAR))
-		|| cfgfile_string(option, value, _T("parjoyport1"), p->win32_parjoyport1, sizeof p->win32_parjoyport1 / sizeof (TCHAR))
-		|| cfgfile_string(option, value, _T("gui_page"), p->win32_guipage, sizeof p->win32_guipage / sizeof (TCHAR))
-		|| cfgfile_string(option, value, _T("gui_active_page"), p->win32_guiactivepage, sizeof p->win32_guiactivepage / sizeof (TCHAR))
+		|| cfgfile_string(option, value, _T("parjoyport0"), p->win32_parjoyport0, sizeof p->win32_parjoyport0 / sizeof(TCHAR))
+		|| cfgfile_string(option, value, _T("parjoyport1"), p->win32_parjoyport1, sizeof p->win32_parjoyport1 / sizeof(TCHAR))
+		|| cfgfile_string(option, value, _T("gui_page"), p->win32_guipage, sizeof p->win32_guipage / sizeof(TCHAR))
+		|| cfgfile_string(option, value, _T("gui_active_page"), p->win32_guiactivepage, sizeof p->win32_guiactivepage / sizeof(TCHAR))
 		|| cfgfile_intval(option, value, _T("guikey"), &p->win32_guikey, 1)
 		|| cfgfile_intval(option, value, _T("kbledmode"), &p->win32_kbledmode, 1)
 		|| cfgfile_yesno(option, value, _T("filesystem_mangle_reserved_names"), &p->win32_filesystem_mangle_reserved_names)
@@ -4546,7 +4570,6 @@ int target_parse_option (struct uae_prefs *p, const TCHAR *option, const TCHAR *
 		|| cfgfile_intval(option, value, _T("screenshot_max_height"), &p->screenshot_max_height, 1)
 		|| cfgfile_intval(option, value, _T("screenshot_output_width_limit"), &p->screenshot_output_width, 1)
 		|| cfgfile_intval(option, value, _T("screenshot_output_height_limit"), &p->screenshot_output_height, 1))
-
 		return 1;
 
 	if (cfgfile_strval(option, value, _T("screenshot_mult_width"), &p->screenshot_xmult, configmult, 0))
@@ -4567,49 +4590,49 @@ int target_parse_option (struct uae_prefs *p, const TCHAR *option, const TCHAR *
 		return 1;
 	}
 
-	if (cfgfile_yesno (option, value, _T("rtg_match_depth"), &p->win32_rtgmatchdepth))
+	if (cfgfile_yesno(option, value, _T("rtg_match_depth"), &p->win32_rtgmatchdepth))
 		return 1;
-	if (cfgfile_yesno (option, value, _T("rtg_scale_small"), &tbool)) {
+	if (cfgfile_yesno(option, value, _T("rtg_scale_small"), &tbool)) {
 		p->gf[GF_RTG].gfx_filter_autoscale = tbool ? RTG_MODE_SCALE : 0;
 		return 1;
 	}
-	if (cfgfile_yesno (option, value, _T("rtg_scale_center"), &tbool)) {
+	if (cfgfile_yesno(option, value, _T("rtg_scale_center"), &tbool)) {
 		if (tbool)
 			p->gf[GF_RTG].gfx_filter_autoscale = RTG_MODE_CENTER;
 		return 1;
 	}
-	if (cfgfile_yesno (option, value, _T("rtg_scale_allow"), &p->win32_rtgallowscaling))
+	if (cfgfile_yesno(option, value, _T("rtg_scale_allow"), &p->win32_rtgallowscaling))
 		return 1;
 
-	if (cfgfile_intval (option, value, _T("soundcard"), &p->win32_soundcard, 1)) {
+	if (cfgfile_intval(option, value, _T("soundcard"), &p->win32_soundcard, 1)) {
 		if (p->win32_soundcard < 0 || p->win32_soundcard >= MAX_SOUND_DEVICES || sound_devices[p->win32_soundcard] == NULL)
 			p->win32_soundcard = 0;
 		return 1;
 	}
 
-	if (cfgfile_string (option, value, _T("soundcardname"), tmpbuf, sizeof tmpbuf / sizeof (TCHAR))) {
-		int i, num;
+	if (cfgfile_string(option, value, _T("soundcardname"), tmpbuf, sizeof tmpbuf / sizeof(TCHAR))) {
+		int num;
 
 		num = p->win32_soundcard;
 		p->win32_soundcard = -1;
-		for (i = 0; i < MAX_SOUND_DEVICES && sound_devices[i] ; i++) {
+		for (int i = 0; i < MAX_SOUND_DEVICES && sound_devices[i] ; i++) {
 			if (i < num)
 				continue;
-			if (!_tcscmp (sound_devices[i]->cfgname, tmpbuf)) {
+			if (!_tcscmp(sound_devices[i]->cfgname, tmpbuf)) {
 				p->win32_soundcard = i;
 				break;
 			}
 		}
 		if (p->win32_soundcard < 0) {
-			for (i = 0; i < MAX_SOUND_DEVICES && sound_devices[i]; i++) {
-				if (!_tcscmp (sound_devices[i]->cfgname, tmpbuf)) {
+			for (int i = 0; i < MAX_SOUND_DEVICES && sound_devices[i]; i++) {
+				if (!_tcscmp(sound_devices[i]->cfgname, tmpbuf)) {
 					p->win32_soundcard = i;
 					break;
 				}
 			}
 		}
 		if (p->win32_soundcard < 0) {
-			for (i = 0; i < MAX_SOUND_DEVICES && sound_devices[i]; i++) {
+			for (int i = 0; i < MAX_SOUND_DEVICES && sound_devices[i]; i++) {
 				if (!sound_devices[i]->prefix)
 					continue;
 				int prefixlen = uaetcslen(sound_devices[i]->prefix);
@@ -4628,22 +4651,22 @@ int target_parse_option (struct uae_prefs *p, const TCHAR *option, const TCHAR *
 			p->win32_soundcard = num;
 		return 1;
 	}
-	if (cfgfile_string (option, value, _T("samplersoundcardname"), tmpbuf, sizeof tmpbuf / sizeof (TCHAR))) {
-		int i, num;
+	if (cfgfile_string(option, value, _T("samplersoundcardname"), tmpbuf, sizeof tmpbuf / sizeof(TCHAR))) {
+		int num;
 
 		num = p->win32_samplersoundcard;
 		p->win32_samplersoundcard = -1;
-		for (i = 0; i < MAX_SOUND_DEVICES && record_devices[i]; i++) {
+		for (int i = 0; i < MAX_SOUND_DEVICES && record_devices[i]; i++) {
 			if (i < num)
 				continue;
-			if (!_tcscmp (record_devices[i]->cfgname, tmpbuf)) {
+			if (!_tcscmp(record_devices[i]->cfgname, tmpbuf)) {
 				p->win32_samplersoundcard = i;
 				break;
 			}
 		}
 		if (p->win32_samplersoundcard < 0) {
-			for (i = 0; i < MAX_SOUND_DEVICES && record_devices[i]; i++) {
-				if (!_tcscmp (record_devices[i]->cfgname, tmpbuf)) {
+			for (int i = 0; i < MAX_SOUND_DEVICES && record_devices[i]; i++) {
+				if (!_tcscmp(record_devices[i]->cfgname, tmpbuf)) {
 					p->win32_samplersoundcard = i;
 					break;
 				}
@@ -4652,32 +4675,15 @@ int target_parse_option (struct uae_prefs *p, const TCHAR *option, const TCHAR *
 		return 1;
 	}
 
-	if (cfgfile_string (option, value, _T("rtg_vblank"), tmpbuf, sizeof tmpbuf / sizeof (TCHAR))) {
-		if (!_tcscmp (tmpbuf, _T("real"))) {
-			p->win32_rtgvblankrate = -1;
-			return 1;
-		}
-		if (!_tcscmp (tmpbuf, _T("disabled"))) {
-			p->win32_rtgvblankrate = -2;
-			return 1;
-		}
-		if (!_tcscmp (tmpbuf, _T("chipset"))) {
-			p->win32_rtgvblankrate = 0;
-			return 1;
-		}
-		p->win32_rtgvblankrate = _tstol (tmpbuf);
-		return 1;
-	}
-
-	if (cfgfile_string (option, value, _T("rtg_scale_aspect_ratio"), tmpbuf, sizeof tmpbuf / sizeof (TCHAR))) {
+	if (cfgfile_string(option, value, _T("rtg_scale_aspect_ratio"), tmpbuf, sizeof tmpbuf / sizeof (TCHAR))) {
 		int v1, v2;
 		TCHAR *s;
 
 		p->win32_rtgscaleaspectratio = -1;
-		v1 = _tstol (tmpbuf);
-		s = _tcschr (tmpbuf, ':');
+		v1 = _tstol(tmpbuf);
+		s = _tcschr(tmpbuf, ':');
 		if (s) {
-			v2 = _tstol (s + 1);
+			v2 = _tstol(s + 1);
 			if (v1 < 0 || v2 < 0)
 				p->win32_rtgscaleaspectratio = -1;
 			else if (v1 == 0 || v2 == 0)
@@ -4688,17 +4694,17 @@ int target_parse_option (struct uae_prefs *p, const TCHAR *option, const TCHAR *
 		return 1;
 	}
 
-	if (cfgfile_strval (option, value, _T("uaescsimode"), &p->win32_uaescsimode, scsimode, 0)) {
+	if (cfgfile_strval(option, value, _T("uaescsimode"), &p->win32_uaescsimode, scsimode, 0)) {
 		// force SCSIEMU if pre 2.3 configuration
 		if (p->config_version < ((2 << 16) | (3 << 8)))
 			p->win32_uaescsimode = UAESCSI_CDEMU;
 		return 1;
 	}
 
-	if (cfgfile_strval (option, value, _T("statusbar"), &p->win32_statusbar, statusbarmode, 0))
+	if (cfgfile_strval(option, value, _T("statusbar"), &p->win32_statusbar, statusbarmode, 0))
 		return 1;
 
-	if (cfgfile_intval (option, value, _T("active_priority"), &v, 1) || cfgfile_intval (option, value, _T("activepriority"), &v, 1)) {
+	if (cfgfile_intval(option, value, _T("active_priority"), &v, 1) || cfgfile_intval (option, value, _T("activepriority"), &v, 1)) {
 		p->win32_active_capture_priority = fetchpri (v, 1);
 		p->win32_active_nocapture_pause = false;
 		p->win32_active_nocapture_nosound = false;
@@ -4715,26 +4721,26 @@ int target_parse_option (struct uae_prefs *p, const TCHAR *option, const TCHAR *
 	if (cfgfile_yesno(option, value, _T("active_capture_automatically"), &p->win32_capture_always))
 		return 1;
 
-	if (cfgfile_intval (option, value, _T("inactive_priority"), &v, 1)) {
+	if (cfgfile_intval(option, value, _T("inactive_priority"), &v, 1)) {
 		p->win32_inactive_priority = fetchpri (v, 1);
 		return 1;
 	}
-	if (cfgfile_intval (option, value, _T("iconified_priority"), &v, 1)) {
+	if (cfgfile_intval(option, value, _T("iconified_priority"), &v, 1)) {
 		p->win32_iconified_priority = fetchpri (v, 2);
 		return 1;
 	}
 	
-	if (cfgfile_yesno (option, value, _T("inactive_iconify"), &p->win32_minimize_inactive))
+	if (cfgfile_yesno(option, value, _T("inactive_iconify"), &p->win32_minimize_inactive))
 		return 1;
 
-	if (cfgfile_yesno (option, value, _T("start_iconified"), &p->win32_start_minimized))
+	if (cfgfile_yesno(option, value, _T("start_iconified"), &p->win32_start_minimized))
 		return 1;
 
-	if (cfgfile_yesno (option, value, _T("start_not_captured"), &p->win32_start_uncaptured))
+	if (cfgfile_yesno(option, value, _T("start_not_captured"), &p->win32_start_uncaptured))
 		return 1;
 
 	if (cfgfile_string_escape(option, value, _T("serial_port"), &p->sername[0], 256)) {
-		sernametodev (p->sername);
+		sernametodev(p->sername);
 		if (p->sername[0])
 			p->use_serial = 1;
 		else
@@ -4743,12 +4749,12 @@ int target_parse_option (struct uae_prefs *p, const TCHAR *option, const TCHAR *
 	}
 
 	if (cfgfile_string_escape(option, value, _T("parallel_port"), &p->prtname[0], 256)) {
-		if (!_tcscmp (p->prtname, _T("none")))
+		if (!_tcscmp(p->prtname, _T("none")))
 			p->prtname[0] = 0;
-		if (!_tcscmp (p->prtname, _T("default"))) {
+		if (!_tcscmp(p->prtname, _T("default"))) {
 			p->prtname[0] = 0;
 			DWORD size = 256;
-			GetDefaultPrinter (p->prtname, &size);
+			GetDefaultPrinter(p->prtname, &size);
 		}
 		return 1;
 	}
@@ -4774,15 +4780,29 @@ int target_parse_option (struct uae_prefs *p, const TCHAR *option, const TCHAR *
 		return 1;
 	}
 
-	i = 0;
+	return 0;
+}
+
+int target_parse_option(struct uae_prefs *p, const TCHAR *option, const TCHAR *value, int type)
+{
+	int v = 0;
+	if (type & CONFIG_TYPE_HARDWARE) {
+		v = target_parse_option_hardware(p, option, value);
+	} else if (type & CONFIG_TYPE_HOST) {
+		v = target_parse_option_host(p, option, value);
+	}
+	if (v) {
+		return v;
+	}
+	
+	int i = 0;
 	while (obsolete[i]) {
-		if (!strcasecmp (obsolete[i], option)) {
-			write_log (_T("obsolete config entry '%s'\n"), option);
+		if (!strcasecmp(obsolete[i], option)) {
+			write_log(_T("obsolete config entry '%s'\n"), option);
 			return 1;
 		}
 		i++;
 	}
-
 	return 0;
 }
 

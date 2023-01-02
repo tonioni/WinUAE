@@ -4182,6 +4182,7 @@ void inputdevice_do_keyboard(int code, int state)
 				}
 				keyboard_reset_seq = 0;
 			}
+			return;
 		}
 
 		if (key == AK_RESETWARNING) {
@@ -8955,6 +8956,7 @@ void setjoystickstate (int joy, int axis, int state, int max)
 	if (input_play)
 		return;
 	if (!joysticks[joy].enabled) {
+#if 0
 		if (v1 > 0)
 			v1 = 1;
 		else if (v1 < 0)
@@ -8979,6 +8981,7 @@ void setjoystickstate (int joy, int axis, int state, int max)
 				prevdir = v1;
 			}
 		}
+#endif
 		return;
 	}
 	for (i = 0; i < MAX_INPUT_SUB_EVENT; i++) {

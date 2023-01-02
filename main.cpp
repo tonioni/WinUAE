@@ -127,23 +127,6 @@ TCHAR *my_strdup_trim (const TCHAR *s)
 	return out;
 }
 
-void discard_prefs(struct uae_prefs *p, int type)
-{
-	struct strlist **ps = &p->all_lines;
-	while (*ps) {
-		struct strlist *s = *ps;
-		*ps = s->next;
-		xfree (s->value);
-		xfree (s->option);
-		xfree (s);
-	}
-	p->all_lines = NULL;
-	currprefs.all_lines = changed_prefs.all_lines = NULL;
-#ifdef FILESYS
-	filesys_cleanup ();
-#endif
-}
-
 static void fixup_prefs_dim2(int monid, struct wh *wh)
 {
 	if (wh->special)
