@@ -1,4 +1,30 @@
 
+Beta 2:
+
+- Bitplane DMA stealing sprite DMA off by one fix (b1)
+- Platform specific hardware specific config entries didn't parse correctly and were ignored (b1)
+- B1 sprite/blitter conflict was unreliable (not accurate side-effects in some situations, probably no one really cares as usual..)
+- DSKBYTR WORDSYNC bit was previously autocleared after short delay. Now it stays on as long as DSKSYNC matches. Was very old workaround for old and wrong WORDSYNC behavior. Load DSKBYTR only when valid data is available. Real HW does not seem to load DSKBYTR when only zeros are read. (Most likely DSKBYTR is not loaded if PLL is not locked?)
+
+Beta 1:
+
+- Fixed possible single scan line graphics corruption if BPLCON0 was changed when horizontal sync started (Caused by last minute 4.10.0 bug fix).
+- Interlace config scaling mode was saved as RTG scaling mode which could write incorrect config entry or cause a crash.
+- When saving config, check index values of array type config entries, preventing possible out of bounds memory access if entry is invalid (negative or too large) for some reason, like above bug. Config entry is internally index number, index is used to select config file entry value. If invalid value is detected, message is logged and config entry write is skipped.
+- Removed useless "Scanlines" option under PAL filter extra settings.
+- GDI mode RTG hardware cursor was not fully disabled when emulated Amiga was reset.
+- GDI cursor leaved garbage on screen if hardware sprite coordinates were negative.
+- Taking screenshot, DF0: is enabled but empty and CD drive is enabled but not empty: select CD image name.
+- Disabled move left/right joystick autoswitching mode (was too easy to do it accidentally without noticing what happened). Only buttons are supported now. Improved popup description text of autoswitch option.
+- Vblank interrupt trigger was 2 cycles too late. (Cracked The deep hang). This was supposed to be correct but probably some test results were misunderstood. Or something.
+- Copper write to DMACON that disables copper DMA: copper stopped 1 cycle too early. (Following copper instruction's first instruction word is still fetched)
+- DMACON write that switches blitter DMA on or off when blitter is running was not fully cycle-accurate. Now it is. (Blitter nasty was already correct)
+- Yet another sprite DMA conflict found (Thanks ross again :)) and emulated. If sprite DMA is switched on exactly 3 cycles before sprite's DMA slot, DMA decision is done and sprite pointer is increased but slot is not allocated, DMA transfer does not happen and RGA bus appears in idle state (0x01FE). If some other DMA channel allocates same slot, it conflicts and usual RGA bus AND and DMA pointer OR operations happens. Bitplane or blitter seems to be only channels that can conflict in this situation. CPU also can use this cycle safely. (Why do sprites have 2 different kinds of undocumented and weird conflicts?)
+- Disk DSKSYNC interrupt behavior adjusted (not done any proper tests yet to fully confirm it), INTREQ DSKSYN bit only seems to get set when internal DSKBYTR WORDEQUAL bit changes from 0 to 1 because without drives selected (internal buffer value is static) and causing DSKSYNC match: DSKBYTR WORDEQUAL is one but interrupt only happens once (for example setting DSKSYNC to non-matching value and back to matching will generate single interrupt. Only writing same matching value again won't generate new interrupt). This behavior was never accurate and some versions had different hacks. Hopefully this is more correct behavior. (Retrovision / Insane and others I don't remember)
+- Some timing operations still used old 32-bit wrap around timer checks that can return bad results with new 64-bit internal cycle counter. Affected standard vsync mode.
+- Clear Harddrives panel list when loading hardware-only config.
+- Platform specific config entries ("win32.???") were host only. Separated to host and hardware config entries. Moved win32.rtg_vblank to hardware config (Also this shouldn't be in platform specific anymore..)
+
 4.10.0
 
 Beta 11 (RC3):
