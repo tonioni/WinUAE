@@ -1169,6 +1169,9 @@ static int real_main2 (int argc, TCHAR **argv)
 	savestate_init ();
 	keybuf_init (); /* Must come after init_joystick */
 
+#ifdef DEBUGGER
+	disasm_init();
+#endif
 	memory_hardreset (2);
 	memory_reset ();
 
@@ -1191,8 +1194,10 @@ static int real_main2 (int argc, TCHAR **argv)
 
 	if (graphics_init (true)) {
 		setup_brkhandler ();
+#ifdef DEBUGGER
 		if (currprefs.start_debugger && debuggable ())
 			activate_debugger ();
+#endif
 
 		if (!init_audio ()) {
 			if (sound_available && currprefs.produce_sound > 1) {
