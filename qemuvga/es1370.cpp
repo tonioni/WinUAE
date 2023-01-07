@@ -1201,7 +1201,7 @@ static const struct pci_config es1370_pci_config =
 const struct pci_board es1370_pci_board =
 {
 	_T("ES1370"),
-	&es1370_pci_config, es1370_init, es1370_free, es1370_reset, NULL,
+	&es1370_pci_config, es1370_init, es1370_free, es1370_reset, NULL, NULL,
 	{
 		{ es1370_lget, es1370_wget, es1370_bget, es1370_lput, es1370_wput, es1370_bput },
 		{ NULL },

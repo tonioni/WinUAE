@@ -225,12 +225,19 @@ static void create_config_data(struct pci_board_state *s)
 {
 	uae_u8 *d = s->config_data;
 	const struct pci_config *c = &s->dynamic_config;
+	uae_u8 irq = d[5] & (1 << 3);
 
 	// big endian, get/put functions will swap if needed.
 	d[0] = c->device >> 8;
 	d[1] = (uae_u8)c->device;
 	d[2] = c->vendor >> 8;
 	d[3] = (uae_u8)c->vendor;
+
+	// Status register
+	// Clear Abort/Error flags, allow DEVSEL timing.
+	d[4] &= ~3;
+	// Allow only Fast back-to-back capable
+	d[5] &= ~(1 << 7);
 
 	d[8] = c->deviceclass >> 16;
 	d[9] = c->deviceclass >> 8;
@@ -255,6 +262,14 @@ static void create_config_data(struct pci_board_state *s)
 	d[0x3c] = c->max_latency;
 	d[0x3d] = c->min_grant;
 	d[0x3e] = c->interruptpin;
+
+	// validate config
+	if (s->board->chkcfg) {
+		s->board->chkcfg(s, d);
+	}
+
+	d[5] &= ~(1 << 3);
+	d[5] |= irq;
 }
 
 static struct pci_bridge *get_pci_bridge(uaecptr addr)
@@ -1277,7 +1292,6 @@ static void REGPARAM2 pci_bridge_bput_2(uaecptr addr, uae_u32 b)
 				} else {
 					map_banks_z2(&dummy_bank, (pcib->baseaddress_2 + 0x10000) >> 16, 0x10000 >> 16);
 				}
-				memory_map_dump();
 			} else if (offset == 11) {
 				pcib->intena = b >> 4;
 			} else if (offset == 0x40) {
@@ -1688,7 +1702,7 @@ static const struct pci_config ncr_53c815_pci_config =
 static const struct pci_board ncr_53c815_pci_board =
 {
 	_T("NCR53C815"),
-	&ncr_53c815_pci_config, NULL, NULL, NULL, NULL,
+	&ncr_53c815_pci_config, NULL, NULL, NULL, NULL, NULL,
 	{
 		{ wildfire_lget, wildfire_wget, wildfire_bget, wildfire_lput, wildfire_wput, wildfire_bput },
 		{ wildfire_lget, wildfire_wget, wildfire_bget, wildfire_lput, wildfire_wput, wildfire_bput },

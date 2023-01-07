@@ -3856,7 +3856,7 @@ static const struct pci_config voodoo3_pci_config =
 static const struct pci_board voodoo3_pci_board =
 {
 	_T("VOODOO3"),
-	&voodoo3_pci_config, NULL, NULL, NULL, NULL,
+	&voodoo3_pci_config, NULL, NULL, NULL, NULL, NULL,
 	{
 		{ voodoo3_mb0_lget, voodoo3_mb0_wget, voodoo3_mb0_bget, voodoo3_mb0_lput, voodoo3_mb0_wput, voodoo3_mb0_bput },
 		{ voodoo3_mb1_lget, voodoo3_mb1_wget, voodoo3_mb1_bget, voodoo3_mb1_lput, voodoo3_mb1_wput, voodoo3_mb1_bput },
@@ -4058,7 +4058,7 @@ static const struct pci_config s3virge_pci_config =
 static const struct pci_board s3virge_pci_board =
 {
 	_T("S3VIRGE"),
-	&s3virge_pci_config, NULL, NULL, NULL, NULL,
+	&s3virge_pci_config, NULL, NULL, NULL, NULL, NULL,
 	{
 		{ s3virge_mb0_lget, s3virge_mb0_wget, s3virge_mb0_bget, s3virge_mb0_lput, s3virge_mb0_wput, s3virge_mb0_bput },
 		{ NULL },
