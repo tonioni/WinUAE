@@ -42,6 +42,7 @@
 #include "uae/ppc.h"
 #include "devices.h"
 #include "jit/compemu.h"
+#include "disasm.h"
 #ifdef RETROPLATFORM
 #include "rp.h"
 #endif
@@ -1083,9 +1084,7 @@ static int real_main2 (int argc, TCHAR **argv)
 		exit (1);
 	}
 
-#ifdef NATMEM_OFFSET
-	//preinit_shm ();
-#endif
+	event_init();
 
 	if (restart_config[0])
 		parse_cmdline_and_init_file (argc, argv);
