@@ -358,7 +358,7 @@ static struct pci_board_state *get_pci_board_state(struct pci_bridge *pcib, uaec
 	if (io && addr2 < 0x400) {
 		for (int i = 0; i < MAX_PCI_BOARDS; i++) {
 			struct pci_board_state *pcibs = &pcib->boards[i];
-			if (pcibs->board->bars[MAX_PCI_BARS].bget) {
+			if (pcibs->board && pcibs->board->bars[MAX_PCI_BARS].bget) {
 				stored_board = i;
 				stored_bar = MAX_PCI_BARS;
 				*bar = stored_bar;
