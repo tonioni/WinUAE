@@ -1,4 +1,14 @@
 
+Beta 3:
+
+- Serial port RI (ring indicator) was inverted. If both printer and serial port was enabled, printer port SEL was pulled down even when RI was inactive.
+- DSKBYTR behavior updated after more testing. It is updated all the time normally except if DSKLEN WRITE bit is set without DMA enable. It is even updated (with zeros) when disk write DMA is currently active.
+- Dumping CPU state after JIT unhandled exception or program jumping to IO space won't open console window anymore.
+- If 2 back to back internal cycle count events had same cycle count value, order of executed events was undefined. Now they are executed in FIFO order. Interrupt clearing and setting at same cycle queued two events, interrupt was lost if they were executed in opposite order. Fixed weird music issue in Jesus on E's / LSD.
+- Fixed PCI bridgeboard crash if non-existing PCI board IO or RAM space was accessed.
+- FM801 does not seem to have PCI Device control register Interrupt Disable bit (marked as reserved in datasheet). Made it unchangeable (and few other PCI config bits) to fix Mediator FM801 driver audio playback hang. (Possibly this worked with some older Mediator drivers)
+- Added command line option "-winekeyboard" to change handling of PAUSE and NUMLOCK keys as a workaround for different (buggy?) Wine RawInput key codes and flags. (falcon35180)
+
 Beta 2:
 
 - Bitplane DMA stealing sprite DMA off by one fix (b1)
