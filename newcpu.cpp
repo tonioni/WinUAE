@@ -6631,6 +6631,7 @@ void m68k_dumpstate(uaecptr *nextpc, uaecptr prevpc)
 	int i, j;
 	uaecptr pc = M68K_GETPC;
 
+	MakeSR();
 	for (i = 0; i < 8; i++){
 		console_out_f (_T("  D%d %08X "), i, m68k_dreg (regs, i));
 		if ((i & 3) == 3) console_out_f (_T("\n"));
