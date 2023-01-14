@@ -1294,7 +1294,7 @@ void savestate_quick (int slot, int save)
 	}
 }
 
-bool savestate_check (void)
+bool savestate_check(void)
 {
 	if (vpos == 0 && !savestate_state) {
 		if (hsync_counter == 0 && input_play == INPREC_PLAY_NORMAL)
@@ -1307,6 +1307,10 @@ bool savestate_check (void)
 	} else if (savestate_state == STATE_DOREWIND) {
 		savestate_state = STATE_REWIND;
 		return true;
+	} else if (savestate_state == STATE_SAVE) {
+		savestate_initsave(savestate_fname, 1, true, true);
+		save_state(savestate_fname, STATE_SAVE_DESCRIPTION);
+		return false;
 	}
 	return false;
 }
