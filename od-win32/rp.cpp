@@ -38,6 +38,8 @@
 #include "debug.h"
 #include "devices.h"
 
+#define RP_SCREENMODE_SCALE_MAX_X 128
+
 static int initialized;
 static RPGUESTINFO guestinfo;
 static int maxjports;
@@ -717,24 +719,22 @@ static void fixup_size (struct uae_prefs *prefs)
 	write_log(_T("-> %dx%d\n"), gm->gfx_size_win.width, gm->gfx_size_win.height);
 }
 
-static int getmult (float mult, bool *half)
+static float getmult(float mult)
 {
-	*half = false;
-	if (mult >= 3.5)
-		return 2; // 4x
+	if (mult >= 3.5f)
+		return (mult - 3.5f + 4.0f) / 2.0f; //2.0f; // 4x
 	if (mult >= 2.5f) {
-		*half = true;
-		return 1; // 3x
+		return 1.5f; // 3x
 	}
 	if (mult >= 1.5f)
-		return 1; // 2x
+		return 1.0f; // 2x
 	if (mult >= 0.8f)
-		return 0; // 1x
+		return 0.0f; // 1x
 	if (mult >= 0.4f)
-		return -1; // 1/2x
+		return -1.0f; // 1/2x
 	if (mult >= 0.1f)
-		return -2; // 1/4x
-	return 0;
+		return -2.0f; // 1/4x
+	return 0.0f;
 }
 
 static int shift (int val, int shift)
@@ -778,12 +778,12 @@ static void get_screenmode (struct RPScreenMode *sm, struct uae_prefs *p, bool g
 		sm->lClipWidth = -1;//picasso96_state.Width;
 		sm->lClipHeight = -1;//picasso96_state.Height;
 
-		if (hmult >= 3.5f || vmult >= 3.5f)
-			m |= RP_SCREENMODE_SCALE_4X;
-		else if (hmult >= 2.5f || vmult >= 2.5f)
-			m |= RP_SCREENMODE_SCALE_3X;
-		else if (hmult >= 1.5f || vmult >= 1.5f)
-			m |= RP_SCREENMODE_SCALE_2X;
+		for (int i = RP_SCREENMODE_SCALE_MAX_X; i >= RP_SCREENMODE_SCALE_2X; i--) {
+			if (hmult >= (float)i + 0.5) {
+				m |= i;
+				break;
+			}
+		}
 
 	} else {
 
@@ -810,17 +810,21 @@ static void get_screenmode (struct RPScreenMode *sm, struct uae_prefs *p, bool g
 		totalhdbl = hres;
 		if (hres > max_horiz_dbl)
 			hres = max_horiz_dbl;
-		hres += getmult (hmult, &half);
+		float hresm = getmult(hmult);
+		hres += (int)hresm;
 
 		totalvdbl = vres;
 		if (vres > max_vert_dbl)
 			vres = max_vert_dbl;
-		vres += getmult (vmult, &half);
+		float vresm = getmult(vmult);
+		vres += (int)vresm;
 
-		if (hres == RES_SUPERHIRES) {
-			m = half ? RP_SCREENMODE_SCALE_3X : RP_SCREENMODE_SCALE_2X;
+		if (hres > RES_SUPERHIRES) {
+			m = (int)vresm + 1;
+		} else if (hres == RES_SUPERHIRES) {
+			m = vresm > 1.0f && vresm < 2.0f ? RP_SCREENMODE_SCALE_3X : RP_SCREENMODE_SCALE_2X;
 		} else if (hres >= RES_SUPERHIRES + 1) {
-			m = half ? RP_SCREENMODE_SCALE_3X : RP_SCREENMODE_SCALE_4X;
+			m = vresm > 1.0f && vresm < 2.0f ? RP_SCREENMODE_SCALE_3X : RP_SCREENMODE_SCALE_4X;
 		} else {
 			m = RP_SCREENMODE_SCALE_1X;
 		}
@@ -887,6 +891,7 @@ static void set_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 	struct monconfig *gm = &p->gfx_monitor[mon->monitor_id];
 	struct monconfig *gmc = &currprefs.gfx_monitor[mon->monitor_id];
 	int smm = RP_SCREENMODE_SCALE (sm->dwScreenMode);
+	int smm_m = smm & 0x7f;
 	int display = RP_SCREENMODE_DISPLAY (sm->dwScreenMode);
 	int fs = 0;
 	int hdbl = RES_HIRES, vdbl = VRES_DOUBLE;
@@ -952,7 +957,7 @@ static void set_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 				// 2X
 				hdbl = RES_SUPERHIRES;
 				vdbl = VRES_QUAD;
-			} else if (smm == RP_SCREENMODE_SCALE_4X) {
+			} else if (smm_m >= RP_SCREENMODE_SCALE_4X) {
 				// 4X
 				hdbl = RES_SUPERHIRES + 1;
 				vdbl = VRES_QUAD + 1;
@@ -962,7 +967,7 @@ static void set_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 				vdbl = VRES_DOUBLE;
 			}
 
-			if (smm > RP_SCREENMODE_SCALE_4X || smm == RP_SCREENMODE_SCALE_MAX) {
+			if (smm == RP_SCREENMODE_SCALE_MAX) {
 				hdbl = max_horiz_dbl;
 				vdbl = max_vert_dbl;
 			}
@@ -977,6 +982,12 @@ static void set_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 			if (vres > max_vert_dbl) {
 				vmult = (float)(1 << (vres - max_vert_dbl));
 				vres = max_vert_dbl;
+			}
+
+			if (smm_m > RP_SCREENMODE_SCALE_4X) {
+				float em = smm_m / 4.0f;
+				hmult *= em;
+				vmult *= em;
 			}
 		}
 		if (hres == RES_LORES && vres > VRES_NONDOUBLE)
@@ -1030,12 +1041,8 @@ static void set_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 
 	int m = 1;
 	if (fs < 2) {
-		if (smm == RP_SCREENMODE_SCALE_2X) {
-			m = 2;
-		} else if (smm == RP_SCREENMODE_SCALE_3X) {
-			m = 3;
-		} else if (smm == RP_SCREENMODE_SCALE_4X) {
-			m = 4;
+		if (smm_m >= RP_SCREENMODE_SCALE_2X) {
+			m = smm_m - RP_SCREENMODE_SCALE_2X + 2;
 		}
 	}
 	p->rtg_horiz_zoom_mult = p->rtg_vert_zoom_mult = (float)m;
@@ -1047,12 +1054,8 @@ static void set_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 			p->gf[1].gfx_filter_autoscale = 1;
 		} else {
 			p->gf[1].gfx_filter_autoscale = 0;
-			if (smm == RP_SCREENMODE_SCALE_2X) {
-				m = 2;
-			} else if (smm == RP_SCREENMODE_SCALE_3X) {
-				m = 3;
-			} else if (smm == RP_SCREENMODE_SCALE_4X) {
-				m = 4;
+			if (smm_m >= RP_SCREENMODE_SCALE_2X) {
+				m = smm_m - RP_SCREENMODE_SCALE_2X + 2;
 			}
 		}
 
