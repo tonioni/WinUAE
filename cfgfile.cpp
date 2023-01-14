@@ -7057,6 +7057,9 @@ end:
 		memcpy(&p->gfx_monitor[i], &p->gfx_monitor[0], sizeof(struct monconfig));
 	}
 	fixup_prefs (p, userconfig != 0);
+	for (int i = 0; i < MAX_JPORTS; i++) {
+		inputdevice_jportcustom_fixup(p->jports_custom[i].custom);
+	}
 	return v;
 }
 
