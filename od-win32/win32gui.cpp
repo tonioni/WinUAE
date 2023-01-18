@@ -22647,7 +22647,7 @@ static int GetSettings (int all_options, HWND hwnd)
 		if (gui_fullscreen) {
 			gui_width = GetSystemMetrics(SM_CXSCREEN);
 			gui_height = GetSystemMetrics(SM_CYSCREEN);
-			if (isfullscreen() > 0) {
+			if (isfullscreen() > 0 && currprefs.gfx_api < 2) {
 				struct MultiDisplay *md = getdisplay(&currprefs, 0);
 				int w = md->rect.right - md->rect.left;
 				int h = md->rect.bottom - md->rect.top;

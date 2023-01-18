@@ -1,4 +1,10 @@
 
+Beta 5 (RC1):
+
+- Fullscreen GUI Misc panel option ticked + D3D 11 mode exclusive fullscreen + enter GUI which drops back to desktop: GUI used full desktop size, when it should have used "work area" ("work area" does not include for example Task bar)
+- End directory filesystem threads earlier in shutdown sequence, previously it was too late, after Amiga address space was freed, causing crash if filesystem queue had commands pending and they needed to read or write Amiga side memory.
+- Improved Game ports panel Custom mapping autoswitch selection. Select first Custom config that has at least Amiga button fire button or second button mapped to connected input device that initiated autoswitch.
+
 Beta 4:
 
 - Added continuous screenshot mode to GUI (Was previously available via input events). When ticked, screenshot is taken automatically every frame.
