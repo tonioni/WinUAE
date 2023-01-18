@@ -2080,7 +2080,8 @@ void inputdevice_parse_jport_custom(struct uae_prefs *pr, int index, int port, T
 	TCHAR *bufp;
 	int cnt = 0;
 
-	custom_autoswitch_joy[index] = -1;
+	custom_autoswitch_joy[index] = 0;
+	custom_autoswitch_mouse[index] = 0;
 
 	if (eventstr == NULL || eventstr[0] == 0)
 		return;
@@ -2257,9 +2258,9 @@ void inputdevice_parse_jport_custom(struct uae_prefs *pr, int index, int port, T
 					}
 					if (evt == INPUTEVENT_JOY1_FIRE_BUTTON || evt == INPUTEVENT_JOY2_FIRE_BUTTON) {
 						if (joystick > 0)
-							custom_autoswitch_joy[index] = devindex;
+							custom_autoswitch_joy[index] |= 1 << devindex;
 						else
-							custom_autoswitch_mouse[index] = devindex;
+							custom_autoswitch_mouse[index] |= 1 << devindex;
 					}
 				}
 			} else {
@@ -5586,6 +5587,7 @@ static int switchdevice (struct uae_input_device *id, int num, bool buttonmode)
 	int ismouse = 0;
 	int newport = 0;
 	int newslot = -1;
+	int devindex = -1;
 	int flags = 0;
 	TCHAR *name = NULL, *fname = NULL;
 	int otherbuttonpressed = 0;
@@ -5618,14 +5620,15 @@ static int switchdevice (struct uae_input_device *id, int num, bool buttonmode)
 				}
 			}
 			customswitch = custom_autoswitch_joy;
-		}
-		if (id == &mice[i]) {
+			devindex = i;
+		} else if (id == &mice[i]) {
 			ismouse = 1;
 			name = idev[IDTYPE_MOUSE].get_uniquename (i);
 			fname = idev[IDTYPE_MOUSE].get_friendlyname (i);
 			newport = num == 0 ? 0 : 1;
 			flags = idev[IDTYPE_MOUSE].get_flags (i);
 			customswitch = custom_autoswitch_mouse;
+			devindex = i;
 		}
 	}
 	if (!name) {
@@ -5670,9 +5673,9 @@ static int switchdevice (struct uae_input_device *id, int num, bool buttonmode)
 			}
 
 			for (int i = 0; i < MAX_JPORTS_CUSTOM; i++) {
-				if (customswitch && customswitch[i] >= 0) {
-					newslot = customswitch[i];
-					name = currprefs.jports_custom[newslot].custom;
+				if (devindex >= 0 && customswitch && (customswitch[i] & (1 << devindex))) {
+					newslot = i;
+					name = currprefs.jports_custom[i].custom;
 					fname = name;
 					break;
 				}
@@ -7634,8 +7637,8 @@ static void resetinput (void)
 		sublevdir[1][i] = MAX_INPUT_SUB_EVENT - i - 1;
 	}
 	for (int i = 0; i < MAX_JPORTS_CUSTOM; i++) {
-		custom_autoswitch_joy[i] = -1;
-		custom_autoswitch_mouse[i] = -1;
+		custom_autoswitch_joy[i] = 0;
+		custom_autoswitch_mouse[i] = 0;
 	}
 }
 
