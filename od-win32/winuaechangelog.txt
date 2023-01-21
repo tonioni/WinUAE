@@ -1,4 +1,10 @@
 
+
+Beta 6 (RC2):
+
+- "Default" joystick mode didn't fully enable CD32 pad mode when CD32 hardware was configured. (Very long ago?)
+- Write to CIA timer HI register always loaded the timer in cycle-accurate CIA mode. Timer is not loaded if it is in continuous mode and timer is running. (HippoPlayer unstable playback speed). Fast CPU modes used "immediate" (CIA internal state change delays not emulated) CIA mode which was correct. (4.9.2 CIA rewrite)
+
 Beta 5 (RC1):
 
 - Fullscreen GUI Misc panel option ticked + D3D 11 mode exclusive fullscreen + enter GUI which drops back to desktop: GUI used full desktop size, when it should have used "work area" ("work area" does not include for example Task bar)
