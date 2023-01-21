@@ -20857,19 +20857,20 @@ static void values_to_avioutputdlg (HWND hDlg)
 {
 
 	updatewinfsmode(0, &workprefs);
-	SetDlgItemText (hDlg, IDC_AVIOUTPUT_FILETEXT, avioutput_filename_gui);
-	CheckDlgButton (hDlg, IDC_AVIOUTPUT_FRAMELIMITER, avioutput_framelimiter ? FALSE : TRUE);
-	CheckDlgButton (hDlg, IDC_AVIOUTPUT_NOSOUNDOUTPUT, avioutput_nosoundoutput ? TRUE : FALSE);
-	CheckDlgButton (hDlg, IDC_AVIOUTPUT_NOSOUNDSYNC, avioutput_nosoundsync ? TRUE : FALSE);
-	CheckDlgButton (hDlg, IDC_AVIOUTPUT_ORIGINALSIZE, avioutput_originalsize ? TRUE : FALSE);
-	CheckDlgButton (hDlg, IDC_AVIOUTPUT_ACTIVATED, avioutput_requested ? BST_CHECKED : BST_UNCHECKED);
+	SetDlgItemText(hDlg, IDC_AVIOUTPUT_FILETEXT, avioutput_filename_gui);
+	CheckDlgButton(hDlg, IDC_AVIOUTPUT_FRAMELIMITER, avioutput_framelimiter ? FALSE : TRUE);
+	CheckDlgButton(hDlg, IDC_AVIOUTPUT_NOSOUNDOUTPUT, avioutput_nosoundoutput ? TRUE : FALSE);
+	CheckDlgButton(hDlg, IDC_AVIOUTPUT_NOSOUNDSYNC, avioutput_nosoundsync ? TRUE : FALSE);
+	CheckDlgButton(hDlg, IDC_AVIOUTPUT_ORIGINALSIZE, avioutput_originalsize ? TRUE : FALSE);
+	CheckDlgButton(hDlg, IDC_AVIOUTPUT_ACTIVATED, avioutput_requested ? BST_CHECKED : BST_UNCHECKED);
 	CheckDlgButton(hDlg, IDC_SCREENSHOT_ORIGINALSIZE, screenshot_originalsize ? TRUE : FALSE);
 	CheckDlgButton(hDlg, IDC_SCREENSHOT_PALETTED, screenshot_paletteindexed ? TRUE : FALSE);
 	CheckDlgButton(hDlg, IDC_SCREENSHOT_CLIP, screenshot_clipmode ? TRUE : FALSE);
-	CheckDlgButton (hDlg, IDC_SAMPLERIPPER_ACTIVATED, sampleripper_enabled ? BST_CHECKED : BST_UNCHECKED);
-	CheckDlgButton (hDlg, IDC_STATEREC_RECORD, input_record ? BST_CHECKED : BST_UNCHECKED);
-	CheckDlgButton (hDlg, IDC_STATEREC_PLAY, input_play ? BST_CHECKED : BST_UNCHECKED);
-	CheckDlgButton (hDlg, IDC_STATEREC_AUTOPLAY, workprefs.inprec_autoplay ? BST_CHECKED : BST_UNCHECKED);
+	CheckDlgButton(hDlg, IDC_SCREENSHOT_AUTO, screenshot_multi != 0 ? TRUE : FALSE);
+	CheckDlgButton(hDlg, IDC_SAMPLERIPPER_ACTIVATED, sampleripper_enabled ? BST_CHECKED : BST_UNCHECKED);
+	CheckDlgButton(hDlg, IDC_STATEREC_RECORD, input_record ? BST_CHECKED : BST_UNCHECKED);
+	CheckDlgButton(hDlg, IDC_STATEREC_PLAY, input_play ? BST_CHECKED : BST_UNCHECKED);
+	CheckDlgButton(hDlg, IDC_STATEREC_AUTOPLAY, workprefs.inprec_autoplay ? BST_CHECKED : BST_UNCHECKED);
 }
 
 static void values_from_avioutputdlg (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
@@ -21088,6 +21089,13 @@ static INT_PTR CALLBACK AVIOutputDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 			screenshot_clipmode = ischecked(hDlg, IDC_SCREENSHOT_CLIP) ? 1 : 0;
 			regsetint(NULL, _T("Screenshot_ClipMode"), screenshot_clipmode);
 			screenshot_reset();
+			break;
+		case IDC_SCREENSHOT_AUTO:
+			screenshot_multi = ischecked(hDlg, IDC_SCREENSHOT_AUTO) ? -1 : 0;
+			screenshot_reset();
+			if (screenshot_multi) {
+				screenshot(-1, 3, 0);
+			}
 			break;
 		case IDC_STATEREC_SAVE:
 			if (input_record > INPREC_RECORD_NORMAL) {
@@ -22639,7 +22647,7 @@ static int GetSettings (int all_options, HWND hwnd)
 		if (gui_fullscreen) {
 			gui_width = GetSystemMetrics(SM_CXSCREEN);
 			gui_height = GetSystemMetrics(SM_CYSCREEN);
-			if (isfullscreen() > 0) {
+			if (isfullscreen() > 0 && currprefs.gfx_api < 2) {
 				struct MultiDisplay *md = getdisplay(&currprefs, 0);
 				int w = md->rect.right - md->rect.left;
 				int h = md->rect.bottom - md->rect.top;

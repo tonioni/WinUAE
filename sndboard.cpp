@@ -2683,19 +2683,28 @@ static bool fm801_init(struct pci_board_state *pcibs, struct autoconfig_info *ac
 	return false;
 }
 
+static void fm801_config(struct pci_board_state *pcibs, uae_u8 *cfg)
+{
+	// Status register is read-only
+	cfg[4] = 0x02;
+	cfg[5] = 0x80;
+	// Clear command register reserved
+	cfg[6] &= 3;
+}
+
 static const struct pci_config fm801_pci_config =
 {
-	0x1319, 0x0801, 0, 0, 0xb2, 0x040100, 0x80, 0x1319, 0x1319, 1, 0x04, 0x28, { 128 | 1, 0, 0, 0, 0, 0, 0 }
+	0x1319, 0x0801, 0, 0x280, 0xb2, 0x040100, 0x80, 0x1319, 0x1319, 1, 0x04, 0x28, { 128 | 1, 0, 0, 0, 0, 0, 0 }
 };
 static const struct pci_config fm801_pci_config_func1 =
 {
-	0x1319, 0x0802, 0, 0, 0xb2, 0x098000, 0x80, 0x1319, 0x1319, 0, 0x04, 0x28, { 16 | 1, 0, 0, 0, 0, 0, 0 }
+	0x1319, 0x0802, 0, 0x280, 0xb2, 0x098000, 0x80, 0x1319, 0x1319, 0, 0x04, 0x28, { 16 | 1, 0, 0, 0, 0, 0, 0 }
 };
 
 const struct pci_board fm801_pci_board =
 {
 	_T("FM801"),
-	&fm801_pci_config, fm801_init, fm801_free, fm801_reset, fm801_hsync_handler,
+	&fm801_pci_config, fm801_init, fm801_free, fm801_reset, fm801_hsync_handler, fm801_config,
 	{
 		{ fm801_lget, fm801_wget, fm801_bget, fm801_lput, fm801_wput, fm801_bput },
 		{ NULL },
@@ -2711,7 +2720,7 @@ const struct pci_board fm801_pci_board =
 const struct pci_board fm801_pci_board_func1 =
 {
 	_T("FM801-2"),
-	&fm801_pci_config_func1, NULL, NULL, NULL, NULL,
+	&fm801_pci_config_func1, NULL, NULL, NULL, NULL, fm801_config,
 	{
 		{ fm801_lget, fm801_wget, fm801_bget, fm801_lput, fm801_wput, fm801_bput },
 		{ NULL },
@@ -2805,7 +2814,7 @@ static const struct pci_config solo1_pci_config =
 const struct pci_board solo1_pci_board =
 {
 	_T("SOLO1"),
-	&solo1_pci_config, solo1_init, solo1_free, solo1_reset, NULL,
+	&solo1_pci_config, solo1_init, solo1_free, solo1_reset, NULL, NULL,
 	{
 		{ solo1_lget, solo1_wget, solo1_bget, solo1_lput, solo1_wput, solo1_bput },
 		{ solo1_lget, solo1_wget, solo1_bget, solo1_lput, solo1_wput, solo1_bput },

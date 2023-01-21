@@ -892,9 +892,10 @@ BEGIN
     COMBOBOX        IDC_STATEREC_RATE,141,278,38,65,CBS_DROPDOWN | WS_VSCROLL | WS_TABSTOP
     RTEXT           "Recording buffers:",IDC_STATIC,195,280,91,10,SS_CENTERIMAGE | WS_TABSTOP
     COMBOBOX        IDC_STATEREC_BUFFERSIZE,291,278,38,65,CBS_DROPDOWN | WS_VSCROLL | WS_TABSTOP
-    CONTROL         "Autoclip screenshot",IDC_SCREENSHOT_CLIP,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,276,192,97,10
+    CONTROL         "Autoclip screenshot",IDC_SCREENSHOT_CLIP,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,210,192,169,10
     CONTROL         "Create 256 color palette indexed screenshot if possible",IDC_SCREENSHOT_PALETTED,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,11,206,231,10
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,11,206,193,10
+    CONTROL         "Continuous screenshots",IDC_SCREENSHOT_AUTO,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,210,206,169,10
 END
 
 IDD_INPUT DIALOGEX 0, 0, 396, 316
@@ -1416,8 +1417,8 @@ END
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 4,10,0,0
- PRODUCTVERSION 4,10,0,0
+ FILEVERSION 4,10,1,0
+ PRODUCTVERSION 4,10,1,0
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -1433,12 +1434,12 @@ BEGIN
         BLOCK "040904b0"
         BEGIN
             VALUE "FileDescription", "WinUAE"
-            VALUE "FileVersion", "4.10.0.0"
+            VALUE "FileVersion", "4.10.1.0"
             VALUE "InternalName", "WinUAE"
             VALUE "LegalCopyright", "© 1996-2023 under the GNU Public License (GPL)"
             VALUE "OriginalFilename", "WinUAE.exe"
             VALUE "ProductName", "WinUAE"
-            VALUE "ProductVersion", "4.10.0.0"
+            VALUE "ProductVersion", "4.10.1.0"
         END
     END
     BLOCK "VarFileInfo"

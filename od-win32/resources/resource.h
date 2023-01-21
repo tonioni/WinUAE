@@ -986,6 +986,7 @@
 #define IDC_SCREENSHOT_PALETTED         1654
 #define IDC_SOUNDSTEREO                 1655
 #define IDC_CONFIGTYPE                  1655
+#define IDC_SCREENSHOT_AUTO             1655
 #define IDC_SOUNDDRIVETXT               1656
 #define IDC_PATHS_ROM                   1656
 #define IDC_SOUNDSTEREOSEP              1656

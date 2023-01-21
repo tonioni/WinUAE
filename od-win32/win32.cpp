@@ -114,7 +114,7 @@ const static GUID GUID_DEVINTERFACE_MOUSE = { 0x378de44c, 0x56ef, 0x11d1,
 { 0xbc, 0x8c, 0x00, 0xa0, 0xc9, 0x14, 0x05, 0xdd } };
 
 extern int harddrive_dangerous, do_rdbdump;
-extern int no_rawinput, no_directinput, no_windowsmouse;
+extern int no_rawinput, no_directinput, no_windowsmouse, winekeyboard;
 extern int force_directsound;
 extern int log_a2065, a2065_promiscuous, log_ethernet;
 extern int rawinput_enabled_hid, rawinput_log;
@@ -6449,6 +6449,10 @@ static int parseargs(const TCHAR *argx, const TCHAR *np, const TCHAR *np2)
 		no_windowsmouse = 1;
 		return 1;
 	}
+	if (!_tcscmp(arg, _T("winekeyboard"))) {
+		winekeyboard = 1;
+		return 1;
+	}
 	if (!_tcscmp(arg, _T("rawhid"))) {
 		rawinput_enabled_hid = 1;
 		return 1;
@@ -7464,7 +7468,9 @@ LONG WINAPI WIN32_ExceptionFilter (struct _EXCEPTION_POINTERS *pExceptionPointer
 					int got = 0;
 					uaecptr opc = m68k_getpc ();
 					void *ps = get_real_address (0);
-					m68k_dumpstate(NULL, 0xffffffff);
+					if (is_console_open()) {
+						m68k_dumpstate(NULL, 0xffffffff);
+					}
 					efix (&ctx->Eax, p, ps, &got);
 					efix (&ctx->Ebx, p, ps, &got);
 					efix (&ctx->Ecx, p, ps, &got);
@@ -7502,7 +7508,7 @@ LONG WINAPI WIN32_ExceptionFilter (struct _EXCEPTION_POINTERS *pExceptionPointer
 		FreeLibrary (hFaultRepDll );
 	}
 #endif
-	return lRet ;
+	return lRet;
 }
 
 #endif

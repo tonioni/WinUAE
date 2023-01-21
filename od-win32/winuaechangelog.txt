@@ -1,4 +1,35 @@
 
+Beta 5 (RC1):
+
+- Fullscreen GUI Misc panel option ticked + D3D 11 mode exclusive fullscreen + enter GUI which drops back to desktop: GUI used full desktop size, when it should have used "work area" ("work area" does not include for example Task bar)
+- End directory filesystem threads earlier in shutdown sequence, previously it was too late, after Amiga address space was freed, causing crash if filesystem queue had commands pending and they needed to read or write Amiga side memory.
+- Improved Game ports panel Custom mapping autoswitch selection. Select first Custom config that has at least Amiga button fire button or second button mapped to connected input device that initiated autoswitch.
+
+Beta 4:
+
+- Added continuous screenshot mode to GUI (Was previously available via input events). When ticked, screenshot is taken automatically every frame.
+- Fixed video recording and continuous screenshot including extra blank frame when loading new statefile. (4.9.0)
+- Fixed second frame appearing corrupted after loading statefile due to not re-initializing long/short frame internal variables at startup (only visible in video recording or screenshot). (4.9.0)
+- If game controller was configured using Game Ports panel (Custom #x setting) and device didn't have any Input panel mappings, config file input device matching with currently installed input devices was not done. This meant if config was moved to other PC, device specific input config was not loaded correctly. Now it also matches devices using only USB VID and PID if better match is not found. (Full match -> Partial match -> VID+PID only if exists -> Device friendly name)
+- If config file has input device that is not currently connected, saving the config file didn't save non-connected device's config data. Now it is saved (like it was supposed to already do)
+- Game Ports panel custom settings were not corrected automatically if device indexes changed (new input devices connected or removed)
+- If Game Ports custom setting has entries that don't map to any currently connected device, show unmapped events as "<event name>=?" instead of showing nothing.
+- CALLM disassembly fixed.
+- 68030 MMU state was partially reset when loading statefile.
+- If fast CPU mode program writes to color registers (usually COLOR0 to create background color rainbows), skip write if previous write already happened in same chipset cycle. This could have overflowed buffer that stores state where and when color change should happen in rendering part of emulation. Fast CPU modes don't slow down CPU by emulating chipset or chip ram delays.
+- Reduced size of sprite buffers (which was huge), buffer size was enough to have whole screen filled with sprites in max superhires/800 lines screen mode which can't happen.
+- "uae-configuration statefile_save <filename>" can be used to create statefile (note that save happens when vblank starts next, it is not saved immediately but uae-configuration still returns immediately)
+
+Beta 3:
+
+- Serial port RI (ring indicator) was inverted. If both printer and serial port was enabled, printer port SEL was pulled down even when RI was inactive.
+- DSKBYTR behavior updated after more testing. It is updated all the time normally except if DSKLEN WRITE bit is set without DMA enable. It is even updated (with zeros) when disk write DMA is currently active.
+- Dumping CPU state after JIT unhandled exception or program jumping to IO space won't open console window anymore.
+- If 2 back to back internal cycle count events had same cycle count value, order of executed events was undefined. Now they are executed in FIFO order. Interrupt clearing and setting at same cycle queued two events, interrupt was lost if they were executed in opposite order. Fixed weird music issue in Jesus on E's / LSD.
+- Fixed PCI bridgeboard crash if non-existing PCI board IO or RAM space was accessed.
+- FM801 does not seem to have PCI Device control register Interrupt Disable bit (marked as reserved in datasheet). Made it unchangeable (and few other PCI config bits) to fix Mediator FM801 driver audio playback hang. (Possibly this worked with some older Mediator drivers)
+- Added command line option "-winekeyboard" to change handling of PAUSE and NUMLOCK keys as a workaround for different (buggy?) Wine RawInput key codes and flags. (falcon35180)
+
 Beta 2:
 
 - Bitplane DMA stealing sprite DMA off by one fix (b1)
