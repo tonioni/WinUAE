@@ -553,7 +553,7 @@ BEGIN
     COMBOBOX        IDC_PORT1_JOYSMODE,136,86,106,130,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
     PUSHBUTTON      "Remap / Test [] Remap or test Port 2 configuration.",IDC_PORT1_REMAP,310,86,78,14
     PUSHBUTTON      "Swap ports [] Swap ports 1 and 2.",IDC_SWAP,45,112,78,14
-    CONTROL         "Mouse/Joystick autoswitching [] Press button to automatically insert inactive input device in to joystick/mouse port",IDC_PORT_AUTOSWITCH,
+    CONTROL         "Mouse/Joystick autoswitching [] Press button to automatically insert inactive input device in to joystick/mouse port. Joy button 1 = joy port, button 2 = mouse port. Mouse button 1 = mouse port, mouse button 2 = joy port. Long press swaps port selection.",IDC_PORT_AUTOSWITCH,
                     "Button",BS_AUTOCHECKBOX | WS_TABSTOP,136,114,172,11
     LTEXT           "Emulated parallel port joystick adapter",IDC_STATIC,10,136,179,15,SS_CENTERIMAGE
     COMBOBOX        IDC_PORT2_JOYS,45,154,342,130,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
@@ -892,9 +892,10 @@ BEGIN
     COMBOBOX        IDC_STATEREC_RATE,141,278,38,65,CBS_DROPDOWN | WS_VSCROLL | WS_TABSTOP
     RTEXT           "Recording buffers:",IDC_STATIC,195,280,91,10,SS_CENTERIMAGE | WS_TABSTOP
     COMBOBOX        IDC_STATEREC_BUFFERSIZE,291,278,38,65,CBS_DROPDOWN | WS_VSCROLL | WS_TABSTOP
-    CONTROL         "Autoclip screenshot",IDC_SCREENSHOT_CLIP,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,276,192,97,10
+    CONTROL         "Autoclip screenshot",IDC_SCREENSHOT_CLIP,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,210,192,169,10
     CONTROL         "Create 256 color palette indexed screenshot if possible",IDC_SCREENSHOT_PALETTED,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,11,206,231,10
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,11,206,193,10
+    CONTROL         "Continuous screenshots",IDC_SCREENSHOT_AUTO,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,210,206,169,10
 END
 
 IDD_INPUT DIALOGEX 0, 0, 396, 316
@@ -1416,8 +1417,8 @@ END
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 4,10,0,0
- PRODUCTVERSION 4,10,0,0
+ FILEVERSION 4,10,1,0
+ PRODUCTVERSION 4,10,1,0
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -1433,12 +1434,12 @@ BEGIN
         BLOCK "040904b0"
         BEGIN
             VALUE "FileDescription", "WinUAE"
-            VALUE "FileVersion", "4.10.0.0"
+            VALUE "FileVersion", "4.10.1.0"
             VALUE "InternalName", "WinUAE"
-            VALUE "LegalCopyright", "© 1996-2022 under the GNU Public License (GPL)"
+            VALUE "LegalCopyright", "© 1996-2023 under the GNU Public License (GPL)"
             VALUE "OriginalFilename", "WinUAE.exe"
             VALUE "ProductName", "WinUAE"
-            VALUE "ProductVersion", "4.10.0.0"
+            VALUE "ProductVersion", "4.10.1.0"
         END
     END
     BLOCK "VarFileInfo"
@@ -2163,7 +2164,7 @@ END
 
 STRINGTABLE
 BEGIN
-    IDS_FILTER_PAL_EXTRA    "Brightness\nContrast\nSaturation\nGamma\nScanlines\nBlurriness\nNoise\n"
+    IDS_FILTER_PAL_EXTRA    "Brightness\nContrast\nSaturation\nGamma\nBlurriness\nNoise\n"
     IDS_FILTER_3D_EXTRA     "Point/Bilinear\nScanline opacity\nScanline level\nScanline offset\n"
     IDS_ALWAYS_ON           "Always on"
     IDS_DISPLAY_ATTRIBUTES  "Brightness\nContrast\nGamma\nGamma [R]\nGamma [G]\nGamma [B]\nDark palette fix"
