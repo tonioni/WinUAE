@@ -133,7 +133,7 @@ bool is_savestate_incompatible(void)
 	}
 #endif
 #ifdef WITH_PPC
-	if (currprefs.ppc_model) {
+	if (currprefs.ppc_model[0]) {
 		dowarn = 1;
 	}
 #endif
