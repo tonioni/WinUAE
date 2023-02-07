@@ -472,7 +472,11 @@ static uae_u8 *get_pci_config(uaecptr addr, int size, uae_u32 v, int *endianswap
 			}
 			*endianswap = 0;
 		} else {
-			c[off] = pcibs->board->pci_get_config(off ^ 3);
+			if (pcib->endian_swap_config > 0) {
+				c[off] = pcibs->board->pci_get_config(off ^ 0);
+			} else {
+				c[off] = pcibs->board->pci_get_config(off ^ 3);
+			}
 			*endianswap = 0;
 		}
 	} else {
@@ -559,7 +563,11 @@ static void update_pci_config(uaecptr addr, int size)
 				pcibs->board->pci_put_config(off + 1, d[off + 1]);
 			}
 		} else {
-			pcibs->board->pci_put_config(off + 0, d[off + 0]);
+			if (pcib->endian_swap_config > 0) {
+				pcibs->board->pci_put_config(off ^ 0, d[off + 0]);
+			} else {
+				pcibs->board->pci_put_config(off ^ 3, d[off + 0]);
+			}
 		}
 		if ((off >= 0x10 && off < 0x10 + (MAX_PCI_BARS - 1) * 4) || (off >= 0x30 && off < 0x34)) {
 			int index;
