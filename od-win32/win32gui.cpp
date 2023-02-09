@@ -4718,6 +4718,7 @@ static const struct miscentry misclist[] = {
 	{ 0, 0, _T("Debug memory space"), &workprefs.debug_mem },
 	{ 0, 1, _T("Force hard reset if CPU halted"), &workprefs.crash_auto_reset },
 	{ 0, 0, _T("A600/A1200/A4000 IDE scsi.device disable"), &workprefs.scsidevicedisable },
+	{ 0, 1, _T("Warp mode reset"), &workprefs.turbo_boot },
 	{ 0, 0, NULL }
 };
 

@@ -5537,6 +5537,14 @@ void inputdevice_vsync (void)
 		}
 	}
 	inputdevice_checkconfig ();
+
+	if (currprefs.turbo_emulation > 2) {
+		currprefs.turbo_emulation--;
+		changed_prefs.turbo_emulation = currprefs.turbo_emulation;
+		if (currprefs.turbo_emulation == 2) {
+			warpmode(0);
+		}
+	}
 }
 
 void inputdevice_reset (void)
@@ -9381,30 +9389,28 @@ int getmousestate (int joy)
 	return mice[joy].enabled;
 }
 
-void warpmode (int mode)
+void bootwarpmode(void)
 {
-	int fr, fr2;
+	if (currprefs.turbo_emulation == 2) {
+		currprefs.turbo_emulation = changed_prefs.turbo_emulation = 2 + currprefs.turbo_boot_delay;
+	}
+}
 
-	fr = currprefs.gfx_framerate;
-	if (fr == 0)
-		fr = -1;
-	fr2 = currprefs.turbo_emulation;
-	if (fr2 == -1)
-		fr2 = 0;
-
+void warpmode(int mode)
+{
 	if (mode < 0) {
 		if (currprefs.turbo_emulation) {
-			changed_prefs.gfx_framerate = currprefs.gfx_framerate = fr2;
+			changed_prefs.gfx_framerate = currprefs.gfx_framerate = 1;
 			currprefs.turbo_emulation = 0;
 		} else {
-			currprefs.turbo_emulation = fr;
+			currprefs.turbo_emulation = 1;
 		}
 	} else if (mode == 0 && currprefs.turbo_emulation) {
 		if (currprefs.turbo_emulation > 0)
-			changed_prefs.gfx_framerate = currprefs.gfx_framerate = fr2;
+			changed_prefs.gfx_framerate = currprefs.gfx_framerate = 1;
 		currprefs.turbo_emulation = 0;
 	} else if (mode > 0 && !currprefs.turbo_emulation) {
-		currprefs.turbo_emulation = fr;
+		currprefs.turbo_emulation = 1;
 	}
 	if (currprefs.turbo_emulation) {
 		if (!currprefs.cpu_memory_cycle_exact && !currprefs.blitter_cycle_exact)

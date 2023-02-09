@@ -7701,6 +7701,9 @@ static void DMACON(int hpos, uae_u16 v)
 
 	int oldcop = (oldcon & DMA_COPPER) && (oldcon & DMA_MASTER);
 	int newcop = (dmacon & DMA_COPPER) && (dmacon & DMA_MASTER);
+	if (!oldcop && newcop) {
+		bootwarpmode();
+	}
 	if (oldcop != newcop && (copper_access || safecpu())) {
 		copper_dma_change_cycle = get_cycles();
 	}
