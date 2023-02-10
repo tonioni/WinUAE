@@ -7770,25 +7770,40 @@ static void DMACON(int hpos, uae_u16 v)
 }
 
 static int irq_forced;
-static evt_t irq_delay;
+static evt_t irq_forced_delay;
 
 void IRQ_forced(int lvl, int delay)
 {
 	irq_forced = lvl;
-	irq_delay = 0;
+	irq_forced_delay = 0;
 	if (delay > 0 && currprefs.cpu_compatible) {
-		irq_delay = get_cycles() + delay * CYCLE_UNIT;
+		irq_forced_delay = get_cycles() + delay * CYCLE_UNIT;
+	} else if (delay < 0) {
+		irq_forced_delay = -1;
 	}
 	doint();
+}
+
+void intlev_ack(int lvl)
+{
+	if (!irq_forced) {
+		return;
+	}
+	if (lvl >= irq_forced && irq_forced_delay < 0) {
+		irq_forced_delay = 0;
+		irq_forced = 0;
+	}
 }
 
 int intlev(void)
 {
 	if (irq_forced) {
 		int lvl = irq_forced;
-		if (irq_delay == -1 || get_cycles() > irq_delay) {
+		if (irq_forced_delay == 0) {
 			irq_forced = 0;
-			irq_delay = -1;
+		} else if (irq_forced_delay > 0 && get_cycles() > irq_forced_delay) {
+			irq_forced = 0;
+			irq_forced_delay = 0;
 		}
 		return lvl;
 	}
@@ -13380,6 +13395,9 @@ void custom_reset(bool hardreset, bool keyboardreset)
 	blitter_dma_change_cycle = -1;
 	sprite_dma_change_cycle_on = -1;
 	custom_color_write_cycle = -1;
+
+	irq_forced_delay = 0;
+	irq_forced = 0;
 
 	if (hardreset || savestate_state) {
 		maxhpos = ntsc ? MAXHPOS_NTSC : MAXHPOS_PAL;

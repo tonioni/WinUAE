@@ -52,6 +52,7 @@ extern int custom_init(void);
 extern void custom_prepare(void);
 extern void custom_reset(bool hardreset, bool keyboardreset);
 extern int intlev(void);
+extern void intlev_ack(int);
 extern void dumpcustom(void);
 
 extern void do_copper(void);

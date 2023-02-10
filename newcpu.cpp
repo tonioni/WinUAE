@@ -3459,6 +3459,8 @@ static void do_interrupt (int nr)
 
 	assert (nr < 8 && nr >= 0);
 
+	intlev_ack(nr);
+
 	for (;;) {
 		Exception (nr + 24);
 		if (!currprefs.cpu_compatible || currprefs.cpu_model == 68060)
