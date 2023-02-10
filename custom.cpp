@@ -7852,7 +7852,7 @@ static void intreq_checks(uae_u16 oldreq, uae_u16 newreq)
 	}
 }
 
-static void doint_delay_do_ext(uae_u32 v)
+static void event_doint_delay_do_ext(uae_u32 v)
 {
 	uae_u16 old = intreq2;
 	setclr(&intreq, (1 << v) | 0x8000);
@@ -7862,13 +7862,13 @@ static void doint_delay_do_ext(uae_u32 v)
 	doint();
 }
 
-static void send_interrupt_do_ext(uae_u32 v)
+static void event_send_interrupt_do_ext(uae_u32 v)
 {
 	//uae_u16 old = intreq;
 	//setclr(&intreq, (1 << v) | 0x8000);
 	//intreq_checks(old);
 
-	event2_newevent_xx(-1, 1 * CYCLE_UNIT, v, doint_delay_do_ext);
+	event2_newevent_xx(-1, 1 * CYCLE_UNIT, v, event_doint_delay_do_ext);
 }
 
 // external delayed interrupt
@@ -7878,13 +7878,13 @@ void INTREQ_INT(int num, int delay)
 		if (delay < CYCLE_UNIT) {
 			delay *= CYCLE_UNIT;
 		}
-		event2_newevent_xx(-1, delay + CYCLE_UNIT, num, doint_delay_do_ext);
+		event2_newevent_xx(-1, delay + CYCLE_UNIT, num, event_doint_delay_do_ext);
 	} else {
-		doint_delay_do_ext(num);
+		event_doint_delay_do_ext(num);
 	}
 }
 
-static void doint_delay_do_intreq(uae_u32 v)
+static void event_doint_delay_do_intreq(uae_u32 v)
 {
 	uae_u16 old = intreq2;
 	setclr(&intreq2, v);
@@ -7898,13 +7898,13 @@ static void doint_delay_intreq(uae_u16 v)
 	if (m68k_interrupt_delay) {
 		// INTREQ or INTENA write: IPL line changes 0.5 CCKs later.
 		// 68000 needs one more CPU clock (0.5 CCK) before it detects it.
-		event2_newevent_xx(-1, 1 * CYCLE_UNIT, v, doint_delay_do_intreq);
+		event2_newevent_xx(-1, 1 * CYCLE_UNIT, v, event_doint_delay_do_intreq);
 	} else {
-		doint_delay_do_intreq(v);
+		event_doint_delay_do_intreq(v);
 	}
 }
 
-static void doint_delay_do_intena(uae_u32 v)
+static void event_doint_delay_do_intena(uae_u32 v)
 {
 	setclr(&intena2, v);
 
@@ -7916,10 +7916,10 @@ static void doint_delay_intena(uae_u16 v)
 	if (m68k_interrupt_delay) {
 		// INTREQ or INTENA write: IPL line changes 0.5 CCKs later.
 		// 68000 needs one more CPU clock (0.5 CCK) before it detects it.
-		event2_newevent_xx(-1, 1 * CYCLE_UNIT, v, doint_delay_do_intena);
+		event2_newevent_xx(-1, 1 * CYCLE_UNIT, v, event_doint_delay_do_intena);
 	}
 	else {
-		doint_delay_do_intena(v);
+		event_doint_delay_do_intena(v);
 	}
 }
 
@@ -13294,15 +13294,8 @@ static void audio_evhandler2(void)
 
 void init_eventtab (void)
 {
-	int i;
-
-	nextevent = EVT_MAX;
-	for (i = 0; i < ev_max; i++) {
-		eventtab[i].active = 0;
-		eventtab[i].oldcycles = get_cycles();
-	}
-	for (i = 0; i < ev2_max; i++) {
-		eventtab2[i].active = 0;
+	if (!savestate_state) {
+		clear_events();
 	}
 
 	eventtab[ev_cia].handler = CIA_handler;
@@ -13316,7 +13309,6 @@ void init_eventtab (void)
 	eventtab[ev_audio].handler = audio_evhandler2;
 
 	eventtab2[ev2_blitter].handler = blitter_handler;
-	eventtab2[ev2_disk].handler = DISK_handler;
 
 	events_schedule ();
 }
@@ -13526,9 +13518,6 @@ void custom_reset(bool hardreset, bool keyboardreset)
 	toscr_delay_sh[0] = 0;
 	toscr_delay_sh[1] = 0;
 
-	memset(&cop_state, 0, sizeof(cop_state));
-	cop_state.state = COP_stop;
-
 	vdiwstate = diw_states::DIW_waiting_start;
 	vdiw_change(0);
 	check_harddis();
@@ -13544,6 +13533,8 @@ void custom_reset(bool hardreset, bool keyboardreset)
 
 	audio_reset();
 	if (!isrestore()) {
+		memset(&cop_state, 0, sizeof(cop_state));
+		cop_state.state = COP_stop;
 		/* must be called after audio_reset */
 		adkcon = 0;
 		serial_uartbreak(0);
@@ -14308,12 +14299,12 @@ static void REGPARAM2 custom_lput (uaecptr addr, uae_u32 value)
 
 void custom_prepare_savestate(void)
 {
-	int i;
-
-	for (i = 0; i < ev2_max; i++) {
-		if (eventtab2[i].active) {
-			eventtab2[i].active = 0;
-			eventtab2[i].handler(eventtab2[i].data);
+	if (!currprefs.cpu_cycle_exact) {
+		for (int i = 0; i < ev2_max; i++) {
+			if (eventtab2[i].active) {
+				eventtab2[i].active = 0;
+				eventtab2[i].handler(eventtab2[i].data);
+			}
 		}
 	}
 }
@@ -14324,6 +14315,12 @@ void restore_custom_finish(void)
 		changed_prefs.genlock = currprefs.genlock = 1;
 		write_log(_T("statefile with BPLCON0 ERSY set without Genlock. Enabling Genlock.\n"));
 	}
+}
+
+void restore_custom_start(void)
+{
+	memset(&cop_state, 0, sizeof(cop_state));
+	cop_state.state = COP_stop;
 }
 
 #define RB restore_u8()
@@ -14342,7 +14339,7 @@ uae_u8 *restore_custom(uae_u8 *src)
 
 	changed_prefs.chipset_mask = currprefs.chipset_mask = RL & CSMASK_MASK;
 	update_mirrors();
-	RW;						/* 000 BLTDDAT */
+	blt_info.bltddat = RW;	/* 000 BLTDDAT */
 	RW;						/* 002 DMACONR */
 	RW;						/* 004 VPOSR */
 	RW;						/* 006 VHPOSR */
@@ -14813,8 +14810,8 @@ uae_u8 *restore_custom_extra(uae_u8 *src)
 	currprefs.cs_ciaatod = changed_prefs.cs_ciaatod = RB;
 	currprefs.cs_ciaoverlay = changed_prefs.cs_ciaoverlay = RBB;
 
-	currprefs.cs_agnusbltbusybug = changed_prefs.cs_agnusbltbusybug = RBB;
-	currprefs.cs_denisenoehb = changed_prefs.cs_denisenoehb = RBB;
+	tmp = RBB;
+	tmp = RBB;
 
 	currprefs.cs_agnusrev = changed_prefs.cs_agnusrev = SRB;
 	currprefs.cs_deniserev = changed_prefs.cs_deniserev = SRB;
@@ -14829,7 +14826,7 @@ uae_u8 *restore_custom_extra(uae_u8 *src)
 	RB;
 
 	currprefs.cs_df0idhw = changed_prefs.cs_df0idhw = RBB;
-	currprefs.cs_dipagnus = changed_prefs.cs_dipagnus = RBB;
+	tmp = RBB;
 	currprefs.cs_ide = changed_prefs.cs_ide = RB;
 	currprefs.cs_mbdmac = changed_prefs.cs_mbdmac = RB;
 	currprefs.cs_ksmirror_a8 = changed_prefs.cs_ksmirror_a8 = RBB;
@@ -14846,6 +14843,10 @@ uae_u8 *restore_custom_extra(uae_u8 *src)
 	currprefs.cs_ciatype[1] = changed_prefs.cs_ciatype[1] = RBB;
 
 	currprefs.cs_memorypatternfill = changed_prefs.cs_memorypatternfill = RBB;
+
+	currprefs.cs_agnusmodel = changed_prefs.cs_agnusmodel = RBB;
+	currprefs.cs_agnussize = changed_prefs.cs_agnussize = RBB;
+	currprefs.cs_denisemodel = changed_prefs.cs_denisemodel = RBB;
 
 	return src;
 }
@@ -14874,8 +14875,8 @@ uae_u8 *save_custom_extra(size_t *len, uae_u8 *dstptr)
 	SB(currprefs.cs_ciaatod);
 	SB(currprefs.cs_ciaoverlay ? 1 : 0);
 
-	SB(currprefs.cs_agnusbltbusybug ? 1 : 0);
-	SB(currprefs.cs_denisenoehb ? 1 : 0);
+	SB(agnusa1000 ? 1 : 0);
+	SB(denisea1000_noehb ? 1 : 0);
 
 	SB(currprefs.cs_agnusrev);
 	SB(currprefs.cs_deniserev);
@@ -14890,7 +14891,7 @@ uae_u8 *save_custom_extra(size_t *len, uae_u8 *dstptr)
 	SB(0);
 
 	SB(currprefs.cs_df0idhw ? 1 : 0);
-	SB(currprefs.cs_dipagnus ? 1 : 0);
+	SB(agnusa1000 ? 1 : 0);
 	SB(currprefs.cs_ide);
 	SB(currprefs.cs_mbdmac);
 	SB(currprefs.cs_ksmirror_a8 ? 1 : 0);
@@ -14903,12 +14904,72 @@ uae_u8 *save_custom_extra(size_t *len, uae_u8 *dstptr)
 	SB(currprefs.cs_color_burst ? 1 : 0);
 	SB(currprefs.cs_toshibagary ? 1 : 0);
 	SB(currprefs.cs_romisslow ? 1 : 0);
+
 	SB(currprefs.cs_ciatype[0]);
 	SB(currprefs.cs_ciatype[1]);
+
 	SB(currprefs.cs_memorypatternfill);
+
+	SB(currprefs.cs_agnusmodel);
+	SB(currprefs.cs_agnussize);
+	SB(currprefs.cs_denisemodel);
 
 	*len = dst - dstbak;
 	return dstbak;
+}
+
+uae_u8 *save_custom_slots(size_t *len, uae_u8 *dstptr)
+{
+	uae_u8 *dstbak, *dst;
+
+	if (dstptr)
+		dstbak = dst = dstptr;
+	else
+		dstbak = dst = xmalloc(uae_u8, 1000);
+
+	uae_u32 v = 1;
+	// copper final MOVE pending?
+	if (cop_state.state == COP_read1) {
+		v |= 2;
+	} else if (cop_state.state == COP_read2) {
+		v |= 4;
+	}
+	save_u32(v);
+	save_u32(cop_state.ip);
+	save_u16(cop_state.ir[0]);
+	save_u16(cop_state.ir[1]);
+
+	for (int i = 0; i < 4; i++) {
+		save_u16(cycle_line_pipe[i]);
+		save_u16(cycle_line_slot[i]);
+	}
+
+	*len = dst - dstbak;
+	return dstbak;
+}
+
+uae_u8 *restore_custom_slots(uae_u8 *src)
+{
+	uae_u32 v = restore_u32();
+	if (!(v & 1))
+		return src;
+
+	cop_state.ip = restore_u32();
+	cop_state.ir[0] = restore_u16();
+	cop_state.ir[1] = restore_u16();
+	cop_state.state = COP_stop;
+	if (v & 2) {
+		cop_state.state = COP_read1;
+	} else if (v & 4) {
+		cop_state.state = COP_read2;
+	}
+
+	for (int i = 0; i < 4; i++) {
+		cycle_line_pipe[i] = restore_u16();
+		cycle_line_slot[i] = (uae_u8)restore_u16();
+	}
+
+	return src;
 }
 
 uae_u8 *restore_custom_event_delay(uae_u8 *src)
@@ -14920,19 +14981,57 @@ uae_u8 *restore_custom_event_delay(uae_u8 *src)
 		uae_u8 type = restore_u8();
 		evt_t e = restore_u64();
 		uae_u32 data = restore_u32();
-		if (type == 1)
-			event2_newevent_xx(-1, e, data, send_interrupt_do_ext);
+		evfunc2 f = NULL;
+		switch(type)
+		{
+			case 1:
+				f = event_send_interrupt_do_ext;
+				break;
+			case 2:
+				f = event_doint_delay_do_ext;
+				break;
+			case 3:
+				f = event_audxdat_func;
+				break;
+			case 4:
+				f = event_setdsr;
+				break;
+			case 5:
+				f = event_CIA_synced_interrupt;
+				break;
+			case 6:
+				f = event_doint_delay_do_intreq;
+				break;
+			case 7:
+				f = event_doint_delay_do_intena;
+				break;
+			case 8:
+				f = event_CIA_tod_inc_event;
+				break;
+			case 9:
+				f = event_DISK_handler;
+				break;
+			case 0:
+				write_log("ignored event type %d (%08x) restored\n", type, data);
+				break;
+			default:
+				write_log("unknown event type %d (%08x) restored\n", type, data);
+				break;
+		}
+		if (f) {
+			event2_newevent_xx(-1, e, data, f);
+		}
 	}
 	return src;
 }
 uae_u8 *save_custom_event_delay(size_t *len, uae_u8 *dstptr)
 {
 	uae_u8 *dstbak, *dst;
-	int cnt = 0;
+	int cnt = 0, cnt2 = 0;
 
 	for (int i = ev2_misc; i < ev2_max; i++) {
 		struct ev2 *e = &eventtab2[i];
-		if (e->active && e->handler == send_interrupt_do_ext) {
+		if (e->active) {
 			cnt++;
 		}
 	}
@@ -14948,13 +15047,41 @@ uae_u8 *save_custom_event_delay(size_t *len, uae_u8 *dstptr)
 	save_u8(cnt);
 	for (int i = ev2_misc; i < ev2_max; i++) {
 		struct ev2 *e = &eventtab2[i];
-		if (e->active && e->handler == send_interrupt_do_ext) {
-			save_u8(1);
+		if (e->active) {
+			evfunc2 f = e->handler;
+			uae_u8 type = 0;
+			if (f == event_send_interrupt_do_ext) {
+				type = 1;
+			} else if (f == event_doint_delay_do_ext) {
+				type = 2;
+			} else if (f == event_audxdat_func) {
+				type = 3;
+			} else if (f == event_setdsr) {
+				type = 4;
+			} else if (f == event_CIA_synced_interrupt) {
+				type = 5;
+			} else if (f == event_doint_delay_do_intreq) {
+				type = 6;
+			} else if (f == event_doint_delay_do_intena) {
+				type = 7;
+			} else if (f == event_CIA_tod_inc_event) {
+				type = 8;
+			} else if (f == event_DISK_handler) {
+				type = 9;
+			} else {
+				write_log("unknown event2 handler %p\n", e->handler);
+				e->active = false;
+				f(e->data);
+			}
+			if (type) {
+				cnt2++;
+			}
+			save_u8(type);
 			save_u64(e->evtime - get_cycles());
 			save_u32(e->data);
-		
 		}
 	}
+	write_log("%d pending events saved\n", cnt2);
 
 	*len = dst - dstbak;
 	return dstbak;
@@ -14972,7 +15099,6 @@ uae_u8 *save_cycles(size_t *len, uae_u8 *dstptr)
 	save_u32(CYCLE_UNIT);
 	save_u64(get_cycles());
 	save_u32(extra_cycle);
-	write_log(_T("SAVECYCLES %08llX\n"), get_cycles());
 	*len = dst - dstbak;
 	return dstbak;
 }
@@ -14986,7 +15112,8 @@ uae_u8 *restore_cycles(uae_u8 *src)
 	extra_cycle = restore_u32();
 	if (extra_cycle >= 2 * CYCLE_UNIT)
 		extra_cycle = 0;
-	write_log(_T("RESTORECYCLES %08llX\n"), start_cycles);
+	set_cycles(start_cycles);
+	clear_events();
 	return src;
 }
 
@@ -15035,7 +15162,9 @@ void check_prefs_changed_custom(void)
 	currprefs.cs_deniserev = changed_prefs.cs_deniserev;
 	currprefs.cs_mbdmac = changed_prefs.cs_mbdmac;
 	currprefs.cs_df0idhw = changed_prefs.cs_df0idhw;
-	currprefs.cs_denisenoehb = changed_prefs.cs_denisenoehb;
+	currprefs.cs_denisemodel = changed_prefs.cs_denisemodel;
+	currprefs.cs_agnusmodel = changed_prefs.cs_agnusmodel;
+	currprefs.cs_agnussize = changed_prefs.cs_agnussize;
 	currprefs.cs_z3autoconfig = changed_prefs.cs_z3autoconfig;
 	currprefs.cs_bytecustomwritebug = changed_prefs.cs_bytecustomwritebug;
 	currprefs.cs_color_burst = changed_prefs.cs_color_burst;
@@ -15049,7 +15178,6 @@ void check_prefs_changed_custom(void)
 	currprefs.cs_memorypatternfill = changed_prefs.cs_memorypatternfill;
 
 	if (currprefs.chipset_mask != changed_prefs.chipset_mask ||
-		currprefs.cs_dipagnus != changed_prefs.cs_dipagnus ||
 		currprefs.picasso96_nocustom != changed_prefs.picasso96_nocustom ||
 		currprefs.ntscmode != changed_prefs.ntscmode ||
 		currprefs.cs_hvcsync != changed_prefs.cs_hvcsync
@@ -15074,7 +15202,9 @@ void check_prefs_changed_custom(void)
 				nosignal_status = 0;
 			}
 			currprefs.chipset_mask = changed_prefs.chipset_mask;
-			currprefs.cs_dipagnus = changed_prefs.cs_dipagnus;
+			currprefs.cs_agnusmodel = changed_prefs.cs_agnusmodel;
+			currprefs.cs_agnussize = changed_prefs.cs_agnussize;
+			currprefs.cs_denisemodel = changed_prefs.cs_denisemodel;
 			currprefs.cs_hvcsync = changed_prefs.cs_hvcsync;
 			init_custom();
 	}

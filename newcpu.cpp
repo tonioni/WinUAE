@@ -683,11 +683,11 @@ static void cputracefunc_x_do_cycles(int cycles)
 	while (cycles >= CYCLE_UNIT) {
 		cputrace.cyclecounter += CYCLE_UNIT;
 		cycles -= CYCLE_UNIT;
-		x2_do_cycles (CYCLE_UNIT);
+		x2_do_cycles(CYCLE_UNIT);
 	}
 	if (cycles > 0) {
 		cputrace.cyclecounter += cycles;
-		x2_do_cycles (cycles);
+		x2_do_cycles(cycles);
 	}
 }
 
@@ -699,10 +699,10 @@ static void cputracefunc2_x_do_cycles(int cycles)
 	}
 	cycles -= cputrace.cyclecounter;
 	cputrace.cyclecounter = 0;
-	check_trace ();
+	check_trace();
 	x_do_cycles = x2_do_cycles;
 	if (cycles > 0)
-		x_do_cycles (cycles);
+		x_do_cycles(cycles);
 }
 
 static void cputracefunc_x_do_cycles_pre(int cycles)
@@ -712,10 +712,10 @@ static void cputracefunc_x_do_cycles_pre(int cycles)
 	while (cycles >= CYCLE_UNIT) {
 		cycles -= CYCLE_UNIT;
 		cputrace.cyclecounter_pre += CYCLE_UNIT;
-		x2_do_cycles (CYCLE_UNIT);
+		x2_do_cycles_pre(CYCLE_UNIT);
 	}
 	if (cycles > 0) {
-		x2_do_cycles (cycles);
+		x2_do_cycles_pre(cycles);
 		cputrace.cyclecounter_pre += cycles;
 	}
 	cputrace.cyclecounter_pre = 0;
@@ -742,12 +742,13 @@ static void cputracefunc2_x_do_cycles_pre (int cycles)
 		x_do_cycles (cycles);
 }
 
-static void cputracefunc_x_do_cycles_post (int cycles, uae_u32 v)
+static void cputracefunc_x_do_cycles_post(int cycles, uae_u32 v)
 {
 	if (cputrace.memoryoffset < 1) {
 #if CPUTRACE_DEBUG
 		write_log (_T("cputracefunc_x_do_cycles_post memoryoffset=%d!\n"), cputrace.memoryoffset);
 #endif
+		x2_do_cycles_post(cycles, v);
 		return;
 	}
 	struct cputracememory *ctm = &cputrace.ctm[cputrace.memoryoffset - 1];
@@ -757,11 +758,11 @@ static void cputracefunc_x_do_cycles_post (int cycles, uae_u32 v)
 	while (cycles >= CYCLE_UNIT) {
 		cycles -= CYCLE_UNIT;
 		cputrace.cyclecounter_post -= CYCLE_UNIT;
-		x2_do_cycles (CYCLE_UNIT);
+		x2_do_cycles_post(CYCLE_UNIT, v);
 	}
 	if (cycles > 0) {
 		cputrace.cyclecounter_post -= cycles;
-		x2_do_cycles (cycles);
+		x2_do_cycles_post(cycles, v);
 	}
 	cputrace.cyclecounter_post = 0;
 }
