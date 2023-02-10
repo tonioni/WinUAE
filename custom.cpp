@@ -15540,10 +15540,7 @@ void wait_cpu_cycle_write_ce020(uaecptr addr, int mode, uae_u32 v)
 
 	regs.chipset_latch_rw = regs.chipset_latch_write = v;
 
-	// chipset buffer latches the write, CPU does
-	// not need to wait for the chipset cycle to finish.
-	x_do_cycles_post(cpucycleunit, v);
-
+	x_do_cycles_post(CYCLE_UNIT, v);
 }
 
 void do_cycles_ce(int cycles)
