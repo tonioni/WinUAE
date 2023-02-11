@@ -81,7 +81,7 @@ extern uae_u32 get_mem_pcem(uaecptr, int);
 #define PICASSOIV_VRAM2 0x00800000
 #define PICASSOIV_ROM_OFFSET 0x0200
 #define PICASSOIV_FLASH_OFFSET 0x8000
-#define PICASSOIV_FLASH_BANK 0x8000
+#define PICASSOIV_FLASH_BANK 0x10000
 #define PICASSOIV_MAX_FLASH (GFXBOARD_AUTOCONFIG_SIZE - 32768)
 
 #define PICASSOIV_BANK_UNMAPFLASH 2
@@ -5702,8 +5702,8 @@ static void special_pcem_put(uaecptr addr, uae_u32 v, int size)
 		}
 		if (!(gb->picassoiv_bank & PICASSOIV_BANK_UNMAPFLASH)) {
 			if (addr >= PICASSOIV_FLASH_OFFSET / 2) {
-				addr += ((gb->picassoiv_bank & PICASSOIV_BANK_FLASHBANK) ? 0x8000 * 2 : 0);
 				addr /= 2;
+				addr += ((gb->picassoiv_bank & PICASSOIV_BANK_FLASHBANK) ? PICASSOIV_FLASH_BANK : 0);
 				flash_write(gb->p4flashrom, addr, v);
 			}
 		}
@@ -5940,8 +5940,8 @@ static uae_u32 special_pcem_get(uaecptr addr, int size)
 				v = gb->automemory[addr];
 				return v;
 			}
-			addr += ((gb->picassoiv_bank & PICASSOIV_BANK_FLASHBANK) ? 0x8000 * 2: 0);
 			addr /= 2;
+			addr += (gb->picassoiv_bank & PICASSOIV_BANK_FLASHBANK) ? PICASSOIV_FLASH_BANK : 0;
 			v = flash_read(gb->p4flashrom, addr);
 		}
 
