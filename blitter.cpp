@@ -2252,6 +2252,8 @@ uae_u8 *restore_blitter (uae_u8 *src)
 			blt_delayed_irq = -1;
 		}
 	}
+	bltcon0_old = bltcon0;
+	bltcon1_old = bltcon1;
 	return src;
 }
 
