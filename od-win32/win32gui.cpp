@@ -9315,8 +9315,6 @@ static void values_to_chipsetdlg2 (HWND hDlg)
 	}
 	CheckDlgButton(hDlg, IDC_CS_COMPATIBLE, workprefs.cs_compatible != 0);
 	CheckDlgButton(hDlg, IDC_CS_RESETWARNING, workprefs.cs_resetwarning);
-	CheckDlgButton(hDlg, IDC_CS_NOEHB, workprefs.cs_denisenoehb);
-	CheckDlgButton(hDlg, IDC_CS_DIPAGNUS, workprefs.cs_dipagnus);
 	CheckDlgButton(hDlg, IDC_CS_KSMIRROR_E0, workprefs.cs_ksmirror_e0);
 	CheckDlgButton(hDlg, IDC_CS_KSMIRROR_A8, workprefs.cs_ksmirror_a8);
 	CheckDlgButton(hDlg, IDC_CS_CIAOVERLAY, workprefs.cs_ciaoverlay);
@@ -9348,6 +9346,9 @@ static void values_to_chipsetdlg2 (HWND hDlg)
 	CheckDlgButton(hDlg, IDC_CS_MEMORYPATTERN, workprefs.cs_memorypatternfill);
 	xSendDlgItemMessage(hDlg, IDC_CS_UNMAPPED, CB_SETCURSEL, workprefs.cs_unmapped_space, 0);
 	xSendDlgItemMessage(hDlg, IDC_CS_CIASYNC, CB_SETCURSEL, workprefs.cs_eclocksync, 0);
+	xSendDlgItemMessage(hDlg, IDC_CS_AGNUSMODEL, CB_SETCURSEL, workprefs.cs_agnusmodel, 0);
+	xSendDlgItemMessage(hDlg, IDC_CS_AGNUSSIZE, CB_SETCURSEL, workprefs.cs_agnussize, 0);
+	xSendDlgItemMessage(hDlg, IDC_CS_DENISEMODEL, CB_SETCURSEL, workprefs.cs_denisemodel, 0);
 	txt[0] = 0;
 	_stprintf (txt, _T("%d"), workprefs.cs_rtc_adjust);
 	SetDlgItemText(hDlg, IDC_CS_RTCADJUST, txt);
@@ -9407,9 +9408,6 @@ static void values_from_chipsetdlg2 (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 	}
 	workprefs.cs_resetwarning = ischecked (hDlg, IDC_CS_RESETWARNING);
 	workprefs.cs_ciatodbug = ischecked (hDlg, IDC_CS_CIATODBUG);
-	workprefs.cs_denisenoehb = ischecked (hDlg, IDC_CS_NOEHB);
-	workprefs.cs_dipagnus = ischecked (hDlg, IDC_CS_DIPAGNUS);
-	workprefs.cs_agnusbltbusybug = workprefs.cs_dipagnus;
 	workprefs.cs_ksmirror_e0 = ischecked (hDlg, IDC_CS_KSMIRROR_E0);
 	workprefs.cs_ksmirror_a8 = ischecked (hDlg, IDC_CS_KSMIRROR_A8);
 	workprefs.cs_ciaoverlay = ischecked (hDlg, IDC_CS_CIAOVERLAY);
@@ -9447,6 +9445,18 @@ static void values_from_chipsetdlg2 (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 	val = xSendDlgItemMessage(hDlg, IDC_CS_CIASYNC, CB_GETCURSEL, 0, 0L);
 	if (val != CB_ERR)
 		workprefs.cs_eclocksync = val;
+
+	val = xSendDlgItemMessage(hDlg, IDC_CS_AGNUSMODEL, CB_GETCURSEL, 0, 0L);
+	if (val != CB_ERR)
+		workprefs.cs_agnusmodel = val;
+
+	val = xSendDlgItemMessage(hDlg, IDC_CS_AGNUSSIZE, CB_GETCURSEL, 0, 0L);
+	if (val != CB_ERR)
+		workprefs.cs_agnussize = val;
+
+	val = xSendDlgItemMessage(hDlg, IDC_CS_DENISEMODEL, CB_GETCURSEL, 0, 0L);
+	if (val != CB_ERR)
+		workprefs.cs_denisemodel = val;
 
 	cfgfile_compatibility_romtype(&workprefs);
 
@@ -9511,8 +9521,6 @@ static void enable_for_chipsetdlg2 (HWND hDlg)
 	ew(hDlg, IDC_CS_CDTVRAM, e);
 	ew(hDlg, IDC_CS_RESETWARNING, e);
 	ew(hDlg, IDC_CS_CIATODBUG, e);
-	ew(hDlg, IDC_CS_NOEHB, e);
-	ew(hDlg, IDC_CS_DIPAGNUS, e);
 	ew(hDlg, IDC_CS_Z3AUTOCONFIG, e);
 	ew(hDlg, IDC_CS_KSMIRROR_E0, e);
 	ew(hDlg, IDC_CS_KSMIRROR_A8, e);
@@ -9536,6 +9544,9 @@ static void enable_for_chipsetdlg2 (HWND hDlg)
 	ew(hDlg, IDC_CS_CIASYNC, e);
 	ew(hDlg, IDC_CS_CIA, e);
 	ew(hDlg, IDC_CS_MEMORYPATTERN, e);
+	ew(hDlg, IDC_CS_AGNUSMODEL, e);
+	ew(hDlg, IDC_CS_AGNUSSIZE, e);
+	ew(hDlg, IDC_CS_DENISEMODEL, e);
 }
 
 static INT_PTR CALLBACK ChipsetDlgProc2 (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
@@ -9557,6 +9568,20 @@ static INT_PTR CALLBACK ChipsetDlgProc2 (HWND hDlg, UINT msg, WPARAM wParam, LPA
 		xSendDlgItemMessage(hDlg, IDC_CS_CIASYNC, CB_ADDSTRING, 0, (LPARAM)_T("68000"));
 		xSendDlgItemMessage(hDlg, IDC_CS_CIASYNC, CB_ADDSTRING, 0, (LPARAM)_T("Gayle"));
 		xSendDlgItemMessage(hDlg, IDC_CS_CIASYNC, CB_ADDSTRING, 0, (LPARAM)_T("68000 Alternate"));
+		xSendDlgItemMessage(hDlg, IDC_CS_AGNUSMODEL, CB_RESETCONTENT, 0, 0L);
+		xSendDlgItemMessage(hDlg, IDC_CS_AGNUSMODEL, CB_ADDSTRING, 0, (LPARAM)_T("Auto"));
+		xSendDlgItemMessage(hDlg, IDC_CS_AGNUSMODEL, CB_ADDSTRING, 0, (LPARAM)_T("Velvet"));
+		xSendDlgItemMessage(hDlg, IDC_CS_AGNUSMODEL, CB_ADDSTRING, 0, (LPARAM)_T("A1000"));
+		xSendDlgItemMessage(hDlg, IDC_CS_AGNUSSIZE, CB_RESETCONTENT, 0, 0L);
+		xSendDlgItemMessage(hDlg, IDC_CS_AGNUSSIZE, CB_ADDSTRING, 0, (LPARAM)_T("Auto"));
+		xSendDlgItemMessage(hDlg, IDC_CS_AGNUSSIZE, CB_ADDSTRING, 0, (LPARAM)_T("512k"));
+		xSendDlgItemMessage(hDlg, IDC_CS_AGNUSSIZE, CB_ADDSTRING, 0, (LPARAM)_T("1M"));
+		xSendDlgItemMessage(hDlg, IDC_CS_AGNUSSIZE, CB_ADDSTRING, 0, (LPARAM)_T("2M"));
+		xSendDlgItemMessage(hDlg, IDC_CS_DENISEMODEL, CB_RESETCONTENT, 0, 0L);
+		xSendDlgItemMessage(hDlg, IDC_CS_DENISEMODEL, CB_ADDSTRING, 0, (LPARAM)_T("Auto"));
+		xSendDlgItemMessage(hDlg, IDC_CS_DENISEMODEL, CB_ADDSTRING, 0, (LPARAM)_T("Velvet"));
+		xSendDlgItemMessage(hDlg, IDC_CS_DENISEMODEL, CB_ADDSTRING, 0, (LPARAM)_T("A1000 No-EHB"));
+		xSendDlgItemMessage(hDlg, IDC_CS_DENISEMODEL, CB_ADDSTRING, 0, (LPARAM)_T("A1000"));
 		xSendDlgItemMessage(hDlg, IDC_CS_UNMAPPED, CB_RESETCONTENT, 0, 0L);
 		WIN32GUI_LoadUIString(IDS_UNMAPPED_ADDRESS, tmp, sizeof tmp / sizeof(TCHAR));
 		TCHAR *p1 = tmp;

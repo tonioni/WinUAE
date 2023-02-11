@@ -1999,6 +1999,9 @@ static void update_mirrors(void)
 	aga_mode = (currprefs.chipset_mask & CSMASK_AGA) != 0;
 	ecs_agnus = (currprefs.chipset_mask & CSMASK_ECS_AGNUS) != 0;
 	ecs_denise = (currprefs.chipset_mask & CSMASK_ECS_DENISE) != 0;
+	agnusa1000 = currprefs.cs_agnusmodel == AGNUSMODEL_A1000 || currprefs.cs_agnusmodel == AGNUSMODEL_VELVET;
+	denisea1000_noehb = currprefs.cs_denisemodel == DENISEMODEL_VELVET || currprefs.cs_denisemodel == DENISEMODEL_A1000NOEHB;
+	denisea1000 = currprefs.cs_denisemodel == DENISEMODEL_VELVET || currprefs.cs_denisemodel == DENISEMODEL_A1000NOEHB || currprefs.cs_denisemodel == DENISEMODEL_A1000;
 	direct_rgb = aga_mode;
 	if (aga_mode) {
 		sprite_sprctlmask = 0x01 | 0x08 | 0x10;
@@ -2035,7 +2038,7 @@ static bool isehb(uae_u16 bplcon0, uae_u16 bplcon2)
 	} else if (ecs_denise) {
 		bplehb = ((bplcon0 & 0xFC00) == 0x6000 || (bplcon0 & 0xFC00) == 0x7000);
 	} else {
-		bplehb = ((bplcon0 & 0xFC00) == 0x6000 || (bplcon0 & 0xFC00) == 0x7000) && !currprefs.cs_denisenoehb;
+		bplehb = ((bplcon0 & 0xFC00) == 0x6000 || (bplcon0 & 0xFC00) == 0x7000) && !denisea1000_noehb;
 	}
 	return bplehb;
 }
@@ -5600,8 +5603,8 @@ static void reset_decisions_scanline_start(void)
 		}
 	}
 
-	if (!ecs_denise && currprefs.gfx_overscanmode < OVERSCANMODE_ULTRA) {
-		if (currprefs.cs_dipagnus || !ecs_agnus) {
+	if (!ecs_denise) {
+		if (agnusa1000 || !ecs_agnus) {
 			if (vb_start_line == 2 + vblank_extraline) {
 				record_color_change2(0, 0, COLOR_CHANGE_BLANK | 1);
 			}
@@ -6588,7 +6591,7 @@ static void init_hz(bool checkvposw)
 	maxvpos_display = maxvpos;
 	maxvpos_display_vsync = 1;
 	// A1000 Agnus VBSTRT=first line, OCS and later: VBSTRT=last line
-	if (currprefs.cs_dipagnus) {
+	if (agnusa1000) {
 		maxvpos_display_vsync++;
 	}
 
@@ -6729,7 +6732,7 @@ static void init_hz(bool checkvposw)
 		minfirstline = 0;
 	}
 
-	vblank_extraline = !currprefs.cs_dipagnus && !ecs_denise ? 1 : 0;
+	vblank_extraline = !agnusa1000 && !ecs_denise ? 1 : 0;
 
 	int minfirstline_hw = minfirstline;
 	if (currprefs.gfx_overscanmode >= OVERSCANMODE_ULTRA) {
@@ -7077,7 +7080,7 @@ static bool blit_busy(int hpos, bool dmaconr)
 		return false;
 	}
 	// AGA apparently fixes both bugs.
-	if (currprefs.cs_agnusbltbusybug) {
+	if (agnusa1000) {
 		// Blitter busy bug: A1000 Agnus only sets busy-bit when blitter gets first DMA slot.
 		if (!blt_info.got_cycle) {
 			return false;
@@ -7171,7 +7174,7 @@ static void vb_check(void)
 	check_line_enabled();
 
 	// A1000 Agnus VBSTRT=first line, OCS and later: VBSTRT=last line
-	if (currprefs.cs_dipagnus) {
+	if (agnusa1000) {
 		if (vpos == 0) {
 			vb_start_line = 1;
 			vb_state = true;
@@ -7256,6 +7259,7 @@ static uae_u16 VPOSR(void)
 static void VPOSW(uae_u16 v)
 {
 	int oldvpos = vpos;
+
 #if 0
 	if (M68K_GETPC < 0xf00000 || 1)
 		write_log (_T("VPOSW %04X PC=%08x\n"), v, M68K_GETPC);
@@ -12155,7 +12159,7 @@ static void hsync_handler_pre(bool onvsync)
 			if (!ecs_denise && vpos == get_equ_vblank_endline() - 1) {
 				hdiw_counter++;
 			}
-			if (ecs_denise || vpos > get_equ_vblank_endline() || (currprefs.cs_dipagnus && vpos == 0)) {
+			if (ecs_denise || vpos > get_equ_vblank_endline() || (agnusa1000 && vpos == 0)) {
 				hdiw_counter = maxhpos * 2;
 			}
 		}
@@ -13483,7 +13487,7 @@ void custom_reset(bool hardreset, bool keyboardreset)
 	nr_armed = 0;
 	next_lineno = 0;
 	vb_start_line = 1;
-	if (currprefs.cs_dipagnus) {
+	if (agnusa1000) {
 		vb_start_line = 0;
 	}
 	vb_state = true;
@@ -13547,7 +13551,7 @@ void custom_reset(bool hardreset, bool keyboardreset)
 			for (int i = 0; i < 32; i++) {
 				uae_u16 c;
 				if (i == 0) {
-					c = ((ecs_denise && !aga_mode) || currprefs.cs_denisenoehb) ? 0xfff : 0x000;
+					c = ((ecs_denise && !aga_mode) || denisea1000) ? 0xfff : 0x000;
 				} else {
 					c |= uaerand();
 					c |= uaerand();

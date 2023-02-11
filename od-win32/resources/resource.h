@@ -1121,6 +1121,7 @@
 #define IDC_DBG_OUTPUT1                 1739
 #define IDC_CS_PCMCIA                   1739
 #define IDC_DBG_HELP                    1740
+#define IDC_CS_AGNUSMODEL               1740
 #define IDC_DBG_INPUT                   1741
 #define IDC_CS_KSMIRROR_A8              1741
 #define IDC_DBG_DREG                    1742
@@ -1128,12 +1129,12 @@
 #define IDC_DBG_AREG                    1743
 #define IDC_CS_RESETWARNING             1743
 #define IDC_DBG_CCR                     1744
-#define IDC_CS_NOEHB                    1744
+#define IDC_CS_AGNUSSIZE                1744
 #define IDC_DBG_AMEM                    1745
-#define IDC_CS_DIPAGNUS                 1745
 #define IDC_DBG_SP_VBR                  1746
 #define IDC_CS_CDTVCR                   1746
 #define IDC_DBG_MMISC                   1747
+#define IDC_CS_DENISEMODEL              1747
 #define IDC_DBG_PC                      1748
 #define IDC_DBG_PREFETCH                1749
 #define IDC_DBG_FPREG                   1750

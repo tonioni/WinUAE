@@ -112,6 +112,9 @@ static void lores_reset (void)
 bool ecs_agnus;
 bool ecs_denise;
 bool aga_mode;
+bool agnusa1000;
+bool denisea1000_noehb;
+bool denisea1000;
 
 bool direct_rgb;
 
@@ -1232,8 +1235,8 @@ static void pfield_init_linetoscr (int lineno, bool border)
 			if (playfield_end < linetoscr_diw_end && hblank_right_stop > playfield_end) {
 				playfield_end = linetoscr_diw_end;
 			}
-			// A1000 shows extra sprite pixel after hdiw end TODO: Denise feature, not Agnus.
-			if (currprefs.cs_dipagnus) {
+			// A1000 shows extra sprite pixel after hdiw end
+			if (denisea1000) {
 				sprite_end += 1 << lores_shift;
 			}
 			int plfleft = dp_for_drawing->plfleft - DDF_OFFSET;
@@ -2383,7 +2386,7 @@ static void pfield_set_linetoscr (void)
 	}
 #endif
 	// A1000 Denise right border "bordersprite" bug
-	if (currprefs.cs_dipagnus) {
+	if (denisea1000) {
 		if (res_shift == 0) {
 			switch (vidinfo->drawbuffer.pixbytes) {
 				case 2:
@@ -3362,7 +3365,7 @@ static void pfield_expand_dp_bplcon(void)
 			if (!aga_mode)
 				bplehb = -1;
 		}
-	} else if ((currprefs.cs_denisenoehb)) {
+	} else if (denisea1000_noehb) {
 		bplehb = -1;
 	}
 	bplcolorburst = (dp_for_drawing->bplcon0 & 0x200) != 0;
@@ -3943,7 +3946,7 @@ static void pfield_draw_line(struct vidbuffer *vb, int lineno, int gfx_ypos, int
 		if (dip_for_drawing->nr_sprites) {
 			if (ce_is_bordersprite(colors_for_drawing.extra) && !ce_is_borderblank(colors_for_drawing.extra) && dp_for_drawing->bordersprite_seen) {
 				do_color_changes(pfield_do_linetoscr_bordersprite_aga, pfield_do_linetoscr_spr, lineno);
-			} else if (currprefs.cs_dipagnus) {
+			} else if (agnusa1000) {
 				do_color_changes(pfield_do_linetoscr_bordersprite_a1000, pfield_do_linetoscr_spr, lineno);
 			} else {
 				do_color_changes(pfield_do_fill_line, dip_for_drawing->nr_sprites ? pfield_do_linetoscr_spr : pfield_do_linetoscr, lineno);

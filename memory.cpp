@@ -2319,6 +2319,14 @@ static void allocate_memory (void)
 		}
 	}
 
+	if (currprefs.cs_agnusmodel > 0) {
+		if (currprefs.cs_agnussize <= AGNUSSIZE_512) {
+			chipmem_full_mask = 0x80000 - 1;
+		} else if (currprefs.cs_agnussize == AGNUSSIZE_1M && chipmem_full_mask > 0x100000) {
+			chipmem_full_mask = 0x100000 - 1;
+		}
+	}
+
 	if (bogomem_bank.reserved_size != currprefs.bogomem.size || bogoreset) {
 		if (!(bogomem_bank.reserved_size == 0x200000 && currprefs.bogomem.size == 0x180000)) {
 			mapped_free (&bogomem_bank);
@@ -2626,7 +2634,7 @@ static void fillpattern(addrbank *ab)
 				}
 			}
 		}
-	} else if (currprefs.cs_memorypatternfill && !currprefs.cs_dipagnus) {
+	} else if (currprefs.cs_memorypatternfill && !agnusa1000) {
 		// OCS Agnus has swapped row and column compared to ECS and AGA.
 		uae_u16 fillval = 0;
 		for (int fillbank = 0; fillbank < ab->allocated_size / 256; fillbank++) {

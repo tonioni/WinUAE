@@ -28,7 +28,9 @@
 #define BEAMCON0_VSYTRUE	0x0002
 #define BEAMCON0_HSYTRUE	0x0001
 
-extern bool aga_mode, ecs_agnus, ecs_denise, direct_rgb;
+extern bool aga_mode, ecs_agnus, ecs_denise;
+extern bool agnusa1000, denisea1000_noehb, denisea1000;
+extern bool direct_rgb;
 
 /* These are the masks that are ORed together in the chipset_mask option.
 * If CSMASK_AGA is set, the ECS bits are guaranteed to be set as well.  */
