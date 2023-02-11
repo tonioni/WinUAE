@@ -1279,7 +1279,7 @@ static int addtocentry (uae_u8 **dstp, int *len, int point, int newpoint, int ms
 			return 1;
 		}
 	}
-	return 0;
+	return -1;
 }
 
 static int scsiemudrv (int unitnum, uae_u8 *cmd)
