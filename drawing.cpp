@@ -2621,6 +2621,7 @@ static void dummy_worker (int start, int stop, int blank)
 
 static int ham_decode_pixel;
 static unsigned int ham_lastcolor;
+static bool ham_decode_start;
 
 /* Decode HAM in the invisible portion of the display (left of VISIBLE_LEFT_BORDER),
  * but don't draw anything in.  This is done to prepare HAM_LASTCOLOR for later,
@@ -2632,7 +2633,7 @@ static void init_ham_decoding(void)
 	int unpainted_amiga = unpainted + hamleftborderhidden;
 
 	ham_decode_pixel = src_pixel - hamleftborderhidden;
-	ham_lastcolor = color_reg_get (&colors_for_drawing, 0);
+	ham_lastcolor = color_reg_get(&colors_for_drawing, 0);
 
 	if (!bplham) {
 		if (unpainted_amiga > 0) {
@@ -2703,11 +2704,20 @@ static void init_ham_decoding(void)
 			}
 		}
 	}
+
+	ham_decode_start = true;
 }
 
 static void decode_ham(int pix, int stoppos, int blank)
 {
 	int todraw_amiga = res_shift_from_window(stoppos - pix);
+
+	if (ham_decode_start) {
+		// first HAM decoding in scanline: start from previous pixel
+		todraw_amiga++;
+		ham_decode_pixel--;
+		ham_decode_start = false;
+	}
 
 	if (!bplham) {
 		while (todraw_amiga-- > 0) {
@@ -3901,6 +3911,7 @@ static void pfield_draw_line(struct vidbuffer *vb, int lineno, int gfx_ypos, int
 			uae_u16 b4sp = dp_for_drawing->bplcon4sp;
 			uae_u16 fm = dp_for_drawing->fmode;
 			init_ham_decoding();
+			int oham_decode_pixel = ham_decode_pixel;
 			do_color_changes(dummy_worker, decode_ham, lineno);
 			if (have_color_changes) {
 				// do_color_changes() did color changes and register changes, restore them.
@@ -3921,7 +3932,7 @@ static void pfield_draw_line(struct vidbuffer *vb, int lineno, int gfx_ypos, int
 				set_res_shift();
 			}
 			hposblank = ohposblank;
-			ham_decode_pixel = src_pixel;
+			ham_decode_pixel = oham_decode_pixel;
 			bplham = dp_for_drawing->ham_at_start;
 			setbplmode();
 		}
