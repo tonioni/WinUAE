@@ -777,7 +777,6 @@
 #define IDC_SETTINGSTEXT3               1520
 #define IDC_DISPLAY_VARSYNC             1520
 #define IDC_ECS_AGNUS                   1521
-#define IDC_DISPLAY_VARSYNC2            1521
 #define IDC_DISPLAY_RESIZE              1521
 #define IDC_ECS_DENISE                  1522
 #define IDC_ECS                         1523

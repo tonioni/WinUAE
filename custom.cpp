@@ -193,22 +193,30 @@ static bool dmacon_bpl, vdiwstate_bpl;
 static uae_u32 cop1lc, cop2lc, copcon;
 
 /*
-* horizontal defaults
+* Horizontal defaults
+* 
 * 0x00   0 HCB
 * 0x01   1 HC1 (HSTART)
 * 0x09   9 VR1 (HBLANK start)
 * 0x12  18 SHS (Horizontal sync start)
-* 0x1a  26 VER1 PAL
+* 0x1a  26 VER1 PAL 
 * 0x1b  27 VER1 NTSC
 * 0x23  35 RHS (Horizontal sync end)
 * 0x73 115 VR2
 * 0x84 132 CEN (HCENTER)
-* 0x8c 140 VER2 PAL
+* 0x8c 140 VER2 PAL (CEN->VER2 = CSYNC qualising pulse 2)
 * 0x8d 141 VER2 NTSC
 * 0xe2 226 HC226 (short line, selected if LOL=1, NTSC only)
 * 0xe3 227 HC227 (NTSC long line/PAL)
 * 
-* vertical defaults
+* SHS->VER1 = CSYNC equalising pulse 1
+* CEN->VER2 = CSYNC equalising pulse 2
+* 
+* HC1->SHS = Inactivate part of CSYNC Vsync+Hsync pulse 1
+* VR2->CEN = Inactivate part of CSYNC Vsync+HSync pulse 2
+* 
+*
+* Vertical defaults
 * 
 * PAL
 * 
@@ -287,11 +295,6 @@ static uae_u32 cop1lc, cop2lc, copcon;
 * Switch DMACON BPLEN off, wait value to DDFSTRT that matches during current scanline,
 * switch BPLEN on: if OCS, bitplane DMA won't start, ECS/AGA: bitplane DMA starts.
 * 
-* 
-* 
-* 
-* 
-* 
 */
 
 
@@ -342,10 +345,12 @@ static int hsstop_detect, hsstop_detect2;
 static uae_u16 vsstop, vsstrt;
 static uae_u16 vbstop, vbstrt;
 static uae_u16 hcenter, hcenter_v2, hcenter_v2_end;
+static bool hcenter_active;
 static uae_u16 hbstop_v, hbstrt_v, hbstop_v2, hbstrt_v2;
+static uae_u16 hsstrt_v2, hsstop_v2;
 static int vsstrt_m, vsstop_m, vbstrt_m, vbstop_m;
 static bool vb_state, vb_end_line;
-static bool vs_state, vs_state_on, vs_state_hw;
+static bool vs_state, vs_state_on, vs_state_on_old, vs_state_on_old2, vs_state_hw;
 static bool vb_end_next_line, vb_end_next_line2;
 static int vb_start_line;
 static bool ocs_blanked;
@@ -454,6 +459,7 @@ static int last_hdiw;
 static diw_states vdiwstate, hdiwstate, hdiwstate_conflict;
 static int bpl_hstart;
 static bool exthblank, exthblank_state, hcenterblank_state;
+static int hsyncdebug;
 static int last_diw_hpos, last_diw_hpos2;
 static int last_recorded_diw_hpos;
 static int last_hblank_start;
@@ -990,10 +996,84 @@ static void hblank_reset(int hblankpos)
 	hb_last_diwlastword = hblankpos + 4;
 }
 
+static void addcc(int pos, int reg, int v)
+{
+	color_change *cc = &curr_color_changes[next_color_change++];
+	cc->linepos = pos;
+	cc->regno = reg;
+	cc->value = v;
+	cc++;
+	cc->regno = -1;
+}
+
+static void addccmp(int pos, int reg, int v, int chpos)
+{
+	if (pos < chpos && pos >= last_recorded_diw_hpos) {
+		addcc(pos, reg, v);
+	}
+}
+
+static void syncdebugmarkers(int chpos)
+{
+	if (hsyncdebug == 3) {
+		int ver1 = (beamcon0 & BEAMCON0_PAL) ? 26 : 27;
+		int ver2 = (beamcon0 & BEAMCON0_PAL) ? 140 : 141;
+		// CSYNC
+		if (vpos >= 8 || (beamcon0 & BEAMCON0_VARHSYEN)) {
+			addccmp(hsstrt_v2, RECORDED_REGISTER_CHANGE_OFFSET + 0x202, 1, chpos);
+			addccmp(hsstop_v2, RECORDED_REGISTER_CHANGE_OFFSET + 0x202, 0, chpos);
+		}
+		addccmp(hbstrt_v2, RECORDED_REGISTER_CHANGE_OFFSET + 0x204, 1, chpos);
+		addccmp(hbstop_v2, RECORDED_REGISTER_CHANGE_OFFSET + 0x204, 0, chpos);
+		if (!(beamcon0 & BEAMCON0_VARHSYEN)) {
+			if (vpos == 0 || vpos == 1 || vpos == 5 || vpos == 6) {
+				addccmp(18 << CCK_SHRES_SHIFT, RECORDED_REGISTER_CHANGE_OFFSET + 0x202, 1, chpos);
+				addccmp(ver1 << CCK_SHRES_SHIFT, RECORDED_REGISTER_CHANGE_OFFSET + 0x202, 0, chpos);
+				addccmp(132 << CCK_SHRES_SHIFT, RECORDED_REGISTER_CHANGE_OFFSET + 0x202, 1, chpos);
+				addccmp(ver2 << CCK_SHRES_SHIFT, RECORDED_REGISTER_CHANGE_OFFSET + 0x202, 0, chpos);
+			}
+			if (vpos == 2) {
+				addccmp((12 + maxhpos) << CCK_SHRES_SHIFT, RECORDED_REGISTER_CHANGE_OFFSET + 0x202, 1, chpos);
+				addccmp(ver1 << CCK_SHRES_SHIFT, RECORDED_REGISTER_CHANGE_OFFSET + 0x202, 0, chpos);
+				addccmp(132 << CCK_SHRES_SHIFT, RECORDED_REGISTER_CHANGE_OFFSET + 0x202, 1, chpos);
+			}
+			if (vpos == 3 || vpos == 4) {
+				addccmp((1 + maxhpos) << CCK_SHRES_SHIFT, RECORDED_REGISTER_CHANGE_OFFSET + 0x202, 0, chpos);
+				addccmp(18 << CCK_SHRES_SHIFT, RECORDED_REGISTER_CHANGE_OFFSET + 0x202, 1, chpos);
+				addccmp(115 << CCK_SHRES_SHIFT, RECORDED_REGISTER_CHANGE_OFFSET + 0x202, 0, chpos);
+				addccmp(132 << CCK_SHRES_SHIFT, RECORDED_REGISTER_CHANGE_OFFSET + 0x202, 1, chpos);
+			}
+			if (vpos == 7) {
+				addccmp(18 << CCK_SHRES_SHIFT, RECORDED_REGISTER_CHANGE_OFFSET + 0x202, 1, chpos);
+				addccmp(ver1 << CCK_SHRES_SHIFT, RECORDED_REGISTER_CHANGE_OFFSET + 0x202, 0, chpos);
+			}
+		}
+	} else {
+		// H/V SYNC
+		if (hcenter_v2 < chpos && hcenter_v2 >= last_recorded_diw_hpos) {
+			if (beamcon0 & BEAMCON0_PAL) {
+				if (vs_state_on && !lof_display) {
+					addcc(hcenter_v2, RECORDED_REGISTER_CHANGE_OFFSET + 0x206, 0);
+				} else if (!vs_state_on && vs_state_on_old && lof_display) {
+					addcc(hcenter_v2, RECORDED_REGISTER_CHANGE_OFFSET + 0x206, 1);
+				}
+			} else {
+				if (vs_state_on && lof_display) {
+					addcc(hcenter_v2, RECORDED_REGISTER_CHANGE_OFFSET + 0x206, 0);
+				} else if (!vs_state_on && vs_state_on_old && lof_display) {
+					addcc(hcenter_v2, RECORDED_REGISTER_CHANGE_OFFSET + 0x206, 1);
+				}
+			}
+		}
+		addccmp(hsstrt_v2, RECORDED_REGISTER_CHANGE_OFFSET + 0x202, 1, chpos);
+		addccmp(hsstop_v2, RECORDED_REGISTER_CHANGE_OFFSET + 0x202, 0, chpos);
+		addccmp(hbstrt_v2, RECORDED_REGISTER_CHANGE_OFFSET + 0x204, 1, chpos);
+		addccmp(hbstop_v2, RECORDED_REGISTER_CHANGE_OFFSET + 0x204, 0, chpos);
+	}
+}
+
 static void record_color_change2(int hpos, int regno, uae_u32 value)
 {
-	color_change *cc;
-
 	if (line_disabled) {
 		return;
 	}
@@ -1003,6 +1083,7 @@ static void record_color_change2(int hpos, int regno, uae_u32 value)
 	}
 
 	int pos = hpos < 0 ? -hpos : hpos_to_diwx(hpos);
+	int start_color_change = next_color_change;
 
 	// AGA has extra hires pixel delay in color changes
 	if ((regno < RECORDED_REGISTER_CHANGE_OFFSET || regno == RECORDED_REGISTER_CHANGE_OFFSET + 0x10c || regno == RECORDED_REGISTER_CHANGE_OFFSET + 0x201) && aga_mode) {
@@ -1026,31 +1107,21 @@ static void record_color_change2(int hpos, int regno, uae_u32 value)
 			pos += 2;
 			if ((value & 0x00ff) != (bplcon4 & 0x00ff)) {
 				// Sprite bank delay
-				cc = &curr_color_changes[next_color_change];
-				cc->linepos = pos;
-				cc->regno = regno | 1;
-				cc->value = value;
-				next_color_change++;
+				addcc(pos, regno | 1, value);
 			}
 			pos += 2;
 		}
 	}
 
 	// HCENTER blanking (ECS Denise only)
-	if (hcenter_v2 && vs_state_on && lof_display) {
+	if (hcenter_active && vs_state_on && lof_display) {
 		int chpos = pos;
 		if (!hcenterblank_state && hcenter_v2 < chpos && hcenter_v2 >= last_recorded_diw_hpos) {
 			hcenterblank_state = true;
 			if ((bplcon0 & 1) && (bplcon3 & 1)) {
-				cc = &curr_color_changes[next_color_change];
-				cc->linepos = hcenter_v2;
-				cc->regno = RECORDED_REGISTER_CHANGE_OFFSET + 0x200;
-				cc->value = 1;
-				next_color_change++;
-				cc[1].regno = -1;
-				last_recorded_diw_hpos = cc->linepos;
+				addcc(hcenter_v2, RECORDED_REGISTER_CHANGE_OFFSET + 0x200, 1);
 				if (debug_dma) {
-					record_dma_event(DMA_EVENT_HBS, diw_to_hpos(cc->linepos), vpos);
+					record_dma_event(DMA_EVENT_HBS, diw_to_hpos(hcenter_v2), vpos);
 				}
 				thisline_changed = 1;
 			}
@@ -1058,15 +1129,9 @@ static void record_color_change2(int hpos, int regno, uae_u32 value)
 		if (hcenterblank_state && hcenter_v2_end < chpos && hcenter_v2_end >= last_recorded_diw_hpos) {
 			hcenterblank_state = false;
 			if ((bplcon0 & 1) && (bplcon3 & 1)) {
-				cc = &curr_color_changes[next_color_change];
-				cc->linepos = hcenter_v2_end;
-				cc->regno = RECORDED_REGISTER_CHANGE_OFFSET + 0x200;
-				cc->value = 0;
-				next_color_change++;
-				cc[1].regno = -1;
-				last_recorded_diw_hpos = cc->linepos;
+				addcc(hcenter_v2_end, RECORDED_REGISTER_CHANGE_OFFSET + 0x200, 0);
 				if (debug_dma) {
-					record_dma_event(DMA_EVENT_HBE, diw_to_hpos(cc->linepos), vpos);
+					record_dma_event(DMA_EVENT_HBE, diw_to_hpos(hcenter_v2), vpos);
 				}
 				thisline_changed = 1;
 			}
@@ -1078,91 +1143,87 @@ static void record_color_change2(int hpos, int regno, uae_u32 value)
 		// inject programmed hblank start and end in color changes
 		if (hbstrt_v2 <= hbstop_v2) {
 			if (hbstrt_v2 < chpos && hbstrt_v2 >= last_recorded_diw_hpos) {
-				cc = &curr_color_changes[next_color_change];
-				cc->linepos = hbstrt_v2;
-				cc->regno = RECORDED_REGISTER_CHANGE_OFFSET + 0x200;
-				cc->value = 1;
-				next_color_change++;
-				cc[1].regno = -1;
+				addcc(hbstrt_v2, RECORDED_REGISTER_CHANGE_OFFSET + 0x200, 1);
 				hblank_reset(hbstrt_v2);
 				exthblank_state = true;
-				last_recorded_diw_hpos = cc->linepos;
-				last_hblank_start = cc->linepos;
+				last_hblank_start = hbstrt_v2;
 				if (debug_dma) {
-					record_dma_event(DMA_EVENT_HBS, diw_to_hpos(cc->linepos), vpos);
+					record_dma_event(DMA_EVENT_HBS, diw_to_hpos(hbstrt_v2), vpos);
 				}
 			}
 			if (hbstop_v2 < chpos && hbstop_v2 >= last_recorded_diw_hpos) {
 				// do_color_changes() HBLANK workaround
 				if (next_color_change == last_color_change && exthblank_state) {
-					cc = &curr_color_changes[next_color_change];
-					cc->linepos = 0;
-					cc->regno = RECORDED_REGISTER_CHANGE_OFFSET + 0x200;
-					cc->value = 1;
-					next_color_change++;
+					addcc(0, RECORDED_REGISTER_CHANGE_OFFSET + 0x200, 1);
 				}
-				cc = &curr_color_changes[next_color_change];
-				cc->linepos = hbstop_v2;
-				cc->regno = RECORDED_REGISTER_CHANGE_OFFSET + 0x200;
-				cc->value = 0;
-				next_color_change++;
-				cc[1].regno = -1;
+				addcc(hbstop_v2, RECORDED_REGISTER_CHANGE_OFFSET + 0x200, 0);
 				exthblank_state = false;
-				last_recorded_diw_hpos = cc->linepos;
 				if (debug_dma) {
-					record_dma_event(DMA_EVENT_HBE, diw_to_hpos(cc->linepos), vpos);
+					record_dma_event(DMA_EVENT_HBE, diw_to_hpos(hbstop_v2), vpos);
 				}
 			}
-		} else  if (hbstrt_v2 > hbstop_v2) { // equal: blank disable wins
+		} else if (hbstrt_v2 > hbstop_v2) { // equal: blank disable wins
 			if (hbstop_v2 < chpos && hbstop_v2 >= last_recorded_diw_hpos) {
 				if (next_color_change == last_color_change && exthblank_state) {
-					cc = &curr_color_changes[next_color_change];
-					cc->linepos = 0;
-					cc->regno = RECORDED_REGISTER_CHANGE_OFFSET + 0x200;
-					cc->value = 1;
-					next_color_change++;
+					addcc(0, RECORDED_REGISTER_CHANGE_OFFSET + 0x200, 1);
 				}
-				cc = &curr_color_changes[next_color_change];
-				cc->linepos = hbstop_v2;
-				cc->regno = RECORDED_REGISTER_CHANGE_OFFSET + 0x200;
-				cc->value = 0;
-				next_color_change++;
-				cc[1].regno = -1;
+				addcc(hbstop_v2, RECORDED_REGISTER_CHANGE_OFFSET + 0x200, 0);
 				exthblank_state = false;
-				last_recorded_diw_hpos = cc->linepos;
 				if (debug_dma) {
-					record_dma_event(DMA_EVENT_HBE, diw_to_hpos(cc->linepos), vpos);
+					record_dma_event(DMA_EVENT_HBE, diw_to_hpos(hbstop_v2), vpos);
 				}
 			}
 			if (hbstrt_v2 < chpos && hbstrt_v2 >= last_recorded_diw_hpos) {
-				cc = &curr_color_changes[next_color_change];
-				cc->linepos = hbstrt_v2;
-				cc->regno = RECORDED_REGISTER_CHANGE_OFFSET + 0x200;
-				cc->value = 1;
-				next_color_change++;
-				cc[1].regno = -1;
+				addcc(hbstrt_v2, RECORDED_REGISTER_CHANGE_OFFSET + 0x200, 1);
 				hblank_reset(hbstrt_v2);
 				exthblank_state = true;
-				last_recorded_diw_hpos = cc->linepos;
-				last_hblank_start = cc->linepos;
+				last_hblank_start = hbstrt_v2;
 				if (debug_dma) {
-					record_dma_event(DMA_EVENT_HBS, diw_to_hpos(cc->linepos), vpos);
+					record_dma_event(DMA_EVENT_HBS, diw_to_hpos(hbstrt_v2), vpos);
 				}
 			}
 		}
 	}
 
+	// inject hsync and end in color changes (ultra mode debug)
+	if (hsyncdebug) {
+		syncdebugmarkers(pos);
+	}
+
 	if (regno != 0xffff) {
-		cc = &curr_color_changes[next_color_change];
-		cc->linepos = pos;
-		cc->regno = regno;
-		cc->value = value;
-		next_color_change++;
-		cc[1].regno = -1;
+		addcc(pos, regno, value);
 	}
 
 	if (pos > last_recorded_diw_hpos) {
 		last_recorded_diw_hpos = pos;
+	}
+
+	int cchanges = next_color_change - start_color_change;
+	if (cchanges > 1 && hsyncdebug) {
+		if (cchanges == 2) {
+			color_change *cc1 = &curr_color_changes[start_color_change];
+			color_change *cc2 = &curr_color_changes[start_color_change + 1];
+			if (cc1->linepos > cc2->linepos) {
+				color_change cc = *cc2;
+				*cc2 = *cc1;
+				*cc1 = cc;
+			}
+		} else {
+			// debug only, can be slow
+			for (int i = 0; i < cchanges; i++) {
+				color_change *cc1 = &curr_color_changes[start_color_change + i];
+				for(int j = i + 1; j < cchanges; j++) {
+					color_change *cc2 = &curr_color_changes[start_color_change + j];
+					if (cc1->linepos > cc2->linepos) {
+						color_change cc = *cc2;
+						*cc2 = *cc1;
+						*cc1 = cc;
+					}
+				}
+			}
+			color_change *cc1 = &curr_color_changes[start_color_change];
+			color_change *cc2 = &curr_color_changes[start_color_change];
+		}
 	}
 
 }
@@ -1947,6 +2008,10 @@ static void update_mirrors(void)
 		sprite_sprctlmask = 0x01;
 	}
 	set_chipset_mode();
+	hsyncdebug = 0;
+	if (currprefs.gfx_overscanmode >= OVERSCANMODE_ULTRA) {
+		hsyncdebug = currprefs.gfx_overscanmode - OVERSCANMODE_ULTRA + 1;
+	}
 }
 
 extern struct color_entry colors_for_drawing;
@@ -5679,13 +5744,15 @@ static void reset_decisions_hsync_start(void)
 			}
 		}
 	}
-
-	if (!ecs_denise && vb_end_line) {
-		thisline_decision.vb = VB_NOVB;
-	}
 #endif
-	if (currprefs.gfx_overscanmode == OVERSCANMODE_ULTRA) {
-		thisline_decision.vb = VB_NOVB;
+
+	if (currprefs.gfx_overscanmode >= OVERSCANMODE_ULTRA) {
+		if (thisline_decision.vb != VB_NOVB) {
+			thisline_decision.vb = VB_VB | VB_NOVB;
+		}
+		if (vs_state_on) {
+			thisline_decision.vb |= VB_VS;
+		}
 	}
 	if (nosignal_status == 1) {
 		thisline_decision.vb = VB_XBLANK;
@@ -5990,8 +6057,14 @@ static void set_hcenter(void)
 		if (hcenter_v2_end >= maxhpos << CCK_SHRES_SHIFT) {
 			hcenter_v2_end -= maxhpos << CCK_SHRES_SHIFT;
 		}
+		hcenter_active = true;
 	} else {
-		hcenter_v2 = 0;
+		if (beamcon0 & bemcon0_vsync_mask) {
+			hcenter_v2 = (hcenter & 0xff) << CCK_SHRES_SHIFT;
+		} else {
+			hcenter_v2 = 132 << CCK_SHRES_SHIFT;
+		}
+		hcenter_active = false;
 	}
 }
 
@@ -6051,6 +6124,13 @@ static void updateextblk(void)
 		exthblank = (bplcon0 & 1) && (bplcon3 & 1);
 	}
 
+	if (!exthblank) {
+		hbstrt_v2 = (8 << CCK_SHRES_SHIFT) - 3;
+		hbstop_v2 = (47 << CCK_SHRES_SHIFT) - 7;
+		hbstrt_v2 = adjust_hr(hbstrt_v2);
+		hbstop_v2 = adjust_hr(hbstop_v2);
+	}
+
 	if (new_beamcon0 & bemcon0_hsync_mask) {
 
 		hsyncstartpos = hsstrt + 2;
@@ -6076,6 +6156,9 @@ static void updateextblk(void)
 			hsyncstartpos_start = REFRESH_FIRST_HPOS + 1;
 		}
 
+		hsstrt_v2 = (hsstrt & 0xff) << CCK_SHRES_SHIFT;
+		hsstop_v2 = (hsstop & 0xff) << CCK_SHRES_SHIFT;
+
 	} else {
 
 		hsyncstartpos_start = hsyncstartpos_start_hw;
@@ -6083,7 +6166,13 @@ static void updateextblk(void)
 		denisehtotal = 227 + 7;
 		hsstop_detect2 = (35 + 9) * 2;
 
+		hsstrt_v2 = 18 << CCK_SHRES_SHIFT;
+		hsstop_v2 = 35 << CCK_SHRES_SHIFT;
+
 	}
+
+	hsstrt_v2 = adjust_hr(hsstrt_v2);
+	hsstop_v2 = adjust_hr(hsstop_v2);
 
 	// Out of range left. Denise/Lisa hcounter starts from 2 (skips first 2 lores pixels)
 	if (hbstrt_v2 < (1 << CCK_SHRES_SHIFT)) {
@@ -6146,7 +6235,7 @@ static void updateextblk(void)
 	denisehtotal <<= CCK_SHRES_SHIFT;
 
 	// ECS Denise has 1 extra lores pixel in right border
-	if (currprefs.gfx_overscanmode == OVERSCANMODE_ULTRA) {
+	if (currprefs.gfx_overscanmode >= OVERSCANMODE_ULTRA) {
 		denisehtotal += 2 << (CCK_SHRES_SHIFT - 1);
 	} else if (ecs_denise) {
 		denisehtotal += 1 << (CCK_SHRES_SHIFT - 1);
@@ -6510,8 +6599,11 @@ static void init_hz(bool checkvposw)
 		// assume VGA-like monitor if VARBEAMEN
 		if (currprefs.gfx_overscanmode >= OVERSCANMODE_ULTRA) {
 			maxhpos_display = maxhpos;
-			hsstop_detect = 8 * 2;
-			maxvpos_display_vsync += 2;
+			hsstop_detect = hsstrt * 2;
+			if (hsstop_detect > maxhpos / 2 * 2 || hsstop_detect < 4 * 2) {
+				hsstop_detect = 4 * 2;
+			}
+			minfirstline = 0;
 		} else {
 			int hp2 = maxhpos * 2;
 			if (exthblank) {
@@ -6591,7 +6683,7 @@ static void init_hz(bool checkvposw)
 				hsstop_detect += 7;
 			} else if (currprefs.gfx_overscanmode == OVERSCANMODE_BROADCAST) {
 				hsstop_detect += 5;
-			} else if (currprefs.gfx_overscanmode == OVERSCANMODE_ULTRA) {
+			} else if (currprefs.gfx_overscanmode >= OVERSCANMODE_ULTRA) {
 				maxhpos_display += EXTRAWIDTH_ULTRA;
 				maxvpos_display_vsync += 2;
 				minfirstline = 0;
@@ -6599,10 +6691,10 @@ static void init_hz(bool checkvposw)
 			}
 		} else {
 
-			if (currprefs.gfx_overscanmode == OVERSCANMODE_ULTRA) {
+			if (currprefs.gfx_overscanmode >= OVERSCANMODE_ULTRA) {
 				maxhpos_display += EXTRAWIDTH_ULTRA;
 				maxvpos_display_vsync += 2;
-				hsstop_detect = 16;
+				hsstop_detect = 18 * 2;
 				minfirstline = 0;
 			}
 		}
@@ -6633,11 +6725,14 @@ static void init_hz(bool checkvposw)
 	if (hsstop_detect < 0) {
 		hsstop_detect = 0;
 	}
+	if (minfirstline < 0) {
+		minfirstline = 0;
+	}
 
 	vblank_extraline = !currprefs.cs_dipagnus && !ecs_denise ? 1 : 0;
 
 	int minfirstline_hw = minfirstline;
-	if (currprefs.gfx_overscanmode == OVERSCANMODE_ULTRA) {
+	if (currprefs.gfx_overscanmode >= OVERSCANMODE_ULTRA) {
 		minfirstline = 0;
 		minfirstline_hw = 0;
 	} else if (currprefs.gfx_overscanmode == OVERSCANMODE_EXTREME) {
@@ -6711,8 +6806,8 @@ static void init_hz(bool checkvposw)
 		maxvpos_display_vsync = 0;
 	}
 
-	if (minfirstline < 1) {
-		minfirstline = 1;
+	if (minfirstline < vsync_startline) {
+		minfirstline = vsync_startline;
 	}
 
 	if (minfirstline >= maxvpos) {
@@ -6734,8 +6829,13 @@ static void init_hz(bool checkvposw)
 		if (maxvpos_display_vsync < 0) {
 			maxvpos_display_vsync = 0;
 		}
-		if (minfirstline <= vsync_startline) {
+		if (minfirstline < vsync_startline) {
 			minfirstline = vsync_startline;
+		}
+		if (currprefs.gfx_overscanmode >= OVERSCANMODE_ULTRA) {
+			if (minfirstline > vsstrt + 1) {
+				minfirstline = vsstrt + 1;
+			}
 		}
 	}
 
@@ -11980,7 +12080,18 @@ static void hsync_handlerh(bool onvsync)
 	hpos_hsync_extra = 0;
 	estimate_last_fetch_cycle(hpos);
 
-	if (vb_end_next_line && !ecs_denise && currprefs.gfx_overscanmode < OVERSCANMODE_ULTRA) {
+	if (currprefs.gfx_overscanmode >= OVERSCANMODE_ULTRA) {
+		if (beamcon0 & BEAMCON0_PAL) {
+			if (vs_state_on_old && !vs_state_on_old2 && !lof_display) {
+				record_color_change2(hpos, RECORDED_REGISTER_CHANGE_OFFSET + 0x206, 1);
+			}
+		} else {
+			if (vs_state_on_old && !vs_state_on_old2 && lof_display) {
+				record_color_change2(hpos, RECORDED_REGISTER_CHANGE_OFFSET + 0x206, 1);
+			}
+		}
+	}
+	if (vb_end_next_line && !ecs_denise) {
 		record_color_change2(hpos, 0, COLOR_CHANGE_BLANK | 1);
 	}
 
@@ -13003,18 +13114,20 @@ static void hsync_handler_post(bool onvsync)
 		if (vpos == 3 && lof_store) {
 			vs_state_hw = true;
 		}
-		if (vpos == 5) {
+		if (vpos == 5 + 1) {
 			vs_state_hw = false;
 		}
 	} else {
 		if (vpos == 3) {
 			vs_state_hw = true;
 		}
-		if (vpos == 6) {
+		if (vpos == 6 + 1) {
 			vs_state_hw = false;
 		}
 	}
 
+	vs_state_on_old2 = vs_state_on_old;
+	vs_state_on_old = vs_state_on;
 	if (new_beamcon0 & bemcon0_vsync_mask) {
 		vs_state_on = vs_state;
 	} else {
@@ -13388,6 +13501,7 @@ void custom_reset(bool hardreset, bool keyboardreset)
 	hbstrt_v2 = 0;
 	hbstop_v2 = 0;
 	hcenter_v2 = 0;
+	hcenter_active = false;
 	set_hcenter();
 	display_reset = 1;
 	copper_bad_cycle = 0;
