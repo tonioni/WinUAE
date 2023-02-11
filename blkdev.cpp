@@ -1279,7 +1279,7 @@ static int addtocentry (uae_u8 **dstp, int *len, int point, int newpoint, int ms
 			return 1;
 		}
 	}
-	return -1;
+	return 0;
 }
 
 static int scsiemudrv (int unitnum, uae_u8 *cmd)
@@ -1886,7 +1886,7 @@ int scsi_cd_emulate (int unitnum, uae_u8 *cmdbuf, int scsi_cmd_len,
 					strack++;
 				}
 				addtocentry (&p2, &maxlen, 0xa2, 0xaa, msf, p, toc);				
-				int tlen = addrdiff(p2, p) + 2;
+				int tlen = addrdiff(p2, p + 2);
 				p[0] = tlen >> 8;
 				p[1] = tlen >> 0;
 				scsi_len = tlen + 2;
