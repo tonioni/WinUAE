@@ -2620,8 +2620,69 @@ static void dummy_worker (int start, int stop, int blank)
 }
 
 static int ham_decode_pixel;
-static unsigned int ham_lastcolor;
-static bool ham_decode_start;
+static uae_u32 ham_lastcolor;
+
+static void decode_ham_pixel(int hdp)
+{
+	if (!bplham) {
+		int pv = pixdata.apixels[hdp];
+#ifdef AGA
+		if (aga_mode)
+			ham_lastcolor = colors_for_drawing.color_regs_aga[pv ^ bplxor] & 0xffffff;
+		else
+#endif
+			ham_lastcolor = colors_for_drawing.color_regs_ecs[pv] & 0xfff;
+	} else if (aga_mode) {
+		if (bplplanecnt >= 7) { /* AGA mode HAM8 */
+			int pw = pixdata.apixels[hdp];
+			int pv = pw ^ bplxor;
+			int pc = pv >> 2;
+			switch (pv & 0x3)
+			{
+				case 0x0: ham_lastcolor = colors_for_drawing.color_regs_aga[pc] & 0xffffff; break;
+				case 0x1: ham_lastcolor &= 0xFFFF03; ham_lastcolor |= (pw & 0xFC); break;
+				case 0x2: ham_lastcolor &= 0x03FFFF; ham_lastcolor |= (pw & 0xFC) << 16; break;
+				case 0x3: ham_lastcolor &= 0xFF03FF; ham_lastcolor |= (pw & 0xFC) << 8; break;
+			}
+		} else { /* AGA mode HAM6 */
+			int pw = pixdata.apixels[hdp];
+			int pv = pw ^ bplxor;
+			uae_u32 pc = ((pw & 0xf) << 0) | ((pw & 0xf) << 4);
+			switch (pv & 0x30)
+			{
+				case 0x00: ham_lastcolor = colors_for_drawing.color_regs_aga[pv & 0x0f] & 0xffffff; break;
+				case 0x10: ham_lastcolor &= 0xFFFF00; ham_lastcolor |= pc << 0; break;
+				case 0x20: ham_lastcolor &= 0x00FFFF; ham_lastcolor |= pc << 16; break;
+				case 0x30: ham_lastcolor &= 0xFF00FF; ham_lastcolor |= pc << 8; break;
+			}
+		}
+	} else {
+		if (!bpldualpf) {
+			/* OCS/ECS mode HAM6 */
+			int pv = pixdata.apixels[ham_decode_pixel];
+			switch (pv & 0x30)
+			{
+				case 0x00: ham_lastcolor = colors_for_drawing.color_regs_ecs[pv] & 0xfff; break;
+				case 0x10: ham_lastcolor &= 0xFF0; ham_lastcolor |= (pv & 0xF); break;
+				case 0x20: ham_lastcolor &= 0x0FF; ham_lastcolor |= (pv & 0xF) << 8; break;
+				case 0x30: ham_lastcolor &= 0xF0F; ham_lastcolor |= (pv & 0xF) << 4; break;
+			}
+		} else {
+			/* OCS/ECS mode HAM6 + DPF */
+			int pv = pixdata.apixels[ham_decode_pixel];
+			int *lookup = bpldualpfpri ? dblpf_ind2 : dblpf_ind1;
+			int idx = lookup[pv];
+			switch (pv & 0x30)
+			{
+				case 0x00: ham_lastcolor = colors_for_drawing.color_regs_ecs[idx] & 0xfff; break;
+				case 0x10: ham_lastcolor &= 0xFF0; ham_lastcolor |= (idx & 0xF); break;
+				case 0x20: ham_lastcolor &= 0x0FF; ham_lastcolor |= (idx & 0xF) << 8; break;
+				case 0x30: ham_lastcolor &= 0xF0F; ham_lastcolor |= (idx & 0xF) << 4; break;
+			}
+		}
+	}
+}
+
 
 /* Decode HAM in the invisible portion of the display (left of VISIBLE_LEFT_BORDER),
  * but don't draw anything in.  This is done to prepare HAM_LASTCOLOR for later,
@@ -2630,170 +2691,34 @@ static bool ham_decode_start;
  */
 static void init_ham_decoding(void)
 {
-	int unpainted_amiga = unpainted + hamleftborderhidden;
+	int unpainted_amiga = unpainted;
 
 	ham_decode_pixel = src_pixel - hamleftborderhidden;
 	ham_lastcolor = color_reg_get(&colors_for_drawing, 0);
-
-	if (!bplham) {
-		if (unpainted_amiga > 0) {
-			int pv = pixdata.apixels[ham_decode_pixel + unpainted_amiga - 1];
-#ifdef AGA
-			if (aga_mode)
-				ham_lastcolor = colors_for_drawing.color_regs_aga[pv ^ bplxor] & 0xffffff;
-			else
-#endif
-				ham_lastcolor = colors_for_drawing.color_regs_ecs[pv] & 0xfff;
-		}
-#ifdef AGA
-	} else if (aga_mode) {
-		if (bplplanecnt >= 7) { /* AGA mode HAM8 */
-			while (unpainted_amiga-- > 0) {
-				int pw = pixdata.apixels[ham_decode_pixel++];
-				int pv = pw ^ bplxor;
-				int pc = pv >> 2;
-				switch (pv & 0x3)
-				{
-				case 0x0: ham_lastcolor = colors_for_drawing.color_regs_aga[pc] & 0xffffff; break;
-				case 0x1: ham_lastcolor &= 0xFFFF03; ham_lastcolor |= (pw & 0xFC); break;
-				case 0x2: ham_lastcolor &= 0x03FFFF; ham_lastcolor |= (pw & 0xFC) << 16; break;
-				case 0x3: ham_lastcolor &= 0xFF03FF; ham_lastcolor |= (pw & 0xFC) << 8; break;
-				}
-			}
-		} else { /* AGA mode HAM6 */
-			while (unpainted_amiga-- > 0) {
-				int pw = pixdata.apixels[ham_decode_pixel++];
-				int pv = pw ^ bplxor;
-				uae_u32 pc = ((pw & 0xf) << 0) | ((pw & 0xf) << 4);
-				switch (pv & 0x30)
-				{
-				case 0x00: ham_lastcolor = colors_for_drawing.color_regs_aga[pv & 0x0f] & 0xffffff; break;
-				case 0x10: ham_lastcolor &= 0xFFFF00; ham_lastcolor |= pc << 0; break;
-				case 0x20: ham_lastcolor &= 0x00FFFF; ham_lastcolor |= pc << 16; break;
-				case 0x30: ham_lastcolor &= 0xFF00FF; ham_lastcolor |= pc << 8; break;
-				}
-			}
-		}
-#endif
-	} else {
-		if (!bpldualpf) {
-			/* OCS/ECS mode HAM6 */
-			while (unpainted_amiga-- > 0) {
-				int pv = pixdata.apixels[ham_decode_pixel++];
-				switch (pv & 0x30)
-				{
-				case 0x00: ham_lastcolor = colors_for_drawing.color_regs_ecs[pv] & 0xfff; break;
-				case 0x10: ham_lastcolor &= 0xFF0; ham_lastcolor |= (pv & 0xF); break;
-				case 0x20: ham_lastcolor &= 0x0FF; ham_lastcolor |= (pv & 0xF) << 8; break;
-				case 0x30: ham_lastcolor &= 0xF0F; ham_lastcolor |= (pv & 0xF) << 4; break;
-				}
-			}
-		} else {
-			/* OCS/ECS mode HAM6 + DPF */
-			while (unpainted_amiga-- > 0) {
-				int pv = pixdata.apixels[ham_decode_pixel++];
-				int *lookup = bpldualpfpri ? dblpf_ind2 : dblpf_ind1;
-				int idx = lookup[pv];
-				switch (pv & 0x30)
-				{
-				case 0x00: ham_lastcolor = colors_for_drawing.color_regs_ecs[idx] & 0xfff; break;
-				case 0x10: ham_lastcolor &= 0xFF0; ham_lastcolor |= (idx & 0xF); break;
-				case 0x20: ham_lastcolor &= 0x0FF; ham_lastcolor |= (idx & 0xF) << 8; break;
-				case 0x30: ham_lastcolor &= 0xF0F; ham_lastcolor |= (idx & 0xF) << 4; break;
-				}
-			}
-		}
+	while (unpainted_amiga-- > 0) {
+		decode_ham_pixel(ham_decode_pixel++);
 	}
-
-	ham_decode_start = true;
 }
 
 static void decode_ham(int pix, int stoppos, int blank)
 {
 	int todraw_amiga = res_shift_from_window(stoppos - pix);
-
-	if (ham_decode_start) {
-		// first HAM decoding in scanline: start from previous pixel
-		todraw_amiga++;
-		ham_decode_pixel--;
-		ham_decode_start = false;
+	while (todraw_amiga-- > 0) {
+		decode_ham_pixel(ham_decode_pixel);
+		ham_linebuf[ham_decode_pixel++] = ham_lastcolor;
 	}
+}
 
-	if (!bplham) {
-		while (todraw_amiga-- > 0) {
-			int pv = pixdata.apixels[ham_decode_pixel];
-#ifdef AGA
-			if (aga_mode)
-				ham_lastcolor = colors_for_drawing.color_regs_aga[pv ^ bplxor] & 0xffffff;
-			else
-#endif
-				ham_lastcolor = colors_for_drawing.color_regs_ecs[pv] & 0xfff;
-
-			ham_linebuf[ham_decode_pixel++] = ham_lastcolor;
-		}
-#ifdef AGA
-	} else if (aga_mode) {
-		if (bplplanecnt >= 7) { /* AGA mode HAM8 */
-			while (todraw_amiga-- > 0) {
-				int pw = pixdata.apixels[ham_decode_pixel];
-				int pv = pw ^ bplxor;
-				int pc = pv >> 2;
-				switch (pv & 0x3)
-				{
-				case 0x0: ham_lastcolor = colors_for_drawing.color_regs_aga[pc] & 0xffffff; break;
-				case 0x1: ham_lastcolor &= 0xFFFF03; ham_lastcolor |= (pw & 0xFC); break;
-				case 0x2: ham_lastcolor &= 0x03FFFF; ham_lastcolor |= (pw & 0xFC) << 16; break;
-				case 0x3: ham_lastcolor &= 0xFF03FF; ham_lastcolor |= (pw & 0xFC) << 8; break;
-				}
-				ham_linebuf[ham_decode_pixel++] = ham_lastcolor;
-			}
-		} else { /* AGA mode HAM6 */
-			while (todraw_amiga-- > 0) {
-				int pw = pixdata.apixels[ham_decode_pixel];
-				int pv = pw ^ bplxor;
-				uae_u32 pc = ((pw & 0xf) << 0) | ((pw & 0xf) << 4);
-				switch (pv & 0x30)
-				{
-				case 0x00: ham_lastcolor = colors_for_drawing.color_regs_aga[pv & 0x0f] & 0xffffff; break;
-				case 0x10: ham_lastcolor &= 0xFFFF00; ham_lastcolor |= pc << 0; break;
-				case 0x20: ham_lastcolor &= 0x00FFFF; ham_lastcolor |= pc << 16; break;
-				case 0x30: ham_lastcolor &= 0xFF00FF; ham_lastcolor |= pc << 8; break;
-				}
-				ham_linebuf[ham_decode_pixel++] = ham_lastcolor;
-			}
-		}
-#endif
-	} else {
-		if (!bpldualpf) {
-			/* OCS/ECS mode HAM6 */
-			while (todraw_amiga-- > 0) {
-				int pv = pixdata.apixels[ham_decode_pixel];
-				switch (pv & 0x30)
-				{
-				case 0x00: ham_lastcolor = colors_for_drawing.color_regs_ecs[pv] & 0xfff; break;
-				case 0x10: ham_lastcolor &= 0xFF0; ham_lastcolor |= (pv & 0xF); break;
-				case 0x20: ham_lastcolor &= 0x0FF; ham_lastcolor |= (pv & 0xF) << 8; break;
-				case 0x30: ham_lastcolor &= 0xF0F; ham_lastcolor |= (pv & 0xF) << 4; break;
-				}
-				ham_linebuf[ham_decode_pixel++] = ham_lastcolor;
-			}
-		} else {
-			/* OCS/ECS mode HAM6 + DPF */
-			while (todraw_amiga-- > 0) {
-				int pv = pixdata.apixels[ham_decode_pixel];
-				int *lookup = bpldualpfpri ? dblpf_ind2 : dblpf_ind1;
-				int idx = lookup[pv];
-				switch (pv & 0x30)
-				{
-				case 0x00: ham_lastcolor = colors_for_drawing.color_regs_ecs[idx] & 0xfff; break;
-				case 0x10: ham_lastcolor &= 0xFF0; ham_lastcolor |= (idx & 0xF); break;
-				case 0x20: ham_lastcolor &= 0x0FF; ham_lastcolor |= (idx & 0xF) << 8; break;
-				case 0x30: ham_lastcolor &= 0xF0F; ham_lastcolor |= (idx & 0xF) << 4; break;
-				}
-				ham_linebuf[ham_decode_pixel++] = ham_lastcolor;
-			}
-		}
+static void decode_ham_border(int pix, int stoppos, int blank)
+{
+	ham_lastcolor = color_reg_get(&colors_for_drawing, 0);
+	if (pix >= stoppos) {
+		return;
 	}
+	// HAM decoding starts 1 pixel early
+	int todraw_amiga = res_shift_from_window(stoppos - pix) - 1;
+	int hdp = ham_decode_pixel + todraw_amiga;
+	decode_ham_pixel(hdp);
 }
 
 static void erase_ham_right_border(int pix, int stoppos, bool blank)
@@ -3912,7 +3837,7 @@ static void pfield_draw_line(struct vidbuffer *vb, int lineno, int gfx_ypos, int
 			uae_u16 fm = dp_for_drawing->fmode;
 			init_ham_decoding();
 			int oham_decode_pixel = ham_decode_pixel;
-			do_color_changes(dummy_worker, decode_ham, lineno);
+			do_color_changes(decode_ham_border, decode_ham, lineno);
 			if (have_color_changes) {
 				// do_color_changes() did color changes and register changes, restore them.
 				adjust_drawing_colors(dp_for_drawing->ctable, -1, false);
