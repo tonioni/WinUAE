@@ -40,6 +40,7 @@
 #include <Avrt.h>
 #include <Cfgmgr32.h>
 #include <shellscalingapi.h>
+#include <dinput.h>
 
 #include "resource.h"
 
@@ -1970,8 +1971,18 @@ static LRESULT CALLBACK AmigaWindowProc(HWND hWnd, UINT message, WPARAM wParam, 
 		return 0;
 
 	case WM_KEYDOWN:
-		if (dinput_wmkey((uae_u32)lParam))
-			inputdevice_add_inputcode(AKS_ENTERGUI, 1, NULL);
+		if (!hGUIWnd) {
+			if (dinput_wmkey((uae_u32)lParam)) {
+				inputdevice_add_inputcode(AKS_ENTERGUI, 1, NULL);
+			}
+		} else {
+			int scancode = (lParam >> 16) & 0xff;
+			if (((currprefs.win32_guikey > 0 && scancode == currprefs.win32_guikey) || (currprefs.win32_guikey < 0 && scancode == DIK_F12))) {
+				SetForegroundWindow(hGUIWnd);
+			} else if (wParam == VK_ESCAPE) {
+				SendMessage(hGUIWnd, WM_CLOSE, 0, 0);
+			}
+		}
 		return 0;
 
 	case WM_LBUTTONUP:
@@ -2003,7 +2014,11 @@ static LRESULT CALLBACK AmigaWindowProc(HWND hWnd, UINT message, WPARAM wParam, 
 			} else if (dinput_winmouse() >= 0 && isfocus()) {
 				if (log_winmouse)
 					write_log(_T("WM_LBUTTONDOWN\n"));
-				setmousebuttonstate(dinput_winmouse(), 0, 1);
+				if (message == WM_LBUTTONDBLCLK && hGUIWnd) {
+					SetForegroundWindow(hGUIWnd);
+				} else {
+					setmousebuttonstate(dinput_winmouse(), 0, 1);
+				}
 			}
 		}
 		return 0;

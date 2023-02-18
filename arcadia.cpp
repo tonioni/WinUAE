@@ -1052,7 +1052,9 @@ void alg_map_banks(void)
 		algmemory_initialized = 1;
 	}
 	struct romdata *rd = get_alg_rom(currprefs.romextfile);
-	if (rd->id == 182 || rd->id == 273 || rd->size < 0x40000) {
+	if (rd->id == 198 || rd->id == 301 || rd->id == 302) {
+		map_banks(&alg_ram_bank, 0xf4, 1, 0);
+	} else if (rd->id == 182 || rd->id == 273 || rd->size < 0x40000) {
 		map_banks(&alg_ram_bank, 0xf5, 1, 0);
 	} else {
 		map_banks(&alg_ram_bank, 0xf7, 1, 0);
