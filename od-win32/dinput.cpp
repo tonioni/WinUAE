@@ -586,6 +586,7 @@ static int keyhack (int scancode, int pressed, int num)
 		return -1;
 	}
 
+#if 0
 	if (!keyboard_german)
 		return scancode;
 
@@ -648,6 +649,7 @@ static int keyhack (int scancode, int pressed, int num)
 			}
 		}
 	}
+#endif
 	return scancode;
 }
 
