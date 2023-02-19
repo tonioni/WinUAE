@@ -1249,11 +1249,11 @@ static void winuae_inactive(struct AmigaMonitor *mon, HWND hWnd, int minimized)
 				setpaused(1);
 				sound_closed = 1;
 			} else if (currprefs.win32_iconified_nosound) {
-				inputdevice_unacquire(true, currprefs.win32_iconified_input);
+				inputdevice_unacquire(currprefs.win32_iconified_input);
 				setsoundpaused();
 				sound_closed = -1;
 			} else {
-				inputdevice_unacquire(true, currprefs.win32_iconified_input);
+				inputdevice_unacquire(currprefs.win32_iconified_input);
 			}
 		} else if (mouseactive) {
 			inputdevice_unacquire();
@@ -1270,11 +1270,11 @@ static void winuae_inactive(struct AmigaMonitor *mon, HWND hWnd, int minimized)
 				setpaused(2);
 				sound_closed = 1;
 			} else if (currprefs.win32_inactive_nosound) {
-				inputdevice_unacquire(true, currprefs.win32_inactive_input);
+				inputdevice_unacquire(currprefs.win32_inactive_input);
 				setsoundpaused();
 				sound_closed = -1;
 			} else {
-				inputdevice_unacquire(true, currprefs.win32_inactive_input);
+				inputdevice_unacquire(currprefs.win32_inactive_input);
 			}
 		}
 	} else {
@@ -4229,6 +4229,7 @@ void target_default_options (struct uae_prefs *p, int type)
 		p->win32_logfile = 0;
 		p->win32_active_nocapture_pause = 0;
 		p->win32_active_nocapture_nosound = 0;
+		p->win32_active_input = 1 | 2 | 4;
 		p->win32_iconified_nosound = 1;
 		p->win32_iconified_pause = 1;
 		p->win32_iconified_input = 0;
@@ -4340,6 +4341,7 @@ void target_save_options (struct zfile *f, struct uae_prefs *p)
 #endif
 	cfgfile_target_dwrite_bool(f, _T("active_not_captured_nosound"), p->win32_active_nocapture_nosound);
 	cfgfile_target_dwrite_bool(f, _T("active_not_captured_pause"), p->win32_active_nocapture_pause);
+	cfgfile_target_dwrite(f, _T("active_input"), _T("%d"), p->win32_active_input);
 	cfgfile_target_dwrite(f, _T("inactive_priority"), _T("%d"), priorities[p->win32_inactive_priority].value);
 	cfgfile_target_dwrite_bool(f, _T("inactive_nosound"), p->win32_inactive_nosound);
 	cfgfile_target_dwrite_bool(f, _T("inactive_pause"), p->win32_inactive_pause);
@@ -4536,6 +4538,7 @@ static int target_parse_option_host(struct uae_prefs *p, const TCHAR *option, co
 		|| cfgfile_yesno(option, value, _T("active_not_captured_nosound"), &p->win32_active_nocapture_nosound)
 		|| cfgfile_yesno(option, value, _T("inactive_pause"), &p->win32_inactive_pause)
 		|| cfgfile_yesno(option, value, _T("inactive_nosound"), &p->win32_inactive_nosound)
+		|| cfgfile_intval(option, value, _T("active_input"), &p->win32_active_input, 1)
 		|| cfgfile_intval(option, value, _T("inactive_input"), &p->win32_inactive_input, 1)
 		|| cfgfile_yesno(option, value, _T("iconified_pause"), &p->win32_iconified_pause)
 		|| cfgfile_yesno(option, value, _T("iconified_nosound"), &p->win32_iconified_nosound)

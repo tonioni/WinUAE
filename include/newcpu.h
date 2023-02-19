@@ -277,6 +277,7 @@ struct cputracememory
 	uae_u32 addr;
 	uae_u32 data;
 	int mode;
+	uae_u32 flags;
 };
 
 struct cputracestruct
