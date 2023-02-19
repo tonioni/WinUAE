@@ -866,6 +866,7 @@ struct uae_prefs {
 	int win32_active_capture_priority;
 	bool win32_active_nocapture_pause;
 	bool win32_active_nocapture_nosound;
+	int win32_active_input;
 	int win32_inactive_priority;
 	bool win32_inactive_pause;
 	bool win32_inactive_nosound;

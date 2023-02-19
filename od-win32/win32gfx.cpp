@@ -2056,7 +2056,7 @@ static int open_windows(struct AmigaMonitor *mon, bool mousecapture, bool starte
 	if (upd > 0) {
 		inputdevice_acquire(TRUE);
 		if (!isfocus())
-			inputdevice_unacquire(true, input);
+			inputdevice_unacquire(input);
 	}
 
 	if (startpaused)
@@ -2514,6 +2514,7 @@ int check_prefs_changed_gfx(void)
 		currprefs.win32_iconified_priority != changed_prefs.win32_iconified_priority ||
 		currprefs.win32_active_nocapture_nosound != changed_prefs.win32_active_nocapture_nosound ||
 		currprefs.win32_active_nocapture_pause != changed_prefs.win32_active_nocapture_pause ||
+		currprefs.win32_active_input != changed_prefs.win32_active_input ||
 		currprefs.win32_inactive_nosound != changed_prefs.win32_inactive_nosound ||
 		currprefs.win32_inactive_pause != changed_prefs.win32_inactive_pause ||
 		currprefs.win32_inactive_input != changed_prefs.win32_inactive_input ||
@@ -2535,6 +2536,7 @@ int check_prefs_changed_gfx(void)
 		currprefs.win32_inactive_priority = changed_prefs.win32_inactive_priority;
 		currprefs.win32_iconified_priority = changed_prefs.win32_iconified_priority;
 		currprefs.win32_active_nocapture_nosound = changed_prefs.win32_active_nocapture_nosound;
+		currprefs.win32_active_input = changed_prefs.win32_active_input;
 		currprefs.win32_active_nocapture_pause = changed_prefs.win32_active_nocapture_pause;
 		currprefs.win32_inactive_nosound = changed_prefs.win32_inactive_nosound;
 		currprefs.win32_inactive_pause = changed_prefs.win32_inactive_pause;

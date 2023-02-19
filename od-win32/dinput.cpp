@@ -2291,6 +2291,10 @@ static void handle_rawinput_2 (RAWINPUT *raw, LPARAM lParam)
 		if (rp_isactive ())
 			return;
 #endif
+		if (!istest && !mouseactive && !(currprefs.win32_active_input & 4)) {
+			return;
+		}
+
 		if (num < num_joystick) {
 
 			rawdata = (PCHAR)hid->bRawData;
@@ -2598,6 +2602,12 @@ static void handle_rawinput_2 (RAWINPUT *raw, LPARAM lParam)
 				return;
 			if (isfocus () < 2 && currprefs.input_tablet >= TABLET_MOUSEHACK && (currprefs.input_mouse_untrap & MOUSEUNTRAP_MAGIC))
 				return;
+			if (!mouseactive && !(currprefs.win32_active_input & 1)) {
+				if ((currprefs.win32_guikey <= 0 && scancode == DIK_F12) || (scancode == currprefs.win32_guikey)) {
+					inputdevice_add_inputcode(AKS_ENTERGUI, 1, NULL);
+				}
+				return;
+			}
 			if (pressed) {
 				di_keycodes[num][scancode] = 1;
 			} else {
@@ -4092,6 +4102,9 @@ static void read_joystick (void)
 	if (rp_isactive ())
 		return;
 #endif
+	if (!istest && !mouseactive && !(currprefs.win32_active_input & 4)) {
+		return;
+	}
 
 	for (i = 0; i < MAX_INPUT_DEVICES; i++) {
 		struct didata *did = &di_joystick[i];
