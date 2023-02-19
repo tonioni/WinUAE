@@ -2398,9 +2398,6 @@ static void allocate_memory (void)
 		if (currprefs.chipset_mask & CSMASK_ECS_AGNUS) {
 			if (chipmem_bank.allocated_size < 0x100000)
 				chipmem_full_mask = 0x100000 - 1;
-			if (currprefs.cs_1mchipjumper) {
-				chipmem_full_mask = 0x80000 - 1;
-			}
 		} else {
 			chipmem_full_mask = 0x80000 - 1;
 		}
