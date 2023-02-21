@@ -609,6 +609,7 @@ struct uae_prefs {
 	bool gfx_windowed_resize;
 	int gfx_overscanmode;
 	int gfx_monitorblankdelay;
+	int gfx_rotation;
 
 	struct gfx_filterdata gf[3];
 

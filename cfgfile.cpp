@@ -2394,6 +2394,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	cfgfile_dwrite_bool(f, _T("gfx_vrr_monitor"), p->gfx_variable_sync != 0);
 	cfgfile_dwrite_strarr(f, _T("gfx_overscanmode"), overscanmodes, p->gfx_overscanmode);
 	cfgfile_dwrite(f, _T("gfx_monitorblankdelay"), _T("%d"), p->gfx_monitorblankdelay);
+	cfgfile_dwrite(f, _T("gfx_rotation"), _T("%d"), p->gfx_rotation);
 
 #ifdef GFXFILTER
 	for (int j = 0; j < MAX_FILTERDATA; j++) {
@@ -3606,6 +3607,7 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 		|| cfgfile_intval(option, value, _T("gfx_horizontal_extra"), &p->gfx_extrawidth, 1)
 		|| cfgfile_intval(option, value, _T("gfx_vertical_extra"), &p->gfx_extraheight, 1)
 		|| cfgfile_intval(option, value, _T("gfx_monitorblankdelay"), &p->gfx_monitorblankdelay, 1)
+		|| cfgfile_intval(option, value, _T("gfx_rotation"), &p->gfx_rotation, 1)
 
 		|| cfgfile_intval (option, value, _T("floppy0sound"), &p->floppyslots[0].dfxclick, 1)
 		|| cfgfile_intval (option, value, _T("floppy1sound"), &p->floppyslots[1].dfxclick, 1)
