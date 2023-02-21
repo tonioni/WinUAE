@@ -1402,6 +1402,7 @@ static int drive_insert (drive *drv, struct uae_prefs *p, int dnum, const TCHAR 
 		drv->useturbo = 0;
 		drv->mfmpos = uaerand();
 		drv->mfmpos |= (uaerand() << 16);
+		drv->mfmpos &= 0xffffff;
 		drv->mfmpos %= drv->tracklen;
 		drv->prevtracklen = 0;
 
@@ -1708,6 +1709,7 @@ static int drive_insert (drive *drv, struct uae_prefs *p, int dnum, const TCHAR 
 	drive_fill_bigbuf (drv, 1);
 	drv->mfmpos = uaerand ();
 	drv->mfmpos |= (uaerand () << 16);
+	drv->mfmpos &= 0xffffff;
 	drv->mfmpos %= drv->tracklen;
 	drv->prevtracklen = 0;
 	if (!fake) {
