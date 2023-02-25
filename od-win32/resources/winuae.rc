@@ -2133,7 +2133,7 @@ BEGIN
     IDS_PORT_AUTOFIRE       "Autofire"
     IDS_PORT_AUTOFIRE_TOGGLE "Autofire (toggle)"
     IDS_PORT_AUTOFIRE_ALWAYS "Autofire (always)"
-    IDS_PORT_AUTOFIRE_NO    "No autofire"
+    IDS_PORT_AUTOFIRE_NO    "No autofire (normal)"
     IDS_AUTOSCALE_INTEGER   "Integer scaling"
     IDS_SCREEN_VSYNC2_AUTOSWITCH "Lagless VS (BR), 50/60Hz"
     IDS_SCREEN_VSYNC2       "Lagless VSync (Beamraced)"
@@ -2187,6 +2187,7 @@ BEGIN
     IDS_READONLYCONFIRMATION 
                             "Selected configuration file is write protected.\nDo you want to overwrite it?\n%s\n"
     IDS_SCREEN_NATIVELACE   "Native (Interlaced)"
+    IDS_PORT_AUTOFIRE_TOGGLENOAF "No autofire (toggle)"
 END
 
 STRINGTABLE

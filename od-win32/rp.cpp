@@ -409,7 +409,7 @@ static bool port_get_custom (int inputmap_port, TCHAR *out)
 
 	int devicetype = -1;
 	for (int i = 0; inputdevmode[i * 2]; i++) {
-		if (inputdevmode[i * 2 + 1] == currprefs.jports[inputmap_port].mode) {
+		if (inputdevmode[i * 2 + 1] == currprefs.jports[inputmap_port].jd[0].mode) {
 			devicetype = inputdevmode[i * 2 + 0];
 			break;
 		}
@@ -561,7 +561,7 @@ static int port_insert (int inputmap_port, int devicetype, DWORD flags, const TC
 		if (inputmap_port >= 0 && inputmap_port < 4) {
 			dacttype[inputmap_port] = devicetype;
 			inputdevice_compa_clear(&changed_prefs, inputmap_port);
-			inputdevice_joyport_config(&changed_prefs, _T("none"), NULL, inputmap_port, 0, 0, 0, true);
+			inputdevice_joyport_config(&changed_prefs, _T("none"), NULL, inputmap_port, 0, 0, 0, 0, true);
 			return 1;
 		}
 		return 0;
@@ -573,7 +573,7 @@ static int port_insert (int inputmap_port, int devicetype, DWORD flags, const TC
 	inputdevice_compa_clear (&changed_prefs, inputmap_port);
 	
 	if (name[0] == '\0') {
-		inputdevice_joyport_config (&changed_prefs, _T("none"), NULL, inputmap_port, 0, 0, 0, true);
+		inputdevice_joyport_config (&changed_prefs, _T("none"), NULL, inputmap_port, 0, 0, 0, 0, true);
 		return TRUE;
 	}
 	devicetype2 = -1;
@@ -595,11 +595,11 @@ static int port_insert (int inputmap_port, int devicetype, DWORD flags, const TC
 		_stprintf (tmp2, _T("KeyboardLayout%d"), i);
 		if (!_tcscmp (tmp2, name)) {
 			_stprintf (tmp2, _T("kbd%d"), i + 1);
-			ret = inputdevice_joyport_config (&changed_prefs, tmp2, NULL, inputmap_port, devicetype2, 0, 0, true);
+			ret = inputdevice_joyport_config (&changed_prefs, tmp2, NULL, inputmap_port, devicetype2, 0, 0, 0, true);
 			return ret;
 		}
 	}
-	ret = inputdevice_joyport_config (&changed_prefs, name, name, inputmap_port, devicetype2, 0, 1, true);
+	ret = inputdevice_joyport_config (&changed_prefs, name, name, inputmap_port, devicetype2, 0, 1, 0, true);
 	return ret;
 }
 
@@ -1855,7 +1855,7 @@ void rp_fixup_options (struct uae_prefs *p)
 
 	int parportmask = 0;
 	for (int i = 0; i < 2; i++) {
-		if (p->jports[i + 2].idc.configname[0] || p->jports[i + 2].idc.name[0] || p->jports[i + 2].idc.shortid[0])
+		if (p->jports[i + 2].jd[0].idc.configname[0] || p->jports[i + 2].jd[0].idc.name[0] || p->jports[i + 2].jd[0].idc.shortid[0])
 			parportmask |= 1 << i;
 	}
 	if (parportmask) {
@@ -1935,9 +1935,9 @@ static void rp_device_change (int dev, int num, int mode, bool readonly, const T
 
 void rp_input_change (int num)
 {
-	int j = jsem_isjoy (num, &currprefs);
-	int m = jsem_ismouse (num, &currprefs);
-	int k = jsem_iskbdjoy (num, &currprefs);
+	int j = jsem_isjoy(num, 0, &currprefs);
+	int m = jsem_ismouse(num, 0, &currprefs);
+	int k = jsem_iskbdjoy(num, &currprefs);
 	TCHAR name[MAX_DPATH];
 	int mode;
 
@@ -1945,7 +1945,7 @@ void rp_input_change (int num)
 		return;
 
 	name[0] = 0;
-	if (JSEM_ISCUSTOM(num, &currprefs)) {
+	if (JSEM_ISCUSTOM(num, 0, &currprefs)) {
 		port_get_custom (num, name);
 	} else if (k >= 0) {
 		_stprintf (name, _T("KeyboardLayout%d"), k);
@@ -1956,7 +1956,7 @@ void rp_input_change (int num)
 	}
 	mode = RP_INPUTDEVICE_EMPTY;
 	for (int i = 0; inputdevmode[i * 2]; i++) {
-		if (inputdevmode[i * 2 + 1] == currprefs.jports[num].mode) {
+		if (inputdevmode[i * 2 + 1] == currprefs.jports[num].jd[0].mode) {
 			mode = inputdevmode[i * 2 + 0];
 			break;
 		}

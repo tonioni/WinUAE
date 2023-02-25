@@ -68,8 +68,8 @@ static uae_u32 emulib_EnableSound (uae_u32 val)
 */
 static uae_u32 emulib_EnableJoystick (uae_u32 val)
 {
-	currprefs.jports[0].id = val & 255;
-	currprefs.jports[1].id = (val >> 8) & 255;
+	currprefs.jports[0].jd[0].id = val & 255;
+	currprefs.jports[1].jd[0].id = (val >> 8) & 255;
 	return 1;
 }
 
@@ -220,7 +220,7 @@ static uae_u32 emulib_GetUaeConfig(TrapContext *ctx, uaecptr place)
 	trap_put_long(ctx, place + 12, fastmem_bank[0].allocated_size);
 	trap_put_long(ctx, place + 16, currprefs.gfx_framerate);
 	trap_put_long(ctx, place + 20, currprefs.produce_sound);
-	trap_put_long(ctx, place + 24, currprefs.jports[0].id | (currprefs.jports[1].id << 8));
+	trap_put_long(ctx, place + 24, currprefs.jports[0].jd[0].id | (currprefs.jports[1].jd[0].id << 8));
 	trap_put_long(ctx, place + 28, currprefs.keyboard_lang);
 	if (disk_empty (0))
 		trap_put_byte(ctx, place + 32, 0);

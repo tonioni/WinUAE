@@ -4433,8 +4433,25 @@ int input_get_default_keyboard (int i)
 	return 0;
 }
 
+static int nextsub(struct uae_input_device *uid, int i, int slot, int sub)
+{
+#if INPUTDEVICE_ALLOWSAMEJPORT
+	while (uid[i].eventid[slot][sub] > 0) {
+		sub++;
+		if (sub >= MAX_INPUT_SUB_EVENT_ALL) {
+			return -1;
+		}
+	}
+#endif
+	return sub;
+}
+
 static void setid (struct uae_input_device *uid, int i, int slot, int sub, int port, int evt, bool gp)
 {
+	sub = nextsub(uid, i, slot, sub);
+	if (sub < 0) {
+		return;
+	}
 	if (gp)
 		inputdevice_sparecopy (&uid[i], slot, 0);
 	uid[i].eventid[slot][sub] = evt;
@@ -4442,6 +4459,10 @@ static void setid (struct uae_input_device *uid, int i, int slot, int sub, int p
 }
 static void setid (struct uae_input_device *uid, int i, int slot, int sub, int port, int evt, int af, bool gp)
 {
+	sub = nextsub(uid, i, slot, sub);
+	if (sub < 0) {
+		return;
+	}
 	setid (uid, i, slot, sub, port, evt, gp);
 	uid[i].flags[slot][sub] &= ~ID_FLAG_AUTOFIRE_MASK;
 	if (af >= JPORT_AF_NORMAL)
@@ -4450,6 +4471,8 @@ static void setid (struct uae_input_device *uid, int i, int slot, int sub, int p
 		uid[i].flags[slot][sub] |= ID_FLAG_TOGGLE;
 	if (af == JPORT_AF_ALWAYS)
 		uid[i].flags[slot][sub] |= ID_FLAG_INVERTTOGGLE;
+	if (af == JPORT_AF_TOGGLENOAF)
+		uid[i].flags[slot][sub] |= ID_FLAG_INVERT;
 }
 
 int input_get_default_mouse (struct uae_input_device *uid, int i, int port, int af, bool gp, bool wheel, bool joymouseswap)
