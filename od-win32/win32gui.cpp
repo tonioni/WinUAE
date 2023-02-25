@@ -9374,8 +9374,6 @@ static void values_to_chipsetdlg2 (HWND hDlg)
 			rev |= 0x10;
 		rev |= (workprefs.chipset_mask & CSMASK_AGA) ? 0x23 : 0;
 		rev |= (currprefs.chipset_mask & CSMASK_ECS_AGNUS) ? 0x20 : 0;
-		if (workprefs.chipmem.size > 1024 * 1024 && (workprefs.chipset_mask & CSMASK_ECS_AGNUS))
-			rev |= 0x21;
 		_stprintf (txt, _T("%02X"), rev);
 	}
 	SetDlgItemText(hDlg, IDC_CS_AGNUSREV, txt);

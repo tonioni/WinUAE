@@ -2731,28 +2731,30 @@ bool handle_rawinput_change(LPARAM lParam, WPARAM wParam)
 	return ret;
 }
 
-void handle_rawinput (LPARAM lParam)
+void handle_rawinput(LPARAM lParam)
 {
-	UINT dwSize;
+	UINT dwSize = 0;
 	BYTE lpb[1000];
 	RAWINPUT *raw;
 
 	if (!rawinput_available)
 		return;
-	if (GetRawInputData ((HRAWINPUT)lParam, RID_INPUT, NULL, &dwSize, sizeof (RAWINPUTHEADER)) >= 0) {
-		if (dwSize <= sizeof (lpb)) {
-			if (GetRawInputData ((HRAWINPUT)lParam, RID_INPUT, lpb, &dwSize, sizeof (RAWINPUTHEADER)) == dwSize) {
+	if (GetRawInputData((HRAWINPUT)lParam, RID_INPUT, NULL, &dwSize, sizeof(RAWINPUTHEADER)) >= 0) {
+		if (dwSize <= sizeof(lpb)) {
+			if (GetRawInputData((HRAWINPUT)lParam, RID_INPUT, lpb, &dwSize, sizeof(RAWINPUTHEADER)) == dwSize) {
 				raw = (RAWINPUT*)lpb;
 				if (!isguiactive() || (inputdevice_istest() && isguiactive())) {
 					handle_rawinput_2 (raw, lParam);
 				}
-				DefRawInputProc (&raw, 1, sizeof (RAWINPUTHEADER));
+				DefRawInputProc(&raw, 1, sizeof(RAWINPUTHEADER));
 			} else {
-				write_log (_T("GetRawInputData(%d) failed, %d\n"), dwSize, GetLastError ());
+				write_log(_T("GetRawInputData(%d) failed, %d\n"), dwSize, GetLastError ());
 			}
+		} else {
+			write_log(_T("GetRawInputData() too large buffer %d\n"), dwSize);
 		}
 	}  else {
-		write_log (_T("GetRawInputData(-1) failed, %d\n"), GetLastError ());
+		write_log(_T("GetRawInputData(-1) failed, %d\n"), GetLastError ());
 	}
 }
 
