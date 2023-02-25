@@ -4031,6 +4031,7 @@ static void disk_doupdate_predict (int startcycle)
 		bool isempty = drive_empty(drv);
 		bool isunformatted = unformatted(drv);
 		int mfmpos = drv->mfmpos;
+		bool dsksync_on2 = dsksync_on;
 		if (drv->tracktiming[0])
 			updatetrackspeed (drv, mfmpos);
 		int diskevent_flag = 0;
@@ -4050,8 +4051,13 @@ static void disk_doupdate_predict (int startcycle)
 					else
 						tword |= getonebit(drv, drv->bigmfmbuf, mfmpos, &inc);
 				}
-				if (dskdmaen != DSKDMA_READ && (tword & 0xffff) == dsksync && dsksync != 0)
+				if ((tword & 0xffff) != dsksync) {
+					dsksync_on2 = false;
+				}
+				if (dskdmaen != DSKDMA_READ && (tword & 0xffff) == dsksync && !dsksync_on2) {
 					diskevent_flag |= DISK_WORDSYNC;
+					dsksync_on2 = true;
+				}
 			}
 			int pmfmpos = mfmpos;
 			mfmpos += inc;
