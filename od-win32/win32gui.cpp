@@ -10969,8 +10969,6 @@ static void enable_for_expansion2dlg (HWND hDlg)
 	ew(hDlg, IDC_CATWEASEL, en);
 	ew(hDlg, IDC_SANA2, en);
 
-	ew(hDlg, IDC_CS_CD32FMV, en);
-
 	ew(hDlg, IDC_CPUBOARDROMFILE, workprefs.cpuboard_type != 0);
 	ew(hDlg, IDC_CPUBOARDROMCHOOSER, workprefs.cpuboard_type != 0);
 	ew(hDlg, IDC_CPUBOARDMEM, workprefs.cpuboard_type > 0);
@@ -11005,7 +11003,6 @@ static void values_to_expansion2dlg (HWND hDlg, int mode)
 	CheckDlgButton(hDlg, IDC_CATWEASEL, workprefs.catweasel);
 	CheckDlgButton(hDlg, IDC_SCSIDEVICE, workprefs.scsi == 1);
 	CheckDlgButton(hDlg, IDC_SANA2, workprefs.sana2);
-	CheckDlgButton(hDlg, IDC_CS_CD32FMV, workprefs.cs_cd32fmv);
 	cw = catweasel_detect ();
 	ew (hDlg, IDC_CATWEASEL, cw);
 	if (!cw && workprefs.catweasel < 100)
@@ -11193,9 +11190,6 @@ static INT_PTR CALLBACK Expansion2DlgProc(HWND hDlg, UINT msg, WPARAM wParam, LP
 				workprefs.catweasel = ischecked(hDlg, IDC_CATWEASEL) ? -1 : 0;
 				cfgfile_compatibility_romtype(&workprefs);
 				break;
-				case IDC_CS_CD32FMV:
-				workprefs.cs_cd32fmv = ischecked(hDlg, IDC_CS_CD32FMV) ? 1 : 0;
-				cfgfile_compatibility_romtype(&workprefs);
 				break;
 				case IDC_SCSIROMSELECTED:
 				values_from_expansion2dlg(hDlg);
