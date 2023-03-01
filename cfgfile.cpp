@@ -198,7 +198,7 @@ static const TCHAR *autoscale_rtg[] = { _T("resize"), _T("scale"), _T("center"),
 static const TCHAR *autoscalelimit[] = { _T("1/1"), _T("1/2"), _T("1/4"), _T("1/8"), 0 };
 static const TCHAR *joyportmodes[] = { _T(""), _T("mouse"), _T("mousenowheel"), _T("djoy"), _T("gamepad"), _T("ajoy"), _T("cdtvjoy"), _T("cd32joy"), _T("lightpen"), 0 };
 static const TCHAR *joyportsubmodes_lightpen[] = { _T(""), _T("trojan"), 0 };
-static const TCHAR *joyaf[] = { _T("none"), _T("normal"), _T("toggle"), _T("always"), 0 };
+static const TCHAR *joyaf[] = { _T("none"), _T("normal"), _T("toggle"), _T("always"), _T("togglebutton"), 0 };
 static const TCHAR *epsonprinter[] = { _T("none"), _T("ascii"), _T("epson_matrix_9pin"), _T("epson_matrix_24pin"), _T("epson_matrix_48pin"), 0 };
 static const TCHAR *aspects[] = { _T("none"), _T("vga"), _T("tv"), 0 };
 static const TCHAR *vsyncmodes[] = { _T("false"), _T("true"), _T("autoswitch"), 0 };
@@ -2202,7 +2202,8 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 
 	for (i = 0; i < MAX_JPORTS; i++) {
 		struct jport *jp = &p->jports[i];
-		int v = jp->id;
+		struct jport_dev *jd = &jp->jd[0];
+		int v = jd->id;
 		TCHAR tmp1[MAX_DPATH], tmp2[MAX_DPATH];
 		if (v == JPORT_NONE) {
 			_tcscpy (tmp2, _T("none"));
@@ -2217,26 +2218,26 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 			if (v - JSEM_MICE > 0)
 				_stprintf (tmp2, _T("mouse%d"), v - JSEM_MICE);
 		}
-		if (i < 2 || jp->id >= 0) {
+		if (i < 2 || jd->id >= 0) {
 			_stprintf (tmp1, _T("joyport%d"), i);
 			cfgfile_write (f, tmp1, tmp2);
 			_stprintf (tmp1, _T("joyport%dautofire"), i);
-			cfgfile_write_strarr(f, tmp1, joyaf, jp->autofire);
-			if (i < 2 && jp->mode > 0) {
+			cfgfile_write_strarr(f, tmp1, joyaf, jd->autofire);
+			if (i < 2 && jd->mode > 0) {
 				_stprintf (tmp1, _T("joyport%dmode"), i);
-				cfgfile_write_strarr(f, tmp1, joyportmodes, jp->mode);
-				if (jp->submode > 0 && jp->mode == 8) {
+				cfgfile_write_strarr(f, tmp1, joyportmodes, jd->mode);
+				if (jd->submode > 0 && jd->mode == 8) {
 					_stprintf(tmp1, _T("joyport%dsubmode"), i);
-					cfgfile_write_strarr(f, tmp1, joyportsubmodes_lightpen, jp->submode);
+					cfgfile_write_strarr(f, tmp1, joyportsubmodes_lightpen, jd->submode);
 				}
 			}
-			if (jp->idc.name[0]) {
+			if (jd->idc.name[0]) {
 				_stprintf (tmp1, _T("joyportfriendlyname%d"), i);
-				cfgfile_write (f, tmp1, jp->idc.name);
+				cfgfile_write (f, tmp1, jd->idc.name);
 			}
-			if (jp->idc.configname[0]) {
+			if (jd->idc.configname[0]) {
 				_stprintf (tmp1, _T("joyportname%d"), i);
-				cfgfile_write (f, tmp1, jp->idc.configname);
+				cfgfile_write (f, tmp1, jd->idc.configname);
 			}
 			if (jp->nokeyboardoverride) {
 				_stprintf (tmp1, _T("joyport%dkeyboardoverride"), i);
@@ -2244,6 +2245,53 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 			}
 		}
 	}
+	for (i = 0; i < MAX_JPORTS; i++) {
+		struct jport *jp = &p->jports[i];
+		for (int j = 1; j < MAX_JPORT_DEVS; j++) {
+			struct jport_dev *jd = &jp->jd[j];
+			TCHAR tmp1[MAX_DPATH], tmp2[MAX_DPATH];
+			int v = jd->id;
+			if (v >= 0) {
+				tmp2[0] = 0;
+				if (v < JSEM_CUSTOM) {
+					_stprintf(tmp2, _T("kbd%d"), v + 1);
+				} else if (v < JSEM_JOYS) {
+					_stprintf(tmp2, _T("custom%d"), v - JSEM_CUSTOM);
+				} else if (v < JSEM_MICE) {
+					_stprintf(tmp2, _T("joy%d"), v - JSEM_JOYS);
+				} else {
+					_tcscpy(tmp2, _T("mouse"));
+					if (v - JSEM_MICE > 0)
+						_stprintf(tmp2, _T("mouse%d"), v - JSEM_MICE);
+				}
+				if (tmp2[0]) {
+					_stprintf(tmp1, _T("joyport%d_%d"), i, j);
+					cfgfile_write(f, tmp1, tmp2);
+				}
+			}
+			if (jd->autofire > 0) {
+				_stprintf(tmp1, _T("joyport%dautofire_%d"), i, j);
+				cfgfile_write_strarr(f, tmp1, joyaf, jd->autofire);
+			}
+			if (i < 2 && jd->mode > 0) {
+				_stprintf(tmp1, _T("joyport%dmode_%d"), i, j);
+				cfgfile_write_strarr(f, tmp1, joyportmodes, jd->mode);
+				if (jd->submode > 0 && jd->mode == 8) {
+					_stprintf(tmp1, _T("joyport%dsubmode_%d"), i, j);
+					cfgfile_write_strarr(f, tmp1, joyportsubmodes_lightpen, jd->submode);
+				}
+			}
+			if (jd->idc.name[0]) {
+				_stprintf(tmp1, _T("joyportfriendlyname%d_%d"), i, j);
+				cfgfile_write(f, tmp1, jd->idc.name);
+			}
+			if (jd->idc.configname[0]) {
+				_stprintf(tmp1, _T("joyportname%d_%d"), i, j);
+				cfgfile_write(f, tmp1, jd->idc.configname);
+			}
+		}
+	}
+
 	for (i = 0; i < MAX_JPORTS_CUSTOM; i++) {
 		struct jport_custom *jp = &p->jports_custom[i];
 		if (jp->custom[0]) {
@@ -2394,6 +2442,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	cfgfile_dwrite_bool(f, _T("gfx_vrr_monitor"), p->gfx_variable_sync != 0);
 	cfgfile_dwrite_strarr(f, _T("gfx_overscanmode"), overscanmodes, p->gfx_overscanmode);
 	cfgfile_dwrite(f, _T("gfx_monitorblankdelay"), _T("%d"), p->gfx_monitorblankdelay);
+	cfgfile_dwrite(f, _T("gfx_rotation"), _T("%d"), p->gfx_rotation);
 
 #ifdef GFXFILTER
 	for (int j = 0; j < MAX_FILTERDATA; j++) {
@@ -3606,6 +3655,7 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 		|| cfgfile_intval(option, value, _T("gfx_horizontal_extra"), &p->gfx_extrawidth, 1)
 		|| cfgfile_intval(option, value, _T("gfx_vertical_extra"), &p->gfx_extraheight, 1)
 		|| cfgfile_intval(option, value, _T("gfx_monitorblankdelay"), &p->gfx_monitorblankdelay, 1)
+		|| cfgfile_intval(option, value, _T("gfx_rotation"), &p->gfx_rotation, 1)
 
 		|| cfgfile_intval (option, value, _T("floppy0sound"), &p->floppyslots[0].dfxclick, 1)
 		|| cfgfile_intval (option, value, _T("floppy1sound"), &p->floppyslots[1].dfxclick, 1)
@@ -4143,58 +4193,58 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 		return 1;
 
 	if (_tcscmp (option, _T("joyportfriendlyname0")) == 0 || _tcscmp (option, _T("joyportfriendlyname1")) == 0) {
-		inputdevice_joyport_config_store(p, value, _tcscmp (option, _T("joyportfriendlyname0")) == 0 ? 0 : 1, -1, -1, 2);
+		inputdevice_joyport_config_store(p, value, _tcscmp (option, _T("joyportfriendlyname0")) == 0 ? 0 : 1, -1, -1, 2, 0);
 		return 1;
 	}
 	if (_tcscmp (option, _T("joyportfriendlyname2")) == 0 || _tcscmp (option, _T("joyportfriendlyname3")) == 0) {
-		inputdevice_joyport_config_store(p, value, _tcscmp (option, _T("joyportfriendlyname2")) == 0 ? 2 : 3, -1, -1, 2);
+		inputdevice_joyport_config_store(p, value, _tcscmp (option, _T("joyportfriendlyname2")) == 0 ? 2 : 3, -1, -1, 2, 0);
 		return 1;
 	}
 	if (_tcscmp (option, _T("joyportname0")) == 0 || _tcscmp (option, _T("joyportname1")) == 0) {
-		inputdevice_joyport_config_store(p, value, _tcscmp (option, _T("joyportname0")) == 0 ? 0 : 1, -1, -1, 1);
+		inputdevice_joyport_config_store(p, value, _tcscmp (option, _T("joyportname0")) == 0 ? 0 : 1, -1, -1, 1, 0);
 		return 1;
 	}
 	if (_tcscmp (option, _T("joyportname2")) == 0 || _tcscmp (option, _T("joyportname3")) == 0) {
-		inputdevice_joyport_config_store(p, value, _tcscmp (option, _T("joyportname2")) == 0 ? 2 : 3, -1, -1, 1);
+		inputdevice_joyport_config_store(p, value, _tcscmp (option, _T("joyportname2")) == 0 ? 2 : 3, -1, -1, 1, 0);
 		return 1;
 	}
 	if (_tcscmp (option, _T("joyport0")) == 0 || _tcscmp (option, _T("joyport1")) == 0) {
 		int port = _tcscmp (option, _T("joyport0")) == 0 ? 0 : 1;
-		inputdevice_joyport_config_store(p, _T(""), port, -1, -1, 1);
-		inputdevice_joyport_config_store(p, _T(""), port, -1, -1, 2);
-		inputdevice_joyport_config_store(p, value, port, -1, -1, 0);
+		inputdevice_joyport_config_store(p, _T(""), port, -1, -1, 1, 0);
+		inputdevice_joyport_config_store(p, _T(""), port, -1, -1, 2, 0);
+		inputdevice_joyport_config_store(p, value, port, -1, -1, 0, 0);
 		return 1;
 	}
 	if (_tcscmp (option, _T("joyport2")) == 0 || _tcscmp (option, _T("joyport3")) == 0) {
 		int port = _tcscmp (option, _T("joyport2")) == 0 ? 2 : 3;
-		inputdevice_joyport_config_store(p, _T(""), port, -1, -1, 1);
-		inputdevice_joyport_config_store(p, _T(""), port, -1, -1, 2);
-		inputdevice_joyport_config_store(p, value, port, -1, -1, 0);
+		inputdevice_joyport_config_store(p, _T(""), port, -1, -1, 1, 0);
+		inputdevice_joyport_config_store(p, _T(""), port, -1, -1, 2, 0);
+		inputdevice_joyport_config_store(p, value, port, -1, -1, 0, 0);
 		return 1;
 	}
-	if (cfgfile_strval(option, value, _T("joyport0mode"), &p->jports[0].mode, joyportmodes, 0))
+	if (cfgfile_strval(option, value, _T("joyport0mode"), &p->jports[0].jd[0].mode, joyportmodes, 0))
 		return 1;
-	if (cfgfile_strval(option, value, _T("joyport1mode"), &p->jports[1].mode, joyportmodes, 0))
+	if (cfgfile_strval(option, value, _T("joyport1mode"), &p->jports[1].jd[0].mode, joyportmodes, 0))
 		return 1;
-	if (cfgfile_strval(option, value, _T("joyport2mode"), &p->jports[2].mode, joyportmodes, 0))
+	if (cfgfile_strval(option, value, _T("joyport2mode"), &p->jports[2].jd[0].mode, joyportmodes, 0))
 		return 1;
-	if (cfgfile_strval(option, value, _T("joyport3mode"), &p->jports[3].mode, joyportmodes, 0))
+	if (cfgfile_strval(option, value, _T("joyport3mode"), &p->jports[3].jd[0].mode, joyportmodes, 0))
 		return 1;
-	if (cfgfile_strval(option, value, _T("joyport0submode"), &p->jports[0].submode, joyportsubmodes_lightpen, 0))
+	if (cfgfile_strval(option, value, _T("joyport0submode"), &p->jports[0].jd[0].submode, joyportsubmodes_lightpen, 0))
 		return 1;
-	if (cfgfile_strval(option, value, _T("joyport1submode"), &p->jports[1].submode, joyportsubmodes_lightpen, 0))
+	if (cfgfile_strval(option, value, _T("joyport1submode"), &p->jports[1].jd[0].submode, joyportsubmodes_lightpen, 0))
 		return 1;
-	if (cfgfile_strval(option, value, _T("joyport2submode"), &p->jports[2].submode, joyportsubmodes_lightpen, 0))
+	if (cfgfile_strval(option, value, _T("joyport2submode"), &p->jports[2].jd[0].submode, joyportsubmodes_lightpen, 0))
 		return 1;
-	if (cfgfile_strval(option, value, _T("joyport3submode"), &p->jports[3].submode, joyportsubmodes_lightpen, 0))
+	if (cfgfile_strval(option, value, _T("joyport3submode"), &p->jports[3].jd[0].submode, joyportsubmodes_lightpen, 0))
 		return 1;
-	if (cfgfile_strval(option, value, _T("joyport0autofire"), &p->jports[0].autofire, joyaf, 0))
+	if (cfgfile_strval(option, value, _T("joyport0autofire"), &p->jports[0].jd[0].autofire, joyaf, 0))
 		return 1;
-	if (cfgfile_strval(option, value, _T("joyport1autofire"), &p->jports[1].autofire, joyaf, 0))
+	if (cfgfile_strval(option, value, _T("joyport1autofire"), &p->jports[1].jd[0].autofire, joyaf, 0))
 		return 1;
-	if (cfgfile_strval(option, value, _T("joyport2autofire"), &p->jports[2].autofire, joyaf, 0))
+	if (cfgfile_strval(option, value, _T("joyport2autofire"), &p->jports[2].jd[0].autofire, joyaf, 0))
 		return 1;
-	if (cfgfile_strval(option, value, _T("joyport3autofire"), &p->jports[3].autofire, joyaf, 0))
+	if (cfgfile_strval(option, value, _T("joyport3autofire"), &p->jports[3].jd[0].autofire, joyaf, 0))
 		return 1;
 
 	if (cfgfile_yesno (option, value, _T("joyport0keyboardoverride"), &vb)) {
@@ -4212,6 +4262,45 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 	if (cfgfile_yesno (option, value, _T("joyport3keyboardoverride"), &vb)) {
 		p->jports[3].nokeyboardoverride = !vb;
 		return 1;
+	}
+	if (_tcsncmp(option, _T("joyport"), 7) == 0) {
+		for (int i = 0; i < MAX_JPORTS; i++) {
+			for (int j = 1; j < MAX_JPORT_DEVS; j++) {
+				_stprintf(tmpbuf, _T("joyport%d_%d"), i, j);
+				if (!_tcscmp(option, tmpbuf)) {
+					inputdevice_joyport_config_store(p, _T(""), i, -1, -1, 1, j);
+					inputdevice_joyport_config_store(p, _T(""), i, -1, -1, 2, j);
+					inputdevice_joyport_config_store(p, value, i, -1, -1, 0, j);
+					return 1;
+				}
+				_stprintf(tmpbuf, _T("joyportfriendlyname%d_%d"), i, j);
+				if (!_tcscmp(option, tmpbuf)) {
+					inputdevice_joyport_config_store(p, value, i, -1, -1, 2, j);
+					return 1;
+				}
+				_stprintf(tmpbuf, _T("joyportname%d_%d"), i, j);
+				if (!_tcscmp(option, tmpbuf)) {
+					inputdevice_joyport_config_store(p, value, i, -1, -1, 1, j);
+					return 1;
+				}
+				_stprintf(tmpbuf, _T("joyport%dautofire_%d"), i, j);
+				if (!_tcscmp(option, tmpbuf)) {
+					cfgfile_strval(option, value, tmpbuf, &p->jports[i].jd[j].autofire, joyaf, 0);
+					return 1;
+				}
+				_stprintf(tmpbuf, _T("joyport%dsubmode_%d"), i, j);
+				if (!_tcscmp(option, tmpbuf)) {
+					cfgfile_strval(option, value, tmpbuf, &p->jports[i].jd[j].submode, joyportsubmodes_lightpen, 0);
+					return 1;
+				}
+				_stprintf(tmpbuf, _T("joyport%dmode_%d"), i, j);
+				if (!_tcscmp(option, tmpbuf)) {
+					cfgfile_strval(option, value, tmpbuf, &p->jports[i].jd[j].mode, joyportmodes, 0);
+					return 1;
+				}
+			}
+		}
+		return 0;
 	}
 
 	if (cfgfile_path(option, value, _T("trainerfile"), p->trainerfile, sizeof p->trainerfile / sizeof(TCHAR)))
@@ -6525,7 +6614,10 @@ void cfgfile_compatibility_romtype(struct uae_prefs *p)
 
 	addbcromtype(p, ROMTYPE_CDTVCR, p->cs_cdtvcr, NULL, 0);
 
-	addbcromtype(p, ROMTYPE_CD32CART, p->cs_cd32fmv, p->cartfile,0);
+	if (p->cs_cd32fmv) {
+		addbcromtype(p, ROMTYPE_CD32CART, p->cs_cd32fmv, p->cartfile, 0);
+	}
+	p->cs_cd32fmv = get_device_romconfig(p, ROMTYPE_CD32CART, 0) != NULL;
 
 	if (p->config_version < ((3 << 16) | (4 << 8) | (0 << 0))) {
 		// 3.3.0 or older
@@ -7086,8 +7178,8 @@ end:
 		memcpy(&p->gfx_monitor[i], &p->gfx_monitor[0], sizeof(struct monconfig));
 	}
 	fixup_prefs (p, userconfig != 0);
-	for (int i = 0; i < MAX_JPORTS; i++) {
-		inputdevice_jportcustom_fixup(p->jports_custom[i].custom);
+	for (int i = 0; i < MAX_JPORTS_CUSTOM; i++) {
+		inputdevice_jportcustom_fixup(p, p->jports_custom[i].custom, i);
 	}
 	return v;
 }
@@ -7327,8 +7419,8 @@ bad:
 		_T("can be 0 for joystick 0, 1 for joystick 1, M for mouse, and\n")
 		_T("a, b or c for different keyboard settings.\n"));
 
-	p->jports[0].id = v0;
-	p->jports[1].id = v1;
+	p->jports[0].jd[0].id = v0;
+	p->jports[1].jd[0].id = v1;
 }
 
 static void parse_filesys_spec (struct uae_prefs *p, bool readonly, const TCHAR *spec)
@@ -8174,9 +8266,33 @@ void copy_prefs(struct uae_prefs *src, struct uae_prefs *dst)
 	}
 }
 
+void copy_inputdevice_prefs(struct uae_prefs *src, struct uae_prefs *dst)
+{
+	for (int slot = 0; slot < MAX_INPUT_SETTINGS; slot++) {
+		for (int m = 0; m < MAX_INPUT_DEVICES; m++) {
+			copy_inputdevice_settings_free(&src->joystick_settings[slot][m], &dst->joystick_settings[slot][m]);
+			copy_inputdevice_settings_free(&src->mouse_settings[slot][m], &dst->mouse_settings[slot][m]);
+			copy_inputdevice_settings_free(&src->keyboard_settings[slot][m], &dst->keyboard_settings[slot][m]);
+		}
+	}
+	for (int i = 0; i < MAX_INPUT_SETTINGS; i++) {
+		for (int j = 0; j < MAX_INPUT_DEVICES; j++) {
+			memcpy(&dst->joystick_settings[i][j], &src->joystick_settings[i][j], sizeof(struct uae_input_device));
+			memcpy(&dst->mouse_settings[i][j], &src->mouse_settings[i][j], sizeof(struct uae_input_device));
+			memcpy(&dst->keyboard_settings[i][j], &src->keyboard_settings[i][j], sizeof(struct uae_input_device));
+		}
+	}
+	for (int slot = 0; slot < MAX_INPUT_SETTINGS; slot++) {
+		for (int m = 0; m < MAX_INPUT_DEVICES; m++) {
+			copy_inputdevice_settings(&src->joystick_settings[slot][m], &dst->joystick_settings[slot][m]);
+			copy_inputdevice_settings(&src->mouse_settings[slot][m], &dst->mouse_settings[slot][m]);
+			copy_inputdevice_settings(&src->keyboard_settings[slot][m], &dst->keyboard_settings[slot][m]);
+		}
+	}
+}
+
 void default_prefs (struct uae_prefs *p, bool reset, int type)
 {
-	int i;
 	int roms[] = { 6, 7, 8, 9, 10, 14, 5, 4, 3, 2, 1, -1 };
 	TCHAR zero = 0;
 	struct zfile *f;
@@ -8212,13 +8328,14 @@ void default_prefs (struct uae_prefs *p, bool reset, int type)
 
 	clearmountitems(p);
 
-	p->jports[0].id = -1;
-	p->jports[1].id = -1;
-	p->jports[2].id = -1;
-	p->jports[3].id = -1;
+	for (int i = 0; i < MAX_JPORTS; i++) {
+		for (int j = 0; j < MAX_JPORT_DEVS; j++) {
+			p->jports[i].jd[j].id = -1;
+		}
+	}
 	if (reset) {
-		inputdevice_joyport_config_store(p, _T("mouse"), 0, -1, -1, 0);
-		inputdevice_joyport_config_store(p, _T("kbd1"), 1, -1, -1, 0);
+		inputdevice_joyport_config_store(p, _T("mouse"), 0, -1, -1, 0, 0);
+		inputdevice_joyport_config_store(p, _T("kbd1"), 1, -1, -1, 0, 0);
 	}
 	p->keyboard_lang = KBD_LANG_US;
 	p->keyboard_connected = true;
@@ -8258,7 +8375,7 @@ void default_prefs (struct uae_prefs *p, bool reset, int type)
 	p->gfx_monitor[0].gfx_size_fs.height = 600;
 	p->gfx_monitor[0].gfx_size_win.width = 720;
 	p->gfx_monitor[0].gfx_size_win.height = 568;
-	for (i = 0; i < GFX_SIZE_EXTRA_NUM; i++) {
+	for (int i = 0; i < GFX_SIZE_EXTRA_NUM; i++) {
 		p->gfx_monitor[0].gfx_size_fs_xtra[i].width = 0;
 		p->gfx_monitor[0].gfx_size_fs_xtra[i].height = 0;
 		p->gfx_monitor[0].gfx_size_win_xtra[i].width = 0;

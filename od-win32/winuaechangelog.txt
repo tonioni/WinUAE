@@ -1,4 +1,47 @@
 
+Beta 1:
+
+- 1.5M Chip RAM size is now working correctly in all configurations. (Except JIT which does not like non-power of two RAM sizes)
+- Added Agnus chip ram max size option to advanced chipset. Can be used to configure larger Chip RAM size than Agnus DMA supported size.
+- Added A1000 Denise model selection to advanced chipset (A1000 Denise without EHB and A1000 Denise with EHB). Previously Agnus type was used to select if A1000 Denise features/bugs were emulated. Autoselect = Chipset type selected from chipset panel.
+- Removed Agnus blitter busy bug and No-EHB Denise Advanced chipset options. Above Agnus and Denise model selection replaces them.
+- If CPU was waiting for chip bus read or write (At least one cycle was stolen from CPU) when debugger was exited or GUI was entered, next CPU chip bus wait cycle was not counted.
+- Blitter state is now fully saved even if blitter is in mid-operation. (cycle-accurate modes only). Previously blitter was force-finished if blitter was active when state was saved.
+- Copper "overflow" to beginning of next field is now statefile supported.
+- Chipset internal delay events are now accurately saved with state files. (Test cases by ross as usual)
+- Statefile save exactly when CPU was about to do memory chip bus read or write: restore skipped this pending read or write.
+- Updates to CPU state save support. In some situations state save/restore support was not correct and/or not cycle accurate.
+- CD32 state was always saved, even when no CD32 features were enabled.
+- Fixed LPSTOP instruction (68060 only, Low Power STOP). Broke when STOP instruction emulation was rewritten to match real 68000 behavior. No known Amiga programs use LPSTOP. (4.10.0)
+- Level 7 interrupt input event now keeps NMI active until CPU detects it. Previously it only made a short pulse that was unreliable.
+- If VPOSW has been written to more than once during single field and writes only modified LOF-bit and later write(s) during same field restored original LOF value: don't recalculate display settings when next field starts. LOF state only affects display during vertical sync and few lines before and after, it can be "safely" modified mid screen (with side-effects in some situations..)
+- HAM previously unknown (?) and undocumented feature emulated. If bitplane is active earlier than horizontal border ends, last pixel under the border is HAM decoded normally using bitplane pixel value, it is not decoded using border color.
+- In some situations when emulator config was changed on the fly (for example 68000 CE to 68020 non-CE), CPU emulator and other parts of emulator was not configured for new configuration.
+- Prometheus PCI bridge PCI config space byte wide access endian swap fix.
+- Picasso IV flash rom support. Not very useful because it can't be used to fully "generate" Picasso IV flash ROM image file (like you can do with PPC boards). Official flasher does not update first 16k of flash that contains autoconfig nybbles and loader code and Picasso IV and official updater can't work if it is missing.
+- Serial port SERDATR TBE bit was was unreliable in accurate modes. (4.10.0)
+- Fixed floppy related bug where initial bit offset becomes negative, causing out of bounds array access (that may or may not cause a random crash).
+- Fixed Input panel custom event string to GUI temporary config and from GUI temporary config to active config copying that caused double memory free. (Very old bug).
+- On the fly disk check from GUI (for example ? in Quickstart panel), which reads boot and root block and shows disk information, which changed disk rotational position but it wasn't restored.
+
+- Disabled strange ages old german keyboard layout only "#" key hack and changed 2 very rarely, if ever, used, default keys: Amiga key left of backspace which does not exist on any PC keyboards is now mapped to F11. Key left of enter (which only exists on european PC keyboards) is now mapped to correct matching Amiga key. (was previously key left of backspace for some reason). Hack can be optionally restored if there really was some reason for this hack. (I suspect original reason was pre-RawInput Windows 9x/ME DirectInput limit that possibly didn't allow all keys to be read normally).
+- Ultra extreme overscan mode now includes blanking regions drawn using grid pattern. Added new HV ultra extreme overscan mode that shows HSYNC, VSYNC, Blank and Borderblank regions. Can be useful when creating/debugging programmed display modes. C mode shows CSYNC pattern, which is accurate enough to correctly handle at least some weird modes by ross :)
+- Added reset warp mode Misc panel option. Reset automatically enables warp mode, first copper DMA activation (KS ROM sets it just before disk/HD boot starts) starts warp mode auto disable countdown. Default is 1 second delay before warp mode disables. warpboot_delay config file entry can be used to change delay value (value in frames). Makes KS ROM hardware initializations almost immediate without affecting compatibility.
+- Bring GUI window on top if emulation window gets left mouse button double click or F12 (or configured GUI key) key press and GUI is open. Close GUI if ESC is pressed when GUI is open and emulation window has focus.
+- SCSI CD command READ TOC, format type 0 returned invalid data (4.10.1)
+- Added button toggle mode (press and release: button gets pressed, press and release again: button gets released) to Game Ports panel autofire mode select menu.
+- A600 non-expanded Quickstart RTC selection fixed. RTC should not be selected unless RAM expansion is configured.
+- Added missing Picmatic ROMs (European American Laser Games variant). Zorton Brothers and Marbella Vice.
+- Added Disable keyboard and Disable game controllers when mouse not captured options to Pri & Extensions panel.
+- Game port setting now accepts joyportnameX and/or joyportfriendlynameX=<name> + joyportX=customY simultaneously. This forces custom config Z to be mapped to named controller, ignoring device index value in custom config. Makes it easier to create config files with custom game port settings programmatically.
+- Added possibility to have same Game ports panel joystick in more than one joystick port. Config file only currently. Use same config file entries with index number (for example "joyportfriendlyname1_1=<controller name>")
+- Added screen rotation support, to fully support Fast Draw Showdown (American Laser games) game that had 90 degree rotated display.. Direct3D9 mode only so far. Config file only: gfx_rotation=<rotation angle in degrees>, gfx_rotation=-90 for Fast Draw Showdown.
+- Removed Expansion panel CD32 FMV checkbox. It is available via expansion list and needs ROM selection.
+- Integer scaling now has 5% (width and height) safety margin before switching to smaller multiplier.
+- If programmed mode: do not include scanlines hidden in vertical blank when calculating display size (for integer scaline/autoscale etc)
+
+
+4.10.1
 
 Beta 6 (RC2):
 

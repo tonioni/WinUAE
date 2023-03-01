@@ -4335,13 +4335,15 @@ struct remapcustoms_s
 };
 static struct remapcustoms_s remapcustoms[] =
 {
-	{ 0, IDEV_MAPPED_AUTOFIRE_SET | IDEV_MAPPED_TOGGLE | IDEV_MAPPED_INVERTTOGGLE,
+	{ 0, IDEV_MAPPED_AUTOFIRE_SET | IDEV_MAPPED_TOGGLE | IDEV_MAPPED_INVERTTOGGLE | IDEV_MAPPED_INVERT,
 	NULL },
-	{ IDEV_MAPPED_AUTOFIRE_SET, IDEV_MAPPED_AUTOFIRE_SET | IDEV_MAPPED_TOGGLE | IDEV_MAPPED_INVERTTOGGLE,
+	{ IDEV_MAPPED_AUTOFIRE_SET, IDEV_MAPPED_AUTOFIRE_SET | IDEV_MAPPED_TOGGLE | IDEV_MAPPED_INVERTTOGGLE | IDEV_MAPPED_INVERT,
 	NULL },
-	{ IDEV_MAPPED_AUTOFIRE_SET | IDEV_MAPPED_TOGGLE, IDEV_MAPPED_AUTOFIRE_SET | IDEV_MAPPED_TOGGLE | IDEV_MAPPED_INVERTTOGGLE,
+	{ IDEV_MAPPED_AUTOFIRE_SET | IDEV_MAPPED_TOGGLE, IDEV_MAPPED_AUTOFIRE_SET | IDEV_MAPPED_TOGGLE | IDEV_MAPPED_INVERTTOGGLE | IDEV_MAPPED_INVERT,
 	NULL },
-	{ IDEV_MAPPED_AUTOFIRE_SET | IDEV_MAPPED_INVERTTOGGLE, IDEV_MAPPED_AUTOFIRE_SET | IDEV_MAPPED_TOGGLE | IDEV_MAPPED_INVERTTOGGLE,
+	{ IDEV_MAPPED_AUTOFIRE_SET | IDEV_MAPPED_INVERTTOGGLE, IDEV_MAPPED_AUTOFIRE_SET | IDEV_MAPPED_TOGGLE | IDEV_MAPPED_INVERTTOGGLE | IDEV_MAPPED_INVERT,
+	NULL },
+	{ IDEV_MAPPED_AUTOFIRE_SET | IDEV_MAPPED_INVERT | IDEV_MAPPED_TOGGLE, IDEV_MAPPED_AUTOFIRE_SET | IDEV_MAPPED_TOGGLE | IDEV_MAPPED_INVERTTOGGLE | IDEV_MAPPED_INVERT,
 	NULL },
 	{ NULL }
 };
@@ -4581,6 +4583,8 @@ static int inputmap_handle (HWND list, int currentdevnum, int currentwidgetnum,
 													_tcscat(target, remapcustoms[2].name);
 												else if (flags & IDEV_MAPPED_INVERTTOGGLE)
 													_tcscat(target, remapcustoms[3].name);
+												else if (flags & IDEV_MAPPED_INVERT)
+													_tcscat(target, remapcustoms[4].name);
 												else
 													_tcscat(target, remapcustoms[1].name);
 												_tcscat(target, _T("]"));
@@ -9370,8 +9374,6 @@ static void values_to_chipsetdlg2 (HWND hDlg)
 			rev |= 0x10;
 		rev |= (workprefs.chipset_mask & CSMASK_AGA) ? 0x23 : 0;
 		rev |= (currprefs.chipset_mask & CSMASK_ECS_AGNUS) ? 0x20 : 0;
-		if (workprefs.chipmem.size > 1024 * 1024 && (workprefs.chipset_mask & CSMASK_ECS_AGNUS))
-			rev |= 0x21;
 		_stprintf (txt, _T("%02X"), rev);
 	}
 	SetDlgItemText(hDlg, IDC_CS_AGNUSREV, txt);
@@ -10965,8 +10967,6 @@ static void enable_for_expansion2dlg (HWND hDlg)
 	ew(hDlg, IDC_CATWEASEL, en);
 	ew(hDlg, IDC_SANA2, en);
 
-	ew(hDlg, IDC_CS_CD32FMV, en);
-
 	ew(hDlg, IDC_CPUBOARDROMFILE, workprefs.cpuboard_type != 0);
 	ew(hDlg, IDC_CPUBOARDROMCHOOSER, workprefs.cpuboard_type != 0);
 	ew(hDlg, IDC_CPUBOARDMEM, workprefs.cpuboard_type > 0);
@@ -11001,7 +11001,6 @@ static void values_to_expansion2dlg (HWND hDlg, int mode)
 	CheckDlgButton(hDlg, IDC_CATWEASEL, workprefs.catweasel);
 	CheckDlgButton(hDlg, IDC_SCSIDEVICE, workprefs.scsi == 1);
 	CheckDlgButton(hDlg, IDC_SANA2, workprefs.sana2);
-	CheckDlgButton(hDlg, IDC_CS_CD32FMV, workprefs.cs_cd32fmv);
 	cw = catweasel_detect ();
 	ew (hDlg, IDC_CATWEASEL, cw);
 	if (!cw && workprefs.catweasel < 100)
@@ -11189,9 +11188,6 @@ static INT_PTR CALLBACK Expansion2DlgProc(HWND hDlg, UINT msg, WPARAM wParam, LP
 				workprefs.catweasel = ischecked(hDlg, IDC_CATWEASEL) ? -1 : 0;
 				cfgfile_compatibility_romtype(&workprefs);
 				break;
-				case IDC_CS_CD32FMV:
-				workprefs.cs_cd32fmv = ischecked(hDlg, IDC_CS_CD32FMV) ? 1 : 0;
-				cfgfile_compatibility_romtype(&workprefs);
 				break;
 				case IDC_SCSIROMSELECTED:
 				values_from_expansion2dlg(hDlg);
@@ -17328,8 +17324,8 @@ static void updatejoyport (HWND hDlg, int changedport)
 		int idx = joyxprevious[i];
 		int id = joys[i];
 		int idm = joysm[i];
-		int v = workprefs.jports[i].id;
-		int vm = workprefs.jports[i].mode + workprefs.jports[i].submode;
+		int v = workprefs.jports[i].jd[0].id;
+		int vm = workprefs.jports[i].jd[0].mode + workprefs.jports[i].jd[0].submode;
 		TCHAR *p1, *p2;
 
 		if (idm > 0)
@@ -17375,11 +17371,11 @@ static void updatejoyport (HWND hDlg, int changedport)
 			idx = 0;
 		xSendDlgItemMessage (hDlg, id, CB_SETCURSEL, idx, 0);
 		if (joysaf[i] >= 0)
-			xSendDlgItemMessage (hDlg, joysaf[i], CB_SETCURSEL, workprefs.jports[i].autofire, 0);
+			xSendDlgItemMessage (hDlg, joysaf[i], CB_SETCURSEL, workprefs.jports[i].jd[0].autofire, 0);
 
 		ew(hDlg, joyremap[i], idx >= 2);
 		ew(hDlg, joysm[i], idx >= 2);
-		ew(hDlg, joysaf[i], !JSEM_ISCUSTOM(i, &workprefs) && idx >= 2);
+		ew(hDlg, joysaf[i], !JSEM_ISCUSTOM(i, 0, &workprefs) && idx >= 2);
 	}
 }
 
@@ -17412,9 +17408,9 @@ static void values_from_gameportsdlg (HWND hDlg, int d, int changedport)
 
 	for (i = 0; i < MAX_JPORTS; i++) {
 		int idx = 0;
-		int *port = &workprefs.jports[i].id;
-		int *portm = &workprefs.jports[i].mode;
-		int *portsm = &workprefs.jports[i].submode;
+		int *port = &workprefs.jports[i].jd[0].id;
+		int *portm = &workprefs.jports[i].jd[0].mode;
+		int *portsm = &workprefs.jports[i].jd[0].submode;
 		int prevport = *port;
 		int id = joys[i];
 		int idm = joysm[i];
@@ -17462,7 +17458,7 @@ static void values_from_gameportsdlg (HWND hDlg, int d, int changedport)
 		}
 		if (joysaf[i] >= 0) {
 			int af = xSendDlgItemMessage (hDlg, joysaf[i], CB_GETCURSEL, 0, 0L);
-			workprefs.jports[i].autofire = af;
+			workprefs.jports[i].jd[0].autofire = af;
 		}
 		if (*port != prevport)
 			changed = 1;
@@ -17878,6 +17874,10 @@ static INT_PTR CALLBACK GamePortsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 				if (!remapcustoms[3].name)
 					remapcustoms[3].name = my_strdup(tmp);
 				xSendDlgItemMessage (hDlg, id, CB_ADDSTRING, 0, (LPARAM)tmp);
+				WIN32GUI_LoadUIString(IDS_PORT_AUTOFIRE_TOGGLENOAF, tmp, MAX_DPATH);
+				if (!remapcustoms[4].name)
+					remapcustoms[4].name = my_strdup(tmp);
+				xSendDlgItemMessage(hDlg, id, CB_ADDSTRING, 0, (LPARAM)tmp);
 			}
 
 			xSendDlgItemMessage (hDlg, IDC_PORT_TABLET_CURSOR, CB_RESETCONTENT, 0, 0L);
@@ -18440,6 +18440,10 @@ static void showextramap (HWND hDlg)
 			_tcscat (out, _T(" ; "));
 		if (evt > 0) {
 			_tcscat (out, name);
+			const struct inputevent *ev = inputdevice_get_eventinfo(evt);
+			if (ev->allow_mask == AM_K) {
+				_stprintf(out + _tcslen(out), _T(" (0x%02x)"), ev->data);
+			}
 			if (flags & IDEV_MAPPED_AUTOFIRE_SET)
 				_tcscat (out, _T(" (AF)"));
 			if (flags & IDEV_MAPPED_TOGGLE)
@@ -19074,7 +19078,7 @@ static INT_PTR CALLBACK RemapSpecialsProc(HWND hDlg, UINT msg, WPARAM wParam, LP
 			entry = listview_entry_from_click(list, &column, false);
 			if (entry >= 0 && inputmap_selected >= 0) {
 				if (inputmap_handle(NULL, -1, -1, NULL, NULL, -1, NULL, inputmap_selected,
-					remapcustoms[entry].flags, IDEV_MAPPED_AUTOFIRE_SET | IDEV_MAPPED_TOGGLE | IDEV_MAPPED_INVERTTOGGLE, NULL)) {
+					remapcustoms[entry].flags, IDEV_MAPPED_AUTOFIRE_SET | IDEV_MAPPED_TOGGLE | IDEV_MAPPED_INVERTTOGGLE | IDEV_MAPPED_INVERT, NULL)) {
 					inputdevice_generate_jport_custom(&workprefs, inputmap_port);
 					EndDialog(hDlg, 1);
 				}
@@ -19140,7 +19144,7 @@ static INT_PTR CALLBACK InputMapDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPA
 		inputdevice_updateconfig (NULL, &workprefs);
 		InitializeListView (hDlg);
 		ew(hDlg, IDC_INPUTMAP_SPECIALS, inputmap_selected >= 0);
-		if (!JSEM_ISCUSTOM(inputmap_port, &workprefs)) {
+		if (!JSEM_ISCUSTOM(inputmap_port, 0, &workprefs)) {
 			ew(hDlg, IDC_INPUTMAP_CAPTURE, FALSE);
 			ew(hDlg, IDC_INPUTMAP_DELETE, FALSE);
 			ew(hDlg, IDC_INPUTMAP_DELETEALL, FALSE);
@@ -19168,7 +19172,7 @@ static INT_PTR CALLBACK InputMapDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPA
 					if (lv->iItem >= 0) {
 						inputmap_selected = lv->iItem;
 						inputmap_remap_counter = getremapcounter (lv->iItem);
-						if (JSEM_ISCUSTOM(inputmap_port, &workprefs)) {
+						if (JSEM_ISCUSTOM(inputmap_port, 0, &workprefs)) {
 							input_find (hDlg, hDlg, 1, true, true);
 						}
 						if (inputmapselected_old < 0)
@@ -19241,7 +19245,7 @@ static INT_PTR CALLBACK InputMapDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPA
 			}
 			break;
 			case IDC_INPUTMAP_DELETE:
-			if (JSEM_ISCUSTOM(inputmap_port, &workprefs)) {
+			if (JSEM_ISCUSTOM(inputmap_port, 0, &workprefs)) {
 				update_listview_inputmap (hDlg, inputmap_selected);
 				inputdevice_generate_jport_custom(&workprefs, inputmap_port);
 				InitializeListView (hDlg);

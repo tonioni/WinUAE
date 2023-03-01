@@ -435,6 +435,8 @@ void getfilterrect2(int monid, RECT *sr, RECT *dr, RECT *zr, int dst_width, int 
 
 				int cw2 = cw + (int)(cw * filter_horiz_zoom);
 				int ch2 = ch + (int)(ch * filter_vert_zoom);
+				int adjw = cw2 * 5 / 100;
+				int adjh = ch2 * 5 / 100;
 
 				extraw = 0;
 				extrah = 0;
@@ -449,12 +451,12 @@ void getfilterrect2(int monid, RECT *sr, RECT *dr, RECT *zr, int dst_width, int 
 
 				float multadd = 1.0f / (1 << currprefs.gf[idx].gfx_filter_integerscalelimit);
 				if (cw2 > maxw || ch2 > maxh) {
-					while (cw2 / mult > maxw || ch2 / mult > maxh)
+					while (cw2 / mult - adjw > maxw || ch2 / mult - adjh > maxh)
 						mult += multadd;
 					maxw = (int)(maxw * mult);
 					maxh = (int)(maxh * mult);
 				} else {
-					while (cw2 * (mult + multadd) <= maxw && ch2 * (mult + multadd) <= maxh)
+					while (cw2 * (mult + multadd) - adjw <= maxw && ch2 * (mult + multadd) - adjh <= maxh)
 						mult += multadd;
 					maxw = (int)((maxw + mult - multadd) / mult);
 					maxh = (int)((maxh + mult - multadd) / mult);

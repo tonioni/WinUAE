@@ -415,6 +415,7 @@
 #define IDS_GENLOCK_OPTIONS             420
 #define IDS_READONLYCONFIRMATION        421
 #define IDS_SCREEN_NATIVELACE           422
+#define IDS_PORT_AUTOFIRE_TOGGLENOAF    423
 #define IDS_QS_MODELS                   1000
 #define IDS_QS_MODEL_A500               1001
 #define IDS_QS_MODEL_A500P              1002
@@ -1167,7 +1168,6 @@
 #define IDC_DBG_CUSTOM                  1766
 #define IDC_DBG_MISCCPU                 1767
 #define IDC_CS_DMAC2                    1769
-#define IDC_CS_CD32FMV                  1771
 #define IDC_DF0ENABLE                   1773
 #define IDC_DF1ENABLE                   1774
 #define IDC_FS_SELECT_DIR               1774

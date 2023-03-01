@@ -2731,28 +2731,30 @@ bool handle_rawinput_change(LPARAM lParam, WPARAM wParam)
 	return ret;
 }
 
-void handle_rawinput (LPARAM lParam)
+void handle_rawinput(LPARAM lParam)
 {
-	UINT dwSize;
+	UINT dwSize = 0;
 	BYTE lpb[1000];
 	RAWINPUT *raw;
 
 	if (!rawinput_available)
 		return;
-	if (GetRawInputData ((HRAWINPUT)lParam, RID_INPUT, NULL, &dwSize, sizeof (RAWINPUTHEADER)) >= 0) {
-		if (dwSize <= sizeof (lpb)) {
-			if (GetRawInputData ((HRAWINPUT)lParam, RID_INPUT, lpb, &dwSize, sizeof (RAWINPUTHEADER)) == dwSize) {
+	if (GetRawInputData((HRAWINPUT)lParam, RID_INPUT, NULL, &dwSize, sizeof(RAWINPUTHEADER)) >= 0) {
+		if (dwSize <= sizeof(lpb)) {
+			if (GetRawInputData((HRAWINPUT)lParam, RID_INPUT, lpb, &dwSize, sizeof(RAWINPUTHEADER)) == dwSize) {
 				raw = (RAWINPUT*)lpb;
 				if (!isguiactive() || (inputdevice_istest() && isguiactive())) {
 					handle_rawinput_2 (raw, lParam);
 				}
-				DefRawInputProc (&raw, 1, sizeof (RAWINPUTHEADER));
+				DefRawInputProc(&raw, 1, sizeof(RAWINPUTHEADER));
 			} else {
-				write_log (_T("GetRawInputData(%d) failed, %d\n"), dwSize, GetLastError ());
+				write_log(_T("GetRawInputData(%d) failed, %d\n"), dwSize, GetLastError ());
 			}
+		} else {
+			write_log(_T("GetRawInputData() too large buffer %d\n"), dwSize);
 		}
 	}  else {
-		write_log (_T("GetRawInputData(-1) failed, %d\n"), GetLastError ());
+		write_log(_T("GetRawInputData(-1) failed, %d\n"), GetLastError ());
 	}
 }
 
@@ -4433,8 +4435,25 @@ int input_get_default_keyboard (int i)
 	return 0;
 }
 
+static int nextsub(struct uae_input_device *uid, int i, int slot, int sub)
+{
+#if INPUTDEVICE_ALLOWSAMEJPORT
+	while (uid[i].eventid[slot][sub] > 0) {
+		sub++;
+		if (sub >= MAX_INPUT_SUB_EVENT_ALL) {
+			return -1;
+		}
+	}
+#endif
+	return sub;
+}
+
 static void setid (struct uae_input_device *uid, int i, int slot, int sub, int port, int evt, bool gp)
 {
+	sub = nextsub(uid, i, slot, sub);
+	if (sub < 0) {
+		return;
+	}
 	if (gp)
 		inputdevice_sparecopy (&uid[i], slot, 0);
 	uid[i].eventid[slot][sub] = evt;
@@ -4442,6 +4461,10 @@ static void setid (struct uae_input_device *uid, int i, int slot, int sub, int p
 }
 static void setid (struct uae_input_device *uid, int i, int slot, int sub, int port, int evt, int af, bool gp)
 {
+	sub = nextsub(uid, i, slot, sub);
+	if (sub < 0) {
+		return;
+	}
 	setid (uid, i, slot, sub, port, evt, gp);
 	uid[i].flags[slot][sub] &= ~ID_FLAG_AUTOFIRE_MASK;
 	if (af >= JPORT_AF_NORMAL)
@@ -4450,6 +4473,8 @@ static void setid (struct uae_input_device *uid, int i, int slot, int sub, int p
 		uid[i].flags[slot][sub] |= ID_FLAG_TOGGLE;
 	if (af == JPORT_AF_ALWAYS)
 		uid[i].flags[slot][sub] |= ID_FLAG_INVERTTOGGLE;
+	if (af == JPORT_AF_TOGGLENOAF)
+		uid[i].flags[slot][sub] |= ID_FLAG_INVERT;
 }
 
 int input_get_default_mouse (struct uae_input_device *uid, int i, int port, int af, bool gp, bool wheel, bool joymouseswap)

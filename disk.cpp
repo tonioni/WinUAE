@@ -1402,6 +1402,7 @@ static int drive_insert (drive *drv, struct uae_prefs *p, int dnum, const TCHAR 
 		drv->useturbo = 0;
 		drv->mfmpos = uaerand();
 		drv->mfmpos |= (uaerand() << 16);
+		drv->mfmpos &= 0xffffff;
 		drv->mfmpos %= drv->tracklen;
 		drv->prevtracklen = 0;
 
@@ -1708,6 +1709,7 @@ static int drive_insert (drive *drv, struct uae_prefs *p, int dnum, const TCHAR 
 	drive_fill_bigbuf (drv, 1);
 	drv->mfmpos = uaerand ();
 	drv->mfmpos |= (uaerand () << 16);
+	drv->mfmpos &= 0xffffff;
 	drv->mfmpos %= drv->tracklen;
 	drv->prevtracklen = 0;
 	if (!fake) {
@@ -4029,6 +4031,7 @@ static void disk_doupdate_predict (int startcycle)
 		bool isempty = drive_empty(drv);
 		bool isunformatted = unformatted(drv);
 		int mfmpos = drv->mfmpos;
+		bool dsksync_on2 = dsksync_on;
 		if (drv->tracktiming[0])
 			updatetrackspeed (drv, mfmpos);
 		int diskevent_flag = 0;
@@ -4048,8 +4051,13 @@ static void disk_doupdate_predict (int startcycle)
 					else
 						tword |= getonebit(drv, drv->bigmfmbuf, mfmpos, &inc);
 				}
-				if (dskdmaen != DSKDMA_READ && (tword & 0xffff) == dsksync && dsksync != 0)
+				if ((tword & 0xffff) != dsksync) {
+					dsksync_on2 = false;
+				}
+				if (dskdmaen != DSKDMA_READ && (tword & 0xffff) == dsksync && !dsksync_on2) {
 					diskevent_flag |= DISK_WORDSYNC;
+					dsksync_on2 = true;
+				}
 			}
 			int pmfmpos = mfmpos;
 			mfmpos += inc;
@@ -5289,7 +5297,7 @@ void DISK_reset (void)
 	setamax ();
 }
 
-static void load_track (int num, int cyl, int side, int *sectable)
+static void load_track (int num, int cyl, int dside, int *sectable)
 {
 	int oldcyl, oldside, drvsec;
 
@@ -5298,7 +5306,7 @@ static void load_track (int num, int cyl, int side, int *sectable)
 	oldcyl = drv->cyl;
 	oldside = side;
 	drv->cyl = cyl;
-	side = 0;
+	side = dside;
 	drv->buffered_cyl = -1;
 	drive_fill_bigbuf (drv, -1);
 	decode_buffer (drv, drv->bigmfmbuf, drv->cyl, 11, drv->ddhd, drv->filetype, &drvsec, sectable, 1);
@@ -5483,8 +5491,8 @@ int DISK_examine_image(struct uae_prefs *p, int num, struct diskinfo *di, bool d
 	drive *drv = &floppy[num];
 	uae_u32 dos, crc, crc2;
 	int wasdelayed = drv->dskchange_time;
-	int sectable[MAX_SECTORS];
-	int oldcyl, oldside;
+	int sectable[MAX_SECTORS] = { 0 };
+	int oldcyl, oldside, mfmpos;
 	uae_u32 v = 0;
 	bool fb = DISK_isfloppybridge(p, num);
 
@@ -5501,6 +5509,7 @@ int DISK_examine_image(struct uae_prefs *p, int num, struct diskinfo *di, bool d
 	di->unreadable = true;
 	oldcyl = drv->cyl;
 	oldside = side;
+	mfmpos = drv->mfmpos;
 	drv->cyl = 0;
 	side = 0;
 	if (!drive_insert (drv, p, num, p->floppyslots[num].df, true, true) || (!drv->diskfile && !drv->bridge)) {
@@ -5587,13 +5596,13 @@ end:
 	}
 end2:
 	load_track(num, oldcyl, oldside, sectable);
-	drive_image_free (drv);
 	if (wasdelayed > 1) {
 		drive_eject (drv);
 		currprefs.floppyslots[num].df[0] = 0;
 		drv->dskchange_time = wasdelayed;
 		disk_insert (num, drv->newname);
 	}
+	drv->mfmpos = mfmpos;
 	return ret;
 }
 
