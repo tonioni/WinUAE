@@ -16,7 +16,7 @@
 
 #define UAEMAJOR 4
 #define UAEMINOR 10
-#define UAESUBREV 0
+#define UAESUBREV 2
 
 #define MAX_AMIGADISPLAYS 4
 
@@ -99,12 +99,16 @@ struct inputdevconfig {
 	TCHAR configname[MAX_JPORT_CONFIG];
 	TCHAR shortid[16];
 };
-struct jport {
+struct jport_dev {
 	int id;
 	int mode; // 0=def,1=mouse,2=joy,3=anajoy,4=lightpen
 	int submode;
 	int autofire;
 	struct inputdevconfig idc;
+};
+#define MAX_JPORT_DEVS 10
+struct jport {
+	struct jport_dev jd[MAX_JPORT_DEVS];
 	bool nokeyboardoverride;
 	bool changed;
 };
@@ -114,6 +118,7 @@ struct jport {
 #define JPORT_AF_NORMAL 1
 #define JPORT_AF_TOGGLE 2
 #define JPORT_AF_ALWAYS 3
+#define JPORT_AF_TOGGLENOAF 4
 
 #define KBTYPE_AMIGA 0
 #define KBTYPE_PC1 1
@@ -299,6 +304,26 @@ enum { CP_GENERIC = 1, CP_CDTV, CP_CDTVCR, CP_CD32, CP_A500, CP_A500P, CP_A600,
 #define OVERSCANMODE_BROADCAST 4
 #define OVERSCANMODE_EXTREME 5
 #define OVERSCANMODE_ULTRA 6
+
+#define AGNUSMODEL_AUTO 0
+#define AGNUSMODEL_VELVET 1
+#define AGNUSMODEL_A1000 2
+#define AGNUSMODEL_OCS 3
+#define AGNUSMODEL_ECS 4
+#define AGNUSMODEL_AGA 5
+
+#define AGNUSSIZE_AUTO 0
+#define AGNUSSIZE_512 1
+#define AGNUSSIZE_1M 2
+#define AGNUSSIZE_2M 3
+
+#define DENISEMODEL_AUTO 0
+#define DENISEMODEL_VELVET 1
+#define DENISEMODEL_A1000NOEHB 2
+#define DENISEMODEL_A1000 3
+#define DENISEMODEL_OCS 4
+#define DENISEMODEL_ECS 5
+#define DENISEMODEL_AGA 6
 
 #define MAX_FILTERSHADERS 4
 
@@ -589,6 +614,7 @@ struct uae_prefs {
 	bool gfx_windowed_resize;
 	int gfx_overscanmode;
 	int gfx_monitorblankdelay;
+	int gfx_rotation;
 
 	struct gfx_filterdata gf[3];
 
@@ -649,6 +675,8 @@ struct uae_prefs {
 	bool rom_readwrite;
 	int turbo_emulation;
 	int turbo_emulation_limit;
+	bool turbo_boot;
+	int turbo_boot_delay;
 	bool headless;
 	int filesys_limit;
 	int filesys_max_name;
@@ -687,9 +715,6 @@ struct uae_prefs {
 	bool cs_cdtvcr;
 	bool cs_df0idhw;
 	bool cs_resetwarning;
-	bool cs_denisenoehb;
-	bool cs_dipagnus;
-	bool cs_agnusbltbusybug;
 	bool cs_ciatodbug;
 	bool cs_z3autoconfig;
 	bool cs_1mchipjumper;
@@ -706,6 +731,9 @@ struct uae_prefs {
 	int cs_hvcsync;
 	int cs_eclockphase;
 	int cs_eclocksync;
+	int cs_agnusmodel;
+	int cs_agnussize;
+	int cs_denisemodel;
 	bool cs_memorypatternfill;
 
 	struct boardromconfig expansionboard[MAX_EXPANSION_BOARDS];
@@ -844,6 +872,7 @@ struct uae_prefs {
 	int win32_active_capture_priority;
 	bool win32_active_nocapture_pause;
 	bool win32_active_nocapture_nosound;
+	int win32_active_input;
 	int win32_inactive_priority;
 	bool win32_inactive_pause;
 	bool win32_inactive_nosound;
@@ -930,7 +959,6 @@ extern void set_config_changed (void);
 
 /* Contains the filename of .uaerc */
 extern TCHAR optionsfile[];
-extern void save_options (struct zfile *, struct uae_prefs *, int);
 
 extern void cfgfile_write (struct zfile *, const TCHAR *option, const TCHAR *format,...);
 extern void cfgfile_dwrite (struct zfile *, const TCHAR *option, const TCHAR *format,...);
@@ -945,7 +973,6 @@ extern void cfgfile_target_dwrite_bool (struct zfile *f, const TCHAR *option, bo
 extern void cfgfile_write_str(struct zfile *f, const TCHAR *option, const TCHAR *value);
 extern void cfgfile_write_str_escape(struct zfile *f, const TCHAR *option, const TCHAR *value);
 extern void cfgfile_dwrite_str(struct zfile *f, const TCHAR *option, const TCHAR *value);
-extern void cfgfile_dwrite_str_escape(struct zfile *f, const TCHAR *option, const TCHAR *value);
 extern void cfgfile_target_write_str(struct zfile *f, const TCHAR *option, const TCHAR *value);
 extern void cfgfile_target_dwrite_str(struct zfile *f, const TCHAR *option, const TCHAR *value);
 extern void cfgfile_target_dwrite_str_escape(struct zfile *f, const TCHAR *option, const TCHAR *value);
@@ -962,6 +989,7 @@ extern bool is_error_log (void);
 extern void default_prefs (struct uae_prefs *, bool, int);
 extern void discard_prefs (struct uae_prefs *, int);
 extern void copy_prefs(struct uae_prefs *src, struct uae_prefs *dst);
+extern void copy_inputdevice_prefs(struct uae_prefs *src, struct uae_prefs *dst);
 
 int parse_cmdline_option (struct uae_prefs *, TCHAR, const TCHAR*);
 
@@ -975,7 +1003,7 @@ extern TCHAR *cfgfile_option_get(const TCHAR *s, const TCHAR *option);
 extern TCHAR *cfgfile_subst_path(const TCHAR *path, const TCHAR *subst, const TCHAR *file);
 
 extern TCHAR *target_expand_environment (const TCHAR *path, TCHAR *out, int maxlen);
-extern int target_parse_option (struct uae_prefs *, const TCHAR *option, const TCHAR *value);
+extern int target_parse_option (struct uae_prefs *, const TCHAR *option, const TCHAR *value, int type);
 extern void target_save_options (struct zfile*, struct uae_prefs *);
 extern void target_default_options (struct uae_prefs *, int type);
 extern void target_fixup_options (struct uae_prefs *);

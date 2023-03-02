@@ -176,6 +176,7 @@ static void freesprite(struct gdistruct *gdi, struct gdibm *bm)
 		DeleteDC(bm->thdc);
 		bm->thdc = NULL;
 	}
+	bm->active = false;
 }
 
 static void freetexture(int monid)
@@ -335,7 +336,29 @@ static void gdi_paint(void)
 			StretchBlt(gdi->buf.thdc, gdi->bmxoffset, gdi->bmyoffset, gdi->bmwidth, gdi->bmheight, gdi->bm.thdc, 0, 0, gdi->bm.width, gdi->bm.height, SRCCOPY);
 		}
 		if (gdi->cursor.active && gdi->cursor.hbm) {
-			TransparentBlt(gdi->buf.thdc, gdi->cursor.x, gdi->cursor.y, (int)(CURSORMAXWIDTH * gdi->xmult), (int)(CURSORMAXHEIGHT * gdi->ymult), gdi->cursor.thdc, 0, 0, CURSORMAXWIDTH, CURSORMAXHEIGHT, 0xfe00fe);
+			int bx = gdi->bmxoffset;
+			int by = gdi->bmyoffset;
+			int x = gdi->cursor.x;
+			int y = gdi->cursor.y;
+			int cx = 0;
+			int cy = 0;
+			int cw = CURSORMAXWIDTH;
+			int ch = CURSORMAXHEIGHT;
+			if (gdi->cursor.x < bx) {
+				int d = bx - gdi->cursor.x;
+				cx += d;
+				cw -= d;
+				x += d;
+			}
+			if (gdi->cursor.y < by) {
+				int d = by - gdi->cursor.y;
+				cy += d;
+				ch -= d;
+				y += d;
+			}
+			if (cw > 0 && ch > 0) {
+				TransparentBlt(gdi->buf.thdc, x, y, (int)(cw * gdi->xmult), (int)(ch * gdi->ymult), gdi->cursor.thdc, cx, cy, cw, ch, 0xfe00fe);
+			}
 		}
 		if (gdi->osd.active && gdi->osd.hbm) {
 			TransparentBlt(gdi->buf.thdc, gdi->osd.x, gdi->osd.y, gdi->ledwidth, gdi->ledheight, gdi->osd.thdc, 0, 0, gdi->ledwidth, gdi->ledheight, 0x000000);
@@ -418,6 +441,7 @@ static int gdi_isenabled(int monid)
 static bool gdi_setcursor(int monid, int x, int y, int width, int height, float mx, float my, bool visible, bool noscale)
 {
 	struct gdistruct *gdi = &gdidata[monid];
+	int cx, cy;
 
 	if (gdi->depth < 32) {
 		return false;
@@ -428,17 +452,19 @@ static bool gdi_setcursor(int monid, int x, int y, int width, int height, float 
 	}
 
 	if (width && height) {
-		gdi->cursor.x = (int)((float)x * mx * gdi->xmult + gdi->cursor_offset_x * gdi->ymult + 0.5f);
-		gdi->cursor.y = (int)((float)y * my * gdi->ymult + gdi->cursor_offset_y * gdi->xmult + 0.5f);
+		cx = (int)((float)x * mx * gdi->xmult + gdi->cursor_offset_x * gdi->ymult + 0.5f);
+		cy = (int)((float)y * my * gdi->ymult + gdi->cursor_offset_y * gdi->xmult + 0.5f);
 	} else {
-		gdi->cursor.x = gdi->cursor.y = 0;
+		cx = cy = 0;
 	}
-	if (gdi->cursor.x < 0) {
-		gdi->cursor.x = 0;
+	if (cx < 0) {
+		cx = 0;
 	}
-	if (gdi->cursor.y < 0) {
-		gdi->cursor.y = 0;
+	if (cy < 0) {
+		cy = 0;
 	}
+	gdi->cursor.x = cx;
+	gdi->cursor.y = cy;
 	gdi->cursor_scale = !noscale;
 	gdi->cursor.active = visible;
 	return true;

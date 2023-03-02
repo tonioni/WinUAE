@@ -4335,13 +4335,15 @@ struct remapcustoms_s
 };
 static struct remapcustoms_s remapcustoms[] =
 {
-	{ 0, IDEV_MAPPED_AUTOFIRE_SET | IDEV_MAPPED_TOGGLE | IDEV_MAPPED_INVERTTOGGLE,
+	{ 0, IDEV_MAPPED_AUTOFIRE_SET | IDEV_MAPPED_TOGGLE | IDEV_MAPPED_INVERTTOGGLE | IDEV_MAPPED_INVERT,
 	NULL },
-	{ IDEV_MAPPED_AUTOFIRE_SET, IDEV_MAPPED_AUTOFIRE_SET | IDEV_MAPPED_TOGGLE | IDEV_MAPPED_INVERTTOGGLE,
+	{ IDEV_MAPPED_AUTOFIRE_SET, IDEV_MAPPED_AUTOFIRE_SET | IDEV_MAPPED_TOGGLE | IDEV_MAPPED_INVERTTOGGLE | IDEV_MAPPED_INVERT,
 	NULL },
-	{ IDEV_MAPPED_AUTOFIRE_SET | IDEV_MAPPED_TOGGLE, IDEV_MAPPED_AUTOFIRE_SET | IDEV_MAPPED_TOGGLE | IDEV_MAPPED_INVERTTOGGLE,
+	{ IDEV_MAPPED_AUTOFIRE_SET | IDEV_MAPPED_TOGGLE, IDEV_MAPPED_AUTOFIRE_SET | IDEV_MAPPED_TOGGLE | IDEV_MAPPED_INVERTTOGGLE | IDEV_MAPPED_INVERT,
 	NULL },
-	{ IDEV_MAPPED_AUTOFIRE_SET | IDEV_MAPPED_INVERTTOGGLE, IDEV_MAPPED_AUTOFIRE_SET | IDEV_MAPPED_TOGGLE | IDEV_MAPPED_INVERTTOGGLE,
+	{ IDEV_MAPPED_AUTOFIRE_SET | IDEV_MAPPED_INVERTTOGGLE, IDEV_MAPPED_AUTOFIRE_SET | IDEV_MAPPED_TOGGLE | IDEV_MAPPED_INVERTTOGGLE | IDEV_MAPPED_INVERT,
+	NULL },
+	{ IDEV_MAPPED_AUTOFIRE_SET | IDEV_MAPPED_INVERT | IDEV_MAPPED_TOGGLE, IDEV_MAPPED_AUTOFIRE_SET | IDEV_MAPPED_TOGGLE | IDEV_MAPPED_INVERTTOGGLE | IDEV_MAPPED_INVERT,
 	NULL },
 	{ NULL }
 };
@@ -4581,6 +4583,8 @@ static int inputmap_handle (HWND list, int currentdevnum, int currentwidgetnum,
 													_tcscat(target, remapcustoms[2].name);
 												else if (flags & IDEV_MAPPED_INVERTTOGGLE)
 													_tcscat(target, remapcustoms[3].name);
+												else if (flags & IDEV_MAPPED_INVERT)
+													_tcscat(target, remapcustoms[4].name);
 												else
 													_tcscat(target, remapcustoms[1].name);
 												_tcscat(target, _T("]"));
@@ -4718,6 +4722,7 @@ static const struct miscentry misclist[] = {
 	{ 0, 0, _T("Debug memory space"), &workprefs.debug_mem },
 	{ 0, 1, _T("Force hard reset if CPU halted"), &workprefs.crash_auto_reset },
 	{ 0, 0, _T("A600/A1200/A4000 IDE scsi.device disable"), &workprefs.scsidevicedisable },
+	{ 0, 1, _T("Warp mode reset"), &workprefs.turbo_boot },
 	{ 0, 0, NULL }
 };
 
@@ -8472,6 +8477,8 @@ static void values_to_displaydlg (HWND hDlg)
 	xSendDlgItemMessage(hDlg, IDC_OVERSCANMODE, CB_ADDSTRING, 0, (LPARAM)_T("Overscan+"));
 	xSendDlgItemMessage(hDlg, IDC_OVERSCANMODE, CB_ADDSTRING, 0, (LPARAM)_T("Extreme"));
 	xSendDlgItemMessage(hDlg, IDC_OVERSCANMODE, CB_ADDSTRING, 0, (LPARAM)_T("Ultra extreme debug"));
+	xSendDlgItemMessage(hDlg, IDC_OVERSCANMODE, CB_ADDSTRING, 0, (LPARAM)_T("Ultra extreme debug (HV)"));
+	xSendDlgItemMessage(hDlg, IDC_OVERSCANMODE, CB_ADDSTRING, 0, (LPARAM)_T("Ultra extreme debug (C)"));
 	xSendDlgItemMessage(hDlg, IDC_OVERSCANMODE, CB_SETCURSEL, workprefs.gfx_overscanmode, 0);
 
 	xSendDlgItemMessage(hDlg, IDC_AUTORESOLUTIONSELECT, CB_RESETCONTENT, 0, 0);
@@ -9312,8 +9319,6 @@ static void values_to_chipsetdlg2 (HWND hDlg)
 	}
 	CheckDlgButton(hDlg, IDC_CS_COMPATIBLE, workprefs.cs_compatible != 0);
 	CheckDlgButton(hDlg, IDC_CS_RESETWARNING, workprefs.cs_resetwarning);
-	CheckDlgButton(hDlg, IDC_CS_NOEHB, workprefs.cs_denisenoehb);
-	CheckDlgButton(hDlg, IDC_CS_DIPAGNUS, workprefs.cs_dipagnus);
 	CheckDlgButton(hDlg, IDC_CS_KSMIRROR_E0, workprefs.cs_ksmirror_e0);
 	CheckDlgButton(hDlg, IDC_CS_KSMIRROR_A8, workprefs.cs_ksmirror_a8);
 	CheckDlgButton(hDlg, IDC_CS_CIAOVERLAY, workprefs.cs_ciaoverlay);
@@ -9345,6 +9350,9 @@ static void values_to_chipsetdlg2 (HWND hDlg)
 	CheckDlgButton(hDlg, IDC_CS_MEMORYPATTERN, workprefs.cs_memorypatternfill);
 	xSendDlgItemMessage(hDlg, IDC_CS_UNMAPPED, CB_SETCURSEL, workprefs.cs_unmapped_space, 0);
 	xSendDlgItemMessage(hDlg, IDC_CS_CIASYNC, CB_SETCURSEL, workprefs.cs_eclocksync, 0);
+	xSendDlgItemMessage(hDlg, IDC_CS_AGNUSMODEL, CB_SETCURSEL, workprefs.cs_agnusmodel, 0);
+	xSendDlgItemMessage(hDlg, IDC_CS_AGNUSSIZE, CB_SETCURSEL, workprefs.cs_agnussize, 0);
+	xSendDlgItemMessage(hDlg, IDC_CS_DENISEMODEL, CB_SETCURSEL, workprefs.cs_denisemodel, 0);
 	txt[0] = 0;
 	_stprintf (txt, _T("%d"), workprefs.cs_rtc_adjust);
 	SetDlgItemText(hDlg, IDC_CS_RTCADJUST, txt);
@@ -9366,8 +9374,6 @@ static void values_to_chipsetdlg2 (HWND hDlg)
 			rev |= 0x10;
 		rev |= (workprefs.chipset_mask & CSMASK_AGA) ? 0x23 : 0;
 		rev |= (currprefs.chipset_mask & CSMASK_ECS_AGNUS) ? 0x20 : 0;
-		if (workprefs.chipmem.size > 1024 * 1024 && (workprefs.chipset_mask & CSMASK_ECS_AGNUS))
-			rev |= 0x21;
 		_stprintf (txt, _T("%02X"), rev);
 	}
 	SetDlgItemText(hDlg, IDC_CS_AGNUSREV, txt);
@@ -9404,9 +9410,6 @@ static void values_from_chipsetdlg2 (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 	}
 	workprefs.cs_resetwarning = ischecked (hDlg, IDC_CS_RESETWARNING);
 	workprefs.cs_ciatodbug = ischecked (hDlg, IDC_CS_CIATODBUG);
-	workprefs.cs_denisenoehb = ischecked (hDlg, IDC_CS_NOEHB);
-	workprefs.cs_dipagnus = ischecked (hDlg, IDC_CS_DIPAGNUS);
-	workprefs.cs_agnusbltbusybug = workprefs.cs_dipagnus;
 	workprefs.cs_ksmirror_e0 = ischecked (hDlg, IDC_CS_KSMIRROR_E0);
 	workprefs.cs_ksmirror_a8 = ischecked (hDlg, IDC_CS_KSMIRROR_A8);
 	workprefs.cs_ciaoverlay = ischecked (hDlg, IDC_CS_CIAOVERLAY);
@@ -9444,6 +9447,18 @@ static void values_from_chipsetdlg2 (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 	val = xSendDlgItemMessage(hDlg, IDC_CS_CIASYNC, CB_GETCURSEL, 0, 0L);
 	if (val != CB_ERR)
 		workprefs.cs_eclocksync = val;
+
+	val = xSendDlgItemMessage(hDlg, IDC_CS_AGNUSMODEL, CB_GETCURSEL, 0, 0L);
+	if (val != CB_ERR)
+		workprefs.cs_agnusmodel = val;
+
+	val = xSendDlgItemMessage(hDlg, IDC_CS_AGNUSSIZE, CB_GETCURSEL, 0, 0L);
+	if (val != CB_ERR)
+		workprefs.cs_agnussize = val;
+
+	val = xSendDlgItemMessage(hDlg, IDC_CS_DENISEMODEL, CB_GETCURSEL, 0, 0L);
+	if (val != CB_ERR)
+		workprefs.cs_denisemodel = val;
 
 	cfgfile_compatibility_romtype(&workprefs);
 
@@ -9508,8 +9523,6 @@ static void enable_for_chipsetdlg2 (HWND hDlg)
 	ew(hDlg, IDC_CS_CDTVRAM, e);
 	ew(hDlg, IDC_CS_RESETWARNING, e);
 	ew(hDlg, IDC_CS_CIATODBUG, e);
-	ew(hDlg, IDC_CS_NOEHB, e);
-	ew(hDlg, IDC_CS_DIPAGNUS, e);
 	ew(hDlg, IDC_CS_Z3AUTOCONFIG, e);
 	ew(hDlg, IDC_CS_KSMIRROR_E0, e);
 	ew(hDlg, IDC_CS_KSMIRROR_A8, e);
@@ -9533,6 +9546,9 @@ static void enable_for_chipsetdlg2 (HWND hDlg)
 	ew(hDlg, IDC_CS_CIASYNC, e);
 	ew(hDlg, IDC_CS_CIA, e);
 	ew(hDlg, IDC_CS_MEMORYPATTERN, e);
+	ew(hDlg, IDC_CS_AGNUSMODEL, e);
+	ew(hDlg, IDC_CS_AGNUSSIZE, e);
+	ew(hDlg, IDC_CS_DENISEMODEL, e);
 }
 
 static INT_PTR CALLBACK ChipsetDlgProc2 (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
@@ -9554,6 +9570,20 @@ static INT_PTR CALLBACK ChipsetDlgProc2 (HWND hDlg, UINT msg, WPARAM wParam, LPA
 		xSendDlgItemMessage(hDlg, IDC_CS_CIASYNC, CB_ADDSTRING, 0, (LPARAM)_T("68000"));
 		xSendDlgItemMessage(hDlg, IDC_CS_CIASYNC, CB_ADDSTRING, 0, (LPARAM)_T("Gayle"));
 		xSendDlgItemMessage(hDlg, IDC_CS_CIASYNC, CB_ADDSTRING, 0, (LPARAM)_T("68000 Alternate"));
+		xSendDlgItemMessage(hDlg, IDC_CS_AGNUSMODEL, CB_RESETCONTENT, 0, 0L);
+		xSendDlgItemMessage(hDlg, IDC_CS_AGNUSMODEL, CB_ADDSTRING, 0, (LPARAM)_T("Auto"));
+		xSendDlgItemMessage(hDlg, IDC_CS_AGNUSMODEL, CB_ADDSTRING, 0, (LPARAM)_T("Velvet"));
+		xSendDlgItemMessage(hDlg, IDC_CS_AGNUSMODEL, CB_ADDSTRING, 0, (LPARAM)_T("A1000"));
+		xSendDlgItemMessage(hDlg, IDC_CS_AGNUSSIZE, CB_RESETCONTENT, 0, 0L);
+		xSendDlgItemMessage(hDlg, IDC_CS_AGNUSSIZE, CB_ADDSTRING, 0, (LPARAM)_T("Auto"));
+		xSendDlgItemMessage(hDlg, IDC_CS_AGNUSSIZE, CB_ADDSTRING, 0, (LPARAM)_T("512k"));
+		xSendDlgItemMessage(hDlg, IDC_CS_AGNUSSIZE, CB_ADDSTRING, 0, (LPARAM)_T("1M"));
+		xSendDlgItemMessage(hDlg, IDC_CS_AGNUSSIZE, CB_ADDSTRING, 0, (LPARAM)_T("2M"));
+		xSendDlgItemMessage(hDlg, IDC_CS_DENISEMODEL, CB_RESETCONTENT, 0, 0L);
+		xSendDlgItemMessage(hDlg, IDC_CS_DENISEMODEL, CB_ADDSTRING, 0, (LPARAM)_T("Auto"));
+		xSendDlgItemMessage(hDlg, IDC_CS_DENISEMODEL, CB_ADDSTRING, 0, (LPARAM)_T("Velvet"));
+		xSendDlgItemMessage(hDlg, IDC_CS_DENISEMODEL, CB_ADDSTRING, 0, (LPARAM)_T("A1000 No-EHB"));
+		xSendDlgItemMessage(hDlg, IDC_CS_DENISEMODEL, CB_ADDSTRING, 0, (LPARAM)_T("A1000"));
 		xSendDlgItemMessage(hDlg, IDC_CS_UNMAPPED, CB_RESETCONTENT, 0, 0L);
 		WIN32GUI_LoadUIString(IDS_UNMAPPED_ADDRESS, tmp, sizeof tmp / sizeof(TCHAR));
 		TCHAR *p1 = tmp;
@@ -10937,8 +10967,6 @@ static void enable_for_expansion2dlg (HWND hDlg)
 	ew(hDlg, IDC_CATWEASEL, en);
 	ew(hDlg, IDC_SANA2, en);
 
-	ew(hDlg, IDC_CS_CD32FMV, en);
-
 	ew(hDlg, IDC_CPUBOARDROMFILE, workprefs.cpuboard_type != 0);
 	ew(hDlg, IDC_CPUBOARDROMCHOOSER, workprefs.cpuboard_type != 0);
 	ew(hDlg, IDC_CPUBOARDMEM, workprefs.cpuboard_type > 0);
@@ -10973,7 +11001,6 @@ static void values_to_expansion2dlg (HWND hDlg, int mode)
 	CheckDlgButton(hDlg, IDC_CATWEASEL, workprefs.catweasel);
 	CheckDlgButton(hDlg, IDC_SCSIDEVICE, workprefs.scsi == 1);
 	CheckDlgButton(hDlg, IDC_SANA2, workprefs.sana2);
-	CheckDlgButton(hDlg, IDC_CS_CD32FMV, workprefs.cs_cd32fmv);
 	cw = catweasel_detect ();
 	ew (hDlg, IDC_CATWEASEL, cw);
 	if (!cw && workprefs.catweasel < 100)
@@ -11161,9 +11188,6 @@ static INT_PTR CALLBACK Expansion2DlgProc(HWND hDlg, UINT msg, WPARAM wParam, LP
 				workprefs.catweasel = ischecked(hDlg, IDC_CATWEASEL) ? -1 : 0;
 				cfgfile_compatibility_romtype(&workprefs);
 				break;
-				case IDC_CS_CD32FMV:
-				workprefs.cs_cd32fmv = ischecked(hDlg, IDC_CS_CD32FMV) ? 1 : 0;
-				cfgfile_compatibility_romtype(&workprefs);
 				break;
 				case IDC_SCSIROMSELECTED:
 				values_from_expansion2dlg(hDlg);
@@ -12405,9 +12429,11 @@ static void enable_for_miscdlg (HWND hDlg)
 
 	bool paused = false;
 	bool nosound = false;
+	bool activenojoy = (workprefs.win32_active_input & 4) == 0;
+	bool activenokeyboard = (workprefs.win32_active_input & 1) == 0;
 	bool nojoy = (workprefs.win32_inactive_input & 4) == 0;
-	ew (hDlg, IDC_ACTIVE_PAUSE, paused == false);
-	ew (hDlg, IDC_ACTIVE_NOSOUND, nosound == false && paused == false);
+	ew(hDlg, IDC_ACTIVE_PAUSE, paused == false);
+	ew(hDlg, IDC_ACTIVE_NOSOUND, nosound == false && paused == false);
 	if (!paused) {
 		paused = workprefs.win32_active_nocapture_pause;
 		if (!nosound)
@@ -12418,13 +12444,20 @@ static void enable_for_miscdlg (HWND hDlg)
 		workprefs.win32_active_nocapture_pause = workprefs.win32_active_nocapture_nosound = true;
 		nosound = true;
 		nojoy = true;
+		workprefs.win32_active_input = 0;
 	}
+	ew(hDlg, IDC_ACTIVE_NOJOY, paused == false);
+	ew(hDlg, IDC_ACTIVE_NOKEYBOARD, paused == false);
 	if (paused)
 		CheckDlgButton (hDlg, IDC_INACTIVE_PAUSE, TRUE);
 	if (nosound || paused)
 		CheckDlgButton(hDlg, IDC_INACTIVE_NOSOUND, TRUE);
 	if (paused || nojoy)
 		CheckDlgButton(hDlg, IDC_INACTIVE_NOJOY, TRUE);
+	if (paused || activenojoy)
+		CheckDlgButton(hDlg, IDC_ACTIVE_NOJOY, TRUE);
+	if (paused || activenokeyboard)
+		CheckDlgButton(hDlg, IDC_ACTIVE_NOKEYBOARD, TRUE);
 	ew(hDlg, IDC_INACTIVE_PAUSE, paused == false);
 	ew(hDlg, IDC_INACTIVE_NOSOUND, nosound == false && paused == false);
 	ew(hDlg, IDC_INACTIVE_NOJOY, paused == false);
@@ -12663,6 +12696,8 @@ static void values_to_miscdlg (HWND hDlg)
 
 		CheckDlgButton(hDlg, IDC_ACTIVE_PAUSE, workprefs.win32_active_nocapture_pause);
 		CheckDlgButton(hDlg, IDC_ACTIVE_NOSOUND, workprefs.win32_active_nocapture_nosound || workprefs.win32_active_nocapture_pause);
+		CheckDlgButton(hDlg, IDC_ACTIVE_NOJOY, (workprefs.win32_active_input & 4) == 0 || workprefs.win32_active_nocapture_pause);
+		CheckDlgButton(hDlg, IDC_ACTIVE_NOKEYBOARD, (workprefs.win32_active_input & 1) == 0 || workprefs.win32_active_nocapture_pause);
 		CheckDlgButton(hDlg, IDC_INACTIVE_PAUSE, workprefs.win32_inactive_pause);
 		CheckDlgButton(hDlg, IDC_INACTIVE_NOSOUND, workprefs.win32_inactive_nosound || workprefs.win32_inactive_pause);
 		CheckDlgButton(hDlg, IDC_INACTIVE_NOJOY, (workprefs.win32_inactive_input & 4) == 0 || workprefs.win32_inactive_pause);
@@ -13027,6 +13062,12 @@ static INT_PTR MiscDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 			workprefs.win32_inactive_input = ischecked(hDlg, IDC_INACTIVE_NOJOY) ? 0 : 4;
 			enable_for_miscdlg(hDlg);
 			break;
+		case IDC_ACTIVE_NOJOY:
+			if (!ischecked(hDlg, IDC_ACTIVE_NOJOY))
+				CheckDlgButton(hDlg, IDC_ACTIVE_NOJOY, BST_UNCHECKED);
+		case IDC_ACTIVE_NOKEYBOARD:
+			if (!ischecked(hDlg, IDC_ACTIVE_NOKEYBOARD))
+				CheckDlgButton(hDlg, IDC_ACTIVE_NOKEYBOARD, BST_UNCHECKED);
 		case IDC_ACTIVE_NOSOUND:
 			if (!ischecked (hDlg, IDC_ACTIVE_NOSOUND))
 				CheckDlgButton (hDlg, IDC_ACTIVE_PAUSE, BST_UNCHECKED);
@@ -13035,6 +13076,8 @@ static INT_PTR MiscDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 			if (workprefs.win32_active_nocapture_pause)
 				CheckDlgButton (hDlg, IDC_ACTIVE_NOSOUND, BST_CHECKED);
 			workprefs.win32_active_nocapture_nosound = ischecked (hDlg, IDC_ACTIVE_NOSOUND);
+			workprefs.win32_active_input = ischecked(hDlg, IDC_ACTIVE_NOJOY) ? 0 : 4;
+			workprefs.win32_active_input |= ischecked(hDlg, IDC_ACTIVE_NOKEYBOARD) ? 0 : 1;
 			enable_for_miscdlg (hDlg);
 			break;
 		case IDC_MINIMIZED_NOJOY:
@@ -13213,8 +13256,11 @@ static void values_to_cpudlg(HWND hDlg, WPARAM wParam)
 
 static void values_from_cpudlg(HWND hDlg, WPARAM wParam)
 {
-	int newcpu, oldcpu, newfpu, newtrust, oldcache, jitena, idx;
+	int newcpu, oldcpu, newfpu, newtrust, idx;
 	static int cachesize_prev, trust_prev;
+#ifdef JIT
+	int jitena, oldcache;
+#endif
 
 	workprefs.cpu_compatible = workprefs.cpu_memory_cycle_exact | (ischecked (hDlg, IDC_COMPATIBLE) ? 1 : 0);
 	workprefs.fpu_strict = ischecked (hDlg, IDC_COMPATIBLE_FPU) ? 1 : 0;
@@ -17278,8 +17324,8 @@ static void updatejoyport (HWND hDlg, int changedport)
 		int idx = joyxprevious[i];
 		int id = joys[i];
 		int idm = joysm[i];
-		int v = workprefs.jports[i].id;
-		int vm = workprefs.jports[i].mode + workprefs.jports[i].submode;
+		int v = workprefs.jports[i].jd[0].id;
+		int vm = workprefs.jports[i].jd[0].mode + workprefs.jports[i].jd[0].submode;
 		TCHAR *p1, *p2;
 
 		if (idm > 0)
@@ -17325,11 +17371,11 @@ static void updatejoyport (HWND hDlg, int changedport)
 			idx = 0;
 		xSendDlgItemMessage (hDlg, id, CB_SETCURSEL, idx, 0);
 		if (joysaf[i] >= 0)
-			xSendDlgItemMessage (hDlg, joysaf[i], CB_SETCURSEL, workprefs.jports[i].autofire, 0);
+			xSendDlgItemMessage (hDlg, joysaf[i], CB_SETCURSEL, workprefs.jports[i].jd[0].autofire, 0);
 
 		ew(hDlg, joyremap[i], idx >= 2);
 		ew(hDlg, joysm[i], idx >= 2);
-		ew(hDlg, joysaf[i], !JSEM_ISCUSTOM(i, &workprefs) && idx >= 2);
+		ew(hDlg, joysaf[i], !JSEM_ISCUSTOM(i, 0, &workprefs) && idx >= 2);
 	}
 }
 
@@ -17362,9 +17408,9 @@ static void values_from_gameportsdlg (HWND hDlg, int d, int changedport)
 
 	for (i = 0; i < MAX_JPORTS; i++) {
 		int idx = 0;
-		int *port = &workprefs.jports[i].id;
-		int *portm = &workprefs.jports[i].mode;
-		int *portsm = &workprefs.jports[i].submode;
+		int *port = &workprefs.jports[i].jd[0].id;
+		int *portm = &workprefs.jports[i].jd[0].mode;
+		int *portsm = &workprefs.jports[i].jd[0].submode;
 		int prevport = *port;
 		int id = joys[i];
 		int idm = joysm[i];
@@ -17412,7 +17458,7 @@ static void values_from_gameportsdlg (HWND hDlg, int d, int changedport)
 		}
 		if (joysaf[i] >= 0) {
 			int af = xSendDlgItemMessage (hDlg, joysaf[i], CB_GETCURSEL, 0, 0L);
-			workprefs.jports[i].autofire = af;
+			workprefs.jports[i].jd[0].autofire = af;
 		}
 		if (*port != prevport)
 			changed = 1;
@@ -17828,6 +17874,10 @@ static INT_PTR CALLBACK GamePortsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 				if (!remapcustoms[3].name)
 					remapcustoms[3].name = my_strdup(tmp);
 				xSendDlgItemMessage (hDlg, id, CB_ADDSTRING, 0, (LPARAM)tmp);
+				WIN32GUI_LoadUIString(IDS_PORT_AUTOFIRE_TOGGLENOAF, tmp, MAX_DPATH);
+				if (!remapcustoms[4].name)
+					remapcustoms[4].name = my_strdup(tmp);
+				xSendDlgItemMessage(hDlg, id, CB_ADDSTRING, 0, (LPARAM)tmp);
 			}
 
 			xSendDlgItemMessage (hDlg, IDC_PORT_TABLET_CURSOR, CB_RESETCONTENT, 0, 0L);
@@ -18390,6 +18440,10 @@ static void showextramap (HWND hDlg)
 			_tcscat (out, _T(" ; "));
 		if (evt > 0) {
 			_tcscat (out, name);
+			const struct inputevent *ev = inputdevice_get_eventinfo(evt);
+			if (ev->allow_mask == AM_K) {
+				_stprintf(out + _tcslen(out), _T(" (0x%02x)"), ev->data);
+			}
 			if (flags & IDEV_MAPPED_AUTOFIRE_SET)
 				_tcscat (out, _T(" (AF)"));
 			if (flags & IDEV_MAPPED_TOGGLE)
@@ -19024,7 +19078,7 @@ static INT_PTR CALLBACK RemapSpecialsProc(HWND hDlg, UINT msg, WPARAM wParam, LP
 			entry = listview_entry_from_click(list, &column, false);
 			if (entry >= 0 && inputmap_selected >= 0) {
 				if (inputmap_handle(NULL, -1, -1, NULL, NULL, -1, NULL, inputmap_selected,
-					remapcustoms[entry].flags, IDEV_MAPPED_AUTOFIRE_SET | IDEV_MAPPED_TOGGLE | IDEV_MAPPED_INVERTTOGGLE, NULL)) {
+					remapcustoms[entry].flags, IDEV_MAPPED_AUTOFIRE_SET | IDEV_MAPPED_TOGGLE | IDEV_MAPPED_INVERTTOGGLE | IDEV_MAPPED_INVERT, NULL)) {
 					inputdevice_generate_jport_custom(&workprefs, inputmap_port);
 					EndDialog(hDlg, 1);
 				}
@@ -19090,7 +19144,7 @@ static INT_PTR CALLBACK InputMapDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPA
 		inputdevice_updateconfig (NULL, &workprefs);
 		InitializeListView (hDlg);
 		ew(hDlg, IDC_INPUTMAP_SPECIALS, inputmap_selected >= 0);
-		if (!JSEM_ISCUSTOM(inputmap_port, &workprefs)) {
+		if (!JSEM_ISCUSTOM(inputmap_port, 0, &workprefs)) {
 			ew(hDlg, IDC_INPUTMAP_CAPTURE, FALSE);
 			ew(hDlg, IDC_INPUTMAP_DELETE, FALSE);
 			ew(hDlg, IDC_INPUTMAP_DELETEALL, FALSE);
@@ -19118,7 +19172,7 @@ static INT_PTR CALLBACK InputMapDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPA
 					if (lv->iItem >= 0) {
 						inputmap_selected = lv->iItem;
 						inputmap_remap_counter = getremapcounter (lv->iItem);
-						if (JSEM_ISCUSTOM(inputmap_port, &workprefs)) {
+						if (JSEM_ISCUSTOM(inputmap_port, 0, &workprefs)) {
 							input_find (hDlg, hDlg, 1, true, true);
 						}
 						if (inputmapselected_old < 0)
@@ -19191,7 +19245,7 @@ static INT_PTR CALLBACK InputMapDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPA
 			}
 			break;
 			case IDC_INPUTMAP_DELETE:
-			if (JSEM_ISCUSTOM(inputmap_port, &workprefs)) {
+			if (JSEM_ISCUSTOM(inputmap_port, 0, &workprefs)) {
 				update_listview_inputmap (hDlg, inputmap_selected);
 				inputdevice_generate_jport_custom(&workprefs, inputmap_port);
 				InitializeListView (hDlg);
@@ -19810,10 +19864,6 @@ static struct filterxtra filter_pal_extra[] =
 		&workprefs.gfx_gamma, NULL, &workprefs.gfx_gamma,
 		&currprefs.gfx_gamma, NULL, &currprefs.gfx_gamma,
 		-1000, 1000, 10,
-	_T("Scanlines"),
-		&workprefs.gf[0].gfx_filter_scanlines, NULL, &workprefs.gf[2].gfx_filter_scanlines,
-		&currprefs.gf[0].gfx_filter_scanlines, NULL, &currprefs.gf[2].gfx_filter_scanlines,
-		0, 100, 1,
 	_T("Blurriness"),
 		&workprefs.gf[0].gfx_filter_blur, NULL, &workprefs.gf[2].gfx_filter_blur,
 		&currprefs.gf[0].gfx_filter_blur, NULL, &currprefs.gf[2].gfx_filter_blur,
@@ -20858,19 +20908,20 @@ static void values_to_avioutputdlg (HWND hDlg)
 {
 
 	updatewinfsmode(0, &workprefs);
-	SetDlgItemText (hDlg, IDC_AVIOUTPUT_FILETEXT, avioutput_filename_gui);
-	CheckDlgButton (hDlg, IDC_AVIOUTPUT_FRAMELIMITER, avioutput_framelimiter ? FALSE : TRUE);
-	CheckDlgButton (hDlg, IDC_AVIOUTPUT_NOSOUNDOUTPUT, avioutput_nosoundoutput ? TRUE : FALSE);
-	CheckDlgButton (hDlg, IDC_AVIOUTPUT_NOSOUNDSYNC, avioutput_nosoundsync ? TRUE : FALSE);
-	CheckDlgButton (hDlg, IDC_AVIOUTPUT_ORIGINALSIZE, avioutput_originalsize ? TRUE : FALSE);
-	CheckDlgButton (hDlg, IDC_AVIOUTPUT_ACTIVATED, avioutput_requested ? BST_CHECKED : BST_UNCHECKED);
+	SetDlgItemText(hDlg, IDC_AVIOUTPUT_FILETEXT, avioutput_filename_gui);
+	CheckDlgButton(hDlg, IDC_AVIOUTPUT_FRAMELIMITER, avioutput_framelimiter ? FALSE : TRUE);
+	CheckDlgButton(hDlg, IDC_AVIOUTPUT_NOSOUNDOUTPUT, avioutput_nosoundoutput ? TRUE : FALSE);
+	CheckDlgButton(hDlg, IDC_AVIOUTPUT_NOSOUNDSYNC, avioutput_nosoundsync ? TRUE : FALSE);
+	CheckDlgButton(hDlg, IDC_AVIOUTPUT_ORIGINALSIZE, avioutput_originalsize ? TRUE : FALSE);
+	CheckDlgButton(hDlg, IDC_AVIOUTPUT_ACTIVATED, avioutput_requested ? BST_CHECKED : BST_UNCHECKED);
 	CheckDlgButton(hDlg, IDC_SCREENSHOT_ORIGINALSIZE, screenshot_originalsize ? TRUE : FALSE);
 	CheckDlgButton(hDlg, IDC_SCREENSHOT_PALETTED, screenshot_paletteindexed ? TRUE : FALSE);
 	CheckDlgButton(hDlg, IDC_SCREENSHOT_CLIP, screenshot_clipmode ? TRUE : FALSE);
-	CheckDlgButton (hDlg, IDC_SAMPLERIPPER_ACTIVATED, sampleripper_enabled ? BST_CHECKED : BST_UNCHECKED);
-	CheckDlgButton (hDlg, IDC_STATEREC_RECORD, input_record ? BST_CHECKED : BST_UNCHECKED);
-	CheckDlgButton (hDlg, IDC_STATEREC_PLAY, input_play ? BST_CHECKED : BST_UNCHECKED);
-	CheckDlgButton (hDlg, IDC_STATEREC_AUTOPLAY, workprefs.inprec_autoplay ? BST_CHECKED : BST_UNCHECKED);
+	CheckDlgButton(hDlg, IDC_SCREENSHOT_AUTO, screenshot_multi != 0 ? TRUE : FALSE);
+	CheckDlgButton(hDlg, IDC_SAMPLERIPPER_ACTIVATED, sampleripper_enabled ? BST_CHECKED : BST_UNCHECKED);
+	CheckDlgButton(hDlg, IDC_STATEREC_RECORD, input_record ? BST_CHECKED : BST_UNCHECKED);
+	CheckDlgButton(hDlg, IDC_STATEREC_PLAY, input_play ? BST_CHECKED : BST_UNCHECKED);
+	CheckDlgButton(hDlg, IDC_STATEREC_AUTOPLAY, workprefs.inprec_autoplay ? BST_CHECKED : BST_UNCHECKED);
 }
 
 static void values_from_avioutputdlg (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
@@ -21089,6 +21140,13 @@ static INT_PTR CALLBACK AVIOutputDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 			screenshot_clipmode = ischecked(hDlg, IDC_SCREENSHOT_CLIP) ? 1 : 0;
 			regsetint(NULL, _T("Screenshot_ClipMode"), screenshot_clipmode);
 			screenshot_reset();
+			break;
+		case IDC_SCREENSHOT_AUTO:
+			screenshot_multi = ischecked(hDlg, IDC_SCREENSHOT_AUTO) ? -1 : 0;
+			screenshot_reset();
+			if (screenshot_multi) {
+				screenshot(-1, 3, 0);
+			}
 			break;
 		case IDC_STATEREC_SAVE:
 			if (input_record > INPREC_RECORD_NORMAL) {
@@ -22640,7 +22698,7 @@ static int GetSettings (int all_options, HWND hwnd)
 		if (gui_fullscreen) {
 			gui_width = GetSystemMetrics(SM_CXSCREEN);
 			gui_height = GetSystemMetrics(SM_CYSCREEN);
-			if (isfullscreen() > 0) {
+			if (isfullscreen() > 0 && currprefs.gfx_api < 2) {
 				struct MultiDisplay *md = getdisplay(&currprefs, 0);
 				int w = md->rect.right - md->rect.left;
 				int h = md->rect.bottom - md->rect.top;

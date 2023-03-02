@@ -753,7 +753,7 @@ static int get_cia_sync_cycles(int *syncdelay)
 	return add;
 }
 
-static void CIA_synced_interrupt(uae_u32 v)
+void event_CIA_synced_interrupt(uae_u32 v)
 {
 	CIA_update();
 	CIA_calctimers();
@@ -775,7 +775,7 @@ static void CIA_sync_interrupt(int num, uae_u8 icr)
 		int syncdelay = 0;
 		int delay = get_cia_sync_cycles(&syncdelay);
 		delay += syncdelay;
-		event2_newevent_xx(-1, DIV10 + delay, num, CIA_synced_interrupt);
+		event2_newevent_xx(-1, DIV10 + delay, num, event_CIA_synced_interrupt);
 	} else {
 		c->icr1 |= icr;
 		CIA_check_ICR();
@@ -864,7 +864,7 @@ void cia_heartbeat(void)
 	heartbeat_cnt = 10;
 }
 
-static void do_tod_hack(void)
+static void do_tod_hack(bool dotod)
 {
 	struct timeval tv;
 	static int oldrate;
@@ -912,7 +912,7 @@ static void do_tod_hack(void)
 		docount = 1;
 	}
 
-	if (currprefs.cs_ciaatod == 0)
+	if (!dotod && currprefs.cs_ciaatod == 0)
 		return;
 
 	if (tod_hack_delay > 0) {
@@ -1058,7 +1058,7 @@ static void CIA_tod_inc(bool irq, int num)
 	cia_checkalarm(true, irq, num);
 }
 
-static void CIA_tod_inc_event(uae_u32 num)
+void event_CIA_tod_inc_event(uae_u32 num)
 {
 	struct CIA *c = &cia[num];
 	if (c->tod_event_state != 2) {
@@ -1096,7 +1096,7 @@ static void CIA_tod_check(int num)
 	}
 	// Not yet, add event to guarantee exact TOD inc position
 	c->tod_event_state = 2; // event active
-	event2_newevent_xx(-1, -hpos * CYCLE_UNIT, num, CIA_tod_inc_event);
+	event2_newevent_xx(-1, -hpos * CYCLE_UNIT, num, event_CIA_tod_inc_event);
 }
 
 static void CIA_tod_handler(int hoffset, int num, bool delayedevent)
@@ -1117,7 +1117,7 @@ static void CIA_tod_handler(int hoffset, int num, bool delayedevent)
 	if (checkalarm((c->tod + 1) & 0xffffff, c->alarm, true)) {
 		// causes interrupt on this line, add event
 		c->tod_event_state = 2; // event active
-		event2_newevent_xx(-1, c->tod_offset * CYCLE_UNIT, num, CIA_tod_inc_event);
+		event2_newevent_xx(-1, c->tod_offset * CYCLE_UNIT, num, event_CIA_tod_inc_event);
 	}
 }
 
@@ -1200,6 +1200,9 @@ void CIA_hsync_posthandler(bool ciahsync, bool dotod)
 		// CIA-B HSync pulse
 		// Delayed previous line TOD increase.
 		cia_delayed_tod(1);
+		if (currprefs.tod_hack && cia[0].todon) {
+			do_tod_hack(dotod);
+		}
 	} else if (currprefs.keyboard_connected) {
 		// custom hsync
 		if (resetwarning_phase) {
@@ -1221,9 +1224,6 @@ void CIA_hsync_posthandler(bool ciahsync, bool dotod)
 	if (!ciahsync) {
 		// Increase CIA-A TOD if delayed from previous line
 		cia_delayed_tod(0);
-		if (currprefs.tod_hack && cia[0].todon) {
-			do_tod_hack();
-		}
 	}
 
 }
@@ -1481,6 +1481,9 @@ static void CIA_thi_write(int num, int tnum, uae_u8 val)
 
 	t->latch = (t->latch & 0xff) | (val << 8);
 
+	// If ONESHOT: Load and start timer.
+	// If CONTINUOUS: Load timer if not running.
+
 	if (!acc_mode()) {
 		// if inaccurate mode: do everything immediately
 
@@ -1502,15 +1505,15 @@ static void CIA_thi_write(int num, int tnum, uae_u8 val)
 	} else {
 		// if accurate mode: handle delays cycle-accurately
 
-		t->loaddelay |= 1 << 2;
-
 		if (!(t->cr & CR_START)) {
 			t->loaddelay |= 1 << 1;
+			t->loaddelay |= 1 << 2;
 		}
 
 		if (t->cr & CR_RUNMODE) {
 			t->cr |= CR_START;
 			t->loaddelay |= 0x01000000 << 1;
+			t->loaddelay |= 1 << 2;
 		}
 	}
 }

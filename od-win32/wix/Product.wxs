@@ -2,8 +2,8 @@
 <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
 
   <?define ProductName = "WinUAE" ?>
-  <?define ProductVersion = "4.9.1" ?>
-  <?define ProductFullVersion = "4.9.0.1" ?>
+  <?define ProductVersion = "4.10.1" ?>
+  <?define ProductFullVersion = "4.10.1.0" ?>
   <?define ProductAuthor = "Arabuusimiehet" ?>
 
   <?if $(var.Platform) = x64 ?>
@@ -157,6 +157,9 @@
       <Component Id="AdditionalFiles21" Guid="867BE54B-E842-4FB8-8306-72A09F1C8735">
         <File Source="$(var.SRCDIST)/Amiga Programs/sources.zip" KeyPath="yes"/>
       </Component>
+      <Component Id="AdditionalFiles22" Guid="77F1992B-37FC-4B14-A2F0-3247344FF8A1">
+        <File Source="$(var.SRCDIST)/Amiga Programs/UAEquit" KeyPath="yes"/>
+      </Component>
     </DirectoryRef>
 
     <DirectoryRef Id="CONFIGURATIONSHOST">
@@ -248,6 +251,7 @@
       <ComponentRef Id="AdditionalFiles19" />
       <ComponentRef Id="AdditionalFiles20" />
       <ComponentRef Id="AdditionalFiles21" />
+      <ComponentRef Id="AdditionalFiles22" />
       <ComponentRef Id="AdditionalShortcut" />
     </Feature>
 

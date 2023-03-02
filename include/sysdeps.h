@@ -40,7 +40,11 @@ using namespace std;
 #define UAE
 #endif
 
-#if defined(__arm__) || defined(_M_ARM) || defined(_M_ARM64) || defined(_M_ARM64EC)
+#if defined(_M_ARM64) || defined(_M_ARM64EC) 
+#define CPU_arm 1
+#define ARM_ASSEMBLY 1
+#define CPU_64_BIT 1
+#elif defined(__arm__) || defined(_M_ARM)
 #define CPU_arm 1
 #define ARM_ASSEMBLY 1
 #elif defined(__x86_64__) || defined(_M_AMD64)
@@ -78,6 +82,12 @@ using namespace std;
 #define REGPARAM3 JITCALL
 
 #include <tchar.h>
+
+#if CPU_64_BIT
+#define addrdiff(a, b) ((int)((a) - (b)))
+#else
+#define addrdiff(a, b) ((a) - (b))
+#endif
 
 #ifndef __STDC__
 #ifndef _MSC_VER
@@ -507,29 +517,6 @@ extern bool use_long_double;
  * Best to leave this as it is.
  */
 #define CPU_EMU_SIZE 0
-
-/*
- * Byte-swapping functions
- */
-
-/* Try to use system bswap_16/bswap_32 functions. */
-#if defined HAVE_BSWAP_16 && defined HAVE_BSWAP_32
-# include <byteswap.h>
-#  ifdef HAVE_BYTESWAP_H
-#  include <byteswap.h>
-# endif
-#else
-/* Else, if using SDL, try SDL's endian functions. */
-# ifdef USE_SDL
-#  include <SDL_endian.h>
-#  define bswap_16(x) SDL_Swap16(x)
-#  define bswap_32(x) SDL_Swap32(x)
-# else
-/* Otherwise, we'll roll our own. */
-#  define bswap_16(x) (((x) >> 8) | (((x) & 0xFF) << 8))
-#  define bswap_32(x) (((x) << 24) | (((x) << 8) & 0x00FF0000) | (((x) >> 8) & 0x0000FF00) | ((x) >> 24))
-# endif
-#endif
 
 #ifndef __cplusplus
 

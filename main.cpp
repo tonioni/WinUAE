@@ -46,6 +46,7 @@
 #ifdef JIT
 #include "jit/compemu.h"
 #endif
+#include "disasm.h"
 #ifdef RETROPLATFORM
 #include "rp.h"
 #endif
@@ -129,23 +130,6 @@ TCHAR *my_strdup_trim (const TCHAR *s)
 	memcpy(out, s, len * sizeof (TCHAR));
 	out[len] = 0;
 	return out;
-}
-
-void discard_prefs(struct uae_prefs *p, int type)
-{
-	struct strlist **ps = &p->all_lines;
-	while (*ps) {
-		struct strlist *s = *ps;
-		*ps = s->next;
-		xfree (s->value);
-		xfree (s->option);
-		xfree (s);
-	}
-	p->all_lines = NULL;
-	currprefs.all_lines = changed_prefs.all_lines = NULL;
-#ifdef FILESYS
-	filesys_cleanup ();
-#endif
 }
 
 static void fixup_prefs_dim2(int monid, struct wh *wh)
@@ -320,6 +304,7 @@ void fixup_cpu (struct uae_prefs *p)
 		p->fpu_mode = 0;
 	}
 
+#ifdef JIT
 	if (p->comptrustbyte < 0 || p->comptrustbyte > 3) {
 		error_log(_T("Bad value for comptrustbyte parameter: value must be within 0..2."));
 		p->comptrustbyte = 1;
@@ -336,14 +321,12 @@ void fixup_cpu (struct uae_prefs *p)
 		error_log(_T("Bad value for comptrustnaddr parameter: value must be within 0..2."));
 		p->comptrustnaddr = 1;
 	}
-#ifdef JIT
 	if (p->cachesize < 0 || p->cachesize > MAX_JIT_CACHE || (p->cachesize > 0 && p->cachesize < MIN_JIT_CACHE)) {
 		error_log(_T("JIT Bad value for cachesize parameter: value must zero or within %d..%d."), MIN_JIT_CACHE, MAX_JIT_CACHE);
 		p->cachesize = 0;
 	}
-#else
-	p->cachesize = 0;
 #endif
+
 
 #if 0
 	if (p->cpu_cycle_exact && p->m68k_speed < 0 && currprefs.cpu_model <= 68020)
@@ -427,6 +410,12 @@ void fixup_prefs (struct uae_prefs *p, bool userconfig)
 		|| p->chipmem.size > 0x800000)
 	{
 		error_log (_T("Unsupported chipmem size %d (0x%x)."), p->chipmem.size, p->chipmem.size);
+		p->chipmem.size = 0x200000;
+		err = 1;
+	}
+
+	if (p->chipmem.size == 0x180000 && p->cachesize) {
+		error_log(_T("JIT unsupported chipmem size %d (0x%x)."), p->chipmem.size, p->chipmem.size);
 		p->chipmem.size = 0x200000;
 		err = 1;
 	}
@@ -534,6 +523,11 @@ void fixup_prefs (struct uae_prefs *p, bool userconfig)
 	if (p->chipmem.size > 0x200000 && (p->fastmem[0].size > 262144 || p->fastmem[1].size > 262144)) {
 		error_log(_T("You can't use fastmem and more than 2MB chip at the same time."));
 		p->chipmem.size = 0x200000;
+		err = 1;
+	}
+	if (p->bogomem.size == 0x180000 && p->cachesize) {
+		error_log(_T("JIT unsupported bogomem size %d (0x%x)."), p->bogomem.size, p->bogomem.size);
+		p->bogomem.size = 0x100000;
 		err = 1;
 	}
 	if (p->mem25bit.size > 128 * 1024 * 1024 || (p->mem25bit.size & 0xfffff)) {
@@ -1109,9 +1103,7 @@ static int real_main2 (int argc, TCHAR **argv)
 		exit (1);
 	}
 
-#ifdef NATMEM_OFFSET
-	//preinit_shm ();
-#endif
+	event_init();
 
 	if (restart_config[0])
 		parse_cmdline_and_init_file (argc, argv);
@@ -1195,6 +1187,9 @@ static int real_main2 (int argc, TCHAR **argv)
 	savestate_init ();
 	keybuf_init (); /* Must come after init_joystick */
 
+#ifdef DEBUGGER
+	disasm_init();
+#endif
 	memory_hardreset (2);
 	memory_reset ();
 
@@ -1221,6 +1216,7 @@ static int real_main2 (int argc, TCHAR **argv)
 		if (currprefs.start_debugger && debuggable ())
 			activate_debugger ();
 #endif
+
 		if (!init_audio ()) {
 			if (sound_available && currprefs.produce_sound > 1) {
 				write_log (_T("Sound driver unavailable: Sound output disabled\n"));

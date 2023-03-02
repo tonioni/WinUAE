@@ -981,7 +981,7 @@ static void dorecord (struct DSAHI *dsahip)
 	if (recordbuf == 0 || !valid_address (recordbuf, bytes))
 		return;
 	alClear ();
-	alcCaptureSamples(dsahip->al_recorddev, (void*)recordbuf, dsahip->record_samples);
+	alcCaptureSamples(dsahip->al_recorddev, get_real_address(recordbuf), dsahip->record_samples);
 	if (alGetError () != AL_NO_ERROR)
 		return;
 	put_word (pbase + pub_RecordHookDone, 0);

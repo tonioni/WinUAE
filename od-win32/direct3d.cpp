@@ -253,7 +253,7 @@ static TCHAR *D3D_ErrorString (HRESULT dival)
 	return dierr;
 }
 
-static D3DXMATRIX* MatrixOrthoOffCenterLH (D3DXMATRIXA16 *pOut, float l, float r, float b, float t, float zn, float zf)
+static D3DXMATRIX* MatrixOrthoOffCenterLH(D3DXMATRIXA16 *pOut, float l, float r, float b, float t, float zn, float zf)
 {
 	pOut->_11=2.0f/r; pOut->_12=0.0f;   pOut->_13=0.0f;  pOut->_14=0.0f;
 	pOut->_21=0.0f;   pOut->_22=2.0f/t; pOut->_23=0.0f;  pOut->_24=0.0f;
@@ -262,7 +262,7 @@ static D3DXMATRIX* MatrixOrthoOffCenterLH (D3DXMATRIXA16 *pOut, float l, float r
 	return pOut;
 }
 
-static D3DXMATRIX* MatrixScaling (D3DXMATRIXA16 *pOut, float sx, float sy, float sz)
+static D3DXMATRIX* MatrixScaling(D3DXMATRIXA16 *pOut, float sx, float sy, float sz)
 {
 	pOut->_11=sx;     pOut->_12=0.0f;   pOut->_13=0.0f;  pOut->_14=0.0f;
 	pOut->_21=0.0f;   pOut->_22=sy;     pOut->_23=0.0f;  pOut->_24=0.0f;
@@ -271,7 +271,7 @@ static D3DXMATRIX* MatrixScaling (D3DXMATRIXA16 *pOut, float sx, float sy, float
 	return pOut;
 }
 
-static D3DXMATRIX* MatrixTranslation (D3DXMATRIXA16 *pOut, float tx, float ty, float tz)
+static D3DXMATRIX* MatrixTranslation(D3DXMATRIXA16 *pOut, float tx, float ty, float tz)
 {
 	pOut->_11=1.0f;   pOut->_12=0.0f;   pOut->_13=0.0f;  pOut->_14=0.0f;
 	pOut->_21=0.0f;   pOut->_22=1.0f;   pOut->_23=0.0f;  pOut->_24=0.0f;
@@ -1949,7 +1949,7 @@ static int createmasktexture (struct d3dstruct *d3d, const TCHAR *filename, stru
 	D3DXIMAGE_INFO dinfo;
 	TCHAR tmp[MAX_DPATH];
 	int maskwidth, maskheight;
-	int idx = (int)(sd - &d3d->shaders[0]);
+	int idx = addrdiff(sd, &d3d->shaders[0]);
 
 	if (filename[0] == 0)
 		return 0;
@@ -2170,6 +2170,15 @@ static void setupscenecoords(struct d3dstruct *d3d, bool normalrender)
 	MatrixTranslation (&d3d->m_matView_out, tx, ty, 1.0f);
 
 	MatrixScaling (&d3d->m_matWorld_out, sw + 0.5f / sw, sh + 0.5f / sh, 1.0f);
+
+	if (currprefs.gfx_rotation) {
+		const float PI = 3.14159265358979f;
+		D3DXMATRIXA16 mrot;
+		D3DXMatrixRotationZ(&mrot, PI / 180.0f * currprefs.gfx_rotation);
+		D3DXMATRIXA16 tmprmatrix;
+		D3DXMatrixMultiply(&tmprmatrix, &d3d->m_matWorld_out, &mrot);
+		d3d->m_matWorld_out = tmprmatrix;
+	}
 
 	d3d->cursor_offset_x = -zr.left;
 	d3d->cursor_offset_y = -zr.top;

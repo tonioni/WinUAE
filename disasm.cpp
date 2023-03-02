@@ -2202,8 +2202,8 @@ uae_u32 m68k_disasm_2(TCHAR *buf, int bufsize, uaecptr pc, uae_u16 *bufpc, int b
 		} else if (lookup->mnemo == i_CALLM) {
 			TCHAR *p = instrname + _tcslen(instrname);
 			_stprintf(p, _T("#%d,"), extra & 255);
-			pc = ShowEA(NULL, pc, opcode, dp->sreg, dp->smode, dp->size, instrname, &seaddr2, &actualea_src, safemode);
 			add_disasm_word(&pc, &bufpc, &bufpcsize, 2);
+			pc = ShowEA(NULL, pc, opcode, dp->sreg, dp->smode, dp->size, instrname, &seaddr2, &actualea_src, safemode);
 		} else if (lookup->mnemo == i_FDBcc) {
 			pc = ShowEA(NULL, pc, opcode, dp->dreg, dp->dmode, dp->size, instrname, &seaddr2, &actualea_src, safemode);
 			add_disasm_word(&pc, &bufpc, &bufpcsize, 2);

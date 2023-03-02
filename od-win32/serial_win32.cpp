@@ -597,7 +597,7 @@ static void checksend(void)
 	}
 #ifdef RETROPLATFORM
 	if (rp_ismodem()) {
-		rp_writemodem(serdatshift & 0xff);
+		rp_writemodem((uae_u8)serdatshift_masked);
 	}
 #endif
 	if (serempty_enabled && !serxdevice_enabled) {
@@ -892,7 +892,7 @@ static void SERDAT_send(uae_u32 v)
 uae_u16 SERDATR(void)
 {
 	serdatr &= 0x03ff;
-	if (!data_in_serdat || (ser_accurate && get_cycles() >= data_in_serdat_delay)) {
+	if (!data_in_serdat && (!ser_accurate || (ser_accurate && get_cycles() >= data_in_serdat_delay))) {
 		serdatr |= 0x2000; // TBE (Transmit buffer empty)
 	}
 	if (!data_in_sershift && (serdatr & 0x2000)) {
@@ -1082,15 +1082,15 @@ uae_u8 serial_readstatus(uae_u8 v, uae_u8 dir)
 		}
 	}
 
+	// SEL == RI
 	if (!isprinter()) {
-		// SEL == RI
 		serbits |= 0x04;
 	} else {
 		serbits &= ~0x04;
 		serbits |= v & 0x04;
 	}
 
-	if (!(status & TIOCM_RI)) {
+	if (status & TIOCM_RI) {
 		serbits &= ~0x04;
 	}
 
@@ -1240,6 +1240,7 @@ void serial_close(void)
 	serxdevice_enabled = false;
 	serper_set = false;
 	ser_accurate = false;
+	data_in_serdat_delay = 0;
 }
 
 void serial_init(void)

@@ -553,7 +553,7 @@ BEGIN
     COMBOBOX        IDC_PORT1_JOYSMODE,136,86,106,130,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
     PUSHBUTTON      "Remap / Test [] Remap or test Port 2 configuration.",IDC_PORT1_REMAP,310,86,78,14
     PUSHBUTTON      "Swap ports [] Swap ports 1 and 2.",IDC_SWAP,45,112,78,14
-    CONTROL         "Mouse/Joystick autoswitching [] Press button to automatically insert inactive input device in to joystick/mouse port",IDC_PORT_AUTOSWITCH,
+    CONTROL         "Mouse/Joystick autoswitching [] Press button to automatically insert inactive input device in to joystick/mouse port. Joy button 1 = joy port, button 2 = mouse port. Mouse button 1 = mouse port, mouse button 2 = joy port. Long press swaps port selection.",IDC_PORT_AUTOSWITCH,
                     "Button",BS_AUTOCHECKBOX | WS_TABSTOP,136,114,172,11
     LTEXT           "Emulated parallel port joystick adapter",IDC_STATIC,10,136,179,15,SS_CENTERIMAGE
     COMBOBOX        IDC_PORT2_JOYS,45,154,342,130,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
@@ -826,36 +826,37 @@ BEGIN
     CONTROL         "CDTV SRAM",IDC_CS_CDTVRAM,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,127,119,121,11
     CONTROL         "A4000/A4000T IDE",IDC_CS_IDE2,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,127,132,121,11
     CONTROL         "ROM Mirror (A8)",IDC_CS_KSMIRROR_A8,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,127,145,121,11
-    CONTROL         "No-EHB Denise",IDC_CS_NOEHB,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,127,158,121,11
-    CONTROL         "Z3 Autoconfig",IDC_CS_Z3AUTOCONFIG,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,127,171,104,11
+    CONTROL         "Z3 Autoconfig",IDC_CS_Z3AUTOCONFIG,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,127,159,104,11
     CONTROL         "Custom register byte write bug",IDC_CS_BYTECUSTOMWRITEBUG,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,127,184,130,11
-    CONTROL         "KS ROM has Chip RAM speed",IDC_CS_ROMISSLOW,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,127,197,125,12
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,127,172,130,11
+    CONTROL         "KS ROM has Chip RAM speed",IDC_CS_ROMISSLOW,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,127,185,125,12
     CONTROL         "DF0: ID Hardware",IDC_CS_DF0IDHW,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,264,93,125,11
     CONTROL         "CD32 NVRAM",IDC_CS_CD32NVRAM,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,264,106,125,11
     CONTROL         "CDTV-CR",IDC_CS_CDTVCR,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,264,119,123,11
     CONTROL         "PCMCIA",IDC_CS_PCMCIA,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,264,132,125,11
-    CONTROL         "A1000 Agnus (8361/8367)",IDC_CS_DIPAGNUS,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,264,145,125,11
-    CONTROL         "Composite color burst",IDC_CS_COMPOSITECOLOR,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,264,158,125,12
+    CONTROL         "Composite color burst",IDC_CS_COMPOSITECOLOR,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,264,145,125,12
     CONTROL         "CIA 391078-01 [] CIA revision that can't read IO pin status in output mode",IDC_CS_CIA,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,264,171,125,12
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,264,159,125,12
     RTEXT           "Unmapped address space:",IDC_STATIC,15,215,101,9
     COMBOBOX        IDC_CS_UNMAPPED,125,212,71,75,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
     GROUPBOX        "Internal SCSI Hardware",IDC_STATIC,0,232,395,30
     CONTROL         "A3000 WD33C93 SCSI",IDC_CS_DMAC,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,84,247,108,11
     CONTROL         "A4000T NCR53C710 SCSI",IDC_CS_DMAC2,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,200,247,125,11
     GROUPBOX        "Chipset Revision",IDC_STATIC,1,264,393,52
-    CONTROL         "Ramsey revision:",IDC_CS_RAMSEY,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,34,285,97,11
-    CONTROL         "Fat Gary revision:",IDC_CS_FATGARY,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,34,299,97,11
-    EDITTEXT        IDC_CS_RAMSEYREV,136,284,45,13,ES_AUTOHSCROLL
-    EDITTEXT        IDC_CS_FATGARYREV,136,298,45,13,ES_AUTOHSCROLL
-    CONTROL         "Agnus/Alice revision:",IDC_CS_AGNUS,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,200,285,107,11
-    CONTROL         "Denise/Lisa revision:",IDC_CS_DENISE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,200,299,107,11
-    EDITTEXT        IDC_CS_AGNUSREV,311,284,45,13,ES_AUTOHSCROLL
-    EDITTEXT        IDC_CS_DENISEREV,311,298,45,13,ES_AUTOHSCROLL
+    CONTROL         "Ramsey revision:",IDC_CS_RAMSEY,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,11,281,69,11
+    CONTROL         "Fat Gary revision:",IDC_CS_FATGARY,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,11,299,70,11
+    EDITTEXT        IDC_CS_RAMSEYREV,87,280,45,13,ES_AUTOHSCROLL
+    EDITTEXT        IDC_CS_FATGARYREV,87,298,45,13,ES_AUTOHSCROLL
+    CONTROL         "Agnus/Alice revision:",IDC_CS_AGNUS,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,139,281,82,11
+    CONTROL         "Denise/Lisa revision:",IDC_CS_DENISE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,139,299,82,11
+    EDITTEXT        IDC_CS_DENISEREV,230,298,45,13,ES_AUTOHSCROLL
     COMBOBOX        IDC_CS_CIASYNC,313,212,71,75,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
     RTEXT           "CIA E-Clock Sync",IDC_STATIC,206,215,101,9
-    CONTROL         "Power up memory pattern",IDC_CS_MEMORYPATTERN,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,264,184,125,12
+    CONTROL         "Power up memory pattern",IDC_CS_MEMORYPATTERN,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,264,172,125,12
+    EDITTEXT        IDC_CS_AGNUSREV,230,280,45,13,ES_AUTOHSCROLL
+    COMBOBOX        IDC_CS_AGNUSMODEL,282,280,51,75,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        IDC_CS_DENISEMODEL,282,298,51,75,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        IDC_CS_AGNUSSIZE,338,280,51,75,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
 END
 
 IDD_AVIOUTPUT DIALOGEX 0, 0, 396, 316
@@ -892,9 +893,10 @@ BEGIN
     COMBOBOX        IDC_STATEREC_RATE,141,278,38,65,CBS_DROPDOWN | WS_VSCROLL | WS_TABSTOP
     RTEXT           "Recording buffers:",IDC_STATIC,195,280,91,10,SS_CENTERIMAGE | WS_TABSTOP
     COMBOBOX        IDC_STATEREC_BUFFERSIZE,291,278,38,65,CBS_DROPDOWN | WS_VSCROLL | WS_TABSTOP
-    CONTROL         "Autoclip screenshot",IDC_SCREENSHOT_CLIP,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,276,192,97,10
+    CONTROL         "Autoclip screenshot",IDC_SCREENSHOT_CLIP,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,210,192,169,10
     CONTROL         "Create 256 color palette indexed screenshot if possible",IDC_SCREENSHOT_PALETTED,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,11,206,231,10
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,11,206,193,10
+    CONTROL         "Continuous screenshots",IDC_SCREENSHOT_AUTO,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,210,206,169,10
 END
 
 IDD_INPUT DIALOGEX 0, 0, 396, 316
@@ -1011,28 +1013,30 @@ IDD_MISC2 DIALOGEX 0, 0, 396, 316
 STYLE DS_LOCALEDIT | DS_SETFONT | DS_3DLOOK | DS_CONTROL | WS_CHILD
 FONT 8, "MS Sans Serif", 0, 0, 0x1
 BEGIN
-    GROUPBOX        "When Active",IDC_STATIC,1,24,125,105
+    GROUPBOX        "When Active",IDC_STATIC,1,24,125,119
     CTEXT           "Run at priority:",IDC_ACTIVE_PRI,10,35,108,10,SS_CENTERIMAGE | WS_TABSTOP
     COMBOBOX        IDC_ACTIVE_PRIORITY,10,50,108,65,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
     CTEXT           "Mouse uncaptured:",IDC_STATIC,10,67,101,15,SS_CENTERIMAGE
     CONTROL         "Pause emulation",IDC_ACTIVE_PAUSE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,10,84,109,10
     CONTROL         "Disable sound",IDC_ACTIVE_NOSOUND,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,10,98,109,10
-    GROUPBOX        "When Inactive",IDC_STATIC,133,24,126,105
+    GROUPBOX        "When Inactive",IDC_STATIC,133,24,126,119
     CTEXT           "Run at priority:",IDC_INACTIVE_PRI,144,35,107,10,SS_CENTERIMAGE | WS_TABSTOP
     COMBOBOX        IDC_INACTIVE_PRIORITY,144,50,108,65,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
     CONTROL         "Pause emulation",IDC_INACTIVE_PAUSE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,143,84,109,10
     CONTROL         "Disable sound",IDC_INACTIVE_NOSOUND,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,143,98,109,10
     CONTROL         "Disable game controllers",IDC_INACTIVE_NOJOY,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,143,112,109,10
-    GROUPBOX        "When Minimized",IDC_STATIC,269,24,125,105
+    GROUPBOX        "When Minimized",IDC_STATIC,269,24,125,119
     CTEXT           "Run at priority:",IDC_MINIMIZED_PRI,278,36,109,10,SS_CENTERIMAGE | WS_TABSTOP
     COMBOBOX        IDC_MINIMIZED_PRIORITY,278,50,108,65,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
     CONTROL         "Pause emulation",IDC_MINIMIZED_PAUSE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,280,84,108,10
     CONTROL         "Disable sound",IDC_MINIMIZED_NOSOUND,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,280,98,108,10
     CONTROL         "Disable game controllers",IDC_MINIMIZED_NOJOY,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,280,112,107,10
-    GROUPBOX        "File Extension Associations",IDC_STATIC,0,137,260,155
-    CONTROL         "",IDC_ASSOCIATELIST,"SysListView32",LVS_REPORT | LVS_SINGLESEL | LVS_SHOWSELALWAYS | LVS_ALIGNLEFT | LVS_NOSORTHEADER | WS_BORDER | WS_TABSTOP,9,154,238,108
-    PUSHBUTTON      "Associate all",IDC_ASSOCIATE_ON,36,270,85,14
-    PUSHBUTTON      "Deassociate all",IDC_ASSOCIATE_OFF,125,270,85,14
+    GROUPBOX        "File Extension Associations",IDC_STATIC,0,148,260,155
+    CONTROL         "",IDC_ASSOCIATELIST,"SysListView32",LVS_REPORT | LVS_SINGLESEL | LVS_SHOWSELALWAYS | LVS_ALIGNLEFT | LVS_NOSORTHEADER | WS_BORDER | WS_TABSTOP,9,165,238,108
+    PUSHBUTTON      "Associate all",IDC_ASSOCIATE_ON,36,281,85,14
+    PUSHBUTTON      "Deassociate all",IDC_ASSOCIATE_OFF,125,281,85,14
+    CONTROL         "Disable keyboard",IDC_ACTIVE_NOKEYBOARD,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,10,126,109,10
+    CONTROL         "Disable game controllers",IDC_ACTIVE_NOJOY,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,10,112,109,10
 END
 
 IDD_DISK DIALOGEX 0, 0, 396, 316
@@ -1386,7 +1390,6 @@ BEGIN
     CONTROL         "uaescsi.device",IDC_SCSIDEVICE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,6,259,180,11
     CONTROL         "uaenet.device [] Sana 2 compatible network device emulation.",IDC_SANA2,
                     "Button",BS_AUTOCHECKBOX | WS_TABSTOP,193,243,187,11
-    CONTROL         "CD32 Full Motion Video cartridge",IDC_CS_CD32FMV,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,193,259,193,11
     EDITTEXT        IDC_EXPANSIONBOARDSTRINGBOX,202,112,172,14,ES_AUTOHSCROLL
     COMBOBOX        IDC_EXPANSIONBOARDSELECTOR,202,112,171,75,CBS_DROPDOWNLIST | CBS_AUTOHSCROLL | WS_VSCROLL | WS_TABSTOP
     CONTROL         "",IDC_ACCELERATORBOARDCHECKBOX,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,202,206,99,12
@@ -1416,8 +1419,8 @@ END
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 4,10,0,0
- PRODUCTVERSION 4,10,0,0
+ FILEVERSION 4,10,1,0
+ PRODUCTVERSION 4,10,1,0
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -1433,12 +1436,12 @@ BEGIN
         BLOCK "040904b0"
         BEGIN
             VALUE "FileDescription", "WinUAE"
-            VALUE "FileVersion", "4.10.0.0"
+            VALUE "FileVersion", "4.10.1.0"
             VALUE "InternalName", "WinUAE"
-            VALUE "LegalCopyright", "© 1996-2022 under the GNU Public License (GPL)"
+            VALUE "LegalCopyright", "© 1996-2023 under the GNU Public License (GPL)"
             VALUE "OriginalFilename", "WinUAE.exe"
             VALUE "ProductName", "WinUAE"
-            VALUE "ProductVersion", "4.10.0.0"
+            VALUE "ProductVersion", "4.10.1.0"
         END
     END
     BLOCK "VarFileInfo"
@@ -2129,7 +2132,7 @@ BEGIN
     IDS_PORT_AUTOFIRE       "Autofire"
     IDS_PORT_AUTOFIRE_TOGGLE "Autofire (toggle)"
     IDS_PORT_AUTOFIRE_ALWAYS "Autofire (always)"
-    IDS_PORT_AUTOFIRE_NO    "No autofire"
+    IDS_PORT_AUTOFIRE_NO    "No autofire (normal)"
     IDS_AUTOSCALE_INTEGER   "Integer scaling"
     IDS_SCREEN_VSYNC2_AUTOSWITCH "Lagless VS (BR), 50/60Hz"
     IDS_SCREEN_VSYNC2       "Lagless VSync (Beamraced)"
@@ -2175,7 +2178,7 @@ END
 
 STRINGTABLE
 BEGIN
-    IDS_MISCLISTITEMS4      "Windows shutdown/logoff notification\nWarn when attempting to close window\nPower led dims when audio filter is disabled\nAutomatically capture mouse when window is activated\nDebug memory space\nForce hard reset if CPU halted\nA600/A1200/A4000 IDE scsi.device disable\n"
+    IDS_MISCLISTITEMS4      "Windows shutdown/logoff notification\nWarn when attempting to close window\nPower led dims when audio filter is disabled\nAutomatically capture mouse when window is activated\nDebug memory space\nForce hard reset if CPU halted\nA600/A1200/A4000 IDE scsi.device disable\nWarp mode reset\n"
     IDS_SHUTDOWN_NOTIFICATION "Emulation session active"
     IDS_QUIT_WARNING        "Are you sure you want to quit WinUAE?"
     IDS_UNMAPPED_ADDRESS    "Floating\nAll zeros\nAll ones\n"
@@ -2183,11 +2186,12 @@ BEGIN
     IDS_READONLYCONFIRMATION 
                             "Selected configuration file is write protected.\nDo you want to overwrite it?\n%s\n"
     IDS_SCREEN_NATIVELACE   "Native (Interlaced)"
+    IDS_PORT_AUTOFIRE_TOGGLENOAF "No autofire (toggle)"
 END
 
 STRINGTABLE
 BEGIN
-    IDS_FILTER_PAL_EXTRA    "Brightness\nContrast\nSaturation\nGamma\nScanlines\nBlurriness\nNoise\n"
+    IDS_FILTER_PAL_EXTRA    "Brightness\nContrast\nSaturation\nGamma\nBlurriness\nNoise\n"
     IDS_FILTER_3D_EXTRA     "Point/Bilinear\nScanline opacity\nScanline level\nScanline offset\n"
     IDS_ALWAYS_ON           "Always on"
     IDS_DISPLAY_ATTRIBUTES  "Brightness\nContrast\nGamma\nGamma [R]\nGamma [G]\nGamma [B]\nDark palette fix"

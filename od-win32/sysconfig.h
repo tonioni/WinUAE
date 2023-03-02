@@ -29,13 +29,16 @@
 
 #ifndef UAE_MINI
 
+#if !defined(_M_ARM64) && !defined(_M_ARM64EC)
+#define JIT /* JIT compiler support */
+#define USE_JIT_FPU
+#endif
+
 #define DEBUGGER
 //#define GDBSERVER
 #define FILESYS /* filesys emulation */
 #define UAE_FILESYS_THREADS
 #define AUTOCONFIG /* autoconfig support, fast ram, harddrives etc.. */
-#define JIT /* JIT compiler support */
-#define USE_JIT_FPU
 //#define NOFLAGS_SUPPORT_GENCPU
 #define NOFLAGS_SUPPORT_GENCOMP
 //#define HAVE_GET_WORD_UNSWAPPED

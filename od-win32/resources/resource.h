@@ -415,6 +415,7 @@
 #define IDS_GENLOCK_OPTIONS             420
 #define IDS_READONLYCONFIRMATION        421
 #define IDS_SCREEN_NATIVELACE           422
+#define IDS_PORT_AUTOFIRE_TOGGLENOAF    423
 #define IDS_QS_MODELS                   1000
 #define IDS_QS_MODEL_A500               1001
 #define IDS_QS_MODEL_A500P              1002
@@ -777,7 +778,6 @@
 #define IDC_SETTINGSTEXT3               1520
 #define IDC_DISPLAY_VARSYNC             1520
 #define IDC_ECS_AGNUS                   1521
-#define IDC_DISPLAY_VARSYNC2            1521
 #define IDC_DISPLAY_RESIZE              1521
 #define IDC_ECS_DENISE                  1522
 #define IDC_ECS                         1523
@@ -802,6 +802,8 @@
 #define IDC_ACTIVE_NOSOUND              1535
 #define IDC_STATECLEAR                  1536
 #define IDC_MINIMIZED_NOJOY             1537
+#define IDC_ACTIVE_NOJOY                1538
+#define IDC_ACTIVE_NOKEYBOARD           1539
 #define IDC_SER_SHARED                  1553
 #define IDC_GUI_RESIZE                  1553
 #define IDC_SER_CTSRTS                  1554
@@ -986,6 +988,7 @@
 #define IDC_SCREENSHOT_PALETTED         1654
 #define IDC_SOUNDSTEREO                 1655
 #define IDC_CONFIGTYPE                  1655
+#define IDC_SCREENSHOT_AUTO             1655
 #define IDC_SOUNDDRIVETXT               1656
 #define IDC_PATHS_ROM                   1656
 #define IDC_SOUNDSTEREOSEP              1656
@@ -1121,6 +1124,7 @@
 #define IDC_DBG_OUTPUT1                 1739
 #define IDC_CS_PCMCIA                   1739
 #define IDC_DBG_HELP                    1740
+#define IDC_CS_AGNUSMODEL               1740
 #define IDC_DBG_INPUT                   1741
 #define IDC_CS_KSMIRROR_A8              1741
 #define IDC_DBG_DREG                    1742
@@ -1128,12 +1132,12 @@
 #define IDC_DBG_AREG                    1743
 #define IDC_CS_RESETWARNING             1743
 #define IDC_DBG_CCR                     1744
-#define IDC_CS_NOEHB                    1744
+#define IDC_CS_AGNUSSIZE                1744
 #define IDC_DBG_AMEM                    1745
-#define IDC_CS_DIPAGNUS                 1745
 #define IDC_DBG_SP_VBR                  1746
 #define IDC_CS_CDTVCR                   1746
 #define IDC_DBG_MMISC                   1747
+#define IDC_CS_DENISEMODEL              1747
 #define IDC_DBG_PC                      1748
 #define IDC_DBG_PREFETCH                1749
 #define IDC_DBG_FPREG                   1750
@@ -1164,7 +1168,6 @@
 #define IDC_DBG_CUSTOM                  1766
 #define IDC_DBG_MISCCPU                 1767
 #define IDC_CS_DMAC2                    1769
-#define IDC_CS_CD32FMV                  1771
 #define IDC_DF0ENABLE                   1773
 #define IDC_DF1ENABLE                   1774
 #define IDC_FS_SELECT_DIR               1774
