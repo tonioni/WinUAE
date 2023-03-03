@@ -52,7 +52,9 @@ happening, all ports should restrict window widths to be multiples of 16 pixels.
 #include "statusline.h"
 #include "inputdevice.h"
 #include "debug.h"
+#ifdef CD32
 #include "cd32_fmv.h"
+#endif
 #include "specialmonitors.h"
 #include "devices.h"
 #include "gfxboard.h"
@@ -4851,6 +4853,7 @@ static void finish_drawing_frame(bool drawlines)
 		vidinfo->drawbuffer.tempbufferinuse = true;
 	}
 
+#ifdef CD32
 	// cd32 fmv
 	if (!currprefs.monitoremu && vidinfo->tempbuffer.bufmem_allocated && currprefs.cs_cd32fmv) {
 		if (cd32_fmv_active) {
@@ -4862,6 +4865,7 @@ static void finish_drawing_frame(bool drawlines)
 			vidinfo->drawbuffer.tempbufferinuse = false;
 		}
 	}
+#endif
 
 	// grayscale
 	if (!currprefs.monitoremu && vidinfo->tempbuffer.bufmem_allocated &&

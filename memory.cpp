@@ -139,11 +139,17 @@ __inline__ void byteput (uaecptr addr, uae_u32 b)
 }
 #endif
 
+#ifdef DEBUGGER
 extern bool debugmem_initialized;
+#endif
 
 bool real_address_allowed(void)
 {
+#ifdef DEBUGGER
 	return debugmem_initialized == false;
+#else
+	return true;
+#endif
 }
 
 int addr_valid (const TCHAR *txt, uaecptr addr, uae_u32 len)
@@ -241,10 +247,12 @@ static void dummylog(int rw, uaecptr addr, int size, uae_u32 val, int ins)
 		return;
 	if (addr >= 0x07f7fff0 && addr <= 0x07ffffff)
 		return;
+#ifdef DEBUGGER
 	if (debugmem_extinvalidmem(addr, val, rw ? (1 << size) : -(1 << size)))
 		return;
 	if ((illegal_count >= MAX_ILG && MAX_ILG > 0) && !memwatch_access_validator)
 		return;
+#endif
 	if (MAX_ILG >= 0)
 		illegal_count++;
 	if (ins) {
@@ -561,7 +569,9 @@ static uae_u8 *REGPARAM3 chipmem_xlate (uaecptr addr) REGPARAM;
 
 static void ce2_timeout (void)
 {
+#ifdef CPUEMU_13
 	wait_cpu_cycle_read (0, -1);
+#endif
 }
 
 static uae_u32 REGPARAM2 chipmem_lget_ce2 (uaecptr addr)
@@ -889,38 +899,50 @@ STATIC_INLINE uae_u8* REGPARAM2 chipmem_xlate_bigmem (uaecptr addr)
 
 STATIC_INLINE void REGPARAM2 chipmem_lput_debugmem(uaecptr addr, uae_u32 v)
 {
+#ifdef DEBUGGER
 	if (addr < debugmem_chiplimit)
 		debugmem_chiphit(addr, v, 4);
+#endif
 	put_long(addr, v);
 }
 STATIC_INLINE void REGPARAM2 chipmem_wput_debugmem(uaecptr addr, uae_u32 v)
 {
+#ifdef DEBUGGER
 	if (addr < debugmem_chiplimit)
 		debugmem_chiphit(addr, v, 2);
+#endif
 	put_word(addr, v);
 }
 STATIC_INLINE void REGPARAM2 chipmem_bput_debugmem(uaecptr addr, uae_u32 v)
 {
+#ifdef DEBUGGER
 	if (addr < debugmem_chiplimit)
 		debugmem_chiphit(addr, v, 1);
+#endif
 	put_byte(addr, v);
 }
 STATIC_INLINE uae_u32 REGPARAM2 chipmem_lget_debugmem(uaecptr addr)
 {
+#ifdef DEBUGGER
 	if (addr < debugmem_chiplimit)
 		return debugmem_chiphit(addr, 0, -4);
+#endif
 	return get_long(addr);
 }
 STATIC_INLINE uae_u32 REGPARAM2 chipmem_wget_debugmem(uaecptr addr)
 {
+#ifdef DEBUGGER
 	if (addr < debugmem_chiplimit)
 		return debugmem_chiphit(addr, 0, -2);
+#endif
 	return get_word(addr);
 }
 STATIC_INLINE uae_u32 REGPARAM2 chipmem_bget_debugmem(uaecptr addr)
 {
+#ifdef DEBUGGER
 	if (addr < debugmem_chiplimit)
 		return debugmem_chiphit(addr, 0, -1);
+#endif
 	return get_byte(addr);
 }
 STATIC_INLINE int REGPARAM2 chipmem_check_debugmem(uaecptr addr, uae_u32 size)
@@ -943,7 +965,11 @@ uae_u8 *(REGPARAM2 *chipmem_xlate_indirect)(uaecptr);
 
 void chipmem_setindirect(void)
 {
+#ifdef DEBUGGER
 	if (debugmem_bank.baseaddr && debugmem_chiplimit) {
+#else
+	if (debugmem_bank.baseaddr && 0) {
+#endif
 		chipmem_lget_indirect = chipmem_lget_debugmem;
 		chipmem_wget_indirect = chipmem_wget_debugmem;
 		chipmem_bget_indirect = chipmem_bget_debugmem;
@@ -1260,10 +1286,12 @@ uae_u8 *REGPARAM2 default_xlate (uaecptr addr)
 				uaecptr a2 = addr - 32;
 				uaecptr a3 = m68k_getpc () - 32;
 				write_log (_T("Your Amiga program just did something terribly stupid %08X PC=%08X\n"), addr, M68K_GETPC);
+#ifdef DEBUGGER
 				if (debugging || DEBUG_STUPID) {
 					activate_debugger();
 					m68k_dumpstate(NULL, 0xffffffff);
 				}
+#endif
 				for (i = 0; i < 10; i++) {
 					write_log (_T("%08X "), i >= 5 ? a3 : a2);
 					for (j = 0; j < 16; j += 2) {
@@ -2639,12 +2667,12 @@ void map_overlay (int chip)
 	if (bogomem_aliasing)
 		size = 8;
 	cb = &chipmem_bank;
-	#ifdef AGA
-	#if 0
+#ifdef AGA
+#if 0
 	if (currprefs.cpu_cycle_exact && currprefs.cpu_model >= 68020)
-	cb = &chipmem_bank_ce2;
-	#endif
-	#endif
+		cb = &chipmem_bank_ce2;
+#endif
+#endif
 	if (chip) {
 		map_banks(&dummy_bank, 0, size, 0);
 		if (!isdirectjit()) {
@@ -3361,8 +3389,10 @@ static void map_banks2 (addrbank *bank, int start, int size, int realsize, int q
 	}
 #endif
 
+#ifdef DEBUGGER
 	if (quick <= 0)
 		old = debug_bankchange (-1);
+#endif
 	flush_icache(3); /* Sure don't want to keep any old mappings around! */
 #ifdef NATMEM_OFFSET
 	if (!quick)
@@ -3400,8 +3430,10 @@ static void map_banks2 (addrbank *bank, int start, int size, int realsize, int q
 #endif
 			real_left--;
 		}
+#ifdef DEBUGGER
 		if (quick <= 0)
 			debug_bankchange (old);
+#endif
 		return;
 	}
 #endif
@@ -3433,8 +3465,10 @@ static void map_banks2 (addrbank *bank, int start, int size, int realsize, int q
 			real_left--;
 		}
 	}
+#ifdef DEBUGGER
 	if (quick <= 0)
 		debug_bankchange (old);
+#endif
 	fill_ce_banks ();
 }
 

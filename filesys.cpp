@@ -58,7 +58,9 @@
 #include "blkdev.h"
 #include "isofs_api.h"
 #include "scsi.h"
+#ifdef WITH_UAENATIVE
 #include "uaenative.h"
+#endif
 #include "tabletlibrary.h"
 #include "cia.h"
 #include "picasso96.h"
@@ -9164,6 +9166,7 @@ static uae_u32 REGPARAM2 mousehack_done (TrapContext *ctx)
 		uaecptr ret = consolehook_beginio(ctx, trap_get_areg(ctx, 1));
 		trap_put_long(ctx, trap_get_areg(ctx, 7) + 4 * 4, ret);
 	} else if (mode == 200) {
+#ifdef DEBUGGER
 		uae_u32 v;
 		// a0 = data, d0 = length, a1 = task, d3 = stack size (in), stack ptr (out)
 		// a2 = debugdata, d2 = debuglength
@@ -9178,19 +9181,27 @@ static uae_u32 REGPARAM2 mousehack_done (TrapContext *ctx)
 			trap_get_areg(ctx, 1), &stack);
 		trap_set_dreg(ctx, 2, stack);
 		return v;
+#endif
 	} else if (mode == 201) {
+#ifdef DEBUGGER
 		debugmem_break(8);
+#endif
 		return 1;
 	} else if (mode == 202) {
 		// a0 = seglist, a1 = name, d2 = lock
+#ifdef DEBUGGER
 		debugmem_addsegs(ctx, trap_get_areg(ctx, 0), trap_get_areg(ctx, 1), trap_get_dreg(ctx, 2), true);
+#endif
 		return 1;
 	} else if (mode == 203) {
 		// a0 = seglist
+#ifdef DEBUGGER
 		debugmem_remsegs(trap_get_areg(ctx, 0));
+#endif
 		return 1;
 	} else if (mode == 204 || mode == 206) {
 		// d0 = size, a1 = flags
+#ifdef DEBUGGER
 		uae_u32 v = debugmem_allocmem(mode == 206, trap_get_dreg(ctx, 0), trap_get_areg(ctx, 1), trap_get_areg(ctx, 0));
 		if (v) {
 			trap_set_areg(ctx, 0, v);
@@ -9200,8 +9211,11 @@ static uae_u32 REGPARAM2 mousehack_done (TrapContext *ctx)
 			trap_set_dreg(ctx, 1, trap_get_areg(ctx, 1));
 			return trap_get_dreg(ctx, 0);
 		}
+#endif
 	} else if (mode == 205 || mode == 207) {
+#ifdef DEBUGGER
 		return debugmem_freemem(mode == 207, trap_get_areg(ctx, 1), trap_get_dreg(ctx, 0), trap_get_areg(ctx, 0));
+#endif
 	} else if (mode == 208) {
 		// segtrack: bit 0
 		// fsdebug: bit 1
@@ -9212,18 +9226,25 @@ static uae_u32 REGPARAM2 mousehack_done (TrapContext *ctx)
 		return 0;
 	} else if (mode == 210) {
 		// debug trapcode
+#ifdef DEBUGGER
 		debugmem_trap(trap_get_areg(ctx, 0));
+#endif
 	} else if (mode == 212) {
 		// a0 = seglist, a1 = name, d2 = lock
+#ifdef DEBUGGER
 		debugmem_addsegs(ctx, trap_get_areg(ctx, 0), trap_get_areg(ctx, 1), trap_get_dreg(ctx, 2), false);
+#endif
 		return 1;
 	} else if (mode == 213) {
 		// a0 = seglist
+#ifdef DEBUGGER
 		debugmem_remsegs(trap_get_areg(ctx, 0));
+#endif
 		return 1;
 	} else if (mode == 299) {
+#ifdef DEBUGGER
 		return debugmem_exit();
-
+#endif
 	} else {
 		write_log (_T("Unknown mousehack hook %d\n"), mode);
 	}

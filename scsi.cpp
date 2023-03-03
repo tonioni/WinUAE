@@ -5682,6 +5682,8 @@ void overdrive_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romco
 	generic_soft_scsi_add(ch, ci, rc, NCR5380_OVERDRIVE, 65536, 32768, ROMTYPE_OVERDRIVE);
 }
 
+#ifdef WITH_X86
+
 // x86 bridge scsi rancho rt1000
 void x86_rt1000_bput(int portnum, uae_u8 v)
 {
@@ -5735,3 +5737,5 @@ void x86_rt1000_add_unit(int ch, struct uaedev_config_info *ci, struct romconfig
 {
 	generic_soft_scsi_add(ch, ci, rc, NCR5380_X86_RT1000, 0, 0, ROMTYPE_X86_RT1000);
 }
+
+#endif // WITH_X86

@@ -25,7 +25,9 @@
 #include "sounddep/sound.h"
 #include "events.h"
 #include "savestate.h"
+#ifdef DRIVESOUND
 #include "driveclick.h"
+#endif
 #include "zfile.h"
 #include "uae.h"
 #include "gui.h"

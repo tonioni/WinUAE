@@ -809,8 +809,10 @@ void restore_state (const TCHAR *filename)
 #endif
 		else if (!_tcsncmp (name, _T("EXPB"), 4))
 			end = restore_expansion_boards(chunk);
+#ifdef DEBUGGER
 		else if (!_tcsncmp (name, _T("DMWP"), 4))
 			end = restore_debug_memwatch (chunk);
+#endif
 		else if (!_tcsncmp(name, _T("PIC0"), 4))
 			end = chunk + len;
 
@@ -877,7 +879,9 @@ bool savestate_restore_finish(void)
 #ifdef ACTION_REPLAY
 	restore_ar_finish();
 #endif
+#ifdef DEBUGGER
 	restore_debug_memwatch_finish();
+#endif
 	savestate_state = 0;
 	init_hz_normal();
 	audio_activate();
@@ -1191,11 +1195,13 @@ static int save_state_internal (struct zfile *f, const TCHAR *description, int c
 		}
 	}
 
+#ifdef DEBUGGER
 	dst = save_debug_memwatch (&len, NULL);
 	if (dst) {
 		save_chunk (f, dst, len, _T("DMWP"), 0);
 		xfree(dst);
 	}
+#endif
 
 	dst = save_screenshot(0, &len);
 	if (dst) {

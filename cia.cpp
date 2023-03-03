@@ -19,7 +19,9 @@
 #include "custom.h"
 #include "newcpu.h"
 #include "cia.h"
+#ifdef SERIAL_PORT
 #include "serial.h"
+#endif
 #include "disk.h"
 #include "xwin.h"
 #include "keybuf.h"
@@ -290,9 +292,11 @@ static void RethinkICR(int num)
 #endif
 		if (!(c->icr1 & 0x80)) {
 			c->icr1 |= 0x80 | 0x40;
+#ifdef DEBUGGER
 			if (debug_dma) {
 				record_dma_event(num ? DMA_EVENT_CIAB_IRQ : DMA_EVENT_CIAA_IRQ, current_hpos(), vpos);
 			}
+#endif
 			ICR(num);
 		}
 	}
@@ -1924,9 +1928,11 @@ static void WriteCIAA(uae_u16 addr, uae_u8 val, uae_u32 *flags)
 			arcadia_parport(1, c->prb, c->drb);
 		}
 #endif
+#ifdef PARALLEL_PORT
 		if (!isprinter() && parallel_port_scsi) {
 			parallel_port_scsi_write(0, c->prb, c->drb);
 		}
+#endif
 		break;
 	case 2:
 #if DONGLE_DEBUG > 0
@@ -2248,12 +2254,16 @@ static void cia_wait_pre(int cianummask)
 	cia_now_evt = get_cycles();
 	int syncdelay = 0;
 	int delay = get_cia_sync_cycles(&syncdelay);
+#ifdef DEBUGGER
 	if (debug_dma) {
 		cia_cycles(syncdelay, 100, 0, 0);
 		cia_cycles(delay, 0, 0, 0);
 	} else {
 		cia_cycles(syncdelay + delay, 0, 0, 0);
 	}
+#else
+	cia_cycles(syncdelay + delay, 0, 0, 0);
+#endif
 #endif
 }
 
@@ -2393,9 +2403,11 @@ static uae_u32 REGPARAM2 cia_bget(uaecptr addr)
 	if (!isgaylenocia (addr))
 		return dummy_get(addr, 1, false, 0);
 
+#ifdef DEBUGGER
 	if (memwatch_access_validator) {
 		validate_cia(addr, 0, 0);
 	}
+#endif
 
 	switch (cia_chipselect(addr))
 	{
@@ -2455,9 +2467,11 @@ static uae_u32 REGPARAM2 cia_wget(uaecptr addr)
 	if (!isgaylenocia (addr))
 		return dummy_get_safe(addr, 2, false, 0);
 
+#ifdef DEBUGGER
 	if (memwatch_access_validator) {
 		write_log(_T("CIA word read %08x PC=%08x\n"), addr, M68K_GETPC);
 	}
+#endif
 
 	switch (cia_chipselect(addr))
 	{
@@ -2528,12 +2542,14 @@ static uae_u32 REGPARAM2 cia_lgeti(uaecptr addr)
 
 static bool cia_debug(uaecptr addr, uae_u32 value, int size)
 {
+#ifdef DEBUGGER
 	if (addr == DEBUG_SPRINTF_ADDRESS || addr == DEBUG_SPRINTF_ADDRESS + 4 || addr == DEBUG_SPRINTF_ADDRESS + 8 ||
 		(addr == DEBUG_SPRINTF_ADDRESS + 2 && currprefs.cpu_model < 68020) ||
 		(addr == DEBUG_SPRINTF_ADDRESS + 6 && currprefs.cpu_model < 68020) ||
 		(addr == DEBUG_SPRINTF_ADDRESS + 10 && currprefs.cpu_model < 68020)) {
 		return debug_sprintf(addr, value, size);
 	}
+#endif
 	return false;
 }
 
@@ -2552,9 +2568,11 @@ static void REGPARAM2 cia_bput(uaecptr addr, uae_u32 value)
 	if (!isgaylenocia(addr))
 		return;
 
+#ifdef DEBUGGER
 	if (memwatch_access_validator) {
 		validate_cia(addr, 1, value);
 	}
+#endif
 
 	int cs = cia_chipselect(addr);
 
@@ -2593,9 +2611,11 @@ static void REGPARAM2 cia_wput(uaecptr addr, uae_u32 v)
 	if (!isgaylenocia(addr))
 		return;
 
+#ifdef DEBUGGER
 	if (memwatch_access_validator) {
 		write_log(_T("CIA word write %08x = %04x PC=%08x\n"), addr, v & 0xffff, M68K_GETPC);
 	}
+#endif
 
 	if (addr & 1)
 		v = (v << 8) | (v >> 8);

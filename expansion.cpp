@@ -28,7 +28,9 @@
 #include "a2091.h"
 #include "a2065.h"
 #include "gfxboard.h"
+#ifdef CD32
 #include "cd32_fmv.h"
+#endif
 #include "ncr_scsi.h"
 #include "ncr9x_scsi.h"
 #include "scsi.h"

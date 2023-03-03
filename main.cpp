@@ -18,7 +18,9 @@
 #include "events.h"
 #include "memory.h"
 #include "custom.h"
+#ifdef SERIAL_PORT
 #include "serial.h"
+#endif
 #include "newcpu.h"
 #include "disk.h"
 #include "debug.h"
@@ -41,7 +43,9 @@
 #include "cpuboard.h"
 #include "uae/ppc.h"
 #include "devices.h"
+#ifdef JIT
 #include "jit/compemu.h"
+#endif
 #include "disasm.h"
 #ifdef RETROPLATFORM
 #include "rp.h"
@@ -773,10 +777,12 @@ static int default_config;
 
 void uae_reset (int hardreset, int keyboardreset)
 {
+#ifdef DEBUGGER
 	if (debug_dma) {
 		record_dma_reset(0);
 		record_dma_reset(0);
 	}
+#endif
 	currprefs.quitstatefile[0] = changed_prefs.quitstatefile[0] = 0;
 
 	if (quit_program == 0) {
@@ -791,7 +797,9 @@ void uae_reset (int hardreset, int keyboardreset)
 
 void uae_quit (void)
 {
+#ifdef DEBUGGER
 	deactivate_debugger ();
+#endif
 	if (quit_program != -UAE_QUIT)
 		quit_program = -UAE_QUIT;
 	target_quit ();
@@ -1203,8 +1211,8 @@ static int real_main2 (int argc, TCHAR **argv)
 	gui_update ();
 
 	if (graphics_init (true)) {
-		setup_brkhandler ();
 #ifdef DEBUGGER
+		setup_brkhandler ();
 		if (currprefs.start_debugger && debuggable ())
 			activate_debugger ();
 #endif
