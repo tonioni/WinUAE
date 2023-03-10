@@ -98,6 +98,7 @@
 #include "ini.h"
 #include "specialmonitors.h"
 #include "gayle.h"
+#include "keybuf.h"
 #ifdef FLOPPYBRIDGE
 #include "floppybridge/floppybridge_abstract.h"
 #include "floppybridge/floppybridge_lib.h"
@@ -6686,6 +6687,7 @@ static void resetregistry (void)
 	regdelete(NULL, _T("ShownsupportedModes"));
 	regdelete(NULL, _T("ArtImageCount"));
 	regdelete(NULL, _T("ArtImageWidth"));
+	regdelete(NULL, _T("KeySwapBackslashF11"));
 }
 
 #include "zip.h"
@@ -11899,7 +11901,7 @@ static INT_PTR CALLBACK BoardsDlgProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 	return FALSE;
 }
 
-static const struct memoryboardtype* getmemoryboardselect(HWND hDlg)
+static const struct memoryboardtype *getmemoryboardselect(HWND hDlg)
 {
 	int v = xSendDlgItemMessage(hDlg, IDC_MEMORYBOARDSELECT, CB_GETCURSEL, 0, 0L);
 	if (v == CB_ERR)
@@ -18140,6 +18142,7 @@ static void values_to_inputdlg (HWND hDlg)
 	SetDlgItemInt (hDlg, IDC_INPUTSPEEDD, workprefs.input_joymouse_speed, FALSE);
 	SetDlgItemInt (hDlg, IDC_INPUTSPEEDA, workprefs.input_joymouse_multiplier, FALSE);
 	CheckDlgButton (hDlg, IDC_INPUTDEVICEDISABLE, (!input_total_devices || inputdevice_get_device_status (input_selected_device)) ? BST_CHECKED : BST_UNCHECKED);
+	setchecked(hDlg, IDC_KEYBOARD_SWAPHACK, key_swap_hack);
 }
 
 static int askinputcustom (HWND hDlg, TCHAR *custom, int maxlen, DWORD titleid)
@@ -18290,6 +18293,7 @@ static void init_inputdlg (HWND hDlg)
 	if (input_selected_device >= input_total_devices || input_selected_device < 0)
 		input_selected_device = 0;
 	InitializeListView (hDlg);
+
 	init_inputdlg_2 (hDlg);
 	values_to_inputdlg (hDlg);
 }
@@ -19687,6 +19691,10 @@ static INT_PTR CALLBACK InputDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 			break;
 		case IDC_INPUTDEVICEDISABLE:
 			inputdevice_set_device_status (input_selected_device, ischecked (hDlg, IDC_INPUTDEVICEDISABLE));
+			break;
+		case IDC_KEYBOARD_SWAPHACK:
+			key_swap_hack = ischecked(hDlg, IDC_KEYBOARD_SWAPHACK);
+			regsetint(NULL, _T("KeySwapBackslashF11"), key_swap_hack);
 			break;
 		default:
 			switch (LOWORD (wParam))

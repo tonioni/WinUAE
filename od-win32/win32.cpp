@@ -5716,6 +5716,8 @@ static void WIN32_HandleRegistryStuff (void)
 	if (!regqueryint (NULL, _T("QuickStartMode"), &quickstart))
 		quickstart = 1;
 
+	regqueryint(NULL, _T("KeySwapBackslashF11"), &key_swap_hack);
+
 	tmp[0] = 0;
 	size = sizeof(tmp) / sizeof(TCHAR);
 	if (regquerystr(NULL, _T("FloppyBridge"), tmp, &size)) {

@@ -1324,6 +1324,7 @@
 #define IDC_ROM_ADDRESS2                1863
 #define IDC_CUSTOMROMFILE               1864
 #define IDC_SCSIROMFILEPCMCIA           1865
+#define IDC_KEYBOARD_SWAPHACK           1865
 #define IDC_SCSIROM24BITDMA             1866
 #define ID__FLOPPYDRIVES                40004
 #define ID_FLOPPYDRIVES_DF0             40005
@@ -1376,7 +1377,7 @@
 #define _APS_3D_CONTROLS                     1
 #define _APS_NEXT_RESOURCE_VALUE        407
 #define _APS_NEXT_COMMAND_VALUE         40050
-#define _APS_NEXT_CONTROL_VALUE         1865
+#define _APS_NEXT_CONTROL_VALUE         1866
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif
