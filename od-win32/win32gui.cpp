@@ -4658,7 +4658,7 @@ static int clicked_entry = -1;
 #define MISC1_COLUMNS 1
 #define MAX_COLUMN_HEADING_WIDTH 20
 #define CD_COLUMNS 3
-#define BOARD_COLUMNS 5
+#define BOARD_COLUMNS 6
 
 #define LV_LOADSAVE 1
 #define LV_HARDDISK 2
@@ -5007,8 +5007,9 @@ static void InitializeListView (HWND hDlg)
 		_tcscpy(column_heading[0], _T("Type"));
 		_tcscpy(column_heading[1], _T("Name"));
 		_tcscpy(column_heading[2], _T("Start"));
-		_tcscpy(column_heading[3], _T("Size"));
-		_tcscpy(column_heading[4], _T("ID"));
+		_tcscpy(column_heading[3], _T("End"));
+		_tcscpy(column_heading[4], _T("Size"));
+		_tcscpy(column_heading[5], _T("ID"));
 
 	} else if (hDlg == pages[HARDDISK_ID]) {
 
@@ -5115,17 +5116,25 @@ static void InitializeListView (HWND hDlg)
 
 	if (lv_type == LV_BOARD) {
 
+		listview_column_width[0] = MulDiv(40, dpi, 72);
 		listview_column_width[1] = MulDiv(200, dpi, 72);
 		listview_column_width[2] = MulDiv(90, dpi, 72);
 		listview_column_width[3] = MulDiv(90, dpi, 72);
 		listview_column_width[4] = MulDiv(90, dpi, 72);
+		listview_column_width[5] = MulDiv(90, dpi, 72);
 		i = 0;
 		if (full_property_sheet)
 			expansion_generate_autoconfig_info(&workprefs);
 		uaecptr highest_expamem = 0;
+		uaecptr addr = 0;
 		for (;;) {
 			TCHAR tmp[200];
-			struct autoconfig_info *aci = expansion_get_autoconfig_data(full_property_sheet ? &workprefs : &currprefs, i);
+			struct autoconfig_info *aci = NULL;
+			if (full_property_sheet) {
+				aci = expansion_get_autoconfig_data(&workprefs, i);
+			} else {
+				aci = expansion_get_bank_data(&currprefs, &addr);
+			}
 			if (aci) {
 				if (aci->zorro == 3 && aci->size != 0 && aci->start + aci->size > highest_expamem)
 					highest_expamem = aci->start + aci->size;
@@ -5144,7 +5153,7 @@ static void InitializeListView (HWND hDlg)
 				if (expansion_can_move(&workprefs, i))
 					lvstruct.lParam |= 1;
 				// outside or crosses 2G "border"
-				if (aci->zorro == 3 && aci->start + aci->size > 0x80000000 || aci->start + aci->size < aci->start)
+				if (aci->zorro == 3 && (aci->start + aci->size > 0x80000000 || aci->start + aci->size < aci->start))
 					lvstruct.lParam |= 2;
 				// outside or crosses 4G "border"
 				if (aci->zorro == 3 && aci->start == 0xffffffff)
@@ -5166,13 +5175,17 @@ static void InitializeListView (HWND hDlg)
 			result = ListView_InsertItem(list, &lvstruct);
 			tmp[0] = 0;
 			TCHAR *s = tmp;
-			if (aci && aci->parent_of_previous) {
-				_tcscat(s, _T(" - "));
+			if (full_property_sheet) {
+				if (aci && aci->parent_of_previous) {
+					_tcscat(s, _T(" - "));
+				}
+				if (aci && (aci->parent_address_space || aci->parent_romtype) && !aci->parent_of_previous) {
+					_tcscat(s, _T("? "));
+				}
 			}
-			if (aci && (aci->parent_address_space || aci->parent_romtype) && !aci->parent_of_previous)
-				_tcscat(s, _T("? "));
-			if (aci)
+			if (aci && aci->name) {
 				_tcscat(s, aci->name);
+			}
 			ListView_SetItemText(list, result, 1, tmp);
 			if (aci) {
 				if (aci->start != 0xffffffff)
@@ -5181,17 +5194,22 @@ static void InitializeListView (HWND hDlg)
 					_tcscpy(tmp, _T("-"));
 				ListView_SetItemText(list, result, 2, tmp);
 				if (aci->size != 0)
-					_stprintf(tmp, _T("0x%08x"), aci->size);
+					_stprintf(tmp, _T("0x%08x"), aci->start + aci->size - 1);
 				else
 					_tcscpy(tmp, _T("-"));
 				ListView_SetItemText(list, result, 3, tmp);
+				if (aci->size != 0)
+					_stprintf(tmp, _T("0x%08x"), aci->size);
+				else
+					_tcscpy(tmp, _T("-"));
+				ListView_SetItemText(list, result, 4, tmp);
 				if (aci->autoconfig_bytes[0] != 0xff)
 					_stprintf(tmp, _T("0x%04x/0x%02x"),
 					(aci->autoconfig_bytes[4] << 8) | aci->autoconfig_bytes[5], aci->autoconfig_bytes[1]);
 				else
 					_tcscpy(tmp, _T("-"));
-				ListView_SetItemText(list, result, 4, tmp);
-			} else {
+				ListView_SetItemText(list, result, 5, tmp);
+			} else if (full_property_sheet) {
 				_stprintf(tmp, _T("0x%08x"), highest_expamem);
 				ListView_SetItemText(list, result, 2, tmp);
 			}
