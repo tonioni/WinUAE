@@ -1055,20 +1055,40 @@ static bool isrom(uaecptr addr)
 	return false;
 }
 
-static uae_u32 lastaddr (void)
+static uae_u32 lastaddr(uae_u32 start)
 {
 	int lastbank = currprefs.address_space_24 ? 255 : 65535;
 
+	addrbank *ab2 = get_mem_bank_real(start + 1);
+	uae_u32 flags = ab2->flags & (ABFLAG_RAM | ABFLAG_ROM);
+	if (start == 0xffffffff) {
+		flags = ABFLAG_RAM;
+	}
 	for (int i = lastbank; i >= 0; i--) {
 		addrbank *ab = get_mem_bank_real(i << 16);
-		if (ab->baseaddr && (ab->flags & ABFLAG_RAM)) {
+		if (ab->baseaddr && (ab->flags & (ABFLAG_RAM | ABFLAG_ROM)) == flags) {
 			return (i + 1) << 16;
 		}
 	}
 	return 0;
 }
 
-static uaecptr nextaddr (uaecptr addr, uaecptr last, uaecptr *endp, bool verbose)
+static uae_u32 nextaddr_ab_flags = ABFLAG_RAM;
+static uae_u32 nextaddr_ab_flags_mask = ABFLAG_RAM;
+
+static void nextaddr_init(uaecptr addr)
+{
+	addrbank *ab = get_mem_bank_real(addr + 1);
+	if (addr != 0xffffffff && (ab->flags & ABFLAG_ROM)) {
+		nextaddr_ab_flags = ABFLAG_ROM;
+		nextaddr_ab_flags_mask = ABFLAG_ROM;
+	} else {
+		nextaddr_ab_flags = ABFLAG_RAM;
+		nextaddr_ab_flags_mask = ABFLAG_RAM;
+	}
+}
+
+static uaecptr nextaddr(uaecptr addr, uaecptr last, uaecptr *endp, bool verbose, bool *lfp)
 {
 	addrbank *ab;
 	int lastbank = currprefs.address_space_24 ? 255 : 65535;
@@ -1077,15 +1097,16 @@ static uaecptr nextaddr (uaecptr addr, uaecptr last, uaecptr *endp, bool verbose
 		addrbank *ab2 = get_mem_bank_real(addr);
 		addr++;
 		ab = get_mem_bank_real(addr);
-		if (ab->baseaddr && (ab->flags & ABFLAG_RAM) && ab == ab2)
+		if (ab->baseaddr && (ab->flags & nextaddr_ab_flags_mask) == nextaddr_ab_flags && ab == ab2) {
 			return addr;
+		}
 	} else {
 		addr = 0;
 	}
 
 	while (addr < (lastbank << 16)) {
 		ab = get_mem_bank_real(addr);
-		if (ab->baseaddr && (ab->flags & ABFLAG_RAM))
+		if (ab->baseaddr && ((ab->flags & nextaddr_ab_flags_mask) == nextaddr_ab_flags))
 			break;
 		addr += 65536;
 	}
@@ -1099,7 +1120,7 @@ static uaecptr nextaddr (uaecptr addr, uaecptr last, uaecptr *endp, bool verbose
 
 	while (addr <= (lastbank << 16)) {
 		addrbank *ab2 = get_mem_bank_real(addr);
-		if ((last && last != 0xffffffff && addr >= last) || !ab2->baseaddr || !(ab2->flags & ABFLAG_RAM) || ab != ab2) {
+		if ((last && last != 0xffffffff && addr >= last) || !ab2->baseaddr || ((ab2->flags & nextaddr_ab_flags_mask) != nextaddr_ab_flags) || ab != ab2) {
 			if (endp)
 				*endp = addr;
 			break;
@@ -1108,6 +1129,10 @@ static uaecptr nextaddr (uaecptr addr, uaecptr last, uaecptr *endp, bool verbose
 	}
 
 	if (verbose) {
+		if (lfp && *lfp) {
+			console_out_f(_T("\n"));
+			*lfp = false;
+		}
 		console_out_f(_T("Scanning.. %08x - %08x (%s)\n"), start, addr, get_mem_bank(start).name);
 	}
 
@@ -2920,7 +2945,8 @@ static void deepcheatsearch(TCHAR **c)
 		xfree (memtmp);
 		memsize = 0;
 		addr = 0xffffffff;
-		while ((addr = nextaddr(addr, 0, &end, false)) != 0xffffffff)  {
+		nextaddr_init(addr);
+		while ((addr = nextaddr(addr, 0, &end, false, NULL)) != 0xffffffff)  {
 			memsize += end - addr;
 			addr = end - 1;
 		}
@@ -2931,7 +2957,8 @@ static void deepcheatsearch(TCHAR **c)
 		memset(memtmp + memsize, 0xff, memsize2);
 		p1 = memtmp;
 		addr = 0xffffffff;
-		while ((addr = nextaddr(addr, 0, &end, true)) != 0xffffffff) {
+		nextaddr_init(addr);
+		while ((addr = nextaddr(addr, 0, &end, true, NULL)) != 0xffffffff) {
 			for (i = addr; i < end; i++)
 				*p1++ = get_byte_debug(i);
 			addr = end - 1;
@@ -2951,7 +2978,8 @@ static void deepcheatsearch(TCHAR **c)
 	addrcnt = 0;
 	cnt = 0;
 	addr = 0xffffffff;
-	while ((addr = nextaddr(addr, 0, NULL, true)) != 0xffffffff) {
+	nextaddr_init(addr);
+	while ((addr = nextaddr(addr, 0, NULL, true, NULL)) != 0xffffffff) {
 		uae_s32 b, b2;
 		int doremove = 0;
 		int addroff;
@@ -2996,7 +3024,7 @@ static void deepcheatsearch(TCHAR **c)
 		} else {
 			p1[addrcnt] = b >> 8;
 			p1[addrcnt + 1] = b >> 0;
-			addr = nextaddr(addr, 0, NULL, true);
+			addr = nextaddr(addr, 0, NULL, true, NULL);
 			if (addr == 0xffffffff)
 				break;
 			addrcnt++;
@@ -3013,13 +3041,13 @@ static void deepcheatsearch(TCHAR **c)
 		cnt = 0;
 		addrcnt = 0;
 		addr = 0xffffffff;
-		while ((addr = nextaddr(addr, 0, NULL, true)) != 0xffffffff) {
+		while ((addr = nextaddr(addr, 0, NULL, true, NULL)) != 0xffffffff) {
 			int addroff = addrcnt >> (size == 1 ? 3 : 2);
 			int addrmask = (size == 1 ? 1 : 3) << (addrcnt & (size == 1 ? 7 : 3));
 			if (p2[addroff] & addrmask)
 				addcheater(addr, size);
 			if (size == 2) {
-				addr = nextaddr(addr, 0, NULL, true);
+				addr = nextaddr(addr, 0, NULL, true, NULL);
 				if (addr == 0xffffffff) {
 					break;
 				}
@@ -3049,7 +3077,8 @@ static void cheatsearch (TCHAR **c)
 
 	memsize = 0;
 	addr = 0xffffffff;
-	while ((addr = nextaddr (addr, 0, &end, false)) != 0xffffffff)  {
+	nextaddr_init(addr);
+	while ((addr = nextaddr(addr, 0, &end, false, NULL)) != 0xffffffff)  {
 		memsize += end - addr;
 		addr = end - 1;
 	}
@@ -3085,8 +3114,9 @@ static void cheatsearch (TCHAR **c)
 
 	clearcheater ();
 	addr = 0xffffffff;
+	nextaddr_init(addr);
 	prevmemcnt = memcnt = 0;
-	while ((addr = nextaddr (addr, 0, &end, true)) != 0xffffffff) {
+	while ((addr = nextaddr(addr, 0, &end, true, NULL)) != 0xffffffff) {
 		if (addr + size < end) {
 			for (i = 0; i < size; i++) {
 				int shift = (size - i - 1) * 8;
@@ -3172,7 +3202,8 @@ static void illg_init (void)
 		return;
 	}
 	addr = 0xffffffff;
-	while ((addr = nextaddr (addr, 0, &end, false)) != 0xffffffff)  {
+	nextaddr_init(addr);
+	while ((addr = nextaddr(addr, 0, &end, false, NULL)) != 0xffffffff)  {
 		if (end < 0x01000000) {
 			memset (illgdebug + addr, c, end - addr);
 		} else {
@@ -5749,16 +5780,19 @@ static void searchmem (TCHAR **cc)
 		return;
 	ignore_ws (cc);
 	addr = 0xffffffff;
-	endaddr = lastaddr ();
+	endaddr = lastaddr(addr);
 	if (more_params (cc)) {
 		addr = readhex(cc, NULL);
 		addr--;
+		endaddr = lastaddr(addr);
 		if (more_params(cc)) {
 			endaddr = readhex(cc, NULL);
 		}
 	}
 	console_out_f (_T("Searching from %08X to %08X..\n"), addr + 1, endaddr);
-	while ((addr = nextaddr (addr, endaddr, NULL, true)) != 0xffffffff) {
+	nextaddr_init(addr);
+	bool out = false;
+	while ((addr = nextaddr(addr, endaddr, NULL, true, &out)) != 0xffffffff) {
 		if (addr == endaddr)
 			break;
 		for (i = 0; i < sslen; i++) {
@@ -5774,6 +5808,7 @@ static void searchmem (TCHAR **cc)
 		if (i == sslen) {
 			got++;
 			console_out_f (_T(" %08X"), addr);
+			out = true;
 			if (got > 100) {
 				console_out (_T("\nMore than 100 results, aborting.."));
 				break;
@@ -6108,7 +6143,7 @@ static void find_ea (TCHAR **inptr)
 	bool err;
 
 	addr = 0xffffffff;
-	end = lastaddr ();
+	end = lastaddr(addr);
 	ea = readhex(inptr, &err);
 	if (err) {
 		return;
@@ -6119,6 +6154,7 @@ static void find_ea (TCHAR **inptr)
 			return;
 		}
 		addr--;
+		end = lastaddr(addr);
 		if (more_params(inptr)) {
 			end = readhex(inptr, &err);
 			if (err) {
@@ -6128,13 +6164,16 @@ static void find_ea (TCHAR **inptr)
 	}
 	console_out_f (_T("Searching from %08X to %08X\n"), addr + 1, end);
 	end2 = 0;
-	while((addr = nextaddr (addr, end, &end2, true)) != 0xffffffff) {
+	nextaddr_init(addr);
+	bool out = false;
+	while((addr = nextaddr(addr, end, &end2, true, &out)) != 0xffffffff) {
 		if ((addr & 1) == 0 && addr + 6 <= end2) {
 			sea = 0xffffffff;
 			dea = 0xffffffff;
 			m68k_disasm_ea (addr, NULL, 1, &sea, &dea, 0xffffffff);
 			if (ea == sea || ea == dea) {
 				m68k_disasm (addr, NULL, 0xffffffff, 1);
+				out = true;
 				hits++;
 				if (hits > 100) {
 					console_out_f (_T("Too many hits. End addr = %08X\n"), addr);
