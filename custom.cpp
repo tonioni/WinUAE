@@ -1021,6 +1021,7 @@ static void addccmp(int pos, int reg, int v, int chpos)
 	}
 }
 
+#ifdef DEBUGGER
 static void syncdebugmarkers(int chpos)
 {
 	bool pal = (beamcon0 & BEAMCON0_PAL) != 0;
@@ -1238,6 +1239,7 @@ static void syncdebugmarkers(int chpos)
 		addccmp(hbstop_v2, RECORDED_REGISTER_CHANGE_OFFSET + 0x204, 0, chpos);
 	}
 }
+#endif
 
 static void record_color_change2(int hpos, int regno, uae_u32 value)
 {
@@ -1364,10 +1366,12 @@ static void record_color_change2(int hpos, int regno, uae_u32 value)
 		}
 	}
 
+#ifdef DEBUGGER
 	// inject hsync and end in color changes (ultra mode debug)
 	if (hsyncdebug) {
 		syncdebugmarkers(pos);
 	}
+#endif
 
 	if (regno != 0xffff) {
 		addcc(pos, regno, value);
@@ -1377,6 +1381,7 @@ static void record_color_change2(int hpos, int regno, uae_u32 value)
 		last_recorded_diw_hpos = pos;
 	}
 
+#ifdef DEBUGGER
 	int cchanges = next_color_change - start_color_change;
 	if (cchanges > 1 && hsyncdebug) {
 		if (cchanges == 2) {
@@ -1402,6 +1407,7 @@ static void record_color_change2(int hpos, int regno, uae_u32 value)
 			}
 		}
 	}
+#endif
 }
 
 static void sync_color_changes(int hpos)
