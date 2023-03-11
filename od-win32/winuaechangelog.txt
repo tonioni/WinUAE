@@ -1,4 +1,16 @@
 
+
+Beta 2:
+
+- There is no undocumented HAM behavior, it was bug in emulation, in certain situations HAM decoding incorrectly started before border and fix only accidentally worked in test case. (b1)
+- Hardware info panel now shows complete memory map when emulation has been started. Before starting emulation it works like previously (adjustable, lists expansion devices only). Added address space end column. (TODO: more info, perhaps also include PCI devices)
+- Added backslash/F11 swap key option to Input panel. This is global option (registry/ini) and swap is done after input mapping. Reverts b1 key swap.
+- Enabling Copper DMA didn't wake up Copper immediately but when next line started. (4.9.something probably)
+- Added inverted lightpen/gun input events. (ALG Fast Draw Showdown)
+- If any debugger memory search command (s, fa, etc) have start address parameter that points to any ROM address, search runs normally until last ROM address. Previously searching from ROM addresses was not possible.
+- If keyboard reset warning was enabled, releasing reset keys caused second reset if they were kept pressed until reset warning had internally generated reset. (4.10.0)
+- If keyboard reset warning is enabled, keyboard reset does not start (and reset warning key code is not sent) until at least one key is released and if keys are kept more than 5 seconds, hard reset is forced. Previously if keyboard reset warning was enabled, reset always started immediately and forced hard reset was not possible.
+
 Beta 1:
 
 - 1.5M Chip RAM size is now working correctly in all configurations. (Except JIT which does not like non-power of two RAM sizes)
@@ -19,7 +31,7 @@ Beta 1:
 - In some situations when emulator config was changed on the fly (for example 68000 CE to 68020 non-CE), CPU emulator and other parts of emulator was not configured for new configuration.
 - Prometheus PCI bridge PCI config space byte wide access endian swap fix.
 - Picasso IV flash rom support. Not very useful because it can't be used to fully "generate" Picasso IV flash ROM image file (like you can do with PPC boards). Official flasher does not update first 16k of flash that contains autoconfig nybbles and loader code and Picasso IV and official updater can't work if it is missing.
-- Serial port SERDATR TBE bit was was unreliable in accurate modes. (4.10.0)
+- Serial port SERDATR TBE bit was unreliable in accurate modes. (4.10.0)
 - Fixed floppy related bug where initial bit offset becomes negative, causing out of bounds array access (that may or may not cause a random crash).
 - Fixed Input panel custom event string to GUI temporary config and from GUI temporary config to active config copying that caused double memory free. (Very old bug).
 - On the fly disk check from GUI (for example ? in Quickstart panel), which reads boot and root block and shows disk information, which changed disk rotational position but it wasn't restored.
@@ -33,12 +45,12 @@ Beta 1:
 - A600 non-expanded Quickstart RTC selection fixed. RTC should not be selected unless RAM expansion is configured.
 - Added missing Picmatic ROMs (European American Laser Games variant). Zorton Brothers and Marbella Vice.
 - Added Disable keyboard and Disable game controllers when mouse not captured options to Pri & Extensions panel.
-- Game port setting now accepts joyportnameX and/or joyportfriendlynameX=<name> + joyportX=customY simultaneously. This forces custom config Z to be mapped to named controller, ignoring device index value in custom config. Makes it easier to create config files with custom game port settings programmatically.
+- Game port setting now accepts joyportnameX and/or joyportfriendlynameX=<name> + joyportX=customY simultaneously. This forces custom config Y to be mapped to named controller, ignoring device index value in custom config. Makes it easier to create config files with custom game port settings programmatically.
 - Added possibility to have same Game ports panel joystick in more than one joystick port. Config file only currently. Use same config file entries with index number (for example "joyportfriendlyname1_1=<controller name>")
-- Added screen rotation support, to fully support Fast Draw Showdown (American Laser games) game that had 90 degree rotated display.. Direct3D9 mode only so far. Config file only: gfx_rotation=<rotation angle in degrees>, gfx_rotation=-90 for Fast Draw Showdown.
+- Added screen rotation support, to fully support Fast Draw Showdown (American Laser games) game that had 90 degree rotated display. Direct3D9 mode only so far. Config file only: gfx_rotation=<rotation angle in degrees>, gfx_rotation=-90 for Fast Draw Showdown.
 - Removed Expansion panel CD32 FMV checkbox. It is available via expansion list and needs ROM selection.
 - Integer scaling now has 5% (width and height) safety margin before switching to smaller multiplier.
-- If programmed mode: do not include scanlines hidden in vertical blank when calculating display size (for integer scaline/autoscale etc)
+- If programmed mode: do not include scanlines hidden in vertical blank when calculating display size (for integer scaling/autoscale etc)
 
 
 4.10.1
