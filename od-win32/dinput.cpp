@@ -3730,12 +3730,10 @@ int ispressed (int key)
 	return 0;
 }
 
-static void release_keys (void)
+void release_keys(void)
 {
-	int i, j;
-
-	for (j = 0; j < MAX_INPUT_DEVICES; j++) {
-		for (i = 0; i < MAX_KEYCODES; i++) {
+	for (int j = 0; j < MAX_INPUT_DEVICES; j++) {
+		for (int i = 0; i < MAX_KEYCODES; i++) {
 			if (di_keycodes[j][i]) {
 #if DEBUG_SCANCODE
 				write_log(_T("release %d:%02x:%02x\n"), j, di_keycodes[j][i], i);
