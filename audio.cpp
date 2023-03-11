@@ -52,6 +52,7 @@
 #define DEBUG_CHANNEL_MASK 15
 #define TEST_AUDIO 0
 #define TEST_MISSED_DMA 0
+#define TEST_MANUAL_AUDIO 0
 
 #define PERIOD_MIN 4
 #define PERIOD_MIN_NONCE 60
@@ -129,6 +130,9 @@ struct audio_channel_data
 	bool dat_written;
 #if TEST_MISSED_DMA
 	bool dat_loaded;
+#endif
+#if TEST_MANUAL_AUDIO
+	bool mdat_loaded;
 #endif
 	uaecptr lc, pt;
 	int state;
@@ -1533,6 +1537,12 @@ static void loaddat (int nr, bool modper)
 		cdp->dat2 = cdp->dat;
 	}
 
+#if TEST_MANUAL_AUDIO
+	if (!cdp->mdat_loaded) {
+		write_log("Missed manual AUD%dDAT\n", nr);
+	}
+	cdp->mdat_loaded = false;
+#endif
 #if TEST_MISSED_DMA
 	if (!cdp->dat_loaded) {
 		write_log("Missed DMA %d\n", nr);
@@ -2360,6 +2370,12 @@ void event_audxdat_func(uae_u32 v)
 		} else {
 			cdp->dat = v >> 8;
 			cdp->dat_written = true;
+#if TEST_MANUAL_AUDIO
+			if (cdp->mdat_loaded) {
+				write_log("CH%d double load\n", nr);
+			}
+			cdp->mdat_loaded = true;
+#endif
 		}
 	} else {
 		cdp->dat = v >> 8;
