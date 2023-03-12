@@ -10,13 +10,14 @@
 #include "cpummu030.h"
 
 cpuop_func *loop_mode_table[65536];
+int cpuipldelay2, cpuipldelay4;
 
 void my_trim(TCHAR *s)
 {
 	int len;
 	while (s[0] != '\0' && _tcscspn(s, _T("\t \r\n")) == 0)
-		memmove(s, s + 1, (_tcslen(s + 1) + 1) * sizeof(TCHAR));
-	len = _tcslen(s);
+		memmove(s, s + 1, (uaetcslen(s + 1) + 1) * sizeof(TCHAR));
+	len = uaetcslen(s);
 	while (len > 0 && _tcscspn(s + len - 1, _T("\t \r\n")) == 0)
 		s[--len] = '\0';
 }
@@ -40,8 +41,8 @@ TCHAR *buf_out(TCHAR *buffer, int *bufsize, const TCHAR *format, ...)
 		return 0;
 	count = _vsntprintf(buffer, (*bufsize) - 1, format, parms);
 	va_end(parms);
-	*bufsize -= _tcslen(buffer);
-	return buffer + _tcslen(buffer);
+	*bufsize -= uaetcslen(buffer);
+	return buffer + uaetcslen(buffer);
 }
 
 void fpux_restore(int *v)
@@ -52,10 +53,11 @@ void fp_init_native(void)
 	wprintf(_T("fp_init_native called!"));
 	exit(0);
 }
-void fp_init_native_80(void)
+bool fp_init_native_80(void)
 {
 	wprintf(_T("fp_init_native_80 called!"));
 	exit(0);
+	return false;
 }
 void init_fpucw_x87(void)
 {

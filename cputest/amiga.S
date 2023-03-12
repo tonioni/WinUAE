@@ -6,6 +6,8 @@
 	
 	.globl _allocate_absolute
 	.globl _free_absolute
+	.globl _allocate_blttemp
+	.globl _free_blttemp
 	.globl _touser
 	.globl _tosuper
 	.globl _testexit
@@ -44,12 +46,29 @@ uaefuncname:
 	.asciz "uaelib_demux"
 
 sync:
+	move.l a1,d0
+	lea 0xdff040,a1
+	move.w #0x0400+0x200+0x0100,(a1)+ | BCD
+	move.w #0x0000,(a1)+
+	addq.l #4,a1
+	move.l d0,(a1)+ | A
+	move.l d0,(a1)+ | B
+	move.l d0,(a1)+ | C
+	move.l d0,(a1)+ | D
 	move.b 0xdff006,d0
 	beq.s sync
-	cmp.b #0xff,d0
-	beq.s sync
-	cmp.b #0x38,d0
-	beq.s sync
+	cmp.b #0xfc,d0
+	bcc.s sync
+	cmp.b #0x34,d0
+	bcs.s sync2
+	cmp.b #0x39,d0
+	bcs.s sync
+sync2:
+	move.b 0xdff007,d0
+	cmp.b #110,d0
+	bcs.s sync2
+	cmp.b #130,d0
+	bcc.s sync2
 	| above prevent wraparound between
 	| dff004.w and dff006.w reads
 	move.l 0xdff004,d0
@@ -70,9 +89,11 @@ _tosuper:
 	move.l 4.w,a6
 	jsr -0x78(a6) | Disable
 	jsr -0x96(a6) | SuperState
+	move.w 0xdff002,dmacon
 	tst.l 8+1*4(sp)
 	beq.s .keepdisplay
-	move.w #0x0200,0xdff096
+	move.w #0x7fff,0xdff096
+	move.w #0x8000+0x0400+0x0200+0x0040,0xdff096
 .keepdisplay:
 	move.w #0x2700,sr
 	move.l (sp)+,a6
@@ -84,7 +105,10 @@ _touser:
 	move.l 4.w,a6
 	move.l 8(sp),d0
 	jsr -0x9c(a6) | UserState
-	move.w #0x8200,0xdff096
+	move.w #0x7fff,0xdff096
+	move.w dmacon,d0
+	or.w #0x8000,d0
+	move.w d0,0xdff096
 	jsr -0x7e(a6) | Enable
 	move.l (sp)+,a6
 	rts
@@ -108,6 +132,24 @@ _allocate_absolute:
 	jsr -0xcc(a6) | AllocAbs
 	move.l (sp)+,a6
 	rts
+
+_allocate_blttemp:
+	move.l a6,-(sp)
+	move.l 8(sp),d0
+	move.l #65536+2,d1
+	move.l 4.w,a6
+	jsr -0xc6(a6) | AllocMem
+	move.l (sp)+,a6
+	rts
+_free_blttemp:
+	move.l a6,-(sp)
+	move.l 8(sp),a1
+	move.l 12(sp),d0
+	move.l 4.w,a6
+	jsr -0xd2(a6) | FreeMem
+	move.l (sp)+,a6
+	rts
+
 
 	| return CPU model (68000=0, 68010=1, 68020=2, 68030=3, 68040=4, 68060=5)
 _get_cpu_model:
@@ -150,5 +192,8 @@ illg:
 	move.l d1,0x10(a0)
 	move.l a1,sp
 	rte
+
+dmacon:
+	dc.l 0
 
 	.include "asm.S"

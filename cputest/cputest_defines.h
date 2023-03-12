@@ -1,5 +1,5 @@
 
-#define DATA_VERSION 23
+#define DATA_VERSION 24
 
 #define CT_FPREG 0
 #define CT_DREG 0
@@ -55,13 +55,18 @@
 // MOVEA.L A0,A0
 // not NOP because on 68040 NOP generates T0 trace.
 #define NOP_OPCODE 0x2048
+#define REAL_NOP_OPCODE 0x4e71
 #define ILLG_OPCODE 0x4afc
 #define LM_OPCODE 0x42db
 
+#define IPL_TEST_NOP1 0x4e71
+#define IPL_TEST_NOP2 0x4e71
+
 #define IPL_TRIGGER_ADDR 0xdff030
 #define IPL_TRIGGER_ADDR_SIZE 2
-#define IPL_TRIGGER_DATA 0x100
+#define IPL_TRIGGER_DATA (0x100 | 0xCA)
 #define IPL_TRIGGER_SERPER 10
-#define INTERRUPT_CYCLES ((((IPL_TRIGGER_SERPER + 1) * 9) + (((IPL_TRIGGER_SERPER + 1) - 1) / 2) + 1 + 3 + 9) * 2)
+#define INTERRUPT_CYCLES ((((IPL_TRIGGER_SERPER + 1) * 9) + (((IPL_TRIGGER_SERPER + 1) - 1) / 2) + 1 + 3 + 9 + 0) * 2)
 #define IPL_TRIGGER_INTMASK 0x0800
 #define IPL_TEST_IPL_LEVEL 5
+#define IPL_BLTSIZE 0xdff058
