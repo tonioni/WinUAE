@@ -982,7 +982,7 @@ static void resetwarning_check(void)
 			write_log(_T("KB: reset warning forced reset. Phase=%d\n"), resetwarning_phase);
 			resetwarning_phase = -1;
 			kblostsynccnt = 0;
-			inputdevice_do_kb_reset(0);
+			inputdevice_do_kb_reset();
 		}
 	}
 	if (resetwarning_phase == 1) {
@@ -1004,7 +1004,7 @@ static void resetwarning_check(void)
 			write_log(_T("KB: reset warning end by software. reset.\n"));
 			resetwarning_phase = -1;
 			kblostsynccnt = 0;
-			inputdevice_do_kb_reset(0);
+			inputdevice_do_kb_reset();
 		}
 	}
 }
