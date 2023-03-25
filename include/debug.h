@@ -223,6 +223,7 @@ extern struct peekdma peekdma_data;
 
 struct dma_rec
 {
+	int hpos, vpos;
     uae_u16 reg;
     uae_u64 dat;
 	uae_u16 size;
@@ -305,6 +306,7 @@ extern void record_dma_clear(int hpos, int vpos);
 extern bool record_dma_check(int hpos, int vpos);
 extern void record_dma_hsync(int);
 extern void record_dma_vsync(int);
+extern void record_dma_reoffset(int, int, int);
 extern void record_cia_access(int r, int mask, uae_u16 value, bool rw, int hpos, int vpos, int phase);
 extern void record_dma_ipl(int hpos, int vpos);
 extern void record_dma_ipl_sample(int hpos, int vpos);
