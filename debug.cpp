@@ -635,6 +635,9 @@ static const TCHAR *debugregs[] = {
 	_T("DTT1"),
 	_T("BUSC"),
 	_T("PCR"),
+	_T("FPIAR"),
+	_T("FPCR"),
+	_T("FPSR"),
 	NULL
 };
 
@@ -711,62 +714,34 @@ static uae_u32 returnregx(int regid)
 		case BREAKPOINT_REG_BUSC:
 		return regs.buscr;
 		case BREAKPOINT_REG_PCR:
+		return regs.pcr;
+		case BREAKPOINT_REG_FPIAR:
+		return regs.fpiar;
+		case BREAKPOINT_REG_FPCR:
 		return regs.fpcr;
+		case BREAKPOINT_REG_FPSR:
+		return regs.fpsr;
 	}
 	return 0;
 }
 
-static int readregx (TCHAR **c, uae_u32 *valp)
+static int readregx(TCHAR **c, uae_u32 *valp)
 {
-	int i;
+	int idx;
 	uae_u32 addr;
-	TCHAR *p = *c;
-	TCHAR tmp[10], *tp;
-	int extra = 0;
+	TCHAR *old = *c;
 
 	addr = 0;
-	i = 0;
-	while (p[i]) {
-		tmp[i] = _totupper (p[i]);
-		if (i >= sizeof (tmp) / sizeof (TCHAR) - 1)
-			break;
-		i++;
+	if (_totupper(**c) == 'R') {
+		(*c)++;
 	}
-	tmp[i] = 0;
-	tp = tmp;
-	if (_totupper (tmp[0]) == 'R') {
-		tp = tmp + 1;
-		extra = 1;
-	}
-	if (!_tcsncmp (tp, _T("USP"), 3)) {
-		addr = regs.usp;
-		(*c) += 3;
-	} else if (!_tcsncmp (tp, _T("VBR"), 3)) {
-		addr = regs.vbr;
-		(*c) += 3;
-	} else if (!_tcsncmp (tp, _T("MSP"), 3)) {
-		addr = regs.msp;
-		(*c) += 3;
-	} else if (!_tcsncmp (tp, _T("ISP"), 3)) {
-		addr = regs.isp;
-		(*c) += 3;
-	} else if (!_tcsncmp (tp, _T("PC"), 2)) {
-		addr = regs.pc;
-		(*c) += 2;
-	} else if (tp[0] == 'A' || tp[0] == 'D') {
-		int reg = 0;
-		if (tp[0] == 'A')
-			reg += 8;
-		reg += tp[1] - '0';
-		if (reg < 0 || reg > 15)
-			return 0;
-		addr = regs.regs[reg];
-		(*c) += 2;
-	} else {
+	idx = getregidx(c);
+	if (idx < 0) {
+		*c = old;
 		return 0;
 	}
+	addr = returnregx(idx);
 	*valp = addr;
-	(*c) += extra;
 	return 1;
 }
 

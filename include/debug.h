@@ -82,6 +82,7 @@ extern bool debug_trainer_event(int evt, int state);
 extern void debug_smc_clear(uaecptr addr, int size);
 
 #define BREAKPOINT_TOTAL 20
+
 #define BREAKPOINT_REG_Dx 0
 #define BREAKPOINT_REG_Ax 8
 #define BREAKPOINT_REG_PC 16
@@ -102,7 +103,10 @@ extern void debug_smc_clear(uaecptr addr, int size);
 #define BREAKPOINT_REG_DTT1 31
 #define BREAKPOINT_REG_BUSC 32
 #define BREAKPOINT_REG_PCR 33
-#define BREAKPOINT_REG_END 34
+#define BREAKPOINT_REG_FPIAR 34
+#define BREAKPOINT_REG_FPCR 35
+#define BREAKPOINT_REG_FPSR 36
+#define BREAKPOINT_REG_END 37
 
 #define BREAKPOINT_CMP_EQUAL 0
 #define BREAKPOINT_CMP_NEQUAL 1
