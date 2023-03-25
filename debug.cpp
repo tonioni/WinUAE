@@ -7051,6 +7051,7 @@ void debug (void)
 		if (trace_mode) {
 			uae_u32 pc;
 			uae_u16 opcode;
+			int bpnum = -1;
 			int bp = 0;
 
 			pc = munge24 (m68k_getpc ());
@@ -7062,7 +7063,7 @@ void debug (void)
 					continue;
 				if (bpn->type == BREAKPOINT_REG_PC) {
 					if (bpn->value1 == pc) {
-						bp = i + 1;
+						bpnum = i;
 						break;
 					}
 				} else if (bpn->type >= 0 && bpn->type < BREAKPOINT_REG_END) {
@@ -7073,27 +7074,27 @@ void debug (void)
 					{
 						case BREAKPOINT_CMP_EQUAL:
 						if (cval == value1)
-							bp = i + 1;
+							bpnum = i;
 						break;
 						case BREAKPOINT_CMP_NEQUAL:
 						if (cval != value1)
-							bp = i + 1;
+							bpnum = i;
 						break;
 						case BREAKPOINT_CMP_SMALLER:
 						if (cval <= value1)
-							bp = i + 1;
+							bpnum = i;
 						break;
 						case BREAKPOINT_CMP_LARGER:
 						if (cval >= value1)
-							bp = i + 1;
+							bpnum = i;
 						break;
 						case BREAKPOINT_CMP_RANGE:
 						if (cval >= value1 && cval <= value2)
-							bp = i + 1;
+							bpnum = i;
 						break;
 						case BREAKPOINT_CMP_NRANGE:
 						if (cval <= value1 || cval >= value2)
-							bp = i + 1;
+							bpnum = i;
 						break;
 					}
 				}
@@ -7134,7 +7135,7 @@ void debug (void)
 							while (seglist) {
 								uae_u32 size = get_long_debug (seglist - 4) - 4;
 								if (pc >= (seglist + 4) && pc < (seglist + size)) {
-									bp = i + 1;
+									bpnum = i;
 									break;
 								}
 								seglist = BPTR2APTR(get_long_debug (seglist));
@@ -7179,19 +7180,19 @@ void debug (void)
 					}
 				}
 			}
-			if (!bp) {
+			if (!bp && bpnum < 0) {
 				debug_continue();
 				return;
 			}
-			if (bp > 0) {
-				if (bpnodes[bp - 1].cnt > 0) {
-					bpnodes[bp - 1].cnt--;
+			if (bpnum >= 0) {
+				if (bpnodes[bpnum].cnt > 0) {
+					bpnodes[bpnum].cnt--;
 				}
-				if (bpnodes[bp - 1].cnt > 0) {
+				if (bpnodes[bpnum].cnt > 0) {
 					debug_continue();
 					return;
 				}
-				console_out_f(_T("Breakpoint %d triggered.\n"), bp - 1);
+				console_out_f(_T("Breakpoint %d triggered.\n"), bpnum);
 			}
 			debug_cycles(1);
 		}
