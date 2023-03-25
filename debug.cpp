@@ -4718,6 +4718,9 @@ static void writeintomem (TCHAR **c)
 				if (addr >= eaddr)
 					break;
 			}
+			if (fillmode && peekchar(c) == 0) {
+				*c = cb;
+			}
 		}
 		if (retry) {
 			continue;
