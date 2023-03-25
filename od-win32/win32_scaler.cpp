@@ -322,7 +322,7 @@ void getfilterrect2(int monid, RECT *sr, RECT *dr, RECT *zr, int dst_width, int 
 		filter_aspect = 0;
 		keep_aspect = 0;
 		palntscadjust = 1;
-		if (dst_width >= 640 && dst_width <= 800 && dst_height >= 480 && dst_height <= 600) {
+		if (dst_width >= 640 && dst_width <= 800 && dst_height >= 480 && dst_height <= 600 && !programmedmode) {
 			autoselect = 1;
 			scalemode = AUTOSCALE_NONE;
 			int m = 1;
