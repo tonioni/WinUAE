@@ -2679,8 +2679,11 @@ static void ejectfloppy (int n)
 		// no disk in drive when GUI was entered
 		// make sure possibly disks inserted after GUI was entered
 		// are removed.
-		if (changed_prefs.floppyslots[n].df[0] == 0)
+		if (changed_prefs.floppyslots[n].df[0] == 0) {
 			disk_insert(n, _T(""));
+		} else {
+			disk_eject(n);
+		}
 	}
 }
 
