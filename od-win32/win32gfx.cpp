@@ -1455,7 +1455,7 @@ bool lockscr3d(struct vidbuffer *vb)
 	struct AmigaMonitor *mon = &AMonitors[vb->monitor_id];
 	if (mon->currentmode.flags & DM_D3D) {
 		if (!(mon->currentmode.flags & DM_SWSCALE)) {
-			vb->bufmem = D3D_locktexture(vb->monitor_id, &vb->rowbytes, NULL, false);
+			vb->bufmem = D3D_locktexture(vb->monitor_id, &vb->rowbytes, NULL, NULL, false);
 			if (vb->bufmem) 
 				return true;
 		}
@@ -1492,7 +1492,7 @@ int lockscr(struct vidbuffer *vb, bool fullupdate, bool first, bool skip)
 			ret = 1;
 		} else {
 			ret = 0;
-			vb->bufmem = D3D_locktexture(vb->monitor_id, &vb->rowbytes, NULL, skip ? -1 : (fullupdate ? 1 : 0));
+			vb->bufmem = D3D_locktexture(vb->monitor_id, &vb->rowbytes, NULL, NULL, skip ? -1 : (fullupdate ? 1 : 0));
 			if (vb->bufmem) {
 				if (first)
 					init_row_map();
@@ -1661,9 +1661,7 @@ void getrtgfilterrect2(int monid, RECT *sr, RECT *dr, RECT *zr, int *mode, int d
 static uae_u8 *gfx_lock_picasso2(int monid, bool fullupdate)
 {
 	struct picasso_vidbuf_description *vidinfo = &picasso_vidinfo[monid];
-	int pitch;
-	uae_u8 *p = D3D_locktexture(monid, &pitch, NULL, fullupdate);
-	vidinfo->rowbytes = pitch;
+	uae_u8 *p = D3D_locktexture(monid, &vidinfo->rowbytes, &vidinfo->maxwidth, &vidinfo->maxheight, fullupdate);
 	return p;
 }
 uae_u8 *gfx_lock_picasso(int monid, bool fullupdate)

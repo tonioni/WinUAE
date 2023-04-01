@@ -3760,7 +3760,7 @@ static void xD3D_unlocktexture(int monid, int y_start, int y_end)
 	d3d->fulllocked = 0;
 }
 
-static uae_u8 *xD3D_locktexture (int monid, int *pitch, int *height, int fullupdate)
+static uae_u8 *xD3D_locktexture (int monid, int *pitch, int *width, int *height, int fullupdate)
 {
 	struct d3dstruct *d3d = &d3ddata[monid];
 	D3DLOCKED_RECT lock;
@@ -3823,6 +3823,8 @@ static uae_u8 *xD3D_locktexture (int monid, int *pitch, int *height, int fullupd
 	*pitch = lock.Pitch;
 	if (height)
 		*height = d3d->tin_h;
+	if (width)
+		*width = d3d->tin_w;
 	return (uae_u8*)lock.pBits;
 }
 

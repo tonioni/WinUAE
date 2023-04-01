@@ -280,13 +280,15 @@ static void gdi_guimode(int monid, int guion)
 {
 }
 
-static uae_u8 *gdi_locktexture(int monid, int *pitch, int *height, int fullupdate)
+static uae_u8 *gdi_locktexture(int monid, int *pitch, int *width, int *height, int fullupdate)
 {
 	struct gdistruct *gdi = &gdidata[monid];
 	if (gdi->bm.bits) {
 		*pitch = gdi->bm.pitch;
 		if (height)
 			*height = gdi->bm.height;
+		if (width)
+			*width = gdi->bm.width;
 		return (uae_u8*)gdi->bm.bits;
 	}
 	return NULL;

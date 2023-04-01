@@ -52,7 +52,7 @@ void(*D3D_refresh)(int);
 bool(*D3D_renderframe)(int, int,bool);
 void(*D3D_showframe)(int);
 void(*D3D_showframe_special)(int, int);
-uae_u8* (*D3D_locktexture)(int, int*, int*, int);
+uae_u8 *(*D3D_locktexture)(int, int*, int*, int*, int);
 void (*D3D_unlocktexture)(int, int, int);
 void (*D3D_flushtexture)(int, int miny, int maxy);
 void (*D3D_guimode)(int, int);
@@ -62,7 +62,7 @@ void (*D3D_clear)(int);
 int (*D3D_canshaders)(void);
 int (*D3D_goodenough)(void);
 bool (*D3D_setcursor)(int, int x, int y, int width, int height, float mx, float my, bool visible, bool noscale);
-uae_u8* (*D3D_setcursorsurface)(int, int *pitch);
+uae_u8 *(*D3D_setcursorsurface)(int, int *pitch);
 float (*D3D_getrefreshrate)(int);
 void(*D3D_restore)(int, bool);
 void(*D3D_resize)(int, int);
@@ -4956,7 +4956,7 @@ static bool xD3D11_alloctexture(int monid, int w, int h)
 	return true;
 }
 
-static uae_u8 *xD3D11_locktexture(int monid, int *pitch, int *height, int fullupdate)
+static uae_u8 *xD3D11_locktexture(int monid, int *pitch, int *width, int *height, int fullupdate)
 {
 	struct d3d11struct *d3d = &d3d11data[monid];
 
@@ -4975,6 +4975,8 @@ static uae_u8 *xD3D11_locktexture(int monid, int *pitch, int *height, int fullup
 	*pitch = map.RowPitch;
 	if (height)
 		*height = d3d->m_bitmapHeight;
+	if (width)
+		*width = d3d->m_bitmapWidth;
 	d3d->texturelocked++;
 	return (uae_u8*)map.pData;
 }

@@ -1002,7 +1002,7 @@ void S2X_render(int monid, int y_start, int y_end)
 	int aw, ah, aws, ahs;
 	uae_u8 *dptr, *enddptr, *sptr, *endsptr;
 	int ok = 0;
-	int pitch, surf_height;
+	int pitch, surf_height, surf_width;
 	uae_u8 *surfstart;
 
 	aw = amiga_width;
@@ -1023,7 +1023,7 @@ void S2X_render(int monid, int y_start, int y_end)
 
 	if (D3D_restore)
 		D3D_restore(monid, true);
-	surfstart = D3D_locktexture(monid, &pitch, &surf_height, y_start < -1 ? -1 : (y_start < 0 ? 1 : 0));
+	surfstart = D3D_locktexture(monid, &pitch, &surf_width, &surf_height, y_start < -1 ? -1 : (y_start < 0 ? 1 : 0));
 	if (surfstart == NULL) {
 		return;
 	}
