@@ -5014,11 +5014,9 @@ void vsync_handle_redraw(int long_field, int lof_changed, uae_u16 bplcon0p, uae_
 
 		if (quit_program < 0) {
 #ifdef SAVESTATE
-			if (!savestate_state) {
-				if (currprefs.quitstatefile[0]) {
-					savestate_initsave(currprefs.quitstatefile, 1, 1, true);
-					save_state(currprefs.quitstatefile, _T(""));
-				}
+			if (!savestate_state && quit_program == -UAE_QUIT && currprefs.quitstatefile[0]) {
+				savestate_initsave(currprefs.quitstatefile, 1, 1, true);
+				save_state(currprefs.quitstatefile, _T(""));
 			}
 #endif
 			quit_program = -quit_program;
@@ -5026,7 +5024,6 @@ void vsync_handle_redraw(int long_field, int lof_changed, uae_u16 bplcon0p, uae_
 			set_special(SPCFLAG_BRK | SPCFLAG_MODE_CHANGE);
 			return;
 		}
-
 
 		if (ad->framecnt == 0) {
 			init_drawing_frame();
