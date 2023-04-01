@@ -4132,9 +4132,9 @@ static bool xD3D_run(int monid)
 	return false;
 }
 
-static bool xD3D_extoverlay(struct extoverlay *ext)
+static bool xD3D_extoverlay(struct extoverlay *ext, int monid)
 {
-	struct d3dstruct *d3d = &d3ddata[0];
+	struct d3dstruct *d3d = &d3ddata[monid];
 	struct d3d9overlay *ov, *ovprev, *ov2;
 	LPDIRECT3DTEXTURE9 s;
 	D3DLOCKED_RECT locked;

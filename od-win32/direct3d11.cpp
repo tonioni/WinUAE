@@ -72,7 +72,7 @@ bool(*D3D_run)(int);
 int(*D3D_debug)(int, int);
 void(*D3D_led)(int, int, int);
 bool(*D3D_getscanline)(int*, bool*);
-bool(*D3D_extoverlay)(struct extoverlay*);
+bool(*D3D_extoverlay)(struct extoverlay*,int);
 void(*D3D_paint)(void);
 
 static HMODULE hd3d11, hdxgi, hd3dcompiler, dwmapi;
@@ -5303,9 +5303,9 @@ static bool xD3D11_run(int monid)
 	return D3D11_resize_do(d3d);
 }
 
-static bool xD3D11_extoverlay(struct extoverlay *ext)
+static bool xD3D11_extoverlay(struct extoverlay *ext, int monid)
 {
-	struct d3d11struct *d3d = &d3d11data[0];
+	struct d3d11struct *d3d = &d3d11data[monid];
 	struct d3doverlay *ov, *ovprev, *ov2;
 	struct d3d11sprite *s;
 	D3D11_MAPPED_SUBRESOURCE map;

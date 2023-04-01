@@ -1,11 +1,21 @@
 
+Beta 4:
+
+- VHPOSW updates, copper special odd/even last cycle condition used original maxhpos value, not VHPOSW write "faked" hpos value. Do not do horizontal adjustments if CPU speed is fastest possible and/or JIT is enabled and VHPOSW access was CPU. Copper VHPOSW write is always accepted (which can only work if ECS or AGA).
+- ROM rescan in ini mode didn't clear previously detected ROMs. Ini file whole section delete only deleted first entry in section.
+- Added new KS ROMs to ROM scanner.
+- uaegfx and hardware emulated RTG board and emulation window smaller than RTG resolution: part of right or bottom of display was clipped. (Used window size to check limits instead of internal surface size)
+- Statefile restore fixes, 68020+ blitter wait hang after loading statefile, "cpu trace" error dialog shown even when there was nothing wrong.
+- If reset was requested, it wasn't processed until next vsync. Between reset request and reset process CPU might have executed random data, temporarily flooding log with invalid access errors, exceptions etc.
+- CIA synchronize clock drift bug fix (4.10.0)
+
 Beta 3:
 
 - Changed keyboard reset warning again: when reset keys are pressed, reset warning starts, when reset warning ends, system is reset but reset is kept active until at least one key is released. Keeping reset keys pressed more than 5 seconds force hard reset like non-reset warning config already did. Both keyboard reset modes now work identically.
 - Programmed mode "do not include hidden lines" (b1) removed one too many line, breaking some programmed modes interlace field order.
 - Interlace automatic LOF toggle cycle was still using pre-4.9 horizontal position origin. (Toggled 3 cycles too early, correct position is cycle 1 of line 0)
 - LOL (NTSC long line) was toggled 1 cycle too early. Both LOF and LOL toggle when HPOS=1.
-- COPJMP1+COPJMP2 strobe when Copper DMA is off stops the copper: this was not correct, if both strobes are generated, Copper instruction pointer is loaded with COP1PT OR'd with COP2PT. This usually indirectly stops the copper because it will sooner or later does MOVE to "dangerous" register. This is same address OR behavior as any other DMA pointer if more than one gets activated in same cycle (for example refresh + bitplane conflict). This was done before logic analyzer checks and was forgotten..
+- COPJMP1+COPJMP2 strobe when Copper DMA is off stops the copper: this was not correct, if both strobes are generated, Copper instruction pointer is loaded with COP1PT OR'd with COP2PT. This usually indirectly stops the copper because it will sooner or later do MOVE to "dangerous" register. This is same address OR behavior as any other DMA pointer if more than one gets activated in same cycle (for example refresh + bitplane conflict). This was done before logic analyzer checks and was forgotten..
 - HAM5/HAM7 was incorrectly allowed in AGA mode (broken probably in 4.9?). AGA only enables HAM if 6 or 8 planes.
 - Disk image was accidentally opened twice, preventing disk image deletion/editing without closing WinUAE (b1)
 - When disk image is ejected using GUI, close image file handle immediately (previously it was closed after returning back to emulation)
@@ -15,7 +25,7 @@ Beta 3:
 - Debugger wf didn't fill in binary mode.
 - GVP 2040 original ROM image added (No 68060 support). "tekscsi2.device 1.1 (17.4.95)". Filesystem loader has serial debugging enabled. Updated 68060 variant is "tekscsi2.device 1.0 (27.8.95)". For some reason newer version has 1.0 in version string but device internal version is still 1.1.
 - Changed new Agnus Chip RAM max addressing advanced chipset option: default equals Chip RAM size. Forcing 512k when OCS can break old configs and cause confusion and result will look like new emulation bug.
-- Some VHPOSW horizontal change support improvements. It is still a hack but it is simpler hack and generic, required changes are now dynamically calculated. It is not anymore hardwired to Smooth Copper / Up Front specific VHPOSW horizontal position changes. Demo specific hacks removed. Also now horizontal position moves beyond maxhpos is also emulated, hpos counts until to 0xFF before wrapping around. DMA debugger also updated to support skipped or doubled cycles. (Weird test cases by ross)
+- Some VHPOSW horizontal change support improvements. It is still a hack but it is simpler hack and generic, required changes are now dynamically calculated. It is not anymore hardwired to Smooth Copper / Up Front specific VHPOSW horizontal position changes. Demo specific hacks removed. Also now horizontal position moves beyond maxhpos is also emulated, hpos counts to 0xFF before wrapping around. DMA debugger also updated to support skipped or doubled cycles. VHSPOW behavior needs future undocumented feature thread post. (Weird test cases by ross)
 
 Beta 2:
 

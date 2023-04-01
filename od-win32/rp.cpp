@@ -1051,7 +1051,7 @@ static void set_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 
 	int m = 1;
 	if (fs < 2) {
-		if (smm_m >= RP_SCREENMODE_SCALE_2X) {
+		if (smm_m >= RP_SCREENMODE_SCALE_2X && smm < RP_SCREENMODE_SCALE_TARGET) {
 			m = smm_m - RP_SCREENMODE_SCALE_2X + 2;
 		}
 	}
@@ -1061,16 +1061,28 @@ static void set_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 
 		int m = 1;
 		if (fs == 2) {
-			p->gf[1].gfx_filter_autoscale = 1;
+			p->gf[GF_RTG].gfx_filter_autoscale = RTG_MODE_SCALE;
 		} else {
-			p->gf[1].gfx_filter_autoscale = 0;
-			if (smm_m >= RP_SCREENMODE_SCALE_2X) {
+			p->gf[GF_RTG].gfx_filter_autoscale = 0;
+			if (smm_m >= RP_SCREENMODE_SCALE_2X && smm < RP_SCREENMODE_SCALE_TARGET) {
 				m = smm_m - RP_SCREENMODE_SCALE_2X + 2;
 			}
 		}
 
+		p->win32_rtgallowscaling = false;
+		p->win32_rtgscaleaspectratio = keepaspect ? -1 : 0;
+
+		if (integerscale) {
+			p->gf[GF_RTG].gfx_filter_autoscale = RTG_MODE_INTEGER_SCALE;
+		}
 		gm->gfx_size_win.width = vidinfo->width * m;
 		gm->gfx_size_win.height = vidinfo->height * m;
+		if (forcesize && !integerscale) {
+			gm->gfx_size_win.width = sm->lTargetWidth;
+			gm->gfx_size_win.height = sm->lTargetHeight;
+			p->gf[GF_RTG].gfx_filter_autoscale = RTG_MODE_SCALE;
+			p->win32_rtgallowscaling = true;
+		}
 
 		hmult = (float)m;
 		vmult = (float)m;
@@ -1234,7 +1246,7 @@ static int movescreenoverlay(WPARAM wParam, LPARAM lParam)
 	eo.idx = (int)wParam;
 	eo.xpos = LOWORD(lParam);
 	eo.ypos = HIWORD(lParam);
-	int ret = D3D_extoverlay(&eo);
+	int ret = D3D_extoverlay(&eo, 0);
 	if (pause_emulation && D3D_refresh) {
 		D3D_refresh(0);
 		delayed_refresh = 0;
@@ -1251,7 +1263,7 @@ static int deletescreenoverlay(WPARAM wParam)
 	eo.idx = (int)wParam;
 	eo.width = -1;
 	eo.height = -1;
-	return D3D_extoverlay(&eo);
+	return D3D_extoverlay(&eo, 0);
 }
 
 static int screenoverlay(LPCVOID pData)
@@ -1269,7 +1281,7 @@ static int screenoverlay(LPCVOID pData)
 	eo.width = rpo->lWidth;
 	eo.height = rpo->lHeight;
 	eo.data = rpo->btData;
-	return D3D_extoverlay(&eo);
+	return D3D_extoverlay(&eo, 0);
 }
 
 static void dos_execute_callback(uae_u32 id, uae_u32 status, uae_u32 flags, const char *outbuf, void *userdata)

@@ -34,7 +34,7 @@ extern bool(*D3D_run)(int);
 extern int(*D3D_debug)(int, int);
 extern void(*D3D_led)(int, int, int);
 extern bool(*D3D_getscanline)(int*, bool*);
-extern bool(*D3D_extoverlay)(struct extoverlay*);
+extern bool(*D3D_extoverlay)(struct extoverlay*, int);
 extern void(*D3D_paint)(void);
 
 extern LPDIRECT3DSURFACE9 D3D_capture(int, int*,int*,int*,bool);

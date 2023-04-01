@@ -31,6 +31,14 @@ struct gdibm
 	int pitch;
 };
 
+struct gdioverlay
+{
+	struct gdioverlay *next;
+	int id;
+	int x, y;
+	struct gdibm tex;
+};
+
 struct gdistruct
 {
 	int enabled;
@@ -46,6 +54,7 @@ struct gdistruct
 	struct gdibm buf;
 	struct gdibm osd;
 	struct gdibm cursor;
+	struct gdioverlay *extoverlays;
 
 	float cursor_x, cursor_y;
 	float cursor_mx, cursor_my;
@@ -365,6 +374,14 @@ static void gdi_paint(void)
 		if (gdi->osd.active && gdi->osd.hbm) {
 			TransparentBlt(gdi->buf.thdc, gdi->osd.x, gdi->osd.y, gdi->ledwidth, gdi->ledheight, gdi->osd.thdc, 0, 0, gdi->ledwidth, gdi->ledheight, 0x000000);
 		}
+		struct gdioverlay *ov = gdi->extoverlays;
+		while (ov) {
+			if (ov->tex.bits) {
+				TransparentBlt(gdi->buf.thdc, ov->x, ov->y, ov->tex.width, ov->tex.height, ov->tex.thdc, 0, 0, ov->tex.width, ov->tex.height, 0x000000);
+			}
+			ov = ov->next;
+		}
+
 		BitBlt(gdi->hdc, 0, 0, gdi->wwidth, gdi->wheight, gdi->buf.thdc, 0, 0, SRCCOPY);
 	}
 }
@@ -394,6 +411,16 @@ void gdi_free(int monid, bool immediate)
 	freetexture(monid);
 	freesprite(gdi, &gdi->osd);
 	freesprite(gdi, &gdi->cursor);
+	struct gdioverlay *ov = gdi->extoverlays;
+	while (ov) {
+		struct gdioverlay *next = ov->next;
+		if (ov->tex.bits) {
+			freesprite(gdi, &ov->tex);
+		}
+		xfree(ov);
+		ov = next;
+	}
+	gdi->extoverlays = NULL;
 }
 
 static const TCHAR *gdi_init(HWND ahwnd, int monid, int w_w, int w_h, int depth, int *freq, int mmulth, int mmultv, int *errp)
@@ -499,6 +526,89 @@ static uae_u8 *gdi_setcursorsurface(int monid, int *pitch)
 	return NULL;
 }
 
+static bool gdi_extoverlay(struct extoverlay *ext, int monid)
+{
+	struct gdistruct *gdi = &gdidata[monid];
+	struct gdioverlay *ov, *ovprev, *ov2;
+	struct gdibm *s = NULL;
+
+	ov = gdi->extoverlays;
+	ovprev = NULL;
+	while (ov) {
+		if (ov->id == ext->idx) {
+			s = &ov->tex;
+			break;
+		}
+		ovprev = ov;
+		ov = ov->next;
+	}
+
+	write_log(_T("extoverlay %d: x=%d y=%d %d*%d data=%p ovl=%p\n"), ext->idx, ext->xpos, ext->ypos, ext->width, ext->height, ext->data, ov);
+
+	if (!s && (ext->width <= 0 || ext->height <= 0))
+		return false;
+
+	if (!ext->data && s && (ext->width == 0 || ext->height == 0)) {
+		ov->x = ext->xpos;
+		ov->y = ext->ypos;
+		return true;
+	}
+
+	if (ov && s) {
+		if (ovprev) {
+			ovprev->next = ov->next;
+		} else {
+			gdi->extoverlays = ov->next;
+		}
+		freesprite(gdi, s);
+		xfree(ov);
+		if (ext->width <= 0 || ext->height <= 0)
+			return true;
+	}
+
+	if (ext->width <= 0 || ext->height <= 0)
+		return false;
+
+	ov = xcalloc(gdioverlay, 1);
+	if (!ov) {
+		return false;
+	}
+	if (!allocsprite(gdi, &ov->tex, ext->width, ext->height)) {
+		xfree(ov);
+		return false;
+	}
+
+	s = &ov->tex;
+	ov->id = ext->idx;
+	
+
+	ov2 = gdi->extoverlays;
+	ovprev = NULL;
+	for (;;) {
+		if (ov2 == NULL || ov2->id >= ov->id) {
+			if (ov2 == gdi->extoverlays) {
+				gdi->extoverlays = ov;
+				ov->next = ov2;
+			} else {
+				ov->next = ovprev->next;
+				ovprev->next = ov;
+			}
+			break;
+		}
+		ovprev = ov2;
+		ov2 = ov2->next;
+	}
+
+	ov->x = ext->xpos;
+	ov->y = ext->ypos;
+
+	for (int y = 0; y < ext->height; y++) {
+		memcpy((uae_u8 *)s->bits + y * s->pitch, ext->data + y * ext->width * 4, ext->width * 4);
+	}
+
+	return true;
+}
+
 void gdi_select(void)
 {
 	for (int i = 0; i < MAX_AMIGAMONITORS; i++) {
@@ -535,6 +645,6 @@ void gdi_select(void)
 	D3D_debug = NULL;
 	D3D_led = NULL;
 	D3D_getscanline = NULL;
-	D3D_extoverlay = NULL;
+	D3D_extoverlay = gdi_extoverlay;
 	D3D_paint = gdi_paint;
 }
