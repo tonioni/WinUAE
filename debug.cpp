@@ -2138,7 +2138,7 @@ void record_dma_write(uae_u16 reg, uae_u32 dat, uae_u32 addr, int hpos, int vpos
 		dr->cf_reg = reg;
 		dr->cf_dat = dat;
 		dr->cf_addr = addr;
-		dma_conflict(vpos, hpos, dr, reg, false);
+		dma_conflict(vpos, hp, dr, reg, false);
 		return;
 	}
 	dr->hpos = hp;
@@ -2253,7 +2253,7 @@ void record_dma_read(uae_u16 reg, uae_u32 addr, int hpos, int vpos, int type, in
 	dma_record_frame[dma_record_toggle] = timeframes;
 	if (dr->reg != 0xffff) {
 		if (dr->reg != reg) {
-			dma_conflict(vpos, hpos, dr, reg, false);
+			dma_conflict(vpos, hp, dr, reg, false);
 			dr->cf_reg = reg;
 			dr->cf_addr = addr;
 		}

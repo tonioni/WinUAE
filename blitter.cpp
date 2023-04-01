@@ -1484,7 +1484,12 @@ static bool decide_blitter_idle(int lasthpos, int hpos, uaecptr addr, uae_u32 va
 	return false;
 }
 
-uae_u16 blitter_pipe[256+1];
+uae_u16 blitter_pipe[MAX_CHIPSETSLOTS + RGA_PIPELINE_ADJUST + MAX_CHIPSETSLOTS_EXTRA];
+
+void set_blitter_last(int hp)
+{
+	last_blitter_hpos = hp;
+}
 
 static bool decide_blitter_maybe_write2(int until_hpos, uaecptr addr, uae_u32 value)
 {
@@ -1500,8 +1505,8 @@ static bool decide_blitter_maybe_write2(int until_hpos, uaecptr addr, uae_u32 va
 		}
 	}
 
-	if (until_hpos < 0 || until_hpos > maxhpos) {
-		until_hpos = maxhpos;
+	if (until_hpos < 0 || until_hpos > maxhposm0) {
+		until_hpos = maxhposm0;
 	}
 
 	if (last_blitter_hpos >= until_hpos) {
