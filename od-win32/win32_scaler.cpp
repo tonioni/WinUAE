@@ -451,15 +451,23 @@ void getfilterrect2(int monid, RECT *sr, RECT *dr, RECT *zr, int dst_width, int 
 
 				float multadd = 1.0f / (1 << currprefs.gf[idx].gfx_filter_integerscalelimit);
 				if (cw2 > maxw || ch2 > maxh) {
-					while (cw2 / mult - adjw > maxw || ch2 / mult - adjh > maxh)
+					while (cw2 / mult - adjw > maxw || ch2 / mult - adjh > maxh) {
 						mult += multadd;
-					maxw = (int)(maxw * mult);
-					maxh = (int)(maxh * mult);
+					}
+					float multx = mult, multy = mult;
+					maxw = (int)(maxw * multx);
+					maxh = (int)(maxh * multy);
 				} else {
-					while (cw2 * (mult + multadd) - adjw <= maxw && ch2 * (mult + multadd) - adjh <= maxh)
+					while (cw2 * (mult + multadd) - adjw <= maxw && ch2 * (mult + multadd) - adjh <= maxh) {
 						mult += multadd;
-					maxw = (int)((maxw + mult - multadd) / mult);
-					maxh = (int)((maxh + mult - multadd) / mult);
+					}
+					float multx = mult, multy = mult;
+					// if width is smaller than height, double width (programmed modes)
+					if (cw2 * (mult + multadd) - adjw <= maxw && cw2 < ch2) {
+						multx += multadd;
+					}
+					maxw = (int)((maxw + multx - multadd) / multx);
+					maxh = (int)((maxh + multy - multadd) / multy);
 				}
 
 				*mode = 1;
