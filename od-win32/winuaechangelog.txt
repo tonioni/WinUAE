@@ -1,4 +1,12 @@
 
+Beta 5:
+
+- Programmed mode aspect ratio correction ("VGA mode resolution autoswitch") improved. Programmed modes should now always have correct aspect (no more halved horizontal size)
+- Integer scaling now automatically doubles width of display if original width is smaller than height and doubled width still fits.
+- GDI mode display position might have been wrong in some situations after switching modes.
+- Direct3D 11 mode world coordinate handling fixed (finally, has been wrong since D3D11 mode was introduced). Scanlines etc are not anymore affected by scaling settings. Rotation (gfx_rotation) also now works correctly.
+- RTG hardware sprite (mouse cursor) is now properly clipped when near edges of screen.
+
 Beta 4:
 
 - VHPOSW updates, copper special odd/even last cycle condition used original maxhpos value, not VHPOSW write "faked" hpos value. Do not do horizontal adjustments if CPU speed is fastest possible and/or JIT is enabled and VHPOSW access was CPU. Copper VHPOSW write is always accepted (which can only work if ECS or AGA).
