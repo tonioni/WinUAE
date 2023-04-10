@@ -38,7 +38,7 @@ extern bool(*D3D_extoverlay)(struct extoverlay*, int);
 extern void(*D3D_paint)(void);
 
 extern LPDIRECT3DSURFACE9 D3D_capture(int, int*,int*,int*,bool);
-extern bool D3D11_capture(int, void**,int*, int*,int*,bool);
+extern bool D3D11_capture(int, void**,int*, int*, int*,int*,bool);
 
 void D3D_getpixelformat(int depth, int *rb, int *gb, int *bb, int *rs, int *gs, int *bs, int *ab, int *as, int *a);
 

@@ -962,10 +962,10 @@ static void AVIOuput_WAVWriteAudio(uae_u8 *sndbuffer, int sndbufsize)
 static int getFromRenderTarget11(struct avientry *avie, bool renderTarget)
 {
 	int ok = 0;
-	int w, h, pitch, bits = 32;
+	int w, h, pitch, bits = 32, d;
 	void *data;
 
-	bool got = D3D11_capture(aviout_monid, &data, &w, &h, &pitch, renderTarget);
+	bool got = D3D11_capture(aviout_monid, &data, &w, &h, &d, &pitch, renderTarget);
 	if (got) {
 		int dpitch = ((aviout_width_out * avioutput_bits + 31) & ~31) / 8;
 		for (int y = 0; y < h && y < aviout_height_out; y++) {
@@ -984,7 +984,7 @@ static int getFromRenderTarget11(struct avientry *avie, bool renderTarget)
 				}
 			}
 		}
-		D3D11_capture(aviout_monid, NULL, NULL, NULL, NULL, renderTarget);
+		D3D11_capture(aviout_monid, NULL, NULL, NULL, NULL, NULL, renderTarget);
 		ok = 1;
 	}
 	return ok;

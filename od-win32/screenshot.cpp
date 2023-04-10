@@ -427,9 +427,9 @@ donormal:
 			height = state->Height;
 		}
 		if (D3D_isenabled(0) == 2) {
-			int w, h, pitch, bits = 32;
+			int w, h, pitch, bits = 32, d;
 			void *data;
-			bool got = D3D11_capture(monid, &data, &w, &h, &pitch, renderTarget);
+			bool got = D3D11_capture(monid, &data, &w, &h, &d, &pitch, renderTarget);
 
 			int dpitch = (((width * depth + 31) & ~31) / 8);
 			lpvBits = xmalloc(uae_u8, dpitch * height);
@@ -447,7 +447,7 @@ donormal:
 			bi->bmiHeader.biClrUsed = 0;
 			bi->bmiHeader.biClrImportant = 0;
 
-			if (got && lpvBits) {
+			if (got && lpvBits && d <= 32) {
 				for (int y = 0; y < h && y < height; y++) {
 					uae_u8 *d = (uae_u8*)lpvBits + (height - y - 1) * dpitch;
 					uae_u32 *s = (uae_u32*)((uae_u8*)data + y * pitch);
@@ -466,7 +466,7 @@ donormal:
 				}
 			}
 			if (got)
-				D3D11_capture(monid, NULL, NULL, NULL, NULL, renderTarget);
+				D3D11_capture(monid, NULL, NULL, NULL, NULL, NULL, renderTarget);
 			d3dcaptured = true;
 
 		} else if (D3D_isenabled(0) == 1) {

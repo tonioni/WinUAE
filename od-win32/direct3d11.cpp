@@ -5198,7 +5198,7 @@ static HDC xD3D_getDC(int monid, HDC hdc)
 	}
 }
 
-bool D3D11_capture(int monid, void **data, int *w, int *h, int *pitch, bool rendertarget)
+bool D3D11_capture(int monid, void **data, int *w, int *h, int *d, int *pitch, bool rendertarget)
 {
 	struct d3d11struct *d3d = &d3d11data[monid];
 	HRESULT hr;
@@ -5236,6 +5236,7 @@ bool D3D11_capture(int monid, void **data, int *w, int *h, int *pitch, bool rend
 			*pitch = map.RowPitch;
 			*w = desc.Width;
 			*h = desc.Height;
+			*d = d3d->hdr ? 36 : 24;
 			return true;
 		} else {
 			write_log(_T("Screenshot RenderTargetView->GetResource() failed\n"));
