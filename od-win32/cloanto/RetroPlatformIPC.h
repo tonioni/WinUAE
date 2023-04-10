@@ -9,7 +9,7 @@
          : Software Foundation.
  Authors : os, m
  Created : 2007-08-27 13:55:49
- Updated : 2022-12-06 12:23:10
+ Updated : 2023-04-04 14:45:34
  Comment : RetroPlatform Player interprocess communication include file
  *****************************************************************************/
 
@@ -219,6 +219,7 @@ typedef struct RPScreenMode
 #define RP_SCREENMODE_SCALING_SUBPIXEL 		0x00100000 // use sub-pixel (non-integer) scaling in RP_SCREENMODE_SCALE_TARGET or RP_SCREENMODE_SCALE_MAX modes; if not set, up to four black bars may be added; if set, up to two black bars may be added
 #define RP_SCREENMODE_SCALING_STRETCH  		0x00200000 // "stretch to fill" (do not preserve original ratio) in RP_SCREENMODE_SCALE_TARGET or RP_SCREENMODE_SCALE_MAX modes; if set, no black bars are added
 #define RP_SCREENMODE_PIXEL_ORIGINAL_RATIO	0x00400000 // use pixel original ratio (when not set, square pixel ratio or a multiple thereof is used, which grants optimal sharpness and avoids screen distortions)
+#define RP_SCREENMODE_INTERPOLATION         0x00800000 // scale image using bilinear interpolation
 
 // Clip Flags (used only from host to guest, never from guest to host)
 #define RP_CLIPFLAGS_AUTOCLIP				0x00000001 // ignore all 4 Clip values (same as all values = -1) and use "smart" offset and size

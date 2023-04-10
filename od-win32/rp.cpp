@@ -854,8 +854,12 @@ static void get_screenmode (struct RPScreenMode *sm, struct uae_prefs *p, bool g
 		m &= ~RP_SCREENMODE_DISPLAYMASK;
 		m |= p->gfx_apmode[rtg ? APMODE_RTG : APMODE_NATIVE].gfx_display << 8;
 	}
-	if (full > 1)
+	if (full > 1) {
 		m |= RP_SCREENMODE_FULLSCREEN_SHARED;
+	}
+	if (p->gf[rtg].gfx_filter_bilinear) {
+		m |= RP_SCREENMODE_INTERPOLATION;
+	}
 
 	sm->dwScreenMode = m | (storeflags & (RP_SCREENMODE_SCALING_STRETCH | RP_SCREENMODE_SCALING_SUBPIXEL));
 	sm->lTargetHeight = 0;
@@ -872,7 +876,7 @@ static void get_screenmode (struct RPScreenMode *sm, struct uae_prefs *p, bool g
 	sm->dwClipFlags = cf;
 
 	if (log_rp & 2) {
-		write_log (_T("%sGET_RPSM: hres=%d (%d) vres=%d (%d) full=%d xcpos=%d ycpos=%d w=%d h=%d vm=%d hm=%d half=%d\n"),
+		write_log (_T("%sGET_RPSM: hres=%d (%d) vres=%d (%d) full=%d xcpos=%d ycpos=%d w=%d h=%d vm=%.2f hm=%.2f half=%d\n"),
 			rtg ? _T("RTG ") : _T(""),
 			totalhdbl, hres, totalvdbl, vres, full,
 			p->gfx_xcenter_pos,  p->gfx_ycenter_pos,
@@ -990,7 +994,7 @@ static void set_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 				vres = max_vert_dbl;
 			}
 
-			if (smm_m > RP_SCREENMODE_SCALE_4X) {
+			if (smm_m > RP_SCREENMODE_SCALE_4X && smm < RP_SCREENMODE_SCALE_TARGET) {
 				xtramult = (smm_m + 1.0f) / 4.0f;
 				hmult *= xtramult;
 				vmult *= xtramult;
@@ -1071,6 +1075,7 @@ static void set_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 
 		p->win32_rtgallowscaling = false;
 		p->win32_rtgscaleaspectratio = keepaspect ? -1 : 0;
+		p->gf[GF_RTG].gfx_filter_bilinear = (sm->dwScreenMode & RP_SCREENMODE_INTERPOLATION) != 0;
 
 		if (integerscale) {
 			p->gf[GF_RTG].gfx_filter_autoscale = RTG_MODE_INTEGER_SCALE;
@@ -1167,6 +1172,7 @@ static void set_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 			p->gf[0].gfx_filter_left_border = -1;
 			p->gf[0].gfx_filter_top_border = -1;
 		}
+		p->gf[0].gfx_filter_bilinear = (sm->dwScreenMode & RP_SCREENMODE_INTERPOLATION) != 0;
 	}
 
 	if (log_rp & 2) {
@@ -1771,9 +1777,7 @@ static void sendfeatures (void)
 	feat = RP_FEATURE_POWERLED | RP_FEATURE_SCREEN1X | RP_FEATURE_FULLSCREEN;
 	feat |= RP_FEATURE_PAUSE | RP_FEATURE_TURBO_CPU | RP_FEATURE_TURBO_FLOPPY | RP_FEATURE_VOLUME | RP_FEATURE_SCREENCAPTURE;
 	feat |= RP_FEATURE_DEVICEREADWRITE;
-	if (currprefs.gfx_api) {
-		feat |= RP_FEATURE_SCREENOVERLAY;
-	}
+	feat |= RP_FEATURE_SCREENOVERLAY;
 	if (WIN32GFX_IsPicassoScreen(mon)) {
 		feat |= RP_FEATURE_SCREEN2X | RP_FEATURE_SCREEN3X | RP_FEATURE_SCREEN4X;
 	} else {
