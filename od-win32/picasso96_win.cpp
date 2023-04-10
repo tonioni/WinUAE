@@ -5606,8 +5606,8 @@ static void picasso_flushpixels(int index, uae_u8 *src, int off, bool render)
 
 			if (!split && vidinfo->rtg_clear_flag) {
 				uae_u8 *p2 = dst;
-				for (int h = 0; h < vidinfo->height; h++) {
-					memset(p2, 0, vidinfo->width * vidinfo->pixbytes);
+				for (int h = 0; h < vidinfo->maxheight; h++) {
+					memset(p2, 0, vidinfo->maxwidth * vidinfo->pixbytes);
 					p2 += vidinfo->rowbytes;
 				}
 				vidinfo->rtg_clear_flag--;

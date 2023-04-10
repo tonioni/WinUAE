@@ -2203,6 +2203,7 @@ int check_prefs_changed_gfx(void)
 		c |= gf->gfx_filter_blur != gfc->gfx_filter_blur ? (1) : 0;
 
 		c |= gf->gfx_filter_aspect != gfc->gfx_filter_aspect ? (1) : 0;
+		c |= gf->gfx_filter_rotation != gfc->gfx_filter_rotation ? (1) : 0;
 		c |= gf->gfx_filter_keep_aspect != gfc->gfx_filter_keep_aspect ? (1) : 0;
 		c |= gf->gfx_filter_keep_autoscale_aspect != gfc->gfx_filter_keep_autoscale_aspect ? (1) : 0;
 		c |= gf->gfx_filter_luminance != gfc->gfx_filter_luminance ? (1) : 0;
@@ -4076,8 +4077,8 @@ bool target_graphics_buffer_update(int monid)
 	
 	graphicsbuffer_retry = false;
 	if (mon->screen_is_picasso) {
-		w = state->Width > vidinfo->width ? state->Width : vidinfo->width;
-		h = state->Height > vidinfo->height ? state->Height : vidinfo->height;
+		w = state->Width;
+		h = state->Height;
 	} else {
 		struct vidbuffer *vb = avidinfo->drawbuffer.tempbufferinuse ? &avidinfo->tempbuffer : &avidinfo->drawbuffer;
 		avidinfo->outbuffer = vb;

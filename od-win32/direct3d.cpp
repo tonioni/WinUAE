@@ -168,6 +168,8 @@ struct d3dstruct
 	float mask2texture_wwx, mask2texture_hhx, mask2texture_minusx, mask2texture_minusy;
 	float mask2texture_multx, mask2texture_multy, mask2texture_offsetw;
 	LPDIRECT3DTEXTURE9 cursorsurfaced3d;
+	uae_u8 *cursorsurfaced3dtexbuf;
+	bool cursorsurfaced3dtexbufupdated;
 	struct d3d9overlay *extoverlays;
 	IDirect3DVertexBuffer9 *vertexBuffer;
 	ID3DXSprite *sprite;
@@ -2083,9 +2085,8 @@ static bool xD3D_getscalerect(int monid, float *mx, float *my, float *sx, float 
 	return true;
 }
 
-static void setupscenecoords(struct d3dstruct *d3d, bool normalrender)
+static void setupscenecoords(struct d3dstruct *d3d, bool normalrender, int monid)
 {
-	int monid = d3d->num;
 	struct vidbuf_description *vidinfo = &adisplays[monid].gfxvidinfo;
 	RECT sr, dr, zr;
 	float w, h;
@@ -2171,10 +2172,12 @@ static void setupscenecoords(struct d3dstruct *d3d, bool normalrender)
 
 	MatrixScaling (&d3d->m_matWorld_out, sw + 0.5f / sw, sh + 0.5f / sh, 1.0f);
 
-	if (currprefs.gfx_rotation) {
+	struct amigadisplay *ad = &adisplays[monid];
+	int rota = currprefs.gf[ad->picasso_on ? GF_RTG : ad->interlace_on ? GF_INTERLACE : GF_NORMAL].gfx_filter_rotation;
+	if (rota) {
 		const float PI = 3.14159265358979f;
 		D3DXMATRIXA16 mrot;
-		D3DXMatrixRotationZ(&mrot, PI / 180.0f * currprefs.gfx_rotation);
+		D3DXMatrixRotationZ(&mrot, PI / 180.0f * rota);
 		D3DXMATRIXA16 tmprmatrix;
 		D3DXMatrixMultiply(&tmprmatrix, &d3d->m_matWorld_out, &mrot);
 		d3d->m_matWorld_out = tmprmatrix;
@@ -2398,6 +2401,8 @@ static void invalidatedeviceobjects (struct d3dstruct *d3d)
 		d3d->cursorsurfaced3d->Release ();
 		d3d->cursorsurfaced3d = NULL;
 	}
+	xfree(d3d->cursorsurfaced3dtexbuf);
+	d3d->cursorsurfaced3dtexbuf = NULL;
 	struct d3d9overlay *ov = d3d->extoverlays;
 	while (ov) {
 		struct d3d9overlay *next = ov->next;
@@ -2516,6 +2521,8 @@ static int restoredeviceobjects (struct d3dstruct *d3d)
 
 	int curw = CURSORMAXWIDTH, curh = CURSORMAXHEIGHT;
 	d3d->cursorsurfaced3d = createtext (d3d, curw, curh, D3DFMT_A8R8G8B8);
+	d3d->cursorsurfaced3dtexbuf = xcalloc(uae_u8, curw * curh * 4);
+	d3d->cursorsurfaced3dtexbufupdated = false;
 	d3d->cursor_v = false;
 	d3d->cursor_scale = false;
 
@@ -3352,7 +3359,7 @@ static void clearrt(struct d3dstruct *d3d)
 	hr = d3d->d3ddev->Clear(0, NULL, D3DCLEAR_TARGET, D3DCOLOR_XRGB(color[0], d3ddebug ? 0x80 : color[1], color[2]), 0, 0);
 }
 
-static void D3D_render2(struct d3dstruct *d3d, int mode)
+static void D3D_render2(struct d3dstruct *d3d, int mode, int monid)
 {
 	struct AmigaMonitor *mon = &AMonitors[d3d - d3ddata];
 	HRESULT hr;
@@ -3419,7 +3426,7 @@ static void D3D_render2(struct d3dstruct *d3d, int mode)
 				masktexture = s->masktexture;
 		}
 
-		setupscenecoords(d3d, normalrender);
+		setupscenecoords(d3d, normalrender, monid);
 		hr = d3d->d3ddev->SetTransform (D3DTS_PROJECTION, &d3d->m_matProj);
 		hr = d3d->d3ddev->SetTransform (D3DTS_VIEW, &d3d->m_matView);
 		hr = d3d->d3ddev->SetTransform (D3DTS_WORLD, &d3d->m_matWorld);
@@ -3518,7 +3525,7 @@ static void D3D_render2(struct d3dstruct *d3d, int mode)
 	} else {
 
 		// non-shader version
-		setupscenecoords (d3d, normalrender);
+		setupscenecoords (d3d, normalrender, monid);
 		hr = d3d->d3ddev->SetTransform (D3DTS_PROJECTION, &d3d->m_matProj);
 		hr = d3d->d3ddev->SetTransform (D3DTS_VIEW, &d3d->m_matView);
 		hr = d3d->d3ddev->SetTransform (D3DTS_WORLD, &d3d->m_matWorld);
@@ -3686,6 +3693,63 @@ static void D3D_render2(struct d3dstruct *d3d, int mode)
 		write_log (_T("%s: EndScene() %s\n"), D3DHEAD, D3D_ErrorString (hr));
 }
 
+static void updatecursorsurface(int monid)
+{
+	struct d3dstruct *d3d = &d3ddata[monid];
+	D3DLOCKED_RECT locked;
+	int cx = (int)d3d->cursor_x;
+	int cy = (int)d3d->cursor_y;
+	int width = CURSORMAXWIDTH;
+	int height = CURSORMAXHEIGHT;
+
+	if (!d3d->cursorsurfaced3d || !d3d->cursorsurfaced3dtexbuf) {
+		return;
+	}
+
+	if (d3d->cursorsurfaced3dtexbufupdated && cx >= 0 && cy >= 0 && cx + width <= d3d->tin_w && cy + height <= d3d->tin_h) {
+		return;
+	}
+
+	d3d->cursorsurfaced3dtexbufupdated = false;
+	HRESULT hr = d3d->cursorsurfaced3d->LockRect(0, &locked, NULL, 0);
+	if (SUCCEEDED(hr)) {
+		int pitch = locked.Pitch;
+		uae_u8 *b = (uae_u8 *)locked.pBits;
+		int cx = (int)d3d->cursor_x;
+		int cy = (int)d3d->cursor_y;
+		uae_u8 *s = d3d->cursorsurfaced3dtexbuf;
+		for (int h = 0; h < CURSORMAXHEIGHT; h++) {
+			int w = width;
+			int x = 0;
+			if (cx + w > d3d->tin_w) {
+				w -= (cx + w) - d3d->tin_w;
+			}
+			if (cx < 0) {
+				x = -cx;
+				w -= -cx;
+			}
+			if (w <= 0 || cy + h > d3d->tin_h) {
+				memset(b, 0, width * 4);
+			} else {
+				if (x > 0) {
+					memset(b, 0, x * 4);
+				}
+				memcpy(b + x * 4, s + x * 4, w * 4);
+				if (w < width) {
+					memset(b + w * 4, 0, (width - w) * 4);
+				}
+			}
+			b += pitch;
+			s += width * 4;
+		}
+		d3d->cursorsurfaced3d->UnlockRect(0);
+
+		if (cx >= 0 && cy >= 0 && cx + width <= d3d->tin_w && cy + height <= d3d->tin_h) {
+			d3d->cursorsurfaced3dtexbufupdated = true;
+		}
+	}
+}
+
 static bool xD3D_setcursor(int monid, int x, int y, int width, int height, float mx, float my, bool visible, bool noscale)
 {
 	struct d3dstruct *d3d = &d3ddata[monid];
@@ -3707,6 +3771,9 @@ static bool xD3D_setcursor(int monid, int x, int y, int width, int height, float
 	}
 	d3d->cursor_scale = false; // !noscale;
 	d3d->cursor_v = visible;
+
+	updatecursorsurface(monid);
+
 	return true;
 }
 
@@ -3882,7 +3949,7 @@ static bool xD3D_renderframe(int monid, int mode, bool immediate)
 			return true;
 	}
 
-	D3D_render2 (d3d, mode);
+	D3D_render2 (d3d, mode, monid);
 	flushgpu (d3d, immediate);
 
 	return true;
@@ -3939,7 +4006,7 @@ static void xD3D_refresh (int monid)
 		return;
 	createscanlines(d3d, 0);
 	for (int i = 0; i < 3; i++) {
-		D3D_render2(d3d, true);
+		D3D_render2(d3d, true, monid);
 		D3D_showframe2(d3d, true);
 	}
 }
@@ -4010,7 +4077,7 @@ static void xD3D_guimode(int monid, int guion)
 	waitfakemode (d3d);
 	if (!isd3d (d3d))
 		return;
-	D3D_render2(d3d, true);
+	D3D_render2(d3d, true, monid);
 	D3D_showframe2(d3d, true);
 	hr = d3d->d3ddev->SetDialogBoxMode (guion ? TRUE : FALSE);
 	if (FAILED (hr))
@@ -4093,18 +4160,10 @@ static uae_u8 *xD3D_setcursorsurface(int monid, int *pitch)
 {
 	struct d3dstruct *d3d = &d3ddata[monid];
 	if (pitch) {
-		D3DLOCKED_RECT locked;
-		if (!d3d->cursorsurfaced3d)
-			return NULL;
-		HRESULT hr = d3d->cursorsurfaced3d->LockRect(0, &locked, NULL, 0);
-		if (FAILED(hr))
-			return NULL;
-		*pitch = locked.Pitch;
-		return (uae_u8*)locked.pBits;
-	} else {
-		d3d->cursorsurfaced3d->UnlockRect(0);
-		return NULL;
+		*pitch = CURSORMAXWIDTH * 4;
+		return d3d->cursorsurfaced3dtexbuf;
 	}
+	return NULL;
 }
 
 static bool xD3D_getscanline(int *scanline, bool *invblank)

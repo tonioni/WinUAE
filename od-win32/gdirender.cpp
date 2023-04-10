@@ -24,6 +24,7 @@ struct gdibm
 	bool active;
 	int x, y;
 	int width, height, depth;
+	int maxw, maxh;
 	HDC thdc;
 	HBITMAP hbm;
 	HGDIOBJ oldbm;
@@ -325,6 +326,7 @@ static bool gdi_renderframe(int monid, int mode, bool immediate)
 {
 	struct gdistruct *gdi = &gdidata[monid];
 
+	setupscenecoords(gdi);
 	return gdi->bm.hbm != NULL;
 }
 
@@ -343,7 +345,6 @@ static void gdi_paint(void)
 		}
 
 		if (gdi->bm.hbm) {
-			setupscenecoords(gdi);
 			StretchBlt(gdi->buf.thdc, gdi->bmxoffset, gdi->bmyoffset, gdi->bmwidth, gdi->bmheight, gdi->bm.thdc, 0, 0, gdi->bm.width, gdi->bm.height, SRCCOPY);
 		}
 		if (gdi->cursor.active && gdi->cursor.hbm) {
@@ -367,6 +368,12 @@ static void gdi_paint(void)
 				ch -= d;
 				y += d;
 			}
+			if (x + cw > gdi->cursor.maxw) {
+				cw -= (x + cw) - gdi->cursor.maxw;
+			}
+			if (y + ch > gdi->cursor.maxh) {
+				ch -= (y + ch) - gdi->cursor.maxh;
+			}
 			if (cw > 0 && ch > 0) {
 				TransparentBlt(gdi->buf.thdc, x, y, (int)(cw * gdi->xmult), (int)(ch * gdi->ymult), gdi->cursor.thdc, cx, cy, cw, ch, 0xfe00fe);
 			}
@@ -377,7 +384,7 @@ static void gdi_paint(void)
 		struct gdioverlay *ov = gdi->extoverlays;
 		while (ov) {
 			if (ov->tex.bits) {
-				TransparentBlt(gdi->buf.thdc, ov->x, ov->y, ov->tex.width, ov->tex.height, ov->tex.thdc, 0, 0, ov->tex.width, ov->tex.height, 0x000000);
+				TransparentBlt(gdi->buf.thdc, ov->x, ov->y, ov->tex.width, ov->tex.height, ov->tex.thdc, 0, 0, ov->tex.width, ov->tex.height, 0xfe00fe);
 			}
 			ov = ov->next;
 		}
@@ -494,6 +501,8 @@ static bool gdi_setcursor(int monid, int x, int y, int width, int height, float 
 	}
 	gdi->cursor.x = cx;
 	gdi->cursor.y = cy;
+	gdi->cursor.maxw = (int)((float)gdi->bmwidth * mx * gdi->xmult + gdi->cursor_offset_x * gdi->ymult + 0.5f);
+	gdi->cursor.maxh = (int)((float)gdi->bmheight * my * gdi->ymult + gdi->cursor_offset_y * gdi->xmult + 0.5f);
 	gdi->cursor_scale = !noscale;
 	gdi->cursor.active = visible;
 	return true;
@@ -532,6 +541,12 @@ static bool gdi_extoverlay(struct extoverlay *ext, int monid)
 	struct gdioverlay *ov, *ovprev, *ov2;
 	struct gdibm *s = NULL;
 
+	if (gdi->depth < 32) {
+		return false;
+	}
+
+	gdi->eraseneeded = true;
+
 	ov = gdi->extoverlays;
 	ovprev = NULL;
 	while (ov) {
@@ -566,7 +581,7 @@ static bool gdi_extoverlay(struct extoverlay *ext, int monid)
 			return true;
 	}
 
-	if (ext->width <= 0 || ext->height <= 0)
+	if (ext->width <= 0 || ext->height <= 0 || !ext->data)
 		return false;
 
 	ov = xcalloc(gdioverlay, 1);
@@ -580,7 +595,6 @@ static bool gdi_extoverlay(struct extoverlay *ext, int monid)
 
 	s = &ov->tex;
 	ov->id = ext->idx;
-	
 
 	ov2 = gdi->extoverlays;
 	ovprev = NULL;
@@ -603,7 +617,16 @@ static bool gdi_extoverlay(struct extoverlay *ext, int monid)
 	ov->y = ext->ypos;
 
 	for (int y = 0; y < ext->height; y++) {
-		memcpy((uae_u8 *)s->bits + y * s->pitch, ext->data + y * ext->width * 4, ext->width * 4);
+		for (int x = 0; x < ext->width; x++) {
+			uae_u32 *sp = (uae_u32*)(ext->data + ext->width * y * 4 + x * 4);
+			uae_u32 *p = (uae_u32*)((uae_u8*)s->bits + s->pitch * y + x * 4);
+			uae_u32 v = *sp;
+			if ((v & 0xff000000) == 0x00000000) {
+				*p = 0xfe00fe;
+			} else {
+				*p = v & 0xffffff;
+			}
+		}
 	}
 
 	return true;
