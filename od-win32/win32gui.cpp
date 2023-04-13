@@ -13417,9 +13417,12 @@ static void values_from_cpudlg(HWND hDlg, WPARAM wParam)
 		workprefs.comptrustword = trust_prev;
 		workprefs.comptrustlong = trust_prev;
 		workprefs.comptrustnaddr = trust_prev;
-		if (workprefs.fpu_mode > 0) {
+		if (workprefs.fpu_mode > 0 || workprefs.fpu_model == 0) {
 			workprefs.compfpu = false;
 			setchecked(hDlg, IDC_JITFPU, false);
+		} else if (workprefs.fpu_model > 0) {
+			workprefs.compfpu = true;
+			setchecked(hDlg, IDC_JITFPU, true);
 		}
 	}
 	if (!workprefs.cachesize) {
