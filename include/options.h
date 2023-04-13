@@ -943,7 +943,9 @@ struct uae_prefs {
 	int input_mouse_untrap;
 	int input_magic_mouse_cursor;
 	int input_keyboard_type;
-	int input_autoswitch;
+	bool input_autoswitch;
+	bool input_autoswitchleftright;
+	bool input_advancedmultiinput;
 	struct uae_input_device joystick_settings[MAX_INPUT_SETTINGS][MAX_INPUT_DEVICES];
 	struct uae_input_device mouse_settings[MAX_INPUT_SETTINGS][MAX_INPUT_DEVICES];
 	struct uae_input_device keyboard_settings[MAX_INPUT_SETTINGS][MAX_INPUT_DEVICES];

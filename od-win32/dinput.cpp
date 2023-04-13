@@ -4435,14 +4435,14 @@ int input_get_default_keyboard (int i)
 
 static int nextsub(struct uae_input_device *uid, int i, int slot, int sub)
 {
-#if INPUTDEVICE_ALLOWSAMEJPORT
-	while (uid[i].eventid[slot][sub] > 0) {
-		sub++;
-		if (sub >= MAX_INPUT_SUB_EVENT_ALL) {
-			return -1;
+	if (currprefs.input_advancedmultiinput) {
+		while (uid[i].eventid[slot][sub] > 0) {
+			sub++;
+			if (sub >= MAX_INPUT_SUB_EVENT_ALL) {
+				return -1;
+			}
 		}
 	}
-#endif
 	return sub;
 }
 

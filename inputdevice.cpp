@@ -972,19 +972,21 @@ void write_inputdevice_config (struct uae_prefs *p, struct zfile *f)
 {
 	int i, id;
 
-	cfgfile_write (f, _T("input.config"), _T("%d"), p->input_selected_setting == GAMEPORT_INPUT_SETTINGS ? 0 : p->input_selected_setting + 1);
-	cfgfile_write (f, _T("input.joymouse_speed_analog"), _T("%d"), p->input_joymouse_multiplier);
-	cfgfile_write (f, _T("input.joymouse_speed_digital"), _T("%d"), p->input_joymouse_speed);
-	cfgfile_write (f, _T("input.joymouse_deadzone"), _T("%d"), p->input_joymouse_deadzone);
-	cfgfile_write (f, _T("input.joystick_deadzone"), _T("%d"), p->input_joystick_deadzone);
-	cfgfile_write (f, _T("input.analog_joystick_multiplier"), _T("%d"), p->input_analog_joystick_mult);
-	cfgfile_write (f, _T("input.analog_joystick_offset"), _T("%d"), p->input_analog_joystick_offset);
-	cfgfile_write (f, _T("input.mouse_speed"), _T("%d"), p->input_mouse_speed);
-	cfgfile_write (f, _T("input.autofire_speed"), _T("%d"), p->input_autofire_linecnt);
-	cfgfile_write (f, _T("input.autoswitch"), _T("%d"), p->input_autoswitch);
-	cfgfile_dwrite_str (f, _T("input.keyboard_type"), kbtypes[p->input_keyboard_type]);
-	cfgfile_dwrite (f, _T("input.contact_bounce"), _T("%d"), p->input_contact_bounce);
-	cfgfile_dwrite (f, _T("input.devicematchflags"), _T("%d"), p->input_device_match_mask);
+	cfgfile_write(f, _T("input.config"), _T("%d"), p->input_selected_setting == GAMEPORT_INPUT_SETTINGS ? 0 : p->input_selected_setting + 1);
+	cfgfile_write(f, _T("input.joymouse_speed_analog"), _T("%d"), p->input_joymouse_multiplier);
+	cfgfile_write(f, _T("input.joymouse_speed_digital"), _T("%d"), p->input_joymouse_speed);
+	cfgfile_write(f, _T("input.joymouse_deadzone"), _T("%d"), p->input_joymouse_deadzone);
+	cfgfile_write(f, _T("input.joystick_deadzone"), _T("%d"), p->input_joystick_deadzone);
+	cfgfile_write(f, _T("input.analog_joystick_multiplier"), _T("%d"), p->input_analog_joystick_mult);
+	cfgfile_write(f, _T("input.analog_joystick_offset"), _T("%d"), p->input_analog_joystick_offset);
+	cfgfile_write(f, _T("input.mouse_speed"), _T("%d"), p->input_mouse_speed);
+	cfgfile_write(f, _T("input.autofire_speed"), _T("%d"), p->input_autofire_linecnt);
+	cfgfile_write_bool(f, _T("input.autoswitch"), p->input_autoswitch);
+	cfgfile_dwrite_str(f, _T("input.keyboard_type"), kbtypes[p->input_keyboard_type]);
+	cfgfile_dwrite(f, _T("input.contact_bounce"), _T("%d"), p->input_contact_bounce);
+	cfgfile_dwrite(f, _T("input.devicematchflags"), _T("%d"), p->input_device_match_mask);
+	cfgfile_dwrite_bool(f, _T("input.autoswitchleftright"), p->input_autoswitchleftright);
+	cfgfile_dwrite_bool(f, _T("input.advancedmultiinput"), p->input_advancedmultiinput);
 	for (id = 0; id < MAX_INPUT_SETTINGS; id++) {
 		TCHAR tmp[MAX_DPATH];
 		if (id < GAMEPORT_INPUT_SETTINGS) {
@@ -1554,35 +1556,39 @@ void read_inputdevice_config (struct uae_prefs *pr, const TCHAR *option, TCHAR *
 		if (pr->input_selected_setting < 0 || pr->input_selected_setting > MAX_INPUT_SETTINGS)
 			pr->input_selected_setting = 0;
 	}
-	if (!strcasecmp (p, _T("joymouse_speed_analog")))
-		pr->input_joymouse_multiplier = _tstol (value);
-	if (!strcasecmp (p, _T("joymouse_speed_digital")))
-		pr->input_joymouse_speed = _tstol (value);
-	if (!strcasecmp (p, _T("joystick_deadzone")))
-		pr->input_joystick_deadzone = _tstol (value);
-	if (!strcasecmp (p, _T("joymouse_deadzone")))
-		pr->input_joymouse_deadzone = _tstol (value);
-	if (!strcasecmp (p, _T("mouse_speed")))
-		pr->input_mouse_speed = _tstol (value);
-	if (!strcasecmp (p, _T("autofire_speed")))
-		pr->input_autofire_linecnt = _tstol (value);
-	if (!strcasecmp (p, _T("analog_joystick_multiplier")))
-		pr->input_analog_joystick_mult = _tstol (value);
-	if (!strcasecmp (p, _T("analog_joystick_offset")))
-		pr->input_analog_joystick_offset = _tstol (value);
-	if (!strcasecmp (p, _T("autoswitch")))
-		pr->input_autoswitch = _tstol (value);
-	if (!strcasecmp (p, _T("keyboard_type"))) {
-		cfgfile_strval (p, value, p, &pr->input_keyboard_type, kbtypes, 0);
+	if (!strcasecmp(p, _T("joymouse_speed_analog")))
+		pr->input_joymouse_multiplier = _tstol(value);
+	if (!strcasecmp(p, _T("joymouse_speed_digital")))
+		pr->input_joymouse_speed = _tstol(value);
+	if (!strcasecmp(p, _T("joystick_deadzone")))
+		pr->input_joystick_deadzone = _tstol(value);
+	if (!strcasecmp(p, _T("joymouse_deadzone")))
+		pr->input_joymouse_deadzone = _tstol(value);
+	if (!strcasecmp(p, _T("mouse_speed")))
+		pr->input_mouse_speed = _tstol(value);
+	if (!strcasecmp(p, _T("autofire_speed")))
+		pr->input_autofire_linecnt = _tstol(value);
+	if (!strcasecmp(p, _T("analog_joystick_multiplier")))
+		pr->input_analog_joystick_mult = _tstol(value);
+	if (!strcasecmp(p, _T("analog_joystick_offset")))
+		pr->input_analog_joystick_offset = _tstol(value);
+	if (!strcasecmp(p, _T("autoswitch")))
+		pr->input_autoswitch = !_tcsicmp(value, _T("true")) || _tstol(value) != 0;
+	if (!strcasecmp(p, _T("autoswitchleftright")))
+		pr->input_autoswitchleftright = !_tcsicmp(value, _T("true")) || _tstol(value) != 0;
+	if (!strcasecmp(p, _T("advancedmultiinput")))
+		pr->input_advancedmultiinput = !_tcsicmp(value, _T("true")) || _tstol(value) != 0;
+	if (!strcasecmp(p, _T("keyboard_type"))) {
+		cfgfile_strval(p, value, p, &pr->input_keyboard_type, kbtypes, 0);
 		keyboard_default = keyboard_default_table[pr->input_keyboard_type];
-		inputdevice_default_kb_all (pr);
+		inputdevice_default_kb_all(pr);
 	}
 	if (!strcasecmp(p, _T("devicematchflags"))) {
 		pr->input_device_match_mask = _tstol(value);
 		write_log(_T("input_device_match_mask = %d\n"), pr->input_device_match_mask);
 	}
-	if (!strcasecmp (p, _T("contact_bounce")))
-		pr->input_contact_bounce = _tstol (value);
+	if (!strcasecmp(p, _T("contact_bounce")))
+		pr->input_contact_bounce = _tstol(value);
 
 	idnum = _tstol (p);
 	if (idnum <= 0 || idnum > MAX_INPUT_SETTINGS)
@@ -5587,6 +5593,7 @@ static void inputdevice_checkconfig (void)
 		currprefs.input_joymouse_speed != changed_prefs.input_joymouse_speed ||
 		currprefs.input_autofire_linecnt != changed_prefs.input_autofire_linecnt ||
 		currprefs.input_autoswitch != changed_prefs.input_autoswitch ||
+		currprefs.input_autoswitchleftright != changed_prefs.input_autoswitchleftright ||
 		currprefs.input_device_match_mask != changed_prefs.input_device_match_mask ||
 		currprefs.input_mouse_speed != changed_prefs.input_mouse_speed) {
 
@@ -5598,6 +5605,7 @@ static void inputdevice_checkconfig (void)
 			currprefs.input_autofire_linecnt = changed_prefs.input_autofire_linecnt;
 			currprefs.input_mouse_speed = changed_prefs.input_mouse_speed;
 			currprefs.input_autoswitch = changed_prefs.input_autoswitch;
+			currprefs.input_autoswitchleftright = changed_prefs.input_autoswitchleftright;
 			currprefs.input_device_match_mask = changed_prefs.input_device_match_mask;
 
 			inputdevice_updateconfig (&changed_prefs, &currprefs);
@@ -8093,6 +8101,7 @@ void inputdevice_default_prefs (struct uae_prefs *p)
 	p->input_autofire_linecnt = 600;
 	p->input_keyboard_type = 0;
 	p->input_autoswitch = true;
+	p->input_autoswitchleftright = false;
 	p->input_device_match_mask = -1;
 	keyboard_default = keyboard_default_table[p->input_keyboard_type];
 	inputdevice_default_kb_all (p);
@@ -9395,32 +9404,32 @@ void setjoystickstate (int joy, int axis, int state, int max)
 	if (input_play)
 		return;
 	if (!joysticks[joy].enabled) {
-#if 0
-		if (v1 > 0)
-			v1 = 1;
-		else if (v1 < 0)
-			v1 = -1;
-		if (v2 > 0)
-			v2 = 1;
-		else if (v2 < 0)
-			v2 = -1;
-		if (v1 && v1 != v2 && (axis == 0 || axis == 1)) {
-			static int prevdir;
-			static struct timeval tv1;
-			struct timeval tv2;
-			gettimeofday (&tv2, NULL);
-			if ((uae_s64)tv2.tv_sec * 1000000 + tv2.tv_usec < (uae_s64)tv1.tv_sec * 1000000 + tv1.tv_usec + 500000 && prevdir == v1) {
-				switchdevice (&joysticks[joy], v1 < 0 ? 0 : 1, false);
-				tv1.tv_sec = 0;
-				tv1.tv_usec = 0;
-				prevdir = 0;
-			} else {
-				tv1.tv_sec = tv2.tv_sec;
-				tv1.tv_usec = tv2.tv_usec;
-				prevdir = v1;
+		if (currprefs.input_autoswitchleftright) {
+			if (v1 > 0)
+				v1 = 1;
+			else if (v1 < 0)
+				v1 = -1;
+			if (v2 > 0)
+				v2 = 1;
+			else if (v2 < 0)
+				v2 = -1;
+			if (v1 && v1 != v2 && (axis == 0 || axis == 1)) {
+				static int prevdir;
+				static struct timeval tv1;
+				struct timeval tv2;
+				gettimeofday (&tv2, NULL);
+				if ((uae_s64)tv2.tv_sec * 1000000 + tv2.tv_usec < (uae_s64)tv1.tv_sec * 1000000 + tv1.tv_usec + 500000 && prevdir == v1) {
+					switchdevice (&joysticks[joy], v1 < 0 ? 0 : 1, false);
+					tv1.tv_sec = 0;
+					tv1.tv_usec = 0;
+					prevdir = 0;
+				} else {
+					tv1.tv_sec = tv2.tv_sec;
+					tv1.tv_usec = tv2.tv_usec;
+					prevdir = v1;
+				}
 			}
 		}
-#endif
 		return;
 	}
 	for (i = 0; i < MAX_INPUT_SUB_EVENT; i++) {
@@ -9751,7 +9760,7 @@ void inputdevice_validate_jports (struct uae_prefs *p, int changedport, bool fix
 			if (j == i)
 				continue;
 			if (p->jports[i].jd[0].id == p->jports[j].jd[0].id) {
-				if (INPUTDEVICE_ALLOWSAMEJPORT && jsem_iskbdjoy(i, p) < 0 && jsem_iskbdjoy(j, p) < 0) {
+				if (currprefs.input_advancedmultiinput && jsem_iskbdjoy(i, p) < 0 && jsem_iskbdjoy(j, p) < 0) {
 					continue;
 				}
 				int cnt = 0;
