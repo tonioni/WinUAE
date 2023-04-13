@@ -5254,6 +5254,10 @@ static void updatecursorsurface(int monid)
 	int width = sp->width;
 	int height = sp->height;
 
+	if (sp->texture == NULL) {
+		return;
+	}
+
 	if (sp->updated && cx >= 0 && cy >= 0 && cx + width <= d3d->m_bitmapWidth && cy + height <= d3d->m_bitmapHeight) {
 		return;
 	}
