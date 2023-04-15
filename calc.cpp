@@ -50,7 +50,7 @@ static int op_preced(const TCHAR c)
             return 3;
         case '+': case '-':
             return 2;
-        case '=':
+        case '=': case '@': case '>': case '<':
             return 1;
     }
     return 0;
@@ -64,7 +64,7 @@ static bool op_left_assoc(const TCHAR c)
         case '|': case '&': case '^':
             return true;
         // right to left
-        case '=': case '!':
+        case '=': case '!': case '@': case '>': case '<':
             return false;
     }
     return false;
@@ -73,7 +73,7 @@ static bool op_left_assoc(const TCHAR c)
 static unsigned int op_arg_count(const TCHAR c)
 {
     switch(c)  {
-        case '*': case '/': case '%': case '+': case '-': case '=':
+        case '*': case '/': case '%': case '+': case '-': case '=': case '@': case '<': case '>':
         case '|': case '&': case '^':
             return 2;
         case '!':
@@ -84,7 +84,7 @@ static unsigned int op_arg_count(const TCHAR c)
     return 0;
 }
  
-#define is_operator(c)  (c == '+' || c == '-' || c == '/' || c == '*' || c == '!' || c == '%' || c == '=' || c == '|' || c == '&' || c == '^')
+#define is_operator(c)  (c == '+' || c == '-' || c == '/' || c == '*' || c == '!' || c == '%' || c == '=' || c == '|' || c == '&' || c == '^' || c == '@' || c == '>' || c == '<')
 #define is_function(c)  (c >= 'A' && c <= 'Z')
 #define is_ident(c)     ((c >= '0' && c <= '9') || (c >= 'a' && c <= 'z'))
  
@@ -249,6 +249,12 @@ static double docalcx(TCHAR op, double v1, double v2)
         return (int)v1 & (int)v2;
         case '^':
         return (int)v1 ^ (int)v2;
+        case '@':
+        return (int)v1 == (int)v2;
+        case '>':
+        return (int)v1 > (int)v2;
+        case '<':
+        return (int)v1 < (int)v2;
 	}
 	return 0;
 }
@@ -428,6 +434,10 @@ static bool parse_values(const TCHAR *ins, TCHAR *out)
 			in[3] = ' ';
 			in[4] = ' ';
 		}
+        if (*in == '=' && *(in + 1) == '=') {
+            *in = '@';
+            *(in + 1) = ' ';
+        }
 		if (_istdigit (*in)) {
 			if (ident >= MAX_VALUES)
 				return false;
