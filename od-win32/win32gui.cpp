@@ -136,6 +136,7 @@ int gui_active, gui_left;
 static struct newresource *panelresource;
 int dialog_inhibit;
 static HMODULE hHtmlHelp;
+pathtype path_type;
 
 void HtmlHelp(const TCHAR *panel)
 {
@@ -6636,6 +6637,15 @@ static void values_to_pathsdialog (HWND hDlg)
 	wsetpath(hDlg, _T("SaveimagePath"), IDC_PATHS_SAVEIMAGE, _T("SaveImages"));
 	wsetpath(hDlg, _T("VideoPath"), IDC_PATHS_AVIOUTPUT, _T("Videos"));
 	wsetpath(hDlg, _T("RipperPath"), IDC_PATHS_RIP, _T(".\\"));
+
+	if (path_type == PATH_TYPE_CUSTOM) {
+		SetDlgItemText(hDlg, IDC_CUSTOMDATAPATH, start_path_custom);
+		ew(hDlg, IDC_PATHS_CUSTOMDATA, TRUE);
+	} else {
+		SetDlgItemText(hDlg, IDC_CUSTOMDATAPATH, start_path_data);
+		ew(hDlg, IDC_PATHS_CUSTOMDATA, FALSE);
+	}
+	ew(hDlg, IDC_CUSTOMDATAPATH, FALSE);
 }
 
 static const TCHAR *pathnames[] = {
@@ -6851,7 +6861,6 @@ static void savelog (HWND hDlg, int all)
 #endif
 }
 
-pathtype path_type;
 static INT_PTR CALLBACK PathsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
 	const GUID pathsguid = { 0x5674338c, 0x7a0b, 0x4565, { 0xbf, 0x75, 0x62, 0x8c, 0x80, 0x4a, 0xef, 0xf7 } };
@@ -6913,6 +6922,10 @@ static INT_PTR CALLBACK PathsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 		if (path_type == PATH_TYPE_WINUAE || path_type == PATH_TYPE_DEFAULT)
 			selpath = numtypes;
 		ptypes[numtypes++] = PATH_TYPE_WINUAE;
+		xSendDlgItemMessage(hDlg, IDC_PATHS_DEFAULTTYPE, CB_ADDSTRING, 0, (LPARAM)_T("Custom"));
+		if (path_type == PATH_TYPE_CUSTOM)
+			selpath = numtypes;
+		ptypes[numtypes++] = PATH_TYPE_CUSTOM;
 		xSendDlgItemMessage (hDlg, IDC_PATHS_DEFAULTTYPE, CB_SETCURSEL, selpath, 0);
 		EnableWindow (GetDlgItem (hDlg, IDC_PATHS_DEFAULTTYPE), numtypes > 0 ? TRUE : FALSE);
 		SetWindowText (GetDlgItem (hDlg, IDC_LOGPATH), bootlogpath);
@@ -6924,6 +6937,7 @@ static INT_PTR CALLBACK PathsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 		xSendDlgItemMessage (hDlg, IDC_LOGSELECT, CB_SETCURSEL, 0, 0);
 		CheckDlgButton (hDlg, IDC_LOGENABLE, winuaelog_temporary_enable || (full_property_sheet == 0 && currprefs.win32_logfile));
 		ew (hDlg, IDC_LOGENABLE, winuaelog_temporary_enable == false && full_property_sheet);
+		ew(hDlg, IDC_CUSTOMDATAPATH, selpath == PATH_TYPE_CUSTOM);
 		extern int consoleopen;
 		if (consoleopen || !full_property_sheet) {
 			CheckDlgButton (hDlg, IDC_LOGENABLE2, consoleopen ? TRUE : FALSE);
@@ -7018,7 +7032,6 @@ static INT_PTR CALLBACK PathsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 				if (DirectorySelection (hDlg, &pathsguid, tmp)) {
 					set_path (_T("NVRAMPath"), tmp);
 					values_to_pathsdialog (hDlg);
-					FreeConfigStore ();
 				}
 				break;
 			case IDC_PATHS_NVRAM:
@@ -7080,6 +7093,15 @@ static INT_PTR CALLBACK PathsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 				GetWindowText (GetDlgItem (hDlg, IDC_PATHS_RIP), tmp, sizeof (tmp) / sizeof (TCHAR));
 				set_path (_T("RipperPath"), tmp);
 				break;
+			case IDC_PATHS_CUSTOMDATA:
+				_tcscpy(tmp, start_path_custom);
+				if (DirectorySelection(hDlg, &pathsguid, tmp)) {
+					fullpath(tmp, sizeof(tmp) / sizeof(TCHAR), false);
+					fixtrailing(tmp);
+					_tcscpy(start_path_custom, tmp);
+					values_to_pathsdialog(hDlg);
+				}
+				break;
 			case IDC_PATHS_DEFAULT:
 				val = xSendDlgItemMessage (hDlg, IDC_PATHS_DEFAULTTYPE, CB_GETCURSEL, 0, 0L);
 				if (val != CB_ERR && val >= 0 && val < numtypes) {
@@ -7098,6 +7120,12 @@ static INT_PTR CALLBACK PathsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 					} else if (val == PATH_TYPE_AMIGAFOREVERDATA && start_path_new2[0]) {
 						path_type = PATH_TYPE_AMIGAFOREVERDATA;
 						_tcscpy (start_path_data, start_path_new1);
+					} else if (val == PATH_TYPE_CUSTOM) {
+						path_type = PATH_TYPE_CUSTOM;
+						if (!start_path_custom[0]) {
+							_tcscpy(start_path_custom, start_path_exe);
+						}
+						_tcscpy(start_path_data, start_path_custom);
 					}
 					SetCurrentDirectory (start_path_data);
 					setpathmode (path_type);
@@ -12303,8 +12331,6 @@ static void init_kickstart (HWND hDlg)
 
 	if (!regexiststree(NULL, _T("DetectedROMs")))
 		scan_roms (NULL, rp_isactive () ? 0 : 1);
-
-
 }
 
 static void kickstartfilebuttons (HWND hDlg, WPARAM wParam, TCHAR *path)

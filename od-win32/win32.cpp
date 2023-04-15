@@ -210,6 +210,7 @@ TCHAR start_path_exe[MAX_DPATH];
 TCHAR start_path_plugins[MAX_DPATH];
 TCHAR start_path_new1[MAX_DPATH]; /* AF2005 */
 TCHAR start_path_new2[MAX_DPATH]; /* AMIGAFOREVERDATA */
+TCHAR start_path_custom[MAX_DPATH];
 TCHAR bootlogpath[MAX_DPATH];
 TCHAR logpath[MAX_DPATH];
 bool winuaelog_temporary_enable;
@@ -6069,8 +6070,11 @@ void setpathmode (pathtype pt)
 	if (pt == PATH_TYPE_NEWAF)
 		_tcscpy (pathmode, _T("AmigaForever"));
 	if (pt == PATH_TYPE_AMIGAFOREVERDATA)
-		_tcscpy (pathmode, _T("AMIGAFOREVERDATA"));
-	regsetstr (NULL, _T("PathMode"), pathmode);
+		_tcscpy(pathmode, _T("AMIGAFOREVERDATA"));
+	if (pt == PATH_TYPE_CUSTOM)
+		_tcscpy(pathmode, _T("WinUAE_Custom"));
+	regsetstr(NULL, _T("PathMode"), pathmode);
+	regsetstr(NULL, _T("PathCustom"), start_path_custom);
 }
 
 static void getstartpaths (void)
@@ -6090,6 +6094,8 @@ static void getstartpaths (void)
 		int size = sizeof (prevpath) / sizeof (TCHAR);
 		if (!regquerystr (key, _T("PathMode"), prevpath, &size))
 			prevpath[0] = 0;
+		if (!regquerystr(key, _T("PathCustom"), start_path_custom, &size))
+			start_path_custom[0] = 0;
 		regclosetree (key);
 	}
 	if (!_tcscmp (prevpath, _T("WinUAE")))
@@ -6098,8 +6104,16 @@ static void getstartpaths (void)
 		path_type = PATH_TYPE_NEWWINUAE;
 	if (!_tcscmp (prevpath, _T("AF2005")) || !_tcscmp (prevpath, _T("AmigaForever")))
 		path_type = PATH_TYPE_NEWAF;
-	if (!_tcscmp (prevpath, _T("AMIGAFOREVERDATA")))
+	if (!_tcscmp(prevpath, _T("AMIGAFOREVERDATA")))
 		path_type = PATH_TYPE_AMIGAFOREVERDATA;
+	if (!_tcscmp(prevpath, _T("WinUAE_Custom"))) {
+		path_type = PATH_TYPE_CUSTOM;
+		if (start_path_custom[0]) {
+			_tcscpy(start_path_data, start_path_custom);
+		} else {
+			path_type = PATH_TYPE_NEWWINUAE;
+		}
+	}
 
 	_tcscpy(start_path_exe, executable_path);
 	if((posn = _tcsrchr (start_path_exe, '\\')))

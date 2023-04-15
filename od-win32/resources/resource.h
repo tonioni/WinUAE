@@ -1049,6 +1049,7 @@
 #define IDC_EJECT0Q                     1685
 #define IDC_PATHS_NVRAML                1685
 #define IDC_DF1WPQ                      1686
+#define IDC_PATHS_CUSTOMDATA            1686
 #define IDC_EJECT1Q                     1687
 #define IDC_DF1TEXTQ                    1688
 #define IDC_INFO0Q                      1689
@@ -1081,7 +1082,6 @@
 #define IDC_CS_RTC                      1710
 #define IDC_FILTERKEEPAUTOSCALEASPECT   1710
 #define IDC_CS_CIAA_TOD1                1711
-#define IDC_SOUND_VOLCNT                1711
 #define IDC_FILTERENABLE                1711
 #define IDC_CS_CIAA_TOD2                1712
 #define IDC_CS_EXT                      1712
@@ -1326,6 +1326,7 @@
 #define IDC_SCSIROMFILEPCMCIA           1865
 #define IDC_KEYBOARD_SWAPHACK           1865
 #define IDC_SCSIROM24BITDMA             1866
+#define IDC_CUSTOMDATAPATH              1866
 #define ID__FLOPPYDRIVES                40004
 #define ID_FLOPPYDRIVES_DF0             40005
 #define ID_ST_CONFIGURATION             40010
@@ -1377,7 +1378,7 @@
 #define _APS_3D_CONTROLS                     1
 #define _APS_NEXT_RESOURCE_VALUE        407
 #define _APS_NEXT_COMMAND_VALUE         40050
-#define _APS_NEXT_CONTROL_VALUE         1866
+#define _APS_NEXT_CONTROL_VALUE         1867
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

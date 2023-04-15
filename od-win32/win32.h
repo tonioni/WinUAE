@@ -101,11 +101,11 @@ extern HINSTANCE hInst;
 extern HMODULE userdll;
 extern HMODULE kerneldll;
 extern int af_path_2005;
-extern TCHAR start_path_new1[MAX_DPATH], start_path_new2[MAX_DPATH];
+extern TCHAR start_path_new1[MAX_DPATH], start_path_new2[MAX_DPATH], start_path_custom[MAX_DPATH];
 extern TCHAR bootlogpath[MAX_DPATH];
 extern TCHAR logpath[MAX_DPATH];
 extern bool winuaelog_temporary_enable;
-enum pathtype { PATH_TYPE_DEFAULT, PATH_TYPE_WINUAE, PATH_TYPE_NEWWINUAE, PATH_TYPE_NEWAF, PATH_TYPE_AMIGAFOREVERDATA, PATH_TYPE_END };
+enum pathtype { PATH_TYPE_DEFAULT, PATH_TYPE_WINUAE, PATH_TYPE_NEWWINUAE, PATH_TYPE_NEWAF, PATH_TYPE_AMIGAFOREVERDATA, PATH_TYPE_CUSTOM, PATH_TYPE_END };
 void setpathmode (pathtype pt);
 
 extern int sleep_millis (int ms);
