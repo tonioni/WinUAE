@@ -5116,7 +5116,7 @@ static void romlist_add2 (const TCHAR *path, struct romdata *rd)
 }
 
 extern int scan_roms (HWND, int);
-void read_rom_list (void)
+void read_rom_list(bool initial)
 {
 	TCHAR tmp2[1000];
 	int idx, idx2;
@@ -5130,6 +5130,9 @@ void read_rom_list (void)
 	if (fkey == NULL)
 		return;
 	if (!exists || forceroms) {
+		if (initial) {
+			scaleresource_init(NULL, 0);
+		}
 		load_keyring (NULL, NULL);
 		scan_roms (NULL, forceroms ? 0 : 1);
 	}
@@ -5750,7 +5753,7 @@ static void WIN32_HandleRegistryStuff (void)
 	regclosetree (read_disk_history (HISTORY_FLOPPY));
 	regclosetree (read_disk_history (HISTORY_CD));
 	associate_init_extensions ();
-	read_rom_list ();
+	read_rom_list(true);
 	load_keyring (NULL, NULL);
 	target_load_debugger_config();
 }

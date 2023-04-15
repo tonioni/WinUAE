@@ -1759,22 +1759,6 @@ static INT_PTR CALLBACK InfoBoxDialogProc (HWND hDlg, UINT msg, WPARAM wParam, L
 		DestroyWindow (hDlg);
 		infoboxdialogstate = false;
 	return TRUE;
-	case WM_INITDIALOG:
-	{
-		HWND owner = GetParent (hDlg);
-		if (!owner) {
-			owner = GetDesktopWindow ();
-			RECT ownerrc, merc;
-			GetWindowRect (owner, &ownerrc);
-			GetWindowRect (hDlg, &merc);
-			SetWindowPos (hDlg, NULL,
-				ownerrc.left + ((ownerrc.right - ownerrc.left) - (merc.right - merc.left)) /2,
-				ownerrc.top + ((ownerrc.bottom - ownerrc.top) - (merc.bottom - merc.top)) / 2,
-				0, 0,
-				SWP_NOSIZE);
-		}
-		return TRUE;
-	}
 	case WM_COMMAND:
 		switch (LOWORD (wParam))
 		{
@@ -2116,7 +2100,7 @@ end:
 			DispatchMessage (&msg);
 		}
 	}
-	read_rom_list ();
+	read_rom_list(false);
 	if (show)
 		show_rom_list ();
 
@@ -22986,7 +22970,7 @@ int gui_init (void)
 {
 	int ret;
 
-	read_rom_list();
+	read_rom_list(false);
 	prefs_to_gui(&changed_prefs);
 	inputdevice_updateconfig(NULL, &workprefs);
 	for (;;) {

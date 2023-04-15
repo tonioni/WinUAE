@@ -611,7 +611,7 @@ static HWND DIALOG_CreateIndirect(HINSTANCE hInst, LPCVOID dlgTemplate,
 	size.cx = rect.right - rect.left;
 	size.cy = rect.bottom - rect.top;
 
-	if (!res->parent) {
+	if (!res->parent && res->width > 0 && res->height > 0) {
 		size.cx = res->width;
 		size.cy = res->height;
 	}
@@ -1203,8 +1203,10 @@ void scaleresource_init(const TCHAR *prefix, int fullscreen)
 
 	setdeffont();
 
-	regqueryfont (NULL, fontprefix, fontreg[0], fontname_gui, &fontsize_gui, &fontstyle_gui, &fontweight_gui);
-	regqueryfont (NULL, fontprefix, fontreg[1], fontname_list, &fontsize_list, &fontstyle_list, &fontweight_list);
+	if (fontprefix) {
+		regqueryfont (NULL, fontprefix, fontreg[0], fontname_gui, &fontsize_gui, &fontstyle_gui, &fontweight_gui);
+		regqueryfont (NULL, fontprefix, fontreg[1], fontname_list, &fontsize_list, &fontstyle_list, &fontweight_list);
+	}
 
 	//write_log (_T("GUI font %s:%d:%d:%d\n"), fontname_gui, fontsize_gui, fontstyle_gui, fontweight_gui);
 	//write_log (_T("List font %s:%d:%d:%d\n"), fontname_list, fontsize_list, fontstyle_list, fontweight_list);

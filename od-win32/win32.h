@@ -149,7 +149,7 @@ void exit_gui (int);
 void fetch_path (const TCHAR *name, TCHAR *out, int size);
 void set_path (const TCHAR *name, TCHAR *path);
 void set_path (const TCHAR *name, TCHAR *path, pathtype);
-void read_rom_list (void);
+void read_rom_list(bool);
 void associate_file_extensions (void);
 
 #define WIN32_PLUGINDIR _T("plugins\\")
