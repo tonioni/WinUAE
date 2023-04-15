@@ -175,8 +175,8 @@ extern unsigned int fpucontrol;
 extern void fpux_save (int *v);
 extern void fpux_restore (int *v);
 
-extern void logging_open (int,int);
-extern void logging_cleanup (void);
+extern bool logging_open(int,int);
+extern void logging_cleanup(void);
 
 extern LONG WINAPI WIN32_ExceptionFilter (struct _EXCEPTION_POINTERS *pExceptionPointers, DWORD ec);
 

@@ -3530,13 +3530,13 @@ void toggle_mousegrab(void)
 static bool createbootlog = true;
 static bool logging_disabled = false;
 
-void logging_open (int bootlog, int append)
+bool logging_open(int bootlog, int append)
 {
 	TCHAR *outpath;
 	TCHAR debugfilename[MAX_DPATH];
 
 	if (logging_disabled && !winuaelog_temporary_enable)
-		return;
+		return true;
 
 	outpath = logpath;
 	debugfilename[0] = 0;
@@ -3553,8 +3553,10 @@ void logging_open (int bootlog, int append)
 	if (debugfilename[0]) {
 		if (!debugfile)
 			debugfile = log_open (debugfilename, append, bootlog, outpath);
+		return debugfile != NULL;
 	}
 #endif
+	return true;
 }
 
 typedef BOOL (WINAPI *LPFN_ISWOW64PROCESS) (HANDLE, PBOOL);
@@ -3578,9 +3580,12 @@ void logging_init (void)
 			start_path_data, LOG_NORMAL);
 		if (debugfile)
 			log_close (debugfile);
-		debugfile = 0;
+		debugfile = NULL;
 	}
-	logging_open (first ? 0 : 1, 0);
+	bool ok = logging_open(first ? 0 : 1, 0);
+	if (first == 1 && !ok) {
+		write_log(_T("Failed to create log file.\n"));
+	}
 	logging_started = 1;
 	first++;
 
