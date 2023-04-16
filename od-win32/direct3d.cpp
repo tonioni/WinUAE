@@ -4163,6 +4163,7 @@ static uae_u8 *xD3D_setcursorsurface(int monid, int *pitch)
 		*pitch = CURSORMAXWIDTH * 4;
 		return d3d->cursorsurfaced3dtexbuf;
 	}
+	d3d->cursorsurfaced3dtexbufupdated = false;
 	return NULL;
 }
 

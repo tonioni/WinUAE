@@ -5353,6 +5353,7 @@ static uae_u8 *xD3D_setcursorsurface(int monid, int *pitch)
 		*pitch = d3d->hwsprite.width * 4;
 		return d3d->hwsprite.texbuf;
 	}
+	d3d->hwsprite.updated = false;
 	return NULL;
 }
 
