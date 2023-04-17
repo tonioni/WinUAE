@@ -1,10 +1,32 @@
 
+
+Beta 6:
+
+- Bumped version to 5.0. No more 4.10.x versions.
+- Input left/right joystick autoswitching mode is back, disabled by default, add input.autoswitchleftright=true to enable.
+- Added input.advancedmultiinput config entry which currently enables inserting same input device in multiple ports (game ports panel) and in future enables multiple input devices in same game port GUI support.
+- Enable also JIT FPU when JIT checkbox is getting ticked and FPU emulation (with host CPU mode) is already enabled.
+- Fixed possible crash when quitting emulation when RTG mode with hardware sprite is active (b5)
+- Inserting supported non-Amiga formatted disk image (for example PC DOS formatted image) in standard Amiga 3.5" DD drive was rejected, drive compatibility check didn't accept standard 3.5" DD drive. Image was accepted if drive was 3.5" HD drive. (Was probably broken when bridgeboard drive support was improved)
+- Initial ROM scan window was invisible. (Not sure when it got broken or if it depends on Windows version)
+- Added custom data path configuration to Paths panel. Data path = default path where config files, logs, statefiles etc are loaded and saved. This was supposed to have been added ages ago.. (previously available via command line -datapath parameter). Paths panel also now shows currently active data path.
+- uaegfx internally generated modes didn't have active flag set and display parameters (total vertical/horizontal and sync lengths, values that are ignored by uaegfx) were technically invalid. Set active flag and made hor/ver totals slightly larger than visible resolution and adjusted sync values. Board type was not set to uaegfx (it was set correctly, then overwritten by wrong value) Some Picasso96 tools might have gotten confused.
+- RTG hardware sprite update in b5 added caching that was not properly flushed when cursor shape was updated.
+
+Some new "ross test" edge case chipset fixes:
+
+- If chipset timing event was queued in same cycle as hsync event, hsync event was executed last. Hsync event should always have priority. This was "optimized" some time ago but it was wrong. (BPL1DAT write during same cycle didn't enable sprites in ECS Denise config)
+- Very early BPL1DAT write didn't update sprite minimum visible horizontal position correctly, in some situations sprite that was "hidden" behind border didn't become fully visible.
+- If BPL1DAT enables sprite(s) and "bordersprite" condition was possible (ECS Denise or AGA), enabled sprites activated border sprite state even if new visible sprite pixel would have been hidden by HDIW start. AGA 0.5 pixel lores "bordersprite" condition + borderblank enabled: "bordersprite's" complete pixel (1 lores) become visible.
+- Bitplane DMA BPL1DAT access does not anymore open border if OCS Denise and BPL1DAT position was before HBLANK end. (OCS Denise undocumented feature, does not exist in ECS Denise or AGA which allows border open after HSYNC start). Manual BPL1DAT write already did this. ECS Denise earliest possible BPL1DAT access that opens border was 2 cycles too late.
+- ECS Denise superhires sprite more accurate color selection emulation ("scrambled" odd/even palette access). Attached sprites are not yet correct (it does something in this mode but it can't be what normally working attachment does). Also it appears first pixel column of ECS superhires sprite is invisible (not transparent, appears as COLOR0, not background bitplane), this is not yet emulated. Sprites 4 to 7 are not working (nothing appears on screen) when in ECS superhires mode. (Agnus still does normal SPRxPOS/CTL and SPRxDATA/B writes)
+
 Beta 5:
 
 - Programmed mode aspect ratio correction ("VGA mode resolution autoswitch") improved. Programmed modes should now always have correct aspect (no more halved horizontal size)
 - Integer scaling now automatically doubles width of display if original width is smaller than height and doubled width still fits.
 - GDI mode display position might have been wrong in some situations after switching modes.
-- Direct3D 11 mode world coordinate handling fixed (finally, has been wrong since D3D11 mode was introduced). Scanlines etc are not anymore affected by scaling settings. Rotation (gfx_rotation) also now works correctly.
+- Direct3D 11 mode world matrix coordinate handling fixed (finally, has been wrong since D3D11 mode was introduced). Scanlines etc are not anymore affected by scaling settings. Rotation (gfx_rotation) also now works correctly.
 - RTG hardware sprite (mouse cursor) is now properly clipped when near edges of screen.
 
 Beta 4:
