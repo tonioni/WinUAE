@@ -1,4 +1,16 @@
 
+Beta 7:
+
+- Paths panel string "System ROMs" had disappeared (b6)
+- GDI mode, possibly also D3D11 mode had wrong screen positioning/size after mode change in some situations.
+- Switching HW RTG modes with scaling enabled: new mode was not always using correct size (b5)
+- Input panel "Device enabled" checkbox state was not refreshed when Input mode was changed (Game Ports Panel, Configuration #1-#3).
+- Saving config after GUI was opened for the first time without default.uae, then loading it and saving it again: second saved config file was not identical.
+- Adjusted "VGA mode resolution autoswitch" switch range, some OS 3.2 native display monitors have been changed and it triggered autoswitch incorrectly.
+- Native mode integer scale behavior adjusted. Removed some earlier beta auto-adjustments because they would break programmed modes in integer scaling.
+- RTG integer scale didn't support scaling multiplers smaller than 1x. 1/2x and 1/4x is now supported.
+- Changed uaegfx Picasso96 BoardName field to "UAE" (was "uaegfx.card"). Now P96Prefs created modes have same prefix as UAE internally generated modes.
+- Fixed disassembler FMOVE.L/FMOVEM.L to/from control registers register order (FPCR and FPIAR was swapped)
 
 Beta 6:
 

@@ -18402,6 +18402,7 @@ static void values_from_inputdlg (HWND hDlg, int inputchange)
 			inputdevice_updateconfig (NULL, &workprefs);
 			enable_for_inputdlg (hDlg);
 			InitializeListView (hDlg);
+			values_to_inputdlg(hDlg);
 			doselect = 1;
 		}
 	}
