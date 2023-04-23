@@ -218,24 +218,6 @@ static bool get_aspect(int monid, float *dstratiop, float *srcratiop, float *xmu
 	return aspect;
 }
 
-static int res_match(int w)
-{
-	if (currprefs.gfx_vresolution == VRES_NONDOUBLE) {
-		if (currprefs.gfx_resolution == RES_HIRES) {
-			w *= 2;
-		} else if (currprefs.gfx_resolution == RES_SUPERHIRES) {
-			w *= 4;
-		}
-	} else {
-		if (currprefs.gfx_resolution == RES_LORES) {
-			w /= 2;
-		} else if (currprefs.gfx_resolution == RES_SUPERHIRES) {
-			w *= 2;
-		}
-	}
-	return w;
-}
-
 void getfilterrect2(int monid, RECT *sr, RECT *dr, RECT *zr, int dst_width, int dst_height, int aw, int ah, int scale, int *mode, int temp_width, int temp_height)
 {
 	struct AmigaMonitor *mon = &AMonitors[monid];
@@ -447,8 +429,6 @@ void getfilterrect2(int monid, RECT *sr, RECT *dr, RECT *zr, int dst_width, int 
 				filter_horiz_zoom_mult = 1.0;
 				filter_vert_zoom_mult = 1.0;
 
-				maxw = res_match(maxw);
-
 				float multadd = 1.0f / (1 << currprefs.gf[idx].gfx_filter_integerscalelimit);
 				if (cw2 > maxw || ch2 > maxh) {
 					while (cw2 / mult - adjw > maxw || ch2 / mult - adjh > maxh) {
@@ -461,10 +441,15 @@ void getfilterrect2(int monid, RECT *sr, RECT *dr, RECT *zr, int dst_width, int 
 					while (cw2 * (mult + multadd) - adjw <= maxw && ch2 * (mult + multadd) - adjh <= maxh) {
 						mult += multadd;
 					}
+
 					float multx = mult, multy = mult;
 					// if width is smaller than height, double width (programmed modes)
 					if (cw2 * (mult + multadd) - adjw <= maxw && cw2 < ch2) {
 						multx += multadd;
+					}
+					// if width is >2.5x height, double height (non-doublescanned superhires)
+					if (ch2 * (mult + multadd) - adjh <= maxh && cw2 > ch2 * 2.5) {
+						multy += multadd;
 					}
 					maxw = (int)((maxw + multx - multadd) / multx);
 					maxh = (int)((maxh + multy - multadd) / multy);

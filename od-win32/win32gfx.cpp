@@ -1599,14 +1599,22 @@ void getrtgfilterrect2(int monid, RECT *sr, RECT *dr, RECT *zr, int *mode, int d
 	if (mon->scalepicasso == RTG_MODE_INTEGER_SCALE) {
 		int divx = mon->currentmode.native_width / srcwidth;
 		int divy = mon->currentmode.native_height / srcheight;
-		int mul = !divx || !divy ? 1 : (divx > divy ? divy : divx);
-		SetRect(dr, 0, 0, mon->currentmode.native_width / mul, mon->currentmode.native_height / mul);
-		int xx = (mon->currentmode.native_width / mul - srcwidth) / 2;
-		int yy = (mon->currentmode.native_height / mul - srcheight) / 2;
+		float mul = (float)(!divx || !divy ? 1 : (divx > divy ? divy : divx));
+		if (!divx || !divy) {
+			if ((float)mon->currentmode.native_width / srcwidth <= 0.95f || ((float)mon->currentmode.native_height / srcheight <= 0.95f)) {
+				mul = 0.5f;
+			}
+			if ((float)mon->currentmode.native_width / srcwidth <= 0.45f || ((float)mon->currentmode.native_height / srcheight <= 0.45f)) {
+				mul = 0.25f;
+			}
+		}
+		SetRect(dr, 0, 0, (int)(mon->currentmode.native_width / mul), (int)(mon->currentmode.native_height / mul));
+		int xx = (int)((mon->currentmode.native_width / mul - srcwidth) / 2);
+		int yy = (int)((mon->currentmode.native_height / mul - srcheight) / 2);
 		picasso_offset_x = -xx;
 		picasso_offset_y = -yy;
-		mx = (float)mul;
-		my = (float)mul;
+		mx = mul;
+		my = mul;
 		outwidth = srcwidth;
 		outheight = srcheight;
 		*mode = 1;
