@@ -43,9 +43,6 @@ static HWND hedit = 0;
 extern int consoleopen;
 BOOL debuggerinitializing = FALSE;
 
-extern uae_u32 get_fpsr (void);
-extern void set_fpsr (uae_u32 x);
-
 static TCHAR linebreak[] = {'\r', '\n', '\0'};
 
 #define MAXLINES 250
@@ -580,7 +577,7 @@ static int GetPrevAddr(uae_u32 addr, uae_u32 *prevaddr)
 	uae_u32 dasmaddr, next;
 
 	*prevaddr = addr;
-	dasmaddr = addr - 20;
+	dasmaddr = addr - 22;
 	while (dasmaddr < addr) {
 		next = dasmaddr + 2;
 		m68k_disasm_2(NULL, 0, dasmaddr, NULL, 0, &next, 1, NULL, NULL, 0xffffffff, 0);
