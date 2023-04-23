@@ -2250,6 +2250,14 @@ uae_u32 m68k_disasm_2(TCHAR *buf, int bufsize, uaecptr pc, uae_u16 *bufpc, int b
 					if (regmask == 1 || regmask == 2 || regmask == 4)
 						_tcscpy(instrname, _T("FMOVE.L "));
 					disasm_lc_mnemo(instrname);
+					int msk = regmask & 2;
+					if (regmask & 1) {
+						msk |= 4;
+					}
+					if (regmask & 4) {
+						msk |= 1;
+					}
+					regmask = msk;
 				}
 				p = instrname + _tcslen(instrname);
 				if (dr) {
