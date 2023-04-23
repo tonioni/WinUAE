@@ -372,4 +372,6 @@ extern int inputdevice_testread_count (void);
 
 extern bool target_can_autoswitchdevice(void);
 
+extern int key_swap_hack, key_swap_hack2;
+
 #endif /* UAE_INPUTDEVICE_H */

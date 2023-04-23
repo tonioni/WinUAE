@@ -6728,6 +6728,14 @@ static int parseargs(const TCHAR *argx, const TCHAR *np, const TCHAR *np2)
 		rp_modem = 1;
 		return 1;
 	}
+	if (!_tcscmp(arg, _T("key_swap_hack"))) {
+		key_swap_hack = 1;
+		return 1;
+	}
+	if (!_tcscmp(arg, _T("key_swap_hack2"))) {
+		key_swap_hack2 = 1;
+		return 1;
+	}
 
 	if (!np)
 		return 0;

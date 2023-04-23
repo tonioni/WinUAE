@@ -18,6 +18,7 @@ int no_rawinput = 0;
 int no_directinput = 0;
 int no_windowsmouse = 0;
 int winekeyboard = 0;
+int key_swap_hack = 0;
 
 #define _WIN32_WINNT 0x501 /* enable RAWINPUT support */
 
@@ -2468,6 +2469,14 @@ static void handle_rawinput_2 (RAWINPUT *raw, LPARAM lParam)
 		if (rp_isactive ())
 			return;
 #endif
+		if (key_swap_hack) {
+			if (scancode == DIK_F11) {
+				scancode = DIK_EQUALS;
+			} else if (scancode == DIK_EQUALS) {
+				scancode = DIK_F11;
+			}
+		}
+
 		// eat E1 extended keys
 		if (rk->Flags & (RI_KEY_E1))
 			return;
