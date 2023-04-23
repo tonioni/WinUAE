@@ -211,6 +211,7 @@ struct d3dstruct
 	float xmult, ymult;
 	bool cursor_v, cursor_scale;
 	int statusbar_vx, statusbar_hx;
+	RECT sr2, dr2, zr2;
 
 	struct gfx_filterdata *filterd3d;
 	int filterd3didx;
@@ -2096,8 +2097,6 @@ static void setupscenecoords(struct d3dstruct *d3d, bool normalrender, int monid
 	if (!normalrender)
 		return;
 
-	//write_log (_T("%dx%d %dx%d %dx%d\n"), tin_w, tin_h, tin_w, tin_h, window_w, window_h);
-
 	getfilterrect2 (monid, &dr, &sr, &zr, d3d->window_w, d3d->window_h, d3d->tin_w / d3d->dmult, d3d->tin_h / d3d->dmult, d3d->dmult, &d3d->dmode, d3d->tin_w, d3d->tin_h);
 
 	if (memcmp (&sr, &sr2[monid], sizeof RECT) || memcmp (&dr, &dr2[monid], sizeof RECT) || memcmp (&zr, &zr2[monid], sizeof RECT)) {
@@ -2109,6 +2108,10 @@ static void setupscenecoords(struct d3dstruct *d3d, bool normalrender, int monid
 		dr2[monid] = dr;
 		zr2[monid] = zr;
 	}
+
+	d3d->sr2 = sr;
+	d3d->dr2 = dr;
+	d3d->zr2 = zr;
 
 	dw = (float)dr.right - dr.left;
 	dh = (float)dr.bottom - dr.top;
@@ -3099,6 +3102,8 @@ static bool xD3D_alloctexture (int monid, int w, int h)
 
 	if (d3d->fakemode)
 		return false;
+
+	setupscenecoords(d3d, true, monid);
 
 	changed_prefs.leds_on_screen |= STATUSLINE_TARGET;
 	currprefs.leds_on_screen |= STATUSLINE_TARGET;

@@ -1544,16 +1544,14 @@ static bool UpdateBuffers(struct d3d11struct *d3d, int monid)
 static void setupscenecoords(struct d3d11struct *d3d, bool normalrender, int monid)
 {
 	RECT sr, dr, zr;
+	static RECT sr2[MAX_AMIGAMONITORS], dr2[MAX_AMIGAMONITORS], zr2[MAX_AMIGAMONITORS];
 
 	if (!normalrender)
 		return;
 
 	getfilterrect2(d3d->num, &dr, &sr, &zr, d3d->m_screenWidth, d3d->m_screenHeight, d3d->m_bitmapWidth / d3d->dmult, d3d->m_bitmapHeight / d3d->dmult, d3d->dmult, &d3d->dmode, d3d->m_bitmapWidth, d3d->m_bitmapHeight);
 
-	if (!memcmp(&sr, &d3d->sr2, sizeof RECT) && !memcmp(&dr, &d3d->dr2, sizeof RECT) && !memcmp(&zr, &d3d->zr2, sizeof RECT)) {
-		return;
-	}
-	if (1) {
+	if (memcmp(&sr, &sr2[monid], sizeof RECT) || memcmp(&dr, &dr2[monid], sizeof RECT) || memcmp(&zr, &zr2[monid], sizeof RECT)) {
 		write_log(_T("POS (%d %d %d %d) - (%d %d %d %d)[%d,%d] (%d %d) S=%d*%d B=%d*%d\n"),
 			dr.left, dr.top, dr.right, dr.bottom,
 			sr.left, sr.top, sr.right, sr.bottom,
@@ -1561,6 +1559,9 @@ static void setupscenecoords(struct d3d11struct *d3d, bool normalrender, int mon
 			zr.left, zr.top,
 			d3d->m_screenWidth, d3d->m_screenHeight,
 			d3d->m_bitmapWidth, d3d->m_bitmapHeight);
+		sr2[monid] = sr;
+		dr2[monid] = dr;
+		zr2[monid] = zr;
 	}
 
 	d3d->sr2 = sr;
@@ -1595,8 +1596,6 @@ static void setupscenecoords(struct d3d11struct *d3d, bool normalrender, int mon
 
 	d3d->cursor_offset_x = -zr.left;
 	d3d->cursor_offset_y = -zr.top;
-
-	write_log(_T("%d %d %.f %.f\n"), d3d->xoffset, d3d->yoffset, d3d->xmult, d3d->ymult);
 
 	UpdateBuffers(d3d, monid);
 

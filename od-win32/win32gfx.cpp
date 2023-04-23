@@ -3051,6 +3051,7 @@ void gfx_set_picasso_modeinfo(int monid, RGBFTYPE rgbfmt)
 #ifdef RETROPLATFORM
 	rp_set_hwnd(mon->hAmigaWnd);
 #endif
+	target_graphics_buffer_update(monid);
 }
 #endif
 

@@ -80,16 +80,14 @@ static void gdi_restore(int monid, bool checkonly)
 	struct gdistruct *gdi = &gdidata[monid];
 }
 
-static void setupscenecoords(struct gdistruct *gdi)
+static void setupscenecoords(struct gdistruct *gdi, int monid)
 {
 	RECT sr, dr, zr;
+	static RECT sr2[MAX_AMIGAMONITORS], dr2[MAX_AMIGAMONITORS], zr2[MAX_AMIGAMONITORS];
 
 	getfilterrect2(gdi->num, &dr, &sr, &zr, gdi->wwidth, gdi->wheight, gdi->bm.width / gdi->dmult, gdi->bm.height / gdi->dmult, gdi->dmult, &gdi->dmode, gdi->bm.width, gdi->bm.height);
 
-	if (!memcmp(&sr, &gdi->sr2, sizeof RECT) && !memcmp(&dr, &gdi->dr2, sizeof RECT) && !memcmp(&zr, &gdi->zr2, sizeof RECT)) {
-		return;
-	}
-	if (1) {
+	if (memcmp(&sr, &sr2[monid], sizeof RECT) || memcmp(&dr, &dr2[monid], sizeof RECT) || memcmp(&zr, &zr2[monid], sizeof RECT)) {
 		write_log(_T("POS (%d %d %d %d) - (%d %d %d %d)[%d,%d] (%d %d) S=%d*%d B=%d*%d\n"),
 			dr.left, dr.top, dr.right, dr.bottom,
 			sr.left, sr.top, sr.right, sr.bottom,
@@ -97,6 +95,9 @@ static void setupscenecoords(struct gdistruct *gdi)
 			zr.left, zr.top,
 			gdi->wwidth, gdi->wheight,
 			gdi->bm.width, gdi->bm.height);
+		sr2[monid] = sr;
+		dr2[monid] = dr;
+		zr2[monid] = zr;
 	}
 
 	gdi->sr2 = sr;
@@ -242,7 +243,7 @@ static bool gdi_alloctexture(int monid, int w, int h)
 		SetDCBrushColor(gdi->hdc, RGB(0, 0, 0));
 		if (allocsprite(gdi, &gdi->bm, w, h)) {
 			gdi->dmult = S2X_getmult(monid);
-			setupscenecoords(gdi);
+			setupscenecoords(gdi, monid);
 			return true;
 		}
 	}
@@ -326,7 +327,7 @@ static bool gdi_renderframe(int monid, int mode, bool immediate)
 {
 	struct gdistruct *gdi = &gdidata[monid];
 
-	setupscenecoords(gdi);
+	setupscenecoords(gdi, monid);
 	return gdi->bm.hbm != NULL;
 }
 
