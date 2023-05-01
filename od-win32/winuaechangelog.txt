@@ -1,4 +1,15 @@
 
+Beta 8:
+
+- input.advancedmultiinput=true now also enables GUI "multiple input devices connected to same joystick port" Game Ports panel support. It is hidden because it is not complete yet and it is too late to do any possible breaking changes.
+- Allow moving vertical position backwards (VPOSW/VHPOSW writes) if current vpos is out of range (vpos was previously in same frame moved past max vertical). Currently free backwards vertical position move is not allowed because it can cause bad side-effects and it can't be used for anything useful.
+- Inter-process serial port emulation was unreliable (4.9.0+)
+- Added inter-process serial port emulation RTS, CTS, DSR, DTE, CD and serial break support. (CTS->RTS, DTE->DSR/CD, both directions).
+- Debugger breakpoints can now be chained, breakpoint chain breaks to debugger only when all chained breakpoints' condition matches. (for example: "wo 0 a0===0 s1" and "wo 1 a1==0" breaks when both A0 and A1 is zero. s1 = this breakpoint (#0) is chained to breakpoint #1)
+- Extra breakpoint parameters (N: count N times before breaking and S: chained) are now only accepted at the end of command.
+- Breakpoint N parameter counting down is now logged.
+- Input panel mode("Configuration #1-3" selected) and mouse inserted using Game ports panel to any port and then later removed: [PORTS] events that used more than 1 slot were not removed. ([PORTS] label was removed but event was not). This caused mouse autoswitch only work once in input panel mode if mouse.
+
 Beta 7:
 
 - Paths panel string "System ROMs" had disappeared (b6)

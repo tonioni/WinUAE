@@ -3670,7 +3670,7 @@ int harddrive_to_hdf (HWND hDlg, struct uae_prefs *p, int idx)
 	for (;;) {
 		if (progressdialogreturn >= 0)
 			break;
-		if (cnt > 0) {
+		if (cnt >= 100) {
 			SendMessage (hwndprogress, PBM_SETPOS, (WPARAM)pct, 0);
 			if (chsmode) {
 				_stprintf(tmp2, _T("Cyl %d/%d Head %d/%d"), cyl, cyls, head, heads);
