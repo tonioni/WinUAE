@@ -64,17 +64,6 @@ struct strlist {
 
 #define INTERNALEVENT_COUNT 1
 
-#if 0
-struct uae_input_device_event
-{
-	uae_s16 eventid[MAX_INPUT_SUB_EVENT_ALL];
-	TCHAR *custom[MAX_INPUT_SUB_EVENT_ALL];
-	uae_u64 flags[MAX_INPUT_SUB_EVENT_ALL];
-	uae_u8 port[MAX_INPUT_SUB_EVENT_ALL];
-	uae_s16 extra;
-};
-#endif
-
 struct uae_input_device {
 	TCHAR *name;
 	TCHAR *configname;
@@ -106,7 +95,7 @@ struct jport_dev {
 	int autofire;
 	struct inputdevconfig idc;
 };
-#define MAX_JPORT_DEVS 10
+#define MAX_JPORT_DEVS 8
 struct jport {
 	struct jport_dev jd[MAX_JPORT_DEVS];
 	bool nokeyboardoverride;

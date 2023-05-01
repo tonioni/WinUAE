@@ -392,7 +392,7 @@ static const TCHAR **getcustomeventorder(int *devicetype)
 	return NULL;
 }
 
-static bool port_get_custom (int inputmap_port, TCHAR *out)
+static bool port_get_custom (int inputmap_port, int sub, TCHAR *out)
 {
 	int kb;
 	bool first = true;
@@ -409,7 +409,7 @@ static bool port_get_custom (int inputmap_port, TCHAR *out)
 
 	int devicetype = -1;
 	for (int i = 0; inputdevmode[i * 2]; i++) {
-		if (inputdevmode[i * 2 + 1] == currprefs.jports[inputmap_port].jd[0].mode) {
+		if (inputdevmode[i * 2 + 1] == currprefs.jports[inputmap_port].jd[sub].mode) {
 			devicetype = inputdevmode[i * 2 + 0];
 			break;
 		}
@@ -472,7 +472,7 @@ int port_insert_custom (int inputmap_port, int devicetype, DWORD flags, const TC
 	kb = inputdevice_get_device_total (IDTYPE_JOYSTICK) + inputdevice_get_device_total (IDTYPE_MOUSE);
 
 	inputdevice_copyconfig (&currprefs, &changed_prefs);
-	inputdevice_compa_prepare_custom (&changed_prefs, inputmap_port, devicetype, true);
+	inputdevice_compa_prepare_custom (&changed_prefs, inputmap_port, 0, devicetype, true);
 	inputdevice_updateconfig (NULL, &changed_prefs);
 	max = inputdevice_get_compatibility_input (&changed_prefs, inputmap_port, &mode, events, &axistable);
 	write_log (_T("custom='%s' max=%d port=%d dt=%d kb=%d kbnum=%d\n"), custom, max, inputmap_port, devicetype, kb, inputdevice_get_device_total (IDTYPE_KEYBOARD));
@@ -560,7 +560,7 @@ static int port_insert (int inputmap_port, int devicetype, DWORD flags, const TC
 	if (devicetype == RP_INPUTDEVICE_JOYSTICK || devicetype == RP_INPUTDEVICE_GAMEPAD || devicetype == RP_INPUTDEVICE_JOYPAD) {
 		if (inputmap_port >= 0 && inputmap_port < 4) {
 			dacttype[inputmap_port] = devicetype;
-			inputdevice_compa_clear(&changed_prefs, inputmap_port);
+			inputdevice_compa_clear(&changed_prefs, inputmap_port, -1);
 			inputdevice_joyport_config(&changed_prefs, _T("none"), NULL, inputmap_port, 0, 0, 0, 0, true);
 			return 1;
 		}
@@ -570,7 +570,7 @@ static int port_insert (int inputmap_port, int devicetype, DWORD flags, const TC
 	if (inputmap_port < 0 || inputmap_port >= maxjports)
 		return FALSE;
 	
-	inputdevice_compa_clear (&changed_prefs, inputmap_port);
+	inputdevice_compa_clear (&changed_prefs, inputmap_port, -1);
 	
 	if (name[0] == '\0') {
 		inputdevice_joyport_config (&changed_prefs, _T("none"), NULL, inputmap_port, 0, 0, 0, 0, true);
@@ -1871,8 +1871,10 @@ void rp_fixup_options (struct uae_prefs *p)
 
 	int parportmask = 0;
 	for (int i = 0; i < 2; i++) {
-		if (p->jports[i + 2].jd[0].idc.configname[0] || p->jports[i + 2].jd[0].idc.name[0] || p->jports[i + 2].jd[0].idc.shortid[0])
-			parportmask |= 1 << i;
+		for (int j = 0; j < MAX_JPORT_DEVS; j++) {
+			if (p->jports[i + 2].jd[j].idc.configname[0] || p->jports[i + 2].jd[j].idc.name[0] || p->jports[i + 2].jd[j].idc.shortid[0])
+				parportmask |= 1 << i;
+		}
 	}
 	if (parportmask) {
 		RPSendMessagex (RP_IPC_TO_HOST_DEVICES, RP_DEVICECATEGORY_MULTITAPPORT, parportmask, NULL, 0, &guestinfo, NULL);
@@ -1951,8 +1953,9 @@ static void rp_device_change (int dev, int num, int mode, bool readonly, const T
 
 void rp_input_change (int num)
 {
-	int j = jsem_isjoy(num, 0, &currprefs);
-	int m = jsem_ismouse(num, 0, &currprefs);
+	int sub = 0;
+	int j = jsem_isjoy(num, sub, &currprefs);
+	int m = jsem_ismouse(num, sub, &currprefs);
 	int k = jsem_iskbdjoy(num, &currprefs);
 	TCHAR name[MAX_DPATH];
 	int mode;
@@ -1961,8 +1964,8 @@ void rp_input_change (int num)
 		return;
 
 	name[0] = 0;
-	if (JSEM_ISCUSTOM(num, 0, &currprefs)) {
-		port_get_custom (num, name);
+	if (JSEM_ISCUSTOM(num, sub, &currprefs)) {
+		port_get_custom (num, sub, name);
 	} else if (k >= 0) {
 		_stprintf (name, _T("KeyboardLayout%d"), k);
 	} else if (j >= 0) {
@@ -1972,7 +1975,7 @@ void rp_input_change (int num)
 	}
 	mode = RP_INPUTDEVICE_EMPTY;
 	for (int i = 0; inputdevmode[i * 2]; i++) {
-		if (inputdevmode[i * 2 + 1] == currprefs.jports[num].jd[0].mode) {
+		if (inputdevmode[i * 2 + 1] == currprefs.jports[num].jd[sub].mode) {
 			mode = inputdevmode[i * 2 + 0];
 			break;
 		}

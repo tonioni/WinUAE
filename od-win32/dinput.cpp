@@ -4447,7 +4447,7 @@ static int nextsub(struct uae_input_device *uid, int i, int slot, int sub)
 	if (currprefs.input_advancedmultiinput) {
 		while (uid[i].eventid[slot][sub] > 0) {
 			sub++;
-			if (sub >= MAX_INPUT_SUB_EVENT_ALL) {
+			if (sub >= MAX_INPUT_SUB_EVENT) {
 				return -1;
 			}
 		}
@@ -4461,8 +4461,9 @@ static void setid (struct uae_input_device *uid, int i, int slot, int sub, int p
 	if (sub < 0) {
 		return;
 	}
-	if (gp)
-		inputdevice_sparecopy (&uid[i], slot, 0);
+	if (gp && sub == 0) {
+		inputdevice_sparecopy (&uid[i], slot, sub);
+	}
 	uid[i].eventid[slot][sub] = evt;
 	uid[i].port[slot][sub] = port + 1;
 }

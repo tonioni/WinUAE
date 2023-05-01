@@ -4468,7 +4468,7 @@ static void update_listview_input (HWND hDlg)
 	}
 }
 
-static int inputmap_port = -1, inputmap_port_remap = -1;
+static int inputmap_port = -1, inputmap_port_remap = -1, inputmap_port_sub = 0;
 static int inputmap_groupindex[MAX_COMPA_INPUTLIST + 1];
 static int inputmap_handle (HWND list, int currentdevnum, int currentwidgetnum,
 	int *inputmap_portp, int *inputmap_indexp,
@@ -17329,12 +17329,27 @@ static void enable_for_portsdlg (HWND hDlg)
 }
 
 static const int joys[] = { IDC_PORT0_JOYS, IDC_PORT1_JOYS, IDC_PORT2_JOYS, IDC_PORT3_JOYS };
+static const int joyssub[] = { IDC_PORT0_JOYSSUB, IDC_PORT1_JOYSSUB, IDC_PORT2_JOYSSUB, IDC_PORT3_JOYSSUB };
 static const int joysm[] = { IDC_PORT0_JOYSMODE, IDC_PORT1_JOYSMODE, -1, -1 };
 static const int joysaf[] = { IDC_PORT0_AF, IDC_PORT1_AF, -1, -1 };
 static const int joyremap[] = { IDC_PORT0_REMAP, IDC_PORT1_REMAP, IDC_PORT2_REMAP, IDC_PORT3_REMAP };
 
 #define MAX_PORTSUBMODES 16
 static int portsubmodes[MAX_PORTSUBMODES];
+static int portdevsub[MAX_JPORT_DEVS] = { -1, -1, -1, -1 };
+
+static int get_jport_sub(HWND hDlg, int idx)
+{
+	int sub = 0;
+	if (joyssub[idx] >= 0 && workprefs.input_advancedmultiinput) {
+		sub = xSendDlgItemMessage(hDlg, joyssub[idx], CB_GETCURSEL, 0, 0L);
+		if (sub < 0) {
+			sub = 0;
+		}
+		portdevsub[idx] = sub;
+	}
+	return sub;
+}
 
 static void updatejoyport (HWND hDlg, int changedport)
 {
@@ -17360,8 +17375,9 @@ static void updatejoyport (HWND hDlg, int changedport)
 		int idx = joyxprevious[i];
 		int id = joys[i];
 		int idm = joysm[i];
-		int v = workprefs.jports[i].jd[0].id;
-		int vm = workprefs.jports[i].jd[0].mode + workprefs.jports[i].jd[0].submode;
+		int sub = get_jport_sub(hDlg, i);
+		int v = workprefs.jports[i].jd[sub].id;
+		int vm = workprefs.jports[i].jd[sub].mode + workprefs.jports[i].jd[sub].submode;
 		TCHAR *p1, *p2;
 
 		if (idm > 0)
@@ -17407,7 +17423,7 @@ static void updatejoyport (HWND hDlg, int changedport)
 			idx = 0;
 		xSendDlgItemMessage (hDlg, id, CB_SETCURSEL, idx, 0);
 		if (joysaf[i] >= 0)
-			xSendDlgItemMessage (hDlg, joysaf[i], CB_SETCURSEL, workprefs.jports[i].jd[0].autofire, 0);
+			xSendDlgItemMessage (hDlg, joysaf[i], CB_SETCURSEL, workprefs.jports[i].jd[sub].autofire, 0);
 
 		ew(hDlg, joyremap[i], idx >= 2);
 		ew(hDlg, joysm[i], idx >= 2);
@@ -17444,9 +17460,10 @@ static void values_from_gameportsdlg (HWND hDlg, int d, int changedport)
 
 	for (i = 0; i < MAX_JPORTS; i++) {
 		int idx = 0;
-		int *port = &workprefs.jports[i].jd[0].id;
-		int *portm = &workprefs.jports[i].jd[0].mode;
-		int *portsm = &workprefs.jports[i].jd[0].submode;
+		int	sub = get_jport_sub(hDlg, i);
+		int *port = &workprefs.jports[i].jd[sub].id;
+		int *portm = &workprefs.jports[i].jd[sub].mode;
+		int *portsm = &workprefs.jports[i].jd[sub].submode;
 		int prevport = *port;
 		int id = joys[i];
 		int idm = joysm[i];
@@ -17494,7 +17511,7 @@ static void values_from_gameportsdlg (HWND hDlg, int d, int changedport)
 		}
 		if (joysaf[i] >= 0) {
 			int af = xSendDlgItemMessage (hDlg, joysaf[i], CB_GETCURSEL, 0, 0L);
-			workprefs.jports[i].jd[0].autofire = af;
+			workprefs.jports[i].jd[sub].autofire = af;
 		}
 		if (*port != prevport)
 			changed = 1;
@@ -17851,12 +17868,12 @@ static void init_portsdlg (HWND hDlg)
 }
 
 static void input_test (HWND hDlg, int);
-static void ports_remap (HWND, int);
+static void ports_remap (HWND, int, int);
 
-static void processport (HWND hDlg, bool reset, int port)
+static void processport (HWND hDlg, bool reset, int port, int sub)
 {
 	if (reset)
-		inputdevice_compa_clear (&workprefs, port);
+		inputdevice_compa_clear (&workprefs, port, sub);
 	values_from_gameportsdlg (hDlg, 0, port);
 	enable_for_gameportsdlg (hDlg);
 	updatejoyport (hDlg, port);
@@ -17870,7 +17887,7 @@ static INT_PTR CALLBACK GamePortsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 	TCHAR tmp[MAX_DPATH];
 	static int recursive = 0;
 	static int first;
-	int temp, i;
+	int temp;
 
 	if (dialog_inhibit)
 		return 0;
@@ -17891,7 +17908,7 @@ static INT_PTR CALLBACK GamePortsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 				joyxprevious[3] = -1;
 			}
 
-			for (i = 0; joysaf[i] >= 0; i++) {
+			for (int i = 0; joysaf[i] >= 0; i++) {
 				int id = joysaf[i];
 				xSendDlgItemMessage (hDlg, id, CB_RESETCONTENT, 0, 0L);
 				WIN32GUI_LoadUIString (IDS_PORT_AUTOFIRE_NO, tmp, MAX_DPATH);
@@ -17956,7 +17973,7 @@ static INT_PTR CALLBACK GamePortsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 				IDS_JOYMODE_LIGHTPEN,
 				0 };
 
-			for (i = 0; i < 2; i++) {
+			for (int i = 0; i < 2; i++) {
 				int id = i == 0 ? IDC_PORT0_JOYSMODE : IDC_PORT1_JOYSMODE;
 				xSendDlgItemMessage(hDlg, id, CB_RESETCONTENT, 0, 0L);
 				for (int j = 0; joys[j]; j++) {
@@ -17971,6 +17988,20 @@ static INT_PTR CALLBACK GamePortsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 						xSendDlgItemMessage(hDlg, id, CB_ADDSTRING, 0, (LPARAM)p1);
 						p1 = p2;
 					}
+				}
+			}
+			for (int i = 0; i < MAX_JPORTS; i++) {
+				if (joyssub[i] >= 0) {
+					xSendDlgItemMessage(hDlg, joyssub[i], CB_RESETCONTENT, 0, 0L);
+					for (int j = 0; j < MAX_JPORT_DEVS; j++) {
+						_stprintf(tmp, _T("%d"), j + 1);
+						xSendDlgItemMessage(hDlg, joyssub[i], CB_ADDSTRING, 0, (LPARAM)tmp);
+					}
+					if (portdevsub[i] < 0) {
+						portdevsub[i] = 0;
+					}
+					xSendDlgItemMessage(hDlg, joyssub[i], CB_SETCURSEL, portdevsub[i], 0);
+					hide(hDlg, joyssub[i], workprefs.input_advancedmultiinput == 0);
 				}
 			}
 			for (int i = 0; i < MAX_PORTSUBMODES; i++) {
@@ -18003,32 +18034,32 @@ static INT_PTR CALLBACK GamePortsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 			joyxprevious[1] = temp;
 			enable_for_gameportsdlg (hDlg);
 			updatejoyport (hDlg, -1);
-			inputdevice_forget_unplugged_device(0);
-			inputdevice_forget_unplugged_device(1);
+			inputdevice_forget_unplugged_device(0, -1);
+			inputdevice_forget_unplugged_device(1, -1);
 		} else if (LOWORD (wParam) == IDC_PORT0_REMAP) {
-			ports_remap (hDlg, 0);
+			ports_remap (hDlg, 0, portdevsub[0]);
 			enable_for_gameportsdlg (hDlg);
 			updatejoyport (hDlg, -1);
 		} else if (LOWORD (wParam) == IDC_PORT1_REMAP) {
-			ports_remap (hDlg, 1);
+			ports_remap (hDlg, 1, portdevsub[1]);
 			enable_for_gameportsdlg (hDlg);
 			updatejoyport (hDlg, -1);
 		} else if (LOWORD (wParam) == IDC_PORT2_REMAP) {
-			ports_remap (hDlg, 2);
+			ports_remap (hDlg, 2, portdevsub[2]);
 			enable_for_gameportsdlg (hDlg);
 			updatejoyport (hDlg, -1);
 		} else if (LOWORD (wParam) == IDC_PORT3_REMAP) {
-			ports_remap (hDlg, 3);
+			ports_remap (hDlg, 3, portdevsub[3]);
 			enable_for_gameportsdlg (hDlg);
 			updatejoyport (hDlg, -1);
 		} else if (HIWORD (wParam) == CBN_SELCHANGE) {
 			switch (LOWORD (wParam))
 			{
 				case IDC_PORT0_AF:
-					processport (hDlg, false, 0);
+					processport (hDlg, false, 0, portdevsub[0]);
 				break;
 				case IDC_PORT1_AF:
-					processport (hDlg, false, 1);
+					processport (hDlg, false, 1, portdevsub[1]);
 				break;
 				case IDC_PORT0_JOYS:
 				case IDC_PORT1_JOYS:
@@ -18047,11 +18078,18 @@ static INT_PTR CALLBACK GamePortsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 					if (LOWORD (wParam) == IDC_PORT3_JOYS)
 						port = 3;
 					if (port >= 0) {
-						processport (hDlg, true, port);
-						inputdevice_forget_unplugged_device(port);
+						processport (hDlg, true, port, portdevsub[port]);
+						inputdevice_forget_unplugged_device(port, portdevsub[port]);
 					}
 					break;
 				}
+				case IDC_PORT0_JOYSSUB:
+				case IDC_PORT1_JOYSSUB:
+				case IDC_PORT2_JOYSSUB:
+				case IDC_PORT3_JOYSSUB:
+					enable_for_gameportsdlg(hDlg);
+					updatejoyport(hDlg, -1);
+					break;
 			}
 		} else {
 			values_from_gameportsdlg (hDlg, 1, -1);
@@ -19253,7 +19291,7 @@ static INT_PTR CALLBACK InputMapDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPA
 			if (inputmap_remap_counter < 0)
 				inputmap_remap_counter = 0;
 			inputmap_port_remap = inputmap_port;
-			inputdevice_compa_prepare_custom (&workprefs, inputmap_port, -1, false);
+			inputdevice_compa_prepare_custom (&workprefs, inputmap_port, inputmap_port_sub, -1, false);
 			inputdevice_updateconfig (NULL, &workprefs);
 			InitializeListView (hDlg);
 			ListView_EnsureVisible (h, inputmap_remap_counter, FALSE);
@@ -19293,7 +19331,7 @@ static INT_PTR CALLBACK InputMapDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPA
 			case IDC_INPUTMAP_DELETEALL:
 			inputmap_remap_counter = 0;
 			inputmap_port_remap = inputmap_port;
-			inputdevice_compa_prepare_custom (&workprefs, inputmap_port, -1, true);
+			inputdevice_compa_prepare_custom (&workprefs, inputmap_port, inputmap_port_sub, -1, true);
 			inputdevice_updateconfig (NULL, &workprefs);
 			fillinputmapadd (hDlg);
 			InitializeListView (hDlg);
@@ -19315,9 +19353,13 @@ static INT_PTR CALLBACK InputMapDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPA
 	return FALSE;
 }
 
-static void ports_remap (HWND hDlg, int port)
+static void ports_remap (HWND hDlg, int port, int sub)
 {
 	inputmap_port = port;
+	if (sub < 0) {
+		sub = 0;
+	}
+	inputmap_port_sub = sub;
 	HWND dlg = CustomCreateDialog (IDD_INPUTMAP, hDlg, InputMapDlgProc);
 	if (dlg == NULL)
 		return;

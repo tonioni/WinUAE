@@ -470,6 +470,10 @@
 #define IDC_PORT1_AF                    1034
 #define IDC_MOUSE_UNTRAPMODE            1035
 #define IDC_PORT_TABLET_MODE            1036
+#define IDC_PORT0_JOYSSUB               1037
+#define IDC_PORT1_JOYSSUB               1038
+#define IDC_PORT2_JOYSSUB               1039
+#define IDC_PORT3_JOYSSUB               1040
 #define IDC_FOCUSMINIMIZE               1041
 #define IDC_FASTTEXT                    1043
 #define IDC_FASTRAM                     1044
