@@ -97,7 +97,7 @@ struct romdata *getromdatabypath (const TCHAR *path)
 	return NULL;
 }
 
-#define NEXT_ROM_ID 309
+#define NEXT_ROM_ID 310
 
 #if NEXT_ROM_ID >= MAX_ROMMGR_ROMS
 #error Increase MAX_ROMMGR_ROMS!
@@ -603,7 +603,9 @@ static struct romdata roms[] = {
 	0xf495879a, 0xa3bd0202, 0xe14aa5b6, 0x49d3ce88, 0x22975950, 0x6500dbc2, NULL, NULL },
 	{ _T("ICD AdSCSI 2000 v1.6 (icddisk v1.0)"), 1, 6, 1, 6, _T("ADSCSI\0"), 32768, 133, 0, 0, ROMTYPE_ADSCSI, 0, 0, NULL,
 	0x7dba3e1f, 0x1e05f284, 0xd59a1e5d, 0x4e4de44e, 0x6f075175, 0x625cd6c0, NULL, NULL },
-	{ _T("ICD AdSCSI 2000 v2.? (icddisk v33.0)"), 0, 0, 0, 0, _T("ADSCSI\0"), 32768, 232, 0, 0, ROMTYPE_ADSCSI, 0, 0, NULL,
+	{ _T("ICD AdSCSI 2000 v2.01 (icddisk v32.1)"), 0, 0, 0, 0, _T("ADSCSI\0"), 32768, 309, 0, 0, ROMTYPE_ADSCSI, 0, 0, NULL,
+	0x0860a46d, 0xf6bd0520, 0x06d50449, 0x4efd48da, 0xe6a58d7b, 0x774c9eef, NULL, NULL },
+	{ _T("ICD AdSCSI 2000 v2.1 (icddisk v33.0)"), 0, 0, 0, 0, _T("ADSCSI\0"), 32768, 232, 0, 0, ROMTYPE_ADSCSI, 0, 0, NULL,
 	0x3184ec04, 0xf8ab84b0, 0x4853404f, 0x840085ce, 0x5fe992e3, 0x5dc443da, NULL, NULL },
 	{ _T("ICD AdSCSI 2000 v2.2 (icddisk v34.0)"), 2, 2, 2, 2, _T("ADSCSI\0"), 32768, 233, 0, 0, ROMTYPE_ADSCSI, 0, 0, NULL,
 	0x6881cd2f, 0x482fab24, 0xdf39446b, 0xa8662c7e, 0x67f11854, 0x895a46d9, NULL, NULL },
