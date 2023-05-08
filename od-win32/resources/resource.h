@@ -416,6 +416,10 @@
 #define IDS_READONLYCONFIRMATION        421
 #define IDS_SCREEN_NATIVELACE           422
 #define IDS_PORT_AUTOFIRE_TOGGLENOAF    423
+#define IDS_DEFAULT_WINUAECUSTOM        424
+#define IDS_SYNCMODE_COMBINED           425
+#define IDS_SYNCMODE_CSYNC              426
+#define IDS_SYNCMODE_HVSYNC             427
 #define IDS_QS_MODELS                   1000
 #define IDS_QS_MODEL_A500               1001
 #define IDS_QS_MODEL_A500P              1002

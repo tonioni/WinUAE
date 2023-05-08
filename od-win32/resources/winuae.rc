@@ -2197,6 +2197,10 @@ BEGIN
                             "Selected configuration file is write protected.\nDo you want to overwrite it?\n%s\n"
     IDS_SCREEN_NATIVELACE   "Native (Interlaced)"
     IDS_PORT_AUTOFIRE_TOGGLENOAF "No autofire (toggle)"
+    IDS_DEFAULT_WINUAECUSTOM "Custom"
+    IDS_SYNCMODE_COMBINED   "Combined"
+    IDS_SYNCMODE_CSYNC      "Composite Sync"
+    IDS_SYNCMODE_HVSYNC     "H/V Sync"
 END
 
 STRINGTABLE

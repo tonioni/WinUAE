@@ -1,4 +1,12 @@
 
+Beta 9: (RC1)
+
+- Debugger calculator (also used by custom input events) >> and << shift operators added. Negative hex and binary value support (?-$xx now works as expected). Ternary operator support ("condition_formula ? formula_calculated_if_true : formula_calculated_if false"). String parameters and string comparisons supported. Can be useful in custom input events. (for example "gfx_resolution=[\'gfx_linemode\'=='double2'?'hires':'lores']")
+- Serial port GUI now have separate options to enable handshake/status pin emulation (RTS/CTS/DTR/DTE/CD) and Ring Indicator. RI is off by default because it is shared with printer port SEL which broke parallel port joystick if serial port was also enabled after RI update. "RTS/CTS" renamed to more correct "Host RTS/CTS" (Host serial port hardware handles RTS/CTS automatically, Amiga side does not need to care)
+- Sound GUI panel slider flickering fixed when modifying (almost) any other sound configuration setting.
+- Added v2.01 ICD AdSCSI 2000 ROM (v32.1 icddisk.device). Renamed v2.x (v33.0) to v2.1 because now it is almost certain it is v2.1.
+- Only disk insert cleared forced floppy drive turbo mode (enabled when executable is inserted in disk drive). Now it is also cleared when "disk" is ejected, allowing floppy sounds (if enabled) to play normally. Floppy sounds are not played in turbo mode.
+
 Beta 8:
 
 - input.advancedmultiinput=true now also enables GUI "multiple input devices connected to same joystick port" Game Ports panel support. It is hidden because it is not complete yet and it is too late to do any possible breaking changes.

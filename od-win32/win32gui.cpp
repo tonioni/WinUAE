@@ -6906,7 +6906,8 @@ static INT_PTR CALLBACK PathsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 		if (path_type == PATH_TYPE_WINUAE || path_type == PATH_TYPE_DEFAULT)
 			selpath = numtypes;
 		ptypes[numtypes++] = PATH_TYPE_WINUAE;
-		xSendDlgItemMessage(hDlg, IDC_PATHS_DEFAULTTYPE, CB_ADDSTRING, 0, (LPARAM)_T("Custom"));
+		WIN32GUI_LoadUIString(IDS_DEFAULT_WINUAECUSTOM, tmp, sizeof tmp / sizeof(TCHAR));
+		xSendDlgItemMessage(hDlg, IDC_PATHS_DEFAULTTYPE, CB_ADDSTRING, 0, (LPARAM)tmp);
 		if (path_type == PATH_TYPE_CUSTOM)
 			selpath = numtypes;
 		ptypes[numtypes++] = PATH_TYPE_CUSTOM;
@@ -7340,7 +7341,7 @@ static void init_quickstartdlg (HWND hDlg)
 	total = 0;
 	xSendDlgItemMessage (hDlg, IDC_QUICKSTART_CONFIGURATION, CB_RESETCONTENT, 0, 0L);
 	if (amodels[quickstart_model].id == IDS_QS_MODEL_ARCADIA) {
-		struct romlist** rl = getarcadiaroms(0);
+		struct romlist **rl = getarcadiaroms(0);
 		for (i = 0; rl[i]; i++) {
 			xSendDlgItemMessage(hDlg, IDC_QUICKSTART_CONFIGURATION, CB_ADDSTRING, 0, (LPARAM)rl[i]->rd->name);
 			total++;
@@ -9246,9 +9247,12 @@ static INT_PTR CALLBACK ChipsetDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPAR
 		}
 
 		xSendDlgItemMessage(hDlg, IDC_CS_HVCSYNC, CB_RESETCONTENT, 0, 0);
-		xSendDlgItemMessage(hDlg, IDC_CS_HVCSYNC, CB_ADDSTRING, 0, (LPARAM)_T("Combined"));
-		xSendDlgItemMessage(hDlg, IDC_CS_HVCSYNC, CB_ADDSTRING, 0, (LPARAM)_T("Composite Sync"));
-		xSendDlgItemMessage(hDlg, IDC_CS_HVCSYNC, CB_ADDSTRING, 0, (LPARAM)_T("H/V Sync"));
+		WIN32GUI_LoadUIString(IDS_SYNCMODE_COMBINED, buffer, sizeof buffer / sizeof(TCHAR));
+		xSendDlgItemMessage(hDlg, IDC_CS_HVCSYNC, CB_ADDSTRING, 0, (LPARAM)buffer);
+		WIN32GUI_LoadUIString(IDS_SYNCMODE_CSYNC, buffer, sizeof buffer / sizeof(TCHAR));
+		xSendDlgItemMessage(hDlg, IDC_CS_HVCSYNC, CB_ADDSTRING, 0, (LPARAM)buffer);
+		WIN32GUI_LoadUIString(IDS_SYNCMODE_HVSYNC, buffer, sizeof buffer / sizeof(TCHAR));
+		xSendDlgItemMessage(hDlg, IDC_CS_HVCSYNC, CB_ADDSTRING, 0, (LPARAM)buffer);
 
 #ifndef	AGA
 		ew(hDlg, IDC_AGA, FALSE);
@@ -13860,9 +13864,6 @@ static void values_to_sounddlg (HWND hDlg)
 		workprefs.sound_maxbsiz = 0;
 	xSendDlgItemMessage (hDlg, IDC_SOUNDBUFFERRAM, TBM_SETPOS, TRUE, getsoundbufsizeindex (workprefs.sound_maxbsiz));
 
-	xSendDlgItemMessage (hDlg, IDC_SOUNDVOLUME, TBM_SETPOS, TRUE, 0);
-	xSendDlgItemMessage (hDlg, IDC_SOUNDVOLUMEEXT, TBM_SETPOS, TRUE, 0);
-
 	xSendDlgItemMessage (hDlg, IDC_SOUNDCARDLIST, CB_SETCURSEL, workprefs.win32_soundcard, 0);
 
 	sounddrivesel = xSendDlgItemMessage (hDlg, IDC_SOUNDDRIVE, CB_GETCURSEL, 0, 0);
@@ -14112,8 +14113,13 @@ static INT_PTR CALLBACK SoundDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 		if (recursive > 0)
 			break;
 		recursive++;
-		if(LOWORD (wParam) == IDC_SOUNDDRIVE) {
-			values_to_sounddlg (hDlg);
+		if (HIWORD(wParam) == CBN_SELCHANGE || HIWORD(wParam) == CBN_KILLFOCUS) {
+			switch (LOWORD(wParam))
+			{
+				case IDC_SOUNDDRIVE:
+					values_to_sounddlg(hDlg);
+					break;
+			}
 		}
 		values_from_sounddlg (hDlg);
 		enable_for_sounddlg (hDlg);
@@ -17767,7 +17773,7 @@ static void init_portsdlg (HWND hDlg)
 	xSendDlgItemMessage(hDlg, IDC_DONGLELIST, CB_ADDSTRING, 0, (LPARAM)_T("Leader Board"));
 	xSendDlgItemMessage(hDlg, IDC_DONGLELIST, CB_ADDSTRING, 0, (LPARAM)_T("B.A.T. II"));
 	xSendDlgItemMessage(hDlg, IDC_DONGLELIST, CB_ADDSTRING, 0, (LPARAM)_T("Italy '90 Soccer"));
-	xSendDlgItemMessage(hDlg, IDC_DONGLELIST, CB_ADDSTRING, 0, (LPARAM)_T("Dames Grand-Maître"));
+	xSendDlgItemMessage(hDlg, IDC_DONGLELIST, CB_ADDSTRING, 0, (LPARAM)_T("Dames Grand-Maitre"));
 	xSendDlgItemMessage(hDlg, IDC_DONGLELIST, CB_ADDSTRING, 0, (LPARAM)_T("Rugby Coach"));
 	xSendDlgItemMessage(hDlg, IDC_DONGLELIST, CB_ADDSTRING, 0, (LPARAM)_T("Cricket Captain"));
 	xSendDlgItemMessage(hDlg, IDC_DONGLELIST, CB_ADDSTRING, 0, (LPARAM)_T("Leviathan"));
