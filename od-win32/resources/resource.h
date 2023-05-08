@@ -1331,6 +1331,8 @@
 #define IDC_KEYBOARD_SWAPHACK           1865
 #define IDC_SCSIROM24BITDMA             1866
 #define IDC_CUSTOMDATAPATH              1866
+#define IDC_SER_RTSCTSDTRDTECD          1867
+#define IDC_SER_RI                      1868
 #define ID__FLOPPYDRIVES                40004
 #define ID_FLOPPYDRIVES_DF0             40005
 #define ID_ST_CONFIGURATION             40010
@@ -1382,7 +1384,7 @@
 #define _APS_3D_CONTROLS                     1
 #define _APS_NEXT_RESOURCE_VALUE        407
 #define _APS_NEXT_COMMAND_VALUE         40050
-#define _APS_NEXT_CONTROL_VALUE         1867
+#define _APS_NEXT_CONTROL_VALUE         1869
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

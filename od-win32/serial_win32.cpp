@@ -1090,64 +1090,71 @@ uae_u8 serial_readstatus(uae_u8 v, uae_u8 dir)
 		return v;
 	}
 
-	if (!(status & TIOCM_CAR)) {
-		if (!(serbits & 0x20)) {
-			serbits |= 0x20;
+	if (currprefs.serial_rtsctsdtrdtecd) {
+		if (!(status & TIOCM_CAR)) {
+			if (!(serbits & 0x20)) {
+				serbits |= 0x20;
 #if SERIALHSDEBUG > 0
-			write_log ( "SERIAL: CD off\n" );
+				write_log ( "SERIAL: CD off\n" );
 #endif
-		}
-	} else {
-		if (serbits & 0x20) {
-			serbits &= ~0x20;
+			}
+		} else {
+			if (serbits & 0x20) {
+				serbits &= ~0x20;
 #if SERIALHSDEBUG > 0
-			write_log ( "SERIAL: CD on\n" );
+				write_log ( "SERIAL: CD on\n" );
 #endif
+			}
 		}
-	}
 
-	if (!(status & TIOCM_DSR)) {
-		if (!(serbits & 0x08)) {
-			serbits |= 0x08;
+		if (!(status & TIOCM_DSR)) {
+			if (!(serbits & 0x08)) {
+				serbits |= 0x08;
 #if SERIALHSDEBUG > 0
-			write_log ( "SERIAL: DSR off\n" );
+				write_log ( "SERIAL: DSR off\n" );
 #endif
-		}
-	} else {
-		if (serbits & 0x08) {
-			serbits &= ~0x08;
+			}
+		} else {
+			if (serbits & 0x08) {
+				serbits &= ~0x08;
 #if SERIALHSDEBUG > 0
-			write_log ( "SERIAL: DSR on\n" );
+				write_log ( "SERIAL: DSR on\n" );
 #endif
+			}
 		}
-	}
 
-	if (!(status & TIOCM_CTS)) {
-		if (!(serbits & 0x10)) {
-			serbits |= 0x10;
+		if (!(status & TIOCM_CTS)) {
+			if (!(serbits & 0x10)) {
+				serbits |= 0x10;
 #if SERIALHSDEBUG > 0
-			write_log ( "SERIAL: CTS off\n" );
+				write_log ( "SERIAL: CTS off\n" );
 #endif
-		}
-	} else {
-		if (serbits & 0x10) {
-			serbits &= ~0x10;
+			}
+		} else {
+			if (serbits & 0x10) {
+				serbits &= ~0x10;
 #if SERIALHSDEBUG > 0
-			write_log ( "SERIAL: CTS on\n" );
+				write_log ( "SERIAL: CTS on\n" );
 #endif
+			}
 		}
 	}
 
 	// SEL == RI
-	if (!isprinter()) {
+	if (isprinter()) {
+		serbits &= ~0x04;
+		serbits |= v & 0x04;
+		if (currprefs.serial_ri && (status & TIOCM_RI)) {
+			serbits &= ~0x04;
+		}
+	} else if (currprefs.serial_ri) {
 		serbits |= 0x04;
+		if (status & TIOCM_RI) {
+			serbits &= ~0x04;
+		}
 	} else {
 		serbits &= ~0x04;
 		serbits |= v & 0x04;
-	}
-
-	if (status & TIOCM_RI) {
-		serbits &= ~0x04;
 	}
 
 	serbits &= 0x04 | 0x08 | 0x10 | 0x20;
@@ -1168,13 +1175,13 @@ uae_u8 serial_writestatus (uae_u8 newstate, uae_u8 dir)
 
 #ifdef SERIAL_PORT
 	if (currprefs.use_serial) {
-		if (((oldserbits ^ newstate) & 0x80) && (dir & 0x80)) {
+		if (currprefs.serial_rtsctsdtrdtecd && ((oldserbits ^ newstate) & 0x80) && (dir & 0x80)) {
 			if (newstate & 0x80)
 				serial_dtr_off();
 			else
 				serial_dtr_on();
 		}
-		if (!currprefs.serial_hwctsrts && (dir & 0x40)) {
+		if (!currprefs.serial_hwctsrts && currprefs.serial_rtsctsdtrdtecd && (dir & 0x40)) {
 			if ((oldserbits ^ newstate) & 0x40) {
 				if (newstate & 0x40) {
 					setserstat(TIOCM_RTS, 0);
@@ -1224,14 +1231,14 @@ uae_u8 serial_writestatus (uae_u8 newstate, uae_u8 dir)
 	if (sermap_data && sermap_enabled) {
 		uae_u32 flags = 0x80000000;
 		bool changed = false;
-		if (((oldserbits ^ newstate) & 0x80) && (dir & 0x80)) {
+		if (currprefs.serial_rtsctsdtrdtecd && ((oldserbits ^ newstate) & 0x80) && (dir & 0x80)) {
 			if (!(newstate & 0x80)) {
 				flags |= 1; // DSR
 				flags |= 2; // CD
 			}
 			changed = true;
 		}
-		if (!currprefs.serial_hwctsrts && (dir & 0x40)) {
+		if (!currprefs.serial_hwctsrts && currprefs.serial_rtsctsdtrdtecd && (dir & 0x40)) {
 			if ((oldserbits ^ newstate) & 0x40) {
 				if (!(newstate & 0x40)) {
 					flags |= 4; // RTS
