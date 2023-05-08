@@ -6649,11 +6649,12 @@ static int getconfigstoreline (const TCHAR *option, TCHAR *value);
 
 static void calcformula (struct uae_prefs *prefs, TCHAR *in)
 {
-	TCHAR out[MAX_DPATH], configvalue[CONFIG_BLEN];
+	TCHAR out[MAX_DPATH], configvalue[CONFIG_BLEN], tmp[MAX_DPATH];
 	TCHAR *p = out;
 	double val;
 	int cnt1, cnt2;
 	static bool updatestore;
+	int escaped, quoted;
 
 	if (_tcslen (in) < 2 || in[0] != '[' || in[_tcslen (in) - 1] != ']')
 		return;
@@ -6663,9 +6664,18 @@ static void calcformula (struct uae_prefs *prefs, TCHAR *in)
 	if (!configstore)
 		return;
 	cnt1 = cnt2 = 0;
+	escaped = 0;
+	quoted = 0;
 	for (int i = 1; i < _tcslen (in) - 1; i++) {
 		TCHAR c = _totupper (in[i]);
-		if (c >= 'A' && c <='Z') {
+		if (c == '\\') {
+			escaped = 1;
+		} else if (c == '\'') {
+			quoted = escaped + 1;
+			escaped = 0;
+			cnt2++;
+			*p++ = c;
+		} else if (c >= 'A' && c <='Z') {
 			TCHAR *start = &in[i];
 			while (_istalnum (c) || c == '_' || c == '.') {
 				i++;
@@ -6674,16 +6684,22 @@ static void calcformula (struct uae_prefs *prefs, TCHAR *in)
 			TCHAR store = in[i];
 			in[i] = 0;
 			//write_log (_T("'%s'\n"), start);
-			if (!getconfigstoreline (start, configvalue))
-				return;
-			_tcscpy (p, configvalue);
+			if ((quoted == 0 || quoted == 2) && getconfigstoreline (start, configvalue)) {
+				_tcscpy(p, configvalue);
+			} else {
+				_tcscpy(p, start);
+			}
 			p += _tcslen (p);
 			in[i] = store;
 			i--;
 			cnt1++;
+			escaped = 0;
+			quoted = 0;
 		} else {
 			cnt2++;
-			*p ++= c;
+			*p++= c;
+			escaped = 0;
+			quoted = 0;
 		}
 	}
 	*p = 0;
@@ -6695,13 +6711,16 @@ static void calcformula (struct uae_prefs *prefs, TCHAR *in)
 		updatestore = true;
 		return;
 	}
-	if (calc (out, &val)) {
+	int v = calc(out, &val, tmp, sizeof(tmp) / sizeof(TCHAR));
+	if (v > 0) {
 		if (val - (int)val != 0.0f)
 			_stprintf (in, _T("%f"), val);
 		else
 			_stprintf (in, _T("%d"), (int)val);
 		updatestore = true;
-		return;
+	} else if (v < 0) {
+		_tcscpy(in, tmp);
+		updatestore = true;
 	}
 }
 

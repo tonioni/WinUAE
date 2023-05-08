@@ -750,12 +750,26 @@ static int readregx(TCHAR **c, uae_u32 *valp)
 	return 1;
 }
 
+static bool checkisneg(TCHAR **c)
+{
+	TCHAR nc = peekchar(c);
+	if (nc == '-') {
+		(*c)++;
+		return true;
+	} else if (nc == '+') {
+		(*c)++;
+	}
+	return false;
+}
+
 static bool readbinx (TCHAR **c, uae_u32 *valp)
 {
 	uae_u32 val = 0;
 	bool first = true;
+	bool negative = false;
 
 	ignore_ws (c);
+	negative = checkisneg(c);
 	for (;;) {
 		TCHAR nc = **c;
 		if (nc != '1' && nc != '0') {
@@ -769,7 +783,7 @@ static bool readbinx (TCHAR **c, uae_u32 *valp)
 		if (nc == '1')
 			val |= 1;
 	}
-	*valp = val;
+	*valp = val * (negative ? -1 : 1);
 	return true;
 }
 
@@ -777,9 +791,11 @@ static bool readhexx (TCHAR **c, uae_u32 *valp)
 {
 	uae_u32 val = 0;
 	TCHAR nc;
+	bool negative = false;
 
-	ignore_ws (c);
-	if (!isxdigit (peekchar (c)))
+	ignore_ws(c);
+	negative = checkisneg(c);
+	if (!isxdigit(peekchar(c)))
 		return false;
 	while (isxdigit (nc = **c)) {
 		(*c)++;
@@ -791,7 +807,7 @@ static bool readhexx (TCHAR **c, uae_u32 *valp)
 			val += nc - 'A' + 10;
 		}
 	}
-	*valp = val;
+	*valp = val * (negative ? -1 : 1);
 	return true;
 }
 
@@ -802,8 +818,7 @@ static bool readintx (TCHAR **c, uae_u32 *valp)
 	int negative = 0;
 
 	ignore_ws (c);
-	if (**c == '-')
-		negative = 1, (*c)++;
+	negative = checkisneg(c);
 	if (!isdigit (peekchar (c)))
 		return false;
 	while (isdigit (nc = **c)) {
@@ -896,14 +911,8 @@ static int checkvaltype (TCHAR **cp, uae_u32 *val, int *size, TCHAR def)
 	for (;;) {
 		uae_u32 v;
 		if (!checkvaltype2 (cp, &v, def)) {
-			if (isoperator(cp) || gotop) {
-				for (;;) {
-					*p = readchar(cp);
-					if (*p == 0) {
-						goto docalc;
-					}
-					p++;
-				}
+			if (isoperator(cp) || gotop || **cp == '\"' || **cp == '\'') {
+				goto docalc;
 			}
 			return 0;
 		}
@@ -911,11 +920,13 @@ static int checkvaltype (TCHAR **cp, uae_u32 *val, int *size, TCHAR def)
 		// stupid but works!
 		_stprintf(p, _T("%u"), v);
 		p += _tcslen (p);
+		*p = 0;
 		if (peekchar (cp) == '.') {
 			readchar (cp);
 			if (size)
 				*size = readsize (v, cp);
 		}
+		ignore_ws(cp);
 		if (!isoperator (cp))
 			break;
 		gotop = true;
@@ -936,7 +947,13 @@ static int checkvaltype (TCHAR **cp, uae_u32 *val, int *size, TCHAR def)
 		return 1;
 	}
 docalc:
-	if (calc (form, &out)) {
+	while (more_params2(cp)) {
+		*p++ = readchar(cp);
+	}
+	*p = 0;
+	TCHAR tmp[MAX_DPATH];
+	int v = calc(form, &out, tmp, sizeof(tmp) / sizeof(TCHAR));
+	if (v > 0) {
 		*val = (uae_u32)out;
 		if (size && *size == 0) {
 			uae_s32 v = (uae_s32)(*val);
@@ -949,6 +966,8 @@ docalc:
 			}
 		}
 		return 1;
+	} else if (v < 0) {
+		console_out_f(_T("String returned: '%s'\n"), tmp);
 	}
 	return 0;
 }
