@@ -5604,8 +5604,10 @@ static void inputdevice_checkconfig (void)
 		for (int j = 0; j < MAX_JPORT_DEVS; j++) {
 			if (currprefs.jports[i].jd[j].id != changed_prefs.jports[i].jd[j].id ||
 				currprefs.jports[i].jd[j].mode != changed_prefs.jports[i].jd[j].mode ||
-				currprefs.jports[i].jd[j].submode != changed_prefs.jports[i].jd[j].submode)
+				currprefs.jports[i].jd[j].submode != changed_prefs.jports[i].jd[j].submode ||
+				currprefs.jports[i].jd[j].autofire != changed_prefs.jports[i].jd[j].autofire) {
 					changed = true;
+			}
 		}
 	}
 
