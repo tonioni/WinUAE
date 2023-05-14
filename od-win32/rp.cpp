@@ -75,6 +75,7 @@ static int hwndset_delay;
 static int sendmouseevents;
 static int mouseevent_x, mouseevent_y, mouseevent_buttons;
 static uae_u64 delayed_refresh;
+static bool interpolation_v102;
 
 static int cando (void)
 {
@@ -888,6 +889,12 @@ static void get_screenmode (struct RPScreenMode *sm, struct uae_prefs *p, bool g
 	}
 }
 
+static bool interpolation_old(DWORD sm)
+{
+	return ((sm & (RP_SCREENMODE_PIXEL_ORIGINAL_RATIO | RP_SCREENMODE_SCALING_SUBPIXEL | RP_SCREENMODE_SCANLINES)) == 0 &&
+		RP_SCREENMODE_DISPLAY(sm) == 0) ? 0 : 1;
+}
+
 static void set_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 {
 	struct AmigaMonitor *mon = &AMonitors[0];
@@ -1075,7 +1082,11 @@ static void set_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 
 		p->win32_rtgallowscaling = false;
 		p->win32_rtgscaleaspectratio = keepaspect ? -1 : 0;
-		p->gf[GF_RTG].gfx_filter_bilinear = (sm->dwScreenMode & RP_SCREENMODE_INTERPOLATION) != 0;
+		if (interpolation_v102) {
+			p->gf[GF_RTG].gfx_filter_bilinear = (sm->dwScreenMode & RP_SCREENMODE_INTERPOLATION) != 0;
+		} else {
+			p->gf[GF_RTG].gfx_filter_bilinear = interpolation_old(sm->dwScreenMode);
+		}
 
 		if (integerscale) {
 			p->gf[GF_RTG].gfx_filter_autoscale = RTG_MODE_INTEGER_SCALE;
@@ -1172,7 +1183,11 @@ static void set_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 			p->gf[0].gfx_filter_left_border = -1;
 			p->gf[0].gfx_filter_top_border = -1;
 		}
-		p->gf[0].gfx_filter_bilinear = (sm->dwScreenMode & RP_SCREENMODE_INTERPOLATION) != 0;
+		if (interpolation_v102) {
+			p->gf[0].gfx_filter_bilinear = (sm->dwScreenMode & RP_SCREENMODE_INTERPOLATION) != 0;
+		} else {
+			p->gf[0].gfx_filter_bilinear = interpolation_old(sm->dwScreenMode);
+		}
 	}
 
 	if (log_rp & 2) {
@@ -1818,12 +1833,19 @@ void rp_fixup_options (struct uae_prefs *p)
 {
 	struct monconfig *gm = &p->gfx_monitor[0];
 	struct RPScreenMode sm;
+	LRESULT lr;
 
 	if (!initialized)
 		return;
 
 	write_log (_T("rp_fixup_options(escapekey=%d,escapeholdtime=%d,screenmode=%d,inputmode=%d)\n"),
 		rp_rpescapekey, rp_rpescapeholdtime, rp_screenmode, rp_inputmode);
+
+	if (RPSendMessage(RP_IPC_TO_HOST_HOSTAPIVERSION, 0, 0, NULL, 0, &guestinfo, &lr)) {
+		WORD major = LOWORD(lr);
+		WORD minor = HIWORD(lr);
+		interpolation_v102 = major > 10 || (major == 10 && minor >= 2);
+	}
 
 	sendmouseevents = 0;
 	mouseevent_x = mouseevent_y = 0;

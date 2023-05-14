@@ -1,7 +1,19 @@
 
+Beta 10: (RC2)
+
+- On the fly gameports panel autofire mode setting change (for example using uae-configuration or executing custom event) was not supported.
+- Fixed memory double free in b9 calculator update.
+- Debugger ? binary output grouped to 4*8 bits.
+- Cached bitplane DMA cycle sequence could have used wrong odd/even line mode if programmed mode was enabled when PAL/NTSC bitplane was active.
+- If active bitplane was "behind" left horizontal blank (usually only if mode is "weird"), bitplane had extra horizontal offset.
+- Some re-recorder fixes but it still loses sync randomly. Not required to work in 5.0 (it has never worked) but I'll try to debug this before final 5.0.
+- Automatic scaling missed one line at the bottom and in certain situations top had one empty line. (Probably side-effect of 4.9.x display emulation rewrite)
+- RTC address space memwatch points didn't work correctly.
+- Beta tag removed.
+
 Beta 9: (RC1)
 
-- Debugger calculator (also used by custom input events) >> and << shift operators added. Negative hex and binary value support (?-$xx now works as expected). Ternary operator support ("condition_formula ? formula_calculated_if_true : formula_calculated_if false"). String parameters and string comparisons supported. Can be useful in custom input events. (for example "gfx_resolution=[\'gfx_linemode\'=='double2'?'hires':'lores']")
+- Debugger calculator (also used by custom input events) >> and << shift operators added. Negative hex and binary value support (?$-xx now works as expected). Ternary operator support ("condition_formula ? formula_calculated_if_true : formula_calculated_if false"). String parameters and string comparisons supported. Can be useful in custom input events. (for example "gfx_resolution=[\'gfx_linemode\'=='double2'?'hires':'lores']")
 - Serial port GUI now have separate options to enable handshake/status pin emulation (RTS/CTS/DTR/DTE/CD) and Ring Indicator. RI is off by default because it is shared with printer port SEL which broke parallel port joystick if serial port was also enabled after RI update. "RTS/CTS" renamed to more correct "Host RTS/CTS" (Host serial port hardware handles RTS/CTS automatically, Amiga side does not need to care)
 - Sound GUI panel slider flickering fixed when modifying (almost) any other sound configuration setting.
 - Added v2.01 ICD AdSCSI 2000 ROM (v32.1 icddisk.device). Renamed v2.x (v33.0) to v2.1 because now it is almost certain it is v2.1.

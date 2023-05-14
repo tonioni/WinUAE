@@ -2,14 +2,14 @@
  Name    : RetroPlatformIPC.h
  Project : RetroPlatform Player
  Support : http://www.retroplatform.com
- Legal   : Copyright 2007-2022 Cloanto Corporation - All rights reserved. This
+ Legal   : Copyright 2007-2023 Cloanto Corporation - All rights reserved. This
          : file is multi-licensed under the terms of the Mozilla Public License
          : version 2.0 as published by Mozilla Corporation and the GNU General
          : Public License, version 2 or later, as published by the Free
          : Software Foundation.
  Authors : os, m
  Created : 2007-08-27 13:55:49
- Updated : 2023-04-04 14:45:34
+ Updated : 2023-05-11 10:31:21
  Comment : RetroPlatform Player interprocess communication include file
  *****************************************************************************/
 
@@ -18,9 +18,9 @@
 
 #include <windows.h>
 
-#define RETROPLATFORM_API_VER       "10.1"
+#define RETROPLATFORM_API_VER       "10.2"
 #define RETROPLATFORM_API_VER_MAJOR  10
-#define RETROPLATFORM_API_VER_MINOR  1
+#define RETROPLATFORM_API_VER_MINOR  2
 
 #define RPIPC_HostWndClass   "RetroPlatformHost%s"
 #define RPIPC_GuestWndClass  "RetroPlatformGuest%d"
@@ -219,7 +219,7 @@ typedef struct RPScreenMode
 #define RP_SCREENMODE_SCALING_SUBPIXEL 		0x00100000 // use sub-pixel (non-integer) scaling in RP_SCREENMODE_SCALE_TARGET or RP_SCREENMODE_SCALE_MAX modes; if not set, up to four black bars may be added; if set, up to two black bars may be added
 #define RP_SCREENMODE_SCALING_STRETCH  		0x00200000 // "stretch to fill" (do not preserve original ratio) in RP_SCREENMODE_SCALE_TARGET or RP_SCREENMODE_SCALE_MAX modes; if set, no black bars are added
 #define RP_SCREENMODE_PIXEL_ORIGINAL_RATIO	0x00400000 // use pixel original ratio (when not set, square pixel ratio or a multiple thereof is used, which grants optimal sharpness and avoids screen distortions)
-#define RP_SCREENMODE_INTERPOLATION         0x00800000 // scale image using bilinear interpolation
+#define RP_SCREENMODE_INTERPOLATION         0x00800000 // scale image using bilinear interpolation (introduced in RetroPlatform API 10.2)
 
 // Clip Flags (used only from host to guest, never from guest to host)
 #define RP_CLIPFLAGS_AUTOCLIP				0x00000001 // ignore all 4 Clip values (same as all values = -1) and use "smart" offset and size
