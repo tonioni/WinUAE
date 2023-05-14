@@ -772,16 +772,19 @@ static bool readbinx (TCHAR **c, uae_u32 *valp)
 	negative = checkisneg(c);
 	for (;;) {
 		TCHAR nc = **c;
-		if (nc != '1' && nc != '0') {
+		if (nc != '1' && nc != '0' && nc != '`') {
 			if (first)
 				return false;
 			break;
 		}
 		first = false;
 		(*c)++;
-		val <<= 1;
-		if (nc == '1')
-			val |= 1;
+		if (nc != '`') {
+			val <<= 1;
+			if (nc == '1') {
+				val |= 1;
+			}
+		}
 	}
 	*valp = val * (negative ? -1 : 1);
 	return true;
@@ -1045,15 +1048,19 @@ static void converter(TCHAR **c)
 	bool err;
 	uae_u32 v = readint(c, &err);
 	TCHAR s[100];
-	int i;
+	int i, j;
 
 	if (err) {
 		return;
 	}
-	for (i = 0; i < 32; i++)
-		s[i] = (v & (1 << (31 - i))) ? '1' : '0';
-	s[i] = 0;
-	console_out_f (_T("0x%08X = %%%s = %u = %d\n"), v, s, v, (uae_s32)v);
+	for (i = 0, j = 0; i < 32; i++) {
+		s[j++] = (v & (1 << (31 - i))) ? '1' : '0';
+		if (i < 31 && (i & 7) == 7) {
+			s[j++] = '`';
+		}
+	}
+	s[j] = 0;
+	console_out_f (_T("$%08X = %%%s = %u = %d\n"), v, s, v, (uae_s32)v);
 }
 
 static bool isrom(uaecptr addr)
