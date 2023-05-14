@@ -548,7 +548,8 @@ static bool execution_order(const TCHAR *input, double *outval, TCHAR *outstring
 						stack[sl].val = val;
                         xfree(stack[sl].vals);
                         stack[sl].vals = my_strdup(vals);
-						stack[sl].s = NULL;
+                        xfree(stack[sl].s);
+                        stack[sl].s = NULL;
             ++sl;
         }
         ++strpos;
@@ -569,8 +570,12 @@ static bool execution_order(const TCHAR *input, double *outval, TCHAR *outstring
                 }
 				ok = true;
 		}
-		for (i = 0; i < STACK_SIZE; i++)
-			xfree (stack[i].s);
+		for (i = 0; i < STACK_SIZE; i++) {
+            xfree(stack[i].s);
+            stack[i].s = NULL;
+            xfree(stack[i].vals);
+            stack[i].vals = NULL;
+        }
  
 		// If there are more values in the stack
         // (Error) The user input has too many values.
