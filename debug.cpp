@@ -2778,7 +2778,7 @@ void log_dma_record (void)
 	if (!input_record && !input_play)
 		return;
 	if (!debug_dma)
-		debug_dma = 1;
+		return;
 	decode_dma_record (0, 0, 0, true);
 }
 

@@ -3,20 +3,21 @@
 *
 * Input record/playback
 *
-* Copyright 2010 Toni Wilen
+* Copyright 2010-2023 Toni Wilen
 *
 */
 
 #define INPUTRECORD_DEBUG 1
 #define ENABLE_DEBUGGER 0
 
-#define HEADERSIZE 12
+#define HEADERSIZE 16
 
 #include "sysconfig.h"
 #include "sysdeps.h"
 
 #include "options.h"
 #include "inputrecord.h"
+#include "inputdevice.h"
 #include "zfile.h"
 #include "custom.h"
 #include "savestate.h"
@@ -118,15 +119,16 @@ static bool inprec_rstart (uae_u8 type)
 {
 	if (!input_record || !inprec_zf || input_record == INPREC_RECORD_PLAYING)
 		return false;
+	int hpos = current_hpos();
 	lastcycle = get_cycles ();
 	int mvp = current_maxvpos ();
 	if ((type != INPREC_DEBUG && type != INPREC_DEBUG2 && type != INPREC_CIADEBUG) || (0 && vsync_counter >= 49 && vsync_counter <= 51))
-		write_log (_T("INPREC: %010d/%03d: %d (%d/%d) %08x\n"), hsync_counter, current_hpos (), type, hsync_counter % mvp, mvp, lastcycle);
+		write_log (_T("INPREC: %010d/%03d: %d (%d/%d) %08x\n"), hsync_counter, hpos, type, hsync_counter % mvp, mvp, lastcycle);
 	inprec_plast = inprec_p;
 	inprec_ru8 (type);
 	inprec_ru16 (0xffff);
 	inprec_ru32 (hsync_counter);
-	inprec_ru8 (current_hpos ());
+	inprec_ru8 (hpos);
 	inprec_ru64 (lastcycle);
 	return true;
 }
@@ -158,6 +160,11 @@ static bool inprec_realtime (bool stopstart)
 	inprec_buffer = inprec_p = xmalloc (uae_u8, inprec_size);
 	clear_inputstate ();
 	return true;
+}
+
+static void inprec_event(uae_u32 v)
+{
+	inputdevice_playevents();
 }
 
 static int inprec_pstart (uae_u8 type)
@@ -200,7 +207,9 @@ static int inprec_pstart (uae_u8 type)
 		uae_u32 type2 = p[0];
 		uae_u32 hc2 = (p[3] << 24) | (p[4] << 16) | (p[5] << 8) | p[6];
 		uae_u32 hpos2 = p[7];
-		frame_time_t cycles2 = (p[8] << 24) | (p[9] << 16) | (p[10] << 8) | p[11];
+		uae_u32 chi = (p[8] << 24) | (p[9] << 16) | (p[10] << 8) | p[11];
+		uae_u32 clo = (p[12] << 24) | (p[13] << 16) | (p[14] << 8) | p[15];
+		frame_time_t cycles2 = (((uae_u64)chi) << 32) | clo;
 
 		if (p >= inprec_buffer + inprec_size)
 			break;
@@ -212,8 +221,9 @@ static int inprec_pstart (uae_u8 type)
 		}
 #endif
 		hc2_orig = hc2;
-		if (type2 == type && hc > hc2) {
-			write_log (_T("INPREC: %010d/%03d > %010d/%03d: %d missed!\n"), hc, hpos, hc2, hpos2, p[0]);
+		if (type2 == type && cycles > cycles2) {
+			int diff = (int)((cycles2 - cycles) / CYCLE_UNIT);
+			write_log (_T("INPREC: %010d/%03d > %010d/%03d: %d %d missed!\n"), hc, hpos, hc2, hpos2, diff, p[0]);
 #if ENABLE_DEBUGGER == 0
 			gui_message (_T("INPREC missed error"));
 #else
@@ -221,11 +231,17 @@ static int inprec_pstart (uae_u8 type)
 #endif
 			lastcycle = cycles;
 			inprec_plast = p;
-			inprec_plastptr = p + 12;
+			inprec_plastptr = p + HEADERSIZE;
 			setlasthsync ();
 			return 1;
 		}
-		if (hc2 != hc) {
+		if (cycles < cycles2) {
+			if (type2 != INPREC_DEBUG && type2 != INPREC_DEBUG2 && type2 != INPREC_CIADEBUG) {
+				int diff = (uae_u32)((cycles2 - cycles) / CYCLE_UNIT);
+				if (diff < maxhpos) {
+					event2_newevent_x_replace(diff, 0, inprec_event);
+				}
+			}
 			lastp = p;
 			break;
 		}
@@ -239,17 +255,19 @@ static int inprec_pstart (uae_u8 type)
 						write_log (_T("%08x (%016llx) "), pcs[i], pcs2[i]);
 					write_log (_T("\n"));
 				}
-				cycleoffset = (uae_u32)(cycles - cycles2);
+				uae_u32 fixedcycleoffset = (uae_u32)(cycles - cycles2);
 #if ENABLE_DEBUGGER == 0
-				gui_message (_T("INPREC OFFSET=%d\n"), (int)cycleoffset / CYCLE_UNIT);
+				gui_message (_T("INPREC OFFSET=%d\n"), fixedcycleoffset / CYCLE_UNIT);
 #else
 				activate_debugger ();
 #endif
+				cycleoffset = fixedcycleoffset;
 			}
 			lastcycle = cycles;
 			inprec_plast = p;
-			inprec_plastptr = p + 12;
-			setlasthsync ();
+			inprec_plastptr = p + HEADERSIZE;
+			setlasthsync();
+			//write_log(_T("INPREC: %010d/%03d %llx %d\n"), hc, hpos, cycles, p[0]);
 			return 1;
 		}
 		if (type2 == INPREC_END || type2 == INPREC_QUIT)
@@ -387,7 +405,7 @@ int inprec_open (const TCHAR *fname, const TCHAR *statefilename)
 			return 0;
 		}
 		int v = inprec_pu8 ();
-		if (v != 2) {
+		if (v != 3) {
 			inprec_close (true);
 			return 0;
 		}
@@ -451,7 +469,7 @@ int inprec_open (const TCHAR *fname, const TCHAR *statefilename)
 		seed = uaesrand (seed);
 		inprec_buffer = inprec_p = xmalloc (uae_u8, inprec_size);
 		inprec_ru32 ('UAE\0');
-		inprec_ru8 (2);
+		inprec_ru8 (3);
 		inprec_ru8 (UAEMAJOR);
 		inprec_ru8 (UAEMINOR);
 		inprec_ru8 (UAESUBREV);
