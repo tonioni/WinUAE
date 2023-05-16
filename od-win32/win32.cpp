@@ -3046,20 +3046,20 @@ static LRESULT CALLBACK HiddenWindowProc (HWND hWnd, UINT message, WPARAM wParam
 			disk_eject (3);
 			break;
 		case ID_ST_DF0:
-			DiskSelection (isfullscreen() > 0 ? NULL : hWnd, IDC_DF0, 0, &changed_prefs, NULL, NULL);
-			disk_insert (0, changed_prefs.floppyslots[0].df);
+			DiskSelection(isfullscreen() > 0 ? NULL : hWnd, IDC_DF0, 0, &changed_prefs, NULL, NULL);
+			disk_insert(0, changed_prefs.floppyslots[0].df);
 			break;
 		case ID_ST_DF1:
-			DiskSelection (isfullscreen() > 0 ? NULL : hWnd, IDC_DF1, 0, &changed_prefs, NULL, NULL);
-			disk_insert (1, changed_prefs.floppyslots[0].df);
+			DiskSelection(isfullscreen() > 0 ? NULL : hWnd, IDC_DF1, 0, &changed_prefs, NULL, NULL);
+			disk_insert(1, changed_prefs.floppyslots[1].df);
 			break;
 		case ID_ST_DF2:
-			DiskSelection (isfullscreen() > 0 ? NULL : hWnd, IDC_DF2, 0, &changed_prefs, NULL, NULL);
-			disk_insert (2, changed_prefs.floppyslots[0].df);
+			DiskSelection(isfullscreen() > 0 ? NULL : hWnd, IDC_DF2, 0, &changed_prefs, NULL, NULL);
+			disk_insert(2, changed_prefs.floppyslots[2].df);
 			break;
 		case ID_ST_DF3:
-			DiskSelection (isfullscreen() > 0 ? NULL : hWnd, IDC_DF3, 0, &changed_prefs, NULL, NULL);
-			disk_insert (3, changed_prefs.floppyslots[0].df);
+			DiskSelection(isfullscreen() > 0 ? NULL : hWnd, IDC_DF3, 0, &changed_prefs, NULL, NULL);
+			disk_insert(3, changed_prefs.floppyslots[3].df);
 			break;
 
 		}
