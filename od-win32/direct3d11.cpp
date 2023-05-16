@@ -1295,7 +1295,7 @@ static int psEffect_SetTextures(ID3D11Texture2D *lpSourceTex, ID3D11ShaderResour
 		s->m_ScaleEffectHandle->SetFloatVector((float*)&fScale);
 	}
 	if (s->framecounterHandle) {
-		s->framecounterHandle->SetFloat((float)timeframes);
+		s->framecounterHandle->SetFloat((float)vsync_counter);
 	}
 
 	return 1;

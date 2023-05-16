@@ -11428,7 +11428,7 @@ static int calculate_lineno(int vp)
 		lineno++;
 	} else if (!interlace_seen && doublescan <= 0 && currprefs.gfx_vresolution && currprefs.gfx_pscanlines > 1) {
 		lineno *= 2;
-		if (timeframes & 1) {
+		if (vsync_counter & 1) {
 			lineno++;
 			nextline_how = currprefs.gfx_pscanlines == 3 ? nln_lower_black_always : nln_lower_black;
 		} else {
@@ -14384,9 +14384,9 @@ void dumpcustom(void)
 		bplcon0, bplcon1, bplcon2, bplcon3, bplcon4,
 		lof_display, lof_store,
 		hdiwstate == diw_states::DIW_waiting_start ? 0 : 1, vdiwstate == diw_states::DIW_waiting_start ? 0 : 1);
-	if (timeframes) {
+	if (timeframes && vsync_counter) {
 		console_out_f(_T("Average frame time: %.2f ms [frames: %d time: %d]\n"),
-			(double)frametime / timeframes, timeframes, frametime);
+			(double)frametime / timeframes, vsync_counter, frametime);
 		if (total_skipped)
 			console_out_f(_T("Skipped frames: %d\n"), total_skipped);
 	}

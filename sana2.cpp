@@ -1687,8 +1687,8 @@ static int uaenet_int_handler2(TrapContext *ctx)
 					}
 					while (p) {
 						if (p->drop_start == 0)
-							p->drop_start = timeframes;
-						p->drop_count = timeframes;
+							p->drop_start = vsync_counter;
+						p->drop_count = vsync_counter;
 						p = p->next;
 					}
 					break;

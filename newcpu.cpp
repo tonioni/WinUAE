@@ -4633,8 +4633,8 @@ static int do_specialties (int cycles)
 				x_do_cycles(8 * CYCLE_UNIT);
 				if (regs.spcflags & SPCFLAG_COPPER)
 					do_copper();
-				if (timeframes != vsyncstate) {
-					vsyncstate = timeframes;
+				if (vsync_counter != vsyncstate) {
+					vsyncstate = vsync_counter;
 					vsynccnt--;
 				}
 			}
@@ -5300,8 +5300,8 @@ static void run_cpu_thread(void (*f)(void *))
 				break;
 		}
 
-		if (framecnt != timeframes) {
-			framecnt = timeframes;
+		if (framecnt != vsync_counter) {
+			framecnt = vsync_counter;
 		}
 
 		if (cpu_thread_reset) {

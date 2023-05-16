@@ -1818,7 +1818,7 @@ bool frame_drawn(int monid)
 			StreamSizeAudioExpected += ((float)wfxSrc.Format.nSamplesPerSec) / fps_in_use;
 			if (avioutput_video) {
 				int idiff = (int)(StreamSizeAudioGot - StreamSizeAudioExpected);
-				if ((timeframes % 5) == 0)
+				if ((vsync_counter % 5) == 0)
 					write_log(_T("%.1f %.1f %d\n"), StreamSizeAudioExpected, StreamSizeAudioGot, idiff);
 				if (idiff) {
 					StreamSizeAudioGot = StreamSizeAudioExpected;

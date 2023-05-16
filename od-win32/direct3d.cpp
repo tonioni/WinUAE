@@ -1113,7 +1113,7 @@ static int psEffect_SetTextures (LPDIRECT3DTEXTURE9 lpSource, struct shaderdata 
 		}
 	}
 	if (s->framecounterHandle)
-		s->pEffect->SetFloat(s->framecounterHandle, (FLOAT)timeframes);
+		s->pEffect->SetFloat(s->framecounterHandle, (FLOAT)vsync_counter);
 
 	return 1;
 }
@@ -3446,7 +3446,7 @@ static void D3D_render2(struct d3dstruct *d3d, int mode, int monid)
 		texelsize.z = 1; texelsize.w = 1;
 		hr = postEffect->SetVector (d3d->postTexelSize, &texelsize);
 		if (d3d->postFramecounterHandle)
-			postEffect->SetFloat(d3d->postFramecounterHandle, (FLOAT)timeframes);
+			postEffect->SetFloat(d3d->postFramecounterHandle, (FLOAT)vsync_counter);
 
 		if (masktexture) {
 			if (FAILED (hr = postEffect->SetTechnique (d3d->postTechnique)))

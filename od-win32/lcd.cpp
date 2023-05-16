@@ -26,8 +26,6 @@ static volatile int lcd_thread_active;
 static volatile bool lcd_updated;
 int logitech_lcd = 1;
 
-extern unsigned long timeframes;
-
 // Do it this way because stupid LogitechLCDLib.lib LogiLcdInit() refuses to link.
 
 typedef bool(__cdecl *LOGILCDINIT)(const wchar_t*, int);
