@@ -1,4 +1,12 @@
 
+Beta 11: (RC3)
+
+- jit_blacklist config entry parsing out of bounds array access fix.
+- Sprite buffer size was reduced too much (4.10.1), Big time sensuality / Axis buffer overflow. 
+- Debugger H history with DMA debugger data improved formatting. DMA debugger data was from previous field in some situations. (Wrong frame counter variable used to keep track of current and previous field)
+- Systray icon -> Floppy drives: DF1, DF2 and DF3 selected image from DF0:. Probably has been broken since it was introduced..
+- RC tag is back, easier to keep track of versions. Beta tag is removed because it makes some functional differences (beta dialog etc..).
+
 Beta 10: (RC2)
 
 - On the fly gameports panel autofire mode setting change (for example using uae-configuration or executing custom event) was not supported.

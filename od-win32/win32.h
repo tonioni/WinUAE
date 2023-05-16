@@ -25,13 +25,13 @@
 #define WINUAEBETA _T("")
 #endif
 
-#define WINUAEDATE MAKEBD(2023, 5, 14)
+#define WINUAEDATE MAKEBD(2023, 5, 16)
 
 //#define WINUAEEXTRA _T("AmiKit Preview")
 //#define WINUAEEXTRA _T("Amiga Forever Edition")
 
 #ifndef WINUAEEXTRA
-#define WINUAEEXTRA _T("")
+#define WINUAEEXTRA _T("RC3")
 #endif
 #ifndef WINUAEREV
 #define WINUAEREV _T("")
