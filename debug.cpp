@@ -1378,6 +1378,7 @@ static void record_dma_clear(int r)
 			dr2->addr = 0xffffffff;
 		}
 	}
+	dma_record_frame[r] = -1;
 }
 
 static void dma_record_init(void)
@@ -2687,12 +2688,12 @@ static void decode_dma_record(int hpos, int vpos, int toggle, bool logfile)
 	int ipl = -2;
 	while (h < maxh) {
 		int cols = (logfile ? 16 : 8);
-		TCHAR l1[200];
-		TCHAR l2[200];
-		TCHAR l3[200];
-		TCHAR l4[200];
-		TCHAR l5[200];
-		TCHAR l6[200];
+		TCHAR l1[400];
+		TCHAR l2[400];
+		TCHAR l3[400];
+		TCHAR l4[400];
+		TCHAR l5[400];
+		TCHAR l6[400];
 		l1[0] = 0;
 		l2[0] = 0;
 		l3[0] = 0;
@@ -6412,10 +6413,10 @@ static void dma_disasm(int frames, int vp, int hp, int frames_end, int vp_end, i
 		if (get_record_dma_info(drs, dr, l1, l2, l3, l4, NULL, NULL, NULL, NULL)) {
 			TCHAR tmp[256];
 			_stprintf(tmp, _T(" - %02d %02X %s"), dr->ipl, dr->hpos, l2);
-			while (_tcslen(tmp) < 18) {
+			while (_tcslen(tmp) < 20) {
 				_tcscat(tmp, _T(" "));
 			}
-			console_out_f(_T("%s %s %s\n"), tmp, l3, l4);
+			console_out_f(_T("%s %11s %11s\n"), tmp, l3, l4);
 		}
 		hp++;
 		if (dr->end || hp >= NR_DMA_REC_HPOS) {
@@ -7123,7 +7124,7 @@ static void addhistory(void)
 	history[lasthist].regs.pc = pc;
 	history[lasthist].vpos = vpos;
 	history[lasthist].hpos = current_hpos();
-	history[lasthist].fp = timeframes;
+	history[lasthist].fp = vsync_counter;
 
 	if (++lasthist == MAX_HIST) {
 		lasthist = 0;
