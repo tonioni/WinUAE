@@ -1887,9 +1887,17 @@ static void end_estimate_last_fetch_cycle(int hpos)
 	if (estimated_cycles_empty != estimated_cycles) {
 		estimated_cycles = estimated_cycles_empty;
 		estimate_cycles_empty_index = hpos;
-		for (int i = 0; i < RGA_PIPELINE_ADJUST; i++) {
-			int pos = (hpos + i) % maxhpos;
-			estimated_cycles_empty[pos] = maxhposeven ? estimated_cycles_buf1[pos] : estimated_cycles_buf0[pos];
+		uae_s8 *est = NULL;
+		if (maxhpos == estimated_maxhpos[0]) {
+			est = estimated_cycles_buf0;
+		} else if (maxhpos == estimated_maxhpos[1]) {
+			est = estimated_cycles_buf1;
+		}
+		if (est) {
+			for (int i = 0; i < RGA_PIPELINE_ADJUST; i++) {
+				int pos = (hpos + i) % maxhpos;
+				estimated_cycles_empty[pos] = est[pos];
+			}
 		}
 	}
 #else
@@ -4262,7 +4270,7 @@ static void beginning_of_plane_block(int hpos)
 
 	// do not mistake end of bitplane as start of low value hblank programmed mode
 	if (bpl_shifter <= 0 && hpos > REFRESH_FIRST_HPOS) {
-		if (ecs_denise || (!ecs_denise && hpos >= OCS_DENISE_HBLANK_DISABLE_HPOS + 1)) {
+		if (ecs_denise || hpos >= OCS_DENISE_HBLANK_DISABLE_HPOS + 1 || hdiwstate == diw_states::DIW_waiting_stop) {
 			start_noborder(hpos + hpos_hsync_extra);
 		}
 	}
@@ -6637,7 +6645,7 @@ static void updateextblk(void)
 
 		hsstrt_v2 = 18 << CCK_SHRES_SHIFT;
 		hsstop_v2 = 35 << CCK_SHRES_SHIFT;
-
+		hsyncendpos = hsyncendpos_hw;
 	}
 
 	hsstrt_v2 = adjust_hr(hsstrt_v2);
@@ -8360,7 +8368,7 @@ static void copper_stop(void)
 
 static void bitplane_dma_change(uae_u32 v)
 {
-	dmacon_bpl = (v & DMA_BITPLANE) && (v & 0x200);
+	dmacon_bpl = (v & DMA_BITPLANE) && (v & DMA_MASTER);
 }
 
 static void compute_spcflag_copper_delayed(uae_u32 v)
@@ -8456,7 +8464,7 @@ static void DMACON(int hpos, uae_u16 v)
 	}
 
 	if (changed & (DMA_MASTER | DMA_BITPLANE)) {
-		bitplane_dma_change(dmacon);
+		event2_newevent_xx(-1, CYCLE_UNIT, dmacon, bitplane_dma_change);
 		SET_LINE_CYCLEBASED;
 	}
 }
@@ -9870,12 +9878,15 @@ bool get_custom_color_reg(int colreg, uae_u8 *r, uae_u8 *g, uae_u8 *b)
 static void COLOR_WRITE(int hpos, uae_u16 v, int num)
 {
 	bool colzero = false;
+	bool samecycle = false;
 
 	// skip color register write color change state update if color register was already written in same cycle
 	// fast CPU modes can write tens of thousands of color registers in single frame.
-	evt_t c = get_cycles() & ~(CYCLE_UNIT - 1);
-	bool samecycle = c == custom_color_write_cycle;
-	custom_color_write_cycle = c;
+	if (currprefs.m68k_speed < 0) {
+		evt_t c = (line_start_cycles + hpos * CYCLE_UNIT) & ~(CYCLE_UNIT - 1);
+		bool samecycle = c == custom_color_write_cycle;
+		custom_color_write_cycle = c;
+	}
 
 #ifdef AGA
 	if (aga_mode) {
@@ -10230,7 +10241,7 @@ static void decide_line(int endhpos)
 			// DDFSTOP
 			// Triggers DDFSTOP condition.
 			// Clears DDF allowed flag.
-			if ((hpos == (plfstop | 0) && hpos != ddfstop_hpos) || (hpos == (plfstop_prev | 0) && hpos == ddfstop_hpos)) {
+			if ((hpos == plfstop && hpos != ddfstop_hpos) || (hpos == plfstop_prev && hpos == ddfstop_hpos)) {
 				if (bprun && !ddf_stopping) {
 					decide_line_decision_fetches(hpos);
 					ddf_stopping = 1;
@@ -10262,6 +10273,7 @@ static void decide_line(int endhpos)
 					bprun_start(hpos);
 					if (ddf_stopping) {
 						bprun_pipeline_flush_delay = maxhpos;
+						SET_LINE_CYCLEBASED;
 					}
 #ifdef DEBUGGER
 					if (debug_dma) {
@@ -10289,6 +10301,10 @@ static void decide_line(int endhpos)
 			if ((!dma || !diw) && bprun == 1) {
 				decide_line_decision_fetches(hpos);
 				bprun = 2;
+				if (ddf_stopping == 1) {
+					ddf_stopping = 2;
+					bprun = 3;
+				}
 				SET_LINE_CYCLEBASED;
 			}
 
@@ -10320,7 +10336,7 @@ static void decide_line(int endhpos)
 
 			// DDFSTOP
 			// Triggers DDFSTOP condition.
-			if ((hpos == (plfstop | 0) && hpos != ddfstop_hpos) || (hpos == (plfstop_prev | 0) && hpos == ddfstop_hpos)) {
+			if ((hpos == plfstop && hpos != ddfstop_hpos) || (hpos == plfstop_prev && hpos == ddfstop_hpos)) {
 				if (bprun && !ddf_stopping) {
 					decide_line_decision_fetches(hpos);
 					ddf_stopping = 1;
@@ -10363,6 +10379,7 @@ static void decide_line(int endhpos)
 				bprun_start(hpos);
 				if (ddf_stopping) {
 					bprun_pipeline_flush_delay = maxhpos;
+					SET_LINE_CYCLEBASED;
 				}
 #ifdef DEBUGGER
 				if (debug_dma) {
@@ -10384,6 +10401,10 @@ static void decide_line(int endhpos)
 			if ((!dma || !diw) && bprun == 1) {
 				decide_line_decision_fetches(hpos);
 				bprun = 2;
+				if (ddf_stopping == 1) {
+					ddf_stopping = 2;
+					bprun = 3;
+				}
 				SET_LINE_CYCLEBASED;
 			}
 
