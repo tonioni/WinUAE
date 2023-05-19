@@ -117,7 +117,12 @@ static void getmanualpos(int monid, int *cxp, int *cyp, int *cwp, int *chp)
 		if (programmedmode && native) {
 			cw = avidinfo->outbuffer->outwidth << (RES_MAX - currprefs.gfx_resolution);
 		} else {
-			cw = native ? AMIGA_WIDTH_MAX << RES_MAX : avidinfo->outbuffer->outwidth;
+			if (currprefs.gfx_overscanmode <= OVERSCANMODE_OVERSCAN) {
+				// keep old version compatibility
+				cw = native ? AMIGA_WIDTH_MAX << RES_MAX : avidinfo->outbuffer->outwidth;
+			} else {
+				cw = native ? maxhpos_display << RES_MAX : avidinfo->outbuffer->outwidth;
+			}
 		}
 	} else {
 		cw = v;
@@ -128,8 +133,11 @@ static void getmanualpos(int monid, int *cxp, int *cyp, int *cwp, int *chp)
 	if (v <= 0) {
 		if (programmedmode && native) {
 			ch = avidinfo->outbuffer->outheight << (VRES_MAX - currprefs.gfx_vresolution);
-		} else {
+		} else if (currprefs.gfx_overscanmode <= OVERSCANMODE_OVERSCAN) {
+			// keep old version compatiblity
 			ch = native ? AMIGA_HEIGHT_MAX << VRES_MAX : avidinfo->outbuffer->outheight;
+		} else {
+			ch = native ? (maxvpos_display + maxvpos_display_vsync - minfirstline) << VRES_MAX : avidinfo->outbuffer->outheight;
 		}
 	} else {
 		ch = v;
