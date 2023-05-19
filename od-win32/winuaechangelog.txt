@@ -1,4 +1,20 @@
 
+Beta 12: (RC4)
+
+- Integer scale in high overscan modes (Overscan+, Extreme and larger) used default native mode width/height, not selected overscan mode width/height.
+- OCS Denise earliest allowed BPL1DAT access check (which was updated in b5) didn't disable border even if horizontal DIW was already open, previously earliest allowed was small enough to not cause this side-effect. (For example Seven Seas / Andromeda)
+- Check that prevented unnecessary writes to same color register in same cycle (can happen in fast CPU modes) was not correct and in some situations triggered even in cycle exact modes (Hotbleeps / Loonies) 
+- Off by one in bitplane sequencer stopping due to DMA being disabled. (Denise test case)
+- If bitplane DMA was disabled when it was in "ddfstop passed" condition and DMA was re-enabled in later line (which finishes "ddfstop passed" condition, stopping bitplane sequencer after single "block"): lower priority DMA channels lost cycles because they incorrectly saw bitplane DMA being enabled and active normally during whole scanline.
+- Debugger sprite "sp" option now uses ECS height bits when outputting sprite pattern if mode is ECS or AGA.
+- Blitter internal state after line mode had ended was not correct since 4.9.2+ (Cemetery Of Silence / Possessed)
+- Loading new statefile when emulation was running and blitter was active: it was possible blitter got stuck in active state. I have noticed this many times randomly but I finally found repeateable test case.
+- FloppyBridge write protection status in GUI is now mirroring drive floppy protection status. Previously it was always shown as write protected (checkbox disabled and ticked). This didn't affect floppy drive writing, it was only visual problem. Note that GUI write protection status is not updated in real time, it is only updated when selecting floppy drives GUI panel.
+- b10 automatic scaling fix fixed. Last line was off by one if bitplane ended normally (vertical diw end matched), wrong check was changed (plane count become zero or DMA was disabled). Interlace mode had one extra line at the bottom.
+- Autoscale filter modes horizontal positioning was randomly unreliable or jittery if switched from programmed mode (or Picasso96 with "hidden" 31KHz mode) to native mode.
+- About, contributors and error log window DPI/GUI font scaling support.
+- CPU panel slider refresh update, previously any slider move caused slider update which could have caused side-effects.
+
 Beta 11: (RC3)
 
 - jit_blacklist config entry parsing out of bounds array access fix.
