@@ -6049,7 +6049,7 @@ static void debug_sprite (TCHAR **inptr)
 	int ecs, sh10;
 	int y, i;
 	TCHAR tmp[80];
-	int max = 2;
+	int max = 14;
 
 	addr2 = 0;
 	ignore_ws(inptr);
@@ -6105,6 +6105,11 @@ static void debug_sprite (TCHAR **inptr)
 			sh10 = 1;
 		if (ypose < ypos)
 			ypose += 256;
+
+		if (ecs_agnus) {
+			ypos = ypos_ecs;
+			ypose = ypose_ecs;
+		}
 
 		for (y = ypos; y < ypose; y++) {
 			int x;
@@ -6174,8 +6179,10 @@ static void debug_sprite (TCHAR **inptr)
 		if (get_word_debug (addr) == 0 && get_word_debug (addr + size * 4) == 0)
 			break;
 		max--;
-		if (max <= 0)
+		if (max <= 0) {
+			console_out_f(_T("Max sprite count reached.\n"));
 			break;
+		}
 	}
 
 }
