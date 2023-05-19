@@ -6433,7 +6433,7 @@ static INT_PTR CALLBACK ErrorLogProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 		SetDlgItemText (hDlg, IDC_ERRORLOGMESSAGE, err);
 		xSendDlgItemMessage (hDlg, IDC_ERRORLOGMESSAGE, EM_GETCHARFORMAT, 0, (LPARAM) & CharFormat);
 		CharFormat.dwMask |= CFM_SIZE | CFM_FACE;
-		CharFormat.yHeight = 8 * 20; /* height in twips, where a twip is 1/20th of a point - for a pt.size of 18 */
+		CharFormat.yHeight = getscaledfontsize(8 * 20); /* height in twips, where a twip is 1/20th of a point - for a pt.size of 18 */
 		_tcscpy (CharFormat.szFaceName, _T("Segoe UI"));
 		xSendDlgItemMessage (hDlg, IDC_ERRORLOGMESSAGE, EM_SETCHARFORMAT, SCF_ALL, (LPARAM) & CharFormat);
 		return TRUE;
@@ -6442,12 +6442,13 @@ static INT_PTR CALLBACK ErrorLogProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 	return FALSE;
 }
 
+static TCHAR szContributors1[MAX_CONTRIBUTORS_LENGTH];
+static TCHAR szContributors2[MAX_CONTRIBUTORS_LENGTH];
+static TCHAR szContributors[MAX_CONTRIBUTORS_LENGTH * 2];
+
 static INT_PTR CALLBACK ContributorsProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
 	CHARFORMAT CharFormat;
-	TCHAR szContributors1[MAX_CONTRIBUTORS_LENGTH];
-	TCHAR szContributors2[MAX_CONTRIBUTORS_LENGTH];
-	TCHAR szContributors[MAX_CONTRIBUTORS_LENGTH * 2];
 
 	if (dialog_inhibit)
 		return 0;
@@ -6469,7 +6470,7 @@ static INT_PTR CALLBACK ContributorsProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 		SetDlgItemText (hDlg, IDC_CONTRIBUTORS, szContributors );
 		xSendDlgItemMessage (hDlg, IDC_CONTRIBUTORS, EM_GETCHARFORMAT, 0, (LPARAM) & CharFormat);
 		CharFormat.dwMask |= CFM_SIZE | CFM_FACE;
-		CharFormat.yHeight = 8 * 20; /* height in twips, where a twip is 1/20th of a point - for a pt.size of 18 */
+		CharFormat.yHeight = getscaledfontsize(8 * 20); /* height in twips, where a twip is 1/20th of a point - for a pt.size of 18 */
 
 		_tcscpy (CharFormat.szFaceName, _T("Segoe UI"));
 		xSendDlgItemMessage (hDlg, IDC_CONTRIBUTORS, EM_SETCHARFORMAT, SCF_ALL, (LPARAM) & CharFormat);
@@ -6503,7 +6504,7 @@ static urlinfo urls[] =
 //	{IDC_THEROOTS, FALSE, _T("Back To The Roots"), _T("http://back2roots.abime.net/")},
 	{IDC_ABIME, FALSE, _T("abime.net"), _T("http://www.abime.net/")},
 	{IDC_CAPS, FALSE, _T("SPS"), _T("http://www.softpres.org/")},
-	{IDC_AMIGASYS, FALSE, _T("AmigaSYS"), _T("http://www.amigasys.com/")},
+//	{IDC_AMIGASYS, FALSE, _T("AmigaSYS"), _T("http://www.amigasys.com/")},
 	{IDC_AMIKIT, FALSE, _T("AmiKit"), _T("http://amikit.amiga.sk/")},
 	{ -1, FALSE, NULL, NULL }
 };
@@ -6517,7 +6518,7 @@ static void SetupRichText(HWND hDlg, urlinfo *url)
 	xSendDlgItemMessage (hDlg, url->id, EM_GETCHARFORMAT, 0, (LPARAM)&CharFormat);
 	CharFormat.dwMask   |= CFM_UNDERLINE | CFM_SIZE | CFM_FACE | CFM_COLOR;
 	CharFormat.dwEffects = url->state ? CFE_UNDERLINE : 0;
-	CharFormat.yHeight = 10 * 20; /* height in twips, where a twip is 1/20th of a point - for a pt.size of 18 */
+	CharFormat.yHeight = getscaledfontsize(10 * 20); /* height in twips, where a twip is 1/20th of a point - for a pt.size of 18 */
 
 	CharFormat.crTextColor = GetSysColor (COLOR_ACTIVECAPTION);
 	_tcscpy (CharFormat.szFaceName, _T("Segoe UI"));
@@ -7887,7 +7888,7 @@ static void init_aboutdlg (HWND hDlg)
 	xSendDlgItemMessage (hDlg, IDC_RICHEDIT1, EM_GETCHARFORMAT, 0, (LPARAM) & CharFormat);
 	CharFormat.dwMask |= CFM_BOLD | CFM_SIZE | CFM_FACE;
 	CharFormat.dwEffects = CFE_BOLD;
-	CharFormat.yHeight = 24 * 20; /* height in twips, where a twip is 1/20th of a point */
+	CharFormat.yHeight = getscaledfontsize(24 * 20); /* height in twips, where a twip is 1/20th of a point */
 
 	_tcscpy (CharFormat.szFaceName,  _T("Segoe UI"));
 	xSendDlgItemMessage (hDlg, IDC_RICHEDIT1, EM_SETCHARFORMAT, SCF_ALL, (LPARAM) & CharFormat);
@@ -7896,7 +7897,7 @@ static void init_aboutdlg (HWND hDlg)
 	SetDlgItemText (hDlg, IDC_RICHEDIT2, VersionStr );
 	xSendDlgItemMessage (hDlg, IDC_RICHEDIT2, EM_GETCHARFORMAT, 0, (LPARAM) & CharFormat);
 	CharFormat.dwMask |= CFM_SIZE | CFM_FACE;
-	CharFormat.yHeight = 12 * 20;
+	CharFormat.yHeight = getscaledfontsize(12 * 20);
 	_tcscpy (CharFormat.szFaceName, _T("Segoe UI"));
 	xSendDlgItemMessage (hDlg, IDC_RICHEDIT2, EM_SETCHARFORMAT, SCF_ALL, (LPARAM) & CharFormat);
 	xSendDlgItemMessage (hDlg, IDC_RICHEDIT2, EM_SETBKGNDCOLOR, 0, GetSysColor (COLOR_3DFACE));
@@ -13160,6 +13161,14 @@ static const int cpu_ids[]   = { IDC_CPU0, IDC_CPU1, IDC_CPU2, IDC_CPU3, IDC_CPU
 static const int fpu_ids[]   = { IDC_FPU0, IDC_FPU1, IDC_FPU2, IDC_FPU3 };
 static const int trust_ids[] = { IDC_TRUST0, IDC_TRUST1, IDC_TRUST1, IDC_TRUST1 };
 
+static void cpudlg_slider_setup(HWND hDlg)
+{
+	xSendDlgItemMessage(hDlg, IDC_SPEED, TBM_SETRANGE, TRUE, workprefs.m68k_speed < 0 || (workprefs.cpu_memory_cycle_exact && !workprefs.cpu_cycle_exact) ? MAKELONG(-9, 0) : MAKELONG(-9, 50));
+	xSendDlgItemMessage(hDlg, IDC_SPEED, TBM_SETPAGESIZE, 0, 1);
+	xSendDlgItemMessage(hDlg, IDC_SPEED_x86, TBM_SETRANGE, TRUE, MAKELONG(0, 1000));
+	xSendDlgItemMessage(hDlg, IDC_SPEED_x86, TBM_SETPAGESIZE, 0, 10);
+}
+
 static void enable_for_cpudlg (HWND hDlg)
 {
 	BOOL enable = FALSE, jitenable = FALSE;
@@ -13215,11 +13224,6 @@ static void enable_for_cpudlg (HWND hDlg)
 	ew(hDlg, IDC_MMUENABLE, workprefs.cpu_model >= 68030 && workprefs.cachesize == 0);
 	ew(hDlg, IDC_CPUDATACACHE, workprefs.cpu_model >= 68030 && workprefs.cachesize == 0 && workprefs.cpu_compatible);
 	ew(hDlg, IDC_CPU_PPC, workprefs.cpu_model >= 68040 && (workprefs.ppc_mode == 1 || (workprefs.ppc_mode == 0 && !is_ppc_cpu(&workprefs))));
-
-	xSendDlgItemMessage(hDlg, IDC_SPEED, TBM_SETRANGE, TRUE, workprefs.m68k_speed < 0 || (workprefs.cpu_memory_cycle_exact && !workprefs.cpu_cycle_exact) ? MAKELONG(-9, 0) : MAKELONG(-9, 50));
-	xSendDlgItemMessage(hDlg, IDC_SPEED, TBM_SETPAGESIZE, 0, 1);
-	xSendDlgItemMessage(hDlg, IDC_SPEED_x86, TBM_SETRANGE, TRUE, MAKELONG(0, 1000));
-	xSendDlgItemMessage(hDlg, IDC_SPEED_x86, TBM_SETPAGESIZE, 0, 10);
 }
 
 static float getcpufreq (int m)
@@ -13230,18 +13234,27 @@ static float getcpufreq (int m)
 	return f * (m >> 8) / 8.0f;
 }
 
+static void values_to_cpudlg_sliders(HWND hDlg)
+{
+	TCHAR buffer[8] = _T("");
+	_stprintf(buffer, _T("%+d%%"), (int)(workprefs.x86_speed_throttle / 10));
+	SetDlgItemText(hDlg, IDC_CPUTEXT_x86, buffer);
+	_stprintf(buffer, _T("%+d%%"), (int)(workprefs.m68k_speed_throttle / 10));
+	SetDlgItemText(hDlg, IDC_CPUTEXT, buffer);
+	_stprintf(buffer, _T("%d%%"), (workprefs.cpu_idle == 0 ? 0 : 12 - workprefs.cpu_idle / 15) * 10);
+	SetDlgItemText(hDlg, IDC_CPUIDLETEXT, buffer);
+	_stprintf (buffer, _T("%d MB"), workprefs.cachesize / 1024 );
+	SetDlgItemText (hDlg, IDC_CACHETEXT, buffer);
+}
+
 static void values_to_cpudlg(HWND hDlg, WPARAM wParam)
 {
 	TCHAR buffer[8] = _T("");
 	int cpu;
 
 	xSendDlgItemMessage(hDlg, IDC_SPEED_x86, TBM_SETPOS, TRUE, (int)(workprefs.x86_speed_throttle / 100));
-	_stprintf(buffer, _T("%+d%%"), (int)(workprefs.x86_speed_throttle / 10));
-	SetDlgItemText(hDlg, IDC_CPUTEXT_x86, buffer);
-
 	xSendDlgItemMessage (hDlg, IDC_SPEED, TBM_SETPOS, TRUE, (int)(workprefs.m68k_speed_throttle / 100));
-	_stprintf (buffer, _T("%+d%%"), (int)(workprefs.m68k_speed_throttle / 10));
-	SetDlgItemText (hDlg, IDC_CPUTEXT, buffer);
+	values_to_cpudlg_sliders(hDlg);
 
 	CheckDlgButton (hDlg, IDC_COMPATIBLE, workprefs.cpu_compatible);
 	CheckDlgButton (hDlg, IDC_COMPATIBLE24, workprefs.address_space_24);
@@ -13250,8 +13263,6 @@ static void values_to_cpudlg(HWND hDlg, WPARAM wParam)
 	CheckDlgButton (hDlg, IDC_FPU_UNIMPLEMENTED, !workprefs.fpu_no_unimplemented || workprefs.cachesize);
 	CheckDlgButton (hDlg, IDC_CPU_UNIMPLEMENTED, !workprefs.int_no_unimplemented || workprefs.cachesize);
 	xSendDlgItemMessage (hDlg, IDC_CPUIDLE, TBM_SETPOS, TRUE, workprefs.cpu_idle == 0 ? 0 : 12 - workprefs.cpu_idle / 15);
-	_stprintf(buffer, _T("%d%%"), (workprefs.cpu_idle == 0 ? 0 : 12 - workprefs.cpu_idle / 15) * 10);
-	SetDlgItemText(hDlg, IDC_CPUIDLETEXT, buffer);
 	xSendDlgItemMessage (hDlg, IDC_PPC_CPUIDLE, TBM_SETPOS, TRUE, workprefs.ppc_cpu_idle);
 	cpu = (workprefs.cpu_model - 68000) / 10;
 	if (cpu >= 5)
@@ -13274,8 +13285,6 @@ static void values_to_cpudlg(HWND hDlg, WPARAM wParam)
 		}
 	}
 	xSendDlgItemMessage (hDlg, IDC_CACHE, TBM_SETPOS, TRUE, idx);
-	_stprintf (buffer, _T("%d MB"), workprefs.cachesize / 1024 );
-	SetDlgItemText (hDlg, IDC_CACHETEXT, buffer);
 
 	CheckDlgButton(hDlg, IDC_JITCRASH, workprefs.comp_catchfault);
 	CheckDlgButton(hDlg, IDC_NOFLAGS, workprefs.compnf);
@@ -13289,6 +13298,37 @@ static void values_to_cpudlg(HWND hDlg, WPARAM wParam)
 		workprefs.cachesize == 0;
 	CheckRadioButton (hDlg, IDC_MMUENABLEOFF, IDC_MMUENABLE, mmu == 0 ? IDC_MMUENABLEOFF : (mmu && workprefs.mmu_ec) ? IDC_MMUENABLEEC : IDC_MMUENABLE);
 	CheckDlgButton(hDlg, IDC_CPU_PPC, workprefs.ppc_mode || is_ppc_cpu(&workprefs));
+
+	idx = xSendDlgItemMessage(hDlg, IDC_CPU_FREQUENCY, CB_GETCURSEL, 0, 0);
+	if (idx != CB_ERR) {
+		int m = workprefs.cpu_clock_multiplier;
+		workprefs.cpu_frequency = 0;
+		workprefs.cpu_clock_multiplier = 0;
+		if (idx < 5) {
+			workprefs.cpu_clock_multiplier = (1 << 8) << idx;
+			if (workprefs.cpu_cycle_exact || workprefs.cpu_compatible) {
+				TCHAR txt[20];
+				double f = getcpufreq(workprefs.cpu_clock_multiplier);
+				_stprintf(txt, _T("%.6f"), f / 1000000.0);
+				xSendDlgItemMessage(hDlg, IDC_CPU_FREQUENCY2, WM_SETTEXT, 0, (LPARAM)txt);
+			} else {
+				xSendDlgItemMessage(hDlg, IDC_CPU_FREQUENCY2, WM_SETTEXT, 0, (LPARAM)_T(""));
+			}
+		} else if (workprefs.cpu_cycle_exact) {
+			TCHAR txt[20];
+			txt[0] = 0;
+			xSendDlgItemMessage(hDlg, IDC_CPU_FREQUENCY2, WM_GETTEXT, (WPARAM)sizeof(txt) / sizeof(TCHAR), (LPARAM)txt);
+			workprefs.cpu_clock_multiplier = 0;
+			workprefs.cpu_frequency = (int)(_tstof(txt) * 1000000.0);
+			if (workprefs.cpu_frequency < 1 * 1000000)
+				workprefs.cpu_frequency = 0;
+			if (workprefs.cpu_frequency >= 99 * 1000000)
+				workprefs.cpu_frequency = 0;
+			if (!workprefs.cpu_frequency) {
+				workprefs.cpu_frequency = (int)(getcpufreq(m) * 1000000.0);
+			}
+		}
+	}
 }
 
 static void values_from_cpudlg(HWND hDlg, WPARAM wParam)
@@ -13473,37 +13513,6 @@ static void values_from_cpudlg(HWND hDlg, WPARAM wParam)
 		SendMessage (pages[DISPLAY_ID], WM_USER, 0, 0);
 	if (pages[MEMORY_ID])
 		SendMessage (pages[MEMORY_ID], WM_USER, 0, 0);
-
-	idx = xSendDlgItemMessage(hDlg, IDC_CPU_FREQUENCY, CB_GETCURSEL, 0, 0);
-	if (idx != CB_ERR) {
-		int m = workprefs.cpu_clock_multiplier;
-		workprefs.cpu_frequency = 0;
-		workprefs.cpu_clock_multiplier = 0;
-		if (idx < 5) {
-			workprefs.cpu_clock_multiplier = (1 << 8) << idx;
-			if (workprefs.cpu_cycle_exact || workprefs.cpu_compatible) {
-				TCHAR txt[20];
-				double f = getcpufreq(workprefs.cpu_clock_multiplier);
-				_stprintf(txt, _T("%.6f"), f / 1000000.0);
-				xSendDlgItemMessage(hDlg, IDC_CPU_FREQUENCY2, WM_SETTEXT, 0, (LPARAM)txt);
-			} else {
-				xSendDlgItemMessage(hDlg, IDC_CPU_FREQUENCY2, WM_SETTEXT, 0, (LPARAM)_T(""));
-			}
-		} else if (workprefs.cpu_cycle_exact) {
-			TCHAR txt[20];
-			txt[0] = 0;
-			xSendDlgItemMessage(hDlg, IDC_CPU_FREQUENCY2, WM_GETTEXT, (WPARAM)sizeof(txt) / sizeof(TCHAR), (LPARAM)txt);
-			workprefs.cpu_clock_multiplier = 0;
-			workprefs.cpu_frequency = (int)(_tstof(txt) * 1000000.0);
-			if (workprefs.cpu_frequency < 1 * 1000000)
-				workprefs.cpu_frequency = 0;
-			if (workprefs.cpu_frequency >= 99 * 1000000)
-				workprefs.cpu_frequency = 0;
-			if (!workprefs.cpu_frequency) {
-				workprefs.cpu_frequency = (int)(getcpufreq(m) * 1000000.0);
-			}
-		}
-	}
 }
 
 static INT_PTR CALLBACK CPUDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
@@ -13577,6 +13586,8 @@ static INT_PTR CALLBACK CPUDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 			_stprintf(txt, _T("%.6f"), f / 1000000.0);
 			xSendDlgItemMessage(hDlg, IDC_CPU_FREQUENCY2, WM_SETTEXT, 0, (LPARAM)txt);
 		}
+
+		cpudlg_slider_setup(hDlg);
 		recursive--;
 
 	case WM_USER:
@@ -13594,6 +13605,7 @@ static INT_PTR CALLBACK CPUDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 			values_from_cpudlg(hDlg, wParam);
 			enable_for_cpudlg(hDlg);
 			values_to_cpudlg(hDlg, wParam);
+			cpudlg_slider_setup(hDlg);
 			recursive--;
 		}
 		break;
@@ -13602,8 +13614,8 @@ static INT_PTR CALLBACK CPUDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 		if (currentpage == CPU_ID) {
 			recursive++;
 			values_from_cpudlg(hDlg, wParam);
+			values_to_cpudlg_sliders(hDlg);
 			enable_for_cpudlg(hDlg);
-			values_to_cpudlg(hDlg, wParam);
 			recursive--;
 		}
 		break;
