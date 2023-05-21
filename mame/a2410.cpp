@@ -140,9 +140,9 @@ static uae_u8 get_a2410_control(struct a2410_struct *data)
 {
 	uae_u8 v = (uae_u8)data->a2410_control;
 	v &= ~(0x10 | 0x40 | 0x80);
-	v |= 0x20;
+	v |= 0x20 | 0x80;
 	if (v & 0x08) // SBR
-		v |= 0x80; // LGBACK
+		v &= ~0x80; // LGBACK (Active low)
 	if (currprefs.cs_compatible == CP_A3000 || currprefs.cs_compatible == CP_A3000T ||
 		currprefs.cs_compatible == CP_A4000 || currprefs.cs_compatible == CP_A4000T ||
 		currprefs.cs_z3autoconfig)
