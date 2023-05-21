@@ -158,6 +158,7 @@ int display_reset;
 static evt_t line_start_cycles;
 static bool initial_frame;
 static evt_t custom_color_write_cycle;
+static int color_writes_num;
 
 #define LOF_TOGGLES_NEEDED 3
 //#define NLACE_CNT_NEEDED 50
@@ -5983,7 +5984,7 @@ static void finish_decisions(int hpos)
 		record_diw_line(thisline_decision.plfleft, diwfirstword, diwlastword);
 	}
 
-	dip->last_sprite_entry = next_sprite_entry;
+	dip->last_sprite_entry = next_sprite_entry - 2;
 	dip->last_color_change = next_color_change;
 
 	if (thisline_decision.ctable < 0) {
@@ -9884,12 +9885,17 @@ static void COLOR_WRITE(int hpos, uae_u16 v, int num)
 	bool colzero = false;
 	bool samecycle = false;
 
-	// skip color register write color change state update if color register was already written in same cycle
+	// skip color register write color change state update if COLOR0 register was already written in same cycle
 	// fast CPU modes can write tens of thousands of color registers in single frame.
-	if (currprefs.m68k_speed < 0) {
-		evt_t c = (line_start_cycles + hpos * CYCLE_UNIT) & ~(CYCLE_UNIT - 1);
-		bool samecycle = c == custom_color_write_cycle;
-		custom_color_write_cycle = c;
+	if (currprefs.m68k_speed < 0 && num == 0) {
+		if (line_start_cycles == custom_color_write_cycle) {
+			if (color_writes_num++ > maxhpos / 2) {
+				samecycle = true;
+			}
+		} else {
+			color_writes_num = 0;
+			custom_color_write_cycle = line_start_cycles;
+		}
 	}
 
 #ifdef AGA
