@@ -7753,6 +7753,7 @@ static uae_u16 VPOSR(void)
 static void VPOSW(uae_u16 v)
 {
 	int oldvpos = vpos;
+	int newvpos = vpos;
 
 #if 0
 	if (M68K_GETPC < 0xf00000 || 1)
@@ -7769,19 +7770,22 @@ static void VPOSW(uae_u16 v)
 	if (lof_changing) {
 		return;
 	}
-	vpos &= 0x00ff;
+	newvpos &= 0x00ff;
 	v &= 7;
 	if (!ecs_agnus) {
 		v &= 1;
 	}
-	vpos |= v << 8;
-	if (vpos != oldvpos) {
-		cia_adjust_eclock_phase((vpos - oldvpos) * maxhpos);
+	newvpos |= v << 8;
+	if (newvpos != oldvpos) {
+		cia_adjust_eclock_phase((newvpos - oldvpos) * maxhpos);
 		vposw_change++;
 	}
-	if (vpos < oldvpos) {
-		vpos = oldvpos;
+
+	if (newvpos < oldvpos && oldvpos <= maxvpos) {
+		newvpos = oldvpos;
 	}
+	vpos = newvpos;
+
 	vb_check();
 }
 
