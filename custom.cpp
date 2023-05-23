@@ -559,7 +559,7 @@ static struct draw_info line_drawinfo[2][2 * (MAXVPOS + MAXVPOS_WRAPLINES) + 1];
 #define COLOR_TABLE_SIZE (MAXVPOS + MAXVPOS_WRAPLINES) * 2
 static struct color_entry color_tables[2][COLOR_TABLE_SIZE];
 
-static int next_sprite_entry = 0, last_sprite_entry = 0;
+static int next_sprite_entry = 0, last_sprite_entry = 0, end_sprite_entry;
 static int prev_next_sprite_entry;
 static int next_sprite_forced = 1;
 static int spixels_max;
@@ -5563,7 +5563,7 @@ static void record_sprite(int num, int sprxp, uae_u16 *data, uae_u16 *datb, unsi
 	int spr_width;
 
 	// do nothing if buffer is full (shouldn't happen normally)
-	if (next_sprite_entry >= last_sprite_entry) {
+	if (next_sprite_entry >= end_sprite_entry) {
 		return;
 	}
 	if (e->first_pixel >= spixels_max) {
@@ -5984,7 +5984,7 @@ static void finish_decisions(int hpos)
 		record_diw_line(thisline_decision.plfleft, diwfirstword, diwlastword);
 	}
 
-	dip->last_sprite_entry = next_sprite_entry - 2;
+	dip->last_sprite_entry = next_sprite_entry - 1;
 	dip->last_color_change = next_color_change;
 
 	if (thisline_decision.ctable < 0) {
@@ -11514,7 +11514,8 @@ void init_hardware_for_drawing_frame(void)
 	}
 	prev_next_sprite_entry = next_sprite_entry;
 	next_sprite_entry = 0;
-	last_sprite_entry = MAX_SPR_PIXELS - 2;
+	last_sprite_entry = MAX_SPR_PIXELS - 1;
+	end_sprite_entry = MAX_SPR_PIXELS - 2;
 	spixels_max = sizeof(spixels) / sizeof(*spixels) - MAX_PIXELS_PER_LINE;
 
 	next_lineno = calculate_lineno(vpos);
