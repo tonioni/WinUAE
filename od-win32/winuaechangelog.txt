@@ -1,4 +1,11 @@
 
+Beta 13: (RC5)
+
+- Sprite buffer overflow was still possible. Adjusted buffer size again and added limit check, if it is still going to overflow, sprite emulation is skipped until next frame. Problem with this buffer is that it is static, it needs to be as big as max supported programmed display mode which is waste of memory when emulating normal PAL/NTSC modes. It needs to be dynamically allocated. But it is too late now. ("Green" Big Time Sensuality / Axis)
+- Game ports panel autofire options didn't do anything (b8)
+- b8 "Allow moving vertical position backwards (VPOSW/VHPOSW writes) if current vpos is out of range" only handled VHPOSW writes. Agony interlace title screen swapped odd/even fields if accurate A500 ECS 68000 mode (CLR.W $DFF02A..)
+- Added Striker Manager dongle emulation.
+
 Beta 12: (RC4)
 
 - Integer scale in high overscan modes (Overscan+, Extreme and larger) used default native mode width/height, not selected overscan mode width/height.

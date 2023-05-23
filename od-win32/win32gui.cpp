@@ -17449,7 +17449,7 @@ static void updatejoyport (HWND hDlg, int changedport)
 
 		ew(hDlg, joyremap[i], idx >= 2);
 		ew(hDlg, joysm[i], idx >= 2);
-		ew(hDlg, joysaf[i], !JSEM_ISCUSTOM(i, 0, &workprefs) && idx >= 2);
+		ew(hDlg, joysaf[i], !JSEM_ISCUSTOM(i, sub, &workprefs) && idx >= 2);
 	}
 }
 

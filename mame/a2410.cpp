@@ -583,9 +583,14 @@ static void tms_reset(void *userdata)
 	data->a2410_hsync_max = 2;
 	data->a2410_visible = false;
 	data->a2410_enabled = false;
+	data->a2410_control = 0;
+	data->tms_vp = data->tms_hp = 0;
+	data->a2410_width = 0;
+	data->a2410_height = 0;
 
 	if (data->program_ram)
 		tms_device.device_reset();
+
 	data->tms_configured = 0;
 }
 
