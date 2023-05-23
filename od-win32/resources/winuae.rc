@@ -2201,6 +2201,10 @@ BEGIN
     IDS_SYNCMODE_COMBINED   "Combined"
     IDS_SYNCMODE_CSYNC      "Composite Sync"
     IDS_SYNCMODE_HVSYNC     "H/V Sync"
+    IDS_MEMINFO             "Configured 32-bit address space: %dM, reserved: %dM, Z3 available: %dM (UAE), %dM (Real)"
+    IDS_INPUTINVERT         "Invert"
+    IDS_BOARDTYPE           "Type"
+    IDS_BOARDNAME           "Name"
 END
 
 STRINGTABLE
@@ -2218,6 +2222,15 @@ BEGIN
     IDS_WINUAETITLE_PAUSED  "[Paused]"
     IDS_MOUSE_UNTRAP_MODE   "None (Alt-Tab)\nMiddle button\nMagic mouse\nBoth\n"
     IDS_TABLET_MODE         "-\nTablet emulation\n"
+END
+
+STRINGTABLE
+BEGIN
+    IDS_BOARDSTART          "Start"
+    IDS_BOARDEND            "End"
+    IDS_BOARDSIZE           "Size"
+    IDS_BOARDID             "ID"
+    IDS_ASSOCIATEEXTENSION  "Extension"
 END
 
 #endif    // English (United Kingdom) resources

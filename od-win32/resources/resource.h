@@ -420,6 +420,16 @@
 #define IDS_SYNCMODE_COMBINED           425
 #define IDS_SYNCMODE_CSYNC              426
 #define IDS_SYNCMODE_HVSYNC             427
+#define IDS_MEMINFO                     428
+#define IDS_INPUTINVERT                 429
+#define IDS_BOARDTYPE                   430
+#define IDS_BOARDNAME                   431
+#define IDS_BOARDSTART                  432
+#define IDS_BOARDEND                    433
+#define IDS_BOARDSIZE                   434
+#define IDS_BOARDID                     435
+#define IDS_ASSOCIATEEXTENSIONS         436
+#define IDS_ASSOCIATEEXTENSION          436
 #define IDS_QS_MODELS                   1000
 #define IDS_QS_MODEL_A500               1001
 #define IDS_QS_MODEL_A500P              1002

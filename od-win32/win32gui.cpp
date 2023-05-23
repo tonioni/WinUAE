@@ -4993,12 +4993,12 @@ static void InitializeListView (HWND hDlg)
 		listview_id = IDC_BOARDLIST;
 		listview_num_columns = BOARD_COLUMNS;;
 		lv_type = LV_BOARD;
-		_tcscpy(column_heading[0], _T("Type"));
-		_tcscpy(column_heading[1], _T("Name"));
-		_tcscpy(column_heading[2], _T("Start"));
-		_tcscpy(column_heading[3], _T("End"));
-		_tcscpy(column_heading[4], _T("Size"));
-		_tcscpy(column_heading[5], _T("ID"));
+		WIN32GUI_LoadUIString(IDS_BOARDTYPE, column_heading[0], MAX_COLUMN_HEADING_WIDTH);
+		WIN32GUI_LoadUIString(IDS_BOARDNAME, column_heading[1], MAX_COLUMN_HEADING_WIDTH);
+		WIN32GUI_LoadUIString(IDS_BOARDSTART, column_heading[2], MAX_COLUMN_HEADING_WIDTH);
+		WIN32GUI_LoadUIString(IDS_BOARDEND, column_heading[3], MAX_COLUMN_HEADING_WIDTH);
+		WIN32GUI_LoadUIString(IDS_BOARDSIZE, column_heading[4], MAX_COLUMN_HEADING_WIDTH);
+		WIN32GUI_LoadUIString(IDS_BOARDID, column_heading[5], MAX_COLUMN_HEADING_WIDTH);
 
 	} else if (hDlg == pages[HARDDISK_ID]) {
 
@@ -5022,8 +5022,8 @@ static void InitializeListView (HWND hDlg)
 		WIN32GUI_LoadUIString (IDS_INPUTHOSTWIDGET, column_heading[0], MAX_COLUMN_HEADING_WIDTH);
 		WIN32GUI_LoadUIString (IDS_INPUTAMIGAEVENT, column_heading[1], MAX_COLUMN_HEADING_WIDTH);
 		WIN32GUI_LoadUIString (IDS_INPUTAUTOFIRE, column_heading[2], MAX_COLUMN_HEADING_WIDTH);
-		WIN32GUI_LoadUIString (IDS_INPUTTOGGLE, column_heading[3], MAX_COLUMN_HEADING_WIDTH);
-		_tcscpy (column_heading[4], _T("Invert"));
+		WIN32GUI_LoadUIString(IDS_INPUTTOGGLE, column_heading[3], MAX_COLUMN_HEADING_WIDTH);
+		WIN32GUI_LoadUIString(IDS_INPUTINVERT, column_heading[4], MAX_COLUMN_HEADING_WIDTH);
 		WIN32GUI_LoadUIString (IDS_INPUTQUALIFIER, column_heading[5], MAX_COLUMN_HEADING_WIDTH);
 		_tcscpy (column_heading[6], _T("#"));
 
@@ -5039,7 +5039,7 @@ static void InitializeListView (HWND hDlg)
 		listview_id = IDC_ASSOCIATELIST;
 		listview_num_columns = MISC2_COLUMNS;
 		lv_type = LV_MISC2;
-		_tcscpy (column_heading[0], _T("Extension"));
+		WIN32GUI_LoadUIString(IDS_ASSOCIATEEXTENSION, column_heading[0], MAX_COLUMN_HEADING_WIDTH);
 		_tcscpy (column_heading[1], _T(""));
 
 	} else if (hDlg == pages[MISC1_ID]) {
@@ -10025,7 +10025,7 @@ static void setfastram_selectmenu(HWND hDlg, int mode)
 extern uae_u32 natmem_reserved_size;
 static void setmax32bitram (HWND hDlg)
 {
-	TCHAR tmp[256];
+	TCHAR tmp[256], tmp2[256];
 	uae_u32 size32 = 0, z3size_uae = 0, z3size_real = 0;
 
 	z3size_uae = natmem_reserved_size >= expamem_z3_pointer_uae ? natmem_reserved_size - expamem_z3_pointer_uae : 0;
@@ -10046,8 +10046,8 @@ static void setmax32bitram (HWND hDlg)
 	if (size32 >= first)
 		size32 -= first;
 
-	_stprintf (tmp, L"Configured 32-bit address space: %dM, reserved: %dM, Z3 available: %dM (UAE), %dM (Real)",
-		size32 / (1024 * 1024), (natmem_reserved_size - 256 * 1024 * 1024) / (1024 * 1024), z3size_uae / (1024 * 1024), z3size_real / (1024 * 1024));
+	WIN32GUI_LoadUIString(IDS_MEMINFO, tmp2, sizeof(tmp2) / sizeof(TCHAR));
+	_stprintf (tmp, tmp2, size32 / (1024 * 1024), (natmem_reserved_size - 256 * 1024 * 1024) / (1024 * 1024), z3size_uae / (1024 * 1024), z3size_real / (1024 * 1024));
 	SetDlgItemText (hDlg, IDC_MAX32RAM, tmp);
 }
 
