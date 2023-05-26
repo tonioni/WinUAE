@@ -30,6 +30,7 @@
 #define SCALA_RED 11
 #define SCALA_GREEN 12
 #define STRIKERMANAGER 13
+#define MPSOCCERMANAGER 14
 
 static int dflag;
 static frame_time_t cycles;
@@ -100,6 +101,13 @@ Striker Manager
 - Writes 0x0F00 to POTGO few times
 - Reads JOY1DAT, expects AND 0x303 == 0x200 or 0x203
 - Reads JOY1DAT in a loop until AND 0x303 == 0x200 or 0x203 (opposite from previous read)
+- Resets the system if wrong value after 200 000 read attemps.
+
+Multi-Player Soccer Manager
+
+- Writes 0x0F00 to POTGO few times
+- Reads JOY1DAT, expects AND 0x303 == 0x301 or 0x302
+- Reads JOY1DAT in a loop until AND 0x303 == 0x301 or 0x302 (opposite from previous read)
 - Resets the system if wrong value after 200 000 read attemps.
 
 */
@@ -234,6 +242,18 @@ uae_u16 dongle_joydat (int port, uae_u16 val)
 			}
 		}
 		break;
+	case MPSOCCERMANAGER:
+		if (port == 1) {
+			if (dflag >= 4) {
+				val &= ~0x0303;
+				val |= 0x0302;
+				dflag--;
+			} else if (dflag > 0) {
+				val &= ~0x0303;
+				val |= 0x0301;
+			}
+		}
+		break;
 	}
 	return val;
 }
@@ -250,6 +270,7 @@ void dongle_potgo (uae_u16 val)
 		dflag = (uaerand () & 7) - 3;
 		break;
 	case STRIKERMANAGER:
+	case MPSOCCERMANAGER:
 		if ((val & 0x0500) == 0x0500) {
 			dflag++;
 		} else {
