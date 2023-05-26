@@ -272,6 +272,9 @@ void fixup_cpu (struct uae_prefs *p)
 			p->cpuboardmem1.size = 8 * 1024 * 1024;
 	}
 
+	if (p->cachesize_inhibit) {
+		p->cachesize = 0;
+	}
 	if (p->cpu_model < 68020 && p->cachesize) {
 		p->cachesize = 0;
 		error_log (_T("JIT requires 68020 or better CPU."));
