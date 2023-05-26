@@ -14030,6 +14030,8 @@ static void hsync_handler(void)
 		lof_display = lof_store;
 		hstrobe_conflict = false;
 		hstrobe_conflict2 = false;
+		hdiw_counter_conflict = 0;
+		hdiw_counter_sconflict = 0;
 		reset_autoscale();
 	}
 	vsync_line = vs;
