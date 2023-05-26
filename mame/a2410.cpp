@@ -812,7 +812,7 @@ static void tms_hsync_handler2(struct a2410_struct *data)
 	if (!data->tms_configured)
 		return;
 
-	tms_device.m_icount = 100;
+	tms_device.m_icount = 1000;
 	tms_device.execute_run();
 	int a2410_vpos = data->tms_vp;
 	data->tms_vp = tms_device.scanline_callback(NULL, data->tms_vp, data->a2410_interlace < 0);
