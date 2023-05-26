@@ -2209,6 +2209,11 @@ static void update_mirrors(void)
 	} else {
 		sprite_sprctlmask = 0x01;
 	}
+	if (aga_mode) {
+		for (int i = 0; i < 256; i++) {
+			current_colors.acolors[i] = getxcolor(current_colors.color_regs_aga[i]);
+		}
+	}
 	set_chipset_mode();
 	hsyncdebug = 0;
 	if (currprefs.gfx_overscanmode >= OVERSCANMODE_ULTRA) {
@@ -9973,7 +9978,7 @@ static void COLOR_WRITE(int hpos, uae_u16 v, int num)
 		}
 		remembered_color_entry = -1;
 		current_colors.color_regs_ecs[num] = v;
-		current_colors.acolors[num] = getxcolor (v);
+		current_colors.acolors[num] = getxcolor(v);
 #ifdef AGA
 	}
 #endif
