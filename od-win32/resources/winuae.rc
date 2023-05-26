@@ -2231,6 +2231,7 @@ BEGIN
     IDS_BOARDSIZE           "Size"
     IDS_BOARDID             "ID"
     IDS_ASSOCIATEEXTENSION  "Extension"
+    IDS_GAMEPORTS_CUSTOM    "Custom"
 END
 
 #endif    // English (United Kingdom) resources

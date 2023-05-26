@@ -17376,7 +17376,7 @@ static int get_jport_sub(HWND hDlg, int idx)
 static void updatejoyport (HWND hDlg, int changedport)
 {
 	int i, j;
-	TCHAR tmp[MAX_DPATH], tmp2[MAX_DPATH];
+	TCHAR tmp[MAX_DPATH], tmp2[MAX_DPATH], tmp3[MAX_DPATH];
 
 	SetDlgItemInt (hDlg, IDC_INPUTSPEEDM, workprefs.input_mouse_speed, FALSE);
 	xSendDlgItemMessage (hDlg, IDC_PORT_TABLET_CURSOR, CB_SETCURSEL, workprefs.input_magic_mouse_cursor, 0);
@@ -17429,10 +17429,11 @@ static void updatejoyport (HWND hDlg, int changedport)
 			for (j = 0; j < inputdevice_get_device_total (IDTYPE_MOUSE); j++, total++)
 				xSendDlgItemMessage (hDlg, id, CB_ADDSTRING, 0, (LPARAM)inputdevice_get_device_name (IDTYPE_MOUSE, j));
 		}
+		WIN32GUI_LoadUIString(IDS_GAMEPORTS_CUSTOM, tmp3, sizeof(tmp3) / sizeof(TCHAR));
 		for (j = 0; j < MAX_JPORTS_CUSTOM; j++, total++) {
 			_stprintf(tmp2, _T("<%s>"), szNone.c_str());
 			inputdevice_parse_jport_custom(&workprefs, j, i, tmp2);
-			_stprintf(tmp, _T("Custom %d: %s"), j + 1, tmp2);
+			_stprintf(tmp, _T("%s %d: %s"), tmp3, j + 1, tmp2);
 			xSendDlgItemMessage(hDlg, id, CB_ADDSTRING, 0, (LPARAM)tmp);
 		}
 

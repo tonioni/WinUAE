@@ -430,6 +430,7 @@
 #define IDS_BOARDID                     435
 #define IDS_ASSOCIATEEXTENSIONS         436
 #define IDS_ASSOCIATEEXTENSION          436
+#define IDS_GAMEPORTS_CUSTOM            437
 #define IDS_QS_MODELS                   1000
 #define IDS_QS_MODEL_A500               1001
 #define IDS_QS_MODEL_A500P              1002
