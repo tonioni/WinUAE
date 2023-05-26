@@ -7782,17 +7782,18 @@ static void VPOSW(uae_u16 v)
 		v &= 1;
 	}
 	newvpos |= v << 8;
+
 	if (newvpos != oldvpos) {
 		cia_adjust_eclock_phase((newvpos - oldvpos) * maxhpos);
 		vposw_change++;
-	}
 
-	if (newvpos < oldvpos && oldvpos <= maxvpos) {
-		newvpos = oldvpos;
-	}
-	vpos = newvpos;
+		if (newvpos < oldvpos && oldvpos <= maxvpos) {
+			newvpos = oldvpos;
+		}
+		vpos = newvpos;
 
-	vb_check();
+		vb_check();
+	}
 }
 
 static void VHPOSW_delayed(uae_u32 v)

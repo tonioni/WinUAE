@@ -1,4 +1,12 @@
 
+Beta 14: (RC6)
+
+- "Remove interlace artifacts" + accurate modes: some blitter cycles were also rerun during "scandoubled" line.
+- Added Multi-Player Soccer Manager dongle emulation. This is very similar to Striker Manager dongle.
+- On the fly switch from AGA to OCS/ECS and then back didn't restore original AGA background color until running program wrote different value to COLOR0 register.
+- In some situations refresh conflict (even if it was harmless single cycle conflict due to bitplane DMA being enabled with "bad" position) left sprites in always on horizontal "conflict offset" state. (4.9.9+)
+- Added jit_inhibit config entry, can be used to force disable JIT temporarily even if uae-configuration/custom event is used to enable JIT. When you really want JIT disabled but don't want to modify anything else.
+
 Beta 13: (RC5)
 
 - Sprite buffer overflow was still possible. Adjusted buffer size again and added limit check, if it is still going to overflow, sprite emulation is skipped until next frame. Problem with this buffer is that it is static, it needs to be as big as max supported programmed display mode which is waste of memory when emulating normal PAL/NTSC modes. It needs to be dynamically allocated. But it is too late now. ("Green" Big Time Sensuality / Axis)
