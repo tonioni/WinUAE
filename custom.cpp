@@ -132,6 +132,7 @@ static int hpos_hsync_extra;
 static int vpos_count, vpos_count_diff;
 int lof_store; // real bit in custom registers
 int lof_display; // what display device thinks
+int scandoubled_line;
 static bool lof_lastline, lof_prev_lastline;
 static int lol, lol_prev;
 static int next_lineno;
@@ -142,7 +143,6 @@ static int vposw_change;
 static bool lof_lace;
 static bool prevlofs[3];
 static bool bplcon0_interlace_seen;
-static int scandoubled_line;
 static bool vsync_rendered, frame_rendered, frame_shown;
 static frame_time_t vsynctimeperline;
 static frame_time_t frameskiptime;
@@ -12326,6 +12326,13 @@ static void hsync_scandoubler(int hpos)
 			}
 		}
 	}
+
+	uae_u8 cycle_line_slot_tmp[MAX_CHIPSETSLOTS];
+	uae_u16 cycle_line_pipe_tmp[MAX_CHIPSETSLOTS];
+
+	memcpy(cycle_line_slot_tmp, cycle_line_slot, sizeof(uae_u8) * MAX_CHIPSETSLOTS);
+	memcpy(cycle_line_pipe_tmp, cycle_line_pipe, sizeof(uae_u16) * MAX_CHIPSETSLOTS);
+
 	reset_decisions_scanline_start();
 	reset_scandoubler_sync(hpos);
 	reset_decisions_hsync_start();
@@ -12355,6 +12362,9 @@ static void hsync_scandoubler(int hpos)
 
 	dmacon = odmacon;
 	copper_enabled_thisline = ocop;
+
+	memcpy(cycle_line_slot, cycle_line_slot_tmp, sizeof(uae_u8) * MAX_CHIPSETSLOTS);
+	memcpy(cycle_line_pipe, cycle_line_pipe_tmp, sizeof(uae_u16) * MAX_CHIPSETSLOTS);
 
 	for (int i = 0; i < MAX_PLANES; i++) {
 		bplpt[i] = bpltmp[i];
