@@ -99,6 +99,8 @@
       <PreprocessorDefinitions>_MBCS;%(PreprocessorDefinitions);CPUEMU_90;CPUEMU_91;CPUEMU_92;CPUEMU_93;CPUEMU_94;CPUEMU_95;CPU_TESTER</PreprocessorDefinitions>
       <CallingConvention>FastCall</CallingConvention>
       <CompileAs>CompileAsCpp</CompileAs>
+      <LanguageStandard>stdcpp14</LanguageStandard>
+      <LanguageStandard_C>Default</LanguageStandard_C>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>

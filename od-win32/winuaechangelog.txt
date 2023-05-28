@@ -1,4 +1,11 @@
 
+Beta 15: (RC7)
+
+- 4.10.0 introduced low to high/high to low IPL delay is optional and off by default, it seems to only happen when Paula IPL lines have extra load (like expansion devices or logic analyzer probes..). Config file only: ipl_delay=true
+- Fixed About panel title font size.
+- Debugger command mid command calculation support fixed (for example "d $1234+10 1" works again)
+- RC tag removed.
+
 Beta 14: (RC6)
 
 - "Remove interlace artifacts" + accurate modes: some blitter cycles were also rerun during "scandoubled" line.

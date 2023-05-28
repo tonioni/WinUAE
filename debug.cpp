@@ -901,10 +901,11 @@ static int readsize (int val, TCHAR **c)
 	return 0;
 }
 
-static int checkvaltype (TCHAR **cp, uae_u32 *val, int *size, TCHAR def)
+static int checkvaltype(TCHAR **cp, uae_u32 *val, int *size, TCHAR def)
 {
 	TCHAR form[256], *p;
 	bool gotop = false;
+	bool copyrest = false;
 	double out;
 
 	form[0] = 0;
@@ -913,7 +914,7 @@ static int checkvaltype (TCHAR **cp, uae_u32 *val, int *size, TCHAR def)
 	p = form;
 	for (;;) {
 		uae_u32 v;
-		if (!checkvaltype2 (cp, &v, def)) {
+		if (!checkvaltype2(cp, &v, def)) {
 			if (isoperator(cp) || gotop || **cp == '\"' || **cp == '\'') {
 				goto docalc;
 			}
@@ -924,16 +925,20 @@ static int checkvaltype (TCHAR **cp, uae_u32 *val, int *size, TCHAR def)
 		_stprintf(p, _T("%u"), v);
 		p += _tcslen (p);
 		*p = 0;
-		if (peekchar (cp) == '.') {
-			readchar (cp);
-			if (size)
-				*size = readsize (v, cp);
+		if (peekchar(cp) == '.') {
+			readchar(cp);
+			if (size) {
+				*size = readsize(v, cp);
+			}
 		}
+		TCHAR *cpb = *cp;
 		ignore_ws(cp);
-		if (!isoperator (cp))
+		if (!isoperator(cp)) {
+			*cp = cpb;
 			break;
+		}
 		gotop = true;
-		*p++= readchar (cp);
+		*p++= readchar(cp);
 		*p = 0;
 	}
 	if (!gotop) {
@@ -951,7 +956,11 @@ static int checkvaltype (TCHAR **cp, uae_u32 *val, int *size, TCHAR def)
 	}
 docalc:
 	while (more_params2(cp)) {
-		*p++ = readchar(cp);
+		TCHAR c = readchar(cp);
+		if (c == ' ') {
+			break;
+		}
+		*p++ = c;
 	}
 	*p = 0;
 	TCHAR tmp[MAX_DPATH];

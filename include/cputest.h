@@ -38,7 +38,6 @@ extern int movem_index1[256];
 extern int movem_index2[256];
 extern int movem_next[256];
 
-void ipl_fetch(void);
 void do_cycles_test(int);
 int intlev(void);
 
@@ -63,7 +62,7 @@ void m68k_do_bsr_ce(uaecptr, uae_s32);
 void m68k_do_bsr_ce(uaecptr oldpc, uae_s32 offset);
 void m68k_do_jsr_ce(uaecptr oldpc, uaecptr dest);
 
-void m68k_setstopped(void);
+void m68k_setstopped(int);
 void check_t0_trace(void);
 
 bool cpureset(void);

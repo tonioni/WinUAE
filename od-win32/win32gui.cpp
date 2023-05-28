@@ -6433,7 +6433,7 @@ static INT_PTR CALLBACK ErrorLogProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 		SetDlgItemText (hDlg, IDC_ERRORLOGMESSAGE, err);
 		xSendDlgItemMessage (hDlg, IDC_ERRORLOGMESSAGE, EM_GETCHARFORMAT, 0, (LPARAM) & CharFormat);
 		CharFormat.dwMask |= CFM_SIZE | CFM_FACE;
-		CharFormat.yHeight = getscaledfontsize(8 * 20); /* height in twips, where a twip is 1/20th of a point - for a pt.size of 18 */
+		CharFormat.yHeight = -getscaledfontsize(8 * 20); /* height in twips, where a twip is 1/20th of a point - for a pt.size of 18 */
 		_tcscpy (CharFormat.szFaceName, _T("Segoe UI"));
 		xSendDlgItemMessage (hDlg, IDC_ERRORLOGMESSAGE, EM_SETCHARFORMAT, SCF_ALL, (LPARAM) & CharFormat);
 		return TRUE;
@@ -7888,7 +7888,7 @@ static void init_aboutdlg (HWND hDlg)
 	xSendDlgItemMessage (hDlg, IDC_RICHEDIT1, EM_GETCHARFORMAT, 0, (LPARAM) & CharFormat);
 	CharFormat.dwMask |= CFM_BOLD | CFM_SIZE | CFM_FACE;
 	CharFormat.dwEffects = CFE_BOLD;
-	CharFormat.yHeight = getscaledfontsize(24 * 20); /* height in twips, where a twip is 1/20th of a point */
+	CharFormat.yHeight = -getscaledfontsize(30 * 20); /* height in twips, where a twip is 1/20th of a point */
 
 	_tcscpy (CharFormat.szFaceName,  _T("Segoe UI"));
 	xSendDlgItemMessage (hDlg, IDC_RICHEDIT1, EM_SETCHARFORMAT, SCF_ALL, (LPARAM) & CharFormat);
@@ -7897,7 +7897,8 @@ static void init_aboutdlg (HWND hDlg)
 	SetDlgItemText (hDlg, IDC_RICHEDIT2, VersionStr );
 	xSendDlgItemMessage (hDlg, IDC_RICHEDIT2, EM_GETCHARFORMAT, 0, (LPARAM) & CharFormat);
 	CharFormat.dwMask |= CFM_SIZE | CFM_FACE;
-	CharFormat.yHeight = getscaledfontsize(12 * 20);
+	CharFormat.dwEffects = CFE_BOLD;
+	CharFormat.yHeight = -getscaledfontsize(16 * 20);
 	_tcscpy (CharFormat.szFaceName, _T("Segoe UI"));
 	xSendDlgItemMessage (hDlg, IDC_RICHEDIT2, EM_SETCHARFORMAT, SCF_ALL, (LPARAM) & CharFormat);
 	xSendDlgItemMessage (hDlg, IDC_RICHEDIT2, EM_SETBKGNDCOLOR, 0, GetSysColor (COLOR_3DFACE));
