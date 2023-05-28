@@ -367,7 +367,9 @@ _cyclereg_address4:
 	bcs.s .okpc
 	cmp.l #asm_end,2+4+2(sp)
 	bhi.s .okpc
+#ifdef AMIGA
 	move.w #0x7fff,0xdff09c
+#endif
 	| Interrupt exception interrupted trace?
 	cmp.l #_exceptiontable000+(9-2)*2,2+4+2(sp)
 	bne.s .notokpc

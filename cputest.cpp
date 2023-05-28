@@ -76,6 +76,7 @@ static int feature_interrupts = 0;
 static int feature_waitstates = 0;
 static int feature_instruction_size = 0;
 static int fpu_min_exponent, fpu_max_exponent;
+static int feature_ipl_delay;
 static int max_file_size;
 static int rnd_seed, rnd_seed_prev;
 static TCHAR *feature_instruction_size_text = NULL;
@@ -399,9 +400,22 @@ static void count_cycles(int cycles)
 		cycles--;
 		cpu_cycles++;
 		if (interrupt_cycle_cnt != 0) {
-			interrupt_cycle_cnt--;
+			bool waspos = interrupt_cycle_cnt > 0;
+			if (interrupt_cycle_cnt < 0) {
+				interrupt_cycle_cnt++;
+			} else {
+				interrupt_cycle_cnt--;
+			}
 			if (interrupt_cycle_cnt == 0) {
 				if (regs.ipl_pin < IPL_TEST_IPL_LEVEL) {
+					int ipl = IPL_TEST_IPL_LEVEL;
+					if (feature_ipl_delay && waspos &&
+						(((regs.ipl_pin & 1) && !(ipl & 1)) ||
+						((regs.ipl_pin & 2) && !(ipl & 2)) ||
+						((regs.ipl_pin & 4) && !(ipl & 4)))) {
+						interrupt_cycle_cnt = -1;
+						continue;
+					}
 					regs.ipl_pin = IPL_TEST_IPL_LEVEL;
 					regs.ipl_pin_change_evt = cpu_cycles;
 				}
@@ -1184,9 +1198,9 @@ void cpu_halt(int halt)
 	cpu_halted = halt;
 }
 
-void m68k_setstopped(void)
+void m68k_setstopped(int stoptype)
 {
-	cpu_stopped = 1;
+	cpu_stopped = stoptype;
 }
 
 void check_t0_trace(void)
@@ -2605,7 +2619,7 @@ static void save_data(uae_u8 *dst, const TCHAR *dir, int size)
 			(feature_min_interrupt_mask << 20) | (safe_memory_mode << 23) | (feature_interrupts << 26) |
 			((feature_loop_mode_jit ? 1 : 0) << 28) | ((feature_loop_mode_68010 ? 1 : 0) << 29));
 		fwrite(data, 1, 4, f);
-		pl(data, (feature_initial_interrupt_mask & 7));
+		pl(data, (feature_initial_interrupt_mask & 7) | ((feature_initial_interrupt & 7) << 3));
 		fwrite(data, 1, 4, f);
 		pl(data, 0);
 		fwrite(data, 1, 4, f);
@@ -4404,7 +4418,6 @@ static void execute_ins(uaecptr endpc, uaecptr targetpc, struct instr *dp, bool 
 				break;
 			}
 			if (ipl > startimask && ipl <= regs.intmask && !imaskintprevented) {
-				printf("*");
 				imaskintprevented = true;
 			}
 		}
@@ -7159,6 +7172,8 @@ static int test(struct ini_data *ini, const TCHAR *sections, const TCHAR *testna
 	ini_getvalx(ini, sections, _T("feature_interrupts"), &feature_interrupts);
 	feature_waitstates = 0;
 	ini_getvalx(ini, sections, _T("feature_waitstates"), &feature_waitstates);
+	feature_ipl_delay = 0;
+	ini_getvalx(ini, sections, _T("feature_ipl_delay"), &feature_ipl_delay);
 
 	feature_full_extension_format = 0;
 	if (currprefs.cpu_model >= 68020) {
