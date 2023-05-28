@@ -15831,6 +15831,9 @@ uae_u8 *restore_custom_event_delay(uae_u8 *src)
 			case 9:
 				f = event_DISK_handler;
 				break;
+			case 10:
+				f = bitplane_dma_change;
+				break;
 			case 0:
 				write_log("ignored event type %d (%08x) restored\n", type, data);
 				break;
@@ -15888,6 +15891,8 @@ uae_u8 *save_custom_event_delay(size_t *len, uae_u8 *dstptr)
 				type = 8;
 			} else if (f == event_DISK_handler) {
 				type = 9;
+			} else if (f == bitplane_dma_change) {
+				type = 10;
 			} else {
 				write_log("unknown event2 handler %p\n", e->handler);
 				e->active = false;
