@@ -428,7 +428,6 @@
 #define IDS_BOARDEND                    433
 #define IDS_BOARDSIZE                   434
 #define IDS_BOARDID                     435
-#define IDS_ASSOCIATEEXTENSIONS         436
 #define IDS_ASSOCIATEEXTENSION          436
 #define IDS_GAMEPORTS_CUSTOM            437
 #define IDS_QS_MODELS                   1000

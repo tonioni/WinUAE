@@ -1,4 +1,8 @@
 
+5.0.0
+
+- Wait for blitter hung if blitter hung. Now it exists if blitter is in hung state or it has waited few frames.
+
 Beta 15: (RC7)
 
 - 4.10.0 introduced low to high/high to low IPL delay is optional and off by default, it seems to only happen when Paula IPL lines have extra load (like expansion devices or logic analyzer probes..). Config file only: ipl_delay=true
