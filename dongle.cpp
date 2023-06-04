@@ -31,6 +31,7 @@
 #define SCALA_GREEN 12
 #define STRIKERMANAGER 13
 #define MPSOCCERMANAGER 14
+#define FOOTBALLDIRECTOR2 15
 
 static int dflag;
 static frame_time_t cycles;
@@ -254,6 +255,18 @@ uae_u16 dongle_joydat (int port, uae_u16 val)
 			}
 		}
 		break;
+	case FOOTBALLDIRECTOR2:
+		if (port == 1) {
+			if (dflag >= 4) {
+				val &= ~0x0303;
+				val |= 0x0300;
+				dflag--;
+			} else if (dflag > 0) {
+				val &= ~0x0303;
+				val |= 0x0303;
+			}
+		}
+		break;
 	}
 	return val;
 }
@@ -271,6 +284,7 @@ void dongle_potgo (uae_u16 val)
 		break;
 	case STRIKERMANAGER:
 	case MPSOCCERMANAGER:
+	case FOOTBALLDIRECTOR2:
 		if ((val & 0x0500) == 0x0500) {
 			dflag++;
 		} else {
