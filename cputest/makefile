@@ -8,7 +8,7 @@ AS=/opt/amiga/bin/m68k-amigaos-as
 CFLAGS = -mcrt=nix13 -O2 -m68000 -fomit-frame-pointer -msoft-float -DREVDATE=$(NOWDATE) -DREVTIME=$(NOWTIME) -DAMIGA -DM68K
 LINK_CFLAGS = -mcrt=nix13 -lm -s
 
-OBJS = main.o asm040.o asm060.o amiga.o \
+OBJS = main.o dir.o asm040.o asm060.o amiga.o \
 	decode_ea.o globals.o opcode_handler_cpu.o opcode_handler_fpu.o \
 	opcode_handler_mmu.o opcodes_cpu.o opcodes_fpu.o opcodes_mmu.o util.o \
 	inflate.o
@@ -18,6 +18,9 @@ all: $(OBJS)
 
 main.o: main.c
 	$(CC) $(CFLAGS) -I. -c -o $@ main.c
+
+dir.o: dir.c
+	$(CC) $(CFLAGS) -I. -c -o $@ dir.c
 
 decode_ea.o: adis/decode_ea.c
 	$(CC) $(CFLAGS) -I. -c -o $@ adis/decode_ea.c

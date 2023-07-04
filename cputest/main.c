@@ -186,6 +186,10 @@ static int ipl_pc_cnt[MAX_IPL_PC_VALUES];
 
 static char opcode[32], group[32], cpustr[10];
 
+void *x_opendir(char *path);
+void x_closedir(void *v);
+int x_readdir(char *path, void *v, char *s);
+
 #ifndef M68K
 
 #define xmemcpy memcpy
@@ -3867,14 +3871,6 @@ static int getparamval(const char *p)
 	}
 }
 
-static int isdir(const char *dirpath, const char *name)
-{
-	struct stat buf;
-
-	snprintf(tmpbuffer, sizeof(tmpbuffer), "%s%s", dirpath, name);
-	return stat(tmpbuffer, &buf) == 0 && S_ISDIR(buf.st_mode);
-}
-
 int main(int argc, char *argv[])
 {
 	int stop_on_error = 1;
@@ -4098,7 +4094,7 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	DIR *groupd = NULL;
+	void *groupd = NULL;
 	
 	char *p = strchr(opcode, '/');
 	if (p) {
@@ -4109,7 +4105,7 @@ int main(int argc, char *argv[])
 	}
 	
 	if (!strcmp(group, "all")) {
-		groupd = opendir(path);
+		groupd = x_opendir(path);
 	}
 
 	int cpumodel = cpu_lvl == 5 ? 6 : cpu_lvl;
@@ -4120,17 +4116,18 @@ int main(int argc, char *argv[])
 
 		if (groupd) {
 			pathptr[0] = 0;
-			struct dirent *groupdr = readdir(groupd);
+			char dname[256];
+			int groupdr = x_readdir(path, groupd, dname);
 			if (!groupdr)
 				break;
-			if (!isdir(path, groupdr->d_name))
+			if (groupdr > 0)
 				continue;
-			if (groupdr->d_name[0] == '.')
+			if (dname[0] == '.')
 				continue;
-			if (strnicmp(cpustr, groupdr->d_name, strlen(cpustr)))
+			if (strnicmp(cpustr, dname, strlen(cpustr)))
 				continue;
-			sprintf(pathptr, "%s/", groupdr->d_name);		
-			strcpy(group, groupdr->d_name + strlen(cpustr));
+			sprintf(pathptr, "%s/", dname);		
+			strcpy(group, dname + strlen(cpustr));
 		} else {
 			sprintf(pathptr, "%u_%s/",cpumodel, group);
 		}
@@ -4168,7 +4165,7 @@ int main(int argc, char *argv[])
 		}
 
 		if (!_stricmp(opcode, "all") || (opcode[0] && opcode[strlen(opcode) - 1] == '*')) {
-			DIR *d = opendir(path);
+			void *d = x_opendir(path);
 			if (!d) {
 				printf("Couldn't list directory '%s'\n", path);
 				return 0;
@@ -4183,12 +4180,10 @@ int main(int argc, char *argv[])
 
 			// get directory
 			for (;;) {
-				struct dirent *dr = readdir(d);
+				int dr = x_readdir(path, d, dirs + diroff);
 				if (!dr)
 					break;
-				int d = isdir(path, dr->d_name);
-				if (d && dr->d_name[0] != '.') {
-					strcpy(dirs + diroff, dr->d_name);
+				if (dr < 0 && dirs[diroff] != '.') {
 					dircnt++;
 					diroff += MAX_FILE_LEN;
 					if (dircnt >= MAX_FILES) {
@@ -4197,7 +4192,7 @@ int main(int argc, char *argv[])
 					}
 				}
 			}
-			closedir(d);
+			x_closedir(d);
 
 			// sort directory
 			for (int i = 0; i < diroff; i += MAX_FILE_LEN) {
@@ -4272,7 +4267,7 @@ int main(int argc, char *argv[])
 	}
 
 	if (groupd)
-		closedir(groupd);
+		x_closedir(groupd);
 
 	return 0;
 }
