@@ -2008,7 +2008,7 @@ END
 STRINGTABLE
 BEGIN
     IDS_NOHARDDRIVES        "No hard disks detected that were either empty or RDB-partitioned."
-    IDS_DEFAULT_HOST        "Default Configuration"
+    IDS_DEFAULT_HOST        "Default host configuration"
     IDS_SOUND_4CHANNEL      "4 Channels"
     IDS_HF_FS_CUSTOM        "Custom"
     IDS_SELECTFS            "Select file system handler (FFS, PFS, SFS, etc.)"
@@ -2233,6 +2233,7 @@ BEGIN
     IDS_ASSOCIATEEXTENSION  "Extension"
     IDS_GAMEPORTS_CUSTOM    "Custom"
     IDS_FILTER_LABELS       "Null\nScale2X\nhq2x\nhq3x\nhq4x\nSuperEagle\nSuper2xSaI\n2xSaI\nPAL\n"
+    IDS_CURRENT_HOST        "Current host configuration"
 END
 
 #endif    // English (United Kingdom) resources

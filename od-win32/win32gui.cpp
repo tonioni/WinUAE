@@ -7393,8 +7393,10 @@ static void init_quickstartdlg (HWND hDlg)
 	xSendDlgItemMessage (hDlg, IDC_QUICKSTART_COMPATIBILITY, TBM_SETPOS, TRUE, quickstart_compa);
 
 	xSendDlgItemMessage (hDlg, IDC_QUICKSTART_HOSTCONFIG, CB_RESETCONTENT, 0, 0L);
-	WIN32GUI_LoadUIString (IDS_DEFAULT_HOST, tmp1, sizeof (tmp1) / sizeof (TCHAR));
-	xSendDlgItemMessage (hDlg, IDC_QUICKSTART_HOSTCONFIG, CB_ADDSTRING, 0, (LPARAM)tmp1);
+	WIN32GUI_LoadUIString(IDS_CURRENT_HOST, tmp1, sizeof(tmp1) / sizeof(TCHAR));
+	xSendDlgItemMessage(hDlg, IDC_QUICKSTART_HOSTCONFIG, CB_ADDSTRING, 0, (LPARAM)tmp1);
+	WIN32GUI_LoadUIString(IDS_DEFAULT_HOST, tmp1, sizeof(tmp1) / sizeof(TCHAR));
+	xSendDlgItemMessage(hDlg, IDC_QUICKSTART_HOSTCONFIG, CB_ADDSTRING, 0, (LPARAM)tmp1);
 	idx = 0;
 	j = 1;
 	for (i = 0; i < configstoresize; i++) {
@@ -7407,10 +7409,26 @@ static void init_quickstartdlg (HWND hDlg)
 			j++;
 		}
 	}
+	if (!_tcsicmp(hostconf, _T("Default Configuration"))) {
+		idx = 0;
+	}
+	if (!_tcsicmp(hostconf, _T("Reset Configuration"))) {
+		idx = 1;
+	}
 	xSendDlgItemMessage (hDlg, IDC_QUICKSTART_HOSTCONFIG, CB_SETCURSEL, idx, 0);
 	regsetint (NULL, _T("QuickStartModel"), quickstart_model);
 	regsetint (NULL, _T("QuickStartConfiguration"), quickstart_conf);
 	regsetint (NULL, _T("QuickStartCompatibility"), quickstart_compa);
+
+	if (quickstart) {
+		quickstarthost(hDlg, hostconf);
+		if (idx == 0) {
+			load_quickstart(hDlg, 0);
+		} else if (idx == 1) {
+			default_prefs(&workprefs, false, 0);
+			load_quickstart(hDlg, 0);
+		}
+	}
 }
 
 static void floppytooltip (HWND hDlg, int num, uae_u32 crc32);
@@ -7789,9 +7807,22 @@ static INT_PTR CALLBACK QuickstartDlgProc (HWND hDlg, UINT msg, WPARAM wParam, L
 				if (val != CB_ERR) {
 					xSendDlgItemMessage (hDlg, IDC_QUICKSTART_HOSTCONFIG, CB_GETLBTEXT, (WPARAM)val, (LPARAM)tmp);
 					regsetstr (NULL, _T("QuickStartHostConfig"), tmp);
+					if (val == 0 || val == 1) {
+						regsetstr(NULL, _T("QuickStartHostConfig"), val ? _T("Reset configuration") : _T("Default Configuration"));
+					}
 					quickstarthost (hDlg, tmp);
-					if (val == 0 && quickstart)
-						load_quickstart (hDlg, 0);
+					if (val == 0 && quickstart) {
+						if (HIWORD(wParam) != CBN_KILLFOCUS) {
+							default_prefs(&workprefs, false, 0);
+							target_cfgfile_load(&workprefs, _T("default.uae"), CONFIG_TYPE_DEFAULT, 0);
+						}
+						load_quickstart(hDlg, 0);
+					} else if (val == 1 && quickstart) {
+						if (HIWORD(wParam) != CBN_KILLFOCUS) {
+							default_prefs(&workprefs, false, 0);
+						}
+						load_quickstart(hDlg, 0);
+					}
 				}
 				break;
 			}
@@ -7838,8 +7869,18 @@ static INT_PTR CALLBACK QuickstartDlgProc (HWND hDlg, UINT msg, WPARAM wParam, L
 				ret = (int)FloppyDlgProc (hDlg, msg, wParam, lParam);
 			break;
 		case IDC_QUICKSTART_SETCONFIG:
+		{
+			val = xSendDlgItemMessage(hDlg, IDC_QUICKSTART_HOSTCONFIG, CB_GETCURSEL, 0, 0);
+			if (val != CB_ERR) {
+				xSendDlgItemMessage(hDlg, IDC_QUICKSTART_HOSTCONFIG, CB_GETLBTEXT, (WPARAM)val, (LPARAM)tmp);
+				quickstarthost(hDlg, tmp);
+				if (val == 1) {
+					default_prefs(&workprefs, false, 0);
+				}
+			}
 			load_quickstart (hDlg, 1);
 			break;
+		}
 		}
 		recursive--;
 		break;
