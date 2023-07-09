@@ -134,6 +134,7 @@ static int noNtDelayExecution;
 
 extern FILE *debugfile;
 extern int console_logging;
+extern TCHAR *conlogfile;
 OSVERSIONINFO osVersion;
 static SYSTEM_INFO SystemInfo;
 static int logging_started;
@@ -6870,6 +6871,10 @@ static int parseargs(const TCHAR *argx, const TCHAR *np, const TCHAR *np2)
 	}
 	if (!_tcscmp (arg, _T("framelatency"))) {
 		forcedframelatency = getval (np);
+		return 2;
+	}
+	if (!_tcscmp(arg, _T("conlogfile"))) {
+		conlogfile = my_strdup(np);
 		return 2;
 	}
 #ifdef RETROPLATFORM

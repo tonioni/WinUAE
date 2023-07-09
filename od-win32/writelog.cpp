@@ -70,6 +70,8 @@ extern BOOL debuggerinitializing;
 extern int lof_store;
 static int console_input_linemode = -1;
 int always_flush_log = 0;
+TCHAR *conlogfile = NULL;
+static FILE *conlogfilehandle;
 
 #define WRITE_LOG_BUF_SIZE 4096
 
@@ -364,6 +366,15 @@ static void console_put (const TCHAR *buffer)
 	} else {
 		openconsole ();
 		writeconsole (buffer);
+	}
+	if (conlogfile) {
+		if (!conlogfilehandle) {
+			conlogfilehandle = _tfopen(conlogfile, _T("w"));
+		}
+		if (conlogfilehandle) {
+			fputws(buffer, conlogfilehandle);
+			fflush(conlogfilehandle);
+		}
 	}
 }
 
