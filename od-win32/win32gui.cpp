@@ -20128,7 +20128,7 @@ static void setfiltermult (HWND hDlg)
 
 static void values_to_hw3ddlg (HWND hDlg, bool initdialog)
 {
-	TCHAR txt[100], tmp[100];
+	TCHAR txt[200], tmp[200], tmp2[200];
 	int i, j, fltnum;
 	struct uae_filter *uf;
 	int fxidx, fxcnt;
@@ -20252,20 +20252,36 @@ static void values_to_hw3ddlg (HWND hDlg, bool initdialog)
 	xSendDlgItemMessage (hDlg, IDC_FILTER_NATIVERTG, CB_SETCURSEL, v, 0);
 
 	xSendDlgItemMessage (hDlg, IDC_FILTERMODE, CB_RESETCONTENT, 0, 0L);
-	WIN32GUI_LoadUIString (IDS_NONE, tmp, MAX_DPATH);
+	WIN32GUI_LoadUIString (IDS_NONE, tmp, sizeof(tmp) / sizeof(TCHAR));
 	xSendDlgItemMessage (hDlg, IDC_FILTERMODE, CB_ADDSTRING, 0, (LPARAM)tmp);
+	WIN32GUI_LoadUIString(IDS_FILTER_LABELS, tmp2, sizeof(tmp2) / sizeof(TCHAR));
+
 	uf = NULL;
 	fltnum = 0;
 	i = 0; j = 1;
+	TCHAR *fl = tmp2;
 	while (uaefilters[i].name) {
 		if (filter_nativertg >= 2 && uaefilters[i].type > 1) {
 			i++;
+			while(*fl != '\n' && *fl != 0) {
+				fl++;
+			}
 			continue;
 		}
-		xSendDlgItemMessage (hDlg, IDC_FILTERMODE, CB_ADDSTRING, 0, (LPARAM)uaefilters[i].name);
+		TCHAR *fle = fl;
+		while (*fle != '\n' && *fle != 0) {
+			fle++;
+		}
+		TCHAR endch = *fle;
+		*fle = 0;
+		xSendDlgItemMessage (hDlg, IDC_FILTERMODE, CB_ADDSTRING, 0, (LPARAM)fl);
 		if (uaefilters[i].type == workprefs.gf[filter_nativertg].gfx_filter) {
 			uf = &uaefilters[i];
 			fltnum = j;
+		}
+		fl = fle;
+		if (endch != 0) {
+			fl++;
 		}
 		j++;
 		i++;
