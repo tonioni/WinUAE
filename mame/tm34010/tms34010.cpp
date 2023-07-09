@@ -246,13 +246,20 @@ inline INT32 tms340x0_device::POP()
 }
 
 
+UINT32 tms340x0_device::do_plane_masking(UINT32 r, UINT32 w)
+{
+	UINT32 pmask = IOREG(REG_PMASK);
+	pmask |= pmask << 16;
+	UINT32 o = (r & pmask) | (w & ~pmask);
+	return o;
+}
+
 
 /***************************************************************************
     PIXEL READS
 ***************************************************************************/
 
 #define RP(m1,m2)                                           \
-	/* TODO: Plane masking */                               \
 	return (TMS34010_RDMEM_WORD(TOBYTE(offset & 0xfffffff0)) >> (offset & m1)) & m2;
 
 UINT32 tms340x0_device::read_pixel_1(offs_t offset) { RP(0x0f,0x01) }
@@ -261,12 +268,10 @@ UINT32 tms340x0_device::read_pixel_4(offs_t offset) { RP(0x0c,0x0f) }
 UINT32 tms340x0_device::read_pixel_8(offs_t offset) { RP(0x08,0xff) }
 UINT32 tms340x0_device::read_pixel_16(offs_t offset)
 {
-	/* TODO: Plane masking */
 	return TMS34010_RDMEM_WORD(TOBYTE(offset & 0xfffffff0));
 }
 UINT32 tms340x0_device::read_pixel_32(offs_t offset)
 {
-	/* TODO: Plane masking */
 	return TMS34010_RDMEM_DWORD(TOBYTE(offset & 0xffffffe0));
 }
 
@@ -295,14 +300,12 @@ UINT32 tms340x0_device::read_pixel_shiftreg(offs_t offset)
 	UINT32 pix = TMS34010_RDMEM_WORD(a);                                                    \
 	UINT32 shiftcount = offset & m1;                                                        \
 																							\
-	/* TODO: plane masking */                                                               \
 	data &= m2;                                                                             \
 	pix = (pix & ~(m2 << shiftcount)) | (data << shiftcount);                               \
-	TMS34010_WRMEM_WORD(a, pix);
+	TMS34010_WRMEM_WORD_MASK(a, pix);
 
 /* No Raster Op + Transparency */
 #define WP_T(m1,m2)                                                                         \
-	/* TODO: plane masking */                                                               \
 	data &= m2;                                                                             \
 	if (data)                                                                               \
 	{                                                                                       \
@@ -310,9 +313,8 @@ UINT32 tms340x0_device::read_pixel_shiftreg(offs_t offset)
 		UINT32 pix = TMS34010_RDMEM_WORD(a);                                                \
 		UINT32 shiftcount = offset & m1;                                                    \
 																							\
-		/* TODO: plane masking */                                                           \
 		pix = (pix & ~(m2 << shiftcount)) | (data << shiftcount);                           \
-		TMS34010_WRMEM_WORD(a, pix);                                                        \
+		TMS34010_WRMEM_WORD_MASK(a, pix);                                                   \
 	}
 /* Raster Op + No Transparency */
 #define WP_R(m1,m2)                                                                         \
@@ -320,10 +322,9 @@ UINT32 tms340x0_device::read_pixel_shiftreg(offs_t offset)
 	UINT32 pix = TMS34010_RDMEM_WORD(a);                                                    \
 	UINT32 shiftcount = offset & m1;                                                        \
 																							\
-	/* TODO: plane masking */                                                               \
 	data = (this->*m_raster_op)(data & m2, (pix >> shiftcount) & m2) & m2;                  \
 	pix = (pix & ~(m2 << shiftcount)) | (data << shiftcount);                               \
-	TMS34010_WRMEM_WORD(a, pix);
+	TMS34010_WRMEM_WORD_MASK(a, pix);
 
 /* Raster Op + Transparency */
 #define WP_R_T(m1,m2)                                                                       \
@@ -331,12 +332,11 @@ UINT32 tms340x0_device::read_pixel_shiftreg(offs_t offset)
 	UINT32 pix = TMS34010_RDMEM_WORD(a);                                                    \
 	UINT32 shiftcount = offset & m1;                                                        \
 																							\
-	/* TODO: plane masking */                                                               \
 	data = (this->*m_raster_op)(data & m2, (pix >> shiftcount) & m2) & m2;                  \
 	if (data)                                                                               \
 	{                                                                                       \
 		pix = (pix & ~(m2 << shiftcount)) | (data << shiftcount);                           \
-		TMS34010_WRMEM_WORD(a, pix);                                                        \
+		TMS34010_WRMEM_WORD_MASK(a, pix);                                                   \
 	}
 
 /* No Raster Op + No Transparency */
@@ -346,13 +346,11 @@ void tms340x0_device::write_pixel_4(offs_t offset, UINT32 data) { WP(0x0c, 0x0f)
 void tms340x0_device::write_pixel_8(offs_t offset, UINT32 data) { WP(0x08, 0xff); }
 void tms340x0_device::write_pixel_16(offs_t offset, UINT32 data)
 {
-	/* TODO: plane masking */
-	TMS34010_WRMEM_WORD(TOBYTE(offset & 0xfffffff0), data);
+	TMS34010_WRMEM_WORD_MASK(TOBYTE(offset & 0xfffffff0), data);
 }
 void tms340x0_device::write_pixel_32(offs_t offset, UINT32 data)
 {
-	/* TODO: plane masking */
-	TMS34010_WRMEM_WORD(TOBYTE(offset & 0xffffffe0), data);
+	TMS34010_WRMEM_WORD_MASK(TOBYTE(offset & 0xffffffe0), data);
 }
 
 /* No Raster Op + Transparency */
@@ -362,15 +360,13 @@ void tms340x0_device::write_pixel_t_4(offs_t offset, UINT32 data) { WP_T(0x0c, 0
 void tms340x0_device::write_pixel_t_8(offs_t offset, UINT32 data) { WP_T(0x08, 0xff); }
 void tms340x0_device::write_pixel_t_16(offs_t offset, UINT32 data)
 {
-	/* TODO: plane masking */
 	if (data)
-		TMS34010_WRMEM_WORD(TOBYTE(offset & 0xfffffff0), data);
+		TMS34010_WRMEM_WORD_MASK(TOBYTE(offset & 0xfffffff0), data);
 }
 void tms340x0_device::write_pixel_t_32(offs_t offset, UINT32 data)
 {
-	/* TODO: plane masking */
 	if (data)
-		TMS34010_WRMEM_DWORD(TOBYTE(offset & 0xffffffe0), data);
+		TMS34010_WRMEM_DWORD_MASK(TOBYTE(offset & 0xffffffe0), data);
 }
 
 /* Raster Op + No Transparency */
@@ -380,15 +376,13 @@ void tms340x0_device::write_pixel_r_4(offs_t offset, UINT32 data) { WP_R(0x0c, 0
 void tms340x0_device::write_pixel_r_8(offs_t offset, UINT32 data) { WP_R(0x08, 0xff); }
 void tms340x0_device::write_pixel_r_16(offs_t offset, UINT32 data)
 {
-	/* TODO: plane masking */
 	UINT32 a = TOBYTE(offset & 0xfffffff0);
-	TMS34010_WRMEM_WORD(a, (this->*m_raster_op)(data, TMS34010_RDMEM_WORD(a)));
+	TMS34010_WRMEM_WORD_MASK(a, (this->*m_raster_op)(data, TMS34010_RDMEM_WORD(a)));
 }
 void tms340x0_device::write_pixel_r_32(offs_t offset, UINT32 data)
 {
-	/* TODO: plane masking */
 	UINT32 a = TOBYTE(offset & 0xffffffe0);
-	TMS34010_WRMEM_DWORD(a, (this->*m_raster_op)(data, TMS34010_RDMEM_DWORD(a)));
+	TMS34010_WRMEM_DWORD_MASK(a, (this->*m_raster_op)(data, TMS34010_RDMEM_DWORD(a)));
 }
 
 /* Raster Op + Transparency */
@@ -398,21 +392,19 @@ void tms340x0_device::write_pixel_r_t_4(offs_t offset, UINT32 data) { WP_R_T(0x0
 void tms340x0_device::write_pixel_r_t_8(offs_t offset, UINT32 data) { WP_R_T(0x08,0xff); }
 void tms340x0_device::write_pixel_r_t_16(offs_t offset, UINT32 data)
 {
-	/* TODO: plane masking */
 	UINT32 a = TOBYTE(offset & 0xfffffff0);
 	data = (this->*m_raster_op)(data, TMS34010_RDMEM_WORD(a));
 
 	if (data)
-		TMS34010_WRMEM_WORD(a, data);
+		TMS34010_WRMEM_WORD_MASK(a, data);
 }
 void tms340x0_device::write_pixel_r_t_32(offs_t offset, UINT32 data)
 {
-	/* TODO: plane masking */
 	UINT32 a = TOBYTE(offset & 0xffffffe0);
 	data = (this->*m_raster_op)(data, TMS34010_RDMEM_DWORD(a));
 
 	if (data)
-		TMS34010_WRMEM_DWORD(a, data);
+		TMS34010_WRMEM_DWORD_MASK(a, data);
 }
 
 /* Shift register write */
@@ -1161,10 +1153,7 @@ WRITE16_MEMBER( tms340x0_device::io_register_w )
 			break;
 
 		case REG_PMASK:
-#if 0
-			if (data) logerror("Plane masking not supported. PC=%08X\n", space.device().safe_pc());
-#endif
-			if (data) logerror("Plane masking not supported. PMASK=%04x PC=%08X\n", data, m_pc);
+			m_plane_masking = data != 0;
 			break;
 
 		case REG_DPYCTL:
@@ -1571,17 +1560,28 @@ WRITE16_MEMBER( tms340x0_device::host_w )
 {
 	int reg = offset;
 	unsigned int addr;
+	unsigned int hstctlh = IOREG(REG_HSTCTLH);
 
 	switch (reg)
 	{
 		/* upper 16 bits of the address */
 		case TMS34010_HOST_ADDRESS_H:
 			IOREG(REG_HSTADRH) = data;
+			// !LBL && !INCW
+			if (!(hstctlh & 0x2000) && !(hstctlh & 0x0800)) {
+				addr = (IOREG(REG_HSTADRH) << 16) | IOREG(REG_HSTADRL);
+				m_prefetch_data = TMS34010_RDMEM_WORD(TOBYTE(addr & 0xfffffff0));
+			}
 			break;
 
 		/* lower 16 bits of the address */
 		case TMS34010_HOST_ADDRESS_L:
 			IOREG(REG_HSTADRL) = data;
+			// LBL && !INCW
+			if ((hstctlh & 0x2000) && !(hstctlh & 0x0800)) {
+				addr = (IOREG(REG_HSTADRH) << 16) | IOREG(REG_HSTADRL);
+				m_prefetch_data = TMS34010_RDMEM_WORD(TOBYTE(addr & 0xfffffff0));
+			}
 			break;
 
 		/* actual data */
@@ -1590,6 +1590,7 @@ WRITE16_MEMBER( tms340x0_device::host_w )
 			/* write to the address */
 			addr = (IOREG(REG_HSTADRH) << 16) | IOREG(REG_HSTADRL);
 			TMS34010_WRMEM_WORD(TOBYTE(addr & 0xfffffff0), data);
+			m_prefetch_data = data;
 
 			/* optional postincrement */
 			if (IOREG(REG_HSTCTLH) & 0x0800)
@@ -1646,18 +1647,18 @@ READ16_MEMBER( tms340x0_device::host_r )
 		/* actual data */
 		case TMS34010_HOST_DATA:
 
+			result = m_prefetch_data;
 			/* read from the address */
 			addr = (IOREG(REG_HSTADRH) << 16) | IOREG(REG_HSTADRL);
-			result = TMS34010_RDMEM_WORD(TOBYTE(addr & 0xfffffff0));
-
-			/* optional postincrement (it says preincrement, but data is preloaded, so it
-			   is effectively a postincrement */
+			/* optional preincrement */
 			if (IOREG(REG_HSTCTLH) & 0x1000)
 			{
 				addr += 0x10;
 				IOREG(REG_HSTADRH) = addr >> 16;
 				IOREG(REG_HSTADRL) = (UINT16)addr;
 			}
+			m_prefetch_data = TMS34010_RDMEM_WORD(TOBYTE(addr & 0xfffffff0));
+
 			break;
 
 		/* control register */

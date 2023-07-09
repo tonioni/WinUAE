@@ -488,6 +488,10 @@ static addrbank generic_fb_bank
 	ABFLAG_IO, S_READ, S_WRITE
 };
 
+static void harlequin_refresh(void *userdata)
+{
+}
+
 struct gfxboard_func harlequin_func
 {
 	harlequin_init,
@@ -495,6 +499,7 @@ struct gfxboard_func harlequin_func
 	harlequin_reset,
 	harlequin_hsync,
 	harlequin_vsync,
+	harlequin_refresh,
 	harlequin_toggle,
 	harlequin_configured
 };

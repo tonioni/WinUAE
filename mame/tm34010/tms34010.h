@@ -347,6 +347,8 @@ protected:
 	direct_read_data *m_direct;
 	UINT32  m_pixclock;                           /* the pixel clock (0 means don't adjust screen size) */
 	int     m_pixperclock;                        /* pixels per clock */
+	bool	m_plane_masking;
+	UINT16  m_prefetch_data;
 //	emu_timer *m_scantimer;
 
 #if 0
@@ -381,6 +383,8 @@ protected:
 
 	UINT32 TMS34010_RDMEM_DWORD(offs_t A);
 	void TMS34010_WRMEM_DWORD(offs_t A, UINT32 V);
+	void TMS34010_WRMEM_DWORD_MASK(offs_t A, UINT32 V);
+	void TMS34010_WRMEM_WORD_MASK(offs_t A, UINT32 V);
 	void SET_ST(UINT32 st);
 	void RESET_ST();
 	UINT32 ROPCODE();
@@ -1027,6 +1031,7 @@ protected:
 	void check_interrupt();
 	void set_pixel_function();
 	void set_raster_op();
+	UINT32 do_plane_masking(UINT32 r, UINT32 w);
 
 };
 

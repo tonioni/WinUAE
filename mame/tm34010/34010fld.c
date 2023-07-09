@@ -484,13 +484,7 @@ UINT32 tms340x0_device::rfield_s_07(offs_t offset)
 UINT32 tms340x0_device::rfield_s_08(offs_t offset)
 {
 	UINT32 ret;
-	if (offset & 0x07)
-	{
-		RFIELDMAC(0xff,9);
-	}
-
-	else
-		ret = TMS34010_RDMEM(TOBYTE(offset));
+	RFIELDMAC_8();
 	return (INT32)(INT8)ret;
 }
 

@@ -1161,6 +1161,9 @@ static void vga_update_size_ext(struct rtggfxboard *gb)
 static void gfxboard_set_fullrefresh(struct rtggfxboard *gb, int cnt)
 {
 	gb->fullrefresh = cnt;
+	if (gb->func) {
+		gb->func->refresh(gb->userdata);
+	}
 }
 
 static bool gfxboard_setmode_ext(struct rtggfxboard *gb)
@@ -1237,6 +1240,18 @@ bool gfxboard_rtg_enable_initial(int monid, int index)
 	return true;
 }
 
+bool gfxboard_switch_away(int monid)
+{
+	if (!monid) {
+		struct amigadisplay *ad = &adisplays[monid];
+		if (ad->picasso_requested_on) {
+			ad->picasso_requested_on = false;
+			set_config_changed();
+		}
+		return true;
+	}
+	return false;
+}
 
 int gfxboard_toggle(int monid, int index, int log)
 {
@@ -1564,10 +1579,7 @@ void gfxboard_vsync_handler(bool full_redraw_required, bool redraw_required)
 								}
 							}
 						} else {
-							if (ad->picasso_requested_on) {
-								ad->picasso_requested_on = false;
-								set_config_changed();
-							}
+							gfxboard_switch_away(gb->monitor_id);
 						}
 					}
 				}

@@ -37,6 +37,21 @@ inline void tms340x0_device::TMS34010_WRMEM_DWORD(offs_t A, UINT32 V)
 	m_program->write_word(A+2,V>>16);
 }
 
+inline void tms340x0_device::TMS34010_WRMEM_WORD_MASK(offs_t A, UINT32 V)
+{
+	if (m_plane_masking) V = do_plane_masking(TMS34010_RDMEM_WORD(A), V);
+
+	m_program->write_word(A, V);
+}
+
+inline void tms340x0_device::TMS34010_WRMEM_DWORD_MASK(offs_t A, UINT32 V)
+{
+	if (m_plane_masking) V = do_plane_masking(TMS34010_RDMEM_DWORD(A), V);
+
+	m_program->write_word(A, V);
+	m_program->write_word(A + 2, V >> 16);
+}
+
 
 
 /* IO registers accessor */
@@ -86,20 +101,16 @@ inline void tms340x0_device::TMS34010_WRMEM_DWORD(offs_t A, UINT32 V)
 	}
 
 #define WFIELDMAC_8()                                                               \
-	if (offset & 0x07)                                                              \
+	if (true)                                                                       \
 	{                                                                               \
 		WFIELDMAC(0xff,9);                                                          \
 	}                                                                               \
-	else                                                                            \
-		TMS34010_WRMEM(TOBYTE(offset), data);
 
 #define RFIELDMAC_8()                                                               \
-	if (offset & 0x07)                                                              \
+	if (true)                                                                       \
 	{                                                                               \
 		RFIELDMAC(0xff,9);                                                          \
 	}                                                                               \
-	else                                                                            \
-		return TMS34010_RDMEM(TOBYTE(offset));
 
 #define WFIELDMAC_32()                                                              \
 	if (offset & 0x0f)                                                              \

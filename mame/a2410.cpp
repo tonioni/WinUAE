@@ -25,7 +25,7 @@ static tms340x0_device tms_device;
 static address_space tms_space;
 mscreen *m_screen;
 
-#define OVERLAY_WIDTH 1024
+#define MAX_HEIGHT 2048
 
 struct a2410_struct
 {
@@ -39,27 +39,33 @@ struct a2410_struct
 	uae_u8 a2410_palette_temp[4];
 	uae_u8 a2410_palette_control[4];
 	uae_u16 a2410_control;
-	bool a2410_modified[1024];
+	bool a2410_modified[MAX_HEIGHT];
 	int a2410_displaywidth;
 	int a2410_displayend;
 	int a2410_vertical_start;
-	bool a2410_enabled;
+	bool a2410_enabled, a2410_active;
 	uae_u8 a2410_overlay_mask[2];
 	int a2410_overlay_blink_rate_on;
 	int a2410_overlay_blink_rate_off;
 	int a2410_overlay_blink_cnt;
 	uae_u32 tms_configured;
 	int a2410_gfxboard;
+	int coladdr;
 
 	bool a2410_modechanged;
-	int a2410_gotmode;
 	int a2410_width, a2410_height;
+	uae_u32 overlaylinetable[MAX_HEIGHT + 1];
+	uae_u32 vramlinetab[MAX_HEIGHT + 1];
+	int overlaylinetableindex;
 	int a2410_vram_start_offset;
 	uae_u8 *a2410_surface;
 	int a2410_interlace;
 	int a2410_interrupt;
 	int a2410_hsync_max;
 	bool a2410_visible;
+
+	int a2410_activecnt;
+	bool a2410_newactive, a2410_preactive;
 
 	addrbank *gfxbank;
 };
@@ -159,7 +165,7 @@ void m_to_shiftreg_cb(address_space space, offs_t offset, UINT16 *shiftreg)
 {
 	memcpy(shiftreg, &gfxmem_banks[a2410_data.a2410_gfxboard]->baseaddr[TOWORD(offset)], 256 * sizeof(UINT16));
 }
-void m_from_shiftreg_cb(address_space space, offs_t offset, UINT16* shiftreg)
+void m_from_shiftreg_cb(address_space space, offs_t offset, UINT16 *shiftreg)
 {
 	memcpy(&gfxmem_banks[a2410_data.a2410_gfxboard]->baseaddr[TOWORD(offset)], shiftreg, 256 * sizeof(UINT16));
 }
@@ -190,8 +196,17 @@ static void mark_overlay(struct a2410_struct *data, int addr)
 	if (!data->a2410_enabled)
 		return;
 	addr &= 0x1ffff;
-	addr /= OVERLAY_WIDTH / 8;
-	data->a2410_modified[addr] = true;
+	if (addr >= data->overlaylinetable[data->overlaylinetableindex] && addr < data->overlaylinetable[data->overlaylinetableindex + 1]) {
+		data->a2410_modified[data->overlaylinetableindex] = true;
+	} else {
+		for(int i = 0; i < MAX_HEIGHT; i++) {
+			if (addr >= data->overlaylinetable[i] && addr < data->overlaylinetable[i + 1]) {
+				data->a2410_modified[i] = true;
+				data->overlaylinetableindex = i;
+				break;
+			}
+		}
+	}
 }
 
 static void a2410_create_palette32(struct a2410_struct *data, int offset)
@@ -219,6 +234,7 @@ static void a2410_create_palette32(struct a2410_struct *data, int offset)
 #endif
 }
 
+
 static void write_ramdac(struct a2410_struct *data, int addr, uae_u8 v)
 {
 	int coloridx = data->a2410_palette_index & 3;
@@ -238,6 +254,7 @@ static void write_ramdac(struct a2410_struct *data, int addr, uae_u8 v)
 			data->a2410_palette_index = 0;
 		break;
 		case 2:
+		data->a2410_palette_index &= ~3;
 		if (data->a2410_palette_index >= 4 * 4 && data->a2410_palette_index < 8 * 4) {
 			data->a2410_palette_control[data->a2410_palette_index / 4 - 4] = v;
 		}
@@ -279,11 +296,9 @@ static void write_ramdac(struct a2410_struct *data, int addr, uae_u8 v)
 				data->a2410_palette_index = 0;
 		}
 		break;
-		default:
-		write_log(_T("Unknown write RAMDAC address %08x PC=%08x\n"), addr, M68K_GETPC);
-		break;
 	}
 }
+
 static uae_u8 read_ramdac(struct a2410_struct *data, int addr)
 {
 	uae_u8 v = 0;
@@ -315,12 +330,10 @@ static uae_u8 read_ramdac(struct a2410_struct *data, int addr)
 				data->a2410_palette_index = 0;
 		}
 		break;
-		default:
-		write_log(_T("Unknown read RAMDAC address %08x PC=%08x\n"), addr, M68K_GETPC);
-		break;
 	}
 	return v;
 }
+
 
 static bool valid_dma(struct a2410_struct *data, uaecptr addr)
 {
@@ -348,7 +361,11 @@ UINT8 address_space::read_byte(UINT32 a)
 		//write_log(_T("TMS byte read framebuffer %08x (%08x) = %02x PC=%08x\n"), aa, addr, v, M68K_GETPC);
 		break;
 		case A2410_BANK_RAMDAC:
-		v = read_ramdac(data, addr);
+		if (addr & 4) {
+			v = read_ramdac(data, addr & 3);
+		} else {
+			write_ramdac(data, addr & 3, 0xff);
+		}
 		//write_log(_T("RAMDAC READ %08x = %02x PC=%08x\n"), aa, v, M68K_GETPC);
 		break;
 		case A2410_BANK_CONTROL:
@@ -357,7 +374,7 @@ UINT8 address_space::read_byte(UINT32 a)
 		break;
 		case A2410_BANK_DMA:
 		if (valid_dma(data, addr)) {
-			if (data->a2410_control & 4)
+			if (!(data->a2410_control & 4))
 				addr ^= 1;
 			v = get_byte(addr);
 		}
@@ -394,7 +411,11 @@ UINT16 address_space::read_word(UINT32 a)
 		//write_log(_T("TMS gfx word read %08x (%08x) = %04x PC=%08x\n"), aa, addr, v, M68K_GETPC);
 		break;
 		case A2410_BANK_RAMDAC:
-		v = read_ramdac(data, addr);
+		if (addr & 4) {
+			v = read_ramdac(data, addr & 3);
+		} else {
+			write_ramdac(data, addr & 3, 0xff);
+		}
 		//write_log(_T("RAMDAC READ %08x = %02x PC=%08x\n"), aa, v, M68K_GETPC);
 		break;
 		case A2410_BANK_CONTROL:
@@ -404,7 +425,7 @@ UINT16 address_space::read_word(UINT32 a)
 		case A2410_BANK_DMA:
 		if (valid_dma(data, addr)) {
 			v = get_word(addr);
-			if (data->a2410_control & 4)
+			if (!(data->a2410_control & 4))
 				v = (v >> 8) | (v << 8);
 		}
 		break;
@@ -435,8 +456,10 @@ void address_space::write_byte(UINT32 a, UINT8 b)
 		//write_log(_T("TMS gfx byte write %08x (%08x) = %02x PC=%08x\n"), aa, addr, b, M68K_GETPC);
 		break;
 		case A2410_BANK_RAMDAC:
-		//write_log(_T("RAMDAC WRITE %08x = %02x PC=%08x\n"), aa, b, M68K_GETPC);
-		write_ramdac(data, addr, b);
+		//write_log(_T("RAMDAC WRITE %08x = %08x = %02x PC=%08x\n"), addr, aa, b, M68K_GETPC);
+		if (!(addr & 4)) {
+			write_ramdac(data, addr & 3, b);
+		}
 		break;
 		case A2410_BANK_CONTROL:
 		write_log(_T("CONTROL WRITE %08x = %02x PC=%08x\n"), aa, b, M68K_GETPC);
@@ -444,7 +467,7 @@ void address_space::write_byte(UINT32 a, UINT8 b)
 		break;
 		case A2410_BANK_DMA:
 		if (valid_dma(data, addr)) {
-			if (data->a2410_control & 4)
+			if (!(data->a2410_control & 4))
 				addr ^= 1;
 			put_byte(addr, b);
 		}
@@ -470,8 +493,9 @@ void address_space::write_word(UINT32 a, UINT16 b)
 		case A2410_BANK_PROGRAM:
 		data->program_ram[addr] = b >> 8;
 		data->program_ram[addr + 1] = b & 0xff;
-		if (addr < 0x40000)
+		if (addr < 0x40000) {
 			mark_overlay(data, addr);
+		}
 		//write_log(_T("TMS program word write RAM %08x (%08x) = %04x PC=%08x\n"), aa, addr, b, M68K_GETPC);
 		break;
 		case A2410_BANK_FRAMEBUFFER:
@@ -480,8 +504,10 @@ void address_space::write_word(UINT32 a, UINT16 b)
 		//write_log(_T("TMS gfx word write %08x (%08x) = %04x PC=%08x\n"), aa, addr, b, M68K_GETPC);
 		break;
 		case A2410_BANK_RAMDAC:
-		//write_log(_T("RAMDAC WRITE %08x = %04x IDX=%d/%d PC=%08x\n"), aa, b, a2410_palette_index / 4, a2410_palette_index & 3, M68K_GETPC);
-		write_ramdac(data, addr, (uae_u8)b);
+		//write_log(_T("RAMDAC WRITE %08x = %08x = %04x (%d,%d) PC=%08x\n"), addr, aa, b, data->a2410_palette_index / 4, data->a2410_palette_index & 3, M68K_GETPC);
+		if (!(addr & 4)) {
+			write_ramdac(data, addr & 3, (uae_u8)b);
+		}
 		break;
 		case A2410_BANK_CONTROL:
 		write_log(_T("CONTROL WRITE %08x = %04x PC=%08x\n"), aa, b, M68K_GETPC);
@@ -489,7 +515,7 @@ void address_space::write_word(UINT32 a, UINT16 b)
 		break;
 		case A2410_BANK_DMA:
 		if (valid_dma(data, addr)) {
-			if (data->a2410_control & 4)
+			if (!(data->a2410_control & 4))
 				b = (b >> 8) | (b << 8);
 			put_word(addr, b);
 		}
@@ -509,44 +535,28 @@ static uae_u32 REGPARAM2 tms_bget(uaecptr addr)
 	if (!(addr & 1))
 		vv >>= 8;
 	v = (uae_u8)vv;
-	//write_log(_T("TMS read %08x = %02x PC=%08x\n"), addr, v & 0xff, M68K_GETPC);
+	//write_log(_T("tms_bget %08x = %02x PC=%08x\n"), addr, v & 0xff, M68K_GETPC);
 	tms_execute_single();
 	return v;
 }
+
 static uae_u32 REGPARAM2 tms_wget(uaecptr addr)
 {
 	struct a2410_struct *data = &a2410_data;
 	uae_u16 v;
 	addr &= 65535;
 	v = tms_device.host_r(tms_space, addr >> 1);
-	//write_log(_T("TMS read %08x = %04x PC=%08x\n"), addr, v & 0xffff, M68K_GETPC);
+	//write_log(_T("tms_wget %08x = %04x PC=%08x\n"), addr, v & 0xffff, M68K_GETPC);
 	tms_execute_single();
 	return v;
 }
-static uae_u32 REGPARAM2 tms_lget(uaecptr addr)
-{
-	uae_u32 v;
-	addr &= 65535;
-	v = tms_wget(addr) << 16;
-	v |= tms_wget(addr + 2);
-	return v;
-}
-
 
 static void REGPARAM2 tms_wput(uaecptr addr, uae_u32 w)
 {
 	struct a2410_struct *data = &a2410_data;
 	addr &= 65535;
-	//write_log(_T("TMS write %08x = %04x PC=%08x\n"), addr, w & 0xffff, M68K_GETPC);
-	tms_device.host_w(tms_space, addr  >> 1, w);
+	tms_device.host_w(tms_space, addr >> 1, w);
 	tms_execute_single();
-}
-
-static void REGPARAM2 tms_lput(uaecptr addr, uae_u32 l)
-{
-	addr &= 65535;
-	tms_wput(addr, l >> 16);
-	tms_wput(addr + 2, l);
 }
 
 static void REGPARAM2 tms_bput(uaecptr addr, uae_u32 b)
@@ -557,6 +567,21 @@ static void REGPARAM2 tms_bput(uaecptr addr, uae_u32 b)
 	//write_log(_T("tms_bput %08x=%02x PC=%08x\n"), addr, b, M68K_GETPC);
 	tms_device.host_w(tms_space, addr >> 1, (b << 8) | b);
 	tms_execute_single();
+}
+
+static uae_u32 REGPARAM2 tms_lget(uaecptr addr)
+{
+	uae_u32 v;
+	addr &= 65535;
+	v = tms_wget(addr) << 16;
+	v |= tms_wget(addr + 2);
+	return v;
+}
+static void REGPARAM2 tms_lput(uaecptr addr, uae_u32 l)
+{
+	addr &= 65535;
+	tms_wput(addr, l >> 16);
+	tms_wput(addr + 2, l);
 }
 
 static addrbank tms_bank = {
@@ -577,7 +602,6 @@ static void tms_reset(void *userdata)
 	data->a2410_surface = NULL;
 
 	data->a2410_modechanged = false;
-	data->a2410_gotmode = 0;
 	data->a2410_interlace = 0;
 	data->a2410_interrupt = 0;
 	data->a2410_hsync_max = 2;
@@ -665,11 +689,12 @@ void mscreen::configure(int width, int height, rectangle vis)
 	if (data->a2410_interlace)
 		data->a2410_height *= 2;
 	data->a2410_modechanged = true;
-	data->a2410_gotmode = true;
 	m_screen->height_v = height;
 	m_screen->width_v = width;
 	tms_rectangle = vis;
 	write_log(_T("A2410 %d*%d -> %d*%d\n"), ow, oh, data->a2410_width, data->a2410_height);
+	memset(data->overlaylinetable, 0, sizeof(data->overlaylinetable));
+	data->overlaylinetableindex = 0;
 	data->a2410_hsync_max = data->a2410_height / 300;
 }
 
@@ -693,21 +718,12 @@ static bool tms_toggle(void *userdata, int mode)
 		return false;
 
 	if (!mode) {
-		if (!data->a2410_enabled)
-			return false;
 		data->a2410_enabled = false;
-		data->a2410_modechanged = false;
-		data->a2410_gotmode = -1;
-		data->a2410_visible = false;
+		data->a2410_modechanged = true;
 		return true;
 	} else {
-		if (!data->a2410_gotmode)
-			return false;
-		if (data->a2410_enabled)
-			return false;
-		data->a2410_gotmode = 1;
+		data->a2410_enabled = true;
 		data->a2410_modechanged = true;
-		data->a2410_visible = true;
 		return true;
 	}
 	return false;
@@ -723,23 +739,68 @@ static void tms_vsync_handler2(struct a2410_struct *data, bool internalsync)
 
 	tms34010_display_params parms;
 	tms_device.get_display_params(&parms);
-	bool enabled = parms.enabled != 0 && data->a2410_gotmode > 0;
+	bool active = parms.enabled != 0;
 
-	if (!data->a2410_visible && data->a2410_modechanged) {
+	// don't disable display if parms.enabled is inactive less than 1 field
+	if (active != data->a2410_newactive) {
+		if (data->a2410_activecnt > 0) {
+			data->a2410_activecnt = 0;
+			data->a2410_newactive = active;
+			data->a2410_preactive = active;
+		} else if (active) {
+			data->a2410_preactive = active;
+			data->a2410_newactive = active;
+			data->request_fullrefresh = 1;
+		} else {
+			data->a2410_activecnt = 2;
+			data->a2410_preactive = data->a2410_newactive;
+			data->a2410_newactive = active;
+			active = data->a2410_preactive;
+		}
+	} else {
+		if (data->a2410_activecnt > 0) {
+			active = data->a2410_preactive;
+			data->a2410_activecnt--;
+			if (!data->a2410_activecnt) {
+				data->a2410_preactive = data->a2410_newactive;
+				active = data->a2410_newactive;
+				if (active) {
+					data->request_fullrefresh = 1;
+				}
+			}
+		}
+	}
+
+	if (active && !data->a2410_visible && !data->a2410_active && !data->a2410_enabled) {
 		gfxboard_rtg_enable_initial(monid, data->a2410_gfxboard);
+		data->a2410_visible = true;
+		tms_toggle(data, 1);
+	} else if ((!active || !data->a2410_enabled) && data->a2410_visible) {
+		if (gfxboard_switch_away(monid)) {
+			tms_toggle(data, 0);
+			data->a2410_visible = false;
+		}
+		if (data->a2410_surface)
+			gfx_unlock_picasso(monid, false);
+		data->a2410_surface = NULL;
+		return;
+	} else if (active && data->a2410_enabled && !data->a2410_visible) {
+		if (!gfxboard_rtg_enable_initial(monid, data->a2410_gfxboard)) {
+			data->a2410_visible = true;
+			tms_toggle(data, 1);
+		}
 	}
 
 	if (data->a2410_visible) {
-		if (enabled != data->a2410_enabled || data->a2410_modechanged) {
+		if (active != data->a2410_active || data->a2410_modechanged) {
 			if (data->a2410_surface)
 				gfx_unlock_picasso(monid, false);
 			data->a2410_surface = NULL;
 
-			if (enabled) {
-				data->a2410_modechanged = false;
+			if (active) {
 				data->fullrefresh = 2;
 			}
-			data->a2410_enabled = enabled;
+			data->a2410_modechanged = false;
 			write_log(_T("A2410 MONITOR=%d ACTIVE=%d\n"), monid, data->a2410_enabled);
 		}
 
@@ -759,6 +820,7 @@ static void tms_vsync_handler2(struct a2410_struct *data, bool internalsync)
 			gfx_unlock_picasso(monid, false);
 		}
 	}
+	data->a2410_active = active;
 
 	data->a2410_interlace = -data->a2410_interlace;
 
@@ -815,16 +877,22 @@ static void tms_hsync_handler2(struct a2410_struct *data)
 	tms_device.m_icount = 1000;
 	tms_device.execute_run();
 	int a2410_vpos = data->tms_vp;
+
+	tms34010_display_params parms;
+	tms_device.get_display_params(&parms);
+
 	data->tms_vp = tms_device.scanline_callback(NULL, data->tms_vp, data->a2410_interlace < 0);
 
 	a2410_rethink(data);
 
-	if (!data->a2410_enabled)
+	if (!data->a2410_preactive)
 		return;
 
 	if (a2410_vpos == 0) {
 		tms_vsync_handler2(data, true);
-		picasso_getwritewatch(data->a2410_gfxboard, data->a2410_vram_start_offset, NULL, NULL);
+		if (data->a2410_interlace <= 0) {
+			picasso_getwritewatch(data->a2410_gfxboard, data->a2410_vram_start_offset, NULL, NULL);
+		}
 	}
 
 	if (data->a2410_modechanged || !ad->picasso_on)
@@ -834,52 +902,67 @@ static void tms_hsync_handler2(struct a2410_struct *data)
 		data->fullrefresh--;
 	}
 
-	tms34010_display_params parms;
-	tms_device.get_display_params(&parms);
-
 	data->a2410_displaywidth = parms.hsblnk - parms.heblnk;
 	data->a2410_displayend = parms.heblnk;
 	data->a2410_vertical_start = parms.veblnk;
 
-	int overlay_yoffset = a2410_vpos - data->a2410_vertical_start;
+	int yoffset = a2410_vpos - data->a2410_vertical_start;
 
-	int coladdr = parms.coladdr;
+	int coladdr = parms.coladdr & 0x1ff;
 	int vramoffset = ((parms.rowaddr << 8) & 0x7ffff);
-	uae_u16 *vram = (uae_u16*)data->gfxbank->baseaddr + vramoffset;
+	int overlayoffset = (parms.rowaddr << 6) & 0x1ffff;
+	int overlayline = parms.yoffset;
 
-	int overlayoffset = a2410_vpos - parms.veblnk;
-
-	if (overlay_yoffset < 0)
+	if (yoffset < 0 || yoffset >= MAX_HEIGHT || a2410_vpos < 0 || a2410_vpos >= MAX_HEIGHT)
 		return;
 
 	if (data->a2410_interlace) {
-		overlay_yoffset *= 2;
-		if (data->a2410_interlace < 0)
-			overlay_yoffset++;
-	}
-
-	if (overlay_yoffset >= data->a2410_height || overlay_yoffset >= vidinfo->height)
-		return;
-
-	if (!data->fullrefresh && !data->a2410_modified[overlay_yoffset]) {
-		if (!picasso_is_vram_dirty(data->a2410_gfxboard, data->gfxbank->start + (vramoffset << 1), data->a2410_displaywidth)) {
-			if (!picasso_is_vram_dirty(data->a2410_gfxboard, data->gfxbank->start + ((vramoffset + 0x200) << 1), data->a2410_displaywidth)) {
-				return;
-			}
+		yoffset *= 2;
+		if (data->a2410_interlace < 0) {
+			yoffset++;
 		}
 	}
+
+	uae_u16 *vram = (uae_u16 *)data->gfxbank->baseaddr + vramoffset;
+	data->overlaylinetable[a2410_vpos] = overlayoffset;
 
 	get_a2410_surface(data);
 	uae_u8 *dst = data->a2410_surface;
 	if (!dst)
 		return;
 
-	data->a2410_modified[overlay_yoffset] = false;
+	if (yoffset >= data->a2410_height || yoffset >= vidinfo->maxheight)
+		return;
+	if (overlayline < 0 || overlayline >= MAX_HEIGHT)
+		return;
 
-	dst += overlay_yoffset * vidinfo->rowbytes;
+	bool linerefresh = false;
+
+	if (data->vramlinetab[a2410_vpos] != vramoffset) {
+		data->vramlinetab[a2410_vpos] = vramoffset;
+		linerefresh = true;
+	}
+
+	if (coladdr != data->coladdr) {
+		data->fullrefresh = 1;
+		data->coladdr = coladdr;
+	}
+
+	if (!data->fullrefresh && !data->a2410_modified[a2410_vpos] && !linerefresh) {
+		if (!picasso_is_vram_dirty(data->a2410_gfxboard, data->gfxbank->start + (vramoffset << 1), data->a2410_displaywidth)) {
+			return;
+		}
+	}
+
+	if (data->a2410_interlace <= 0) {
+		data->a2410_modified[a2410_vpos] = false;
+	}
+
+	dst += yoffset * vidinfo->rowbytes;
 	uae_u32 *dst32 = (uae_u32*)dst;
 
-	uae_u8 *overlay0 = data->program_ram + overlayoffset * OVERLAY_WIDTH / 8;
+	overlayoffset += (coladdr >> 3) << 1;
+	uae_u8 *overlay0 = data->program_ram + overlayoffset;
 	uae_u8 *overlay1 = overlay0 + 0x20000;
 
 	bool overlay0color = !(data->a2410_palette_control[6 - 4] & 0x40);
@@ -899,7 +982,7 @@ static void tms_hsync_handler2(struct a2410_struct *data)
 	int overlay_bitcount = 0;
 	uae_u8 opix0 = 0, opix1 = 0;
 
-	for (int x = parms.heblnk; x < parms.hsblnk && xx < vidinfo->width; x += 2, xx += 2) {
+	for (int x = parms.heblnk; x < parms.hsblnk && xx < vidinfo->maxwidth; x += 2, xx += 2) {
 
 		if (a2410_vpos >= parms.veblnk && a2410_vpos < parms.vsblnk) {
 
@@ -909,8 +992,11 @@ static void tms_hsync_handler2(struct a2410_struct *data)
 				overlay_offset++;
 			}
 
-			uae_u16 pix = vram[coladdr & 0x1ff];
-			coladdr++;
+			uae_u16 pix = 0;
+			if (coladdr < 0x400) {
+				pix = vram[coladdr];
+				coladdr++;
+			}
 
 			if (overlay0color || opix0 || opix1) {
 
@@ -951,7 +1037,7 @@ static void tms_hsync_handler2(struct a2410_struct *data)
 		}
 	}
 
-	while (xx < vidinfo->width) {
+	while (xx < vidinfo->maxwidth) {
 		*dst32++ = 0;
 		xx++;
 	}
@@ -974,6 +1060,12 @@ void standard_irq_callback(int level)
 	a2410_rethink(data);
 }
 
+static void tms_refresh(void *userdata)
+{
+	struct a2410_struct *data = (struct a2410_struct *)userdata;
+	data->request_fullrefresh = 1;
+}
+
 struct gfxboard_func a2410_func
 {
 	tms_init,
@@ -981,6 +1073,7 @@ struct gfxboard_func a2410_func
 	tms_reset,
 	tms_hsync,
 	tms_vsync,
+	tms_refresh,
 	tms_toggle,
 	tms_configured
 };

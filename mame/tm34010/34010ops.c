@@ -533,7 +533,7 @@ void tms340x0_device::dint(UINT16 op)
 			}                                               \
 			else                                            \
 			{                                               \
-				*rd1 = quotient;                            \
+				*rd1 = (INT32)quotient;                            \
 				*rd2 = remainder;                           \
 				SET_NZ_VAL(*rd1);                          \
 			}                                               \
@@ -580,7 +580,7 @@ void tms340x0_device::divs_b(UINT16 op) { DIVS(B); }
 			}                                               \
 			else                                            \
 			{                                               \
-				*rd1 = quotient;                            \
+				*rd1 = (INT32)quotient;                            \
 				*rd2 = remainder;                           \
 				SET_Z_VAL(*rd1);                           \
 			}                                               \
