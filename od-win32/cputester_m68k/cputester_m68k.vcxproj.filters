@@ -48,5 +48,8 @@
     <ClCompile Include="..\..\cputest\adis\util.c">
       <Filter>Source Files\adis</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\cputest\dir.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>

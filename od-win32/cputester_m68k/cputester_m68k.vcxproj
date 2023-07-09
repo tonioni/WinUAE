@@ -85,6 +85,7 @@
     <ClCompile Include="..\..\cputest\adis\opcode_handler_fpu.c" />
     <ClCompile Include="..\..\cputest\adis\opcode_handler_mmu.c" />
     <ClCompile Include="..\..\cputest\adis\util.c" />
+    <ClCompile Include="..\..\cputest\dir.c" />
     <ClCompile Include="..\..\cputest\main.c" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
