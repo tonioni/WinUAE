@@ -1023,37 +1023,38 @@ static void parse_cmdline (int argc, TCHAR **argv)
 }
 #endif
 
-static void parse_cmdline_and_init_file (int argc, TCHAR **argv)
+static void parse_cmdline_and_init_file(int argc, TCHAR **argv)
 {
 
 	_tcscpy (optionsfile, _T(""));
 
 #ifdef OPTIONS_IN_HOME
 	{
-		TCHAR *home = getenv ("HOME");
-		if (home != NULL && strlen (home) < 240)
+		TCHAR *home = getenv("HOME");
+		if (home != NULL && strlen(home) < 240)
 		{
-			_tcscpy (optionsfile, home);
-			_tcscat (optionsfile, _T("/"));
+			_tcscpy(optionsfile, home);
+			_tcscat(optionsfile, _T("/"));
 		}
 	}
 #endif
 
-	parse_cmdline_2 (argc, argv);
+	parse_cmdline_2(argc, argv);
 
-	_tcscat (optionsfile, restart_config);
+	_tcscat(optionsfile, restart_config);
 
-	if (! target_cfgfile_load (&currprefs, optionsfile, CONFIG_TYPE_DEFAULT, default_config)) {
-		write_log (_T("failed to load config '%s'\n"), optionsfile);
+	if (! target_cfgfile_load(&currprefs, optionsfile, CONFIG_TYPE_DEFAULT, default_config)) {
+		write_log(_T("failed to load config '%s'\n"), optionsfile);
 #ifdef OPTIONS_IN_HOME
 		/* sam: if not found in $HOME then look in current directory */
-		_tcscpy (optionsfile, restart_config);
-		target_cfgfile_load (&currprefs, optionsfile, CONFIG_TYPE_DEFAULT, default_config);
+		_tcscpy(optionsfile, restart_config);
+		target_cfgfile_load(&currprefs, optionsfile, CONFIG_TYPE_DEFAULT, default_config);
 #endif
 	}
-	fixup_prefs (&currprefs, false);
 
-	parse_cmdline (argc, argv);
+	parse_cmdline(argc, argv);
+
+	fixup_prefs(&currprefs, false);
 }
 
 /* Okay, this stuff looks strange, but it is here to encourage people who
