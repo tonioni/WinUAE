@@ -63,6 +63,8 @@
 #include "statusline.h"
 #include "devices.h"
 
+#include "darkmode.h"
+
 #define DM_DX_FULLSCREEN 1
 #define DM_W_FULLSCREEN 2
 #define DM_D3D_FULLSCREEN 16
@@ -2306,6 +2308,8 @@ int check_prefs_changed_gfx(void)
 				c = 1024;
 			} else if (display_change_requested == 2) {
 				c = 512;
+			} else if (display_change_requested == 4) {
+				c = 32;
 			} else {
 				c = 2;
 				keepfsmode = 0;
@@ -3209,6 +3213,13 @@ static void createstatuswindow(struct AmigaMonitor *mon)
 		0, 0, 0, 0, mon->hMainWnd, (HMENU) 1, hInst, NULL);
 	if (!mon->hStatusWnd)
 		return;
+	if (g_darkModeSupported) {
+		BOOL value = g_darkModeEnabled;
+		DwmSetWindowAttribute(mon->hStatusWnd, DWMWA_USE_IMMERSIVE_DARK_MODE, &value, sizeof(value));
+		if (g_darkModeEnabled) {
+			SubClassStatusBar(mon->hStatusWnd);
+		}
+	}
 	wi.cbSize = sizeof wi;
 	GetWindowInfo(mon->hMainWnd, &wi);
 	extra = wi.rcClient.top - wi.rcWindow.top;
@@ -3234,7 +3245,7 @@ static void createstatuswindow(struct AmigaMonitor *mon)
 		if (lpParts) {
 			int i = 0, i1;
 			// left side, msg area
-			lpParts[i] = rc.left + 2;
+			lpParts[i] = rc.left;
 			i++;
 			window_led_msg_start = i;
 			/* Calculate the right edge coordinate for each part, and copy the coords to the array.  */
@@ -3569,6 +3580,7 @@ static int create_windows(struct AmigaMonitor *mon)
 			else
 				ny = rc.top + (rc.bottom - rc.top - nh);
 		}
+
 		if (w != nw || h != nh || x != nx || y != ny || sbheight != mon->window_extra_height_bar || dpi != mon->dpi) {
 			w = nw;
 			h = nh;
@@ -3731,6 +3743,10 @@ static int create_windows(struct AmigaMonitor *mon)
 				}
 				break;
 			}
+			if (g_darkModeSupported) {
+				BOOL value = g_darkModeEnabled;
+				DwmSetWindowAttribute(mon->hMainWnd, DWMWA_USE_IMMERSIVE_DARK_MODE, &value, sizeof(value));
+			}
 			GetWindowRect(mon->hMainWnd, &rc2);
 			mon->window_extra_width = rc2.right - rc2.left - mon->currentmode.current_width;
 			mon->window_extra_height = rc2.bottom - rc2.top - mon->currentmode.current_height;
@@ -3780,6 +3796,10 @@ static int create_windows(struct AmigaMonitor *mon)
 		write_log (_T("creation of amiga window failed\n"));
 		close_hwnds(mon);
 		return 0;
+	}
+	if (g_darkModeSupported) {
+		BOOL value = g_darkModeEnabled;
+		DwmSetWindowAttribute(mon->hAmigaWnd, DWMWA_USE_IMMERSIVE_DARK_MODE, &value, sizeof(value));
 	}
 	if (mon->hMainWnd == NULL) {
 		mon->hMainWnd = mon->hAmigaWnd;

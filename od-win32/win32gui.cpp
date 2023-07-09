@@ -30,6 +30,7 @@
 #include <shobjidl.h>
 #include <dbt.h>
 #include <Cfgmgr32.h>
+#include <dwmapi.h>
 
 #include "resource.h"
 #include "sysconfig.h"
@@ -104,6 +105,9 @@
 #include "floppybridge/floppybridge_lib.h"
 #endif
 
+#include <Vssym32.h>
+#include "darkmode.h"
+
 #define GUI_SCALE_DEFAULT 100
 
 
@@ -137,6 +141,41 @@ static struct newresource *panelresource;
 int dialog_inhibit;
 static HMODULE hHtmlHelp;
 pathtype path_type;
+
+static void darkmode_initdialog(HWND hDlg)
+{
+	if (g_darkModeSupported)
+	{
+		SendMessageW(hDlg, WM_THEMECHANGED, 0, 0);
+	}
+}
+static void darkmode_themechanged(HWND hDlg)
+{
+	if (g_darkModeSupported)
+	{
+		RefreshTitleBarThemeColor(hDlg);
+		UpdateWindow(hDlg);
+	}
+}
+static INT_PTR darkmode_ctlcolor(WPARAM wParam, bool *handled)
+{
+	constexpr COLORREF darkBkColor = 0x383838;
+	constexpr COLORREF darkTextColor = 0xFFFFFF;
+	static HBRUSH hbrBkgnd = nullptr;
+
+	if (g_darkModeSupported && g_darkModeEnabled)
+	{
+		HDC hdc = reinterpret_cast<HDC>(wParam);
+		SetTextColor(hdc, darkTextColor);
+		SetBkColor(hdc, darkBkColor);
+		if (!hbrBkgnd)
+			hbrBkgnd = CreateSolidBrush(darkBkColor);
+		*handled = true;
+		return reinterpret_cast<INT_PTR>(hbrBkgnd);
+	}
+	*handled = false;
+	return 0;
+}
 
 void HtmlHelp(const TCHAR *panel)
 {
@@ -400,12 +439,36 @@ static int gui_get_string_cursor(int *table, HWND hDlg, int item)
 	return table[posn];
 }
 
-static void commonproc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
+static INT_PTR commonproc2(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam, bool *handled)
 {
+	if (msg == WM_INITDIALOG) {
+		darkmode_initdialog(hDlg);
+	} else if (msg == WM_CTLCOLORDLG || msg == WM_CTLCOLORSTATIC) {
+		INT_PTR v = darkmode_ctlcolor(wParam, handled);
+		if (*handled) {
+			return v;
+		}
+	} else if (msg == WM_THEMECHANGED) {
+		darkmode_themechanged(hDlg);
+	}
+	*handled = false;
+	return 0;
+}
+
+static INT_PTR commonproc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam, bool *handled)
+{
+	*handled = false;
 	if (msg == WM_DPICHANGED) {
 		RECT *const r = (RECT *)lParam;
 		SetWindowPos(hDlg, NULL, r->left, r->top, r->right - r->left, r->bottom - r->top, SWP_NOZORDER | SWP_NOACTIVATE);
+		*handled = true;
+	} else {
+		INT_PTR v = commonproc2(hDlg, msg, wParam, lParam, handled);
+		if (*handled) {
+			return v;
+		}
 	}
+	return 0;
 }
 
 static int stringboxdialogactive;
@@ -413,6 +476,12 @@ static INT_PTR CALLBACK StringBoxDialogProc (HWND hDlg, UINT msg, WPARAM wParam,
 {
 	if (dialog_inhibit)
 		return 0;
+
+	bool handled;
+	INT_PTR v = commonproc(hDlg, msg, wParam, lParam, &handled);
+	if (handled) {
+		return v;
+	}
 
 	switch(msg)
 	{
@@ -439,7 +508,6 @@ static INT_PTR CALLBACK StringBoxDialogProc (HWND hDlg, UINT msg, WPARAM wParam,
 		}
 		break;
 	}
-	commonproc(hDlg, msg, wParam, lParam);
 	return FALSE;
 }
 
@@ -1749,6 +1817,12 @@ static INT_PTR CALLBACK InfoBoxDialogProc (HWND hDlg, UINT msg, WPARAM wParam, L
 	if (dialog_inhibit)
 		return 0;
 
+	bool handled;
+	INT_PTR v = commonproc(hDlg, msg, wParam, lParam, &handled);
+	if (handled) {
+		return v;
+	}
+
 	switch(msg)
 	{
 	case WM_DESTROY:
@@ -1769,7 +1843,6 @@ static INT_PTR CALLBACK InfoBoxDialogProc (HWND hDlg, UINT msg, WPARAM wParam, L
 		}
 		break;
 	}
-	commonproc(hDlg, msg, wParam, lParam);
 	return FALSE;
 }
 static bool scan_rom_hook (const TCHAR *name, int line)
@@ -2279,7 +2352,7 @@ int target_cfgfile_load (struct uae_prefs *p, const TCHAR *filename, int type, i
 }
 
 static int gui_width, gui_height;
-int gui_fullscreen;
+int gui_fullscreen, gui_darkmode;
 static RECT gui_fullscreen_rect;
 static bool gui_resize_enabled = true;
 static bool gui_resize_allowed = true;
@@ -5071,6 +5144,7 @@ static void InitializeListView (HWND hDlg)
 	}
 
 	list = GetDlgItem(hDlg, listview_id);
+	SubclassListViewControl(list);
 	listview_type = lv_type;
 	listview_columns = listview_num_columns;
 
@@ -5728,6 +5802,12 @@ static INT_PTR CALLBACK InfoSettingsProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 	if (dialog_inhibit)
 		return 0;
 
+	bool handled;
+	INT_PTR v = commonproc(hDlg, msg, wParam, lParam, &handled);
+	if (handled) {
+		return v;
+	}
+
 	switch (msg)
 	{
 	case WM_INITDIALOG:
@@ -5815,7 +5895,6 @@ static INT_PTR CALLBACK InfoSettingsProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 		recursive--;
 		break;
 	}
-	commonproc(hDlg, msg, wParam, lParam);
 	return FALSE;
 }
 
@@ -6055,6 +6134,7 @@ static HTREEITEM InitializeConfigTreeView (HWND hDlg)
 {
 	HIMAGELIST himl = ImageList_Create (16, 16, ILC_COLOR8 | ILC_MASK, 3, 0);
 	HWND TVhDlg = GetDlgItem(hDlg, IDC_CONFIGTREE);
+	SubclassTreeViewControl(TVhDlg);
 	HTREEITEM parent;
 	TCHAR path[MAX_DPATH];
 
@@ -6267,7 +6347,7 @@ static void loadsavecommands (HWND hDlg, WPARAM wParam, struct ConfigStruct **co
 		break;
 	case IDC_SETINFO:
 		InfoSettingsProcConfig = config;
-		if (CustomDialogBox(IDD_SETINFO, hDlg, InfoSettingsProc))
+		if (CustomCreateDialog(IDD_SETINFO, hDlg, InfoSettingsProc))
 			EnableWindow( GetDlgItem( hDlg, IDC_VIEWINFO ), workprefs.info[0] );
 		break;
 	}
@@ -6282,6 +6362,12 @@ static INT_PTR CALLBACK LoadSaveDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPA
 
 	if (dialog_inhibit)
 		return 0;
+
+	bool handled;
+	INT_PTR vv = commonproc2(hDlg, msg, wParam, lParam, &handled);
+	if (handled) {
+		return vv;
+	}
 
 	switch (msg)
 	{
@@ -6414,6 +6500,12 @@ static INT_PTR CALLBACK ErrorLogProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 	if (dialog_inhibit)
 		return 0;
 
+	bool handled;
+	INT_PTR v = commonproc(hDlg, msg, wParam, lParam, &handled);
+	if (handled) {
+		return v;
+	}
+
 	switch (msg) {
 	case WM_COMMAND:
 		if (wParam == IDOK) {
@@ -6438,7 +6530,6 @@ static INT_PTR CALLBACK ErrorLogProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 		xSendDlgItemMessage (hDlg, IDC_ERRORLOGMESSAGE, EM_SETCHARFORMAT, SCF_ALL, (LPARAM) & CharFormat);
 		return TRUE;
 	}
-	commonproc(hDlg, msg, wParam, lParam);
 	return FALSE;
 }
 
@@ -6452,6 +6543,12 @@ static INT_PTR CALLBACK ContributorsProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 
 	if (dialog_inhibit)
 		return 0;
+
+	bool handled;
+	INT_PTR v = commonproc(hDlg, msg, wParam, lParam, &handled);
+	if (handled) {
+		return v;
+	}
 
 	switch (msg) {
 	case WM_COMMAND:
@@ -6476,13 +6573,12 @@ static INT_PTR CALLBACK ContributorsProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 		xSendDlgItemMessage (hDlg, IDC_CONTRIBUTORS, EM_SETCHARFORMAT, SCF_ALL, (LPARAM) & CharFormat);
 		return TRUE;
 	}
-	commonproc(hDlg, msg, wParam, lParam);
 	return FALSE;
 }
 
 static void DisplayContributors (HWND hDlg)
 {
-	CustomDialogBox (IDD_CONTRIBUTORS, hDlg, ContributorsProc);
+	CustomCreateDialog(IDD_CONTRIBUTORS, hDlg, ContributorsProc);
 }
 
 typedef struct url_info
@@ -6858,6 +6954,12 @@ static INT_PTR CALLBACK PathsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 
 	if (dialog_inhibit)
 		return 0;
+
+	bool handled;
+	INT_PTR vv = commonproc2(hDlg, msg, wParam, lParam, &handled);
+	if (handled) {
+		return vv;
+	}
 
 	switch (msg)
 	{
@@ -7699,6 +7801,12 @@ static INT_PTR CALLBACK QuickstartDlgProc (HWND hDlg, UINT msg, WPARAM wParam, L
 	if (dialog_inhibit)
 		return 0;
 
+	bool handled;
+	INT_PTR vv = commonproc2(hDlg, msg, wParam, lParam, &handled);
+	if (handled) {
+		return vv;
+	}
+
 	switch(msg)
 	{
 	case WM_INITDIALOG:
@@ -7952,6 +8060,12 @@ static INT_PTR CALLBACK AboutDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 {
 	if (dialog_inhibit)
 		return 0;
+
+	bool handled;
+	INT_PTR vv = commonproc2(hDlg, msg, wParam, lParam, &handled);
+	if (handled) {
+		return vv;
+	}
 
 	switch( msg )
 	{
@@ -8978,6 +9092,12 @@ static INT_PTR CALLBACK DisplayDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPAR
 	if (dialog_inhibit)
 		return 0;
 
+	bool handled;
+	INT_PTR vv = commonproc2(hDlg, msg, wParam, lParam, &handled);
+	if (handled) {
+		return vv;
+	}
+
 	switch (msg)
 	{
 	case WM_INITDIALOG:
@@ -9227,6 +9347,12 @@ static INT_PTR CALLBACK ChipsetDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPAR
 
 	if (dialog_inhibit)
 		return 0;
+
+	bool handled;
+	INT_PTR vv = commonproc2(hDlg, msg, wParam, lParam, &handled);
+	if (handled) {
+		return vv;
+	}
 
 	switch (msg) {
 	case WM_INITDIALOG:
@@ -9640,6 +9766,12 @@ static INT_PTR CALLBACK ChipsetDlgProc2 (HWND hDlg, UINT msg, WPARAM wParam, LPA
 
 	if (dialog_inhibit)
 		return 0;
+
+	bool handled;
+	INT_PTR vv = commonproc2(hDlg, msg, wParam, lParam, &handled);
+	if (handled) {
+		return vv;
+	}
 
 	switch (msg) {
 	case WM_INITDIALOG:
@@ -11166,6 +11298,12 @@ static INT_PTR CALLBACK Expansion2DlgProc(HWND hDlg, UINT msg, WPARAM wParam, LP
 	if (dialog_inhibit)
 		return 0;
 
+	bool handled;
+	INT_PTR vv = commonproc2(hDlg, msg, wParam, lParam, &handled);
+	if (handled) {
+		return vv;
+	}
+
 	switch (msg)
 	{
 		case WM_INITDIALOG:
@@ -11558,6 +11696,12 @@ static INT_PTR CALLBACK ExpansionDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 	if (dialog_inhibit)
 		return 0;
 
+	bool handled;
+	INT_PTR vv = commonproc2(hDlg, msg, wParam, lParam, &handled);
+	if (handled) {
+		return vv;
+	}
+
 	switch (msg)
 	{
 	case WM_INITDIALOG:
@@ -11861,6 +12005,12 @@ static INT_PTR CALLBACK BoardsDlgProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 	if (dialog_inhibit)
 		return 0;
 
+	bool handled;
+	INT_PTR vv = commonproc2(hDlg, msg, wParam, lParam, &handled);
+	if (handled) {
+		return vv;
+	}
+
 	switch (msg)
 	{
 		case WM_INITDIALOG:
@@ -11868,7 +12018,9 @@ static INT_PTR CALLBACK BoardsDlgProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 		pages[BOARD_ID] = hDlg;
 		currentpage = BOARD_ID;
 		setchecked(hDlg, IDC_AUTOCONFIGCUSTOMSORT, workprefs.autoconfig_custom_sort);
-		ew(hDlg, IDC_BOARDLIST, workprefs.autoconfig_custom_sort != 0 && full_property_sheet);
+		if (!g_darkModeEnabled) { // dark mode makes disabled list bright..
+			ew(hDlg, IDC_BOARDLIST, workprefs.autoconfig_custom_sort != 0 && full_property_sheet);
+		}
 		ew(hDlg, IDC_BOARDS_UP, FALSE);
 		ew(hDlg, IDC_BOARDS_DOWN, FALSE);
 		ew(hDlg, IDC_AUTOCONFIGCUSTOMSORT, full_property_sheet);
@@ -11884,7 +12036,9 @@ static INT_PTR CALLBACK BoardsDlgProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 				case IDC_AUTOCONFIGCUSTOMSORT:
 				workprefs.autoconfig_custom_sort = ischecked(hDlg, IDC_AUTOCONFIGCUSTOMSORT);
 				expansion_set_autoconfig_sort(&workprefs);
-				ew(hDlg, IDC_BOARDLIST, workprefs.autoconfig_custom_sort != 0);
+				if (!g_darkModeEnabled) { // dark mode makes disabled list bright..
+					ew(hDlg, IDC_BOARDLIST, workprefs.autoconfig_custom_sort != 0);
+				}
 				InitializeListView(hDlg);
 				break;
 				case IDC_BOARDS_UP:
@@ -11997,6 +12151,12 @@ static INT_PTR CALLBACK MemoryDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARA
 
 	if (dialog_inhibit)
 		return 0;
+
+	bool handled;
+	INT_PTR vv = commonproc2(hDlg, msg, wParam, lParam, &handled);
+	if (handled) {
+		return vv;
+	}
 
 	switch (msg)
 	{
@@ -12403,6 +12563,12 @@ static INT_PTR CALLBACK KickstartDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 	if (dialog_inhibit)
 		return 0;
 
+	bool handled;
+	INT_PTR vv = commonproc2(hDlg, msg, wParam, lParam, &handled);
+	if (handled) {
+		return vv;
+	}
+
 	switch (msg)
 	{
 	case WM_INITDIALOG:
@@ -12739,13 +12905,24 @@ static void values_to_miscdlg (HWND hDlg)
 
 	if (currentpage == MISC1_ID) {
 
-		misc_kbled (hDlg, IDC_KBLED1, workprefs.keyboard_leds[0]);
-		misc_kbled (hDlg, IDC_KBLED2, workprefs.keyboard_leds[1]);
-		misc_kbled (hDlg, IDC_KBLED3, workprefs.keyboard_leds[2]);
-		CheckDlgButton (hDlg, IDC_KBLED_USB, workprefs.win32_kbledmode);
-		CheckDlgButton (hDlg, IDC_GUI_RESIZE, gui_resize_enabled);
-		CheckDlgButton (hDlg, IDC_GUI_FULLSCREEN, gui_fullscreen > 0);
-		ew (hDlg, IDC_GUI_RESIZE, gui_resize_allowed);
+		misc_kbled(hDlg, IDC_KBLED1, workprefs.keyboard_leds[0]);
+		misc_kbled(hDlg, IDC_KBLED2, workprefs.keyboard_leds[1]);
+		misc_kbled(hDlg, IDC_KBLED3, workprefs.keyboard_leds[2]);
+		CheckDlgButton(hDlg, IDC_KBLED_USB, workprefs.win32_kbledmode);
+		CheckDlgButton(hDlg, IDC_GUI_RESIZE, gui_resize_enabled);
+		CheckDlgButton(hDlg, IDC_GUI_FULLSCREEN, gui_fullscreen > 0);
+		ew(hDlg, IDC_GUI_DARKMODE, os_win10 && !rp_isactive() && !darkModeForced);
+		if (!os_win10) {
+			gui_darkmode = 0;
+		}
+		if (darkModeForced > 0 || gui_darkmode > 0) {
+			CheckDlgButton(hDlg, IDC_GUI_DARKMODE, 1);
+		} else if (darkModeForced < 0 || gui_darkmode == 0) {
+			CheckDlgButton(hDlg, IDC_GUI_DARKMODE, 0);
+		} else {
+			CheckDlgButton(hDlg, IDC_GUI_DARKMODE, BST_INDETERMINATE);
+		}
+		ew(hDlg, IDC_GUI_RESIZE, gui_resize_allowed);
 
 		misc_scsi (hDlg);
 		misc_lang (hDlg);
@@ -12879,6 +13056,12 @@ static INT_PTR MiscDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 	int v, i;
 	static int recursive;
 	TCHAR tmp[MAX_DPATH];
+
+	bool handled;
+	INT_PTR vv = commonproc2(hDlg, msg, wParam, lParam, &handled);
+	if (handled) {
+		return vv;
+	}
 
 	if (recursive)
 		return FALSE;
@@ -13088,13 +13271,32 @@ static INT_PTR MiscDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 			gui_size_changed = 10;
 		break;
 		case IDC_GUI_FULLSCREEN:
-			gui_fullscreen = ischecked (hDlg, IDC_GUI_FULLSCREEN);
+			gui_fullscreen = ischecked(hDlg, IDC_GUI_FULLSCREEN);
 			if (!gui_fullscreen) {
 				gui_fullscreen = -1;
 				getstoredguisize();
 			}
 			gui_size_changed = 10;
-		break;
+			break;
+		case IDC_GUI_DARKMODE:
+			{
+				int v = IsDlgButtonChecked(hDlg, IDC_GUI_DARKMODE);
+				if (!rp_isactive() && !darkModeForced) {
+					if (v == BST_INDETERMINATE) {
+						gui_darkmode = -1;
+					} else if (v) {
+						gui_darkmode = 1;
+					} else {
+						gui_darkmode = 0;
+					}
+					regsetint(NULL, _T("GUIDarkMode"), gui_darkmode);
+					gui_size_changed = 10;
+					if (!full_property_sheet) {
+						WIN32GFX_DisplayChangeRequested(4);
+					}
+				}
+			}
+			break;
 		case IDC_ASSOCIATE_ON:
 			for (i = 0; exts[i].ext; i++)
 				exts[i].enabled = 1;
@@ -13121,10 +13323,11 @@ static INT_PTR MiscDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 			setstatefilename (hDlg);
 			break;
 		case IDC_DOLOADSTATE:
-			if (DiskSelection(hDlg, wParam, 10, &workprefs, NULL, NULL))
+			if (DiskSelection(hDlg, wParam, 10, &workprefs, NULL, NULL)) {
 				savestate_state = STATE_DORESTORE;
-			_tcscpy (workprefs.statefile, savestate_fname);
-			setstatefilename (hDlg);
+				_tcscpy (workprefs.statefile, savestate_fname);
+				setstatefilename (hDlg);
+			}
 			break;
 		case IDC_INACTIVE_NOJOY:
 			if (!ischecked(hDlg, IDC_INACTIVE_NOJOY))
@@ -13564,6 +13767,12 @@ static INT_PTR CALLBACK CPUDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 
 	if (dialog_inhibit)
 		return 0;
+
+	bool handled;
+	INT_PTR vv = commonproc2(hDlg, msg, wParam, lParam, &handled);
+	if (handled) {
+		return vv;
+	}
 
 	switch (msg) {
 	case WM_INITDIALOG:
@@ -14100,6 +14309,12 @@ static INT_PTR CALLBACK SoundDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 	if (dialog_inhibit)
 		return 0;
 
+	bool handled;
+	INT_PTR vv = commonproc2(hDlg, msg, wParam, lParam, &handled);
+	if (handled) {
+		return vv;
+	}
+
 	switch (msg) {
 	case WM_INITDIALOG:
 		{
@@ -14365,6 +14580,12 @@ static INT_PTR CALLBACK VolumeSettingsProc (HWND hDlg, UINT msg, WPARAM wParam, 
 	if (dialog_inhibit)
 		return 0;
 
+	bool handled;
+	INT_PTR v = commonproc(hDlg, msg, wParam, lParam, &handled);
+	if (handled) {
+		return v;
+	}
+
 	switch (msg) {
 	case WM_INITDIALOG:
 		{
@@ -14469,7 +14690,6 @@ static INT_PTR CALLBACK VolumeSettingsProc (HWND hDlg, UINT msg, WPARAM wParam, 
 		recursive--;
 		break;
 	}
-	commonproc(hDlg, msg, wParam, lParam);
 	return FALSE;
 }
 
@@ -14959,6 +15179,12 @@ static INT_PTR CALLBACK TapeDriveSettingsProc (HWND hDlg, UINT msg, WPARAM wPara
 	if (dialog_inhibit)
 		return 0;
 
+	bool handled;
+	INT_PTR v = commonproc(hDlg, msg, wParam, lParam, &handled);
+	if (handled) {
+		return v;
+	}
+
 	switch (msg) {
 
 	case WM_INITDIALOG:
@@ -15057,7 +15283,6 @@ static INT_PTR CALLBACK TapeDriveSettingsProc (HWND hDlg, UINT msg, WPARAM wPara
 		recursive--;
 		break;
 	}
-	commonproc(hDlg, msg, wParam, lParam);
 	return FALSE;
 }
 
@@ -15068,6 +15293,12 @@ static INT_PTR CALLBACK CDDriveSettingsProc (HWND hDlg, UINT msg, WPARAM wParam,
 
 	if (dialog_inhibit)
 		return 0;
+
+	bool handled;
+	INT_PTR v = commonproc(hDlg, msg, wParam, lParam, &handled);
+	if (handled) {
+		return v;
+	}
 
 	switch (msg) {
 
@@ -15122,7 +15353,6 @@ static INT_PTR CALLBACK CDDriveSettingsProc (HWND hDlg, UINT msg, WPARAM wParam,
 		recursive--;
 		break;
 	}
-	commonproc(hDlg, msg, wParam, lParam);
 	return FALSE;
 }
 
@@ -15166,6 +15396,12 @@ static INT_PTR CALLBACK HardfileSettingsProc (HWND hDlg, UINT msg, WPARAM wParam
 
 	if (dialog_inhibit)
 		return 0;
+
+	bool handled;
+	INT_PTR vv = commonproc(hDlg, msg, wParam, lParam, &handled);
+	if (handled) {
+		return vv;
+	}
 
 	switch (msg) {
 	case WM_DROPFILES:
@@ -15433,7 +15669,6 @@ static INT_PTR CALLBACK HardfileSettingsProc (HWND hDlg, UINT msg, WPARAM wParam
 
 		break;
 	}
-	commonproc(hDlg, msg, wParam, lParam);
 	return FALSE;
 }
 
@@ -15448,6 +15683,12 @@ static INT_PTR CALLBACK HarddriveSettingsProc (HWND hDlg, UINT msg, WPARAM wPara
 
 	if (dialog_inhibit)
 		return 0;
+
+	bool handled;
+	INT_PTR vv = commonproc(hDlg, msg, wParam, lParam, &handled);
+	if (handled) {
+		return vv;
+	}
 
 	switch (msg) {
 	case WM_INITDIALOG:
@@ -15675,7 +15916,6 @@ static INT_PTR CALLBACK HarddriveSettingsProc (HWND hDlg, UINT msg, WPARAM wPara
 		recursive--;
 		break;
 	}
-	commonproc(hDlg, msg, wParam, lParam);
 	return FALSE;
 }
 
@@ -15781,12 +16021,12 @@ static void harddisk_edit (HWND hDlg)
 
 	if (uci->ci.type == UAEDEV_CD) {
 		memcpy (&current_cddlg.ci, uci, sizeof (struct uaedev_config_info));
-		if (CustomDialogBox (IDD_CDDRIVE, hDlg, CDDriveSettingsProc)) {
+		if (CustomCreateDialog(IDD_CDDRIVE, hDlg, CDDriveSettingsProc)) {
 			new_cddrive (hDlg, entry);
 		}
 	} else if (uci->ci.type == UAEDEV_TAPE) {
 		memcpy (&current_tapedlg.ci, uci, sizeof (struct uaedev_config_info));
-		if (CustomDialogBox (IDD_TAPEDRIVE, hDlg, TapeDriveSettingsProc)) {
+		if (CustomCreateDialog(IDD_TAPEDRIVE, hDlg, TapeDriveSettingsProc)) {
 			new_tapedrive (hDlg, entry);
 		}
 	}
@@ -15794,14 +16034,14 @@ static void harddisk_edit (HWND hDlg)
 	{
 		current_hfdlg.forcedcylinders = uci->ci.highcyl;
 		memcpy (&current_hfdlg.ci, uci, sizeof (struct uaedev_config_info));
-		if (CustomDialogBox (IDD_HARDFILE, hDlg, HardfileSettingsProc)) {
+		if (CustomCreateDialog(IDD_HARDFILE, hDlg, HardfileSettingsProc)) {
 			new_hardfile (hDlg, entry);
 		}
 	}
 	else if (type == FILESYS_HARDDRIVE) /* harddisk */
 	{
 		memcpy (&current_hfdlg.ci, uci, sizeof (struct uaedev_config_info));
-		if (CustomDialogBox (IDD_HARDDRIVE, hDlg, HarddriveSettingsProc)) {
+		if (CustomCreateDialog(IDD_HARDDRIVE, hDlg, HarddriveSettingsProc)) {
 			new_harddrive (hDlg, entry);
 		}
 	}
@@ -15809,7 +16049,7 @@ static void harddisk_edit (HWND hDlg)
 	{
 		memcpy (&current_fsvdlg.ci, uci, sizeof (struct uaedev_config_info));
 		archivehd = -1;
-		if (CustomDialogBox (IDD_FILESYS, hDlg, VolumeSettingsProc)) {
+		if (CustomCreateDialog(IDD_FILESYS, hDlg, VolumeSettingsProc)) {
 			new_filesys (hDlg, entry);
 		}
 	}
@@ -15860,30 +16100,30 @@ static int harddiskdlg_button (HWND hDlg, WPARAM wParam)
 	case IDC_NEW_FS:
 		default_fsvdlg (&current_fsvdlg);
 		archivehd = 0;
-		if (CustomDialogBox (IDD_FILESYS, hDlg, VolumeSettingsProc))
+		if (CustomCreateDialog(IDD_FILESYS, hDlg, VolumeSettingsProc))
 			new_filesys (hDlg, -1);
 		return 1;
 	case IDC_NEW_FSARCH:
 		archivehd = 1;
 		default_fsvdlg (&current_fsvdlg);
-		if (CustomDialogBox (IDD_FILESYS, hDlg, VolumeSettingsProc))
+		if (CustomCreateDialog(IDD_FILESYS, hDlg, VolumeSettingsProc))
 			new_filesys (hDlg, -1);
 		return 1;
 
 	case IDC_NEW_HF:
 		default_hfdlg (&current_hfdlg, false);
-		if (CustomDialogBox (IDD_HARDFILE, hDlg, HardfileSettingsProc))
+		if (CustomCreateDialog(IDD_HARDFILE, hDlg, HardfileSettingsProc))
 			new_hardfile (hDlg, -1);
 		return 1;
 
 	case IDC_NEW_CD:
-		if (CustomDialogBox (IDD_CDDRIVE, hDlg, CDDriveSettingsProc))
+		if (CustomCreateDialog(IDD_CDDRIVE, hDlg, CDDriveSettingsProc))
 			new_cddrive (hDlg, -1);
 		return 1;
 
 	case IDC_NEW_TAPE:
 		default_tapedlg (&current_tapedlg);
-		if (CustomDialogBox (IDD_TAPEDRIVE, hDlg, TapeDriveSettingsProc))
+		if (CustomCreateDialog(IDD_TAPEDRIVE, hDlg, TapeDriveSettingsProc))
 			new_tapedrive (hDlg, -1);
 		return 1;
 
@@ -15895,7 +16135,7 @@ static int harddiskdlg_button (HWND hDlg, WPARAM wParam)
 			WIN32GUI_LoadUIString (IDS_NOHARDDRIVES, tmp, sizeof (tmp) / sizeof (TCHAR));
 			gui_message (tmp);
 		} else {
-			if (CustomDialogBox (IDD_HARDDRIVE, hDlg, HarddriveSettingsProc))
+			if (CustomCreateDialog(IDD_HARDDRIVE, hDlg, HarddriveSettingsProc))
 				new_harddrive (hDlg, -1);
 		}
 		return 1;
@@ -15993,6 +16233,12 @@ static INT_PTR CALLBACK HarddiskDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPA
 {
 	if (dialog_inhibit)
 		return 0;
+
+	bool handled;
+	INT_PTR vv = commonproc2(hDlg, msg, wParam, lParam, &handled);
+	if (handled) {
+		return vv;
+	}
 
 	switch (msg) {
 	case WM_INITDIALOG:
@@ -16759,6 +17005,12 @@ static INT_PTR CALLBACK FloppyDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARA
 	if (dialog_inhibit)
 		return 0;
 
+	bool handled;
+	INT_PTR vv = commonproc2(hDlg, msg, wParam, lParam, &handled);
+	if (handled) {
+		return vv;
+	}
+
 	switch (msg)
 	{
 	case WM_INITDIALOG:
@@ -17090,6 +17342,12 @@ static INT_PTR CALLBACK SwapperDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPAR
 
 	if (dialog_inhibit)
 		return 0;
+
+	bool handled;
+	INT_PTR vv = commonproc2(hDlg, msg, wParam, lParam, &handled);
+	if (handled) {
+		return vv;
+	}
 
 	switch (msg)
 	{
@@ -17968,9 +18226,15 @@ static INT_PTR CALLBACK GamePortsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 	if (dialog_inhibit)
 		return 0;
 
+	bool handled;
+	INT_PTR vv = commonproc2(hDlg, msg, wParam, lParam, &handled);
+	if (handled) {
+		return vv;
+	}
+
 	switch (msg)
 	{
-	case WM_INITDIALOG:
+		case WM_INITDIALOG:
 		{
 			recursive++;
 			pages[GAMEPORTS_ID] = hDlg;
@@ -18184,6 +18448,12 @@ static INT_PTR CALLBACK IOPortsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPAR
 
 	if (dialog_inhibit)
 		return 0;
+
+	bool handled;
+	INT_PTR vv = commonproc2(hDlg, msg, wParam, lParam, &handled);
+	if (handled) {
+		return vv;
+	}
 
 	switch (msg)
 	{
@@ -19268,13 +19538,19 @@ static INT_PTR CALLBACK RemapSpecialsProc(HWND hDlg, UINT msg, WPARAM wParam, LP
 
 static void input_remapspecials(HWND hDlg)
 {
-	CustomDialogBox(IDD_LIST, hDlg, RemapSpecialsProc);
+	CustomCreateDialog(IDD_LIST, hDlg, RemapSpecialsProc);
 }
 
 static INT_PTR CALLBACK InputMapDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
 	if (dialog_inhibit)
 		return 0;
+
+	bool handled;
+	INT_PTR v = commonproc(hDlg, msg, wParam, lParam, &handled);
+	if (handled) {
+		return v;
+	}
 
 	static int recursive;
 	HWND h = GetDlgItem (hDlg, IDC_INPUTMAPLIST);
@@ -19426,7 +19702,6 @@ static INT_PTR CALLBACK InputMapDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPA
 	break;
 	}
 	handlerawinput (hDlg, msg, wParam, lParam);
-	commonproc(hDlg, msg, wParam, lParam);
 	return FALSE;
 }
 
@@ -19588,9 +19863,14 @@ static INT_PTR CALLBACK QualifierProc (HWND hDlg, UINT msg, WPARAM wParam, LPARA
 	if (dialog_inhibit)
 		return 0;
 
+	bool handled;
+	INT_PTR v = commonproc(hDlg, msg, wParam, lParam, &handled);
+	if (handled) {
+		return v;
+	}
+
 	static int recursive = 0;
 	HWND list = GetDlgItem (hDlg, IDC_LISTDIALOG_LIST);
-
 
 	switch (msg)
 	{
@@ -19691,7 +19971,6 @@ static INT_PTR CALLBACK QualifierProc (HWND hDlg, UINT msg, WPARAM wParam, LPARA
 		recursive--;
 		break;
 	}
-	commonproc(hDlg, msg, wParam, lParam);
 	return FALSE;
 }
 
@@ -19709,7 +19988,7 @@ static void input_qualifiers (HWND hDlg)
 	if (evt <= 0)
 		name[0] = 0;
 	
-	CustomDialogBox (IDD_LIST, hDlg, QualifierProc);
+	CustomCreateDialog(IDD_LIST, hDlg, QualifierProc);
 #if 0
 	int item = genericpopupmenu (hDlg, names, mflags, MAX_INPUT_QUALIFIERS * 2);
 	if (item >= 0)
@@ -19784,6 +20063,12 @@ static INT_PTR CALLBACK InputDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 
 	if (dialog_inhibit)
 		return 0;
+
+	bool handled;
+	INT_PTR vv = commonproc2(hDlg, msg, wParam, lParam, &handled);
+	if (handled) {
+		return vv;
+	}
 
 	switch (msg)
 	{
@@ -20734,6 +21019,12 @@ static INT_PTR CALLBACK hw3dDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 	if (dialog_inhibit)
 		return 0;
 
+	bool handled;
+	INT_PTR vv = commonproc2(hDlg, msg, wParam, lParam, &handled);
+	if (handled) {
+		return vv;
+	}
+
 	switch (msg)
 	{
 	case WM_INITDIALOG:
@@ -21223,6 +21514,12 @@ static INT_PTR CALLBACK AVIOutputDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 
 	if (dialog_inhibit)
 		return 0;
+
+	bool handled;
+	INT_PTR vv = commonproc2(hDlg, msg, wParam, lParam, &handled);
+	if (handled) {
+		return vv;
+	}
 
 	switch(msg)
 	{
@@ -21871,6 +22168,7 @@ static void createTreeView (HWND hDlg)
 	}
 
 	TVhDlg = GetDlgItem (hDlg, IDC_PANELTREE);
+	SubclassTreeViewControl(TVhDlg);
 	SetWindowRedraw(TVhDlg, FALSE);
 	TreeView_SetImageList (TVhDlg, himl, TVSIL_NORMAL);
 
@@ -22336,6 +22634,12 @@ static INT_PTR CALLBACK DialogProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 	if (dialog_inhibit)
 		return 0;
 
+	bool handled;
+	INT_PTR vv = commonproc2(hDlg, msg, wParam, lParam, &handled);
+	if (handled) {
+		return vv;
+	}
+
 	switch (msg)
 	{
 	case  WM_DPICHANGED:
@@ -22508,7 +22812,7 @@ static INT_PTR CALLBACK DialogProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 			{
 			case IDC_ERRORLOG:
 				{
-					CustomDialogBox (IDD_ERRORLOG, hDlg, ErrorLogProc);
+					CustomCreateDialog(IDD_ERRORLOG, hDlg, ErrorLogProc);
 					ShowWindow (GetDlgItem (guiDlg, IDC_ERRORLOG), is_error_log () ? SW_SHOW : SW_HIDE);
 				}
 				break;
@@ -22547,8 +22851,8 @@ static INT_PTR CALLBACK DialogProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 			}
 			break;
 		}
+
 	case WM_DWMCOMPOSITIONCHANGED:
-	case WM_THEMECHANGED:
 		gui_size_changed = 1;
 		return 0;
 	}
@@ -22622,7 +22926,7 @@ INT_PTR CustomDialogBox (int templ, HWND hDlg, DLGPROC proc)
 	return h;
 }
 
-HWND CustomCreateDialog (int templ, HWND hDlg, DLGPROC proc)
+HWND CustomCreateDialog(int templ, HWND hDlg, DLGPROC proc)
 {
 	struct newresource *res;
 	struct dlgcontext dctx;
@@ -22836,6 +23140,13 @@ static int GetSettings (int all_options, HWND hwnd)
 		regexists = regqueryint (NULL, _T("GUIResize"), &v);
 		gui_fullscreen = 0;
 		gui_resize_allowed = true;
+		v = -1;
+		regqueryint(NULL, _T("GUIDarkMode"), &v);
+		gui_darkmode = v;
+		if (rp_isactive()) {
+			v = -2;
+		}
+		InitializeDarkMode(v);
 		v = 0;
 		regqueryint(NULL, _T("GUIFullscreen"), &v);
 		if (v) {
@@ -22851,9 +23162,9 @@ static int GetSettings (int all_options, HWND hwnd)
 		if (!regexists) {
 			scaleresource_setdefaults(hwnd);
 			fmultx = 0;
-			write_log (_T("GUI default size\n"));
-			regsetint (NULL, _T("GUIResize"), 0);
-			regsetint (NULL, _T("GUIFullscreen"), 0);
+			write_log(_T("GUI default size\n"));
+			regsetint(NULL, _T("GUIResize"), 0);
+			regsetint(NULL, _T("GUIFullscreen"), 0);
 		} else {
 			if (gui_width < MIN_GUI_INTERNAL_WIDTH || gui_width > 8192 || gui_height < MIN_GUI_INTERNAL_HEIGHT || gui_height > 8192) {
 				scaleresource_setdefaults(hwnd);
@@ -22974,6 +23285,10 @@ static int GetSettings (int all_options, HWND hwnd)
 				start_gui_height = h;
 			}
 
+			if (g_darkModeSupported && g_darkModeEnabled) {
+				BOOL value = TRUE;
+				DwmSetWindowAttribute(dhwnd, DWMWA_USE_IMMERSIVE_DARK_MODE, &value, sizeof(value));
+			}
 			setguititle (dhwnd);
 			RedrawWindow(dhwnd, NULL, NULL, RDW_ERASE | RDW_FRAME | RDW_INVALIDATE | RDW_ALLCHILDREN);
 			ShowWindow (dhwnd, SW_SHOW);

@@ -75,6 +75,7 @@ extern void updatemouseclip(struct AmigaMonitor*);
 extern void updatewinrect(struct AmigaMonitor*, bool);
 int getdpiformonitor(HMONITOR mon);
 int getdpiforwindow(HWND hwnd);
+void InitializeDarkMode(int v);
 
 extern bool resumepaused (int priority);
 extern bool setpaused (int priority);

@@ -985,6 +985,9 @@
     <ClCompile Include="..\gdirender.cpp">
       <Filter>win32</Filter>
     </ClCompile>
+    <ClCompile Include="..\darkmode.cpp">
+      <Filter>win32</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\resources\35floppy.ico">

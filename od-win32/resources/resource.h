@@ -829,6 +829,7 @@
 #define IDC_SER_CTSRTS                  1554
 #define IDC_GUI_FULLSCREEN              1554
 #define IDC_SER_DIRECT                  1555
+#define IDC_GUI_DARKMODE                1555
 #define IDC_PSPRINTER                   1556
 #define IDC_PSPRINTERDETECT             1557
 #define IDC_UAESERIAL                   1558

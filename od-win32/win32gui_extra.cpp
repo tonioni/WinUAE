@@ -18,6 +18,8 @@
 #include "xwin.h"
 #include "zfile.h"
 
+#include "darkmode.h"
+
 #define MAX_GUI_FONTS 2
 #define DEFAULT_FONTSIZE_OLD 8
 #define DEFAULT_FONTSIZE_NEW 9
@@ -325,6 +327,22 @@ static BOOL DIALOG_CreateControls32(HWND hwnd, LPCSTR tmpl, const DLG_TEMPLATE *
 			hwndDefButton = hwndCtrl;
 			dlgInfo->idResult = GetWindowLongPtrA(hwndCtrl, GWLP_ID);
 		}
+		if (g_darkModeSupported) {
+			_AllowDarkModeForWindow(hwndCtrl, g_darkModeEnabled);
+			if (g_darkModeEnabled) {
+				//write_log(_T("%s\n"), info.className);
+				if (!_tcsicmp(info.className, _T("Button"))) {
+					SubclassButtonControl(hwndCtrl);
+				} else if (!_tcsicmp(info.className, _T("ComboBox")) || !_tcsicmp(info.className, _T("Edit"))) {
+					SetWindowTheme(hwndCtrl, L"CFD", nullptr);
+				} else if (!_tcsicmp(info.className, _T("SysListView32")) || !_tcsicmp(info.className, _T("SysTreeView32"))) {
+					//
+				} else {
+					SetWindowTheme(hwndCtrl, L"Explorer", nullptr);
+				}
+				SendMessageW(hwndCtrl, WM_THEMECHANGED, 0, 0);
+			}
+		}
 	}
 	return TRUE;
 }
@@ -628,10 +646,17 @@ static HWND DIALOG_CreateIndirect(HINSTANCE hInst, LPCVOID dlgTemplate,
 		mon_info.cbSize = sizeof(mon_info);
 		if (tmpl->style & DS_CENTER)
 		{
-			monitor = MonitorFromWindow(owner ? owner : GetActiveWindow(), MONITOR_DEFAULTTOPRIMARY);
-			GetMonitorInfoW(monitor, &mon_info);
-			pos.x = (mon_info.rcWork.left + mon_info.rcWork.right - size.cx) / 2;
-			pos.y = (mon_info.rcWork.top + mon_info.rcWork.bottom - size.cy) / 2;
+			if (!owner) {
+				monitor = MonitorFromWindow(owner ? owner : GetActiveWindow(), MONITOR_DEFAULTTOPRIMARY);
+				GetMonitorInfoW(monitor, &mon_info);
+				pos.x = (mon_info.rcWork.left + mon_info.rcWork.right - size.cx) / 2;
+				pos.y = (mon_info.rcWork.top + mon_info.rcWork.bottom - size.cy) / 2;
+			} else {
+				RECT r;
+				GetWindowRect(owner, &r);
+				pos.x = (r.left + r.right - size.cx) / 2;
+				pos.y = (r.top + r.bottom - size.cy) / 2;
+			}
 		}
 		else if (tmpl->style & DS_CENTERMOUSE)
 		{
@@ -722,6 +747,10 @@ static HWND DIALOG_CreateIndirect(HINSTANCE hInst, LPCVOID dlgTemplate,
 
 	if (dlgProc && dlgInfo->hUserFont)
 		SendMessage(hwnd, WM_SETFONT, (WPARAM)dlgInfo->hUserFont, 0);
+
+	if (g_darkModeSupported) {
+		_AllowDarkModeForWindow(hwnd, g_darkModeEnabled);
+	}
 
 	/* Create controls */
 	if (createcontrols(hwnd, res))

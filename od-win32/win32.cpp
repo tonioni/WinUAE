@@ -41,6 +41,7 @@
 #include <Cfgmgr32.h>
 #include <shellscalingapi.h>
 #include <dinput.h>
+#include <dwmapi.h>
 
 #include "resource.h"
 
@@ -106,6 +107,8 @@
 #include "specialmonitors.h"
 #include "debug.h"
 #include "disasm.h"
+
+#include "darkmode.h"
 
 const static GUID GUID_DEVINTERFACE_HID =  { 0x4D1E55B2L, 0xF16F, 0x11CF,
 { 0x88, 0xCB, 0x00, 0x11, 0x11, 0x00, 0x00, 0x30 } };
@@ -2888,7 +2891,7 @@ static LRESULT CALLBACK MainWindowProc (HWND hWnd, UINT message, WPARAM wParam, 
 				FillRect(lpDIS->hDC, &lpDIS->rcItem, mon->hStatusBkgB);
 				if (txt) {
 					SetBkMode(lpDIS->hDC, TRANSPARENT);
-					oc = SetTextColor(lpDIS->hDC, RGB(0x00, 0x00, 0x00));
+					oc = SetTextColor(lpDIS->hDC, g_darkModeEnabled ? dark_text_color : RGB(0x00, 0x00, 0x00));
 					DrawText(lpDIS->hDC, txt, uaetcslen(txt), &lpDIS->rcItem, flags);
 					SetTextColor(lpDIS->hDC, oc);
 				}
@@ -2961,7 +2964,13 @@ static LRESULT CALLBACK MainWindowProc (HWND hWnd, UINT message, WPARAM wParam, 
 				} else if (tflags & 8) {
 					oc = SetTextColor (lpDIS->hDC, RGB(0x00, 0xcc, 0x00)); // playing
 				} else {
-					oc = SetTextColor (lpDIS->hDC, GetSysColor ((tflags & 2) ? COLOR_BTNTEXT : COLOR_GRAYTEXT));
+					COLORREF c;
+					if (g_darkModeEnabled) {
+						c = (tflags & 2) ? dark_text_color : (dark_text_color & 0xfefefe) >> 1;
+					} else {
+						c = GetSysColor((tflags & 2) ? COLOR_BTNTEXT : COLOR_GRAYTEXT);
+					}
+					oc = SetTextColor (lpDIS->hDC, c);
 				}
 				if (tflags & 32) {
 					;
@@ -5969,17 +5978,7 @@ static int osdetect (void)
 		}
 	}
 
-	typedef HRESULT(CALLBACK* DWMISCOMPOSITIONENABLED)(BOOL*);
-	HMODULE dwmapihandle;
-	DWMISCOMPOSITIONENABLED pDwmIsCompositionEnabled;
-	dwmapihandle = LoadLibrary(_T("dwmapi.dll"));
-	if (dwmapihandle) {
-		pDwmIsCompositionEnabled = (DWMISCOMPOSITIONENABLED)GetProcAddress(dwmapihandle, "DwmIsCompositionEnabled");
-		if (pDwmIsCompositionEnabled) {
-			pDwmIsCompositionEnabled(&os_dwm_enabled);
-		}
-		FreeLibrary(dwmapihandle);
-	}
+	DwmIsCompositionEnabled(&os_dwm_enabled);
 
 	return 1;
 }
@@ -6907,6 +6906,14 @@ static int parseargs(const TCHAR *argx, const TCHAR *np, const TCHAR *np2)
 			calculated_scanline = true;
 		} else if (getval(np) == 1) {
 			calculated_scanline = false;
+		}
+		return 2;
+	}
+	if (!_tcscmp(arg, _T("theme"))) {
+		if (!_tcsicmp(np, _T("dark"))) {
+			darkModeForced = 1;
+		} else if (!_tcsicmp(np, _T("light"))) {
+			darkModeForced = -1;
 		}
 		return 2;
 	}
@@ -8026,6 +8033,23 @@ const TCHAR **uaenative_get_library_dirs (void)
 bool is_mainthread(void)
 {
 	return GetCurrentThreadId() == mainthreadid;
+}
+
+void InitializeDarkMode(int v)
+{
+	static int initialized = -10;
+	if (darkModeForced) {
+		v = 1;
+	}
+	if (initialized != v) {
+		InitDarkMode(v);
+		write_log("dark mode supported: %d enabled: %d\n", g_darkModeSupported, g_darkModeEnabled);
+		initialized = v;
+	}
+	if (initialized && g_darkModeEnabled && !v) {
+		InitDarkMode(0);
+		initialized = 0;
+	}
 }
 
 typedef BOOL (CALLBACK* CHANGEWINDOWMESSAGEFILTER)(UINT, DWORD);
