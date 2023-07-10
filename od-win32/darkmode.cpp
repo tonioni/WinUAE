@@ -683,7 +683,6 @@ void SubclassTreeViewControl(HWND hListView)
 	}
 }
 
-
 void SubClassStatusBar(HWND hwnd)
 {
 	if (g_darkModeSupported && g_darkModeEnabled) {

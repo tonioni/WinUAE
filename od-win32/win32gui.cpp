@@ -23,7 +23,6 @@
 #include <commdlg.h>
 #include <dlgs.h>
 #include <prsht.h>
-#include <richedit.h>
 #include <shellapi.h>
 #include <Shlobj.h>
 #include <shlwapi.h>
@@ -2627,9 +2626,9 @@ void gui_infotextbox(HWND hDlg, const TCHAR *text)
 				TranslateMessage (&msg);
 				DispatchMessage (&msg);
 			}
+			if (stringboxdialogactive == -1)
+				break;
 		}
-		if (stringboxdialogactive == -1)
-			break;
 	}
 	if (font) {
 		DeleteObject(font);
@@ -2723,9 +2722,9 @@ static void infofloppy (HWND hDlg, int n)
 				TranslateMessage (&msg);
 				DispatchMessage (&msg);
 			}
+			if (stringboxdialogactive == -1)
+				break;
 		}
-		if (stringboxdialogactive == -1)
-			break;
 	}
 	DeleteObject (font);
 }
@@ -6505,7 +6504,6 @@ static INT_PTR CALLBACK LoadSaveDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPA
 
 static INT_PTR CALLBACK ErrorLogProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
-	CHARFORMAT CharFormat;
 	TCHAR *err;
 
 	if (dialog_inhibit)
@@ -6531,17 +6529,47 @@ static INT_PTR CALLBACK ErrorLogProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 		}
 		break;
 	case WM_INITDIALOG:
-		err = get_error_log ();
-		if (err == NULL)
-			return FALSE;
-		CharFormat.cbSize = sizeof (CharFormat);
-		SetDlgItemText (hDlg, IDC_ERRORLOGMESSAGE, err);
-		xSendDlgItemMessage (hDlg, IDC_ERRORLOGMESSAGE, EM_GETCHARFORMAT, 0, (LPARAM) & CharFormat);
-		CharFormat.dwMask |= CFM_SIZE | CFM_FACE;
-		CharFormat.yHeight = -getscaledfontsize(8 * 20); /* height in twips, where a twip is 1/20th of a point - for a pt.size of 18 */
-		_tcscpy (CharFormat.szFaceName, _T("Segoe UI"));
-		xSendDlgItemMessage (hDlg, IDC_ERRORLOGMESSAGE, EM_SETCHARFORMAT, SCF_ALL, (LPARAM) & CharFormat);
-		return TRUE;
+		{
+			err = get_error_log ();
+			if (err == NULL)
+				return FALSE;
+			HWND list = GetDlgItem(hDlg, IDC_ERRORLOGMESSAGE);
+			SubclassListViewControl(list);
+
+			LV_COLUMN lvcolumn;
+			RECT r;
+			GetClientRect(list, &r);
+			lvcolumn.mask = LVCF_WIDTH;
+			lvcolumn.mask = LVCF_FMT | LVCF_TEXT | LVCF_WIDTH | LVCF_SUBITEM;
+			lvcolumn.iSubItem = 0;
+			lvcolumn.fmt = LVCFMT_LEFT;
+			lvcolumn.pszText = _T("");
+			lvcolumn.cx = r.right - r.left;
+			ListView_InsertColumn(list, 0, &lvcolumn);
+
+			TCHAR *s = err;
+			int cnt = 0;
+			while (*s) {
+				TCHAR *se = _tcschr(s, '\n');
+				if (se) {
+					*se = 0;
+				}
+				LV_ITEM lvstruct;
+				lvstruct.mask = LVIF_TEXT | LVIF_PARAM;
+				lvstruct.pszText = s;
+				lvstruct.lParam = 0;
+				lvstruct.iItem = cnt;
+				lvstruct.iSubItem = 0;
+				ListView_InsertItem(list, &lvstruct);
+				if (!se) {
+					break;
+				}
+				cnt++;
+				s = se + 1;
+			}
+			xfree(err);
+			return TRUE;
+		}
 	}
 	return FALSE;
 }
@@ -6552,8 +6580,6 @@ static TCHAR szContributors[MAX_CONTRIBUTORS_LENGTH * 2];
 
 static INT_PTR CALLBACK ContributorsProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
-	CHARFORMAT CharFormat;
-
 	if (dialog_inhibit)
 		return 0;
 
@@ -6579,20 +6605,47 @@ static INT_PTR CALLBACK ContributorsProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 		}
 		break;
 	case WM_INITDIALOG:
-		CharFormat.cbSize = sizeof (CharFormat);
+		{
+			HWND list = GetDlgItem(hDlg, IDC_CONTRIBUTORS);
+			SubclassListViewControl(list);
 
-		WIN32GUI_LoadUIString(IDS_CONTRIBUTORS1, szContributors1, MAX_CONTRIBUTORS_LENGTH);
-		WIN32GUI_LoadUIString(IDS_CONTRIBUTORS2, szContributors2, MAX_CONTRIBUTORS_LENGTH);
-		_stprintf (szContributors, _T("%s%s"), szContributors1, szContributors2);
+			WIN32GUI_LoadUIString(IDS_CONTRIBUTORS1, szContributors1, MAX_CONTRIBUTORS_LENGTH);
+			WIN32GUI_LoadUIString(IDS_CONTRIBUTORS2, szContributors2, MAX_CONTRIBUTORS_LENGTH);
+			_stprintf (szContributors, _T("%s%s"), szContributors1, szContributors2);
 
-		SetDlgItemText (hDlg, IDC_CONTRIBUTORS, szContributors );
-		xSendDlgItemMessage (hDlg, IDC_CONTRIBUTORS, EM_GETCHARFORMAT, 0, (LPARAM) & CharFormat);
-		CharFormat.dwMask |= CFM_SIZE | CFM_FACE;
-		CharFormat.yHeight = getscaledfontsize(8 * 20); /* height in twips, where a twip is 1/20th of a point - for a pt.size of 18 */
-
-		_tcscpy (CharFormat.szFaceName, _T("Segoe UI"));
-		xSendDlgItemMessage (hDlg, IDC_CONTRIBUTORS, EM_SETCHARFORMAT, SCF_ALL, (LPARAM) & CharFormat);
-		return TRUE;
+			LV_COLUMN lvcolumn;
+			RECT r;
+			GetClientRect(list, &r);
+			lvcolumn.mask = LVCF_WIDTH;
+			lvcolumn.mask = LVCF_FMT | LVCF_TEXT | LVCF_WIDTH | LVCF_SUBITEM;
+			lvcolumn.iSubItem = 0;
+			lvcolumn.fmt = LVCFMT_LEFT;
+			lvcolumn.pszText = _T("");
+			lvcolumn.cx = r.right - r.left;
+			ListView_InsertColumn(list, 0, &lvcolumn);
+						
+			TCHAR *s = szContributors;
+			int cnt = 0;
+			while (*s) {
+				TCHAR *se = _tcschr(s, '\n');
+				if (se) {
+					*se = 0;
+				}
+				LV_ITEM lvstruct;
+				lvstruct.mask = LVIF_TEXT | LVIF_PARAM;
+				lvstruct.pszText = s;
+				lvstruct.lParam = 0;
+				lvstruct.iItem = cnt;
+				lvstruct.iSubItem = 0;
+				ListView_InsertItem(list, &lvstruct);
+				if (!se) {
+					break;
+				}
+				cnt++;
+				s = se + 1;
+			}
+			return TRUE;
+		}
 	}
 	return FALSE;
 }
@@ -6626,34 +6679,13 @@ static urlinfo urls[] =
 	{ -1, FALSE, NULL, NULL }
 };
 
-static void SetupRichText(HWND hDlg, urlinfo *url)
-{
-	CHARFORMAT CharFormat;
-	CharFormat.cbSize = sizeof (CharFormat);
-
-	SetDlgItemText (hDlg, url->id, url->display);
-	xSendDlgItemMessage (hDlg, url->id, EM_GETCHARFORMAT, 0, (LPARAM)&CharFormat);
-	CharFormat.dwMask   |= CFM_UNDERLINE | CFM_SIZE | CFM_FACE | CFM_COLOR;
-	CharFormat.dwEffects = url->state ? CFE_UNDERLINE : 0;
-	CharFormat.yHeight = getscaledfontsize(10 * 20); /* height in twips, where a twip is 1/20th of a point - for a pt.size of 18 */
-
-	CharFormat.crTextColor = GetSysColor (COLOR_ACTIVECAPTION);
-	_tcscpy (CharFormat.szFaceName, _T("Segoe UI"));
-	xSendDlgItemMessage (hDlg, url->id, EM_SETCHARFORMAT, SCF_ALL, (LPARAM)&CharFormat);
-	xSendDlgItemMessage (hDlg, url->id, EM_SETBKGNDCOLOR, 0, GetSysColor (COLOR_3DFACE));
-}
-
 static void url_handler (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
-	static int last_rectangle = -1;
-	int i;
-	BOOL found = FALSE;
-	HCURSOR m_hCursor = NULL;
 	POINT point;
 	point.x = LOWORD (lParam);
 	point.y = HIWORD (lParam);
 
-	for (i = 0; urls[i].id >= 0; i++)
+	for (int i = 0; urls[i].id >= 0; i++)
 	{
 		RECT rect;
 		GetWindowRect (GetDlgItem(hDlg, urls[i].id), &rect);
@@ -6666,40 +6698,7 @@ static void url_handler (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 				ShellExecute (NULL, NULL, urls[i].url , NULL, NULL, SW_SHOWNORMAL);
 				SetCursor(LoadCursor(NULL, IDC_ARROW));
 			}
-			else
-			{
-				if(i != last_rectangle)
-				{
-					// try and load the system hand (Win2000+)
-					m_hCursor = LoadCursor (NULL, IDC_HAND);
-					if (!m_hCursor)
-					{
-						// retry with our fallback hand
-						m_hCursor = LoadCursor (hInst, MAKEINTRESOURCE (IDC_MYHAND) );
-					}
-					SetCursor (m_hCursor);
-					urls[i].state = TRUE;
-					SetupRichText (hDlg, &urls[i]);
-
-					if(last_rectangle != -1)
-					{
-						urls[last_rectangle].state = FALSE;
-						SetupRichText (hDlg, &urls[last_rectangle]);
-					}
-				}
-			}
-			last_rectangle = i;
-			found = TRUE;
-			break;
 		}
-	}
-
-	if(!found && last_rectangle >= 0)
-	{
-		SetCursor (LoadCursor (NULL, IDC_ARROW));
-		urls[last_rectangle].state = FALSE;
-		SetupRichText (hDlg, &urls[last_rectangle]);
-		last_rectangle = -1;
 	}
 }
 
@@ -8049,36 +8048,13 @@ static INT_PTR CALLBACK QuickstartDlgProc (HWND hDlg, UINT msg, WPARAM wParam, L
 
 static void init_aboutdlg (HWND hDlg)
 {
-	CHARFORMAT CharFormat;
-	int i;
 
-	CharFormat.cbSize = sizeof (CharFormat);
-
-	SetDlgItemText (hDlg, IDC_RICHEDIT1, _T("WinUAE"));
-	xSendDlgItemMessage (hDlg, IDC_RICHEDIT1, EM_GETCHARFORMAT, 0, (LPARAM) & CharFormat);
-	CharFormat.dwMask |= CFM_BOLD | CFM_SIZE | CFM_FACE;
-	CharFormat.dwEffects = CFE_BOLD;
-	CharFormat.yHeight = -getscaledfontsize(30 * 20); /* height in twips, where a twip is 1/20th of a point */
-
-	_tcscpy (CharFormat.szFaceName,  _T("Segoe UI"));
-	xSendDlgItemMessage (hDlg, IDC_RICHEDIT1, EM_SETCHARFORMAT, SCF_ALL, (LPARAM) & CharFormat);
-	xSendDlgItemMessage (hDlg, IDC_RICHEDIT1, EM_SETBKGNDCOLOR, 0, GetSysColor (COLOR_3DFACE));
-
-	SetDlgItemText (hDlg, IDC_RICHEDIT2, VersionStr );
-	xSendDlgItemMessage (hDlg, IDC_RICHEDIT2, EM_GETCHARFORMAT, 0, (LPARAM) & CharFormat);
-	CharFormat.dwMask |= CFM_SIZE | CFM_FACE;
-	CharFormat.dwEffects = CFE_BOLD;
-	CharFormat.yHeight = -getscaledfontsize(16 * 20);
-	_tcscpy (CharFormat.szFaceName, _T("Segoe UI"));
-	xSendDlgItemMessage (hDlg, IDC_RICHEDIT2, EM_SETCHARFORMAT, SCF_ALL, (LPARAM) & CharFormat);
-	xSendDlgItemMessage (hDlg, IDC_RICHEDIT2, EM_SETBKGNDCOLOR, 0, GetSysColor (COLOR_3DFACE));
-
-	for(i = 0; urls[i].id >= 0; i++)
-		SetupRichText (hDlg, &urls[i]);
 }
 
 static INT_PTR CALLBACK AboutDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
+	static HFONT font1, font2;
+
 	if (dialog_inhibit)
 		return 0;
 
@@ -8091,11 +8067,35 @@ static INT_PTR CALLBACK AboutDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 	switch( msg )
 	{
 	case WM_INITDIALOG:
-		pages[ABOUT_ID] = hDlg;
-		currentpage = ABOUT_ID;
-		init_aboutdlg (hDlg);
-		break;
+		{
+			pages[ABOUT_ID] = hDlg;
+			currentpage = ABOUT_ID;
 
+			if (!font1) {
+				font1 = CreateFont(-getscaledfontsize(60), 0, 0, 0, 0,
+					0, FALSE, FALSE, DEFAULT_CHARSET, 0, 0,
+					PROOF_QUALITY, FF_DONTCARE, _T("Segoe UI"));
+			}
+			if (!font2) {
+				font2 = CreateFont(-getscaledfontsize(32), 0, 0, 0, 0,
+					0, FALSE, FALSE, DEFAULT_CHARSET, 0, 0,
+					PROOF_QUALITY, FF_DONTCARE, _T("Segoe UI"));
+			}
+
+			HWND hwnd = GetDlgItem(hDlg, IDC_RICHEDIT1);
+			SendMessage(hwnd, WM_SETFONT, (WPARAM)font1, 0);
+			SetWindowText(hwnd, _T("WinUAE"));
+			hwnd = GetDlgItem(hDlg, IDC_RICHEDIT2);
+			SendMessage(hwnd, WM_SETFONT, (WPARAM)font1, 0);
+			SetWindowText(hwnd, VersionStr);
+
+			for (int i = 0; urls[i].id >= 0; i++) {
+				hwnd = GetDlgItem(hDlg, urls[i].id);
+				SendMessage(hwnd, WM_SETFONT, (WPARAM)font2, 0);
+				SetWindowText(hwnd, urls[i].display);
+			}		break;
+			return TRUE;
+		}
 	case WM_COMMAND:
 		if (wParam == IDC_CONTRIBUTORS)
 			DisplayContributors (hDlg);
@@ -8105,7 +8105,7 @@ static INT_PTR CALLBACK AboutDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 		break;
 	case WM_LBUTTONDOWN:
 	case WM_MOUSEMOVE:
-		url_handler (hDlg, msg, wParam, lParam);
+		url_handler(hDlg, msg, wParam, lParam);
 		break;
 	}
 
@@ -23036,9 +23036,9 @@ int CustomCreateDialogBox(int templ, HWND hDlg, DLGPROC proc)
 				TranslateMessage(&msg);
 				DispatchMessage(&msg);
 			}
+			if (customdialogactive == -1)
+				break;
 		}
-		if (customdialogactive == -1)
-			break;
 	}
 	return 1;
 }
