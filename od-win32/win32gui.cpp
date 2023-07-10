@@ -142,6 +142,9 @@ int dialog_inhibit;
 static HMODULE hHtmlHelp;
 pathtype path_type;
 
+static int stringboxdialogactive;
+static int customdialogactive;
+
 static void darkmode_initdialog(HWND hDlg)
 {
 	if (g_darkModeSupported)
@@ -471,7 +474,6 @@ static INT_PTR commonproc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam, boo
 	return 0;
 }
 
-static int stringboxdialogactive;
 static INT_PTR CALLBACK StringBoxDialogProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
 	if (dialog_inhibit)
@@ -2606,7 +2608,7 @@ static void eject_cd (void)
 void gui_infotextbox(HWND hDlg, const TCHAR *text)
 {
 	stringboxdialogactive = 1;
-	HWND hwnd = CustomCreateDialog (IDD_DISKINFO, hDlg ? hDlg : hGUIWnd, StringBoxDialogProc);
+	HWND hwnd = CustomCreateDialog(IDD_DISKINFO, hDlg ? hDlg : hGUIWnd, StringBoxDialogProc);
 	if (hwnd == NULL)
 		return;
 
@@ -2702,7 +2704,7 @@ static void infofloppy (HWND hDlg, int n)
 	}
 
 	stringboxdialogactive = 1;
-	HWND hwnd = CustomCreateDialog (IDD_DISKINFO, hDlg, StringBoxDialogProc);
+	HWND hwnd = CustomCreateDialog(IDD_DISKINFO, hDlg, StringBoxDialogProc);
 	if (hwnd == NULL)
 		return;
 
@@ -5795,7 +5797,7 @@ static void checkautoload(HWND	hDlg, struct ConfigStruct *config)
 }
 
 static struct ConfigStruct *InfoSettingsProcConfig;
-static INT_PTR CALLBACK InfoSettingsProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
+static INT_PTR CALLBACK InfoSettingsProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
 	static int recursive = 0;
 
@@ -5810,6 +5812,13 @@ static INT_PTR CALLBACK InfoSettingsProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 
 	switch (msg)
 	{
+	case WM_DESTROY:
+		PostQuitMessage(0);
+		return TRUE;
+	case WM_CLOSE:
+		customdialogactive = 0;
+		DestroyWindow(hDlg);
+		return TRUE;
 	case WM_INITDIALOG:
 	{
 		recursive++;
@@ -5862,11 +5871,13 @@ static INT_PTR CALLBACK InfoSettingsProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 			DiskSelection(hDlg, IDC_PATH_NAME, 8, &workprefs, NULL, NULL);
 			break;
 			case IDOK:
-			EndDialog(hDlg, 1);
-			break;
+			customdialogactive = -1;
+			DestroyWindow(hDlg);
+			return TRUE;
 			case IDCANCEL:
-			EndDialog(hDlg, 0);
-			break;
+			customdialogactive = 0;
+			DestroyWindow(hDlg);
+			return TRUE;
 			case IDC_CONFIGAUTO:
 			if (configtypepanel > 0) {
 				int ct = ischecked(hDlg, IDC_CONFIGAUTO) ? 1 : 0;
@@ -6347,7 +6358,7 @@ static void loadsavecommands (HWND hDlg, WPARAM wParam, struct ConfigStruct **co
 		break;
 	case IDC_SETINFO:
 		InfoSettingsProcConfig = config;
-		if (CustomCreateDialog(IDD_SETINFO, hDlg, InfoSettingsProc))
+		if (CustomCreateDialogBox(IDD_SETINFO, hDlg, InfoSettingsProc))
 			EnableWindow( GetDlgItem( hDlg, IDC_VIEWINFO ), workprefs.info[0] );
 		break;
 	}
@@ -6509,11 +6520,13 @@ static INT_PTR CALLBACK ErrorLogProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 	switch (msg) {
 	case WM_COMMAND:
 		if (wParam == IDOK) {
-			EndDialog (hDlg, 1);
+			customdialogactive = -1;
+			DestroyWindow(hDlg);
 			return TRUE;
 		} else if (wParam == IDC_ERRORLOGCLEAR) {
 			error_log (NULL);
-			EndDialog (hDlg, 1);
+			customdialogactive = 0;
+			DestroyWindow(hDlg);
 			return TRUE;
 		}
 		break;
@@ -6551,9 +6564,17 @@ static INT_PTR CALLBACK ContributorsProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 	}
 
 	switch (msg) {
+	case WM_DESTROY:
+		PostQuitMessage(0);
+		return TRUE;
+	case WM_CLOSE:
+		customdialogactive = 0;
+		DestroyWindow(hDlg);
+		return TRUE;
 	case WM_COMMAND:
 		if (wParam == ID_OK) {
-			EndDialog (hDlg, 1);
+			customdialogactive = -1;
+			DestroyWindow(hDlg);
 			return TRUE;
 		}
 		break;
@@ -6578,7 +6599,7 @@ static INT_PTR CALLBACK ContributorsProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 
 static void DisplayContributors (HWND hDlg)
 {
-	CustomCreateDialog(IDD_CONTRIBUTORS, hDlg, ContributorsProc);
+	CustomCreateDialogBox(IDD_CONTRIBUTORS, hDlg, ContributorsProc);
 }
 
 typedef struct url_info
@@ -14587,6 +14608,13 @@ static INT_PTR CALLBACK VolumeSettingsProc (HWND hDlg, UINT msg, WPARAM wParam, 
 	}
 
 	switch (msg) {
+	case WM_DESTROY:
+		PostQuitMessage(0);
+		return TRUE;
+	case WM_CLOSE:
+		customdialogactive = 0;
+		DestroyWindow(hDlg);
+		return TRUE;
 	case WM_INITDIALOG:
 		{
 			archivehd = -1;
@@ -14670,11 +14698,13 @@ static INT_PTR CALLBACK VolumeSettingsProc (HWND hDlg, UINT msg, WPARAM wParam, 
 				volumeselectdir (hDlg, 0, 1);
 				break;
 			case IDOK:
-				EndDialog (hDlg, 1);
-				break;
+				customdialogactive = -1;
+				DestroyWindow(hDlg);
+				return TRUE;
 			case IDCANCEL:
-				EndDialog (hDlg, 0);
-				break;
+				customdialogactive = 0;
+				DestroyWindow(hDlg);
+				return TRUE;
 			}
 		}
 		current_fsvdlg.ci.readonly = !ischecked (hDlg, IDC_FS_RW);
@@ -15187,6 +15217,13 @@ static INT_PTR CALLBACK TapeDriveSettingsProc (HWND hDlg, UINT msg, WPARAM wPara
 
 	switch (msg) {
 
+	case WM_DESTROY:
+		PostQuitMessage(0);
+		return TRUE;
+	case WM_CLOSE:
+		customdialogactive = 0;
+		DestroyWindow(hDlg);
+		return TRUE;
 	case WM_INITDIALOG:
 		recursive++;
 		inithdcontroller(hDlg, current_tapedlg.ci.controller_type, current_tapedlg.ci.controller_type_unit, UAEDEV_TAPE, current_tapedlg.ci.rootdir[0] != 0);
@@ -15273,11 +15310,13 @@ static INT_PTR CALLBACK TapeDriveSettingsProc (HWND hDlg, UINT msg, WPARAM wPara
 			break;
 		}
 		case IDOK:
-			EndDialog (hDlg, 1);
-			break;
+			customdialogactive = -1;
+			DestroyWindow(hDlg);
+			return TRUE;
 		case IDCANCEL:
-			EndDialog (hDlg, 0);
-			break;
+			customdialogactive = 0;
+			DestroyWindow(hDlg);
+			return TRUE;
 		}
 		current_tapedlg.ci.readonly = !ischecked (hDlg, IDC_TAPE_RW);
 		recursive--;
@@ -15301,6 +15340,13 @@ static INT_PTR CALLBACK CDDriveSettingsProc (HWND hDlg, UINT msg, WPARAM wParam,
 	}
 
 	switch (msg) {
+	case WM_DESTROY:
+		PostQuitMessage(0);
+		return TRUE;
+	case WM_CLOSE:
+		customdialogactive = 0;
+		DestroyWindow(hDlg);
+		return TRUE;
 
 	case WM_INITDIALOG:
 		recursive++;
@@ -15318,8 +15364,11 @@ static INT_PTR CALLBACK CDDriveSettingsProc (HWND hDlg, UINT msg, WPARAM wParam,
 	case WM_NOTIFY:
 		if (((LPNMHDR) lParam)->idFrom == IDC_CDLIST) {
 			NM_LISTVIEW *nmlistview = (NM_LISTVIEW *)lParam;
-			if (nmlistview->hdr.code == NM_DBLCLK)
-				EndDialog (hDlg, 1);
+			if (nmlistview->hdr.code == NM_DBLCLK) {
+				customdialogactive = -1;
+				DestroyWindow(hDlg);
+				return TRUE;
+			}
 		}
 		break;		
 	case WM_COMMAND:
@@ -15329,11 +15378,13 @@ static INT_PTR CALLBACK CDDriveSettingsProc (HWND hDlg, UINT msg, WPARAM wParam,
 		switch (LOWORD (wParam))
 		{
 		case IDOK:
-			EndDialog (hDlg, 1);
-			break;
+			customdialogactive = -1;
+			DestroyWindow(hDlg);
+			return TRUE;
 		case IDCANCEL:
-			EndDialog (hDlg, 0);
-			break;
+			customdialogactive = 0;
+			DestroyWindow(hDlg);
+			return TRUE;
 		case IDC_HDF_CONTROLLER:
 			posn = gui_get_string_cursor(hdmenutable, hDlg, IDC_HDF_CONTROLLER);
 			if (posn != CB_ERR) {
@@ -15404,6 +15455,13 @@ static INT_PTR CALLBACK HardfileSettingsProc (HWND hDlg, UINT msg, WPARAM wParam
 	}
 
 	switch (msg) {
+	case WM_DESTROY:
+		PostQuitMessage(0);
+		return TRUE;
+	case WM_CLOSE:
+		customdialogactive = 0;
+		DestroyWindow(hDlg);
+		return TRUE;
 	case WM_DROPFILES:
 		dragdrop (hDlg, (HDROP)wParam, &changed_prefs, -2);
 		return FALSE;
@@ -15563,11 +15621,13 @@ static INT_PTR CALLBACK HardfileSettingsProc (HWND hDlg, UINT msg, WPARAM wParam
 			DISK_history_add(current_hfdlg.ci.filesys, -1, HISTORY_FS, 1);
 			break;
 		case IDOK:
-			EndDialog (hDlg, 1);
-			break;
+			customdialogactive = -1;
+			DestroyWindow(hDlg);
+			return TRUE;
 		case IDCANCEL:
-			EndDialog (hDlg, 0);
-			break;
+			customdialogactive = 0;
+			DestroyWindow(hDlg);
+			return TRUE;
 		case IDC_HDF_PHYSGEOMETRY:
 			current_hfdlg.ci.physical_geometry = ischecked(hDlg, IDC_HDF_PHYSGEOMETRY);
 			updatehdfinfo(hDlg, true, false, false);
@@ -15691,6 +15751,13 @@ static INT_PTR CALLBACK HarddriveSettingsProc (HWND hDlg, UINT msg, WPARAM wPara
 	}
 
 	switch (msg) {
+	case WM_DESTROY:
+		PostQuitMessage(0);
+		return TRUE;
+	case WM_CLOSE:
+		customdialogactive = 0;
+		DestroyWindow(hDlg);
+		return TRUE;
 	case WM_INITDIALOG:
 		{
 			int index;
@@ -15746,11 +15813,13 @@ static INT_PTR CALLBACK HarddriveSettingsProc (HWND hDlg, UINT msg, WPARAM wPara
 		if (HIWORD (wParam) == BN_CLICKED) {
 			switch (LOWORD (wParam)) {
 			case IDOK:
-				EndDialog (hDlg, 1);
-				break;
+				customdialogactive = -1;
+				DestroyWindow(hDlg);
+				return TRUE;
 			case IDCANCEL:
-				EndDialog (hDlg, 0);
-				break;
+				customdialogactive = 0;
+				DestroyWindow(hDlg);
+				return TRUE;
 			case IDC_HDF_PHYSGEOMETRY:
 				current_hfdlg.ci.physical_geometry = ischecked(hDlg, IDC_HDF_PHYSGEOMETRY);
 				updatehdfinfo(hDlg, true, false, true);
@@ -16021,12 +16090,12 @@ static void harddisk_edit (HWND hDlg)
 
 	if (uci->ci.type == UAEDEV_CD) {
 		memcpy (&current_cddlg.ci, uci, sizeof (struct uaedev_config_info));
-		if (CustomCreateDialog(IDD_CDDRIVE, hDlg, CDDriveSettingsProc)) {
+		if (CustomCreateDialogBox(IDD_CDDRIVE, hDlg, CDDriveSettingsProc)) {
 			new_cddrive (hDlg, entry);
 		}
 	} else if (uci->ci.type == UAEDEV_TAPE) {
 		memcpy (&current_tapedlg.ci, uci, sizeof (struct uaedev_config_info));
-		if (CustomCreateDialog(IDD_TAPEDRIVE, hDlg, TapeDriveSettingsProc)) {
+		if (CustomCreateDialogBox(IDD_TAPEDRIVE, hDlg, TapeDriveSettingsProc)) {
 			new_tapedrive (hDlg, entry);
 		}
 	}
@@ -16034,14 +16103,14 @@ static void harddisk_edit (HWND hDlg)
 	{
 		current_hfdlg.forcedcylinders = uci->ci.highcyl;
 		memcpy (&current_hfdlg.ci, uci, sizeof (struct uaedev_config_info));
-		if (CustomCreateDialog(IDD_HARDFILE, hDlg, HardfileSettingsProc)) {
+		if (CustomCreateDialogBox(IDD_HARDFILE, hDlg, HardfileSettingsProc)) {
 			new_hardfile (hDlg, entry);
 		}
 	}
 	else if (type == FILESYS_HARDDRIVE) /* harddisk */
 	{
 		memcpy (&current_hfdlg.ci, uci, sizeof (struct uaedev_config_info));
-		if (CustomCreateDialog(IDD_HARDDRIVE, hDlg, HarddriveSettingsProc)) {
+		if (CustomCreateDialogBox(IDD_HARDDRIVE, hDlg, HarddriveSettingsProc)) {
 			new_harddrive (hDlg, entry);
 		}
 	}
@@ -16049,7 +16118,7 @@ static void harddisk_edit (HWND hDlg)
 	{
 		memcpy (&current_fsvdlg.ci, uci, sizeof (struct uaedev_config_info));
 		archivehd = -1;
-		if (CustomCreateDialog(IDD_FILESYS, hDlg, VolumeSettingsProc)) {
+		if (CustomCreateDialogBox(IDD_FILESYS, hDlg, VolumeSettingsProc)) {
 			new_filesys (hDlg, entry);
 		}
 	}
@@ -16100,30 +16169,30 @@ static int harddiskdlg_button (HWND hDlg, WPARAM wParam)
 	case IDC_NEW_FS:
 		default_fsvdlg (&current_fsvdlg);
 		archivehd = 0;
-		if (CustomCreateDialog(IDD_FILESYS, hDlg, VolumeSettingsProc))
+		if (CustomCreateDialogBox(IDD_FILESYS, hDlg, VolumeSettingsProc))
 			new_filesys (hDlg, -1);
 		return 1;
 	case IDC_NEW_FSARCH:
 		archivehd = 1;
 		default_fsvdlg (&current_fsvdlg);
-		if (CustomCreateDialog(IDD_FILESYS, hDlg, VolumeSettingsProc))
+		if (CustomCreateDialogBox(IDD_FILESYS, hDlg, VolumeSettingsProc))
 			new_filesys (hDlg, -1);
 		return 1;
 
 	case IDC_NEW_HF:
 		default_hfdlg (&current_hfdlg, false);
-		if (CustomCreateDialog(IDD_HARDFILE, hDlg, HardfileSettingsProc))
+		if (CustomCreateDialogBox(IDD_HARDFILE, hDlg, HardfileSettingsProc))
 			new_hardfile (hDlg, -1);
 		return 1;
 
 	case IDC_NEW_CD:
-		if (CustomCreateDialog(IDD_CDDRIVE, hDlg, CDDriveSettingsProc))
+		if (CustomCreateDialogBox(IDD_CDDRIVE, hDlg, CDDriveSettingsProc))
 			new_cddrive (hDlg, -1);
 		return 1;
 
 	case IDC_NEW_TAPE:
 		default_tapedlg (&current_tapedlg);
-		if (CustomCreateDialog(IDD_TAPEDRIVE, hDlg, TapeDriveSettingsProc))
+		if (CustomCreateDialogBox(IDD_TAPEDRIVE, hDlg, TapeDriveSettingsProc))
 			new_tapedrive (hDlg, -1);
 		return 1;
 
@@ -16135,7 +16204,7 @@ static int harddiskdlg_button (HWND hDlg, WPARAM wParam)
 			WIN32GUI_LoadUIString (IDS_NOHARDDRIVES, tmp, sizeof (tmp) / sizeof (TCHAR));
 			gui_message (tmp);
 		} else {
-			if (CustomCreateDialog(IDD_HARDDRIVE, hDlg, HarddriveSettingsProc))
+			if (CustomCreateDialogBox(IDD_HARDDRIVE, hDlg, HarddriveSettingsProc))
 				new_harddrive (hDlg, -1);
 		}
 		return 1;
@@ -19504,7 +19573,9 @@ static INT_PTR CALLBACK RemapSpecialsProc(HWND hDlg, UINT msg, WPARAM wParam, LP
 				if (inputmap_handle(NULL, -1, -1, NULL, NULL, -1, NULL, inputmap_selected,
 					remapcustoms[entry].flags, IDEV_MAPPED_AUTOFIRE_SET | IDEV_MAPPED_TOGGLE | IDEV_MAPPED_INVERTTOGGLE | IDEV_MAPPED_INVERT, NULL)) {
 					inputdevice_generate_jport_custom(&workprefs, inputmap_port);
-					EndDialog(hDlg, 1);
+					customdialogactive = -1;
+					DestroyWindow(hDlg);
+					return TRUE;
 				}
 			}
 		}
@@ -19524,11 +19595,13 @@ static INT_PTR CALLBACK RemapSpecialsProc(HWND hDlg, UINT msg, WPARAM wParam, LP
 		break;
 	}
 	case IDOK:
-	EndDialog(hDlg, 1);
-	break;
+	customdialogactive = -1;
+	DestroyWindow(hDlg);
+	return TRUE;
 	case IDCANCEL:
-	EndDialog(hDlg, 0);
-	break;
+	customdialogactive = 0;
+	DestroyWindow(hDlg);
+	return TRUE;
 	}
 	recursive--;
 	break;
@@ -19633,7 +19706,7 @@ static INT_PTR CALLBACK InputMapDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPA
 			case IDC_INPUTMAP_EXIT:
 			pages[INPUTMAP_ID] =  NULL;
 			DestroyWindow (hDlg);
-			break;
+			return TRUE;
 			case IDC_INPUTMAP_TEST:
 			inputmap_port_remap = -1;
 			inputmap_remap_counter = -1;
@@ -19962,11 +20035,13 @@ static INT_PTR CALLBACK QualifierProc (HWND hDlg, UINT msg, WPARAM wParam, LPARA
 				break;
 			}
 		case IDOK:
-			EndDialog (hDlg, 1);
-			break;
+			customdialogactive = -1;
+			DestroyWindow(hDlg);
+			return TRUE;
 		case IDCANCEL:
-			EndDialog (hDlg, 0);
-			break;
+			customdialogactive = 0;
+			DestroyWindow(hDlg);
+			return TRUE;
 		}
 		recursive--;
 		break;
@@ -22812,7 +22887,7 @@ static INT_PTR CALLBACK DialogProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 			{
 			case IDC_ERRORLOG:
 				{
-					CustomCreateDialog(IDD_ERRORLOG, hDlg, ErrorLogProc);
+					CustomCreateDialogBox(IDD_ERRORLOG, hDlg, ErrorLogProc);
 					ShowWindow (GetDlgItem (guiDlg, IDC_ERRORLOG), is_error_log () ? SW_SHOW : SW_HIDE);
 				}
 				break;
@@ -22941,6 +23016,31 @@ HWND CustomCreateDialog(int templ, HWND hDlg, DLGPROC proc)
 	}
 	freescaleresource (res);
 	return h;
+}
+
+int CustomCreateDialogBox(int templ, HWND hDlg, DLGPROC proc)
+{
+	customdialogactive = 1;
+	HWND hwnd = CustomCreateDialog(templ, hDlg, proc);
+	if (!hwnd) {
+		return 0;
+	}
+	while (customdialogactive == 1) {
+		MSG msg;
+		int ret;
+		WaitMessage();
+		while ((ret = GetMessage(&msg, NULL, 0, 0))) {
+			if (ret == -1)
+				break;
+			if (!IsWindow(hwnd) || !IsDialogMessage(hwnd, &msg)) {
+				TranslateMessage(&msg);
+				DispatchMessage(&msg);
+			}
+		}
+		if (customdialogactive == -1)
+			break;
+	}
+	return 1;
 }
 
 static int init_page (int tmpl, int icon, int title,
