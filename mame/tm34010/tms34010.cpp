@@ -246,11 +246,9 @@ inline INT32 tms340x0_device::POP()
 }
 
 
-UINT32 tms340x0_device::do_plane_masking(UINT32 r, UINT32 w)
+inline UINT32 tms340x0_device::do_plane_masking(UINT32 r, UINT32 w)
 {
-	UINT32 pmask = IOREG(REG_PMASK);
-	pmask |= pmask << 16;
-	UINT32 o = (r & pmask) | (w & ~pmask);
+	UINT32 o = (r & m_plane_mask) | (w & m_plane_mask_inv);
 	return o;
 }
 
@@ -297,7 +295,7 @@ UINT32 tms340x0_device::read_pixel_shiftreg(offs_t offset)
 /* No Raster Op + No Transparency */
 #define WP(m1,m2)                                                                           \
 	UINT32 a = TOBYTE(offset & 0xfffffff0);                                                 \
-	UINT32 pix = TMS34010_RDMEM_WORD(a);                                                    \
+	UINT32 pix = TMS34010_RDMEM_WORD_MASK(a);                                               \
 	UINT32 shiftcount = offset & m1;                                                        \
 																							\
 	data &= m2;                                                                             \
@@ -310,7 +308,7 @@ UINT32 tms340x0_device::read_pixel_shiftreg(offs_t offset)
 	if (data)                                                                               \
 	{                                                                                       \
 		UINT32 a = TOBYTE(offset & 0xfffffff0);                                             \
-		UINT32 pix = TMS34010_RDMEM_WORD(a);                                                \
+		UINT32 pix = TMS34010_RDMEM_WORD_MASK(a);                                           \
 		UINT32 shiftcount = offset & m1;                                                    \
 																							\
 		pix = (pix & ~(m2 << shiftcount)) | (data << shiftcount);                           \
@@ -319,7 +317,7 @@ UINT32 tms340x0_device::read_pixel_shiftreg(offs_t offset)
 /* Raster Op + No Transparency */
 #define WP_R(m1,m2)                                                                         \
 	UINT32 a = TOBYTE(offset & 0xfffffff0);                                                 \
-	UINT32 pix = TMS34010_RDMEM_WORD(a);                                                    \
+	UINT32 pix = TMS34010_RDMEM_WORD_MASK(a);                                               \
 	UINT32 shiftcount = offset & m1;                                                        \
 																							\
 	data = (this->*m_raster_op)(data & m2, (pix >> shiftcount) & m2) & m2;                  \
@@ -329,7 +327,7 @@ UINT32 tms340x0_device::read_pixel_shiftreg(offs_t offset)
 /* Raster Op + Transparency */
 #define WP_R_T(m1,m2)                                                                       \
 	UINT32 a = TOBYTE(offset & 0xfffffff0);                                                 \
-	UINT32 pix = TMS34010_RDMEM_WORD(a);                                                    \
+	UINT32 pix = TMS34010_RDMEM_WORD_MASK(a);                                               \
 	UINT32 shiftcount = offset & m1;                                                        \
 																							\
 	data = (this->*m_raster_op)(data & m2, (pix >> shiftcount) & m2) & m2;                  \
@@ -377,12 +375,12 @@ void tms340x0_device::write_pixel_r_8(offs_t offset, UINT32 data) { WP_R(0x08, 0
 void tms340x0_device::write_pixel_r_16(offs_t offset, UINT32 data)
 {
 	UINT32 a = TOBYTE(offset & 0xfffffff0);
-	TMS34010_WRMEM_WORD_MASK(a, (this->*m_raster_op)(data, TMS34010_RDMEM_WORD(a)));
+	TMS34010_WRMEM_WORD_MASK(a, (this->*m_raster_op)(data, TMS34010_RDMEM_WORD_MASK(a)));
 }
 void tms340x0_device::write_pixel_r_32(offs_t offset, UINT32 data)
 {
 	UINT32 a = TOBYTE(offset & 0xffffffe0);
-	TMS34010_WRMEM_DWORD_MASK(a, (this->*m_raster_op)(data, TMS34010_RDMEM_DWORD(a)));
+	TMS34010_WRMEM_DWORD_MASK(a, (this->*m_raster_op)(data, TMS34010_RDMEM_DWORD_MASK(a)));
 }
 
 /* Raster Op + Transparency */
@@ -393,7 +391,7 @@ void tms340x0_device::write_pixel_r_t_8(offs_t offset, UINT32 data) { WP_R_T(0x0
 void tms340x0_device::write_pixel_r_t_16(offs_t offset, UINT32 data)
 {
 	UINT32 a = TOBYTE(offset & 0xfffffff0);
-	data = (this->*m_raster_op)(data, TMS34010_RDMEM_WORD(a));
+	data = (this->*m_raster_op)(data, TMS34010_RDMEM_WORD_MASK(a));
 
 	if (data)
 		TMS34010_WRMEM_WORD_MASK(a, data);
@@ -401,7 +399,7 @@ void tms340x0_device::write_pixel_r_t_16(offs_t offset, UINT32 data)
 void tms340x0_device::write_pixel_r_t_32(offs_t offset, UINT32 data)
 {
 	UINT32 a = TOBYTE(offset & 0xffffffe0);
-	data = (this->*m_raster_op)(data, TMS34010_RDMEM_DWORD(a));
+	data = (this->*m_raster_op)(data, TMS34010_RDMEM_DWORD_MASK(a));
 
 	if (data)
 		TMS34010_WRMEM_DWORD_MASK(a, data);
@@ -1153,7 +1151,8 @@ WRITE16_MEMBER( tms340x0_device::io_register_w )
 			break;
 
 		case REG_PMASK:
-			m_plane_masking = data != 0;
+			m_plane_mask = (data << 16) | data;
+			m_plane_mask_inv = m_plane_mask ^ 0xffffffff;
 			break;
 
 		case REG_DPYCTL:

@@ -29,6 +29,21 @@ inline UINT32 tms340x0_device::TMS34010_RDMEM_DWORD(offs_t A)
 	return result | (m_program->read_word(A+2)<<16);
 }
 
+inline UINT32 tms340x0_device::TMS34010_RDMEM_WORD_MASK(offs_t A)
+{
+	UINT32 result = m_program->read_word(A);
+	result &= m_plane_mask_inv;
+	return result;
+}
+inline UINT32 tms340x0_device::TMS34010_RDMEM_DWORD_MASK(offs_t A)
+{
+	UINT32 result = m_program->read_word(A);
+	result |= (m_program->read_word(A + 2) << 16);
+	result &= m_plane_mask_inv;
+	return result;
+}
+
+
 #define TMS34010_WRMEM(A,V)       (m_program->write_byte(A,V))
 #define TMS34010_WRMEM_WORD(A,V)  (m_program->write_word(A,V))
 inline void tms340x0_device::TMS34010_WRMEM_DWORD(offs_t A, UINT32 V)
@@ -39,14 +54,14 @@ inline void tms340x0_device::TMS34010_WRMEM_DWORD(offs_t A, UINT32 V)
 
 inline void tms340x0_device::TMS34010_WRMEM_WORD_MASK(offs_t A, UINT32 V)
 {
-	if (m_plane_masking) V = do_plane_masking(TMS34010_RDMEM_WORD(A), V);
+	if (m_plane_mask) V = do_plane_masking(TMS34010_RDMEM_WORD(A), V);
 
 	m_program->write_word(A, V);
 }
 
 inline void tms340x0_device::TMS34010_WRMEM_DWORD_MASK(offs_t A, UINT32 V)
 {
-	if (m_plane_masking) V = do_plane_masking(TMS34010_RDMEM_DWORD(A), V);
+	if (m_plane_mask) V = do_plane_masking(TMS34010_RDMEM_DWORD(A), V);
 
 	m_program->write_word(A, V);
 	m_program->write_word(A + 2, V >> 16);

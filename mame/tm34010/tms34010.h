@@ -347,7 +347,8 @@ protected:
 	direct_read_data *m_direct;
 	UINT32  m_pixclock;                           /* the pixel clock (0 means don't adjust screen size) */
 	int     m_pixperclock;                        /* pixels per clock */
-	bool	m_plane_masking;
+	UINT32	m_plane_mask;
+	UINT32	m_plane_mask_inv;
 	UINT16  m_prefetch_data;
 //	emu_timer *m_scantimer;
 
@@ -379,9 +380,11 @@ protected:
 	} m_regs[31];
 
 	UINT16 m_IOregs[64];
-	UINT16              m_shiftreg[(8 * 512 * sizeof(UINT16))/2];
+	UINT16 m_shiftreg[(8 * 512 * sizeof(UINT16))/2];
 
 	UINT32 TMS34010_RDMEM_DWORD(offs_t A);
+	UINT32 TMS34010_RDMEM_DWORD_MASK(offs_t A);
+	UINT32 TMS34010_RDMEM_WORD_MASK(offs_t A);
 	void TMS34010_WRMEM_DWORD(offs_t A, UINT32 V);
 	void TMS34010_WRMEM_DWORD_MASK(offs_t A, UINT32 V);
 	void TMS34010_WRMEM_WORD_MASK(offs_t A, UINT32 V);
