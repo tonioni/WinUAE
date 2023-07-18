@@ -603,7 +603,7 @@ static void checksend(void)
 	}
 #endif
 	if (serempty_enabled && !serxdevice_enabled) {
-		return;
+		goto end;
 	}
 #ifdef SERIAL_MAP
 	if (sermap_data && sermap_enabled) {
@@ -641,6 +641,7 @@ static void checksend(void)
 		serial_send_previous = serdatshift_masked;
 	}
 #endif
+end:
 	if (serial_period_hsyncs <= 1 || data_in_sershift == 2) {
 		data_in_sershift = 0;
 		serdatcopy();
