@@ -337,7 +337,7 @@ int doublescan;
 int programmedmode;
 frame_time_t syncbase;
 static int fmode_saved, fmode;
-uae_u16 beamcon0, new_beamcon0;
+uae_u16 beamcon0, new_beamcon0, beamcon0_previous;
 uae_u16 bemcon0_hsync_mask, bemcon0_vsync_mask;
 static uae_u16 beamcon0_saved;
 static uae_u16 bplcon0_saved, bplcon1_saved, bplcon2_saved;
@@ -6661,7 +6661,7 @@ static void updateextblk(void)
 
 		hsyncstartpos_start = hsyncstartpos_start_hw;
 		hsyncstartpos = hsyncstartpos_hw;
-		denisehtotal = 227 + 7;
+		denisehtotal = maxhpos + 7;
 		hsstop_detect2 = (35 + 9) * 2;
 
 		hsstrt_v2 = 18 << CCK_SHRES_SHIFT;
@@ -6984,34 +6984,20 @@ void compute_framesync(void)
 }
 
 /* set PAL/NTSC or custom timing variables */
-static void init_hz(bool checkvposw)
+static void init_beamcon0(void)
 {
 	int isntsc, islace;
-	int odbl = doublescan;
-	double ovblank = vblank_hz;
-	int hzc = 0;
-	int omaxhpos = maxhpos;
-	int omaxvpos = maxvpos;
-
-	if (!checkvposw) {
-		vpos_count = 0;
-	}
-
-	vpos_count_diff = vpos_count;
-
-	doublescan = 0;
-	programmedmode = 0;
-	if ((beamcon0 & (BEAMCON0_VARBEAMEN | BEAMCON0_PAL)) != (new_beamcon0 & (BEAMCON0_VARBEAMEN | BEAMCON0_PAL))) {
-		hzc = 1;
-	}
-	if (beamcon0 != new_beamcon0) {
-		vpos_count_diff = vpos_count = 0;
-	}
-	if ((beamcon0 & (BEAMCON0_VARVBEN | BEAMCON0_VARVSYEN | BEAMCON0_VARCSYEN)) != (new_beamcon0 & (BEAMCON0_VARVBEN | BEAMCON0_VARVSYEN | BEAMCON0_VARCSYEN))) {
-		hzc = 1;
-	}
+	int hpos = current_hpos();
+	int oldmaxhpos = maxhpos;
 
 	beamcon0 = new_beamcon0;
+
+	isntsc = (beamcon0 & BEAMCON0_PAL) ? 0 : 1;
+	islace = (interlace_seen) ? 1 : 0;
+	if (!ecs_agnus) {
+		isntsc = currprefs.ntscmode ? 1 : 0;
+	}
+
 	if (currprefs.cs_hvcsync == 0) {
 		bemcon0_hsync_mask = BEAMCON0_VARHSYEN | BEAMCON0_VARCSYEN;
 		bemcon0_vsync_mask = BEAMCON0_VARVSYEN | BEAMCON0_VARCSYEN;
@@ -7023,11 +7009,6 @@ static void init_hz(bool checkvposw)
 		bemcon0_vsync_mask = BEAMCON0_VARVSYEN;
 	}
 
-	isntsc = (beamcon0 & BEAMCON0_PAL) ? 0 : 1;
-	islace = (interlace_seen) ? 1 : 0;
-	if (!ecs_agnus) {
-		isntsc = currprefs.ntscmode ? 1 : 0;
-	}
 	float clk = (float)(currprefs.ntscmode ? CHIPSET_CLOCK_NTSC : CHIPSET_CLOCK_PAL);
 	if (!isntsc) {
 		maxvpos = MAXVPOS_PAL;
@@ -7096,7 +7077,7 @@ static void init_hz(bool checkvposw)
 	if (beamcon0 & BEAMCON0_VARBEAMEN) {
 		// assume VGA-like monitor if VARBEAMEN
 		if (currprefs.gfx_overscanmode >= OVERSCANMODE_ULTRA) {
-			maxhpos_display = maxhpos;
+			maxhpos_display = maxhpos + 7;
 			hsstop_detect = hsstrt * 2;
 			if (hsstop_detect > maxhpos / 2 * 2 || hsstop_detect < 4 * 2) {
 				hsstop_detect = 4 * 2;
@@ -7348,10 +7329,8 @@ static void init_hz(bool checkvposw)
 			programmedmode = 1;
 		}
 
-		varsync_changed = 1;
 		vpos_count = maxvpos_nom;
 		vpos_count_diff = maxvpos_nom;
-		hzc = 1;
 	}
 
 	// exclude possible extra lines that are inside vertical blank
@@ -7378,9 +7357,6 @@ static void init_hz(bool checkvposw)
 	if (currprefs.gfx_scandoubler && doublescan == 0) {
 		doublescan = -1;
 	}
-	if (doublescan != odbl || maxvpos != omaxvpos) {
-		hzc = 1;
-	}
 	/* limit to sane values */
 	if (vblank_hz < 10) {
 		vblank_hz = 10;
@@ -7391,17 +7367,74 @@ static void init_hz(bool checkvposw)
 	maxhpos_short = maxhpos;
 	set_delay_lastcycle();
 	updateextblk();
+	maxvpos_total = ecs_agnus ? (MAXVPOS_LINES_ECS - 1) : (MAXVPOS_LINES_OCS - 1);
+	if (maxvpos_total > MAXVPOS) {
+		maxvpos_total = MAXVPOS;
+	}
+	set_maxhpos(maxhpos);
+	display_reset = 2;
+	estimated_fm = 0xffff;
+
+	if ((currprefs.m68k_speed == 0 || copper_access) && maxhpos != oldmaxhpos) {
+		if (hpos >= maxhpos) {
+			// count until 255 -> 0 wrap around
+			eventtab[ev_hsync].evtime = line_start_cycles + 256 * CYCLE_UNIT;
+			// mark current line lenght = 0x100
+			set_maxhpos(0x100);
+		} else {
+			// adjust current scanline length to match new maxhpos
+			eventtab[ev_hsync].evtime = line_start_cycles + maxhpos * CYCLE_UNIT;
+		}
+		current_hpos();
+		events_schedule();
+	}
+}
+
+static void init_hz(bool checkvposw)
+{
+	int isntsc, islace;
+	int odbl = doublescan;
+	double ovblank = vblank_hz;
+	int hzc = 0;
+	int omaxhpos = maxhpos;
+	int omaxvpos = maxvpos;
+
+	if (!checkvposw) {
+		vpos_count = 0;
+	}
+
+	isntsc = (new_beamcon0 & BEAMCON0_PAL) ? 0 : 1;
+	islace = (interlace_seen) ? 1 : 0;
+	if (!ecs_agnus) {
+		isntsc = currprefs.ntscmode ? 1 : 0;
+	}
+
+	vpos_count_diff = vpos_count;
+
+	doublescan = 0;
+	programmedmode = 0;
+	if ((beamcon0 & (BEAMCON0_VARBEAMEN | BEAMCON0_PAL)) != (new_beamcon0 & (BEAMCON0_VARBEAMEN | BEAMCON0_PAL))) {
+		hzc = 1;
+	}
+	if (beamcon0 != new_beamcon0) {
+		vpos_count_diff = vpos_count = 0;
+	}
+	if ((beamcon0 & (BEAMCON0_VARVBEN | BEAMCON0_VARVSYEN | BEAMCON0_VARCSYEN)) != (new_beamcon0 & (BEAMCON0_VARVBEN | BEAMCON0_VARVSYEN | BEAMCON0_VARCSYEN))) {
+		hzc = 1;
+	}
+
+	init_beamcon0();
+
+	if (doublescan != odbl || maxvpos != omaxvpos) {
+		hzc = 1;
+	}
+
 	eventtab[ev_hsync].oldcycles = get_cycles();
 	eventtab[ev_hsync].evtime = get_cycles() + HSYNCTIME;
 	events_schedule();
 	if (hzc) {
 		interlace_seen = islace;
 		reset_drawing();
-	}
-
-	maxvpos_total = ecs_agnus ? (MAXVPOS_LINES_ECS - 1) : (MAXVPOS_LINES_OCS - 1);
-	if (maxvpos_total > MAXVPOS) {
-		maxvpos_total = MAXVPOS;
 	}
 
 	if (maxvpos != omaxvpos || maxhpos != omaxhpos) {
@@ -7418,9 +7451,6 @@ static void init_hz(bool checkvposw)
 
 	compute_framesync();
 	devices_syncchange();
-	set_maxhpos(maxhpos);
-	display_reset = 2;
-	estimated_fm = 0xffff;
 
 #ifdef PICASSO96
 	init_hz_p96(0);
@@ -8743,9 +8773,16 @@ static void check_harddis(void)
 	harddis_v = ecs_agnus && ((new_beamcon0 & BEAMCON0_VARBEAMEN) || (new_beamcon0 & BEAMCON0_VARVBEN) || (new_beamcon0 & BEAMCON0_HARDDIS));
 }
 
+static bool beamcon0_changed_critical(uae_u16 beamcon0a, uae_u16 beamcon0b)
+{
+	return (beamcon0a & (BEAMCON0_VARCSYEN | BEAMCON0_PAL | BEAMCON0_VARBEAMEN | BEAMCON0_VARHSYEN | BEAMCON0_VARVSYEN | BEAMCON0_VARVBEN | BEAMCON0_HARDDIS)) !=
+		(beamcon0b & (BEAMCON0_VARCSYEN | BEAMCON0_PAL | BEAMCON0_VARBEAMEN | BEAMCON0_VARHSYEN | BEAMCON0_VARVSYEN | BEAMCON0_VARVBEN | BEAMCON0_HARDDIS));
+}
+
 static void BEAMCON0(int hpos, uae_u16 v)
 {
 	if (ecs_agnus) {
+		bool beamcon0_changed = false;
 		if (v != new_beamcon0) {
 			sync_color_changes(hpos);
 			new_beamcon0 = v;
@@ -8754,11 +8791,15 @@ static void BEAMCON0(int hpos, uae_u16 v)
 			if (v & ~(BEAMCON0_LPENDIS | BEAMCON0_LOLDIS | BEAMCON0_PAL | BEAMCON0_BLANKEN | BEAMCON0_CSYTRUE | BEAMCON0_VSYTRUE | BEAMCON0_HSYTRUE)) {
 				dumpsync();
 			}
+			beamcon0_changed = true;
 		}
 		beamcon0_saved = v;
 		record_register_change(hpos, 0x1dc, new_beamcon0);
 		check_harddis();
 		calcdiw();
+		if (beamcon0_changed) {
+			init_beamcon0();
+		}
 	}
 }
 
@@ -8796,6 +8837,9 @@ static void varsync(int reg, bool resync)
 	// HS
 	if ((reg == 0x1de || reg == 0x1c2) && (beamcon0 & bemcon0_hsync_mask)) {
 		varsync_changed = 1;
+	}
+	if (varsync_changed) {
+		init_beamcon0();
 	}
 }
 
@@ -12203,20 +12247,18 @@ static void vsync_handler_post(void)
 
 	devices_vsync_post();
 
-	if ((beamcon0 & (BEAMCON0_VARCSYEN | BEAMCON0_PAL | BEAMCON0_VARBEAMEN | BEAMCON0_VARHSYEN | BEAMCON0_VARVSYEN | BEAMCON0_VARVBEN | BEAMCON0_HARDDIS)) !=
-		(new_beamcon0 & (BEAMCON0_VARCSYEN | BEAMCON0_PAL | BEAMCON0_VARBEAMEN | BEAMCON0_VARHSYEN | BEAMCON0_VARVSYEN | BEAMCON0_VARVBEN | BEAMCON0_HARDDIS))) {
-		if (!varsync_changed) {
-			varsync_changed = 2;
-		}
-		if ((beamcon0 ^ new_beamcon0) & BEAMCON0_PAL) {
+	if (beamcon0_changed_critical(new_beamcon0, beamcon0_previous)) {
+		varsync_changed = 1;
+		if ((beamcon0_previous ^ new_beamcon0) & BEAMCON0_PAL) {
 			nosignal_trigger = true;
 		}
-		if ((beamcon0 ^ new_beamcon0) & BEAMCON0_VARBEAMEN) {
+		if ((beamcon0_previous ^ new_beamcon0) & BEAMCON0_VARBEAMEN) {
 			if (vtotal != maxvpos || htotal != maxhpos) {
 				nosignal_trigger = true;
 			}
 		}
 	}
+	beamcon0_previous = new_beamcon0;
 
 	vsync_check_vsyncmode();
 
@@ -14270,7 +14312,7 @@ void custom_reset(bool hardreset, bool keyboardreset)
 		CLXCON(-1, 0);
 		CLXCON2(-1, 0);
 		setup_fmodes(0, bplcon0);
-		beamcon0 = new_beamcon0 = beamcon0_saved = currprefs.ntscmode ? 0x00 : BEAMCON0_PAL;
+		beamcon0 = new_beamcon0 = beamcon0_previous = beamcon0_saved = currprefs.ntscmode ? 0x00 : BEAMCON0_PAL;
 		blt_info.blit_main = 0;
 		blt_info.blit_finald = 0;
 		blt_info.blit_pending = 0;
@@ -16027,7 +16069,7 @@ void check_prefs_changed_custom(void)
 				new_beamcon0 = beamcon0_saved;
 			} else if (!(changed_prefs.chipset_mask & CSMASK_ECS_AGNUS) && (currprefs.chipset_mask & CSMASK_ECS_AGNUS)) {
 				beamcon0_saved = beamcon0;
-				beamcon0 = new_beamcon0 = currprefs.ntscmode ? 0x00 : BEAMCON0_PAL;
+				beamcon0 = new_beamcon0 = beamcon0_previous = currprefs.ntscmode ? 0x00 : BEAMCON0_PAL;
 				diwhigh = 0;
 				diwhigh_written = 0;
 				bplcon0 &= ~(0x10 | 0x01);
