@@ -150,6 +150,11 @@ void activate_debugger_new_pc(uaecptr pc, int len)
 	trace_param[1] = pc + len;
 }
 
+static void debug_continue(void)
+{
+	set_special(SPCFLAG_BRK);
+}
+
 bool debug_enforcer(void)
 {
 	if (!break_if_enforcer)
@@ -6454,6 +6459,29 @@ static void dma_disasm(int frames, int vp, int hp, int frames_end, int vp_end, i
 static uaecptr nxdis, nxmem, asmaddr;
 static bool ppcmode, asmmode;
 
+static bool parsecmd(TCHAR *cmd, bool *out)
+{
+	if (!_tcsicmp(cmd, _T("reset"))) {
+		deactivate_debugger();
+		debug_continue();
+		uae_reset(0, 0);
+		return true;
+	}
+	if (!_tcsicmp(cmd, _T("reseth"))) {
+		deactivate_debugger();
+		debug_continue();
+		uae_reset(1, 0);
+		return true;
+	}
+	if (!_tcsicmp(cmd, _T("resetk"))) {
+		deactivate_debugger();
+		debug_continue();
+		uae_reset(0, 1);
+		return true;
+	}
+	return false;
+}
+
 static bool debug_line (TCHAR *input)
 {
 	TCHAR cmd, *inptr;
@@ -6485,6 +6513,10 @@ static bool debug_line (TCHAR *input)
 		}
 	}
 
+	ignore_ws(&inptr);
+	if (parsecmd(inptr, &err)) {
+		return err;
+	}
 	cmd = next_char (&inptr);
 
 	switch (cmd)
@@ -7150,11 +7182,6 @@ static void addhistory(void)
 			firsthist = 0;
 		}
 	}
-}
-
-static void debug_continue(void)
-{
-	set_special (SPCFLAG_BRK);
 }
 
 void debug_exception(int nr)
