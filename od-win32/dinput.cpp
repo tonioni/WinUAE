@@ -1708,20 +1708,14 @@ static bool initialize_rawinput (void)
 			} else if (type == RIM_TYPEHID) {
 				if (rdpdevice (buf1))
 					continue;
+				if (rdi->hid.usUsagePage != 0x01) {
+					write_log(_T("RAWHID: UsagePage not 1 (%04x)\n"), rdi->hid.usUsagePage);
+					continue;
+				}
 				if (rdi->hid.usUsage != 4 && rdi->hid.usUsage != 5) {
 					write_log (_T("RAWHID: Usage not 4 or 5 (%04X)\n"), rdi->hid.usUsage);
 					continue;
 				}
-				if (rdi->hid.usUsagePage >= 0x80) {
-					write_log(_T("RAWHID: Usage %d, reserved page %04X\n"), rdi->hid.usUsage, rdi->hid.usUsagePage);
-					continue;
-				}
-#if 0
-				if (rdi->hid.usUsagePage >= 0xff00) { // vendor specific
-					write_log (_T("RAWHID: Ignored vendor specific %04X\n"), rdi->hid.usUsagePage);
-					continue;
-				}
-#endif
 				for (i = 0; hidnorawinput[i].vid; i++) {
 					if (rdi->hid.dwProductId == hidnorawinput[i].pid && rdi->hid.dwVendorId == hidnorawinput[i].vid)
 						break;
