@@ -1290,6 +1290,41 @@ int scaleresource_choosefont (HWND hDlg, int fonttype)
 	return 1;
 }
 
+void darkmode_initdialog(HWND hDlg)
+{
+	if (g_darkModeSupported)
+	{
+		SendMessageW(hDlg, WM_THEMECHANGED, 0, 0);
+	}
+}
+void darkmode_themechanged(HWND hDlg)
+{
+	if (g_darkModeSupported)
+	{
+		RefreshTitleBarThemeColor(hDlg);
+		UpdateWindow(hDlg);
+	}
+}
+INT_PTR darkmode_ctlcolor(WPARAM wParam, bool *handled)
+{
+	constexpr COLORREF darkBkColor = 0x383838;
+	constexpr COLORREF darkTextColor = 0xFFFFFF;
+	static HBRUSH hbrBkgnd = nullptr;
+
+	if (g_darkModeSupported && g_darkModeEnabled)
+	{
+		HDC hdc = reinterpret_cast<HDC>(wParam);
+		SetTextColor(hdc, darkTextColor);
+		SetBkColor(hdc, darkBkColor);
+		if (!hbrBkgnd)
+			hbrBkgnd = CreateSolidBrush(darkBkColor);
+		*handled = true;
+		return reinterpret_cast<INT_PTR>(hbrBkgnd);
+	}
+	*handled = false;
+	return 0;
+}
+
 #include <gdiplus.h> 
 
 #define MAX_BOX_ART_IMAGES 20
@@ -1448,6 +1483,12 @@ static bool open_box_art_window(void)
 			calculated_boxart_window_width, r.bottom - r.top,
 			hGUIWnd, NULL, hInst, NULL);
 		if (boxarthwnd) {
+
+			if (g_darkModeSupported) {
+				_AllowDarkModeForWindow(boxarthwnd, g_darkModeEnabled);
+				SendMessageW(boxarthwnd, WM_THEMECHANGED, 0, 0);
+			}
+
 			RECT r;
 			GetClientRect(boxarthwnd, &r);
 			boxart_window_width = r.right - r.left;
@@ -1481,7 +1522,13 @@ static void boxartpaint(HDC hdc, HWND hwnd)
 	r.top = 0;
 	r.right = boxart_window_width;
 	r.bottom = boxart_window_height;
-	FillRect(hdc, &r, (HBRUSH)(COLOR_BTNFACE + 1));
+	if (g_darkModeEnabled) {
+		HBRUSH hbrBkgnd = CreateSolidBrush(dark_bg_color);
+		FillRect(hdc, &r, hbrBkgnd);
+		DeleteObject(hbrBkgnd);
+	} else {
+		FillRect(hdc, &r, (HBRUSH)(COLOR_BTNFACE + 1));
+	}
 
 	int image_count = total_images;
 	int image_total_height = total_height;
@@ -1791,6 +1838,8 @@ void reset_box_art_window(void)
 LRESULT CALLBACK BoxArtWindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
 	int oldmode = imagemode;
+	bool handled;
+
 	switch (message)
 	{
 		case WM_LBUTTONDOWN:
@@ -1920,7 +1969,16 @@ LRESULT CALLBACK BoxArtWindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM
 			SetWindowPos(hWnd, NULL, r->left, r->top, r->right - r->left, r->bottom - r->top, SWP_NOZORDER | SWP_NOACTIVATE);
 			return FALSE;
 		}
+		case WM_THEMECHANGED:
+			darkmode_themechanged(hWnd);
 		break;
+		case WM_CTLCOLORDLG:
+		case WM_CTLCOLORSTATIC:
+			INT_PTR v = darkmode_ctlcolor(wParam, &handled);
+			if (handled) {
+				return v;
+			}
+			break;
 	}
 	return DefWindowProc(hWnd, message, wParam, lParam);
 }

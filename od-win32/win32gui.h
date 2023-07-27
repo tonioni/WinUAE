@@ -142,4 +142,10 @@ extern int stored_boxart_window_width_fsgui;
 extern int calculated_boxart_window_width;
 void getextendedframebounds(HWND hwnd, RECT *r);
 void reset_box_art_window(void);
+
+void darkmode_initdialog(HWND hDlg);
+void darkmode_themechanged(HWND hDlg);
+INT_PTR darkmode_ctlcolor(WPARAM wParam, bool *handled);
+
+
 #endif

@@ -144,41 +144,6 @@ pathtype path_type;
 static int stringboxdialogactive;
 static int customdialogactive;
 
-static void darkmode_initdialog(HWND hDlg)
-{
-	if (g_darkModeSupported)
-	{
-		SendMessageW(hDlg, WM_THEMECHANGED, 0, 0);
-	}
-}
-static void darkmode_themechanged(HWND hDlg)
-{
-	if (g_darkModeSupported)
-	{
-		RefreshTitleBarThemeColor(hDlg);
-		UpdateWindow(hDlg);
-	}
-}
-static INT_PTR darkmode_ctlcolor(WPARAM wParam, bool *handled)
-{
-	constexpr COLORREF darkBkColor = 0x383838;
-	constexpr COLORREF darkTextColor = 0xFFFFFF;
-	static HBRUSH hbrBkgnd = nullptr;
-
-	if (g_darkModeSupported && g_darkModeEnabled)
-	{
-		HDC hdc = reinterpret_cast<HDC>(wParam);
-		SetTextColor(hdc, darkTextColor);
-		SetBkColor(hdc, darkBkColor);
-		if (!hbrBkgnd)
-			hbrBkgnd = CreateSolidBrush(darkBkColor);
-		*handled = true;
-		return reinterpret_cast<INT_PTR>(hbrBkgnd);
-	}
-	*handled = false;
-	return 0;
-}
-
 void HtmlHelp(const TCHAR *panel)
 {
 	TCHAR help_file[MAX_DPATH];
