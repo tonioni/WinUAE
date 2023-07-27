@@ -56,6 +56,9 @@
 #include "uaeipc.h"
 #include "xwin.h"
 #include "drawing.h"
+#ifdef WITH_MIDIEMU
+#include "midiemu.h"
+#endif
 #ifdef RETROPLATFORM
 #include "rp.h"
 #endif
@@ -1132,6 +1135,11 @@ void closeser (void)
 		//is the same and do not open midi), so setting serper to different value helps
 		serper = 0x30;
 	}
+#ifdef WITH_MIDIEMU
+	if (midi_emu) {
+		midi_emu_close();
+	}
+#endif
 	if(writeevent)
 		CloseHandle(writeevent);
 	writeevent = 0;
@@ -1172,6 +1180,11 @@ void writeser (int c)
 				tcp_disconnect ();
 			}
 		}
+#ifdef WITH_MIDIEMU
+	} else if (midi_emu) {
+		uae_u8 b = (uae_u8)c;
+		midi_emu_parse(&b, 1);
+#endif
 	} else if (midi_ready) {
 		BYTE outchar = (BYTE)c;
 		Midi_Parse (midi_output, &outchar);
@@ -1374,10 +1387,19 @@ void setserstat (int mask, int onoff)
 	}
 }
 
-int setbaud (long baud)
+int setbaud(int baud, int org_baud)
 {
-	if(baud == 31400 && currprefs.win32_midioutdev >= -1) {
+	if(org_baud == 31400 && currprefs.win32_midioutdev >= -1) {
 		/* MIDI baud-rate */
+#ifdef WITH_MIDIEMU
+		if (currprefs.win32_midioutdev >= 0) {
+			TCHAR *name = midioutportinfo[currprefs.win32_midioutdev]->name;
+			if (!_tcsncmp(name, _T("Munt "), 5)) {
+				midi_emu_open(name);
+				return 1;
+			}
+		}
+#endif
 		if (!midi_ready) {
 			if (Midi_Open())
 				write_log (_T("Midi enabled\n"));
@@ -1387,6 +1409,11 @@ int setbaud (long baud)
 		if (midi_ready) {
 			Midi_Close();
 		}
+#ifdef WITH_MIDIEMU
+		if (midi_emu) {
+			midi_emu_close();
+		}
+#endif
 		if (!currprefs.use_serial)
 			return 1;
 		if (hCom != INVALID_HANDLE_VALUE)  {
@@ -1699,6 +1726,18 @@ int enummidiports (void)
 			}
 		}
 	}
+#ifdef WITH_MIDIEMU
+	midioutportinfo[num] = xcalloc(struct midiportinfo, 1);
+	midioutportinfo[num]->label = midi_emu_available(_T("MT-32")) ? my_strdup(_T("Munt MT-32")) : my_strdup(_T("Munt MT-32 (Missing ROMs)"));
+	midioutportinfo[num]->name = my_strdup(_T("Munt MT-32"));
+	midioutportinfo[num]->devid = num;
+	num++;
+	midioutportinfo[num] = xcalloc(struct midiportinfo, 1);
+	midioutportinfo[num]->label = midi_emu_available(_T("CM-32L")) ? my_strdup(_T("Munt CM-32L")) : my_strdup(_T("Munt CM-32L (Missing ROMs)"));
+	midioutportinfo[num]->name = my_strdup(_T("Munt CM-32L"));
+	midioutportinfo[num]->devid = num;
+	num++;
+#endif
 	num = innum;
 	for (i = 0; i < num && i < MAX_MIDI_PORTS - 1; i++) {
 		if (midiInGetDevCaps (i, &midiInCaps, sizeof (midiInCaps)) != MMSYSERR_NOERROR) {

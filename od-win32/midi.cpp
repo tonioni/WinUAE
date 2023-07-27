@@ -740,3 +740,11 @@ void Midi_Close(void)
 		DeleteCriticalSection(&cs_proc);
 	}
 }
+
+void Midi_Reopen(void)
+{
+	if (midi_ready) {
+		Midi_Close();
+		Midi_Open();
+	}
+}

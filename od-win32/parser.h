@@ -9,7 +9,7 @@
 
 #define PRTBUFSIZE 65536
 
-int setbaud(long baud );
+int setbaud(int baud, int origbaud);
 void getserstat(int *status);
 void setserstat(int mask, int onoff);
 int readser(int *buffer);
@@ -48,7 +48,8 @@ extern int load_ghostscript (void);
 struct midiportinfo
 {
 	TCHAR *name;
-	unsigned int devid;
+    TCHAR *label;
+    int devid;
 };
 extern struct midiportinfo *midiinportinfo[MAX_MIDI_PORTS];
 extern struct midiportinfo *midioutportinfo[MAX_MIDI_PORTS];

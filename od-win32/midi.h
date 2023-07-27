@@ -51,9 +51,10 @@ typedef enum
 
 extern BOOL midi_ready;
 
-extern int Midi_Parse (midi_direction_e direction, BYTE *c);
-extern int Midi_Open (void);
-extern void Midi_Close (void);
+extern int Midi_Parse(midi_direction_e direction, BYTE *c);
+extern int Midi_Open(void);
+extern void Midi_Close(void);
+extern void Midi_Reopen(void);
 extern LONG getmidibyte(void);
 extern int ismidibyte(void);
 

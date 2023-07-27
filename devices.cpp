@@ -57,6 +57,9 @@
 #include "videograb.h"
 #include "rommgr.h"
 #include "newcpu.h"
+#ifdef WITH_MIDIEMU
+#include "midiemu.h"
+#endif
 #ifdef RETROPLATFORM
 #include "rp.h"
 #endif
@@ -287,6 +290,9 @@ void devices_update_sound(float clk, float syncadjust)
 	update_sndboard_sound (clk / syncadjust);
 	update_cda_sound(clk / syncadjust);
 	x86_update_sound(clk / syncadjust);
+#ifdef WITH_MIDIEMU
+	midi_update_sound(clk / syncadjust);
+#endif
 }
 
 void devices_update_sync(float svpos, float syncadjust)

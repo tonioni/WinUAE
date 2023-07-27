@@ -988,6 +988,9 @@
     <ClCompile Include="..\darkmode.cpp">
       <Filter>win32</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\midiemu.cpp">
+      <Filter>common</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\resources\35floppy.ico">

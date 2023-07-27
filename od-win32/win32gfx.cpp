@@ -2616,11 +2616,14 @@ int check_prefs_changed_gfx(void)
 		currprefs.win32_midioutdev = changed_prefs.win32_midioutdev;
 		currprefs.sound_volume_midi = changed_prefs.sound_volume_midi;
 		currprefs.win32_midirouter = changed_prefs.win32_midirouter;
+
 #ifdef SERIAL_PORT
-		if (midi_ready) {
-			Midi_Close ();
-			Midi_Open ();
-		}
+		serial_exit();
+		serial_init();
+		Midi_Reopen();
+#endif
+#ifdef WITH_MIDIEMU
+		midi_emu_reopen();
 #endif
 	}
 
