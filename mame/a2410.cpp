@@ -39,7 +39,6 @@ struct a2410_struct
 	uae_u8 a2410_palette_temp[4];
 	uae_u8 a2410_palette_control[4];
 	uae_u16 a2410_control;
-	bool a2410_modified[MAX_HEIGHT];
 	int a2410_displaywidth;
 	int a2410_displayend;
 	int a2410_vertical_start;
@@ -54,9 +53,8 @@ struct a2410_struct
 
 	bool a2410_modechanged;
 	int a2410_width, a2410_height;
-	uae_u32 overlaylinetable[MAX_HEIGHT + 1];
+	bool overlaylinetab[MAX_HEIGHT + 1];
 	uae_u32 vramlinetab[MAX_HEIGHT + 1];
-	int overlaylinetableindex;
 	int a2410_vram_start_offset;
 	uae_u8 *a2410_surface;
 	int a2410_interlace;
@@ -196,17 +194,7 @@ static void mark_overlay(struct a2410_struct *data, int addr)
 	if (!data->a2410_enabled)
 		return;
 	addr &= 0x1ffff;
-	if (addr >= data->overlaylinetable[data->overlaylinetableindex] && addr < data->overlaylinetable[data->overlaylinetableindex + 1]) {
-		data->a2410_modified[data->overlaylinetableindex] = true;
-	} else {
-		for(int i = 0; i < MAX_HEIGHT; i++) {
-			if (addr >= data->overlaylinetable[i] && addr < data->overlaylinetable[i + 1]) {
-				data->a2410_modified[i] = true;
-				data->overlaylinetableindex = i;
-				break;
-			}
-		}
-	}
+	data->overlaylinetab[addr >> 7] = true;
 }
 
 static void a2410_create_palette32(struct a2410_struct *data, int offset)
@@ -699,9 +687,10 @@ void mscreen::configure(int width, int height, rectangle vis)
 	m_screen->width_v = width;
 	tms_rectangle = vis;
 	write_log(_T("A2410 %d*%d -> %d*%d\n"), ow, oh, data->a2410_width, data->a2410_height);
-	memset(data->overlaylinetable, 0, sizeof(data->overlaylinetable));
-	data->overlaylinetableindex = 0;
 	data->a2410_hsync_max = data->a2410_height / 300;
+	if (data->a2410_hsync_max <= 0) {
+		data->a2410_hsync_max = 1;
+	}
 }
 
 static void get_a2410_surface(struct a2410_struct *data)
@@ -930,7 +919,6 @@ static void tms_hsync_handler2(struct a2410_struct *data)
 	}
 
 	uae_u16 *vram = (uae_u16 *)data->gfxbank->baseaddr + vramoffset;
-	data->overlaylinetable[a2410_vpos] = overlayoffset;
 
 	get_a2410_surface(data);
 	uae_u8 *dst = data->a2410_surface;
@@ -954,20 +942,21 @@ static void tms_hsync_handler2(struct a2410_struct *data)
 		data->coladdr = coladdr;
 	}
 
-	if (!data->fullrefresh && !data->a2410_modified[a2410_vpos] && !linerefresh) {
+	overlayoffset += (coladdr >> 3) << 1;
+
+	if (!data->fullrefresh && !data->overlaylinetab[overlayoffset >> 7] && !linerefresh) {
 		if (!picasso_is_vram_dirty(data->a2410_gfxboard, data->gfxbank->start + (vramoffset << 1), data->a2410_displaywidth)) {
 			return;
 		}
 	}
 
 	if (data->a2410_interlace <= 0) {
-		data->a2410_modified[a2410_vpos] = false;
+		data->overlaylinetab[overlayoffset >> 7] = false;
 	}
 
 	dst += yoffset * vidinfo->rowbytes;
 	uae_u32 *dst32 = (uae_u32*)dst;
 
-	overlayoffset += (coladdr >> 3) << 1;
 	uae_u8 *overlay0 = data->program_ram + overlayoffset;
 	uae_u8 *overlay1 = overlay0 + 0x20000;
 
