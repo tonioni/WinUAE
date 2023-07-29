@@ -8809,7 +8809,7 @@ int inputdevice_get_mapping (int devnum, int num, uae_u64 *pflags, int *pport, T
 	TCHAR *customp = NULL;
 
 	if (name)
-		_tcscpy (name, _T("<none>"));
+		translate_message(NUMSG_INPUT_NONE, name);
 	if (custom)
 		custom[0] = 0;
 	if (pflags)

@@ -113,6 +113,7 @@ typedef enum {
 	NUMSG_NO_PPC,
 	NUMSG_UAEBOOTROM_PPC,
 	NUMSG_NOMEMORY,
+	NUMSG_INPUT_NONE,
 	NUMSG_LAST
 } notify_user_msg;
 

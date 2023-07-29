@@ -2235,6 +2235,7 @@ BEGIN
     IDS_GAMEPORTS_CUSTOM    "Custom"
     IDS_FILTER_LABELS       "Null\nScale2X\nhq2x\nhq3x\nhq4x\nSuperEagle\nSuper2xSaI\n2xSaI\nPAL\n"
     IDS_CURRENT_HOST        "Current host configuration"
+    IDS_NONE2               "<none>"
 END
 
 #endif    // English (United Kingdom) resources
