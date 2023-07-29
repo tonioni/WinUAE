@@ -24,6 +24,7 @@
 #define _WIN32_WINNT 0x0A00
 
 #include <windows.h>
+#include <windowsx.h>
 #include <commctrl.h>
 #include <commdlg.h>
 #include <shellapi.h>
@@ -1810,12 +1811,19 @@ static void processtouch(struct AmigaMonitor *mon, HWND hwnd, WPARAM wParam, LPA
 }
 #endif
 
-static void resizing(struct AmigaMonitor *mon, WPARAM mode, RECT *r)
+static bool hasresizelimit(struct AmigaMonitor *mon)
+{
+	if (!mon->ratio_sizing || !mon->ratio_width || !mon->ratio_height)
+		return false;
+	return true;
+}
+
+static void doresizing(struct AmigaMonitor *mon, WPARAM mode, RECT *r)
 {
 	int nw = (r->right - r->left) + mon->ratio_adjust_x;
 	int nh = (r->bottom - r->top) + mon->ratio_adjust_y;
 
-	if (!mon->ratio_sizing || !mon->ratio_width || !mon->ratio_height)
+	if (!hasresizelimit(mon))
 		return;
 
 	if (mode == WMSZ_BOTTOM || mode == WMSZ_TOP) {
@@ -1847,6 +1855,206 @@ static void resizing(struct AmigaMonitor *mon, WPARAM mode, RECT *r)
 		}
 	}
 }
+
+static int canstretch(struct AmigaMonitor *mon)
+{
+	if (isfullscreen() != 0)
+		return 0;
+	if (!WIN32GFX_IsPicassoScreen(mon)) {
+		if (!currprefs.gfx_windowed_resize)
+			return 0;
+		if (currprefs.gf[GF_NORMAL].gfx_filter_autoscale == AUTOSCALE_RESIZE)
+			return 0;
+		return 1;
+	} else {
+		if (currprefs.win32_rtgallowscaling || currprefs.gf[GF_RTG].gfx_filter_autoscale)
+			return 1;
+	}
+	return 0;
+}
+
+static void getsizemove(AmigaMonitor *mon)
+{
+	mon->ratio_width = mon->amigawin_rect.right - mon->amigawinclip_rect.left;
+	mon->ratio_height = mon->amigawin_rect.bottom - mon->amigawinclip_rect.top;
+	mon->ratio_adjust_x = mon->ratio_width - (mon->mainwin_rect.right - mon->mainwin_rect.left);
+	mon->ratio_adjust_y = mon->ratio_height - (mon->mainwin_rect.bottom - mon->mainwin_rect.top);
+	mon->ratio_sizing = (GetAsyncKeyState(VK_CONTROL) & 0x8000) != 0;
+}
+
+static int setsizemove(AmigaMonitor *mon, HWND hWnd)
+{
+	if (isfullscreen() > 0)
+		return 0;
+	if (mon->in_sizemove > 0)
+		return 0;
+	int iconic = IsIconic(hWnd);
+	if (mon->hAmigaWnd && hWnd == mon->hMainWnd && !iconic) {
+		//write_log (_T("WM_WINDOWPOSCHANGED MAIN\n"));
+		GetWindowRect(mon->hMainWnd, &mon->mainwin_rect);
+		updatewinrect(mon, false);
+		updatemouseclip(mon);
+		if (minimized) {
+			unsetminimized(mon->monitor_id);
+			winuae_active(mon, mon->hAmigaWnd, minimized);
+		}
+		if (isfullscreen() == 0) {
+			static int store_xy;
+			RECT rc2;
+			if (GetWindowRect(mon->hMainWnd, &rc2)) {
+				DWORD left = rc2.left - mon->win_x_diff;
+				DWORD top = rc2.top - mon->win_y_diff;
+				DWORD width = rc2.right - rc2.left;
+				DWORD height = rc2.bottom - rc2.top;
+				if (store_xy++) {
+					if (!mon->monitor_id) {
+						regsetint(NULL, _T("MainPosX"), left);
+						regsetint(NULL, _T("MainPosY"), top);
+					} else {
+						TCHAR buf[100];
+						_stprintf(buf, _T("MainPosX_%d"), mon->monitor_id);
+						regsetint(NULL, buf, left);
+						_stprintf(buf, _T("MainPosY_%d"), mon->monitor_id);
+						regsetint(NULL, buf, top);
+					}
+				}
+				changed_prefs.gfx_monitor[mon->monitor_id].gfx_size_win.x = left;
+				changed_prefs.gfx_monitor[mon->monitor_id].gfx_size_win.y = top;
+				if (canstretch(mon)) {
+					int w = mon->mainwin_rect.right - mon->mainwin_rect.left;
+					int h = mon->mainwin_rect.bottom - mon->mainwin_rect.top;
+					if (w != changed_prefs.gfx_monitor[mon->monitor_id].gfx_size_win.width + mon->window_extra_width ||
+						h != changed_prefs.gfx_monitor[mon->monitor_id].gfx_size_win.height + mon->window_extra_height) {
+						changed_prefs.gfx_monitor[mon->monitor_id].gfx_size_win.width = w - mon->window_extra_width;
+						changed_prefs.gfx_monitor[mon->monitor_id].gfx_size_win.height = h - mon->window_extra_height;
+						set_config_changed();
+					}
+					if (mon->hStatusWnd)
+						SendMessage(mon->hStatusWnd, WM_SIZE, SIZE_RESTORED, MAKELONG(w, h));
+				}
+			}
+			return 0;
+		}
+	}
+	return 1;
+}
+
+static int HitTestToSizingEdge(WPARAM wHitTest)
+{
+	switch (wHitTest)
+	{
+		case HTLEFT:        return WMSZ_LEFT;
+		case HTRIGHT:       return WMSZ_RIGHT;
+		case HTTOP:         return WMSZ_TOP;
+		case HTTOPLEFT:     return WMSZ_TOPLEFT;
+		case HTTOPRIGHT:    return WMSZ_TOPRIGHT;
+		case HTBOTTOM:      return WMSZ_BOTTOM;
+		case HTBOTTOMLEFT:  return WMSZ_BOTTOMLEFT;
+		case HTBOTTOMRIGHT: return WMSZ_BOTTOMRIGHT;
+		case HTCAPTION:		return -1;
+	}
+	return 0;
+}
+
+static int inresizing;
+static int nSizingEdge;
+static POINT ptResizePos;
+static RECT rcResizeStartWindowRect;
+
+static void StartCustomResize(AmigaMonitor *mon, HWND hWindow, int nEdge, int x, int y)
+{
+	inresizing = TRUE;
+	SetCapture(hWindow);
+	nSizingEdge = nEdge;
+	ptResizePos.x = x;
+	ptResizePos.y = y;
+	GetWindowRect(hWindow, &rcResizeStartWindowRect);
+	getsizemove(mon);
+}
+
+static void CustomResizeMouseMove(AmigaMonitor *mon, HWND hWindow)
+{
+	POINT pt;
+	GetCursorPos(&pt);
+	if (pt.x != ptResizePos.x || pt.y != ptResizePos.y) {
+		RECT r;
+		GetWindowRect(hWindow, &r);
+		int x = r.left;
+		int y = r.top;
+		int w = r.right - r.left;
+		int h = r.bottom - r.top;
+		int dx = pt.x - ptResizePos.x;
+		int dy = pt.y - ptResizePos.y;
+		bool changed = true;
+		switch (nSizingEdge)
+		{
+			case WMSZ_TOP:
+				y = pt.y;
+				h -= dy;
+				break;
+			case WMSZ_BOTTOM:
+				h += dy;
+				break;
+			case WMSZ_LEFT:
+				x = pt.x;
+				w -= dx;
+				break;
+			case WMSZ_RIGHT:
+				w += dx;
+				break;
+			case WMSZ_TOPLEFT:
+				x = pt.x;
+				w -= dx;
+				y = pt.y;
+				h -= dy;
+				break;
+			case WMSZ_TOPRIGHT:
+				w += dx;
+				y = pt.y;
+				h -= dy;
+				break;
+			case WMSZ_BOTTOMLEFT:
+				x = pt.x;
+				w -= dx;
+				h += dy;
+				break;
+			case WMSZ_BOTTOMRIGHT:
+				w += dx;
+				h += dy;
+				break;
+			case -1:
+				x += dx;
+				y += dy;
+				break;
+			default:
+				changed = false;
+				break;
+		}
+		if (changed) {
+			RECT r2;
+			r2.left = x;
+			r2.top = y;
+			r2.right = x + w;
+			r2.bottom = y + h;
+			doresizing(mon, nSizingEdge, &r2);
+			SetWindowPos(hWindow, NULL, r2.left, r2.top, r2.right - r2.left, r2.bottom - r2.top, 0);
+		}
+		ptResizePos.x = pt.x;
+		ptResizePos.y = pt.y;
+	}
+}
+
+static void EndCustomResize(HWND hWindow, BOOL bCanceled)
+{
+	inresizing = false;
+	ReleaseCapture();
+	if (bCanceled) {
+		SetWindowPos(hWindow, NULL, rcResizeStartWindowRect.left, rcResizeStartWindowRect.top,
+			rcResizeStartWindowRect.right - rcResizeStartWindowRect.left, rcResizeStartWindowRect.bottom - rcResizeStartWindowRect.top,
+			SWP_NOZORDER | SWP_NOACTIVATE);
+	}
+}
+
 
 #define MSGDEBUG 1
 
@@ -1940,7 +2148,7 @@ static LRESULT CALLBACK AmigaWindowProc(HWND hWnd, UINT message, WPARAM wParam, 
 		}
 		return 0;
 	case WM_SIZING:
-		resizing(mon, wParam, (RECT*)lParam);
+		doresizing(mon, wParam, (RECT*)lParam);
 		return TRUE;
 	case WM_ACTIVATE:
 		//write_log(_T("WM_ACTIVATE %p %x\n"), hWnd, wParam);
@@ -1977,8 +2185,15 @@ static LRESULT CALLBACK AmigaWindowProc(HWND hWnd, UINT message, WPARAM wParam, 
 
 	case WM_KEYDOWN:
 		if (!hGUIWnd) {
-			if (dinput_wmkey((uae_u32)lParam)) {
-				inputdevice_add_inputcode(AKS_ENTERGUI, 1, NULL);
+			if (inresizing) {
+				if (wParam == VK_ESCAPE) {
+					EndCustomResize(hWnd, TRUE);
+					return 0;
+				}
+			} else {
+				if (dinput_wmkey((uae_u32)lParam)) {
+					inputdevice_add_inputcode(AKS_ENTERGUI, 1, NULL);
+				}
 			}
 		} else {
 			int scancode = (lParam >> 16) & 0xff;
@@ -1991,14 +2206,20 @@ static LRESULT CALLBACK AmigaWindowProc(HWND hWnd, UINT message, WPARAM wParam, 
 		return 0;
 
 	case WM_LBUTTONUP:
-		if (!rp_mouseevent(-32768, -32768, 0, 1)) {
-			if (dinput_winmouse() >= 0 && isfocus()) {
-				if (log_winmouse)
-					write_log(_T("WM_LBUTTONUP\n"));
-				setmousebuttonstate(dinput_winmouse(), 0, 0);
+		if (inresizing) {
+			EndCustomResize(hWnd, FALSE);
+			return 0;
+		} else {
+			if (!rp_mouseevent(-32768, -32768, 0, 1)) {
+				if (dinput_winmouse() >= 0 && isfocus()) {
+					if (log_winmouse)
+						write_log(_T("WM_LBUTTONUP\n"));
+					setmousebuttonstate(dinput_winmouse(), 0, 0);
+				}
 			}
+			return 0;
 		}
-		return 0;
+		break;
 	case WM_LBUTTONDOWN:
 	case WM_LBUTTONDBLCLK:
 		if (!rp_mouseevent(-32768, -32768, 1, 1)) {
@@ -2255,66 +2476,70 @@ static LRESULT CALLBACK AmigaWindowProc(HWND hWnd, UINT message, WPARAM wParam, 
 
 	case WM_MOUSEMOVE:
 	{
-		int wm = dinput_winmouse();
+		if (inresizing) {
+			CustomResizeMouseMove(mon, hWnd);
+		} else {
+			int wm = dinput_winmouse();
 
-		monitor_off = 0;
-		if (!mouseinside) {
-			//write_log(_T("mouseinside\n"));
-			TRACKMOUSEEVENT tme = { 0 };
-			mouseinside = true;
-			tme.cbSize = sizeof tme;
-			tme.dwFlags = TME_LEAVE;
-			tme.hwndTrack = mon->hAmigaWnd;
-			TrackMouseEvent(&tme);
-		}
+			monitor_off = 0;
+			if (!mouseinside) {
+				//write_log(_T("mouseinside\n"));
+				TRACKMOUSEEVENT tme = { 0 };
+				mouseinside = true;
+				tme.cbSize = sizeof tme;
+				tme.dwFlags = TME_LEAVE;
+				tme.hwndTrack = mon->hAmigaWnd;
+				TrackMouseEvent(&tme);
+			}
 
-		mx = (signed short)LOWORD(lParam);
-		my = (signed short)HIWORD(lParam);
+			mx = (signed short)LOWORD(lParam);
+			my = (signed short)HIWORD(lParam);
 
-		if (log_winmouse)
-			write_log (_T("WM_MOUSEMOVE MON=%d NUM=%d ACT=%d FOCUS=%d CLIP=%d FS=%d %dx%d %dx%d\n"),
-				mon->monitor_id, wm, mouseactive, focus, mon_cursorclipped, isfullscreen (), mx, my, mon->mouseposx, mon->mouseposy);
+			if (log_winmouse)
+				write_log (_T("WM_MOUSEMOVE MON=%d NUM=%d ACT=%d FOCUS=%d CLIP=%d FS=%d %dx%d %dx%d\n"),
+					mon->monitor_id, wm, mouseactive, focus, mon_cursorclipped, isfullscreen (), mx, my, mon->mouseposx, mon->mouseposy);
 
-		if (rp_mouseevent(mx, my, -1, -1))
-			return 0;
+			if (rp_mouseevent(mx, my, -1, -1))
+				return 0;
 
-		mx -= mon->mouseposx;
-		my -= mon->mouseposy;
+			mx -= mon->mouseposx;
+			my -= mon->mouseposy;
 
-		if (recapture && isfullscreen() <= 0) {
-			enablecapture(mon->monitor_id);
-			return 0;
-		}
-
-		if (wm < 0 && (istablet || currprefs.input_tablet >= TABLET_MOUSEHACK)) {
-			/* absolute */
-			setmousestate(0, 0, mx, 1);
-			setmousestate(0, 1, my, 1);
-			return 0;
-		}
-		if (wm >= 0) {
-			if (istablet || currprefs.input_tablet >= TABLET_MOUSEHACK) {
-				/* absolute */
-				setmousestate(dinput_winmouse(), 0, mx, 1);
-				setmousestate(dinput_winmouse(), 1, my, 1);
+			if (recapture && isfullscreen() <= 0) {
+				enablecapture(mon->monitor_id);
 				return 0;
 			}
-			if (!focus || !mouseactive)
-				return DefWindowProc(hWnd, message, wParam, lParam);
-			/* relative */
-			int mxx = (mon->amigawinclip_rect.left - mon->amigawin_rect.left) + (mon->amigawinclip_rect.right - mon->amigawinclip_rect.left) / 2;
-			int myy = (mon->amigawinclip_rect.top - mon->amigawin_rect.top) + (mon->amigawinclip_rect.bottom - mon->amigawinclip_rect.top) / 2;
-			mx = mx - mxx;
-			my = my - myy;
-			setmousestate(dinput_winmouse(), 0, mx, 0);
-			setmousestate(dinput_winmouse(), 1, my, 0);
-		} else if (isfocus() < 0 && (istablet || currprefs.input_tablet >= TABLET_MOUSEHACK)) {
-			setmousestate(0, 0, mx, 1);
-			setmousestate(0, 1, my, 1);
+
+			if (wm < 0 && (istablet || currprefs.input_tablet >= TABLET_MOUSEHACK)) {
+				/* absolute */
+				setmousestate(0, 0, mx, 1);
+				setmousestate(0, 1, my, 1);
+				return 0;
+			}
+			if (wm >= 0) {
+				if (istablet || currprefs.input_tablet >= TABLET_MOUSEHACK) {
+					/* absolute */
+					setmousestate(dinput_winmouse(), 0, mx, 1);
+					setmousestate(dinput_winmouse(), 1, my, 1);
+					return 0;
+				}
+				if (!focus || !mouseactive)
+					return DefWindowProc(hWnd, message, wParam, lParam);
+				/* relative */
+				int mxx = (mon->amigawinclip_rect.left - mon->amigawin_rect.left) + (mon->amigawinclip_rect.right - mon->amigawinclip_rect.left) / 2;
+				int myy = (mon->amigawinclip_rect.top - mon->amigawin_rect.top) + (mon->amigawinclip_rect.bottom - mon->amigawinclip_rect.top) / 2;
+				mx = mx - mxx;
+				my = my - myy;
+				setmousestate(dinput_winmouse(), 0, mx, 0);
+				setmousestate(dinput_winmouse(), 1, my, 0);
+			} else if (isfocus() < 0 && (istablet || currprefs.input_tablet >= TABLET_MOUSEHACK)) {
+				setmousestate(0, 0, mx, 1);
+				setmousestate(0, 1, my, 1);
+			}
+			if (mon_cursorclipped || mouseactive)
+				setcursor(mon, LOWORD(lParam), HIWORD(lParam));
+			return 0;
 		}
-		if (mon_cursorclipped || mouseactive)
-			setcursor(mon, LOWORD(lParam), HIWORD(lParam));
-		return 0;
 	}
 	break;
 
@@ -2615,23 +2840,6 @@ static LRESULT CALLBACK AmigaWindowProc(HWND hWnd, UINT message, WPARAM wParam, 
 	return DefWindowProc (hWnd, message, wParam, lParam);
 }
 
-static int canstretch(struct AmigaMonitor *mon)
-{
-	if (isfullscreen () != 0)
-		return 0;
-	if (!WIN32GFX_IsPicassoScreen(mon)) {
-		if (!currprefs.gfx_windowed_resize)
-			return 0;
-		if (currprefs.gf[GF_NORMAL].gfx_filter_autoscale == AUTOSCALE_RESIZE)
-			return 0;
-		return 1;
-	} else {
-		if (currprefs.win32_rtgallowscaling || currprefs.gf[GF_RTG].gfx_filter_autoscale)
-			return 1;
-	}
-	return 0;
-}
-
 static void plot (LPDRAWITEMSTRUCT lpDIS, int x, int y, int dx, int dy, int idx)
 {
 	COLORREF rgb;
@@ -2772,11 +2980,7 @@ static LRESULT CALLBACK MainWindowProc (HWND hWnd, UINT message, WPARAM wParam, 
 
 	case WM_ENTERSIZEMOVE:
 		mon->in_sizemove++;
-		mon->ratio_width = mon->amigawin_rect.right - mon->amigawinclip_rect.left;
-		mon->ratio_height = mon->amigawin_rect.bottom - mon->amigawinclip_rect.top;
-		mon->ratio_adjust_x = mon->ratio_width - (mon->mainwin_rect.right - mon->mainwin_rect.left);
-		mon->ratio_adjust_y = mon->ratio_height - (mon->mainwin_rect.bottom - mon->mainwin_rect.top);
-		mon->ratio_sizing = (GetAsyncKeyState(VK_CONTROL) & 0x8000) != 0;
+		getsizemove(mon);
 		break;
 
 	case WM_EXITSIZEMOVE:
@@ -2785,58 +2989,7 @@ static LRESULT CALLBACK MainWindowProc (HWND hWnd, UINT message, WPARAM wParam, 
 
 	case WM_WINDOWPOSCHANGED:
 		{
-			if (isfullscreen () > 0)
-				break;
-			if (mon->in_sizemove > 0)
-				break;
-			int iconic = IsIconic (hWnd);
-			if (mon->hAmigaWnd && hWnd == mon->hMainWnd && !iconic) {
-				//write_log (_T("WM_WINDOWPOSCHANGED MAIN\n"));
-				GetWindowRect(mon->hMainWnd, &mon->mainwin_rect);
-				updatewinrect(mon, false);
-				updatemouseclip(mon);
-				if (minimized) {
-					unsetminimized(mon->monitor_id);
-					winuae_active(mon, mon->hAmigaWnd, minimized);
-				}
-				if (isfullscreen() == 0) {
-					static int store_xy;
-					RECT rc2;
-					if (GetWindowRect (mon->hMainWnd, &rc2)) {
-						DWORD left = rc2.left - mon->win_x_diff;
-						DWORD top = rc2.top - mon->win_y_diff;
-						DWORD width = rc2.right - rc2.left;
-						DWORD height = rc2.bottom - rc2.top;
-						if (store_xy++) {
-							if (!mon->monitor_id) {
-								regsetint(NULL, _T("MainPosX"), left);
-								regsetint(NULL, _T("MainPosY"), top);
-							} else {
-								TCHAR buf[100];
-								_stprintf(buf, _T("MainPosX_%d"), mon->monitor_id);
-								regsetint(NULL, buf, left);
-								_stprintf(buf, _T("MainPosY_%d"), mon->monitor_id);
-								regsetint(NULL, buf, top);
-							}
-						}
-						changed_prefs.gfx_monitor[mon->monitor_id].gfx_size_win.x = left;
-						changed_prefs.gfx_monitor[mon->monitor_id].gfx_size_win.y = top;
-						if (canstretch(mon)) {
-							int w = mon->mainwin_rect.right - mon->mainwin_rect.left;
-							int h = mon->mainwin_rect.bottom - mon->mainwin_rect.top;
-							if (w != changed_prefs.gfx_monitor[mon->monitor_id].gfx_size_win.width + mon->window_extra_width ||
-								h != changed_prefs.gfx_monitor[mon->monitor_id].gfx_size_win.height + mon->window_extra_height) {
-									changed_prefs.gfx_monitor[mon->monitor_id].gfx_size_win.width = w - mon->window_extra_width;
-									changed_prefs.gfx_monitor[mon->monitor_id].gfx_size_win.height = h - mon->window_extra_height;
-									set_config_changed();
-							}
-						}
-					}
-					if (mon->hStatusWnd)
-						SendMessage(mon->hStatusWnd, WM_SIZE, wParam, lParam);
-					return 0;
-				}
-			}
+			setsizemove(mon, hWnd);
 		}
 		break;
 
@@ -2991,7 +3144,35 @@ static LRESULT CALLBACK MainWindowProc (HWND hWnd, UINT message, WPARAM wParam, 
 		}
 		break;
 	}
-	
+
+	case WM_NCLBUTTONDOWN:
+	{
+		switch (wParam)
+		{
+			case HTLEFT:
+			case HTRIGHT:
+			case HTTOP:
+			case HTTOPLEFT:
+			case HTTOPRIGHT:
+			case HTBOTTOM:
+			case HTBOTTOMLEFT:
+			case HTBOTTOMRIGHT:
+			case HTCAPTION:
+				if (canstretch(mon)) {
+					SetForegroundWindow(hWnd);
+					StartCustomResize(mon, hWnd, HitTestToSizingEdge(wParam), GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
+					return 0;
+				}
+				break;
+		}
+		break;
+	}
+	case WM_CANCELMODE:
+		if (inresizing) {
+			EndCustomResize(hWnd, FALSE);
+		}
+		break;
+
 	default:
 		break;
 

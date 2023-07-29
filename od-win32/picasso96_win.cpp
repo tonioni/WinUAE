@@ -1088,6 +1088,9 @@ static void setconvert(int monid)
 	if (vidinfo->host_mode != vidinfo->ohost_mode || state->RGBFormat != vidinfo->orgbformat) {
 		write_log (_T("RTG conversion: Depth=%d HostRGBF=%d P96RGBF=%d Mode=%d/%d\n"),
 			picasso_vidinfo[monid].pixbytes, vidinfo->host_mode, state->RGBFormat, vidinfo->picasso_convert[0], vidinfo->picasso_convert[1]);
+		if (vidinfo->host_mode != vidinfo->ohost_mode && currprefs.win32_rtgmatchdepth) {
+			state->ModeChanged = true;
+		}
 		vidinfo->ohost_mode = vidinfo->host_mode;
 		vidinfo->orgbformat = state->RGBFormat;
 	}
@@ -3082,6 +3085,7 @@ static void init_picasso_screen(int monid)
 		gfx_set_picasso_modeinfo(monid, state->RGBFormat);
 		set_gc_called = 0;
 	}
+
 	if((vidinfo->width == state->Width) &&
 		(vidinfo->height == state->Height) &&
 		(vidinfo->depth == (state->GC_Depth >> 3)) &&
@@ -3119,13 +3123,25 @@ static uae_u32 REGPARAM2 picasso_SetGC (TrapContext *ctx)
 	trap_put_long(ctx, AmigaBoardInfo + PSSO_BoardInfo_ModeInfo, modeinfo);
 	trap_put_word(ctx, AmigaBoardInfo + PSSO_BoardInfo_Border, border);
 
-	state->Width = trap_get_word(ctx, modeinfo + PSSO_ModeInfo_Width);
+	uae_u16 w = trap_get_word(ctx, modeinfo + PSSO_ModeInfo_Width);
+	if (w != state->Width) {
+		state->ModeChanged = true;
+	}
+	state->Width = w;
 	state->VirtualWidth = state->Width; /* in case SetPanning doesn't get called */
 
-	state->Height = trap_get_word(ctx, modeinfo + PSSO_ModeInfo_Height);
+	uae_u16 h = trap_get_word(ctx, modeinfo + PSSO_ModeInfo_Height);
+	if (h != state->Height) {
+		state->ModeChanged = true;
+	}
+	state->Height = h;
 	state->VirtualHeight = state->Height; /* in case SetPanning doesn't get called */
 
-	state->GC_Depth = trap_get_byte(ctx, modeinfo + PSSO_ModeInfo_Depth);
+	uae_u8 d = trap_get_byte(ctx, modeinfo + PSSO_ModeInfo_Depth);
+	if (d != state->GC_Depth) {
+		state->ModeChanged = true;
+	}
+	state->GC_Depth = d;
 	state->GC_Flags = trap_get_byte(ctx, modeinfo + PSSO_ModeInfo_Flags);
 
 	state->HLineDBL = 1;

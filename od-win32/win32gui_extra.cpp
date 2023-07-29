@@ -634,15 +634,15 @@ static HWND DIALOG_CreateIndirect(HINSTANCE hInst, LPCVOID dlgTemplate,
 		size.cy = res->height;
 	}
 
+	HMONITOR monitor = 0;
+	MONITORINFO mon_info;
+
 	if (tmpl->x == CW_USEDEFAULT16)
 	{
 		pos.x = pos.y = CW_USEDEFAULT;
 	}
 	else
 	{
-		HMONITOR monitor = 0;
-		MONITORINFO mon_info;
-
 		mon_info.cbSize = sizeof(mon_info);
 		if (tmpl->style & DS_CENTER)
 		{
@@ -673,6 +673,26 @@ static HWND DIALOG_CreateIndirect(HINSTANCE hInst, LPCVOID dlgTemplate,
 			//
 			if (!(tmpl->style & (WS_CHILD | DS_ABSALIGN)) && owner)
 				ClientToScreen(owner, &pos);
+		}
+	}
+
+	if (tmpl->style & (DS_CENTER | DS_CENTERMOUSE)) {
+		POINT pos2 = pos;
+		pos2.x += size.cx / 2;
+		pos2.y += size.cy / 2;
+		monitor = MonitorFromPoint(pos, MONITOR_DEFAULTTOPRIMARY);
+		GetMonitorInfoW(monitor, &mon_info);
+		if (pos.x + size.cx > mon_info.rcWork.right) {
+			pos.x = mon_info.rcWork.right - size.cx;
+		}
+		if (pos.y + size.cy > mon_info.rcWork.bottom) {
+			pos.y = mon_info.rcWork.bottom - size.cy;
+		}
+		if (pos.x < mon_info.rcWork.left) {
+			pos.x = mon_info.rcWork.left;
+		}
+		if (pos.y < mon_info.rcWork.top) {
+			pos.y = mon_info.rcWork.top;
 		}
 	}
 

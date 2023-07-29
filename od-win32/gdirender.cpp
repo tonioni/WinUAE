@@ -327,7 +327,9 @@ static bool gdi_renderframe(int monid, int mode, bool immediate)
 {
 	struct gdistruct *gdi = &gdidata[monid];
 
-	setupscenecoords(gdi, monid);
+	if (gdi->bm.hbm) {
+		setupscenecoords(gdi, monid);
+	}
 	return gdi->bm.hbm != NULL;
 }
 

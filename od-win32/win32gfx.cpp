@@ -62,6 +62,9 @@
 #endif
 #include "statusline.h"
 #include "devices.h"
+#ifdef WITH_MIDIEMU
+#include "midiemu.h"
+#endif
 
 #include "darkmode.h"
 
@@ -2003,11 +2006,6 @@ static int open_windows(struct AmigaMonitor *mon, bool mousecapture, bool starte
 	mon->in_sizemove = 0;
 
 	updatewinfsmode(mon->monitor_id, &currprefs);
-#ifdef D3D
-	gfx_lock();
-	D3D_free(mon->monitor_id, false);
-	gfx_unlock();
-#endif
 
 	int init_round = 0;
 	ret = -2;
@@ -3046,6 +3044,7 @@ static void updatepicasso96(struct AmigaMonitor *mon)
 void gfx_set_picasso_modeinfo(int monid, RGBFTYPE rgbfmt)
 {
 	struct AmigaMonitor *mon = &AMonitors[monid];
+	struct picasso96_state_struct *state = &picasso96_state[mon->monitor_id];
 	int need;
 	if (!mon->screen_is_picasso)
 		return;
@@ -3056,13 +3055,12 @@ void gfx_set_picasso_modeinfo(int monid, RGBFTYPE rgbfmt)
 	if (need > 0) {
 		open_screen(mon);
 	} else if (need < 0) {
-		struct picasso96_state_struct *state = &picasso96_state[mon->monitor_id];
 		struct winuae_currentmode *wc = &mon->currentmode;
-		if (state->Width != wc->native_width || state->Width != wc->current_width ||
-			state->Height != wc->native_height || state->Height != wc->current_height) {
+		if (state->ModeChanged) {
 			open_windows(mon, true, true);
 		}
 	}
+	state->ModeChanged = false;
 #ifdef RETROPLATFORM
 	rp_set_hwnd(mon->hAmigaWnd);
 #endif
@@ -3203,6 +3201,7 @@ static void createstatuswindow(struct AmigaMonitor *mon)
 	if (mon->hStatusWnd) {
 		ShowWindow(mon->hStatusWnd, SW_HIDE);
 		DestroyWindow(mon->hStatusWnd);
+		mon->hStatusWnd = NULL;
 	}
 	if (currprefs.win32_statusbar == 0 || mon->monitor_id > 0)
 		return;
@@ -3546,7 +3545,7 @@ static int create_windows(struct AmigaMonitor *mon)
 #endif
 		GetWindowRect (mon->hAmigaWnd, &r);
 
-		int sbheight = currprefs.win32_statusbar ? getstatuswindowheight(mon->monitor_id, mon->hAmigaWnd) : 0;
+		int sbheight = currprefs.win32_statusbar && !currprefs.win32_borderless ? getstatuswindowheight(mon->monitor_id, mon->hAmigaWnd) : 0;
 		int dpi = getdpiforwindow(mon->hAmigaWnd);
 
 		x = r.left;
@@ -3640,6 +3639,10 @@ static int create_windows(struct AmigaMonitor *mon)
 		return 1;
 	}
 
+	gfx_lock();
+	D3D_free(mon->monitor_id, false);
+	gfx_unlock();
+
 	if (fsw && !borderless)
 		borderless = 1;
 	window_led_drives = 0;
@@ -3647,7 +3650,7 @@ static int create_windows(struct AmigaMonitor *mon)
 	mon->hMainWnd = NULL;
 	x = 0; y = 0;
 
-	int sbheight = currprefs.win32_statusbar ? getstatuswindowheight(mon->monitor_id, NULL) : 0;
+	int sbheight = currprefs.win32_statusbar && !currprefs.win32_borderless ? getstatuswindowheight(mon->monitor_id, NULL) : 0;
 
 	if (borderless)
 		sbheight = cyborder = 0;
@@ -4011,8 +4014,10 @@ retry:
 	}
 
 	S2X_free(mon->monitor_id);
-	for (int i = 0; i < MAX_AMIGAMONITORS; i++) {
-		oldtex_w[i] = oldtex_h[i] = -1;
+	if (!D3D_isenabled(mon->monitor_id)) {
+		for (int i = 0; i < MAX_AMIGAMONITORS; i++) {
+			oldtex_w[i] = oldtex_h[i] = -1;
+		}
 	}
 	if (mon->currentmode.flags & DM_D3D) {
 		int fmh = mon->screen_is_picasso ? 1 : currprefs.gf[ad->gf_index].gfx_filter_filtermodeh + 1;

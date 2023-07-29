@@ -3414,6 +3414,18 @@ static float xD3D_getrefreshrate(int monid)
 	return d3d->vblank;
 }
 
+static void xD3D11_initvals(HWND ahwnd, int monid, int w_w, int w_h, int t_w, int t_h, int depth, int *freq, int mmulth, int mmultv)
+{
+	struct d3d11struct *d3d = &d3d11data[monid];
+
+	d3d->m_bitmapWidth = t_w;
+	d3d->m_bitmapHeight = t_h;
+	d3d->m_screenWidth = w_w;
+	d3d->m_screenHeight = w_h;
+	d3d->dmultxh = mmulth;
+	d3d->dmultxv = mmultv;
+}
+
 static int xxD3D11_init2(HWND ahwnd, int monid, int w_w, int w_h, int t_w, int t_h, int depth, int *freq, int mmulth, int mmultv)
 {
 	struct d3d11struct *d3d = &d3d11data[monid];
@@ -3449,15 +3461,12 @@ static int xxD3D11_init2(HWND ahwnd, int monid, int w_w, int w_h, int t_w, int t
 		return 0;
 	}
 
-	d3d->m_bitmapWidth = t_w;
-	d3d->m_bitmapHeight = t_h;
-	d3d->m_screenWidth = w_w;
-	d3d->m_screenHeight = w_h;
+	xD3D11_initvals(ahwnd, monid, w_w, w_h, t_w, t_h, depth, freq, mmulth, mmultv);
+
 	d3d->ahwnd = ahwnd;
+
 	d3d->texformat = DXGI_FORMAT_B8G8R8A8_UNORM;
 	d3d->scrformat = DXGI_FORMAT_B8G8R8A8_UNORM;
-	d3d->dmultxh = mmulth;
-	d3d->dmultxv = mmultv;
 
 	HMONITOR winmon;
 	struct MultiDisplay *md = NULL;
@@ -4137,16 +4146,23 @@ static const TCHAR *xD3D11_init(HWND ahwnd, int monid, int w_w, int w_h, int dep
 		*errp = 1;
 		return _T("D3D11 FAILED TO INIT");
 	}
-	int v = xxD3D11_init(ahwnd, monid, w_w, w_h, depth, freq, mmulth, mmultv);
-	if (v > 0) {
+	if (!D3D_isenabled(monid)) {
+		int v = xxD3D11_init(ahwnd, monid, w_w, w_h, depth, freq, mmulth, mmultv);
+		if (v > 0) {
+			return NULL;
+		}
+		xD3D11_free(monid, true);
+		*errp = 1;
+		if (v <= 0) {
+			return _T("");
+		}
+		return _T("D3D11 INITIALIZATION ERROR");
+	} else {
+		struct d3d11struct *d3d = &d3d11data[monid];
+		xD3D11_initvals(ahwnd, monid, w_w, w_h, w_w, w_h, depth, freq, mmulth, mmultv);
+		d3d->fsresizedo = true;
 		return NULL;
 	}
-	xD3D11_free(monid, true);
-	*errp = 1;
-	if (v <= 0) {
-		return _T("");
-	}
-	return _T("D3D11 INITIALIZATION ERROR");
 }
 
 static void setpsbuffer(struct d3d11struct *d3d, ID3D11Buffer *psbuffer)

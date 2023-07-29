@@ -208,7 +208,7 @@ bool isguiactive(void)
 }
 
 static const int defaultaspectratios[] = {
-		5, 4, 4, 3, 16, 10, 15, 9, 27, 16, 128, 75, 16, 9, 256, 135, 21, 9, 16, 3,
+		5, 4, 4, 3, 16, 10, 15, 9, 27, 16, 128, 75, 16, 9, 256, 135, 21, 9, 32, 9, 16, 3,
 		-1
 };
 static int getaspectratioindex (int ar)
@@ -408,6 +408,11 @@ static int gui_get_string_cursor(int *table, HWND hDlg, int item)
 
 static INT_PTR commonproc2(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam, bool *handled)
 {
+	if (dialog_inhibit) {
+		*handled = true;
+		return FALSE;
+	}
+
 	if (msg == WM_INITDIALOG) {
 		darkmode_initdialog(hDlg);
 	} else if (msg == WM_CTLCOLORDLG || msg == WM_CTLCOLORSTATIC) {
@@ -425,6 +430,12 @@ static INT_PTR commonproc2(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam, bo
 static INT_PTR commonproc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam, bool *handled)
 {
 	*handled = false;
+
+	if (dialog_inhibit) {
+		*handled = true;
+		return FALSE;
+	}
+
 	if (msg == WM_DPICHANGED) {
 		RECT *const r = (RECT *)lParam;
 		SetWindowPos(hDlg, NULL, r->left, r->top, r->right - r->left, r->bottom - r->top, SWP_NOZORDER | SWP_NOACTIVATE);
@@ -440,9 +451,6 @@ static INT_PTR commonproc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam, boo
 
 static INT_PTR CALLBACK StringBoxDialogProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
-	if (dialog_inhibit)
-		return 0;
-
 	bool handled;
 	INT_PTR v = commonproc(hDlg, msg, wParam, lParam, &handled);
 	if (handled) {
@@ -1780,9 +1788,6 @@ static bool infoboxdialogstate;
 static HWND infoboxhwnd;
 static INT_PTR CALLBACK InfoBoxDialogProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
-	if (dialog_inhibit)
-		return 0;
-
 	bool handled;
 	INT_PTR v = commonproc(hDlg, msg, wParam, lParam, &handled);
 	if (handled) {
@@ -5765,9 +5770,6 @@ static INT_PTR CALLBACK InfoSettingsProc(HWND hDlg, UINT msg, WPARAM wParam, LPA
 {
 	static int recursive = 0;
 
-	if (dialog_inhibit)
-		return 0;
-
 	bool handled;
 	INT_PTR v = commonproc(hDlg, msg, wParam, lParam, &handled);
 	if (handled) {
@@ -5837,10 +5839,12 @@ static INT_PTR CALLBACK InfoSettingsProc(HWND hDlg, UINT msg, WPARAM wParam, LPA
 			case IDOK:
 			customdialogactive = -1;
 			DestroyWindow(hDlg);
+			recursive = 0;
 			return TRUE;
 			case IDCANCEL:
 			customdialogactive = 0;
 			DestroyWindow(hDlg);
+			recursive = 0;
 			return TRUE;
 			case IDC_CONFIGAUTO:
 			if (configtypepanel > 0) {
@@ -6335,9 +6339,6 @@ static INT_PTR CALLBACK LoadSaveDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPA
 	static int recursive;
 	static struct ConfigStruct *config;
 
-	if (dialog_inhibit)
-		return 0;
-
 	bool handled;
 	INT_PTR vv = commonproc2(hDlg, msg, wParam, lParam, &handled);
 	if (handled) {
@@ -6471,9 +6472,6 @@ static INT_PTR CALLBACK ErrorLogProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 {
 	TCHAR *err;
 
-	if (dialog_inhibit)
-		return 0;
-
 	bool handled;
 	INT_PTR v = commonproc(hDlg, msg, wParam, lParam, &handled);
 	if (handled) {
@@ -6545,9 +6543,6 @@ static TCHAR szContributors[MAX_CONTRIBUTORS_LENGTH * 2];
 
 static INT_PTR CALLBACK ContributorsProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
-	if (dialog_inhibit)
-		return 0;
-
 	bool handled;
 	INT_PTR v = commonproc(hDlg, msg, wParam, lParam, &handled);
 	if (handled) {
@@ -6936,9 +6931,6 @@ static INT_PTR CALLBACK PathsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 	static int numtypes;
 	int val, selpath = 0;
 	TCHAR tmp[MAX_DPATH];
-
-	if (dialog_inhibit)
-		return 0;
 
 	bool handled;
 	INT_PTR vv = commonproc2(hDlg, msg, wParam, lParam, &handled);
@@ -7783,9 +7775,6 @@ static INT_PTR CALLBACK QuickstartDlgProc (HWND hDlg, UINT msg, WPARAM wParam, L
 	static int doinit;
 	int val;
 
-	if (dialog_inhibit)
-		return 0;
-
 	bool handled;
 	INT_PTR vv = commonproc2(hDlg, msg, wParam, lParam, &handled);
 	if (handled) {
@@ -8020,9 +8009,6 @@ static INT_PTR CALLBACK AboutDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 {
 	static HFONT font1, font2;
 
-	if (dialog_inhibit)
-		return 0;
-
 	bool handled;
 	INT_PTR vv = commonproc2(hDlg, msg, wParam, lParam, &handled);
 	if (handled) {
@@ -8036,16 +8022,12 @@ static INT_PTR CALLBACK AboutDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 			pages[ABOUT_ID] = hDlg;
 			currentpage = ABOUT_ID;
 
-			if (!font1) {
-				font1 = CreateFont(-getscaledfontsize(60), 0, 0, 0, 0,
-					0, FALSE, FALSE, DEFAULT_CHARSET, 0, 0,
-					PROOF_QUALITY, FF_DONTCARE, _T("Segoe UI"));
-			}
-			if (!font2) {
-				font2 = CreateFont(-getscaledfontsize(32), 0, 0, 0, 0,
-					0, FALSE, FALSE, DEFAULT_CHARSET, 0, 0,
-					PROOF_QUALITY, FF_DONTCARE, _T("Segoe UI"));
-			}
+			font1 = CreateFont(getscaledfontsize(60), 0, 0, 0, 0,
+				0, FALSE, FALSE, DEFAULT_CHARSET, 0, 0,
+				PROOF_QUALITY, FF_DONTCARE, _T("Segoe UI"));
+			font2 = CreateFont(getscaledfontsize(32), 0, 0, 0, 0,
+				0, FALSE, FALSE, DEFAULT_CHARSET, 0, 0,
+				PROOF_QUALITY, FF_DONTCARE, _T("Segoe UI"));
 
 			HWND hwnd = GetDlgItem(hDlg, IDC_RICHEDIT1);
 			SendMessage(hwnd, WM_SETFONT, (WPARAM)font1, 0);
@@ -8058,7 +8040,7 @@ static INT_PTR CALLBACK AboutDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 				hwnd = GetDlgItem(hDlg, urls[i].id);
 				SendMessage(hwnd, WM_SETFONT, (WPARAM)font2, 0);
 				SetWindowText(hwnd, urls[i].display);
-			}		break;
+			}
 			return TRUE;
 		}
 	case WM_COMMAND:
@@ -8071,6 +8053,12 @@ static INT_PTR CALLBACK AboutDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 	case WM_LBUTTONDOWN:
 	case WM_MOUSEMOVE:
 		url_handler(hDlg, msg, wParam, lParam);
+		break;
+	case WM_DESTROY:
+		DeleteObject(font1);
+		font1 = NULL;
+		DeleteObject(font2);
+		font2 = NULL;
 		break;
 	}
 
@@ -9075,9 +9063,6 @@ static INT_PTR CALLBACK DisplayDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPAR
 {
 	static int recursive = 0;
 
-	if (dialog_inhibit)
-		return 0;
-
 	bool handled;
 	INT_PTR vv = commonproc2(hDlg, msg, wParam, lParam, &handled);
 	if (handled) {
@@ -9330,9 +9315,6 @@ static INT_PTR CALLBACK ChipsetDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPAR
 {
 	static int recursive = 0;
 	TCHAR buffer[MAX_DPATH], tmp[MAX_DPATH];
-
-	if (dialog_inhibit)
-		return 0;
 
 	bool handled;
 	INT_PTR vv = commonproc2(hDlg, msg, wParam, lParam, &handled);
@@ -9749,9 +9731,6 @@ static INT_PTR CALLBACK ChipsetDlgProc2 (HWND hDlg, UINT msg, WPARAM wParam, LPA
 {
 	static int recursive = 0;
 	TCHAR tmp[MAX_DPATH];
-
-	if (dialog_inhibit)
-		return 0;
 
 	bool handled;
 	INT_PTR vv = commonproc2(hDlg, msg, wParam, lParam, &handled);
@@ -11281,9 +11260,6 @@ static INT_PTR CALLBACK Expansion2DlgProc(HWND hDlg, UINT msg, WPARAM wParam, LP
 	TCHAR tmp[MAX_DPATH];
 	static int recursive = 0;
 
-	if (dialog_inhibit)
-		return 0;
-
 	bool handled;
 	INT_PTR vv = commonproc2(hDlg, msg, wParam, lParam, &handled);
 	if (handled) {
@@ -11679,9 +11655,6 @@ static INT_PTR CALLBACK ExpansionDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 	static int recursive = 0;
 	static int enumerated;
 
-	if (dialog_inhibit)
-		return 0;
-
 	bool handled;
 	INT_PTR vv = commonproc2(hDlg, msg, wParam, lParam, &handled);
 	if (handled) {
@@ -11988,9 +11961,6 @@ static INT_PTR CALLBACK BoardsDlgProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 	static int recursive = 0;
 	static int selected = -1;
 
-	if (dialog_inhibit)
-		return 0;
-
 	bool handled;
 	INT_PTR vv = commonproc2(hDlg, msg, wParam, lParam, &handled);
 	if (handled) {
@@ -12134,9 +12104,6 @@ static INT_PTR CALLBACK MemoryDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARA
 	TCHAR tmp[MAX_DPATH];
 	static int recursive = 0;
 	int v;
-
-	if (dialog_inhibit)
-		return 0;
 
 	bool handled;
 	INT_PTR vv = commonproc2(hDlg, msg, wParam, lParam, &handled);
@@ -12545,9 +12512,6 @@ static INT_PTR CALLBACK KickstartDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 {
 	static int recursive;
 	TCHAR tmp[MAX_DPATH];
-
-	if (dialog_inhibit)
-		return 0;
 
 	bool handled;
 	INT_PTR vv = commonproc2(hDlg, msg, wParam, lParam, &handled);
@@ -13751,9 +13715,6 @@ static INT_PTR CALLBACK CPUDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 	static int recursive = 0;
 	int idx;
 
-	if (dialog_inhibit)
-		return 0;
-
 	bool handled;
 	INT_PTR vv = commonproc2(hDlg, msg, wParam, lParam, &handled);
 	if (handled) {
@@ -14292,9 +14253,6 @@ static INT_PTR CALLBACK SoundDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 	int numdevs;
 	int card, i;
 
-	if (dialog_inhibit)
-		return 0;
-
 	bool handled;
 	INT_PTR vv = commonproc2(hDlg, msg, wParam, lParam, &handled);
 	if (handled) {
@@ -14563,9 +14521,6 @@ static INT_PTR CALLBACK VolumeSettingsProc (HWND hDlg, UINT msg, WPARAM wParam, 
 {
 	static int recursive = 0;
 
-	if (dialog_inhibit)
-		return 0;
-
 	bool handled;
 	INT_PTR v = commonproc(hDlg, msg, wParam, lParam, &handled);
 	if (handled) {
@@ -14665,10 +14620,12 @@ static INT_PTR CALLBACK VolumeSettingsProc (HWND hDlg, UINT msg, WPARAM wParam, 
 			case IDOK:
 				customdialogactive = -1;
 				DestroyWindow(hDlg);
+				recursive = 0;
 				return TRUE;
 			case IDCANCEL:
 				customdialogactive = 0;
 				DestroyWindow(hDlg);
+				recursive = 0;
 				return TRUE;
 			}
 		}
@@ -15171,9 +15128,6 @@ static INT_PTR CALLBACK TapeDriveSettingsProc (HWND hDlg, UINT msg, WPARAM wPara
 	int posn, readonly;
 	TCHAR tmp[MAX_DPATH];
 
-	if (dialog_inhibit)
-		return 0;
-
 	bool handled;
 	INT_PTR v = commonproc(hDlg, msg, wParam, lParam, &handled);
 	if (handled) {
@@ -15277,10 +15231,12 @@ static INT_PTR CALLBACK TapeDriveSettingsProc (HWND hDlg, UINT msg, WPARAM wPara
 		case IDOK:
 			customdialogactive = -1;
 			DestroyWindow(hDlg);
+			recursive = 0;
 			return TRUE;
 		case IDCANCEL:
 			customdialogactive = 0;
 			DestroyWindow(hDlg);
+			recursive = 0;
 			return TRUE;
 		}
 		current_tapedlg.ci.readonly = !ischecked (hDlg, IDC_TAPE_RW);
@@ -15294,9 +15250,6 @@ static INT_PTR CALLBACK CDDriveSettingsProc (HWND hDlg, UINT msg, WPARAM wParam,
 {
 	static int recursive = 0;
 	int posn;
-
-	if (dialog_inhibit)
-		return 0;
 
 	bool handled;
 	INT_PTR v = commonproc(hDlg, msg, wParam, lParam, &handled);
@@ -15345,10 +15298,12 @@ static INT_PTR CALLBACK CDDriveSettingsProc (HWND hDlg, UINT msg, WPARAM wParam,
 		case IDOK:
 			customdialogactive = -1;
 			DestroyWindow(hDlg);
+			recursive = 0;
 			return TRUE;
 		case IDCANCEL:
 			customdialogactive = 0;
 			DestroyWindow(hDlg);
+			recursive = 0;
 			return TRUE;
 		case IDC_HDF_CONTROLLER:
 			posn = gui_get_string_cursor(hdmenutable, hDlg, IDC_HDF_CONTROLLER);
@@ -15409,9 +15364,6 @@ static INT_PTR CALLBACK HardfileSettingsProc (HWND hDlg, UINT msg, WPARAM wParam
 	TCHAR tmp[MAX_DPATH];
 	int v;
 	int *p;
-
-	if (dialog_inhibit)
-		return 0;
 
 	bool handled;
 	INT_PTR vv = commonproc(hDlg, msg, wParam, lParam, &handled);
@@ -15588,10 +15540,12 @@ static INT_PTR CALLBACK HardfileSettingsProc (HWND hDlg, UINT msg, WPARAM wParam
 		case IDOK:
 			customdialogactive = -1;
 			DestroyWindow(hDlg);
+			recursive = 0;
 			return TRUE;
 		case IDCANCEL:
 			customdialogactive = 0;
 			DestroyWindow(hDlg);
+			recursive = 0;
 			return TRUE;
 		case IDC_HDF_PHYSGEOMETRY:
 			current_hfdlg.ci.physical_geometry = ischecked(hDlg, IDC_HDF_PHYSGEOMETRY);
@@ -15706,9 +15660,6 @@ static INT_PTR CALLBACK HarddriveSettingsProc (HWND hDlg, UINT msg, WPARAM wPara
 	int posn;
 	static int oposn;
 
-	if (dialog_inhibit)
-		return 0;
-
 	bool handled;
 	INT_PTR vv = commonproc(hDlg, msg, wParam, lParam, &handled);
 	if (handled) {
@@ -15780,10 +15731,12 @@ static INT_PTR CALLBACK HarddriveSettingsProc (HWND hDlg, UINT msg, WPARAM wPara
 			case IDOK:
 				customdialogactive = -1;
 				DestroyWindow(hDlg);
+				recursive = 0;
 				return TRUE;
 			case IDCANCEL:
 				customdialogactive = 0;
 				DestroyWindow(hDlg);
+				recursive = 0;
 				return TRUE;
 			case IDC_HDF_PHYSGEOMETRY:
 				current_hfdlg.ci.physical_geometry = ischecked(hDlg, IDC_HDF_PHYSGEOMETRY);
@@ -16265,9 +16218,6 @@ static void harddiskdlg_volume_notify (HWND hDlg, NM_LISTVIEW *nmlistview)
 /* harddisk parent view */
 static INT_PTR CALLBACK HarddiskDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
-	if (dialog_inhibit)
-		return 0;
-
 	bool handled;
 	INT_PTR vv = commonproc2(hDlg, msg, wParam, lParam, &handled);
 	if (handled) {
@@ -17036,9 +16986,6 @@ static INT_PTR CALLBACK FloppyDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARA
 	static TCHAR diskname[40] = { _T("") };
 	static int dropopen;
 
-	if (dialog_inhibit)
-		return 0;
-
 	bool handled;
 	INT_PTR vv = commonproc2(hDlg, msg, wParam, lParam, &handled);
 	if (handled) {
@@ -17373,9 +17320,6 @@ static INT_PTR CALLBACK SwapperDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPAR
 	static int recursive = 0;
 	static int entry;
 	TCHAR tmp[MAX_DPATH];
-
-	if (dialog_inhibit)
-		return 0;
 
 	bool handled;
 	INT_PTR vv = commonproc2(hDlg, msg, wParam, lParam, &handled);
@@ -18221,14 +18165,16 @@ static void init_portsdlg (HWND hDlg)
 	xSendDlgItemMessage (hDlg, IDC_MIDIOUTLIST, CB_RESETCONTENT, 0, 0L);
 	xSendDlgItemMessage (hDlg, IDC_MIDIOUTLIST, CB_ADDSTRING, 0, (LPARAM)szNone.c_str());
 	for (port = 0; port < MAX_MIDI_PORTS && midioutportinfo[port]; port++) {
-		xSendDlgItemMessage (hDlg, IDC_MIDIOUTLIST, CB_ADDSTRING, 0, (LPARAM)midioutportinfo[port]->name);
+		TCHAR *n = midioutportinfo[port]->label ? midioutportinfo[port]->label : midioutportinfo[port]->name;
+		xSendDlgItemMessage (hDlg, IDC_MIDIOUTLIST, CB_ADDSTRING, 0, (LPARAM)n);
 	}
 	ew (hDlg, IDC_MIDIOUTLIST, port > 0);
 
 	xSendDlgItemMessage (hDlg, IDC_MIDIINLIST, CB_RESETCONTENT, 0, 0L);
 	xSendDlgItemMessage (hDlg, IDC_MIDIINLIST, CB_ADDSTRING, 0, (LPARAM)szNone.c_str());
 	for (port = 0; port < MAX_MIDI_PORTS && midiinportinfo[port]; port++) {
-		xSendDlgItemMessage (hDlg, IDC_MIDIINLIST, CB_ADDSTRING, 0, (LPARAM)midiinportinfo[port]->name);
+		TCHAR *n = midiinportinfo[port]->label ? midiinportinfo[port]->label : midiinportinfo[port]->name;
+		xSendDlgItemMessage (hDlg, IDC_MIDIINLIST, CB_ADDSTRING, 0, (LPARAM)n);
 	}
 	bNoMidiIn = port == 0;
 	ew (hDlg, IDC_MIDIINLIST, port > 0);
@@ -18256,9 +18202,6 @@ static INT_PTR CALLBACK GamePortsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 	static int recursive = 0;
 	static int first;
 	int temp;
-
-	if (dialog_inhibit)
-		return 0;
 
 	bool handled;
 	INT_PTR vv = commonproc2(hDlg, msg, wParam, lParam, &handled);
@@ -18479,9 +18422,6 @@ static INT_PTR CALLBACK GamePortsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 static INT_PTR CALLBACK IOPortsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
 	static int recursive = 0;
-
-	if (dialog_inhibit)
-		return 0;
 
 	bool handled;
 	INT_PTR vv = commonproc2(hDlg, msg, wParam, lParam, &handled);
@@ -19410,7 +19350,7 @@ static void handlerawinput (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
 	if (msg == WM_INPUT) {
 		handle_rawinput (lParam);
-		DefWindowProc (hDlg, msg, wParam, lParam);
+		DefWindowProc(hDlg, msg, wParam, lParam);
 	}
 }
 
@@ -19562,10 +19502,12 @@ static INT_PTR CALLBACK RemapSpecialsProc(HWND hDlg, UINT msg, WPARAM wParam, LP
 	case IDOK:
 	customdialogactive = -1;
 	DestroyWindow(hDlg);
+	recursive = 0;
 	return TRUE;
 	case IDCANCEL:
 	customdialogactive = 0;
 	DestroyWindow(hDlg);
+	recursive = 0;
 	return TRUE;
 	}
 	recursive--;
@@ -19581,9 +19523,6 @@ static void input_remapspecials(HWND hDlg)
 
 static INT_PTR CALLBACK InputMapDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
-	if (dialog_inhibit)
-		return 0;
-
 	bool handled;
 	INT_PTR v = commonproc(hDlg, msg, wParam, lParam, &handled);
 	if (handled) {
@@ -19898,9 +19837,6 @@ static void qualifierlistview (HWND list)
 
 static INT_PTR CALLBACK QualifierProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
-	if (dialog_inhibit)
-		return 0;
-
 	bool handled;
 	INT_PTR v = commonproc(hDlg, msg, wParam, lParam, &handled);
 	if (handled) {
@@ -20002,10 +19938,12 @@ static INT_PTR CALLBACK QualifierProc (HWND hDlg, UINT msg, WPARAM wParam, LPARA
 		case IDOK:
 			customdialogactive = -1;
 			DestroyWindow(hDlg);
+			recursive = 0;
 			return TRUE;
 		case IDCANCEL:
 			customdialogactive = 0;
 			DestroyWindow(hDlg);
+			recursive = 0;
 			return TRUE;
 		}
 		recursive--;
@@ -20100,9 +20038,6 @@ static INT_PTR CALLBACK InputDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 	NM_LISTVIEW *nmlistview;
 	int items = 0, entry = 0;
 	static int recursive;
-
-	if (dialog_inhibit)
-		return 0;
 
 	bool handled;
 	INT_PTR vv = commonproc2(hDlg, msg, wParam, lParam, &handled);
@@ -21056,9 +20991,6 @@ static INT_PTR CALLBACK hw3dDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 	static int filteroverlaypos = -1;
 	static bool firstinit;
 	
-	if (dialog_inhibit)
-		return 0;
-
 	bool handled;
 	INT_PTR vv = commonproc2(hDlg, msg, wParam, lParam, &handled);
 	if (handled) {
@@ -21551,9 +21483,6 @@ static INT_PTR CALLBACK AVIOutputDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 {
 	static int recursive = 0;
 	TCHAR tmp[1000];
-
-	if (dialog_inhibit)
-		return 0;
 
 	bool handled;
 	INT_PTR vv = commonproc2(hDlg, msg, wParam, lParam, &handled);
@@ -22664,15 +22593,121 @@ int dragdrop (HWND hDlg, HDROP hd, struct uae_prefs *prefs, int	currentpage)
 	return ret;
 }
 
+static int HitTestToSizingEdge(WPARAM wHitTest)
+{
+	switch (wHitTest)
+	{
+		case HTLEFT:        return WMSZ_LEFT;
+		case HTRIGHT:       return WMSZ_RIGHT;
+		case HTTOP:         return WMSZ_TOP;
+		case HTTOPLEFT:     return WMSZ_TOPLEFT;
+		case HTTOPRIGHT:    return WMSZ_TOPRIGHT;
+		case HTBOTTOM:      return WMSZ_BOTTOM;
+		case HTBOTTOMLEFT:  return WMSZ_BOTTOMLEFT;
+		case HTBOTTOMRIGHT: return WMSZ_BOTTOMRIGHT;
+	}
+	return 0;
+}
+
+
+static bool gui_resizing;
+static int nSizingEdge;
+static POINT ptResizePos;
+static RECT rcResizeStartWindowRect;
+
+static void StartCustomResize(HWND hWindow, int nEdge, int x, int y)
+{
+	gui_resizing = TRUE;
+	SetCapture(hWindow);
+	nSizingEdge = nEdge;
+	ptResizePos.x = x;
+	ptResizePos.y = y;
+	GetWindowRect(hWindow, &rcResizeStartWindowRect);
+}
+
+static void CustomResizeMouseMove(HWND hWindow)
+{
+	POINT pt;
+	GetCursorPos(&pt);
+	if (pt.x != ptResizePos.x || pt.y != ptResizePos.y) {
+		int x = rcResizeStartWindowRect.left;
+		int y = rcResizeStartWindowRect.top;
+		int w, h;
+		int dx = pt.x - ptResizePos.x;
+		int dy = pt.y - ptResizePos.y;
+		getguisize(hWindow, &w, &h);
+		switch (nSizingEdge)
+		{
+			case WMSZ_TOP:
+				y = pt.y;
+				h -= dy;
+				gui_size_changed = -1;
+				break;
+			case WMSZ_BOTTOM:
+				h += dy;
+				gui_size_changed = -1;
+				break;
+			case WMSZ_LEFT:
+				x = pt.x;
+				w -= dx;
+				gui_size_changed = -1;
+				break;
+			case WMSZ_RIGHT:
+				w += dx;
+				gui_size_changed = -1;
+				break;
+			case WMSZ_TOPLEFT:
+				x = pt.x;
+				w -= dx;
+				y = pt.y;
+				h -= dy;
+				gui_size_changed = -1;
+				break;
+			case WMSZ_TOPRIGHT:
+				w += dx;
+				y = pt.y;
+				h -= dy;
+				gui_size_changed = -1;
+				break;
+			case WMSZ_BOTTOMLEFT:
+				x = pt.x;
+				w -= dx;
+				h += dy;
+				gui_size_changed = -1;
+				break;
+			case WMSZ_BOTTOMRIGHT:
+				w += dx;
+				h += dy;
+				gui_size_changed = -1;
+				break;
+		}
+		if (gui_size_changed < 0) {
+			gui_width = w;
+			gui_height = h;
+			SetWindowPos(hWindow, NULL, x, y,w, h, 0);
+		}
+		ptResizePos.x = pt.x;
+		ptResizePos.y = pt.y;
+	}
+}
+
+static void EndCustomResize(HWND hWindow, BOOL bCanceled)
+{
+	gui_resizing = false;
+	ReleaseCapture();
+	if (bCanceled) {
+		SetWindowPos(hWindow, NULL, rcResizeStartWindowRect.left, rcResizeStartWindowRect.top,
+			rcResizeStartWindowRect.right - rcResizeStartWindowRect.left, rcResizeStartWindowRect.bottom - rcResizeStartWindowRect.top,
+			SWP_NOZORDER | SWP_NOACTIVATE);
+	}
+}
+
 static int dialogreturn;
 static int devicechangetimer = -1;
 static INT_PTR CALLBACK DialogProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
 	static int recursive = 0;
 	static int oldwidth, oldheight;
-
-	if (dialog_inhibit)
-		return 0;
 
 	bool handled;
 	INT_PTR vv = commonproc2(hDlg, msg, wParam, lParam, &handled);
@@ -22743,6 +22778,52 @@ static INT_PTR CALLBACK DialogProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 				gui_size_changed = 1;
 			}
 			return FALSE;
+		}
+		break;
+
+	case WM_NCLBUTTONDOWN:
+		switch (wParam)
+		{
+			case HTLEFT:
+			case HTRIGHT:
+			case HTTOP:
+			case HTTOPLEFT:
+			case HTTOPRIGHT:
+			case HTBOTTOM:
+			case HTBOTTOMLEFT:
+			case HTBOTTOMRIGHT:
+				if (gui_resize_enabled)
+				{
+					SetForegroundWindow(hDlg);
+					StartCustomResize(hDlg, HitTestToSizingEdge(wParam), GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
+					return 0;
+				}
+				break;
+		}
+		break;
+
+	case WM_MOUSEMOVE:
+		if (gui_resizing)
+		{
+			CustomResizeMouseMove(hDlg);
+		}
+		break;
+	case WM_LBUTTONUP:
+		if (gui_resizing) {
+			EndCustomResize(hDlg, FALSE);
+			return 0;
+		}
+		break;
+	case WM_CANCELMODE:
+		if (gui_resizing) {
+			EndCustomResize(hDlg, FALSE);
+		}
+		break;
+	case WM_KEYDOWN:
+		if (gui_resizing && wParam == VK_ESCAPE)
+		{
+			EndCustomResize(hDlg, TRUE);
+			return 0;
 		}
 		break;
 	case WM_DEVICECHANGE:
@@ -23005,7 +23086,7 @@ int CustomCreateDialogBox(int templ, HWND hDlg, DLGPROC proc)
 				break;
 		}
 	}
-	return 1;
+	return customdialogactive;
 }
 
 static int init_page (int tmpl, int icon, int title,
@@ -23414,7 +23495,7 @@ static int GetSettings (int all_options, HWND hwnd)
 				}
 				if (dialogreturn >= 0)
 					break;
-				if (gui_size_changed > 0) {
+				if (gui_size_changed) {
 					saveguisize();
 					regsetint(NULL, _T("GUIResize"), gui_resize_enabled ? 1 : 0);
 					regsetint(NULL, _T("GUIFullscreen"), gui_fullscreen > 0 ? 1 : 0);

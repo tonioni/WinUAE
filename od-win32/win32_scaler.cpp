@@ -385,8 +385,8 @@ void getfilterrect2(int monid, RECT *sr, RECT *dr, RECT *zr, int dst_width, int 
 			}
 
 			if (scalemode == AUTOSCALE_INTEGER || scalemode == AUTOSCALE_INTEGER_AUTOSCALE) {
-				int maxw = gmc->gfx_size.width;
-				int maxh = gmc->gfx_size.height;
+				int maxw = isfullscreen() < 0 ? deskw : gmc->gfx_size.width;
+				int maxh = isfullscreen() < 0 ? deskh : gmc->gfx_size.height;
 				float mult = 1.0f;
 				bool ok = true;
 
