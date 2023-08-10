@@ -22,12 +22,16 @@ static uae_s16 midi_volume;
 int midi_emu;
 
 static const TCHAR *cm32lctl[] = {
+	_T("cm32l_control"),
+	_T("ctrl_cm32l"),
 	_T("ctrl_cm32ln_1_00"),
 	_T("ctrl_cm32l_1_02"),
 	_T("ctrl_cm32l_1_00"),
 	NULL
 };
 static const TCHAR *mt32ctl[] = {
+	_T("mt32_control"),
+	_T("ctrl_mt32"),
 	_T("ctrl_mt32_1_07"),
 	_T("ctrl_mt32_1_06"),
 	_T("ctrl_mt32_1_05"),
@@ -87,7 +91,7 @@ static void midi_emu_add_roms(void)
 	fetch_rompath(path, sizeof(path) / sizeof(TCHAR));
 	_tcscat(path, _T("mt32-roms\\"));
 	if (!my_existsdir(path)) {
-		_tcscpy(path, _T("C:\\mt32-rom-data\\"));
+		_tcscpy(path, _T("c:\\mt32-rom-data\\"));
 	}
 	if (!my_existsdir(path)) {
 		write_log(_T("mt32emu: rom path missing\n"));
@@ -95,13 +99,17 @@ static void midi_emu_add_roms(void)
 	}
 	if (midi_emu == 1) {
 		if (!load_rom(path, _T("pcm_mt32"))) {
-			load_rom(path, _T("pcm_mt32_l"));
-			load_rom(path, _T("pcm_mt32_h"));
+			if (!load_rom(path, _T("mt32_pcm"))) {
+				load_rom(path, _T("pcm_mt32_l"));
+				load_rom(path, _T("pcm_mt32_h"));
+			}
 		}
 	} else {
 		if (!load_rom(path, _T("pcm_cm32l"))) {
-			load_rom(path, _T("pcm_mt32"));
-			load_rom(path, _T("pcm_cm32l_h"));
+			if (!load_rom(path, _T("cm32l_pcm"))) {
+				load_rom(path, _T("pcm_mt32"));
+				load_rom(path, _T("pcm_cm32l_h"));
+			}
 		}
 	}
 	const TCHAR **ctl = midi_emu == 1 ? mt32ctl : cm32lctl;
@@ -134,14 +142,14 @@ bool midi_emu_available(const TCHAR *id)
 		return false;
 	}
 	if (me == 1) {
-		if (!check_rom(path, _T("pcm_mt32"))) {
+		if (!check_rom(path, _T("pcm_mt32")) && !check_rom(path, _T("mt32_pcm"))) {
 			if (!check_rom(path, _T("pcm_mt32_l")) || !check_rom(path, _T("pcm_mt32_h"))) {
 				return false;
 			}
 		}
 	} else {
-		if (!check_rom(path, _T("pcm_cm32l"))) {
-			if (!check_rom(path, _T("pcm_mt32")) || check_rom(path, _T("pcm_cm32l_h"))) {
+		if (!check_rom(path, _T("pcm_cm32l")) && !check_rom(path, _T("cm32l_pcm"))) {
+			if (!check_rom(path, _T("pcm_mt32")) || !check_rom(path, _T("pcm_cm32l_h"))) {
 				return false;
 			}
 		}
