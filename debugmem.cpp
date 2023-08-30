@@ -1575,16 +1575,19 @@ static uae_u8 *loadhunkfile(uae_u8 *file, int filelen, uae_u32 seglist, int segm
 			}
 			outsize += hunklens[hunkindex];
 
-			if (gl(p) == 0x3ec) { // reloc
+			if (gl(p) == 0x3ec || gl(p) == 0x3f7) { // reloc
 
+				bool shortrel = gl(p) == 0x3f7;
+				int reladd = shortrel ? 2 : 4;
+				uae_u8 *po = p;
 				p += 4;
 				for (;;) {
-					int reloccnt = gl(p);
-					p += 4;
+					int reloccnt = shortrel ? gw(p) : gl(p);
+					p += reladd;
 					if (!reloccnt)
 						break;
-					int relochunk = gl(p);
-					p += 4;
+					int relochunk = shortrel ? gw(p) : gl(p);
+					p += reladd;
 					if (relochunk > last) {
 						xfree(hunkoffsets);
 						xfree(hunklens);
@@ -1594,13 +1597,16 @@ static uae_u8 *loadhunkfile(uae_u8 *file, int filelen, uae_u32 seglist, int segm
 					uaecptr hunkptr = hunkoffsets[relochunk] + relocate_base;
 					uae_u8 *currenthunk = out + hunkoffsets[relochunk];
 					for (int j = 0; j < reloccnt; j++) {
-						uae_u32 reloc = gl(p);
-						p += 4;
+						uae_u32 reloc = shortrel ? gw(p) : gl(p);
+						p += reladd;
 						if (reloc >= outsize - 3) {
 							return 0;
 						}
 						put_long_host(currenthunk + reloc, get_long_host(currenthunk + reloc) + hunkptr);
 					}
+				}
+				if ((p - po) & 2) {
+					p += 2;
 				}
 			}
 			continue;
@@ -1726,19 +1732,22 @@ static uaecptr loaddebugmemhunkfile(uae_u8 *p, uae_u32 len, uae_u32 *parentidp)
 				put_long_host(lastptr, memaddr / 4 + 1);
 			}
 			lastptr = mem + 4;
-			if (gl(p) == 0x3ec) { // hunk reloc
+			if (gl(p) == 0x3ec || gl(p) == 0x3f7) { // hunk reloc
+				bool shortrel = gl(p) == 0x3f7;
+				int reladd = shortrel ? 2 : 4;
+				uae_u8 *po = p;
 				if (hunktype == 0x3eb) {
 					console_out_f(_T("HUNK_BSS with HUNK_RELOC32!\n"));
 					return 0;
 				}
 				p += 4;
 				for (;;) {
-					int reloccnt = gl(p);
-					p += 4;
+					int reloccnt = shortrel ? gw(p) : gl(p);
+					p += reladd;
 					if (!reloccnt)
 						break;
-					int relochunk = gl(p);
-					p += 4;
+					int relochunk = shortrel ? gw(p) : gl(p);
+					p += reladd;
 					if (relochunk > last) {
 						console_out_f(_T("HUNK_RELOC hunk #%d is larger than last hunk (%d)!\n"), relochunk, last);
 						return 0;
@@ -1746,14 +1755,17 @@ static uaecptr loaddebugmemhunkfile(uae_u8 *p, uae_u32 len, uae_u32 *parentidp)
 					uaecptr hunkptr = hunks[relochunk]->start + debugmem_bank.start + 8;
 					uae_u8 *currenthunk = mem + 8;
 					for (int j = 0; j < reloccnt; j++) {
-						uae_u32 reloc = gl(p);
-						p += 4;
+						uae_u32 reloc = shortrel ? gw(p) : gl(p);
+						p += reladd;
 						if (reloc >= len - 3) {
 							console_out_f(_T("HUNK_RELOC hunk #%d offset %d larger than hunk lenght %d!\n"), hunkcnt, reloc, len);
 							return 0;
 						}
 						put_long_host(currenthunk + reloc, get_long_host(currenthunk + reloc) + hunkptr);
 					}
+				}
+				if ((p - po) & 2) {
+					p += 2;
 				}
 			}
 			continue;
