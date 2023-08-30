@@ -915,6 +915,10 @@ static struct debugmemallocs *debugmem_allocate(uae_u32 size, uae_u32 flags, uae
 	struct debugmemallocs *dm = getallocblock();
 	if (!dm)
 		return NULL;
+	if (size >= totalmemdata) {
+		console_out_f(_T("debugmem allocation larger than free space! Alloc size %d (%08x), flags %08x\n"), size, size, flags);
+		return 0;
+	}
 	int offset = debugmemptr / PAGE_SIZE;
 	bool gotit = true;
 	int totalsize = 0;
@@ -947,7 +951,7 @@ static struct debugmemallocs *debugmem_allocate(uae_u32 size, uae_u32 flags, uae
 			break;
 	}
 	if (!gotit || !totalsize || !extrasize) {
-		console_out_f(_T("debugmem out of free space! Alloc size %d, flags %08x\n"), size, flags);
+		console_out_f(_T("debugmem out of free space! Alloc size %d (%08x), flags %08x\n"), size, size, flags);
 		return 0;
 	}
 	dm->parentid = parentid;
