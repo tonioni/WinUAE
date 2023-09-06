@@ -1720,10 +1720,11 @@ static bool getdeviceinfo (HANDLE hDevice, struct uae_driveinfo *udi)
 
 	_tcscpy (devname, udi->device_name + 1);
 
-	if (devname[0] == ':' && devname[1] == 'P' && devname[2] == '#' &&
-		(devname[4] == '_' || devname[5] == '_')) {
-		TCHAR c1 = devname[3];
-		TCHAR c2 = devname[4];
+	TCHAR *n = udi->device_name;
+	if (n[0] == ':' && n[1] == 'P' && n[2] == '#' &&
+		(n[4] == '_' || n[5] == '_')) {
+		TCHAR c1 = n[3];
+		TCHAR c2 = n[4];
 		if (c1 >= '0' && c1 <= '9') {
 			amipart = c1 - '0';
 			if (c2 != '_') {
@@ -1853,6 +1854,8 @@ static void lock_drive(struct hardfiledata *hfd, const TCHAR *name, HANDLE drvha
 
 	if (!hfd->ci.lock)
 		return;
+	if (hfd->flags & HFD_FLAGS_REALDRIVEPARTITION)
+		return;
 
 	// single partition FAT drives seem to lock this way, without need for administrator privileges
 	if (DeviceIoControl(drvhandle, FSCTL_LOCK_VOLUME, NULL, 0, NULL, 0, &written, NULL)) {
@@ -1972,15 +1975,20 @@ int hdf_open_target (struct hardfiledata *hfd, const TCHAR *pname)
 	hfd->handle->h = INVALID_HANDLE_VALUE;
 	hfd_log (_T("hfd attempting to open: '%s'\n"), name);
 	if (name[0] == ':') {
+		DWORD rw = GENERIC_READ;
+		DWORD srw = FILE_SHARE_READ;
 		int drvnum = -1;
 		TCHAR *p = _tcschr (name + 1, ':');
 		if (p) {
+			// open partitions in shared read/write mode
+			if (name[0] ==':' && name[1] == 'P') {
+				rw |= GENERIC_WRITE;
+				srw |= FILE_SHARE_WRITE;
+			}
 			*p++ = 0;
 			// do not scan for drives if open succeeds and it is a harddrive
 			// to prevent spinup of sleeping drives
-			h = CreateFile (p,
-				GENERIC_READ,
-				FILE_SHARE_READ,
+			h = CreateFile (p, rw, srw,
 				NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_RANDOM_ACCESS, NULL);
 			DWORD err = GetLastError ();
 			if (h == INVALID_HANDLE_VALUE && err == ERROR_FILE_NOT_FOUND) {
@@ -2024,8 +2032,8 @@ int hdf_open_target (struct hardfiledata *hfd, const TCHAR *pname)
 
 			flags = FILE_ATTRIBUTE_NORMAL | FILE_FLAG_RANDOM_ACCESS;
 			h = CreateFile (udi->device_path,
-				GENERIC_READ | (hfd->ci.readonly && !chs ? 0 : GENERIC_WRITE),
-				FILE_SHARE_READ | (hfd->ci.readonly && !chs ? 0 : FILE_SHARE_WRITE),
+				rw | (hfd->ci.readonly && !chs ? 0 : GENERIC_WRITE),
+				srw | (hfd->ci.readonly && !chs ? 0 : FILE_SHARE_WRITE),
 				NULL, OPEN_EXISTING, flags, NULL);
 			hfd->handle->h = h;
 			if (h == INVALID_HANDLE_VALUE && !hfd->ci.readonly) {
@@ -2273,7 +2281,7 @@ int hdf_dup_target (struct hardfiledata *dhfd, const struct hardfiledata *shfd)
 	return 1;
 }
 
-static int hdf_seek (struct hardfiledata *hfd, uae_u64 offset)
+static int hdf_seek (struct hardfiledata *hfd, uae_u64 offset, bool write)
 {
 	DWORD ret;
 
@@ -2285,14 +2293,23 @@ static int hdf_seek (struct hardfiledata *hfd, uae_u64 offset)
 		if (offset >= hfd->physsize - hfd->virtual_size) {
 			if (hfd->virtual_rdb)
 				return -1;
-			gui_message (_T("hd: tried to seek out of bounds! (%I64X >= %I64X - %I64X)\n"), offset, hfd->physsize, hfd->virtual_size);
-			abort ();
+			if (write) {
+				gui_message (_T("hd: tried to seek out of bounds! (%I64X >= %I64X - %I64X)\n"), offset, hfd->physsize, hfd->virtual_size);
+				abort ();
+			}
+			write_log(_T("hd: tried to seek out of bounds! (%I64X >= %I64X - %I64X)\n"), offset, hfd->physsize, hfd->virtual_size);
+			return -1;
 		}
 		offset += hfd->offset;
 		if (offset & (hfd->ci.blocksize - 1)) {
-			gui_message (_T("hd: poscheck failed, offset=%I64X not aligned to blocksize=%d! (%I64X & %04X = %04X)\n"),
+			if (write) {
+				gui_message (_T("hd: poscheck failed, offset=%I64X not aligned to blocksize=%d! (%I64X & %04X = %04X)\n"),
+					offset, hfd->ci.blocksize, offset, hfd->ci.blocksize, offset & (hfd->ci.blocksize - 1));
+				abort ();
+			}
+			write_log(_T("hd: poscheck failed, offset=%I64X not aligned to blocksize=%d! (%I64X & %04X = %04X)\n"),
 				offset, hfd->ci.blocksize, offset, hfd->ci.blocksize, offset & (hfd->ci.blocksize - 1));
-			abort ();
+			return -1;
 		}
 	}
 	if (hfd->handle_valid == HDF_HANDLE_WIN32_NORMAL) {
@@ -2394,7 +2411,7 @@ static int hdf_rw (struct hardfiledata *hfd, void *bufferp, uae_u64 offset, int 
 			size = bs - soff;
 			if (size > len)
 				size = len;
-			hdf_seek (hfd, offset & ~mask);
+			hdf_seek (hfd, offset & ~mask, dowrite != 0);
 			poscheck (hfd, len);
 			if (dowrite)
 				WriteFile (hfd->handle, hfd->cache, bs, &outlen2, NULL);
@@ -2409,7 +2426,7 @@ static int hdf_rw (struct hardfiledata *hfd, void *bufferp, uae_u64 offset, int 
 			len -= size;
 		}
 		while (len >= bs) { /* aligned access */
-			hdf_seek (hfd, offset);
+			hdf_seek (hfd, offset, dowrite != 0);
 			poscheck (hfd, len);
 			size = len & ~mask;
 			if (size > CACHE_SIZE)
@@ -2435,7 +2452,7 @@ static int hdf_rw (struct hardfiledata *hfd, void *bufferp, uae_u64 offset, int 
 			len -= size;
 		}
 		if (len > 0) { /* len > 0 && len < bs */
-			hdf_seek (hfd, offset);
+			hdf_seek (hfd, offset, dowrite != 0);
 			poscheck (hfd, len);
 			if (dowrite)
 				WriteFile (hfd->handle, hfd->cache, bs, &outlen2, NULL);
@@ -2462,13 +2479,17 @@ int hdf_write (struct hardfiledata *hfd, void *buffer, uae_u64 offset, int len)
 
 #else
 
-static int hdf_read_2 (struct hardfiledata *hfd, void *buffer, uae_u64 offset, int len)
+static int hdf_read_2(struct hardfiledata *hfd, void *buffer, uae_u64 offset, int len, uae_u32 *error)
 {
 	DWORD outlen = 0;
 	int coffset;
 
-	if (offset == 0)
+	if (len == 0) {
+		return 0;
+	}
+	if (offset == 0) {
 		hfd->cache_valid = 0;
+	}
 	coffset = isincache (hfd, offset, len);
 	if (coffset >= 0) {
 		memcpy (buffer, hfd->cache + coffset, len);
@@ -2477,8 +2498,10 @@ static int hdf_read_2 (struct hardfiledata *hfd, void *buffer, uae_u64 offset, i
 	hfd->cache_offset = offset;
 	if (offset + CACHE_SIZE > hfd->offset + (hfd->physsize - hfd->virtual_size))
 		hfd->cache_offset = hfd->offset + (hfd->physsize - hfd->virtual_size) - CACHE_SIZE;
-	if (hdf_seek(hfd, hfd->cache_offset))
+	if (hdf_seek(hfd, hfd->cache_offset, false)) {
+		*error = 45;
 		return 0;
+	}
 	poscheck (hfd, CACHE_SIZE);
 	if (hfd->handle_valid == HDF_HANDLE_WIN32_NORMAL) {
 		ReadFile(hfd->handle->h, hfd->cache, CACHE_SIZE, &outlen, NULL);
@@ -2486,8 +2509,10 @@ static int hdf_read_2 (struct hardfiledata *hfd, void *buffer, uae_u64 offset, i
 		outlen = (DWORD)zfile_fread(hfd->cache, 1, CACHE_SIZE, hfd->handle->zf);
 	}
 	hfd->cache_valid = 0;
-	if (outlen != CACHE_SIZE)
+	if (outlen != CACHE_SIZE) {
+		*error = 45;
 		return 0;
+	}
 	hfd->cache_valid = 1;
 	coffset = isincache (hfd, offset, len);
 	if (coffset >= 0) {
@@ -2496,16 +2521,26 @@ static int hdf_read_2 (struct hardfiledata *hfd, void *buffer, uae_u64 offset, i
 	}
 	write_log (_T("hdf_read: cache bug! offset=%I64d len=%d\n"), offset, len);
 	hfd->cache_valid = 0;
+	*error = 45;
 	return 0;
 }
 
-int hdf_read_target (struct hardfiledata *hfd, void *buffer, uae_u64 offset, int len)
+int hdf_read_target(struct hardfiledata *hfd, void *buffer, uae_u64 offset, int len, uae_u32 *error)
 {
 	int got = 0;
 	uae_u8 *p = (uae_u8*)buffer;
+	uae_u32 error2 = 0;
 
-	if (hfd->drive_empty)
+	if (error) {
+		*error = 0;
+	} else {
+		error = &error2;
+	}
+
+	if (hfd->drive_empty) {
+		*error = 29;
 		return 0;
+	}
 
 	if (hfd->handle_valid == HDF_HANDLE_WIN32_CHS) {
 		int len2 = len;
@@ -2523,7 +2558,7 @@ int hdf_read_target (struct hardfiledata *hfd, void *buffer, uae_u64 offset, int
 		DWORD ret;
 		if (hfd->physsize < CACHE_SIZE) {
 			hfd->cache_valid = 0;
-			if (hdf_seek(hfd, offset))
+			if (hdf_seek(hfd, offset, false))
 				return got;
 			if (hfd->physsize)
 				poscheck (hfd, len);
@@ -2536,7 +2571,7 @@ int hdf_read_target (struct hardfiledata *hfd, void *buffer, uae_u64 offset, int
 			maxlen = len;
 		} else {
 			maxlen = len > CACHE_SIZE ? CACHE_SIZE : len;
-			ret = hdf_read_2 (hfd, p, offset, maxlen);
+			ret = hdf_read_2 (hfd, p, offset, maxlen, error);
 		}
 		got += ret;
 		if (ret != maxlen)
@@ -2548,20 +2583,26 @@ int hdf_read_target (struct hardfiledata *hfd, void *buffer, uae_u64 offset, int
 	return got;
 }
 
-static int hdf_write_2 (struct hardfiledata *hfd, void *buffer, uae_u64 offset, int len)
+static int hdf_write_2(struct hardfiledata *hfd, void *buffer, uae_u64 offset, int len, uae_u32 *error)
 {
 	DWORD outlen = 0;
 
-	if (hfd->ci.readonly)
+	if (hfd->ci.readonly) {
+		*error = 28;
 		return 0;
-	if (hfd->dangerous)
+	}
+	if (hfd->dangerous) {
+		*error = 28;
 		return 0;
+	}
 	if (len == 0)
 		return 0;
 
 	hfd->cache_valid = 0;
-	if (hdf_seek(hfd, offset))
+	if (hdf_seek(hfd, offset, true)) {
+		*error = 45;
 		return 0;
+	}
 	poscheck (hfd, len);
 	memcpy (hfd->cache, buffer, len);
 	if (hfd->handle_valid == HDF_HANDLE_WIN32_NORMAL) {
@@ -2572,12 +2613,17 @@ static int hdf_write_2 (struct hardfiledata *hfd, void *buffer, uae_u64 offset, 
 				if (ismounted (hfd->ci.devname, hfd->handle->h)) {
 					gui_message (_T("\"%s\"\n\nBlock zero write attempt but drive has one or more mounted PC partitions or WinUAE does not have Administrator privileges. Erase the drive or unmount all PC partitions first."), name);
 					hfd->ci.readonly = true;
+					*error = 45;
 					return 0;
 				}
 			}
 		}
 		WriteFile (hfd->handle->h, hfd->cache, len, &outlen, NULL);
+		if (outlen != len) {
+			*error = 45;
+		}
 		if (offset == 0) {
+			DWORD err = GetLastError();
 			DWORD outlen2;
 			uae_u8 *tmp;
 			int tmplen = 512;
@@ -2585,10 +2631,12 @@ static int hdf_write_2 (struct hardfiledata *hfd, void *buffer, uae_u64 offset, 
 			if (tmp) {
 				int cmplen = tmplen > len ? len : tmplen;
 				memset (tmp, 0xa1, tmplen);
-				hdf_seek (hfd, offset);
+				hdf_seek (hfd, offset, true);
 				ReadFile (hfd->handle->h, tmp, tmplen, &outlen2, NULL);
-				if (memcmp (hfd->cache, tmp, cmplen) != 0 || outlen != len)
-					gui_message (_T("\"%s\"\n\nblock zero write failed! Make sure WinUAE has Windows Administrator privileges."), name);
+				if (memcmp (hfd->cache, tmp, cmplen) != 0 || outlen != len) {
+					gui_message (_T("\"%s\"\n\nblock zero write failed! Make sure WinUAE has Windows Administrator privileges. Error=%d"), name, err);
+					*error = 45;
+				}
 				VirtualFree (tmp, 0, MEM_RELEASE);
 			}
 		}
@@ -2598,10 +2646,17 @@ static int hdf_write_2 (struct hardfiledata *hfd, void *buffer, uae_u64 offset, 
 	return outlen;
 }
 
-int hdf_write_target (struct hardfiledata *hfd, void *buffer, uae_u64 offset, int len)
+int hdf_write_target(struct hardfiledata *hfd, void *buffer, uae_u64 offset, int len, uae_u32 *error)
 {
 	int got = 0;
 	uae_u8 *p = (uae_u8*)buffer;
+	uae_u32 error2 = 0;
+
+	if (error) {
+		*error = 0;
+	} else {
+		error = &error2;
+	}
 
 	if (hfd->handle_valid == HDF_HANDLE_WIN32_CHS)
 		return 0;
@@ -2610,7 +2665,7 @@ int hdf_write_target (struct hardfiledata *hfd, void *buffer, uae_u64 offset, in
 
 	while (len > 0) {
 		int maxlen = len > CACHE_SIZE ? CACHE_SIZE : len;
-		int ret = hdf_write_2 (hfd, p, offset, maxlen);
+		int ret = hdf_write_2(hfd, p, offset, maxlen, error);
 		if (ret < 0)
 			return ret;
 		got += ret;
@@ -3411,7 +3466,9 @@ TCHAR *hdf_getnameharddrive (int index, int flags, int *sectorsize, int *dangero
 			if (nomedia) {
 				_tcscpy (tmp, _T("N/A"));
 			} else {
-				if (size >= 1024 * 1024 * 1024)
+				if (size == 0)
+					_tcscpy(tmp, _T("?"));
+				else if (size >= 1024 * 1024 * 1024)
 					_stprintf (tmp, _T("%.1fG"), ((double)(uae_u32)(size / (1024 * 1024))) / 1024.0);
 				else if (size < 10 * 1024 * 1024)
 					_stprintf (tmp, _T("%lldK"), size / 1024);
