@@ -26,6 +26,8 @@
 	.globl _cyclereg_address6
 	.globl _berrcopy
 	.globl _fpucomp
+	.globl _fpucompzero
+	.globl _initfpu
 
 | must match main.c
 S_DREG = 0
@@ -53,17 +55,41 @@ S_NEXT = S_FSAVE+216
 
 asm_start:
 
+_initfpu:
+	moveq #0,d0
+	fmove.l d0,fpcr
+	rts
+
+
+	| v1, v2, limit
+	| abs(v2 - v1) > limit
+_fpucompzero:
+	move.l 4(sp),a0
+	fmovem.x (a0),fp0-fp2
+	fmove.x fp0,fp3
+	fsub.x fp1,fp3
+	fabs.x fp3
+	moveq #1,d0
+	fcmp.x fp3,fp2
+	fbge .larger0
+	moveq #0,d0
+.larger0:
+	rts
+
+
 	| v1, v2, limit
 	| abs((v2 - v1) / v1) > limit
 _fpucomp:
 	move.l 4(sp),a0
 	fmovem.x (a0),fp0-fp2
-	fsub.x fp0,fp1
-	fdiv.x fp0,fp1
-	fabs.x fp1
+	fmove.x fp0,fp3
+	fsub.x fp1,fp3
+	fmove.x fp3,fp4
+	fabs.x fp4
+	fdiv.x fp0,fp4
 	moveq #1,d0
-	fcmp.x fp1,fp2
-	fbgt .larger
+	fcmp.x fp4,fp2
+	fbge .larger
 	moveq #0,d0
 .larger:
 	rts

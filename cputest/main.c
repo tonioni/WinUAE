@@ -253,6 +253,13 @@ static uae_u32 fpucomp(void *v)
 {
 	return 0;
 }
+static uae_u32 fpucompzero(void *v)
+{
+	return 0;
+}
+static void initfpu(void)
+{
+}
 static void *error_vector;
 #else
 
@@ -279,7 +286,9 @@ extern void setcpu(uae_u32, uae_u32*, uae_u32*);
 extern void flushcache(uae_u32);
 extern void *error_vector;
 extern void berrcopy(void*, void*, uae_u32, uae_u32);
-extern uae_u32 fpucomp(void*);
+extern uae_u32 fpucomp(void *);
+extern uae_u32 fpucompzero(void *);
+extern void initfpu(void);
 
 #endif
 static uae_u32 exceptiontableinuse;
@@ -2415,6 +2424,8 @@ static int check_cycles(int exc, short extratrace, short extrag2w1, struct regis
 // not returning identical values (6888x algorithms are unknown)
 static short fpucheckextra(struct fpureg *f1, struct fpureg *f2)
 {
+	uae_u32 vx[9];
+
 	if (!is_fpu_adjust)
 		return 0;
 
@@ -2440,15 +2451,25 @@ static short fpucheckextra(struct fpureg *f1, struct fpureg *f2)
 		}
 		return 1;
 	}
-	// Zero: both must match
+
+	// One zero: other must be close enough to zero
 	if ((!exp1 && !m1[0] && !m1[1]) || (!exp2 && !m2[0] && !m2[1])) {
+		vx[0] = f1->exp << 16;
+		vx[1] = f1->m[0];
+		vx[2] = f1->m[1];
+		vx[3] = f2->exp << 16;
+		vx[4] = f2->m[0];
+		vx[5] = f2->m[1];
+		vx[6] = (16383 - 10) << 16;
+		vx[7] = 0x80000000;
+		vx[8] = 0x00000000;
+		if (fpucompzero(vx)) {
+			fpu_approx++;
+			return 1;
+		}
 		return 0;
 	}
-	if ((!exp1 && !m1[0] && !m1[1]) && (!exp2 && !m2[0] && !m2[1])) {
-		return 1;
-	}
 
-	uae_u32 vx[9];
 	vx[0] = f1->exp << 16;
 	vx[1] = f1->m[0];
 	vx[2] = f1->m[1];
@@ -3219,7 +3240,9 @@ static void process_test(uae_u8 *p)
 		opcode_memory_end = (uae_u8*)endpc;
 
 		int fpumode = fpu_model && (opcode_memory[0] & 0xf0) == 0xf0;
-
+		if (fpumode) {
+			initfpu();
+		}
 		copyregs(&last_regs, &cur_regs, fpumode);
 
 		uae_u32 originalopcodeend = (NOP_OPCODE << 16) | ILLG_OPCODE;
