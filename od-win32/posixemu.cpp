@@ -109,6 +109,11 @@ void uae_sem_wait (uae_sem_t * event)
 	WaitForSingleObject (*event, INFINITE);
 }
 
+void uae_sem_unpost (uae_sem_t * event)
+{
+	ResetEvent(*event);
+}
+
 void uae_sem_post (uae_sem_t * event)
 {
 	SetEvent (*event);
