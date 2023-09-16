@@ -1580,10 +1580,11 @@ static bool videodac18(struct vidbuffer *src, struct vidbuffer *dst, bool double
 		return false;
 	getsyncregisters(&hsstrt, &hsstop, &vsstrt, &vsstop);
 
-	if (hsstop >= (maxhpos & ~1))
-		hsstrt = 0;
-	xstart = ((hsstrt * 2) << RES_MAX) - src->xoffset;
-	xstop = ((hsstop * 2) << RES_MAX) - src->xoffset;
+	if (hsstop < hsstrt) {
+		hsstop += maxhpos + 1;
+	}
+	xstart = (hsstrt << RES_MAX) - src->xoffset;
+	xstop = (hsstop << RES_MAX) - src->xoffset;
 
 	isntsc = (beamcon0 & 0x20) ? 0 : 1;
 	if (!(currprefs.chipset_mask & CSMASK_ECS_AGNUS))
@@ -1631,7 +1632,7 @@ static bool videodac18(struct vidbuffer *src, struct vidbuffer *dst, bool double
 				} else {
 					g = data;
 				}
-				if (y >= vsstrt && y < vsstop && x >= xstart && y < xstop) {
+				if (y >= vsstrt && y < vsstop && x >= xstart && x < xstop) {
 					PUT_PRGB(d, d2, dst, r, g, b, xaddpix, doublelines, true);
 				} else {
 					PUT_AMIGARGB(d, s, d2, s2, dst, xaddpix, doublelines, true);
