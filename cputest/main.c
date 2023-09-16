@@ -90,6 +90,7 @@ static uae_u8 *vbr_zero = 0;
 static int hmem_rom, lmem_rom;
 static uae_u8 *absallocated;
 static int cpu_lvl, fpu_model;
+static uae_u8 fpu_max_precision;
 static uae_u16 sr_undefined_mask;
 static int check_undefined_sr;
 static short is_fpu_adjust;
@@ -137,6 +138,7 @@ static short dooutput = 1;
 static short quit;
 static uae_u8 ccr_mask;
 static uae_u32 fpsr_ignore_mask;
+static short fpiar_ignore;
 static uae_u32 addressing_mask = 0x00ffffff;
 static uae_u32 interrupt_mask;
 static short initial_interrupt_mask;
@@ -257,7 +259,7 @@ static uae_u32 fpucompzero(void *v)
 {
 	return 0;
 }
-static void initfpu(void)
+static void initfpu(uae_u32 v)
 {
 }
 static void *error_vector;
@@ -288,7 +290,7 @@ extern void *error_vector;
 extern void berrcopy(void*, void*, uae_u32, uae_u32);
 extern uae_u32 fpucomp(void *);
 extern uae_u32 fpucompzero(void *);
-extern void initfpu(void);
+extern void initfpu(uae_u32);
 
 #endif
 static uae_u32 exceptiontableinuse;
@@ -2832,7 +2834,7 @@ static uae_u8 *validate_test(uae_u8 *p, short ignore_errors, short ignore_sr, st
 			int size;
 			p = restore_value(p, &val, &size);
 			if (val != tregs->fpiar) {
-				if (!ignore_errors) {
+				if (!ignore_errors && !fpiar_ignore) {
 					if (dooutput) {
 						if (sregs->fpiar == tregs->fpiar) {
 							sprintf(outbp, "FPIAR: expected %08x but register was not modified\n", val);
@@ -2968,7 +2970,7 @@ static uae_u8 *validate_test(uae_u8 *p, short ignore_errors, short ignore_sr, st
 			}
 			errflag |= 1 << 4;
 		}
-		if (fpiar_changed && tregs->fpiar != lregs->fpiar) {
+		if (fpiar_changed && tregs->fpiar != lregs->fpiar && !fpiar_ignore) {
 			if (dooutput) {
 				uae_u32 val = lregs->fpiar;
 				sprintf(outbp, "FPIAR: expected %08x but got %08x\n", val, tregs->fpiar);
@@ -3241,7 +3243,13 @@ static void process_test(uae_u8 *p)
 
 		int fpumode = fpu_model && (opcode_memory[0] & 0xf0) == 0xf0;
 		if (fpumode) {
-			initfpu();
+			uae_u32 v = 0;
+			if (fpu_max_precision == 2) {
+				v = 2 << 6;
+			} else if (fpu_max_precision == 1) {
+				v = 1 << 6;
+			}
+			initfpu(v);
 		}
 		copyregs(&last_regs, &cur_regs, fpumode);
 
@@ -3667,6 +3675,7 @@ static int test_mnemo(const char *opcode)
 	v = read_u32(headerfile, &headoffset);
 	initial_interrupt_mask = v & 7;
 	initial_interrupt = (v >> 3) & 7;
+	fpu_max_precision = (v >> 6) & 3;
 	v = read_u32(headerfile, &headoffset);
 	v = read_u32(headerfile, &headoffset);
 	fpu_model = read_u32(headerfile, &headoffset);
@@ -3959,8 +3968,9 @@ int main(int argc, char *argv[])
 		printf("-askifmissing = ask for new path if dat file is missing.\n");
 		printf("-exit n = exit after n tests.\n");
 		printf("-exitok n = exit after n tests, continue normally.\n");
-		printf("-fpuadj <exp> 16-bit exponent range value. (16383 = 1.0)\n");
+		printf("-fpuadj <exp> 16-bit exponent range value. (0 = 1.0)\n");
 		printf("-fpsrmask = ignore FPSR bits that are not set.\n");
+		printf("-nofpiar = ignore FPIAR.\n");
 		printf("-cycles [range adjust] = check cycle counts.\n");
 		printf("-cyclecnt <address>. Use custom hardware cycle counter.\n");
 #ifdef AMIGA
@@ -3975,6 +3985,7 @@ int main(int argc, char *argv[])
 	check_undefined_sr = 1;
 	ccr_mask = 0xff;
 	fpsr_ignore_mask = 0xffffffff;
+	fpiar_ignore = 0;
 	disasm = 1;
 	exitcnt2 = -1;
 	exitmode = 0;
@@ -4002,11 +4013,13 @@ int main(int argc, char *argv[])
 				i++;
 			}
 		} else if (!_stricmp(s, "-fpsrmask")) {
-			fpsr_ignore_mask = 0;
+			fpsr_ignore_mask = (1 << 27) | (1 << 26);
 			if (next) {
 				fpsr_ignore_mask = ~getparamval(next);
 				i++;
 			}
+		} else if (!_stricmp(s, "-nofpiar")) {
+			fpiar_ignore = 1;
 		} else if (!_stricmp(s, "-silent")) {
 			dooutput = 0;
 		} else if (!_stricmp(s, "-68000")) {
@@ -4057,13 +4070,12 @@ int main(int argc, char *argv[])
 		} else if (!_stricmp(s, "-prealloc")) {
 			prealloc = 1;
 		} else if (!_stricmp(s, "-fpuadj")) {
+			fpu_adjust_exp = 0;
 			if (next) {
 				fpu_adjust_exp = atol(next);
-				if (fpu_adjust_exp >= 0) {
-					is_fpu_adjust = 1;
-				}
-
 			}
+			is_fpu_adjust = 1;
+			fpu_adjust_exp += 16384;
 		} else if (!_stricmp(s, "-cycles")) {
 			cycles = 1;
 			if (i + 1 < argc && argv[i][0] != '-') {

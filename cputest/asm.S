@@ -56,7 +56,7 @@ S_NEXT = S_FSAVE+216
 asm_start:
 
 _initfpu:
-	moveq #0,d0
+	move.l 4(sp),d0
 	fmove.l d0,fpcr
 	rts
 

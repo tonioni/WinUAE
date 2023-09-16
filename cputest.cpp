@@ -75,7 +75,7 @@ static int feature_exception_vectors = 0;
 static int feature_interrupts = 0;
 static int feature_waitstates = 0;
 static int feature_instruction_size = 0;
-static int fpu_min_exponent, fpu_max_exponent;
+static int fpu_min_exponent, fpu_max_exponent, fpu_max_precision, fpu_unnormals;
 static int feature_ipl_delay;
 static int max_file_size;
 static int rnd_seed, rnd_seed_prev;
@@ -1853,6 +1853,57 @@ static uae_u8 frand8(void)
 	return (uae_u8)xorshift32();
 }
 
+static bool fpu_precision_valid(floatx80 f)
+{
+	int exp = f.high & 0x7fff;
+	if (exp != 0x0000) {
+		exp -= 16384;
+		if (exp < fpu_min_exponent || exp > fpu_max_exponent) {
+			return false;
+		}
+	}
+	float_status status = { 0 };
+	status.floatx80_rounding_precision = 80;
+	status.float_rounding_mode = float_round_nearest_even;
+	status.float_exception_flags = 0;
+	if (fpu_max_precision == 2) {
+		float64 fo = floatx80_to_float64(f, &status);
+		int exp = (float64_val(fo) >> 52) & 0x7FF;
+		if (exp >= 0x700) {
+			return false;
+		}
+		if (float64_is_nan(fo)) {
+			return false;
+		}
+	} else if (fpu_max_precision == 1) {
+		float32 fo = floatx80_to_float32(f, &status);
+		int exp = (float32_val(fo) >> 23) & 0xFF;
+		if (exp >= 0xe0) {
+			return false;
+		}
+		if (float32_is_nan(fo)) {
+			return false;
+		}
+	}
+	if (fpu_max_precision) {
+		if (status.float_exception_flags & (float_flag_underflow | float_flag_overflow | float_flag_denormal | float_flag_invalid)) {
+			return false;
+		}
+		if (floatx80_is_any_nan(f)) {
+			return false;
+		}
+	}
+	if (!fpu_unnormals) {
+		if (!(f.low & 0x8000000000000000) && (f.high & 0x7fff) && (f.high & 0x7fff) != 0x7fff) {
+			return false;
+		}
+		if (status.float_exception_flags & float_flag_denormal) {
+			return false;
+		}
+	}
+	return true;
+}
+
 static uae_u32 registers[] =
 {
 	0x00000010,	// 0
@@ -1877,6 +1928,21 @@ static int regcnts[16];
 static int fpuregcnts[8];
 static float_status fpustatus;
 
+static floatx80 fpu_random(void)
+{
+	floatx80 v = int32_to_floatx80(rand32());
+	for (int i = 0; i < 10; i++) {
+		uae_u64 n = rand32() | (((uae_u64)rand16()) << 32);
+		// don't create denormals yet
+		if (!((v.low + n) & 0x8000000000000000)) {
+			v.low |= 0x8000000000000000;
+			continue;
+		}
+		v.low += n;
+	}
+	return v;
+}
+
 static bool fpuregchange(int reg, fpdata *regs)
 {
 	int regcnt = fpuregcnts[reg];
@@ -1893,64 +1959,77 @@ static bool fpuregchange(int reg, fpdata *regs)
 		}
 	}
 
-	switch(reg)
-	{
-	case 0: // positive
-		add = floatx80_div(int32_to_floatx80(1), int32_to_floatx80(10), &fpustatus);
-		v = floatx80_add(v, add, &fpustatus);
-		break;
-	case 1: // negative
-		add = floatx80_div(int32_to_floatx80(1), int32_to_floatx80(10), &fpustatus);
-		v = floatx80_sub(v, add, &fpustatus);
-		break;
-	case 2: // positive/negative zero
-		v.high ^= 0x8000;
-		break;
-	case 3:
-		// very large value, larger than fits in double
-		v = packFloatx80(1, 0x7000 + (rand16() & 0xfff), 0x8000000000000000 | (((uae_u64)rand32()) << 32));
-		if (regcnt & 1) {
+	for(;;) {
+
+		switch(reg)
+		{
+		case 0: // positive
+			add = floatx80_div(int32_to_floatx80(1), int32_to_floatx80(5 + regcnt), &fpustatus);
+			v = floatx80_add(v, add, &fpustatus);
+			break;
+		case 1: // negative
+			add = floatx80_div(int32_to_floatx80(1), int32_to_floatx80(6 + regcnt), &fpustatus);
+			v = floatx80_sub(v, add, &fpustatus);
+			break;
+		case 2: // positive/negative zero
 			v.high ^= 0x8000;
-		}
-		break;
-	case 4:
-		// value that fits in double but does not fit in single
-		v = packFloatx80(1, 0x700 + rand8(), 0x8000000000000000 | (((uae_u64)rand32()) << 32));
-		if (regcnt & 1) {
-			v.high ^= 0x8000;
-		}
-		break;
-	case 5:
-	case 6:
-		// random
-		v = int32_to_floatx80(rand32());
-		for (int i = 0; i < 10; i++) {
-			uae_u64 n = rand32() | (((uae_u64)rand16()) << 32);
-			// don't create denormals yet
-			if (!((v.low + n) & 0x8000000000000000)) {
-				v.low |= 0x8000000000000000;
-				continue;
+			break;
+		case 3:
+			// very large value, larger than fits in double
+			if (fpu_max_precision) {
+				v = fpu_random();
+			} else {
+				v = packFloatx80(1, 0x7000 + (rand16() & 0xfff), 0x8000000000000000 | (((uae_u64)rand32()) << 32));
+				if (regcnt & 1) {
+					v.high ^= 0x8000;
+				}
 			}
-			v.low += n;
+			break;
+		case 4:
+			// value that fits in double but does not fit in single
+			{
+				int exp;
+				if (fpu_max_precision < 128) {
+					exp = fpu_max_precision + rand8();
+				} else {
+					exp = 128 + rand8();
+				}
+				exp += 16384;
+				v = packFloatx80(1, exp, 0x8000000000000000 | (((uae_u64)rand32()) << 32));
+				if (regcnt & 1) {
+					v.high ^= 0x8000;
+				}
+			}
+			break;
+		case 5:
+		case 6:
+			// random
+			v = fpu_random();
+			break;
+		case 7: // +NaN, -Nan, +Inf, -Inf
+			if (fpu_max_precision) {
+				v = fpu_random();
+			} else {
+				if ((regcnt & 3) == 0) {
+					v = floatx80_default_nan(NULL);
+				} else if ((regcnt & 3) == 1) {
+					v = floatx80_default_nan(NULL);
+					v.high ^= 0x8000;
+				} else if ((regcnt & 3) == 2) {
+					v = packFloatx80(0, 0x7FFF, floatx80_default_infinity_low);
+				} else if ((regcnt & 3) == 3) {
+					v = packFloatx80(1, 0x7FFF, floatx80_default_infinity_low);
+				}
+			}
 			break;
 		}
-		break;
-	case 7: // +NaN, -Nan, +Inf, -Inf
-		if ((regcnt & 3) == 0) {
-			v = floatx80_default_nan(NULL);
-		} else if ((regcnt & 3) == 1) {
-			v = floatx80_default_nan(NULL);
-			v.high ^= 0x8000;
-		} else if ((regcnt & 3) == 2) {
-			v = packFloatx80(0, 0x7FFF, floatx80_default_infinity_low);
-		} else if ((regcnt & 3) == 3) {
-			v = packFloatx80(1, 0x7FFF, floatx80_default_infinity_low);
+
+		if (fpu_precision_valid(v)) {
+			fpuregcnts[reg]++;
+			regs[reg].fpx = v;
+			return true;
 		}
-		break;
 	}
-	fpuregcnts[reg]++;
-	regs[reg].fpx = v;
-	return true;
 }
 
 static bool regchange(int reg, uae_u32 *regs)
@@ -2060,13 +2139,51 @@ static bool regchange(int reg, uae_u32 *regs)
 
 static void fill_memory_buffer(uae_u8 *p, int size)
 {
-	for (int i = 0; i < size; i++) {
-		p[i] = frand8();
-	}
-	// fill extra zeros
-	for (int i = 0; i < size; i++) {
-		if (frand8() < 0x70)
-			p[i] = 0x00;
+	uae_u8 *pend = p - 64;
+	int i = 0;
+	while (p < pend) {
+		int x = (i & 3);
+		if (x == 1) {
+			floatx80 v = int32_to_floatx80(xorshift32());
+			*p++ = v.high >> 8;
+			*p++ = v.high >> 0;
+			*p++ = 0;
+			*p++ = 0;
+			*p++ = (uae_u8)(v.low >> 56);
+			*p++ = (uae_u8)(v.low >> 48);
+			*p++ = (uae_u8)(v.low >> 40);
+			*p++ = (uae_u8)(v.low >> 32);
+			if ((i & 15) < 8) {
+				*p++ = (uae_u8)(v.low >> 24);
+				*p++ = (uae_u8)(v.low >> 16);
+				*p++ = (uae_u8)(v.low >>  8);
+				*p++ = (uae_u8)(v.low >>  0);
+			} else {
+				*p++ = frand8();
+				*p++ = frand8();
+				*p++ = frand8();
+				*p++ = frand8();
+			}
+		} else if (x == 2) {
+			floatx80 v = int32_to_floatx80(xorshift32());
+			float64 v2 = floatx80_to_float64(v, &fpustatus);
+			*p++ = (uae_u8)(v2 >> 56);
+			*p++ = (uae_u8)(v2 >> 48);
+			*p++ = (uae_u8)(v2 >> 40);
+			*p++ = (uae_u8)(v2 >> 32);
+			*p++ = (uae_u8)(v2 >> 24);
+			*p++ = (uae_u8)(v2 >> 16);
+			*p++ = (uae_u8)(v2 >>  8);
+			*p++ = (uae_u8)(v2 >>  0);
+		} else if (x == 3) {
+			floatx80 v = int32_to_floatx80(xorshift32());
+			float32 v2 = floatx80_to_float32(v, &fpustatus);
+			*p++ = (uae_u8)(v2 >> 24);
+			*p++ = (uae_u8)(v2 >> 16);
+			*p++ = (uae_u8)(v2 >> 8);
+			*p++ = (uae_u8)(v2 >> 0);
+		}
+		i++;
 	}
 }
 
@@ -2619,7 +2736,7 @@ static void save_data(uae_u8 *dst, const TCHAR *dir, int size)
 			(feature_min_interrupt_mask << 20) | (safe_memory_mode << 23) | (feature_interrupts << 26) |
 			((feature_loop_mode_jit ? 1 : 0) << 28) | ((feature_loop_mode_68010 ? 1 : 0) << 29));
 		fwrite(data, 1, 4, f);
-		pl(data, (feature_initial_interrupt_mask & 7) | ((feature_initial_interrupt & 7) << 3));
+		pl(data, (feature_initial_interrupt_mask & 7) | ((feature_initial_interrupt & 7) << 3) | (fpu_max_precision << 6));
 		fwrite(data, 1, 4, f);
 		pl(data, 0);
 		fwrite(data, 1, 4, f);
@@ -4329,12 +4446,8 @@ static void execute_ins(uaecptr endpc, uaecptr targetpc, struct instr *dp, bool 
 			// skip result if it has too large or small exponent
 			for (int i = 0; i < 8; i++) {
 				if (regs.fp[i].fpx.high != cur_regs.fp[i].fpx.high || regs.fp[i].fpx.low != cur_regs.fp[i].fpx.low) {
-					int exp = regs.fp[i].fpx.high & 0x7fff;
-					if (exp != 0x0000) {
-						if (exp < fpu_min_exponent || exp > fpu_max_exponent) {
-							test_exception = -1;
-							break;
-						}
+					if (!fpu_precision_valid(regs.fp[i].fpx)) {
+						test_exception = -1;
 					}
 				}
 			}
@@ -4900,7 +5013,13 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 	target_ea_opcode_cnt = 0;
 	generate_address_mode = 0;
 
-	fpustatus.floatx80_rounding_precision = 80;
+	if (fpu_max_precision == 2) {
+		fpustatus.floatx80_rounding_precision = 64;
+	} else if (fpu_max_precision == 1) {
+		fpustatus.floatx80_rounding_precision = 32;
+	} else {
+		fpustatus.floatx80_rounding_precision = 80;
+	}
 	fpustatus.float_rounding_mode = float_round_nearest_even;
 
 	// 1.0
@@ -4909,12 +5028,16 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 	fpuregisters[1] = int32_to_floatx80(-1);
 	// 0.0
 	fpuregisters[2] = int32_to_floatx80(0);
-	// NaN
-	fpuregisters[7] = floatx80_default_nan(NULL);
+	if (fpu_max_precision) {
+		fpuregisters[7] = int32_to_floatx80(2);
+	} else {
+		// NaN
+		fpuregisters[7] = floatx80_default_nan(NULL);
+	}
 
 	for (int i = 3; i < 7; i++) {
 		uae_u32 v = rand32();
-		if (v < 10 || v > -10)
+		if (v < 15 || v > -15)
 			continue;
 		fpuregisters[i] = int32_to_floatx80(v);
 	}
@@ -6954,8 +7077,9 @@ static int test(struct ini_data *ini, const TCHAR *sections, const TCHAR *testna
 		}
 	}
 
-	fpu_min_exponent = 0;
-	fpu_max_exponent = 32768;
+	fpu_min_exponent = -65535;
+	fpu_max_exponent = 65535;
+	fpu_max_precision = 0;
 	if (ini_getvalx(ini, sections, _T("fpu_min_exponent"), &v)) {
 		if (v >= 0) {
 			fpu_min_exponent = v;
@@ -6964,6 +7088,16 @@ static int test(struct ini_data *ini, const TCHAR *sections, const TCHAR *testna
 	if (ini_getvalx(ini, sections, _T("fpu_max_exponent"), &v)) {
 		if (v >= 0) {
 			fpu_max_exponent = v;
+		}
+	}
+	if (ini_getvalx(ini, sections, _T("fpu_max_precision"), &v)) {
+		if (v == 1 || v == 2) {
+			fpu_max_precision = v;
+		}
+	}
+	if (ini_getvalx(ini, sections, _T("fpu_unnormals"), &v)) {
+		if (v) {
+			fpu_unnormals = 1;
 		}
 	}
 
