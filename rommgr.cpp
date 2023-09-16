@@ -97,7 +97,7 @@ struct romdata *getromdatabypath (const TCHAR *path)
 	return NULL;
 }
 
-#define NEXT_ROM_ID 310
+#define NEXT_ROM_ID 311
 
 #if NEXT_ROM_ID >= MAX_ROMMGR_ROMS
 #error Increase MAX_ROMMGR_ROMS!
@@ -660,6 +660,8 @@ static struct romdata roms[] = {
 	0x756103b1, 0x7f1335ea,0xf5b7ce73,0xc5231173,0x261da5aa,0xe7249645, NULL, NULL },
 	{ _T("AlfaPower v6.10"), 6, 10, 6, 10, _T("ALFAPOWER\0"), 32768, 117, 0, 0, ROMTYPE_ALFA, 0, 0, NULL,
 	0x1cfb0a0b, 0xc7275eda,0x547d6664,0x5c4eb7a0,0x3b5cef37,0xa498365a, NULL, NULL },
+	{ _T("AlfaPower v8.2"), 8, 2, 8, 2, _T("ALFAPOWERPLUS\0"), 32768, 310, 0, 0, ROMTYPE_ALFAPLUS, 0, 0, NULL,
+	0x42b570db, 0xf7d3f6bf,0x83ef13f9,0x438bf0d3,0x790d2f69,0xc26dcabe, NULL, NULL },
 	{ _T("AlfaPower v8.3"), 8, 3, 8, 3, _T("ALFAPOWERPLUS\0"), 32768, 118, 0, 0, ROMTYPE_ALFAPLUS, 0, 0, NULL,
 	0xe8201bad, 0xdefea015,0x596fce32,0x11e84397,0x23046a31,0x5a7726dc, NULL, NULL },
 	{ _T("Masoboshi MC-702 v2.201"), 2, 201, 2, 201, _T("MASOBOSHI\0"), 32768, 120, 0, 0, ROMTYPE_MASOBOSHI, 0, 0, NULL,
