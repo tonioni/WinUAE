@@ -14010,8 +14010,10 @@ static void values_to_sounddlg (HWND hDlg)
 	xSendDlgItemMessage (hDlg, IDC_SOUNDSTEREO, CB_ADDSTRING, 0, (LPARAM)txt);
 	WIN32GUI_LoadUIString(IDS_SOUND_51, txt, sizeof(txt) / sizeof(TCHAR));
 	xSendDlgItemMessage(hDlg, IDC_SOUNDSTEREO, CB_ADDSTRING, 0, (LPARAM)txt);
-	xSendDlgItemMessage(hDlg, IDC_SOUNDSTEREO, CB_ADDSTRING, 0, (LPARAM)_T("Cloned stereo (7.1)"));
-	xSendDlgItemMessage(hDlg, IDC_SOUNDSTEREO, CB_ADDSTRING, 0, (LPARAM)_T("7.1 channels"));
+	WIN32GUI_LoadUIString(IDS_SOUND_CLONED71, txt, sizeof(txt) / sizeof(TCHAR));
+	xSendDlgItemMessage(hDlg, IDC_SOUNDSTEREO, CB_ADDSTRING, 0, (LPARAM)txt);
+	WIN32GUI_LoadUIString(IDS_SOUND_71, txt, sizeof(txt) / sizeof(TCHAR));
+	xSendDlgItemMessage(hDlg, IDC_SOUNDSTEREO, CB_ADDSTRING, 0, (LPARAM)txt);
 	xSendDlgItemMessage(hDlg, IDC_SOUNDSTEREO, CB_SETCURSEL, workprefs.sound_stereo, 0);
 
 	xSendDlgItemMessage (hDlg, IDC_SOUNDSWAP, CB_RESETCONTENT, 0, 0);

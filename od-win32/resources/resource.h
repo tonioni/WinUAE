@@ -433,6 +433,8 @@
 #define IDS_FILTER_LABELS               438
 #define IDS_CURRENT_HOST                439
 #define IDS_NONE2                       440
+#define IDS_SOUND_CLONED71              441
+#define IDS_SOUND_71                    442
 #define IDS_QS_MODELS                   1000
 #define IDS_QS_MODEL_A500               1001
 #define IDS_QS_MODEL_A500P              1002
