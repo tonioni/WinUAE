@@ -358,7 +358,7 @@ UINT8 address_space::read_byte(UINT32 a)
 		break;
 		case A2410_BANK_CONTROL:
 		v = get_a2410_control(data);
-		write_log(_T("CONTROL READ %08x = %02x PC=%08x\n"), aa, v, M68K_GETPC);
+		//write_log(_T("CONTROL READ %08x = %02x PC=%08x\n"), aa, v, M68K_GETPC);
 		break;
 		case A2410_BANK_DMA:
 		if (valid_dma(data, addr)) {
@@ -408,7 +408,7 @@ UINT16 address_space::read_word(UINT32 a)
 		break;
 		case A2410_BANK_CONTROL:
 		v = get_a2410_control(data);
-		write_log(_T("CONTROL READ %08x = %02x PC=%08x\n"), aa, v, M68K_GETPC);
+		//write_log(_T("CONTROL READ %08x = %02x PC=%08x\n"), aa, v, M68K_GETPC);
 		break;
 		case A2410_BANK_DMA:
 		if (valid_dma(data, addr)) {
@@ -450,7 +450,7 @@ void address_space::write_byte(UINT32 a, UINT8 b)
 		}
 		break;
 		case A2410_BANK_CONTROL:
-		write_log(_T("CONTROL WRITE %08x = %02x PC=%08x\n"), aa, b, M68K_GETPC);
+		//write_log(_T("CONTROL WRITE %08x = %02x PC=%08x\n"), aa, b, M68K_GETPC);
 		data->a2410_control = b;
 		break;
 		case A2410_BANK_DMA:
@@ -498,7 +498,7 @@ void address_space::write_word(UINT32 a, UINT16 b)
 		}
 		break;
 		case A2410_BANK_CONTROL:
-		write_log(_T("CONTROL WRITE %08x = %04x PC=%08x\n"), aa, b, M68K_GETPC);
+		//write_log(_T("CONTROL WRITE %08x = %04x PC=%08x\n"), aa, b, M68K_GETPC);
 		data->a2410_control = b;
 		break;
 		case A2410_BANK_DMA:

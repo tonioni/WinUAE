@@ -650,6 +650,8 @@ void tms340x0_device::device_reset()
 	memset(m_regs, 0, sizeof(m_regs));
 	memset(m_IOregs, 0, sizeof(m_IOregs));
 	memset(m_shiftreg, 0, sizeof(m_shiftreg));
+	m_plane_mask = 0x00000000;
+	m_plane_mask_inv = 0xffffffff;
 
 	/* fetch the initial PC and reset the state */
 	m_pc = RLONG(0xffffffe0) & 0xfffffff0;
