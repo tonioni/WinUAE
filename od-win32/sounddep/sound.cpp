@@ -157,6 +157,7 @@ static int statuscnt;
 uae_u16 paula_sndbuffer[SND_MAX_BUFFER];
 uae_u16 *paula_sndbufpt;
 int paula_sndbufsize;
+int active_sound_stereo;
 
 static uae_sem_t sound_sem, sound_init_sem;
 
@@ -1376,13 +1377,17 @@ retry:
 	rncnt = 0;
 	for (;;) {
 
-		if (sd->channels == 6) {
-			rn[0] = KSAUDIO_SPEAKER_5POINT1;
-			rn[1] = KSAUDIO_SPEAKER_5POINT1_SURROUND;
+		if (sd->channels == 8) {
+			rn[0] = KSAUDIO_SPEAKER_7POINT1_SURROUND;
+			rn[1] = KSAUDIO_SPEAKER_7POINT1;
+			rn[2] = 0;
+		} else if (sd->channels == 6) {
+			rn[0] = KSAUDIO_SPEAKER_5POINT1_SURROUND;
+			rn[1] = KSAUDIO_SPEAKER_5POINT1;
 			rn[2] = 0;
 		} else if (sd->channels == 4) {
-			rn[0] = KSAUDIO_SPEAKER_QUAD;
-			rn[1] = KSAUDIO_SPEAKER_QUAD_SURROUND;
+			rn[0] = KSAUDIO_SPEAKER_QUAD_SURROUND;
+			rn[1] = KSAUDIO_SPEAKER_QUAD;
 			rn[2] = KSAUDIO_SPEAKER_SURROUND;
 			rn[3] = 0;
 		} else if (sd->channels == 2) {
@@ -1946,24 +1951,24 @@ static int open_sound (void)
 	size &= ~63;
 
 	sdp->softvolume = -1;
-	num = enumerate_sound_devices ();
+	num = enumerate_sound_devices();
 	if (currprefs.win32_soundcard >= num)
 		currprefs.win32_soundcard = changed_prefs.win32_soundcard = 0;
 	if (num == 0)
 		return 0;
-	ch = get_audio_nativechannels (currprefs.sound_stereo);
+	ch = get_audio_nativechannels(active_sound_stereo);
 	ret = open_sound_device (sdp, currprefs.win32_soundcard, size, currprefs.sound_freq, ch);
 	if (!ret)
 		return 0;
 	currprefs.sound_freq = changed_prefs.sound_freq = sdp->freq;
 	if (ch != sdp->channels)
-		currprefs.sound_stereo = changed_prefs.sound_stereo = get_audio_stereomode (sdp->channels);
+		active_sound_stereo = get_audio_stereomode (sdp->channels);
 
 	set_volume (currprefs.sound_volume_master, sdp->mute);
-	if (get_audio_amigachannels (currprefs.sound_stereo) == 4)
+	if (get_audio_amigachannels(active_sound_stereo) == 4)
 		sample_handler = sample16ss_handler;
 	else
-		sample_handler = get_audio_ismono (currprefs.sound_stereo) ? sample16_handler : sample16s_handler;
+		sample_handler = get_audio_ismono(active_sound_stereo) ? sample16_handler : sample16s_handler;
 
 	sdp->obtainedfreq = currprefs.sound_freq;
 
@@ -2783,9 +2788,9 @@ void finish_sound_buffer (void)
 		return;
 	}
 	if (currprefs.sound_stereo_swap_paula) {
-		if (get_audio_nativechannels (currprefs.sound_stereo) == 2 || get_audio_nativechannels (currprefs.sound_stereo) == 4)
+		if (get_audio_nativechannels(active_sound_stereo) == 2 || get_audio_nativechannels(active_sound_stereo) == 4)
 			channelswap((uae_s16*)paula_sndbuffer, bufsize / 2);
-		else if (get_audio_nativechannels (currprefs.sound_stereo) == 6)
+		else if (get_audio_nativechannels(active_sound_stereo) >= 6)
 			channelswap6((uae_s16*)paula_sndbuffer, bufsize / 2);
 	}
 #ifdef DRIVESOUND
