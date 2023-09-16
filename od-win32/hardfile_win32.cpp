@@ -171,23 +171,15 @@ static int getsignfromhandle (HANDLE h, DWORD *sign, DWORD *pstyle)
 
 	ok = 0; 
 	outsize = sizeof (DRIVE_LAYOUT_INFORMATION_EX) + sizeof (PARTITION_INFORMATION_EX) * 32;
-	dli = (DRIVE_LAYOUT_INFORMATION_EX*)xmalloc (uae_u8, outsize);
+	dli = (DRIVE_LAYOUT_INFORMATION_EX*)xmalloc(uae_u8, outsize);
 	if (DeviceIoControl (h, IOCTL_DISK_GET_DRIVE_LAYOUT_EX, NULL, 0, dli, outsize, &written, NULL)) {
-		*sign = dli->Mbr.Signature;
+		if (dli->PartitionStyle == PARTITION_STYLE_MBR) {
+			*sign = dli->Mbr.Signature;
+		}
 		*pstyle = dli->PartitionStyle;
 		ok = 1;
 	} else {
 		hfd_log(_T("IOCTL_DISK_GET_DRIVE_LAYOUT_EX() returned %08x\n"), GetLastError());
-	}
-	if (!ok) {
-		if (DeviceIoControl (h, IOCTL_DISK_GET_DRIVE_LAYOUT, NULL, 0, dli, outsize, &written, NULL)) {
-			DRIVE_LAYOUT_INFORMATION *dli2 = (DRIVE_LAYOUT_INFORMATION*)dli;
-			*sign = dli2->Signature;
-			*pstyle = PARTITION_STYLE_MBR;
-			ok = 1;
-		} else {
-			hfd_log(_T("IOCTL_DISK_GET_DRIVE_LAYOUT() returned %08x\n"), GetLastError());
-		}
 	}
 	hfd_log2(_T("getsignfromhandle(signature=%08X,pstyle=%d)\n"), *sign, *pstyle);
 	xfree (dli);
@@ -198,15 +190,16 @@ static int ismounted (const TCHAR *name, HANDLE hd)
 {
 	HANDLE h;
 	TCHAR volname[MAX_DPATH];
-	int mounted;
+	int mounted, ret;
 	DWORD sign, pstyle;
 
 	hfd_log2(_T("\n"));
 	hfd_log2(_T("Name='%s'\n"), name);
-	if (!getsignfromhandle (hd, &sign, &pstyle))
+	ret = getsignfromhandle(hd, &sign, &pstyle);
+	if (!ret)
 		return 0;
 	if (pstyle == PARTITION_STYLE_GPT)
-		return 1;
+		return 2;
 	if (pstyle == PARTITION_STYLE_RAW)
 		return 0;
 	mounted = 0;
@@ -408,6 +401,9 @@ static int safetycheck (HANDLE h, const TCHAR *name, uae_u64 offset, uae_u8 *buf
 		if (mounted < 0) {
 			write_log (_T("hd ignored, NTFS partitions\n"));
 			return 0;
+		}
+		if (mounted > 1) {
+			return 3;
 		}
 		return -6;
 		//if (harddrive_dangerous == 0x1234dead)
@@ -1710,7 +1706,7 @@ static bool getdeviceinfo (HANDLE hDevice, struct uae_driveinfo *udi)
 	DWORD returnedLength;
 	bool geom_ok = true, gli_ok;
 	UCHAR outBuf[20000];
-	DRIVE_LAYOUT_INFORMATION *dli;
+	DRIVE_LAYOUT_INFORMATION_EX *dli;
 	STORAGE_PROPERTY_QUERY query;
 	DWORD status;
 	TCHAR devname[MAX_DPATH];
@@ -1819,21 +1815,21 @@ static bool getdeviceinfo (HANDLE hDevice, struct uae_driveinfo *udi)
 	udi->size = gli.Length.QuadPart;
 
 	// check for amithlon partitions, if any found = quick mount not possible
-	status = DeviceIoControl(hDevice, IOCTL_DISK_GET_DRIVE_LAYOUT, NULL, 0,
+	status = DeviceIoControl(hDevice, IOCTL_DISK_GET_DRIVE_LAYOUT_EX, NULL, 0,
 		&outBuf, sizeof (outBuf), &returnedLength, NULL);
 	if (!status)
 		return true;
-	dli = (DRIVE_LAYOUT_INFORMATION*)outBuf;
-	if (!dli->PartitionCount)
+	dli = (DRIVE_LAYOUT_INFORMATION_EX*)outBuf;
+	if (!dli->PartitionCount || dli->PartitionStyle != PARTITION_STYLE_MBR)
 		return true;
 	bool partfound = false;
 	for (int i = 0; i < dli->PartitionCount; i++) {
-		PARTITION_INFORMATION *pi = &dli->PartitionEntry[i];
-		if (pi->PartitionType == PARTITION_ENTRY_UNUSED)
+		PARTITION_INFORMATION_EX *pi = &dli->PartitionEntry[i];
+		if (pi->Mbr.PartitionType == PARTITION_ENTRY_UNUSED)
 			continue;
-		if (pi->RecognizedPartition == 0)
+		if (pi->Mbr.RecognizedPartition == 0)
 			continue;
-		if (pi->PartitionType != 0x76 && pi->PartitionType != 0x30)
+		if (pi->Mbr.PartitionType != 0x76 && pi->Mbr.PartitionType != 0x30)
 			continue;
 		if (i == amipart) {
 			udi->offset = pi->StartingOffset.QuadPart;
@@ -2928,7 +2924,7 @@ static BOOL GetDevicePropertyFromName(const TCHAR *DevicePath, DWORD Index, DWOR
 	int i, nosp, geom_ok;
 	int ret = -1;
 	STORAGE_PROPERTY_QUERY query;
-	DRIVE_LAYOUT_INFORMATION		*dli;
+	DRIVE_LAYOUT_INFORMATION_EX *dli;
 	struct uae_driveinfo *udi;
 	TCHAR orgname[1024];
 	HANDLE hDevice = INVALID_HANDLE_VALUE;
@@ -3120,30 +3116,30 @@ static BOOL GetDevicePropertyFromName(const TCHAR *DevicePath, DWORD Index, DWOR
 	trim (orgname);
 
 	memset (outBuf, 0, sizeof (outBuf));
-	status = DeviceIoControl(hDevice, IOCTL_DISK_GET_DRIVE_LAYOUT, NULL, 0,
+	status = DeviceIoControl(hDevice, IOCTL_DISK_GET_DRIVE_LAYOUT_EX, NULL, 0,
 		&outBuf, sizeof (outBuf), &returnedLength, NULL);
 	if (!status) {
 		DWORD err = GetLastError();
-		write_log (_T("IOCTL_DISK_GET_DRIVE_LAYOUT failed with error code %d.\n"), err);
+		write_log (_T("IOCTL_DISK_GET_DRIVE_LAYOUT_EX failed with error code %d.\n"), err);
 	} else {
-		dli = (DRIVE_LAYOUT_INFORMATION*)outBuf;
-		if (dli->PartitionCount) {
+		dli = (DRIVE_LAYOUT_INFORMATION_EX*)outBuf;
+		if (dli->PartitionCount && dli->PartitionStyle == PARTITION_STYLE_MBR) {
 			int nonzeropart = 0;
 			int gotpart = 0;
 			int safepart = 0;
 			write_log (_T("%d MBR partitions found\n"), dli->PartitionCount);
 			for (i = 0; i < dli->PartitionCount && (*index2) < MAX_FILESYSTEM_UNITS; i++) {
-				PARTITION_INFORMATION *pi = &dli->PartitionEntry[i];
-				if (pi->PartitionType == PARTITION_ENTRY_UNUSED)
+				PARTITION_INFORMATION_EX *pi = &dli->PartitionEntry[i];
+				if (pi->Mbr.PartitionType == PARTITION_ENTRY_UNUSED)
 					continue;
 				write_log (_T("%d: num: %d type: %02X offset: %I64d size: %I64d, "), i,
-					pi->PartitionNumber, pi->PartitionType, pi->StartingOffset.QuadPart, pi->PartitionLength.QuadPart);
-				if (pi->RecognizedPartition == 0) {
+					pi->PartitionNumber, pi->Mbr.PartitionType, pi->StartingOffset.QuadPart, pi->PartitionLength.QuadPart);
+				if (pi->Mbr.RecognizedPartition == 0) {
 					write_log (_T("unrecognized\n"));
 					continue;
 				}
 				nonzeropart++;
-				if (pi->PartitionType != 0x76 && pi->PartitionType != 0x30) {
+				if (pi->Mbr.PartitionType != 0x76 && pi->Mbr.PartitionType != 0x30) {
 					write_log (_T("type not 0x76 or 0x30\n"));
 					continue;
 				}
