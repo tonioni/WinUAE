@@ -262,6 +262,7 @@ static int hblank_left_start, hblank_right_stop;
 static int hblank_left_start_hard, hblank_right_stop_hard;
 static bool extborder, exthblanken, exthblankon;
 static int exthblank;
+static bool exthblank_force;
 static int exthblank_set;
 static bool ehb_enable;
 static bool syncdebug;
@@ -595,7 +596,7 @@ int get_vertical_visible_height(bool useoldsize)
 	int vbstrt, vbstop;
 
 	if (programmedmode <= 1) {
-		h = maxvpos_display + maxvpos_display_vsync - minfirstline;
+		h = maxvsize_display;
 		if (useoldsize) {
 			// 288/576 or 243/486
 			if (h == 288 || h == 243) {
@@ -1082,7 +1083,9 @@ static int sprite_playfield_start, sprite_end;
 static int may_require_hard_way;
 static int linetoscr_diw_start, linetoscr_diw_end;
 static int native_ddf_left, native_ddf_right;
+#if 0
 static int hamleftborderhidden;
+#endif
 
 static int pixels_offset;
 static int src_pixel;
@@ -1110,7 +1113,7 @@ static xcolnr getbgc(int blank)
 	//return colors_for_drawing.acolors[0];
 	return xcolors[0xf0f];
 #endif
-	if (exthblank > 0) {
+	if (exthblank > 0 || exthblank_force) {
 		return fullblack;
 	}
 	bool extblken = ce_is_extblankset(colors_for_drawing.extra);
@@ -1160,7 +1163,6 @@ static void pfield_init_linetoscr (bool border)
 	/* First, get data fetch start/stop in DIW coordinates.  */
 	int ddf_left = dp_for_drawing->plfleft + DIW_DDF_OFFSET - DDF_OFFSET;
 	int ddf_right = dp_for_drawing->plfright + DIW_DDF_OFFSET - DDF_OFFSET;
-	int leftborderhidden;
 	int native_ddf_left2;
 	bool expanded = false;
 
@@ -1187,10 +1189,6 @@ static void pfield_init_linetoscr (bool border)
 	linetoscr_diw_end = dp_for_drawing->diwlastword;
 	if (linetoscr_diw_start < 0) {
 		linetoscr_diw_start = 0;
-	}
-	// OCS Denise shows only background until hpos 95.
-	if (!ecs_denise && linetoscr_diw_start < shres_coord_hw_to_window_x(95 << 2)) {
-		linetoscr_diw_start = shres_coord_hw_to_window_x(95 << 2);
 	}
 	/* Perverse cases happen. */
 	if (linetoscr_diw_end < linetoscr_diw_start)
@@ -1364,13 +1362,15 @@ static void pfield_init_linetoscr (bool border)
 	ddf_left <<= bplres;
 	pixels_offset = MAX_PIXELS_PER_LINE - ddf_left;
 
-	leftborderhidden = playfield_start - native_ddf_left2;
-	hamleftborderhidden = 0;
+	int leftborderhidden = playfield_start - native_ddf_left2;
 
+#if 0
+	hamleftborderhidden = 0;
 	if (hblank_left_start > playfield_start) {
 		leftborderhidden += hblank_left_start - playfield_start;
 		hamleftborderhidden = hblank_left_start - playfield_start;
 	}
+#endif
 
 	src_pixel = MAX_PIXELS_PER_LINE + res_shift_from_window(leftborderhidden);
 
@@ -1698,7 +1698,7 @@ static void fill_line2(int startpos, int len)
 	}
 }
 
-static void fill_line_border(int lineno)
+static void fill_line_border(int lineno, int bordertype)
 {
 	struct vidbuf_description *vidinfo = &adisplays[0].gfxvidinfo;
 	int lastpos = visible_left_border;
@@ -1712,7 +1712,7 @@ static void fill_line_border(int lineno)
 		int b = hposblank;
 		hposblank = 3;
 		fill_line2(lastpos, w);
-		if (syncdebug) {
+		if (syncdebug && bordertype >= 0) {
 			pfield_do_darken_line(lastpos, endpos, lineno);
 		}
 		if (need_genlock_data) {
@@ -1726,7 +1726,7 @@ static void fill_line_border(int lineno)
 	if (hposblank) {
 		hposblank = 3;
 		fill_line2(lastpos, w);
-		if (syncdebug) {
+		if (syncdebug && bordertype >= 0) {
 			pfield_do_darken_line(lastpos, endpos, lineno);
 		}
 		if (need_genlock_data) {
@@ -1769,7 +1769,7 @@ static uae_u8 render_sprites(int pos, int dualpf, uae_u8 apixel, int aga)
 	int *shift_lookup = dualpf ? (bpldualpfpri ? dblpf_ms2 : dblpf_ms1) : dblpf_ms;
 	int maskshift, plfmask;
 
-	if (exthblank) {
+	if (exthblank || exthblank_force) {
 		return 0;
 	}
 	if (extborder && (ce_is_borderblank(colors_for_drawing.extra) || !ce_is_bordersprite(colors_for_drawing.extra))) {
@@ -1869,7 +1869,7 @@ static uae_u8 sh_render_sprites(int pos, int dualpf, uae_u8 apixel, int aga)
 	int *shift_lookup = dualpf ? (bpldualpfpri ? dblpf_ms2 : dblpf_ms1) : dblpf_ms;
 	int maskshift, plfmask;
 
-	if (exthblank) {
+	if (exthblank || exthblank_force) {
 		return 0;
 	}
 	if (extborder && ce_is_borderblank(colors_for_drawing.extra)) {
@@ -2257,7 +2257,7 @@ static call_linetoscrb pfield_do_linetoscr_spriteonly;
 static void pfield_do_linetoscr(int start, int stop, int blank)
 {
 	int pixel = pfield_do_linetoscr_normal(src_pixel, start, stop);
-	if (exthblank) {
+	if (exthblank || exthblank_force) {
 		pfield_do_fill_line(start, stop, 1);
 	} else if (extborder) {
 #if EXTBORDER_BLANK
@@ -2279,10 +2279,10 @@ static void pfield_do_linetoscr_spr(int start, int stop, int blank)
 		bool bb = ce_is_borderblank(colors_for_drawing.extra);
 #endif
 		pixel = pfield_do_linetoscr_sprite(src_pixel, start, stop);
-		pfield_do_fill_line(start, stop, bb || exthblank > 0);
+		pfield_do_fill_line(start, stop, bb || exthblank > 0 || exthblank_force);
 	} else {
 		pixel = pfield_do_linetoscr_sprite(src_pixel, start, stop);
-		if (exthblank) {
+		if (exthblank || exthblank_force) {
 			pfield_do_fill_line(start, stop, 1);
 		}
 	}
@@ -2667,7 +2667,7 @@ static void pfield_set_linetoscr (void)
 // A1000 Denise right border bug: sprites have 1 extra lores pixel visible
 static void pfield_do_linetoscr_bordersprite_a1000(int start, int stop, int blank)
 {
-	if (blank || exthblank > 0 || extborder) {
+	if (blank || exthblank > 0 || exthblank_force || extborder) {
 		pfield_do_fill_line(start, stop, blank);
 		return;
 	}
@@ -2687,7 +2687,7 @@ static void pfield_do_linetoscr_bordersprite_a1000(int start, int stop, int blan
 // left or right AGA border sprite
 static void pfield_do_linetoscr_bordersprite_aga(int start, int stop, int blank)
 {
-	if (blank || exthblank > 0 || extborder) {
+	if (blank || exthblank > 0 || exthblank_force || extborder) {
 		pfield_do_fill_line(start, stop, blank);
 		return;
 	}
@@ -2772,7 +2772,10 @@ static void init_ham_decoding(void)
 {
 	int unpainted_amiga = unpainted;
 
-	ham_decode_pixel = src_pixel - hamleftborderhidden;
+	ham_decode_pixel = src_pixel;
+#if 0
+	ham_decode_pixel = -hamleftborderhidden;
+#endif
 	ham_lastcolor = color_reg_get(&colors_for_drawing, 0);
 	while (unpainted_amiga-- > 0) {
 		decode_ham_pixel(ham_decode_pixel++);
@@ -3146,6 +3149,7 @@ static void NOINLINE pfield_doline64_n8(uae_u64 *data, int count, uae_u8* real_b
 static void pfield_doline(int lineno)
 {
 	uae_u8 *real_bplpt[8];
+	int offset = 0; // currprefs.chipset_hr ? 8 : 0;
 
 #if 0
 	int wordcount = (dp_for_drawing->plflinelen + 1) / 2;
@@ -3181,7 +3185,7 @@ static void pfield_doline(int lineno)
 	int wordcount = dp_for_drawing->plflinelen;
 	uae_u32 *data = pixdata.apixels_l + MAX_PIXELS_PER_LINE / sizeof(uae_u32);
 
-#define DATA_POINTER(n) ((debug_bpl_mask & (1 << n)) ? (line_data[lineno] + (n) * MAX_WORDS_PER_LINE * 2) : (debug_bpl_mask_one ? all_ones : all_zeros))
+#define DATA_POINTER(n) ((debug_bpl_mask & (1 << n)) ? (line_data[lineno] + (n) * MAX_WORDS_PER_LINE * 2 + offset) : (debug_bpl_mask_one ? all_ones : all_zeros))
 	real_bplpt[0] = DATA_POINTER(0);
 	real_bplpt[1] = DATA_POINTER(1);
 	real_bplpt[2] = DATA_POINTER(2);
@@ -3525,6 +3529,15 @@ static void pfield_expand_dp_bplconx (int regno, int v, int hp, int vp)
 			exthblank = 0;
 		}
 		return;
+	case 0x208: // forced hblank
+		if (v) {
+			exthblanken = true;
+			exthblankon = true;
+		} else {
+			exthblanken = false;
+			exthblank = 0;
+		}
+		return;
 	case 0x202: // hsync (debug)
 		hsync_debug = v;
 		return;
@@ -3657,6 +3670,10 @@ static void do_color_changes(line_draw_func worker_border, line_draw_func worker
 				if (nextpos_in_range > lastpos && lastpos < hblank_left) {
 					int t = nextpos_in_range <= hblank_left ? nextpos_in_range : hblank_left;
 					(*worker_border)(lastpos, t, 1);
+					// if playfield starts before hblank end: adjust back to playfield start
+					if (t > playfield_start) {
+						t = playfield_start;
+					}
 					lastpos = t;
 				}
 
@@ -3683,6 +3700,10 @@ static void do_color_changes(line_draw_func worker_border, line_draw_func worker
 							playfield_hard_way(worker_pfield, lastpos, t);
 						} else {
 							(*worker_pfield)(lastpos, t, 0);
+						}
+						// playfield started inside hblank? Overwrite it with blank.
+						if (playfield_start < hblank_left) {
+							(*worker_border)(playfield_start, hblank_left, 1);
 						}
 						lastpos = t;
 					}
@@ -3756,10 +3777,18 @@ static void do_color_changes(line_draw_func worker_border, line_draw_func worker
 				colors_for_drawing.acolors[regno] = getxcolor(value);
 			} else if (regno == 0 && (value & COLOR_CHANGE_MASK)) {
 				if ((value & COLOR_CHANGE_MASK) == COLOR_CHANGE_ACTBORDER) {
-					if (value & 1) {
-						extborder = true;
+					if (value & 2) {
+						if (value & 1) {
+							exthblank_force = true;
+						} else {
+							exthblank_force = false;
+						}
 					} else {
-						extborder = false;
+						if (value & 1) {
+							extborder = true;
+						} else {
+							extborder = false;
+						}
 					}
 				} else if (value & COLOR_CHANGE_BLANK) {
 					if (value & 1) {
@@ -3992,18 +4021,18 @@ static void pfield_draw_line(struct vidbuffer *vb, int lineno, int gfx_ypos, int
 				// blanked border line
 				int tmp = hposblank;
 				hposblank = 1;
-				fill_line_border(lineno);
+				fill_line_border(lineno, border);
 				hposblank = tmp;
 			} else {
 				// normal border line
-				fill_line_border(lineno);
+				fill_line_border(lineno, border);
 			}
 
 			if (do_double) {
 				if (dh == dh_buf) {
 					xlinebuffer = row_map[follow_ypos] - linetoscr_x_adjust_pixbytes;
 					xlinebuffer_genlock = row_map_genlock[follow_ypos] - linetoscr_x_adjust_pixels;
-					fill_line_border(lineno);
+					fill_line_border(lineno, border);
 				}
 				/* If dh == dh_line, do_flush_line will re-use the rendered line
 				* from linemem.  */
@@ -4047,7 +4076,7 @@ static void pfield_draw_line(struct vidbuffer *vb, int lineno, int gfx_ypos, int
 		// top or bottom blanking region
 		int tmp = hposblank;
 		hposblank = 1;
-		fill_line_border(lineno);
+		fill_line_border(lineno, border);
 		hposblank = tmp;
 
 	}
@@ -5316,6 +5345,7 @@ void reset_drawing(void)
 	max_diwstop = 0;
 	vb_state = 0;
 	exthblank = 0;
+	exthblank_force = false;
 	exthblank_set = syncdebug ? -1 : 1;
 	exthblanken = false;
 	exthblankon = false;
