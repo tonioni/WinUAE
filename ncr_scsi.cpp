@@ -872,7 +872,7 @@ static void ncr_reset_board (struct ncr_state *ncr)
 	ncr->irq = false;
 
 	device_add_rethink(ncr_rethink);
-	device_add_exit(ncr_free);
+	device_add_exit(ncr_free, NULL);
 	device_add_vsync_pre(ncr_vsync);
 	device_add_reset(ncr_reset);
 }

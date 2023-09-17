@@ -3002,8 +3002,8 @@ static void snd_init(void)
 	device_add_hsync(sndboard_hsync);
 	device_add_vsync_post(sndboard_vsync);
 	device_add_rethink(sndboard_rethink);
-	device_add_exit(sndboard_free);
-	device_add_exit(uaesndboard_free);
+	device_add_exit(sndboard_free, NULL);
+	device_add_exit(uaesndboard_free, NULL);
 }
 
 

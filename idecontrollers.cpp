@@ -1974,7 +1974,7 @@ static struct ide_board *getide(struct autoconfig_info *aci)
 {
 	device_add_rethink(idecontroller_rethink);
 	device_add_hsync(idecontroller_hsync);
-	device_add_exit(idecontroller_free);
+	device_add_exit(idecontroller_free, NULL);
 
 	for (int i = 0; i < MAX_IDE_UNITS; i++) {
 		if (ide_boards[i]) {

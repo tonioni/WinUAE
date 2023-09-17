@@ -4567,9 +4567,9 @@ static void wd_init(void)
 {
 	device_add_hsync(scsi_hsync);
 	device_add_rethink(rethink_a2091);
-	device_add_exit(a2091_free);
-	device_add_exit(gvp_free);
-	device_add_exit(a3000scsi_free);
+	device_add_exit(a2091_free, NULL);
+	device_add_exit(gvp_free, NULL);
+	device_add_exit(a3000scsi_free, NULL);
 }
 
 #if 0

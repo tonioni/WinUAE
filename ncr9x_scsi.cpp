@@ -1931,7 +1931,7 @@ static void ncr9x_reset_board(struct ncr9x_state *ncr)
 
 	device_add_rethink(ncr9x_rethink);
 	device_add_reset(ncr9x_reset);
-	device_add_exit(ncr9x_free);
+	device_add_exit(ncr9x_free, NULL);
 }
 
 void ncr_squirrel_init(struct romconfig *rc, uaecptr baseaddress)

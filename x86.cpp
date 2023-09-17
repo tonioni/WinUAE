@@ -3854,7 +3854,7 @@ bool x86_bridge_init(struct autoconfig_info *aci, uae_u32 romtype, int type)
 
 	device_add_hsync(x86_bridge_hsync);
 	device_add_vsync_pre(x86_bridge_vsync);
-	device_add_exit(x86_bridge_free);
+	device_add_exit(x86_bridge_free, NULL);
 	device_add_rethink(x86_bridge_rethink);
 
 	return true;

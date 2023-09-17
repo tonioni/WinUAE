@@ -1947,7 +1947,7 @@ static void ne2000_free(void)
 
 static void init(void)
 {
-	device_add_exit(ne2000_free);
+	device_add_exit(ne2000_free, NULL);
 	device_add_reset(ne2000_reset);
 	device_add_hsync(ne2000_hsync);
 	device_add_rethink(rethink_ne2000);

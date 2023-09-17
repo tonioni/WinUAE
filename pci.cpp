@@ -1768,7 +1768,7 @@ static void pci_init(void)
 {
 	device_add_reset(pci_reset);
 	device_add_rethink(pci_rethink);
-	device_add_exit(pci_free);
+	device_add_exit(pci_free, NULL);
 	device_add_hsync(pci_hsync);
 }
 

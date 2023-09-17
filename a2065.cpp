@@ -1153,7 +1153,7 @@ static bool a2065_config (struct autoconfig_info *aci)
 
 	device_add_hsync(a2065_hsync_handler);
 	device_add_rethink(rethink_a2065);
-	device_add_exit(a2065_free);
+	device_add_exit(a2065_free, NULL);
 
 	return true;
 }
