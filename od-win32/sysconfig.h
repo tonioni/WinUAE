@@ -117,6 +117,7 @@
 #define WITH_SOFTFLOAT
 #define FLOPPYBRIDGE
 #define WITH_MIDIEMU
+#define WITH_DSP
 
 
 #else

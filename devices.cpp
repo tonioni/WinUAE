@@ -63,6 +63,7 @@
 #ifdef RETROPLATFORM
 #include "rp.h"
 #endif
+#include "dsp3210/dsp_glue.h"
 
 #define MAX_DEVICE_ITEMS 64
 
@@ -439,6 +440,9 @@ void devices_pause(void)
 #ifdef WITH_PPC
 	uae_ppc_pause(1);
 #endif
+#ifdef WITH_DSP
+	dsp_pause(1);
+#endif
 	blkdev_entergui();
 #ifdef RETROPLATFORM
 	rp_pause(1);
@@ -455,6 +459,9 @@ void devices_unpause(void)
 #endif
 #ifdef WITH_PPC
 	uae_ppc_pause(0);
+#endif
+#ifdef WITH_DSP
+	dsp_pause(0);
 #endif
 	pausevideograb(0);
 	ethernet_pause(0);

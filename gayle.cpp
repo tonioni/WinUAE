@@ -36,6 +36,7 @@
 #include "autoconf.h"
 #include "rommgr.h"
 #include "devices.h"
+#include "dsp3210/dsp_glue.h"
 
 #define PCMCIA_SRAM 1
 #define PCMCIA_IDE 2
@@ -475,6 +476,14 @@ static int gayle_read (uaecptr addr)
 	uaecptr oaddr = addr;
 	uae_u32 v = 0;
 	int got = 0;
+
+	if (is_dsp_installed) {
+		uaecptr daddr = addr & 0xffff;
+		if (daddr == 0x5f || daddr == 0x80) {
+			v = dsp_read();
+			return v;
+		}
+	}
 	if (currprefs.cs_ide == IDE_A600A1200) {
 		if ((addr & 0xA0000) != 0xA0000)
 			return 0;
@@ -513,9 +522,17 @@ static void gayle_write (uaecptr addr, int val)
 {
 	uaecptr oaddr = addr;
 	int got = 0;
+
+	if (is_dsp_installed) {
+		uaecptr daddr = addr & 0xffff;
+		if (daddr  == 0x5f || daddr == 0x80) {
+			dsp_write(val);
+		}
+	}
 	if (currprefs.cs_ide == IDE_A600A1200) {
-		if ((addr & 0xA0000) != 0xA0000)
+		if ((addr & 0xA0000) != 0xA0000) {
 			return;
+		}
 	}
 	addr &= 0xffff;
 	if (currprefs.cs_pcmcia) {
@@ -540,7 +557,6 @@ static void gayle_write (uaecptr addr, int val)
 				write_log (_T("PCMCIA CONFIG WRITE %08X=%02X PC=%08X\n"), oaddr, (uae_u32)val & 0xff, M68K_GETPC);
 		}
 	}
-
 	if (GAYLE_LOG)
 		write_log (_T("GAYLE_WRITE %08X=%02X PC=%08X\n"), oaddr, (uae_u32)val & 0xff, M68K_GETPC);
 	if (!got)

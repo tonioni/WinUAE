@@ -125,6 +125,7 @@ extern int log_a2065, a2065_promiscuous, log_ethernet;
 extern int rawinput_enabled_hid, rawinput_log;
 extern int log_filesys;
 extern int forcedframelatency;
+extern int log_dsp;
 int log_scsi;
 int log_net;
 int log_vsync, debug_vsync_min_delay, debug_vsync_forced_delay;
@@ -6772,6 +6773,10 @@ static int parseargs(const TCHAR *argx, const TCHAR *np, const TCHAR *np2)
 	}
 	if (!_tcscmp(arg, _T("rplog"))) {
 		log_rp = 3;
+		return 1;
+	}
+	if (!_tcscmp(arg, _T("dsplog"))) {
+		log_dsp = 1;
 		return 1;
 	}
 	if (!_tcscmp(arg, _T("nomultidisplay"))) {

@@ -50,6 +50,7 @@
 #include "sana2.h"
 #include "arcadia.h"
 #include "devices.h"
+#include "dsp3210/dsp_glue.h"
 
 
 #define CARD_FLAG_CAN_Z3 1
@@ -5289,6 +5290,14 @@ const struct expansionromtype expansionroms[] = {
 		NULL, 0,
 		false, EXPANSIONTYPE_INTERNAL
 	},
+#ifdef WITH_DSP
+	{
+		_T("dsp3210"), _T("DSP3210"), _T("AT&T"),
+		NULL, dsp_init, NULL, NULL, ROMTYPE_DSP3210 | ROMTYPE_NOT, 0, 0, BOARD_NONAUTOCONFIG_BEFORE, true,
+		NULL, 0,
+		false, EXPANSIONTYPE_INTERNAL
+	},
+#endif
 
 	/* PCI Bridgeboards */
 

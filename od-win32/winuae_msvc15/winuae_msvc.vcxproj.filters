@@ -74,6 +74,9 @@
       <UniqueIdentifier>{5c4c971a-37b6-4c1e-82f1-d225ebb12808}</UniqueIdentifier>
       <Extensions>ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe</Extensions>
     </Filter>
+    <Filter Include="dsp3210">
+      <UniqueIdentifier>{6f046035-4e6d-4038-a65f-d789a89ee702}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\ahidsound_dsonly.cpp">
@@ -990,6 +993,12 @@
     </ClCompile>
     <ClCompile Include="..\..\midiemu.cpp">
       <Filter>common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\dsp3210\DSP3210_emulation.cpp">
+      <Filter>dsp3210</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\dsp3210\dsp_glue.cpp">
+      <Filter>dsp3210</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
