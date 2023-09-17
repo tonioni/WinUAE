@@ -482,6 +482,11 @@ static int get_buddha_reg(uaecptr addr, struct ide_board *board, int *portnum)
 	if (addr < 0x800 || addr >= 0xe00)
 		return reg;
 	*portnum = (addr - 0x800) / 0x200;
+	if ((board->aci->rc->device_settings & 3) == 1) {
+		if ((addr & 0xc0) == 0x80) {
+			return IDE_DATA;
+		}
+	}
 	reg = (addr >> 2) & 15;
 	if (addr & 0x100)
 		reg |= IDE_SECONDARY;
@@ -652,14 +657,15 @@ static uae_u32 ide_read_byte(struct ide_board *board, uaecptr addr)
 			if (board->ide[portnum])
 				v = get_ide_reg_multi(board, regnum, portnum, 1);
 		} else if (addr >= 0xf00 && addr < 0x1000) {
-			if ((addr & ~3) == 0xf00)
+			if ((addr & ~3) == 0xf00) {
 				v = ide_irq_check(board->ide[0], false) ? 0x80 : 0x00;
-			else if ((addr & ~3) == 0xf40)
+			} else if ((addr & ~3) == 0xf40) {
 				v = ide_irq_check(board->ide[1], false) ? 0x80 : 0x00;
-			else if ((addr & ~3) == 0xf80)
+			} else if ((addr & ~3) == 0xf80 && (board->aci->rc->device_settings & 3) != 1) {
 				v = ide_irq_check(board->ide[2], false) ? 0x80 : 0x00;
-			else
+			} else {
 				v = 0;
+			}
 		} else if (addr >= 0x7fc && addr <= 0x7ff) {
 			v = board->userdata;
 		} else {
@@ -2483,8 +2489,10 @@ bool buddha_init(struct autoconfig_info *aci)
 	load_rom_rc(aci->rc, ROMTYPE_BUDDHA, 32768, 0, ide->rom, 65536, LOADROM_EVENONLY_ODDONE | LOADROM_FILL);
 	for (int i = 0; i < 16; i++) {
 		uae_u8 b = ert->autoconfig[i];
-		if (i == 1 && (aci->rc->device_settings & 1))
+		if (i == 1 && (aci->rc->device_settings & 3) == 2)
 			b = 42;
+		if (i == 9 && (aci->rc->device_settings & 3) == 1)
+			b = 6;
 		ew(ide, i * 4, b);
 	}
 	aci->addrbank = ide->bank;
@@ -2494,6 +2502,10 @@ bool buddha_init(struct autoconfig_info *aci)
 void buddha_add_ide_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc)
 {
 	add_ide_standard_unit(ch, ci, rc, buddha_board, BUDDHA_IDE, false, false, 6);
+	if ((rc->device_settings & 3) == 1) {
+		// 3rd port has no interrupt
+		buddha_board[ci->controller_type_unit]->ide[2]->irq_inhibit = true;
+	}
 }
 
 void rochard_add_idescsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc)

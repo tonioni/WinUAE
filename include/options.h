@@ -15,7 +15,7 @@
 #include "traps.h"
 
 #define UAEMAJOR 5
-#define UAEMINOR 0
+#define UAEMINOR 1
 #define UAESUBREV 0
 
 #define MAX_AMIGADISPLAYS 4

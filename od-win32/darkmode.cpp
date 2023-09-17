@@ -149,7 +149,7 @@ static void GetDarkmodeFontColor(void)
 
 constexpr bool CheckBuildNumber(DWORD buildNumber)
 {
-	return buildNumber <= 22621;
+	return buildNumber <= 25999;
 }
 
 void InitDarkMode(int enable)

@@ -17,6 +17,49 @@
 #define ALIGN_POINTER_TO32(p) ((~(uae_u32)(p)) & 3)
 #endif
 
+#define do_get_mem_byte(a) ((uae_u32)*(uae_u8 *)(a))
+STATIC_INLINE void do_put_mem_byte(uae_u8 *a, uae_u8 v)
+{
+	*a = v;
+}
+
+#ifdef HAVE_MOVBE
+
+#include <immintrin.h>
+
+STATIC_INLINE uae_u64 do_get_mem_quad(uae_u64 *a)
+{
+	return _load_be_u64(a);
+}
+
+STATIC_INLINE uae_u32 do_get_mem_long(uae_u32 *a)
+{
+	return _load_be_u32(a);
+}
+
+STATIC_INLINE uae_u16 do_get_mem_word(uae_u16 *a)
+{
+	return _load_be_u16(a);
+}
+
+STATIC_INLINE void do_put_mem_quad(uae_u64 *a, uae_u64 v)
+{
+	_store_be_u64(a, v);
+}
+
+STATIC_INLINE void do_put_mem_long(uae_u32 *a, uae_u32 v)
+{
+	_store_be_u32(a, v);
+}
+
+STATIC_INLINE void do_put_mem_word(uae_u16 *a, uae_u16 v)
+{
+	_store_be_u16(a, v);
+}
+
+
+#else
+
 STATIC_INLINE uae_u64 do_get_mem_quad(uae_u64 *a)
 {
 	return _byteswap_uint64(*a);
@@ -32,7 +75,6 @@ STATIC_INLINE uae_u16 do_get_mem_word(uae_u16 *a)
 	return _byteswap_ushort(*a);
 }
 
-#define do_get_mem_byte(a) ((uae_u32)*(uae_u8 *)(a))
 
 STATIC_INLINE void do_put_mem_quad(uae_u64 *a, uae_u64 v)
 {
@@ -49,10 +91,8 @@ STATIC_INLINE void do_put_mem_word(uae_u16 *a, uae_u16 v)
 	*a = _byteswap_ushort(v);
 }
 
-STATIC_INLINE void do_put_mem_byte(uae_u8 *a, uae_u8 v)
-{
-    *a = v;
-}
+
+#endif
 
 STATIC_INLINE uae_u64 do_byteswap_64(uae_u64 v)
 {

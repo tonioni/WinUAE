@@ -5066,8 +5066,8 @@ static const struct expansionboardsettings nexus_settings[] = {
 };
 static const struct expansionboardsettings buddha_settings[] = {
 	{
-		_T("Model\0") _T("Buddha\0") _T("Catweasel Z2\0"),
-		_T("model\0") _T("buddha\0") _T("cwz2\0"),
+		_T("Model\0") _T("Buddha\0") _T("Buddha plus one\0") _T("Catweasel Z2\0"),
+		_T("model\0") _T("buddha\0") _T("buddhaplusone\0") _T("cwz2\0"),
 		true, false, 0
 	},
 	{

@@ -8022,10 +8022,10 @@ static INT_PTR CALLBACK AboutDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 			pages[ABOUT_ID] = hDlg;
 			currentpage = ABOUT_ID;
 
-			font1 = CreateFont(getscaledfontsize(60), 0, 0, 0, 0,
+			font1 = CreateFont(getscaledfontsize(-1) * 3, 0, 0, 0, 0,
 				0, FALSE, FALSE, DEFAULT_CHARSET, 0, 0,
 				PROOF_QUALITY, FF_DONTCARE, _T("Segoe UI"));
-			font2 = CreateFont(getscaledfontsize(32), 0, 0, 0, 0,
+			font2 = CreateFont(getscaledfontsize(-1) * 2, 0, 0, 0, 0,
 				0, FALSE, FALSE, DEFAULT_CHARSET, 0, 0,
 				PROOF_QUALITY, FF_DONTCARE, _T("Segoe UI"));
 
@@ -14991,7 +14991,7 @@ static void updatehdfinfo(HWND hDlg, bool force, bool defaults, bool realdrive)
 				}
 			}
 			if (i == 16) {
-				hdf_read (&hfd, id, 0, 512);
+				hdf_read (&hfd, id, 0, 512, &error);
 				current_hfdlg.dostype = (id[0] << 24) | (id[1] << 16) | (id[2] << 8) | (id[3] << 0);
 			}
 		}
@@ -22297,25 +22297,29 @@ static int floppyslot_addfile2 (struct uae_prefs *prefs, const TCHAR *file, int 
 		return -1;
 	return drv;
 }
-static int floppyslot_addfile (struct uae_prefs *prefs, const TCHAR *file, int drv, int firstdrv, int maxdrv)
+static int floppyslot_addfile (struct uae_prefs *prefs, const TCHAR *filepath, const TCHAR *file, int drv, int firstdrv, int maxdrv)
 {
-	struct zdirectory *zd = zfile_opendir_archive (file, ZFD_ARCHIVE | ZFD_NORECURSE);
-	if (zd && zfile_readdir_archive (zd, NULL, true) > 1) {
-		TCHAR out[MAX_DPATH];
-		while (zfile_readdir_archive (zd, out, true)) {
-			struct zfile *zf = zfile_fopen (out, _T("rb"), ZFD_NORMAL);
-			if (zf) {
-				int type = zfile_gettype (zf);
-				if (type == ZFILE_DISKIMAGE) {
-					drv = floppyslot_addfile2 (prefs, out, drv, firstdrv, maxdrv);
-					if (drv < 0)
-						break;
+	if (!filepath[0]) {
+		struct zdirectory *zd = zfile_opendir_archive (file, ZFD_ARCHIVE | ZFD_NORECURSE);
+		if (zd && zfile_readdir_archive (zd, NULL, true) > 1) {
+			TCHAR out[MAX_DPATH];
+			while (zfile_readdir_archive (zd, out, true)) {
+				struct zfile *zf = zfile_fopen (out, _T("rb"), ZFD_NORMAL);
+				if (zf) {
+					int type = zfile_gettype (zf);
+					if (type == ZFILE_DISKIMAGE) {
+						drv = floppyslot_addfile2 (prefs, out, drv, firstdrv, maxdrv);
+						if (drv < 0)
+							break;
+					}
 				}
 			}
+			zfile_closedir_archive (zd);
+		} else {
+			drv = floppyslot_addfile2 (prefs, file, drv, firstdrv, maxdrv);
 		}
-		zfile_closedir_archive (zd);
 	} else {
-		drv = floppyslot_addfile2 (prefs, file, drv, firstdrv, maxdrv);
+		drv = floppyslot_addfile2(prefs, filepath, drv, firstdrv, maxdrv);
 	}
 	return drv;
 }
@@ -22430,6 +22434,7 @@ int dragdrop (HWND hDlg, HDROP hd, struct uae_prefs *prefs, int	currentpage)
 		struct zfile *z;
 		int type = -1, zip = 0;
 		int mask;
+		TCHAR filepath[MAX_DPATH];
 
 		DragQueryFile (hd, i, file, sizeof (file) / sizeof (TCHAR));
 		my_resolvesoftlink (file, sizeof file / sizeof (TCHAR), true);
@@ -22447,6 +22452,7 @@ int dragdrop (HWND hDlg, HDROP hd, struct uae_prefs *prefs, int	currentpage)
 			mask = ZFD_ALL;
 		else
 			mask = ZFD_NORMAL;
+		filepath[0] = 0;
 		if (type < 0) {
 			if (currentpage < 0) {
 				z = zfile_fopen (file, _T("rb"), 0);
@@ -22462,8 +22468,12 @@ int dragdrop (HWND hDlg, HDROP hd, struct uae_prefs *prefs, int	currentpage)
 						zip = 1;
 					} else {
 						type = zfile_gettype (z);
-						if (type == ZFILE_ROM)
+						if (type == ZFILE_ROM) {
 							rd = getromdatabyzfile (z);
+						}
+						if (type > 0) {
+							_tcscpy(filepath, z->name);
+						}
 					}
 					zfile_fclose (z);
 					z = NULL;
@@ -22509,7 +22519,7 @@ int dragdrop (HWND hDlg, HDROP hd, struct uae_prefs *prefs, int	currentpage)
 			} else if (harddrive) {
 				do_filesys_insert (file, cnt);
 			} else {
-				drv = floppyslot_addfile (prefs, file, drv, firstdrv, i);
+				drv = floppyslot_addfile (prefs, filepath, file, drv, firstdrv, i);
 				if (drv < 0)
 					i = cnt;
 			}
