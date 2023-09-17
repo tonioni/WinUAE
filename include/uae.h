@@ -50,6 +50,9 @@ extern bool target_isrelativemode(void);
 extern uae_u32 getlocaltime (void);
 extern bool isguiactive(void);
 extern bool is_mainthread(void);
+extern void fpu_reset(void);
+extern void fpux_save(int*);
+extern void fpux_restore(int*);
 
 extern int quit_program;
 extern bool console_emulation;
