@@ -1405,12 +1405,6 @@ void Exception_build_stack_frame(uae_u32 oldpc, uae_u32 currpc, uae_u32 ssw, int
 {
 	int i;
 
-#if 0
-	if (nr < 24 || nr > 31) { // do not print debugging for interrupts
-		write_log(_T("Building exception stack frame (format %X)\n"), format);
-	}
-#endif
-
 	switch (format) {
 	case 0x0: // four word stack frame
 	case 0x1: // throwaway four word stack frame
