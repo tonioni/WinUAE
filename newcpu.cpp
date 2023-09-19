@@ -2713,10 +2713,13 @@ Interrupt:
 
 static int iack_cycle(int nr)
 {
-	int vector;
+	int vector = nr;
 
 	if (1) {
 		// non-autovectored
+		if (currprefs.cpu_model >= 68020) {
+			return vector;
+		}
 		// this is basically normal memory access and takes 4 cycles (without wait states).
 		vector = x_get_byte(0x00fffff1 | ((nr - 24) << 1));
 		x_do_cycles(4 * cpucycleunit);
@@ -2926,54 +2929,45 @@ kludge_me_do:
 // 68030 MMU
 static void Exception_mmu030 (int nr, uaecptr oldpc)
 {
-    uae_u32 currpc = m68k_getpc (), newpc;
-	int interrupt;
+	uae_u32 currpc = m68k_getpc (), newpc;
+	int interrupt, vector_nr = nr;
 
 	interrupt = nr >= 24 && nr < 24 + 8;
+	if (interrupt)
+		vector_nr = iack_cycle(nr);
 
-    exception_debug (nr);
-    MakeSR ();
+	exception_debug (nr);
+	MakeSR ();
     
-    if (!regs.s) {
-        regs.usp = m68k_areg (regs, 7);
-        m68k_areg(regs, 7) = regs.m ? regs.msp : regs.isp;
-        regs.s = 1;
-        mmu_set_super (1);
-    }
+	if (!regs.s) {
+		regs.usp = m68k_areg (regs, 7);
+		m68k_areg(regs, 7) = regs.m ? regs.msp : regs.isp;
+		regs.s = 1;
+		mmu_set_super (1);
+	}
  
-#if 0
-    if (nr < 24 || nr > 31) { // do not print debugging for interrupts
-        write_log (_T("Exception_mmu030: Exception %i: %08x %08x %08x\n"),
-                   nr, currpc, oldpc, regs.mmu_fault_addr);
-    }
-#endif
-
-    newpc = x_get_long (regs.vbr + 4 * nr);
-
-#if 0
-	write_log (_T("Exception %d -> %08x\n"), nr, newpc);
-#endif
+	newpc = x_get_long (regs.vbr + 4 * vector_nr);
 
 	if (regs.m && interrupt) { /* M + Interrupt */
-        Exception_build_stack_frame (oldpc, currpc, regs.mmu_ssw, nr, 0x0);
+		Exception_build_stack_frame(oldpc, currpc, regs.mmu_ssw, vector_nr, 0x0);
 		MakeSR ();
 		regs.m = 0;
 		regs.msp = m68k_areg (regs, 7);
 		m68k_areg (regs, 7) = regs.isp;
-        Exception_build_stack_frame (oldpc, currpc, regs.mmu_ssw, nr, 0x1);
-    } else if (nr == 2) {
+		Exception_build_stack_frame(oldpc, currpc, regs.mmu_ssw, vector_nr, 0x1);
+	} else if (nr == 2) {
 		if (1 && (mmu030_state[1] & MMU030_STATEFLAG1_LASTWRITE)) {
-			Exception_build_stack_frame(oldpc, currpc, regs.mmu_ssw, nr, 0xA);
+			Exception_build_stack_frame(oldpc, currpc, regs.mmu_ssw, vector_nr, 0xA);
 		} else {
-			Exception_build_stack_frame(oldpc, currpc, regs.mmu_ssw, nr, 0xB);
+			Exception_build_stack_frame(oldpc, currpc, regs.mmu_ssw, vector_nr, 0xB);
 		}
-    } else if (nr == 3) {
+	} else if (nr == 3) {
 		regs.mmu_fault_addr = last_fault_for_exception_3;
 		mmu030_state[0] = mmu030_state[1] = 0;
 		mmu030_data_buffer_out = 0;
-        Exception_build_stack_frame (last_fault_for_exception_3, currpc, MMU030_SSW_RW | MMU030_SSW_SIZE_W | (regs.s ? 6 : 2), nr,  0xB);
+		Exception_build_stack_frame(last_fault_for_exception_3, currpc, MMU030_SSW_RW | MMU030_SSW_SIZE_W | (regs.s ? 6 : 2), vector_nr,  0xB);
 	} else {
-		Exception_build_stack_frame_common(oldpc, currpc, regs.mmu_ssw, nr);
+		Exception_build_stack_frame_common(oldpc, currpc, regs.mmu_ssw, vector_nr);
 	}
 
 	if (newpc & 1) {
@@ -2995,8 +2989,11 @@ static void Exception_mmu (int nr, uaecptr oldpc)
 {
 	uae_u32 currpc = m68k_getpc (), newpc;
 	int interrupt;
+	int vector_nr = nr;
 
 	interrupt = nr >= 24 && nr < 24 + 8;
+	if (interrupt)
+		vector_nr = iack_cycle(nr);
 
 	// exception vector fetch and exception stack frame
 	// operations don't allocate new cachelines
@@ -3016,7 +3013,7 @@ static void Exception_mmu (int nr, uaecptr oldpc)
 		mmu_set_super (1);
 	}
 
-	newpc = x_get_long (regs.vbr + 4 * nr);
+	newpc = x_get_long (regs.vbr + 4 * vector_nr);
 #if 0
 	write_log (_T("Exception %d: %08x -> %08x\n"), nr, currpc, newpc);
 #endif
@@ -3024,22 +3021,22 @@ static void Exception_mmu (int nr, uaecptr oldpc)
 	if (nr == 2) { // bus error
         //write_log (_T("Exception_mmu %08x %08x %08x\n"), currpc, oldpc, regs.mmu_fault_addr);
         if (currprefs.mmu_model == 68040)
-			Exception_build_stack_frame(oldpc, currpc, regs.mmu_ssw, nr, 0x7);
+			Exception_build_stack_frame(oldpc, currpc, regs.mmu_ssw, vector_nr, 0x7);
 		else
-			Exception_build_stack_frame(regs.mmu_fault_addr, currpc, regs.mmu_fslw, nr, 0x4);
+			Exception_build_stack_frame(regs.mmu_fault_addr, currpc, regs.mmu_fslw, vector_nr, 0x4);
 	} else if (nr == 3) { // address error
-        Exception_build_stack_frame(last_fault_for_exception_3, currpc, 0, nr, 0x2);
+        Exception_build_stack_frame(last_fault_for_exception_3, currpc, 0, vector_nr, 0x2);
 		write_log (_T("Exception %d (%x) at %x -> %x!\n"), nr, last_fault_for_exception_3, currpc, get_long_debug (regs.vbr + 4 * nr));
 	} else if (regs.m && interrupt) { /* M + Interrupt */
-		Exception_build_stack_frame(oldpc, currpc, regs.mmu_ssw, nr, 0x0);
+		Exception_build_stack_frame(oldpc, currpc, regs.mmu_ssw, vector_nr, 0x0);
 		MakeSR();
 		regs.m = 0;
 		if (currprefs.cpu_model < 68060) {
 			regs.msp = m68k_areg(regs, 7);
-			Exception_build_stack_frame(oldpc, currpc, regs.mmu_ssw, nr, 0x1);
+			Exception_build_stack_frame(oldpc, currpc, regs.mmu_ssw, vector_nr, 0x1);
 		}
 	} else {
-		Exception_build_stack_frame_common(oldpc, currpc, regs.mmu_ssw, nr);
+		Exception_build_stack_frame_common(oldpc, currpc, regs.mmu_ssw, vector_nr);
 	}
     
 	if (newpc & 1) {
@@ -3134,11 +3131,11 @@ static void Exception_normal (int nr)
 	cache_default_data |= CACHE_DISABLE_ALLOCATE;
 
 	interrupt = nr >= 24 && nr < 24 + 8;
+	if (interrupt)
+		vector_nr = iack_cycle(nr);
 
 	if (currprefs.cpu_model <= 68010) {
 		g1 = generates_group1_exception(regs.ir);
-		if (interrupt)
-			vector_nr = iack_cycle(nr);
 	}
 
 	exception_debug (nr);
@@ -3265,7 +3262,7 @@ static void Exception_normal (int nr)
 
 				} else {
 					// 68040/060 odd PC address error
-					Exception_build_stack_frame(last_fault_for_exception_3, currpc, 0, nr, 0x02);
+					Exception_build_stack_frame(last_fault_for_exception_3, currpc, 0, vector_nr, 0x02);
 					used_exception_build_stack_frame = true;
 				}
 			} else if (currprefs.cpu_model >= 68020) {
@@ -3276,7 +3273,7 @@ static void Exception_normal (int nr)
 				regs.mmu_fault_addr = last_fault_for_exception_3;
 				mmu030_state[0] = mmu030_state[1] = 0;
 				mmu030_data_buffer_out = 0;
-				Exception_build_stack_frame(last_fault_for_exception_3, currpc, ssw, nr, 0x0b);
+				Exception_build_stack_frame(last_fault_for_exception_3, currpc, ssw, vector_nr, 0x0b);
 				used_exception_build_stack_frame = true;
 			} else {
 				// 68010 bus/address error (partially implemented only)
@@ -3289,7 +3286,7 @@ static void Exception_normal (int nr)
 				if (last_op_for_exception_3 & 0x20000)
 					ssw &= 0x00ff;
 				regs.mmu_fault_addr = last_fault_for_exception_3;
-				Exception_build_stack_frame(oldpc, currpc, ssw, nr, 0x08);
+				Exception_build_stack_frame(oldpc, currpc, ssw, vector_nr, 0x08);
 				used_exception_build_stack_frame = true;
 			}
 			write_log (_T("Exception %d (%x) at %x -> %x!\n"), nr, regs.instruction_pc, currpc, get_long_debug (regs.vbr + 4 * vector_nr));
@@ -3309,7 +3306,7 @@ static void Exception_normal (int nr)
 				x_put_word (m68k_areg (regs, 7), 0x1000 + vector_nr * 4);
 			}
 		} else {
-			Exception_build_stack_frame_common(oldpc, currpc, regs.mmu_ssw, nr);
+			Exception_build_stack_frame_common(oldpc, currpc, regs.mmu_ssw, vector_nr);
 			used_exception_build_stack_frame = true;
 		}
  	} else {
