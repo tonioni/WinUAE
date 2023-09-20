@@ -2319,11 +2319,19 @@ static floatx80 addFloatx80Sigs(floatx80 a, floatx80 b, flag zSign,
     bExp = extractFloatx80Exp( b );
 #ifdef SOFTFLOAT_68K
 	if ( aExp == 0 ) {
-		normalizeFloatx80Subnormal( aSig, &aExp, &aSig );
-	}
+        if (aSig == 0) {
+            aExp = -64;
+        } else {
+            normalizeFloatx80Subnormal(aSig, &aExp, &aSig);
+        }
+    }
 	if ( bExp == 0 ) {
-		normalizeFloatx80Subnormal( bSig, &bExp, &bSig );
-	}
+        if (bSig == 0) {
+            bExp = -64;
+        } else {
+            normalizeFloatx80Subnormal(bSig, &bExp, &bSig);
+        }
+    }
 #endif
     expDiff = aExp - bExp;
     if ( 0 < expDiff ) {
