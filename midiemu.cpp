@@ -18,7 +18,6 @@ static int midi_emu_streamid;
 static float base_midi_emu_event;
 static int midi_evt_time;
 static int midi_emu_freq;
-static uae_s16 midi_volume;
 int midi_emu;
 
 static const TCHAR *cm32lctl[] = {
@@ -166,7 +165,6 @@ bool midi_emu_available(const TCHAR *id)
 void midi_update_sound(float v)
 {
 	base_midi_emu_event = v;
-	midi_volume = (100 - currprefs.sound_volume_midi) * 32768 / 100;
 }
 
 static bool audio_state_midi_emu(int streamid, void *params)
@@ -174,11 +172,11 @@ static bool audio_state_midi_emu(int streamid, void *params)
 	int sample[2] = { 0 };
 
 	if (mt32context) {
-		int vol = currprefs.sound_volume_midi;
+		int vol = (100 - currprefs.sound_volume_midi) * 32768 / 100;
 		mt32emu_bit16s stream[2];
 		mt32emu_render_bit16s(mt32context, stream, 1);
-		sample[0] = stream[0] * midi_volume / 32768;
-		sample[1] = stream[1] * midi_volume / 32768;
+		sample[0] = stream[0] * vol / 32768;
+		sample[1] = stream[1] * vol / 32768;
 	}
 
 	midi_evt_time = (int)(base_midi_emu_event * CYCLE_UNIT / midi_emu_freq);
