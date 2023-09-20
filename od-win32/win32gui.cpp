@@ -16435,6 +16435,7 @@ static void addhistorymenu(HWND hDlg, const TCHAR *text, int f_text, int type, b
 			break;
 		i++;
 		if (manglepath) {
+			bool path = false;
 			TCHAR tmppath[MAX_DPATH], *p, *p2;
 			_tcscpy (tmppath, s);
 			p = tmppath + _tcslen (tmppath) - 1;
@@ -16446,13 +16447,19 @@ static void addhistorymenu(HWND hDlg, const TCHAR *text, int f_text, int type, b
 				}
 			}
 			while (p > tmppath) {
-				if (*p == '\\' || *p == '/')
+				if (*p == '\\' || *p == '/') {
+					path = true;
 					break;
+				}
 				p--;
 			}
-			_tcscpy (tmpname, p + 1);
+			if (path) {
+				_tcscpy (tmpname, p + 1);
+			} else {
+				_tcscpy(tmpname, p);
+			}
 			*++p = 0;
-			if (tmppath[0]) {
+			if (tmppath[0] && path) {
 				_tcscat (tmpname, _T(" { "));
 				_tcscat (tmpname, tmppath);
 				_tcscat (tmpname, _T(" }"));
