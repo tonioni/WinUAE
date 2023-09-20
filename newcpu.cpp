@@ -2967,7 +2967,7 @@ static void Exception_mmu030 (int nr, uaecptr oldpc)
 		mmu030_data_buffer_out = 0;
 		Exception_build_stack_frame(last_fault_for_exception_3, currpc, MMU030_SSW_RW | MMU030_SSW_SIZE_W | (regs.s ? 6 : 2), vector_nr,  0xB);
 	} else {
-		Exception_build_stack_frame_common(oldpc, currpc, regs.mmu_ssw, vector_nr);
+		Exception_build_stack_frame_common(oldpc, currpc, regs.mmu_ssw, nr, vector_nr);
 	}
 
 	if (newpc & 1) {
@@ -3036,7 +3036,7 @@ static void Exception_mmu (int nr, uaecptr oldpc)
 			Exception_build_stack_frame(oldpc, currpc, regs.mmu_ssw, vector_nr, 0x1);
 		}
 	} else {
-		Exception_build_stack_frame_common(oldpc, currpc, regs.mmu_ssw, vector_nr);
+		Exception_build_stack_frame_common(oldpc, currpc, regs.mmu_ssw, nr, vector_nr);
 	}
     
 	if (newpc & 1) {
@@ -3306,7 +3306,7 @@ static void Exception_normal (int nr)
 				x_put_word (m68k_areg (regs, 7), 0x1000 + vector_nr * 4);
 			}
 		} else {
-			Exception_build_stack_frame_common(oldpc, currpc, regs.mmu_ssw, vector_nr);
+			Exception_build_stack_frame_common(oldpc, currpc, regs.mmu_ssw, nr, vector_nr);
 			used_exception_build_stack_frame = true;
 		}
  	} else {
