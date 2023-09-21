@@ -2136,8 +2136,24 @@ int check_prefs_changed_gfx(void)
 		c2 |= ((currprefs.gfx_monitor[i].gfx_size_win.width + 7) & ~7) != ((changed_prefs.gfx_monitor[i].gfx_size_win.width + 7) & ~7) ? 16 : 0;
 		c2 |= currprefs.gfx_monitor[i].gfx_size_win.height != changed_prefs.gfx_monitor[i].gfx_size_win.height ? 16 : 0;
 		if (c2) {
-			c |= c2;
-			monitors[i] = true;
+			if (i > 0) {
+				for (int j = 0; j < MAX_AMIGAMONITORS; j++) {
+					struct rtgboardconfig *rbc = &changed_prefs.rtgboards[j];
+					if (rbc->monitor_id == i) {
+						c |= c2;
+						monitors[i] = true;
+					}
+				}
+				if (!monitors[i]) {
+					currprefs.gfx_monitor[i].gfx_size_fs.width = changed_prefs.gfx_monitor[i].gfx_size_fs.width;
+					currprefs.gfx_monitor[i].gfx_size_fs.height = changed_prefs.gfx_monitor[i].gfx_size_fs.height;
+					currprefs.gfx_monitor[i].gfx_size_win.width = changed_prefs.gfx_monitor[i].gfx_size_win.width;
+					currprefs.gfx_monitor[i].gfx_size_win.height = changed_prefs.gfx_monitor[i].gfx_size_win.height;
+				}
+			} else {
+				c |= c2;
+				monitors[i] = true;
+			}
 		}
 		if (WIN32GFX_IsPicassoScreen(&AMonitors[i])) {
 			struct gfx_filterdata *gfc = &changed_prefs.gf[1];
