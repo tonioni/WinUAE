@@ -1715,9 +1715,10 @@ int enummidiports (void)
 		midioutportinfo[i]->devid = i - 1;
 		write_log (_T("MIDI OUT: %d:'%s' (%d/%d)\n"), midioutportinfo[i]->devid, midioutportinfo[i]->name, midiOutCaps.wMid, midiOutCaps.wPid);
 	}
-	total = num + 1;
-	for (i = 1; i < num + 1; i++) {
-		for (j = i + 1; j < num + 1; j++) {
+	num++;
+	total = num;
+	for (i = 1; i < num; i++) {
+		for (j = i + 1; j < num; j++) {
 			if (_tcsicmp (midioutportinfo[i]->name, midioutportinfo[j]->name) > 0) {
 				struct midiportinfo *mi;
 				mi = midioutportinfo[i];
