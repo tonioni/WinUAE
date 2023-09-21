@@ -1,7 +1,103 @@
 
+
+- If configured monitor size/coordinates changed, ignore it if it is not connected to any RTG board. Extra windows opened if non-existing monitor's window size was modified on the fly.
+- Some paths were shown strangely in floppy/quickstart floppy paths.
+- Bitplane start was horizontally shifted in some situations.
+- Support autovectored interrupts in MMU and generic fast CPU modes (Hatari)
+- Fixed Munt (and also other sound streams that mix with Paula audio) stopping if sound settings were changed.
+- Last enumarated MIDI out device was missing.
+- Fixed "Remove interlace artifacts". (Missing reset of separated Denise and Agnus horizontal counters)
+
+
+Beta 1:
+
+Some more chipset updates, including usual "ross test" support fixes/updates, and some new features. I also have plans to rewrite part of chipset emulation yet again to support more extreme VHPOSW horizontal changes. Maybe during this beta series, maybe not..
+
+- Dark mode implemented, requires Windows 10 or newer. Default is follow Windows dark mode setting. Checkbox in Misc panel (3-state checkbox: follow Windows dark mode setting, always on, always off). This is ugly hack because Windows still does not officially support win32 based UI in native dark mode. Some elements have wrong brightness and plain dialog boxes still have original "light" colors. Command line "-theme dark" or "-theme light" can be used to force dark or light theme, overrides GUI setting.
+- GUI window resize updates now in real time (with some flickering but there does not seem to be any easy ways to fix it. Yes, DWM supposedly does offscreen rendering but it does not seem to work with GDI elements)
+- Emulation window dragging and resizing does not anymore pause emulation.
+
+- Built-in (statically linked) Munt v2.7.0 MT-32/CM-32L emulator. Listed in MIDI out menu. ROM images needed, either in c:\mt32-rom-data\ or in <winuae rom path>\mt32-roms\. Uses same ROM file names and ROM version selection priority order as DOSBox. Compressed ROMs are not supported. MIDI audio is mixed with Paula audio.
+- On the fly MIDI out option change didn't reconfigure serial port emulation properly.
+
+- Added AT&T DSP3210 emulation, done by Wrangler. Not fully working yet, for example DSP->CPU interrupts are not working and because DSP emulator runs in separate thread, code that assumes DSP steals cycles (if DSP needs to do external memory accesses) from the CPU (if not cached by the CPU) can't work correctly. Used in not released AA3000 mainboard and new AA3000+ MB based on original AA3000 design. Listed in Expansion panel built-in config list. Usable in A3000 configs with Super DMAC (AA3000(+) configuration) but currently also supported in any A600/A12000/A4000 configurations that have Gayle/IDE enabled. Don't ask me what to do with it, it is not my problem :) For example check a1k.org DSP thread if interested.
+
+- If OCS and >512k chip RAM: Advanced chipset 1M/2M Agnus options now set higher DMA addressing capability even if Agnus is OCS.
+- Programmed mode register changes now immediately updates chipset emulation state, including current scanline length. Previously it had 1-2 frame delay. Host side window size/position is still recalculated only when new frame starts.
+- Programmed beam counters enabled (VARBEAMEN=1) but no programmed hsync or vsync enabled (PAL or NTSC hardwired sync active): calculated visible width of display used hardwired horizontal cycle count, not programmed HTOTAL value. If HTOTAL was larger than 227, part of right border was not drawn.
+- Recalculate display setup only if total scanlines, line length, hsync start or vsync start changes and difference is larger than 1. Previously display was reset and recalculated even if new display settings were identical (for example enabled VARBEAMEN with PAL or NTSC HTOTAL and VTOTAL)
+- Football Director 2 dongle emulation. Again almost identical to Striker Manager and Multi-Player Soccer Manager dongles.
+- Fast 68020+ modes didn't start pending interrupt immediately (started after following instruction) after MOVE to SR instruction that lowered interrupt mask. (Quick the Thunder Rabbit)
+- Programmed mode + extreme overscan mode: right border might not have been fully visible.
+- Full 68000 CPU tester sets retested (cycle counts, address errors, IPL timing etc. Excluding bus errors), no regressions found.
+- ECS Agnus BPLCON0 SHRES and UHRES bits were ignored unless also ECS Denise was configured.
+- Writing to V(H)POSW didn't flush any pending bitplane/blitter/sprite cycles. If V(H)POSW write modified current line number, all pending DMA accesses, even accesses that happened before V(H)POSW write, appeared in new line in DMA debugger.
+- In some situations when bitplane count increased mid screen, next few cycles after change had wrong cycle allocation causing lower priority DMA channels (and CPU) to be blocked even if bitplane DMA didn't use all cycles.
+- ECS/AGA, DDFSTRT already matched but bitplane DMA off: if DMA is switched on, bitplane sequencer starts 1 CCK earlier compared to start up time when DDFSTRT matches with DMA already on. (Turtle Party Intro / Image, bottom right scrolling logo corruption in ECS mode is now 100% correctly corrupted.)
+- None serial port emulation mode and fast CPU configuration: transmit buffer empty SERDATR bit was not automatically cleared after writing to serial port, causing sender to hang if it wanted to transmit more byte(s).
+- CIA latch=0/timer=0 special case handling updated. Fixed bug where timer=0 condition was detected incorrectly (Risky Woods sound effect glitches)
+- Boot warp mode is now also activated when CPU executes RESET instruction.
+- Integer scale + full window: Display panel windowed width and height was used instead of full window size (desktop size) when calculating scaling values.
+- When Picasso96 screen dragging started with different size/depth screen mode behind, RTG display was uncessarily reset causing flicker.
+- It was possible to read INTREQR with bit 15 set.
+- Ultra extreme debug and Fields+ interlace mode: visible part of display was marked as blanked.
+- UAE Boot ROM in indirect mode partially overwrote jump traps when system was soft reset, causing reboot loop depending on configuration. (Very old bug)
+- Some scaling modes got confused if horizontal DIWSTOP was small value (which is actually large value, extends over $1c7 "limit")
+- HAM mode + very early bitplane start (before hblank end) had horizontal offset and possibly also had random colors visible before bitplane start.
+- Horizontal window/hblank/sprite positioning rewritten to support VHPOSW modifications and strobe cycle conflicts without special hacks.
+- Horizontal blanking "lines" are now drawn in visible part of screen if Denise horizontal counter is out of sync with display start (for example strobe cycle conflict or VHPOSW was written). For example Colors / Mad Team corruption in ECS mode is now fully correct. (Corruption has more black lines)
+- Other weird VHPOSW writes are now supported. VHPOSW test cases by ross.
+- Allow AUDxPER=1, game Spaceport requires it. Previously min allowed audio period value was 4 to keep CPU usage lower if program keeps playing zero single sample continuously.
+- Added Denise/Lisa horizontal counter to DMA debugger (value between Agnus/Alice counter and IPL level).
+- DMA debugger first refresh slot strobe type was not always correct (Visual bug only)
+- Do not blank display if chipset mode is invalid (if display resync blanking is enabled) but video port display adapter is active.
+- Use hardwired syncs if video port adapter is configured and sync mode is combined. Fixes Video DAC 18 which sets bogus programmed hsync configuration, real HW works because Video DAC 18 generates the sync when it is active.
+- DIWSTRT/DIWSTOP/DIWHIGH timing fix (affects only special cases where register is written almost at the same as old/new value would match). ECS Denise DIWHIGH has unexpectedly 1.5CCK delay compared to DIWSTRT and DIWHIGH which only have usual 1 CCK write delay.
+- Refresh conflict emulation special case hacks removed, normal emulation handles it now (and also VHPOSW writes). Conflict and VHPOSW test cases like Colors / Mad Team and Smooth Copper / Up Front still work.
+- Some badly configured native AGA modes were unstable (Super Street Fighter II Turbo CD32)
+- On the fly A1000 Agnus/Denise model changes didn't work correctly.
+- Randomize CPU start position after hard reset relative to raster position. Previously CPU was always started at HPOS=0/VPOS=0.
+- Configurable random seed added (config entry "rndseed") rndseed=0 is default (randomized), any other value = static seed. 
+- Emulator internal random seed is now randomized at startup by default. Affects floppy mechnical timings and initial CPU startup delay after hard reset.
+
+- -conlogfile <path to file> command line parameter: write all console debugger output to a file.
+- Command line parsing was done after configuration validation, for example "-s joyportx=xyz" command line parameters didn't affect Game Ports panel until something else caused config file validation (for example emulation was started.). Old bug.
+- Standard filter names and input panel "<none>" can be translated now.
+- Quickstart Host Configuration menu first option renamed, "Default configuration" -> "Current host configuration". Added new option "Default host configuration" that resets host configuration to defaults.
+- Quickstart selected Host Configuration was not activated when Quickstart panel was opened in Quickstart mode. It was only loaded when menu was changed. Also when menu is changed to "Default host configuration", reset configuration to defaults and then reload default.uae if it exists.
+- Pressing "Set configuration" button now first loads selected host config (if any) before setting hardware config. "Current host configuration" = only hardware config is changed like previously.
+- Click statefile load in GUI, cancel the dialog: default statefile was selected.
+- Inserting archive in floppy drive now also tries to find any supported file type (disk images/executable) inside archive's subdirectories.
+- hardfile2 -config entry's path used different escaping method when saving vs when loading. If path contained characters that needed escaping (in normal situations "," because it was used as a separator in old versions), backslashes disappeared when unescaped.
+- "Autoclip screenshots" option now supports programmed native screen modes.
+- uaedbg HUNK_RELOC32SHORT support. Memory allocation size larger than reserved pool crashed.
+- Multiple 0x76 partitions per HD/card can be mounted now, previously only first was mounted and the rest become zero size non-existing drives.
+- If 0x76 partition harddrive access was out of bounds read access (access outside of selected partition), do not complain and exit, only log it.
+- If real harddrive access read or write fails due to some disk error or something preventing writes (like lack of admin privileges), return error code to AmigaOS side. Previously only written/read length was returned as zero which is not guaranteed to be detected as error condition.
+- Hide all GPT drives in Add harddrive list.
+- USB HID input device usage page check fixed, it accepted devices that had nothing to do with being input device. (Useless device(s) in Input device list)
+- Support also 8 channel WASAPI mode (if no other channel modes are accepted), Sound BlasterX G6 requires this. (Maybe others too?)
+- If sound driver does not support current channel setting but supports higher channel setting: only internally use higher channel mode, keep Sound panel sound channel setting.
+- 64-bit host FPU mode FABS returned negative zero if input value was negative zero. Other negative values returned correct positive result.
+- MMU mode MOVEM.x <regs>,-(An) with <regs> containing same register as target register: stored register content is after pre-decrement. Non-MMU mode was implemented ages ago (68020+ only).
+
+A2410 emulation fixes (New Picasso96 driver uses many previously never [fully] used A2410 features)
+
+- BT458 RAMDAC addressing fixed. Only address bits 0 and 1 are decoded, address bit 2 is used as read/write select line.
+- TMS34010 host address load/data read automatic prefetch emulated. (Every time TMS34010 address register is written to and write autoincrement is not enabled, TMS34010 does immediate read from address, next data port read returns prefetched data and if read was autoincrement, new prefetch read is started immediately). Also fixes CGX4 A2410 driver mouse cursor color.
+- A2410/native mode autoswitch and manual switch was unreliable in some situations.
+- Display was not fully refreshed when for example emulator window size was changed.
+- Overlay (Picasso96 and CGX use this to simulate hardware mouse cursor) positioning relative to graphics data fixed.
+- Interlace support fixed.
+- Horizontal/vertical panning supported.
+- Missing plane masking (PMASK register) implemented. Not sure if it is fully correct. (Picasso96 A2410 uses it at least when drawing intuition menus), it was not implemented in original MAME TMS34010 emulation.
+- A2410 display didn't re-activate after reset.
+- A2410 stopped working with black screen if switched to mode less than 300 pixels tall.
+
+
 5.0.0
 
-- Wait for blitter hung if blitter hung. Now it exists if blitter is in hung state or it has waited few frames.
+- Wait for blitter hung if blitter hung. Now it exits if blitter is in hung state or it has waited few frames.
 
 Beta 15: (RC7)
 
