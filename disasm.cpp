@@ -1825,6 +1825,8 @@ static uaecptr disasm_mmu030(uaecptr pc, uae_u16 opcode, uae_u16 extra, struct i
 		case 0x02: // PLOAD R
 			if (mmu_op30_invea(opcode))
 				break;
+			if (!mmu_op30_helper_get_fc(extra, fc))
+				break;
 			_stprintf(instrname, _T("PLOAD%c"), mode == 0 ? 'W' : 'R');
 			disasm_lc_mnemo(instrname);
 			_stprintf(instrname + _tcslen(instrname), _T(" %s,"), fc);
