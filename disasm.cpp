@@ -2049,7 +2049,7 @@ uae_u32 m68k_disasm_2(TCHAR *buf, int bufsize, uaecptr pc, uae_u16 *bufpc, int b
 			_stprintf(p, _T("%c%d:%c%d,%c%d,%c%d,(%c%d):(%c%d)"),
 				disasm_dreg, extra & 7, disasm_dreg, extra2 & 7, disasm_dreg, (extra >> 6) & 7, disasm_dreg, (extra2 >> 6) & 7,
 				(extra & 0x8000) ? disasm_areg : disasm_dreg, (extra >> 12) & 7,
-				(extra2 & 0x8000) ? disasm_dreg : disasm_dreg, (extra2 >> 12) & 7);
+				(extra2 & 0x8000) ? disasm_areg : disasm_dreg, (extra2 >> 12) & 7);
 			add_disasm_word(&pc, &bufpc, &bufpcsize, 4);
 		} else if (lookup->mnemo == i_ORSR || lookup->mnemo == i_ANDSR || lookup->mnemo == i_EORSR) {
 			pc = ShowEA(NULL, pc, opcode, dp->sreg, dp->smode, dp->size, instrname, &seaddr2, &actualea_src, safemode);
