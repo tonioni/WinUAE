@@ -34,9 +34,9 @@ float DSP_reg_a[4];
 float DSP_history_a[5][5];
 uint16_t DSP_history_CC[5];
 int32_t DSP_history_mem[5][5];
-void *DSP_onboard_RAM;
-unsigned char DSP_onboard_ROM[];
-void *DSP_MMIO;
+uint8_t *DSP_onboard_RAM;
+uint8_t DSP_onboard_ROM[];
+uint8_t *DSP_MMIO;
 
 /* Defines */
 #define CC DSP_io_r[0]
@@ -171,8 +171,8 @@ void DSP_set_char(int32_t addr, char value);
 /********************************************************/
 void DSP_init_emu ()
 {
-	DSP_onboard_RAM = malloc(8192);	//8k onboard RAM
-	DSP_MMIO = malloc(0x800);
+	DSP_onboard_RAM = (uint8_t*)malloc(8192);	//8k onboard RAM
+	DSP_MMIO = (uint8_t*)malloc(0x800);
 	reg_PC = 0;
 	return;
 }
@@ -185,6 +185,8 @@ void DSP_shutdown_emu ()
 {
 	free(DSP_MMIO);
 	free(DSP_onboard_RAM);
+	DSP_MMIO = NULL;
+	DSP_onboard_RAM = NULL;
 	return;
 }
 
@@ -2247,15 +2249,12 @@ int32_t *dsp_check_mem(int32_t addr, int32_t *flag)
 		if(addr >= map1_RAM_start && addr <= map1_RAM_end) {
 			//we are accessing onboard RAM
 			*flag = 2;
-			return (int32_t *)((int32_t)DSP_onboard_RAM + addr - map1_RAM_start);
+			return (int32_t *)(DSP_onboard_RAM + addr - map1_RAM_start);
 		}
 		if(addr >= map1_MMIO_start && addr <= map1_MMIO_end) {
 			//access to MMIO space
 			*flag = 4;
-			return (int32_t *)((int32_t)DSP_MMIO + addr - map1_MMIO_start);
-		}
-		if (addr >= map1_ROM_start && addr < map1_RAM_end) {
-			write_log("1");
+			return (int32_t *)(DSP_MMIO + addr - map1_MMIO_start);
 		}
 	} else {
 		//we are in memory map mode 0
@@ -2267,15 +2266,12 @@ int32_t *dsp_check_mem(int32_t addr, int32_t *flag)
 		if(addr >= map0_RAM_start && addr <= map0_RAM_end) {
 			//we are accessing onboard RAM
 			*flag = 2;
-			return (int32_t *)((int32_t)DSP_onboard_RAM + addr - map0_RAM_start);
+			return (int32_t *)(DSP_onboard_RAM + addr - map0_RAM_start);
 		}
 		if(addr >= map0_MMIO_start && addr <= map0_MMIO_end) {
 			//access to MMIO space
 			*flag = 3;
-			return (int32_t *)((int32_t)DSP_MMIO + addr - map0_MMIO_start);
-		}
-		if (addr >= map0_ROM_start && addr < map0_RAM_end) {
-			write_log("1");
+			return (int32_t *)(DSP_MMIO + addr - map0_MMIO_start);
 		}
 	}
 	*flag = 0;
@@ -2518,7 +2514,7 @@ void DSP_check_interrupt(int32_t value, int32_t bitno)
 /* Onboard boot rom binary                              */
 /********************************************************/
 
-unsigned char DSP_onboard_ROM[] =
+uint8_t DSP_onboard_ROM[] =
 {
 /* [0000][0001][0002][0003][0004][0005][0006][0007]*/
 /*[0000]*/ 0x80, 0x2f, 0x00, 0x80, 0x9c, 0x61, 0x04, 0x0c,
