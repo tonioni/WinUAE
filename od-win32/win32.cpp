@@ -8311,6 +8311,8 @@ int PASCAL wWinMain (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdL
 	GetModuleFileName(NULL, executable_path, sizeof executable_path / sizeof(TCHAR));
 
 	SetErrorMode (SEM_FAILCRITICALERRORS | SEM_NOOPENFILEERRORBOX);
+	BOOL b = FALSE;
+	SetUserObjectInformation(GetCurrentProcess(), UOI_TIMERPROC_EXCEPTION_SUPPRESSION, &b, sizeof(b));
 	currprefs.win32_filesystem_mangle_reserved_names = true;
 	SetDllDirectory (_T(""));
 	/* Make sure we do an InitCommonControls() to get some advanced controls */

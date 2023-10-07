@@ -1152,7 +1152,6 @@ static int asm_parse_mode(TCHAR *s, uae_u8 *reg, uae_u32 *v, int *extcnt, uae_u1
 				fullext = -1;
 			else
 				fullext = 2;
-			fullext++;
 		}
 	}
 	if (fullext < 0 || fullext == 1)

@@ -1,5 +1,37 @@
 
 
+- Blitter channel change when active emulation update. Fixes Jim Power cractro by Two Lives Crew. (Another TLC cracktro with similar blitter bug..)
+- AUDxPER=1 audio interrupt was unreliable. (AIBB sound effect hang)
+- 68030 MMU PLOAD disassembly fixed (FC variable was not updated)
+- Simple pad GUI control support.
+
+Pad GUI control details:
+
+Currently uses XInput (because it is so easy to use). Might use more generic gamepad reading later. Note that this is completely separate feature from GamePorts/Input panel game pad settings. This is not meant to support full, easy and complete use of GUI without touching mouse or keyboard. Option in misc panel. Can be also enabled using command line -gui_control. Command line overrides misc panel option.
+
+Gamepad config:
+
+A = select (pad mode)/left mouse click (mouse mode)
+B = right mouse click (mouse mode).
+Y = change active GUI area (pad mode)/TAB UI element change (mouse mode).
+D-pad = select UI elements, "pad mode".
+Left stick = move mouse, "mouse mode".
+
+UI element special cases:
+
+TreeViews: left/right = Tree level up or down. Up/down = move up or down in current tree level.
+Sliders: select element, press A and keep it pressed, move left or right to change slider position.
+D-pad mode currently only supports WinUAE GUI windows. (Not Windows file dialogs etc)
+
+Mouse mode is only available if any WinUAE GUI window or its child window (including Windows file dialogs) is active. Mouse movement is restricted to active window.
+
+On screen keyboard? Not sure if it is worth the trouble..
+
+GUI control code is currently ugly mix of SendInput() event injection, UI Automation and win32 UI element API calls.
+
+
+Beta 2:
+
 - If configured monitor size/coordinates changed, ignore it if it is not connected to any RTG board. Extra windows opened if non-existing monitor's window size was modified on the fly.
 - Some paths were shown strangely in floppy/quickstart floppy paths.
 - Bitplane start was horizontally shifted in some situations.
@@ -7,7 +39,6 @@
 - Fixed Munt (and also other sound streams that mix with Paula audio) stopping if sound settings were changed.
 - Last enumarated MIDI out device was missing.
 - Fixed "Remove interlace artifacts". (Missing reset of separated Denise and Agnus horizontal counters)
-
 
 Beta 1:
 
