@@ -6,6 +6,8 @@
 #include <Dwmapi.h>
 #include <shellscalingapi.h>
 #include <shlwapi.h>
+#include <uiautomation.h>
+#include "Xinput.h"
 
 #include "sysconfig.h"
 #include "sysdeps.h"
@@ -40,6 +42,8 @@ static int fontweight_list = FW_REGULAR;
 
 static TEXTMETRIC listview_tm;
 static const TCHAR *fontprefix;
+
+static IUIAutomation *Automation;
 
 #include <pshpack2.h>
 typedef struct {
@@ -259,7 +263,6 @@ static const WORD *DIALOG_GetControl32(const WORD *p, DLG_CONTROL_INFO *info,
 	return (const WORD *)(((UINT_PTR)p + 3) & ~3);
 }
 
-
 static BOOL DIALOG_CreateControls32(HWND hwnd, LPCSTR tmpl, const DLG_TEMPLATE *dlgTemplate,
 	HINSTANCE hInst, struct newresource *res)
 {
@@ -314,6 +317,75 @@ static BOOL DIALOG_CreateControls32(HWND hwnd, LPCSTR tmpl, const DLG_TEMPLATE *
 		nrw->y = y;
 		nrw->w = w;
 		nrw->h = h;
+		if (info.id != IDC_STATIC) {
+			int style = info.style & BS_TYPEMASK;
+			if (!_tcsicmp(info.className, _T("Button")) ||
+				!_tcsicmp(info.className, _T("ComboBox")) ||
+				!_tcsicmp(info.className, _T("SysTreeView32")) ||
+				!_tcsicmp(info.className, _T("SysListView32")) ||
+				!_tcsicmp(info.className, _T("msctls_trackbar32")) ||
+				!_tcsicmp(info.className, _T("Edit"))) {		
+				if (style == BS_GROUPBOX) {
+					nrw->selectable = false;
+				} else {
+					nrw->selectable = true;
+				}
+				if (!_tcsicmp(info.className, _T("Edit"))) {
+					if (info.style & ES_READONLY)  {
+						nrw->selectable = false;
+					}
+				}
+				if (!_tcsicmp(info.className, _T("ComboBox"))) {
+					style |= 0x100;
+				}
+				if (!_tcsicmp(info.className, _T("msctls_trackbar32"))) {
+					style |= 0x200;
+				}
+				if (!_tcsicmp(info.className, _T("SysTreeView32"))) {
+					nrw->list = true;
+					nrw->region = 3;
+					style |= 0x400;
+				}
+				if (!_tcsicmp(info.className, _T("SysListView32"))) {
+					nrw->listn = true;
+					nrw->region = 3;
+					style |= 0x400;
+				}
+				nrw->style = style;
+				int i = 0;
+				nrw->hwndx[i++] = nrw->hwnd;
+				if (!_tcsicmp(info.className, _T("ComboBox"))) {
+					COMBOBOXINFO pcbi = {};
+					pcbi.cbSize = sizeof(COMBOBOXINFO);
+					GetComboBoxInfo(nrw->hwnd, &pcbi);
+					if (pcbi.hwndItem && pcbi.hwndItem != nrw->hwnd) {
+						nrw->hwndx[i++] = pcbi.hwndItem;
+					}
+					if (pcbi.hwndCombo && pcbi.hwndCombo != nrw->hwnd) {
+						nrw->hwndx[i++] = pcbi.hwndCombo;
+					}
+					if (pcbi.hwndList && pcbi.hwndList != nrw->hwnd) {
+						nrw->hwndx[i++] = pcbi.hwndList;
+					}
+				}
+				switch(info.id)
+				{
+					case IDC_PANELTREE:
+					nrw->region = 2;
+					break;
+					case IDC_RESETAMIGA:
+					case IDC_QUITEMU:
+					case IDC_RESTARTEMU:
+					case IDC_ERRORLOG:
+					case IDOK:
+					case IDCANCEL:
+					case IDHELP:
+					nrw->region = 1;
+					break;
+				}
+			}
+			//write_log(_T("%p %s %d %08x\n"), hwndCtrl, info.className, info.id, info.style);
+		}
 
 		/* Send initialisation messages to the control */
 		if (dlgInfo->hUserFont) SendMessage(hwndCtrl, WM_SETFONT,
@@ -2001,4 +2073,647 @@ LRESULT CALLBACK BoxArtWindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM
 			break;
 	}
 	return DefWindowProc(hWnd, message, wParam, lParam);
+}
+
+
+static HRESULT InitializeUIAutomation(IUIAutomation **ppAutomation)
+{
+	return CoCreateInstance(CLSID_CUIAutomation, NULL,
+		CLSCTX_INPROC_SERVER, IID_IUIAutomation,
+		reinterpret_cast<void **>(ppAutomation));
+}
+
+struct elxy
+{
+	int sx, sy;
+	int ex, ey;
+	int region;
+	bool selectable;
+	struct newreswnd *nres;
+};
+
+static struct elxy *findclosestelement(struct elxy *xy, int total, struct elxy *curxy, int x, int y, int region, int newdist, int xydist)
+{
+	struct elxy *closest = NULL;
+	int olddist = 10000;
+
+	int cx = curxy->sx;
+	int cy = curxy->sy;
+	int cxe = curxy->ex;
+	int cye = curxy->ey;
+
+	if (x > 0) {
+		cxe = cx = curxy->ex + 1;
+	} else if (x < 0) {
+		cxe = cx = curxy->sx - 1;
+	}
+	if (y > 0) {
+		cye = cy = curxy->ey + 1;
+	} else if (y < 0) {
+		cye = cy = curxy->sy - 1;
+	}
+
+	cx += x * newdist;
+	cy += y * newdist;
+	cxe += x * newdist;
+	cye += y * newdist;
+
+	int cxs = cx + (cxe - cx) / 2;
+	int cys = cy + (cye - cy) / 2;
+
+	for (int i = 0; i < total; i++) {
+		struct elxy *txy = &xy[i];
+		int dist = -1;
+		int sx = txy->sx;
+		int sy = txy->sy;
+		int ex = txy->ex;
+		int ey = txy->ey;
+
+		if (!txy->selectable) {
+			continue;
+		}
+
+		if (txy->region != region) {
+			continue;
+		}
+
+		if (x) {
+			ey += xydist;
+			sy -= xydist;
+		}
+		if (y) {
+			ex += xydist;
+			sx -= xydist;
+		}
+
+		if ((sx <= cxs && ex >= cxs) && y) {
+			if ((y < 0 && txy->ey < curxy->sy) || (y > 0 && txy->sy > curxy->ey)) {
+				dist = abs(txy->sy + (txy->ey - txy->sy) / 2 - cys);
+			}
+		} else if ((sy <= cys && ey >= cys) && x) {
+			if ((x < 0 && txy->ex < curxy->sx) || (x > 0 && txy->sx > curxy->ex)) {
+				dist = abs(txy->sx + (txy->ex - txy->sx) / 2 - cxs);
+			}
+		}
+		if (dist > 0 && dist < olddist) {
+			closest = txy;
+			olddist = dist;
+		}
+	}
+	return closest;
+}
+
+static void UIA_Invoke(HWND hwnd)
+{
+	IUIAutomationElement *el;
+	HRESULT hr = Automation->GetFocusedElement(&el);
+	if (SUCCEEDED(hr)) {
+		IUIAutomationInvokePattern *InvokePattern;
+		hr = el->GetCurrentPattern(UIA_InvokePatternId, (IUnknown **)&InvokePattern);
+		if (SUCCEEDED(hr) && InvokePattern) {
+			InvokePattern->Invoke();
+			InvokePattern->Release();
+		}
+		el->Release();
+	}
+}
+
+static void treeview_cursor(HWND h, HTREEITEM next)
+{
+	TreeView_SelectItem(h, next);
+	RECT r;
+	r.left = -1;
+	r.top = -1;
+	TreeView_GetItemRect(h, next, &r, TRUE);
+	if (r.left != -1 && r.top != -1) {
+		RECT r2;
+		GetWindowRect(h, &r2);
+		r.left += r2.left;
+		r.right += r2.left;
+		r.top += r2.top;
+		r.bottom += r2.top;
+		SetCursorPos(r.left + (r.right - r.left) / 2, r.top + (r.bottom - r.top) / 2);
+	}
+}
+
+void gui_cursor(HWND hwnd, struct newresource *ns, int x, int y, int click)
+{
+	struct elxy *found = NULL;
+	struct elxy *currres;
+	struct elxy xy[MAX_DLGID];
+	int total = 0;
+	int maxdist = 0;
+	int mindist = 32000;
+
+	if (!Automation) {
+		InitializeUIAutomation(&Automation);
+	}
+	if (!Automation) {
+		return;
+	}
+
+	for (int i = 0; ns->hwnds[i].hwnd; i++) {
+		struct newreswnd *nrw = &ns->hwnds[i];
+		if (nrw->selectable && IsWindowVisible(nrw->hwnd) && IsWindowEnabled(nrw->hwnd)) {
+			RECT r;
+			GetWindowRect(nrw->hwnd, &r);
+			struct elxy *txy = &xy[total];
+			txy->sx = r.left;
+			txy->sy = r.top;
+			txy->ex = r.right;
+			txy->ey = r.bottom;
+			txy->region = nrw->region;
+			txy->selectable = nrw->selectable;
+			txy->nres = nrw;
+			total++;
+		}
+	}
+	ns = ns->child;
+	if (ns) {
+		for (int i = 0; ns->hwnds[i].hwnd; i++) {
+			struct newreswnd *nrw = &ns->hwnds[i];
+			if (IsWindowVisible(nrw->hwnd) && IsWindowEnabled(nrw->hwnd)) {
+				RECT r;
+				GetWindowRect(nrw->hwnd, &r);
+				struct elxy *txy = &xy[total];
+				txy->sx = r.left;
+				txy->sy = r.top;
+				txy->ex = r.right;
+				txy->ey = r.bottom;
+				txy->region = nrw->region;
+				txy->selectable = nrw->selectable;
+				txy->nres = nrw;
+				total++;
+			}
+		}
+	}
+
+	for (int i = 0; i < total; i++) {
+		struct elxy *txy = &xy[i];
+		struct newreswnd *nrw = txy->nres;
+		if (nrw->x + nrw->w > maxdist) {
+			maxdist = nrw->x + nrw->x;
+		}
+		if (nrw->y + nrw->h > maxdist) {
+			maxdist = nrw->y + nrw->h;
+		}
+		if (nrw->x < mindist) {
+			mindist = nrw->x;
+		}
+		if (nrw->y < mindist) {
+			mindist = nrw->y;
+		}
+	}
+
+	currres = NULL;
+	HWND focus = GetFocus();
+	for (int i = 0; i < total; i++) {
+		struct elxy *txy = &xy[i];
+		for (int j = 0; txy->nres->hwndx[j]; j++) {
+			HWND h = txy->nres->hwndx[j];
+			if (h == focus && txy->selectable) {
+				RECT r;
+				GetWindowRect(h, &r);
+				currres = txy;
+				write_log("%p %d\n", currres->nres->hwnd, currres->region);
+				break;
+			}
+		}
+	}
+
+	if (click == 8) {
+		bool regfound = false;
+		int region = 0;
+		if (currres) {
+			region = currres->region;
+		}
+		while (!regfound) {
+			region++;
+			if (region >= 4) {
+				region = 0;
+			}
+			for (int i = 0; i < total; i++) {
+				struct elxy *txy = &xy[i];
+				if (txy->region == region) {
+					if (txy->selectable) {
+						found = txy;
+						goto end;
+					}
+					regfound = true;
+				}
+			}
+		}
+		return;
+	}
+
+
+	if (currres && click == 1 && x && !y) {
+		int style = currres->nres->style;
+		// msctls_trackbar32
+		if (style & 0x200) {
+			HWND h = currres->nres->hwnd;
+			LRESULT v = SendMessage(h, TBM_GETPOS, 0, 0);
+			LRESULT min = SendMessage(h, TBM_GETRANGEMIN, 0, 0);
+			LRESULT max = SendMessage(h, TBM_GETRANGEMAX, 0, 0);
+			LRESULT change = SendMessage(h, TBM_GETLINESIZE, 0, 0);
+			v += change * x;
+			if (v < min) {
+				v = min;
+			}
+			if (v > max) {
+				v = max;
+			}
+			SendMessage(h, TBM_SETPOSNOTIFY, 0, v);
+		}
+		return;
+	}
+
+	if (currres && click == 1 && !x && !y) {
+		HWND h = currres->nres->hwnd;
+		int style = currres->nres->style;
+		int style2 = style & BS_TYPEMASK;
+		// ComboBox expand/collapse
+		if (style & 0x100) {
+			IUIAutomationElement *el;
+			HRESULT hr = Automation->ElementFromHandle(currres->nres->hwndx[0], &el);
+			if (SUCCEEDED(hr)) {
+				IUIAutomationExpandCollapsePattern *ExpandCollapsePattern;
+				hr = el->GetCurrentPattern(UIA_ExpandCollapsePatternId, (IUnknown **)&ExpandCollapsePattern);
+				if (SUCCEEDED(hr) && ExpandCollapsePattern) {
+					ExpandCollapseState ecs;
+					hr = ExpandCollapsePattern->get_CurrentExpandCollapseState(&ecs);
+					if (SUCCEEDED(hr)) {
+						if (ecs == ExpandCollapseState_Collapsed) {
+							ExpandCollapsePattern->Expand();
+						} else {
+							ExpandCollapsePattern->Collapse();
+						}
+					}
+					ExpandCollapsePattern->Release();
+				}
+				el->Release();
+			}
+		} else if (currres->nres->listn) {
+			// ListView
+			int c = ListView_GetHotItem(h);
+			UINT state = ListView_GetItemState(h, c, LVIS_STATEIMAGEMASK);
+			// checkbox toggle
+			if (state & 0x3000) {
+				if ((state & 0x3000) == 0x1000) {
+					state &= ~0x1000;
+					state |= 0x2000;
+				} else {
+					state &= ~0x2000;
+					state |= 0x1000;
+				}
+				ListView_SetItemState(h, c, state, LVIS_STATEIMAGEMASK);
+			}
+			return;
+		} else if (style2 == BS_PUSHBUTTON ||
+			style2 == BS_DEFPUSHBUTTON ||
+			style2 == BS_CHECKBOX ||
+			style2 == BS_AUTOCHECKBOX ||
+			style2 == BS_RADIOBUTTON ||
+			style2 == BS_AUTORADIOBUTTON ||
+			style2 == BS_3STATE ||
+			style2 == BS_AUTO3STATE)
+		{
+			// button, checkbox etc click
+			UIA_Invoke(h);
+			return;
+		}
+		return;
+	}
+	
+	if (currres) {
+		int style = currres->nres->style;
+		HWND h = currres->nres->hwnd;
+		// TreeView up/down
+		if (currres->nres->list) {
+			if (x || y) {
+				HTREEITEM c = TreeView_GetSelection(h);
+				HTREEITEM next;
+				if (x < 0) {
+					next = TreeView_GetNextItem(h, c, TVGN_PARENT);
+				} else if (x > 0) {
+					next = TreeView_GetNextItem(h, c, TVGN_CHILD);
+					if (!next) {
+						HTREEITEM next2 = c;
+						for (;;) {
+							next2 = TreeView_GetNextItem(h, next2, TVGN_NEXT);
+							if (!next2) {
+								break;
+							}
+							next = TreeView_GetNextItem(h, next2, TVGN_CHILD);
+							if (next) {
+								break;
+							}
+						}
+					}
+				} else if (y < 0) {
+					next = TreeView_GetNextItem(h, c, TVGN_PREVIOUS);
+					if (!next) {
+						next = c;
+						for (;;) {
+							HTREEITEM next2 = TreeView_GetNextItem(h, next, TVGN_NEXT);
+							if (!next2) {
+								break;
+							}
+							next = next2;
+						}
+					}
+				} else if (y > 0) {
+					next = TreeView_GetNextItem(h, c, TVGN_NEXT);
+					if (!next) {
+						next = TreeView_GetNextItem(h, c, TVGN_PARENT);
+						if (next) {
+							next = TreeView_GetNextItem(h, next, TVGN_CHILD);
+						} else {
+							next = TreeView_GetNextItem(h, c, TVGN_CHILD);
+						}
+					}
+				}
+				if (!next) {
+					next = TreeView_GetNextItem(h, next, TVGN_ROOT);
+				}
+				if (next) {
+					treeview_cursor(h, next);
+				}
+				return;
+			}
+		} else if (currres->nres->listn) {
+			// ListView
+			if (!x && y) {
+				int c = ListView_GetHotItem(h);
+				int total = ListView_GetItemCount(h);
+				c += y;
+				if (c < 0) {
+					c = total - 1;
+					if (c < 0) {
+						c = 0;
+					}
+				}
+				if (c >= total) {
+					c = 0;
+				}
+				ListView_SetHotItem(h, c);
+				ListView_EnsureVisible(h, c, FALSE);
+				RECT r;
+				r.left = -1;
+				r.top = -1;
+				ListView_GetItemRect(h, c, &r, LVIR_BOUNDS);
+				if (r.left != -1 && r.top != -1) {
+					RECT r2;
+					GetWindowRect(h, &r2);
+					r.left += r2.left;
+					r.right += r2.left;
+					r.top += r2.top;
+					r.bottom += r2.top;
+					SetCursorPos(r.left + (r.right - r.left) / 3, r.top + (r.bottom - r.top) / 2);
+				}
+			}
+			return;
+		} else if (style & 0x100) {
+			// ComboBox expanded up/down
+			IUIAutomationElement *el;
+			//HRESULT hr = Automation->GetFocusedElement(&el);
+			HRESULT hr = Automation->ElementFromHandle(currres->nres->hwndx[0], &el);
+			if (SUCCEEDED(hr)) {
+				IUIAutomationExpandCollapsePattern *ExpandCollapsePattern;
+				hr = el->GetCurrentPattern(UIA_ExpandCollapsePatternId, (IUnknown **)&ExpandCollapsePattern);
+				if (SUCCEEDED(hr) && ExpandCollapsePattern) {
+					ExpandCollapseState ecs;
+					hr = ExpandCollapsePattern->get_CurrentExpandCollapseState(&ecs);
+					if (SUCCEEDED(hr)) {
+						if (ecs != ExpandCollapseState_Collapsed) {
+							ExpandCollapsePattern->Release();
+							el->Release();
+							INPUT inp[2] = {};
+							inp[0].type = INPUT_KEYBOARD;
+							inp[0].ki.wVk = y < 0 ? VK_UP : VK_DOWN;
+							inp[1].type = INPUT_KEYBOARD;
+							inp[1].ki.wVk = inp[0].ki.wVk;
+							inp[1].ki.dwFlags = KEYEVENTF_KEYUP;
+							SendInput(ARRAYSIZE(inp), inp, sizeof(INPUT));
+							return;
+						}
+					}
+					ExpandCollapsePattern->Release();
+				}
+				el->Release();
+			}
+		}
+	}
+
+	if (currres && (x || y)) {
+		int dist_min = 10;
+		int dist_max = maxdist - mindist;
+		int dist_step = 10;
+
+		int region = currres->region;
+		for(int j = 0; j < 5 && !found; j++) {
+			for (int i = dist_min; i < dist_max && !found; i += dist_step) {
+				struct elxy *n = findclosestelement(xy, total, currres, x, y, region, i, dist_max * j / 10);
+				if (n && n != currres) {
+					found = n;
+				}
+			}
+		}
+	}
+end:
+	if (found) {
+		HWND h = found->nres->hwnd;
+		if (found->nres->list) {
+			HTREEITEM c = TreeView_GetSelection(h);
+			treeview_cursor(h, c);
+		} else {
+			RECT r;
+			GetWindowRect(h, &r);
+			SetCursorPos(r.left + (r.right - r.left) / 3, r.top + (r.bottom - r.top) / 2);
+			//SetCursorPos(r.left, r.top);
+		}
+		HWND parent = GetParent(h);
+		SetFocus(parent);
+		SendMessage(hwnd, WM_NEXTDLGCTL, (WPARAM)h, TRUE);
+
+		//write_log("%p -> %p\n", focus, h);
+	}
+
+}
+
+#define MAX_PADS 4
+
+int gui_control = 1;
+
+void process_gui_control(HWND h, struct newresource *nres)
+{
+	static int clicked[MAX_PADS];
+	static int lastbuttons[MAX_PADS];
+	static int mousemove;
+
+	if (h == NULL || nres == NULL) {
+		mousemove = 1;
+	}
+
+	for (int i = 0; i < MAX_PADS; i++) {
+		XINPUT_STATE xstate;
+		DWORD state = XInputGetState(i, &xstate);
+		if (state == ERROR_SUCCESS) {
+			int buttons = xstate.Gamepad.wButtons;
+			int oldclick = clicked[i];
+			bool clickchanged = false;
+			if (buttons & XINPUT_GAMEPAD_A) {
+				clicked[i] |= 1;
+			} else {
+				clicked[i] &= ~1;
+			}
+			if (buttons & XINPUT_GAMEPAD_B) {
+				clicked[i] |= 2;
+			} else {
+				clicked[i] &= ~2;
+			}
+			if (buttons & XINPUT_GAMEPAD_X) {
+				clicked[i] |= 4;
+			} else {
+				clicked[i] &= ~4;
+			}
+			if (buttons & XINPUT_GAMEPAD_Y) {
+				clicked[i] |= 8;
+			} else {
+				clicked[i] &= ~8;
+			}
+			if (clicked[i] != oldclick) {
+				clickchanged = true;
+			}
+
+			int newbuttons = buttons;
+			if (lastbuttons[i] & (XINPUT_GAMEPAD_DPAD_UP | XINPUT_GAMEPAD_DPAD_DOWN | XINPUT_GAMEPAD_DPAD_LEFT | XINPUT_GAMEPAD_DPAD_RIGHT)) {
+				if (buttons & (XINPUT_GAMEPAD_DPAD_UP | XINPUT_GAMEPAD_DPAD_DOWN | XINPUT_GAMEPAD_DPAD_LEFT | XINPUT_GAMEPAD_DPAD_RIGHT)) {
+					buttons &= ~(XINPUT_GAMEPAD_DPAD_UP | XINPUT_GAMEPAD_DPAD_DOWN | XINPUT_GAMEPAD_DPAD_LEFT | XINPUT_GAMEPAD_DPAD_RIGHT);
+				}
+			}
+
+			int x = 0, y = 0;
+			if (buttons & XINPUT_GAMEPAD_DPAD_UP) {
+				y = -1;
+				mousemove = 0;
+			}
+			if (buttons & XINPUT_GAMEPAD_DPAD_DOWN) {
+				y = 1;
+				mousemove = 0;
+			}
+			if (buttons & XINPUT_GAMEPAD_DPAD_LEFT) {
+				x = -1;
+				mousemove = 0;
+			}
+			if (buttons & XINPUT_GAMEPAD_DPAD_RIGHT) {
+				x = 1;
+				mousemove = 0;
+			}
+
+			if (mousemove && clicked[i] == 1 && clickchanged) {
+
+				INPUT inputs[2] = { 0 };
+				inputs[0].type = INPUT_MOUSE;
+				inputs[0].mi.dwFlags = MOUSEEVENTF_LEFTDOWN;
+				inputs[1].type = INPUT_MOUSE;
+				inputs[1].mi.dwFlags = MOUSEEVENTF_LEFTUP;
+				SendInput(sizeof(inputs) / sizeof(INPUT), inputs, sizeof(INPUT));
+
+				lastbuttons[i] = newbuttons;
+
+			} else if (mousemove && clicked[i] == 2 && clickchanged) {
+
+				INPUT inputs[2] = { 0 };
+				inputs[0].type = INPUT_MOUSE;
+				inputs[0].mi.dwFlags = MOUSEEVENTF_RIGHTDOWN;
+				inputs[1].type = INPUT_MOUSE;
+				inputs[1].mi.dwFlags = MOUSEEVENTF_RIGHTUP;
+				SendInput(sizeof(inputs) / sizeof(INPUT), inputs, sizeof(INPUT));
+
+				lastbuttons[i] = newbuttons;
+
+			} else if (mousemove && clicked[i] == 8 && clickchanged) {
+
+				INPUT inputs[2] = { 0 };
+				inputs[0].type = INPUT_KEYBOARD;
+				inputs[0].ki.wVk = VK_TAB;
+				inputs[1].type = INPUT_KEYBOARD;
+				inputs[1].ki.wVk = VK_TAB;
+				inputs[1].ki.dwFlags = KEYEVENTF_KEYUP;
+				SendInput(sizeof(inputs) / sizeof(INPUT), inputs, sizeof(INPUT));
+
+				lastbuttons[i] = newbuttons;
+
+			} else {
+
+				if (nres && h && (x || y || (clickchanged && clicked[i]))) {
+					gui_cursor(h, nres, x, y, clicked[i]);
+				}
+				lastbuttons[i] = newbuttons;
+
+				int min = 4096;
+				int max = 30;
+				int xdiff = 0, ydiff = 0;
+				if (xstate.Gamepad.sThumbLX < -min || xstate.Gamepad.sThumbLX > min) {
+					xdiff = abs(xstate.Gamepad.sThumbLX) - min;
+					if (xstate.Gamepad.sThumbLX < 0) {
+						xdiff = -xdiff;
+					}
+				}
+				if (xstate.Gamepad.sThumbLY < -min || xstate.Gamepad.sThumbLY > min) {
+					ydiff = abs(xstate.Gamepad.sThumbLY) - min;
+					if (xstate.Gamepad.sThumbLY < 0) {
+						ydiff = -ydiff;
+					}
+				}
+				if (xdiff || ydiff) {
+					xdiff /= 1024;
+					ydiff /= 1024;
+					if (xdiff < -max) {
+						xdiff = -max;
+					}
+					if (xdiff > max) {
+						xdiff = max;
+					}
+					if (ydiff < -max) {
+						ydiff = -max;
+					}
+					if (ydiff > max) {
+						ydiff = max;
+					}
+					POINT pt;
+					if ((xdiff || ydiff) && GetCursorPos(&pt)) {
+						POINT ptx = pt;
+						pt.x += xdiff;
+						pt.y += -ydiff;
+						if (h) {
+							RECT r;
+							WINDOWINFO wi = { 0 };
+							wi.cbSize = sizeof(wi);
+							GetWindowInfo(h, &wi);
+							r = wi.rcClient;
+							if (pt.x < r.left) {
+								pt.x = r.left;
+							}
+							if (pt.x > r.right) {
+								pt.x = r.right;
+							}
+							if (pt.y < r.top) {
+								pt.y = r.top;
+							}
+							if (pt.y > r.bottom) {
+								pt.y = r.bottom;
+							}
+						}
+						if (ptx.x != pt.x || ptx.y != pt.y) {
+							mousemove = 1;
+							SetCursorPos(pt.x, pt.y);
+						}
+					}
+				}
+			}
+
+		}
+	}
 }

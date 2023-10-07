@@ -2189,7 +2189,7 @@ END
 
 STRINGTABLE
 BEGIN
-    IDS_MISCLISTITEMS4      "Windows shutdown/logoff notification\nWarn when attempting to close window\nPower led dims when audio filter is disabled\nAutomatically capture mouse when window is activated\nDebug memory space\nForce hard reset if CPU halted\nA600/A1200/A4000 IDE scsi.device disable\nWarp mode reset\n"
+    IDS_MISCLISTITEMS4      "Windows shutdown/logoff notification\nWarn when attempting to close window\nPower led dims when audio filter is disabled\nAutomatically capture mouse when window is activated\nDebug memory space\nForce hard reset if CPU halted\nA600/A1200/A4000 IDE scsi.device disable\nWarp mode reset\nGUI gamepad control\n"
     IDS_SHUTDOWN_NOTIFICATION "Emulation session active"
     IDS_QUIT_WARNING        "Are you sure you want to quit WinUAE?"
     IDS_UNMAPPED_ADDRESS    "Floating\nAll zeros\nAll ones\n"

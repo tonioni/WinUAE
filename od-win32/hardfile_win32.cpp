@@ -897,7 +897,8 @@ static bool hd_get_meta_hack_realtek(HWND hDlg, HANDLE h, uae_u8 *data, uae_u8 *
 
 	progressdialogreturn = -1;
 	progressdialogactive = 1;
-	HWND hwnd = CustomCreateDialog(IDD_PROGRESSBAR, hDlg, ProgressDialogProc);
+	struct newresource *res;
+	HWND hwnd = CustomCreateDialog(&res, IDD_PROGRESSBAR, hDlg, ProgressDialogProc);
 	if (hwnd == NULL)
 		return false;
 	HWND hwndprogress = GetDlgItem (hwnd, IDC_PROGRESSBAR);
@@ -934,6 +935,7 @@ static bool hd_get_meta_hack_realtek(HWND hDlg, HANDLE h, uae_u8 *data, uae_u8 *
 			tcnt = 0;
 		}
 	}
+	freescaleresource(res);
 
 	if (progressdialogactive) {
 		DestroyWindow (hwnd);
@@ -1400,6 +1402,7 @@ static int gethdfchs(HWND hDlg, struct uae_driveinfo *udi, HANDLE h, int *cylsp,
 	DWORD err = 0;
 	HFONT font;
 	HWND hwnd;
+	struct newresource *res;
 
 	memset(data, 0, 512);
 	memset(cmd, 0, sizeof(cmd));
@@ -1427,7 +1430,7 @@ static int gethdfchs(HWND hDlg, struct uae_driveinfo *udi, HANDLE h, int *cylsp,
 	}
 
 	chsdialogactive = 1;
-	hwnd = CustomCreateDialog(IDD_CHSQUERY, hDlg, CHSDialogProc);
+	hwnd = CustomCreateDialog(&res, IDD_CHSQUERY, hDlg, CHSDialogProc);
 	if (hwnd == NULL) {
 		err = -15;
 		goto end;
@@ -1448,6 +1451,7 @@ static int gethdfchs(HWND hDlg, struct uae_driveinfo *udi, HANDLE h, int *cylsp,
 			}
 		}
 	}
+	freescaleresource(res);
 	DeleteObject(font);
 	if (chsdialogactive == 0) {
 		err = -100;
@@ -1533,6 +1537,7 @@ void hd_get_meta(HWND hDlg, int idx, TCHAR *geometryfile)
 	bool atapi = false;
 	HWND hwnd;
 	bool empty = true;
+	struct newresource *res;
 
 	geometryfile[0] = 0;
 	text = xcalloc(TCHAR, 100000);
@@ -1660,7 +1665,7 @@ doout:
 
 	stringboxdialogactive = 1;
 	hdini = ini;
-	hwnd = CustomCreateDialog (IDD_DISKINFO, hDlg, StringBoxDialogProc);
+	hwnd = CustomCreateDialog(&res, IDD_DISKINFO, hDlg, StringBoxDialogProc);
 	if (hwnd != NULL) {
 		HFONT font = CreateFont (getscaledfontsize(-1), 0, 0, 0, 0, 0, 0, 0, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH | FF_DONTCARE, _T("Lucida Console"));
 		if (font)
@@ -1682,6 +1687,7 @@ doout:
 				break;
 		}
 		DeleteObject (font);
+		freescaleresource(res);
 	}
 
 end:
@@ -3635,6 +3641,7 @@ int harddrive_to_hdf (HWND hDlg, struct uae_prefs *p, int idx)
 	TCHAR path[MAX_DPATH], tmp[MAX_DPATH], tmp2[MAX_DPATH];
 	DWORD retcode = 0;
 	HWND hwnd, hwndprogress, hwndprogresstxt;
+	struct newresource *res;
 	MSG msg;
 	int pct, cnt;
 	DWORD r;
@@ -3710,7 +3717,7 @@ int harddrive_to_hdf (HWND hDlg, struct uae_prefs *p, int idx)
 	SetFilePointer (h, 0, &li.HighPart, FILE_BEGIN);
 	progressdialogreturn = -1;
 	progressdialogactive = 1;
-	hwnd = CustomCreateDialog(IDD_PROGRESSBAR, hDlg, ProgressDialogProc);
+	hwnd = CustomCreateDialog(&res, IDD_PROGRESSBAR, hDlg, ProgressDialogProc);
 	if (hwnd == NULL)
 		goto err;
 	hwndprogress = GetDlgItem (hwnd, IDC_PROGRESSBAR);
@@ -3806,6 +3813,7 @@ int harddrive_to_hdf (HWND hDlg, struct uae_prefs *p, int idx)
 		sizecnt += got;
 		pct = (int)(sizecnt * 100 / size);
 	}
+	freescaleresource(res);
 	if (progressdialogactive) {
 		DestroyWindow (hwnd);
 		while (PeekMessage (&msg, 0, 0, 0, PM_REMOVE)) {

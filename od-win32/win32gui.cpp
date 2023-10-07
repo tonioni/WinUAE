@@ -141,8 +141,11 @@ int dialog_inhibit;
 static HMODULE hHtmlHelp;
 pathtype path_type;
 
+int externaldialogactive;
 static int stringboxdialogactive;
 static int customdialogactive;
+static struct newresource *customdialogres;
+static HWND customdialoghwnd;
 
 void HtmlHelp(const TCHAR *panel)
 {
@@ -309,6 +312,28 @@ struct GUIPAGE {
 	int focusid;
 };
 static struct GUIPAGE ppage[MAX_C_PAGES];
+
+static void CALLBACK gui_control_cb(HWND h, UINT v, UINT_PTR v3, DWORD v4)
+{
+	HWND ha = GetActiveWindow();
+	if (externaldialogactive) {
+		if (ha) {
+			HWND p = GetParent(ha);
+			HWND mainhwnd = AMonitors[0].hAmigaWnd;
+			if (p && (p == customdialoghwnd || p == guiDlg || p == mainhwnd)) {
+				process_gui_control(ha, NULL);
+			}
+		}
+	} else if (customdialogactive > 0 && customdialogres && customdialoghwnd) {
+		if (ha == customdialoghwnd) {
+			process_gui_control(customdialoghwnd, customdialogres);
+		}
+	} else {
+		if (ha == h) {
+			process_gui_control(h, panelresource);
+		}
+	}
+}
 
 static bool ischecked(HWND hDlg, DWORD id)
 {
@@ -631,7 +656,25 @@ static BOOL GetFileDialog (OPENFILENAME *opn, const GUID *guid, int mode)
 			pfd->SetFolder (shellitem);
 	}
 
-	hr = pfd->Show (opn->hwndOwner);
+	externaldialogactive = 1;
+	// GUI control without GUI
+	if (gui_control && hGUIWnd == NULL) {
+		HWND h = AMonitors[0].hAmigaWnd;
+		if (h) {
+			SetTimer(h, 8, 20, gui_control_cb);
+		}
+	}
+
+	hr = pfd->Show(opn->hwndOwner);
+
+	externaldialogactive = 0;
+	if (gui_control && hGUIWnd == NULL) {
+		HWND h = AMonitors[0].hAmigaWnd;
+		if (h) {
+			KillTimer(h, 8);
+		}
+	}
+
 	if (SUCCEEDED (hr)) {
 		UINT idx;
 		IShellItemArray *pitema;
@@ -2066,6 +2109,7 @@ int scan_roms (HWND hDlg, int show)
 	UAEREG *fkey, *fkey2;
 	TCHAR *paths[MAX_ROM_PATHS];
 	MSG msg;
+	struct newresource *res = NULL;
 
 	if (recursive)
 		return 0;
@@ -2081,7 +2125,7 @@ int scan_roms (HWND hDlg, int show)
 	infoboxdialogstate = true;
 	infoboxhwnd = NULL;
 	if (!rp_isactive ()) {
-		HWND hwnd = CustomCreateDialog(IDD_INFOBOX, hDlg, InfoBoxDialogProc);
+		HWND hwnd = CustomCreateDialog(&res, IDD_INFOBOX, hDlg, InfoBoxDialogProc);
 		if (!hwnd)
 			goto end;
 		infoboxhwnd = hwnd;
@@ -2143,6 +2187,7 @@ end:
 			TranslateMessage (&msg);
 			DispatchMessage (&msg);
 		}
+		FreeResource(res);
 	}
 	read_rom_list(false);
 	if (show)
@@ -2577,7 +2622,8 @@ static void eject_cd (void)
 void gui_infotextbox(HWND hDlg, const TCHAR *text)
 {
 	stringboxdialogactive = 1;
-	HWND hwnd = CustomCreateDialog(IDD_DISKINFO, hDlg ? hDlg : hGUIWnd, StringBoxDialogProc);
+	struct newresource *res;
+	HWND hwnd = CustomCreateDialog(&res, IDD_DISKINFO, hDlg ? hDlg : hGUIWnd, StringBoxDialogProc);
 	if (hwnd == NULL)
 		return;
 
@@ -2600,6 +2646,7 @@ void gui_infotextbox(HWND hDlg, const TCHAR *text)
 				break;
 		}
 	}
+	freescaleresource(res);
 	if (font) {
 		DeleteObject(font);
 	}
@@ -2610,6 +2657,7 @@ static void infofloppy (HWND hDlg, int n)
 	struct diskinfo di;
 	TCHAR tmp2[MAX_DPATH], tmp1[MAX_DPATH], tmp3[MAX_DPATH];
 	TCHAR text[20000];
+	struct newresource *res;
 
 	DISK_examine_image (&workprefs, n, &di, true, tmp3);
 	DISK_validate_filename(&workprefs, workprefs.floppyslots[n].df, n, tmp1, 0, NULL, NULL, NULL);
@@ -2673,7 +2721,7 @@ static void infofloppy (HWND hDlg, int n)
 	}
 
 	stringboxdialogactive = 1;
-	HWND hwnd = CustomCreateDialog(IDD_DISKINFO, hDlg, StringBoxDialogProc);
+	HWND hwnd = CustomCreateDialog(&res, IDD_DISKINFO, hDlg, StringBoxDialogProc);
 	if (hwnd == NULL)
 		return;
 
@@ -2696,6 +2744,7 @@ static void infofloppy (HWND hDlg, int n)
 				break;
 		}
 	}
+	freescaleresource(res);
 	DeleteObject (font);
 }
 
@@ -4756,6 +4805,7 @@ static const struct miscentry misclist[] = {
 	{ 0, 1, _T("Force hard reset if CPU halted"), &workprefs.crash_auto_reset },
 	{ 0, 0, _T("A600/A1200/A4000 IDE scsi.device disable"), &workprefs.scsidevicedisable },
 	{ 0, 1, _T("Warp mode reset"), &workprefs.turbo_boot },
+	{ 0, 1, _T("GUI game pad control"), &workprefs.win32_gui_control },
 	{ 0, 0, NULL }
 };
 
@@ -5782,8 +5832,7 @@ static INT_PTR CALLBACK InfoSettingsProc(HWND hDlg, UINT msg, WPARAM wParam, LPA
 		PostQuitMessage(0);
 		return TRUE;
 	case WM_CLOSE:
-		customdialogactive = 0;
-		DestroyWindow(hDlg);
+		CustomDialogClose(hDlg);
 		return TRUE;
 	case WM_INITDIALOG:
 	{
@@ -5837,13 +5886,11 @@ static INT_PTR CALLBACK InfoSettingsProc(HWND hDlg, UINT msg, WPARAM wParam, LPA
 			DiskSelection(hDlg, IDC_PATH_NAME, 8, &workprefs, NULL, NULL);
 			break;
 			case IDOK:
-			customdialogactive = -1;
-			DestroyWindow(hDlg);
+			CustomDialogClose(hDlg);
 			recursive = 0;
 			return TRUE;
 			case IDCANCEL:
-			customdialogactive = 0;
-			DestroyWindow(hDlg);
+			CustomDialogClose(hDlg);
 			recursive = 0;
 			return TRUE;
 			case IDC_CONFIGAUTO:
@@ -6481,13 +6528,11 @@ static INT_PTR CALLBACK ErrorLogProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 	switch (msg) {
 	case WM_COMMAND:
 		if (wParam == IDOK) {
-			customdialogactive = -1;
-			DestroyWindow(hDlg);
+			CustomDialogClose(hDlg);
 			return TRUE;
 		} else if (wParam == IDC_ERRORLOGCLEAR) {
 			error_log (NULL);
-			customdialogactive = 0;
-			DestroyWindow(hDlg);
+			CustomDialogClose(hDlg);
 			return TRUE;
 		}
 		break;
@@ -6554,13 +6599,11 @@ static INT_PTR CALLBACK ContributorsProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 		PostQuitMessage(0);
 		return TRUE;
 	case WM_CLOSE:
-		customdialogactive = 0;
-		DestroyWindow(hDlg);
+		CustomDialogClose(hDlg);
 		return TRUE;
 	case WM_COMMAND:
 		if (wParam == ID_OK) {
-			customdialogactive = -1;
-			DestroyWindow(hDlg);
+			CustomDialogClose(hDlg);
 			return TRUE;
 		}
 		break;
@@ -14537,8 +14580,7 @@ static INT_PTR CALLBACK VolumeSettingsProc (HWND hDlg, UINT msg, WPARAM wParam, 
 		PostQuitMessage(0);
 		return TRUE;
 	case WM_CLOSE:
-		customdialogactive = 0;
-		DestroyWindow(hDlg);
+		CustomDialogClose(hDlg);
 		return TRUE;
 	case WM_INITDIALOG:
 		{
@@ -14623,13 +14665,11 @@ static INT_PTR CALLBACK VolumeSettingsProc (HWND hDlg, UINT msg, WPARAM wParam, 
 				volumeselectdir (hDlg, 0, 1);
 				break;
 			case IDOK:
-				customdialogactive = -1;
-				DestroyWindow(hDlg);
+				CustomDialogClose(hDlg);
 				recursive = 0;
 				return TRUE;
 			case IDCANCEL:
-				customdialogactive = 0;
-				DestroyWindow(hDlg);
+				CustomDialogClose(hDlg);
 				recursive = 0;
 				return TRUE;
 			}
@@ -15146,8 +15186,7 @@ static INT_PTR CALLBACK TapeDriveSettingsProc (HWND hDlg, UINT msg, WPARAM wPara
 		PostQuitMessage(0);
 		return TRUE;
 	case WM_CLOSE:
-		customdialogactive = 0;
-		DestroyWindow(hDlg);
+		CustomDialogClose(hDlg);
 		return TRUE;
 	case WM_INITDIALOG:
 		recursive++;
@@ -15235,13 +15274,11 @@ static INT_PTR CALLBACK TapeDriveSettingsProc (HWND hDlg, UINT msg, WPARAM wPara
 			break;
 		}
 		case IDOK:
-			customdialogactive = -1;
-			DestroyWindow(hDlg);
+			CustomDialogClose(hDlg);
 			recursive = 0;
 			return TRUE;
 		case IDCANCEL:
-			customdialogactive = 0;
-			DestroyWindow(hDlg);
+			CustomDialogClose(hDlg);
 			recursive = 0;
 			return TRUE;
 		}
@@ -15268,8 +15305,7 @@ static INT_PTR CALLBACK CDDriveSettingsProc (HWND hDlg, UINT msg, WPARAM wParam,
 		PostQuitMessage(0);
 		return TRUE;
 	case WM_CLOSE:
-		customdialogactive = 0;
-		DestroyWindow(hDlg);
+		CustomDialogClose(hDlg);
 		return TRUE;
 
 	case WM_INITDIALOG:
@@ -15289,8 +15325,7 @@ static INT_PTR CALLBACK CDDriveSettingsProc (HWND hDlg, UINT msg, WPARAM wParam,
 		if (((LPNMHDR) lParam)->idFrom == IDC_CDLIST) {
 			NM_LISTVIEW *nmlistview = (NM_LISTVIEW *)lParam;
 			if (nmlistview->hdr.code == NM_DBLCLK) {
-				customdialogactive = -1;
-				DestroyWindow(hDlg);
+				CustomDialogClose(hDlg);
 				return TRUE;
 			}
 		}
@@ -15302,13 +15337,11 @@ static INT_PTR CALLBACK CDDriveSettingsProc (HWND hDlg, UINT msg, WPARAM wParam,
 		switch (LOWORD (wParam))
 		{
 		case IDOK:
-			customdialogactive = -1;
-			DestroyWindow(hDlg);
+			CustomDialogClose(hDlg);
 			recursive = 0;
 			return TRUE;
 		case IDCANCEL:
-			customdialogactive = 0;
-			DestroyWindow(hDlg);
+			CustomDialogClose(hDlg);
 			recursive = 0;
 			return TRUE;
 		case IDC_HDF_CONTROLLER:
@@ -15382,8 +15415,7 @@ static INT_PTR CALLBACK HardfileSettingsProc (HWND hDlg, UINT msg, WPARAM wParam
 		PostQuitMessage(0);
 		return TRUE;
 	case WM_CLOSE:
-		customdialogactive = 0;
-		DestroyWindow(hDlg);
+		CustomDialogClose(hDlg);
 		return TRUE;
 	case WM_DROPFILES:
 		dragdrop (hDlg, (HDROP)wParam, &changed_prefs, -2);
@@ -15544,13 +15576,11 @@ static INT_PTR CALLBACK HardfileSettingsProc (HWND hDlg, UINT msg, WPARAM wParam
 			DISK_history_add(current_hfdlg.ci.filesys, -1, HISTORY_FS, 1);
 			break;
 		case IDOK:
-			customdialogactive = -1;
-			DestroyWindow(hDlg);
+			CustomDialogClose(hDlg);
 			recursive = 0;
 			return TRUE;
 		case IDCANCEL:
-			customdialogactive = 0;
-			DestroyWindow(hDlg);
+			CustomDialogClose(hDlg);
 			recursive = 0;
 			return TRUE;
 		case IDC_HDF_PHYSGEOMETRY:
@@ -15677,8 +15707,7 @@ static INT_PTR CALLBACK HarddriveSettingsProc (HWND hDlg, UINT msg, WPARAM wPara
 		PostQuitMessage(0);
 		return TRUE;
 	case WM_CLOSE:
-		customdialogactive = 0;
-		DestroyWindow(hDlg);
+		CustomDialogClose(hDlg);
 		return TRUE;
 	case WM_INITDIALOG:
 		{
@@ -15735,13 +15764,11 @@ static INT_PTR CALLBACK HarddriveSettingsProc (HWND hDlg, UINT msg, WPARAM wPara
 		if (HIWORD (wParam) == BN_CLICKED) {
 			switch (LOWORD (wParam)) {
 			case IDOK:
-				customdialogactive = -1;
-				DestroyWindow(hDlg);
+				CustomDialogClose(hDlg);
 				recursive = 0;
 				return TRUE;
 			case IDCANCEL:
-				customdialogactive = 0;
-				DestroyWindow(hDlg);
+				CustomDialogClose(hDlg);
 				recursive = 0;
 				return TRUE;
 			case IDC_HDF_PHYSGEOMETRY:
@@ -18536,10 +18563,11 @@ static void values_to_inputdlg (HWND hDlg)
 static int askinputcustom (HWND hDlg, TCHAR *custom, int maxlen, DWORD titleid)
 {
 	HWND hwnd;
+	struct newresource *res;
 	TCHAR txt[MAX_DPATH];
 
 	stringboxdialogactive = 1;
-	hwnd = CustomCreateDialog (IDD_STRINGBOX, hDlg, StringBoxDialogProc);
+	hwnd = CustomCreateDialog(&res, IDD_STRINGBOX, hDlg, StringBoxDialogProc);
 	if (hwnd == NULL)
 		return 0;
 	if (titleid != 0) {
@@ -18563,9 +18591,11 @@ static int askinputcustom (HWND hDlg, TCHAR *custom, int maxlen, DWORD titleid)
 		}
 		if (stringboxdialogactive == -1) {
 			_tcscpy (custom, txt);
+			freescaleresource(res);
 			return 1;
 		}
 	}
+	freescaleresource(res);
 	return 0;
 }
 
@@ -19491,8 +19521,7 @@ static INT_PTR CALLBACK RemapSpecialsProc(HWND hDlg, UINT msg, WPARAM wParam, LP
 				if (inputmap_handle(NULL, -1, -1, NULL, NULL, -1, NULL, inputmap_selected,
 					remapcustoms[entry].flags, IDEV_MAPPED_AUTOFIRE_SET | IDEV_MAPPED_TOGGLE | IDEV_MAPPED_INVERTTOGGLE | IDEV_MAPPED_INVERT, NULL)) {
 					inputdevice_generate_jport_custom(&workprefs, inputmap_port);
-					customdialogactive = -1;
-					DestroyWindow(hDlg);
+					CustomDialogClose(hDlg);
 					return TRUE;
 				}
 			}
@@ -19513,13 +19542,11 @@ static INT_PTR CALLBACK RemapSpecialsProc(HWND hDlg, UINT msg, WPARAM wParam, LP
 		break;
 	}
 	case IDOK:
-	customdialogactive = -1;
-	DestroyWindow(hDlg);
+	CustomDialogClose(hDlg);
 	recursive = 0;
 	return TRUE;
 	case IDCANCEL:
-	customdialogactive = 0;
-	DestroyWindow(hDlg);
+	CustomDialogClose(hDlg);
 	recursive = 0;
 	return TRUE;
 	}
@@ -19531,7 +19558,9 @@ static INT_PTR CALLBACK RemapSpecialsProc(HWND hDlg, UINT msg, WPARAM wParam, LP
 
 static void input_remapspecials(HWND hDlg)
 {
-	CustomCreateDialog(IDD_LIST, hDlg, RemapSpecialsProc);
+	struct newresource *res;
+	CustomCreateDialog(&res, IDD_LIST, hDlg, RemapSpecialsProc);
+	freescaleresource(res);
 }
 
 static INT_PTR CALLBACK InputMapDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
@@ -19697,12 +19726,13 @@ static INT_PTR CALLBACK InputMapDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPA
 
 static void ports_remap (HWND hDlg, int port, int sub)
 {
+	struct newresource *res;
 	inputmap_port = port;
 	if (sub < 0) {
 		sub = 0;
 	}
 	inputmap_port_sub = sub;
-	HWND dlg = CustomCreateDialog (IDD_INPUTMAP, hDlg, InputMapDlgProc);
+	HWND dlg = CustomCreateDialog(&res, IDD_INPUTMAP, hDlg, InputMapDlgProc);
 	if (dlg == NULL)
 		return;
 	MSG msg;
@@ -19726,6 +19756,7 @@ static void ports_remap (HWND hDlg, int port, int sub)
 		TranslateMessage (&msg);
 		DispatchMessage (&msg);
 	}
+	freescaleresource(res);
 }
 
 static void input_togglesetmode (void)
@@ -19949,13 +19980,11 @@ static INT_PTR CALLBACK QualifierProc (HWND hDlg, UINT msg, WPARAM wParam, LPARA
 				break;
 			}
 		case IDOK:
-			customdialogactive = -1;
-			DestroyWindow(hDlg);
+			CustomDialogClose(hDlg);
 			recursive = 0;
 			return TRUE;
 		case IDCANCEL:
-			customdialogactive = 0;
-			DestroyWindow(hDlg);
+			CustomDialogClose(hDlg);
 			recursive = 0;
 			return TRUE;
 		}
@@ -19971,6 +20000,7 @@ static void input_qualifiers (HWND hDlg)
 	int evt;
 	TCHAR name[256];
 	TCHAR custom[MAX_DPATH];
+	struct newresource *res;
 	
 	if (input_selected_device < 0 || input_selected_widget < 0)
 		return;
@@ -19979,7 +20009,8 @@ static void input_qualifiers (HWND hDlg)
 	if (evt <= 0)
 		name[0] = 0;
 	
-	CustomCreateDialog(IDD_LIST, hDlg, QualifierProc);
+	CustomCreateDialog(&res, IDD_LIST, hDlg, QualifierProc);
+	freescaleresource(res);
 #if 0
 	int item = genericpopupmenu (hDlg, names, mflags, MAX_INPUT_QUALIFIERS * 2);
 	if (item >= 0)
@@ -21959,6 +21990,7 @@ static HWND updatePanel (int id, UINT action)
 	static HWND hwndTT;
 	static bool first = true;
 	int fullpanel;
+	HWND focus = GetFocus();
 
 	SaveListView(panelDlg, false);
 	listview_id = 0;
@@ -22056,8 +22088,14 @@ static HWND updatePanel (int id, UINT action)
 
 	hAccelTable = ppage[currentpage].accel;
 
+#if 0
 	if (ppage[id].focusid > 0 && action != TVC_BYKEYBOARD) {
 		setfocus (panelDlg, ppage[id].focusid);
+	}
+#endif
+
+	if (focus) {
+		SetFocus(focus);
 	}
 
 	return panelDlg;
@@ -23000,6 +23038,7 @@ static INT_PTR CALLBACK DialogProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 		gui_size_changed = 1;
 		return 0;
 	}
+
 	handlerawinput (hDlg, msg, wParam, lParam);
 	return FALSE;
 }
@@ -23051,7 +23090,16 @@ struct newresource *getresource (int tmpl)
 	return nr;
 }
 
-INT_PTR CustomDialogBox (int templ, HWND hDlg, DLGPROC proc)
+void CustomDialogClose(HWND hDlg)
+{
+	customdialogactive = 0;
+	customdialoghwnd = NULL;
+	freescaleresource(customdialogres);
+	customdialogres = NULL;
+	DestroyWindow(hDlg);
+}
+
+INT_PTR CustomDialogBox(int templ, HWND hDlg, DLGPROC proc)
 {
 	struct newresource *res;
 	struct dlgcontext dctx;
@@ -23070,12 +23118,13 @@ INT_PTR CustomDialogBox (int templ, HWND hDlg, DLGPROC proc)
 	return h;
 }
 
-HWND CustomCreateDialog(int templ, HWND hDlg, DLGPROC proc)
+HWND CustomCreateDialog(struct newresource **resp, int templ, HWND hDlg, DLGPROC proc)
 {
 	struct newresource *res;
 	struct dlgcontext dctx;
 	HWND h = NULL;
 
+	*resp = NULL;
 	res = getresource (templ);
 	if (!res)
 		return h;
@@ -23083,17 +23132,20 @@ HWND CustomCreateDialog(int templ, HWND hDlg, DLGPROC proc)
 		res->parent = panelresource;
 		h = x_CreateDialogIndirectParam(res->inst, res->resource, hDlg, proc, NULL, res);
 	}
-	freescaleresource (res);
+	*resp = res;
 	return h;
 }
 
 int CustomCreateDialogBox(int templ, HWND hDlg, DLGPROC proc)
 {
+	struct newresource *res;
 	customdialogactive = 1;
-	HWND hwnd = CustomCreateDialog(templ, hDlg, proc);
+	HWND hwnd = CustomCreateDialog(&res, templ, hDlg, proc);
 	if (!hwnd) {
 		return 0;
 	}
+	customdialogres = res;
+	customdialoghwnd = hwnd;
 	while (customdialogactive == 1) {
 		MSG msg;
 		int ret;
@@ -23300,6 +23352,7 @@ static int GetSettings (int all_options, HWND hwnd)
 	int fmultx = 0, fmulty = 0;
 	int resetcount = 0;
 	bool boxart_reopen = false;
+	int use_gui_control = gui_control > 0 ? 2 : -1;
 	setdefaultguisize(0);
 	getstoredguisize();
 	scaleresource_setsize(-1, -1, -1);
@@ -23473,8 +23526,12 @@ static int GetSettings (int all_options, HWND hwnd)
 				reset_box_art_window();
 				boxart_reopen = false;
 			}
-			if (devicechangetimer < 0)
+			if (devicechangetimer < 0) {
 				SetTimer(dhwnd, 4, 2000, NULL);
+			}
+			if (use_gui_control > 1) {
+				SetTimer(dhwnd, 8, 20, gui_control_cb);
+			}
 			
 			for (;;) {
 				HANDLE IPChandle;
@@ -23540,6 +23597,14 @@ static int GetSettings (int all_options, HWND hwnd)
 					// reset after IDCANCEL which would save coordinates
 					gui_fullscreen = 0;
 				}
+				if ((workprefs.win32_gui_control ? 1 : 0) != use_gui_control && use_gui_control < 2) {
+					use_gui_control = workprefs.win32_gui_control;
+					if (use_gui_control) {
+						SetTimer(dhwnd, 8, 30, gui_control_cb);
+					} else {
+						KillTimer(dhwnd, 8);
+					}
+				}
 			}
 			psresult = dialogreturn;
 		} else {
@@ -23558,6 +23623,10 @@ gui_exit:
 		if (!gui_size_changed)
 			break;
 		quit_program = 0;
+	}
+
+	if (use_gui_control > 0) {
+		KillTimer(dhwnd, 8);
 	}
 
 	hGUIWnd = NULL;

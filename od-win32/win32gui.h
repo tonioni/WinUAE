@@ -72,8 +72,12 @@ typedef struct
 
 struct newreswnd
 {
-	HWND hwnd;
+	HWND hwnd, hwndx[5];
 	LONG x, y, w, h;
+	int style;
+	int region;
+	bool selectable;
+	bool list, listn;
 };
 
 struct newresource
@@ -114,6 +118,8 @@ struct newresource
 
 extern struct uae_prefs workprefs;
 extern int dialog_inhibit;
+extern int gui_control;
+extern int externaldialogactive;
 
 HWND x_CreateDialogIndirectParam(HINSTANCE hInstance, LPCDLGTEMPLATE lpTemplate, HWND hWndParent, DLGPROC lpDialogFunc, LPARAM lParamInit, struct newresource*);
 void x_DestroyWindow(HWND, struct newresource*);
@@ -122,8 +128,9 @@ extern int scaleresource(struct newresource*, struct dlgcontext *dctx, HWND, int
 extern void rescaleresource(struct newresource*, bool);
 extern void freescaleresource (struct newresource*);
 extern void scaleresource_setsize (int w, int h, int fs);
-extern HWND CustomCreateDialog (int templ, HWND hDlg, DLGPROC proc);
+extern HWND CustomCreateDialog (struct newresource **, int templ, HWND hDlg, DLGPROC proc);
 extern int CustomCreateDialogBox(int templ, HWND hDlg, DLGPROC proc);
+extern void CustomDialogClose(HWND);
 extern INT_PTR CustomDialogBox (int templ, HWND hDlg, DLGPROC proc);
 extern struct newresource *getresource (int tmpl);
 extern void scaleresource_init(const TCHAR*, int);
@@ -142,6 +149,9 @@ extern int stored_boxart_window_width_fsgui;
 extern int calculated_boxart_window_width;
 void getextendedframebounds(HWND hwnd, RECT *r);
 void reset_box_art_window(void);
+
+void gui_cursor(HWND, struct newresource*, int, int, int);
+void process_gui_control(HWND h, struct newresource *nres);
 
 void darkmode_initdialog(HWND hDlg);
 void darkmode_themechanged(HWND hDlg);

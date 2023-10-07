@@ -907,6 +907,7 @@ struct uae_prefs {
 	bool win32_filesystem_mangle_reserved_names;
 	bool win32_shutdown_notification;
 	bool win32_warn_exit;
+	bool win32_gui_control;
 	bool right_control_is_right_win_key;
 #ifdef WITH_SLIRP
 	struct slirp_redir slirp_redirs[MAX_SLIRP_REDIRS];

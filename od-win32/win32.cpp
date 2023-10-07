@@ -2059,6 +2059,11 @@ static void EndCustomResize(HWND hWindow, BOOL bCanceled)
 
 #define MSGDEBUG 1
 
+static int externaldialogguicontrol;
+static void CALLBACK gui_control_cb(HWND h, UINT v, UINT_PTR v3, DWORD v4)
+{
+}
+
 static LRESULT CALLBACK AmigaWindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
 	struct AmigaMonitor *mon = NULL;
@@ -2080,6 +2085,18 @@ static LRESULT CALLBACK AmigaWindowProc(HWND hWnd, UINT message, WPARAM wParam, 
 	}
 	if (!mon) {
 		mon = &AMonitors[0];
+	}
+
+	if (externaldialogactive && gui_control) {
+		if (!externaldialogguicontrol) {
+			externaldialogguicontrol = 1;
+			SetTimer(hWnd, 8, 20, gui_control_cb);
+		}
+	} else {
+		if (externaldialogguicontrol) {
+			externaldialogguicontrol = 0;
+			KillTimer(hWnd, 8);
+		}
 	}
 
 #if MSGDEBUG > 1
@@ -4460,6 +4477,7 @@ void target_default_options (struct uae_prefs *p, int type)
 		p->win32_borderless = 0;
 		p->win32_blankmonitors = false;
 		p->win32_powersavedisabled = true;
+		p->win32_gui_control = false;
 		p->sana2 = 0;
 		p->win32_rtgmatchdepth = 1;
 		p->gf[GF_RTG].gfx_filter_autoscale = RTG_MODE_SCALE;
@@ -4552,6 +4570,7 @@ void target_save_options (struct zfile *f, struct uae_prefs *p)
 	cfgfile_target_dwrite_bool(f, _T("active_capture_automatically"), p->win32_capture_always);
 	cfgfile_target_dwrite_bool(f, _T("start_iconified"), p->win32_start_minimized);
 	cfgfile_target_dwrite_bool(f, _T("start_not_captured"), p->win32_start_uncaptured);
+	cfgfile_target_dwrite_bool(f, _T("gui_control"), p->win32_gui_control);
 
 	cfgfile_target_dwrite_bool (f, _T("ctrl_f11_is_quit"), p->win32_ctrl_F11_is_quit);
 
@@ -4953,6 +4972,9 @@ static int target_parse_option_host(struct uae_prefs *p, const TCHAR *option, co
 		return 1;
 
 	if (cfgfile_yesno(option, value, _T("start_not_captured"), &p->win32_start_uncaptured))
+		return 1;
+
+	if (cfgfile_yesno(option, value, _T("gui_control"), &p->win32_gui_control))
 		return 1;
 
 	if (cfgfile_string_escape(option, value, _T("serial_port"), &p->sername[0], 256)) {
@@ -6920,6 +6942,10 @@ static int parseargs(const TCHAR *argx, const TCHAR *np, const TCHAR *np2)
 	}
 	if (!_tcscmp(arg, _T("key_swap_hack2"))) {
 		key_swap_hack2 = 1;
+		return 1;
+	}
+	if (!_tcscmp(arg, _T("gui_control"))) {
+		gui_control = 1;
 		return 1;
 	}
 
