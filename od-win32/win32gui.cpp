@@ -22516,7 +22516,8 @@ int dragdrop (HWND hDlg, HDROP hd, struct uae_prefs *prefs, int	currentpage)
 						if (type == ZFILE_ROM) {
 							rd = getromdatabyzfile (z);
 						}
-						if (type > 0) {
+						// replace with decrunched path but only if decrunched path is deeper (longer)
+						if (type > 0 && _tcslen(z->name) > _tcslen(file)) {
 							_tcscpy(filepath, z->name);
 						}
 					}
