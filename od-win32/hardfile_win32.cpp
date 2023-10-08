@@ -3047,6 +3047,7 @@ static BOOL GetDevicePropertyFromName(const TCHAR *DevicePath, DWORD Index, DWOR
 		DWORD err = GetLastError();
 		if (isnomediaerr (err)) {
 			udi->nomedia = 1;
+			write_log("no media\n");
 			goto amipartfound;
 		}
 		write_log (_T("IOCTL_DISK_GET_DRIVE_GEOMETRY failed with error code %d.\n"), err);
@@ -3060,10 +3061,27 @@ static BOOL GetDevicePropertyFromName(const TCHAR *DevicePath, DWORD Index, DWOR
 			udi->readonly = 1;
 	}
 
+	udi->offset = 0;
+	udi->size = 0;
+
 	if (showonly) {
-		udi->dangerous = -10;
-		udi->readonly = -1;
-		goto amipartfound;
+		memset(outBuf, 0, sizeof(outBuf));
+		status = DeviceIoControl(hDevice, IOCTL_DISK_GET_DRIVE_LAYOUT_EX, NULL, 0,
+			&outBuf, sizeof(outBuf), &returnedLength, NULL);
+		if (status) {
+			dli = (DRIVE_LAYOUT_INFORMATION_EX *)outBuf;
+			if (dli->PartitionCount && dli->PartitionStyle == PARTITION_STYLE_MBR) {
+				//udi->dangerous = -10;
+				//udi->readonly = -1;
+				write_log("MBR but access denied\n");
+				ret = 1;
+				goto end;
+			}
+		}
+		write_log("skipped, GPT drive\n");
+		udiindex = -1;
+		ret = 1;
+		goto end;
 	}
 
 	gli_ok = 1;
@@ -3082,8 +3100,6 @@ static BOOL GetDevicePropertyFromName(const TCHAR *DevicePath, DWORD Index, DWOR
 		goto end;
 	}
 
-	udi->offset = 0;
-	udi->size = 0;
 	if (geom_ok) {
 		udi->bytespersector = dg.BytesPerSector;
 		if (dg.BytesPerSector < 512) {
@@ -3149,13 +3165,13 @@ static BOOL GetDevicePropertyFromName(const TCHAR *DevicePath, DWORD Index, DWOR
 					write_log (_T("type not 0x76 or 0x30\n"));
 					continue;
 				}
+				write_log (_T("%d, selected\n"), *index2);
 				udi++;
 				(*index2)++;
 				memmove (udi, udi2, sizeof (*udi));
 				udi->device_name[0] = 0;
 				udi->offset = pi->StartingOffset.QuadPart;
 				udi->size = pi->PartitionLength.QuadPart;
-				write_log (_T("used\n"));
 				_stprintf (udi->device_name, _T(":P#%d_%s"), pi->PartitionNumber, orgname);
 				_stprintf(udi->device_full_path, _T("%s:%s"), udi->device_name, udi->device_path);
 				checkhdname(udi);
