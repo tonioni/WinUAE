@@ -2275,7 +2275,7 @@ void gui_cursor(HWND hwnd, struct newresource *ns, int x, int y, int click)
 				RECT r;
 				GetWindowRect(h, &r);
 				currres = txy;
-				write_log("%p %d\n", currres->nres->hwnd, currres->region);
+				//write_log("%p %d\n", currres->nres->hwnd, currres->region);
 				break;
 			}
 		}
@@ -2402,6 +2402,7 @@ void gui_cursor(HWND hwnd, struct newresource *ns, int x, int y, int click)
 						for (;;) {
 							next2 = TreeView_GetNextItem(h, next2, TVGN_NEXT);
 							if (!next2) {
+								next = c;
 								break;
 							}
 							next = TreeView_GetNextItem(h, next2, TVGN_CHILD);
