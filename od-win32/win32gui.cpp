@@ -5832,7 +5832,7 @@ static INT_PTR CALLBACK InfoSettingsProc(HWND hDlg, UINT msg, WPARAM wParam, LPA
 		PostQuitMessage(0);
 		return TRUE;
 	case WM_CLOSE:
-		CustomDialogClose(hDlg);
+		CustomDialogClose(hDlg, 0);
 		return TRUE;
 	case WM_INITDIALOG:
 	{
@@ -5886,11 +5886,11 @@ static INT_PTR CALLBACK InfoSettingsProc(HWND hDlg, UINT msg, WPARAM wParam, LPA
 			DiskSelection(hDlg, IDC_PATH_NAME, 8, &workprefs, NULL, NULL);
 			break;
 			case IDOK:
-			CustomDialogClose(hDlg);
+			CustomDialogClose(hDlg, -1);
 			recursive = 0;
 			return TRUE;
 			case IDCANCEL:
-			CustomDialogClose(hDlg);
+			CustomDialogClose(hDlg, 0);
 			recursive = 0;
 			return TRUE;
 			case IDC_CONFIGAUTO:
@@ -6528,11 +6528,11 @@ static INT_PTR CALLBACK ErrorLogProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 	switch (msg) {
 	case WM_COMMAND:
 		if (wParam == IDOK) {
-			CustomDialogClose(hDlg);
+			CustomDialogClose(hDlg, -1);
 			return TRUE;
 		} else if (wParam == IDC_ERRORLOGCLEAR) {
 			error_log (NULL);
-			CustomDialogClose(hDlg);
+			CustomDialogClose(hDlg, 0);
 			return TRUE;
 		}
 		break;
@@ -6599,11 +6599,11 @@ static INT_PTR CALLBACK ContributorsProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 		PostQuitMessage(0);
 		return TRUE;
 	case WM_CLOSE:
-		CustomDialogClose(hDlg);
+		CustomDialogClose(hDlg, 0);
 		return TRUE;
 	case WM_COMMAND:
 		if (wParam == ID_OK) {
-			CustomDialogClose(hDlg);
+			CustomDialogClose(hDlg, -1);
 			return TRUE;
 		}
 		break;
@@ -14580,7 +14580,7 @@ static INT_PTR CALLBACK VolumeSettingsProc (HWND hDlg, UINT msg, WPARAM wParam, 
 		PostQuitMessage(0);
 		return TRUE;
 	case WM_CLOSE:
-		CustomDialogClose(hDlg);
+		CustomDialogClose(hDlg, 0);
 		return TRUE;
 	case WM_INITDIALOG:
 		{
@@ -14665,11 +14665,11 @@ static INT_PTR CALLBACK VolumeSettingsProc (HWND hDlg, UINT msg, WPARAM wParam, 
 				volumeselectdir (hDlg, 0, 1);
 				break;
 			case IDOK:
-				CustomDialogClose(hDlg);
+				CustomDialogClose(hDlg, -1);
 				recursive = 0;
 				return TRUE;
 			case IDCANCEL:
-				CustomDialogClose(hDlg);
+				CustomDialogClose(hDlg, 0);
 				recursive = 0;
 				return TRUE;
 			}
@@ -15186,7 +15186,7 @@ static INT_PTR CALLBACK TapeDriveSettingsProc (HWND hDlg, UINT msg, WPARAM wPara
 		PostQuitMessage(0);
 		return TRUE;
 	case WM_CLOSE:
-		CustomDialogClose(hDlg);
+		CustomDialogClose(hDlg, 0);
 		return TRUE;
 	case WM_INITDIALOG:
 		recursive++;
@@ -15274,11 +15274,11 @@ static INT_PTR CALLBACK TapeDriveSettingsProc (HWND hDlg, UINT msg, WPARAM wPara
 			break;
 		}
 		case IDOK:
-			CustomDialogClose(hDlg);
+			CustomDialogClose(hDlg, -1);
 			recursive = 0;
 			return TRUE;
 		case IDCANCEL:
-			CustomDialogClose(hDlg);
+			CustomDialogClose(hDlg, 0);
 			recursive = 0;
 			return TRUE;
 		}
@@ -15305,7 +15305,7 @@ static INT_PTR CALLBACK CDDriveSettingsProc (HWND hDlg, UINT msg, WPARAM wParam,
 		PostQuitMessage(0);
 		return TRUE;
 	case WM_CLOSE:
-		CustomDialogClose(hDlg);
+		CustomDialogClose(hDlg, 0);
 		return TRUE;
 
 	case WM_INITDIALOG:
@@ -15325,7 +15325,7 @@ static INT_PTR CALLBACK CDDriveSettingsProc (HWND hDlg, UINT msg, WPARAM wParam,
 		if (((LPNMHDR) lParam)->idFrom == IDC_CDLIST) {
 			NM_LISTVIEW *nmlistview = (NM_LISTVIEW *)lParam;
 			if (nmlistview->hdr.code == NM_DBLCLK) {
-				CustomDialogClose(hDlg);
+				CustomDialogClose(hDlg, -1);
 				return TRUE;
 			}
 		}
@@ -15337,11 +15337,11 @@ static INT_PTR CALLBACK CDDriveSettingsProc (HWND hDlg, UINT msg, WPARAM wParam,
 		switch (LOWORD (wParam))
 		{
 		case IDOK:
-			CustomDialogClose(hDlg);
+			CustomDialogClose(hDlg, -1);
 			recursive = 0;
 			return TRUE;
 		case IDCANCEL:
-			CustomDialogClose(hDlg);
+			CustomDialogClose(hDlg, 0);
 			recursive = 0;
 			return TRUE;
 		case IDC_HDF_CONTROLLER:
@@ -15415,7 +15415,7 @@ static INT_PTR CALLBACK HardfileSettingsProc (HWND hDlg, UINT msg, WPARAM wParam
 		PostQuitMessage(0);
 		return TRUE;
 	case WM_CLOSE:
-		CustomDialogClose(hDlg);
+		CustomDialogClose(hDlg, 0);
 		return TRUE;
 	case WM_DROPFILES:
 		dragdrop (hDlg, (HDROP)wParam, &changed_prefs, -2);
@@ -15576,11 +15576,11 @@ static INT_PTR CALLBACK HardfileSettingsProc (HWND hDlg, UINT msg, WPARAM wParam
 			DISK_history_add(current_hfdlg.ci.filesys, -1, HISTORY_FS, 1);
 			break;
 		case IDOK:
-			CustomDialogClose(hDlg);
+			CustomDialogClose(hDlg, -1);
 			recursive = 0;
 			return TRUE;
 		case IDCANCEL:
-			CustomDialogClose(hDlg);
+			CustomDialogClose(hDlg, 0);
 			recursive = 0;
 			return TRUE;
 		case IDC_HDF_PHYSGEOMETRY:
@@ -15707,7 +15707,7 @@ static INT_PTR CALLBACK HarddriveSettingsProc (HWND hDlg, UINT msg, WPARAM wPara
 		PostQuitMessage(0);
 		return TRUE;
 	case WM_CLOSE:
-		CustomDialogClose(hDlg);
+		CustomDialogClose(hDlg, 0);
 		return TRUE;
 	case WM_INITDIALOG:
 		{
@@ -15764,11 +15764,11 @@ static INT_PTR CALLBACK HarddriveSettingsProc (HWND hDlg, UINT msg, WPARAM wPara
 		if (HIWORD (wParam) == BN_CLICKED) {
 			switch (LOWORD (wParam)) {
 			case IDOK:
-				CustomDialogClose(hDlg);
+				CustomDialogClose(hDlg, -1);
 				recursive = 0;
 				return TRUE;
 			case IDCANCEL:
-				CustomDialogClose(hDlg);
+				CustomDialogClose(hDlg, 0);
 				recursive = 0;
 				return TRUE;
 			case IDC_HDF_PHYSGEOMETRY:
@@ -19521,7 +19521,7 @@ static INT_PTR CALLBACK RemapSpecialsProc(HWND hDlg, UINT msg, WPARAM wParam, LP
 				if (inputmap_handle(NULL, -1, -1, NULL, NULL, -1, NULL, inputmap_selected,
 					remapcustoms[entry].flags, IDEV_MAPPED_AUTOFIRE_SET | IDEV_MAPPED_TOGGLE | IDEV_MAPPED_INVERTTOGGLE | IDEV_MAPPED_INVERT, NULL)) {
 					inputdevice_generate_jport_custom(&workprefs, inputmap_port);
-					CustomDialogClose(hDlg);
+					CustomDialogClose(hDlg, -1);
 					return TRUE;
 				}
 			}
@@ -19542,11 +19542,11 @@ static INT_PTR CALLBACK RemapSpecialsProc(HWND hDlg, UINT msg, WPARAM wParam, LP
 		break;
 	}
 	case IDOK:
-	CustomDialogClose(hDlg);
+	CustomDialogClose(hDlg, -1);
 	recursive = 0;
 	return TRUE;
 	case IDCANCEL:
-	CustomDialogClose(hDlg);
+	CustomDialogClose(hDlg, 0);
 	recursive = 0;
 	return TRUE;
 	}
@@ -19980,11 +19980,11 @@ static INT_PTR CALLBACK QualifierProc (HWND hDlg, UINT msg, WPARAM wParam, LPARA
 				break;
 			}
 		case IDOK:
-			CustomDialogClose(hDlg);
+			CustomDialogClose(hDlg, -1);
 			recursive = 0;
 			return TRUE;
 		case IDCANCEL:
-			CustomDialogClose(hDlg);
+			CustomDialogClose(hDlg, 0);
 			recursive = 0;
 			return TRUE;
 		}
@@ -23090,9 +23090,9 @@ struct newresource *getresource (int tmpl)
 	return nr;
 }
 
-void CustomDialogClose(HWND hDlg)
+void CustomDialogClose(HWND hDlg, int status)
 {
-	customdialogactive = 0;
+	customdialogactive = status;
 	customdialoghwnd = NULL;
 	freescaleresource(customdialogres);
 	customdialogres = NULL;
