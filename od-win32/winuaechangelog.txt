@@ -1,4 +1,13 @@
 
+Beta 4:
+
+- Exiting any GUI subwindow (hardfiles etc) was always cancelled, ignoring changes. (b3)
+- Fixed DMS and other single disk image compressed disk image drag and drop. (b1)
+- Add Harddrive still listed GPT drives if run without administrator privileges. (b1)
+- D3D11 mode and different RTG/native/native interlaced D3D filter: filter was not always changed when mode was switched. (b1)
+- GUI control tree view: don't jump to root node when there is no more child nodes (dpad right)
+
+Beta 3:
 
 - Blitter channel change when active emulation update. Fixes Jim Power cractro by Two Lives Crew. (Another TLC cracktro with similar blitter bug..)
 - AUDxPER=1 audio interrupt was unreliable. (AIBB sound effect hang)
