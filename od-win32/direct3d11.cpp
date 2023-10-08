@@ -4142,11 +4142,56 @@ static int xxD3D11_init(HWND ahwnd, int monid, int w_w, int w_h, int depth, int 
 
 static const TCHAR *xD3D11_init(HWND ahwnd, int monid, int w_w, int w_h, int depth, int *freq, int mmulth, int mmultv, int *errp)
 {
+	bool reset = false;
 	if (!can_D3D11(false)) {
 		*errp = 1;
 		return _T("D3D11 FAILED TO INIT");
 	}
+	struct d3d11struct *d3d = &d3d11data[monid];
+	struct amigadisplay *ad = &adisplays[monid];
 	if (!D3D_isenabled(monid)) {
+		reset = true;
+	}
+	if (d3d->filterd3didx != ad->gf_index) {
+		struct gfx_filterdata *f1 = &currprefs.gf[d3d->filterd3didx];
+		if (!f1->enable) {
+			f1 = &currprefs.gf[0];
+		}
+		struct gfx_filterdata *f2 = &currprefs.gf[ad->gf_index];
+		if (!f2->enable) {
+			f2 = &currprefs.gf[0];
+		}
+		if (f1 != f2) {
+			if (f1->gfx_filter != f2->gfx_filter) {
+				reset = true;
+			}
+			for (int i = 0; i < MAX_FILTERSHADERS * 2 + 1; i++) {
+				if (_tcsicmp(f1->gfx_filtershader[i], f2->gfx_filtershader[i])) {
+					reset = true;
+				}
+				if (_tcsicmp(f1->gfx_filtermask[i], f2->gfx_filtermask[i])) {
+					reset = true;
+				}
+			}
+			if (_tcsicmp(f1->gfx_filteroverlay, f2->gfx_filteroverlay)) {
+				reset = true;
+			}
+			if (f1->gfx_filter_scanlines != f2->gfx_filter_scanlines) {
+				reset = true;
+			}
+			if (f1->gfx_filter_scanlineratio != f2->gfx_filter_scanlineratio) {
+				reset = true;
+			}
+			if (f1->gfx_filter_scanlinelevel != f2->gfx_filter_scanlinelevel) {
+				reset = true;
+			}
+			if (f1->gfx_filter_scanlineoffset != f2->gfx_filter_scanlineoffset) {
+				reset = true;
+			}
+		}
+	}
+	if (reset) {
+		xD3D11_free(monid, true);
 		int v = xxD3D11_init(ahwnd, monid, w_w, w_h, depth, freq, mmulth, mmultv);
 		if (v > 0) {
 			return NULL;
