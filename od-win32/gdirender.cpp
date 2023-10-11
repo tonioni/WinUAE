@@ -233,6 +233,10 @@ static bool gdi_alloctexture(int monid, int w, int h)
 {
 	struct gdistruct *gdi = &gdidata[monid];
 
+	if (w < 0 || h < 0) { 
+		return gdi->hdc != NULL;
+	}
+
 	freetexture(monid);
 
 	gdi->hdc = GetDC(gdi->hwnd);

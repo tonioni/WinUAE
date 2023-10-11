@@ -5019,6 +5019,10 @@ static bool xD3D11_alloctexture(int monid, int w, int h)
 	struct d3d11struct *d3d = &d3d11data[monid];
 	bool v;
 
+	if (w < 0 || h < 0) {
+		return d3d->texture2d != NULL;
+	}
+
 	recheck(d3d, monid);
 
 	if (d3d->invalidmode)

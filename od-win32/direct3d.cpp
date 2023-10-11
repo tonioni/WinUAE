@@ -2438,6 +2438,8 @@ static void invalidatedeviceobjects (struct d3dstruct *d3d)
 		d3d->d3dswapchain = NULL;
 	}
 	d3d->locked = 0;
+	d3d->fulllocked = 0;
+	d3d->fakelock = 0;
 	d3d->maskshift.x = d3d->maskshift.y = d3d->maskshift.z = d3d->maskshift.w = 0;
 	d3d->maskmult.x = d3d->maskmult.y = d3d->maskmult.z = d3d->maskmult.w = 0;
 }
@@ -3093,6 +3095,10 @@ static bool alloctextures (struct d3dstruct *d3d)
 static bool xD3D_alloctexture (int monid, int w, int h)
 {
 	struct d3dstruct *d3d = &d3ddata[monid];
+
+	if (w < 0 || h < 0) {
+		return d3d->texture1 != NULL;
+	}
 
 	d3d->tin_w = w * d3d->dmult;
 	d3d->tin_h = h * d3d->dmult;
@@ -3809,13 +3815,17 @@ static void xD3D_unlocktexture(int monid, int y_start, int y_end)
 	struct d3dstruct *d3d = &d3ddata[monid];
 	HRESULT hr;
 
-	if (!isd3d(d3d) || !d3d->texture1)
+	if (!isd3d(d3d)) {
 		return;
-
+	}
+		
 	if (d3d->fakelock) {
 		d3d->fakelock--;
 		return;
 	}
+
+	if (!d3d->texture1)
+		return;
 
 	if (d3d->locked) {
 		LPDIRECT3DTEXTURE9 tex = d3d->texture1;
