@@ -1,4 +1,10 @@
 
+Beta 5:
+
+- Screen mode switch (for example native<>RTG) could have caused blank screen, especially in D3D9 mode, if old and new mode had identical size. (b1)
+- Restoring statefile without FPU when configuration with FPU was active: FPU was not disabled.
+- Fixed random flickering last line in non-interlaced fields/fields+ modes.
+
 Beta 4:
 
 - Exiting any GUI subwindow (hardfiles etc) was always cancelled, ignoring changes. (b3)
