@@ -121,8 +121,8 @@ static struct ide_board *accessx_board[MAX_DUPLICATE_EXPANSION_BOARDS];
 static struct ide_board *ivst500at_board[MAX_DUPLICATE_EXPANSION_BOARDS];
 static struct ide_board *trifecta_board[MAX_DUPLICATE_EXPANSION_BOARDS];
 static struct ide_board *tandem_board[MAX_DUPLICATE_EXPANSION_BOARDS];
-static struct ide_board* dotto_board[MAX_DUPLICATE_EXPANSION_BOARDS];
-static struct ide_board* dev_board[MAX_DUPLICATE_EXPANSION_BOARDS];
+static struct ide_board *dotto_board[MAX_DUPLICATE_EXPANSION_BOARDS];
+static struct ide_board *dev_board[MAX_DUPLICATE_EXPANSION_BOARDS];
 
 static struct ide_hdf *idecontroller_drive[TOTAL_IDE * 2];
 static struct ide_thread_state idecontroller_its;
@@ -211,6 +211,8 @@ static void add_ide_standard_unit(int ch, struct uaedev_config_info *ci, struct 
 {
 	struct ide_hdf *ide;
 	struct ide_board *ideb;
+	int maxch = maxunit / 2;
+	int idetypenum = idetype + maxch * ci->controller_type_unit;
 	if (ch >= maxunit)
 		return;
 	ideb = allocide(&ideboard[ci->controller_type_unit], rc, ch);
@@ -218,8 +220,8 @@ static void add_ide_standard_unit(int ch, struct uaedev_config_info *ci, struct 
 		return;
 	ideb->keepautoconfig = true;
 	ideb->type = idetype;
-	ide = add_ide_unit (&idecontroller_drive[(idetype + ci->controller_type_unit) * 2], 2, ch, ci, rc);
-	init_ide(ideb, idetype + ci->controller_type_unit, maxunit, byteswap, adide);
+	ide = add_ide_unit (&idecontroller_drive[idetypenum * 2], maxunit, ch, ci, rc);
+	init_ide(ideb, idetypenum, maxunit, byteswap, adide);
 }
 
 static bool ide_interrupt_check(struct ide_board *board, bool edge_triggered)
