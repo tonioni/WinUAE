@@ -14361,7 +14361,10 @@ static INT_PTR CALLBACK SoundDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 			pages[SOUND_ID] = hDlg;
 			currentpage = SOUND_ID;
 			update_soundgui (hDlg);
+			values_to_sounddlg(hDlg);
+			enable_for_sounddlg(hDlg);
 			recursive--;
+			return TRUE;
 		}
 	case WM_USER:
 		recursive++;
@@ -14374,16 +14377,14 @@ static INT_PTR CALLBACK SoundDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 		if (recursive > 0)
 			break;
 		recursive++;
-		if (HIWORD(wParam) == CBN_SELCHANGE || HIWORD(wParam) == CBN_KILLFOCUS) {
-			switch (LOWORD(wParam))
-			{
-				case IDC_SOUNDDRIVE:
-					values_to_sounddlg(hDlg);
-					break;
+		if (LOWORD(wParam) == IDC_SOUNDDRIVE) {
+			if (HIWORD(wParam) == CBN_SELCHANGE || HIWORD(wParam) == CBN_KILLFOCUS) {
+				values_to_sounddlg(hDlg);
 			}
+		} else {
+			values_from_sounddlg (hDlg);
 		}
-		values_from_sounddlg (hDlg);
-		enable_for_sounddlg (hDlg);
+		enable_for_sounddlg(hDlg);
 		recursive--;
 		break;
 
