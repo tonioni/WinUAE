@@ -565,8 +565,6 @@ static bool gdi_extoverlay(struct extoverlay *ext, int monid)
 		ov = ov->next;
 	}
 
-	write_log(_T("extoverlay %d: x=%d y=%d %d*%d data=%p ovl=%p\n"), ext->idx, ext->xpos, ext->ypos, ext->width, ext->height, ext->data, ov);
-
 	if (!s && (ext->width <= 0 || ext->height <= 0))
 		return false;
 
