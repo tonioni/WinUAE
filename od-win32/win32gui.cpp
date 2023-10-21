@@ -13699,6 +13699,7 @@ static void values_from_cpudlg(HWND hDlg, WPARAM wParam)
 	} else if (jitena && !oldcache) {
 		workprefs.cachesize = MAX_JIT_CACHE;
 		workprefs.cpu_cycle_exact = false;
+		workprefs.blitter_cycle_exact = false;
 		workprefs.cpu_memory_cycle_exact = false;
 		if (!cachesize_prev)
 			trust_prev = 0;
