@@ -1,4 +1,28 @@
 
+Beta 6:
+
+- On screen Amiga keyboard.
+- GUI pad control mouse move now wraps around.
+- Fixed Sound panel floppy sound GUI, switching floppy drives forced current configuration to selected drive. (b1)
+- If Z2/Z3 IDE controller board with more than 1 IDE channel was configured more than once, second board's HDF was also mounted to first controller's second channel.
+- Game ports panel Remap/Test panel only worked once (broke in some previous beta)
+- Do not unnecessarily reinitialize D3D11 when switching modes if window size and filter settings do not change. This optimization is not in D3D9 mode.
+- RTG<>native switch in fullwindow mode didn't properly check if both modes had same monitor (default monitor vs specific selected monitor was always detected as different monitor even if specific selected monitor was also default monitor), causing unnessary window reopen.
+
+On screen keyboard details:
+- Look is quite basic but it needs to be scalable to any resolution. Lines and fonts only, can't have any complex graphics.
+- Pad button 4 is now default mapped to open/close on screen keyboard input event (if loaded config has button 4 mapped to something else, button is not mapped to OSK)
+- Pad button/d-pad that normally controls Amiga joystick moves keyboard selection. Joystick movements and button presses are not sent to Amiga side as long as OSK is open.
+- Fire button press = send selected key's press
+- Fire button release = send selected key's release
+- Second button press = toggle state of selected key. Keep shift or control or other qualifier key pressed.
+- Second button release = does nothing.
+- Keyboard layout is US layout + 2 keys that are used in international layout variants + few bonus "keys". I probably won't bother with other layouts because this is only meant for situations where key presses like "Press F1 to start game" are needed. It is impossible to know what layout program expects anyway if it reads keyboard directly or reads keyboard scan codes.
+- If GUI is entered when OSK is open, GUI pad control is automatically enabled.
+- Perhaps some useful other extra "keys" will be added later.
+- Transparency only in D3D9 and D3D11 modes.
+- This has nothing in common with GUI pad control.
+
 Beta 5:
 
 - Screen mode switch (for example native<>RTG) could have caused blank screen, especially in D3D9 mode, if old and new mode had identical size. (b1)

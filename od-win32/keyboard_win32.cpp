@@ -391,7 +391,7 @@ bool my_kbd_handler (int keyboard, int scancode, int newstate, bool alwaysreleas
 	}
 #endif
 #if 0
-	if (scancode == DIK_F8 && specialpressed()) {
+	if (scancode == DIK_F8 && key_specialpressed()) {
 		if (newstate) {
 			extern int blop2;
 			blop2++;
@@ -400,7 +400,7 @@ bool my_kbd_handler (int keyboard, int scancode, int newstate, bool alwaysreleas
 	}
 #endif
 #if 0
-	if (scancode == DIK_F9 && specialpressed()) {
+	if (scancode == DIK_F9 && key_specialpressed()) {
 		if (newstate) {
 			extern int blop;
 			blop++;
