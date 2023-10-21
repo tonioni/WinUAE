@@ -3010,11 +3010,12 @@ void gfx_set_picasso_state(int monid, int on)
 		if (_tcscmp(newf->gfx_filtermask[i], oldf->gfx_filtermask[i]))
 			mode = -1;
 	}
+	bool differentmonitor = getdisplay(&currprefs, newmode->gfx_display) != getdisplay(&currprefs, oldmode->gfx_display);
 	// if screen parameter changes, need to reopen window
 	if (newmode->gfx_fullscreen != oldmode->gfx_fullscreen ||
 		(newmode->gfx_fullscreen && (
 			newmode->gfx_backbuffers != oldmode->gfx_backbuffers ||
-			newmode->gfx_display != oldmode->gfx_display ||
+			differentmonitor ||
 			newmode->gfx_refreshrate != oldmode->gfx_refreshrate ||
 			newmode->gfx_strobo != oldmode->gfx_strobo ||
 			newmode->gfx_vflip != oldmode->gfx_vflip ||
