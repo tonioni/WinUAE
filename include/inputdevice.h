@@ -378,6 +378,9 @@ bool key_shiftpressed(void);
 bool key_altpressed(void);
 bool key_ctrlpressed(void);
 
+void osk_setup(int, int);
+bool osk_status(void);
+
 extern int key_swap_hack, key_swap_hack2;
 
 #endif /* UAE_INPUTDEVICE_H */

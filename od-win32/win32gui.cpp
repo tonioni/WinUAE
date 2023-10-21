@@ -23357,6 +23357,9 @@ static int GetSettings (int all_options, HWND hwnd)
 	int resetcount = 0;
 	bool boxart_reopen = false;
 	int use_gui_control = gui_control > 0 ? 2 : -1;
+	if (osk_status()) {
+		use_gui_control = 2;
+	}
 	setdefaultguisize(0);
 	getstoredguisize();
 	scaleresource_setsize(-1, -1, -1);

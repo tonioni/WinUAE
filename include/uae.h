@@ -53,6 +53,8 @@ extern bool is_mainthread(void);
 extern void fpu_reset(void);
 extern void fpux_save(int*);
 extern void fpux_restore(int*);
+extern bool target_osd_keyboard(int);
+extern void target_osk_control(int, int, int, int);
 
 extern int quit_program;
 extern bool console_emulation;

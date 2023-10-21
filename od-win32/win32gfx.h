@@ -30,16 +30,15 @@ extern HDC gethdc(int monid);
 extern void releasehdc(int monid, HDC hdc);
 extern void close_windows(struct AmigaMonitor*);
 extern void updatewinfsmode(int monid, struct uae_prefs *p);
-extern int is3dmode(void);
 extern void gfx_lock(void);
 extern void gfx_unlock(void);
 
 extern bool lockscr3d(struct vidbuffer *vb);
 extern void unlockscr3d(struct vidbuffer *vb);
 
-void DX_Fill(struct AmigaMonitor*, int dstx, int dsty, int width, int height, uae_u32 color);
-void DX_Blit(int x, int y, int w, int h);
 void centerdstrect(struct AmigaMonitor*, RECT *);
 struct MultiDisplay *getdisplay(struct uae_prefs *p, int monid);
 extern int getrefreshrate(int monid, int width, int height);
+
+bool osd_keyboard(int show);
 #endif

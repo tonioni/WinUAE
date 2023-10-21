@@ -4580,6 +4580,8 @@ int input_get_default_joystick (struct uae_input_device *uid, int i, int port, i
 			if (isrealbutton (did, 2))
 				setid (uid, i, ID_BUTTON_OFFSET + 2, 0, port, port ? INPUTEVENT_JOY2_3RD_BUTTON : INPUTEVENT_JOY1_3RD_BUTTON, gp);
 		}
+		if (isrealbutton(did, 3))
+			setid(uid, i, ID_BUTTON_OFFSET + 3, 0, port, INPUTEVENT_SPC_OSK, gp);
 	}
 
 	for (j = 2; j < MAX_MAPPINGS - 1; j++) {
@@ -4629,12 +4631,14 @@ int input_get_default_joystick_analog (struct uae_input_device *uid, int i, int 
 	setid (uid, i, ID_AXIS_OFFSET + 0, 0, port, port ? INPUTEVENT_JOY2_HORIZ_POT : INPUTEVENT_JOY1_HORIZ_POT, gp);
 	setid (uid, i, ID_AXIS_OFFSET + 1, 0, port, port ? INPUTEVENT_JOY2_VERT_POT : INPUTEVENT_JOY1_VERT_POT, gp);
 	setid (uid, i, ID_BUTTON_OFFSET + 0, 0, port, port ? INPUTEVENT_JOY2_LEFT : INPUTEVENT_JOY1_LEFT, af, gp);
-	if (isrealbutton (did, 1))
-		setid (uid, i, ID_BUTTON_OFFSET + 1, 0, port, port ? INPUTEVENT_JOY2_RIGHT : INPUTEVENT_JOY1_RIGHT, gp);
-	if (isrealbutton (did, 2))
-		setid (uid, i, ID_BUTTON_OFFSET + 2, 0, port, port ? INPUTEVENT_JOY2_UP : INPUTEVENT_JOY1_UP, gp);
-	if (isrealbutton (did, 3))
-		setid (uid, i, ID_BUTTON_OFFSET + 3, 0, port, port ? INPUTEVENT_JOY2_DOWN : INPUTEVENT_JOY1_DOWN, gp);
+	if (isrealbutton(did, 1))
+		setid(uid, i, ID_BUTTON_OFFSET + 1, 0, port, port ? INPUTEVENT_JOY2_RIGHT : INPUTEVENT_JOY1_RIGHT, gp);
+	if (isrealbutton(did, 2))
+		setid(uid, i, ID_BUTTON_OFFSET + 2, 0, port, port ? INPUTEVENT_JOY2_UP : INPUTEVENT_JOY1_UP, gp);
+	if (isrealbutton(did, 3))
+		setid(uid, i, ID_BUTTON_OFFSET + 3, 0, port, port ? INPUTEVENT_JOY2_DOWN : INPUTEVENT_JOY1_DOWN, gp);
+	if (isrealbutton(did, 4))
+		setid(uid, i, ID_BUTTON_OFFSET + 4, 0, port, INPUTEVENT_SPC_OSK, gp);
 
 	for (j = 2; j < MAX_MAPPINGS - 1; j++) {
 		int type = did->axistype[j];

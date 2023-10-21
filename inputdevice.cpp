@@ -195,6 +195,50 @@ static struct temp_uids temp_uid;
 static int temp_uid_index[MAX_INPUT_DEVICES][IDTYPE_MAX];
 static int temp_uid_cnt[IDTYPE_MAX];
 static int gp_swappeddevices[MAX_INPUT_DEVICES][IDTYPE_MAX];
+static int osk_state;
+
+bool osk_status(void)
+{
+	return osk_state != 0;
+}
+
+static void osk_control(int x, int y, int button, int buttonstate)
+{
+	if (!osk_state) {
+		return;
+	}
+	target_osk_control(x, y, button, buttonstate);
+}
+
+void osk_setup(int monid, int state)
+{
+	if (monid) {
+		return;
+	}
+	if (state < -1) {
+		if (osk_state) {
+			target_osd_keyboard(0);
+			if (!target_osd_keyboard(1)) {
+				target_osd_keyboard(0);
+			}
+		}
+		return;
+	}
+	if (state == -1) {
+		osk_state = osk_state ? 0 : 1;
+	} else {
+		osk_state = state;
+	}
+	if (!osk_state) {
+		target_osd_keyboard(0);
+		return;
+	}
+	if (!target_osd_keyboard(1)) {
+		target_osd_keyboard(0);
+		osk_state = 0;
+		return;
+	}
+}
 
 static int isdevice (struct uae_input_device *id)
 {
@@ -4753,6 +4797,9 @@ static bool inputdevice_handle_inputcode2(int monid, int code, int state, const 
 
 	switch (code)
 	{
+	case AKS_OSK:
+		osk_setup(0, -1);
+		break;
 	case AKS_ENTERGUI:
 		gui_display (-1);
 		setsystime ();
@@ -5299,24 +5346,26 @@ static int handle_input_event2(int nr, int state, int max, int flags, int extra)
 	case 4: /* ->Parallel port joystick adapter port #2 */
 		joy = ie->unit - 1;
 		if (ie->type & 4) {
-			int old = joybutton[joy] & (1 << ie->data);
-
-			if (state) {
-				joybutton[joy] |= 1 << ie->data;
-				gui_gameport_button_change (joy, ie->data, 1);
+			if (osk_state) {
+				osk_control(0, 0, 1 << ie->data, state);
 			} else {
-				joybutton[joy] &= ~(1 << ie->data);
-				gui_gameport_button_change (joy, ie->data, 0);
-			}
+				int old = joybutton[joy] & (1 << ie->data);
+				if (state) {
+					joybutton[joy] |= 1 << ie->data;
+					gui_gameport_button_change (joy, ie->data, 1);
+				} else {
+					joybutton[joy] &= ~(1 << ie->data);
+					gui_gameport_button_change (joy, ie->data, 0);
+				}
 
-			if (ie->data == 0 && old != (joybutton[joy] & (1 << ie->data)) && currprefs.cpu_cycle_exact) {
-				if (!input_record && !input_play && currprefs.input_contact_bounce) {
-					// emulate contact bounce, 1st button only, others have capacitors
-					bouncy = 1;
-					bouncy_cycles = get_cycles () + CYCLE_UNIT * currprefs.input_contact_bounce;
+				if (ie->data == 0 && old != (joybutton[joy] & (1 << ie->data)) && currprefs.cpu_cycle_exact) {
+					if (!input_record && !input_play && currprefs.input_contact_bounce) {
+						// emulate contact bounce, 1st button only, others have capacitors
+						bouncy = 1;
+						bouncy_cycles = get_cycles () + CYCLE_UNIT * currprefs.input_contact_bounce;
+					}
 				}
 			}
-
 
 		} else if (ie->type & 8) {
 
@@ -5546,38 +5595,53 @@ static int handle_input_event2(int nr, int state, int max, int flags, int extra)
 			}
 			mouse_deltanoreset[joy][0] = 1;
 			mouse_deltanoreset[joy][1] = 1;
-			joydir[joy] = 0;
-			if (left) {
-				if (!allowoppositestick) {
-					joydir[joy] &= ~DIR_RIGHT;
+			if (osk_state) {
+				if (left) {
+					osk_control(-1, 0, 0, 0);
 				}
-				joydir[joy] |= DIR_LEFT;
-			}
-			if (right) {
-				if (!allowoppositestick) {
-					joydir[joy] &= ~DIR_LEFT;
+				if (right) {
+					osk_control(1, 0, 0, 0);
 				}
-				joydir[joy] |= DIR_RIGHT;
-			}
-			if (top) {
-				if (!allowoppositestick) {
-					joydir[joy] &= ~DIR_DOWN;
+				if (top) {
+					osk_control(0, -1, 0, 0);
 				}
-				joydir[joy] |= DIR_UP;
-			}
-			if (bot) {
-				if (!allowoppositestick) {
-					joydir[joy] &= ~DIR_UP;
+				if (bot) {
+					osk_control(0, 1, 0, 0);
 				}
-				joydir[joy] |= DIR_DOWN;
-			}
-			if (joy == 0 || joy == 1)
-				joymousecounter (joy); 
+			} else {
+				joydir[joy] = 0;
+				if (left) {
+					if (!allowoppositestick) {
+						joydir[joy] &= ~DIR_RIGHT;
+					}
+					joydir[joy] |= DIR_LEFT;
+				}
+				if (right) {
+					if (!allowoppositestick) {
+						joydir[joy] &= ~DIR_LEFT;
+					}
+					joydir[joy] |= DIR_RIGHT;
+				}
+				if (top) {
+					if (!allowoppositestick) {
+						joydir[joy] &= ~DIR_DOWN;
+					}
+					joydir[joy] |= DIR_UP;
+				}
+				if (bot) {
+					if (!allowoppositestick) {
+						joydir[joy] &= ~DIR_UP;
+					}
+					joydir[joy] |= DIR_DOWN;
+				}
+				if (joy == 0 || joy == 1)
+					joymousecounter (joy); 
 
-			gui_gameport_axis_change (joy, DIR_LEFT_BIT, left, 0);
-			gui_gameport_axis_change (joy, DIR_RIGHT_BIT, right, 0);
-			gui_gameport_axis_change (joy, DIR_UP_BIT, top, 0);
-			gui_gameport_axis_change (joy, DIR_DOWN_BIT, bot, 0);
+				gui_gameport_axis_change (joy, DIR_LEFT_BIT, left, 0);
+				gui_gameport_axis_change (joy, DIR_RIGHT_BIT, right, 0);
+				gui_gameport_axis_change (joy, DIR_UP_BIT, top, 0);
+				gui_gameport_axis_change (joy, DIR_DOWN_BIT, bot, 0);
+			}
 		}
 		break;
 	case 0: /* ->KEY */
