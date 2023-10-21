@@ -19654,6 +19654,7 @@ static INT_PTR CALLBACK InputMapDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPA
 			case IDC_INPUTMAP_EXIT:
 			pages[INPUTMAP_ID] =  NULL;
 			DestroyWindow (hDlg);
+			recursive--;
 			return TRUE;
 			case IDC_INPUTMAP_TEST:
 			inputmap_port_remap = -1;
