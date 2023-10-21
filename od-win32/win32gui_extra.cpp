@@ -2544,7 +2544,7 @@ end:
 
 #define MAX_PADS 4
 
-int gui_control = 1;
+int gui_control = 0;
 
 void process_gui_control(HWND h, struct newresource *nres)
 {
@@ -2695,16 +2695,32 @@ void process_gui_control(HWND h, struct newresource *nres)
 							GetWindowInfo(h, &wi);
 							r = wi.rcClient;
 							if (pt.x < r.left) {
-								pt.x = r.left;
+								if (xdiff < 0) {
+									pt.x = r.right;
+								} else {
+									pt.x = r.left;
+								}
 							}
 							if (pt.x > r.right) {
-								pt.x = r.right;
+								if (xdiff > 0) {
+									pt.x = r.left;
+								} else {
+									pt.x = r.right;
+								}
 							}
 							if (pt.y < r.top) {
-								pt.y = r.top;
+								if (ydiff > 0) {
+									pt.y = r.bottom;
+								} else {
+									pt.y = r.top;
+								}
 							}
 							if (pt.y > r.bottom) {
-								pt.y = r.bottom;
+								if (ydiff < 0) {
+									pt.y = r.top;
+								} else {
+									pt.y = r.bottom;
+								}
 							}
 						}
 						if (ptx.x != pt.x || ptx.y != pt.y) {
