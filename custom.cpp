@@ -1684,7 +1684,7 @@ static void decide_hdiw(int hpos, bool halfcycle = false)
 		}
 	}
 #else
-	decide_hdiw2(hpos);
+	decide_hdiw2(hpos, halfcycle);
 #endif
 }
 
@@ -8063,7 +8063,9 @@ static void VHPOSW_delayed(uae_u32 v)
 #endif
 	}
 	vpos = newvpos;
+#ifdef DEBUGGER
 	record_dma_denise(hnew, hdiw_denisecounter >> 2);
+#endif
 	vb_check();
 	decide_vline(hnew);
 	vhposw_modified = true;
