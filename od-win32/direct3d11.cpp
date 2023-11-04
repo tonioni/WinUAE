@@ -4219,6 +4219,8 @@ static const TCHAR *xD3D11_init(HWND ahwnd, int monid, int w_w, int w_h, int dep
 		struct d3d11struct *d3d = &d3d11data[monid];
 		if (xD3D11_initvals(ahwnd, monid, w_w, w_h, w_w, w_h, depth, freq, mmulth, mmultv, true)) {
 			d3d->fsresizedo = true;
+		} else {
+			*errp = -1;
 		}
 		return NULL;
 	}

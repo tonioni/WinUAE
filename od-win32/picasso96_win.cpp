@@ -1088,7 +1088,7 @@ static void setconvert(int monid)
 	if (vidinfo->host_mode != vidinfo->ohost_mode || state->RGBFormat != vidinfo->orgbformat) {
 		write_log (_T("RTG conversion: Depth=%d HostRGBF=%d P96RGBF=%d Mode=%d/%d\n"),
 			picasso_vidinfo[monid].pixbytes, vidinfo->host_mode, state->RGBFormat, vidinfo->picasso_convert[0], vidinfo->picasso_convert[1]);
-		if (vidinfo->host_mode != vidinfo->ohost_mode && currprefs.win32_rtgmatchdepth) {
+		if (vidinfo->host_mode != vidinfo->ohost_mode && isfullscreen() > 0 && currprefs.win32_rtgmatchdepth) {
 			state->ModeChanged = true;
 		}
 		vidinfo->ohost_mode = vidinfo->host_mode;
@@ -3138,7 +3138,7 @@ static uae_u32 REGPARAM2 picasso_SetGC (TrapContext *ctx)
 	state->VirtualHeight = state->Height; /* in case SetPanning doesn't get called */
 
 	uae_u8 d = trap_get_byte(ctx, modeinfo + PSSO_ModeInfo_Depth);
-	if (d != state->GC_Depth) {
+	if (d != state->GC_Depth && isfullscreen() > 0 && currprefs.win32_rtgmatchdepth) {
 		state->ModeChanged = true;
 	}
 	state->GC_Depth = d;

@@ -554,7 +554,6 @@ static void display_param_init(struct AmigaMonitor *mon)
 	if (!wait_vblank_display || !wait_vblank_display->HasAdapterData) {
 		write_log(_T("Selected display mode does not have adapter data!\n"));
 	}
-	Sleep(10);
 	scanlinecalibrating = true;
 	target_calibrate_spin();
 	scanlinecalibrating = false;
@@ -3737,7 +3736,9 @@ static int create_windows(struct AmigaMonitor *mon)
 			mon->currentmode.native_width = rc.right - rc.left;
 			mon->currentmode.native_height = rc.bottom - rc.top;
 		}
-		flags |= currprefs.win32_main_alwaysontop ? WS_EX_TOPMOST : 0;
+		if (currprefs.gfx_api < 2) {
+			flags |= currprefs.win32_main_alwaysontop ? WS_EX_TOPMOST : 0;
+		}
 
 		if (!borderless) {
 			RECT rc2;
@@ -3920,11 +3921,13 @@ static BOOL doInit(struct AmigaMonitor *mon)
 {
 	int tmp_depth;
 	int ret = 0;
+	bool modechanged;
 
 retry:
 	struct vidbuf_description *avidinfo = &adisplays[mon->monitor_id].gfxvidinfo;
 	struct amigadisplay *ad = &adisplays[mon->monitor_id];
 
+	modechanged = true;
 	if (wasfullwindow_a == 0)
 		wasfullwindow_a = currprefs.gfx_apmode[0].gfx_fullscreen == GFX_FULLWINDOW ? 1 : -1;
 	if (wasfullwindow_p == 0)
@@ -4046,8 +4049,8 @@ retry:
 		int errv = 0;
 		const TCHAR *err = D3D_init(mon->hAmigaWnd, mon->monitor_id, mon->currentmode.native_width, mon->currentmode.native_height,
 			mon->currentmode.current_depth, &mon->currentmode.freq, fmh, fmv, &errv);
-		if (errv) {
-			if (errv == -1 && currprefs.gfx_api == 0) {
+		if (errv > 0) {
+			if (errv == 2 && currprefs.gfx_api == 0) {
 				write_log("Retrying D3D %s\n", err);
 				changed_prefs.gfx_api = currprefs.gfx_api = 2;
 				changed_prefs.color_mode = currprefs.color_mode = 5;
@@ -4069,7 +4072,7 @@ retry:
 				err = D3D_init(mon->hAmigaWnd, mon->monitor_id, mon->currentmode.native_width, mon->currentmode.native_height,
 					mon->currentmode.current_depth, &mon->currentmode.freq, fmh, fmv, &errv);
 			}
-			if (errv) {
+			if (errv > 0) {
 				D3D_free(0, true);
 				if (isfullscreen() > 0) {
 					int idx = mon->screen_is_picasso ? 1 : 0;
@@ -4094,24 +4097,30 @@ retry:
 				ret = -1;
 				goto oops;
 			}
+		} else if (errv < 0) {
+			modechanged = false;
 		}
 		target_graphics_buffer_update(mon->monitor_id);
 		updatewinrect(mon, true);
 	}
-	init_colors(mon->monitor_id);
 
 	mon->screen_is_initialized = 1;
 
-	display_param_init(mon);
+	if (modechanged) {
+		init_colors(mon->monitor_id);
+		display_param_init(mon);
+		createstatusline(mon->hAmigaWnd, mon->monitor_id);
+	}
 
-	createstatusline(mon->hAmigaWnd, mon->monitor_id);
+
 	picasso_refresh(mon->monitor_id);
 #ifdef RETROPLATFORM
-	rp_set_hwnd_delayed ();
+	rp_set_hwnd_delayed();
 #endif
 
-	if (isfullscreen () != 0)
+	if (isfullscreen () != 0) {
 		setmouseactive(mon->monitor_id, -1);
+	}
 
 	osk_setup(mon->monitor_id, -2);
 

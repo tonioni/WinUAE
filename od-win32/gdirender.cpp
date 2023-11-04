@@ -442,7 +442,7 @@ static const TCHAR *gdi_init(HWND ahwnd, int monid, int w_w, int w_h, int depth,
 	struct gdistruct *gdi = &gdidata[monid];
 
 	if (isfullscreen() > 0) {
-		*errp = -1;
+		*errp = 2;
 		return _T("GDI fullscreen not supported");
 	}
 
