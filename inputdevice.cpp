@@ -5073,8 +5073,6 @@ static bool inputdevice_handle_inputcode2(int monid, int code, int state, const 
 		_tcscpy (changed_prefs.floppyslots[code - AKS_DISKSWAPPER_INSERT0].df, currprefs.dfxlist[swapperslot]);
 		set_config_changed ();
 		break;
-
-		break;
 	case AKS_INPUT_CONFIG_1:
 	case AKS_INPUT_CONFIG_2:
 	case AKS_INPUT_CONFIG_3:
