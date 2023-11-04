@@ -4494,7 +4494,7 @@ bool gfxboard_init_memory (struct autoconfig_info *aci)
 			_tcscat(path, _T("voodoo3.rom"));
 		else
 			_tcscat(path, _T("s3virge.rom"));
-		struct zfile *zf = read_rom_name(path);
+		struct zfile *zf = read_rom_name(path, false);
 		if (zf) {
 			gb->bios = xcalloc(uae_u8, 65536);
 			gb->bios_mask = 65535;

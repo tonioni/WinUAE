@@ -662,6 +662,7 @@ static uae_u32 REGPARAM2 blizzardf0_bget(uaecptr addr)
 
 	blizzardf0_slow(1);
 
+	addr &= blizzardf0_bank.mask;
 	if (is_csmk3(&currprefs) || is_blizzardppc(&currprefs)) {
 		if (flash_unlocked) {
 			return flash_read(flashrom, addr);
@@ -678,7 +679,6 @@ static uae_u32 REGPARAM2 blizzardf0_bget(uaecptr addr)
 				return flash_read(flashrom, addr);
 		}
 	}
-	addr &= blizzardf0_bank.mask;
 	v = blizzardf0_bank.baseaddr[addr];
 	return v;
 }
@@ -714,12 +714,12 @@ static void REGPARAM2 blizzardf0_bput(uaecptr addr, uae_u32 b)
 {
 	blizzardf0_slow(1);
 
+	addr &= blizzardf0_bank.mask;
 	if (is_csmk3(&currprefs) || is_blizzardppc(&currprefs)) {
 		if (flash_unlocked) {
 			flash_write(flashrom, addr, b);
 		}
 	} else if (is_csmk2(&currprefs)) {
-		addr &= 65535;
 		addr += 65536;
 		addr &= ~3;
 		addr |= csmk2_flashaddressing;
@@ -854,6 +854,7 @@ static void REGPARAM2 blizzardea_bput(uaecptr addr, uae_u32 b)
 		if (addr >= CYBERSTORM_MK2_SCSI_OFFSET) {
 			cpuboard_ncr9x_scsi_put(addr, b);
 		}  else {
+			addr &= 65535;
 			addr &= ~3;
 			addr |= csmk2_flashaddressing;
 			flash_write(flashrom, addr, b);
