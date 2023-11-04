@@ -5041,6 +5041,7 @@ static bool xD3D11_alloctexture(int monid, int w, int h)
 
 	if (d3d->invalidmode)
 		return false;
+
 	d3d->m_bitmapWidth = w;
 	d3d->m_bitmapHeight = h;
 	d3d->m_bitmapWidth2 = d3d->m_bitmapWidth;
@@ -5548,8 +5549,24 @@ static bool xD3D11_extoverlay(struct extoverlay *ext, int monid)
 
 	hr = d3d->m_deviceContext->Map(s->texture, 0, D3D11_MAP_WRITE_DISCARD, 0, &map);
 	if (SUCCEEDED(hr)) {
-		for (int y = 0; y < s->height; y++) {
-			memcpy((uae_u8*)map.pData + y * map.RowPitch, ext->data + y * ext->width * 4, ext->width * 4);
+		if (d3d->hdr) {
+			for (int y = 0; y < s->height; y++) {
+				uae_u32 *dp = (uae_u32*)((uae_u8 *)map.pData + y * map.RowPitch);
+				uae_u32 *sp = (uae_u32*)(ext->data + y * ext->width * 4);
+				for (int x = 0; x < s->width; x++) {
+					uae_u32 v = *sp++;
+					uae_u16 t = (v >> 24) * 10 / 7;
+					if (t > 255) {
+						t = 255;
+					}
+					*dp++ = (v & 0xffffff) | (t << 24);
+				}
+			}
+
+		} else {
+			for (int y = 0; y < s->height; y++) {
+				memcpy((uae_u8*)map.pData + y * map.RowPitch, ext->data + y * ext->width * 4, ext->width * 4);
+			}
 		}
 		d3d->m_deviceContext->Unmap(s->texture, 0);
 	}

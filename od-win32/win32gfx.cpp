@@ -4434,8 +4434,8 @@ static struct osd_kb *osd_kb_data;
 static int osd_kb_selected = 11, osd_kb_x, osd_kb_y;
 struct extoverlay osd_kb_eo = { 0 };
 
-#define OSD_KB_TRANSPARENCY 0xee
-#define OSD_KB_ACTIVE_TRANSPARENCY 0xee
+#define OSD_KB_TRANSPARENCY 0xaa
+#define OSD_KB_ACTIVE_TRANSPARENCY 0xaa
 #define OSD_KB_PRESSED_TRANSPARENCY 0xff
 #define OSD_KB_COLOR 0xeeeeee
 #define OSD_KB_ACTIVE_COLOR 0x44cc44
