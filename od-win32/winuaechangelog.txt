@@ -1,4 +1,15 @@
 
+Beta 7:
+
+- Fixed on screen keyboard transparency in D3D9/11 modes. It previously only worked in D3D11 HDR mode.
+- Ignore "Main window always on top" misc setting in D3D11 mode. D3D10+ windowed mode is not possible if always on top window flag is set. Previously this caused fallback to D3D9 mode. This does not make sense in my opinion and it does not seem to be mentioned in documentation but CreateSwapChainForHwnd() fails if it is set. Debug D3D11 DLLs also report that it failed due to unsupported window flag.
+- Do not do unnecessary graphics setup reset if RTG mode changed but only parameter that changed was color depth and mode is not fullscreen with match depth if possible enabled. (b1)
+- If D3D11 screen init decided that new requested mode has same parameters as old mode, skip also other unnecessary graphics reinitializations.
+- Do not enable temporary frameskip in warp mode if debug overscan mode is enabled, it can cause random glitches. Warp mode normally enables frameskip in non-ce modes.
+- Ignore backwards or same line vertical VPOSW writes if it was CPU write and CPU emulation is not in accurate mode. This basically reverts VPOSW updates to pre-5.0 behavior when CPU is not at least in memory cycle exact mode, supporting only usual "fake NTSC" modes. At least AR3 does stupid things with VPOSW that can't work if CPU is not slow enough.
+- Added generic support for emulation of IDE controllers that have in-circuit programmable flash/EEPROM chip.
+- Flash/EEPROM emulation updates (support write protection enable/disable commands, parallel EEPROM partial writes supported)
+
 Beta 6:
 
 - On screen Amiga keyboard.

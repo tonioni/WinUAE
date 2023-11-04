@@ -42642,7 +42642,9 @@ void REGPARAM2 op_4e73_13_ff(uae_u32 opcode)
 	}
 	newsr = sr; newpc = pc;
 	m68k_setpci_j(newpc);
+	#ifdef DEBUGGER
 	branch_stack_pop_rte(oldpc);
+	#endif
 	get_word_ce000_prefetch(0);
 	if(hardware_bus_error) {
 		int pcoffset = 0;
@@ -42743,9 +42745,11 @@ void REGPARAM2 op_4e75_13_ff(uae_u32 opcode)
 	}
 	m68k_areg(regs, 7) += 4;
 	m68k_setpci_j(newpc);
+	#ifdef DEBUGGER
 	if (debugmem_trace) {
 		branch_stack_pop_rts(oldpc);
 	}
+	#endif
 	if (m68k_getpci() & 1) {
 		uaecptr faultpc = m68k_getpci();
 		m68k_setpci_j(oldpc);
@@ -42988,9 +42992,11 @@ void REGPARAM2 op_4e90_13_ff(uae_u32 opcode)
 		exception2_write(opcode, dsta + 2, 0x1, nextpc, 1);
 		return;
 	}
+	#ifdef DEBUGGER
 	if (debugmem_trace) {
 		branch_stack_push(oldpc, nextpc);
 	}
+	#endif
 	regs.ir = regs.irc;
 	opcode = regs.ir;
 	get_word_ce000_prefetch(2);
@@ -43048,9 +43054,11 @@ void REGPARAM2 op_4ea8_13_ff(uae_u32 opcode)
 		exception2_write(opcode, dsta + 2, 0x1, nextpc, 1);
 		return;
 	}
+	#ifdef DEBUGGER
 	if (debugmem_trace) {
 		branch_stack_push(oldpc, nextpc);
 	}
+	#endif
 	regs.ir = regs.irc;
 	opcode = regs.ir;
 	get_word_ce000_prefetch(2);
@@ -43114,9 +43122,11 @@ void REGPARAM2 op_4eb0_13_ff(uae_u32 opcode)
 		exception2_write(opcode, dsta + 2, 0x1, nextpc, 1);
 		return;
 	}
+	#ifdef DEBUGGER
 	if (debugmem_trace) {
 		branch_stack_push(oldpc, nextpc);
 	}
+	#endif
 	regs.ir = regs.irc;
 	opcode = regs.ir;
 	get_word_ce000_prefetch(2);
@@ -43172,9 +43182,11 @@ void REGPARAM2 op_4eb8_13_ff(uae_u32 opcode)
 		exception2_write(opcode, dsta + 2, 0x1, nextpc, 1);
 		return;
 	}
+	#ifdef DEBUGGER
 	if (debugmem_trace) {
 		branch_stack_push(oldpc, nextpc);
 	}
+	#endif
 	regs.ir = regs.irc;
 	opcode = regs.ir;
 	get_word_ce000_prefetch(2);
@@ -43234,9 +43246,11 @@ void REGPARAM2 op_4eb9_13_ff(uae_u32 opcode)
 		exception2_write(opcode, dsta + 2, 0x1, nextpc, 1);
 		return;
 	}
+	#ifdef DEBUGGER
 	if (debugmem_trace) {
 		branch_stack_push(oldpc, nextpc);
 	}
+	#endif
 	regs.ir = regs.irc;
 	opcode = regs.ir;
 	get_word_ce000_prefetch(2);
@@ -43293,9 +43307,11 @@ void REGPARAM2 op_4eba_13_ff(uae_u32 opcode)
 		exception2_write(opcode, dsta + 2, 0x1, nextpc, 1);
 		return;
 	}
+	#ifdef DEBUGGER
 	if (debugmem_trace) {
 		branch_stack_push(oldpc, nextpc);
 	}
+	#endif
 	regs.ir = regs.irc;
 	opcode = regs.ir;
 	get_word_ce000_prefetch(2);
@@ -43358,9 +43374,11 @@ void REGPARAM2 op_4ebb_13_ff(uae_u32 opcode)
 		exception2_write(opcode, dsta + 2, 0x1, nextpc, 1);
 		return;
 	}
+	#ifdef DEBUGGER
 	if (debugmem_trace) {
 		branch_stack_push(oldpc, nextpc);
 	}
+	#endif
 	regs.ir = regs.irc;
 	opcode = regs.ir;
 	get_word_ce000_prefetch(2);
@@ -53127,9 +53145,11 @@ void REGPARAM2 op_6100_13_ff(uae_u32 opcode)
 		return;
 	}
 	m68k_incpci(s);
+	#ifdef DEBUGGER
 	if (debugmem_trace) {
 		branch_stack_push(oldpc, nextpc);
 	}
+	#endif
 	get_word_ce000_prefetch(0);
 	if(hardware_bus_error) {
 		int pcoffset = 0;
@@ -53185,9 +53205,11 @@ void REGPARAM2 op_6101_13_ff(uae_u32 opcode)
 		return;
 	}
 	m68k_incpci(s);
+	#ifdef DEBUGGER
 	if (debugmem_trace) {
 		branch_stack_push(oldpc, nextpc);
 	}
+	#endif
 	get_word_ce000_prefetch(0);
 	if(hardware_bus_error) {
 		int pcoffset = 0;
@@ -53241,9 +53263,11 @@ void REGPARAM2 op_61ff_13_ff(uae_u32 opcode)
 		return;
 	}
 	m68k_incpci(s);
+	#ifdef DEBUGGER
 	if (debugmem_trace) {
 		branch_stack_push(oldpc, nextpc);
 	}
+	#endif
 	get_word_ce000_prefetch(0);
 	if(hardware_bus_error) {
 		int pcoffset = 0;
@@ -123279,7 +123303,9 @@ void REGPARAM2 op_4e73_14_ff(uae_u32 opcode)
 	}
 	m68k_setpci_j(pc);
 	opcode |= 0x20000;
+	#ifdef DEBUGGER
 	branch_stack_pop_rte(oldpc);
+	#endif
 	get_word_ce000_prefetch(0);
 	if(hardware_bus_error) {
 		int pcoffset = 0;
@@ -123325,9 +123351,11 @@ void REGPARAM2 op_4e75_14_ff(uae_u32 opcode)
 	}
 	m68k_areg(regs, 7) += 4;
 	m68k_setpci_j(newpc);
+	#ifdef DEBUGGER
 	if (debugmem_trace) {
 		branch_stack_pop_rts(oldpc);
 	}
+	#endif
 	if (m68k_getpci() & 1) {
 		uaecptr faultpc = m68k_getpci();
 		m68k_setpci_j(oldpc);
@@ -123516,9 +123544,11 @@ void REGPARAM2 op_4e90_14_ff(uae_u32 opcode)
 		exception2_write(opcode, dsta + 2, 0x1, nextpc, 1);
 		return;
 	}
+	#ifdef DEBUGGER
 	if (debugmem_trace) {
 		branch_stack_push(oldpc, nextpc);
 	}
+	#endif
 	regs.ir = regs.irc;
 	opcode = regs.ir;
 	get_word_ce000_prefetch(2);
@@ -123576,9 +123606,11 @@ void REGPARAM2 op_4ea8_14_ff(uae_u32 opcode)
 		exception2_write(opcode, dsta + 2, 0x1, nextpc, 1);
 		return;
 	}
+	#ifdef DEBUGGER
 	if (debugmem_trace) {
 		branch_stack_push(oldpc, nextpc);
 	}
+	#endif
 	regs.ir = regs.irc;
 	opcode = regs.ir;
 	if(regs.t1) opcode |= 0x10000;
@@ -123643,9 +123675,11 @@ void REGPARAM2 op_4eb0_14_ff(uae_u32 opcode)
 		exception2_write(opcode, dsta + 2, 0x1, nextpc, 1);
 		return;
 	}
+	#ifdef DEBUGGER
 	if (debugmem_trace) {
 		branch_stack_push(oldpc, nextpc);
 	}
+	#endif
 	regs.ir = regs.irc;
 	opcode = regs.ir;
 	if(regs.t1) opcode |= 0x10000;
@@ -123702,9 +123736,11 @@ void REGPARAM2 op_4eb8_14_ff(uae_u32 opcode)
 		exception2_write(opcode, dsta + 2, 0x1, nextpc, 1);
 		return;
 	}
+	#ifdef DEBUGGER
 	if (debugmem_trace) {
 		branch_stack_push(oldpc, nextpc);
 	}
+	#endif
 	regs.ir = regs.irc;
 	opcode = regs.ir;
 	if(regs.t1) opcode |= 0x10000;
@@ -123765,9 +123801,11 @@ void REGPARAM2 op_4eb9_14_ff(uae_u32 opcode)
 		exception2_write(opcode, dsta + 2, 0x1, nextpc, 1);
 		return;
 	}
+	#ifdef DEBUGGER
 	if (debugmem_trace) {
 		branch_stack_push(oldpc, nextpc);
 	}
+	#endif
 	regs.ir = regs.irc;
 	opcode = regs.ir;
 	if(regs.t1) opcode |= 0x10000;
@@ -123825,9 +123863,11 @@ void REGPARAM2 op_4eba_14_ff(uae_u32 opcode)
 		exception2_write(opcode, dsta + 2, 0x1, nextpc, 1);
 		return;
 	}
+	#ifdef DEBUGGER
 	if (debugmem_trace) {
 		branch_stack_push(oldpc, nextpc);
 	}
+	#endif
 	regs.ir = regs.irc;
 	opcode = regs.ir;
 	if(regs.t1) opcode |= 0x10000;
@@ -123891,9 +123931,11 @@ void REGPARAM2 op_4ebb_14_ff(uae_u32 opcode)
 		exception2_write(opcode, dsta + 2, 0x1, nextpc, 1);
 		return;
 	}
+	#ifdef DEBUGGER
 	if (debugmem_trace) {
 		branch_stack_push(oldpc, nextpc);
 	}
+	#endif
 	regs.ir = regs.irc;
 	opcode = regs.ir;
 	if(regs.t1) opcode |= 0x10000;
@@ -133359,9 +133401,11 @@ void REGPARAM2 op_6100_14_ff(uae_u32 opcode)
 		exception3_read_prefetch(opcode, addr);
 		return;
 	}
+	#ifdef DEBUGGER
 	if (debugmem_trace) {
 		branch_stack_push(oldpc, nextpc);
 	}
+	#endif
 	get_word_ce000_prefetch(0);
 	if(hardware_bus_error) {
 		int pcoffset = 0;
@@ -133420,9 +133464,11 @@ void REGPARAM2 op_6101_14_ff(uae_u32 opcode)
 		exception3_read_prefetch(opcode, addr);
 		return;
 	}
+	#ifdef DEBUGGER
 	if (debugmem_trace) {
 		branch_stack_push(oldpc, nextpc);
 	}
+	#endif
 	get_word_ce000_prefetch(0);
 	if(hardware_bus_error) {
 		int pcoffset = 0;
@@ -133479,9 +133525,11 @@ void REGPARAM2 op_61ff_14_ff(uae_u32 opcode)
 		exception3_read_prefetch(opcode, addr);
 		return;
 	}
+	#ifdef DEBUGGER
 	if (debugmem_trace) {
 		branch_stack_push(oldpc, nextpc);
 	}
+	#endif
 	get_word_ce000_prefetch(0);
 	if(hardware_bus_error) {
 		int pcoffset = 0;

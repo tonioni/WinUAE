@@ -24403,7 +24403,9 @@ void REGPARAM2 op_4e73_35_ff(uae_u32 opcode)
 		return;
 	}
 	m68k_setpci(newpc);
+	#ifdef DEBUGGER
 	branch_stack_pop_rte(oldpc);
+	#endif
 	fill_prefetch_030_ntx();
 	return;
 }
@@ -24441,9 +24443,11 @@ void REGPARAM2 op_4e75_35_ff(uae_u32 opcode)
 	/* op H:1,T:0,C:8 */
 	uaecptr oldpc = m68k_getpci();
 	m68k_do_rts_mmu030c();
+	#ifdef DEBUGGER
 	if (debugmem_trace) {
 		branch_stack_pop_rts(oldpc);
 	}
+	#endif
 	if (m68k_getpci() & 1) {
 		uaecptr faultpc = m68k_getpci();
 		m68k_setpci(oldpc);
@@ -30373,9 +30377,11 @@ void REGPARAM2 op_6100_35_ff(uae_u32 opcode)
 		return;
 	}
 	m68k_do_bsr_mmu030c(nextpc, s);
+	#ifdef DEBUGGER
 	if (debugmem_trace) {
 		branch_stack_push(oldpc, nextpc);
 	}
+	#endif
 	fill_prefetch_030();
 	return;
 }
@@ -30399,9 +30405,11 @@ void REGPARAM2 op_6101_35_ff(uae_u32 opcode)
 		return;
 	}
 	m68k_do_bsr_mmu030c(nextpc, s);
+	#ifdef DEBUGGER
 	if (debugmem_trace) {
 		branch_stack_push(oldpc, nextpc);
 	}
+	#endif
 	fill_prefetch_030();
 	return;
 }
@@ -30424,9 +30432,11 @@ void REGPARAM2 op_61ff_35_ff(uae_u32 opcode)
 		return;
 	}
 	m68k_do_bsr_mmu030c(nextpc, s);
+	#ifdef DEBUGGER
 	if (debugmem_trace) {
 		branch_stack_push(oldpc, nextpc);
 	}
+	#endif
 	fill_prefetch_030();
 	return;
 }

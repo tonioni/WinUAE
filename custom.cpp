@@ -693,15 +693,16 @@ static void check_nocustom(void)
 	}
 }
 
-STATIC_INLINE int ecsshres(void)
+STATIC_INLINE bool ecsshres(void)
 {
 	return bplcon0_res == RES_SUPERHIRES && ecs_denise && !aga_mode;
 }
 
-STATIC_INLINE int nodraw(void)
+STATIC_INLINE bool nodraw(void)
 {
 	struct amigadisplay *ad = &adisplays[0];
-	return !currprefs.cpu_memory_cycle_exact && ad->framecnt != 0;
+	bool nd = !currprefs.cpu_memory_cycle_exact && ad->framecnt != 0;
+	return nd;
 }
 
 STATIC_INLINE int diw_to_hpos(int diw)
@@ -1615,14 +1616,11 @@ static void decide_hdiw_check(int hpos, int start_diw_hpos, int end_diw_hpos)
 		decide_hdiw_check_stop(start_diw_hpos, end_diw_hpos);
 	}
 	// check also hblank if there is chance it has been moved to visible area
-	static bool xcv = true;
-	if (xcv && 1) {
-		if (hstrobe_conflict || vhposw_modified) {
-			decide_hdiw_blank_check_start(hpos, start_diw_hpos, end_diw_hpos);
-		}
-		if (hdiwstate_blank == diw_states::DIW_waiting_stop) {
-			decide_hdiw_blank_check_stop(hpos, start_diw_hpos, end_diw_hpos);
-		}
+	if (hstrobe_conflict || vhposw_modified) {
+		decide_hdiw_blank_check_start(hpos, start_diw_hpos, end_diw_hpos);
+	}
+	if (hdiwstate_blank == diw_states::DIW_waiting_stop) {
+		decide_hdiw_blank_check_stop(hpos, start_diw_hpos, end_diw_hpos);
 	}
 	hdiw_denisecounter_abs += end_diw_hpos - start_diw_hpos;
 }
@@ -13010,6 +13008,7 @@ static void hsync_handler_pre(bool onvsync)
 
 		hdiw_counter += maxhpos * 2;
 		if (!hstrobe_conflict) {
+			// OCS Denise freerunning horizontal counter
 			if (!ecs_denise && vpos == get_equ_vblank_endline() - 1) {
 				hdiw_counter++;
 			}
