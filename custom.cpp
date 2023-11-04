@@ -7936,7 +7936,9 @@ static void VHPOSW_delayed(uae_u32 v)
 		write_log (_T("VHPOSW %04X PC=%08x\n"), v, M68K_GETPC);
 #endif
 
-	if ((currprefs.m68k_speed >= 0 && !currprefs.cachesize) || copper_access) {
+	bool cpu_accurate = currprefs.m68k_speed >= 0 && !currprefs.cachesize && currprefs.cpu_memory_cycle_exact;
+
+	if (cpu_accurate || copper_access) {
 		enabled = true;
 		int hpos = hpos_org;
 		hnew = (v & 0xff);
@@ -7961,6 +7963,7 @@ static void VHPOSW_delayed(uae_u32 v)
 		}
 
 		if (hdiff) {
+			bool fail = false;
 			if (hdiff & 1) {
 				vhposr_delay_offset = 1;
 			}
@@ -7973,6 +7976,8 @@ static void VHPOSW_delayed(uae_u32 v)
 			set_maxhpos(maxhpos);
 			if (newinc && hnew == maxhpos + 1) {
 				// 0000 -> 0001 (0 and 1 are part of previous line, vpos increases when hpos=1). No need to do anything
+			} else if (hnew_org == 0 && hpos_org > 1) {
+				fail = true;
 			} else if (hpos < maxhpos && hnew >= maxhpos) {
 				// maxhpos check skip: counter counts until it wraps around 0xFF->0x00
 				int hdiff2 = (0x100 - hnew) - (maxhpos - hpos);
@@ -7993,7 +7998,7 @@ static void VHPOSW_delayed(uae_u32 v)
 			}
 
 			int hpos2 = current_hpos_safe();
-			if (hpos2 < 0 || hpos2 > 255) {
+			if (hpos2 < 0 || hpos2 > 255 || fail) {
 				eventtab[ev_hsync].evtime = hsync_evtime;
 				eventtab[ev_hsync].oldcycles = hsync_oldcycles;
 				eventtab[ev_hsynch].evtime = hsynch_evtime;
@@ -8048,27 +8053,29 @@ static void VHPOSW_delayed(uae_u32 v)
 	if (enabled && (hpos_org == 0 || hpos_org == 1)) {
 		newvpos++;
 	}
-	if (newvpos != oldvpos) {
-		vposw_change++;
+	if (newvpos > vpos || (newvpos <= maxvpos && vpos > maxvpos) || cpu_accurate || copper_access) {
+		if (newvpos != oldvpos) {
+			vposw_change++;
 #ifdef DEBUGGER
-		if (hpos_org >= 0) {
-			record_dma_hsync(hpos_org);
-			if (debug_dma) {
-				int vp = vpos;
-				vpos = newvpos;
-				record_dma_hsync(maxhpos);
-				vpos = vp;
+			if (hpos_org >= 0) {
+				record_dma_hsync(hpos_org);
+				if (debug_dma) {
+					int vp = vpos;
+					vpos = newvpos;
+					record_dma_hsync(maxhpos);
+					vpos = vp;
+				}
 			}
+#endif
 		}
-#endif
-	}
-	vpos = newvpos;
+		vpos = newvpos;
 #ifdef DEBUGGER
-	record_dma_denise(hnew, hdiw_denisecounter >> 2);
+		record_dma_denise(hnew, hdiw_denisecounter >> 2);
 #endif
-	vb_check();
-	decide_vline(hnew);
-	vhposw_modified = true;
+		vb_check();
+		decide_vline(hnew);
+		vhposw_modified = true;
+	}
 }
 
 static void VHPOSW_delayed1(uae_u32 v)
