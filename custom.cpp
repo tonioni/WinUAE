@@ -314,6 +314,7 @@ int maxvpos_display = MAXVPOS_PAL; // value used for display size
 int maxhpos_display = AMIGA_WIDTH_MAX;
 int maxvsize_display = AMIGA_HEIGHT_MAX;
 int maxvpos_display_vsync; // extra lines from top visible in bottom
+static bool maxvpos_display_vsync_next;
 static int vblank_extraline;
 static int maxhposm1;
 int maxhposm0 = MAXHPOS_PAL;
@@ -7266,7 +7267,6 @@ static void init_beamcon0(bool fakehz)
 			minfirstline--;
 			hsstop_detect -= 1;
 		}
-
 	}
 
 	if (currprefs.gfx_extrawidth > 0) {
@@ -14259,7 +14259,7 @@ static void hsync_handler(void)
 		events_schedule();
 
 	}
-	if (vpos == maxvpos_display_vsync) {
+	if (vpos == maxvpos_display_vsync && !maxvpos_display_vsync_next) {
 		hsync_record_line_state_last(next_lineno, nextline_how, 0);
 		inputdevice_read_msg(true);
 		vsync_display_render();
@@ -14269,6 +14269,10 @@ static void hsync_handler(void)
 		minfirstline_linear = minfirstline;
 		reset_autoscale();
 		display_vsync_counter++;
+		maxvpos_display_vsync_next = true;
+	} else if (vpos != maxvpos_display_vsync && maxvpos_display_vsync_next) {
+		// protect against weird VPOSW writes causing continuous vblanks
+		maxvpos_display_vsync_next = false;
 	}
 	vsync_line = vs;
 	hsync_handler_post(vs);
@@ -14391,6 +14395,7 @@ void custom_reset(bool hardreset, bool keyboardreset)
 	vt_old = 0;
 	ht_old = 0;
 	hdiwstate_blank = diw_states::DIW_waiting_start;
+	maxvpos_display_vsync_next = false;
 
 	irq_forced_delay = 0;
 	irq_forced = 0;
