@@ -3357,7 +3357,7 @@ static void do_present(struct d3d11struct *d3d)
 	UINT syncinterval = d3d->vblankintervals;
 	// only if no vsync or low latency vsync
 	if (d3d->m_tearingSupport && (d3d->swapChainDesc.Flags & DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING) && (!vsync || apm->gfx_vsyncmode)) {
-		if (apm->gfx_vsyncmode || d3d->num > 0 || currprefs.turbo_emulation || currprefs.gfx_variable_sync) {
+		if (apm->gfx_vsyncmode || d3d->num > 0 || currprefs.turbo_emulation || (currprefs.gfx_variable_sync > 0 || (isfs(d3d) <= 0) && currprefs.gfx_variable_sync >= 0)) {
 			presentFlags |= DXGI_PRESENT_ALLOW_TEARING;
 			syncinterval = 0;
 		}
