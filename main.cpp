@@ -105,6 +105,16 @@ uae_u32 uaerandgetseed(void)
 	return randseed;
 }
 
+void uaerandomizeseed(void)
+{
+	if (currprefs.seed == 0) {
+		uae_u32 t = getlocaltime();
+		uaesetrandseed(t);
+	} else {
+		uaesetrandseed(currprefs.seed);
+	}
+}
+
 uae_u32 uaesetrandseed(uae_u32 seed)
 {
 	if (!seed) {
@@ -1208,12 +1218,7 @@ static int real_main2 (int argc, TCHAR **argv)
 #ifdef RETROPLATFORM
 	rp_fixup_options (&currprefs);
 #endif
-	if (currprefs.seed == 0) {
-		uae_u32 t = getlocaltime();
-		uaesetrandseed(t);
-	} else {
-		uaesetrandseed(currprefs.seed);
-	}
+	uaerandomizeseed();
 	copy_prefs(&currprefs, &changed_prefs);
 	target_run ();
 	/* force sound settings change */
