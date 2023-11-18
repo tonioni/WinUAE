@@ -25,6 +25,7 @@ extern int window_led_drives, window_led_drives_end;
 extern int window_led_hd, window_led_hd_end;
 extern int window_led_joys, window_led_joys_end, window_led_joy_start;
 extern int window_led_msg, window_led_msg_end, window_led_msg_start;
+extern int on_screen_keyboard;
 
 extern HDC gethdc(int monid);
 extern void releasehdc(int monid, HDC hdc);

@@ -6948,6 +6948,10 @@ static int parseargs(const TCHAR *argx, const TCHAR *np, const TCHAR *np2)
 		gui_control = 1;
 		return 1;
 	}
+	if (!_tcscmp(arg, _T("on_screen_keyboard"))) {
+		on_screen_keyboard = 1;
+		return 1;
+	}
 
 	if (!np)
 		return 0;

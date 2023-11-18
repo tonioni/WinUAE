@@ -4977,10 +4977,18 @@ void target_osk_control(int x, int y, int button, int buttonstate)
 
 }
 
+int on_screen_keyboard;
+
 bool target_osd_keyboard(int show)
 {
 	struct AmigaMonitor *amon = &AMonitors[0];
 	static bool first;
+
+#ifdef RETROPLATFORM
+	if (rp_isactive() && !on_screen_keyboard) {
+		return false;
+	}
+#endif
 
 	xfree(osd_kb_data);
 	osd_kb_data = NULL;
