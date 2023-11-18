@@ -1054,4 +1054,3 @@ const TCHAR *my_getfilepart(const TCHAR *filename)
 		return p + 1;
 	return filename;
 }
-

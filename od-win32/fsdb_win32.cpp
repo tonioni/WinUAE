@@ -51,6 +51,22 @@ static TCHAR evilchars[NUM_EVILCHARS] = { '\\', '*', '?', '\"', '<', '>', '|' };
 *        1632
 */
 
+void makesafefilename(TCHAR *s, bool evilonly)
+{
+	TCHAR *c;
+
+	for (int i = 0; i < NUM_EVILCHARS; i++)
+		while ((c = _tcschr(s, evilchars[i])) != 0)
+			*c = '_';
+
+	if (!evilonly) {
+		while ((c = _tcschr(s, '.')) != 0)
+			*c = '_';
+		while ((c = _tcschr(s, ' ')) != 0)
+			*c = '_';
+	}
+}
+
 static TCHAR *make_uaefsdbpath (const TCHAR *dir, const TCHAR *name)
 {
 	size_t len;
@@ -602,21 +618,13 @@ int fsdb_mode_representable_p (const a_inode *aino, int amigaos_mode)
 
 TCHAR *fsdb_create_unique_nname (a_inode *base, const TCHAR *suggestion)
 {
-	TCHAR *c;
 	TCHAR tmp[256] = UAEFSDB_BEGINS;
 	int i;
 
 	_tcsncat (tmp, suggestion, 240);
 
 	/* replace the evil ones... */
-	for (i = 0; i < NUM_EVILCHARS; i++)
-		while ((c = _tcschr (tmp, evilchars[i])) != 0)
-			*c = '_';
-
-	while ((c = _tcschr (tmp, '.')) != 0)
-		*c = '_';
-	while ((c = _tcschr (tmp, ' ')) != 0)
-		*c = '_';
+	makesafefilename(tmp, false);
 
 	for (;;) {
 		TCHAR *p = build_nname (base->nname, tmp);

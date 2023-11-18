@@ -19,6 +19,7 @@
 #include "memory.h"
 #include "autoconf.h"
 #include "rommgr.h"
+#include "fsdb.h"
 
 #define hfd_log write_log
 #define hfd_log2
@@ -1662,6 +1663,7 @@ doout:
 		_stprintf(geometry_file + _tcslen(geometry_file), _T(" %llX"), udi->size);
 	if (geometry_file[0])
 		_tcscat(geometry_file, _T(".geo"));
+	makesafefilename(geometry_file, true);
 
 	stringboxdialogactive = 1;
 	hdini = ini;
