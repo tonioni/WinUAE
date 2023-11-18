@@ -2219,6 +2219,8 @@ struct dma_rec *last_dma_rec;
 void record_dma_read_value_pos(uae_u32 v, int hpos, int vpos)
 {
 	hpos += dma_record_hoffset;
+	if (hpos >= NR_DMA_REC_HPOS || vpos >= NR_DMA_REC_VPOS)
+		return;	
 	struct dma_rec *dr = &dma_record[dma_record_toggle][vpos * NR_DMA_REC_HPOS + hpos];
 	last_dma_rec = dr;
 	record_dma_read_value(v);
