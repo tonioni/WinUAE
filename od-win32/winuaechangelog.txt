@@ -1,4 +1,16 @@
 
+Beta 8:
+
+- Built-in DMS unpacking support update: validate packed track data under or overflow after decrunching and reject track as damaged if detected. Fixes incorrect brute force decryption key detection of some encrypted DMS files. (THE_PLAGUE_1.DMS and some others)
+- Always enable DXGI_PRESENT_ALLOW_TEARING in D3D11 modes if driver supports it. This might improve variable sync compatibility and video/audio stability.
+- CIA timer chaining (Timer B counts timer A underflows) only worked in CE modes. (Broke when CIA emulation was rewritten recently)
+- Hardreset now randomizes seed value (if config entry "rndseed" is zero). b1 changelog mentioned it but seed wasn't randomized.
+- Some weird and stupid VPOSW writes caused vblank processing to restart continuously in default and smaller overscan modes, making emulation really slow. (Action Replay 3)
+- Writing to DSKLEN with bit 15 set didn't start disk DMA immediately if previous disk DMA had already been finished. Only if bit 15 is cleared DSKLEN needs to be written twice to start DMA.
+- Emulated Paula disk read DMA bug (HRM says only "... Also, the last word in a disk-read DMA operation may not come in (that is, one less word may be read than you asked for)"). This is now emulated mostly accurately (still tests to do to find full details) if not floppy turbo mode. Previously emulation always returned requested number of words. This also implements "early" DMA end interrupt which fixes demo Knin Peaks / Reality. Demo's loader can only work if bug exists, without bug it will miss sectors, retries and crashes.
+- Loading config file caused immediate crash if it had hardfile2 config entry with physical geometry and also geometry file and geometry file name was created from physical device id string and it included '/' character. Fixed parsing crash and when autogenerating geometry file name, replace all unsafe characters with underline characters.
+- ALT-TABing from D3D11 fullscreen RTG mode and then back caused hardware mouse cursor to disappear until its shape was modified by Picasso96.
+
 Beta 7:
 
 - Fixed on screen keyboard transparency in D3D9/11 modes. It previously only worked in D3D11 HDR mode.

@@ -4656,7 +4656,7 @@ static bool draw_keyboard(HDC hdc, HFONT *fonts, void *bm, int bmw, int bmh, str
 					}
 					if ((c == '|' && !esc && !skip) || c == 0) {
 						SelectObject(hdc, italic ? fonts[1] : fonts[0]);
-						draw_key(hdc, bm, bmw, bmh, eo, kx + space, ky + space, out, outp - out, fw, fh);
+						draw_key(hdc, bm, bmw, bmh, eo, kx + space, ky + space, out, addrdiff(outp, out), fw, fh);
 						ky += fh + 2;
 						outp = out;
 						italic = false;
