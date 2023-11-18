@@ -62,7 +62,7 @@ void (*D3D_clear)(int);
 int (*D3D_canshaders)(void);
 int (*D3D_goodenough)(void);
 bool (*D3D_setcursor)(int, int x, int y, int width, int height, float mx, float my, bool visible, bool noscale);
-uae_u8 *(*D3D_setcursorsurface)(int, int *pitch);
+uae_u8 *(*D3D_setcursorsurface)(int, bool, int *pitch);
 float (*D3D_getrefreshrate)(int);
 void(*D3D_restore)(int, bool);
 void(*D3D_resize)(int, int);
@@ -205,6 +205,7 @@ struct d3d11sprite
 	bool screenlimit;
 	uae_u8 *texbuf;
 	bool updated;
+	bool empty;
 };
 
 struct d3doverlay
@@ -1929,6 +1930,7 @@ static bool allocsprite(struct d3d11struct *d3d, struct d3d11sprite *s, int widt
 	s->alpha = alpha;
 	s->rotation = rotation;
 	s->screenlimit = screenlimit;
+	s->empty = true;
 
 	if (screenlimit) {
 		s->texbuf = xcalloc(uae_u8, width * height * 4);
@@ -5344,6 +5346,7 @@ static void updatecursorsurface(int monid)
 	}
 
 	sp->updated = false;
+	sp->empty = false;
 	D3D11_MAPPED_SUBRESOURCE map;
 	HRESULT hr = d3d->m_deviceContext->Map(sp->texture, 0, D3D11_MAP_WRITE_DISCARD, 0, &map);
 	if (SUCCEEDED(hr)) {
@@ -5425,16 +5428,20 @@ static bool xD3D_setcursor(int monid, int x, int y, int width, int height, float
 	return true;
 }
 
-static uae_u8 *xD3D_setcursorsurface(int monid, int *pitch)
+static uae_u8 *xD3D_setcursorsurface(int monid, bool query, int *pitch)
 {
 	struct d3d11struct *d3d = &d3d11data[monid];
-	if (!d3d->hwsprite.texbuf)
+	d3d->hwsprite.updated = false;
+	if (query) {
+		return d3d->hwsprite.empty ? NULL : d3d->hwsprite.texbuf;
+	}
+	if (!d3d->hwsprite.texbuf) {
 		return NULL;
+	}
 	if (pitch) {
 		*pitch = d3d->hwsprite.width * 4;
 		return d3d->hwsprite.texbuf;
 	}
-	d3d->hwsprite.updated = false;
 	return NULL;
 }
 

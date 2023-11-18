@@ -515,9 +515,13 @@ static bool gdi_setcursor(int monid, int x, int y, int width, int height, float 
 	return true;
 }
 
-static uae_u8 *gdi_setcursorsurface(int monid, int *pitch)
+static uae_u8 *gdi_setcursorsurface(int monid, bool query, int *pitch)
 {
 	struct gdistruct* gdi = &gdidata[monid];
+
+	if (query) {
+		return (uae_u8 *)gdi->cursor.bits;
+	}
 
 	if (gdi->depth < 32) {
 		return NULL;

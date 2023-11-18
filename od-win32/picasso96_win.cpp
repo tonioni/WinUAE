@@ -790,7 +790,7 @@ static void setupcursor(void)
 		return;
 	gfx_lock ();
 	setupcursor_needed = 1;
-	dptr = D3D_setcursorsurface(rbc->monitor_id, &pitch);
+	dptr = D3D_setcursorsurface(rbc->monitor_id, false, &pitch);
 	if (dptr) {
 		for (int y = 0; y < CURSORMAXHEIGHT; y++) {
 			uae_u8 *p2 = dptr + pitch * y;
@@ -803,7 +803,7 @@ static void setupcursor(void)
 				memcpy (p2, p1, cursorwidth * bpp);
 			}
 		}
-		D3D_setcursorsurface(rbc->monitor_id, NULL);
+		D3D_setcursorsurface(rbc->monitor_id, false, NULL);
 		setupcursor_needed = 0;
 		P96TRACE_SPR((_T("cursorsurface3d updated\n")));
 	} else {
@@ -841,6 +841,9 @@ static void mouseupdate(struct AmigaMonitor *mon)
 	}
 
 	if (D3D_setcursor) {
+		if (!D3D_setcursorsurface(mon->monitor_id, true, NULL)) {
+			setupcursor_needed = 1;
+		}
 		if (currprefs.gf[GF_RTG].gfx_filter_autoscale == RTG_MODE_CENTER) {
 			D3D_setcursor(mon->monitor_id, x, y, WIN32GFX_GetWidth(mon), WIN32GFX_GetHeight(mon), mx, my, cursorvisible, mon->scalepicasso == 2);
 		} else {
@@ -1095,6 +1098,7 @@ static void setconvert(int monid)
 		vidinfo->orgbformat = state->RGBFormat;
 	}
 	vidinfo->full_refresh = 1;
+	setupcursor_needed = 1;
 	unlockrtg();
 }
 
@@ -1796,7 +1800,11 @@ static uae_u32 REGPARAM2 picasso_SetSpriteColor (TrapContext *ctx)
 		return 0;
 	if (idx >= 4)
 		return 0;
+	uae_u32 oc = cursorrgb[idx];
 	cursorrgb[idx] = (red << 16) | (green << 8) | (blue << 0);
+	if (oc != cursorrgb[idx]) {
+		setupcursor_needed = 1;
+	}
 	P96TRACE_SPR ((_T("SetSpriteColor(%08x,%d:%02X%02X%02X). %x\n"), bi, idx, red, green, blue, bi + PSSO_BoardInfo_MousePens));
 	return 1;
 }

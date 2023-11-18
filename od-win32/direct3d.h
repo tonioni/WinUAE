@@ -24,7 +24,7 @@ extern void(*D3D_clear)(int);
 extern int(*D3D_canshaders)(void);
 extern int(*D3D_goodenough)(void);
 extern bool(*D3D_setcursor)(int, int x, int y, int width, int height, float mx, float my, bool visible, bool noscale);
-extern uae_u8 *(*D3D_setcursorsurface)(int, int *pitch);
+extern uae_u8 *(*D3D_setcursorsurface)(int, bool, int *pitch);
 extern float(*D3D_getrefreshrate)(int);
 extern void(*D3D_restore)(int, bool);
 extern void(*D3D_resize)(int, int);

@@ -2173,7 +2173,7 @@ static void setupscenecoords(struct d3dstruct *d3d, bool normalrender, int monid
 
 	MatrixTranslation (&d3d->m_matView_out, tx, ty, 1.0f);
 
-	MatrixScaling (&d3d->m_matWorld_out, sw + 0.5f / sw, sh + 0.5f / sh, 1.0f);
+	MatrixScaling (&d3d->m_matWorld_out, sw, sh, 1.0f);
 
 	struct amigadisplay *ad = &adisplays[monid];
 	int rota = currprefs.gf[ad->picasso_on ? GF_RTG : ad->interlace_on ? GF_INTERLACE : GF_NORMAL].gfx_filter_rotation;
@@ -4171,9 +4171,12 @@ static int xD3D_isenabled(int monid)
 	return d3d->d3d_enabled ? 1 : 0;
 }
 
-static uae_u8 *xD3D_setcursorsurface(int monid, int *pitch)
+static uae_u8 *xD3D_setcursorsurface(int monid, bool query, int *pitch)
 {
 	struct d3dstruct *d3d = &d3ddata[monid];
+	if (query) {
+		return d3d->cursorsurfaced3dtexbuf;
+	}
 	if (pitch) {
 		*pitch = CURSORMAXWIDTH * 4;
 		return d3d->cursorsurfaced3dtexbuf;
