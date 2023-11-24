@@ -137,7 +137,7 @@ extern void scaleresource_init(const TCHAR*, int);
 extern int scaleresource_choosefont (HWND hDlg, int fonttype);
 extern void scaleresource_setdefaults(HWND);
 extern void scalaresource_listview_font_info(int*);
-extern int getscaledfontsize(int size);
+extern int getscaledfontsize(int size, HWND);
 extern void scaleresource_modification(HWND);
 extern bool show_box_art(const TCHAR*, const TCHAR*);
 extern void move_box_art_window(void);

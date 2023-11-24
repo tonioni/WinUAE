@@ -983,7 +983,7 @@ static void scalechildwindows(struct newresource *nr)
 		}
 		SetFocus(nw->hwnd);
 		if (!SetWindowPos(nw->hwnd, HWND_TOP, x, y, w, h, SWP_NOACTIVATE | SWP_NOREDRAW | SWP_NOZORDER | SWP_NOOWNERZORDER | SWP_NOCOPYBITS | SWP_DEFERERASE)) {
-			write_log("scalechildwindows %d/%d: ERROR %d", i, nr->hwndcnt, GetLastError());
+			write_log("scalechildwindows %d/%d: ERROR %d\n", i, nr->hwndcnt, GetLastError());
 		}
 		if (disable) {
 			EnableWindow(nw->hwnd, FALSE);
@@ -1207,7 +1207,7 @@ void freescaleresource (struct newresource *ns)
 	ns->size = 0;
 }
 
-int getscaledfontsize(int size)
+int getscaledfontsize(int size, HWND hwnd)
 {
 	int lm = 72;
 
@@ -1215,9 +1215,12 @@ int getscaledfontsize(int size)
 		size = fontsize_gui;
 
 	if (!dpi_aware_v2) {
-		HDC hdc = GetDC(NULL);
+		HDC hdc = GetDC(hwnd);
 		lm = GetDeviceCaps(hdc, LOGPIXELSY);
-		ReleaseDC(NULL, hdc);
+		ReleaseDC(hwnd, hdc);
+	} else if (hwnd) {
+		HMONITOR m = MonitorFromWindow(hwnd, MONITOR_DEFAULTTOPRIMARY);
+		lm = getdpiformonitor(m);
 	}
 	size = -MulDiv(size, lm, 72);
 	return size;

@@ -1436,7 +1436,7 @@ static int gethdfchs(HWND hDlg, struct uae_driveinfo *udi, HANDLE h, int *cylsp,
 		err = -15;
 		goto end;
 	}
-	font = CreateFont(getscaledfontsize(-1), 0, 0, 0, 0, 0, 0, 0, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH | FF_DONTCARE, _T("Lucida Console"));
+	font = CreateFont(getscaledfontsize(-1, hDlg), 0, 0, 0, 0, 0, 0, 0, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH | FF_DONTCARE, _T("Lucida Console"));
 	if (font)
 		SendMessage(GetDlgItem(hwnd, IDD_CHSQUERY), WM_SETFONT, WPARAM(font), FALSE);
 	while (chsdialogactive == 1) {
@@ -1669,7 +1669,7 @@ doout:
 	hdini = ini;
 	hwnd = CustomCreateDialog(&res, IDD_DISKINFO, hDlg, StringBoxDialogProc);
 	if (hwnd != NULL) {
-		HFONT font = CreateFont (getscaledfontsize(-1), 0, 0, 0, 0, 0, 0, 0, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH | FF_DONTCARE, _T("Lucida Console"));
+		HFONT font = CreateFont (getscaledfontsize(-1, hDlg), 0, 0, 0, 0, 0, 0, 0, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH | FF_DONTCARE, _T("Lucida Console"));
 		if (font)
 			SendMessage (GetDlgItem (hwnd, IDC_DISKINFOBOX), WM_SETFONT, WPARAM(font), FALSE);
 		SendMessage (GetDlgItem (hwnd, IDC_DISKINFOBOX), WM_SETTEXT, 0, (LPARAM)text);

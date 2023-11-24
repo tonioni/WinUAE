@@ -2627,7 +2627,7 @@ void gui_infotextbox(HWND hDlg, const TCHAR *text)
 	if (hwnd == NULL)
 		return;
 
-	HFONT font = CreateFont (getscaledfontsize(-1), 0, 0, 0, 0, 0, 0, 0, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH | FF_DONTCARE, _T("Lucida Console"));
+	HFONT font = CreateFont (getscaledfontsize(-1, hDlg), 0, 0, 0, 0, 0, 0, 0, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH | FF_DONTCARE, _T("Lucida Console"));
 	if (font)
 		SendMessage (GetDlgItem (hwnd, IDC_DISKINFOBOX), WM_SETFONT, WPARAM(font), FALSE);
 	SendMessage (GetDlgItem (hwnd, IDC_DISKINFOBOX), WM_SETTEXT, 0, (LPARAM)text);
@@ -2725,7 +2725,7 @@ static void infofloppy (HWND hDlg, int n)
 	if (hwnd == NULL)
 		return;
 
-	HFONT font = CreateFont (getscaledfontsize(-1), 0, 0, 0, 0, 0, 0, 0, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH | FF_DONTCARE, _T("Lucida Console"));
+	HFONT font = CreateFont (getscaledfontsize(-1, hDlg), 0, 0, 0, 0, 0, 0, 0, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH | FF_DONTCARE, _T("Lucida Console"));
 	if (font)
 		SendMessage (GetDlgItem (hwnd, IDC_DISKINFOBOX), WM_SETFONT, WPARAM(font), FALSE);
 	SendMessage (GetDlgItem (hwnd, IDC_DISKINFOBOX), WM_SETTEXT, 0, (LPARAM)text);
@@ -8065,10 +8065,10 @@ static INT_PTR CALLBACK AboutDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 			pages[ABOUT_ID] = hDlg;
 			currentpage = ABOUT_ID;
 
-			font1 = CreateFont(getscaledfontsize(-1) * 3, 0, 0, 0, 0,
+			font1 = CreateFont(getscaledfontsize(-1, hDlg) * 3, 0, 0, 0, 0,
 				0, FALSE, FALSE, DEFAULT_CHARSET, 0, 0,
 				PROOF_QUALITY, FF_DONTCARE, _T("Segoe UI"));
-			font2 = CreateFont(getscaledfontsize(-1) * 2, 0, 0, 0, 0,
+			font2 = CreateFont(getscaledfontsize(-1, hDlg) * 2, 0, 0, 0, 0,
 				0, FALSE, FALSE, DEFAULT_CHARSET, 0, 0,
 				PROOF_QUALITY, FF_DONTCARE, _T("Segoe UI"));
 
