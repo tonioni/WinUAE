@@ -5791,7 +5791,8 @@ static void target_load_debugger_config(void)
 {
 	int size;
 
-	disasm_flags = DISASM_FLAG_LC_MNEMO | DISASM_FLAG_LC_REG | DISASM_FLAG_LC_SIZE | DISASM_FLAG_LC_HEX | DISASM_FLAG_CC | DISASM_FLAG_EA | DISASM_FLAG_VAL | DISASM_FLAG_WORDS;
+	disasm_flags = DISASM_FLAG_LC_MNEMO | DISASM_FLAG_LC_REG | DISASM_FLAG_LC_SIZE | DISASM_FLAG_LC_HEX |
+		DISASM_FLAG_CC | DISASM_FLAG_EA | DISASM_FLAG_VAL | DISASM_FLAG_WORDS;
 	disasm_min_words = 5;
 	disasm_max_words = 16;
 	disasm_hexprefix[0] = '$';

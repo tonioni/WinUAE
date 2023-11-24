@@ -212,7 +212,7 @@ static void showea_val(TCHAR *buffer, uae_u16 opcode, uaecptr addr, int size)
 #endif
 #endif
 
-	if (!(disasm_flags & DISASM_FLAG_VAL)) {
+	if (!(disasm_flags & (DISASM_FLAG_VAL_FORCE | DISASM_FLAG_VAL))) {
 		goto skip;
 	}
 
@@ -449,7 +449,7 @@ uaecptr ShowEA_disp(uaecptr *pcp, uaecptr base, TCHAR *buffer, const TCHAR *name
 		addr = base + outer;
 
 		if (buffer) {
-			if (disasm_flags & DISASM_FLAG_VAL) {
+			if (disasm_flags & (DISASM_FLAG_VAL_FORCE | DISASM_FLAG_VAL)) {
 				_stprintf(p, disasm_lc_hex(_T(" == $%08X")), addr);
 				p += _tcslen(p);
 			}
@@ -472,13 +472,13 @@ uaecptr ShowEA_disp(uaecptr *pcp, uaecptr base, TCHAR *buffer, const TCHAR *name
 		addr = base + (uae_s32)((uae_s8)disp8) + dispreg;
 		if (buffer) {
 			if (pcrel) {
-				if (disasm_flags & DISASM_FLAG_VAL) {
+				if (disasm_flags & (DISASM_FLAG_VAL_FORCE | DISASM_FLAG_VAL)) {
 					_stprintf(buffer, _T("(%s%s%s,$%02x=$%08x) == $%08x"), name, regstr, mult, (uae_u8)disp8, (*pcp) += disp8, addr);
 				} else {
 					_stprintf(buffer, _T("(%s%s%s,$%02x=$%08x)"), name, regstr, mult, (uae_u8)disp8, (*pcp) += disp8);
 				}
 			} else {
-				if (disasm_flags & DISASM_FLAG_VAL) {
+				if (disasm_flags & (DISASM_FLAG_VAL_FORCE | DISASM_FLAG_VAL)) {
 					_stprintf(buffer, _T("(%s%s%s,$%02x) == $%08x"), name, regstr, mult, (uae_u8)disp8, addr);
 				} else {
 					_stprintf(buffer, _T("(%s%s%s,$%02x)"), name, regstr, mult, (uae_u8)disp8);
@@ -523,16 +523,25 @@ uaecptr ShowEA(void *f, uaecptr pc, uae_u16 opcode, int reg, amodes mode, wordsi
 	case Aind:
 		_stprintf(buffer, _T("(%c%d)"), disasm_areg, reg);
 		addr = regs.regs[reg + 8];
+		if (disasm_flags & DISASM_FLAG_VAL_FORCE) {
+			_stprintf(buffer + _tcslen(buffer), disasm_lc_hex(_T(" == $%08X")), addr);
+		}
 		showea_val(buffer, opcode, addr, size);
 		break;
 	case Aipi:
 		_stprintf(buffer, _T("(%c%d)+"), disasm_areg, reg);
 		addr = regs.regs[reg + 8];
+		if (disasm_flags & DISASM_FLAG_VAL_FORCE) {
+			_stprintf(buffer + _tcslen(buffer), disasm_lc_hex(_T(" == $%08X")), addr);
+		}
 		showea_val(buffer, opcode, addr, size);
 		break;
 	case Apdi:
 		_stprintf(buffer, _T("-(%c%d)"), disasm_areg, reg);
 		addr = regs.regs[reg + 8] - datasizes[size];
+		if (disasm_flags & DISASM_FLAG_VAL_FORCE) {
+			_stprintf(buffer + _tcslen(buffer), disasm_lc_hex(_T(" == $%08X")), addr);
+		}
 		showea_val(buffer, opcode, addr, size);
 		break;
 	case Ad16:
@@ -545,7 +554,7 @@ uaecptr ShowEA(void *f, uaecptr pc, uae_u16 opcode, int reg, amodes mode, wordsi
 				_stprintf (offtxt, disasm_lc_hex(_T("$%04X")), disp16);
 			addr = m68k_areg (regs, reg) + disp16;
 			_stprintf(buffer, _T("(%c%d,%s)"), disasm_areg, reg, offtxt);
-			if (disasm_flags & DISASM_FLAG_VAL) {
+			if (disasm_flags & (DISASM_FLAG_VAL_FORCE | DISASM_FLAG_VAL)) {
 				_stprintf(buffer + _tcslen(buffer), disasm_lc_hex(_T(" == $%08X")), addr);
 			}
 			showea_val(buffer, opcode, addr, size);
@@ -564,7 +573,7 @@ uaecptr ShowEA(void *f, uaecptr pc, uae_u16 opcode, int reg, amodes mode, wordsi
 		addr += (uae_s16)disp16;
 		_stprintf(buffer, _T("(%s"), disasm_pcreg);
 		_stprintf(buffer + _tcslen(buffer), disasm_lc_hex(_T(",$%04X)")), disp16 & 0xffff);
-		if (disasm_flags & DISASM_FLAG_VAL) {
+		if (disasm_flags & (DISASM_FLAG_VAL_FORCE | DISASM_FLAG_VAL)) {
 			_stprintf(buffer + _tcslen(buffer), disasm_lc_hex(_T(" == $%08X")), addr);
 		}
 		showea_val(buffer, opcode, addr, size);
@@ -1692,7 +1701,7 @@ static void resolve_if_jmp(TCHAR *s, uae_u32 addr)
 	if (opcode == 0x4ef9) { // JMP x.l
 		TCHAR *p = s + _tcslen(s);
 		uae_u32 addr2 = get_long_debug(addr + 2);
-		if (disasm_flags & DISASM_FLAG_VAL) {
+		if (disasm_flags & (DISASM_FLAG_VAL_FORCE | DISASM_FLAG_VAL)) {
 			_stprintf(p, disasm_lc_hex(_T(" == $%08X ")), addr2);
 			
 		}
