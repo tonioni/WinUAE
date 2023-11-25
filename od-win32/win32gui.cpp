@@ -6335,7 +6335,7 @@ static void loadsavecommands (HWND hDlg, WPARAM wParam, struct ConfigStruct **co
 			if (full_property_sheet) {
 				inputdevice_updateconfig (NULL, &workprefs);
 			} else {
-				uae_restart (-1, *pcfgfile);
+				uae_restart(&workprefs, -1, *pcfgfile);
 				exit_gui(1);
 			}
 		}
@@ -6348,7 +6348,7 @@ static void loadsavecommands (HWND hDlg, WPARAM wParam, struct ConfigStruct **co
 			if (full_property_sheet) {
 				inputdevice_updateconfig (NULL, &workprefs);
 			} else {
-				uae_restart (-1, *pcfgfile);
+				uae_restart(&workprefs, -1, *pcfgfile);
 				exit_gui(1);
 			}
 		}
@@ -6470,7 +6470,7 @@ static INT_PTR CALLBACK LoadSaveDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPA
 									if (cfgfile) {
 										ConfigToRegistry (config, configtypepanel);
 										if (!full_property_sheet)
-											uae_restart (0, cfgfile);
+											uae_restart(&workprefs, 0, cfgfile);
 										exit_gui (1);
 									}
 								}
@@ -22615,7 +22615,7 @@ int dragdrop (HWND hDlg, HDROP hd, struct uae_prefs *prefs, int	currentpage)
 					if (!workprefs.start_gui)
 						ret = 1;
 				} else {
-					uae_restart (workprefs.start_gui, file);
+					uae_restart(&workprefs, workprefs.start_gui, file);
 					ret = 1;
 				}
 			}
@@ -23003,7 +23003,7 @@ static INT_PTR CALLBACK DialogProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 				}
 				break;
 			case IDC_RESETAMIGA:
-				uae_reset (1, 1);
+				uae_reset(1, 1);
 				SendMessage (hDlg, WM_COMMAND, IDOK, 0);
 				return TRUE;
 			case IDC_QUITEMU:
@@ -23011,7 +23011,7 @@ static INT_PTR CALLBACK DialogProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 				SendMessage (hDlg, WM_COMMAND, IDCANCEL, 0);
 				return TRUE;
 			case IDC_RESTARTEMU:
-				uae_restart (-1, NULL);
+				uae_restart(&workprefs, -1, NULL);
 				exit_gui (1);
 				return TRUE;
 			case IDHELP:
@@ -23642,7 +23642,7 @@ gui_exit:
 	} else if (qs_request_reset && quickstart) {
 		if (qs_request_reset & 4) {
 			copy_prefs(&changed_prefs, &currprefs);
-			uae_restart(-2, NULL);
+			uae_restart(&workprefs, -2, NULL);
 		} else {
 			uae_reset((qs_request_reset & 2) ? 1 : 0, 1);
 		}
