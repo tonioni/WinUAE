@@ -92,6 +92,7 @@ int mman_GetWriteWatch (PVOID lpBaseAddress, SIZE_T dwRegionSize, PVOID *lpAddre
 void mman_ResetWatch (PVOID lpBaseAddress, SIZE_T dwRegionSize);
 
 void picasso_flushpixels(int index, uae_u8 *src, int offset, bool render);
+int createwindowscursor(int monid, int set, int chipset);
 
 int p96refresh_active;
 bool have_done_picasso = 1; /* For the JIT compiler */
@@ -794,13 +795,19 @@ static void setupcursor(void)
 	if (dptr) {
 		for (int y = 0; y < CURSORMAXHEIGHT; y++) {
 			uae_u8 *p2 = dptr + pitch * y;
-			memset (p2, 0, CURSORMAXWIDTH * bpp);
+			memset(p2, 0, CURSORMAXWIDTH * bpp);
 		}
 		if (cursordata && cursorwidth && cursorheight) {
 			for (int y = 0; y < cursorheight; y++) {
-				uae_u8 *p1 = cursordata + cursorwidth * bpp * y;
-				uae_u8 *p2 = dptr + pitch * y;
-				memcpy (p2, p1, cursorwidth * bpp);
+				uae_u8 *p1 = cursordata + cursorwidth * y;
+				uae_u32 *p2 = (uae_u32*)(dptr + pitch * y);
+				for (int x = 0; x < cursorwidth; x++) {
+					uae_u8 c = *p1++;
+					if (c < 4) {
+						*p2 = cursorrgbn[c];
+					}
+					p2++;
+				}
 			}
 		}
 		D3D_setcursorsurface(rbc->monitor_id, false, NULL);
@@ -1290,7 +1297,7 @@ void picasso_handle_vsync(void)
 
 	if (!ad->picasso_on && uaegfx) {
 		if (uaegfx_active) {
-			createwindowscursor(mon->monitor_id, 0, 0, 0, 0, 0, 1);
+			createwindowscursor(mon->monitor_id, 0, 1);
 		}
 		picasso_trigger_vblank();
 		if (!delayed_set_switch)
@@ -1340,7 +1347,7 @@ static void picasso_handle_hsync(void)
 		if (!ad->picasso_on) {
 			if (uaegfx) {
 				if (uaegfx_active) {
-					createwindowscursor(mon->monitor_id, 0, 0, 0, 0, 0, 1);
+					createwindowscursor(mon->monitor_id, 0, 1);
 				}
 				picasso_trigger_vblank();
 			}
@@ -1835,208 +1842,202 @@ static void updatesprcolors (int bpp)
 	}
 }
 
-STATIC_INLINE void putmousepixel (uae_u8 *d, int bpp, int idx)
-{
-	uae_u32 val;
-
-	val = cursorrgbn[idx];
-	switch (bpp)
-	{
-	case 2:
-		((uae_u16*)d)[0] = (uae_u16)val;
-		break;
-	case 4:
-		((uae_u32*)d)[0] = (uae_u32)val;
-		break;
-	}
-}
-
-static void putwinmousepixel (HDC andDC, HDC xorDC, int x, int y, int c, uae_u32 *ct)
+static void putwinmousepixel(HDC andDC, HDC xorDC, int x, int y, int c, uae_u32 *ct)
 {
 	if (c == 0) {
-		SetPixel (andDC, x, y, RGB (255, 255, 255));
-		SetPixel (xorDC, x, y, RGB (0, 0, 0));
+		SetPixel(andDC, x, y, RGB (255, 255, 255));
+		SetPixel(xorDC, x, y, RGB (0, 0, 0));
 	} else {
 		uae_u32 val = ct[c];
-		SetPixel (andDC, x, y, RGB (0, 0, 0));
-		SetPixel (xorDC, x, y, RGB ((val >> 16) & 0xff, (val >> 8) & 0xff, val & 0xff));
+		SetPixel(andDC, x, y, RGB (0, 0, 0));
+		SetPixel(xorDC, x, y, RGB ((val >> 16) & 0xff, (val >> 8) & 0xff, val & 0xff));
 	}
 }
 
 static int wincursorcnt;
-static int tmp_sprite_w, tmp_sprite_h, tmp_sprite_hires, tmp_sprite_doubled;
-static uae_u8 *tmp_sprite_data;
+static int tmp_sprite_w, tmp_sprite_h;
+static uae_u8 tmp_sprite_data[CURSORMAXWIDTH * CURSORMAXHEIGHT];
 static uae_u32 tmp_sprite_colors[4];
 
 extern uaecptr sprite_0;
 extern int sprite_0_width, sprite_0_height, sprite_0_doubled;
 extern uae_u32 sprite_0_colors[4];
 
-int createwindowscursor(int monid, uaecptr src, int w, int h, int hiressprite, int doubledsprite, int chipset)
+static int createwindowscursor(int monid, int set, int chipset)
 {
 	HBITMAP andBM, xorBM;
 	HBITMAP andoBM, xoroBM;
 	HDC andDC, xorDC, DC, mainDC;
 	ICONINFO ic;
-	int x, y, yy, w2, h2;
-	int ret, isdata, datasize;
+	int ret = 0;
+	bool isdata;
 	HCURSOR oldwincursor = wincursor;
-	uae_u8 *realsrc;
 	uae_u32 *ct;
 	TrapContext *ctx = NULL;
+	int w, h;
+	uae_u8 *image;
+	uae_u8 tmp_sprite[CURSORMAXWIDTH * CURSORMAXHEIGHT];
+	int datasize = 0;
 
-	ret = 0;
 	wincursor_shown = 0;
 
-	if (isfullscreen () > 0 || currprefs.input_tablet == 0 || !(currprefs.input_mouse_untrap & MOUSEUNTRAP_MAGIC))
+	if (isfullscreen() > 0 || currprefs.input_tablet == 0 || !(currprefs.input_mouse_untrap & MOUSEUNTRAP_MAGIC)) {
 		goto exit;
-	if (currprefs.input_magic_mouse_cursor != MAGICMOUSE_HOST_ONLY)
+	}
+	if (currprefs.input_magic_mouse_cursor != MAGICMOUSE_HOST_ONLY) {
 		goto exit;
+	}
 
 	if (chipset) {
-		if (!sprite_0 || !mousehack_alive ()) {
-			if (wincursor)
-				SetCursor (normalcursor);
+		w = sprite_0_width;
+		h = sprite_0_height;
+		uaecptr src = sprite_0;
+		int doubledsprite = sprite_0_doubled;
+		if (doubledsprite) {
+			w *= 2;
+			h *= 2;
+		}
+		int hiressprite = sprite_0_width / 16;
+		int ds = h * ((w + 15) / 16) * 4;
+		if (!sprite_0 || !mousehack_alive() || w > CURSORMAXWIDTH || h > CURSORMAXHEIGHT || !valid_address(src, ds)) {
+			if (wincursor) {
+				SetCursor(normalcursor);
+			}
 			goto exit;
 		}
-		w2 = w = sprite_0_width;
-		h2 = h = sprite_0_height;
-		hiressprite = sprite_0_width / 16;
-		doubledsprite = sprite_0_doubled;
-		if (doubledsprite) {
-			h2 *= 2;
-			w2 *= 2;
-		}
-		src = sprite_0;
-		ct = sprite_0_colors;
-	} else {
-		h2 = h;
-		w2 = w;
-		ct = cursorrgbn;
-	}
-	datasize = h * ((w + 15) / 16) * 4;
-	if (!valid_address(src, datasize)) {
-		goto exit;
-	}
-	realsrc = get_real_address (src);
+		int yy = 0;
+		for (int y = 0, yy = 0; y < h; yy++) {
+			uae_u8 *dst = tmp_sprite + y * w;
+			int dbl;
+			uaecptr img = src + yy * 4 * hiressprite;
+			for (dbl = 0; dbl < (doubledsprite ? 2 : 1); dbl++) {
+				int x = 0;
+				while (x < w) {
+					uae_u32 d1 = trap_get_long(ctx, img);
+					uae_u32 d2 = trap_get_long(ctx, img + 2 * hiressprite);
+					int bits;
+					int maxbits = w - x;
 
-	if (w > 64 || h > 64)
-		goto exit;
-
-	if (wincursor && tmp_sprite_data) {
-		if (w == tmp_sprite_w && h == tmp_sprite_h &&
-			!memcmp (tmp_sprite_data, realsrc, datasize) && !memcmp (tmp_sprite_colors, ct, sizeof (uae_u32)*4)
-			&& hiressprite == tmp_sprite_hires && doubledsprite == tmp_sprite_doubled
-			) {
-				if (GetCursor () == wincursor) {
-					wincursor_shown = 1;
-					return 1;
+					if (maxbits > 16 * hiressprite) {
+						maxbits = 16 * hiressprite;
+					}
+					for (bits = 0; bits < maxbits && x < w; bits++) {
+						uae_u8 c = ((d2 & 0x80000000) ? 2 : 0) + ((d1 & 0x80000000) ? 1 : 0);
+						d1 <<= 1;
+						d2 <<= 1;
+						*dst++ = c;
+						x++;
+						if (doubledsprite && x < w) {
+							*dst++ = c;
+							x++;
+						}
+					}
 				}
+				if (y <= h) {
+					y++;
+				}
+			}
+		}
+		ct = sprite_0_colors;
+		image = tmp_sprite;
+	} else {
+		w = cursorwidth;
+		h = cursorheight;
+		ct = cursorrgbn;
+		image = cursordata;
+	}
+
+	datasize = h * ((w + 15) / 16) * 16;
+
+	if (wincursor) {
+		if (w == tmp_sprite_w && h == tmp_sprite_h && !memcmp(tmp_sprite_data, image, datasize) && !memcmp(tmp_sprite_colors, ct, sizeof (uae_u32)*4)) {
+			if (GetCursor() == wincursor) {
+				wincursor_shown = 1;
+				return 1;
+			}
 		}
 	}
-	write_log (_T("wincursor: %dx%d hires=%d doubled=%d\n"), w2, h2, hiressprite, doubledsprite);
 
-	xfree (tmp_sprite_data);
-	tmp_sprite_data = NULL;
+	write_log(_T("wincursor: %dx%d\n"), w, h);
+
 	tmp_sprite_w = tmp_sprite_h = 0;
 
 	DC = mainDC = andDC = xorDC = NULL;
 	andBM = xorBM = NULL;
-	DC = GetDC (NULL);
+	DC = GetDC(NULL);
 	if (!DC)
 		goto end;
-	mainDC = CreateCompatibleDC (DC);
-	andDC = CreateCompatibleDC (DC);
-	xorDC = CreateCompatibleDC (DC);
+	mainDC = CreateCompatibleDC(DC);
+	andDC = CreateCompatibleDC(DC);
+	xorDC = CreateCompatibleDC(DC);
 	if (!mainDC || !andDC || !xorDC)
 		goto end;
-	andBM = CreateCompatibleBitmap (DC, w2, h2);
-	xorBM = CreateCompatibleBitmap (DC, w2, h2);
+	andBM = CreateCompatibleBitmap(DC, w, h);
+	xorBM = CreateCompatibleBitmap(DC, w, h);
 	if (!andBM || !xorBM)
 		goto end;
-	andoBM = (HBITMAP)SelectObject (andDC, andBM);
-	xoroBM = (HBITMAP)SelectObject (xorDC, xorBM);
+	andoBM = (HBITMAP)SelectObject(andDC, andBM);
+	xoroBM = (HBITMAP)SelectObject(xorDC, xorBM);
 
-	isdata = 0;
-	for (y = 0, yy = 0; y < h2; yy++) {
-		int dbl;
-		uaecptr img = src + yy * 4 * hiressprite;
-		for (dbl = 0; dbl < (doubledsprite ? 2 : 1); dbl++) {
-			x = 0;
-			while (x < w2) {
-				uae_u32 d1 = trap_get_long(ctx, img);
-				uae_u32 d2 = trap_get_long(ctx, img + 2 * hiressprite);
-				int bits;
-				int maxbits = w2 - x;
-
-				if (maxbits > 16 * hiressprite)
-					maxbits = 16 * hiressprite;
-				for (bits = 0; bits < maxbits && x < w2; bits++) {
-					uae_u8 c = ((d2 & 0x80000000) ? 2 : 0) + ((d1 & 0x80000000) ? 1 : 0);
-					d1 <<= 1;
-					d2 <<= 1;
-					putwinmousepixel (andDC, xorDC, x, y, c, ct);
-					if (c > 0)
-						isdata = 1;
-					x++;
-					if (doubledsprite && x < w2) {
-						putwinmousepixel (andDC, xorDC, x, y, c, ct);
-						x++;
-					}
-				}
+	isdata = false;
+	for (int y = 0; y < h; y++) {
+		uae_u8 *s = image + y * w;
+		for (int x = 0; x < w; x++) {
+			int c = *s++;
+			putwinmousepixel(andDC, xorDC, x, y, c, ct);
+			if (c > 0) {
+				isdata = true;
 			}
-			if (y <= h2)
-				y++;
 		}
 	}
 	ret = 1;
 
-	SelectObject (andDC, andoBM);
-	SelectObject (xorDC, xoroBM);
+	SelectObject(andDC, andoBM);
+	SelectObject(xorDC, xoroBM);
 
 end:
-	DeleteDC (xorDC);
-	DeleteDC (andDC);
-	DeleteDC (mainDC);
-	ReleaseDC (NULL, DC);
+	DeleteDC(xorDC);
+	DeleteDC(andDC);
+	DeleteDC(mainDC);
+	ReleaseDC(NULL, DC);
 
 	if (!isdata) {
-		wincursor = LoadCursor (NULL, IDC_ARROW);
+		wincursor = LoadCursor(NULL, IDC_ARROW);
 	} else if (ret) {
-		memset (&ic, 0, sizeof ic);
+		memset(&ic, 0, sizeof ic);
 		ic.hbmColor = xorBM;
 		ic.hbmMask = andBM;
-		wincursor = CreateIconIndirect (&ic);
+		wincursor = CreateIconIndirect(&ic);
 		tmp_sprite_w = w;
 		tmp_sprite_h = h;
-		tmp_sprite_data = xmalloc (uae_u8, datasize);
-		tmp_sprite_hires = hiressprite;
-		tmp_sprite_doubled = doubledsprite;
-		memcpy (tmp_sprite_data, realsrc, datasize);
-		memcpy (tmp_sprite_colors, ct, sizeof (uae_u32) * 4);
+		memcpy(tmp_sprite_data, image, datasize);
+		memcpy(tmp_sprite_colors, ct, sizeof (uae_u32) * 4);
 	}
 
-	DeleteObject (andBM);
-	DeleteObject (xorBM);
+	DeleteObject(andBM);
+	DeleteObject(xorBM);
 
 	if (wincursor) {
-		SetCursor (wincursor);
+		SetCursor(wincursor);
 		wincursor_shown = 1;
 	}
 
-	if (!ret)
-		write_log (_T("RTG Windows color cursor creation failed\n"));
+	if (!ret) {
+		write_log(_T("RTG Windows color cursor creation failed\n"));
+	}
 
 exit:
 	if (currprefs.input_tablet && (currprefs.input_mouse_untrap & MOUSEUNTRAP_MAGIC) && currprefs.input_magic_mouse_cursor == MAGICMOUSE_NATIVE_ONLY) {
-		if (GetCursor () != NULL)
-			SetCursor (NULL);
+		if (GetCursor() != NULL)
+			SetCursor(NULL);
 	} else {
-		if (wincursor == oldwincursor && normalcursor != NULL)
-			SetCursor (normalcursor);
+		if (wincursor == oldwincursor && normalcursor != NULL) {
+			SetCursor(normalcursor);
+		}
 	}
-	if (oldwincursor)
-		DestroyIcon (oldwincursor);
+	if (oldwincursor) {
+		DestroyIcon(oldwincursor);
+	}
 	oldwincursor = NULL;
 
 	return ret;
@@ -2049,7 +2050,7 @@ int picasso_setwincursor(int monid)
 		SetCursor(wincursor);
 		return 1;
 	} else if (!ad->picasso_on) {
-		if (createwindowscursor(monid, 0, 0, 0, 0, 0, 1))
+		if (createwindowscursor(monid, 0, 1))
 			return 1;
 	}
 	return 0;
@@ -2084,20 +2085,20 @@ static uae_u32 setspriteimage(TrapContext *ctx, uaecptr bi)
 		bi, trap_get_long(ctx, bi + PSSO_BoardInfo_MouseImage), w, h,
 		hiressprite - 1, doubledsprite, bi + PSSO_BoardInfo_MouseImage));
 
-	if (!w || !h || trap_get_long(ctx, bi + PSSO_BoardInfo_MouseImage) == 0) {
+	uaecptr iptr = trap_get_long(ctx, bi + PSSO_BoardInfo_MouseImage);
+	int datasize = 4 * hiressprite + h * 4 * hiressprite;
+
+	if (!w || !h || iptr == 0 || !valid_address(iptr, datasize)) {
 		cursordeactivate = 1;
 		ret = 1;
 		goto end;
 	}
 
-	createwindowscursor (0, trap_get_long(ctx, bi + PSSO_BoardInfo_MouseImage) + 4 * hiressprite,
-		w, h, hiressprite, doubledsprite, 0);
-
-	cursordata = xmalloc (uae_u8, w * h * bpp);
+	cursordata = xmalloc (uae_u8, w * h);
 	for (y = 0, yy = 0; y < h; y++, yy++) {
-		uae_u8 *p = cursordata + w * bpp * y;
+		uae_u8 *p = cursordata + w * y;
 		uae_u8 *pprev = p;
-		uaecptr img = trap_get_long(ctx, bi + PSSO_BoardInfo_MouseImage) + 4 * hiressprite + yy * 4 * hiressprite;
+		uaecptr img = iptr + 4 * hiressprite + yy * 4 * hiressprite;
 		x = 0;
 		while (x < w) {
 			uae_u32 d1 = trap_get_long(ctx, img);
@@ -2109,19 +2110,17 @@ static uae_u32 setspriteimage(TrapContext *ctx, uaecptr bi)
 				uae_u8 c = ((d2 & 0x80000000) ? 2 : 0) + ((d1 & 0x80000000) ? 1 : 0);
 				d1 <<= 1;
 				d2 <<= 1;
-				putmousepixel (p, bpp, c);
-				p += bpp;
+				*p++ = c;
 				x++;
 				if (doubledsprite && x < w) {
-					putmousepixel (p, bpp, c);
-					p += bpp;
+					*p++ = c;
 					x++;
 				}
 			}
 		}
 		if (doubledsprite && y < h) {
 			y++;
-			memcpy (p, pprev, w * bpp);
+			memcpy(p, pprev, w);
 		}
 	}
 
@@ -2131,6 +2130,8 @@ static uae_u32 setspriteimage(TrapContext *ctx, uaecptr bi)
 	cursorheight = h;
 	if (cursorheight > CURSORMAXHEIGHT)
 		cursorheight = CURSORMAXHEIGHT;
+
+	createwindowscursor(0, 1, 0);
 
 	setupcursor ();
 	ret = 1;
