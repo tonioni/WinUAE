@@ -7520,7 +7520,7 @@ static void init_quickstartdlg (HWND hDlg)
 	WIN32GUI_LoadUIString(IDS_DEFAULT_HOST, tmp1, sizeof(tmp1) / sizeof(TCHAR));
 	xSendDlgItemMessage(hDlg, IDC_QUICKSTART_HOSTCONFIG, CB_ADDSTRING, 0, (LPARAM)tmp1);
 	idx = 0;
-	j = 1;
+	j = 2;
 	for (i = 0; i < configstoresize; i++) {
 		if (configstore[i]->Type == CONFIG_TYPE_HOST) {
 			_tcscpy (tmp2, configstore[i]->Path);
