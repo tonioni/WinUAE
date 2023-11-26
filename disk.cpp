@@ -3821,7 +3821,7 @@ void dumpdisk (const TCHAR *name)
 
 static void disk_dmafinished(void)
 {
-	INTREQ_INT(1, 0);
+	INTREQ_INT(1, 1);
 	if (floppy_writemode > 0)
 		floppy_writemode = 0;
 	dskdmaen = DSKDMA_OFF;
@@ -4245,11 +4245,6 @@ static int doreaddma(void)
 			return 1;
 		}
 		if (dsklength > 0) {
-			// DSKLEN == 1: finish without DMA transfer.
-			if (dsklength == 1 && dsklength2 == 1) {
-				disk_dmafinished();
-				return 0;
-			}
 			// fast disk modes, just flush the fifo
 			if (currprefs.floppy_speed > 100 && fifo_inuse[0] && fifo_inuse[1] && fifo_inuse[2]) {
 				while (fifo_inuse[0]) {
@@ -4779,12 +4774,6 @@ void DISK_update (int tohpos)
 			}
 		}
 	}
-
-	/* instantly finish dma if dsklen==0 and wordsync detected */
-	if (dskdmaen != DSKDMA_OFF && dma_enable && dsklength2 == 0 && dsklength == 0) {
-		disk_dmafinished();
-	}
-
 	if (!done_jitter) {
 		update_jitter();
 		done_jitter = true;
@@ -4806,11 +4795,10 @@ void DSKLEN (uae_u16 v, int hpos)
 
 	dsklen2 = dsklen = v;
 	dsklength2 = dsklength = dsklen & 0x3fff;
-	if (0 && dsklength > 1) {
-		dsklength++;
-		dsklength2++;
-	}
 
+	if ((v & 0x8000) && !(prevlen & 0x8000)) {
+		bitoffset = 15;
+	}
 	if ((v & 0x8000) && (prevlen & 0x8000)) {
 		if (dskdmaen == DSKDMA_READ && !(v & 0x4000)) {
 			// update only currently active DMA length, don't change DMA state
