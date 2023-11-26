@@ -1,4 +1,18 @@
 
+
+- If program updated RTG (uaegfx) hardware mouse cursor colors only (not shape), mouse cursor was not updated to match new colors.
+- Detect compatible files in deeper subdirectories only when dropping archive file to floppy drive, do not do it when dropping to WB. (b1)
+- If executable is mounted as disk image, do not automatically enable turbo floppy mode if program does disk DMA accesses that can't be used for normal track reads. (Booting executable programs that do [weird] disk tests work normally)
+- Quickstart Host Configuration was not restored correctly (off by one because new entry was added, missed one place where index should have been increased by 1)
+- Fixed KS 3.2 A3000 ROM checksum.
+- Added disassembler optional parameter to always show EA. Previously EAs (An),(An)+ or -(An) An content was not shown.
+- Disk info ("?" in floppy and quickstart panel) font size was not adjusted to current DPI/font size setting.
+- If (weird) programmed mode without programmed vblank (VARBEAMEN=1 but VARVBEN=0) had less lines than hardwired PAL or NTSC mode, vblank interrupts still triggered, even when trigger line (last PAL or NTSC line) was never reached.
+- Do not special case $FFFF,$FFFE copper wait as "no need to care about copper until restarted" if really weird and wide (max 256 CCKs) programmed mode is active.
+- "Restart" GUI button didn't reset current windowed/fullscreen mode flag, causing GUI to re-open in last active mode GUI position (if full-window or fullscreen) instead of default windowed mode position.
+- Possible fix for crash after reset in some configurations (Kickstart ROM area was left unallocated)
+- Normal WB programmed modes randomly used wrong HB/VB values when positioning the screen. (5.0)
+
 Beta 8:
 
 - Built-in DMS unpacking support update: validate packed track data under or overflow after decrunching and reject track as damaged if detected. Fixes incorrect brute force decryption key detection of some encrypted DMS files. (THE_PLAGUE_1.DMS and some others)

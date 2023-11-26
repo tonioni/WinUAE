@@ -11,7 +11,7 @@
 
 int core_fseek(core_file *file, INT64 offset, int whence)
 {
-	return zfile_fseek(file, offset, whence);
+	return (int)zfile_fseek(file, offset, whence);
 }
 file_error core_fopen(const TCHAR *filename, UINT32 openflags, core_file **file)
 {
