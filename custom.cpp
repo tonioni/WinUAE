@@ -417,7 +417,7 @@ int sprite_0_width, sprite_0_height, sprite_0_doubled;
 uae_u32 sprite_0_colors[4];
 static uae_u8 magic_sprite_mask = 0xff;
 
-static int hardwired_vbstop;
+static int hardwired_vbstrt, hardwired_vbstop;
 
 static int last_sprite_point, last_sprite_point_abs;
 static int nr_armed;
@@ -7089,6 +7089,7 @@ static void init_beamcon0(bool fakehz)
 		minfirstline = VBLANK_ENDLINE_PAL;
 		vblank_hz_nom = vblank_hz = VBLANK_HZ_PAL;
 		hardwired_vbstop = VBLANK_STOP_PAL;
+		hardwired_vbstrt = maxvpos;
 		equ_vblank_endline = EQU_ENDLINE_PAL;
 		equ_vblank_toggle = true;
 		vblank_hz_shf = clk / ((maxvpos + 0.0f) * maxhpos);
@@ -7100,6 +7101,7 @@ static void init_beamcon0(bool fakehz)
 		minfirstline = VBLANK_ENDLINE_NTSC;
 		vblank_hz_nom = vblank_hz = VBLANK_HZ_NTSC;
 		hardwired_vbstop = VBLANK_STOP_NTSC;
+		hardwired_vbstrt = maxvpos;
 		equ_vblank_endline = EQU_ENDLINE_NTSC;
 		equ_vblank_toggle = false;
 		vblank_hz_shf = clk / ((maxvpos + 0.0f) * (maxhpos + 0.5f));
@@ -7787,7 +7789,7 @@ static void vb_check(void)
 			vb_state = true;
 		}
 	} else {
-		if (vpos == maxvpos + lof_store - 1) {
+		if (vpos == hardwired_vbstrt + lof_store - 1) {
 			vb_start_line = 1;
 			vb_state = true;
 		}
