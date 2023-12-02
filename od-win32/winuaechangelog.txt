@@ -1,4 +1,12 @@
 
+Beta 10:
+
+- Fixed crash in some configs when hard reseting with freezer enabled. (b9 fix didn't work)
+- Do not activate default/TV scaling modes in programmed modes. (Previous "default" was supposed to skip programmed mode scaling but it didn't work correctly)
+- Disk emulation state changes mid scanline worked unreliably (ABC Chemii / Ego Software copy protection)
+- If only UAE expansion feature that needs UAE boot ROM is "Add PC drives at startup" and configured UAE boot ROM mode required F0 ROM, UAE boot ROM was not fully enabled automatically.
+
+Beta 9:
 
 - If program updated RTG (uaegfx) hardware mouse cursor colors only (not shape), mouse cursor was not updated to match new colors.
 - Detect compatible files in deeper subdirectories only when dropping archive file to floppy drive, do not do it when dropping to WB. (b1)
