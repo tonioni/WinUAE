@@ -360,6 +360,13 @@ void getfilterrect2(int monid, RECT *sr, RECT *dr, RECT *zr, int dst_width, int 
 		if (scalemode == AUTOSCALE_STATIC_MAX || scalemode == AUTOSCALE_STATIC_NOMINAL ||
 			scalemode == AUTOSCALE_INTEGER || scalemode == AUTOSCALE_INTEGER_AUTOSCALE) {
 
+			if (scalemode == AUTOSCALE_STATIC_NOMINAL || scalemode == AUTOSCALE_STATIC_NOMINAL || scalemode == AUTOSCALE_STATIC_MAX) {
+				// do not default/TV scale programmed modes
+				if (beamcon0 & BEAMCON0_VARBEAMEN) {
+					goto cont;
+				}
+			}
+
 			if (specialmode) {
 				cx = 0;
 				cy = 0;
@@ -371,7 +378,7 @@ void getfilterrect2(int monid, RECT *sr, RECT *dr, RECT *zr, int dst_width, int 
 				cw = avidinfo->drawbuffer.inwidth;
 				ch = avidinfo->drawbuffer.inheight;
 				cv = 1;
-				if (!(beamcon0 & BEAMCON0_VARBEAMEN) && (scalemode == AUTOSCALE_STATIC_NOMINAL)) { // || scalemode == AUTOSCALE_INTEGER)) {
+				if (scalemode == AUTOSCALE_STATIC_NOMINAL) { // || scalemode == AUTOSCALE_INTEGER)) {
 					cx = 28 << currprefs.gfx_resolution;
 					cy = 10 << currprefs.gfx_vresolution;
 					cw -= 40 << currprefs.gfx_resolution;
