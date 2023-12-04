@@ -2463,7 +2463,7 @@ static void handle_rawinput_2 (RAWINPUT *raw, LPARAM lParam)
 		if (rp_isactive ())
 			return;
 #endif
-		if (key_swap_hack) {
+		if (key_swap_hack == 1) {
 			if (scancode == DIK_F11) {
 				scancode = DIK_EQUALS;
 			} else if (scancode == DIK_EQUALS) {

@@ -275,6 +275,21 @@ int record_key (int kc)
 	return record_key_direct (kc);
 }
 
+static void keyswap(int *kcdp, int *kcp, uae_u8 k1, uae_u8 k2)
+{
+	int kcd = *kcdp;
+	int kc = *kcp;
+	if ((kcd & 0x7f) == k1) {
+		kcd = k2 | (kcd & 0x80);
+		kc = (kcd << 1) | (kcd >> 7);
+	} else if ((kcd & 0x7f) == k2) {
+		kcd = k1 | (kcd & 0x80);
+		kc = (kcd << 1) | (kcd >> 7);
+	}
+	*kcdp = kcd;
+	*kcp = kc;
+}
+
 int record_key_direct (int kc)
 {
 	int kpb_next = kpb_first + 1;
@@ -282,13 +297,11 @@ int record_key_direct (int kc)
 
 	if (key_swap_hack2) {
 		// $0D <> $0C
-		if ((kcd & 0x7f) == 0x0c) {
-			kcd = 0x0d | (kcd & 0x80);
-			kc = (kcd << 1) | (kcd >> 7);
-		} else if ((kcd & 0x7f) == 0x0d) {
-			kcd = 0x0c | (kcd & 0x80);
-			kc = (kcd << 1) | (kcd >> 7);
-		}
+		keyswap(&kcd, &kc, 0x0d, 0x0c);
+	}
+	if (key_swap_hack == 2) {
+		// $2B <> $0D
+		keyswap(&kcd, &kc, 0x2b, 0x0d);
 	}
 
 	if (ignore_next_release) {

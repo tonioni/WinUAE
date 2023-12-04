@@ -18559,7 +18559,11 @@ static void values_to_inputdlg (HWND hDlg)
 	SetDlgItemInt (hDlg, IDC_INPUTSPEEDD, workprefs.input_joymouse_speed, FALSE);
 	SetDlgItemInt (hDlg, IDC_INPUTSPEEDA, workprefs.input_joymouse_multiplier, FALSE);
 	CheckDlgButton (hDlg, IDC_INPUTDEVICEDISABLE, (!input_total_devices || inputdevice_get_device_status (input_selected_device)) ? BST_CHECKED : BST_UNCHECKED);
-	setchecked(hDlg, IDC_KEYBOARD_SWAPHACK, key_swap_hack);
+	if (key_swap_hack == 2) {
+		CheckDlgButton(hDlg, IDC_KEYBOARD_SWAPHACK, BST_INDETERMINATE);
+	} else {
+		setchecked(hDlg, IDC_KEYBOARD_SWAPHACK, key_swap_hack);
+	}
 }
 
 static int askinputcustom (HWND hDlg, TCHAR *custom, int maxlen, DWORD titleid)
@@ -20136,8 +20140,16 @@ static INT_PTR CALLBACK InputDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 			inputdevice_set_device_status (input_selected_device, ischecked (hDlg, IDC_INPUTDEVICEDISABLE));
 			break;
 		case IDC_KEYBOARD_SWAPHACK:
-			key_swap_hack = ischecked(hDlg, IDC_KEYBOARD_SWAPHACK);
-			regsetint(NULL, _T("KeySwapBackslashF11"), key_swap_hack);
+			{
+				int v = IsDlgButtonChecked(hDlg, IDC_KEYBOARD_SWAPHACK);
+				key_swap_hack = v == BST_INDETERMINATE ? 2 : v > 0;
+				key_swap_hack++;
+				if (key_swap_hack > 2) {
+					key_swap_hack = 0;
+				}
+				regsetint(NULL, _T("KeySwapBackslashF11"), key_swap_hack);
+				values_to_inputdlg(hDlg);
+			}
 			break;
 		default:
 			switch (LOWORD (wParam))
