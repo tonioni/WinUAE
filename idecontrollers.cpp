@@ -32,6 +32,9 @@
 
 
 #define DEBUG_IDE 0
+#define DEBUG_IDE_MASK 0xf800
+#define DEBUG_IDE_MASK_VAL 0x0800
+
 #define DEBUG_IDE_GVP 0
 #define DEBUG_IDE_ALF 0
 #define DEBUG_IDE_APOLLO 0
@@ -653,18 +656,13 @@ static int getidenum(struct ide_board *board, struct ide_board **arr)
 	return 0;
 }
 
-static uae_u32 ide_read_byte(struct ide_board *board, uaecptr addr)
+static uae_u32 ide_read_byte2(struct ide_board *board, uaecptr addr)
 {
 	uaecptr oaddr = addr;
 	uae_u8 v = 0xff;
 
 	addr &= board->mask;
 
-#if DEBUG_IDE
-	if (0 || !(addr & 0x8000))
-		write_log(_T("IDE IO BYTE READ %08x %08x\n"), addr, M68K_GETPC);
-#endif
-	
 	if (addr < 0x40 && !board->flashenabled && (!board->configured || board->keepautoconfig))
 		return board->acmemory[addr];
 
@@ -1067,6 +1065,17 @@ static uae_u32 ide_read_byte(struct ide_board *board, uaecptr addr)
 	return v;
 }
 
+static uae_u32 ide_read_byte(struct ide_board *board, uaecptr addr)
+{
+	uae_u32 v = ide_read_byte2(board, addr);
+#if DEBUG_IDE
+	if ((addr & DEBUG_IDE_MASK) == DEBUG_IDE_MASK_VAL) {
+		write_log(_T("IDE IO BYTE READ %08x=%02x %08x\n"), addr & board->mask, v & 0xff, M68K_GETPC);
+	}
+#endif
+	return v;
+}
+
 static uae_u32 ide_read_word(struct ide_board *board, uaecptr addr)
 {
 	uae_u32 v = 0xffff;
@@ -1377,8 +1386,9 @@ static uae_u32 ide_read_word(struct ide_board *board, uaecptr addr)
 	}
 
 #if DEBUG_IDE
-	if (0 || !(addr & 0x8000))
+	if ((addr & DEBUG_IDE_MASK) == DEBUG_IDE_MASK_VAL) {
 		write_log(_T("IDE IO WORD READ %08x %04x %08x\n"), addr, v, M68K_GETPC);
+	}
 #endif
 
 	return v;
@@ -1390,8 +1400,9 @@ static void ide_write_byte(struct ide_board *board, uaecptr addr, uae_u8 v)
 	addr &= board->mask;
 
 #if DEBUG_IDE
-	if (0 || !(addr & 0x8000))
+	if ((addr & DEBUG_IDE_MASK) == DEBUG_IDE_MASK_VAL) {
 		write_log(_T("IDE IO BYTE WRITE %08x=%02x %08x\n"), addr, v, M68K_GETPC);
+	}
 #endif
 
 	if (!board->configured) {
@@ -1748,8 +1759,9 @@ static void ide_write_word(struct ide_board *board, uaecptr addr, uae_u16 v)
 	addr &= board->mask;
 
 #if DEBUG_IDE
-	if (0 || !(addr & 0x8000))
+	if ((addr & DEBUG_IDE_MASK) == DEBUG_IDE_MASK_VAL) {
 		write_log(_T("IDE IO WORD WRITE %08x=%04x %08x\n"), addr, v, M68K_GETPC);
+	}
 #endif
 
 	if (board->configured) {
