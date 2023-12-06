@@ -1,10 +1,17 @@
 
+Beta 11:
+
+- Added 3rd Input panel keyboard "Backslash/F11" option (checkbox -> 3-state boolean checkbox, note that these work strangely in dark mode). New 3rd option uses original pre-5.0 behavior + F11 mapped to "missing" key (code $2b). -key_swap_hack command line parameter now takes value (0=5.0 default, 1=5.0 optional, 2=pre-5.0)
+- Extended ROM bank was not released when Restart was pressed, possibly causing crash when same config was started again.
+- CIA-B TOD counter was still unreliable in some specific situations (counted twice during single scanline). (ABC Chemii weird protection causing random crashes)
+- Ejecting and then inserting disk using same GUI session inserted the disk instantly instead of doing eject, delay, insert sequence. Changing disk without eject worked correctly.
+
 Beta 10:
 
 - Fixed crash in some configs when hard reseting with freezer enabled. (b9 fix didn't work)
 - Do not activate default/TV scaling modes in programmed modes. (Previous "default" was supposed to skip programmed mode scaling but it didn't work correctly)
 - Disk emulation state changes mid scanline worked unreliably (ABC Chemii / Ego Software copy protection)
-- If only UAE expansion feature that needs UAE boot ROM is "Add PC drives at startup" and configured UAE boot ROM mode required F0 ROM, UAE boot ROM was not fully enabled automatically.
+- If only UAE expansion feature that needs UAE boot ROM was "Add PC drives at startup" and configured UAE boot ROM mode required F0 ROM, UAE boot ROM was not fully enabled automatically.
 
 Beta 9:
 
