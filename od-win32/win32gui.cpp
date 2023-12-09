@@ -22050,7 +22050,7 @@ static HWND updatePanel (int id, UINT action)
 			left = r.left;
 			top = r.top;
 			if (!gui_fullscreen) {
-				if (isfullscreen () == 0) {
+				if (full_property_sheet || isfullscreen () == 0) {
 					regsetint (NULL, _T("GUIPosX"), left);
 					regsetint (NULL, _T("GUIPosY"), top);
 				} else if (isfullscreen () < 0) {
@@ -22279,7 +22279,7 @@ void getguipos(int *xp, int *yp)
 		x = gui_fullscreen_rect.left;
 		y = gui_fullscreen_rect.top;
 	} else {
-		if (isfullscreen() == 0) {
+		if (full_property_sheet || isfullscreen() == 0) {
 			regqueryint(NULL, _T("GUIPosX"), &x);
 			regqueryint(NULL, _T("GUIPosY"), &y);
 		} else if (isfullscreen() < 0) {
