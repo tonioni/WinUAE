@@ -4836,9 +4836,9 @@ void target_osk_control(int x, int y, int button, int buttonstate)
 			D3D_extoverlay(&osd_kb_eo, 0);
 			if ((kb->code & 0xf000) != 0xf000) {
 				if (kb->pressed) {
-					record_key((kb->code << 1) | 0);
+					record_key((kb->code << 1) | 0, true);
 				} else {
-					record_key((kb->code << 1) | 1);
+					record_key((kb->code << 1) | 1, true);
 				}
 			}
 		}
@@ -4851,7 +4851,7 @@ void target_osk_control(int x, int y, int button, int buttonstate)
 			highlight(&osd_kb_eo, kb, true);
 			D3D_extoverlay(&osd_kb_eo, 0);
 			if (kb->code != 0x62) {
-				record_key((kb->code << 1) | 1);
+				record_key((kb->code << 1) | 1, true);
 			}
 		}
 		if (buttonstate) {
@@ -4883,14 +4883,14 @@ void target_osk_control(int x, int y, int button, int buttonstate)
 				if (buttonstate) {
 					int capsstate = getcapslockstate();
 					capsstate = capsstate ? 0 : 1;
-					record_key((kb->code << 1) | capsstate);
+					record_key((kb->code << 1) | capsstate, true);
 					setcapslockstate(capsstate);
 				}
 			} else {
 				if (buttonstate) {
-					record_key((kb->code << 1) | 0);
+					record_key((kb->code << 1) | 0, true);
 				} else {
-					record_key((kb->code << 1) | 1);
+					record_key((kb->code << 1) | 1, true);
 				}
 			}
 		}
