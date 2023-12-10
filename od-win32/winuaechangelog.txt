@@ -1,4 +1,13 @@
 
+
+- b9 "'Restart' GUI button didn't reset current windowed/fullscreen mode flag" was wrong. Fixed correctly now.
+- Some ECS Denise ECS-only features (mainly borderblank) didn't work (b1)
+- Full-window mode in another monitor with different DPI than monitor where GUI position was previously stored and GUI is opened: GUI used wrong DPI value.
+- CSMK3/PPC boot ROM seems to do hidden adjustments at least to DBLxxx WB screen modes (for example slightly more lines and refresh rate from 48Hz to 50Hz) and these modes with max overscan had few pixels cut from left border. This fixes it but if it also affects badly some other modes, I'll revert this change because "Overscan+" also fixed it. Please check if you use programmed modes in WB. (I didn't notice any but there are too many different variants to test and they can change between OS versions or have manual adjustments added)
+- Backslash/F11 option incorrectly affected on screen keyboard keys.
+- Added debugger calculator rl()/rw()/rb() functions that read value from address, for example "m rl(rl(4)+10)" returns address to exec base name. Improved support for hexadecimal numbers in calculator formulas.
+- Debugger 'v' and 'V' remembers previous vertical and horizontal value.
+
 Beta 11:
 
 - Added 3rd Input panel keyboard "Backslash/F11" option (checkbox -> 3-state boolean checkbox, note that these work strangely in dark mode). New 3rd option uses original pre-5.0 behavior + F11 mapped to "missing" key (code $2b). -key_swap_hack command line parameter now takes value (0=5.0 default, 1=5.0 optional, 2=pre-5.0)
