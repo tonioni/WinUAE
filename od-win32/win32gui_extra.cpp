@@ -740,11 +740,13 @@ static HWND DIALOG_CreateIndirect(HINSTANCE hInst, LPCVOID dlgTemplate,
 		{
 			pos.x += MulDiv(tmpl->x, xBaseUnit, 4);
 			pos.y += MulDiv(tmpl->y, yBaseUnit, 8);
+#if 0
 			//
 			// REACTOS : Need an owner to be passed!!!
 			//
 			if (!(tmpl->style & (WS_CHILD | DS_ABSALIGN)) && owner)
 				ClientToScreen(owner, &pos);
+#endif
 		}
 	}
 
