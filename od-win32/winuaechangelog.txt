@@ -1,4 +1,10 @@
 
+Beta 13:
+
+- Interlaced programmed modes detected mode change every frame. (b9)
+- 800% floppy speed caused crash. (b10)
+
+Beta 12:
 
 - b9 "'Restart' GUI button didn't reset current windowed/fullscreen mode flag" was wrong. Fixed correctly now.
 - Some ECS Denise ECS-only features (mainly borderblank) didn't work (b1)
