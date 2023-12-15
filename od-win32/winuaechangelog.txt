@@ -1,4 +1,13 @@
 
+
+Beta 14:
+
+- Fixed FSINCOS disassembly (swapped destination registers)
+- 68060 MMU MOVEM.L (An)+,<regs> restored regs and updated An in wrong order which previously was mostly harmless but not anymore after b1 MMU MOVEM.L <regs>,-(An) update and if An was included in <regs> list.
+- GUI parent window was not disabled when child window was open (b1)
+- Quickstart config is not anymore reset when only entering Quickstart panel, unless it was first Quickstart panel open in current session.
+- Disk read DMA sometimes stopped 2 words too early (b8)
+
 Beta 13:
 
 - Interlaced programmed modes detected mode change every frame. (b9)
