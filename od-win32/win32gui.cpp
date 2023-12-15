@@ -7394,7 +7394,7 @@ static void init_quickstartdlg_tooltip (HWND hDlg, TCHAR *tt)
 	SendMessage (ToolTipHWND, TTM_ADDTOOL, 0, (LPARAM) (LPTOOLINFO) &ti);
 }
 
-static void init_quickstartdlg (HWND hDlg)
+static void init_quickstartdlg(HWND hDlg, bool initial)
 {
 	static int firsttime;
 	int i, j, idx, idx2, qssize, total;
@@ -7434,7 +7434,6 @@ static void init_quickstartdlg (HWND hDlg)
 			quickstarthost (hDlg, hostconf);
 		}
 	}
-	firsttime = 1;
 
 	CheckDlgButton (hDlg, IDC_QUICKSTARTMODE, quickstart);
 	CheckDlgButton (hDlg, IDC_NTSC, quickstart_ntsc != 0);
@@ -7542,7 +7541,7 @@ static void init_quickstartdlg (HWND hDlg)
 	regsetint (NULL, _T("QuickStartConfiguration"), quickstart_conf);
 	regsetint (NULL, _T("QuickStartCompatibility"), quickstart_compa);
 
-	if (quickstart) {
+	if (quickstart && (initial || !firsttime)) {
 		quickstarthost(hDlg, hostconf);
 		if (idx == 0) {
 			load_quickstart(hDlg, 0);
@@ -7551,6 +7550,7 @@ static void init_quickstartdlg (HWND hDlg)
 			load_quickstart(hDlg, 0);
 		}
 	}
+	firsttime = 1;
 }
 
 static void floppytooltip (HWND hDlg, int num, uae_u32 crc32);
@@ -7616,8 +7616,8 @@ static void testimage (HWND hDlg, int num)
 		gui_message (tmp);
 	}
 	if (reload && quickstart) {
-		load_quickstart (hDlg, 1);
-		init_quickstartdlg (hDlg);
+		load_quickstart(hDlg, 1);
+		init_quickstartdlg(hDlg, false);
 	}
 }
 
@@ -7843,10 +7843,10 @@ static INT_PTR CALLBACK QuickstartDlgProc (HWND hDlg, UINT msg, WPARAM wParam, L
 			break;
 		recursive++;
 		if (doinit) {
-			addfloppytype (hDlg, 0);
-			addfloppytype (hDlg, 1);
-			addfloppyhistory (hDlg);
-			init_quickstartdlg (hDlg);
+			addfloppytype(hDlg, 0);
+			addfloppytype(hDlg, 1);
+			addfloppyhistory(hDlg);
+			init_quickstartdlg(hDlg, false);
 			updatefloppytypes(hDlg);
 		}
 		doinit = 0;
@@ -7903,9 +7903,9 @@ static INT_PTR CALLBACK QuickstartDlgProc (HWND hDlg, UINT msg, WPARAM wParam, L
 					if (i != quickstart_model) {
 						quickstart_model = i;
 						quickstart_conf = quickstart_model_confstore[quickstart_model];
-						init_quickstartdlg (hDlg);
+						init_quickstartdlg(hDlg, true);
 						if (quickstart)
-							load_quickstart (hDlg, 1);
+							load_quickstart(hDlg, 1);
 						if (quickstart && !full_property_sheet)
 							qs_request_reset |= 4;
 					}
@@ -7920,9 +7920,9 @@ static INT_PTR CALLBACK QuickstartDlgProc (HWND hDlg, UINT msg, WPARAM wParam, L
 						qs_request_reset |= 4;
 					}
 					quickstart_model_confstore[quickstart_model] = quickstart_conf;
-					init_quickstartdlg (hDlg);
+					init_quickstartdlg(hDlg, true);
 					if (quickstart)
-						load_quickstart (hDlg, 1);
+						load_quickstart(hDlg, 1);
 					if (quickstart && !full_property_sheet)
 						qs_request_reset |= 2;
 				}
@@ -7955,22 +7955,22 @@ static INT_PTR CALLBACK QuickstartDlgProc (HWND hDlg, UINT msg, WPARAM wParam, L
 			switch (LOWORD (wParam))
 			{
 			case IDC_NTSC:
-				quickstart_ntsc = ischecked (hDlg, IDC_NTSC);
-				regsetint (NULL, _T("QuickStartNTSC"), quickstart_ntsc);
+				quickstart_ntsc = ischecked(hDlg, IDC_NTSC);
+				regsetint(NULL, _T("QuickStartNTSC"), quickstart_ntsc);
 				if (quickstart) {
-					init_quickstartdlg (hDlg);
-					load_quickstart (hDlg, 0);
+					init_quickstartdlg(hDlg, true);
+					load_quickstart(hDlg, 0);
 				}
 				break;
 			case IDC_QUICKSTARTMODE:
-				quickstart = ischecked (hDlg, IDC_QUICKSTARTMODE);
-				regsetint (NULL, _T("QuickStartMode"), quickstart);
+				quickstart = ischecked(hDlg, IDC_QUICKSTARTMODE);
+				regsetint(NULL, _T("QuickStartMode"), quickstart);
 				quickstart_cd = 0;
 				if (quickstart) {
-					init_quickstartdlg (hDlg);
-					load_quickstart (hDlg, 0);
+					init_quickstartdlg(hDlg, true);
+					load_quickstart(hDlg, 0);
 				}
-				enable_for_quickstart (hDlg);
+				enable_for_quickstart(hDlg);
 				break;
 			}
 		}
@@ -8013,13 +8013,13 @@ static INT_PTR CALLBACK QuickstartDlgProc (HWND hDlg, UINT msg, WPARAM wParam, L
 		if (recursive > 0)
 			break;
 		recursive++;
-		if ((HWND)lParam == GetDlgItem (hDlg, IDC_QUICKSTART_COMPATIBILITY)) {
-			val = (int)SendMessage ((HWND)lParam, TBM_GETPOS, 0, 0);
+		if ((HWND)lParam == GetDlgItem(hDlg, IDC_QUICKSTART_COMPATIBILITY)) {
+			val = (int)SendMessage((HWND)lParam, TBM_GETPOS, 0, 0);
 			if (val >= 0 && val != quickstart_compa) {
 				quickstart_compa = val;
-				init_quickstartdlg (hDlg);
+				init_quickstartdlg(hDlg, true);
 				if (quickstart)
-					load_quickstart (hDlg, 0);
+					load_quickstart(hDlg, 0);
 			}
 		}
 		recursive--;
