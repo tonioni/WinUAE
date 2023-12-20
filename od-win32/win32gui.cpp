@@ -147,6 +147,8 @@ static int customdialogactive;
 static struct newresource *customdialogres;
 static HWND customdialoghwnd;
 
+static int CustomCreateDialogBox(int templ, HWND hDlg, DLGPROC proc);
+
 void HtmlHelp(const TCHAR *panel)
 {
 	TCHAR help_file[MAX_DPATH];
@@ -23109,6 +23111,9 @@ struct newresource *getresource (int tmpl)
 
 void CustomDialogClose(HWND hDlg, int status)
 {
+	if (hGUIWnd) {
+		EnableWindow(hGUIWnd, TRUE);
+	}
 	customdialogactive = status;
 	customdialoghwnd = NULL;
 	freescaleresource(customdialogres);
@@ -23153,56 +23158,20 @@ HWND CustomCreateDialog(struct newresource **resp, int templ, HWND hDlg, DLGPROC
 	return h;
 }
 
-static void enableparent(HWND parent)
-{
-	if (parent) {
-		EnableWindow(parent, TRUE);
-	}
-}
-
-static HWND disableparent(HWND owner)
-{
-	HWND parent = NULL;
-	HWND disabled_owner = NULL;
-	/*
-	 * Owner needs to be top level window. We need to duplicate the logic from server,
-	 * because we need to disable it before creating dialog window. Note that we do that
-	 * even if dialog has WS_CHILD, but only for modal dialogs, which matched what
-	 * Windows does.
-	 */
-	while ((GetWindowLongW(owner, GWL_STYLE) & (WS_POPUP | WS_CHILD)) == WS_CHILD) {
-		parent = GetParent(owner);
-		if (!parent || parent == GetDesktopWindow())
-			break;
-		owner = parent;
-	}
-	if (!parent)
-		parent = GetAncestor(owner, GA_ROOT);
-	if (parent)
-	{
-		owner = parent;
-		if (IsWindowEnabled(owner))
-		{
-			HWND captured = NULL;
-			disabled_owner = owner;
-			EnableWindow(disabled_owner, FALSE);
-			captured = GetCapture();
-			if (captured)
-				SendMessageW(captured, WM_CANCELMODE, 0, 0);
-		}
-	}
-	return disabled_owner;
-}
-
-int CustomCreateDialogBox(int templ, HWND hDlg, DLGPROC proc)
+static int CustomCreateDialogBox(int templ, HWND hDlg, DLGPROC proc)
 {
 	struct newresource *res;
 	customdialogactive = 1;
+	if (hGUIWnd) {
+		EnableWindow(hGUIWnd, FALSE);
+	}
 	HWND hwnd = CustomCreateDialog(&res, templ, hDlg, proc);
 	if (!hwnd) {
+		if (hGUIWnd) {
+			EnableWindow(hGUIWnd, TRUE);
+		}
 		return 0;
 	}
-	HWND owner = disableparent(hDlg);
 	customdialogres = res;
 	customdialoghwnd = hwnd;
 	while (customdialogactive == 1) {
@@ -23226,7 +23195,11 @@ int CustomCreateDialogBox(int templ, HWND hDlg, DLGPROC proc)
 				break;
 		}
 	}
-	enableparent(owner);
+	if (hGUIWnd) {
+		if (!IsWindowEnabled(hGUIWnd)) {
+			EnableWindow(hGUIWnd, TRUE);
+		}
+	}
 	return customdialogactive;
 }
 

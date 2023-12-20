@@ -129,7 +129,6 @@ extern void rescaleresource(struct newresource*, bool);
 extern void freescaleresource (struct newresource*);
 extern void scaleresource_setsize (int w, int h, int fs);
 extern HWND CustomCreateDialog (struct newresource **, int templ, HWND hDlg, DLGPROC proc);
-extern int CustomCreateDialogBox(int templ, HWND hDlg, DLGPROC proc);
 extern void CustomDialogClose(HWND, int);
 extern INT_PTR CustomDialogBox (int templ, HWND hDlg, DLGPROC proc);
 extern struct newresource *getresource (int tmpl);
