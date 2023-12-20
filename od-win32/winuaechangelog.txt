@@ -1,5 +1,15 @@
 
 
+5.1.0
+
+- Fixed "Double, Frames" interlace mode (b1)
+
+Beta 15:
+
+- 68030 MMU: If MMU generated MMU configuration exception (almost never normally), F-line exception was also generated, hiding the original exception.
+- Apollo 040/060 accelerator (and possible some others): On board RAM mirrors partially appeared over 0x08000000 address space, confusing KS ROM RAM detection if KS supported 0x08000000 RAM.
+- GUI main window was moved back if was not already bottom most window when closing child window. (Wrong order of closing child window and enabling main window) (b14)
+
 Beta 14:
 
 - Fixed FSINCOS disassembly (swapped destination registers)
