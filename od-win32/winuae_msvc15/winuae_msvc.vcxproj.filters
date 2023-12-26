@@ -1000,6 +1000,9 @@
     <ClCompile Include="..\..\dsp3210\dsp_glue.cpp">
       <Filter>dsp3210</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\pcem\vid_ncr.cpp">
+      <Filter>pcem</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\resources\35floppy.ico">

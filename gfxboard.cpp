@@ -51,6 +51,7 @@ static bool memlogw = true;
 #include "pcem/vid_cl5429.h"
 #include "pcem/vid_s3.h"
 #include "pcem/vid_voodoo_banshee.h"
+#include "pcem/vid_ncr.h"
 #include "pci.h"
 #include "pci_hw.h"
 #include "pcem/pcemglue.h"
@@ -234,6 +235,20 @@ static const struct gfxboard boards[] =
 		0, NULL, &gd5446_device
 	},
 	{
+		GFXBOARD_ID_RETINA_Z2,
+		_T("Retina [Zorro II]"), _T("Macro System"), _T("Retina_Z2"),
+		18260, 6, 0, 0,
+		0x00000000, 0x00100000, 0x00400000, 0x00020000, 0, 2, 2, false,
+		0, 0, NULL, &ncr_retina_z2_device
+	},
+	{
+		GFXBOARD_ID_RETINA_Z3,
+		_T("Retina [Zorro III]"), _T("Macro System"), _T("Retina_Z3"),
+		18260, 16, 0, 0,
+		0x00000000, 0x00100000, 0x00400000, 0x00400000, 0, 3, 2, false,
+		0, 0, NULL, &ncr_retina_z3_device
+	},
+	{
 		GFXBOARD_ID_HARLEQUIN,
 		_T("Harlequin [Zorro II]"), _T("ACS"), _T("Harlequin_PAL"),
 		2118, 100, 0, 0,
@@ -335,6 +350,7 @@ struct rtggfxboard
 	int vga_width, vga_height, vga_width_mult, vga_height_mult;
 	bool vga_refresh_active;
 	int device_settings;
+	uae_u8 extradata[16];
 
 	uae_u32 vgaioregionptr, vgavramregionptr, vgabank0regionptr, vgabank1regionptr;
 
@@ -871,7 +887,7 @@ static void init_board (struct rtggfxboard *gb)
 	gb->vram_offset_enabled = false;
 	gb->gfxmem_bank->reserved_size = vramsize;
 	gb->gfxmem_bank->start = gb->gfxboardmem_start;
-	if (gb->board->manufacturer) {
+	if (gb->board->manufacturer && gb->board->banksize >= 0x40000) {
 		gb->gfxmem_bank->flags |= ABFLAG_ALLOCINDIRECT | ABFLAG_PPCIOSPACE;
 		gb->gfxmem_bank->label = _T("*");
 		mapped_malloc(gb->gfxmem_bank);
@@ -2730,6 +2746,25 @@ static void REGPARAM2 gfxboard_wput_mem_autoconfig (uaecptr addr, uae_u32 b)
 				gb->pcem_vram_mask = 0x3fffff;
 				gb->pcem_io_mask = 0x3fff;
 
+			} else if (boardnum == GFXBOARD_ID_RETINA_Z3) {
+
+				uae_u32 offset = 0xc00000;
+				for (;;) {
+					map_banks_z3(&gb->gfxboard_bank_vram_pcem, (start + offset) >> 16, gb->gfxboard_bank_vram_pcem.allocated_size >> 16);
+					offset += gb->gfxboard_bank_vram_pcem.allocated_size;
+					if (offset >= 0x1000000)
+						break;
+				}
+				map_banks_z3(&gb->gfxboard_bank_mmio_wbs_pcem, (start + 0xb00000) >> 16, 1);
+				map_banks_z3(&gb->gfxboard_bank_io_swap_pcem, (start + 0x000000) >> 16, 1);
+				gb->pcem_vram_offset = 0x800000;
+				gb->pcem_vram_mask = 0x3fffff;
+				gb->pcem_io_mask = 0x3fff;
+				gb->pcem_mmio_offset = 0x00300000;
+				gb->pcem_mmio_mask = 0xff;
+				gb->configured_regs = gb->gfxmem_bank->start >> 16;
+				gb->gfxboard_intena = 1;
+
 			}
 
 		} else {
@@ -2869,6 +2904,22 @@ static void REGPARAM2 gfxboard_bput_mem_autoconfig (uaecptr addr, uae_u32 b)
 
 					gb->pcem_vram_offset = 0x800000;
 					gb->pcem_vram_mask = 0x1fffff;
+					gb->pcem_io_mask = 0x3fff;
+
+				} else if (boardnum == GFXBOARD_ID_RETINA_Z2) {
+
+					gb->configured_mem = b;
+					gb->configured_regs = b;
+
+					ab = &gb->gfxboard_bank_special_pcem;
+					map_banks_z2(ab, b, gb->board->banksize >> 16);
+
+					init_board(gb);
+
+					gb->mem_start[0] = b << 16;
+					gb->mem_end[0] = gb->mem_start[0] + gb->board->banksize;
+					gb->pcem_vram_offset = 0x800000;
+					gb->pcem_vram_mask = 0x3fffff;
 					gb->pcem_io_mask = 0x3fff;
 
 				} else {
@@ -4320,33 +4371,43 @@ bool gfxboard_init_memory (struct autoconfig_info *aci)
 	
 	z2_flags = 0x05; // 1M
 	z3_flags = 0;
+	type = 0;
 	bank = gb->board->banksize;
-	bank /= 0x00100000;
-	if (bank >= 16) {
-		ext_size = true;
-		bank /= 16;
-		while (bank > 1) {
-			z3_flags++;
-			bank >>= 1;
-		}
-	} else {
-		while (bank > 1) {
+	if (bank <= 0x40000) {
+		z2_flags = 0x00;
+		while (bank >= 0x10000) {
 			z2_flags++;
-			bank >>= 1;
+			bank /= 2;
 		}
-		z2_flags &= 7;
-	}
-	if (gb->board->configtype == 3) {
-		type = 0x80;
-		flags |= 0x10;
-		if (ext_size) {
-			flags |= 0x20;
-			type |= z3_flags;
-		} else {
-			type |= z2_flags;
-		}
-	} else {
 		type = z2_flags | 0xc0;
+	} else {
+		bank /= 0x00100000;
+		if (bank >= 16) {
+			ext_size = true;
+			bank /= 16;
+			while (bank > 1) {
+				z3_flags++;
+				bank >>= 1;
+			}
+		} else {
+			while (bank > 1) {
+				z2_flags++;
+				bank >>= 1;
+			}
+			z2_flags &= 7;
+		}
+		if (gb->board->configtype == 3) {
+			type = 0x80;
+			flags |= 0x10;
+			if (ext_size) {
+				flags |= 0x20;
+				type |= z3_flags;
+			} else {
+				type |= z2_flags;
+			}
+		} else {
+			type = z2_flags | 0xc0;
+		}
 	}
 	type |= gb->board->model_registers && !gb->board->model_extra ? 0x08 : 0x00;
 	flags |= gb->board->er_flags;
@@ -4571,7 +4632,7 @@ bool gfxboard_init_registersx(struct autoconfig_info *aci, int regnum)
 	}
 
 	memset (gb->automemory, 0xff, GFXBOARD_AUTOCONFIG_SIZE);
-	if (gb->rbc->rtgmem_type == GFXBOARD_ID_PIXEL64) {
+	if (gb->rbc->rtgmem_type == GFXBOARD_ID_PIXEL64 || gb->rbc->rtgmem_type == GFXBOARD_ID_RETINA_Z2) {
 		ew(gb, 0x00, 0xc0 | 0x02); // 128 Z2
 		size = BOARD_REGISTERS_SIZE * 2;
 	} else {
@@ -5451,7 +5512,61 @@ static void special_pcem_put(uaecptr addr, uae_u32 v, int size)
 		write_log(_T("PCEM SPECIAL PUT %08x %08x %d PC=%08x\n"), addr, v, size, M68K_GETPC);
 #endif
 
-	if (boardnum == GFXBOARD_ID_PIXEL64) {
+	if (boardnum == GFXBOARD_ID_RETINA_Z2) {
+	
+		addr &= 0x1ffff;
+		if (addr & 0x10000) {
+			// VRAM banks
+			uaecptr mem = addr & 0xffff;
+			if (size == 2) {
+				v = do_byteswap_32(v);
+			} else if (size == 1) {
+				v = do_byteswap_16(v);
+			}
+			put_mem_pcem(mem + 0xa0000, v, size);
+		} else if (addr & 0x8000) {
+			// RAMDAC
+			int dac = addr & 15;
+			if (dac == 1) {
+				// palette index
+				gb->extradata[0] = v;
+				gb->extradata[1] = 0;
+			} else if (dac == 3) {
+				// palette data
+				gb->extradata[2 + gb->extradata[1]] = v;
+				gb->extradata[1]++;
+				if (gb->extradata[1] == 3) {
+					put_io_pcem(0x3c8, gb->extradata[0], 0);
+					put_io_pcem(0x3c9, gb->extradata[2], 0);
+					put_io_pcem(0x3c9, gb->extradata[3], 0);
+					put_io_pcem(0x3c9, gb->extradata[4], 0);
+					gb->extradata[0]++;
+					gb->extradata[0] &= 255;
+					gb->extradata[1] = 0;
+				}
+			} else if (dac == 13) {
+				// 16/24 bit mode
+				if ((v & (0x80 | 0x40 | 0x20)) == (0x80 | 0x40 | 0x20)) {
+					put_io_pcem(0x3c4, 0x3f, 0);
+					put_io_pcem(0x3c5, 24, 0);
+				} else if (v & 0x80) {
+					put_io_pcem(0x3c4, 0x3f, 0);
+					put_io_pcem(0x3c5, 16, 0);
+				} else {
+					put_io_pcem(0x3c4, 0x3f, 0);
+					put_io_pcem(0x3c5, 8, 0);
+				}
+			}
+		} else {
+			// IO
+			int io = addr & 0x3fff;
+			if (!(addr & 0x4000)) {
+				io++;
+			}
+			put_io_pcem(io, v, 0);
+		}
+
+	} else if (boardnum == GFXBOARD_ID_PIXEL64) {
 
 		addr &= 0xffff;
 		if (size) {
@@ -5743,7 +5858,30 @@ static uae_u32 special_pcem_get(uaecptr addr, int size)
 	write_log(_T("PCEM SPECIAL GET %08x %d PC=%08x\n"), addr, size, M68K_GETPC);
 #endif
 
-	if (boardnum == GFXBOARD_ID_PIXEL64) {
+	if (boardnum == GFXBOARD_ID_RETINA_Z2) {
+
+		addr &= 0x1ffff;
+		if (addr & 0x10000) {
+			// VRAM banks
+			uaecptr mem = addr & 0xffff;
+			v = get_mem_pcem(mem + 0xa0000, size);
+			if (size == 2) {
+				v = do_byteswap_32(v);
+			} else if (size == 1) {
+				v = do_byteswap_16(v);
+			}
+		} else if (addr & 0x8000) {
+			// RAMDAC
+		} else {
+			// IO
+			int io = addr & 0x3fff;
+			if (!(addr & 0x4000)) {
+				io++;
+			}
+			v = get_io_pcem(io, 0);
+		}
+
+	} else if (boardnum == GFXBOARD_ID_PIXEL64) {
 
 		if (size) {
 			v = get_io_pcem(addr + 0, 0) << 8;

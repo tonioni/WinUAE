@@ -81,7 +81,9 @@ int pcem_getvramsize(void);
 #define GFXBOARD_ID_VOODOO3_PCI 18
 #define GFXBOARD_ID_S3VIRGE_PCI 19
 #define GFXBOARD_ID_PIXEL64 20
-#define GFXBOARD_ID_VOODOO5_PCI 21
+#define GFXBOARD_ID_RETINA_Z2 21
+#define GFXBOARD_ID_RETINA_Z3 22
+#define GFXBOARD_ID_VOODOO5_PCI 23
 
 struct gfxboard_mode
 {

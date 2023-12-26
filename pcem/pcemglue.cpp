@@ -799,7 +799,7 @@ static mem_mapping_t *getmm(uaecptr *addrp)
 void put_mem_pcem(uaecptr addr, uae_u32 v, int size)
 {
 #if 0
-	write_log("%08x %08x %d\n", addr, v, size);
+	write_log("put_mem_pcem %08x %08x %d\n", addr, v, size);
 #endif
 	mem_mapping_t *m = getmm(&addr);
 	if (m) {
@@ -825,6 +825,9 @@ uae_u32 get_mem_pcem(uaecptr addr, int size)
 			v = m->read_l(addr, m->p);
 		}
 	}
+#if 0
+	write_log("get_mem_pcem %08x %08x %d\n", addr, v, size);
+#endif
 	return v;
 }
 
