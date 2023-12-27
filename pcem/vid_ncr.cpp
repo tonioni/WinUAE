@@ -15,8 +15,6 @@
 #include "vid_svga_render.h"
 #include "vid_sdac_ramdac.h"
 
-extern void activate_debugger();
-
 enum
 {
     NCR_TYPE_22EP = 2,
@@ -74,9 +72,9 @@ typedef struct ncr_t
         int8_t blt_expand_offset, blt_expand_bit;
         uint8_t blt_start;
         uint8_t blt_fifo_size;
-        uint8_t blt_patx, blt_paty;
+        uint8_t blt_patx, blt_patx_cnt, blt_paty_cnt;
         uint8_t blt_src_size;
-        uint8_t blt_bpp;
+        int8_t blt_bpp, blt_bppdiv8, blt_bpp_cnt, blt_bppoffset, blt_xdir, blt_ydir;
         bool blt_color_expand, blt_color_fill, blt_transparent;
         uint8_t blt_pattern_size;
 
@@ -349,9 +347,6 @@ uint8_t ncr_in(uint16_t addr, void *p)
                 case 0x3d4:
                 return svga->crtcreg;
                 case 0x3d5:
-                switch (svga->crtcreg)
-                {
-                }
                 return svga->crtc[svga->crtcreg];
         }
         return svga_in(addr, svga);
@@ -546,14 +541,13 @@ static uint8_t blitter_read(ncr_t *ncr, uint32_t addr, int off)
 
 static void blitter_write(ncr_t *ncr, uint32_t addr, uint8_t v)
 {
-    uint32_t offset = ((addr >> 3) + ncr->blt_bpp) & ncr->vram_mask;
+    uint32_t offset = ((addr >> 3) + ncr->blt_bppoffset) & ncr->vram_mask;
     ncr->svga.vram[offset] = v;
     ncr->svga.changedvram[offset >> 12] = changeframecount;
 }
 
 static bool blitter_proc(ncr_t *ncr)
 {
-    int32_t bpp = ncr->svga.bpp;
     bool next = false;
 
     if (ncr->blt_stage == 0) {
@@ -578,7 +572,7 @@ static bool blitter_proc(ncr_t *ncr)
             }
             src = (uint8_t)data;
         } else {
-            src = blitter_read(ncr, ncr->blt_src, ncr->blt_bpp);
+            src = blitter_read(ncr, ncr->blt_src, ncr->blt_bppoffset);
         }
         ncr->blt_srcdata = src;
         ncr->blt_stage++;
@@ -587,32 +581,30 @@ static bool blitter_proc(ncr_t *ncr)
     if (ncr->blt_stage == 1) {
 
         uint8_t srcdata = ncr->blt_srcdata;
-        ncr->blt_dstdata = blitter_read(ncr, ncr->blt_dst, ncr->blt_bpp);
-        ncr->blt_patdata = blitter_read(ncr, ncr->blt_pat, 0);
+        ncr->blt_dstdata = blitter_read(ncr, ncr->blt_dst, ncr->blt_bppoffset);
+        ncr->blt_patdata = blitter_read(ncr, ncr->blt_pat, ncr->blt_patx_cnt);
         if (ncr->blt_color_expand) {
             int8_t offset = ncr->blt_expand_bit;
             if (srcdata & (1 << offset)) {
-                srcdata = ncr->blt_c0 >> (ncr->blt_bpp * 8);
+                srcdata = ncr->blt_c0 >> (ncr->blt_bpp_cnt * 8);
             } else if (ncr->blt_transparent) {
                 srcdata = ncr->blt_dstdata;
             } else {
-                srcdata = ncr->blt_c1 >> (ncr->blt_bpp * 8);
+                srcdata = ncr->blt_c1 >> (ncr->blt_bpp_cnt * 8);
             }
         }
         uint8_t out = blitter_rop(ncr->blt_rop, srcdata, ncr->blt_patdata, ncr->blt_dstdata);
         blitter_write(ncr, ncr->blt_dst, out);
 
-        ncr->blt_pat += 1 << 3;
-        ncr->blt_patx++;
-        if (ncr->blt_patx == ncr->blt_pattern_size * (bpp / 8)) {
-            ncr->blt_pat = ncr->blt_patbak;
-            ncr->blt_patx = 0;
+        ncr->blt_patx_cnt++;
+        if (ncr->blt_patx_cnt == ncr->blt_pattern_size * ncr->blt_bppdiv8) {
+            ncr->blt_patx_cnt = 0;
         }
 
-        ncr->blt_bpp++;
-        if (ncr->blt_bpp >= bpp / 8) {
-            int16_t dir = (ncr->blt_control & (1 << 7)) ? 1 : -1;
-            int16_t dx = (bpp / 8) * dir;
+        ncr->blt_bpp_cnt++;
+        ncr->blt_bppoffset++;
+        if (ncr->blt_bpp_cnt == ncr->blt_bppdiv8) {
+            int16_t dx = (ncr->blt_bppdiv8) * ncr->blt_xdir;
 
             if (ncr->blt_color_expand) {
                 ncr->blt_expand_bit--;
@@ -636,7 +628,12 @@ static bool blitter_proc(ncr_t *ncr)
                 ncr->blt_dst += dx << 3;
             }
 
-            ncr->blt_bpp = 0;
+            ncr->blt_bpp_cnt = 0;
+            if (ncr->blt_xdir < 0) {
+                ncr->blt_bppoffset = -(ncr->blt_bppdiv8 - 1);
+            } else {
+                ncr->blt_bppoffset = 0;
+            }
             next = true;
 
         } else {
@@ -677,9 +674,7 @@ static void blitter_run(ncr_t *ncr)
         if (blitter_proc(ncr)) {
             ncr->blt_w++;
             if (ncr->blt_w >= ncr->blt_width) {
-                int bpp = ncr->svga.bpp;
-                int dir = (ncr->blt_control & (1 << 6)) ? 1 : -1;
-                int dy = dir * ncr->svga.rowoffset * 8;
+                int dy = ncr->blt_ydir * ncr->svga.rowoffset * 8;
 
                 ncr->blt_w = 0;
                 ncr->blt_stage = 0;
@@ -697,15 +692,16 @@ static void blitter_run(ncr_t *ncr)
                 }
 
                 if (!ncr->blt_color_fill) {
-                    int patdx = (bpp / 4) << 3;
-                    ncr->blt_paty++;
+                    int patdx = (ncr->blt_bpp / 4) << 3;
+                    ncr->blt_paty_cnt++;
                     ncr->blt_patbak += patdx;
-                    if (ncr->blt_paty == ncr->blt_pattern_size) {
-                        ncr->blt_paty = 0;
+                    if (ncr->blt_paty_cnt == ncr->blt_pattern_size) {
+                        ncr->blt_paty_cnt = 0;
                         ncr->blt_patbak = ncr->blt_patbak2;
                     }
                 }
                 ncr->blt_pat = ncr->blt_patbak;
+                ncr->blt_patx_cnt = ncr->blt_patx;
 
                 ncr->blt_h++;
                 if (ncr->blt_h >= ncr->blt_height) {
@@ -735,17 +731,20 @@ static void blitter_start(ncr_t *ncr)
     ncr->blt_transparent = (ncr->blt_control & (1 << 5)) != 0;
     ncr->blt_pattern_size = (ncr->blt_control & (1 << 4)) ? 16 : 8;
     ncr->blt_patx = 0;
-    ncr->blt_paty = 0;
+    ncr->blt_patx_cnt = 0;
+    ncr->blt_paty_cnt = 0;
 
-    ncr->blt_pat &= ~15;
-    if (ncr->svga.bpp <= 8) {
-        ncr->blt_pat &= ~15;
-    } else if (ncr->svga.bpp == 16) {
-        if (!ncr->blt_color_expand) {
-            ncr->blt_src &= ~15;
-        }
-        ncr->blt_dst &= ~15;
-        ncr->blt_pat &= ~31;
+    ncr->blt_w = 0;
+    ncr->blt_h = 0;
+    ncr->blt_xdir = (ncr->blt_control & (1 << 7)) ? 1 : -1;
+    ncr->blt_ydir = (ncr->blt_control & (1 << 6)) ? 1 : -1;
+    ncr->blt_bpp = ncr->svga.bpp;
+    ncr->blt_bppdiv8 = ncr->blt_bpp / 8;
+    ncr->blt_bpp_cnt = 0;
+    if (ncr->blt_xdir < 0) {
+        ncr->blt_bppoffset = -(ncr->blt_bppdiv8 - 1);
+    } else {
+        ncr->blt_bppoffset = 0;
     }
 
     ncr->blt_srcbak = ncr->blt_src;
@@ -753,33 +752,23 @@ static void blitter_start(ncr_t *ncr)
     ncr->blt_patbak = ncr->blt_pat;
     ncr->blt_patbak2 = ncr->blt_pat;
 
-#if 0
     if (ncr->svga.bpp == 24) {
-        uint32_t src = ncr->blt_src;
+        // strange pattern offset in 24-bit mode
         uint32_t dst = ncr->blt_dst;
-        src >>= 3;
         dst >>= 3;
-        src /= 3;
         dst /= 3;
-        int off = src & 3;
+        int off = dst & 3;
         int rgboff = 0;
-        if (off == 1) {
-            rgboff = 0;
-        } else if (off == 2) {
-            rgboff = 2;
+        if (off == 2) {
+            rgboff = 5;
         } else if (off == 3) {
-            rgboff = 1;
+            rgboff = 10;
         }
-        ncr->blt_patbak = ncr->blt_pat;
-        ncr->blt_patbak2 = ncr->blt_pat;
-
-        ncr->blt_pat += rgboff << 3;
         ncr->blt_patx = rgboff;
     }
-#endif
 
-    ncr->blt_w = 0;
-    ncr->blt_h = 0;
+    ncr->blt_patx_cnt = ncr->blt_patx;
+
     blitter_reset_fifo(ncr);
     ncr->blt_stage = 0;
 
@@ -813,7 +802,6 @@ static void blitter_start(ncr_t *ncr)
     }
 
     blitter_run(ncr);
-    //activate_debugger();
 }
 
 static void ncr_mmio_write(uint32_t addr, uint8_t val, void *p)
