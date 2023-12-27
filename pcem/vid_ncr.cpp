@@ -71,12 +71,14 @@ typedef struct ncr_t
         uint8_t blt_stage;
         int8_t blt_fifo_read, blt_fifo_write;
         uint8_t blt_srcdata, blt_patdata, blt_dstdata;
-        int8_t blt_expand_offset, blt_expand_bit, blt_first_expand;
-        uint8_t blt_patdone, blt_start;
+        int8_t blt_expand_offset, blt_expand_bit;
+        uint8_t blt_start;
         uint8_t blt_fifo_size;
         uint8_t blt_patx, blt_paty;
         uint8_t blt_src_size;
         uint8_t blt_bpp;
+        bool blt_color_expand, blt_color_fill, blt_transparent;
+        uint8_t blt_pattern_size;
 
 } ncr_t;
 
@@ -536,9 +538,9 @@ static uint8_t blitter_rop(uint8_t rop, uint8_t src, uint8_t pat, uint8_t dst)
     return out;
 }
 
-static uint8_t blitter_read(ncr_t *ncr, uint32_t addr)
+static uint8_t blitter_read(ncr_t *ncr, uint32_t addr, int off)
 {
-    uint32_t offset = ((addr >> 3) + ncr->blt_bpp) & ncr->vram_mask;
+    uint32_t offset = ((addr >> 3) + off) & ncr->vram_mask;
     return ncr->svga.vram[offset];
 }
 
@@ -551,8 +553,6 @@ static void blitter_write(ncr_t *ncr, uint32_t addr, uint8_t v)
 
 static bool blitter_proc(ncr_t *ncr)
 {
-    bool colorfill = (ncr->blt_control & (1 << 9)) != 0;
-    bool colorexpand = (ncr->blt_control & (1 << 11)) != 0;
     int32_t bpp = ncr->svga.bpp;
     bool next = false;
 
@@ -560,92 +560,91 @@ static bool blitter_proc(ncr_t *ncr)
         uint8_t src = 0;
         if (!(ncr->blt_control & (1 << 15))) {
             // waiting for fifo write?
-            if (ncr->blt_fifo_size < 8) {
+            int shift = ncr->blt_expand_offset & 7;
+            if (ncr->blt_fifo_size - shift < 8) {
                 ncr->blt_fifo_write = 1;
                 return false;
             }
-            if (ncr->blt_first_expand && colorexpand && ncr->blt_expand_offset) {
-                ncr->blt_fifo_size -= ncr->blt_expand_offset;
-                ncr->blt_fifo_data >>= ncr->blt_expand_offset;
-                ncr->blt_first_expand = 0;
-                if (ncr->blt_fifo_size < 8) {
-                    ncr->blt_fifo_write = 1;
-                    return false;
-                }
-            }
-            src = ncr->blt_fifo_data & 0xff;
+            src = (ncr->blt_fifo_data >> shift) & 0xff;
             ncr->blt_fifo_data >>= 8;
             ncr->blt_fifo_size -= 8;
             ncr->blt_fifo_write = 0;
+        } else if (ncr->blt_color_expand) {
+            int shift = ncr->blt_expand_offset & 7;
+            uint16_t data = blitter_read(ncr, ncr->blt_src, 0) << 0;
+            if (shift) {
+                data |= blitter_read(ncr, ncr->blt_src, 1) << 8;
+                data >>= shift;
+            }
+            src = (uint8_t)data;
         } else {
-            src = blitter_read(ncr, ncr->blt_src);
+            src = blitter_read(ncr, ncr->blt_src, ncr->blt_bpp);
         }
-
         ncr->blt_srcdata = src;
         ncr->blt_stage++;
     }
 
     if (ncr->blt_stage == 1) {
 
-        uint8_t skip = 0;
         uint8_t srcdata = ncr->blt_srcdata;
-        if (colorexpand) {
+        ncr->blt_dstdata = blitter_read(ncr, ncr->blt_dst, ncr->blt_bpp);
+        ncr->blt_patdata = blitter_read(ncr, ncr->blt_pat, 0);
+        if (ncr->blt_color_expand) {
             int8_t offset = ncr->blt_expand_bit;
-            if (offset < 8) {
-                if (srcdata & (1 << offset)) {
-                    srcdata = ncr->blt_c0 >> (ncr->blt_bpp * 8);
-                } else if (ncr->blt_control & (1 << 5)) {
-                    /// transparent
-                    skip = 1;
-                } else {
-                    srcdata = ncr->blt_c1 >> (ncr->blt_bpp * 8);
-                }
+            if (srcdata & (1 << offset)) {
+                srcdata = ncr->blt_c0 >> (ncr->blt_bpp * 8);
+            } else if (ncr->blt_transparent) {
+                srcdata = ncr->blt_dstdata;
+            } else {
+                srcdata = ncr->blt_c1 >> (ncr->blt_bpp * 8);
             }
         }
-        if (!skip) {
-            ncr->blt_patdata = blitter_read(ncr, ncr->blt_pat);
-            ncr->blt_dstdata = blitter_read(ncr, ncr->blt_dst);
-            uint8_t out = blitter_rop(ncr->blt_rop, srcdata, ncr->blt_patdata, ncr->blt_dstdata);
-            blitter_write(ncr, ncr->blt_dst, out);
+        uint8_t out = blitter_rop(ncr->blt_rop, srcdata, ncr->blt_patdata, ncr->blt_dstdata);
+        blitter_write(ncr, ncr->blt_dst, out);
+
+        ncr->blt_pat += 1 << 3;
+        ncr->blt_patx++;
+        if (ncr->blt_patx == ncr->blt_pattern_size * (bpp / 8)) {
+            ncr->blt_pat = ncr->blt_patbak;
+            ncr->blt_patx = 0;
         }
 
         ncr->blt_bpp++;
-        if (ncr->blt_bpp == bpp / 8) {
-            ncr->blt_bpp = 0;
+        if (ncr->blt_bpp >= bpp / 8) {
             int16_t dir = (ncr->blt_control & (1 << 7)) ? 1 : -1;
             int16_t dx = (bpp / 8) * dir;
 
-            if (colorexpand) {
+            if (ncr->blt_color_expand) {
                 ncr->blt_expand_bit--;
                 if (ncr->blt_expand_bit < 0) {
                     ncr->blt_expand_bit = 7;
-                    ncr->blt_src += (1 << 3) * dir;
+                    if (ncr->blt_control & (1 << 15)) {
+                        ncr->blt_src += (1 << 3);
+                    }
                     ncr->blt_stage = 0;
                 } else {
                     ncr->blt_stage = 1;
                 }
             } else {
-                ncr->blt_src += dx << 3;
+                if (ncr->blt_control & (1 << 15)) {
+                    ncr->blt_src += dx << 3;
+                }
                 ncr->blt_stage = 0;
             }
-            ncr->blt_dst += dx << 3;
 
-            int16_t patsize = (ncr->blt_control & (1 << 4)) ? 16 : 8;
-            ncr->blt_patx++;
-            ncr->blt_pat += dx << 3;
-            if (ncr->blt_patx == patsize) {
-                ncr->blt_patx = 0;
-                ncr->blt_pat = ncr->blt_patbak;
+            if (ncr->blt_control & (1 << 14)) {
+                ncr->blt_dst += dx << 3;
             }
- 
+
+            ncr->blt_bpp = 0;
             next = true;
 
         } else {
-            if (colorexpand) {
-                ncr->blt_stage = 1;
-            } else {
+
+            if (!ncr->blt_color_expand) {
                 ncr->blt_stage = 0;
             }
+
         }
 
     }
@@ -656,6 +655,14 @@ static void blitter_done(ncr_t *ncr)
 {
     ncr->blt_status = 1;
     ncr->blt_start &= ~1;
+}
+
+static void blitter_reset_fifo(ncr_t *ncr)
+{
+    ncr->blt_fifo_size = -ncr->blt_expand_offset;
+    ncr->blt_fifo_read = 0;
+    ncr->blt_fifo_write = 0;
+    ncr->blt_expand_bit = 7;
 }
 
 static void blitter_run(ncr_t *ncr)
@@ -670,35 +677,35 @@ static void blitter_run(ncr_t *ncr)
         if (blitter_proc(ncr)) {
             ncr->blt_w++;
             if (ncr->blt_w >= ncr->blt_width) {
-                ncr->blt_w = 0;
-                ncr->blt_first_expand = 1;
-                int bpp = ncr->svga.bpp / 8;
+                int bpp = ncr->svga.bpp;
                 int dir = (ncr->blt_control & (1 << 6)) ? 1 : -1;
                 int dy = dir * ncr->svga.rowoffset * 8;
 
-                ncr->blt_fifo_size = 0;
+                ncr->blt_w = 0;
+                ncr->blt_stage = 0;
 
-                if (!(ncr->blt_control & (1 << 12))) {
+                blitter_reset_fifo(ncr);
+
+                if (!(ncr->blt_control & (1 << 12)) && (ncr->blt_control & (1 << 14))) {
                     ncr->blt_dstbak += dy << 3;
                     ncr->blt_dst = ncr->blt_dstbak;
                 }
 
-                if (!(ncr->blt_control & (1 << 13))) {
+                if (!(ncr->blt_control & (1 << 13)) && (ncr->blt_control & (1 << 15))) {
                     ncr->blt_srcbak += dy << 3;
                     ncr->blt_src = ncr->blt_srcbak;
                 }
 
-                if (!(ncr->blt_control & (1 << 9))) {
-                    int patsize = (ncr->blt_control & (1 << 4)) ? 16 : 8;
-                    int patdx = (ncr->svga.bpp / 4) << 3;
+                if (!ncr->blt_color_fill) {
+                    int patdx = (bpp / 4) << 3;
                     ncr->blt_paty++;
-                    ncr->blt_patbak += dir * patdx;
-                    if (ncr->blt_paty == patsize) {
+                    ncr->blt_patbak += patdx;
+                    if (ncr->blt_paty == ncr->blt_pattern_size) {
                         ncr->blt_paty = 0;
                         ncr->blt_patbak = ncr->blt_patbak2;
                     }
-                    ncr->blt_pat = ncr->blt_patbak;
                 }
+                ncr->blt_pat = ncr->blt_patbak;
 
                 ncr->blt_h++;
                 if (ncr->blt_h >= ncr->blt_height) {
@@ -710,20 +717,74 @@ static void blitter_run(ncr_t *ncr)
     }
 }
 
-static void blitter_write_fifo(ncr_t *ncr, uint32_t v, int size)
+static void blitter_write_fifo(ncr_t *ncr, uint32_t v)
 {
     ncr->blt_fifo_write = -1;
-    ncr->blt_fifo_data <<= ncr->blt_fifo_size;
-    ncr->blt_fifo_data |= ((uint64_t)v) << ncr->blt_fifo_size;
+    ncr->blt_fifo_data <<= 32;
+    ncr->blt_fifo_data |= v;
     ncr->blt_fifo_size += 32;
     blitter_run(ncr);
 }
 
-
 static void blitter_start(ncr_t *ncr)
 {
-#if 1
-    pclog("C=%04x ROP=%02x W=%d H=%d S=%08x/%d P=%08x/%d D=%08x/%d F=%d E=%d DM=%d SM=%d DL=%d SL=%d TR=%d MW=%d\n",
+    ncr->blt_expand_offset = ncr->blt_src & 31;
+    ncr->blt_expand_bit = 7;
+    ncr->blt_color_fill = (ncr->blt_control & (1 << 9)) != 0;
+    ncr->blt_color_expand = (ncr->blt_control & (1 << 11)) != 0;
+    ncr->blt_transparent = (ncr->blt_control & (1 << 5)) != 0;
+    ncr->blt_pattern_size = (ncr->blt_control & (1 << 4)) ? 16 : 8;
+    ncr->blt_patx = 0;
+    ncr->blt_paty = 0;
+
+    ncr->blt_pat &= ~15;
+    if (ncr->svga.bpp <= 8) {
+        ncr->blt_pat &= ~15;
+    } else if (ncr->svga.bpp == 16) {
+        if (!ncr->blt_color_expand) {
+            ncr->blt_src &= ~15;
+        }
+        ncr->blt_dst &= ~15;
+        ncr->blt_pat &= ~31;
+    }
+
+    ncr->blt_srcbak = ncr->blt_src;
+    ncr->blt_dstbak = ncr->blt_dst;
+    ncr->blt_patbak = ncr->blt_pat;
+    ncr->blt_patbak2 = ncr->blt_pat;
+
+#if 0
+    if (ncr->svga.bpp == 24) {
+        uint32_t src = ncr->blt_src;
+        uint32_t dst = ncr->blt_dst;
+        src >>= 3;
+        dst >>= 3;
+        src /= 3;
+        dst /= 3;
+        int off = src & 3;
+        int rgboff = 0;
+        if (off == 1) {
+            rgboff = 0;
+        } else if (off == 2) {
+            rgboff = 2;
+        } else if (off == 3) {
+            rgboff = 1;
+        }
+        ncr->blt_patbak = ncr->blt_pat;
+        ncr->blt_patbak2 = ncr->blt_pat;
+
+        ncr->blt_pat += rgboff << 3;
+        ncr->blt_patx = rgboff;
+    }
+#endif
+
+    ncr->blt_w = 0;
+    ncr->blt_h = 0;
+    blitter_reset_fifo(ncr);
+    ncr->blt_stage = 0;
+
+#if 0
+    pclog("C=%04x ROP=%02x W=%d H=%d S=%08x/%d P=%08x/%d D=%08x/%d F=%d E=%d DM=%d SM=%d DL=%d SL=%d TR=%d MW=%d DX=%d DY=%d\n",
         ncr->blt_control, ncr->blt_rop, ncr->blt_width, ncr->blt_height,
         ncr->blt_src >> 3, ncr->blt_src & 7,
         ncr->blt_pat >> 3, ncr->blt_pat & 7,
@@ -735,31 +796,22 @@ static void blitter_start(ncr_t *ncr)
         (ncr->blt_control & (1 << 14)) != 0,
         (ncr->blt_control & (1 << 15)) != 0,
         (ncr->blt_control & (1 << 5)) != 0,
-        (ncr->blt_control & (1 << 3)) != 0);
+        (ncr->blt_control & (1 << 3)) != 0,
+        (ncr->blt_control & (1 << 7)) != 0,
+        (ncr->blt_control & (1 << 6)) != 0);
 #endif
     ncr->blt_status = 0;
     if (ncr->blt_start & 2) {
-        pclog("text blits not implemenented");
+        pclog("Blitter: text blits not implemented.\n");
         blitter_done(ncr);
         return;
     }
-    ncr->blt_expand_offset = ncr->blt_src & 31;
-    ncr->blt_expand_bit = 7;
-    ncr->blt_first_expand = 1;
-    ncr->blt_srcbak = ncr->blt_src;
-    ncr->blt_dstbak = ncr->blt_dst;
-    ncr->blt_patbak = ncr->blt_pat;
-    ncr->blt_patbak2 = ncr->blt_pat;
-    ncr->blt_w = 0;
-    ncr->blt_h = 0;
-    ncr->blt_fifo_read = 0;
-    ncr->blt_fifo_write = 0;
-    ncr->blt_fifo_size = 0;
-    ncr->blt_fifo_data = 0;
-    ncr->blt_stage = 0;
-    ncr->blt_patx = 0;
-    ncr->blt_paty = 0;
-    ncr->blt_patdone = 0;
+    if (!(ncr->blt_control & (1 << 14))) {
+        pclog("Blitter: destination FIFO reads not implemented.\n");
+        blitter_done(ncr);
+        return;
+    }
+
     blitter_run(ncr);
     //activate_debugger();
 }
@@ -849,7 +901,7 @@ static void ncr_mmio_write_w(uint32_t addr, uint16_t val, void *p)
             ncr->blt_c0 &= 0x0000ffff;
             ncr->blt_c0 |= val << 16;
             break;
-        case 0x50: // foreground
+        case 0x50: // background
             ncr->blt_c1 &= 0xffff0000;
             ncr->blt_c1 |= val << 0;
             break;
@@ -883,7 +935,7 @@ static uint8_t ncr_mmio_read(uint32_t addr, void *p)
         case 0x09: // mode control
             val = ncr->svga.seqregs[0x1e];
             break;
-        case 0x30:
+        case 0x30:  // blt start
             val = ncr->blt_start;
             break;
         case 0x32: // blt status
@@ -892,8 +944,6 @@ static uint8_t ncr_mmio_read(uint32_t addr, void *p)
         default:
             pclog("blitter read reg %02x\n", reg);
             break;
-            
-
     }
 
     return val;
@@ -932,7 +982,7 @@ static void ncr_writel_linear(uint32_t addr, uint32_t val, void *p)
     svga_t *svga = (svga_t *)p;
     ncr_t *ncr = (ncr_t *)svga->p;
     if (ncr->blt_fifo_write > 0) {
-        blitter_write_fifo(ncr, val, 2);
+        blitter_write_fifo(ncr, val);
         return;
     }
     svga_writel_linear(addr, val, p);
