@@ -1568,21 +1568,17 @@ WRITE16_MEMBER( tms340x0_device::host_w )
 		/* upper 16 bits of the address */
 		case TMS34010_HOST_ADDRESS_H:
 			IOREG(REG_HSTADRH) = data;
-			// !LBL && !INCW
-			if (!(hstctlh & 0x2000) && !(hstctlh & 0x0800)) {
-				addr = (IOREG(REG_HSTADRH) << 16) | IOREG(REG_HSTADRL);
-				m_prefetch_data = TMS34010_RDMEM_WORD(TOBYTE(addr & 0xfffffff0));
-			}
+			addr = (IOREG(REG_HSTADRH) << 16) | IOREG(REG_HSTADRL);
+			m_prefetch_data = TMS34010_RDMEM_WORD(TOBYTE(addr & 0xfffffff0));
 			break;
 
 		/* lower 16 bits of the address */
 		case TMS34010_HOST_ADDRESS_L:
 			IOREG(REG_HSTADRL) = data;
-			// LBL && !INCW
-			if ((hstctlh & 0x2000) && !(hstctlh & 0x0800)) {
-				addr = (IOREG(REG_HSTADRH) << 16) | IOREG(REG_HSTADRL);
-				m_prefetch_data = TMS34010_RDMEM_WORD(TOBYTE(addr & 0xfffffff0));
-			}
+#if 0
+			addr = (IOREG(REG_HSTADRH) << 16) | IOREG(REG_HSTADRL);
+			m_prefetch_data = TMS34010_RDMEM_WORD(TOBYTE(addr & 0xfffffff0));
+#endif
 			break;
 
 		/* actual data */
