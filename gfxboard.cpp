@@ -119,6 +119,7 @@ struct gfxboard
 	int configtype;
 	int irq;
 	bool swap;
+	bool hasswitcher;
 	uae_u32 romtype;
 	uae_u8 er_type;
 	struct gfxboard_func *func;
@@ -138,91 +139,91 @@ static const struct gfxboard boards[] =
 		GFXBOARD_ID_A2410,
 		_T("A2410 [Zorro II]"), _T("Commodore"), _T("A2410"),
 		1030, 0, 0, 0,
-		0x00000000, 0x00200000, 0x00200000, 0x10000, 0, 0, 2, false,
+		0x00000000, 0x00200000, 0x00200000, 0x10000, 0, 0, 2, false, false,
 		0, 0xc1, &a2410_func
 	},
 	{
 		GFXBOARD_ID_SPECTRUM_Z2,
 		_T("Spectrum 28/24 [Zorro II]"), _T("Great Valley Products"), _T("Spectrum28/24_Z2"),
 		BOARD_MANUFACTURER_SPECTRUM, BOARD_MODEL_MEMORY_SPECTRUM, BOARD_MODEL_REGISTERS_SPECTRUM, 0,
-		0x00000000, 0x00100000, 0x00200000, 0x00200000, CIRRUS_ID_CLGD5428, 2, 6, true,
+		0x00000000, 0x00100000, 0x00200000, 0x00200000, CIRRUS_ID_CLGD5428, 2, 6, true, true,
 		0, 0, NULL, &gd5428_swapped_device
 	},
 	{
 		GFXBOARD_ID_SPECTRUM_Z3,
 		_T("Spectrum 28/24 [Zorro III]"), _T("Great Valley Products"), _T("Spectrum28/24_Z3"),
 		BOARD_MANUFACTURER_SPECTRUM, BOARD_MODEL_MEMORY_SPECTRUM, BOARD_MODEL_REGISTERS_SPECTRUM, 0,
-		0x00000000, 0x00100000, 0x00200000, 0x00200000, CIRRUS_ID_CLGD5428, 3, 6, true,
+		0x00000000, 0x00100000, 0x00200000, 0x00200000, CIRRUS_ID_CLGD5428, 3, 6, true, true,
 		0, 0, NULL, &gd5428_swapped_device
 	},
 	{
 		GFXBOARD_ID_PICCOLO_Z2,
 		_T("Piccolo [Zorro II]"), _T("Ingenieurbüro Helfrich"), _T("Piccolo_Z2"),
 		BOARD_MANUFACTURER_PICCOLO, BOARD_MODEL_MEMORY_PICCOLO, BOARD_MODEL_REGISTERS_PICCOLO, 0,
-		0x00000000, 0x00100000, 0x00200000, 0x00200000, CIRRUS_ID_CLGD5426, 2, 6, true,
+		0x00000000, 0x00100000, 0x00200000, 0x00200000, CIRRUS_ID_CLGD5426, 2, 6, true, true,
 		0, 0, NULL, &gd5426_swapped_device
 	},
 	{
 		GFXBOARD_ID_PICCOLO_Z3,
 		_T("Piccolo [Zorro III]"), _T("Ingenieurbüro Helfrich"), _T("Piccolo_Z3"),
 		BOARD_MANUFACTURER_PICCOLO, BOARD_MODEL_MEMORY_PICCOLO, BOARD_MODEL_REGISTERS_PICCOLO, 0,
-		0x00000000, 0x00100000, 0x00200000, 0x00200000, CIRRUS_ID_CLGD5426, 3, 6, true,
+		0x00000000, 0x00100000, 0x00200000, 0x00200000, CIRRUS_ID_CLGD5426, 3, 6, true, true,
 		0, 0, NULL, &gd5426_swapped_device
 	},
 	{
 		GFXBOARD_ID_SD64_Z2,
 		_T("Piccolo SD64 [Zorro II]"), _T("Ingenieurbüro Helfrich"), _T("PiccoloSD64_Z2"),
 		BOARD_MANUFACTURER_PICCOLO, BOARD_MODEL_MEMORY_PICCOLO64, BOARD_MODEL_REGISTERS_PICCOLO64, 0,
-		0x00000000, 0x00200000, 0x00400000, 0x00400000, CIRRUS_ID_CLGD5434, 2, 6, true,
+		0x00000000, 0x00200000, 0x00400000, 0x00400000, CIRRUS_ID_CLGD5434, 2, 6, true, true,
 		0, 0, NULL, &gd5434_vlb_swapped_device
 	},
 	{
 		GFXBOARD_ID_SD64_Z3,
 		_T("Piccolo SD64 [Zorro III]"), _T("Ingenieurbüro Helfrich"), _T("PiccoloSD64_Z3"),
 		BOARD_MANUFACTURER_PICCOLO, BOARD_MODEL_MEMORY_PICCOLO64, BOARD_MODEL_REGISTERS_PICCOLO64, 0,
-		0x00000000, 0x00200000, 0x00400000, 0x00400000, CIRRUS_ID_CLGD5434, 3, 6, true,
+		0x00000000, 0x00200000, 0x00400000, 0x00400000, CIRRUS_ID_CLGD5434, 3, 6, true, true,
 		0, 0, NULL, &gd5434_vlb_swapped_device
 	},
 	{
 		GFXBOARD_ID_CV64_Z3,
 		_T("CyberVision 64 [Zorro III]"), _T("Phase 5"), _T("CV64_Z3"),
 		8512, 34, 0, 0,
-		0x00000000, 0x00200000, 0x00400000, 0x20000000, 0, 3, 2, false,
+		0x00000000, 0x00200000, 0x00400000, 0x20000000, 0, 3, 2, false, false,
 		0, 0, NULL, &s3_cybervision_trio64_device, 0x40
 	},
 	{
 		GFXBOARD_ID_CV643D_Z2,
 		_T("CyberVision 64/3D [Zorro II]"), _T("Phase 5"), _T("CV643D_Z2"),
 		8512, 67, 0, 0,
-		0x00000000, 0x00400000, 0x00400000, 0x00400000, 0, 2, 2, false,
+		0x00000000, 0x00400000, 0x00400000, 0x00400000, 0, 2, 2, false, false,
 		0, 0, NULL, &s3_virge_device, 0xc0
 	},
 	{
 		GFXBOARD_ID_CV643D_Z3,
 		_T("CyberVision 64/3D [Zorro III]"), _T("Phase 5"), _T("CV643D_Z3"),
 		8512, 67, 0, 0,
-		0x00000000, 0x00400000, 0x00400000, 0x10000000, 0, 3, 2, false,
+		0x00000000, 0x00400000, 0x00400000, 0x10000000, 0, 3, 2, false, false,
 		0, 0, NULL, &s3_virge_device, 0x40
 	},
 	{
 		GFXBOARD_ID_PICASSO2,
 		_T("Picasso II [Zorro II]"), _T("Village Tronic"), _T("PicassoII"),
 		BOARD_MANUFACTURER_PICASSO, BOARD_MODEL_MEMORY_PICASSOII, BOARD_MODEL_REGISTERS_PICASSOII, 0,
-		0x00020000, 0x00100000, 0x00200000, 0x00200000, CIRRUS_ID_CLGD5426, 2, 0, false,
+		0x00020000, 0x00100000, 0x00200000, 0x00200000, CIRRUS_ID_CLGD5426, 2, 0, false, true,
 		0, 0, NULL, &gd5426_device
 	},
 	{
 		GFXBOARD_ID_PICASSO2PLUS,
 		_T("Picasso II+ [Zorro II]"), _T("Village Tronic"), _T("PicassoII+"),
 		BOARD_MANUFACTURER_PICASSO, BOARD_MODEL_MEMORY_PICASSOII, BOARD_MODEL_REGISTERS_PICASSOII, 0,
-		0x00100000, 0x00100000, 0x00200000, 0x00200000, CIRRUS_ID_CLGD5428, 2, 2, false,
+		0x00100000, 0x00100000, 0x00200000, 0x00200000, CIRRUS_ID_CLGD5428, 2, 2, false, true,
 		0, 0, NULL, &gd5428_device
 	},
 	{
 		GFXBOARD_ID_PICASSO4_Z2,
 		_T("Picasso IV [Zorro II]"), _T("Village Tronic"), _T("PicassoIV_Z2"),
 		BOARD_MANUFACTURER_PICASSO, BOARD_MODEL_MEMORY_PICASSOIV, BOARD_MODEL_REGISTERS_PICASSOIV, 0,
-		0x00000000, 0x00200000, 0x00400000, 0x00400000, CIRRUS_ID_CLGD5446, 2, 2, false,
+		0x00000000, 0x00200000, 0x00400000, 0x00400000, CIRRUS_ID_CLGD5446, 2, 2, false, true,
 		ROMTYPE_PICASSOIV,
 		0, NULL, &gd5446_device
 	},
@@ -230,7 +231,7 @@ static const struct gfxboard boards[] =
 		GFXBOARD_ID_PICASSO4_Z3,
 		_T("Picasso IV [Zorro III]"), _T("Village Tronic"), _T("PicassoIV_Z3"),
 		BOARD_MANUFACTURER_PICASSO, BOARD_MODEL_MEMORY_PICASSOIV, 0, 0,
-		0x00000000, 0x00400000, 0x00400000, 0x02000000, CIRRUS_ID_CLGD5446, 3, 2, false,
+		0x00000000, 0x00400000, 0x00400000, 0x02000000, CIRRUS_ID_CLGD5446, 3, 2, false, true,
 		ROMTYPE_PICASSOIV,
 		0, NULL, &gd5446_device
 	},
@@ -238,21 +239,21 @@ static const struct gfxboard boards[] =
 		GFXBOARD_ID_RETINA_Z2,
 		_T("Retina [Zorro II]"), _T("Macro System"), _T("Retina_Z2"),
 		18260, 6, 0, 0,
-		0x00000000, 0x00100000, 0x00400000, 0x00020000, 0, 2, 2, false,
+		0x00000000, 0x00100000, 0x00400000, 0x00020000, 0, 2, 2, false, false,
 		0, 0, NULL, &ncr_retina_z2_device
 	},
 	{
 		GFXBOARD_ID_RETINA_Z3,
 		_T("Retina [Zorro III]"), _T("Macro System"), _T("Retina_Z3"),
 		18260, 16, 0, 0,
-		0x00000000, 0x00100000, 0x00400000, 0x00400000, 0, 3, 2, false,
+		0x00000000, 0x00100000, 0x00400000, 0x00400000, 0, 3, 2, false, false,
 		0, 0, NULL, &ncr_retina_z3_device
 	},
 	{
 		GFXBOARD_ID_HARLEQUIN,
 		_T("Harlequin [Zorro II]"), _T("ACS"), _T("Harlequin_PAL"),
 		2118, 100, 0, 0,
-		0x00000000, 0x00200000, 0x00200000, 0x10000, 0, 0, 2, false,
+		0x00000000, 0x00200000, 0x00200000, 0x10000, 0, 0, 2, false, false,
 		ROMTYPE_HARLEQUIN, 0xc2, &harlequin_func
 	},
 #if 0
@@ -267,7 +268,7 @@ static const struct gfxboard boards[] =
 		GFXBOARD_ID_VOODOO3_PCI,
 		_T("Voodoo 3 3000 [PCI]"), _T("3dfx"), _T("V3_3000"),
 		0, 0, 0, 0,
-		0x00000000, 0x01000000, 0x01000000, 0x01000000, 0, 0, -1, false,
+		0x00000000, 0x01000000, 0x01000000, 0x01000000, 0, 0, -1, false, false,
 		ROMTYPE_VOODOO3,
 		0, NULL, &voodoo_3_3000_device, 0, true
 	},
@@ -275,21 +276,21 @@ static const struct gfxboard boards[] =
 		GFXBOARD_ID_S3VIRGE_PCI,
 		_T("Virge [PCI]"), _T("S3"), _T("S3VIRGE_PCI"),
 		0, 0, 0, 0,
-		0x00000000, 0x00400000, 0x00400000, 0x10000000, 0, 0, -1, false,
+		0x00000000, 0x00400000, 0x00400000, 0x10000000, 0, 0, -1, false, false,
 		0, 0, NULL, &s3_virge_device, 0, true
 	},
 	{
 		GFXBOARD_ID_VGA,
 		_T("x86 bridgeboard VGA [ISA]"), _T("x86"), _T("VGA"),
 		0, 0, 0, 0,
-		0x00000000, 0x00100000, 0x00200000, 0x00000000, CIRRUS_ID_CLGD5426, 0, 0, false,
+		0x00000000, 0x00100000, 0x00200000, 0x00000000, CIRRUS_ID_CLGD5426, 0, 0, false, false,
 		ROMTYPE_x86_VGA
 	},
 	{
 		GFXBOARD_ID_PIXEL64,
 		_T("Pixel64 [AteoBus]"), _T("Atéo Concepts"), _T("Pixel64"),
 		2026, 255, 254, 0, // 255: type=$c7 flags=$40, 254: type=$c2 flags=$40 128k, 252: type=$c2 flags=$40, 128k
-		0x00000000, 0x00200000, 0x00200000, 0x00400000, CIRRUS_ID_CLGD5434, 2, 0, false,
+		0x00000000, 0x00200000, 0x00200000, 0x00400000, CIRRUS_ID_CLGD5434, 2, 0, false, false,
 		0, 0, NULL, &gd5434_vlb_swapped_device
 	},
 	{
@@ -1557,7 +1558,7 @@ void gfxboard_vsync_handler(bool full_redraw_required, bool redraw_required)
 						}
 					}
 				}
-				if (gb->board->pci && gb->vram) {
+				if (!gb->board->hasswitcher && gb->vram) {
 					bool svga_on(void *p);
 					bool on = svga_on(gb->pcemobject2);
 					set_monswitch(gb, on);
