@@ -237,14 +237,14 @@ static const struct gfxboard boards[] =
 	},
 	{
 		GFXBOARD_ID_RETINA_Z2,
-		_T("Retina [Zorro II]"), _T("Macro System"), _T("Retina_Z2"),
+		_T("Retina [Zorro II]"), _T("MacroSystem"), _T("Retina_Z2"),
 		18260, 6, 0, 0,
 		0x00000000, 0x00100000, 0x00400000, 0x00020000, 0, 2, 2, false, false,
 		0, 0, NULL, &ncr_retina_z2_device
 	},
 	{
 		GFXBOARD_ID_RETINA_Z3,
-		_T("Retina [Zorro III]"), _T("Macro System"), _T("Retina_Z3"),
+		_T("Retina [Zorro III]"), _T("MacroSystem"), _T("Retina_Z3"),
 		18260, 16, 0, 0,
 		0x00000000, 0x00100000, 0x00400000, 0x00400000, 0, 3, 2, false, false,
 		0, 0, NULL, &ncr_retina_z3_device

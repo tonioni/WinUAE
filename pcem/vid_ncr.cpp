@@ -286,9 +286,6 @@ void ncr_out(uint16_t addr, uint8_t val, void *p)
                     {
                             case 0x11:
                             if (!(val & 0x10)) {
-                                if (ncr->vblank_irq > 0)
-                                    ncr->vblank_irq = -1;
-                            } else if (ncr->vblank_irq < 0) {
                                 ncr->vblank_irq = 0;
                             }
                             ncr_update_irqs(ncr);
@@ -759,7 +756,9 @@ static void blitter_start(ncr_t *ncr)
         dst /= 3;
         int off = dst & 3;
         int rgboff = 0;
-        if (off == 2) {
+        if (off == 1) {
+            rgboff = 3;
+        } else if (off == 2) {
             rgboff = 5;
         } else if (off == 3) {
             rgboff = 10;
@@ -994,7 +993,7 @@ void ncr_updatebanking(ncr_t *ncr)
     }
     int mode = svga->seqregs[0x1e] >> 5;
     if (mode != 2 && mode != 3 && mode != 6) {
-        pclog("unsupport banking mode %d\n", mode);
+        pclog("unsupported banking mode %d\n", mode);
     }
     // Primary at A0000h-AFFFFh, Secondary at B0000h-BFFFFh. Both Read / Write.
     if (mode == 2) {
@@ -1120,7 +1119,6 @@ static void *ncr_init(char *bios_fn, int chip)
         }
                 
         svga->vblank_start = ncr_vblank_start;
-        ncr->vblank_irq = -1;
 
         ncr_io_set(ncr);
 

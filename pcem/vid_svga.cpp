@@ -24,7 +24,7 @@ static svga_t *svga_pri;
 bool svga_on(void *p)
 {
     svga_t *svga = (svga_t*)p;
-    return svga->scrblank == 0 && svga->hdisp >= 128;
+    return svga->scrblank == 0 && svga->hdisp >= 128 && (svga->crtc[0x17] & 0x80);
 }
 
 int svga_get_vtotal(void *p)
@@ -170,6 +170,7 @@ void svga_out(uint16_t addr, uint8_t val, void *p)
                         svga->vgapal[svga->dac_write].r = svga->dac_r;
                         svga->vgapal[svga->dac_write].g = svga->dac_g;
                         svga->vgapal[svga->dac_write].b = val; 
+                        //pclog("%d: %02x %02x %02x\n", svga->dac_write, svga->dac_r, svga->dac_g, val);
                         if (svga->ramdac_type == RAMDAC_8BIT)
                                 svga->pallook[svga->dac_write] = makecol32(svga->vgapal[svga->dac_write].r, svga->vgapal[svga->dac_write].g, svga->vgapal[svga->dac_write].b);
                         else
@@ -699,7 +700,7 @@ int svga_poll(void *p)
                 }
                 if (svga->vc == svga->dispend)
                 {
-                        if (svga->vblank_start)
+                        if (svga->vblank_start && (svga->crtc[0x17] & 0x80))
                                 svga->vblank_start(svga);
 //                        pclog("VC dispend\n");
                         svga->dispon=0;
