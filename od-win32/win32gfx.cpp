@@ -3137,6 +3137,7 @@ void machdep_free(void)
 
 int graphics_init(bool mousecapture)
 {
+	InitializeDarkMode();
 	systray (hHiddenWnd, TRUE);
 	systray (hHiddenWnd, FALSE);
 	d3d_select(&currprefs);

@@ -23407,10 +23407,7 @@ static int GetSettings (int all_options, HWND hwnd)
 		v = -1;
 		regqueryint(NULL, _T("GUIDarkMode"), &v);
 		gui_darkmode = v;
-		if (rp_isactive()) {
-			v = -2;
-		}
-		InitializeDarkMode(v);
+		InitializeDarkMode();
 		v = 0;
 		regqueryint(NULL, _T("GUIFullscreen"), &v);
 		if (v) {

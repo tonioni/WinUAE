@@ -8252,12 +8252,19 @@ bool is_mainthread(void)
 	return GetCurrentThreadId() == mainthreadid;
 }
 
-void InitializeDarkMode(int v)
+void InitializeDarkMode(void)
 {
 	static int initialized = -10;
+
+	int v = -1;
+	regqueryint(NULL, _T("GUIDarkMode"), &v);
+	if (rp_isactive()) {
+		v = -2;
+	}
 	if (darkModeForced) {
 		v = 1;
 	}
+
 	if (initialized != v) {
 		InitDarkMode(v);
 		write_log("dark mode supported: %d enabled: %d\n", g_darkModeSupported, g_darkModeEnabled);
