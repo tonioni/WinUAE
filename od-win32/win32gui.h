@@ -121,6 +121,21 @@ extern int dialog_inhibit;
 extern int gui_control;
 extern int externaldialogactive;
 
+struct customdialogstate
+{
+	int active;
+	int status;
+	struct newresource *res;
+	HWND hwnd;
+	HWND parent;
+};
+extern struct customdialogstate cdstate;
+#define SAVECDS \
+	struct customdialogstate old_cds; \
+	memcpy(&old_cds, &cdstate, sizeof(cdstate));
+#define RESTORECDS \
+	memcpy(&cdstate, &old_cds, sizeof(cdstate));
+
 HWND x_CreateDialogIndirectParam(HINSTANCE hInstance, LPCDLGTEMPLATE lpTemplate, HWND hWndParent, DLGPROC lpDialogFunc, LPARAM lParamInit, struct newresource*);
 void x_DestroyWindow(HWND, struct newresource*);
 void getguipos(int *xp, int *yp);
@@ -128,7 +143,7 @@ extern int scaleresource(struct newresource*, struct dlgcontext *dctx, HWND, int
 extern void rescaleresource(struct newresource*, bool);
 extern void freescaleresource (struct newresource*);
 extern void scaleresource_setsize (int w, int h, int fs);
-extern HWND CustomCreateDialog (struct newresource **, int templ, HWND hDlg, DLGPROC proc);
+extern HWND CustomCreateDialog(int templ, HWND hDlg, DLGPROC proc, struct customdialogstate *cds);
 extern void CustomDialogClose(HWND, int);
 extern INT_PTR CustomDialogBox (int templ, HWND hDlg, DLGPROC proc);
 extern struct newresource *getresource (int tmpl);

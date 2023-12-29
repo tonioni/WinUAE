@@ -142,10 +142,8 @@ static HMODULE hHtmlHelp;
 pathtype path_type;
 
 int externaldialogactive;
-static int stringboxdialogactive;
-static int customdialogactive;
-static struct newresource *customdialogres;
-static HWND customdialoghwnd;
+
+struct customdialogstate cdstate;
 
 static int CustomCreateDialogBox(int templ, HWND hDlg, DLGPROC proc);
 
@@ -322,13 +320,13 @@ static void CALLBACK gui_control_cb(HWND h, UINT v, UINT_PTR v3, DWORD v4)
 		if (ha) {
 			HWND p = GetParent(ha);
 			HWND mainhwnd = AMonitors[0].hAmigaWnd;
-			if (p && (p == customdialoghwnd || p == guiDlg || p == mainhwnd)) {
+			if (p && (p == cdstate.hwnd || p == guiDlg || p == mainhwnd)) {
 				process_gui_control(ha, NULL);
 			}
 		}
-	} else if (customdialogactive > 0 && customdialogres && customdialoghwnd) {
-		if (ha == customdialoghwnd) {
-			process_gui_control(customdialoghwnd, customdialogres);
+	} else if (cdstate.active) {
+		if (ha == cdstate.hwnd) {
+			process_gui_control(cdstate.hwnd, cdstate.res);
 		}
 	} else {
 		if (ha == h) {
@@ -490,7 +488,7 @@ static INT_PTR CALLBACK StringBoxDialogProc (HWND hDlg, UINT msg, WPARAM wParam,
 		PostQuitMessage (0);
 		return TRUE;
 	case WM_CLOSE:
-		stringboxdialogactive = 0;
+		CustomDialogClose(hDlg, 0);
 		DestroyWindow (hDlg);
 		return TRUE;
 	case WM_INITDIALOG:
@@ -499,12 +497,10 @@ static INT_PTR CALLBACK StringBoxDialogProc (HWND hDlg, UINT msg, WPARAM wParam,
 		switch (LOWORD (wParam))
 		{
 		case IDOK:
-			stringboxdialogactive = -1;
-			DestroyWindow (hDlg);
+			CustomDialogClose(hDlg, 1);
 			return TRUE;
 		case IDCANCEL:
-			stringboxdialogactive = 0;
-			DestroyWindow (hDlg);
+			CustomDialogClose(hDlg, 0);
 			return TRUE;
 		}
 		break;
@@ -1829,8 +1825,6 @@ static int isromext (const TCHAR *path, bool deepscan)
 	return 0;
 }
 
-static bool infoboxdialogstate;
-static HWND infoboxhwnd;
 static INT_PTR CALLBACK InfoBoxDialogProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
 	bool handled;
@@ -1843,18 +1837,16 @@ static INT_PTR CALLBACK InfoBoxDialogProc (HWND hDlg, UINT msg, WPARAM wParam, L
 	{
 	case WM_DESTROY:
 		PostQuitMessage (0);
-		infoboxdialogstate = false;
+		CustomDialogClose(hDlg, 1);
 		return TRUE;
 	case WM_CLOSE:
-		DestroyWindow (hDlg);
-		infoboxdialogstate = false;
+		CustomDialogClose(hDlg, 1);
 	return TRUE;
 	case WM_COMMAND:
 		switch (LOWORD (wParam))
 		{
 		case IDCANCEL:
-			infoboxdialogstate = false;
-			DestroyWindow (hDlg);
+			CustomDialogClose(hDlg, 1);
 			return TRUE;
 		}
 		break;
@@ -1864,7 +1856,9 @@ static INT_PTR CALLBACK InfoBoxDialogProc (HWND hDlg, UINT msg, WPARAM wParam, L
 static bool scan_rom_hook (const TCHAR *name, int line)
 {
 	MSG msg;
-	if (!infoboxhwnd)
+	if (cdstate.status)
+		return false;
+	if (!cdstate.active)
 		return true;
 	if (name != NULL) {
 		const TCHAR *s = NULL;
@@ -1875,15 +1869,15 @@ static bool scan_rom_hook (const TCHAR *name, int line)
 			if (s)
 				s++;
 		}
-		SetWindowText (GetDlgItem (infoboxhwnd, line == 1 ? IDC_INFOBOX_TEXT1 : (line == 2 ? IDC_INFOBOX_TEXT2 : IDC_INFOBOX_TEXT3)), s ? s : name);
+		SetWindowText (GetDlgItem (cdstate.hwnd, line == 1 ? IDC_INFOBOX_TEXT1 : (line == 2 ? IDC_INFOBOX_TEXT2 : IDC_INFOBOX_TEXT3)), s ? s : name);
 	}
-	while (PeekMessage (&msg, infoboxhwnd, 0, 0, PM_REMOVE)) {
-		if (!IsDialogMessage (infoboxhwnd, &msg)) {
+	while (PeekMessage (&msg, cdstate.hwnd, 0, 0, PM_REMOVE)) {
+		if (!IsDialogMessage (cdstate.hwnd, &msg)) {
 			TranslateMessage (&msg);
 			DispatchMessage (&msg);
 		}
 	}
-	return infoboxdialogstate;
+	return cdstate.active;
 }
 
 static int scan_rom_2 (struct zfile *f, void *vrsd)
@@ -2111,7 +2105,7 @@ int scan_roms (HWND hDlg, int show)
 	UAEREG *fkey, *fkey2;
 	TCHAR *paths[MAX_ROM_PATHS];
 	MSG msg;
-	struct newresource *res = NULL;
+	HWND hwnd = NULL;
 
 	if (recursive)
 		return 0;
@@ -2119,18 +2113,18 @@ int scan_roms (HWND hDlg, int show)
 
 	ret = 0;
 
+	SAVECDS;
+
 	regdeletetree (NULL, _T("DetectedROMs"));
 	fkey = regcreatetree (NULL, _T("DetectedROMs"));
 	if (fkey == NULL)
 		goto end;
 
-	infoboxdialogstate = true;
-	infoboxhwnd = NULL;
+
 	if (!rp_isactive ()) {
-		HWND hwnd = CustomCreateDialog(&res, IDD_INFOBOX, hDlg, InfoBoxDialogProc);
+		hwnd = CustomCreateDialog(IDD_INFOBOX, hDlg, InfoBoxDialogProc, &cdstate);
 		if (!hwnd)
 			goto end;
-		infoboxhwnd = hwnd;
 	}
 
 	cnt = 0;
@@ -2181,16 +2175,16 @@ int scan_roms (HWND hDlg, int show)
 	}
 
 end:
-	if (infoboxhwnd) {
-		HWND hwnd = infoboxhwnd;
-		infoboxhwnd = NULL;
+	if (hwnd) {
 		DestroyWindow (hwnd);
 		while (PeekMessage (&msg, 0, 0, 0, PM_REMOVE)) {
 			TranslateMessage (&msg);
 			DispatchMessage (&msg);
 		}
-		FreeResource(res);
 	}
+
+	RESTORECDS;
+
 	read_rom_list(false);
 	if (show)
 		show_rom_list ();
@@ -2623,35 +2617,31 @@ static void eject_cd (void)
 
 void gui_infotextbox(HWND hDlg, const TCHAR *text)
 {
-	stringboxdialogactive = 1;
-	struct newresource *res;
-	HWND hwnd = CustomCreateDialog(&res, IDD_DISKINFO, hDlg ? hDlg : hGUIWnd, StringBoxDialogProc);
-	if (hwnd == NULL)
-		return;
-
-	HFONT font = CreateFont (getscaledfontsize(-1, hDlg), 0, 0, 0, 0, 0, 0, 0, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH | FF_DONTCARE, _T("Lucida Console"));
-	if (font)
-		SendMessage (GetDlgItem (hwnd, IDC_DISKINFOBOX), WM_SETFONT, WPARAM(font), FALSE);
-	SendMessage (GetDlgItem (hwnd, IDC_DISKINFOBOX), WM_SETTEXT, 0, (LPARAM)text);
-	while (stringboxdialogactive == 1) {
-		MSG msg;
-		int ret;
-		WaitMessage ();
-		while ((ret = GetMessage (&msg, NULL, 0, 0))) {
-			if (ret == -1)
-				break;
-			if (!IsWindow (hwnd) || !IsDialogMessage (hwnd, &msg)) {
-				TranslateMessage (&msg);
-				DispatchMessage (&msg);
+	SAVECDS;
+	HWND hwnd = CustomCreateDialog(IDD_DISKINFO, hDlg ? hDlg : hGUIWnd, StringBoxDialogProc, &cdstate);
+	if (hwnd != NULL) {
+		HFONT font = CreateFont (getscaledfontsize(-1, hDlg), 0, 0, 0, 0, 0, 0, 0, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH | FF_DONTCARE, _T("Lucida Console"));
+		if (font)
+			SendMessage (GetDlgItem (hwnd, IDC_DISKINFOBOX), WM_SETFONT, WPARAM(font), FALSE);
+		SendMessage (GetDlgItem (hwnd, IDC_DISKINFOBOX), WM_SETTEXT, 0, (LPARAM)text);
+		while (cdstate.active) {
+			MSG msg;
+			int ret;
+			WaitMessage();
+			while ((ret = GetMessage(&msg, NULL, 0, 0))) {
+				if (ret == -1)
+					break;
+				if (!IsWindow(hwnd) || !IsDialogMessage(hwnd, &msg)) {
+					TranslateMessage(&msg);
+					DispatchMessage(&msg);
+				}
 			}
-			if (stringboxdialogactive == -1)
-				break;
+		}
+		if (font) {
+			DeleteObject(font);
 		}
 	}
-	freescaleresource(res);
-	if (font) {
-		DeleteObject(font);
-	}
+	RESTORECDS;
 }
 
 static void infofloppy (HWND hDlg, int n)
@@ -2659,7 +2649,6 @@ static void infofloppy (HWND hDlg, int n)
 	struct diskinfo di;
 	TCHAR tmp2[MAX_DPATH], tmp1[MAX_DPATH], tmp3[MAX_DPATH];
 	TCHAR text[20000];
-	struct newresource *res;
 
 	DISK_examine_image (&workprefs, n, &di, true, tmp3);
 	DISK_validate_filename(&workprefs, workprefs.floppyslots[n].df, n, tmp1, 0, NULL, NULL, NULL);
@@ -2722,32 +2711,31 @@ static void infofloppy (HWND hDlg, int n)
 		_tcscat (text, _T("\r\n"));
 	}
 
-	stringboxdialogactive = 1;
-	HWND hwnd = CustomCreateDialog(&res, IDD_DISKINFO, hDlg, StringBoxDialogProc);
-	if (hwnd == NULL)
-		return;
-
-	HFONT font = CreateFont (getscaledfontsize(-1, hDlg), 0, 0, 0, 0, 0, 0, 0, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH | FF_DONTCARE, _T("Lucida Console"));
-	if (font)
-		SendMessage (GetDlgItem (hwnd, IDC_DISKINFOBOX), WM_SETFONT, WPARAM(font), FALSE);
-	SendMessage (GetDlgItem (hwnd, IDC_DISKINFOBOX), WM_SETTEXT, 0, (LPARAM)text);
-	while (stringboxdialogactive == 1) {
-		MSG msg;
-		int ret;
-		WaitMessage ();
-		while ((ret = GetMessage (&msg, NULL, 0, 0))) {
-			if (ret == -1)
-				break;
-			if (!IsWindow (hwnd) || !IsDialogMessage (hwnd, &msg)) {
-				TranslateMessage (&msg);
-				DispatchMessage (&msg);
+	SAVECDS;
+	HWND hwnd = CustomCreateDialog(IDD_DISKINFO, hDlg, StringBoxDialogProc, &cdstate);
+	if (hwnd != NULL) {
+		HFONT font = CreateFont (getscaledfontsize(-1, hDlg), 0, 0, 0, 0, 0, 0, 0, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH | FF_DONTCARE, _T("Lucida Console"));
+		if (font)
+			SendMessage (GetDlgItem (hwnd, IDC_DISKINFOBOX), WM_SETFONT, WPARAM(font), FALSE);
+		SendMessage (GetDlgItem (hwnd, IDC_DISKINFOBOX), WM_SETTEXT, 0, (LPARAM)text);
+		while (cdstate.active) {
+			MSG msg;
+			int ret;
+			WaitMessage ();
+			while ((ret = GetMessage (&msg, NULL, 0, 0))) {
+				if (ret == -1)
+					break;
+				if (!IsWindow (hwnd) || !IsDialogMessage (hwnd, &msg)) {
+					TranslateMessage (&msg);
+					DispatchMessage (&msg);
+				}
 			}
-			if (stringboxdialogactive == -1)
-				break;
+		}
+		if (font) {
+			DeleteObject(font);
 		}
 	}
-	freescaleresource(res);
-	DeleteObject (font);
+	RESTORECDS;
 }
 
 static void ejectfloppy (int n)
@@ -18571,39 +18559,38 @@ static void values_to_inputdlg (HWND hDlg)
 static int askinputcustom (HWND hDlg, TCHAR *custom, int maxlen, DWORD titleid)
 {
 	HWND hwnd;
-	struct newresource *res;
 	TCHAR txt[MAX_DPATH];
 
-	stringboxdialogactive = 1;
-	hwnd = CustomCreateDialog(&res, IDD_STRINGBOX, hDlg, StringBoxDialogProc);
-	if (hwnd == NULL)
-		return 0;
-	if (titleid != 0) {
-		LoadString (hUIDLL, titleid, txt, MAX_DPATH);
-		SetWindowText (hwnd, txt);
-	}
-	txt[0] = 0;
-	SendMessage (GetDlgItem (hwnd, IDC_STRINGBOXEDIT), WM_SETTEXT, 0, (LPARAM)custom);
-	while (stringboxdialogactive == 1) {
-		MSG msg;
-		int ret;
-		WaitMessage ();
-		while ((ret = GetMessage (&msg, NULL, 0, 0))) {
-			if (ret == -1)
-				break;
-			if (!IsWindow (hwnd) || !IsDialogMessage (hwnd, &msg)) {
-				TranslateMessage (&msg);
-				DispatchMessage (&msg);
-			}
-			SendMessage (GetDlgItem (hwnd, IDC_STRINGBOXEDIT), WM_GETTEXT, sizeof txt / sizeof (TCHAR), (LPARAM)txt);
+	SAVECDS;
+	hwnd = CustomCreateDialog(IDD_STRINGBOX, hDlg, StringBoxDialogProc, &cdstate);
+	if (hwnd != NULL) {
+		if (titleid != 0) {
+			LoadString (hUIDLL, titleid, txt, MAX_DPATH);
+			SetWindowText (hwnd, txt);
 		}
-		if (stringboxdialogactive == -1) {
-			_tcscpy (custom, txt);
-			freescaleresource(res);
+		txt[0] = 0;
+		SendMessage (GetDlgItem (hwnd, IDC_STRINGBOXEDIT), WM_SETTEXT, 0, (LPARAM)custom);
+		while (cdstate.active) {
+			MSG msg;
+			int ret;
+			WaitMessage ();
+			while ((ret = GetMessage (&msg, NULL, 0, 0))) {
+				if (ret == -1)
+					break;
+				if (!IsWindow (hwnd) || !IsDialogMessage (hwnd, &msg)) {
+					TranslateMessage (&msg);
+					DispatchMessage (&msg);
+				}
+				SendMessage (GetDlgItem (hwnd, IDC_STRINGBOXEDIT), WM_GETTEXT, sizeof txt / sizeof (TCHAR), (LPARAM)txt);
+			}
+		}
+		if (cdstate.status == 1) {
+			_tcscpy(custom, txt);
+			RESTORECDS;
 			return 1;
 		}
 	}
-	freescaleresource(res);
+	RESTORECDS;
 	return 0;
 }
 
@@ -19566,9 +19553,7 @@ static INT_PTR CALLBACK RemapSpecialsProc(HWND hDlg, UINT msg, WPARAM wParam, LP
 
 static void input_remapspecials(HWND hDlg)
 {
-	struct newresource *res;
-	CustomCreateDialog(&res, IDD_LIST, hDlg, RemapSpecialsProc);
-	freescaleresource(res);
+	CustomCreateDialogBox(IDD_LIST, hDlg, RemapSpecialsProc);
 }
 
 static INT_PTR CALLBACK InputMapDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
@@ -19588,7 +19573,7 @@ static INT_PTR CALLBACK InputMapDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPA
 	switch (msg)
 	{
 	case WM_CLOSE:
-		DestroyWindow (hDlg);
+		CustomDialogClose(hDlg, 1);
 		return TRUE;
 	case WM_INITDIALOG:
 	{
@@ -19659,7 +19644,7 @@ static INT_PTR CALLBACK InputMapDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPA
 			case IDOK:
 			case IDC_INPUTMAP_EXIT:
 			pages[INPUTMAP_ID] =  NULL;
-			DestroyWindow (hDlg);
+			CustomDialogClose(hDlg, 1);
 			recursive--;
 			return TRUE;
 			case IDC_INPUTMAP_TEST:
@@ -19735,37 +19720,37 @@ static INT_PTR CALLBACK InputMapDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPA
 
 static void ports_remap (HWND hDlg, int port, int sub)
 {
-	struct newresource *res;
+	SAVECDS;
 	inputmap_port = port;
 	if (sub < 0) {
 		sub = 0;
 	}
 	inputmap_port_sub = sub;
-	HWND dlg = CustomCreateDialog(&res, IDD_INPUTMAP, hDlg, InputMapDlgProc);
-	if (dlg == NULL)
-		return;
-	MSG msg;
-	for (;;) {
-		DWORD ret = GetMessage (&msg, NULL, 0, 0);
-		if (ret == -1 || ret == 0)
-			break;
-		if (rawmode) {
-			if (msg.message == WM_INPUT) {
-				handlerawinput (msg.hwnd, msg.message, msg.wParam, msg.lParam);
-				continue;
+	HWND dlg = CustomCreateDialog(IDD_INPUTMAP, hDlg, InputMapDlgProc, &cdstate);
+	if (dlg != NULL) {
+		MSG msg;
+		while(cdstate.active) {
+			DWORD ret = GetMessage (&msg, NULL, 0, 0);
+			if (ret == -1 || ret == 0)
+				break;
+			if (rawmode) {
+				if (msg.message == WM_INPUT) {
+					handlerawinput (msg.hwnd, msg.message, msg.wParam, msg.lParam);
+					continue;
+				}
+				// eat all accelerators
+				if (msg.message == WM_KEYDOWN || msg.message == WM_MOUSEMOVE || msg.message == WM_MOUSEWHEEL
+					|| msg.message == WM_MOUSEHWHEEL || msg.message == WM_LBUTTONDOWN)
+					continue;
 			}
-			// eat all accelerators
-			if (msg.message == WM_KEYDOWN || msg.message == WM_MOUSEMOVE || msg.message == WM_MOUSEWHEEL
-				|| msg.message == WM_MOUSEHWHEEL || msg.message == WM_LBUTTONDOWN)
+			// IsDialogMessage() eats WM_INPUT messages?!?!
+			if (!rawmode && IsDialogMessage (dlg, &msg))
 				continue;
+			TranslateMessage (&msg);
+			DispatchMessage (&msg);
 		}
-		// IsDialogMessage() eats WM_INPUT messages?!?!
-		if (!rawmode && IsDialogMessage (dlg, &msg))
-			continue;
-		TranslateMessage (&msg);
-		DispatchMessage (&msg);
 	}
-	freescaleresource(res);
+	RESTORECDS;
 }
 
 static void input_togglesetmode (void)
@@ -20009,7 +19994,6 @@ static void input_qualifiers (HWND hDlg)
 	int evt;
 	TCHAR name[256];
 	TCHAR custom[MAX_DPATH];
-	struct newresource *res;
 	
 	if (input_selected_device < 0 || input_selected_widget < 0)
 		return;
@@ -20018,8 +20002,7 @@ static void input_qualifiers (HWND hDlg)
 	if (evt <= 0)
 		name[0] = 0;
 	
-	CustomCreateDialog(&res, IDD_LIST, hDlg, QualifierProc);
-	freescaleresource(res);
+	CustomCreateDialogBox(IDD_LIST, hDlg, QualifierProc);
 #if 0
 	int item = genericpopupmenu (hDlg, names, mflags, MAX_INPUT_QUALIFIERS * 2);
 	if (item >= 0)
@@ -21700,12 +21683,16 @@ static INT_PTR CALLBACK AVIOutputDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 			break;
 #endif
 		case IDC_SAMPLERIPPER_ACTIVATED:
-			sampleripper_enabled = !sampleripper_enabled;
-			audio_sampleripper (-1);
+			if (ischecked(hDlg, IDC_AVIOUTPUT_ACTIVATED) != (sampleripper_enabled != 0)) {
+				sampleripper_enabled = !sampleripper_enabled;
+				audio_sampleripper (-1);
+			}
 			break;
 
 		case IDC_AVIOUTPUT_ACTIVATED:
-			AVIOutput_Toggle (!avioutput_requested, false);
+			if (ischecked(hDlg, IDC_AVIOUTPUT_ACTIVATED) != (avioutput_requested != 0)) {
+				AVIOutput_Toggle (!avioutput_requested, false);
+			}
 			break;
 		case IDC_SCREENSHOT:
 			screenshot(-1, 1, 0);
@@ -23098,9 +23085,13 @@ struct newresource *getresource (int tmpl)
 	if (!size)
 		return NULL;
 	nr = xcalloc (struct newresource, 1);
-	newres = (LPCDLGTEMPLATEW)xmalloc (uae_u8, size);
-	if (!newres)
+	if (!nr)
 		return NULL;
+	newres = (LPCDLGTEMPLATEW)xmalloc (uae_u8, size);
+	if (!newres) {
+		xfree(nr);
+		return NULL;
+	}
 	memcpy ((void*)newres, resdata, size);
 	nr->sourceresource = newres;
 	nr->sourcesize = size;
@@ -23111,13 +23102,15 @@ struct newresource *getresource (int tmpl)
 
 void CustomDialogClose(HWND hDlg, int status)
 {
-	if (hGUIWnd) {
-		EnableWindow(hGUIWnd, TRUE);
+	if (cdstate.parent) {
+		EnableWindow(cdstate.parent, TRUE);
+		cdstate.parent = NULL;
 	}
-	customdialogactive = status;
-	customdialoghwnd = NULL;
-	freescaleresource(customdialogres);
-	customdialogres = NULL;
+	cdstate.status = status;
+	cdstate.active = 0;
+	cdstate.hwnd = NULL;
+	freescaleresource(cdstate.res);
+	cdstate.res = NULL;
 	DestroyWindow(hDlg);
 }
 
@@ -23140,41 +23133,68 @@ INT_PTR CustomDialogBox(int templ, HWND hDlg, DLGPROC proc)
 	return h;
 }
 
-HWND CustomCreateDialog(struct newresource **resp, int templ, HWND hDlg, DLGPROC proc)
+static HWND getparent(HWND owner)
+{
+	for (;;) {
+		if (GetWindowLongW(owner, GWL_STYLE) & WS_POPUP) {
+			return owner;
+		}
+		owner = GetParent(owner);
+		if (!owner || owner == GetDesktopWindow())
+			break;
+	}
+	return NULL;
+}
+
+HWND CustomCreateDialog(int templ, HWND hDlg, DLGPROC proc, struct customdialogstate *cds)
 {
 	struct newresource *res;
 	struct dlgcontext dctx;
 	HWND h = NULL;
 
-	*resp = NULL;
-	res = getresource (templ);
+	memset(cds, 0, sizeof(customdialogstate));
+	res = getresource(templ);
 	if (!res)
 		return h;
-	if (scaleresource (res, &dctx, hDlg, -1, 0, 0, -1)) {
+	HWND parent = getparent(hDlg);
+	if (scaleresource(res, &dctx, hDlg, -1, 0, 0, -1)) {
 		res->parent = panelresource;
+		cds->parent = parent;
+		if (parent) {
+			EnableWindow(parent, FALSE);
+		}
 		h = x_CreateDialogIndirectParam(res->inst, res->resource, hDlg, proc, NULL, res);
+		if (!h) {
+			if (parent) {
+				EnableWindow(parent, TRUE);
+			}
+			freescaleresource(res);
+			res = NULL;
+		}
 	}
-	*resp = res;
+	if (h) {
+		cds->res = res;
+		cds->active = 1;
+		cds->hwnd = h;
+	}
 	return h;
 }
 
 static int CustomCreateDialogBox(int templ, HWND hDlg, DLGPROC proc)
 {
-	struct newresource *res;
-	customdialogactive = 1;
-	if (hGUIWnd) {
-		EnableWindow(hGUIWnd, FALSE);
-	}
-	HWND hwnd = CustomCreateDialog(&res, templ, hDlg, proc);
+	struct customdialogstate prevstate;
+	memcpy(&prevstate, &cdstate, sizeof(customdialogstate));
+
+	memset(&cdstate, 0, sizeof(customdialogstate));
+	cdstate.active = 1;
+	HWND hwnd = CustomCreateDialog(templ, hDlg, proc, &cdstate);
 	if (!hwnd) {
-		if (hGUIWnd) {
-			EnableWindow(hGUIWnd, TRUE);
-		}
 		return 0;
 	}
-	customdialogres = res;
-	customdialoghwnd = hwnd;
-	while (customdialogactive == 1) {
+	if (!IsWindowVisible(hwnd)) {
+		ShowWindow(hwnd, SW_SHOW);
+	}
+	while (cdstate.active) {
 		MSG msg;
 		int ret;
 		WaitMessage();
@@ -23191,16 +23211,11 @@ static int CustomCreateDialogBox(int templ, HWND hDlg, DLGPROC proc)
 			if (!IsWindow(hwnd)) {
 				break;
 			}
-			if (customdialogactive == -1)
-				break;
 		}
 	}
-	if (hGUIWnd) {
-		if (!IsWindowEnabled(hGUIWnd)) {
-			EnableWindow(hGUIWnd, TRUE);
-		}
-	}
-	return customdialogactive;
+	int ret = cdstate.status;
+	memcpy(&cdstate, &prevstate, sizeof(customdialogstate));
+	return ret;
 }
 
 static int init_page (int tmpl, int icon, int title,

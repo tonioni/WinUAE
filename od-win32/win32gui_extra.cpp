@@ -1202,9 +1202,9 @@ int scaleresource (struct newresource *res, struct dlgcontext *dctx, HWND parent
 
 void freescaleresource (struct newresource *ns)
 {
-	if (!ns->resource)
+	if (!ns)
 		return;
-	xfree ((void*)ns->resource);
+	xfree((void*)ns->resource);
 	ns->resource = NULL;
 	ns->size = 0;
 }
