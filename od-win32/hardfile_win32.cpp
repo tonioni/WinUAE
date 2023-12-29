@@ -439,6 +439,12 @@ static const TCHAR *hdz[] = { _T("hdz"), _T("zip"), _T("rar"), _T("7z"), NULL };
 
 static INT_PTR CALLBACK ProgressDialogProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
+	bool handled;
+	INT_PTR vv = commonproc2(hDlg, msg, wParam, lParam, &handled);
+	if (handled) {
+		return vv;
+	}
+
 	switch(msg)
 	{
 	case WM_DESTROY:
@@ -1347,6 +1353,12 @@ static bool hd_get_meta_satl(HWND hDlg, HANDLE h, uae_u8 *data, TCHAR *text, str
 
 static INT_PTR CALLBACK CHSDialogProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
+	bool handled;
+	INT_PTR vv = commonproc2(hDlg, msg, wParam, lParam, &handled);
+	if (handled) {
+		return vv;
+	}
+
 	switch (msg)
 	{
 	case WM_DESTROY:
@@ -1477,6 +1489,12 @@ static TCHAR geometry_file[MAX_DPATH];
 static struct ini_data *hdini;
 static INT_PTR CALLBACK StringBoxDialogProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
+	bool handled;
+	INT_PTR vv = commonproc2(hDlg, msg, wParam, lParam, &handled);
+	if (handled) {
+		return vv;
+	}
+
 	switch(msg)
 	{
 	case WM_DESTROY:

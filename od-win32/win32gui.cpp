@@ -431,7 +431,7 @@ static int gui_get_string_cursor(int *table, HWND hDlg, int item)
 	return table[posn];
 }
 
-static INT_PTR commonproc2(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam, bool *handled)
+INT_PTR commonproc2(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam, bool *handled)
 {
 	if (dialog_inhibit) {
 		*handled = true;
@@ -19464,10 +19464,14 @@ static void remapspeciallistview(HWND list)
 static INT_PTR CALLBACK RemapSpecialsProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
 	static int recursive = 0;
-	HWND list = GetDlgItem(hDlg, IDC_LISTDIALOG_LIST);
 
-	if (dialog_inhibit)
-		return 0;
+	bool handled;
+	INT_PTR vv = commonproc2(hDlg, msg, wParam, lParam, &handled);
+	if (handled) {
+		return vv;
+	}
+
+	HWND list = GetDlgItem(hDlg, IDC_LISTDIALOG_LIST);
 
 	switch (msg)
 	{

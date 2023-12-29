@@ -146,6 +146,7 @@ extern void scaleresource_setsize (int w, int h, int fs);
 extern HWND CustomCreateDialog(int templ, HWND hDlg, DLGPROC proc, struct customdialogstate *cds);
 extern void CustomDialogClose(HWND, int);
 extern INT_PTR CustomDialogBox (int templ, HWND hDlg, DLGPROC proc);
+INT_PTR commonproc2(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam, bool *handled);
 extern struct newresource *getresource (int tmpl);
 extern void scaleresource_init(const TCHAR*, int);
 extern int scaleresource_choosefont (HWND hDlg, int fonttype);
