@@ -1050,6 +1050,29 @@ void ncr_updatemapping(ncr_t *ncr)
         }
 }
 
+static void ncr_adjust_panning(svga_t *svga)
+{
+    int ar11 = svga->attrregs[0x13] & 7;
+    int src = 0, dst = 8;
+
+    switch (svga->bpp)
+    {
+        case 16:
+            dst = (ar11 & 4) ? 7 : 8;
+            break;
+        case 24:
+            src = ar11 >> 1;
+            break;
+        default:
+            return;
+    }
+
+    dst += 24;
+    svga->scrollcache_dst = dst;
+    svga->scrollcache_src = src;
+
+}
+
 static inline uint32_t dword_remap(uint32_t in_addr)
 {
     return in_addr;
@@ -1119,6 +1142,7 @@ static void *ncr_init(char *bios_fn, int chip)
         }
                 
         svga->vblank_start = ncr_vblank_start;
+        svga->adjust_panning = ncr_adjust_panning;
 
         ncr_io_set(ncr);
 

@@ -517,7 +517,7 @@ void gd5429_out(uint16_t addr, uint8_t val, void *p)
                 break;
                         
                 case 0x3c4:
-                svga->seqaddr = val;
+                svga->seqaddr = val & 0x1f;
                 break;
                 case 0x3c5:
                 if (svga->seqaddr > 5)
@@ -525,14 +525,12 @@ void gd5429_out(uint16_t addr, uint8_t val, void *p)
                         svga->seqregs[svga->seqaddr & 0x1f] = val;
                         switch (svga->seqaddr & 0x1f)
                         {
-                                case 0x10: case 0x30: case 0x50: case 0x70:
-                                case 0x90: case 0xb0: case 0xd0: case 0xf0:
+                                case 0x10:
                                 svga->hwcursor.x = (val << 3) | ((svga->seqaddr >> 5) & 7);
                                 gd5429->sr10_read = svga->seqaddr & 0xe0;
 //                                pclog("svga->hwcursor.x = %i\n", svga->hwcursor.x);
                                 break;
-                                case 0x11: case 0x31: case 0x51: case 0x71:
-                                case 0x91: case 0xb1: case 0xd1: case 0xf1:
+                                case 0x11:
                                 svga->hwcursor.y = (val << 3) | ((svga->seqaddr >> 5) & 7);
                                 gd5429->sr11_read = svga->seqaddr & 0xe0;
 //                                pclog("svga->hwcursor.y = %i\n", svga->hwcursor.y);
@@ -561,6 +559,7 @@ void gd5429_out(uint16_t addr, uint8_t val, void *p)
                                     }
                                     svga->packed_chain4 = svga->seqregs[7] & 1;
                                     svga_recalctimings(svga);
+                                    break;
                                 case 0x0f:
                                 case 0x17:
                                 //UAE
@@ -790,7 +789,7 @@ void gd5429_out(uint16_t addr, uint8_t val, void *p)
                         old = val;
                 }
 
-                if (old != val)
+                if (1)
                 {
                         // overlay registers
                         switch (svga->crtcreg)
@@ -879,7 +878,7 @@ void gd5429_out(uint16_t addr, uint8_t val, void *p)
                                 break;
                         }
 
-                        if (svga->crtcreg < 0xe || svga->crtcreg > 0x10)
+                        if ((svga->crtcreg < 0xe || svga->crtcreg > 0x10) && old != val)
                         {
                                 svga->fullchange = changeframecount;
                                 svga_recalctimings(svga);
@@ -1174,7 +1173,8 @@ void gd5429_recalctimings(svga_t *svga)
         if (svga->seqregs[7] & 0x01) {
             svga->render = svga_render_8bpp_highres;
         }
-        
+
+
         svga->ma_latch |= ((svga->crtc[0x1b] & 0x01) << 16) | (((svga->crtc[0x1b] >> 2) & 3) << 17);
         if (gd5429->type >= CL_TYPE_GD5436) {
             svga->ma_latch |= (((svga->crtc[0x1d] >> 7) & 1) << 19);
@@ -1247,6 +1247,44 @@ void gd5429_recalctimings(svga_t *svga)
         svga->clock = (cpuclock * (float)(1ull << 32)) / vclk;
         
         svga->vram_display_mask = (svga->crtc[0x1b] & 2) ? gd5429->vram_mask : 0x3ffff;
+}
+
+static void gd5429_adjust_panning(svga_t *svga)
+{
+    gd5429_t *gd5429 = (gd5429_t *)svga->p;
+    int ar11 = svga->attrregs[0x13] & 7;
+    int src = 0, dst = 8;
+    switch (svga->bpp)
+    {
+        case 8:
+            if (svga->horizontal_linedbl) {
+                dst = 8 - ((ar11 & 3) << 1);
+            } else {
+                dst = 8 - ar11;
+            }
+            break;
+        case 15:
+        case 16:
+            dst = 8 - ((ar11 & 2) >> 1);
+            break;
+        case 24:
+            if (gd5429->type >= CL_TYPE_GD5446) {
+                dst = 8 - ((ar11 & 3) << 1);
+                if (ar11 >= 4) {
+                    src += 3;
+                }
+            } else {
+                src = ar11;
+            }
+            break;
+        case 32:
+            dst = 8 - (ar11 & 1);
+            break;
+    }
+
+    dst += 24;
+    svga->scrollcache_dst = dst;
+    svga->scrollcache_src = src;
 }
 
 void gd5429_hwcursor_draw(svga_t *svga, int displine)
@@ -2735,6 +2773,7 @@ static void *cl_init(int type, char *fn, int pci_card, uint32_t force_vram_size)
                    gd5429_overlay_draw);
 
         gd5429->svga.vblank_start = gd5429_vblank_start;
+        gd5429->svga.adjust_panning = gd5429_adjust_panning;
 
         mem_mapping_set_handlerx(&gd5429->svga.mapping, gd5429_read, gd5429_readw, gd5429_readl, gd5429_write, gd5429_writew, gd5429_writel);
         mem_mapping_set_px(&gd5429->svga.mapping, gd5429);
