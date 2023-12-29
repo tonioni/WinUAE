@@ -1556,17 +1556,17 @@ static void s3_virge_mmio_write_l(uint32_t addr, uint32_t val, void *p)
                 svga->fullchange = changeframecount;
                 break;
                 case 0x81d0:
-                virge->streams.sec_fb0 = val;
+                virge->streams.sec_fb0 = val & 0x3fffff;
                 svga_recalctimings(svga);
                 svga->fullchange = changeframecount;
                 break;
                 case 0x81d4:
-                virge->streams.sec_fb1 = val;
+                virge->streams.sec_fb1 = val & 0x3fffff;
                 svga_recalctimings(svga);
                 svga->fullchange = changeframecount;
                 break;
                 case 0x81d8:
-                virge->streams.sec_stride = val;
+                virge->streams.sec_stride = val & 0xfff;
                 svga_recalctimings(svga);
                 svga->fullchange = changeframecount;
                 break;
