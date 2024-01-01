@@ -299,3 +299,13 @@ void serial2_remove()
 {
         io_removehandler(serial2.addr, 0x0008, serial_read, NULL, NULL, serial_write, NULL, NULL, &serial2);
 }
+
+void draco_serial_init(void **s1, void **s2)
+{
+    serial_reset();
+    serial1.has_fifo = 1;
+    serial2.has_fifo = 1;
+    *s1 = &serial1;
+    *s2 = &serial2;
+}
+

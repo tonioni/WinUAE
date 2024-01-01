@@ -116,4 +116,7 @@ void cpuboard_gvpmaprom(int);
 #define BOARD_HARMS 16
 #define BOARD_HARMS_SUB_3KPRO 0
 
+#define BOARD_DRACO 17
+#define BOARD_DRACO_SUB_DRACO 0
+
 #endif /* UAE_CPUBOARD_H */

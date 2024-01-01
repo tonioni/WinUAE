@@ -17,4 +17,11 @@ void x86_mouse(int port, int x, int y, int z, int b);
 
 int is_x86_cpu(struct uae_prefs*);
 
+typedef void (*X86_INTERRUPT_CALLBACK)(int,bool);
+
+uae_u8 x86_infloppy(int portnum);
+void x86_outfloppy(int portnum, uae_u8 v);
+void x86_initfloppy(X86_INTERRUPT_CALLBACK);
+void x86_floppy_run(void);
+
 #endif /* UAE_X86_H */

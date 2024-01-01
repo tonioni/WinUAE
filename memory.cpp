@@ -41,7 +41,7 @@
 #include "uae/ppc.h"
 #include "devices.h"
 #include "inputdevice.h"
-#include "casablanca.h"
+#include "draco.h"
 
 bool canbang;
 uaecptr highest_ram;
@@ -2536,7 +2536,11 @@ static void allocate_memory (void)
 
 		a3000hmem_bank.reserved_size = currprefs.mbresmem_high.size;
 		a3000hmem_bank.mask = a3000hmem_bank.reserved_size - 1;
-		a3000hmem_bank.start = 0x08000000;
+		if (currprefs.cs_compatible == CP_DRACO) {
+			a3000hmem_bank.start = 0x40000000;
+		} else {
+			a3000hmem_bank.start = 0x08000000;
+		}
 		if (a3000hmem_bank.reserved_size) {
 			if (!mapped_malloc (&a3000hmem_bank)) {
 				write_log (_T("Out of memory for a3000highmem.\n"));
@@ -2686,6 +2690,10 @@ void map_overlay (int chip)
 
 	if (currprefs.cs_compatible == CP_CASABLANCA) {
 		casablanca_map_overlay();
+		return;
+	}
+	if (currprefs.cs_compatible == CP_DRACO) {
+		draco_map_overlay();
 		return;
 	}
 
@@ -3550,10 +3558,22 @@ void restore_banks(void)
 	}
 }
 
+static void map_banks_draco(addrbank *bank, int start, int size, int realsize)
+{
+	// draco has Z2 space mapped at 0x03e80000-0x03fffff
+	if (start >= 0xe8 && start < 0xf0) {
+		map_banks(bank, 0x0300 + start, size, realsize);
+	}
+}
+
 void map_banks (addrbank *bank, int start, int size, int realsize)
 {
 	if (start == 0xffffffff)
 		return;
+
+	if (currprefs.cs_compatible == CP_DRACO) {
+		map_banks_draco(bank, start, size, realsize);
+	}
 
 #ifdef JIT
 	if ((bank->jit_read_flag | bank->jit_write_flag) & S_N_ADDR) {

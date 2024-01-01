@@ -19,7 +19,7 @@
 #define X86_DEBUG_BRIDGE_IRQ 0
 #define X86_IO_PORT_DEBUG 0
 #define X86_DEBUG_SPECIAL_IO 0
-#define FLOPPY_DEBUG 0
+#define FLOPPY_DEBUG 1
 #define EMS_DEBUG 0
 
 #define DEBUG_DMA 0
@@ -199,6 +199,8 @@ struct x86_bridge
 	bool vlsi_config;
 	int a2386flipper;
 	bool a2386_amigapcdrive;
+
+	X86_INTERRUPT_CALLBACK irq_callback;
 };
 static int x86_found;
 
@@ -528,15 +530,21 @@ void x86_ack_keyboard(void)
 void x86_clearirq(uint8_t irqnum)
 {
 	struct x86_bridge *xb = bridges[0];
-
-	picintc(1 << irqnum);
+	if (xb->irq_callback) {
+		xb->irq_callback(irqnum, false);
+	} else {
+		picintc(1 << irqnum);
+	}
 }
 
 void x86_doirq(uint8_t irqnum)
 {
 	struct x86_bridge *xb = bridges[0];
-
-	picint(1 << irqnum);
+	if (xb->irq_callback) {
+		xb->irq_callback(irqnum, true);
+	} else {
+		picint(1 << irqnum);
+	}
 }
 
 struct pc_floppy
@@ -1049,10 +1057,16 @@ static void floppy_do_cmd(struct x86_bridge *xb)
 		}
 		break;
 
+		case 16:
+		floppy_status[0] = 0x90;
+		floppy_cmd_len = 1;
+		break;
+
 		default:
 		floppy_status[0] = 0x80;
 		floppy_cmd_len = 1;
 		break;
+
 	}
 
 end:
@@ -1071,6 +1085,8 @@ end:
 		floppy_dir = 0;
 	}
 }
+
+static int draco_force_irq;
 
 static void outfloppy(struct x86_bridge *xb, int portnum, uae_u8 v)
 {
@@ -1096,6 +1112,9 @@ static void outfloppy(struct x86_bridge *xb, int portnum, uae_u8 v)
 		}
 #endif
 		floppy_dpc = v;
+		if (xb->type < 0 && 1) {
+			floppy_dpc |= 8;
+		}
 		floppy_num = v & 3;
 		for (int i = 0; i < 2; i++) {
 			disk_reserved_setinfo(0, floppy_pc[i].cyl, floppy_pc[i].head, floppy_selected() == i);
@@ -1104,6 +1123,7 @@ static void outfloppy(struct x86_bridge *xb, int portnum, uae_u8 v)
 		case 0x3f5: // data reg
 		floppy_cmd[floppy_idx] = v;
 		if (floppy_idx == 0) {
+			floppy_cmd_len = -1;
 			switch(v & 31)
 			{
 				case 3: // specify
@@ -1127,16 +1147,31 @@ static void outfloppy(struct x86_bridge *xb, int portnum, uae_u8 v)
 				case 10: // read id
 				floppy_cmd_len = 2;
 				break;
+				case 12: // perpendiculaor mode
+				if (xb->type < 0) {
+					floppy_cmd_len = 2;
+				}
+				break;
 				case 13: // format track
 				floppy_cmd_len = 6;
 				break;
 				case 15: // seek
 				floppy_cmd_len = 3;
 				break;
-				default:
+				case 16: // get versionm
+				if (xb->type < 0) {
+					floppy_cmd_len = 1;
+				}
+				break;
+				case 19: // configure
+				if (xb->type < 0) {
+					floppy_cmd_len = 4;
+				}
+				break;
+			}
+			if (floppy_cmd_len < 0) {
 				write_log(_T("Floppy unimplemented command %02x\n"), v);
 				floppy_cmd_len = 1;
-				break;
 			}
 		}
 		floppy_idx++;
@@ -1168,6 +1203,30 @@ static uae_u8 infloppy(struct x86_bridge *xb, int portnum)
 	uae_u8 v = 0;
 	switch (portnum)
 	{
+		case 0x3f0: // PS/2 status A (draco)
+		if (xb->type < 0) {
+			struct floppy_reserved fr = { 0 };
+			bool valid_floppy = disk_reserved_getinfo(floppy_num, &fr);
+			v |= floppy_irq ? 0x80 : 0x00;
+			v |= 0x40;
+			v |= fr.wrprot ? 0 : 2;
+			v |= fr.cyl == 0 ? 0 : 16;
+		}
+		break;
+		case 0x3f1: // PS/2 status B (draco)
+		if (xb->type < 0) {
+			v |= 0x80 | 0x40;
+			if (floppy_dpc & 1)
+				v |= 0x20;
+			if ((floppy_dpc >> 4) & 1)
+				v |= 0x01;
+			if ((floppy_dpc >> 4) & 2)
+				v |= 0x02;
+		}
+		break;
+		case 0x3f2:
+			v = floppy_dpc;
+			break;
 		case 0x3f4: // main status
 		v = 0;
 		if (!floppy_delay_hsync && (floppy_dpc & 4))
@@ -4036,4 +4095,30 @@ bool isa_expansion_init(struct autoconfig_info *aci)
 	aci->parent_romtype = parent;
 	aci->zorro = 0;
 	return true;
+}
+
+void x86_outfloppy(int portnum, uae_u8 v)
+{
+	struct x86_bridge *b = bridges[0];
+	outfloppy(b, portnum, v);
+}
+uae_u8 x86_infloppy(int portnum)
+{
+	struct x86_bridge *b = bridges[0];
+	return infloppy(b, portnum);
+}
+void x86_floppy_run(void)
+{
+	check_floppy_delay();
+}
+void x86_initfloppy(X86_INTERRUPT_CALLBACK irq_callback)
+{
+	struct x86_bridge *xb = bridges[0];
+	if (!xb) {
+		xb = x86_bridge_alloc();
+		bridges[0] = xb;
+	}
+	xb->type = -1;
+	xb->irq_callback = irq_callback;
+	floppy_hardreset();
 }

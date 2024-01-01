@@ -1074,6 +1074,29 @@ bool ncr710_magnum40_autoconfig_init(struct autoconfig_info *aci)
 	return true;
 }
 
+bool ncr710_draco_init(struct autoconfig_info *aci)
+{
+	device_add_reset(ncr_reset);
+	if (!aci->doinit) {
+		return true;
+	}
+
+	struct ncr_state *ncr = getscsi(aci->rc);
+	if (!ncr)
+		return false;
+
+	ncr->enabled = true;
+	ncr->io_start = 0;
+	ncr->io_end = 0xffff;
+	ncr->io_mask = 0x7f;
+
+	ncr_reset_board(ncr);
+
+	aci->addrbank = &ncr_bank_generic;
+	return true;
+}
+
+
 static void allocscsidevice(struct ncr_state *ncr, int ch, struct scsi_data *handle, int uae_unitnum)
 {
 	handle->privdata = ncr;
@@ -1221,6 +1244,16 @@ void magnum40_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romcon
 	ncr_magnum40->irq_func = set_irq6;
 	ncr_magnum40->irqlevel = true;
 	ncr_magnum40->z2 = true;
+}
+
+extern void draco_set_scsi_irq(int, int);
+
+void draco_add_scsi_unit(int ch, struct uaedev_config_info *ci, struct romconfig *rc)
+{
+	ncr_add_scsi_unit(&ncr_cpuboard, ch, ci, rc, false);
+	ncr_cpuboard->irq_func = draco_set_scsi_irq;
+	ncr_cpuboard->irqlevel = true;
+	ncr_cpuboard->bank = &ncr_bank_generic;
 }
 
 #endif

@@ -3614,6 +3614,17 @@ static void expansion_add_autoconfig(struct uae_prefs *p)
 		cards_set[cardno++].map = NULL;
 	}
 
+	for (int i = 0; i < MAX_RTG_BOARDS; i++) {
+		struct rtgboardconfig *rbc = &p->rtgboards[i];
+		int type = gfxboard_get_configtype(rbc);
+		if (rbc->rtgmem_size && rbc->rtgmem_type >= GFXBOARD_HARDWARE && type == BOARD_NONAUTOCONFIG_BEFORE) {
+			cards_set[cardno].flags = 4 | (i << 16);
+			cards_set[cardno].name = _T("MainBoardRTG");
+			cards_set[cardno].zorro = BOARD_NONAUTOCONFIG_BEFORE;
+			cards_set[cardno++].initnum = gfxboard_init_memory;
+		}
+	}
+
 	// add possible non-autoconfig boards
 	add_cpu_expansions(p, BOARD_NONAUTOCONFIG_BEFORE, NULL);
 	add_expansions(p, BOARD_NONAUTOCONFIG_BEFORE, NULL, 0);
@@ -3677,7 +3688,8 @@ static void expansion_add_autoconfig(struct uae_prefs *p)
 #ifdef GFXBOARD
 	for (int i = 0; i < MAX_RTG_BOARDS; i++) {
 		struct rtgboardconfig *rbc = &p->rtgboards[i];
-		if (rbc->rtgmem_size && rbc->rtgmem_type >= GFXBOARD_HARDWARE && gfxboard_get_configtype(rbc) <= 2) {
+		int type = gfxboard_get_configtype(rbc);
+		if (rbc->rtgmem_size && rbc->rtgmem_type >= GFXBOARD_HARDWARE && type <= 2) {
 			cards_set[cardno].flags = 4 | (i << 16);
 			if (gfxboard_get_func(rbc)) {
 				cards_set[cardno].name = _T("Z2RTG");
@@ -6869,6 +6881,22 @@ static const struct cpuboardsubtype harms_sub[] = {
 	}
 };
 
+static const struct cpuboardsubtype draco_sub[] = {
+	{
+		_T("DraCo"),
+		_T("draco"),
+		ROMTYPE_CB_DRACO | ROMTYPE_NONE, 0, 4,
+		draco_add_scsi_unit, EXPANSIONTYPE_SCSI,
+		BOARD_MEMORY_HIGHMEM,
+		128 * 1024 * 1024,
+		0,
+		ncr710_draco_init, NULL, BOARD_NONAUTOCONFIG_BEFORE, 1,
+	},
+	{
+		NULL
+	}
+};
+
 static const struct cpuboardsubtype dummy_sub[] = {
 	{ NULL }
 };
@@ -6958,6 +6986,11 @@ const struct cpuboardtype cpuboards[] = {
 		BOARD_HARMS,
 		_T("Harms"),
 		harms_sub, 0
+	},
+	{
+		BOARD_DRACO,
+		_T("Draco"),
+		draco_sub, 0
 	},
 	{
 		NULL

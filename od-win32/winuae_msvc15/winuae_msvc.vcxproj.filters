@@ -820,7 +820,7 @@
     <ClCompile Include="..\..\debugmem.cpp">
       <Filter>common</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\casablanca.cpp">
+    <ClCompile Include="..\..\draco.cpp">
       <Filter>common</Filter>
     </ClCompile>
     <ClCompile Include="..\fpp_native_msvc_80bit.cpp">

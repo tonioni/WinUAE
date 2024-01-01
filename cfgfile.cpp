@@ -9457,7 +9457,7 @@ static int bip_casablanca(struct uae_prefs *p, int config, int compa, int romche
 	case 2:
 		p->cpu_model = 68060;
 		p->fpu_model = 68060;
-		p->mmu_model = 68040;
+		p->mmu_model = 68060;
 		break;
 	}
 	p->chipset_mask = CSMASK_AGA | CSMASK_ECS_AGNUS | CSMASK_ECS_DENISE;
@@ -9468,6 +9468,30 @@ static int bip_casablanca(struct uae_prefs *p, int config, int compa, int romche
 	p->floppyslots[0].dfxtype = DRV_NONE;
 	p->floppyslots[1].dfxtype = DRV_NONE;
 	p->cs_compatible = CP_CASABLANCA;
+	built_in_chipset_prefs(p);
+	return configure_rom(p, roms, romcheck);
+}
+
+static int bip_draco(struct uae_prefs *p, int config, int compa, int romcheck)
+{
+	int roms[8];
+
+	roms[0] = 16;
+	roms[1] = -1;
+
+	p->bogomem.size = 0;
+	p->chipmem.size = 0x200000;
+	p->cpu_model = 68060;
+	p->fpu_model = 68060;
+	p->mmu_model = 68060;
+	p->chipset_mask = CSMASK_AGA | CSMASK_ECS_AGNUS | CSMASK_ECS_DENISE;
+	p->cpu_compatible = p->address_space_24 = 0;
+	p->m68k_speed = -1;
+	p->immediate_blits = 0;
+	p->produce_sound = 2;
+	p->floppyslots[0].dfxtype = DRV_NONE;
+	p->floppyslots[1].dfxtype = DRV_NONE;
+	p->cs_compatible = CP_DRACO;
 	built_in_chipset_prefs(p);
 	return configure_rom(p, roms, romcheck);
 }
@@ -9520,6 +9544,9 @@ int built_in_prefs (struct uae_prefs *p, int model, int config, int compa, int r
 		break;
 	case 13:
 		v = bip_super (p, config, compa, romcheck);
+		break;
+	case 14:
+		v = bip_draco(p, config, compa, romcheck);
 		break;
 	}
 	if ((p->cpu_model >= 68020 || !p->cpu_memory_cycle_exact) && !p->immediate_blits)

@@ -125,7 +125,7 @@ struct gfxboard
 	struct gfxboard_func *func;
 	device_t *pcemdev;
 	uae_u8 er_flags;
-	bool pci;
+	int bustype;
 };
 
 #define ISP4() (gb->rbc->rtgmem_type == GFXBOARD_ID_PICASSO4_Z2 || gb->rbc->rtgmem_type == GFXBOARD_ID_PICASSO4_Z3)
@@ -250,6 +250,13 @@ static const struct gfxboard boards[] =
 		0, 0, NULL, &ncr_retina_z3_device
 	},
 	{
+		GFXBOARD_ID_ALTAIS_Z3,
+		_T("Altais [DracoBus]"), _T("MacroSystem"), _T("Altais"),
+		18260, 19, 0, 0,
+		0x00000000, 0x00400000, 0x00400000, 0x00400000, 0, 4, 3, false, false,
+		0, 0, NULL, &ncr_retina_z3_device, 0, GFXBOARD_BUSTYPE_DRACO
+	},
+	{
 		GFXBOARD_ID_HARLEQUIN,
 		_T("Harlequin [Zorro II]"), _T("ACS"), _T("Harlequin_PAL"),
 		2118, 100, 0, 0,
@@ -270,14 +277,14 @@ static const struct gfxboard boards[] =
 		0, 0, 0, 0,
 		0x00000000, 0x01000000, 0x01000000, 0x01000000, 0, 0, -1, false, false,
 		ROMTYPE_VOODOO3,
-		0, NULL, &voodoo_3_3000_device, 0, true
+		0, NULL, &voodoo_3_3000_device, 0, GFXBOARD_BUSTYPE_PCI
 	},
 	{
 		GFXBOARD_ID_S3VIRGE_PCI,
 		_T("Virge [PCI]"), _T("S3"), _T("S3VIRGE_PCI"),
 		0, 0, 0, 0,
 		0x00000000, 0x00400000, 0x00400000, 0x10000000, 0, 0, -1, false, false,
-		0, 0, NULL, &s3_virge_device, 0, true
+		0, 0, NULL, &s3_virge_device, 0, GFXBOARD_BUSTYPE_PCI
 	},
 	{
 		GFXBOARD_ID_VGA,
@@ -784,9 +791,12 @@ static void gfxboard_rethink(void)
 {
 	for (int i = 0; i < MAX_RTG_BOARDS; i++) {
 		struct rtggfxboard *gb = &rtggfxboards[i];
-		if (gb->pcemdev && gb->pcemobject && gb->gfxboard_intreq && gb->gfxboard_intena) {
+		if (gb->pcemdev && gb->pcemobject) {
 			int irq = 0;
-			if (gb->board->irq > 0) {
+			if (gb->board->bustype == GFXBOARD_BUSTYPE_DRACO) {
+				void draco_svga_irq(bool state);
+				draco_svga_irq(gb->gfxboard_intreq);
+			} else if (gb->gfxboard_intreq &&gb->gfxboard_intena) {
 				if (gb->board->irq == 2 && gb->gfxboard_intena != 6)
 					irq = 2;
 				else
@@ -892,7 +902,7 @@ static void init_board (struct rtggfxboard *gb)
 		gb->gfxmem_bank->flags |= ABFLAG_ALLOCINDIRECT | ABFLAG_PPCIOSPACE;
 		gb->gfxmem_bank->label = _T("*");
 		mapped_malloc(gb->gfxmem_bank);
-	} else if (gb->board->pci) {
+	} else if (gb->board->bustype == GFXBOARD_BUSTYPE_PCI) {
 		// We don't know VRAM address until PCI bridge and
 		// PCI display card's BARs have been initialized
 		;
@@ -915,7 +925,7 @@ static void init_board (struct rtggfxboard *gb)
 	//gb->gfxmem_bank->baseaddr = gb->vram;
 	// restore original value because this is checked against
 	// configured size in expansion.cpp
-	if (!gb->board->pci) {
+	if (!gb->board->bustype) {
 		gb->gfxmem_bank->allocated_size = rbc->rtgmem_size;
 		gb->gfxmem_bank->reserved_size = rbc->rtgmem_size;
 	}
@@ -3628,7 +3638,7 @@ void gfxboard_voodoo_lfb_endianswap(int m)
 {
 	for (int i = 0; i < MAX_RTG_BOARDS; i++) {
 		struct rtggfxboard *gb = &rtggfxboards[i];
-		if (gb->active && gb->board->pci) {
+		if (gb->active && gb->board->bustype == GFXBOARD_BUSTYPE_PCI) {
 			if (gb->lfbbyteswapmode != m) {
 				gb->lfbbyteswapmode = m;
 				if (gb->original_pci_bank) {
@@ -3943,7 +3953,7 @@ void gfxboard_s3virge_lfb_endianswap(int m)
 {
 	for (int i = 0; i < MAX_RTG_BOARDS; i++) {
 		struct rtggfxboard *gb = &rtggfxboards[i];
-		if (gb->active && gb->board->pci) {
+		if (gb->active && gb->board->bustype == GFXBOARD_BUSTYPE_PCI) {
 			gb->lfbbyteswapmode = m;
 		}
 	}
@@ -3952,7 +3962,7 @@ void gfxboard_s3virge_lfb_endianswap2(int m)
 {
 	for (int i = 0; i < MAX_RTG_BOARDS; i++) {
 		struct rtggfxboard *gb = &rtggfxboards[i];
-		if (gb->active && gb->board->pci) {
+		if (gb->active && gb->board->bustype == GFXBOARD_BUSTYPE_PCI) {
 			gb->mmiobyteswapmode = m;
 		}
 	}
@@ -4473,7 +4483,7 @@ bool gfxboard_init_memory (struct autoconfig_info *aci)
 			gb->monswitch_keep_trying = true;
 		}
 	}
-	if (gb->board->pci) {
+	if (gb->board->bustype > 0) {
 		aci->zorro = -1;
 	}
 	aci->parent = aci;
@@ -4481,7 +4491,7 @@ bool gfxboard_init_memory (struct autoconfig_info *aci)
 		if (gb->rbc->rtgmem_type == GFXBOARD_ID_VGA) {
 			static const int parent[] = { ROMTYPE_A1060, ROMTYPE_A2088, ROMTYPE_A2088T, ROMTYPE_A2286, ROMTYPE_A2386, 0 };
 			aci->parent_romtype = parent;
-		} else if (gb->board->pci) {
+		} else if (gb->board->bustype == GFXBOARD_BUSTYPE_PCI) {
 			static const int parent[] = { ROMTYPE_GREX, ROMTYPE_MEDIATOR, ROMTYPE_PROMETHEUS, 0 };
 			aci->parent_romtype = parent;
 		} else {
@@ -4548,7 +4558,7 @@ bool gfxboard_init_memory (struct autoconfig_info *aci)
 
 	gb->active = true;
 
-	if (gb->board->pci) {
+	if (gb->board->bustype == GFXBOARD_BUSTYPE_PCI) {
 
 		TCHAR path[MAX_DPATH];
 		fetch_rompath(path, sizeof path / sizeof(TCHAR));
@@ -4582,6 +4592,28 @@ bool gfxboard_init_memory (struct autoconfig_info *aci)
 		}
 		gb->gfxboard_intena = 1;
 		return true;
+	}
+	if (gb->board->bustype == GFXBOARD_BUSTYPE_DRACO) {
+		gb->gfxboard_bank_memory.bget = gfxboard_bget_mem;
+		gb->gfxboard_bank_memory.bput = gfxboard_bput_mem;
+		gb->gfxboard_bank_memory.wput = gfxboard_wput_mem;
+		uaecptr start = 0x20000000;
+		gb->gfxboardmem_start = start + 0xc00000;
+		init_board(gb);
+		copyvrambank(&gb->gfxboard_bank_memory, gb->gfxmem_bank, true);
+		copyvrambank(&gb->gfxboard_bank_vram_pcem, gb->gfxmem_bank, true);
+		map_banks(&gb->gfxboard_bank_vram_pcem, gb->gfxboardmem_start >> 16, gb->gfxboard_bank_vram_pcem.allocated_size >> 16, 0);
+		map_banks(&gb->gfxboard_bank_mmio_wbs_pcem, (start + 0xb00000) >> 16, 1, 0);
+		map_banks(&gb->gfxboard_bank_special_pcem, (start + 0x000000) >> 16, 1, 0);
+		gb->pcem_vram_offset = 0x800000;
+		gb->pcem_vram_mask = 0x3fffff;
+		gb->pcem_io_mask = 0x3fff;
+		gb->pcem_mmio_offset = 0x00300000;
+		gb->pcem_mmio_mask = 0xff;
+		gb->configured_regs = gb->gfxmem_bank->start >> 16;
+		gb->gfxboard_intena = 1;
+		gb->configured_mem = 1;
+		gb->configured_regs = 1;
 	}
 
 	if (gb->rbc->rtgmem_type == GFXBOARD_ID_VGA) {
@@ -5513,7 +5545,14 @@ static void special_pcem_put(uaecptr addr, uae_u32 v, int size)
 		write_log(_T("PCEM SPECIAL PUT %08x %08x %d PC=%08x\n"), addr, v, size, M68K_GETPC);
 #endif
 
-	if (boardnum == GFXBOARD_ID_RETINA_Z2) {
+	if (boardnum == GFXBOARD_ID_ALTAIS_Z3) {
+
+		addr &= 0xffff;
+		if (addr >= 0x40) {
+			gfxboard_bput_io_swap_pcem(addr, v);
+		}
+
+	} else if (boardnum == GFXBOARD_ID_RETINA_Z2) {
 	
 		addr &= 0x1ffff;
 		if (addr & 0x10000) {
@@ -5859,7 +5898,32 @@ static uae_u32 special_pcem_get(uaecptr addr, int size)
 	write_log(_T("PCEM SPECIAL GET %08x %d PC=%08x\n"), addr, size, M68K_GETPC);
 #endif
 
-	if (boardnum == GFXBOARD_ID_RETINA_Z2) {
+	if (boardnum == GFXBOARD_ID_ALTAIS_Z3) {
+
+		addr &= 0xffff;
+		if (addr >= 0x40) {
+			v = gfxboard_bget_io_swap_pcem(addr);
+		} else {
+			switch(addr)
+			{
+				case 3:
+					v = 2 + 4 + 8;
+					break;
+				case 7:
+					v = 19;
+					break;
+				case 11:
+					v = 0x47;
+					break;
+				case 15:
+					v = 0x54;
+					break;
+
+
+			}
+		}
+
+	} else if (boardnum == GFXBOARD_ID_RETINA_Z2) {
 
 		addr &= 0x1ffff;
 		if (addr & 0x10000) {

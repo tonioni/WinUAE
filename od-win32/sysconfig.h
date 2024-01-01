@@ -118,6 +118,7 @@
 #define FLOPPYBRIDGE
 #define WITH_MIDIEMU
 #define WITH_DSP
+#define WITH_DRACO
 
 
 #else

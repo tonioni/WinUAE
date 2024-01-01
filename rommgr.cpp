@@ -97,7 +97,7 @@ struct romdata *getromdatabypath (const TCHAR *path)
 	return NULL;
 }
 
-#define NEXT_ROM_ID 311
+#define NEXT_ROM_ID 312
 
 #if NEXT_ROM_ID >= MAX_ROMMGR_ROMS
 #error Increase MAX_ROMMGR_ROMS!
@@ -299,6 +299,8 @@ static struct romdata roms[] = {
 	ALTROMPN(231, 1, 2, 524288, ROMTYPE_ODD , _T("74095 00 717 02 02 U5"), 0x6ccb0431, 0xa2a43444,0xbeda38be,0x1fa5cabe,0x75fc4def,0x063bcd7a)
 	{ _T("DraCo Boot ROM v1.3"), 1, 3, 1, 3, _T("DRACO\0"), 131072, 234, 2 | 4, 0, ROMTYPE_EXTCDTV, 0, 0, NULL,
 	0x0e9c5899,0x82151324,0x01207554,0x60c8a068,0x4793ec18,0x3f744d74, NULL, NULL, 4 },
+	{ _T("DraCo Boot ROM v1.5"), 1, 5, 1, 5, _T("DRACO\0"), 131072, 311, 2 | 4, 0, ROMTYPE_EXTCDTV, 0, 0, NULL,
+	0x0f2959d5,0xe8fd5d15,0x08797693,0x99f1df97,0x2fe792fd,0x8146cf1d, NULL, NULL, 4 },
 
 	{ _T("CD32 KS ROM v3.1"), 3, 1, 40, 60, _T("CD32\0"), 524288, 18, 1, 0, ROMTYPE_KICKCD32, 0, 0, NULL,
 	0x1e62d4a5, 0x3525BE88,0x87F79B59,0x29E017B4,0x2380A79E,0xDFEE542D, NULL, NULL, 1 },

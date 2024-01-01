@@ -63,6 +63,7 @@
 #ifdef RETROPLATFORM
 #include "rp.h"
 #endif
+#include "draco.h"
 #include "dsp3210/dsp_glue.h"
 
 #define MAX_DEVICE_ITEMS 64
@@ -351,7 +352,9 @@ void virtualdevice_free(void)
 #endif
 	ethernet_enumerate_free();
 	rtarea_free();
-
+#ifdef WITH_DRACO
+	draco_reset();
+#endif
 	execute_device_items(device_leaves, device_leave_cnt);
 }
 
@@ -409,6 +412,9 @@ void virtualdevice_init (void)
 #endif
 #ifdef WITH_TABLETLIBRARY
 	tabletlib_install ();
+#endif
+#ifdef WITH_DRACO
+	draco_init();
 #endif
 }
 

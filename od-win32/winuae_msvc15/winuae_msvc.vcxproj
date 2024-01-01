@@ -1305,7 +1305,7 @@
     <ClCompile Include="..\..\archivers\zip\zip.cpp" />
     <ClCompile Include="..\..\aros.rom.cpp" />
     <ClCompile Include="..\..\calc.cpp" />
-    <ClCompile Include="..\..\casablanca.cpp" />
+    <ClCompile Include="..\..\draco.cpp" />
     <ClCompile Include="..\..\cd32_fmv_genlock.cpp" />
     <ClCompile Include="..\..\cdtvcr.cpp" />
     <ClCompile Include="..\..\cfgfile.cpp" />
