@@ -190,9 +190,9 @@ static void mmu_dump_table(const char * label, uaecptr root_ptr)
 			uae_u8 cm, sp;
 			cm = (odesc >> 5) & 3;
 			sp = (odesc >> 7) & 1;
-			console_out_f(_T("%08x - %08x: %08x WP=%d S=%d CM=%d (%08x)\n"),
+			console_out_f(_T("%08x - %08x: %08x WP=%d S=%d CM=%d V=%d (%08x)\n"),
 				startaddr, addr - 1, odesc & ~((1 << page_size) - 1),
-				(odesc & 4) ? 1 : 0, sp, cm, odesc);
+				(odesc & 4) ? 1 : 0, sp, cm, (odesc & 3) > 0, odesc);
 			startaddr = addr;
 			odesc = desc;
 		}
