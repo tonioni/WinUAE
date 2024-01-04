@@ -659,10 +659,11 @@ static void blitter_done(ncr_t *ncr)
 
 static void blitter_reset_fifo(ncr_t *ncr)
 {
-    ncr->blt_fifo_size = -ncr->blt_expand_offset;
+    ncr->blt_fifo_size = -(ncr->blt_expand_offset >> 3);
     ncr->blt_fifo_read = 0;
     ncr->blt_fifo_write = 0;
-    ncr->blt_expand_bit = 7;
+    ncr->blt_expand_bit = 7 - (ncr->blt_expand_offset & 7);
+
 }
 
 static void blitter_run(ncr_t *ncr)
@@ -728,7 +729,6 @@ static void blitter_write_fifo(ncr_t *ncr, uint32_t v)
 static void blitter_start(ncr_t *ncr)
 {
     ncr->blt_expand_offset = ncr->blt_src & 31;
-    ncr->blt_expand_bit = 7;
     ncr->blt_color_fill = (ncr->blt_control & (1 << 9)) != 0;
     ncr->blt_color_expand = (ncr->blt_control & (1 << 11)) != 0;
     ncr->blt_transparent = (ncr->blt_control & (1 << 5)) != 0;
@@ -776,25 +776,27 @@ static void blitter_start(ncr_t *ncr)
 
     blitter_reset_fifo(ncr);
     ncr->blt_stage = 0;
+    ncr->blt_status = 0;
 
 #if 0
-    pclog("C=%04x ROP=%02x W=%d H=%d S=%08x/%d P=%08x/%d D=%08x/%d F=%d E=%d DM=%d SM=%d DL=%d SL=%d TR=%d MW=%d DX=%d DY=%d\n",
+    pclog("C=%04x ROP=%02x W=%03d H=%03d S=%08x/%d P=%08x/%d D=%08x/%d MW%d LP%d TR%d DX%d DY%d CF%d CE%d DM%d SM%d DL%d SL%d\n",
         ncr->blt_control, ncr->blt_rop, ncr->blt_width, ncr->blt_height,
         ncr->blt_src >> 3, ncr->blt_src & 7,
         ncr->blt_pat >> 3, ncr->blt_pat & 7,
         ncr->blt_dst >> 3, ncr->blt_dst & 7,
+        (ncr->blt_control & (1 << 3)) != 0,
+        (ncr->blt_control & (1 << 4)) != 0,
+        (ncr->blt_control & (1 << 5)) != 0,
+        (ncr->blt_control & (1 << 6)) != 0,
+        (ncr->blt_control & (1 << 7)) != 0,
         (ncr->blt_control & (1 << 9)) != 0,
         (ncr->blt_control & (1 << 11)) != 0,
         (ncr->blt_control & (1 << 12)) != 0,
         (ncr->blt_control & (1 << 13)) != 0,
         (ncr->blt_control & (1 << 14)) != 0,
-        (ncr->blt_control & (1 << 15)) != 0,
-        (ncr->blt_control & (1 << 5)) != 0,
-        (ncr->blt_control & (1 << 3)) != 0,
-        (ncr->blt_control & (1 << 7)) != 0,
-        (ncr->blt_control & (1 << 6)) != 0);
+        (ncr->blt_control & (1 << 15)) != 0);
 #endif
-    ncr->blt_status = 0;
+
     if (ncr->blt_start & 2) {
         pclog("Blitter: text blits not implemented.\n");
         blitter_done(ncr);
