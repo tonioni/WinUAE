@@ -57,6 +57,7 @@ static bool memlogw = true;
 #include "pcem/pcemglue.h"
 #include "qemuvga/qemuuaeglue.h"
 #include "qemuvga/vga.h"
+#include "draco.h"
 
 extern void put_io_pcem(uaecptr, uae_u32, int);
 extern uae_u32 get_io_pcem(uaecptr, int);
@@ -5547,10 +5548,12 @@ static void special_pcem_put(uaecptr addr, uae_u32 v, int size)
 
 	if (boardnum == GFXBOARD_ID_ALTAIS_Z3) {
 
-		addr &= 0xffff;
-		if (addr >= 0x40) {
-			gfxboard_bput_io_swap_pcem(addr, v);
+		if ((addr & 0xffff) < 0x100) {
+			draco_bustimeout(addr);
+			return;
 		}
+		addr &= 0xffff;
+		gfxboard_bput_io_swap_pcem(addr, v);
 
 	} else if (boardnum == GFXBOARD_ID_RETINA_Z2) {
 	
@@ -5900,28 +5903,12 @@ static uae_u32 special_pcem_get(uaecptr addr, int size)
 
 	if (boardnum == GFXBOARD_ID_ALTAIS_Z3) {
 
-		addr &= 0xffff;
-		if (addr >= 0x40) {
-			v = gfxboard_bget_io_swap_pcem(addr);
-		} else {
-			switch(addr)
-			{
-				case 3:
-					v = 2 + 4 + 8;
-					break;
-				case 7:
-					v = 19;
-					break;
-				case 11:
-					v = 0x47;
-					break;
-				case 15:
-					v = 0x54;
-					break;
-
-
-			}
+		if ((addr & 0xffff) < 0x100) {
+			draco_bustimeout(addr);
+			return v;
 		}
+		addr &= 0xffff;
+		v = gfxboard_bget_io_swap_pcem(addr);
 
 	} else if (boardnum == GFXBOARD_ID_RETINA_Z2) {
 

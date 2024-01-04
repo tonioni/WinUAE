@@ -21,7 +21,7 @@ void mouse_serial_poll(int x, int y, int z, int b, void *p)
 
         if (!(serial->ier & 1))
                 return;
-        if (!x && !y && b == mouse->oldb)
+        if (!x && !y && b == mouse->oldb && !b)
                 return;
 
         mouse->oldb = b;
@@ -48,25 +48,26 @@ void mouse_serial_poll(int x, int y, int z, int b, void *p)
         }
 }
 
+void mousecallback(void *p)
+{
+    mouse_serial_t *mouse = (mouse_serial_t *)p;
+
+    if (mouse->mousepos == -1)
+    {
+        mouse->mousepos = 0;
+        serial_write_fifo(mouse->serial, 'M');
+    }
+}
+
 void mouse_serial_rcr(struct SERIAL *serial, void *p)
 {
         mouse_serial_t *mouse = (mouse_serial_t *)p;
         
         mouse->mousepos = -1;
-        timer_set_delay_u64(&mouse->mousedelay_timer, TIMER_USEC * 5000);
+        mousecallback(p);
+//        timer_set_delay_u64(&mouse->mousedelay_timer, TIMER_USEC * 5000);
 }
         
-void mousecallback(void *p)
-{
-        mouse_serial_t *mouse = (mouse_serial_t *)p;
-
-        if (mouse->mousepos == -1)
-        {
-                mouse->mousepos = 0;
-                serial_write_fifo(mouse->serial, 'M');
-        }
-}
-
 void *mouse_serial_init()
 {
         mouse_serial_t *mouse = (mouse_serial_t *)malloc(sizeof(mouse_serial_t));
@@ -79,6 +80,19 @@ void *mouse_serial_init()
         
         return mouse;
 }
+
+void *mouse_serial_init_draco()
+{
+    mouse_serial_t *mouse = (mouse_serial_t *)malloc(sizeof(mouse_serial_t));
+    memset(mouse, 0, sizeof(mouse_serial_t));
+
+    mouse->serial = &serial2;
+    serial2.rcr_callback = mouse_serial_rcr;
+    serial2.rcr_callback_p = mouse;
+
+    return mouse;
+}
+
 
 void mouse_serial_close(void *p)
 {

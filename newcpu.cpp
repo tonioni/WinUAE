@@ -52,6 +52,7 @@
 #include "x86.h"
 #include "bsdsocket.h"
 #include "devices.h"
+#include "draco.h"
 #ifdef JIT
 #include "jit/compemu.h"
 #include <signal.h>
@@ -4274,12 +4275,16 @@ void safe_interrupt_set(int num, int id, bool i6)
 		atomic_or(p, 1 << id);
 		atomic_or(&uae_interrupt, 1);
 	} else {
-		int inum = i6 ? 13 : 3;
-		uae_u16 v = 1 << inum;
-		if (currprefs.cpu_cycle_exact || currprefs.cpu_compatible) {
-			INTREQ_INT(inum, 0);
-		} else if (!(intreq & v)) {
-			INTREQ_0(0x8000 | v);
+		if (currprefs.cs_compatible == CP_DRACO) {
+			draco_ext_interrupt(i6);
+		} else {
+			int inum = i6 ? 13 : 3;
+			uae_u16 v = 1 << inum;
+			if (currprefs.cpu_cycle_exact || currprefs.cpu_compatible) {
+				INTREQ_INT(inum, 0);
+			} else if (!(intreq & v)) {
+				INTREQ_0(0x8000 | v);
+			}
 		}
 	}
 }

@@ -3303,6 +3303,8 @@ int is_x86_cpu(struct uae_prefs *p)
 	}
 	if (!xb || xb->x86_reset)
 		return X86_STATE_STOP;
+	if (xb && xb->type < 0)
+		return X86_STATE_INACTIVE;
 	return X86_STATE_ACTIVE;
 }
 
@@ -3575,22 +3577,27 @@ static void set_vga(struct x86_bridge *xb)
 void mouse_serial_poll(int x, int y, int z, int b, void *p);
 void mouse_ps2_poll(int x, int y, int z, int b, void *p);
 
-void x86_mouse(int port, int x, int y, int z, int b)
+bool x86_mouse(int port, int x, int y, int z, int b)
 {
 	struct x86_bridge *xb = bridges[0];
 	if (!xb || !xb->mouse_port || !xb->mouse_base || xb->mouse_port != port + 1)
-		return;
+		return false;
 	switch (xb->mouse_type)
 	{
 		case 0:
 		default:
+		if (b < 0)
+			return true;
 		mouse_serial_poll(x, y, z, b, xb->mouse_base);
-		break;
+		return true;
 		case 1:
 		case 2:
+		if (b < 0)
+			return true;
 		mouse_ps2_poll(x, y, z, b, xb->mouse_base);
-		break;
+		return true;
 	}
+	return false;
 }
 
 void *mouse_serial_init();

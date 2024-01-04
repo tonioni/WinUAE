@@ -15,6 +15,9 @@ enum
 
 SERIAL serial1, serial2;
 
+static bool draco_serial;
+void x86_clearirq(uint8_t irqnum);
+void x86_doirq(uint8_t irqnum);
 
 void serial_reset()
 {
@@ -22,6 +25,8 @@ void serial_reset()
         serial2.iir = serial2.ier = serial2.lcr = 0;
         serial1.fifo_read = serial1.fifo_write = 0;
         serial2.fifo_read = serial2.fifo_write = 0;
+        serial1.iir = 1;
+        serial2.iir = 1;
 }
 
 void serial_update_ints(SERIAL *serial)
@@ -51,10 +56,31 @@ void serial_update_ints(SERIAL *serial)
                 serial->iir = 0;
         }
 
-        if (stat && ((serial->mctrl & 8) || PCJR))
-                picintlevel(1 << serial->irq);               
-        else
+        if (stat && ((serial->mctrl & 8) || PCJR)) {
+            if (draco_serial) {
+                x86_doirq(serial->irq);
+            } else {
+                picintlevel(1 << serial->irq);
+            }
+        } else {
+            if (draco_serial) {
+                x86_clearirq(serial->irq);
+            } else {
                 picintc(1 << serial->irq);
+            }
+        }
+}
+
+void serial_receive_callback(void *p)
+{
+    SERIAL *serial = (SERIAL *)p;
+
+    if (serial->fifo_read != serial->fifo_write)
+    {
+        serial->lsr |= 1;
+        serial->int_status |= SERIAL_INT_RECEIVE;
+        serial_update_ints(serial);
+    }
 }
 
 void serial_write_fifo(SERIAL *serial, uint8_t dat)
@@ -185,8 +211,13 @@ uint8_t serial_read(uint16_t addr, void *p)
                 serial->int_status &= ~SERIAL_INT_RECEIVE;
                 serial_update_ints(serial);
                 temp = serial_read_fifo(serial);
-                if (serial->fifo_read != serial->fifo_write)
+                if (serial->fifo_read != serial->fifo_write) {
+                    if (draco_serial) {
+                        serial_receive_callback(p);
+                    } else {
                         timer_set_delay_u64(&serial->receive_timer, 1000 * TIMER_USEC);
+                    }
+                }
                 break;
                 case 1:
                 if (serial->lcr & 0x80)
@@ -235,18 +266,6 @@ uint8_t serial_read(uint16_t addr, void *p)
         return temp;
 }
 
-void serial_receive_callback(void *p)
-{
-        SERIAL *serial = (SERIAL *)p;
-        
-        if (serial->fifo_read != serial->fifo_write)
-        {
-                serial->lsr |= 1;
-                serial->int_status |= SERIAL_INT_RECEIVE;
-                serial_update_ints(serial);
-        }
-}
-
 /*Tandy might need COM1 at 2f8*/
 void serial1_init(uint16_t addr, int irq, int has_fifo)
 {
@@ -257,6 +276,7 @@ void serial1_init(uint16_t addr, int irq, int has_fifo)
         serial1.rcr_callback = NULL;
         timer_add(&serial1.receive_timer, serial_receive_callback, &serial1, 0);
         serial1.has_fifo = has_fifo;
+        draco_serial = false;
 }
 void serial1_set(uint16_t addr, int irq)
 {
@@ -305,7 +325,10 @@ void draco_serial_init(void **s1, void **s2)
     serial_reset();
     serial1.has_fifo = 1;
     serial2.has_fifo = 1;
+    serial1.irq = 4;
+    serial2.irq = 4;
     *s1 = &serial1;
     *s2 = &serial2;
+    draco_serial = true;
 }
 

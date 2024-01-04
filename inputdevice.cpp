@@ -50,6 +50,7 @@
 #include "cia.h"
 #include "autoconf.h"
 #include "x86.h"
+#include "draco.h"
 #ifdef RETROPLATFORM
 #include "rp.h"
 #endif
@@ -3393,9 +3394,17 @@ static int getvelocity (int num, int subnum, int pct)
 static void mouseupdate (int pct, bool vsync)
 {
 	int max = 120;
+	bool pcmouse = false;
 	static int mxd, myd;
 
 	if (vsync) {
+
+		if (x86_mouse(0, 0, 0, 0, -1) || draco_mouse(0, 0, 0, 0, -1)) {
+			pcmouse = true;
+			pct = 1000;
+		}
+
+
 		if (mxd < 0) {
 			if (mouseedge_x > 0)
 				mouseedge_x = 0;
@@ -3473,19 +3482,24 @@ static void mouseupdate (int pct, bool vsync)
 			if (!mouse_deltanoreset[i][2])
 				mouse_delta[i][2] = 0;
 
-			if (getbuttonstate(i, JOYBUTTON_1))
-				pc_mouse_buttons[i] |= 1;
-			else
-				pc_mouse_buttons[i] &= ~1;
-			if (getbuttonstate(i, JOYBUTTON_2))
-				pc_mouse_buttons[i] |= 2;
-			else
-				pc_mouse_buttons[i] &= ~2;
-			if (getbuttonstate(i, JOYBUTTON_3))
-				pc_mouse_buttons[i] |= 4;
-			else
-				pc_mouse_buttons[i] &= ~4;
-			x86_mouse(i, v1, v2, v3, pc_mouse_buttons[i]);
+			if (pcmouse) {
+				if (getbuttonstate(i, JOYBUTTON_1))
+					pc_mouse_buttons[i] |= 1;
+				else
+					pc_mouse_buttons[i] &= ~1;
+				if (getbuttonstate(i, JOYBUTTON_2))
+					pc_mouse_buttons[i] |= 2;
+				else
+					pc_mouse_buttons[i] &= ~2;
+				if (getbuttonstate(i, JOYBUTTON_3))
+					pc_mouse_buttons[i] |= 4;
+				else
+					pc_mouse_buttons[i] &= ~4;
+
+				x86_mouse(0, v1, v2, v3, pc_mouse_buttons[i]);
+				draco_mouse(0, v1, v2, v3, pc_mouse_buttons[i]);
+			}
+
 
 #if OUTPUTDEBUG
 			if (v1 || v2) {

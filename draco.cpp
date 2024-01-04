@@ -18,9 +18,12 @@
 #include "ncr_scsi.h"
 #include "draco.h"
 #include "zfile.h"
+#include "keybuf.h"
 
 static int maxcnt = 100;
 
+#define ONEWIRE_DEBUG 1
+#define KBD_DEBUG 1
 
 /*
 	.asciz	"kbd/soft"	| 1: native keyboard, soft ints
@@ -133,8 +136,17 @@ void serial_reset();
 void serial_write(uint16_t addr, uint8_t val, void *p);
 uint8_t serial_read(uint16_t addr, void *p);
 void draco_serial_init(void **s1, void **s2);
+void mouse_serial_poll(int x, int y, int z, int b, void *p);
+void *mouse_serial_init_draco();
+
+void keyboard_at_write(uint8_t val, void *priv);
+uint8_t keyboard_at_read(uint16_t port, void *priv);
+void *draco_keyboard_init(void);
+void draco_key_process(uint16_t scan, int down);
+int draco_kbc_translate(uint8_t val);
 
 static void *draco_serial[2];
+static void *draco_mouse_base, *draco_keyboard;
 
 static uae_u8 draco_intena, draco_intpen, draco_svga_irq_state;
 static uae_u16 draco_timer, draco_timer_latch;
@@ -143,10 +155,17 @@ static bool draco_fdc_intpen;
 static uae_u8 draco_superio_cfg[16];
 static uae_s8 draco_superio_idx;
 static uae_u8 draco_reg[0x20];
+static int draco_watchdog;
+static int draco_scsi_intpen, draco_serial_intpen;
 
 static void draco_irq(void)
 {
 	uae_u16 irq = 0;
+	if (draco_scsi_intpen) {
+		draco_intpen |= 2;
+	} else {
+		draco_intpen &= ~2;
+	}
 	if (draco_intena & 1) {
 		uae_u16 mask = draco_intena & draco_intpen;
 		if (mask) {
@@ -166,13 +185,13 @@ static void draco_irq(void)
 		if (draco_svga_irq_state) {
 			irq |= 0x0010; // INT3
 		}
-		if (draco_fdc_intpen && (draco_reg[1] & DRCNTRL_FDCINTENA)) {
+		if ((draco_fdc_intpen || draco_serial_intpen) && (draco_reg[1] & DRCNTRL_FDCINTENA)) {
 			irq = 0x1000; // INT5
 		}
 		if ((draco_reg[7] & DRSTAT2_TMRINTENA) && (draco_reg[7] & DRSTAT2_TMRIRQPEN)) {
 			irq |= 1;
 		}
-		if ((draco_reg[3] & DRSTAT_KBDRECV) && (draco_reg[1] & DRCNTRL_KBDINTENA)) {
+		if (draco_reg[3] & DRSTAT_KBDRECV) {
 			irq |= 1;
 		}
 	}
@@ -190,78 +209,135 @@ void draco_svga_irq(bool state)
 	draco_irq();
 }
 
-static uae_u8 draco_kbd_state, draco_kbd_state2;
+static uae_u8 draco_kbd_state;
+static uae_s8 draco_kbd_state2, draco_kbd_poll;
 static uae_u16 draco_kbd_code;
-static int draco_kbd_poll;
 static uae_u8 draco_kbd_buffer[10];
 static uae_u8 draco_kbd_buffer_len;
+static uae_s8 draco_kdb_params;
+static uae_u16 draco_kbd_in_buffer[16];
+static int draco_kbd_in_buffer_len;
 
-static uae_u8 draco_keyboard_read(uae_u8 v)
+static void draco_keyboard_reset(void)
 {
-	if (draco_kbd_state2) {
-		draco_reg[3] &= ~DRSTAT_KBDCLKIN;
+	draco_kbd_buffer_len = 0;
+	draco_kbd_in_buffer_len = 0;
+	draco_kbd_state = 0;
+	draco_kbd_poll = 0;
+	draco_kbd_code = 0;
+	draco_kdb_params = 0;
+	draco_kbd_state2 = -1;
+}
 
+static void draco_keyboard_read(void)
+{
+	uae_u8 v = draco_reg[3];
+
+	if (draco_kbd_poll > 0) {
+		draco_kbd_poll--;
+		if (draco_kbd_poll == 0) {
+			draco_reg[3] &= ~DRSTAT_KBDCLKIN;
+			v &= ~DRSTAT_KBDCLKIN;
+			draco_kbd_poll = -4;
+		}
+		draco_reg[3] = v;
+		return;
+	}
+
+	if (draco_kbd_poll < 0) {
 		draco_kbd_poll++;
-		if (draco_kbd_state2 > 0 && draco_kbd_poll >= 4) {
-			draco_reg[3] |= DRSTAT_KBDCLKIN;
+		if (draco_kbd_poll == 0) {
+			draco_kbd_poll = 4;
+			v |= DRSTAT_KBDCLKIN;
+			uae_u16 bit = (draco_reg[1] & DRCNTRL_KBDDATOUT) ? 0x8000 : 0;
+#if KBD_DEBUG > 1
+			write_log("draco keyboard got bit %d: %d\n", draco_kbd_state2, bit ? 1 : 0);
+#endif
 			draco_kbd_code >>= 1;
-			draco_kbd_code |= (draco_reg[1] & DRCNTRL_KBDDATOUT) ? 0x8000 : 0;
+			draco_kbd_code |= bit;
 			draco_kbd_state2++;
-			draco_kbd_poll = 0;
+
+			if (draco_kbd_state2 == 11) {
+				draco_kbd_code >>= 5;
+				draco_kbd_code &= 0xff;
+#if KBD_DEBUG
+				write_log("draco->keyboard code %02x\n", draco_kbd_code);
+#endif
+				draco_reg[3] = v;
+				keyboard_at_write((uae_u8)draco_kbd_code, draco_keyboard);
+				v = draco_reg[3];
+			}
 		}
 	}
-	return v;
+
+	draco_reg[3] = v;
 }
+
+
 static void draco_keyboard_write(uae_u8 v)
 {
 	v &= DRCNTRL_KBDDATOUT | DRCNTRL_KBDCLKOUT;
 	if (v == draco_kbd_state) {
 		return;
 	}
+	if ((v & DRCNTRL_KBDDATOUT) != (draco_kbd_state & DRCNTRL_KBDDATOUT)) {
+#if KBD_DEBUG > 1
+		write_log("DRCNTRL_KBDDATOUT %d -> %d\n", (draco_kbd_state & DRCNTRL_KBDDATOUT) ? 1 : 0, (v & DRCNTRL_KBDDATOUT) ? 1 : 0);
+#endif
+	}
+	if ((v & DRCNTRL_KBDCLKOUT) != (draco_kbd_state & DRCNTRL_KBDCLKOUT)) {
+#if KBD_DEBUG > 1
+		write_log("DRCNTRL_KBDCLKOUT %d -> %d\n", (draco_kbd_state & DRCNTRL_KBDCLKOUT) ? 1 : 0, (v & DRCNTRL_KBDCLKOUT) ? 1 : 0);
+#endif
+	}
 
 	// start receive
-	if ((v & DRCNTRL_KBDCLKOUT) && !(draco_kbd_state & DRCNTRL_KBDCLKOUT)) {
+	if (draco_kbd_state2 < 0 && (v & DRCNTRL_KBDCLKOUT) && !(draco_kbd_state & DRCNTRL_KBDCLKOUT)) {
 		draco_reg[3] |= DRSTAT_KBDCLKIN;
 		draco_kbd_code = 0;
-		draco_kbd_state2 = 1;
-		draco_kbd_poll = 0;
+		draco_kbd_state2 = 0;
+		draco_kbd_poll = 4;
 	}
 
 	draco_kbd_state = v;
 }
 
-static void draco_keyboard_done(void)
-{
-
-	if (draco_kbd_state2 == 12) {
-		draco_kbd_code >>= 5;
-		draco_kbd_code &= 0xff;
-		write_log("draco received keyboard data %04x\n", draco_kbd_code);
-		if (draco_kbd_code == 0xf2) {
-			draco_kbd_buffer[0] = 0xab;
-			draco_kbd_buffer[1] = 0x83;
-			draco_kbd_buffer_len = 2;
-		}
-	}
-	draco_reg[3] &= ~DRSTAT_KBDCLKIN;
-	draco_reg[3] &= ~DRSTAT_KBDRECV;
-	draco_kbd_state2 = 0;
-	draco_kbd_poll = 0;
-}
-
 static void draco_keyboard_send(void)
 {
-	if (draco_kbd_buffer_len <= 0) {
-		return;
-	}
-	if (!(draco_reg[3] & DRSTAT_KBDRECV)) {
+	if (draco_kbd_buffer_len > 0 && !(draco_reg[3] & DRSTAT_KBDRECV)) {
+		uae_u8 code = draco_kbd_buffer[0];
+		for (int i = 1; i < draco_kbd_buffer_len; i++) {
+			draco_kbd_buffer[i - i] = draco_kbd_buffer[i];
+		}
 		draco_kbd_buffer_len--;
-		uae_u8 code = draco_kbd_buffer[draco_kbd_buffer_len];
 		draco_reg[5] = code;
 		draco_reg[3] |= DRSTAT_KBDRECV;
+#if KBD_DEBUG
+		write_log("keyboard->draco code %02x\n", code);
+#endif
 		draco_irq();
 	}
 }
+
+static void draco_keyboard_done(void)
+{
+#if KBD_DEBUG > 1
+	write_log("draco keyboard interface reset\n");
+#endif
+	draco_reg[3] &= ~DRSTAT_KBDCLKIN;
+	draco_reg[3] &= ~DRSTAT_KBDRECV;
+	draco_reg[1] &= ~DRCNTRL_KBDDATOUT;
+	draco_reg[1] &= ~DRCNTRL_KBDCLKOUT;
+	draco_kbd_state2 = -1;
+	draco_kbd_poll = 0;
+	draco_keyboard_send();
+}
+
+void draco_kdb_queue_add(void *d, uint8_t val, int state)
+{
+	draco_kbd_buffer[draco_kbd_buffer_len++] = val;
+}
+
 
 static uae_u8 draco_1wire_data[40], draco_1wire_state, draco_1wire_dir;
 static uae_u8 draco_1wire_sram[512 + 32], draco_1wire_scratchpad[32 + 3], draco_1wire_rom[8];
@@ -274,6 +350,8 @@ static bool draco_1wire_bit;
 #define DS_ROM_SEARCH           0xf0
 #define DS_ROM_SKIP             0xcc
 #define DS_ROM_READ             0x33
+
+#define DS_READ_MEMORY          0xf0
 #define DS_WRITE_SCRATCHPAD     0x0f
 #define DS_READ_SCRATCHPAD      0xaa
 #define DS_COPY_SCRATCHPAD      0x55
@@ -331,18 +409,20 @@ static void draco_1wire_set_bit(void)
 	}
 }
 
-static uae_u8 draco_1wire_read(uae_u8 v)
+static void draco_1wire_read(void)
 {
+	uae_u8 v = draco_reg[3];
+
 	if (draco_1wire_bit) {
-		draco_reg[3] |= DRSTAT_CLKDAT;
 		v |= DRSTAT_CLKDAT;
 	} else {
-		draco_reg[3] &= ~DRSTAT_CLKDAT;
 		v &= ~DRSTAT_CLKDAT;
 	}
 
-	if (draco_1wire_cnt == 8 && !(draco_reg[3] & DRSTAT_CLKBUSY)) {
+	if (draco_1wire_cnt == 8 && !(v & DRSTAT_CLKBUSY)) {
+#if ONEWIRE_DEBUG > 1
 		write_log("draco read 1-wire SRAM byte %02x, %02x\n", draco_1wire_dat, draco_1wire_bytes);
+#endif
 		draco_1wire_cnt = 0;
 		draco_1wire_bytes++;
 		if (draco_1wire_rom_offset >= 0) {
@@ -365,14 +445,14 @@ static uae_u8 draco_1wire_read(uae_u8 v)
 		}
 	}
 	
-	if (draco_reg[3] & DRSTAT_CLKBUSY) {
+	if (v & DRSTAT_CLKBUSY) {
 		draco_1wire_busycnt--;
 		if (draco_1wire_busycnt < 0) {
-			draco_reg[3] &= ~DRSTAT_CLKBUSY;
+			v &= ~DRSTAT_CLKBUSY;
 		}
 	}
 
-	return v;
+	draco_reg[3] = v;
 }
 
 static void draco_1wire_busy(void)
@@ -410,22 +490,28 @@ static void draco_1wire_send(int bit)
 		for (int i = sizeof(draco_1wire_data) - 1; i >= 1; i--) {
 			draco_1wire_data[i] = draco_1wire_data[i - 1];
 		}
+#if ONEWIRE_DEBUG > 1
 		write_log("draco received 1-wire byte %02x, cnt %02x\n", draco_1wire_data[0], draco_1wire_bytes);
+#endif
 		draco_1wire_cnt = 0;
 		draco_1wire_bytes++;
-		// read data command + 2 address bytes?
-		if (draco_1wire_cmd == DS_ROM_SEARCH && draco_1wire_data[3] == DS_ROM_SEARCH) {
+		// read data command + 2 address bytes
+		if (draco_1wire_cmd == DS_READ_MEMORY && draco_1wire_data[3] == DS_READ_MEMORY) {
 			draco_1wire_sram_offset = (draco_1wire_data[1] << 8) | draco_1wire_data[2];
 			draco_1wire_dir = 1;
 			draco_1wire_bytes = 0;
+#if ONEWIRE_DEBUG
 			write_log("draco received 1-wire SRAM read command, offset %04x\n", draco_1wire_sram_offset);
+#endif
 		}
-		// write scratchpad + 2 address bytes?
+		// write scratchpad + 2 address bytes
 		if (draco_1wire_cmd == DS_WRITE_SCRATCHPAD && draco_1wire_data[3] == DS_WRITE_SCRATCHPAD) {
 			draco_1wire_sram_offset = (draco_1wire_data[1] << 8) | draco_1wire_data[2];
 			draco_1wire_sram_offset_copy = draco_1wire_sram_offset;
 			memset(draco_1wire_scratchpad, 0, sizeof(draco_1wire_scratchpad));
+#if ONEWIRE_DEBUG
 			write_log("draco received 1-wire SRAM scratchpad write command, offset %04x\n", draco_1wire_sram_offset);
+#endif
 		}
 		// read scratchpad
 		if (draco_1wire_cmd == DS_READ_SCRATCHPAD) {
@@ -433,7 +519,9 @@ static void draco_1wire_send(int bit)
 			draco_1wire_dir = 1;
 			draco_1wire_bytes = 0;
 			draco_1wire_set_bit();
+#if ONEWIRE_DEBUG
 			write_log("draco received 1-wire SRAM scratchpad read command\n");
+#endif
 		}
 		// copy scratchpad
 		if (draco_1wire_cmd == DS_COPY_SCRATCHPAD && draco_1wire_data[4] == DS_COPY_SCRATCHPAD) {
@@ -444,10 +532,14 @@ static void draco_1wire_send(int bit)
 				draco_1wire_data[3] == draco_1wire_scratchpad[0]) {
 				int start = draco_1wire_sram_offset_copy & 31;
 				int offset = draco_1wire_sram_offset_copy & ~31;
+#if ONEWIRE_DEBUG
 				write_log("draco received 1-wire SRAM scratchpad copy command, accepted\n");
+#endif
 				for (int i = 0; i < 32; i++) {
 					draco_1wire_sram[offset + start] = draco_1wire_scratchpad[start + 3];
+#if ONEWIRE_DEBUG > 1
 					write_log("draco 1-wire SRAM scratchpad copy %02x -> %04x\n", draco_1wire_sram[offset + start], offset + start);
+#endif
 					if (start == (draco_1wire_scratchpad[2] & 31)) {
 						break;
 					}
@@ -459,7 +551,9 @@ static void draco_1wire_send(int bit)
 				draco_1wire_busy();
 				draco_1wire_bit = 0;
 			} else {
+#if ONEWIRE_DEBUG
 				write_log("draco received 1-wire SRAM scratchpad copy command, rejected\n");
+#endif
 				draco_1wire_busy();
 			}
 		}
@@ -485,7 +579,9 @@ static void draco_1wire_reset(void)
 			} else if (len < 32) {
 				draco_1wire_scratchpad[2] |= 0x20;
 			}
+#if ONEWIRE_DEBUG
 			write_log("draco received 1-wire SRAM scratchpad write, %d bytes received\n", len);
+#endif
 		}
 	}
 
@@ -496,7 +592,9 @@ static void draco_1wire_reset(void)
 	draco_1wire_bytes = 0;
 	draco_1wire_sram_offset = -1;
 	draco_1wire_rom_offset = 0;
+#if ONEWIRE_DEBUG
 	write_log("draco 1-wire reset\n");
+#endif
 }
 
 static uae_u32 REGPARAM2 draco_lget(uaecptr addr)
@@ -505,12 +603,13 @@ static uae_u32 REGPARAM2 draco_lget(uaecptr addr)
 
 	if ((addr & 0x07c00000) == 0x04000000) {
 
-		write_log("draco scsi lput %08x %08x\n", addr, l);
+		//write_log("draco scsi lput %08x %08x\n", addr, l);
 		int reg = addr & 0xffff;
-		l = cpuboard_ncr710_io_bget(reg + 0) << 24;
-		l |= cpuboard_ncr710_io_bget(reg + 1) << 16;
-		l |= cpuboard_ncr710_io_bget(reg + 2) << 8;
 		l |= cpuboard_ncr710_io_bget(reg + 3) << 0;
+		l |= cpuboard_ncr710_io_bget(reg + 2) << 8;
+		l |= cpuboard_ncr710_io_bget(reg + 1) << 16;
+		l |= cpuboard_ncr710_io_bget(reg + 0) << 24;
+
 	} else {
 		write_log(_T("draco_lget %08x %08x\n"), addr, M68K_GETPC);
 	}
@@ -524,6 +623,12 @@ static uae_u32 REGPARAM2 draco_wget(uaecptr addr)
 	return 0;
 }
 
+void draco_bustimeout(uaecptr addr)
+{
+	write_log("draco bus timeout %08x\n", addr);
+	draco_reg[3] |= DRSTAT_BUSTIMO;
+}
+
 static uae_u32 REGPARAM2 draco_bget(uaecptr addr)
 {
 	uae_u8 v = 0;
@@ -534,8 +639,7 @@ static uae_u32 REGPARAM2 draco_bget(uaecptr addr)
 	}
 
 	if (addr >= 0x20000000) {
-		write_log("draco bus timeout %08x\n", addr);
-		draco_reg[3] |= DRSTAT_BUSTIMO;
+		draco_bustimeout(addr);
 		return 0;
 	}
 
@@ -543,7 +647,7 @@ static uae_u32 REGPARAM2 draco_bget(uaecptr addr)
 
 		int reg = addr & 0xffff;
 		v = cpuboard_ncr710_io_bget(reg);
-		write_log("draco scsi read %08x\n", addr);
+//		write_log("draco scsi read %08x\n", addr);
 
 	} else if ((addr & 0x07c00000) == 0x02400000) {
 
@@ -597,6 +701,10 @@ static uae_u32 REGPARAM2 draco_bget(uaecptr addr)
 				v = serial_read(reg, draco_serial[1]);
 				break;
 
+			case 0x278:
+				// parallel
+				break;
+
 			default:
 				write_log("draco superio read %04x = %02x\n", (addr >> 2) & 0xfff, v);
 				break;
@@ -606,16 +714,19 @@ static uae_u32 REGPARAM2 draco_bget(uaecptr addr)
 	} else if ((addr & 0x07c00000) == 0x02000000) {
 
 		// io
-		if ((addr & 0xffffff) > 0x1f)
-			write_log("x");
-
 		int reg = addr & 0x1f;
 		v = draco_reg[reg];
 		switch(reg)
 		{
 		case 3:
-			v = draco_keyboard_read(v);
-			v = draco_1wire_read(v);
+			draco_keyboard_read();
+			draco_1wire_read();
+			v = draco_reg[reg];
+			break;
+		case 5:
+#if KBD_DEBUG > 1
+			write_log("draco keyboard scan code read %02x\n", v);
+#endif
 			break;
 		case 9:
 			v = 4;
@@ -665,12 +776,12 @@ static void REGPARAM2 draco_lput(uaecptr addr, uae_u32 l)
 {
 	if ((addr & 0x07c00000) == 0x04000000) {
 
-		write_log("draco scsi lput %08x %08x\n", addr, l);
+		//write_log("draco scsi lput %08x %08x\n", addr, l);
 		int reg = addr & 0xffff;
-		cpuboard_ncr710_io_bput(reg + 0, l >> 24);
+		cpuboard_ncr710_io_bput(reg + 3, l >> 0);
+		cpuboard_ncr710_io_bput(reg + 2, l >> 8);
 		cpuboard_ncr710_io_bput(reg + 1, l >> 16);
-		cpuboard_ncr710_io_bput(reg + 2, l >>  8);
-		cpuboard_ncr710_io_bput(reg + 3, l >>  0);
+		cpuboard_ncr710_io_bput(reg + 0, l >> 24);
 
 	} else {
 
@@ -696,7 +807,7 @@ static void REGPARAM2 draco_bput(uaecptr addr, uae_u32 b)
 
 	if ((addr & 0x07c00000) == 0x04000000) {
 
-		write_log("draco scsi put %08x\n", addr);
+//		write_log("draco scsi put %08x\n", addr);
 		int reg = addr & 0xffff;
 		cpuboard_ncr710_io_bput(reg, b);
 
@@ -755,6 +866,11 @@ static void REGPARAM2 draco_bput(uaecptr addr, uae_u32 b)
 			case 0x2ff:
 				serial_write(reg, b, draco_serial[1]);
 				break;
+
+			case 0x278:
+				// parallel
+				break;
+
 			default:
 				write_log("draco superio write %04x = %02x\n", (addr >> 2) & 0xfff, b);
 				break;
@@ -771,12 +887,14 @@ static void REGPARAM2 draco_bput(uaecptr addr, uae_u32 b)
 		int reg = addr & 0x1f;
 		uae_u8 oldval = draco_reg[reg];
 		draco_reg[reg] = b;
-		//draco_reg[1] |= DRCNTRL_FDCINTENA;
 
 		//write_log(_T("draco_bput %08x %02x %08x\n"), addr, b & 0xff, M68K_GETPC);
 		switch(reg)
 		{
 			case 1:
+				if (b & DRCNTRL_WDOGDAT) {
+					draco_watchdog = 0;
+				}
 				draco_irq();
 				draco_keyboard_write(b);
 				break;
@@ -868,9 +986,29 @@ void casablanca_map_overlay(void)
 	map_banks(&draco_bank, 0x03000000 >> 16, 0x01000000 >> 16, 0);
 }
 
+void draco_ext_interrupt(bool i6)
+{
+	if (i6) {
+		draco_intpen |= 8;
+	} else {
+		draco_intpen |= 4;
+	}
+	draco_irq();
+}
+
+void draco_keycode(uae_u8 scancode, uae_u8 state)
+{
+	if (currprefs.cs_compatible == CP_DRACO) {
+		draco_kbd_in_buffer[draco_kbd_in_buffer_len++] = scancode | (state ? 0x8000 : 0x00);
+		if (draco_kbd_buffer_len == 0 && !(draco_reg[3] & DRSTAT_KBDRECV)) {
+			draco_key_process(scancode, state);
+		}
+	}
+}
+
 static void draco_hsync(void)
 {
-	uae_u16 tm = 1, ot;
+	uae_u16 tm = 5, ot;
 	static int hcnt;
 
 	ot = draco_timer;
@@ -886,31 +1024,49 @@ static void draco_hsync(void)
 	if (draco_kbd_buffer_len > 0) {
 		draco_keyboard_send();
 	}
+
+	if (draco_kbd_buffer_len == 0 && draco_kbd_in_buffer_len  > 0 && !(draco_reg[3] & DRSTAT_KBDRECV)) {
+		uae_u8 code = (uae_u8)draco_kbd_in_buffer[0];
+		uae_u8 state = (draco_kbd_in_buffer[0] & 0x8000) ? 1 : 0;
+		for (int i = 1; i < draco_kbd_in_buffer_len; i++) {
+			draco_kbd_in_buffer[i - i] = draco_kbd_in_buffer[i];
+		}
+		draco_kbd_in_buffer_len--;
+		draco_key_process(code, state);
+	}
+
 	hcnt++;
 	if (hcnt >= 60) {
 		draco_1wire_rtc_count();
 		hcnt = 0;
 	}
+
+	draco_watchdog++;
+	if (0 && draco_watchdog > 312 * 50) {
+		IRQ_forced(7, -1);
+		activate_debugger();
+		draco_watchdog = 0;
+	}
 }
 
 void draco_set_scsi_irq(int id, int level)
 {
-	if (level) {
-		draco_intpen |= 2;
-	} else {
-		draco_intpen &= ~2;
-	}
+	draco_scsi_intpen = level;
 	draco_irq();
 }
 
 
 static void x86_irq(int irq, bool state)
 {
-	draco_fdc_intpen = state;
+	if (irq == 4) {
+		draco_serial_intpen = state;
+	} else {
+		draco_fdc_intpen = state;
+	}
 	draco_irq();
 }
 
-void draco_reset(void)
+void draco_free(void)
 {
 	TCHAR path[MAX_DPATH];
 	cfgfile_resolve_path_out_load(currprefs.flashfile, path, MAX_DPATH, PATH_ROM);
@@ -922,13 +1078,17 @@ void draco_reset(void)
 		zfile_fwrite(draco_1wire_sram, sizeof(draco_1wire_sram), 1, draco_flashfile);
 		zfile_fclose(draco_flashfile);
 	}
+	xfree(draco_mouse_base);
+	draco_mouse_base = NULL;
 }
 
-void draco_init(void)
+void draco_reset(int hardreset)
 {
-	if (currprefs.cs_compatible != CP_DRACO) {
-		return;
-	}
+
+	x86_initfloppy(x86_irq);
+	draco_serial_init(&draco_serial[0], &draco_serial[1]);
+	draco_mouse_base = mouse_serial_init_draco();
+	draco_keyboard = draco_keyboard_init();
 
 	draco_intena = 0;
 	draco_intpen = 0;
@@ -938,8 +1098,9 @@ void draco_init(void)
 	draco_svga_irq_state = 0;
 	draco_fdc_intpen = false;
 	draco_superio_idx = -2;
-	draco_kbd_buffer_len = 0;
-	draco_kbd_state2 = 0;
+	draco_watchdog = 0;
+	draco_scsi_intpen = 0;
+	draco_serial_intpen = 0;
 	memset(draco_superio_cfg, 0, sizeof(draco_superio_cfg));
 	draco_superio_cfg[0] = 0x3b;
 	draco_superio_cfg[1] = 0x9f;
@@ -949,7 +1110,9 @@ void draco_init(void)
 	draco_superio_cfg[13] = 0x65;
 	draco_superio_cfg[14] = 1;
 	memset(draco_reg, 0, sizeof(draco_reg));
+	draco_reg[1] = DRCNTRL_FDCINTENA | DRCNTRL_KBDINTENA;
 
+	draco_keyboard_reset();
 	draco_1wire_rtc_validate();
 	draco_1wire_rom[0] = 0x04;
 	draco_1wire_rom[1] = 1;
@@ -959,6 +1122,14 @@ void draco_init(void)
 	draco_1wire_rom[5] = 5;
 	draco_1wire_rom[6] = 6;
 	draco_1wire_rom[7] = 0xaa;
+
+}
+
+void draco_init(void)
+{
+	if (currprefs.cs_compatible != CP_DRACO) {
+		return;
+	}
 
 	TCHAR path[MAX_DPATH];
 	cfgfile_resolve_path_out_load(currprefs.flashfile, path, MAX_DPATH, PATH_ROM);
@@ -970,11 +1141,22 @@ void draco_init(void)
 		zfile_fclose(draco_flashfile);
 	}
 
-	x86_initfloppy(x86_irq);
-	draco_serial_init(&draco_serial[0], &draco_serial[1]);
+	draco_reset(1);
 
 	device_add_rethink(draco_irq);
 	device_add_hsync(draco_hsync);
+	device_add_reset(draco_reset);
+}
+
+bool draco_mouse(int port, int x, int y, int z, int b)
+{
+	if (currprefs.cs_compatible == CP_DRACO) {
+		if (b < 0)
+			return true;
+		mouse_serial_poll(x, y, z, b, draco_mouse_base);
+		return true;
+	}
+	return false;
 }
 
 void draco_map_overlay(void)

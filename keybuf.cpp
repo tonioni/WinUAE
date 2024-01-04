@@ -295,6 +295,11 @@ int record_key_direct(int kc, bool direct)
 	int kpb_next = kpb_first + 1;
 	int kcd = (kc << 7) | (kc >> 1);
 
+	if (currprefs.cs_compatible == CP_DRACO) {
+		inputdevice_draco_key(kc);
+		return 1;
+	}
+
 	if (!direct) {
 		if (key_swap_hack2) {
 			// $0D <> $0C

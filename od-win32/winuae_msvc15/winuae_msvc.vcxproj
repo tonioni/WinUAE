@@ -1569,6 +1569,7 @@
     <ClCompile Include="..\..\jit\compemu_support.cpp" />
     <ClCompile Include="..\..\jit\compstbl.cpp" />
     <ClCompile Include="..\..\moduleripper.cpp" />
+    <ClCompile Include="keyboard_at_draco.cpp" />
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="..\fpux64_80.asm">

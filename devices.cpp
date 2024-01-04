@@ -353,7 +353,7 @@ void virtualdevice_free(void)
 	ethernet_enumerate_free();
 	rtarea_free();
 #ifdef WITH_DRACO
-	draco_reset();
+	draco_free();
 #endif
 	execute_device_items(device_leaves, device_leave_cnt);
 }
