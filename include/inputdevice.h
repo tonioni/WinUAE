@@ -79,6 +79,7 @@ struct inputevent {
 	int unit;
 	int data;
 	int portid;
+    int data2;
 };
 
 #define MAX_INPUT_QUALIFIERS (8 + 5)
@@ -211,6 +212,8 @@ extern int input_get_default_keyboard (int num);
 
 #define DEFEVENT(A, B, C, D, E, F) INPUTEVENT_ ## A,
 #define DEFEVENT2(A, B, B2, C, D, E, F, G) INPUTEVENT_ ## A,
+#define DEFEVENTKB(A, B, C, F, PC) INPUTEVENT_ ## A,
+
 enum inputevents {
 INPUTEVENT_ZERO,
 #include "../inputevents.def"
@@ -218,6 +221,7 @@ INPUTEVENT_END
 };
 #undef DEFEVENT
 #undef DEFEVENT2
+#undef DEFEVENTKB
 
 extern void handle_cd32_joystick_cia (uae_u8, uae_u8);
 extern uae_u8 handle_parport_joystick (int port, uae_u8 data);
@@ -380,6 +384,8 @@ bool key_ctrlpressed(void);
 
 void osk_setup(int, int);
 bool osk_status(void);
+
+void inputdevice_draco_key(int kc);
 
 extern int key_swap_hack, key_swap_hack2;
 

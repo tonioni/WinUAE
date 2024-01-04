@@ -100,10 +100,11 @@ extern int tablet_log;
 
 #define DEFEVENT(A, B, C, D, E, F) {_T(#A), B, NULL, C, D, E, F, 0 },
 #define DEFEVENT2(A, B, B2, C, D, E, F, G) {_T(#A), B, B2, C, D, E, F, G },
+#define DEFEVENTKB(A, B, C, F, PC) {_T(#A), B, NULL, C, 0, 0, F, 0, PC },
 static const struct inputevent events[] = {
-	{0, 0, 0, AM_K, 0, 0, 0, 0},
+	{0, 0, 0, AM_K, 0, 0, 0, 0, 0},
 #include "inputevents.def"
-	{0, 0, 0, 0, 0, 0, 0, 0}
+	{0, 0, 0, 0, 0, 0, 0, 0, 0}
 };
 #undef DEFEVENT
 #undef DEFEVENT2
@@ -3537,6 +3538,7 @@ static void mouseupdate (int pct, bool vsync)
 	}
 
 	for (int i = 0; i < 2; i++) {
+
 		if (lightpen_delta[i][0]) {
 			lightpen_x[i] += lightpen_delta[i][0];
 			if (!lightpen_deltanoreset[i][0])
@@ -10445,5 +10447,21 @@ void clear_inputstate (void)
 		horizclear[i] = 1;
 		vertclear[i] = 1;
 		relativecount[i][0] = relativecount[i][1] = 0;
+	}
+}
+
+void inputdevice_draco_key(int kc)
+{
+	int state = (kc & 1) == 0;
+	kc >>= 1;
+	for (int i = 1; events[i].name; i++) {
+		if (events[i].data == kc && events[i].data2 && events[i].allow_mask == AM_K) {
+			int code = events[i].data2;
+			if ((code & 0xff00) == 0xe000) {
+				draco_keycode((code & 0xff) | 0x100, state);
+			} else {
+				draco_keycode(code & 0xff, state);
+			}
+		}
 	}
 }
