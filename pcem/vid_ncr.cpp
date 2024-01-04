@@ -361,12 +361,23 @@ static const int fontwidths[] =
 void ncr_recalctimings(svga_t *svga)
 {
         ncr_t *ncr = (ncr_t*)svga->p;
+        bool ext_end = (svga->crtc[0x30] & 0x20) != 0;
 
         svga->hdisp = svga->crtc[1] - ((svga->crtc[5] & 0x60) >> 5);
-        if (svga->crtc[0x30] & 0x02)
-            svga->hdisp += 0x100;
-        if (svga->crtc[0x32] & 0x02)
-            svga->hdisp += 0x200;
+        if (ext_end) {
+            if (svga->crtc[0x30] & 0x02)
+                svga->hdisp += 0x100;
+            if (svga->crtc[0x32] & 0x02)
+                svga->hdisp += 0x200;
+            if (svga->crtc[0x30] & 0x01)
+                svga->htotal += 0x100;
+            if (svga->crtc[0x32] & 0x01)
+                svga->htotal += 0x200;
+            if (svga->crtc[0x33] & 0x02)
+                svga->dispend += 0x400;
+            if (svga->crtc[0x33] & 0x01)
+                svga->vtotal += 0x400;
+        }
         svga->hdisp++;
         if (svga->seqregs[0x1f] & 0x10) {
             svga->hdisp *= fontwidths[svga->seqregs[0x1f] & 15];
@@ -374,18 +385,9 @@ void ncr_recalctimings(svga_t *svga)
             svga->hdisp *= (svga->seqregs[1] & 8) ? 16 : 8;
         }
 
-        if (svga->crtc[0x30] & 0x01)
-            svga->htotal += 0x100;
-        if (svga->crtc[0x32] & 0x01)
-            svga->htotal += 0x200;
-
-        if (svga->crtc[0x33] & 0x02)
-            svga->dispend += 0x400;
         if (svga->crtc[0x33] & 0x04)
             svga->vblankstart += 0x400;
 
-        if (svga->crtc[0x33] & 0x01)
-            svga->vtotal += 0x400;
 
         if (svga->crtc[0x33] & 0x10)
             svga->split += 0x400;
