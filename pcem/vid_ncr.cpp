@@ -140,6 +140,7 @@ void ncr_hwcursor_draw(svga_t *svga, int displine)
     }
 
     svga->hwcursor_latch.addr += (svga->hwcursor.xsize / 8);
+    int xdbl = 1 << svga->hwcursor.h_acc;
     for (x = 0; x < svga->hwcursor.xsize; x += 8)
     {
             svga->hwcursor_latch.addr--;
@@ -151,10 +152,13 @@ void ncr_hwcursor_draw(svga_t *svga, int displine)
             {
                 if (offset >= svga->hwcursor_latch.x)
                 {
-                    if (!(dat[0] & 0x80))
-                        ((uint32_t *)buffer32->line[displine])[offset + 32] = c[(dat[1] & 0x80) ? 0 : 1];
-                    else if (dat[1] & 0x80)
-                        ((uint32_t *)buffer32->line[displine])[offset + 32] ^= 0xffffff;
+                    for (int i = 0; i <xdbl; i++) {
+                        if (!(dat[0] & 0x80))
+                            ((uint32_t *)buffer32->line[displine])[offset * xdbl + i + 32] = c[(dat[1] & 0x80) ? 0 : 1];
+                        else if (dat[1] & 0x80)
+                            ((uint32_t *)buffer32->line[displine])[offset * xdbl + i + 32] ^= 0xffffff;
+
+                    }
                 }
 
                 offset++;
@@ -200,6 +204,7 @@ void ncr_out(uint16_t addr, uint8_t val, void *p)
                             break;
                         case 0x0c:
                             svga->hwcursor.ena = val & 1;
+                            svga->hwcursor.h_acc = (val >> 5) & 3;
                             svga->hwcursor.ysize = 16 << ((val >> 1) & 3);
                             svga->hwcursor.xsize = (val & 0x80) && ncr->chip == NCR_TYPE_32BLT ? 64 : 32;
                             break;
@@ -228,7 +233,6 @@ void ncr_out(uint16_t addr, uint8_t val, void *p)
                                 }
                                 svga->hwcursor.addr = (svga->seqregs[0x13] << 8) | svga->seqregs[0x14];
                                 svga->hwcursor.addr += offset << 6;
-                                svga->hwcursor.addr &= ~0x3ff;
                             } else {
                                 svga->hwcursor.addr = (svga->seqregs[0x15] << 16) | (svga->seqregs[0x16] << 8) | svga->seqregs[0x14];
                                 svga->hwcursor.addr >>= 2;
@@ -276,7 +280,7 @@ void ncr_out(uint16_t addr, uint8_t val, void *p)
                 break;
 
                 case 0x3d4:
-                svga->crtcreg = val & svga->crtcreg_mask;;
+                svga->crtcreg = val & svga->crtcreg_mask;
                 return;
                 case 0x3d5:
                 {
