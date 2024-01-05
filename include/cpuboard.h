@@ -79,6 +79,7 @@ void cpuboard_gvpmaprom(int);
 #define BOARD_MACROSYSTEM 7
 #define BOARD_MACROSYSTEM_SUB_WARPENGINE_A4000 0
 #define BOARD_MACROSYSTEM_SUB_FALCON040 1
+#define BOARD_MACROSYSTEM_SUB_DRACO 2
 
 #define BOARD_MTEC 8
 #define BOARD_MTEC_SUB_EMATRIX530 0
@@ -115,8 +116,5 @@ void cpuboard_gvpmaprom(int);
 
 #define BOARD_HARMS 16
 #define BOARD_HARMS_SUB_3KPRO 0
-
-#define BOARD_DRACO 17
-#define BOARD_DRACO_SUB_DRACO 0
 
 #endif /* UAE_CPUBOARD_H */

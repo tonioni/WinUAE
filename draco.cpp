@@ -19,6 +19,7 @@
 #include "draco.h"
 #include "zfile.h"
 #include "keybuf.h"
+#include "rommgr.h"
 
 static int maxcnt = 100;
 
@@ -147,6 +148,8 @@ int draco_kbc_translate(uint8_t val);
 
 static void *draco_serial[2];
 static void *draco_mouse_base, *draco_keyboard;
+static uae_u8 *dracorom;
+static int dracoromsize;
 
 static uae_u8 draco_intena, draco_intpen, draco_svga_irq_state;
 static uae_u16 draco_timer, draco_timer_latch;
@@ -597,32 +600,6 @@ static void draco_1wire_reset(void)
 #endif
 }
 
-static uae_u32 REGPARAM2 draco_lget(uaecptr addr)
-{
-	uae_u32 l = 0;
-
-	if ((addr & 0x07c00000) == 0x04000000) {
-
-		//write_log("draco scsi lput %08x %08x\n", addr, l);
-		int reg = addr & 0xffff;
-		l |= cpuboard_ncr710_io_bget(reg + 3) << 0;
-		l |= cpuboard_ncr710_io_bget(reg + 2) << 8;
-		l |= cpuboard_ncr710_io_bget(reg + 1) << 16;
-		l |= cpuboard_ncr710_io_bget(reg + 0) << 24;
-
-	} else {
-		write_log(_T("draco_lget %08x %08x\n"), addr, M68K_GETPC);
-	}
-
-	return l;
-}
-static uae_u32 REGPARAM2 draco_wget(uaecptr addr)
-{
-	write_log(_T("draco_wget %08x %08x\n"), addr, M68K_GETPC);
-
-	return 0;
-}
-
 void draco_bustimeout(uaecptr addr)
 {
 	write_log("draco bus timeout %08x\n", addr);
@@ -764,9 +741,62 @@ static uae_u32 REGPARAM2 draco_bget(uaecptr addr)
 				v = 0;
 				break;
 		}
+
+	} else if (addr < 0x00100000) {
+
+		// boot ROM
+		if (addr < dracoromsize) {
+			v = dracorom[addr];
+		}
+
 	} else {
 
 		write_log("draco unknown bank read %08x\n", addr);
+	}
+
+	return v;
+}
+
+static uae_u32 REGPARAM2 draco_lget(uaecptr addr)
+{
+	uae_u32 l = 0;
+
+	if ((addr & 0x07c00000) == 0x04000000) {
+
+		//write_log("draco scsi lput %08x %08x\n", addr, l);
+		int reg = addr & 0xffff;
+		l |= cpuboard_ncr710_io_bget(reg + 3) << 0;
+		l |= cpuboard_ncr710_io_bget(reg + 2) << 8;
+		l |= cpuboard_ncr710_io_bget(reg + 1) << 16;
+		l |= cpuboard_ncr710_io_bget(reg + 0) << 24;
+
+	} else if (addr < 0x00100000) {
+
+		l = draco_bget(addr + 0) << 24;
+		l |= draco_bget(addr + 1) << 16;
+		l |= draco_bget(addr + 2) << 8;
+		l |= draco_bget(addr + 3) << 0;
+
+	} else {
+
+		write_log(_T("draco_lget %08x %08x\n"), addr, M68K_GETPC);
+	}
+
+	return l;
+}
+static uae_u32 REGPARAM2 draco_wget(uaecptr addr)
+{
+	uae_u16 v = 0;
+
+	if (addr < 0x00100000) {
+
+		v = draco_bget(addr + 0) << 8;
+		v |= draco_bget(addr + 1);
+
+	} else {
+
+		write_log(_T("draco_wget %08x %08x\n"), addr, M68K_GETPC);
+
 	}
 
 	return v;
@@ -960,6 +990,10 @@ static void REGPARAM2 draco_bput(uaecptr addr, uae_u32 b)
 				break;
 		}
 
+	} else if (addr < 0x00100000) {
+
+		// boot ROM
+
 	} else {
 	
 		write_log("draco unknown bank write %08x\n", addr);
@@ -967,11 +1001,25 @@ static void REGPARAM2 draco_bput(uaecptr addr, uae_u32 b)
 	}
 }
 
+static int REGPARAM2 draco_check(uaecptr addr, uae_u32 size)
+{
+	if (addr >= 0x00100000) {
+		return 0;
+	}
+	return 1;
+}
+
+static uae_u8 *REGPARAM2 draco_xlate(uaecptr addr)
+{
+	addr &= 0xfffff;
+	return dracorom + addr;
+}
+
 static addrbank draco_bank = {
 	draco_lget, draco_wget, draco_bget,
 	draco_lput, draco_wput, draco_bput,
-	default_xlate, default_check, NULL, NULL, _T("DraCo mainboard"),
-	dummy_lgeti, dummy_wgeti, ABFLAG_IO, S_READ, S_WRITE
+	draco_xlate, draco_check, NULL, NULL, _T("DraCo mainboard"),
+	draco_lget, draco_wget, ABFLAG_IO, S_READ, S_WRITE
 };
 
 
@@ -1080,6 +1128,8 @@ void draco_free(void)
 	}
 	xfree(draco_mouse_base);
 	draco_mouse_base = NULL;
+	xfree(dracorom);
+	dracorom = NULL;
 }
 
 void draco_reset(int hardreset)
@@ -1111,6 +1161,7 @@ void draco_reset(int hardreset)
 	draco_superio_cfg[14] = 1;
 	memset(draco_reg, 0, sizeof(draco_reg));
 	draco_reg[1] = DRCNTRL_FDCINTENA | DRCNTRL_KBDINTENA;
+	draco_reg[5] = 0xff;
 
 	draco_keyboard_reset();
 	draco_1wire_rtc_validate();
@@ -1141,6 +1192,15 @@ void draco_init(void)
 		zfile_fclose(draco_flashfile);
 	}
 
+	int idx;
+	const TCHAR *romname = NULL;
+	struct boardromconfig *brc;
+	brc = get_device_rom(&currprefs, ROMTYPE_CPUBOARD, 0, &idx);
+	if (brc) {
+		romname = brc->roms[idx].romfile;
+		dracorom = zfile_load_file(romname, &dracoromsize);
+	}
+
 	draco_reset(1);
 
 	device_add_rethink(draco_irq);
@@ -1166,7 +1226,7 @@ void draco_map_overlay(void)
 	// hide cias
 	map_banks(&dummy_bank, 0xa00000 >> 16, 0x200000 >> 16, 0);
 
-	map_banks(&extendedkickmem_bank, 0 >> 16, 524288 >> 16, 0);
+	map_banks(&draco_bank, 0 >> 16, 0x00200000 >> 16, 0);
 	map_banks(&draco_bank, 0x01000000 >> 16, 0x01c00000 >> 16, 0);
 	map_banks(&kickmem_bank, 0x02c00000 >> 16, 524288 >> 16, 0);
 	map_banks(&draco_bank, 0x04000000 >> 16, 0x01000000 >> 16, 0);

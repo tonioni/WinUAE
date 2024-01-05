@@ -297,9 +297,9 @@ static struct romdata roms[] = {
 	0x2ec384e3,0x47f9ee6d, 0x0f8ac5a6,0x5c6eddc3,0x0bcd47c8,0x574d8725, NULL, NULL, 4 },
 	ALTROMPN(231, 1, 1, 524288, ROMTYPE_EVEN, _T("74095 00 717 02 01 U4"), 0x1bdcd18c, 0xabc7b734,0x1f8df24d,0xd4f1d062,0xfc0f7680,0x4d1053b9)
 	ALTROMPN(231, 1, 2, 524288, ROMTYPE_ODD , _T("74095 00 717 02 02 U5"), 0x6ccb0431, 0xa2a43444,0xbeda38be,0x1fa5cabe,0x75fc4def,0x063bcd7a)
-	{ _T("DraCo Boot ROM v1.3"), 1, 3, 1, 3, _T("DRACO\0"), 131072, 234, 2 | 4, 0, ROMTYPE_EXTCDTV, 0, 0, NULL,
+	{ _T("DraCo Boot ROM v1.3"), 1, 3, 1, 3, _T("DRACO\0"), 131072, 234, 2 | 4, 0, ROMTYPE_CB_DRACO, 0, 0, NULL,
 	0x0e9c5899,0x82151324,0x01207554,0x60c8a068,0x4793ec18,0x3f744d74, NULL, NULL, 4 },
-	{ _T("DraCo Boot ROM v1.5"), 1, 5, 1, 5, _T("DRACO\0"), 131072, 311, 2 | 4, 0, ROMTYPE_EXTCDTV, 0, 0, NULL,
+	{ _T("DraCo Boot ROM v1.5"), 1, 5, 1, 5, _T("DRACO\0"), 131072, 311, 2 | 4, 0, ROMTYPE_CB_DRACO, 0, 0, NULL,
 	0x7b4cdd4a,0x4d383adb,0x85c681a3,0xb625dcda,0x7a229a17,0x6af4d161, NULL, NULL, 4 },
 
 	{ _T("CD32 KS ROM v3.1"), 3, 1, 40, 60, _T("CD32\0"), 524288, 18, 1, 0, ROMTYPE_KICKCD32, 0, 0, NULL,

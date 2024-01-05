@@ -6559,6 +6559,16 @@ static const struct cpuboardsubtype macrosystem_sub[] = {
 		128 * 1024 * 1024,
 	},
 	{
+		_T("DraCo"),
+		_T("draco"),
+		ROMTYPE_CB_DRACO | ROMTYPE_NONE, 0, 4,
+		draco_add_scsi_unit, EXPANSIONTYPE_SCSI,
+		BOARD_MEMORY_HIGHMEM,
+		128 * 1024 * 1024,
+		0,
+		ncr710_draco_init, NULL, BOARD_NONAUTOCONFIG_BEFORE, 1,
+	},
+	{
 		NULL
 	}
 };
@@ -6881,22 +6891,6 @@ static const struct cpuboardsubtype harms_sub[] = {
 	}
 };
 
-static const struct cpuboardsubtype draco_sub[] = {
-	{
-		_T("DraCo"),
-		_T("draco"),
-		ROMTYPE_CB_DRACO | ROMTYPE_NONE, 0, 4,
-		draco_add_scsi_unit, EXPANSIONTYPE_SCSI,
-		BOARD_MEMORY_HIGHMEM,
-		128 * 1024 * 1024,
-		0,
-		ncr710_draco_init, NULL, BOARD_NONAUTOCONFIG_BEFORE, 1,
-	},
-	{
-		NULL
-	}
-};
-
 static const struct cpuboardsubtype dummy_sub[] = {
 	{ NULL }
 };
@@ -6986,11 +6980,6 @@ const struct cpuboardtype cpuboards[] = {
 		BOARD_HARMS,
 		_T("Harms"),
 		harms_sub, 0
-	},
-	{
-		BOARD_DRACO,
-		_T("Draco"),
-		draco_sub, 0
 	},
 	{
 		NULL
