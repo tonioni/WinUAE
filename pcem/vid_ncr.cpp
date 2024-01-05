@@ -557,12 +557,11 @@ static bool blitter_proc(ncr_t *ncr)
         uint8_t src = 0;
         if (!(ncr->blt_control & (1 << 15))) {
             // waiting for fifo write?
-            int shift = ncr->blt_expand_offset & 7;
-            if (ncr->blt_fifo_size - shift < 8) {
+            if (ncr->blt_fifo_size < 8) {
                 ncr->blt_fifo_write = 1;
                 return false;
             }
-            src = (ncr->blt_fifo_data >> shift) & 0xff;
+            src = (ncr->blt_fifo_data) & 0xff;
             ncr->blt_fifo_data >>= 8;
             ncr->blt_fifo_size -= 8;
             ncr->blt_fifo_write = 0;
