@@ -119,7 +119,7 @@ STYLE DS_LOCALEDIT | DS_SETFONT | DS_3DLOOK | DS_CONTROL | WS_CHILD
 EXSTYLE WS_EX_CONTEXTHELP
 FONT 8, "MS Sans Serif", 0, 0, 0x1
 BEGIN
-    GROUPBOX        "System ROM Settings",IDC_STATIC,1,5,394,89
+    GROUPBOX        "System ROM Settings",IDC_STATIC,0,5,394,89
     LTEXT           "Main ROM file:",IDC_ROMTEXT,14,18,263,10
     COMBOBOX        IDC_ROMFILE,12,30,361,75,CBS_DROPDOWN | CBS_AUTOHSCROLL | WS_VSCROLL | WS_TABSTOP
     PUSHBUTTON      "...",IDC_KICKCHOOSER,376,30,10,15
@@ -929,7 +929,7 @@ BEGIN
     PUSHBUTTON      "Copy from:",IDC_INPUTCOPY,324,267,70,14
     COMBOBOX        IDC_INPUTCOPYFROM,324,285,70,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
     PUSHBUTTON      "Swap 1<>2",IDC_INPUTSWAP,324,302,70,14
-    CONTROL         "Swap Backslash/F11",IDC_KEYBOARD_SWAPHACK,"Button", BS_AUTO3STATE | WS_TABSTOP,209,302,87,10
+    CONTROL         "Swap Backslash/F11",IDC_KEYBOARD_SWAPHACK,"Button",BS_AUTO3STATE | WS_TABSTOP,209,302,87,10
 END
 
 IDD_FILTER DIALOGEX 0, 0, 396, 316
@@ -1431,8 +1431,8 @@ END
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 5,1,0,0
- PRODUCTVERSION 5,1,0,0
+ FILEVERSION 5,2,0,0
+ PRODUCTVERSION 5,2,0,0
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -1448,12 +1448,12 @@ BEGIN
         BLOCK "040904b0"
         BEGIN
             VALUE "FileDescription", "WinUAE"
-            VALUE "FileVersion", "5.1.0.0"
+            VALUE "FileVersion", "5.2.0.0"
             VALUE "InternalName", "WinUAE"
-            VALUE "LegalCopyright", "© 1996-2023 under the GNU Public License (GPL)"
+            VALUE "LegalCopyright", "© 1996-2024 under the GNU Public License (GPL)"
             VALUE "OriginalFilename", "WinUAE.exe"
             VALUE "ProductName", "WinUAE"
-            VALUE "ProductVersion", "5.1.0.0"
+            VALUE "ProductVersion", "5.2.0.0"
         END
     END
     BLOCK "VarFileInfo"
@@ -1589,7 +1589,7 @@ BEGIN
 
     IDD_KICKSTART, DIALOG
     BEGIN
-        BOTTOMMARGIN, 304
+        BOTTOMMARGIN, 310
     END
 
     IDD_DISPLAY, DIALOG

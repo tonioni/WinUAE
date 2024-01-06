@@ -1,4 +1,56 @@
 
+- MacroSystem DraCo emulation. Quickstart entry also added. No V-Lab Motion emulation, no, don't ask.
+- Retina Z3 RTG board emulation. NCR 77C32BLT SVGA chip emulation by me, including blitter that was not that trivial to implement (existing documentation was quite bad). This is implemented as a PCem display card because it makes basic (S)VGA features automatically supported. Yes, I did say that I won't ever do any SVGA card emulations (and still don't unless they are basic enough, 2D only).  Implemented because DraCo has NCR 77C32BLT based RTG card and I wanted to emulate DraCo :) Big thanks to IComp and Thomas Richter for help/driver information.
+- Retina Z2 RTG board emulation. NCR 77C22E+ based, older version of NCR SVGA chip, no blitter, no linear frame buffer. Note that this is banked RTG board and Picasso96 driver requires MMU. Uses 128k of Z2 IO space only. 16 color mode (planar mode) is not supported.
+- A2410 TMS34010 emulation PMASK and prefetch behavior fix. (Latest Picasso96 driver glitches in DMA mode)
+- Autoswitch all RTG boards without internal switcher (Enable RTG if SVGA display gets activated, switch to chipset display if SVGA gets blanked). Previously only PCI RTG boards without internal switcher autoswitched because original code expected all Z2/Z3 boards to have built-in switcher but it was not updated when Cybervision etc was added.
+- Fixed PicassoIV (GD5446) overlay skipping register writes if value is same as old which was not such a good idea because written value needs to be converted and copied to another variable in some cases which was skipped if value was same. Fixes P96PipDemo having blank window until window was resized.
+- Fixed CV64/3D overlay emulation not masking overlay pointers correctly. Fixes P96PipDemo.
+- Many hardware emulated board had problems with horizontal panning (weird jumping or odd random color changes in 24-bit mode or panning skipped every pixel(s)) This is x86box/PCem limit/missing feature, all emulated boards use identical panning logic but in real world different chips and modes can use different logic. I added callback to card drivers that needed custom panning adjustments.
+- Access to unmapped parts of Z3 autoconfig boards (many emulated non-RAM Z3 boards have unmapped addresses) were detected and logged as Amiga mainboard side unmapped access.
+- Disk DMA never finished if DMA length was zero and DSKSYNC was enabled. DMA should finish immediately without transferring anything when first DSKSYNC is detected. Used by some copy protections. (broke in 5.1.0 disk updates)
+- Force windowed mode width to be 4 pixel aligned. "Unaligned" value can cause scaling artifacts in integer scale modes.
+- If 68040/060 MMU caused bus fault and during bus fault handler execution interrupt level was increased, when CPU restarted the instruction, it was interrupt's first instruction that was "restarted". Normally mostly safe except if 68040 and both instructions were MOVEM, in this situation MOVEM used originally faulting instruction's pre-calculated effective address. (Found now because Retina Z2 Picasso96 driver uses MOVEMs very heavily to transfer data between board VRAM and mapped virtual VRAM)
+- Dark mode was not initialized until GUI was entered. (Load config with use_gui=no: main emulation window didn't use dark mode even if it was configured)
+- Some sub-dialogs (for example HDF creator status window) didn't support dark mode.
+- "AVI output enabled" (and few similar on/off buttons) button type changed, previously they worked unexpectedly in some situations, visible state was not always matching internal state.
+- If Z2 or Z3 board was "shut up" (for example 8M Z2 + non-banked Z2 RTG board which would not fit anymore), it was not skipped and replaced with following board, causing infinite autoconfig loop.
+- power_led_dim=<value> enabled sound filter if value was larger than 95 (and if sound filter emulation was configured).
+- Rrecalculate power led state after statefile load.
+- Rewrote GUI sub dialog code partially again, some sub dialogs (like Gameports input mapping autofire) had old style/no DPI support and Input panel Qualifier window stopped working during 5.1 betas.
+- HDF creator now updates status information once every second, previously it was quite slow and depended on drive speed. (Still does if drive is really slow)
+- Misc panel "Automatically capture mouse when window is activated" changes on the fly was not supported.
+- 5.0 b1 "Fast 68020+ modes didn't start pending interrupt immediately (started after following instruction) after MOVE to SR instruction that lowered interrupt mask. (Quick the Thunder Rabbit)" should only be done if SR is modified and interrupt level decreases, but it also affected other instructions. Beneath a Steel Sky CD32 speech works again in non-CE modes.
+- Use modified horizontal blank start/end (HBSTRT/HBSTOP) values to calculate programmed mode position/size only if it has been stable for at least 2/3 of frame time. (WB 2.x Multiscan mode does something weird and wrong and modifies HBSTOP twice at the beginning of field)
+- Setting quickstart config didn't reset CPU slot/mainboard RAM values.
+
+MacroSystem DraCo emulated hardware:
+
+- Altais RTG board (DraCo version of Retina Z3)
+- 53C710 SCSI
+- Revision 3 with CIA or revision 4 that does not require CIAs (but uses it if found). If CIA is enabled, ROM timer.device is used, otherwise DraCo boot ROM timer.device replacement is used.
+- Mouse (PC serial mouse, using bridgeboard emulation)
+- Keyboard (PC MF-II keyboard)
+- Floppy drive (PC floppy controller, using bridgeboard emulation + PIO support. Does not work yet)
+- Mainboard custom hardware (interrupt controller, timer etc)
+- 1-wire RTC chip with 48-bit unique identifier and battery backed 512 byte SRAM. Current static ID is 04 010000000000 C3 (04 = static DS2404 family code, C3 is a checksum. DraCo serial check validates checksum and includes it in serial number: serial number becomes 01C3 = 451). Edit bytes 1 to 6 of NVRAM file to change serial number. Checksum is automatically calculated.
+
+Notes:
+
+- CPU must be 68060 with MMU emulation enabled.
+- ROM must be A3000 KS 3.1 rev40.68.
+- Accelerator board -> MacroSystem -> DraCo. Select DraCo Boot ROM (currently known existing versions are v1.3 and v1.5), set RAM to 128M.
+- Chipset Extra -> DraCo
+- Floppy drives -> configure drive DF2: as Bridgeboard 3.5" 80. This drive becomes DraCo floppy drive.
+- Add HDF to "Accelerator (DraCo)"
+- Z2 boards are supported but boot ROMs seem to be ignored. This includes UAE expansions.
+- Z3 boards are not supported.
+- Chipset does not exist, programs that directly access hardware won't work and probably open immediate DraCo alert screen. (UAE requires chipset because it is timing source for everything and also some chip ram configured which is the reason they can't be disabled completely)
+
+Not very useful device but at least it is quite unique and has some unique software. Maybe this can be used as a sort of "compatibility testing model". If program oes not work on DraCo, it probably does something bad or tries to do direct hardware access (or needs newer OS/support software)
+
+Don't try unless you know what are you doing, remember that DraCo is sort of pseudo-Amiga only, it does not have any Amiga chips. Any question that is not related to emulation will be ignored and possibly also deleted.
+
 
 5.1.0
 
