@@ -152,7 +152,7 @@ static uae_u8 *dracorom;
 static int dracoromsize;
 static uae_u8 draco_revision, draco_cias;
 
-static uae_u8 draco_intena, draco_intpen, draco_svga_irq_state;
+static uae_u8 draco_intena, draco_intpen, draco_intfrc, draco_svga_irq_state;
 static uae_u16 draco_timer, draco_timer_latch;
 static bool draco_timer_latched;
 static bool draco_fdc_intpen;
@@ -185,6 +185,9 @@ static void draco_irq(void)
 			if (mask & 8) { // INT6
 				irq |= 0x2000;
 			}
+		}
+		if (draco_intfrc & 1) {
+			irq |= 1; // software interrupt
 		}
 		if (draco_svga_irq_state) {
 			irq |= 0x0010; // INT3
@@ -222,7 +225,7 @@ static uae_s8 draco_kdb_params;
 static uae_u16 draco_kbd_in_buffer[16];
 static int draco_kbd_in_buffer_len;
 
-#define DRACO_KBD_POLL_VAL 96
+#define DRACO_KBD_POLL_VAL 48
 
 static void draco_keyboard_reset(void)
 {
@@ -240,6 +243,7 @@ static void draco_keyboard_read(void)
 	uae_u8 v = draco_reg[3];
 
 	if (draco_kbd_poll > 0) {
+		do_cycles(CYCLE_UNIT * 8);
 		draco_kbd_poll--;
 		if (draco_kbd_poll == 0) {
 			draco_reg[3] &= ~DRSTAT_KBDCLKIN;
@@ -251,6 +255,7 @@ static void draco_keyboard_read(void)
 	}
 
 	if (draco_kbd_poll < 0) {
+		do_cycles(CYCLE_UNIT * 8);
 		draco_kbd_poll++;
 		if (draco_kbd_poll == 0) {
 			draco_kbd_poll = DRACO_KBD_POLL_VAL;
@@ -384,6 +389,25 @@ static void draco_1wire_rtc_validate(void)
 	draco_1wire_rtc_count();
 }
 
+uint8_t draco_1wire_crc8(uint8_t *addr, uint8_t len)
+{
+	uint8_t crc = 0;
+	for (uint8_t i = 0; i < len; i++)
+	{
+		uint8_t inbyte = addr[i];
+		for (uint8_t j = 0; j < 8; j++)
+		{
+			uint8_t mix = (crc ^ inbyte) & 0x01;
+			crc >>= 1;
+			if (mix)
+				crc ^= 0x8C;
+
+			inbyte >>= 1;
+		}
+	}
+	return crc;
+}
+
 static void draco_1wire_set_bit(void)
 {
 	uae_u8 *dptr = NULL;
@@ -394,22 +418,31 @@ static void draco_1wire_set_bit(void)
 	} else if (draco_1wire_cmd == DS_READ_SCRATCHPAD) {
 		dptr = draco_1wire_scratchpad;
 		maxlen = sizeof(draco_1wire_scratchpad);
+	} else if (draco_1wire_cmd == DS_ROM_READ) {
+		dptr = draco_1wire_rom;
+		maxlen = sizeof(draco_1wire_rom);
 	}
-	if (dptr && draco_1wire_sram_offset >= 0 && draco_1wire_dir) {
-		if (draco_1wire_rom_offset >= 0) {
-			draco_1wire_dat = draco_1wire_rom[draco_1wire_rom_offset];
-			uae_u8 bit = (draco_1wire_rom[draco_1wire_rom_offset] >> draco_1wire_cnt) & 1;
-			draco_1wire_bit = bit != 0;
-		} else {
-			if (draco_1wire_sram_offset >= maxlen) {
-				draco_1wire_dat = 0xff;
-				draco_1wire_bit = true;
+	if (dptr && draco_1wire_rom_offset >= 0 && draco_1wire_dir) {
+		uae_u8 bit = 1;
+		draco_1wire_dat = 0xff;
+		if (draco_1wire_rom_offset < sizeof(draco_1wire_rom)) {
+			if (draco_1wire_rom_offset == 7) {
+				draco_1wire_dat = draco_1wire_crc8(draco_1wire_rom, sizeof(draco_1wire_rom) - 1);
 			} else {
-				if (draco_1wire_sram_offset >= 0) {
-					draco_1wire_dat = dptr[draco_1wire_sram_offset];
-					uae_u8 bit = (dptr[draco_1wire_sram_offset] >> draco_1wire_cnt) & 1;
-					draco_1wire_bit = bit != 0;
-				}
+				draco_1wire_dat = draco_1wire_rom[draco_1wire_rom_offset];
+			}
+			bit = (draco_1wire_dat >> draco_1wire_cnt) & 1;
+		}
+		draco_1wire_bit = bit != 0;
+	} else if (dptr && draco_1wire_sram_offset >= 0 && draco_1wire_dir) {
+		if (draco_1wire_sram_offset >= maxlen) {
+			draco_1wire_dat = 0xff;
+			draco_1wire_bit = true;
+		} else {
+			if (draco_1wire_sram_offset >= 0) {
+				draco_1wire_dat = dptr[draco_1wire_sram_offset];
+				uae_u8 bit = (dptr[draco_1wire_sram_offset] >> draco_1wire_cnt) & 1;
+				draco_1wire_bit = bit != 0;
 			}
 		}
 	}
@@ -432,9 +465,9 @@ static void draco_1wire_read(void)
 		draco_1wire_cnt = 0;
 		draco_1wire_bytes++;
 		if (draco_1wire_rom_offset >= 0) {
-			if (draco_1wire_rom_offset == sizeof(draco_1wire_rom)) {
-				draco_1wire_rom_offset = -1;
-			}
+			draco_1wire_rom_offset++;
+//			if (draco_1wire_rom_offset == 8)
+//				activate_debugger();
 		} else if (draco_1wire_cmd == DS_READ_SCRATCHPAD) {
 			if (draco_1wire_sram_offset == 2) {
 				draco_1wire_sram_offset = (draco_1wire_sram_offset_copy & 31) + 3;
@@ -484,9 +517,19 @@ static void draco_1wire_send(int bit)
 	}
 	if (draco_1wire_cnt == 8 && !draco_1wire_dir) {
 		bool gotcmd = false;
+		draco_1wire_cnt = 0;
 		if (!draco_1wire_state) {
 			draco_1wire_cmd = draco_1wire_data[0];
-			if (draco_1wire_cmd != DS_ROM_SKIP) {
+			if (draco_1wire_cmd == DS_ROM_READ) {
+				draco_1wire_rom_offset = 0;
+				draco_1wire_dir = 1;
+				draco_1wire_bytes = 0;
+				draco_1wire_set_bit();
+#if ONEWIRE_DEBUG
+				write_log("draco received 1-wire ROM read command\n");
+#endif
+				return;
+			} else if (draco_1wire_cmd != DS_ROM_SKIP) {
 				draco_1wire_state = 1;
 				gotcmd = true;
 			} else {
@@ -499,7 +542,6 @@ static void draco_1wire_send(int bit)
 #if ONEWIRE_DEBUG > 1
 		write_log("draco received 1-wire byte %02x, cnt %02x\n", draco_1wire_data[0], draco_1wire_bytes);
 #endif
-		draco_1wire_cnt = 0;
 		draco_1wire_bytes++;
 		// read data command + 2 address bytes
 		if (draco_1wire_cmd == DS_READ_MEMORY && draco_1wire_data[3] == DS_READ_MEMORY) {
@@ -761,7 +803,7 @@ static uae_u32 REGPARAM2 draco_bget(uaecptr addr)
 				v = draco_intpen;
 				break;
 			case 0x800001:
-				v = 0;
+				v = draco_intfrc;
 				break;
 			case 0xc0001:
 				v = 0;
@@ -1011,9 +1053,7 @@ static void REGPARAM2 draco_bput(uaecptr addr, uae_u32 b)
 				draco_irq();
 				break;
 			case 0x800001:
-				if (b)
-					write_log("draco interrupt 0x800001 write %02x\n", b);
-				draco_intpen |= b & 15;
+				draco_intfrc = b & 1;
 				draco_irq();
 				break;
 			case 0xc00001:
@@ -1189,13 +1229,12 @@ void draco_reset(int hardreset)
 	draco_1wire_rtc_validate();
 	draco_1wire_rom[0] = 0x04;
 	draco_1wire_rom[1] = 1;
-	draco_1wire_rom[2] = 2;
-	draco_1wire_rom[3] = 3;
-	draco_1wire_rom[4] = 4;
-	draco_1wire_rom[5] = 5;
-	draco_1wire_rom[6] = 6;
-	draco_1wire_rom[7] = 0xaa;
-
+	draco_1wire_rom[2] = 0;
+	draco_1wire_rom[3] = 0;
+	draco_1wire_rom[4] = 0;
+	draco_1wire_rom[5] = 0;
+	draco_1wire_rom[6] = 0;
+	draco_1wire_rom[7] = 0;
 }
 
 void draco_init(void)

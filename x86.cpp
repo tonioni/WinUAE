@@ -560,7 +560,7 @@ static struct pc_floppy floppy_pc[4];
 static uae_u8 floppy_dpc;
 static uae_s8 floppy_idx;
 static uae_u8 floppy_dir;
-static uae_u8 floppy_cmd_len;
+static uae_s8 floppy_cmd_len;
 static uae_u8 floppy_cmd[16];
 static uae_u8 floppy_result[16];
 static uae_u8 floppy_status[4];
@@ -570,6 +570,9 @@ static uae_u8 floppy_seekcyl[4];
 static int floppy_delay_hsync;
 static bool floppy_did_reset;
 static bool floppy_irq;
+static bool floppy_specify_pio;
+static uae_u8 *floppy_pio_buffer;
+static int floppy_pio_len, floppy_pio_cnt;
 static uae_s8 floppy_rate;
 
 #define PC_SEEK_DELAY 50
@@ -584,6 +587,7 @@ static void floppy_reset(void)
 	floppy_idx = 0;
 	floppy_dir = 0;
 	floppy_did_reset = true;
+	floppy_specify_pio = false;
 	if (xb->type == TYPE_2286) {
 		// apparently A2286 BIOS AT driver assumes
 		// floppy reset also resets IDE.
@@ -732,7 +736,7 @@ static void floppy_do_cmd(struct x86_bridge *xb)
 	valid_floppy = disk_reserved_getinfo(floppy_num, &fr);
 
 #if FLOPPY_DEBUG
-	if (floppy_cmd_len) {
+	if (floppy_cmd_len > 0) {
 		write_log(_T("Command: "));
 		for (int i = 0; i < floppy_cmd_len; i++) {
 			write_log(_T("%02x "), floppy_cmd[i]);
@@ -790,6 +794,10 @@ static void floppy_do_cmd(struct x86_bridge *xb)
 		write_log(_T("Floppy%d Specify SRT=%d HUT=%d HLT=%d ND=%d\n"), floppy_num, floppy_cmd[1] >> 4, floppy_cmd[1] & 0x0f, floppy_cmd[2] >> 1, floppy_cmd[2] & 1);
 #endif
 		floppy_delay_hsync = -5;
+		floppy_specify_pio = (floppy_cmd[2] & 1) != 0;
+		if (floppy_specify_pio && !floppy_pio_buffer) {
+			floppy_pio_buffer = xcalloc(uae_u8, 512 * 36);
+		}
 		break;
 
 		case 4:
@@ -910,15 +918,24 @@ static void floppy_do_cmd(struct x86_bridge *xb)
 					bool end = false;
 					pcf->sector = floppy_cmd[4] - 1;
 					pcf->head = (floppy_cmd[1] & 4) ? 1 : 0;
+					floppy_pio_len = 0;
+					floppy_pio_cnt = 0;
+					uae_u8 *pioptr = floppy_pio_buffer;
 					while (!end) {
 						int len = 128 << floppy_cmd[5];
 						uae_u8 buf[512];
 						zfile_fseek(fr.img, (pcf->cyl * fr.secs * fr.heads + pcf->head * fr.secs + pcf->sector) * 512, SEEK_SET);
 						zfile_fread(buf, 1, 512, fr.img);
-						for (int i = 0; i < 512 && i < len; i++) {
-							int v = dma_channel_write(2, buf[i]);
-							if (v < 0 || v > 65535)
-								end = true;
+						if (floppy_specify_pio) {
+							memcpy(pioptr, buf, 512);
+							pioptr += 512;
+							floppy_pio_len += 512;
+						} else {
+							for (int i = 0; i < 512 && i < len; i++) {
+								int v = dma_channel_write(2, buf[i]);
+								if (v < 0 || v > 65535)
+									end = true;
+							}
 						}
 						pcf->sector++;
 						if (pcf->sector == eot) {
@@ -928,13 +945,13 @@ static void floppy_do_cmd(struct x86_bridge *xb)
 									pcf->cyl++;
 								pcf->head ^= 1;
 							} else {
-								break;
+								end = true;
 							}
 						}
 						if (pcf->sector >= fr.secs) {
 							pcf->sector = 0;
 							pcf->head ^= 1;
-							break;
+							end = true;
 						}
 					}
 					floppy_result[3] = cyl;
@@ -1070,7 +1087,7 @@ static void floppy_do_cmd(struct x86_bridge *xb)
 	}
 
 end:
-	if (floppy_cmd_len) {
+	if (floppy_cmd_len > 0) {
 		floppy_idx = -1;
 		floppy_dir = 1;
 #if FLOPPY_DEBUG
@@ -1207,10 +1224,10 @@ static uae_u8 infloppy(struct x86_bridge *xb, int portnum)
 		if (xb->type < 0) {
 			struct floppy_reserved fr = { 0 };
 			bool valid_floppy = disk_reserved_getinfo(floppy_num, &fr);
-			v |= floppy_irq ? 0x80 : 0x00;
-			v |= 0x40;
-			v |= fr.wrprot ? 0 : 2;
-			v |= fr.cyl == 0 ? 0 : 16;
+			v |= floppy_irq ? 0x80 : 0x00; // INT PENDING
+			v |= 0x40; // nDRV2
+			v |= fr.wrprot ? 0 : 2; // nWP
+			v |= fr.cyl == 0 ? 0 : 16; // nTRK0
 		}
 		break;
 		case 0x3f1: // PS/2 status B (draco)
@@ -1231,8 +1248,11 @@ static uae_u8 infloppy(struct x86_bridge *xb, int portnum)
 		v = 0;
 		if (!floppy_delay_hsync && (floppy_dpc & 4))
 			v |= 0x80;
-		if (floppy_idx || floppy_delay_hsync)
+		if (floppy_idx || floppy_delay_hsync || floppy_pio_len) {
 			v |= 0x10;
+			if (floppy_pio_len)
+				v |= 0x20;
+		}
 		if ((v & 0x80) && floppy_dir)
 			v |= 0x40;
 		for (int i = 0; i < 4; i++) {
@@ -1241,7 +1261,12 @@ static uae_u8 infloppy(struct x86_bridge *xb, int portnum)
 		}
 		break;
 		case 0x3f5: // data reg
-		if (floppy_cmd_len && floppy_dir) {
+		if (floppy_pio_len > 0 && floppy_pio_cnt < floppy_pio_len) {
+			v = floppy_pio_buffer[floppy_pio_cnt++];
+			if (floppy_pio_cnt >= floppy_pio_len) {
+				floppy_pio_len = 0;
+			}
+		} else if (floppy_cmd_len && floppy_dir) {
 			int idx = (-floppy_idx) - 1;
 			if (idx < sizeof floppy_result) {
 				v = floppy_result[idx];
@@ -1261,6 +1286,12 @@ static uae_u8 infloppy(struct x86_bridge *xb, int portnum)
 			bool valid_floppy = disk_reserved_getinfo(floppy_num, &fr);
 			v = 0x00;
 			if (valid_floppy && fr.disk_changed)
+				v = 0x80;
+		} else if (xb->type < 0) {
+			struct floppy_reserved fr = { 0 };
+			bool valid_floppy = disk_reserved_getinfo(floppy_num, &fr);
+			v = 0x00;
+			if (fr.disk_changed)
 				v = 0x80;
 		}
 		break;
