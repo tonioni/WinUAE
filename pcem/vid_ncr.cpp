@@ -417,6 +417,7 @@ void ncr_recalctimings(svga_t *svga)
             svga->hdisp /= 2;
         }
 
+        svga->bpp = 8;
         if (svga->seqregs[0x21] & 0x01)
         {
             if (ncr->chip < NCR_TYPE_32BLT) {
