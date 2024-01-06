@@ -3607,6 +3607,7 @@ static void m68k_reset2(bool hardreset)
 	SET_VFLG(0);
 	SET_NFLG(0);
 	regs.intmask = 7;
+	regs.lastipl = 0;
 	regs.vbr = regs.sfc = regs.dfc = 0;
 	regs.irc = 0xffff;
 #ifdef FPUEMU
@@ -4767,8 +4768,10 @@ static int do_specialties (int cycles)
 			if (spcflags & SPCFLAG_INT) {
 				int intr = intlev();
 				unset_special (SPCFLAG_INT | SPCFLAG_DOINT);
-				if (intr > regs.intmask || intr == 7)
+				if (intr > regs.intmask || (intr == 7 && intr > regs.lastipl)) {
 					do_interrupt(intr);
+				}
+				regs.lastipl = intr;
 			}
 		}
 
