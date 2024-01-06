@@ -2536,7 +2536,7 @@ static void allocate_memory (void)
 
 		a3000hmem_bank.reserved_size = currprefs.mbresmem_high.size;
 		a3000hmem_bank.mask = a3000hmem_bank.reserved_size - 1;
-		if (currprefs.cs_compatible == CP_DRACO) {
+		if (currprefs.cs_compatible == CP_DRACO || currprefs.cs_compatible == CP_CASABLANCA) {
 			a3000hmem_bank.start = 0x40000000;
 		} else {
 			a3000hmem_bank.start = 0x08000000;
@@ -2691,8 +2691,7 @@ void map_overlay (int chip)
 	if (currprefs.cs_compatible == CP_CASABLANCA) {
 		casablanca_map_overlay();
 		return;
-	}
-	if (currprefs.cs_compatible == CP_DRACO) {
+	} else if (currprefs.cs_compatible == CP_DRACO) {
 		draco_map_overlay();
 		return;
 	}

@@ -7312,6 +7312,7 @@ static void enable_for_quickstart (HWND hDlg)
 static void load_quickstart (HWND hDlg, int romcheck)
 {
 	bool cdmodel = quickstart_model == 8 || quickstart_model == 9;
+	bool pcmodel = quickstart_model == 12;
 	ew (guiDlg, IDC_RESETAMIGA, FALSE);
 	workprefs.nr_floppies = quickstart_floppy;
 	workprefs.ntscmode = quickstart_ntsc != 0;
@@ -7324,7 +7325,7 @@ static void load_quickstart (HWND hDlg, int romcheck)
 		}
 	}
 	for (int i = 0; i < 2; i++) {
-		if (cdmodel) {
+		if (cdmodel || pcmodel) {
 			quickstart_floppytype[i] = DRV_NONE;
 			quickstart_floppysubtype[i] = 0;
 			quickstart_floppysubtypeid[i][0] = 0;

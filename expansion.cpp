@@ -6538,6 +6538,29 @@ static const struct cpuboardsubtype cyberstormboard_sub[] = {
 		NULL
 	}
 };
+static const struct expansionboardsettings draco_settings[] = {
+	{
+		// 0/1
+		_T("Revision\0") _T("3\0") _T("4\0"),
+		_T("hwrev\0") _T("3\0") _T("4\0"),
+		true, false, 0
+	},
+	{
+		// 2
+		_T("CIA-A (Rev3 always includes CIA-A)"),
+		_T("ciaa"),
+		false, false, 1
+	},
+	{
+		// 3
+		_T("CIA-B (Optional)"),
+		_T("ciab"),
+		false, false, 0
+	},
+	{
+		NULL
+	}
+};
 static const struct cpuboardsubtype macrosystem_sub[] = {
 	{
 		_T("Warp Engine A4000"),
@@ -6567,6 +6590,17 @@ static const struct cpuboardsubtype macrosystem_sub[] = {
 		128 * 1024 * 1024,
 		0,
 		ncr710_draco_init, NULL, BOARD_NONAUTOCONFIG_BEFORE, 1,
+		draco_settings
+	},
+	{
+		_T("Casablanca"),
+		_T("casablanca"),
+		ROMTYPE_CB_CASAB | ROMTYPE_NONE, 0, 4,
+		draco_add_scsi_unit, EXPANSIONTYPE_SCSI,
+		BOARD_MEMORY_HIGHMEM,
+		128 * 1024 * 1024,
+		0,
+		NULL, NULL, BOARD_NONAUTOCONFIG_BEFORE, 1,
 	},
 	{
 		NULL

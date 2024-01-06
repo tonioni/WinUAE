@@ -9465,8 +9465,10 @@ static int bip_casablanca(struct uae_prefs *p, int config, int compa, int romche
 	p->m68k_speed = -1;
 	p->immediate_blits = 0;
 	p->produce_sound = 2;
+	p->nr_floppies = 0;
 	p->floppyslots[0].dfxtype = DRV_NONE;
 	p->floppyslots[1].dfxtype = DRV_NONE;
+	p->floppyslots[2].dfxtype = DRV_PC_35_ONLY_80;
 	p->cs_compatible = CP_CASABLANCA;
 	built_in_chipset_prefs(p);
 	return configure_rom(p, roms, romcheck);
@@ -9476,24 +9478,50 @@ static int bip_draco(struct uae_prefs *p, int config, int compa, int romcheck)
 {
 	int roms[8];
 
-	roms[0] = 16;
-	roms[1] = -1;
-
 	p->bogomem.size = 0;
 	p->chipmem.size = 0x200000;
 	p->cpu_model = 68060;
 	p->fpu_model = 68060;
 	p->mmu_model = 68060;
+	p->cpuboardmem1.size = 128 * 1024 * 1024;
 	p->chipset_mask = CSMASK_AGA | CSMASK_ECS_AGNUS | CSMASK_ECS_DENISE;
 	p->cpu_compatible = p->address_space_24 = 0;
 	p->m68k_speed = -1;
 	p->immediate_blits = 0;
 	p->produce_sound = 2;
+	p->nr_floppies = 0;
 	p->floppyslots[0].dfxtype = DRV_NONE;
 	p->floppyslots[1].dfxtype = DRV_NONE;
+	p->floppyslots[2].dfxtype = DRV_PC_35_ONLY_80;
 	p->cs_compatible = CP_DRACO;
+	p->cpuboard_type = BOARD_MACROSYSTEM;
+	p->cpuboard_subtype = BOARD_MACROSYSTEM_SUB_DRACO;
+	p->rtgboards[0].rtgmem_type = GFXBOARD_ID_ALTAIS_Z3;
+	p->rtgboards[0].rtgmem_size = 4 * 1024 * 1024;
 	built_in_chipset_prefs(p);
-	return configure_rom(p, roms, romcheck);
+	fetch_nvrampath(p->flashfile, sizeof(p->flashfile) / sizeof(TCHAR));
+	_tcscat(p->flashfile, _T("draco.nvr"));
+	roms[0] = 61;
+	roms[1] = -1;
+	if (!configure_rom(p, roms, romcheck)) {
+		return 0;
+	}
+	roms[0] = 234;
+	roms[1] = 311;
+	roms[2] = -1;
+	if (!configure_rom(p, roms, romcheck)) {
+		return 0;
+	}
+	return 1;
+}
+
+static int bip_macrosystem(struct uae_prefs *p, int config, int compa, int romcheck)
+{
+	if (config == 0) {
+		return bip_draco(p, config, compa, romcheck);
+	} else {
+		return bip_casablanca(p, config - 1, compa, romcheck);
+	}
 }
 
 int built_in_prefs (struct uae_prefs *p, int model, int config, int compa, int romcheck)
@@ -9540,13 +9568,10 @@ int built_in_prefs (struct uae_prefs *p, int model, int config, int compa, int r
 		v = bip_arcadia(p, config, compa, romcheck);
 		break;
 	case 12:
-		v = bip_casablanca(p, config, compa, romcheck);
+		v = bip_macrosystem(p, config, compa, romcheck);
 		break;
 	case 13:
 		v = bip_super (p, config, compa, romcheck);
-		break;
-	case 14:
-		v = bip_draco(p, config, compa, romcheck);
 		break;
 	}
 	if ((p->cpu_model >= 68020 || !p->cpu_memory_cycle_exact) && !p->immediate_blits)

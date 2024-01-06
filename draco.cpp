@@ -150,6 +150,7 @@ static void *draco_serial[2];
 static void *draco_mouse_base, *draco_keyboard;
 static uae_u8 *dracorom;
 static int dracoromsize;
+static uae_u8 draco_revision, draco_cias;
 
 static uae_u8 draco_intena, draco_intpen, draco_svga_irq_state;
 static uae_u16 draco_timer, draco_timer_latch;
@@ -221,6 +222,8 @@ static uae_s8 draco_kdb_params;
 static uae_u16 draco_kbd_in_buffer[16];
 static int draco_kbd_in_buffer_len;
 
+#define DRACO_KBD_POLL_VAL 96
+
 static void draco_keyboard_reset(void)
 {
 	draco_kbd_buffer_len = 0;
@@ -241,7 +244,7 @@ static void draco_keyboard_read(void)
 		if (draco_kbd_poll == 0) {
 			draco_reg[3] &= ~DRSTAT_KBDCLKIN;
 			v &= ~DRSTAT_KBDCLKIN;
-			draco_kbd_poll = -4;
+			draco_kbd_poll = -DRACO_KBD_POLL_VAL;
 		}
 		draco_reg[3] = v;
 		return;
@@ -250,7 +253,7 @@ static void draco_keyboard_read(void)
 	if (draco_kbd_poll < 0) {
 		draco_kbd_poll++;
 		if (draco_kbd_poll == 0) {
-			draco_kbd_poll = 4;
+			draco_kbd_poll = DRACO_KBD_POLL_VAL;
 			v |= DRSTAT_KBDCLKIN;
 			uae_u16 bit = (draco_reg[1] & DRCNTRL_KBDDATOUT) ? 0x8000 : 0;
 #if KBD_DEBUG > 1
@@ -299,7 +302,7 @@ static void draco_keyboard_write(uae_u8 v)
 		draco_reg[3] |= DRSTAT_KBDCLKIN;
 		draco_kbd_code = 0;
 		draco_kbd_state2 = 0;
-		draco_kbd_poll = 4;
+		draco_kbd_poll = DRACO_KBD_POLL_VAL;
 	}
 
 	draco_kbd_state = v;
@@ -385,7 +388,7 @@ static void draco_1wire_set_bit(void)
 {
 	uae_u8 *dptr = NULL;
 	int maxlen = 0;
-	if (draco_1wire_cmd == DS_ROM_SEARCH) {
+	if (draco_1wire_cmd == DS_READ_MEMORY) {
 		dptr = draco_1wire_sram;
 		maxlen = sizeof(draco_1wire_sram);
 	} else if (draco_1wire_cmd == DS_READ_SCRATCHPAD) {
@@ -600,6 +603,19 @@ static void draco_1wire_reset(void)
 #endif
 }
 
+static uaecptr draco_convert_cia_addr(uaecptr addr)
+{
+	uaecptr ciaaddr = 0;
+	addr &= 0xffff;
+	if ((addr & 0x1001) == 0x1001 && (draco_cias & 2)) {
+		ciaaddr = 0xbfe001 + (addr & 0xf00);
+	}
+	if ((addr & 0x1001) == 0x0000 && (draco_cias & 1)) {
+		ciaaddr = 0xbfd000 + (addr & 0xf00);
+	}
+	return ciaaddr;
+}
+
 void draco_bustimeout(uaecptr addr)
 {
 	write_log("draco bus timeout %08x\n", addr);
@@ -706,7 +722,7 @@ static uae_u32 REGPARAM2 draco_bget(uaecptr addr)
 #endif
 			break;
 		case 9:
-			v = 4;
+			v = draco_revision;
 			draco_timer_latched = true;
 			break;
 		case 0xb:
@@ -718,9 +734,19 @@ static uae_u32 REGPARAM2 draco_bget(uaecptr addr)
 			break;
 		}
 
+		// casablanca revision
+		if (addr == 0x020007c3)
+			v = draco_revision;
+
 	} else if ((addr & 0x07c00000) == 0x02800000) {
 
 		// CIA (no CIAs if rev4+)
+		if (draco_cias) {
+			uaecptr cia_addr = draco_convert_cia_addr(addr);
+			if (cia_addr) {
+				v = cia_bank.bget(cia_addr);
+			}
+		}
 
 	} else if ((addr & 0x07000000) == 0x01000000) {
 
@@ -909,6 +935,12 @@ static void REGPARAM2 draco_bput(uaecptr addr, uae_u32 b)
 	} else if ((addr & 0x07c00000) == 0x02800000) {
 
 		// CIA (no CIAs if rev4+)
+		if (draco_cias) {
+			uaecptr cia_addr = draco_convert_cia_addr(addr);
+			if (cia_addr) {
+				cia_bank.bput(cia_addr, b);
+			}
+		}
 
 	} else if ((addr & 0x07c00000) == 0x02000000) {
 
@@ -961,6 +993,7 @@ static void REGPARAM2 draco_bput(uaecptr addr, uae_u32 b)
 				draco_reg[3] &= ~DRSTAT_BUSTIMO;
 				break;
 		}
+
 	} else if ((addr & 0x07000000) == 0x01000000) {
 
 		// interrupt control
@@ -1022,17 +1055,6 @@ static addrbank draco_bank = {
 	draco_lget, draco_wget, ABFLAG_IO, S_READ, S_WRITE
 };
 
-
-void casablanca_map_overlay(void)
-{
-	// Casablanca has ROM at address zero, no chip ram, no overlay.
-	map_banks(&kickmem_bank, 524288 >> 16, 524288 >> 16, 0);
-	map_banks(&extendedkickmem_bank, 0 >> 16, 524288 >> 16, 0);
-	map_banks(&draco_bank, 0x02000000 >> 16, 0x01000000 >> 16, 0);
-	// KS ROM is here
-	map_banks(&kickmem_bank, 0x02c00000 >> 16, 524288 >> 16, 0);
-	map_banks(&draco_bank, 0x03000000 >> 16, 0x01000000 >> 16, 0);
-}
 
 void draco_ext_interrupt(bool i6)
 {
@@ -1178,39 +1200,54 @@ void draco_reset(int hardreset)
 
 void draco_init(void)
 {
-	if (currprefs.cs_compatible != CP_DRACO) {
-		return;
+	if (currprefs.cs_compatible == CP_DRACO) {
+		TCHAR path[MAX_DPATH];
+		cfgfile_resolve_path_out_load(currprefs.flashfile, path, MAX_DPATH, PATH_ROM);
+		struct zfile *draco_flashfile = zfile_fopen(path, _T("rb"), ZFD_NORMAL);
+		if (draco_flashfile) {
+			zfile_fread(draco_1wire_rom, sizeof(draco_1wire_rom), 1, draco_flashfile);
+			zfile_fseek(draco_flashfile, 8, SEEK_CUR);
+			zfile_fread(draco_1wire_sram, sizeof(draco_1wire_sram), 1, draco_flashfile);
+			zfile_fclose(draco_flashfile);
+		}
+
+		draco_revision = (currprefs.cpuboard_settings & 1) ? 4 : 3;
+		draco_cias = draco_revision < 4 ? 2 : 0;
+		if (currprefs.cpuboard_settings & 4) {
+			draco_cias |= 1;
+		}
+		if (currprefs.cpuboard_settings & 8) {
+			draco_cias |= 2;
+		}
+		int idx;
+		const TCHAR *romname = NULL;
+		struct boardromconfig *brc;
+		brc = get_device_rom(&currprefs, ROMTYPE_CPUBOARD, 0, &idx);
+		if (brc) {
+			romname = brc->roms[idx].romfile;
+			dracorom = zfile_load_file(romname, &dracoromsize);
+		}
+
+		draco_reset(1);
+
+		device_add_rethink(draco_irq);
+		device_add_hsync(draco_hsync);
+		device_add_reset(draco_reset);
 	}
+	if (currprefs.cs_compatible == CP_CASABLANCA) {
 
-	TCHAR path[MAX_DPATH];
-	cfgfile_resolve_path_out_load(currprefs.flashfile, path, MAX_DPATH, PATH_ROM);
-	struct zfile *draco_flashfile = zfile_fopen(path, _T("rb"), ZFD_NORMAL);
-	if (draco_flashfile) {
-		zfile_fread(draco_1wire_rom, sizeof(draco_1wire_rom), 1, draco_flashfile);
-		zfile_fseek(draco_flashfile, 8, SEEK_CUR);
-		zfile_fread(draco_1wire_sram, sizeof(draco_1wire_sram), 1, draco_flashfile);
-		zfile_fclose(draco_flashfile);
+		draco_revision = 9;
+		draco_reset(1);
+
+		device_add_rethink(draco_irq);
+		device_add_hsync(draco_hsync);
+		device_add_reset(draco_reset);
 	}
-
-	int idx;
-	const TCHAR *romname = NULL;
-	struct boardromconfig *brc;
-	brc = get_device_rom(&currprefs, ROMTYPE_CPUBOARD, 0, &idx);
-	if (brc) {
-		romname = brc->roms[idx].romfile;
-		dracorom = zfile_load_file(romname, &dracoromsize);
-	}
-
-	draco_reset(1);
-
-	device_add_rethink(draco_irq);
-	device_add_hsync(draco_hsync);
-	device_add_reset(draco_reset);
 }
 
 bool draco_mouse(int port, int x, int y, int z, int b)
 {
-	if (currprefs.cs_compatible == CP_DRACO) {
+	if (currprefs.cs_compatible == CP_DRACO || currprefs.cs_compatible == CP_CASABLANCA) {
 		if (b < 0)
 			return true;
 		mouse_serial_poll(x, y, z, b, draco_mouse_base);
@@ -1218,6 +1255,18 @@ bool draco_mouse(int port, int x, int y, int z, int b)
 	}
 	return false;
 }
+
+void casablanca_map_overlay(void)
+{
+	// Casablanca has ROM at address zero, no chip ram, no overlay.
+	map_banks(&kickmem_bank, 524288 >> 16, 524288 >> 16, 0);
+	map_banks(&extendedkickmem_bank, 0 >> 16, 524288 >> 16, 0);
+	map_banks(&draco_bank, 0x02000000 >> 16, 0x01000000 >> 16, 0);
+	// KS ROM is here
+	map_banks(&kickmem_bank, 0x02c00000 >> 16, 524288 >> 16, 0);
+	map_banks(&draco_bank, 0x03000000 >> 16, 0x01000000 >> 16, 0);
+}
+
 
 void draco_map_overlay(void)
 {
