@@ -141,6 +141,9 @@ void ncr_hwcursor_draw(svga_t *svga, int displine)
 
     svga->hwcursor_latch.addr += (svga->hwcursor.xsize / 8);
     int xdbl = 1 << svga->hwcursor.h_acc;
+    if (svga->bpp == 16 && svga->hwcursor.h_acc > 0) {
+        xdbl = 1 << (svga->hwcursor.h_acc - 1);
+    }
     for (x = 0; x < svga->hwcursor.xsize; x += 8)
     {
             svga->hwcursor_latch.addr--;
@@ -152,7 +155,7 @@ void ncr_hwcursor_draw(svga_t *svga, int displine)
             {
                 if (offset >= svga->hwcursor_latch.x)
                 {
-                    for (int i = 0; i <xdbl; i++) {
+                    for (int i = 0; i < xdbl; i++) {
                         if (!(dat[0] & 0x80))
                             ((uint32_t *)buffer32->line[displine])[offset * xdbl + i + 32] = c[(dat[1] & 0x80) ? 0 : 1];
                         else if (dat[1] & 0x80)
@@ -184,6 +187,9 @@ void ncr_out(uint16_t addr, uint8_t val, void *p)
         
         switch (addr)
         {
+                case 0x3c6:
+                ncr->ramdacbpp = val;
+                break;
                 case 0x3c4:
                 svga->seqaddr = val & 0x3f;
                 break;
@@ -415,6 +421,10 @@ void ncr_recalctimings(svga_t *svga)
         {
             if (ncr->chip < NCR_TYPE_32BLT) {
                 svga->bpp = ncr->ramdacbpp;
+            } else {
+                if (ncr->ramdacbpp & 0x40) {
+                    svga->bpp = (ncr->ramdacbpp & 0x20) ? 16 : 24;
+                }
             }
         }
         switch (svga->bpp)

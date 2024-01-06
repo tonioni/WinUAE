@@ -5553,7 +5553,13 @@ static void special_pcem_put(uaecptr addr, uae_u32 v, int size)
 			return;
 		}
 		addr &= 0xffff;
-		gfxboard_bput_io_swap_pcem(addr, v);
+		if (size == 2) {
+			gfxboard_lput_io_swap_pcem(addr, v);
+		} else if (size == 1) {
+			gfxboard_wput_io_swap_pcem(addr, v);
+		} else {
+			gfxboard_bput_io_swap_pcem(addr, v);
+		}
 
 	} else if (boardnum == GFXBOARD_ID_RETINA_Z2) {
 	
@@ -5908,7 +5914,13 @@ static uae_u32 special_pcem_get(uaecptr addr, int size)
 			return v;
 		}
 		addr &= 0xffff;
-		v = gfxboard_bget_io_swap_pcem(addr);
+		if (size == 2) {
+			v = gfxboard_lget_io_swap_pcem(addr);
+		} else if (size == 1) {
+			v = gfxboard_wget_io_swap_pcem(addr);
+		} else {
+			v = gfxboard_bget_io_swap_pcem(addr);
+		}
 
 	} else if (boardnum == GFXBOARD_ID_RETINA_Z2) {
 
