@@ -2120,6 +2120,7 @@ int scan_roms (HWND hDlg, int show)
 	if (fkey == NULL)
 		goto end;
 
+	InitializeDarkMode();
 
 	if (!rp_isactive ()) {
 		hwnd = CustomCreateDialog(IDD_INFOBOX, hDlg, InfoBoxDialogProc, &cdstate);
