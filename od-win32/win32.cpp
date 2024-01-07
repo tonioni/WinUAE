@@ -1027,6 +1027,7 @@ static void setmouseactive2(struct AmigaMonitor *mon, int active, bool allowpaus
 #else
 	bool isrp = false;
 #endif
+	int lastmouseactive = mouseactive;
 
 	//write_log (_T("setmouseactive %d->%d cursor=%d focus=%d recap=%d\n"), mouseactive, active, mon_cursorclipped, focus, recapture);
 
@@ -1103,7 +1104,9 @@ static void setmouseactive2(struct AmigaMonitor *mon, int active, bool allowpaus
 			}
 			setcursor(mon, -30000, -30000);
 		}
-		wait_keyrelease();
+		if (lastmouseactive != mouseactive) {
+			wait_keyrelease();
+		}
 		inputdevice_acquire(TRUE);
 		setpriority (&priorities[currprefs.win32_active_capture_priority]);
 		if (currprefs.win32_active_nocapture_pause) {
