@@ -695,7 +695,7 @@ int svga_poll(void *p)
                                 svga->ma = svga->maback = 0;
                                 svga->sc = 0;
                                 if (svga->attrregs[0x10] & 0x20) {
-                                        svga->scrollcache_dst = 0;
+                                        svga->scrollcache_dst = svga->scrollcache_dst_reset;
                                         svga->scrollcache_src = 0;
                                 }
                         }
@@ -841,6 +841,7 @@ int svga_poll(void *p)
                             svga->scrollcache_dst = (8 - (scrollcache & 6)) + 24;
                         }
                         svga->scrollcache_src = 0;
+                        svga->scrollcache_dst_reset = svga->scrollcache_dst;
 
                         if (svga->adjust_panning) {
                             svga->adjust_panning(svga);
