@@ -658,6 +658,13 @@ static void count_colors(bool alpha)
 	if (!palettebm) {
 		return;
 	}
+	palettecount = 0;
+	uae_u8 r, g, b;
+	if (get_custom_color_reg(0, &r, &g, &b)) {
+		palettea[palettecount] = true;
+		palette[palettecount] = (b << 16) | (g << 8) | r;
+		palettecount++;
+	}
 	for (int i = 0; i < h; i++) {
 		uae_u8 *p = (uae_u8*)lpvBits + i * ((((w * 24) + 31) & ~31) / 8);
 		for (int j = 0; j < w; j++) {
@@ -683,22 +690,31 @@ static void count_colors(bool alpha)
 					return;
 				}
 				palettea[palettecount] = true;
-				c = palettecount++;
-				palette[c] = co;
+				palette[palettecount] = co;
+				palettecount++;
 			}
 		}
 	}
 	write_log("Screenshot color count: %d\n", palettecount);
 
 	// get custom colors
-	int customcolorcnt = 0;
 	for (int i = 0; i < 256; i++) {
 		uniquecolors[i] = 0;
 		uniquecolorsa[i] = false;
-		uae_u8 r, g, b;
-		if (get_custom_color_reg(i, &r, &g, &b)) {
-			uniquecolors[i] = (b << 16) | (g << 8) | r;
-			customcolorcnt = i + 1;
+	}
+	int customcolorcnt = 0;
+	for (int i = 0; i < 256; i++) {
+		if (!get_custom_color_reg(i, &r, &g, &b))
+			break;
+		uae_u32 co = (b << 16) | (g << 8) | r;
+		int j = 0;
+		for (j = 0; j < customcolorcnt; j++) {
+			if (uniquecolors[i] == co)
+				break;
+		}
+		if (j >= customcolorcnt) {
+			uniquecolors[i] = co;
+			customcolorcnt++;
 		}
 	}
 	// find matching colors from bitmap and allocate colors
@@ -708,10 +724,10 @@ static void count_colors(bool alpha)
 			uae_u32 cc = palette[i];
 			for (int j = 0; j < customcolorcnt; j++) {
 				uae_u32 cc2 = uniquecolors[j];
-				if (!uniquecolorsa[i] && cc == cc2) {
-					uniquecolorsa[i] = true;
-					if (i >= uniquecolorcount) {
-						uniquecolorcount = i + 1;
+				if (!uniquecolorsa[j] && cc == cc2) {
+					uniquecolorsa[j] = true;
+					if (j >= uniquecolorcount) {
+						uniquecolorcount = j + 1;
 					}
 					palettea[i] = false;
 					match++;
@@ -729,7 +745,7 @@ static void count_colors(bool alpha)
 	if (uniquecolorcount < safecolors) {
 		uniquecolorcount = safecolors;
 	}
-	for (int i = 0; i < 256; i++) {
+	for (int i = 0; i < palettecount; i++) {
 		if (palettea[i]) {
 			int j = 0;
 			for (j = safecolors; j < 256 + safecolors; j++) {
@@ -768,14 +784,14 @@ static void count_colors(bool alpha)
 			if (prevc >= 0 && co == uniquecolors[prevc]) {
 				c = prevc;
 			} else {
-				for (c = 0; c < uniquecolorcount; c++) {
+				for (c = 0; c < 256; c++) {
 					if (uniquecolors[c] == co) {
 						prevc = c;
+						if (c > uniquecolorcount) {
+							uniquecolorcount = c + 1;
+						}
 						break;
 					}
-				}
-				if (c >= uniquecolorcount) {
-					c++;
 				}
 			}
 			*dp++ = (uae_u8)c;
