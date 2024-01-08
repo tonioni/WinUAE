@@ -1,4 +1,17 @@
 
+Beta 2:
+
+- "Simple mode" path string escaping in config file directory harddrive paths incorrectly escaped single quotes which added unwanted \'s to path.
+- NCR SVGA 8/16/24 bit mode selection fixed, Picasso96 v2.0 Altais driver now works in DraCo configuration.
+- Toccata was not mapped correctly in DraCo configuration.
+- Hardware emulated RTG boards Picasso96 screen dragging horizontal shift fix (broke in b1 panning fix)
+- Any TV overscan option + NTSC mode: few pixel grapohics corruption was visible in right edge of screen.
+- Do not force release of pressed keys if mouse capture was requested but mouse was already captured. On the fly screen settings changes (for example via input events or uae-configuration) caused unexpected forced key releases in full-window mode. (Forced key release is needed because otherwise sudden mouse capture loss might cause stuck keys in Amiga side)
+- 256 color screeenshot created wrong colors in some situations (usually when AGA and almost all colors in use). Attempts to keep custom chipset color 0 (backround color) in first palette index.
+- Include also current DPI when selecting between "old" smaller or "new" larger default GUI size. (Smaller desktop resolution + high DPI = too large default GUI size)
+
+Beta 1:
+
 - MacroSystem DraCo emulation. Quickstart entry also added. No V-Lab Motion emulation, no, don't ask.
 - Retina Z3 RTG board emulation. NCR 77C32BLT SVGA chip emulation by me, including blitter that was not that trivial to implement (existing documentation was quite bad). This is implemented as a PCem display card because it makes basic (S)VGA features automatically supported. Yes, I did say that I won't ever do any SVGA card emulations (and still don't unless they are basic enough, 2D only).  Implemented because DraCo has NCR 77C32BLT based RTG card and I wanted to emulate DraCo :) Big thanks to IComp and Thomas Richter for help/driver information.
 - Retina Z2 RTG board emulation. NCR 77C22E+ based, older version of NCR SVGA chip, no blitter, no linear frame buffer. Note that this is banked RTG board and Picasso96 driver requires MMU. Uses 128k of Z2 IO space only. 16 color mode (planar mode) is not supported.
