@@ -2133,6 +2133,7 @@ static struct snddev_data *getsnddev(uaecptr addr)
 
 static void REGPARAM2 toccata_bput(uaecptr addr, uae_u32 b)
 {
+	addr &= 0xffffff;
 	struct snddev_data *data = getsnddev(addr);
 	if (!data)
 		return;
@@ -2175,6 +2176,7 @@ static void REGPARAM2 toccata_lput(uaecptr addr, uae_u32 b)
 static uae_u32 REGPARAM2 toccata_bget(uaecptr addr)
 {
 	uae_u8 v = 0;
+	addr &= 0xffffff;
 	struct snddev_data *data = getsnddev(addr);
 	if (!data)
 		return v;
