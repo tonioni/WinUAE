@@ -12974,8 +12974,12 @@ static void getguidefaultsize(int *wp, int *hp)
 {
 	int w = GetSystemMetrics(SM_CXVIRTUALSCREEN);
 	int h = GetSystemMetrics(SM_CYVIRTUALSCREEN);
+	int dpi = getdpiformonitor(NULL);
 
-	if (w >= 1600 && h >= 1024) {
+	int ww = MulDiv(1600, dpi, 96);
+	int wh = MulDiv(1024, dpi, 96);
+
+	if (w >= ww && h >= wh) {
 		*wp = GUI_INTERNAL_WIDTH_NEW;
 		*hp = GUI_INTERNAL_HEIGHT_NEW;
 	} else {
