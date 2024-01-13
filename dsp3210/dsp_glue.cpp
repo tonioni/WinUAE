@@ -348,6 +348,8 @@ bool dsp_init(struct autoconfig_info *aci)
 
 void dsp_pause(int pause)
 {
-	dsp_paused = pause;
-	uae_sem_post(&pause_sem);
+	if (is_dsp_installed) {
+		dsp_paused = pause;
+		uae_sem_post(&pause_sem);
+	}
 }
