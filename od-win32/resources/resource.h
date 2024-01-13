@@ -645,6 +645,7 @@
 #define IDC_GUI_DEFAULT                 1289
 #define IDC_INFO1                       1289
 #define IDC_INFO2                       1290
+#define IDC_OSD_FONT                    1290
 #define IDC_INFO3                       1291
 #define IDC_GUI_LVDEFAULT               1291
 #define IDC_PORT0_JOYSC                 1302

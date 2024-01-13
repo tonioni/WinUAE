@@ -12868,10 +12868,17 @@ static void misc_setlang (int v)
 	exit_gui(0);
 }
 
-static void misc_gui_font (HWND hDlg, int fonttype)
+static void misc_gui_font(HWND hDlg, int fonttype)
 {
-	if (scaleresource_choosefont (hDlg, fonttype))
-		gui_size_changed = 10;
+	if (scaleresource_choosefont(hDlg, fonttype)) {
+		if (fonttype == 0) {
+			gui_size_changed = 10;
+		} else if (fonttype == 2) {
+			if (!full_property_sheet && AMonitors[0].hAmigaWnd) {
+				createstatusline(AMonitors[0].hAmigaWnd, 0);
+			}
+		}
+	}
 }
 
 static void values_to_miscdlg_dx(HWND hDlg)
@@ -13252,7 +13259,10 @@ static INT_PTR MiscDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 			}
 			break;
 		case IDC_GUI_FONT:
-			misc_gui_font (hDlg, 0);
+			misc_gui_font(hDlg, 0);
+			break;
+		case IDC_OSD_FONT:
+			misc_gui_font(hDlg, 2);
 			break;
 		case IDC_GUI_RESIZE:
 			gui_resize_enabled = ischecked (hDlg, IDC_GUI_RESIZE);

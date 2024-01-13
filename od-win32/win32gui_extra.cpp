@@ -22,7 +22,7 @@
 
 #include "darkmode.h"
 
-#define MAX_GUI_FONTS 2
+#define MAX_GUI_FONTS 3
 #define DEFAULT_FONTSIZE_OLD 8
 #define DEFAULT_FONTSIZE_NEW 9
 
@@ -31,14 +31,17 @@ static int scaleresource_width, scaleresource_height;
 static int scaleresource_reset;
 static int dux, duy;
 
-static TCHAR fontname_gui[32], fontname_list[32];
+static TCHAR fontname_gui[32], fontname_list[32], fontname_osd[32];
 static int fontsize_default = DEFAULT_FONTSIZE_OLD;
 static int fontsize_gui = DEFAULT_FONTSIZE_OLD;
 static int fontsize_list = DEFAULT_FONTSIZE_OLD;
+static int fontsize_osd = 6;
 static int fontstyle_gui = 0;
 static int fontstyle_list = 0;
+static int fontstyle_osd = 0;
 static int fontweight_gui = FW_REGULAR;
 static int fontweight_list = FW_REGULAR;
+static int fontweight_osd = FW_REGULAR;
 
 static TEXTMETRIC listview_tm;
 static const TCHAR *fontprefix;
@@ -1244,48 +1247,54 @@ static void setdeffont (void)
 	}
 	fontsize_default = fs;
 
-	_tcscpy (fontname_gui, wfont_vista);
+	_tcscpy(fontname_gui, wfont_vista);
 	fontsize_gui = fontsize_default;
 	fontstyle_gui = 0;
 	fontweight_gui = FW_REGULAR;
-	_tcscpy (fontname_list, wfont_vista);
+	_tcscpy(fontname_list, wfont_vista);
 	fontsize_list = fontsize_default;
 	fontstyle_list = 0;
 	fontweight_list = FW_REGULAR;
+	_tcscpy(fontname_osd, _T("Lucida Console"));
+	fontsize_osd = 8;
+	fontstyle_osd = 0;
+	fontweight_osd = FW_REGULAR;
 }
 
-static TCHAR *fontreg[2] = { _T("GUIFont"), _T("GUIListFont") };
+static TCHAR *fontreg[3] = { _T("GUIFont"), _T("GUIListFont"), _T("OSDFont") };
 
-static void regsetfont (UAEREG *reg, const TCHAR *prefix, const TCHAR *name, const TCHAR *fontname, int fontsize, int fontstyle, int fontweight)
+void regsetfont(UAEREG *reg, const TCHAR *prefix, const TCHAR *name, const TCHAR *fontname, int fontsize, int fontstyle, int fontweight)
 {
 	TCHAR tmp[256], tmp2[256];
 
-	_stprintf (tmp, _T("%s:%d:%d:%d"), fontname, fontsize, fontstyle, fontweight);
-	_stprintf (tmp2, _T("%s%s"), name, prefix);
-	regsetstr (reg, tmp2, tmp);
+	_stprintf(tmp, _T("%s:%d:%d:%d"), fontname, fontsize, fontstyle, fontweight);
+	_stprintf(tmp2, _T("%s%s"), name, prefix);
+	regsetstr(reg, tmp2, tmp);
 }
-static void regqueryfont (UAEREG *reg, const TCHAR *prefix, const TCHAR *name, TCHAR *fontname, int *pfontsize, int *pfontstyle, int *pfontweight)
+bool regqueryfont(UAEREG *reg, const TCHAR *prefix, const TCHAR *name, TCHAR *fontname, int *pfontsize, int *pfontstyle, int *pfontweight)
 {
 	TCHAR tmp2[256], tmp[256], *p1, *p2, *p3, *p4;
 	int size;
 	int fontsize, fontstyle, fontweight;
 
 	_tcscpy (tmp2, name);
-	_tcscat (tmp2, prefix);
+	if (prefix) {
+		_tcscat (tmp2, prefix);
+	}
 	size = sizeof tmp / sizeof (TCHAR);
 	if (!regquerystr (reg, tmp2, tmp, &size))
-		return;
+		return false;
 	p1 = _tcschr (tmp, ':');
 	if (!p1)
-		return;
+		return false;
 	*p1++ = 0;
 	p2 = _tcschr (p1, ':');
 	if (!p2)
-		return;
+		return false;
 	*p2++ = 0;
 	p3 = _tcschr (p2, ':');
 	if (!p3)
-		return;
+		return false;
 	*p3++ = 0;
 	p4 = _tcschr (p3, ':');
 	if (p4)
@@ -1307,6 +1316,8 @@ static void regqueryfont (UAEREG *reg, const TCHAR *prefix, const TCHAR *name, T
 	*pfontstyle = fontstyle;
 
 	*pfontweight = fontweight;
+
+	return true;
 }
 
 void scaleresource_setdefaults(HWND hwnd)
@@ -1330,30 +1341,38 @@ void scaleresource_init(const TCHAR *prefix, int fullscreen)
 	setdeffont();
 
 	if (fontprefix) {
-		regqueryfont (NULL, fontprefix, fontreg[0], fontname_gui, &fontsize_gui, &fontstyle_gui, &fontweight_gui);
-		regqueryfont (NULL, fontprefix, fontreg[1], fontname_list, &fontsize_list, &fontstyle_list, &fontweight_list);
+		regqueryfont(NULL, fontprefix, fontreg[0], fontname_gui, &fontsize_gui, &fontstyle_gui, &fontweight_gui);
+		regqueryfont(NULL, fontprefix, fontreg[1], fontname_list, &fontsize_list, &fontstyle_list, &fontweight_list);
 	}
 
 	//write_log (_T("GUI font %s:%d:%d:%d\n"), fontname_gui, fontsize_gui, fontstyle_gui, fontweight_gui);
 	//write_log (_T("List font %s:%d:%d:%d\n"), fontname_list, fontsize_list, fontstyle_list, fontweight_list);
 }
 
-int scaleresource_choosefont (HWND hDlg, int fonttype)
+int scaleresource_choosefont(HWND hDlg, int fonttype)
 {
 	CHOOSEFONT cf = { 0 };
 	LOGFONT lf = { 0 };
-	TCHAR *fontname[2];
-	int *fontsize[2], *fontstyle[2], *fontweight[2];
+	TCHAR *fontname[3];
+	int *fontsize[3], *fontstyle[3], *fontweight[3];
 	int lm = 72;
+
+	if (fonttype == 2) {
+		regqueryfont(NULL, NULL, fontreg[2], fontname_osd, &fontsize_osd, &fontstyle_osd, &fontweight_osd);
+	}
 
 	fontname[0] = fontname_gui;
 	fontname[1] = fontname_list;
+	fontname[2] = fontname_osd;
 	fontsize[0] = &fontsize_gui;
 	fontsize[1] = &fontsize_list;
+	fontsize[2] = &fontsize_osd;
 	fontstyle[0] = &fontstyle_gui;
 	fontstyle[1] = &fontstyle_list;
+	fontstyle[2] = &fontstyle_osd;
 	fontweight[0] = &fontweight_gui;
 	fontweight[1] = &fontweight_list;
+	fontweight[2] = &fontweight_osd;
 
 	cf.lStructSize = sizeof cf;
 	cf.hwndOwner = hDlg;
@@ -1382,7 +1401,7 @@ int scaleresource_choosefont (HWND hDlg, int fonttype)
 
 	*fontweight[fonttype] = lf.lfWeight;
 
-	regsetfont (NULL, fontprefix, fontreg[fonttype], fontname[fonttype], *fontsize[fonttype], *fontstyle[fonttype], *fontweight[fonttype]);
+	regsetfont(NULL, fontprefix, fontreg[fonttype], fontname[fonttype], *fontsize[fonttype], *fontstyle[fonttype], *fontweight[fonttype]);
 
 	return 1;
 }

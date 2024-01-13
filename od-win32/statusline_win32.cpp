@@ -10,6 +10,8 @@
 #include "win32.h"
 #include "picasso96_win.h"
 #include "win32gfx.h"
+#include "registry.h"
+#include "win32gui.h"
 #include "statusline.h"
 #include "gui.h"
 #include "xwin.h"
@@ -21,8 +23,10 @@ static int statusline_width;
 static int statusline_height = TD_TOTAL_HEIGHT;
 static HFONT statusline_font;
 static HPALETTE statusline_palette;
-static bool statusline_was_updated;
 static char *td_new_numbers;
+static int statusline_fontsize, statusline_fontstyle, statusline_fontweight;
+static bool statusline_customfont;
+static TCHAR statusline_fontname[256];
 
 void deletestatusline(int monid)
 {
@@ -61,11 +65,16 @@ static void create_led_font(HWND parent, int monid)
 
 	xfree(td_new_numbers);
 
+	statusline_fontsize = 8;
+	_tcscpy(statusline_fontname, _T("Lucida Console"));
+	statusline_fontweight = FW_NORMAL;
+	statusline_customfont = regqueryfont(NULL, NULL, _T("OSDFont"), statusline_fontname, &statusline_fontsize, &statusline_fontstyle, &statusline_fontweight);
+
 	hdc = CreateCompatibleDC(NULL);
 	if (hdc) {
 		int y = getdpiforwindow(parent);
-		int fontsize = -MulDiv(6, y, 72);
-		fontsize = fontsize * statusline_get_multiplier(monid) / 100;
+		statusline_fontsize = -MulDiv(statusline_fontsize, y, 72);
+		statusline_fontsize = statusline_fontsize * statusline_get_multiplier(monid) / 100;
 		lp = (LOGPALETTE *)xcalloc(uae_u8, sizeof(LOGPALETTE) + 3 * sizeof(PALETTEENTRY));
 		if (lp) {
 			lp->palNumEntries = 4;
@@ -94,10 +103,10 @@ static void create_led_font(HWND parent, int monid)
 					if (bitmap) {
 						SelectObject(hdc, bitmap);
 						RealizePalette(hdc);
-						HFONT font = CreateFont(fontsize, 0,
+						HFONT font = CreateFont(statusline_fontsize, 0,
 							0, 0,
-							FW_NORMAL,
-							FALSE,
+							statusline_fontweight,
+							(statusline_fontstyle & ITALIC_FONTTYPE) != 0,
 							FALSE,
 							FALSE,
 							DEFAULT_CHARSET,
@@ -105,7 +114,7 @@ static void create_led_font(HWND parent, int monid)
 							CLIP_DEFAULT_PRECIS,
 							PROOF_QUALITY,
 							FIXED_PITCH | FF_DONTCARE,
-							_T("Lucida Console"));
+							statusline_fontname);
 						if (font) {
 							SelectObject(hdc, font);
 							SetTextColor(hdc, PALETTEINDEX(2));
@@ -188,10 +197,14 @@ bool createstatusline(HWND parentHwnd, int monid)
 
 	if (monid)
 		return false;
+
 	deletestatusline(mon->monitor_id);
 	statusline_hdc = CreateCompatibleDC(NULL);
 	if (!statusline_hdc)
 		return false;
+
+	create_led_font(parentHwnd, monid);
+
 	lp = (LOGPALETTE*)xcalloc(uae_u8, sizeof(LOGPALETTE) + 3 * sizeof(PALETTEENTRY));
 	if (!lp)
 		return false;
@@ -204,6 +217,7 @@ bool createstatusline(HWND parentHwnd, int monid)
 	xfree(lp);
 	SelectPalette(statusline_hdc, statusline_palette, FALSE);
 	statusline_width = (WIN32GFX_GetWidth(mon) + 31) & ~31;
+	statusline_height = -statusline_fontsize;
 	bi = (BITMAPINFO*)xcalloc(uae_u8, sizeof(BITMAPINFOHEADER) + 4 * sizeof(RGBQUAD));
 	if (bi) {
 		bih = &bi->bmiHeader;
@@ -228,12 +242,10 @@ bool createstatusline(HWND parentHwnd, int monid)
 	SelectObject(statusline_hdc, statusline_bitmap);
 	RealizePalette(statusline_hdc);
 
-	create_led_font(parentHwnd, monid);
-
-	statusline_font = CreateFont(-10, 0,
+	statusline_font = CreateFont(statusline_fontsize, 0,
 		0, 0,
-		FW_NORMAL,
-		FALSE,
+		statusline_fontweight,
+		(statusline_fontstyle & ITALIC_FONTTYPE) != 0,
 		FALSE,
 		FALSE,
 		DEFAULT_CHARSET,
@@ -241,7 +253,7 @@ bool createstatusline(HWND parentHwnd, int monid)
 		CLIP_DEFAULT_PRECIS,
 		PROOF_QUALITY,
 		VARIABLE_PITCH | FF_DONTCARE,
-		_T("Verdana"));
+		statusline_fontname);
 	SelectObject(statusline_hdc, statusline_font);
 	SetTextColor(statusline_hdc, PALETTEINDEX(2));
 	SetBkColor(statusline_hdc, PALETTEINDEX(1));
@@ -255,7 +267,6 @@ void statusline_updated(int monid)
 	if (monid)
 		return;
 	struct AmigaMonitor *mon = &AMonitors[monid];
-	statusline_was_updated = true;
 	if (mon->hStatusWnd)
 		PostMessage(mon->hStatusWnd, SB_SETTEXT, (WPARAM)((window_led_msg_start) | SBT_OWNERDRAW), (LPARAM)_T(""));
 }
@@ -269,15 +280,16 @@ void statusline_render(int monid, uae_u8 *buf, int bpp, int pitch, int width, in
 	int y = -1, x = 10, textwidth = 0;
 	int bar_xstart;
 
-	if (monid)
+	if (monid || !statusline_hdc) {
 		return;
+	}
 
 	text = statusline_fetch();
 	//text = _T("Testing string 123!");
 	if (!text)
 		return;
-	BitBlt(statusline_hdc, 0, 0, statusline_width, statusline_height, NULL, 0, 0, BLACKNESS);
 
+	BitBlt(statusline_hdc, 0, 0, statusline_width, statusline_height, NULL, 0, 0, BLACKNESS);
 	SIZE size;
 	if (GetTextExtentPoint32(statusline_hdc, text, uaetcslen(text), &size)) {
 		textwidth = size.cx;
