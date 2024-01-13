@@ -97,7 +97,7 @@ struct romdata *getromdatabypath (const TCHAR *path)
 	return NULL;
 }
 
-#define NEXT_ROM_ID 312
+#define NEXT_ROM_ID 313
 
 #if NEXT_ROM_ID >= MAX_ROMMGR_ROMS
 #error Increase MAX_ROMMGR_ROMS!
@@ -535,8 +535,10 @@ static struct romdata roms[] = {
 	0x3bc9b90c, 0x24fa6ab8, 0x5ca64ae6, 0x43851a85, 0xa473ff0c, 0x5a48f272, NULL, NULL },
 	{ _T("MacroSystem Falcon 040 (No SCSI)"), 0, 0, 0, 0, _T("FALCON040\0"), 131072, 229, 0, 0, ROMTYPE_CB_FALCON40, 0, 0, NULL,
 	0xa2ba67d1, 0x2015685f, 0xaadfbaf6, 0x8b19b07e, 0x5f4e888f, 0x738b99d7, NULL, NULL },
-	{ _T("GVP A1230 Turbo+ Series II"), 0, 0, 0, 0, _T("A1230SII\0"), 16384, 230, 0, 0, ROMTYPE_CB_A1230S2, 0, 0, NULL,
+	{ _T("GVP A1230 Turbo+ Series II v5.0"), 5, 0, 5, 0, _T("A1230SII\0"), 16384, 230, 0, 0, ROMTYPE_CB_A1230S2, 0, 0, NULL,
 	0x96bd351f, 0xb7648daf, 0x52d0732d, 0x897548f3, 0x29ebf624, 0x101474d5, NULL, NULL },
+	{ _T("GVP A1230 Turbo+ Series II v5.3"), 5, 3, 5, 3, _T("A1230SII\0"), 16384, 312, 0, 0, ROMTYPE_CB_A1230S2, 0, 0, NULL,
+	0x0a3bb4b1, 0xf870116f, 0x699ec800, 0x2a1b31bb, 0x0f412e27, 0xc5d01266, NULL, NULL },
 	{ _T("GVP A1230 Turbo+"), 0, 0, 0, 0, _T("A1230SI\0"), 16384, 260, 0, 0, ROMTYPE_CB_A1230S1, 0, 0, NULL,
 	0x3f0b8d7a, 0x258c6ee7, 0x5d8dfee5, 0x7871c5be, 0x79a83fa3, 0xca53a1a9, NULL, NULL },
 	{ _T("Harms 3000 Professional"), 0, 0, 0, 00, _T("HARMS3000PRO\0"), 65536, 248, 0, 0, ROMTYPE_CB_HARMS3KP, 0, 0, NULL,
