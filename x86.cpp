@@ -554,6 +554,7 @@ struct pc_floppy
 	int cyl;
 	uae_u8 sector;
 	uae_u8 head;
+	bool disk_changed;
 };
 
 static struct pc_floppy floppy_pc[4];
@@ -625,13 +626,21 @@ static void do_floppy_irq(void)
 
 static void do_floppy_seek(int num, int error)
 {
-	struct pc_floppy *pcf = &floppy_pc[floppy_num];
+	struct pc_floppy *pcf = &floppy_pc[num];
 
 	disk_reserved_reset_disk_change(num);
 	if (!error) {
 		struct floppy_reserved fr = { 0 };
-		bool valid_floppy = disk_reserved_getinfo(floppy_num, &fr);
+		bool valid_floppy = disk_reserved_getinfo(num, &fr);
 		if (floppy_seekcyl[num] != pcf->phys_cyl) {
+
+			if (!valid_floppy || !fr.img) {
+				error = 1;
+				goto done;
+			}
+
+			pcf->disk_changed = false;
+
 			if (floppy_seekcyl[num] > pcf->phys_cyl)
 				pcf->phys_cyl++;
 			else if (pcf->phys_cyl > 0)
@@ -642,14 +651,14 @@ static void do_floppy_seek(int num, int error)
 				driveclick_click(fr.num, pcf->phys_cyl);
 #endif
 #if FLOPPY_DEBUG
-			write_log(_T("Floppy%d seeking.. %d\n"), floppy_num, pcf->phys_cyl);
+			write_log(_T("Floppy%d seeking.. %d\n"), num, pcf->phys_cyl);
 #endif
 			if (pcf->phys_cyl - pcf->seek_offset <= 0) {
 				pcf->phys_cyl = 0;
 				if (pcf->seek_offset) {
 					floppy_seekcyl[num] = 0;
 #if FLOPPY_DEBUG
-					write_log(_T("Floppy%d early track zero\n"), floppy_num);
+					write_log(_T("Floppy%d early track zero\n"), num);
 #endif
 					pcf->seek_offset = 0;
 				}
@@ -661,7 +670,7 @@ static void do_floppy_seek(int num, int error)
 				pcf->cyl = pcf->phys_cyl;
 
 			floppy_seeking[num] = PC_SEEK_DELAY;
-			disk_reserved_setinfo(floppy_num, pcf->cyl, pcf->head, 1);
+			disk_reserved_setinfo(num, pcf->cyl, pcf->head, 1);
 			return;
 		}
 
@@ -682,7 +691,7 @@ static void do_floppy_seek(int num, int error)
 
 done:
 #if FLOPPY_DEBUG
-	write_log(_T("Floppy%d seek done err=%d. pcyl=%d cyl=%d h=%d\n"), floppy_num, error, pcf->phys_cyl,pcf->cyl, pcf->head);
+	write_log(_T("Floppy%d seek done err=%d. pcyl=%d cyl=%d h=%d\n"), num, error, pcf->phys_cyl,pcf->cyl, pcf->head);
 #endif
 	floppy_status[0] = 0;
 	floppy_status[0] |= 0x20; // seek end
@@ -714,6 +723,21 @@ static int floppy_selected(void)
 	if (motormask & (1 << sel))
 		return sel;
 	return -1;
+}
+
+static void floppy_clear_irq(void)
+{
+	if (floppy_irq) {
+		x86_clearirq(6);
+		floppy_irq = false;
+	}
+}
+
+static bool floppy_valid_format(struct floppy_reserved *fr)
+{
+	if (fr->secs == 11 || fr->secs == 22)
+		return false;
+	return true;
 }
 
 static bool floppy_valid_rate(struct floppy_reserved *fr)
@@ -763,8 +787,7 @@ static void floppy_do_cmd(struct x86_bridge *xb)
 			// 0xc0 status after reset.
 			floppy_status[0] = 0xc0;
 		}
-		x86_clearirq(6);
-		floppy_irq = false;
+		floppy_clear_irq();
 		floppy_result[0] = floppy_status[0];
 		floppy_result[1] = pcf->phys_cyl;
 		floppy_status[0] = 0;
@@ -833,16 +856,20 @@ static void floppy_do_cmd(struct x86_bridge *xb)
 					while (!end && !fr.wrprot) {
 						int len = 128 << floppy_cmd[5];
 						uae_u8 buf[512] = { 0 };
-						for (int i = 0; i < 512 && i < len; i++) {
-							int v = dma_channel_read(2);
-							if (v < 0) {
-								end = -1;
-								break;
-							}
-							buf[i] = v;
-							if (v >= 0x10000) {
-								end = 1;
-								break;
+						if (floppy_specify_pio) {
+							end = -1;
+						} else {
+							for (int i = 0; i < 512 && i < len; i++) {
+								int v = dma_channel_read(2);
+								if (v < 0) {
+									end = -1;
+									break;
+								}
+								buf[i] = v;
+								if (v >= 0x10000) {
+									end = 1;
+									break;
+								}
 							}
 						}
 #if FLOPPY_DEBUG
@@ -907,7 +934,7 @@ static void floppy_do_cmd(struct x86_bridge *xb)
 			int cyl = pcf->cyl;
 			bool nodata = false;
 			if (valid_floppy) {
-				if (!floppy_valid_rate(&fr)) {
+				if (!floppy_valid_rate(&fr) || !floppy_valid_format(&fr)) {
 					nodata = true;
 				} else if (pcf->head && fr.heads == 1) {
 					nodata = true;
@@ -991,7 +1018,7 @@ static void floppy_do_cmd(struct x86_bridge *xb)
 #if FLOPPY_DEBUG
 		write_log(_T("Floppy read ID\n"));
 #endif
-		if (!valid_floppy || !fr.img || !floppy_valid_rate(&fr) || (pcf->head && fr.heads == 1)) {
+		if (!valid_floppy || !fr.img || !floppy_valid_rate(&fr) || (pcf->head && fr.heads == 1) || !floppy_valid_format(&fr)) {
 			floppy_status[0] |= 0x40; // abnormal termination
 			floppy_status[1] |= 0x04; // no data
 		}
@@ -1107,6 +1134,10 @@ static int draco_force_irq;
 
 static void outfloppy(struct x86_bridge *xb, int portnum, uae_u8 v)
 {
+#if FLOPPY_IO_DEBUG
+	write_log(_T("out floppy port %04x %02x\n"), portnum, v);
+#endif
+
 	switch (portnum)
 	{
 		case 0x3f2: // dpc
@@ -1129,12 +1160,12 @@ static void outfloppy(struct x86_bridge *xb, int portnum, uae_u8 v)
 		}
 #endif
 		floppy_dpc = v;
-		if (xb->type < 0 && 1) {
+		if (xb->type < 0) {
 			floppy_dpc |= 8;
 		}
 		floppy_num = v & 3;
 		for (int i = 0; i < 2; i++) {
-			disk_reserved_setinfo(0, floppy_pc[i].cyl, floppy_pc[i].head, floppy_selected() == i);
+			disk_reserved_setinfo(i, floppy_pc[i].cyl, floppy_pc[i].head, floppy_selected() == i);
 		}
 		break;
 		case 0x3f5: // data reg
@@ -1210,9 +1241,6 @@ static void outfloppy(struct x86_bridge *xb, int portnum, uae_u8 v)
 		write_log(_T("Unknown FDC %04x write %02x\n"), portnum, v);
 		break;
 	}
-#if FLOPPY_IO_DEBUG
-	write_log(_T("out floppy port %04x %02x\n"), portnum, v);
-#endif
 }
 
 static uae_u8 infloppy(struct x86_bridge *xb, int portnum)
@@ -1265,6 +1293,8 @@ static uae_u8 infloppy(struct x86_bridge *xb, int portnum)
 			v = floppy_pio_buffer[floppy_pio_cnt++];
 			if (floppy_pio_cnt >= floppy_pio_len) {
 				floppy_pio_len = 0;
+				floppy_clear_irq();
+				floppy_delay_hsync = 50;
 			}
 		} else if (floppy_cmd_len && floppy_dir) {
 			int idx = (-floppy_idx) - 1;
@@ -1276,23 +1306,23 @@ static uae_u8 infloppy(struct x86_bridge *xb, int portnum)
 					floppy_cmd_len = 0;
 					floppy_dir = 0;
 					floppy_idx = 0;
+					floppy_clear_irq();
 				}
 			}
 		}
 		break;
 		case 0x3f7: // digital input register
-		if (xb->type >= TYPE_2286) {
+		if (xb->type >= TYPE_2286 || xb->type < 0) {
+			struct pc_floppy *pcf = &floppy_pc[floppy_num];
 			struct floppy_reserved fr = { 0 };
 			bool valid_floppy = disk_reserved_getinfo(floppy_num, &fr);
 			v = 0x00;
-			if (valid_floppy && fr.disk_changed)
+			if (valid_floppy && fr.disk_changed && (floppy_dpc >> 4) & (1 << floppy_num)) {
+				pcf->disk_changed = true;
+			}
+			if (pcf->disk_changed) {
 				v = 0x80;
-		} else if (xb->type < 0) {
-			struct floppy_reserved fr = { 0 };
-			bool valid_floppy = disk_reserved_getinfo(floppy_num, &fr);
-			v = 0x00;
-			if (fr.disk_changed)
-				v = 0x80;
+			}
 		}
 		break;
 		default:
@@ -1303,6 +1333,16 @@ static uae_u8 infloppy(struct x86_bridge *xb, int portnum)
 	write_log(_T("in  floppy port %04x %02x\n"), portnum, v);
 #endif
 	return v;
+}
+
+uae_u16 floppy_get_raw_data(void)
+{
+	struct floppy_reserved fr = { 0 };
+	bool valid_floppy = disk_reserved_getinfo(floppy_num, &fr);
+	if (valid_floppy) {
+		return DSKBYTR_fake(fr.num);
+	}
+	return 0x8000;
 }
 
 static void set_cpu_turbo(struct x86_bridge *xb)
