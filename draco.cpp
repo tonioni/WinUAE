@@ -162,6 +162,8 @@ static uae_u8 draco_reg[0x20];
 static int draco_watchdog;
 static int draco_scsi_intpen, draco_serial_intpen;
 
+static bool draco_have_vmotion = false;
+
 static void draco_irq(void)
 {
 	uae_u16 irq = 0;
@@ -271,12 +273,15 @@ static void draco_keyboard_read(void)
 			if (draco_kbd_state2 == 11) {
 				draco_kbd_code >>= 5;
 				draco_kbd_code &= 0xff;
+
+				if (currprefs.cpuboard_settings & 0x10) {
 #if KBD_DEBUG
-				write_log("draco->keyboard code %02x\n", draco_kbd_code);
+					write_log("draco->keyboard code %02x\n", draco_kbd_code);
 #endif
-				draco_reg[3] = v;
-				keyboard_at_write((uae_u8)draco_kbd_code, draco_keyboard);
-				v = draco_reg[3];
+					draco_reg[3] = v;
+					keyboard_at_write((uae_u8)draco_kbd_code, draco_keyboard);
+					v = draco_reg[3];
+				}
 			}
 		}
 	}
@@ -645,6 +650,60 @@ static void draco_1wire_reset(void)
 #endif
 }
 
+// draco reads amiga disks by polling register
+// that returns time since last flux change.
+static uae_u8 draco_floppy_get_data(void)
+{
+	static uae_u16 data;
+	static int bits;
+	if (bits < 8) {
+		uae_u16 t = floppy_get_raw_data();
+		data |= (t & 0xff) << (8 - bits);
+		bits += 8;
+	}
+	int bit1 = (data & 0x8000);
+	int bit2 = (data & 0x4000);
+	int bit3 = (data & 0x2000);
+	int bit4 = (data & 0x1000);
+
+	if (bit1) {
+		data <<= 1;
+		bits--;
+		return 8;
+	}
+	if (bit2) {
+		data <<= 2;
+		bits -= 2;
+		return 24;
+	}
+	if (bit3) {
+		data <<= 3;
+		bits -= 3;
+		return 40;
+	}
+	if (bit4) {
+		data <<= 4;
+		bits -= 4;
+		return 56;
+	}
+	return 0;
+}
+
+static void vmotion_write(uaecptr addr, uae_u8 v)
+{
+}
+static uae_u8 vmotion_read(uaecptr addr)
+{
+	static const uae_u8 vmdata[] = { 0xff, 0xce, 0x17, 0x47, 0x54, 0x17, 0x28, 0x00, 0x03, 0x06, 0x00, 0xff, 0xff, 0xff, 0xff, 0x03 };
+	uae_u8 v = 0xff;
+	if (addr < 64) {
+		if ((addr & 3) == 0) {
+			v = vmdata[addr >> 2];
+		}
+	}
+	return v;
+}
+
 static uaecptr draco_convert_cia_addr(uaecptr addr)
 {
 	uaecptr ciaaddr = 0;
@@ -671,6 +730,15 @@ static uae_u32 REGPARAM2 draco_bget(uaecptr addr)
 	if (maxcnt >= 0) {
 		write_log(_T("draco_bget %08x %08x\n"), addr, M68K_GETPC);
 		maxcnt--;
+	}
+
+	if (addr >= 0x28000000 && addr < 0x30000000 && draco_have_vmotion) {
+		if (addr < 0x28000004) {
+			draco_bustimeout(addr);
+		} else {
+			v = vmotion_read(addr & 0x07ffffff);
+		}
+		return v;
 	}
 
 	if (addr >= 0x20000000) {
@@ -774,6 +842,9 @@ static uae_u32 REGPARAM2 draco_bget(uaecptr addr)
 			v = (draco_timer_latched ? draco_timer_latch : draco_timer) >> 0;
 			draco_timer_latched = false;
 			break;
+		case 0x1d:
+			v = draco_floppy_get_data();
+			break;
 		}
 
 		// casablanca revision
@@ -805,7 +876,7 @@ static uae_u32 REGPARAM2 draco_bget(uaecptr addr)
 			case 0x800001:
 				v = draco_intfrc;
 				break;
-			case 0xc0001:
+			case 0xc00001:
 				v = 0;
 				break;
 		}
@@ -898,8 +969,13 @@ static void REGPARAM2 draco_bput(uaecptr addr, uae_u32 b)
 		write_log(_T("draco_bput %08x %02x %08x\n"), addr, b & 0xff, M68K_GETPC);
 	}
 
+	if (addr >= 0x28000000 && addr < 0x30000000 && draco_have_vmotion) {
+		vmotion_write(addr & 0x07ffffff, b);
+		return;
+	}
+
 	if (addr >= 0x20000000) {
-		draco_reg[3] |= DRSTAT_BUSTIMO;
+		draco_bustimeout(addr);
 		return;
 	}
 
@@ -1048,17 +1124,19 @@ static void REGPARAM2 draco_bput(uaecptr addr, uae_u32 b)
 				break;
 			case 0x400001:
 				draco_intpen = b & 15;
-				if (b)
-					write_log("draco interrupt 0x400001 write %02x\n", b);
+//				if (b)
+//					write_log("draco interrupt 0x400001 write %02x %08x\n", b, M68K_GETPC);
 				draco_irq();
 				break;
 			case 0x800001:
-				draco_intfrc = b & 1;
+//				if (b)
+//					write_log("draco interrupt 0x800001 write %02x %08x\n", b, M68K_GETPC);
+				draco_intfrc = b & 15;
 				draco_irq();
 				break;
 			case 0xc00001:
-				if (b)
-					write_log("draco interrupt 0xc00001 write %02x\n", b);
+//				if (b)
+//					write_log("draco interrupt 0xc00001 write %02x %08x\n", b, M68K_GETPC);
 				draco_irq();
 				break;
 		}
@@ -1108,10 +1186,11 @@ void draco_ext_interrupt(bool i6)
 
 void draco_keycode(uae_u8 scancode, uae_u8 state)
 {
-	if (currprefs.cs_compatible == CP_DRACO) {
-		draco_kbd_in_buffer[draco_kbd_in_buffer_len++] = scancode | (state ? 0x8000 : 0x00);
+	if (currprefs.cs_compatible == CP_DRACO && (currprefs.cpuboard_settings & 0x10)) {
 		if (draco_kbd_buffer_len == 0 && !(draco_reg[3] & DRSTAT_KBDRECV)) {
 			draco_key_process(scancode, state);
+		} else {
+			draco_kbd_in_buffer[draco_kbd_in_buffer_len++] = scancode | (state ? 0x8000 : 0x00);
 		}
 	}
 }

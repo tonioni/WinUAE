@@ -6558,6 +6558,12 @@ static const struct expansionboardsettings draco_settings[] = {
 		false, false, 0
 	},
 	{
+		// 4
+		_T("PC keyboard connected"),
+		_T("pckbd"),
+		false, false, 0
+	},
+	{
 		NULL
 	}
 };

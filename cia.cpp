@@ -1161,7 +1161,7 @@ void keyboard_connected(bool connect)
 
 static void check_keyboard(void)
 {
-	if (currprefs.keyboard_connected && currprefs.cs_compatible != CP_DRACO) {
+	if (currprefs.keyboard_connected) {
 		if ((keys_available() || kbstate < 3) && !kblostsynccnt ) {
 			switch (kbstate)
 			{

@@ -296,8 +296,12 @@ int record_key_direct(int kc, bool direct)
 	int kcd = (kc << 7) | (kc >> 1);
 
 	if (currprefs.cs_compatible == CP_DRACO) {
-		inputdevice_draco_key(kc);
-		return 1;
+		if (currprefs.cpuboard_settings & 0x10) {
+			inputdevice_draco_key(kc);
+		}
+		if (!currprefs.keyboard_connected) {
+			return 1;
+		}
 	}
 
 	if (!direct) {

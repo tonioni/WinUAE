@@ -9470,6 +9470,7 @@ static int bip_casablanca(struct uae_prefs *p, int config, int compa, int romche
 	p->immediate_blits = 0;
 	p->produce_sound = 2;
 	p->nr_floppies = 0;
+	p->keyboard_connected = false;
 	p->floppyslots[0].dfxtype = DRV_NONE;
 	p->floppyslots[1].dfxtype = DRV_NONE;
 	p->floppyslots[2].dfxtype = DRV_PC_35_ONLY_80;
@@ -9494,6 +9495,8 @@ static int bip_draco(struct uae_prefs *p, int config, int compa, int romcheck)
 	p->immediate_blits = 0;
 	p->produce_sound = 2;
 	p->nr_floppies = 0;
+	p->keyboard_connected = false;
+	p->cpuboard_settings |= 0x10;
 	p->floppyslots[0].dfxtype = DRV_NONE;
 	p->floppyslots[1].dfxtype = DRV_NONE;
 	p->floppyslots[2].dfxtype = DRV_PC_35_ONLY_80;
