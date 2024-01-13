@@ -32,27 +32,20 @@ typedef struct ncr_t
         sdac_ramdac_t ramdac;
 
         uint8_t ma_ext;
-        int width;
-        int bpp;
-        int ramdacbpp;
 
         int chip;
         
-        uint8_t id, id_ext;
-
         uint32_t linear_base, linear_size;
         uint32_t mmio_base, mmio_size;
 
-        int card;
         uint32_t bank[4];
         uint32_t vram_mask;
         
-        uint8_t subsys_cntl, subsys_stat;
+        float (*getclock)(int clock, void *p);
+        void *getclock_p;
+
         int vblank_irq;
         
-        uint32_t hwc_fg_col, hwc_bg_col;
-        int hwc_col_stack_pos;
-
         int blitter_busy;
         uint64_t blitter_time;
         uint64_t status_time;
@@ -117,6 +110,7 @@ void ncr_hwcursor_draw(svga_t *svga, int displine)
     int xx;
     int offset = svga->hwcursor_latch.x - svga->hwcursor_latch.xoff;
     int line_offset = 0;
+    uint32_t addr = svga->hwcursor_latch.addr;
 
     offset <<= svga->horizontal_linedbl;
 
@@ -139,17 +133,20 @@ void ncr_hwcursor_draw(svga_t *svga, int displine)
         }
     }
 
-    svga->hwcursor_latch.addr += (svga->hwcursor.xsize / 8);
+    addr += (32 / 8);
     int xdbl = 1 << svga->hwcursor.h_acc;
-    if (svga->bpp == 16 && svga->hwcursor.h_acc > 0) {
+    if ((svga->bpp == 16 || svga->bpp == 15) && svga->hwcursor.h_acc > 0) {
         xdbl = 1 << (svga->hwcursor.h_acc - 1);
     }
     for (x = 0; x < svga->hwcursor.xsize; x += 8)
     {
-            svga->hwcursor_latch.addr--;
-            uint32_t addroffset = svga->hwcursor_latch.addr & svga->vram_display_mask;
+            if (x == 32) {
+                addr += (64 / 8);
+            }
+            addr--;
+            uint32_t addroffset = addr & svga->vram_display_mask;
             dat[0] = svga->vram[addroffset];
-            addroffset = (svga->hwcursor_latch.addr + (svga->hwcursor.xsize / 8)) & svga->vram_display_mask;
+            addroffset = (addr + (svga->hwcursor.xsize / 8)) & svga->vram_display_mask;
             dat[1] = svga->vram[addroffset];
             for (xx = 0; xx < 8; xx++)
             {
@@ -187,9 +184,14 @@ void ncr_out(uint16_t addr, uint8_t val, void *p)
         
         switch (addr)
         {
-                case 0x3c6:
-                ncr->ramdacbpp = val;
-                break;
+                case 0x3C6:
+                    val &= ~0x10;
+                    sdac_ramdac_out((addr & 3) | 4, val, &ncr->ramdac, svga);
+                    return;
+                case 0x3C7: case 0x3C8: case 0x3C9:
+                    sdac_ramdac_out(addr & 3, val, &ncr->ramdac, svga);
+                    return;
+
                 case 0x3c4:
                 svga->seqaddr = val & 0x3f;
                 break;
@@ -222,7 +224,7 @@ void ncr_out(uint16_t addr, uint8_t val, void *p)
                             svga->hwcursor.y = (svga->seqregs[0x0f] << 8) | svga->seqregs[0x10];
                             return;
                         case 0x11:
-                            svga->hwcursor.xoff = val & 31;
+                            svga->hwcursor.xoff = val & (ncr->chip == NCR_TYPE_32BLT ? 0x3f : 0x1f);
                             return;
                         case 0x12:
                             svga->hwcursor.yoff = val & 127;
@@ -231,19 +233,8 @@ void ncr_out(uint16_t addr, uint8_t val, void *p)
                         case 0x14:
                         case 0x15:
                         case 0x16:
-                        {
-                            int offset = 0;
-                            if (ncr->chip == NCR_TYPE_32BLT) {
-                                if (svga->seqregs[0x1e] & 0x10) {
-                                    offset = (svga->seqregs[0x15] << 8) | svga->seqregs[0x16];
-                                }
-                                svga->hwcursor.addr = (svga->seqregs[0x13] << 8) | svga->seqregs[0x14];
-                                svga->hwcursor.addr += offset << 6;
-                            } else {
-                                svga->hwcursor.addr = (svga->seqregs[0x15] << 16) | (svga->seqregs[0x16] << 8) | svga->seqregs[0x14];
-                                svga->hwcursor.addr >>= 2;
-                            }
-                        }
+                            svga->hwcursor.addr = (svga->seqregs[0x15] << 16) | (svga->seqregs[0x16] << 8) | svga->seqregs[0x14];
+                            svga->hwcursor.addr >>= 2;
                         break;
                         case 0x18:
                         case 0x19:
@@ -258,13 +249,13 @@ void ncr_out(uint16_t addr, uint8_t val, void *p)
                         break;
                         case 0x21:
                         if (val & 1) {
-                            svga->bpp = 8;
-                            svga->bpp = 8 << ((val >> 4) & 3);
-                            if (svga->bpp > 24) {
-                                svga->bpp = 24;
+                            ncr->blt_bpp = 8;
+                            ncr->blt_bpp = 8 << ((val >> 4) & 3);
+                            if (ncr->blt_bpp > 24) {
+                                ncr->blt_bpp = 24;
                             }
                         } else {
-                            svga->bpp = 4;
+                            ncr->blt_bpp = 8;
                         }
                         break;
                         case 0x30:
@@ -272,9 +263,6 @@ void ncr_out(uint16_t addr, uint8_t val, void *p)
                         case 0x32:
                         case 0x33:
                             ncr_updatemapping(ncr);
-                        break;
-                        case 0x3f: // ram dac fake
-                        ncr->ramdacbpp = val;
                         break;
                     }
                     if (old != val)
@@ -351,6 +339,11 @@ uint8_t ncr_in(uint16_t addr, void *p)
                         return svga->seqregs[svga->seqaddr];
                 break;
 
+                case 0x3c6:
+                return sdac_ramdac_in((addr & 3) | 4, &ncr->ramdac, svga);
+                case 0x3c7: case 0x3c8: case 0x3c9:
+                return sdac_ramdac_in(addr & 3, &ncr->ramdac, svga);
+
                 case 0x3d4:
                 return svga->crtcreg;
                 case 0x3d5:
@@ -417,17 +410,6 @@ void ncr_recalctimings(svga_t *svga)
             svga->hdisp /= 2;
         }
 
-        svga->bpp = 8;
-        if (svga->seqregs[0x21] & 0x01)
-        {
-            if (ncr->chip < NCR_TYPE_32BLT) {
-                svga->bpp = ncr->ramdacbpp;
-            } else {
-                if (ncr->ramdacbpp & 0x40) {
-                    svga->bpp = (ncr->ramdacbpp & 0x20) ? 16 : 24;
-                }
-            }
-        }
         switch (svga->bpp)
         {
             case 4:
@@ -435,6 +417,10 @@ void ncr_recalctimings(svga_t *svga)
                 break;
             case 8:
                 svga->render = svga_render_8bpp_highres;
+                break;
+            case 15:
+                svga->render = svga_render_15bpp_highres;
+                svga->hdisp /= 2;
                 break;
             case 16:
                 svga->render = svga_render_16bpp_highres;
@@ -751,7 +737,6 @@ static void blitter_start(ncr_t *ncr)
     ncr->blt_h = 0;
     ncr->blt_xdir = (ncr->blt_control & (1 << 7)) ? 1 : -1;
     ncr->blt_ydir = (ncr->blt_control & (1 << 6)) ? 1 : -1;
-    ncr->blt_bpp = ncr->svga.bpp;
     ncr->blt_bppdiv8 = ncr->blt_bpp / 8;
     ncr->blt_bpp_cnt = 0;
     if (ncr->blt_xdir < 0) {
@@ -765,7 +750,7 @@ static void blitter_start(ncr_t *ncr)
     ncr->blt_patbak = ncr->blt_pat;
     ncr->blt_patbak2 = ncr->blt_pat;
 
-    if (ncr->svga.bpp == 24) {
+    if (ncr->blt_bpp == 24) {
         // strange pattern offset in 24-bit mode
         uint32_t dst = ncr->blt_dst;
         dst >>= 3;
@@ -1075,6 +1060,7 @@ static void ncr_adjust_panning(svga_t *svga)
 
     switch (svga->bpp)
     {
+        case 15:
         case 16:
             dst = (ar11 & 4) ? 7 : 8;
             break;
@@ -1166,6 +1152,7 @@ static void *ncr_init(char *bios_fn, int chip)
 
         ncr->chip = chip;
         ncr->blt_status = 1;
+        ncr->blt_bpp = 8;
 
         ncr_updatemapping(ncr);
 
@@ -1176,9 +1163,11 @@ void *ncr_retina_z2_init()
 {
     ncr_t *ncr = (ncr_t *)ncr_init("ncr.bin", NCR_TYPE_22EP);
 
-    //ncr->getclock = ncr_getclock;
-    //ncr->getclock_p = ncr;
     ncr->svga.fb_only = 0;
+
+    ncr->getclock = sdac_getclock;
+    ncr->getclock_p = &ncr->ramdac;
+    sdac_init(&ncr->ramdac);
     svga_set_ramdac_type(&ncr->svga, RAMDAC_8BIT);
 
     return ncr;
@@ -1188,9 +1177,11 @@ void *ncr_retina_z3_init()
 {
     ncr_t *ncr = (ncr_t *)ncr_init("ncr.bin", NCR_TYPE_32BLT);
 
-    //ncr->getclock = ncr_getclock;
-    //ncr->getclock_p = ncr;
     ncr->svga.fb_only = -1;
+
+    ncr->getclock = sdac_getclock;
+    ncr->getclock_p = &ncr->ramdac;
+    sdac_init(&ncr->ramdac);
 
     return ncr;
 }

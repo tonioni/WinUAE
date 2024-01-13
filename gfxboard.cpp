@@ -5575,36 +5575,13 @@ static void special_pcem_put(uaecptr addr, uae_u32 v, int size)
 			put_mem_pcem(mem + 0xa0000, v, size);
 		} else if (addr & 0x8000) {
 			// RAMDAC
-			int dac = addr & 15;
-			if (dac == 1) {
-				// palette index
-				gb->extradata[0] = v;
-				gb->extradata[1] = 0;
-			} else if (dac == 3) {
-				// palette data
-				gb->extradata[2 + gb->extradata[1]] = v;
-				gb->extradata[1]++;
-				if (gb->extradata[1] == 3) {
-					put_io_pcem(0x3c8, gb->extradata[0], 0);
-					put_io_pcem(0x3c9, gb->extradata[2], 0);
-					put_io_pcem(0x3c9, gb->extradata[3], 0);
-					put_io_pcem(0x3c9, gb->extradata[4], 0);
-					gb->extradata[0]++;
-					gb->extradata[0] &= 255;
-					gb->extradata[1] = 0;
-				}
-			} else if (dac == 13) {
-				// 16/24 bit mode
-				if ((v & (0x80 | 0x40 | 0x20)) == (0x80 | 0x40 | 0x20)) {
-					put_io_pcem(0x3c4, 0x3f, 0);
-					put_io_pcem(0x3c5, 24, 0);
-				} else if (v & 0x80) {
-					put_io_pcem(0x3c4, 0x3f, 0);
-					put_io_pcem(0x3c5, 16, 0);
-				} else {
-					put_io_pcem(0x3c4, 0x3f, 0);
-					put_io_pcem(0x3c5, 8, 0);
-				}
+			int dac = (addr & 15) >> 1;
+			if (dac == 6) {
+				put_io_pcem(0x3c6, v, 0);
+			} else if (dac == 0) {
+				put_io_pcem(0x3c8, v, 0);
+			} else if (dac == 1) {
+				put_io_pcem(0x3c9, v, 0);
 			}
 		} else {
 			// IO
@@ -5936,6 +5913,14 @@ static uae_u32 special_pcem_get(uaecptr addr, int size)
 			}
 		} else if (addr & 0x8000) {
 			// RAMDAC
+			int dac = (addr & 15) >> 1;
+			if (dac == 6) {
+				v = get_io_pcem(0x3c6, 0);
+			} else if (dac == 0) {
+				v = get_io_pcem(0x3c8, 0);
+			} else if (dac == 1) {
+				v = get_io_pcem(0x3c9, 0);
+			}
 		} else {
 			// IO
 			int io = addr & 0x3fff;
