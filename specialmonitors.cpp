@@ -307,16 +307,12 @@ static void blank_generic(struct vidbuffer *src, struct vidbuffer *dst, int oddl
 {
 	struct vidbuf_description *avidinfo = &adisplays[dst->monitor_id].gfxvidinfo;
 	int y, vdbl;
-	int ystart, yend, isntsc;
-
-	isntsc = (beamcon0 & 0x20) ? 0 : 1;
-	if (!(currprefs.chipset_mask & CSMASK_ECS_AGNUS))
-		isntsc = currprefs.ntscmode ? 1 : 0;
+	int ystart, yend;
 
 	vdbl = avidinfo->ychange;
 
-	ystart = isntsc ? VBLANK_ENDLINE_NTSC : VBLANK_ENDLINE_PAL;
-	yend = isntsc ? MAXVPOS_NTSC : MAXVPOS_PAL;
+	ystart = minfirstline;
+	yend = maxvpos;
 
 	for (y = ystart; y < yend; y++) {
 		int yoff = (((y * 2 + oddlines) - src->yoffset) / vdbl);
@@ -723,9 +719,9 @@ static bool do_dctv(struct vidbuffer *src, struct vidbuffer *dst)
 	bool v;
 	if (interlace_seen) {
 		if (currprefs.gfx_iscanlines) {
-			v = dctv(src, dst, false, lof_store ? 0 : 1);
+			v = dctv(src, dst, false, lof_store ? 1 : 0);
 			if (v && currprefs.gfx_iscanlines >= 2)
-				blank_generic(src, dst, lof_store ? 1 : 0);
+				blank_generic(src, dst, lof_store ? 0 : 1);
 		} else {
 			v = dctv(src, dst, false, 0);
 			v |= dctv(src, dst, false, 1);
@@ -1211,9 +1207,9 @@ static bool do_firecracker24(struct vidbuffer *src, struct vidbuffer *dst)
 	bool v;
 	if (interlace_seen) {
 		if (currprefs.gfx_iscanlines) {
-			v = firecracker24(src, dst, false, lof_store ? 0 : 1);
+			v = firecracker24(src, dst, false, lof_store ? 1 : 0);
 			if (v && currprefs.gfx_iscanlines >= 2)
-				blank_generic(src, dst, lof_store ? 1 : 0);
+				blank_generic(src, dst, lof_store ? 0 : 1);
 		} else {
 			v = firecracker24(src, dst, false, 0);
 			v |= firecracker24(src, dst, false, 1);
@@ -1657,9 +1653,9 @@ static bool do_videodac18(struct vidbuffer *src, struct vidbuffer *dst)
 	bool v;
 	if (interlace_seen) {
 		if (currprefs.gfx_iscanlines) {
-			v = videodac18(src, dst, false, lof_store ? 0 : 1);
+			v = videodac18(src, dst, false, lof_store ? 1 : 0);
 			if (v && currprefs.gfx_iscanlines >= 2)
-				blank_generic(src, dst, lof_store ? 1 : 0);
+				blank_generic(src, dst, lof_store ? 0 : 1);
 		} else {
 			v = videodac18(src, dst, false, 0);
 			v |= videodac18(src, dst, false, 1);
@@ -1883,9 +1879,9 @@ static bool do_hame(struct vidbuffer *src, struct vidbuffer *dst)
 	bool v;
 	if (interlace_seen) {
 		if (currprefs.gfx_iscanlines) {
-			v = ham_e(src, dst, false, lof_store ? 0 : 1);
-			if (v && currprefs.gfx_iscanlines >= 1)
-				blank_generic(src, dst, lof_store ? 1 : 0);
+			v = ham_e(src, dst, false, lof_store ? 1 : 0);
+			if (v && currprefs.gfx_iscanlines >= 2)
+				blank_generic(src, dst, lof_store ? 0 : 1);
 		} else {
 			v = ham_e(src, dst, false, 0);
 			v |= ham_e(src, dst, false, 1);
@@ -2403,7 +2399,7 @@ static bool do_genlock(struct vidbuffer *src, struct vidbuffer *dst, bool double
 	struct vidbuf_description *avidinfo = &adisplays[dst->monitor_id].gfxvidinfo;
 
 	int y, x, vdbl, hdbl;
-	int ystart, yend, isntsc;
+	int ystart, yend;
 	int mix1 = 0, mix2 = 0;
 
 	int genlock_image_pixbytes = 4;
@@ -2413,10 +2409,6 @@ static bool do_genlock(struct vidbuffer *src, struct vidbuffer *dst, bool double
 	bool genlock_image_upsidedown = false;
 
 	uae_u8 *genlock_image = NULL;
-
-	isntsc = (beamcon0 & 0x20) ? 0 : 1;
-	if (!(currprefs.chipset_mask & CSMASK_ECS_AGNUS))
-		isntsc = currprefs.ntscmode ? 1 : 0;
 
 #if VIDEOGRAB
 	if (currprefs.genlock_image == 5) {
@@ -2544,8 +2536,8 @@ skip:
 	else
 		hdbl = 2; // lores
 
-	ystart = isntsc ? VBLANK_ENDLINE_NTSC : VBLANK_ENDLINE_PAL;
-	yend = isntsc ? MAXVPOS_NTSC : MAXVPOS_PAL;
+	ystart = minfirstline;
+	yend = maxvpos;
 
 	init_noise();
 
@@ -2661,9 +2653,9 @@ bool emulate_genlock(struct vidbuffer *src, struct vidbuffer *dst, bool zclken)
 	bool v;
 	if (interlace_seen) {
 		if (currprefs.gfx_iscanlines) {
-			v = do_genlock(src, dst, false, lof_store ? 0 : 1, zclken);
-			if (v && currprefs.gfx_iscanlines > 1)
-				blank_generic(src, dst, lof_store ? 1 : 0);
+			v = do_genlock(src, dst, false, lof_store ? 1 : 0, zclken);
+			if (v && currprefs.gfx_iscanlines >= 2)
+				blank_generic(src, dst, lof_store ? 0 : 1);
 		} else {
 			v = do_genlock(src, dst, false, 0, zclken);
 			v |= do_genlock(src, dst, false, 1, zclken);
@@ -2686,19 +2678,15 @@ static bool do_grayscale(struct vidbuffer *src, struct vidbuffer *dst, bool doub
 {
 	struct vidbuf_description *avidinfo = &adisplays[dst->monitor_id].gfxvidinfo;
 	int y, x, vdbl;
-	int ystart, yend, isntsc;
-
-	isntsc = (beamcon0 & 0x20) ? 0 : 1;
-	if (!(currprefs.chipset_mask & CSMASK_ECS_AGNUS))
-		isntsc = currprefs.ntscmode ? 1 : 0;
+	int ystart, yend;
 
 	if (avidinfo->ychange == 1)
 		vdbl = 0;
 	else
 		vdbl = 1;
 
-	ystart = isntsc ? VBLANK_ENDLINE_NTSC : VBLANK_ENDLINE_PAL;
-	yend = isntsc ? MAXVPOS_NTSC : MAXVPOS_PAL;
+	ystart = minfirstline;
+	yend = maxvpos;
 
 	uae_u8 r = 0, g = 0, b = 0;
 	for (y = ystart; y < yend; y++) {
@@ -2742,9 +2730,9 @@ bool emulate_grayscale(struct vidbuffer *src, struct vidbuffer *dst)
 	bool v;
 	if (interlace_seen) {
 		if (currprefs.gfx_iscanlines) {
-			v = do_grayscale(src, dst, false, lof_store ? 0 : 1);
+			v = do_grayscale(src, dst, false, lof_store ? 1 : 0);
 			if (v && currprefs.gfx_iscanlines >= 2)
-				blank_generic(src, dst, lof_store ? 1 : 0);
+				blank_generic(src, dst, lof_store ? 0 : 1);
 		} else {
 			v = do_grayscale(src, dst, false, 0);
 			v |= do_grayscale(src, dst, false, 1);
@@ -3535,9 +3523,9 @@ static bool do_opalvision(struct vidbuffer *src, struct vidbuffer *dst, int line
 	bool v;
 	if (interlace_seen) {
 		if (currprefs.gfx_iscanlines) {
-			v = opalvision(src, dst, false, lof_store ? 0 : 1, line, opal);
-			if (v && currprefs.gfx_iscanlines >= 1)
-				blank_generic(src, dst, lof_store ? 1 : 0);
+			v = opalvision(src, dst, false, lof_store ? 1 : 0, line, opal);
+			if (v && currprefs.gfx_iscanlines >= 2)
+				blank_generic(src, dst, lof_store ? 0 : 1);
 		} else {
 			v = opalvision(src, dst, false, 0, line, opal);
 			v |= opalvision(src, dst, false, 1, line, opal);
