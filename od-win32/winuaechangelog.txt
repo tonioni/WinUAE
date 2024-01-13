@@ -1,4 +1,19 @@
 
+Beta 3:
+
+- Added GVP A1230 Turbo+ II (Jaws II) v5.3 ROM.
+- Input panel custom event window was stuck in top/left corner (b1)
+- Monochrome and genlock now uses calculated display start/end values. Previously it always used hardwired PAL or NTSC values.
+- Display port adapters had blank screen in Fields+ interlace mode.
+- Fixed double free and memory leak in debugger/custom event parser/calculator.
+- OSD led/status bar font configuration added to GUI misc panel. Default font size slightly increased.
+- DraCo accelerator settings new option: PC keyboard connected. Can be used to enable/disable PC keyboard and use DraCoTools to enable Amiga keyboard only.
+- DraCo PC keyboard double press/releases fixed.
+- x86 bridgeboard floppy emulation fixes, interrupt clears automatically after reading response data set by read/write/etc commands, floppy change detection requires also motor turned on. Fixes DraCo floppy driver read errors. DraCo PC formatted drive reading now works. Writing is not (yet) supported.
+- DraCo now supports Amiga formatted floppies, implemented CPU polled flux change timing DraCo custom IO register.
+- Retina Z2/Z3/Altais board 15-bit mode implemented. ICS RAMDAC emulation improved, fixes corrupted DraCo+CGX >8 bit modes.
+- NCR 77C32BLT 64 pixel wide mouse cursor positioning (horizontal offset) fix.
+
 Beta 2:
 
 - "Simple mode" path string escaping in config file directory harddrive paths incorrectly escaped single quotes which added unwanted \'s to path.
