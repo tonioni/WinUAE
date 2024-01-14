@@ -199,6 +199,9 @@ static int temp_uid_cnt[IDTYPE_MAX];
 static int gp_swappeddevices[MAX_INPUT_DEVICES][IDTYPE_MAX];
 static int osk_state;
 
+extern int draco_keyboard_get_rate(void);
+static int draco_keybord_repeat_cnt, draco_keybord_repeat_code;
+
 bool osk_status(void)
 {
 	return osk_state != 0;
@@ -4382,6 +4385,17 @@ void inputdevice_hsync (bool forceread)
 			maybe_read_input();
 		}
 	}
+	if (draco_keybord_repeat_cnt > 0) {
+		draco_keybord_repeat_cnt--;
+		if (draco_keybord_repeat_cnt == 0) {
+			int rate = draco_keyboard_get_rate();
+			int b = (rate >> 3) & 3;
+			int d = (rate >> 0) & 7;
+			float r = ((1 << b) * (d + 8) / 240.0f) * 1000.0f;
+			draco_keybord_repeat_cnt = (int)(vblank_hz * maxvpos * r / 1000);
+			draco_keycode(draco_keybord_repeat_code, 1);
+		}
+	}
 }
 
 static uae_u16 POTDAT (int joy)
@@ -5800,6 +5814,7 @@ void inputdevice_reset (void)
 	lightpen_trigger2 = 0;
 	cubo_flag = 0;
 	alg_flag &= 1;
+	draco_keybord_repeat_cnt = 0;
 }
 
 static int getoldport (struct uae_input_device *id)
@@ -10458,9 +10473,18 @@ void inputdevice_draco_key(int kc)
 		if (events[i].data == kc && events[i].data2 && events[i].allow_mask == AM_K) {
 			int code = events[i].data2;
 			if ((code & 0xff00) == 0xe000) {
-				draco_keycode((code & 0xff) | 0x100, state);
+				code = (code & 0xff) | 0x100;
 			} else {
-				draco_keycode(code & 0xff, state);
+				code &= 0xff;
+			}
+			draco_keycode(code, state);
+			if (state) {
+				int rate = draco_keyboard_get_rate();
+				int init = ((rate >> 5) & 3) * 250 + 250;
+				draco_keybord_repeat_cnt = (int)(vblank_hz * maxvpos * init / 1000);
+				draco_keybord_repeat_code = code;
+			} else {
+				draco_keybord_repeat_code = 0;
 			}
 		}
 	}

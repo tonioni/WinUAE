@@ -573,7 +573,7 @@ static bool floppy_did_reset;
 static bool floppy_irq;
 static bool floppy_specify_pio;
 static uae_u8 *floppy_pio_buffer;
-static int floppy_pio_len, floppy_pio_cnt;
+static int floppy_pio_len, floppy_pio_cnt, floppy_pio_active;
 static uae_s8 floppy_rate;
 
 #define PC_SEEK_DELAY 50
@@ -750,6 +750,201 @@ static bool floppy_valid_rate(struct floppy_reserved *fr)
 	return fr->rate == floppy_rate || floppy_rate < 0;
 }
 
+static void floppy_format(struct x86_bridge *xb, bool real)
+{
+	uae_u8 cmd = floppy_cmd[0];
+	struct pc_floppy *pcf = &floppy_pc[floppy_num];
+	struct floppy_reserved fr = { 0 };
+	bool valid_floppy = disk_reserved_getinfo(floppy_num, &fr);
+
+#if FLOPPY_DEBUG
+	write_log(_T("Floppy%d %s format MF=%d N=%d:SC=%d:GPL=%d:D=%d\n"),
+		floppy_num, real ? _T("real") : _T("sim"), (floppy_cmd[0] & 0x40) ? 1 : 0,
+		floppy_cmd[2], floppy_cmd[3], floppy_cmd[4], floppy_cmd[5]);
+	write_log(_T("DMA addr %08x len %04x\n"), dma[2].page | dma[2].ac, dma[2].cb);
+	write_log(_T("IMG: Secs=%d Heads=%d\n"), fr.secs, fr.heads);
+#endif
+	int secs = floppy_cmd[3];
+	int sector = pcf->sector;
+	int head = pcf->head;
+	int cyl = pcf->cyl;
+	if (valid_floppy && fr.img) {
+		// TODO: CHRN values totally ignored
+		pcf->head = (floppy_cmd[1] & 4) ? 1 : 0;
+		uae_u8 buf[512];
+		memset(buf, floppy_cmd[5], sizeof buf);
+		uae_u8 *pioptr = floppy_pio_buffer;
+		for (int i = 0; i < secs && i < fr.secs && !fr.wrprot; i++) {
+			uae_u8 cx = 0, hx = 0, rx = 0, nx = 0;
+			if (floppy_specify_pio) {
+				if (real) {
+					cx = *pioptr++;
+					hx = *pioptr++;
+					rx = *pioptr++;
+					nx = *pioptr++;
+					floppy_pio_cnt += 4;
+				} else {
+					floppy_pio_len += 4;
+				}
+			} else {
+				if (real) {
+					cx = dma_channel_read(2);
+					hx = dma_channel_read(2);
+					rx = dma_channel_read(2);
+					nx = dma_channel_read(2);
+				}
+			}
+			pcf->sector = rx - 1;
+#if FLOPPY_DEBUG
+			write_log(_T("Floppy%d %d/%d: C=%d H=%d R=%d N=%d\n"), floppy_num, i, fr.secs, cx, hx, rx, nx);
+#endif
+			if (real) {
+				zfile_fseek(fr.img, (pcf->cyl * fr.secs * fr.heads + pcf->head * fr.secs + pcf->sector) * 512, SEEK_SET);
+				zfile_fwrite(buf, 1, 512, fr.img);
+			}
+			pcf->sector++;
+		}
+	} else {
+		floppy_status[0] |= 0x40; // abnormal termination
+		floppy_status[0] |= 0x10; // equipment check
+	}
+	floppy_cmd_len = 7;
+	if (fr.wrprot) {
+		floppy_status[0] |= 0x40; // abnormal termination
+		floppy_status[1] |= 0x02; // not writable
+	}
+	floppy_result[0] = floppy_status[0];
+	floppy_result[1] = floppy_status[1];
+	floppy_result[2] = floppy_status[2];
+	floppy_result[3] = pcf->cyl;
+	floppy_result[4] = pcf->head;
+	floppy_result[5] = pcf->sector + 1;
+	floppy_result[6] = floppy_cmd[2];
+	if (real) {
+		floppy_delay_hsync = 10;
+		disk_reserved_setinfo(floppy_num, pcf->cyl, pcf->head, 1);
+	} else {
+		pcf->cyl = cyl;
+		pcf->sector = sector;
+		pcf->head = head;
+	}
+}
+
+static void floppy_write(struct x86_bridge *xb, bool real)
+{
+	uae_u8 cmd = floppy_cmd[0];
+	struct pc_floppy *pcf = &floppy_pc[floppy_num];
+	struct floppy_reserved fr = { 0 };
+	bool valid_floppy = disk_reserved_getinfo(floppy_num, &fr);
+
+#if FLOPPY_DEBUG
+	write_log(_T("Floppy%d %s write MT=%d MF=%d C=%d:H=%d:R=%d:N=%d:EOT=%d:GPL=%d:DTL=%d\n"),
+		floppy_num, real ? _T("real") : _T("sim"), (floppy_cmd[0] & 0x80) ? 1 : 0, (floppy_cmd[0] & 0x40) ? 1 : 0,
+		floppy_cmd[2], floppy_cmd[3], floppy_cmd[4], floppy_cmd[5],
+		floppy_cmd[6], floppy_cmd[7], floppy_cmd[8]);
+	write_log(_T("DMA addr %08x len %04x\n"), dma[2].page | dma[2].ac, dma[2].ab);
+#endif
+	floppy_delay_hsync = 50;
+	int eot = floppy_cmd[6];
+	bool mt = (floppy_cmd[0] & 0x80) != 0;
+	int sector = pcf->sector;
+	int head = pcf->head;
+	int cyl = pcf->cyl;
+	if (valid_floppy) {
+		if (fr.img && pcf->cyl != floppy_cmd[2]) {
+			floppy_status[0] |= 0x40; // abnormal termination
+			floppy_status[2] |= 0x20; // wrong cylinder
+		} else if (fr.img) {
+			int end = 0;
+			pcf->sector = floppy_cmd[4] - 1;
+			pcf->head = (floppy_cmd[1] & 4) ? 1 : 0;
+			uae_u8 *pioptr = floppy_pio_buffer;
+			while (!end && !fr.wrprot) {
+				int len = 128 << floppy_cmd[5];
+				uae_u8 buf[512] = { 0 };
+				if (floppy_specify_pio) {
+					for (int i = 0; i < 512 && i < len; i++) {
+						if (real) {
+							if (floppy_pio_cnt >= floppy_pio_len) {
+								end = 1;
+								break;
+							}
+							int v = *pioptr++;
+							buf[i] = v;
+							floppy_pio_cnt++;
+						} else {
+							floppy_pio_len++;
+						}
+					}
+				} else {
+					for (int i = 0; i < 512 && i < len; i++) {
+						if (real) {
+							int v = dma_channel_read(2);
+							if (v < 0) {
+								end = -1;
+								break;
+							}
+							buf[i] = v;
+							if (v >= 0x10000) {
+								end = 1;
+								break;
+							}
+						}
+					}
+				}
+#if FLOPPY_DEBUG
+				write_log(_T("LEN=%d END=%d C=%d H=%d S=%d. IMG S=%d H=%d\n"), len, end, pcf->cyl, pcf->head, pcf->sector, fr.secs, fr.heads);
+#endif
+				if (end < 0)
+					break;
+				if (real) {
+					zfile_fseek(fr.img, (pcf->cyl * fr.secs * fr.heads + pcf->head * fr.secs + pcf->sector) * 512, SEEK_SET);
+					zfile_fwrite(buf, 1, 512, fr.img);
+				}
+				pcf->sector++;
+				if (pcf->sector == eot) {
+					if (mt) {
+						pcf->sector = 0;
+						if (pcf->head)
+							pcf->cyl++;
+						pcf->head ^= 1;
+					} else {
+						break;
+					}
+				}
+				if (pcf->sector >= fr.secs) {
+					pcf->sector = 0;
+					pcf->head ^= 1;
+					break;
+				}
+			}
+			floppy_result[3] = cyl;
+			floppy_result[4] = pcf->head;
+			floppy_result[5] = pcf->sector + 1;
+			floppy_result[6] = floppy_cmd[5];
+		} else {
+			floppy_status[0] |= 0x40; // abnormal termination
+			floppy_status[0] |= 0x10; // equipment check
+		}
+	}
+	floppy_cmd_len = 7;
+	if (fr.wrprot) {
+		floppy_status[0] |= 0x40; // abnormal termination
+		floppy_status[1] |= 0x02; // not writable
+	}
+	floppy_result[0] = floppy_status[0];
+	floppy_result[1] = floppy_status[1];
+	floppy_result[2] = floppy_status[2];
+	if (real) {
+		floppy_delay_hsync = 10;
+		disk_reserved_setinfo(floppy_num, pcf->cyl, pcf->head, 1);
+	} else {
+		pcf->cyl = cyl;
+		pcf->sector = sector;
+		pcf->head = head;
+	}
+}
+
 static void floppy_do_cmd(struct x86_bridge *xb)
 {
 	uae_u8 cmd = floppy_cmd[0];
@@ -834,87 +1029,7 @@ static void floppy_do_cmd(struct x86_bridge *xb)
 
 		case 5:
 		{
-#if FLOPPY_DEBUG
-			write_log(_T("Floppy%d write MT=%d MF=%d C=%d:H=%d:R=%d:N=%d:EOT=%d:GPL=%d:DTL=%d\n"),
-				floppy_num, (floppy_cmd[0] & 0x80) ? 1 : 0, (floppy_cmd[0] & 0x40) ? 1 : 0,
-				floppy_cmd[2], floppy_cmd[3], floppy_cmd[4], floppy_cmd[5],
-				floppy_cmd[6], floppy_cmd[7], floppy_cmd[8]);
-			write_log(_T("DMA addr %08x len %04x\n"), dma[2].page | dma[2].ac, dma[2].ab);
-#endif
-			floppy_delay_hsync = 50;
-			int eot = floppy_cmd[6];
-			bool mt = (floppy_cmd[0] & 0x80) != 0;
-			int cyl = pcf->cyl;
-			if (valid_floppy) {
-				if (fr.img && pcf->cyl != floppy_cmd[2]) {
-					floppy_status[0] |= 0x40; // abnormal termination
-					floppy_status[2] |= 0x20; // wrong cylinder
-				} else if (fr.img) {
-					int end = 0;
-					pcf->sector = floppy_cmd[4] - 1;
-					pcf->head = (floppy_cmd[1] & 4) ? 1 : 0;
-					while (!end && !fr.wrprot) {
-						int len = 128 << floppy_cmd[5];
-						uae_u8 buf[512] = { 0 };
-						if (floppy_specify_pio) {
-							end = -1;
-						} else {
-							for (int i = 0; i < 512 && i < len; i++) {
-								int v = dma_channel_read(2);
-								if (v < 0) {
-									end = -1;
-									break;
-								}
-								buf[i] = v;
-								if (v >= 0x10000) {
-									end = 1;
-									break;
-								}
-							}
-						}
-#if FLOPPY_DEBUG
-						write_log(_T("LEN=%d END=%d C=%d H=%d S=%d. IMG S=%d H=%d\n"), len, end, pcf->cyl, pcf->head, pcf->sector, fr.secs, fr.heads);
-#endif
-						if (end < 0)
-							break;
-						zfile_fseek(fr.img, (pcf->cyl * fr.secs * fr.heads + pcf->head * fr.secs + pcf->sector) * 512, SEEK_SET);
-						zfile_fwrite(buf, 1, 512, fr.img);
-						pcf->sector++;
-						if (pcf->sector == eot) {
-							if (mt) {
-								pcf->sector = 0;
-								if (pcf->head)
-									pcf->cyl++;
-								pcf->head ^= 1;
-							} else {
-								break;
-							}
-						}
-						if (pcf->sector >= fr.secs) {
-							pcf->sector = 0;
-							pcf->head ^= 1;
-							break;
-						}
-					}
-					floppy_result[3] = cyl;
-					floppy_result[4] = pcf->head;
-					floppy_result[5] = pcf->sector + 1;
-					floppy_result[6] = floppy_cmd[5];
-				} else {
-					floppy_status[0] |= 0x40; // abnormal termination
-					floppy_status[0] |= 0x10; // equipment check
-				}
-			}
-			floppy_cmd_len = 7;
-			if (fr.wrprot) {
-				floppy_status[0] |= 0x40; // abnormal termination
-				floppy_status[1] |= 0x02; // not writable
-			}
-			floppy_result[0] = floppy_status[0];
-			floppy_result[1] = floppy_status[1];
-			floppy_result[2] = floppy_status[2];
-			floppy_delay_hsync = 10;
-			disk_reserved_setinfo(floppy_num, pcf->cyl, pcf->head, 1);
+			floppy_write(xb, true);
 		}
 		break;
 
@@ -957,6 +1072,7 @@ static void floppy_do_cmd(struct x86_bridge *xb)
 							memcpy(pioptr, buf, 512);
 							pioptr += 512;
 							floppy_pio_len += 512;
+							floppy_pio_active = 1;
 						} else {
 							for (int i = 0; i < 512 && i < len; i++) {
 								int v = dma_channel_write(2, buf[i]);
@@ -1036,56 +1152,13 @@ static void floppy_do_cmd(struct x86_bridge *xb)
 			pcf->sector %= fr.secs;
 		}
 
-		floppy_delay_hsync = 10;
+		floppy_delay_hsync = maxvpos * 20;
 		disk_reserved_setinfo(floppy_num, pcf->cyl, pcf->head, 1);
 		break;
 
 		case 13:
 		{
-#if FLOPPY_DEBUG
-			write_log(_T("Floppy%d format MF=%d N=%d:SC=%d:GPL=%d:D=%d\n"),
-				floppy_num, (floppy_cmd[0] & 0x40) ? 1 : 0,
-				floppy_cmd[2], floppy_cmd[3], floppy_cmd[4], floppy_cmd[5]);
-			write_log(_T("DMA addr %08x len %04x\n"), dma[2].page | dma[2].ac, dma[2].cb);
-			write_log(_T("IMG: Secs=%d Heads=%d\n"), fr.secs, fr.heads);
-#endif
-			int secs = floppy_cmd[3];
-			if (valid_floppy && fr.img) {
-				// TODO: CHRN values totally ignored
-				pcf->head = (floppy_cmd[1] & 4) ? 1 : 0;
-				uae_u8 buf[512];
-				memset(buf, floppy_cmd[5], sizeof buf);
-				for (int i = 0; i < secs && i < fr.secs && !fr.wrprot; i++) {
-					uae_u8 cx = dma_channel_read(2);
-					uae_u8 hx = dma_channel_read(2);
-					uae_u8 rx = dma_channel_read(2);
-					uae_u8 nx = dma_channel_read(2);
-					pcf->sector = rx - 1;
-#if FLOPPY_DEBUG
-					write_log(_T("Floppy%d %d/%d: C=%d H=%d R=%d N=%d\n"), floppy_num, i, fr.secs, cx, hx, rx, nx);
-#endif
-					zfile_fseek(fr.img, (pcf->cyl * fr.secs * fr.heads + pcf->head * fr.secs + pcf->sector) * 512, SEEK_SET);
-					zfile_fwrite(buf, 1, 512, fr.img);
-					pcf->sector++;
-				}
-			} else {
-				floppy_status[0] |= 0x40; // abnormal termination
-				floppy_status[0] |= 0x10; // equipment check
-			}
-			floppy_cmd_len = 7;
-			if (fr.wrprot) {
-				floppy_status[0] |= 0x40; // abnormal termination
-				floppy_status[1] |= 0x02; // not writable
-			}
-			floppy_result[0] = floppy_status[0];
-			floppy_result[1] = floppy_status[1];
-			floppy_result[2] = floppy_status[2];
-			floppy_result[3] = pcf->cyl;
-			floppy_result[4] = pcf->head;
-			floppy_result[5] = pcf->sector + 1;
-			floppy_result[6] = floppy_cmd[2];
-			floppy_delay_hsync = 10;
-			disk_reserved_setinfo(floppy_num, pcf->cyl, pcf->head, 1);
+			floppy_format(xb, true);
 		}
 		break;
 
@@ -1169,62 +1242,96 @@ static void outfloppy(struct x86_bridge *xb, int portnum, uae_u8 v)
 		}
 		break;
 		case 0x3f5: // data reg
-		floppy_cmd[floppy_idx] = v;
-		if (floppy_idx == 0) {
-			floppy_cmd_len = -1;
-			switch(v & 31)
-			{
-				case 3: // specify
-				floppy_cmd_len = 3;
-				break;
-				case 4: // sense drive status
-				floppy_cmd_len = 2;
-				break;
-				case 5: // write data
-				floppy_cmd_len = 9;
-				break;
-				case 6: // read data
-				floppy_cmd_len = 9;
-				break;
-				case 7: // recalibrate
-				floppy_cmd_len = 2;
-				break;
-				case 8: // sense interrupt status
-				floppy_cmd_len = 1;
-				break;
-				case 10: // read id
-				floppy_cmd_len = 2;
-				break;
-				case 12: // perpendiculaor mode
-				if (xb->type < 0) {
+		if (floppy_pio_len > 0 && floppy_pio_cnt < floppy_pio_len && floppy_pio_active) {
+			floppy_pio_buffer[floppy_pio_cnt++] = v;
+			if (floppy_pio_cnt >= floppy_pio_len) {
+				floppy_pio_cnt = 0;
+				floppy_pio_active = 0;
+				floppy_clear_irq();
+				floppy_do_cmd(xb);
+				floppy_pio_cnt = 0;
+				floppy_pio_len = 0;
+			}
+		} else {
+			floppy_cmd[floppy_idx] = v;
+			if (floppy_idx == 0) {
+				floppy_cmd_len = -1;
+				switch(v & 31)
+				{
+					case 3: // specify
+					floppy_cmd_len = 3;
+					break;
+					case 4: // sense drive status
 					floppy_cmd_len = 2;
+					break;
+					case 5: // write data
+					floppy_cmd_len = 9;
+					break;
+					case 6: // read data
+					floppy_cmd_len = 9;
+					break;
+					case 7: // recalibrate
+					floppy_cmd_len = 2;
+					break;
+					case 8: // sense interrupt status
+					floppy_cmd_len = 1;
+					break;
+					case 10: // read id
+					floppy_cmd_len = 2;
+					break;
+					case 12: // perpendiculaor mode
+					if (xb->type < 0) {
+						floppy_cmd_len = 2;
+					}
+					break;
+					case 13: // format track
+					floppy_cmd_len = 6;
+					break;
+					case 15: // seek
+					floppy_cmd_len = 3;
+					break;
+					case 16: // get versionm
+					if (xb->type < 0) {
+						floppy_cmd_len = 1;
+					}
+					break;
+					case 19: // configure
+					if (xb->type < 0) {
+						floppy_cmd_len = 4;
+					}
+					break;
 				}
-				break;
-				case 13: // format track
-				floppy_cmd_len = 6;
-				break;
-				case 15: // seek
-				floppy_cmd_len = 3;
-				break;
-				case 16: // get versionm
-				if (xb->type < 0) {
+				if (floppy_cmd_len < 0) {
+					write_log(_T("Floppy unimplemented command %02x\n"), v);
 					floppy_cmd_len = 1;
 				}
-				break;
-				case 19: // configure
-				if (xb->type < 0) {
-					floppy_cmd_len = 4;
+			}
+			floppy_idx++;
+			if (floppy_idx >= floppy_cmd_len) {
+				if (floppy_specify_pio && (floppy_cmd[0] & 31) == 5) {
+					floppy_write(xb, false);
+					floppy_pio_cnt = 0;
+					floppy_pio_active = 0;
+					if (floppy_pio_len > 0) {
+						floppy_delay_hsync = 10;
+						floppy_pio_active = 1;
+					} else {
+						floppy_write(xb, true);
+					}
+				} else if (floppy_specify_pio && (floppy_cmd[0] & 31) == 13) {
+					floppy_format(xb, false);
+					floppy_pio_cnt = 0;
+					floppy_pio_active = 0;
+					if (floppy_pio_len > 0) {
+						floppy_delay_hsync = 10;
+						floppy_pio_active = 1;
+					} else {
+						floppy_format(xb, true);
+					}
+				} else {
+					floppy_do_cmd(xb);
 				}
-				break;
 			}
-			if (floppy_cmd_len < 0) {
-				write_log(_T("Floppy unimplemented command %02x\n"), v);
-				floppy_cmd_len = 1;
-			}
-		}
-		floppy_idx++;
-		if (floppy_idx >= floppy_cmd_len) {
-			floppy_do_cmd(xb);
 		}
 		break;
 		case 0x3f7: // configuration control
@@ -1276,9 +1383,9 @@ static uae_u8 infloppy(struct x86_bridge *xb, int portnum)
 		v = 0;
 		if (!floppy_delay_hsync && (floppy_dpc & 4))
 			v |= 0x80;
-		if (floppy_idx || floppy_delay_hsync || floppy_pio_len) {
+		if (floppy_idx || floppy_delay_hsync || floppy_pio_active) {
 			v |= 0x10;
-			if (floppy_pio_len)
+			if (floppy_pio_active)
 				v |= 0x20;
 		}
 		if ((v & 0x80) && floppy_dir)
@@ -1293,6 +1400,7 @@ static uae_u8 infloppy(struct x86_bridge *xb, int portnum)
 			v = floppy_pio_buffer[floppy_pio_cnt++];
 			if (floppy_pio_cnt >= floppy_pio_len) {
 				floppy_pio_len = 0;
+				floppy_pio_active = 0;
 				floppy_clear_irq();
 				floppy_delay_hsync = 50;
 			}
@@ -1335,10 +1443,11 @@ static uae_u8 infloppy(struct x86_bridge *xb, int portnum)
 	return v;
 }
 
-uae_u16 floppy_get_raw_data(void)
+uae_u16 floppy_get_raw_data(int *rate)
 {
 	struct floppy_reserved fr = { 0 };
 	bool valid_floppy = disk_reserved_getinfo(floppy_num, &fr);
+	*rate = fr.rate;
 	if (valid_floppy) {
 		return DSKBYTR_fake(fr.num);
 	}

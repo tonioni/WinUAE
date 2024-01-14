@@ -25,6 +25,8 @@
     Bits 0 - 1 = scan code set. */
 uint8_t keyboard_mode = 0x02;
 
+extern void write_log(const char *, ...);
+
 void draco_kdb_queue_add(void *d, uint8_t val, int state);
 
 void kbc_at_dev_reset(void *d, int r)
@@ -32,6 +34,12 @@ void kbc_at_dev_reset(void *d, int r)
 }
 void keyboard_at_log(const char *txt, ...)
 {
+    char buffer[256];
+    va_list parms;
+    va_start(parms, txt);
+    vsprintf(buffer, txt, parms);
+    write_log(buffer);
+    va_end(parms);
 }
 void fatalx(const char *txt, ...)
 {
@@ -1155,6 +1163,13 @@ draco_key_process(uint16_t scan, int down)
 void *draco_keyboard_init(void)
 {
     draco_kbd.type = 10;
+    draco_kbd.name = "draco";
     memset(oldkey, 0, sizeof(oldkey));
+    keyboard_at_set_defaults(&draco_kbd);
     return &draco_kbd;
+}
+
+int draco_keyboard_get_rate(void)
+{
+    return draco_kbd.rate;
 }

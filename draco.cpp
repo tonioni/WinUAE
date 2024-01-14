@@ -20,6 +20,7 @@
 #include "zfile.h"
 #include "keybuf.h"
 #include "rommgr.h"
+#include "disk.h"
 
 static int maxcnt = 100;
 
@@ -650,43 +651,56 @@ static void draco_1wire_reset(void)
 #endif
 }
 
+static uae_u16 draco_floppy_data;
+static int draco_floppy_bits, draco_floppy_rate;
+
 // draco reads amiga disks by polling register
 // that returns time since last flux change.
 static uae_u8 draco_floppy_get_data(void)
 {
-	static uae_u16 data;
-	static int bits;
-	if (bits < 8) {
-		uae_u16 t = floppy_get_raw_data();
-		data |= (t & 0xff) << (8 - bits);
-		bits += 8;
+	if (draco_floppy_bits < 8) {
+		uae_u16 t = floppy_get_raw_data(&draco_floppy_rate);
+		draco_floppy_data |= (t & 0xff) << (8 - draco_floppy_bits);
+		draco_floppy_bits += 8;
 	}
-	int bit1 = (data & 0x8000);
-	int bit2 = (data & 0x4000);
-	int bit3 = (data & 0x2000);
-	int bit4 = (data & 0x1000);
+	int bit1 = (draco_floppy_data & 0x8000);
+	int bit2 = (draco_floppy_data & 0x4000);
+	int bit3 = (draco_floppy_data & 0x2000);
+	int bit4 = (draco_floppy_data & 0x1000);
+	int v = 0;
 
 	if (bit1) {
-		data <<= 1;
-		bits--;
-		return 8;
+		draco_floppy_data <<= 1;
+		draco_floppy_bits--;
+		v = 8;
+	} else if (bit2) {
+		draco_floppy_data <<= 2;
+		draco_floppy_bits -= 2;
+		v = 24;
+	} else if (bit3) {
+		draco_floppy_data <<= 3;
+		draco_floppy_bits -= 3;
+		v = 40;
+	} else if (bit4) {
+		draco_floppy_data <<= 4;
+		draco_floppy_bits -= 4;
+		v = 56;
 	}
-	if (bit2) {
-		data <<= 2;
-		bits -= 2;
-		return 24;
+	switch (draco_floppy_rate) {
+		case FLOPPY_RATE_250K:
+			// above values are in 250Kbs
+			break;
+		case FLOPPY_RATE_500K:
+			v /= 2;
+			break;
+		case FLOPPY_RATE_300K:
+			v = v * 30 / 25;
+			break;
+		case FLOPPY_RATE_1M:
+			v /= 4;
+			break;
 	}
-	if (bit3) {
-		data <<= 3;
-		bits -= 3;
-		return 40;
-	}
-	if (bit4) {
-		data <<= 4;
-		bits -= 4;
-		return 56;
-	}
-	return 0;
+	return v;
 }
 
 static void vmotion_write(uaecptr addr, uae_u8 v)
@@ -1184,7 +1198,7 @@ void draco_ext_interrupt(bool i6)
 	draco_irq();
 }
 
-void draco_keycode(uae_u8 scancode, uae_u8 state)
+void draco_keycode(uae_u16 scancode, uae_u8 state)
 {
 	if (currprefs.cs_compatible == CP_DRACO && (currprefs.cpuboard_settings & 0x10)) {
 		if (draco_kbd_buffer_len == 0 && !(draco_reg[3] & DRSTAT_KBDRECV)) {
@@ -1300,6 +1314,8 @@ void draco_reset(int hardreset)
 	draco_superio_cfg[6] = 0xff;
 	draco_superio_cfg[13] = 0x65;
 	draco_superio_cfg[14] = 1;
+	draco_floppy_data = 0;
+	draco_floppy_bits = 0;
 	memset(draco_reg, 0, sizeof(draco_reg));
 	draco_reg[1] = DRCNTRL_FDCINTENA | DRCNTRL_KBDINTENA;
 	draco_reg[5] = 0xff;
