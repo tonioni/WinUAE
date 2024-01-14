@@ -298,14 +298,21 @@ static int ahi_init_record_win32 (void)
 	return 1;
 }
 
-void setvolume_ahi (LONG vol)
+void setvolume_ahi(LONG volume)
 {
 	HRESULT hr;
+
 	if (!lpDS2)
 		return;
-	hr = IDirectSoundBuffer_SetVolume (lpDSB2, vol);
-	if (FAILED (hr))
-		write_log (_T("AHI: SetVolume(%d) failed: %s\n"), vol, DXError (hr));
+
+	float adjvol = (100.0f - currprefs.sound_volume_board) * (100.0f - volume) / 100.0f;
+	LONG vol = DSBVOLUME_MIN;
+	if (adjvol > 0) {
+		vol = (LONG)((DSBVOLUME_MIN / 2) + (-DSBVOLUME_MIN / 2) * log(1 + (2.718281828 - 1) * (adjvol / 100.0)));
+	}
+	hr = IDirectSoundBuffer_SetVolume(lpDSB2, vol);
+	if (FAILED(hr))
+		write_log(_T("AHI: SetVolume(%d) failed: %s\n"), vol, DXError (hr));
 }
 
 static int ahi_init_sound_win32 (void)
