@@ -589,6 +589,20 @@ static void floppy_reset(void)
 	floppy_dir = 0;
 	floppy_did_reset = true;
 	floppy_specify_pio = false;
+	floppy_pio_active = 0;
+	floppy_dpc = 0;
+	floppy_cmd_len = 0;
+	floppy_num = 0;
+	floppy_delay_hsync = 0;
+	floppy_irq = false;
+	floppy_pio_len = 0;
+	floppy_pio_cnt = 0;
+	floppy_rate = 0;
+	for (int i = 0; i < 4; i++) {
+		floppy_seeking[i] = 0;
+		floppy_seekcyl[i] = 0;
+	}
+
 	if (xb->type == TYPE_2286) {
 		// apparently A2286 BIOS AT driver assumes
 		// floppy reset also resets IDE.
@@ -633,11 +647,6 @@ static void do_floppy_seek(int num, int error)
 		struct floppy_reserved fr = { 0 };
 		bool valid_floppy = disk_reserved_getinfo(num, &fr);
 		if (floppy_seekcyl[num] != pcf->phys_cyl) {
-
-			if (!valid_floppy || !fr.img) {
-				error = 1;
-				goto done;
-			}
 
 			pcf->disk_changed = false;
 
