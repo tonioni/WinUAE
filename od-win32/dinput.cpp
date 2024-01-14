@@ -4449,6 +4449,11 @@ static int nextsub(struct uae_input_device *uid, int i, int slot, int sub)
 	return sub;
 }
 
+static bool isemptyslot(struct uae_input_device *uid, int i, int slot, int sub, int port)
+{
+	return uid[i].eventid[slot][sub] == 0;
+}
+
 static void setid (struct uae_input_device *uid, int i, int slot, int sub, int port, int evt, bool gp)
 {
 	sub = nextsub(uid, i, slot, sub);
@@ -4580,8 +4585,9 @@ int input_get_default_joystick (struct uae_input_device *uid, int i, int port, i
 			if (isrealbutton (did, 2))
 				setid (uid, i, ID_BUTTON_OFFSET + 2, 0, port, port ? INPUTEVENT_JOY2_3RD_BUTTON : INPUTEVENT_JOY1_3RD_BUTTON, gp);
 		}
-		if (isrealbutton(did, 3))
+		if (isrealbutton(did, 3) && isemptyslot(uid, i, ID_BUTTON_OFFSET + 3, 0, port)) {
 			setid(uid, i, ID_BUTTON_OFFSET + 3, 0, port, INPUTEVENT_SPC_OSK, gp);
+		}
 	}
 
 	for (j = 2; j < MAX_MAPPINGS - 1; j++) {
@@ -4637,7 +4643,7 @@ int input_get_default_joystick_analog (struct uae_input_device *uid, int i, int 
 		setid(uid, i, ID_BUTTON_OFFSET + 2, 0, port, port ? INPUTEVENT_JOY2_UP : INPUTEVENT_JOY1_UP, gp);
 	if (isrealbutton(did, 3))
 		setid(uid, i, ID_BUTTON_OFFSET + 3, 0, port, port ? INPUTEVENT_JOY2_DOWN : INPUTEVENT_JOY1_DOWN, gp);
-	if (isrealbutton(did, 4))
+	if (isrealbutton(did, 4) && isemptyslot(uid, i, ID_BUTTON_OFFSET + 4, 0, port))
 		setid(uid, i, ID_BUTTON_OFFSET + 4, 0, port, INPUTEVENT_SPC_OSK, gp);
 
 	for (j = 2; j < MAX_MAPPINGS - 1; j++) {
