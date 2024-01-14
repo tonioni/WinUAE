@@ -1268,7 +1268,7 @@ void regsetfont(UAEREG *reg, const TCHAR *prefix, const TCHAR *name, const TCHAR
 	TCHAR tmp[256], tmp2[256];
 
 	_stprintf(tmp, _T("%s:%d:%d:%d"), fontname, fontsize, fontstyle, fontweight);
-	_stprintf(tmp2, _T("%s%s"), name, prefix);
+	_stprintf(tmp2, _T("%s%s"), name, prefix ? prefix : _T(""));
 	regsetstr(reg, tmp2, tmp);
 }
 bool regqueryfont(UAEREG *reg, const TCHAR *prefix, const TCHAR *name, TCHAR *fontname, int *pfontsize, int *pfontstyle, int *pfontweight)
@@ -1356,9 +1356,11 @@ int scaleresource_choosefont(HWND hDlg, int fonttype)
 	TCHAR *fontname[3];
 	int *fontsize[3], *fontstyle[3], *fontweight[3];
 	int lm = 72;
+	const TCHAR *prefix = fontprefix;
 
 	if (fonttype == 2) {
 		regqueryfont(NULL, NULL, fontreg[2], fontname_osd, &fontsize_osd, &fontstyle_osd, &fontweight_osd);
+		prefix = NULL;
 	}
 
 	fontname[0] = fontname_gui;
@@ -1401,7 +1403,7 @@ int scaleresource_choosefont(HWND hDlg, int fonttype)
 
 	*fontweight[fonttype] = lf.lfWeight;
 
-	regsetfont(NULL, fontprefix, fontreg[fonttype], fontname[fonttype], *fontsize[fonttype], *fontstyle[fonttype], *fontweight[fonttype]);
+	regsetfont(NULL, prefix, fontreg[fonttype], fontname[fonttype], *fontsize[fonttype], *fontstyle[fonttype], *fontweight[fonttype]);
 
 	return 1;
 }
