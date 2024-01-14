@@ -2132,17 +2132,17 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 
 	for (i = 0; i < MAX_LUA_STATES; i++) {
 		if (p->luafiles[i][0]) {
-			cfgfile_write_str (f, _T("lua"), p->luafiles[i]);
+			cfgfile_write_path2(f, _T("lua"), p->luafiles[i], PATH_NONE);
 		}
 	}
 
 	if (p->trainerfile[0])
-		cfgfile_write_str(f, _T("trainerfile"), p->trainerfile);
+		cfgfile_write_path2(f, _T("trainerfile"), p->trainerfile, PATH_NONE);
 
 	if (p->statefile[0])
-		cfgfile_write_str (f, _T("statefile"), p->statefile);
+		cfgfile_write_path2(f, _T("statefile"), p->statefile, PATH_NONE);
 	if (p->quitstatefile[0])
-		cfgfile_write_str (f, _T("statefile_quit"), p->quitstatefile);
+		cfgfile_write_path2(f, _T("statefile_quit"), p->quitstatefile, PATH_NONE);
 
 	cfgfile_write (f, _T("nr_floppies"), _T("%d"), p->nr_floppies);
 	cfgfile_dwrite_bool (f, _T("floppy_write_protect"), p->floppy_read_only);
@@ -4320,7 +4320,7 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 	if (cfgfile_path(option, value, _T("trainerfile"), p->trainerfile, sizeof p->trainerfile / sizeof(TCHAR)))
 		return 1;
 
-	if (cfgfile_path (option, value, _T("statefile_quit"), p->quitstatefile, sizeof p->quitstatefile / sizeof (TCHAR)))
+	if (cfgfile_path(option, value, _T("statefile_quit"), p->quitstatefile, sizeof p->quitstatefile / sizeof (TCHAR)))
 		return 1;
 
 	if (cfgfile_string (option, value, _T("statefile_name"), tmpbuf, sizeof tmpbuf / sizeof (TCHAR))) {
@@ -4331,7 +4331,7 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 		return 1;
 	}
 
-	if (cfgfile_path (option, value, _T("statefile"), tmpbuf, sizeof tmpbuf / sizeof (TCHAR))) {
+	if (cfgfile_path(option, value, _T("statefile"), tmpbuf, sizeof tmpbuf / sizeof (TCHAR))) {
 		_tcscpy (p->statefile, tmpbuf);
 		_tcscpy (savestate_fname, tmpbuf);
 		if (zfile_exists (savestate_fname)) {
