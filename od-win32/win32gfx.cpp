@@ -2126,6 +2126,9 @@ int check_prefs_changed_gfx(void)
 	if (!config_changed && !display_change_requested)
 		return 0;
 
+	c |= config_changed_flags;
+	config_changed_flags = 0;
+
 	c |= currprefs.win32_statusbar != changed_prefs.win32_statusbar ? 512 : 0;
 
 	for (int i = 0; i < MAX_AMIGADISPLAYS; i++) {

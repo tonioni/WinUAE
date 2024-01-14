@@ -9899,9 +9899,13 @@ void cfgfile_get_shader_config(struct uae_prefs *p, int rtg)
 }
 #endif
 
-void set_config_changed (void)
+void set_config_changed(int flags)
 {
+	if (!config_changed) {
+		config_changed_flags = 0;
+	}
 	config_changed = 1;
+	config_changed_flags |= flags;
 }
 
 void config_check_vsync (void)
@@ -9914,8 +9918,10 @@ void config_check_vsync (void)
 		}
 #endif
 		config_changed++;
-		if (config_changed >= 3)
+		if (config_changed >= 3) {
 			config_changed = 0;
+			config_changed_flags = 0;
+		}
 	}
 }
 

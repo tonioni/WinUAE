@@ -57,7 +57,7 @@
 long int version = 256 * 65536L * UAEMAJOR + 65536L * UAEMINOR + UAESUBREV;
 
 struct uae_prefs currprefs, changed_prefs;
-int config_changed;
+int config_changed, config_changed_flags;
 
 bool no_gui = 0, quit_to_gui = 0;
 bool cloanto_rom = 0;

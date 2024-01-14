@@ -20398,7 +20398,7 @@ static const int filtertypes[] = {
 	0, 0, 0, 0,
 	-1
 };	
-static void *filtervars[] = {
+static void *filtervars_wp[] = {
 	&workprefs.gf[0].gfx_filter, &workprefs.gf[0].gfx_filter_filtermodeh,
 	&workprefs.gf[0].gfx_filter_vert_zoom, &workprefs.gf[0].gfx_filter_horiz_zoom,
 	&workprefs.gf[0].gfx_filter_vert_zoom_mult, &workprefs.gf[0].gfx_filter_horiz_zoom_mult,
@@ -20415,7 +20415,7 @@ static void *filtervars[] = {
 	&workprefs.gf[0].gfx_filter_left_border, &workprefs.gf[0].gfx_filter_right_border, &workprefs.gf[0].gfx_filter_top_border, &workprefs.gf[0].gfx_filter_bottom_border,
 	NULL
 };
-static void *filtervars2[] = {
+static void *filtervars_cp[] = {
 	NULL, &currprefs.gf[0].gfx_filter_filtermodeh,
 	&currprefs.gf[0].gfx_filter_vert_zoom, &currprefs.gf[0].gfx_filter_horiz_zoom,
 	&currprefs.gf[0].gfx_filter_vert_zoom_mult, &currprefs.gf[0].gfx_filter_horiz_zoom_mult,
@@ -20912,7 +20912,7 @@ static void filter_preset (HWND hDlg, WPARAM wParam)
 			ok = 1;
 	} else {
 		TCHAR *p = tmp2;
-		for (i = 0; filtervars[i]; i++) {
+		for (i = 0; filtervars_wp[i]; i++) {
 			if (i > 0) {
 				_tcscat (p, _T(","));
 				p++;
@@ -20925,15 +20925,15 @@ static void filter_preset (HWND hDlg, WPARAM wParam)
 
 	if (wParam == IDC_FILTERPRESETSAVE && userfilter && fkey) {
 		TCHAR *p = tmp2;
-		for (i = 0; filtervars[i]; i++) {
+		for (i = 0; filtervars_wp[i]; i++) {
 			if (i > 0) {
 				_tcscat (p, _T(","));
 				p++;
 			}
 			if (filtertypes[i])
-				_stprintf (p, _T("%f"), *((float*)filtervars[i]));
+				_stprintf (p, _T("%f"), *((float*)filtervars_wp[i]));
 			else
-				_stprintf (p, _T("%d"), *((int*)filtervars[i]));
+				_stprintf (p, _T("%d"), *((int*)filtervars_wp[i]));
 			p += _tcslen (p);
 		}
 		if (ok == 0) {
@@ -20957,16 +20957,16 @@ static void filter_preset (HWND hDlg, WPARAM wParam)
 			_tcscat (s, _T(","));
 			t = _tcschr (s, ',');
 			*t++ = 0;
-			for (i = 0; filtervars[i]; i++) {
+			for (i = 0; filtervars_wp[i]; i++) {
 				if (filtertypes[i])
-					*((float*)filtervars[i]) = (float)_tstof (s);
+					*((float*)filtervars_wp[i]) = (float)_tstof (s);
 				else
-					*((int*)filtervars[i]) = _tstol (s);
-				if (filtervars2[i]) {
+					*((int*)filtervars_wp[i]) = _tstol (s);
+				if (filtervars_cp[i]) {
 					if (filtertypes[i])
-						*((float*)filtervars2[i]) = *((float*)filtervars[i]);
+						*((float*)filtervars_cp[i]) = *((float*)filtervars_wp[i]);
 					else
-						*((int*)filtervars2[i]) = *((int*)filtervars[i]);
+						*((int*)filtervars_cp[i]) = *((int*)filtervars_wp[i]);
 				}
 				s = t;
 				t = _tcschr (s, ',');
@@ -20974,6 +20974,7 @@ static void filter_preset (HWND hDlg, WPARAM wParam)
 					break;
 				*t++ = 0;
 			}
+			set_config_changed(4);
 		}
 	}
 end:

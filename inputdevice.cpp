@@ -4254,6 +4254,7 @@ int handle_custom_event (const TCHAR *custom, int append)
 		}
 		if (!_tcsicmp (p, _T("no_config_check"))) {
 			config_changed = 0;
+			config_changed_flags = 0;
 			maybe_config_changed = false;
 		} else if (!_tcsicmp (p, _T("do_config_check"))) {
 			set_config_changed ();
