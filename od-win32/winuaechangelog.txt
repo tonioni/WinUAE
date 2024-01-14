@@ -1,4 +1,17 @@
 
+Beta 4:
+
+- Changing OSD font when in full-window or fullscreen mode saved it incorrectly and nothing changed.
+- DraCo Amiga HD disks supported. Note that DraCo hardware does not support writing to Amiga formatted floppies. It is CPU polled read only.
+- DraCo PC floppy writing and formatting implemented (Required PIO support which original Bridgeboard emulation didn't need or use)
+- DraCo PC keyboard right shift key code fixed. DraCo PC keyboard repeat implemented.
+- UAE AHI ignored AHI volume slider setting. Also master volume was not converted to correct DS API volume range that AHI driver uses. (Paula DSound mode had different master volume than UAE AHI volume)
+- Some config file paths (for example "statefile") was not saved as a path but as a string. Saving as a path automatically converts between absolute and relative paths.
+- "Warp mode reset" on the fly change was not possible. (I always forgot this when adding new Misc panel option..)
+- Loading filter presets that changed line doubling mode would not reset the display completely, leaving weird doubled or half-size image visible.
+- Game Ports panel default config overrode button 4 with OSK enable/disable option even if it was already configured in Input panel.
+- SX32Pro memory mapping fixed, bumped max memory from 64M to 128M.
+
 Beta 3:
 
 - Added GVP A1230 Turbo+ II (Jaws II) v5.3 ROM.
