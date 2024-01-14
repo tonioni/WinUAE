@@ -23,6 +23,6 @@ uae_u8 x86_infloppy(int portnum);
 void x86_outfloppy(int portnum, uae_u8 v);
 void x86_initfloppy(X86_INTERRUPT_CALLBACK);
 void x86_floppy_run(void);
-uae_u16 floppy_get_raw_data(void);
+uae_u16 floppy_get_raw_data(int*);
 
 #endif /* UAE_X86_H */
