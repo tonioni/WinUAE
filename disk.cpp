@@ -1572,7 +1572,7 @@ static int drive_insert (drive *drv, struct uae_prefs *p, int dnum, const TCHAR 
 		size == 9 * 81 * 1 * 512 || size == 18 * 81 * 1 * 512 || size == 10 * 81 * 1 * 512 || size == 20 * 81 * 1 * 512 ||
 		size == 9 * 82 * 1 * 512 || size == 18 * 82 * 1 * 512 || size == 10 * 82 * 1 * 512 || size == 20 * 82 * 1 * 512)) {
 		/* PC formatted image */
-		int side, sd;
+		int heads, sd;
 
 		drv->num_secs = 9;
 		drv->ddhd = 1;
@@ -1582,41 +1582,41 @@ static int drive_insert (drive *drv, struct uae_prefs *p, int dnum, const TCHAR 
 		bool can80 = dfxtype == DRV_35_DD || dfxtype == DRV_35_DD_ESCOM  || dfxtype == DRV_35_HD || dfxtype == DRV_PC_35_ONLY_80 || dfxtype == DRV_PC_525_40_80;
 		bool drv525 = dfxtype == DRV_525_DD || dfxtype == DRV_PC_525_ONLY_40 || dfxtype == DRV_PC_525_40_80;
 
-		for (side = 2; side > 0; side--) {
+		for (heads = 2; heads > 0; heads--) {
 			if (drv->hard_num_cyls >= 80 && can80) {
-				if (size == 9 * 80 * side * 512 || size == 9 * 81 * side * 512 || size == 9 * 82 * side * 512) {
+				if (size == 9 * 80 * heads * 512 || size == 9 * 81 * heads * 512 || size == 9 * 82 * heads * 512) {
 					drv->num_secs = 9;
 					drv->ddhd = 1;
 					break;
-				} else if (!drv525 && (size == 18 * 80 * side * 512 || size == 18 * 81 * side * 512 || size == 18 * 82 * side * 512)) {
+				} else if (!drv525 && (size == 18 * 80 * heads * 512 || size == 18 * 81 * heads * 512 || size == 18 * 82 * heads * 512)) {
 					drv->num_secs = 18;
 					drv->ddhd = 2;
 					break;
-				} else if (!drv525 && (size == 10 * 80 * side * 512 || size == 10 * 81 * side * 512 || size == 10 * 82 * side * 512)) {
+				} else if (!drv525 && (size == 10 * 80 * heads * 512 || size == 10 * 81 * heads * 512 || size == 10 * 82 * heads * 512)) {
 					drv->num_secs = 10;
 					drv->ddhd = 1;
 					break;
-				} else if (!drv525 && (size == 20 * 80 * side * 512 || size == 20 * 81 * side * 512 || size == 20 * 82 * side * 512)) {
+				} else if (!drv525 && (size == 20 * 80 * heads * 512 || size == 20 * 81 * heads * 512 || size == 20 * 82 * heads * 512)) {
 					drv->num_secs = 20;
 					drv->ddhd = 2;
 					break;
-				} else if (!drv525 && (size == 21 * 80 * side * 512 || size == 21 * 81 * side * 512 || size == 21 * 82 * side * 512)) {
+				} else if (!drv525 && (size == 21 * 80 * heads * 512 || size == 21 * 81 * heads * 512 || size == 21 * 82 * heads * 512)) {
 					drv->num_secs = 21;
 					drv->ddhd = 2;
 					break;
-				} else if (size == 15 * 80 * side * 512) {
+				} else if (size == 15 * 80 * heads * 512) {
 					drv->num_secs = 15;
 					drv->ddhd = 1;
 					break;
 				}
 			}
 			if (drv->hard_num_cyls == 40 || can40) {
-				if (size == 9 * 40 * side * 512) {
+				if (size == 9 * 40 * heads * 512) {
 					drv->num_secs = 9;
 					drv->ddhd = 1;
 					sd = 1;
 					break;
-				} else if (size == 8 * 40 * side * 512) {
+				} else if (size == 8 * 40 * heads * 512) {
 					drv->num_secs = 8;
 					drv->ddhd = 1;
 					sd = 1;
@@ -1641,7 +1641,7 @@ static int drive_insert (drive *drv, struct uae_prefs *p, int dnum, const TCHAR 
 			tid->len = 512 * drv->num_secs;
 			tid->bitlen = 0;
 			tid->offs = (sd ? i / 2 : i) * 512 * drv->num_secs;
-			if (side == 1) {
+			if (heads == 1) {
 				tid++;
 				tid->type = TRACK_NONE;
 				tid->len = 512 * drv->num_secs;
@@ -1650,8 +1650,8 @@ static int drive_insert (drive *drv, struct uae_prefs *p, int dnum, const TCHAR 
 			tid++;
 
 		}
-		drv->num_heads = side;
-		if (side == 1)
+		drv->num_heads = heads;
+		if (heads == 1)
 			drv->num_tracks *= 2;
 
 	} else if ((size == 262144 || size == 524288) && buffer[0] == 0x11 && (buffer[1] == 0x11 || buffer[1] == 0x14)) {
