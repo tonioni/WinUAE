@@ -6896,7 +6896,7 @@ static const struct cpuboardsubtype dceboard_sub[] = {
 		ROMTYPE_CB_SX32PRO, 0, 3,
 		NULL, 0,
 		BOARD_MEMORY_CUSTOM_32,
-		64 * 1024 * 1024
+		128 * 1024 * 1024
 	},
 	{
 		_T("Typhoon MK2"),
