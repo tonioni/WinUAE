@@ -893,7 +893,7 @@ UAEREG *read_disk_history (int type)
 		if (_tcslen (tmp) == 7) {
 			idx2 = _tstol (tmp + 5) - 1;
 			if (idx2 >= 0)
-				DISK_history_add (tmp2, idx2, type, type != HISTORY_FLOPPY && type != HISTORY_CD);
+				DISK_history_add (tmp2, idx2, type, 1);
 		}
 		idx++;
 	}
@@ -1765,8 +1765,6 @@ static int addrom (UAEREG *fkey, struct romdata *rd, const TCHAR *name)
 	pathname[0] = 0;
 	if (name) {
 		_tcscpy (pathname, name);
-		if (getregmode ())
-			abspathtorelative (pathname);
 	}
 	if (rd->crc32 == 0xffffffff) {
 		if (rd->configname)
@@ -1789,6 +1787,7 @@ static int addrom (UAEREG *fkey, struct romdata *rd, const TCHAR *name)
 				return 1;
 		}
 	}
+	fullpath(pathname, sizeof(pathname) / sizeof(TCHAR));
 	if (pathname[0]) {
 		_tcscat(tmp2, _T(" / \""));
 		_tcscat(tmp2, pathname);
@@ -12960,21 +12959,12 @@ static void values_to_miscdlg (HWND hDlg)
 	}
 }
 
-static void setstatefilename (HWND hDlg)
+static void addstatefilename(HWND hDlg)
 {
-	TCHAR *s = _tcsrchr (workprefs.statefile, '\\');
-	if (s) {
-		s++;
-	} else {
-		s = _tcsrchr (workprefs.statefile, '/');
-		if (s)
-			s++;
-	}
-	if (!s)
-		s = workprefs.statefile;
-	SetDlgItemText (hDlg, IDC_STATENAME, s);
-	ew (hDlg, IDC_STATECLEAR, workprefs.statefile[0] != 0);
-	setchecked (hDlg, IDC_STATECLEAR, workprefs.statefile[0] != 0);
+	DISK_history_add(workprefs.statefile, -1, HISTORY_STATEFILE, 0);
+	addhistorymenu(hDlg, workprefs.statefile, IDC_STATENAME, HISTORY_STATEFILE, true, -1);
+	ew(hDlg, IDC_STATECLEAR, workprefs.statefile[0] != 0);
+	setchecked(hDlg, IDC_STATECLEAR, workprefs.statefile[0] != 0);
 }
 
 static void getguidefaultsize(int *wp, int *hp)
@@ -13070,8 +13060,7 @@ static INT_PTR MiscDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 		InitializeListView (hDlg);
 		values_to_miscdlg (hDlg);
 		enable_for_miscdlg (hDlg);
-		addhistorymenu(hDlg, NULL, IDC_STATENAME, HISTORY_STATEFILE, true, -1);
-		setstatefilename(hDlg);
+		addstatefilename(hDlg);
 		recursive--;
 		return TRUE;
 
@@ -13165,7 +13154,7 @@ static INT_PTR MiscDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 									}
 								}
 								_tcscpy(workprefs.statefile, savestate_fname);
-								setstatefilename(hDlg);
+								addstatefilename(hDlg);
 							}
 						}
 					}
@@ -13311,7 +13300,7 @@ static INT_PTR MiscDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 		case IDC_STATECLEAR:
 			savestate_initsave (NULL, 0, 0, false);
 			_tcscpy (workprefs.statefile, savestate_fname);
-			setstatefilename (hDlg);
+			addstatefilename (hDlg);
 			break;
 		case IDC_DOSAVESTATE:
 			workprefs.statefile[0] = 0;
@@ -13319,13 +13308,14 @@ static INT_PTR MiscDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 				save_state (savestate_fname, _T("Description!"));
 				_tcscpy (workprefs.statefile, savestate_fname);
 			}
-			setstatefilename (hDlg);
+			addstatefilename (hDlg);
 			break;
 		case IDC_DOLOADSTATE:
 			if (DiskSelection(hDlg, wParam, 10, &workprefs, NULL, NULL)) {
 				savestate_state = STATE_DORESTORE;
+				fullpath(savestate_fname, sizeof(savestate_fname) / sizeof(TCHAR));
 				_tcscpy (workprefs.statefile, savestate_fname);
-				setstatefilename (hDlg);
+				addstatefilename (hDlg);
 			}
 			break;
 		case IDC_INACTIVE_NOJOY:
@@ -14560,7 +14550,7 @@ static void volumeselectdir (HWND hDlg, int newdir, int setout)
 		WIN32GUI_LoadUIString (IDS_SELECTFILESYSROOT, szTitle, MAX_DPATH);
 		if (DirectorySelection (hDlg, &volumeguid, directory_path)) {
 			newdir = 1;
-			DISK_history_add (directory_path, -1, HISTORY_DIR, 1);
+			DISK_history_add (directory_path, -1, HISTORY_DIR, 0);
 			regsetstr (NULL, _T("FilesystemDirectoryPath"), directory_path);
 		}
 	}
@@ -15140,7 +15130,7 @@ static void hardfileselecthdf (HWND hDlg, TCHAR *newpath, bool ask, bool newhd)
 	if (ask) {
 		DiskSelection (hDlg, IDC_PATH_NAME, 2, &workprefs, NULL, newpath);
 		GetDlgItemText (hDlg, IDC_PATH_NAME, current_hfdlg.ci.rootdir, sizeof current_hfdlg.ci.rootdir / sizeof (TCHAR));
-		DISK_history_add(current_hfdlg.ci.rootdir, -1, HISTORY_HDF, 1);
+		DISK_history_add(current_hfdlg.ci.rootdir, -1, HISTORY_HDF, 0);
 	}
 	fullpath (current_hfdlg.ci.rootdir, sizeof current_hfdlg.ci.rootdir / sizeof (TCHAR));
 	if (newhd) {
@@ -15253,7 +15243,7 @@ static INT_PTR CALLBACK TapeDriveSettingsProc (HWND hDlg, UINT msg, WPARAM wPara
 		case IDC_TAPE_SELECT_FILE:
 			DiskSelection (hDlg, IDC_PATH_NAME, 18, &workprefs, NULL, NULL);
 			GetDlgItemText (hDlg, IDC_PATH_NAME, current_tapedlg.ci.rootdir, sizeof current_tapedlg.ci.rootdir / sizeof (TCHAR));
-			DISK_history_add(current_tapedlg.ci.rootdir, -1, HISTORY_TAPE, 1);
+			DISK_history_add(current_tapedlg.ci.rootdir, -1, HISTORY_TAPE, 0);
 			fullpath (current_tapedlg.ci.rootdir, sizeof current_tapedlg.ci.rootdir / sizeof (TCHAR));
 			readonly = !tape_can_write(current_tapedlg.ci.rootdir);
 			ew (hDlg, IDC_TAPE_RW, !readonly);
@@ -15274,7 +15264,7 @@ static INT_PTR CALLBACK TapeDriveSettingsProc (HWND hDlg, UINT msg, WPARAM wPara
 				SetDlgItemText (hDlg, IDC_PATH_NAME, directory_path);
 			}
 			_tcscpy (current_tapedlg.ci.rootdir, directory_path);
-			DISK_history_add(current_tapedlg.ci.rootdir, -1, HISTORY_TAPE, 1);
+			DISK_history_add(current_tapedlg.ci.rootdir, -1, HISTORY_TAPE, 0);
 			readonly = !tape_can_write(current_tapedlg.ci.rootdir);
 			ew (hDlg, IDC_TAPE_RW, !readonly);
 			if (readonly)
@@ -15581,7 +15571,7 @@ static INT_PTR CALLBACK HardfileSettingsProc (HWND hDlg, UINT msg, WPARAM wParam
 		case IDC_FILESYS_SELECTOR:
 			DiskSelection (hDlg, IDC_PATH_FILESYS, 12, &workprefs, NULL, NULL);
 			getcomboboxtext(hDlg, IDC_PATH_FILESYS, current_hfdlg.ci.filesys, sizeof  current_hfdlg.ci.filesys / sizeof(TCHAR));
-			DISK_history_add(current_hfdlg.ci.filesys, -1, HISTORY_FS, 1);
+			DISK_history_add(current_hfdlg.ci.filesys, -1, HISTORY_FS, 0);
 			break;
 		case IDOK:
 			CustomDialogClose(hDlg, -1);
@@ -15634,7 +15624,7 @@ static INT_PTR CALLBACK HardfileSettingsProc (HWND hDlg, UINT msg, WPARAM wParam
 			break;
 		case IDC_PATH_GEOMETRY_SELECTOR:
 			if (DiskSelection (hDlg, IDC_PATH_GEOMETRY, 23, &workprefs, NULL, current_hfdlg.ci.geometry)) {
-				DISK_history_add(current_hfdlg.ci.geometry, -1, HISTORY_GEO, 1);
+				DISK_history_add(current_hfdlg.ci.geometry, -1, HISTORY_GEO, 0);
 				sethardfile(hDlg);
 				updatehdfinfo (hDlg, true, false, false);
 			}
@@ -15903,7 +15893,7 @@ static INT_PTR CALLBACK HarddriveSettingsProc (HWND hDlg, UINT msg, WPARAM wPara
 			case IDC_PATH_GEOMETRY_SELECTOR:
 				if (DiskSelection (hDlg, IDC_PATH_GEOMETRY, 23, &workprefs, NULL, current_hfdlg.ci.geometry)) {
 					getcomboboxtext(hDlg, IDC_PATH_GEOMETRY, current_hfdlg.ci.geometry, sizeof  current_hfdlg.ci.geometry / sizeof(TCHAR));
-					DISK_history_add(current_hfdlg.ci.geometry, -1, HISTORY_GEO, 1);
+					DISK_history_add(current_hfdlg.ci.geometry, -1, HISTORY_GEO, 0);
 					setharddrive(hDlg);
 					updatehdfinfo (hDlg, true, false, true);
 				}
@@ -23716,7 +23706,7 @@ gui_exit:
 		}
 	}
 	if (psresult > 0 && config_pathfilename[0]) {
-		DISK_history_add(config_pathfilename, -1, HISTORY_CONFIGFILE, false);
+		DISK_history_add(config_pathfilename, -1, HISTORY_CONFIGFILE, 0);
 	}
 
 	if (closed) {
