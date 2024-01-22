@@ -2904,9 +2904,16 @@ static void *gd5434_init()
 }
 static void *gd5434_vlb_swapped_init()
 {
-    gd5429_t *gd5429 = (gd5429_t *)cl_init(CL_TYPE_GD5434, "PicccoSD64", -1, 0);
+    gd5429_t *gd5429 = (gd5429_t *)cl_init(CL_TYPE_GD5434, "CL", -1, 0);
     has_vlb = 1;
     gd5429->svga.swaprb = 1;
+    return gd5429;
+}
+static void *gd5434_vlb_init()
+{
+    gd5429_t *gd5429 = (gd5429_t *)cl_init(CL_TYPE_GD5434, "CL", -1, 0);
+    has_vlb = 1;
+    gd5429->svga.swaprb = 0;
     return gd5429;
 }
 static void *gd5446_init()
@@ -3212,6 +3219,19 @@ device_t gd5434_device =
         gd5429_force_redraw,
         gd5429_add_status_info,
         gd5434_config
+};
+
+device_t gd5434_vlb_device =
+{
+    "Cirrus Logic GD5434",
+    0,
+    gd5434_vlb_init,
+    gd5429_close,
+    gd5434_available,
+    gd5429_speed_changed,
+    gd5429_force_redraw,
+    gd5429_add_status_info,
+    gd5434_config
 };
 
 device_t gd5434_vlb_swapped_device =

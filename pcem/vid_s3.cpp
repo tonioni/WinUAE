@@ -2953,6 +2953,22 @@ int s3_phoenix_trio64_available()
 
 #endif
 
+void *s3_trio64_init()
+{
+    s3_t *s3 = (s3_t*)s3_init("86c764x1.bin", S3_TRIO64);
+
+    s3->id = 0xe1; /*Trio64*/
+    s3->id_ext = s3->id_ext_pci = 0x11;
+    s3->packed_mmio = 1;
+
+    s3->getclock = s3_trio64_getclock;
+    s3->getclock_p = s3;
+    s3->svga.fb_only = -1;
+
+    return s3;
+}
+
+
 void *s3_cybervision_init()
 {
     s3_t *s3 = (s3_t*)s3_init("86c764x1.bin", S3_TRIO64);
@@ -3201,6 +3217,19 @@ device_t s3_cybervision_trio64_device =
     "CyberVision64",
     0,
     s3_cybervision_init,
+    s3_close,
+    NULL,
+    s3_speed_changed,
+    s3_force_redraw,
+    s3_add_status_info,
+    NULL
+};
+
+device_t s3_trio64_device =
+{
+    "S3Trio64",
+    0,
+    s3_trio64_init,
     s3_close,
     NULL,
     s3_speed_changed,

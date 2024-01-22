@@ -6,6 +6,7 @@ extern device_t gd5426_device;
 extern device_t gd5428_swapped_device;
 extern device_t gd5426_swapped_device;
 extern device_t gd5434_vlb_swapped_device;
+extern device_t gd5434_vlb_device;
 extern device_t gd5446_device;
 extern device_t ibm_gd5428_device;
 extern device_t gd5429_device;

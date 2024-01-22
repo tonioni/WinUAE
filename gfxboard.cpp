@@ -258,6 +258,13 @@ static const struct gfxboard boards[] =
 		0, 0, NULL, &ncr_retina_z3_device, 0, GFXBOARD_BUSTYPE_DRACO
 	},
 	{
+		GFXBOARD_ID_PIXEL64,
+		_T("Pixel64 [AteoBus]"), _T("Atéo Concepts"), _T("Pixel64"),
+		2026, 255, 254, 0, // 255: type=$c7 flags=$40, 254: type=$c2 flags=$40 128k, 252: type=$c2 flags=$40, 128k
+		0x00000000, 0x00200000, 0x00200000, 0x00400000, CIRRUS_ID_CLGD5434, 2, 0, false, false,
+		0, 0, NULL, &gd5434_vlb_device
+	},
+	{
 		GFXBOARD_ID_HARLEQUIN,
 		_T("Harlequin [Zorro II]"), _T("ACS"), _T("Harlequin_PAL"),
 		2118, 100, 0, 0,
@@ -288,18 +295,18 @@ static const struct gfxboard boards[] =
 		0, 0, NULL, &s3_virge_device, 0, GFXBOARD_BUSTYPE_PCI
 	},
 	{
+		GFXBOARD_ID_S3TRIO64_PCI,
+		_T("Trio64 [PCI]"), _T("S3"), _T("S3TRIO64_PCI"),
+		0, 0, 0, 0,
+		0x00000000, 0x00200000, 0x00400000, 0x10000000, 0, 0, -1, false, false,
+		0, 0, NULL, &s3_trio64_device, 0, GFXBOARD_BUSTYPE_PCI
+	},
+	{
 		GFXBOARD_ID_VGA,
-		_T("x86 bridgeboard VGA [ISA]"), _T("x86"), _T("VGA"),
+		_T("x86 Bridgeboard VGA [ISA]"), _T("x86"), _T("VGA"),
 		0, 0, 0, 0,
 		0x00000000, 0x00100000, 0x00200000, 0x00000000, CIRRUS_ID_CLGD5426, 0, 0, false, false,
 		ROMTYPE_x86_VGA
-	},
-	{
-		GFXBOARD_ID_PIXEL64,
-		_T("Pixel64 [AteoBus]"), _T("Atéo Concepts"), _T("Pixel64"),
-		2026, 255, 254, 0, // 255: type=$c7 flags=$40, 254: type=$c2 flags=$40 128k, 252: type=$c2 flags=$40, 128k
-		0x00000000, 0x00200000, 0x00200000, 0x00400000, CIRRUS_ID_CLGD5434, 2, 0, false, false,
-		0, 0, NULL, &gd5434_vlb_swapped_device
 	},
 	{
 		NULL
@@ -3690,7 +3697,7 @@ static void pci_change_config(struct pci_board_state *pci)
 				reinit_vram(gb, pci->bar[1] + pci->bridge->memory_start_offset, false);
 			}
 		}
-	} else if (gb->rbc->rtgmem_type == GFXBOARD_ID_S3VIRGE_PCI) {
+	} else if (gb->rbc->rtgmem_type == GFXBOARD_ID_S3VIRGE_PCI || gb->rbc->rtgmem_type == GFXBOARD_ID_S3TRIO64_PCI) {
 		if (pci->memory_map_active) {
 			reinit_vram(gb, pci->bar[0] + pci->bridge->memory_start_offset, false);
 		}
