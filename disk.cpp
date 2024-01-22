@@ -1354,6 +1354,7 @@ static int drive_insert (drive *drv, struct uae_prefs *p, int dnum, const TCHAR 
 	drv->tracktiming[0] = 0;
 	drv->useturbo = 0;
 	drv->indexoffset = 0;
+	drv->buffered_side = -1;
 	if (!fake) {
 		drv->dskeject = false;
 		gui_disk_image_change (dnum, outname, drv->wrprot);
@@ -2975,6 +2976,7 @@ static void drive_eject (drive * drv)
 	drv->forcedwrprot = false;
 	drv->useturbo = 0;
 	drv->crc32 = 0;
+	drv->buffered_side = -1;
 	drive_settype_id (drv); /* Back to 35 DD */
 	if (disk_debug_logging > 0)
 		write_log (_T("eject drive %ld\n"), drv - &floppy[0]);
