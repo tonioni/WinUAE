@@ -277,7 +277,7 @@ void statusline_render(int monid, uae_u8 *buf, int bpp, int pitch, int width, in
 	uae_u32 white = rc[0xff] | gc[0xff] | bc[0xff] | (alpha ? alpha[0xff] : 0);
 	uae_u32 back = rc[0x00] | gc[0x00] | bc[0x00] | (alpha ? alpha[0xa0] : 0);
 	const TCHAR *text;
-	int y = -1, x = 10, textwidth = 0;
+	int y = 0, x = 10, textwidth = 0;
 	int bar_xstart;
 
 	if (monid || !statusline_hdc) {
