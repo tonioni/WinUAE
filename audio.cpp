@@ -56,6 +56,7 @@
 
 #define PERIOD_MIN 1
 #define PERIOD_MIN_NONCE 60
+#define PERIOD_MIN_LOOP 16
 
 #define PERIOD_LOW 124
 
@@ -2469,6 +2470,10 @@ void event_audxdat_func(uae_u32 v)
 #endif
 			if (cdp->wlen == 1) {
 				cdp->wlen = cdp->len;
+				// if very low period sample repeats, set higher period value to not cause huge performance drop
+				if (cdp->per < PERIOD_MIN_LOOP * CYCLE_UNIT) {
+					cdp->per = PERIOD_MIN_LOOP * CYCLE_UNIT;
+				}
 				cdp->intreq2 = true;
 				if (sampleripper_enabled)
 					do_samplerip(cdp);
