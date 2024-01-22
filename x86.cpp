@@ -787,11 +787,13 @@ static void floppy_format(struct x86_bridge *xb, bool real)
 			uae_u8 cx = 0, hx = 0, rx = 0, nx = 0;
 			if (floppy_specify_pio) {
 				if (real) {
-					cx = *pioptr++;
-					hx = *pioptr++;
-					rx = *pioptr++;
-					nx = *pioptr++;
 					floppy_pio_cnt += 4;
+					if (floppy_pio_cnt <= floppy_pio_len) {
+						cx = *pioptr++;
+						hx = *pioptr++;
+						rx = *pioptr++;
+						nx = *pioptr++;
+					}
 				} else {
 					floppy_pio_len += 4;
 				}

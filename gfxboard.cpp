@@ -4489,7 +4489,10 @@ bool gfxboard_init_memory (struct autoconfig_info *aci)
 	}
 	aci->parent = aci;
 	if (!aci->doinit) {
-		if (gb->rbc->rtgmem_type == GFXBOARD_ID_VGA) {
+		if (gb->rbc->rtgmem_type == GFXBOARD_ID_ALTAIS_Z3) {
+			aci->start = 0x20000000;
+			aci->size = 0x1000000;
+		} else if (gb->rbc->rtgmem_type == GFXBOARD_ID_VGA) {
 			static const int parent[] = { ROMTYPE_A1060, ROMTYPE_A2088, ROMTYPE_A2088T, ROMTYPE_A2286, ROMTYPE_A2386, 0 };
 			aci->parent_romtype = parent;
 		} else if (gb->board->bustype == GFXBOARD_BUSTYPE_PCI) {
