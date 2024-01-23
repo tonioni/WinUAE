@@ -1,4 +1,17 @@
 
+
+Beta 5:
+
+- Registry/ini ROM paths and history list paths (last used ADFs, statefiles etc) are now properly converted to absolute/relative paths when new entry is added.
+- Loading config with statefile config entry set: insert statefile in to statefile history list.
+- Topmost line was missing in OSD status line texts ("DF0: -" etc) in some font settings.
+- 5.1 b1 "Allow AUDxPER=1, game Spaceport requires it" adjusted, force period to higher value when sample loops (not immediately like pre-5.1 did). This keeps Spaceport happy without causing some other weird programs to slow down emulation very noticeably by "playing" period=1 empty sample continuously, all 4 channels. (For example during loading of Bad Dudes vs. Dragon Ninja)
+- Added S3 Trio64 PCI RTG board (Uses same chip emulation as CyberVision64)
+- Ateo Pixel 64 had BGR/RGB swapped colors in most color depths.
+- Sound autoswitching is now off by default (default off when no config file loaded). Some sound devices have annoying audible pop when sound gets switched off or on.
+- RTG modes allocated unnecessarily too large texture (size of whole viewport, not only actual RTG area). Broke in some 5.0 betas. This was harmless except it also caused uaegfx to not clip hardware mouse cursor in right and bottom edges and possibly broke some filters.
+- Fixed mouse cursor jumping randomly when in tablet mode and clicking mouse button(s).
+
 Beta 4:
 
 - Changing OSD font when in full-window or fullscreen mode saved it incorrectly and nothing changed.
