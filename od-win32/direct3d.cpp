@@ -202,6 +202,7 @@ struct d3dstruct
 	int ledwidth, ledheight;
 	int max_texture_w, max_texture_h;
 	int tin_w, tin_h, tout_w, tout_h, window_h, window_w;
+	int tino_w, tino_h;
 	int t_depth, dmult, dmultxh, dmultxv, dmode;
 	int required_sl_texture_w, required_sl_texture_h;
 	int vsync2, guimode, maxscanline, variablerefresh;
@@ -3097,9 +3098,14 @@ static bool xD3D_alloctexture (int monid, int w, int h)
 	struct d3dstruct *d3d = &d3ddata[monid];
 
 	if (w < 0 || h < 0) {
-		return d3d->texture1 != NULL;
+		if (d3d->tino_w == -w && d3d->tino_h == -h && d3d->texture1) {
+			return true;
+		}
+		return false;
 	}
 
+	d3d->tino_w = w;
+	d3d->tino_h = h;
 	d3d->tin_w = w * d3d->dmult;
 	d3d->tin_h = h * d3d->dmult;
 

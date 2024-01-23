@@ -4161,7 +4161,7 @@ bool target_graphics_buffer_update(int monid)
 		h = vb->outheight;
 	}
 	
-	if (oldtex_w[monid] == w && oldtex_h[monid] == h && oldtex_rtg[monid] == mon->screen_is_picasso && D3D_alloctexture(mon->monitor_id, -1, -1)) {
+	if (oldtex_w[monid] == w && oldtex_h[monid] == h && oldtex_rtg[monid] == mon->screen_is_picasso && D3D_alloctexture(mon->monitor_id, -w, -h)) {
 		osk_setup(monid, -2);
 		return false;
 	}

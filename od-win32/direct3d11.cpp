@@ -3424,19 +3424,13 @@ static bool xD3D11_initvals(HWND ahwnd, int monid, int w_w, int w_h, int t_w, in
 	if (d3d->m_screenWidth != w_w || d3d->m_screenHeight != w_h) {
 		changed = true;
 	}
-	if (doalloc && !changed && (d3d->m_bitmapWidth != t_w || d3d->m_bitmapHeight != t_h || d3d->dmultxh != mmulth || d3d->dmultxv != mmultv)) {
-		d3d->m_bitmapWidth = t_w;
-		d3d->m_bitmapHeight = t_h;
-		d3d->dmultxh = mmulth;
-		d3d->dmultxv = mmultv;
-		D3D_alloctexture(monid, t_w, t_h);
-	}
-	d3d->m_bitmapWidth = t_w;
-	d3d->m_bitmapHeight = t_h;
 	d3d->m_screenWidth = w_w;
 	d3d->m_screenHeight = w_h;
 	d3d->dmultxh = mmulth;
 	d3d->dmultxv = mmultv;
+	if (d3d->m_device) {
+		target_graphics_buffer_update(monid);
+	}
 
 	return changed;
 }
@@ -5037,8 +5031,14 @@ static bool xD3D11_alloctexture(int monid, int w, int h)
 	struct d3d11struct *d3d = &d3d11data[monid];
 	bool v;
 
+	if (w == 0 || h == 0) {
+		return false;
+	}
 	if (w < 0 || h < 0) {
-		return d3d->texture2d != NULL;
+		if (d3d->m_bitmapWidth == -w && d3d->m_bitmapHeight == -h && d3d->texture2d) {
+			return true;
+		}
+		return false;
 	}
 
 	recheck(d3d, monid);
@@ -5336,12 +5336,14 @@ static void updatecursorsurface(int monid)
 	int cy = (int)d3d->cursor_y;
 	int width = sp->width;
 	int height = sp->height;
+	int bw = d3d->m_bitmapWidth;
+	int bh = d3d->m_bitmapHeight;
 
 	if (sp->texture == NULL) {
 		return;
 	}
 
-	if (sp->updated && cx >= 0 && cy >= 0 && cx + width <= d3d->m_bitmapWidth && cy + height <= d3d->m_bitmapHeight) {
+	if (sp->updated && cx >= 0 && cy >= 0 && cx + width <= bw && cy + height <= bh) {
 		return;
 	}
 
@@ -5356,14 +5358,14 @@ static void updatecursorsurface(int monid)
 		for (int h = 0; h < sp->height; h++) {
 			int w = width;
 			int x = 0;
-			if (cx + w > d3d->m_bitmapWidth) {
-				w -= (cx + w) - d3d->m_bitmapWidth;
+			if (cx + w > bw) {
+				w -= (cx + w) - bw;
 			}
 			if (cx < 0) {
 				x = -cx;
 				w -= -cx;
 			}
-			if (w <= 0 || cy + h > d3d->m_bitmapHeight) {
+			if (w <= 0 || cy + h > bh) {
 				memset(b, 0, width * 4);
 			} else {
 				if (x > 0) {
@@ -5379,7 +5381,7 @@ static void updatecursorsurface(int monid)
 		}
 		d3d->m_deviceContext->Unmap(d3d->hwsprite.texture, 0);
 
-		if (cx >= 0 && cy >= 0 && cx + width <= d3d->m_bitmapWidth && cy + height <= d3d->m_bitmapHeight) {
+		if (cx >= 0 && cy >= 0 && cx + width <= bw && cy + height <= bh) {
 			sp->updated = true;
 		}
 	}
