@@ -1,5 +1,15 @@
 
 
+Beta 6:
+
+- DraCo NVRAM data was always written to NVRAM file, even if current config was not DraCo.
+- Mad Dog McCree v1C (ALG) Holster input event supported. For some reason it is connected to joystick fire button in this version (First ALG game?). No other ALG game use fire button.
+- If BLTCON0L is written to when blitter is running, don't do unnecessary blitter state checks. BLTCON0L writes are always safe.
+- Executable in DF0: didn't anymore automatically enable turbo floppy mode. Broke when turbo was switched off if program does weird disk DMAs.
+- RTG panel aspect ratio setting and Filter (RTG) aspect ratio was not forced to have same values and they work differently in different filter modes, probably resulting weird aspect ratios in some filter modes. Now updated value is automatically copied to other setting.
+- Hardware emulated board cached size settings was not always updated, especially if mode was switched multiple times quickly. Result was display with wrong scaling or positioning.
+- Sprite horizontal multiplexing (Copper SPRxCTL/POS/DATx mid-screen writes) was unreliable in non-CE modes. (5.1)
+
 Beta 5:
 
 - Registry/ini ROM paths and history list paths (last used ADFs, statefiles etc) are now properly converted to absolute/relative paths when new entry is added.

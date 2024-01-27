@@ -2091,7 +2091,7 @@ BEGIN
     IDS_QS_MODEL_A3000      "1.4 ROM, 2MB Chip + 8MB Fast\n\n2.04 ROM, 2MB Chip + 8MB Fast\n\n3.1 ROM, 2MB Chip + 8MB Fast\n"
     IDS_QS_MODEL_A4000      "68030, 3.1 ROM, 2MB Chip + 8MB Fast\n\n68040, 3.1 ROM, 2MB Chip + 8MB Fast\n\nCyberStorm PPC\n"
     IDS_QS_MODEL_A4000T     "A4000T (test)\nA4000T\n"
-    IDS_QS_MODEL_MACROSYSTEM "DraCo\n\nCasablanca\n"
+    IDS_QS_MODEL_MACROSYSTEM "DraCo\n\nCasablanca (Video hardware unimplemented)\n"
     IDS_QS_MODEL_ALG        "American Laser Games\n"
 END
 
