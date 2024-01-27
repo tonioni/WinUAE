@@ -1659,6 +1659,8 @@ void gfxboard_vsync_handler(bool full_redraw_required, bool redraw_required)
 				if (gfxboard_checkchanged(gb)) {
 					if (!gfxboard_setmode_ext(gb)) {
 						gfxboard_rtg_disable(gb->monitor_id, i);
+					} else {
+						state->ModeChanged = true;
 					}
 				}
 			} else if (gb->resolutionchange > 1) {

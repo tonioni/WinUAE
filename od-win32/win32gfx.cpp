@@ -2966,7 +2966,7 @@ static int modeswitchneeded(struct AmigaMonitor *mon, struct winuae_currentmode 
 		}
 	} else if (isfullscreen () == 0) {
 		/* windowed to windowed */
-		return -1;
+		return -2;
 	} else {
 		/* fullwindow to fullwindow */
 		if (mon->screen_is_picasso) {
@@ -3073,16 +3073,13 @@ void gfx_set_picasso_modeinfo(int monid, RGBFTYPE rgbfmt)
 	if (!mon->screen_is_picasso)
 		return;
 	gfx_set_picasso_colors(monid, rgbfmt);
+	update_gfxparams(mon);
 	updatemodes(mon);
 	need = modeswitchneeded(mon, &mon->currentmode);
-	update_gfxparams(mon);
 	if (need > 0) {
 		open_screen(mon);
 	} else if (need < 0) {
-		struct winuae_currentmode *wc = &mon->currentmode;
-		if (state->ModeChanged) {
-			open_windows(mon, true, true);
-		}
+		open_windows(mon, true, true);
 	}
 	state->ModeChanged = false;
 #ifdef RETROPLATFORM
