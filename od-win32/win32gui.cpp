@@ -11847,12 +11847,14 @@ static INT_PTR CALLBACK ExpansionDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 				case IDC_RTG_SCALE_ASPECTRATIO:
 					v = xSendDlgItemMessage (hDlg, IDC_RTG_SCALE_ASPECTRATIO, CB_GETCURSEL, 0, 0L);
 					if (v != CB_ERR) {
-						if (v == 0)
+						if (v == 0) {
 							workprefs.win32_rtgscaleaspectratio = 0;
-						else if (v == 1)
+						} else if (v == 1) {
 							workprefs.win32_rtgscaleaspectratio = -1;
-						else if (v >= 2)
+						} else if (v >= 2) {
 							workprefs.win32_rtgscaleaspectratio = getaspectratio (v - 2);
+						}
+						workprefs.gf[GF_RTG].gfx_filter_aspect = workprefs.win32_rtgscaleaspectratio;
 					}
 					break;
 				case IDC_RTG_NUM:
@@ -21297,6 +21299,10 @@ static INT_PTR CALLBACK hw3dDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 								v2 = getaspectratio (v - 2);
 						}
 						currprefs.gf[filter_nativertg].gfx_filter_aspect = workprefs.gf[filter_nativertg].gfx_filter_aspect = v2;
+						if (filter_nativertg == GF_RTG) {
+							currprefs.win32_rtgscaleaspectratio = workprefs.win32_rtgscaleaspectratio = v2;
+						}
+						workprefs.gf[filter_nativertg].changed = true;
 						updatedisplayarea(-1);
 					}
 					break;
