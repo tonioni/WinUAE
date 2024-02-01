@@ -4,6 +4,6 @@
 # ./genblitter t > blittable.c
 
 target = genblitter
-srcs = blitops.cpp genblitter.cpp
+srcs = src/blitops.cpp src/genblitter.cpp
 
-include Makefile.inc
+include build/Makefile.inc

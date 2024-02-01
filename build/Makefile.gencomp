@@ -1,7 +1,7 @@
 # ./gencomp
 
 target = gencomp
-srcs = cpudefs.cpp jit/gencomp.cpp missing.cpp readcpu.cpp od-cross/unicode.cpp
+srcs = src/cpudefs.cpp jit/gencomp.cpp src/missing.cpp src/readcpu.cpp od-cross/unicode.cpp
 
-include Makefile.inc
+include build/Makefile.inc
 

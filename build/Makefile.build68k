@@ -1,6 +1,6 @@
 # ./build68k < table68k > cpudefs.cpp
 
 target = build68k
-srcs = build68k.cpp
+srcs = src/build68k.cpp
 
-include Makefile.inc
+include build/Makefile.inc

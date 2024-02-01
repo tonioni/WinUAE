@@ -1,36 +1,36 @@
 .PHONY: all clean
 
-all: winuae
+all: quaesar
 
 # build68k
 
 build68k: FORCE
-	$(MAKE) -f Makefile.build68k
+	$(MAKE) -f build/Makefile.build68k
 
-cpudefs.cpp: build68k table68k
-	./build68k < table68k > $@
+src/cpudefs.cpp: build68k src/table68k
+	./build68k < src/table68k > $@
 
-generated += cpudefs.cpp
+generated += src/cpudefs.cpp
 
 # gencomp
 
 gencomp: FORCE $(generated)
-	$(MAKE) -f Makefile.gencomp
+	$(MAKE) -f build/Makefile.gencomp
 
-jit/comptbl.h: gencomp
+src/jit/comptbl.h: gencomp
 	./gencomp
 
-generated += jit/comptbl.h
+generated += src/jit/comptbl.h
 
 # gencpu
 
 gencpu: FORCE $(generated)
-	$(MAKE) -f Makefile.gencpu
+	$(MAKE) -f build/Makefile.gencpu
 
-cputbl.h: gencpu
-	./gencpu
+src/cputbl.h: gencpu
+	cd src && ../gencpu && cd ..
 
-generated += cputbl.h
+generated += src/cputbl.h
 
 # genblitter
 
@@ -38,40 +38,40 @@ genblitter: FORCE
 	$(MAKE) -f Makefile.genblitter
 
 blit.h: genblitter
-	./genblitter i > $@
+	./genblitter i > src/$@
 blitfunc.cpp: genblitter
-	./genblitter f > $@
+	./genblitter f > src/$@
 blitfunc.h: genblitter
-	./genblitter h > $@
+	./genblitter h > src/$@
 blittable.cpp: genblitter
-	./genblitter t > $@
+	./genblitter t > src/$@
 
-generated += blit.h blitfunc.cpp blitfunc.h blittable.cpp
+generated += src/blit.h src/blitfunc.cpp src/blitfunc.h src/blittable.cpp
 
 # genlinetoscr
 
 genlinetoscr: FORCE
-	$(MAKE) -f Makefile.genlinetoscr
+	$(MAKE) -f build/Makefile.genlinetoscr
 
 linetoscr.cpp: genlinetoscr
-	./genlinetoscr > linetoscr.cpp
+	./genlinetoscr > src/linetoscr.cpp
 
-generated += linetoscr.cpp
+generated += src/linetoscr.cpp
 
-# winuae
+# quasar
 
-winuae: FORCE $(generated)
-	$(MAKE) -f Makefile.winuae
+quaesar: FORCE $(generated)
+	$(MAKE) -f build/Makefile.quaesar
 
 # clean
 
 clean:
-	make -f Makefile.build68k clean
-	make -f Makefile.genblitter clean
-	make -f Makefile.gencomp clean
-	make -f Makefile.gencpu clean
-	make -f Makefile.genlinetoscr clean
-	make -f Makefile.winuae clean
+	make -f build/Makefile.build68k clean
+	make -f build/Makefile.genblitter clean
+	make -f build/Makefile.gencomp clean
+	make -f build/Makefile.gencpu clean
+	make -f build/Makefile.genlinetoscr clean
+	make -f build/Makefile.quaesar clean
 	rm -rf out
 
 FORCE: ;
