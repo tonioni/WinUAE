@@ -2,6 +2,7 @@
 #define UAE_IDE_H
 
 #include "uae/types.h"
+#include "commpipe.h"
 
 /* IDE drive registers */
 #define IDE_DATA	0x00

@@ -2359,7 +2359,7 @@ static void clean_path(TCHAR *s)
 
 int configure_rom (struct uae_prefs *p, const int *rom, int msg)
 {
-	struct romdata *rd;
+	struct romdata *rd = nullptr;
 	TCHAR *path = 0;
 	int i;
 

@@ -1628,7 +1628,7 @@ static uae_u8 aic_bget_reg(struct soft_scsi *scsi)
 	return scsi->aic_reg & 15;
 }
 
-static uae_u8 aic_bget_dma(struct soft_scsi *scsi, bool *phaseerr)
+uae_u8 aic_bget_dma(struct soft_scsi *scsi, bool *phaseerr)
 {
 	struct raw_scsi *r = &scsi->rscsi;
 	if (!scsi->dma_direction)
@@ -1738,7 +1738,7 @@ static void aic_bput_reg(struct soft_scsi *scsi, uae_u8 v)
 	scsi->aic_reg = v & 15;
 }
 
-static void aic_bput_dma(struct soft_scsi *scsi, uae_u8 v, bool *phaseerr)
+void aic_bput_dma(struct soft_scsi *scsi, uae_u8 v, bool *phaseerr)
 {
 	struct raw_scsi *r = &scsi->rscsi;
 	if (!scsi->dma_direction)

@@ -61,6 +61,7 @@ void uae_dlclose(UAE_DLHANDLE handle)
 UAE_DLHANDLE uae_dlopen_plugin(const TCHAR *name)
 {
 #if defined(FSUAE)
+    /*
 	const TCHAR *path = NULL;
 	if (plugin_lookup) {
 		path = plugin_lookup(name);
@@ -69,7 +70,8 @@ UAE_DLHANDLE uae_dlopen_plugin(const TCHAR *name)
 		write_log(_T("DLOPEN: Could not find plugin \"%s\"\n"), name);
 		return NULL;
 	}
-	UAE_DLHANDLE handle = uae_dlopen(path);
+	*/
+	UAE_DLHANDLE handle = uae_dlopen(name);
 #elif defined(WINUAE)
 	TCHAR path[MAX_DPATH];
 	_tcscpy(path, name);
@@ -85,7 +87,7 @@ UAE_DLHANDLE uae_dlopen_plugin(const TCHAR *name)
 	UAE_DLHANDLE handle = uae_dlopen(path);
 #endif
 	if (handle) {
-		write_log(_T("DLOPEN: Loaded plugin %s\n"), path);
+		write_log(_T("DLOPEN: Loaded plugin %s\n"), name);
 		uae_dlopen_patch_common(handle);
 	}
 	return handle;

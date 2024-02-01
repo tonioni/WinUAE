@@ -4293,9 +4293,12 @@ void safe_interrupt_set(int num, int id, bool i6)
 		atomic_or(p, 1 << id);
 		atomic_or(&uae_interrupt, 1);
 	} else {
+#ifdef WITH_DRACO
 		if (currprefs.cs_compatible == CP_DRACO || currprefs.cs_compatible == CP_CASABLANCA) {
 			draco_ext_interrupt(i6);
-		} else {
+		} else 
+#endif
+		{
 			int inum = i6 ? 13 : 3;
 			uae_u16 v = 1 << inum;
 			if (currprefs.cpu_cycle_exact || currprefs.cpu_compatible) {
@@ -6540,6 +6543,8 @@ void m68k_go (int may_quit)
 		int restored = 0;
 		void (*run_func)(void);
 
+		printf("rununing\n");
+
 		cputrace.state = -1;
 
 		if (regs.halted == CPU_HALT_ACCELERATOR_CPU_FALLBACK) {
@@ -6685,7 +6690,6 @@ void m68k_go (int may_quit)
 			// add random delay before CPU starts
 			int t = uaerand() & 0x7fff;
 			while (t > 255) {
-				x_do_cycles(255 * CYCLE_UNIT);
 				t -= 255;
 			}
 			x_do_cycles(t * CYCLE_UNIT);

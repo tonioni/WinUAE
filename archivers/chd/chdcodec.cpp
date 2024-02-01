@@ -15,8 +15,8 @@
 #include "flac.h"
 #include "chdcdrom.h"
 #include <zlib.h>
-#include "7z/LzmaEnc.h"
-#include "7z/LzmaDec.h"
+//#include "7z/LzmaEnc.h"
+#//include "7z/LzmaDec.h"
 #include <new>
 
 

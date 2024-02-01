@@ -36,6 +36,8 @@ using namespace std;
 #include <assert.h>
 #include <limits.h>
 
+#include <stdbool.h>
+
 #ifndef UAE
 #define UAE
 #endif
@@ -81,12 +83,16 @@ using namespace std;
 #define REGPARAM2 JITCALL
 #define REGPARAM3 JITCALL
 
-#include <tchar.h>
-
 #if CPU_64_BIT
 #define addrdiff(a, b) ((int)((a) - (b)))
 #else
 #define addrdiff(a, b) ((a) - (b))
+#endif
+
+#ifdef FSUAE
+#include "uae/types.h"
+#else
+#include <tchar.h>
 #endif
 
 #ifndef __STDC__
@@ -215,8 +221,8 @@ typedef uae_u32 uaecptr;
 #define VAL64(a) (a)
 #define UVAL64(a) (a)
 #elif SIZEOF_LONG == 8
-#define uae_s64 long;
-#define uae_u64 unsigned long;
+#define uae_s64 int64_t
+#define uae_u64 uint64_t 
 #define VAL64(a) (a ## l)
 #define UVAL64(a) (a ## ul)
 #endif

@@ -18,6 +18,7 @@
 #ifdef _WIN32
 /* Using the real _tcs* functions */
 #else
+#define _istxdigit isxdigit
 #define _istdigit isdigit
 #define _istspace isspace
 #define _istupper isupper

@@ -27,6 +27,11 @@
 #include "rp.h"
 #endif
 
+#ifndef GetDriveType
+#define DRIVE_CDROM 0
+int GetDriveType(TCHAR* vol);
+#endif
+
 int log_scsiemu = 0;
 
 #define PRE_INSERT_DELAY (3 * (currprefs.ntscmode ? 60 : 50))

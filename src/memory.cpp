@@ -1673,10 +1673,12 @@ static bool load_extendedkickstart (const TCHAR *romextfile, int type)
 
 	if (romextfile[0] == '\0')
 		return false;
+#ifdef ARCADIA
 	if (is_arcadia_rom (romextfile) == ARCADIA_BIOS) {
 		extendedkickmem_type = EXTENDED_ROM_ARCADIA;
 		return false;
 	}
+#endif
 	f = read_rom_name (romextfile, false);
 	if (!f) {
 		notify_user (NUMSG_NOEXTROM);
@@ -1685,11 +1687,13 @@ static bool load_extendedkickstart (const TCHAR *romextfile, int type)
 	zfile_fseek (f, 0, SEEK_END);
 	size = zfile_ftell32(f);
 	extendedkickmem_bank.reserved_size = ROM_SIZE_512;
+#ifdef ARCADIA
 	struct romdata *rd = get_alg_rom(romextfile);
 	if (rd) {
 		size = rd->size;
 		type = EXTENDED_ROM_ALG;
 	}
+#endif
 	off = 0;
 	if (type == 0) {
 		if (currprefs.cs_cd32cd) {
@@ -2691,10 +2695,13 @@ void map_overlay (int chip)
 	if (currprefs.cs_compatible == CP_CASABLANCA) {
 		casablanca_map_overlay();
 		return;
-	} else if (currprefs.cs_compatible == CP_DRACO) {
+	} 
+#ifdef WITH_DRACO
+	else if (currprefs.cs_compatible == CP_DRACO) {
 		draco_map_overlay();
 		return;
 	}
+#endif
 
 	size = chipmem_bank.allocated_size >= 0x180000 ? (chipmem_bank.allocated_size >> 16) : 32;
 	if (bogomem_aliasing)
@@ -2958,7 +2965,9 @@ void memory_reset (void)
 	bool gayleorfatgary;
 
 	highest_ram = 0;
+#ifdef ARCADIA 
 	alg_flag = 0;
+#endif
 	need_hardreset = false;
 	rom_write_enabled = true;
 #ifdef JIT
@@ -3141,7 +3150,9 @@ void memory_reset (void)
 #endif
 	case EXTENDED_ROM_ALG:
 		map_banks_set(&extendedkickmem_bank, 0xF0, 4, 0);
+#ifdef ARCADIA
 		alg_map_banks();
+#endif
 		break;
 	}
 
@@ -3387,7 +3398,7 @@ static addrbank *get_bank_cpu_thread(addrbank *bank)
 		at = xcalloc(addrbank_thread, 1);
 	thread_banks[thread_banks_used++] = at;
 	at->orig = bank;
-	memcpy(&at->ab, bank, sizeof addrbank);
+	memcpy(&at->ab, bank, sizeof(addrbank));
 	addrbank *tb = &at->ab;
 	tb->jit_read_flag = S_READ;
 	tb->jit_write_flag = S_WRITE;
@@ -3827,9 +3838,9 @@ uae_u8 *save_rom(int first, size_t *len, uae_u8 *dstptr)
 {
 	static int count;
 	uae_u8 *dst, *dstbak;
-	uae_u8 *mem_real_start;
+	uae_u8 *mem_real_start = nullptr;
 	uae_u32 version;
-	TCHAR *path;
+	TCHAR *path = nullptr;
 	int mem_start, mem_size, mem_type, saverom;
 	int i;
 	TCHAR tmpname[1000];

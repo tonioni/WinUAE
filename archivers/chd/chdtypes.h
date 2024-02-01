@@ -28,7 +28,7 @@
 
 #define ARRAY_LENGTH(x)		(sizeof(x) / sizeof(x[0]))
 
-#define CLIB_DECL __cdecl
+#define CLIB_DECL //__cdecl
 #define FLAC_API_EXPORTS
 
 /* Macros for normalizing data into big or little endian formats */

@@ -166,6 +166,7 @@
 #include "debug.h"
 #include "rommgr.h"
 #include "devices.h"
+#include "commpipe.h"
 
 #define AKIKO_DEBUG_IO 1
 #define AKIKO_DEBUG_IO_CMD 1
@@ -499,7 +500,7 @@ static smp_comm_pipe requests;
 static volatile int akiko_thread_running;
 static uae_sem_t akiko_sem, sub_sem, cda_sem;
 
-static void checkint (void)
+void checkint_akiko (void)
 {
 	if (cdrom_intreq & cdrom_intena) {
 		irq ();
@@ -522,13 +523,13 @@ static void set_status (uae_u32 status)
 	}
 #endif
 	cdrom_intreq |= status;
-	checkint ();
+	checkint_akiko ();
 	cdrom_led ^= LED_CD_ACTIVE2;
 }
 
 static void rethink_akiko(void)
 {
-	checkint ();
+	checkint_akiko ();
 }
 
 static void cdaudiostop_do (void)

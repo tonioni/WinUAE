@@ -1083,7 +1083,7 @@ void cdtv_getdmadata (uae_u32 *acr)
 	*acr = dmac_acr;
 }
 
-static void checkint (void)
+static void checkint_cdtv (void)
 {
 	int irq = 0;
 
@@ -1100,7 +1100,7 @@ static void checkint (void)
 
 void cdtv_scsi_int (void)
 {
-	checkint ();
+	checkint_cdtv ();
 }
 void cdtv_scsi_clear_int (void)
 {
@@ -1109,7 +1109,7 @@ void cdtv_scsi_clear_int (void)
 
 static void rethink_cdtv (void)
 {
-	checkint ();
+	checkint_cdtv ();
 	tp_check_interrupts ();
 }
 
@@ -1135,7 +1135,7 @@ static void CDTV_hsync_handler (void)
 		dma_finished = 0;
 		cdtv_hsync = -1;
 	}
-	checkint ();
+	checkint_cdtv ();
 
 	if (cdrom_command_done) {
 		cdrom_command_done = 0;
@@ -1284,7 +1284,7 @@ static uae_u32 dmac_bget2 (uaecptr addr)
 	case 0x93:
 		if (cdtvscsi) {
 			v = wdscsi_get (&wd_cdtv->wc, wd_cdtv);
-			checkint ();
+			checkint_cdtv ();
 		}
 		break;
 	case 0xa1:
@@ -1387,13 +1387,13 @@ static void dmac_bput2 (uaecptr addr, uae_u32 b)
 	case 0x91:
 		if (cdtvscsi) {
 			wdscsi_sasr (&wd_cdtv->wc, b);
-			checkint ();
+			checkint_cdtv ();
 		}
 		break;
 	case 0x93:
 		if (cdtvscsi) {
 			wdscsi_put (&wd_cdtv->wc, wd_cdtv, b);
-			checkint ();
+			checkint_cdtv ();
 		}
 		break;
 	case 0xa1:
@@ -1417,7 +1417,7 @@ static void dmac_bput2 (uaecptr addr, uae_u32 b)
 	case 0xe4:
 	case 0xe5:
 		dmac_istr = 0;
-		checkint ();
+		checkint_cdtv ();
 		break;
 	case 0xe8:
 	case 0xe9:
@@ -1644,7 +1644,7 @@ uae_u8 cdtv_battram_read (int addr)
 
 MEMORY_FUNCTIONS(cardmem);
 
-static addrbank cardmem_bank = {
+addrbank cardmem_bank = {
 	cardmem_lget, cardmem_wget, cardmem_bget,
 	cardmem_lput, cardmem_wput, cardmem_bput,
 	cardmem_xlate, cardmem_check, NULL, _T("rom_e0"), _T("CDTV memory card"),

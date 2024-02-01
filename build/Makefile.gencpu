@@ -1,0 +1,6 @@
+# ./gencpu
+
+target = gencpu
+srcs = cpudefs.cpp gencpu.cpp missing.cpp readcpu.cpp od-cross/unicode.cpp
+
+include Makefile.inc

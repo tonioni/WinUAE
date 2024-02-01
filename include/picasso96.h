@@ -7,11 +7,6 @@
 void picasso96_alloc (TrapContext* ctx);
 uae_u32 picasso_demux (uae_u32 arg, TrapContext *ctx);
 
-#ifdef WIN32
-
-#include "picasso96_win.h"
-
-#else
 /*
  * UAE - The U*nix Amiga Emulator
  *
@@ -20,9 +15,7 @@ uae_u32 picasso_demux (uae_u32 arg, TrapContext *ctx);
  * Copyright 1997 Brian King <Brian_King@Mitel.com, Brian_King@Cloanto.com>
  */
 
-#if defined PICASSO96_SUPPORTED
-
-#define PICASSO96
+//#define PICASSO96
 
 
 /* Seems the same routines copy back and forth ;-) */
@@ -533,7 +526,10 @@ extern uae_u8 *gfxmemory;
 
 extern int uaegfx_card_found;
 
-extern struct picasso96_state_struct picasso96_state;
+// extern struct picasso96_state_struct picasso96_state;
+#define MAX_AMIGAMONITORS 4
+
+extern struct picasso96_state_struct picasso96_state[MAX_AMIGAMONITORS];
 
 #ifdef _WIN32
 extern unsigned int timer_id;
@@ -548,8 +544,9 @@ extern void DX_SetPalette_vsync (void);
 extern int DX_FillResolutions (uae_u16 *);
 extern int DX_BitsPerCannon (void);
 extern void DX_Invalidate (int first, int last);
-extern void picasso_enablescreen (int on);
+extern void picasso_enablescreen (int monid, int on);
 extern void picasso_refresh (int call_setpalette);
+extern void init_hz_p96(int monid);
 extern void picasso_handle_vsync (void);
 
 extern uae_u8 *gfxmemory;
@@ -569,7 +566,7 @@ extern struct picasso_vidbuf_description picasso_vidinfo;
 
 extern void gfx_set_picasso_modeinfo (int w, int h, int d, int rgbfmt);
 extern void gfx_set_picasso_baseaddr (uaecptr);
-extern void gfx_set_picasso_state (int on);
+extern void gfx_set_picasso_state (int monid,int on);
 extern uae_u8 *gfx_lock_picasso (void);
 extern void gfx_unlock_picasso (bool);
 extern int picasso_display_mode_index (uae_u32 x, uae_u32 y, uae_u32 d);
@@ -590,8 +587,5 @@ extern int picasso_is_special_read;
 
 extern int p96hack_vpos2;
 extern int p96refresh_active;
-#endif
-
-#endif
 
 #endif /* UAE_PICASSO96_H */

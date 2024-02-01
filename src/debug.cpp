@@ -1127,7 +1127,7 @@ static void nextaddr_init(uaecptr addr)
 
 static uaecptr nextaddr(uaecptr addr, uaecptr last, uaecptr *endp, bool verbose, bool *lfp)
 {
-	addrbank *ab;
+	addrbank *ab = NULL;
 	int lastbank = currprefs.address_space_24 ? 255 : 65535;
 
 	if (addr != 0xffffffff) {
@@ -3369,10 +3369,12 @@ static void illg_init (void)
 		}
 		addr = end - 1;
 	}
+#ifdef PICASSO96
 	for (int i = 0; i < MAX_RTG_BOARDS; i++) {
 		if (currprefs.rtgboards[i].rtgmem_size)
 			memset (illghdebug + (gfxmem_banks[i]->start >> 16), 3, currprefs.rtgboards[i].rtgmem_size >> 16);
 	}
+#endif
 
 	i = 0;
 	while (custd[i].name) {
@@ -5066,7 +5068,9 @@ static void memory_map_dump_3(UaeMemoryMap *map, int log)
 			a1 = a2;
 		}
 	}
+#if WITH_PCI
 	pci_dump(log);
+#endif
 	currprefs.illegal_mem = imold;
 }
 

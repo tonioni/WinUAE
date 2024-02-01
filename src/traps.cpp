@@ -24,6 +24,7 @@
 #include "traps.h"
 #include "uae.h"
 #include "debug.h"
+#include "commpipe.h"
 
 /*
 * Traps are the mechanism via which 68k code can call emulator code

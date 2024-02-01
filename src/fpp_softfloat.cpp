@@ -24,7 +24,7 @@
 #include "fpp.h"
 #include "newcpu.h"
 
-#include "softfloat/softfloat-macros.h"
+#include "softfloat/SOFTFLOAT-MACROS.H"
 #include "softfloat/softfloat-specialize.h"
 
 #define	FPCR_ROUNDING_MODE	0x00000030

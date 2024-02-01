@@ -4,6 +4,12 @@
 
 #include "ini.h"
 
+// If TCHAR is char we should use fopen, fgets, fputs, etc.
+//#if SIZEOF_TCHAR == 1 
+#define _tfopen fopen
+#define fgetws fgets
+#define fputws fputs
+
 static TCHAR *initrim(TCHAR *s)
 {
 	while (*s != 0 && *s <= 32)

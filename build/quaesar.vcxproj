@@ -1,0 +1,281 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="../aros.rom.cpp" />
+    <ClCompile Include="../akiko.cpp" />
+    <ClCompile Include="../amax.cpp" />
+    <ClCompile Include="../ar.cpp" />
+    <ClCompile Include="../audio.cpp" />
+    <ClCompile Include="../autoconf.cpp" />
+    <ClCompile Include="../blitfunc.cpp" />
+    <ClCompile Include="../blittable.cpp" />
+    <ClCompile Include="../blitter.cpp" />
+    <ClCompile Include="../calc.cpp" />
+    <ClCompile Include="../cd32_fmv_genlock.cpp" />
+    <ClCompile Include="../cdrom.cpp" />
+    <ClCompile Include="../cdtvcr.cpp" />
+    <ClCompile Include="../cfgfile.cpp" />
+    <ClCompile Include="../cia.cpp" />
+    <ClCompile Include="../consolehook.cpp" />
+    <ClCompile Include="../cpudefs.cpp" />
+    <ClCompile Include="../cpuemu_0.cpp" />
+    <ClCompile Include="../cpuemu_11.cpp" />
+    <ClCompile Include="../cpuemu_13.cpp" />
+    <ClCompile Include="../cpuemu_20.cpp" />
+    <ClCompile Include="../cpuemu_21.cpp" />
+    <ClCompile Include="../cpuemu_22.cpp" />
+    <ClCompile Include="../cpuemu_23.cpp" />
+    <ClCompile Include="../cpuemu_24.cpp" />
+    <ClCompile Include="../cpuemu_31.cpp" />
+    <ClCompile Include="../cpuemu_32.cpp" />
+    <ClCompile Include="../cpuemu_33.cpp" />
+    <ClCompile Include="../cpuemu_34.cpp" />
+    <ClCompile Include="../cpuemu_35.cpp" />
+    <ClCompile Include="../cpuemu_40.cpp" />
+    <ClCompile Include="../cpuemu_50.cpp" />
+    <ClCompile Include="../cpummu.cpp" />
+    <ClCompile Include="../cpummu30.cpp" />
+    <ClCompile Include="../cpustbl.cpp" />
+    <ClCompile Include="../crc32.cpp" />
+    <ClCompile Include="../custom.cpp" />
+    <ClCompile Include="../debug.cpp" />
+    <ClCompile Include="../debugmem.cpp" />
+    <ClCompile Include="../def_icons.cpp" />
+    <ClCompile Include="../devices.cpp" />
+    <ClCompile Include="../disasm.cpp" />
+    <ClCompile Include="../disk.cpp" />
+    <ClCompile Include="../diskutil.cpp" />
+    <ClCompile Include="../dlopen.cpp" />
+    <ClCompile Include="../dongle.cpp" />
+    <ClCompile Include="../drawing.cpp" />
+    <ClCompile Include="../driveclick.cpp" />
+    <ClCompile Include="../enforcer.cpp" />
+    <ClCompile Include="../ethernet.cpp" />
+    <ClCompile Include="../events.cpp" />
+    <ClCompile Include="../expansion.cpp" />
+    <ClCompile Include="../fdi2raw.cpp" />
+    <ClCompile Include="../filesys.cpp" />
+    <ClCompile Include="../flashrom.cpp" />
+    <ClCompile Include="../fpp.cpp" />
+    <ClCompile Include="../fpp_native.cpp" />
+    <ClCompile Include="../fpp_softfloat.cpp" />
+    <ClCompile Include="../fsdb.cpp" />
+    <ClCompile Include="../gayle.cpp" />
+    <ClCompile Include="../hardfile.cpp" />
+    <ClCompile Include="../hrtmon.rom.cpp" />
+    <ClCompile Include="../ide.cpp" />
+    <ClCompile Include="../idecontrollers.cpp" />
+    <ClCompile Include="../identify.cpp" />
+    <ClCompile Include="../ini.cpp" />
+    <ClCompile Include="../inputdevice.cpp" />
+    <ClCompile Include="../inputrecord.cpp" />
+    <ClCompile Include="../isofs.cpp" />
+    <ClCompile Include="../keybuf.cpp" />
+    <ClCompile Include="../logging.cpp" />
+    <ClCompile Include="../main.cpp" />
+    <ClCompile Include="../memory.cpp" />
+    <ClCompile Include="../missing.cpp" />
+    <ClCompile Include="../native2amiga.cpp" />
+    <ClCompile Include="../newcpu.cpp" />
+    <ClCompile Include="../newcpu_common.cpp" />
+    <ClCompile Include="../readcpu.cpp" />
+    <ClCompile Include="../rommgr.cpp" />
+    <ClCompile Include="../rtc.cpp" />
+    <ClCompile Include="../sana2.cpp" />
+    <ClCompile Include="../savestate.cpp" />
+    <ClCompile Include="../scp.cpp" />
+    <ClCompile Include="../scsi.cpp" />
+    <ClCompile Include="../scsiemul.cpp" />
+    <ClCompile Include="../scsitape.cpp" />
+    <ClCompile Include="../sndboard.cpp" />
+    <ClCompile Include="../statusline.cpp" />
+    <ClCompile Include="../tabletlibrary.cpp" />
+    <ClCompile Include="../test_card.cpp" />
+    <ClCompile Include="../tinyxml2.cpp" />
+    <ClCompile Include="../traps.cpp" />
+    <ClCompile Include="../uaeexe.cpp" />
+    <ClCompile Include="../uaelib.cpp" />
+    <ClCompile Include="../uaenative.cpp" />
+    <ClCompile Include="../uaeresource.cpp" />
+    <ClCompile Include="../uaeserial.cpp" />
+    <ClCompile Include="../winuae.cpp" />
+    <ClCompile Include="../blkdev.cpp" />
+    <ClCompile Include="../od-cross/gfx.cpp" />
+    <ClCompile Include="../od-cross/gui.cpp" />
+    <ClCompile Include="../od-cross/mman.cpp" />
+    <ClCompile Include="../od-cross/machdep/m68k.cpp" />
+    <ClCompile Include="../od-cross/thread.cpp" />
+    <ClCompile Include="../od-cross/unicode.cpp" />
+    <ClCompile Include="../od-cross/file_system.cpp" />
+    <ClCompile Include="../od-cross/hardfile_host.cpp" />
+    <ClCompile Include="../od-cross/filepaths.cpp" />
+    <ClCompile Include="../od-cross/sounddep/sound.cpp" />
+    <ClCompile Include="../od-cross/time.cpp" />
+    <ClCompile Include="../od-cross/dummy.cpp" />
+    <ClCompile Include="../od-cross/input.cpp" />
+    <ClCompile Include="../zfile.cpp" />
+    <ClCompile Include="../zfile_archive.cpp" />
+    <ClCompile Include="../vm.cpp" />
+    <ClCompile Include="../softfloat/softfloat.cpp" />
+    <ClCompile Include="../softfloat/softfloat_fpsp.cpp" />
+    <ClCompile Include="../softfloat/softfloat_decimal.cpp" />
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <VCProjectVersion>15.0</VCProjectVersion>
+    <ProjectGuid>{63A381AB-E300-47A7-AAD7-BAD5A97A14D3}</ProjectGuid>
+    <Keyword>Win32Proj</Keyword>
+    <RootNamespace>quaesar</RootNamespace>
+    <WindowsTargetPlatformVersion>10.0.22621.0</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v141</PlatformToolset>
+    <CharacterSet>NotSet</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v141</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>NotSet</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v141</PlatformToolset>
+    <CharacterSet>NotSet</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v141</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>NotSet</CharacterSet>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="Shared">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <LinkIncremental>true</LinkIncremental>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <LinkIncremental>true</LinkIncremental>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <LinkIncremental>false</LinkIncremental>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <LinkIncremental>false</LinkIncremental>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <ClCompile>
+      <PrecompiledHeader>
+      </PrecompiledHeader>
+      <WarningLevel>Level3</WarningLevel>
+      <Optimization>Disabled</Optimization>
+      <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ConformanceMode>true</ConformanceMode>
+      <AdditionalIncludeDirectories>../od-cross;../include;../;../external/zlib</AdditionalIncludeDirectories>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <PrecompiledHeader>
+      </PrecompiledHeader>
+      <WarningLevel>Level3</WarningLevel>
+      <Optimization>Disabled</Optimization>
+      <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions);_HAS_STD_BYTE=0;UAE</PreprocessorDefinitions>
+      <ConformanceMode>true</ConformanceMode>
+      <AdditionalIncludeDirectories>../od-cross;../include;../;../external/zlib</AdditionalIncludeDirectories>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <ClCompile>
+      <PrecompiledHeader>
+      </PrecompiledHeader>
+      <WarningLevel>Level3</WarningLevel>
+      <Optimization>MaxSpeed</Optimization>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ConformanceMode>true</ConformanceMode>
+      <AdditionalIncludeDirectories>../od-cross;../include;../;../external/zlib</AdditionalIncludeDirectories>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile>
+      <PrecompiledHeader>
+      </PrecompiledHeader>
+      <WarningLevel>Level3</WarningLevel>
+      <Optimization>MaxSpeed</Optimization>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ConformanceMode>true</ConformanceMode>
+      <AdditionalIncludeDirectories>../od-cross;../include;../;../external/zlib</AdditionalIncludeDirectories>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+    </Link>
+  </ItemDefinitionGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>

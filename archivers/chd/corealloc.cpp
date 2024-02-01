@@ -292,7 +292,7 @@ memory_entry *memory_entry::allocate(size_t size, void *base, const char *file, 
 		fprintf(stderr, "#%06d, alloc %d bytes (%s:%d)\n", (UINT32)entry->m_id, static_cast<UINT32>(entry->m_size), entry->m_file, (int)entry->m_line);
 
 	// add it to the alloc list
-	int hashval = reinterpret_cast<FPTR>(base) % k_hash_prime;
+	int hashval = reinterpret_cast<FPTR>((unsigned int)(uintptr_t)base) % k_hash_prime;
 	entry->m_next = s_hash[hashval];
 	if (entry->m_next != NULL)
 		entry->m_next->m_prev = entry;
@@ -317,7 +317,7 @@ memory_entry *memory_entry::find(void *ptr)
 	// scan the list under the lock
 	acquire_lock();
 
-	int hashval = reinterpret_cast<FPTR>(ptr) % k_hash_prime;
+	int hashval = reinterpret_cast<FPTR>((unsigned int)(uintptr_t)ptr) % k_hash_prime;
 	memory_entry *entry;
 	for (entry = s_hash[hashval]; entry != NULL; entry = entry->m_next)
 		if (entry->m_base == ptr)
@@ -340,7 +340,7 @@ void memory_entry::release(memory_entry *entry, const char *file, int line)
 		fprintf(stderr, "#%06d, release %d bytes (%s:%d)\n", (UINT32)entry->m_id, static_cast<UINT32>(entry->m_size), file, line);
 
 	// remove ourselves from the alloc list
-	int hashval = reinterpret_cast<FPTR>(entry->m_base) % k_hash_prime;
+	int hashval = reinterpret_cast<FPTR>((unsigned int)(uintptr_t)entry->m_base) % k_hash_prime;
 	if (entry->m_prev != NULL)
 		entry->m_prev->m_next = entry->m_next;
 	else

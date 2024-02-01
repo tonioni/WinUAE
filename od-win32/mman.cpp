@@ -1113,7 +1113,7 @@ int uae_shmctl (int shmid, int cmd, struct uae_shmid_ds *buf)
 }
 
 #endif
-
+/*
 int isinf (double x)
 {
 	const int nClass = _fpclass (x);
@@ -1124,3 +1124,4 @@ int isinf (double x)
 		result = 0;
 	return result;
 }
+*/

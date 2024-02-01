@@ -382,8 +382,8 @@ static void compute_passed_time_cia(int num, uae_u32 ciaclocks)
 static void compute_passed_time(void)
 {
 	evt_t ccount = get_cycles() - eventtab[ev_cia].oldcycles;
-	if (ccount > MAXINT) {
-		ccount = MAXINT;
+	if (ccount > INT_MAX) {
+		ccount = INT_MAX;
 	}
 	uae_u32 ciaclocks = (uae_u32)ccount / DIV10;
 
@@ -482,8 +482,8 @@ in the same cycle.  */
 static void CIA_update_check(void)
 {
 	evt_t ccount = get_cycles() - eventtab[ev_cia].oldcycles;
-	if (ccount > MAXINT) {
-		ccount = MAXINT;
+	if (ccount > INT_MAX) {
+		ccount = INT_MAX;
 	}
 	int ciaclocks = (uae_u32)(ccount / DIV10);
 	if (!ciaclocks) {
@@ -1726,8 +1726,9 @@ static uae_u8 ReadCIAA(uae_u32 addr, uae_u32 *flags)
 		v |= handle_joystick_buttons(c->pra, c->dra);
 		v |= (c->pra | (c->dra ^ 3)) & 0x03;
 		v = dongle_cia_read(0, reg, c->dra, v);
+#ifdef ARCADIA
 		v = alg_joystick_buttons(c->pra, c->dra, v);
-
+#endif
 		// 391078-01 CIA: output mode bits always return PRA contents
 		if (currprefs.cs_ciatype[0]) {
 			v &= ~c->dra;

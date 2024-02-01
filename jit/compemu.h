@@ -535,7 +535,8 @@ struct op_properties {
 extern op_properties prop[65536];
 static inline int end_block(uae_u32 opcode)
 {
-	return (prop[opcode].cflow & fl_end_block);
+    *(volatile int*)0 = 0;
+	return 0;//(prop[opcode].cflow & fl_end_block);
 }
 
 #ifdef _WIN32

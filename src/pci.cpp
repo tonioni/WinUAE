@@ -17,6 +17,8 @@
 #include "sysconfig.h"
 #include "sysdeps.h"
 
+#ifdef WITH_PCI
+
 #include "options.h"
 #include "custom.h"
 #include "memory.h"
@@ -2300,3 +2302,5 @@ bool pci_expansion_init(struct autoconfig_info *aci)
 	aci->zorro = 0;
 	return true;
 }
+
+#endif // WITH_PCI

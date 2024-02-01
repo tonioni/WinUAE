@@ -98,7 +98,7 @@
 #ifdef UAE
 #define JIT_PATH "jit/"
 #ifdef FSUAE
-#define GEN_PATH "gen/"
+#define GEN_PATH "jit/"
 #else
 #define GEN_PATH "jit/"
 #endif

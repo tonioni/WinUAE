@@ -7,6 +7,8 @@
  *
  */
 
+#include <cstddef>
+
 #include "sysconfig.h"
 #include "sysdeps.h"
 

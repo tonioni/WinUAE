@@ -16,15 +16,15 @@
 #define __arm__
 #define MSVC_LONG_DOUBLE
 #else
-#define X86_MSVC_ASSEMBLY
+// #define X86_MSVC_ASSEMBLY
 //#define OPTIMIZED_FLAGS
 #define MSVC_LONG_DOUBLE
 #ifndef __i386__
 #define __i386__
 #endif
 #endif
-#define WINDOWS
-#define ZLIB_WINAPI
+// #define WINDOWS
+// #define ZLIB_WINAPI
 #define PACKAGE_STRING "WinUAE"
 
 #ifndef UAE_MINI
@@ -102,12 +102,12 @@
 #define AMAX /* A-Max ROM adapater emulation */
 #define RETROPLATFORM /* Cloanto RetroPlayer support */
 #define WITH_CHD
-#define WITH_LUA /* lua scripting */
+// #define WITH_LUA /* lua scripting */
 #define WITH_UAENATIVE
 #define WITH_SLIRP
 #define WITH_BUILTIN_SLIRP
 #define WITH_TABLETLIBRARY
-#define WITH_UAENET_PCAP
+// #define WITH_UAENET_PCAP
 #define WITH_PPC
 #define WITH_QEMU_CPU
 #define WITH_TOCCATA
@@ -145,7 +145,7 @@
 
 #define A_ZIP
 #define A_RAR
-#define A_7Z
+// #define A_7Z
 #define A_LHA
 #define A_LZX
 #define A_DMS
@@ -176,7 +176,7 @@
 #define X64_MSVC_ASSEMBLY
 #define SIZEOF_VOID_P 8
 #else
-#define SIZEOF_VOID_P 4
+#define SIZEOF_VOID_P 8
 #endif
 
 #if !defined(AHI)
@@ -214,7 +214,7 @@ typedef long uae_atomic;
 
 /* Define to `int' if <sys/types.h> doesn't define.  */
 /* #undef mode_t */
-#define mode_t int
+//#define mode_t int
 
 /* Define to `long' if <sys/types.h> doesn't define.  */
 /* #undef off_t */
@@ -320,7 +320,7 @@ typedef long uae_atomic;
 /* #undef STATFS_TRUNCATES_BLOCK_COUNTS */
 
 /* The number of bytes in a __int64.  */
-#define SIZEOF___INT64 8
+// #define SIZEOF___INT64 8
 
 /* The number of bytes in a char.  */
 #define SIZEOF_CHAR 1
@@ -329,10 +329,10 @@ typedef long uae_atomic;
 #define SIZEOF_INT 4
 
 /* The number of bytes in a long.  */
-#define SIZEOF_LONG 4
+#define SIZEOF_LONG 8
 
 /* The number of bytes in a long long.  */
-#define SIZEOF_LONG_LONG 8
+//#define SIZEOF_LONG_LONG 8
 
 /* The number of bytes in a short.  */
 #define SIZEOF_SHORT 2
@@ -571,7 +571,8 @@ typedef long uae_atomic;
 
 /* Define if you have the <sys/utime.h> header file.  */
 #ifndef _WIN32_WCE
-#define HAVE_SYS_UTIME_H 1
+//#define HAVE_SYS_UTIME_H 1
+#define HAVE_UTIME_H 1
 #endif
 
 /* Define if you have the <sys/vfs.h> header file.  */
@@ -586,12 +587,12 @@ typedef long uae_atomic;
 /* #undef HAVE_UTIME_H */
 
 /* Define if you have the <windows.h> header file.  */
-#define HAVE_WINDOWS_H 1
+//#define HAVE_WINDOWS_H 1
 
 #define FSDB_DIR_SEPARATOR '\\'
 #define FSDB_DIR_SEPARATOR_S _T("\\")
 
 /* Define to 1 if `S_un' is a member of `struct in_addr'. */
-#define HAVE_STRUCT_IN_ADDR_S_UN 1
+// #define HAVE_STRUCT_IN_ADDR_S_UN 1
 
 #endif /* WINUAE_SYSCONFIG_H */

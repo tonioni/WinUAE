@@ -1,0 +1,9 @@
+# ./genblitter i > blit.h
+# ./genblitter f > blitfunc.c
+# ./genblitter h > blitfunc.h
+# ./genblitter t > blittable.c
+
+target = genblitter
+srcs = blitops.cpp genblitter.cpp
+
+include Makefile.inc

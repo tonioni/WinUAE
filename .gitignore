@@ -61,3 +61,10 @@ packages.config
 **/.vs
 *.7z
 *.zip
+*.d
+build68k
+genblitter
+gencomp
+gencpu
+genlinetoscr
+winuae

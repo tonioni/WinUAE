@@ -163,7 +163,7 @@ static int audio_total_extra_streams;
 
 static int samplecnt;
 #if SOUNDSTUFF > 0
-static int extrasamples, outputsample, doublesample;
+int extrasamples, outputsample, doublesample;
 #endif
 
 int sampleripper_enabled;

@@ -29,6 +29,7 @@
 #include "custom.h"
 #include "rommgr.h"
 #include "devices.h"
+#include "commpipe.h"
 
 #if CDTVCR_4510_EMULATION
 static void init_65c02(void);
@@ -727,7 +728,7 @@ static uae_u8 cdtvcr_bget2 (uaecptr addr)
 		struct timeval tv;
 		struct mytimeval mtv;
 		gettimeofday (&tv, NULL);
-		tv.tv_sec -= _timezone;
+		//tv.tv_sec -= timezone;
 		mtv.tv_sec = tv.tv_sec;
 		mtv.tv_usec = tv.tv_usec;
 		timeval_to_amiga(&mtv, &days, &mins, &ticks, tickcount);

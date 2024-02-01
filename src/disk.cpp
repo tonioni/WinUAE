@@ -325,7 +325,7 @@ static void disk_date (uae_u8 *p)
 	struct mytimeval mtv;
 
 	gettimeofday (&tv, NULL);
-	tv.tv_sec -= _timezone;
+	//tv.tv_sec -= timezone;
 	mtv.tv_sec = tv.tv_sec;
 	mtv.tv_usec = tv.tv_usec;
 	timeval_to_amiga (&mtv, &days, &mins, &ticks, 50);
@@ -3220,7 +3220,7 @@ int disk_setwriteprotect (struct uae_prefs *p, int num, const TCHAR *fname_in, b
 			if (!_tcscmp (fname_in, floppy[i].newname))
 				drive_eject (&floppy[i]);
 		}
-		_wunlink (name2);
+		unlink (name2);
 	}
 
 	if (!needwritefile)
@@ -3344,6 +3344,8 @@ void disk_insert_force (int num, const TCHAR *name, bool forcedwriteprotect)
 	disk_insert_2 (num, name, 1, forcedwriteprotect);
 }
 
+#ifdef FLOPPYBRIDGE
+
 static void floppybridge_getsetprofile(int i)
 {
 	if (currprefs.floppyslots[i].dfxsubtype == 0 || currprefs.floppyslots[i].dfxsubtypeid[0] == 0) {
@@ -3361,6 +3363,8 @@ static void floppybridge_getsetprofile(int i)
 		}
 	}
 }
+
+#endif
 
 static void DISK_check_change (void)
 {

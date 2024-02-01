@@ -584,6 +584,7 @@ void fixup_prefs (struct uae_prefs *p, bool userconfig)
 		error_log (_T("Unsupported CPU Board RAM size."));
 	}
 
+#ifdef PICASSO96
 	for (int i = 0; i < MAX_RTG_BOARDS; i++) {
 		struct rtgboardconfig *rbc = &p->rtgboards[i];
 		if (p->chipmem.size > 0x200000 && rbc->rtgmem_size && gfxboard_get_configtype(rbc) == 2) {
@@ -614,6 +615,7 @@ void fixup_prefs (struct uae_prefs *p, bool userconfig)
 			rbc->rtgmem_size = 0;
 		}
 	}
+#endif
 
 	if (p->cs_z3autoconfig && p->address_space_24) {
 		p->cs_z3autoconfig = false;
@@ -751,9 +753,6 @@ void fixup_prefs (struct uae_prefs *p, bool userconfig)
 #endif
 #if !defined (SCSIEMU)
 	p->scsi = 0;
-#ifdef _WIN32
-	p->win32_aspi = 0;
-#endif
 #endif
 #if !defined (SANA2)
 	p->sana2 = 0;

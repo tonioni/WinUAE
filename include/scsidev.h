@@ -25,7 +25,7 @@ int scsi_add_tape (struct uaedev_config_info *uci);
 
 extern int log_scsi;
 
-#ifdef _WIN32
+#if 1//def _WIN32
 #define UAESCSI_CDEMU 0
 #define UAESCSI_SPTI 1
 #define UAESCSI_SPTISCAN 2

@@ -1786,7 +1786,7 @@ static void hrtmon_configure(void)
 
 int hrtmon_load (void)
 {
-	struct zfile *f;
+	struct zfile *f = nullptr;
 	uae_u32 header[4];
 	struct romdata *rd;
 	int isinternal = 0;

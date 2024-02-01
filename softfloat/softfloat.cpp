@@ -94,7 +94,7 @@ this code that are retained.
 | division and square root approximations.  (Can be specialized to target if
 | desired.)
 *----------------------------------------------------------------------------*/
-#include "softfloat-macros.h"
+#include "SOFTFLOAT-MACROS.H"
 
 /*----------------------------------------------------------------------------
  | Variables for storing sign, exponent and significand of internal extended

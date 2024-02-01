@@ -14,8 +14,8 @@ bool emulate_genlock(struct vidbuffer*, struct vidbuffer*, bool);
 bool emulate_grayscale(struct vidbuffer*, struct vidbuffer*);
 bool specialmonitor_linebased(void);
 
-const TCHAR *specialmonitorfriendlynames[];
-const TCHAR *specialmonitormanufacturernames[];
-const TCHAR *specialmonitorconfignames[];
+extern const TCHAR *specialmonitorfriendlynames[];
+extern const TCHAR *specialmonitormanufacturernames[];
+extern const TCHAR *specialmonitorconfignames[];
 
 #endif /* UAE_SPECIALMONITORS_H */

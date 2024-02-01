@@ -60,59 +60,61 @@ STATIC_INLINE void do_put_mem_word(uae_u16 *a, uae_u16 v)
 
 #else
 
+#include <byteswap.h>
+
+
 STATIC_INLINE uae_u64 do_get_mem_quad(uae_u64 *a)
 {
-	return _byteswap_uint64(*a);
+	return bswap_64(*a);
 }
 
 STATIC_INLINE uae_u32 do_get_mem_long(uae_u32 *a)
 {
-	return _byteswap_ulong(*a);
+	return bswap_32(*a);
 }
 
 STATIC_INLINE uae_u16 do_get_mem_word(uae_u16 *a)
 {
-	return _byteswap_ushort(*a);
+	return bswap_16(*a);
 }
 
 
 STATIC_INLINE void do_put_mem_quad(uae_u64 *a, uae_u64 v)
 {
-	*a = _byteswap_uint64(v);
+	*a = bswap_64(v);
 }
 
 STATIC_INLINE void do_put_mem_long(uae_u32 *a, uae_u32 v)
 {
-	*a = _byteswap_ulong(v);
+	*a = bswap_32(v);
 }
 
 STATIC_INLINE void do_put_mem_word(uae_u16 *a, uae_u16 v)
 {
-	*a = _byteswap_ushort(v);
+	*a = bswap_16(v);
 }
-
-
-#endif
 
 STATIC_INLINE uae_u64 do_byteswap_64(uae_u64 v)
 {
-	return _byteswap_uint64(v);
+	return bswap_64(v);
 }
 
 STATIC_INLINE uae_u32 do_byteswap_32(uae_u32 v)
 {
-	return _byteswap_ulong(v);
+	return bswap_32(v);
 }
 
 STATIC_INLINE uae_u16 do_byteswap_16(uae_u16 v)
 {
-	return _byteswap_ushort(v);
+	return bswap_16(v);
 }
 
 STATIC_INLINE uae_u32 do_get_mem_word_unswapped(uae_u16 *a)
 {
 	return *a;
 }
+
+#endif
 
 #define call_mem_get_func(func, addr) ((*func)(addr))
 #define call_mem_put_func(func, addr, v) ((*func)(addr, v))

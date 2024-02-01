@@ -18,7 +18,7 @@ extern void write_log (const char *, ...);
 #define tostring(s)	#s
 #endif
 
-typedef int ssize_t;
+//typedef int ssize_t;
 
 #ifdef _MSC_VER
 #include <windows.h>

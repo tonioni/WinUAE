@@ -558,7 +558,7 @@ static uae_u32 REGPARAM2 getchipmemsize (TrapContext *ctx)
 static uae_u32 REGPARAM2 uae_puts (TrapContext *ctx)
 {
 	uae_char buf[MAX_DPATH];
-	trap_get_string(ctx, buf, trap_get_areg(ctx, 0), sizeof uae_char);
+	trap_get_string(ctx, buf, trap_get_areg(ctx, 0), sizeof(uae_char));
 	TCHAR *s = au(buf);
 	write_log(_T("%s"), s);
 	xfree(s);

@@ -133,7 +133,7 @@ static int uaenet_getdata (void *dev, uae_u8 *d, int *len);
 #define SANA2IOB_MCAST  5
 #define SANA2IOF_MCAST  (1<<SANA2IOB_MCAST)
 
-#define S2_Dummy                (TAG_USER + 0xB0000)
+#define S2_Dummy                (uint32_t)(TAG_USER + 0xB0000)
 #define S2_CopyToBuff           (S2_Dummy + 1)
 #define S2_CopyFromBuff         (S2_Dummy + 2)
 #define S2_PacketFilter         (S2_Dummy + 3)

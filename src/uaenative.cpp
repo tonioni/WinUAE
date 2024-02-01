@@ -493,7 +493,7 @@ uae_u32 uaenative_call_function (TrapContext *ctx, int flags)
         uni.library = 0;
     }
 
-    struct library_data *library_data;
+    struct library_data *library_data = nullptr;
 
     if (uni.library) {
         // library handle given, function is pointer to function name

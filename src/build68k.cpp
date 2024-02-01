@@ -10,11 +10,18 @@
 #include "sysdeps.h"
 
 #include <stdlib.h>
-#include <tchar.h>
+//#include <tchar.h>
 #include <assert.h>
 #include <ctype.h>
 
+#ifdef FSUAE
+#include "uae/types.h"
+#else
 #define TCHAR char
+#endif
+
+
+// #define TCHAR char
 
 #include "readcpu.h"
 

@@ -113,8 +113,8 @@ int SOUNDBUFLEN = 8192;
 static int32_t outbuffer1[MAXSOUNDBUFLEN * 2];
 static int32_t outbuffer2[MAXSOUNDBUFLEN * 2];
 static int x86_sndbuffer_index;
-static int32_t *x86_sndbuffer[2];
-static bool x86_sndbuffer_filled[2];
+int32_t *x86_sndbuffer[2];
+bool x86_sndbuffer_filled[2];
 bool ps2_mouse_supported;
 
 struct membase

@@ -8752,9 +8752,11 @@ static void rethink_intreq(void)
 
 static void intreq_checks(uae_u16 oldreq, uae_u16 newreq)
 {
+#ifdef SERIAL_PORT 
 	if ((oldreq & 0x0800) && !(newreq & 0x0800)) {
 		serial_rbf_clear();
 	}
+#endif
 }
 
 static void event_doint_delay_do_ext(uae_u32 v)
@@ -11791,6 +11793,7 @@ static frame_time_t rpt_vsync(int adjust)
 {
 	frame_time_t curr_time = read_processor_time();
 	frame_time_t v = curr_time - vsyncwaittime + adjust;
+
 	if (v > syncbase || v < -syncbase) {
 		vsyncmintime = vsyncmaxtime = vsyncwaittime = curr_time;
 		v = 0;
@@ -12009,7 +12012,7 @@ static bool framewait(void)
 		}
 		vsyncmaxtime = curr_time + max;
 
-		if (0)
+		if (1)
 			write_log (_T("%06d:%06d/%06d %d %d\n"), adjust, vsynctimeperline, vstb, max, maxvpos_display);
 	
 	} else {
@@ -12177,7 +12180,7 @@ static void vsync_handler_render(void)
 	if (!vsync_rendered) {
 		frame_time_t start, end;
 		start = read_processor_time();
-		vsync_handle_redraw(lof_store, lof_changed, bplcon0, bplcon3, isvsync_chipset() >= 0, initial_frame);
+		//vsync_handle_redraw(lof_store, lof_changed, bplcon0, bplcon3, isvsync_chipset() >= 0, initial_frame);
 		initial_frame = false;
 		vsync_rendered = true;
 		end = read_processor_time();

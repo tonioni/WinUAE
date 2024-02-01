@@ -446,7 +446,7 @@ static bool docalc1(TCHAR op, struct calcstack *sv1, double v2, double *valp, TC
     if (isstackstring(sv1)) {
         TCHAR *v1 = stacktostring(sv1);
         double vout;
-        TCHAR *s = docalcxs(op, v1, _T(""), &vout);
+        TCHAR *s = docalcxs(op, v1, (TCHAR*)"", &vout);
         if (!s) {
             return false;
         }

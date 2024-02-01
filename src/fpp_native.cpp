@@ -1,4 +1,4 @@
-/*
+/*162
 * UAE - The Un*x Amiga Emulator
 *
 * MC68881/68882/68040/68060 FPU emulation
@@ -159,7 +159,7 @@ static void set_fpucw_x87(uae_u32 m68k_cw)
 static void native_set_fpucw(uae_u32 m68k_cw)
 {
 #if defined(CPU_i386) || defined(CPU_x86_64)
-	set_fpucw_x87(m68k_cw);
+	//set_fpucw_x87(m68k_cw);
 #endif
 }
 

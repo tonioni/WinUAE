@@ -1,4 +1,3 @@
-
 #include <windows.h>
 
 #include "sysconfig.h"

@@ -258,7 +258,7 @@ static bool audio_state_sndboard_uae(int streamid, void *params);
 
 extern addrbank uaesndboard_ram_bank;
 MEMORY_FUNCTIONS(uaesndboard_ram);
-static addrbank uaesndboard_ram_bank = {
+addrbank uaesndboard_ram_bank = {
 	uaesndboard_ram_lget, uaesndboard_ram_wget, uaesndboard_ram_bget,
 	uaesndboard_ram_lput, uaesndboard_ram_wput, uaesndboard_ram_bput,
 	uaesndboard_ram_xlate, uaesndboard_ram_check, NULL, _T("*"), _T("UAESND memory"),
@@ -1162,7 +1162,7 @@ static struct addrbank_sub uaesndz2_sub_banks[] = {
 	{ NULL }
 };
 
-static addrbank uaesndboard_bank_z3 = {
+addrbank uaesndboard_bank_z3 = {
 	uaesndboard_lget, uaesndboard_wget, uaesndboard_bget,
 	uaesndboard_lput, uaesndboard_wput, uaesndboard_bput,
 	default_xlate, default_check, NULL, NULL, _T("uaesnd z3"),
@@ -1170,7 +1170,7 @@ static addrbank uaesndboard_bank_z3 = {
 	ABFLAG_IO, S_READ, S_WRITE
 };
 
-static addrbank uaesndboard_bank_z2 = {
+addrbank uaesndboard_bank_z2 = {
 	sub_bank_lget, sub_bank_wget, sub_bank_bget,
 	sub_bank_lput, sub_bank_wput, sub_bank_bput,
 	default_xlate, default_check, NULL, NULL, _T("uaesnd z2"),
@@ -2207,7 +2207,7 @@ static uae_u32 REGPARAM2 toccata_lget(uaecptr addr)
 	return v;
 }
 
-static addrbank toccata_bank = {
+addrbank toccata_bank = {
 	toccata_lget, toccata_wget, toccata_bget,
 	toccata_lput, toccata_wput, toccata_bput,
 	default_xlate, default_check, NULL, _T("*"), _T("Toccata"),
@@ -3150,6 +3150,21 @@ Exit:;
 	write_log(_T("sndboard capture init failed %08x\n"), hr);
 	sndboard_free_capture();
 	return false;
+}
+
+#else
+
+static bool sndboard_init_capture(int freq) { 
+    return false; 
+}
+
+static void sndboard_free_capture(void) { }
+
+static uae_u8 *sndboard_get_buffer(int *frames) { 
+    return NULL; 
+}
+
+static void sndboard_release_buffer(uae_u8 *buffer, int frames) { 
 }
 
 #endif

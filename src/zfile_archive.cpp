@@ -42,7 +42,7 @@ static time_t fromdostime (uae_u32 dd)
 	tm.tm_mon  = ((dd >> 21) & 0x0f) - 1;
 	tm.tm_mday = (dd >> 16) & 0x1f;
 	t = mktime (&tm);
-	t -= _timezone;
+	//t -= _timezone;
 	return t;
 }
 
@@ -312,9 +312,11 @@ struct zvolume *archive_directory_tar (struct zfile *z)
 			zai.name = au (name);
 			zai.size = size;
 			zai.tv.tv_sec = _strtoui64 ((char*)block + 136, NULL, 8);
-			zai.tv.tv_sec += _timezone;
+			//zai.tv.tv_sec += _timezone;
+			/*
 			if (_daylight)
 				zai.tv.tv_sec -= 1 * 60 * 60;
+			*/
 			if (zai.name[_tcslen (zai.name) - 1] == '/') {
 				zn = zvolume_adddir_abs (zv, &zai);
 			} else {
@@ -607,8 +609,10 @@ struct zvolume *archive_directory_7z (struct zfile *z)
 			if (t >= EPOCH_DIFF) {
 				zai.tv.tv_sec = (t - EPOCH_DIFF) / RATE_DIFF;
 				zai.tv.tv_sec -= _timezone;
+				/*
 				if (_daylight)
 					zai.tv.tv_sec += 1 * 60 * 60;
+				*/
 			}
 		}
 		if (!f->IsDir) {

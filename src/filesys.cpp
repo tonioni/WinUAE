@@ -77,6 +77,8 @@ int log_filesys = 0;
 
 #define TRAPMD 1
 
+#undef TRACE
+
 #if TRACING_ENABLED
 #if 0
 #define TRACE(x) if (log_filesys > 0 && (unit->volflags & MYVOLUMEINFO_CDFS)) { write_log x; }
@@ -10593,9 +10595,9 @@ int filesys_shellexecute2(TCHAR *file, TCHAR *currentdir, TCHAR *parms, uae_u32 
 	for (int i = 0; i < SHELLEXEC_MAX; i++) {
 		struct ShellExecute2 *se2 = &shellexecute2[i];
 		if (!se2->state) {
-			se2->file = file ? ua(file) : "";
-			se2->currentdir = currentdir ? ua(currentdir) : "";
-			se2->parms = parms ? ua(parms) : "";
+			se2->file =  file ? ua(file) : strdup("");
+			se2->currentdir = currentdir ? ua(currentdir) : strdup("");
+			se2->parms = parms ? ua(parms) : strdup("");
 			se2->id = id;
 			se2->stack = stack;
 			se2->priority = priority;

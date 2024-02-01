@@ -44,6 +44,8 @@
 #define PCMCIA_ARCHOSHD 4
 #define PCMCIA_SURFSQUIRREL 5
 
+#undef free
+
 /*
 600000 to 9FFFFF	4 MB	Credit Card memory if CC present
 A00000 to A1FFFF	128 KB	Credit Card Attributes
@@ -1568,8 +1570,9 @@ static int initpcmcia (const TCHAR *path, int readonly, int type, int reset, str
 		pcmcia_card = 1;
 		initscideattr (pcmcia_readonly);
 
-	} else if (type == PCMCIA_NE2000) {
-
+	} 
+	/*
+	else if (type == PCMCIA_NE2000) {
 		ne2000 = &ne2000_pci_board_pcmcia;
 		ne2000_board_state = xcalloc(pci_board_state, 1);
 		ne2000_board_state->irq_callback = ne2000_pcmcia_irq_callback;
@@ -1586,8 +1589,9 @@ static int initpcmcia (const TCHAR *path, int readonly, int type, int reset, str
 			pcmcia_card = 1;
 			initne2000attr();
 		}
-	
-	} else if (type == PCMCIA_ARCHOSHD) {
+	} 
+    */	
+    else if (type == PCMCIA_ARCHOSHD) {
 
 		pcmcia_disk->hfd.drive_empty = 0;
 		pcmcia_common_size = 0;

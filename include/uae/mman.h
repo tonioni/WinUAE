@@ -5,6 +5,10 @@
 
 #define MAX_SHMID 256
 
+#ifndef MAX_PATH
+#define MAX_PATH 2048
+#endif
+
 typedef int uae_key_t;
 
 /* One shmid data structure for each shared memory segment in the system. */

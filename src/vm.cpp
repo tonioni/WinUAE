@@ -24,6 +24,10 @@
 #include <sys/sysctl.h>
 #endif
 
+#ifndef _WIN32
+#include <unistd.h>
+#endif
+
 #if defined(LINUX) && defined(CPU_x86_64)
 #define HAVE_MAP_32BIT 1
 #endif
@@ -116,6 +120,7 @@ static const char *protect_description(int protect)
 	if (protect == UAE_VM_READ_WRITE_EXECUTE) return "READ_WRITE_EXECUTE";
 	return "UNKNOWN";
 }
+
 
 int uae_vm_page_size(void)
 {

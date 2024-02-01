@@ -4,7 +4,7 @@
 
 #include "ethernet.h"
 #ifdef _WIN32
-#include "win32_uaenet.h"
+//#include "win32_uaenet.h"
 #endif
 #include "threaddep/thread.h"
 #include "options.h"
@@ -15,7 +15,7 @@
 #include "rommgr.h"
 
 #ifndef HAVE_INET_ATON
-static int inet_aton(const char *cp, struct in_addr *ia)
+int inet_aton(const char *cp, struct in_addr *ia)
 {
 	uint32_t addr = inet_addr(cp);
 	if (addr == 0xffffffff)

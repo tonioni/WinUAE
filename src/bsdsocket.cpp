@@ -185,7 +185,7 @@ uae_u32 callfdcallback (TrapContext *ctx, SB, uae_u32 fd, uae_u32 action)
 bool checksd(TrapContext *ctx, SB, int sd)
 {
 	int iCounter;
-	SOCKET s;
+	SOCKET_TYPE s;
 
 	s = getsock(ctx, sb, sd);
 	if (s != INVALID_SOCKET) {
