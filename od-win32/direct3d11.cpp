@@ -3429,7 +3429,7 @@ static bool xD3D11_initvals(HWND ahwnd, int monid, int w_w, int w_h, int t_w, in
 	d3d->dmultxh = mmulth;
 	d3d->dmultxv = mmultv;
 	if (d3d->m_device) {
-		target_graphics_buffer_update(monid);
+		target_graphics_buffer_update(monid, false);
 	}
 
 	return changed;

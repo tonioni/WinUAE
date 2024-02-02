@@ -2428,7 +2428,7 @@ int check_prefs_changed_gfx(void)
 				}
 			}
 			if (c & 1024) {
-				target_graphics_buffer_update(mon->monitor_id);
+				target_graphics_buffer_update(mon->monitor_id, true);
 			}
 			if (c & 512) {
 				reopen_gfx(mon);
@@ -3085,7 +3085,7 @@ void gfx_set_picasso_modeinfo(int monid, RGBFTYPE rgbfmt)
 #ifdef RETROPLATFORM
 	rp_set_hwnd(mon->hAmigaWnd);
 #endif
-	target_graphics_buffer_update(monid);
+	target_graphics_buffer_update(monid, false);
 }
 #endif
 
@@ -3846,6 +3846,7 @@ static int create_windows(struct AmigaMonitor *mon)
 	addnotifications (mon->hAmigaWnd, FALSE, FALSE);
 	mon->window_extra_height_bar = sbheight;
 	mon->dpi = getdpiforwindow(mon->hAmigaWnd);
+	createstatusline(mon->hMainWnd, mon->monitor_id);
 
 	if (mon->monitor_id) {
 		ShowWindow(mon->hMainWnd, SW_SHOWNOACTIVATE);
@@ -4105,7 +4106,6 @@ retry:
 		} else if (errv < 0) {
 			modechanged = false;
 		}
-		target_graphics_buffer_update(mon->monitor_id);
 		updatewinrect(mon, true);
 	}
 
@@ -4116,7 +4116,7 @@ retry:
 		display_param_init(mon);
 		createstatusline(mon->hAmigaWnd, mon->monitor_id);
 	}
-
+	target_graphics_buffer_update(mon->monitor_id, false);
 
 	picasso_refresh(mon->monitor_id);
 #ifdef RETROPLATFORM
@@ -4137,7 +4137,7 @@ oops:
 	return ret;
 }
 
-bool target_graphics_buffer_update(int monid)
+bool target_graphics_buffer_update(int monid, bool force)
 {
 	struct AmigaMonitor *mon = &AMonitors[monid];
 	struct picasso_vidbuf_description *vidinfo = &picasso_vidinfo[monid];
@@ -4158,7 +4158,7 @@ bool target_graphics_buffer_update(int monid)
 		h = vb->outheight;
 	}
 	
-	if (oldtex_w[monid] == w && oldtex_h[monid] == h && oldtex_rtg[monid] == mon->screen_is_picasso && D3D_alloctexture(mon->monitor_id, -w, -h)) {
+	if (!force && oldtex_w[monid] == w && oldtex_h[monid] == h && oldtex_rtg[monid] == mon->screen_is_picasso && D3D_alloctexture(mon->monitor_id, -w, -h)) {
 		osk_setup(monid, -2);
 		return false;
 	}
