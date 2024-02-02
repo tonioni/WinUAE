@@ -905,9 +905,9 @@ void exit_gui (int ok)
 {
 	if (!gui_active)
 		return;
-	if (guiDlg == NULL)
-		return;
-	SendMessage (guiDlg, WM_COMMAND, ok ? IDOK : IDCANCEL, 0);
+	if (guiDlg && hGUIWnd) {
+		SendMessage (guiDlg, WM_COMMAND, ok ? IDOK : IDCANCEL, 0);
+	}
 }
 
 static int getcbn (HWND hDlg, int v, TCHAR *out, int maxlen)
@@ -12877,6 +12877,8 @@ static void misc_gui_font(HWND hDlg, int fonttype)
 		} else if (fonttype == 2) {
 			if (!full_property_sheet && AMonitors[0].hAmigaWnd) {
 				createstatusline(AMonitors[0].hAmigaWnd, 0);
+				target_graphics_buffer_update(0, true);
+
 			}
 		}
 	}
@@ -21996,11 +21998,15 @@ static BOOL CALLBACK childenumproc (HWND hwnd, LPARAM lParam)
 	return 1;
 }
 
-static void getguisize (HWND hDlg, int *width, int *height)
+static void getguisize (HWND hwnd, int *width, int *height)
 {
 	RECT r;
 
-	GetWindowRect (hDlg, &r);
+	if (!GetWindowRect(hwnd, &r)) {
+		write_log("getguisize failed! %d\n", GetLastError());
+		return;
+	}
+	write_log("getguisize got %dx%d - %dx%d = %dx%d\n", r.left, r.top, r.right, r.bottom, r.right - r.left, r.bottom - r.top);
 	*width = (r.right - r.left);
 	*height = (r.bottom - r.top);
 }
@@ -22051,21 +22057,19 @@ static HWND updatePanel (int id, UINT action)
 	hAccelTable = NULL;
 	if (id < 0) {
 		RECT r;
-		if (GetWindowRect (hDlg, &r)) {
-			LONG left, top;
+		if (!gui_fullscreen && IsWindowVisible(hDlg) && !IsIconic(hDlg) && GetWindowRect(hDlg, &r)) {
+			int left, top;
 			left = r.left;
 			top = r.top;
-			if (!gui_fullscreen) {
-				if (full_property_sheet || isfullscreen () == 0) {
-					regsetint (NULL, _T("GUIPosX"), left);
-					regsetint (NULL, _T("GUIPosY"), top);
-				} else if (isfullscreen () < 0) {
-					regsetint (NULL, _T("GUIPosFWX"), left);
-					regsetint (NULL, _T("GUIPosFWY"), top);
-				} else if (isfullscreen () > 0) {
-					regsetint (NULL, _T("GUIPosFSX"), left);
-					regsetint (NULL, _T("GUIPosFSY"), top);
-				}
+			if (full_property_sheet || isfullscreen () == 0) {
+				regsetint (NULL, _T("GUIPosX"), left);
+				regsetint (NULL, _T("GUIPosY"), top);
+			} else if (isfullscreen () < 0) {
+				regsetint (NULL, _T("GUIPosFWX"), left);
+				regsetint (NULL, _T("GUIPosFWY"), top);
+			} else if (isfullscreen () > 0) {
+				regsetint (NULL, _T("GUIPosFSX"), left);
+				regsetint (NULL, _T("GUIPosFSY"), top);
 			}
 		}
 		ew (hDlg, IDHELP, FALSE);
@@ -23544,6 +23548,7 @@ static int GetSettings (int all_options, HWND hwnd)
 		freescaleresource(panelresource);
 		scaleresource (panelresource, &maindctx, hwnd, gui_resize_enabled && gui_resize_allowed, gui_fullscreen, workprefs.win32_gui_alwaysontop || workprefs.win32_main_alwaysontop ? WS_EX_TOPMOST : 0, 0);
 		HWND phwnd = hwnd;
+		hGUIWnd = NULL;
 		if (isfullscreen() == 0)
 			phwnd = 0;
 		if (isfullscreen() > 0 && currprefs.gfx_api > 1)
@@ -23558,7 +23563,7 @@ static int GetSettings (int all_options, HWND hwnd)
 			int dh = GetSystemMetrics(SM_CYSCREEN);
 			MSG msg;
 			DWORD v;
-			int w, h;
+			int w = 0, h = 0;
 
 			getguisize (dhwnd, &w, &h);
 			write_log (_T("Got GUI size = %dx%d\n"), w, h);
@@ -23689,14 +23694,16 @@ static int GetSettings (int all_options, HWND hwnd)
 			scaleresource_setdefaults(hwnd);
 			gui_size_changed = 10;
 		}
-gui_exit:
+gui_exit:;
+		dhwnd = NULL;
+		hGUIWnd = NULL;
 		freescaleresource(panelresource);
 		if (!gui_size_changed)
 			break;
 		quit_program = 0;
 	}
 
-	if (use_gui_control > 0) {
+	if (use_gui_control > 0 && dhwnd) {
 		KillTimer(dhwnd, 8);
 	}
 
