@@ -131,4 +131,4 @@ CPPFLAGS += -DFILEFLAG_DIR=1 -D_ftelli64=ftello64 -D_fseeki64=fseeko64
 
 EXTS = sdl2 libpng
 CPPFLAGS += $(foreach ext,$(EXTS), $(shell pkg-config --cflags $(ext)))
-LDLIBS   += $(foreach ext,$(EXTS), $(shell pkg-config --libs   $(ext))) -lz
+LDLIBS   += $(foreach ext,$(EXTS), $(shell pkg-config --libs   $(ext))) -lz -ldl
