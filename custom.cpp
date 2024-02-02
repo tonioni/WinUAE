@@ -14328,7 +14328,7 @@ static void hsync_handler(void)
 		events_schedule();
 
 	}
-	if (vpos == maxvpos_display_vsync && !maxvpos_display_vsync_next) {
+	if (vpos == maxvpos_display_vsync + 1 && !maxvpos_display_vsync_next) {
 		hsync_record_line_state_last(next_lineno, nextline_how, 0);
 		inputdevice_read_msg(true);
 		vsync_display_render();
@@ -14339,7 +14339,7 @@ static void hsync_handler(void)
 		reset_autoscale();
 		display_vsync_counter++;
 		maxvpos_display_vsync_next = true;
-	} else if (vpos != maxvpos_display_vsync && maxvpos_display_vsync_next) {
+	} else if (vpos != maxvpos_display_vsync + 1 && maxvpos_display_vsync_next) {
 		// protect against weird VPOSW writes causing continuous vblanks
 		maxvpos_display_vsync_next = false;
 	}
