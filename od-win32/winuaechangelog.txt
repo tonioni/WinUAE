@@ -1,5 +1,17 @@
 
 
+Beta 7:
+
+- On the fly changing OSD font size didn't update OSD allocated vertical size until mode was changed.
+- When opening fullscreen mode, OSD font was generated after texture allocation. Font was correct but OSD led boxes had wrong height.
+- Start emulation, minimize window, click notification icon -> forever looping GUI open failures. (because minimized main window was detected as being minimized -> close GUI window. When GUI window was mid construction..) Very old bug.
+- In some situations minimized GUI position was saved as current GUI position to registry/ini.
+- Some "Fake 60Hz" modes had blank screen (Wings of Death) without Overscan+ or higher overscan mode.
+- Drag&drop archive file in Quickstart mode and archive contains more than one executable, don't insert it in DF0:.
+- Drag&drop archive file in Quickstart mode with not autodetected contents but it has Amiga executables: insert it as a harddrive.
+- Max harddrive limit bumped to 50 (was already 50 in some places but 30 in some others) and check limit properly.
+- Quick fix to prevent ALG Marbella Vice boot crash. (Really stupid interrupt code that breaks if LD player answers too quickly.. and also enables disk sync interrupt and crashes if it gets one... This is also worked around). ALG LD player command 0x55 added (Frame Mode), MV requires it. Nothing else tested yet.
+
 Beta 6:
 
 - DraCo NVRAM data was always written to NVRAM file, even if current config was not DraCo.
