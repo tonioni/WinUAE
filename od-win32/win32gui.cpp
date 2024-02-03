@@ -17325,8 +17325,9 @@ static void diskswapper_addfile (struct uae_prefs *prefs, const TCHAR *file)
 			struct zfile *zf = zfile_fopen (out, _T("rb"), ZFD_NORMAL);
 			if (zf) {
 				int type = zfile_gettype (zf);
-				if (type == ZFILE_DISKIMAGE)
+				if (type == ZFILE_DISKIMAGE || type == ZFILE_EXECUTABLE) {
 					diskswapper_addfile2 (prefs, out);
+				}
 				zfile_fclose (zf);
 			}
 		}
@@ -22377,7 +22378,7 @@ static int floppyslot_addfile (struct uae_prefs *prefs, const TCHAR *filepath, c
 				struct zfile *zf = zfile_fopen (out, _T("rb"), ZFD_NORMAL);
 				if (zf) {
 					int type = zfile_gettype (zf);
-					if (type == ZFILE_DISKIMAGE) {
+					if (type == ZFILE_DISKIMAGE || type == ZFILE_EXECUTABLE) {
 						drv = floppyslot_addfile2 (prefs, out, drv, firstdrv, maxdrv);
 						if (drv < 0)
 							break;
@@ -22540,7 +22541,11 @@ int dragdrop (HWND hDlg, HDROP hd, struct uae_prefs *prefs, int	currentpage)
 						type = zfile_gettype (z);
 						if (type == ZFILE_ROM) {
 							rd = getromdatabyzfile (z);
-						}
+						} else if (currentpage == QUICKSTART_ID) {
+							if (type == ZFILE_UNKNOWN && iszip(z)) {
+								type = ZFILE_HDF;
+							}
+						}						
 						// replace with decrunched path but only if
 						// floppy insert and decrunched path is deeper (longer)
 						if (type > 0 && _tcslen(z->name) > _tcslen(file) && drv >= 0) {
@@ -22563,7 +22568,7 @@ int dragdrop (HWND hDlg, HDROP hd, struct uae_prefs *prefs, int	currentpage)
 
 		if (drvdrag) {
 			type = ZFILE_DISKIMAGE;
-		} else if ((zip || harddrive) && type != ZFILE_DISKIMAGE) {
+		} else if ((zip || harddrive) && type != ZFILE_DISKIMAGE && type != ZFILE_EXECUTABLE) {
 			if (do_filesys_insert (file, cnt))
 				continue;
 			if (zip) {
@@ -22582,6 +22587,7 @@ int dragdrop (HWND hDlg, HDROP hd, struct uae_prefs *prefs, int	currentpage)
 		switch (type)
 		{
 		case ZFILE_DISKIMAGE:
+		case ZFILE_EXECUTABLE:
 			if (currentpage == DISK_ID) {
 				diskswapper_addfile (prefs, file);
 			} else if (currentpage == HARDDISK_ID) {

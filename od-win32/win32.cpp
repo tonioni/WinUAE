@@ -7220,6 +7220,7 @@ static int process_arg (TCHAR *cmdline, TCHAR **xargv, TCHAR ***xargv3)
 				_stprintf (tmp, _T("-cdimage=%s"), f);
 				break;
 			case ZFILE_DISKIMAGE:
+			case ZFILE_EXECUTABLE:
 				if (fd < 4)
 					_stprintf (tmp, _T("-cfgparam=floppy%d=%s"), fd++, f);
 				break;
