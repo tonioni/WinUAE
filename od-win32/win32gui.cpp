@@ -22544,7 +22544,7 @@ int dragdrop (HWND hDlg, HDROP hd, struct uae_prefs *prefs, int	currentpage)
 						type = zfile_gettype (z);
 						if (type == ZFILE_ROM) {
 							rd = getromdatabyzfile (z);
-						} else if (currentpage == QUICKSTART_ID) {
+						} else if (currentpage == QUICKSTART_ID || currentpage == LOADSAVE_ID) {
 							if (type == ZFILE_UNKNOWN && iszip(z)) {
 								type = ZFILE_HDF;
 							}

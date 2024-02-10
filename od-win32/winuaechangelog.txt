@@ -1,4 +1,16 @@
 
+Beta 8:
+
+- Clicking GamePorts panel remap/test crashed in some situations (remap device, change device type to something that has less events, remap device)
+- In some situations GamePorts remap setup (number/type of buttons etc) didn't match selected device type (mouse, joystick, gamepad etc) and changing it did nothing.
+- Better vertical positioning of NTSC mode in normal Overscan mode. Previously calculation used PAL max overscan height. Overscan+ and Overscan in NTSC mode now have almost same vertical positioning. 
+
+- LD serial port communication timing adjusted and previously unemulated LD commands implemented (REPEAT and MARK SET). Now Picmatic Marbella Vice lightgun game works.
+- ALG/Picmatic LD player always unpaused after exiting GUI, even if it was paused before entering GUI.
+- ALG/Picmatic statefile support. Note that complete data is not saved, for example LD and NVRAM paths. Matching config file must be loaded first.
+- Picmatic (Marbella Vice) player one/two gun selection implemented. Oddly there are two methods: parallel port first data pin selects gun but it is not used when in gun calibration service menu, only during game play. Other method is IO port at $f60000 which is used both in calibration menu and during game play. (Maybe Picmatic games had different hardware versions?). ALG uses joystick port #2 button #2 pin.
+- ALG and Picmatic (Marbella Vice) input events now match. Picmatic games use different hardware and different joystick port pins than ALG, emulation now automatically remaps Picmatic events to matching ALG input events.
+- Genlock overlay position relative to Amiga display does not anymore change when display panel settings are changed (lores/hires/double etc). Genlock image position was not correctly centered if genlock image size was (much) larger or (much) smaller than Amiga display size. Do not scale if video height is almost same as Amiga display height (+-8 lines). This fixes ugly horizontal artifacts when odd and even lines get "mixed" mid screen.
 
 Beta 7:
 
@@ -10,7 +22,7 @@ Beta 7:
 - Drag&drop archive file in Quickstart mode and archive contains more than one executable, don't insert it in DF0:.
 - Drag&drop archive file in Quickstart mode with not autodetected contents but it has Amiga executables: insert it as a harddrive.
 - Max harddrive limit bumped to 50 (was already 50 in some places but 30 in some others) and check limit properly.
-- Quick fix to prevent ALG Marbella Vice boot crash. (Really stupid interrupt code that breaks if LD player answers too quickly.. and also enables disk sync interrupt and crashes if it gets one... This is also worked around). ALG LD player command 0x55 added (Frame Mode), MV requires it. Nothing else tested yet.
+- Quick fix to prevent ALG Marbella Vice boot crash. (Really stupid interrupt code that breaks if LD player answers too quickly.. and also enables disk sync interrupt and crashes if it gets one. This is also worked around). ALG LD player command 0x55 added (Frame Mode), MV requires it. Nothing else tested yet.
 
 Beta 6:
 
