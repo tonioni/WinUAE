@@ -2399,7 +2399,7 @@ static bool do_genlock(struct vidbuffer *src, struct vidbuffer *dst, bool double
 	struct vidbuf_description *avidinfo = &adisplays[dst->monitor_id].gfxvidinfo;
 
 	int y, x, vdbl, hdbl;
-	int ystart, yend;
+	int ystart, yend, xstart, xend;
 	int mix1 = 0, mix2 = 0;
 
 	int genlock_image_pixbytes = 4;
@@ -2536,8 +2536,7 @@ skip:
 	else
 		hdbl = 2; // lores
 
-	ystart = minfirstline;
-	yend = maxvpos;
+	get_mode_blanking_limits(&xstart, &xend,  &ystart, &yend);
 
 	init_noise();
 
@@ -2548,11 +2547,25 @@ skip:
 	uae_u8 amix1 = 255 - (currprefs.genlock_mix > 255 ? 255 : 0);
 	uae_u8 amix2 = 255 - amix1;
 
-	int ah = (((yend - ystart) * 2) >> vdbl);
-	int aw = src->inwidth;
+	int ah = (((yend - ystart) * 2) >> 0);
+	int aw = ((xend - xstart) >> 1);
 
-	int deltax = genlock_image_width * 65536 / aw;
-	int deltay = genlock_image_height * 65536 / ah;
+	if (ah < 16 || aw < 16) {
+		return false;
+	}
+
+	int deltax = 65536;
+	int deltay = 65536;
+
+	if (abs(genlock_image_width - aw) > 8) {
+		deltax = genlock_image_width * 65536 / aw;
+	}
+	if (abs(genlock_image_height - ah) > 8) {
+		deltay = genlock_image_height * 65536 / ah;
+	}
+	deltay <<= vdbl;
+	deltax <<= hdbl;
+	deltax >>= 1;
 
 	deltax -= currprefs.genlock_scale * 256;
 	deltay -= currprefs.genlock_scale * 256;
@@ -2561,19 +2574,30 @@ skip:
 	int offsety = 0;
 
 	if (deltax && deltay) {
-		offsetx = (aw - genlock_image_width * 65536 / deltax) / 2;
-		offsety = (ah - genlock_image_height * 65536 / deltay) / 2;
+		offsetx = ((aw - genlock_image_width) * 65536 / deltax) / 2;
+		offsety = ((ah - genlock_image_height) * 65536 / deltay) / 2;
 	
 		if (currprefs.genlock_aspect) {
 			if (deltax < deltay) {
-				offsetx = (aw - genlock_image_width * 65536 / deltay) / 2;
+				offsetx = ((aw - genlock_image_width) * 65536 / deltay) / 2;
 				deltax = deltay;
 			} else {
-				offsety = (ah - genlock_image_height * 65536 / deltax) / 2;
+				offsety = ((ah - genlock_image_height) * 65536 / deltax) / 2;
 				deltay = deltax;
 			}
 		}
 	}
+
+	int gen_xoffset = 0;
+	int gen_yoffset = 0;
+
+	if (currprefs.gfx_overscanmode >= OVERSCANMODE_EXTREME) {
+		gen_xoffset = (xstart / 2) - hsync_end_left_border * 2;
+	}
+	gen_yoffset = (ystart - minfirstline) * 2;
+
+	gen_xoffset += currprefs.genlock_offset_x;
+	gen_yoffset += currprefs.genlock_offset_y;
 
 	uae_u8 r = 0, g = 0, b = 0, a = 0;
 	for (y = ystart; y < yend; y++) {
@@ -2588,7 +2612,7 @@ skip:
 		uae_u8 *lineprev = yoff > 0 ? src->bufmem + (yoff - 1) * src->rowbytes : NULL;
 		uae_u8 *dstline = dst->bufmem + ((y * 2 + oddlines) - dst->yoffset) * dst->rowbytes;
 		uae_u8 *line_genlock = row_map_genlock[yoff];
-		int gy = ((y * 2 + oddlines) - src->yoffset - offsety) * deltay / 65536;
+		int gy = ((y * 2 + oddlines) - src->yoffset + offsety - gen_yoffset) * deltay / 65536;
 		if (genlock_image_upsidedown)
 			gy = (genlock_image_height - 1) - gy;
 		uae_u8 *image_genlock = genlock_image + gy * genlock_image_pitch;
@@ -2611,7 +2635,7 @@ skip:
 				} else if (genlock_blank) {
 					r = g = b = 0;
 				} else if (genlock_image) {
-					int gx = (x - offsetx) * deltax / 65536;
+					int gx = (x + offsetx - gen_xoffset) * deltax / 65536;
 					if (gx >= 0 && gx < genlock_image_width && gy >= 0 && gy < genlock_image_height) {
 						uae_u8 *s_genlock_image = image_genlock + gx * genlock_image_pixbytes;
 						r = s_genlock_image[genlock_image_red_index];

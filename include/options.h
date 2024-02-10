@@ -628,6 +628,7 @@ struct uae_prefs {
 	int genlock_scale;
 	int genlock_aspect;
 	int genlock_effects;
+	int genlock_offset_x, genlock_offset_y;
 	uae_u64 ecs_genlock_features_colorkey_mask[4];
 	uae_u8 ecs_genlock_features_plane_mask;
 	bool genlock_alpha;
@@ -910,6 +911,7 @@ struct uae_prefs {
 	bool win32_shutdown_notification;
 	bool win32_warn_exit;
 	bool win32_gui_control;
+	bool win32_videograb_balance;
 	bool right_control_is_right_win_key;
 #ifdef WITH_SLIRP
 	struct slirp_redir slirp_redirs[MAX_SLIRP_REDIRS];
