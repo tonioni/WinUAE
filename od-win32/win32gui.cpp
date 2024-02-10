@@ -19039,6 +19039,9 @@ static void CALLBACK timerfunc (HWND hDlg, UINT uMsg, UINT_PTR idEvent, DWORD dw
 				int events[MAX_COMPA_INPUTLIST];
 				
 				int max = inputdevice_get_compatibility_input (&workprefs, inputmap_port, &mode, events, &axistable);
+				if (inputmap_remap_counter >= max) {
+					inputmap_remap_counter = 0;
+				}
 				int evtnum = events[inputmap_remap_counter];
 				int type2 = intputdevice_compa_get_eventtype (evtnum, &axistable2);
 

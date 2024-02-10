@@ -7444,7 +7444,7 @@ static void compatibility_copy (struct uae_prefs *prefs, bool gameports)
 							break;
 					}
 				} else if (jd->id >= 0) {
-					joymodes[i][0] = i ? JSEM_MODE_JOYSTICK : JSEM_MODE_WHEELMOUSE;
+					joymodes[i][j] = i ? JSEM_MODE_JOYSTICK : JSEM_MODE_WHEELMOUSE;
 					joyinputs[i] = i ? ip_joy2 : ip_mouse1;
 				}
 			}
