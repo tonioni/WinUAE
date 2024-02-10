@@ -135,7 +135,7 @@ static void getmanualpos(int monid, int *cxp, int *cyp, int *cwp, int *chp)
 			ch = avidinfo->outbuffer->outheight << (VRES_MAX - currprefs.gfx_vresolution);
 		} else if (currprefs.gfx_overscanmode <= OVERSCANMODE_OVERSCAN) {
 			// keep old version compatiblity
-			ch = native ? AMIGA_HEIGHT_MAX << VRES_MAX : avidinfo->outbuffer->outheight;
+			ch = native ? (ispal(NULL) ? AMIGA_HEIGHT_MAX_PAL : AMIGA_HEIGHT_MAX_NTSC) << VRES_MAX : avidinfo->outbuffer->outheight;
 		} else {
 			ch = native ? (maxvpos_display + maxvpos_display_vsync - minfirstline) << VRES_MAX : avidinfo->outbuffer->outheight;
 		}
