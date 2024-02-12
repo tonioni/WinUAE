@@ -1,4 +1,16 @@
 
+Beta 9:
+
+- Advanced chipset CIA E-clock mode can be changed on the fly.
+- Picmatic Zorton Brothers boot hang fixed. Too long delay in LDP ACK reply. For some reason all other LD games didn't care. Note that LD dump is not (yet?) available.
+- Genlock scaling was broken (b7/b8) and only appeared to work if both Amiga and genlock image size was almost identical.
+- Genlock video/image was not affected by TV Overscan modes.
+- Quickstart "American Laser Games" renamed to "American Laser Games / Picmatic". Quickstart also now automatically enables NTSC if ALG game, disables NTSC if Picmatic game.
+- Do not emulate OCS Denise "blanking bug" unless overscan mode Overscan+ or higher. "Blanking bug" lines can appear in some centering modes even in normal Overscan mode and they look too ugly. (Yes, this is correctly emulated but they are usually hidden in overscan)
+- 68040 MMU faulting MOVES special case handling fix (Andreas Grabher)
+- Advanced chipset panel "Custom register byte write bug" emulation fix.
+- Harddrive panel Enter and Delete key shortcuts work again.
+
 Beta 8:
 
 - Clicking GamePorts panel remap/test crashed in some situations (remap device, change device type to something that has less events, remap device)

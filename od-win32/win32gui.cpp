@@ -23078,13 +23078,6 @@ static INT_PTR CALLBACK DialogProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 	return FALSE;
 }
 
-#if 0
-static ACCEL EmptyAccel[] = {
-	{ FVIRTKEY, VK_UP, 20001 }, { FVIRTKEY, VK_DOWN, 20002 },
-	{ 0, 0, 0 }
-};
-#endif
-
 struct newresource *getresource (int tmpl)
 {
 	TCHAR rid[20];
@@ -23271,10 +23264,6 @@ static int init_page (int tmpl, int icon, int title,
 	ppage[id].idx = id;
 	ppage[id].accel = NULL;
 	ppage[id].focusid = focusid;
-#if 0
-	if (!accels)
-		accels = EmptyAccel;
-#endif
 	if (accels) {
 		int i = -1;
 		while (accels[++i].key);
