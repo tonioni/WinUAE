@@ -2547,8 +2547,17 @@ skip:
 	uae_u8 amix1 = 255 - (currprefs.genlock_mix > 255 ? 255 : 0);
 	uae_u8 amix2 = 255 - amix1;
 
-	int ah = (((yend - ystart) * 2) >> 0);
 	int aw = ((xend - xstart) >> 1);
+	if (avidinfo->xchange == 1) {
+		aw *= 2;
+	} else if (avidinfo->xchange == 4) {
+		aw /= 2;
+	}
+
+	int ah = (((yend - ystart) * 2) >> 0);
+	if (avidinfo->ychange == 2) {
+		ah /= 2;
+	}
 
 	if (ah < 16 || aw < 16) {
 		return false;
@@ -2563,9 +2572,6 @@ skip:
 	if (abs(genlock_image_height - ah) > 8) {
 		deltay = genlock_image_height * 65536 / ah;
 	}
-	deltay <<= vdbl;
-	deltax <<= hdbl;
-	deltax >>= 1;
 
 	deltax -= currprefs.genlock_scale * 256;
 	deltay -= currprefs.genlock_scale * 256;
@@ -2574,15 +2580,15 @@ skip:
 	int offsety = 0;
 
 	if (deltax && deltay) {
-		offsetx = ((aw - genlock_image_width) * 65536 / deltax) / 2;
-		offsety = ((ah - genlock_image_height) * 65536 / deltay) / 2;
+		offsetx = (aw - (genlock_image_width * 65536 / deltax)) / 2;
+		offsety = (ah - (genlock_image_height * 65536 / deltay)) / 2;
 	
 		if (currprefs.genlock_aspect) {
 			if (deltax < deltay) {
-				offsetx = ((aw - genlock_image_width) * 65536 / deltay) / 2;
+				offsetx = (aw - (genlock_image_width * 65536 / deltay)) / 2;
 				deltax = deltay;
 			} else {
-				offsety = ((ah - genlock_image_height) * 65536 / deltax) / 2;
+				offsety = (ah - (genlock_image_height * 65536 / deltax)) / 2;
 				deltay = deltax;
 			}
 		}
@@ -2599,12 +2605,21 @@ skip:
 	gen_xoffset += currprefs.genlock_offset_x;
 	gen_yoffset += currprefs.genlock_offset_y;
 
+	int vblank_top_start, vblank_bottom_stop;
+	int hblank_left_start, hblank_right_stop;
+
+	get_screen_blanking_limits(&hblank_left_start, &hblank_right_stop, &vblank_bottom_stop, &vblank_top_start);
+	vblank_bottom_stop <<= vdbl;
+	vblank_top_start <<= vdbl;
+
 	uae_u8 r = 0, g = 0, b = 0, a = 0;
 	for (y = ystart; y < yend; y++) {
 		int yoff = (y * 2 + oddlines) - src->yoffset;
 		if (yoff < 0)
 			continue;
 		if (yoff >= src->inheight)
+			continue;
+		if (y * 2 < vblank_top_start || y * 2 >= vblank_bottom_stop)
 			continue;
 
 		bool ztoggle = false;
@@ -2626,6 +2641,8 @@ skip:
 		for (x = 0; x < src->inwidth; x++) {
 			uae_u8 *s2 = s + src->rowbytes;
 			uae_u8 *d2 = d + dst->rowbytes;
+			if (x < hblank_left_start || x >= hblank_right_stop)
+				continue;
 			if ((!zclken && is_transparent(*s_genlock)) || (zclken && ztoggle)) {
 				a = amix2;
 				if (genlock_error) {
