@@ -16347,24 +16347,23 @@ static INT_PTR CALLBACK HarddiskDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPA
 			}
 			break;
 			}
-		} else {
-			switch (LOWORD(wParam))
-			{
-			case 10001:
-				clicked_entry--;
+		}
+		switch (LOWORD(wParam))
+		{
+		case 10001:
+			clicked_entry--;
+			hilitehd (hDlg);
+			break;
+		case 10002:
+			clicked_entry++;
+			hilitehd (hDlg);
+			break;
+		default:
+			if (harddiskdlg_button (hDlg, wParam)) {
+				InitializeListView (hDlg);
 				hilitehd (hDlg);
-				break;
-			case 10002:
-				clicked_entry++;
-				hilitehd (hDlg);
-				break;
-			default:
-				if (harddiskdlg_button (hDlg, wParam)) {
-					InitializeListView (hDlg);
-					hilitehd (hDlg);
-				}
-				break;
 			}
+			break;
 		}
 		break;
 
