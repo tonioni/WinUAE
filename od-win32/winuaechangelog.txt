@@ -1,4 +1,11 @@
 
+Beta 10:
+
+- Always blank last visible PAL/NTSC line at the bottom of screen (This is actually line 0) unless overscan mode is Overscan+ or higher. It can't normally have any bitplane or sprite data but can have (very ugly looking) background color changes. This line is also almost always invisible on real world. I decided to hide this without Overscan+ because it can look ugly and it can look like there is something wrong with emulation because this line wasn't even visible until 4.9 (except if A1000 config)
+- Disk swapper now allows same disk image in multiple slots.
+- Disk swapper current cursor position is new disk insert position. Previously it always chose next free slot from the top.
+- Insert more than 1 disk image to disk swapper list and then click remove disk image: cursor jumps back to first disk image and first disk image gets removed.
+
 Beta 9:
 
 - Advanced chipset CIA E-clock mode can be changed on the fly.
@@ -94,7 +101,7 @@ Beta 2:
 - Hardware emulated RTG boards Picasso96 screen dragging horizontal shift fix (broke in b1 panning fix)
 - Any TV overscan option + NTSC mode: few pixel grapohics corruption was visible in right edge of screen.
 - Do not force release of pressed keys if mouse capture was requested but mouse was already captured. On the fly screen settings changes (for example via input events or uae-configuration) caused unexpected forced key releases in full-window mode. (Forced key release is needed because otherwise sudden mouse capture loss might cause stuck keys in Amiga side)
-- 256 color screeenshot created wrong colors in some situations (usually when AGA and almost all colors in use). Attempts to keep custom chipset color 0 (backround color) in first palette index.
+- 256 color screeenshot created wrong colors in some situations (usually when AGA and almost all colors in use). Attempts to keep custom chipset color 0 (background color) in first palette index.
 - Include also current DPI when selecting between "old" smaller or "new" larger default GUI size. (Smaller desktop resolution + high DPI = too large default GUI size)
 
 Beta 1:
