@@ -19851,21 +19851,21 @@ static int genericpopupmenu (HWND hwnd, TCHAR **items, int *flags, int num)
 	return item - 1;
 }
 
-static void qualifierlistview (HWND list)
+static void qualifierlistview(HWND list)
 {
 	uae_u64 flags;
 	int evt;
 	TCHAR name[256];
 	TCHAR custom[MAX_DPATH];
 
-	evt = inputdevice_get_mapping (input_selected_device, input_selected_widget,
+	evt = inputdevice_get_mapping(input_selected_device, input_selected_widget,
 		&flags, NULL, name, custom, input_selected_sub_num);
 
-	ListView_DeleteAllItems (list);
+	ListView_DeleteAllItems(list);
 
 	for (int i = 0; i < MAX_INPUT_QUALIFIERS; i++) {
 		TCHAR tmp[MAX_DPATH];
-		getqualifiername (tmp, IDEV_MAPPED_QUALIFIER1 << (i * 2));
+		getqualifiername(tmp, IDEV_MAPPED_QUALIFIER1 << (i * 2));
 
 		LV_ITEM lvi = { 0 };
 		lvi.mask     = LVIF_TEXT | LVIF_PARAM;
@@ -19873,16 +19873,17 @@ static void qualifierlistview (HWND list)
 		lvi.lParam   = 0;
 		lvi.iItem    = i;
 		lvi.iSubItem = 0;
-		ListView_InsertItem (list, &lvi);
+		ListView_InsertItem(list, &lvi);
 
-		_tcscpy (tmp, _T("-"));
+		_tcscpy(tmp, _T("-"));
+		if ((flags & (IDEV_MAPPED_QUALIFIER1 << (i * 2))) && (flags & (IDEV_MAPPED_QUALIFIER1 << (i * 2 + 1))))
+			_tcscpy(tmp, _T("X"));
 		if (flags & (IDEV_MAPPED_QUALIFIER1 << (i * 2)))
-			_tcscpy (tmp, _T("*"));
+			_tcscpy(tmp, _T("*"));
 		else if (flags & (IDEV_MAPPED_QUALIFIER1 << (i * 2 + 1)))
-			_tcscpy (tmp, _T("R"));
+			_tcscpy(tmp, _T("R"));
 
-		ListView_SetItemText (list, i, 1, tmp);
-
+		ListView_SetItemText(list, i, 1, tmp);
 	}
 }
 
