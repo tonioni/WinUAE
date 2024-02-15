@@ -17294,29 +17294,25 @@ static void swapperhili (HWND hDlg, int entry)
 	SetDlgItemText (hDlg, IDC_DISKTEXT,  workprefs.dfxlist[entry]);
 }
 
-static void diskswapper_addfile2 (struct uae_prefs *prefs, const TCHAR *file)
+static void diskswapper_addfile2(struct uae_prefs *prefs, const TCHAR *file, int slot)
 {
-	int list = 0;
-	while (list < MAX_SPARE_DRIVES) {
-		if (!strcasecmp (prefs->dfxlist[list], file))
+	while (slot < MAX_SPARE_DRIVES) {
+		if (!prefs->dfxlist[slot][0]) {
+			_tcscpy (prefs->dfxlist[slot], file);
+			fullpath (prefs->dfxlist[slot], MAX_DPATH);
 			break;
-		list++;
-	}
-	if (list == MAX_SPARE_DRIVES) {
-		list = 0;
-		while (list < MAX_SPARE_DRIVES) {
-			if (!prefs->dfxlist[list][0]) {
-				_tcscpy (prefs->dfxlist[list], file);
-				fullpath (prefs->dfxlist[list], MAX_DPATH);
-				break;
-			}
-			list++;
 		}
+		slot++;
 	}
 }
 
-static void diskswapper_addfile (struct uae_prefs *prefs, const TCHAR *file)
+static int diskswapper_entry;
+
+static void diskswapper_addfile(struct uae_prefs *prefs, const TCHAR *file, int slot)
 {
+	if (slot < 0) {
+		slot = diskswapper_entry;
+	}
 	struct zdirectory *zd = zfile_opendir_archive (file, ZFD_ARCHIVE | ZFD_NORECURSE);
 	if (zd && zfile_readdir_archive (zd, NULL, true) > 1) {
 		TCHAR out[MAX_DPATH];
@@ -17325,18 +17321,18 @@ static void diskswapper_addfile (struct uae_prefs *prefs, const TCHAR *file)
 			if (zf) {
 				int type = zfile_gettype (zf);
 				if (type == ZFILE_DISKIMAGE || type == ZFILE_EXECUTABLE) {
-					diskswapper_addfile2 (prefs, out);
+					diskswapper_addfile2(prefs, out, slot);
 				}
 				zfile_fclose (zf);
 			}
 		}
 		zfile_closedir_archive (zd);
 	} else {
-		diskswapper_addfile2 (prefs, file);
+		diskswapper_addfile2(prefs, file, slot);
 	}
 }
 
-static void addswapperfile (HWND hDlg, int entry, TCHAR *newpath)
+static int addswapperfile (HWND hDlg, int entry, TCHAR *newpath)
 {
 	TCHAR path[MAX_DPATH];
 	int lastentry = entry;
@@ -17348,19 +17344,19 @@ static void addswapperfile (HWND hDlg, int entry, TCHAR *newpath)
 		TCHAR dpath[MAX_DPATH];
 		loopmulti (path, NULL);
 		while (loopmulti (path, dpath) && entry < MAX_SPARE_DRIVES) {
-			diskswapper_addfile (&workprefs, dpath);
+			diskswapper_addfile(&workprefs, dpath, entry);
 			lastentry = entry;
 			entry++;
 		}
 		InitializeListView (hDlg);
 		swapperhili (hDlg, lastentry);
 	}
+	return lastentry;
 }
 
 static INT_PTR CALLBACK SwapperDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
 	static int recursive = 0;
-	static int entry;
 	TCHAR tmp[MAX_DPATH];
 
 	bool handled;
@@ -17376,8 +17372,8 @@ static INT_PTR CALLBACK SwapperDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPAR
 		currentpage = DISK_ID;
 		InitializeListView (hDlg);
 		addfloppyhistory (hDlg);
-		entry = 0;
-		swapperhili (hDlg, entry);
+		diskswapper_entry = 0;
+		swapperhili (hDlg, diskswapper_entry);
 		setautocomplete (hDlg, IDC_DISKTEXT);
 		break;
 	case WM_LBUTTONUP:
@@ -17386,7 +17382,7 @@ static INT_PTR CALLBACK SwapperDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPAR
 			int item = drag_end (hDlg, cachedlist, lParam, &draggeditems);
 			if (item >= 0) {
 				int i, item2;
-				entry = item;
+				diskswapper_entry = item;
 				for (i = 0; (item2 = draggeditems[i]) >= 0 && item2 < MAX_SPARE_DRIVES; i++, item++) {
 					if (item != item2) {
 						TCHAR tmp[1000];
@@ -17396,7 +17392,7 @@ static INT_PTR CALLBACK SwapperDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPAR
 					}
 				}
 				InitializeListView(hDlg);
-				swapperhili (hDlg, entry);
+				swapperhili (hDlg, diskswapper_entry);
 				return TRUE;
 			}
 			xfree (draggeditems);
@@ -17407,10 +17403,10 @@ static INT_PTR CALLBACK SwapperDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPAR
 			return TRUE;
 		break;
 	case WM_CONTEXTMENU:
-		if (GetDlgCtrlID ((HWND)wParam) == IDC_DISKLISTINSERT && entry >= 0) {
+		if (GetDlgCtrlID ((HWND)wParam) == IDC_DISKLISTINSERT && diskswapper_entry >= 0) {
 			TCHAR *s = favoritepopup (hDlg);
 			if (s) {
-				addswapperfile (hDlg, entry, s);
+				diskswapper_entry = addswapperfile (hDlg, diskswapper_entry, s);
 				xfree (s);
 			}
 		}
@@ -17439,26 +17435,26 @@ static INT_PTR CALLBACK SwapperDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPAR
 			case 10018:
 			case 10019:
 			case 10020:
-				entry = LOWORD (wParam) - 10001;
-				swapperhili (hDlg, entry);
+				diskswapper_entry = LOWORD (wParam) - 10001;
+				swapperhili (hDlg, diskswapper_entry);
 				break;
 			case 10101:
-				if (entry > 0) {
-					entry--;
-					swapperhili (hDlg, entry);
+				if (diskswapper_entry > 0) {
+					diskswapper_entry--;
+					swapperhili (hDlg, diskswapper_entry);
 				}
 				break;
 			case 10102:
-				if (entry >= 0 && entry < MAX_SPARE_DRIVES - 1) {
-					entry++;
-					swapperhili (hDlg, entry);
+				if (diskswapper_entry >= 0 && diskswapper_entry < MAX_SPARE_DRIVES - 1) {
+					diskswapper_entry++;
+					swapperhili (hDlg, diskswapper_entry);
 				}
 				break;
 			case 10103:
 			case 10104:
-				disk_swap (entry, 1);
+				disk_swap (diskswapper_entry, 1);
 				InitializeListView (hDlg);
-				swapperhili (hDlg, entry);
+				swapperhili (hDlg, diskswapper_entry);
 				break;
 			case 10201:
 			case 10202:
@@ -17467,15 +17463,15 @@ static INT_PTR CALLBACK SwapperDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPAR
 				{
 					int drv = LOWORD (wParam) - 10201;
 					int i;
-					if (workprefs.floppyslots[drv].dfxtype >= 0 && entry >= 0) {
+					if (workprefs.floppyslots[drv].dfxtype >= 0 && diskswapper_entry >= 0) {
 						for (i = 0; i < 4; i++) {
-							if (!_tcscmp (workprefs.floppyslots[i].df, workprefs.dfxlist[entry]))
+							if (!_tcscmp (workprefs.floppyslots[i].df, workprefs.dfxlist[diskswapper_entry]))
 								workprefs.floppyslots[i].df[0] = 0;
 						}
-						_tcscpy (workprefs.floppyslots[drv].df, workprefs.dfxlist[entry]);
+						_tcscpy (workprefs.floppyslots[drv].df, workprefs.dfxlist[diskswapper_entry]);
 						disk_insert (drv, workprefs.floppyslots[drv].df);
 						InitializeListView (hDlg);
-						swapperhili (hDlg, entry);
+						swapperhili (hDlg, diskswapper_entry);
 					}
 				}
 				break;
@@ -17487,32 +17483,32 @@ static INT_PTR CALLBACK SwapperDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPAR
 					int drv = LOWORD (wParam) - 10201;
 					workprefs.floppyslots[drv].df[0] = 0;
 					InitializeListView (hDlg);
-					swapperhili (hDlg, entry);
+					swapperhili (hDlg, diskswapper_entry);
 				}
 				break;
 			case 10209:
 				{
-					addswapperfile (hDlg, entry, NULL);
+				diskswapper_entry = addswapperfile (hDlg, diskswapper_entry, NULL);
 				}
 				break;
 
 			case IDC_DISKLISTINSERT:
-				if (entry >= 0) {
+				if (diskswapper_entry >= 0) {
 					if (getfloppybox (hDlg, IDC_DISKTEXT, tmp, sizeof (tmp) / sizeof (TCHAR), HISTORY_FLOPPY, -1)) {
-						_tcscpy (workprefs.dfxlist[entry], tmp);
+						_tcscpy (workprefs.dfxlist[diskswapper_entry], tmp);
 						addfloppyhistory (hDlg);
 						InitializeListView (hDlg);
-						swapperhili (hDlg, entry);
+						swapperhili (hDlg, diskswapper_entry);
 					} else {
-						addswapperfile (hDlg, entry, NULL);
+						diskswapper_entry = addswapperfile (hDlg, diskswapper_entry, NULL);
 					}
 				}
 				break;
 			case IDC_DISKLISTREMOVE:
-				if (entry >= 0) {
-					workprefs.dfxlist[entry][0] = 0;
+				if (diskswapper_entry >= 0) {
+					workprefs.dfxlist[diskswapper_entry][0] = 0;
 					InitializeListView (hDlg);
-					swapperhili (hDlg, entry);
+					swapperhili (hDlg, diskswapper_entry);
 				}
 				break;
 			case IDC_DISKLISTREMOVEALL:
@@ -17521,27 +17517,27 @@ static INT_PTR CALLBACK SwapperDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPAR
 					workprefs.dfxlist[i][0] = 0;
 				}
 				InitializeListView (hDlg);
-				swapperhili (hDlg, entry);
+				swapperhili (hDlg, diskswapper_entry);
 				break;
 			}
 			case IDC_UP:
-				if (entry > 0) {
-					_tcscpy (tmp, workprefs.dfxlist[entry - 1]);
-					_tcscpy (workprefs.dfxlist[entry - 1], workprefs.dfxlist[entry]);
-					_tcscpy (workprefs.dfxlist[entry], tmp);
+				if (diskswapper_entry > 0) {
+					_tcscpy (tmp, workprefs.dfxlist[diskswapper_entry - 1]);
+					_tcscpy (workprefs.dfxlist[diskswapper_entry - 1], workprefs.dfxlist[diskswapper_entry]);
+					_tcscpy (workprefs.dfxlist[diskswapper_entry], tmp);
 					InitializeListView (hDlg);
-					entry--;
-					swapperhili (hDlg, entry);
+					diskswapper_entry--;
+					swapperhili (hDlg, diskswapper_entry);
 				}
 				break;
 			case IDC_DOWN:
-				if (entry >= 0 && entry < MAX_SPARE_DRIVES - 1) {
-					_tcscpy (tmp, workprefs.dfxlist[entry + 1]);
-					_tcscpy (workprefs.dfxlist[entry + 1], workprefs.dfxlist[entry]);
-					_tcscpy (workprefs.dfxlist[entry], tmp);
+				if (diskswapper_entry >= 0 && diskswapper_entry < MAX_SPARE_DRIVES - 1) {
+					_tcscpy (tmp, workprefs.dfxlist[diskswapper_entry + 1]);
+					_tcscpy (workprefs.dfxlist[diskswapper_entry + 1], workprefs.dfxlist[diskswapper_entry]);
+					_tcscpy (workprefs.dfxlist[diskswapper_entry], tmp);
 					InitializeListView (hDlg);
-					entry++;
-					swapperhili (hDlg, entry);
+					diskswapper_entry++;
+					swapperhili (hDlg, diskswapper_entry);
 				}
 				break;
 			}
@@ -17568,33 +17564,33 @@ static INT_PTR CALLBACK SwapperDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPAR
 				if (nmlistview->hdr.code == NM_RCLICK || nmlistview->hdr.code == NM_RDBLCLK)
 					button = 2;
 			case NM_CLICK:
-				entry = listview_entry_from_click (list, &col, false);
-				if (entry >= 0) {
+				diskswapper_entry = listview_entry_from_click (list, &col, false);
+				if (diskswapper_entry >= 0) {
 					if (col == 2) {
 						if (button) {
 							if (!dblclick) {
-								if (disk_swap (entry, -1))
+								if (disk_swap (diskswapper_entry, -1))
 									InitializeListView (hDlg);
-								swapperhili (hDlg, entry);
+								swapperhili (hDlg, diskswapper_entry);
 							}
 						} else {
 							if (!dblclick) {
-								if (disk_swap (entry, 0))
+								if (disk_swap (diskswapper_entry, 0))
 									InitializeListView (hDlg);
-								swapperhili (hDlg, entry);
+								swapperhili (hDlg, diskswapper_entry);
 							}
 						}
 					} else if (col == 1) {
 						if (dblclick) {
 							if (!button) {
-								addswapperfile (hDlg, entry, NULL);
+								diskswapper_entry = addswapperfile (hDlg, diskswapper_entry, NULL);
 							} else {
-								workprefs.dfxlist[entry][0] = 0;
+								workprefs.dfxlist[diskswapper_entry][0] = 0;
 								InitializeListView (hDlg);
 							}
 						}
 					}
-					SetDlgItemText (hDlg, IDC_DISKTEXT,  workprefs.dfxlist[entry]);
+					SetDlgItemText (hDlg, IDC_DISKTEXT,  workprefs.dfxlist[diskswapper_entry]);
 				}
 				break;
 			}
@@ -22591,7 +22587,7 @@ int dragdrop (HWND hDlg, HDROP hd, struct uae_prefs *prefs, int	currentpage)
 		case ZFILE_DISKIMAGE:
 		case ZFILE_EXECUTABLE:
 			if (currentpage == DISK_ID) {
-				diskswapper_addfile (prefs, file);
+				diskswapper_addfile(prefs, file, -1);
 			} else if (currentpage == HARDDISK_ID) {
 				default_fsvdlg (&current_fsvdlg);
 				_tcscpy (current_fsvdlg.ci.rootdir, file);
