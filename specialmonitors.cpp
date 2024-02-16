@@ -2524,17 +2524,20 @@ skip:
 		genlock_image_file[0] = 0;
 	}
 
-	if (avidinfo->ychange == 1)
+	if (avidinfo->ychange == 1) {
 		vdbl = 0; // double
-	else
+	} else {
 		vdbl = 1; // single
+		doublelines = false;
+	}
 
-	if (avidinfo->xchange == 1)
+	if (avidinfo->xchange == 1) {
 		hdbl = 0; // shres
-	else if (avidinfo->xchange == 2)
+	} else if (avidinfo->xchange == 2) {
 		hdbl = 1; // hires
-	else
+	} else {
 		hdbl = 2; // lores
+	}
 
 	get_mode_blanking_limits(&xstart, &xend,  &ystart, &yend);
 
@@ -2614,7 +2617,7 @@ skip:
 
 	uae_u8 r = 0, g = 0, b = 0, a = 0;
 	for (y = ystart; y < yend; y++) {
-		int yoff = (y * 2 + oddlines) - src->yoffset;
+		int yoff = ((y * 2 + oddlines) - src->yoffset) >> vdbl;
 		if (yoff < 0)
 			continue;
 		if (yoff >= src->inheight)
@@ -2625,13 +2628,13 @@ skip:
 		bool ztoggle = false;
 		uae_u8 *line = src->bufmem + yoff * src->rowbytes;
 		uae_u8 *lineprev = yoff > 0 ? src->bufmem + (yoff - 1) * src->rowbytes : NULL;
-		uae_u8 *dstline = dst->bufmem + ((y * 2 + oddlines) - dst->yoffset) * dst->rowbytes;
+		uae_u8 *dstline = dst->bufmem + (((y * 2 + oddlines) - dst->yoffset) >> vdbl) * dst->rowbytes;
 		uae_u8 *line_genlock = row_map_genlock[yoff];
-		int gy = ((y * 2 + oddlines) - src->yoffset + offsety - gen_yoffset) * deltay / 65536;
+		int gy = (((y * 2 + oddlines) - src->yoffset + offsety - gen_yoffset) >> vdbl) * deltay / 65536;
 		if (genlock_image_upsidedown)
 			gy = (genlock_image_height - 1) - gy;
 		uae_u8 *image_genlock = genlock_image + gy * genlock_image_pitch;
-		r = g = b;
+		r = g = b = 0;
 		a = amix1;
 		noise_add = (quickrand() & 15) | 1;
 		uae_u8 *s = line;
@@ -2641,37 +2644,37 @@ skip:
 		for (x = 0; x < src->inwidth; x++) {
 			uae_u8 *s2 = s + src->rowbytes;
 			uae_u8 *d2 = d + dst->rowbytes;
-			if (x < hblank_left_start || x >= hblank_right_stop)
-				continue;
-			if ((!zclken && is_transparent(*s_genlock)) || (zclken && ztoggle)) {
-				a = amix2;
-				if (genlock_error) {
-					r = 0x00;
-					g = 0x00;
-					b = 0xdd;
-				} else if (genlock_blank) {
-					r = g = b = 0;
-				} else if (genlock_image) {
-					int gx = (x + offsetx - gen_xoffset) * deltax / 65536;
-					if (gx >= 0 && gx < genlock_image_width && gy >= 0 && gy < genlock_image_height) {
-						uae_u8 *s_genlock_image = image_genlock + gx * genlock_image_pixbytes;
-						r = s_genlock_image[genlock_image_red_index];
-						g = s_genlock_image[genlock_image_green_index];
-						b = s_genlock_image[genlock_image_blue_index];
-					} else {
+			if (x >= hblank_left_start && x < hblank_right_stop) {
+				if ((!zclken && is_transparent(*s_genlock)) || (zclken && ztoggle)) {
+					a = amix2;
+					if (genlock_error) {
+						r = 0x00;
+						g = 0x00;
+						b = 0xdd;
+					} else if (genlock_blank) {
 						r = g = b = 0;
+					} else if (genlock_image) {
+						int gx = (x + offsetx - gen_xoffset) * deltax / 65536;
+						if (gx >= 0 && gx < genlock_image_width && gy >= 0 && gy < genlock_image_height) {
+							uae_u8 *s_genlock_image = image_genlock + gx * genlock_image_pixbytes;
+							r = s_genlock_image[genlock_image_red_index];
+							g = s_genlock_image[genlock_image_green_index];
+							b = s_genlock_image[genlock_image_blue_index];
+						} else {
+							r = g = b = 0;
+						}
+					} else {
+						r = g = b = get_noise();
 					}
+					if (mix2) {
+						r = (mix1 * r + mix2 * FVR(src, s)) / 256;
+						g = (mix1 * g + mix2 * FVG(src, s)) / 256;
+						b = (mix1 * b + mix2 * FVB(src, s)) / 256;
+					}
+					PUT_PRGBA(d, d2, dst, r, g, b, a, 0, doublelines, false);
 				} else {
-					r = g = b = get_noise();
+					PUT_AMIGARGBA(d, s, d2, s2, dst, 0, doublelines, false);
 				}
-				if (mix2) {
-					r = (mix1 * r + mix2 * FVR(src, s)) / 256;
-					g = (mix1 * g + mix2 * FVG(src, s)) / 256;
-					b = (mix1 * b + mix2 * FVB(src, s)) / 256;
-				}
-				PUT_PRGBA(d, d2, dst, r, g, b, a, 0, doublelines, false);
-			} else {
-				PUT_AMIGARGBA(d, s, d2, s2, dst, 0, doublelines, false);
 			}
 			s += src->pixbytes;
 			d += dst->pixbytes;
