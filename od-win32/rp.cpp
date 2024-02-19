@@ -1555,7 +1555,7 @@ static LRESULT CALLBACK RPHostMsgFunction2 (UINT uMessage, WPARAM wParam, LPARAM
 				savestate_initsave (NULL, 0, TRUE, true);
 				return 1;
 			}
-			if (vpos == maxvpos_display_vsync) {
+			if (vpos == maxvpos_display_vsync + 1) {
 				savestate_initsave (_T(""), 1, TRUE, true);
 				save_state (s, _T("AmigaForever"));
 				ret = 1;

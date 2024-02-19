@@ -606,13 +606,12 @@ BEGIN
     CTEXT           "WinUAE",IDC_RICHEDIT1,85,36,210,35
     CTEXT           "",IDC_RICHEDIT2,21,84,343,28
     PUSHBUTTON      "Contributors",IDC_CONTRIBUTORS,152,126,80,15
-    CTEXT           "",IDC_CLOANTOHOME,22,194,112,24
-    CTEXT           "",IDC_AMIGAHOME,136,194,112,24
-    CTEXT           "",IDC_WINUAEHOME,251,194,112,24
-    CTEXT           "",IDC_ABIME,22,222,112,24
-    CTEXT           "",IDC_CAPS,136,222,112,24
-    CTEXT           "",IDC_AMIGASYS,136,255,112,24
-    CTEXT           "",IDC_AMIKIT,251,222,112,24
+    CTEXT           "",IDC_CLOANTOHOME,22,175,112,44
+    CTEXT           "",IDC_AMIGAHOME,136,175,112,44
+    CTEXT           "",IDC_WINUAEHOME,251,175,112,44
+    CTEXT           "",IDC_ABIME,22,243,112,44
+    CTEXT           "",IDC_CAPS,136,243,112,44
+    CTEXT           "",IDC_AMIKIT,251,243,112,44
 END
 
 IDD_MISC1 DIALOGEX 0, 0, 396, 316
@@ -2091,7 +2090,8 @@ BEGIN
     IDS_QS_MODEL_A3000      "1.4 ROM, 2MB Chip + 8MB Fast\n\n2.04 ROM, 2MB Chip + 8MB Fast\n\n3.1 ROM, 2MB Chip + 8MB Fast\n"
     IDS_QS_MODEL_A4000      "68030, 3.1 ROM, 2MB Chip + 8MB Fast\n\n68040, 3.1 ROM, 2MB Chip + 8MB Fast\n\nCyberStorm PPC\n"
     IDS_QS_MODEL_A4000T     "A4000T (test)\nA4000T\n"
-    IDS_QS_MODEL_MACROSYSTEM "DraCo\n\nCasablanca (Video hardware unimplemented)\n"
+    IDS_QS_MODEL_MACROSYSTEM 
+                            "DraCo\n\nCasablanca (Video hardware unimplemented)\n"
     IDS_QS_MODEL_ALG        "American Laser Games\n"
 END
 
