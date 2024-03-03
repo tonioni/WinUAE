@@ -314,7 +314,7 @@ bool initvideograb(const TCHAR *filename)
 
 	hr = filterGraph->QueryInterface(IID_IBasicAudio, (void**)&audio);
 	setvolumevideograb(100 - currprefs.sound_volume_genlock);
-	setchflagsvideograb(0);
+	setchflagsvideograb(0, false);
 
 	hr = filterGraph->QueryInterface(IID_IMediaControl, (void**)&mediaControl);
 	if (FAILED(hr)) {
@@ -371,7 +371,7 @@ uae_s64 getsetpositionvideograb(uae_s64 framepos)
 	}
 }
 
-void setchflagsvideograb(int chflags)
+void setchflagsvideograb(int chflags, bool mute)
 {
 	if (!audio)
 		return;
@@ -387,9 +387,9 @@ void setchflagsvideograb(int chflags)
 	if (!currprefs.win32_videograb_balance) {
 		audio->put_Balance(bal);
 	}
-	if (chflags) {
+	if (chflags && !mute) {
 		setvolumevideograb(audio_volume);
-	} else if (!chflags) {
+	} else if (!chflags || mute) {
 		audio->put_Volume(0);
 	}
 }

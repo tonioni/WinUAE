@@ -600,7 +600,7 @@ Port 2:
 
 
 int alg_flag;
-int log_ld;
+int log_ld = 0;
 
 #define ALG_NVRAM_SIZE 4096
 #define ALG_NVRAM_MASK (ALG_NVRAM_SIZE - 1)
@@ -608,7 +608,7 @@ static uae_u8 algmemory[ALG_NVRAM_SIZE];
 static int algmemory_modified;
 static int algmemory_initialized;
 static int alg_game_id;
-static bool alg_picmatic;
+static int alg_picmatic_nova;
 static uae_u8 picmatic_io;
 
 static void alg_nvram_write (void)
@@ -650,7 +650,7 @@ static uae_u32 REGPARAM2 alg_wget (uaecptr addr)
 
 static uae_u32 REGPARAM2 alg_bget (uaecptr addr)
 {
-	if (alg_picmatic && (addr & 0xffff0000) == 0xf60000) {
+	if (alg_picmatic_nova == 1 && (addr & 0xffff0000) == 0xf60000) {
 		return 0;
 	}
 	uaecptr addr2 = addr;
@@ -670,7 +670,7 @@ static void REGPARAM2 alg_wput (uaecptr addr, uae_u32 w)
 
 static void REGPARAM2 alg_bput (uaecptr addr, uae_u32 b)
 {
-	if (alg_picmatic && (addr & 0xffff0000) == 0xf60000) {
+	if (alg_picmatic_nova == 1 && (addr & 0xffff0000) == 0xf60000) {
 		if (!(addr & 0xffff)) {
 			picmatic_io = b;
 		}
@@ -700,6 +700,7 @@ static uae_u32 ld_startaddress, ld_endaddress;
 static uae_s32 ld_repcnt, ld_mark;
 static int ld_direction;
 static bool ld_save_restore;
+static uae_s8 ld_ui, ld_ui_cnt;
 #define LD_MODE_SEARCH 1
 #define LD_MODE_PLAY 2
 #define LD_MODE_STILL 3
@@ -711,8 +712,8 @@ static bool ld_save_restore;
 #define ALG_SER_BUF_SIZE 16
 static uae_u8 alg_ser_buf[ALG_SER_BUF_SIZE];
 static int ser_buf_offset;
-static int ld_wait_ack;
-static int ld_audio;
+static int ld_wait_ack, ld_wait_seek, ld_wait_seek_status;
+static int ld_audio, ld_audio_mute;
 static bool ld_video;
 static int ld_vsync;
 static int alg_hsync_delay;
@@ -732,8 +733,43 @@ static void ack(void)
 static void sony_serial_read(uae_u16 w)
 {
 	w &= 0xff;
+
+	if (ld_ui >= 0 && ld_ui_cnt >= 0) {
+		ld_ui_cnt++;
+		if (ld_ui == 0) {
+			if (ld_ui_cnt == 3) {
+				ld_ui = -1;
+			}
+		} else if (ld_ui == 1) {
+			if (ld_ui_cnt >= 34 || (ld_ui_cnt > 1 && w == 0x1a)) {
+				ld_ui = -1;
+			}
+		} else if (ld_ui == 2) {
+			ld_ui = -1;
+		}
+		ack();
+		return;
+	}
+
 	switch (w)
 	{
+	case 0: // User Index 00
+	case 1: // User Index 01
+	case 2: // User Index 02
+	if (ld_ui < 0) {
+		ld_ui = (uae_s8)w;
+		ld_ui_cnt = 0;
+		ack();
+	}
+	break;
+	case 0x24: // Audio mute
+	ld_audio_mute = true;
+	ack();
+	break;
+	case 0x25: // Audio mute off
+	ld_audio_mute = false;
+	ack();
+	break;
 	case 0x26: // Video off
 	ld_video = false;
 	ack();
@@ -784,18 +820,22 @@ static void sony_serial_read(uae_u16 w)
 	}
 	break;
 	case 0x3a: // F-PLAY ':'
-	ld_mode = LD_MODE_PLAY;
-	ld_direction = 0;
-	ld_repcnt = -1;
-	pausevideograb(0);
+	if (ld_mode != LD_MODE_PLAY) {
+		ld_mode = LD_MODE_PLAY;
+		ld_direction = 0;
+		ld_repcnt = -1;
+		pausevideograb(0);
+	}
 	ack();
 	if (log_ld)
 		write_log(_T("LD: PLAY\n"));
 	break;
-	case 0x3b: // Fast foward play ';'
+	case 0x3b: // FAST FORWARD PLAY ';'
 	ld_mode = LD_MODE_PLAY;
 	ld_direction = 1;
 	ack();
+	if (log_ld)
+		write_log(_T("LD: FAST FORWARD PLAY\n"));
 	break;
 	case 0x3f: // STOP '?'
 	pausevideograb(1);
@@ -838,13 +878,15 @@ static void sony_serial_read(uae_u16 w)
 		uae_s32 endpos = (uae_s32)getdurationvideograb();
 		ld_address = ld_value;
 		ack();
+		// delay seek status response by 2 frames (Platoon requires this)
+		ld_wait_seek = arcadia_hsync_cnt + 2 * maxvpos;
 		if (ld_address > endpos) {
 			ld_address = endpos;
 			getsetpositionvideograb(ld_address);
-			sb(0x06); // NO FRAME NUMBER
+			ld_wait_seek_status = 0x06; // NO FRAME NUMBER
 		} else {
 			getsetpositionvideograb(ld_address);
-			sb(0x01); // COMPLETION
+			ld_wait_seek_status = 0x01; // COMPLETION
 		}
 		ld_mode = LD_MODE_STILL;
 		ld_mode_value = 0;
@@ -905,28 +947,28 @@ static void sony_serial_read(uae_u16 w)
 	case 0x46: // CH-1 ON 'F'
 	ack();
 	ld_audio |= 1;
-	setchflagsvideograb(ld_audio);
+	setchflagsvideograb(ld_audio, false);
 	if (log_ld)
 		write_log(_T("LD: CH-1 ON\n"));
 	break;
 	case 0x48: // CH-2 ON 'H'
 	ack();
 	ld_audio |= 2;
-	setchflagsvideograb(ld_audio);
+	setchflagsvideograb(ld_audio, false);
 	if (log_ld)
 		write_log(_T("LD: CH-2 ON\n"));
 	break;
 	case 0x47: // CH-1 OFF 'G'
 	ack();
 	ld_audio &= ~1;
-	setchflagsvideograb(ld_audio);
+	setchflagsvideograb(ld_audio, false);
 	if (log_ld)
 		write_log(_T("LD: CH-1 OFF\n"));
 	break;
 	case 0x49: // CH-2 OFF 'I'
 	ack();
 	ld_audio &= ~2;
-	setchflagsvideograb(ld_audio);
+	setchflagsvideograb(ld_audio, false);
 	if (log_ld)
 		write_log(_T("LD: CH-2 OFF\n"));
 	break;
@@ -990,7 +1032,18 @@ static void sony_serial_read(uae_u16 w)
 	if (log_ld)
 		write_log(_T("LD: MARK SET\n"));
 	break;
-	case 0x82: // User Index Off
+	case 0x80: // USER INDEX
+	ld_ui = -1;
+	ack();
+	if (log_ld)
+		write_log("LD: USER INDEX\n");
+	break;
+	case 0x81: // USER INDEX ON
+	ack();
+	if (log_ld)
+		write_log("LD: USER INDEX ON\n");
+	break;
+	case 0x82: // USER INDEX OFF
 	ack();
 	if (log_ld)
 		write_log(_T("LD: USER INDEX OFF\n"));
@@ -1012,7 +1065,7 @@ static void alg_vsync(void)
 	if (ld_save_restore) {
 		if (ld_address == 0 || getsetpositionvideograb(ld_address) > 0) {
 			ld_save_restore = false;
-			setchflagsvideograb(ld_audio);
+			setchflagsvideograb(ld_audio, false);
 		}
 		if (ld_save_restore) {
 			return;
@@ -1093,6 +1146,13 @@ static void alg_vsync(void)
 
 static int sony_serial_write(void)
 {
+	if (ld_wait_seek_status && arcadia_hsync_cnt >= ld_wait_seek) {
+		sb(ld_wait_seek_status);
+		if (log_ld) {
+			write_log("LD: seek status %d\n", ld_wait_seek_status);
+		}
+		ld_wait_seek_status = 0;
+	}
 	if (ser_buf_offset > 0) {
 		uae_u16 v = alg_ser_buf[0];
 		if (v == 0x0a) {
@@ -1173,7 +1233,7 @@ uae_u8 alg_parallel_port(uae_u8 drb, uae_u8 v)
 
 int alg_get_player(uae_u16 potgo)
 {
-	if (alg_picmatic) {
+	if (alg_picmatic_nova == 1) {
 		// Picmatic: parallel port bit 0 set = player 2
 		return (picmatic_io & 1) ? 0 : 1;
 	} else {
@@ -1188,7 +1248,7 @@ uae_u16 alg_potgor(uae_u16 potgo)
 
 	int ply = alg_get_player(alg_potgo);
 
-	if (alg_picmatic) {
+	if (alg_picmatic_nova == 1) {
 		potgo |= (0x1000 | 0x0100 | 0x4000 | 0x0400);
 		// right trigger
 		if (alg_flag & 128)
@@ -1213,7 +1273,7 @@ uae_u16 alg_joydat(int joy, uae_u16 v)
 	int ply = alg_get_player(alg_potgo);
 	v = 0;
 
-	if (alg_picmatic) {
+	if (alg_picmatic_nova == 1) {
 
 		if (joy == 0) {
 
@@ -1246,6 +1306,30 @@ uae_u16 alg_joydat(int joy, uae_u16 v)
 			// left trigger
 			if (alg_flag & 64)
 				v |= 0x0002;
+
+		}
+
+	} else if (alg_picmatic_nova == 2) {
+
+		if (joy == 0) {
+
+			// left coin
+			if (alg_flag & 16)
+				v |= 0x0200;
+			// right coin
+			if (alg_flag & 32)
+				v |= 0x0002;
+
+			// service
+			if (alg_flag & 2)
+				v |= (v & 0x0200) ? 0x0000 : 0x0100;
+			else
+				v |= (v & 0x0200) ? 0x0100 : 0x0000;
+			// left start
+			if (alg_flag & 4)
+				v |= (v & 0x0002) ? 0x0000 : 0x0001;
+			else
+				v |= (v & 0x0002) ? 0x0001 : 0x0000;
 
 		}
 
@@ -1335,8 +1419,8 @@ void alg_map_banks(void)
 		map_banks(&alg_ram_bank, 0xf7, 1, 0);
 	}
 	alg_game_id = rd->id;
-	alg_picmatic = rd->id == 198 || rd->id == 301 || rd->id == 302;
-	if (alg_picmatic) {
+	alg_picmatic_nova = rd->id == 198 || rd->id == 301 || rd->id == 302 ? 1 : (rd->id == 197 ? 2 : 0);
+	if (alg_picmatic_nova == 1) {
 		map_banks(&alg_ram_bank, 0xf6, 1, 0);
 	}
 	pausevideograb(1);
@@ -1358,19 +1442,23 @@ void alg_map_banks(void)
 		ld_repcnt = -1;
 		ld_mark = -1;
 		ld_audio = 0;
+		ld_audio_mute = false;
 		ld_video = true;
 		ld_mode = 0;
 		ld_wait_ack = 0;
+		ld_wait_seek = 0;
 		ld_direction = 0;
 		ser_buf_offset = 0;
 		alg_hsync_delay = 0;
 		arcadia_hsync_cnt = 0;
+		ld_ui = -1;
 	}
 }
 
 uae_u8 *restore_alg(uae_u8 *src)
 {
 	uae_u32 flags = restore_u32();
+	uae_u8 v;
 	alg_flag = restore_u32();
 	ld_value = restore_u32();
 	ld_address = restore_u32();
@@ -1381,7 +1469,9 @@ uae_u8 *restore_alg(uae_u8 *src)
 	ld_wait_ack = restore_u32();
 	alg_hsync_delay = restore_u32();
 	arcadia_hsync_cnt = restore_u32();
-	ld_audio = restore_u8();
+	v = restore_u8();
+	ld_audio = v & 3;
+	ld_audio_mute = (v & 0x80) != 0;
 	ld_video = restore_u8();
 	ld_mode = restore_u8();
 	ld_mode_value = restore_u8();
@@ -1418,7 +1508,7 @@ uae_u8 *save_alg(size_t *len)
 	save_u32(ld_wait_ack);
 	save_u32(alg_hsync_delay);
 	save_u32(arcadia_hsync_cnt);
-	save_u8(ld_audio);
+	save_u8(ld_audio | (ld_audio_mute ? 0x80 : 0x00));
 	save_u8(ld_video);
 	save_u8(ld_mode);
 	save_u8(ld_mode_value);

@@ -8,5 +8,5 @@ uae_s64 getdurationvideograb(void);
 bool isvideograb(void);
 bool getpausevideograb(void);
 void setvolumevideograb(int volume);
-void setchflagsvideograb(int chflags);
+void setchflagsvideograb(int chflags, bool mute);
 void isvideograb_status(void);
