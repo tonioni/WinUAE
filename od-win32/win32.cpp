@@ -7137,6 +7137,10 @@ static int parseargs(const TCHAR *argx, const TCHAR *np, const TCHAR *np2)
 		key_swap_hack = getval(np);
 		return 2;
 	}
+	if (!_tcscmp(arg, _T("osk"))) {
+		on_screen_keyboard = getval(np);
+		return 2;
+	}
 
 #endif
 	return 0;
