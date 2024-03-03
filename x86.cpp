@@ -597,7 +597,6 @@ static void floppy_reset(void)
 	floppy_irq = false;
 	floppy_pio_len = 0;
 	floppy_pio_cnt = 0;
-	floppy_rate = 0;
 	for (int i = 0; i < 4; i++) {
 		floppy_seeking[i] = 0;
 		floppy_seekcyl[i] = 0;
@@ -614,7 +613,12 @@ static void floppy_reset(void)
 
 static void floppy_hardreset(void)
 {
-	floppy_rate = -1;
+	struct x86_bridge *xb = bridges[0];
+	if (xb->type >= TYPE_2286 || xb->type < 0) {
+		floppy_rate = 0;
+	} else {
+		floppy_rate = -1;
+	}
 	floppy_reset();
 }
 
