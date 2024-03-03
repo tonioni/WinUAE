@@ -4540,19 +4540,32 @@ static void draw_lightpen_cursor(int monid, int x, int y, int line, int onscreen
 static void lightpen_update(struct vidbuffer *vb, int lpnum)
 {
 	struct vidbuf_description *vidinfo = &adisplays[vb->monitor_id].gfxvidinfo;
-	if (lightpen_x[lpnum] < 0 || lightpen_y[lpnum] < 0)
+	if (lightpen_x[lpnum] < 0 && lightpen_y[lpnum] < 0)
 		return;
 
-	if (lightpen_x[lpnum] < LIGHTPEN_WIDTH + 1)
-		lightpen_x[lpnum] = LIGHTPEN_WIDTH + 1;
-	if (lightpen_x[lpnum] >= vidinfo->drawbuffer.inwidth - LIGHTPEN_WIDTH - 1)
-		lightpen_x[lpnum] = vidinfo->drawbuffer.inwidth - LIGHTPEN_WIDTH - 2;
-	if (lightpen_y[lpnum] < LIGHTPEN_HEIGHT + 1)
-		lightpen_y[lpnum] = LIGHTPEN_HEIGHT + 1;
-	if (lightpen_y[lpnum] >= vidinfo->drawbuffer.inheight - LIGHTPEN_HEIGHT - 1)
-		lightpen_y[lpnum] = vidinfo->drawbuffer.inheight - LIGHTPEN_HEIGHT - 2;
-	if (lightpen_y[lpnum] >= max_ypos_thisframe1 - LIGHTPEN_HEIGHT - 1)
-		lightpen_y[lpnum] = max_ypos_thisframe1 - LIGHTPEN_HEIGHT - 2;
+	bool out = false;
+	int extra = 2;
+
+	if (lightpen_x[lpnum] < -extra)
+		lightpen_x[lpnum] = -extra;
+	if (lightpen_x[lpnum] >= vidinfo->drawbuffer.inwidth + extra)
+		lightpen_x[lpnum] = vidinfo->drawbuffer.inwidth + extra;
+	if (lightpen_y[lpnum] < -extra)
+		lightpen_y[lpnum] = -extra;
+	if (lightpen_y[lpnum] >= vidinfo->drawbuffer.inheight + extra)
+		lightpen_y[lpnum] = vidinfo->drawbuffer.inheight + extra;
+	if (lightpen_y[lpnum] >= max_ypos_thisframe1)
+		lightpen_y[lpnum] = max_ypos_thisframe1;
+
+	if (lightpen_x[lpnum] < 0 || lightpen_y[lpnum] < 0) {
+		out = true;
+	}
+	if (lightpen_x[lpnum] >= vidinfo->drawbuffer.inwidth) {
+		out = true;
+	}
+	if (lightpen_y[lpnum] >= max_ypos_thisframe1) {
+		out = true;
+	}
 
 	int cx = (((lightpen_x[lpnum] + visible_left_border) >> lores_shift) >> 1) + 29;
 
@@ -4563,14 +4576,17 @@ static void lightpen_update(struct vidbuffer *vb, int lpnum)
 	cx += currprefs.lightpen_offset[0];
 	cy += currprefs.lightpen_offset[1];
 
-	if (cx < 0x18) {
-		cx = 0x18;
+	if (cx <= 0x18 - 1) {
+		cx = 0x18 - 1;
+		out = true;
 	}
-	if (cy < minfirstline) {
-		cy = minfirstline;
+	if (cy <= minfirstline - 1) {
+		cy = minfirstline - 1;
+		out = true;
 	}
 	if (cy >= maxvpos) {
-		cy = maxvpos - 1;
+		cy = maxvpos;
+		out = true;
 	}
 
 	if (currprefs.lightpen_crosshair && lightpen_active) {
@@ -4587,8 +4603,8 @@ static void lightpen_update(struct vidbuffer *vb, int lpnum)
 	lightpen_y1[lpnum] = lightpen_y[lpnum] - LIGHTPEN_HEIGHT / 2 - 1 + thisframe_y_adjust;
 	lightpen_y2[lpnum] = lightpen_y1[lpnum] + LIGHTPEN_HEIGHT + 1 + thisframe_y_adjust;
 
-	lightpen_cx[lpnum] = cx;
-	lightpen_cy[lpnum] = cy;
+	lightpen_cx[lpnum] = out ? -1 : cx;
+	lightpen_cy[lpnum] = out ? -1 : cy;
 }
 
 static void refresh_indicator_init(void)
