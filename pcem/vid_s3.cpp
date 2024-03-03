@@ -2847,7 +2847,7 @@ static void *s3_init(char *bios_fn, int chip)
                 svga->crtc[0x36] = 1 | (3 << 2) | (1 << 4) | (vram_sizes[vram] << 5);
         svga->crtc[0x37] = 1 | (7 << 5);
         
-        svga->vblank_start = s3_vblank_start;
+        svga->vsync_callback = s3_vblank_start;
 
         s3_io_set(s3);
 

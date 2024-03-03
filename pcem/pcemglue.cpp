@@ -525,6 +525,22 @@ void pcemglue_hsync(void)
 	}
 }
 
+void pcemvideorbswap(bool swapped)
+{
+	for (int c = 0; c < 65536; c++) {
+		if (swapped) {
+			video_15to32[c] = (((c >> 10) & 31) << 3) | (((c >> 5) & 31) << 11) | (((c >> 0) & 31) << 19);
+		} else {
+			video_15to32[c] = ((c & 31) << 3) | (((c >> 5) & 31) << 11) | (((c >> 10) & 31) << 19);
+		}
+		if (swapped) {
+			video_16to32[c] = (((c >> 11) & 31) << 3) | (((c >> 5) & 63) << 10) | (((c >> 0) & 31) << 19);
+		} else {
+			video_16to32[c] = ((c & 31) << 3) | (((c >> 5) & 63) << 10) | (((c >> 11) & 31) << 19);
+		}
+	}
+}
+
 void initpcemvideo(void *p, bool swapped)
 {
 	int c, d, e;
@@ -572,23 +588,9 @@ void initpcemvideo(void *p, bool swapped)
 
 	if (!video_15to32)
 		video_15to32 = (uint32_t*)malloc(4 * 65536);
-	for (c = 0; c < 65536; c++) {
-		if (swapped) {
-			video_15to32[c] = (((c >> 10) & 31) << 3) | (((c >> 5) & 31) << 11) | (((c >> 0) & 31) << 19);
-		} else {
-			video_15to32[c] = ((c & 31) << 3) | (((c >> 5) & 31) << 11) | (((c >> 10) & 31) << 19);
-		}
-	}
-
 	if (!video_16to32)
 		video_16to32 = (uint32_t*)malloc(4 * 65536);
-	for (c = 0; c < 65536; c++) {
-		if (swapped) {
-			video_16to32[c] = (((c >> 11) & 31) << 3) | (((c >> 5) & 63) << 10) | (((c >> 0) & 31) << 19);
-		} else {
-			video_16to32[c] = ((c & 31) << 3) | (((c >> 5) & 63) << 10) | (((c >> 11) & 31) << 19);
-		}
-	}
+	pcemvideorbswap(swapped);
 
 	if (!buffer32) {
 		buffer32 = (PCBITMAP *)calloc(sizeof(PCBITMAP) + sizeof(uint8_t *) * 4096, 1);

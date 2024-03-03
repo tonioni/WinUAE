@@ -1747,7 +1747,7 @@ bool pci_validate_address(uaecptr addr, uae_u32 size, bool io)
 
 static void add_pci_devices(struct pci_bridge *pcib, struct autoconfig_info *aci)
 {
-	int slot = 0;
+	int slot = 1;
 
 	if (is_device_rom(&currprefs, ROMTYPE_NE2KPCI, 0) >= 0) {
 		pci_board_add(pcib, &ne2000_pci_board, slot++, 0, aci, NULL);
@@ -1889,7 +1889,15 @@ static int grex_get_index(uaecptr addr)
 
 	if ((addr & 0xfffc1000) == 0xfffc0000) {
 		int v = (addr & 0x3f000) >> 13;
-		slot = countbit(v);
+		if (!v) {
+			// CyberVision/BlizzardVision
+			return 0;
+		} else {
+			slot = countbit(v);
+			if (slot >= 0) {
+				slot++;
+			}
+		}
 		slot |= ((addr >> 8) & 7) << 8;
 	}
 	return slot;
@@ -1928,42 +1936,6 @@ static bool grex_pci_init(struct autoconfig_info *aci)
 	map_banks(&pci_io_bank, 0xfffa0000 >> 16, 0x20000 >> 16, 0);
 	map_banks(&pci_bridge_bank, 0xfffe0000 >> 16, 0x10000 >> 16, 0);
 	pcib->io_offset = 0xfffa0000;
-	pci_init();
-	return true;
-}
-
-// CyberVision/BlizzardVision without VGA chip...
-
-static int xvision_get_index(uaecptr addr)
-{
-	struct pci_bridge *pcib = get_pci_bridge(addr);
-	if ((addr & 0xfffcf700) == 0xfffc0000)
-		return 0;
-	return -1;
-}
-
-static bool cbvision(struct autoconfig_info *aci)
-{
-	struct pci_bridge *pcib = pci_bridge_alloc();
-
-	bridges[PCI_BRIDGE_XVISION] = pcib;
-	pcib->label = _T("CBVision");
-	pcib->intena = 0;
-	pcib->intreq_mask = 0x0008;
-	pcib->get_index = xvision_get_index;
-	pcib->baseaddress = 0xe0000000;
-	pcib->baseaddress_end = 0xffffffff;
-	pcib->configured = -1;
-	pcib->pcipcidma = true;
-	pcib->amigapicdma = true;
-
-	map_banks(&pci_config_bank, 0xfffc0000 >> 16, 0x20000 >> 16, 0);
-	map_banks(&pci_mem_bank, 0xe0000000 >> 16, 0x10000000 >> 16, 0);
-	map_banks(&pci_io_bank, 0xfffa0000 >> 16, 0x20000 >> 16, 0);
-	map_banks(&pci_bridge_bank, 0xfffe0000 >> 16, 0x10000 >> 16, 0);
-	pcib->io_offset = 0xfffa0000;
-	aci->zorro = 0;
-	aci->parent_of_previous = true;
 	pci_init();
 	return true;
 }
@@ -2281,11 +2253,6 @@ bool mediator_init2(struct autoconfig_info *aci)
 bool prometheus_init(struct autoconfig_info *aci)
 {
 	return prometheus_pci_init(aci);
-}
-
-bool cbvision_init(struct autoconfig_info *aci)
-{
-	return cbvision(aci);
 }
 
 bool grex_init(struct autoconfig_info *aci)

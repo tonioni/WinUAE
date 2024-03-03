@@ -1145,7 +1145,7 @@ static void *ncr_init(char *bios_fn, int chip)
                 break;
         }
                 
-        svga->vblank_start = ncr_vblank_start;
+        svga->vsync_callback = ncr_vblank_start;
         svga->adjust_panning = ncr_adjust_panning;
 
         ncr_io_set(ncr);

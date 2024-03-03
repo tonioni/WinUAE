@@ -124,8 +124,6 @@ typedef struct svga_t
 
         void (*overlay_draw)(struct svga_t *svga, int displine);
         
-        void (*vblank_start)(struct svga_t *svga);
-        
         void (*adjust_panning)(struct svga_t *svga);
 
         /*Called when VC=R18 and friends. If this returns zero then MA resetting

@@ -3960,7 +3960,7 @@ static void *s3_virge_init()
                    s3_virge_in, s3_virge_out,
                    s3_virge_hwcursor_draw,
                    s3_virge_overlay_draw);
-        virge->svga.vblank_start = s3_virge_vblank_start;
+        virge->svga.vsync_callback = s3_virge_vblank_start;
 
         rom_init(&virge->bios_rom, "s3virge.bin", 0xc0000, 0x8000, 0x7fff, 0, MEM_MAPPING_EXTERNAL);
         if (PCI)
@@ -4059,7 +4059,7 @@ static void *s3_virge_375_init()
                    s3_virge_in, s3_virge_out,
                    s3_virge_hwcursor_draw,
                    s3_virge_overlay_draw);
-        virge->svga.vblank_start = s3_virge_vblank_start;
+        virge->svga.vsync_callback = s3_virge_vblank_start;
 
         rom_init(&virge->bios_rom, "86c375_1.bin", 0xc0000, 0x8000, 0x7fff, 0, MEM_MAPPING_EXTERNAL);
         if (PCI)

@@ -2839,7 +2839,7 @@ static void *banshee_init_common(char *fn, int has_sgram, int type, int voodoo_t
                 break;
         }
 
-        banshee->svga.vblank_start = banshee_vblank_start;
+        banshee->svga.vsync_callback = banshee_vblank_start;
 
         return banshee;
 }

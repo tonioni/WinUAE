@@ -1006,6 +1006,9 @@
     <ClCompile Include="keyboard_at_draco.cpp">
       <Filter>pcem</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\pcem\vid_permedia2.cpp">
+      <Filter>pcem</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\resources\35floppy.ico">

@@ -1379,6 +1379,7 @@
     <ClCompile Include="..\..\pcem\timer.cpp" />
     <ClCompile Include="..\..\pcem\vid_cl5429.cpp" />
     <ClCompile Include="..\..\pcem\vid_ncr.cpp" />
+    <ClCompile Include="..\..\pcem\vid_permedia2.cpp" />
     <ClCompile Include="..\..\pcem\vid_s3.cpp" />
     <ClCompile Include="..\..\pcem\vid_s3_virge.cpp" />
     <ClCompile Include="..\..\pcem\vid_sdac_ramdac.cpp" />

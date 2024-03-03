@@ -2772,7 +2772,7 @@ static void *cl_init(int type, char *fn, int pci_card, uint32_t force_vram_size)
                    gd5429_hwcursor_draw,
                    gd5429_overlay_draw);
 
-        gd5429->svga.vblank_start = gd5429_vblank_start;
+        gd5429->svga.vsync_callback = gd5429_vblank_start;
         gd5429->svga.adjust_panning = gd5429_adjust_panning;
 
         mem_mapping_set_handlerx(&gd5429->svga.mapping, gd5429_read, gd5429_readw, gd5429_readl, gd5429_write, gd5429_writew, gd5429_writel);

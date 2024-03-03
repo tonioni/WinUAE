@@ -5,7 +5,6 @@ extern void pci_dump(int);
 
 extern bool dkb_wildfire_pci_init(struct autoconfig_info *aci);
 extern bool prometheus_init(struct autoconfig_info *aci);
-extern bool cbvision_init(struct autoconfig_info *aci);
 extern bool grex_init(struct autoconfig_info *aci);
 extern bool mediator_init(struct autoconfig_info *aci);
 extern bool mediator_init2(struct autoconfig_info *aci);

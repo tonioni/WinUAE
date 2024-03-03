@@ -52,6 +52,7 @@ static bool memlogw = true;
 #include "pcem/vid_s3.h"
 #include "pcem/vid_voodoo_banshee.h"
 #include "pcem/vid_ncr.h"
+#include "pcem/vid_permedia2.h"
 #include "pci.h"
 #include "pci_hw.h"
 #include "pcem/pcemglue.h"
@@ -300,6 +301,13 @@ static const struct gfxboard boards[] =
 		0, 0, 0, 0,
 		0x00000000, 0x00200000, 0x00400000, 0x10000000, 0, 0, -1, false, false,
 		0, 0, NULL, &s3_trio64_device, 0, GFXBOARD_BUSTYPE_PCI
+	},
+	{
+		GFXBOARD_ID_PERMEDIA2_PCI,
+		_T("Permedia 2 [PCI]"), _T("3DLabs"), _T("PERMEDIA2_PCI"),
+		0, 0, 0, 0,
+		0x00000000, 0x00800000, 0x00800000, 0x10000000, 0, 0, -1, false, false,
+		0, 0, NULL, &permedia2_device, 0, GFXBOARD_BUSTYPE_PCI
 	},
 	{
 		GFXBOARD_ID_VGA,
@@ -3699,7 +3707,9 @@ static void pci_change_config(struct pci_board_state *pci)
 				reinit_vram(gb, pci->bar[1] + pci->bridge->memory_start_offset, false);
 			}
 		}
-	} else if (gb->rbc->rtgmem_type == GFXBOARD_ID_S3VIRGE_PCI || gb->rbc->rtgmem_type == GFXBOARD_ID_S3TRIO64_PCI) {
+	} else if (gb->rbc->rtgmem_type == GFXBOARD_ID_S3VIRGE_PCI ||
+		gb->rbc->rtgmem_type == GFXBOARD_ID_S3TRIO64_PCI ||
+		gb->rbc->rtgmem_type == GFXBOARD_ID_PERMEDIA2_PCI) {
 		if (pci->memory_map_active) {
 			reinit_vram(gb, pci->bar[0] + pci->bridge->memory_start_offset, false);
 		}
@@ -3959,6 +3969,55 @@ static const struct pci_board voodoo3_pci_board =
 	get_pci_pcem, put_pci_pcem, pci_change_config
 };
 
+static void REGPARAM2 permedia2_mmio_lput(struct pci_board_state *pcibs, uaecptr addr, uae_u32 b)
+{
+	put_mem_pcem(addr, b, 2);
+}
+static void REGPARAM2 permedia2_mmio_wput(struct pci_board_state *pcibs, uaecptr addr, uae_u32 b)
+{
+	put_mem_pcem(addr, b, 1);
+}
+static void REGPARAM2 permedia2_mmio_bput(struct pci_board_state *pcibs, uaecptr addr, uae_u32 b)
+{
+	put_mem_pcem(addr, b, 0);
+}
+static uae_u32 REGPARAM2 permedia2_mmio_lget(struct pci_board_state *pcibs, uaecptr addr)
+{
+	return get_mem_pcem(addr, 2);
+}
+static uae_u32 REGPARAM2 permedia2_mmio_wget(struct pci_board_state *pcibs, uaecptr addr)
+{
+	return get_mem_pcem(addr, 1);
+}
+static uae_u32 REGPARAM2 permedia2_mmio_bget(struct pci_board_state *pcibs, uaecptr addr)
+{
+	return get_mem_pcem(addr, 0);
+}
+
+
+static const struct pci_config permedia2_pci_config =
+{
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, { 0, 0, 0, 0, 0, 0, 0 }
+};
+static const struct pci_board permedia2_pci_board =
+{
+	_T("PERMEDIA2"),
+	&permedia2_pci_config, NULL, NULL, NULL, NULL, NULL,
+	{
+		{ permedia2_mmio_lget, permedia2_mmio_wget, permedia2_mmio_bget, permedia2_mmio_lput, permedia2_mmio_wput, permedia2_mmio_bput },
+		{ voodoo3_mb0_lget, voodoo3_mb0_wget, voodoo3_mb0_bget, voodoo3_mb0_lput, voodoo3_mb0_wput, voodoo3_mb0_bput },
+		{ voodoo3_mb0_lget, voodoo3_mb0_wget, voodoo3_mb0_bget, voodoo3_mb0_lput, voodoo3_mb0_wput, voodoo3_mb0_bput },
+		{ NULL },
+		{ NULL },
+		{ NULL },
+		{ voodoo3_bios_lget, voodoo3_bios_wget, voodoo3_bios_bget, NULL, NULL, NULL },
+		{ NULL }
+	},
+	true,
+	get_pci_pcem, put_pci_pcem, pci_change_config
+};
+
+
 void gfxboard_s3virge_lfb_endianswap(int m)
 {
 	for (int i = 0; i < MAX_RTG_BOARDS; i++) {
@@ -4160,7 +4219,6 @@ static const struct pci_board s3virge_pci_board =
 	true,
 	get_pci_pcem, put_pci_pcem, pci_change_config
 };
-
 
 int gfxboard_get_index_from_id(int id)
 {
@@ -4598,10 +4656,13 @@ bool gfxboard_init_memory (struct autoconfig_info *aci)
 		gb->configured_regs = 1;
 		struct pci_bridge *b = pci_bridge_get();
 		if (b) {
-			if (gb->rbc->rtgmem_type == GFXBOARD_ID_VOODOO3_PCI || gb->rbc->rtgmem_type == GFXBOARD_ID_VOODOO5_PCI)
+			if (gb->rbc->rtgmem_type == GFXBOARD_ID_VOODOO3_PCI || gb->rbc->rtgmem_type == GFXBOARD_ID_VOODOO5_PCI) {
 				gb->pcibs = pci_board_add(b, &voodoo3_pci_board, -1, 0, aci, gb);
-			else
+			} else if (gb->rbc->rtgmem_type == GFXBOARD_ID_PERMEDIA2_PCI) {
+				gb->pcibs = pci_board_add(b, &permedia2_pci_board, 0, 0, aci, gb);
+			} else {
 				gb->pcibs = pci_board_add(b, &s3virge_pci_board, -1, 0, aci, gb);
+			}
 		}
 		gb->gfxboard_intena = 1;
 		return true;
