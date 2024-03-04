@@ -521,6 +521,9 @@ void set_volume_sound_device (struct sound_data *sd, int volume, int mute)
 {
 	struct sound_dp *s = sd->data;
 	HRESULT hr;
+	if (!s) {
+		return;
+	}
 	if (sd->devicetype == SOUND_DEVICE_AL) {
 		float vol = 0.0f;
 		if (volume < 100.0f && !mute)
@@ -570,10 +573,10 @@ void set_volume_sound_device (struct sound_data *sd, int volume, int mute)
 
 }
 
-void set_volume (int volume, int mute)
+void set_volume(int volume, int mute)
 {
-	set_volume_sound_device (sdp, volume, mute);
-	setvolume_ahi (volume);
+	set_volume_sound_device(sdp, volume, mute);
+	setvolume_ahi(volume);
 	config_changed = 1;
 }
 
