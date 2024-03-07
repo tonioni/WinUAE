@@ -49,6 +49,144 @@ void deletestatusline(int monid)
 	statusline_palette = NULL;
 }
 
+
+static char *ldp_font_bitmap;
+static int ldp_font_width, ldp_font_height;
+
+static void create_ldp_font(HWND parent)
+{
+	HDC hdc;
+	LPLOGPALETTE lp;
+	HPALETTE hpal;
+	BITMAPINFO *bi;
+	BITMAPINFOHEADER *bih;
+	HBITMAP bitmap = NULL;
+	int width = 128;
+	int height = 128;
+	int fontsize, fontweight;
+	void *bm;
+	const TCHAR *fn;
+
+	xfree(ldp_font_bitmap);
+
+	if (currprefs.genlock_image != 6 && currprefs.genlock_image != 7 && currprefs.genlock_image != 8) {
+		return;
+	}
+
+	fontsize = 20;
+	fontweight = FW_NORMAL;
+	fn = statusline_fontname;
+	if (currprefs.genlock_font[0]) {
+		fn = currprefs.genlock_font;
+	}
+
+	hdc = CreateCompatibleDC(NULL);
+	if (hdc) {
+		lp = (LOGPALETTE *)xcalloc(uae_u8, sizeof(LOGPALETTE) + 3 * sizeof(PALETTEENTRY));
+		if (lp) {
+			lp->palNumEntries = 4;
+			lp->palVersion = 0x300;
+			lp->palPalEntry[1].peBlue = lp->palPalEntry[1].peGreen = lp->palPalEntry[0].peRed = 0x10;
+			lp->palPalEntry[2].peBlue = lp->palPalEntry[2].peGreen = lp->palPalEntry[2].peRed = 0xff;
+			lp->palPalEntry[3].peBlue = lp->palPalEntry[3].peGreen = lp->palPalEntry[3].peRed = 0x7f;
+			hpal = CreatePalette(lp);
+			if (hpal) {
+				SelectPalette(hdc, hpal, FALSE);
+				bi = (BITMAPINFO *)xcalloc(uae_u8, sizeof(BITMAPINFOHEADER) + 4 * sizeof(RGBQUAD));
+				if (bi) {
+					bih = &bi->bmiHeader;
+					bih->biSize = sizeof(BITMAPINFOHEADER);
+					bih->biWidth = width;
+					bih->biHeight = -height;
+					bih->biPlanes = 1;
+					bih->biBitCount = 8;
+					bih->biCompression = BI_RGB;
+					bih->biClrUsed = 4;
+					bih->biClrImportant = 4;
+					bi->bmiColors[1].rgbBlue = bi->bmiColors[1].rgbGreen = bi->bmiColors[1].rgbRed = 0x10;
+					bi->bmiColors[2].rgbBlue = bi->bmiColors[2].rgbGreen = bi->bmiColors[2].rgbRed = 0xff;
+					bi->bmiColors[3].rgbBlue = bi->bmiColors[3].rgbGreen = bi->bmiColors[3].rgbRed = 0x7f;
+					bitmap = CreateDIBSection(hdc, bi, DIB_RGB_COLORS, &bm, NULL, 0);
+					if (bitmap) {
+						SelectObject(hdc, bitmap);
+						RealizePalette(hdc);
+						HFONT font = CreateFont(-fontsize, 0,
+							0, 0,
+							fontweight,
+							0,
+							FALSE,
+							FALSE,
+							DEFAULT_CHARSET,
+							OUT_TT_PRECIS,
+							CLIP_DEFAULT_PRECIS,
+							PROOF_QUALITY,
+							FIXED_PITCH | FF_DONTCARE,
+							statusline_fontname);
+						if (font) {
+							SelectObject(hdc, font);
+							SetTextColor(hdc, PALETTEINDEX(2));
+							SetBkColor(hdc, PALETTEINDEX(1));
+							TEXTMETRIC tm;
+							GetTextMetrics(hdc, &tm);
+							int w = 0;
+							int h = tm.tmAscent + 2;
+							int total = 128 - 32;
+							for (int i = 32; i < 128; i++) {
+								SIZE sz;
+								TCHAR ch = i;
+								if (GetTextExtentPoint32(hdc,&ch, 1, &sz)) {
+									if (sz.cx > w)
+										w = sz.cx;
+								}
+							}
+							int offsetx = 10;
+							int offsety = 10 - 1;
+							int fxd = fontsize - w;
+							if (fxd >= 1) {
+								fxd -= 1;
+								offsetx -= fxd / 2;
+								w += fxd / 2;
+								if (offsetx < 0) {
+									offsetx = 0;
+								}
+							}
+							ldp_font_bitmap = xcalloc(char, w * h * total);
+							if (ldp_font_bitmap) {
+								for (int i = 32; i < 128; i++) {
+									TCHAR ch = i;
+									SetBkMode(hdc, OPAQUE);
+									BitBlt(hdc, 0, 0, width, height, NULL, 0, 0, BLACKNESS);
+									TextOut(hdc, 10, 10, &ch, 1);
+									char *dst = ldp_font_bitmap + (i - 32) * w * h;
+									for (int y = 0; y < h; y++) {
+										uae_u8 *src = (uae_u8 *)bm + (y + offsety) * width + offsetx;
+										for (int x = 0; x < w; x++) {
+											uae_u8 b = *src++;
+											if (b == 2) {
+												*dst = 'x';
+											}
+											dst++;
+										}
+									}
+								}
+								ldp_font_width = w;
+								ldp_font_height = h;
+							}
+							DeleteObject(font);
+						}
+						DeleteObject(bitmap);
+					}
+					xfree(bi);
+				}
+				DeleteObject(hpal);
+			}
+			xfree(lp);
+		}
+		ReleaseDC(NULL, hdc);
+	}
+}
+
+
 static void create_led_font(HWND parent, int monid)
 {
 	HDC hdc;
@@ -204,6 +342,7 @@ bool createstatusline(HWND parentHwnd, int monid)
 		return false;
 
 	create_led_font(parentHwnd, monid);
+	create_ldp_font(parentHwnd);
 
 	lp = (LOGPALETTE*)xcalloc(uae_u8, sizeof(LOGPALETTE) + 3 * sizeof(PALETTEENTRY));
 	if (!lp)
@@ -275,7 +414,7 @@ void statusline_render(int monid, uae_u8 *buf, int bpp, int pitch, int width, in
 {
 	struct AmigaMonitor *mon = &AMonitors[monid];
 	uae_u32 white = rc[0xff] | gc[0xff] | bc[0xff] | (alpha ? alpha[0xff] : 0);
-	uae_u32 back = rc[0x00] | gc[0x00] | bc[0x00] | (alpha ? alpha[0xa0] : 0);
+	uae_u32 black = rc[0x00] | gc[0x00] | bc[0x00] | (alpha ? alpha[0xa0] : 0);
 	const TCHAR *text;
 	int y = 0, x = 10, textwidth = 0;
 	int bar_xstart;
@@ -316,9 +455,55 @@ void statusline_render(int monid, uae_u8 *buf, int bpp, int pitch, int width, in
 				if (b == 2)
 					*dst2 = white;
 				else if (b == 1)
-					*dst2 = back;
+					*dst2 = black;
 			}
 			dst2++;
 		}
+	}
+}
+
+void ldp_render(const char *txt, int len, uae_u8 *buf, struct vidbuffer *vd, int dx, int dy, int mx, int my)
+{
+	if (!ldp_font_bitmap) {
+		return;
+	}
+	int bpp = vd->pixbytes;
+	uae_u32 white = 0xffffff;
+	uae_u8 *dbuf2 = buf + dy * vd->rowbytes + dx * bpp;
+	for (int i = 0; i < len; i++) {
+		uae_u8 *dbuf = dbuf2 + i * ldp_font_width * mx * bpp;
+		char ch = *txt++;
+		if (ch >= 32) {
+			ch -= 32;
+		} else {
+			ch = 0;
+		}
+		char *font = ldp_font_bitmap + ch * ldp_font_width * ldp_font_height;
+		for (int y = 0; y < ldp_font_height; y++) {
+			for (int mmy = 0; mmy < my; mmy++) {
+				char *font2 = font;
+				for (int x = 0; x < ldp_font_width; x++) {
+					if (*font2) {
+						for (int mmx = 0; mmx < mx; mmx++) {
+							int xx = x * mx + mmx;
+							if (dy + y * my + mmy >= 0 && dy + y * my + mmy < vd->inheight) {
+								if (dx + xx >= 0 && dx + xx < vd->inwidth) {
+									dbuf[xx * bpp + 0] = 0xff;
+									dbuf[xx * bpp + 1] = 0xff;
+									if (bpp == 4) {
+										dbuf[xx * bpp + 2] = 0xff;
+										dbuf[xx * bpp + 3] = 0xff;
+									}
+								}
+							}
+						}
+					}
+					font2++;
+				}
+				dbuf += vd->rowbytes;
+			}
+			font += ldp_font_width;
+		}
+		dx += ldp_font_width;
 	}
 }

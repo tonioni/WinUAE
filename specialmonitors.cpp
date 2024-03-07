@@ -2615,6 +2615,9 @@ skip:
 	vblank_bottom_stop <<= vdbl;
 	vblank_top_start <<= vdbl;
 
+	bool first = true;
+	uae_u8 *firstdstline = NULL;
+
 	uae_u8 r = 0, g = 0, b = 0, a = 0;
 	for (y = ystart; y < yend; y++) {
 		int yoff = ((y * 2 + oddlines) - src->yoffset) >> vdbl;
@@ -2640,6 +2643,10 @@ skip:
 		uae_u8 *s = line;
 		uae_u8 *d = dstline;
 		uae_u8 *s_genlock = line_genlock;
+		if (first) {
+			firstdstline = dstline;
+			first = false;
+		}
 		int hwidth = 0;
 		for (x = 0; x < src->inwidth; x++) {
 			uae_u8 *s2 = s + src->rowbytes;
@@ -2686,6 +2693,11 @@ skip:
 				ztoggle = !ztoggle;
 			}
 		}
+	}
+	
+	if (firstdstline) {
+		firstdstline += hblank_left_start * dst->pixbytes;
+		genlock_infotext(firstdstline, dst);
 	}
 
 	dst->nativepositioning = true;
