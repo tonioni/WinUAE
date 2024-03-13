@@ -304,7 +304,7 @@ static const struct gfxboard boards[] =
 	},
 	{
 		GFXBOARD_ID_PERMEDIA2_PCI,
-		_T("Permedia 2 [PCI]"), _T("3DLabs"), _T("PERMEDIA2_PCI"),
+		_T("BlizzardVision/CyberVision PPC (Permedia2) [PCI]"), _T("3DLabs"), _T("PERMEDIA2_PCI"),
 		0, 0, 0, 0,
 		0x00000000, 0x00800000, 0x00800000, 0x10000000, 0, 0, -1, false, false,
 		0, 0, NULL, &permedia2_device, 0, GFXBOARD_BUSTYPE_PCI
