@@ -271,6 +271,9 @@ static void create_led_font(HWND parent, int monid)
 							int offsetx = 10;
 							int offsety = 10 - 1;
 							w += 1;
+							if (h < -statusline_fontsize) {
+								h = -statusline_fontsize;
+							}
 							td_new_numbers = xcalloc(char, w * h * NUMBERS_NUM);
 							if (td_new_numbers) {
 								for (int i = 0; i < td_characters[i]; i++) {
@@ -356,6 +359,7 @@ bool createstatusline(HWND parentHwnd, int monid)
 	xfree(lp);
 	SelectPalette(statusline_hdc, statusline_palette, FALSE);
 	statusline_width = (WIN32GFX_GetWidth(mon) + 31) & ~31;
+	statusline_fontsize -= (2 * TD_DEFAULT_PADY - 1);
 	statusline_height = -statusline_fontsize;
 	bi = (BITMAPINFO*)xcalloc(uae_u8, sizeof(BITMAPINFOHEADER) + 4 * sizeof(RGBQUAD));
 	if (bi) {
@@ -410,7 +414,7 @@ void statusline_updated(int monid)
 		PostMessage(mon->hStatusWnd, SB_SETTEXT, (WPARAM)((window_led_msg_start) | SBT_OWNERDRAW), (LPARAM)_T(""));
 }
 
-void statusline_render(int monid, uae_u8 *buf, int bpp, int pitch, int width, int height, uae_u32 *rc, uae_u32 *gc, uae_u32 *bc, uae_u32 *alpha)
+void statusline_render(int monid, uae_u8 *buf, int bpp, int pitch, int maxwidth, int maxheight, uae_u32 *rc, uae_u32 *gc, uae_u32 *bc, uae_u32 *alpha)
 {
 	struct AmigaMonitor *mon = &AMonitors[monid];
 	uae_u32 white = rc[0xff] | gc[0xff] | bc[0xff] | (alpha ? alpha[0xff] : 0);
@@ -434,7 +438,7 @@ void statusline_render(int monid, uae_u8 *buf, int bpp, int pitch, int width, in
 		textwidth = size.cx;
 		if (isfullscreen()) {
 			if (td_numbers_pos & TD_RIGHT) {
-				bar_xstart = width - td_numbers_padx - VISIBLE_LEDS * td_width;
+				bar_xstart = td_numbers_width - td_numbers_padx - VISIBLE_LEDS * td_width;
 				x = bar_xstart - textwidth - td_led_width;
 			} else {
 				bar_xstart = td_numbers_padx;
@@ -446,10 +450,10 @@ void statusline_render(int monid, uae_u8 *buf, int bpp, int pitch, int width, in
 		x = 0;
 	TextOut(statusline_hdc, x, y, text, uaetcslen(text));
 
-	for (int y = 0; y < height && y < statusline_height; y++) {
+	for (int y = 0; y < maxheight && y < statusline_height; y++) {
 		uae_u8 *src = (uae_u8*)statusline_bm + y * statusline_width;
 		uae_u32 *dst2 = (uae_u32*)(buf + pitch * y);
-		for (int x = 0; x < width && x < statusline_width; x++) {
+		for (int x = 0; x < maxwidth && x < statusline_width; x++) {
 			uae_u8 b = *src++;
 			if (b) {
 				if (b == 2)
@@ -473,10 +477,10 @@ void ldp_render(const char *txt, int len, uae_u8 *buf, struct vidbuffer *vd, int
 	for (int i = 0; i < len; i++) {
 		uae_u8 *dbuf = dbuf2 + i * ldp_font_width * mx * bpp;
 		char ch = *txt++;
-		if (ch >= 32) {
-			ch -= 32;
-		} else {
+		if (ch >= 128 || ch < 32) {
 			ch = 0;
+		} else {
+			ch -= 32;
 		}
 		char *font = ldp_font_bitmap + ch * ldp_font_width * ldp_font_height;
 		for (int y = 0; y < ldp_font_height; y++) {
