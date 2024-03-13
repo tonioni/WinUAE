@@ -542,6 +542,26 @@ static void update_pci_config(uaecptr addr, int size)
 			}
 		} else {
 			pcibs->bar[i] = 0;
+			// pre-set bar size when indirect PCI config
+			if (pcibs->board->pci_put_config) {
+				uae_u32 tbar = pcibs->board->pci_get_config(off + 3) << 24;
+				tbar |= pcibs->board->pci_get_config(off + 2) << 16;
+				tbar |= pcibs->board->pci_get_config(off + 1) << 8;
+				tbar |= pcibs->board->pci_get_config(off + 0) << 0;
+				pcibs->board->pci_put_config(off + 3, 0xff);
+				pcibs->board->pci_put_config(off + 2, 0xff);
+				pcibs->board->pci_put_config(off + 1, 0xff);
+				pcibs->board->pci_put_config(off + 0, 0xff);
+				uae_u32 bar = pcibs->board->pci_get_config(off + 3) << 24;
+				bar |= pcibs->board->pci_get_config(off + 2) << 16;
+				bar |= pcibs->board->pci_get_config(off + 1) << 8;
+				bar |= pcibs->board->pci_get_config(off + 0) << 0;
+				pcibs->bar_size[i] = ~((bar & ~1) - 1);
+				pcibs->board->pci_put_config(off + 3, tbar >> 24);
+				pcibs->board->pci_put_config(off + 2, tbar >> 16);
+				pcibs->board->pci_put_config(off + 1, tbar >> 8);
+				pcibs->board->pci_put_config(off + 0, tbar >> 0);
+			}
 		}
 	}
 	if (pcibs->board->pci_put_config) {
