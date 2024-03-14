@@ -8,7 +8,7 @@ Emulated:
 - Graphics processor mode standard screen modes supported (8/15/16/24/32 bits). Other weird modes are not supported.
 - VRAM aperture byte swapping and RAMDAC red/blue swapping modes. (Used at least by Picasso96 driver)
 - Hardware cursor.
-- Most of 2D blitter operations. Amiga Picasso96 and CGX4 drivers work. NOTE: Trapezoid primitive is simply assumed to be Rectangle.
+- Most of 2D blitter operations. Amiga Picasso96 and CGX4 drivers work.
 
 Not emulated and Someone Else's Problem:
 
@@ -33,6 +33,8 @@ Not emulated and Someone Else's Problem:
 #include "vid_sdac_ramdac.h"
 
 #define BLIT_LOG 0
+
+#define FRACT_ONE (1 << 16)
 
 #define REG_STARTXDOM           0x0000
 #define REG_DXDOM				0x0008
@@ -124,10 +126,12 @@ typedef struct permedia2_t
         uint32_t gp_regs[0x2000 / 4];
         int gp_pitch;
         int gp_bpp;
+        int gp_bytesperline;
         int gp_type;
         bool gp_astipple, gp_texena, gp_fogena, gp_fastfill;
         bool gp_synconbitmask, gp_reusebitmask, gp_colordda;
         int gp_incx, gp_incy;
+        int gp_dxsub, gp_dxdom;
         bool gp_readsrc, gp_readdst, gp_writedst;
         bool gp_doswmask, gp_dohwmask;
         bool gp_ropena, gp_constfbdata;
@@ -820,10 +824,10 @@ static uint32_t dorop(uint8_t rop, uint32_t s, uint32_t d)
     return out;
 }
 
-static void do_stipple(permedia2_t *permedia2, uint32_t *cp, int *pxmode)
+static void do_stipple(permedia2_t *permedia2, int x, int y, uint32_t *cp, int *pxmode)
 {
-    int offx = (permedia2->gp_asxoffset + permedia2->gp_x) & 7;
-    int offy = (permedia2->gp_asyoffset + permedia2->gp_y) & 7;
+    int offx = (permedia2->gp_asxoffset + x) & 7;
+    int offy = (permedia2->gp_asyoffset + y) & 7;
     if (permedia2->gp_asmirrorx) {
         offx = 7 - offx;
     }
@@ -889,15 +893,19 @@ static void do_blit_rect(permedia2_t *permedia2)
     }
 
     if (permedia2->gp_fastfill) {
+
         while (permedia2->gp_y >= permedia2->gp_y1 && permedia2->gp_y < permedia2->gp_y2) {
-            uint32_t d = permedia2->gp_dst + permedia2->gp_y * permedia2->gp_pitch * permedia2->gp_bpp + permedia2->gp_x * permedia2->gp_bpp;
-            if (!permedia2->gp_scissor_user || (permedia2->gp_y >= permedia2->gp_scissor_min_y && permedia2->gp_y < permedia2->gp_scissor_max_y)) {
+            int y = FTOINT(permedia2->gp_y);
+            if (!permedia2->gp_scissor_user || (y >= permedia2->gp_scissor_min_y && y < permedia2->gp_scissor_max_y)) {
+                uint32_t dp = permedia2->gp_dst + y * permedia2->gp_bytesperline;
                 while (permedia2->gp_x >= permedia2->gp_x1 && permedia2->gp_x < permedia2->gp_x2) {
+                    int x = FTOINT(permedia2->gp_x);
+                    uint32_t ddp = dp + x * permedia2->gp_bpp;
                     // TODO: FBBlockColorL and FBBlockColorU
                     uint32_t c = permedia2->gp_regs[REG_FBBLOCKCOLOR >> 3];
                     int pxmode = 0;
                     if (permedia2->gp_asena) {
-                        do_stipple(permedia2, &c, &pxmode);
+                        do_stipple(permedia2, x, y, &c, &pxmode);
                     }
                     if (permedia2->gp_bitmaskena) {
                         if (!do_bitmask_check(permedia2)) {
@@ -908,36 +916,43 @@ static void do_blit_rect(permedia2_t *permedia2)
                         }
                     }
                     if (pxmode >= 0) {
-                        if (!permedia2->gp_scissor_user || (permedia2->gp_x >= permedia2->gp_scissor_min_x && permedia2->gp_x < permedia2->gp_scissor_max_x)) {
+                        if (!permedia2->gp_scissor_user || (x >= permedia2->gp_scissor_min_x && x < permedia2->gp_scissor_max_x)) {
                             if (permedia2->gp_dohwmask) {
-                                uint32_t cd = readfb(permedia2, d, permedia2->gp_bpp);
+                                uint32_t cd = readfb(permedia2, ddp, permedia2->gp_bpp);
                                 c = (c & permedia2->gp_regs[REG_FBHARDWRITEMASK >> 3]) | (cd & ~permedia2->gp_regs[REG_FBHARDWRITEMASK >> 3]);
                             }
-                            writefb(permedia2, d, c, permedia2->gp_bpp);
+                            writefb(permedia2, ddp, c, permedia2->gp_bpp);
                         }
                     }
-                    d += permedia2->gp_dx;
                     permedia2->gp_x += permedia2->gp_incx;
                 }
             }
-            permedia2->gp_x = permedia2->gp_incx > 0 ? permedia2->gp_x1 : permedia2->gp_x2 - 1;
-            permedia2->gp_y += permedia2->gp_incy;
+            permedia2->gp_x1 += permedia2->gp_dxdom;
+            permedia2->gp_x2 += permedia2->gp_dxsub;
+            permedia2->gp_x = permedia2->gp_incx > 0 ? permedia2->gp_x1 : permedia2->gp_x2 - FRACT_ONE;
+            permedia2->gp_y += permedia2->gp_dy;
             if (permedia2->gp_bitmaskena) {
                 if (!next_bitmask(permedia2)) {
                     return;
                 }
             }
         }
+
     } else {
+
         while (permedia2->gp_y >= permedia2->gp_y1 && permedia2->gp_y < permedia2->gp_y2) {
-            if (!permedia2->gp_scissor_user || (permedia2->gp_y >= permedia2->gp_scissor_min_y && permedia2->gp_y < permedia2->gp_scissor_max_y)) {
-                uint32_t d = permedia2->gp_dst + permedia2->gp_y * permedia2->gp_pitch * permedia2->gp_bpp + permedia2->gp_x * permedia2->gp_bpp;
-                uint32_t s = permedia2->gp_src + permedia2->gp_y * permedia2->gp_pitch * permedia2->gp_bpp + permedia2->gp_x * permedia2->gp_bpp;
+            int y = FTOINT(permedia2->gp_y);
+            if (!permedia2->gp_scissor_user || (y >= permedia2->gp_scissor_min_y && y < permedia2->gp_scissor_max_y)) {
+                uint32_t dp = permedia2->gp_dst + y * permedia2->gp_bytesperline;
+                uint32_t sp = permedia2->gp_src + y * permedia2->gp_bytesperline;
                 while (permedia2->gp_x >= permedia2->gp_x1 && permedia2->gp_x < permedia2->gp_x2) {
+                    int x = FTOINT(permedia2->gp_x);
+                    uint32_t ddp = dp + x * permedia2->gp_bpp;
+                    uint32_t ssp = sp + x * permedia2->gp_bpp;
                     uint32_t c = permedia2->gp_color, cd = permedia2->gp_color;
                     int pxmode = 0;
                     if (permedia2->gp_asena) {
-                        do_stipple(permedia2, &c, &pxmode);
+                        do_stipple(permedia2, x, y, &c, &pxmode);
                     }
                     if (permedia2->gp_bitmaskena) {
                         if (!do_bitmask_check(permedia2)) {
@@ -947,13 +962,13 @@ static void do_blit_rect(permedia2_t *permedia2)
                             do_bitmask_do(permedia2, &c, &pxmode);
                         }
                     }
-                    if (permedia2->gp_x >= permedia2->gp_packedlimitxstart && permedia2->gp_x < permedia2->gp_packedlimitxend) {
+                    if (x >= permedia2->gp_packedlimitxstart && x < permedia2->gp_packedlimitxend) {
                         if (permedia2->gp_readsrc && !pxmode) {
-                            c = readfb(permedia2, s, permedia2->gp_bpp);
+                            c = readfb(permedia2, ssp, permedia2->gp_bpp);
                         }
                         if (pxmode >=0) {
                             if (permedia2->gp_readdst) {
-                                cd = readfb(permedia2, d, permedia2->gp_bpp);
+                                cd = readfb(permedia2, ddp, permedia2->gp_bpp);
                             }
                             if (permedia2->gp_ropena) {
                                 c = dorop(permedia2->gp_rop, c, cd);
@@ -961,26 +976,26 @@ static void do_blit_rect(permedia2_t *permedia2)
                                 c = permedia2->gp_regs[REG_FBWRITEDATA >> 3];
                             }
                             if (permedia2->gp_writedst) {
-                                if (!permedia2->gp_scissor_user || (permedia2->gp_x >= permedia2->gp_scissor_min_x && permedia2->gp_x < permedia2->gp_scissor_max_x)) {
+                                if (!permedia2->gp_scissor_user || (x >= permedia2->gp_scissor_min_x && x < permedia2->gp_scissor_max_x)) {
                                     if (permedia2->gp_doswmask) {
                                         c = (c & permedia2->gp_regs[REG_FBSOFTWRITEMASK >> 3]) | (cd & ~permedia2->gp_regs[REG_FBSOFTWRITEMASK >> 3]);
                                     }
                                     if (permedia2->gp_dohwmask) {
-                                        cd = readfb(permedia2, d, permedia2->gp_bpp);
+                                        cd = readfb(permedia2, ddp, permedia2->gp_bpp);
                                         c = (c & permedia2->gp_regs[REG_FBHARDWRITEMASK >> 3]) | (cd & ~permedia2->gp_regs[REG_FBHARDWRITEMASK >> 3]);
                                     }
-                                    writefb(permedia2, d, c, permedia2->gp_bpp);
+                                    writefb(permedia2, ddp, c, permedia2->gp_bpp);
                                 }
                             }
                         }
                     }
                     permedia2->gp_x += permedia2->gp_incx;
-                    d += permedia2->gp_dx;
-                    s += permedia2->gp_sx;
                 }
             }
-            permedia2->gp_x = permedia2->gp_incx > 0 ? permedia2->gp_x1 : permedia2->gp_x2 - 1;
-            permedia2->gp_y += permedia2->gp_incy;
+            permedia2->gp_x1 += permedia2->gp_dxdom;
+            permedia2->gp_x2 += permedia2->gp_dxsub;
+            permedia2->gp_x = permedia2->gp_incx > 0 ? permedia2->gp_x1 : permedia2->gp_x2 - FRACT_ONE;
+            permedia2->gp_y += permedia2->gp_dy;
             if (permedia2->gp_bitmaskena) {
                 if (!next_bitmask(permedia2)) {
                     return;
@@ -1003,14 +1018,14 @@ static void do_blit_line(permedia2_t *permedia2)
         int x = FTOINT(permedia2->gp_x1);
         int y = FTOINT(permedia2->gp_y1);
 
-        uint32_t d = permedia2->gp_dst + y * permedia2->gp_pitch * permedia2->gp_bpp + x * permedia2->gp_bpp;
-        uint32_t s = permedia2->gp_src + y * permedia2->gp_pitch * permedia2->gp_bpp + x * permedia2->gp_bpp;
+        uint32_t d = permedia2->gp_dst + y * permedia2->gp_bytesperline + x * permedia2->gp_bpp;
+        uint32_t s = permedia2->gp_src + y * permedia2->gp_bytesperline + x * permedia2->gp_bpp;
 
         if (!permedia2->gp_scissor_user || (y >= permedia2->gp_scissor_min_y && y < permedia2->gp_scissor_max_y)) {
             uint32_t c = permedia2->gp_color, cd = permedia2->gp_color;
             int pxmode = 0;
             if (permedia2->gp_asena) {
-                do_stipple(permedia2, &c, &pxmode);
+                do_stipple(permedia2, x, y, &c, &pxmode);
             }
             // is this allowed in line mode?
             if (permedia2->gp_bitmaskena) {
@@ -1071,15 +1086,13 @@ static void permedia2_blit(permedia2_t *permedia2)
     permedia2->gp_astipple = (cmd >> 0) & 1;
     permedia2->gp_texena = (cmd >> 13) & 1;
     permedia2->gp_fogena = (cmd >> 14) & 1;
-    permedia2->gp_incx = ((cmd >> 21) & 1) ? 1 : -1;
-    permedia2->gp_incy = ((cmd >> 22) & 1) ? 1 : -1;
     permedia2->gp_fastfill = (cmd >> 3) & 1;
     permedia2->gp_synconbitmask = (cmd >> 11) & 1;
     permedia2->gp_reusebitmask = (cmd >> 17) & 1;
 
 #if BLIT_LOG
-    pclog("Permedia2 render %08x as=%d ff=%d incx=%d incy=%d type=%d te=%d fe=%d\n",
-        cmd, permedia2->gp_astipple, permedia2->gp_fastfill, permedia2->gp_incx, permedia2->gp_incy,
+    pclog("Permedia2 render %08x as=%d ff=%d type=%d te=%d fe=%d\n",
+        cmd, permedia2->gp_astipple, permedia2->gp_fastfill,
         permedia2->gp_type, permedia2->gp_texena, permedia2->gp_fogena);
 #endif
     int readpixel = (permedia2->gp_regs[REG_FBREADPIXEL >> 3] & 7);
@@ -1189,6 +1202,7 @@ static void permedia2_blit(permedia2_t *permedia2)
     permedia2->gp_dst = (permedia2->gp_regs[REG_FBWINDOWBASE >> 3] + gp_pixeloffset) * permedia2->gp_bpp;
     permedia2->gp_src = (permedia2->gp_regs[REG_FBSOURCEBASE >> 3] + gp_pixeloffset + gp_srcoffset - gp_packedlimitrel) * permedia2->gp_bpp;
 
+    permedia2->gp_bytesperline = permedia2->gp_pitch * permedia2->gp_bpp;
     permedia2->gp_color = permedia2->gp_colordda ? permedia2->gp_regs[REG_CONSTANTCOLOR >> 3] : permedia2->gp_regs[REG_FBSOURCEDATA >> 3];
 
     if (permedia2->gp_type == 0) {
@@ -1213,30 +1227,26 @@ static void permedia2_blit(permedia2_t *permedia2)
     
     } else if (permedia2->gp_type == 1) {
 
-        // TRAPEZOID. FIXME: Currently assumes RECTANGLE!
+        // TRAPEZOID
         permedia2->gp_x1 = TOFRACT1215(permedia2->gp_regs[REG_STARTXDOM >> 3]);
         permedia2->gp_y1 = TOFRACT1215(permedia2->gp_regs[REG_STARTY >> 3]);
         permedia2->gp_x2 = TOFRACT1215(permedia2->gp_regs[REG_STARTXSUB >> 3]);
-        int dxsub = TOFRACT1215(permedia2->gp_regs[REG_DXSUB >> 3]);
-        int dxdom = TOFRACT1215(permedia2->gp_regs[REG_DXDOM >> 3]);
-        int dy = TOFRACT1114(permedia2->gp_regs[REG_DY >> 3]);
-        if (dxsub || dxdom || (dy != 0x10000 && dy != 0xffff0000)) {
-            pclog("Not yet supported: trapezoid not rectangle!\n");
-        }
+        permedia2->gp_dxdom = TOFRACT1215(permedia2->gp_regs[REG_DXDOM >> 3]);
+        permedia2->gp_dxsub = TOFRACT1215(permedia2->gp_regs[REG_DXSUB >> 3]);
+        permedia2->gp_dy = TOFRACT1114(permedia2->gp_regs[REG_DY >> 3]);
         permedia2->gp_len = permedia2->gp_regs[REG_COUNT >> 3] & 0xfff;
 
         if (permedia2->gp_x2 >= permedia2->gp_x1) {
-            permedia2->gp_incx = 1;
+            permedia2->gp_incx = FRACT_ONE;
         } else {
-            permedia2->gp_incx = -1;
+            permedia2->gp_incx = -FRACT_ONE;
         }
-        permedia2->gp_incy = dy < 0 ? - 1 : 1;
+        permedia2->gp_incy = permedia2->gp_dy < 0 ? -FRACT_ONE : FRACT_ONE;
+        permedia2->gp_y2 = permedia2->gp_y1 + (permedia2->gp_len * FRACT_ONE);
+        permedia2->gp_x = permedia2->gp_x1;
+        permedia2->gp_y = permedia2->gp_y1;
+
         permedia2->gp_type = 3;
-    
-        permedia2->gp_x1 = permedia2->gp_x1 >> 16;
-        permedia2->gp_x2 = permedia2->gp_x2 >> 16;
-        permedia2->gp_y1 = permedia2->gp_y1 >> 16;
-        permedia2->gp_y2 = permedia2->gp_y1 + permedia2->gp_len;
 
     } else {
 
@@ -1266,24 +1276,33 @@ static void permedia2_blit(permedia2_t *permedia2)
 
         permedia2->gp_x2 = permedia2->gp_x1 + w;
         permedia2->gp_y2 = permedia2->gp_y1 + h;
+
+        permedia2->gp_x1 <<= 16;
+        permedia2->gp_x2 <<= 16;
+        permedia2->gp_y1 <<= 16;
+        permedia2->gp_y2 <<= 16;
+
+        permedia2->gp_incx = ((cmd >> 21) & 1) ? FRACT_ONE : -FRACT_ONE;
+        permedia2->gp_incy = ((cmd >> 22) & 1) ? FRACT_ONE : -FRACT_ONE;
+
+        permedia2->gp_x = permedia2->gp_x1;
+        if (permedia2->gp_incx < 0) {
+            permedia2->gp_x = permedia2->gp_x2 - FRACT_ONE;
+        }
+        permedia2->gp_y = permedia2->gp_y1;
+        permedia2->gp_dy = FRACT_ONE;
+        if (permedia2->gp_incy < 0) {
+            permedia2->gp_y = permedia2->gp_y2 - FRACT_ONE;
+            permedia2->gp_dy = -FRACT_ONE;
+        }
+
+        permedia2->gp_dxdom = 0;
+        permedia2->gp_dxsub = 0;
     }
 
-    permedia2->gp_dx = permedia2->gp_bpp;
-    permedia2->gp_sx = permedia2->gp_bpp;
-
-    permedia2->gp_x = permedia2->gp_x1;
-    if (permedia2->gp_incx < 0) {
-        permedia2->gp_x = permedia2->gp_x2 - 1;
-        permedia2->gp_dx = -permedia2->gp_dx;
-        permedia2->gp_sx = -permedia2->gp_sx;
-    }
-    permedia2->gp_y = permedia2->gp_y1;
-    if (permedia2->gp_incy < 0) {
-        permedia2->gp_y = permedia2->gp_y2 - 1;
-    }
 
     if (permedia2->gp_bitmaskrelative) {
-        permedia2->gp_bitmaskoffset = permedia2->gp_x & 31;
+        permedia2->gp_bitmaskoffset = (permedia2->gp_x >> 16) & 31;
     }
 
 #if BLIT_LOG
@@ -1320,7 +1339,9 @@ static void permedia2_mmio_write_l(uint32_t addr, uint32_t val, void *p)
     //pclog("PM2 MMIO Write %08x = %08x\n", addr, val);
 
     if (reg >= 0x8000 && reg < 0xa000) {
-        //pclog("PM2 GP MMIO Write %08x = %08x\n", addr, val);
+#if BLIT_LOG > 1
+        pclog("PM2 GP MMIO Write %08x = %08x\n", addr, val);
+#endif
         reg &= 0x7fff;
         int tag = reg >> 3;
         permedia2->gp_regs[tag] = val;
@@ -1351,7 +1372,9 @@ static void permedia2_mmio_write_l(uint32_t addr, uint32_t val, void *p)
         } else if (reg == REG_BITMASKPATTERN) {
             permedia2->gp_bitmaskpattern = val;
             uint32_t rasterizer = permedia2->gp_regs[REG_RASTERIZERMODE >> 3];
-            //pclog("REG_BITMASKPATTERN %08x %d\n", permedia2->gp_bitmaskpattern, permedia2->gp_bitmaskpatterncnt++);
+#if BLIT_LOG > 1
+            pclog("REG_BITMASKPATTERN %08x %d\n", permedia2->gp_bitmaskpattern, permedia2->gp_bitmaskpatterncnt++);
+#endif
             if ((rasterizer >> 1) & 1) {
                 permedia2->gp_bitmaskpattern ^= 0xffffffff;
             }
