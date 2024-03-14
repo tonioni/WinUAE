@@ -14871,13 +14871,13 @@ addrbank custom_bank = {
 
 static uae_u32 REGPARAM2 custom_wgeti (uaecptr addr)
 {
-	if (currprefs.cpu_model >= 68020)
+	if (currprefs.cpu_model >= 68020 && !currprefs.cpu_compatible)
 		return dummy_wgeti (addr);
 	return custom_wget (addr);
 }
 static uae_u32 REGPARAM2 custom_lgeti (uaecptr addr)
 {
-	if (currprefs.cpu_model >= 68020)
+	if (currprefs.cpu_model >= 68020 && !currprefs.cpu_compatible)
 		return dummy_lgeti (addr);
 	return custom_lget (addr);
 }
