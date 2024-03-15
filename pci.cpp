@@ -39,7 +39,8 @@
 #define PCI_BRIDGE_GREX (PCI_BRIDGE_WILDFIRE + 1)
 #define PCI_BRIDGE_XVISION (PCI_BRIDGE_GREX + 1)
 #define PCI_BRIDGE_PROMETHEUS (PCI_BRIDGE_XVISION + 1)
-#define PCI_BRIDGE_MEDIATOR (PCI_BRIDGE_PROMETHEUS + MAX_DUPLICATE_EXPANSION_BOARDS)
+#define PCI_BRIDGE_PROMETHEUS_FS (PCI_BRIDGE_PROMETHEUS + 1)
+#define PCI_BRIDGE_MEDIATOR (PCI_BRIDGE_PROMETHEUS_FS + MAX_DUPLICATE_EXPANSION_BOARDS)
 #define PCI_BRIDGE_MAX (PCI_BRIDGE_MEDIATOR + MAX_DUPLICATE_EXPANSION_BOARDS + 1)
 
 static struct pci_bridge *bridges[PCI_BRIDGE_MAX + 1];
@@ -324,12 +325,12 @@ static struct pci_bridge *get_pci_bridge_2(uaecptr addr)
 	return NULL;
 }
 
-static struct pci_board_state *get_pci_board_state_config(struct pci_bridge *pcib, uaecptr addr)
+static struct pci_board_state *get_pci_board_state_config(struct pci_bridge *pcib, uaecptr addr, bool w, uae_u32 *vp)
 {
 	if (!pcib)
 		return NULL;
 	// get slot
-	int idx = pcib->get_index(addr);
+	int idx = pcib->get_index(addr, w, vp);
 	if (idx < 0)
 		return NULL;
 	int slot = idx & 0xff;
@@ -433,9 +434,8 @@ static uae_u8 *get_pci_config(uaecptr addr, int size, uae_u32 v, int *endianswap
 {
 #if PCI_DEBUG_CONFIG
 	if (size < 0) {
-		size = -size;
 		write_log(_T("PCI Config Space %s READ %08x PC=%08x\n"),
-			size == 4 ? _T("LONG") : (size == 2 ? _T("WORD") : _T("BYTE")), addr, M68K_GETPC);
+			size == -4 ? _T("LONG") : (size == -2 ? _T("WORD") : _T("BYTE")), addr, M68K_GETPC);
 	} else {
 		write_log(_T("PCI Config Space %s WRITE %08x = %08x PC=%08x\n"),
 					 size == 4 ? _T("LONG") : (size == 2 ? _T("WORD") : _T("BYTE")), addr, v, M68K_GETPC);
@@ -444,9 +444,18 @@ static uae_u8 *get_pci_config(uaecptr addr, int size, uae_u32 v, int *endianswap
 	struct pci_bridge *pcib = get_pci_bridge(addr);
 	if (!pcib)
 		return NULL;
-	struct pci_board_state *pcibs = get_pci_board_state_config(pcib, addr);
-	if (!pcibs)
+	struct pci_board_state *pcibs = get_pci_board_state_config(pcib, addr, size > 0, &v);
+	if (!pcibs) {
+		if (size < 0) {
+			static uae_u8 ret[256+3];
+			ret[3] = v >> 24;
+			ret[2] = v >> 16;
+			ret[1] = v >> 8;
+			ret[0] = v >> 0;
+			return ret;
+		}
 		return NULL;
+	}
 	*endianswap = pcib->endian_swap_config;
 #if PCI_DEBUG_CONFIG
 	write_log(_T("- Board %d/%d (%s)\n"), pcibs->slot, pcibs->func, pcibs->board->label);
@@ -520,7 +529,7 @@ static void update_pci_config(uaecptr addr, int size)
 	struct pci_bridge *pcib = get_pci_bridge(addr);
 	if (!pcib)
 		return;
-	struct pci_board_state *pcibs = get_pci_board_state_config(pcib, addr);
+	struct pci_board_state *pcibs = get_pci_board_state_config(pcib, addr, false, 0);
 	if (!pcibs)
 		return;
 	uae_u8 *d = pcibs->config_data;
@@ -647,7 +656,7 @@ static uae_u32 REGPARAM2 pci_config_lget(uaecptr addr)
 {
 	uae_u32 v = 0xffffffff;
 	int endianswap;
-	uae_u8 *config = get_pci_config(addr, -4, 0, &endianswap);
+	uae_u8 *config = get_pci_config(addr, -4, v, &endianswap);
 	if (config) {
 		uae_u32 offset = addr & 0xff;
 		if (!endianswap) {
@@ -671,7 +680,7 @@ static uae_u32 REGPARAM2 pci_config_wget(uaecptr addr)
 {
 	uae_u32 v = 0xffff;
 	int endianswap;
-	uae_u8 *config = get_pci_config(addr, -2, 0, &endianswap);
+	uae_u8 *config = get_pci_config(addr, -2, v, &endianswap);
 	if (config) {
 		uae_u32 offset = addr & 0xff;
 		if (!endianswap) {
@@ -1114,6 +1123,15 @@ static void REGPARAM2 pci_bridge_wput(uaecptr addr, uae_u32 b)
 						map_banks_z3(&pci_io_bank, (expamem_board_pointer) >> 16, 0xf0000 >> 16);
 						map_banks_z3(&pci_mem_bank, (expamem_board_pointer + 0x100000) >> 16, (511 * 1024 * 1024) >> 16);
 						map_banks_z3(&pci_config_bank, (expamem_board_pointer + 0xf0000) >> 16, 0x10000 >> 16);
+					}
+					pcib->baseaddress_offset = pcib->baseaddress;
+					pcib->io_offset = expamem_board_pointer;
+					pcib->memory_start_offset = expamem_board_pointer;
+				} else if (pcib->type == PCI_BRIDGE_PROMETHEUS_FS) {
+					if (validate_banks_z3(&pci_io_bank, (expamem_board_pointer) >> 16, expamem_board_size >> 16)) {
+						map_banks_z3(&pci_io_bank, (expamem_board_pointer + 0x1fe00000) >> 16, 0x100000 >> 16);
+						map_banks_z3(&pci_mem_bank, (expamem_board_pointer + 0x00000000) >> 16, (508 * 1024 * 1024) >> 16);
+						map_banks_z3(&pci_config_bank, (expamem_board_pointer + 0x1fc00000) >> 16, 0x100000 >> 16);
 					}
 					pcib->baseaddress_offset = pcib->baseaddress;
 					pcib->io_offset = expamem_board_pointer;
@@ -1580,7 +1598,7 @@ void pci_dump(int log)
 			_stprintf(txt, _T("%08X - %08X: Configuration space\n"), start, end - 1);
 			pci_dump_out(txt, log);
 			while (start < end) {
-				struct pci_board_state *pcibs = get_pci_board_state_config(pcib, start);
+				struct pci_board_state *pcibs = get_pci_board_state_config(pcib, start, false, 0);
 				if (pcibs && pcibs != oldpcibs) {
 					const struct pci_board *pci = pcibs->board;
 					if (pcibs->board) {
@@ -1589,7 +1607,7 @@ void pci_dump(int log)
 							start, pcibs->slot, pcibs->func, cfg->vendor, cfg->device, pci->label,
 							pcibs->io_map_active, pcibs->memory_map_active);
 					} else {
-						int idx = pcib->get_index(start);
+						int idx = pcib->get_index(start, false, NULL);
 						_stprintf(txt, _T("        - Slot %d: <none>\n"), idx & 0xff);
 					}
 					pci_dump_out(txt, log);
@@ -1702,7 +1720,7 @@ static uae_u32 REGPARAM2 wildfire_lget(struct pci_board_state *pcibs, uaecptr ad
 	return v;
 }
 
-static int dkb_wildfire_get_index(uaecptr addr)
+static int dkb_wildfire_get_index(uaecptr addr, bool w, uae_u32 *vp)
 {
 	int idx = 0;
 	int slot = -1;
@@ -1835,8 +1853,9 @@ bool dkb_wildfire_pci_init(struct autoconfig_info *aci)
 }
 
 // Prometheus: 44359/1
-
 static const uae_u8 prometheus_autoconfig[16] = { 0x85, 0x01, 0x30, 0x00, 0xad, 0x47, 0x00, 0x00, 0x00, 0x7f, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+// Prometheus FireStorm: 3643/200
+static const uae_u8 prometheusfs_autoconfig[16] = { 0x85, 0xc8, 0x30, 0x00, 0x0e, 0x3b, 0x00, 0x00, 0x00, 0x7f, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
 
 static void ew(uae_u8 *acmemory, int addr, uae_u8 value)
 {
@@ -1849,7 +1868,7 @@ static void ew(uae_u8 *acmemory, int addr, uae_u8 value)
 	}
 }
 
-static int prometheus_get_index(uaecptr addr)
+static int prometheus_get_index(uaecptr addr, bool w, uae_u32 *vp)
 {
 	struct pci_bridge *pcib = get_pci_bridge(addr);
 
@@ -1859,6 +1878,43 @@ static int prometheus_get_index(uaecptr addr)
 	int slot = (addr & 0xf000) >> 13;
 	if (slot > 3)
 		return -1;
+	slot |= ((addr >> 8) & 7) << 8;
+	return slot;
+}
+
+static int prometheusfs_get_index(uaecptr addr, bool w, uae_u32 *vp)
+{
+	struct pci_bridge *pcib = get_pci_bridge(addr);
+
+	addr -= pcib->baseaddress;
+	if ((addr & 0xfff00000) != 0x1fc00000) {
+		return -1;
+	}
+	if (addr & 0x8000) {
+		if (vp) {
+			if (w) {
+				uae_u32 v = *vp;
+				pcib->intena = (v & (1 << 30)) ? 0xff : 0x00;
+				pcib->reset = (v & (1 << 31)) != 0;
+				return -1;
+			}
+			*vp = (pcib->irq ? (1 << 29) : 0) | (pcib->intena ? (1 << 30) : 0) | (pcib->reset ? (1 << 31) : 0);
+		}
+		return -1;
+	}
+	int slot = -1;
+	if ((addr & 0xf0000) == 0x10000) {
+		slot = 0;
+	} else if ((addr & 0xf0000) == 0x20000) {
+		slot = 1;
+	} else if ((addr & 0xf0000) == 0x40000) {
+		slot = 2;
+	} else if ((addr & 0xf0000) == 0x80000) {
+		slot = 3;
+	}
+	if (slot < 0) {
+		return -1;
+	}
 	slot |= ((addr >> 8) & 7) << 8;
 	return slot;
 }
@@ -1900,9 +1956,46 @@ static bool prometheus_pci_init(struct autoconfig_info *aci)
 	return true;
 }
 
+static bool prometheusfs_pci_init(struct autoconfig_info *aci)
+{
+	device_add_reset(pci_reset);
+	if (!aci->doinit) {
+		for (int i = 0; i < sizeof prometheusfs_autoconfig; i++) {
+			ew(aci->autoconfig_raw, i * 4, prometheusfs_autoconfig[i]);
+		}
+		return true;
+	}
+	struct romconfig *rc = aci->rc;
+	struct pci_bridge *pcib = pci_bridge_alloc_zorro(PCI_BRIDGE_PROMETHEUS_FS, rc);
+	if (!pcib)
+		return false;
+	pcib->label = _T("Prometheus FireStorm");
+	pcib->endian_swap_config = 1;
+	pcib->endian_swap_io = -1;
+	pcib->endian_swap_memory = -1;
+	pcib->intena = 0;
+	pcib->intreq_mask = 0x0008;
+	pcib->get_index = prometheusfs_get_index;
+	pcib->bank = &pci_bridge_bank;
+	pcib->bank_zorro = 3;
+	pcib->pcipcidma = true;
+	if (rc->device_settings & 1)
+		pcib->amigapicdma = true;
+
+	add_pci_devices(pcib, aci);
+
+	memset(pcib->acmemory, 0xff, sizeof pcib->acmemory);
+	for (int i = 0; i < sizeof prometheusfs_autoconfig; i++) {
+		ew(pcib->acmemory, i * 4, prometheusfs_autoconfig[i]);
+	}
+	aci->addrbank = pcib->bank;
+	pci_init();
+	return true;
+}
+
 // G-REX
 
-static int grex_get_index(uaecptr addr)
+static int grex_get_index(uaecptr addr, bool w, uae_u32 *vp)
 {
 	int slot = -1;
 	struct pci_bridge *pcib = get_pci_bridge(addr);
@@ -2003,7 +2096,7 @@ static struct mediator_autoconfig mediator_ac[] =
 };
 
 
-static int mediator_get_index_1200(uaecptr addr)
+static int mediator_get_index_1200(uaecptr addr, bool w, uae_u32 *vp)
 {
 	struct pci_bridge *pcib = get_pci_bridge(addr);
 	if (!pcib)
@@ -2019,7 +2112,7 @@ static int mediator_get_index_1200(uaecptr addr)
 	return slot;
 }
 
-static int mediator_get_index_4000(uaecptr addr)
+static int mediator_get_index_4000(uaecptr addr, bool w, uae_u32 *vp)
 {
 	struct pci_bridge *pcib = get_pci_bridge(addr);
 	if (!pcib)
@@ -2275,6 +2368,11 @@ bool prometheus_init(struct autoconfig_info *aci)
 	return prometheus_pci_init(aci);
 }
 
+bool prometheusfs_init(struct autoconfig_info *aci)
+{
+	return prometheusfs_pci_init(aci);
+}
+
 bool grex_init(struct autoconfig_info *aci)
 {
 	return grex_pci_init(aci);
@@ -2282,7 +2380,7 @@ bool grex_init(struct autoconfig_info *aci)
 
 bool pci_expansion_init(struct autoconfig_info *aci)
 {
-	static const int parent[] = { ROMTYPE_GREX, ROMTYPE_MEDIATOR, ROMTYPE_PROMETHEUS, 0 };
+	static const int parent[] = { ROMTYPE_GREX, ROMTYPE_MEDIATOR, ROMTYPE_PROMETHEUS, ROMTYPE_PROMETHEUSFS, 0 };
 	aci->parent_romtype = parent;
 	aci->zorro = 0;
 	return true;

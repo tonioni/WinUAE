@@ -4563,7 +4563,7 @@ bool gfxboard_init_memory (struct autoconfig_info *aci)
 			static const int parent[] = { ROMTYPE_A1060, ROMTYPE_A2088, ROMTYPE_A2088T, ROMTYPE_A2286, ROMTYPE_A2386, 0 };
 			aci->parent_romtype = parent;
 		} else if (gb->board->bustype == GFXBOARD_BUSTYPE_PCI) {
-			static const int parent[] = { ROMTYPE_GREX, ROMTYPE_MEDIATOR, ROMTYPE_PROMETHEUS, 0 };
+			static const int parent[] = { ROMTYPE_GREX, ROMTYPE_MEDIATOR, ROMTYPE_PROMETHEUS, ROMTYPE_PROMETHEUSFS, 0 };
 			aci->parent_romtype = parent;
 		} else {
 			memcpy(aci->autoconfig_raw, gb->automemory, sizeof aci->autoconfig_raw);
