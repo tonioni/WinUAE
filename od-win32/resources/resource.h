@@ -435,6 +435,7 @@
 #define IDS_NONE2                       440
 #define IDS_SOUND_CLONED71              441
 #define IDS_SOUND_71                    442
+#define IDS_SOUND_FILTER_ON_FIXEDONLY   443
 #define IDS_QS_MODELS                   1000
 #define IDS_QS_MODEL_A500               1001
 #define IDS_QS_MODEL_A500P              1002

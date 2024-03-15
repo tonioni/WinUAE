@@ -14024,8 +14024,10 @@ static void values_to_sounddlg (HWND hDlg)
 	xSendDlgItemMessage (hDlg, IDC_SOUNDFILTER, CB_ADDSTRING, 0, (LPARAM)txt);
 	WIN32GUI_LoadUIString (IDS_SOUND_FILTER_ON_AGA, txt, sizeof (txt) / sizeof (TCHAR));
 	xSendDlgItemMessage (hDlg, IDC_SOUNDFILTER, CB_ADDSTRING, 0, (LPARAM)txt);
-	WIN32GUI_LoadUIString (IDS_SOUND_FILTER_ON_A500, txt, sizeof (txt) / sizeof (TCHAR));
-	xSendDlgItemMessage (hDlg, IDC_SOUNDFILTER, CB_ADDSTRING, 0, (LPARAM)txt);
+	WIN32GUI_LoadUIString(IDS_SOUND_FILTER_ON_A500, txt, sizeof(txt) / sizeof(TCHAR));
+	xSendDlgItemMessage(hDlg, IDC_SOUNDFILTER, CB_ADDSTRING, 0, (LPARAM)txt);
+	WIN32GUI_LoadUIString(IDS_SOUND_FILTER_ON_FIXEDONLY, txt, sizeof(txt) / sizeof(TCHAR));
+	xSendDlgItemMessage(hDlg, IDC_SOUNDFILTER, CB_ADDSTRING, 0, (LPARAM)txt);
 	i = 0;
 	switch (workprefs.sound_filter)
 	{
@@ -14036,7 +14038,7 @@ static void values_to_sounddlg (HWND hDlg)
 		i = workprefs.sound_filter_type ? 2 : 1;
 		break;
 	case 2:
-		i = workprefs.sound_filter_type ? 4 : 3;
+		i = workprefs.sound_filter_type == 2 ? 5 : (workprefs.sound_filter_type == 1 ? 4 : 3);
 		break;
 	}
 	xSendDlgItemMessage (hDlg, IDC_SOUNDFILTER, CB_SETCURSEL, i, 0);
@@ -14242,6 +14244,10 @@ static void values_from_sounddlg (HWND hDlg)
 	case 4:
 		workprefs.sound_filter = FILTER_SOUND_ON;
 		workprefs.sound_filter_type = 1;
+		break;
+	case 5:
+		workprefs.sound_filter = FILTER_SOUND_ON;
+		workprefs.sound_filter_type = 2;
 		break;
 	}
 

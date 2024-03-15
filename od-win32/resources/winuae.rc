@@ -2239,6 +2239,7 @@ BEGIN
     IDS_NONE2               "<none>"
     IDS_SOUND_CLONED71      "Cloned stereo (7.1)"
     IDS_SOUND_71            "7.1 channels"
+    IDS_SOUND_FILTER_ON_FIXEDONLY "Always on (Fixed only)"
 END
 
 #endif    // English (United Kingdom) resources
