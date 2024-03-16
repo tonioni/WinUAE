@@ -5981,6 +5981,23 @@ static void WIN32_HandleRegistryStuff (void)
 	target_load_debugger_config();
 }
 
+void target_setdefaultstatefilename(const TCHAR *name)
+{
+	TCHAR path[MAX_DPATH];
+	fetch_path(_T("StatefilePath"), path, sizeof(path) / sizeof(TCHAR));
+	if (!name || !name[0]) {
+		_tcscat(path, _T("default.uss"));
+	} else {
+		_tcscat(path, name);
+		const TCHAR *p = _tcsrchr(name, '.');
+		if (p) {
+			path[_tcslen(path) - ((name + _tcslen(name)) - p)] = 0;
+			_tcscat(path, _T(".uss"));
+		}
+	}
+	_tcscpy(savestate_fname, path);
+}
+
 #if WINUAEPUBLICBETA > 0
 static const TCHAR *BETAMESSAGE = {
 	_T("This is unstable beta software. Click cancel if you are not comfortable using software that is incomplete and can have serious programming errors.")

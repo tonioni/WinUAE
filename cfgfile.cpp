@@ -7201,6 +7201,7 @@ int cfgfile_load (struct uae_prefs *p, const TCHAR *filename, int *type, int ign
 			fetch_configurationpath(tmp, sizeof(tmp) / sizeof(TCHAR));
 			_tcsncat(tmp, p->config_all_path, sizeof(tmp) / sizeof(TCHAR) - _tcslen(tmp) - 1);
 			type2 = CONFIG_TYPE_HOST | CONFIG_TYPE_HARDWARE;
+			target_setdefaultstatefilename(filename);
 			cfgfile_load(p, tmp, &type2, 1, 0);
 		}
 		if (p->config_hardware_path[0]) {
@@ -7213,6 +7214,7 @@ int cfgfile_load (struct uae_prefs *p, const TCHAR *filename, int *type, int ign
 			fetch_configurationpath (tmp, sizeof (tmp) / sizeof (TCHAR));
 			_tcsncat (tmp, p->config_host_path, sizeof (tmp) / sizeof (TCHAR) - _tcslen(tmp) - 1);
 			type2 = CONFIG_TYPE_HOST;
+			target_setdefaultstatefilename(filename);
 			cfgfile_load (p, tmp, &type2, 1, 0);
 		}
 	}

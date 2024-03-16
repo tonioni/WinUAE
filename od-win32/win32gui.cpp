@@ -4247,6 +4247,7 @@ static TCHAR *HandleConfiguration (HWND hDlg, int flag, struct ConfigStruct *con
 			WIN32GUI_LoadUIString (IDS_MUSTSELECTCONFIG, szMessage, MAX_DPATH);
 			pre_gui_message (szMessage);
 		} else {
+			target_setdefaultstatefilename(config_filename);
 			if (target_cfgfile_load (&workprefs, path, configtypepanel, 0) == 0) {
 				TCHAR szMessage[MAX_DPATH];
 				WIN32GUI_LoadUIString (IDS_COULDNOTLOADCONFIG, szMessage, MAX_DPATH);
@@ -4335,7 +4336,7 @@ static TCHAR *HandleConfiguration (HWND hDlg, int flag, struct ConfigStruct *con
 		break;
 	}
 
-	setguititle (NULL);
+	setguititle(NULL);
 	return ok ? full_path : NULL;
 }
 
@@ -7356,6 +7357,7 @@ static void load_quickstart (HWND hDlg, int romcheck)
 	addfloppyhistory (hDlg);
 	config_filename[0] = 0;
 	setguititle (NULL);
+	target_setdefaultstatefilename(config_filename);
 }
 
 static void quickstarthost (HWND hDlg, TCHAR *name)
