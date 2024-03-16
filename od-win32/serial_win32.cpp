@@ -62,6 +62,7 @@ static bool serempty_enabled;
 static bool serxdevice_enabled;
 static uae_u8 serstatus;
 static bool ser_accurate;
+static bool safe_receive;
 static uae_u16 *receive_buf;
 static int receive_buf_size, receive_buf_count;
 
@@ -227,6 +228,7 @@ void SERPER (uae_u16 w)
 	if (serper == w && serper_set)  /* don't set baudrate if it's already ok */
 		return;
 
+	safe_receive = false;
 	serper_set = true;
 	ninebit = 0;
 	serper = w;
@@ -250,15 +252,15 @@ void SERPER (uae_u16 w)
 	mbaud = baud;
 
 	serial_period_hsyncs = (((serper & 0x7fff) + 1) * (1 + 8 + ninebit + 1 - 1)) / maxhpos;
-	if (serial_period_hsyncs <= 0)
+	if (serial_period_hsyncs <= 0) {
 		serial_period_hsyncs = 1;
+	}
 
 #if SERIALLOGGING > 0
 	serial_period_hsyncs = 1;
 	seriallog = 1;
 #endif
-	if (log_sercon) {
-		serial_period_hsyncs = 1;
+	if (log_sercon > 0) {
 		seriallog = log_sercon;
 		seriallog_lf = true;
 		write_logx(_T("\n"));
@@ -270,12 +272,18 @@ void SERPER (uae_u16 w)
 		write_log(_T("SERIAL: period=%d, baud=%d, hsyncs=%d, bits=%d, PC=%x\n"), w, baud, serial_period_hsyncs, ninebit ? 9 : 8, M68K_GETPC);
 	}
 
-	if (ninebit)
+	if (ninebit) {
 		baud *= 2;
+	}
 	if (currprefs.serial_direct) {
-		if (baud != 31400 && baud < 115200)
+		if (baud != 31400 && baud < 115200) {
 			baud = 115200;
+		}
 		serial_period_hsyncs = 1;
+		safe_receive = true;
+	}
+	if (sermap_enabled || serxdevice_enabled) {
+		safe_receive = true;
 	}
 
 	serial_recv_previous = -1;
@@ -319,6 +327,7 @@ static void serial_rx_irq(void)
 	} else {
 		INTREQ_INT(11, 0);
 	}
+	serdatr_last_got = 0;
 }
 
 bool serreceive_external(uae_u16 v)
@@ -367,6 +376,9 @@ void serial_rethink(void)
 		if (serxdevice_enabled) {
 			sdr = 1;
 		}
+		if (safe_receive) {
+			sdr = 1;
+		}
 		// RBF bit is not "sticky" but without it data can be lost when using fast emulation modes
 		// and physical serial port or internally emulated serial devices.
 		if (sdr) {
@@ -396,12 +408,24 @@ static TCHAR dochar(int v)
 
 static bool canreceive(void)
 {
-	if (!data_in_serdatr)
+	// don't replace data in SERDATR until interrupt is cleared in safe receive mode
+	if (safe_receive) {
+		if (intreq & (1 << 11)) {
+			return false;
+		}
+		if (data_in_serdatr) {
+			return false;
+		}
+	}
+	if (!data_in_serdatr) {
 		return true;
-	if (currprefs.serial_direct)
+	}
+	if (currprefs.serial_direct) {
 		return false;
-	if (currprefs.cpu_cycle_exact)
+	}
+	if (currprefs.cpu_cycle_exact) {
 		return true;
+	}
 	if (serdatr_last_got > SERIAL_HSYNC_BEFORE_OVERFLOW) {
 #if SERIALDEBUG > 0
 		write_log(_T("SERIAL: OVERRUN\n"));
@@ -431,7 +455,6 @@ static void checkreceive_enet (void)
 		serdatr |= 0x200;
 	else
 		serdatr |= 0x100;
-	serdatr_last_got = 0;
 	serial_rx_irq();
 #if SERIALDEBUG > 2
 	write_log (_T("SERIAL: received %02X (%c)\n"), serdatr & 0xff, dochar (serdatr));
@@ -570,7 +593,6 @@ static void checkreceive_serial (void)
 		}
 	}
 
-	serdatr_last_got = 0;
 	serial_rx_irq();
 #if SERIALDEBUG > 2
 	write_log(_T("SERIAL: received %02X (%c)\n"), serdatr & 0xff, dochar(serdatr));
@@ -781,34 +803,33 @@ static void serdatcopy(void)
 	checksend();
 }
 
+
 void serial_hsynchandler (void)
 {
 #ifdef AHI
 	extern void hsyncstuff(void);
 	hsyncstuff();
 #endif
+	bool can = canreceive();
+
 #ifdef ARCADIA
 	if (alg_flag || currprefs.genlock_image >= 7) {
-		if (data_in_serdatr) {
-			return;
-		}
-		int ch = ld_serial_write();
-		if (ch >= 0) {
-			serdatr = ch | 0x100;
-			serdatr_last_got = 0;
-			serial_rx_irq();
+		if (can) {
+			int ch = ld_serial_write();
+			if (ch >= 0) {
+				serdatr = ch | 0x100;
+				serial_rx_irq();
+			}
 		}
 	}
 #endif
 	if (cubo_enabled) {
-		if (data_in_serdatr) {
-			return;
-		}
-		int ch = touch_serial_write();
-		if (ch >= 0) {
-			serdatr = ch | 0x100;
-			serdatr_last_got = 0;
-			serial_rx_irq();
+		if (can) {
+			int ch = touch_serial_write();
+			if (ch >= 0) {
+				serdatr = ch | 0x100;
+				serial_rx_irq();
+			}
 		}
 	}
 	if (seriallog > 1 && !data_in_serdatr && gotlogwrite) {
@@ -824,7 +845,7 @@ void serial_hsynchandler (void)
 	}
 #ifdef SERIAL_MAP
 	if (sermap2 && sermap_enabled) {
-		if (!data_in_serdatr) {
+		if (can) {
 			for (;;) {
 				uae_u32 v = shmem_serial_receive();
 				if (v == 0xffffffff) {
