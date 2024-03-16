@@ -1098,7 +1098,13 @@ static void REGPARAM2 pci_bridge_lput(uaecptr addr, uae_u32 b)
 			pcib->endian_swap_memory = pcib->endian_swap_io = (b & 2) != 0 ? -1 : 0;
 			break;
 			case 1:
-			pcib->intena = (b & 1) ? 0xff : 0x00;
+			{
+				uae_u8 ointena = pcib->intena;
+				pcib->intena = (b & 1) ? 0xff : 0x00;
+				if (pcib->intena > ointena) {
+					devices_rethink_all(pci_rethink);
+				}
+			}
 			break;
 			case 3:
 			pcib->config[0] = b & 1;
@@ -1339,7 +1345,11 @@ static void REGPARAM2 pci_bridge_bput_2(uaecptr addr, uae_u32 b)
 					map_banks_z2(&dummy_bank, (pcib->baseaddress_2 + 0x10000) >> 16, 0x10000 >> 16);
 				}
 			} else if (offset == 11) {
+				uae_u8 ointena = pcib->intena;
 				pcib->intena = b >> 4;
+				if (pcib->intena > ointena) {
+					devices_rethink_all(pci_rethink);
+				}
 			} else if (offset == 0x40) {
 				// power off
 				uae_quit();
@@ -1351,7 +1361,11 @@ static void REGPARAM2 pci_bridge_bput_2(uaecptr addr, uae_u32 b)
 			if (offset == 0) {
 				mediator_set_window_offset(pcib, b);
 			} else if (offset == 4) {
+				uae_u8 ointena = pcib->intena;
 				pcib->intena = b >> 4;
+				if (pcib->intena > ointena) {
+					devices_rethink_all(pci_rethink);
+				}
 			}
 		}
 	}
@@ -1894,8 +1908,12 @@ static int prometheusfs_get_index(uaecptr addr, bool w, uae_u32 *vp)
 		if (vp) {
 			if (w) {
 				uae_u32 v = *vp;
+				uae_u8 ointena = pcib->intena;
 				pcib->intena = (v & (1 << 30)) ? 0xff : 0x00;
 				pcib->reset = (v & (1 << 31)) != 0;
+				if (pcib->intena > ointena) {
+					devices_rethink_all(pci_rethink);
+				}
 				return -1;
 			}
 			*vp = (pcib->irq ? (1 << 29) : 0) | (pcib->intena ? (1 << 30) : 0) | (pcib->reset ? (1 << 31) : 0);
