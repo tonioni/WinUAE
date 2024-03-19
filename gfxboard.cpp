@@ -53,6 +53,7 @@ static bool memlogw = true;
 #include "pcem/vid_voodoo_banshee.h"
 #include "pcem/vid_ncr.h"
 #include "pcem/vid_permedia2.h"
+#include "pcem/vid_inmos.h"
 #include "pci.h"
 #include "pci_hw.h"
 #include "pcem/pcemglue.h"
@@ -266,6 +267,27 @@ static const struct gfxboard boards[] =
 		0, 0, NULL, &gd5434_vlb_device
 	},
 	{
+		GFXBOARD_ID_EGS_110_24,
+		_T("EGS 110/24 [GVP local bus]"), _T("GVP"), _T("EGS_110_24"),
+		2193, 0, 0, 0,
+		0x00000000, 0x00400000, 0x00800000, 0x00800000, 0, 4, 2, false, false,
+		0, 0, NULL, &inmos_egs_110_24_device
+	},
+	{
+		GFXBOARD_ID_VISIONA,
+		_T("Visiona [Zorro II]"), _T("X-Pert Computer Services"), _T("Visiona"),
+		2117, 2, 1, 0,
+		0x00000000, 0x00200000, 0x00400000, 0x00400000, 0, 2, 6, false, false,
+		0, 0, NULL, &inmos_visiona_z2_device
+	},
+	{
+		GFXBOARD_ID_RAINBOWIII,
+		_T("Rainbow III [Zorro III]"), _T("Ingenieurbüro Helfrich"), _T("RainbowIII"),
+		2145, 33, 0, 0,
+		0x00000000, 0x00400000, 0x00400000, 0x02000000, 0, 3, 6, false, false,
+		0, 0, NULL, &inmos_rainbow3_z3_device
+	},
+	{
 		GFXBOARD_ID_HARLEQUIN,
 		_T("Harlequin [Zorro II]"), _T("ACS"), _T("Harlequin_PAL"),
 		2118, 100, 0, 0,
@@ -365,6 +387,8 @@ struct rtggfxboard
 	int resolutionchange;
 	uae_u8 *gfxboard_surface, *fakesurface_surface;
 	bool gfxboard_intreq;
+	bool gfxboard_intreq_marked;
+	bool gfxboard_external_interrupt;
 	int gfxboard_intena;
 	bool vram_enabled, vram_offset_enabled;
 	hwaddr vram_offset[2];
@@ -812,13 +836,19 @@ static void gfxboard_rethink(void)
 			if (gb->board->bustype == GFXBOARD_BUSTYPE_DRACO) {
 				void draco_svga_irq(bool state);
 				draco_svga_irq(gb->gfxboard_intreq);
-			} else if (gb->gfxboard_intreq &&gb->gfxboard_intena) {
-				if (gb->board->irq == 2 && gb->gfxboard_intena != 6)
-					irq = 2;
-				else
-					irq = 6;
-				if (irq > 0) {
-					safe_interrupt_set(IRQ_SOURCE_GFX, gb->monitor_id, irq == 6);
+			} else if (gb->gfxboard_intena) {
+				bool intreq = gb->gfxboard_intreq;
+				if (gb->gfxboard_external_interrupt) {
+					intreq |= gb->gfxboard_intreq_marked;
+				}
+				if (intreq) {
+					if (gb->board->irq == 2 && gb->gfxboard_intena != 6)
+						irq = 2;
+					else
+						irq = 6;
+					if (irq > 0) {
+						safe_interrupt_set(IRQ_SOURCE_GFX, gb->monitor_id, irq == 6);
+					}
 				}
 			}
 		}
@@ -1519,6 +1549,7 @@ void gfxboard_intreq(void *p, int act, bool safe)
 		if (gb->board->irq && gb->gfxboard_intena) {
 			if (gb->board->irq > 0) {
 				gb->gfxboard_intreq = 1;
+				gb->gfxboard_intreq_marked = 1;
 			} else {
 				gb->pcibs->irq_callback(gb->pcibs, true);
 			}
@@ -2794,6 +2825,18 @@ static void REGPARAM2 gfxboard_wput_mem_autoconfig (uaecptr addr, uae_u32 b)
 				gb->configured_regs = gb->gfxmem_bank->start >> 16;
 				gb->gfxboard_intena = 1;
 
+			} else if (boardnum == GFXBOARD_ID_RAINBOWIII) {
+
+				map_banks_z3(&gb->gfxboard_bank_vram_pcem, start >> 16, gb->gfxboard_bank_vram_pcem.allocated_size >> 16);
+				gb->pcem_mmio_offset = 0x1000000;
+				gb->pcem_vram_mask = 0x3fffff;
+				gb->pcem_vram_offset = 0x800000;
+				map_banks_z3(&gb->gfxboard_bank_special_pcem, (start + 0x400000) >> 16, 0xc00000 >> 16);
+				map_banks_z3(&gb->gfxboard_bank_special_pcem, (start + 0x1000000) >> 16, 0x1000000 >> 16);
+				gb->pcem_mmio_mask = 0xffff;
+				gb->configured_regs = gb->gfxmem_bank->start >> 16;
+				gb->gfxboard_external_interrupt = true;
+
 			}
 
 		} else {
@@ -2950,6 +2993,24 @@ static void REGPARAM2 gfxboard_bput_mem_autoconfig (uaecptr addr, uae_u32 b)
 					gb->pcem_vram_offset = 0x800000;
 					gb->pcem_vram_mask = 0x3fffff;
 					gb->pcem_io_mask = 0x3fff;
+
+				} else if (boardnum == GFXBOARD_ID_VISIONA) {
+
+
+					ab = &gb->gfxboard_bank_vram_pcem;
+					gb->gfxboardmem_start = b << 16;
+					map_banks_z2(ab, b, gb->board->banksize >> 16);
+
+					init_board(gb);
+
+					gb->configured_mem = b;
+					gb->mem_start[0] = b << 16;
+					gb->mem_end[0] = gb->mem_start[0] + gb->board->banksize;
+					gb->pcem_vram_offset = 0x800000;
+					gb->pcem_vram_mask = 0x3fffff;
+					gb->pcem_mmio_mask = 0x3fff;
+					gb->pcem_mmio_offset = 0x800000;
+					gb->gfxboard_external_interrupt = true;
 
 				} else {
 
@@ -4559,6 +4620,9 @@ bool gfxboard_init_memory (struct autoconfig_info *aci)
 		if (gb->rbc->rtgmem_type == GFXBOARD_ID_ALTAIS_Z3) {
 			aci->start = 0x20000000;
 			aci->size = 0x1000000;
+		} else if (gb->rbc->rtgmem_type == GFXBOARD_ID_EGS_110_24) {
+			aci->start = 0x0d000000;
+			aci->size = 0x01000000;
 		} else if (gb->rbc->rtgmem_type == GFXBOARD_ID_VGA) {
 			static const int parent[] = { ROMTYPE_A1060, ROMTYPE_A2088, ROMTYPE_A2088T, ROMTYPE_A2286, ROMTYPE_A2386, 0 };
 			aci->parent_romtype = parent;
@@ -4686,6 +4750,25 @@ bool gfxboard_init_memory (struct autoconfig_info *aci)
 		gb->pcem_mmio_mask = 0xff;
 		gb->configured_regs = gb->gfxmem_bank->start >> 16;
 		gb->gfxboard_intena = 1;
+		gb->configured_mem = 1;
+		gb->configured_regs = 1;
+	}
+	if (gb->rbc->rtgmem_type == GFXBOARD_ID_EGS_110_24) {
+		gb->gfxboard_bank_memory.bget = gfxboard_bget_mem;
+		gb->gfxboard_bank_memory.bput = gfxboard_bput_mem;
+		gb->gfxboard_bank_memory.wput = gfxboard_wput_mem;
+		uaecptr start = 0x0d000000;
+		gb->gfxboardmem_start = start;
+		init_board(gb);
+		copyvrambank(&gb->gfxboard_bank_memory, gb->gfxmem_bank, true);
+		copyvrambank(&gb->gfxboard_bank_vram_pcem, gb->gfxmem_bank, true);
+		map_banks(&gb->gfxboard_bank_vram_pcem, gb->gfxboardmem_start >> 16, gb->gfxboard_bank_vram_pcem.allocated_size >> 16, 0);
+		map_banks(&gb->gfxboard_bank_special_pcem, 0xc080000 >> 16, 1, 0);
+		gb->pcem_vram_offset = 0x800000;
+		gb->pcem_vram_mask = gb->rbc->rtgmem_size - 1;
+		gb->pcem_mmio_offset = 0x1000000;
+		gb->pcem_mmio_mask = 0x3fff;
+		gb->configured_regs = gb->gfxmem_bank->start >> 16;
 		gb->configured_mem = 1;
 		gb->configured_regs = 1;
 	}
@@ -5943,6 +6026,45 @@ static void special_pcem_put(uaecptr addr, uae_u32 v, int size)
 			}
 		}
 	end:;
+
+	} else if (boardnum == GFXBOARD_ID_VISIONA) {
+
+		addr &= 0xffff;
+		if (!(addr & (0x2000 | 0x40000))) {
+			gfxboard_lput_mmio_pcem(addr, v);
+		}
+		if (addr == 0x204c) {
+			gb->gfxboard_intena = (v & 1) != 0;
+		}
+		if (addr == 0x2054) {
+			gb->gfxboard_intreq_marked = false;
+		}
+
+	} else if (boardnum == GFXBOARD_ID_EGS_110_24) {
+
+		addr &= 0xffff;
+		if (!(addr & (0x1000 | 0x2000 | 0x40000))) {
+			gfxboard_lput_mmio_pcem(addr, v);
+		}
+		if (addr == 0x2050) {
+			gb->gfxboard_intena = (v & 1) != 0;
+		}
+		if (addr == 0x2058) {
+			gb->gfxboard_intreq_marked = false;
+		}
+
+	} else if (boardnum == GFXBOARD_ID_RAINBOWIII) {
+
+		addr &= 0xffff;
+		if (!(addr & (0x2000 | 0x40000))) {
+			gfxboard_lput_mmio_pcem(addr, v);
+		}
+		if (addr == 0x2000) {
+			gb->gfxboard_intena = (v & 0x20) != 0;
+		}
+		if (addr == 0x2008) {
+			gb->gfxboard_intreq_marked = false;
+		}
 	}
 }
 
@@ -6217,6 +6339,56 @@ static uae_u32 special_pcem_get(uaecptr addr, int size)
 			v = flash_read(gb->p4flashrom, addr);
 		}
 
+	} else if (boardnum == GFXBOARD_ID_VISIONA) {
+
+		addr &= 0xffff;
+		if (!(addr & (0x2000 | 0x40000))) {
+			if (size == 2) {
+				v = gfxboard_lget_mmio_pcem(addr);
+			} else if (size == 1) {
+				v = gfxboard_wget_mmio_pcem(addr);
+			} else {
+				v = gfxboard_bget_mmio_pcem(addr);
+			}
+		}
+		if (addr == 0x2044) {
+			v = gb->gfxboard_intreq_marked ? 4 : 0;
+		}
+
+	} else if (boardnum == GFXBOARD_ID_EGS_110_24) {
+
+		addr &= 0xffff;
+		if (!(addr & (0x2000 | 0x40000))) {
+			if (size == 2) {
+				v = gfxboard_lget_mmio_pcem(addr);
+			} else if (size == 1) {
+				v = gfxboard_wget_mmio_pcem(addr);
+			} else {
+				v = gfxboard_bget_mmio_pcem(addr);
+			}
+		} else if (addr == 0x2044) {
+			v = gb->gfxboard_intreq_marked ? 4 : 0;
+		} else if (addr == 0x204c) {
+			v = 0xf0ffffff;
+		} else if (addr == 0x207c) {
+			v = 0xf9ffffff;
+		}
+
+	} else if (boardnum == GFXBOARD_ID_RAINBOWIII) {
+
+		addr &= 0xffff;
+		if (!(addr & (0x2000 | 0x40000))) {
+			if (size == 2) {
+				v = gfxboard_lget_mmio_pcem(addr);
+			} else if (size == 1) {
+				v = gfxboard_wget_mmio_pcem(addr);
+			} else {
+				v = gfxboard_bget_mmio_pcem(addr);
+			}
+		}
+		if (addr & 0x4000) {
+			v = gb->gfxboard_intreq_marked ? 0x80 : 00;
+		}
 	}
 	return v;
 }
