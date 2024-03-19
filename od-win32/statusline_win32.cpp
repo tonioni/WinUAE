@@ -211,7 +211,9 @@ static void create_led_font(HWND parent, int monid)
 	hdc = CreateCompatibleDC(NULL);
 	if (hdc) {
 		int y = getdpiforwindow(parent);
-		statusline_fontsize = -MulDiv(statusline_fontsize, y, 72);
+		if (isfullscreen() <= 0) {
+			statusline_fontsize = -MulDiv(statusline_fontsize, y, 72);
+		}
 		statusline_fontsize = statusline_fontsize * statusline_get_multiplier(monid) / 100;
 		lp = (LOGPALETTE *)xcalloc(uae_u8, sizeof(LOGPALETTE) + 3 * sizeof(PALETTEENTRY));
 		if (lp) {
