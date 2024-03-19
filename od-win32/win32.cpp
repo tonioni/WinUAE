@@ -812,6 +812,27 @@ static void setcursorshape(int monid)
 	}
 }
 
+void set_showcursor(BOOL v)
+{
+	if (v) {
+		int vv = ShowCursor(TRUE);
+		if (vv > 1) {
+			ShowCursor(FALSE);
+		}
+	} else {
+		int max = 10;
+		while (max-- > 0) {
+			int vv = ShowCursor(FALSE);
+			if (vv < 0) {
+				while (vv < -1) {
+					vv = ShowCursor(TRUE);
+				}
+				break;
+			}
+		}
+	}
+}
+
 void releasecapture(struct AmigaMonitor *mon)
 {
 	//write_log(_T("releasecapture %d\n"), mon_cursorclipped);
@@ -821,14 +842,11 @@ void releasecapture(struct AmigaMonitor *mon)
 	GetCursorInfo(&pci);
 	write_log(_T("PCI %08x %p %d %d\n"), pci.flags, pci.hCursor, pci.ptScreenPos.x, pci.ptScreenPos.y);
 #endif
-	if (!mon_cursorclipped)
-		return;
 	if (!ClipCursor(NULL))
 		write_log(_T("ClipCursor %08x\n"), GetLastError());
 	if (!ReleaseCapture())
 		write_log(_T("ReleaseCapture %08x\n"), GetLastError());
-	int c = ShowCursor(TRUE);
-	write_log(_T("ShowCursor %d\n"), c);
+	set_showcursor(TRUE);
 	mon_cursorclipped = 0;
 }
 
@@ -1052,13 +1070,13 @@ static void setmouseactive2(struct AmigaMonitor *mon, int active, bool allowpaus
 	mouseactive = active ? mon->monitor_id + 1 : 0;
 
 	mon->mouseposx = mon->mouseposy = 0;
-	//write_log (_T("setmouseactive(%d)\n"), active);
-	releasecapture (mon);
-	recapture = 0;
 
 	if (isfullscreen () <= 0 && (currprefs.input_mouse_untrap & MOUSEUNTRAP_MAGIC) && currprefs.input_tablet > 0) {
-		if (mousehack_alive ())
+		if (mousehack_alive()) {
+			releasecapture(mon);
+			recapture = 0;
 			return;
+		}
 		SetCursor (normalcursor);
 	}
 
@@ -1081,6 +1099,8 @@ static void setmouseactive2(struct AmigaMonitor *mon, int active, bool allowpaus
 		focus = 0;
 		mouseactive = 0;
 		active = 0;
+		releasecapture(mon);
+		recapture = 0;
 	}
 
 	if (mouseactive > 0)
@@ -1090,18 +1110,17 @@ static void setmouseactive2(struct AmigaMonitor *mon, int active, bool allowpaus
 
 	if (mouseactive) {
 		if (focus) {
-			if (GetActiveWindow() != mon->hMainWnd && GetActiveWindow() != mon->hAmigaWnd)
+			if (GetActiveWindow() != mon->hMainWnd && GetActiveWindow() != mon->hAmigaWnd) {
 				SetActiveWindow(mon->hMainWnd);
-			if (!mon_cursorclipped) {
-				//write_log(_T("setcapture\n"));
-#if MOUSECLIP_HIDE
-				ShowCursor (FALSE);
-#endif
-				SetCapture (mon->hAmigaWnd);
-				updatewinrect(mon, false);
-				mon_cursorclipped = mon->monitor_id + 1;
-				updatemouseclip(mon);
 			}
+			//write_log(_T("setcapture\n"));
+#if MOUSECLIP_HIDE
+			set_showcursor(FALSE);
+#endif
+			SetCapture (mon->hAmigaWnd);
+			updatewinrect(mon, false);
+			mon_cursorclipped = mon->monitor_id + 1;
+			updatemouseclip(mon);
 			setcursor(mon, -30000, -30000);
 		}
 		if (lastmouseactive != mouseactive) {
@@ -7693,7 +7712,7 @@ static void create_dump (struct _EXCEPTION_POINTERS *pExceptionPointers)
 					CloseHandle (f);
 					ClipCursor(NULL);
 					ReleaseCapture();
-					ShowCursor(TRUE);
+					set_showcursor(TRUE);
 					if (debugfile)
 						log_close(debugfile);
 					if (isfullscreen() <= 0) {
