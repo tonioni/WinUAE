@@ -6007,10 +6007,22 @@ void target_setdefaultstatefilename(const TCHAR *name)
 	if (!name || !name[0]) {
 		_tcscat(path, _T("default.uss"));
 	} else {
-		_tcscat(path, name);
-		const TCHAR *p = _tcsrchr(name, '.');
+		const TCHAR *p2 = _tcsrchr(name, '\\');
+		const TCHAR *p3 = _tcsrchr(name, '/');
+		const TCHAR *p1 = NULL;
+		if (p2 >= p3) {
+			p1 = p2;
+		} else if (p3 >= p2) {
+			p1 = p3;
+		}
+		if (p1) {
+			_tcscat(path, p1 + 1);
+		} else {
+			_tcscat(path, name);
+		}
+		const TCHAR *p = _tcsrchr(path, '.');
 		if (p) {
-			path[_tcslen(path) - ((name + _tcslen(name)) - p)] = 0;
+			path[_tcslen(path) - ((path + _tcslen(path)) - p)] = 0;
 			_tcscat(path, _T(".uss"));
 		}
 	}
