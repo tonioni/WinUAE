@@ -1004,7 +1004,6 @@ void cpuboard_gvpmaprom(int b)
 		!ISCPUBOARDP(&currprefs, BOARD_GVP, BOARD_GVP_SUB_GFORCE040))
 		return;
 
-	write_log(_T("GVP MAPROM=%d\n"), b);
 	if (b < 0 || b > 7)
 		return;
 	if (!b) {

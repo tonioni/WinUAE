@@ -1,4 +1,63 @@
 
+
+Earlier than expected new beta with some fixes and some new PCI and RTG boards. Original plan was to start yet another custom chipset emulation rewrite but I so far I haven't found any good enough ideas that would solve all remaining known limitations without new side-effects.
+
+Beta 1:
+
+- CyberVision PPC/BlizzardVision PPC RTG board (Permedia 2 chip) partial emulation. G-REX needs to be enabled, C/BVPPC is basically Permedia 2 PCI card in CyberStorm MK3/PPC/Blizzard PPC internal PCI bus but I didn't want to to emulate "fake" G-REX with only single virtual slot. Yes. I wrote yet another SVGA chip emulator.
+- Visiona RTG board emulation (INMOS G300 chip. And yet another video chip emulated.)
+- Rainbow III RTG board emulation (INMOS G360 chip)
+- EGS 110/24 RTG board emulation (INMOS G364 chip. Same as G360 functionally). Goes to GVP accelerator local slot, it is not autoconfig device. Can be configured without GVP accelerator card but at least Picasso96 driver needs to find GVP autoconfig device before detecting EGS.
+- If PCI device was non-UAE built-in (It was PCem SVGA card) and PCI was configured by single write to PCI BAR (Base Address Register), without first doing PCI bar size/alignment detection, device ignored all BAR writes. Fixes pre-44.71 CSMK3/PPC/BPPC boot ROM CyberVision/BlizzardVision PPC PCI configuration (Pre-44.71 support CV/BV PPC but not G-REX PCI). This was not a problem with PCI bridgeboards because bridgeboard drivers always first autodetect each PCI device's BAR size and required alignment.
+- Added Prometheus FireStorm PCI bridge emulation (Prometheus with different autoconfig ID, different PCI space mapping, few config bits and some fixes that don't affect emulation). Prmscan works and detects and configures boards, no other tests done. Please report if it works or not.
+- When PCI bridge interrupts were enabled, possible alreadying pending interrupts were not checked immediately. (Probably makes no difference)
+- Delay ALG LDP seek complete status reply slightly. Fixes Platoon (Nova) few second hangs.
+- Added partial Sony LDP-1450 OSD font emulation. Platoon (Nova) "YOU'RE HIT!!" messages are now visible.. (Yes, game uses LDP-1450 internal font generator to show this message. Amiga does not generate it.). If you want some other font than selected OSD font: config file genlock_font=<font name> can be used to override it.
+- Lightpen/gun cursor in any edge of screen: lightpen/gun not pointing at the screen (position can't be read by the program)
+- Fixed XT based Bridgeboards non-working floppy drive emulation, broke during 5.1 DraCo updates (wrong density detection)
+- Statefile short cut keys now select current config file name as base statefile name (for example, if "test1.uae" config file is loaded, SHIFT+END+0 will save statefile as "test1.uss". Quickstart mode config uses previously always used "default.uss")
+- CD32 FMV video image size and positioning was weird in most scaled modes.
+- OSD font/statusline size was very large in full screen modes if monitor had >100% scaling.
+- Statusline font is now slightly taller (few pixels), same as height of OSD boxes. In recent versions statusline font was changed to same as OSD font, earlier versions' statusline text had different font and was also slightly taller than default OSD font.
+- Allow 68020+ CPUs to fetch instruction words from custom chipset space. Only if more compatible is set. If some program really wants to do something weird like execute code located in AGA palette registers :)
+- It was not possible to write and read ECS/AGA genlock transparency bit in color registers. It must have been broken long time ago... (I think some program used this to detect AGA)
+- Added "Always on (Fixed only)" sound filter option. This enables A500 fixed filter but never enables "led filter". (A1200 does not have fixed filter, only "led" filter)
+- Fixed serial port missed received data if received data arrived from "outside world" (master/slave serial port link or real serial port or direct checbox checked). Now waits for both SERDATR read and INTREQ bit clear before new serial word is accepted. Loopback mode was not affected. Previous serial loopback emulation updates made it too "accurate" in normal modes...
+- -serlog serial port logging mode always enabled "direct" mode internally which affected serial timing. This does not happen anymore.
+- Exclusive fullscreen and RTG resolution switch (RTG to RTG direct switch, not RTG->quick tempory blanked native->RTG) didn't change native resolution.
+- Windows mouse capture/hide logic slightly changed, previously it always did temporary mouse unhide/hide which caused mouse cursor to very quickly appear and disappear during screen mode switches, even if mode switch didn't resize or reopen the window. (This also fixes some odd bug in recent Windows 11 insider preview builds where mouse is captured but does not always re-hide if done "too quickly")
+- Replaced old Windows 2000 compatible Windows clipboard handling with newer, simpler to use method introduced in Vista.
+
+Permedia 2 emulation status:
+
+Emulated:
+
+- All usual Graphics Processor mode screen modes (8/15/16/24/32 bits). Other weird modes are not supported.
+- VRAM aperture byte swapping and RAMDAC red/blue swapping modes. (Used at least by Picasso96 driver)
+- Hardware cursor (64*64*2).
+- Blitter. Most 2D parts emulated. Even the 2D blitter is quite complex, it for example supports point, line, trapezoid and rectangle drawing primities, bitmask (if bit is set: use color x, if bit is not set, skip destination write or use color y, other chips usually call this "color expansion"), "area stippling" (8x8 mask aligned to X and Y coordinates, can do same operations as bitmask), 16 different raster operations (ROP) and more. 3D features are even more complex.
+
+Not emulated:
+
+- SVGA core. Amiga programs/drivers only use Graphics Processor mode.
+- 3D. 3D is Someone Else's Problem.
+- Other Permedia 2 special features (front/back buffer swapping, stereo support, local buffer access etc)
+
+Because CyberVision PPC/BlizzardVision PPC is basically PCI Permedia 2 card with different connector: it is also available as a PCI card in any supported PCI bridgeboard.
+Only features that Picasso96 and CGX4 drivers need are implemented. Other drivers not tested. (Note that CGX4 driver requires v40-something 68040/060 library. Too old and it will fail silently.)
+
+EGS 110/24, Visiona and Rainbow III:
+
+- INMOS G300/G360 ("Colour video controller") chip. It is not VGA or SVGA chip like others but sort of "simple" programmable video generator + RAMDAC.
+- G300 does not do much. Supports 8-bit 256 color palette mode and 24-bit truecolor. Linear frame buffer. Nothing else. No hardware cursor, no blitter.
+- G364 is updated and modified G300 + 64*64*2 hardware cursor + 15/16 bit modes that have non-standard color component order.
+- Some glitches remain. (Some might be emulation bugs or driver doing something wrong that accidentally works)
+
+Almost all "classic" RTG boards are now emulated. Only Merlin and Domino (ET4000) and few very old ones are not yet implemented. ET4000 is in 86box, will be added next.
+
+
+5.2.0
+
 Beta 10:
 
 - Always blank last visible PAL/NTSC line at the bottom of screen (This is actually line 0) unless overscan mode is Overscan+ or higher. It can't normally have any bitplane or sprite data but can have (very ugly looking) background color changes. This line is also almost always invisible on real world. I decided to hide this without Overscan+ because it can look ugly and it can look like there is something wrong with emulation because this line wasn't even visible until 4.9 (except if A1000 config)

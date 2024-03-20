@@ -3659,7 +3659,7 @@ static int xxD3D11_init2(HWND ahwnd, int monid, int w_w, int w_h, int t_w, int t
 			d3d->fsSwapChainDesc.ScanlineOrdering = m->ScanlineOrdering;
 			d3d->fsSwapChainDesc.Scaling = m->Scaling;
 			if (!hz) {
-				write_log(_T("D3D11 found matching fullscreen mode. SLO=%d S=%d. Default refresh rate.\n"), m->ScanlineOrdering, m->Scaling);
+				write_log(_T("D3D11 found matching fullscreen mode (%dx%d). SLO=%d S=%d. Default refresh rate.\n"), m->Width, m->Height, m->ScanlineOrdering, m->Scaling);
 				break;
 			}
 			if (isfs(d3d) != 0 && m->RefreshRate.Numerator && m->RefreshRate.Denominator) {
