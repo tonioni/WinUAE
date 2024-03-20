@@ -171,7 +171,6 @@ static int forceroms;
 static int start_data = 0;
 static void *tablet;
 HCURSOR normalcursor;
-static HWND hwndNextViewer;
 static bool clipboard_initialized;
 HANDLE AVTask;
 static int all_events_disabled;
@@ -2460,14 +2459,18 @@ static LRESULT CALLBACK AmigaWindowProc(HWND hWnd, UINT message, WPARAM wParam, 
 		DragAcceptFiles(hWnd, TRUE);
 		normalcursor = LoadCursor(NULL, IDC_ARROW);
 		if (!clipboard_initialized) {
-			clipboard_initialized = true;
-			hwndNextViewer = SetClipboardViewer(hWnd);
-			clipboard_init(hWnd);
+			if (AddClipboardFormatListener(hWnd)) {
+				clipboard_initialized = true;
+				clipboard_init(hWnd);
+			}
 		}
 		return 0;
 
 	case WM_DESTROY:
-		clipboard_initialized = false;
+		if (clipboard_initialized) {
+			RemoveClipboardFormatListener(hWnd);
+			clipboard_initialized = false;
+		}
 		if (device_change_timer)
 			KillTimer(hWnd, 4);
 		device_change_timer = 0;
@@ -2794,20 +2797,9 @@ static LRESULT CALLBACK AmigaWindowProc(HWND hWnd, UINT message, WPARAM wParam, 
 	}
 	break;
 
-	case WM_CHANGECBCHAIN:
-		if (clipboard_initialized) {
-			if ((HWND)wParam == hwndNextViewer)
-				hwndNextViewer = (HWND)lParam;
-			else if (hwndNextViewer != NULL)
-				SendMessage(hwndNextViewer, message, wParam, lParam);
-			return 0;
-		}
-		break;
-	case WM_DRAWCLIPBOARD:
+	case WM_CLIPBOARDUPDATE:
 		if (clipboard_initialized) {
 			clipboard_changed(hWnd);
-			if (hwndNextViewer)
-				SendMessage(hwndNextViewer, message, wParam, lParam);
 			return 0;
 		}
 		break;
@@ -6550,7 +6542,8 @@ static void getstartpaths (void)
 	setpathmode (path_type);
 }
 
-extern int screenshotmode, postscript_print_debugging, sound_debug, log_uaeserial, clipboard_debug;
+extern int screenshotmode, postscript_print_debugging, sound_debug, log_uaeserial;
+static int clipboard_debug, clipboard_log;
 extern int force_direct_catweasel, sound_mode_skip, maxmem;
 extern int pngprint, log_sercon, midi_inbuflen;
 extern int debug_rtg_blitter;
@@ -6843,6 +6836,10 @@ static int parseargs(const TCHAR *argx, const TCHAR *np, const TCHAR *np2)
 	}
 	if (!_tcscmp(arg, _T("clipboarddebug"))) {
 		clipboard_debug = 1;
+		return 1;
+	}
+	if (!_tcscmp(arg, _T("clipboardlog"))) {
+		clipboard_log = 1;
 		return 1;
 	}
 	if (!_tcscmp(arg, _T("rplog"))) {
