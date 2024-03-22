@@ -4799,6 +4799,7 @@ static const struct miscentry misclist[] = {
 	{ 0, 0, _T("A600/A1200/A4000 IDE scsi.device disable"), &workprefs.scsidevicedisable },
 	{ 0, 1, _T("Warp mode reset"), &workprefs.turbo_boot },
 	{ 0, 1, _T("GUI game pad control"), &workprefs.win32_gui_control },
+	{ 0, 1, _T("Default on screen keyboard (Pad button 4)"), &workprefs.input_default_onscreen_keyboard },
 	{ 0, 0, NULL }
 };
 
@@ -5341,7 +5342,7 @@ static void InitializeListView (HWND hDlg)
 
 	} else if (lv_type == LV_MISC1) {
 
-		int itemids[] = { IDS_MISCLISTITEMS1, IDS_MISCLISTITEMS2, IDS_MISCLISTITEMS3, IDS_MISCLISTITEMS4 , -1 };
+		int itemids[] = { IDS_MISCLISTITEMS1, IDS_MISCLISTITEMS2, IDS_MISCLISTITEMS3, IDS_MISCLISTITEMS4, IDS_MISCLISTITEMS5, IDS_MISCLISTITEMS6, -1 };
 		int itemoffset = 0;
 		int itemcnt = 0;
 		listview_column_width[0] = MulDiv(150, dpi, 72);

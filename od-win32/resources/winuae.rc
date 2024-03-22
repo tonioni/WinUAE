@@ -2174,7 +2174,7 @@ BEGIN
     IDS_WSTYLE_EXTENDED     "Extended"
     IDS_MISCLISTITEMS1      "Untrap = middle button\nShow GUI on startup\nUse CTRL-F11 to quit\nDon't show taskbar button\nDon't show notification icon\n"
     IDS_MISCLISTITEMS2      "Main window always on top\nGUI window always on top\nDisable screensaver\nSynchronize clock\nOne second reboot pause\nFaster RTG\nClipboard sharing\nAllow native code\n"
-    IDS_MISCLISTITEMS3      "Native on-screen display\nRTG on-screen display\nCreate winuaelog.txt log\nLog illegal memory accesses\nBlank unused displays\nStart mouse uncaptured\nStart minimized\nMinimize when focus is lost\nBlack frame insertion\nMaster floppy write protection\nMaster harddrive write protection\nHide all UAE autoconfig boards\nRight Control = Right Windows key\n"
+    IDS_MISCLISTITEMS3      "Native on-screen display\nRTG on-screen display\nCreate winuaelog.txt log\nLog illegal memory accesses\nBlank unused displays\nStart mouse uncaptured\n"
     IDS_JOYMODE_WHEELMOUSE  "Wheel Mouse"
     IDS_NUMSG_KS68030PLUS   "The selected system ROM requires a 68030 or higher CPU."
     IDS_SELECTTAPE          "Select a Tape directory or archive file..."
@@ -2190,7 +2190,7 @@ END
 
 STRINGTABLE
 BEGIN
-    IDS_MISCLISTITEMS4      "Windows shutdown/logoff notification\nWarn when attempting to close window\nPower led dims when audio filter is disabled\nAutomatically capture mouse when window is activated\nDebug memory space\nForce hard reset if CPU halted\nA600/A1200/A4000 IDE scsi.device disable\nWarp mode reset\nGUI gamepad control\n"
+    IDS_MISCLISTITEMS4      "Start minimized\nMinimize when focus is lost\nBlack frame insertion\nMaster floppy write protection\nMaster harddrive write protection\n"
     IDS_SHUTDOWN_NOTIFICATION "Emulation session active"
     IDS_QUIT_WARNING        "Are you sure you want to quit WinUAE?"
     IDS_UNMAPPED_ADDRESS    "Floating\nAll zeros\nAll ones\n"
@@ -2240,6 +2240,8 @@ BEGIN
     IDS_SOUND_CLONED71      "Cloned stereo (7.1)"
     IDS_SOUND_71            "7.1 channels"
     IDS_SOUND_FILTER_ON_FIXEDONLY "Always on (Fixed only)"
+    IDS_MISCLISTITEMS5      "Hide all UAE autoconfig boards\nRight Control = Right Windows key\nWindows shutdown/logoff notification\nWarn when attempting to close window\nPower led dims when audio filter is disabled\nAutomatically capture mouse when window is activated\nDebug memory space\n"
+    IDS_MISCLISTITEMS6      "Force hard reset if CPU halted\nA600/A1200/A4000 IDE scsi.device disable\nWarp mode reset\nGUI gamepad control\nDefault on screen keyboard (Pad button 4)\n"
 END
 
 #endif    // English (United Kingdom) resources

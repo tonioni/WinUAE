@@ -4569,7 +4569,7 @@ int input_get_default_lightpen (struct uae_input_device *uid, int i, int port, i
 	return 0;
 }
 
-int input_get_default_joystick (struct uae_input_device *uid, int i, int port, int af, int mode, bool gp, bool joymouseswap)
+int input_get_default_joystick (struct uae_input_device *uid, int i, int port, int af, int mode, bool gp, bool joymouseswap, bool default_osk)
 {
 	int j;
 	struct didata *did = NULL;
@@ -4607,7 +4607,7 @@ int input_get_default_joystick (struct uae_input_device *uid, int i, int port, i
 			if (isrealbutton (did, 2))
 				setid (uid, i, ID_BUTTON_OFFSET + 2, 0, port, port ? INPUTEVENT_JOY2_3RD_BUTTON : INPUTEVENT_JOY1_3RD_BUTTON, gp);
 		}
-		if (isrealbutton(did, 3) && isemptyslot(uid, i, ID_BUTTON_OFFSET + 3, 0, port)) {
+		if (isrealbutton(did, 3) && isemptyslot(uid, i, ID_BUTTON_OFFSET + 3, 0, port) && default_osk) {
 			setid(uid, i, ID_BUTTON_OFFSET + 3, 0, port, INPUTEVENT_SPC_OSK, gp);
 		}
 	}
@@ -4642,7 +4642,7 @@ int input_get_default_joystick (struct uae_input_device *uid, int i, int port, i
 	return 0;
 }
 
-int input_get_default_joystick_analog (struct uae_input_device *uid, int i, int port, int af, bool gp, bool joymouseswap)
+int input_get_default_joystick_analog (struct uae_input_device *uid, int i, int port, int af, bool gp, bool joymouseswap, bool default_osk)
 {
 	int j;
 	struct didata *did;
@@ -4665,7 +4665,7 @@ int input_get_default_joystick_analog (struct uae_input_device *uid, int i, int 
 		setid(uid, i, ID_BUTTON_OFFSET + 2, 0, port, port ? INPUTEVENT_JOY2_UP : INPUTEVENT_JOY1_UP, gp);
 	if (isrealbutton(did, 3))
 		setid(uid, i, ID_BUTTON_OFFSET + 3, 0, port, port ? INPUTEVENT_JOY2_DOWN : INPUTEVENT_JOY1_DOWN, gp);
-	if (isrealbutton(did, 4) && isemptyslot(uid, i, ID_BUTTON_OFFSET + 4, 0, port))
+	if (isrealbutton(did, 4) && isemptyslot(uid, i, ID_BUTTON_OFFSET + 4, 0, port) && default_osk)
 		setid(uid, i, ID_BUTTON_OFFSET + 4, 0, port, INPUTEVENT_SPC_OSK, gp);
 
 	for (j = 2; j < MAX_MAPPINGS - 1; j++) {
