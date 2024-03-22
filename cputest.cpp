@@ -1039,7 +1039,7 @@ void m68k_do_jsr_ce(uaecptr oldpc, uaecptr dest)
 	m68k_setpci(dest);
 }
 
-static int SPCFLAG_TRACE, SPCFLAG_DOTRACE;
+static int flag_SPCFLAG_TRACE, flag_SPCFLAG_DOTRACE;
 
 uae_u32 get_disp_ea_test(uae_u32 base, uae_u32 dp)
 {
@@ -1052,8 +1052,8 @@ uae_u32 get_disp_ea_test(uae_u32 base, uae_u32 dp)
 
 static void activate_trace(void)
 {
-	SPCFLAG_TRACE = 0;
-	SPCFLAG_DOTRACE = 1;
+	flag_SPCFLAG_TRACE = 0;
+	flag_SPCFLAG_DOTRACE = 1;
 }
 
 static void do_trace(void)
@@ -1153,11 +1153,11 @@ void MakeFromSR_x(int t0trace)
 	}
 
 	if (regs.t1 || regs.t0) {
-		SPCFLAG_TRACE = 1;
+		flag_SPCFLAG_TRACE = 1;
 	} else {
 		/* Keep SPCFLAG_DOTRACE, we still want a trace exception for
 		SR-modifying instructions (including STOP).  */
-		SPCFLAG_TRACE = 0;
+		flag_SPCFLAG_TRACE = 0;
 	}
 	// STOP SR-modification does not generate T0
 	// If this SR modification set Tx bit, no trace until next instruction.
@@ -1206,8 +1206,8 @@ void m68k_setstopped(int stoptype)
 void check_t0_trace(void)
 {
 	if (regs.t0 && !regs.t1 && currprefs.cpu_model >= 68020) {
-		SPCFLAG_TRACE = 0;
-		SPCFLAG_DOTRACE = 1;
+		flag_SPCFLAG_TRACE = 0;
+		flag_SPCFLAG_DOTRACE = 1;
 	}
 }
 
@@ -1231,8 +1231,8 @@ static void doexcstack2(void)
 	if (test_exception_opcode >= 0) {
 		opcode = test_exception_opcode;
 	}
-	if (SPCFLAG_DOTRACE && test_exception == 9) {
-		SPCFLAG_DOTRACE = 0;
+	if (flag_SPCFLAG_DOTRACE && test_exception == 9) {
+		flag_SPCFLAG_DOTRACE = 0;
 	}
 
 	int sv = regs.s;
@@ -1243,7 +1243,7 @@ static void doexcstack2(void)
 			uae_u16 mode = (sv ? 4 : 0) | test_exception_3_fc;
 			mode |= test_exception_3_w ? 0 : 16;
 			Exception_build_68000_address_error_stack_frame(mode, opcode, test_exception_addr, regs.pc);
-			SPCFLAG_DOTRACE = 0;
+			flag_SPCFLAG_DOTRACE = 0;
 		} else {
 			m68k_areg(regs, 7) -= 4;
 			x_put_long(m68k_areg(regs, 7), regs.pc);
@@ -1261,9 +1261,9 @@ static void doexcstack2(void)
 			ssw |= (test_exception_opcode & 0x80000) ? 0x0800 : 0x0000; // RM
 			regs.mmu_fault_addr = test_exception_addr;
 			Exception_build_stack_frame(regs.instruction_pc, regs.pc, ssw, test_exception, 0x08);
-			SPCFLAG_DOTRACE = 0;
+			flag_SPCFLAG_DOTRACE = 0;
 		} else {
-			Exception_build_stack_frame_common(regs.instruction_pc, regs.pc, 0, test_exception);
+			Exception_build_stack_frame_common(regs.instruction_pc, regs.pc, 0, test_exception, test_exception);
 		}
 	} else if (cpu_lvl == 2 || cpu_lvl == 3) {
 		if (test_exception == 3) {
@@ -1272,7 +1272,7 @@ static void doexcstack2(void)
 			regs.mmu_fault_addr = test_exception_addr;
 			Exception_build_stack_frame(regs.instruction_pc, regs.pc, ssw, test_exception, 0x0b);
 		} else {
-			Exception_build_stack_frame_common(regs.instruction_pc, regs.pc, 0, test_exception);
+			Exception_build_stack_frame_common(regs.instruction_pc, regs.pc, 0, test_exception, test_exception);
 		}
 	} else {
 		if (test_exception == 3) {
@@ -1280,7 +1280,7 @@ static void doexcstack2(void)
 				test_exception_addr &= ~1;
 			Exception_build_stack_frame(test_exception_addr, regs.pc, 0, test_exception, 0x02);
 		} else {
-			Exception_build_stack_frame_common(regs.instruction_pc, regs.pc, 0, test_exception);
+			Exception_build_stack_frame_common(regs.instruction_pc, regs.pc, 0, test_exception, test_exception);
 		}
 	}
 	exception_stack_frame_size = test_memory_end + EXTRA_RESERVED_SPACE - m68k_areg(regs, 7);
@@ -4329,8 +4329,8 @@ static void execute_ins(uaecptr endpc, uaecptr targetpc, struct instr *dp, bool 
 		printf("");
 
 	// execute instruction
-	SPCFLAG_TRACE = 0;
-	SPCFLAG_DOTRACE = 0;
+	flag_SPCFLAG_TRACE = 0;
+	flag_SPCFLAG_DOTRACE = 0;
 	trace_store_pc = 0xffffffff;
 	mmufixup[0].reg = -1;
 	mmufixup[1].reg = -1;
@@ -4413,7 +4413,7 @@ static void execute_ins(uaecptr endpc, uaecptr targetpc, struct instr *dp, bool 
 			abort();
 		}
 
-		if (SPCFLAG_TRACE) {
+		if (flag_SPCFLAG_TRACE) {
 			do_trace();
 		}
 
@@ -4497,14 +4497,14 @@ static void execute_ins(uaecptr endpc, uaecptr targetpc, struct instr *dp, bool 
 		if (((regs.pc == endpc && feature_interrupts < 2) || (regs.pc == targetpc && feature_interrupts < 2)) && !cpu_stopped) {
 			// Trace is only added as an exception if there was no other exceptions
 			// Trace stacked with other exception is handled later
-			if (SPCFLAG_DOTRACE && !test_exception && trace_store_pc == 0xffffffffff) {
+			if (flag_SPCFLAG_DOTRACE && !test_exception && trace_store_pc == 0xffffffffff) {
 				Exception(9);
 				break;
 			}
 		}
 
 		if (feature_interrupts >= 1) {
-			if (SPCFLAG_DOTRACE) {
+			if (flag_SPCFLAG_DOTRACE) {
 				if (trace_store_pc != 0xffffffff) {
 					wprintf(_T(" Full trace in interrupt mode!?\n"));
 					abort();
@@ -4518,7 +4518,7 @@ static void execute_ins(uaecptr endpc, uaecptr targetpc, struct instr *dp, bool 
 				}
 				trace_store_pc = regs.pc;
 				trace_store_sr = regs.sr;
-				SPCFLAG_DOTRACE = 0;
+				flag_SPCFLAG_DOTRACE = 0;
 				// pending interrupt always triggers during trace processing
 				regs.ipl[0] = regs.ipl_pin;
 			}
@@ -4547,7 +4547,7 @@ static void execute_ins(uaecptr endpc, uaecptr targetpc, struct instr *dp, bool 
 
 		if (!feature_loop_mode_jit && !feature_loop_mode_68010) {
 			// trace after NOP
-			if (SPCFLAG_DOTRACE) {
+			if (flag_SPCFLAG_DOTRACE) {
 				if (feature_interrupts == 3) {
 					Exception(9);
 					break;
@@ -4557,7 +4557,7 @@ static void execute_ins(uaecptr endpc, uaecptr targetpc, struct instr *dp, bool 
 				if (trace_store_pc == 0xffffffff) {
 					trace_store_pc = regs.pc;
 					trace_store_sr = regs.sr;
-					SPCFLAG_DOTRACE = 0;
+					flag_SPCFLAG_DOTRACE = 0;
 				}
 			}
 			if (currprefs.cpu_model >= 68020) {
@@ -5484,6 +5484,9 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 
 						// create destination addressing mode
 						if (dp->duse && fpuopsize < 0) {
+							if (safe_memory_mode & 4) {
+								target_ea[1] = target_ea[0];
+							}
 							int o = create_ea(&opc, pc, dp->dmode, dp->dreg, dp, &isconstant_dst, 1, fpuopcode, opcodesize, &dstea, &dstregused, &dstfpuregused, &dsteaflags);
 							if (o < 0) {
 								memcpy(opcode_memory, oldcodebytes, sizeof(oldcodebytes));
@@ -6285,7 +6288,7 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 										skipped = 1;
 									}
 								}
-								if (SPCFLAG_DOTRACE || test_exception == 9) {
+								if (flag_SPCFLAG_DOTRACE || test_exception == 9) {
 									t_cnt++;
 								}
 							} else if (!skipped) {
@@ -6326,13 +6329,13 @@ static void test_mnemo(const TCHAR *path, const TCHAR *mnemo, const TCHAR *ovrfi
 							}
 							noaccesshistory--;
 
-							if (SPCFLAG_DOTRACE && test_exception_extra) {
+							if (flag_SPCFLAG_DOTRACE && test_exception_extra) {
 								wprintf(_T(" Trace and stored trace at the same time!\n"));
 								abort();
 							}
 
 							// did we have trace also active?
-							if (SPCFLAG_DOTRACE) {
+							if (flag_SPCFLAG_DOTRACE) {
 								test_exception_extra = 0;
 								if (regs.t1 || regs.t0) {
 									if ((cpu_lvl < 4 && (test_exception == 5 || test_exception == 6 || test_exception == 7 || (test_exception >= 32 && test_exception <= 47)))
@@ -7134,7 +7137,7 @@ static int test(struct ini_data *ini, const TCHAR *sections, const TCHAR *testna
 		if (_totupper(vs[0]) == 'W')
 			safe_memory_mode |= 2;
 		if (_totupper(vs[0]) == 'P')
-			safe_memory_mode |= 4;
+			safe_memory_mode |= 1 | 2 | 4;
 		xfree(vs);
 	}
 	if (safe_memory_start == 0xffffffff || safe_memory_end == 0xffffffff) {
@@ -7363,23 +7366,25 @@ static int test(struct ini_data *ini, const TCHAR *sections, const TCHAR *testna
 
 	TCHAR *cc = NULL;
 	if (ini_getstringx(ini, sections, _T("feature_condition_codes"), &cc)) {
-		feature_condition_codes = 0;
-		TCHAR *p = cc;
-		while (p && *p) {
-			TCHAR *pp = _tcschr(p, ',');
-			if (pp) {
-				*pp++ = 0;
-			}
-			TCHAR cctext[256];
-			_tcscpy(cctext, p);
-			my_trim(cctext);
-			for (int i = 0; ccnames[i]; i++) {
-				if (!_tcsicmp(ccnames[i], cctext)) {
-					feature_condition_codes |= 1 << i;
-					break;
+		if (cc[0]) {
+			feature_condition_codes = 0;
+			TCHAR *p = cc;
+			while (p && *p) {
+				TCHAR *pp = _tcschr(p, ',');
+				if (pp) {
+					*pp++ = 0;
 				}
+				TCHAR cctext[256];
+				_tcscpy(cctext, p);
+				my_trim(cctext);
+				for (int i = 0; ccnames[i]; i++) {
+					if (!_tcsicmp(ccnames[i], cctext)) {
+						feature_condition_codes |= 1 << i;
+						break;
+					}
+				}
+				p = pp;
 			}
-			p = pp;
 		}
 		xfree(cc);
 	}
