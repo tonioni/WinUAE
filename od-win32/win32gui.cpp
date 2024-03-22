@@ -2420,9 +2420,10 @@ void gui_display (int shortcut)
 	flipgui(1);
 
 	if (setpaused (7)) {
-		inputdevice_unacquire ();
+		inputdevice_unacquire();
+		rawinput_release();
 		wait_keyrelease();
-		clearallkeys ();
+		clearallkeys();
 		setmouseactive(0, 0);
 	}
 
@@ -2472,18 +2473,19 @@ void gui_display (int shortcut)
 		}
 	}
 	mon->manual_painting_needed--; /* So that WM_PAINT doesn't need to use custom refreshing */
-	reset_sound ();
-	inputdevice_copyconfig (&changed_prefs, &currprefs);
-	inputdevice_config_change_test ();
-	clearallkeys ();
+	reset_sound();
+	inputdevice_copyconfig(&changed_prefs, &currprefs);
+	inputdevice_config_change_test();
+	clearallkeys();
 	flipgui(0);
 	if (resumepaused (7)) {
-		inputdevice_acquire (TRUE);
+		inputdevice_acquire(TRUE);
 		setmouseactive(0, 1);
 	}
-	fpscounter_reset ();
-	screenshot_free ();
-	write_disk_history ();
+	rawinput_alloc();
+	fpscounter_reset();
+	screenshot_free();
+	write_disk_history();
 	gui_active--;
 	here--;
 }
@@ -19316,6 +19318,7 @@ static void input_find (HWND hDlg, HWND mainDlg, int mode, int set, bool oneshot
 		ShowCursor (TRUE);
 		wait_keyrelease ();
 		inputdevice_unacquire ();
+		rawinput_release();
 		inputmap_disable (hDlg, false);
 		inputdevice_settest (FALSE);
 		SetWindowText (mainDlg, tmp);
@@ -24166,6 +24169,7 @@ void gui_message (const TCHAR *format,...)
 		pause_sound ();
 		if (flipflop)
 			ShowWindow(mon->hAmigaWnd, SW_MINIMIZE);
+		rawinput_release();
 	}
 	if (hwnd == NULL)
 		flags |= MB_TASKMODAL;
@@ -24186,6 +24190,7 @@ void gui_message (const TCHAR *format,...)
 		reset_sound ();
 		resume_sound ();
 		setmouseactive(0, focuso > 0 ? 1 : 0);
+		rawinput_alloc();
 	}
 }
 

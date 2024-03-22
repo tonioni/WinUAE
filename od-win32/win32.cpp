@@ -1017,16 +1017,20 @@ bool ismouseactive (void)
 	return mouseactive > 0;
 }
 
-void target_inputdevice_unacquire(void)
+void target_inputdevice_unacquire(bool full)
 {
 	close_tablet(tablet);
 	tablet = NULL;
+	if (full) {
+		rawinput_release();
+	}
 }
 void target_inputdevice_acquire(void)
 {
 	struct AmigaMonitor *mon = &AMonitors[0];
-	target_inputdevice_unacquire();
+	target_inputdevice_unacquire(false);
 	tablet = open_tablet(mon->hAmigaWnd);
+	rawinput_alloc();
 }
 
 int getfocusedmonitor(void)

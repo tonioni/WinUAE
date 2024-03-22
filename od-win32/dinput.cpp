@@ -534,10 +534,33 @@ static int doregister_rawinput (bool add)
 
 void rawinput_alloc(void)
 {
-	doregister_rawinput(true);
+	if (!rawinput_registered) {
+		doregister_rawinput(true);
+	}
+	//write_log("rawinput_alloc\n");
 }
 void rawinput_release(void)
 {
+	UINT num = 0;
+	int v = GetRegisteredRawInputDevices(NULL, &num, sizeof(RAWINPUTDEVICE));
+	if (num) {
+		PRAWINPUTDEVICE devs = xcalloc(RAWINPUTDEVICE, num);
+		if (devs) {
+			int v = GetRegisteredRawInputDevices(devs, &num, sizeof(RAWINPUTDEVICE));
+			if (v >= 0) {
+				for (int i = 0; i < num; i++) {
+					PRAWINPUTDEVICE dev = devs + i;
+					dev->dwFlags = RIDEV_REMOVE;
+					dev->hwndTarget = NULL;
+
+				}
+				RegisterRawInputDevices(devs, num, sizeof(RAWINPUTDEVICE));
+			}
+			xfree(devs);
+		}
+	}
+	rawinput_registered = false;
+	//write_log("rawinput_free\n");
 }
 
 static void cleardid (struct didata *did)
@@ -2037,7 +2060,6 @@ static bool initialize_rawinput (void)
 	for (int i = 0; i < num_joystick; i++)
 		sortobjects (&di_joystick[i]);
 
-	rawinput_alloc();
 	return 1;
 
 error2:
