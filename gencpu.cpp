@@ -7573,11 +7573,11 @@ static void gen_opcode (unsigned int opcode)
 				}
 
 				if (curi->smode == absl) {
-					sprintf(bus_error_code, "pcoffset = oldpc + 6;\n");
+					sprintf(bus_error_code, "pcoffset = (oldpc - srca) + 6;\n");
 				} else if (curi->smode == Ad8r || curi->smode == PC8r || curi->smode == Ad16 || curi->smode == PC16 || curi->smode == absw) {
-					sprintf(bus_error_code, "pcoffset = oldpc + 4;\n");
+					sprintf(bus_error_code, "pcoffset = (oldpc - srca) + 4;\n");
 				} else {
-					sprintf(bus_error_code, "pcoffset = oldpc + 2;\n");
+					sprintf(bus_error_code, "pcoffset = (oldpc - srca) + 2;\n");
 				}
 				fill_prefetch_1(0);
 				bus_error_code[0] = 0;
@@ -7679,7 +7679,7 @@ static void gen_opcode (unsigned int opcode)
 		if (using_prefetch || using_ce) {
 			out("%s(%d);\n", prefetch_word, 0);
 			count_readw++;
-			sprintf(bus_error_code, "pcoffset = oldpc + 2;\n");
+			sprintf(bus_error_code, "pcoffset = (oldpc - srca) + 2;\n");
 			check_prefetch_bus_error(-1, -1, 0);
 			bus_error_code[0] = 0;
 			irc2ir();
