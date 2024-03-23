@@ -711,7 +711,7 @@ void pci_clear_irq(int card, int pci_int)
 	//write_log(_T("pci_clear_irq %d %d\n"), card, pci_int);
 	gfxboard_intreq(gfxboard_priv, 0, true);
 }
-int rom_init(rom_t *rom, char *fn, uint32_t address, int size, int mask, int file_offset, uint32_t flags)
+int rom_init(rom_t *rom, const char *fn, uint32_t address, int size, int mask, int file_offset, uint32_t flags)
 {
 	return 0;
 }

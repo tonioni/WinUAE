@@ -54,6 +54,7 @@ static bool memlogw = true;
 #include "pcem/vid_ncr.h"
 #include "pcem/vid_permedia2.h"
 #include "pcem/vid_inmos.h"
+#include "pcem/vid_et4000.h"
 #include "pci.h"
 #include "pci_hw.h"
 #include "pcem/pcemglue.h"
@@ -286,6 +287,13 @@ static const struct gfxboard boards[] =
 		2145, 33, 0, 0,
 		0x00000000, 0x00400000, 0x00400000, 0x02000000, 0, 3, 6, false, false,
 		0, 0, NULL, &inmos_rainbow3_z3_device
+	},
+	{
+		GFXBOARD_ID_DOMINO,
+		_T("Domino [Zorro II]"), _T("X-Pert Computer Services"), _T("Domino"),
+		2167, 1, 2, 0,
+		0x00000000, 0x00100000, 0x00100000, 0x00100000, 0, 2, 0, false, false,
+		0, 0, NULL, &et4000_domino_device
 	},
 	{
 		GFXBOARD_ID_HARLEQUIN,
@@ -3011,6 +3019,21 @@ static void REGPARAM2 gfxboard_bput_mem_autoconfig (uaecptr addr, uae_u32 b)
 					gb->pcem_mmio_mask = 0x3fff;
 					gb->pcem_mmio_offset = 0x800000;
 					gb->gfxboard_external_interrupt = true;
+
+				} else if (boardnum == GFXBOARD_ID_DOMINO) {
+
+
+					ab = &gb->gfxboard_bank_vram_pcem;
+					gb->gfxboardmem_start = b << 16;
+					map_banks_z2(ab, b, gb->board->banksize >> 16);
+
+					init_board(gb);
+
+					gb->configured_mem = b;
+					gb->mem_start[0] = b << 16;
+					gb->mem_end[0] = gb->mem_start[0] + gb->board->banksize;
+					gb->pcem_vram_offset = 0x800000;
+					gb->pcem_vram_mask = 0x3fffff;
 
 				} else {
 
@@ -6040,6 +6063,20 @@ static void special_pcem_put(uaecptr addr, uae_u32 v, int size)
 			gb->gfxboard_intreq_marked = false;
 		}
 
+	} else if (boardnum == GFXBOARD_ID_DOMINO) {
+
+		addr &= 0xffff;
+		if (addr & 0x1000) {
+			addr++;
+		}
+		addr &= 0xfff;
+		if (size) {
+			put_io_pcem(addr + 0, (v >> 8) & 0xff, 0);
+			put_io_pcem(addr + 1, (v >> 0) & 0xff, 0);
+		} else if (size == 0) {
+			put_io_pcem(addr, v & 0xff, 0);
+		}
+
 	} else if (boardnum == GFXBOARD_ID_EGS_110_24) {
 
 		addr &= 0xffff;
@@ -6353,6 +6390,20 @@ static uae_u32 special_pcem_get(uaecptr addr, int size)
 		}
 		if (addr == 0x2044) {
 			v = gb->gfxboard_intreq_marked ? 4 : 0;
+		}
+
+	} else if (boardnum == GFXBOARD_ID_DOMINO) {
+
+		addr &= 0xffff;
+		if (addr & 0x1000) {
+			addr++;
+		}
+		addr &= 0xfff;
+		if (size) {
+			v = get_io_pcem(addr + 0, 0) << 8;
+			v |= get_io_pcem(addr + 1, 0) << 0;
+		} else if (size == 0) {
+			v = get_io_pcem(addr, 0);
 		}
 
 	} else if (boardnum == GFXBOARD_ID_EGS_110_24) {

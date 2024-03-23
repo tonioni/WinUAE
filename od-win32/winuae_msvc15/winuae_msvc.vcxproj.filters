@@ -1012,6 +1012,12 @@
     <ClCompile Include="..\..\pcem\vid_inmos.cpp">
       <Filter>pcem</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\pcem\vid_et4000.cpp">
+      <Filter>pcem</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\pcem\vid_sc1502x_ramdac.cpp">
+      <Filter>pcem</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\resources\35floppy.ico">

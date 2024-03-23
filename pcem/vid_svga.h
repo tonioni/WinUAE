@@ -1,3 +1,15 @@
+
+#    define FLAG_EXTRA_BANKS  1
+#    define FLAG_ADDR_BY8     2
+#    define FLAG_EXT_WRITE    4
+#    define FLAG_LATCH8       8
+#    define FLAG_NOSKEW       16
+#    define FLAG_ADDR_BY16    32
+#    define FLAG_RAMDAC_SHIFT 64
+#    define FLAG_ATI          128
+#    define FLAG_S3_911_16BIT 256
+#    define FLAG_512K_MASK    512
+
 typedef struct svga_t
 {
         mem_mapping_t mapping;
@@ -160,6 +172,21 @@ typedef struct svga_t
         int remap_required;
         uint32_t (*remap_func)(struct svga_t *svga, uint32_t in_addr);
         
+        uint32_t  overscan_color;
+        int ati_4color;
+        void *ramdac;
+        uint32_t  adv_flags;
+        int hblankstart;
+        int hblankend;
+        int hblank_end_val;
+        int hblank_end_len;
+        int hblank_end_mask;
+        int hblank_sub;
+        int dots_per_clock;
+        uint8_t fcr;
+        uint32_t *map8;
+        uint32_t(*translate_address)(uint32_t addr, void *priv);
+
         bool swaprb;
 } svga_t;
 
@@ -201,3 +228,6 @@ void svga_set_override(svga_t *svga, int val);
 void svga_set_ramdac_type(svga_t *svga, int type);
 
 void svga_doblit(int y1, int y2, int wx, int wy, svga_t *svga);
+
+extern void    sc1502x_ramdac_out(uint16_t addr, uint8_t val, void *priv, svga_t *svga);
+extern uint8_t sc1502x_ramdac_in(uint16_t addr, void *priv, svga_t *svga);
