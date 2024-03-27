@@ -156,6 +156,7 @@ static bool toscr_scanline_complex_bplcon1, toscr_scanline_complex_bplcon1_off;
 static int toscr_hend;
 static int nosignal_cnt, nosignal_status;
 static bool nosignal_trigger;
+static int issyncstopped_count;
 int display_reset;
 static evt_t line_start_cycles;
 static bool initial_frame;
@@ -11299,8 +11300,10 @@ static void compute_spcflag_copper(void)
 		}
 	}
 	last_copper_hpos = current_hpos();
-	copper_enabled_thisline = 1;
-	set_special(SPCFLAG_COPPER);
+	if (issyncstopped_count <= 2) {
+		copper_enabled_thisline = 1;
+		set_special(SPCFLAG_COPPER);
+	}
 }
 
 static void blitter_done_notify_wakeup(uae_u32 temp)
@@ -12352,7 +12355,7 @@ static void vsync_handler_post(void)
 		genlockvtoggle = lof_store ? 1 : 0;
 	}
 
-	if ((bplcon0 & 2) && (!currprefs.genlock || currprefs.genlock_effects)) {
+	if (issyncstopped()) {
 		nosignal_trigger = true;
 	}
 	// Inverted CSYNC
@@ -14094,6 +14097,13 @@ static void hsync_handler_post(bool onvsync)
 	}
 
 	decide_vline(0);
+
+	if (issyncstopped()) {
+		issyncstopped_count++;
+	} else {
+		issyncstopped_count = 0;
+	}
+
 
 	int hp = REFRESH_FIRST_HPOS;
 	refptr_p = refptr;
