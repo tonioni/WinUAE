@@ -44,8 +44,9 @@ typedef struct svga_t
         
         uint8_t dac_mask, dac_status;
         int dac_read, dac_write, dac_pos;
-        int dac_r, dac_g;
-                
+        int dac_r, dac_g, dac_b;
+        int dac_addr;
+
         uint8_t cgastat;
         
         uint8_t plane_mask;
@@ -118,14 +119,16 @@ typedef struct svga_t
                 uint32_t addr;
                 uint32_t pitch;
                 int v_acc, h_acc;
-        } hwcursor, hwcursor_latch, overlay, overlay_latch;
-        
+        } hwcursor, hwcursor_latch, overlay, overlay_latch, dac_hwcursor, dac_hwcursor_latch;
+
         int hwcursor_on;
         int overlay_on;
+        int dac_hwcursor_on;
         
         int hwcursor_oddeven;
         int overlay_oddeven;
-        
+        uint8_t dac_hwcursor_oddeven;
+
         void (*render)(struct svga_t *svga);
         void (*recalctimings_ex)(struct svga_t *svga);
 
@@ -133,6 +136,7 @@ typedef struct svga_t
         uint8_t (*video_in) (uint16_t addr, void *p);
 
         void (*hwcursor_draw)(struct svga_t *svga, int displine);
+        void (*dac_hwcursor_draw)(struct svga_t *svga, int displine);
 
         void (*overlay_draw)(struct svga_t *svga, int displine);
         
@@ -186,6 +190,9 @@ typedef struct svga_t
         uint8_t fcr;
         uint32_t *map8;
         uint32_t(*translate_address)(uint32_t addr, void *priv);
+        int x_add;
+        int y_add;
+        uint8_t ext_overscan;
 
         bool swaprb;
 } svga_t;

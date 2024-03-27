@@ -2,8 +2,9 @@
 * UAE - The Un*x Amiga Emulator
 *
 * Cirrus Logic based graphics board emulation
+* PCem/86box glue interface + boards.
 *
-* Copyright 2013 Toni Wilen
+* Copyright 2013-2024 Toni Wilen
 *
 */
 
@@ -294,6 +295,20 @@ static const struct gfxboard boards[] =
 		2167, 1, 2, 0,
 		0x00000000, 0x00100000, 0x00100000, 0x00100000, 0, 2, 0, false, false,
 		0, 0, NULL, &et4000_domino_device
+	},
+	{
+		GFXBOARD_ID_MERLIN_Z2,
+		_T("Merlin [Zorro II]"), _T("X-Pert Computer Services"), _T("MerlinZ2"),
+		2117, 3, 4, 0,
+		0x00000000, 0x00200000, 0x00200000, 0x00200000, 0, 2, 0, false, false,
+		0, 0, NULL, &et4000w32_merlin_z2_device
+	},
+	{
+		GFXBOARD_ID_MERLIN_Z3,
+		_T("Merlin [Zorro III]"), _T("X-Pert Computer Services"), _T("MerlinZ3"),
+		2117, 3, 4, 0,
+		0x00000000, 0x00200000, 0x00400000, 0x02000000, 0, 3, 0, false, false,
+		0, 0, NULL, &et4000w32_merlin_z3_device
 	},
 	{
 		GFXBOARD_ID_HARLEQUIN,
@@ -2844,6 +2859,17 @@ static void REGPARAM2 gfxboard_wput_mem_autoconfig (uaecptr addr, uae_u32 b)
 				gb->pcem_mmio_mask = 0xffff;
 				gb->configured_regs = gb->gfxmem_bank->start >> 16;
 				gb->gfxboard_external_interrupt = true;
+
+			} else if (boardnum == GFXBOARD_ID_MERLIN_Z3) {
+
+				map_banks_z3(&gb->gfxboard_bank_vram_pcem, start >> 16, gb->gfxboard_bank_vram_pcem.allocated_size >> 16);
+				gb->pcem_mmio_offset = 0x1000000;
+				gb->pcem_vram_mask = 0x3fffff;
+				gb->pcem_vram_offset = 0x800000;
+				map_banks_z3(&gb->gfxboard_bank_special_pcem, (start + 0x400000) >> 16, 0xc00000 >> 16);
+				map_banks_z3(&gb->gfxboard_bank_special_pcem, (start + 0x1000000) >> 16, 0x1000000 >> 16);
+				gb->pcem_mmio_mask = 0xffff;
+				gb->configured_regs = gb->gfxmem_bank->start >> 16;
 
 			}
 
@@ -6077,6 +6103,17 @@ static void special_pcem_put(uaecptr addr, uae_u32 v, int size)
 			put_io_pcem(addr, v & 0xff, 0);
 		}
 
+	} else if (boardnum == GFXBOARD_ID_MERLIN_Z2 || boardnum == GFXBOARD_ID_MERLIN_Z3) {
+
+		addr &= 0xffff;
+
+		if (size) {
+			put_io_pcem(addr + 0, (v >> 8) & 0xff, 0);
+			put_io_pcem(addr + 1, (v >> 0) & 0xff, 0);
+		} else if (size == 0) {
+			put_io_pcem(addr, v & 0xff, 0);
+		}
+
 	} else if (boardnum == GFXBOARD_ID_EGS_110_24) {
 
 		addr &= 0xffff;
@@ -6399,6 +6436,16 @@ static uae_u32 special_pcem_get(uaecptr addr, int size)
 			addr++;
 		}
 		addr &= 0xfff;
+		if (size) {
+			v = get_io_pcem(addr + 0, 0) << 8;
+			v |= get_io_pcem(addr + 1, 0) << 0;
+		} else if (size == 0) {
+			v = get_io_pcem(addr, 0);
+		}
+
+	} else if (boardnum == GFXBOARD_ID_MERLIN_Z2 || boardnum == GFXBOARD_ID_MERLIN_Z3) {
+
+		addr &= 0xffff;
 		if (size) {
 			v = get_io_pcem(addr + 0, 0) << 8;
 			v |= get_io_pcem(addr + 1, 0) << 0;

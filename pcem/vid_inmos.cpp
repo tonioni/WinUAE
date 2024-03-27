@@ -127,10 +127,12 @@ void inmos_recalctimings(svga_t *svga)
 
         svga->bpp = 1 << ((control >> 17) & 3);
         int bs = 0;
+        inmos->syncdelay = 0;
         if ((control >> 8) & 1) {
             svga->bpp = 32;
             bs = 2;
             svga->rowoffset <<= 2;
+            inmos->syncdelay = 6;
         }
 
         int meminit = inmos->regs[0x12b];
@@ -215,14 +217,13 @@ void inmos_recalctimings(svga_t *svga)
         svga->rowoffset = 2048 + (svga->htotal << bs) - (len << bs);
 
         uint32_t start = inmos->regs[0x080];
-        pclog("%08x\n", control);
         int row = start / 0x2000;
         int col = start % 0x2000;
         int width = svga->rowoffset / (4 * 4);
 
         svga->ma_latch = start * 2;
         svga->rowoffset >>= 3;
-        inmos->syncdelay = (control >> 15) & 7;
+        inmos->syncdelay = ((control >> 15) & 7) * ((bpp + 7) >> 3);
         svga->vtotal = (inmos->regs[0x02a] + inmos->regs[0x029] * 3 + inmos->regs[0x26]) / 2;
         svga->dispend = inmos->regs[0x02a] / 2;
         svga->split = 99999;
@@ -467,7 +468,7 @@ static void inmos_adjust_panning(svga_t *svga)
 
     dst += 24;
     svga->scrollcache_dst = dst;
-    svga->scrollcache_src = src + inmos->syncdelay * ((svga->bpp + 7) >> 3) * 4;
+    svga->scrollcache_src = src + inmos->syncdelay * 4;
 }
 
 static inline uint32_t dword_remap(uint32_t in_addr)

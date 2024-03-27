@@ -1377,8 +1377,10 @@
     <ClCompile Include="..\..\pcem\sound_sb_dsp.cpp" />
     <ClCompile Include="..\..\pcem\sound_speaker.cpp" />
     <ClCompile Include="..\..\pcem\timer.cpp" />
+    <ClCompile Include="..\..\pcem\vid_bt482_ramdac.cpp" />
     <ClCompile Include="..\..\pcem\vid_cl5429.cpp" />
     <ClCompile Include="..\..\pcem\vid_et4000.cpp" />
+    <ClCompile Include="..\..\pcem\vid_et4000w32.cpp" />
     <ClCompile Include="..\..\pcem\vid_inmos.cpp" />
     <ClCompile Include="..\..\pcem\vid_ncr.cpp" />
     <ClCompile Include="..\..\pcem\vid_permedia2.cpp" />

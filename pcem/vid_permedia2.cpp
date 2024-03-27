@@ -1930,8 +1930,8 @@ void *permedia2_init()
 
     permedia2->svga.fb_only = -1;
 
-    permedia2->getclock = sdac_getclock;
-    permedia2->getclock_p = &permedia2->ramdac;
+    //permedia2->getclock = sdac_getclock;
+    //permedia2->getclock_p = &permedia2->ramdac;
     permedia2->id_ext_pci = 0x07;
     sdac_init(&permedia2->ramdac);
     svga_set_ramdac_type(&permedia2->svga, RAMDAC_8BIT);

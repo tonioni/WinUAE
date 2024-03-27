@@ -563,6 +563,16 @@ int svga_poll(void *p)
                         svga->hwcursor_oddeven = 1;
                 }
 
+                if (svga->displine == ((svga->dac_hwcursor_latch.y < 0) ? 0 : svga->dac_hwcursor_latch.y) && svga->dac_hwcursor_latch.ena) {
+                    svga->dac_hwcursor_on = svga->dac_hwcursor_latch.ysize - svga->dac_hwcursor_latch.yoff;
+                    svga->dac_hwcursor_oddeven = 0;
+                }
+
+                if (svga->displine == (((svga->dac_hwcursor_latch.y < 0) ? 0 : svga->dac_hwcursor_latch.y) + 1) && svga->dac_hwcursor_latch.ena && svga->interlace) {
+                    svga->dac_hwcursor_on = svga->dac_hwcursor_latch.ysize - (svga->dac_hwcursor_latch.yoff + 1);
+                    svga->dac_hwcursor_oddeven = 1;
+                }
+
                 if (svga->displine == svga->overlay_latch.y && svga->overlay_latch.ena)
                 {
                         svga->overlay_on = svga->overlay_latch.ysize - svga->overlay_latch.yoff;
@@ -591,7 +601,7 @@ int svga_poll(void *p)
                                 video_wait_for_buffer();
                         }
                         
-                        if (svga->hwcursor_on || svga->overlay_on)
+                        if (svga->hwcursor_on || svga->dac_hwcursor_on || svga->overlay_on)
                                 svga->changedvram[svga->ma >> 12] = svga->changedvram[(svga->ma >> 12) + 1] = svga->interlace ? 3 : 2;
                       
                         if (!svga->override)
@@ -606,13 +616,21 @@ int svga_poll(void *p)
                                         svga->overlay_on--;
                         }
 
-                        if (svga->hwcursor_on)
+                        if (svga->hwcursor_on && svga->hwcursor_draw)
                         {
                                 if (!svga->override)
                                         svga->hwcursor_draw(svga, svga->displine);
                                 svga->hwcursor_on--;
                                 if (svga->hwcursor_on && svga->interlace)
                                         svga->hwcursor_on--;
+                        }
+                        if (svga->dac_hwcursor_on && svga->dac_hwcursor_draw)
+                        {
+                            if (!svga->override)
+                                svga->dac_hwcursor_draw(svga, svga->displine);
+                            svga->dac_hwcursor_on--;
+                            if (svga->dac_hwcursor_on && svga->interlace)
+                                svga->dac_hwcursor_on--;
                         }
 
                         if (svga->lastline < svga->displine) 
@@ -817,6 +835,9 @@ int svga_poll(void *p)
                         
                         svga->hwcursor_on = 0;
                         svga->hwcursor_latch = svga->hwcursor;
+
+                        svga->dac_hwcursor_on = 0;
+                        svga->dac_hwcursor_latch = svga->dac_hwcursor;
 
                         svga->overlay_on = 0;
                         svga->overlay_latch = svga->overlay;
