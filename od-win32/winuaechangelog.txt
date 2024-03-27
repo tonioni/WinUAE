@@ -1,5 +1,28 @@
 
 
+Beta 2:
+
+- Release raw input devices when GUI is open (except during input Test/Remap) or when debugger window is active. Allows Windows shortcut keys like Win+E now work without need to unfocus the window.
+- Added Misc panel option to disable default on screen keyboard gamepad button 4 mapping. 
+- Added Domino RTG board emulation. (ET4000, basic SVGA chip, no HW cursor, no blitter. Has linear frame buffer support. Emulator code from 86box.)
+- Added Merlin Z2 and Z3 RTG board emulation. (ET4000/W32, ET4000+ HW cursor and blitter. Emulator code from 86box.). Blitter does is yet hooked up properly. (If you try it, make sure NOBLITTER=YES)
+- uae-configuration AKS_ events (on/off/toggle type only) now work again as designed. ("AKS_xxx -1"  = toggle, "AKS_xxx 0" always off, "AKS_xxx 1" always on)
+- Some uae-configuration (and other similar) debugging logging messages automatically opened the console window. Now only entering debugger will open it.
+
+- 68000 branch instruction bus error fixes (CPUtester + external bus error hardware tests was not properly done for these instructions for some reason, only following instruction non-branch prefetch bus error condition was tested few years ago). Bcc, BSR, DBcc, JMP, JSR, RTE, RTR, RTS confirmed having accurate bus error stack frame now. Hatari reported bug. Does not affect Amiga emulation.
+
+(These all only because I got report that SuperPlus on ECS has first line blanked. So me and Ross did some weird tests again and things started to snowball. Again. Almost no normal program cares, only exception is ECS blanking fix)
+
+- Programmed display mode state log lines (VS=xx, HS=xx etc) had illogical mix of hexadecimal and decimal values.
+- Programmed vertical blanking start/end corrections. ECS Denise EXTBLANKEN=1 + BEAMCON0 BLANKEN=1 blanking starts 1 line earlier and ends 1 line earlier than AGA programmed blanking or ECS EXTBLANKEN=0 (Use hardwired horizontal, programmed vertical blanking). Agnus tells Denise blanking via CSYNC line but AGA Lisa handles it fully internally. Some ECS programmed mode screen modes had missing line at the top.
+- Writing to BEAMCON0 didn't check if write would cause immediate vertical DIW close (or open) if HARDDIS/VARVBEN/VARBEAMEN changed. (No normal programs care as usual)
+- Fixed corruption in some "weird" programmed modes, introduced in 5.0 betas.
+- Sprite/bitplane DMA conflict when bitplane ends very early with active sprite slot in same position as last BPL1DAT: in some situations sprite DMA "won" and conflict didn't happen.
+- BPLCON0 ERSY bit getting set without genlock now stops the copper after 2 lines. Previously copper worked normally and overwrote BPLCON0 with valid value if ERSY bit getting set was caused by something else, like a DMA conflict.
+- Vertical frequency calculation always expected odd/even line length toggle in NTSC modes, even if BEAMCON0 LOLDIS was set.
+- If programmed VBSTRT == VBSTOP: vblank interrupts are not generated.
+
+
 Earlier than expected new beta with some fixes and some new PCI and RTG boards. Original plan was to start yet another custom chipset emulation rewrite but I so far I haven't found any good enough ideas that would solve all remaining known limitations without new side-effects.
 
 Beta 1:
@@ -15,7 +38,7 @@ Beta 1:
 - Added partial Sony LDP-1450 OSD font emulation. Platoon (Nova) "YOU'RE HIT!!" messages are now visible.. (Yes, game uses LDP-1450 internal font generator to show this message. Amiga does not generate it.). If you want some other font than selected OSD font: config file genlock_font=<font name> can be used to override it.
 - Lightpen/gun cursor in any edge of screen: lightpen/gun not pointing at the screen (position can't be read by the program)
 - Fixed XT based Bridgeboards non-working floppy drive emulation, broke during 5.1 DraCo updates (wrong density detection)
-- Statefile short cut keys now select current config file name as base statefile name (for example, if "test1.uae" config file is loaded, SHIFT+END+0 will save statefile as "test1.uss". Quickstart mode config uses previously always used "default.uss")
+- Statefile shortcut keys now select current config file name as base statefile name (for example, if "test1.uae" config file is loaded, SHIFT+END+0 will save statefile as "test1.uss". Quickstart mode config uses previously always used "default.uss")
 - CD32 FMV video image size and positioning was weird in most scaled modes.
 - OSD font/statusline size was very large in full screen modes if monitor had >100% scaling.
 - Statusline font is now slightly taller (few pixels), same as height of OSD boxes. In recent versions statusline font was changed to same as OSD font, earlier versions' statusline text had different font and was also slightly taller than default OSD font.
@@ -35,7 +58,7 @@ Emulated:
 - All usual Graphics Processor mode screen modes (8/15/16/24/32 bits). Other weird modes are not supported.
 - VRAM aperture byte swapping and RAMDAC red/blue swapping modes. (Used at least by Picasso96 driver)
 - Hardware cursor (64*64*2).
-- Blitter. Most 2D parts emulated. Even the 2D blitter is quite complex, it for example supports point, line, trapezoid and rectangle drawing primities, bitmask (if bit is set: use color x, if bit is not set, skip destination write or use color y, other chips usually call this "color expansion"), "area stippling" (8x8 mask aligned to X and Y coordinates, can do same operations as bitmask), 16 different raster operations (ROP) and more. 3D features are even more complex.
+- Blitter. Most 2D parts emulated. Even the 2D blitter is quite complex, it for example supports point, line, trapezoid and rectangle drawing primitives, bitmask (if bit is set: use color x, if bit is not set, skip destination write or use color y, other chips usually call this "color expansion"), "area stippling" (8x8 mask aligned to X and Y coordinates, can do same operations as bitmask), 16 different raster operations (ROP) and more. 3D features are even more complex.
 
 Not emulated:
 
