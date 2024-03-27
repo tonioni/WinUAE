@@ -197,6 +197,13 @@ void debugger_change (int mode)
 	openconsole ();
 }
 
+void open_console(void)
+{
+	if (!consoleopen) {
+		openconsole();
+	}
+}
+
 void reopen_console (void)
 {
 	HWND hwnd;
@@ -363,7 +370,7 @@ static void console_put (const TCHAR *buffer)
 	if (console_buffer) {
 		if (_tcslen (console_buffer) + _tcslen (buffer) < console_buffer_size)
 			_tcscat (console_buffer, buffer);
-	} else {
+	} else if (consoleopen) {
 		openconsole ();
 		writeconsole (buffer);
 	}
@@ -632,7 +639,7 @@ void write_logx(const TCHAR *format, ...)
 		break;
 	}
 	bufp[bufsize - 1] = 0;
-	if (1) {
+	if (consoleopen) {
 		writeconsole (bufp);
 	}
 	if (debugfile) {
@@ -732,7 +739,7 @@ void f_out (void *f, const TCHAR *format, ...)
 	va_list parms;
 	va_start (parms, format);
 
-	if (f == NULL)
+	if (f == NULL || !consoleopen)
 		return;
 	count = _vsntprintf (buffer, WRITE_LOG_BUF_SIZE - 1, format, parms);
 	openconsole ();
