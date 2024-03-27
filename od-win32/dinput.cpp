@@ -410,9 +410,8 @@ static void fixthings_mouse (struct didata *did)
 
 static int rawinput_available;
 static bool rawinput_registered;
-static int rawinput_reg;
 
-static int doregister_rawinput (bool add)
+static int doregister_rawinput(void)
 {
 	struct AmigaMonitor *mon = &AMonitors[0];
 	int num;
@@ -421,37 +420,27 @@ static int doregister_rawinput (bool add)
 	if (!rawinput_available)
 		return 0;
 
-	rawinput_registered = add;
-
 	memset (rid, 0, sizeof rid);
 	num = 0;
 	/* mouse */
 	rid[num].usUsagePage = 1;
 	rid[num].usUsage = 2;
-	if (!add) {
-		rid[num].dwFlags = RIDEV_REMOVE;
-	} else {
-		if (mon->hMainWnd) {
-			rid[num].dwFlags = RIDEV_INPUTSINK;
-			rid[num].hwndTarget = mon->hMainWnd;
-		}
-		rid[num].dwFlags |= RIDEV_DEVNOTIFY;
+	if (mon->hMainWnd) {
+		rid[num].dwFlags = RIDEV_INPUTSINK;
+		rid[num].hwndTarget = mon->hMainWnd;
 	}
+	rid[num].dwFlags |= RIDEV_DEVNOTIFY;
 	num++;
 
 	/* keyboard */
 	if (!rp_isactive()) {
 		rid[num].usUsagePage = 1;
 		rid[num].usUsage = 6;
-		if (!add) {
-			rid[num].dwFlags = RIDEV_REMOVE;
-		} else {
-			if (mon->hMainWnd) {
-				rid[num].dwFlags = RIDEV_INPUTSINK;
-				rid[num].hwndTarget = mon->hMainWnd;
-			}
-			rid[num].dwFlags |= RIDEV_NOHOTKEYS | RIDEV_DEVNOTIFY;
+		if (mon->hMainWnd) {
+			rid[num].dwFlags = RIDEV_INPUTSINK;
+			rid[num].hwndTarget = mon->hMainWnd;
 		}
+		rid[num].dwFlags |= RIDEV_NOHOTKEYS | RIDEV_DEVNOTIFY;
 		num++;
 
 		/* joystick */
@@ -460,29 +449,21 @@ static int doregister_rawinput (bool add)
 		// game pad
 		rid[num].usUsagePage = 1;
 		rid[num].usUsage = 4;
-		if (!add) {
-			rid[num].dwFlags = RIDEV_REMOVE;
-		} else {
-			if (mon->hMainWnd) {
-				rid[num].dwFlags = RIDEV_INPUTSINK;
-				rid[num].hwndTarget = mon->hMainWnd;
-			}
-			rid[num].dwFlags |= RIDEV_DEVNOTIFY;
+		if (mon->hMainWnd) {
+			rid[num].dwFlags = RIDEV_INPUTSINK;
+			rid[num].hwndTarget = mon->hMainWnd;
 		}
+		rid[num].dwFlags |= RIDEV_DEVNOTIFY;
 		num++;
 
 		// joystick
 		rid[num].usUsagePage = 1;
 		rid[num].usUsage = 5;
-		if (!add) {
-			rid[num].dwFlags = RIDEV_REMOVE;
-		} else {
-			if (mon->hMainWnd) {
-				rid[num].dwFlags = RIDEV_INPUTSINK;
-				rid[num].hwndTarget = mon->hMainWnd;
-			}
-			rid[num].dwFlags |= RIDEV_DEVNOTIFY;
+		if (mon->hMainWnd) {
+			rid[num].dwFlags = RIDEV_INPUTSINK;
+			rid[num].hwndTarget = mon->hMainWnd;
 		}
+		rid[num].dwFlags |= RIDEV_DEVNOTIFY;
 		num++;
 	}
 
@@ -522,28 +503,28 @@ static int doregister_rawinput (bool add)
 	write_log (_T("RegisterRawInputDevices: NUM=%d HWND=%p\n"), num, hMainWnd);
 #endif
 
-	rawinput_reg = num;
 	if (RegisterRawInputDevices (rid, num, sizeof(RAWINPUTDEVICE)) == FALSE) {
-		write_log (_T("RAWINPUT %sregistration failed %d\n"),
-			add ? _T("") : _T("un"), GetLastError ());
+		write_log (_T("RAWINPUT %sregistration failed %d\n"), GetLastError());
 		return 0;
 	}
 
+	rawinput_registered = 1;
 	return 1;
 }
 
 void rawinput_alloc(void)
 {
 	if (!rawinput_registered) {
-		doregister_rawinput(true);
+		doregister_rawinput();;
+		//write_log("RAWINPUT ALLOC\n");
 	}
-	//write_log("rawinput_alloc\n");
 }
 void rawinput_release(void)
 {
 	UINT num = 0;
+	int cnt = 0;
 	int v = GetRegisteredRawInputDevices(NULL, &num, sizeof(RAWINPUTDEVICE));
-	if (num) {
+	if ((v >= 0 || (v == -1 && GetLastError() == ERROR_INSUFFICIENT_BUFFER)) && num > 0) {
 		PRAWINPUTDEVICE devs = xcalloc(RAWINPUTDEVICE, num);
 		if (devs) {
 			int v = GetRegisteredRawInputDevices(devs, &num, sizeof(RAWINPUTDEVICE));
@@ -552,15 +533,18 @@ void rawinput_release(void)
 					PRAWINPUTDEVICE dev = devs + i;
 					dev->dwFlags = RIDEV_REMOVE;
 					dev->hwndTarget = NULL;
+					cnt++;
 
 				}
-				RegisterRawInputDevices(devs, num, sizeof(RAWINPUTDEVICE));
+				if (!RegisterRawInputDevices(devs, num, sizeof(RAWINPUTDEVICE))) {
+					write_log("RegisterRawInputDevices RIDEV_REMOVE error %08x\n", GetLastError());
+				}
 			}
 			xfree(devs);
 		}
 	}
 	rawinput_registered = false;
-	//write_log("rawinput_free\n");
+	//write_log("RAWINPUT FREE %d\n", cnt);
 }
 
 static void cleardid (struct didata *did)

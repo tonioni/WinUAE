@@ -3665,6 +3665,7 @@ static int create_windows(struct AmigaMonitor *mon)
 		return 1;
 	}
 
+	rawinput_release();
 	gfx_lock();
 	D3D_free(mon->monitor_id, false);
 	gfx_unlock();
@@ -3869,7 +3870,6 @@ static int create_windows(struct AmigaMonitor *mon)
 		UpdateWindow(mon->hAmigaWnd);
 		firstwindow = false;
 		setDwmEnableMMCSS(true);
-		rawinput_alloc();
 
 		if (currprefs.win32_shutdown_notification && !rp_isactive()) {
 			typedef BOOL(WINAPI *SHUTDOWNBLOCKREASONCREATE)(HWND, LPCWSTR);
@@ -3885,6 +3885,7 @@ static int create_windows(struct AmigaMonitor *mon)
 		}
 	}
 
+	rawinput_alloc();
 	return 1;
 }
 
