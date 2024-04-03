@@ -116,7 +116,9 @@ typedef struct gd5429_t
         svga_t *mb_vga;
         
         uint32_t lfb_base;
-        
+        uint32_t mmio_base;
+        uint32_t gpio_base;
+
         int mmio_vram_overlap;
         
         uint8_t sr10_read, sr11_read;
@@ -2695,6 +2697,16 @@ static uint8_t cl_pci_read(int func, int addr, void *p)
                 case 0x12: return 0x00;
                 case 0x13: return gd5429->lfb_base >> 24;
 
+                case 0x14: return gd5429->mmio_base >> 0; /* mmio */
+                case 0x15: return gd5429->mmio_base >> 8;
+                case 0x16: return gd5429->mmio_base >> 16;
+                case 0x17: return gd5429->mmio_base >> 24;
+
+                case 0x18: return gd5429->gpio_base >> 0; /* gpio (revb) */
+                case 0x19: return gd5429->gpio_base >> 8;
+                case 0x1a: return gd5429->gpio_base >> 16;
+                case 0x1b: return gd5429->gpio_base >> 24;
+
                 case 0x30: return gd5429->pci_regs[0x30] & 0x01; /*BIOS ROM address*/
                 case 0x31: return 0x00;
                 case 0x32: return gd5429->pci_regs[0x32];
@@ -2727,6 +2739,64 @@ static void cl_pci_write(int func, int addr, uint8_t val, void *p)
                     gd5429->lfb_base &= 0xfe000000;
                 gd5429_recalc_mapping(gd5429); 
                 break;                
+
+#if 0
+                case 0x14:
+                gd5429->mmio_base &= 0xffffff00;
+                if (gd5429->type < CL_TYPE_GD5446B) {
+                    gd5429->mmio_base |= (val & (0x80|0x40|0x20)) << 0;
+                }
+                gd5429_recalc_mapping(gd5429);
+                break;
+                case 0x15:
+                gd5429->mmio_base &= 0xffff0000;
+                if (gd5429->type == CL_TYPE_GD5446B) {
+                    gd5429->mmio_base |= (val & 0xf0) << 8;
+                } else {
+                    gd5429->mmio_base |= (val & 0xff) << 8;
+                }
+                gd5429_recalc_mapping(gd5429);
+                break;
+                case 0x16:
+                gd5429->mmio_base &= 0xff00ff00;
+                gd5429->mmio_base |= val << 16;
+                gd5429_recalc_mapping(gd5429);
+                break;
+                case 0x17:
+                gd5429->mmio_base &= 0x00ffff00;
+                gd5429->mmio_base |= val << 24;
+                gd5429_recalc_mapping(gd5429);
+                break;
+
+                case 0x18:
+                gd5429->gpio_base &= 0xffffff00;
+                if (gd5429->type >= CL_TYPE_GD5446B) {
+                    gd5429->gpio_base |= (val & (0x80|0x40|0x20)) << 0;
+                    gd5429_recalc_mapping(gd5429);
+                }
+                break;
+                case 0x19:
+                gd5429->gpio_base &= 0xffff0000;
+                if (gd5429->type >= CL_TYPE_GD5446B) {
+                    gd5429->gpio_base |= (val & 0xf0) << 8;
+                }
+                gd5429_recalc_mapping(gd5429);
+                break;
+                case 0x1a:
+                gd5429->gpio_base &= 0xff00ff00;
+                if (gd5429->type >= CL_TYPE_GD5446B) {
+                    gd5429->gpio_base |= val << 16;
+                    gd5429_recalc_mapping(gd5429);
+                }
+                break;
+                case 0x1b:
+                gd5429->gpio_base &= 0x00ffff00;
+                if (gd5429->type >= CL_TYPE_GD5446B) {
+                    gd5429->gpio_base |= val << 24;
+                    gd5429_recalc_mapping(gd5429);
+                }
+                break;
+#endif
 
                 case 0x30: case 0x32: case 0x33:
                 gd5429->pci_regs[addr] = val;

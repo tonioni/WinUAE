@@ -805,7 +805,7 @@ et4000_init(const device_t *info)
     const char *bios_ver = NULL;
     const char *fn;
     et4000_t   *dev;
-    int         i;
+//    int         i;
 
     dev = (et4000_t *) malloc(sizeof(et4000_t));
     memset(dev, 0x00, sizeof(et4000_t));
@@ -1189,11 +1189,34 @@ void *et4000_domino_init()
     return p;
 }
 
+void *et4000_omnibus_init()
+{
+    void *p = et4000_init(NULL);
+    et4000_t *et4000 = (et4000_t *)p;
+
+    void *ramdac = sc1502x_ramdac_init(NULL);
+    et4000->svga.ramdac = ramdac;
+
+    return p;
+}
 device_t et4000_domino_device =
 {
     "Domino",
     0,
     et4000_domino_init,
+    et4000_close,
+    NULL,
+    et4000_speed_changed,
+    et4000_force_redraw,
+    NULL,
+    NULL
+};
+
+device_t et4000_omnibus_device =
+{
+    "oMniBus",
+    0,
+    et4000_omnibus_init,
     et4000_close,
     NULL,
     et4000_speed_changed,

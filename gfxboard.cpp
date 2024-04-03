@@ -211,6 +211,13 @@ static const struct gfxboard boards[] =
 		0, 0, NULL, &s3_virge_device, 0x40
 	},
 	{
+		GFXBOARD_ID_PERMEDIA2_PCI,
+		_T("BlizzardVision/CyberVision PPC (Permedia2) [PCI]"), _T("3DLabs"), _T("PERMEDIA2_PCI"),
+		0, 0, 0, 0,
+		0x00000000, 0x00800000, 0x00800000, 0x10000000, 0, 0, -1, false, false,
+		0, 0, NULL, &permedia2_device, 0, GFXBOARD_BUSTYPE_PCI
+	},
+	{
 		GFXBOARD_ID_PICASSO2,
 		_T("Picasso II [Zorro II]"), _T("Village Tronic"), _T("PicassoII"),
 		BOARD_MANUFACTURER_PICASSO, BOARD_MODEL_MEMORY_PICASSOII, BOARD_MODEL_REGISTERS_PICASSOII, 0,
@@ -262,11 +269,32 @@ static const struct gfxboard boards[] =
 		0, 0, NULL, &ncr_retina_z3_device, 0, GFXBOARD_BUSTYPE_DRACO
 	},
 	{
-		GFXBOARD_ID_PIXEL64,
-		_T("Pixel64 [AteoBus]"), _T("Atéo Concepts"), _T("Pixel64"),
-		2026, 255, 254, 0, // 255: type=$c7 flags=$40, 254: type=$c2 flags=$40 128k, 252: type=$c2 flags=$40, 128k
-		0x00000000, 0x00200000, 0x00200000, 0x00400000, CIRRUS_ID_CLGD5434, 2, 0, false, false,
-		0, 0, NULL, &gd5434_vlb_device
+		GFXBOARD_ID_MERLIN_Z2,
+		_T("Merlin [Zorro II]"), _T("X-Pert Computer Services"), _T("MerlinZ2"),
+		2117, 3, 4, 0,
+		0x00000000, 0x00200000, 0x00200000, 0x00200000, 0, 2, 6, false, true,
+		0, 0, NULL, &et4000w32_merlin_z2_device
+	},
+	{
+		GFXBOARD_ID_MERLIN_Z3,
+		_T("Merlin [Zorro III]"), _T("X-Pert Computer Services"), _T("MerlinZ3"),
+		2117, 3, 4, 0,
+		0x00000000, 0x00200000, 0x00400000, 0x02000000, 0, 3, 6, false, true,
+		0, 0, NULL, &et4000w32_merlin_z3_device
+	},
+	{
+		GFXBOARD_ID_GRAFFITY_Z2,
+		_T("Graffity [Zorro II]"), _T("Atéo Concepts"), _T("GraffityZ2"),
+		2092, 34, 33, 0,
+		0x00000000, 0x00100000, 0x00200000, 0x00200000, CIRRUS_ID_CLGD5428, 2, 2, false, true,
+		0, 0, NULL, &gd5428_device
+	},
+	{
+		GFXBOARD_ID_GRAFFITY_Z3,
+		_T("Graffity [Zorro III]"), _T("Atéo Concepts"), _T("GraffityZ3"),
+		2092, 33, 0, 0,
+		0x00000000, 0x00100000, 0x00200000, 0x01000000, CIRRUS_ID_CLGD5428, 3, 2, false, true,
+		0, 0, NULL, &gd5428_device
 	},
 	{
 		GFXBOARD_ID_EGS_110_24,
@@ -297,18 +325,25 @@ static const struct gfxboard boards[] =
 		0, 0, NULL, &et4000_domino_device
 	},
 	{
-		GFXBOARD_ID_MERLIN_Z2,
-		_T("Merlin [Zorro II]"), _T("X-Pert Computer Services"), _T("MerlinZ2"),
-		2117, 3, 4, 0,
-		0x00000000, 0x00200000, 0x00200000, 0x00200000, 0, 2, 0, false, false,
-		0, 0, NULL, &et4000w32_merlin_z2_device
+		GFXBOARD_ID_PIXEL64,
+		_T("Pixel64 [AteoBus]"), _T("Atéo Concepts"), _T("Pixel64"),
+		2026, 255, 254, 0, // 255: type=$c7 flags=$40, 254: type=$c2 flags=$40 128k, 252: type=$c2 flags=$40, 128k
+		0x00000000, 0x00200000, 0x00200000, 0x00400000, CIRRUS_ID_CLGD5434, 2, 0, false, false,
+		0, 0, NULL, &gd5434_vlb_device
 	},
 	{
-		GFXBOARD_ID_MERLIN_Z3,
-		_T("Merlin [Zorro III]"), _T("X-Pert Computer Services"), _T("MerlinZ3"),
-		2117, 3, 4, 0,
-		0x00000000, 0x00200000, 0x00400000, 0x02000000, 0, 3, 0, false, false,
-		0, 0, NULL, &et4000w32_merlin_z3_device
+		GFXBOARD_ID_OMNIBUS_ET4000,
+		_T("oMniBus ET4000AX [Zorro II]"), _T("ArMax"), _T("OmnibusET4000"),
+		2181, 0, 0x100, 0,
+		0x00000000, 0x00100000, 0x00100000, 0x00100000, 0, 2, 0, false, false,
+		0, 0, NULL, &et4000_omnibus_device
+	},
+	{
+		GFXBOARD_ID_OMNIBUS_ET4000W32,
+		_T("oMniBus ET4000W32 [Zorro II]"), _T("ArMax"), _T("OmnibusET4000W32"),
+		2181, 0, 0x100, 0,
+		0x00000000, 0x00100000, 0x00100000, 0x00100000, 0, 2, 0, false, false,
+		0, 0, NULL, &et4000w32_omnibus_device
 	},
 	{
 		GFXBOARD_ID_HARLEQUIN,
@@ -316,6 +351,13 @@ static const struct gfxboard boards[] =
 		2118, 100, 0, 0,
 		0x00000000, 0x00200000, 0x00200000, 0x10000, 0, 0, 2, false, false,
 		ROMTYPE_HARLEQUIN, 0xc2, &harlequin_func
+	},
+	{
+		GFXBOARD_ID_RAINBOWII,
+		_T("Rainbow II [Zorro II]"), _T("Ingenieurbüro Helfrich"), _T("RainbowII"),
+		2145, 32, 0, 0,
+		0x00000000, 0x00200000, 0x00200000, 0x00200000, 0, 0, 0, false, false,
+		ROMTYPE_RAINBOWII, 0xc6, &rainbowii_func
 	},
 #if 0
 	{
@@ -347,13 +389,15 @@ static const struct gfxboard boards[] =
 		0x00000000, 0x00200000, 0x00400000, 0x10000000, 0, 0, -1, false, false,
 		0, 0, NULL, &s3_trio64_device, 0, GFXBOARD_BUSTYPE_PCI
 	},
+#if 0
 	{
-		GFXBOARD_ID_PERMEDIA2_PCI,
-		_T("BlizzardVision/CyberVision PPC (Permedia2) [PCI]"), _T("3DLabs"), _T("PERMEDIA2_PCI"),
+		GFXBOARD_ID_GD5446_PCI,
+		_T("GD5446 [PCI]"), _T("Cirrus Logic"), _T("GD5446_PCI"),
 		0, 0, 0, 0,
-		0x00000000, 0x00800000, 0x00800000, 0x10000000, 0, 0, -1, false, false,
-		0, 0, NULL, &permedia2_device, 0, GFXBOARD_BUSTYPE_PCI
+		0x00000000, 0x00400000, 0x00400000, 0x10000000, 0, 0, -1, false, false,
+		0, 0, NULL, &gd5446_device, 0, GFXBOARD_BUSTYPE_PCI
 	},
+#endif
 	{
 		GFXBOARD_ID_VGA,
 		_T("x86 Bridgeboard VGA [ISA]"), _T("x86"), _T("VGA"),
@@ -1147,13 +1191,13 @@ static int gfx_temp_bank_idx;
 static uae_u32 REGPARAM2 gtb_wget(uaecptr addr)
 {
 	struct rtggfxboard *gb = &rtggfxboards[gfx_temp_bank_idx];
-	addr &= gb->banksize_mask;
+	addr &= 0xffff;
 	return 0;
 }
 static uae_u32 REGPARAM2 gtb_bget(uaecptr addr)
 {
 	struct rtggfxboard *gb = &rtggfxboards[gfx_temp_bank_idx];
-	addr &= gb->banksize_mask;
+	addr &= 0xffff;
 	if (addr < GFXBOARD_AUTOCONFIG_SIZE)
 		return gb->automemory[addr];
 	return 0xff;
@@ -1162,7 +1206,7 @@ static void REGPARAM2 gtb_bput(uaecptr addr, uae_u32 b)
 {
 	struct rtggfxboard *gb = &rtggfxboards[gfx_temp_bank_idx];
 	b &= 0xff;
-	addr &= gb->banksize_mask;
+	addr &= 0xffff;
 	if (addr == 0x48) {
 		gfx_temp_bank_idx++;
 		map_banks_z2(gb->gfxmem_bank, expamem_board_pointer >> 16, expamem_board_size >> 16);
@@ -1179,7 +1223,7 @@ static void REGPARAM2 gtb_wput(uaecptr addr, uae_u32 b)
 {
 	struct rtggfxboard *gb = &rtggfxboards[gfx_temp_bank_idx];
 	b &= 0xffff;
-	addr &= gb->banksize_mask;
+	addr &= 0xffff;
 	if (addr == 0x44) {
 		gfx_temp_bank_idx++;
 		map_banks_z3(gb->gfxmem_bank, expamem_board_pointer >> 16, expamem_board_size >> 16);
@@ -2862,13 +2906,23 @@ static void REGPARAM2 gfxboard_wput_mem_autoconfig (uaecptr addr, uae_u32 b)
 
 			} else if (boardnum == GFXBOARD_ID_MERLIN_Z3) {
 
-				map_banks_z3(&gb->gfxboard_bank_vram_pcem, start >> 16, gb->gfxboard_bank_vram_pcem.allocated_size >> 16);
-				gb->pcem_mmio_offset = 0x1000000;
-				gb->pcem_vram_mask = 0x3fffff;
-				gb->pcem_vram_offset = 0x800000;
-				map_banks_z3(&gb->gfxboard_bank_special_pcem, (start + 0x400000) >> 16, 0xc00000 >> 16);
+				// uses MMIO because ET4000 can have different apertures in VRAM space
+				copyvrambank(&gb->gfxboard_bank_mmio_wbs_pcem, &gb->gfxboard_bank_vram_pcem, true);
+				map_banks_z3(&gb->gfxboard_bank_mmio_wbs_pcem, start >> 16, gb->gfxboard_bank_mmio_wbs_pcem.allocated_size >> 16);
+				gb->pcem_mmio_offset = 0x00000000;
+				gb->pcem_mmio_mask = 0x3fffff;
 				map_banks_z3(&gb->gfxboard_bank_special_pcem, (start + 0x1000000) >> 16, 0x1000000 >> 16);
-				gb->pcem_mmio_mask = 0xffff;
+				gb->configured_regs = gb->gfxmem_bank->start >> 16;
+				gb->gfxboard_intena = 1;
+
+			} else if (boardnum == GFXBOARD_ID_GRAFFITY_Z3) {
+
+				map_banks_z3(&gb->gfxboard_bank_vram_pcem, (start + 0xc00000) >> 16, gb->gfxboard_bank_vram_pcem.allocated_size >> 16);
+				map_banks_z3(&gb->gfxboard_bank_special_pcem, (start + 0x800000) >> 16, 65536 >> 16);
+				map_banks_z3(&gb->gfxboard_bank_special_pcem, (start + 0x400000) >> 16, 65536 >> 16);
+				gb->pcem_vram_offset = -0x400000;
+				gb->pcem_vram_mask = 0x1fffff;
+				gb->pcem_io_mask = 0x3fff;
 				gb->configured_regs = gb->gfxmem_bank->start >> 16;
 
 			}
@@ -3012,6 +3066,23 @@ static void REGPARAM2 gfxboard_bput_mem_autoconfig (uaecptr addr, uae_u32 b)
 					gb->pcem_vram_mask = 0x1fffff;
 					gb->pcem_io_mask = 0x3fff;
 
+				} else if (boardnum == GFXBOARD_ID_OMNIBUS_ET4000) {
+
+					ab = &gb->gfxboard_bank_vram_pcem;
+					gb->gfxboardmem_start = b << 16;
+					map_banks_z2(ab, b, 0x200000 >> 16);
+					map_banks_z2(&gb->gfxboard_bank_vram_wordswap_pcem, b + (0x200000 >> 16), 0x200000 >> 16);
+
+					init_board(gb);
+
+					gb->configured_mem = b;
+					gb->mem_start[0] = b << 16;
+					gb->mem_end[0] = gb->mem_start[0] + gb->board->banksize;
+
+					gb->pcem_vram_offset = 0x800000;
+					gb->pcem_vram_mask = 0x1fffff;
+					gb->pcem_io_mask = 0x3fff;
+
 				} else if (boardnum == GFXBOARD_ID_RETINA_Z2) {
 
 					gb->configured_mem = b;
@@ -3061,10 +3132,45 @@ static void REGPARAM2 gfxboard_bput_mem_autoconfig (uaecptr addr, uae_u32 b)
 					gb->pcem_vram_offset = 0x800000;
 					gb->pcem_vram_mask = 0x3fffff;
 
+				} else if (boardnum == GFXBOARD_ID_MERLIN_Z2) {
+
+					// uses MMIO because ET4000 can have different apertures in VRAM space
+					ab = &gb->gfxboard_bank_mmio_wbs_pcem;
+					gb->gfxboardmem_start = b << 16;
+					map_banks_z2(ab, b, gb->board->banksize >> 16);
+
+					init_board(gb);
+
+					gb->configured_mem = b;
+					gb->mem_start[0] = b << 16;
+					gb->mem_end[0] = gb->mem_start[0] + gb->board->banksize;
+					gb->pcem_mmio_offset = 0x00000000;
+					gb->pcem_mmio_mask = 0x1fffff;
+					gb->pcem_io_mask = 0xffff;
+					gb->gfxboard_intena = 1;
+
+				} else if (boardnum == GFXBOARD_ID_OMNIBUS_ET4000W32) {
+
+					// uses MMIO because ET4000 can have different apertures in VRAM space
+					ab = &gb->gfxboard_bank_mmio_wbs_pcem;
+					gb->gfxboardmem_start = b << 16;
+					map_banks_z2(ab, b, gb->board->banksize >> 16);
+
+					init_board(gb);
+
+					gb->configured_mem = b;
+					gb->mem_start[0] = b << 16;
+					gb->mem_end[0] = gb->mem_start[0] + gb->board->banksize;
+					gb->pcem_mmio_offset = 0x00000000;
+					gb->pcem_mmio_mask = 0x0fffff;
+					gb->pcem_io_mask = 0xffff;
+					gb->gfxboard_intena = 1;
+
 				} else {
 
 					// Picasso II, Picasso II+
 					// Piccolo Z2
+					// Graffity Z2
 
 					ab = &gb->gfxboard_bank_vram_pcem;
 					gb->gfxboardmem_start = b << 16;
@@ -3819,7 +3925,8 @@ static void pci_change_config(struct pci_board_state *pci)
 		}
 	} else if (gb->rbc->rtgmem_type == GFXBOARD_ID_S3VIRGE_PCI ||
 		gb->rbc->rtgmem_type == GFXBOARD_ID_S3TRIO64_PCI ||
-		gb->rbc->rtgmem_type == GFXBOARD_ID_PERMEDIA2_PCI) {
+		gb->rbc->rtgmem_type == GFXBOARD_ID_PERMEDIA2_PCI ||
+		gb->rbc->rtgmem_type == GFXBOARD_ID_GD5446_PCI) {
 		if (pci->memory_map_active) {
 			reinit_vram(gb, pci->bar[0] + pci->bridge->memory_start_offset, false);
 		}
@@ -4330,6 +4437,52 @@ static const struct pci_board s3virge_pci_board =
 	get_pci_pcem, put_pci_pcem, pci_change_config
 };
 
+static const struct pci_config s3trio_pci_config =
+{
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, { 0, 0, 0, 0, 0, 0, 0 }
+};
+
+static const struct pci_board s3trio_pci_board =
+{
+	_T("S3TRIO"),
+	&s3trio_pci_config, NULL, NULL, NULL, NULL, NULL,
+	{
+		{ voodoo3_mb0_lget, voodoo3_mb0_wget, voodoo3_mb0_bget, voodoo3_mb0_lput, voodoo3_mb0_wput, voodoo3_mb0_bput },
+		{ NULL },
+		{ NULL },
+		{ NULL },
+		{ NULL },
+		{ NULL },
+		{ voodoo3_bios_lget, voodoo3_bios_wget, voodoo3_bios_bget, NULL, NULL, NULL },
+		{ s3virge_io_lget, s3virge_io_wget, s3virge_io_bget, s3virge_io_lput, s3virge_io_wput, s3virge_io_bput }
+	},
+	true,
+	get_pci_pcem, put_pci_pcem, pci_change_config
+};
+
+static const struct pci_config gd5446_pci_config =
+{
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, { 0, 0, 0, 0, 0, 0, 0 }
+};
+
+static const struct pci_board gd5446_pci_board =
+{
+	_T("GD5446"),
+	&gd5446_pci_config, NULL, NULL, NULL, NULL, NULL,
+	{
+		{ voodoo3_mb0_lget, voodoo3_mb0_wget, voodoo3_mb0_bget, voodoo3_mb0_lput, voodoo3_mb0_wput, voodoo3_mb0_bput },
+		{ NULL },
+		{ NULL },
+		{ NULL },
+		{ NULL },
+		{ NULL },
+		{ voodoo3_bios_lget, voodoo3_bios_wget, voodoo3_bios_bget, NULL, NULL, NULL },
+		{ s3virge_io_lget, s3virge_io_wget, s3virge_io_bget, s3virge_io_lput, s3virge_io_wput, s3virge_io_bput }
+	},
+	true,
+	get_pci_pcem, put_pci_pcem, pci_change_config
+};
+
 int gfxboard_get_index_from_id(int id)
 {
 	if (id == GFXBOARD_UAE_Z2)
@@ -4770,11 +4923,15 @@ bool gfxboard_init_memory (struct autoconfig_info *aci)
 		struct pci_bridge *b = pci_bridge_get();
 		if (b) {
 			if (gb->rbc->rtgmem_type == GFXBOARD_ID_VOODOO3_PCI || gb->rbc->rtgmem_type == GFXBOARD_ID_VOODOO5_PCI) {
-				gb->pcibs = pci_board_add(b, &voodoo3_pci_board, -1, 0, aci, gb);
+				gb->pcibs = pci_board_add(b, &voodoo3_pci_board, -1, -1, aci, gb);
 			} else if (gb->rbc->rtgmem_type == GFXBOARD_ID_PERMEDIA2_PCI) {
-				gb->pcibs = pci_board_add(b, &permedia2_pci_board, 0, 0, aci, gb);
-			} else {
-				gb->pcibs = pci_board_add(b, &s3virge_pci_board, -1, 0, aci, gb);
+				gb->pcibs = pci_board_add(b, &permedia2_pci_board, -1, -1, aci, gb);
+			} else if (gb->rbc->rtgmem_type == GFXBOARD_ID_GD5446_PCI) {
+				gb->pcibs = pci_board_add(b, &gd5446_pci_board, -1, -1, aci, gb);
+			} else if (gb->rbc->rtgmem_type == GFXBOARD_ID_S3TRIO64_PCI) {
+				gb->pcibs = pci_board_add(b, &s3trio_pci_board, -1, -1, aci, gb);
+			} else if (gb->rbc->rtgmem_type == GFXBOARD_ID_S3VIRGE_PCI) {
+				gb->pcibs = pci_board_add(b, &s3virge_pci_board, -1, -1, aci, gb);
 			}
 		}
 		gb->gfxboard_intena = 1;
@@ -4871,7 +5028,9 @@ bool gfxboard_init_registersx(struct autoconfig_info *aci, int regnum)
 	}
 
 	memset (gb->automemory, 0xff, GFXBOARD_AUTOCONFIG_SIZE);
-	if (gb->rbc->rtgmem_type == GFXBOARD_ID_PIXEL64 || gb->rbc->rtgmem_type == GFXBOARD_ID_RETINA_Z2) {
+	if (gb->rbc->rtgmem_type == GFXBOARD_ID_PIXEL64 ||
+		gb->rbc->rtgmem_type == GFXBOARD_ID_RETINA_Z2 || 
+		gb->rbc->rtgmem_type == GFXBOARD_ID_GRAFFITY_Z2) {
 		ew(gb, 0x00, 0xc0 | 0x02); // 128 Z2
 		size = BOARD_REGISTERS_SIZE * 2;
 	} else {
@@ -4879,7 +5038,7 @@ bool gfxboard_init_registersx(struct autoconfig_info *aci, int regnum)
 		size = BOARD_REGISTERS_SIZE;
 	}
 
-	ew (gb, 0x04, regnum ? gb->board->model_extra : gb->board->model_registers);
+	ew (gb, 0x04, regnum ? gb->board->model_extra : gb->board->model_registers & 0xff);
 	ew (gb, 0x10, gb->board->manufacturer >> 8);
 	ew (gb, 0x14, gb->board->manufacturer);
 
@@ -5747,7 +5906,7 @@ static void special_pcem_put(uaecptr addr, uae_u32 v, int size)
 	int boardnum = gb->rbc->rtgmem_type;
 
 #if SPCDEBUG
-//	if ((addr & 0xfffff) != 0x40021)
+	//if ((addr & 0xfffff) != 0x3da)
 		write_log(_T("PCEM SPECIAL PUT %08x %08x %d PC=%08x\n"), addr, v, size, M68K_GETPC);
 #endif
 
@@ -5798,6 +5957,16 @@ static void special_pcem_put(uaecptr addr, uae_u32 v, int size)
 		}
 
 	} else if (boardnum == GFXBOARD_ID_PIXEL64) {
+
+		addr &= 0xffff;
+		if (size) {
+			put_io_pcem(addr + 0, (v >> 8) & 0xff, 0);
+			put_io_pcem(addr + 1, (v >> 0) & 0xff, 0);
+		} else if (size == 0) {
+			put_io_pcem(addr, v & 0xff, 0);
+		}
+
+	} else if (boardnum == GFXBOARD_ID_OMNIBUS_ET4000) {
 
 		addr &= 0xffff;
 		if (size) {
@@ -6107,6 +6276,20 @@ static void special_pcem_put(uaecptr addr, uae_u32 v, int size)
 
 		addr &= 0xffff;
 
+		if (addr == 0x401) {
+			set_monswitch(gb, (v & 0x01) != 0);
+		}
+		if (size) {
+			put_io_pcem(addr + 0, (v >> 8) & 0xff, 0);
+			put_io_pcem(addr + 1, (v >> 0) & 0xff, 0);
+		} else if (size == 0) {
+			put_io_pcem(addr, v & 0xff, 0);
+		}
+
+	} else if (boardnum == GFXBOARD_ID_OMNIBUS_ET4000W32) {
+
+		addr &= 0xffff;
+
 		if (size) {
 			put_io_pcem(addr + 0, (v >> 8) & 0xff, 0);
 			put_io_pcem(addr + 1, (v >> 0) & 0xff, 0);
@@ -6139,6 +6322,43 @@ static void special_pcem_put(uaecptr addr, uae_u32 v, int size)
 		if (addr == 0x2008) {
 			gb->gfxboard_intreq_marked = false;
 		}
+
+	} else if (boardnum == GFXBOARD_ID_GRAFFITY_Z2 || boardnum == GFXBOARD_ID_GRAFFITY_Z3) {
+
+		if (boardnum == GFXBOARD_ID_GRAFFITY_Z3) {
+			if (addr & 0x400000) {
+				if ((addr & 0x60) == 0x60) {
+					set_monswitch(gb, true);
+				} else if ((addr & 0x60) == 0x40) {
+					set_monswitch(gb, false);
+				}
+				return;
+			}
+		} else {
+			if (addr & 0x8000) {
+				if ((addr & 0x60) == 0x60) {
+					set_monswitch(gb, true);
+				} else if ((addr & 0x60) == 0x40) {
+					set_monswitch(gb, false);
+				}
+				return;
+			}
+		}
+
+		addr &= 0xffff;
+		if (addr < 0x4000) {
+			if (size == 1) {
+				put_io_pcem(addr + 0, (v >> 8) & 0xff, 0);
+				put_io_pcem(addr + 1, (v >> 0) & 0xff, 0);
+			} else if (size == 0) {
+				put_io_pcem(addr, v & 0xff, 0);
+			} else if (size == 2) {
+				put_io_pcem(addr + 0, (v >> 24) & 0xff, 0);
+				put_io_pcem(addr + 1, (v >> 16) & 0xff, 0);
+				put_io_pcem(addr + 2, (v >> 8) & 0xff, 0);
+				put_io_pcem(addr + 3, (v >> 0) & 0xff, 0);
+			}
+		}
 	}
 }
 
@@ -6149,8 +6369,8 @@ static uae_u32 special_pcem_get(uaecptr addr, int size)
 	uae_u32 v = 0;
 
 #if SPCDEBUG
-//	if ((addr & 0xfffff) != 0x40021)
-	write_log(_T("PCEM SPECIAL GET %08x %d PC=%08x\n"), addr, size, M68K_GETPC);
+	//if ((addr & 0xfffff) != 0x3da)
+		write_log(_T("PCEM SPECIAL GET %08x %d PC=%08x\n"), addr, size, M68K_GETPC);
 #endif
 
 	if (boardnum == GFXBOARD_ID_ALTAIS_Z3) {
@@ -6200,6 +6420,15 @@ static uae_u32 special_pcem_get(uaecptr addr, int size)
 		}
 
 	} else if (boardnum == GFXBOARD_ID_PIXEL64) {
+
+		if (size) {
+			v = get_io_pcem(addr + 0, 0) << 8;
+			v |= get_io_pcem(addr + 1, 0) << 0;
+		} else if (size == 0) {
+			v = get_io_pcem(addr, 0);
+		}
+
+	} else if (boardnum == GFXBOARD_ID_OMNIBUS_ET4000) {
 
 		if (size) {
 			v = get_io_pcem(addr + 0, 0) << 8;
@@ -6453,6 +6682,16 @@ static uae_u32 special_pcem_get(uaecptr addr, int size)
 			v = get_io_pcem(addr, 0);
 		}
 
+	} else if (boardnum == GFXBOARD_ID_OMNIBUS_ET4000W32) {
+
+		addr &= 0xffff;
+		if (size) {
+			v = get_io_pcem(addr + 0, 0) << 8;
+			v |= get_io_pcem(addr + 1, 0) << 0;
+		} else if (size == 0) {
+			v = get_io_pcem(addr, 0);
+		}
+
 	} else if (boardnum == GFXBOARD_ID_EGS_110_24) {
 
 		addr &= 0xffff;
@@ -6487,7 +6726,25 @@ static uae_u32 special_pcem_get(uaecptr addr, int size)
 		if (addr & 0x4000) {
 			v = gb->gfxboard_intreq_marked ? 0x80 : 00;
 		}
+	
+	} else if (boardnum == GFXBOARD_ID_GRAFFITY_Z2 || boardnum == GFXBOARD_ID_GRAFFITY_Z3) {
+
+		addr &= 0xffff;
+		if (addr < 0x1000) {
+			if (size == 1) {
+				v = get_io_pcem(addr + 0, 0) << 8;
+				v |= get_io_pcem(addr + 1, 0) << 0;
+			} else if (size == 0) {
+				v = get_io_pcem(addr, 0);
+			} else if (size == 2) {
+				v = get_io_pcem(addr + 0, 0) << 24;
+				v |= get_io_pcem(addr + 1, 0) << 16;
+				v |= get_io_pcem(addr + 2, 0) << 8;
+				v |= get_io_pcem(addr + 3, 0) << 0;
+			}
+		}
 	}
+
 	return v;
 }
 
