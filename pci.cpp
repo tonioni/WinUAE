@@ -117,18 +117,24 @@ static struct pci_board *pci_board_alloc(struct pci_config *config)
 	return pci;
 }
 
+void pci_board_add_next(struct pci_bridge *pcib)
+{
+	pcib->phys_slot_cnt++;
+}
+
 struct pci_board_state *pci_board_add(struct pci_bridge *pcib, const struct pci_board *pci, int slot, int func, struct autoconfig_info *aci, void *userdata)
 {
 	struct pci_board_state *pcibs = &pcib->boards[pcib->log_slot_cnt];
-	pcib->log_slot_cnt++;
-	if (!func)
-		pcib->phys_slot_cnt++;
 	pcibs->board = pci;
 	pcibs->slot = slot < 0 ? pcib->phys_slot_cnt : slot;
-	pcibs->func = func;
+	pcibs->func = func < 0 ? 0 : func;
 	pcibs->bridge = pcib;
 	pcibs->irq_callback = pci_irq_callback;
 	pcibs->userdata = userdata;
+	pcib->log_slot_cnt++;
+	if (func < 0) {
+		pcib->phys_slot_cnt++;
+	}
 	memset(pcibs->config_data, 0, sizeof pcibs->config_data);
 	if (pci->pci_get_config) {
 		struct pci_config *config = &pcibs->dynamic_config;
@@ -1799,20 +1805,20 @@ bool pci_validate_address(uaecptr addr, uae_u32 size, bool io)
 
 static void add_pci_devices(struct pci_bridge *pcib, struct autoconfig_info *aci)
 {
-	int slot = 1;
-
 	if (is_device_rom(&currprefs, ROMTYPE_NE2KPCI, 0) >= 0) {
-		pci_board_add(pcib, &ne2000_pci_board, slot++, 0, aci, NULL);
+		pci_board_add(pcib, &ne2000_pci_board, -1, 0, aci, NULL);
+		pci_board_add_next(pcib);
 	}
 
 	if (is_device_rom(&currprefs, ROMTYPE_FM801, 0) >= 0) {
-		pci_board_add(pcib, &fm801_pci_board, slot, 0, aci, NULL);
-		pci_board_add(pcib, &fm801_pci_board_func1, slot, 1, aci, NULL);
-		slot++;
+		pci_board_add(pcib, &fm801_pci_board, -1, 0, aci, NULL);
+		pci_board_add(pcib, &fm801_pci_board_func1, -1, 1, aci, NULL);
+		pci_board_add_next(pcib);
 	}
 
 	if (is_device_rom(&currprefs, ROMTYPE_ES1370, 0) >= 0) {
-		pci_board_add(pcib, &es1370_pci_board, slot++, 0, aci, NULL);
+		pci_board_add(pcib, &es1370_pci_board, -1, 0, aci, NULL);
+		pci_board_add_next(pcib);
 	}
 }
 
@@ -1855,7 +1861,8 @@ bool dkb_wildfire_pci_init(struct autoconfig_info *aci)
 	pcib->configured = -1;
 	pcib->pcipcidma = true;
 	pcib->amigapicdma = true;
-	pci_board_add(pcib, &ncr_53c815_pci_board, 0, 0, aci, NULL);
+	pci_board_add(pcib, &ncr_53c815_pci_board, -1, -1, aci, NULL);
+	add_pci_devices(pcib, aci);
 	map_banks(&pci_config_bank, 0x80000000 >> 16, 0x10000000 >> 16, 0);
 	map_banks(&pci_mem_bank, 0x90000000 >> 16, 0x30000000 >> 16, 0);
 	map_banks(&pci_io_bank, 0xc0000000 >> 16, 0x30000000 >> 16, 0);
@@ -2022,14 +2029,14 @@ static int grex_get_index(uaecptr addr, bool w, uae_u32 *vp)
 		int v = (addr & 0x3f000) >> 13;
 		if (!v) {
 			// CyberVision/BlizzardVision
-			return 0;
-		} else {
-			slot = countbit(v);
-			if (slot >= 0) {
-				slot++;
-			}
+			slot = ((addr >> 8) & 7) << 8;
+			return slot;
 		}
-		slot |= ((addr >> 8) & 7) << 8;
+		slot = countbit(v);
+		if (slot >= 0) {
+			slot++;
+			slot |= ((addr >> 8) & 7) << 8;
+		}
 	}
 	return slot;
 }
@@ -2398,7 +2405,7 @@ bool grex_init(struct autoconfig_info *aci)
 
 bool pci_expansion_init(struct autoconfig_info *aci)
 {
-	static const int parent[] = { ROMTYPE_GREX, ROMTYPE_MEDIATOR, ROMTYPE_PROMETHEUS, ROMTYPE_PROMETHEUSFS, 0 };
+	static const int parent[] = { ROMTYPE_GREX, ROMTYPE_MEDIATOR, ROMTYPE_PROMETHEUS, ROMTYPE_PROMETHEUSFS, ROMTYPE_CB_DBK_WF, 0 };
 	aci->parent_romtype = parent;
 	aci->zorro = 0;
 	return true;
