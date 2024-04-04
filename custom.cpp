@@ -6726,6 +6726,11 @@ static void updateextblk(void)
 	if (!exthblank) {
 		hbstrt_v2 = (8 << CCK_SHRES_SHIFT) - 3;
 		hbstop_v2 = (47 << CCK_SHRES_SHIFT) - 7;
+		if (denisea1000) {
+			hbstop_v2 = (47 << CCK_SHRES_SHIFT) - 7;
+		} else if (!ecs_denise) {
+			hbstop_v2 = (47 << CCK_SHRES_SHIFT) - 3;
+		}
 		hbstrt_v2 = adjust_hr(hbstrt_v2);
 		hbstop_v2 = adjust_hr(hbstop_v2);
 	}
@@ -6840,9 +6845,7 @@ static void updateextblk(void)
 	denisehtotal <<= CCK_SHRES_SHIFT;
 
 	// ECS Denise has 1 extra lores pixel in right border
-	if (currprefs.gfx_overscanmode >= OVERSCANMODE_ULTRA) {
-		denisehtotal += 2 << (CCK_SHRES_SHIFT - 1);
-	} else if (ecs_denise) {
+	if (ecs_denise) {
 		denisehtotal += 1 << (CCK_SHRES_SHIFT - 1);
 	}
 
