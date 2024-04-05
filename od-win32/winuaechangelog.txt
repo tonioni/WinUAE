@@ -1,11 +1,32 @@
 
+Beta 3:
+
+- Merlin RTG board blitter fixed. 86box ET4000 blitter/MMU was incomplete (No linear blitter/MMU apertures, missing blit start mode check, pattern/source alignment restrictions are ET4000w32p only). Added vblank interrupt and monitor switcher support. Fixed horizontal panning in 24-bit modes. Overlay/PIP not yet implemented. It is quite useless because overlay and main bitmap depth must match.
+- Added oMniBus RTG board (Zorro II to ISA adapter). ET4000AX (no blitter, no HW cursor) or ET4000W32 (blitter and HW cursor. Note: Current Picasso96 drivers have a bug that makes ET4000W32 blitter unusable, bug that apparently has always been in this driver. Fix will be in next Picasso96 release.)
+- Added Graffity Z2/Z3 RTG board. Cirrus Logic GD5428 based. Has monitor switcher.
+- Added Rainbow II "RTG" card. Not really proper RTG card, has only hardwired PAL and NTSC resolutions (768x576 and 768x476). 24-bit depth only. Note that emulation always refreshes whole screen every frame (not just modified parts but whole screen) which is not very optimal but it really isn't worth the trouble because I am sure now one cares about this old board.
+- Some hardware emulated RTG boards had flickering colors during horizontal panning (>8 bit modes only)
+
+- Small PCI emulation changes (For example G-REX + Permedia 2 + some other PCI card: same card appeared 8 times)
+- Added Apollo 630 emulation and boot ROM 5.61. Nothing special, ROM is only used to detect the RAM: "32Bit Power-Burstmode-FastRAM", apparently cool sounding name can make RAM even faster! (oddly ROM contains at least parts of IDE and SCSI drivers from other Apollo accelerators).
+
+- In a rare situation it was possible to get false positive "CPU Trace" error when loading statefile.
+- Debugger breakpoint "f 123 <extra parameters>" didn't work, "<extra parameters>" was incorrectly detected as PC end address even when it wasn't a number.
+- Programmed mode with only VARVBEN enabled (Programmed vblank but hardwired syncs) didn't check if programmed VB ended earlier than hardwired PAL/NTSC vblank, resulting in vblank ending too late, hiding part of display at the top. (ross test(tm))
+- If strobe conflicts start after STREQU strobes but before first STRHOR strobes: Denise vblank state stays stuck active until next valid STRHOR strobe is seen by Denise. (SOS / Triangle + ECS Agnus). Interesting detail: If OCS Denise, STRVBL strobe DOES NOT enable vblank (fixed in ECS Denise). Only STREQU strobes enable vblank. STRHOR disables vblank.
+- OCS Denise "buggy" vblank start/end (visible only in Overscan+ and higher) start/end position was 2.5 CCKs too early.
+- Left and right A1000 Denise/OCS Denise/ECS Denise hardwired hblank position slight adjustments (1 hires pixel) to match new test results.
+- Both "SaveImage" (automatically created ext adf when write-enabling non-writable image like ipf) file extension variants are now detected automatically when checking if file exists. Paths panel option now only affects name when new saveimage is created.
+
+All Picasso96 supported RTG boards are now emulated. All CGX4 supported boards except Inferno. Inferno can't work, only known Wildfire boot ROM fails to configure it properly. PCI config logic seems to get confused if PCI BAR size is too large (GD5446 is 16M or 32M depending on revision). It seems Inferno support needs newer boot ROM which may not have been officially released. Apparently Inferno was also never officially released. EGS not tested, reports accepted if someone really wants to check EGS drivers.
+
 
 Beta 2:
 
 - Release raw input devices when GUI is open (except during input Test/Remap) or when debugger window is active. Allows Windows shortcut keys like Win+E now work without need to unfocus the window.
 - Added Misc panel option to disable default on screen keyboard gamepad button 4 mapping. 
 - Added Domino RTG board emulation. (ET4000, basic SVGA chip, no HW cursor, no blitter. Has linear frame buffer support. Emulator code from 86box.)
-- Added Merlin Z2 and Z3 RTG board emulation. (ET4000/W32, ET4000+ HW cursor and blitter. Emulator code from 86box.). Blitter does is yet hooked up properly. (If you try it, make sure NOBLITTER=YES)
+- Added Merlin Z2 and Z3 RTG board emulation. (ET4000/W32, ET4000+ HW cursor and blitter. Emulator code from 86box.). Blitter is not yet hooked up properly. (If you try it, make sure NOBLITTER=YES)
 - uae-configuration AKS_ events (on/off/toggle type only) now work again as designed. ("AKS_xxx -1"  = toggle, "AKS_xxx 0" always off, "AKS_xxx 1" always on)
 - Some uae-configuration (and other similar) debugging logging messages automatically opened the console window. Now only entering debugger will open it.
 
@@ -33,7 +54,7 @@ Beta 1:
 - EGS 110/24 RTG board emulation (INMOS G364 chip. Same as G360 functionally). Goes to GVP accelerator local slot, it is not autoconfig device. Can be configured without GVP accelerator card but at least Picasso96 driver needs to find GVP autoconfig device before detecting EGS.
 - If PCI device was non-UAE built-in (It was PCem SVGA card) and PCI was configured by single write to PCI BAR (Base Address Register), without first doing PCI bar size/alignment detection, device ignored all BAR writes. Fixes pre-44.71 CSMK3/PPC/BPPC boot ROM CyberVision/BlizzardVision PPC PCI configuration (Pre-44.71 support CV/BV PPC but not G-REX PCI). This was not a problem with PCI bridgeboards because bridgeboard drivers always first autodetect each PCI device's BAR size and required alignment.
 - Added Prometheus FireStorm PCI bridge emulation (Prometheus with different autoconfig ID, different PCI space mapping, few config bits and some fixes that don't affect emulation). Prmscan works and detects and configures boards, no other tests done. Please report if it works or not.
-- When PCI bridge interrupts were enabled, possible alreadying pending interrupts were not checked immediately. (Probably makes no difference)
+- When PCI bridge interrupts were enabled, possible already pending interrupts were not checked immediately. (Probably makes no difference)
 - Delay ALG LDP seek complete status reply slightly. Fixes Platoon (Nova) few second hangs.
 - Added partial Sony LDP-1450 OSD font emulation. Platoon (Nova) "YOU'RE HIT!!" messages are now visible.. (Yes, game uses LDP-1450 internal font generator to show this message. Amiga does not generate it.). If you want some other font than selected OSD font: config file genlock_font=<font name> can be used to override it.
 - Lightpen/gun cursor in any edge of screen: lightpen/gun not pointing at the screen (position can't be read by the program)
