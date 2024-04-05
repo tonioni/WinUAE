@@ -4257,10 +4257,14 @@ static bool xD3D_extoverlay(struct extoverlay *ext, int monid)
 			return true;
 	}
 
-	if (ext->width <= 0 || ext->height <= 0)
+	if (ext->width <= 0 || ext->height <= 0 || !d3d->d3ddev) {
 		return false;
+	}
 
 	ov = xcalloc(d3d9overlay, 1);
+	if (!ov) {
+		return false;
+	}
 	s = createtext(d3d, ext->width, ext->height, D3DFMT_A8R8G8B8);
 	if (!s) {
 		xfree(ov);

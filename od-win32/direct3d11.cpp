@@ -5524,10 +5524,14 @@ static bool xD3D11_extoverlay(struct extoverlay *ext, int monid)
 			return true;
 	}
 
-	if (ext->width <= 0 || ext->height <= 0)
+	if (ext->width <= 0 || ext->height <= 0 || !d3d->m_device) {
 		return false;
+	}
 
 	ov = xcalloc(d3doverlay, 1);
+	if (!ov) {
+		return false;
+	}
 	s = &ov->s;
 
 	if (!allocsprite(d3d, s, ext->width, ext->height, true, false, false)) {

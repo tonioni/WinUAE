@@ -593,8 +593,9 @@ static bool gdi_extoverlay(struct extoverlay *ext, int monid)
 			return true;
 	}
 
-	if (ext->width <= 0 || ext->height <= 0 || !ext->data)
+	if (ext->width <= 0 || ext->height <= 0 || !ext->data || !gdi->hdc) {
 		return false;
+	}
 
 	ov = xcalloc(gdioverlay, 1);
 	if (!ov) {
