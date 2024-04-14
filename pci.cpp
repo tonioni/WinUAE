@@ -2067,6 +2067,7 @@ static bool grex_pci_init(struct autoconfig_info *aci)
 	pcib->pcipcidma = true;
 	pcib->amigapicdma = true;
 
+	pci_board_add_next(pcib);
 	add_pci_devices(pcib, aci);
 
 	map_banks(&pci_config_bank, 0xfffc0000 >> 16, 0x20000 >> 16, 0);
