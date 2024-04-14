@@ -1,4 +1,14 @@
 
+Beta 4:
+
+- ET4000W32/Merlin fixes, ProBench (Early RTG software for Merlin cards) now works without glitches. Merlin serial eeprom(?) emulation added: ProBench requires matching Merlin serial number and valid checksum. Serial number is configurable in Expansions -> Graphics boards -> Merlin. Note: amiga.resource.cx ProBench install disks have different serial numbers (1.10=937875, 2.1=23531, 2.2=10010). Note2: there is "cracked" ProBench 3.0 floating around but it is worse than useless, it has modified owner/user string but critical encrypted code is not decrypted. Decryption requires original user string and serial..
+- ET4000AX/W32 lores mode not getting horizontal doubled in >8bit modes fixed. Picasso96 RGBA mode (only available in low resolutions due to chip limits) colors fixed. Interlaced modes fixed.
+- OCS Denise left overscan special case emulation updated and fixed. Previously BPL1DAT write before cycle $2D was ignored but that is not correct. BPL1DAT writes work normally but only BPL1DAT writes >=$2D disable border. This is not same enable flag as DIWSTRT horizontal match. Bitplanes or sprites are not visible until both DIWSTRT and BPL1DAT border disable are active but bitplane shifters work normally. Only difference compared to previous version is that first few bitplane/sprite pixels in max overscan will not be visible (replaced by color 0) depending on DDFSTRT position if OCS Denise. ECS Denise/AGA does not have this limitation.
+- DMA debugger only showed Denise horizontal counter value if also CPU interrupt level was non-zero.
+- Only "insert" CV/BVPPC in to CSMK3/CSPPC internal PCI slot. Insert any other PCI card in to G-REX PCI slots. OS4 does not detect boards in first "internal" PCI slot. (b3)
+- Fixed ECS Denise superhires mode hires sprite pointer strange odd/even horizontal movement.
+- Check all possible Munt ROM directories, including root UAE ROM path when MT32 ROM is needed. Check also other directories if previously detected path existed but didn't contain requested ROM(s).
+
 Beta 3:
 
 - Merlin RTG board blitter fixed. 86box ET4000 blitter/MMU was incomplete (No linear blitter/MMU apertures, missing blit start mode check, pattern/source alignment restrictions are ET4000w32p only). Added vblank interrupt and monitor switcher support. Fixed horizontal panning in 24-bit modes. Overlay/PIP not yet implemented. It is quite useless because overlay and main bitmap depth must match.
