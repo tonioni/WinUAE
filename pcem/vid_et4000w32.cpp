@@ -132,8 +132,9 @@ typedef struct et4000w32p_t {
 
 static int et4000w32_vbus[4] = { 1, 2, 4, 4 };
 
-static int et4000w32_max_x[8]  = { 0, 0, 4, 8, 0x10, 0x20, 0x40, 0x70000000 };
-static int et4000w32_wrap_x[8] = { 0, 0, 3, 7, 0x0f, 0x1f, 0x3f, ~0 };
+// TW: At least W32 horizontal wrap 0 equals 1 (documentation says "reserved"). Fixes Amiga ProBench 2.x glitches.
+static int et4000w32_max_x[8]  = { 1, 1, 4, 8, 0x10, 0x20, 0x40, 0x70000000 };
+static int et4000w32_wrap_x[8] = { 1, 1, 3, 7, 0x0f, 0x1f, 0x3f, ~0 };
 static int et4000w32_wrap_y[8] = { 1, 2, 4, 8, ~0, ~0, ~0, ~0 };
 
 //static video_timings_t timing_et4000w32_vlb = { .type = VIDEO_BUS, .write_b = 4, .write_w = 4, .write_l = 4, .read_b = 10, .read_w = 10, .read_l = 10 };
@@ -424,7 +425,17 @@ et4000w32p_in(uint16_t addr, void *priv)
                 svga->cgastat &= ~0x32;
             else
                 svga->cgastat ^= 0x32;
-            return svga->cgastat;
+
+            ret = svga->cgastat;
+
+            if ((svga->fcr & 0x08) && svga->dispon)
+                ret |= 0x08;
+
+            if (ret & 0x08)
+                ret &= 0x7f;
+            else
+                ret |= 0x80;
+            return ret;
 
         case 0x210a:
         case 0x211a:
@@ -506,6 +517,15 @@ et4000w32p_recalctimings(svga_t *svga)
         bt482_recalctimings(et4000->ramdac_bt, svga);
     }
 
+    svga->interlace = svga->crtc[0x35] & 0x80;
+    if (svga->interlace) {
+        int shift = (svga->crtc[0x17] & 4) ? 2 : 1;
+        svga->vtotal >>= shift;
+        svga->vsyncstart >>= shift;
+        svga->vblankstart >>= shift;
+        svga->dispend >>= shift;
+    }
+
     //svga->clock = (cpuclock * (double) (1ULL << 32)) / svga->getclock((svga->miscout >> 2) & 3, svga->clock_gen);
 
     if (et4000->type != ET4000W32P_DIAMOND) {
@@ -520,6 +540,9 @@ et4000w32p_recalctimings(svga_t *svga)
                         svga->clock /= 3;
                         break;
                     case 24:
+                        svga->clock /= 4;
+                        break;
+                    case 32:
                         svga->clock /= 4;
                         break;
 
@@ -573,10 +596,16 @@ et4000w32p_recalctimings(svga_t *svga)
                 svga->hdisp = 640;
             }
             break;
+        case 32:
+            svga->hdisp /= 4;
+            svga->dots_per_clock /= 4;
+            break;
 
         default:
             break;
     }
+
+    svga->horizontal_linedbl = svga->dispend * 9 / 10 >= svga->hdisp;
 
     svga->render = svga_render_blank;
     if (!svga->scrblank && svga->attr_palette_enable) {
@@ -2792,6 +2821,7 @@ et4000w32p_hwcursor_draw(svga_t *svga, int displine)
     uint8_t             dat;
 
     offset = svga->hwcursor_latch.xoff;
+    offset <<= svga->horizontal_linedbl;
 
     if ((et4000->type == ET4000W32) && (pitch == 32)) {
         switch (svga->bpp) {
@@ -3028,6 +3058,9 @@ static void et4000w32_adjust_panning(svga_t *svga)
     switch (svga->bpp)
     {
         case 24:
+            src += ar11 & 3;
+            break;
+        case 32:
             src += ar11 & 3;
             break;
         default:

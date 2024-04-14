@@ -713,6 +713,8 @@ et4000_recalctimings(svga_t *svga)
             break;
     }
 
+    svga->horizontal_linedbl = svga->dispend * 9 / 10 >= svga->hdisp;
+
 #if 0
     if (dev->type == ET4000_TYPE_KOREAN || dev->type == ET4000_TYPE_TRIGEM || dev->type == ET4000_TYPE_KASAN) {
         if ((svga->render == svga_render_text_80) && ((svga->crtc[0x37] & 0x0A) == 0x0A)) {

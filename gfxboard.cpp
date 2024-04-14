@@ -273,14 +273,16 @@ static const struct gfxboard boards[] =
 		_T("Merlin [Zorro II]"), _T("X-Pert Computer Services"), _T("MerlinZ2"),
 		2117, 3, 4, 0,
 		0x00000000, 0x00200000, 0x00200000, 0x00200000, 0, 2, 6, false, true,
-		0, 0, NULL, &et4000w32_merlin_z2_device
+		ROMTYPE_MERLIN,
+		0, NULL, &et4000w32_merlin_z2_device
 	},
 	{
 		GFXBOARD_ID_MERLIN_Z3,
 		_T("Merlin [Zorro III]"), _T("X-Pert Computer Services"), _T("MerlinZ3"),
 		2117, 3, 4, 0,
 		0x00000000, 0x00200000, 0x00400000, 0x02000000, 0, 3, 6, false, true,
-		0, 0, NULL, &et4000w32_merlin_z3_device
+		ROMTYPE_MERLIN,
+		0, NULL, &et4000w32_merlin_z3_device
 	},
 	{
 		GFXBOARD_ID_GRAFFITY_Z2,
@@ -465,7 +467,7 @@ struct rtggfxboard
 	int vga_width, vga_height, vga_width_mult, vga_height_mult;
 	bool vga_refresh_active;
 	int device_settings;
-	uae_u8 extradata[16];
+	uae_u32 extradata[16];
 
 	uae_u32 vgaioregionptr, vgavramregionptr, vgabank0regionptr, vgabank1regionptr;
 
@@ -1077,6 +1079,18 @@ static void init_board (struct rtggfxboard *gb)
 
 	device_add_hsync(gfxboard_hsync_handler);
 	device_add_rethink(gfxboard_rethink);
+}
+
+static void merlin_init(struct rtggfxboard *gb)
+{
+	struct boardromconfig *brc = get_device_rom(&currprefs, ROMTYPE_MERLIN, 0, NULL);
+	if (brc) {
+		const TCHAR *ser = brc->roms[0].configtext;
+		gb->extradata[0] = _tstol(ser);
+	} else {
+		gb->extradata[0] = 1;
+	}
+	gb->extradata[0] ^= 0x5554452A;
 }
 
 static int GetBytesPerPixel(RGBFTYPE RGBfmt)
@@ -2914,6 +2928,7 @@ static void REGPARAM2 gfxboard_wput_mem_autoconfig (uaecptr addr, uae_u32 b)
 				map_banks_z3(&gb->gfxboard_bank_special_pcem, (start + 0x1000000) >> 16, 0x1000000 >> 16);
 				gb->configured_regs = gb->gfxmem_bank->start >> 16;
 				gb->gfxboard_intena = 1;
+				merlin_init(gb);
 
 			} else if (boardnum == GFXBOARD_ID_GRAFFITY_Z3) {
 
@@ -3148,6 +3163,7 @@ static void REGPARAM2 gfxboard_bput_mem_autoconfig (uaecptr addr, uae_u32 b)
 					gb->pcem_mmio_mask = 0x1fffff;
 					gb->pcem_io_mask = 0xffff;
 					gb->gfxboard_intena = 1;
+					merlin_init(gb);
 
 				} else if (boardnum == GFXBOARD_ID_OMNIBUS_ET4000W32) {
 
@@ -4925,7 +4941,11 @@ bool gfxboard_init_memory (struct autoconfig_info *aci)
 			if (gb->rbc->rtgmem_type == GFXBOARD_ID_VOODOO3_PCI || gb->rbc->rtgmem_type == GFXBOARD_ID_VOODOO5_PCI) {
 				gb->pcibs = pci_board_add(b, &voodoo3_pci_board, -1, -1, aci, gb);
 			} else if (gb->rbc->rtgmem_type == GFXBOARD_ID_PERMEDIA2_PCI) {
-				gb->pcibs = pci_board_add(b, &permedia2_pci_board, -1, -1, aci, gb);
+				if (is_device_rom(p, ROMTYPE_GREX, 0) >= 0) {
+					gb->pcibs = pci_board_add(b, &permedia2_pci_board, 0, -1, aci, gb);
+				} else {
+					gb->pcibs = pci_board_add(b, &permedia2_pci_board, -1, -1, aci, gb);
+				}
 			} else if (gb->rbc->rtgmem_type == GFXBOARD_ID_GD5446_PCI) {
 				gb->pcibs = pci_board_add(b, &gd5446_pci_board, -1, -1, aci, gb);
 			} else if (gb->rbc->rtgmem_type == GFXBOARD_ID_S3TRIO64_PCI) {
@@ -5899,6 +5919,80 @@ static void REGPARAM2 gfxboard_lput_mmio_lbs_pcem(uaecptr addr, uae_u32 l)
 	put_mem_pcem(addr, l, 2);
 }
 
+static uae_u8 get_io_merlin(struct rtggfxboard *gb, uae_u32 addr)
+{
+	uae_u8 v = 0;
+
+	if (addr < 0x5000) {
+		v = get_io_pcem(addr, 0);
+	}
+
+	// 2M vs 4M config bits
+	if (addr == 0x3ca) {
+		v &= ~0x0c;
+		if (gb->gfxboard_bank_vram_pcem.allocated_size >= 0x400000) {
+			v |= 4;
+		}
+	} else if (addr == 0x3c2) {
+		v |= 0x20;
+	}
+	// serial eeprom?
+	if (addr == 0x81 || addr == 0x01) {
+		gb->extradata[2] >>= 1;
+		gb->extradata[1]++;
+		if (gb->extradata[1] <= 10) {
+			if (addr == 0x81) {
+				gb->extradata[2] |= 0x200;
+			}
+			if (gb->extradata[1] == 10) {
+				v = 0;
+				uae_u16 a = gb->extradata[2];
+				uae_u8 aa = a >> 3;
+				uae_u8 d = 0xff;
+				if ((a & 7) == 3) {
+					uae_u8 ser[4] = { gb->extradata[0] >> 24, (uae_u8)(gb->extradata[0] >> 16), (uae_u8)(gb->extradata[0] >> 8), (uae_u8)(gb->extradata[0] >> 0) };
+					if (aa == 0x7c) {
+						d = ser[0];
+					} else if (aa == 0x7d) {
+						d = ser[1];
+					} else if (aa == 0x7b) {
+						d = ser[2];
+					} else if (aa == 0x7e) {
+						d = ser[3];
+					} else if (aa == 0x7f) {
+						// checksum
+						d = 0;
+						for (int i = 0; i < 0x7f; i++) {
+							if (i == 0x7c) {
+								d += ser[0];
+							} else if (i == 0x7d) {
+								d += ser[1];
+							} else if (i == 0x7b) {
+								d += ser[2];
+							} else if (i == 0x7e) {
+								d += ser[3];
+							} else {
+								d += 0xff;
+							}
+						}
+						d = 0x100 - d;
+					}
+				}
+				gb->extradata[3] = d;
+				write_log("Merlin serial eeprom read address %04x (%02x) = %02x\n", a, aa, d);
+			}
+		} else {
+			v = ((gb->extradata[3] >> 7) & 1) ? 2 : 0;
+			gb->extradata[3] <<= 1;
+		}
+	}
+	if (addr == 0x0401) {
+		gb->extradata[2] = 0;
+		gb->extradata[1] = 0;
+	}
+
+	return v;
+}
 
 static void special_pcem_put(uaecptr addr, uae_u32 v, int size)
 {
@@ -6278,12 +6372,15 @@ static void special_pcem_put(uaecptr addr, uae_u32 v, int size)
 
 		if (addr == 0x401) {
 			set_monswitch(gb, (v & 0x01) != 0);
+			gb->extradata[2] = 0;
 		}
-		if (size) {
-			put_io_pcem(addr + 0, (v >> 8) & 0xff, 0);
-			put_io_pcem(addr + 1, (v >> 0) & 0xff, 0);
-		} else if (size == 0) {
-			put_io_pcem(addr, v & 0xff, 0);
+		if (addr < 0x5000) {
+			if (size) {
+				put_io_pcem(addr + 0, (v >> 8) & 0xff, 0);
+				put_io_pcem(addr + 1, (v >> 0) & 0xff, 0);
+			} else if (size == 0) {
+				put_io_pcem(addr, v & 0xff, 0);
+			}
 		}
 
 	} else if (boardnum == GFXBOARD_ID_OMNIBUS_ET4000W32) {
@@ -6676,10 +6773,10 @@ static uae_u32 special_pcem_get(uaecptr addr, int size)
 
 		addr &= 0xffff;
 		if (size) {
-			v = get_io_pcem(addr + 0, 0) << 8;
-			v |= get_io_pcem(addr + 1, 0) << 0;
+			v = get_io_merlin(gb, addr + 0) << 8;
+			v |= get_io_merlin(gb, addr + 1) << 0;
 		} else if (size == 0) {
-			v = get_io_pcem(addr, 0);
+			v = get_io_merlin(gb, addr);
 		}
 
 	} else if (boardnum == GFXBOARD_ID_OMNIBUS_ET4000W32) {

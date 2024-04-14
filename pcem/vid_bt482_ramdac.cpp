@@ -23,6 +23,7 @@ bt482_set_bpp(bt482_ramdac_t *ramdac, svga_t *svga)
             svga->swaprb = (ramdac->cmd_r0 & 2) == 0;
             break;
         case 0x09:
+        case 0x0b:
             svga->bpp = 32;
             svga->swaprb = (ramdac->cmd_r0 & 2) == 0;
             break;
@@ -67,6 +68,7 @@ bt482_ramdac_out(uint16_t addr, int rs2, uint8_t val, void *priv, svga_t *svga)
                 {
                     case 2: // command B
                         svga->ramdac_type = (val & 0x02) ? RAMDAC_8BIT : RAMDAC_6BIT;
+                        ramdac->cmd_r1 = val;
                         break;
                     case 3: // cursor
                         ramdac->cursor_r = val;
@@ -136,6 +138,31 @@ bt482_ramdac_in(uint16_t addr, int rs2, void *priv, svga_t *svga)
         case 0x00: /* Palette Write Index Register (RS value = 0000) */
             temp = svga_in(addr, svga);
             break;
+        case 0x02:
+            if (ramdac->cmd_r0 & 1) {
+                switch (svga->dac_addr)
+                {
+                    case 2: // command B
+                        temp = ramdac->cmd_r1;
+                        break;
+                    case 3: // cursor
+                        temp = ramdac->cursor_r ;
+                        break;
+                    case 4: // cursor x low
+                        temp = ramdac->hwc_x & 0xff;
+                        break;
+                    case 5: // cursor x high
+                        temp = (ramdac->hwc_x >> 8) & 0xff;
+                        break;
+                    case 6: // cursor y low
+                        temp = ramdac->hwc_y & 0xff;
+                        break;
+                    case 7: // cursor y high
+                        temp = (ramdac->hwc_y >> 8) & 0xff;
+                        break;
+                }
+            }
+            break;
         case 0x03: /* Palette Read Index Register (RS value = 0011) */
             temp = svga->dac_addr & 0xff;
             break;
@@ -176,6 +203,8 @@ bt482_hwcursor_draw(svga_t *svga, int displine)
     clr1 = ramdac->extpallook[1];
     clr2 = ramdac->extpallook[2];
     clr3 = ramdac->extpallook[3];
+
+    offset <<= svga->horizontal_linedbl;
 
     /* The planes come in two parts, and each plane is 1bpp,
        32x32 cursor has 4 bytes per line */
