@@ -4249,7 +4249,24 @@ static TCHAR *HandleConfiguration (HWND hDlg, int flag, struct ConfigStruct *con
 			TCHAR szMessage[MAX_DPATH];
 			WIN32GUI_LoadUIString (IDS_MUSTSELECTCONFIG, szMessage, MAX_DPATH);
 			pre_gui_message (szMessage);
-		} else {
+			ok = 0;
+		}
+		if (ok && !zfile_exists(path)) {
+			TCHAR fname[MAX_DPATH];
+			fetch_configurationpath(fname, sizeof(fname) / sizeof(TCHAR));
+			if (_tcsncmp(fname, path, _tcslen(fname)))
+				_tcscat(fname, path);
+			else
+				_tcscpy(fname, path);
+			if (!zfile_exists(fname)) {
+				TCHAR szMessage[MAX_DPATH];
+				WIN32GUI_LoadUIString(IDS_COULDNOTLOADCONFIG, szMessage, MAX_DPATH);
+				pre_gui_message(szMessage);
+				config_filename[0] = 0;
+				ok = 0;
+			}
+		}
+		if (ok) {
 			if (target_cfgfile_load (&workprefs, path, configtypepanel, 0) == 0) {
 				TCHAR szMessage[MAX_DPATH];
 				WIN32GUI_LoadUIString (IDS_COULDNOTLOADCONFIG, szMessage, MAX_DPATH);
