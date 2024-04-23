@@ -838,7 +838,7 @@ void video_blit_memtoscreen(int x, int y, int y1, int y2, int w, int h)
 		struct rtggfxboard *gb = &rtggfxboards[i];
 		if (gb->pcemdev && gb->pcemobject) {
 			pcem_flush(gb, i);
-			if (rtg_visible[gb->monitor_id] >= 0 && gb->monswitch_delay == 0 && gb->monswitch_current == gb->monswitch_new) {
+			if (rtg_visible[gb->monitor_id] == i && gb->monswitch_delay == 0 && gb->monswitch_current == gb->monswitch_new) {
 				if (gb->gfxboard_surface == NULL) {
 					gb->gfxboard_surface = gfx_lock_picasso(gb->monitor_id, false);
 				}
@@ -1702,6 +1702,8 @@ void gfxboard_vsync_handler(bool full_redraw_required, bool redraw_required)
 					set_monswitch(gb, on);
 				}
 			}
+
+			gfxboard_unlock(gb);
 
 			if (gb->monswitch_keep_trying) {
 				vga_update_size_ext(gb);
