@@ -1,9 +1,22 @@
 
+Beta 5:
+
+- Fixed pre-KS 1.2 HDF/directory filesystem boot. Two bugs: crash due to config handling changes (3.6) and KS 1.0/1.1 seems to have a bug where level 2 CIA keyboard interrupt handler returns "I handled this interrupt" status even if it was caused by external device, skipping all following handers, including UAE filesystem interrupt handler, causing a hang. UAE FS interrupt level was changed to -1 if KS 1.3 or lower (4.9) because there was some buggy (KS1.x compatible only) program that poked interrupt list and broke if CIA handler wasn't first in list. Now UAE FS handler priority is lower than CIA handler only if KS 1.2 or 1.3.
+- Multi-monitor active state was not fully reset when system was hard reset. (Secondary window was open -> hard reset -> window didn't open anymore again)
+- If x86 bridgeboard SVGA and also other hardware emulated RTG board was active and END+F9 was used to switch monitors: both monitors' output was drawn in same window, causing corrupted graphics and possibly also crash if monitor sizes were too different.
+- Adjusted 520b5 audio period hack, do not change period immediately after first loop but only after it has looped multiple times. Does not anymore mess up weird audio test programs.
+- Permedia 2 Video Control register video enabled/disabled (disabled = blanked) and Line doubling bits emulated.
+- Show error message without resetting config back to defaults when GUI Load button could not open the file.
+- GD-CL54xx LFB VRAM reads fixed. (For example NetBSD console scrolling was broken)
+- Fixed S3 Virge MMIO address calculation (fix from 86box update). NetBSD "No mapping" log message fix.
+- A2410 NetBSD text console works again.
+- Autoswitch to hardware emulated RTG board also when text mode gets enabled (*nix boot consoles etc)
+
 Beta 4:
 
 - ET4000W32/Merlin fixes, ProBench (Early RTG software for Merlin cards) now works without glitches. Merlin serial eeprom(?) emulation added: ProBench requires matching Merlin serial number and valid checksum. Serial number is configurable in Expansions -> Graphics boards -> Merlin. Note: amiga.resource.cx ProBench install disks have different serial numbers (1.10=937875, 2.1=23531, 2.2=10010). Note2: there is "cracked" ProBench 3.0 floating around but it is worse than useless, it has modified owner/user string but critical encrypted code is not decrypted. Decryption requires original user string and serial..
 - ET4000AX/W32 lores mode not getting horizontal doubled in >8bit modes fixed. Picasso96 RGBA mode (only available in low resolutions due to chip limits) colors fixed. Interlaced modes fixed.
-- OCS Denise left overscan special case emulation updated and fixed. Previously BPL1DAT write before cycle $2D was ignored but that is not correct. BPL1DAT writes work normally but only BPL1DAT writes >=$2D disable border. This is not same enable flag as DIWSTRT horizontal match. Bitplanes or sprites are not visible until both DIWSTRT and BPL1DAT border disable are active but bitplane shifters work normally. Only difference compared to previous version is that first few bitplane/sprite pixels in max overscan will not be visible (replaced by color 0) depending on DDFSTRT position if OCS Denise. ECS Denise/AGA does not have this limitation.
+- OCS Denise left overscan special case emulation updatEd and fixed. Previously BPL1DAT write before cycle $2D was ignored but that is not correct. BPL1DAT writes work normally but only BPL1DAT writes >=$2D disable border. This is not same enable flag as DIWSTRT horizontal match. Bitplanes or sprites are not visible until both DIWSTRT and BPL1DAT border disable are active but bitplane shifters work normally. Only difference compared to previous version is that first few bitplane/sprite pixels in max overscan will not be visible (replaced by color 0) depending on DDFSTRT position if OCS Denise. ECS Denise/AGA does not have this limitation.
 - DMA debugger only showed Denise horizontal counter value if also CPU interrupt level was non-zero.
 - Only "insert" CV/BVPPC in to CSMK3/CSPPC internal PCI slot. Insert any other PCI card in to G-REX PCI slots. OS4 does not detect boards in first "internal" PCI slot. (b3)
 - Fixed ECS Denise superhires mode hires sprite pointer strange odd/even horizontal movement.
