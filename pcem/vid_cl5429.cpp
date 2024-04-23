@@ -1839,7 +1839,7 @@ uint8_t gd5429_read_linear(uint32_t addr, void *p)
         else
                 addr<<=2;
 
-//        addr &= svga->decode_mask;
+        addr &= svga->decode_mask;
 
         if (latch_addr >= svga->vram_max)
         {

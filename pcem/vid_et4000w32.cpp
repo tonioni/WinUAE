@@ -70,7 +70,7 @@ typedef struct et4000w32p_t {
     mem_mapping_t linear_mapping;
     mem_mapping_t mmu_mapping, mmu_mapping2;
 
-    void *ramdac_sdac;
+    sdac_ramdac_t ramdac_sdac;
     void *ramdac_bt;
 
     rom_t bios_rom;
@@ -215,8 +215,8 @@ et4000w32p_out(uint16_t addr, uint8_t val, void *priv)
         case 0x3c7:
         case 0x3c8:
         case 0x3c9:
-            if (et4000->ramdac_sdac)
-                sdac_ramdac_out(addr & 3, val, (sdac_ramdac_t*)et4000->ramdac_sdac, svga);
+            if (!et4000->ramdac_bt)
+                sdac_ramdac_out(addr & 3, val, &et4000->ramdac_sdac, svga);
             return;
 
         case 0x3cb: /* Banking extension */
@@ -400,8 +400,8 @@ et4000w32p_in(uint16_t addr, void *priv)
         case 0x3c7:
         case 0x3c8:
         case 0x3c9:
-            if (et4000->ramdac_sdac)
-                return sdac_ramdac_in(addr & 3, (sdac_ramdac_t*)et4000->ramdac_sdac, svga);
+            if (!et4000->ramdac_bt)
+                return sdac_ramdac_in(addr & 3, &et4000->ramdac_sdac, svga);
             return 0;
         case 0x3cb:
             return et4000->banking2;
@@ -3327,8 +3327,6 @@ et4000w32p_close_sc(void *priv)
 
     svga_close(&et4000->svga);
 
-    sc1502x_ramdac_close(et4000->ramdac_sdac);
-
     free(et4000);
 }
 
@@ -3603,8 +3601,8 @@ void *et4000w32_omnibus_z2_init()
     void *p = et4000w32p_init(NULL);
     et4000w32p_t *et4000w32p = (et4000w32p_t *)p;
 
-    et4000w32p->ramdac_sdac = sc1502x_ramdac_init(NULL);
-    et4000w32p->svga.ramdac = et4000w32p->ramdac_sdac;
+    sdac_init(&et4000w32p->ramdac_sdac);
+    et4000w32p->svga.ramdac = &et4000w32p->ramdac_sdac;
 
     return p;
 }

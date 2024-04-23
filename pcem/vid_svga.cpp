@@ -24,7 +24,7 @@ static svga_t *svga_pri;
 bool svga_on(void *p)
 {
     svga_t *svga = (svga_t*)p;
-    return svga->scrblank == 0 && svga->hdisp >= 128 && (svga->crtc[0x17] & 0x80);
+    return svga->scrblank == 0 && svga->hdisp >= 80 && (svga->crtc[0x17] & 0x80);
 }
 
 int svga_get_vtotal(void *p)

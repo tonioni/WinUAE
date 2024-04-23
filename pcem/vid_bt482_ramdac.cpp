@@ -67,7 +67,7 @@ bt482_ramdac_out(uint16_t addr, int rs2, uint8_t val, void *priv, svga_t *svga)
                 switch(svga->dac_addr)
                 {
                     case 2: // command B
-                        svga->ramdac_type = (val & 0x02) ? RAMDAC_8BIT : RAMDAC_6BIT;
+                        svga_set_ramdac_type(svga, (val & 0x02) ? RAMDAC_8BIT : RAMDAC_6BIT);
                         ramdac->cmd_r1 = val;
                         break;
                     case 3: // cursor
@@ -204,7 +204,7 @@ bt482_hwcursor_draw(svga_t *svga, int displine)
     clr2 = ramdac->extpallook[2];
     clr3 = ramdac->extpallook[3];
 
-    offset <<= svga->horizontal_linedbl;
+    offset <<= ((svga->horizontal_linedbl ? 1 : 0) + (svga->lowres ? 1 : 0));
 
     /* The planes come in two parts, and each plane is 1bpp,
        32x32 cursor has 4 bytes per line */

@@ -379,11 +379,23 @@ void permedia2_recalctimings(svga_t *svga)
             }
  
             svga->fullchange = changeframecount;
+
+            // GP video enabled
+            if (!(permedia2->vc_regs[0x58 / 4] & 1)) {
+                bpp = 0;
+            }
+            svga->linedbl = 0;
+            if (permedia2->vc_regs[0x58 / 4] & 4) {
+                svga->linedbl = 1;
+            }
         }
 
 
         switch (bpp)
         {
+            default:
+                svga->render = svga_render_blank;
+                break;
             case 4:
                 svga->render = svga_render_4bpp_highres;
                 break;
