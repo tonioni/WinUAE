@@ -1366,7 +1366,7 @@ uae_u16 alg_joydat(int joy, uae_u16 v)
 
 		} else if (joy == 1) {
 
-			// holster
+			// right holster
 			if (alg_flag & 512)
 				v |= 0x0200;
 
@@ -1374,6 +1374,11 @@ uae_u16 alg_joydat(int joy, uae_u16 v)
 			if (alg_flag & 64)
 				v |= 0x0002;
 
+			// left holster
+			if (alg_flag & 256)
+				v |= (v & 0x0002) ? 0x0000 : 0x0001;
+			else
+				v |= (v & 0x0002) ? 0x0001 : 0x0000;
 		}
 
 	} else if (alg_picmatic_nova == 2) {
