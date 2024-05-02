@@ -1561,7 +1561,6 @@ WRITE16_MEMBER( tms340x0_device::host_w )
 {
 	int reg = offset;
 	unsigned int addr;
-	unsigned int hstctlh = IOREG(REG_HSTCTLH);
 
 	switch (reg)
 	{
