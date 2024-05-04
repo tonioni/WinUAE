@@ -1,4 +1,8 @@
 
+Beta 7:
+
+- b6 NTSC fix corruption fixed. Fix was incomplete.
+
 Beta 6:
 
 - Los Justicieros (Zorton Brothers) laserdisc arcade game left holster hooked up correctly. (Was stuck active previously)
