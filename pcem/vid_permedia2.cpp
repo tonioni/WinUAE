@@ -608,13 +608,20 @@ static void permedia2_ramdac_write(int reg, uint8_t v, void *p)
         }
     } else if (reg == 0x50) { // indexeddata
         permedia2->ramdac_vals[permedia2->ramdac_reg] = v;
-        if (permedia2->ramdac_reg == 0x06) { // cursorcontrol
+        switch (permedia2->ramdac_reg)
+        {
+            case 0x06: // cursorcontrol
             svga->hwcursor.ena = (v & 3) != 0;
             svga->hwcursor.ysize = svga->hwcursor.xsize = (v & 0x40) ? 64 : 32;
             permedia2->ramdac_cramaddr &= 0x00ff;
             permedia2->ramdac_cramaddr |= ((v >> 2) & 3) << 8;
-        } else if (permedia2->ramdac_reg == 0x18) { // colormode
+            break;
+            case 0x18: // colormode
             svga_recalctimings(&permedia2->svga);
+            break;
+            case 0x1e: // misccontrol
+            svga_set_ramdac_type(&permedia2->svga, (v & 2) ? RAMDAC_8BIT : RAMDAC_6BIT);
+            break;
         }
     } else if (reg == 0x58) { // cursorramdata
         permedia2->ramdac_cram[permedia2->ramdac_cramaddr] = v;
@@ -1476,6 +1483,12 @@ static uint32_t permedia2_mmio_readl(uint32_t addr, void *p)
     } else if (reg >= 0x3000 && reg < 0x4000) {
         int vcreg = reg & 0xff;
         v = permedia2->vc_regs[vcreg / 4];
+        switch (vcreg)
+        {
+            case 0x70: // LineCount
+                v = permedia2->svga.vc;
+            break;
+        }
     } else if (reg < 0x2000) {
         switch (reg)
         {
