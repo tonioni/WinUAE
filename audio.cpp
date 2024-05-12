@@ -2572,8 +2572,8 @@ void AUDxDAT(int nr, uae_u16 v, uaecptr addr)
 		int cyc = 0;
 		if (chan_ena) {
 			// AUDxLEN is processed after 1 CCK delay
+			cyc = 1 * CYCLE_UNIT;
 			if ((cdp->state & 15) == 2 || (cdp->state & 15) == 3) {
-				cyc = 1 * CYCLE_UNIT;
 				// But INTREQ2 is set immediately
 				if (cdp->wlen == 1) {
 					cdp->intreq2 = true;
