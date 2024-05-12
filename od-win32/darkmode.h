@@ -73,7 +73,7 @@ using fnIsDarkModeAllowedForApp = bool (WINAPI *)(); // ordinal 139
 
 extern bool g_darkModeSupported;
 extern bool g_darkModeEnabled;
-extern int darkModeForced;
+extern int darkModeForced, darkModeDetect;
 extern COLORREF dark_text_color, dark_bg_color;;
 
 bool AllowDarkModeForWindow(HWND hWnd, bool allow);
@@ -85,3 +85,4 @@ void SubclassListViewControl(HWND hListView);
 void SubclassTreeViewControl(HWND hListView);
 void SubclassButtonControl(HWND hwnd);
 void SubClassStatusBar(HWND hwnd);
+int GetAppDarkModeState(void);

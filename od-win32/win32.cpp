@@ -7187,6 +7187,8 @@ static int parseargs(const TCHAR *argx, const TCHAR *np, const TCHAR *np2)
 			darkModeForced = 1;
 		} else if (!_tcsicmp(np, _T("light"))) {
 			darkModeForced = -1;
+		} else if (!_tcsicmp(np, _T("default"))) {
+			darkModeDetect = -1;
 		}
 		return 2;
 	}
@@ -8320,16 +8322,24 @@ bool is_mainthread(void)
 void InitializeDarkMode(void)
 {
 	static int initialized = -10;
+	static int dmdetect = -10;
 
 	int v = -1;
 	regqueryint(NULL, _T("GUIDarkMode"), &v);
 	if (rp_isactive()) {
-		v = -2;
+		darkModeDetect = 1;
+	}
+	if (darkModeDetect) {
+		int dms = GetAppDarkModeState();
+		if (dms != dmdetect) {
+			dmdetect = dms;
+			initialized = -10;
+		}
+		v = -1;
 	}
 	if (darkModeForced) {
 		v = 1;
 	}
-
 	if (initialized != v) {
 		InitDarkMode(v);
 		write_log("dark mode supported: %d enabled: %d\n", g_darkModeSupported, g_darkModeEnabled);

@@ -24,6 +24,7 @@ extern void write_log(const char *, ...);
 bool g_darkModeSupported = false;
 bool g_darkModeEnabled = false;
 int darkModeForced = 0;
+int darkModeDetect = 0;
 DWORD g_buildNumber = 0;
 
 fnSetWindowCompositionAttribute _SetWindowCompositionAttribute = nullptr;
@@ -40,6 +41,14 @@ fnShouldSystemUseDarkMode _ShouldSystemUseDarkMode = nullptr;
 fnSetPreferredAppMode _SetPreferredAppMode = nullptr;
 
 COLORREF dark_text_color, dark_bg_color;
+
+int GetAppDarkModeState(void)
+{
+	if (!_ShouldAppsUseDarkMode) {
+		return -1;
+	}
+	return _ShouldAppsUseDarkMode() ? 1 : 0;
+}
 
 bool AllowDarkModeForWindow(HWND hWnd, bool allow)
 {
@@ -191,25 +200,38 @@ void InitDarkMode(int enable)
 				{
 					g_darkModeSupported = true;
 
-					if (darkModeForced > 0) {
-						AllowDarkModeForApp(PreferredAppMode::ForceDark);
-					} else  if (darkModeForced < 0) {
-						AllowDarkModeForApp(PreferredAppMode::ForceLight);
-					} else if (enable == -1 || enable == 1) {
-						AllowDarkModeForApp(PreferredAppMode::AllowDark);
-					} else {
-						AllowDarkModeForApp(PreferredAppMode::Default);
+					if (!darkModeDetect) {
+						if (darkModeForced > 0) {
+							AllowDarkModeForApp(PreferredAppMode::ForceDark);
+						} else  if (darkModeForced < 0) {
+							AllowDarkModeForApp(PreferredAppMode::ForceLight);
+						} else if (enable == -1 || enable == 1) {
+							AllowDarkModeForApp(PreferredAppMode::AllowDark);
+						} else {
+							AllowDarkModeForApp(PreferredAppMode::Default);
+						}
+					} else if (darkModeDetect < 0) {
+						if (_ShouldAppsUseDarkMode()) {
+							AllowDarkModeForApp(PreferredAppMode::ForceDark);
+						} else {
+							AllowDarkModeForApp(PreferredAppMode::ForceLight);
+						}
 					}
+
 					_RefreshImmersiveColorPolicyState();
 
 					g_darkModeEnabled = _ShouldAppsUseDarkMode() && !IsHighContrast();
 					
 					if (g_darkModeEnabled && enable < -1) {
-						AllowDarkModeForApp(PreferredAppMode::ForceDark);
+						if (darkModeDetect < 0) {
+							AllowDarkModeForApp(PreferredAppMode::ForceDark);
+						}
 					}
 
 					if (!g_darkModeEnabled && enable > 0 && darkModeForced >= 0) {
-						AllowDarkModeForApp(PreferredAppMode::ForceDark);
+						if (darkModeDetect < 0) {
+							AllowDarkModeForApp(PreferredAppMode::ForceDark);
+						}
 						_RefreshImmersiveColorPolicyState();
 						g_darkModeEnabled = _ShouldAppsUseDarkMode() && !IsHighContrast();
 					}
@@ -224,7 +246,9 @@ void InitDarkMode(int enable)
 	}
 
 	if (!enable && g_darkModeSupported) {
-		AllowDarkModeForApp(PreferredAppMode::Default);
+		if (darkModeDetect < 0) {
+			AllowDarkModeForApp(PreferredAppMode::Default);
+		}
 		if (_RefreshImmersiveColorPolicyState != NULL) {
 			_RefreshImmersiveColorPolicyState();
 		}
