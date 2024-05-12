@@ -521,6 +521,10 @@ void rawinput_alloc(void)
 }
 void rawinput_release(void)
 {
+	if (rp_isactive()) {
+		return;
+	}
+
 	UINT num = 0;
 	int cnt = 0;
 	int v = GetRegisteredRawInputDevices(NULL, &num, sizeof(RAWINPUTDEVICE));

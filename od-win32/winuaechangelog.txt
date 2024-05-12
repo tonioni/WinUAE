@@ -1,4 +1,13 @@
 
+Beta 8:
+
+- Line 0 is also visible at the bottom of screen in OCS Agnus + OCS Denise combination, works like A1000 but without 1 line delayed vblank interrupt. ("Extra" lines are only visible if Overscan+ or higher mode)
+- DMA debugger line 0 strobe type is now correct in OCS Agnus and A1000 configurations. (STRHOR if A1000, STRVBL if OCS Agnus, STREQU if ECS Agnus/AGA)
+- Implemented Permedia 2 (CVPPC//BVPPC) LineCount register. Fixes OS4 boot screen hang. NOTE: Read Classic_FAQ on OS41FE CD root directory before attempting to use CVPPC/BVPPC with OS4.
+- Flush log file before adding log to crash dump file.
+- b5 audio fix (in some situations audio DMA slot was allocated in wrong position causing DMA debugger reported conflict)
+- -theme command line parameter now also support "default" value: ignore GUI setting and follow Windows setting.
+
 Beta 7:
 
 - b6 NTSC fix corruption fixed. Fix was incomplete.
