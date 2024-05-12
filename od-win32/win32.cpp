@@ -3883,6 +3883,8 @@ uae_u8 *save_log(int bootlog, size_t *len)
 
 	if (!logging_started)
 		return NULL;
+	if (debugfile)
+		fflush(debugfile);
 	f = _tfopen(bootlog ? LOG_BOOT : LOG_NORMAL, _T("rb"));
 	if (!f)
 		return NULL;
