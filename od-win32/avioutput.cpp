@@ -42,6 +42,8 @@ Copyright(c) 2001 - 2002; §ane
 #include "savestate.h"
 #include "gfxboard.h"
 
+void WIN32GUI_LoadUIString(DWORD id, TCHAR *string, DWORD dwStringLen);
+
 #define MAX_AVI_SIZE (0x80000000 - 0x1000000)
 
 static smp_comm_pipe workindex;
@@ -111,6 +113,7 @@ static PAVISTREAM AVIAudioStream = NULL; // compressed stream pointer
 static HACMSTREAM has = NULL; // stream handle that can be used to perform conversions
 static ACMSTREAMHEADER ash;
 static ACMFORMATCHOOSE acmopt;
+static TCHAR acmopt_title[MAX_PATH];
 static WAVEFORMATEXTENSIBLE wfxSrc; // source audio format
 static LPWAVEFORMATEX pwfxDst = NULL; // pointer to destination audio format
 static DWORD wfxMaxFmtSize;
@@ -356,7 +359,8 @@ static int AVIOutput_AllocateAudio (bool immediate)
 	acmopt.fdwStyle = ACMFORMATCHOOSE_STYLEF_INITTOWFXSTRUCT;
 	acmopt.pwfx = pwfxDst;
 	acmopt.cbwfx = wfxMaxFmtSize;
-	acmopt.pszTitle  = _T("Choose Audio Codec");
+	WIN32GUI_LoadUIString(IDS_CHOOSE_AUDIO_CODEC, acmopt_title, sizeof(acmopt_title) / sizeof(TCHAR));
+	acmopt.pszTitle = acmopt_title;
 
 	//acmopt.szFormatTag =; // not valid until the format is chosen
 	//acmopt.szFormat =; // not valid until the format is chosen
@@ -699,6 +703,9 @@ int AVIOutput_GetVideoCodec(TCHAR *name, int len)
 
 int AVIOutput_ChooseVideoCodec (HWND hwnd, TCHAR *s, int len)
 {
+	TCHAR tmp1[MAX_PATH];
+	char tmp2[MAX_PATH];
+
 	AVIOutput_Initialize();
 
 	AVIOutput_End();
@@ -717,7 +724,9 @@ int AVIOutput_ChooseVideoCodec (HWND hwnd, TCHAR *s, int len)
 	pcompvars->lQ = 10000; // 10000 is maximum quality setting or ICQUALITY_DEFAULT for default
 	pcompvars->lKey = avioutput_fps; // default to one key frame per second, every (FPS) frames
 	pcompvars->dwFlags = 0;
-	if (ICCompressorChoose (hwnd, ICMF_CHOOSE_DATARATE | ICMF_CHOOSE_KEYFRAME, lpbi, NULL, pcompvars, "Choose Video Codec") == TRUE) {
+	WIN32GUI_LoadUIString(IDS_CHOOSE_VIDEO_CODEC, tmp1, sizeof(tmp1) / sizeof(TCHAR));
+	ua_copy(tmp2, sizeof(tmp2), tmp1);
+	if (ICCompressorChoose(hwnd, ICMF_CHOOSE_DATARATE | ICMF_CHOOSE_KEYFRAME, lpbi, NULL, pcompvars, tmp2) == TRUE) {
 		UAEREG *avikey;
 		LRESULT ss;
 		uae_u8 *state;

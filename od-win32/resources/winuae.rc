@@ -2242,6 +2242,8 @@ BEGIN
     IDS_SOUND_FILTER_ON_FIXEDONLY "Always on (Fixed only)"
     IDS_MISCLISTITEMS5      "Hide all UAE autoconfig boards\nRight Control = Right Windows key\nWindows shutdown/logoff notification\nWarn when attempting to close window\nPower led dims when audio filter is disabled\nAutomatically capture mouse when window is activated\nDebug memory space\n"
     IDS_MISCLISTITEMS6      "Force hard reset if CPU halted\nA600/A1200/A4000 IDE scsi.device disable\nWarp mode reset\nGUI gamepad control\nDefault on screen keyboard (Pad button 4)\n"
+    IDS_CHOOSE_AUDIO_CODEC  "Choose Audio Codec"
+    IDS_CHOOSE_VIDEO_CODEC  "Choose Video Codec"
 END
 
 #endif    // English (United Kingdom) resources
