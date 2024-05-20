@@ -1,4 +1,8 @@
 
+Beta 9:
+
+- AGA mode color register with set genlock bit was misdetected as blanking being enabled. (b1 made it visible but real bug was introduced long time ago)
+
 Beta 8:
 
 - Line 0 is also visible at the bottom of screen in OCS Agnus + OCS Denise combination, works like A1000 but without 1 line delayed vblank interrupt. ("Extra" lines are only visible if Overscan+ or higher mode)
