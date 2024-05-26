@@ -798,6 +798,13 @@ static void serdatcopy(void)
 		}
 
 		event2_newevent_x_replace(per, 0, sersend_ce);
+
+	} else {
+
+		if (serloop_enabled) {
+			sersend_serloop(0);
+		}
+
 	}
 
 	checksend();
@@ -1010,9 +1017,9 @@ void SERDAT(uae_u16 w)
 	}
 }
 
-void serial_rbf_clear(void)
+void serial_rbf_change(bool set)
 {
-	ovrun = 0;
+	ovrun = set;
 }
 
 void serial_dtr_on(void)
