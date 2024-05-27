@@ -1,4 +1,10 @@
 
+Beta 10:
+
+- Fast CPU and serial port loop back mode: transmit never finished, nothing was received.
+- Undocumented serial port feature emulated: CPU/Copper INTREQ write that sets RBF bit will also set SERDATR OVRUN bit.
+- ATAPI CD MODE SELECT command fixed. (Used to control analog CD audio volume) 
+
 Beta 9:
 
 - AGA mode color register with set genlock bit was misdetected as blanking being enabled. (b1 made it visible but real bug was introduced long time ago)
@@ -70,7 +76,7 @@ All Picasso96 supported RTG boards are now emulated. All CGX4 supported boards e
 
 Beta 2:
 
-- Release raw input devices when GUI is open (except during input Test/Remap) or when debugger window is active. Allows Windows shortcut keys like Win+E now work without need to unfocus the window.
+- Release raw input devices when GUI is open (except during input Test/Remap) or when debugger window is active. Allows Windows shortcut keys like Win+E work without need to unfocus the window.
 - Added Misc panel option to disable default on screen keyboard gamepad button 4 mapping. 
 - Added Domino RTG board emulation. (ET4000, basic SVGA chip, no HW cursor, no blitter. Has linear frame buffer support. Emulator code from 86box.)
 - Added Merlin Z2 and Z3 RTG board emulation. (ET4000/W32, ET4000+ HW cursor and blitter. Emulator code from 86box.). Blitter is not yet hooked up properly. (If you try it, make sure NOBLITTER=YES)

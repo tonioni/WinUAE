@@ -1103,6 +1103,8 @@ public:
 			return S_OK;
 		if (flow != eConsole && flow != eMultimedia)
 			return S_OK;
+		if (!s)
+			return S_OK;
 		if (s->devicetype == SOUND_DEVICE_WASAPI_EXCLUSIVE) {
 			write_log(_T("WASAPI EX OnDefaultDeviceChanged '%s'\n"), pwstrDeviceId);
 			return S_OK;
@@ -1131,6 +1133,8 @@ public:
 	}
 	HRESULT STDMETHODCALLTYPE OnDeviceStateChanged(LPCWSTR pwstrDeviceId, DWORD dwNewState)
 	{
+		if (!s)
+			return S_OK;
 		if (s->devicetype == SOUND_DEVICE_WASAPI_EXCLUSIVE || s->devicetype == SOUND_DEVICE_WASAPI) {
 			;// write_log(_T("WASAPI OnDeviceStateChanged '%s' %08x\n"), pwstrDeviceId, dwNewState);
 		}
@@ -1138,6 +1142,8 @@ public:
 	}
 	HRESULT STDMETHODCALLTYPE OnPropertyValueChanged(LPCWSTR pwstrDeviceId, const PROPERTYKEY key)
 	{
+		if (!s)
+			return S_OK;
 		if (s->devicetype == SOUND_DEVICE_WASAPI_EXCLUSIVE || s->devicetype == SOUND_DEVICE_WASAPI) {
 			;// write_log(_T("WASAPI OnPropertyValueChanged '%s'\n"), pwstrDeviceId);
 		}
