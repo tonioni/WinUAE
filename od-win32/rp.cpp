@@ -693,7 +693,8 @@ static void fixup_size (struct uae_prefs *prefs)
 	if (done)
 		return;
 	done = 1;
-	write_log(_T("fixup_size(%d,%d)\n"), prefs->gfx_xcenter_size, prefs->gfx_ycenter_size);
+	if (log_rp)
+		write_log(_T("fixup_size(%d,%d)\n"), prefs->gfx_xcenter_size, prefs->gfx_ycenter_size);
 	if (prefs->gfx_xcenter_size > 0) {
 		int hres = prefs->gfx_resolution;
 		if (prefs->gf[0].gfx_filter) {
@@ -1584,7 +1585,7 @@ static LRESULT CALLBACK RPHostMsgFunction2 (UINT uMessage, WPARAM wParam, LPARAM
 			int device = LOBYTE(wParam);
 			if (device == RP_DEVICECATEGORY_FLOPPY) {
 				int num = HIBYTE(wParam);
-				if (lParam == RP_DEVICE_READONLY || lParam == RP_DEVICE_READWRITE) {
+				if ((lParam == RP_DEVICE_READONLY || lParam == RP_DEVICE_READWRITE) && num >= 0 && num <= 4) {
 					ret = disk_setwriteprotect (&currprefs, num, currprefs.floppyslots[num].df, lParam == RP_DEVICE_READONLY);
 					if (ret)
 						DISK_reinsert(num);
@@ -1597,7 +1598,7 @@ static LRESULT CALLBACK RPHostMsgFunction2 (UINT uMessage, WPARAM wParam, LPARAM
 	case RP_IPC_TO_GUEST_QUERYSCREENMODE:
 		{
 			screenmode_request = 1;
-			//write_log (_T("RP_IPC_TO_GUEST_QUERYSCREENMODE -> RP_IPC_TO_HOST_SCREENMODE screenmode_request started\n"));
+			write_log (_T("RP_IPC_TO_GUEST_QUERYSCREENMODE -> RP_IPC_TO_HOST_SCREENMODE screenmode_request started\n"));
 			return 1;
 		}
 	case RP_IPC_TO_GUEST_GUESTAPIVERSION:
@@ -2254,8 +2255,16 @@ void rp_turbo_floppy (int active)
 
 void rp_set_hwnd_delayed (void)
 {
-	hwndset_delay = 4;
-	//write_log (_T("RP_IPC_TO_HOST_SCREENMODE delay started\n"));
+	struct amigadisplay *ad = &adisplays[0];
+	hwndset_delay = 3;
+	int idx = ad->gf_index;
+	if (currprefs.gf[idx].gfx_filter_autoscale == AUTOSCALE_RESIZE) {
+		hwndset_delay += 10;
+	}
+	if (log_rp)
+		write_log (_T("RP_IPC_TO_HOST_SCREENMODE delay started (%d)\n"), hwndset_delay);
+
+	screenmode_request = 0;
 }
 
 void rp_set_hwnd (HWND hWnd)
@@ -2265,10 +2274,15 @@ void rp_set_hwnd (HWND hWnd)
 	if (!initialized)
 		return;
 	if (hwndset_delay) {
-		//write_log (_T("RP_IPC_TO_HOST_SCREENMODE, delay=%d\n"), hwndset_delay);
-		return;
+		if (hWnd) {
+			if (log_rp)
+				write_log (_T("RP_IPC_TO_HOST_SCREENMODE, delay=%d\n"), hwndset_delay);
+			return;
+		}
+		hwndset_delay = 0;
 	}
-	//write_log (_T("RP_IPC_TO_HOST_SCREENMODE\n"));
+	if (log_rp)
+		write_log (_T("RP_IPC_TO_HOST_SCREENMODE\n"));
 	guestwindow = hWnd;
 	get_screenmode (&sm, &currprefs, false);
 	if (hWnd != NULL)
@@ -2278,10 +2292,12 @@ void rp_set_hwnd (HWND hWnd)
 
 void rp_screenmode_changed (void)
 {
-	//write_log (_T("rp_screenmode_changed\n"));
-	if (!screenmode_request) {
+	if (log_rp)
+		write_log (_T("rp_screenmode_changed\n"));
+	if (!screenmode_request && !hwndset_delay) {
 		screenmode_request = 6;
-		//write_log (_T("rp_screenmode_changed -> screenmode_request started\n"));
+		if (log_rp)
+			write_log (_T("rp_screenmode_changed -> screenmode_request started\n"));
 	}
 }
 
@@ -2315,6 +2331,8 @@ void rp_vsync(void)
 		if (x != rp_prev_x || y != rp_prev_y ||
 			w != rp_prev_w || h != rp_prev_h) {
 			screenmode_request = 6;
+			if (log_rp)
+				write_log(_T("screenmode_request = %d\n"), screenmode_request);
 			rp_prev_x = x;
 			rp_prev_y = y;
 			rp_prev_w = w;
@@ -2331,14 +2349,18 @@ void rp_vsync(void)
 	}
 	if (hwndset_delay > 0) {
 		hwndset_delay--;
-		if (hwndset_delay == 0)
+		if (hwndset_delay == 0) {
+			if (log_rp)
+				write_log(_T("rp_set_hwnd delay expired\n"));
 			rp_set_hwnd(mon->hAmigaWnd);
+		}
 	}
 
 	if (screenmode_request) {
 		screenmode_request--;
 		if (screenmode_request == 0) {
-			//write_log (_T("RP_IPC_TO_HOST_SCREENMODE screenmode_request timeout\n"));
+			if (log_rp)
+				write_log (_T("RP_IPC_TO_HOST_SCREENMODE screenmode_request expired\n"));
 			struct RPScreenMode sm = { 0 };
 			get_screenmode (&sm, &currprefs, true);
 			RPSendMessagex (RP_IPC_TO_HOST_SCREENMODE, 0, 0, &sm, sizeof sm, &guestinfo, NULL);
@@ -2511,10 +2533,12 @@ void rp_modemstate(int state)
 	}
 	WPARAM unit = MAKEWORD(RP_DEVICECATEGORY_MODEM, 0);
 	if (state) {
-		write_log(_T("RP: modem open\n"));
+		if (log_rp)
+			write_log(_T("RP: modem open\n"));
 		RPSendMessagex(RP_IPC_TO_HOST_DEVICEOPEN, unit, 0, NULL, 0, &guestinfo, NULL);
 	} else {
-		write_log(_T("RP: modem close\n"));
+		if (log_rp)
+			write_log(_T("RP: modem close\n"));
 		RPSendMessagex(RP_IPC_TO_HOST_DEVICECLOSE, unit, 0, NULL, 0, &guestinfo, NULL);
 	}
 	rp_modemopen = state;
@@ -2546,14 +2570,16 @@ void rp_writeprinter(uae_char *b, int len)
 	WPARAM unit = MAKEWORD(RP_DEVICECATEGORY_PRINTER, 0);
 	if (!b) {
 		if (rp_printeropen) {
-			write_log(_T("RP: printer close\n"));
+			if (log_rp)
+				write_log(_T("RP: printer close\n"));
 			RPSendMessagex(RP_IPC_TO_HOST_DEVICECLOSE, unit, 0, NULL, 0, &guestinfo, NULL);
 		}
 		rp_printeropen = 0;
 		return;
 	}
 	if (!rp_printeropen) {
-		write_log(_T("RP: printer open\n"));
+		if (log_rp)
+			write_log(_T("RP: printer open\n"));
 		RPSendMessagex(RP_IPC_TO_HOST_DEVICEOPEN, unit, 0, NULL, 0, &guestinfo, NULL);
 		rp_printeropen = 1;
 	}

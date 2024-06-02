@@ -521,10 +521,10 @@ BEGIN
     CONTROL         "Stereo sampler",IDC_SAMPLER_STEREO,"Button",BS_AUTOCHECKBOX | BS_VCENTER | WS_TABSTOP,68,122,149,12
     GROUPBOX        "Serial Port",IDC_STATIC,1,145,393,66
     COMBOBOX        IDC_SERIAL,67,158,317,65,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
-    CONTROL         "Shared",IDC_SER_SHARED,"Button",BS_AUTOCHECKBOX | BS_VCENTER | WS_TABSTOP,25,179,66,12
-    CONTROL         "Host RTS/CTS",IDC_SER_CTSRTS,"Button",BS_AUTOCHECKBOX | BS_VCENTER | WS_TABSTOP,107,179,66,12
+    CONTROL         "Shared",IDC_SER_SHARED,"Button",BS_AUTOCHECKBOX | BS_VCENTER | WS_TABSTOP,25,179,75,12
+    CONTROL         "Host RTS/CTS",IDC_SER_CTSRTS,"Button",BS_AUTOCHECKBOX | BS_VCENTER | WS_TABSTOP,107,179,67,12
     CONTROL         "Direct []Use when emulating serial-link games on two PCs running WinUAE",IDC_SER_DIRECT,
-                    "Button",BS_AUTOCHECKBOX | BS_VCENTER | WS_TABSTOP,182,179,83,12
+                    "Button",BS_AUTOCHECKBOX | BS_VCENTER | WS_TABSTOP,182,179,103,12
     CONTROL         "uaeserial.device",IDC_UAESERIAL,"Button",BS_AUTOCHECKBOX | BS_VCENTER | WS_TABSTOP,292,179,94,12
     GROUPBOX        "MIDI",IDC_STATIC,1,213,393,54,BS_LEFT
     RTEXT           "Out:",IDC_MIDI,22,224,32,15,SS_CENTERIMAGE
@@ -535,7 +535,7 @@ BEGIN
     GROUPBOX        "Protection Dongle",IDC_STATIC,1,274,393,41,BS_LEFT
     COMBOBOX        IDC_DONGLELIST,58,292,232,130,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
     CONTROL         "Serial status (RTS/CTS/DTR/DTE/CD)",IDC_SER_RTSCTSDTRDTECD,
-                    "Button",BS_AUTOCHECKBOX | BS_VCENTER | WS_TABSTOP,25,192,162,12
+                    "Button",BS_AUTOCHECKBOX | BS_VCENTER | WS_TABSTOP,25,192,149,12
     CONTROL         "Serial status: Ring Indicator",IDC_SER_RI,"Button",BS_AUTOCHECKBOX | BS_VCENTER | WS_TABSTOP,182,192,202,12
 END
 
@@ -1431,8 +1431,8 @@ END
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 5,2,0,0
- PRODUCTVERSION 5,2,0,0
+ FILEVERSION 5,3,0,0
+ PRODUCTVERSION 5,3,0,0
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -1448,12 +1448,12 @@ BEGIN
         BLOCK "040904b0"
         BEGIN
             VALUE "FileDescription", "WinUAE"
-            VALUE "FileVersion", "5.2.0.0"
+            VALUE "FileVersion", "5.3.0.0"
             VALUE "InternalName", "WinUAE"
             VALUE "LegalCopyright", "© 1996-2024 under the GNU Public License (GPL)"
             VALUE "OriginalFilename", "WinUAE.exe"
             VALUE "ProductName", "WinUAE"
-            VALUE "ProductVersion", "5.2.0.0"
+            VALUE "ProductVersion", "5.3.0.0"
         END
     END
     BLOCK "VarFileInfo"
@@ -1549,7 +1549,6 @@ BEGIN
         END
     END
 END
-
 
 /////////////////////////////////////////////////////////////////////////////
 //
@@ -2150,7 +2149,7 @@ BEGIN
     IDS_WSTYLE_EXTENDED     "Extended"
     IDS_MISCLISTITEMS1      "Untrap = middle button\nShow GUI on startup\nUse CTRL-F11 to quit\nDon't show taskbar button\nDon't show notification icon\n"
     IDS_MISCLISTITEMS2      "Main window always on top\nGUI window always on top\nDisable screensaver\nSynchronize clock\nOne second reboot pause\nFaster RTG\nClipboard sharing\nAllow native code\n"
-    IDS_MISCLISTITEMS3      "Native on-screen display\nRTG on-screen display\nCreate winuaelog.txt log\nLog illegal memory accesses\nBlank unused displays\nStart mouse uncaptured\nStart minimized\nMinimize when focus is lost\nBlack frame insertion\nMaster floppy write protection\nMaster harddrive write protection\nHide all UAE autoconfig boards\nRight Control = Right Windows key\n"
+    IDS_MISCLISTITEMS3      "Native on-screen display\nRTG on-screen display\nCreate winuaelog.txt log\nLog illegal memory accesses\nBlank unused displays\nStart mouse uncaptured\n"
     IDS_JOYMODE_WHEELMOUSE  "Wheel Mouse"
     IDS_NUMSG_KS68030PLUS   "The selected system ROM requires a 68030 or higher CPU."
     IDS_SELECTTAPE          "Select a Tape directory or archive file..."
@@ -2166,7 +2165,7 @@ END
 
 STRINGTABLE
 BEGIN
-    IDS_MISCLISTITEMS4      "Windows shutdown/logoff notification\nWarn when attempting to close window\nPower led dims when audio filter is disabled\nAutomatically capture mouse when window is activated\nDebug memory space\nForce hard reset if CPU halted\nA600/A1200/A4000 IDE scsi.device disable\nWarp mode reset\nGUI gamepad control\n"
+    IDS_MISCLISTITEMS4      "Start minimized\nMinimize when focus is lost\nBlack frame insertion\nMaster floppy write protection\nMaster harddrive write protection\n"
     IDS_SHUTDOWN_NOTIFICATION "Emulation session active"
     IDS_QUIT_WARNING        "Are you sure you want to quit WinUAE?"
     IDS_UNMAPPED_ADDRESS    "Floating\nAll zeros\nAll ones\n"
@@ -2215,6 +2214,11 @@ BEGIN
     IDS_NONE2               "<none>"
     IDS_SOUND_CLONED71      "Cloned stereo (7.1)"
     IDS_SOUND_71            "7.1 channels"
+    IDS_SOUND_FILTER_ON_FIXEDONLY "Always on (Fixed only)"
+    IDS_MISCLISTITEMS5      "Hide all UAE autoconfig boards\nRight Control = Right Windows key\nWindows shutdown/logoff notification\nWarn when attempting to close window\nPower led dims when audio filter is disabled\nAutomatically capture mouse when window is activated\nDebug memory space\n"
+    IDS_MISCLISTITEMS6      "Force hard reset if CPU halted\nA600/A1200/A4000 IDE scsi.device disable\nWarp mode reset\nGUI gamepad control\nDefault on screen keyboard (Pad button 4)\n"
+    IDS_CHOOSE_AUDIO_CODEC  "Choose Audio Codec"
+    IDS_CHOOSE_VIDEO_CODEC  "Choose Video Codec"
 END
 
 #endif    // English (United Kingdom) resources

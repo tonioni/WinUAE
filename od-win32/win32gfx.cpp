@@ -3049,7 +3049,7 @@ void gfx_set_picasso_state(int monid, int on)
 	}
 end:
 #ifdef RETROPLATFORM
-	rp_set_hwnd (mon->hAmigaWnd);
+	rp_set_hwnd_delayed();
 #endif
 }
 
@@ -3087,7 +3087,7 @@ void gfx_set_picasso_modeinfo(int monid, RGBFTYPE rgbfmt)
 	}
 	state->ModeChanged = false;
 #ifdef RETROPLATFORM
-	rp_set_hwnd(mon->hAmigaWnd);
+	rp_set_hwnd_delayed();
 #endif
 	target_graphics_buffer_update(monid, false);
 }
