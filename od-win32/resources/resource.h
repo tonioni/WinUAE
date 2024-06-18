@@ -435,6 +435,11 @@
 #define IDS_NONE2                       440
 #define IDS_SOUND_CLONED71              441
 #define IDS_SOUND_71                    442
+#define IDS_SOUND_FILTER_ON_FIXEDONLY   443
+#define IDS_MISCLISTITEMS5              444
+#define IDS_MISCLISTITEMS6              445
+#define IDS_CHOOSE_AUDIO_CODEC          446
+#define IDS_CHOOSE_VIDEO_CODEC          447
 #define IDS_QS_MODELS                   1000
 #define IDS_QS_MODEL_A500               1001
 #define IDS_QS_MODEL_A500P              1002
@@ -515,7 +520,6 @@
 #define IDC_THEROOTS                    1076
 #define IDC_CAPS                        1077
 #define IDC_ABIME                       1078
-#define IDC_AMIGASYS                    1079
 #define IDC_AMIKIT                      1080
 #define IDC_RICHEDIT1                   1091
 #define IDC_RICHEDIT2                   1092

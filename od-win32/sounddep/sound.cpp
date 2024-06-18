@@ -521,6 +521,9 @@ void set_volume_sound_device (struct sound_data *sd, int volume, int mute)
 {
 	struct sound_dp *s = sd->data;
 	HRESULT hr;
+	if (!s) {
+		return;
+	}
 	if (sd->devicetype == SOUND_DEVICE_AL) {
 		float vol = 0.0f;
 		if (volume < 100.0f && !mute)
@@ -570,10 +573,10 @@ void set_volume_sound_device (struct sound_data *sd, int volume, int mute)
 
 }
 
-void set_volume (int volume, int mute)
+void set_volume(int volume, int mute)
 {
-	set_volume_sound_device (sdp, volume, mute);
-	setvolume_ahi (volume);
+	set_volume_sound_device(sdp, volume, mute);
+	setvolume_ahi(volume);
 	config_changed = 1;
 }
 
@@ -1100,6 +1103,8 @@ public:
 			return S_OK;
 		if (flow != eConsole && flow != eMultimedia)
 			return S_OK;
+		if (!s)
+			return S_OK;
 		if (s->devicetype == SOUND_DEVICE_WASAPI_EXCLUSIVE) {
 			write_log(_T("WASAPI EX OnDefaultDeviceChanged '%s'\n"), pwstrDeviceId);
 			return S_OK;
@@ -1128,6 +1133,8 @@ public:
 	}
 	HRESULT STDMETHODCALLTYPE OnDeviceStateChanged(LPCWSTR pwstrDeviceId, DWORD dwNewState)
 	{
+		if (!s)
+			return S_OK;
 		if (s->devicetype == SOUND_DEVICE_WASAPI_EXCLUSIVE || s->devicetype == SOUND_DEVICE_WASAPI) {
 			;// write_log(_T("WASAPI OnDeviceStateChanged '%s' %08x\n"), pwstrDeviceId, dwNewState);
 		}
@@ -1135,6 +1142,8 @@ public:
 	}
 	HRESULT STDMETHODCALLTYPE OnPropertyValueChanged(LPCWSTR pwstrDeviceId, const PROPERTYKEY key)
 	{
+		if (!s)
+			return S_OK;
 		if (s->devicetype == SOUND_DEVICE_WASAPI_EXCLUSIVE || s->devicetype == SOUND_DEVICE_WASAPI) {
 			;// write_log(_T("WASAPI OnPropertyValueChanged '%s'\n"), pwstrDeviceId);
 		}

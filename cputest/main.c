@@ -813,7 +813,7 @@ static uae_u8 *load_file(const char *path, const char *file, uae_u8 *p, int *siz
 			exit(0);
 		}
 	} else {
-		if (prealloc_test_data_size < size) {
+		if (prealloc && prealloc_test_data_size < size) {
 			printf("Preallocated memory space is too small %d < %d\n", prealloc_test_data_size, size);
 			exit(0);
 		}

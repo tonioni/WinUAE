@@ -57,6 +57,7 @@
 #define PERIOD_MIN 1
 #define PERIOD_MIN_NONCE 60
 #define PERIOD_MIN_LOOP 16
+#define PERIOD_MIN_LOOP_COUNT 64
 
 #define PERIOD_LOW 124
 
@@ -154,6 +155,7 @@ struct audio_channel_data
 	int dmaofftime_active;
 	int dmaofftime_cpu_cnt;
 	uaecptr dmaofftime_pc;
+	int minperloop;
 	int volcntbufcnt;
 	float volcntbuf[VOLCNT_BUFFER_SIZE];
 };
@@ -432,7 +434,8 @@ static float filter_a0; /* a500 and a1200 use the same */
 enum {
 	FILTER_NONE = 0,
 	FILTER_MODEL_A500,
-	FILTER_MODEL_A1200
+	FILTER_MODEL_A1200,
+	FILTER_MODEL_A500_FIXEDONLY
 };
 
 /* Amiga has two separate filtering circuits per channel, a static RC filter
@@ -469,6 +472,13 @@ static int filter (int input, struct filter_state *fs)
 		fs->rc5 = filter_a0 * fs->rc4       + (1 - filter_a0) * fs->rc5;
 
 		led_output = fs->rc5;
+		break;
+
+	case FILTER_MODEL_A500_FIXEDONLY:
+		fs->rc1 = (float)(a500e_filter1_a0 * input + (1.0f - a500e_filter1_a0) * fs->rc1 + DENORMAL_OFFSET);
+		fs->rc2 = a500e_filter2_a0 * fs->rc1 + (1.0f - a500e_filter2_a0) * fs->rc2;
+		normal_output = fs->rc2;
+		led_output = fs->rc2;
 		break;
 
 	case FILTER_MODEL_A1200:
@@ -626,7 +636,7 @@ static void samplexx_sinc_handler (int *datasp, int ch_start, int ch_num)
 	int const *winsinc;
 
 	if (sound_use_filter_sinc && ch_start == 0) {
-		n = (sound_use_filter_sinc == FILTER_MODEL_A500) ? 0 : 2;
+		n = (sound_use_filter_sinc == FILTER_MODEL_A500 || sound_use_filter_sinc == FILTER_MODEL_A500_FIXEDONLY) ? 0 : 2;
 		if (led_filter_on)
 			n += 1;
 	} else {
@@ -1387,7 +1397,7 @@ static void sample16si_rh_handler (void)
 
 static int audio_work_to_do;
 
-static void zerostate (int nr)
+static void zerostate(int nr, bool reset)
 {
 	struct audio_channel_data *cdp = audio_channel + nr;
 #if DEBUG_AUDIO > 0
@@ -1397,11 +1407,14 @@ static void zerostate (int nr)
 	cdp->state = 0;
 	cdp->irqcheck = 0;
 	cdp->evtime = MAX_EV;
-	cdp->intreq2 = false;
+	if (!currprefs.cpu_memory_cycle_exact || reset) {
+		cdp->intreq2 = false;
+	}
 	cdp->dmaenstore = false;
 	cdp->dmaofftime_active = 0;
 	cdp->volcnt = 0;
 	cdp->volcntbufcnt = 0;
+	cdp->minperloop = 0;
 	memset(cdp->volcntbuf, 0, sizeof(cdp->volcntbuf));
 #if TEST_AUDIO > 0
 	cdp->have_dat = false;
@@ -1443,10 +1456,12 @@ static void audio_event_reset (void)
 
 	last_cycles = get_cycles ();
 	next_sample_evtime = scaled_sample_evtime;
-	for (i = 0; i < AUDIO_CHANNELS_PAULA; i++)
-		zerostate (i);
-	for (i = 0; i < audio_total_extra_streams; i++)
+	for (i = 0; i < AUDIO_CHANNELS_PAULA; i++) {
+		zerostate(i, true);
+	}
+	for (i = 0; i < audio_total_extra_streams; i++) {
 		audio_stream[i].evtime = MAX_EV;
+	}
 	schedule_audio ();
 	events_schedule ();
 	samplecnt = 0;
@@ -1707,7 +1722,7 @@ static bool audio_state_channel2 (int nr, bool perfin)
 	cdp->dmaenstore = chan_ena;
 
 	if (currprefs.produce_sound == 0) {
-		zerostate (nr);
+		zerostate (nr, true);
 		return true;
 	}
 	audio_activate ();
@@ -1737,7 +1752,7 @@ static bool audio_state_channel2 (int nr, bool perfin)
 					write_log(_T("%d: INSTADMAOFF\n"), nr, M68K_GETPC);
 #endif
 				newsample(nr, (cdp->dat2 >> 0) & 0xff);
-				zerostate(nr);
+				zerostate(nr, true);
 			} else {
 				if (warned >= 0) {
 					warned--;
@@ -1785,7 +1800,7 @@ static bool audio_state_channel2 (int nr, bool perfin)
 				static int warned = 100;
 				// make sure audio.device AUDxDAT startup returns to idle state before DMA is enabled
 				newsample(nr, (cdp->dat2 >> 0) & 0xff);
-				zerostate(nr);
+				zerostate(nr, true);
 				if (warned > 0) {
 					write_log(_T("AUD%d: forced idle state PER=%d PC=%08x\n"), nr, cdp->per, M68K_GETPC);
 					warned--;
@@ -1795,13 +1810,13 @@ static bool audio_state_channel2 (int nr, bool perfin)
 				audio_state_channel2(nr, false);
 			}
 		} else {
-			zerostate(nr);
+			zerostate(nr, false);
 		}
 		break;
 	case 1:
 		cdp->evtime = MAX_EV;
 		if (!chan_ena) {
-			zerostate(nr);
+			zerostate(nr, false);
 			return true;
 		}
 		if (!cdp->dat_written)
@@ -1823,7 +1838,7 @@ static bool audio_state_channel2 (int nr, bool perfin)
 	case 5:
 		cdp->evtime = MAX_EV;
 		if (!chan_ena) {
-			zerostate(nr);
+			zerostate(nr, false);
 			return true;
 		}
 		if (!cdp->dat_written)
@@ -1842,7 +1857,9 @@ static bool audio_state_channel2 (int nr, bool perfin)
 		cdp->state = 2;
 		loadper(nr);
 		cdp->pbufldl = true;
-		cdp->intreq2 = false;
+		if (!currprefs.cpu_memory_cycle_exact) {
+			cdp->intreq2 = false;
+		}
 		cdp->volcnt = 0;
 		audio_state_channel2(nr, false);
 		break;
@@ -1875,13 +1892,17 @@ static bool audio_state_channel2 (int nr, bool perfin)
 		if (audap)
 			loaddat(nr, true);
 		if (chan_ena) {
-			if (audap)
+			if (audap) {
 				setdr(nr, false);
-			if (cdp->intreq2 && audap)
+			}
+			if (cdp->intreq2 && audap) {
 				setirq(nr, 21);
+				cdp->intreq2 = false;
+			}
 		} else {
-			if (audap)
+			if (audap) {
 				setirq(nr, 22);
+			}
 		}
 		cdp->pbufldl = true;
 		cdp->irqcheck = 0;
@@ -1934,28 +1955,31 @@ static bool audio_state_channel2 (int nr, bool perfin)
 
 		if (chan_ena) {
 			loaddat (nr);
-			if (napnav)
+			if (napnav) {
 				setdr(nr, false);
-			if (cdp->intreq2 && napnav)
+			}
+			if (cdp->intreq2 && napnav) {
 				setirq(nr, 31);
+				cdp->intreq2 = false;
+			}
 		} else {
-			if (napnav)
-				setirq(nr, 32);
 			// cycle-accurate period check was not needed, do delayed check
 			if (!cdp->irqcheck) {
 				cdp->irqcheck = isirq(nr);
+			}
+			if (napnav) {
+				setirq(nr, 32);
 			}
 			if (cdp->irqcheck > 0) {
 #if DEBUG_AUDIO > 0
 				if (debugchannel (nr))
 					write_log(_T("%d: IDLE\n"), nr);
 #endif			
-				zerostate(nr);
+				zerostate(nr, false);
 				return true;
 			}
 			loaddat(nr);
 		}
-		cdp->intreq2 = false;
 		cdp->pbufldl = true;
 		cdp->state = 2;
 		audio_state_channel2(nr, false);
@@ -2193,6 +2217,8 @@ void set_audio (void)
 			sound_use_filter = FILTER_MODEL_A500;
 		else if (currprefs.sound_filter_type == FILTER_SOUND_TYPE_A1200)
 			sound_use_filter = FILTER_MODEL_A1200;
+		else if (currprefs.sound_filter_type == FILTER_SOUND_TYPE_A500_FIXEDONLY)
+			sound_use_filter = FILTER_MODEL_A500_FIXEDONLY;
 	}
 	a500e_filter1_a0 = rc_calculate_a0 (currprefs.sound_freq, 6200);
 	a500e_filter2_a0 = rc_calculate_a0 (currprefs.sound_freq, 20000);
@@ -2472,9 +2498,14 @@ void event_audxdat_func(uae_u32 v)
 				cdp->wlen = cdp->len;
 				// if very low period sample repeats, set higher period value to not cause huge performance drop
 				if (cdp->per < PERIOD_MIN_LOOP * CYCLE_UNIT) {
-					cdp->per = PERIOD_MIN_LOOP * CYCLE_UNIT;
+					cdp->minperloop++;
+					if (cdp->minperloop >= PERIOD_MIN_LOOP_COUNT) {
+						cdp->per = PERIOD_MIN_LOOP * CYCLE_UNIT;
+					}
 				}
-				cdp->intreq2 = true;
+				if (!(v & 0x80000000)) {
+					cdp->intreq2 = true;
+				}
 				if (sampleripper_enabled)
 					do_samplerip(cdp);
 #if DEBUG_AUDIO > 0
@@ -2542,6 +2573,13 @@ void AUDxDAT(int nr, uae_u16 v, uaecptr addr)
 		if (chan_ena) {
 			// AUDxLEN is processed after 1 CCK delay
 			cyc = 1 * CYCLE_UNIT;
+			if ((cdp->state & 15) == 2 || (cdp->state & 15) == 3) {
+				// But INTREQ2 is set immediately
+				if (cdp->wlen == 1) {
+					cdp->intreq2 = true;
+				}
+				vv |= 0x80000000;
+			}
 		}
 		if (cyc > 0) {
 			event2_newevent_xx(-1, cyc, vv, event_audxdat_func);
@@ -2767,7 +2805,7 @@ uae_u8 *restore_audio (int nr, uae_u8 *src)
 {
 	struct audio_channel_data *acd = audio_channel + nr;
 
-	zerostate (nr);
+	zerostate(nr, true);
 	acd->state = restore_u8 ();
 	acd->data.audvol = restore_u8 ();
 	acd->intreq2 = restore_u8 () ? true : false;

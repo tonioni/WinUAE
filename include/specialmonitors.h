@@ -13,6 +13,7 @@ bool specialmonitor_autoconfig_init(struct autoconfig_info*);
 bool emulate_genlock(struct vidbuffer*, struct vidbuffer*, bool);
 bool emulate_grayscale(struct vidbuffer*, struct vidbuffer*);
 bool specialmonitor_linebased(void);
+void genlock_infotext(uae_u8*, struct vidbuffer*);
 
 const TCHAR *specialmonitorfriendlynames[];
 const TCHAR *specialmonitormanufacturernames[];

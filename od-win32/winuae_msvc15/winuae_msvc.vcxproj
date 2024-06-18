@@ -137,7 +137,7 @@
     <CharacterSet>Unicode</CharacterSet>
     <PlatformToolset>v143</PlatformToolset>
     <SpectreMitigation>false</SpectreMitigation>
-    <EnableASAN>true</EnableASAN>
+    <EnableASAN>false</EnableASAN>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Test|ARM64EC'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
@@ -1377,10 +1377,16 @@
     <ClCompile Include="..\..\pcem\sound_sb_dsp.cpp" />
     <ClCompile Include="..\..\pcem\sound_speaker.cpp" />
     <ClCompile Include="..\..\pcem\timer.cpp" />
+    <ClCompile Include="..\..\pcem\vid_bt482_ramdac.cpp" />
     <ClCompile Include="..\..\pcem\vid_cl5429.cpp" />
+    <ClCompile Include="..\..\pcem\vid_et4000.cpp" />
+    <ClCompile Include="..\..\pcem\vid_et4000w32.cpp" />
+    <ClCompile Include="..\..\pcem\vid_inmos.cpp" />
     <ClCompile Include="..\..\pcem\vid_ncr.cpp" />
+    <ClCompile Include="..\..\pcem\vid_permedia2.cpp" />
     <ClCompile Include="..\..\pcem\vid_s3.cpp" />
     <ClCompile Include="..\..\pcem\vid_s3_virge.cpp" />
+    <ClCompile Include="..\..\pcem\vid_sc1502x_ramdac.cpp" />
     <ClCompile Include="..\..\pcem\vid_sdac_ramdac.cpp" />
     <ClCompile Include="..\..\pcem\vid_svga.cpp" />
     <ClCompile Include="..\..\pcem\vid_svga_render.cpp" />

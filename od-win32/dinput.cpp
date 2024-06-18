@@ -410,9 +410,8 @@ static void fixthings_mouse (struct didata *did)
 
 static int rawinput_available;
 static bool rawinput_registered;
-static int rawinput_reg;
 
-static int doregister_rawinput (bool add)
+static int doregister_rawinput(void)
 {
 	struct AmigaMonitor *mon = &AMonitors[0];
 	int num;
@@ -421,37 +420,27 @@ static int doregister_rawinput (bool add)
 	if (!rawinput_available)
 		return 0;
 
-	rawinput_registered = add;
-
 	memset (rid, 0, sizeof rid);
 	num = 0;
 	/* mouse */
 	rid[num].usUsagePage = 1;
 	rid[num].usUsage = 2;
-	if (!add) {
-		rid[num].dwFlags = RIDEV_REMOVE;
-	} else {
-		if (mon->hMainWnd) {
-			rid[num].dwFlags = RIDEV_INPUTSINK;
-			rid[num].hwndTarget = mon->hMainWnd;
-		}
-		rid[num].dwFlags |= RIDEV_DEVNOTIFY;
+	if (mon->hMainWnd) {
+		rid[num].dwFlags = RIDEV_INPUTSINK;
+		rid[num].hwndTarget = mon->hMainWnd;
 	}
+	rid[num].dwFlags |= RIDEV_DEVNOTIFY;
 	num++;
 
 	/* keyboard */
 	if (!rp_isactive()) {
 		rid[num].usUsagePage = 1;
 		rid[num].usUsage = 6;
-		if (!add) {
-			rid[num].dwFlags = RIDEV_REMOVE;
-		} else {
-			if (mon->hMainWnd) {
-				rid[num].dwFlags = RIDEV_INPUTSINK;
-				rid[num].hwndTarget = mon->hMainWnd;
-			}
-			rid[num].dwFlags |= RIDEV_NOHOTKEYS | RIDEV_DEVNOTIFY;
+		if (mon->hMainWnd) {
+			rid[num].dwFlags = RIDEV_INPUTSINK;
+			rid[num].hwndTarget = mon->hMainWnd;
 		}
+		rid[num].dwFlags |= RIDEV_NOHOTKEYS | RIDEV_DEVNOTIFY;
 		num++;
 
 		/* joystick */
@@ -460,29 +449,21 @@ static int doregister_rawinput (bool add)
 		// game pad
 		rid[num].usUsagePage = 1;
 		rid[num].usUsage = 4;
-		if (!add) {
-			rid[num].dwFlags = RIDEV_REMOVE;
-		} else {
-			if (mon->hMainWnd) {
-				rid[num].dwFlags = RIDEV_INPUTSINK;
-				rid[num].hwndTarget = mon->hMainWnd;
-			}
-			rid[num].dwFlags |= RIDEV_DEVNOTIFY;
+		if (mon->hMainWnd) {
+			rid[num].dwFlags = RIDEV_INPUTSINK;
+			rid[num].hwndTarget = mon->hMainWnd;
 		}
+		rid[num].dwFlags |= RIDEV_DEVNOTIFY;
 		num++;
 
 		// joystick
 		rid[num].usUsagePage = 1;
 		rid[num].usUsage = 5;
-		if (!add) {
-			rid[num].dwFlags = RIDEV_REMOVE;
-		} else {
-			if (mon->hMainWnd) {
-				rid[num].dwFlags = RIDEV_INPUTSINK;
-				rid[num].hwndTarget = mon->hMainWnd;
-			}
-			rid[num].dwFlags |= RIDEV_DEVNOTIFY;
+		if (mon->hMainWnd) {
+			rid[num].dwFlags = RIDEV_INPUTSINK;
+			rid[num].hwndTarget = mon->hMainWnd;
 		}
+		rid[num].dwFlags |= RIDEV_DEVNOTIFY;
 		num++;
 	}
 
@@ -522,22 +503,52 @@ static int doregister_rawinput (bool add)
 	write_log (_T("RegisterRawInputDevices: NUM=%d HWND=%p\n"), num, hMainWnd);
 #endif
 
-	rawinput_reg = num;
 	if (RegisterRawInputDevices (rid, num, sizeof(RAWINPUTDEVICE)) == FALSE) {
-		write_log (_T("RAWINPUT %sregistration failed %d\n"),
-			add ? _T("") : _T("un"), GetLastError ());
+		write_log (_T("RAWINPUT %sregistration failed %d\n"), GetLastError());
 		return 0;
 	}
 
+	rawinput_registered = 1;
 	return 1;
 }
 
 void rawinput_alloc(void)
 {
-	doregister_rawinput(true);
+	if (!rawinput_registered) {
+		doregister_rawinput();;
+		//write_log("RAWINPUT ALLOC\n");
+	}
 }
 void rawinput_release(void)
 {
+	if (rp_isactive()) {
+		return;
+	}
+
+	UINT num = 0;
+	int cnt = 0;
+	int v = GetRegisteredRawInputDevices(NULL, &num, sizeof(RAWINPUTDEVICE));
+	if ((v >= 0 || (v == -1 && GetLastError() == ERROR_INSUFFICIENT_BUFFER)) && num > 0) {
+		PRAWINPUTDEVICE devs = xcalloc(RAWINPUTDEVICE, num);
+		if (devs) {
+			int v = GetRegisteredRawInputDevices(devs, &num, sizeof(RAWINPUTDEVICE));
+			if (v >= 0) {
+				for (int i = 0; i < num; i++) {
+					PRAWINPUTDEVICE dev = devs + i;
+					dev->dwFlags = RIDEV_REMOVE;
+					dev->hwndTarget = NULL;
+					cnt++;
+
+				}
+				if (!RegisterRawInputDevices(devs, num, sizeof(RAWINPUTDEVICE))) {
+					write_log("RegisterRawInputDevices RIDEV_REMOVE error %08x\n", GetLastError());
+				}
+			}
+			xfree(devs);
+		}
+	}
+	rawinput_registered = false;
+	//write_log("RAWINPUT FREE %d\n", cnt);
 }
 
 static void cleardid (struct didata *did)
@@ -2037,7 +2048,6 @@ static bool initialize_rawinput (void)
 	for (int i = 0; i < num_joystick; i++)
 		sortobjects (&di_joystick[i]);
 
-	rawinput_alloc();
 	return 1;
 
 error2:
@@ -4547,7 +4557,7 @@ int input_get_default_lightpen (struct uae_input_device *uid, int i, int port, i
 	return 0;
 }
 
-int input_get_default_joystick (struct uae_input_device *uid, int i, int port, int af, int mode, bool gp, bool joymouseswap)
+int input_get_default_joystick (struct uae_input_device *uid, int i, int port, int af, int mode, bool gp, bool joymouseswap, bool default_osk)
 {
 	int j;
 	struct didata *did = NULL;
@@ -4585,7 +4595,7 @@ int input_get_default_joystick (struct uae_input_device *uid, int i, int port, i
 			if (isrealbutton (did, 2))
 				setid (uid, i, ID_BUTTON_OFFSET + 2, 0, port, port ? INPUTEVENT_JOY2_3RD_BUTTON : INPUTEVENT_JOY1_3RD_BUTTON, gp);
 		}
-		if (isrealbutton(did, 3) && isemptyslot(uid, i, ID_BUTTON_OFFSET + 3, 0, port)) {
+		if (isrealbutton(did, 3) && isemptyslot(uid, i, ID_BUTTON_OFFSET + 3, 0, port) && default_osk) {
 			setid(uid, i, ID_BUTTON_OFFSET + 3, 0, port, INPUTEVENT_SPC_OSK, gp);
 		}
 	}
@@ -4620,7 +4630,7 @@ int input_get_default_joystick (struct uae_input_device *uid, int i, int port, i
 	return 0;
 }
 
-int input_get_default_joystick_analog (struct uae_input_device *uid, int i, int port, int af, bool gp, bool joymouseswap)
+int input_get_default_joystick_analog (struct uae_input_device *uid, int i, int port, int af, bool gp, bool joymouseswap, bool default_osk)
 {
 	int j;
 	struct didata *did;
@@ -4643,7 +4653,7 @@ int input_get_default_joystick_analog (struct uae_input_device *uid, int i, int 
 		setid(uid, i, ID_BUTTON_OFFSET + 2, 0, port, port ? INPUTEVENT_JOY2_UP : INPUTEVENT_JOY1_UP, gp);
 	if (isrealbutton(did, 3))
 		setid(uid, i, ID_BUTTON_OFFSET + 3, 0, port, port ? INPUTEVENT_JOY2_DOWN : INPUTEVENT_JOY1_DOWN, gp);
-	if (isrealbutton(did, 4) && isemptyslot(uid, i, ID_BUTTON_OFFSET + 4, 0, port))
+	if (isrealbutton(did, 4) && isemptyslot(uid, i, ID_BUTTON_OFFSET + 4, 0, port) && default_osk)
 		setid(uid, i, ID_BUTTON_OFFSET + 4, 0, port, INPUTEVENT_SPC_OSK, gp);
 
 	for (j = 2; j < MAX_MAPPINGS - 1; j++) {

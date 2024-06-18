@@ -1,4 +1,191 @@
 
+Beta 10:
+
+- Fast CPU and serial port loop back mode: transmit never finished, nothing was received.
+- Undocumented serial port feature emulated: CPU/Copper INTREQ write that sets RBF bit will also set SERDATR OVRUN bit.
+- ATAPI CD MODE SELECT command fixed. (Used to control analog CD audio volume) 
+
+Beta 9:
+
+- AGA mode color register with set genlock bit was misdetected as blanking being enabled. (b1 made it visible but real bug was introduced long time ago)
+
+Beta 8:
+
+- Line 0 is also visible at the bottom of screen in OCS Agnus + OCS Denise combination, works like A1000 but without 1 line delayed vblank interrupt. ("Extra" lines are only visible if Overscan+ or higher mode)
+- DMA debugger line 0 strobe type is now correct in OCS Agnus and A1000 configurations. (STRHOR if A1000, STRVBL if OCS Agnus, STREQU if ECS Agnus/AGA)
+- Implemented Permedia 2 (CVPPC//BVPPC) LineCount register. Fixes OS4 boot screen hang. NOTE: Read Classic_FAQ on OS41FE CD root directory before attempting to use CVPPC/BVPPC with OS4.
+- Flush log file before adding log to crash dump file.
+- b5 audio fix (in some situations audio DMA slot was allocated in wrong position causing DMA debugger reported conflict)
+- -theme command line parameter now also support "default" value: ignore GUI setting and follow Windows setting.
+
+Beta 7:
+
+- b6 NTSC fix corruption fixed. Fix was incomplete.
+
+Beta 6:
+
+- Los Justicieros (Zorton Brothers) laserdisc arcade game left holster hooked up correctly. (Was stuck active previously)
+- If programmed mode was enabled first and if programmed horizontal blanking got enabled slightly later, it didn't force display position recalculation. This is needed because programmed mode horizontal position also depend on horizontal blanking configuration. Real monitors also use both syncs and blanks to detect display position. (I noticed this in CyberVision PPC config where CVPPC gets activated at boot, then when END+F9 is used to switch back to native mode, display was horizontally shifted and clipped)
+- In NTSC mode if bitplane DMA last fetch "overflowed" to cycle 0 (which is harmless and normal in overscanned modes) when line was short, it was incorrectly kept allocated for bitplane DMA also during long lines. Long line has 1 more cycle = no overflow. (NewTek demo reel 3 dynamic hires image corruption in NTSC mode, CPU didn't have enough time to update all colors quickly enough. Note: corruption at the bottom in PAL mode is demo bug. NTSC mode also has 2 slightly corrupted lines at the bottom, this is also normal.)
+- Magic mouse mode without enabled mouse driver was broken in b1. Moving mouse outside of emulation window and back caused it to stop moving.
+
+Beta 5:
+
+- Fixed pre-KS 1.2 HDF/directory filesystem boot. Two bugs: crash due to config handling changes (3.6) and KS 1.0/1.1 seems to have a bug where level 2 CIA keyboard interrupt handler returns "I handled this interrupt" status even if it was caused by external device, skipping all following handers, including UAE filesystem interrupt handler, causing a hang. UAE FS interrupt level was changed to -1 if KS 1.3 or lower (4.9) because there was some buggy (KS1.x compatible only) program that poked interrupt list and broke if CIA handler wasn't first in list. Now UAE FS handler priority is lower than CIA handler only if KS 1.2 or 1.3.
+- Multi-monitor active state was not fully reset when system was hard reset. (Secondary window was open -> hard reset -> window didn't open anymore again)
+- If x86 bridgeboard SVGA and also other hardware emulated RTG board was active and END+F9 was used to switch monitors: both monitors' output was drawn in same window, causing corrupted graphics and possibly also crash if monitor sizes were too different.
+- Adjusted 520b5 audio period hack, do not change period immediately after first loop but only after it has looped multiple times. Does not anymore mess up weird audio test programs.
+- Permedia 2 Video Control register video enabled/disabled (disabled = blanked) and Line doubling bits emulated.
+- Show error message without resetting config back to defaults when GUI Load button could not open the file.
+- GD-CL54xx LFB VRAM reads fixed. (For example NetBSD console scrolling was broken)
+- Fixed S3 Virge MMIO address calculation (fix from 86box update). NetBSD "No mapping" log message fix.
+- A2410 NetBSD text console works again.
+- Autoswitch to hardware emulated RTG board also when text mode gets enabled (*nix boot consoles etc)
+
+Beta 4:
+
+- ET4000W32/Merlin fixes, ProBench (Early RTG software for Merlin cards) now works without glitches. Merlin serial eeprom(?) emulation added: ProBench requires matching Merlin serial number and valid checksum. Serial number is configurable in Expansions -> Graphics boards -> Merlin. Note: amiga.resource.cx ProBench install disks have different serial numbers (1.10=937875, 2.1=23531, 2.2=10010). Note2: there is "cracked" ProBench 3.0 floating around but it is worse than useless, it has modified owner/user string but critical encrypted code is not decrypted. Decryption requires original user string and serial..
+- ET4000AX/W32 lores mode not getting horizontal doubled in >8bit modes fixed. Picasso96 RGBA mode (only available in low resolutions due to chip limits) colors fixed. Interlaced modes fixed.
+- OCS Denise left overscan special case emulation updated and fixed. Previously BPL1DAT write before cycle $2D was ignored but that is not correct. BPL1DAT writes work normally but only BPL1DAT writes >=$2D disable border. This is not same enable flag as DIWSTRT horizontal match. Bitplanes or sprites are not visible until both DIWSTRT and BPL1DAT border disable are active but bitplane shifters work normally. Only difference compared to previous version is that first few bitplane/sprite pixels in max overscan will not be visible (replaced by color 0) depending on DDFSTRT position if OCS Denise. ECS Denise/AGA does not have this limitation.
+- DMA debugger only showed Denise horizontal counter value if also CPU interrupt level was non-zero.
+- Only "insert" CV/BVPPC in to CSMK3/CSPPC internal PCI slot. Insert any other PCI card in to G-REX PCI slots. OS4 does not detect boards in first "internal" PCI slot. (b3)
+- Fixed ECS Denise superhires mode hires sprite pointer strange odd/even horizontal movement.
+- Check all possible Munt ROM directories, including root UAE ROM path when MT32 ROM is needed. Check also other directories if previously detected path existed but didn't contain requested ROM(s).
+
+Beta 3:
+
+- Merlin RTG board blitter fixed. 86box ET4000 blitter/MMU was incomplete (No linear blitter/MMU apertures, missing blit start mode check, pattern/source alignment restrictions are ET4000w32p only). Added vblank interrupt and monitor switcher support. Fixed horizontal panning in 24-bit modes. Overlay/PIP not yet implemented. It is quite useless because overlay and main bitmap depth must match.
+- Added oMniBus RTG board (Zorro II to ISA adapter). ET4000AX (no blitter, no HW cursor) or ET4000W32 (blitter and HW cursor. Note: Current Picasso96 drivers have a bug that makes ET4000W32 blitter unusable, bug that apparently has always been in this driver. Fix will be in next Picasso96 release.)
+- Added Graffity Z2/Z3 RTG board. Cirrus Logic GD5428 based. Has monitor switcher.
+- Added Rainbow II "RTG" card. Not really proper RTG card, has only hardwired PAL and NTSC resolutions (768x576 and 768x476). 24-bit depth only. Note that emulation always refreshes whole screen every frame (not just modified parts but whole screen) which is not very optimal but it really isn't worth the trouble because I am sure now one cares about this old board.
+- Some hardware emulated RTG boards had flickering colors during horizontal panning (>8 bit modes only)
+
+- Small PCI emulation changes (For example G-REX + Permedia 2 + some other PCI card: same card appeared 8 times)
+- Added Apollo 630 emulation and boot ROM 5.61. Nothing special, ROM is only used to detect the RAM: "32Bit Power-Burstmode-FastRAM", apparently cool sounding name can make RAM even faster! (oddly ROM contains at least parts of IDE and SCSI drivers from other Apollo accelerators).
+
+- In a rare situation it was possible to get false positive "CPU Trace" error when loading statefile.
+- Debugger breakpoint "f 123 <extra parameters>" didn't work, "<extra parameters>" was incorrectly detected as PC end address even when it wasn't a number.
+- Programmed mode with only VARVBEN enabled (Programmed vblank but hardwired syncs) didn't check if programmed VB ended earlier than hardwired PAL/NTSC vblank, resulting in vblank ending too late, hiding part of display at the top. (ross test(tm))
+- If strobe conflicts start after STREQU strobes but before first STRHOR strobes: Denise vblank state stays stuck active until next valid STRHOR strobe is seen by Denise. (SOS / Triangle + ECS Agnus). Interesting detail: If OCS Denise, STRVBL strobe DOES NOT enable vblank (fixed in ECS Denise). Only STREQU strobes enable vblank. STRHOR disables vblank.
+- OCS Denise "buggy" vblank start/end (visible only in Overscan+ and higher) start/end position was 2.5 CCKs too early.
+- Left and right A1000 Denise/OCS Denise/ECS Denise hardwired hblank position slight adjustments (1 hires pixel) to match new test results.
+- Both "SaveImage" (automatically created ext adf when write-enabling non-writable image like ipf) file extension variants are now detected automatically when checking if file exists. Paths panel option now only affects name when new saveimage is created.
+
+All Picasso96 supported RTG boards are now emulated. All CGX4 supported boards except Inferno. Inferno can't work, only known Wildfire boot ROM fails to configure it properly. PCI config logic seems to get confused if PCI BAR size is too large (GD5446 is 16M or 32M depending on revision). It seems Inferno support needs newer boot ROM which may not have been officially released. Apparently Inferno was also never officially released. EGS not tested, reports accepted if someone really wants to check EGS drivers.
+
+
+Beta 2:
+
+- Release raw input devices when GUI is open (except during input Test/Remap) or when debugger window is active. Allows Windows shortcut keys like Win+E work without need to unfocus the window.
+- Added Misc panel option to disable default on screen keyboard gamepad button 4 mapping. 
+- Added Domino RTG board emulation. (ET4000, basic SVGA chip, no HW cursor, no blitter. Has linear frame buffer support. Emulator code from 86box.)
+- Added Merlin Z2 and Z3 RTG board emulation. (ET4000/W32, ET4000+ HW cursor and blitter. Emulator code from 86box.). Blitter is not yet hooked up properly. (If you try it, make sure NOBLITTER=YES)
+- uae-configuration AKS_ events (on/off/toggle type only) now work again as designed. ("AKS_xxx -1"  = toggle, "AKS_xxx 0" always off, "AKS_xxx 1" always on)
+- Some uae-configuration (and other similar) debugging logging messages automatically opened the console window. Now only entering debugger will open it.
+
+- 68000 branch instruction bus error fixes (CPUtester + external bus error hardware tests was not properly done for these instructions for some reason, only following instruction non-branch prefetch bus error condition was tested few years ago). Bcc, BSR, DBcc, JMP, JSR, RTE, RTR, RTS confirmed having accurate bus error stack frame now. Hatari reported bug. Does not affect Amiga emulation.
+
+(These all only because I got report that SuperPlus on ECS has first line blanked. So me and Ross did some weird tests again and things started to snowball. Again. Almost no normal program cares, only exception is ECS blanking fix)
+
+- Programmed display mode state log lines (VS=xx, HS=xx etc) had illogical mix of hexadecimal and decimal values.
+- Programmed vertical blanking start/end corrections. ECS Denise EXTBLANKEN=1 + BEAMCON0 BLANKEN=1 blanking starts 1 line earlier and ends 1 line earlier than AGA programmed blanking or ECS EXTBLANKEN=0 (Use hardwired horizontal, programmed vertical blanking). Agnus tells Denise blanking via CSYNC line but AGA Lisa handles it fully internally. Some ECS programmed mode screen modes had missing line at the top.
+- Writing to BEAMCON0 didn't check if write would cause immediate vertical DIW close (or open) if HARDDIS/VARVBEN/VARBEAMEN changed. (No normal programs care as usual)
+- Fixed corruption in some "weird" programmed modes, introduced in 5.0 betas.
+- Sprite/bitplane DMA conflict when bitplane ends very early with active sprite slot in same position as last BPL1DAT: in some situations sprite DMA "won" and conflict didn't happen.
+- BPLCON0 ERSY bit getting set without genlock now stops the copper after 2 lines. Previously copper worked normally and overwrote BPLCON0 with valid value if ERSY bit getting set was caused by something else, like a DMA conflict.
+- Vertical frequency calculation always expected odd/even line length toggle in NTSC modes, even if BEAMCON0 LOLDIS was set.
+- If programmed VBSTRT == VBSTOP: vblank interrupts are not generated.
+
+
+Earlier than expected new beta with some fixes and some new PCI and RTG boards. Original plan was to start yet another custom chipset emulation rewrite but I so far I haven't found any good enough ideas that would solve all remaining known limitations without new side-effects.
+
+Beta 1:
+
+- CyberVision PPC/BlizzardVision PPC RTG board (Permedia 2 chip) partial emulation. G-REX needs to be enabled, C/BVPPC is basically Permedia 2 PCI card in CyberStorm MK3/PPC/Blizzard PPC internal PCI bus but I didn't want to to emulate "fake" G-REX with only single virtual slot. Yes. I wrote yet another SVGA chip emulator.
+- Visiona RTG board emulation (INMOS G300 chip. And yet another video chip emulated.)
+- Rainbow III RTG board emulation (INMOS G360 chip)
+- EGS 110/24 RTG board emulation (INMOS G364 chip. Same as G360 functionally). Goes to GVP accelerator local slot, it is not autoconfig device. Can be configured without GVP accelerator card but at least Picasso96 driver needs to find GVP autoconfig device before detecting EGS.
+- If PCI device was non-UAE built-in (It was PCem SVGA card) and PCI was configured by single write to PCI BAR (Base Address Register), without first doing PCI bar size/alignment detection, device ignored all BAR writes. Fixes pre-44.71 CSMK3/PPC/BPPC boot ROM CyberVision/BlizzardVision PPC PCI configuration (Pre-44.71 support CV/BV PPC but not G-REX PCI). This was not a problem with PCI bridgeboards because bridgeboard drivers always first autodetect each PCI device's BAR size and required alignment.
+- Added Prometheus FireStorm PCI bridge emulation (Prometheus with different autoconfig ID, different PCI space mapping, few config bits and some fixes that don't affect emulation). Prmscan works and detects and configures boards, no other tests done. Please report if it works or not.
+- When PCI bridge interrupts were enabled, possible already pending interrupts were not checked immediately. (Probably makes no difference)
+- Delay ALG LDP seek complete status reply slightly. Fixes Platoon (Nova) few second hangs.
+- Added partial Sony LDP-1450 OSD font emulation. Platoon (Nova) "YOU'RE HIT!!" messages are now visible.. (Yes, game uses LDP-1450 internal font generator to show this message. Amiga does not generate it.). If you want some other font than selected OSD font: config file genlock_font=<font name> can be used to override it.
+- Lightpen/gun cursor in any edge of screen: lightpen/gun not pointing at the screen (position can't be read by the program)
+- Fixed XT based Bridgeboards non-working floppy drive emulation, broke during 5.1 DraCo updates (wrong density detection)
+- Statefile shortcut keys now select current config file name as base statefile name (for example, if "test1.uae" config file is loaded, SHIFT+END+0 will save statefile as "test1.uss". Quickstart mode config uses previously always used "default.uss")
+- CD32 FMV video image size and positioning was weird in most scaled modes.
+- OSD font/statusline size was very large in full screen modes if monitor had >100% scaling.
+- Statusline font is now slightly taller (few pixels), same as height of OSD boxes. In recent versions statusline font was changed to same as OSD font, earlier versions' statusline text had different font and was also slightly taller than default OSD font.
+- Allow 68020+ CPUs to fetch instruction words from custom chipset space. Only if more compatible is set. If some program really wants to do something weird like execute code located in AGA palette registers :)
+- It was not possible to write and read ECS/AGA genlock transparency bit in color registers. It must have been broken long time ago... (I think some program used this to detect AGA)
+- Added "Always on (Fixed only)" sound filter option. This enables A500 fixed filter but never enables "led filter". (A1200 does not have fixed filter, only "led" filter)
+- Fixed serial port missed received data if received data arrived from "outside world" (master/slave serial port link or real serial port or direct checbox checked). Now waits for both SERDATR read and INTREQ bit clear before new serial word is accepted. Loopback mode was not affected. Previous serial loopback emulation updates made it too "accurate" in normal modes...
+- -serlog serial port logging mode always enabled "direct" mode internally which affected serial timing. This does not happen anymore.
+- Exclusive fullscreen and RTG resolution switch (RTG to RTG direct switch, not RTG->quick tempory blanked native->RTG) didn't change native resolution.
+- Windows mouse capture/hide logic slightly changed, previously it always did temporary mouse unhide/hide which caused mouse cursor to very quickly appear and disappear during screen mode switches, even if mode switch didn't resize or reopen the window. (This also fixes some odd bug in recent Windows 11 insider preview builds where mouse is captured but does not always re-hide if done "too quickly")
+- Replaced old Windows 2000 compatible Windows clipboard handling with newer, simpler to use method introduced in Vista.
+
+Permedia 2 emulation status:
+
+Emulated:
+
+- All usual Graphics Processor mode screen modes (8/15/16/24/32 bits). Other weird modes are not supported.
+- VRAM aperture byte swapping and RAMDAC red/blue swapping modes. (Used at least by Picasso96 driver)
+- Hardware cursor (64*64*2).
+- Blitter. Most 2D parts emulated. Even the 2D blitter is quite complex, it for example supports point, line, trapezoid and rectangle drawing primitives, bitmask (if bit is set: use color x, if bit is not set, skip destination write or use color y, other chips usually call this "color expansion"), "area stippling" (8x8 mask aligned to X and Y coordinates, can do same operations as bitmask), 16 different raster operations (ROP) and more. 3D features are even more complex.
+
+Not emulated:
+
+- SVGA core. Amiga programs/drivers only use Graphics Processor mode.
+- 3D. 3D is Someone Else's Problem.
+- Other Permedia 2 special features (front/back buffer swapping, stereo support, local buffer access etc)
+
+Because CyberVision PPC/BlizzardVision PPC is basically PCI Permedia 2 card with different connector: it is also available as a PCI card in any supported PCI bridgeboard.
+Only features that Picasso96 and CGX4 drivers need are implemented. Other drivers not tested. (Note that CGX4 driver requires v40-something 68040/060 library. Too old and it will fail silently.)
+
+EGS 110/24, Visiona and Rainbow III:
+
+- INMOS G300/G360 ("Colour video controller") chip. It is not VGA or SVGA chip like others but sort of "simple" programmable video generator + RAMDAC.
+- G300 does not do much. Supports 8-bit 256 color palette mode and 24-bit truecolor. Linear frame buffer. Nothing else. No hardware cursor, no blitter.
+- G364 is updated and modified G300 + 64*64*2 hardware cursor + 15/16 bit modes that have non-standard color component order.
+- Some glitches remain. (Some might be emulation bugs or driver doing something wrong that accidentally works)
+
+Almost all "classic" RTG boards are now emulated. Only Merlin and Domino (ET4000) and few very old ones are not yet implemented. ET4000 is in 86box, will be added next.
+
+
+5.2.0
+
+Beta 10:
+
+- Always blank last visible PAL/NTSC line at the bottom of screen (This is actually line 0) unless overscan mode is Overscan+ or higher. It can't normally have any bitplane or sprite data but can have (very ugly looking) background color changes. This line is also almost always invisible on real world. I decided to hide this without Overscan+ because it can look ugly and it can look like there is something wrong with emulation because this line wasn't even visible until 4.9 (except if A1000 config)
+- Disk swapper now allows same disk image in multiple slots.
+- Disk swapper current cursor position is new disk insert position. Previously it always chose next free slot from the top.
+- Insert more than 1 disk image to disk swapper list and then click remove disk image: cursor jumps back to first disk image and first disk image gets removed.
+
+Beta 9:
+
+- Advanced chipset CIA E-clock mode can be changed on the fly.
+- Picmatic Zorton Brothers boot hang fixed. Too long delay in LDP ACK reply. For some reason all other LD games didn't care. Note that LD dump is not (yet?) available.
+- Genlock scaling was broken (b7/b8) and only appeared to work if both Amiga and genlock image size was almost identical.
+- Genlock video/image was not affected by TV Overscan modes.
+- Quickstart "American Laser Games" renamed to "American Laser Games / Picmatic". Quickstart also now automatically enables NTSC if ALG game, disables NTSC if Picmatic game.
+- Do not emulate OCS Denise "blanking bug" unless overscan mode Overscan+ or higher. "Blanking bug" lines can appear in some centering modes even in normal Overscan mode and they look too ugly. (Yes, this is correctly emulated but they are usually hidden in overscan)
+- 68040 MMU faulting MOVES special case handling fix (Andreas Grabher)
+- Advanced chipset panel "Custom register byte write bug" emulation fix.
+- Harddrive panel Enter and Delete key shortcuts work again.
+
+Beta 8:
+
+- Clicking GamePorts panel remap/test crashed in some situations (remap device, change device type to something that has less events, remap device)
+- In some situations GamePorts remap setup (number/type of buttons etc) didn't match selected device type (mouse, joystick, gamepad etc) and changing it did nothing.
+- Better vertical positioning of NTSC mode in normal Overscan mode. Previously calculation used PAL max overscan height. Overscan+ and Overscan in NTSC mode now have almost same vertical positioning. 
+
+- LD serial port communication timing adjusted and previously unemulated LD commands implemented (REPEAT and MARK SET). Now Picmatic Marbella Vice lightgun game works.
+- ALG/Picmatic LD player always unpaused after exiting GUI, even if it was paused before entering GUI.
+- ALG/Picmatic statefile support. Note that complete data is not saved, for example LD and NVRAM paths. Matching config file must be loaded first.
+- Picmatic (Marbella Vice) player one/two gun selection implemented. Oddly there are two methods: parallel port first data pin selects gun but it is not used when in gun calibration service menu, only during game play. Other method is IO port at $f60000 which is used both in calibration menu and during game play. (Maybe Picmatic games had different hardware versions?). ALG uses joystick port #2 button #2 pin.
+- ALG and Picmatic (Marbella Vice) input events now match. Picmatic games use different hardware and different joystick port pins than ALG, emulation now automatically remaps Picmatic events to matching ALG input events.
+- Genlock overlay position relative to Amiga display does not anymore change when display panel settings are changed (lores/hires/double etc). Genlock image position was not correctly centered if genlock image size was (much) larger or (much) smaller than Amiga display size. Do not scale if video height is almost same as Amiga display height (+-8 lines). This fixes ugly horizontal artifacts when odd and even lines get "mixed" mid screen.
 
 Beta 7:
 
@@ -10,7 +197,7 @@ Beta 7:
 - Drag&drop archive file in Quickstart mode and archive contains more than one executable, don't insert it in DF0:.
 - Drag&drop archive file in Quickstart mode with not autodetected contents but it has Amiga executables: insert it as a harddrive.
 - Max harddrive limit bumped to 50 (was already 50 in some places but 30 in some others) and check limit properly.
-- Quick fix to prevent ALG Marbella Vice boot crash. (Really stupid interrupt code that breaks if LD player answers too quickly.. and also enables disk sync interrupt and crashes if it gets one... This is also worked around). ALG LD player command 0x55 added (Frame Mode), MV requires it. Nothing else tested yet.
+- Quick fix to prevent ALG Marbella Vice boot crash. (Really stupid interrupt code that breaks if LD player answers too quickly.. and also enables disk sync interrupt and crashes if it gets one. This is also worked around). ALG LD player command 0x55 added (Frame Mode), MV requires it. Nothing else tested yet.
 
 Beta 6:
 
@@ -70,7 +257,7 @@ Beta 2:
 - Hardware emulated RTG boards Picasso96 screen dragging horizontal shift fix (broke in b1 panning fix)
 - Any TV overscan option + NTSC mode: few pixel grapohics corruption was visible in right edge of screen.
 - Do not force release of pressed keys if mouse capture was requested but mouse was already captured. On the fly screen settings changes (for example via input events or uae-configuration) caused unexpected forced key releases in full-window mode. (Forced key release is needed because otherwise sudden mouse capture loss might cause stuck keys in Amiga side)
-- 256 color screeenshot created wrong colors in some situations (usually when AGA and almost all colors in use). Attempts to keep custom chipset color 0 (backround color) in first palette index.
+- 256 color screeenshot created wrong colors in some situations (usually when AGA and almost all colors in use). Attempts to keep custom chipset color 0 (background color) in first palette index.
 - Include also current DPI when selecting between "old" smaller or "new" larger default GUI size. (Smaller desktop resolution + high DPI = too large default GUI size)
 
 Beta 1:

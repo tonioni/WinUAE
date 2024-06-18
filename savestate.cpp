@@ -799,6 +799,8 @@ void restore_state (const TCHAR *filename)
 			end = restore_gayle_ide (chunk);
 		else if (!_tcsncmp (name, _T("CDU"), 3))
 			end = restore_cd (name[3] - '0', chunk);
+		else if (!_tcsncmp(name, _T("ALG "), 4))
+			end = restore_alg(chunk);
 #ifdef A2065
 		else if (!_tcsncmp (name, _T("2065"), 4))
 			end = restore_a2065 (chunk);
@@ -1117,6 +1119,9 @@ static int save_state_internal (struct zfile *f, const TCHAR *description, int c
 	save_chunk (f, dst, len, _T("CD32"), 0);
 	xfree (dst);
 #endif
+	dst = save_alg(&len);
+	save_chunk(f, dst, len, _T("ALG "), 0);
+	xfree(dst);
 #ifdef CDTV
 	dst = save_cdtv (&len, NULL);
 	save_chunk (f, dst, len, _T("CDTV"), 0);

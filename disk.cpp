@@ -1127,14 +1127,14 @@ static void saveimageaddfilename(TCHAR *dst, const TCHAR *src, int type)
 		_tcscat(dst, _T("_save.adf"));
 }
 
-static TCHAR *DISK_get_default_saveimagepath (const TCHAR *name)
+static TCHAR *DISK_get_default_saveimagepath (const TCHAR *name, int type)
 {
 	TCHAR name1[MAX_DPATH];
 	TCHAR path[MAX_DPATH];
 	_tcscpy(name1, name);
 	saveimagecutfilepart(name1);
 	fetch_saveimagepath (path, sizeof path / sizeof (TCHAR), 1);
-	saveimageaddfilename(path, name1, 0);
+	saveimageaddfilename(path, name1, type);
 	return my_strdup(path);
 }
 
@@ -1147,7 +1147,7 @@ TCHAR *DISK_get_saveimagepath(const TCHAR *name, int type)
 	int typev = type;
 
 	for (int i = 0; i < 2; i++) {
-		if (typev == 1 || (typev == -1 && saveimageoriginalpath) || (typev == -2 && (saveimageoriginalpath || i == 1))) {
+		if (typev == 0 || (typev == -1 && saveimageoriginalpath) || (typev == -2 && (saveimageoriginalpath || i == 1))) {
 			TCHAR si_name[MAX_DPATH], si_path[MAX_DPATH];
 			_tcscpy(si_name, name);
 			_tcscpy(si_path, name);
@@ -1155,14 +1155,34 @@ TCHAR *DISK_get_saveimagepath(const TCHAR *name, int type)
 			saveimagecutpathpart(si_path);
 			_tcscat(si_path, FSDB_DIR_SEPARATOR_S);
 			saveimageaddfilename(si_path, si_name, 1);
-			if (typev != -2 || (typev == -2 && zfile_exists(si_path)))
+			if (typev != -2 || (typev == -2 && zfile_exists(si_path))) {
 				return my_strdup(si_path);
+			}
+			if (typev == -2) {
+				_tcscpy(si_name, name);
+				_tcscpy(si_path, name);
+				saveimagecutfilepart(si_name);
+				saveimagecutpathpart(si_path);
+				_tcscat(si_path, FSDB_DIR_SEPARATOR_S);
+				saveimageaddfilename(si_path, si_name, 0);
+				if (zfile_exists(si_path)) {
+					return my_strdup(si_path);
+				}
+			}
 		}
-		if (typev == 2 || (typev == -1 && !saveimageoriginalpath) || (typev == -2 && (!saveimageoriginalpath || i == 1))) {
-			TCHAR *p = DISK_get_default_saveimagepath(name);
-			if (typev != -2 || (typev == -2 && zfile_exists(p)))
+		if (typev == 1 || (typev == -1 && !saveimageoriginalpath) || (typev == -2 && (!saveimageoriginalpath || i == 1))) {
+			TCHAR *p = DISK_get_default_saveimagepath(name, 0);
+			if (typev != -2 || (typev == -2 && zfile_exists(p))) {
 				return p;
+			}
 			xfree(p);
+			if (typev == -2) {
+				TCHAR *p = DISK_get_default_saveimagepath(name, 1);
+				if (zfile_exists(p)) {
+					return p;
+				}
+				xfree(p);
+			}
 		}
 	}
 	return DISK_get_saveimagepath(name, -1);
@@ -1174,12 +1194,7 @@ static struct zfile *getexistingwritefile(struct uae_prefs *p, const TCHAR *name
 	TCHAR *path;
 	TCHAR outname[MAX_DPATH];
 
-	path = DISK_get_saveimagepath(name, saveimageoriginalpath);
-	DISK_validate_filename(p, path, num, outname, 1, wrprot, NULL, &zf);
-	xfree(path);
-	if (zf)
-		return zf;
-	path = DISK_get_saveimagepath(name, !saveimageoriginalpath);
+	path = DISK_get_saveimagepath(name, -2);
 	DISK_validate_filename(p, path, num, outname, 1, wrprot, NULL, &zf);
 	xfree(path);
 	return zf;

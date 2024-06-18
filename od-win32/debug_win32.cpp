@@ -2080,6 +2080,7 @@ int open_debug_window(void)
 	debuggerinitializing = FALSE;
 	if (!hDbgWnd)
 		return 0;
+	rawinput_release();
 	InitPages();
 	ShowPage(0, TRUE);
 	if (!regqueryint (NULL, _T("DebuggerMaximized"), &maximized))
@@ -2094,6 +2095,7 @@ int open_debug_window(void)
 void close_debug_window(void)
 {
 	DestroyWindow(hDbgWnd);
+	rawinput_alloc();
 }
 
 int console_get_gui (TCHAR *out, int maxlen)

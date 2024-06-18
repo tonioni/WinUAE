@@ -51,17 +51,20 @@ static CComPtr<IMediaSeeking> mediaSeeking;
 static CComPtr<IMediaEvent> mediaEvent;
 static CComPtr<IBasicAudio> audio;
 static bool videoInitialized;
-static bool videoPaused;
+static int videoPaused;
 static long *frameBuffer;
 static long bufferSize;
 static int videoWidth, videoHeight;
+static int audio_chflags, audio_volume;
 
 void uninitvideograb(void)
 {
 	write_log(_T("uninitvideograb\n"));
 
 	videoInitialized = false;
-	videoPaused = false;
+	videoPaused = -1;
+	audio_chflags = 0;
+	audio_volume = 0;
 
 	sampleGrabber.Release();
 	mediaSeeking.Release();
@@ -311,6 +314,7 @@ bool initvideograb(const TCHAR *filename)
 
 	hr = filterGraph->QueryInterface(IID_IBasicAudio, (void**)&audio);
 	setvolumevideograb(100 - currprefs.sound_volume_genlock);
+	setchflagsvideograb(0, false);
 
 	hr = filterGraph->QueryInterface(IID_IMediaControl, (void**)&mediaControl);
 	if (FAILED(hr)) {
@@ -332,6 +336,16 @@ bool initvideograb(const TCHAR *filename)
 	}
 }
 
+uae_s64 getdurationvideograb(void)
+{
+	LONGLONG dura;
+	HRESULT hr = mediaSeeking->GetDuration(&dura);
+	if (FAILED(hr)) {
+		return 0;
+	}
+	return dura;
+}
+
 uae_s64 getsetpositionvideograb(uae_s64 framepos)
 {
 	if (!videoInitialized || !mediaSeeking)
@@ -351,8 +365,32 @@ uae_s64 getsetpositionvideograb(uae_s64 framepos)
 		hr = mediaSeeking->SetPositions(&pos, AM_SEEKING_AbsolutePositioning, NULL, AM_SEEKING_NoPositioning);
 		if (FAILED(hr)) {
 			write_log(_T("SetPositions %lld failed %08x\n"), framepos, hr);
+			return 0;
 		}
-		return 0;
+		return pos;
+	}
+}
+
+void setchflagsvideograb(int chflags, bool mute)
+{
+	if (!audio)
+		return;
+	audio_chflags = chflags;
+	long bal;
+	if (chflags == 1) {
+		bal = -10000;
+	} else if (chflags == 2) {
+		bal = 10000;
+	} else {
+		bal = 0;
+	}
+	if (!currprefs.win32_videograb_balance) {
+		audio->put_Balance(bal);
+	}
+	if (chflags && !mute) {
+		setvolumevideograb(audio_volume);
+	} else if (!chflags || mute) {
+		audio->put_Volume(0);
 	}
 }
 
@@ -360,13 +398,17 @@ void setvolumevideograb(int volume)
 {
 	if (!audio)
 		return;
+	audio_volume = volume;
+	if (!audio_chflags) {
+		volume = 0;
+	}
 	long vol = (long)(log10((float)volume / 100.0) * 4000.0);
 	audio->put_Volume(vol);
 }
 
 bool getpausevideograb(void)
 {
-	return videoPaused != 0;
+	return videoPaused > 0;
 }
 
 void pausevideograb(int pause)
@@ -374,17 +416,19 @@ void pausevideograb(int pause)
 	HRESULT hr;
 	if (!videoInitialized)
 		return;
+	if (videoPaused == pause)
+		return;
 	if (pause < 0) {
 		pause = videoPaused ? 0 : 1;
 	}
 	if (pause > 0) {
 		hr = mediaControl->Pause();
 		if (SUCCEEDED(hr))
-			videoPaused = true;
+			videoPaused = 1;
 	} else if (pause == 0) {
 		hr = mediaControl->Run();
 		if (SUCCEEDED(hr))
-			videoPaused = false;
+			videoPaused = 0;
 	}
 }
 

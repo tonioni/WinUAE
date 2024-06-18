@@ -171,7 +171,6 @@ static int forceroms;
 static int start_data = 0;
 static void *tablet;
 HCURSOR normalcursor;
-static HWND hwndNextViewer;
 static bool clipboard_initialized;
 HANDLE AVTask;
 static int all_events_disabled;
@@ -812,6 +811,27 @@ static void setcursorshape(int monid)
 	}
 }
 
+void set_showcursor(BOOL v)
+{
+	if (v) {
+		int vv = ShowCursor(TRUE);
+		if (vv > 1) {
+			ShowCursor(FALSE);
+		}
+	} else {
+		int max = 10;
+		while (max-- > 0) {
+			int vv = ShowCursor(FALSE);
+			if (vv < 0) {
+				while (vv < -1) {
+					vv = ShowCursor(TRUE);
+				}
+				break;
+			}
+		}
+	}
+}
+
 void releasecapture(struct AmigaMonitor *mon)
 {
 	//write_log(_T("releasecapture %d\n"), mon_cursorclipped);
@@ -821,14 +841,11 @@ void releasecapture(struct AmigaMonitor *mon)
 	GetCursorInfo(&pci);
 	write_log(_T("PCI %08x %p %d %d\n"), pci.flags, pci.hCursor, pci.ptScreenPos.x, pci.ptScreenPos.y);
 #endif
-	if (!mon_cursorclipped)
-		return;
 	if (!ClipCursor(NULL))
 		write_log(_T("ClipCursor %08x\n"), GetLastError());
 	if (!ReleaseCapture())
 		write_log(_T("ReleaseCapture %08x\n"), GetLastError());
-	int c = ShowCursor(TRUE);
-	write_log(_T("ShowCursor %d\n"), c);
+	set_showcursor(TRUE);
 	mon_cursorclipped = 0;
 }
 
@@ -1000,16 +1017,20 @@ bool ismouseactive (void)
 	return mouseactive > 0;
 }
 
-void target_inputdevice_unacquire(void)
+void target_inputdevice_unacquire(bool full)
 {
 	close_tablet(tablet);
 	tablet = NULL;
+	if (full) {
+		rawinput_release();
+	}
 }
 void target_inputdevice_acquire(void)
 {
 	struct AmigaMonitor *mon = &AMonitors[0];
-	target_inputdevice_unacquire();
+	target_inputdevice_unacquire(false);
 	tablet = open_tablet(mon->hAmigaWnd);
+	rawinput_alloc();
 }
 
 int getfocusedmonitor(void)
@@ -1046,20 +1067,26 @@ static void setmouseactive2(struct AmigaMonitor *mon, int active, bool allowpaus
 			return;
 	}
 
+	//write_log(_T("setmouseactive(%d)\n"), active);
+
 	if (active < 0)
 		active = 1;
 
 	mouseactive = active ? mon->monitor_id + 1 : 0;
 
 	mon->mouseposx = mon->mouseposy = 0;
-	//write_log (_T("setmouseactive(%d)\n"), active);
-	releasecapture (mon);
-	recapture = 0;
 
-	if (isfullscreen () <= 0 && (currprefs.input_mouse_untrap & MOUSEUNTRAP_MAGIC) && currprefs.input_tablet > 0) {
-		if (mousehack_alive ())
-			return;
-		SetCursor (normalcursor);
+	if (isfullscreen() <= 0 && (currprefs.input_mouse_untrap & MOUSEUNTRAP_MAGIC)) {
+		if (currprefs.input_tablet > 0) {
+			if (mousehack_alive()) {
+				releasecapture(mon);
+				recapture = 0;
+				return;
+			}
+			SetCursor(normalcursor);
+		} else {
+			recapture = 0;
+		}
 	}
 
 	bool gotfocus = false;
@@ -1081,6 +1108,8 @@ static void setmouseactive2(struct AmigaMonitor *mon, int active, bool allowpaus
 		focus = 0;
 		mouseactive = 0;
 		active = 0;
+		releasecapture(mon);
+		recapture = 0;
 	}
 
 	if (mouseactive > 0)
@@ -1090,18 +1119,17 @@ static void setmouseactive2(struct AmigaMonitor *mon, int active, bool allowpaus
 
 	if (mouseactive) {
 		if (focus) {
-			if (GetActiveWindow() != mon->hMainWnd && GetActiveWindow() != mon->hAmigaWnd)
+			if (GetActiveWindow() != mon->hMainWnd && GetActiveWindow() != mon->hAmigaWnd) {
 				SetActiveWindow(mon->hMainWnd);
-			if (!mon_cursorclipped) {
-				//write_log(_T("setcapture\n"));
-#if MOUSECLIP_HIDE
-				ShowCursor (FALSE);
-#endif
-				SetCapture (mon->hAmigaWnd);
-				updatewinrect(mon, false);
-				mon_cursorclipped = mon->monitor_id + 1;
-				updatemouseclip(mon);
 			}
+			//write_log(_T("setcapture\n"));
+#if MOUSECLIP_HIDE
+			set_showcursor(FALSE);
+#endif
+			SetCapture (mon->hAmigaWnd);
+			updatewinrect(mon, false);
+			mon_cursorclipped = mon->monitor_id + 1;
+			updatemouseclip(mon);
 			setcursor(mon, -30000, -30000);
 		}
 		if (lastmouseactive != mouseactive) {
@@ -2441,14 +2469,18 @@ static LRESULT CALLBACK AmigaWindowProc(HWND hWnd, UINT message, WPARAM wParam, 
 		DragAcceptFiles(hWnd, TRUE);
 		normalcursor = LoadCursor(NULL, IDC_ARROW);
 		if (!clipboard_initialized) {
-			clipboard_initialized = true;
-			hwndNextViewer = SetClipboardViewer(hWnd);
-			clipboard_init(hWnd);
+			if (AddClipboardFormatListener(hWnd)) {
+				clipboard_initialized = true;
+				clipboard_init(hWnd);
+			}
 		}
 		return 0;
 
 	case WM_DESTROY:
-		clipboard_initialized = false;
+		if (clipboard_initialized) {
+			RemoveClipboardFormatListener(hWnd);
+			clipboard_initialized = false;
+		}
 		if (device_change_timer)
 			KillTimer(hWnd, 4);
 		device_change_timer = 0;
@@ -2775,20 +2807,9 @@ static LRESULT CALLBACK AmigaWindowProc(HWND hWnd, UINT message, WPARAM wParam, 
 	}
 	break;
 
-	case WM_CHANGECBCHAIN:
-		if (clipboard_initialized) {
-			if ((HWND)wParam == hwndNextViewer)
-				hwndNextViewer = (HWND)lParam;
-			else if (hwndNextViewer != NULL)
-				SendMessage(hwndNextViewer, message, wParam, lParam);
-			return 0;
-		}
-		break;
-	case WM_DRAWCLIPBOARD:
+	case WM_CLIPBOARDUPDATE:
 		if (clipboard_initialized) {
 			clipboard_changed(hWnd);
-			if (hwndNextViewer)
-				SendMessage(hwndNextViewer, message, wParam, lParam);
 			return 0;
 		}
 		break;
@@ -3862,6 +3883,8 @@ uae_u8 *save_log(int bootlog, size_t *len)
 
 	if (!logging_started)
 		return NULL;
+	if (debugfile)
+		fflush(debugfile);
 	f = _tfopen(bootlog ? LOG_BOOT : LOG_NORMAL, _T("rb"));
 	if (!f)
 		return NULL;
@@ -5981,6 +6004,35 @@ static void WIN32_HandleRegistryStuff (void)
 	target_load_debugger_config();
 }
 
+void target_setdefaultstatefilename(const TCHAR *name)
+{
+	TCHAR path[MAX_DPATH];
+	fetch_path(_T("StatefilePath"), path, sizeof(path) / sizeof(TCHAR));
+	if (!name || !name[0]) {
+		_tcscat(path, _T("default.uss"));
+	} else {
+		const TCHAR *p2 = _tcsrchr(name, '\\');
+		const TCHAR *p3 = _tcsrchr(name, '/');
+		const TCHAR *p1 = NULL;
+		if (p2 >= p3) {
+			p1 = p2;
+		} else if (p3 >= p2) {
+			p1 = p3;
+		}
+		if (p1) {
+			_tcscat(path, p1 + 1);
+		} else {
+			_tcscat(path, name);
+		}
+		const TCHAR *p = _tcsrchr(path, '.');
+		if (p) {
+			path[_tcslen(path) - ((path + _tcslen(path)) - p)] = 0;
+			_tcscat(path, _T(".uss"));
+		}
+	}
+	_tcscpy(savestate_fname, path);
+}
+
 #if WINUAEPUBLICBETA > 0
 static const TCHAR *BETAMESSAGE = {
 	_T("This is unstable beta software. Click cancel if you are not comfortable using software that is incomplete and can have serious programming errors.")
@@ -6502,7 +6554,8 @@ static void getstartpaths (void)
 	setpathmode (path_type);
 }
 
-extern int screenshotmode, postscript_print_debugging, sound_debug, log_uaeserial, clipboard_debug;
+extern int screenshotmode, postscript_print_debugging, sound_debug, log_uaeserial;
+static int clipboard_debug, clipboard_log;
 extern int force_direct_catweasel, sound_mode_skip, maxmem;
 extern int pngprint, log_sercon, midi_inbuflen;
 extern int debug_rtg_blitter;
@@ -6795,6 +6848,10 @@ static int parseargs(const TCHAR *argx, const TCHAR *np, const TCHAR *np2)
 	}
 	if (!_tcscmp(arg, _T("clipboarddebug"))) {
 		clipboard_debug = 1;
+		return 1;
+	}
+	if (!_tcscmp(arg, _T("clipboardlog"))) {
+		clipboard_log = 1;
 		return 1;
 	}
 	if (!_tcscmp(arg, _T("rplog"))) {
@@ -7130,11 +7187,17 @@ static int parseargs(const TCHAR *argx, const TCHAR *np, const TCHAR *np2)
 			darkModeForced = 1;
 		} else if (!_tcsicmp(np, _T("light"))) {
 			darkModeForced = -1;
+		} else if (!_tcsicmp(np, _T("default"))) {
+			darkModeDetect = -1;
 		}
 		return 2;
 	}
 	if (!_tcscmp(arg, _T("key_swap_hack"))) {
 		key_swap_hack = getval(np);
+		return 2;
+	}
+	if (!_tcscmp(arg, _T("osk"))) {
+		on_screen_keyboard = getval(np);
 		return 2;
 	}
 
@@ -7672,7 +7735,7 @@ static void create_dump (struct _EXCEPTION_POINTERS *pExceptionPointers)
 					CloseHandle (f);
 					ClipCursor(NULL);
 					ReleaseCapture();
-					ShowCursor(TRUE);
+					set_showcursor(TRUE);
 					if (debugfile)
 						log_close(debugfile);
 					if (isfullscreen() <= 0) {
@@ -8259,16 +8322,24 @@ bool is_mainthread(void)
 void InitializeDarkMode(void)
 {
 	static int initialized = -10;
+	static int dmdetect = -10;
 
 	int v = -1;
 	regqueryint(NULL, _T("GUIDarkMode"), &v);
 	if (rp_isactive()) {
-		v = -2;
+		darkModeDetect = 1;
+	}
+	if (darkModeDetect) {
+		int dms = GetAppDarkModeState();
+		if (dms != dmdetect) {
+			dmdetect = dms;
+			initialized = -10;
+		}
+		v = -1;
 	}
 	if (darkModeForced) {
 		v = 1;
 	}
-
 	if (initialized != v) {
 		InitDarkMode(v);
 		write_log("dark mode supported: %d enabled: %d\n", g_darkModeSupported, g_darkModeEnabled);

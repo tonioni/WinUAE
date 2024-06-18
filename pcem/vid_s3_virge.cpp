@@ -785,15 +785,17 @@ static void s3_virge_updatemapping(virge_t *virge)
                         break;
                 }
                 virge->linear_base &= ~(virge->linear_size - 1);
-//                pclog("%08X %08X  %02X %02X %02X\n", linear_base, linear_size, crtc[0x58], crtc[0x59], crtc[0x5a]);
+                //pclog("%08X %08X  %02X %02X %02X\n", virge->linear_base, virge->linear_size, svga->crtc[0x58], svga->crtc[0x59], svga->crtc[0x5a]);
                 pclog("Linear framebuffer at %08X size %08X\n", virge->linear_base, virge->linear_size);
                 if (virge->linear_base == 0xa0000)
                 {
                         mem_mapping_set_addrx(&svga->mapping, 0xa0000, 0x10000);
                         mem_mapping_disablex(&virge->linear_mapping);
                 }
-                else
-                        mem_mapping_set_addrx(&virge->linear_mapping, virge->linear_base, virge->linear_size);
+                else {
+                    virge->linear_base &= 0xfc000000;
+                    mem_mapping_set_addrx(&virge->linear_mapping, virge->linear_base, virge->linear_size);
+                }
                 svga->fb_only = 1;
         }
         else
@@ -2424,8 +2426,9 @@ skip_line:
                 }
                 break;
 
-                default:
-                fatal("s3_virge_bitblt : blit command %i %08x\n", (virge->s3d.cmd_set >> 27) & 0xf, virge->s3d.cmd_set);
+                // Amiga NetBSD has a bug: it writes %0111 instead of %1111 (NOP)
+                //default:
+                //fatal("s3_virge_bitblt : blit command %i %08x\n", (virge->s3d.cmd_set >> 27) & 0xf, virge->s3d.cmd_set);
         }
 }
 
@@ -3960,7 +3963,7 @@ static void *s3_virge_init()
                    s3_virge_in, s3_virge_out,
                    s3_virge_hwcursor_draw,
                    s3_virge_overlay_draw);
-        virge->svga.vblank_start = s3_virge_vblank_start;
+        virge->svga.vsync_callback = s3_virge_vblank_start;
 
         rom_init(&virge->bios_rom, "s3virge.bin", 0xc0000, 0x8000, 0x7fff, 0, MEM_MAPPING_EXTERNAL);
         if (PCI)
@@ -4059,7 +4062,7 @@ static void *s3_virge_375_init()
                    s3_virge_in, s3_virge_out,
                    s3_virge_hwcursor_draw,
                    s3_virge_overlay_draw);
-        virge->svga.vblank_start = s3_virge_vblank_start;
+        virge->svga.vsync_callback = s3_virge_vblank_start;
 
         rom_init(&virge->bios_rom, "86c375_1.bin", 0xc0000, 0x8000, 0x7fff, 0, MEM_MAPPING_EXTERNAL);
         if (PCI)

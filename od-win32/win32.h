@@ -15,17 +15,17 @@
 #define GETBDM(x) (((x) - ((x / 10000) * 10000)) / 100)
 #define GETBDD(x) ((x) % 100)
 
-#define WINUAEPUBLICBETA 1
+#define WINUAEPUBLICBETA 0
 #define LANG_DLL 1
-#define LANG_DLL_FULL_VERSION_MATCH 1
+#define LANG_DLL_FULL_VERSION_MATCH 0
 
 #if WINUAEPUBLICBETA
-#define WINUAEBETA _T("7")
+#define WINUAEBETA _T("")
 #else
 #define WINUAEBETA _T("")
 #endif
 
-#define WINUAEDATE MAKEBD(2024, 2, 3)
+#define WINUAEDATE MAKEBD(2024, 6, 1)
 
 //#define WINUAEEXTRA _T("AmiKit Preview")
 //#define WINUAEEXTRA _T("Amiga Forever Edition")
@@ -76,7 +76,6 @@ extern void updatewinrect(struct AmigaMonitor*, bool);
 int getdpiformonitor(HMONITOR mon);
 int getdpiforwindow(HWND hwnd);
 void InitializeDarkMode(void);
-
 extern bool resumepaused (int priority);
 extern bool setpaused (int priority);
 extern void unsetminimized (int monid);

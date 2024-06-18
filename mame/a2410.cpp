@@ -280,8 +280,6 @@ static void write_ramdac(struct a2410_struct *data, int addr, uae_u8 v)
 				a2410_create_palette32(data, 256);
 				data->a2410_palette_index++;
 			}
-			if (data->a2410_palette_index >= 4 * 4)
-				data->a2410_palette_index = 0;
 		}
 		break;
 	}
@@ -822,10 +820,15 @@ static void tms_vsync_handler2(struct a2410_struct *data, bool internalsync)
 	data->a2410_overlay_blink_cnt++;
 	if (data->a2410_overlay_blink_cnt == 0 || data->a2410_overlay_blink_cnt == data->a2410_overlay_blink_rate_on) {
 		// any blink mode enabled?
-		if (data->a2410_palette_control[5 - 4] != 0 || (data->a2410_palette_control[6 - 4] & (4 | 8)))
+		if (data->a2410_palette_control[5 - 4] != 0 || (data->a2410_palette_control[6 - 4] & (4 | 8))) {
 			data->fullrefresh = 2;
+		}
 	}
 	if (data->a2410_overlay_blink_cnt > data->a2410_overlay_blink_rate_off + data->a2410_overlay_blink_rate_on) {
+		// any blink mode enabled?
+		if (data->a2410_palette_control[5 - 4] != 0 || (data->a2410_palette_control[6 - 4] & (4 | 8))) {
+			data->fullrefresh = 2;
+		}
 		data->a2410_overlay_blink_cnt = 0;
 	}
 }

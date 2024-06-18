@@ -24,7 +24,7 @@ static svga_t *svga_pri;
 bool svga_on(void *p)
 {
     svga_t *svga = (svga_t*)p;
-    return svga->scrblank == 0 && svga->hdisp >= 128 && (svga->crtc[0x17] & 0x80);
+    return svga->scrblank == 0 && svga->hdisp >= 80 && (svga->crtc[0x17] & 0x80);
 }
 
 int svga_get_vtotal(void *p)
@@ -563,6 +563,16 @@ int svga_poll(void *p)
                         svga->hwcursor_oddeven = 1;
                 }
 
+                if (svga->displine == ((svga->dac_hwcursor_latch.y < 0) ? 0 : svga->dac_hwcursor_latch.y) && svga->dac_hwcursor_latch.ena) {
+                    svga->dac_hwcursor_on = svga->dac_hwcursor_latch.ysize - svga->dac_hwcursor_latch.yoff;
+                    svga->dac_hwcursor_oddeven = 0;
+                }
+
+                if (svga->displine == (((svga->dac_hwcursor_latch.y < 0) ? 0 : svga->dac_hwcursor_latch.y) + 1) && svga->dac_hwcursor_latch.ena && svga->interlace) {
+                    svga->dac_hwcursor_on = svga->dac_hwcursor_latch.ysize - (svga->dac_hwcursor_latch.yoff + 1);
+                    svga->dac_hwcursor_oddeven = 1;
+                }
+
                 if (svga->displine == svga->overlay_latch.y && svga->overlay_latch.ena)
                 {
                         svga->overlay_on = svga->overlay_latch.ysize - svga->overlay_latch.yoff;
@@ -591,7 +601,7 @@ int svga_poll(void *p)
                                 video_wait_for_buffer();
                         }
                         
-                        if (svga->hwcursor_on || svga->overlay_on)
+                        if (svga->hwcursor_on || svga->dac_hwcursor_on || svga->overlay_on)
                                 svga->changedvram[svga->ma >> 12] = svga->changedvram[(svga->ma >> 12) + 1] = svga->interlace ? 3 : 2;
                       
                         if (!svga->override)
@@ -606,13 +616,21 @@ int svga_poll(void *p)
                                         svga->overlay_on--;
                         }
 
-                        if (svga->hwcursor_on)
+                        if (svga->hwcursor_on && svga->hwcursor_draw)
                         {
                                 if (!svga->override)
                                         svga->hwcursor_draw(svga, svga->displine);
                                 svga->hwcursor_on--;
                                 if (svga->hwcursor_on && svga->interlace)
                                         svga->hwcursor_on--;
+                        }
+                        if (svga->dac_hwcursor_on && svga->dac_hwcursor_draw)
+                        {
+                            if (!svga->override)
+                                svga->dac_hwcursor_draw(svga, svga->displine);
+                            svga->dac_hwcursor_on--;
+                            if (svga->dac_hwcursor_on && svga->interlace)
+                                svga->dac_hwcursor_on--;
                         }
 
                         if (svga->lastline < svga->displine) 
@@ -702,8 +720,6 @@ int svga_poll(void *p)
                 }
                 if (svga->vc == svga->dispend)
                 {
-                        if (svga->vblank_start && (svga->crtc[0x17] & 0x80))
-                                svga->vblank_start(svga);
 //                        pclog("VC dispend\n");
                         svga->dispon=0;
                         if (svga->crtc[10] & 0x20) svga->cursoron = 0;
@@ -796,33 +812,8 @@ int svga_poll(void *p)
                                 }
                             }
                         }
-//                        if (svga_interlace && oddeven) ma=maback=ma+(svga_rowoffset<<2);
-                        
-//                        pclog("Addr %08X vson %03X vsoff %01X  %02X %02X %02X %i %i\n",ma,svga_vsyncstart,crtc[0x11]&0xF,crtc[0xD],crtc[0xC],crtc[0x33], svga_interlace, oddeven);
 
-                        if (svga->vsync_callback)
-                                svga->vsync_callback(svga);
-                        eod = 1;
-                }
-                if (svga->vc == svga->vtotal)
-                {
-//                        pclog("VC vtotal\n");
-
-
-//                        printf("Frame over at line %i %i  %i %i\n",displine,vc,svga_vsyncstart,svga_dispend);
-                        svga->vc = 0;
-                        svga->sc = svga->crtc[8] & 0x1f;
-                        svga->dispon = 1;
-                        svga->displine = (svga->interlace && svga->oddeven) ? 1 : 0;
                         int scrollcache = svga->attrregs[0x13] & 7;
-                        svga->linecountff = 0;
-                        
-                        svga->hwcursor_on = 0;
-                        svga->hwcursor_latch = svga->hwcursor;
-
-                        svga->overlay_on = 0;
-                        svga->overlay_latch = svga->overlay;
-
                         if (svga->render == svga_render_4bpp_highres ||
                             svga->render == svga_render_2bpp_highres) {
                             svga->scrollcache_dst = (8 - scrollcache) + 24;
@@ -846,6 +837,36 @@ int svga_poll(void *p)
                         if (svga->adjust_panning) {
                             svga->adjust_panning(svga);
                         }
+
+//                      if (svga_interlace && oddeven) ma=maback=ma+(svga_rowoffset<<2);
+                        
+//                      pclog("Addr %08X vson %03X vsoff %01X  %02X %02X %02X %i %i\n",ma,svga_vsyncstart,crtc[0x11]&0xF,crtc[0xD],crtc[0xC],crtc[0x33], svga_interlace, oddeven);
+
+                        if (svga->vsync_callback)
+                                svga->vsync_callback(svga);
+                        eod = 1;
+                }
+                if (svga->vc == svga->vtotal)
+                {
+//                        pclog("VC vtotal\n");
+
+
+//                        printf("Frame over at line %i %i  %i %i\n",displine,vc,svga_vsyncstart,svga_dispend);
+                        svga->vc = 0;
+                        svga->sc = svga->crtc[8] & 0x1f;
+                        svga->dispon = 1;
+                        svga->displine = (svga->interlace && svga->oddeven) ? 1 : 0;
+                        svga->linecountff = 0;
+                        
+                        svga->hwcursor_on = 0;
+                        svga->hwcursor_latch = svga->hwcursor;
+
+                        svga->dac_hwcursor_on = 0;
+                        svga->dac_hwcursor_latch = svga->dac_hwcursor;
+
+                        svga->overlay_on = 0;
+                        svga->overlay_latch = svga->overlay;
+
 
 //                        pclog("Latch HWcursor addr %08X\n", svga_hwcursor_latch.addr);
                         

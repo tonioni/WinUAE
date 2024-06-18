@@ -78,7 +78,7 @@ void ncr_updatebanking(ncr_t*);
 
 static int ncr_vga_vsync_enabled(ncr_t *ncr)
 {
-    if (!(ncr->svga.crtc[0x11] & 0x20) && ncr->vblank_irq > 0)
+    if (!(ncr->svga.crtc[0x11] & 0x20) && (ncr->svga.crtc[0x17] & 0x80) && ncr->vblank_irq > 0)
         return 1;
     return 0;
 }
@@ -1145,7 +1145,7 @@ static void *ncr_init(char *bios_fn, int chip)
                 break;
         }
                 
-        svga->vblank_start = ncr_vblank_start;
+        svga->vsync_callback = ncr_vblank_start;
         svga->adjust_panning = ncr_adjust_panning;
 
         ncr_io_set(ncr);

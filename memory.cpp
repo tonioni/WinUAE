@@ -2572,6 +2572,8 @@ static void allocate_memory (void)
 			restore_ram (a3000lmem_filepos, a3000lmem_bank.baseaddr);
 		if (a3000hmem_bank.allocated_size > 0)
 			restore_ram (a3000hmem_filepos, a3000hmem_bank.baseaddr);
+	} else {
+		alg_flag = 0;
 	}
 #ifdef AGA
 	chipmem_bank_ce2.baseaddr = chipmem_bank.baseaddr;
@@ -2600,6 +2602,13 @@ static void setmemorywidth(struct ramboard *mb, addrbank *ab)
 		for (int i = (ab->start >> 16); i < ((ab->start + ab->allocated_size) >> 16); i++) {
 			ce_banktype[i] = ce_banktype[0];
 		}
+	}
+	if (mb->fault) {
+		ab->baseaddr_direct_w = NULL;
+		ab->baseaddr_direct_r = NULL;
+		ab->lput = &dummy_lput;
+		ab->wput = &dummy_wput;
+		ab->bput = &dummy_bput;
 	}
 }
 
@@ -2958,7 +2967,6 @@ void memory_reset (void)
 	bool gayleorfatgary;
 
 	highest_ram = 0;
-	alg_flag = 0;
 	need_hardreset = false;
 	rom_write_enabled = true;
 #ifdef JIT

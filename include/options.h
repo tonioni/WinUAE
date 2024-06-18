@@ -15,7 +15,7 @@
 #include "traps.h"
 
 #define UAEMAJOR 5
-#define UAEMINOR 2
+#define UAEMINOR 3
 #define UAESUBREV 0
 
 #define MAX_AMIGADISPLAYS 4
@@ -473,6 +473,7 @@ struct ramboard
 	bool nodma;
 	bool force16bit;
 	bool chipramtiming;
+	int fault;
 	struct boardloadfile lf;
 };
 struct expansion_params
@@ -628,11 +629,13 @@ struct uae_prefs {
 	int genlock_scale;
 	int genlock_aspect;
 	int genlock_effects;
+	int genlock_offset_x, genlock_offset_y;
 	uae_u64 ecs_genlock_features_colorkey_mask[4];
 	uae_u8 ecs_genlock_features_plane_mask;
 	bool genlock_alpha;
 	TCHAR genlock_image_file[MAX_DPATH];
 	TCHAR genlock_video_file[MAX_DPATH];
+	TCHAR genlock_font[MAX_DPATH];
 	int monitoremu;
 	int monitoremu_mon;
 	float chipset_refreshrate;
@@ -910,6 +913,7 @@ struct uae_prefs {
 	bool win32_shutdown_notification;
 	bool win32_warn_exit;
 	bool win32_gui_control;
+	bool win32_videograb_balance;
 	bool right_control_is_right_win_key;
 #ifdef WITH_SLIRP
 	struct slirp_redir slirp_redirs[MAX_SLIRP_REDIRS];
@@ -943,6 +947,7 @@ struct uae_prefs {
 	bool input_autoswitch;
 	bool input_autoswitchleftright;
 	bool input_advancedmultiinput;
+	bool input_default_onscreen_keyboard;
 	struct uae_input_device joystick_settings[MAX_INPUT_SETTINGS][MAX_INPUT_DEVICES];
 	struct uae_input_device mouse_settings[MAX_INPUT_SETTINGS][MAX_INPUT_DEVICES];
 	struct uae_input_device keyboard_settings[MAX_INPUT_SETTINGS][MAX_INPUT_DEVICES];

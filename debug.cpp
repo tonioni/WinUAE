@@ -118,6 +118,7 @@ void activate_debugger (void)
 		return;
 
 	debugger_load_libraries();
+	open_console();
 
 	debugger_used = 1;
 	inside_debugger = 1;
@@ -2493,9 +2494,9 @@ static bool get_record_dma_info(struct dma_rec *drs, struct dma_rec *dr, TCHAR *
 	if (ipl >= 0) {
 		_stprintf(l1, _T("[%02X %03X %d]"), hpos, dhpos, ipl);
 	} else if (ipl == -2) {
-		_stprintf(l1, _T("[%02X     -]"), hpos);
+		_stprintf(l1, _T("[%02X %03X -]"), hpos, dhpos);
 	} else {
-		_stprintf(l1, _T("[%02X      ]"), hpos);
+		_stprintf(l1, _T("[%02X %03X  ]"), hpos, dhpos);
 	}
 	if (l4) {
 		_tcscpy(l4, _T("          "));
@@ -5665,6 +5666,7 @@ int instruction_breakpoint(TCHAR **c)
 	struct breakpoint_node *bpn;
 	int i;
 	TCHAR next = 0;
+	bool err;
 
 	if (more_params (c)) {
 		TCHAR nc = _totupper ((*c)[0]);
@@ -5768,35 +5770,40 @@ int instruction_breakpoint(TCHAR **c)
 			return 0;
 		}
 		trace_mode = TRACE_RANGE_PC;
-		trace_param[0] = readhex(c, NULL);
-		if (more_params (c)) {
-			trace_param[1] = readhex(c, NULL);
-			return 1;
-		} else {
-			for (i = 0; i < BREAKPOINT_TOTAL; i++) {
-				bpn = &bpnodes[i];
-				if (bpn->enabled && bpn->value1 == trace_param[0]) {
-					bpn->enabled = 0;
-					console_out (_T("Breakpoint removed.\n"));
-					trace_mode = 0;
-					return 0;
-				}
-			}
-			for (i = 0; i < BREAKPOINT_TOTAL; i++) {
-				bpn = &bpnodes[i];
-				if (bpn->enabled)
-					continue;
-				bpn->value1 = trace_param[0];
-				bpn->type = BREAKPOINT_REG_PC;
-				bpn->oper = BREAKPOINT_CMP_EQUAL;
-				bpn->enabled = 1;
-				check_breakpoint_extra(c, bpn);
-				console_out (_T("Breakpoint added.\n"));
-				trace_mode = 0;
-				break;
-			}
+		trace_param[0] = readhex(c, &err);
+		if (err) {
+			trace_mode = 0;
 			return 0;
 		}
+		if (more_params (c)) {
+			trace_param[1] = readhex(c, &err);
+			if (!err) {
+				return 1;
+			}
+		}
+		for (i = 0; i < BREAKPOINT_TOTAL; i++) {
+			bpn = &bpnodes[i];
+			if (bpn->enabled && bpn->value1 == trace_param[0]) {
+				bpn->enabled = 0;
+				console_out (_T("Breakpoint removed.\n"));
+				trace_mode = 0;
+				return 0;
+			}
+		}
+		for (i = 0; i < BREAKPOINT_TOTAL; i++) {
+			bpn = &bpnodes[i];
+			if (bpn->enabled)
+				continue;
+			bpn->value1 = trace_param[0];
+			bpn->type = BREAKPOINT_REG_PC;
+			bpn->oper = BREAKPOINT_CMP_EQUAL;
+			bpn->enabled = 1;
+			check_breakpoint_extra(c, bpn);
+			console_out (_T("Breakpoint added.\n"));
+			trace_mode = 0;
+			break;
+		}
+		return 0;
 	}
 	trace_mode = TRACE_RAM_PC;
 	return 1;
@@ -7169,6 +7176,7 @@ static TCHAR input[MAX_LINEWIDTH];
 
 static void debug_1 (void)
 {
+	open_console();
 	custom_dumpstate(0);
 	m68k_dumpstate(&nextpc, debug_pc);
 	debug_pc = 0xffffffff;
@@ -7496,9 +7504,10 @@ void debug (void)
 #ifdef WITH_PPC
 	uae_ppc_pause(1);
 #endif
-	inputdevice_unacquire ();
+	inputdevice_unacquire();
 	pause_sound ();
 	setmouseactive(0, 0);
+	target_inputdevice_unacquire(true);
 	activate_console ();
 	trace_mode = 0;
 	exception_debugging = 0;

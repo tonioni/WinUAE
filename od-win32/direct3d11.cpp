@@ -255,6 +255,7 @@ struct d3d11struct
 	ID3D11ShaderResourceView *sltexturerv;
 	ID3D11Texture2D *texture2d, *texture2dstaging;
 	ID3D11Texture2D *sltexture;
+	int sltexture_w, sltexture_h;
 	ID3D11Texture2D *screenshottexturert, *screenshottexturetx;
 	ID3D11VertexShader *m_vertexShader;
 	ID3D11PixelShader *m_pixelShader, *m_pixelShaderSL, *m_pixelShaderMask;
@@ -2241,6 +2242,8 @@ static bool createsltexture(struct d3d11struct *d3d)
 		write_log(_T("CreateTexture2D (main) failed: %08x\n"), hr);
 		return false;
 	}
+	d3d->sltexture_w = d3d->m_screenWidth;
+	d3d->sltexture_h = d3d->m_screenHeight;
 
 	srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
 	srvDesc.Texture2D.MostDetailedMip = 0;
@@ -2292,7 +2295,7 @@ static void createscanlines(struct d3d11struct *d3d, int force)
 	if (l1 + l2 <= 0)
 		return;
 
-	if (!d3d->sltexture) {
+	if (!d3d->sltexture || d3d->sltexture_w != d3d->m_screenWidth || d3d->sltexture_h != d3d->m_screenHeight) {
 		if (d3d->scanline_osl1 == 0 && d3d->scanline_osl3 == 0)
 			return;
 		if (!createsltexture(d3d))
@@ -2305,13 +2308,13 @@ static void createscanlines(struct d3d11struct *d3d, int force)
 		return;
 	}
 	sld = (uae_u8*)map.pData;
-	for (y = 0; y < d3d->m_screenHeight; y++) {
-		memset(sld + y * map.RowPitch, 0, d3d->m_screenWidth * bpp);
+	for (y = 0; y < d3d->sltexture_h; y++) {
+		memset(sld + y * map.RowPitch, 0, d3d->sltexture_w * bpp);
 	}
-	for (y = 0; y < d3d->m_screenHeight; y += l1 + l2) {
+	for (y = 0; y < d3d->sltexture_h; y += l1 + l2) {
 		int y2 = y + (d3d->filterd3d->gfx_filter_scanlineoffset % (l1 + 1));
-		for (yy = 0; yy < l2 && y2 + yy < d3d->m_screenHeight; yy++) {
-			for (x = 0; x < d3d->m_screenWidth; x++) {
+		for (yy = 0; yy < l2 && y2 + yy < d3d->sltexture_h; yy++) {
+			for (x = 0; x < d3d->sltexture_w; x++) {
 				uae_u8 sll = sl42;
 				p = &sld[(y2 + yy) * map.RowPitch + (x * bpp)];
 				/* 32-bit, A8R8G8B8 */
@@ -3659,7 +3662,7 @@ static int xxD3D11_init2(HWND ahwnd, int monid, int w_w, int w_h, int t_w, int t
 			d3d->fsSwapChainDesc.ScanlineOrdering = m->ScanlineOrdering;
 			d3d->fsSwapChainDesc.Scaling = m->Scaling;
 			if (!hz) {
-				write_log(_T("D3D11 found matching fullscreen mode. SLO=%d S=%d. Default refresh rate.\n"), m->ScanlineOrdering, m->Scaling);
+				write_log(_T("D3D11 found matching fullscreen mode (%dx%d). SLO=%d S=%d. Default refresh rate.\n"), m->Width, m->Height, m->ScanlineOrdering, m->Scaling);
 				break;
 			}
 			if (isfs(d3d) != 0 && m->RefreshRate.Numerator && m->RefreshRate.Denominator) {
@@ -5524,10 +5527,14 @@ static bool xD3D11_extoverlay(struct extoverlay *ext, int monid)
 			return true;
 	}
 
-	if (ext->width <= 0 || ext->height <= 0)
+	if (ext->width <= 0 || ext->height <= 0 || !d3d->m_device) {
 		return false;
+	}
 
 	ov = xcalloc(d3doverlay, 1);
+	if (!ov) {
+		return false;
+	}
 	s = &ov->s;
 
 	if (!allocsprite(d3d, s, ext->width, ext->height, true, false, false)) {

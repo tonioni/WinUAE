@@ -2304,6 +2304,7 @@ int target_cfgfile_load (struct uae_prefs *p, const TCHAR *filename, int type, i
 		else
 			_tcscpy (fname, filename);
 	}
+	target_setdefaultstatefilename(filename);
 
 	if (!isdefault)
 		qs_override = 1;
@@ -2419,9 +2420,10 @@ void gui_display (int shortcut)
 	flipgui(1);
 
 	if (setpaused (7)) {
-		inputdevice_unacquire ();
+		inputdevice_unacquire();
+		rawinput_release();
 		wait_keyrelease();
-		clearallkeys ();
+		clearallkeys();
 		setmouseactive(0, 0);
 	}
 
@@ -2471,18 +2473,19 @@ void gui_display (int shortcut)
 		}
 	}
 	mon->manual_painting_needed--; /* So that WM_PAINT doesn't need to use custom refreshing */
-	reset_sound ();
-	inputdevice_copyconfig (&changed_prefs, &currprefs);
-	inputdevice_config_change_test ();
-	clearallkeys ();
+	reset_sound();
+	inputdevice_copyconfig(&changed_prefs, &currprefs);
+	inputdevice_config_change_test();
+	clearallkeys();
 	flipgui(0);
 	if (resumepaused (7)) {
-		inputdevice_acquire (TRUE);
+		inputdevice_acquire(TRUE);
 		setmouseactive(0, 1);
 	}
-	fpscounter_reset ();
-	screenshot_free ();
-	write_disk_history ();
+	rawinput_alloc();
+	fpscounter_reset();
+	screenshot_free();
+	write_disk_history();
 	gui_active--;
 	here--;
 }
@@ -4246,7 +4249,24 @@ static TCHAR *HandleConfiguration (HWND hDlg, int flag, struct ConfigStruct *con
 			TCHAR szMessage[MAX_DPATH];
 			WIN32GUI_LoadUIString (IDS_MUSTSELECTCONFIG, szMessage, MAX_DPATH);
 			pre_gui_message (szMessage);
-		} else {
+			ok = 0;
+		}
+		if (ok && !zfile_exists(path)) {
+			TCHAR fname[MAX_DPATH];
+			fetch_configurationpath(fname, sizeof(fname) / sizeof(TCHAR));
+			if (_tcsncmp(fname, path, _tcslen(fname)))
+				_tcscat(fname, path);
+			else
+				_tcscpy(fname, path);
+			if (!zfile_exists(fname)) {
+				TCHAR szMessage[MAX_DPATH];
+				WIN32GUI_LoadUIString(IDS_COULDNOTLOADCONFIG, szMessage, MAX_DPATH);
+				pre_gui_message(szMessage);
+				config_filename[0] = 0;
+				ok = 0;
+			}
+		}
+		if (ok) {
 			if (target_cfgfile_load (&workprefs, path, configtypepanel, 0) == 0) {
 				TCHAR szMessage[MAX_DPATH];
 				WIN32GUI_LoadUIString (IDS_COULDNOTLOADCONFIG, szMessage, MAX_DPATH);
@@ -4335,7 +4355,7 @@ static TCHAR *HandleConfiguration (HWND hDlg, int flag, struct ConfigStruct *con
 		break;
 	}
 
-	setguititle (NULL);
+	setguititle(NULL);
 	return ok ? full_path : NULL;
 }
 
@@ -4796,6 +4816,7 @@ static const struct miscentry misclist[] = {
 	{ 0, 0, _T("A600/A1200/A4000 IDE scsi.device disable"), &workprefs.scsidevicedisable },
 	{ 0, 1, _T("Warp mode reset"), &workprefs.turbo_boot },
 	{ 0, 1, _T("GUI game pad control"), &workprefs.win32_gui_control },
+	{ 0, 1, _T("Default on screen keyboard (Pad button 4)"), &workprefs.input_default_onscreen_keyboard },
 	{ 0, 0, NULL }
 };
 
@@ -5338,7 +5359,7 @@ static void InitializeListView (HWND hDlg)
 
 	} else if (lv_type == LV_MISC1) {
 
-		int itemids[] = { IDS_MISCLISTITEMS1, IDS_MISCLISTITEMS2, IDS_MISCLISTITEMS3, IDS_MISCLISTITEMS4 , -1 };
+		int itemids[] = { IDS_MISCLISTITEMS1, IDS_MISCLISTITEMS2, IDS_MISCLISTITEMS3, IDS_MISCLISTITEMS4, IDS_MISCLISTITEMS5, IDS_MISCLISTITEMS6, -1 };
 		int itemoffset = 0;
 		int itemcnt = 0;
 		listview_column_width[0] = MulDiv(150, dpi, 72);
@@ -7356,6 +7377,7 @@ static void load_quickstart (HWND hDlg, int romcheck)
 	addfloppyhistory (hDlg);
 	config_filename[0] = 0;
 	setguititle (NULL);
+	target_setdefaultstatefilename(config_filename);
 }
 
 static void quickstarthost (HWND hDlg, TCHAR *name)
@@ -14024,8 +14046,10 @@ static void values_to_sounddlg (HWND hDlg)
 	xSendDlgItemMessage (hDlg, IDC_SOUNDFILTER, CB_ADDSTRING, 0, (LPARAM)txt);
 	WIN32GUI_LoadUIString (IDS_SOUND_FILTER_ON_AGA, txt, sizeof (txt) / sizeof (TCHAR));
 	xSendDlgItemMessage (hDlg, IDC_SOUNDFILTER, CB_ADDSTRING, 0, (LPARAM)txt);
-	WIN32GUI_LoadUIString (IDS_SOUND_FILTER_ON_A500, txt, sizeof (txt) / sizeof (TCHAR));
-	xSendDlgItemMessage (hDlg, IDC_SOUNDFILTER, CB_ADDSTRING, 0, (LPARAM)txt);
+	WIN32GUI_LoadUIString(IDS_SOUND_FILTER_ON_A500, txt, sizeof(txt) / sizeof(TCHAR));
+	xSendDlgItemMessage(hDlg, IDC_SOUNDFILTER, CB_ADDSTRING, 0, (LPARAM)txt);
+	WIN32GUI_LoadUIString(IDS_SOUND_FILTER_ON_FIXEDONLY, txt, sizeof(txt) / sizeof(TCHAR));
+	xSendDlgItemMessage(hDlg, IDC_SOUNDFILTER, CB_ADDSTRING, 0, (LPARAM)txt);
 	i = 0;
 	switch (workprefs.sound_filter)
 	{
@@ -14036,7 +14060,7 @@ static void values_to_sounddlg (HWND hDlg)
 		i = workprefs.sound_filter_type ? 2 : 1;
 		break;
 	case 2:
-		i = workprefs.sound_filter_type ? 4 : 3;
+		i = workprefs.sound_filter_type == 2 ? 5 : (workprefs.sound_filter_type == 1 ? 4 : 3);
 		break;
 	}
 	xSendDlgItemMessage (hDlg, IDC_SOUNDFILTER, CB_SETCURSEL, i, 0);
@@ -14242,6 +14266,10 @@ static void values_from_sounddlg (HWND hDlg)
 	case 4:
 		workprefs.sound_filter = FILTER_SOUND_ON;
 		workprefs.sound_filter_type = 1;
+		break;
+	case 5:
+		workprefs.sound_filter = FILTER_SOUND_ON;
+		workprefs.sound_filter_type = 2;
 		break;
 	}
 
@@ -16347,24 +16375,23 @@ static INT_PTR CALLBACK HarddiskDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPA
 			}
 			break;
 			}
-		} else {
-			switch (LOWORD(wParam))
-			{
-			case 10001:
-				clicked_entry--;
+		}
+		switch (LOWORD(wParam))
+		{
+		case 10001:
+			clicked_entry--;
+			hilitehd (hDlg);
+			break;
+		case 10002:
+			clicked_entry++;
+			hilitehd (hDlg);
+			break;
+		default:
+			if (harddiskdlg_button (hDlg, wParam)) {
+				InitializeListView (hDlg);
 				hilitehd (hDlg);
-				break;
-			case 10002:
-				clicked_entry++;
-				hilitehd (hDlg);
-				break;
-			default:
-				if (harddiskdlg_button (hDlg, wParam)) {
-					InitializeListView (hDlg);
-					hilitehd (hDlg);
-				}
-				break;
 			}
+			break;
 		}
 		break;
 
@@ -17295,29 +17322,25 @@ static void swapperhili (HWND hDlg, int entry)
 	SetDlgItemText (hDlg, IDC_DISKTEXT,  workprefs.dfxlist[entry]);
 }
 
-static void diskswapper_addfile2 (struct uae_prefs *prefs, const TCHAR *file)
+static void diskswapper_addfile2(struct uae_prefs *prefs, const TCHAR *file, int slot)
 {
-	int list = 0;
-	while (list < MAX_SPARE_DRIVES) {
-		if (!strcasecmp (prefs->dfxlist[list], file))
+	while (slot < MAX_SPARE_DRIVES) {
+		if (!prefs->dfxlist[slot][0]) {
+			_tcscpy (prefs->dfxlist[slot], file);
+			fullpath (prefs->dfxlist[slot], MAX_DPATH);
 			break;
-		list++;
-	}
-	if (list == MAX_SPARE_DRIVES) {
-		list = 0;
-		while (list < MAX_SPARE_DRIVES) {
-			if (!prefs->dfxlist[list][0]) {
-				_tcscpy (prefs->dfxlist[list], file);
-				fullpath (prefs->dfxlist[list], MAX_DPATH);
-				break;
-			}
-			list++;
 		}
+		slot++;
 	}
 }
 
-static void diskswapper_addfile (struct uae_prefs *prefs, const TCHAR *file)
+static int diskswapper_entry;
+
+static void diskswapper_addfile(struct uae_prefs *prefs, const TCHAR *file, int slot)
 {
+	if (slot < 0) {
+		slot = diskswapper_entry;
+	}
 	struct zdirectory *zd = zfile_opendir_archive (file, ZFD_ARCHIVE | ZFD_NORECURSE);
 	if (zd && zfile_readdir_archive (zd, NULL, true) > 1) {
 		TCHAR out[MAX_DPATH];
@@ -17326,18 +17349,18 @@ static void diskswapper_addfile (struct uae_prefs *prefs, const TCHAR *file)
 			if (zf) {
 				int type = zfile_gettype (zf);
 				if (type == ZFILE_DISKIMAGE || type == ZFILE_EXECUTABLE) {
-					diskswapper_addfile2 (prefs, out);
+					diskswapper_addfile2(prefs, out, slot);
 				}
 				zfile_fclose (zf);
 			}
 		}
 		zfile_closedir_archive (zd);
 	} else {
-		diskswapper_addfile2 (prefs, file);
+		diskswapper_addfile2(prefs, file, slot);
 	}
 }
 
-static void addswapperfile (HWND hDlg, int entry, TCHAR *newpath)
+static int addswapperfile (HWND hDlg, int entry, TCHAR *newpath)
 {
 	TCHAR path[MAX_DPATH];
 	int lastentry = entry;
@@ -17349,19 +17372,19 @@ static void addswapperfile (HWND hDlg, int entry, TCHAR *newpath)
 		TCHAR dpath[MAX_DPATH];
 		loopmulti (path, NULL);
 		while (loopmulti (path, dpath) && entry < MAX_SPARE_DRIVES) {
-			diskswapper_addfile (&workprefs, dpath);
+			diskswapper_addfile(&workprefs, dpath, entry);
 			lastentry = entry;
 			entry++;
 		}
 		InitializeListView (hDlg);
 		swapperhili (hDlg, lastentry);
 	}
+	return lastentry;
 }
 
 static INT_PTR CALLBACK SwapperDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
 	static int recursive = 0;
-	static int entry;
 	TCHAR tmp[MAX_DPATH];
 
 	bool handled;
@@ -17377,8 +17400,8 @@ static INT_PTR CALLBACK SwapperDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPAR
 		currentpage = DISK_ID;
 		InitializeListView (hDlg);
 		addfloppyhistory (hDlg);
-		entry = 0;
-		swapperhili (hDlg, entry);
+		diskswapper_entry = 0;
+		swapperhili (hDlg, diskswapper_entry);
 		setautocomplete (hDlg, IDC_DISKTEXT);
 		break;
 	case WM_LBUTTONUP:
@@ -17387,7 +17410,7 @@ static INT_PTR CALLBACK SwapperDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPAR
 			int item = drag_end (hDlg, cachedlist, lParam, &draggeditems);
 			if (item >= 0) {
 				int i, item2;
-				entry = item;
+				diskswapper_entry = item;
 				for (i = 0; (item2 = draggeditems[i]) >= 0 && item2 < MAX_SPARE_DRIVES; i++, item++) {
 					if (item != item2) {
 						TCHAR tmp[1000];
@@ -17397,7 +17420,7 @@ static INT_PTR CALLBACK SwapperDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPAR
 					}
 				}
 				InitializeListView(hDlg);
-				swapperhili (hDlg, entry);
+				swapperhili (hDlg, diskswapper_entry);
 				return TRUE;
 			}
 			xfree (draggeditems);
@@ -17408,10 +17431,10 @@ static INT_PTR CALLBACK SwapperDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPAR
 			return TRUE;
 		break;
 	case WM_CONTEXTMENU:
-		if (GetDlgCtrlID ((HWND)wParam) == IDC_DISKLISTINSERT && entry >= 0) {
+		if (GetDlgCtrlID ((HWND)wParam) == IDC_DISKLISTINSERT && diskswapper_entry >= 0) {
 			TCHAR *s = favoritepopup (hDlg);
 			if (s) {
-				addswapperfile (hDlg, entry, s);
+				diskswapper_entry = addswapperfile (hDlg, diskswapper_entry, s);
 				xfree (s);
 			}
 		}
@@ -17440,26 +17463,26 @@ static INT_PTR CALLBACK SwapperDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPAR
 			case 10018:
 			case 10019:
 			case 10020:
-				entry = LOWORD (wParam) - 10001;
-				swapperhili (hDlg, entry);
+				diskswapper_entry = LOWORD (wParam) - 10001;
+				swapperhili (hDlg, diskswapper_entry);
 				break;
 			case 10101:
-				if (entry > 0) {
-					entry--;
-					swapperhili (hDlg, entry);
+				if (diskswapper_entry > 0) {
+					diskswapper_entry--;
+					swapperhili (hDlg, diskswapper_entry);
 				}
 				break;
 			case 10102:
-				if (entry >= 0 && entry < MAX_SPARE_DRIVES - 1) {
-					entry++;
-					swapperhili (hDlg, entry);
+				if (diskswapper_entry >= 0 && diskswapper_entry < MAX_SPARE_DRIVES - 1) {
+					diskswapper_entry++;
+					swapperhili (hDlg, diskswapper_entry);
 				}
 				break;
 			case 10103:
 			case 10104:
-				disk_swap (entry, 1);
+				disk_swap (diskswapper_entry, 1);
 				InitializeListView (hDlg);
-				swapperhili (hDlg, entry);
+				swapperhili (hDlg, diskswapper_entry);
 				break;
 			case 10201:
 			case 10202:
@@ -17468,15 +17491,15 @@ static INT_PTR CALLBACK SwapperDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPAR
 				{
 					int drv = LOWORD (wParam) - 10201;
 					int i;
-					if (workprefs.floppyslots[drv].dfxtype >= 0 && entry >= 0) {
+					if (workprefs.floppyslots[drv].dfxtype >= 0 && diskswapper_entry >= 0) {
 						for (i = 0; i < 4; i++) {
-							if (!_tcscmp (workprefs.floppyslots[i].df, workprefs.dfxlist[entry]))
+							if (!_tcscmp (workprefs.floppyslots[i].df, workprefs.dfxlist[diskswapper_entry]))
 								workprefs.floppyslots[i].df[0] = 0;
 						}
-						_tcscpy (workprefs.floppyslots[drv].df, workprefs.dfxlist[entry]);
+						_tcscpy (workprefs.floppyslots[drv].df, workprefs.dfxlist[diskswapper_entry]);
 						disk_insert (drv, workprefs.floppyslots[drv].df);
 						InitializeListView (hDlg);
-						swapperhili (hDlg, entry);
+						swapperhili (hDlg, diskswapper_entry);
 					}
 				}
 				break;
@@ -17488,32 +17511,32 @@ static INT_PTR CALLBACK SwapperDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPAR
 					int drv = LOWORD (wParam) - 10201;
 					workprefs.floppyslots[drv].df[0] = 0;
 					InitializeListView (hDlg);
-					swapperhili (hDlg, entry);
+					swapperhili (hDlg, diskswapper_entry);
 				}
 				break;
 			case 10209:
 				{
-					addswapperfile (hDlg, entry, NULL);
+				diskswapper_entry = addswapperfile (hDlg, diskswapper_entry, NULL);
 				}
 				break;
 
 			case IDC_DISKLISTINSERT:
-				if (entry >= 0) {
+				if (diskswapper_entry >= 0) {
 					if (getfloppybox (hDlg, IDC_DISKTEXT, tmp, sizeof (tmp) / sizeof (TCHAR), HISTORY_FLOPPY, -1)) {
-						_tcscpy (workprefs.dfxlist[entry], tmp);
+						_tcscpy (workprefs.dfxlist[diskswapper_entry], tmp);
 						addfloppyhistory (hDlg);
 						InitializeListView (hDlg);
-						swapperhili (hDlg, entry);
+						swapperhili (hDlg, diskswapper_entry);
 					} else {
-						addswapperfile (hDlg, entry, NULL);
+						diskswapper_entry = addswapperfile (hDlg, diskswapper_entry, NULL);
 					}
 				}
 				break;
 			case IDC_DISKLISTREMOVE:
-				if (entry >= 0) {
-					workprefs.dfxlist[entry][0] = 0;
+				if (diskswapper_entry >= 0) {
+					workprefs.dfxlist[diskswapper_entry][0] = 0;
 					InitializeListView (hDlg);
-					swapperhili (hDlg, entry);
+					swapperhili (hDlg, diskswapper_entry);
 				}
 				break;
 			case IDC_DISKLISTREMOVEALL:
@@ -17522,27 +17545,27 @@ static INT_PTR CALLBACK SwapperDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPAR
 					workprefs.dfxlist[i][0] = 0;
 				}
 				InitializeListView (hDlg);
-				swapperhili (hDlg, entry);
+				swapperhili (hDlg, diskswapper_entry);
 				break;
 			}
 			case IDC_UP:
-				if (entry > 0) {
-					_tcscpy (tmp, workprefs.dfxlist[entry - 1]);
-					_tcscpy (workprefs.dfxlist[entry - 1], workprefs.dfxlist[entry]);
-					_tcscpy (workprefs.dfxlist[entry], tmp);
+				if (diskswapper_entry > 0) {
+					_tcscpy (tmp, workprefs.dfxlist[diskswapper_entry - 1]);
+					_tcscpy (workprefs.dfxlist[diskswapper_entry - 1], workprefs.dfxlist[diskswapper_entry]);
+					_tcscpy (workprefs.dfxlist[diskswapper_entry], tmp);
 					InitializeListView (hDlg);
-					entry--;
-					swapperhili (hDlg, entry);
+					diskswapper_entry--;
+					swapperhili (hDlg, diskswapper_entry);
 				}
 				break;
 			case IDC_DOWN:
-				if (entry >= 0 && entry < MAX_SPARE_DRIVES - 1) {
-					_tcscpy (tmp, workprefs.dfxlist[entry + 1]);
-					_tcscpy (workprefs.dfxlist[entry + 1], workprefs.dfxlist[entry]);
-					_tcscpy (workprefs.dfxlist[entry], tmp);
+				if (diskswapper_entry >= 0 && diskswapper_entry < MAX_SPARE_DRIVES - 1) {
+					_tcscpy (tmp, workprefs.dfxlist[diskswapper_entry + 1]);
+					_tcscpy (workprefs.dfxlist[diskswapper_entry + 1], workprefs.dfxlist[diskswapper_entry]);
+					_tcscpy (workprefs.dfxlist[diskswapper_entry], tmp);
 					InitializeListView (hDlg);
-					entry++;
-					swapperhili (hDlg, entry);
+					diskswapper_entry++;
+					swapperhili (hDlg, diskswapper_entry);
 				}
 				break;
 			}
@@ -17569,33 +17592,33 @@ static INT_PTR CALLBACK SwapperDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPAR
 				if (nmlistview->hdr.code == NM_RCLICK || nmlistview->hdr.code == NM_RDBLCLK)
 					button = 2;
 			case NM_CLICK:
-				entry = listview_entry_from_click (list, &col, false);
-				if (entry >= 0) {
+				diskswapper_entry = listview_entry_from_click (list, &col, false);
+				if (diskswapper_entry >= 0) {
 					if (col == 2) {
 						if (button) {
 							if (!dblclick) {
-								if (disk_swap (entry, -1))
+								if (disk_swap (diskswapper_entry, -1))
 									InitializeListView (hDlg);
-								swapperhili (hDlg, entry);
+								swapperhili (hDlg, diskswapper_entry);
 							}
 						} else {
 							if (!dblclick) {
-								if (disk_swap (entry, 0))
+								if (disk_swap (diskswapper_entry, 0))
 									InitializeListView (hDlg);
-								swapperhili (hDlg, entry);
+								swapperhili (hDlg, diskswapper_entry);
 							}
 						}
 					} else if (col == 1) {
 						if (dblclick) {
 							if (!button) {
-								addswapperfile (hDlg, entry, NULL);
+								diskswapper_entry = addswapperfile (hDlg, diskswapper_entry, NULL);
 							} else {
-								workprefs.dfxlist[entry][0] = 0;
+								workprefs.dfxlist[diskswapper_entry][0] = 0;
 								InitializeListView (hDlg);
 							}
 						}
 					}
-					SetDlgItemText (hDlg, IDC_DISKTEXT,  workprefs.dfxlist[entry]);
+					SetDlgItemText (hDlg, IDC_DISKTEXT,  workprefs.dfxlist[diskswapper_entry]);
 				}
 				break;
 			}
@@ -19039,6 +19062,9 @@ static void CALLBACK timerfunc (HWND hDlg, UINT uMsg, UINT_PTR idEvent, DWORD dw
 				int events[MAX_COMPA_INPUTLIST];
 				
 				int max = inputdevice_get_compatibility_input (&workprefs, inputmap_port, &mode, events, &axistable);
+				if (inputmap_remap_counter >= max) {
+					inputmap_remap_counter = 0;
+				}
 				int evtnum = events[inputmap_remap_counter];
 				int type2 = intputdevice_compa_get_eventtype (evtnum, &axistable2);
 
@@ -19310,6 +19336,7 @@ static void input_find (HWND hDlg, HWND mainDlg, int mode, int set, bool oneshot
 		ShowCursor (TRUE);
 		wait_keyrelease ();
 		inputdevice_unacquire ();
+		rawinput_release();
 		inputmap_disable (hDlg, false);
 		inputdevice_settest (FALSE);
 		SetWindowText (mainDlg, tmp);
@@ -19853,21 +19880,21 @@ static int genericpopupmenu (HWND hwnd, TCHAR **items, int *flags, int num)
 	return item - 1;
 }
 
-static void qualifierlistview (HWND list)
+static void qualifierlistview(HWND list)
 {
 	uae_u64 flags;
 	int evt;
 	TCHAR name[256];
 	TCHAR custom[MAX_DPATH];
 
-	evt = inputdevice_get_mapping (input_selected_device, input_selected_widget,
+	evt = inputdevice_get_mapping(input_selected_device, input_selected_widget,
 		&flags, NULL, name, custom, input_selected_sub_num);
 
-	ListView_DeleteAllItems (list);
+	ListView_DeleteAllItems(list);
 
 	for (int i = 0; i < MAX_INPUT_QUALIFIERS; i++) {
 		TCHAR tmp[MAX_DPATH];
-		getqualifiername (tmp, IDEV_MAPPED_QUALIFIER1 << (i * 2));
+		getqualifiername(tmp, IDEV_MAPPED_QUALIFIER1 << (i * 2));
 
 		LV_ITEM lvi = { 0 };
 		lvi.mask     = LVIF_TEXT | LVIF_PARAM;
@@ -19875,16 +19902,17 @@ static void qualifierlistview (HWND list)
 		lvi.lParam   = 0;
 		lvi.iItem    = i;
 		lvi.iSubItem = 0;
-		ListView_InsertItem (list, &lvi);
+		ListView_InsertItem(list, &lvi);
 
-		_tcscpy (tmp, _T("-"));
+		_tcscpy(tmp, _T("-"));
+		if ((flags & (IDEV_MAPPED_QUALIFIER1 << (i * 2))) && (flags & (IDEV_MAPPED_QUALIFIER1 << (i * 2 + 1))))
+			_tcscpy(tmp, _T("X"));
 		if (flags & (IDEV_MAPPED_QUALIFIER1 << (i * 2)))
-			_tcscpy (tmp, _T("*"));
+			_tcscpy(tmp, _T("*"));
 		else if (flags & (IDEV_MAPPED_QUALIFIER1 << (i * 2 + 1)))
-			_tcscpy (tmp, _T("R"));
+			_tcscpy(tmp, _T("R"));
 
-		ListView_SetItemText (list, i, 1, tmp);
-
+		ListView_SetItemText(list, i, 1, tmp);
 	}
 }
 
@@ -22541,7 +22569,7 @@ int dragdrop (HWND hDlg, HDROP hd, struct uae_prefs *prefs, int	currentpage)
 						type = zfile_gettype (z);
 						if (type == ZFILE_ROM) {
 							rd = getromdatabyzfile (z);
-						} else if (currentpage == QUICKSTART_ID) {
+						} else if (currentpage == QUICKSTART_ID || currentpage == LOADSAVE_ID) {
 							if (type == ZFILE_UNKNOWN && iszip(z)) {
 								type = ZFILE_HDF;
 							}
@@ -22589,7 +22617,7 @@ int dragdrop (HWND hDlg, HDROP hd, struct uae_prefs *prefs, int	currentpage)
 		case ZFILE_DISKIMAGE:
 		case ZFILE_EXECUTABLE:
 			if (currentpage == DISK_ID) {
-				diskswapper_addfile (prefs, file);
+				diskswapper_addfile(prefs, file, -1);
 			} else if (currentpage == HARDDISK_ID) {
 				default_fsvdlg (&current_fsvdlg);
 				_tcscpy (current_fsvdlg.ci.rootdir, file);
@@ -23076,13 +23104,6 @@ static INT_PTR CALLBACK DialogProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 	return FALSE;
 }
 
-#if 0
-static ACCEL EmptyAccel[] = {
-	{ FVIRTKEY, VK_UP, 20001 }, { FVIRTKEY, VK_DOWN, 20002 },
-	{ 0, 0, 0 }
-};
-#endif
-
 struct newresource *getresource (int tmpl)
 {
 	TCHAR rid[20];
@@ -23269,10 +23290,6 @@ static int init_page (int tmpl, int icon, int title,
 	ppage[id].idx = id;
 	ppage[id].accel = NULL;
 	ppage[id].focusid = focusid;
-#if 0
-	if (!accels)
-		accels = EmptyAccel;
-#endif
 	if (accels) {
 		int i = -1;
 		while (accels[++i].key);
@@ -24170,6 +24187,7 @@ void gui_message (const TCHAR *format,...)
 		pause_sound ();
 		if (flipflop)
 			ShowWindow(mon->hAmigaWnd, SW_MINIMIZE);
+		rawinput_release();
 	}
 	if (hwnd == NULL)
 		flags |= MB_TASKMODAL;
@@ -24190,6 +24208,7 @@ void gui_message (const TCHAR *format,...)
 		reset_sound ();
 		resume_sound ();
 		setmouseactive(0, focuso > 0 ? 1 : 0);
+		rawinput_alloc();
 	}
 }
 

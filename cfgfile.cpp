@@ -160,7 +160,7 @@ static const TCHAR *compmode[] = { _T("direct"), _T("indirect"), _T("indirectKS"
 static const TCHAR *flushmode[] = { _T("soft"), _T("hard"), 0 };
 static const TCHAR *kbleds[] = { _T("none"), _T("POWER"), _T("DF0"), _T("DF1"), _T("DF2"), _T("DF3"), _T("HD"), _T("CD"), _T("DFx"), 0 };
 static const TCHAR *onscreenleds[] = { _T("false"), _T("true"), _T("rtg"), _T("both"), 0 };
-static const TCHAR *soundfiltermode1[] = { _T("off"), _T("emulated"), _T("on"), 0 };
+static const TCHAR *soundfiltermode1[] = { _T("off"), _T("emulated"), _T("on"), _T("fixedonly"), 0 };
 static const TCHAR *soundfiltermode2[] = { _T("standard"), _T("enhanced"), 0 };
 static const TCHAR *lorestype1[] = { _T("lores"), _T("hires"), _T("superhires"), 0 };
 static const TCHAR *lorestype2[] = { _T("true"), _T("false"), 0 };
@@ -1600,7 +1600,8 @@ static void cfgfile_write_board_rom(struct uae_prefs *prefs, struct zfile *f, st
 				_stprintf(buf, _T("%s%s_rom"), name, i ? _T("_ext") : _T(""));
 				cfgfile_dwrite_str (f, buf, rc->romident);
 			}
-			if (rc->autoboot_disabled || rc->dma24bit || rc->inserted || ert->subtypes || ert->settings || ert->id_jumper || br->device_order > 0 || is_custom_romboard(br)) {
+			if (rc->autoboot_disabled || rc->dma24bit || rc->inserted || ert->subtypes ||
+				ert->settings || ert->id_jumper || br->device_order > 0 || is_custom_romboard(br)) {
 				TCHAR buf2[256], *p;
 				buf2[0] = 0;
 				p = buf2;
@@ -1778,6 +1779,10 @@ static bool cfgfile_readramboard(const TCHAR *option, const TCHAR *value, const 
 			if (s)
 				rb->product = (uae_u8)_tstol(s);
 			xfree(s);
+			s = cfgfile_option_get(value, _T("fault"));
+			if (s)
+				rb->fault = _tstol(s);
+			xfree(s);
 			if (cfgfile_option_get_bool(value, _T("no_reset_unmap")))
 				rb->no_reset_unmap = true;
 			if (cfgfile_option_get_bool(value, _T("nodma")))
@@ -1914,6 +1919,12 @@ static void cfgfile_writeramboard(struct uae_prefs *prefs, struct zfile *f, cons
 		if (tmp2[0])
 			*p++ = ',';
 		_tcscpy(p, _T("force16bit=true"));
+		p += _tcslen(p);
+	}
+	if (rb->fault) {
+		if (tmp2[0])
+			*p++ = ',';
+		_stprintf(p, _T("fault=%d"), rb->fault);
 		p += _tcslen(p);
 	}
 	if (!_tcsicmp(tmp1, _T("chipmem_options")) || !_tcsicmp(tmp1, _T("bogomem_options"))) {
@@ -2561,8 +2572,11 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	cfgfile_dwrite_strarr(f, _T("genlockmode"), genlockmodes, p->genlock_image);
 	cfgfile_dwrite_str(f, _T("genlock_image"), p->genlock_image_file);
 	cfgfile_dwrite_str(f, _T("genlock_video"), p->genlock_video_file);
+	cfgfile_dwrite_str(f, _T("genlock_font"), p->genlock_font);
 	cfgfile_dwrite(f, _T("genlock_mix"), _T("%d"), p->genlock_mix);
 	cfgfile_dwrite(f, _T("genlock_scale"), _T("%d"), p->genlock_scale);
+	cfgfile_dwrite(f, _T("genlock_offset_x"), _T("%d"), p->genlock_offset_x);
+	cfgfile_dwrite(f, _T("genlock_offset_y"), _T("%d"), p->genlock_offset_y);
 	if (p->genlock_effects) {
 		tmp[0] = 0;
 		if (p->genlock_effects & (1 << 4)) {
@@ -5657,7 +5671,7 @@ static bool cfgfile_read_board_rom(struct uae_prefs *p, const TCHAR *option, con
 						brc->roms[idx].dma24bit = true;
 					}
 					if (cfgfile_option_bool(buf2, _T("inserted")) == 1) {
-						brc->roms[idx].inserted= true;
+						brc->roms[idx].inserted = true;
 					}
 					p = cfgfile_option_get(buf2, _T("order"));
 					if (p) {
@@ -5967,6 +5981,8 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 		|| cfgfile_intval(option, value, _T("monitoremu_monitor"), &p->monitoremu_mon, 1)
 		|| cfgfile_intval(option, value, _T("genlock_scale"), &p->genlock_scale, 1)
 		|| cfgfile_intval(option, value, _T("genlock_mix"), &p->genlock_mix, 1)
+		|| cfgfile_intval(option, value, _T("genlock_offset_x"), &p->genlock_offset_x, 1)
+		|| cfgfile_intval(option, value, _T("genlock_offset_y"), &p->genlock_offset_y, 1)
 		|| cfgfile_intval(option, value, _T("keyboard_handshake"), &p->cs_kbhandshake, 1)
 		|| cfgfile_intval(option, value, _T("eclockphase"), &p->cs_eclockphase, 1)
 		|| cfgfile_intval(option, value, _T("chipset_rtc_adjust"), &p->cs_rtc_adjust, 1)
@@ -6024,6 +6040,7 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 		|| cfgfile_path(option, value, _T("picassoiv_rom_file"), p->picassoivromfile, sizeof p->picassoivromfile / sizeof(TCHAR), &p->path_rom)
 		|| cfgfile_string(option, value, _T("genlock_image"), p->genlock_image_file, sizeof p->genlock_image_file / sizeof(TCHAR))
 		|| cfgfile_string(option, value, _T("genlock_video"), p->genlock_video_file, sizeof p->genlock_video_file / sizeof(TCHAR))
+		|| cfgfile_string(option, value, _T("genlock_font"), p->genlock_font, sizeof p->genlock_font / sizeof(TCHAR))
 		|| cfgfile_string(option, value, _T ("pci_devices"), p->pci_devices, sizeof p->pci_devices / sizeof(TCHAR))
 		|| cfgfile_string (option, value, _T("ghostscript_parameters"), p->ghostscript_parameters, sizeof p->ghostscript_parameters / sizeof (TCHAR)))
 		return 1;
@@ -6648,7 +6665,7 @@ void cfgfile_compatibility_romtype(struct uae_prefs *p)
 		ROMTYPE_HYDRA, ROMTYPE_LANROVER,
 		0 };
 	static const int restricted_x86[] = { ROMTYPE_A1060, ROMTYPE_A2088, ROMTYPE_A2088T, ROMTYPE_A2286, ROMTYPE_A2386, 0 };
-	static const int restricted_pci[] = { ROMTYPE_GREX, ROMTYPE_MEDIATOR, ROMTYPE_PROMETHEUS, 0 };
+	static const int restricted_pci[] = { ROMTYPE_GREX, ROMTYPE_MEDIATOR, ROMTYPE_PROMETHEUS, ROMTYPE_PROMETHEUSFS, 0 };
 	romtype_restricted(p, restricted_net);
 	romtype_restricted(p, restricted_x86);
 	romtype_restricted(p, restricted_pci);
@@ -7195,6 +7212,7 @@ int cfgfile_load (struct uae_prefs *p, const TCHAR *filename, int *type, int ign
 			fetch_configurationpath(tmp, sizeof(tmp) / sizeof(TCHAR));
 			_tcsncat(tmp, p->config_all_path, sizeof(tmp) / sizeof(TCHAR) - _tcslen(tmp) - 1);
 			type2 = CONFIG_TYPE_HOST | CONFIG_TYPE_HARDWARE;
+			target_setdefaultstatefilename(filename);
 			cfgfile_load(p, tmp, &type2, 1, 0);
 		}
 		if (p->config_hardware_path[0]) {
@@ -7207,6 +7225,7 @@ int cfgfile_load (struct uae_prefs *p, const TCHAR *filename, int *type, int ign
 			fetch_configurationpath (tmp, sizeof (tmp) / sizeof (TCHAR));
 			_tcsncat (tmp, p->config_host_path, sizeof (tmp) / sizeof (TCHAR) - _tcslen(tmp) - 1);
 			type2 = CONFIG_TYPE_HOST;
+			target_setdefaultstatefilename(filename);
 			cfgfile_load (p, tmp, &type2, 1, 0);
 		}
 	}
@@ -8579,6 +8598,8 @@ void default_prefs (struct uae_prefs *p, bool reset, int type)
 	p->genlock = 0;
 	p->genlock_image = 0;
 	p->genlock_mix = 0;
+	p->genlock_offset_x = 0;
+	p->genlock_offset_y = 0;
 	p->ntscmode = 0;
 	p->filesys_limit = 0;
 	p->filesys_max_name = 107;
@@ -8802,6 +8823,7 @@ static void buildin_default_prefs (struct uae_prefs *p)
 	p->genlock = 0;
 	p->genlock_image = 0;
 	p->genlock_image_file[0] = 0;
+	p->genlock_font[0] = 0;
 	
 	p->ne2000pciname[0] = 0;
 	p->ne2000pcmcianame[0] = 0;
@@ -9414,7 +9436,7 @@ static int bip_arcadia (struct uae_prefs *p, int config, int compa, int romcheck
 	return 1;
 }
 
-static int bip_alg(struct uae_prefs* p, int config, int compa, int romcheck)
+static int bip_alg(struct uae_prefs *p, int config, int compa, int romcheck)
 {
 	int roms[4], i;
 	struct romlist** rl;
@@ -9444,6 +9466,11 @@ static int bip_alg(struct uae_prefs* p, int config, int compa, int romcheck)
 			roms[0] = rl[i]->rd->id;
 			roms[1] = -1;
 			configure_rom(p, roms, 0);
+			const TCHAR *name = rl[i]->rd->name;
+			p->ntscmode = true;
+			if (_tcsstr(name, _T("Picmatic"))) {
+				p->ntscmode = false;
+			}
 			break;
 		}
 	}

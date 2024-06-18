@@ -495,6 +495,7 @@ static void openprinter (void)
 {
 	DOC_INFO_1 DocInfo;
 	static int first;
+	DWORD error = 0;
 
 	closeprinter ();
 	if (!currprefs.prtname[0])
@@ -514,6 +515,7 @@ static void openprinter (void)
 			DocInfo.pDatatype = (currprefs.parallel_matrix_emulation || currprefs.parallel_postscript_detection) ? _T("TEXT") : _T("RAW");
 			// Inform the spooler the document is beginning.
 			if ((dwJob = StartDocPrinter (hPrt, 1, (LPBYTE)&DocInfo)) == 0) {
+				error = GetLastError();
 				ClosePrinter (hPrt );
 				hPrt = INVALID_HANDLE_VALUE;
 			} else if (StartPagePrinter (hPrt)) {
@@ -526,7 +528,7 @@ static void openprinter (void)
 	if (hPrt != INVALID_HANDLE_VALUE) {
 		write_log (_T("PRINTER: Opening printer \"%s\" with handle 0x%x.\n"), currprefs.prtname, hPrt);
 	} else if (*currprefs.prtname) {
-		write_log (_T("PRINTER: ERROR - Couldn't open printer \"%s\" for output.\n"), currprefs.prtname);
+		write_log (_T("PRINTER: ERROR - Couldn't open printer \"%s\" for output. Error %08x\n"), currprefs.prtname, error);
 	}
 }
 

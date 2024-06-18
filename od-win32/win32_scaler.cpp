@@ -119,9 +119,9 @@ static void getmanualpos(int monid, int *cxp, int *cyp, int *cwp, int *chp)
 		} else {
 			if (currprefs.gfx_overscanmode <= OVERSCANMODE_OVERSCAN) {
 				// keep old version compatibility
-				cw = native ? AMIGA_WIDTH_MAX << RES_MAX : avidinfo->outbuffer->outwidth;
+				cw = native ? AMIGA_WIDTH_MAX << RES_MAX : avidinfo->outbuffer->outwidth << 1;
 			} else {
-				cw = native ? maxhpos_display << RES_MAX : avidinfo->outbuffer->outwidth;
+				cw = native ? maxhpos_display << RES_MAX : avidinfo->outbuffer->outwidth << 1;
 			}
 		}
 	} else {
@@ -135,7 +135,7 @@ static void getmanualpos(int monid, int *cxp, int *cyp, int *cwp, int *chp)
 			ch = avidinfo->outbuffer->outheight << (VRES_MAX - currprefs.gfx_vresolution);
 		} else if (currprefs.gfx_overscanmode <= OVERSCANMODE_OVERSCAN) {
 			// keep old version compatiblity
-			ch = native ? AMIGA_HEIGHT_MAX << VRES_MAX : avidinfo->outbuffer->outheight;
+			ch = native ? (ispal(NULL) ? AMIGA_HEIGHT_MAX_PAL : AMIGA_HEIGHT_MAX_NTSC) << VRES_MAX : avidinfo->outbuffer->outheight;
 		} else {
 			ch = native ? (maxvpos_display + maxvpos_display_vsync - minfirstline) << VRES_MAX : avidinfo->outbuffer->outheight;
 		}
@@ -351,7 +351,7 @@ void getfilterrect2(int monid, RECT *sr, RECT *dr, RECT *zr, int dst_width, int 
 	bool autoaspect_done = false;
 
 	if (scalemode) {
-		int cw, ch, cx, cy, cv, crealh = 0;
+		int cw, ch, cx, cy, cv = 0, crealh = 0;
 		static int oxmult, oymult;
 
 		filterxmult = (float)scale;
@@ -372,6 +372,7 @@ void getfilterrect2(int monid, RECT *sr, RECT *dr, RECT *zr, int dst_width, int 
 				cy = 0;
 				cw = avidinfo->outbuffer->outwidth;
 				ch = avidinfo->outbuffer->outheight;
+				cv = 1;
 			} else {
 				cx = 0;
 				cy = 0;
@@ -445,29 +446,31 @@ void getfilterrect2(int monid, RECT *sr, RECT *dr, RECT *zr, int dst_width, int 
 				filter_vert_zoom_mult = 1.0;
 
 				float multadd = 1.0f / (1 << currprefs.gf[idx].gfx_filter_integerscalelimit);
-				if (cw2 > maxw || ch2 > maxh) {
-					while (cw2 / mult - adjw > maxw || ch2 / mult - adjh > maxh) {
-						mult += multadd;
-					}
-					float multx = mult, multy = mult;
-					maxw = (int)(maxw * multx);
-					maxh = (int)(maxh * multy);
-				} else {
-					while (cw2 * (mult + multadd) - adjw <= maxw && ch2 * (mult + multadd) - adjh <= maxh) {
-						mult += multadd;
-					}
+				if (cw2 > 0 && ch2 > 0) {
+					if (cw2 > maxw || ch2 > maxh) {
+						while (cw2 / mult - adjw > maxw || ch2 / mult - adjh > maxh) {
+							mult += multadd;
+						}
+						float multx = mult, multy = mult;
+						maxw = (int)(maxw * multx);
+						maxh = (int)(maxh * multy);
+					} else {
+						while (cw2 * (mult + multadd) - adjw <= maxw && ch2 * (mult + multadd) - adjh <= maxh) {
+							mult += multadd;
+						}
 
-					float multx = mult, multy = mult;
-					// if width is smaller than height, double width (programmed modes)
-					if (cw2 * (mult + multadd) - adjw <= maxw && cw2 < ch2) {
-						multx += multadd;
+						float multx = mult, multy = mult;
+						// if width is smaller than height, double width (programmed modes)
+						if (cw2 * (mult + multadd) - adjw <= maxw && cw2 < ch2) {
+							multx += multadd;
+						}
+						// if width is >2.5x height, double height (non-doublescanned superhires)
+						if (ch2 * (mult + multadd) - adjh <= maxh && cw2 > ch2 * 2.5) {
+							multy += multadd;
+						}
+						maxw = (int)((maxw + multx - multadd) / multx);
+						maxh = (int)((maxh + multy - multadd) / multy);
 					}
-					// if width is >2.5x height, double height (non-doublescanned superhires)
-					if (ch2 * (mult + multadd) - adjh <= maxh && cw2 > ch2 * 2.5) {
-						multy += multadd;
-					}
-					maxw = (int)((maxw + multx - multadd) / multx);
-					maxh = (int)((maxh + multy - multadd) / multy);
 				}
 
 				*mode = 1;

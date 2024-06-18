@@ -481,6 +481,18 @@ void get_custom_topedge (int *xp, int *yp, bool max)
 	}
 }
 
+void get_screen_blanking_limits(int *hbstop, int *hbstrt, int *vbstop, int *vbstrt)
+{
+	*vbstop = vblank_bottom_stop;
+	*vbstrt = vblank_top_start;
+
+	int hblank_left = exthblank ? hblank_left_start : hblank_left_start_hard;
+	int hblank_right = exthblank ? hblank_right_stop : hblank_right_stop_hard;
+
+	*hbstop = hblank_left - visible_left_border;
+	*hbstrt = hblank_right - visible_left_border;
+}
+
 static void reset_custom_limits(void)
 {
 	gclow = gcloh = gclox = gcloy = 0;
@@ -527,7 +539,9 @@ static void get_vblanking_limits(int *vbstrtp, int *vbstopp, bool overscanonly)
 	}
 	int vbstop = maxvpos + lof_display;
 	if (!ecs_denise && !ecs_agnus) {
-		vbstop++;
+		if (currprefs.gfx_overscanmode >= OVERSCANMODE_BROADCAST) {
+			vbstop++;
+		}
 	} else if (ecs_agnus && !ecs_denise) {
 		// hide hblank bug by faking vblank start 1 line earlier
 		if (currprefs.gfx_overscanmode < OVERSCANMODE_BROADCAST) {
@@ -640,6 +654,9 @@ static void set_hblanking_limits(void)
 	bool hardwired = !dp_for_drawing || !ce_is_extblankset(colors_for_drawing.extra);
 	bool doblank = false;
 	int hbstrt = ((maxhpos_short + 8) << CCK_SHRES_SHIFT) - 3;
+	if (!ecs_denise) {
+		hbstrt -= 4;
+	}
 	int hbstop = (47 << CCK_SHRES_SHIFT) - 7;
 
 	if (currprefs.gfx_overscanmode < OVERSCANMODE_OVERSCAN) {
@@ -665,7 +682,7 @@ static void set_hblanking_limits(void)
 	} else if (currprefs.gfx_overscanmode <= OVERSCANMODE_OVERSCAN) {
 		doblank = true;
 	} else if (currprefs.gfx_overscanmode == OVERSCANMODE_BROADCAST) {
-		hbstrt = (239 << CCK_SHRES_SHIFT) - 3;
+		hbstrt = ((maxhpos_short + 12) << CCK_SHRES_SHIFT) - 3;
 		doblank = true;
 	} else if (currprefs.gfx_overscanmode >= OVERSCANMODE_ULTRA) {
 		doblank = true;
@@ -1483,7 +1500,7 @@ static bool get_genlock_very_rare_and_complex_case(uae_u8 v)
 		} else {
 			// color key match?
 			if (aga_mode) {
-				if (colors_for_drawing.color_regs_aga[v] & 0x80000000)
+				if (colors_for_drawing.color_regs_aga[v] & COLOR_CHANGE_GENLOCK)
 					return false;
 			} else {
 				if (colors_for_drawing.color_regs_ecs[v] & 0x8000)
@@ -1913,7 +1930,7 @@ static uae_u32 shsprite(int dpix, uae_u32 spix_val, uae_u32 v, int add, int spr)
 	struct spritepixelsbuf *spb = &spritepixels[dpix];
 	int sdpix = dpix;
 	if (spb->flags & 2) {
-		sdpix -= add;
+		sdpix -= add >> 1;
 	}
 	int mask = 3;
 	sprcol1 = sh_render_sprites(sdpix, bpldualpf, spix_val, 0);
@@ -4526,19 +4543,32 @@ static void draw_lightpen_cursor(int monid, int x, int y, int line, int onscreen
 static void lightpen_update(struct vidbuffer *vb, int lpnum)
 {
 	struct vidbuf_description *vidinfo = &adisplays[vb->monitor_id].gfxvidinfo;
-	if (lightpen_x[lpnum] < 0 || lightpen_y[lpnum] < 0)
+	if (lightpen_x[lpnum] < 0 && lightpen_y[lpnum] < 0)
 		return;
 
-	if (lightpen_x[lpnum] < LIGHTPEN_WIDTH + 1)
-		lightpen_x[lpnum] = LIGHTPEN_WIDTH + 1;
-	if (lightpen_x[lpnum] >= vidinfo->drawbuffer.inwidth - LIGHTPEN_WIDTH - 1)
-		lightpen_x[lpnum] = vidinfo->drawbuffer.inwidth - LIGHTPEN_WIDTH - 2;
-	if (lightpen_y[lpnum] < LIGHTPEN_HEIGHT + 1)
-		lightpen_y[lpnum] = LIGHTPEN_HEIGHT + 1;
-	if (lightpen_y[lpnum] >= vidinfo->drawbuffer.inheight - LIGHTPEN_HEIGHT - 1)
-		lightpen_y[lpnum] = vidinfo->drawbuffer.inheight - LIGHTPEN_HEIGHT - 2;
-	if (lightpen_y[lpnum] >= max_ypos_thisframe1 - LIGHTPEN_HEIGHT - 1)
-		lightpen_y[lpnum] = max_ypos_thisframe1 - LIGHTPEN_HEIGHT - 2;
+	bool out = false;
+	int extra = 2;
+
+	if (lightpen_x[lpnum] < -extra)
+		lightpen_x[lpnum] = -extra;
+	if (lightpen_x[lpnum] >= vidinfo->drawbuffer.inwidth + extra)
+		lightpen_x[lpnum] = vidinfo->drawbuffer.inwidth + extra;
+	if (lightpen_y[lpnum] < -extra)
+		lightpen_y[lpnum] = -extra;
+	if (lightpen_y[lpnum] >= vidinfo->drawbuffer.inheight + extra)
+		lightpen_y[lpnum] = vidinfo->drawbuffer.inheight + extra;
+	if (lightpen_y[lpnum] >= max_ypos_thisframe1)
+		lightpen_y[lpnum] = max_ypos_thisframe1;
+
+	if (lightpen_x[lpnum] < 0 || lightpen_y[lpnum] < 0) {
+		out = true;
+	}
+	if (lightpen_x[lpnum] >= vidinfo->drawbuffer.inwidth) {
+		out = true;
+	}
+	if (lightpen_y[lpnum] >= max_ypos_thisframe1) {
+		out = true;
+	}
 
 	int cx = (((lightpen_x[lpnum] + visible_left_border) >> lores_shift) >> 1) + 29;
 
@@ -4549,14 +4579,17 @@ static void lightpen_update(struct vidbuffer *vb, int lpnum)
 	cx += currprefs.lightpen_offset[0];
 	cy += currprefs.lightpen_offset[1];
 
-	if (cx < 0x18) {
-		cx = 0x18;
+	if (cx <= 0x18 - 1) {
+		cx = 0x18 - 1;
+		out = true;
 	}
-	if (cy < minfirstline) {
-		cy = minfirstline;
+	if (cy <= minfirstline - 1) {
+		cy = minfirstline - 1;
+		out = true;
 	}
 	if (cy >= maxvpos) {
-		cy = maxvpos - 1;
+		cy = maxvpos;
+		out = true;
 	}
 
 	if (currprefs.lightpen_crosshair && lightpen_active) {
@@ -4573,8 +4606,8 @@ static void lightpen_update(struct vidbuffer *vb, int lpnum)
 	lightpen_y1[lpnum] = lightpen_y[lpnum] - LIGHTPEN_HEIGHT / 2 - 1 + thisframe_y_adjust;
 	lightpen_y2[lpnum] = lightpen_y1[lpnum] + LIGHTPEN_HEIGHT + 1 + thisframe_y_adjust;
 
-	lightpen_cx[lpnum] = cx;
-	lightpen_cy[lpnum] = cy;
+	lightpen_cx[lpnum] = out ? -1 : cx;
+	lightpen_cy[lpnum] = out ? -1 : cy;
 }
 
 static void refresh_indicator_init(void)

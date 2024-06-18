@@ -2264,6 +2264,8 @@ int check_prefs_changed_gfx(void)
 	c |= currprefs.genlock_mix != changed_prefs.genlock_mix ? (1 | 256) : 0;
 	c |= currprefs.genlock_aspect != changed_prefs.genlock_aspect ? (1 | 256) : 0;
 	c |= currprefs.genlock_scale != changed_prefs.genlock_scale ? (1 | 256) : 0;
+	c |= currprefs.genlock_offset_x != changed_prefs.genlock_offset_x ? (1 | 256) : 0;
+	c |= currprefs.genlock_offset_y != changed_prefs.genlock_offset_y ? (1 | 256) : 0;
 	c |= _tcsicmp(currprefs.genlock_image_file, changed_prefs.genlock_image_file) ? (2 | 8) : 0;
 	c |= _tcsicmp(currprefs.genlock_video_file, changed_prefs.genlock_video_file) ? (2 | 8) : 0;
 
@@ -2368,6 +2370,8 @@ int check_prefs_changed_gfx(void)
 		currprefs.genlock_alpha = changed_prefs.genlock_alpha;
 		currprefs.genlock_aspect = changed_prefs.genlock_aspect;
 		currprefs.genlock_scale = changed_prefs.genlock_scale;
+		currprefs.genlock_offset_x = changed_prefs.genlock_offset_x;
+		currprefs.genlock_offset_y = changed_prefs.genlock_offset_y;
 		_tcscpy(currprefs.genlock_image_file, changed_prefs.genlock_image_file);
 		_tcscpy(currprefs.genlock_video_file, changed_prefs.genlock_video_file);
 
@@ -3045,7 +3049,7 @@ void gfx_set_picasso_state(int monid, int on)
 	}
 end:
 #ifdef RETROPLATFORM
-	rp_set_hwnd (mon->hAmigaWnd);
+	rp_set_hwnd_delayed();
 #endif
 }
 
@@ -3073,9 +3077,9 @@ void gfx_set_picasso_modeinfo(int monid, RGBFTYPE rgbfmt)
 	if (!mon->screen_is_picasso)
 		return;
 	gfx_set_picasso_colors(monid, rgbfmt);
+	need = modeswitchneeded(mon, &mon->currentmode);
 	update_gfxparams(mon);
 	updatemodes(mon);
-	need = modeswitchneeded(mon, &mon->currentmode);
 	if (need > 0) {
 		open_screen(mon);
 	} else if (need < 0) {
@@ -3083,7 +3087,7 @@ void gfx_set_picasso_modeinfo(int monid, RGBFTYPE rgbfmt)
 	}
 	state->ModeChanged = false;
 #ifdef RETROPLATFORM
-	rp_set_hwnd(mon->hAmigaWnd);
+	rp_set_hwnd_delayed();
 #endif
 	target_graphics_buffer_update(monid, false);
 }
@@ -3661,6 +3665,7 @@ static int create_windows(struct AmigaMonitor *mon)
 		return 1;
 	}
 
+	rawinput_release();
 	gfx_lock();
 	D3D_free(mon->monitor_id, false);
 	gfx_unlock();
@@ -3865,7 +3870,6 @@ static int create_windows(struct AmigaMonitor *mon)
 		UpdateWindow(mon->hAmigaWnd);
 		firstwindow = false;
 		setDwmEnableMMCSS(true);
-		rawinput_alloc();
 
 		if (currprefs.win32_shutdown_notification && !rp_isactive()) {
 			typedef BOOL(WINAPI *SHUTDOWNBLOCKREASONCREATE)(HWND, LPCWSTR);
@@ -3881,6 +3885,7 @@ static int create_windows(struct AmigaMonitor *mon)
 		}
 	}
 
+	rawinput_alloc();
 	return 1;
 }
 
@@ -4334,7 +4339,11 @@ void close_rtg(int monid, bool reset)
 	struct AmigaMonitor *mon = &AMonitors[monid];
 	close_windows(mon);
 	if (reset) {
+		struct amigadisplay *ad = &adisplays[monid];
 		mon->screen_is_picasso = false;
+		ad->picasso_on = false;
+		ad->picasso_requested_on = false;
+		ad->picasso_requested_forced_on = false;
 	}
 }
 
