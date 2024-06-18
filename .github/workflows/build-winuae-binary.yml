@@ -2,13 +2,13 @@ name: Build WinUAE binary
 
 on:
   workflow_dispatch:
-      inputs:
+    inputs:
       Configuration:
-        descripion: "Type of binary build"
-        required: true
-        default: "Test"
-        type: choice
-        options:
+      descripion: "Type of binary build"
+      required: true
+      default: "Test"
+      type: choice
+      options:
         - Release
         - Test
         - FullRelease
@@ -20,13 +20,6 @@ on:
         options:
         - Win32
         - x64
-  push:
-    branches: 
-      - master
-  pull_request:
-    branches:
-      - master
-
 env:
   SOLUTION_FILE_PATH: od-win32\\winuae_msvc15
 
