@@ -2,24 +2,13 @@ name: Build WinUAE binary
 
 on:
   workflow_dispatch:
-    inputs:
-      Configuration:
-      descripion: "Type of binary build"
-      required: true
-      default: "Test"
-      type: choice
-      options:
-        - Release
-        - Test
-        - FullRelease
-      Platform:
-        description: "Platform to build for"
-        required: true
-        default: "Win32"
-        type: choice
-        options:
-        - Win32
-        - x64
+  push:
+    branches: 
+      - master
+  pull_request:
+    branches:
+      - master
+      
 env:
   SOLUTION_FILE_PATH: od-win32\\winuae_msvc15
 
@@ -60,13 +49,25 @@ jobs:
       uses: ilammy/setup-nasm@v1.5.1
 
     # Running roughly step 12 of README.md
-    - name: Build ${{ inputs.Platform }} ${{ inputs.Configuration }}
+    - name: Build Win32 FullRelease
       working-directory: ${{env.GITHUB_WORKSPACE}}
       # Add additional options to the MSBuild command line here (like platform or verbosity level).
       # See https://docs.microsoft.com/visualstudio/msbuild/msbuild-command-line-reference
-      run: msbuild /m /p:Platform=${{ inputs.Platform }} /p:Configuration=${{ inputs.Configuration }} ${{env.SOLUTION_FILE_PATH}}
+      run: msbuild /m /p:Platform=Win32 /p:Configuration=FullRelease ${{env.SOLUTION_FILE_PATH}}
 
     - uses: actions/upload-artifact@v4
       with:
-        name: WinUAE ${{ inputs.Platform }} ${{ inputs.Configuration }}
+        name: WinUAE Win32 FullRelease
+        path: D:\\Amiga
+
+    # Running roughly step 12 of README.md
+    - name: Build x64 FullRelease
+      working-directory: ${{env.GITHUB_WORKSPACE}}
+      # Add additional options to the MSBuild command line here (like platform or verbosity level).
+      # See https://docs.microsoft.com/visualstudio/msbuild/msbuild-command-line-reference
+      run: msbuild /m /p:Platform=x64 /p:Configuration=FullRelease ${{env.SOLUTION_FILE_PATH}}
+
+    - uses: actions/upload-artifact@v4
+      with:
+        name: WinUAE x64 FullRelease
         path: D:\\Amiga
