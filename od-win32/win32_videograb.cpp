@@ -339,6 +339,9 @@ bool initvideograb(const TCHAR *filename)
 uae_s64 getdurationvideograb(void)
 {
 	LONGLONG dura;
+	if (!mediaSeeking) {
+		return 0;
+	}
 	HRESULT hr = mediaSeeking->GetDuration(&dura);
 	if (FAILED(hr)) {
 		return 0;
