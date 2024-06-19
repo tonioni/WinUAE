@@ -4590,12 +4590,14 @@ static void draw_key(HDC hdc, void *bm, int bmw, int bmh, struct extoverlay *eo,
 	TextOut(hdc, 10, 10, key, len);
 	int offsetx = 10;
 	int offsety = 10 - 1;
-	for (int y = 0; y < fh + 2; y++) {
+	for (int y = 0; y < fh + 2 && y < bmh; y++) {
+		int eox = (int)(sx + 0.5f);
+		int eoy = (int)(sy + 0.5f) + y;
 		uae_u8 *src = (uae_u8 *)bm + (y + offsety) * bmw + offsetx;
-		uae_u8 *dst = eo->data + (int)(sx + 0.5f) * 4 + ((int)(sy + 0.5f) + y) * eo->width * 4;
+		uae_u8 *dst = eo->data + eox * 4 + eoy * eo->width * 4;
 		for (int x = 0; x < bmw; x++) {
 			uae_u8 b = *src++;
-			if (b == 2) {
+			if (b == 2 && eox >= 0 && eox < eo->width && eoy >= 0 && eoy < eo->height) {
 				drawpixel(dst, OSD_KB_COLOR, OSD_KB_TRANSPARENCY);
 			}
 			dst += 4;
