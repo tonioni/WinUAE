@@ -1213,6 +1213,9 @@ static void alg_vsync(void)
 								write_log(_T("LD: Repeat complete\n"));
 							}
 							ld_repcnt = -1;
+							ld_mode = LD_MODE_STILL;
+							ld_direction = 0;
+							pausevideograb(1);
 						} else {
 							ld_address = ld_startaddress;
 							getsetpositionvideograb(ld_address);
