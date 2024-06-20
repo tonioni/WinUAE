@@ -656,8 +656,10 @@ static uae_u32 REGPARAM2 alg_bget (uaecptr addr)
 			// Picmatic 100Hz games
 			int reg = (addr >> 12) & 15;
 			uae_u8 v = 0;
-			uae_u16 x = lightpen_x[1 - picmatic_ply];
-			uae_u16 y = lightpen_y[1 - picmatic_ply] >> currprefs.gfx_vresolution;
+			uae_s16 x = lightpen_x[1 - picmatic_ply];
+			x <<= 1;
+			x >>= currprefs.gfx_resolution;
+			uae_s16 y = lightpen_y[1 - picmatic_ply] >> currprefs.gfx_vresolution;
 			if (reg == 3) {
 				v = 0xff;
 				// left trigger
