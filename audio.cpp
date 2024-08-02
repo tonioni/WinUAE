@@ -1857,9 +1857,7 @@ static bool audio_state_channel2 (int nr, bool perfin)
 		cdp->state = 2;
 		loadper(nr);
 		cdp->pbufldl = true;
-		if (!currprefs.cpu_memory_cycle_exact) {
-			cdp->intreq2 = false;
-		}
+		cdp->intreq2 = false;
 		cdp->volcnt = 0;
 		audio_state_channel2(nr, false);
 		break;
