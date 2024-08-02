@@ -291,10 +291,15 @@ static struct pci_bridge *get_pci_bridge(uaecptr addr)
 	}
 	struct pci_bridge *pcib = bridges[last_bridge_index];
 	if (pcib) {
-		if (addr >= pcib->baseaddress && addr < pcib->baseaddress_end)
+		if (addr >= pcib->baseaddress && addr < pcib->baseaddress_end) {
+			if (pcib->multiwindow) {
+				pcib->windowindex = addr >= pcib->baseaddress + 0x00400000 ? 1 : 0;
+			}
 			return pcib;
-		if (pcib->configured_2 && addr >= pcib->baseaddress_2 && addr < pcib->baseaddress_end_2)
+		}
+		if (pcib->configured_2 && addr >= pcib->baseaddress_2 && addr < pcib->baseaddress_end_2) {
 			return pcib;
+		}
 	}
 	for (int i = 0; i < PCI_BRIDGE_MAX; i++) {
 		struct pci_bridge *pcib = bridges[i];
@@ -302,6 +307,9 @@ static struct pci_bridge *get_pci_bridge(uaecptr addr)
 			if ((addr >= pcib->baseaddress && addr < pcib->baseaddress_end) ||
 				(pcib->configured_2 && addr >= pcib->baseaddress_2 && addr < pcib->baseaddress_end_2)) {
 				last_bridge_index = i;
+				if (pcib->multiwindow) {
+					pcib->windowindex = addr >= pcib->baseaddress + 0x00400000 ? 1 : 0;
+				}
 				return pcib;
 			}
 		}
@@ -357,7 +365,7 @@ static struct pci_board_state *get_pci_board_state(struct pci_bridge *pcib, uaec
 	if (io) {
 		addr2 -= pcib->io_offset;
 	} else {
-		addr2 -= pcib->memory_start_offset;
+		addr2 -= pcib->memory_start_offset[pcib->windowindex];
 	}
 	struct pci_board_state *pcibs2 = &pcib->boards[stored_board];
 	if (pcibs2 && stored_bar < MAX_PCI_BARS) {
@@ -431,7 +439,7 @@ static const pci_addrbank *get_pci_mem(uaecptr *addrp, struct pci_board_state **
 	*pcibsp = pcibs;
 	pcibs->selected_bar = bar;
 	*endianswap = pcib->endian_swap_memory;
-	addr -= pcibs->bridge->memory_start_offset;
+	addr -= pcibs->bridge->memory_start_offset[pcib->windowindex];
 	*addrp = addr;
 	return &pcibs->board->bars[bar];
 }
@@ -1138,7 +1146,7 @@ static void REGPARAM2 pci_bridge_wput(uaecptr addr, uae_u32 b)
 					}
 					pcib->baseaddress_offset = pcib->baseaddress;
 					pcib->io_offset = expamem_board_pointer;
-					pcib->memory_start_offset = expamem_board_pointer;
+					pcib->memory_start_offset[0] = expamem_board_pointer;
 				} else if (pcib->type == PCI_BRIDGE_PROMETHEUS_FS) {
 					if (validate_banks_z3(&pci_io_bank, (expamem_board_pointer) >> 16, expamem_board_size >> 16)) {
 						map_banks_z3(&pci_io_bank, (expamem_board_pointer + 0x1fe00000) >> 16, 0x100000 >> 16);
@@ -1147,7 +1155,7 @@ static void REGPARAM2 pci_bridge_wput(uaecptr addr, uae_u32 b)
 					}
 					pcib->baseaddress_offset = pcib->baseaddress;
 					pcib->io_offset = expamem_board_pointer;
-					pcib->memory_start_offset = expamem_board_pointer;
+					pcib->memory_start_offset[0] = expamem_board_pointer;
 				} else if (pcib->type == PCI_BRIDGE_MEDIATOR) {
 					map_banks_z3(&pci_mem_bank, expamem_board_pointer >> 16, expamem_board_size >> 16);
 					pcib->baseaddress_offset = 0;
@@ -1211,26 +1219,32 @@ static void REGPARAM2 pci_bridge_bput(uaecptr addr, uae_u32 b)
 
 static void mediator_set_window_offset(struct pci_bridge *pcib, uae_u16 v)
 {
-	uae_u32 offset;
 	v = do_byteswap_16(v);
 	if (pcib->bank_2_zorro == 3) {
 		// 4000
-		uae_u8 mask = pcib->board_size == 256 * 1024 * 1024 ? 0xf0 : 0xe0;
-		pcib->window = v & mask;
-		pcib->memory_start_offset = pcib->window << 18;
-		offset = pcib->memory_start_offset;
+		pcib->window[0] = v & 0xf0;
+		pcib->memory_start_offset[0] = pcib->window[0] << 18;
 	} else {
 		// 1200
-		uae_u16 mask = pcib->board_size == 4 * 1024 * 1024 ? 0xffc0 : 0xff80;
-		pcib->window = v & mask;
-		pcib->memory_start_offset = pcib->window << 16;
-		offset = pcib->memory_start_offset;
-		pcib->memory_start_offset -= pcib->baseaddress;
-		pcib->memory_start_offset = 0 - pcib->memory_start_offset;
+		if (pcib->multiwindow) {
+			// TX has 2x4M banks
+			if (v & 0x0010) {
+				pcib->window[1] = v & 0xffc0;
+				pcib->memory_start_offset[1] = pcib->window[1] << 16;
+				pcib->memory_start_offset[1] -= 0x00400000;
+				pcib->memory_start_offset[1] -= pcib->baseaddress;
+				pcib->memory_start_offset[1] = 0 - pcib->memory_start_offset[1];
+			}
+		} else {
+			v &= ~0x0010;
+		}
+		if (!(v& 0x0010)) {
+			pcib->window[0] = v & 0xffc0;
+			pcib->memory_start_offset[0] = pcib->window[0] << 16;
+			pcib->memory_start_offset[0] -= pcib->baseaddress;
+			pcib->memory_start_offset[0] = 0 - pcib->memory_start_offset[0];
+		}
 	}
-#if 0
-	write_log(_T"Mediator window: %08x %04x PC=%08x\n"), offset, v, M68K_GETPC);
-#endif
 }
 
 static uae_u32 REGPARAM2 pci_bridge_bget_2(uaecptr addr)
@@ -1248,7 +1262,7 @@ static uae_u32 REGPARAM2 pci_bridge_bget_2(uaecptr addr)
 		if (pcib->bank_2_zorro == 3) {
 			int offset = addr & 0x7fffff;
 			if (offset == 0) {
-				v = (uae_u8)pcib->window;
+				v = (uae_u8)pcib->window[0];
 				v |= 8; // id
 			}
 			if (offset == 4) {
@@ -1283,7 +1297,7 @@ static uae_u32 REGPARAM2 pci_bridge_wget_2(uaecptr addr)
 			int offset = addr & 0x1f;
 			v = 0;
 			if (offset == 2) {
-				v = 0x2000 | do_byteswap_16(pcib->window); // id + window
+				v = 0x2000 | do_byteswap_16(pcib->window[0]); // id + window
 			} else if (offset == 10) {
 				v = pcib->irq | (pcib->intena << 4);
 			}
@@ -2168,8 +2182,13 @@ static void mediator_pci_init_1200(struct pci_bridge *pcib)
 	pcib->bank_zorro = 2;
 	pcib->bank_2_zorro = 2;
 	pcib->pcipcidma = true;
-	if (pcib->rc->device_settings & 1)
+	if (pcib->rc->device_settings & 1) {
 		pcib->amigapicdma = true;
+	}
+	// 1200TX 8M?
+	if (pcib->rc->subtype == 2 && (pcib->rc->device_settings & 2)) {
+		pcib->multiwindow = true;
+	}
 	mediator_set_window_offset(pcib, 0);
 }
 

@@ -87,7 +87,7 @@ struct pci_bridge
 	int type;
 	int endian_swap_config;
 	uae_u32 io_offset;
-	uae_u32 memory_start_offset;
+	uae_u32 memory_start_offset[2];
 	int endian_swap_io;
 	uae_u32 memory_window_offset;
 	int endian_swap_memory;
@@ -118,9 +118,11 @@ struct pci_bridge
 	uae_u8 acmemory[128];
 	uae_u8 acmemory_2[128];
 	struct romconfig *rc;
-	uae_u16 window;
+	uae_u16 window[2];
 	int log_slot_cnt;
 	int phys_slot_cnt;
+	bool multiwindow;
+	int windowindex;
 };
 
 extern void pci_irq_callback(struct pci_board_state *pcibs, bool irq);
