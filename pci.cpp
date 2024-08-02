@@ -1923,7 +1923,7 @@ static int prometheusfs_get_index(uaecptr addr, bool w, uae_u32 *vp)
 				}
 				return -1;
 			}
-			*vp = (pcib->irq ? (1 << 29) : 0) | (pcib->intena ? (1 << 30) : 0) | (pcib->reset ? (1 << 31) : 0);
+			*vp = (pcib->irq ? 0 : (1 << 29)) | (pcib->intena ? (1 << 30) : 0) | (pcib->reset ? (1 << 31) : 0);
 		}
 		return -1;
 	}
