@@ -5046,8 +5046,9 @@ static bool xD3D11_alloctexture(int monid, int w, int h)
 
 	recheck(d3d, monid);
 
-	if (d3d->invalidmode)
+	if (d3d->invalidmode || !d3d->m_device) {
 		return false;
+	}
 
 	d3d->m_bitmapWidth = w;
 	d3d->m_bitmapHeight = h;

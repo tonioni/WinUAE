@@ -3918,27 +3918,29 @@ static void pci_change_config(struct pci_board_state *pci)
 	struct romconfig *rc = get_device_romconfig(&currprefs, gb->board->romtype, 0);
 	if (gb->rbc->rtgmem_type == GFXBOARD_ID_VOODOO3_PCI) {
 		if (pci->memory_map_active) {
+			struct pci_bridge *pcib = pci->bridge;
 			// direct access, bypass PCI emulation redirection for performance reasons
-			if (rc && (rc->device_settings & 1) && pci_validate_address(pci->bar[1] + pci->bridge->memory_start_offset, 0x02000000, false)) {
+			if (rc && (rc->device_settings & 1) && pci_validate_address(pci->bar[1] + pcib->memory_start_offset[pcib->windowindex], 0x02000000, false)) {
 				if (!gb->original_pci_bank) {
-					gb->original_pci_bank = &get_mem_bank(pci->bar[1] + pci->bridge->memory_start_offset);
+					gb->original_pci_bank = &get_mem_bank(pci->bar[1] + pcib->memory_start_offset[pcib->windowindex]);
 				}
-				reinit_vram(gb, pci->bar[1] + pci->bridge->memory_start_offset, true);
+				reinit_vram(gb, pci->bar[1] + pcib->memory_start_offset[pcib->windowindex], true);
 				int m = gb->lfbbyteswapmode;
 				gb->lfbbyteswapmode = -1;
 				gfxboard_voodoo_lfb_endianswap(m);
 			} else {
-				reinit_vram(gb, pci->bar[1] + pci->bridge->memory_start_offset, false);
+				reinit_vram(gb, pci->bar[1] + pcib->memory_start_offset[pcib->windowindex], false);
 			}
 		}
 	} else if (gb->rbc->rtgmem_type == GFXBOARD_ID_VOODOO5_PCI) {
 		if (pci->memory_map_active) {
+			struct pci_bridge *pcib = pci->bridge;
 			// direct access, bypass PCI emulation redirection for performance reasons
-			if (pci_validate_address(pci->bar[1] + pci->bridge->memory_start_offset, gb->rbc->rtgmem_size, false)) {
-				reinit_vram(gb, pci->bar[1] + pci->bridge->memory_start_offset, true);
-				gb->original_pci_bank = &get_mem_bank(pci->bar[1] + pci->bridge->memory_start_offset);
+			if (pci_validate_address(pci->bar[1] + pcib->memory_start_offset[0], gb->rbc->rtgmem_size, false)) {
+				reinit_vram(gb, pci->bar[1] + pcib->memory_start_offset[pcib->windowindex], true);
+				gb->original_pci_bank = &get_mem_bank(pci->bar[1] + pcib->memory_start_offset[pcib->windowindex]);
 			} else {
-				reinit_vram(gb, pci->bar[1] + pci->bridge->memory_start_offset, false);
+				reinit_vram(gb, pci->bar[1] + pcib->memory_start_offset[pcib->windowindex], false);
 			}
 		}
 	} else if (gb->rbc->rtgmem_type == GFXBOARD_ID_S3VIRGE_PCI ||
@@ -3946,7 +3948,8 @@ static void pci_change_config(struct pci_board_state *pci)
 		gb->rbc->rtgmem_type == GFXBOARD_ID_PERMEDIA2_PCI ||
 		gb->rbc->rtgmem_type == GFXBOARD_ID_GD5446_PCI) {
 		if (pci->memory_map_active) {
-			reinit_vram(gb, pci->bar[0] + pci->bridge->memory_start_offset, false);
+			struct pci_bridge *pcib = pci->bridge;
+			reinit_vram(gb, pci->bar[0] + pcib->memory_start_offset[pcib->windowindex], false);
 		}
 	}
 }

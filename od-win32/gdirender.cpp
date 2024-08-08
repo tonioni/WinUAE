@@ -242,6 +242,10 @@ static bool gdi_alloctexture(int monid, int w, int h)
 
 	freetexture(monid);
 
+	if (!gdi->hwnd) {
+		return false;
+	}
+
 	gdi->hdc = GetDC(gdi->hwnd);
 	if (gdi->hdc) {
 		SelectObject(gdi->hdc, GetStockObject(DC_PEN));

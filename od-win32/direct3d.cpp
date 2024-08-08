@@ -3086,10 +3086,15 @@ static const TCHAR *xD3D_init (HWND ahwnd, int monid, int w_w, int w_h, int dept
 
 static bool alloctextures (struct d3dstruct *d3d)
 {
-	if (!createtexture (d3d, d3d->tout_w, d3d->tout_h, d3d->window_w, d3d->window_h))
+	if (!d3d->d3ddev) {
 		return false;
-	if (!createamigatexture (d3d, d3d->tin_w, d3d->tin_h))
+	}
+	if (!createtexture (d3d, d3d->tout_w, d3d->tout_h, d3d->window_w, d3d->window_h)) {
 		return false;
+	}
+	if (!createamigatexture (d3d, d3d->tin_w, d3d->tin_h)) {
+		return false;
+	}
 	return true;
 }
 
