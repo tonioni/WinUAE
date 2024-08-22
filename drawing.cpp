@@ -55,7 +55,9 @@ happening, all ports should restrict window widths to be multiples of 16 pixels.
 #ifdef CD32
 #include "cd32_fmv.h"
 #endif
+#ifdef WITH_SPECIALMONITORS
 #include "specialmonitors.h"
+#endif
 #include "devices.h"
 #include "gfxboard.h"
 
@@ -789,11 +791,12 @@ void set_custom_limits (int w, int h, int dx, int dy, bool blank)
 		h = 0;
 		dy = 0;
 	}
-
+#ifdef WITH_SPECIALMONITORS
 	if (specialmonitor_uses_control_lines() || !blank) {
 		w = -1;
 		h = -1;
 	}
+#endif
 
 	if (w <= 0 || dx < 0) {
 		visible_left_start = 0;
@@ -4184,7 +4187,7 @@ static void center_image (void)
 	if (max_drawn_amiga_line_tmp > vidinfo->drawbuffer.inheight)
 		max_drawn_amiga_line_tmp = vidinfo->drawbuffer.inheight;
 	max_drawn_amiga_line_tmp >>= linedbl;
-	
+
 	thisframe_y_adjust = minfirstline;
 	if (currprefs.gfx_ycenter && !fd->gfx_filter_autoscale) {
 
@@ -4497,7 +4500,9 @@ static void draw_debug_status_line(int monid, int line)
 	if (xlinebuffer == 0)
 		xlinebuffer = row_map[line];
 	xlinebuffer_genlock = row_map_genlock[line];
+#ifdef DEBUGGER
 	debug_draw(xlinebuffer, vidinfo->drawbuffer.pixbytes, line, vidinfo->drawbuffer.outwidth, vidinfo->drawbuffer.outheight, xredcolors, xgreencolors, xbluecolors);
+#endif
 }
 
 #define LIGHTPEN_HEIGHT 12
@@ -4731,12 +4736,14 @@ static void draw_frame2(struct vidbuffer *vbin, struct vidbuffer *vbout)
 
 static void draw_frame_extras(struct vidbuffer *vb, int y_start, int y_end)
 {
+#ifdef DEBUGGER
 	if (debug_dma > 1 || debug_heatmap > 1) {
 		for (int i = 0; i < vb->outheight; i++) {
 			int line = i;
 			draw_debug_status_line(vb->monitor_id, line);
 		}
 	}
+#endif
 
 	if (lightpen_active) {
 		if (lightpen_active & 1) {
@@ -4750,7 +4757,9 @@ static void draw_frame_extras(struct vidbuffer *vb, int y_start, int y_end)
 		refresh_indicator_update(vb);
 }
 
+#ifdef WITH_BEAMRACER
 extern bool beamracer_debug;
+#endif
 
 void draw_lines(int end, int section)
 {
@@ -4776,7 +4785,9 @@ void draw_lines(int end, int section)
 			return;
 	}
 
+#ifdef WITH_BEAMRACER
 	int section_color_cnt = 4;
+#endif
 
 	vidinfo->outbuffer = vb;
 	if (!lockscr(vb, false, vb->last_drawn_line ? false : true, display_reset > 0))
@@ -4822,6 +4833,7 @@ void draw_lines(int end, int section)
 		hposblank = 0;
 		pfield_draw_line(vb, line, whereline, wherenext);
 
+#ifdef WITH_BEAMRACER
 #if 1
 		if (beamracer_debug) {
 			if (vb->last_drawn_line == end - 4) {
@@ -4837,6 +4849,7 @@ void draw_lines(int end, int section)
 				}
 			}
 		}
+#endif
 #endif
 
 		vb->last_drawn_line++;
@@ -4935,6 +4948,7 @@ static void finish_drawing_frame(bool drawlines)
 
 	draw_frame_extras(vb, -1, -1);
 
+#ifdef WITH_SPECIALMONITORS
 	// video port adapters
 	if (currprefs.monitoremu) {
 		struct vidbuf_description *outvi = &adisplays[currprefs.monitoremu_mon].gfxvidinfo;
@@ -4997,6 +5011,7 @@ static void finish_drawing_frame(bool drawlines)
 			setnativeposition(vb);
 		vidinfo->drawbuffer.tempbufferinuse = true;
 	}
+#endif
 
 #ifdef CD32
 	// cd32 fmv
@@ -5013,6 +5028,7 @@ static void finish_drawing_frame(bool drawlines)
 #endif
 
 	// grayscale
+#ifdef WITH_SPECIALMONITORS
 	if (!currprefs.monitoremu && vidinfo->tempbuffer.bufmem_allocated &&
 		((!currprefs.genlock && (!bplcolorburst_field && currprefs.cs_color_burst)) || currprefs.gfx_grayscale)) {
 		setspecialmonitorpos(&vidinfo->tempbuffer);
@@ -5022,6 +5038,7 @@ static void finish_drawing_frame(bool drawlines)
 			setnativeposition(vb);
 		vidinfo->drawbuffer.tempbufferinuse = true;
 	}
+#endif
 
 	unlockscr(vb, display_reset ? -2 : -1, -1);
 }

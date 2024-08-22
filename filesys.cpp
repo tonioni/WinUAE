@@ -46,8 +46,12 @@
 #include "gayle.h"
 #include "idecontrollers.h"
 #include "savestate.h"
+#ifdef A2091
 #include "a2091.h"
+#endif
+#ifdef NCR
 #include "ncr_scsi.h"
+#endif
 #include "cdtv.h"
 #include "sana2.h"
 #include "bsdsocket.h"
@@ -579,9 +583,15 @@ static void close_filesys_unit (UnitInfo *uip)
 	if (uip->rootdir != 0)
 		xfree (uip->rootdir);
 	if (uip->unit_pipe)
+	{
+		destroy_comm_pipe(uip->unit_pipe);
 		xfree (uip->unit_pipe);
+	}
 	if (uip->back_pipe)
+	{
+		destroy_comm_pipe(uip->back_pipe);
 		xfree (uip->back_pipe);
+	}
 	if (uip->cd_open) {
 		sys_command_close (uip->cddevno);
 		isofs_unmount (uip->cdfs_superblock);
@@ -10593,9 +10603,9 @@ int filesys_shellexecute2(TCHAR *file, TCHAR *currentdir, TCHAR *parms, uae_u32 
 	for (int i = 0; i < SHELLEXEC_MAX; i++) {
 		struct ShellExecute2 *se2 = &shellexecute2[i];
 		if (!se2->state) {
-			se2->file = file ? ua(file) : "";
-			se2->currentdir = currentdir ? ua(currentdir) : "";
-			se2->parms = parms ? ua(parms) : "";
+			se2->file = file ? ua(file) : (char*)"";
+			se2->currentdir = currentdir ? ua(currentdir) : (char*)"";
+			se2->parms = parms ? ua(parms) : (char*)"";
 			se2->id = id;
 			se2->stack = stack;
 			se2->priority = priority;

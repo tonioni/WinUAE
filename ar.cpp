@@ -218,13 +218,6 @@
 #include "xwin.h"
 #include "gfxboard.h"
 
-#define DEBUG
-#ifdef DEBUG
-#define write_log_debug write_log
-#else
-#define write_log_debug
-#endif
-
 static const TCHAR *cart_memnames[] = { NULL, _T("hrtmon"), _T("arhrtmon"), _T("superiv") };
 
 // Action Replay 2/3
@@ -702,20 +695,22 @@ static uae_u32 REGPARAM2 arram_lget (uaecptr addr)
 	addr -= arram_start;
 	addr &= arram_mask;
 	m = (uae_u32 *)(armemory_ram + addr);
+#ifdef DEBUG
 	if (strncmp ("T8", (char*)m, 2) == 0)
-		write_log_debug (_T("Reading T8 from addr %08x PC=%08x\n"), addr, m68k_getpc ());
+		write_log (_T("Reading T8 from addr %08x PC=%08x\n"), addr, m68k_getpc ());
 	if (strncmp ("LAME", (char*)m, 4) == 0)
-		write_log_debug (_T("Reading LAME from addr %08x PC=%08x\n"), addr, m68k_getpc ());
+		write_log (_T("Reading LAME from addr %08x PC=%08x\n"), addr, m68k_getpc ());
 	if (strncmp ("RES1", (char*)m, 4) == 0)
-		write_log_debug (_T("Reading RES1 from addr %08x PC=%08x\n"), addr, m68k_getpc ());
+		write_log (_T("Reading RES1 from addr %08x PC=%08x\n"), addr, m68k_getpc ());
 	if (strncmp ("ARON", (char*)m, 4) == 0)
-		write_log_debug (_T("Reading ARON from addr %08x PC=%08x\n"), addr, m68k_getpc ());
+		write_log (_T("Reading ARON from addr %08x PC=%08x\n"), addr, m68k_getpc ());
 	if (strncmp ("KILL", (char*)m, 4) == 0)
-		write_log_debug (_T("Reading KILL from addr %08x PC=%08x\n"), addr, m68k_getpc ());
+		write_log (_T("Reading KILL from addr %08x PC=%08x\n"), addr, m68k_getpc ());
 	if (strncmp ("BRON", (char*)m, 4) == 0)
-		write_log_debug (_T("Reading BRON from addr %08x PC=%08x\n"), addr, m68k_getpc ());
+		write_log (_T("Reading BRON from addr %08x PC=%08x\n"), addr, m68k_getpc ());
 	if (strncmp ("PRIN", (char*)m, 4) == 0)
-		write_log_debug (_T("Reading PRIN from addr %08x PC=%08x\n"), addr, m68k_getpc ());
+		write_log (_T("Reading PRIN from addr %08x PC=%08x\n"), addr, m68k_getpc ());
+#endif
 	return do_get_mem_long (m);
 }
 
@@ -748,20 +743,22 @@ void REGPARAM2 arram_lput (uaecptr addr, uae_u32 l)
 	addr -= arram_start;
 	addr &= arram_mask;
 	m = (uae_u32 *)(armemory_ram + addr);
+#ifdef DEBUG
 	if (strncmp ("T8", (char*)m, 2) == 0)
-		write_log_debug (_T("Writing T8 to addr %08x PC=%08x\n"), addr, m68k_getpc ());
+		write_log (_T("Writing T8 to addr %08x PC=%08x\n"), addr, m68k_getpc ());
 	if (strncmp ("LAME", (char*)m, 4) == 0)
-		write_log_debug (_T("Writing LAME to addr %08x PC=%08x\n"), addr, m68k_getpc ());
+		write_log (_T("Writing LAME to addr %08x PC=%08x\n"), addr, m68k_getpc ());
 	if (strncmp ("RES1", (char*)m, 4) == 0)
-		write_log_debug (_T("Writing RES1 to addr %08x PC=%08x\n"), addr, m68k_getpc ());
+		write_log (_T("Writing RES1 to addr %08x PC=%08x\n"), addr, m68k_getpc ());
 	if (strncmp ("ARON", (char*)m, 4) == 0)
-		write_log_debug (_T("Writing ARON to addr %08x PC=%08x\n"), addr, m68k_getpc ());
+		write_log (_T("Writing ARON to addr %08x PC=%08x\n"), addr, m68k_getpc ());
 	if (strncmp ("KILL", (char*)m, 4) == 0)
-		write_log_debug (_T("Writing KILL to addr %08x PC=%08x\n"), addr, m68k_getpc ());
+		write_log (_T("Writing KILL to addr %08x PC=%08x\n"), addr, m68k_getpc ());
 	if (strncmp ("BRON", (char*)m, 4) == 0)
-		write_log_debug (_T("Writing BRON to addr %08x PC=%08x\n"), addr, m68k_getpc ());
+		write_log (_T("Writing BRON to addr %08x PC=%08x\n"), addr, m68k_getpc ());
 	if (strncmp ("PRIN", (char*)m, 4) == 0)
-		write_log_debug (_T("Writing PRIN to addr %08x PC=%08x\n"), addr, m68k_getpc ());
+		write_log (_T("Writing PRIN to addr %08x PC=%08x\n"), addr, m68k_getpc ());
+#endif
 	do_put_mem_long (m, l);
 }
 
@@ -1502,9 +1499,10 @@ int action_replay_unload (int in_memory_reset)
 
 	if (!armemory_rom && !hrtmemory)
 		return 0;
-
-	write_log_debug (_T("Action Replay State:(%s)\nHrtmon State:(%s)\n"),
+#ifdef DEBUG
+	write_log (_T("Action Replay State:(%s)\nHrtmon State:(%s)\n"),
 		state[action_replay_flag + 3], state[hrtmon_flag + 3]);
+#endif
 
 	unset_special (SPCFLAG_ACTION_REPLAY); /* This shouldn't be necessary here, but just in case. */
 	action_replay_flag = ACTION_REPLAY_INACTIVE;
@@ -1650,7 +1648,9 @@ int action_replay_load (void)
 	if (currprefs.cs_cd32fmv)
 		return 0;
 
-	write_log_debug (_T("Entered action_replay_load ()\n"));
+#ifdef DEBUG
+	write_log (_T("Entered action_replay_load ()\n"));
+#endif
 
 	rd = getromdatabypath (currprefs.cartfile);
 	if (rd) {
@@ -1754,13 +1754,6 @@ void action_replay_cleanup()
 	hrtmem_end = 0;
 	hrtmem2_end = 0;
 }
-
-#ifndef FALSE
-#define FALSE 0
-#endif
-#ifndef TRUE
-#define TRUE 1
-#endif
 
 int hrtmon_lang = 0;
 

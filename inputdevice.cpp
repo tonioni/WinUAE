@@ -37,7 +37,9 @@
 #include "newcpu.h"
 #include "uae.h"
 #include "picasso96.h"
+#ifdef CATWEASEL
 #include "catweasel.h"
+#endif
 #include "debug.h"
 #include "ar.h"
 #include "gui.h"
@@ -45,12 +47,18 @@
 #include "audio.h"
 #include "sounddep/sound.h"
 #include "savestate.h"
+#ifdef ARCADIA
 #include "arcadia.h"
+#endif
 #include "zfile.h"
 #include "cia.h"
 #include "autoconf.h"
+#ifdef WITH_X86
 #include "x86.h"
+#endif
+#ifdef WITH_DRACO
 #include "draco.h"
+#endif
 #ifdef RETROPLATFORM
 #include "rp.h"
 #endif
@@ -199,8 +207,10 @@ static int temp_uid_cnt[IDTYPE_MAX];
 static int gp_swappeddevices[MAX_INPUT_DEVICES][IDTYPE_MAX];
 static int osk_state;
 
+#ifdef WITH_DRACO
 extern int draco_keyboard_get_rate(void);
 static int draco_keybord_repeat_cnt, draco_keybord_repeat_code;
+#endif
 
 bool osk_status(void)
 {
@@ -1990,7 +2000,7 @@ void read_inputdevice_config (struct uae_prefs *pr, const TCHAR *option, TCHAR *
 				int flags2 = 0;
 				if (p[-1] == '.')
 					flags2 = getnum (&p) & ID_FLAG_SAVE_MASK_CONFIG;
-				if (p[-1] == '.' && (p[0] >= 'A' && p[0] <= 'Z') || (p[0] >= 'a' && p[0] <= 'z'))
+				if (p[-1] == '.' && ((p[0] >= 'A' && p[0] <= 'Z') || (p[0] >= 'a' && p[0] <= 'z')))
 					flags |= getqual (&p);
 				TCHAR *custom2 = NULL;
 				const struct inputevent *ie2 = readevent (p2, &custom2);
@@ -2427,7 +2437,7 @@ void inputdevice_parse_jport_custom(struct uae_prefs *pr, int index, int port, T
 		} else {
 			write_log(_T("parse_custom missing event %s\n"), p);
 		}
-	skip:
+skip:
 		bufp = next;
 	}
 
@@ -2749,6 +2759,7 @@ void inputdevice_tablet_strobe (void)
 
 int inputdevice_get_lightpen_id(void)
 {
+#ifdef ARCADIA
 	if (!alg_flag) {
 		if (lightpen_enabled2) 
 			return alg_get_player(potgo_value);
@@ -2756,6 +2767,7 @@ int inputdevice_get_lightpen_id(void)
 	} else {
 		return alg_get_player(potgo_value);
 	}
+#endif
 }
 
 void tablet_lightpen(int tx, int ty, int tmaxx, int tmaxy, int touch, int buttonmask, bool touchmode, int devid, int lpnum)
@@ -3410,12 +3422,16 @@ static void mouseupdate (int pct, bool vsync)
 	static int mxd, myd;
 
 	if (vsync) {
-
-		if (x86_mouse(0, 0, 0, 0, -1) || draco_mouse(0, 0, 0, 0, -1)) {
+#ifdef WITH_DRACO
+		if (
+#ifdef WITH_X86
+			x86_mouse(0, 0, 0, 0, -1) ||
+#endif
+			draco_mouse(0, 0, 0, 0, -1)) {
 			pcmouse = true;
 			pct = 1000;
 		}
-
+#endif
 
 		if (mxd < 0) {
 			if (mouseedge_x > 0)
@@ -3507,9 +3523,12 @@ static void mouseupdate (int pct, bool vsync)
 					pc_mouse_buttons[i] |= 4;
 				else
 					pc_mouse_buttons[i] &= ~4;
-
+#ifdef WITH_X86
 				x86_mouse(0, v1, v2, v3, pc_mouse_buttons[i]);
+#endif
+#ifdef WITH_DRACO
 				draco_mouse(0, v1, v2, v3, pc_mouse_buttons[i]);
+#endif
 			}
 
 
@@ -3683,7 +3702,9 @@ uae_u16 JOY0DAT (void)
 	readinput ();
 	v = getjoystate (0);
 	v = dongle_joydat (0, v);
+#ifdef ARCADIA
 	v = alg_joydat(0, v);
+#endif
 	return v;
 }
 
@@ -3693,7 +3714,9 @@ uae_u16 JOY1DAT (void)
 	readinput ();
 	v = getjoystate (1);
 	v = dongle_joydat (1, v);
+#ifdef ARCADIA
 	v = alg_joydat(1, v);
+#endif
 	return v;
 }
 
@@ -4026,11 +4049,11 @@ static uae_u16 handle_joystick_potgor (uae_u16 potgor)
 			// normal second button pressed: always zero. Overrides CD32 mode.
 			if (getbuttonstate(i, JOYBUTTON_2))
 				potgor &= ~p9dat;
-
-		} else  if (alg_flag) {
+#ifdef ARCADIA
+		} else if (alg_flag) {
 
 			potgor = alg_potgor(potgo_value);
-
+#endif
 		} else if (lightpen_enabled2 && lightpen_port_number() == i) {
 
 			int button;
@@ -4268,8 +4291,10 @@ int handle_custom_event (const TCHAR *custom, int append)
 			set_config_changed ();
 		} else if (!_tcsnicmp(p, _T("shellexec "), 10)) {
 			uae_ShellExecute(p + 10);
+#ifdef DEBUGGER
 		} else if (!_tcsnicmp(p, _T("dbg "), 4)) {
 			debug_parser(p + 4, NULL, -1);
+#endif
 		} else if (!_tcsnicmp (p, _T("kbr "), 4)) {
 			inject_events (p + 4);
 		} else if (!_tcsnicmp (p, _T("evt "), 4)) {
@@ -4394,6 +4419,7 @@ void inputdevice_hsync (bool forceread)
 			maybe_read_input();
 		}
 	}
+#ifdef WITH_DRACO
 	if (draco_keybord_repeat_cnt > 0) {
 		draco_keybord_repeat_cnt--;
 		if (draco_keybord_repeat_cnt == 0) {
@@ -4405,6 +4431,7 @@ void inputdevice_hsync (bool forceread)
 			draco_keycode(draco_keybord_repeat_code, 1);
 		}
 	}
+#endif
 }
 
 static uae_u16 POTDAT (int joy)
@@ -5082,10 +5109,10 @@ static bool inputdevice_handle_inputcode2(int monid, int code, int state, const 
 					cr->rate = currprefs.ntscmode ? 60.0f : 50.0f;
 				cr->locked = true;
 				cr->rate += dir;
-				if (cr->rate < 10)
-					cr->rate = 10;
-				if (cr->rate > 900)
-					cr->rate = 900;
+				if (cr->rate < 10.0f)
+					cr->rate = 10.0f;
+				if (cr->rate > 900.0f)
+					cr->rate = 900.0f;
 				set_config_changed();
 			}
 		}
@@ -5821,8 +5848,12 @@ void inputdevice_reset (void)
 	}
 	lightpen_trigger2 = 0;
 	cubo_flag = 0;
+#ifdef ARCADIA
 	alg_flag &= 1;
+#endif
+#ifdef WITH_DRACO
 	draco_keybord_repeat_cnt = 0;
+#endif
 }
 
 static int getoldport (struct uae_input_device *id)
@@ -6403,7 +6434,7 @@ static void setbuttonstateall (struct uae_input_device *id, struct uae_input_dev
 				autofire = 0;
 			}
 
-			 if (buttonstate < 0) {
+			if (buttonstate < 0) {
 				state = buttonstate;
 			} else if (invert) {
 				state = buttonstate ? 0 : 1;
@@ -10473,6 +10504,7 @@ void clear_inputstate (void)
 
 void inputdevice_draco_key(int kc)
 {
+#ifdef WITH_DRACO
 	int state = (kc & 1) == 0;
 	kc >>= 1;
 	for (int i = 1; events[i].name; i++) {
@@ -10494,4 +10526,5 @@ void inputdevice_draco_key(int kc)
 			}
 		}
 	}
+#endif
 }

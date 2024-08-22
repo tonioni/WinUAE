@@ -23,7 +23,9 @@
 #include "debug.h"
 #include "arcadia.h"
 #include "zfile.h"
+#ifdef AVIOUTPUT
 #include "videograb.h"
+#endif
 #include "xwin.h"
 #include "drawing.h"
 #include "statusline.h"
@@ -860,52 +862,56 @@ static void sony_serial_read(uae_u16 w)
 	case 0: // User Index 00
 	case 1: // User Index 01
 	case 2: // User Index 02
-	if (ld_ui < 0) {
-		ld_ui = (uae_s8)w;
-		ld_ui_cnt = 0;
-		ack();
-	}
-	break;
+		if (ld_ui < 0) {
+			ld_ui = (uae_s8)w;
+			ld_ui_cnt = 0;
+			ack();
+		}
+		break;
 	case 0x24: // Audio mute
-	ld_audio_mute = true;
-	ack();
-	break;
+		ld_audio_mute = true;
+		ack();
+		break;
 	case 0x25: // Audio mute off
-	ld_audio_mute = false;
-	ack();
-	break;
+		ld_audio_mute = false;
+		ack();
+		break;
 	case 0x26: // Video off
-	ld_video = false;
-	ack();
-	if (log_ld)
-		write_log(_T("LD: Video off\n"));
-	break;
+		ld_video = false;
+		ack();
+		if (log_ld)
+			write_log(_T("LD: Video off\n"));
+		break;
 	case 0x27: // Video on
-	ld_video = true;
-	ack();
-	if (log_ld)
-		write_log(_T("LD: Video on\n"));
-	break;
+		ld_video = true;
+		ack();
+		if (log_ld)
+			write_log(_T("LD: Video on\n"));
+		break;
 	case 0x2b: // FWD Step
-	ld_address++;
-	getsetpositionvideograb(ld_address);
-	ld_mode = LD_MODE_STILL;
-	ld_direction = 0;
-	ack();
-	if (log_ld)
-		write_log(_T("LD: FWD step\n"));
-	break;
+		ld_address++;
+#ifdef AVIOUTPUT
+		getsetpositionvideograb(ld_address);
+#endif
+		ld_mode = LD_MODE_STILL;
+		ld_direction = 0;
+		ack();
+		if (log_ld)
+			write_log(_T("LD: FWD step\n"));
+		break;
 	case 0x2c: // REV Step
-	if (ld_address) {
-		ld_address--;
-	}
-	getsetpositionvideograb(ld_address);
-	ld_mode = LD_MODE_STILL;
-	ld_direction = 0;
-	ack();
-	if (log_ld)
-		write_log(_T("LD: REV step\n"));
-	break;
+		if (ld_address) {
+			ld_address--;
+		}
+#ifdef AVIOUTPUT
+		getsetpositionvideograb(ld_address);
+#endif
+		ld_mode = LD_MODE_STILL;
+		ld_direction = 0;
+		ack();
+		if (log_ld)
+			write_log(_T("LD: REV step\n"));
+		break;
 	case 0x30: // '0'
 	case 0x31:
 	case 0x32:
@@ -928,7 +934,9 @@ static void sony_serial_read(uae_u16 w)
 		ld_mode = LD_MODE_PLAY;
 		ld_direction = 0;
 		ld_repcnt = -1;
+#ifdef AVIOUTPUT
 		pausevideograb(0);
+#endif
 	}
 	ack();
 	if (log_ld)
@@ -942,7 +950,9 @@ static void sony_serial_read(uae_u16 w)
 		write_log(_T("LD: FAST FORWARD PLAY\n"));
 	break;
 	case 0x3f: // STOP '?'
+#ifdef AVIOUTPUT
 	pausevideograb(1);
+#endif
 	ld_direction = 0;
 	ld_repcnt = -1;
 	ld_mode = LD_MODE_STOP;
@@ -951,39 +961,44 @@ static void sony_serial_read(uae_u16 w)
 		write_log(_T("LD: STOP\n"));
 	break;
 	case 0x40: // ENTER '@'
-	if (ld_mode_value == LD_MODE_MARK) {
-		ld_mode_value = 0;
-		ld_mark = ld_value;
-		ack();
-		if (log_ld) {
-			write_log(_T("LD: SET MARK %d\n"), ld_mark);
-		}
-	} else if (ld_mode_value == LD_MODE_REPEAT) {
-		ld_direction = 0;
-		ld_endaddress = ld_value;
-		ld_startaddress = ld_address;
-		ld_value = 0;
-		ld_mode_value = LD_MODE_REPEAT2;
-		ack();
-	} else if (ld_mode_value == LD_MODE_REPEAT2) {
-		ld_repcnt = ld_value;
-		ld_address = ld_startaddress;
-		if (ld_startaddress > ld_endaddress) {
-			ld_direction = -1;
-		}
-		ld_mode_value = 0;
-		ld_mode = LD_MODE_PLAY;
-		pausevideograb(0);
-		ack();
-		if (log_ld) {
-			write_log(_T("LD: REPEAT CNT=%d, %d TO %d\n"), ld_repcnt, ld_startaddress, ld_endaddress);
-		}
-	} else if (ld_mode_value == LD_MODE_SEARCH) {
-		uae_s32 endpos = (uae_s32)getdurationvideograb();
+		if (ld_mode_value == LD_MODE_MARK) {
+			ld_mode_value = 0;
+			ld_mark = ld_value;
+			ack();
+			if (log_ld) {
+				write_log(_T("LD: SET MARK %d\n"), ld_mark);
+			}
+		} else if (ld_mode_value == LD_MODE_REPEAT) {
+			ld_direction = 0;
+			ld_endaddress = ld_value;
+			ld_startaddress = ld_address;
+			ld_value = 0;
+			ld_mode_value = LD_MODE_REPEAT2;
+			ack();
+		} else if (ld_mode_value == LD_MODE_REPEAT2) {
+			ld_repcnt = ld_value;
+			ld_address = ld_startaddress;
+			if (ld_startaddress > ld_endaddress) {
+				ld_direction = -1;
+			}
+			ld_mode_value = 0;
+			ld_mode = LD_MODE_PLAY;
+#ifdef AVIOUTPUT
+			pausevideograb(0);
+#endif
+			ack();
+			if (log_ld) {
+				write_log(_T("LD: REPEAT CNT=%d, %d TO %d\n"), ld_repcnt, ld_startaddress, ld_endaddress);
+			}
+		} else if (ld_mode_value == LD_MODE_SEARCH) {
+#ifdef AVIOUTPUT
+			uae_s32 endpos = (uae_s32)getdurationvideograb();
+#endif
 		ld_address = ld_value;
 		ack();
 		// delay seek status response by 2 frames (Platoon requires this)
 		ld_wait_seek = arcadia_hsync_cnt + 2 * maxvpos;
+#ifdef AVIOUTPUT
 		if (ld_address > endpos) {
 			ld_address = endpos;
 			getsetpositionvideograb(ld_address);
@@ -992,6 +1007,7 @@ static void sony_serial_read(uae_u16 w)
 			getsetpositionvideograb(ld_address);
 			ld_wait_seek_status = 0x01; // COMPLETION
 		}
+#endif
 		ld_mode = LD_MODE_STILL;
 		ld_mode_value = 0;
 		ld_direction = 0;
@@ -1000,14 +1016,16 @@ static void sony_serial_read(uae_u16 w)
 	}
 	break;
 	case 0x41: // Clear entry
-	ld_value = 0;
-	ack();
-	if (log_ld)
-		write_log(_T("LD: CLEAR ENTRY\n"), ld_value);
-	break;
+		ld_value = 0;
+		ack();
+		if (log_ld)
+			write_log(_T("LD: CLEAR ENTRY\n"), ld_value);
+		break;
 	case 0x4a: // R-PLAY 'J'
 	ld_mode = LD_MODE_PLAY;
+#ifdef AVIOUTPUT
 	pausevideograb(1);
+#endif
 	ld_direction = -1;
 	ack();
 	if (log_ld)
@@ -1015,7 +1033,9 @@ static void sony_serial_read(uae_u16 w)
 	break;
 	case 0x4b: // Fast reverse play 'K'
 	ld_mode = LD_MODE_PLAY;
+#ifdef AVIOUTPUT
 	pausevideograb(1);
+#endif
 	ld_direction = -2;
 	ack();
 	if (log_ld)
@@ -1024,7 +1044,9 @@ static void sony_serial_read(uae_u16 w)
 	case 0x4f: // STILL 'O'
 	ld_mode = LD_MODE_STILL;
 	ld_direction = 0;
+#ifdef AVIOUTPUT
 	pausevideograb(1);
+#endif
 	ack();
 	if (log_ld)
 		write_log(_T("LD: PAUSE\n"));
@@ -1034,7 +1056,9 @@ static void sony_serial_read(uae_u16 w)
 	ld_mode = LD_MODE_STILL;
 	ld_mode_value = LD_MODE_SEARCH;
 	ld_direction = 0;
+#ifdef AVIOUTPUT
 	pausevideograb(1);
+#endif
 	ld_value = 0;
 	if (log_ld)
 		write_log(_T("LD: SEARCH\n"));
@@ -1043,7 +1067,9 @@ static void sony_serial_read(uae_u16 w)
 	ack();
 	ld_mode_value = LD_MODE_REPEAT;
 	ld_direction = 0;
+#ifdef AVIOUTPUT
 	pausevideograb(1);
+#endif
 	ld_value = 0;
 	if (log_ld)
 		write_log(_T("LD: REPEAT\n"));
@@ -1051,28 +1077,36 @@ static void sony_serial_read(uae_u16 w)
 	case 0x46: // CH-1 ON 'F'
 	ack();
 	ld_audio |= 1;
+#ifdef AVIOUTPUT
 	setchflagsvideograb(ld_audio, false);
+#endif
 	if (log_ld)
 		write_log(_T("LD: CH-1 ON\n"));
 	break;
 	case 0x48: // CH-2 ON 'H'
 	ack();
 	ld_audio |= 2;
+#ifdef AVIOUTPUT
 	setchflagsvideograb(ld_audio, false);
+#endif
 	if (log_ld)
 		write_log(_T("LD: CH-2 ON\n"));
 	break;
 	case 0x47: // CH-1 OFF 'G'
 	ack();
 	ld_audio &= ~1;
+#ifdef AVIOUTPUT
 	setchflagsvideograb(ld_audio, false);
+#endif
 	if (log_ld)
 		write_log(_T("LD: CH-1 OFF\n"));
 	break;
 	case 0x49: // CH-2 OFF 'I'
 	ack();
 	ld_audio &= ~2;
+#ifdef AVIOUTPUT
 	setchflagsvideograb(ld_audio, false);
+#endif
 	if (log_ld)
 		write_log(_T("LD: CH-2 OFF\n"));
 	break;
@@ -1099,16 +1133,20 @@ static void sony_serial_read(uae_u16 w)
 	ld_direction = 0;
 	ld_video = true;
 	ld_value = 0;
+#ifdef AVIOUTPUT
 	pausevideograb(1);
+#endif
 	ack();
 	if (log_ld)
 		write_log(_T("LD: CL\n"));
 	break;
 	case 0x60: // ADDR INQ '`'
 	{
+#ifdef AVIOUTPUT
 		if (!ld_save_restore && isvideograb() && ld_direction == 0) {
 			ld_address = (uae_u32)getsetpositionvideograb(-1);
 		}
+#endif
 		uae_u32 v = ld_address;
 		uae_u32 m = 10000;
 		for (int i = 0; i < 5; i++) {
@@ -1121,42 +1159,42 @@ static void sony_serial_read(uae_u16 w)
 	}
 	break;
 	case 0x67: // STATUS INQ 'g'
-	sb(0x80);
-	sb(0x00);
-	sb(0x40);
-	sb((ld_mode_value == LD_MODE_SEARCH ? 0x02 : 0x00) | (ld_mode_value == LD_MODE_REPEAT ? 0x04 : 0x00) | (ld_mode_value ? 0x01 : 0x00) | (ld_mode_value == LD_MODE_REPEAT2 ? 0x20 : 0x00));
-	sb((ld_mode == LD_MODE_PLAY ? 0x01 : 0x00) | (ld_mode == LD_MODE_STILL ? 0x20 : 0x00) | (ld_mode == LD_MODE_STOP ? 0x40 : 0x00) | (ld_direction < 0 ? 0x80 : 0x00));
-	if (log_ld > 1)
-		write_log(_T("LD: STATUS INQ\n"));
-	break;
+		sb(0x80);
+		sb(0x00);
+		sb(0x40);
+		sb((ld_mode_value == LD_MODE_SEARCH ? 0x02 : 0x00) | (ld_mode_value == LD_MODE_REPEAT ? 0x04 : 0x00) | (ld_mode_value ? 0x01 : 0x00) | (ld_mode_value == LD_MODE_REPEAT2 ? 0x20 : 0x00));
+		sb((ld_mode == LD_MODE_PLAY ? 0x01 : 0x00) | (ld_mode == LD_MODE_STILL ? 0x20 : 0x00) | (ld_mode == LD_MODE_STOP ? 0x40 : 0x00) | (ld_direction < 0 ? 0x80 : 0x00));
+		if (log_ld > 1)
+			write_log(_T("LD: STATUS INQ\n"));
+		break;
 	case 0x73: // MARK SET 's'
-	ld_value = 0;
-	ld_mode_value = LD_MODE_MARK;
-	ack();
-	if (log_ld)
-		write_log(_T("LD: MARK SET\n"));
-	break;
+		ld_value = 0;
+		ld_mode_value = LD_MODE_MARK;
+		ack();
+		if (log_ld)
+			write_log(_T("LD: MARK SET\n"));
+		break;
 	case 0x80: // USER INDEX
-	ld_ui = -1;
-	ack();
-	if (log_ld)
-		write_log("LD: USER INDEX\n");
-	break;
+		ld_ui = -1;
+		ack();
+		if (log_ld)
+			write_log("LD: USER INDEX\n");
+		break;
 	case 0x81: // USER INDEX ON
-	ld_user_index = 1;
-	ack();
-	if (log_ld)
-		write_log("LD: USER INDEX ON\n");
-	break;
+		ld_user_index = 1;
+		ack();
+		if (log_ld)
+			write_log("LD: USER INDEX ON\n");
+		break;
 	case 0x82: // USER INDEX OFF
-	ld_user_index = 0;
-	ack();
-	if (log_ld)
-		write_log(_T("LD: USER INDEX OFF\n"));
-	break;
+		ld_user_index = 0;
+		ack();
+		if (log_ld)
+			write_log(_T("LD: USER INDEX OFF\n"));
+		break;
 	default:
-	write_log(_T("LD: Unemulated command %02x\n"), w);
-	break;
+		write_log(_T("LD: Unemulated command %02x\n"), w);
+		break;
 	}
 }
 
@@ -1169,6 +1207,7 @@ static void alg_vsync(void)
 {
 	ld_vsync++;
 	if (ld_save_restore) {
+#ifdef AVIOUTPUT
 		if (ld_address == 0 || getsetpositionvideograb(ld_address) > 0) {
 			ld_save_restore = false;
 			setchflagsvideograb(ld_audio, false);
@@ -1176,33 +1215,41 @@ static void alg_vsync(void)
 		if (ld_save_restore) {
 			return;
 		}
+#endif
 	}
 
 	if (ld_mode == LD_MODE_PLAY) {
+#ifdef AVIOUTPUT
 		if (log_ld && (ld_vsync & 63) == 0) {
 			uae_s64 pos = getsetpositionvideograb(-1);
 			write_log(_T("LD: frame %lld\n"), pos);
 		}
 		pausevideograb(0);
+#endif
 		if (ld_direction < 0) {
 			if (ld_address > 0) {
 				ld_address -= (-ld_direction);
 				if ((ld_vsync & 15) == 0) {
+#ifdef AVIOUTPUT
 					if (isvideograb()) {
 						getsetpositionvideograb(ld_address);
 					}
+#endif
 				}
 			}
 		} else {
 			ld_address += 1 + ld_direction;
 			if (ld_direction > 0) {
 				if ((ld_vsync & 15) == 0) {
+#ifdef AVIOUTPUT
 					if (isvideograb()) {
 						getsetpositionvideograb(ld_address);
 					}
+#endif
 				}
 			}
 		}
+#ifdef AVIOUTPUT
 		if (ld_repcnt >= 0 || ld_mark >= 0) {
 			uae_s64 f = getsetpositionvideograb(-1);
 			if (ld_repcnt >= 0) {
@@ -1244,6 +1291,7 @@ static void alg_vsync(void)
 		}
 	} else {
 		pausevideograb(1);
+#endif
 	}
 	if (algmemory_modified > 0) {
 		algmemory_modified--;
@@ -1537,7 +1585,9 @@ void alg_map_banks(void)
 	if (alg_picmatic_nova == 1) {
 		map_banks(&alg_ram_bank, 0xf6, 1, 0);
 	}
+#ifdef AVIOUTPUT
 	pausevideograb(1);
+#endif
 
 	currprefs.cs_floppydatapullup = changed_prefs.cs_floppydatapullup = true;
 	device_add_vsync_pre(arcadia_vsync);
@@ -1628,8 +1678,11 @@ uae_u8 *save_alg(size_t *len)
 
 	dstbak = dst = xmalloc(uae_u8, 1000);
 	save_u32(1);
-
+#ifdef AVIOUTPUT
 	uae_u32 addr = (uae_u32)getsetpositionvideograb(-1);
+#else
+	uae_u32 addr = 0;
+#endif
 
 	save_u32(alg_flag);
 	save_u32(ld_value);

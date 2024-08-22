@@ -37,11 +37,15 @@
 #include "blkdev.h"
 #include "consolehook.h"
 #include "gfxboard.h"
+#ifdef WITH_LUA
 #include "luascript.h"
+#endif
 #include "uaenative.h"
 #include "tabletlibrary.h"
 #include "cpuboard.h"
+#ifdef WITH_PPC
 #include "uae/ppc.h"
+#endif
 #include "devices.h"
 #ifdef JIT
 #include "jit/compemu.h"
@@ -283,6 +287,7 @@ void fixup_cpu (struct uae_prefs *p)
 		error_log(_T("Threaded CPU mode is not compatible with PPC emulation, More compatible or Cycle Exact modes. CPU type must be 68020 or higher."));
 	}
 
+#ifdef WITH_PPC
 	// 1 = "automatic" PPC config
 	if (p->ppc_mode == 1) {
 		cpuboard_setboard(p,  BOARD_CYBERSTORM, BOARD_CYBERSTORM_SUB_PPC);
@@ -296,6 +301,7 @@ void fixup_cpu (struct uae_prefs *p)
 		if (p->cpuboardmem1.size < 8 * 1024 * 1024)
 			p->cpuboardmem1.size = 8 * 1024 * 1024;
 	}
+#endif
 
 	if (p->cachesize_inhibit) {
 		p->cachesize = 0;
@@ -742,9 +748,9 @@ void fixup_prefs (struct uae_prefs *p, bool userconfig)
 	p->chipset_mask &= ~CSMASK_AGA;
 #endif
 #ifndef AUTOCONFIG
-	p->z3fastmem_size = 0;
-	p->fastmem_size = 0;
-	p->rtgmem_size = 0;
+	p->z3fastmem[0].size = 0;
+	p->fastmem[0].size = 0;
+	p->rtgboards[0].rtgmem_size = 0;
 #endif
 #if !defined (BSDSOCKET)
 	p->socket_emu = 0;
@@ -1229,7 +1235,9 @@ static int real_main2 (int argc, TCHAR **argv)
 	/* force sound settings change */
 	currprefs.produce_sound = 0;
 
+#ifdef SAVESTATE
 	savestate_init ();
+#endif
 	keybuf_init (); /* Must come after init_joystick */
 
 #ifdef DEBUGGER

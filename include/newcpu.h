@@ -13,7 +13,10 @@
 #include "readcpu.h"
 #include "machdep/m68k.h"
 #include "events.h"
+
+#ifdef WITH_SOFTFLOAT
 #include <softfloat/softfloat.h>
+#endif
 
 #ifndef SET_CFLG
 
@@ -163,7 +166,9 @@ typedef struct {
 
 typedef struct
 {
+#ifdef WITH_SOFTFLOAT
 	floatx80 fpx;
+#endif
 #ifdef MSVC_LONG_DOUBLE
 	union {
 		fptype fp;

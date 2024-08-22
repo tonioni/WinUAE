@@ -33,7 +33,9 @@
 #include "gui.h"
 #include "xwin.h"
 #include "debug.h"
+#ifdef WITH_SNDBOARD
 #include "sndboard.h"
+#endif
 #ifdef AVIOUTPUT
 #include "avioutput.h"
 #endif
@@ -665,7 +667,7 @@ static void samplexx_sinc_handler (int *datasp, int ch_start, int ch_num)
 		else if (v < -32768)
 			v = -32768;
 		datasp[k] = v;
-    }
+	}
 }
 
 static void do_filter(int *data, int num)
@@ -1613,7 +1615,7 @@ static void loaddat (int nr, bool modper)
 			return;
 		if (modper && audap) {
 			if (cdp->dat == 0)
-                cdp[1].per = 65536 * CYCLE_UNIT;
+				cdp[1].per = 65536 * CYCLE_UNIT;
 			else if (cdp->dat > PERIOD_MIN)
 				cdp[1].per = cdp->dat * CYCLE_UNIT;
 			else
@@ -2169,7 +2171,9 @@ void set_audio (void)
 
 	sound_cd_volume[0] = sound_cd_volume[1] = (100 - (currprefs.sound_volume_cd < 0 ? 0 : currprefs.sound_volume_cd)) * 32768 / 100;
 	sound_paula_volume[0] = sound_paula_volume[1] = (100 - currprefs.sound_volume_paula) * 32768 / 100;
+#ifdef WITH_SNDBOARD
 	sndboard_ext_volume();
+#endif
 
 	if (ch >= 0) {
 		if (currprefs.produce_sound >= 2) {

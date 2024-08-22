@@ -41,10 +41,14 @@
 #include "cpummu.h"
 #include "cpummu030.h"
 #include "ar.h"
+#ifdef WITH_PCI
 #include "pci.h"
+#endif
+#ifdef WITH_PPC
 #include "ppc/ppcd.h"
 #include "uae/io.h"
 #include "uae/ppc.h"
+#endif
 #include "drawing.h"
 #include "devices.h"
 #include "blitter.h"
@@ -5067,7 +5071,9 @@ static void memory_map_dump_3(UaeMemoryMap *map, int log)
 			a1 = a2;
 		}
 	}
+#ifdef WITH_PCI
 	pci_dump(log);
+#endif
 	currprefs.illegal_mem = imold;
 }
 
@@ -6435,6 +6441,7 @@ static void m68k_modify (TCHAR **inptr)
 
 static void ppc_disasm(uaecptr addr, uaecptr *nextpc, int cnt)
 {
+#ifdef WITH_PPC
 	PPCD_CB disa;
 
 	while(cnt-- > 0) {
@@ -6451,6 +6458,7 @@ static void ppc_disasm(uaecptr addr, uaecptr *nextpc, int cnt)
 	}
 	if (nextpc)
 		*nextpc = addr;
+#endif
 }
 
 static void dma_disasm(int frames, int vp, int hp, int frames_end, int vp_end, int hp_end)

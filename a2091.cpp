@@ -45,7 +45,9 @@
 #include "cpuboard.h"
 #include "rtc.h"
 #include "devices.h"
+#ifdef WITH_DSP
 #include "dsp3210/dsp_glue.h"
+#endif
 
 #define DMAC_8727_ROM_VECTOR 0x8000
 #define CDMAC_ROM_VECTOR 0x2000
@@ -3628,9 +3630,11 @@ static void mbdmac_write_word (struct wd_state *wd, uae_u32 addr, uae_u32 val)
 		break;
 	case 0x5e:
 	case 0x80:
+#ifdef WITH_DSP
 		if (is_dsp_installed) {
 			dsp_write(val);
 		}
+#endif
 		break;
 	}
 }
@@ -3654,9 +3658,11 @@ static void mbdmac_write_byte (struct wd_state *wd, uae_u32 addr, uae_u32 val)
 		break;
 	case 0x5f:
 	case 0x80:
+#ifdef WITH_DSP
 		if (is_dsp_installed) {
 			dsp_write(val);
 		}
+#endif
 		break;
 	default:
 		if (addr & 1)
@@ -3726,9 +3732,11 @@ static uae_u32 mbdmac_read_word (struct wd_state *wd, uae_u32 addr)
 		break;
 	case 0x5e:
 	case 0x80:
+#ifdef WITH_DSP
 		if (is_dsp_installed) {
 			v = dsp_read();
 		}
+#endif
 		break;
 	}
 #if A3000_DEBUG_IO > 1
@@ -3762,9 +3770,11 @@ static uae_u32 mbdmac_read_byte (struct wd_state *wd, uae_u32 addr)
 		break;
 	case 0x5f:
 	case 0x80:
+#ifdef WITH_DSP
 		if (is_dsp_installed) {
 			v = dsp_read();
 		}
+#endif
 		break;
 	}
 #if A3000_DEBUG_IO > 1

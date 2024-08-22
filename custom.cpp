@@ -45,10 +45,14 @@
 #include "enforcer.h"
 #endif
 #include "threaddep/thread.h"
+#ifdef WITH_LUA
 #include "luascript.h"
+#endif
 #include "devices.h"
 #include "rommgr.h"
+#ifdef WITH_SPECIALMONITORS
 #include "specialmonitors.h"
+#endif
 
 #define BPL_ERASE_TEST 0
 
@@ -5832,10 +5836,11 @@ static void decide_sprites2(int start, int end, int *countp, int *nrs, int *posn
 		if (sprxp < 0) {
 			continue;
 		}
-
+#ifdef DEBUGGER
 		if (!((debug_sprite_mask & magic_sprite_mask) & (1 << i))) {
 			continue;
 		}
+#endif
 
 		if (!spr[i].armed) {
 			continue;
@@ -7014,7 +7019,7 @@ void compute_framesync(void)
 			if (isvsync_chipset ()) {
 				if (!currprefs.gfx_variable_sync) {
 					if (cr->index == CHIPSET_REFRESH_PAL || cr->index == CHIPSET_REFRESH_NTSC) {
-						if ((fabs(vblank_hz - 50.0f) < 1 || fabs(vblank_hz - 60.0f) < 1 || fabs(vblank_hz - 100.0) < 1 || fabs(vblank_hz - 120.0f) < 1) && currprefs.gfx_apmode[0].gfx_vsync == 2 && currprefs.gfx_apmode[0].gfx_fullscreen > 0) {
+						if ((fabs(vblank_hz - 50.0f) < 1 || fabs(vblank_hz - 60.0f) < 1 || fabs(vblank_hz - 100.0f) < 1 || fabs(vblank_hz - 120.0f) < 1) && currprefs.gfx_apmode[0].gfx_vsync == 2 && currprefs.gfx_apmode[0].gfx_fullscreen > 0) {
 							vsync_switchmode(0, (int)vblank_hz);
 						}
 					}
@@ -7541,7 +7546,7 @@ static void init_beamcon0(bool fakehz)
 	}
 
 	if (beamcon0 & BEAMCON0_VARBEAMEN) {
-		float half = (beamcon0 & BEAMCON0_PAL) ? 0: ((beamcon0 & BEAMCON0_LOLDIS) ? 0 : 0.5f);
+		float half = (beamcon0 & BEAMCON0_PAL) ? 0 : ((beamcon0 & BEAMCON0_LOLDIS) ? 0 : 0.5f);
 		vblank_hz_nom = vblank_hz = clk / (maxvpos * (maxhpos + half));
 		vblank_hz_shf = vblank_hz;
 		vblank_hz_lof = clk / ((maxvpos + 1.0f) * (maxhpos + half));
@@ -9628,9 +9633,11 @@ static void DDFSTOP(int hpos, uae_u16 v)
 static void FMODE(int hpos, uae_u16 v)
 {
 	if (!aga_mode) {
+#ifdef WITH_SPECIALMONITORS
 		if (currprefs.monitoremu) {
 			specialmonitor_store_fmode(vpos, hpos, v);
 		}
+#endif
 		fmode_saved = v;
 		v = 0;
 	}
@@ -13328,6 +13335,7 @@ static void hsync_handler_pre(bool onvsync)
 
 // low latency vsync
 
+#ifdef WITH_BEAMRACER
 #define LLV_DEBUG 0
 
 static bool sync_timeout_check(frame_time_t max)
@@ -13987,6 +13995,7 @@ static bool linesync_beam_vrr(void)
 
 	return input_read_done;
 }
+#endif
 
 // called when extra CPU wait is done
 void vsync_event_done(void)
@@ -13995,6 +14004,7 @@ void vsync_event_done(void)
 		events_reset_syncline();
 		return;
 	}
+#ifdef WITH_BEAMRACER
 	if (currprefs.gfx_display_sections <= 1) {
 		if (vsync_vblank >= 85)
 			linesync_beam_single_dual();
@@ -14008,6 +14018,7 @@ void vsync_event_done(void)
 		else
 			linesync_beam_multi_single();
 	}
+#endif
 }
 
 static void check_vblank_copjmp(uae_u32 v)
@@ -14337,7 +14348,7 @@ static void hsync_handler_post(bool onvsync)
 		maybe_process_pull_audio();
 
 	} else if (isvsync_chipset() < 0) {
-
+#ifdef WITH_BEAMRACER
 		if (currprefs.gfx_display_sections <= 1) {
 			if (vsync_vblank >= 85)
 				input_read_done = linesync_beam_single_dual();
@@ -14351,7 +14362,7 @@ static void hsync_handler_post(bool onvsync)
 			else
 				input_read_done = linesync_beam_multi_single();
 		}
-
+#endif
 	} else if (!currprefs.cpu_thread && !cpu_sleepmode && currprefs.m68k_speed < 0 && !currprefs.cpu_memory_cycle_exact) {
 
 		static int sleeps_remaining;
@@ -14615,7 +14626,9 @@ void custom_reset(bool hardreset, bool keyboardreset)
 	target_reset();
 	devices_reset(hardreset);
 	write_log(_T("Reset at %08X. Chipset mask = %08X\n"), M68K_GETPC, currprefs.chipset_mask);
+#ifdef DEBUGGER
 	memory_map_dump();
+#endif
 
 	bool ntsc = currprefs.ntscmode;
 
@@ -14786,8 +14799,9 @@ void custom_reset(bool hardreset, bool keyboardreset)
 			INTENA(0x8000 | 0x4000 | 0x1000 | 0x2000 | 0x0080 | 0x0010 | 0x0008 | 0x0001);
 		}
 	}
-
+#ifdef WITH_SPECIALMONITORS
 	specialmonitor_reset();
+#endif
 
 	unset_special (~(SPCFLAG_BRK | SPCFLAG_MODE_CHANGE));
 
@@ -15684,8 +15698,8 @@ uae_u8 *restore_custom(uae_u8 *src)
 	RW;						/* 004 VPOSR */
 	RW;						/* 006 VHPOSR */
 	RW;						/* 008 DSKDATR (dummy register) */
-	JOYSET(0, RW);			/* 00A JOY0DAT */
-	JOYSET(1, RW);			/* 00C JOY1DAT */
+	JOYSET(0, RW);		/* 00A JOY0DAT */
+	JOYSET(1, RW);		/* 00C JOY1DAT */
 	clxdat = RW;			/* 00E CLXDAT */
 	RW;						/* 010 ADKCONR */
 	RW;						/* 012 POT0DAT* */

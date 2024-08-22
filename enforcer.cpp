@@ -411,10 +411,14 @@ static void enforcer_display_hit (const TCHAR *addressmode, uae_u32 pc, uaecptr 
 
 	console_out (enforcer_buf);
 	write_log (_T("%s"), enforcer_buf);
+#ifdef DEBUGGER
 	if (!debug_enforcer()) {
+#endif
 		sleep_millis (5);
 		doflashscreen ();
+#ifdef DEBUGGER
 	}
+#endif
 
 end:
 	xfree (native_task_name);

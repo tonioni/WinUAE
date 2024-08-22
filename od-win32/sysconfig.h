@@ -120,6 +120,17 @@
 #define WITH_DSP
 #define WITH_DRACO
 
+// Sound boards support
+#define WITH_SNDBOARD
+
+// CPU accelerator board support
+#define WITH_CPUBOARD
+
+// Special Monitors support
+#define WITH_SPECIALMONITORS
+
+// Beam racing support
+#define WITH_BEAMRACER
 
 #else
 

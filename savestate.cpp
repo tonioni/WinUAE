@@ -1119,9 +1119,11 @@ static int save_state_internal (struct zfile *f, const TCHAR *description, int c
 	save_chunk (f, dst, len, _T("CD32"), 0);
 	xfree (dst);
 #endif
+#ifdef ARCADIA
 	dst = save_alg(&len);
 	save_chunk(f, dst, len, _T("ALG "), 0);
 	xfree(dst);
+#endif
 #ifdef CDTV
 	dst = save_cdtv (&len, NULL);
 	save_chunk (f, dst, len, _T("CDTV"), 0);

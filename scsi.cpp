@@ -246,7 +246,7 @@ bool scsi_emulate_analyze (struct scsi_data *sd)
 			data_len = (sd->cmd[7] << 8) | sd->cmd[8];
 		}
 		scsi_grow_buffer(sd, data_len);
-	break;
+		break;
 	}
 	if (data_len < 0) {
 		if (cmd_len == 6) {

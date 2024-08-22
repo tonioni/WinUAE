@@ -1602,6 +1602,7 @@ void stop_ide_thread(struct ide_thread_state *its)
 		write_comm_pipe_u32 (&its->requests, 0xffffffff, 1);
 		while(its->state == 0)
 			sleep_millis (10);
+		destroy_comm_pipe(&its->requests);
 		its->state = 0;
 	}
 }

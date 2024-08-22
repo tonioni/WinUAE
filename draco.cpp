@@ -7,6 +7,7 @@
 #include "sysconfig.h"
 #include "sysdeps.h"
 
+#ifdef WITH_DRACO
 #include "options.h"
 #include "uae.h"
 #include "memory.h"
@@ -1583,3 +1584,4 @@ void draco_map_overlay(void)
 	map_banks(&draco_bank, 0x04000000 >> 16, 0x01000000 >> 16, 0);
 	map_banks(&draco_bank, 0x21000000 >> 16, 0x1f000000 >> 16, 0);
 }
+#endif //WITH_DRACO

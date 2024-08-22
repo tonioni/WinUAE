@@ -204,7 +204,7 @@ static void showea_val(TCHAR *buffer, uae_u16 opcode, uaecptr addr, int size)
 	struct instr *table = &table68k[opcode];
 
 #ifndef CPU_TESTER
-#if UAE
+#ifdef UAE
 	if (addr >= 0xe90000 && addr < 0xf00000)
 		goto skip;
 	if (addr >= 0xdff000 && addr < 0xe00000)

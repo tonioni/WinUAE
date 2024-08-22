@@ -27,10 +27,12 @@
 #include "cpuboard.h"
 #include "flashrom.h"
 #include "autoconf.h"
+#ifdef WITH_QEMU_CPU
 #include "qemuvga/qemuuaeglue.h"
 #include "qemuvga/queue.h"
 #include "qemuvga/scsi/scsi.h"
 #include "qemuvga/scsi/esp.h"
+#endif
 #include "gui.h"
 #include "devices.h"
 

@@ -46,13 +46,19 @@
 #include "audio.h"
 #include "fpp.h"
 #include "statusline.h"
+#ifdef WITH_PPC
 #include "uae/ppc.h"
+#endif
 #include "cpuboard.h"
 #include "threaddep/thread.h"
+#ifdef WITH_X86
 #include "x86.h"
+#endif
 #include "bsdsocket.h"
 #include "devices.h"
+#ifdef WITH_DRACO
 #include "draco.h"
+#endif
 #ifdef JIT
 #include "jit/compemu.h"
 #include <signal.h>
@@ -2777,8 +2783,10 @@ static void Exception_ce000 (int nr)
 			cpu_halt (CPU_HALT_DOUBLE_FAULT);
 			return;
 		}
+#ifdef DEBUGGER
 		write_log(_T("Exception %d (%08x %x) at %x -> %x!\n"),
 			nr, last_op_for_exception_3, last_addr_for_exception_3, currpc, get_long_debug(4 * nr));
+#endif
 		if (currprefs.cpu_model == 68000) {
 			// 68000 bus/address error
 			uae_u16 mode = (sv ? 4 : 0) | last_fc_for_exception_3;
@@ -3030,7 +3038,9 @@ static void Exception_mmu (int nr, uaecptr oldpc)
 			Exception_build_stack_frame(regs.mmu_fault_addr, currpc, regs.mmu_fslw, vector_nr, 0x4);
 	} else if (nr == 3) { // address error
         Exception_build_stack_frame(last_fault_for_exception_3, currpc, 0, vector_nr, 0x2);
+#ifdef DEBUGGER
 		write_log (_T("Exception %d (%x) at %x -> %x!\n"), nr, last_fault_for_exception_3, currpc, get_long_debug (regs.vbr + 4 * nr));
+#endif
 	} else if (regs.m && interrupt) { /* M + Interrupt */
 		Exception_build_stack_frame(oldpc, currpc, regs.mmu_ssw, vector_nr, 0x0);
 		MakeSR();
@@ -3293,7 +3303,9 @@ static void Exception_normal (int nr)
 				Exception_build_stack_frame(oldpc, currpc, ssw, vector_nr, 0x08);
 				used_exception_build_stack_frame = true;
 			}
+#ifdef DEBUGGER
 			write_log (_T("Exception %d (%x) at %x -> %x!\n"), nr, regs.instruction_pc, currpc, get_long_debug (regs.vbr + 4 * vector_nr));
+#endif
 		} else if (regs.m && interrupt) { /* M + Interrupt */
 			m68k_areg (regs, 7) -= 2;
 			x_put_word (m68k_areg (regs, 7), vector_nr * 4);
@@ -3322,7 +3334,9 @@ static void Exception_normal (int nr)
 			mode |= last_notinstruction_for_exception_3 ? 8 : 0;
 			exception_in_exception = -1;
 			Exception_build_68000_address_error_stack_frame(mode, last_op_for_exception_3, last_fault_for_exception_3, last_addr_for_exception_3);
+#ifdef DEBUGGER
 			write_log (_T("Exception %d (%x) at %x -> %x!\n"), nr, last_fault_for_exception_3, currpc, get_long_debug (regs.vbr + 4 * vector_nr));
+#endif
 			goto kludge_me_do;
 		}
 	}
@@ -3735,13 +3749,17 @@ static void cpu_do_fallback(void)
 		memcpy(&regs, &fallback_regs, sizeof(regs));
 		restore_banks();
 		memory_restore();
+#ifdef DEBUGGER
 		memory_map_dump();
+#endif
 		m68k_setpc(fallback_regs.pc);
 	} else {
 		// 68000/010/EC020
 		memory_restore();
 		expansion_cpu_fallback();
+#ifdef DEBUGGER
 		memory_map_dump();
+#endif
 	}
 }
 
@@ -3834,7 +3852,9 @@ uae_u32 REGPARAM2 op_illg (uae_u32 opcode)
 			Exception(8);
 		} else {
 			if (warned < 20) {
+#ifdef DEBUGGER
 				write_log(_T("B-Trap %04X at %08X -> %08X\n"), opcode, pc, get_long_debug(regs.vbr + 0x2c));
+#endif
 				warned++;
 			}
 			Exception(0xB);
@@ -3844,7 +3864,9 @@ uae_u32 REGPARAM2 op_illg (uae_u32 opcode)
 	}
 	if ((opcode & 0xF000) == 0xA000) {
 		if (warned < 20) {
+#ifdef DEBUGGER
 			write_log(_T("A-Trap %04X at %08X -> %08X\n"), opcode, pc, get_long_debug(regs.vbr + 0x28));
+#endif
 			warned++;
 		}
 		Exception (0xA);
@@ -3852,7 +3874,9 @@ uae_u32 REGPARAM2 op_illg (uae_u32 opcode)
 		return 4;
 	}
 	if (warned < 20) {
+#ifdef DEBUGGER
 		write_log (_T("Illegal instruction: %04x at %08X -> %08X\n"), opcode, pc, get_long_debug(regs.vbr + 0x10));
+#endif
 		warned++;
 		//activate_debugger_new();
 	}
@@ -4223,13 +4247,17 @@ static void int_request_do(bool i6)
 {
 	if (i6) {
 		if (currprefs.cs_compatible == CP_DRACO || currprefs.cs_compatible == CP_CASABLANCA) {
+#ifdef WITH_DRACO
 			draco_ext_interrupt(true);
+#endif
 		} else {
 			INTREQ_f(0x8000 | 0x2000);
 		}
 	} else {
 		if (currprefs.cs_compatible == CP_DRACO || currprefs.cs_compatible == CP_CASABLANCA) {
+#ifdef WITH_DRACO
 			draco_ext_interrupt(false);
+#endif
 		} else {
 			INTREQ_f(0x8000 | 0x0008);
 		}
@@ -4295,7 +4323,9 @@ void safe_interrupt_set(int num, int id, bool i6)
 		atomic_or(&uae_interrupt, 1);
 	} else {
 		if (currprefs.cs_compatible == CP_DRACO || currprefs.cs_compatible == CP_CASABLANCA) {
+#ifdef WITH_DRACO
 			draco_ext_interrupt(i6);
+#endif
 		} else {
 			int inum = i6 ? 13 : 3;
 			uae_u16 v = 1 << inum;
@@ -6602,7 +6632,9 @@ void m68k_go (int may_quit)
 			/* We may have been restoring state, but we're done now.  */
 			if (isrestore ()) {
 				restored = savestate_restore_finish ();
+#ifdef DEBUGGER
 				memory_map_dump ();
+#endif
 				if (currprefs.mmu_model == 68030) {
 					mmu030_decode_tc (tc_030, true);
 				} else if (currprefs.mmu_model >= 68040) {
@@ -7873,7 +7905,7 @@ void exception2_fetch(uae_u32 opcode, int offset, int pcoffset)
 
 bool cpureset (void)
 {
-    /* RESET hasn't increased PC yet, 1 word offset */
+	/* RESET hasn't increased PC yet, 1 word offset */
 	uaecptr pc;
 	uaecptr ksboot = 0xf80002 - 2;
 	uae_u16 ins;
