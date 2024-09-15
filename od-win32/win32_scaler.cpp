@@ -416,6 +416,7 @@ void getfilterrect2(int monid, RECT *sr, RECT *dr, RECT *zr, int dst_width, int 
 				}
 				if (scalemode == AUTOSCALE_INTEGER || ok == false) {
 					getmanualpos(monid, &cx, &cy, &cw, &ch);
+					crealh = ch;
 					set_custom_limits(cw, ch, cx, cy, true);
 					store_custom_limits(cw, ch, cx, cy);
 					scl = true;
@@ -502,6 +503,7 @@ void getfilterrect2(int monid, RECT *sr, RECT *dr, RECT *zr, int dst_width, int 
 
 			//write_log (_T("%dx%d %dx%d %dx%d\n"), currprefs.gfx_xcenter_pos, currprefs.gfx_ycenter_pos, cx, cy, cw, ch);
 
+			crealh = ch;
 			cv = 1;
 
 		} else if (scalemode == AUTOSCALE_CENTER) {

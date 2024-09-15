@@ -369,6 +369,16 @@ static void DoSomeWeirdPrintingStuff (uae_char val)
 	}
 	if (prtbufbytes < PRTBUFSIZE) {
 		prtbuf[prtbufbytes++] = val;
+
+#ifdef RETROPLATFORM
+		if (rp_isprinter() &&
+			!currprefs.parallel_postscript_emulation &&
+			currprefs.parallel_matrix_emulation < PARALLEL_MATRIX_EPSON &&
+			(rp_isprinteropen() || prtbufbytes >= MIN_PRTBYTES)) {
+
+			flushprtbuf();
+		}
+#endif
 	} else {
 		flushprtbuf ();
 		*prtbuf = val;
