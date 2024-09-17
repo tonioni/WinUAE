@@ -910,7 +910,7 @@ static void set_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 	int hres, vres;
 	float hmult = 1, vmult = 1;
 	struct MultiDisplay *disp;
-	bool keepaspect = (sm->dwScreenMode & RP_SCREENMODE_SCALING_SUBPIXEL) && !(sm->dwScreenMode & RP_SCREENMODE_SCALING_STRETCH);
+	bool keepaspect = !(sm->dwScreenMode & RP_SCREENMODE_SCALING_STRETCH);
 	bool stretch = (sm->dwScreenMode & RP_SCREENMODE_SCALING_STRETCH) != 0;
 	bool forcesize = smm == RP_SCREENMODE_SCALE_TARGET && sm->lTargetWidth > 0 && sm->lTargetHeight > 0;
 	bool integerscale = !(sm->dwScreenMode & RP_SCREENMODE_SCALING_SUBPIXEL) && !(sm->dwScreenMode & RP_SCREENMODE_SCALING_STRETCH) && smm >= RP_SCREENMODE_SCALE_TARGET;
@@ -1129,9 +1129,11 @@ static void set_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 
 		if (keepaspect) {
 			p->gf[0].gfx_filter_aspect = -1;
+			p->gf[0].gfx_filter_keep_autoscale_aspect = 1;
 			p->gf[0].gfx_filter_keep_aspect = 1;
 		} else {
 			p->gf[0].gfx_filter_aspect = 0;
+			p->gf[0].gfx_filter_keep_autoscale_aspect = 0;
 			p->gf[0].gfx_filter_keep_aspect = 0;
 		}
 
@@ -2583,7 +2585,10 @@ void rp_writeprinter(uae_char *b, int len)
 		RPSendMessagex(RP_IPC_TO_HOST_DEVICEOPEN, unit, 0, NULL, 0, &guestinfo, NULL);
 		rp_printeropen = 1;
 	}
-	RPSendMessagex(RP_IPC_TO_HOST_DEVICEWRITEBYTES, unit, 0, b, len, &guestinfo, NULL);
+	if (len == 1)
+		RPSendMessagex(RP_IPC_TO_HOST_DEVICEWRITEBYTE, unit, (LPARAM)*b & 0xFF, 0, 0, &guestinfo, NULL);
+	else
+		RPSendMessagex(RP_IPC_TO_HOST_DEVICEWRITEBYTES, unit, 0, b, len, &guestinfo, NULL);
 }
 
 void rp_test(void)

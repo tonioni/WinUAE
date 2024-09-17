@@ -23633,17 +23633,19 @@ static int GetSettings (int all_options, HWND hwnd)
 			}
 			
 			for (;;) {
-				HANDLE IPChandle;
-				IPChandle = geteventhandleIPC (globalipc);
-				if (globalipc && IPChandle != INVALID_HANDLE_VALUE) {
-					MsgWaitForMultipleObjects (1, &IPChandle, FALSE, INFINITE, QS_ALLINPUT);
-					while (checkIPC (globalipc, &workprefs));
-					if (quit_program == -UAE_QUIT)
-						break;
-				} else {
-					WaitMessage ();
+				if (!PeekMessage(&msg, NULL, 0, 0, 0)) {
+					HANDLE IPChandle;
+					IPChandle = geteventhandleIPC(globalipc);
+					if (globalipc && IPChandle != INVALID_HANDLE_VALUE) {
+						MsgWaitForMultipleObjects(1, &IPChandle, FALSE, INFINITE, QS_ALLINPUT);
+						while (checkIPC(globalipc, &workprefs));
+						if (quit_program == -UAE_QUIT)
+							break;
+					} else {
+						WaitMessage();
+					}
 				}
-				dialogmousemove (dhwnd);
+				dialogmousemove(dhwnd);
 
 				while ((v = PeekMessage (&msg, NULL, 0, 0, PM_REMOVE))) {
 					if (dialogreturn >= 0)

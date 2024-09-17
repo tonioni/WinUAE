@@ -1900,9 +1900,6 @@ static int createwindowscursor(int monid, int set, int chipset)
 		int hiressprite = sprite_0_width / 16;
 		int ds = h * ((w + 15) / 16) * 4;
 		if (!sprite_0 || !mousehack_alive() || w > CURSORMAXWIDTH || h > CURSORMAXHEIGHT || !valid_address(src, ds)) {
-			if (wincursor) {
-				SetCursor(normalcursor);
-			}
 			goto exit;
 		}
 		int yy = 0;
@@ -1958,6 +1955,8 @@ static int createwindowscursor(int monid, int set, int chipset)
 		}
 	}
 
+	wincursor = NULL;
+
 	write_log(_T("wincursor: %dx%d\n"), w, h);
 
 	tmp_sprite_w = tmp_sprite_h = 0;
@@ -2001,9 +2000,7 @@ end:
 	DeleteDC(mainDC);
 	ReleaseDC(NULL, DC);
 
-	if (!isdata) {
-		wincursor = LoadCursor(NULL, IDC_ARROW);
-	} else if (ret) {
+	if (isdata) {
 		memset(&ic, 0, sizeof ic);
 		ic.hbmColor = xorBM;
 		ic.hbmMask = andBM;
@@ -2026,19 +2023,21 @@ end:
 		write_log(_T("RTG Windows color cursor creation failed\n"));
 	}
 
-exit:
-	if (currprefs.input_tablet && (currprefs.input_mouse_untrap & MOUSEUNTRAP_MAGIC) && currprefs.input_magic_mouse_cursor == MAGICMOUSE_NATIVE_ONLY) {
-		if (GetCursor() != NULL)
-			SetCursor(NULL);
-	} else {
-		if (wincursor == oldwincursor && normalcursor != NULL) {
-			SetCursor(normalcursor);
-		}
-	}
 	if (oldwincursor) {
 		DestroyIcon(oldwincursor);
+		oldwincursor = NULL;
 	}
-	oldwincursor = NULL;
+
+	return ret;
+
+exit:
+	if (wincursor) {
+		if (GetCursor() == wincursor) {
+			SetCursor(normalcursor);
+		}
+		DestroyIcon(wincursor);
+		wincursor = NULL;
+	}
 
 	return ret;
 }
