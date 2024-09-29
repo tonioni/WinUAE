@@ -98,7 +98,8 @@ int window_led_joys, window_led_joys_end, window_led_joy_start;
 int window_led_msg, window_led_msg_end, window_led_msg_start;
 extern int console_logging;
 
-static int wasfullwindow_a, wasfullwindow_p;
+static int wasfs[2];
+static const TCHAR *wasfsname[2] = { _T("FullScreenMode"), _T("FullScreenModeRTG") };
 
 int vsync_modechangetimeout = 10;
 
@@ -3939,10 +3940,11 @@ retry:
 	struct amigadisplay *ad = &adisplays[mon->monitor_id];
 
 	modechanged = true;
-	if (wasfullwindow_a == 0)
-		wasfullwindow_a = currprefs.gfx_apmode[0].gfx_fullscreen == GFX_FULLWINDOW ? 1 : -1;
-	if (wasfullwindow_p == 0)
-		wasfullwindow_p = currprefs.gfx_apmode[1].gfx_fullscreen == GFX_FULLWINDOW ? 1 : -1;
+	if (wasfs[0] == 0)
+		regqueryint(NULL, wasfsname[0], &wasfs[0]);
+	if (wasfs[1] == 0)
+		regqueryint(NULL, wasfsname[1], &wasfs[1]);
+
 	gfxmode_reset(mon->monitor_id);
 	freevidbuffer(mon->monitor_id, &avidinfo->drawbuffer);
 	freevidbuffer(mon->monitor_id, &avidinfo->tempbuffer);
@@ -4220,13 +4222,23 @@ void updatedisplayarea(int monid)
 void updatewinfsmode(int monid, struct uae_prefs *p)
 {
 	struct MultiDisplay *md;
+	struct amigadisplay *ad = &adisplays[monid];
 
 	fixup_prefs_dimensions (p);
-	if (isfullscreen_2 (p) != 0) {
+	int fs = isfullscreen_2(p);
+	if (fs != 0) {
 		p->gfx_monitor[monid].gfx_size = p->gfx_monitor[monid].gfx_size_fs;
 	} else {
 		p->gfx_monitor[monid].gfx_size = p->gfx_monitor[monid].gfx_size_win;
 	}
+
+	int *wfw = &wasfs[ad->picasso_on ? 1 : 0];
+	const TCHAR *wfwname = wasfsname[ad->picasso_on ? 1 : 0];
+	if (fs != *wfw && fs != 0) {
+		*wfw = fs;
+		regsetint(NULL, wfwname, *wfw);
+	}
+
 	md = getdisplay(p, monid);
 	set_config_changed ();
 }
@@ -4351,7 +4363,7 @@ void toggle_fullscreen(int monid, int mode)
 {
 	struct amigadisplay *ad = &adisplays[monid];
 	int *p = ad->picasso_on ? &changed_prefs.gfx_apmode[1].gfx_fullscreen : &changed_prefs.gfx_apmode[0].gfx_fullscreen;
-	int wfw = ad->picasso_on ? wasfullwindow_p : wasfullwindow_a;
+	int *wfw = &wasfs[ad->picasso_on ? 1 : 0];
 	int v = *p;
 	static int prevmode = -1;
 
@@ -4361,19 +4373,18 @@ void toggle_fullscreen(int monid, int mode)
 		// window->fullscreen->window.
 		if (v == GFX_FULLWINDOW) {
 			prevmode = v;
+			*wfw = -1;
 			v = GFX_WINDOW;
 		} else if (v == GFX_WINDOW) {
-			if (prevmode < 0) {
+			if (*wfw >= 0) {
 				v = GFX_FULLSCREEN;
-				prevmode = v;
 			} else {
-				v = prevmode;
+				v = GFX_FULLWINDOW;
 			}
 		} else if (v == GFX_FULLSCREEN) {
-			if (wfw > 0)
-				v = GFX_FULLWINDOW;
-			else
-				v = GFX_WINDOW;
+			prevmode = v;
+			*wfw = 1;
+			v = GFX_WINDOW;
 		}
 	} else if (mode == 0) {
 		prevmode = v;
