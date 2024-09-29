@@ -96,7 +96,7 @@ static void sizeoffset (RECT *dr, RECT *zr, int w, int h)
 	OffsetRect (zr, w / 2, h / 2);
 }
 
-static void getmanualpos(int monid, int *cxp, int *cyp, int *cwp, int *chp)
+static bool getmanualpos(int monid, int *cxp, int *cyp, int *cwp, int *chp)
 {
 	struct vidbuf_description *avidinfo = &adisplays[monid].gfxvidinfo;
 	int v, cx, cy, cw, ch;
@@ -148,6 +148,8 @@ static void getmanualpos(int monid, int *cxp, int *cyp, int *cwp, int *chp)
 	*cyp = cy;
 	*cwp = cw;
 	*chp = ch;
+
+	return currprefs.gfx_xcenter_pos >= 0 || currprefs.gfx_ycenter_pos >= 0 || currprefs.gfx_xcenter_size > 0 || currprefs.gfx_ycenter_size > 0;
 }
 
 static bool get_auto_aspect_ratio(int monid, int cw, int ch, int crealh, int scalemode, float *autoaspectratio, int idx)
@@ -397,6 +399,7 @@ void getfilterrect2(int monid, RECT *sr, RECT *dr, RECT *zr, int dst_width, int 
 				int maxh = isfullscreen() < 0 ? deskh : gmc->gfx_size.height;
 				float mult = 1.0f;
 				bool ok = true;
+				bool manual = false;
 
 				if (currprefs.gfx_xcenter_pos >= 0 || currprefs.gfx_ycenter_pos >= 0) {
 					changed_prefs.gf[idx].gfx_filter_horiz_offset = currprefs.gf[idx].gfx_filter_horiz_offset = 0.0;
@@ -412,10 +415,11 @@ void getfilterrect2(int monid, RECT *sr, RECT *dr, RECT *zr, int dst_width, int 
 						set_custom_limits(cw, ch, cx, cy, true);
 						store_custom_limits(cw, ch, cx, cy);
 						scl = true;
+						manual = true;
 					}
 				}
 				if (scalemode == AUTOSCALE_INTEGER || ok == false) {
-					getmanualpos(monid, &cx, &cy, &cw, &ch);
+					manual = getmanualpos(monid, &cx, &cy, &cw, &ch);
 					crealh = ch;
 					set_custom_limits(cw, ch, cx, cy, true);
 					store_custom_limits(cw, ch, cx, cy);
@@ -446,6 +450,15 @@ void getfilterrect2(int monid, RECT *sr, RECT *dr, RECT *zr, int dst_width, int 
 				filter_horiz_zoom_mult = 1.0;
 				filter_vert_zoom_mult = 1.0;
 
+				float m = 1.0f;
+				if (manual) {
+					if (currprefs.gfx_resolution >= currprefs.gfx_vresolution) {
+						m = (float)(1 << (currprefs.gfx_resolution - currprefs.gfx_vresolution));
+					} else {
+						m = 1.0f / (1 << (currprefs.gfx_vresolution - currprefs.gfx_resolution));
+					}
+				}
+
 				float multadd = 1.0f / (1 << currprefs.gf[idx].gfx_filter_integerscalelimit);
 				if (cw2 > 0 && ch2 > 0) {
 					if (cw2 > maxw || ch2 > maxh) {
@@ -456,18 +469,18 @@ void getfilterrect2(int monid, RECT *sr, RECT *dr, RECT *zr, int dst_width, int 
 						maxw = (int)(maxw * multx);
 						maxh = (int)(maxh * multy);
 					} else {
-						while (cw2 * (mult + multadd) - adjw <= maxw && ch2 * (mult + multadd) - adjh <= maxh) {
+						while (((cw2 * (mult + multadd)) / m) - adjw <= maxw && ch2 * (mult + multadd) - adjh <= maxh) {
 							mult += multadd;
 						}
 
 						float multx = mult, multy = mult;
 						// if width is smaller than height, double width (programmed modes)
 						if (cw2 * (mult + multadd) - adjw <= maxw && cw2 < ch2) {
-							multx += multadd;
+							multx *= 2;
 						}
-						// if width is >2.5x height, double height (non-doublescanned superhires)
-						if (ch2 * (mult + multadd) - adjh <= maxh && cw2 > ch2 * 2.5) {
-							multy += multadd;
+						// if width is >=2.4x height, double height (non-doublescanned superhires)
+						if (ch2 * (mult * 2) - adjh <= maxh && cw2 > ch2 * 2.4) {
+							multy *= 2;
 						}
 						maxw = (int)((maxw + multx - multadd) / multx);
 						maxh = (int)((maxh + multy - multadd) / multy);
@@ -475,6 +488,8 @@ void getfilterrect2(int monid, RECT *sr, RECT *dr, RECT *zr, int dst_width, int 
 				}
 
 				*mode = 1;
+
+				dstratio = 1.0f * cw / ch;
 
 				width_aspect = cw;
 				height_aspect = ch;
