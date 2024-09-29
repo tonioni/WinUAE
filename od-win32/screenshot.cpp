@@ -683,7 +683,7 @@ static void count_colors(bool alpha)
 			if (c >= palettecount) {
 				if (palettecount >= 256) {
 					// run out of palette slots
-					write_log("Run out of palette slots when counting colors.");
+					write_log("Run out of palette slots when counting colors.\n");
 					uniquecolorcount = -1;
 					xfree(palettebm);
 					palettebm = NULL;

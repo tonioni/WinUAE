@@ -933,6 +933,8 @@ static void set_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 	}
 	p->gf[0].gfx_filter_left_border = 0;
 	p->gf[0].gfx_filter_top_border = 0;
+	p->gf[0].gfx_filter_right_border = 0;
+	p->gf[0].gfx_filter_bottom_border = 0;
 	p->gf[0].gfx_filter_autoscale = AUTOSCALE_CENTER;
 	disp = getdisplay(p, 0);
 
@@ -1123,6 +1125,19 @@ static void set_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 					p->gfx_xcenter_size = sm->lClipWidth;
 				if (sm->lClipHeight > 0)
 					p->gfx_ycenter_size = sm->lClipHeight;
+				p->gf[0].gfx_filter_top_border = sm->lClipTop;
+				p->gf[0].gfx_filter_bottom_border = sm->lClipTop + sm->lClipHeight;
+
+				if (hdbl > RES_MAX) {
+					p->gf[0].gfx_filter_left_border = sm->lClipLeft << (hdbl - RES_MAX);
+					p->gf[0].gfx_filter_right_border = p->gf[0].gfx_filter_left_border + (sm->lClipWidth << (hdbl - RES_MAX));
+				} else {
+					p->gf[0].gfx_filter_left_border = sm->lClipLeft >> (RES_MAX - hdbl);
+					p->gf[0].gfx_filter_right_border = p->gf[0].gfx_filter_left_border + (sm->lClipWidth >> (RES_MAX - hdbl));
+				}
+				// backwards compatibility fix
+				p->gf[0].gfx_filter_left_border -= 0x38 * 4;
+				p->gf[0].gfx_filter_right_border -= 0x38 * 4;
 			}
 			
 		}
@@ -1185,6 +1200,8 @@ static void set_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 		if (sm->dwClipFlags & RP_CLIPFLAGS_AUTOCLIP) {
 			p->gf[0].gfx_filter_left_border = -1;
 			p->gf[0].gfx_filter_top_border = -1;
+			p->gf[0].gfx_filter_right_border = -1;
+			p->gf[0].gfx_filter_bottom_border = -1;
 		}
 		if (interpolation_v102) {
 			p->gf[0].gfx_filter_bilinear = (sm->dwScreenMode & RP_SCREENMODE_INTERPOLATION) != 0;
