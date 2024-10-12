@@ -598,7 +598,6 @@ floatx80 floatx80_cos(floatx80 a, float_status *status)
 
 floatx80 floatx80_cosh(floatx80 a, float_status *status)
 {
-	flag aSign;
 	int32_t aExp;
 	uint64_t aSig;
 	
@@ -607,7 +606,6 @@ floatx80 floatx80_cosh(floatx80 a, float_status *status)
 	
 	aSig = extractFloatx80Frac(a);
 	aExp = extractFloatx80Exp(a);
-	aSign = extractFloatx80Sign(a);
 	
 	if (aExp == 0x7FFF) {
 		if ((uint64_t) (aSig<<1)) return propagateFloatx80NaNOneArg(a, status);
@@ -1578,8 +1576,8 @@ floatx80 floatx80_sin(floatx80 a, float_status *status)
  | Sine and cosine
  *----------------------------------------------------------------------------*/
 
-floatx80 floatx80_sincos(floatx80 a, floatx80 *c, float_status * status)
- {
+floatx80 floatx80_sincos(floatx80 a, floatx80 *c, float_status *status)
+{
 	flag aSign, xSign, rSign, sSign;
 	int32_t aExp, xExp, rExp, sExp;
 	uint64_t aSig, rSig, sSig;
