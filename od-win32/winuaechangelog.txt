@@ -1,6 +1,12 @@
 
 This is quick 5.3.1 beta series, normal update to 5.3.0. You might have heard that I have started rewriting (almost) whole custom chipset emulation few months ago. This isn't it. Still work to do, it isn't that useful in fast CPU modes yet.
 
+
+Beta 3:
+
+- Interlaced screenshots still had toggling height in some situations.
+- On the fly Direct3D 9 mode OSD led font size change didn't recalculate new font size correctly until display mode was changed at least once.
+
 Beta 2:
 
 - TekMagic RAM configuration fixed.
