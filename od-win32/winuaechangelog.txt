@@ -1,4 +1,45 @@
 
+This is quick 5.3.1 beta series, normal update to 5.3.0. You might have heard that I have started rewriting (almost) whole custom chipset emulation few months ago. This isn't it. Still work to do, it isn't that useful in fast CPU modes yet.
+
+
+Beta 3:
+
+- Interlaced screenshots still had toggling height in some situations.
+- On the fly Direct3D 9 mode OSD led font size change didn't recalculate new font size correctly until display mode was changed at least once.
+
+Beta 2:
+
+- TekMagic RAM configuration fixed.
+- Added QuikPak XP v2.2 ROM and original QuikPak ROM (which only contains 68060 FPU disable code, no SCSI)
+- SCSI CD audio PLAY AUDIO TRACK/INDEX returned error if end track was higher than last track. SCSI spec allows it and it should not cause error.
+- Fixed integer scaling + aspect ratio correction: aspect ratio caused strange side-effects depending on window size.
+- When CTRL+F12 is pressed and current mode is windowed, mode gets switched to last used mode (fullwindow or fullscreen). Last used native and RTG fullwindow/fullscreen state is stored separately. Last used fullscreen mode (fullwindow or fullscreen) is now stored in registry/ini. Fullscreen is default if last used mode does not (yet) exist.
+- Taking screenshot from interlace mode now always return same height image, current frame type does not anymore affect it.
+
+Beta 1:
+
+- Added support for Picmatic Marbelle Vice and Tierras Salvajes 100Hz TV laser disc arcade games. 100Hz TV versions use external hardware to read lightgun positions. All older games use Amiga built-in lightgun support hardware (+external switch to select between player 1 and 2 guns)
+
+- Fixed GamePorts panel "Swap ports".
+- Some screen resolution/font combinations caused crash when on screen keyboard was opened.
+- Fixed music glitch in James Pond 2 (non-AGA). Probably affected other interrupt based music players too. (5300b5)
+- Prometheus Firestorm PCI bridge interrupt state bit was inverted.
+- Implemented Mediator 1200TX second PCI window in 8M mode. (First 4M is first window, second 4M is second window), second window is normally mapped after first bank, emulating pre-1200TX hardware which only have one 8M window.
+- S3 Virge PCI missed one byteswapping mode.
+- If config with Golem SCSI II HD controller was loaded, it changed to HD3000. SCSI II had same internal name prefix as Golem HD3000.
+- Fixed SPRxPOS modification in last possible moment being missed causing sprite to be disabled. (Reshoot R background flickering)
+- Copper COPJMP1 and COPJMP2 strobed with DMA disabled is accurately emulated. Old and wrong "Copper stops when this happens" was not fully removed when correct behavior was added (Copper does not stop but jumps to address COP1LC OR COP2LC. Which usually as a side-effect stops it quite quickly because MOVE to "dangereous" register is very likely). Copper only stops when writing to (or "skipping") write to "dangerous" register.
+- Allow 16-bit color depth only in Direct3D 9 mode. GDI and D3D11 force 32-bit depth.
+- Serial transmit (in non-direct mode) now in average matches SERPER bit rate. Previously it was always slightly faster. Receive rate (in non-direct) is now throttled to max SERPER/4 rate instead of receiving new byte byte immediately after previous receive interrupt was cleared. Rate needs to be less than SERPER because it is meant for be very compatible with external serial connection without random buffer overflows.
+- In fastest CPU mode, when there is free time at the end of scanline, skip event handling for few wait loops to improve performance.
+- Fixed possible crash when AmigaOS 4 resets and switches to PPC mode if directory filesystem emulation was in use.
+- Added GVP T-Rex II accelerator board ROM. It is very similar to TekMagic.
+- Added "v1.0" DKB Wildfire ROM image (previously known was renamed as v1.1, it is larger and has new disabled Display options menu item but unfortunately all internal versions numbers are identical to v1.0)
+- Implemented OpalVision undocumented automatic VRAM bank switch when VRAM address wraps around and fixed ignored VRAM address load command if it was located in second control line. Both features are used in King of Karate to have wider than screen scrolling background. Previously background was not scrolling.
+
+
+5.3.0
+
 Beta 10:
 
 - Fast CPU and serial port loop back mode: transmit never finished, nothing was received.

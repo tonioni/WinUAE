@@ -1781,7 +1781,7 @@ int32_t floatx80_to_int32(floatx80 a, float_status *status)
         return aSign ? (int32_t) 0x80000000 : 0x7FFFFFFF;
     }
 #else
- 	if ( ( aExp == 0x7FFF ) && (bits64) ( aSig<<1 ) ) aSign = 0;
+ 	if ( ( aExp == 0x7FFF ) && (uint64_t) ( aSig<<1 ) ) aSign = 0;
 #endif
     shiftCount = 0x4037 - aExp;
     if ( shiftCount <= 0 ) shiftCount = 1;
@@ -2163,10 +2163,8 @@ floatx80 floatx80_round_to_int(floatx80 a, float_status *status)
     flag aSign;
     int32_t aExp;
     uint64_t lastBitMask, roundBitsMask;
-	int8_t roundingMode;
 	floatx80 z;
 
-	roundingMode = status->float_rounding_mode;
 	aSign = extractFloatx80Sign(a);
     aExp = extractFloatx80Exp( a );
     if ( 0x403E <= aExp ) {
@@ -2984,7 +2982,7 @@ floatx80 floatx80_rem(floatx80 a, floatx80 b, uint64_t *q, flag *s, float_status
         aSig0 = alternateASig0;
         aSig1 = alternateASig1;
         zSign = !zSign;
-        ++* q;
+        ++*q;
     }
     return
         normalizeRoundAndPackFloatx80(status->floatx80_rounding_precision,

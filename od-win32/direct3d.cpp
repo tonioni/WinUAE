@@ -1352,7 +1352,7 @@ static void updateleds (struct d3dstruct *d3d)
 		done = 1;
 	}
 
-	if (d3d != &d3ddata[0])
+	if (d3d != &d3ddata[0] || !d3d->ledtexture)
 		return;
 
 	hr = d3d->ledtexture->LockRect (0, &locked, NULL, D3DLOCK_DISCARD);
@@ -1379,6 +1379,10 @@ static int createledtexture (struct d3dstruct *d3d)
 {
 	struct AmigaMonitor *mon = &AMonitors[d3d - d3ddata];
 
+	if (d3d->ledtexture) {
+		d3d->ledtexture->Release();
+		d3d->ledtexture = NULL;
+	}
 	d3d->statusbar_hx = d3d->statusbar_vx = statusline_set_multiplier(mon->monitor_id, d3d->tout_w, d3d->tout_h) / 100;
 	d3d->ledwidth = d3d->window_w;
 	d3d->ledheight = TD_TOTAL_HEIGHT * d3d->statusbar_vx;
@@ -2518,8 +2522,6 @@ static int restoredeviceobjects (struct d3dstruct *d3d)
 
 	createmask2texture (d3d, d3d->filterd3d->gfx_filteroverlay);
 
-	createledtexture (d3d);
-
 	hr = D3DXCreateSprite (d3d->d3ddev, &d3d->sprite);
 	if (FAILED (hr)) {
 		write_log (_T("%s: D3DXSprite failed: %s\n"), D3DHEAD, D3D_ErrorString (hr));
@@ -3095,6 +3097,7 @@ static bool alloctextures (struct d3dstruct *d3d)
 	if (!createamigatexture (d3d, d3d->tin_w, d3d->tin_h)) {
 		return false;
 	}
+	createledtexture(d3d);
 	return true;
 }
 
