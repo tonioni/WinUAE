@@ -6821,6 +6821,7 @@ static bool debug_line (TCHAR *input)
 			break;
 
 		case 'q':
+			deinitialize_memwatch();
 			uae_quit();
 			deactivate_debugger();
 			return true;
