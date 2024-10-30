@@ -1,6 +1,7 @@
 
-This is quick 5.3.1 beta series, normal update to 5.3.0. You might have heard that I have started rewriting (almost) whole custom chipset emulation few months ago. This isn't it. Still work to do, it isn't that useful in fast CPU modes yet.
+5.3.1
 
+This is quick 5.3.1 beta series, normal update to 5.3.0. You might have heard that I have started rewriting (almost) whole custom chipset emulation few months ago. This isn't it. Still work to do, it isn't that useful in fast CPU modes yet.
 
 Beta 3:
 
