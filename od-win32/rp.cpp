@@ -2274,7 +2274,7 @@ void rp_set_hwnd_delayed (void)
 	if (currprefs.gf[idx].gfx_filter_autoscale == AUTOSCALE_RESIZE) {
 		hwndset_delay += 10;
 	}
-	if (log_rp)
+	if (log_rp && initialized)
 		write_log (_T("RP_IPC_TO_HOST_SCREENMODE delay started (%d)\n"), hwndset_delay);
 
 	screenmode_request = 0;

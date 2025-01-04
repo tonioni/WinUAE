@@ -9227,21 +9227,27 @@ static void values_to_chipsetdlg (HWND hDlg)
 
 	switch(workprefs.chipset_mask)
 	{
-	case 0:
-		CheckRadioButton(hDlg, IDC_OCS, IDC_AGA, IDC_OCS + 0);
+	case CSMASK_A1000_NOEHB:
+		CheckRadioButton(hDlg, IDC_OCS, IDC_OCSA1000NOEHB, IDC_OCS + 6);
+		break;
+	case CSMASK_A1000:
+		CheckRadioButton(hDlg, IDC_OCS, IDC_OCSA1000, IDC_OCS + 5);
+		break;
+	case CSMASK_OCS:
+		CheckRadioButton(hDlg, IDC_OCS, IDC_OCSA1000, IDC_OCS + 0);
 		break;
 	case CSMASK_ECS_AGNUS:
-		CheckRadioButton(hDlg, IDC_OCS, IDC_AGA, IDC_OCS + 1);
+		CheckRadioButton(hDlg, IDC_OCS, IDC_OCSA1000, IDC_OCS + 1);
 		break;
 	case CSMASK_ECS_DENISE:
-		CheckRadioButton(hDlg, IDC_OCS, IDC_AGA, IDC_OCS + 2);
+		CheckRadioButton(hDlg, IDC_OCS, IDC_OCSA1000, IDC_OCS + 2);
 		break;
 	case CSMASK_ECS_AGNUS | CSMASK_ECS_DENISE:
-		CheckRadioButton(hDlg, IDC_OCS, IDC_AGA, IDC_OCS + 3);
+		CheckRadioButton(hDlg, IDC_OCS, IDC_OCSA1000, IDC_OCS + 3);
 		break;
 	case CSMASK_AGA:
 	case CSMASK_ECS_AGNUS | CSMASK_ECS_DENISE | CSMASK_AGA:
-		CheckRadioButton(hDlg, IDC_OCS, IDC_AGA, IDC_OCS + 4);
+		CheckRadioButton(hDlg, IDC_OCS, IDC_OCSA1000, IDC_OCS + 4);
 		break;
 	}
 	CheckDlgButton(hDlg, IDC_NTSC, workprefs.ntscmode);
@@ -9334,14 +9340,17 @@ static void values_from_chipsetdlg (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 		}
 	}
 
-	workprefs.collision_level = ischecked (hDlg, IDC_COLLISION0) ? 0
-		: ischecked (hDlg, IDC_COLLISION1) ? 1
-		: ischecked (hDlg, IDC_COLLISION2) ? 2 : 3;
-	workprefs.chipset_mask = ischecked (hDlg, IDC_OCS) ? 0
-		: ischecked (hDlg, IDC_ECS_AGNUS) ? CSMASK_ECS_AGNUS
-		: ischecked (hDlg, IDC_ECS_DENISE) ? CSMASK_ECS_DENISE
-		: ischecked (hDlg, IDC_ECS) ? CSMASK_ECS_AGNUS | CSMASK_ECS_DENISE
+	workprefs.collision_level = ischecked(hDlg, IDC_COLLISION0) ? 0
+		: ischecked(hDlg, IDC_COLLISION1) ? 1
+		: ischecked(hDlg, IDC_COLLISION2) ? 2 : 3;
+	workprefs.chipset_mask = ischecked(hDlg, IDC_OCS) ? CSMASK_OCS
+		: ischecked(hDlg, IDC_OCSA1000NOEHB) ? CSMASK_A1000_NOEHB
+		: ischecked(hDlg, IDC_OCSA1000) ? CSMASK_A1000
+		: ischecked(hDlg, IDC_ECS_AGNUS) ? CSMASK_ECS_AGNUS
+		: ischecked(hDlg, IDC_ECS_DENISE) ? CSMASK_ECS_DENISE
+		: ischecked(hDlg, IDC_ECS) ? CSMASK_ECS_AGNUS | CSMASK_ECS_DENISE
 		: CSMASK_AGA | CSMASK_ECS_AGNUS | CSMASK_ECS_DENISE;
+
 	n1 = ischecked (hDlg, IDC_NTSC);
 	if (workprefs.ntscmode != n1) {
 		workprefs.ntscmode = n1;

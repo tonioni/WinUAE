@@ -198,7 +198,7 @@ void devices_reset(int hardreset)
 	rtarea_reset();
 #endif
 	DISK_reset();
-	CIA_reset();
+	CIA_reset(hardreset);
 	a1000_reset();
 #ifdef JIT
 	compemu_reset();
@@ -435,7 +435,6 @@ void devices_restore_start(void)
 	restore_audio_start();
 	restore_cia_start();
 	restore_blkdev_start();
-	restore_blitter_start();
 	restore_custom_start();
 	changed_prefs.bogomem.size = 0;
 	changed_prefs.chipmem.size = 0;

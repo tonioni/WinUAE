@@ -15,10 +15,7 @@ extern int gui_init (void);
 extern int gui_update (void);
 extern void gui_exit (void);
 extern void gui_led (int, int, int);
-extern void gui_handle_events (void);
 extern void gui_filename (int, const TCHAR *);
-extern void gui_fps (int fps, int idle, int color);
-extern void gui_changesettings (void);
 extern void gui_fps (int fps, int lines, bool lace, int idle, int color);
 extern void gui_lock (void);
 extern void gui_unlock (void);
@@ -84,9 +81,6 @@ struct gui_info
 #define VISIBLE_LEDS (LED_MAX - 1)
 
 extern struct gui_info gui_data;
-
-/* Functions to be called when prefs are changed by non-gui code.  */
-extern void gui_update_gfx (void);
 
 void notify_user (int msg);
 void notify_user_parms (int msg, const TCHAR *parms, ...);

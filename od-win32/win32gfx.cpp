@@ -1275,8 +1275,6 @@ bool render_screen(int monid, int mode, bool immediate)
 			return mon->render_ok;
 		}
 	}
-//	flushymin = 0;
-//	flushymax = mon->currentmode.amiga_height;
 	gfx_lock();
 	if (mon->currentmode.flags & DM_D3D) {
 		v = D3D_renderframe(monid, mode, immediate);
@@ -2491,11 +2489,11 @@ int check_prefs_changed_gfx(void)
 		}
 	}
 	if (changed) {
-		init_hz_normal();
+		init_hz();
 	}
 	if (currprefs.chipset_refreshrate != changed_prefs.chipset_refreshrate) {
 		currprefs.chipset_refreshrate = changed_prefs.chipset_refreshrate;
-		init_hz_normal();
+		init_hz();
 		return 1;
 	}
 

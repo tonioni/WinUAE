@@ -14,9 +14,9 @@
 
 #include "traps.h"
 
-#define UAEMAJOR 5
-#define UAEMINOR 3
-#define UAESUBREV 1
+#define UAEMAJOR 6
+#define UAEMINOR 0
+#define UAESUBREV 0
 
 #define MAX_AMIGADISPLAYS 4
 
@@ -772,6 +772,7 @@ struct uae_prefs {
 	struct cdslot cdslots[MAX_TOTAL_SCSI_DEVICES];
 	TCHAR quitstatefile[MAX_DPATH];
 	TCHAR statefile[MAX_DPATH];
+	TCHAR statefile_path[MAX_DPATH];
 	TCHAR inprecfile[MAX_DPATH];
 	TCHAR trainerfile[MAX_DPATH];
 	bool inprec_autoplay;

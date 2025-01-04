@@ -35,7 +35,6 @@ uae_u8 *REGPARAM3 cyberstorm_scsi_ram_xlate(uaecptr addr) REGPARAM;
 void cyberstorm_mk3_ppc_irq(int id, int level);
 void blizzardppc_irq(int id, int level);
 void cyberstorm_mk3_ppc_irq_setonly(int id, int level);
-void blizzardppc_irq_setonly(int id, int level);
 void cpuboard_gvpmaprom(int);
 
 #define BOARD_MEMORY_Z2 1

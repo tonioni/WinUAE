@@ -810,8 +810,10 @@
 #define IDC_ECS_DENISE                  1522
 #define IDC_ECS                         1523
 #define IDC_AGA                         1524
-#define IDC_NTSC                        1525
-#define IDC_NOSPEED                     1527
+#define IDC_OCSA1000                    1525
+#define IDC_OCSA1000NOEHB               1526
+#define IDC_NOSPEED                     1526
+#define IDC_NTSC                        1527
 #define IDC_NOSOUND                     1528
 #define IDC_INACTIVE_NOSOUND            1528
 #define IDC_MIDI                        1529

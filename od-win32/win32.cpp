@@ -6037,9 +6037,14 @@ void target_setdefaultstatefilename(const TCHAR *name)
 	_tcscpy(savestate_fname, path);
 }
 
-#if WINUAEPUBLICBETA > 0
+#if WINUAEPUBLICBETA == 1
 static const TCHAR *BETAMESSAGE = {
 	_T("This is unstable beta software. Click cancel if you are not comfortable using software that is incomplete and can have serious programming errors.")
+};
+#endif
+#if WINUAEPUBLICBETA == 2
+static const TCHAR *BETAMESSAGE = {
+	_T("This is unstable alpha software. Click cancel if you are not comfortable using software that is incomplete and can have serious programming errors.")
 };
 #endif
 
@@ -6573,6 +6578,7 @@ extern int fakemodewaitms;
 extern float sound_sync_multiplier;
 extern int log_cd32;
 extern int log_ld;
+extern int kb_mcu_log;
 extern int logitech_lcd;
 extern uae_s64 max_avi_size;
 extern int floppy_writemode;
@@ -6624,8 +6630,13 @@ static float getvalf (const TCHAR *s)
 static void makeverstr (TCHAR *s)
 {
 	if (_tcslen (WINUAEBETA) > 0) {
-		_stprintf (BetaStr, _T(" (%sBeta %s, %d.%02d.%02d)"), WINUAEPUBLICBETA > 0 ? _T("Public ") : _T(""), WINUAEBETA,
-			GETBDY(WINUAEDATE), GETBDM(WINUAEDATE), GETBDD(WINUAEDATE));
+		if (WINUAEPUBLICBETA == 2) {
+			_stprintf (BetaStr, _T(" (DevAlpha %s, %d.%02d.%02d)"), WINUAEBETA,
+				GETBDY(WINUAEDATE), GETBDM(WINUAEDATE), GETBDD(WINUAEDATE));
+		} else {
+			_stprintf (BetaStr, _T(" (%sBeta %s, %d.%02d.%02d)"), WINUAEPUBLICBETA > 0 ? _T("Public ") : _T(""), WINUAEBETA,
+				GETBDY(WINUAEDATE), GETBDM(WINUAEDATE), GETBDD(WINUAEDATE));
+		}
 #ifdef _WIN64
 		_tcscat (BetaStr, _T(" 64-bit"));
 #endif

@@ -139,7 +139,14 @@ static const struct cfg_lines opttable[] =
 static const TCHAR *guimode1[] = { _T("no"), _T("yes"), _T("nowait"), 0 };
 static const TCHAR *guimode2[] = { _T("false"), _T("true"), _T("nowait"), 0 };
 static const TCHAR *guimode3[] = { _T("0"), _T("1"), _T("nowait"), 0 };
-static const TCHAR *csmode[] = { _T("ocs"), _T("ecs_agnus"), _T("ecs_denise"), _T("ecs"), _T("aga"), 0 };
+static const TCHAR *csmode[] = {
+	_T("a1000_noehb"), _T("a1000"),
+	_T("ocs"), // OCS Agnus + OCS Denise
+	_T("ecs_agnus"), // ECS Agnus + OCS Denise
+	_T("ecs_denise"), // OCS Agnus + ECS Denise
+	_T("ecs"), // ECS Agnus + ECS Denise
+	_T("aga"),
+	NULL};
 static const TCHAR *linemode[] = {
 	_T("none"),
 	_T("double"), _T("scanlines"), _T("scanlines2p"), _T("scanlines3p"),
@@ -2649,18 +2656,23 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	cfgfile_dwrite (f, _T("keyboard_leds"), _T("numlock:%s,capslock:%s,scrolllock:%s"),
 		kbleds[p->keyboard_leds[0]], kbleds[p->keyboard_leds[1]], kbleds[p->keyboard_leds[2]]);
 	if (p->chipset_mask & CSMASK_AGA)
-		cfgfile_write (f, _T("chipset"),_T("aga"));
+		cfgfile_write (f, _T("chipset"), _T("aga"));
 	else if ((p->chipset_mask & CSMASK_ECS_AGNUS) && (p->chipset_mask & CSMASK_ECS_DENISE))
-		cfgfile_write (f, _T("chipset"),_T("ecs"));
+		cfgfile_write (f, _T("chipset"), _T("ecs"));
 	else if (p->chipset_mask & CSMASK_ECS_AGNUS)
-		cfgfile_write (f, _T("chipset"),_T("ecs_agnus"));
+		cfgfile_write (f, _T("chipset"), _T("ecs_agnus"));
 	else if (p->chipset_mask & CSMASK_ECS_DENISE)
-		cfgfile_write (f, _T("chipset"),_T("ecs_denise"));
+		cfgfile_write (f, _T("chipset"), _T("ecs_denise"));
+	else if (p->chipset_mask & CSMASK_A1000_NOEHB)
+		cfgfile_write (f, _T("chipset"), _T("a1000_noehb"));
+	else if (p->chipset_mask & CSMASK_A1000)
+		cfgfile_write (f, _T("chipset"), _T("a1000"));
 	else
 		cfgfile_write (f, _T("chipset"), _T("ocs"));
 	if (p->chipset_refreshrate > 0)
 		cfgfile_write (f, _T("chipset_refreshrate"), _T("%f"), p->chipset_refreshrate);
 	cfgfile_dwrite_bool(f, _T("chipset_subpixel"), p->chipset_hr);
+	cfgfile_dwrite_bool(f, _T("chipset_black_level_calibration"), p->display_calibration);
 
 	for (int i = 0; i < MAX_CHIPSET_REFRESH_TOTAL; i++) {
 		struct chipset_refresh *cr = &p->cr[i];
@@ -3466,10 +3478,12 @@ static int cfgfile_option_bool(TCHAR *s, const TCHAR *option)
 }
 static void set_chipset_mask (struct uae_prefs *p, int val)
 {
-	p->chipset_mask = (val == 0 ? 0
-		: val == 1 ? CSMASK_ECS_AGNUS
-		: val == 2 ? CSMASK_ECS_DENISE
-		: val == 3 ? CSMASK_ECS_DENISE | CSMASK_ECS_AGNUS
+	p->chipset_mask = (val == 0 ? CSMASK_A1000_NOEHB
+		: val == 1 ? CSMASK_A1000
+		: val == 2 ? CSMASK_OCS
+		: val == 3 ? CSMASK_ECS_AGNUS
+		: val == 4 ? CSMASK_ECS_DENISE
+		: val == 5 ? CSMASK_ECS_DENISE | CSMASK_ECS_AGNUS
 		: CSMASK_AGA | CSMASK_ECS_DENISE | CSMASK_ECS_AGNUS);
 }
 
@@ -6350,8 +6364,11 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 		set_chipset_mask (p, tmpval);
 		return 1;
 	}
-
+	
 	if (cfgfile_yesno(option, value, _T("chipset_subpixel"), &p->chipset_hr)) {
+		return 1;
+	}
+	if (cfgfile_yesno(option, value, _T("chipset_black_level_calibration"), &p->display_calibration)) {
 		return 1;
 	}
 
@@ -8499,7 +8516,7 @@ void default_prefs (struct uae_prefs *p, bool reset, int type)
 
 	p->immediate_blits = 0;
 	p->waiting_blits = 0;
-	p->collision_level = 2;
+	p->collision_level = 3;
 	p->leds_on_screen = 0;
 	p->leds_on_screen_mask[0] = p->leds_on_screen_mask[1] = (1 << LED_MAX) - 1;
 	p->keyboard_leds_in_use = 0;
@@ -8628,6 +8645,7 @@ void default_prefs (struct uae_prefs *p, bool reset, int type)
 	p->blitter_cycle_exact = 0;
 	p->chipset_mask = CSMASK_ECS_AGNUS;
 	p->chipset_hr = false;
+	p->display_calibration = false;
 	p->genlock = 0;
 	p->genlock_image = 0;
 	p->genlock_mix = 0;
@@ -8677,6 +8695,7 @@ void default_prefs (struct uae_prefs *p, bool reset, int type)
 	p->statecapturebuffersize = 100;
 	p->statecapturerate = 5 * 50;
 	p->inprec_autoplay = true;
+	p->statefile_path[0] = 0;
 
 #ifdef UAE_MINI
 	default_prefs_mini (p, 0);
@@ -8790,7 +8809,7 @@ static void buildin_default_prefs (struct uae_prefs *p)
 	p->chipset_mask = CSMASK_ECS_AGNUS;
 	p->immediate_blits = 0;
 	p->waiting_blits = 0;
-	p->collision_level = 2;
+	p->collision_level = 3;
 	if (p->produce_sound < 1)
 		p->produce_sound = 1;
 	p->scsi = 0;
@@ -9073,7 +9092,7 @@ static int bip_a4000t (struct uae_prefs *p, int config, int compa, int romcheck)
 
 static void bip_velvet(struct uae_prefs *p, int config, int compa, int romcheck)
 {
-	p->chipset_mask = 0;
+	p->chipset_mask = CSMASK_A1000;
 	p->bogomem.size = 0;
 	p->sound_filter = FILTER_SOUND_ON;
 	set_68000_compa (p, compa);
@@ -9093,18 +9112,16 @@ static int bip_a1000 (struct uae_prefs *p, int config, int compa, int romcheck)
 
 	roms[0] = 24;
 	roms[1] = -1;
-	p->chipset_mask = 0;
+	p->chipset_mask = CSMASK_A1000;
 	p->bogomem.size = 0;
 	p->sound_filter = FILTER_SOUND_ON;
 	set_68000_compa (p, compa);
 	p->floppyslots[1].dfxtype = DRV_NONE;
 	p->cs_compatible = CP_A1000;
 	p->bogomem.chipramtiming = false;
-	p->cs_agnusmodel = AGNUSMODEL_A1000;
-	p->cs_denisemodel = DENISEMODEL_A1000;
 	built_in_chipset_prefs (p);
 	if (config > 0) {
-		p->cs_denisemodel = DENISEMODEL_A1000NOEHB;
+		p->chipset_mask = CSMASK_A1000_NOEHB;
 	}
 	if (config > 1)
 		p->chipmem.size = 0x40000;
@@ -9347,7 +9364,7 @@ static int bip_a500 (struct uae_prefs *p, int config, int compa, int romcheck)
 	case 0: // KS 1.3, OCS Agnus, 0.5M Chip + 0.5M Slow
 		roms[0] = 6;
 		roms[1] = 32;
-		p->chipset_mask = 0;
+		p->chipset_mask = CSMASK_OCS;
 		break;
 	case 1: // KS 1.3, ECS Agnus, 0.5M Chip + 0.5M Slow
 		roms[0] = 6;
@@ -9363,7 +9380,7 @@ static int bip_a500 (struct uae_prefs *p, int config, int compa, int romcheck)
 		roms[0] = 6;
 		roms[1] = 32;
 		p->bogomem.size = 0;
-		p->chipset_mask = 0;
+		p->chipset_mask = CSMASK_OCS;
 		p->cs_rtc = 0;
 		p->floppyslots[1].dfxtype = DRV_NONE;
 		break;
@@ -9371,14 +9388,14 @@ static int bip_a500 (struct uae_prefs *p, int config, int compa, int romcheck)
 		roms[0] = 5;
 		roms[1] = 4;
 		p->bogomem.size = 0;
-		p->chipset_mask = 0;
+		p->chipset_mask = CSMASK_OCS;
 		p->cs_rtc = 0;
 		p->floppyslots[1].dfxtype = DRV_NONE;
 		break;
 	case 5: // KS 1.2, OCS Agnus, 0.5M Chip + 0.5M Slow
 		roms[0] = 5;
 		roms[1] = 4;
-		p->chipset_mask = 0;
+		p->chipset_mask = CSMASK_OCS;
 		break;
 	}
 	set_68000_compa (p, compa);
