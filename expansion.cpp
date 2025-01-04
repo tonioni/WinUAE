@@ -3650,27 +3650,28 @@ static void expansion_add_autoconfig(struct uae_prefs *p)
 	}
 
 #ifdef FILESYS
-	if (do_mount && p->uaeboard >= 0 && p->uaeboard < 2) {
-		cards_set[cardno].flags = CARD_FLAG_UAEROM;
-		cards_set[cardno].name = _T("UAEFS");
-		cards_set[cardno].zorro = 2;
-		cards_set[cardno].initnum = expamem_init_filesys;
-		cards_set[cardno++].map = expamem_map_filesys;
-	}
-	if (p->uaeboard > 0) {
-		cards_set[cardno].flags = CARD_FLAG_UAEROM;
-		cards_set[cardno].name = _T("UAEBOARD");
-		cards_set[cardno].zorro = 2;
-		cards_set[cardno].initnum = expamem_init_uaeboard;
-		cards_set[cardno++].map = expamem_map_uaeboard;
-	}
-	if (do_mount && p->uaeboard < 2) {
-		cards_set[cardno].flags = CARD_FLAG_UAEROM;
-		cards_set[cardno].name = _T("UAEBOOTROM");
-		cards_set[cardno].zorro = BOARD_NONAUTOCONFIG_BEFORE;
-		cards_set[cardno].initnum = expamem_rtarea_init;
-		cards_set[cardno++].map = NULL;
-
+	if (!p->uaeboard_nodiag) {
+		if (do_mount && p->uaeboard >= 0 && p->uaeboard < 2) {
+			cards_set[cardno].flags = CARD_FLAG_UAEROM;
+			cards_set[cardno].name = _T("UAEFS");
+			cards_set[cardno].zorro = 2;
+			cards_set[cardno].initnum = expamem_init_filesys;
+			cards_set[cardno++].map = expamem_map_filesys;
+		}
+		if (p->uaeboard > 0) {
+			cards_set[cardno].flags = CARD_FLAG_UAEROM;
+			cards_set[cardno].name = _T("UAEBOARD");
+			cards_set[cardno].zorro = 2;
+			cards_set[cardno].initnum = expamem_init_uaeboard;
+			cards_set[cardno++].map = expamem_map_uaeboard;
+		}
+		if (do_mount && p->uaeboard < 2) {
+			cards_set[cardno].flags = CARD_FLAG_UAEROM;
+			cards_set[cardno].name = _T("UAEBOOTROM");
+			cards_set[cardno].zorro = BOARD_NONAUTOCONFIG_BEFORE;
+			cards_set[cardno].initnum = expamem_rtarea_init;
+			cards_set[cardno++].map = NULL;
+		}
 	}
 #endif
 #ifdef PICASSO96
