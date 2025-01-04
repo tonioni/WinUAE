@@ -3365,7 +3365,11 @@ static int xD3D_debug(int monid, int mode)
 static void clearrt(struct d3dstruct *d3d)
 {
 	HRESULT hr;
-	uae_u8 color[4] = { 0, 0, 0, 0 };
+	uae_u8 a = (currprefs.gfx_bordercolor >> 24) & 0xff;
+	uae_u8 r = (currprefs.gfx_bordercolor >> 16) & 0xff;
+	uae_u8 g = (currprefs.gfx_bordercolor >> 8) & 0xff;
+	uae_u8 b = (currprefs.gfx_bordercolor >> 0) & 0xff;
+	uae_u8 color[4] = { r, g, b, a };
 
 	if (noclear && cannoclear) {
 		if (clearcnt > 3)

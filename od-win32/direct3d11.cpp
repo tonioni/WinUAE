@@ -4497,10 +4497,15 @@ static void clearrt(struct d3d11struct *d3d)
 {
 	// Setup the color to clear the buffer to.
 	float color[4];
-	color[0] = 0;
-	color[1] = 0;
-	color[2] = 0;
-	color[3] = 0;
+	int a = (currprefs.gfx_bordercolor >> 24) & 0xff;
+	int r = (currprefs.gfx_bordercolor >> 16) & 0xff;
+	int g = (currprefs.gfx_bordercolor >> 8) & 0xff;
+	int b = (currprefs.gfx_bordercolor >> 0) & 0xff;
+
+	color[3] = (float)a / 255.0f;
+	color[2] = (float)b / 255.0f;
+	color[1] = (float)g / 255.0f;
+	color[0] = (float)r / 255.0f;
 
 	if (noclear && cannoclear) {
 		if (clearcnt > 3)
