@@ -2166,6 +2166,8 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 		cfgfile_write_path2(f, _T("statefile"), p->statefile, PATH_NONE);
 	if (p->quitstatefile[0])
 		cfgfile_write_path2(f, _T("statefile_quit"), p->quitstatefile, PATH_NONE);
+	if (p->statefile_path[0])
+		cfgfile_dwrite_path2(f, _T("statefile_path"), p->statefile_path, PATH_NONE);
 
 	cfgfile_write (f, _T("nr_floppies"), _T("%d"), p->nr_floppies);
 	cfgfile_dwrite_bool (f, _T("floppy_write_protect"), p->floppy_read_only);
@@ -4353,6 +4355,12 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 
 	if (cfgfile_path(option, value, _T("statefile_quit"), p->quitstatefile, sizeof p->quitstatefile / sizeof (TCHAR)))
 		return 1;
+
+	if (cfgfile_path(option, value, _T("statefile_path"), p->statefile_path, sizeof p->statefile_path / sizeof(TCHAR))) {
+		_tcscpy(path_statefile, p->statefile_path);
+		target_setdefaultstatefilename(path_statefile);
+		return 1;
+	}
 
 	if (cfgfile_string (option, value, _T("statefile_name"), tmpbuf, sizeof tmpbuf / sizeof (TCHAR))) {
 		fetch_statefilepath (savestate_fname, sizeof savestate_fname / sizeof (TCHAR));

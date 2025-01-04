@@ -2294,6 +2294,9 @@ int target_cfgfile_load (struct uae_prefs *p, const TCHAR *filename, int type, i
 	TCHAR tmp1[MAX_DPATH], tmp2[MAX_DPATH];
 	TCHAR fname[MAX_DPATH], cname[MAX_DPATH];
 
+	if (isdefault) {
+		path_statefile[0] = 0;
+	}
 	error_log(NULL);
 	_tcscpy (fname, filename);
 	cname[0] = 0;

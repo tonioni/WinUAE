@@ -5106,6 +5106,10 @@ void fetch_ripperpath(TCHAR *out, int size)
 }
 void fetch_statefilepath(TCHAR *out, int size)
 {
+	if (path_statefile[0]) {
+		_tcsncpy(out, path_statefile, size);
+		return;
+	}
 	fetch_path(_T("StatefilePath"), out, size);
 }
 void fetch_inputfilepath(TCHAR *out, int size)
@@ -6007,7 +6011,7 @@ static void WIN32_HandleRegistryStuff (void)
 void target_setdefaultstatefilename(const TCHAR *name)
 {
 	TCHAR path[MAX_DPATH];
-	fetch_path(_T("StatefilePath"), path, sizeof(path) / sizeof(TCHAR));
+	fetch_statefilepath(path, sizeof(path) / sizeof(TCHAR));
 	if (!name || !name[0]) {
 		_tcscat(path, _T("default.uss"));
 	} else {
