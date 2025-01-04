@@ -2052,7 +2052,7 @@ static int open_windows(struct AmigaMonitor *mon, bool mousecapture, bool starte
 		for (int i = 0; i < NUM_LEDS; i++)
 			gui_flicker_led(i, -1, -1);
 		gui_led(LED_POWER, gui_data.powerled, gui_data.powerled_brightness);
-		gui_fps(0, 0, 0);
+		gui_fps(0, 0, 0, 0, 0);
 		if (gui_data.md >= 0)
 			gui_led(LED_MD, 0, -1);
 		for (int i = 0; i < 4; i++) {
@@ -3217,10 +3217,10 @@ static void createstatuswindow(struct AmigaMonitor *mon)
 	RECT rc;
 	HLOCAL hloc;
 	LPINT lpParts;
-	int drive_width, hd_width, cd_width, power_width;
-	int fps_width, idle_width, snd_width, joy_width, net_width;
+	int drive_width, hd_width, cd_width, power_width, caps_width;
+	int fps_width, lines_width, idle_width, snd_width, joy_width, net_width;
 	int joys = currprefs.win32_statusbar > 1 ? 2 : 0;
-	int num_parts = 12 + joys + 1;
+	int num_parts = LED_MAX + joys + 1;
 	float scale = 1.0;
 	WINDOWINFO wi;
 	int extra;
@@ -3257,6 +3257,8 @@ static void createstatuswindow(struct AmigaMonitor *mon)
 	hd_width = (int)(24 * scale);
 	cd_width = (int)(24 * scale);
 	power_width = (int)(42 * scale);
+	caps_width = (int)(42 * scale);
+	lines_width = (int)(42 * scale);
 	fps_width = (int)(64 * scale);
 	idle_width = (int)(64 * scale);
 	net_width = (int)(24 * scale);
@@ -3278,7 +3280,7 @@ static void createstatuswindow(struct AmigaMonitor *mon)
 			i++;
 			window_led_msg_start = i;
 			/* Calculate the right edge coordinate for each part, and copy the coords to the array.  */
-			int startx = rc.right - (drive_width * 4) - power_width - idle_width - fps_width - cd_width - hd_width - snd_width - net_width - joys * joy_width - extra;
+			int startx = rc.right - (drive_width * 4) - power_width - caps_width - idle_width - fps_width - lines_width - cd_width - hd_width - snd_width - net_width - joys * joy_width - extra;
 			for (int j = 0; j < joys; j++) {
 				lpParts[i] = startx;
 				i++;
@@ -3296,12 +3298,18 @@ static void createstatuswindow(struct AmigaMonitor *mon)
 			// fps
 			lpParts[i] = lpParts[i - 1] + idle_width;
 			i++;
-			// power
+			// lines
 			lpParts[i] = lpParts[i - 1] + fps_width;
+			i++;
+			// power
+			lpParts[i] = lpParts[i - 1] + lines_width;
+			i++;
+			// caps
+			lpParts[i] = lpParts[i - 1] + power_width;
 			i++;
 			i1 = i;
 			// hd
-			lpParts[i] = lpParts[i - 1] + power_width;
+			lpParts[i] = lpParts[i - 1] + caps_width;
 			i++;
 			// cd
 			lpParts[i] = lpParts[i - 1] + hd_width;

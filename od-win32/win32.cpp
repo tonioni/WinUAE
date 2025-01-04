@@ -3349,7 +3349,7 @@ bool handle_events (void)
 			setpaused (pause_emulation);
 			was_paused = pause_emulation;
 			mon->manual_painting_needed++;
-			gui_fps (0, 0, 0);
+			gui_fps (0, 0, 0, 0, 0);
 			gui_led (LED_SND, 0, -1);
 			// we got just paused, report it to caller.
 			return 1;
@@ -7071,6 +7071,10 @@ static int parseargs(const TCHAR *argx, const TCHAR *np, const TCHAR *np2)
 	}
 	if (!_tcscmp (arg, _T("ldlog"))) {
 		log_ld = getval (np);
+		return 2;
+	}
+	if (!_tcscmp (arg, _T("kbmculog"))) {
+		kb_mcu_log = getval (np);
 		return 2;
 	}
 	if (!_tcscmp (arg, _T("midiinbuffer"))) {

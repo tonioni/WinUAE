@@ -77,6 +77,9 @@
     <Filter Include="dsp3210">
       <UniqueIdentifier>{6f046035-4e6d-4038-a65f-d789a89ee702}</UniqueIdentifier>
     </Filter>
+    <Filter Include="kbmcu">
+      <UniqueIdentifier>{b60c3d87-d969-4982-8508-e9fdfc29a312}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\ahidsound_dsonly.cpp">
@@ -1023,6 +1026,27 @@
     </ClCompile>
     <ClCompile Include="..\..\pcem\vid_bt482_ramdac.cpp">
       <Filter>pcem</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\kbmcu\keyboard_mcu_6500_1.cpp">
+      <Filter>kbmcu</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\kbmcu\keyboard_mcu_6805.cpp">
+      <Filter>kbmcu</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\kbmcu\keyboard_mcu_d8039hlc .cpp">
+      <Filter>kbmcu</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\kbmcu\m6805\m68_ops.cpp">
+      <Filter>kbmcu</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\kbmcu\m6805\m68emu.cpp">
+      <Filter>kbmcu</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\kbmcu\8048\co8048.cpp">
+      <Filter>kbmcu</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\mos6502.cpp">
+      <Filter>common</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

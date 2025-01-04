@@ -254,6 +254,18 @@ static const TCHAR *eclocksync[] = { _T("default"), _T("68000"), _T("Gayle"), _T
 static const TCHAR *agnusmodel[] = { _T("default"), _T("velvet"), _T("a1000"), _T("ocs"), _T("ecs"), _T("aga"), 0 };
 static const TCHAR *agnussize[] = { _T("default"), _T("512k"), _T("1m"), _T("2m"), 0 };
 static const TCHAR *denisemodel[] = { _T("default"), _T("velvet"), _T("a1000_noehb"), _T("a1000"), _T("ocs"), _T("ecs"), _T("aga"), 0 };
+static const TCHAR *kbtype[] = {
+	_T("disconnected"),
+	_T("UAE"),
+	_T("a500_6570-036"),
+	_T("a600_6570-036"),
+	_T("a1000_6500-1"),
+	_T("a1000_6570-036"),
+	_T("a1200_6805"),
+	_T("a2000_8039"),
+	_T("ax000_6570-036"),
+	NULL
+};
 
 struct hdcontrollerconfig
 {
@@ -2984,7 +2996,9 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	cfgfile_write_bool(f, _T("fm801_pci"), p->obs_sound_fm801);
 #endif
 
-	cfgfile_dwrite_bool(f, _T("keyboard_connected"), p->keyboard_connected);
+	cfgfile_dwrite_bool(f, _T("keyboard_connected"), p->keyboard_mode >= 0);
+	cfgfile_dwrite_bool(f, _T("keyboard_nkro"), p->keyboard_nkro);
+	cfgfile_dwrite_strarr(f, _T("keyboard_type"), kbtype, p->keyboard_mode + 1);
 	cfgfile_write_str (f, _T("kbd_lang"), (p->keyboard_lang == KBD_LANG_DE ? _T("de")
 		: p->keyboard_lang == KBD_LANG_DK ? _T("dk")
 		: p->keyboard_lang == KBD_LANG_ES ? _T("es")
@@ -5868,6 +5882,14 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 		}
 		return 1;
 	}
+	if (cfgfile_yesno(option, value, _T("keyboard_connected"), &dummybool)) {
+		p->keyboard_mode = dummybool ? 0 : -1;
+		return 1;
+	}
+	if (cfgfile_strval(option, value, _T("keyboard_type"), &p->keyboard_mode, kbtype, 0)) {
+		p->keyboard_mode--;
+		return 1;
+	}
 
 	if (cfgfile_yesno(option, value, _T("immediate_blits"), &p->immediate_blits)
 		|| cfgfile_yesno(option, value, _T("fpu_no_unimplemented"), &p->fpu_no_unimplemented)
@@ -5898,7 +5920,6 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 		|| cfgfile_yesno(option, value, _T("gfxcard_dacswitch"), &p->rtg_dacswitch)
 		|| cfgfile_yesno(option, value, _T("gfxcard_multithread"), &p->rtg_multithread)
 		|| cfgfile_yesno(option, value, _T("synchronize_clock"), &p->tod_hack)
-		|| cfgfile_yesno(option, value, _T("keyboard_connected"), &p->keyboard_connected)
 		|| cfgfile_coords(option, value, _T("lightpen_offset"), &p->lightpen_offset[0], &p->lightpen_offset[1])
 		|| cfgfile_yesno(option, value, _T("lightpen_crosshair"), &p->lightpen_crosshair)
 
@@ -5936,6 +5957,7 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 		|| cfgfile_yesno(option, value, _T("harddrive_write_protect"), &p->harddrive_read_only)
 		|| cfgfile_yesno(option, value, _T("uae_hide_autoconfig"), &p->uae_hide_autoconfig)
 		|| cfgfile_yesno(option, value, _T("board_custom_order"), &p->autoconfig_custom_sort)
+		|| cfgfile_yesno(option, value, _T("keyboard_nkro"), &p->keyboard_nkro)
 		|| cfgfile_yesno(option, value, _T("uaeserial"), &p->uaeserial))
 		return 1;
 
@@ -8397,7 +8419,8 @@ void default_prefs (struct uae_prefs *p, bool reset, int type)
 		inputdevice_joyport_config_store(p, _T("kbd1"), 1, -1, -1, 0, 0);
 	}
 	p->keyboard_lang = KBD_LANG_US;
-	p->keyboard_connected = true;
+	p->keyboard_mode = 0;
+	p->keyboard_nkro = true;
 
 	p->produce_sound = 3;
 	p->sound_stereo = SND_STEREO;
@@ -9507,7 +9530,7 @@ static int bip_casablanca(struct uae_prefs *p, int config, int compa, int romche
 	p->immediate_blits = 0;
 	p->produce_sound = 2;
 	p->nr_floppies = 0;
-	p->keyboard_connected = false;
+	p->keyboard_mode = -1;
 	p->floppyslots[0].dfxtype = DRV_NONE;
 	p->floppyslots[1].dfxtype = DRV_NONE;
 	p->floppyslots[2].dfxtype = DRV_PC_35_ONLY_80;
@@ -9532,7 +9555,7 @@ static int bip_draco(struct uae_prefs *p, int config, int compa, int romcheck)
 	p->immediate_blits = 0;
 	p->produce_sound = 2;
 	p->nr_floppies = 0;
-	p->keyboard_connected = false;
+	p->keyboard_mode = -1;
 	p->cpuboard_settings |= 0x10;
 	p->floppyslots[0].dfxtype = DRV_NONE;
 	p->floppyslots[1].dfxtype = DRV_NONE;

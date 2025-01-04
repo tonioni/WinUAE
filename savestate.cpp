@@ -743,6 +743,12 @@ void restore_state (const TCHAR *filename)
 			end = restore_disk2 (3, chunk);
 		else if (!_tcscmp (name, _T("KEYB")))
 			end = restore_keyboard (chunk);
+		else if (!_tcscmp (name, _T("KBM1")))
+			end = restore_kbmcu(chunk);
+		else if (!_tcscmp (name, _T("KBM2")))
+			end = restore_kbmcu2(chunk);
+		else if (!_tcscmp (name, _T("KBM3")))
+			end = restore_kbmcu3(chunk);
 #ifdef AUTOCONFIG
 		else if (!_tcscmp (name, _T("EXPA")))
 			end = restore_expansion (chunk);
@@ -1076,6 +1082,16 @@ static int save_state_internal (struct zfile *f, const TCHAR *description, int c
 
 	dst = save_keyboard (&len, NULL);
 	save_chunk (f, dst, len, _T("KEYB"), 0);
+	xfree (dst);
+
+	dst = save_kbmcu(&len, NULL);
+	save_chunk(f, dst, len, _T("KBM1"), 0);
+	xfree (dst);
+	dst = save_kbmcu2(&len, NULL);
+	save_chunk(f, dst, len, _T("KBM2"), 0);
+	xfree (dst);
+	dst = save_kbmcu3(&len, NULL);
+	save_chunk(f, dst, len, _T("KBM3"), 0);
 	xfree (dst);
 
 #ifdef AUTOCONFIG

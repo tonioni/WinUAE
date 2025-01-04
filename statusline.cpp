@@ -195,7 +195,7 @@ void draw_status_line_single(int monid, uae_u8 *buf, int bpp, int y, int totalwi
 			struct floppyslot *fs = &currprefs.floppyslots[pled];
 			struct gui_info_drive *gid = &gui_data.drives[pled];
 			int track = gid->drive_track;
-			pos = 7 + pled;
+			pos = 8 + pled;
 			on_rgb = 0x00cc00;
 			if (!gid->drive_disabled) {
 				num1 = -1;
@@ -216,13 +216,18 @@ void draw_status_line_single(int monid, uae_u8 *buf, int bpp, int y, int totalwi
 			on_rgb &= 0xffffff;
 			off_rgb = rgbmuldiv(on_rgb, 2, 4);
 			on_rgb2 = rgbmuldiv(on_rgb, 2, 3);
+		} else if (led == LED_CAPS) {
+			pos = 4;
+			on_rgb = 0xcc9900;
+			on = gui_data.capslock;
+			off_rgb = (on_rgb & 0xfefefe) >> 1;
 		} else if (led == LED_POWER) {
 			pos = 3;
 			on_rgb = ((gui_data.powerled_brightness * 10 / 16) + 0x33) << 16;
 			on = 1;
 			off_rgb = 0x330000;
 		} else if (led == LED_CD) {
-			pos = 5;
+			pos = 6;
 			if (gui_data.cd >= 0) {
 				on = gui_data.cd & (LED_CD_AUDIO | LED_CD_ACTIVE);
 				on_rgb = (on & LED_CD_AUDIO) ? 0x00cc00 : 0x0000cc;
@@ -236,7 +241,7 @@ void draw_status_line_single(int monid, uae_u8 *buf, int bpp, int y, int totalwi
 				num3 = 12;
 			}
 		} else if (led == LED_HD) {
-			pos = 4;
+			pos = 5;
 			if (gui_data.hd >= 0) {
 				on = gui_data.hd;
 				on_rgb = on == 2 ? 0xcc0000 : 0x0000cc;
@@ -341,7 +346,7 @@ void draw_status_line_single(int monid, uae_u8 *buf, int bpp, int y, int totalwi
 		} else if (led == LED_MD) {
 			// DF3 reused as internal non-volatile ram led (cd32/cdtv)
 			if (gui_data.drives[3].drive_disabled && gui_data.md >= 0) {
-				pos = 7 + 3;
+				pos = 8 + 3;
 				if (gui_data.md >= 0) {
 					on = gui_data.md;
 					on_rgb = on == 2 ? 0xcc0000 : 0x00cc00;
@@ -354,7 +359,7 @@ void draw_status_line_single(int monid, uae_u8 *buf, int bpp, int y, int totalwi
 				continue;
 			}
 		} else if (led == LED_NET) {
-			pos = 6;
+			pos = 7;
 			if (gui_data.net >= 0) {
 				on = gui_data.net;
 				on_rgb = 0;
