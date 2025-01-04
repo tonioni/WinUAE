@@ -2836,7 +2836,7 @@ static void COPJMP(int num, int vblank)
 	}
 	cop_state.strobetype = 0;
 	if ((cop_state.state == COP_wait1 || cop_state.state == COP_waitforever ||
-		(cop_state.state == COP_read2 && (cop_state.ir[0] & 1)) ||
+		(cop_state.state == COP_read2 && ((cop_state.ir[0] & 1) || test_copper_dangerous(cop_state.ir[0], true))) ||
 		cop_state.state == COP_wait_in2 || cop_state.state == COP_skip_in2) &&
 		!vblank && is_copper_dma(false)) {
 		// no copper request for next copper cycle
@@ -8856,7 +8856,7 @@ static void process_copper(struct rgabuf *r)
 				cop_state.strobeip = getstrobecopip();
 				cop_state.strobe = 0;
 				cop_state.state = COP_strobe_delay2;
-				if (cop_state.strobetype == 2) {
+				if (cop_state.strobetype >= 2) {
 					if (!test_copper_dangerous(reg, true)) {
 						custom_wput_copper(cop_state.ip, reg, cop_state.ir[0], 0);
 					}
@@ -8891,7 +8891,7 @@ static void process_copper(struct rgabuf *r)
 			record_dma_read_value(cop_state.ir[1]);
 		}
 #endif
-		if (cop_state.strobetype == 1) {
+		if (cop_state.strobetype >= 1) {
 			cop_state.ip = cop_state.strobeip;
 		} else {
 			cop_state.ip += 2;
@@ -9187,7 +9187,7 @@ static void generate_copper(void)
 		case COP_strobe_delay2:
 		{
 			struct rgabuf *rga = generate_copper_cycle_if_free(CYCLE_PIPE_COPPER);
-			if (cop_state.strobe && cop_state.strobetype == 1) {
+			if (cop_state.strobe && cop_state.strobetype >= 1) {
 				cop_state.strobe = 0;
 				if (rga) {
 					rga->reg = 0x1fe;
@@ -9199,7 +9199,7 @@ static void generate_copper(void)
 		case COP_strobe_vbl_extra_delay3:
 		{
 			struct rgabuf *rga = generate_copper_cycle_if_free(CYCLE_PIPE_COPPER);
-			if (cop_state.strobe && cop_state.strobetype == 1) {
+			if (cop_state.strobe && cop_state.strobetype >= 1) {
 				cop_state.strobe = 0;
 				if (rga) {
 					rga->reg = 0x1fe;
