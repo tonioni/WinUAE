@@ -1116,9 +1116,14 @@ public:
 		// default wasapi device selected?
 		if (sound_devices[s->index]->alname != NULL)
 			return S_OK;
-		if (!_tcscmp(current, pwstrDeviceId))
-			return S_OK;
-		_tcscpy(current, pwstrDeviceId);
+		if (pwstrDeviceId) {
+			if (!_tcscmp(current, pwstrDeviceId))
+				return S_OK;
+		} else {
+			if (!current[0])
+				return S_OK;
+		}
+		_tcscpy(current, pwstrDeviceId ? pwstrDeviceId : _T(""));
 		write_log(_T("WASAPI OnDefaultDeviceChanged '%s'\n"), current);
 		set_reset(s);
 		return S_OK;
@@ -1301,7 +1306,7 @@ static int open_audio_wasapi (struct sound_data *sd, int index, int exclusive)
 	WAVEFORMATEX *pwfx = NULL;
 	WAVEFORMATEX *pwfx_saved = NULL;
 	WAVEFORMATEXTENSIBLE wavfmt;
-	int final;
+	int final, startchannel, chrounds;
 	LPWSTR name = NULL;
 	int rn[4], rncnt;
 	AUDCLNT_SHAREMODE sharemode;
@@ -1313,6 +1318,8 @@ static int open_audio_wasapi (struct sound_data *sd, int index, int exclusive)
 	UINT32  RequestedDuration;
 	UINT32 DefaultDevicePeriod;
 
+	startchannel = sd->channels;
+	chrounds = 0;
 retry:
 	sd->devicetype = exclusive ? SOUND_DEVICE_WASAPI_EXCLUSIVE : SOUND_DEVICE_WASAPI;
 	s->wasapiexclusive = exclusive;
@@ -1446,16 +1453,27 @@ retry:
 		if (final)
 			goto error;
 		rncnt = 0;
+		bool skip = false;
+		if (sd->channels == 1 || sd->channels == 2) {
+			sd->channels = 8;
+		} else if (sd->channels == 4) {
+			sd->channels = 2;
+		} else if (sd->channels == 8) {
+			sd->channels = 6;
+		} else {
+			skip = true;
+		}
+		chrounds++;
+		if (chrounds < 10 && !skip && sd->channels != startchannel) {
+			continue;
+		}
+		chrounds = 0;
 		if (sd->freq < 44100) {
 			sd->freq = 44100;
 			continue;
 		}
 		if (sd->freq < 48000) {
 			sd->freq = 48000;
-			continue;
-		}
-		if (sd->channels != 2) {
-			sd->channels = 2;
 			continue;
 		}
 		final = 1;
@@ -1970,8 +1988,9 @@ static int open_sound (void)
 	if (!ret)
 		return 0;
 	currprefs.sound_freq = changed_prefs.sound_freq = sdp->freq;
-	if (ch != sdp->channels)
+	if (ch != sdp->channels) {
 		active_sound_stereo = get_audio_stereomode (sdp->channels);
+	}
 
 	set_volume (currprefs.sound_volume_master, sdp->mute);
 	if (get_audio_amigachannels(active_sound_stereo) == 4)
