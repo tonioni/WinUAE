@@ -183,6 +183,7 @@ struct d3dstruct
 	bool renderdisabled;
 	HANDLE filenotificationhandle;
 	int frames_since_init;
+	bool turbo_skip;
 
 	volatile bool fakemode;
 	uae_u8 *fakebitmap;
@@ -3853,7 +3854,7 @@ static void xD3D_unlocktexture(int monid, int y_start, int y_end)
 		if (currprefs.leds_on_screen & (STATUSLINE_CHIPSET | STATUSLINE_RTG))
 			updateleds(d3d);
 		hr = tex->UnlockRect(0);
-		if (y_start >= 0)
+		if (y_start >= 0 && !d3d->turbo_skip)
 			xD3D_flushtexture(monid, y_start, y_end);
 	}
 	d3d->locked = 0;
@@ -3956,7 +3957,7 @@ static bool xD3D_renderframe(int monid, int mode, bool immediate)
 
 	d3d->frames_since_init++;
 
-	if (d3d->fakemode)
+	if (d3d->fakemode || d3d->turbo_skip)
 		return true;
 
 	if (!isd3d (d3d) || !d3d->texture1 || !d3d->texture2)
@@ -3992,13 +3993,16 @@ static void xD3D_showframe (int monid)
 {
 	struct d3dstruct *d3d = &d3ddata[monid];
 
+	d3d->turbo_skip = false;
 	if (!isd3d (d3d))
 		return;
 	if (currprefs.turbo_emulation) {
 		static int frameskip;
 		static int toggle;
-		if (frameskip-- > 0)
+		if (frameskip-- > 0) {
+			d3d->turbo_skip = true;
 			return;
+		}
 		frameskip = 10 + toggle;
 		toggle = !toggle;
 		D3D_showframe2 (d3d, false);

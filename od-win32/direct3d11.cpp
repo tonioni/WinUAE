@@ -284,6 +284,7 @@ struct d3d11struct
 	bool blackscreen;
 	int framecount;
 	UINT syncinterval;
+	bool turbo_skip;
 	float vblank;
 	DWM_FRAME_COUNT lastframe;
 	int frames_since_init;
@@ -3372,11 +3373,14 @@ static void do_present(struct d3d11struct *d3d)
 			syncinterval = 0;
 	}
 	d3d->syncinterval = syncinterval;
+	d3d->turbo_skip = false;
 	if (currprefs.turbo_emulation) {
 		static int skip;
 		static int toggle;
-		if (--skip > 0)
+		if (--skip > 0) {
+			d3d->turbo_skip = true;
 			return;
+		}
 		skip = 10 + toggle;
 		toggle = !toggle;
 		if (os_win8)
@@ -4842,27 +4846,36 @@ static bool xD3D11_renderframe(int monid, int mode, bool immediate)
 
 	d3d->frames_since_init++;
 
-	if (mode > 0 && (mode & 2))
+	if (mode > 0 && (mode & 2)) {
 		slicecnt = 0;
-	else if (mode < 0)
+	} else if (mode < 0) {
 		slicecnt = slicecnt == 2 ? 0 : slicecnt;
+	}
 
-	if (!d3d->m_swapChain)
+	if (!d3d->m_swapChain) {
 		return false;
+	}
 
-	if (d3d->fsmodechange)
+	if (d3d->fsmodechange) {
 		D3D_resize(monid, 0);
+	}
 
-	if (d3d->invalidmode)
+	if (d3d->invalidmode) {
 		return false;
+	}
 
 	if (d3d->delayedrestore) {
 		d3d->delayedrestore = false;
 		restore(d3d);
 	}
 
-	if (d3d->delayedfs || !d3d->texture2d || !d3d->d3dinit_done)
+	if (d3d->delayedfs || !d3d->texture2d || !d3d->d3dinit_done) {
 		return false;
+	}
+
+	if (d3d->turbo_skip) {
+		return true;
+	}
 
 	GraphicsClass_Render(d3d, mode < 0 || (mode & 1), monid);
 
@@ -5119,6 +5132,10 @@ static void xD3D11_unlocktexture(int monid, int y_start, int y_end)
 	d3d->m_deviceContext->Unmap(d3d->texture2dstaging, 0);
 
 	if (y_start < -1 || y_end < -1) {
+		return;
+	}
+
+	if (d3d->turbo_skip) {
 		return;
 	}
 
