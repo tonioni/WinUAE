@@ -1701,7 +1701,7 @@ static void init_beamcon0(void)
 			display_hstart_cyclewait_end = 6;
 		} else if (currprefs.gfx_overscanmode <= OVERSCANMODE_OVERSCAN) {
 			display_hstart_cyclewait = 32;
-			display_hstart_cyclewait_end = 8;
+			display_hstart_cyclewait_end = 7;
 		} else if (currprefs.gfx_overscanmode == OVERSCANMODE_EXTREME) {
 			display_hstart_cyclewait = 22;
 			display_hstart_cyclewait_end = 0;

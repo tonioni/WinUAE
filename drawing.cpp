@@ -306,7 +306,7 @@ static uae_u32 *buf1, *buf2, *buf_d;
 static uae_u16 *gbuf;
 static uae_u8 pixx0, pixx1, pixx2, pixx3;
 static uae_u32 debug_buf[256 * 2 * 4], debug_bufx[256 * 2 * 4];
-
+static uae_u32 *hbstrt_ptr1, *hbstrt_ptr2;
 
 void set_inhibit_frame(int monid, int bit)
 {
@@ -3992,6 +3992,8 @@ static uae_u32 denise_render_sprites_ecs_shres(void)
 static void do_hbstrt(int cnt)
 {
 	denise_hblank = true;
+	hbstrt_ptr1 = buf1;
+	hbstrt_ptr2 = buf2;
 	if (!exthblankon_ecs) {
 		if (delayed_vblank_ecs > 0) {
 #ifdef DEBUGGER
@@ -4814,6 +4816,7 @@ void draw_denise_line(int gfx_ypos, enum nln_how how, uae_u32 linecnt, int start
 	}
 
 	get_line(gfx_ypos, how);
+	hbstrt_ptr1 = NULL;
 
 	if (dtotal < 0 && currprefs.gfx_overscanmode < OVERSCANMODE_ULTRA) {
 
@@ -4871,6 +4874,17 @@ void draw_denise_line(int gfx_ypos, enum nln_how how, uae_u32 linecnt, int start
 		while (denise_cck < denise_total) {
 			lts();
 			lts_changed = false;
+		}
+
+		// blank last pixel row if normal overscan mode, it might have NTSC artifacts
+		if (hbstrt_ptr1 && currprefs.gfx_overscanmode <= OVERSCANMODE_OVERSCAN) {
+			int add = 1 << hresolution;
+			hbstrt_ptr1 -= denise_lol_shift_prev;
+			hbstrt_ptr2 -= denise_lol_shift_prev;
+			for (int i = 0; i < add; i++) {
+				*hbstrt_ptr1++ = 0x000000;
+				*hbstrt_ptr2++ = 0x000000;
+			}
 		}
 
 		if (currprefs.display_calibration && xlinebuffer) {
