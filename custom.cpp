@@ -8619,7 +8619,7 @@ static uae_u16 fetch16(struct rgabuf *r)
 	return v;
 }
 
-static uae_u32 fetch32(struct rgabuf *r)
+static uae_u32 fetch32_bpl(struct rgabuf *r)
 {
 	uae_u32 v;
 	uaecptr p = r->pv;
@@ -8628,6 +8628,31 @@ static uae_u32 fetch32(struct rgabuf *r)
 		v = chipmem_lget_indirect(pm) & 0x0000ffff;
 		v |= v << 16;
 	} else if (fetchmode_fmode_bpl & 2) { // optimized (fetchmode_fmode & 3) == 2
+		v = chipmem_lget_indirect(pm) & 0xffff0000;
+		v |= v >> 16;
+	} else {
+		v = chipmem_lget_indirect(pm);
+	}
+#ifdef DEBUGGER
+	if (memwatch_enabled) {
+		debug_getpeekdma_value_long(v, p - pm);
+	}
+	if (debug_dma) {
+		record_dma_read_value_wide(v, false);
+	}
+#endif
+	return v;
+}
+
+static uae_u32 fetch32_spr(struct rgabuf *r)
+{
+	uae_u32 v;
+	uaecptr p = r->pv;
+	uaecptr pm = p & ~3;
+	if (p & 2) {
+		v = chipmem_lget_indirect(pm) & 0x0000ffff;
+		v |= v << 16;
+	} else if (fetchmode_fmode_spr & 2) { // optimized (fetchmode_fmode & 3) == 2
 		v = chipmem_lget_indirect(pm) & 0xffff0000;
 		v |= v >> 16;
 	} else {
@@ -10126,7 +10151,7 @@ static void do_scandouble(void)
 			if (fetchmode_fmode_bpl == 3) {
 				rd->v64 = fetch64(&rga);
 			} else if (fetchmode_fmode_bpl > 0) {
-				rd->v = fetch32(&rga);
+				rd->v = fetch32_bpl(&rga);
 			} else {
 				rd->v = fetch16(&rga);
 			}			
@@ -10263,9 +10288,9 @@ static void process_sprites_fast(void)
 						pos = fs->data64[0] >> 48;
 						ctl = fs->data64[1] >> 48;
 					} else if (fetchmode_fmode_spr == 1) {
-						fs->data[0] = fetch32(&r);
+						fs->data[0] = fetch32_spr(&r);
 						r.pv += 4;
-						fs->data[1] = fetch32(&r);
+						fs->data[1] = fetch32_spr(&r);
 						r.pv += 4;
 						pos = fs->data[0] >> 16;
 						ctl = fs->data[1] >> 16;
@@ -11112,7 +11137,7 @@ static void handle_rga_out(void)
 				}
 				sdat = dat;
 			} else if (fetchmode_fmode_spr == 1) {
-				uae_u32 dat = fetch32(r);
+				uae_u32 dat = fetch32_spr(r);
 				sdat = dat >> 16;
 				if (!dmastate) {
 					write_drga(r->reg, pt, sdat);
@@ -11175,7 +11200,7 @@ static void handle_rga_out(void)
 					write_drga(r->reg, pt, dat);
 					regs.chipset_latch_rw = (uae_u16)dat;
 				} else if (fetchmode_fmode_bpl == 1) {
-					uae_u32 dat = fetch32(r);
+					uae_u32 dat = fetch32_bpl(r);
 					write_drga(r->reg, pt, dat);
 					regs.chipset_latch_rw = (uae_u16)dat;
 				} else {
