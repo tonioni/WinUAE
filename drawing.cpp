@@ -631,13 +631,8 @@ int get_custom_limits (int *pw, int *ph, int *pdx, int *pdy, int *prealh)
 	}
 
 	int diwfirst, diwlast;
-	if (aga_mode) {
-		diwfirst = diwfirstword_total;
-		diwlast = diwlastword_total;
-	} else {
-		diwfirst = diwfirstword_total << 2;
-		diwlast = diwlastword_total << 2;
-	}
+	diwfirst = diwfirstword_total << 2;
+	diwlast = diwlastword_total << 2;
 
 	int ddffirst = ddffirstword_total << (RES_MAX + 1);
 	int ddflast = ddflastword_total << (RES_MAX + 1);
