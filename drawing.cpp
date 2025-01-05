@@ -2835,6 +2835,15 @@ static void expand_bplcon0_early(uae_u16 v)
 	}
 }
 
+static void setlasthamcolor(void)
+{
+	if (aga_mode) {
+		ham_lastcolor = denise_colors.color_regs_aga[last_bpl_pix];
+	} else {
+		ham_lastcolor = denise_colors.color_regs_ecs[last_bpl_pix];
+	}
+}
+
 static void expand_bplcon0(uae_u16 v)
 {
 	uae_u16 old = bplcon0_denise;
@@ -2847,7 +2856,7 @@ static void expand_bplcon0(uae_u16 v)
 
 
 	if ((v & 0x800) && !(bplcon0_denise & 0x800)) {
-		ham_lastcolor = denise_colors.color_regs_ecs[last_bpl_pix];
+		setlasthamcolor();
 	}
 
 	bplcon0_denise = v;
@@ -3171,6 +3180,8 @@ static void hstart_new(void)
 		}
 		sprites_hidden = sprites_hidden2;
 		bplshiftcnt[0] = bplshiftcnt[1] = 0;
+		last_bpl_pix = 0;
+		setlasthamcolor();
 #ifdef DEBUGGER
 		if (debug_dma) {
 			record_dma_event_denise(debug_dma_ptr, denise_cycle_half, DENISE_EVENT_BPL1DAT_HDIW, false);
