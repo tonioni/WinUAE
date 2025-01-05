@@ -4967,6 +4967,10 @@ static void select_lts(void)
 	}
 	hresolution_add = 1 << hresolution;
 
+	if (denise_max_planes <= 4 && bplmode_new == CMODE_HAM) {
+		bplmode_new = CMODE_NORMAL;
+	}
+
 	if (aga_mode) {
 
 		int spr = 0;
