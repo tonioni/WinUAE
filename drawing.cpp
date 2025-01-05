@@ -2137,7 +2137,7 @@ static void setup_brdblank(void)
 {
 	denise_brdstrt_unalign = false;
 	denise_brdstop_unalign = false;
-	if (aga_mode && currprefs.gfx_resolution == RES_SUPERHIRES && borderblank) {
+	if (aga_mode && hresolution == RES_SUPERHIRES && borderblank) {
 		denise_brdstrt = denise_hstop - 1;
 		denise_brdstop = denise_hstrt - 1;
 		denise_brdstrt_lores = denise_brdstrt >> 2;
@@ -2156,7 +2156,7 @@ static void setup_brdblank(void)
 
 static void calchdiw(void)
 {
-	int hbmask = (1 << (RES_SUPERHIRES - currprefs.gfx_resolution)) - 1;
+	int hbmask = (1 << (RES_SUPERHIRES - hresolution)) - 1;
 
 	denise_hstrt = (denise_diwstrt & 0xFF) << 2;
 	denise_hstop = (denise_diwstop & 0xFF) << 2;
@@ -2224,7 +2224,7 @@ static void spr_nearest(void)
 	}
 	denise_spr_nearestcnt = min - 2;
 	if (aga_mode && denise_spr_nearestcnt > 0 && denise_spr_nearestcnt < 0x7fffffff) {
-		denise_spr_nearestcnt <<= currprefs.gfx_resolution;
+		denise_spr_nearestcnt <<= hresolution;
 	}
 }
 
@@ -2548,7 +2548,7 @@ static void update_bplcon1(void)
 	int delay1 = (bplcon1_denise & 0x0f) | ((bplcon1_denise & 0x0c00) >> 6);
 	int delay2 = ((bplcon1_denise >> 4) & 0x0f) | (((bplcon1_denise >> 4) & 0x0c00) >> 6);
 	bool wasoddeven = bplcon1_shift[0] != bplcon1_shift[1];
-	int mask = 3 >> (currprefs.gfx_resolution);
+	int mask = 3 >> hresolution;
 
 	bplcon1_shift_mask = fetchmode_mask_denise >> denise_res;
 
@@ -2623,7 +2623,7 @@ static void update_bordercolor(void)
 static void update_hblank(void)
 {
 	if (exthblankon_aga) {
-		int hbmask = (1 << (RES_SUPERHIRES - currprefs.gfx_resolution)) - 1;
+		int hbmask = (1 << (RES_SUPERHIRES - hresolution)) - 1;
 
 		denise_phbstrt = hbstrt_denise_reg & 0xff;
 		denise_phbstop = hbstop_denise_reg & 0xff;
@@ -2657,7 +2657,7 @@ static void update_hblank(void)
 	denise_strlong_lores = ecs_denise || denisea1000 ? 0x0f : 0x11;
 	denise_strlong_hd = denise_strlong_lores << 2;
 	denise_strlong_unalign = false;
-	if (aga_mode && currprefs.gfx_resolution == RES_SUPERHIRES) {
+	if (aga_mode && hresolution == RES_SUPERHIRES) {
 		denise_strlong_hd += 1;
 		denise_strlong_unalign = true;
 	}
@@ -2665,7 +2665,7 @@ static void update_hblank(void)
 
 static void update_sprres_set(void)
 {
-	denise_spr_add = 1 << (RES_MAX - currprefs.gfx_resolution);
+	denise_spr_add = 1 << (RES_MAX - hresolution);
 	denise_spr_shiftsize = 1 << (RES_SUPERHIRES - denise_sprres);
 }
 
@@ -2835,6 +2835,17 @@ static void expand_bplcon0_early(uae_u16 v)
 	}
 }
 
+static void sethresolution(void)
+{
+	hresolution = currprefs.gfx_resolution;
+	if (doublescan == 1) {
+		hresolution++;
+		if (hresolution > RES_SUPERHIRES) {
+			hresolution = RES_SUPERHIRES;
+		}
+	}
+}
+
 static void setlasthamcolor(void)
 {
 	if (aga_mode) {
@@ -2868,6 +2879,7 @@ static void expand_bplcon0(uae_u16 v)
 	int ores = denise_res;
 	denise_res = GET_RES_DENISE(bplcon0_denise);
 	denise_res_size = 1 << denise_res;
+	sethresolution();
 	denise_planes = GET_PLANES(bplcon0_denise);
 	bplcolorburst = (bplcon0_denise & 0x200) != 0;
 	if (!bplcolorburst) {
@@ -2903,7 +2915,7 @@ static void expand_fmode(uae_u16 v)
 	denise_xposmask_mask_lores = (v & 0x8000) ? 0x100 : 0x000;
 	denise_xposmask_lores = denise_xposmask;
 	denise_xposmask <<= 2;
-	denise_xposmask |= currprefs.gfx_resolution == RES_SUPERHIRES ? 3 : (currprefs.gfx_resolution == RES_HIRES ? 2 : 0);
+	denise_xposmask |= hresolution == RES_SUPERHIRES ? 3 : (hresolution == RES_HIRES ? 2 : 0);
 
 	denise_bplfmode = (v & 3) == 3 ? 2 : (v & 3) == 0 ? 0 : 1;
 	v >>= 2;
@@ -3110,6 +3122,7 @@ void denise_reset(bool hard)
 	expand_bplcon3(bplcon3_denise);
 	expand_fmode(fmode_denise);
 	expand_colmask();
+	sethresolution();
 }
 
 
@@ -3458,7 +3471,7 @@ static void expand_drga(struct denise_rga *rd)
 		if ((rd->flags & DENISE_RGA_FLAG_LOL)) {
 			agnus_lol = (rd->flags & DENISE_RGA_FLAG_LOL_ON) != 0;
 			if (!agnus_lol && !denise_lol_shift_prev) {
-				int add = 1 << currprefs.gfx_resolution;
+				int add = 1 << hresolution;
 				buf1 += add;
 				buf2 += add;
 				buf_d += add;
@@ -4539,7 +4552,7 @@ void end_draw_denise(void)
 static uae_u8 blc_prev[3];
 static void emulate_black_level_calibration(uae_u32 *b1, uae_u32 *b2, uae_u32 *db, int dtotal, int cstart, int clen)
 {
-	int shift = currprefs.gfx_resolution + 1;
+	int shift = hresolution + 1;
 	int off;
 
 	if (cstart < 0) {
@@ -4791,8 +4804,8 @@ static void get_line(int gfx_ypos, enum nln_how how)
 	if (!buf1) {
 		denise_pixtotal = -1;
 	} else {
-		if ((denise_pixtotal << (1 + currprefs.gfx_resolution)) > vb->inwidth) {
-			denise_pixtotal = vb->inwidth >> (1 + currprefs.gfx_resolution);
+		if ((denise_pixtotal << (1 + hresolution)) > vb->inwidth) {
+			denise_pixtotal = vb->inwidth >> (1 + hresolution);
 		}
 	}
 
@@ -4952,13 +4965,6 @@ static void select_lts(void)
 	if (!denise_odd_even) {
 		bplshiftcnt[1] = bplshiftcnt[0];
 	}
-	hresolution = currprefs.gfx_resolution;
-	if (doublescan == 1) {
-		hresolution++;
-		if (hresolution > RES_SUPERHIRES) {
-			hresolution = RES_SUPERHIRES;
-		}
-	}
 	hresolution_add = 1 << hresolution;
 
 	if (aga_mode) {
@@ -5074,10 +5080,10 @@ static void lts_unaligned_aga(int cnt, int cnt_next, int h)
 
 	int dpixcnt = 0;
 
-	int xshift = RES_SUPERHIRES - currprefs.gfx_resolution;
+	int xshift = RES_SUPERHIRES - hresolution;
 	int xadd = 1 << xshift;
 	int denise_res_size2 = denise_res_size << xshift;
-	if (denise_res > currprefs.gfx_resolution) {
+	if (denise_res > hresolution) {
 		xshift = RES_SUPERHIRES - denise_res;
 		xadd = 1 << xshift;
 		denise_res_size2 = denise_res_size;
@@ -5085,7 +5091,7 @@ static void lts_unaligned_aga(int cnt, int cnt_next, int h)
 	int ipix = 0;
 	for (int i = 0; i < (1 << RES_SUPERHIRES); i += xadd, ipix += xadd) {
 
-		if (i == 2 || !currprefs.gfx_resolution) {
+		if (i == 2 || !hresolution) {
 
 			if (!h) {
 				if (aga_delayed_color_idx >= 0) {
