@@ -2266,6 +2266,7 @@ static void spr_arm(struct denise_spr *s, int state)
 				select_lts();
 			}
 			s->armed = 0;
+			s->shiftercopydone = false;
 		}
 	}
 }
