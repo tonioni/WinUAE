@@ -3194,8 +3194,6 @@ static void hstart_new(void)
 		}
 		sprites_hidden = sprites_hidden2;
 		bplshiftcnt[0] = bplshiftcnt[1] = 0;
-		last_bpl_pix = 0;
-		setlasthamcolor();
 #ifdef DEBUGGER
 		if (debug_dma) {
 			record_dma_event_denise(debug_dma_ptr, denise_cycle_half, DENISE_EVENT_BPL1DAT_HDIW, false);
@@ -4144,6 +4142,8 @@ static void do_hstrt_aga(int cnt)
 	denise_hdiw = true;
 	sprites_hidden2 &= ~1;
 	sprites_hidden = sprites_hidden2;
+	last_bpl_pix = 0;
+	setlasthamcolor();
 	if (cnt < diwfirstword_total) {
 		diwfirstword_total = cnt;
 	}
@@ -4172,6 +4172,8 @@ static void do_hstrt_ecs(int cnt)
 	denise_hdiw = true;
 	sprites_hidden2 &= ~1;
 	sprites_hidden = sprites_hidden2;
+	last_bpl_pix = 0;
+	setlasthamcolor();
 	if (cnt < diwfirstword_total) {
 		diwfirstword_total = cnt;
 	}
