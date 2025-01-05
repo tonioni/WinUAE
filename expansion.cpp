@@ -3650,27 +3650,28 @@ static void expansion_add_autoconfig(struct uae_prefs *p)
 	}
 
 #ifdef FILESYS
-	if (do_mount && p->uaeboard >= 0 && p->uaeboard < 2) {
-		cards_set[cardno].flags = CARD_FLAG_UAEROM;
-		cards_set[cardno].name = _T("UAEFS");
-		cards_set[cardno].zorro = 2;
-		cards_set[cardno].initnum = expamem_init_filesys;
-		cards_set[cardno++].map = expamem_map_filesys;
-	}
-	if (p->uaeboard > 0) {
-		cards_set[cardno].flags = CARD_FLAG_UAEROM;
-		cards_set[cardno].name = _T("UAEBOARD");
-		cards_set[cardno].zorro = 2;
-		cards_set[cardno].initnum = expamem_init_uaeboard;
-		cards_set[cardno++].map = expamem_map_uaeboard;
-	}
-	if (do_mount && p->uaeboard < 2) {
-		cards_set[cardno].flags = CARD_FLAG_UAEROM;
-		cards_set[cardno].name = _T("UAEBOOTROM");
-		cards_set[cardno].zorro = BOARD_NONAUTOCONFIG_BEFORE;
-		cards_set[cardno].initnum = expamem_rtarea_init;
-		cards_set[cardno++].map = NULL;
-
+	if (!p->uaeboard_nodiag) {
+		if (do_mount && p->uaeboard >= 0 && p->uaeboard < 2) {
+			cards_set[cardno].flags = CARD_FLAG_UAEROM;
+			cards_set[cardno].name = _T("UAEFS");
+			cards_set[cardno].zorro = 2;
+			cards_set[cardno].initnum = expamem_init_filesys;
+			cards_set[cardno++].map = expamem_map_filesys;
+		}
+		if (p->uaeboard > 0) {
+			cards_set[cardno].flags = CARD_FLAG_UAEROM;
+			cards_set[cardno].name = _T("UAEBOARD");
+			cards_set[cardno].zorro = 2;
+			cards_set[cardno].initnum = expamem_init_uaeboard;
+			cards_set[cardno++].map = expamem_map_uaeboard;
+		}
+		if (do_mount && p->uaeboard < 2) {
+			cards_set[cardno].flags = CARD_FLAG_UAEROM;
+			cards_set[cardno].name = _T("UAEBOOTROM");
+			cards_set[cardno].zorro = BOARD_NONAUTOCONFIG_BEFORE;
+			cards_set[cardno].initnum = expamem_rtarea_init;
+			cards_set[cardno++].map = NULL;
+		}
 	}
 #endif
 #ifdef PICASSO96
@@ -4946,6 +4947,21 @@ static struct expansionboardsettings ethernet_settings[] = {
 		NULL
 	}
 };
+static const struct expansionboardsettings keyboard_settings[] = {
+	{
+		_T("Options\0") _T("-\0") _T("RAM fault\0") _T("ROM fault\0") _T("Watchdog fault\0"),
+		_T("kbmcuopt\0") _T("-\0") _T("ramf\0") _T("romf\0") _T("wdf\0"),
+		true
+	},
+	{
+		_T("Special feature enable"),
+		_T("sfe")
+	},
+	{
+		NULL
+	}
+};
+
 
 static struct expansionboardsettings *netsettings[] = {
 	ethernet_settings,
@@ -6006,6 +6022,15 @@ const struct expansionromtype expansionroms[] = {
 
 	},
 #endif
+	{
+		_T("ripple"), _T("RIPPLE"), _T("Matt Harlum"),
+		NULL, ripple_init, NULL, ripple_add_ide_unit, ROMTYPE_RIPPLE | ROMTYPE_NONE, 0, 0, BOARD_AUTOCONFIG_Z2, false,
+		NULL, 0,
+		true, EXPANSIONTYPE_IDE,
+		0, 0, 1, false, NULL,
+		false, 2, NULL,
+		{ 0xd2, 0x07, 0x00, 0x00, 0x14, 0x4A, 0x00, 0x00, 0x00, 0x01, 0x00, 0x08 }
+	},
 
 	/* PC Bridgeboards */
 
@@ -6308,6 +6333,14 @@ const struct expansionromtype expansionroms[] = {
 	// misc
 
 	{
+		_T("keyboard"), _T("Keyboard"), NULL,
+		NULL, NULL, NULL, NULL, ROMTYPE_KBMCU| ROMTYPE_NONE, 0, 0, BOARD_IGNORE, true,
+		NULL, 0,
+		false, EXPANSIONTYPE_INTERNAL,
+		0, 0, 0, false, NULL,
+		false, 0, keyboard_settings
+	},
+	{
 		_T("pcmciasram"), _T("PCMCIA SRAM"), NULL,
 		NULL, gayle_init_board_common_pcmcia, NULL, NULL, ROMTYPE_PCMCIASRAM | ROMTYPE_NOT, 0, 0, BOARD_NONAUTOCONFIG_BEFORE, true,
 		NULL, 0,
@@ -6446,7 +6479,7 @@ static const struct cpuboardsubtype gvpboard_sub[] = {
 		_T("TekMagic"),
 		ROMTYPE_CB_TEKMAGIC, 0, 4,
 		tekmagic_add_scsi_unit, EXPANSIONTYPE_SCSI,
-		BOARD_MEMORY_25BITMEM,
+		BOARD_MEMORY_HIGHMEM,
 		128 * 1024 * 1024
 	},
 	{

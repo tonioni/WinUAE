@@ -55,12 +55,14 @@ extern TCHAR *restore_path_full_func(uae_u8 **);
 #define save_u32t(x) save_u32t_func(&dst, (x))
 #define save_u16(x) save_u16_func(&dst, (x))
 #define save_u8(x) save_u8_func(&dst, (x))
+#define save_s8(x) save_u8_func(&dst, (uae_u8)(x))
 
 #define restore_u64() restore_u64_func(&src)
 #define restore_u64to32() (uae_u32)restore_u64_func(&src)
 #define restore_u32() restore_u32_func(&src)
 #define restore_u16() restore_u16_func(&src)
 #define restore_u8() restore_u8_func(&src)
+#define restore_s8() ((uae_s8)restore_u8_func(&src))
 
 #define save_string(x) save_string_func(&dst, (x))
 #define restore_string() restore_string_func(&src)
@@ -105,6 +107,12 @@ extern void restore_custom_start(void);
 
 extern uae_u8 *restore_custom_sprite(int num, uae_u8 *src);
 extern uae_u8 *save_custom_sprite(int num, size_t *len, uae_u8 *);
+uae_u8 *save_custom_sprite_denise(int num, uae_u8 *dst);
+uae_u8 *restore_custom_sprite_denise(int num, uae_u8 *src, uae_u16 pos, uae_u16 ctl);
+uae_u8 *save_custom_bpl(size_t *len, uae_u8 *dstptr);
+uae_u8 *restore_custom_bpl(uae_u8 *src);
+uae_u16 save_custom_bpl_dat(int num);
+void restore_custom_bpl_dat(int num, uae_u16 dat);
 
 extern uae_u8 *restore_custom_agacolors (uae_u8 *src);
 extern uae_u8 *save_custom_agacolors(size_t *len, uae_u8 *);
@@ -140,6 +148,13 @@ extern void restore_p96_finish(void);
 
 extern uae_u8 *restore_keyboard(uae_u8 *);
 extern uae_u8 *save_keyboard(size_t *,uae_u8*);
+
+extern uae_u8 *restore_kbmcu(uae_u8 *);
+extern uae_u8 *save_kbmcu(size_t *,uae_u8*);
+extern uae_u8 *restore_kbmcu2(uae_u8 *);
+extern uae_u8 *save_kbmcu2(size_t *,uae_u8*);
+extern uae_u8 *restore_kbmcu3(uae_u8 *);
+extern uae_u8 *save_kbmcu3(size_t *,uae_u8*);
 
 extern uae_u8 *restore_akiko(uae_u8 *src);
 extern uae_u8 *save_akiko(size_t *len, uae_u8*);
@@ -177,7 +192,6 @@ extern uae_u8 *save_gayle_ide(int num, size_t *len, uae_u8*);
 
 extern uae_u8 *save_cd(int num, size_t *len);
 extern uae_u8 *restore_cd(int, uae_u8 *src);
-extern void restore_cd_finish(void);
 
 extern uae_u8 *save_configuration(size_t *len, bool fullconfig);
 extern uae_u8 *restore_configuration(uae_u8 *src);
@@ -267,6 +281,7 @@ extern bool savestate_check(void);
 
 extern int savestate_state;
 extern TCHAR savestate_fname[MAX_DPATH];
+extern TCHAR path_statefile[MAX_DPATH];
 extern struct zfile *savestate_file;
 
 STATIC_INLINE bool isrestore(void)

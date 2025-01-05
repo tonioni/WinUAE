@@ -2593,15 +2593,17 @@ void AUDxDAT(int nr, uae_u16 v)
 	AUDxDAT(nr, v, 0xffffffff);
 }
 
-uaecptr audio_getpt(int nr, bool reset)
+uaecptr *audio_getpt(int nr)
 {
 	struct audio_channel_data *cdp = audio_channel + nr;
-	uaecptr p = cdp->pt;
-	cdp->pt += 2;
-	if (reset)
-		cdp->pt = cdp->lc;
 	cdp->ptx_tofetch = false;
-	return p & ~1;
+	cdp->pt &= ~1;
+	return &cdp->pt;
+}
+uaecptr audio_getloadpt(int nr)
+{
+	struct audio_channel_data *cdp = audio_channel + nr;
+	return cdp->lc;
 }
 
 void AUDxLCH(int nr, uae_u16 v)

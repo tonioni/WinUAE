@@ -10,8 +10,8 @@ void blitdofast_0 (uaecptr pta, uaecptr ptb, uaecptr ptc, uaecptr ptd, struct bl
 {
 int i,j;
 uae_u32 totald = 0;
-uae_u16 ashift = bltcon0 >> 12;
-uae_u16 bshift = bltcon1 >> 12;
+uae_u16 ashift = blt_info.bltcon0 >> 12;
+uae_u16 bshift = blt_info.bltcon1 >> 12;
 uae_u32 dstd=0;
 uaecptr dstp = 0;
 for (j = 0; j < b->vblitsize; j++) {
@@ -30,8 +30,8 @@ void blitdofast_desc_0 (uaecptr pta, uaecptr ptb, uaecptr ptc, uaecptr ptd, stru
 {
 uae_u32 totald = 0;
 int i,j;
-uae_u16 ashift = 16 - (bltcon0 >> 12);
-uae_u16 bshift = 16 - (bltcon1 >> 12);
+uae_u16 ashift = 16 - (blt_info.bltcon0 >> 12);
+uae_u16 bshift = 16 - (blt_info.bltcon1 >> 12);
 uae_u32 dstd = 0;
 uaecptr dstp = 0;
 for (j = 0; j < b->vblitsize; j++) {
@@ -51,8 +51,8 @@ void blitdofast_a (uaecptr pta, uaecptr ptb, uaecptr ptc, uaecptr ptd, struct bl
 int i,j;
 uae_u32 totald = 0;
 uae_u32 srcc = b->bltcdat;
-uae_u16 ashift = bltcon0 >> 12;
-uae_u16 bshift = bltcon1 >> 12;
+uae_u16 ashift = blt_info.bltcon0 >> 12;
+uae_u16 bshift = blt_info.bltcon1 >> 12;
 uae_u32 dstd=0;
 uaecptr dstp = 0;
 for (j = 0; j < b->vblitsize; j++) {
@@ -81,8 +81,8 @@ void blitdofast_desc_a (uaecptr pta, uaecptr ptb, uaecptr ptc, uaecptr ptd, stru
 uae_u32 totald = 0;
 int i,j;
 uae_u32 srcc = b->bltcdat;
-uae_u16 ashift = 16 - (bltcon0 >> 12);
-uae_u16 bshift = 16 - (bltcon1 >> 12);
+uae_u16 ashift = 16 - (blt_info.bltcon0 >> 12);
+uae_u16 bshift = 16 - (blt_info.bltcon1 >> 12);
 uae_u32 dstd = 0;
 uaecptr dstp = 0;
 for (j = 0; j < b->vblitsize; j++) {
@@ -112,8 +112,8 @@ int i,j;
 uae_u32 totald = 0;
 uae_u32 srcb = b->bltbhold;
 uae_u32 srcc = b->bltcdat;
-uae_u16 ashift = bltcon0 >> 12;
-uae_u16 bshift = bltcon1 >> 12;
+uae_u16 ashift = blt_info.bltcon0 >> 12;
+uae_u16 bshift = blt_info.bltcon1 >> 12;
 uae_u32 dstd=0;
 uaecptr dstp = 0;
 for (j = 0; j < b->vblitsize; j++) {
@@ -150,8 +150,8 @@ uae_u32 totald = 0;
 int i,j;
 uae_u32 srcb = b->bltbhold;
 uae_u32 srcc = b->bltcdat;
-uae_u16 ashift = 16 - (bltcon0 >> 12);
-uae_u16 bshift = 16 - (bltcon1 >> 12);
+uae_u16 ashift = 16 - (blt_info.bltcon0 >> 12);
+uae_u16 bshift = 16 - (blt_info.bltcon1 >> 12);
 uae_u32 dstd = 0;
 uaecptr dstp = 0;
 for (j = 0; j < b->vblitsize; j++) {
@@ -187,8 +187,8 @@ void blitdofast_30 (uaecptr pta, uaecptr ptb, uaecptr ptc, uaecptr ptd, struct b
 int i,j;
 uae_u32 totald = 0;
 uae_u32 srcb = b->bltbhold;
-uae_u16 ashift = bltcon0 >> 12;
-uae_u16 bshift = bltcon1 >> 12;
+uae_u16 ashift = blt_info.bltcon0 >> 12;
+uae_u16 bshift = blt_info.bltcon1 >> 12;
 uae_u32 dstd=0;
 uaecptr dstp = 0;
 for (j = 0; j < b->vblitsize; j++) {
@@ -221,8 +221,8 @@ void blitdofast_desc_30 (uaecptr pta, uaecptr ptb, uaecptr ptc, uaecptr ptd, str
 uae_u32 totald = 0;
 int i,j;
 uae_u32 srcb = b->bltbhold;
-uae_u16 ashift = 16 - (bltcon0 >> 12);
-uae_u16 bshift = 16 - (bltcon1 >> 12);
+uae_u16 ashift = 16 - (blt_info.bltcon0 >> 12);
+uae_u16 bshift = 16 - (blt_info.bltcon1 >> 12);
 uae_u32 dstd = 0;
 uaecptr dstp = 0;
 for (j = 0; j < b->vblitsize; j++) {
@@ -256,8 +256,8 @@ int i,j;
 uae_u32 totald = 0;
 uae_u32 srcb = b->bltbhold;
 uae_u32 srcc = b->bltcdat;
-uae_u16 ashift = bltcon0 >> 12;
-uae_u16 bshift = bltcon1 >> 12;
+uae_u16 ashift = blt_info.bltcon0 >> 12;
+uae_u16 bshift = blt_info.bltcon1 >> 12;
 uae_u32 dstd=0;
 uaecptr dstp = 0;
 for (j = 0; j < b->vblitsize; j++) {
@@ -294,8 +294,8 @@ uae_u32 totald = 0;
 int i,j;
 uae_u32 srcb = b->bltbhold;
 uae_u32 srcc = b->bltcdat;
-uae_u16 ashift = 16 - (bltcon0 >> 12);
-uae_u16 bshift = 16 - (bltcon1 >> 12);
+uae_u16 ashift = 16 - (blt_info.bltcon0 >> 12);
+uae_u16 bshift = 16 - (blt_info.bltcon1 >> 12);
 uae_u32 dstd = 0;
 uaecptr dstp = 0;
 for (j = 0; j < b->vblitsize; j++) {
@@ -331,8 +331,8 @@ void blitdofast_3c (uaecptr pta, uaecptr ptb, uaecptr ptc, uaecptr ptd, struct b
 int i,j;
 uae_u32 totald = 0;
 uae_u32 srcb = b->bltbhold;
-uae_u16 ashift = bltcon0 >> 12;
-uae_u16 bshift = bltcon1 >> 12;
+uae_u16 ashift = blt_info.bltcon0 >> 12;
+uae_u16 bshift = blt_info.bltcon1 >> 12;
 uae_u32 dstd=0;
 uaecptr dstp = 0;
 for (j = 0; j < b->vblitsize; j++) {
@@ -365,8 +365,8 @@ void blitdofast_desc_3c (uaecptr pta, uaecptr ptb, uaecptr ptc, uaecptr ptd, str
 uae_u32 totald = 0;
 int i,j;
 uae_u32 srcb = b->bltbhold;
-uae_u16 ashift = 16 - (bltcon0 >> 12);
-uae_u16 bshift = 16 - (bltcon1 >> 12);
+uae_u16 ashift = 16 - (blt_info.bltcon0 >> 12);
+uae_u16 bshift = 16 - (blt_info.bltcon1 >> 12);
 uae_u32 dstd = 0;
 uaecptr dstp = 0;
 for (j = 0; j < b->vblitsize; j++) {
@@ -400,8 +400,8 @@ int i,j;
 uae_u32 totald = 0;
 uae_u32 srcb = b->bltbhold;
 uae_u32 srcc = b->bltcdat;
-uae_u16 ashift = bltcon0 >> 12;
-uae_u16 bshift = bltcon1 >> 12;
+uae_u16 ashift = blt_info.bltcon0 >> 12;
+uae_u16 bshift = blt_info.bltcon1 >> 12;
 uae_u32 dstd=0;
 uaecptr dstp = 0;
 for (j = 0; j < b->vblitsize; j++) {
@@ -438,8 +438,8 @@ uae_u32 totald = 0;
 int i,j;
 uae_u32 srcb = b->bltbhold;
 uae_u32 srcc = b->bltcdat;
-uae_u16 ashift = 16 - (bltcon0 >> 12);
-uae_u16 bshift = 16 - (bltcon1 >> 12);
+uae_u16 ashift = 16 - (blt_info.bltcon0 >> 12);
+uae_u16 bshift = 16 - (blt_info.bltcon1 >> 12);
 uae_u32 dstd = 0;
 uaecptr dstp = 0;
 for (j = 0; j < b->vblitsize; j++) {
@@ -476,8 +476,8 @@ int i,j;
 uae_u32 totald = 0;
 uae_u32 srcb = b->bltbhold;
 uae_u32 srcc = b->bltcdat;
-uae_u16 ashift = bltcon0 >> 12;
-uae_u16 bshift = bltcon1 >> 12;
+uae_u16 ashift = blt_info.bltcon0 >> 12;
+uae_u16 bshift = blt_info.bltcon1 >> 12;
 uae_u32 dstd=0;
 uaecptr dstp = 0;
 for (j = 0; j < b->vblitsize; j++) {
@@ -514,8 +514,8 @@ uae_u32 totald = 0;
 int i,j;
 uae_u32 srcb = b->bltbhold;
 uae_u32 srcc = b->bltcdat;
-uae_u16 ashift = 16 - (bltcon0 >> 12);
-uae_u16 bshift = 16 - (bltcon1 >> 12);
+uae_u16 ashift = 16 - (blt_info.bltcon0 >> 12);
+uae_u16 bshift = 16 - (blt_info.bltcon1 >> 12);
 uae_u32 dstd = 0;
 uaecptr dstp = 0;
 for (j = 0; j < b->vblitsize; j++) {
@@ -552,8 +552,8 @@ int i,j;
 uae_u32 totald = 0;
 uae_u32 srcb = b->bltbhold;
 uae_u32 srcc = b->bltcdat;
-uae_u16 ashift = bltcon0 >> 12;
-uae_u16 bshift = bltcon1 >> 12;
+uae_u16 ashift = blt_info.bltcon0 >> 12;
+uae_u16 bshift = blt_info.bltcon1 >> 12;
 uae_u32 dstd=0;
 uaecptr dstp = 0;
 for (j = 0; j < b->vblitsize; j++) {
@@ -590,8 +590,8 @@ uae_u32 totald = 0;
 int i,j;
 uae_u32 srcb = b->bltbhold;
 uae_u32 srcc = b->bltcdat;
-uae_u16 ashift = 16 - (bltcon0 >> 12);
-uae_u16 bshift = 16 - (bltcon1 >> 12);
+uae_u16 ashift = 16 - (blt_info.bltcon0 >> 12);
+uae_u16 bshift = 16 - (blt_info.bltcon1 >> 12);
 uae_u32 dstd = 0;
 uaecptr dstp = 0;
 for (j = 0; j < b->vblitsize; j++) {
@@ -628,8 +628,8 @@ int i,j;
 uae_u32 totald = 0;
 uae_u32 srcb = b->bltbhold;
 uae_u32 srcc = b->bltcdat;
-uae_u16 ashift = bltcon0 >> 12;
-uae_u16 bshift = bltcon1 >> 12;
+uae_u16 ashift = blt_info.bltcon0 >> 12;
+uae_u16 bshift = blt_info.bltcon1 >> 12;
 uae_u32 dstd=0;
 uaecptr dstp = 0;
 for (j = 0; j < b->vblitsize; j++) {
@@ -666,8 +666,8 @@ uae_u32 totald = 0;
 int i,j;
 uae_u32 srcb = b->bltbhold;
 uae_u32 srcc = b->bltcdat;
-uae_u16 ashift = 16 - (bltcon0 >> 12);
-uae_u16 bshift = 16 - (bltcon1 >> 12);
+uae_u16 ashift = 16 - (blt_info.bltcon0 >> 12);
+uae_u16 bshift = 16 - (blt_info.bltcon1 >> 12);
 uae_u32 dstd = 0;
 uaecptr dstp = 0;
 for (j = 0; j < b->vblitsize; j++) {
@@ -704,8 +704,8 @@ int i,j;
 uae_u32 totald = 0;
 uae_u32 srcb = b->bltbhold;
 uae_u32 srcc = b->bltcdat;
-uae_u16 ashift = bltcon0 >> 12;
-uae_u16 bshift = bltcon1 >> 12;
+uae_u16 ashift = blt_info.bltcon0 >> 12;
+uae_u16 bshift = blt_info.bltcon1 >> 12;
 uae_u32 dstd=0;
 uaecptr dstp = 0;
 for (j = 0; j < b->vblitsize; j++) {
@@ -742,8 +742,8 @@ uae_u32 totald = 0;
 int i,j;
 uae_u32 srcb = b->bltbhold;
 uae_u32 srcc = b->bltcdat;
-uae_u16 ashift = 16 - (bltcon0 >> 12);
-uae_u16 bshift = 16 - (bltcon1 >> 12);
+uae_u16 ashift = 16 - (blt_info.bltcon0 >> 12);
+uae_u16 bshift = 16 - (blt_info.bltcon1 >> 12);
 uae_u32 dstd = 0;
 uaecptr dstp = 0;
 for (j = 0; j < b->vblitsize; j++) {
@@ -780,8 +780,8 @@ int i,j;
 uae_u32 totald = 0;
 uae_u32 srcb = b->bltbhold;
 uae_u32 srcc = b->bltcdat;
-uae_u16 ashift = bltcon0 >> 12;
-uae_u16 bshift = bltcon1 >> 12;
+uae_u16 ashift = blt_info.bltcon0 >> 12;
+uae_u16 bshift = blt_info.bltcon1 >> 12;
 uae_u32 dstd=0;
 uaecptr dstp = 0;
 for (j = 0; j < b->vblitsize; j++) {
@@ -818,8 +818,8 @@ uae_u32 totald = 0;
 int i,j;
 uae_u32 srcb = b->bltbhold;
 uae_u32 srcc = b->bltcdat;
-uae_u16 ashift = 16 - (bltcon0 >> 12);
-uae_u16 bshift = 16 - (bltcon1 >> 12);
+uae_u16 ashift = 16 - (blt_info.bltcon0 >> 12);
+uae_u16 bshift = 16 - (blt_info.bltcon1 >> 12);
 uae_u32 dstd = 0;
 uaecptr dstp = 0;
 for (j = 0; j < b->vblitsize; j++) {
@@ -855,8 +855,8 @@ void blitdofast_aa (uaecptr pta, uaecptr ptb, uaecptr ptc, uaecptr ptd, struct b
 int i,j;
 uae_u32 totald = 0;
 uae_u32 srcc = b->bltcdat;
-uae_u16 ashift = bltcon0 >> 12;
-uae_u16 bshift = bltcon1 >> 12;
+uae_u16 ashift = blt_info.bltcon0 >> 12;
+uae_u16 bshift = blt_info.bltcon1 >> 12;
 uae_u32 dstd=0;
 uaecptr dstp = 0;
 for (j = 0; j < b->vblitsize; j++) {
@@ -879,8 +879,8 @@ void blitdofast_desc_aa (uaecptr pta, uaecptr ptb, uaecptr ptc, uaecptr ptd, str
 uae_u32 totald = 0;
 int i,j;
 uae_u32 srcc = b->bltcdat;
-uae_u16 ashift = 16 - (bltcon0 >> 12);
-uae_u16 bshift = 16 - (bltcon1 >> 12);
+uae_u16 ashift = 16 - (blt_info.bltcon0 >> 12);
+uae_u16 bshift = 16 - (blt_info.bltcon1 >> 12);
 uae_u32 dstd = 0;
 uaecptr dstp = 0;
 for (j = 0; j < b->vblitsize; j++) {
@@ -904,8 +904,8 @@ int i,j;
 uae_u32 totald = 0;
 uae_u32 srcb = b->bltbhold;
 uae_u32 srcc = b->bltcdat;
-uae_u16 ashift = bltcon0 >> 12;
-uae_u16 bshift = bltcon1 >> 12;
+uae_u16 ashift = blt_info.bltcon0 >> 12;
+uae_u16 bshift = blt_info.bltcon1 >> 12;
 uae_u32 dstd=0;
 uaecptr dstp = 0;
 for (j = 0; j < b->vblitsize; j++) {
@@ -942,8 +942,8 @@ uae_u32 totald = 0;
 int i,j;
 uae_u32 srcb = b->bltbhold;
 uae_u32 srcc = b->bltcdat;
-uae_u16 ashift = 16 - (bltcon0 >> 12);
-uae_u16 bshift = 16 - (bltcon1 >> 12);
+uae_u16 ashift = 16 - (blt_info.bltcon0 >> 12);
+uae_u16 bshift = 16 - (blt_info.bltcon1 >> 12);
 uae_u32 dstd = 0;
 uaecptr dstp = 0;
 for (j = 0; j < b->vblitsize; j++) {
@@ -980,8 +980,8 @@ int i,j;
 uae_u32 totald = 0;
 uae_u32 srcb = b->bltbhold;
 uae_u32 srcc = b->bltcdat;
-uae_u16 ashift = bltcon0 >> 12;
-uae_u16 bshift = bltcon1 >> 12;
+uae_u16 ashift = blt_info.bltcon0 >> 12;
+uae_u16 bshift = blt_info.bltcon1 >> 12;
 uae_u32 dstd=0;
 uaecptr dstp = 0;
 for (j = 0; j < b->vblitsize; j++) {
@@ -1018,8 +1018,8 @@ uae_u32 totald = 0;
 int i,j;
 uae_u32 srcb = b->bltbhold;
 uae_u32 srcc = b->bltcdat;
-uae_u16 ashift = 16 - (bltcon0 >> 12);
-uae_u16 bshift = 16 - (bltcon1 >> 12);
+uae_u16 ashift = 16 - (blt_info.bltcon0 >> 12);
+uae_u16 bshift = 16 - (blt_info.bltcon1 >> 12);
 uae_u32 dstd = 0;
 uaecptr dstp = 0;
 for (j = 0; j < b->vblitsize; j++) {
@@ -1055,8 +1055,8 @@ void blitdofast_cc (uaecptr pta, uaecptr ptb, uaecptr ptc, uaecptr ptd, struct b
 int i,j;
 uae_u32 totald = 0;
 uae_u32 srcb = b->bltbhold;
-uae_u16 ashift = bltcon0 >> 12;
-uae_u16 bshift = bltcon1 >> 12;
+uae_u16 ashift = blt_info.bltcon0 >> 12;
+uae_u16 bshift = blt_info.bltcon1 >> 12;
 uae_u32 dstd=0;
 uaecptr dstp = 0;
 for (j = 0; j < b->vblitsize; j++) {
@@ -1083,8 +1083,8 @@ void blitdofast_desc_cc (uaecptr pta, uaecptr ptb, uaecptr ptc, uaecptr ptd, str
 uae_u32 totald = 0;
 int i,j;
 uae_u32 srcb = b->bltbhold;
-uae_u16 ashift = 16 - (bltcon0 >> 12);
-uae_u16 bshift = 16 - (bltcon1 >> 12);
+uae_u16 ashift = 16 - (blt_info.bltcon0 >> 12);
+uae_u16 bshift = 16 - (blt_info.bltcon1 >> 12);
 uae_u32 dstd = 0;
 uaecptr dstp = 0;
 for (j = 0; j < b->vblitsize; j++) {
@@ -1112,8 +1112,8 @@ int i,j;
 uae_u32 totald = 0;
 uae_u32 srcb = b->bltbhold;
 uae_u32 srcc = b->bltcdat;
-uae_u16 ashift = bltcon0 >> 12;
-uae_u16 bshift = bltcon1 >> 12;
+uae_u16 ashift = blt_info.bltcon0 >> 12;
+uae_u16 bshift = blt_info.bltcon1 >> 12;
 uae_u32 dstd=0;
 uaecptr dstp = 0;
 for (j = 0; j < b->vblitsize; j++) {
@@ -1150,8 +1150,8 @@ uae_u32 totald = 0;
 int i,j;
 uae_u32 srcb = b->bltbhold;
 uae_u32 srcc = b->bltcdat;
-uae_u16 ashift = 16 - (bltcon0 >> 12);
-uae_u16 bshift = 16 - (bltcon1 >> 12);
+uae_u16 ashift = 16 - (blt_info.bltcon0 >> 12);
+uae_u16 bshift = 16 - (blt_info.bltcon1 >> 12);
 uae_u32 dstd = 0;
 uaecptr dstp = 0;
 for (j = 0; j < b->vblitsize; j++) {
@@ -1188,8 +1188,8 @@ int i,j;
 uae_u32 totald = 0;
 uae_u32 srcb = b->bltbhold;
 uae_u32 srcc = b->bltcdat;
-uae_u16 ashift = bltcon0 >> 12;
-uae_u16 bshift = bltcon1 >> 12;
+uae_u16 ashift = blt_info.bltcon0 >> 12;
+uae_u16 bshift = blt_info.bltcon1 >> 12;
 uae_u32 dstd=0;
 uaecptr dstp = 0;
 for (j = 0; j < b->vblitsize; j++) {
@@ -1226,8 +1226,8 @@ uae_u32 totald = 0;
 int i,j;
 uae_u32 srcb = b->bltbhold;
 uae_u32 srcc = b->bltcdat;
-uae_u16 ashift = 16 - (bltcon0 >> 12);
-uae_u16 bshift = 16 - (bltcon1 >> 12);
+uae_u16 ashift = 16 - (blt_info.bltcon0 >> 12);
+uae_u16 bshift = 16 - (blt_info.bltcon1 >> 12);
 uae_u32 dstd = 0;
 uaecptr dstp = 0;
 for (j = 0; j < b->vblitsize; j++) {
@@ -1264,8 +1264,8 @@ int i,j;
 uae_u32 totald = 0;
 uae_u32 srcb = b->bltbhold;
 uae_u32 srcc = b->bltcdat;
-uae_u16 ashift = bltcon0 >> 12;
-uae_u16 bshift = bltcon1 >> 12;
+uae_u16 ashift = blt_info.bltcon0 >> 12;
+uae_u16 bshift = blt_info.bltcon1 >> 12;
 uae_u32 dstd=0;
 uaecptr dstp = 0;
 for (j = 0; j < b->vblitsize; j++) {
@@ -1302,8 +1302,8 @@ uae_u32 totald = 0;
 int i,j;
 uae_u32 srcb = b->bltbhold;
 uae_u32 srcc = b->bltcdat;
-uae_u16 ashift = 16 - (bltcon0 >> 12);
-uae_u16 bshift = 16 - (bltcon1 >> 12);
+uae_u16 ashift = 16 - (blt_info.bltcon0 >> 12);
+uae_u16 bshift = 16 - (blt_info.bltcon1 >> 12);
 uae_u32 dstd = 0;
 uaecptr dstp = 0;
 for (j = 0; j < b->vblitsize; j++) {
@@ -1338,8 +1338,8 @@ void blitdofast_f0 (uaecptr pta, uaecptr ptb, uaecptr ptc, uaecptr ptd, struct b
 {
 int i,j;
 uae_u32 totald = 0;
-uae_u16 ashift = bltcon0 >> 12;
-uae_u16 bshift = bltcon1 >> 12;
+uae_u16 ashift = blt_info.bltcon0 >> 12;
+uae_u16 bshift = blt_info.bltcon1 >> 12;
 uae_u32 dstd=0;
 uaecptr dstp = 0;
 for (j = 0; j < b->vblitsize; j++) {
@@ -1364,8 +1364,8 @@ void blitdofast_desc_f0 (uaecptr pta, uaecptr ptb, uaecptr ptc, uaecptr ptd, str
 {
 uae_u32 totald = 0;
 int i,j;
-uae_u16 ashift = 16 - (bltcon0 >> 12);
-uae_u16 bshift = 16 - (bltcon1 >> 12);
+uae_u16 ashift = 16 - (blt_info.bltcon0 >> 12);
+uae_u16 bshift = 16 - (blt_info.bltcon1 >> 12);
 uae_u32 dstd = 0;
 uaecptr dstp = 0;
 for (j = 0; j < b->vblitsize; j++) {
@@ -1391,8 +1391,8 @@ void blitdofast_fa (uaecptr pta, uaecptr ptb, uaecptr ptc, uaecptr ptd, struct b
 int i,j;
 uae_u32 totald = 0;
 uae_u32 srcc = b->bltcdat;
-uae_u16 ashift = bltcon0 >> 12;
-uae_u16 bshift = bltcon1 >> 12;
+uae_u16 ashift = blt_info.bltcon0 >> 12;
+uae_u16 bshift = blt_info.bltcon1 >> 12;
 uae_u32 dstd=0;
 uaecptr dstp = 0;
 for (j = 0; j < b->vblitsize; j++) {
@@ -1421,8 +1421,8 @@ void blitdofast_desc_fa (uaecptr pta, uaecptr ptb, uaecptr ptc, uaecptr ptd, str
 uae_u32 totald = 0;
 int i,j;
 uae_u32 srcc = b->bltcdat;
-uae_u16 ashift = 16 - (bltcon0 >> 12);
-uae_u16 bshift = 16 - (bltcon1 >> 12);
+uae_u16 ashift = 16 - (blt_info.bltcon0 >> 12);
+uae_u16 bshift = 16 - (blt_info.bltcon1 >> 12);
 uae_u32 dstd = 0;
 uaecptr dstp = 0;
 for (j = 0; j < b->vblitsize; j++) {
@@ -1451,8 +1451,8 @@ void blitdofast_fc (uaecptr pta, uaecptr ptb, uaecptr ptc, uaecptr ptd, struct b
 int i,j;
 uae_u32 totald = 0;
 uae_u32 srcb = b->bltbhold;
-uae_u16 ashift = bltcon0 >> 12;
-uae_u16 bshift = bltcon1 >> 12;
+uae_u16 ashift = blt_info.bltcon0 >> 12;
+uae_u16 bshift = blt_info.bltcon1 >> 12;
 uae_u32 dstd=0;
 uaecptr dstp = 0;
 for (j = 0; j < b->vblitsize; j++) {
@@ -1485,8 +1485,8 @@ void blitdofast_desc_fc (uaecptr pta, uaecptr ptb, uaecptr ptc, uaecptr ptd, str
 uae_u32 totald = 0;
 int i,j;
 uae_u32 srcb = b->bltbhold;
-uae_u16 ashift = 16 - (bltcon0 >> 12);
-uae_u16 bshift = 16 - (bltcon1 >> 12);
+uae_u16 ashift = 16 - (blt_info.bltcon0 >> 12);
+uae_u16 bshift = 16 - (blt_info.bltcon1 >> 12);
 uae_u32 dstd = 0;
 uaecptr dstp = 0;
 for (j = 0; j < b->vblitsize; j++) {

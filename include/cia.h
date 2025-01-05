@@ -11,7 +11,7 @@
 
 #include "uae/types.h"
 
-extern void CIA_reset(void);
+extern void CIA_reset(int);
 extern void CIA_vsync_prehandler(void);
 extern void CIA_hsync_prehandler(void);
 extern void CIA_hsync_posthandler(bool, bool);

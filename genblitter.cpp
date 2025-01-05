@@ -53,8 +53,8 @@ static void generate_func(void)
 		printf("uae_u32 totald = 0;\n");
 		if (b_is_on) printf("uae_u32 srcb = b->bltbhold;\n");
 		if (c_is_on) printf("uae_u32 srcc = b->bltcdat;\n");
-		printf("uae_u16 ashift = bltcon0 >> 12;\n");
-		printf("uae_u16 bshift = bltcon1 >> 12;\n");
+		printf("uae_u16 ashift = blt_info.bltcon0 >> 12;\n");
+		printf("uae_u16 bshift = blt_info.bltcon1 >> 12;\n");
 		printf("uae_u32 dstd=0;\n");
 		printf("uaecptr dstp = 0;\n");
 		printf("for (j = 0; j < b->vblitsize; j++) {\n");
@@ -92,8 +92,8 @@ static void generate_func(void)
 		printf("int i,j;\n");
 		if (b_is_on) printf("uae_u32 srcb = b->bltbhold;\n");
 		if (c_is_on) printf("uae_u32 srcc = b->bltcdat;\n");
-		printf("uae_u16 ashift = 16 - (bltcon0 >> 12);\n");
-		printf("uae_u16 bshift = 16 - (bltcon1 >> 12);\n");
+		printf("uae_u16 ashift = 16 - (blt_info.bltcon0 >> 12);\n");
+		printf("uae_u16 bshift = 16 - (blt_info.bltcon1 >> 12);\n");
 		printf("uae_u32 dstd = 0;\n");
 		printf("uaecptr dstp = 0;\n");
 		printf("for (j = 0; j < b->vblitsize; j++) {\n");

@@ -43,6 +43,8 @@ static bool drives_enumerated;
 
 #define MAX_LOCKED_VOLUMES 8
 
+const static GUID PARTITION_GPT_AMIGA = { 0xbcee823f, 0xc987, 0x9740, { 0x81,0x65,0x89,0xd6,0x54,0x05,0x57,0xc0 } };
+
 struct hardfilehandle
 {
 	int zfile;
@@ -95,6 +97,24 @@ struct uae_driveinfo {
 int harddrive_dangerous; // = 0x1234dead; // test only!
 int do_rdbdump;
 static struct uae_driveinfo uae_drives[MAX_FILESYSTEM_UNITS];
+
+static bool guidfromstring(const WCHAR *guid, GUID *out)
+{
+	typedef BOOL(WINAPI *LPFN_GUIDFromString)(LPCTSTR, LPGUID);
+	LPFN_GUIDFromString pGUIDFromString = NULL;
+	bool ret = false;
+
+	HINSTANCE hInst = LoadLibrary(TEXT("shell32.dll"));
+	if (hInst)
+	{
+		pGUIDFromString = (LPFN_GUIDFromString)GetProcAddress(hInst, MAKEINTRESOURCEA(704));
+		if (pGUIDFromString)
+			ret = pGUIDFromString(guid, out);
+		FreeLibrary(hInst);
+	}
+	return ret;
+}
+
 
 #if 0
 static void fixdrive (struct hardfiledata *hfd)
@@ -187,7 +207,7 @@ static int getsignfromhandle (HANDLE h, DWORD *sign, DWORD *pstyle)
 	return ok;
 }
 
-static int ismounted (const TCHAR *name, HANDLE hd)
+static int ismounted(const TCHAR *name, HANDLE hd, int *typep)
 {
 	HANDLE h;
 	TCHAR volname[MAX_DPATH];
@@ -196,13 +216,18 @@ static int ismounted (const TCHAR *name, HANDLE hd)
 
 	hfd_log2(_T("\n"));
 	hfd_log2(_T("Name='%s'\n"), name);
+	*typep = -1;
 	ret = getsignfromhandle(hd, &sign, &pstyle);
-	if (!ret)
+	if (!ret) {
 		return 0;
-	if (pstyle == PARTITION_STYLE_GPT)
+	}
+	*typep = pstyle;
+	if (pstyle == PARTITION_STYLE_GPT) {
 		return 2;
-	if (pstyle == PARTITION_STYLE_RAW)
+	}
+	if (pstyle == PARTITION_STYLE_RAW) {
 		return 0;
+	}
 	mounted = 0;
 	h = FindFirstVolume (volname, sizeof volname / sizeof (TCHAR));
 	while (h != INVALID_HANDLE_VALUE && !mounted) {
@@ -239,6 +264,7 @@ static int ismounted (const TCHAR *name, HANDLE hd)
 						if (ph != INVALID_HANDLE_VALUE) {
 							DWORD sign2;
 							if (getsignfromhandle (ph, &sign2, &pstyle)) {
+								*typep = pstyle;
 								if (sign == sign2 && pstyle == PARTITION_STYLE_MBR)
 									mounted = isntfs ? -1 : 1;
 							}
@@ -392,7 +418,8 @@ static int safetycheck (HANDLE h, const TCHAR *name, uae_u64 offset, uae_u8 *buf
 				return -7;
 			}
 		}
-		mounted = ismounted (name, h);
+		int ptype;
+		mounted = ismounted (name, h, &ptype);
 		if (!mounted) {
 			if (do_rdbdump > 1)
 				rdbdump (h, origoffset, NULL, blocksize);
@@ -406,11 +433,13 @@ static int safetycheck (HANDLE h, const TCHAR *name, uae_u64 offset, uae_u8 *buf
 		if (mounted > 1) {
 			return 3;
 		}
-		return -6;
-		//if (harddrive_dangerous == 0x1234dead)
-		//	return -6;
-		//write_log (_T("hd ignored, not empty and no RDB detected or Windows mounted\n"));
-		//return 0;
+		if (ptype == PARTITION_STYLE_GPT) {
+			return -11;
+		}
+		if (ptype == PARTITION_STYLE_MBR) {
+			return -6;
+		}
+		return -10;
 	}
 	if (do_rdbdump > 1)
 		rdbdump (h, origoffset, NULL, blocksize);
@@ -1713,7 +1742,10 @@ end:
 	xfree(text);
 }
 
-static bool getdeviceinfo (HANDLE hDevice, struct uae_driveinfo *udi)
+#define GUIDSTRINGLEN (8 + 1 + 4 + 1 + 4 + 1 + 4 + 1 + 12)
+
+
+static bool getdeviceinfo(HANDLE hDevice, struct uae_driveinfo *udi)
 {
 	DISK_GEOMETRY dg;
 	GET_LENGTH_INFORMATION gli;
@@ -1725,6 +1757,8 @@ static bool getdeviceinfo (HANDLE hDevice, struct uae_driveinfo *udi)
 	DWORD status;
 	TCHAR devname[MAX_DPATH];
 	int amipart = -1;
+	TCHAR amigaguids[1 + GUIDSTRINGLEN + 1 + 1];
+	GUID amigaguid = { 0 };
 
 	udi->bytespersector = 512;
 
@@ -1749,6 +1783,12 @@ static bool getdeviceinfo (HANDLE hDevice, struct uae_driveinfo *udi)
 				_tcscpy (devname, udi->device_name + 5);
 			}
 		}
+	}
+	if (n[0] == ':' && n[1] == 'G' && n[2] == 'P' && n[3] == '#' && n[4] == '{' && _tcslen(n) >= 4 + 1 + GUIDSTRINGLEN + 1 && n[5 + 1 + GUIDSTRINGLEN] == '}' && n[5 + 1 + GUIDSTRINGLEN + 1] == '_') {
+		memcpy(amigaguids, n + 4, (1 + GUIDSTRINGLEN + 1) * sizeof(TCHAR));
+		amigaguids[(1 + GUIDSTRINGLEN + 1) - 1] = 0;
+		guidfromstring(amigaguids, &amigaguid);
+		_tcscpy(devname, n + 4 + 1 + GUIDSTRINGLEN + 1 + 1);
 	}
 
 	//queryidentifydevice(hDevice);
@@ -1834,24 +1874,34 @@ static bool getdeviceinfo (HANDLE hDevice, struct uae_driveinfo *udi)
 	if (!status)
 		return true;
 	dli = (DRIVE_LAYOUT_INFORMATION_EX*)outBuf;
-	if (!dli->PartitionCount || dli->PartitionStyle != PARTITION_STYLE_MBR)
+	if (!dli->PartitionCount)
 		return true;
-	bool partfound = false;
-	for (int i = 0; i < dli->PartitionCount; i++) {
-		PARTITION_INFORMATION_EX *pi = &dli->PartitionEntry[i];
-		if (pi->Mbr.PartitionType == PARTITION_ENTRY_UNUSED)
-			continue;
-		if (pi->Mbr.RecognizedPartition == 0)
-			continue;
-		if (pi->Mbr.PartitionType != 0x76 && pi->Mbr.PartitionType != 0x30)
-			continue;
-		if (i == amipart) {
-			udi->offset = pi->StartingOffset.QuadPart;
-			udi->size = pi->PartitionLength.QuadPart;
+	if (dli->PartitionStyle == PARTITION_STYLE_MBR) {
+		for (int i = 0; i < dli->PartitionCount; i++) {
+			PARTITION_INFORMATION_EX *pi = &dli->PartitionEntry[i];
+			if (pi->Mbr.PartitionType == PARTITION_ENTRY_UNUSED)
+				continue;
+			if (pi->Mbr.RecognizedPartition == 0)
+				continue;
+			if (pi->Mbr.PartitionType != 0x76 && pi->Mbr.PartitionType != 0x30)
+				continue;
+			if (i == amipart) {
+				udi->offset = pi->StartingOffset.QuadPart;
+				udi->size = pi->PartitionLength.QuadPart;
+				return false;
+			}
+		}
+	} else if (dli->PartitionStyle == PARTITION_STYLE_GPT) {
+		for (int i = 0; i < dli->PartitionCount; i++) {
+			PARTITION_INFORMATION_EX *pi = &dli->PartitionEntry[i];
+			if (!memcmp(&pi->Gpt.PartitionType, &PARTITION_GPT_AMIGA, sizeof(GUID)) &&
+				!memcmp(&pi->Gpt.PartitionId, &amigaguid, sizeof(GUID))) {
+				udi->offset = pi->StartingOffset.QuadPart;
+				udi->size = pi->PartitionLength.QuadPart;
+				return false;
+			}
 		}
 	}
-	if (amipart >= 0)
-		return false;
 	return true;
 }
 
@@ -2620,7 +2670,8 @@ static int hdf_write_2(struct hardfiledata *hfd, void *buffer, uae_u64 offset, i
 		if (offset == 0) {
 			if (!hfd->handle->firstwrite && (hfd->flags & HFD_FLAGS_REALDRIVE) && !(hfd->flags & HFD_FLAGS_REALDRIVEPARTITION)) {
 				hfd->handle->firstwrite = true;
-				if (ismounted (hfd->ci.devname, hfd->handle->h)) {
+				int ptype;
+				if (ismounted (hfd->ci.devname, hfd->handle->h, &ptype)) {
 					gui_message (_T("\"%s\"\n\nBlock zero write attempt but drive has one or more mounted PC partitions or WinUAE does not have Administrator privileges. Erase the drive or unmount all PC partitions first."), name);
 					hfd->ci.readonly = true;
 					*error = 45;
@@ -3079,14 +3130,17 @@ static BOOL GetDevicePropertyFromName(const TCHAR *DevicePath, DWORD Index, DWOR
 		if (status) {
 			dli = (DRIVE_LAYOUT_INFORMATION_EX *)outBuf;
 			if (dli->PartitionCount && dli->PartitionStyle == PARTITION_STYLE_MBR) {
-				//udi->dangerous = -10;
-				//udi->readonly = -1;
 				write_log("MBR but access denied\n");
 				ret = 1;
 				goto end;
 			}
+			if (dli->PartitionCount && dli->PartitionStyle == PARTITION_STYLE_GPT) {
+				write_log("GPT but access denied\n");
+				ret = 1;
+				goto end;
+			}
 		}
-		write_log("skipped, GPT drive\n");
+		write_log("skipped, unsupported drive\n");
 		udiindex = -1;
 		ret = 1;
 		goto end;
@@ -3195,6 +3249,43 @@ static BOOL GetDevicePropertyFromName(const TCHAR *DevicePath, DWORD Index, DWOR
 			} else if (safepart) {
 				goto amipartfound; /* ugly but bleh.. */
 			}
+		} else if (dli->PartitionCount && dli->PartitionStyle == PARTITION_STYLE_GPT) {
+			int nonzeropart = 0;
+			int gotpart = 0;
+			int safepart = 0;
+			write_log(_T("%d GPT partitions found\n"), dli->PartitionCount);
+			for (i = 0; i < dli->PartitionCount && (*index2) < MAX_FILESYSTEM_UNITS; i++) {
+				PARTITION_INFORMATION_EX *pi = &dli->PartitionEntry[i];
+				nonzeropart++;
+				if (pi->Gpt.PartitionType == PARTITION_GPT_AMIGA) {
+					udi++;
+					(*index2)++;
+					memmove(udi, udi2, sizeof(*udi));
+					udi->device_name[0] = 0;
+					udi->offset = pi->StartingOffset.QuadPart;
+					udi->size = pi->PartitionLength.QuadPart;
+					_stprintf(udi->device_name, _T(":GP#%08x_%04x_%04x_%02x%02x_%02x%02x%02x%02x%02x%02x_%s"),
+						pi->Gpt.PartitionId.Data1, pi->Gpt.PartitionId.Data2, pi->Gpt.PartitionId.Data3,
+						pi->Gpt.PartitionId.Data4[0], pi->Gpt.PartitionId.Data4[1], pi->Gpt.PartitionId.Data4[2], pi->Gpt.PartitionId.Data4[3],
+						pi->Gpt.PartitionId.Data4[4], pi->Gpt.PartitionId.Data4[5], pi->Gpt.PartitionId.Data4[6], pi->Gpt.PartitionId.Data4[7],
+						pi->Gpt.Name);
+					_stprintf(udi->device_full_path, _T("%s:%s"), udi->device_name, udi->device_path);
+					checkhdname(udi);
+					udi->dangerous = -5;
+					udi->partitiondrive = true;
+					safepart = 1;
+				}
+			}
+			if (!nonzeropart) {
+				write_log(_T("empty GPT partition table detected\n"));
+				goto end;
+			} else if (!gotpart) {
+				write_log(_T("non-empty GPT partition table detected, no supported partition GUIDs found\n"));
+				goto end;
+			} else if (safepart) {
+				goto amipartfound;
+			}
+
 		} else {
 			write_log (_T("no MBR partition table detected, checking for RDB\n"));
 		}
@@ -3428,6 +3519,9 @@ TCHAR *hdf_getnameharddrive (int index, int flags, int *sectorsize, int *dangero
 		*dangerousdrive = 0;
 	switch (udi->dangerous)
 	{
+	case -11:
+		dang = _T("[GPT]");
+		break;
 	case -10:
 		dang = _T("[???]");
 		noaccess = true;

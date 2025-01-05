@@ -65,6 +65,7 @@
 #endif
 #include "draco.h"
 #include "dsp3210/dsp_glue.h"
+#include "keyboard_mcu.h"
 
 #define MAX_DEVICE_ITEMS 64
 
@@ -197,7 +198,7 @@ void devices_reset(int hardreset)
 	rtarea_reset();
 #endif
 	DISK_reset();
-	CIA_reset();
+	CIA_reset(hardreset);
 	a1000_reset();
 #ifdef JIT
 	compemu_reset();
@@ -243,6 +244,9 @@ void devices_reset(int hardreset)
 #ifdef RETROPLATFORM
 	rp_reset();
 #endif
+	keymcu_reset();
+	keymcu2_reset();
+	keymcu3_reset();
 	uae_int_requested = 0;
 }
 
@@ -357,6 +361,9 @@ void virtualdevice_free(void)
 #ifdef WITH_DRACO
 	draco_free();
 #endif
+	keymcu_free();
+	keymcu2_free();
+	keymcu3_free();
 	execute_device_items(device_leaves, device_leave_cnt);
 }
 
@@ -418,6 +425,9 @@ void virtualdevice_init (void)
 #ifdef WITH_DRACO
 	draco_init();
 #endif
+	keymcu_init();
+	keymcu2_init();
+	keymcu3_init();
 }
 
 void devices_restore_start(void)
@@ -425,7 +435,6 @@ void devices_restore_start(void)
 	restore_audio_start();
 	restore_cia_start();
 	restore_blkdev_start();
-	restore_blitter_start();
 	restore_custom_start();
 	changed_prefs.bogomem.size = 0;
 	changed_prefs.chipmem.size = 0;

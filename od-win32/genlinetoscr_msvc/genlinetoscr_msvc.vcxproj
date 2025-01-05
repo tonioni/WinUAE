@@ -116,8 +116,8 @@
       <TargetMachine>MachineX86</TargetMachine>
     </Link>
     <PostBuildEvent>
-      <Message>generating linetoscr.c</Message>
-      <Command>genlinetoscr.exe &gt;..\..\linetoscr.cpp
+      <Message>generating linetoscr.cpp</Message>
+      <Command>genlinetoscr.exe
 del genlinetoscr.exe
 </Command>
     </PostBuildEvent>
@@ -190,8 +190,8 @@ del genlinetoscr.exe
       <TargetMachine>MachineX86</TargetMachine>
     </Link>
     <PostBuildEvent>
-      <Message>generating linetoscr.c</Message>
-      <Command>genlinetoscr.exe &gt;..\..\linetoscr.cpp
+      <Message>generating linetoscr.cpp</Message>
+      <Command>genlinetoscr.exe
 del genlinetoscr.exe
 </Command>
     </PostBuildEvent>
@@ -226,8 +226,10 @@ del genlinetoscr.exe
       <TargetMachine>MachineX86</TargetMachine>
     </Link>
     <PostBuildEvent>
-      <Message>generating linetoscr.c</Message>
-      <Command>genlinetoscr.exe &gt;..\..\linetoscr.c</Command>
+      <Message>generating linetoscr.cpp</Message>
+      <Command>genlinetoscr.exe
+del genlinetoscr.exe
+</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>

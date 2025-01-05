@@ -1,4 +1,133 @@
 
+Beta 1:
+
+IMPORTANT NOTE
+
+This version is currently optimized for accuracy and compatibility, not for fast CPU modes. Fast CPU modes do work but they aren't nearly as fast they were before. Current version is not meant for WB only use.
+
+- All native chipset mode lines are always fully drawn. Optimization that skips unmodifed lines will be added later. (Maybe. These kinds of optimizations require lots of dynamic data variables which might not help much and also can make it much worse). Current plan is to draw lines without side-effects (no copper active etc) using line based "direct from chipram" mode which should be good enough for fast native mode WB usage. In other words: this version is slower, especially in fast CPU modes, at least for now.
+- Remove interlace artifacts is not working. Make sure it is disabled.
+- Host CPU requirement bumped to AVX2 (~2015+ CPUs). This is just arbitrary decision to cut off "too old" CPUs for now until things get better. Speed is not that relevant at this point. Non-AVX version might be also available when/if automated builds are added later.
+- Subpixel checkbox in Chipset panel does nothing. It is now always internally emulated.
+- Final version release estimate: summer 2025 or maybe even later.
+
+UPDATES
+
+Chipset (common):
+
+- All custom chipset emulation hacks removed most of old custom emulation code removed and replaced with completely new code which is much simpler and easier to understand, works more closely like real HW. Some signals are emulated in almost logic gate level. Based on Alice schematics.
+- Internal RGA pipeline is fully emulated.
+- Agnus and Denise emulation separated, data transfer via emulated external RGA bus. Strobe registers used for chip syncronization like on real HW. No more shortcuts.
+- Hardwired DMA slot selection (refresh, disk, audio, sprites) shift register chain is accurately emulated.
+- DMA conflicts accurately emulated, without hacks.
+
+Display/bitplanes/sprites/copper:
+
+- Horizontal and vertical blanking and sync start/end, csync, csync equalization pulses, etc are now fully cycle-accurately emulated, both hardwired and programmed. Mixing of hardwired and programmed is fully supported too. Sync generator part is almost logic gate level emulated.
+- VPOSW/VHPOSW on the fly modifications fully supported, all old limits are gone. (Ross special screen modes! For example screenmode where all displayable lines are same Agnus vertical line repeated as many time as there is visible lines or mode where hardwired blanking is disabled, allowed much wider display than normally which is still PAL compatible. Yes, similar to C64, Amiga's hardwired "borders" can be also opened with cycle-accurate CPU timing))
+- "virtual" and real Agnus/Alice vertical and horizontal counters are now fully separate, display emulation now works correctly even if Agnus vertical or horizontal is moved backwards or forwards or anywhere (even outside of normal display range), unlimited times per line and/or field.
+- All screenmodes (including "Fake" NTSC or similar mode) now count total number of "virtual" lines and uses it to setup display height. These modes now work even if they do multiple VPOSW modifications.
+- Interlace is now detected if last 4 fields are LONG/SHORT/LONG/SHORT or SHORT/LONG/SHORT/LONG. Must check last 4 to prevent random or KS boot short to long field change detected as interlace mode.
+- LOF or LACE hardware bits are not used for interlace short/long field detection anymore. Now VSYNC start position (relative to HSYNC/HCENTER) is used to detect LONG or SHORT frame type (like real displays). It is possible to create valid interlace mode with tricky VPOSW writes (or less tricky if ECS and using programed mode registers) without ever modifying LOF bit.
+- Full AGA hires/shres bitplane and sprite horizontal granularity support. Separate subpixel mode does not exist anymore.
+- ECS Agnus/AGA UHRES bitplane and sprite RGA DMA slots (0x78, 0x7a) emulated. (Useless feature but because they can steal cycles from copper, blitter and CPU, this needs to be emulated)
+- COPJMP1/2 loaded new address 1 CCK too late. (Only makes difference if something does COPJMPx and then immediately writes to COPxLCx)
+- CPU odd cycle COPJMP + blitter active conflict didn't work correctly if COPJMP was immediately followed by previously requested copper move.
+- Added A1000 models (EHB Denise and non-EHB Denise) to Chipset panel. Also renamed existing entries.
+- BPL1DAT write enables bitplanes 1 lores pixel earlier than BPLxDAT copy (OCS/ECS). AGA does it 1 hires pixel earlier.
+- Mid screen BPLCON0 lores->hires change updates BPLCON1 Denise horizontal counter matching after extra 0.5CCK delay (ECS Denise) or 1CCK delay (OCS Denise). Hires to lores change does not have extra delay. AGA does not have any extra delays. This is not emulated fully. Internal interleaved shifter side-effects are not emulated. (Seems to be almost impossible to implement without Denise schematics, glitches that can happen are really strange)
+
+NTSC/STRLONG: (This feature was a pain to emulate, normally invisible and does not really need to be emulated, even in NTSC, but you can write to STRLONG while in PAL mode and get horizontal 1 lores pixel shift and some glitches in right edge of screen, so it had to be emulated too)
+
+- NTSC LOL (long line) state is accurately emulated. Mismatched STRLONG strobe and LOL state now causes correct lores pixel wide horizontal shift. (Mismatched = for example manually writing to STRLONG when line is not long)
+- NTSC A1000 and OCS Agnus versions have undocumented feature: any access to VPOSW resets (hidden internal) LOL bit. ECS/AGA has same feature but LOL bit is not internal-only anymore.
+- STRLONG behavior changed slightly between all chip versions (A1000/OCS/ECS/AGA). A1000/OCS Denise does it when hblank starts, causing visible sawtooth pattern at hblank start (A1000 and OCS has 1 lores pixel difference in sawtooth pattern), ECS Denise does it 2 lores pixel earlier, causing alternating doubled lores pixel/missing lores pixel pattern just before hblank. AGA: is similar to ECS but has 1 shres pixel offset. (AGA and its annoying shres pixel offsets here and there. Argh!)
+
+Blitter:
+
+- Blitter channel sequencer should be now 100% accurate (except possible line to non-line switch mid operation). Blitter "micro-operation" timings are not yet 100% = when exactly to apply A shift, when B shift, when A/B/C should handled internally etc. This will be tested and implemented in the future. (Only affects blitter result if BLTxDAT/shifts/etc are modified mid-blit. Channel enable/fill mode/desc/minterm changes should be already fully accurate)
+- Blitter block mode D channel scheduler logic now matches real behavior (D gets "armed" 2 CCKs after shifter bit goes out and then any following free blitter cycle is used for D, there is no single and simple "D SELECTED" state). "Final D" write scheduling is now also accurately emulated. Previously unknown condition is also emulated: with 2 or more bits in scheduler shifter, there can be extra second "Final D" write after blit has already ended.
+- When blitter has more than 1 bit rotating in scheduler shift register (BLTCON0 channel enable bits got modified while blitter was running) and multiple channels are selected at the same time, resulting channel is AND of RGA address (ABC only, D is only allowed if all other channels are not active at the same time and also bit must not be in A position even if A is disabled). Previously selection was based on channel order which was wrong, and line mode didn't have any handling for multiple selects at the same time.
+- If BLTxMOD write or BLTCON1 DESC is toggled and it is immediately followed by same channel DMA transfer, transfer uses old modulo value. (Like Bitplanes do but blitter was not previously updated to handle it). BLTxPT write 1 CCK before same channel DMA transfer (write gets ignored) special case was also unreliable.
+- BLTZERO is set when blitter gets next free cycle after BLTSIZE write. Timing is same as A1000 BLTBUSY bit set.
+
+CIA:
+
+- If CIA serial port data direction is changed (CRA OUTMODE toggled), serial port state is reset, possible pending transmit or receive is immediately aborted.
+
+Misc:
+
+- Host CPU requirement bumped to AVX2 (~2015+ CPUs). This might get lowered in the future but AVX2 has very useful looking instructions for future optimizations.
+- On the fly chipset type switching improved (For example AGA colors are now preserved, not all registers were preserved fully previously)
+- Even to odd bitplane collisions are now very simple and cheap to emulate. Collision mode default is now Full collision.
+- Ultra extreme debug mode now shows bitplane and sprite pixels fully inside horizontal and vertical blanking. Previously only background color was fully visible.
+- DMA debugger can be now viewed with Agnus lines or virtual lines ("v <x>" = agnus line line previously, "vv <x>" = virtual line). First virtual line is vsync start line.
+- DMA debugger now shows state of Denise horizontal counter (1 CCK = 2 Denise clocks, one Denise clock equals one lores pixel)
+- DMA debugger now shows current state of display related signals (syncs, blanks etc, see below)
+- DMA debugger blitter and bitlane modulo add cycles are marked with 'M'
+- Ignore all debugger breakpoints during quit/restart sequence.
+- If CPU reads byte from custom chipset space, full 16-bit word is shown in DMA debugger.
+- Debugger CIA dump now also includes PRA and PRB contents that include disk/serial/firebutton/etc state. (values inside []'s)
+- Visual DMA debugger always uses virtual lines.
+- Skip D3D frame rendering completely when in warp mode if frame gets skipped.
+- Added line count and type to bottom border status line (for example 313p or 625i), fully supports all weird modes.
+- 16-bit color option removed.
+- Serial port TCP/IP mode uses now TCP_NODELAY flag to reduce latency.
+- Fixed TekMagic onboard RAM config type.
+- One second reboot delay didn't activate when reset was done after emulation was started (possibly worked some versions ago)
+- If selected WASAPI sound channel mode is not supported, try all possible channel modes until supported is found, or until all combinations have been tested. Also if channel count needs changing from stereo to higher channel count (for example sound device only supports 6 or 8 CH modes internally), use 6/8 channel cloned stereo variant because user might only have stereo speakers.
+- Removing last sound device on the fly (for example USB sound card without enabled on-board sound device) crashed in WASAPI mode.
+- Config file only statefile_path=<path> can be used to have per-config file statefile paths. Overrides (but does not overwrite) Paths-panel entry.
+- Added Amiga GPT partition type (GUID={3F82EEBC-87C9-4097-8165-89D6540557C0}) support. Works the same as 0x76 partition type with MBR partitioned drives.
+- Debugger assembler didn't accept all MOVEM variants.
+- Added RIPPLE IDE controller emulation by Matt Harlum
+
+Keyboard low level emulation:
+
+- Optional hardware level keyboard emulation! (*). Odyssey / Alcatraz CAPS LOCK flashing is finally supported :)
+- Three variants emulated (all known?), CSG 6570-036 (used in almost all models except early A1000 keyboards and A1200), 68HC05C (used only in A1200) and D8039HLC which was used in some A2000 keyboards. All three are different 8-bit microcontrollers with small amount of ROM and RAM plus some IO ports, single timer and some other IO features.
+- 6570-036 is 6502 based, uses https://github.com/gianlucag/mos6502 CPU emulator. 2048 byte ROM. Early A1000 keyboard has same MCU but older code which does not prevent key ghosting and it seems to be not dumped yet.
+- 68HC05C is 6800 based, uses https://github.com/philpem/m68emu CPU emulator. ROM is about 8000 bytes. (Part of RAM is shadowed by IO/ROM)
+- D8039HLC is 8048 based, uses 8048 emulator included with Altirra (8-bit Atari and expansions) emulator. External 2048 byte (EP)ROM.
+- Keyboard behavior is now fully accurate, host keys are converted to simulated keyboard matrix, emulated MCU code reads the matrix and sends code serially to CIA serial port.
+- Keyboard now works like real keyboard, reset warning, possible lack of n-key rollover and other side-effects if programs do bad things with key handshake work accurately. Obviously your host PC keyboard should have full n-key rollover capability to get accurate emulated keyboard only key ghosting/jamming results.
+- One special effect is caps lock flashing, for example Odyssey / Alcatraz flashes it near the beginning of demo. It floods the poor MCU with huge amount of handshake pulses, each pulse causes interrupt request, result is that CPU has no time to do anything else than handle useless interrupts. After about 40ms external watchdog timer resets the CPU and reset code flashes the capslock led. Caps lock flashing trick does not work on D8039HLC because it does not have watchdog timer. Note that A1200 68HC05C resets whole Amiga when keyboard MCU resets..
+- If Advanced chipset panel Keyboard reset warning is ticked, KB MCU handles the reset sequence and reset is detected by checking if MCU keeps KCLK line low >500ms (like big box Amigas with 6570-036 and D8039HLC) or if TCMP pin is pulled down (A1200, 68HC05C). If it is not ticked, reset is generated immediately when reset keys are pressed (like A500 and A600 keyboards do).
+- Added caps lock OSD led (reddish/yellowish color). Note: caps lock is not synced with host caps lock state when in hardware keyboard emulation mode.
+- Statefile support implemented. (ROM is not saved with statefile)
+- if full emulation is enabled, statefile is loaded and statefile does not contain keyboard MCU state, MCU code is executed first in tight loop until keyboard is in idle state (init and init key codes sent) to not cause possible confusion. Statefile loaded program probably does not want extra key codes.
+- Added "Keyboard" to built-in expansions. It has two purposes (so far), allow selection of custom rom image and option to emulate keyboard faults (RAM/ROM/Watchdog) that keyboard MCU detects and flashes the capslock led.
+- Chipset panel "Keyboard connected" checkbox replaced with Keyboard mode ("Disconnected", "UAE keyboard" and list of different low level emulated keyboard models)
+
+*) There is story behind this. ross accidentally messed up keyboard handshake in one of his ross(tm) tests and it caused real A500 keyboard to partially stop responding. I didn't really care about it at this point but few months later it was tested again and weird keyboard behavior was narrowed down to simply "too long" handshake pulse. MCU ROM dump was disassembled and examined. My decision was to emulate it fully because this behavior, key code transfer timing (and caps lock flashing hack) is practically impossible to emulate accurately in high level. Found very easy to use 6502 emulator and it took about 2 days to implement. (Other MCUs were implemened few weeks later)
+
+MISC NOTES:
+
+DMA debugger new Denise/Lisa and Agnus/Alice rows:
+
+Denise/Lisa: WHVUB (W=Horizontal DIW, H = Horizontal blanking, V = Vertical blanking, U = Burst, B = BPL1DAT HDIW). NOTE: These are only filled when scanline is fully emulated. Partial scanlines only have question marks.
+Agnus/Alice: WBEE HVCHVCB (W=Vertical DIW, B = Internal BPRUN [becomes D if DDFSTOP passed condition], E = Internal VE, E = Internal P_VE (ECS/AGA only), HVC = Hardwired HSYNC/VSYNC/CSYNC followed by programmed HS/VS/CS, B = Programmed HBLANK)
+
+A1000 PAL Agnus is pseudo-PAL: line count and VB endline have been modified to PAL values (262/263 -> 312/313, 20->25), LOL toggle has been disabled but all other timings use NTSC values. This affects CSYNC output (wrong odd/even vsync state change positions, wrong equalization/serration pulses) but most 1980s "modern" PAL TVs handled it fine. This is now emulated in Ultra extreme debug (C).
+
+Only A1000 to OCS Agnus modifications seem to be:
+- Blitter busy bit fix. (BLTSIZE write sets BUSY immediately, originally BUSY was set when blitter got first free DMA slot)
+- Hardwired vertical vblank start moved from line 0 to last line. This is what moved VERTB interrupt from line 1 to line 0 but because fix was simple internal VB trigger line change (A1000 Agnus already had internal signals for both conditions), it also caused new side-effect: line 0 strobe become STRVBL (was STRHOR in A1000. ECS Agnus fixed it and it become STREQU) but because OCS Denise ignores STRVBL (Yes, illogical, isn't it? STREQU enables VB, STRHOR disables VB. Both STREQU and STRVBL enables VB if ECS Denise or AGA), line 0 is still last visible line if combined with A1000 or OCS Agnus. Last line is last visible line if ECS Agnus/AGA.
+
+TESTING EXAMPLES:
+
+- Old statefiles. Almost all of them should still work (some rare blitter special cases can't be handled anymore)
+- All usual badly coded demos (blitter modifications mid blit etc) should all work.
+- Sprite to sprite/sprite to bitplane/bitplane to bitplane collisions should all (still) work.
+
+NOTE: Always restart whole emulation between tests. Sometimes not all state gets fully reset when changing configuration. This will be fixed later.
+
+Big thanks to:
+
+Ross: special cycle-accurate CPU STOP synced tests.
+Individual Computers: Keyboard MCU 68HC05c and D8039HLC ROM dumps (and hopefully 6800-1 dump will appear soonish) and donating 8370 and 8361 NTSC Agnus versions.
+
+
 5.3.1
 
 This is quick 5.3.1 beta series, normal update to 5.3.0. You might have heard that I have started rewriting (almost) whole custom chipset emulation few months ago. This isn't it. Still work to do, it isn't that useful in fast CPU modes yet.

@@ -2294,6 +2294,9 @@ int target_cfgfile_load (struct uae_prefs *p, const TCHAR *filename, int type, i
 	TCHAR tmp1[MAX_DPATH], tmp2[MAX_DPATH];
 	TCHAR fname[MAX_DPATH], cname[MAX_DPATH];
 
+	if (isdefault) {
+		path_statefile[0] = 0;
+	}
 	error_log(NULL);
 	_tcscpy (fname, filename);
 	cname[0] = 0;
@@ -8193,6 +8196,17 @@ static void enable_for_chipsetdlg (HWND hDlg)
 	ew(hDlg, IDC_GENLOCKFILESELECT, genlock && (workprefs.genlock_image >= 6 || (workprefs.genlock_image >= 3 && workprefs.genlock_image < 5)) ? TRUE : FALSE);
 
 	ew(hDlg, IDC_MONITOREMU_MON, workprefs.monitoremu != 0);
+
+	if (workprefs.keyboard_mode == KB_UAE || workprefs.keyboard_mode == KB_A2000_8039) {
+		if (!workprefs.keyboard_nkro) {
+			workprefs.keyboard_nkro = true;
+			CheckDlgButton(hDlg, IDC_KEYBOARDNKRO, TRUE);
+		}
+		ew(hDlg, IDC_KEYBOARDNKRO, FALSE);
+	} else {
+		ew(hDlg, IDC_KEYBOARDNKRO, TRUE);
+	}
+
 }
 
 static const int fakerefreshrates[] = { 50, 60, 100, 120, 0 };
@@ -9213,28 +9227,35 @@ static void values_to_chipsetdlg (HWND hDlg)
 
 	switch(workprefs.chipset_mask)
 	{
-	case 0:
-		CheckRadioButton(hDlg, IDC_OCS, IDC_AGA, IDC_OCS + 0);
+	case CSMASK_A1000_NOEHB:
+		CheckRadioButton(hDlg, IDC_OCS, IDC_OCSA1000NOEHB, IDC_OCS + 6);
+		break;
+	case CSMASK_A1000:
+		CheckRadioButton(hDlg, IDC_OCS, IDC_OCSA1000, IDC_OCS + 5);
+		break;
+	case CSMASK_OCS:
+		CheckRadioButton(hDlg, IDC_OCS, IDC_OCSA1000, IDC_OCS + 0);
 		break;
 	case CSMASK_ECS_AGNUS:
-		CheckRadioButton(hDlg, IDC_OCS, IDC_AGA, IDC_OCS + 1);
+		CheckRadioButton(hDlg, IDC_OCS, IDC_OCSA1000, IDC_OCS + 1);
 		break;
 	case CSMASK_ECS_DENISE:
-		CheckRadioButton(hDlg, IDC_OCS, IDC_AGA, IDC_OCS + 2);
+		CheckRadioButton(hDlg, IDC_OCS, IDC_OCSA1000, IDC_OCS + 2);
 		break;
 	case CSMASK_ECS_AGNUS | CSMASK_ECS_DENISE:
-		CheckRadioButton(hDlg, IDC_OCS, IDC_AGA, IDC_OCS + 3);
+		CheckRadioButton(hDlg, IDC_OCS, IDC_OCSA1000, IDC_OCS + 3);
 		break;
 	case CSMASK_AGA:
 	case CSMASK_ECS_AGNUS | CSMASK_ECS_DENISE | CSMASK_AGA:
-		CheckRadioButton(hDlg, IDC_OCS, IDC_AGA, IDC_OCS + 4);
+		CheckRadioButton(hDlg, IDC_OCS, IDC_OCSA1000, IDC_OCS + 4);
 		break;
 	}
 	CheckDlgButton(hDlg, IDC_NTSC, workprefs.ntscmode);
 	CheckDlgButton(hDlg, IDC_GENLOCK, workprefs.genlock);
 	CheckDlgButton(hDlg, IDC_BLITIMM, workprefs.immediate_blits);
 	CheckDlgButton(hDlg, IDC_BLITWAIT, workprefs.waiting_blits);
-	CheckDlgButton(hDlg, IDC_KEYBOARD_CONNECTED, workprefs.keyboard_connected);
+	CheckDlgButton(hDlg, IDC_KEYBOARDNKRO, workprefs.keyboard_nkro);
+	xSendDlgItemMessage(hDlg, IDC_KEYBOARDMODE, CB_SETCURSEL, workprefs.keyboard_mode + 1, 0);
 	CheckDlgButton(hDlg, IDC_SUBPIXEL, workprefs.chipset_hr);
 	xSendDlgItemMessage(hDlg, IDC_CS_HVCSYNC, CB_SETCURSEL, workprefs.cs_hvcsync, 0);
 
@@ -9266,7 +9287,11 @@ static void values_from_chipsetdlg (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 	workprefs.immediate_blits = ischecked (hDlg, IDC_BLITIMM);
 	workprefs.waiting_blits = ischecked (hDlg, IDC_BLITWAIT) ? 1 : 0;
 	workprefs.chipset_hr = ischecked(hDlg, IDC_SUBPIXEL);
-	workprefs.keyboard_connected = ischecked(hDlg, IDC_KEYBOARD_CONNECTED) ? 1 : 0;
+	workprefs.keyboard_nkro = ischecked(hDlg, IDC_KEYBOARDNKRO);
+	nn = xSendDlgItemMessage(hDlg, IDC_KEYBOARDMODE, CB_GETCURSEL, 0, 0);
+	if (nn != CB_ERR) {
+		workprefs.keyboard_mode = nn - 1;
+	}
 	int val = xSendDlgItemMessage(hDlg, IDC_CS_HVCSYNC, CB_GETCURSEL, 0, 0L);
 	if (val != CB_ERR)
 		workprefs.cs_hvcsync = val;
@@ -9315,14 +9340,17 @@ static void values_from_chipsetdlg (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 		}
 	}
 
-	workprefs.collision_level = ischecked (hDlg, IDC_COLLISION0) ? 0
-		: ischecked (hDlg, IDC_COLLISION1) ? 1
-		: ischecked (hDlg, IDC_COLLISION2) ? 2 : 3;
-	workprefs.chipset_mask = ischecked (hDlg, IDC_OCS) ? 0
-		: ischecked (hDlg, IDC_ECS_AGNUS) ? CSMASK_ECS_AGNUS
-		: ischecked (hDlg, IDC_ECS_DENISE) ? CSMASK_ECS_DENISE
-		: ischecked (hDlg, IDC_ECS) ? CSMASK_ECS_AGNUS | CSMASK_ECS_DENISE
+	workprefs.collision_level = ischecked(hDlg, IDC_COLLISION0) ? 0
+		: ischecked(hDlg, IDC_COLLISION1) ? 1
+		: ischecked(hDlg, IDC_COLLISION2) ? 2 : 3;
+	workprefs.chipset_mask = ischecked(hDlg, IDC_OCS) ? CSMASK_OCS
+		: ischecked(hDlg, IDC_OCSA1000NOEHB) ? CSMASK_A1000_NOEHB
+		: ischecked(hDlg, IDC_OCSA1000) ? CSMASK_A1000
+		: ischecked(hDlg, IDC_ECS_AGNUS) ? CSMASK_ECS_AGNUS
+		: ischecked(hDlg, IDC_ECS_DENISE) ? CSMASK_ECS_DENISE
+		: ischecked(hDlg, IDC_ECS) ? CSMASK_ECS_AGNUS | CSMASK_ECS_DENISE
 		: CSMASK_AGA | CSMASK_ECS_AGNUS | CSMASK_ECS_DENISE;
+
 	n1 = ischecked (hDlg, IDC_NTSC);
 	if (workprefs.ntscmode != n1) {
 		workprefs.ntscmode = n1;
@@ -9367,6 +9395,13 @@ static void setgenlock(HWND hDlg)
 	}
 }
 
+static void appendkbmcurom(TCHAR *s, bool hasrom)
+{
+	if (!hasrom) {
+		_tcscat(s, _T(" [ROM not found]"));
+	}
+}
+
 static INT_PTR CALLBACK ChipsetDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
 	static int recursive = 0;
@@ -9383,6 +9418,38 @@ static INT_PTR CALLBACK ChipsetDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPAR
 	{
 		pages[CHIPSET_ID] = hDlg;
 		currentpage = CHIPSET_ID;
+		int ids1[] = { 321, -1 };
+		int ids2[] = { 322, -1 };
+		int ids3[] = { 323, -1 };
+		struct romlist *has65001 = NULL;
+		struct romlist *has657036 = getromlistbyids(ids1, NULL);
+		struct romlist *has6805 = getromlistbyids(ids2, NULL);
+		struct romlist *has8039 = getromlistbyids(ids3, NULL);
+
+		xSendDlgItemMessage(hDlg, IDC_KEYBOARDMODE, CB_RESETCONTENT, 0, 0);
+		xSendDlgItemMessage(hDlg, IDC_KEYBOARDMODE, CB_ADDSTRING, 0, (LPARAM)_T("Keyboard disconnected"));
+		xSendDlgItemMessage(hDlg, IDC_KEYBOARDMODE, CB_ADDSTRING, 0, (LPARAM)_T("UAE High level emulation"));
+		_tcscpy(tmp, _T("A500 / A500 + (6570 - 036 MCU)"));
+		appendkbmcurom(tmp, has657036);
+		xSendDlgItemMessage(hDlg, IDC_KEYBOARDMODE, CB_ADDSTRING, 0, tmp);
+		_tcscpy(tmp, _T("A600(6570 - 036 MCU)"));
+		appendkbmcurom(tmp, has657036);
+		xSendDlgItemMessage(hDlg, IDC_KEYBOARDMODE, CB_ADDSTRING, 0, tmp);
+		_tcscpy(tmp, _T("A1000 (6500-1 MCU. ROM not yet dumped)"));
+		appendkbmcurom(tmp, has65001);
+		xSendDlgItemMessage(hDlg, IDC_KEYBOARDMODE, CB_ADDSTRING, 0, tmp);
+		_tcscpy(tmp, _T("A1000 (6570-036 MCU)"));
+		appendkbmcurom(tmp, has657036);
+		xSendDlgItemMessage(hDlg, IDC_KEYBOARDMODE, CB_ADDSTRING, 0, tmp);
+		_tcscpy(tmp, _T("A1200 (68HC05C MCU)"));
+		appendkbmcurom(tmp, has6805);
+		xSendDlgItemMessage(hDlg, IDC_KEYBOARDMODE, CB_ADDSTRING, 0, tmp);
+		_tcscpy(tmp, _T("A2000 (Cherry, 8039 MCU)"));
+		appendkbmcurom(tmp, has8039);
+		xSendDlgItemMessage(hDlg, IDC_KEYBOARDMODE, CB_ADDSTRING, 0, tmp);
+		_tcscpy(tmp, _T("A2000/A3000/A4000 (6570-036 MCU)"));
+		appendkbmcurom(tmp, has657036);
+		xSendDlgItemMessage(hDlg, IDC_KEYBOARDMODE, CB_ADDSTRING, 0, tmp);
 
 		xSendDlgItemMessage(hDlg, IDC_CS_EXT, CB_RESETCONTENT, 0, 0);
 		xSendDlgItemMessage(hDlg, IDC_CS_EXT, CB_ADDSTRING, 0, (LPARAM)_T("Custom"));
@@ -23870,14 +23937,17 @@ void gui_flicker_led (int led, int unitnum, int status)
 	}
 }
 
-void gui_fps (int fps, int idle, int color)
+void gui_fps (int fps, int lines, bool lace, int idle, int color)
 {
 	gui_data.fps = fps;
+	gui_data.lines = lines;
+	gui_data.lace = lace;
 	gui_data.idle = idle;
 	gui_data.fps_color = color;
-	gui_led (LED_FPS, 0, -1);
-	gui_led (LED_CPU, 0, -1);
-	gui_led (LED_SND, (gui_data.sndbuf_status > 1 || gui_data.sndbuf_status < 0) ? 0 : 1, -1);
+	gui_led(LED_FPS, 0, -1);
+	gui_led(LED_LINES, 0, -1);
+	gui_led(LED_CPU, 0, -1);
+	gui_led(LED_SND, (gui_data.sndbuf_status > 1 || gui_data.sndbuf_status < 0) ? 0 : 1, -1);
 }
 
 #define LED_STRING_WIDTH 40
@@ -23912,7 +23982,7 @@ void gui_led (int led, int on, int brightness)
 		return;
 	tt = NULL;
 	if (led >= LED_DF0 && led <= LED_DF3) {
-		pos = 7 + (led - LED_DF0);
+		pos = 9 + (led - LED_DF0);
 		ptr = drive_text + pos * LED_STRING_WIDTH;
 		if (gui_data.drives[led - 1].drive_disabled)
 			_tcscpy (ptr, _T(""));
@@ -23937,17 +24007,21 @@ void gui_led (int led, int on, int brightness)
 		if (gui_data.drives[led - 1].floppy_protected)
 			writeprotected = 1;
 	} else if (led == LED_POWER) {
-		pos = 3;
+		pos = 4;
 		ptr = _tcscpy(drive_text + pos * LED_STRING_WIDTH, _T("Power"));
 		center = 1;
+	} else if (led == LED_CAPS) {
+		pos = 5;
+		ptr = _tcscpy(drive_text + pos * LED_STRING_WIDTH, _T("Caps"));
+		center = 1;
 	} else if (led == LED_HD) {
-		pos = 4;
+		pos = 7;
 		ptr = _tcscpy(drive_text + pos * LED_STRING_WIDTH, _T("HD"));
 		center = 1;
 		if (on > 1)
 			writing = 1;
 	} else if (led == LED_CD) {
-		pos = 5;
+		pos = 6;
 		ptr = _tcscpy(drive_text + pos * LED_STRING_WIDTH, _T("CD"));
 		center = 1;
 		if (on >= 0) {
@@ -23958,11 +24032,16 @@ void gui_led (int led, int on, int brightness)
 			on &= 1;
 		}
 	} else if (led == LED_NET) {
-		pos = 6;
+		pos = 8;
 		ptr = _tcscpy(drive_text + pos * LED_STRING_WIDTH, _T("N"));
 		center = 1;
 		if (on > 1)
 			writing = 1;
+	} else if (led == LED_LINES) {
+		pos = 3;
+		ptr = drive_text + pos * LED_STRING_WIDTH;
+		_stprintf(ptr, _T("%d%c"), gui_data.lines, gui_data.lace ? 'i' : 'p');
+		on = 1;
 	} else if (led == LED_FPS) {
 		float fps = gui_data.fps / 10.0f;
 		extern float p96vblank;
@@ -24052,7 +24131,7 @@ void gui_led (int led, int on, int brightness)
 			on = 0;
 		}
 	} else if (led == LED_MD) {
-		pos = 7 + 3;
+		pos = 9 + 3;
 		ptr = _tcscpy(drive_text + pos * LED_STRING_WIDTH, _T("NV"));
 	}
 

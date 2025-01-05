@@ -911,7 +911,7 @@ static WSADATA wsadata;
 static SOCKET serialsocket = INVALID_SOCKET;
 static SOCKET serialconn = INVALID_SOCKET;
 static PADDRINFOW socketinfo;
-static char socketaddr[sizeof SOCKADDR_INET];
+static char socketaddr[sizeof(SOCKADDR_INET)];
 static BOOL tcpserial;
 
 static bool tcp_is_connected (void)
@@ -928,8 +928,11 @@ static bool tcp_is_connected (void)
 		fd.fd_count = 1;
 		if (select (1, &fd, NULL, NULL, &tv)) {
 			serialconn = accept (serialsocket, (struct sockaddr*)socketaddr, &sa_len);
-			if (serialconn != INVALID_SOCKET)
+			if (serialconn != INVALID_SOCKET) {
 				write_log (_T("SERIAL_TCP: connection accepted\n"));
+				int opt = 1;
+				setsockopt(serialsocket, IPPROTO_TCP, TCP_NODELAY, (char*)&opt, sizeof(int));
+			}
 		}
 	}
 	return serialconn != INVALID_SOCKET;
@@ -1022,6 +1025,7 @@ static int opentcp (const TCHAR *sername)
 		write_log(_T("SERIAL_TCP: setsockopt(SO_REUSEADDR) failed, %s:%s: %d\n"), name, port, WSAGetLastError ());
 		goto end;
 	}
+	setsockopt(serialsocket, IPPROTO_TCP, TCP_NODELAY, (char*)&one, sizeof(int));
 
 	if (waitmode) {
 		while (tcp_is_connected () == false) {

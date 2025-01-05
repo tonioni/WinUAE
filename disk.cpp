@@ -5179,11 +5179,11 @@ uae_u16 disk_dmal(void)
 	return dmal;
 }
 
-uaecptr disk_getpt(void)
+uaecptr *disk_getpt(void)
 {
 	uaecptr pt = dskpt;
-	dskpt += 2;
-	return pt & ~1;
+	dskpt &= ~1;
+	return &dskpt;
 }
 
 void DSKPTH(uae_u16 v)

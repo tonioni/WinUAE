@@ -14,9 +14,9 @@
 
 #include "traps.h"
 
-#define UAEMAJOR 5
-#define UAEMINOR 3
-#define UAESUBREV 1
+#define UAEMAJOR 6
+#define UAEMINOR 0
+#define UAESUBREV 0
 
 #define MAX_AMIGADISPLAYS 4
 
@@ -495,6 +495,16 @@ struct monconfig
 	struct wh gfx_size_fs_xtra[GFX_SIZE_EXTRA_NUM];
 };
 
+#define KB_DISCONNECTED -1
+#define KB_UAE 0
+#define KB_A500_6570 1
+#define KB_A600_6570 2
+#define KB_A1000_6500 3
+#define KB_A1000_6570 4
+#define KB_A1200_6805 5
+#define KB_A2000_8039 6
+#define KB_Ax000_6570 7
+
 struct uae_prefs {
 
 	struct strlist *all_lines;
@@ -610,6 +620,7 @@ struct uae_prefs {
 	int gfx_overscanmode;
 	int gfx_monitorblankdelay;
 	int gfx_rotation;
+	uae_u32 gfx_bordercolor;
 
 	struct gfx_filterdata gf[3];
 
@@ -621,7 +632,9 @@ struct uae_prefs {
 	float blitter_speed_throttle;
 	unsigned int chipset_mask;
 	bool chipset_hr;
-	bool keyboard_connected;
+	bool display_calibration;
+	int keyboard_mode;
+	bool keyboard_nkro;
 	bool ntscmode;
 	bool genlock;
 	int genlock_image;
@@ -759,6 +772,7 @@ struct uae_prefs {
 	struct cdslot cdslots[MAX_TOTAL_SCSI_DEVICES];
 	TCHAR quitstatefile[MAX_DPATH];
 	TCHAR statefile[MAX_DPATH];
+	TCHAR statefile_path[MAX_DPATH];
 	TCHAR inprecfile[MAX_DPATH];
 	TCHAR trainerfile[MAX_DPATH];
 	bool inprec_autoplay;

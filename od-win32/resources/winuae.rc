@@ -2,8 +2,8 @@
 //
 #pragma code_page(65001)
 
-#include "winres.h"
 #include "resource.h"
+#include "winres.h"
 /////////////////////////////////////////////////////////////////////////////
 // English (United Kingdom) resources
 
@@ -749,57 +749,63 @@ IDD_CHIPSET DIALOGEX 0, 0, 396, 316
 STYLE DS_LOCALEDIT | DS_SETFONT | DS_3DLOOK | DS_CONTROL | WS_CHILD
 FONT 8, "MS Sans Serif", 0, 0, 0x0
 BEGIN
-    GROUPBOX        "Chipset",IDC_STATIC,1,5,212,151
-    CONTROL         "OCS [] Original chipset. A1000 and most A500s.",IDC_OCS,
-                    "Button",BS_AUTORADIOBUTTON | WS_GROUP | WS_TABSTOP,12,26,88,10
-    CONTROL         "ECS Agnus [] Enhanced chipset (ECS Agnus chip only). CDTV and later A500 and A2000 hardware revisions.",IDC_ECS_AGNUS,
-                    "Button",BS_AUTORADIOBUTTON | WS_TABSTOP,12,42,88,10
+    GROUPBOX        "Chipset",IDC_STATIC,1,5,214,118
+    CONTROL         "OCS Agnus + OCS Denise [] Most A500s and A2000s. Slightly updated A1000 chipset.",IDC_OCS,
+                    "Button",BS_AUTORADIOBUTTON | WS_GROUP | WS_TABSTOP,14,38,88,10
+    CONTROL         "ECS Agnus + OCS Denise [] Enhanced chipset (ECS Agnus chip only). CDTV and later A500 and A2000 hardware revisions.",IDC_ECS_AGNUS,
+                    "Button",BS_AUTORADIOBUTTON | WS_TABSTOP,14,54,88,10
     CONTROL         "Full ECS [] Full ECS chipset (ECS Agnus and ECS Denise chips). A500+, A600 and A3000.",IDC_ECS,
-                    "Button",BS_AUTORADIOBUTTON | WS_TABSTOP,12,58,88,10
+                    "Button",BS_AUTORADIOBUTTON | WS_TABSTOP,112,54,88,10
     CONTROL         "AGA [] Advanced Graphics Architecture chipset. A1200, A4000 and CD32.",IDC_AGA,
-                    "Button",BS_AUTORADIOBUTTON | WS_TABSTOP,114,26,86,10
-    CONTROL         "ECS Denise [] Enhanced chipset (ECS Denise chip only). Normally paired with ECS Agnus.",IDC_ECS_DENISE,
-                    "Button",BS_AUTORADIOBUTTON | WS_TABSTOP,114,42,86,10
+                    "Button",BS_AUTORADIOBUTTON | WS_TABSTOP,14,71,86,10
+    CONTROL         "OCS Agnus + ECS Denise [] Enhanced chipset (ECS Denise chip only). Normally paired with ECS Agnus.",IDC_ECS_DENISE,
+                    "Button",BS_AUTORADIOBUTTON | WS_TABSTOP,112,38,86,10
+    CONTROL         "A1000 [] Original A1000 chipset.",IDC_OCSA1000,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,112,23,88,10
+    CONTROL         "A1000 (No EHB) [] Original, early A1000 chipset. without EHB support.",IDC_OCSA1000NOEHB,
+                    "Button",BS_AUTORADIOBUTTON | WS_TABSTOP,14,23,88,10
     CONTROL         "NTSC [] North American and Japanese display standard, 60Hz refresh rate. Other countries use PAL (50Hz. display refresh rate)",IDC_NTSC,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,114,58,86,10
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,112,71,86,10
     CONTROL         "Cycle-exact (Full) [] The most compatible A500/A1200 emulation mode.",IDC_CYCLEEXACT,
-                    "Button",BS_AUTOCHECKBOX | BS_LEFT | WS_GROUP | WS_TABSTOP,12,79,194,10
-    CONTROL         "Cycle-exact (DMA/Memory accesses)",IDC_CYCLEEXACTMEMORY,
                     "Button",BS_AUTOCHECKBOX | BS_LEFT | WS_GROUP | WS_TABSTOP,12,92,194,10
-    RTEXT           "Chipset Extra:",IDC_STATIC,38,119,71,15,SS_CENTERIMAGE
-    COMBOBOX        IDC_CS_EXT,116,120,88,65,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
-    GROUPBOX        "Options",IDC_STATIC,221,4,173,154
-    CONTROL         "Keyboard connected",IDC_KEYBOARD_CONNECTED,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,234,17,150,10
-    CONTROL         "Subpixel display emulation",IDC_SUBPIXEL,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,234,31,150,10
+    CONTROL         "Cycle-exact (DMA/Memory accesses)",IDC_CYCLEEXACTMEMORY,
+                    "Button",BS_AUTOCHECKBOX | BS_LEFT | WS_GROUP | WS_TABSTOP,12,105,194,10
+    RTEXT           "Chipset Extra:",IDC_STATIC,226,65,61,15,SS_CENTERIMAGE
+    COMBOBOX        IDC_CS_EXT,295,65,88,65,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    GROUPBOX        "Options",IDC_STATIC,221,4,173,175
+    CONTROL         "Subpixel display emulation",IDC_SUBPIXEL,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,234,16,150,10
     CONTROL         "Immediate Blitter [] Faster but less compatible blitter emulation.",IDC_BLITIMM,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,234,45,150,10
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,234,28,150,10
     CONTROL         "Wait for Blitter [] Compatibility hack for programs that don't wait for the blitter correctly, causing graphics corruption if CPU is too fast.",IDC_BLITWAIT,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,234,57,150,10
-    LTEXT           "Monitor sync source:",IDC_STATIC,242,75,101,9
-    COMBOBOX        IDC_CS_HVCSYNC,237,90,147,75,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
-    LTEXT           "Video port display hardware:",IDC_STATIC,241,105,117,15,SS_CENTERIMAGE
-    COMBOBOX        IDC_MONITOREMU,237,123,147,65,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
-    LTEXT           "Monitor:",IDC_STATIC,240,139,68,15,SS_CENTERIMAGE,WS_EX_RIGHT
-    COMBOBOX        IDC_MONITOREMU_MON,319,141,65,65,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
-    GROUPBOX        "Collision Level",IDC_STATIC,1,161,393,48
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,234,40,150,10
+    LTEXT           "Monitor sync source:",IDC_STATIC,242,96,101,9
+    COMBOBOX        IDC_CS_HVCSYNC,237,108,147,75,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    LTEXT           "Video port display hardware:",IDC_STATIC,241,123,117,15,SS_CENTERIMAGE
+    COMBOBOX        IDC_MONITOREMU,237,141,147,65,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    LTEXT           "Monitor:",IDC_STATIC,240,157,68,15,SS_CENTERIMAGE,WS_EX_RIGHT
+    COMBOBOX        IDC_MONITOREMU_MON,319,159,65,65,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    GROUPBOX        "Collision Level",IDC_STATIC,1,180,393,48
     CONTROL         "None [] Collision hardware emulation disabled.",IDC_COLLISION0,
-                    "Button",BS_AUTORADIOBUTTON | WS_GROUP | WS_TABSTOP,47,177,101,10
+                    "Button",BS_AUTORADIOBUTTON | WS_GROUP | WS_TABSTOP,47,196,101,10
     CONTROL         "Sprites only [] Emulate only sprite vs. sprite collisions.",IDC_COLLISION1,
-                    "Button",BS_AUTORADIOBUTTON | WS_TABSTOP,47,192,101,10
+                    "Button",BS_AUTORADIOBUTTON | WS_TABSTOP,47,211,101,10
     CONTROL         "Sprites and Sprites vs. Playfield [] Recommended collision emulation level.",IDC_COLLISION2,
-                    "Button",BS_AUTORADIOBUTTON | WS_TABSTOP,182,177,181,10
+                    "Button",BS_AUTORADIOBUTTON | WS_TABSTOP,182,196,181,10
     CONTROL         "Full [] 100% collision hardware emulation. Only very few games need this option. Slowest.",IDC_COLLISION3,
-                    "Button",BS_AUTORADIOBUTTON | WS_TABSTOP,182,192,181,10
-    GROUPBOX        "Genlock",IDC_STATIC,0,215,393,85
+                    "Button",BS_AUTORADIOBUTTON | WS_TABSTOP,182,211,181,10
+    GROUPBOX        "Genlock",IDC_STATIC,0,229,393,85
     CONTROL         "Genlock connected [] Allow boot sequence to detect genlock.",IDC_GENLOCK,
-                    "Button",BS_AUTOCHECKBOX | BS_LEFT | WS_GROUP | WS_TABSTOP,13,231,109,10
-    COMBOBOX        IDC_GENLOCKMODE,129,229,192,65,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
-    COMBOBOX        IDC_GENLOCKMIX,330,229,54,65,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+                    "Button",BS_AUTOCHECKBOX | BS_LEFT | WS_GROUP | WS_TABSTOP,13,245,109,10
+    COMBOBOX        IDC_GENLOCKMODE,129,243,192,65,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        IDC_GENLOCKMIX,330,243,54,65,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
     CONTROL         "Include alpha channel in screenshots and video captures.",IDC_GENLOCK_ALPHA,
-                    "Button",BS_AUTOCHECKBOX | BS_LEFT | WS_GROUP | WS_TABSTOP,13,247,214,10
-    CONTROL         "Keep aspect ratio",IDC_GENLOCK_KEEP_ASPECT,"Button",BS_AUTOCHECKBOX | BS_LEFT | WS_GROUP | WS_TABSTOP,13,262,214,10
-    COMBOBOX        IDC_GENLOCKFILE,12,278,356,75,CBS_DROPDOWN | CBS_AUTOHSCROLL | WS_VSCROLL | WS_TABSTOP
-    PUSHBUTTON      "...",IDC_GENLOCKFILESELECT,375,277,10,15
+                    "Button",BS_AUTOCHECKBOX | BS_LEFT | WS_GROUP | WS_TABSTOP,13,261,214,10
+    CONTROL         "Keep aspect ratio",IDC_GENLOCK_KEEP_ASPECT,"Button",BS_AUTOCHECKBOX | BS_LEFT | WS_GROUP | WS_TABSTOP,13,276,214,10
+    COMBOBOX        IDC_GENLOCKFILE,12,292,356,75,CBS_DROPDOWN | CBS_AUTOHSCROLL | WS_VSCROLL | WS_TABSTOP
+    PUSHBUTTON      "...",IDC_GENLOCKFILESELECT,375,291,10,15
+    COMBOBOX        IDC_KEYBOARDMODE,12,142,191,65,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    CONTROL         "Keyboard N-key rollover [] Always emulate n-key rollover (no key ghosting or jamming when pressing multiple keys at the same time) even if selected emulated keyboard model does not support it.",IDC_KEYBOARDNKRO,
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,12,162,150,10
+    GROUPBOX        "Keyboard",IDC_STATIC,0,125,215,53
 END
 
 IDD_CHIPSET2 DIALOGEX 0, 0, 396, 316
@@ -1431,8 +1437,8 @@ END
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 5,3,1,0
- PRODUCTVERSION 5,3,1,0
+ FILEVERSION 6,0,0,0
+ PRODUCTVERSION 6,0,0,0
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -1448,12 +1454,12 @@ BEGIN
         BLOCK "040904b0"
         BEGIN
             VALUE "FileDescription", "WinUAE"
-            VALUE "FileVersion", "5.3.1.0"
+            VALUE "FileVersion", "6.0.0.0"
             VALUE "InternalName", "WinUAE"
             VALUE "LegalCopyright", "© 1996-2024 under the GNU Public License (GPL)"
             VALUE "OriginalFilename", "WinUAE.exe"
             VALUE "ProductName", "WinUAE"
-            VALUE "ProductVersion", "5.3.1.0"
+            VALUE "ProductVersion", "6.0.0.0"
         END
     END
     BLOCK "VarFileInfo"

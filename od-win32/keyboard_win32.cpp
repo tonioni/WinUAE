@@ -363,6 +363,10 @@ int getcapslock (void)
 	capstable[5] = host_scrolllockstate;
 	capstable[6] = 0;
 	capslockstate = inputdevice_synccapslock (capslockstate, capstable);
+	if (currprefs.keyboard_mode == 0) {
+		gui_data.capslock = host_capslockstate;
+		gui_led(LED_CAPS, gui_data.capslock, -1);
+	}
 	return capslockstate;
 }
 
@@ -585,15 +589,27 @@ void keyboard_settrans (void)
 
 int target_checkcapslock (int scancode, int *state)
 {
-	if (scancode != DIK_CAPITAL && scancode != DIK_NUMLOCK && scancode != DIK_SCROLL)
+	if (scancode != DIK_CAPITAL && scancode != DIK_NUMLOCK && scancode != DIK_SCROLL) {
 		return 0;
-	if (*state == 0)
+	}
+	if (currprefs.keyboard_mode > 0) {
+		return 1;
+	}
+	if (*state == 0) {
 		return -1;
-	if (scancode == DIK_CAPITAL)
+	}
+	if (scancode == DIK_CAPITAL) {
 		*state = host_capslockstate;
-	if (scancode == DIK_NUMLOCK)
+		if (gui_data.capslock != (host_capslockstate != 0)) {
+			gui_data.capslock = host_capslockstate;
+			gui_led(LED_CAPS, gui_data.capslock, -1);
+		}
+	}
+	if (scancode == DIK_NUMLOCK) {
 		*state = host_numlockstate;
-	if (scancode == DIK_SCROLL)
+	}
+	if (scancode == DIK_SCROLL) {
 		*state = host_scrolllockstate;
+	}
 	return 1;
 }

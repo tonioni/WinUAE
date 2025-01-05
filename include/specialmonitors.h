@@ -4,7 +4,6 @@
 #include "memory.h"
 
 bool emulate_specialmonitors(struct vidbuffer *src, struct vidbuffer *dst);
-bool emulate_specialmonitors_line(struct vidbuffer *src, struct vidbuffer *dst, int line);
 void specialmonitor_store_fmode(int vpos, int hpos, uae_u16 fmode);
 void specialmonitor_reset(void);
 bool specialmonitor_need_genlock(void);

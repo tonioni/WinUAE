@@ -528,7 +528,7 @@
 #define IDC_BLITIMM                     1174
 #define IDC_BLITWAIT                    1175
 #define IDC_LORES                       1176
-#define IDC_KEYBOARD_CONNECTED          1176
+#define IDC_KEYBOARDNKRO                1176
 #define IDC_RATE2BOX                    1177
 #define IDC_SUBPIXEL                    1177
 #define IDC_AUTORESOLUTIONSELECT        1178
@@ -810,8 +810,10 @@
 #define IDC_ECS_DENISE                  1522
 #define IDC_ECS                         1523
 #define IDC_AGA                         1524
-#define IDC_NTSC                        1525
-#define IDC_NOSPEED                     1527
+#define IDC_OCSA1000                    1525
+#define IDC_OCSA1000NOEHB               1526
+#define IDC_NOSPEED                     1526
+#define IDC_NTSC                        1527
 #define IDC_NOSOUND                     1528
 #define IDC_INACTIVE_NOSOUND            1528
 #define IDC_MIDI                        1529
@@ -1127,6 +1129,7 @@
 #define IDC_SOUND_OPENAL                1716
 #define IDC_MONITOREMU_MON              1716
 #define IDC_CS_CD32CD                   1717
+#define IDC_KEYBOARDMODE                1717
 #define IDC_CS_CD32C2P                  1718
 #define IDC_SOUND_PORTAUDIO             1718
 #define IDC_CS_CD32NVRAM                1719
