@@ -9429,10 +9429,10 @@ static INT_PTR CALLBACK ChipsetDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPAR
 		xSendDlgItemMessage(hDlg, IDC_KEYBOARDMODE, CB_RESETCONTENT, 0, 0);
 		xSendDlgItemMessage(hDlg, IDC_KEYBOARDMODE, CB_ADDSTRING, 0, (LPARAM)_T("Keyboard disconnected"));
 		xSendDlgItemMessage(hDlg, IDC_KEYBOARDMODE, CB_ADDSTRING, 0, (LPARAM)_T("UAE High level emulation"));
-		_tcscpy(tmp, _T("A500 / A500 + (6570 - 036 MCU)"));
+		_tcscpy(tmp, _T("A500 / A500+ (6570-036 MCU)"));
 		appendkbmcurom(tmp, has657036);
 		xSendDlgItemMessage(hDlg, IDC_KEYBOARDMODE, CB_ADDSTRING, 0, tmp);
-		_tcscpy(tmp, _T("A600(6570 - 036 MCU)"));
+		_tcscpy(tmp, _T("A600 (6570-036 MCU)"));
 		appendkbmcurom(tmp, has657036);
 		xSendDlgItemMessage(hDlg, IDC_KEYBOARDMODE, CB_ADDSTRING, 0, tmp);
 		_tcscpy(tmp, _T("A1000 (6500-1 MCU. ROM not yet dumped)"));
