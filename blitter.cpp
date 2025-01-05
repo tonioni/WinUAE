@@ -1923,6 +1923,7 @@ static void blitter_force_finish(bool state)
 void reset_blit(int bltcon)
 {
 	if (!blt_info.blit_queued) {
+		blitdesc = blt_info.bltcon1 & BLTDESC;
 		return;
 	}
 	if (bltcon) {
