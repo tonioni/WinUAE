@@ -1565,8 +1565,9 @@ void compute_framesync(void)
 	if (vidinfo->drawbuffer.extrawidth == -2 && ((new_beamcon0 & (BEAMCON0_VARVBEN | bemcon0_vsync_mask)) || currprefs.gfx_overscanmode >= OVERSCANMODE_EXTREME)) {
 		vidinfo->drawbuffer.extrawidth = -1;
 	}
-	int maxv = current_linear_vpos - (minfirstline > vsync_startline ? minfirstline - vsync_startline : 0);
-	vidinfo->drawbuffer.inheight = (maxv + 1) << vres2;
+	int mfl = minfirstline + 1;
+	int maxv = current_linear_vpos - (mfl > vsync_startline ? mfl - vsync_startline : 0);
+	vidinfo->drawbuffer.inheight = maxv << vres2;
 	vidinfo->drawbuffer.inheight2 = vidinfo->drawbuffer.inheight;
 	vidinfo->drawbuffer.inxoffset = 0;
 
