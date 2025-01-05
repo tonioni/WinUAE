@@ -1,4 +1,17 @@
 
+
+Beta 2:
+
+- Fixed 32-bit wide AGA sprite horizontally doubled image.
+- Fixed automatic scaling in AGA modes.
+- Fixed "HAM" mode with 4 or less planes. HAM previous pixel color variable was not reset correctly.
+- NTSC right edge artifact was incorrectly visible in left edge in normal overscan mode. Now it is only visible in Overscan+ and higher modes.
+- Doublescan modes that VGA autoswitched to superhires had random looking horizontal offset.
+- BLTCON1 write didn't update internal DESC bit, causing possible following BLTBDAT write to use previous blit's direction value when doing initial shift.
+- Fixed blitter statefile buffer overflow when saving.
+- Fixed strange window movement when clicking on title bar and keeping it pressed and "Automatically capture mouse when window is activated" was enabled.
+- Internal display buffer height was few pixels too tall, if window height was exactly same as visible display, bottom of window had black line and topmost line was missing.
+
 Beta 1:
 
 IMPORTANT NOTE

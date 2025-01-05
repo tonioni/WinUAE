@@ -8439,7 +8439,7 @@ uae_u8 *save_cycles(size_t *len, uae_u8 *dstptr)
 	if (dstptr)
 		dstbak = dst = dstptr;
 	else
-		dstbak = dst = xmalloc(uae_u8, 1000);
+		dstbak = dst = xmalloc(uae_u8, 128);
 	save_u32(1);
 	save_u32(CYCLE_UNIT);
 	save_u64(get_cycles());
