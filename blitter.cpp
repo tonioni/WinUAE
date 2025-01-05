@@ -2417,7 +2417,7 @@ uae_u8 *save_blitter(size_t *len, uae_u8 *dstptr, bool newstate)
 	if (dstptr) {
 		dstbak = dst = dstptr;
 	} else {
-		dstbak = dst = xmalloc(uae_u8, 16);
+		dstbak = dst = xmalloc(uae_u8, 1000);
 	}
 
 	if (blt_info.blit_main) {
