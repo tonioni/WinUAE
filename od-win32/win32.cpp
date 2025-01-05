@@ -1992,10 +1992,12 @@ static int inresizing;
 static int nSizingEdge;
 static POINT ptResizePos;
 static RECT rcResizeStartWindowRect;
+static BOOL inresizefirst;
 
 static void StartCustomResize(AmigaMonitor *mon, HWND hWindow, int nEdge, int x, int y)
 {
 	inresizing = TRUE;
+	inresizefirst = TRUE;
 	SetCapture(hWindow);
 	nSizingEdge = nEdge;
 	ptResizePos.x = x;
@@ -2055,8 +2057,13 @@ static void CustomResizeMouseMove(AmigaMonitor *mon, HWND hWindow)
 				h += dy;
 				break;
 			case -1:
-				x += dx;
-				y += dy;
+				if (inresizefirst) {
+					changed = false;
+					inresizefirst = FALSE;
+				} else {
+					x += dx;
+					y += dy;
+				}
 				break;
 			default:
 				changed = false;
