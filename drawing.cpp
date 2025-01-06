@@ -2503,7 +2503,7 @@ static void update_specials(void)
 	decode_specials = 0;
 	if (!aga_mode) {
 		// OCS/ECS feature if plf2pri>=5 and plane 5 bit is set: value is always 16 (SWIV scoreboard)
-		if (bplmode == CMODE_NORMAL && denise_planes >= 5 && plf2pri >= 5) {
+		if ((bplmode == CMODE_NORMAL || bplmode == CMODE_EXTRAHB || bplmode == CMODE_EXTRAHB_ECS_KILLEHB) && denise_planes >= 5 && plf2pri >= 5) {
 			decode_specials = 1;
 		}
 		// OCS/ECS DPF feature: if matching plf2pri>=5: value is always 0 (Running man / Scoopex logo)
