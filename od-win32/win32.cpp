@@ -5115,6 +5115,7 @@ void fetch_statefilepath(TCHAR *out, int size)
 {
 	if (path_statefile[0]) {
 		_tcsncpy(out, path_statefile, size);
+		fixtrailing(out);
 		return;
 	}
 	fetch_path(_T("StatefilePath"), out, size);
