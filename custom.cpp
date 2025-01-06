@@ -2829,14 +2829,13 @@ static struct rgabuf *generate_copper_cycle_if_free(uae_u16 v)
 // normal COPJMP write: takes 2 more cycles
 static void COPJMP(int num, int vblank)
 {
-	cop_state.ignore_next = 0;
 	cop_state.strobe_next = COP_stop;
 
 	if (!cop_state.strobe) {
 		cop_state.state_prev = cop_state.state;
 	}
 	cop_state.strobetype = 0;
-	if ((cop_state.state == COP_wait1 || cop_state.state == COP_waitforever ||
+	if ((cop_state.state == COP_wait1 || cop_state.state == COP_waitforever || cop_state.state == COP_stop ||
 		(cop_state.state == COP_read2 && ((cop_state.ir[0] & 1) || test_copper_dangerous(cop_state.ir[0], true))) ||
 		cop_state.state == COP_wait_in2 || cop_state.state == COP_skip_in2) &&
 		!vblank && is_copper_dma(false)) {
@@ -8835,6 +8834,7 @@ static void process_copper(struct rgabuf *r)
 		cop_state.strobeip = getstrobecopip();
 		cop_state.strobe = 0;
 		cop_state.state = COP_strobe_delay1_odd;
+		cop_state.ignore_next = 0;
 	break;
 
 	case COP_strobe_delay1_odd:
@@ -8883,10 +8883,11 @@ static void process_copper(struct rgabuf *r)
 				cop_state.strobe = 0;
 				cop_state.state = COP_strobe_delay2;
 				if (cop_state.strobetype >= 2) {
-					if (!test_copper_dangerous(reg, true)) {
+					if (!test_copper_dangerous(reg, true) && !cop_state.ignore_next) {
 						custom_wput_copper(cop_state.ip, reg, cop_state.ir[0], 0);
 					}
 				}
+				cop_state.ignore_next = 0;
 			}
 #ifdef DEBUGGER
 			if (debug_dma) {
@@ -9124,6 +9125,7 @@ static void generate_copper(void)
 		{
 			cop_state.strobeip = getstrobecopip();
 			cop_state.strobe = 0;
+			cop_state.ignore_next = 0;
 			if (hpos == 1 && !bus_allocated) {
 				// if COP_strobe_delay2 crossed scanlines, it will be skipped!
 				struct rgabuf *rga = generate_copper_cycle_if_free(CYCLE_PIPE_COPPER);
@@ -9151,6 +9153,7 @@ static void generate_copper(void)
 			if (cop_state.strobe) {
 				cop_state.strobeip = getstrobecopip();
 				cop_state.strobe = 0;
+				cop_state.ignore_next = 0;
 			}
 			// not allocated
 			struct rgabuf *rga = read_rga_in();
@@ -9169,6 +9172,7 @@ static void generate_copper(void)
 			cop_state.state = COP_strobe_delay1_odd;
 			cop_state.strobeip = getstrobecopip();
 			cop_state.strobe = 0;
+			cop_state.ignore_next = 0;
 			// not allocated
 			struct rgabuf *rga = read_rga_in();
 			if (rga) {
@@ -9191,6 +9195,7 @@ static void generate_copper(void)
 			cop_state.state = COP_strobe_delay2;
 			cop_state.strobeip = getstrobecopip();
 			cop_state.strobe = 0;
+			cop_state.ignore_next = 0;
 		} else {
 			if (hpos == 1 && get_cycles() > cop_state.strobe_cycles) {
 				// if COP_strobe_delay2 crossed scanlines, it will be skipped!
@@ -9199,6 +9204,7 @@ static void generate_copper(void)
 			if (cop_state.strobetype == 0) {
 				cop_state.strobeip = getstrobecopip();
 				cop_state.strobe = 0;
+				cop_state.ignore_next = 0;
 			}
 			cop_state.state = COP_strobe_delay1;
 			// allocated and $1fe, not $08c
