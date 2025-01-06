@@ -4224,7 +4224,7 @@ static void compute_spcflag_copper(void)
 			}
 		}
 	}
-	if (issyncstopped_count <= 2) {
+	if (issyncstopped_count <= 160) {
 		copper_enabled_thisline = 1;
 	}
 }
