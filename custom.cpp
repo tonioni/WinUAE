@@ -7724,7 +7724,7 @@ uae_u8 *save_custom(size_t *len, uae_u8 *dstptr, int full)
 	if (dstptr) {
 		dstbak = dst = dstptr;
 	} else {
-		dstbak = dst = xmalloc(uae_u8, 8 + 256 * 2);
+		dstbak = dst = xmalloc(uae_u8, 4 + 256 * 2 + 4);
 	}
 
 	SL(currprefs.chipset_mask | 0x100);
@@ -7966,7 +7966,7 @@ uae_u8 *save_custom_sprite(int num, size_t *len, uae_u8 *dstptr)
 	if (dstptr)
 		dstbak = dst = dstptr;
 	else
-		dstbak = dst = xmalloc(uae_u8, 30);
+		dstbak = dst = xmalloc(uae_u8, 100);
 	SL(s->pt);		/* 120-13E SPRxPT */
 	SW(s->pos);		/* 1x0 SPRxPOS */
 	SW(s->ctl);		/* 1x2 SPRxPOS */

@@ -2276,7 +2276,7 @@ static void spr_arms(struct denise_spr *s, int state)
 {
 	// ECS Denise + superhires: sprites 4 to 7 are disabled
 	if (ecs_denise_only && denise_res == RES_SUPERHIRES) {
-		int num = s - dspr;
+		size_t num = s - dspr;
 		if (num >= 4) {
 			state = 0;
 		}
@@ -5821,7 +5821,7 @@ uae_u8 *save_custom_bpl(size_t *len, uae_u8 *dstptr)
 	if (dstptr)
 		dstbak = dst = dstptr;
 	else
-		dstbak = dst = xmalloc(uae_u8, 30);
+		dstbak = dst = xmalloc(uae_u8, 8 * 64);
 
 	SL(1);
 	for (int i = 0; i < 8; i++) {
