@@ -1,5 +1,14 @@
 
 
+Beta 3:
+
+- Added longer delay before BPLCON0 ERSY=1 bit without genlock stops horizontal/vertical counters.
+- Two more copper/blitter conflict fixes. (Copper stopped due to dangerous register didn't count as copper not having requests active, COPJMP sequence followed by "skipped" MOVE's last cycle didn't "skip" the write)
+- Another statefile overflow fix.
+- Faster CPU modes now have separate longer RGA pipeline that allows fast CPU to do multiple Denise/Lisa register writes in single CCK without causing overflows and lost register writes.
+- "SWIV scorebord" effect (BPLCON2>=5 and 5 or 6 planes) didn't work in 6-plane mode.
+- TV Overscan options re-implemented.
+
 Beta 2:
 
 - Fixed 32-bit wide AGA sprite horizontally doubled image.

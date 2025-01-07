@@ -1953,8 +1953,8 @@ static int load_kickstart (void)
 					mapped_malloc(&extendedkickmem2a_bank);
 					extendedkickmem2b_bank.reserved_size = 524288;
 					extendedkickmem2b_bank.mask = extendedkickmem2a_bank.allocated_size - 1;
-					extendedkickmem2a_bank.start = extendedkickmem2a_bank.start + 524288;
-					mapped_malloc(&extendedkickmem2a_bank);
+					extendedkickmem2b_bank.start = extendedkickmem2a_bank.start + 524288;
+					mapped_malloc(&extendedkickmem2b_bank);
 					read_kickstart(f, extendedkickmem2a_bank.baseaddr, 524288, 0, 1);
 					read_kickstart(f, extendedkickmem2b_bank.baseaddr, 524288, 0, 1);
 					memset(kickmem_bank.baseaddr, 0, ROM_SIZE_512);
