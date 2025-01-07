@@ -5006,6 +5006,9 @@ static void select_lts(void)
 	if (denise_max_planes <= 4 && bplmode_new == CMODE_HAM) {
 		bplmode_new = CMODE_NORMAL;
 	}
+	if (denise_max_planes <= 5 && (bplmode_new == CMODE_EXTRAHB || bplmode_new == CMODE_EXTRAHB_ECS_KILLEHB)) {
+		bplmode_new = CMODE_NORMAL;
+	}
 
 	if (aga_mode) {
 
