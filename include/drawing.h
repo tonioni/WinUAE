@@ -173,6 +173,6 @@ bool start_draw_denise(void);
 void end_draw_denise(void);
 void denise_update_reg(uae_u16 reg, uae_u16 v);
 void denise_reset(bool);
-
+bool denise_update_reg_queued(uae_u16 reg, uae_u16 v, uae_u32 cycle);
 
 #endif /* UAE_DRAWING_H */
