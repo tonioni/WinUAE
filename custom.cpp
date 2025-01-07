@@ -7395,8 +7395,12 @@ static int REGPARAM2 custom_wput_1(uaecptr addr, uae_u32 value, int noget)
 		if (c & 4) {
 			v <<= 16;
 		}
-		if (currprefs.m68k_speed < 0 || custom_fastmode > 0) {
-			denise_update_reg(addr & 0x1fe, v);
+		if (!currprefs.cpu_memory_cycle_exact || custom_fastmode > 0) {
+			// fast CPU RGA pipeline, allow multiple register writes per CCK
+			if (!denise_update_reg_queued(addr, v, rga_denise_cycle_line)) {
+				// if full: direct write
+				denise_update_reg(addr, value);
+			}
 		} else {
 			write_drga(addr, NULL, v);
 		}

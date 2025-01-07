@@ -194,6 +194,9 @@ static bool aga_genlock_features_zdclken;
 
 uae_sem_t gui_sem;
 
+static int rga_denise_fast_read, rga_denise_fast_write;
+#define DENISE_RGA_SLOT_FAST_TOTAL 1024
+static struct denise_rga rga_denise_fast[DENISE_RGA_SLOT_FAST_TOTAL];
 
 
 
@@ -3327,7 +3330,7 @@ static void expand_drga_early(struct denise_rga* rd)
 	if (rd->rga >= 0x180 && rd->rga < 0x180 + 32 * 2) {
 		int idx = (rd->rga - 0x180) / 2;
 		if (aga_delayed_color_idx >= 0) {
-			update_color(aga_delayed_color_idx, aga_delayed_color_val, bplcon2_denise, bplcon3_denise);
+			update_color(aga_delayed_color_idx, aga_delayed_color_val, aga_delayed_color_con2, aga_delayed_color_con3);
 			aga_delayed_color_idx = -1;
 		}
 		if (aga_mode && (currprefs.gfx_overscanmode >= OVERSCANMODE_ULTRA || !denise_vblank_active)) {
@@ -4203,6 +4206,21 @@ static void do_hstop_ecs(int cnt)
 #endif
 }
 
+bool denise_update_reg_queued(uae_u16 reg, uae_u16 v, uae_u32 cycle)
+{
+	if (((rga_denise_fast_write + 1) & (DENISE_RGA_SLOT_FAST_TOTAL - 1))  == rga_denise_fast_read) {
+		return false;
+	}
+	struct denise_rga *r = &rga_denise_fast[rga_denise_fast_write];
+	r->rga = reg;
+	r->v = v;
+	r->line = cycle;
+	rga_denise_fast_write++;
+	rga_denise_fast_write &= DENISE_RGA_SLOT_FAST_TOTAL - 1;
+	return true;
+}
+
+
 static void do_denise_cck(int linecnt, int startpos, int i)
 {
 	int idxp = (i + startpos + 1) & (DENISE_RGA_SLOT_TOTAL - 1);
@@ -4213,6 +4231,21 @@ static void do_denise_cck(int linecnt, int startpos, int i)
 
 	denise_hcounter_new = denise_hcounter + 2;
 	denise_hcounter_new &= 511;
+
+	if (rga_denise_fast_write != rga_denise_fast_read) {
+		// extract fast CPU RGA pipeline
+		while (rga_denise_fast_write != rga_denise_fast_read) {
+			struct denise_rga *rd = &rga_denise_fast[rga_denise_fast_read];
+			if (linecnt < rd->line) {
+				break;
+			}
+			expand_drga(rd);
+			expand_drga_early(rd);
+			expand_drga_early2x(rd);
+			rga_denise_fast_read++;
+			rga_denise_fast_read &= DENISE_RGA_SLOT_FAST_TOTAL - 1;
+		}
+	}
 
 	struct denise_rga *rd;
 
