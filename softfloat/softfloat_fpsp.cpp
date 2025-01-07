@@ -688,8 +688,6 @@ floatx80 floatx80_etox(floatx80 a, float_status *status)
 	
 	SET_PREC;
 	
-	adjflag = 0;
-	
 	if (aExp >= 0x3FBE) { // |X| >= 2^(-65)
 		compact = floatx80_make_compact(aExp, aSig);
 		
@@ -1257,8 +1255,6 @@ floatx80 floatx80_lognp1(floatx80 a, float_status *status)
 	}
 	
 	SET_PREC;
-	
-	compact = floatx80_make_compact(aExp, aSig);
 	
 	fp0 = a; // Z
 	fp1 = a;
