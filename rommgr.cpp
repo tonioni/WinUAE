@@ -807,6 +807,8 @@ static struct romdata roms[] = {
 	0x33a8ff3a, 0x8f4bdda0,0x10338a48,0x51e4a2fb,0xb4aa6d6e,0x202fe98e, NULL, NULL },
 	{ _T("CyberStorm MK I CyberSCSI Module"), 0, 0, 0, 0, _T("CSMKISCSI\0"), 32768, 101, 0, 0, ROMTYPE_CSMK1SCSI, 0, 0, NULL,
 	0x4e71ec63, 0x8e95bc8d,0xa06050fc,0xb596b5b4,0xc8cf9102,0x1ff4aeb3, NULL, NULL },
+	{ _T("CyberStorm MK II"), 0, 0, 0, 0, _T("CSMKII\0"), 131072, 96, 0, 0, ROMTYPE_CB_CSMK2, 0, 0, NULL,
+	0, 0, 0, 0, 0, 0, NULL, _T("cyberstormmk2.rom") },
 
 	{ _T("CyberStorm MK III"), 0, 0, 0, 0, _T("CSMKIII\0"), 131072, 97, 0, 0, ROMTYPE_CB_CSMK3, 0, 0, NULL,
 	0, 0, 0, 0, 0, 0, NULL, _T("cyberstormmk3.rom") },
