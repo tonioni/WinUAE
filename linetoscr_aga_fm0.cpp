@@ -33,7 +33,7 @@ static void lts_aga_fm0_n0_p2_ilores_dlores(void)
 			}
 			loaded_pix = getbpl2();
 			loaded_pixs[0] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				dtbuf[h][0] = dpix_val0;
 				uae_u32 t0 = dtbuf[h ^ lol][0]; 
 				#ifdef DEBUGGER
@@ -53,7 +53,7 @@ static void lts_aga_fm0_n0_p2_ilores_dlores(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -90,7 +90,7 @@ static void lts_aga_fm0_n1_p2_ilores_dlores(void)
 			}
 			loaded_pix = getbpl2();
 			loaded_pixs[0] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				dtbuf[h][0] = dpix_val0;
 				uae_u32 t0 = dtbuf[h ^ lol][0]; 
 				#ifdef DEBUGGER
@@ -110,7 +110,7 @@ static void lts_aga_fm0_n1_p2_ilores_dlores(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -149,7 +149,7 @@ static void lts_aga_fm0_dpf0_p2_ilores_dlores(void)
 			}
 			loaded_pix = getbpl2();
 			loaded_pixs[0] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				dtbuf[h][0] = dpix_val0;
 				uae_u32 t0 = dtbuf[h ^ lol][0]; 
 				#ifdef DEBUGGER
@@ -169,7 +169,7 @@ static void lts_aga_fm0_dpf0_p2_ilores_dlores(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -211,7 +211,7 @@ static void lts_aga_fm0_dpf1_p2_ilores_dlores(void)
 			}
 			loaded_pix = getbpl2();
 			loaded_pixs[0] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				dtbuf[h][0] = dpix_val0;
 				uae_u32 t0 = dtbuf[h ^ lol][0]; 
 				#ifdef DEBUGGER
@@ -231,7 +231,7 @@ static void lts_aga_fm0_dpf1_p2_ilores_dlores(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -289,7 +289,7 @@ static void lts_aga_fm0_n0_p4_ilores_dlores(void)
 			}
 			loaded_pix = getbpl4();
 			loaded_pixs[0] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				dtbuf[h][0] = dpix_val0;
 				uae_u32 t0 = dtbuf[h ^ lol][0]; 
 				#ifdef DEBUGGER
@@ -309,7 +309,7 @@ static void lts_aga_fm0_n0_p4_ilores_dlores(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -346,7 +346,7 @@ static void lts_aga_fm0_n1_p4_ilores_dlores(void)
 			}
 			loaded_pix = getbpl4();
 			loaded_pixs[0] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				dtbuf[h][0] = dpix_val0;
 				uae_u32 t0 = dtbuf[h ^ lol][0]; 
 				#ifdef DEBUGGER
@@ -366,7 +366,7 @@ static void lts_aga_fm0_n1_p4_ilores_dlores(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -405,7 +405,7 @@ static void lts_aga_fm0_dpf0_p4_ilores_dlores(void)
 			}
 			loaded_pix = getbpl4();
 			loaded_pixs[0] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				dtbuf[h][0] = dpix_val0;
 				uae_u32 t0 = dtbuf[h ^ lol][0]; 
 				#ifdef DEBUGGER
@@ -425,7 +425,7 @@ static void lts_aga_fm0_dpf0_p4_ilores_dlores(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -467,7 +467,7 @@ static void lts_aga_fm0_dpf1_p4_ilores_dlores(void)
 			}
 			loaded_pix = getbpl4();
 			loaded_pixs[0] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				dtbuf[h][0] = dpix_val0;
 				uae_u32 t0 = dtbuf[h ^ lol][0]; 
 				#ifdef DEBUGGER
@@ -487,7 +487,7 @@ static void lts_aga_fm0_dpf1_p4_ilores_dlores(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -545,7 +545,7 @@ static void lts_aga_fm0_n0_p6_ilores_dlores(void)
 			}
 			loaded_pix = getbpl6();
 			loaded_pixs[0] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				dtbuf[h][0] = dpix_val0;
 				uae_u32 t0 = dtbuf[h ^ lol][0]; 
 				#ifdef DEBUGGER
@@ -565,7 +565,7 @@ static void lts_aga_fm0_n0_p6_ilores_dlores(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -602,7 +602,7 @@ static void lts_aga_fm0_n1_p6_ilores_dlores(void)
 			}
 			loaded_pix = getbpl6();
 			loaded_pixs[0] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				dtbuf[h][0] = dpix_val0;
 				uae_u32 t0 = dtbuf[h ^ lol][0]; 
 				#ifdef DEBUGGER
@@ -622,7 +622,7 @@ static void lts_aga_fm0_n1_p6_ilores_dlores(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -661,7 +661,7 @@ static void lts_aga_fm0_dpf0_p6_ilores_dlores(void)
 			}
 			loaded_pix = getbpl6();
 			loaded_pixs[0] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				dtbuf[h][0] = dpix_val0;
 				uae_u32 t0 = dtbuf[h ^ lol][0]; 
 				#ifdef DEBUGGER
@@ -681,7 +681,7 @@ static void lts_aga_fm0_dpf0_p6_ilores_dlores(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -723,7 +723,7 @@ static void lts_aga_fm0_dpf1_p6_ilores_dlores(void)
 			}
 			loaded_pix = getbpl6();
 			loaded_pixs[0] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				dtbuf[h][0] = dpix_val0;
 				uae_u32 t0 = dtbuf[h ^ lol][0]; 
 				#ifdef DEBUGGER
@@ -743,7 +743,7 @@ static void lts_aga_fm0_dpf1_p6_ilores_dlores(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -783,7 +783,7 @@ static void lts_aga_fm0_ehb0_p6_ilores_dlores(void)
 			}
 			loaded_pix = getbpl6();
 			loaded_pixs[0] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				dtbuf[h][0] = dpix_val0;
 				uae_u32 t0 = dtbuf[h ^ lol][0]; 
 				#ifdef DEBUGGER
@@ -803,7 +803,7 @@ static void lts_aga_fm0_ehb0_p6_ilores_dlores(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -846,7 +846,7 @@ static void lts_aga_fm0_ehb1_p6_ilores_dlores(void)
 			}
 			loaded_pix = getbpl6();
 			loaded_pixs[0] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				dtbuf[h][0] = dpix_val0;
 				uae_u32 t0 = dtbuf[h ^ lol][0]; 
 				#ifdef DEBUGGER
@@ -866,7 +866,7 @@ static void lts_aga_fm0_ehb1_p6_ilores_dlores(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -900,7 +900,7 @@ static void lts_aga_fm0_ham0_p6_ilores_dlores(void)
 			}
 			loaded_pix = getbpl6();
 			loaded_pixs[0] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				dtbuf[h][0] = dpix_val0;
 				uae_u32 t0 = dtbuf[h ^ lol][0]; 
 				#ifdef DEBUGGER
@@ -920,7 +920,7 @@ static void lts_aga_fm0_ham0_p6_ilores_dlores(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -957,7 +957,7 @@ static void lts_aga_fm0_ham1_p6_ilores_dlores(void)
 			}
 			loaded_pix = getbpl6();
 			loaded_pixs[0] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				dtbuf[h][0] = dpix_val0;
 				uae_u32 t0 = dtbuf[h ^ lol][0]; 
 				#ifdef DEBUGGER
@@ -977,7 +977,7 @@ static void lts_aga_fm0_ham1_p6_ilores_dlores(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -1012,7 +1012,7 @@ static void lts_aga_fm0_kehb0_p6_ilores_dlores(void)
 			}
 			loaded_pix = getbpl6();
 			loaded_pixs[0] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				dtbuf[h][0] = dpix_val0;
 				uae_u32 t0 = dtbuf[h ^ lol][0]; 
 				#ifdef DEBUGGER
@@ -1032,7 +1032,7 @@ static void lts_aga_fm0_kehb0_p6_ilores_dlores(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -1070,7 +1070,7 @@ static void lts_aga_fm0_kehb1_p6_ilores_dlores(void)
 			}
 			loaded_pix = getbpl6();
 			loaded_pixs[0] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				dtbuf[h][0] = dpix_val0;
 				uae_u32 t0 = dtbuf[h ^ lol][0]; 
 				#ifdef DEBUGGER
@@ -1090,7 +1090,7 @@ static void lts_aga_fm0_kehb1_p6_ilores_dlores(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -1124,7 +1124,7 @@ static void lts_aga_fm0_n0_p8_ilores_dlores(void)
 			}
 			loaded_pix = getbpl8();
 			loaded_pixs[0] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				dtbuf[h][0] = dpix_val0;
 				uae_u32 t0 = dtbuf[h ^ lol][0]; 
 				#ifdef DEBUGGER
@@ -1144,7 +1144,7 @@ static void lts_aga_fm0_n0_p8_ilores_dlores(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -1181,7 +1181,7 @@ static void lts_aga_fm0_n1_p8_ilores_dlores(void)
 			}
 			loaded_pix = getbpl8();
 			loaded_pixs[0] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				dtbuf[h][0] = dpix_val0;
 				uae_u32 t0 = dtbuf[h ^ lol][0]; 
 				#ifdef DEBUGGER
@@ -1201,7 +1201,7 @@ static void lts_aga_fm0_n1_p8_ilores_dlores(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -1240,7 +1240,7 @@ static void lts_aga_fm0_dpf0_p8_ilores_dlores(void)
 			}
 			loaded_pix = getbpl8();
 			loaded_pixs[0] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				dtbuf[h][0] = dpix_val0;
 				uae_u32 t0 = dtbuf[h ^ lol][0]; 
 				#ifdef DEBUGGER
@@ -1260,7 +1260,7 @@ static void lts_aga_fm0_dpf0_p8_ilores_dlores(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -1302,7 +1302,7 @@ static void lts_aga_fm0_dpf1_p8_ilores_dlores(void)
 			}
 			loaded_pix = getbpl8();
 			loaded_pixs[0] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				dtbuf[h][0] = dpix_val0;
 				uae_u32 t0 = dtbuf[h ^ lol][0]; 
 				#ifdef DEBUGGER
@@ -1322,7 +1322,7 @@ static void lts_aga_fm0_dpf1_p8_ilores_dlores(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -1364,7 +1364,7 @@ static void lts_aga_fm0_ham0_p8_ilores_dlores(void)
 			}
 			loaded_pix = getbpl8();
 			loaded_pixs[0] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				dtbuf[h][0] = dpix_val0;
 				uae_u32 t0 = dtbuf[h ^ lol][0]; 
 				#ifdef DEBUGGER
@@ -1384,7 +1384,7 @@ static void lts_aga_fm0_ham0_p8_ilores_dlores(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -1421,7 +1421,7 @@ static void lts_aga_fm0_ham1_p8_ilores_dlores(void)
 			}
 			loaded_pix = getbpl8();
 			loaded_pixs[0] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				dtbuf[h][0] = dpix_val0;
 				uae_u32 t0 = dtbuf[h ^ lol][0]; 
 				#ifdef DEBUGGER
@@ -1441,7 +1441,7 @@ static void lts_aga_fm0_ham1_p8_ilores_dlores(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -1492,7 +1492,7 @@ static void lts_aga_fm0_n0_p2_ilores_dlores_spr(void)
 				}
 			}
 			loaded_pixs[0] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				if (sv0) {
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
 					if (spix0) {
@@ -1518,7 +1518,7 @@ static void lts_aga_fm0_n0_p2_ilores_dlores_spr(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -1564,7 +1564,7 @@ static void lts_aga_fm0_n1_p2_ilores_dlores_spr(void)
 				}
 			}
 			loaded_pixs[0] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				if (sv0) {
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
 					if (spix0) {
@@ -1590,7 +1590,7 @@ static void lts_aga_fm0_n1_p2_ilores_dlores_spr(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -1638,7 +1638,7 @@ static void lts_aga_fm0_dpf0_p2_ilores_dlores_spr(void)
 				}
 			}
 			loaded_pixs[0] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				if (sv0) {
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
 					if (spix0) {
@@ -1664,7 +1664,7 @@ static void lts_aga_fm0_dpf0_p2_ilores_dlores_spr(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -1715,7 +1715,7 @@ static void lts_aga_fm0_dpf1_p2_ilores_dlores_spr(void)
 				}
 			}
 			loaded_pixs[0] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				if (sv0) {
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
 					if (spix0) {
@@ -1741,7 +1741,7 @@ static void lts_aga_fm0_dpf1_p2_ilores_dlores_spr(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -1808,7 +1808,7 @@ static void lts_aga_fm0_n0_p4_ilores_dlores_spr(void)
 				}
 			}
 			loaded_pixs[0] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				if (sv0) {
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
 					if (spix0) {
@@ -1834,7 +1834,7 @@ static void lts_aga_fm0_n0_p4_ilores_dlores_spr(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -1880,7 +1880,7 @@ static void lts_aga_fm0_n1_p4_ilores_dlores_spr(void)
 				}
 			}
 			loaded_pixs[0] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				if (sv0) {
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
 					if (spix0) {
@@ -1906,7 +1906,7 @@ static void lts_aga_fm0_n1_p4_ilores_dlores_spr(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -1954,7 +1954,7 @@ static void lts_aga_fm0_dpf0_p4_ilores_dlores_spr(void)
 				}
 			}
 			loaded_pixs[0] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				if (sv0) {
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
 					if (spix0) {
@@ -1980,7 +1980,7 @@ static void lts_aga_fm0_dpf0_p4_ilores_dlores_spr(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -2031,7 +2031,7 @@ static void lts_aga_fm0_dpf1_p4_ilores_dlores_spr(void)
 				}
 			}
 			loaded_pixs[0] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				if (sv0) {
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
 					if (spix0) {
@@ -2057,7 +2057,7 @@ static void lts_aga_fm0_dpf1_p4_ilores_dlores_spr(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -2124,7 +2124,7 @@ static void lts_aga_fm0_n0_p6_ilores_dlores_spr(void)
 				}
 			}
 			loaded_pixs[0] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				if (sv0) {
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
 					if (spix0) {
@@ -2150,7 +2150,7 @@ static void lts_aga_fm0_n0_p6_ilores_dlores_spr(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -2196,7 +2196,7 @@ static void lts_aga_fm0_n1_p6_ilores_dlores_spr(void)
 				}
 			}
 			loaded_pixs[0] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				if (sv0) {
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
 					if (spix0) {
@@ -2222,7 +2222,7 @@ static void lts_aga_fm0_n1_p6_ilores_dlores_spr(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -2270,7 +2270,7 @@ static void lts_aga_fm0_dpf0_p6_ilores_dlores_spr(void)
 				}
 			}
 			loaded_pixs[0] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				if (sv0) {
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
 					if (spix0) {
@@ -2296,7 +2296,7 @@ static void lts_aga_fm0_dpf0_p6_ilores_dlores_spr(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -2347,7 +2347,7 @@ static void lts_aga_fm0_dpf1_p6_ilores_dlores_spr(void)
 				}
 			}
 			loaded_pixs[0] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				if (sv0) {
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
 					if (spix0) {
@@ -2373,7 +2373,7 @@ static void lts_aga_fm0_dpf1_p6_ilores_dlores_spr(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -2422,7 +2422,7 @@ static void lts_aga_fm0_ehb0_p6_ilores_dlores_spr(void)
 				}
 			}
 			loaded_pixs[0] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				if (sv0) {
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
 					if (spix0) {
@@ -2448,7 +2448,7 @@ static void lts_aga_fm0_ehb0_p6_ilores_dlores_spr(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -2500,7 +2500,7 @@ static void lts_aga_fm0_ehb1_p6_ilores_dlores_spr(void)
 				}
 			}
 			loaded_pixs[0] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				if (sv0) {
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
 					if (spix0) {
@@ -2526,7 +2526,7 @@ static void lts_aga_fm0_ehb1_p6_ilores_dlores_spr(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -2569,7 +2569,7 @@ static void lts_aga_fm0_ham0_p6_ilores_dlores_spr(void)
 				}
 			}
 			loaded_pixs[0] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				if (sv0) {
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
 					if (spix0) {
@@ -2595,7 +2595,7 @@ static void lts_aga_fm0_ham0_p6_ilores_dlores_spr(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -2641,7 +2641,7 @@ static void lts_aga_fm0_ham1_p6_ilores_dlores_spr(void)
 				}
 			}
 			loaded_pixs[0] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				if (sv0) {
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
 					if (spix0) {
@@ -2667,7 +2667,7 @@ static void lts_aga_fm0_ham1_p6_ilores_dlores_spr(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -2711,7 +2711,7 @@ static void lts_aga_fm0_kehb0_p6_ilores_dlores_spr(void)
 				}
 			}
 			loaded_pixs[0] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				if (sv0) {
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
 					if (spix0) {
@@ -2737,7 +2737,7 @@ static void lts_aga_fm0_kehb0_p6_ilores_dlores_spr(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -2784,7 +2784,7 @@ static void lts_aga_fm0_kehb1_p6_ilores_dlores_spr(void)
 				}
 			}
 			loaded_pixs[0] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				if (sv0) {
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
 					if (spix0) {
@@ -2810,7 +2810,7 @@ static void lts_aga_fm0_kehb1_p6_ilores_dlores_spr(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -2853,7 +2853,7 @@ static void lts_aga_fm0_n0_p8_ilores_dlores_spr(void)
 				}
 			}
 			loaded_pixs[0] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				if (sv0) {
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
 					if (spix0) {
@@ -2879,7 +2879,7 @@ static void lts_aga_fm0_n0_p8_ilores_dlores_spr(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -2925,7 +2925,7 @@ static void lts_aga_fm0_n1_p8_ilores_dlores_spr(void)
 				}
 			}
 			loaded_pixs[0] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				if (sv0) {
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
 					if (spix0) {
@@ -2951,7 +2951,7 @@ static void lts_aga_fm0_n1_p8_ilores_dlores_spr(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -2999,7 +2999,7 @@ static void lts_aga_fm0_dpf0_p8_ilores_dlores_spr(void)
 				}
 			}
 			loaded_pixs[0] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				if (sv0) {
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
 					if (spix0) {
@@ -3025,7 +3025,7 @@ static void lts_aga_fm0_dpf0_p8_ilores_dlores_spr(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -3076,7 +3076,7 @@ static void lts_aga_fm0_dpf1_p8_ilores_dlores_spr(void)
 				}
 			}
 			loaded_pixs[0] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				if (sv0) {
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
 					if (spix0) {
@@ -3102,7 +3102,7 @@ static void lts_aga_fm0_dpf1_p8_ilores_dlores_spr(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -3153,7 +3153,7 @@ static void lts_aga_fm0_ham0_p8_ilores_dlores_spr(void)
 				}
 			}
 			loaded_pixs[0] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				if (sv0) {
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
 					if (spix0) {
@@ -3179,7 +3179,7 @@ static void lts_aga_fm0_ham0_p8_ilores_dlores_spr(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -3225,7 +3225,7 @@ static void lts_aga_fm0_ham1_p8_ilores_dlores_spr(void)
 				}
 			}
 			loaded_pixs[0] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				if (sv0) {
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
 					if (spix0) {
@@ -3251,7 +3251,7 @@ static void lts_aga_fm0_ham1_p8_ilores_dlores_spr(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -3294,7 +3294,7 @@ static void lts_aga_fm0_n0_p2_ihires_dlores(void)
 			loaded_pix = getbpl2();
 			loaded_pixs[0] = loaded_pix;
 			shiftbpl2();
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				dtbuf[h][0] = dpix_val0;
 				uae_u32 t0 = dtbuf[h ^ lol][0]; 
 				#ifdef DEBUGGER
@@ -3314,7 +3314,7 @@ static void lts_aga_fm0_n0_p2_ihires_dlores(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -3352,7 +3352,7 @@ static void lts_aga_fm0_n1_p2_ihires_dlores(void)
 			loaded_pix = getbpl2();
 			loaded_pixs[0] = loaded_pix;
 			shiftbpl2();
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				dtbuf[h][0] = dpix_val0;
 				uae_u32 t0 = dtbuf[h ^ lol][0]; 
 				#ifdef DEBUGGER
@@ -3372,7 +3372,7 @@ static void lts_aga_fm0_n1_p2_ihires_dlores(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -3412,7 +3412,7 @@ static void lts_aga_fm0_dpf0_p2_ihires_dlores(void)
 			loaded_pix = getbpl2();
 			loaded_pixs[0] = loaded_pix;
 			shiftbpl2();
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				dtbuf[h][0] = dpix_val0;
 				uae_u32 t0 = dtbuf[h ^ lol][0]; 
 				#ifdef DEBUGGER
@@ -3432,7 +3432,7 @@ static void lts_aga_fm0_dpf0_p2_ihires_dlores(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -3475,7 +3475,7 @@ static void lts_aga_fm0_dpf1_p2_ihires_dlores(void)
 			loaded_pix = getbpl2();
 			loaded_pixs[0] = loaded_pix;
 			shiftbpl2();
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				dtbuf[h][0] = dpix_val0;
 				uae_u32 t0 = dtbuf[h ^ lol][0]; 
 				#ifdef DEBUGGER
@@ -3495,7 +3495,7 @@ static void lts_aga_fm0_dpf1_p2_ihires_dlores(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -3554,7 +3554,7 @@ static void lts_aga_fm0_n0_p4_ihires_dlores(void)
 			loaded_pix = getbpl4();
 			loaded_pixs[0] = loaded_pix;
 			shiftbpl4();
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				dtbuf[h][0] = dpix_val0;
 				uae_u32 t0 = dtbuf[h ^ lol][0]; 
 				#ifdef DEBUGGER
@@ -3574,7 +3574,7 @@ static void lts_aga_fm0_n0_p4_ihires_dlores(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -3612,7 +3612,7 @@ static void lts_aga_fm0_n1_p4_ihires_dlores(void)
 			loaded_pix = getbpl4();
 			loaded_pixs[0] = loaded_pix;
 			shiftbpl4();
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				dtbuf[h][0] = dpix_val0;
 				uae_u32 t0 = dtbuf[h ^ lol][0]; 
 				#ifdef DEBUGGER
@@ -3632,7 +3632,7 @@ static void lts_aga_fm0_n1_p4_ihires_dlores(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -3672,7 +3672,7 @@ static void lts_aga_fm0_dpf0_p4_ihires_dlores(void)
 			loaded_pix = getbpl4();
 			loaded_pixs[0] = loaded_pix;
 			shiftbpl4();
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				dtbuf[h][0] = dpix_val0;
 				uae_u32 t0 = dtbuf[h ^ lol][0]; 
 				#ifdef DEBUGGER
@@ -3692,7 +3692,7 @@ static void lts_aga_fm0_dpf0_p4_ihires_dlores(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -3735,7 +3735,7 @@ static void lts_aga_fm0_dpf1_p4_ihires_dlores(void)
 			loaded_pix = getbpl4();
 			loaded_pixs[0] = loaded_pix;
 			shiftbpl4();
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				dtbuf[h][0] = dpix_val0;
 				uae_u32 t0 = dtbuf[h ^ lol][0]; 
 				#ifdef DEBUGGER
@@ -3755,7 +3755,7 @@ static void lts_aga_fm0_dpf1_p4_ihires_dlores(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -3903,7 +3903,7 @@ static void lts_aga_fm0_n0_p2_ihires_dlores_spr(void)
 			}
 			loaded_pixs[0] = loaded_pix;
 			shiftbpl2();
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				if (sv0) {
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
 					if (spix0) {
@@ -3929,7 +3929,7 @@ static void lts_aga_fm0_n0_p2_ihires_dlores_spr(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -3976,7 +3976,7 @@ static void lts_aga_fm0_n1_p2_ihires_dlores_spr(void)
 			}
 			loaded_pixs[0] = loaded_pix;
 			shiftbpl2();
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				if (sv0) {
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
 					if (spix0) {
@@ -4002,7 +4002,7 @@ static void lts_aga_fm0_n1_p2_ihires_dlores_spr(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -4051,7 +4051,7 @@ static void lts_aga_fm0_dpf0_p2_ihires_dlores_spr(void)
 			}
 			loaded_pixs[0] = loaded_pix;
 			shiftbpl2();
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				if (sv0) {
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
 					if (spix0) {
@@ -4077,7 +4077,7 @@ static void lts_aga_fm0_dpf0_p2_ihires_dlores_spr(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -4129,7 +4129,7 @@ static void lts_aga_fm0_dpf1_p2_ihires_dlores_spr(void)
 			}
 			loaded_pixs[0] = loaded_pix;
 			shiftbpl2();
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				if (sv0) {
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
 					if (spix0) {
@@ -4155,7 +4155,7 @@ static void lts_aga_fm0_dpf1_p2_ihires_dlores_spr(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -4223,7 +4223,7 @@ static void lts_aga_fm0_n0_p4_ihires_dlores_spr(void)
 			}
 			loaded_pixs[0] = loaded_pix;
 			shiftbpl4();
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				if (sv0) {
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
 					if (spix0) {
@@ -4249,7 +4249,7 @@ static void lts_aga_fm0_n0_p4_ihires_dlores_spr(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -4296,7 +4296,7 @@ static void lts_aga_fm0_n1_p4_ihires_dlores_spr(void)
 			}
 			loaded_pixs[0] = loaded_pix;
 			shiftbpl4();
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				if (sv0) {
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
 					if (spix0) {
@@ -4322,7 +4322,7 @@ static void lts_aga_fm0_n1_p4_ihires_dlores_spr(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -4371,7 +4371,7 @@ static void lts_aga_fm0_dpf0_p4_ihires_dlores_spr(void)
 			}
 			loaded_pixs[0] = loaded_pix;
 			shiftbpl4();
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				if (sv0) {
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
 					if (spix0) {
@@ -4397,7 +4397,7 @@ static void lts_aga_fm0_dpf0_p4_ihires_dlores_spr(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -4449,7 +4449,7 @@ static void lts_aga_fm0_dpf1_p4_ihires_dlores_spr(void)
 			}
 			loaded_pixs[0] = loaded_pix;
 			shiftbpl4();
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				if (sv0) {
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
 					if (spix0) {
@@ -4475,7 +4475,7 @@ static void lts_aga_fm0_dpf1_p4_ihires_dlores_spr(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -4616,7 +4616,7 @@ static void lts_aga_fm0_n0_p2_ishres_dlores(void)
 			shiftbpl2();
 			shiftbpl2();
 			shiftbpl2();
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				dtbuf[h][0] = dpix_val0;
 				uae_u32 t0 = dtbuf[h ^ lol][0]; 
 				#ifdef DEBUGGER
@@ -4636,7 +4636,7 @@ static void lts_aga_fm0_n0_p2_ishres_dlores(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -4676,7 +4676,7 @@ static void lts_aga_fm0_n1_p2_ishres_dlores(void)
 			shiftbpl2();
 			shiftbpl2();
 			shiftbpl2();
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				dtbuf[h][0] = dpix_val0;
 				uae_u32 t0 = dtbuf[h ^ lol][0]; 
 				#ifdef DEBUGGER
@@ -4696,7 +4696,7 @@ static void lts_aga_fm0_n1_p2_ishres_dlores(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -4738,7 +4738,7 @@ static void lts_aga_fm0_dpf0_p2_ishres_dlores(void)
 			shiftbpl2();
 			shiftbpl2();
 			shiftbpl2();
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				dtbuf[h][0] = dpix_val0;
 				uae_u32 t0 = dtbuf[h ^ lol][0]; 
 				#ifdef DEBUGGER
@@ -4758,7 +4758,7 @@ static void lts_aga_fm0_dpf0_p2_ishres_dlores(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -4803,7 +4803,7 @@ static void lts_aga_fm0_dpf1_p2_ishres_dlores(void)
 			shiftbpl2();
 			shiftbpl2();
 			shiftbpl2();
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				dtbuf[h][0] = dpix_val0;
 				uae_u32 t0 = dtbuf[h ^ lol][0]; 
 				#ifdef DEBUGGER
@@ -4823,7 +4823,7 @@ static void lts_aga_fm0_dpf1_p2_ishres_dlores(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -5013,7 +5013,7 @@ static void lts_aga_fm0_n0_p2_ishres_dlores_spr(void)
 			shiftbpl2();
 			shiftbpl2();
 			shiftbpl2();
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				if (sv0) {
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
 					if (spix0) {
@@ -5039,7 +5039,7 @@ static void lts_aga_fm0_n0_p2_ishres_dlores_spr(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -5088,7 +5088,7 @@ static void lts_aga_fm0_n1_p2_ishres_dlores_spr(void)
 			shiftbpl2();
 			shiftbpl2();
 			shiftbpl2();
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				if (sv0) {
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
 					if (spix0) {
@@ -5114,7 +5114,7 @@ static void lts_aga_fm0_n1_p2_ishres_dlores_spr(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -5165,7 +5165,7 @@ static void lts_aga_fm0_dpf0_p2_ishres_dlores_spr(void)
 			shiftbpl2();
 			shiftbpl2();
 			shiftbpl2();
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				if (sv0) {
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
 					if (spix0) {
@@ -5191,7 +5191,7 @@ static void lts_aga_fm0_dpf0_p2_ishres_dlores_spr(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -5245,7 +5245,7 @@ static void lts_aga_fm0_dpf1_p2_ishres_dlores_spr(void)
 			shiftbpl2();
 			shiftbpl2();
 			shiftbpl2();
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				if (sv0) {
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
 					if (spix0) {
@@ -5271,7 +5271,7 @@ static void lts_aga_fm0_dpf1_p2_ishres_dlores_spr(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -5478,7 +5478,7 @@ static void lts_aga_fm0_n0_p2_ilores_dhires(void)
 				loaded_pix = getbpl2();
 			}
 			loaded_pixs[2] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				dtbuf[h][0] = dpix_val0;
 				dtbuf[h][2] = dpix_val2;
 				uae_u32 t0 = dtbuf[h ^ lol][0]; 
@@ -5507,7 +5507,7 @@ static void lts_aga_fm0_n0_p2_ilores_dhires(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -5592,7 +5592,7 @@ static void lts_aga_fm0_n1_p2_ilores_dhires(void)
 				loaded_pix = getbpl2();
 			}
 			loaded_pixs[2] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				dtbuf[h][0] = dpix_val0;
 				dtbuf[h][2] = dpix_val2;
 				uae_u32 t0 = dtbuf[h ^ lol][0]; 
@@ -5621,7 +5621,7 @@ static void lts_aga_fm0_n1_p2_ilores_dhires(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -5694,7 +5694,7 @@ static void lts_aga_fm0_dpf0_p2_ilores_dhires(void)
 				loaded_pix = getbpl2();
 			}
 			loaded_pixs[2] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				dtbuf[h][0] = dpix_val0;
 				dtbuf[h][2] = dpix_val2;
 				uae_u32 t0 = dtbuf[h ^ lol][0]; 
@@ -5723,7 +5723,7 @@ static void lts_aga_fm0_dpf0_p2_ilores_dhires(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -5818,7 +5818,7 @@ static void lts_aga_fm0_dpf1_p2_ilores_dhires(void)
 				loaded_pix = getbpl2();
 			}
 			loaded_pixs[2] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				dtbuf[h][0] = dpix_val0;
 				dtbuf[h][2] = dpix_val2;
 				uae_u32 t0 = dtbuf[h ^ lol][0]; 
@@ -5847,7 +5847,7 @@ static void lts_aga_fm0_dpf1_p2_ilores_dhires(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -5934,7 +5934,7 @@ static void lts_aga_fm0_n0_p4_ilores_dhires(void)
 				loaded_pix = getbpl4();
 			}
 			loaded_pixs[2] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				dtbuf[h][0] = dpix_val0;
 				dtbuf[h][2] = dpix_val2;
 				uae_u32 t0 = dtbuf[h ^ lol][0]; 
@@ -5963,7 +5963,7 @@ static void lts_aga_fm0_n0_p4_ilores_dhires(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -6048,7 +6048,7 @@ static void lts_aga_fm0_n1_p4_ilores_dhires(void)
 				loaded_pix = getbpl4();
 			}
 			loaded_pixs[2] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				dtbuf[h][0] = dpix_val0;
 				dtbuf[h][2] = dpix_val2;
 				uae_u32 t0 = dtbuf[h ^ lol][0]; 
@@ -6077,7 +6077,7 @@ static void lts_aga_fm0_n1_p4_ilores_dhires(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -6150,7 +6150,7 @@ static void lts_aga_fm0_dpf0_p4_ilores_dhires(void)
 				loaded_pix = getbpl4();
 			}
 			loaded_pixs[2] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				dtbuf[h][0] = dpix_val0;
 				dtbuf[h][2] = dpix_val2;
 				uae_u32 t0 = dtbuf[h ^ lol][0]; 
@@ -6179,7 +6179,7 @@ static void lts_aga_fm0_dpf0_p4_ilores_dhires(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -6274,7 +6274,7 @@ static void lts_aga_fm0_dpf1_p4_ilores_dhires(void)
 				loaded_pix = getbpl4();
 			}
 			loaded_pixs[2] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				dtbuf[h][0] = dpix_val0;
 				dtbuf[h][2] = dpix_val2;
 				uae_u32 t0 = dtbuf[h ^ lol][0]; 
@@ -6303,7 +6303,7 @@ static void lts_aga_fm0_dpf1_p4_ilores_dhires(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -6390,7 +6390,7 @@ static void lts_aga_fm0_n0_p6_ilores_dhires(void)
 				loaded_pix = getbpl6();
 			}
 			loaded_pixs[2] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				dtbuf[h][0] = dpix_val0;
 				dtbuf[h][2] = dpix_val2;
 				uae_u32 t0 = dtbuf[h ^ lol][0]; 
@@ -6419,7 +6419,7 @@ static void lts_aga_fm0_n0_p6_ilores_dhires(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -6504,7 +6504,7 @@ static void lts_aga_fm0_n1_p6_ilores_dhires(void)
 				loaded_pix = getbpl6();
 			}
 			loaded_pixs[2] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				dtbuf[h][0] = dpix_val0;
 				dtbuf[h][2] = dpix_val2;
 				uae_u32 t0 = dtbuf[h ^ lol][0]; 
@@ -6533,7 +6533,7 @@ static void lts_aga_fm0_n1_p6_ilores_dhires(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -6606,7 +6606,7 @@ static void lts_aga_fm0_dpf0_p6_ilores_dhires(void)
 				loaded_pix = getbpl6();
 			}
 			loaded_pixs[2] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				dtbuf[h][0] = dpix_val0;
 				dtbuf[h][2] = dpix_val2;
 				uae_u32 t0 = dtbuf[h ^ lol][0]; 
@@ -6635,7 +6635,7 @@ static void lts_aga_fm0_dpf0_p6_ilores_dhires(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -6730,7 +6730,7 @@ static void lts_aga_fm0_dpf1_p6_ilores_dhires(void)
 				loaded_pix = getbpl6();
 			}
 			loaded_pixs[2] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				dtbuf[h][0] = dpix_val0;
 				dtbuf[h][2] = dpix_val2;
 				uae_u32 t0 = dtbuf[h ^ lol][0]; 
@@ -6759,7 +6759,7 @@ static void lts_aga_fm0_dpf1_p6_ilores_dhires(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -6834,7 +6834,7 @@ static void lts_aga_fm0_ehb0_p6_ilores_dhires(void)
 				loaded_pix = getbpl6();
 			}
 			loaded_pixs[2] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				dtbuf[h][0] = dpix_val0;
 				dtbuf[h][2] = dpix_val2;
 				uae_u32 t0 = dtbuf[h ^ lol][0]; 
@@ -6863,7 +6863,7 @@ static void lts_aga_fm0_ehb0_p6_ilores_dhires(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -6960,7 +6960,7 @@ static void lts_aga_fm0_ehb1_p6_ilores_dhires(void)
 				loaded_pix = getbpl6();
 			}
 			loaded_pixs[2] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				dtbuf[h][0] = dpix_val0;
 				dtbuf[h][2] = dpix_val2;
 				uae_u32 t0 = dtbuf[h ^ lol][0]; 
@@ -6989,7 +6989,7 @@ static void lts_aga_fm0_ehb1_p6_ilores_dhires(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -7052,7 +7052,7 @@ static void lts_aga_fm0_ham0_p6_ilores_dhires(void)
 				loaded_pix = getbpl6();
 			}
 			loaded_pixs[2] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				dtbuf[h][0] = dpix_val0;
 				dtbuf[h][2] = dpix_val2;
 				uae_u32 t0 = dtbuf[h ^ lol][0]; 
@@ -7081,7 +7081,7 @@ static void lts_aga_fm0_ham0_p6_ilores_dhires(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -7166,7 +7166,7 @@ static void lts_aga_fm0_ham1_p6_ilores_dhires(void)
 				loaded_pix = getbpl6();
 			}
 			loaded_pixs[2] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				dtbuf[h][0] = dpix_val0;
 				dtbuf[h][2] = dpix_val2;
 				uae_u32 t0 = dtbuf[h ^ lol][0]; 
@@ -7195,7 +7195,7 @@ static void lts_aga_fm0_ham1_p6_ilores_dhires(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -7260,7 +7260,7 @@ static void lts_aga_fm0_kehb0_p6_ilores_dhires(void)
 				loaded_pix = getbpl6();
 			}
 			loaded_pixs[2] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				dtbuf[h][0] = dpix_val0;
 				dtbuf[h][2] = dpix_val2;
 				uae_u32 t0 = dtbuf[h ^ lol][0]; 
@@ -7289,7 +7289,7 @@ static void lts_aga_fm0_kehb0_p6_ilores_dhires(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -7376,7 +7376,7 @@ static void lts_aga_fm0_kehb1_p6_ilores_dhires(void)
 				loaded_pix = getbpl6();
 			}
 			loaded_pixs[2] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				dtbuf[h][0] = dpix_val0;
 				dtbuf[h][2] = dpix_val2;
 				uae_u32 t0 = dtbuf[h ^ lol][0]; 
@@ -7405,7 +7405,7 @@ static void lts_aga_fm0_kehb1_p6_ilores_dhires(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -7468,7 +7468,7 @@ static void lts_aga_fm0_n0_p8_ilores_dhires(void)
 				loaded_pix = getbpl8();
 			}
 			loaded_pixs[2] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				dtbuf[h][0] = dpix_val0;
 				dtbuf[h][2] = dpix_val2;
 				uae_u32 t0 = dtbuf[h ^ lol][0]; 
@@ -7497,7 +7497,7 @@ static void lts_aga_fm0_n0_p8_ilores_dhires(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -7582,7 +7582,7 @@ static void lts_aga_fm0_n1_p8_ilores_dhires(void)
 				loaded_pix = getbpl8();
 			}
 			loaded_pixs[2] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				dtbuf[h][0] = dpix_val0;
 				dtbuf[h][2] = dpix_val2;
 				uae_u32 t0 = dtbuf[h ^ lol][0]; 
@@ -7611,7 +7611,7 @@ static void lts_aga_fm0_n1_p8_ilores_dhires(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -7684,7 +7684,7 @@ static void lts_aga_fm0_dpf0_p8_ilores_dhires(void)
 				loaded_pix = getbpl8();
 			}
 			loaded_pixs[2] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				dtbuf[h][0] = dpix_val0;
 				dtbuf[h][2] = dpix_val2;
 				uae_u32 t0 = dtbuf[h ^ lol][0]; 
@@ -7713,7 +7713,7 @@ static void lts_aga_fm0_dpf0_p8_ilores_dhires(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -7808,7 +7808,7 @@ static void lts_aga_fm0_dpf1_p8_ilores_dhires(void)
 				loaded_pix = getbpl8();
 			}
 			loaded_pixs[2] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				dtbuf[h][0] = dpix_val0;
 				dtbuf[h][2] = dpix_val2;
 				uae_u32 t0 = dtbuf[h ^ lol][0]; 
@@ -7837,7 +7837,7 @@ static void lts_aga_fm0_dpf1_p8_ilores_dhires(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -7908,7 +7908,7 @@ static void lts_aga_fm0_ham0_p8_ilores_dhires(void)
 				loaded_pix = getbpl8();
 			}
 			loaded_pixs[2] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				dtbuf[h][0] = dpix_val0;
 				dtbuf[h][2] = dpix_val2;
 				uae_u32 t0 = dtbuf[h ^ lol][0]; 
@@ -7937,7 +7937,7 @@ static void lts_aga_fm0_ham0_p8_ilores_dhires(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -8022,7 +8022,7 @@ static void lts_aga_fm0_ham1_p8_ilores_dhires(void)
 				loaded_pix = getbpl8();
 			}
 			loaded_pixs[2] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				dtbuf[h][0] = dpix_val0;
 				dtbuf[h][2] = dpix_val2;
 				uae_u32 t0 = dtbuf[h ^ lol][0]; 
@@ -8051,7 +8051,7 @@ static void lts_aga_fm0_ham1_p8_ilores_dhires(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -8140,7 +8140,7 @@ static void lts_aga_fm0_n0_p2_ilores_dhires_spr(void)
 				}
 			}
 			loaded_pixs[2] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				if (sv0) {
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
 					if (spix0) {
@@ -8181,7 +8181,7 @@ static void lts_aga_fm0_n0_p2_ilores_dhires_spr(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -8284,7 +8284,7 @@ static void lts_aga_fm0_n1_p2_ilores_dhires_spr(void)
 				}
 			}
 			loaded_pixs[2] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				if (sv0) {
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
 					if (spix0) {
@@ -8325,7 +8325,7 @@ static void lts_aga_fm0_n1_p2_ilores_dhires_spr(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -8416,7 +8416,7 @@ static void lts_aga_fm0_dpf0_p2_ilores_dhires_spr(void)
 				}
 			}
 			loaded_pixs[2] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				if (sv0) {
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
 					if (spix0) {
@@ -8457,7 +8457,7 @@ static void lts_aga_fm0_dpf0_p2_ilores_dhires_spr(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -8570,7 +8570,7 @@ static void lts_aga_fm0_dpf1_p2_ilores_dhires_spr(void)
 				}
 			}
 			loaded_pixs[2] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				if (sv0) {
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
 					if (spix0) {
@@ -8611,7 +8611,7 @@ static void lts_aga_fm0_dpf1_p2_ilores_dhires_spr(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -8716,7 +8716,7 @@ static void lts_aga_fm0_n0_p4_ilores_dhires_spr(void)
 				}
 			}
 			loaded_pixs[2] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				if (sv0) {
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
 					if (spix0) {
@@ -8757,7 +8757,7 @@ static void lts_aga_fm0_n0_p4_ilores_dhires_spr(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -8860,7 +8860,7 @@ static void lts_aga_fm0_n1_p4_ilores_dhires_spr(void)
 				}
 			}
 			loaded_pixs[2] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				if (sv0) {
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
 					if (spix0) {
@@ -8901,7 +8901,7 @@ static void lts_aga_fm0_n1_p4_ilores_dhires_spr(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -8992,7 +8992,7 @@ static void lts_aga_fm0_dpf0_p4_ilores_dhires_spr(void)
 				}
 			}
 			loaded_pixs[2] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				if (sv0) {
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
 					if (spix0) {
@@ -9033,7 +9033,7 @@ static void lts_aga_fm0_dpf0_p4_ilores_dhires_spr(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -9146,7 +9146,7 @@ static void lts_aga_fm0_dpf1_p4_ilores_dhires_spr(void)
 				}
 			}
 			loaded_pixs[2] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				if (sv0) {
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
 					if (spix0) {
@@ -9187,7 +9187,7 @@ static void lts_aga_fm0_dpf1_p4_ilores_dhires_spr(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -9292,7 +9292,7 @@ static void lts_aga_fm0_n0_p6_ilores_dhires_spr(void)
 				}
 			}
 			loaded_pixs[2] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				if (sv0) {
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
 					if (spix0) {
@@ -9333,7 +9333,7 @@ static void lts_aga_fm0_n0_p6_ilores_dhires_spr(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -9436,7 +9436,7 @@ static void lts_aga_fm0_n1_p6_ilores_dhires_spr(void)
 				}
 			}
 			loaded_pixs[2] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				if (sv0) {
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
 					if (spix0) {
@@ -9477,7 +9477,7 @@ static void lts_aga_fm0_n1_p6_ilores_dhires_spr(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -9568,7 +9568,7 @@ static void lts_aga_fm0_dpf0_p6_ilores_dhires_spr(void)
 				}
 			}
 			loaded_pixs[2] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				if (sv0) {
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
 					if (spix0) {
@@ -9609,7 +9609,7 @@ static void lts_aga_fm0_dpf0_p6_ilores_dhires_spr(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -9722,7 +9722,7 @@ static void lts_aga_fm0_dpf1_p6_ilores_dhires_spr(void)
 				}
 			}
 			loaded_pixs[2] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				if (sv0) {
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
 					if (spix0) {
@@ -9763,7 +9763,7 @@ static void lts_aga_fm0_dpf1_p6_ilores_dhires_spr(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -9856,7 +9856,7 @@ static void lts_aga_fm0_ehb0_p6_ilores_dhires_spr(void)
 				}
 			}
 			loaded_pixs[2] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				if (sv0) {
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
 					if (spix0) {
@@ -9897,7 +9897,7 @@ static void lts_aga_fm0_ehb0_p6_ilores_dhires_spr(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -10012,7 +10012,7 @@ static void lts_aga_fm0_ehb1_p6_ilores_dhires_spr(void)
 				}
 			}
 			loaded_pixs[2] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				if (sv0) {
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
 					if (spix0) {
@@ -10053,7 +10053,7 @@ static void lts_aga_fm0_ehb1_p6_ilores_dhires_spr(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -10134,7 +10134,7 @@ static void lts_aga_fm0_ham0_p6_ilores_dhires_spr(void)
 				}
 			}
 			loaded_pixs[2] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				if (sv0) {
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
 					if (spix0) {
@@ -10175,7 +10175,7 @@ static void lts_aga_fm0_ham0_p6_ilores_dhires_spr(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -10278,7 +10278,7 @@ static void lts_aga_fm0_ham1_p6_ilores_dhires_spr(void)
 				}
 			}
 			loaded_pixs[2] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				if (sv0) {
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
 					if (spix0) {
@@ -10319,7 +10319,7 @@ static void lts_aga_fm0_ham1_p6_ilores_dhires_spr(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -10402,7 +10402,7 @@ static void lts_aga_fm0_kehb0_p6_ilores_dhires_spr(void)
 				}
 			}
 			loaded_pixs[2] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				if (sv0) {
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
 					if (spix0) {
@@ -10443,7 +10443,7 @@ static void lts_aga_fm0_kehb0_p6_ilores_dhires_spr(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -10548,7 +10548,7 @@ static void lts_aga_fm0_kehb1_p6_ilores_dhires_spr(void)
 				}
 			}
 			loaded_pixs[2] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				if (sv0) {
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
 					if (spix0) {
@@ -10589,7 +10589,7 @@ static void lts_aga_fm0_kehb1_p6_ilores_dhires_spr(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -10670,7 +10670,7 @@ static void lts_aga_fm0_n0_p8_ilores_dhires_spr(void)
 				}
 			}
 			loaded_pixs[2] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				if (sv0) {
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
 					if (spix0) {
@@ -10711,7 +10711,7 @@ static void lts_aga_fm0_n0_p8_ilores_dhires_spr(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -10814,7 +10814,7 @@ static void lts_aga_fm0_n1_p8_ilores_dhires_spr(void)
 				}
 			}
 			loaded_pixs[2] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				if (sv0) {
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
 					if (spix0) {
@@ -10855,7 +10855,7 @@ static void lts_aga_fm0_n1_p8_ilores_dhires_spr(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -10946,7 +10946,7 @@ static void lts_aga_fm0_dpf0_p8_ilores_dhires_spr(void)
 				}
 			}
 			loaded_pixs[2] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				if (sv0) {
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
 					if (spix0) {
@@ -10987,7 +10987,7 @@ static void lts_aga_fm0_dpf0_p8_ilores_dhires_spr(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -11100,7 +11100,7 @@ static void lts_aga_fm0_dpf1_p8_ilores_dhires_spr(void)
 				}
 			}
 			loaded_pixs[2] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				if (sv0) {
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
 					if (spix0) {
@@ -11141,7 +11141,7 @@ static void lts_aga_fm0_dpf1_p8_ilores_dhires_spr(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -11230,7 +11230,7 @@ static void lts_aga_fm0_ham0_p8_ilores_dhires_spr(void)
 				}
 			}
 			loaded_pixs[2] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				if (sv0) {
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
 					if (spix0) {
@@ -11271,7 +11271,7 @@ static void lts_aga_fm0_ham0_p8_ilores_dhires_spr(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -11374,7 +11374,7 @@ static void lts_aga_fm0_ham1_p8_ilores_dhires_spr(void)
 				}
 			}
 			loaded_pixs[2] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				if (sv0) {
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
 					if (spix0) {
@@ -11415,7 +11415,7 @@ static void lts_aga_fm0_ham1_p8_ilores_dhires_spr(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -11474,7 +11474,7 @@ static void lts_aga_fm0_n0_p2_ihires_dhires(void)
 			}
 			loaded_pix = getbpl2();
 			loaded_pixs[2] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				dtbuf[h][0] = dpix_val0;
 				dtbuf[h][2] = dpix_val2;
 				uae_u32 t0 = dtbuf[h ^ lol][0]; 
@@ -11503,7 +11503,7 @@ static void lts_aga_fm0_n0_p2_ihires_dhires(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -11560,7 +11560,7 @@ static void lts_aga_fm0_n1_p2_ihires_dhires(void)
 			}
 			loaded_pix = getbpl2();
 			loaded_pixs[2] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				dtbuf[h][0] = dpix_val0;
 				dtbuf[h][2] = dpix_val2;
 				uae_u32 t0 = dtbuf[h ^ lol][0]; 
@@ -11589,7 +11589,7 @@ static void lts_aga_fm0_n1_p2_ihires_dhires(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -11650,7 +11650,7 @@ static void lts_aga_fm0_dpf0_p2_ihires_dhires(void)
 			}
 			loaded_pix = getbpl2();
 			loaded_pixs[2] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				dtbuf[h][0] = dpix_val0;
 				dtbuf[h][2] = dpix_val2;
 				uae_u32 t0 = dtbuf[h ^ lol][0]; 
@@ -11679,7 +11679,7 @@ static void lts_aga_fm0_dpf0_p2_ihires_dhires(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -11746,7 +11746,7 @@ static void lts_aga_fm0_dpf1_p2_ihires_dhires(void)
 			}
 			loaded_pix = getbpl2();
 			loaded_pixs[2] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				dtbuf[h][0] = dpix_val0;
 				dtbuf[h][2] = dpix_val2;
 				uae_u32 t0 = dtbuf[h ^ lol][0]; 
@@ -11775,7 +11775,7 @@ static void lts_aga_fm0_dpf1_p2_ihires_dhires(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -11850,7 +11850,7 @@ static void lts_aga_fm0_n0_p4_ihires_dhires(void)
 			}
 			loaded_pix = getbpl4();
 			loaded_pixs[2] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				dtbuf[h][0] = dpix_val0;
 				dtbuf[h][2] = dpix_val2;
 				uae_u32 t0 = dtbuf[h ^ lol][0]; 
@@ -11879,7 +11879,7 @@ static void lts_aga_fm0_n0_p4_ihires_dhires(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -11936,7 +11936,7 @@ static void lts_aga_fm0_n1_p4_ihires_dhires(void)
 			}
 			loaded_pix = getbpl4();
 			loaded_pixs[2] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				dtbuf[h][0] = dpix_val0;
 				dtbuf[h][2] = dpix_val2;
 				uae_u32 t0 = dtbuf[h ^ lol][0]; 
@@ -11965,7 +11965,7 @@ static void lts_aga_fm0_n1_p4_ihires_dhires(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -12026,7 +12026,7 @@ static void lts_aga_fm0_dpf0_p4_ihires_dhires(void)
 			}
 			loaded_pix = getbpl4();
 			loaded_pixs[2] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				dtbuf[h][0] = dpix_val0;
 				dtbuf[h][2] = dpix_val2;
 				uae_u32 t0 = dtbuf[h ^ lol][0]; 
@@ -12055,7 +12055,7 @@ static void lts_aga_fm0_dpf0_p4_ihires_dhires(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -12122,7 +12122,7 @@ static void lts_aga_fm0_dpf1_p4_ihires_dhires(void)
 			}
 			loaded_pix = getbpl4();
 			loaded_pixs[2] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				dtbuf[h][0] = dpix_val0;
 				dtbuf[h][2] = dpix_val2;
 				uae_u32 t0 = dtbuf[h ^ lol][0]; 
@@ -12151,7 +12151,7 @@ static void lts_aga_fm0_dpf1_p4_ihires_dhires(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -12324,7 +12324,7 @@ static void lts_aga_fm0_n0_p2_ihires_dhires_spr(void)
 				}
 			}
 			loaded_pixs[2] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				if (sv0) {
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
 					if (spix0) {
@@ -12365,7 +12365,7 @@ static void lts_aga_fm0_n0_p2_ihires_dhires_spr(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -12440,7 +12440,7 @@ static void lts_aga_fm0_n1_p2_ihires_dhires_spr(void)
 				}
 			}
 			loaded_pixs[2] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				if (sv0) {
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
 					if (spix0) {
@@ -12481,7 +12481,7 @@ static void lts_aga_fm0_n1_p2_ihires_dhires_spr(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -12560,7 +12560,7 @@ static void lts_aga_fm0_dpf0_p2_ihires_dhires_spr(void)
 				}
 			}
 			loaded_pixs[2] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				if (sv0) {
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
 					if (spix0) {
@@ -12601,7 +12601,7 @@ static void lts_aga_fm0_dpf0_p2_ihires_dhires_spr(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -12686,7 +12686,7 @@ static void lts_aga_fm0_dpf1_p2_ihires_dhires_spr(void)
 				}
 			}
 			loaded_pixs[2] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				if (sv0) {
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
 					if (spix0) {
@@ -12727,7 +12727,7 @@ static void lts_aga_fm0_dpf1_p2_ihires_dhires_spr(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -12820,7 +12820,7 @@ static void lts_aga_fm0_n0_p4_ihires_dhires_spr(void)
 				}
 			}
 			loaded_pixs[2] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				if (sv0) {
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
 					if (spix0) {
@@ -12861,7 +12861,7 @@ static void lts_aga_fm0_n0_p4_ihires_dhires_spr(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -12936,7 +12936,7 @@ static void lts_aga_fm0_n1_p4_ihires_dhires_spr(void)
 				}
 			}
 			loaded_pixs[2] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				if (sv0) {
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
 					if (spix0) {
@@ -12977,7 +12977,7 @@ static void lts_aga_fm0_n1_p4_ihires_dhires_spr(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -13056,7 +13056,7 @@ static void lts_aga_fm0_dpf0_p4_ihires_dhires_spr(void)
 				}
 			}
 			loaded_pixs[2] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				if (sv0) {
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
 					if (spix0) {
@@ -13097,7 +13097,7 @@ static void lts_aga_fm0_dpf0_p4_ihires_dhires_spr(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -13182,7 +13182,7 @@ static void lts_aga_fm0_dpf1_p4_ihires_dhires_spr(void)
 				}
 			}
 			loaded_pixs[2] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				if (sv0) {
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
 					if (spix0) {
@@ -13223,7 +13223,7 @@ static void lts_aga_fm0_dpf1_p4_ihires_dhires_spr(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -13380,7 +13380,7 @@ static void lts_aga_fm0_n0_p2_ishres_dhires(void)
 			loaded_pix = getbpl2();
 			loaded_pixs[2] = loaded_pix;
 			shiftbpl2();
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				dtbuf[h][0] = dpix_val0;
 				dtbuf[h][2] = dpix_val2;
 				uae_u32 t0 = dtbuf[h ^ lol][0]; 
@@ -13409,7 +13409,7 @@ static void lts_aga_fm0_n0_p2_ishres_dhires(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -13468,7 +13468,7 @@ static void lts_aga_fm0_n1_p2_ishres_dhires(void)
 			loaded_pix = getbpl2();
 			loaded_pixs[2] = loaded_pix;
 			shiftbpl2();
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				dtbuf[h][0] = dpix_val0;
 				dtbuf[h][2] = dpix_val2;
 				uae_u32 t0 = dtbuf[h ^ lol][0]; 
@@ -13497,7 +13497,7 @@ static void lts_aga_fm0_n1_p2_ishres_dhires(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -13560,7 +13560,7 @@ static void lts_aga_fm0_dpf0_p2_ishres_dhires(void)
 			loaded_pix = getbpl2();
 			loaded_pixs[2] = loaded_pix;
 			shiftbpl2();
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				dtbuf[h][0] = dpix_val0;
 				dtbuf[h][2] = dpix_val2;
 				uae_u32 t0 = dtbuf[h ^ lol][0]; 
@@ -13589,7 +13589,7 @@ static void lts_aga_fm0_dpf0_p2_ishres_dhires(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -13658,7 +13658,7 @@ static void lts_aga_fm0_dpf1_p2_ishres_dhires(void)
 			loaded_pix = getbpl2();
 			loaded_pixs[2] = loaded_pix;
 			shiftbpl2();
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				dtbuf[h][0] = dpix_val0;
 				dtbuf[h][2] = dpix_val2;
 				uae_u32 t0 = dtbuf[h ^ lol][0]; 
@@ -13687,7 +13687,7 @@ static void lts_aga_fm0_dpf1_p2_ishres_dhires(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -13902,7 +13902,7 @@ static void lts_aga_fm0_n0_p2_ishres_dhires_spr(void)
 			}
 			loaded_pixs[2] = loaded_pix;
 			shiftbpl2();
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				if (sv0) {
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
 					if (spix0) {
@@ -13943,7 +13943,7 @@ static void lts_aga_fm0_n0_p2_ishres_dhires_spr(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -14020,7 +14020,7 @@ static void lts_aga_fm0_n1_p2_ishres_dhires_spr(void)
 			}
 			loaded_pixs[2] = loaded_pix;
 			shiftbpl2();
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				if (sv0) {
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
 					if (spix0) {
@@ -14061,7 +14061,7 @@ static void lts_aga_fm0_n1_p2_ishres_dhires_spr(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -14142,7 +14142,7 @@ static void lts_aga_fm0_dpf0_p2_ishres_dhires_spr(void)
 			}
 			loaded_pixs[2] = loaded_pix;
 			shiftbpl2();
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				if (sv0) {
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
 					if (spix0) {
@@ -14183,7 +14183,7 @@ static void lts_aga_fm0_dpf0_p2_ishres_dhires_spr(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -14270,7 +14270,7 @@ static void lts_aga_fm0_dpf1_p2_ishres_dhires_spr(void)
 			}
 			loaded_pixs[2] = loaded_pix;
 			shiftbpl2();
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				if (sv0) {
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
 					if (spix0) {
@@ -14311,7 +14311,7 @@ static void lts_aga_fm0_dpf1_p2_ishres_dhires_spr(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -14564,7 +14564,7 @@ static void lts_aga_fm0_n0_p2_ilores_dshres(void)
 				loaded_pix = getbpl2();
 			}
 			loaded_pixs[3] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				dtbuf[h][0] = dpix_val0;
 				dtbuf[h][1] = dpix_val1;
 				dtbuf[h][2] = dpix_val2;
@@ -14611,7 +14611,7 @@ static void lts_aga_fm0_n0_p2_ilores_dshres(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -14764,7 +14764,7 @@ static void lts_aga_fm0_n1_p2_ilores_dshres(void)
 				loaded_pix = getbpl2();
 			}
 			loaded_pixs[3] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				dtbuf[h][0] = dpix_val0;
 				dtbuf[h][1] = dpix_val1;
 				dtbuf[h][2] = dpix_val2;
@@ -14811,7 +14811,7 @@ static void lts_aga_fm0_n1_p2_ilores_dshres(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -14940,7 +14940,7 @@ static void lts_aga_fm0_dpf0_p2_ilores_dshres(void)
 				loaded_pix = getbpl2();
 			}
 			loaded_pixs[3] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				dtbuf[h][0] = dpix_val0;
 				dtbuf[h][1] = dpix_val1;
 				dtbuf[h][2] = dpix_val2;
@@ -14987,7 +14987,7 @@ static void lts_aga_fm0_dpf0_p2_ilores_dshres(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -15160,7 +15160,7 @@ static void lts_aga_fm0_dpf1_p2_ilores_dshres(void)
 				loaded_pix = getbpl2();
 			}
 			loaded_pixs[3] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				dtbuf[h][0] = dpix_val0;
 				dtbuf[h][1] = dpix_val1;
 				dtbuf[h][2] = dpix_val2;
@@ -15207,7 +15207,7 @@ static void lts_aga_fm0_dpf1_p2_ilores_dshres(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -15340,7 +15340,7 @@ static void lts_aga_fm0_n0_p4_ilores_dshres(void)
 				loaded_pix = getbpl4();
 			}
 			loaded_pixs[3] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				dtbuf[h][0] = dpix_val0;
 				dtbuf[h][1] = dpix_val1;
 				dtbuf[h][2] = dpix_val2;
@@ -15387,7 +15387,7 @@ static void lts_aga_fm0_n0_p4_ilores_dshres(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -15540,7 +15540,7 @@ static void lts_aga_fm0_n1_p4_ilores_dshres(void)
 				loaded_pix = getbpl4();
 			}
 			loaded_pixs[3] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				dtbuf[h][0] = dpix_val0;
 				dtbuf[h][1] = dpix_val1;
 				dtbuf[h][2] = dpix_val2;
@@ -15587,7 +15587,7 @@ static void lts_aga_fm0_n1_p4_ilores_dshres(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -15716,7 +15716,7 @@ static void lts_aga_fm0_dpf0_p4_ilores_dshres(void)
 				loaded_pix = getbpl4();
 			}
 			loaded_pixs[3] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				dtbuf[h][0] = dpix_val0;
 				dtbuf[h][1] = dpix_val1;
 				dtbuf[h][2] = dpix_val2;
@@ -15763,7 +15763,7 @@ static void lts_aga_fm0_dpf0_p4_ilores_dshres(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -15936,7 +15936,7 @@ static void lts_aga_fm0_dpf1_p4_ilores_dshres(void)
 				loaded_pix = getbpl4();
 			}
 			loaded_pixs[3] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				dtbuf[h][0] = dpix_val0;
 				dtbuf[h][1] = dpix_val1;
 				dtbuf[h][2] = dpix_val2;
@@ -15983,7 +15983,7 @@ static void lts_aga_fm0_dpf1_p4_ilores_dshres(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -16116,7 +16116,7 @@ static void lts_aga_fm0_n0_p6_ilores_dshres(void)
 				loaded_pix = getbpl6();
 			}
 			loaded_pixs[3] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				dtbuf[h][0] = dpix_val0;
 				dtbuf[h][1] = dpix_val1;
 				dtbuf[h][2] = dpix_val2;
@@ -16163,7 +16163,7 @@ static void lts_aga_fm0_n0_p6_ilores_dshres(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -16316,7 +16316,7 @@ static void lts_aga_fm0_n1_p6_ilores_dshres(void)
 				loaded_pix = getbpl6();
 			}
 			loaded_pixs[3] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				dtbuf[h][0] = dpix_val0;
 				dtbuf[h][1] = dpix_val1;
 				dtbuf[h][2] = dpix_val2;
@@ -16363,7 +16363,7 @@ static void lts_aga_fm0_n1_p6_ilores_dshres(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -16492,7 +16492,7 @@ static void lts_aga_fm0_dpf0_p6_ilores_dshres(void)
 				loaded_pix = getbpl6();
 			}
 			loaded_pixs[3] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				dtbuf[h][0] = dpix_val0;
 				dtbuf[h][1] = dpix_val1;
 				dtbuf[h][2] = dpix_val2;
@@ -16539,7 +16539,7 @@ static void lts_aga_fm0_dpf0_p6_ilores_dshres(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -16712,7 +16712,7 @@ static void lts_aga_fm0_dpf1_p6_ilores_dshres(void)
 				loaded_pix = getbpl6();
 			}
 			loaded_pixs[3] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				dtbuf[h][0] = dpix_val0;
 				dtbuf[h][1] = dpix_val1;
 				dtbuf[h][2] = dpix_val2;
@@ -16759,7 +16759,7 @@ static void lts_aga_fm0_dpf1_p6_ilores_dshres(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -16892,7 +16892,7 @@ static void lts_aga_fm0_ehb0_p6_ilores_dshres(void)
 				loaded_pix = getbpl6();
 			}
 			loaded_pixs[3] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				dtbuf[h][0] = dpix_val0;
 				dtbuf[h][1] = dpix_val1;
 				dtbuf[h][2] = dpix_val2;
@@ -16939,7 +16939,7 @@ static void lts_aga_fm0_ehb0_p6_ilores_dshres(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -17116,7 +17116,7 @@ static void lts_aga_fm0_ehb1_p6_ilores_dshres(void)
 				loaded_pix = getbpl6();
 			}
 			loaded_pixs[3] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				dtbuf[h][0] = dpix_val0;
 				dtbuf[h][1] = dpix_val1;
 				dtbuf[h][2] = dpix_val2;
@@ -17163,7 +17163,7 @@ static void lts_aga_fm0_ehb1_p6_ilores_dshres(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -17272,7 +17272,7 @@ static void lts_aga_fm0_ham0_p6_ilores_dshres(void)
 				loaded_pix = getbpl6();
 			}
 			loaded_pixs[3] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				dtbuf[h][0] = dpix_val0;
 				dtbuf[h][1] = dpix_val1;
 				dtbuf[h][2] = dpix_val2;
@@ -17319,7 +17319,7 @@ static void lts_aga_fm0_ham0_p6_ilores_dshres(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -17472,7 +17472,7 @@ static void lts_aga_fm0_ham1_p6_ilores_dshres(void)
 				loaded_pix = getbpl6();
 			}
 			loaded_pixs[3] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				dtbuf[h][0] = dpix_val0;
 				dtbuf[h][1] = dpix_val1;
 				dtbuf[h][2] = dpix_val2;
@@ -17519,7 +17519,7 @@ static void lts_aga_fm0_ham1_p6_ilores_dshres(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -17632,7 +17632,7 @@ static void lts_aga_fm0_kehb0_p6_ilores_dshres(void)
 				loaded_pix = getbpl6();
 			}
 			loaded_pixs[3] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				dtbuf[h][0] = dpix_val0;
 				dtbuf[h][1] = dpix_val1;
 				dtbuf[h][2] = dpix_val2;
@@ -17679,7 +17679,7 @@ static void lts_aga_fm0_kehb0_p6_ilores_dshres(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -17836,7 +17836,7 @@ static void lts_aga_fm0_kehb1_p6_ilores_dshres(void)
 				loaded_pix = getbpl6();
 			}
 			loaded_pixs[3] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				dtbuf[h][0] = dpix_val0;
 				dtbuf[h][1] = dpix_val1;
 				dtbuf[h][2] = dpix_val2;
@@ -17883,7 +17883,7 @@ static void lts_aga_fm0_kehb1_p6_ilores_dshres(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -17992,7 +17992,7 @@ static void lts_aga_fm0_n0_p8_ilores_dshres(void)
 				loaded_pix = getbpl8();
 			}
 			loaded_pixs[3] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				dtbuf[h][0] = dpix_val0;
 				dtbuf[h][1] = dpix_val1;
 				dtbuf[h][2] = dpix_val2;
@@ -18039,7 +18039,7 @@ static void lts_aga_fm0_n0_p8_ilores_dshres(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -18192,7 +18192,7 @@ static void lts_aga_fm0_n1_p8_ilores_dshres(void)
 				loaded_pix = getbpl8();
 			}
 			loaded_pixs[3] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				dtbuf[h][0] = dpix_val0;
 				dtbuf[h][1] = dpix_val1;
 				dtbuf[h][2] = dpix_val2;
@@ -18239,7 +18239,7 @@ static void lts_aga_fm0_n1_p8_ilores_dshres(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -18368,7 +18368,7 @@ static void lts_aga_fm0_dpf0_p8_ilores_dshres(void)
 				loaded_pix = getbpl8();
 			}
 			loaded_pixs[3] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				dtbuf[h][0] = dpix_val0;
 				dtbuf[h][1] = dpix_val1;
 				dtbuf[h][2] = dpix_val2;
@@ -18415,7 +18415,7 @@ static void lts_aga_fm0_dpf0_p8_ilores_dshres(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -18588,7 +18588,7 @@ static void lts_aga_fm0_dpf1_p8_ilores_dshres(void)
 				loaded_pix = getbpl8();
 			}
 			loaded_pixs[3] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				dtbuf[h][0] = dpix_val0;
 				dtbuf[h][1] = dpix_val1;
 				dtbuf[h][2] = dpix_val2;
@@ -18635,7 +18635,7 @@ static void lts_aga_fm0_dpf1_p8_ilores_dshres(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -18752,7 +18752,7 @@ static void lts_aga_fm0_ham0_p8_ilores_dshres(void)
 				loaded_pix = getbpl8();
 			}
 			loaded_pixs[3] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				dtbuf[h][0] = dpix_val0;
 				dtbuf[h][1] = dpix_val1;
 				dtbuf[h][2] = dpix_val2;
@@ -18799,7 +18799,7 @@ static void lts_aga_fm0_ham0_p8_ilores_dshres(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -18952,7 +18952,7 @@ static void lts_aga_fm0_ham1_p8_ilores_dshres(void)
 				loaded_pix = getbpl8();
 			}
 			loaded_pixs[3] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				dtbuf[h][0] = dpix_val0;
 				dtbuf[h][1] = dpix_val1;
 				dtbuf[h][2] = dpix_val2;
@@ -18999,7 +18999,7 @@ static void lts_aga_fm0_ham1_p8_ilores_dshres(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -19152,7 +19152,7 @@ static void lts_aga_fm0_n0_p2_ilores_dshres_spr(void)
 				}
 			}
 			loaded_pixs[3] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				if (sv0) {
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
 					if (spix0) {
@@ -19223,7 +19223,7 @@ static void lts_aga_fm0_n0_p2_ilores_dshres_spr(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -19412,7 +19412,7 @@ static void lts_aga_fm0_n1_p2_ilores_dshres_spr(void)
 				}
 			}
 			loaded_pixs[3] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				if (sv0) {
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
 					if (spix0) {
@@ -19483,7 +19483,7 @@ static void lts_aga_fm0_n1_p2_ilores_dshres_spr(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -19648,7 +19648,7 @@ static void lts_aga_fm0_dpf0_p2_ilores_dshres_spr(void)
 				}
 			}
 			loaded_pixs[3] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				if (sv0) {
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
 					if (spix0) {
@@ -19719,7 +19719,7 @@ static void lts_aga_fm0_dpf0_p2_ilores_dshres_spr(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -19928,7 +19928,7 @@ static void lts_aga_fm0_dpf1_p2_ilores_dshres_spr(void)
 				}
 			}
 			loaded_pixs[3] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				if (sv0) {
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
 					if (spix0) {
@@ -19999,7 +19999,7 @@ static void lts_aga_fm0_dpf1_p2_ilores_dshres_spr(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -20168,7 +20168,7 @@ static void lts_aga_fm0_n0_p4_ilores_dshres_spr(void)
 				}
 			}
 			loaded_pixs[3] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				if (sv0) {
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
 					if (spix0) {
@@ -20239,7 +20239,7 @@ static void lts_aga_fm0_n0_p4_ilores_dshres_spr(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -20428,7 +20428,7 @@ static void lts_aga_fm0_n1_p4_ilores_dshres_spr(void)
 				}
 			}
 			loaded_pixs[3] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				if (sv0) {
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
 					if (spix0) {
@@ -20499,7 +20499,7 @@ static void lts_aga_fm0_n1_p4_ilores_dshres_spr(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -20664,7 +20664,7 @@ static void lts_aga_fm0_dpf0_p4_ilores_dshres_spr(void)
 				}
 			}
 			loaded_pixs[3] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				if (sv0) {
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
 					if (spix0) {
@@ -20735,7 +20735,7 @@ static void lts_aga_fm0_dpf0_p4_ilores_dshres_spr(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -20944,7 +20944,7 @@ static void lts_aga_fm0_dpf1_p4_ilores_dshres_spr(void)
 				}
 			}
 			loaded_pixs[3] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				if (sv0) {
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
 					if (spix0) {
@@ -21015,7 +21015,7 @@ static void lts_aga_fm0_dpf1_p4_ilores_dshres_spr(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -21184,7 +21184,7 @@ static void lts_aga_fm0_n0_p6_ilores_dshres_spr(void)
 				}
 			}
 			loaded_pixs[3] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				if (sv0) {
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
 					if (spix0) {
@@ -21255,7 +21255,7 @@ static void lts_aga_fm0_n0_p6_ilores_dshres_spr(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -21444,7 +21444,7 @@ static void lts_aga_fm0_n1_p6_ilores_dshres_spr(void)
 				}
 			}
 			loaded_pixs[3] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				if (sv0) {
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
 					if (spix0) {
@@ -21515,7 +21515,7 @@ static void lts_aga_fm0_n1_p6_ilores_dshres_spr(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -21680,7 +21680,7 @@ static void lts_aga_fm0_dpf0_p6_ilores_dshres_spr(void)
 				}
 			}
 			loaded_pixs[3] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				if (sv0) {
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
 					if (spix0) {
@@ -21751,7 +21751,7 @@ static void lts_aga_fm0_dpf0_p6_ilores_dshres_spr(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -21960,7 +21960,7 @@ static void lts_aga_fm0_dpf1_p6_ilores_dshres_spr(void)
 				}
 			}
 			loaded_pixs[3] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				if (sv0) {
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
 					if (spix0) {
@@ -22031,7 +22031,7 @@ static void lts_aga_fm0_dpf1_p6_ilores_dshres_spr(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -22200,7 +22200,7 @@ static void lts_aga_fm0_ehb0_p6_ilores_dshres_spr(void)
 				}
 			}
 			loaded_pixs[3] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				if (sv0) {
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
 					if (spix0) {
@@ -22271,7 +22271,7 @@ static void lts_aga_fm0_ehb0_p6_ilores_dshres_spr(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -22484,7 +22484,7 @@ static void lts_aga_fm0_ehb1_p6_ilores_dshres_spr(void)
 				}
 			}
 			loaded_pixs[3] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				if (sv0) {
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
 					if (spix0) {
@@ -22555,7 +22555,7 @@ static void lts_aga_fm0_ehb1_p6_ilores_dshres_spr(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -22700,7 +22700,7 @@ static void lts_aga_fm0_ham0_p6_ilores_dshres_spr(void)
 				}
 			}
 			loaded_pixs[3] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				if (sv0) {
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
 					if (spix0) {
@@ -22771,7 +22771,7 @@ static void lts_aga_fm0_ham0_p6_ilores_dshres_spr(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -22960,7 +22960,7 @@ static void lts_aga_fm0_ham1_p6_ilores_dshres_spr(void)
 				}
 			}
 			loaded_pixs[3] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				if (sv0) {
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
 					if (spix0) {
@@ -23031,7 +23031,7 @@ static void lts_aga_fm0_ham1_p6_ilores_dshres_spr(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -23180,7 +23180,7 @@ static void lts_aga_fm0_kehb0_p6_ilores_dshres_spr(void)
 				}
 			}
 			loaded_pixs[3] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				if (sv0) {
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
 					if (spix0) {
@@ -23251,7 +23251,7 @@ static void lts_aga_fm0_kehb0_p6_ilores_dshres_spr(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -23444,7 +23444,7 @@ static void lts_aga_fm0_kehb1_p6_ilores_dshres_spr(void)
 				}
 			}
 			loaded_pixs[3] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				if (sv0) {
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
 					if (spix0) {
@@ -23515,7 +23515,7 @@ static void lts_aga_fm0_kehb1_p6_ilores_dshres_spr(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -23660,7 +23660,7 @@ static void lts_aga_fm0_n0_p8_ilores_dshres_spr(void)
 				}
 			}
 			loaded_pixs[3] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				if (sv0) {
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
 					if (spix0) {
@@ -23731,7 +23731,7 @@ static void lts_aga_fm0_n0_p8_ilores_dshres_spr(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -23920,7 +23920,7 @@ static void lts_aga_fm0_n1_p8_ilores_dshres_spr(void)
 				}
 			}
 			loaded_pixs[3] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				if (sv0) {
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
 					if (spix0) {
@@ -23991,7 +23991,7 @@ static void lts_aga_fm0_n1_p8_ilores_dshres_spr(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -24156,7 +24156,7 @@ static void lts_aga_fm0_dpf0_p8_ilores_dshres_spr(void)
 				}
 			}
 			loaded_pixs[3] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				if (sv0) {
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
 					if (spix0) {
@@ -24227,7 +24227,7 @@ static void lts_aga_fm0_dpf0_p8_ilores_dshres_spr(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -24436,7 +24436,7 @@ static void lts_aga_fm0_dpf1_p8_ilores_dshres_spr(void)
 				}
 			}
 			loaded_pixs[3] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				if (sv0) {
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
 					if (spix0) {
@@ -24507,7 +24507,7 @@ static void lts_aga_fm0_dpf1_p8_ilores_dshres_spr(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -24660,7 +24660,7 @@ static void lts_aga_fm0_ham0_p8_ilores_dshres_spr(void)
 				}
 			}
 			loaded_pixs[3] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				if (sv0) {
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
 					if (spix0) {
@@ -24731,7 +24731,7 @@ static void lts_aga_fm0_ham0_p8_ilores_dshres_spr(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -24920,7 +24920,7 @@ static void lts_aga_fm0_ham1_p8_ilores_dshres_spr(void)
 				}
 			}
 			loaded_pixs[3] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				if (sv0) {
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
 					if (spix0) {
@@ -24991,7 +24991,7 @@ static void lts_aga_fm0_ham1_p8_ilores_dshres_spr(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -25108,7 +25108,7 @@ static void lts_aga_fm0_n0_p2_ihires_dshres(void)
 				loaded_pix = getbpl2();
 			}
 			loaded_pixs[3] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				dtbuf[h][0] = dpix_val0;
 				dtbuf[h][1] = dpix_val1;
 				dtbuf[h][2] = dpix_val2;
@@ -25155,7 +25155,7 @@ static void lts_aga_fm0_n0_p2_ihires_dshres(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -25308,7 +25308,7 @@ static void lts_aga_fm0_n1_p2_ihires_dshres(void)
 				loaded_pix = getbpl2();
 			}
 			loaded_pixs[3] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				dtbuf[h][0] = dpix_val0;
 				dtbuf[h][1] = dpix_val1;
 				dtbuf[h][2] = dpix_val2;
@@ -25355,7 +25355,7 @@ static void lts_aga_fm0_n1_p2_ihires_dshres(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -25484,7 +25484,7 @@ static void lts_aga_fm0_dpf0_p2_ihires_dshres(void)
 				loaded_pix = getbpl2();
 			}
 			loaded_pixs[3] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				dtbuf[h][0] = dpix_val0;
 				dtbuf[h][1] = dpix_val1;
 				dtbuf[h][2] = dpix_val2;
@@ -25531,7 +25531,7 @@ static void lts_aga_fm0_dpf0_p2_ihires_dshres(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -25704,7 +25704,7 @@ static void lts_aga_fm0_dpf1_p2_ihires_dshres(void)
 				loaded_pix = getbpl2();
 			}
 			loaded_pixs[3] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				dtbuf[h][0] = dpix_val0;
 				dtbuf[h][1] = dpix_val1;
 				dtbuf[h][2] = dpix_val2;
@@ -25751,7 +25751,7 @@ static void lts_aga_fm0_dpf1_p2_ihires_dshres(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -25884,7 +25884,7 @@ static void lts_aga_fm0_n0_p4_ihires_dshres(void)
 				loaded_pix = getbpl4();
 			}
 			loaded_pixs[3] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				dtbuf[h][0] = dpix_val0;
 				dtbuf[h][1] = dpix_val1;
 				dtbuf[h][2] = dpix_val2;
@@ -25931,7 +25931,7 @@ static void lts_aga_fm0_n0_p4_ihires_dshres(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -26084,7 +26084,7 @@ static void lts_aga_fm0_n1_p4_ihires_dshres(void)
 				loaded_pix = getbpl4();
 			}
 			loaded_pixs[3] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				dtbuf[h][0] = dpix_val0;
 				dtbuf[h][1] = dpix_val1;
 				dtbuf[h][2] = dpix_val2;
@@ -26131,7 +26131,7 @@ static void lts_aga_fm0_n1_p4_ihires_dshres(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -26260,7 +26260,7 @@ static void lts_aga_fm0_dpf0_p4_ihires_dshres(void)
 				loaded_pix = getbpl4();
 			}
 			loaded_pixs[3] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				dtbuf[h][0] = dpix_val0;
 				dtbuf[h][1] = dpix_val1;
 				dtbuf[h][2] = dpix_val2;
@@ -26307,7 +26307,7 @@ static void lts_aga_fm0_dpf0_p4_ihires_dshres(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -26480,7 +26480,7 @@ static void lts_aga_fm0_dpf1_p4_ihires_dshres(void)
 				loaded_pix = getbpl4();
 			}
 			loaded_pixs[3] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				dtbuf[h][0] = dpix_val0;
 				dtbuf[h][1] = dpix_val1;
 				dtbuf[h][2] = dpix_val2;
@@ -26527,7 +26527,7 @@ static void lts_aga_fm0_dpf1_p4_ihires_dshres(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -26776,7 +26776,7 @@ static void lts_aga_fm0_n0_p2_ihires_dshres_spr(void)
 				}
 			}
 			loaded_pixs[3] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				if (sv0) {
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
 					if (spix0) {
@@ -26847,7 +26847,7 @@ static void lts_aga_fm0_n0_p2_ihires_dshres_spr(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -27036,7 +27036,7 @@ static void lts_aga_fm0_n1_p2_ihires_dshres_spr(void)
 				}
 			}
 			loaded_pixs[3] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				if (sv0) {
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
 					if (spix0) {
@@ -27107,7 +27107,7 @@ static void lts_aga_fm0_n1_p2_ihires_dshres_spr(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -27272,7 +27272,7 @@ static void lts_aga_fm0_dpf0_p2_ihires_dshres_spr(void)
 				}
 			}
 			loaded_pixs[3] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				if (sv0) {
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
 					if (spix0) {
@@ -27343,7 +27343,7 @@ static void lts_aga_fm0_dpf0_p2_ihires_dshres_spr(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -27552,7 +27552,7 @@ static void lts_aga_fm0_dpf1_p2_ihires_dshres_spr(void)
 				}
 			}
 			loaded_pixs[3] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				if (sv0) {
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
 					if (spix0) {
@@ -27623,7 +27623,7 @@ static void lts_aga_fm0_dpf1_p2_ihires_dshres_spr(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -27792,7 +27792,7 @@ static void lts_aga_fm0_n0_p4_ihires_dshres_spr(void)
 				}
 			}
 			loaded_pixs[3] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				if (sv0) {
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
 					if (spix0) {
@@ -27863,7 +27863,7 @@ static void lts_aga_fm0_n0_p4_ihires_dshres_spr(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -28052,7 +28052,7 @@ static void lts_aga_fm0_n1_p4_ihires_dshres_spr(void)
 				}
 			}
 			loaded_pixs[3] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				if (sv0) {
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
 					if (spix0) {
@@ -28123,7 +28123,7 @@ static void lts_aga_fm0_n1_p4_ihires_dshres_spr(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -28288,7 +28288,7 @@ static void lts_aga_fm0_dpf0_p4_ihires_dshres_spr(void)
 				}
 			}
 			loaded_pixs[3] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				if (sv0) {
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
 					if (spix0) {
@@ -28359,7 +28359,7 @@ static void lts_aga_fm0_dpf0_p4_ihires_dshres_spr(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -28568,7 +28568,7 @@ static void lts_aga_fm0_dpf1_p4_ihires_dshres_spr(void)
 				}
 			}
 			loaded_pixs[3] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				if (sv0) {
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
 					if (spix0) {
@@ -28639,7 +28639,7 @@ static void lts_aga_fm0_dpf1_p4_ihires_dshres_spr(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -28828,7 +28828,7 @@ static void lts_aga_fm0_n0_p2_ishres_dshres(void)
 			}
 			loaded_pix = getbpl2();
 			loaded_pixs[3] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				dtbuf[h][0] = dpix_val0;
 				dtbuf[h][1] = dpix_val1;
 				dtbuf[h][2] = dpix_val2;
@@ -28875,7 +28875,7 @@ static void lts_aga_fm0_n0_p2_ishres_dshres(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -28972,7 +28972,7 @@ static void lts_aga_fm0_n1_p2_ishres_dshres(void)
 			}
 			loaded_pix = getbpl2();
 			loaded_pixs[3] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				dtbuf[h][0] = dpix_val0;
 				dtbuf[h][1] = dpix_val1;
 				dtbuf[h][2] = dpix_val2;
@@ -29019,7 +29019,7 @@ static void lts_aga_fm0_n1_p2_ishres_dshres(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -29124,7 +29124,7 @@ static void lts_aga_fm0_dpf0_p2_ishres_dshres(void)
 			}
 			loaded_pix = getbpl2();
 			loaded_pixs[3] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				dtbuf[h][0] = dpix_val0;
 				dtbuf[h][1] = dpix_val1;
 				dtbuf[h][2] = dpix_val2;
@@ -29171,7 +29171,7 @@ static void lts_aga_fm0_dpf0_p2_ishres_dshres(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -29288,7 +29288,7 @@ static void lts_aga_fm0_dpf1_p2_ishres_dshres(void)
 			}
 			loaded_pix = getbpl2();
 			loaded_pixs[3] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				dtbuf[h][0] = dpix_val0;
 				dtbuf[h][1] = dpix_val1;
 				dtbuf[h][2] = dpix_val2;
@@ -29335,7 +29335,7 @@ static void lts_aga_fm0_dpf1_p2_ishres_dshres(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -29600,7 +29600,7 @@ static void lts_aga_fm0_n0_p2_ishres_dshres_spr(void)
 				}
 			}
 			loaded_pixs[3] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				if (sv0) {
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
 					if (spix0) {
@@ -29671,7 +29671,7 @@ static void lts_aga_fm0_n0_p2_ishres_dshres_spr(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -29804,7 +29804,7 @@ static void lts_aga_fm0_n1_p2_ishres_dshres_spr(void)
 				}
 			}
 			loaded_pixs[3] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				if (sv0) {
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
 					if (spix0) {
@@ -29875,7 +29875,7 @@ static void lts_aga_fm0_n1_p2_ishres_dshres_spr(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -30016,7 +30016,7 @@ static void lts_aga_fm0_dpf0_p2_ishres_dshres_spr(void)
 				}
 			}
 			loaded_pixs[3] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				if (sv0) {
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
 					if (spix0) {
@@ -30087,7 +30087,7 @@ static void lts_aga_fm0_dpf0_p2_ishres_dshres_spr(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -30240,7 +30240,7 @@ static void lts_aga_fm0_dpf1_p2_ishres_dshres_spr(void)
 				}
 			}
 			loaded_pixs[3] = loaded_pix;
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				if (sv0) {
 					uae_u32 spix0 = denise_render_sprites2(pix0, sv0);
 					if (spix0) {
@@ -30311,7 +30311,7 @@ static void lts_aga_fm0_dpf1_p2_ishres_dshres_spr(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}

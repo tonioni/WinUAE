@@ -52,6 +52,7 @@ static void lts_ecs_shres_dlores(void)
 			if (bpldat_copy[0] && (denise_hcounter & 3) == bplcon1_shift[0]) { 
 				copybpl2();
 			}
+			sprites_hidden = sprites_hidden2;
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
@@ -60,7 +61,7 @@ static void lts_ecs_shres_dlores(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -131,7 +132,7 @@ static void lts_ecs_shres_dhires(void)
 					dpix_val3 = dpix_val2;
 				}
 			}
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				#ifdef DEBUGGER
 				if (decode_specials_debug) {
 					dpix_val0 = decode_denise_specials_debug(dpix_val0, cnt + 0);
@@ -156,6 +157,7 @@ static void lts_ecs_shres_dhires(void)
 			if (bpldat_copy[0] && (denise_hcounter & 3) == bplcon1_shift[0]) { 
 				copybpl2();
 			}
+			sprites_hidden = sprites_hidden2;
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
@@ -164,7 +166,7 @@ static void lts_ecs_shres_dhires(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -235,7 +237,7 @@ static void lts_ecs_shres_dshres(void)
 					dpix_val3 = dpix_val2;
 				}
 			}
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				#ifdef DEBUGGER
 				if (decode_specials_debug) {
 					dpix_val0 = decode_denise_specials_debug(dpix_val0, cnt + 0);
@@ -274,6 +276,7 @@ static void lts_ecs_shres_dshres(void)
 			if (bpldat_copy[0] && (denise_hcounter & 3) == bplcon1_shift[0]) { 
 				copybpl2();
 			}
+			sprites_hidden = sprites_hidden2;
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
@@ -282,7 +285,7 @@ static void lts_ecs_shres_dshres(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -291,6 +294,7 @@ static LINETOSRC_FUNC linetoscr_ecs_shres_funcs[] = {
 	lts_ecs_shres_dlores,
 	lts_ecs_shres_dhires,
 	lts_ecs_shres_dshres,
+	NULL
 };
 static void lts_ecs_shres_dlores_genlock(void)
 {
@@ -344,6 +348,7 @@ static void lts_ecs_shres_dlores_genlock(void)
 			if (bpldat_copy[0] && (denise_hcounter & 3) == bplcon1_shift[0]) { 
 				copybpl2();
 			}
+			sprites_hidden = sprites_hidden2;
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
@@ -352,7 +357,7 @@ static void lts_ecs_shres_dlores_genlock(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -427,7 +432,7 @@ static void lts_ecs_shres_dhires_genlock(void)
 					dpix_val3 = dpix_val2;
 				}
 			}
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				#ifdef DEBUGGER
 				if (decode_specials_debug) {
 					dpix_val0 = decode_denise_specials_debug(dpix_val0, cnt + 0);
@@ -454,6 +459,7 @@ static void lts_ecs_shres_dhires_genlock(void)
 			if (bpldat_copy[0] && (denise_hcounter & 3) == bplcon1_shift[0]) { 
 				copybpl2();
 			}
+			sprites_hidden = sprites_hidden2;
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
@@ -462,7 +468,7 @@ static void lts_ecs_shres_dhires_genlock(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
@@ -537,7 +543,7 @@ static void lts_ecs_shres_dshres_genlock(void)
 					dpix_val3 = dpix_val2;
 				}
 			}
-			if (denise_pixtotal >= 0) {
+			if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {
 				#ifdef DEBUGGER
 				if (decode_specials_debug) {
 					dpix_val0 = decode_denise_specials_debug(dpix_val0, cnt + 0);
@@ -580,6 +586,7 @@ static void lts_ecs_shres_dshres_genlock(void)
 			if (bpldat_copy[0] && (denise_hcounter & 3) == bplcon1_shift[0]) { 
 				copybpl2();
 			}
+			sprites_hidden = sprites_hidden2;
 			#ifdef DEBUGGER
 			*debug_dma_dhpos_odd = denise_hcounter;
 			#endif
@@ -588,16 +595,14 @@ static void lts_ecs_shres_dshres_genlock(void)
 			denise_hcounter_next++;
 			denise_hcounter_next &= 511;
 		}
-		denise_pixtotal--;
+		denise_pixtotal++;
 		denise_hcounter = denise_hcounter_new;
 		denise_cck++;
 	}
 }
 static LINETOSRC_FUNC linetoscr_ecs_shres_genlock_funcs[] = {
-	lts_ecs_shres_dlores,
-	lts_ecs_shres_dhires,
-	lts_ecs_shres_dshres,
 	lts_ecs_shres_dlores_genlock,
 	lts_ecs_shres_dhires_genlock,
 	lts_ecs_shres_dshres_genlock,
+	NULL
 };

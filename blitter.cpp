@@ -453,7 +453,7 @@ static void blitter_end(void)
 static void blitter_done_all(bool all)
 {
 	blt_info.blit_main = 0;
-	blt_info.blit_queued = BLITTER_MAX_PIPELINED_CYCLES;
+	blt_info.blit_queued = blitter_cycle_exact ? BLITTER_MAX_PIPELINED_CYCLES : 0;
 	blt_info.finishcycle_dmacon = get_cycles();
 	blt_info.finishcycle_copper = get_cycles() + 1 * CYCLE_UNIT;
 	blitter_interrupt();
@@ -2034,6 +2034,7 @@ void do_blitter(int copper, uaecptr pc)
 	blit_totalcyclecounter = 0;
 	blt_info.blit_pending = 1;
 	blt_info.blit_count_done = 0;
+	blt_info.blit_queued = 0;
 
 	blitter_start_init();
 

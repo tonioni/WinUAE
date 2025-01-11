@@ -327,7 +327,7 @@ void do_cycles_slow(int cycles_to_add)
 	while (cycles_to_add >= CYCLE_UNIT) {
 
 		if (custom_fastmode <= 0) {
-			int cyc = cycles_to_add & ~(CYCLE_UNIT - 1);
+			int cyc = cycles_to_add;
 			cyc = do_cycles_cck(cyc);
 			cycles_to_add -= cyc;
 		} else {
