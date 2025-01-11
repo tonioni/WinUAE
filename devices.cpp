@@ -273,7 +273,6 @@ void devices_hsync(void)
 {
 	DISK_hsync();
 	audio_hsync();
-	CIA_hsync_prehandler();
 
 	decide_blitter(-1);
 #ifdef SERIAL_PORT

@@ -13,7 +13,6 @@
 
 extern void CIA_reset(int);
 extern void CIA_vsync_prehandler(void);
-extern void CIA_hsync_prehandler(void);
 extern void CIA_hsync_posthandler(bool, bool);
 extern void CIA_handler(void);
 extern void CIAA_tod_handler(int);

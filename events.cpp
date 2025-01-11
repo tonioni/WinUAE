@@ -327,7 +327,7 @@ void do_cycles_slow(int cycles_to_add)
 	while (cycles_to_add >= CYCLE_UNIT) {
 
 		if (custom_fastmode <= 0) {
-			int cyc = cycles_to_add & ~(CYCLE_UNIT - 1);
+			int cyc = cycles_to_add;
 			cyc = do_cycles_cck(cyc);
 			cycles_to_add -= cyc;
 		} else {
@@ -486,6 +486,16 @@ void event2_newevent_x_remove(evfunc2 func)
 			eventtab2[i].active = false;
 		}
 	}
+}
+
+bool event2_newevent_x_exists(evfunc2 func)
+{
+	for (int i = 0; i < ev2_max; i++) {
+		if (eventtab2[i].active && eventtab2[i].handler == func) {
+			return true;
+		}
+	}
+	return false;
 }
 
 void event2_newevent_x_replace(evt_t t, uae_u32 data, evfunc2 func)

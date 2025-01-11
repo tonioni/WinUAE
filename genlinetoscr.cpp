@@ -582,7 +582,7 @@ static void gen_pix_aga(void)
 		}
 	}
 
-	outf("if (denise_pixtotal >= 0) {");
+	outf("if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {");
 
 	// bitplane/sprite merging
 	off = 0;
@@ -645,8 +645,6 @@ static void gen_pix_aga(void)
 	}
 
 	outf("}");
-
-	outf("sprites_hidden = sprites_hidden2;");
 }
 
 static void gen_pix(void)
@@ -728,7 +726,7 @@ static void gen_pix(void)
 		}
 	}
 
-	outf("if (denise_pixtotal >= 0) {");
+	outf("if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {");
 
 	// bitplane/sprite merging
 	for (int i = 0; i < (1 << outres); i++) {
@@ -785,8 +783,6 @@ static void gen_pix(void)
 	outf("}");
 
 	gen_copybpl();
-
-	outf("sprites_hidden = sprites_hidden2;");
 }
 
 static void gen_init(void)
@@ -874,6 +870,7 @@ static void gen_start(void)
 }
 static void gen_end(void)
 {
+	outf("			sprites_hidden = sprites_hidden2;");
 	outf("#ifdef DEBUGGER");
 	outf("			*debug_dma_dhpos_odd = denise_hcounter;");
 	outf("#endif");
@@ -882,7 +879,7 @@ static void gen_end(void)
 	outf("			denise_hcounter_next++;");
 	outf("			denise_hcounter_next &= 511;");
 	outf("		}");
-	outf("		denise_pixtotal--;");
+	outf("		denise_pixtotal++;");
 	outf("		denise_hcounter = denise_hcounter_new;");
 	outf("		denise_cck++;");
 	outf("	}");
@@ -959,6 +956,21 @@ static void helperfunctions(void)
 	}
 }
 
+static void write_funcs(const char *name)
+{
+	outf("static LINETOSRC_FUNC %s[] = {", name);
+	char *p = funcnames;
+	while (*p) {
+		outf("%s,", p);
+		p += strlen(p) + 1;
+	}
+	outf("NULL");
+	outf("};");
+
+	funcnamep = funcnames;
+	*funcnamep = 0;
+}
+
 int main (int argc, char *argv[])
 {
 	set_outfile("../../linetoscr_common.cpp");
@@ -1004,16 +1016,8 @@ int main (int argc, char *argv[])
 		}
 	}
 
-	outf("static LINETOSRC_FUNC linetoscr_aga_funcs[] = {");
-	char *p = funcnames;
-	while (*p) {
-		outf("%s,", p);
-		p += strlen(p) + 1;
-	}
-	outf("};");
+	write_funcs("linetoscr_aga_funcs");
 
-	funcnamep = funcnames;
-	*funcnamep = 0;
 	genlock = 1;
 
 	for (bplfmode = 0; bplfmode < 3; bplfmode++) {
@@ -1046,20 +1050,11 @@ int main (int argc, char *argv[])
 		}
 	}
 
-	outf("static LINETOSRC_FUNC linetoscr_aga_genlock_funcs[] = {");
-	p = funcnames;
-	while (*p) {
-		outf("%s,", p);
-		p += strlen(p) + 1;
-	}
-	outf("};");
-
+	write_funcs("linetoscr_aga_genlock_funcs");
 
 	// OCS/ECS
 	set_outfile("../../linetoscr_ocs_ecs.cpp");
 
-	funcnamep = funcnames;
-	*funcnamep = 0;
 	aga = 0;
 	bplfmode = 0;
 	genlock = 0;
@@ -1090,19 +1085,11 @@ int main (int argc, char *argv[])
 		}
 	}
 
-	outf("static LINETOSRC_FUNC linetoscr_ecs_funcs[] = {");
-	p = funcnames;
-	while (*p) {
-		outf("%s,", p);
-		p += strlen(p) + 1;
-	}
-	outf("};");
+	write_funcs("linetoscr_ecs_funcs");
 
 	// OCS/ECS genlock
 	set_outfile("../../linetoscr_ocs_ecs_genlock.cpp");
 
-	funcnamep = funcnames;
-	*funcnamep = 0;
 	genlock = 1;
 
 	for (outres = 0; outres < 3; outres++) {
@@ -1131,22 +1118,11 @@ int main (int argc, char *argv[])
 		}
 	}
 
-	outf("static LINETOSRC_FUNC linetoscr_ecs_genlock_funcs[] = {");
-	p = funcnames;
-	while (*p) {
-		outf("%s,", p);
-		p += strlen(p) + 1;
-	}
-	outf("};");
-
-
-
+	write_funcs("linetoscr_ecs_genlock_funcs");
 
 	// OCS/ECS NTSC
 	set_outfile("../../linetoscr_ocs_ecs_ntsc.cpp");
 
-	funcnamep = funcnames;
-	*funcnamep = 0;
 	aga = 0;
 	bplfmode = 0;
 	genlock = 0;
@@ -1176,19 +1152,11 @@ int main (int argc, char *argv[])
 		}
 	}
 
-	outf("static LINETOSRC_FUNC linetoscr_ecs_ntsc_funcs[] = {");
-	p = funcnames;
-	while (*p) {
-		outf("%s,", p);
-		p += strlen(p) + 1;
-	}
-	outf("};");
+	write_funcs("linetoscr_ecs_ntsc_funcs");
 
 	// OCS/ECS genlock NTSC
 	set_outfile("../../linetoscr_ocs_ecs_ntsc_genlock.cpp");
 
-	funcnamep = funcnames;
-	*funcnamep = 0;
 	genlock = 1;
 
 	for (outres = 0; outres < 3; outres++) {
@@ -1217,19 +1185,11 @@ int main (int argc, char *argv[])
 		}
 	}
 
-	outf("static LINETOSRC_FUNC linetoscr_ecs_ntsc_genlock_funcs[] = {");
-	p = funcnames;
-	while (*p) {
-		outf("%s,", p);
-		p += strlen(p) + 1;
-	}
-	outf("};");
+	write_funcs("linetoscr_ecs_ntsc_genlock_funcs");
 
 	// ECS SuperHires
 	set_outfile("../../linetoscr_ecs_shres.cpp");
 
-	funcnamep = funcnames;
-	*funcnamep = 0;
 	planes = 2;
 	res = 2;
 	modes = 0;
@@ -1286,7 +1246,7 @@ int main (int argc, char *argv[])
 				gen_sprpix(1);
 				gen_matchspr(2);
 				gen_ecsshresspr();
-				outf("if (denise_pixtotal >= 0) {");
+				outf("if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {");
 				gen_storepix(0, 0);
 				gen_storepix(2, 2);
 				outf("}");
@@ -1296,7 +1256,7 @@ int main (int argc, char *argv[])
 				gen_sprpix(1);
 				gen_matchspr(2);
 				gen_ecsshresspr();
-				outf("if (denise_pixtotal >= 0) {");
+				outf("if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {");
 				gen_storepix(0, 0);
 				gen_storepix(1, 1);
 				gen_storepix(2, 2);
@@ -1314,13 +1274,7 @@ int main (int argc, char *argv[])
 			gen_tail();
 		}
 
-		outf("static LINETOSRC_FUNC linetoscr_ecs_shres_%sfuncs[] = {", genlock ? "genlock_" : "");
-		p = funcnames;
-		while (*p) {
-			outf("%s,", p);
-			p += strlen(p) + 1;
-		}
-		outf("};");
+		write_funcs(genlock ? "linetoscr_ecs_shres_genlock_funcs" : "linetoscr_ecs_shres_funcs");
 	}
 
 	closefile();
