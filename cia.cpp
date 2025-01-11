@@ -1027,10 +1027,6 @@ static void resetwarning_check(void)
 	}
 }
 
-void CIA_hsync_prehandler (void)
-{
-}
-
 void cia_keyreq(uae_u8 code)
 {
 #if KB_DEBUG

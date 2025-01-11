@@ -355,7 +355,7 @@ static bool graphicsbuffer_retry;
 static int cia_hsync;
 static int nosignal_cnt, nosignal_status;
 static bool nosignal_trigger;
-static int issyncstopped_count;
+static bool syncs_stopped;
 int display_reset;
 static bool initial_frame;
 static int plffirstline, plflastline;
@@ -365,7 +365,6 @@ static int plffirstline, plflastline;
 * hstop_handler() completely but it is not
 * worth the trouble..
 */
-static int vpos_previous, hpos_previous;
 static int vpos_lpen, hpos_lpen, hhpos_lpen, lightpen_triggered;
 int lightpen_x[2], lightpen_y[2];
 int lightpen_cx[2], lightpen_cy[2], lightpen_active, lightpen_enabled, lightpen_enabled2;
@@ -2219,28 +2218,29 @@ STATIC_INLINE int issyncstopped(uae_u16 con0)
 	return (con0 & 2) && (!currprefs.genlock || currprefs.genlock_effects);
 }
 
+static void setsyncstopped(void)
+{
+	syncs_stopped = true;
+}
+
+static void checksyncstopped(uae_u16 con0)
+{
+	if (issyncstopped(con0)) {
+		if (currprefs.m68k_speed < 0) {
+			setsyncstopped();
+		}
+	} else {
+		syncs_stopped = false;
+	}
+}
+
 STATIC_INLINE int GETVPOS(void)
 {
-	return islightpentriggered() ? vpos_lpen : (issyncstopped(bplcon0) ? vpos_previous : vpos);
+	return islightpentriggered() ? vpos_lpen : vpos;
 }
 STATIC_INLINE int GETHPOS(void)
 {
-	return islightpentriggered() ? hpos_lpen : (issyncstopped(bplcon0) ? hpos_previous : current_hpos());
-}
-
-// fake changing hpos when rom genlock test runs and genlock is connected
-static bool hsyncdelay(void)
-{
-	if (!currprefs.genlock || currprefs.genlock_effects) {
-		return false;
-	}
-	if (currprefs.cpu_memory_cycle_exact || currprefs.m68k_speed >= 0) {
-		return false;
-	}
-	if (bplcon0 == (0x0100 | 0x0002)) {
-		return true;
-	}
-	return false;
+	return islightpentriggered() ? hpos_lpen : agnus_hpos;
 }
 
 static void setmaxhpos(void)
@@ -2321,7 +2321,6 @@ static uae_u16 VPOSR(void)
 		vp |= lolr ? 0x80 : 0;
 	}
 	vp |= (lofr ? 0x8000 : 0) | csbit;
-	hsyncdelay();
 
 #if 0
 	if (1 || (M68K_GETPC < 0x00f00000 || M68K_GETPC >= 0x10000000))
@@ -2393,18 +2392,11 @@ static uae_u16 VHPOSR(void)
 
 	incpos(&hp, &vp);
 	vp <<= 8;
-
-	if (hsyncdelay()) {
-		// fake continuously changing hpos in fastest possible modes
-		hp = oldhp % maxhpos;
-		oldhp++;
-	}
-
 	vp |= hp;
 
 #if 0
 	if (M68K_GETPC < 0x00f00000 || M68K_GETPC >= 0x10000000)
-		write_log (_T("VPOS %04x %04x at %08x\n"), VPOSR (), vp, M68K_GETPC);
+		write_log (_T("VHPOSR %04x at %08x\n"), vp, M68K_GETPC);
 #endif
 	return vp;
 }
@@ -3450,13 +3442,27 @@ static uae_u16 BPLCON0_Agnus_mask(uae_u16 v)
 	return v;
 }
 
-static void BPLCON0_delayed(uae_u32 v)
+static void BPLCON0_delayed(uae_u32 va)
 {
-	bplcon0 = v;
+	bplcon0 = va;
 
 	check_harddis();
 
 	setup_fmodes(bplcon0);
+
+	if ((va & 8) && !lightpen_triggered && agnus_vb_active) {
+		// setting lightpen bit immediately freezes VPOSR if inside vblank and not already frozen
+		hhpos_lpen = HHPOSR();
+		lightpen_triggered = 1;
+		vpos_lpen = vpos;
+		hpos_lpen = agnus_hpos;
+	}
+	if (!(va & 8)) {
+		// clearing lightpen bit immediately returns VPOSR back to normal
+		lightpen_triggered = 0;
+	}
+
+	checksyncstopped(va);
 }
 
 static void BPLCON0(uae_u16 v)
@@ -3479,25 +3485,11 @@ static void BPLCON0(uae_u16 v)
 		not_safe_mode &= ~1;
 	}
 
-	if (!issyncstopped(va)) {
-		vpos_previous = vpos;
-		hpos_previous = agnus_hpos;
+	if (copper_access || (!copper_access && currprefs.cpu_memory_cycle_exact)) {
+		pipelined_custom_write(BPLCON0_delayed, v, 2);
+	} else {
+		BPLCON0_delayed(v);
 	}
-
-	if ((va & 8) && !lightpen_triggered && agnus_vb_active) {
-		// setting lightpen bit immediately freezes VPOSR if inside vblank and not already frozen
-		hhpos_lpen = HHPOSR();
-		lightpen_triggered = 1;
-		vpos_lpen = vpos;
-		hpos_lpen = agnus_hpos;
-	} 
-	if (!(va & 8)) {
-		// clearing lightpen bit immediately returns VPOSR back to normal
-		lightpen_triggered = 0;
-	}
-
-//	BPLCON0_delayed(v);
-	pipelined_custom_write(BPLCON0_delayed, v, 2);
 }
 
 static void BPLCON1(uae_u16 v)
@@ -4228,9 +4220,7 @@ static void compute_spcflag_copper(void)
 			}
 		}
 	}
-	if (issyncstopped_count <= 160) {
-		copper_enabled_thisline = 1;
-	}
+	copper_enabled_thisline = 1;
 }
 
 void blitter_done_notify(void)
@@ -6073,8 +6063,7 @@ void vsync_event_done(void)
 	}
 }
 
-// this prepares for new line
-static void hsync_handler_post(bool onvsync)
+static void cia_hsync_do(void)
 {
 	// genlock active:
 	// vertical: interlaced = toggles every other field, non-interlaced = both fields (normal)
@@ -6110,14 +6099,14 @@ static void hsync_handler_post(bool onvsync)
 	} else if (currprefs.cs_ciaatod > 0) {
 #if 0
 		static uae_s32 oldtick;
-		uae_s32 tick = read_system_time (); // milliseconds
+		uae_s32 tick = read_system_time(); // milliseconds
 		int ms = 1000 / (currprefs.cs_ciaatod == 2 ? 60 : 50);
 		if (tick - oldtick > 2000 || tick - oldtick < -2000) {
 			oldtick = tick - ms;
-			write_log (_T("RESET\n"));
-		} 
+			write_log(_T("RESET\n"));
+		}
 		if (tick - oldtick >= ms) {
-			CIA_vsync_posthandler (1);
+			CIA_vsync_posthandler(1);
 			oldtick += ms;
 		}
 #else
@@ -6143,6 +6132,13 @@ static void hsync_handler_post(bool onvsync)
 			}
 		}
 	}
+}
+
+// this prepares for new line
+static void hsync_handler_post(bool onvsync)
+{
+	cia_hsync_do();
+
 
 #if 0
 	if (!custom_disabled) {
@@ -6154,10 +6150,10 @@ static void hsync_handler_post(bool onvsync)
 	}
 #endif
 
-	if (issyncstopped(bplcon0)) {
-		issyncstopped_count++;
-	} else {
-		issyncstopped_count = 0;
+	if (issyncstopped(bplcon0) && !syncs_stopped) {
+		if (!lol) {
+			setsyncstopped();
+		}
 	}
 
 
@@ -6297,8 +6293,6 @@ static void hsync_handler_post(bool onvsync)
 		inputdevice_hsync(false);
 	}
 
-	//reset_decisions_scanline_start();
-
 	rethink_uae_int();
 
 	/* See if there's a chance of a copper wait ending this line.  */
@@ -6390,6 +6384,23 @@ static void hsync_handler(bool vs)
 	hsync_handler_post(vs);
 }
 
+// syncs stopped: generate fake hsyncs to keep everything running
+static void fakehsync_handler(uae_u32 v)
+{
+	if (syncs_stopped) {
+		hsync_handler(false);
+		event2_newevent_xx(-1, CYCLE_UNIT * maxhpos, 0, fakehsync_handler);
+	}
+}
+
+static void set_fakehsync_handler(void)
+{
+	if (event2_newevent_x_exists(fakehsync_handler)) {
+		return;
+	}
+	event2_newevent_xx(-1, CYCLE_UNIT * maxhpos, 0, fakehsync_handler);
+}
+
 static void audio_evhandler2(void)
 {
 	audio_evhandler();
@@ -6467,6 +6478,7 @@ void custom_reset(bool hardreset, bool keyboardreset)
 	pipelined_write_addr = 0x1fe;
 	prev_strobe = 0x3c;
 	dmal_next = false;
+	syncs_stopped = false;
 
 	bool ntsc = currprefs.ntscmode;
 
@@ -10693,6 +10705,16 @@ static void inc_cck(void)
 	if (agnus_hpos == maxhpos) {
 		agnus_hpos = 0;
 	}
+	if (syncs_stopped) {
+		agnus_hpos = 1;
+		hhpos = 1;
+		linear_hpos = 1;
+		set_fakehsync_handler();
+	} else {
+		rga_denise_cycle++;
+		rga_denise_cycle &= (DENISE_RGA_SLOT_TOTAL - 1);
+		rga_denise_cycle_count++;
+	}
 	if (beamcon0_dual) {
 		if (hhpos == maxhpos) {
 			hhpos = 0;
@@ -10723,9 +10745,6 @@ static void inc_cck(void)
 		}
 	}
 
-	rga_denise_cycle++;
-	rga_denise_cycle &= (DENISE_RGA_SLOT_TOTAL - 1);
-	rga_denise_cycle_count++;
 }
 
 static void update_agnus_pcsync(int hp, bool prevsy)
@@ -10947,13 +10966,15 @@ static void check_hsyncs(void)
 #endif
 		}
 		if ((vpos == 9 && is_rsve_n) || (vpos == 8 && is_vr1) || (vpos == 7 && is_rsve_p) || agnus_equdis) {
-			agnus_ve = false;
-			check_vidsyncs();
+			if (agnus_ve) {
+				agnus_ve = false;
+				check_vidsyncs();
 #ifdef DEBUGGER
-			if (debug_dma) {
-				record_dma_event_agnus(AGNUS_EVENT_VE, false);
-			}
+				if (debug_dma) {
+					record_dma_event_agnus(AGNUS_EVENT_VE, false);
+				}
 #endif
+			}
 		}
 	}
 
@@ -11380,7 +11401,7 @@ static void do_cck(bool docycles)
 
 	check_hsyncs();
 
-	if (agnus_hpos == HARDWIRED_DMA_TRIGGER_HPOS) {
+	if (agnus_hpos == HARDWIRED_DMA_TRIGGER_HPOS && !syncs_stopped) {
 		custom_trigger_start();
 		if (custom_fastmode > 0) {
 			return;
