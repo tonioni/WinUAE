@@ -1,5 +1,15 @@
 
 
+Beta 4:
+
+- Copper DMA is off and vblank strobe: copper loaded new pointer immediately, not when it get first DMA slot.
+- ERSY=1 without genlock now really stops horizontal/vertical counters instead of faking it. Old hack removed.
+- Reading AGA color register contents (RDRAM=1) read old value from previous scanline due to RGA bus buffering.
+- Some ECS Denise modes had garbage visible in left and/or right side and display ended 1 lores pixel too early.
+- Advanced chipset default (non-editable) Agnus revision field didn't always include ECS bit flag. Visual bug only. (Very old bug).
+- TV Overscan modes work now, including genlock modes.
+- Programmed mode screen width and horizontal position updates.
+
 Beta 3:
 
 - Added longer delay before BPLCON0 ERSY=1 bit without genlock stops horizontal/vertical counters.
