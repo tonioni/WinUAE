@@ -663,6 +663,7 @@ enum copper_states {
 	COP_skip1,
 	COP_strobe_vbl_delay,
 	COP_strobe_vbl_delay2,
+	COP_strobe_vbl_delay_nodma,
 	COP_strobe_vbl_extra_delay1,
 	COP_strobe_vbl_extra_delay2,
 	COP_strobe_vbl_extra_delay3,
@@ -2859,28 +2860,32 @@ static void COPJMP(int num, int vblank)
 	} else {
 		// copper request done for next cycle
 		if (vblank) {
-			cop_state.state = COP_strobe_vbl_delay;
-			cop_state.strobeip = cop1lc;
-			cop_state.strobe = 0;
-			struct rgabuf *r = read_rga_in();
-			r->type |= CYCLE_COPPER;
-			r->copdat = 0;
-			if (!r->alloc) {
-				r->alloc = -1;
-			}
+			if (!is_copper_dma(false)) {
+				cop_state.state = COP_strobe_vbl_delay_nodma;
+			} else {
+				cop_state.state = COP_strobe_vbl_delay;
+				cop_state.strobeip = cop1lc;
+				cop_state.strobe = 0;
+				struct rgabuf *r = read_rga_in();
+				r->type |= CYCLE_COPPER;
+				r->copdat = 0;
+				if (!r->alloc) {
+					r->alloc = -1;
+				}
 #if 1
-			switch (cop_state.state_prev)
-			{
-				case copper_states::COP_read1:
-					// Wake up is delayed by 1 copper cycle if copper is currently loading words
-					cop_state.state = COP_strobe_vbl_extra_delay1;
-					break;
-				case copper_states::COP_read2:
-					// Wake up is delayed by 1 copper cycle if copper is currently loading words
-					cop_state.state = COP_strobe_vbl_extra_delay2;
-					break;
-			}
+				switch (cop_state.state_prev)
+				{
+					case copper_states::COP_read1:
+						// Wake up is delayed by 1 copper cycle if copper is currently loading words
+						cop_state.state = COP_strobe_vbl_extra_delay1;
+						break;
+					case copper_states::COP_read2:
+						// Wake up is delayed by 1 copper cycle if copper is currently loading words
+						cop_state.state = COP_strobe_vbl_extra_delay2;
+						break;
+				}
 #endif
+			}
 		} else {
 			if (copper_access) {
 				cop_state.state = COP_strobe_delay1;
@@ -8741,6 +8746,8 @@ static void process_copper(struct rgabuf *r)
 	case COP_strobe_vbl_delay:
 	{
 		cop_state.state = COP_strobe_vbl_delay2;
+		cop_state.strobeip = getstrobecopip();
+		cop_state.strobe = 0;
 #ifdef DEBUGGER
 		if (debug_dma) {
 			record_dma_event(DMA_EVENT_COPPERUSE);
@@ -8769,6 +8776,11 @@ static void process_copper(struct rgabuf *r)
 		regs.chipset_latch_rw = cop_state.ir[1];
 	}
 	break;
+	case COP_strobe_vbl_delay_nodma:
+		cop_state.ip = getstrobecopip();
+		cop_state.state = COP_read1;
+		break;
+
 	case COP_strobe_vbl_extra_delay1:
 #ifdef DEBUGGER
 		if (debug_dma) {
@@ -9119,6 +9131,9 @@ static void generate_copper(void)
 
 	switch (cop_state.state)
 	{
+		case COP_strobe_vbl_delay_nodma:
+		generate_copper_cycle_if_free(CYCLE_PIPE_COPPER);
+		break;
 		case COP_strobe_vbl_delay2:
 		// Second cycle after COPJMP does basically skipped MOVE (MOVE to 1FE)
 		// Cycle is used and needs to be free.
