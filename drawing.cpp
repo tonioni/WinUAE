@@ -2780,7 +2780,7 @@ static void expand_bplcon4_spr(uae_u16 v)
 static void expand_bplcon4_bm(uae_u16 v)
 {
 	bplcon4_denise &= 0x00ff;
-	bplcon4_denise = v & 0xff00;
+	bplcon4_denise |= v & 0xff00;
 	// Sprite bank change is 1 hires pixel faster than bitplane XOR change
 	if (aga_mode && (bplcon4_denise >> 8) != bplcon4_denise_xor_val2) {
 		bplcon4_denise_xor_val2 = bplcon4_denise >> 8;
