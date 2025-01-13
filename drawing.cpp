@@ -578,7 +578,7 @@ void set_custom_limits (int w, int h, int dx, int dy, bool blank)
 	check_custom_limits();
 }
 
-void store_custom_limits (int w, int h, int x, int y)
+void store_custom_limits(int w, int h, int x, int y)
 {
 	stored_left_start = x;
 	stored_top_start = y;
@@ -594,14 +594,14 @@ void store_custom_limits (int w, int h, int x, int y)
 #endif
 }
 
-int get_custom_limits (int *pw, int *ph, int *pdx, int *pdy, int *prealh)
+int get_custom_limits(int *pw, int *ph, int *pdx, int *pdy, int *prealh)
 {
 	struct vidbuf_description *vidinfo = &adisplays[0].gfxvidinfo;
 	int w, h, dx, dy, y1, y2, dbl1, dbl2;
 	int ret = 0;
 
 	if (!pw || !ph || !pdx || !pdy) {
-		reset_custom_limits ();
+		reset_custom_limits();
 		return 0;
 	}
 
@@ -666,16 +666,20 @@ int get_custom_limits (int *pw, int *ph, int *pdx, int *pdy, int *prealh)
 	}
 
 	w = diwlast - diwfirst;
-	dx = diwfirst - (hdisplay_left_border << (RES_MAX + 1));
+	dx = diwfirst - (hdisplay_left_border << (RES_MAX + 1)) + (1 << RES_MAX);
 
-	w >>= (RES_MAX - currprefs.gfx_resolution);
-	dx >>= (RES_MAX - currprefs.gfx_resolution);
+	w >>= (RES_MAX - hresolution);
+	dx >>= (RES_MAX - hresolution);
 
 	y2 = plflastline_total;
 	y1 = plffirstline_total;
+	if (exthblankon_ecs) {
+		y1--;
+	}
 
-	if (minfirstline_linear > y1)
+	if (minfirstline_linear > y1) {
 		y1 = minfirstline_linear;
+	}
 
 	dbl2 = dbl1 = currprefs.gfx_vresolution;
 	if (doublescan > 0 && interlace_seen <= 0) {
@@ -691,7 +695,7 @@ int get_custom_limits (int *pw, int *ph, int *pdx, int *pdy, int *prealh)
 		if (ret < 0)
 			return 1;
 		h = currprefs.ntscmode ? 200 : 240;
-		w = 320 << currprefs.gfx_resolution;
+		w = 320 << hresolution;
 		dy = 36 / 2;
 		dx = 58;
 	}
@@ -703,13 +707,13 @@ int get_custom_limits (int *pw, int *ph, int *pdx, int *pdy, int *prealh)
 	if (programmedmode != 1 && plffirstline_total < 30000) {
 		int th = (current_linear_vpos - minfirstline_linear) * 95 / 100;
 		if (th > h) {
-			th = xshift (th, dbl1);
+			th = xshift(th, dbl1);
 			*prealh = th;
 		}
 	}
 
-	dy = xshift (dy, dbl2);
-	h = xshift (h, dbl1);
+	dy = xshift(dy, dbl2);
+	h = xshift(h, dbl1);
 
 	if (w == 0 || h == 0)
 		return 0;
@@ -757,8 +761,8 @@ int get_custom_limits (int *pw, int *ph, int *pdx, int *pdy, int *prealh)
 	*pdx = dx;
 	*pdy = dy;
 #if 1
-	write_log (_T("Display Size: %dx%d Offset: %dx%d\n"), w, h, dx, dy);
-	write_log (_T("First: %d Last: %d Min: %d\n"),
+	write_log(_T("Display Size: %dx%d Offset: %dx%d\n"), w, h, dx, dy);
+	write_log(_T("First: %d Last: %d Min: %d\n"),
 		plffirstline_total, plflastline_total,
 		minfirstline);
 #endif

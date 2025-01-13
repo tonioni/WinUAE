@@ -10284,7 +10284,7 @@ static void decide_line_end(void)
 
 static void draw_line(int hpos)
 {
-	hdisplay_left_border = (get_cck_cycles() - agnus_trigger_cck) - REFRESH_FIRST_HPOS;
+	hdisplay_left_border = (get_cck_cycles() - agnus_trigger_cck) - REFRESH_FIRST_HPOS + display_hstart_cyclewait_skip;
 	int dvp = calculate_linetype(linear_display_vpos);
 
 	int wclks = hpos - (display_hstart_cyclewait_skip - display_hstart_cyclewait_skip2);
