@@ -444,34 +444,43 @@ static const pci_addrbank *get_pci_mem(uaecptr *addrp, struct pci_board_state **
 	return &pcibs->board->bars[bar];
 }
 
+static uae_u8 config_return[256 + 3];
+
 static uae_u8 *get_pci_config(uaecptr addr, int size, uae_u32 v, int *endianswap)
 {
+	struct pci_bridge *pcib = get_pci_bridge(addr);
+	if (!pcib) {
+#if PCI_DEBUG_CONFIG
+		if (size < 0) {
+			write_log(_T("PCI Config Space %s READ %08x PC=%08x\n"),
+				size == -4 ? _T("LONG") : (size == -2 ? _T("WORD") : _T("BYTE")), addr, M68K_GETPC);
+		} else {
+			write_log(_T("PCI Config Space %s WRITE %08x = %08x PC=%08x\n"),
+				size == 4 ? _T("LONG") : (size == 2 ? _T("WORD") : _T("BYTE")), addr, v, M68K_GETPC);
+		}
+#endif
+		return NULL;
+	}
+	struct pci_board_state *pcibs = get_pci_board_state_config(pcib, addr, size > 0, &v);
+	if (!pcibs) {
+		if (size < 0) {
+			config_return[3] = v >> 24;
+			config_return[2] = v >> 16;
+			config_return[1] = v >> 8;
+			config_return[0] = v >> 0;
+			return config_return;
+		}
+		return NULL;
+	}
+	*endianswap = pcib->endian_swap_config;
 #if PCI_DEBUG_CONFIG
 	if (size < 0) {
 		write_log(_T("PCI Config Space %s READ %08x PC=%08x\n"),
 			size == -4 ? _T("LONG") : (size == -2 ? _T("WORD") : _T("BYTE")), addr, M68K_GETPC);
 	} else {
 		write_log(_T("PCI Config Space %s WRITE %08x = %08x PC=%08x\n"),
-					 size == 4 ? _T("LONG") : (size == 2 ? _T("WORD") : _T("BYTE")), addr, v, M68K_GETPC);
+			size == 4 ? _T("LONG") : (size == 2 ? _T("WORD") : _T("BYTE")), addr, v, M68K_GETPC);
 	}
-#endif
-	struct pci_bridge *pcib = get_pci_bridge(addr);
-	if (!pcib)
-		return NULL;
-	struct pci_board_state *pcibs = get_pci_board_state_config(pcib, addr, size > 0, &v);
-	if (!pcibs) {
-		if (size < 0) {
-			static uae_u8 ret[256+3];
-			ret[3] = v >> 24;
-			ret[2] = v >> 16;
-			ret[1] = v >> 8;
-			ret[0] = v >> 0;
-			return ret;
-		}
-		return NULL;
-	}
-	*endianswap = pcib->endian_swap_config;
-#if PCI_DEBUG_CONFIG
 	write_log(_T("- Board %d/%d (%s)\n"), pcibs->slot, pcibs->func, pcibs->board->label);
 #endif
 	if (pcibs->board->pci_get_config) {
@@ -685,7 +694,9 @@ static uae_u32 REGPARAM2 pci_config_lget(uaecptr addr)
 			v |= config[offset + 0] << 0;
 		}
 #if PCI_DEBUG_CONFIG
-		write_log(_T("-> %08x\n"), v);
+		if (config != config_return) {
+			write_log(_T("-> %08x\n"), v);
+		}
 #endif
 	}
 	return v;
@@ -1154,7 +1165,7 @@ static void REGPARAM2 pci_bridge_wput(uaecptr addr, uae_u32 b)
 						map_banks_z3(&pci_config_bank, (expamem_board_pointer + 0x1fc00000) >> 16, 0x100000 >> 16);
 					}
 					pcib->baseaddress_offset = pcib->baseaddress;
-					pcib->io_offset = expamem_board_pointer;
+					pcib->io_offset = expamem_board_pointer + 0x1fe00000;
 					pcib->memory_start_offset[0] = expamem_board_pointer;
 				} else if (pcib->type == PCI_BRIDGE_MEDIATOR) {
 					map_banks_z3(&pci_mem_bank, expamem_board_pointer >> 16, expamem_board_size >> 16);
