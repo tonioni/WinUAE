@@ -173,6 +173,7 @@ struct ripped_sample
 {
 	struct ripped_sample *next;
 	uae_u8 *sample;
+	uaecptr pt;
 	int len, per, changed;
 };
 
@@ -275,7 +276,7 @@ void audio_sampleripper (int mode)
 				cfgfile_resolve_path_load(name, sizeof(name) / sizeof(TCHAR), type);
 			namesplit (name);
 			_tcscpy (extension, _T("wav"));
-			_stprintf (filename, _T("%s%s%s%03d.%s"), path, name, underline, cnt, extension);
+			_stprintf (filename, _T("%s%s%s_%08x_%06x_%03d.%s"), path, name, underline, rs->pt, rs->len, cnt, extension);
 			wavfile = zfile_fopen (filename, _T("wb"), 0);
 			if (wavfile) {
 				int freq = rs->per > 0 ? (currprefs.ntscmode ? 3579545 : 3546895 / rs->per) : 8000;
@@ -321,6 +322,7 @@ static void do_samplerip (struct audio_channel_data *adp)
 				rs->sample = xmalloc (uae_u8, len);
 				memcpy (rs->sample, smp, len);
 				write_log (_T("SAMPLERIPPER: replaced sample %d (%d -> %d)\n"), cnt, rs->len, len);
+				rs->pt = adp->pt;
 				rs->len = len;
 				rs->per = adp->per / CYCLE_UNIT;
 				rs->changed = 1;
@@ -339,6 +341,7 @@ static void do_samplerip (struct audio_channel_data *adp)
 		prev->next = rs;
 	else
 		ripped_samples = rs;
+	rs->pt = adp->pt;
 	rs->len = len;
 	rs->per = adp->per / CYCLE_UNIT;
 	rs->sample = xmalloc (uae_u8, len);
