@@ -1,4 +1,16 @@
 
+Beta 5:
+
+- Autoscale filter fixed again.
+- BPLCON4 was cleared when on the fly switching from OCS/ECS to AGA, causing wrong sprite colors.
+- Wait for blitter option works again.
+- "Remove interlace artifacts" option works again (with last line flicker, this will be fixed later). It now uses different logic which might work better when interlace mode is "non-standard".
+- Prometheus FireStorm PCI IO space size is 2M, only lowest 1M was mapped and it also was not correctly mapped.
+- Do not log Prometheus FireStorm status long read as config space accesses.
+- Merged some minor Voodoo emulation updates from 86box.
+- Added previously missing hardware feature: PAL/NTSC long line count always causes end of field, even if current LOF=0. (Only important when doing VPOSW tricks badly :)) NTSC long line horizontal is also always matched, even if LOL=0.
+- Added address and length to sample ripper file names.
+- Query PC drive/network drive/removable drive status only after confirming drive type first. (For example if "Add PC drives at startup" or "CDFS automount" is only ticked, don't query status of possible network drives that might respond slowly)
 
 Beta 4:
 

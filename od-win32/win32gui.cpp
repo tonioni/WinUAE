@@ -21539,7 +21539,6 @@ static void enable_for_avioutputdlg (HWND hDlg)
 #endif
 
 	ew (hDlg, IDC_SCREENSHOT, full_property_sheet ? FALSE : TRUE);
-	ew (hDlg, IDC_SAMPLERIPPER_ACTIVATED, full_property_sheet ? FALSE : TRUE);
 
 	ew (hDlg, IDC_AVIOUTPUT_FILE, TRUE);
 
@@ -21798,7 +21797,7 @@ static INT_PTR CALLBACK AVIOutputDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 			break;
 #endif
 		case IDC_SAMPLERIPPER_ACTIVATED:
-			if (ischecked(hDlg, IDC_AVIOUTPUT_ACTIVATED) != (sampleripper_enabled != 0)) {
+			if (ischecked(hDlg, IDC_SAMPLERIPPER_ACTIVATED) != (sampleripper_enabled != 0)) {
 				sampleripper_enabled = !sampleripper_enabled;
 				audio_sampleripper (-1);
 			}
