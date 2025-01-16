@@ -1694,6 +1694,22 @@ void process_blitter(struct rgabuf *rga)
 	}
 }
 
+static bool is_done(void)
+{
+	if (blt_info.blit_main) {
+		return false;
+	}
+	if (!blitter_cycle_exact) {
+		return true;
+	}
+	if (!shifter_d_armed && blt_info.blit_count_done && !shifter[0] && !shifter[1] && !shifter[2] && !shifter[3] &&
+		!shifter_d[0] && !shifter_d[1] && !shifter_d[2] && !shifter_d[3] &&
+		!shifter_d_aga[0] && !shifter_d_aga[1] && !shifter_d_aga[2]) {
+		return true;
+	}
+	return false;
+}
+
 void generate_blitter(void)
 {
 	if (!blitter_cycle_exact) {
@@ -1933,7 +1949,7 @@ void reset_blit(int bltcon)
 
 static bool waitingblits(void)
 {
-	static int warned = 10;
+	static int warned = 50;
 
 	// crazy large blit size? don't wait.. (Vital / Mystic)
 	if (blt_info.vblitsize * blt_info.hblitsize * 2 > 2 * 1024 * 1024) {
@@ -1947,9 +1963,9 @@ static bool waitingblits(void)
 	bool waited = false;
 	int waiting = 0;
 	int vpos_prev = vpos;
-	while ((blt_info.blit_main) && dmaen(DMA_BLITTER)) {
+	while (!is_done() && dmaen(DMA_BLITTER)) {
 		waited = true;
-		x_do_cycles (8 * CYCLE_UNIT);
+		x_do_cycles (4 * CYCLE_UNIT);
 		if (vpos_prev != vpos) {
 			vpos_prev = vpos;
 			waiting++;
@@ -1957,15 +1973,12 @@ static bool waitingblits(void)
 				break;
 			}
 		}
-		if (blitter_cycle_exact && blit_cyclecounter > 0 && !shifter[0] && !shifter[1] && !shifter[2] && !shifter[3]) {
-			break;
-		}
 	}
 	if (warned && waited) {
 		warned--;
 		write_log(_T("waiting_blits detected PC=%08x\n"), M68K_GETPC);
 	}
-	if (!blt_info.blit_main) {
+	if (is_done()) {
 		return true;
 	}
 	return false;
@@ -2145,20 +2158,7 @@ void maybe_blit(int hack)
 {
 	static int warned = 10;
 
-	if (blitter_cycle_exact) {
-#if 0
-		if (1) {
-			if (blt_info.blit_main || shifter_d_armed || shifter[0] || shifter[1] || shifter[2] || shifter[3] ||
-				shifter_d[0] || shifter_d[1] || shifter_d[2] || shifter_d[3]) {
-				write_log("blitter register change while active!\n");
-				activate_debugger();
-			}
-		}
-#endif
-		return;
-	}
-
-	if (!blt_info.blit_main) {
+	if (is_done()) {
 		return;
 	}
 
