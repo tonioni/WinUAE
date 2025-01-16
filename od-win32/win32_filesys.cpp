@@ -1,13 +1,14 @@
 
 
 /* Determines if this drive-letter currently has a disk inserted */
-int CheckRM (const TCHAR *DriveName)
+static int CheckRM (const TCHAR *DriveName)
 {
 	TCHAR filename[MAX_DPATH];
 	DWORD dwHold;
 	BOOL result = FALSE;
 
 	_stprintf (filename, _T("\\\\?\\%s"), DriveName);
+	write_log(_T("Checking drive '%s'\n"), filename);
 	dwHold = GetFileAttributes (filename);
 	if(dwHold != 0xFFFFFFFF)
 		result = TRUE;
@@ -143,7 +144,6 @@ static int hfdcheck (TCHAR drive)
 
 void filesys_addexternals (void)
 {
-	int drive, drivetype;
 	UINT errormode;
 	DWORD dwDriveMask;
 	int drvnum = 0;
@@ -152,31 +152,23 @@ void filesys_addexternals (void)
 	if (!currprefs.win32_automount_cddrives && !currprefs.win32_automount_netdrives
 		&& !currprefs.win32_automount_drives && !currprefs.win32_automount_removabledrives)
 		return;
+
+	write_log("Mouting drives...\n");
+
 	errormode = SetErrorMode (SEM_FAILCRITICALERRORS | SEM_NOOPENFILEERRORBOX);
 	dwDriveMask = GetLogicalDrives ();
 	dwDriveMask >>= 2; // Skip A and B drives...
 
-	for(drive = 'C'; drive <= 'Z'; ++drive) {
+	for(int drive = 'C'; drive <= 'Z'; ++drive) {
 		struct uaedev_config_info ci = { 0 };
 		_stprintf (ci.rootdir, _T("%c:\\"), drive);
 		/* Is this drive-letter valid (it used to check for media in drive) */
 		if(dwDriveMask & 1) {
-			bool inserted = CheckRM (ci.rootdir) != 0; /* Is there a disk inserted? */
 			int nok = FALSE;
 			int rw = 1;
 
-			drivetype = GetDriveType (ci.rootdir);
-			if (inserted && drivetype != DRIVE_NO_ROOT_DIR && drivetype != DRIVE_UNKNOWN) {
-				if (hfdcheck (drive)) {
-					write_log (_T("Drive %c:\\ ignored, was configured as a harddrive\n"), drive);
-					continue;
-				}
-			}
+			int drivetype = GetDriveType (ci.rootdir);
 			for (;;) {
-				if (!inserted) {
-					nok = TRUE;
-					break;
-				}
 				if (drivetype == DRIVE_REMOTE && currprefs.win32_automount_netdrives)
 					break;
 				if (drivetype == DRIVE_FIXED && currprefs.win32_automount_drives)
@@ -188,7 +180,15 @@ void filesys_addexternals (void)
 			}
 			if (nok)
 				continue;
+			// check inserted status after checking type to prevent unnecessary queries
+			bool inserted = CheckRM(ci.rootdir) != 0; /* Is there a disk inserted? */
 			if (inserted) {
+				if (inserted && drivetype != DRIVE_NO_ROOT_DIR && drivetype != DRIVE_UNKNOWN) {
+					if (hfdcheck(drive)) {
+						write_log(_T("Drive %c:\\ ignored, was configured as a harddrive\n"), drive);
+						continue;
+					}
+				}
 				target_get_volume_name (&mountinfo, &ci, inserted, true, cnt++);
 				if (!ci.volname[0])
 					_stprintf (ci.volname, _T("WinUNK_%c"), drive);
