@@ -503,9 +503,11 @@ static bool agnus_equdis;
 
 
 int maxhpos = MAXHPOS_PAL;
+static int maxhpos_long;
 int maxhpos_short = MAXHPOS_PAL;
 int maxvpos = MAXVPOS_PAL;
 int maxvpos_nom = MAXVPOS_PAL; // nominal value (same as maxvpos but "faked" maxvpos in fake 60hz modes)
+static int maxvpos_long;
 int maxvpos_display = MAXVPOS_PAL; // value used for display size
 int maxhpos_display = AMIGA_WIDTH_MAX;
 int maxvsize_display = AMIGA_HEIGHT_MAX;
@@ -1987,6 +1989,7 @@ static void init_beamcon0(void)
 	if (maxvpos_nom >= MAXVPOS) {
 		maxvpos_nom = MAXVPOS;
 	}
+	maxvpos_long = (beamcon0 & BEAMCON0_VARBEAMEN) ? -1 : maxvpos + 1;
 	if (maxvpos_display >= MAXVPOS) {
 		maxvpos_display = MAXVPOS;
 	}
@@ -2259,6 +2262,7 @@ STATIC_INLINE int GETHPOS(void)
 static void setmaxhpos(void)
 {
 	maxhpos = maxhpos_short + lol;
+	maxhpos_long = linetoggle ? maxhpos_short + 1 : -1;
 	maxhposm0 = maxhpos;
 	maxhposm1 = maxhpos - 1;
 	maxhposeven = (maxhposm1 & 1) == 0;
@@ -2288,7 +2292,7 @@ static void incpos(uae_u16 *hpp, uae_u16 *vpp)
 		}
 	}
 	hp++;
-	if (hp == maxhpos) {
+	if (hp == maxhpos || hp == maxhpos_long) {
 		hp = 0;
 	}
 	if (agnus_pos_change >= 1) {
@@ -5015,15 +5019,6 @@ static void vsync_handler_post(void)
 	uae_lua_run_handler("on_uae_vsync");
 #endif
 
-#if 0
-	if (bplcon0 & 4) {
-		lof_store = lof_store ? 0 : 1;
-	}
-	if ((bplcon0 & 2) && currprefs.genlock) {
-		genlockvtoggle = lof_store ? 1 : 0;
-	}
-#endif
-
 	check_no_signal();
 
 #ifdef DEBUGGER
@@ -5306,16 +5301,6 @@ static void lightpen_trigger_func(uae_u32 v)
 	hpos_lpen = v;
 	hhpos_lpen = HHPOSR();
 	lightpen_triggered = 1;
-}
-
-static bool is_custom_vsync (void)
-{
-	int vp = vpos;
-	if (vp == maxvpos + lof_store) {
-		// vpos_count >= MAXVPOS just to not crash if VPOSW writes prevent vsync completely
-		return true;
-	}
-	return false;
 }
 
 static bool do_render_slice(int mode, int slicecnt, int lastline)
@@ -6817,6 +6802,7 @@ void custom_reset(bool hardreset, bool keyboardreset)
 
 	sprite_width = GET_SPRITEWIDTH(fmode);
 	setup_fmodes(bplcon0);
+	setmaxhpos();
 
 #ifdef ACTION_REPLAY
 	/* Doing this here ensures we can use the 'reset' command from within AR */
@@ -10580,7 +10566,8 @@ static void custom_trigger_start(void)
 	}
 
 	bool vposzero = false;
-	if (vpos == maxvpos + lof_store) {
+	// LOF=1 is always matched, even when LOF=0 but only in PAL/NTSC modes
+	if ((vpos == maxvpos + lof_store) || (vpos == maxvpos_long)) {
 		vpos = 0;
 		check_vsyncs();
 
@@ -10754,7 +10741,7 @@ static bool cck_clock;
 static void get_cck_clock(void)
 {
 	int h = agnus_hpos + 1;
-	if (h == maxhpos) {
+	if (h == maxhpos || h == maxhpos_long) {
 		h = 0;
 	}
 	if (agnus_pos_change == 1 && agnus_hpos_next >= 0) {
@@ -10784,7 +10771,7 @@ static void inc_cck(void)
 	currcycle_cck++;
 
 	// must check end of line first
-	if (agnus_hpos == maxhpos) {
+	if (agnus_hpos == maxhpos || agnus_hpos == maxhpos_long) {
 		agnus_hpos = 0;
 		if (issyncstopped(bplcon0) && !syncs_stopped) {
 			if (!lol) {
@@ -10804,7 +10791,7 @@ static void inc_cck(void)
 		rga_denise_cycle_count++;
 	}
 	if (beamcon0_dual) {
-		if (hhpos == maxhpos) {
+		if (hhpos == maxhpos || hhpos == maxhpos_long) {
 			hhpos = 0;
 		}
 	} else {
