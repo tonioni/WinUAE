@@ -119,8 +119,8 @@ static uae_u32 custom_state_flags;
 static int not_safe_mode;
 static bool dmal_next;
 
-#define MAX_SCANDOUBLED_LINES 1000
-static uae_u32 scandoubled_bpl_ptr[MAX_SCANDOUBLED_LINES][8][2];
+#define MAX_SCANDOUBLED_LINES 1200
+static uae_u32 scandoubled_bpl_ptr[MAX_SCANDOUBLED_LINES][2][MAX_PLANES];
 
 static evt_t blitter_dma_change_cycle, copper_dma_change_cycle, sprite_dma_change_cycle_on, sprite_dma_change_cycle_off;
 
@@ -9637,7 +9637,7 @@ static void decide_bpl(int hpos)
 			ddf_enable_on = 1;
 			if (currprefs.gfx_scandoubler && vpos < MAX_SCANDOUBLED_LINES) {
 				for (int i = 0; i < MAX_PLANES; i++) {
-					scandoubled_bpl_ptr[vpos][i][lof_store] = bplpt[i];
+					scandoubled_bpl_ptr[vpos][lof_store][i] = bplpt[i];
 				}
 			}
 		}
@@ -9795,7 +9795,7 @@ static void decide_bpl(int hpos)
 			ddfstrt_match = true;
 			if (currprefs.gfx_scandoubler && vpos < MAX_SCANDOUBLED_LINES) {
 				for (int i = 0; i < MAX_PLANES; i++) {
-					scandoubled_bpl_ptr[vpos][i][lof_store] = bplpt[i];
+					scandoubled_bpl_ptr[vpos][lof_store][i] = bplpt[i];
 				}
 			}
 		} else {
@@ -10237,8 +10237,8 @@ static void do_scandouble(void)
 		if (rd->rga >= 0x110 && rd->rga < 0x120) {
 			int plane = (rd->rga - 0x110) / 2;
 			if (vp < MAX_SCANDOUBLED_LINES) {
-				uaecptr l1 = scandoubled_bpl_ptr[vp][plane][l];
-				uaecptr l2 = scandoubled_bpl_ptr[vp][plane][l ^ 1];
+				uaecptr l1 = scandoubled_bpl_ptr[vp][l][plane];
+				uaecptr l2 = scandoubled_bpl_ptr[vp][l ^ 1][plane];
 				rga.pv = rd->pt - l1 + l2;
 				if (fetchmode_fmode_bpl == 3) {
 					rd->v64 = fetch64(&rga);
@@ -10485,7 +10485,9 @@ static void decide_hsync(void)
 						do_scandouble();
 						denise_restore_registers();
 						lof_display ^= 1;
+						scandoubled_line = 1;
 						draw_line(linear_hpos);
+						scandoubled_line = 0;
 						lof_display ^= 1;
 					} else {
 						draw_line(linear_hpos);
