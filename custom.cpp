@@ -121,6 +121,7 @@ static bool dmal_next;
 
 #define MAX_SCANDOUBLED_LINES 1200
 static uae_u32 scandoubled_bpl_ptr[MAX_SCANDOUBLED_LINES][2][MAX_PLANES];
+static bool scandoubled_bpl_ena[MAX_SCANDOUBLED_LINES];
 
 static evt_t blitter_dma_change_cycle, copper_dma_change_cycle, sprite_dma_change_cycle_on, sprite_dma_change_cycle_off;
 
@@ -9621,9 +9622,9 @@ static void decide_bpl(int hpos)
 		// DDFSTRT
 		if (hpos == ddfstrt) {
 			ddf_enable_on = 1;
-			if (currprefs.gfx_scandoubler && vpos < MAX_SCANDOUBLED_LINES) {
+			if (currprefs.gfx_scandoubler && linear_vpos < MAX_SCANDOUBLED_LINES) {
 				for (int i = 0; i < MAX_PLANES; i++) {
-					scandoubled_bpl_ptr[vpos][lof_store][i] = bplpt[i];
+					scandoubled_bpl_ptr[linear_vpos][lof_store][i] = bplpt[i];
 				}
 			}
 		}
@@ -9779,9 +9780,9 @@ static void decide_bpl(int hpos)
 		// DDFSTRT
 		if (hpos == ddfstrt) {
 			ddfstrt_match = true;
-			if (currprefs.gfx_scandoubler && vpos < MAX_SCANDOUBLED_LINES) {
+			if (currprefs.gfx_scandoubler && linear_vpos < MAX_SCANDOUBLED_LINES) {
 				for (int i = 0; i < MAX_PLANES; i++) {
-					scandoubled_bpl_ptr[vpos][lof_store][i] = bplpt[i];
+					scandoubled_bpl_ptr[linear_vpos][lof_store][i] = bplpt[i];
 				}
 			}
 		} else {
@@ -9855,6 +9856,9 @@ static void check_bpl_vdiw(void)
 			record_dma_event_agnus(AGNUS_EVENT_VDIW, false);
 		}
 #endif
+	}
+	if (linear_vpos < MAX_SCANDOUBLED_LINES) {
+		scandoubled_bpl_ena[linear_vpos] = vdiwstate != diw_states::DIW_waiting_start;
 	}
 }
 
@@ -10214,25 +10218,26 @@ static void check_vsyncs(void)
 
 static void do_scandouble(void)
 {
+	if (linear_vpos >= MAX_SCANDOUBLED_LINES) {
+		return;
+	}
 	int l = lof_store;
-	int vp = vpos;
+	int vp = linear_vpos;
 	struct rgabuf rga = { 0 };
 	for (int i = 0; i < rga_denise_cycle_count; i++) {
 		int idx = (i + rga_denise_cycle_start) & (DENISE_RGA_SLOT_TOTAL - 1);
 		struct denise_rga *rd = &rga_denise[idx];
 		if (rd->rga >= 0x110 && rd->rga < 0x120) {
 			int plane = (rd->rga - 0x110) / 2;
-			if (vp < MAX_SCANDOUBLED_LINES) {
-				uaecptr l1 = scandoubled_bpl_ptr[vp][l][plane];
-				uaecptr l2 = scandoubled_bpl_ptr[vp][l ^ 1][plane];
-				rga.pv = rd->pt - l1 + l2;
-				if (fetchmode_fmode_bpl == 3) {
-					rd->v64 = fetch64(&rga);
-				} else if (fetchmode_fmode_bpl > 0) {
-					rd->v = fetch32_bpl(&rga);
-				} else {
-					rd->v = fetch16(&rga);
-				}
+			uaecptr l1 = scandoubled_bpl_ptr[vp][l][plane];
+			uaecptr l2 = scandoubled_bpl_ptr[vp][l ^ 1][plane];
+			rga.pv = rd->pt - l1 + l2;
+			if (fetchmode_fmode_bpl == 3) {
+				rd->v64 = fetch64(&rga);
+			} else if (fetchmode_fmode_bpl > 0) {
+				rd->v = fetch32_bpl(&rga);
+			} else {
+				rd->v = fetch16(&rga);
 			}
 		}
 	}
@@ -10465,7 +10470,7 @@ static void decide_hsync(void)
 			if (!custom_disabled) {
 
 				if (custom_fastmode >= 0) {
-					if (doflickerfix_active()) {
+					if (doflickerfix_active() && scandoubled_bpl_ena[linear_vpos]) {
 						denise_store_registers();
 						draw_line(linear_hpos);
 						do_scandouble();
