@@ -1,4 +1,12 @@
 
+
+Beta 6:
+
+- Almost all chipset emulation code is skipped when RTG mode is active and chipset screen is not visible (not connected to any other virtual monitor). This should restore RTG mode performance back to pre-v6 WinUAE versions. Pre-v6 versions also used similar optimization.
+- "Remove interlace artifacts" now uses virtual lines internally, works even when VPOSW is modified mid screen. Last line flicker fixed.
+- Limit initial Windows to Amiga clipboard copy to max 30k (initial = when Amiga is booted and Windows clipboard is not empty) if clipboard sharing is enabled. This prevent slow startup if clipboard sharing is enabled and configuration is not fast and Windows clipboard has some random large image.
+- Fixed A2024 15Hz mode vertical line.
+
 Beta 5:
 
 - Autoscale filter fixed again.
@@ -6,9 +14,9 @@ Beta 5:
 - Wait for blitter option works again.
 - "Remove interlace artifacts" option works again (with last line flicker, this will be fixed later). It now uses different logic which might work better when interlace mode is "non-standard".
 - Prometheus FireStorm PCI IO space size is 2M, only lowest 1M was mapped and it also was not correctly mapped.
-- Do not log Prometheus FireStorm status long read as config space accesses.
+- Do not log Prometheus FireStorm status long reads as config space accesses.
 - Merged some minor Voodoo emulation updates from 86box.
-- Added previously missing hardware feature: PAL/NTSC long line count always causes end of field, even if current LOF=0. (Only important when doing VPOSW tricks badly :)) NTSC long line horizontal is also always matched, even if LOL=0.
+- Added previously missing hardware feature: PAL/NTSC long line count always causes end of field, even if current LOF=0. (Only important when doing VPOSW tricks badly) NTSC long line horizontal is also always matched, even if LOL=0.
 - Added address and length to sample ripper file names.
 - Query PC drive/network drive/removable drive status only after confirming drive type first. (For example if "Add PC drives at startup" or "CDFS automount" is only ticked, don't query status of possible network drives that might respond slowly)
 
