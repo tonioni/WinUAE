@@ -42,6 +42,8 @@
 #define AUTOSCALE_SPRITES 1
 #define LOL_SHIFT_COLORS 0
 
+int scandoubled_line;
+
 struct amigadisplay adisplays[MAX_AMIGADISPLAYS];
 
 typedef enum
@@ -4579,8 +4581,10 @@ static void matchsprites_aga(int cnt)
 }
 
 static uae_u16 s_bplcon0, s_bplcon1, s_bplcon2, s_bplcon3, s_bplcon4, s_fmode;
+static int denise_hcounter_s;
 void denise_store_registers(void)
 {
+	denise_hcounter_s = denise_hcounter; 
 	s_bplcon0 = bplcon0_denise;
 	s_bplcon1 = bplcon1_denise;
 	s_bplcon2 = bplcon2_denise;
@@ -4590,6 +4594,7 @@ void denise_store_registers(void)
 }
 void denise_restore_registers(void)
 {
+	denise_hcounter = denise_hcounter_s;
 	expand_bplcon0(s_bplcon0);
 	expand_bplcon1(s_bplcon1);
 	expand_bplcon2(s_bplcon2);
@@ -4798,7 +4803,7 @@ static void get_line(int gfx_ypos, enum nln_how how)
 	}
 
 	// clear lines if mode height is now smaller than previously
-	if (gfx_ypos >= 0 && gfx_ypos < prevline) {
+	if (gfx_ypos >= 0 && gfx_ypos < prevline && !scandoubled_line) {
 		struct vidbuf_description *vidinfo = &adisplays[0].gfxvidinfo;
 		struct vidbuffer *vb = &vidinfo->drawbuffer;
 		if (prevline > vb->inheight) {
@@ -4926,7 +4931,6 @@ void draw_denise_line(int gfx_ypos, enum nln_how how, uae_u32 linecnt, int start
 
 	get_line(gfx_ypos, how);
 	hbstrt_ptr1 = NULL;
-
 
 	if (denise_pixtotal_max == -0x7fffffff || ((linear_vpos >= denise_vblank_extra_vbstop || linear_vpos < denise_vblank_extra_vbstrt) && currprefs.gfx_overscanmode < OVERSCANMODE_ULTRA)) {
 

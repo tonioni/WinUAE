@@ -37,6 +37,9 @@ static void *clipboard_delayed_data;
 static int clipboard_delayed_size;
 static bool clip_disabled;
 
+#define CLIP_SIZE_LIMIT 10000000
+#define CLIP_SIZE_LIMIT_INIT 30000
+
 static void debugwrite (TrapContext *ctx, const TCHAR *name, uaecptr p, int size)
 {
 	FILE *f;
@@ -248,7 +251,7 @@ static void from_iff_text(uae_u8 *addr, uae_u32 len)
 	xfree(txt);
 }
 
-static void to_iff_ilbm(TrapContext *ctx, HBITMAP hbmp)
+static void to_iff_ilbm(TrapContext *ctx, HBITMAP hbmp, bool initial)
 {
 	BITMAP bmp;
 	int bmpw, w, h, bpp, iffbpp, tsize, size, x, y, i;
@@ -264,6 +267,7 @@ static void to_iff_ilbm(TrapContext *ctx, HBITMAP hbmp)
 
 	if (!GetObject (hbmp, sizeof bmp, &bmp))
 		return;
+
 	w = bmp.bmWidth;
 	h = bmp.bmHeight;
 	bpp = bmp.bmBitsPixel;
@@ -272,6 +276,14 @@ static void to_iff_ilbm(TrapContext *ctx, HBITMAP hbmp)
 		return;
 	bmpw = (w * bpp / 8 + 3) & ~3;
 	size = bmpw * h;
+
+	if (size > (initial ? CLIP_SIZE_LIMIT_INIT : CLIP_SIZE_LIMIT)) {
+		if (clipboard_log) {
+			write_log(_T("clipboard: initial size too large, ignored.\n"));
+		}
+		return;
+	}
+
 	bmp.bmBits = xmalloc (uae_u8, size);
 	if (!GetBitmapBits (hbmp, size, bmp.bmBits)) {
 		xfree (bmp.bmBits);
@@ -736,7 +748,7 @@ void clipboard_disable (bool disabled)
 	clip_disabled = disabled;
 }
 
-static void clipboard_read(TrapContext *ctx, HWND hwnd, bool keyboardinject)
+static void clipboard_read(TrapContext *ctx, HWND hwnd, bool keyboardinject, bool initial)
 {
 	HGLOBAL hglb;
 	UINT f;
@@ -770,13 +782,20 @@ static void clipboard_read(TrapContext *ctx, HWND hwnd, bool keyboardinject)
 		if (hglb != NULL) { 
 			TCHAR *lptstr = (TCHAR*)GlobalLock (hglb); 
 			if (lptstr != NULL) {
-				if (clipboard_log) {
-					write_log (_T("clipboard: CF_UNICODETEXT '%s'\n"), lptstr);
-				}
-				if (keyboardinject) {
-					to_keyboard(lptstr);
+				size_t len = _tcslen(lptstr);
+				if (len > (initial ? CLIP_SIZE_LIMIT_INIT : CLIP_SIZE_LIMIT)) {
+					if (clipboard_log) {
+						write_log(_T("clipboard: initial size too large, ignored.\n"));
+					}
 				} else {
-					to_iff_text(ctx, lptstr);
+					if (clipboard_log) {
+						write_log (_T("clipboard: CF_UNICODETEXT '%s'\n"), lptstr);
+					}
+					if (keyboardinject) {
+						to_keyboard(lptstr);
+					} else {
+						to_iff_text(ctx, lptstr);
+					}
 				}
 				GlobalUnlock (hglb);
 			}
@@ -787,7 +806,7 @@ static void clipboard_read(TrapContext *ctx, HWND hwnd, bool keyboardinject)
 			if (clipboard_log) {
 				write_log (_T("clipboard: CF_BITMAP\n"));
 			}
-			to_iff_ilbm(ctx, hbmp);
+			to_iff_ilbm(ctx, hbmp, initial);
 		}
 	}
 	CloseClipboard ();
@@ -820,7 +839,7 @@ void clipboard_changed (HWND hwnd)
 		clipboard_change = 1;
 		return;
 	}
-	clipboard_read(NULL, hwnd, false);
+	clipboard_read(NULL, hwnd, false, false);
 }
 
 static int clipboard_put_bmp_real (HBITMAP hbmp)
@@ -896,7 +915,7 @@ void amiga_clipboard_init(TrapContext *ctx)
 	signaling = 0;
 	write_log (_T("clipboard initialized\n"));
 	initialized = 1;
-	clipboard_read(ctx, chwnd, false);
+	clipboard_read(ctx, chwnd, false, true);
 }
 
 void amiga_clipboard_task_start(TrapContext *ctx, uaecptr data)
@@ -963,7 +982,7 @@ void clipboard_active(HWND hwnd, int active)
 	if (!initialized || !hwnd)
 		return;
 	if (clipactive && clipboard_change) {
-		clipboard_read(NULL, hwnd, false);
+		clipboard_read(NULL, hwnd, false, false);
 	}
 	if (!clipactive && clipboard_delayed_data) {
 		if (clipboard_delayed_size < 0) {
@@ -1041,7 +1060,7 @@ void clipboard_init (HWND hwnd)
 
 void target_paste_to_keyboard(void)
 {
-	clipboard_read(NULL, chwnd, true);
+	clipboard_read(NULL, chwnd, true, false);
 }
 
 // force 2 second delay before accepting new data

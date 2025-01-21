@@ -2092,7 +2092,7 @@ static bool a2024(struct vidbuffer *src, struct vidbuffer *dst)
 		panel_width_draw = px == 2 ? 352 : 336;
 		pxcnt = 3;
 		hires = false;
-		srcxoffset = 85 - spm_left_border * 2;;
+		srcxoffset = 85 - spm_left_border * 2;
 		if (px > 2)
 			return false;
 		total_width = 336 + 336 + 352;
@@ -2101,7 +2101,7 @@ static bool a2024(struct vidbuffer *src, struct vidbuffer *dst)
 		panel_width_draw = 512;
 		pxcnt = 2;
 		hires = true;
-		srcxoffset = 101 - spm_left_border * 2;
+		srcxoffset = 100 - spm_left_border * 2;
 		if (px > 1)
 			return false;
 		total_width = 512 + 512;
