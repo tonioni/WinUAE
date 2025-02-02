@@ -359,9 +359,9 @@
       <DisableSpecificWarnings>4996;%(DisableSpecificWarnings)</DisableSpecificWarnings>
       <ForcedIncludeFiles>%(ForcedIncludeFiles)</ForcedIncludeFiles>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
-      <LanguageStandard>stdcpp20</LanguageStandard>
+      <LanguageStandard>stdcpplatest</LanguageStandard>
       <AdditionalOptions>/Zc:strictStrings- %(AdditionalOptions)</AdditionalOptions>
-      <LanguageStandard_C>stdc17</LanguageStandard_C>
+      <LanguageStandard_C>stdclatest</LanguageStandard_C>
       <ConformanceMode>false</ConformanceMode>
       <EnforceTypeConversionRules>
       </EnforceTypeConversionRules>
@@ -1393,6 +1393,7 @@
     <ClCompile Include="..\..\pcem\vid_et4000.cpp" />
     <ClCompile Include="..\..\pcem\vid_et4000w32.cpp" />
     <ClCompile Include="..\..\pcem\vid_inmos.cpp" />
+    <ClCompile Include="..\..\pcem\vid_mga.cpp" />
     <ClCompile Include="..\..\pcem\vid_ncr.cpp" />
     <ClCompile Include="..\..\pcem\vid_permedia2.cpp" />
     <ClCompile Include="..\..\pcem\vid_s3.cpp" />
@@ -1401,6 +1402,7 @@
     <ClCompile Include="..\..\pcem\vid_sdac_ramdac.cpp" />
     <ClCompile Include="..\..\pcem\vid_svga.cpp" />
     <ClCompile Include="..\..\pcem\vid_svga_render.cpp" />
+    <ClCompile Include="..\..\pcem\vid_tvp3026_ramdac.cpp" />
     <ClCompile Include="..\..\pcem\vid_voodoo.cpp" />
     <ClCompile Include="..\..\pcem\vid_voodoo_banshee.cpp" />
     <ClCompile Include="..\..\pcem\vid_voodoo_banshee_blitter.cpp" />
