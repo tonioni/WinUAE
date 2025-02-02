@@ -62,14 +62,14 @@ static void inmos_update_irqs(inmos_t *inmos)
 {
     if (inmos->vblank_irq) {
         inmos->vblank_irq = 0;
-        pci_set_irq(NULL, PCI_INTA);
-        pci_clear_irq(NULL, PCI_INTA);
+        pci_set_irq(NULL, PCI_INTA, NULL);
+        pci_clear_irq(NULL, PCI_INTA, NULL);
     }
 }
 
 static void inmos_vblank_start(svga_t *svga)
 {
-    inmos_t *inmos = (inmos_t*)svga->p;
+    inmos_t *inmos = (inmos_t*)svga->priv;
     uint32_t control = inmos->regs[0x160];
     if (control & 1) {
         inmos->vblank_irq = 1;
@@ -79,7 +79,7 @@ static void inmos_vblank_start(svga_t *svga)
 
 void inmos_hwcursor_draw(svga_t *svga, int displine)
 {
-    inmos_t *inmos = (inmos_t*)svga->p;
+    inmos_t *inmos = (inmos_t*)svga->priv;
     int addr = svga->hwcursor_latch.addr;
     int offset = svga->hwcursor_latch.x;
     int line_offset = 0;
@@ -110,7 +110,7 @@ void inmos_hwcursor_draw(svga_t *svga, int displine)
 
 void inmos_recalctimings(svga_t *svga)
 {
-    inmos_t *inmos = (inmos_t*)svga->p;
+    inmos_t *inmos = (inmos_t*)svga->priv;
 
     if (inmos->chip == INMOS_TYPE_G300) {
 
@@ -377,7 +377,7 @@ static uint32_t inmos_mmio_readl(uint32_t addr, void *p)
 static uint8_t inmos_read_linear(uint32_t addr, void *p)
 {
     svga_t *svga = (svga_t*)p;
-    inmos_t *inmos = (inmos_t*)svga->p;
+    inmos_t *inmos = (inmos_t*)svga->priv;
     uint8_t *fbp = (uint8_t*)(&svga->vram[addr & svga->vram_mask]);
     uint8_t v = *fbp;
     return v;
@@ -385,7 +385,7 @@ static uint8_t inmos_read_linear(uint32_t addr, void *p)
 static uint16_t inmos_readw_linear(uint32_t addr, void *p)
 {
     svga_t *svga = (svga_t*)p;
-    inmos_t *inmos = (inmos_t*)svga->p;
+    inmos_t *inmos = (inmos_t*)svga->priv;
     uint16_t *fbp = (uint16_t*)(&svga->vram[addr & svga->vram_mask]);
     uint16_t v = *fbp;
     return v;
@@ -393,7 +393,7 @@ static uint16_t inmos_readw_linear(uint32_t addr, void *p)
 static uint32_t inmos_readl_linear(uint32_t addr, void *p)
 {
     svga_t *svga = (svga_t*)p;
-    inmos_t *inmos = (inmos_t*)svga->p;
+    inmos_t *inmos = (inmos_t*)svga->priv;
     uint32_t *fbp = (uint32_t*)(&svga->vram[addr & svga->vram_mask]);
     uint32_t v = *fbp;
     return v;
@@ -402,7 +402,7 @@ static uint32_t inmos_readl_linear(uint32_t addr, void *p)
 static void inmos_write_linear(uint32_t addr, uint8_t val, void *p)
 {
     svga_t *svga = (svga_t*)p;
-    inmos_t *inmos = (inmos_t*)svga->p;
+    inmos_t *inmos = (inmos_t*)svga->priv;
     addr &= svga->vram_mask;
     uint8_t *fbp = (uint8_t*)(&svga->vram[addr]);
     *fbp = val;
@@ -411,7 +411,7 @@ static void inmos_write_linear(uint32_t addr, uint8_t val, void *p)
 static void inmos_writew_linear(uint32_t addr, uint16_t val, void *p)
 {
     svga_t *svga = (svga_t*)p;
-    inmos_t *inmos = (inmos_t*)svga->p;
+    inmos_t *inmos = (inmos_t*)svga->priv;
     addr &= svga->vram_mask;
     uint16_t *fbp = (uint16_t*)(&svga->vram[addr]);
     *fbp = val;
@@ -420,7 +420,7 @@ static void inmos_writew_linear(uint32_t addr, uint16_t val, void *p)
 static void inmos_writel_linear(uint32_t addr, uint32_t val, void *p)
 {
     svga_t *svga = (svga_t*)p;
-    inmos_t *inmos = (inmos_t*)svga->p;
+    inmos_t *inmos = (inmos_t*)svga->priv;
     addr &= svga->vram_mask;
     uint32_t *fbp = (uint32_t*)(&svga->vram[addr]);
     *fbp = val;
@@ -463,7 +463,7 @@ void inmos_updatemapping(inmos_t *inmos)
 
 static void inmos_adjust_panning(svga_t *svga)
 {
-    inmos_t *inmos = (inmos_t *)svga->p;
+    inmos_t *inmos = (inmos_t *)svga->priv;
     int src = 0, dst = 8;
 
     dst += 24;
@@ -492,7 +492,7 @@ static void *inmos_init(int chip)
         vram_size = 512 << 10;
     inmos->vram_mask = vram_size - 1;
 
-    svga_init(&inmos->svga, inmos, vram_size,
+    svga_init(NULL, &inmos->svga, inmos, vram_size,
         inmos_recalctimings,
         NULL, NULL,
         inmos_hwcursor_draw,
@@ -528,15 +528,15 @@ static void *inmos_init(int chip)
 
     inmos->chip = chip;
     inmos->addressalign = 2;
-    inmos->svga.hwcursor.xsize = 64;
-    inmos->svga.hwcursor.ysize = 64;
+    inmos->svga.hwcursor.cur_xsize = 64;
+    inmos->svga.hwcursor.cur_ysize = 64;
 
     inmos_updatemapping(inmos);
 
     return inmos;
 }
 
-void *inmos_rainbow3_z3_init()
+void *inmos_rainbow3_z3_init(const device_t *info)
 {
     inmos_t *inmos = (inmos_t*)inmos_init(INMOS_TYPE_G360);
 
@@ -550,7 +550,7 @@ void *inmos_rainbow3_z3_init()
     return inmos;
 }
 
-void *inmos_visiona_z2_init()
+void *inmos_visiona_z2_init(const device_t *info)
 {
     inmos_t *inmos = (inmos_t*)inmos_init(INMOS_TYPE_G300);
 
@@ -564,7 +564,7 @@ void *inmos_visiona_z2_init()
     return inmos;
 }
 
-void *inmos_egs_110_24_init()
+void *inmos_egs_110_24_init(const device_t *info)
 {
     inmos_t *inmos = (inmos_t *)inmos_init(INMOS_TYPE_G364);
 
@@ -616,39 +616,36 @@ void inmos_add_status_info(char *s, int max_len, void *p)
 
 device_t inmos_visiona_z2_device =
 {
-    "Visiona",
-    0,
+    "Visiona", NULL,
+    0, 0,
     inmos_visiona_z2_init,
     inmos_close,
     NULL,
+    NULL,
     inmos_speed_changed,
-    inmos_force_redraw,
-    inmos_add_status_info,
-    NULL
+    inmos_force_redraw
 };
 
 device_t inmos_rainbow3_z3_device =
 {
-    "Rainbow III",
-    0,
+    "Rainbow III", NULL,
+    0, 0,
     inmos_rainbow3_z3_init,
     inmos_close,
     NULL,
+    NULL,
     inmos_speed_changed,
-    inmos_force_redraw,
-    inmos_add_status_info,
-    NULL
+    inmos_force_redraw
 };
 
 device_t inmos_egs_110_24_device =
 {
-    "EGS 110/24",
-    0,
+    "EGS 110/24", NULL,
+    0, 0,
     inmos_egs_110_24_init,
     inmos_close,
     NULL,
+    NULL,
     inmos_speed_changed,
-    inmos_force_redraw,
-    inmos_add_status_info,
-    NULL
+    inmos_force_redraw
 };

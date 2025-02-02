@@ -1048,6 +1048,12 @@
     <ClCompile Include="..\..\mos6502.cpp">
       <Filter>common</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\pcem\vid_mga.cpp">
+      <Filter>pcem</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\pcem\vid_tvp3026_ramdac.cpp">
+      <Filter>pcem</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\resources\35floppy.ico">
