@@ -46,8 +46,8 @@ Global
 		Test|x64 = Test|x64
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{4ADAA943-1AC8-4FB5-82E5-4FB753B6C2DA}.Debug|ARM64EC.ActiveCfg = ReleaseXP|ARM64EC
-		{4ADAA943-1AC8-4FB5-82E5-4FB753B6C2DA}.Debug|ARM64EC.Build.0 = ReleaseXP|ARM64EC
+		{4ADAA943-1AC8-4FB5-82E5-4FB753B6C2DA}.Debug|ARM64EC.ActiveCfg = Test|ARM64EC
+		{4ADAA943-1AC8-4FB5-82E5-4FB753B6C2DA}.Debug|ARM64EC.Build.0 = Test|ARM64EC
 		{4ADAA943-1AC8-4FB5-82E5-4FB753B6C2DA}.Debug|Mixed Platforms.ActiveCfg = Test|Win32
 		{4ADAA943-1AC8-4FB5-82E5-4FB753B6C2DA}.Debug|Mixed Platforms.Build.0 = Test|Win32
 		{4ADAA943-1AC8-4FB5-82E5-4FB753B6C2DA}.Debug|Win32.ActiveCfg = Test|Win32
