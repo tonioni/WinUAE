@@ -3953,7 +3953,6 @@ void gfxboard_matrox_lfb_endianswap(int m)
 	for (int i = 0; i < MAX_RTG_BOARDS; i++) {
 		struct rtggfxboard *gb = &rtggfxboards[i];
 		if (gb->active && gb->board->bustype == GFXBOARD_BUSTYPE_PCI) {
-			write_log("%d\n", m);
 			if (m == 1) {
 				m = 3;
 			}

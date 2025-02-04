@@ -13,18 +13,6 @@
       <Configuration>FullRelease</Configuration>
       <Platform>x64</Platform>
     </ProjectConfiguration>
-    <ProjectConfiguration Include="ReleaseXP|ARM64EC">
-      <Configuration>ReleaseXP</Configuration>
-      <Platform>ARM64EC</Platform>
-    </ProjectConfiguration>
-    <ProjectConfiguration Include="ReleaseXP|Win32">
-      <Configuration>ReleaseXP</Configuration>
-      <Platform>Win32</Platform>
-    </ProjectConfiguration>
-    <ProjectConfiguration Include="ReleaseXP|x64">
-      <Configuration>ReleaseXP</Configuration>
-      <Platform>x64</Platform>
-    </ProjectConfiguration>
     <ProjectConfiguration Include="Release|ARM64EC">
       <Configuration>Release</Configuration>
       <Platform>ARM64EC</Platform>
@@ -72,13 +60,6 @@
     <PlatformToolset>v143</PlatformToolset>
     <SpectreMitigation>false</SpectreMitigation>
   </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'" Label="Configuration">
-    <ConfigurationType>Application</ConfigurationType>
-    <UseOfMfc>false</UseOfMfc>
-    <CharacterSet>Unicode</CharacterSet>
-    <PlatformToolset>v143</PlatformToolset>
-    <SpectreMitigation>false</SpectreMitigation>
-  </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Test|Win32'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseOfMfc>false</UseOfMfc>
@@ -117,20 +98,6 @@
     <PlatformToolset>v143</PlatformToolset>
     <SpectreMitigation>false</SpectreMitigation>
   </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|x64'" Label="Configuration">
-    <ConfigurationType>Application</ConfigurationType>
-    <UseOfMfc>false</UseOfMfc>
-    <CharacterSet>Unicode</CharacterSet>
-    <PlatformToolset>v141_xp</PlatformToolset>
-    <SpectreMitigation>false</SpectreMitigation>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|ARM64EC'" Label="Configuration">
-    <ConfigurationType>Application</ConfigurationType>
-    <UseOfMfc>false</UseOfMfc>
-    <CharacterSet>Unicode</CharacterSet>
-    <PlatformToolset>v141_xp</PlatformToolset>
-    <SpectreMitigation>false</SpectreMitigation>
-  </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Test|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseOfMfc>false</UseOfMfc>
@@ -156,9 +123,6 @@
   <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="PropertySheets">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
   </ImportGroup>
-  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'" Label="PropertySheets">
-    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
-  </ImportGroup>
   <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Test|Win32'" Label="PropertySheets">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
   </ImportGroup>
@@ -174,12 +138,6 @@
   <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|ARM64EC'" Label="PropertySheets">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
   </ImportGroup>
-  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|x64'" Label="PropertySheets">
-    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
-  </ImportGroup>
-  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|ARM64EC'" Label="PropertySheets">
-    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
-  </ImportGroup>
   <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Test|x64'" Label="PropertySheets">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
   </ImportGroup>
@@ -190,33 +148,23 @@
   <PropertyGroup>
     <_ProjectFileVersion>10.0.30128.1</_ProjectFileVersion>
     <OutDir Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">d:\amiga\</OutDir>
-    <OutDir Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">d:\amiga\</OutDir>
     <OutDir Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">d:\amiga\</OutDir>
     <IntDir Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(Configuration)\</IntDir>
-    <IntDir Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">$(Configuration)\</IntDir>
     <IntDir Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">$(Configuration)\</IntDir>
     <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</LinkIncremental>
-    <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">false</LinkIncremental>
     <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">false</LinkIncremental>
     <OutDir Condition="'$(Configuration)|$(Platform)'=='Release|x64'">d:\amiga\</OutDir>
-    <OutDir Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|x64'">d:\amiga\</OutDir>
     <OutDir Condition="'$(Configuration)|$(Platform)'=='Test|x64'">d:\amiga\</OutDir>
     <IntDir Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(Platform)\$(Configuration)\</IntDir>
     <IntDir Condition="'$(Configuration)|$(Platform)'=='Release|ARM64EC'">$(Platform)\$(Configuration)\</IntDir>
-    <IntDir Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|x64'">$(Platform)\$(Configuration)\</IntDir>
-    <IntDir Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|ARM64EC'">$(Platform)\$(Configuration)\</IntDir>
     <IntDir Condition="'$(Configuration)|$(Platform)'=='Test|x64'">$(Platform)\$(Configuration)\</IntDir>
     <IntDir Condition="'$(Configuration)|$(Platform)'=='Test|ARM64EC'">$(Platform)\$(Configuration)\</IntDir>
     <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</LinkIncremental>
     <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='Release|ARM64EC'">false</LinkIncremental>
-    <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|x64'">false</LinkIncremental>
-    <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|ARM64EC'">false</LinkIncremental>
     <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='Test|x64'">false</LinkIncremental>
     <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='Test|ARM64EC'">false</LinkIncremental>
     <GenerateManifest Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</GenerateManifest>
     <GenerateManifest Condition="'$(Configuration)|$(Platform)'=='Release|ARM64EC'">true</GenerateManifest>
-    <GenerateManifest Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|x64'">true</GenerateManifest>
-    <GenerateManifest Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|ARM64EC'">true</GenerateManifest>
     <GenerateManifest Condition="'$(Configuration)|$(Platform)'=='Test|x64'">true</GenerateManifest>
     <GenerateManifest Condition="'$(Configuration)|$(Platform)'=='Test|ARM64EC'">true</GenerateManifest>
     <OutDir Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">d:\amiga\</OutDir>
@@ -234,33 +182,24 @@
     <TargetName Condition="'$(Configuration)|$(Platform)'=='FullRelease|ARM64EC'">winuae64</TargetName>
     <TargetName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">winuae64</TargetName>
     <TargetName Condition="'$(Configuration)|$(Platform)'=='Release|ARM64EC'">winuae_arm64</TargetName>
-    <TargetName Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|x64'">winuae64</TargetName>
-    <TargetName Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|ARM64EC'">winuae64</TargetName>
     <TargetName Condition="'$(Configuration)|$(Platform)'=='Test|x64'">winuae64</TargetName>
     <TargetName Condition="'$(Configuration)|$(Platform)'=='Test|ARM64EC'">winuae64</TargetName>
     <IncludePath Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(MSBuildProgramFiles32)\Windows Kits\10\Include\10.0.18362.0\km;c:\dev\include;$(IncludePath)</IncludePath>
-    <IncludePath Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">$(MSBuildProgramFiles32)\Windows Kits\10\Include\10.0.18362.0\km;c:\dev\include;$(IncludePath)</IncludePath>
     <IncludePath Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">$(MSBuildProgramFiles32)\Windows Kits\10\Include\10.0.18362.0\km;c:\dev\include;$(IncludePath)</IncludePath>
     <LibraryPath Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">C:\dev\lib;$(LibraryPath)</LibraryPath>
-    <LibraryPath Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">C:\dev\lib;$(LibraryPath)</LibraryPath>
     <LibraryPath Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">C:\dev\lib;$(LibraryPath)</LibraryPath>
     <IncludePath Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">$(MSBuildProgramFiles32)\Windows Kits\10\Include\10.0.18362.0\km;c:\dev\include;$(IncludePath)</IncludePath>
     <ReferencePath Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">$(VC_ReferencesPath_x86);</ReferencePath>
     <LibraryPath Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">C:\dev\lib;$(LibraryPath)</LibraryPath>
     <EmbedManifest Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</EmbedManifest>
-    <EmbedManifest Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">true</EmbedManifest>
     <EmbedManifest Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">true</EmbedManifest>
     <EmbedManifest Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">true</EmbedManifest>
     <IncludePath Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(MSBuildProgramFiles32)\Windows Kits\10\Include\10.0.18362.0\km;c:\dev\include;$(IncludePath)</IncludePath>
     <IncludePath Condition="'$(Configuration)|$(Platform)'=='Release|ARM64EC'">$(MSBuildProgramFiles32)\Windows Kits\10\Include\10.0.18362.0\km;c:\dev\include;$(IncludePath)</IncludePath>
-    <IncludePath Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|x64'">$(MSBuildProgramFiles32)\Windows Kits\10\Include\10.0.18362.0\km;c:\dev\include;$(IncludePath)</IncludePath>
-    <IncludePath Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|ARM64EC'">$(MSBuildProgramFiles32)\Windows Kits\10\Include\10.0.18362.0\km;c:\dev\include;$(IncludePath)</IncludePath>
     <IncludePath Condition="'$(Configuration)|$(Platform)'=='Test|x64'">$(MSBuildProgramFiles32)\Windows Kits\10\Include\10.0.18362.0\km;c:\dev\include;$(IncludePath)</IncludePath>
     <IncludePath Condition="'$(Configuration)|$(Platform)'=='Test|ARM64EC'">$(MSBuildProgramFiles32)\Windows Kits\10\Include\10.0.18362.0\km;c:\dev\include;$(IncludePath)</IncludePath>
     <LibraryPath Condition="'$(Configuration)|$(Platform)'=='Release|x64'">C:\dev\lib\x64;$(LibraryPath)</LibraryPath>
     <LibraryPath Condition="'$(Configuration)|$(Platform)'=='Release|ARM64EC'">C:\dev\lib\x64;$(LibraryPath)</LibraryPath>
-    <LibraryPath Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|x64'">C:\dev\lib\x64;$(LibraryPath)</LibraryPath>
-    <LibraryPath Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|ARM64EC'">C:\dev\lib\x64;$(LibraryPath)</LibraryPath>
     <LibraryPath Condition="'$(Configuration)|$(Platform)'=='Test|x64'">C:\dev\lib\x64;$(LibraryPath)</LibraryPath>
     <LibraryPath Condition="'$(Configuration)|$(Platform)'=='Test|ARM64EC'">C:\dev\lib\x64;$(LibraryPath)</LibraryPath>
     <IncludePath Condition="'$(Configuration)|$(Platform)'=='FullRelease|x64'">$(MSBuildProgramFiles32)\Windows Kits\10\Include\10.0.18362.0\km;c:\dev\include;$(IncludePath)</IncludePath>
@@ -285,10 +224,6 @@
     <ExecutablePath>$(MSBuildProgramFiles32)\Windows Kits\10\bin\10.0.17763.0\x86;$(ExecutablePath)</ExecutablePath>
     <ExcludePath>$(VC_IncludePath);$(WindowsSDK_IncludePath);$(MSBuild_ExecutablePath);$(VC_LibraryPath_x86);</ExcludePath>
   </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">
-    <ExecutablePath>$(MSBuildProgramFiles32)\Windows Kits\10\bin\10.0.17763.0\x86;$(ExecutablePath)</ExecutablePath>
-    <ExcludePath>$(VC_IncludePath);$(WindowsSDK_IncludePath);$(MSBuild_ExecutablePath);$(VC_LibraryPath_x86);</ExcludePath>
-  </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">
     <ExecutablePath>$(MSBuildProgramFiles32)\Windows Kits\10\bin\10.0.17763.0\x86;$(ExecutablePath)</ExecutablePath>
     <ExcludePath>$(VC_IncludePath);$(WindowsSDK_IncludePath);$(MSBuild_ExecutablePath);$(VC_LibraryPath_x86);</ExcludePath>
@@ -307,14 +242,6 @@
     <ExecutablePath>$(MSBuildProgramFiles32)\Windows Kits\10\bin\10.0.17763.0\x64;$(ExecutablePath)</ExecutablePath>
     <CodeAnalysisRuleSet>NativeMinimumRules.ruleset</CodeAnalysisRuleSet>
     <OutDir>d:\amiga\</OutDir>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|x64'">
-    <ExecutablePath>$(MSBuildProgramFiles32)\Windows Kits\10\bin\10.0.17763.0\x64;$(ExecutablePath)</ExecutablePath>
-    <CodeAnalysisRuleSet>NativeMinimumRules.ruleset</CodeAnalysisRuleSet>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|ARM64EC'">
-    <ExecutablePath>$(MSBuildProgramFiles32)\Windows Kits\10\bin\10.0.17763.0\x64;$(ExecutablePath)</ExecutablePath>
-    <CodeAnalysisRuleSet>NativeMinimumRules.ruleset</CodeAnalysisRuleSet>
   </PropertyGroup>
   <PropertyGroup Label="Vcpkg">
     <VcpkgEnabled>false</VcpkgEnabled>
@@ -400,87 +327,6 @@
       <AdditionalOptions>/ignore:4099 %(AdditionalOptions)</AdditionalOptions>
       <HeapReserveSize>
       </HeapReserveSize>
-    </Link>
-    <Manifest>
-      <AdditionalManifestFiles>../resources/winuae.exe.manifest</AdditionalManifestFiles>
-      <OutputManifestFile>$(IntDir)$(TargetName)$(TargetExt).embed.manifest</OutputManifestFile>
-      <AdditionalOptions>/validate_manifest %(AdditionalOptions)</AdditionalOptions>
-    </Manifest>
-  </ItemDefinitionGroup>
-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">
-    <Midl>
-      <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <MkTypLibCompatible>true</MkTypLibCompatible>
-      <SuppressStartupBanner>true</SuppressStartupBanner>
-      <TargetEnvironment>Win32</TargetEnvironment>
-      <TypeLibraryName>.\Release/winuae_msvc.tlb</TypeLibraryName>
-    </Midl>
-    <ClCompile>
-      <Optimization>Full</Optimization>
-      <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
-      <IntrinsicFunctions>true</IntrinsicFunctions>
-      <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
-      <OmitFramePointers>true</OmitFramePointers>
-      <WholeProgramOptimization>true</WholeProgramOptimization>
-      <AdditionalIncludeDirectories>..\..\include;..\..;..\;..\resources;..\osdep;..\sounddep;..\..\prowizard\include;..\..\slirp;..\..\ppc\pearpc;:%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>WINVER=0x0601;NDEBUG;_WIN32_IE=0x0700;WIN32;UAE;WINUAE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <StringPooling>true</StringPooling>
-      <ExceptionHandling>Sync</ExceptionHandling>
-      <BasicRuntimeChecks>Default</BasicRuntimeChecks>
-      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-      <FunctionLevelLinking>true</FunctionLevelLinking>
-      <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
-      <FloatingPointModel>Fast</FloatingPointModel>
-      <TreatWChar_tAsBuiltInType>false</TreatWChar_tAsBuiltInType>
-      <RuntimeTypeInfo>false</RuntimeTypeInfo>
-      <PrecompiledHeader>
-      </PrecompiledHeader>
-      <PrecompiledHeaderOutputFile>.\Release/winuae_msvc.pch</PrecompiledHeaderOutputFile>
-      <AssemblerListingLocation>.\Release/</AssemblerListingLocation>
-      <ObjectFileName>.\Release/</ObjectFileName>
-      <ProgramDataBaseFileName>.\Release/</ProgramDataBaseFileName>
-      <WarningLevel>Level3</WarningLevel>
-      <SuppressStartupBanner>true</SuppressStartupBanner>
-      <CallingConvention>FastCall</CallingConvention>
-      <CompileAs>Default</CompileAs>
-      <DisableSpecificWarnings>4996;%(DisableSpecificWarnings)</DisableSpecificWarnings>
-      <ForcedIncludeFiles>%(ForcedIncludeFiles)</ForcedIncludeFiles>
-      <MultiProcessorCompilation>true</MultiProcessorCompilation>
-      <LanguageStandard>stdcpplatest</LanguageStandard>
-    </ClCompile>
-    <ResourceCompile>
-      <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <Culture>0x0409</Culture>
-    </ResourceCompile>
-    <Link>
-      <AdditionalDependencies>ws2_32.lib;winmm.lib;comctl32.lib;version.lib;msacm32.lib;dsound.lib;dinput8.lib;d3d9.lib;d3dx9.lib;winio.lib;setupapi.lib;wininet.lib;shlwapi.lib;libpng16.lib;lglcd.lib;openal32.lib;portaudio_x86.lib;vfw32.lib;wtsapi32.lib;enet.lib;lzmalib.lib;prowizard.lib;libFLAC_static.lib;hid.lib;zlibstat.lib;Iphlpapi.lib;luastatic.lib;libmpeg2_ff.lib;softfloat.lib;gdiplus.lib;effects11.lib;Msimg32.lib;Dwmapi.lib;mt32emu.lib;XINPUT9_1_0.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <OutputFile>$(OutDir)$(TargetName)$(TargetExt)</OutputFile>
-      <SuppressStartupBanner>true</SuppressStartupBanner>
-      <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories);$(SolutionDir)\..\lib\</AdditionalLibraryDirectories>
-      <AdditionalManifestDependencies>%(AdditionalManifestDependencies)</AdditionalManifestDependencies>
-      <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
-      <DelayLoadDLLs>d3dx9_43.dll;openal32.dll;portaudio_x86.dll;ws2_32.dll;msacm32.dll;wtsapi32.dll;dsound.dll;wininet.dll;Iphlpapi.dll;gdiplus.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
-      <GenerateDebugInformation>true</GenerateDebugInformation>
-      <ProgramDatabaseFile>.\Release/winuae.pdb</ProgramDatabaseFile>
-      <SubSystem>Windows</SubSystem>
-      <StackReserveSize>
-      </StackReserveSize>
-      <StackCommitSize>
-      </StackCommitSize>
-      <LargeAddressAware>true</LargeAddressAware>
-      <OptimizeReferences>true</OptimizeReferences>
-      <EnableCOMDATFolding>true</EnableCOMDATFolding>
-      <LinkTimeCodeGeneration>
-      </LinkTimeCodeGeneration>
-      <RandomizedBaseAddress>true</RandomizedBaseAddress>
-      <FixedBaseAddress>false</FixedBaseAddress>
-      <DataExecutionPrevention>true</DataExecutionPrevention>
-      <TargetMachine>MachineX86</TargetMachine>
-      <MinimumRequiredVersion>5.01</MinimumRequiredVersion>
-      <ImageHasSafeExceptionHandlers>
-      </ImageHasSafeExceptionHandlers>
-      <AdditionalOptions>/ignore:4099 %(AdditionalOptions)</AdditionalOptions>
     </Link>
     <Manifest>
       <AdditionalManifestFiles>../resources/winuae.exe.manifest</AdditionalManifestFiles>
@@ -613,6 +459,7 @@
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <AdditionalOptions>/Zc:strictStrings- %(AdditionalOptions)</AdditionalOptions>
+      <LanguageStandard_C>stdclatest</LanguageStandard_C>
     </ClCompile>
     <ResourceCompile>
       <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
@@ -690,6 +537,7 @@
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <AdditionalOptions>/Zc:strictStrings- %(AdditionalOptions)</AdditionalOptions>
+      <LanguageStandard_C>stdclatest</LanguageStandard_C>
     </ClCompile>
     <ResourceCompile>
       <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
@@ -718,156 +566,6 @@
       <LargeAddressAware>true</LargeAddressAware>
       <BaseAddress>
       </BaseAddress>
-      <AdditionalOptions>/ignore:4099 %(AdditionalOptions)</AdditionalOptions>
-    </Link>
-    <Manifest>
-      <AdditionalManifestFiles>..\resources\winuae64.exe.manifest</AdditionalManifestFiles>
-      <EnableDPIAwareness>PerMonitorHighDPIAware</EnableDPIAwareness>
-    </Manifest>
-  </ItemDefinitionGroup>
-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|x64'">
-    <Midl>
-      <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <MkTypLibCompatible>true</MkTypLibCompatible>
-      <SuppressStartupBanner>true</SuppressStartupBanner>
-      <TargetEnvironment>X64</TargetEnvironment>
-      <TypeLibraryName>.\Release/winuae_msvc.tlb</TypeLibraryName>
-    </Midl>
-    <ClCompile>
-      <Optimization>Full</Optimization>
-      <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
-      <IntrinsicFunctions>true</IntrinsicFunctions>
-      <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
-      <OmitFramePointers>true</OmitFramePointers>
-      <WholeProgramOptimization>false</WholeProgramOptimization>
-      <AdditionalIncludeDirectories>..\..\include;..\..;..\;..\resources;..\osdep;..\sounddep;..\..\slirp;..\..\ppc\pearpc;..\..\ppc\pearpc;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>WINVER=0x0601;NDEBUG;_WIN32_IE=0x0700;WIN32;WIN64;PTR64;UAE;WINUAE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <StringPooling>true</StringPooling>
-      <ExceptionHandling>Sync</ExceptionHandling>
-      <BasicRuntimeChecks>Default</BasicRuntimeChecks>
-      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-      <FunctionLevelLinking>true</FunctionLevelLinking>
-      <EnableEnhancedInstructionSet>NotSet</EnableEnhancedInstructionSet>
-      <FloatingPointModel>Fast</FloatingPointModel>
-      <TreatWChar_tAsBuiltInType>false</TreatWChar_tAsBuiltInType>
-      <RuntimeTypeInfo>false</RuntimeTypeInfo>
-      <PrecompiledHeader>NotUsing</PrecompiledHeader>
-      <PrecompiledHeaderOutputFile>$(Platform)\$(Configuration)/winuae_msvc.pch</PrecompiledHeaderOutputFile>
-      <AssemblerListingLocation>$(Platform)\$(Configuration)\</AssemblerListingLocation>
-      <ObjectFileName>$(Platform)\$(Configuration)\</ObjectFileName>
-      <ProgramDataBaseFileName>$(Platform)\$(Configuration)\</ProgramDataBaseFileName>
-      <WarningLevel>Level3</WarningLevel>
-      <SuppressStartupBanner>true</SuppressStartupBanner>
-      <CallingConvention>FastCall</CallingConvention>
-      <CompileAs>Default</CompileAs>
-      <DisableSpecificWarnings>4996;%(DisableSpecificWarnings)</DisableSpecificWarnings>
-      <ForcedIncludeFiles>%(ForcedIncludeFiles)</ForcedIncludeFiles>
-      <MultiProcessorCompilation>true</MultiProcessorCompilation>
-    </ClCompile>
-    <ResourceCompile>
-      <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <Culture>0x0409</Culture>
-    </ResourceCompile>
-    <Link>
-      <AdditionalDependencies>ws2_32.lib;winmm.lib;comctl32.lib;version.lib;vfw32.lib;msacm32.lib;dsound.lib;dinput8.lib;d3d9.lib;d3dx9.lib;setupapi.lib;wininet.lib;shlwapi.lib;zlibstat.lib;portaudio_x64.lib;openal32.lib;libpng16.lib;lglcd.lib;wtsapi32.lib;enet_x64.lib;prowizard_x64.lib;lzmalib.lib;libFLAC_static.lib;hid.lib;Iphlpapi.lib;luastatic.lib;libmpeg2_ff.lib;softfloat.lib;gdiplus.lib;effects11.lib;Msimg32.lib;Dwmapi.lib;mt32emu.lib;XINPUT9_1_0.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <ShowProgress>NotSet</ShowProgress>
-      <OutputFile>$(OutDir)$(TargetName)$(TargetExt)</OutputFile>
-      <SuppressStartupBanner>true</SuppressStartupBanner>
-      <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories);$(SolutionDir)\..\lib\</AdditionalLibraryDirectories>
-      <IgnoreSpecificDefaultLibraries>MSVCRT.lib;%(IgnoreSpecificDefaultLibraries);MSVCRT</IgnoreSpecificDefaultLibraries>
-      <DelayLoadDLLs>d3dx9_43.dll;openal32.dll;portaudio_x64.dll;ws2_32.dll;msacm32.dll;wtsapi32.dll;dsound.dll;Iphlpapi.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
-      <GenerateDebugInformation>true</GenerateDebugInformation>
-      <ProgramDatabaseFile>$(Platform)\$(Configuration)\winuae.pdb</ProgramDatabaseFile>
-      <SubSystem>Windows</SubSystem>
-      <StackReserveSize>
-      </StackReserveSize>
-      <StackCommitSize>
-      </StackCommitSize>
-      <OptimizeReferences>true</OptimizeReferences>
-      <EnableCOMDATFolding>true</EnableCOMDATFolding>
-      <LinkTimeCodeGeneration>
-      </LinkTimeCodeGeneration>
-      <RandomizedBaseAddress>false</RandomizedBaseAddress>
-      <FixedBaseAddress>true</FixedBaseAddress>
-      <DataExecutionPrevention>true</DataExecutionPrevention>
-      <TargetMachine>MachineX64</TargetMachine>
-      <LargeAddressAware>true</LargeAddressAware>
-      <BaseAddress>0x10000000</BaseAddress>
-      <AdditionalOptions>/ignore:4099 %(AdditionalOptions)</AdditionalOptions>
-    </Link>
-    <Manifest>
-      <AdditionalManifestFiles>..\resources\winuae64.exe.manifest</AdditionalManifestFiles>
-      <EnableDPIAwareness>PerMonitorHighDPIAware</EnableDPIAwareness>
-    </Manifest>
-  </ItemDefinitionGroup>
-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|ARM64EC'">
-    <Midl>
-      <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <MkTypLibCompatible>true</MkTypLibCompatible>
-      <SuppressStartupBanner>true</SuppressStartupBanner>
-      <TypeLibraryName>.\Release/winuae_msvc.tlb</TypeLibraryName>
-    </Midl>
-    <ClCompile>
-      <Optimization>Full</Optimization>
-      <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
-      <IntrinsicFunctions>true</IntrinsicFunctions>
-      <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
-      <OmitFramePointers>true</OmitFramePointers>
-      <WholeProgramOptimization>false</WholeProgramOptimization>
-      <AdditionalIncludeDirectories>..\..\include;..\..;..\;..\resources;..\osdep;..\sounddep;..\..\slirp;..\..\ppc\pearpc;..\..\ppc\pearpc;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>WINVER=0x0601;NDEBUG;_WIN32_IE=0x0700;WIN32;WIN64;PTR64;UAE;WINUAE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <StringPooling>true</StringPooling>
-      <ExceptionHandling>Sync</ExceptionHandling>
-      <BasicRuntimeChecks>Default</BasicRuntimeChecks>
-      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-      <FunctionLevelLinking>true</FunctionLevelLinking>
-      <EnableEnhancedInstructionSet>NotSet</EnableEnhancedInstructionSet>
-      <FloatingPointModel>Fast</FloatingPointModel>
-      <TreatWChar_tAsBuiltInType>false</TreatWChar_tAsBuiltInType>
-      <RuntimeTypeInfo>false</RuntimeTypeInfo>
-      <PrecompiledHeader>NotUsing</PrecompiledHeader>
-      <PrecompiledHeaderOutputFile>$(Platform)\$(Configuration)/winuae_msvc.pch</PrecompiledHeaderOutputFile>
-      <AssemblerListingLocation>$(Platform)\$(Configuration)\</AssemblerListingLocation>
-      <ObjectFileName>$(Platform)\$(Configuration)\</ObjectFileName>
-      <ProgramDataBaseFileName>$(Platform)\$(Configuration)\</ProgramDataBaseFileName>
-      <WarningLevel>Level3</WarningLevel>
-      <SuppressStartupBanner>true</SuppressStartupBanner>
-      <CallingConvention>FastCall</CallingConvention>
-      <CompileAs>Default</CompileAs>
-      <DisableSpecificWarnings>4996;%(DisableSpecificWarnings)</DisableSpecificWarnings>
-      <ForcedIncludeFiles>%(ForcedIncludeFiles)</ForcedIncludeFiles>
-      <MultiProcessorCompilation>true</MultiProcessorCompilation>
-    </ClCompile>
-    <ResourceCompile>
-      <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <Culture>0x0409</Culture>
-    </ResourceCompile>
-    <Link>
-      <AdditionalDependencies>ws2_32.lib;winmm.lib;comctl32.lib;version.lib;vfw32.lib;msacm32.lib;dsound.lib;dinput8.lib;d3d9.lib;d3dx9.lib;setupapi.lib;wininet.lib;shlwapi.lib;zlibstat.lib;portaudio_x64.lib;openal32.lib;libpng16.lib;lglcd.lib;wtsapi32.lib;enet_x64.lib;prowizard_x64.lib;lzmalib.lib;libFLAC_static.lib;hid.lib;Iphlpapi.lib;luastatic.lib;libmpeg2_ff.lib;softfloat.lib;gdiplus.lib;effects11.lib;Msimg32.lib;Dwmapi.lib;mt32emu.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <ShowProgress>NotSet</ShowProgress>
-      <OutputFile>$(OutDir)$(TargetName)$(TargetExt)</OutputFile>
-      <SuppressStartupBanner>true</SuppressStartupBanner>
-      <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories);$(SolutionDir)\..\lib\</AdditionalLibraryDirectories>
-      <IgnoreSpecificDefaultLibraries>MSVCRT.lib;%(IgnoreSpecificDefaultLibraries);MSVCRT</IgnoreSpecificDefaultLibraries>
-      <DelayLoadDLLs>d3dx9_43.dll;openal32.dll;portaudio_x64.dll;ws2_32.dll;msacm32.dll;wtsapi32.dll;dsound.dll;Iphlpapi.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
-      <GenerateDebugInformation>true</GenerateDebugInformation>
-      <ProgramDatabaseFile>$(Platform)\$(Configuration)\winuae.pdb</ProgramDatabaseFile>
-      <SubSystem>Windows</SubSystem>
-      <StackReserveSize>
-      </StackReserveSize>
-      <StackCommitSize>
-      </StackCommitSize>
-      <OptimizeReferences>true</OptimizeReferences>
-      <EnableCOMDATFolding>true</EnableCOMDATFolding>
-      <LinkTimeCodeGeneration>
-      </LinkTimeCodeGeneration>
-      <RandomizedBaseAddress>false</RandomizedBaseAddress>
-      <FixedBaseAddress>true</FixedBaseAddress>
-      <DataExecutionPrevention>true</DataExecutionPrevention>
-      <LargeAddressAware>true</LargeAddressAware>
-      <BaseAddress>0x10000000</BaseAddress>
       <AdditionalOptions>/ignore:4099 %(AdditionalOptions)</AdditionalOptions>
     </Link>
     <Manifest>
@@ -992,6 +690,7 @@
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <AdditionalOptions>/Zc:strictStrings- %(AdditionalOptions)</AdditionalOptions>
+      <LanguageStandard_C>stdclatest</LanguageStandard_C>
     </ClCompile>
     <ResourceCompile>
       <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
@@ -1067,9 +766,9 @@
       <DisableSpecificWarnings>4996;%(DisableSpecificWarnings)</DisableSpecificWarnings>
       <ForcedIncludeFiles>%(ForcedIncludeFiles)</ForcedIncludeFiles>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
-      <LanguageStandard>stdcpp20</LanguageStandard>
+      <LanguageStandard>stdcpplatest</LanguageStandard>
       <AdditionalOptions>/Zc:strictStrings- %(AdditionalOptions)</AdditionalOptions>
-      <LanguageStandard_C>stdc17</LanguageStandard_C>
+      <LanguageStandard_C>stdclatest</LanguageStandard_C>
     </ClCompile>
     <ResourceCompile>
       <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
@@ -1149,9 +848,9 @@
       <DisableSpecificWarnings>4996;%(DisableSpecificWarnings)</DisableSpecificWarnings>
       <ForcedIncludeFiles>%(ForcedIncludeFiles)</ForcedIncludeFiles>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
-      <LanguageStandard>stdcpp20</LanguageStandard>
+      <LanguageStandard>stdcpplatest</LanguageStandard>
       <AdditionalOptions>/Zc:strictStrings- %(AdditionalOptions)</AdditionalOptions>
-      <LanguageStandard_C>stdc17</LanguageStandard_C>
+      <LanguageStandard_C>stdclatest</LanguageStandard_C>
     </ClCompile>
     <ResourceCompile>
       <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
@@ -1229,6 +928,7 @@
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <AdditionalOptions>/Zc:strictStrings- %(AdditionalOptions)</AdditionalOptions>
+      <LanguageStandard_C>stdclatest</LanguageStandard_C>
     </ClCompile>
     <ResourceCompile>
       <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
@@ -1595,75 +1295,56 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Test|x64'">false</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Test|ARM64EC'">false</ExcludedFromBuild>
       <FileType>Document</FileType>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|x64'">false</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|ARM64EC'">false</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|ARM64EC'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='FullRelease|x64'">false</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='FullRelease|ARM64EC'">false</ExcludedFromBuild>
       <Command Condition="'$(Configuration)|$(Platform)'=='Test|x64'">nasm -f win64 %(FullPath) -o $(IntDir)%(filename).obj</Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Test|ARM64EC'">nasm -f win64 %(FullPath) -o $(IntDir)%(filename).obj</Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|x64'">nasm -f win64 %(FullPath) -o $(IntDir)%(filename).obj</Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|ARM64EC'">nasm -f win64 %(FullPath) -o $(IntDir)%(filename).obj</Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">nasm -f win64 %(FullPath) -o $(IntDir)%(filename).obj</Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|ARM64EC'">nasm -f win64 %(FullPath) -o $(IntDir)%(filename).obj</Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='FullRelease|x64'">nasm -f win64 %(FullPath) -o $(IntDir)%(filename).obj</Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='FullRelease|ARM64EC'">nasm -f win64 %(FullPath) -o $(IntDir)%(filename).obj</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Test|x64'">$(IntDir)%(filename).obj</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Test|ARM64EC'">$(IntDir)%(filename).obj</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|x64'">$(IntDir)%(filename).obj</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|ARM64EC'">$(IntDir)%(filename).obj</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(IntDir)%(filename).obj</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|ARM64EC'">$(IntDir)%(filename).obj</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='FullRelease|x64'">$(IntDir)%(filename).obj</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='FullRelease|ARM64EC'">$(IntDir)%(filename).obj</Outputs>
       <Message Condition="'$(Configuration)|$(Platform)'=='Test|x64'">Assembling %(filename)</Message>
       <Message Condition="'$(Configuration)|$(Platform)'=='Test|ARM64EC'">Assembling %(filename)</Message>
-      <Message Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|x64'">Assembling %(filename)</Message>
-      <Message Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|ARM64EC'">Assembling %(filename)</Message>
       <Message Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Assembling %(filename)</Message>
       <Message Condition="'$(Configuration)|$(Platform)'=='Release|ARM64EC'">Assembling %(filename)</Message>
       <Message Condition="'$(Configuration)|$(Platform)'=='FullRelease|x64'">Assembling %(filename)</Message>
       <Message Condition="'$(Configuration)|$(Platform)'=='FullRelease|ARM64EC'">Assembling %(filename)</Message>
       <Command Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">nasm -f win32 %(FullPath) -o $(IntDir)%(filename).obj</Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">nasm -f win32 %(FullPath) -o $(IntDir)%(filename).obj</Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">nasm -f win32 %(FullPath) -o $(IntDir)%(filename).obj</Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">nasm -f win32 %(FullPath) -o $(IntDir)%(filename).obj</Command>
       <Message Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">Assembling %(filename)</Message>
-      <Message Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">Assembling %(filename)</Message>
       <Message Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Assembling %(filename)</Message>
       <Message Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">Assembling %(filename)</Message>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">$(IntDir)%(filename).obj</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">$(IntDir)%(filename).obj</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(IntDir)%(filename).obj</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">$(IntDir)%(filename).obj</Outputs>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">true</ExcludedFromBuild>
     </CustomBuild>
     <CustomBuild Include="..\fpux86_80.asm">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">false</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">false</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">false</ExcludedFromBuild>
       <FileType>Document</FileType>
       <Command Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">nasm -f win32 %(FullPath) -o $(IntDir)%(filename).obj</Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">nasm -f win32 %(FullPath) -o $(IntDir)%(filename).obj</Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">nasm -f win32 %(FullPath) -o $(IntDir)%(filename).obj</Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">nasm -f win32 %(FullPath) -o $(IntDir)%(filename).obj</Command>
       <Message Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">Assembling %(filename)</Message>
-      <Message Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">Assembling %(filename)</Message>
       <Message Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Assembling %(filename)</Message>
       <Message Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">Assembling %(filename)</Message>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">$(IntDir)%(filename).obj</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">$(IntDir)%(filename).obj</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(IntDir)%(filename).obj</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">$(IntDir)%(filename).obj</Outputs>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Test|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Test|ARM64EC'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|ARM64EC'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|ARM64EC'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='FullRelease|x64'">true</ExcludedFromBuild>
@@ -1671,163 +1352,127 @@
     </CustomBuild>
     <CustomBuild Include="..\hq2x16.asm">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">false</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">false</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">false</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Test|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Test|ARM64EC'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|ARM64EC'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|ARM64EC'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='FullRelease|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='FullRelease|ARM64EC'">true</ExcludedFromBuild>
       <FileType>Document</FileType>
       <Command Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">nasm -w-orphan-labels -f win32 %(FullPath) -o $(IntDir)%(filename).obj</Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">nasm -w-orphan-labels -f win32 %(FullPath) -o $(IntDir)%(filename).obj</Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">nasm -w-orphan-labels -f win32 %(FullPath) -o $(IntDir)%(filename).obj</Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">nasm -w-orphan-labels -f win32 %(FullPath) -o $(IntDir)%(filename).obj</Command>
       <Message Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">Assembling %(filename)</Message>
-      <Message Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">Assembling %(filename)</Message>
       <Message Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Assembling %(filename)</Message>
       <Message Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">Assembling %(filename)</Message>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">$(IntDir)%(filename).obj</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">$(IntDir)%(filename).obj</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(IntDir)%(filename).obj</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">$(IntDir)%(filename).obj</Outputs>
     </CustomBuild>
     <CustomBuild Include="..\hq2x32.asm">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">false</ExcludedFromBuild>
       <FileType>Document</FileType>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">false</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">false</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Test|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Test|ARM64EC'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|ARM64EC'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|ARM64EC'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='FullRelease|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='FullRelease|ARM64EC'">true</ExcludedFromBuild>
       <Command Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">nasm -w-orphan-labels -f win32 %(FullPath) -o $(IntDir)%(filename).obj</Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">nasm -w-orphan-labels -f win32 %(FullPath) -o $(IntDir)%(filename).obj</Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">nasm -w-orphan-labels -f win32 %(FullPath) -o $(IntDir)%(filename).obj</Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">nasm -w-orphan-labels -f win32 %(FullPath) -o $(IntDir)%(filename).obj</Command>
       <Message Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">Assembling %(filename)</Message>
-      <Message Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">Assembling %(filename)</Message>
       <Message Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Assembling %(filename)</Message>
       <Message Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">Assembling %(filename)</Message>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">$(IntDir)%(filename).obj</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">$(IntDir)%(filename).obj</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(IntDir)%(filename).obj</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">$(IntDir)%(filename).obj</Outputs>
     </CustomBuild>
     <CustomBuild Include="..\hq3x16.asm">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">false</ExcludedFromBuild>
       <FileType>Document</FileType>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">false</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">false</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Test|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Test|ARM64EC'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|ARM64EC'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|ARM64EC'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='FullRelease|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='FullRelease|ARM64EC'">true</ExcludedFromBuild>
       <Command Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">nasm -w-orphan-labels -f win32 %(FullPath) -o $(IntDir)%(filename).obj</Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">nasm -w-orphan-labels -f win32 %(FullPath) -o $(IntDir)%(filename).obj</Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">nasm -w-orphan-labels -f win32 %(FullPath) -o $(IntDir)%(filename).obj</Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">nasm -w-orphan-labels -f win32 %(FullPath) -o $(IntDir)%(filename).obj</Command>
       <Message Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">Assembling %(filename)</Message>
-      <Message Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">Assembling %(filename)</Message>
       <Message Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Assembling %(filename)</Message>
       <Message Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">Assembling %(filename)</Message>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">$(IntDir)%(filename).obj</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">$(IntDir)%(filename).obj</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(IntDir)%(filename).obj</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">$(IntDir)%(filename).obj</Outputs>
     </CustomBuild>
     <CustomBuild Include="..\hq3x32.asm">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">false</ExcludedFromBuild>
       <FileType>Document</FileType>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">false</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">false</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Test|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Test|ARM64EC'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|ARM64EC'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|ARM64EC'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='FullRelease|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='FullRelease|ARM64EC'">true</ExcludedFromBuild>
       <Command Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">nasm -w-orphan-labels -f win32 %(FullPath) -o $(IntDir)%(filename).obj</Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">nasm -w-orphan-labels -f win32 %(FullPath) -o $(IntDir)%(filename).obj</Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">nasm -w-orphan-labels -f win32 %(FullPath) -o $(IntDir)%(filename).obj</Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">nasm -w-orphan-labels -f win32 %(FullPath) -o $(IntDir)%(filename).obj</Command>
       <Message Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">Assembling %(filename)</Message>
-      <Message Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">Assembling %(filename)</Message>
       <Message Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Assembling %(filename)</Message>
       <Message Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">Assembling %(filename)</Message>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">$(IntDir)%(filename).obj</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">$(IntDir)%(filename).obj</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(IntDir)%(filename).obj</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">$(IntDir)%(filename).obj</Outputs>
     </CustomBuild>
     <CustomBuild Include="..\hq4x16.asm">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">false</ExcludedFromBuild>
       <FileType>Document</FileType>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">false</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">false</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Test|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Test|ARM64EC'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|ARM64EC'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|ARM64EC'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='FullRelease|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='FullRelease|ARM64EC'">true</ExcludedFromBuild>
       <Command Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">nasm -w-orphan-labels -f win32 %(FullPath) -o $(IntDir)%(filename).obj</Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">nasm -w-orphan-labels -f win32 %(FullPath) -o $(IntDir)%(filename).obj</Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">nasm -w-orphan-labels -f win32 %(FullPath) -o $(IntDir)%(filename).obj</Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">nasm -w-orphan-labels -f win32 %(FullPath) -o $(IntDir)%(filename).obj</Command>
       <Message Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">Assembling %(filename)</Message>
-      <Message Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">Assembling %(filename)</Message>
       <Message Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Assembling %(filename)</Message>
       <Message Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">Assembling %(filename)</Message>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">$(IntDir)%(filename).obj</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">$(IntDir)%(filename).obj</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(IntDir)%(filename).obj</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">$(IntDir)%(filename).obj</Outputs>
     </CustomBuild>
     <CustomBuild Include="..\hq4x32.asm">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">false</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">false</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">false</ExcludedFromBuild>
       <FileType>Document</FileType>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Test|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Test|ARM64EC'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|ARM64EC'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|ARM64EC'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='FullRelease|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='FullRelease|ARM64EC'">true</ExcludedFromBuild>
       <Command Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">nasm -w-orphan-labels -f win32 %(FullPath) -o $(IntDir)%(filename).obj</Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">nasm -w-orphan-labels -f win32 %(FullPath) -o $(IntDir)%(filename).obj</Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">nasm -w-orphan-labels -f win32 %(FullPath) -o $(IntDir)%(filename).obj</Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">nasm -w-orphan-labels -f win32 %(FullPath) -o $(IntDir)%(filename).obj</Command>
       <Message Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">Assembling %(filename)</Message>
-      <Message Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">Assembling %(filename)</Message>
       <Message Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Assembling %(filename)</Message>
       <Message Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">Assembling %(filename)</Message>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">$(IntDir)%(filename).obj</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">$(IntDir)%(filename).obj</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(IntDir)%(filename).obj</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">$(IntDir)%(filename).obj</Outputs>
     </CustomBuild>
@@ -1874,14 +1519,11 @@
     <FxCompile Include="..\shaders\PixelShader.hlsl">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Test|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Test|ARM64EC'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|ARM64EC'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|ARM64EC'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='FullRelease|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='FullRelease|ARM64EC'">true</ExcludedFromBuild>
     </FxCompile>
@@ -1894,31 +1536,24 @@
       <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">
       </ObjectFileOutput>
       <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">../Shaders/PixelShaderAlpha.h</HeaderFileOutput>
-      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">../Shaders/PixelShaderAlpha.h</HeaderFileOutput>
       <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
-      </ObjectFileOutput>
-      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">
       </ObjectFileOutput>
       <VariableName Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">PS_PostAlpha</VariableName>
       <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">../Shaders/PixelShaderAlpha.h</HeaderFileOutput>
       <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">
       </ObjectFileOutput>
       <VariableName Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">PS_PostAlpha</VariableName>
-      <VariableName Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">PS_PostAlpha</VariableName>
       <VariableName Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">PS_PostAlpha</VariableName>
       <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">../Shaders/PixelShaderAlpha.h</HeaderFileOutput>
       <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
       </ObjectFileOutput>
       <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">PS_PostAlpha</EntryPointName>
       <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">PS_PostAlpha</EntryPointName>
-      <EntryPointName Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">PS_PostAlpha</EntryPointName>
       <EntryPointName Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">PS_PostAlpha</EntryPointName>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">4.0_level_9_1</ShaderModel>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Pixel</ShaderType>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">Pixel</ShaderType>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">4.0_level_9_1</ShaderModel>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">4.0_level_9_1</ShaderModel>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">Pixel</ShaderType>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">4.0_level_9_1</ShaderModel>
       <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">PS_PostAlpha</EntryPointName>
@@ -1935,16 +1570,10 @@
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Test|ARM64EC'">4.0_level_9_1</ShaderModel>
       <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">PS_PostAlpha</EntryPointName>
       <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Release|ARM64EC'">PS_PostAlpha</EntryPointName>
-      <EntryPointName Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|x64'">PS_PostAlpha</EntryPointName>
-      <EntryPointName Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|ARM64EC'">PS_PostAlpha</EntryPointName>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|ARM64EC'">Pixel</ShaderType>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|x64'">Pixel</ShaderType>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|ARM64EC'">Pixel</ShaderType>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">4.0_level_9_1</ShaderModel>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|ARM64EC'">4.0_level_9_1</ShaderModel>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|x64'">4.0_level_9_1</ShaderModel>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|ARM64EC'">4.0_level_9_1</ShaderModel>
       <EntryPointName Condition="'$(Configuration)|$(Platform)'=='FullRelease|x64'">PS_PostAlpha</EntryPointName>
       <EntryPointName Condition="'$(Configuration)|$(Platform)'=='FullRelease|ARM64EC'">PS_PostAlpha</EntryPointName>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='FullRelease|x64'">Pixel</ShaderType>
@@ -1969,19 +1598,11 @@
       </ObjectFileOutput>
       <VariableName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">PS_PostAlpha</VariableName>
       <VariableName Condition="'$(Configuration)|$(Platform)'=='Release|ARM64EC'">PS_PostAlpha</VariableName>
-      <VariableName Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|x64'">PS_PostAlpha</VariableName>
-      <VariableName Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|ARM64EC'">PS_PostAlpha</VariableName>
       <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|x64'">../Shaders/PixelShaderAlpha.h</HeaderFileOutput>
       <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|ARM64EC'">../Shaders/PixelShaderAlpha.h</HeaderFileOutput>
-      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|x64'">../Shaders/PixelShaderAlpha.h</HeaderFileOutput>
-      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|ARM64EC'">../Shaders/PixelShaderAlpha.h</HeaderFileOutput>
       <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
       </ObjectFileOutput>
       <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|ARM64EC'">
-      </ObjectFileOutput>
-      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|x64'">
-      </ObjectFileOutput>
-      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|ARM64EC'">
       </ObjectFileOutput>
       <VariableName Condition="'$(Configuration)|$(Platform)'=='FullRelease|x64'">PS_PostAlpha</VariableName>
       <VariableName Condition="'$(Configuration)|$(Platform)'=='FullRelease|ARM64EC'">PS_PostAlpha</VariableName>
@@ -2000,20 +1621,14 @@
       <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">../Shaders/PixelShaderAlpha_HDR.h</HeaderFileOutput>
       <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">
       </ObjectFileOutput>
-      <VariableName Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">PS_PostAlpha_HDR</VariableName>
       <VariableName Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">PS_PostAlpha_HDR</VariableName>
       <VariableName Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">PS_PostAlpha_HDR</VariableName>
       <VariableName Condition="'$(Configuration)|$(Platform)'=='Test|x64'">PS_PostAlpha_HDR</VariableName>
       <VariableName Condition="'$(Configuration)|$(Platform)'=='Test|ARM64EC'">PS_PostAlpha_HDR</VariableName>
-      <VariableName Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|x64'">PS_PostAlpha_HDR</VariableName>
-      <VariableName Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|ARM64EC'">PS_PostAlpha_HDR</VariableName>
       <VariableName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">PS_PostAlpha_HDR</VariableName>
       <VariableName Condition="'$(Configuration)|$(Platform)'=='Release|ARM64EC'">PS_PostAlpha_HDR</VariableName>
       <VariableName Condition="'$(Configuration)|$(Platform)'=='FullRelease|x64'">PS_PostAlpha_HDR</VariableName>
       <VariableName Condition="'$(Configuration)|$(Platform)'=='FullRelease|ARM64EC'">PS_PostAlpha_HDR</VariableName>
-      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">../Shaders/PixelShaderAlpha_HDR.h</HeaderFileOutput>
-      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">
-      </ObjectFileOutput>
       <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">../Shaders/PixelShaderAlpha_HDR.h</HeaderFileOutput>
       <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
       </ObjectFileOutput>
@@ -2025,12 +1640,6 @@
       <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Test|x64'">
       </ObjectFileOutput>
       <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Test|ARM64EC'">
-      </ObjectFileOutput>
-      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|x64'">../Shaders/PixelShaderAlpha_HDR.h</HeaderFileOutput>
-      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|ARM64EC'">../Shaders/PixelShaderAlpha_HDR.h</HeaderFileOutput>
-      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|x64'">
-      </ObjectFileOutput>
-      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|ARM64EC'">
       </ObjectFileOutput>
       <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|x64'">../Shaders/PixelShaderAlpha_HDR.h</HeaderFileOutput>
       <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|ARM64EC'">../Shaders/PixelShaderAlpha_HDR.h</HeaderFileOutput>
@@ -2044,8 +1653,6 @@
       </ObjectFileOutput>
       <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='FullRelease|ARM64EC'">
       </ObjectFileOutput>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">Pixel</ShaderType>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">4.0_level_9_3</ShaderModel>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Pixel</ShaderType>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">4.0_level_9_3</ShaderModel>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">Pixel</ShaderType>
@@ -2054,10 +1661,6 @@
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Test|ARM64EC'">Pixel</ShaderType>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Test|x64'">4.0_level_9_3</ShaderModel>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Test|ARM64EC'">4.0_level_9_3</ShaderModel>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|x64'">Pixel</ShaderType>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|ARM64EC'">Pixel</ShaderType>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|x64'">4.0_level_9_3</ShaderModel>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|ARM64EC'">4.0_level_9_3</ShaderModel>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|ARM64EC'">Pixel</ShaderType>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">4.0_level_9_3</ShaderModel>
@@ -2066,13 +1669,10 @@
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='FullRelease|ARM64EC'">Pixel</ShaderType>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='FullRelease|x64'">4.0_level_9_3</ShaderModel>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='FullRelease|ARM64EC'">4.0_level_9_3</ShaderModel>
-      <EntryPointName Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">PS_PostAlpha_HDR</EntryPointName>
       <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">PS_PostAlpha_HDR</EntryPointName>
       <EntryPointName Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">PS_PostAlpha_HDR</EntryPointName>
       <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Test|x64'">PS_PostAlpha_HDR</EntryPointName>
       <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Test|ARM64EC'">PS_PostAlpha_HDR</EntryPointName>
-      <EntryPointName Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|x64'">PS_PostAlpha_HDR</EntryPointName>
-      <EntryPointName Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|ARM64EC'">PS_PostAlpha_HDR</EntryPointName>
       <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">PS_PostAlpha_HDR</EntryPointName>
       <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Release|ARM64EC'">PS_PostAlpha_HDR</EntryPointName>
       <EntryPointName Condition="'$(Configuration)|$(Platform)'=='FullRelease|x64'">PS_PostAlpha_HDR</EntryPointName>
@@ -2089,9 +1689,7 @@
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">4.0_level_9_1</ShaderModel>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Pixel</ShaderType>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">Pixel</ShaderType>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">4.0_level_9_1</ShaderModel>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">4.0_level_9_1</ShaderModel>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">Pixel</ShaderType>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">4.0_level_9_1</ShaderModel>
       <VariableName Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">PS_PostMask</VariableName>
@@ -2099,12 +1697,8 @@
       <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
       </ObjectFileOutput>
       <VariableName Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">PS_PostMask</VariableName>
-      <VariableName Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">PS_PostMask</VariableName>
       <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">../Shaders/PixelShaderMask.h</HeaderFileOutput>
-      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">../Shaders/PixelShaderMask.h</HeaderFileOutput>
       <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
-      </ObjectFileOutput>
-      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">
       </ObjectFileOutput>
       <VariableName Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">PS_PostMask</VariableName>
       <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">../Shaders/PixelShaderMask.h</HeaderFileOutput>
@@ -2128,19 +1722,11 @@
       </ObjectFileOutput>
       <VariableName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">PS_PostMask</VariableName>
       <VariableName Condition="'$(Configuration)|$(Platform)'=='Release|ARM64EC'">PS_PostMask</VariableName>
-      <VariableName Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|x64'">PS_PostMask</VariableName>
-      <VariableName Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|ARM64EC'">PS_PostMask</VariableName>
       <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|x64'">../Shaders/PixelShaderMask.h</HeaderFileOutput>
       <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|ARM64EC'">../Shaders/PixelShaderMask.h</HeaderFileOutput>
-      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|x64'">../Shaders/PixelShaderMask.h</HeaderFileOutput>
-      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|ARM64EC'">../Shaders/PixelShaderMask.h</HeaderFileOutput>
       <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
       </ObjectFileOutput>
       <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|ARM64EC'">
-      </ObjectFileOutput>
-      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|x64'">
-      </ObjectFileOutput>
-      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|ARM64EC'">
       </ObjectFileOutput>
       <VariableName Condition="'$(Configuration)|$(Platform)'=='FullRelease|x64'">PS_PostMask</VariableName>
       <VariableName Condition="'$(Configuration)|$(Platform)'=='FullRelease|ARM64EC'">PS_PostMask</VariableName>
@@ -2152,7 +1738,6 @@
       </ObjectFileOutput>
       <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">PS_PostMask</EntryPointName>
       <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">PS_PostMask</EntryPointName>
-      <EntryPointName Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">PS_PostMask</EntryPointName>
       <EntryPointName Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">PS_PostMask</EntryPointName>
       <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">PS_PostMask</EntryPointName>
       <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Debug|ARM64EC'">PS_PostMask</EntryPointName>
@@ -2168,16 +1753,10 @@
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Test|ARM64EC'">4.0_level_9_1</ShaderModel>
       <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">PS_PostMask</EntryPointName>
       <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Release|ARM64EC'">PS_PostMask</EntryPointName>
-      <EntryPointName Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|x64'">PS_PostMask</EntryPointName>
-      <EntryPointName Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|ARM64EC'">PS_PostMask</EntryPointName>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|ARM64EC'">Pixel</ShaderType>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|x64'">Pixel</ShaderType>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|ARM64EC'">Pixel</ShaderType>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">4.0_level_9_1</ShaderModel>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|ARM64EC'">4.0_level_9_1</ShaderModel>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|x64'">4.0_level_9_1</ShaderModel>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|ARM64EC'">4.0_level_9_1</ShaderModel>
       <EntryPointName Condition="'$(Configuration)|$(Platform)'=='FullRelease|x64'">PS_PostMask</EntryPointName>
       <EntryPointName Condition="'$(Configuration)|$(Platform)'=='FullRelease|ARM64EC'">PS_PostMask</EntryPointName>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='FullRelease|x64'">Pixel</ShaderType>
@@ -2193,13 +1772,10 @@
       </ObjectFileOutput>
       <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">PS_PostMask_HDR</EntryPointName>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">Pixel</ShaderType>
-      <EntryPointName Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">PS_PostMask_HDR</EntryPointName>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">Pixel</ShaderType>
       <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">PS_PostMask_HDR</EntryPointName>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Pixel</ShaderType>
       <EntryPointName Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">PS_PostMask_HDR</EntryPointName>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">Pixel</ShaderType>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">4.0_level_9_3</ShaderModel>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">4.0_level_9_3</ShaderModel>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">4.0_level_9_3</ShaderModel>
       <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Test|x64'">PS_PostMask_HDR</EntryPointName>
@@ -2208,12 +1784,6 @@
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Test|ARM64EC'">Pixel</ShaderType>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Test|x64'">4.0_level_9_3</ShaderModel>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Test|ARM64EC'">4.0_level_9_3</ShaderModel>
-      <EntryPointName Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|x64'">PS_PostMask_HDR</EntryPointName>
-      <EntryPointName Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|ARM64EC'">PS_PostMask_HDR</EntryPointName>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|x64'">Pixel</ShaderType>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|ARM64EC'">Pixel</ShaderType>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|x64'">4.0_level_9_3</ShaderModel>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|ARM64EC'">4.0_level_9_3</ShaderModel>
       <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">PS_PostMask_HDR</EntryPointName>
       <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Release|ARM64EC'">PS_PostMask_HDR</EntryPointName>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
@@ -2226,9 +1796,6 @@
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='FullRelease|ARM64EC'">Pixel</ShaderType>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='FullRelease|x64'">4.0_level_9_3</ShaderModel>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='FullRelease|ARM64EC'">4.0_level_9_3</ShaderModel>
-      <VariableName Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">PS_PostMask_HDR</VariableName>
-      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">
-      </ObjectFileOutput>
       <VariableName Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">PS_PostMask_HDR</VariableName>
       <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
       </ObjectFileOutput>
@@ -2240,12 +1807,6 @@
       <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Test|x64'">
       </ObjectFileOutput>
       <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Test|ARM64EC'">
-      </ObjectFileOutput>
-      <VariableName Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|x64'">PS_PostMask_HDR</VariableName>
-      <VariableName Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|ARM64EC'">PS_PostMask_HDR</VariableName>
-      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|x64'">
-      </ObjectFileOutput>
-      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|ARM64EC'">
       </ObjectFileOutput>
       <VariableName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">PS_PostMask_HDR</VariableName>
       <VariableName Condition="'$(Configuration)|$(Platform)'=='Release|ARM64EC'">PS_PostMask_HDR</VariableName>
@@ -2259,13 +1820,10 @@
       </ObjectFileOutput>
       <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='FullRelease|ARM64EC'">
       </ObjectFileOutput>
-      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">../Shaders/PixelShaderMask_HDR.h</HeaderFileOutput>
       <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">../Shaders/PixelShaderMask_HDR.h</HeaderFileOutput>
       <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">../Shaders/PixelShaderMask_HDR.h</HeaderFileOutput>
       <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Test|x64'">../Shaders/PixelShaderMask_HDR.h</HeaderFileOutput>
       <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Test|ARM64EC'">../Shaders/PixelShaderMask_HDR.h</HeaderFileOutput>
-      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|x64'">../Shaders/PixelShaderMask_HDR.h</HeaderFileOutput>
-      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|ARM64EC'">../Shaders/PixelShaderMask_HDR.h</HeaderFileOutput>
       <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|x64'">../Shaders/PixelShaderMask_HDR.h</HeaderFileOutput>
       <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|ARM64EC'">../Shaders/PixelShaderMask_HDR.h</HeaderFileOutput>
       <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='FullRelease|x64'">../Shaders/PixelShaderMask_HDR.h</HeaderFileOutput>
@@ -2282,9 +1840,7 @@
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">4.0_level_9_1</ShaderModel>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Pixel</ShaderType>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">Pixel</ShaderType>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">4.0_level_9_1</ShaderModel>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">4.0_level_9_1</ShaderModel>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">Pixel</ShaderType>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">4.0_level_9_1</ShaderModel>
       <VariableName Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">PS_PostPlain</VariableName>
@@ -2292,12 +1848,8 @@
       <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
       </ObjectFileOutput>
       <VariableName Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">PS_PostPlain</VariableName>
-      <VariableName Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">PS_PostPlain</VariableName>
       <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">../Shaders/PixelShaderPlain.h</HeaderFileOutput>
-      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">../Shaders/PixelShaderPlain.h</HeaderFileOutput>
       <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
-      </ObjectFileOutput>
-      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">
       </ObjectFileOutput>
       <VariableName Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">PS_PostPlain</VariableName>
       <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">../Shaders/PixelShaderPlain.h</HeaderFileOutput>
@@ -2305,7 +1857,6 @@
       </ObjectFileOutput>
       <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">PS_PostPlain</EntryPointName>
       <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">PS_PostPlain</EntryPointName>
-      <EntryPointName Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">PS_PostPlain</EntryPointName>
       <EntryPointName Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">PS_PostPlain</EntryPointName>
       <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">PS_PostPlain</EntryPointName>
       <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Debug|ARM64EC'">PS_PostPlain</EntryPointName>
@@ -2321,16 +1872,10 @@
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Test|ARM64EC'">4.0_level_9_1</ShaderModel>
       <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">PS_PostPlain</EntryPointName>
       <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Release|ARM64EC'">PS_PostPlain</EntryPointName>
-      <EntryPointName Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|x64'">PS_PostPlain</EntryPointName>
-      <EntryPointName Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|ARM64EC'">PS_PostPlain</EntryPointName>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|ARM64EC'">Pixel</ShaderType>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|x64'">Pixel</ShaderType>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|ARM64EC'">Pixel</ShaderType>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">4.0_level_9_1</ShaderModel>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|ARM64EC'">4.0_level_9_1</ShaderModel>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|x64'">4.0_level_9_1</ShaderModel>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|ARM64EC'">4.0_level_9_1</ShaderModel>
       <EntryPointName Condition="'$(Configuration)|$(Platform)'=='FullRelease|x64'">PS_PostPlain</EntryPointName>
       <EntryPointName Condition="'$(Configuration)|$(Platform)'=='FullRelease|ARM64EC'">PS_PostPlain</EntryPointName>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='FullRelease|x64'">Pixel</ShaderType>
@@ -2355,19 +1900,11 @@
       </ObjectFileOutput>
       <VariableName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">PS_PostPlain</VariableName>
       <VariableName Condition="'$(Configuration)|$(Platform)'=='Release|ARM64EC'">PS_PostPlain</VariableName>
-      <VariableName Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|x64'">PS_PostPlain</VariableName>
-      <VariableName Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|ARM64EC'">PS_PostPlain</VariableName>
       <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|x64'">../Shaders/PixelShaderPlain.h</HeaderFileOutput>
       <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|ARM64EC'">../Shaders/PixelShaderPlain.h</HeaderFileOutput>
-      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|x64'">../Shaders/PixelShaderPlain.h</HeaderFileOutput>
-      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|ARM64EC'">../Shaders/PixelShaderPlain.h</HeaderFileOutput>
       <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
       </ObjectFileOutput>
       <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|ARM64EC'">
-      </ObjectFileOutput>
-      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|x64'">
-      </ObjectFileOutput>
-      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|ARM64EC'">
       </ObjectFileOutput>
       <VariableName Condition="'$(Configuration)|$(Platform)'=='FullRelease|x64'">PS_PostPlain</VariableName>
       <VariableName Condition="'$(Configuration)|$(Platform)'=='FullRelease|ARM64EC'">PS_PostPlain</VariableName>
@@ -2386,9 +1923,6 @@
       <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">
       </ObjectFileOutput>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">4.0_level_9_3</ShaderModel>
-      <VariableName Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">PS_PostPlain_HDR</VariableName>
-      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">
-      </ObjectFileOutput>
       <VariableName Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">PS_PostPlain_HDR</VariableName>
       <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
       </ObjectFileOutput>
@@ -2400,12 +1934,6 @@
       <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Test|x64'">
       </ObjectFileOutput>
       <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Test|ARM64EC'">
-      </ObjectFileOutput>
-      <VariableName Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|x64'">PS_PostPlain_HDR</VariableName>
-      <VariableName Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|ARM64EC'">PS_PostPlain_HDR</VariableName>
-      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|x64'">
-      </ObjectFileOutput>
-      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|ARM64EC'">
       </ObjectFileOutput>
       <VariableName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">PS_PostPlain_HDR</VariableName>
       <VariableName Condition="'$(Configuration)|$(Platform)'=='Release|ARM64EC'">PS_PostPlain_HDR</VariableName>
@@ -2419,8 +1947,6 @@
       </ObjectFileOutput>
       <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='FullRelease|ARM64EC'">
       </ObjectFileOutput>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">Pixel</ShaderType>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">4.0_level_9_3</ShaderModel>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Pixel</ShaderType>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">4.0_level_9_3</ShaderModel>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">Pixel</ShaderType>
@@ -2429,10 +1955,6 @@
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Test|ARM64EC'">Pixel</ShaderType>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Test|x64'">4.0_level_9_3</ShaderModel>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Test|ARM64EC'">4.0_level_9_3</ShaderModel>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|x64'">Pixel</ShaderType>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|ARM64EC'">Pixel</ShaderType>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|x64'">4.0_level_9_3</ShaderModel>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|ARM64EC'">4.0_level_9_3</ShaderModel>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|ARM64EC'">Pixel</ShaderType>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">4.0_level_9_3</ShaderModel>
@@ -2441,24 +1963,18 @@
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='FullRelease|ARM64EC'">Pixel</ShaderType>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='FullRelease|x64'">4.0_level_9_3</ShaderModel>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='FullRelease|ARM64EC'">4.0_level_9_3</ShaderModel>
-      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">../Shaders/PixelShaderPlain_HDR.h</HeaderFileOutput>
       <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">../Shaders/PixelShaderPlain_HDR.h</HeaderFileOutput>
       <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">../Shaders/PixelShaderPlain_HDR.h</HeaderFileOutput>
       <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Test|x64'">../Shaders/PixelShaderPlain_HDR.h</HeaderFileOutput>
       <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Test|ARM64EC'">../Shaders/PixelShaderPlain_HDR.h</HeaderFileOutput>
-      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|x64'">../Shaders/PixelShaderPlain_HDR.h</HeaderFileOutput>
-      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|ARM64EC'">../Shaders/PixelShaderPlain_HDR.h</HeaderFileOutput>
       <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|x64'">../Shaders/PixelShaderPlain_HDR.h</HeaderFileOutput>
       <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|ARM64EC'">../Shaders/PixelShaderPlain_HDR.h</HeaderFileOutput>
       <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='FullRelease|x64'">../Shaders/PixelShaderPlain_HDR.h</HeaderFileOutput>
       <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='FullRelease|ARM64EC'">../Shaders/PixelShaderPlain_HDR.h</HeaderFileOutput>
-      <EntryPointName Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">PS_PostPlain_HDR</EntryPointName>
       <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">PS_PostPlain_HDR</EntryPointName>
       <EntryPointName Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">PS_PostPlain_HDR</EntryPointName>
       <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Test|x64'">PS_PostPlain_HDR</EntryPointName>
       <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Test|ARM64EC'">PS_PostPlain_HDR</EntryPointName>
-      <EntryPointName Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|x64'">PS_PostPlain_HDR</EntryPointName>
-      <EntryPointName Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|ARM64EC'">PS_PostPlain_HDR</EntryPointName>
       <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">PS_PostPlain_HDR</EntryPointName>
       <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Release|ARM64EC'">PS_PostPlain_HDR</EntryPointName>
       <EntryPointName Condition="'$(Configuration)|$(Platform)'=='FullRelease|x64'">PS_PostPlain_HDR</EntryPointName>
@@ -2467,24 +1983,18 @@
     <FxCompile Include="..\shaders\PixelShader_HDR.hlsl">
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">4.0_level_9_3</ShaderModel>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">true</ExcludedFromBuild>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">4.0_level_9_3</ShaderModel>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">4.0_level_9_3</ShaderModel>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">4.0_level_9_3</ShaderModel>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Test|x64'">4.0_level_9_3</ShaderModel>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Test|ARM64EC'">4.0_level_9_3</ShaderModel>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|x64'">4.0_level_9_3</ShaderModel>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|ARM64EC'">4.0_level_9_3</ShaderModel>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">4.0_level_9_3</ShaderModel>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|ARM64EC'">4.0_level_9_3</ShaderModel>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='FullRelease|x64'">4.0_level_9_3</ShaderModel>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='FullRelease|ARM64EC'">4.0_level_9_3</ShaderModel>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Test|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Test|ARM64EC'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|ARM64EC'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|ARM64EC'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='FullRelease|x64'">true</ExcludedFromBuild>
@@ -2501,9 +2011,7 @@
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Vertex</ShaderType>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">4.0_level_9_1</ShaderModel>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Vertex</ShaderType>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">Vertex</ShaderType>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">4.0_level_9_1</ShaderModel>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">4.0_level_9_1</ShaderModel>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">Vertex</ShaderType>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">4.0_level_9_1</ShaderModel>
       <VariableName Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">VertexShader</VariableName>
@@ -2511,12 +2019,8 @@
       <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
       </ObjectFileOutput>
       <VariableName Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">VertexShader</VariableName>
-      <VariableName Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">VertexShader</VariableName>
       <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">../Shaders/VertexShader.h</HeaderFileOutput>
-      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">../Shaders/VertexShader.h</HeaderFileOutput>
       <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
-      </ObjectFileOutput>
-      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">
       </ObjectFileOutput>
       <VariableName Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">VertexShader</VariableName>
       <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">../Shaders/VertexShader.h</HeaderFileOutput>
@@ -2540,19 +2044,11 @@
       </ObjectFileOutput>
       <VariableName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">VertexShader</VariableName>
       <VariableName Condition="'$(Configuration)|$(Platform)'=='Release|ARM64EC'">VertexShader</VariableName>
-      <VariableName Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|x64'">VertexShader</VariableName>
-      <VariableName Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|ARM64EC'">VertexShader</VariableName>
       <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|x64'">../Shaders/VertexShader.h</HeaderFileOutput>
       <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|ARM64EC'">../Shaders/VertexShader.h</HeaderFileOutput>
-      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|x64'">../Shaders/VertexShader.h</HeaderFileOutput>
-      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|ARM64EC'">../Shaders/VertexShader.h</HeaderFileOutput>
       <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
       </ObjectFileOutput>
       <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|ARM64EC'">
-      </ObjectFileOutput>
-      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|x64'">
-      </ObjectFileOutput>
-      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|ARM64EC'">
       </ObjectFileOutput>
       <VariableName Condition="'$(Configuration)|$(Platform)'=='FullRelease|x64'">VertexShader</VariableName>
       <VariableName Condition="'$(Configuration)|$(Platform)'=='FullRelease|ARM64EC'">VertexShader</VariableName>
@@ -2564,7 +2060,6 @@
       </ObjectFileOutput>
       <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">TextureVertexShader</EntryPointName>
       <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">TextureVertexShader</EntryPointName>
-      <EntryPointName Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">TextureVertexShader</EntryPointName>
       <EntryPointName Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">TextureVertexShader</EntryPointName>
       <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">TextureVertexShader</EntryPointName>
       <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Debug|ARM64EC'">TextureVertexShader</EntryPointName>
@@ -2580,16 +2075,10 @@
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Test|ARM64EC'">4.0_level_9_1</ShaderModel>
       <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">TextureVertexShader</EntryPointName>
       <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Release|ARM64EC'">TextureVertexShader</EntryPointName>
-      <EntryPointName Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|x64'">TextureVertexShader</EntryPointName>
-      <EntryPointName Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|ARM64EC'">TextureVertexShader</EntryPointName>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Vertex</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|ARM64EC'">Vertex</ShaderType>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|x64'">Vertex</ShaderType>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|ARM64EC'">Vertex</ShaderType>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">4.0_level_9_1</ShaderModel>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|ARM64EC'">4.0_level_9_1</ShaderModel>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|x64'">4.0_level_9_1</ShaderModel>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|ARM64EC'">4.0_level_9_1</ShaderModel>
       <EntryPointName Condition="'$(Configuration)|$(Platform)'=='FullRelease|x64'">TextureVertexShader</EntryPointName>
       <EntryPointName Condition="'$(Configuration)|$(Platform)'=='FullRelease|ARM64EC'">TextureVertexShader</EntryPointName>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='FullRelease|x64'">Vertex</ShaderType>
