@@ -487,6 +487,7 @@ struct rtggfxboard
 	int resolutionchange;
 	uae_u8 *gfxboard_surface, *fakesurface_surface;
 	bool gfxboard_intreq;
+	bool gfxboard_intreq_status;
 	bool gfxboard_intreq_marked;
 	bool gfxboard_external_interrupt;
 	int gfxboard_intena;
@@ -969,6 +970,7 @@ static void gfxboard_hsync_handler(void)
 		}
 		if (gb->pcemdev && gb->pcemobject2 && !gb->pcem_vblank) {
 			static int pollcnt;
+			bool pirq = gb->gfxboard_intreq_status;
 			int total = svga_get_vtotal(gb->pcemobject2);
 			if (total <= 0)
 				total = p96syncrate;
@@ -977,6 +979,12 @@ static void gfxboard_hsync_handler(void)
 			while (pollcnt >= 256) {
 				if (gfxboard_pcem_poll(gb)) {
 					gb->pcem_vblank = 1;
+					pollcnt &= 0xff;
+					break;
+				}
+				bool nirq = gb->gfxboard_intreq_status;
+				// exit immediately if new interrupt was generated. It might be used for screen split.
+				if (!pirq && nirq) {
 					pollcnt &= 0xff;
 					break;
 				}
@@ -1661,6 +1669,7 @@ void gfxboard_intreq(void *p, int act, bool safe)
 	struct rtggfxboard *gb = (struct rtggfxboard*)p;
 	if (act) {
 		if (gb->board->irq && gb->gfxboard_intena) {
+			gb->gfxboard_intreq_status = true;
 			if (gb->board->irq > 0) {
 				gb->gfxboard_intreq = 1;
 				gb->gfxboard_intreq_marked = 1;
@@ -1670,6 +1679,7 @@ void gfxboard_intreq(void *p, int act, bool safe)
 		}
 	} else {
 		gb->gfxboard_intreq = 0;
+		gb->gfxboard_intreq_status = false;
 		if (gb->board->irq < 0) {
 			gb->pcibs->irq_callback(gb->pcibs, false);
 		}
