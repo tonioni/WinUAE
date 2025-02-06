@@ -2566,6 +2566,7 @@ skip:
 
 	bool first = true;
 	uae_u8 *firstdstline = NULL;
+	int firstdstlinex = -1;
 
 	uae_u8 r = 0, g = 0, b = 0, a = 0;
 	for (y = ystart; y < yend; y++) {
@@ -2610,6 +2611,9 @@ skip:
 				} else if (genlock_image) {
 					int gx = (x + offsetx - gen_xoffset) * deltax / 65536;
 					if (gx >= 0 && gx < genlock_image_width && gy >= 0 && gy < genlock_image_height) {
+						if (firstdstlinex < 0) {
+							firstdstlinex = gx;
+						}
 						uae_u8 *s_genlock_image = image_genlock + gx * genlock_image_pixbytes;
 						r = s_genlock_image[genlock_image_red_index];
 						g = s_genlock_image[genlock_image_green_index];
@@ -2641,8 +2645,8 @@ skip:
 		}
 	}
 	
-	if (firstdstline) {
-		firstdstline += xstart * dst->pixbytes;
+	if (firstdstline && firstdstlinex >= 0) {
+		firstdstline += firstdstlinex * dst->pixbytes;
 		genlock_infotext(firstdstline, dst);
 	}
 
