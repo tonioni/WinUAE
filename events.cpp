@@ -368,7 +368,7 @@ void do_cycles_slow(int cycles_to_add)
 #endif
 	}
 
-	int remain = cycles_to_add & (CYCLE_UNIT - 1);
+	int remain = cycles_to_add;
 	cycles_to_add_remain += remain;
 }
 

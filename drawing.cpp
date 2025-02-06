@@ -1338,7 +1338,7 @@ void putpixel(uae_u8 *buf, uae_u16 *genlockbuf, int bpp, int x, xcolnr c8)
 		return;
 
 	if (genlockbuf)
-		genlockbuf[x] = 0xffff;
+		genlockbuf[x] = 1;
 
 	switch (bpp) {
 	case 1:
@@ -1682,7 +1682,7 @@ static void finish_drawing_frame(bool drawlines)
 		if (init_genlock_data != specialmonitor_need_genlock()) {
 			need_genlock_data = init_genlock_data = specialmonitor_need_genlock();
 			init_row_map();
-			//pfield_set_linetoscr();
+			lts_request = true;
 		}
 		emulate_genlock(vb, &vidinfo->tempbuffer, aga_genlock_features_zdclken);
 		vb = vidinfo->outbuffer = &vidinfo->tempbuffer;
@@ -2885,7 +2885,6 @@ static void expand_bplcon0(uae_u16 v)
 		v &= ~0x00B0;
 	}
 	v &= ~((currprefs.cs_color_burst ? 0x0000 : 0x0200) | 0x0100 | 0x0080 | 0x0020);
-
 
 	if ((v & 0x800) && !(bplcon0_denise & 0x800)) {
 		setlasthamcolor();
@@ -4230,6 +4229,18 @@ static void do_hstop_ecs(int cnt)
 #endif
 }
 
+void denise_handle_quick_strobe(uae_u16 strobe)
+{
+	struct denise_rga rd = { 0 };
+	rd.rga = strobe;
+	handle_strobes(&rd);
+}
+void denise_handle_quick_disable_hblank(void)
+{
+	do_hbstop(linear_denise_hbstop);
+	do_phbstop_aga(linear_denise_hbstop);
+}
+
 bool denise_update_reg_queued(uae_u16 reg, uae_u16 v, uae_u32 cycle)
 {
 	if (((rga_denise_fast_write + 1) & (DENISE_RGA_SLOT_FAST_TOTAL - 1))  == rga_denise_fast_read) {
@@ -4247,11 +4258,11 @@ bool denise_update_reg_queued(uae_u16 reg, uae_u16 v, uae_u32 cycle)
 
 static void do_denise_cck(int linecnt, int startpos, int i)
 {
-	int idxp = (i + startpos + 1) & (DENISE_RGA_SLOT_TOTAL - 1);
-	int idx0 = (i + startpos - 0) & (DENISE_RGA_SLOT_TOTAL - 1);
-	int idx1 = (i + startpos - 1) & (DENISE_RGA_SLOT_TOTAL - 1);
-	int idx2 = (i + startpos - 1) & (DENISE_RGA_SLOT_TOTAL - 1);
-	int idx3 = (i + startpos - 2) & (DENISE_RGA_SLOT_TOTAL - 1);
+	int idxp = (i + startpos + 1) & denise_rga_slot_size_mask;
+	int idx0 = (i + startpos - 0) & denise_rga_slot_size_mask;
+	int idx1 = (i + startpos - 1) & denise_rga_slot_size_mask;
+	int idx2 = (i + startpos - 1) & denise_rga_slot_size_mask;
+	int idx3 = (i + startpos - 2) & denise_rga_slot_size_mask;
 
 	denise_hcounter_new = denise_hcounter + 2;
 	denise_hcounter_new &= 511;
@@ -4310,7 +4321,7 @@ static void do_denise_cck(int linecnt, int startpos, int i)
 	}
 
 	if (!aga_mode && ecs_denise) {
-		int idbe = (i + startpos - 3) & (DENISE_RGA_SLOT_TOTAL - 1);
+		int idbe = (i + startpos - 3) & denise_rga_slot_size_mask;
 		rd = &rga_denise[idbe];
 		if (rd->line == linecnt) {
 			expand_drga_blanken(rd);
@@ -4994,6 +5005,23 @@ void draw_denise_line(int gfx_ypos, enum nln_how how, uae_u32 linecnt, int start
 			lts();
 			lts_changed = false;
 		}
+
+#if 0
+		static int testtoggle[1000];
+		testtoggle[gfx_ypos]++;
+		if (testtoggle[gfx_ypos] >= 100) {
+			testtoggle[gfx_ypos] = 0;
+		}
+		uae_u32 cc = testtoggle[gfx_ypos] < 30 ? 0xff00 : (testtoggle[gfx_ypos] < 60 ? 0xff : 0xff0000);
+		for (int i = 0; i < 8; i++) {
+			if (buf1) {
+				buf1t[i] ^= cc;
+				if (buf1t != buf2t) {
+					buf2t[i] ^= cc;
+				}
+			}
+		}
+#endif
 
 		// blank last pixel row if normal overscan mode, it might have NTSC artifacts
 		if (denise_pixtotal_max != -0x7fffffff && hbstrt_ptr1 && currprefs.gfx_overscanmode <= OVERSCANMODE_OVERSCAN) {
@@ -5759,11 +5787,17 @@ static void pfield_doline(int planecnt, int wordcount, uae_u8 *real_bplpt[8], ua
 }
 
 static uae_u32 chunky_out[2048];
-bool draw_denise_line_fast(uae_u8 *bplpt[8], int bplstart, int bpllen, int gfx_ypos, enum nln_how how, int dstart, int dtotal, bool vblank, struct denise_fastsprite *dfs)
+bool draw_denise_line_fast(uae_u8 *bplpt[8], int bplstart, int bpllen, int gfx_ypos, enum nln_how how, int total, int dstart, int dtotal, bool vblank, struct denise_fastsprite *dfs)
 {
 	int pos;
-	int end = dstart + dtotal;
+	int pixtotal = dtotal * 4;
+	int end = dstart + pixtotal;
 	uae_u8 *c = (uae_u8*)chunky_out;
+
+	denise_hcounter_prev = -1;
+	denise_pixtotal = dtotal;
+	denise_total = total;
+	denise_cck = 0;
 
 	get_line(gfx_ypos, how);
 
@@ -5772,9 +5806,9 @@ bool draw_denise_line_fast(uae_u8 *bplpt[8], int bplstart, int bpllen, int gfx_y
 	}
 
 	if (vblank) {
-		memset(buf1, 0, dtotal * sizeof(uae_u32));
+		memset(buf1, 0, pixtotal * sizeof(uae_u32));
 		if (buf1 != buf2) {
-			memset(buf2, 0, dtotal * sizeof(uae_u32));
+			memset(buf2, 0, pixtotal * sizeof(uae_u32));
 		}
 		return true;
 	}
@@ -5799,12 +5833,12 @@ bool draw_denise_line_fast(uae_u8 *bplpt[8], int bplstart, int bpllen, int gfx_y
 	// bitplanes
 	int bplstoppos = -1;
 	if (bpllen > 0) {
-		pos = bplstart + 34;
+		pos = bplstart;
 		buf1 = buf1p + (pos - dstart);
 		buf2 = buf2p + (pos - dstart);
-		int shift = bplcon1_shift[0] << denise_res;
+		int shift = bplcon1_shift[0];// << denise_res;
 		int delay = shift;
-		while (0 && delay > 0) {
+		while (1 && delay > 0) {
 			*buf1++ = bordercolor;
 			*buf2++ = bordercolor;
 			pos++;
