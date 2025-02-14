@@ -4258,11 +4258,11 @@ bool denise_update_reg_queued(uae_u16 reg, uae_u16 v, uae_u32 cycle)
 
 static void do_denise_cck(int linecnt, int startpos, int i)
 {
-	int idxp = (i + startpos + 1) & denise_rga_slot_size_mask;
-	int idx0 = (i + startpos - 0) & denise_rga_slot_size_mask;
-	int idx1 = (i + startpos - 1) & denise_rga_slot_size_mask;
-	int idx2 = (i + startpos - 1) & denise_rga_slot_size_mask;
-	int idx3 = (i + startpos - 2) & denise_rga_slot_size_mask;
+	int idxp = (i + startpos + 1) & DENISE_RGA_SLOT_MASK;
+	int idx0 = (i + startpos - 0) & DENISE_RGA_SLOT_MASK;
+	int idx1 = (i + startpos - 1) & DENISE_RGA_SLOT_MASK;
+	int idx2 = (i + startpos - 1) & DENISE_RGA_SLOT_MASK;
+	int idx3 = (i + startpos - 2) & DENISE_RGA_SLOT_MASK;
 
 	denise_hcounter_new = denise_hcounter + 2;
 	denise_hcounter_new &= 511;
@@ -4321,7 +4321,7 @@ static void do_denise_cck(int linecnt, int startpos, int i)
 	}
 
 	if (!aga_mode && ecs_denise) {
-		int idbe = (i + startpos - 3) & denise_rga_slot_size_mask;
+		int idbe = (i + startpos - 3) & DENISE_RGA_SLOT_MASK;
 		rd = &rga_denise[idbe];
 		if (rd->line == linecnt) {
 			expand_drga_blanken(rd);
