@@ -115,6 +115,7 @@ struct linestate
 	uae_u32 color0;
 	uae_u8 *linedatastate;
 	int bpllen;
+	int colors;
 };
 static uae_u32 displayresetcnt;
 uae_u8 agnus_hpos;
@@ -295,6 +296,16 @@ bool check_rga(int slot)
 	struct rgabuf *r = &rga_pipe[(slot + rga_slot_first_offset) & 3];
 	return r->alloc;
 }
+static void clear_rga(struct rgabuf *r)
+{
+	r->reg = 0x1fe;
+	r->p = NULL;
+	r->pv = 0;
+	r->type = 0;
+	r->alloc = 0;
+	r->write = false;
+	r->conflict = NULL;
+}
 static void shift_rga(void)
 {
 	rga_slot_first_offset--;
@@ -305,14 +316,7 @@ static void shift_rga(void)
 	rga_slot_out_offset &= 3;
 
 	struct rgabuf *r = &rga_pipe[rga_slot_first_offset];
-
-	r->reg = 0x1fe;
-	r->p = NULL;
-	r->pv = 0;
-	r->type = 0;
-	r->alloc = 0;
-	r->write = false;
-	r->conflict = NULL;
+	clear_rga(r);
 }
 
 
@@ -383,6 +387,9 @@ static bool syncs_stopped;
 int display_reset;
 static bool initial_frame;
 static int custom_fastmode_exit;
+#if 0
+static int custom_fastmode_bplextendmask;
+#endif
 static int plffirstline, plflastline;
 
 /* Stupid genlock-detection prevention hack.
@@ -10202,7 +10209,11 @@ static int getlinetype(void)
 	if (agnus_vb_active) {
 		type = LINETYPE_BLANK;
 	} else if (vdiwstate == diw_states::DIW_waiting_start || GET_PLANES(bplcon0) == 0 || !dmaen(DMA_BITPLANE)) {
-		type = LINETYPE_BORDER;
+		if ((bplcon0 & 1) && (bplcon3 & 0x20)) {
+			type = LINETYPE_BLANK;
+		} else {
+			type = LINETYPE_BORDER;
+		}
 	} else {
 		type = LINETYPE_BPL;
 	}
@@ -10230,6 +10241,21 @@ static int getcolorcount(int planes)
 	return 1 << planes;
 }
 
+static int getbplmod(int plane)
+{
+	uae_s16 mod;
+	if (fmode & 0x4000) {
+		if (((diwstrt >> 8) ^ (vpos ^ 1)) & 1) {
+			mod = bpl1mod;
+		} else {
+			mod = bpl2mod;
+		}
+	} else {
+		mod = (plane & 1) ? bpl2mod : bpl1mod;
+	}
+	return mod;
+}
+
 static bool checkprevfieldlinestateequalbpl(struct linestate *l)
 {
 	if (l->bplcon0 == bplcon0 && l->bplcon1 == bplcon1 &&
@@ -10245,6 +10271,12 @@ static bool checkprevfieldlinestateequalbpl(struct linestate *l)
 		int len = l->bpllen;
 		for (int i = 0; i < planes; i++) {
 			uaecptr apt = bplpt[i];
+#if 0
+			if (custom_fastmode_bplextendmask & (1 << i)) {
+				int mod = getbplmod(i);
+				apt += fetchmode_bytes + mod;
+			}
+#endif
 			if (!valid_address(apt, len)) {
 				return false;
 			}
@@ -10254,7 +10286,8 @@ static bool checkprevfieldlinestateequalbpl(struct linestate *l)
 			}
 			dpt += len;
 		}
-		int colors = getcolorcount(planes);
+		// compare colors
+		int colors = l->colors;
 		if (aga_mode) {
 			if (memcmp(dpt, agnus_colors.color_regs_aga, colors * sizeof(uae_u32))) {
 				return false;
@@ -10266,16 +10299,7 @@ static bool checkprevfieldlinestateequalbpl(struct linestate *l)
 		}
 		// advance bpl pointers
 		for (int i = 0; i < planes; i++) {
-			int mod;
-			if (fmode & 0x4000) {
-				if (((diwstrt >> 8) ^ (vpos ^ 1)) & 1) {
-					mod = bpl1mod;
-				} else {
-					mod = bpl2mod;
-				}
-			} else {
-				mod = (i & 1) ? bpl2mod : bpl1mod;
-			}
+			int mod = getbplmod(i);
 			bplpt[i] += mod + len;
 		}
 		return true;
@@ -10289,8 +10313,7 @@ static bool checkprevfieldlinestateequal(void)
 		return false;
 	}
 	bool ret = false;
-	int lof = interlace_seen ? 1 - lof_display : lof_display;
-	struct linestate *l = &lines[linear_vpos][lof];
+	struct linestate *l = &lines[linear_vpos][lof_display];
 
 	int type = getlinetype();
 	if (type == l->type && displayresetcnt == l->cnt) {
@@ -10324,6 +10347,8 @@ static void resetlinestate(void)
 
 }
 
+#define MAX_STORED_BPL_DATA 204
+
 static void storelinestate(void)
 {
 	if (linear_vpos >= MAX_SCANDOUBLED_LINES) {
@@ -10350,37 +10375,41 @@ static void storelinestate(void)
 
 	if (l->type == LINETYPE_BPL) {
 		if (!l->linedatastate) {
-			l->linedatastate = xmalloc(uae_u8, MAXHPOS * sizeof(uae_u16) + (256 * sizeof(uae_u32)));
+			l->linedatastate = xmalloc(uae_u8, MAX_STORED_BPL_DATA * sizeof(uae_u64) + 256 * sizeof(uae_u32));
 		}
-		int stop = ddfstop > 0xd8 ? 0xd8 : ddfstop;
+		int stop = !harddis_h && ddfstop > 0xd8 ? 0xd8 : ddfstop;
 		int len = ((stop - ddfstrt) + fetchunit - 1) / fetchunit + 1;
 		len = len * fetchunit / fetchstart;
 		len <<= 1;
-		len <<= fetchmode;
-		l->bpllen = len;
-		uae_u8 *dpt = l->linedatastate;
-		int planes = GET_PLANES(bplcon0);
-		for (int i = 0; i < planes; i++) {
-			if (!valid_address(bplpt[i], len)) {
-				l->type = 0;
-				return;
+		if (len < MAX_STORED_BPL_DATA && l->linedatastate) {
+			len <<= fetchmode;
+			l->bpllen = len;
+			uae_u8 *dpt = l->linedatastate;
+			int planes = GET_PLANES(bplcon0);
+			for (int i = 0; i < planes; i++) {
+				uaecptr apt = bplpt[i];
+#if 0
+				if (custom_fastmode_bplextendmask & (1 << i)) {
+					apt += fetchmode_bytes + getbplmod(i);
+				}
+#endif
+				if (!valid_address(apt, len)) {
+					l->type = 0;
+					return;
+				}
+				uae_u8 *pt = get_real_address(apt);
+				memcpy(dpt, pt, len);
+				dpt += len;
 			}
-			uae_u8 *pt = get_real_address(bplpt[i]);
-			memcpy(dpt, pt, len);
-			dpt += len;
-		}
-		if (aga_mode) {
-			int colors = 1 << planes;
-			memcpy(dpt, agnus_colors.color_regs_aga, colors * sizeof(uae_u32));
-		} else {
-			if (planes > 5) {
-				planes = 5;
+			int colors = getcolorcount(planes);
+			l->colors = colors;
+			if (aga_mode) {
+				memcpy(dpt, agnus_colors.color_regs_aga, colors * sizeof(uae_u32));
+			} else {
+				memcpy(dpt, agnus_colors.color_regs_ecs, colors * sizeof(uae_u16));
 			}
-			int colors = 1 << planes;
-			memcpy(dpt, agnus_colors.color_regs_ecs, colors * sizeof(uae_u16));
 		}
 	}
-
 }
 
 static void draw_line(void)
@@ -10435,6 +10464,8 @@ static void dmal_fast(void)
 		}
 	}
 }
+
+#if 0
 
 static struct denise_fastsprite dfs[MAX_SPRITES];
 static int dfs_num;
@@ -10518,7 +10549,6 @@ static void process_sprites_fast(void)
 	}
 }
 
-#if 0
 static void draw_line_fast(void)
 {
 	int dvp = calculate_linetype(linear_display_vpos);
@@ -10653,6 +10683,58 @@ static int can_fast_custom(void)
 	}
 	compute_spcflag_copper();
 	if (copper_enabled_thisline) {
+#if 0
+		// if copper is waiting, wake up is inside blank/border and
+		// it is followed by only writes to color registers:
+		// emulate it "immediately"
+		if (cop_state.state == COP_wait1 && cop_state.ir[1] == 0xfffe && cop_state.hcmp < ddfstrt) {
+			uaecptr ip = cop_state.ip;
+			bool ok = true;
+			int cnt = 0;
+			while(ok) {
+				uae_u16 ir1 = chipmem_wget_indirect(ip);
+				uae_u16 ir2 = chipmem_wget_indirect(ip + 2);
+				if (!(ir1 & 1)) {
+					// MOVE
+					ir1 &= 0x1fe;
+					// not color register?
+					if (ir1 < 0x180 || ir1 >= 0x180 + 32 * 2) {
+						ok = false;
+						break;
+					}
+				} else if ((ir2 & 1) && (ir2 & 1)) {
+					// SKIP
+					ok = false;
+					break;
+				} else {
+					// WAIT
+					if (ir2 != 0xfffe) {
+						ok = false;
+						break;
+					}
+					int vp = (ir1 >> 8) & 0x7F;
+					if (vp <= vpos) {
+						ok = false;
+					}
+					cop_state.ip = ip;
+					cop_state.ir[0] = ir1;
+					cop_state.ir[1] = ir2;
+					cop_state.vcmp = (cop_state.ir[0] & (cop_state.ir[1] | 0x8000)) >> 8;
+					cop_state.hcmp = (cop_state.ir[0] & cop_state.ir[1] & 0xFE);
+					break;
+				}
+				ip += 4;
+				cnt++;
+				if (cnt >= 7) {
+					ok = false;
+					break;
+				}
+			}
+			if (ok) {
+				return 1;
+			}
+		}
+#endif
 		return 0;
 	}
 	if (!display_hstart_fastmode) {
@@ -10899,6 +10981,18 @@ static void custom_trigger_start(void)
 			}
 			fast_lines_cnt = 0;
 		}
+#if 0
+		if (bpl_active_this_line) {
+			custom_fastmode_bplextendmask = 0;
+			for (int i = 0; i < RGA_SLOT_TOTAL + 1; i++) {
+				struct rgabuf *r = &rga_pipe[i];
+				if (r->reg >= 0x110 && r->reg < 0x120 && r->alloc) {
+					int num = (r->reg - 0x110) / 2;
+					custom_fastmode_bplextendmask |= 1 << num;
+				}
+			}
+		}
+#endif
 		int canline = can_fast_custom();
 		if (canline) {
 			bool same = checkprevfieldlinestateequal();
@@ -11898,6 +11992,11 @@ static void sync_equalline_handler(void)
 	} else {
 		next_denise_rga();
 		decide_line_end();
+	}
+
+	for (int i = 0; i < RGA_SLOT_TOTAL + 1; i++) {
+		struct rgabuf *r = &rga_pipe[i];
+		clear_rga(r);
 	}
 
 	agnus_hpos = hpos_delta;
