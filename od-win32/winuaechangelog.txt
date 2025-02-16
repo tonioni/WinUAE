@@ -1,4 +1,39 @@
 
+Beta 8:
+
+- More optimizations, now also uses line based emulation if scanline has bitplanes but it has not changed since last frame and line has no copper activity and no sprites. This restores performance compared to previous WinUAE versions when mostly static native display is visible (like WB or SysInfo screen :)) in non-cycle exact modes (including basic A500/A1200 + approximate CPU without CE). The less changing lines/copper activity the faster it becomes, almost static native screens are most likely faster than in old versions. Not perfect yet, some glitches can happen. Also more optimizations to do. This is more or less best of both worlds solution: chipset timing is accurate in all CPU modes (excluding blitter) but scanlines that have nothing interesting happening are emulated line based for best performance. Changed/non-changed line ratio logging is still active. Chipset panel subpixel emulation checkbox still disables this optimization.
+- When exiting debugger, restore focus back to previously active window.
+- b7 CD32 CD caching optimization didn't work correctly if identical sector range was requested back to back. Fixed. Affected at least FMV cartridge + VideoCD configuration.
+
+Current chipset emulation overhead estimates:
+
+RTG mode (no native mode visible): always linebased, very small chipset emulation overhead. (Same or faster than old versions)
+Native, vblank or border only: only lines that have copper activity are not line based, small chipset emulation overhead. (Usually faster than old versions)
+Native, bitplanes visible: line based mode when line has not changed and no sprites and no copper activity. Small chipset emulation overhead, the less lowers, the less overhead. Changed line or sprites or copper activity: high chipset emulation overhead. (Slower than old versions but can be also faster in some situations)
+
+Memory cycle-exact enabled: always cycle-by-cycle chipset mode, high chipset emulation overhead.
+
+TODO:
+
+Detect lines that have "simple" copper activity where copper is only used to modify colors inside hblank (very common case) and emulate these in line based mode.
+Emulate normal DMA mode sprites in line based mode.
+
+Beta 7:
+
+- Next part of optimizations partially implemented: use line based emulation and don't redraw the line if current line is vblank or background color and field has same type and color as last field and CPU is not memory cycle-exact and line has no copper activity. The more border visible, the faster emulation, currently mostly useful when booting to RTG mode, blank native mode during booting is emulated much faster now. (If line has bitplane and previous field's line had also same bitmap: skip line will be implemented later). Temporary debug logging: every second percentage of "skipped" lines is logged. Interlaced modes are not yet fully supported. Glitches possible, report any glitches (Chipset panel subpixel checkbox is temporarily reused as a DISABLE option for this optimization to confirm problem reason)
+- 32-bit version AVX2 -> AVX requirement change.
+
+- Only switch to no chipset RTG mode if memory cycle-exact is not selected.
+- If BPLCON0 ERSY is set, emulate counters stopping accurately only if CPU mode is at least memory cycle-exact to prevent random genlock misdetections and resulting hangs at boot. (Fastest possible mode already did this but not approximate CPU speed without memory cycle-exact)
+- Statefile OCS/ECS color register restore fixed.
+- Fixed lightpen cursor in genlock modes.
+- Fixed LDP-1450 OSD generated "YOU'RE HIT!!" message horizontal positioning (Platoon / Nova laserdisc arcade game).
+- Some more 86box merges.
+- PCI Matrox Millennium, Millennium II, Mystique and Mystique 220 emulation from 86box (originally from PCem). All 4 supported because all of them have differences that makes them partially incompatible with each other. Interrupts supported, blitter is fully working. Usual missing big-endian byteswapping bits implemented (Unexpectedly vsync interrupt was already implemented), blitter plane masking implemented, blitter TRANSC bit support was incomplete, support WORD writes to LONG-only blitter registers, Mystique built-in RAMDAC HW cursor color component order fixed. Blitter/3D FIFO was emulated in background thread in original code, this is disabled for next few betas because it makes debugging much easier.
+- Do not reject uaegfx Picasso96 blit operation (=Picasso96 does the blit operation in software) if RenderInfo BytesPerRow field is zero. Zero BPR is allowed.
+- Added Action Replay 3 3.17 full dump checksums to ROM scanner. Old dumps are still accepted where first 4 bytes of ROM are zeroed. (First 4 bytes are IO ports, ROM data is impossible to read with only software)
+- CD32 CD reads should be more real optical drive friendly, when CD32 is reading data continuously (playing CD streaming animation or video), host side CD sector reads are now always in increasing order without repeating same sectors.
+
 
 Beta 6:
 

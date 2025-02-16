@@ -287,10 +287,9 @@ struct denise_rga
 #endif
 };
 
-#define DENISE_RGA_SLOT_MIN_TOTAL 512
-#define DENISE_RGA_SLOT_MAX_TOTAL (512 * 1024)
-extern int denise_rga_slot_size_mask;
-extern struct denise_rga rga_denise[DENISE_RGA_SLOT_MAX_TOTAL];
+#define DENISE_RGA_SLOT_TOTAL 512
+#define DENISE_RGA_SLOT_MASK (DENISE_RGA_SLOT_TOTAL - 1)
+extern struct denise_rga rga_denise[DENISE_RGA_SLOT_TOTAL];
 
 struct denise_fastsprite
 {

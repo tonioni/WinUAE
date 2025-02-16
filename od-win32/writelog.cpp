@@ -72,6 +72,7 @@ static int console_input_linemode = -1;
 int always_flush_log = 0;
 TCHAR *conlogfile = NULL;
 static FILE *conlogfilehandle;
+static HWND previousactivewindow;
 
 #define WRITE_LOG_BUF_SIZE 4096
 
@@ -134,11 +135,21 @@ static void flushmsgpump(void)
 	}
 }
 
-void activate_console (void)
+void deactivate_console(void)
 {
+	if (previousactivewindow) {
+		SetForegroundWindow(previousactivewindow);
+		previousactivewindow = NULL;
+	}
+}
+
+void activate_console(void)
+{
+	previousactivewindow = NULL;
 	if (!consoleopen)
 		return;
-	SetForegroundWindow (GetConsoleWindow ());
+	previousactivewindow = GetForegroundWindow();
+	SetForegroundWindow(GetConsoleWindow());
 }
 
 static void open_console_window (void)
