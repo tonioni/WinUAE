@@ -1296,7 +1296,9 @@ static void write_filesys_config (struct uae_prefs *p, struct zfile *f)
 		if (ci->type == UAEDEV_DIR) {
 			_stprintf (tmp, _T("%s,%s:%s:%s,%d"), ci->readonly ? _T("ro") : _T("rw"),
 				ci->devname ? ci->devname : _T(""), ci->volname, str1c, bp);
-			cfgfile_write_str (f, _T("filesystem2"), tmp);
+			if (p->got_fs2_hdf2 >= 0) {
+				cfgfile_write_str (f, _T("filesystem2"), tmp);
+			}
 			_tcscpy (tmp3, tmp);
 #if 0
 			_stprintf (tmp2, _T("filesystem=%s,%s:%s"), uci->readonly ? _T("ro") : _T("rw"),
@@ -1377,8 +1379,9 @@ static void write_filesys_config (struct uae_prefs *p, struct zfile *f)
 				_tcscat(tmp3, _T(",identity"));
 			}
 
-			if (ci->type == UAEDEV_HDF)
+			if (ci->type == UAEDEV_HDF && p->got_fs2_hdf2 >= 0) {
 				cfgfile_write_str (f, _T("hardfile2"), tmp);
+			}
 #if 0
 			_stprintf (tmp2, _T("hardfile=%s,%d,%d,%d,%d,%s"),
 				uci->readonly ? "ro" : "rw", uci->sectors,
@@ -5316,7 +5319,7 @@ static int cfgfile_parse_newfilesys (struct uae_prefs *p, int nr, int type, TCHA
 		_tcscpy (uci.devname, devname);
 		if (! getintval (&tmpp, &uci.bootpri, 0))
 			goto empty_fs;
-	} else if (type == 1 || ((type == 2 || type == 3) && uaehfentry)) {
+	} else if (type == 1 || ((type == 2 || type == 3 || type == 4) && uaehfentry)) {
 		tmpp = _tcschr (value, ':');
 		if (tmpp == 0)
 			goto invalid_fs;
@@ -5339,6 +5342,16 @@ static int cfgfile_parse_newfilesys (struct uae_prefs *p, int nr, int type, TCHA
 				goto invalid_fs;
 			*tmpp++ = 0;
 			_tcscpy (uci.rootdir, tmpp2);
+		}
+		if (type == 4) {
+			const TCHAR *tmppr = tmpp;
+			const TCHAR *tmppr2 = tmpp;
+			TCHAR *root2 = getnextentry(&tmppr, ',');
+			if (root2) {
+				_tcscat(uci.rootdir, root2);
+				xfree(root2);
+			}
+			tmpp += tmppr - tmppr2;
 		}
 		if (uci.rootdir[0] != ':')
 			get_hd_geometry (&uci);
@@ -5474,6 +5487,9 @@ static int cfgfile_parse_filesys (struct uae_prefs *p, const TCHAR *option, TCHA
 		TCHAR tmp[100];
 		_stprintf (tmp, _T("uaehf%d"), i);
 		if (!_tcscmp (option, tmp)) {
+			if (!p->got_fs2_hdf2) {
+				p->got_fs2_hdf2 = -1;
+			}
 			for (;;) {
 				int type = -1;
 				int unit = -1;
@@ -5482,9 +5498,12 @@ static int cfgfile_parse_filesys (struct uae_prefs *p, const TCHAR *option, TCHA
 					return 1;
 				*tmpp++ = 0;
 				if (_tcsicmp (value, _T("hdf")) == 0) {
-					type = 1;
-					cfgfile_parse_partial_newfilesys (p, -1, type, tmpp, unit, true);
-					return 1;
+					if (p->got_fs2_hdf2 > 0) {
+						type = 1;
+						cfgfile_parse_partial_newfilesys (p, -1, type, tmpp, unit, true);
+						return 1;
+					}
+					type = 4;
 				} else if (_tcsnicmp (value, _T("cd"), 2) == 0 && (value[2] == 0 || value[3] == 0)) {
 					unit = 0;
 					if (value[2] > 0)
@@ -5499,9 +5518,11 @@ static int cfgfile_parse_filesys (struct uae_prefs *p, const TCHAR *option, TCHA
 					if (unit >= 0 && unit <= MAX_TOTAL_SCSI_DEVICES) {
 						type = 3;
 					}
-				} else if (_tcsicmp (value, _T("dir")) != 0) {
+				} else if (_tcsicmp (value, _T("dir")) == 0) {
+					if (p->got_fs2_hdf2 > 0) {
+						return 1;
+					}
 					type = 0;
-					return 1;  /* ignore for now */
 				}
 				if (type >= 0)
 					cfgfile_parse_newfilesys (p, -1, type, tmpp, unit, true);
@@ -5594,10 +5615,14 @@ invalid_fs:
 
 	}
 
-	if (_tcscmp (option, _T("filesystem2")) == 0)
+	if (_tcscmp (option, _T("filesystem2")) == 0) {
+		p->got_fs2_hdf2 = 1;
 		return cfgfile_parse_newfilesys (p, -1, 0, value, -1, false);
-	if (_tcscmp (option, _T("hardfile2")) == 0)
+	}
+	if (_tcscmp (option, _T("hardfile2")) == 0) {
+		p->got_fs2_hdf2 = 1;
 		return cfgfile_parse_newfilesys (p, -1, 1, value, -1, false);
+	}
 	if (_tcscmp (option, _T("filesystem_extra")) == 0) {
 		int idx = 0;
 		TCHAR *s = value;
@@ -8412,6 +8437,7 @@ void default_prefs (struct uae_prefs *p, bool reset, int type)
 	p->gfx_scandoubler = false;
 	p->start_gui = true;
 	p->start_debugger = false;
+	p->got_fs2_hdf2 = 0;
 
 	p->all_lines = 0;
 	/* Note to porters: please don't change any of these options! UAE is supposed

@@ -96,10 +96,6 @@ extern float getvsyncrate(int monid, float hz, int *mult);
 struct vidbuffer
 {
     /* Function implemented by graphics driver */
-    void (*flush_line)         (struct vidbuf_description *gfxinfo, struct vidbuffer *vb, int line_no);
-    void (*flush_block)        (struct vidbuf_description *gfxinfo, struct vidbuffer *vb, int first_line, int end_line);
-    void (*flush_screen)       (struct vidbuf_description *gfxinfo, struct vidbuffer *vb, int first_line, int end_line);
-    void (*flush_clear_screen) (struct vidbuf_description *gfxinfo, struct vidbuffer *vb);
     int  (*lockscr)            (struct vidbuf_description *gfxinfo, struct vidbuffer *vb);
     void (*unlockscr)          (struct vidbuf_description *gfxinfo, struct vidbuffer *vb);
     uae_u8 *linemem;

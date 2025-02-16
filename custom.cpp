@@ -128,7 +128,7 @@ static struct rgabuf rga_pipe[RGA_SLOT_TOTAL + 1];
 struct denise_rga rga_denise[DENISE_RGA_SLOT_TOTAL];
 static struct linestate *current_line_state;
 static struct linestate lines[MAX_SCANDOUBLED_LINES][2];
-static int rga_denise_cycle, rga_denise_cycle_start, rga_denise_cycle_start_prev, rga_denise_cycle_count;
+static int rga_denise_cycle, rga_denise_cycle_start, rga_denise_cycle_count;
 static int rga_denise_cycle_line = 1;
 static struct pipeline_reg preg;
 static struct pipeline_func pfunc[MAX_PIPELINE_REG];
@@ -2263,7 +2263,7 @@ static int GETHPOS(void)
 	if (islightpentriggered()) {
 		return hpos_lpen;
 	}
-	if (!eventtab[ev_sync].active) {
+	if (!eventtab[ev_sync].active || syncs_stopped) {
 		return agnus_hpos;
 	}
 	evt_t c = get_cycles();
@@ -10177,7 +10177,6 @@ static int wclks_prev;
 
 static void next_denise_rga(void)
 {
-	rga_denise_cycle_start_prev = rga_denise_cycle_start;
 	rga_denise_cycle_start = rga_denise_cycle;
 	rga_denise_cycle_count = 0;
 	rga_denise[(rga_denise_cycle - 1) & DENISE_RGA_SLOT_MASK].line++;
@@ -10206,6 +10205,7 @@ static void decide_line_end(void)
 static int getlinetype(void)
 {
 	int type;
+	
 	if (agnus_vb_active) {
 		type = LINETYPE_BLANK;
 	} else if (vdiwstate == diw_states::DIW_waiting_start || GET_PLANES(bplcon0) == 0 || !dmaen(DMA_BITPLANE)) {
@@ -10431,7 +10431,7 @@ static void draw_line(void)
 	int cslen = 10;
 	draw_denise_line(dvp, nextline_how, rga_denise_cycle_line, rga_denise_cycle_start, rga_denise_cycle_count,
 		display_hstart_cyclewait_skip, display_hstart_cyclewait_skip2,
-		wclks, cs, cslen);
+		wclks, cs, cslen, lol);
 }
 
 static void dmal_fast(void)
@@ -10607,10 +10607,12 @@ static void quick_denise_rga(void)
 	for (int i = 0; i < rga_denise_cycle_count; i++) {
 		int off = i + rga_denise_cycle_start;
 		struct denise_rga *rd = &rga_denise[off & DENISE_RGA_SLOT_MASK];
-		if (rd->line == rga_denise_cycle_line && rd->rga != 0x1fe) {
+		if (rd->line == rga_denise_cycle_line && rd->rga != 0x1fe && (rd->rga < 0x38 || rd->rga >= 0x40)) {
 			denise_update_reg(rd->rga, rd->v);
 		}
 	}
+	uae_u16 strobe = get_strobe_reg(0);
+	denise_handle_quick_strobe(strobe, display_hstart_fastmode);
 }
 
 static void do_draw_line(void)
@@ -10683,6 +10685,7 @@ static int can_fast_custom(void)
 	}
 	compute_spcflag_copper();
 	if (copper_enabled_thisline) {
+
 #if 0
 		// if copper is waiting, wake up is inside blank/border and
 		// it is followed by only writes to color registers:
@@ -11958,7 +11961,7 @@ static void fast_strobe(void)
 	if (prev_strobe == 0x3c && str != 0x3c) {
 		INTREQ_INT(5, 0);
 	}
-	denise_handle_quick_strobe(str);
+	denise_handle_quick_strobe(str, display_hstart_fastmode);
 	prev_strobe = str;
 }
 
@@ -12014,6 +12017,9 @@ static void sync_equalline_handler(void)
 	fast_lines_cnt++;
 
 	custom_trigger_start();
+
+	int dvp = calculate_linetype(linear_display_vpos);
+	denise_set_line(dvp);
 
 	if (eventtab[ev_sync].active) {
 		check_extra();
