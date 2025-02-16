@@ -1874,8 +1874,6 @@ void vsync_handle_redraw(int long_field, int lof_changed, uae_u16 bplcon0p, uae_
 
 		if (ad->framecnt == 0) {
 			init_drawing_frame();
-		} else if (currprefs.cpu_memory_cycle_exact) {
-			//init_hardware_for_drawing_frame();
 		}
 	} else {
 #if 0
@@ -1886,23 +1884,6 @@ void vsync_handle_redraw(int long_field, int lof_changed, uae_u16 bplcon0p, uae_
 	}
 
 	gui_flicker_led (-1, 0, 0);
-}
-
-
-static void dummy_flush_line(struct vidbuf_description *gfxinfo, struct vidbuffer *vb, int line_no)
-{
-}
-
-static void dummy_flush_block(struct vidbuf_description *gfxinfo, struct vidbuffer *vb, int first_line, int last_line)
-{
-}
-
-static void dummy_flush_screen(struct vidbuf_description *gfxinfo, struct vidbuffer *vb, int first_line, int last_line)
-{
-}
-
-static void dummy_flush_clear_screen(struct vidbuf_description *gfxinfo, struct vidbuffer *vb)
-{
 }
 
 static int  dummy_lock(struct vidbuf_description *gfxinfo, struct vidbuffer *vb)
@@ -1917,12 +1898,8 @@ static void dummy_unlock(struct vidbuf_description *gfxinfo, struct vidbuffer *v
 static void gfxbuffer_reset(int monid)
 {
 	struct vidbuf_description *vidinfo = &adisplays[monid].gfxvidinfo;
-	vidinfo->drawbuffer.flush_line         = dummy_flush_line;
-	vidinfo->drawbuffer.flush_block        = dummy_flush_block;
-	vidinfo->drawbuffer.flush_screen       = dummy_flush_screen;
-	vidinfo->drawbuffer.flush_clear_screen = dummy_flush_clear_screen;
-	vidinfo->drawbuffer.lockscr            = dummy_lock;
-	vidinfo->drawbuffer.unlockscr          = dummy_unlock;
+	vidinfo->drawbuffer.lockscr = dummy_lock;
+	vidinfo->drawbuffer.unlockscr = dummy_unlock;
 }
 
 void notice_resolution_seen (int res, bool lace)
