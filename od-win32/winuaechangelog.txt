@@ -1,4 +1,13 @@
 
+
+Beta 9:
+
+- Fixed b8 optimization glitch fixes, first bitplane line had horizontal offset in some situations (for example Pinball Dreams), Denise horizontal counter was not reset to correct "past" position and in some situations top part of screen was filled with black.
+- If config file only has uaehfx config entries (No much older filesystem2 or hardfile2 entries before first uaehfx line), uaehfx entries are now fully loaded. uaehfx was added long time ago as a replacement for fs2/hf2 but they were only used to load extended information for previously loaded hardfile2 entry if it was real harddrive. When saving config loaded without filesystem2/hardfile2, only newer uaehfx entries are now written to config file.
+- b8 when exiting debugger, restore focus back to previously active window now also works when log window is not initially open.
+- Genlock misdetection (and hang) was still possible in some configs randomly.
+- NTSC + optimized mode long/short line toggle caused glitches. This is not easy to work around so now NTSC does not do Denise side long/short line emulation unless at least memory cycle exact is enabled. (Which only means extremely weird programs that abuse STRLONG strobe can only work in cycle exact modes). There is still edge NTSC glitches visible, will be fixed later.
+
 Beta 8:
 
 - More optimizations, now also uses line based emulation if scanline has bitplanes but it has not changed since last frame and line has no copper activity and no sprites. This restores performance compared to previous WinUAE versions when mostly static native display is visible (like WB or SysInfo screen :)) in non-cycle exact modes (including basic A500/A1200 + approximate CPU without CE). The less changing lines/copper activity the faster it becomes, almost static native screens are most likely faster than in old versions. Not perfect yet, some glitches can happen. Also more optimizations to do. This is more or less best of both worlds solution: chipset timing is accurate in all CPU modes (excluding blitter) but scanlines that have nothing interesting happening are emulated line based for best performance. Changed/non-changed line ratio logging is still active. Chipset panel subpixel emulation checkbox still disables this optimization.
