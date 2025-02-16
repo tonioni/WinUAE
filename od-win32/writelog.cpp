@@ -145,15 +145,23 @@ void deactivate_console(void)
 
 void activate_console(void)
 {
-	previousactivewindow = NULL;
-	if (!consoleopen)
+	if (!consoleopen) {
+		previousactivewindow = NULL;
 		return;
-	previousactivewindow = GetForegroundWindow();
-	SetForegroundWindow(GetConsoleWindow());
+	}
+	HWND w = GetForegroundWindow();
+	HWND cw = GetConsoleWindow();
+	if (cw != w) {
+		previousactivewindow = w;
+	}
+	SetForegroundWindow(cw);
 }
 
 static void open_console_window (void)
 {
+	if (!consoleopen) {
+		previousactivewindow = GetForegroundWindow();
+	}
 	AllocConsole ();
 	getconsole ();
 	consoleopen = -1;
