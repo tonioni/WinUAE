@@ -165,7 +165,7 @@ void clear_inhibit_frame(int monid, int bit);
 void toggle_inhibit_frame(int monid, int bit);
 
 extern struct color_entry denise_colors;
-void draw_denise_line(int gfx_ypos, nln_how how, uae_u32 linecnt, int startpos, int total, int skip, int skip2, int dtotal, int calib_start, int calib_len);
+void draw_denise_line(int gfx_ypos, nln_how how, uae_u32 linecnt, int startpos, int total, int skip, int skip2, int dtotal, int calib_start, int calib_len, bool lol);
 bool draw_denise_line_fast(uae_u8 *bplpt[8], int bplstart, int bpllen, int gfx_ypos, enum nln_how how, int total, int dstart, int dtotal, bool vblank, struct denise_fastsprite *dfs);
 bool start_draw_denise(void);
 void end_draw_denise(void);
@@ -174,8 +174,8 @@ void denise_reset(bool);
 bool denise_update_reg_queued(uae_u16 reg, uae_u16 v, uae_u32 cycle);
 void denise_store_registers(void);
 void denise_restore_registers(void);
-
+void denise_set_line(int gfx_ypos);
 void denise_handle_quick_disable_hblank(void);
-void denise_handle_quick_strobe(uae_u16 strobe);
+void denise_handle_quick_strobe(uae_u16 strobe, int offset);
 
 #endif /* UAE_DRAWING_H */
