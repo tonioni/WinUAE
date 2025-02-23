@@ -2907,6 +2907,7 @@ static uae_u32 REGPARAM2 picasso_SetSwitch (TrapContext *ctx)
 	struct amigadisplay *ad = &adisplays[monid];
 	struct picasso_vidbuf_description *vidinfo = &picasso_vidinfo[monid];
 	uae_u16 flag = trap_get_dreg(ctx, 0) & 0xFFFF;
+	bool switched = false;
 
 	TCHAR p96text[100];
 	p96text[0] = 0;
@@ -2923,17 +2924,21 @@ static uae_u32 REGPARAM2 picasso_SetSwitch (TrapContext *ctx)
 		state->HostAddress = NULL;
 		delayed_set_switch = true;
 		atomic_or(&vidinfo->picasso_state_change, PICASSO_STATE_SETGC);
-	} else {
+		switched = true;
+	} else if (ad->picasso_requested_on != (flag != 0) || delayed_set_switch) {
 		delayed_set_switch = false;
 		atomic_or(&vidinfo->picasso_state_change, PICASSO_STATE_SETSWITCH);
 		ad->picasso_requested_on = flag != 0;
 		set_config_changed();
+		switched = true;
 	}
-	if (flag)
-		_stprintf(p96text, _T("Picasso96 %dx%dx%d (%dx%dx%d)"),
-			state->Width, state->Height, state->BytesPerPixel * 8,
-			vidinfo->width, vidinfo->height, vidinfo->pixbytes * 8);
-	write_log(_T("SetSwitch() - %s - %s. Monitor=%d\n"), flag ? p96text : _T("amiga"), delayed_set_switch ? _T("delayed") : _T("immediate"), monid);
+	if (switched) {
+		if (flag)
+			_stprintf(p96text, _T("Picasso96 %dx%dx%d (%dx%dx%d)"),
+				state->Width, state->Height, state->BytesPerPixel * 8,
+				vidinfo->width, vidinfo->height, vidinfo->pixbytes * 8);
+		write_log(_T("SetSwitch() - %s - %s. Monitor=%d\n"), flag ? p96text : _T("amiga"), delayed_set_switch ? _T("delayed") : _T("immediate"), monid);
+	}
 
 	/* Put old switch-state in D0 */
 	unlockrtg();
