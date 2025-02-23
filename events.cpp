@@ -306,7 +306,7 @@ void do_cycles_slow(int cycles_to_add)
 		// runs CPU emulation with chipset stopped
 		// when there is free time to do so.
 		if (event_check_vsync()) {
-			syncline_cnt = 16;
+			syncline_cnt = 8;
 			return;
 		}
 	}

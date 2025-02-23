@@ -6098,7 +6098,7 @@ static void hsync_handler_post(bool onvsync)
 	} else if (!currprefs.cpu_thread && !cpu_sleepmode && currprefs.m68k_speed < 0 && !currprefs.cpu_memory_cycle_exact) {
 
 		static int sleeps_remaining;
-		if (0 && is_last_line ()) {
+		if (is_last_line()) {
 			sleeps_remaining = (165 - currprefs.cpu_idle) / 6;
 			if (sleeps_remaining < 0)
 				sleeps_remaining = 0;
@@ -6127,9 +6127,9 @@ static void hsync_handler_post(bool onvsync)
 		} else {
 			static int linecounter;
 			/* end of scanline, run cpu emulation as long as we still have time */
+			int maxlc = 1;
 			vsyncmintime += vsynctimeperline;
 			linecounter++;
-			int maxlc = 8;
 			events_reset_syncline();
 			if (vsync_isdone(NULL) <= 0 && !currprefs.turbo_emulation && (linecounter & (maxlc - 1)) == 0) {
 				if (vsyncmaxtime - vsyncmintime > 0) {
