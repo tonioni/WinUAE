@@ -100,23 +100,6 @@ struct pipeline_reg
 	uae_u16 *p;
 	uae_u16 v;
 };
-#define LINE_DRAW_COUNT 3
-#define LINETYPE_BLANK 1
-#define LINETYPE_BORDER 2
-#define LINETYPE_BPL 3
-struct linestate
-{
-	int type;
-	uae_u32 cnt;
-	uae_u16 ddfstrt, ddfstop;
-	uae_u16 diwstrt, diwstop, diwhigh;
-	uae_u16 bplcon0, bplcon1, bplcon2, bplcon3, bplcon4;
-	uae_u16 fmode;
-	uae_u32 color0;
-	uae_u8 *linedatastate;
-	int bpllen;
-	int colors;
-};
 static uae_u32 displayresetcnt;
 uae_u8 agnus_hpos;
 int agnus_hpos_prev, agnus_hpos_next, agnus_vpos_next;
@@ -1480,6 +1463,11 @@ static bool changed_chipset_refresh(void)
 	return stored_chipset_refresh != get_chipset_refresh(&currprefs);
 }
 
+static void resetfulllinestate(void)
+{
+	displayresetcnt++;
+}
+
 void compute_framesync(void)
 {
 	struct vidbuf_description *vidinfo = &adisplays[0].gfxvidinfo;
@@ -1678,7 +1666,7 @@ void compute_framesync(void)
 	if (target_graphics_buffer_update(0, false)) {
 		reset_drawing();
 	}
-	displayresetcnt++;
+	resetfulllinestate();
 }
 
 /* set PAL/NTSC or custom timing variables */
@@ -2058,7 +2046,8 @@ static void init_beamcon0(void)
 	display_hstart_cyclewait_skip2 = display_hstart_cyclewait_end;
 	display_hstart_cyclewait_skip = display_hstart_cyclewait - size;
 	display_hstart_cyclewait = size;
-	displayresetcnt++;
+	resetfulllinestate();
+	updatehwhpostable();
 }
 
 static void init_hz_reset(void)
@@ -2136,7 +2125,7 @@ void init_hz(void)
 		varsync_changed = 0;
 		dumpsync();
 	}
-	displayresetcnt++;
+	resetfulllinestate();
 }
 
 static void calcvdiw(void)
@@ -2222,14 +2211,16 @@ static uae_u16 DENISEID(int *missing)
 
 static bool blit_busy(bool dmaconr)
 {
-	// DMACONR latch load takes 1 cycle. Copper sees it immediately.
-	if (dmaconr) {
-		if (get_cycles() <= blt_info.finishcycle_dmacon) {
-			return true;
-		}
-	} else {
-		if (get_cycles() <= blt_info.finishcycle_copper) {
-			return true;
+	if (currprefs.blitter_cycle_exact) {
+		// DMACONR latch load takes 1 cycle. Copper sees it immediately.
+		if (dmaconr) {
+			if (get_cycles() <= blt_info.finishcycle_dmacon) {
+				return true;
+			}
+		} else {
+			if (get_cycles() <= blt_info.finishcycle_copper) {
+				return true;
+			}
 		}
 	}
 	if (!blt_info.blit_main) {
@@ -2281,7 +2272,7 @@ STATIC_INLINE int issyncstopped(uae_u16 con0)
 static void setsyncstopped(void)
 {
 	syncs_stopped = true;
-	displayresetcnt++;
+	resetfulllinestate();
 }
 
 static void checksyncstopped(uae_u16 con0)
@@ -2292,7 +2283,7 @@ static void checksyncstopped(uae_u16 con0)
 		}
 	} else if (syncs_stopped) {
 		syncs_stopped = false;
-		displayresetcnt++;
+		resetfulllinestate();
 	}
 }
 
@@ -2432,7 +2423,7 @@ static void VPOSW(uae_u16 v)
 
 	agnus_vpos_next = newvpos;
 	agnus_pos_change = 2;
-	displayresetcnt++;
+	resetfulllinestate();
 }
 
 static void VHPOSW(uae_u32 v)
@@ -2455,7 +2446,7 @@ static void VHPOSW(uae_u32 v)
 
 	agnus_vpos_next = newvpos;
 	agnus_pos_change = 2;
-	displayresetcnt++;
+	resetfulllinestate();
 }
 
 // 80E1 -> 80E2 -> 8000 -> 8001 -> 8102 -> 8103
@@ -3548,6 +3539,10 @@ static void BPLCON0(uae_u16 v)
 
 static void BPLCON1(uae_u16 v)
 {
+#if DISABLE_BPLCON1
+	v = 0;
+#endif
+
 	bplcon1_saved = v;
 	bplcon1 = v;
 }
@@ -6709,7 +6704,8 @@ void custom_reset(bool hardreset, bool keyboardreset)
 	sprite_width = GET_SPRITEWIDTH(fmode);
 	setup_fmodes(bplcon0);
 	setmaxhpos();
-	displayresetcnt++;
+	resetfulllinestate();
+	updateprghpostable();
 
 #ifdef ACTION_REPLAY
 	/* Doing this here ensures we can use the 'reset' command from within AR */
@@ -8542,6 +8538,7 @@ void check_prefs_changed_custom(void)
 			dumpsync();
 		}
 	}
+	resetfulllinestate();
 
 #ifdef GFXFILTER
 	for (int i = 0; i < 2; i++) {
@@ -8561,11 +8558,6 @@ void check_prefs_changed_custom(void)
 		fd->gfx_filter_bottom_border = fdcp->gfx_filter_bottom_border;
 	}
 #endif
-}
-
-
-static void reset_line(void)
-{
 }
 
 static uae_u16 fetch16(struct rgabuf *r)
@@ -10270,7 +10262,7 @@ static void decide_line_end(void)
 
 static int getlinetype(void)
 {
-	int type;
+	int type = 0;
 	
 	if (agnus_vb_active) {
 		type = LINETYPE_BLANK;
@@ -10280,7 +10272,7 @@ static int getlinetype(void)
 		} else {
 			type = LINETYPE_BORDER;
 		}
-	} else {
+	} else if (ddfstop > ddfstrt && ddfstrt >= 0x14 && GET_RES_AGNUS(bplcon0) == GET_RES_DENISE(bplcon0)) {
 		type = LINETYPE_BPL;
 	}
 	return type;
@@ -10322,15 +10314,23 @@ static int getbplmod(int plane)
 	return mod;
 }
 
-static bool checkprevfieldlinestateequalbpl(struct linestate *l)
+static int checkprevfieldlinestateequalbpl(struct linestate *l)
 {
-	if (l->bplcon0 == bplcon0 && l->bplcon1 == bplcon1 &&
-		l->bplcon2 == bplcon2 && l->ddfstrt == ddfstrt &&
-		l->ddfstop == ddfstop && l->diwstrt == diwstrt &&
-		l->diwstop == diwstop && l->bplcon3 == bplcon3 &&
-		l->bplcon4 == bplcon4 && l->diwhigh == diwhigh &&
-		l->fmode == fmode && l->bpllen > 0)
+	if (l->bplcon0 == bplcon0 &&
+		l->bplcon2 == bplcon2 &&
+		l->ddfstrt == ddfstrt &&
+		l->ddfstop == ddfstop &&
+		l->diwstrt == diwstrt &&
+		l->diwstop == diwstop &&
+		l->bplcon3 == bplcon3 &&
+		l->bplcon4 == bplcon4 &&
+		l->diwhigh == diwhigh &&
+		l->fmode == fmode &&
+		l->bpllen > 0)
 	{
+		if (l->bplcon1 != bplcon1) {
+			return -1;
+		}
 		// compare bpl data
 		uae_u8 *dpt = l->linedatastate;
 		int planes = GET_PLANES(bplcon0);
@@ -10344,11 +10344,11 @@ static bool checkprevfieldlinestateequalbpl(struct linestate *l)
 			}
 #endif
 			if (!valid_address(apt, len)) {
-				return false;
+				return 0;
 			}
 			uae_u8 *pt = get_real_address(apt);
 			if (memcmp(dpt, pt, len)) {
-				return false;
+				return -1;
 			}
 			dpt += len;
 		}
@@ -10356,11 +10356,11 @@ static bool checkprevfieldlinestateequalbpl(struct linestate *l)
 		int colors = l->colors;
 		if (aga_mode) {
 			if (memcmp(dpt, agnus_colors.color_regs_aga, colors * sizeof(uae_u32))) {
-				return false;
+				return -1;
 			}
 		} else {
 			if (memcmp(dpt, agnus_colors.color_regs_ecs, colors * sizeof(uae_u16))) {
-				return false;
+				return -1;
 			}
 		}
 		// advance bpl pointers
@@ -10368,9 +10368,60 @@ static bool checkprevfieldlinestateequalbpl(struct linestate *l)
 			int mod = getbplmod(i);
 			bplpt[i] += mod + len;
 		}
-		return true;
+		return 1;
 	}
-	return false;
+	return 0;
+}
+
+static void storelinestate(void);
+// draw line quickly (no copper, no sprites, no weird things, normal mode)
+static int draw_line_fast(struct linestate *l)
+{
+	if (l->bpl1dat_trigger_offset < 0) {
+		return 0;
+	}
+	// no HAM or DPF supported yet
+	if (bplcon0 & (0x800 | 0x400)) {
+		return 0;
+	}
+	int planes = GET_PLANES(bplcon0);
+	// no EHB
+	if (planes == 6 && (!(bplcon0 & 1) || !(bplcon2 & 0x200))) {
+		return 0;
+	}
+	// no odd/even scroll
+	if ((bplcon1 & 0x0f0f) != ((bplcon1 >> 4) & 0x0f0f)) {
+		return 0;
+	}
+
+	for (int i = 0; i < planes; i++) {
+		l->bplpt[i] = get_real_address(bplpt[i]);
+	}
+	int colors = getcolorcount(planes);
+	int len = l->bpllen;
+	l->colors = colors;
+	uae_u8 *dpt = l->linedatastate + planes * len;
+	if (aga_mode) {
+		memcpy(dpt, agnus_colors.color_regs_aga, colors * sizeof(uae_u32));
+	} else {
+		memcpy(dpt, agnus_colors.color_regs_ecs, colors * sizeof(uae_u16));
+	}
+	l->bplcon1 = bplcon1;
+	l->fetchmode_size = fetchmode_size;
+	l->fetchstart_mask = fetchstart_mask;
+	l->linecolorstate = dpt;
+	// draw quickly, store new state
+	int dvp = calculate_linetype(linear_display_vpos + 1);
+	if (draw_denise_line_fast(dvp, nextline_how, l)) {
+		// advance bpl pointers
+		int len = l->bpllen;
+		for (int i = 0; i < planes; i++) {
+			int mod = getbplmod(i);
+			bplpt[i] += mod + len;
+		}
+		return 1;
+	}
+	return 0;
 }
 
 static bool checkprevfieldlinestateequal(void)
@@ -10382,7 +10433,7 @@ static bool checkprevfieldlinestateequal(void)
 	struct linestate *l = &lines[linear_vpos][lof_display];
 
 	int type = getlinetype();
-	if (type == l->type && displayresetcnt == l->cnt) {
+	if (type && type == l->type && displayresetcnt == l->cnt) {
 		if (type == LINETYPE_BLANK) {
 			if (1) {
 				ret = true;
@@ -10396,7 +10447,12 @@ static bool checkprevfieldlinestateequal(void)
 			}
 		} else if (type == LINETYPE_BPL) {
 			if (1) {
-				ret = checkprevfieldlinestateequalbpl(l);
+				int r = checkprevfieldlinestateequalbpl(l);
+				if (r < 0) {
+					// no match but same parameters: do quick BPL emulation
+					r = draw_line_fast(l);
+				}
+				ret = r > 0;
 			}
 		}
 	}
@@ -10493,11 +10549,16 @@ static void draw_line(void)
 		wclks = -1;
 	}
 
+	struct linestate *l = NULL;
+	if (linear_vpos < MAX_SCANDOUBLED_LINES) {
+		l = &lines[linear_vpos][lof_display];
+	}
+
 	int cs = 0;// (beamcon0 & BEAMCON0_VARHSYEN) ? agnus_phsync_end - agnus_phsync_start : agnus_hsync_end - agnus_hsync_start;
 	int cslen = 10;
 	draw_denise_line(dvp, nextline_how, rga_denise_cycle_line, rga_denise_cycle_start, rga_denise_cycle_count,
 		display_hstart_cyclewait_skip, display_hstart_cyclewait_skip2,
-		wclks, cs, cslen, lol);
+		wclks, cs, cslen, lol, l);
 }
 
 static void dmal_fast(void)
@@ -10939,6 +11000,7 @@ static void custom_trigger_start(void)
 		linear_vpos_prev[1] = linear_vpos_prev[0];
 		linear_vpos_prev[0] = linear_vpos;
 		linear_vpos = 0;
+		denise_mark_last_line();
 
 		if (!custom_disabled) {
 			start_draw_denise();
@@ -11073,6 +11135,7 @@ static void custom_trigger_start(void)
 					custom_fastmode = 1;
 					do_imm_dmal();
 				}
+				check_vsyncs();
 			} else {
 				storelinestate();
 			}
@@ -11923,7 +11986,7 @@ static void generate_dma_requests(void)
 		if (bplcon0 & 0x0080) {
 			generate_uhres();
 		}
-		if (copper_enabled_thisline) {
+		if (copper_enabled_thisline && !custom_fastmode) {
 			generate_copper();
 		}
 	}
@@ -12092,7 +12155,7 @@ static void sync_equalline_handler(void)
 	agnus_hpos = hpos_delta;
 	linear_hpos = 0;
 
-	diff = (get_cycles() - eventtab[ev_sync].oldcycles) / CYCLE_UNIT;
+	diff = ((int)(get_cycles() - eventtab[ev_sync].oldcycles)) / CYCLE_UNIT;
 	diff -= display_hstart_fastmode - hpos_delta;
 
 	linear_hpos += diff;

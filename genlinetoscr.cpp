@@ -580,6 +580,7 @@ static void gen_pix_aga(void)
 		} else {
 			off += 4 / (1 << outres);
 		}
+		outf("internal_pixel_cnt += %d;", 4 / (1 << outres));
 	}
 
 	outf("if (denise_pixtotal >= 0 && denise_pixtotal < denise_pixtotal_max) {");
@@ -713,6 +714,7 @@ static void gen_pix(void)
 			gen_shiftbpl(maxplanes);
 		   pix++;
 		}
+		outf("internal_pixel_cnt += %d;", 4 / pixels);
 	}
 	int pixcnt = 0;
 	for (int i = 0; i < pixels; i++) {
@@ -880,6 +882,9 @@ static void gen_end(void)
 	outf("			denise_hcounter_next &= 511;");
 	outf("		}");
 	outf("		denise_pixtotal++;");
+	outf("		if (denise_pixtotal == 0) {");
+	outf("			internal_pixel_start_cnt = internal_pixel_cnt;");
+	outf("		}");
 	outf("		denise_hcounter = denise_hcounter_new;");
 	outf("		denise_cck++;");
 	outf("	}");
