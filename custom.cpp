@@ -577,7 +577,7 @@ static uae_u16 ddfstrt_saved, ddfstop_saved, diwhigh_saved;
 static uae_u32 saved_color_regs_aga[32];
 static struct color_entry agnus_colors;
 static int varsync_changed, varsync_maybe_changed[2];
-static bool programmed_register_accessed;
+static bool programmed_register_accessed_v, programmed_register_accessed_h;
 static int varhblank_lines, varhblank_val[2];
 static int exthblank_lines[2];
 static uae_u16 vt_old, ht_old, hs_old, vs_old;
@@ -860,6 +860,35 @@ static void docols(struct color_entry *colentry)
 #endif
 }
 
+#define HW_HPOS_TABLE_MAX 142
+static bool hw_hpos_table[HW_HPOS_TABLE_MAX];
+static uae_u8 prg_hpos_table[256];
+
+static void updateprghpostable(void)
+{
+	memset(prg_hpos_table, 0, sizeof prg_hpos_table);
+	prg_hpos_table[hsstrt & 0xff] |= 1;
+	prg_hpos_table[hsstop & 0xff] |= 2;
+	prg_hpos_table[hbstrt & 0xff] |= 4;
+	prg_hpos_table[hbstop & 0xff] |= 8;
+	prg_hpos_table[hcenter & 0xff] |= 16;
+}
+static void updatehwhpostable(void)
+{
+	int isntsc = (beamcon0 & BEAMCON0_PAL) ? 0 : 1;
+	hw_hpos_table[26] = false;
+	hw_hpos_table[27] = false;
+	hw_hpos_table[140] = false;
+	hw_hpos_table[141] = false;
+	if (isntsc) {
+		hw_hpos_table[27] = true;
+		hw_hpos_table[141] = true;
+	} else {
+		hw_hpos_table[26] = true;
+		hw_hpos_table[140] = true;
+	}
+}
+
 /* The fetch unit mainly controls ddf stop.  It's the number of cycles that
 are contained in an indivisible block during which ddf is active.  E.g.
 if DDF starts at 0x30, and fetchunit is 8, then possible DDF stops are
@@ -968,6 +997,19 @@ static void create_cycle_diagram_table(void)
 #if 0
 	debug_cycle_diagram();
 #endif
+
+	// hardwired horizontal positions
+	hw_hpos_table[1] = true;
+	hw_hpos_table[2] = true;
+	hw_hpos_table[9] = true;
+	hw_hpos_table[18] = true;
+	hw_hpos_table[35] = true;
+	hw_hpos_table[115] = true;
+	hw_hpos_table[132] = true;
+	hw_hpos_table[26] = true;
+	hw_hpos_table[27] = true;
+	hw_hpos_table[140] = true;
+	hw_hpos_table[141] = true;
 }
 
 /* fetchstart_mask can be larger than fm_maxplane if FMODE > 0.
@@ -2452,7 +2494,7 @@ static void HHPOS(uae_u16 v)
 static void SPRHSTRT(uae_u16 v)
 {
 	if (ecs_agnus) {
-		programmed_register_accessed = true;
+		programmed_register_accessed_h = true;
 		sprhstrt = v;
 		sprhstrt_v = v & (MAXVPOS_LINES_ECS - 1);
 	}
@@ -2460,7 +2502,7 @@ static void SPRHSTRT(uae_u16 v)
 static void SPRHSTOP(uae_u16 v)
 {
 	if (ecs_agnus) {
-		programmed_register_accessed = true;
+		programmed_register_accessed_h = true;
 		sprhstop = v;
 		sprhstop_v = v & (MAXVPOS_LINES_ECS - 1);
 	}
@@ -2468,7 +2510,7 @@ static void SPRHSTOP(uae_u16 v)
 static void BPLHSTRT(uae_u16 v)
 {
 	if (ecs_agnus) {
-		programmed_register_accessed = true;
+		programmed_register_accessed_h = true;
 		bplhstrt = v;
 		bplhstrt_v = v & (MAXVPOS_LINES_ECS - 1);
 	}
@@ -2476,7 +2518,7 @@ static void BPLHSTRT(uae_u16 v)
 static void BPLHSTOP(uae_u16 v)
 {
 	if (ecs_agnus) {
-		programmed_register_accessed = true;
+		programmed_register_accessed_h = true;
 		bplhstop = v;
 		bplhstop_v = v & (MAXVPOS_LINES_ECS - 1);
 	}
@@ -2484,7 +2526,7 @@ static void BPLHSTOP(uae_u16 v)
 static void SPRHPTH(uae_u16 v)
 {
 	if (ecs_agnus) {
-		programmed_register_accessed = true;
+		programmed_register_accessed_h = true;
 		hhbpl &= 0x0000ffff;
 		hhbpl |= v;
 	}
@@ -2492,7 +2534,7 @@ static void SPRHPTH(uae_u16 v)
 static void SPRHPTL(uae_u16 v)
 {
 	if (ecs_agnus) {
-		programmed_register_accessed = true;
+		programmed_register_accessed_h = true;
 		hhbpl &= 0xffff0000;
 		hhbpl |= v << 16;
 	}
@@ -2500,7 +2542,7 @@ static void SPRHPTL(uae_u16 v)
 static void BPLHPTH(uae_u16 v)
 {
 	if (ecs_agnus) {
-		programmed_register_accessed = true;
+		programmed_register_accessed_h = true;
 		hhspr &= 0x0000ffff;
 		hhspr |= v;
 	}
@@ -2508,7 +2550,7 @@ static void BPLHPTH(uae_u16 v)
 static void BPLHPTL(uae_u16 v)
 {
 	if (ecs_agnus) {
-		programmed_register_accessed = true;
+		programmed_register_accessed_h = true;
 		hhspr &= 0xffff0000;
 		hhspr |= v << 16;
 	}
@@ -2516,7 +2558,7 @@ static void BPLHPTL(uae_u16 v)
 static void BPLHMOD(uae_u16 v)
 {
 	if (ecs_agnus) {
-		programmed_register_accessed = true;
+		programmed_register_accessed_h = true;
 		bplhmod = v;
 	}
 }
@@ -3364,7 +3406,6 @@ static void varsync(int reg, bool resync, int oldval)
 	if (!ecs_agnus) {
 		return;
 	}
-	programmed_register_accessed = true;
 #ifdef PICASSO96
 	if (ad->picasso_on && p96refresh_active) {
 		vtotal = p96refresh_active;
@@ -6372,13 +6413,13 @@ void custom_reset(bool hardreset, bool keyboardreset)
 	lightpen_x[1] = -1;
 	lightpen_y[1] = -1;
 	memset(custom_storage, 0, sizeof(custom_storage));
-	//update_denise_vars();
 	exthblank = false;
 	display_reset = 1;
 	vt_old = 0;
 	ht_old = 0;
 	maxvpos_display_vsync_next = false;
-	programmed_register_accessed = false;
+	programmed_register_accessed_h = false;
+	programmed_register_accessed_v = false;
 	denise_reset(false);
 
 	agnus_hpos_next = -1;
@@ -6642,7 +6683,8 @@ void custom_reset(bool hardreset, bool keyboardreset)
 		SERPER(v);
 #endif
 		if (beamcon0 & (BEAMCON0_VARVBEN | BEAMCON0_CSCBEN | BEAMCON0_VARVSYEN | BEAMCON0_VARHSYEN | BEAMCON0_VARCSYEN | BEAMCON0_VARBEAMEN | BEAMCON0_DUAL | BEAMCON0_BLANKEN)) {
-			programmed_register_accessed = true;
+			programmed_register_accessed_h = true;
+			programmed_register_accessed_v = true;
 			dumpsync();
 		}
 
@@ -7175,38 +7217,50 @@ static int custom_wput_agnus(int addr, uae_u32 value, int noget)
 		if (htotal != value) {
 			htotal = value & (MAXHPOS_ROWS - 1);
 			varsync(addr, 1, -1);
+			programmed_register_accessed_h = true;
 		}
 		break;
 	case 0x1C2:
 		if (hsstop != value) {
+			prg_hpos_table[hsstop & 0xff] &= ~2;
 			hsstop = value & (MAXHPOS_ROWS - 1);
+			prg_hpos_table[hsstop & 0xff] |= 2;
 			varsync(addr, 1, -1);
+			programmed_register_accessed_h = true;
 		}
 		break;
 	case 0x1C4:
 		if (hbstrt != value) {
+			prg_hpos_table[hbstrt & 0xff] &= ~4;
 			hbstrt = value & 0x7ff;
+			prg_hpos_table[hbstrt & 0xff] |= 4;
 			hbstrt_cck = hbstrt & 0xff;
 			varsync(addr, 0, -1);
+			programmed_register_accessed_h = true;
 		}
 		break;
 	case 0x1C6:
 		if (hbstop != value) {
+			prg_hpos_table[hbstop & 0xff] &= ~8;
 			hbstop = value & 0x7ff;
+			prg_hpos_table[hbstop & 0xff] |= 8;
 			hbstop_cck = hbstop & 0xff;
 			varsync(addr, 0, -1);
+			programmed_register_accessed_h = true;
 		}
 		break;
 	case 0x1C8:
 		if (vtotal != value) {
 			vtotal = value & (MAXVPOS_LINES_ECS - 1);
 			varsync(addr, 1, -1);
+			programmed_register_accessed_v = true;
 		}
 		break;
 	case 0x1CA:
 		if (vsstop != value) {
 			vsstop = value & (MAXVPOS_LINES_ECS - 1);
 			varsync(addr, 1, -1);
+			programmed_register_accessed_v = true;
 		}
 		break;
 	case 0x1CC:
@@ -7214,6 +7268,7 @@ static int custom_wput_agnus(int addr, uae_u32 value, int noget)
 			uae_u16 old = vbstrt;
 			vbstrt = value & (MAXVPOS_LINES_ECS - 1);
 			varsync(addr, 0, old);
+			programmed_register_accessed_v = true;
 		}
 		break;
 	case 0x1CE:
@@ -7221,24 +7276,32 @@ static int custom_wput_agnus(int addr, uae_u32 value, int noget)
 			uae_u16 old = vbstop;
 			vbstop = value & (MAXVPOS_LINES_ECS - 1);
 			varsync(addr, 0, old);
+			programmed_register_accessed_v = true;
 		}
 		break;
 	case 0x1DE:
 		if (hsstrt != value) {
+			prg_hpos_table[hsstrt & 0xff] &= ~1;
 			hsstrt = value & (MAXHPOS_ROWS - 1);
+			prg_hpos_table[hsstrt & 0xff] |= 1;
 			varsync(addr, 1, -1);
+			programmed_register_accessed_h = true;
 		}
 		break;
 	case 0x1E0:
 		if (vsstrt != value) {
 			vsstrt = value & (MAXVPOS_LINES_ECS - 1);
 			varsync(addr, 1, -1);
+			programmed_register_accessed_v = true;
 		}
 		break;
 	case 0x1E2:
 		if (hcenter != value) {
+			prg_hpos_table[hcenter & 0xff] &= ~16;
 			hcenter = value & (MAXHPOS_ROWS - 1);
+			prg_hpos_table[hcenter & 0xff] |= 16;
 			varsync(addr, 0, -1);
+			programmed_register_accessed_h = true;
 		}
 		break;
 
@@ -8473,8 +8536,11 @@ void check_prefs_changed_custom(void)
 		varsync_changed = 2;
 	}
 	if (beamcon0 & (BEAMCON0_VARVBEN | BEAMCON0_CSCBEN | BEAMCON0_VARVSYEN | BEAMCON0_VARHSYEN | BEAMCON0_VARCSYEN | BEAMCON0_VARBEAMEN | BEAMCON0_DUAL | BEAMCON0_BLANKEN)) {
-		programmed_register_accessed = true;
-		dumpsync();
+		if (!programmed_register_accessed_h || !programmed_register_accessed_v) {
+			programmed_register_accessed_h = true;
+			programmed_register_accessed_v = true;
+			dumpsync();
+		}
 	}
 
 #ifdef GFXFILTER
@@ -9982,7 +10048,7 @@ static void check_vsyncs(void)
 		update_agnus_vb();
 	}
 
-	if (programmed_register_accessed) {
+	if (programmed_register_accessed_v) {
 		if (vpos == vbstrt) {
 			agnus_pvb = true;
 			agnus_pvb_start_line = true;
@@ -10125,7 +10191,7 @@ static void check_vsyncs(void)
 		}
 
 		// Programmed VSYNC
-		if (programmed_register_accessed) {
+		if (programmed_register_accessed_v) {
 			if (!lof_store && vpos == vsstrt) {
 				agnus_pvsync = true;
 				lof_pdetect = 0;
@@ -11237,11 +11303,11 @@ static void update_agnus_pcsync(int hp, bool prevsy)
 	}
 }
 
-static void check_hsyncs(void)
+static void check_hsyncs_hardwired(void)
 {
+	int hp = agnus_hpos;
 	bool pal = beamcon0_pal;
 	bool realpal = pal && !agnusa1000;
-	int hp = agnus_hpos;
 	int hhp = beamcon0_dual ? hhpos : agnus_hpos;
 
 	bool is_hsstrt = hp == 18;
@@ -11306,7 +11372,7 @@ static void check_hsyncs(void)
 			}
 			check_vidsyncs();
 		}
-		if (is_cen)  { // HCENTER
+		if (is_cen) { // HCENTER
 			if (vpos == 2 && !lof_store) {
 				agnus_vsync = true;
 				lof_detect = 0;
@@ -11352,7 +11418,7 @@ static void check_hsyncs(void)
 			}
 			check_vidsyncs();
 		}
-		if (is_cen)  { // HCENTER
+		if (is_cen) { // HCENTER
 			if (vpos == 3 && !lof_store) {
 				agnus_vsync = true;
 				lof_detect = 0;
@@ -11441,112 +11507,133 @@ static void check_hsyncs(void)
 		}
 	}
 
-	if (programmed_register_accessed) {
-		bool prevsy = agnus_pvsync;
-
-		if (hhp == hsstrt) {
-			agnus_phsync = true;
-			if (!lof_store && vpos == vsstrt) {
-				agnus_pvsync = true;
-				lof_pdetect = 0;
-#ifdef DEBUGGER
-				if (debug_dma) {
-					record_dma_event_agnus(AGNUS_EVENT_PRG_VS, true);
-				}
-#endif
-			}
-			if (!lof_store && vpos == vsstop) {
-				agnus_pvsync = false;
-#ifdef DEBUGGER
-				if (debug_dma) {
-					record_dma_event_agnus(AGNUS_EVENT_PRG_VS, false);
-				}
-#endif
-			}
-			if (beamcon0_has_hsync) {
-				display_hstart_cyclewait_start = true;
-				if (hsstrt > 8) {
-					// LOL info must be send after STRLONG cycyle
-					write_drga_flag(DENISE_RGA_FLAG_LOL | (lol ? DENISE_RGA_FLAG_LOL_ON : 0), DENISE_RGA_FLAG_LOL | DENISE_RGA_FLAG_LOL_ON);
-				}
-			}
-			update_agnus_pcsync(hhp, prevsy);
+	if (hp == 2) {
+		if (agnus_vb > 1) {
+			agnus_vb--;
 			update_agnus_vb();
-			check_vidsyncs();
 #ifdef DEBUGGER
 			if (debug_dma) {
-				record_dma_event_agnus(AGNUS_EVENT_PRG_HS, true);
+				record_dma_event_agnus(AGNUS_EVENT_HW_VB, true);
 			}
 #endif
 		}
-		if (hhp == hsstop) {
-			agnus_phsync = false;
-			update_agnus_pcsync(hhp, prevsy);
-			agnus_phsync_end = get_cck_cycles();
-			check_vidsyncs();
-			if (beamcon0_has_hsync && hsstrt <= 8) {
+	}
+}
+
+static void check_hsyncs_programmed(void)
+{
+	int hp = agnus_hpos;
+	int hhp = beamcon0_dual ? hhpos : agnus_hpos;
+	bool prevsy = agnus_pvsync;
+
+	if (hhp == hsstrt) {
+		agnus_phsync = true;
+		if (!lof_store && vpos == vsstrt) {
+			agnus_pvsync = true;
+			lof_pdetect = 0;
+#ifdef DEBUGGER
+			if (debug_dma) {
+				record_dma_event_agnus(AGNUS_EVENT_PRG_VS, true);
+			}
+#endif
+		}
+		if (!lof_store && vpos == vsstop) {
+			agnus_pvsync = false;
+#ifdef DEBUGGER
+			if (debug_dma) {
+				record_dma_event_agnus(AGNUS_EVENT_PRG_VS, false);
+			}
+#endif
+		}
+		if (beamcon0_has_hsync) {
+			display_hstart_cyclewait_start = true;
+			if (hsstrt > 8) {
 				// LOL info must be send after STRLONG cycyle
 				write_drga_flag(DENISE_RGA_FLAG_LOL | (lol ? DENISE_RGA_FLAG_LOL_ON : 0), DENISE_RGA_FLAG_LOL | DENISE_RGA_FLAG_LOL_ON);
 			}
-#ifdef DEBUGGER
-			if (debug_dma) {
-				record_dma_event_agnus(AGNUS_EVENT_PRG_HS, false);
-			}
-#endif
 		}
-		if (hhp == hbstrt_cck) {
-			agnus_phblank = true;
-			agnus_phblank_start = get_cck_cycles();
-			update_agnus_pcsync(hhp, prevsy);
-			check_vidsyncs();
-#ifdef DEBUGGER
-			if (debug_dma) {
-				record_dma_event_agnus(AGNUS_EVENT_HB, true);
-			}
-#endif
-		}
-		if (hhp == hbstop_cck) {
-			agnus_phblank = false;
-			agnus_phblank_end = get_cck_cycles();
-			update_agnus_pcsync(hhp, prevsy);
-			check_vidsyncs();
-#ifdef DEBUGGER
-			if (debug_dma) {
-				record_dma_event_agnus(AGNUS_EVENT_HB, false);
-			}
-#endif
-		}
-		if (hhp == hcenter) {
-			if (lof_store && vpos == vsstrt) {
-				agnus_pvsync = true;
-				lof_pdetect = 1;
-#ifdef DEBUGGER
-				if (debug_dma) {
-					record_dma_event_agnus(AGNUS_EVENT_PRG_VS, true);
-				}
-#endif
-			}
-			if (lof_store && vpos == vsstop) {
-				agnus_pvsync = false;
-#ifdef DEBUGGER
-				if (debug_dma) {
-					record_dma_event_agnus(AGNUS_EVENT_PRG_VS, false);
-				}
-#endif
-			}
-			update_agnus_pcsync(hhp, prevsy);
-			check_vidsyncs();
-		}
-	}
-
-	if (agnus_vb > 1) {
-		agnus_vb--;
+		update_agnus_pcsync(hhp, prevsy);
 		update_agnus_vb();
+		check_vidsyncs();
 #ifdef DEBUGGER
 		if (debug_dma) {
-			record_dma_event_agnus(AGNUS_EVENT_HW_VB, true);
+			record_dma_event_agnus(AGNUS_EVENT_PRG_HS, true);
 		}
 #endif
+	}
+	if (hhp == hsstop) {
+		agnus_phsync = false;
+		update_agnus_pcsync(hhp, prevsy);
+		agnus_phsync_end = get_cck_cycles();
+		check_vidsyncs();
+		if (beamcon0_has_hsync && hsstrt <= 8) {
+			// LOL info must be send after STRLONG cycyle
+			write_drga_flag(DENISE_RGA_FLAG_LOL | (lol ? DENISE_RGA_FLAG_LOL_ON : 0), DENISE_RGA_FLAG_LOL | DENISE_RGA_FLAG_LOL_ON);
+		}
+#ifdef DEBUGGER
+		if (debug_dma) {
+			record_dma_event_agnus(AGNUS_EVENT_PRG_HS, false);
+		}
+#endif
+	}
+	if (hhp == hbstrt_cck) {
+		agnus_phblank = true;
+		agnus_phblank_start = get_cck_cycles();
+		update_agnus_pcsync(hhp, prevsy);
+		check_vidsyncs();
+#ifdef DEBUGGER
+		if (debug_dma) {
+			record_dma_event_agnus(AGNUS_EVENT_HB, true);
+		}
+#endif
+	}
+	if (hhp == hbstop_cck) {
+		agnus_phblank = false;
+		agnus_phblank_end = get_cck_cycles();
+		update_agnus_pcsync(hhp, prevsy);
+		check_vidsyncs();
+#ifdef DEBUGGER
+		if (debug_dma) {
+			record_dma_event_agnus(AGNUS_EVENT_HB, false);
+		}
+#endif
+	}
+	if (hhp == hcenter) {
+		if (lof_store && vpos == vsstrt) {
+			agnus_pvsync = true;
+			lof_pdetect = 1;
+#ifdef DEBUGGER
+			if (debug_dma) {
+				record_dma_event_agnus(AGNUS_EVENT_PRG_VS, true);
+			}
+#endif
+		}
+		if (lof_store && vpos == vsstop) {
+			agnus_pvsync = false;
+#ifdef DEBUGGER
+			if (debug_dma) {
+				record_dma_event_agnus(AGNUS_EVENT_PRG_VS, false);
+			}
+#endif
+		}
+		update_agnus_pcsync(hhp, prevsy);
+		check_vidsyncs();
+	}
+}
+
+static void check_hsyncs(void)
+{
+	int hp = agnus_hpos;
+
+	if (hp < HW_HPOS_TABLE_MAX && hw_hpos_table[hp]) {
+		check_hsyncs_hardwired();
+	}
+	
+	if (programmed_register_accessed_h) {
+		int hhp = beamcon0_dual ? hhpos : agnus_hpos;
+		if (prg_hpos_table[hhp]) {
+			check_hsyncs_programmed();
+		}
 	}
 }
 
